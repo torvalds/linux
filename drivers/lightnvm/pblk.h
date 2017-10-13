@@ -55,10 +55,15 @@
 		for ((i) = 0, rlun = &(pblk)->luns[0]; \
 			(i) < (pblk)->nr_luns; (i)++, rlun = &(pblk)->luns[(i)])
 
-#define ERASE 2 /* READ = 0, WRITE = 1 */
-
 /* Static pool sizes */
 #define PBLK_GEN_WS_POOL_SIZE (2)
+
+enum {
+	PBLK_READ		= READ,
+	PBLK_WRITE		= WRITE,/* Write from write buffer */
+	PBLK_WRITE_INT,			/* Internal write - no write buffer */
+	PBLK_ERASE,
+};
 
 enum {
 	/* IO Types */
@@ -1132,7 +1137,7 @@ static inline int pblk_set_progr_mode(struct pblk *pblk, int type)
 
 	flags = geo->plane_mode >> 1;
 
-	if (type == WRITE)
+	if (type == PBLK_WRITE)
 		flags |= NVM_IO_SCRAMBLE_ENABLE;
 
 	return flags;

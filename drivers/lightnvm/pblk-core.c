@@ -152,7 +152,7 @@ struct nvm_rq *pblk_alloc_rqd(struct pblk *pblk, int rw)
 	struct nvm_rq *rqd;
 	int rq_size;
 
-	if (rw == WRITE) {
+	if (rw == PBLK_WRITE) {
 		pool = pblk->w_rq_pool;
 		rq_size = pblk_w_rq_size;
 	} else {
@@ -170,7 +170,7 @@ void pblk_free_rqd(struct pblk *pblk, struct nvm_rq *rqd, int rw)
 {
 	mempool_t *pool;
 
-	if (rw == WRITE)
+	if (rw == PBLK_WRITE)
 		pool = pblk->w_rq_pool;
 	else
 		pool = pblk->r_rq_pool;
@@ -569,10 +569,10 @@ static int pblk_line_submit_emeta_io(struct pblk *pblk, struct pblk_line *line,
 	int ret;
 	DECLARE_COMPLETION_ONSTACK(wait);
 
-	if (dir == WRITE) {
+	if (dir == PBLK_WRITE) {
 		bio_op = REQ_OP_WRITE;
 		cmd_op = NVM_OP_PWRITE;
-	} else if (dir == READ) {
+	} else if (dir == PBLK_READ) {
 		bio_op = REQ_OP_READ;
 		cmd_op = NVM_OP_PREAD;
 	} else
@@ -612,10 +612,10 @@ next_rq:
 	rqd.end_io = pblk_end_io_sync;
 	rqd.private = &wait;
 
-	if (dir == WRITE) {
+	if (dir == PBLK_WRITE) {
 		struct pblk_sec_meta *meta_list = rqd.meta_list;
 
-		rqd.flags = pblk_set_progr_mode(pblk, WRITE);
+		rqd.flags = pblk_set_progr_mode(pblk, PBLK_WRITE);
 		for (i = 0; i < rqd.nr_ppas; ) {
 			spin_lock(&line->lock);
 			paddr = __pblk_alloc_page(pblk, line, min);
@@ -679,7 +679,7 @@ next_rq:
 	reinit_completion(&wait);
 
 	if (rqd.error) {
-		if (dir == WRITE)
+		if (dir == PBLK_WRITE)
 			pblk_log_write_err(pblk, &rqd);
 		else
 			pblk_log_read_err(pblk, &rqd);
@@ -722,12 +722,12 @@ static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
 	int flags;
 	DECLARE_COMPLETION_ONSTACK(wait);
 
-	if (dir == WRITE) {
+	if (dir == PBLK_WRITE) {
 		bio_op = REQ_OP_WRITE;
 		cmd_op = NVM_OP_PWRITE;
-		flags = pblk_set_progr_mode(pblk, WRITE);
+		flags = pblk_set_progr_mode(pblk, PBLK_WRITE);
 		lba_list = emeta_to_lbas(pblk, line->emeta->buf);
-	} else if (dir == READ) {
+	} else if (dir == PBLK_READ) {
 		bio_op = REQ_OP_READ;
 		cmd_op = NVM_OP_PREAD;
 		flags = pblk_set_read_mode(pblk, PBLK_READ_SEQUENTIAL);
@@ -765,7 +765,7 @@ static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
 
 		rqd.ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line->id);
 
-		if (dir == WRITE) {
+		if (dir == PBLK_WRITE) {
 			__le64 addr_empty = cpu_to_le64(ADDR_EMPTY);
 
 			meta_list[i].lba = lba_list[paddr] = addr_empty;
@@ -791,7 +791,7 @@ static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
 	atomic_dec(&pblk->inflight_io);
 
 	if (rqd.error) {
-		if (dir == WRITE)
+		if (dir == PBLK_WRITE)
 			pblk_log_write_err(pblk, &rqd);
 		else
 			pblk_log_read_err(pblk, &rqd);
@@ -807,14 +807,14 @@ int pblk_line_read_smeta(struct pblk *pblk, struct pblk_line *line)
 {
 	u64 bpaddr = pblk_line_smeta_start(pblk, line);
 
-	return pblk_line_submit_smeta_io(pblk, line, bpaddr, READ);
+	return pblk_line_submit_smeta_io(pblk, line, bpaddr, PBLK_READ);
 }
 
 int pblk_line_read_emeta(struct pblk *pblk, struct pblk_line *line,
 			 void *emeta_buf)
 {
 	return pblk_line_submit_emeta_io(pblk, line, emeta_buf,
-						line->emeta_ssec, READ);
+						line->emeta_ssec, PBLK_READ);
 }
 
 static void pblk_setup_e_rq(struct pblk *pblk, struct nvm_rq *rqd,
@@ -823,7 +823,7 @@ static void pblk_setup_e_rq(struct pblk *pblk, struct nvm_rq *rqd,
 	rqd->opcode = NVM_OP_ERASE;
 	rqd->ppa_addr = ppa;
 	rqd->nr_ppas = 1;
-	rqd->flags = pblk_set_progr_mode(pblk, ERASE);
+	rqd->flags = pblk_set_progr_mode(pblk, PBLK_ERASE);
 	rqd->bio = NULL;
 }
 
@@ -1045,7 +1045,7 @@ static int pblk_line_init_bb(struct pblk *pblk, struct pblk_line *line,
 	line->smeta_ssec = off;
 	line->cur_sec = off + lm->smeta_sec;
 
-	if (init && pblk_line_submit_smeta_io(pblk, line, off, WRITE)) {
+	if (init && pblk_line_submit_smeta_io(pblk, line, off, PBLK_WRITE)) {
 		pr_debug("pblk: line smeta I/O failed. Retry\n");
 		return 1;
 	}

@@ -142,7 +142,7 @@ static void pblk_end_io_read(struct nvm_rq *rqd)
 	atomic_long_sub(rqd->nr_ppas, &pblk->inflight_reads);
 #endif
 
-	pblk_free_rqd(pblk, rqd, READ);
+	pblk_free_rqd(pblk, rqd, PBLK_READ);
 	atomic_dec(&pblk->inflight_io);
 }
 
@@ -307,7 +307,7 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 
 	bitmap_zero(&read_bitmap, nr_secs);
 
-	rqd = pblk_alloc_rqd(pblk, READ);
+	rqd = pblk_alloc_rqd(pblk, PBLK_READ);
 
 	rqd->opcode = NVM_OP_PREAD;
 	rqd->bio = bio;
@@ -382,7 +382,7 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 	return NVM_IO_OK;
 
 fail_rqd_free:
-	pblk_free_rqd(pblk, rqd, READ);
+	pblk_free_rqd(pblk, rqd, PBLK_READ);
 	return ret;
 }
 

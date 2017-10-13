@@ -67,7 +67,7 @@ void pblk_submit_rec(struct work_struct *work)
 
 err:
 	bio_put(bio);
-	pblk_free_rqd(pblk, rqd, WRITE);
+	pblk_free_rqd(pblk, rqd, PBLK_WRITE);
 }
 
 int pblk_recov_setup_rq(struct pblk *pblk, struct pblk_c_ctx *c_ctx,
@@ -80,7 +80,7 @@ int pblk_recov_setup_rq(struct pblk *pblk, struct pblk_c_ctx *c_ctx,
 	struct pblk_c_ctx *rec_ctx;
 	int nr_entries = c_ctx->nr_valid + c_ctx->nr_padded;
 
-	rec_rqd = pblk_alloc_rqd(pblk, WRITE);
+	rec_rqd = pblk_alloc_rqd(pblk, PBLK_WRITE);
 	rec_ctx = nvm_rq_to_pdu(rec_rqd);
 
 	/* Copy completion bitmap, but exclude the first X completed entries */
@@ -334,7 +334,7 @@ static void pblk_end_io_recov(struct nvm_rq *rqd)
 	pblk_up_page(pblk, rqd->ppa_list, rqd->nr_ppas);
 
 	nvm_dev_dma_free(dev->parent, rqd->meta_list, rqd->dma_meta_list);
-	pblk_free_rqd(pblk, rqd, WRITE);
+	pblk_free_rqd(pblk, rqd, PBLK_WRITE_INT);
 
 	atomic_dec(&pblk->inflight_io);
 	kref_put(&pad_rq->ref, pblk_recov_complete);
@@ -404,11 +404,11 @@ next_pad_rq:
 	bio->bi_iter.bi_sector = 0; /* internal bio */
 	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
-	rqd = pblk_alloc_rqd(pblk, WRITE);
+	rqd = pblk_alloc_rqd(pblk, PBLK_WRITE_INT);
 
 	rqd->bio = bio;
 	rqd->opcode = NVM_OP_PWRITE;
-	rqd->flags = pblk_set_progr_mode(pblk, WRITE);
+	rqd->flags = pblk_set_progr_mode(pblk, PBLK_WRITE);
 	rqd->meta_list = meta_list;
 	rqd->nr_ppas = rq_ppas;
 	rqd->ppa_list = ppa_list;
@@ -782,7 +782,7 @@ static int pblk_recov_l2p_from_oob(struct pblk *pblk, struct pblk_line *line)
 		goto free_meta_list;
 	}
 
-	rqd = pblk_alloc_rqd(pblk, READ);
+	rqd = pblk_alloc_rqd(pblk, PBLK_READ);
 
 	p.ppa_list = ppa_list;
 	p.meta_list = meta_list;
