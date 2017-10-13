@@ -3297,11 +3297,10 @@ static const char *__raid_dev_status(struct raid_set *rs, struct md_rdev *rdev, 
 static sector_t rs_get_progress(struct raid_set *rs,
 				sector_t resync_max_sectors, bool *array_in_sync)
 {
-	sector_t r, recovery_cp, curr_resync_completed;
+	sector_t r, curr_resync_completed;
 	struct mddev *mddev = &rs->md;
 
 	curr_resync_completed = mddev->curr_resync_completed ?: mddev->recovery_cp;
-	recovery_cp = mddev->recovery_cp;
 	*array_in_sync = false;
 
 	if (rs_is_raid0(rs)) {
@@ -3330,9 +3329,11 @@ static sector_t rs_get_progress(struct raid_set *rs,
 		} else if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
 			r = curr_resync_completed;
 		else
-			r = recovery_cp;
+			r = mddev->recovery_cp;
 
-		if (r == MaxSector) {
+		if ((r == MaxSector) ||
+		    (test_bit(MD_RECOVERY_DONE, &mddev->recovery) &&
+		     (mddev->curr_resync_completed == resync_max_sectors))) {
 			/*
 			 * Sync complete.
 			 */
@@ -3892,7 +3893,7 @@ static void raid_resume(struct dm_target *ti)
 
 static struct target_type raid_target = {
 	.name = "raid",
-	.version = {1, 12, 1},
+	.version = {1, 13, 0},
 	.module = THIS_MODULE,
 	.ctr = raid_ctr,
 	.dtr = raid_dtr,
