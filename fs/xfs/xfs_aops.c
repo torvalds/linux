@@ -735,6 +735,14 @@ xfs_vm_invalidatepage(
 {
 	trace_xfs_invalidatepage(page->mapping->host, page, offset,
 				 length);
+
+	/*
+	 * If we are invalidating the entire page, clear the dirty state from it
+	 * so that we can check for attempts to release dirty cached pages in
+	 * xfs_vm_releasepage().
+	 */
+	if (offset == 0 && length >= PAGE_SIZE)
+		cancel_dirty_page(page);
 	block_invalidatepage(page, offset, length);
 }
 
@@ -1190,25 +1198,27 @@ xfs_vm_releasepage(
 	 * mm accommodates an old ext3 case where clean pages might not have had
 	 * the dirty bit cleared. Thus, it can send actual dirty pages to
 	 * ->releasepage() via shrink_active_list(). Conversely,
-	 * block_invalidatepage() can send pages that are still marked dirty
-	 * but otherwise have invalidated buffers.
+	 * block_invalidatepage() can send pages that are still marked dirty but
+	 * otherwise have invalidated buffers.
 	 *
 	 * We want to release the latter to avoid unnecessary buildup of the
-	 * LRU, skip the former and warn if we've left any lingering
-	 * delalloc/unwritten buffers on clean pages. Skip pages with delalloc
-	 * or unwritten buffers and warn if the page is not dirty. Otherwise
-	 * try to release the buffers.
+	 * LRU, so xfs_vm_invalidatepage() clears the page dirty flag on pages
+	 * that are entirely invalidated and need to be released.  Hence the
+	 * only time we should get dirty pages here is through
+	 * shrink_active_list() and so we can simply skip those now.
+	 *
+	 * warn if we've left any lingering delalloc/unwritten buffers on clean
+	 * or invalidated pages we are about to release.
 	 */
+	if (PageDirty(page))
+		return 0;
+
 	xfs_count_page_state(page, &delalloc, &unwritten);
 
-	if (delalloc) {
-		WARN_ON_ONCE(!PageDirty(page));
+	if (WARN_ON_ONCE(delalloc))
 		return 0;
-	}
-	if (unwritten) {
-		WARN_ON_ONCE(!PageDirty(page));
+	if (WARN_ON_ONCE(unwritten))
 		return 0;
-	}
 
 	return try_to_free_buffers(page);
 }
