@@ -6139,6 +6139,19 @@ struct intel_connector *intel_connector_alloc(void)
 	return connector;
 }
 
+/*
+ * Free the bits allocated by intel_connector_alloc.
+ * This should only be used after intel_connector_alloc has returned
+ * successfully, and before drm_connector_init returns successfully.
+ * Otherwise the destroy callbacks for the connector and the state should
+ * take care of proper cleanup/free
+ */
+void intel_connector_free(struct intel_connector *connector)
+{
+	kfree(to_intel_digital_connector_state(connector->base.state));
+	kfree(connector);
+}
+
 /* Simple connector->get_hw_state implementation for encoders that support only
  * one connector and no cloning and hence the encoder state determines the state
  * of the connector. */

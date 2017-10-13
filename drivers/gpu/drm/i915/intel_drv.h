@@ -1363,6 +1363,7 @@ void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv);
 void intel_encoder_destroy(struct drm_encoder *encoder);
 int intel_connector_init(struct intel_connector *);
 struct intel_connector *intel_connector_alloc(void);
+void intel_connector_free(struct intel_connector *connector);
 bool intel_connector_get_hw_state(struct intel_connector *connector);
 void intel_connector_attach_encoder(struct intel_connector *connector,
 				    struct intel_encoder *encoder);

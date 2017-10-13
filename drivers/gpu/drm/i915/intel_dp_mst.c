@@ -458,13 +458,20 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
 	enum pipe pipe;
+	int ret;
 
 	intel_connector = intel_connector_alloc();
 	if (!intel_connector)
 		return NULL;
 
 	connector = &intel_connector->base;
-	drm_connector_init(dev, connector, &intel_dp_mst_connector_funcs, DRM_MODE_CONNECTOR_DisplayPort);
+	ret = drm_connector_init(dev, connector, &intel_dp_mst_connector_funcs,
+				 DRM_MODE_CONNECTOR_DisplayPort);
+	if (ret) {
+		intel_connector_free(intel_connector);
+		return NULL;
+	}
+
 	drm_connector_helper_add(connector, &intel_dp_mst_connector_helper_funcs);
 
 	intel_connector->get_hw_state = intel_dp_mst_get_hw_state;
@@ -472,15 +479,27 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	intel_connector->port = port;
 
 	for_each_pipe(dev_priv, pipe) {
-		drm_mode_connector_attach_encoder(&intel_connector->base,
-						  &intel_dp->mst_encoders[pipe]->base.base);
+		struct drm_encoder *enc =
+			&intel_dp->mst_encoders[pipe]->base.base;
+
+		ret = drm_mode_connector_attach_encoder(&intel_connector->base,
+							enc);
+		if (ret)
+			goto err;
 	}
 
 	drm_object_attach_property(&connector->base, dev->mode_config.path_property, 0);
 	drm_object_attach_property(&connector->base, dev->mode_config.tile_property, 0);
 
-	drm_mode_connector_set_path_property(connector, pathprop);
+	ret = drm_mode_connector_set_path_property(connector, pathprop);
+	if (ret)
+		goto err;
+
 	return connector;
+
+err:
+	drm_connector_cleanup(connector);
+	return NULL;
 }
 
 static void intel_dp_register_mst_connector(struct drm_connector *connector)
