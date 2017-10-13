@@ -18,9 +18,94 @@
 #include "cxgb4.h"
 #include "cxgb4_cudbg.h"
 
+static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
+	{ CUDBG_REG_DUMP, cudbg_collect_reg_dump },
+};
+
+static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
+{
+	u32 len = 0;
+
+	switch (entity) {
+	case CUDBG_REG_DUMP:
+		switch (CHELSIO_CHIP_VERSION(adap->params.chip)) {
+		case CHELSIO_T4:
+			len = T4_REGMAP_SIZE;
+			break;
+		case CHELSIO_T5:
+		case CHELSIO_T6:
+			len = T5_REGMAP_SIZE;
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return len;
+}
+
 u32 cxgb4_get_dump_length(struct adapter *adap, u32 flag)
 {
-	return 0;
+	u32 i, entity;
+	u32 len = 0;
+
+	if (flag & CXGB4_ETH_DUMP_HW) {
+		for (i = 0; i < ARRAY_SIZE(cxgb4_collect_hw_dump); i++) {
+			entity = cxgb4_collect_hw_dump[i].entity;
+			len += cxgb4_get_entity_length(adap, entity);
+		}
+	}
+
+	return len;
+}
+
+static void cxgb4_cudbg_collect_entity(struct cudbg_init *pdbg_init,
+				       struct cudbg_buffer *dbg_buff,
+				       const struct cxgb4_collect_entity *e_arr,
+				       u32 arr_size, void *buf, u32 *tot_size)
+{
+	struct adapter *adap = pdbg_init->adap;
+	struct cudbg_error cudbg_err = { 0 };
+	struct cudbg_entity_hdr *entity_hdr;
+	u32 entity_size, i;
+	u32 total_size = 0;
+	int ret;
+
+	for (i = 0; i < arr_size; i++) {
+		const struct cxgb4_collect_entity *e = &e_arr[i];
+
+		/* Skip entities that won't fit in output buffer */
+		entity_size = cxgb4_get_entity_length(adap, e->entity);
+		if (entity_size >
+		    pdbg_init->outbuf_size - *tot_size - total_size)
+			continue;
+
+		entity_hdr = cudbg_get_entity_hdr(buf, e->entity);
+		entity_hdr->entity_type = e->entity;
+		entity_hdr->start_offset = dbg_buff->offset;
+		memset(&cudbg_err, 0, sizeof(struct cudbg_error));
+		ret = e->collect_cb(pdbg_init, dbg_buff, &cudbg_err);
+		if (ret) {
+			entity_hdr->size = 0;
+			dbg_buff->offset = entity_hdr->start_offset;
+		} else {
+			cudbg_align_debug_buffer(dbg_buff, entity_hdr);
+		}
+
+		/* Log error and continue with next entity */
+		if (cudbg_err.sys_err)
+			ret = CUDBG_SYSTEM_ERROR;
+
+		entity_hdr->hdr_flags = ret;
+		entity_hdr->sys_err = cudbg_err.sys_err;
+		entity_hdr->sys_warn = cudbg_err.sys_warn;
+		total_size += entity_hdr->size;
+	}
+
+	*tot_size += total_size;
 }
 
 int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
@@ -59,6 +144,13 @@ int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 
 	dbg_buff.offset += min_size;
 	total_size = dbg_buff.offset;
+
+	if (flag & CXGB4_ETH_DUMP_HW)
+		cxgb4_cudbg_collect_entity(&cudbg_init, &dbg_buff,
+					   cxgb4_collect_hw_dump,
+					   ARRAY_SIZE(cxgb4_collect_hw_dump),
+					   buf,
+					   &total_size);
 
 	cudbg_hdr->data_len = total_size;
 	*buf_size = total_size;

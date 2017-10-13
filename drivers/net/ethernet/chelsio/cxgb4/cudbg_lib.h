@@ -15,24 +15,14 @@
  *
  */
 
-#ifndef __CUDBG_IF_H__
-#define __CUDBG_IF_H__
+#ifndef __CUDBG_LIB_H__
+#define __CUDBG_LIB_H__
 
-/* Error codes */
-#define CUDBG_STATUS_NO_MEM -19
-#define CUDBG_SYSTEM_ERROR -29
+int cudbg_collect_reg_dump(struct cudbg_init *pdbg_init,
+			   struct cudbg_buffer *dbg_buff,
+			   struct cudbg_error *cudbg_err);
 
-#define CUDBG_MAJOR_VERSION 1
-#define CUDBG_MINOR_VERSION 14
-
-enum cudbg_dbg_entity_type {
-	CUDBG_REG_DUMP = 1,
-	CUDBG_MAX_ENTITY = 70,
-};
-
-struct cudbg_init {
-	struct adapter *adap; /* Pointer to adapter structure */
-	void *outbuf; /* Output buffer */
-	u32 outbuf_size;  /* Output buffer size */
-};
-#endif /* __CUDBG_IF_H__ */
+struct cudbg_entity_hdr *cudbg_get_entity_hdr(void *outbuf, int i);
+void cudbg_align_debug_buffer(struct cudbg_buffer *dbg_buff,
+			      struct cudbg_entity_hdr *entity_hdr);
+#endif /* __CUDBG_LIB_H__ */
