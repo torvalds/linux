@@ -139,7 +139,6 @@ static struct nvm_tgt_dev *nvm_create_tgt_dev(struct nvm_dev *dev,
 	int prev_nr_luns;
 	int i, j;
 
-	nr_chnls = nr_luns / dev->geo.luns_per_chnl;
 	nr_chnls = (nr_chnls_mod == 0) ? nr_chnls : nr_chnls + 1;
 
 	dev_map = kmalloc(sizeof(struct nvm_dev_map), GFP_KERNEL);
