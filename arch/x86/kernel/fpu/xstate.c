@@ -73,26 +73,6 @@ unsigned int fpu_user_xstate_size;
 void fpu__xstate_clear_all_cpu_caps(void)
 {
 	setup_clear_cpu_cap(X86_FEATURE_XSAVE);
-	setup_clear_cpu_cap(X86_FEATURE_XSAVEOPT);
-	setup_clear_cpu_cap(X86_FEATURE_XSAVEC);
-	setup_clear_cpu_cap(X86_FEATURE_XSAVES);
-	setup_clear_cpu_cap(X86_FEATURE_AVX);
-	setup_clear_cpu_cap(X86_FEATURE_AVX2);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512F);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512IFMA);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512PF);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512ER);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512CD);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512DQ);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512BW);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512VL);
-	setup_clear_cpu_cap(X86_FEATURE_MPX);
-	setup_clear_cpu_cap(X86_FEATURE_XGETBV1);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512VBMI);
-	setup_clear_cpu_cap(X86_FEATURE_PKU);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512_4VNNIW);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512_4FMAPS);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512_VPOPCNTDQ);
 }
 
 /*
