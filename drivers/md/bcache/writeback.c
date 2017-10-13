@@ -440,6 +440,8 @@ static int bch_writeback_thread(void *arg)
 	struct cached_dev *dc = arg;
 	bool searched_full_index;
 
+	bch_ratelimit_reset(&dc->writeback_rate);
+
 	while (!kthread_should_stop()) {
 		down_write(&dc->writeback_lock);
 		if (!atomic_read(&dc->has_dirty) ||
@@ -467,7 +469,6 @@ static int bch_writeback_thread(void *arg)
 
 		up_write(&dc->writeback_lock);
 
-		bch_ratelimit_reset(&dc->writeback_rate);
 		read_dirty(dc);
 
 		if (searched_full_index) {
@@ -477,6 +478,8 @@ static int bch_writeback_thread(void *arg)
 			       !kthread_should_stop() &&
 			       !test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags))
 				delay = schedule_timeout_interruptible(delay);
+
+			bch_ratelimit_reset(&dc->writeback_rate);
 		}
 	}
 
