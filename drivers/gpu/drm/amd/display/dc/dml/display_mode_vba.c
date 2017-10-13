@@ -1158,7 +1158,7 @@ static bool CalculatePrefetchSchedule(
 		else if (PageTableLevels == 3)
 			*Tno_bw = UrgentExtraLatency;
 		else
-			Tno_bw = 0;
+			*Tno_bw = 0;
 	} else if (DCCEnable)
 		*Tno_bw = LineTime;
 	else
@@ -4721,14 +4721,14 @@ static void ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_
 					&& mode_lib->vba.SwathWidthYSingleDPP[k]
 							<= mode_lib->vba.MaximumSwathWidth[k]
 					&& mode_lib->vba.ODMCombineEnablePerState[i][k] == false) {
-				mode_lib->vba.NoOfDPP[i][k] = 1.0;
+				mode_lib->vba.NoOfDPP[i][k] = 1;
 				mode_lib->vba.RequiredDPPCLK[i][k] =
 						mode_lib->vba.MinDPPCLKUsingSingleDPP[k]
 								* (1.0
 										+ mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading
 												/ 100.0);
 			} else {
-				mode_lib->vba.NoOfDPP[i][k] = 2.0;
+				mode_lib->vba.NoOfDPP[i][k] = 2;
 				mode_lib->vba.RequiredDPPCLK[i][k] =
 						mode_lib->vba.MinDPPCLKUsingSingleDPP[k]
 								* (1.0
@@ -4790,14 +4790,14 @@ static void ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_
 								<= mode_lib->vba.MaximumSwathWidth[k]
 						&& mode_lib->vba.ODMCombineEnablePerState[i][k]
 								== false) {
-					mode_lib->vba.NoOfDPP[i][k] = 1.0;
+					mode_lib->vba.NoOfDPP[i][k] = 1;
 					mode_lib->vba.RequiredDPPCLK[i][k] =
 							mode_lib->vba.MinDPPCLKUsingSingleDPP[k]
 									* (1.0
 											+ mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading
 													/ 100.0);
 				} else {
-					mode_lib->vba.NoOfDPP[i][k] = 2.0;
+					mode_lib->vba.NoOfDPP[i][k] = 2;
 					mode_lib->vba.RequiredDPPCLK[i][k] =
 							mode_lib->vba.MinDPPCLKUsingSingleDPP[k]
 									* (1.0
@@ -4833,14 +4833,14 @@ static void ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_
 				mode_lib->vba.ODMCombineEnablePerState[i][k] = false;
 				if (mode_lib->vba.SwathWidthYSingleDPP[k]
 						<= mode_lib->vba.MaximumSwathWidth[k]) {
-					mode_lib->vba.NoOfDPP[i][k] = 1.0;
+					mode_lib->vba.NoOfDPP[i][k] = 1;
 					mode_lib->vba.RequiredDPPCLK[i][k] =
 							mode_lib->vba.MinDPPCLKUsingSingleDPP[k]
 									* (1.0
 											+ mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading
 													/ 100.0);
 				} else {
-					mode_lib->vba.NoOfDPP[i][k] = 2.0;
+					mode_lib->vba.NoOfDPP[i][k] = 2;
 					mode_lib->vba.RequiredDPPCLK[i][k] =
 							mode_lib->vba.MinDPPCLKUsingSingleDPP[k]
 									* (1.0

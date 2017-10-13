@@ -489,7 +489,7 @@ struct vba_vars_st {
 	double CursorBufferSize;
 	double CursorChunkSize;
 	unsigned int Mode;
-	double NoOfDPP[DC__VOLTAGE_STATES + 1][DC__NUM_DPP__MAX];
+	unsigned int NoOfDPP[DC__VOLTAGE_STATES + 1][DC__NUM_DPP__MAX];
 	double OutputLinkDPLanes[DC__NUM_DPP__MAX];
 	double SwathWidthYPerState[DC__VOLTAGE_STATES + 1][DC__NUM_DPP__MAX];
 	double SwathHeightYPerState[DC__VOLTAGE_STATES + 1][DC__NUM_DPP__MAX];
