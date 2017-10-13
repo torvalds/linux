@@ -111,10 +111,7 @@ static void pblk_end_w_fail(struct pblk *pblk, struct nvm_rq *rqd)
 		ppa_list = &rqd->ppa_addr;
 
 	recovery = mempool_alloc(pblk->rec_pool, GFP_ATOMIC);
-	if (!recovery) {
-		pr_err("pblk: could not allocate recovery context\n");
-		return;
-	}
+
 	INIT_LIST_HEAD(&recovery->failed);
 
 	bit = -1;
@@ -375,10 +372,7 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 	int ret;
 
 	rqd = pblk_alloc_rqd(pblk, READ);
-	if (IS_ERR(rqd)) {
-		pr_err("pblk: cannot allocate write req.\n");
-		return PTR_ERR(rqd);
-	}
+
 	m_ctx = nvm_rq_to_pdu(rqd);
 	m_ctx->private = meta_line;
 
@@ -546,19 +540,12 @@ static int pblk_submit_write(struct pblk *pblk)
 	if (!secs_to_flush && secs_avail < pblk->min_write_pgs)
 		return 1;
 
-	rqd = pblk_alloc_rqd(pblk, WRITE);
-	if (IS_ERR(rqd)) {
-		pr_err("pblk: cannot allocate write req.\n");
-		return 1;
-	}
-
 	bio = bio_alloc(GFP_KERNEL, pblk->max_write_pgs);
-	if (!bio) {
-		pr_err("pblk: cannot allocate write bio\n");
-		goto fail_free_rqd;
-	}
+
 	bio->bi_iter.bi_sector = 0; /* internal bio */
 	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+
+	rqd = pblk_alloc_rqd(pblk, WRITE);
 	rqd->bio = bio;
 
 	secs_to_sync = pblk_calc_secs_to_sync(pblk, secs_avail, secs_to_flush);
@@ -589,7 +576,6 @@ fail_free_bio:
 	pblk_free_write_rqd(pblk, rqd);
 fail_put_bio:
 	bio_put(bio);
-fail_free_rqd:
 	pblk_free_rqd(pblk, rqd, WRITE);
 
 	return 1;

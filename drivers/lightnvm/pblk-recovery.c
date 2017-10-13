@@ -34,10 +34,6 @@ void pblk_submit_rec(struct work_struct *work)
 								max_secs);
 
 	bio = bio_alloc(GFP_KERNEL, nr_rec_secs);
-	if (!bio) {
-		pr_err("pblk: not able to create recovery bio\n");
-		return;
-	}
 
 	bio->bi_iter.bi_sector = 0;
 	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
@@ -85,11 +81,6 @@ int pblk_recov_setup_rq(struct pblk *pblk, struct pblk_c_ctx *c_ctx,
 	int nr_entries = c_ctx->nr_valid + c_ctx->nr_padded;
 
 	rec_rqd = pblk_alloc_rqd(pblk, WRITE);
-	if (IS_ERR(rec_rqd)) {
-		pr_err("pblk: could not create recovery req.\n");
-		return -ENOMEM;
-	}
-
 	rec_ctx = nvm_rq_to_pdu(rec_rqd);
 
 	/* Copy completion bitmap, but exclude the first X completed entries */
@@ -404,21 +395,17 @@ next_pad_rq:
 	ppa_list = (void *)(meta_list) + pblk_dma_meta_size;
 	dma_ppa_list = dma_meta_list + pblk_dma_meta_size;
 
-	rqd = pblk_alloc_rqd(pblk, WRITE);
-	if (IS_ERR(rqd)) {
-		ret = PTR_ERR(rqd);
-		goto fail_free_meta;
-	}
-
 	bio = pblk_bio_map_addr(pblk, data, rq_ppas, rq_len,
 						PBLK_VMALLOC_META, GFP_KERNEL);
 	if (IS_ERR(bio)) {
 		ret = PTR_ERR(bio);
-		goto fail_free_rqd;
+		goto fail_free_meta;
 	}
 
 	bio->bi_iter.bi_sector = 0; /* internal bio */
 	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+
+	rqd = pblk_alloc_rqd(pblk, WRITE);
 
 	rqd->bio = bio;
 	rqd->opcode = NVM_OP_PWRITE;
@@ -490,8 +477,6 @@ free_rq:
 
 fail_free_bio:
 	bio_put(bio);
-fail_free_rqd:
-	pblk_free_rqd(pblk, rqd, WRITE);
 fail_free_meta:
 	nvm_dev_dma_free(dev->parent, meta_list, dma_meta_list);
 fail_free_pad:
@@ -785,15 +770,9 @@ static int pblk_recov_l2p_from_oob(struct pblk *pblk, struct pblk_line *line)
 	dma_addr_t dma_ppa_list, dma_meta_list;
 	int done, ret = 0;
 
-	rqd = pblk_alloc_rqd(pblk, READ);
-	if (IS_ERR(rqd))
-		return PTR_ERR(rqd);
-
 	meta_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL, &dma_meta_list);
-	if (!meta_list) {
-		ret = -ENOMEM;
-		goto free_rqd;
-	}
+	if (!meta_list)
+		return -ENOMEM;
 
 	ppa_list = (void *)(meta_list) + pblk_dma_meta_size;
 	dma_ppa_list = dma_meta_list + pblk_dma_meta_size;
@@ -803,6 +782,8 @@ static int pblk_recov_l2p_from_oob(struct pblk *pblk, struct pblk_line *line)
 		ret = -ENOMEM;
 		goto free_meta_list;
 	}
+
+	rqd = pblk_alloc_rqd(pblk, READ);
 
 	p.ppa_list = ppa_list;
 	p.meta_list = meta_list;
@@ -832,8 +813,6 @@ out:
 	kfree(data);
 free_meta_list:
 	nvm_dev_dma_free(dev->parent, meta_list, dma_meta_list);
-free_rqd:
-	pblk_free_rqd(pblk, rqd, READ);
 
 	return ret;
 }

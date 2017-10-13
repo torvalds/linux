@@ -168,10 +168,6 @@ static int pblk_fill_partial_read_bio(struct pblk *pblk, struct nvm_rq *rqd,
 	DECLARE_COMPLETION_ONSTACK(wait);
 
 	new_bio = bio_alloc(GFP_KERNEL, nr_holes);
-	if (!new_bio) {
-		pr_err("pblk: could not alloc read bio\n");
-		return NVM_IO_ERR;
-	}
 
 	if (pblk_bio_add_pages(pblk, new_bio, GFP_KERNEL, nr_holes))
 		goto err;
@@ -321,10 +317,6 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 	bitmap_zero(&read_bitmap, nr_secs);
 
 	rqd = pblk_alloc_rqd(pblk, READ);
-	if (IS_ERR(rqd)) {
-		pr_err_ratelimited("pblk: not able to alloc rqd");
-		return NVM_IO_ERR;
-	}
 
 	rqd->opcode = NVM_OP_PREAD;
 	rqd->bio = bio;

@@ -206,8 +206,6 @@ int pblk_bio_add_pages(struct pblk *pblk, struct bio *bio, gfp_t flags,
 
 	for (i = 0; i < nr_pages; i++) {
 		page = mempool_alloc(pblk->page_bio_pool, flags);
-		if (!page)
-			goto err;
 
 		ret = bio_add_pc_page(q, bio, page, PBLK_EXPOSED_PAGE_SIZE, 0);
 		if (ret != PBLK_EXPOSED_PAGE_SIZE) {
@@ -1653,8 +1651,6 @@ void pblk_gen_run_ws(struct pblk *pblk, struct pblk_line *line, void *priv,
 	struct pblk_line_ws *line_ws;
 
 	line_ws = mempool_alloc(pblk->gen_ws_pool, gfp_mask);
-	if (!line_ws)
-		return;
 
 	line_ws->pblk = pblk;
 	line_ws->line = line;
