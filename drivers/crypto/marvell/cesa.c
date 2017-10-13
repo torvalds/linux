@@ -196,7 +196,7 @@ static int mv_cesa_add_algs(struct mv_cesa_dev *cesa)
 	int i, j;
 
 	for (i = 0; i < cesa->caps->ncipher_algs; i++) {
-		ret = crypto_register_alg(cesa->caps->cipher_algs[i]);
+		ret = crypto_register_skcipher(cesa->caps->cipher_algs[i]);
 		if (ret)
 			goto err_unregister_crypto;
 	}
@@ -216,7 +216,7 @@ err_unregister_ahash:
 
 err_unregister_crypto:
 	for (j = 0; j < i; j++)
-		crypto_unregister_alg(cesa->caps->cipher_algs[j]);
+		crypto_unregister_skcipher(cesa->caps->cipher_algs[j]);
 
 	return ret;
 }
@@ -229,10 +229,10 @@ static void mv_cesa_remove_algs(struct mv_cesa_dev *cesa)
 		crypto_unregister_ahash(cesa->caps->ahash_algs[i]);
 
 	for (i = 0; i < cesa->caps->ncipher_algs; i++)
-		crypto_unregister_alg(cesa->caps->cipher_algs[i]);
+		crypto_unregister_skcipher(cesa->caps->cipher_algs[i]);
 }
 
-static struct crypto_alg *orion_cipher_algs[] = {
+static struct skcipher_alg *orion_cipher_algs[] = {
 	&mv_cesa_ecb_des_alg,
 	&mv_cesa_cbc_des_alg,
 	&mv_cesa_ecb_des3_ede_alg,
@@ -248,7 +248,7 @@ static struct ahash_alg *orion_ahash_algs[] = {
 	&mv_ahmac_sha1_alg,
 };
 
-static struct crypto_alg *armada_370_cipher_algs[] = {
+static struct skcipher_alg *armada_370_cipher_algs[] = {
 	&mv_cesa_ecb_des_alg,
 	&mv_cesa_cbc_des_alg,
 	&mv_cesa_ecb_des3_ede_alg,
