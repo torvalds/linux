@@ -71,25 +71,6 @@ static void shrinker_unlock(struct drm_i915_private *dev_priv, bool unlock)
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 }
 
-static bool any_vma_pinned(struct drm_i915_gem_object *obj)
-{
-	struct i915_vma *vma;
-
-	list_for_each_entry(vma, &obj->vma_list, obj_link) {
-		/* Only GGTT vma may be permanently pinned, and are always
-		 * at the start of the list. We can stop hunting as soon
-		 * as we see a ppGTT vma.
-		 */
-		if (!i915_vma_is_ggtt(vma))
-			break;
-
-		if (i915_vma_is_pinned(vma))
-			return true;
-	}
-
-	return false;
-}
-
 static bool swap_available(void)
 {
 	return get_nr_swap_pages() > 0;
@@ -115,7 +96,13 @@ static bool can_release_pages(struct drm_i915_gem_object *obj)
 	if (atomic_read(&obj->mm.pages_pin_count) > obj->bind_count)
 		return false;
 
-	if (any_vma_pinned(obj))
+	/* If any vma are "permanently" pinned, it will prevent us from
+	 * reclaiming the obj->mm.pages. We only allow scanout objects to claim
+	 * a permanent pin, along with a few others like the context objects.
+	 * To simplify the scan, and to avoid walking the list of vma under the
+	 * object, we just check the count of its permanently pinned.
+	 */
+	if (obj->pin_global)
 		return false;
 
 	/* We can only return physical pages to the system if we can either
