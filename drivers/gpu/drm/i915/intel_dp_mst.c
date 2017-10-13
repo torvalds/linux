@@ -454,9 +454,10 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	struct intel_dp *intel_dp = container_of(mgr, struct intel_dp, mst_mgr);
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
-	int i;
+	enum pipe pipe;
 
 	intel_connector = intel_connector_alloc();
 	if (!intel_connector)
@@ -470,9 +471,9 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	intel_connector->mst_port = intel_dp;
 	intel_connector->port = port;
 
-	for (i = PIPE_A; i <= PIPE_C; i++) {
+	for_each_pipe(dev_priv, pipe) {
 		drm_mode_connector_attach_encoder(&intel_connector->base,
-						  &intel_dp->mst_encoders[i]->base.base);
+						  &intel_dp->mst_encoders[pipe]->base.base);
 	}
 
 	drm_object_attach_property(&connector->base, dev->mode_config.path_property, 0);
@@ -569,11 +570,12 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *intel_dig_port, enum
 static bool
 intel_dp_create_fake_mst_encoders(struct intel_digital_port *intel_dig_port)
 {
-	int i;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
+	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
+	enum pipe pipe;
 
-	for (i = PIPE_A; i <= PIPE_C; i++)
-		intel_dp->mst_encoders[i] = intel_dp_create_fake_mst_encoder(intel_dig_port, i);
+	for_each_pipe(dev_priv, pipe)
+		intel_dp->mst_encoders[pipe] = intel_dp_create_fake_mst_encoder(intel_dig_port, pipe);
 	return true;
 }
 
