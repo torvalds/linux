@@ -349,7 +349,7 @@ static void __init setup_lowcore(void)
 		if (MACHINE_HAS_GS)
 			lc->mcesad |= bits;
 	}
-	lc->vdso_per_cpu_data = (unsigned long) &lc->paste[0];
+	vdso_alloc_boot_cpu(lc);
 	lc->sync_enter_timer = S390_lowcore.sync_enter_timer;
 	lc->async_enter_timer = S390_lowcore.async_enter_timer;
 	lc->exit_timer = S390_lowcore.exit_timer;

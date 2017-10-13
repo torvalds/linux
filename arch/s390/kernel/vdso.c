@@ -140,6 +140,20 @@ static void __init vdso_init_data(struct vdso_data *vd)
  */
 #define SEGMENT_ORDER	2
 
+/*
+ * The initial vdso_data structure for the boot CPU. Eventually
+ * it is replaced with a properly allocated structure in vdso_init.
+ * This is necessary because a valid S390_lowcore.vdso_per_cpu_data
+ * pointer is required to be able to return from an interrupt or
+ * program check. See the exit paths in entry.S.
+ */
+struct vdso_data boot_vdso_data __initdata;
+
+void __init vdso_alloc_boot_cpu(struct lowcore *lowcore)
+{
+	lowcore->vdso_per_cpu_data = (unsigned long) &boot_vdso_data;
+}
+
 int vdso_alloc_per_cpu(struct lowcore *lowcore)
 {
 	unsigned long segment_table, page_table, page_frame;
