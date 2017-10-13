@@ -365,6 +365,11 @@ static struct acpi_iort_node *iort_node_get_id(struct acpi_iort_node *node,
 	return NULL;
 }
 
+static inline int iort_get_id_mapping_index(struct acpi_iort_node *node)
+{
+	return -EINVAL;
+}
+
 static struct acpi_iort_node *iort_node_map_id(struct acpi_iort_node *node,
 					       u32 id_in, u32 *id_out,
 					       u8 type_mask)
@@ -374,7 +379,7 @@ static struct acpi_iort_node *iort_node_map_id(struct acpi_iort_node *node,
 	/* Parse the ID mapping tree to find specified node type */
 	while (node) {
 		struct acpi_iort_id_mapping *map;
-		int i;
+		int i, index;
 
 		if (IORT_TYPE_MASK(node->type) & type_mask) {
 			if (id_out)
@@ -395,8 +400,19 @@ static struct acpi_iort_node *iort_node_map_id(struct acpi_iort_node *node,
 			goto fail_map;
 		}
 
+		/*
+		 * Get the special ID mapping index (if any) and skip its
+		 * associated ID map to prevent erroneous multi-stage
+		 * IORT ID translations.
+		 */
+		index = iort_get_id_mapping_index(node);
+
 		/* Do the ID translation */
 		for (i = 0; i < node->mapping_count; i++, map++) {
+			/* if it is special mapping index, skip it */
+			if (i == index)
+				continue;
+
 			if (!iort_id_map(map, node->type, id, &id))
 				break;
 		}
@@ -505,16 +521,24 @@ u32 iort_msi_map_rid(struct device *dev, u32 req_id)
  */
 int iort_pmsi_get_dev_id(struct device *dev, u32 *dev_id)
 {
-	int i;
+	int i, index;
 	struct acpi_iort_node *node;
 
 	node = iort_find_dev_node(dev);
 	if (!node)
 		return -ENODEV;
 
-	for (i = 0; i < node->mapping_count; i++) {
-		if (iort_node_map_platform_id(node, dev_id, IORT_MSI_TYPE, i))
+	index = iort_get_id_mapping_index(node);
+	/* if there is a valid index, go get the dev_id directly */
+	if (index >= 0) {
+		if (iort_node_get_id(node, dev_id, index))
 			return 0;
+	} else {
+		for (i = 0; i < node->mapping_count; i++) {
+			if (iort_node_map_platform_id(node, dev_id,
+						      IORT_MSI_TYPE, i))
+				return 0;
+		}
 	}
 
 	return -ENODEV;
