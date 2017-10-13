@@ -1691,16 +1691,8 @@ static void __pblk_down_page(struct pblk *pblk, struct ppa_addr *ppa_list,
 #endif
 
 	ret = down_timeout(&rlun->wr_sem, msecs_to_jiffies(30000));
-	if (ret) {
-		switch (ret) {
-		case -ETIME:
-			pr_err("pblk: lun semaphore timed out\n");
-			break;
-		case -EINTR:
-			pr_err("pblk: lun semaphore timed out\n");
-			break;
-		}
-	}
+	if (ret == -ETIME || ret == -EINTR)
+		pr_err("pblk: taking lun semaphore timed out: err %d\n", -ret);
 }
 
 void pblk_down_page(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas)
