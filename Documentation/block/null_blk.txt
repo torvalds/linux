@@ -55,10 +55,10 @@ irqmode=[0-2]: Default: 1-Soft-irq
 completion_nsec=[ns]: Default: 10.000ns
   Combined with irqmode=2 (timer). The time each completion event must wait.
 
-submit_queues=[0..nr_cpus]:
+submit_queues=[1..nr_cpus]:
   The number of submission queues attached to the device driver. If unset, it
-  defaults to 1 on single-queue and bio-based instances. For multi-queue,
-  it is ignored when use_per_node_hctx module parameter is 1.
+  defaults to 1. For multi-queue, it is ignored when use_per_node_hctx module
+  parameter is 1.
 
 hw_queue_depth=[0..qdepth]: Default: 64
   The hardware queue depth of the device.
