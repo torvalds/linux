@@ -105,6 +105,12 @@ endif
 $(make-cache): ;
 -include $(make-cache)
 
+# If cache exceeds 1000 lines, shrink it down to 500.
+ifneq ($(word 1000,$(filter __cached_%, $(.VARIABLES))),)
+$(shell tail -n 500 $(make-cache) > $(make-cache).tmp; \
+	mv $(make-cache).tmp $(make-cache))
+endif
+
 # Usage: $(call __sanitize-opt,Hello=Hola$(comma)Goodbye Adios)
 #
 # Convert all '$', ')', '(', '\', '=', ' ', ',', ':' to '_'
