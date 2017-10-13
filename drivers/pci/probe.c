@@ -2398,7 +2398,7 @@ void __weak pcibios_fixup_bus(struct pci_bus *bus)
 
 unsigned int pci_scan_child_bus(struct pci_bus *bus)
 {
-	unsigned int devfn, pass, max = bus->busn_res.start;
+	unsigned int devfn, max = bus->busn_res.start;
 	struct pci_dev *dev;
 
 	dev_dbg(&bus->dev, "scanning bus\n");
@@ -2420,9 +2420,17 @@ unsigned int pci_scan_child_bus(struct pci_bus *bus)
 		bus->is_added = 1;
 	}
 
-	for (pass = 0; pass < 2; pass++)
-		for_each_pci_bridge(dev, bus)
-			max = pci_scan_bridge(bus, dev, max, pass);
+	/*
+	 * Scan bridges that are already configured. We don't touch them
+	 * unless they are misconfigured (which will be done in the second
+	 * scan below).
+	 */
+	for_each_pci_bridge(dev, bus)
+		max = pci_scan_bridge(bus, dev, max, 0);
+
+	/* Scan bridges that need to be reconfigured */
+	for_each_pci_bridge(dev, bus)
+		max = pci_scan_bridge(bus, dev, max, 1);
 
 	/*
 	 * Make sure a hotplug bridge has at least the minimum requested
@@ -2739,7 +2747,7 @@ void __init pci_sort_breadthfirst(void)
 int pci_hp_add_bridge(struct pci_dev *dev)
 {
 	struct pci_bus *parent = dev->bus;
-	int pass, busnr, start = parent->busn_res.start;
+	int busnr, start = parent->busn_res.start;
 	int end = parent->busn_res.end;
 
 	for (busnr = start; busnr <= end; busnr++) {
@@ -2750,8 +2758,13 @@ int pci_hp_add_bridge(struct pci_dev *dev)
 		dev_err(&dev->dev, "No bus number available for hot-added bridge\n");
 		return -1;
 	}
-	for (pass = 0; pass < 2; pass++)
-		busnr = pci_scan_bridge(parent, dev, busnr, pass);
+
+	/* Scan bridges that are already configured */
+	busnr = pci_scan_bridge(parent, dev, busnr, 0);
+
+	/* Scan bridges that need to be reconfigured */
+	pci_scan_bridge(parent, dev, busnr, 1);
+
 	if (!dev->subordinate)
 		return -1;
 
