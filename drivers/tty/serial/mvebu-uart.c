@@ -165,8 +165,16 @@ static void mvebu_uart_stop_tx(struct uart_port *port)
 
 static void mvebu_uart_start_tx(struct uart_port *port)
 {
-	unsigned int ctl = readl(port->membase + UART_INTR(port));
+	unsigned int ctl;
+	struct circ_buf *xmit = &port->state->xmit;
 
+	if (IS_EXTENDED(port) && !uart_circ_empty(xmit)) {
+		writel(xmit->buf[xmit->tail], port->membase + UART_TSH(port));
+		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
+		port->icount.tx++;
+	}
+
+	ctl = readl(port->membase + UART_INTR(port));
 	ctl |= CTRL_TX_RDY_INT(port);
 	writel(ctl, port->membase + UART_INTR(port));
 }
