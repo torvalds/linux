@@ -664,8 +664,8 @@ intel_ddi_get_buf_trans_fdi(struct drm_i915_private *dev_priv,
 			    int *n_entries)
 {
 	if (IS_BROADWELL(dev_priv)) {
-		*n_entries = ARRAY_SIZE(hsw_ddi_translations_fdi);
-		return hsw_ddi_translations_fdi;
+		*n_entries = ARRAY_SIZE(bdw_ddi_translations_fdi);
+		return bdw_ddi_translations_fdi;
 	} else if (IS_HASWELL(dev_priv)) {
 		*n_entries = ARRAY_SIZE(hsw_ddi_translations_fdi);
 		return hsw_ddi_translations_fdi;
