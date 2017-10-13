@@ -275,6 +275,26 @@ static int pblk_gc_line(struct pblk *pblk, struct pblk_line *line)
 	return 0;
 }
 
+static void pblk_gc_reader_kick(struct pblk_gc *gc)
+{
+	wake_up_process(gc->gc_reader_ts);
+}
+
+static void pblk_gc_kick(struct pblk *pblk)
+{
+	struct pblk_gc *gc = &pblk->gc;
+
+	pblk_gc_writer_kick(gc);
+	pblk_gc_reader_kick(gc);
+
+	/* If we're shutting down GC, let's not start it up again */
+	if (gc->gc_enabled) {
+		wake_up_process(gc->gc_ts);
+		mod_timer(&gc->gc_timer,
+			  jiffies + msecs_to_jiffies(GC_TIME_MSECS));
+	}
+}
+
 static int pblk_gc_read(struct pblk *pblk)
 {
 	struct pblk_gc *gc = &pblk->gc;
@@ -296,11 +316,6 @@ static int pblk_gc_read(struct pblk *pblk)
 		pr_err("pblk: failed to GC line %d\n", line->id);
 
 	return 0;
-}
-
-static void pblk_gc_reader_kick(struct pblk_gc *gc)
-{
-	wake_up_process(gc->gc_reader_ts);
 }
 
 static struct pblk_line *pblk_gc_get_victim_line(struct pblk *pblk,
@@ -419,21 +434,6 @@ next_gc_group:
 	if (!prev_group && pblk->rl.rb_state > gc_group &&
 						gc_group < PBLK_GC_NR_LISTS)
 		goto next_gc_group;
-}
-
-void pblk_gc_kick(struct pblk *pblk)
-{
-	struct pblk_gc *gc = &pblk->gc;
-
-	pblk_gc_writer_kick(gc);
-	pblk_gc_reader_kick(gc);
-
-	/* If we're shutting down GC, let's not start it up again */
-	if (gc->gc_enabled) {
-		wake_up_process(gc->gc_ts);
-		mod_timer(&gc->gc_timer,
-			  jiffies + msecs_to_jiffies(GC_TIME_MSECS));
-	}
 }
 
 static void pblk_gc_timer(unsigned long data)

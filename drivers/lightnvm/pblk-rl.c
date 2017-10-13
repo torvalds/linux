@@ -153,16 +153,6 @@ int pblk_rl_high_thrs(struct pblk_rl *rl)
 	return rl->high;
 }
 
-int pblk_rl_low_thrs(struct pblk_rl *rl)
-{
-	return rl->low;
-}
-
-int pblk_rl_sysfs_rate_show(struct pblk_rl *rl)
-{
-	return rl->rb_user_max;
-}
-
 int pblk_rl_max_io(struct pblk_rl *rl)
 {
 	return rl->rb_max_io;

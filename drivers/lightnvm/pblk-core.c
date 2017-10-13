@@ -18,6 +18,31 @@
 
 #include "pblk.h"
 
+static void pblk_line_mark_bb(struct work_struct *work)
+{
+	struct pblk_line_ws *line_ws = container_of(work, struct pblk_line_ws,
+									ws);
+	struct pblk *pblk = line_ws->pblk;
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct ppa_addr *ppa = line_ws->priv;
+	int ret;
+
+	ret = nvm_set_tgt_bb_tbl(dev, ppa, 1, NVM_BLK_T_GRWN_BAD);
+	if (ret) {
+		struct pblk_line *line;
+		int pos;
+
+		line = &pblk->lines[pblk_dev_ppa_to_line(*ppa)];
+		pos = pblk_dev_ppa_to_pos(&dev->geo, *ppa);
+
+		pr_err("pblk: failed to mark bb, line:%d, pos:%d\n",
+				line->id, pos);
+	}
+
+	kfree(ppa);
+	mempool_free(line_ws, pblk->gen_ws_pool);
+}
+
 static void pblk_mark_bb(struct pblk *pblk, struct pblk_line *line,
 			 struct ppa_addr *ppa)
 {
@@ -268,7 +293,7 @@ void pblk_end_io_sync(struct nvm_rq *rqd)
 	complete(waiting);
 }
 
-void pblk_wait_for_meta(struct pblk *pblk)
+static void pblk_wait_for_meta(struct pblk *pblk)
 {
 	do {
 		if (!atomic_read(&pblk->inflight_io))
@@ -343,17 +368,6 @@ void pblk_discard(struct pblk *pblk, struct bio *bio)
 	sector_t nr_secs = pblk_get_secs(bio);
 
 	pblk_invalidate_range(pblk, slba, nr_secs);
-}
-
-struct ppa_addr pblk_get_lba_map(struct pblk *pblk, sector_t lba)
-{
-	struct ppa_addr ppa;
-
-	spin_lock(&pblk->trans_lock);
-	ppa = pblk_trans_map_get(pblk, lba);
-	spin_unlock(&pblk->trans_lock);
-
-	return ppa;
 }
 
 void pblk_log_write_err(struct pblk *pblk, struct nvm_rq *rqd)
@@ -1338,6 +1352,41 @@ static void pblk_stop_writes(struct pblk *pblk, struct pblk_line *line)
 	pblk->state = PBLK_STATE_STOPPING;
 }
 
+static void pblk_line_close_meta_sync(struct pblk *pblk)
+{
+	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
+	struct pblk_line_meta *lm = &pblk->lm;
+	struct pblk_line *line, *tline;
+	LIST_HEAD(list);
+
+	spin_lock(&l_mg->close_lock);
+	if (list_empty(&l_mg->emeta_list)) {
+		spin_unlock(&l_mg->close_lock);
+		return;
+	}
+
+	list_cut_position(&list, &l_mg->emeta_list, l_mg->emeta_list.prev);
+	spin_unlock(&l_mg->close_lock);
+
+	list_for_each_entry_safe(line, tline, &list, list) {
+		struct pblk_emeta *emeta = line->emeta;
+
+		while (emeta->mem < lm->emeta_len[0]) {
+			int ret;
+
+			ret = pblk_submit_meta_io(pblk, line);
+			if (ret) {
+				pr_err("pblk: sync meta line %d failed (%d)\n",
+							line->id, ret);
+				return;
+			}
+		}
+	}
+
+	pblk_wait_for_meta(pblk);
+	flush_workqueue(pblk->close_wq);
+}
+
 void pblk_pipeline_stop(struct pblk *pblk)
 {
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
@@ -1565,41 +1614,6 @@ int pblk_line_is_full(struct pblk_line *line)
 	return (line->left_msecs == 0);
 }
 
-void pblk_line_close_meta_sync(struct pblk *pblk)
-{
-	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
-	struct pblk_line_meta *lm = &pblk->lm;
-	struct pblk_line *line, *tline;
-	LIST_HEAD(list);
-
-	spin_lock(&l_mg->close_lock);
-	if (list_empty(&l_mg->emeta_list)) {
-		spin_unlock(&l_mg->close_lock);
-		return;
-	}
-
-	list_cut_position(&list, &l_mg->emeta_list, l_mg->emeta_list.prev);
-	spin_unlock(&l_mg->close_lock);
-
-	list_for_each_entry_safe(line, tline, &list, list) {
-		struct pblk_emeta *emeta = line->emeta;
-
-		while (emeta->mem < lm->emeta_len[0]) {
-			int ret;
-
-			ret = pblk_submit_meta_io(pblk, line);
-			if (ret) {
-				pr_err("pblk: sync meta line %d failed (%d)\n",
-							line->id, ret);
-				return;
-			}
-		}
-	}
-
-	pblk_wait_for_meta(pblk);
-	flush_workqueue(pblk->close_wq);
-}
-
 static void pblk_line_should_sync_meta(struct pblk *pblk)
 {
 	if (pblk_rl_is_limit(&pblk->rl))
@@ -1670,31 +1684,6 @@ void pblk_line_close_ws(struct work_struct *work)
 	struct pblk_line *line = line_ws->line;
 
 	pblk_line_close(pblk, line);
-	mempool_free(line_ws, pblk->gen_ws_pool);
-}
-
-void pblk_line_mark_bb(struct work_struct *work)
-{
-	struct pblk_line_ws *line_ws = container_of(work, struct pblk_line_ws,
-									ws);
-	struct pblk *pblk = line_ws->pblk;
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct ppa_addr *ppa = line_ws->priv;
-	int ret;
-
-	ret = nvm_set_tgt_bb_tbl(dev, ppa, 1, NVM_BLK_T_GRWN_BAD);
-	if (ret) {
-		struct pblk_line *line;
-		int pos;
-
-		line = &pblk->lines[pblk_dev_ppa_to_line(*ppa)];
-		pos = pblk_dev_ppa_to_pos(&dev->geo, *ppa);
-
-		pr_err("pblk: failed to mark bb, line:%d, pos:%d\n",
-				line->id, pos);
-	}
-
-	kfree(ppa);
 	mempool_free(line_ws, pblk->gen_ws_pool);
 }
 
