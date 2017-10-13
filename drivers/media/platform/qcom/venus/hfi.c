@@ -484,6 +484,7 @@ int hfi_session_process_buf(struct venus_inst *inst, struct hfi_frame_data *fd)
 
 	return -EINVAL;
 }
+EXPORT_SYMBOL_GPL(hfi_session_process_buf);
 
 irqreturn_t hfi_isr_thread(int irq, void *dev_id)
 {
