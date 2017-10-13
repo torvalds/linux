@@ -433,7 +433,7 @@ static int qla2x00_alloc_queues(struct qla_hw_data *ha, struct req_que *req,
 
 	qla_init_base_qpair(vha, req, rsp);
 
-	if (ql2xmqsupport && ha->max_qpairs) {
+	if ((ql2xmqsupport || ql2xnvmeenable) && ha->max_qpairs) {
 		ha->queue_pair_map = kcalloc(ha->max_qpairs, sizeof(struct qla_qpair *),
 			GFP_KERNEL);
 		if (!ha->queue_pair_map) {
@@ -1976,7 +1976,8 @@ skip_pio:
 	/* Determine queue resources */
 	ha->max_req_queues = ha->max_rsp_queues = 1;
 	ha->msix_count = QLA_BASE_VECTORS;
-	if (!ql2xmqsupport || (!IS_QLA25XX(ha) && !IS_QLA81XX(ha)))
+	if (!ql2xmqsupport || !ql2xnvmeenable ||
+	    (!IS_QLA25XX(ha) && !IS_QLA81XX(ha)))
 		goto mqiobase_exit;
 
 	ha->mqiobase = ioremap(pci_resource_start(ha->pdev, 3),
@@ -2073,7 +2074,7 @@ qla83xx_iospace_config(struct qla_hw_data *ha)
 		 * By default, driver uses at least two msix vectors
 		 * (default & rspq)
 		 */
-		if (ql2xmqsupport) {
+		if (ql2xmqsupport || ql2xnvmeenable) {
 			/* MB interrupt uses 1 vector */
 			ha->max_req_queues = ha->msix_count - 1;
 
@@ -3089,9 +3090,17 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 		ql_dbg(ql_dbg_init, base_vha, 0x0192,
 			"blk/scsi-mq enabled, HW queues = %d.\n", host->nr_hw_queues);
-	} else
-		ql_dbg(ql_dbg_init, base_vha, 0x0193,
-			"blk/scsi-mq disabled.\n");
+	} else {
+		if (ql2xnvmeenable) {
+			host->nr_hw_queues = ha->max_qpairs;
+			ql_dbg(ql_dbg_init, base_vha, 0x0194,
+			    "FC-NVMe support is enabled, HW queues=%d\n",
+			    host->nr_hw_queues);
+		} else {
+			ql_dbg(ql_dbg_init, base_vha, 0x0193,
+			    "blk/scsi-mq disabled.\n");
+		}
+	}
 
 	qlt_probe_one_stage1(base_vha, ha);
 
@@ -6300,7 +6309,7 @@ qla2xxx_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 	switch (state) {
 	case pci_channel_io_normal:
 		ha->flags.eeh_busy = 0;
-		if (ql2xmqsupport) {
+		if (ql2xmqsupport || ql2xnvmeenable) {
 			set_bit(QPAIR_ONLINE_CHECK_NEEDED, &vha->dpc_flags);
 			qla2xxx_wake_dpc(vha);
 		}
@@ -6317,7 +6326,7 @@ qla2xxx_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 		pci_disable_device(pdev);
 		/* Return back all IOs */
 		qla2x00_abort_all_cmds(vha, DID_RESET << 16);
-		if (ql2xmqsupport) {
+		if (ql2xmqsupport || ql2xnvmeenable) {
 			set_bit(QPAIR_ONLINE_CHECK_NEEDED, &vha->dpc_flags);
 			qla2xxx_wake_dpc(vha);
 		}
@@ -6325,7 +6334,7 @@ qla2xxx_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 	case pci_channel_io_perm_failure:
 		ha->flags.pci_channel_io_perm_failure = 1;
 		qla2x00_abort_all_cmds(vha, DID_NO_CONNECT << 16);
-		if (ql2xmqsupport) {
+		if (ql2xmqsupport || ql2xnvmeenable) {
 			set_bit(QPAIR_ONLINE_CHECK_NEEDED, &vha->dpc_flags);
 			qla2xxx_wake_dpc(vha);
 		}

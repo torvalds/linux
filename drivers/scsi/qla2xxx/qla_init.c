@@ -8036,7 +8036,7 @@ struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos,
 		return NULL;
 	}
 
-	if (ql2xmqsupport) {
+	if (ql2xmqsupport || ql2xnvmeenable) {
 		qpair = kzalloc(sizeof(struct qla_qpair), GFP_KERNEL);
 		if (qpair == NULL) {
 			ql_log(ql_log_warn, vha, 0x0182,

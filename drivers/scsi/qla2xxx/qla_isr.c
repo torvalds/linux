@@ -3411,7 +3411,7 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 		    ha->msix_count, ret);
 		ha->msix_count = ret;
 		/* Recalculate queue values */
-		if (ha->mqiobase && ql2xmqsupport) {
+		if (ha->mqiobase && (ql2xmqsupport || ql2xnvmeenable)) {
 			ha->max_req_queues = ha->msix_count - 1;
 
 			/* ATIOQ needs 1 vector. That's 1 less QPair */
