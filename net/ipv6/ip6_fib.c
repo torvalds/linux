@@ -1456,13 +1456,16 @@ struct fib6_node *fib6_locate(struct fib6_node *root,
 
 #ifdef CONFIG_IPV6_SUBTREES
 	if (src_len) {
-		struct fib6_node *subtree = FIB6_SUBTREE(fn);
-
 		WARN_ON(saddr == NULL);
-		if (fn && subtree)
-			fn = fib6_locate_1(subtree, saddr, src_len,
+		if (fn) {
+			struct fib6_node *subtree = FIB6_SUBTREE(fn);
+
+			if (subtree) {
+				fn = fib6_locate_1(subtree, saddr, src_len,
 					   offsetof(struct rt6_info, rt6i_src),
 					   exact_match);
+			}
+		}
 	}
 #endif
 
