@@ -531,7 +531,6 @@ int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
 	atomic_long_sub(gc_rq->secs_to_gc, &pblk->inflight_reads);
 #endif
 
-	bio_put(bio);
 out:
 	nvm_dev_dma_free(dev->parent, rqd.meta_list, rqd.dma_meta_list);
 	return ret;

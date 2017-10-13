@@ -417,6 +417,11 @@ int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd)
 	return nvm_submit_io(dev, rqd);
 }
 
+static void pblk_bio_map_addr_endio(struct bio *bio)
+{
+	bio_put(bio);
+}
+
 struct bio *pblk_bio_map_addr(struct pblk *pblk, void *data,
 			      unsigned int nr_secs, unsigned int len,
 			      int alloc_type, gfp_t gfp_mask)
@@ -453,6 +458,8 @@ struct bio *pblk_bio_map_addr(struct pblk *pblk, void *data,
 
 		kaddr += PAGE_SIZE;
 	}
+
+	bio->bi_end_io = pblk_bio_map_addr_endio;
 out:
 	return bio;
 }
@@ -670,9 +677,6 @@ next_rq:
 	}
 	atomic_dec(&pblk->inflight_io);
 	reinit_completion(&wait);
-
-	if (likely(pblk->l_mg.emeta_alloc_type == PBLK_VMALLOC_META))
-		bio_put(bio);
 
 	if (rqd.error) {
 		if (dir == WRITE)
