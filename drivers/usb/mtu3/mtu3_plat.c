@@ -21,7 +21,6 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 
 #include "mtu3.h"
@@ -212,33 +211,6 @@ static void ssusb_ip_sw_reset(struct ssusb_mtk *ssusb)
 	mtu3_clrbits(ssusb->ippc_base, U3D_SSUSB_IP_PW_CTRL0, SSUSB_IP_SW_RST);
 }
 
-static int get_iddig_pinctrl(struct ssusb_mtk *ssusb)
-{
-	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
-
-	otg_sx->id_pinctrl = devm_pinctrl_get(ssusb->dev);
-	if (IS_ERR(otg_sx->id_pinctrl)) {
-		dev_err(ssusb->dev, "Cannot find id pinctrl!\n");
-		return PTR_ERR(otg_sx->id_pinctrl);
-	}
-
-	otg_sx->id_float =
-		pinctrl_lookup_state(otg_sx->id_pinctrl, "id_float");
-	if (IS_ERR(otg_sx->id_float)) {
-		dev_err(ssusb->dev, "Cannot find pinctrl id_float!\n");
-		return PTR_ERR(otg_sx->id_float);
-	}
-
-	otg_sx->id_ground =
-		pinctrl_lookup_state(otg_sx->id_pinctrl, "id_ground");
-	if (IS_ERR(otg_sx->id_ground)) {
-		dev_err(ssusb->dev, "Cannot find pinctrl id_ground!\n");
-		return PTR_ERR(otg_sx->id_ground);
-	}
-
-	return 0;
-}
-
 /* ignore the error if the clock does not exist */
 static struct clk *get_optional_clk(struct device *dev, const char *id)
 {
@@ -349,15 +321,11 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 			dev_err(ssusb->dev, "couldn't get extcon device\n");
 			return -EPROBE_DEFER;
 		}
-		if (otg_sx->manual_drd_enabled) {
-			ret = get_iddig_pinctrl(ssusb);
-			if (ret)
-				return ret;
-		}
 	}
 
-	dev_info(dev, "dr_mode: %d, is_u3_dr: %d, u3p_dis_msk:%x\n",
-		ssusb->dr_mode, otg_sx->is_u3_drd, ssusb->u3p_dis_msk);
+	dev_info(dev, "dr_mode: %d, is_u3_dr: %d, u3p_dis_msk: %x, drd: %s\n",
+		ssusb->dr_mode, otg_sx->is_u3_drd, ssusb->u3p_dis_msk,
+		otg_sx->manual_drd_enabled ? "manual" : "auto");
 
 	return 0;
 }

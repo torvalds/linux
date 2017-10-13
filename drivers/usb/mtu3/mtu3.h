@@ -115,6 +115,19 @@ enum mtu3_g_ep0_state {
 };
 
 /**
+ * MTU3_DR_FORCE_NONE: automatically switch host and periperal mode
+ *		by IDPIN signal.
+ * MTU3_DR_FORCE_HOST: force to enter host mode and override OTG
+ *		IDPIN signal.
+ * MTU3_DR_FORCE_DEVICE: force to enter peripheral mode.
+ */
+enum mtu3_dr_force_mode {
+	MTU3_DR_FORCE_NONE = 0,
+	MTU3_DR_FORCE_HOST,
+	MTU3_DR_FORCE_DEVICE,
+};
+
+/**
  * @base: the base address of fifo
  * @limit: the bitmap size in bits
  * @bitmap: fifo bitmap in unit of @MTU3_EP_FIFO_UNIT
@@ -196,7 +209,6 @@ struct mtu3_gpd_ring {
 *		xHCI driver initialization, it's necessary for system bootup
 *		as device.
 * @is_u3_drd: whether port0 supports usb3.0 dual-role device or not
-* @id_*: used to maually switch between host and device modes by idpin
 * @manual_drd_enabled: it's true when supports dual-role device by debugfs
 *		to switch host/device modes depending on user input.
 */
@@ -207,10 +219,6 @@ struct otg_switch_mtk {
 	struct notifier_block id_nb;
 	struct delayed_work extcon_reg_dwork;
 	bool is_u3_drd;
-	/* dual-role switch by debugfs */
-	struct pinctrl *id_pinctrl;
-	struct pinctrl_state *id_float;
-	struct pinctrl_state *id_ground;
 	bool manual_drd_enabled;
 };
 
