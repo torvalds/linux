@@ -69,6 +69,9 @@ struct cudbg_error {
 	int app_err;
 };
 
+#define CDUMP_MAX_COMP_BUF_SIZE ((64 * 1024) - 1)
+#define CUDBG_CHUNK_SIZE ((CDUMP_MAX_COMP_BUF_SIZE / 1024) * 1024)
+
 int cudbg_get_buff(struct cudbg_buffer *pdbg_buff, u32 size,
 		   struct cudbg_buffer *pin_buff);
 void cudbg_put_buff(struct cudbg_buffer *pin_buff,

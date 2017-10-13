@@ -15,16 +15,28 @@
  *
  */
 
+#include "t4_regs.h"
 #include "cxgb4.h"
 #include "cudbg_if.h"
 #include "cudbg_lib_common.h"
 #include "cudbg_lib.h"
+#include "cudbg_entity.h"
 
 static void cudbg_write_and_release_buff(struct cudbg_buffer *pin_buff,
 					 struct cudbg_buffer *dbg_buff)
 {
 	cudbg_update_buff(pin_buff, dbg_buff);
 	cudbg_put_buff(pin_buff, dbg_buff);
+}
+
+static int is_fw_attached(struct cudbg_init *pdbg_init)
+{
+	struct adapter *padap = pdbg_init->adap;
+
+	if (!(padap->flags & FW_OK) || padap->use_bd)
+		return 0;
+
+	return 1;
 }
 
 /* This function will add additional padding bytes into debug_buffer to make it
@@ -76,4 +88,128 @@ int cudbg_collect_reg_dump(struct cudbg_init *pdbg_init,
 	t4_get_regs(padap, (void *)temp_buff.data, temp_buff.size);
 	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
 	return rc;
+}
+
+static int cudbg_read_fw_mem(struct cudbg_init *pdbg_init,
+			     struct cudbg_buffer *dbg_buff, u8 mem_type,
+			     unsigned long tot_len,
+			     struct cudbg_error *cudbg_err)
+{
+	unsigned long bytes, bytes_left, bytes_read = 0;
+	struct adapter *padap = pdbg_init->adap;
+	struct cudbg_buffer temp_buff = { 0 };
+	int rc = 0;
+
+	bytes_left = tot_len;
+	while (bytes_left > 0) {
+		bytes = min_t(unsigned long, bytes_left,
+			      (unsigned long)CUDBG_CHUNK_SIZE);
+		rc = cudbg_get_buff(dbg_buff, bytes, &temp_buff);
+		if (rc)
+			return rc;
+		spin_lock(&padap->win0_lock);
+		rc = t4_memory_rw(padap, MEMWIN_NIC, mem_type,
+				  bytes_read, bytes,
+				  (__be32 *)temp_buff.data,
+				  1);
+		spin_unlock(&padap->win0_lock);
+		if (rc) {
+			cudbg_err->sys_err = rc;
+			cudbg_put_buff(&temp_buff, dbg_buff);
+			return rc;
+		}
+		bytes_left -= bytes;
+		bytes_read += bytes;
+		cudbg_write_and_release_buff(&temp_buff, dbg_buff);
+	}
+	return rc;
+}
+
+static void cudbg_collect_mem_info(struct cudbg_init *pdbg_init,
+				   struct card_mem *mem_info)
+{
+	struct adapter *padap = pdbg_init->adap;
+	u32 value;
+
+	value = t4_read_reg(padap, MA_EDRAM0_BAR_A);
+	value = EDRAM0_SIZE_G(value);
+	mem_info->size_edc0 = (u16)value;
+
+	value = t4_read_reg(padap, MA_EDRAM1_BAR_A);
+	value = EDRAM1_SIZE_G(value);
+	mem_info->size_edc1 = (u16)value;
+
+	value = t4_read_reg(padap, MA_TARGET_MEM_ENABLE_A);
+	if (value & EDRAM0_ENABLE_F)
+		mem_info->mem_flag |= (1 << EDC0_FLAG);
+	if (value & EDRAM1_ENABLE_F)
+		mem_info->mem_flag |= (1 << EDC1_FLAG);
+}
+
+static void cudbg_t4_fwcache(struct cudbg_init *pdbg_init,
+			     struct cudbg_error *cudbg_err)
+{
+	struct adapter *padap = pdbg_init->adap;
+	int rc;
+
+	if (is_fw_attached(pdbg_init)) {
+		/* Flush uP dcache before reading edcX/mcX  */
+		rc = t4_fwcache(padap, FW_PARAM_DEV_FWCACHE_FLUSH);
+		if (rc)
+			cudbg_err->sys_warn = rc;
+	}
+}
+
+static int cudbg_collect_mem_region(struct cudbg_init *pdbg_init,
+				    struct cudbg_buffer *dbg_buff,
+				    struct cudbg_error *cudbg_err,
+				    u8 mem_type)
+{
+	struct card_mem mem_info = {0};
+	unsigned long flag, size;
+	int rc;
+
+	cudbg_t4_fwcache(pdbg_init, cudbg_err);
+	cudbg_collect_mem_info(pdbg_init, &mem_info);
+	switch (mem_type) {
+	case MEM_EDC0:
+		flag = (1 << EDC0_FLAG);
+		size = cudbg_mbytes_to_bytes(mem_info.size_edc0);
+		break;
+	case MEM_EDC1:
+		flag = (1 << EDC1_FLAG);
+		size = cudbg_mbytes_to_bytes(mem_info.size_edc1);
+		break;
+	default:
+		rc = CUDBG_STATUS_ENTITY_NOT_FOUND;
+		goto err;
+	}
+
+	if (mem_info.mem_flag & flag) {
+		rc = cudbg_read_fw_mem(pdbg_init, dbg_buff, mem_type,
+				       size, cudbg_err);
+		if (rc)
+			goto err;
+	} else {
+		rc = CUDBG_STATUS_ENTITY_NOT_FOUND;
+		goto err;
+	}
+err:
+	return rc;
+}
+
+int cudbg_collect_edc0_meminfo(struct cudbg_init *pdbg_init,
+			       struct cudbg_buffer *dbg_buff,
+			       struct cudbg_error *cudbg_err)
+{
+	return cudbg_collect_mem_region(pdbg_init, dbg_buff, cudbg_err,
+					MEM_EDC0);
+}
+
+int cudbg_collect_edc1_meminfo(struct cudbg_init *pdbg_init,
+			       struct cudbg_buffer *dbg_buff,
+			       struct cudbg_error *cudbg_err)
+{
+	return cudbg_collect_mem_region(pdbg_init, dbg_buff, cudbg_err,
+					MEM_EDC1);
 }

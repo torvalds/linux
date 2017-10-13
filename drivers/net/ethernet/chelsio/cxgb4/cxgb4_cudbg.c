@@ -15,8 +15,14 @@
  *
  */
 
+#include "t4_regs.h"
 #include "cxgb4.h"
 #include "cxgb4_cudbg.h"
+
+static const struct cxgb4_collect_entity cxgb4_collect_mem_dump[] = {
+	{ CUDBG_EDC0, cudbg_collect_edc0_meminfo },
+	{ CUDBG_EDC1, cudbg_collect_edc1_meminfo },
+};
 
 static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
 	{ CUDBG_REG_DUMP, cudbg_collect_reg_dump },
@@ -24,7 +30,7 @@ static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
 
 static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 {
-	u32 len = 0;
+	u32 value, len = 0;
 
 	switch (entity) {
 	case CUDBG_REG_DUMP:
@@ -39,6 +45,22 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		default:
 			break;
 		}
+		break;
+	case CUDBG_EDC0:
+		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
+		if (value & EDRAM0_ENABLE_F) {
+			value = t4_read_reg(adap, MA_EDRAM0_BAR_A);
+			len = EDRAM0_SIZE_G(value);
+		}
+		len = cudbg_mbytes_to_bytes(len);
+		break;
+	case CUDBG_EDC1:
+		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
+		if (value & EDRAM1_ENABLE_F) {
+			value = t4_read_reg(adap, MA_EDRAM1_BAR_A);
+			len = EDRAM1_SIZE_G(value);
+		}
+		len = cudbg_mbytes_to_bytes(len);
 		break;
 	default:
 		break;
@@ -55,6 +77,13 @@ u32 cxgb4_get_dump_length(struct adapter *adap, u32 flag)
 	if (flag & CXGB4_ETH_DUMP_HW) {
 		for (i = 0; i < ARRAY_SIZE(cxgb4_collect_hw_dump); i++) {
 			entity = cxgb4_collect_hw_dump[i].entity;
+			len += cxgb4_get_entity_length(adap, entity);
+		}
+	}
+
+	if (flag & CXGB4_ETH_DUMP_MEM) {
+		for (i = 0; i < ARRAY_SIZE(cxgb4_collect_mem_dump); i++) {
+			entity = cxgb4_collect_mem_dump[i].entity;
 			len += cxgb4_get_entity_length(adap, entity);
 		}
 	}
@@ -149,6 +178,13 @@ int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 		cxgb4_cudbg_collect_entity(&cudbg_init, &dbg_buff,
 					   cxgb4_collect_hw_dump,
 					   ARRAY_SIZE(cxgb4_collect_hw_dump),
+					   buf,
+					   &total_size);
+
+	if (flag & CXGB4_ETH_DUMP_MEM)
+		cxgb4_cudbg_collect_entity(&cudbg_init, &dbg_buff,
+					   cxgb4_collect_mem_dump,
+					   ARRAY_SIZE(cxgb4_collect_mem_dump),
 					   buf,
 					   &total_size);
 
