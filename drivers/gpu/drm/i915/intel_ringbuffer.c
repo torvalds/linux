@@ -484,11 +484,6 @@ static bool stop_ring(struct intel_engine_cs *engine)
 	I915_WRITE_HEAD(engine, 0);
 	I915_WRITE_TAIL(engine, 0);
 
-	if (INTEL_GEN(dev_priv) > 2) {
-		(void)I915_READ_CTL(engine);
-		I915_WRITE_MODE(engine, _MASKED_BIT_DISABLE(STOP_RING));
-	}
-
 	return (I915_READ_HEAD(engine) & HEAD_ADDR) == 0;
 }
 
@@ -569,6 +564,9 @@ static int init_ring_common(struct intel_engine_cs *engine)
 	}
 
 	intel_engine_init_hangcheck(engine);
+
+	if (INTEL_GEN(dev_priv) > 2)
+		I915_WRITE_MODE(engine, _MASKED_BIT_DISABLE(STOP_RING));
 
 out:
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
