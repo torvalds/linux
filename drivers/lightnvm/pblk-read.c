@@ -130,9 +130,34 @@ static void pblk_read_check(struct pblk *pblk, struct nvm_rq *rqd,
 	}
 }
 
-static void pblk_end_io_read(struct nvm_rq *rqd)
+static void pblk_read_put_rqd_kref(struct pblk *pblk, struct nvm_rq *rqd)
 {
-	struct pblk *pblk = rqd->private;
+	struct ppa_addr *ppa_list;
+	int i;
+
+	ppa_list = (rqd->nr_ppas > 1) ? rqd->ppa_list : &rqd->ppa_addr;
+
+	for (i = 0; i < rqd->nr_ppas; i++) {
+		struct ppa_addr ppa = ppa_list[i];
+		struct pblk_line *line;
+
+		line = &pblk->lines[pblk_dev_ppa_to_line(ppa)];
+		kref_put(&line->ref, pblk_line_put_wq);
+	}
+}
+
+static void pblk_end_user_read(struct bio *bio)
+{
+#ifdef CONFIG_NVM_DEBUG
+	WARN_ONCE(bio->bi_status, "pblk: corrupted read bio\n");
+#endif
+	bio_endio(bio);
+	bio_put(bio);
+}
+
+static void __pblk_end_io_read(struct pblk *pblk, struct nvm_rq *rqd,
+			       bool put_line)
+{
 	struct pblk_g_ctx *r_ctx = nvm_rq_to_pdu(rqd);
 	struct bio *bio = rqd->bio;
 
@@ -146,15 +171,11 @@ static void pblk_end_io_read(struct nvm_rq *rqd)
 	pblk_read_check(pblk, rqd, r_ctx->lba);
 
 	bio_put(bio);
-	if (r_ctx->private) {
-		struct bio *orig_bio = r_ctx->private;
+	if (r_ctx->private)
+		pblk_end_user_read((struct bio *)r_ctx->private);
 
-#ifdef CONFIG_NVM_DEBUG
-		WARN_ONCE(orig_bio->bi_status, "pblk: corrupted read bio\n");
-#endif
-		bio_endio(orig_bio);
-		bio_put(orig_bio);
-	}
+	if (put_line)
+		pblk_read_put_rqd_kref(pblk, rqd);
 
 #ifdef CONFIG_NVM_DEBUG
 	atomic_long_add(rqd->nr_ppas, &pblk->sync_reads);
@@ -163,6 +184,13 @@ static void pblk_end_io_read(struct nvm_rq *rqd)
 
 	pblk_free_rqd(pblk, rqd, PBLK_READ);
 	atomic_dec(&pblk->inflight_io);
+}
+
+static void pblk_end_io_read(struct nvm_rq *rqd)
+{
+	struct pblk *pblk = rqd->private;
+
+	__pblk_end_io_read(pblk, rqd, true);
 }
 
 static int pblk_fill_partial_read_bio(struct pblk *pblk, struct nvm_rq *rqd,
@@ -233,8 +261,12 @@ static int pblk_fill_partial_read_bio(struct pblk *pblk, struct nvm_rq *rqd,
 	}
 
 	if (unlikely(nr_secs > 1 && nr_holes == 1)) {
+		struct ppa_addr ppa;
+
+		ppa = rqd->ppa_addr;
 		rqd->ppa_list = ppa_ptr;
 		rqd->dma_ppa_list = dma_ppa_list;
+		rqd->ppa_list[0] = ppa;
 	}
 
 	for (i = 0; i < nr_secs; i++) {
@@ -246,6 +278,11 @@ static int pblk_fill_partial_read_bio(struct pblk *pblk, struct nvm_rq *rqd,
 	i = 0;
 	hole = find_first_zero_bit(read_bitmap, nr_secs);
 	do {
+		int line_id = pblk_dev_ppa_to_line(rqd->ppa_list[i]);
+		struct pblk_line *line = &pblk->lines[line_id];
+
+		kref_put(&line->ref, pblk_line_put);
+
 		meta_list[hole].lba = lba_list_media[i];
 
 		src_bv = new_bio->bi_io_vec[i++];
@@ -269,19 +306,17 @@ static int pblk_fill_partial_read_bio(struct pblk *pblk, struct nvm_rq *rqd,
 	bio_put(new_bio);
 
 	/* Complete the original bio and associated request */
+	bio_endio(bio);
 	rqd->bio = bio;
 	rqd->nr_ppas = nr_secs;
-	rqd->private = pblk;
 
-	bio_endio(bio);
-	pblk_end_io_read(rqd);
+	__pblk_end_io_read(pblk, rqd, false);
 	return NVM_IO_OK;
 
 err:
 	/* Free allocated pages in new bio */
 	pblk_bio_free_pages(pblk, bio, 0, new_bio->bi_vcnt);
-	rqd->private = pblk;
-	pblk_end_io_read(rqd);
+	__pblk_end_io_read(pblk, rqd, false);
 	return NVM_IO_ERR;
 }
 
@@ -314,11 +349,11 @@ retry:
 			goto retry;
 		}
 
+		WARN_ON(test_and_set_bit(0, read_bitmap));
 		meta_list[0].lba = cpu_to_le64(lba);
 
-		WARN_ON(test_and_set_bit(0, read_bitmap));
 #ifdef CONFIG_NVM_DEBUG
-			atomic_long_inc(&pblk->cache_reads);
+		atomic_long_inc(&pblk->cache_reads);
 #endif
 	} else {
 		rqd->ppa_addr = ppa;
@@ -383,7 +418,7 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 	if (bitmap_full(&read_bitmap, nr_secs)) {
 		bio_endio(bio);
 		atomic_inc(&pblk->inflight_io);
-		pblk_end_io_read(rqd);
+		__pblk_end_io_read(pblk, rqd, false);
 		return NVM_IO_OK;
 	}
 

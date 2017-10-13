@@ -1460,10 +1460,8 @@ void pblk_line_free(struct pblk *pblk, struct pblk_line *line)
 	line->emeta = NULL;
 }
 
-void pblk_line_put(struct kref *ref)
+static void __pblk_line_put(struct pblk *pblk, struct pblk_line *line)
 {
-	struct pblk_line *line = container_of(ref, struct pblk_line, ref);
-	struct pblk *pblk = line->pblk;
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 
 	spin_lock(&line->lock);
@@ -1479,6 +1477,43 @@ void pblk_line_put(struct kref *ref)
 	spin_unlock(&l_mg->free_lock);
 
 	pblk_rl_free_lines_inc(&pblk->rl, line);
+}
+
+static void pblk_line_put_ws(struct work_struct *work)
+{
+	struct pblk_line_ws *line_put_ws = container_of(work,
+						struct pblk_line_ws, ws);
+	struct pblk *pblk = line_put_ws->pblk;
+	struct pblk_line *line = line_put_ws->line;
+
+	__pblk_line_put(pblk, line);
+	mempool_free(line_put_ws, pblk->gen_ws_pool);
+}
+
+void pblk_line_put(struct kref *ref)
+{
+	struct pblk_line *line = container_of(ref, struct pblk_line, ref);
+	struct pblk *pblk = line->pblk;
+
+	__pblk_line_put(pblk, line);
+}
+
+void pblk_line_put_wq(struct kref *ref)
+{
+	struct pblk_line *line = container_of(ref, struct pblk_line, ref);
+	struct pblk *pblk = line->pblk;
+	struct pblk_line_ws *line_put_ws;
+
+	line_put_ws = mempool_alloc(pblk->gen_ws_pool, GFP_ATOMIC);
+	if (!line_put_ws)
+		return;
+
+	line_put_ws->pblk = pblk;
+	line_put_ws->line = line;
+	line_put_ws->priv = NULL;
+
+	INIT_WORK(&line_put_ws->ws, pblk_line_put_ws);
+	queue_work(pblk->r_end_wq, &line_put_ws->ws);
 }
 
 int pblk_blk_erase_async(struct pblk *pblk, struct ppa_addr ppa)
@@ -1878,8 +1913,19 @@ void pblk_lookup_l2p_seq(struct pblk *pblk, struct ppa_addr *ppas,
 	int i;
 
 	spin_lock(&pblk->trans_lock);
-	for (i = 0; i < nr_secs; i++)
-		ppas[i] = pblk_trans_map_get(pblk, blba + i);
+	for (i = 0; i < nr_secs; i++) {
+		struct ppa_addr ppa;
+
+		ppa = ppas[i] = pblk_trans_map_get(pblk, blba + i);
+
+		/* If the L2P entry maps to a line, the reference is valid */
+		if (!pblk_ppa_empty(ppa) && !pblk_addr_in_cache(ppa)) {
+			int line_id = pblk_dev_ppa_to_line(ppa);
+			struct pblk_line *line = &pblk->lines[line_id];
+
+			kref_get(&line->ref);
+		}
+	}
 	spin_unlock(&pblk->trans_lock);
 }
 

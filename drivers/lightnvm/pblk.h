@@ -636,6 +636,7 @@ struct pblk {
 
 	struct workqueue_struct *close_wq;
 	struct workqueue_struct *bb_wq;
+	struct workqueue_struct *r_end_wq;
 
 	struct timer_list wtimer;
 
@@ -741,6 +742,7 @@ int pblk_line_read_emeta(struct pblk *pblk, struct pblk_line *line,
 			 void *emeta_buf);
 int pblk_blk_erase_async(struct pblk *pblk, struct ppa_addr erase_ppa);
 void pblk_line_put(struct kref *ref);
+void pblk_line_put_wq(struct kref *ref);
 struct list_head *pblk_line_gc_list(struct pblk *pblk, struct pblk_line *line);
 u64 pblk_lookup_page(struct pblk *pblk, struct pblk_line *line);
 void pblk_dealloc_page(struct pblk *pblk, struct pblk_line *line, int nr_secs);

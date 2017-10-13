@@ -271,15 +271,22 @@ static int pblk_core_init(struct pblk *pblk)
 	if (!pblk->bb_wq)
 		goto free_close_wq;
 
-	if (pblk_set_ppaf(pblk))
+	pblk->r_end_wq = alloc_workqueue("pblk-read-end-wq",
+			WQ_MEM_RECLAIM | WQ_UNBOUND, 0);
+	if (!pblk->r_end_wq)
 		goto free_bb_wq;
 
+	if (pblk_set_ppaf(pblk))
+		goto free_r_end_wq;
+
 	if (pblk_rwb_init(pblk))
-		goto free_bb_wq;
+		goto free_r_end_wq;
 
 	INIT_LIST_HEAD(&pblk->compl_list);
 	return 0;
 
+free_r_end_wq:
+	destroy_workqueue(pblk->r_end_wq);
 free_bb_wq:
 	destroy_workqueue(pblk->bb_wq);
 free_close_wq:
@@ -303,6 +310,9 @@ static void pblk_core_free(struct pblk *pblk)
 {
 	if (pblk->close_wq)
 		destroy_workqueue(pblk->close_wq);
+
+	if (pblk->r_end_wq)
+		destroy_workqueue(pblk->r_end_wq);
 
 	if (pblk->bb_wq)
 		destroy_workqueue(pblk->bb_wq);
