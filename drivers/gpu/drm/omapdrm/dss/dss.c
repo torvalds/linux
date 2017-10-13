@@ -23,6 +23,7 @@
 #define DSS_SUBSYS_NAME "DSS"
 
 #include <linux/debugfs.h>
+#include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -1440,6 +1441,12 @@ static int dss_probe(struct platform_device *pdev)
 	int r;
 
 	dss.pdev = pdev;
+
+	r = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	if (r) {
+		dev_err(&pdev->dev, "Failed to set the DMA mask\n");
+		return r;
+	}
 
 	/*
 	 * The various OMAP3-based SoCs can't be told apart using the compatible
