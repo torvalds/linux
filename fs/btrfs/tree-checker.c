@@ -182,7 +182,7 @@ static int check_extent_data_item(struct btrfs_root *root,
 	/* Regular or preallocated extent has fixed item size */
 	if (item_size != sizeof(*fi)) {
 		file_extent_err(root, leaf, slot,
-	"invalid item size for reg/prealloc file extent, have %u expect %lu",
+	"invalid item size for reg/prealloc file extent, have %u expect %zu",
 			item_size, sizeof(*fi));
 		return -EUCLEAN;
 	}
