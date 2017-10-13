@@ -191,7 +191,7 @@ static void dwmac4_rx_watchdog(void __iomem *ioaddr, u32 riwt, u32 number_chan)
 }
 
 static void dwmac4_dma_rx_chan_op_mode(void __iomem *ioaddr, int mode,
-				       u32 channel, int fifosz)
+				       u32 channel, int fifosz, u8 qmode)
 {
 	unsigned int rqs = fifosz / 256 - 1;
 	u32 mtl_rx_op, mtl_rx_int;
@@ -218,8 +218,10 @@ static void dwmac4_dma_rx_chan_op_mode(void __iomem *ioaddr, int mode,
 	mtl_rx_op &= ~MTL_OP_MODE_RQS_MASK;
 	mtl_rx_op |= rqs << MTL_OP_MODE_RQS_SHIFT;
 
-	/* enable flow control only if each channel gets 4 KiB or more FIFO */
-	if (fifosz >= 4096) {
+	/* Enable flow control only if each channel gets 4 KiB or more FIFO and
+	 * only if channel is not an AVB channel.
+	 */
+	if ((fifosz >= 4096) && (qmode != MTL_QUEUE_AVB)) {
 		unsigned int rfd, rfa;
 
 		mtl_rx_op |= MTL_OP_MODE_EHFC;
@@ -271,7 +273,7 @@ static void dwmac4_dma_rx_chan_op_mode(void __iomem *ioaddr, int mode,
 }
 
 static void dwmac4_dma_tx_chan_op_mode(void __iomem *ioaddr, int mode,
-				       u32 channel, int fifosz)
+				       u32 channel, int fifosz, u8 qmode)
 {
 	u32 mtl_tx_op = readl(ioaddr + MTL_CHAN_TX_OP_MODE(channel));
 	unsigned int tqs = fifosz / 256 - 1;
@@ -311,7 +313,11 @@ static void dwmac4_dma_tx_chan_op_mode(void __iomem *ioaddr, int mode,
 	 * reflect the available fifo size per queue (total fifo size / number
 	 * of enabled queues).
 	 */
-	mtl_tx_op |= MTL_OP_MODE_TXQEN;
+	mtl_tx_op &= ~MTL_OP_MODE_TXQEN_MASK;
+	if (qmode != MTL_QUEUE_AVB)
+		mtl_tx_op |= MTL_OP_MODE_TXQEN;
+	else
+		mtl_tx_op |= MTL_OP_MODE_TXQEN_AV;
 	mtl_tx_op &= ~MTL_OP_MODE_TQS_MASK;
 	mtl_tx_op |= tqs << MTL_OP_MODE_TQS_SHIFT;
 
