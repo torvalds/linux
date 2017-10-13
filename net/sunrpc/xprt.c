@@ -1333,7 +1333,7 @@ void xprt_release(struct rpc_task *task)
 		rpc_count_iostats(task, task->tk_client->cl_metrics);
 	spin_lock(&xprt->recv_lock);
 	if (!list_empty(&req->rq_list)) {
-		list_del(&req->rq_list);
+		list_del_init(&req->rq_list);
 		xprt_wait_on_pinned_rqst(req);
 	}
 	spin_unlock(&xprt->recv_lock);
