@@ -243,8 +243,8 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 					count += obj->base.size >> PAGE_SHIFT;
 				}
 				mutex_unlock(&obj->mm.lock);
-				scanned += obj->base.size >> PAGE_SHIFT;
 			}
+			scanned += obj->base.size >> PAGE_SHIFT;
 
 			spin_lock(&dev_priv->mm.obj_lock);
 		}
