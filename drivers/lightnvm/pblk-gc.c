@@ -422,10 +422,15 @@ void pblk_gc_kick(struct pblk *pblk)
 {
 	struct pblk_gc *gc = &pblk->gc;
 
-	wake_up_process(gc->gc_ts);
 	pblk_gc_writer_kick(gc);
 	pblk_gc_reader_kick(gc);
-	mod_timer(&gc->gc_timer, jiffies + msecs_to_jiffies(GC_TIME_MSECS));
+
+	/* If we're shutting down GC, let's not start it up again */
+	if (gc->gc_enabled) {
+		wake_up_process(gc->gc_ts);
+		mod_timer(&gc->gc_timer,
+			  jiffies + msecs_to_jiffies(GC_TIME_MSECS));
+	}
 }
 
 static void pblk_gc_timer(unsigned long data)
@@ -630,9 +635,6 @@ void pblk_gc_exit(struct pblk *pblk)
 {
 	struct pblk_gc *gc = &pblk->gc;
 
-	flush_workqueue(gc->gc_reader_wq);
-	flush_workqueue(gc->gc_line_reader_wq);
-
 	gc->gc_enabled = 0;
 	del_timer_sync(&gc->gc_timer);
 	pblk_gc_stop(pblk, 1);
@@ -640,15 +642,17 @@ void pblk_gc_exit(struct pblk *pblk)
 	if (gc->gc_ts)
 		kthread_stop(gc->gc_ts);
 
+	if (gc->gc_reader_ts)
+		kthread_stop(gc->gc_reader_ts);
+
+	flush_workqueue(gc->gc_reader_wq);
 	if (gc->gc_reader_wq)
 		destroy_workqueue(gc->gc_reader_wq);
 
+	flush_workqueue(gc->gc_line_reader_wq);
 	if (gc->gc_line_reader_wq)
 		destroy_workqueue(gc->gc_line_reader_wq);
 
 	if (gc->gc_writer_ts)
 		kthread_stop(gc->gc_writer_ts);
-
-	if (gc->gc_reader_ts)
-		kthread_stop(gc->gc_reader_ts);
 }
