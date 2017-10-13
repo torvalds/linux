@@ -606,14 +606,9 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize dma_mask and coherent_dma_mask to 32-bits */
-	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
+	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	if (ret)
 		goto disable_clk;
-
-	if (!dev->dma_mask)
-		dev->dma_mask = &dev->coherent_dma_mask;
-	else
-		dma_set_mask(dev, DMA_BIT_MASK(32));
 
 	hcd = usb_create_hcd(driver, dev, dev_name(dev));
 	if (!hcd) {
