@@ -24,6 +24,17 @@ void tcf_chain_put(struct tcf_chain *chain);
 int tcf_block_get(struct tcf_block **p_block,
 		  struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q);
 void tcf_block_put(struct tcf_block *block);
+
+static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
+{
+	return block->q;
+}
+
+static inline struct net_device *tcf_block_dev(struct tcf_block *block)
+{
+	return tcf_block_q(block)->dev_queue->dev;
+}
+
 int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 		 struct tcf_result *res, bool compat_mode);
 
@@ -37,6 +48,16 @@ int tcf_block_get(struct tcf_block **p_block,
 
 static inline void tcf_block_put(struct tcf_block *block)
 {
+}
+
+static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
+{
+	return NULL;
+}
+
+static inline struct net_device *tcf_block_dev(struct tcf_block *block)
+{
+	return NULL;
 }
 
 static inline int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
