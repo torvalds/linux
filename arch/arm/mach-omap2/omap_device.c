@@ -433,8 +433,10 @@ omap_device_copy_resources(struct omap_hwmod *oh,
 		irq = irq_of_parse_and_map(child, 0);
 	if (!irq)
 		irq = irq_of_parse_and_map(np, 0);
-	if (!irq)
+	if (!irq) {
+		error = -EINVAL;
 		goto free;
+	}
 
 	/* Legacy DMA code needs interrupt name to be "0" */
 	res[1].start = irq;
