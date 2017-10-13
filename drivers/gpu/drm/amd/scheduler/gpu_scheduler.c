@@ -406,6 +406,7 @@ static void amd_sched_job_finish(struct work_struct *work)
 			schedule_delayed_work(&next->work_tdr, sched->timeout);
 	}
 	spin_unlock(&sched->job_list_lock);
+	dma_fence_put(&s_job->s_fence->finished);
 	sched->ops->free_job(s_job);
 }
 
@@ -586,6 +587,7 @@ static void amd_sched_process_job(struct dma_fence *f, struct dma_fence_cb *cb)
 		container_of(cb, struct amd_sched_fence, cb);
 	struct amd_gpu_scheduler *sched = s_fence->sched;
 
+	dma_fence_get(&s_fence->finished);
 	atomic_dec(&sched->hw_rq_count);
 	amd_sched_fence_finished(s_fence);
 
@@ -637,9 +639,6 @@ static int amd_sched_main(void *param)
 
 		fence = sched->ops->run_job(sched_job);
 		amd_sched_fence_scheduled(s_fence);
-
-		/* amd_sched_process_job drops the job's reference of the fence. */
-		sched_job->s_fence = NULL;
 
 		if (fence) {
 			s_fence->parent = dma_fence_get(fence);
