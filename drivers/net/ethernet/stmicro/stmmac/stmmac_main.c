@@ -1750,12 +1750,19 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 	u32 rx_channels_count = priv->plat->rx_queues_to_use;
 	u32 tx_channels_count = priv->plat->tx_queues_to_use;
 	int rxfifosz = priv->plat->rx_fifo_size;
+	int txfifosz = priv->plat->tx_fifo_size;
 	u32 txmode = 0;
 	u32 rxmode = 0;
 	u32 chan = 0;
 
 	if (rxfifosz == 0)
 		rxfifosz = priv->dma_cap.rx_fifo_size;
+	if (txfifosz == 0)
+		txfifosz = priv->dma_cap.tx_fifo_size;
+
+	/* Adjust for real per queue fifo size */
+	rxfifosz /= rx_channels_count;
+	txfifosz /= tx_channels_count;
 
 	if (priv->plat->force_thresh_dma_mode) {
 		txmode = tc;
@@ -1783,7 +1790,8 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 						   rxfifosz);
 
 		for (chan = 0; chan < tx_channels_count; chan++)
-			priv->hw->dma->dma_tx_mode(priv->ioaddr, txmode, chan);
+			priv->hw->dma->dma_tx_mode(priv->ioaddr, txmode, chan,
+						   txfifosz);
 	} else {
 		priv->hw->dma->dma_mode(priv->ioaddr, txmode, rxmode,
 					rxfifosz);
@@ -1946,15 +1954,25 @@ static void stmmac_tx_err(struct stmmac_priv *priv, u32 chan)
 static void stmmac_set_dma_operation_mode(struct stmmac_priv *priv, u32 txmode,
 					  u32 rxmode, u32 chan)
 {
+	u32 rx_channels_count = priv->plat->rx_queues_to_use;
+	u32 tx_channels_count = priv->plat->tx_queues_to_use;
 	int rxfifosz = priv->plat->rx_fifo_size;
+	int txfifosz = priv->plat->tx_fifo_size;
 
 	if (rxfifosz == 0)
 		rxfifosz = priv->dma_cap.rx_fifo_size;
+	if (txfifosz == 0)
+		txfifosz = priv->dma_cap.tx_fifo_size;
+
+	/* Adjust for real per queue fifo size */
+	rxfifosz /= rx_channels_count;
+	txfifosz /= tx_channels_count;
 
 	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
 		priv->hw->dma->dma_rx_mode(priv->ioaddr, rxmode, chan,
 					   rxfifosz);
-		priv->hw->dma->dma_tx_mode(priv->ioaddr, txmode, chan);
+		priv->hw->dma->dma_tx_mode(priv->ioaddr, txmode, chan,
+					   txfifosz);
 	} else {
 		priv->hw->dma->dma_mode(priv->ioaddr, txmode, rxmode,
 					rxfifosz);

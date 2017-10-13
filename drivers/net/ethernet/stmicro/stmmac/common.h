@@ -443,7 +443,8 @@ struct stmmac_dma_ops {
 			 int rxfifosz);
 	void (*dma_rx_mode)(void __iomem *ioaddr, int mode, u32 channel,
 			    int fifosz);
-	void (*dma_tx_mode)(void __iomem *ioaddr, int mode, u32 channel);
+	void (*dma_tx_mode)(void __iomem *ioaddr, int mode, u32 channel,
+			    int fifosz);
 	/* To track extra statistic (if supported) */
 	void (*dma_diagnostic_fr) (void *data, struct stmmac_extra_stats *x,
 				   void __iomem *ioaddr);

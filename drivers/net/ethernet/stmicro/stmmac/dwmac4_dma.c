@@ -271,9 +271,10 @@ static void dwmac4_dma_rx_chan_op_mode(void __iomem *ioaddr, int mode,
 }
 
 static void dwmac4_dma_tx_chan_op_mode(void __iomem *ioaddr, int mode,
-				       u32 channel)
+				       u32 channel, int fifosz)
 {
 	u32 mtl_tx_op = readl(ioaddr + MTL_CHAN_TX_OP_MODE(channel));
+	unsigned int tqs = fifosz / 256 - 1;
 
 	if (mode == SF_DMA_MODE) {
 		pr_debug("GMAC: enable TX store and forward mode\n");
@@ -306,12 +307,14 @@ static void dwmac4_dma_tx_chan_op_mode(void __iomem *ioaddr, int mode,
 	 * For an IP with DWC_EQOS_NUM_TXQ > 1, the fields TXQEN and TQS are R/W
 	 * with reset values: TXQEN off, TQS 256 bytes.
 	 *
-	 * Write the bits in both cases, since it will have no effect when RO.
-	 * For DWC_EQOS_NUM_TXQ > 1, the top bits in MTL_OP_MODE_TQS_MASK might
-	 * be RO, however, writing the whole TQS field will result in a value
-	 * equal to DWC_EQOS_TXFIFO_SIZE, just like for DWC_EQOS_NUM_TXQ == 1.
+	 * TXQEN must be written for multi-channel operation and TQS must
+	 * reflect the available fifo size per queue (total fifo size / number
+	 * of enabled queues).
 	 */
-	mtl_tx_op |= MTL_OP_MODE_TXQEN | MTL_OP_MODE_TQS_MASK;
+	mtl_tx_op |= MTL_OP_MODE_TXQEN;
+	mtl_tx_op &= ~MTL_OP_MODE_TQS_MASK;
+	mtl_tx_op |= tqs << MTL_OP_MODE_TQS_SHIFT;
+
 	writel(mtl_tx_op, ioaddr +  MTL_CHAN_TX_OP_MODE(channel));
 }
 
