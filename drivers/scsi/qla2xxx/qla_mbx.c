@@ -1786,6 +1786,7 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 	if (pd  == NULL) {
 		ql_log(ql_log_warn, vha, 0x1050,
 		    "Failed to allocate port database structure.\n");
+		fcport->query = 0;
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
 
@@ -1926,6 +1927,7 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 
 gpd_error_out:
 	dma_pool_free(ha->s_dma_pool, pd, pd_dma);
+	fcport->query = 0;
 
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_mbx, vha, 0x1052,
@@ -3762,6 +3764,38 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 			rptid_entry->vp_status,
 		    rptid_entry->port_id[2], rptid_entry->port_id[1],
 		    rptid_entry->port_id[0]);
+		ql_dbg(ql_dbg_async, vha, 0x5075,
+		   "Format 1: Remote WWPN %8phC.\n",
+		   rptid_entry->u.f1.port_name);
+
+		ql_dbg(ql_dbg_async, vha, 0x5075,
+		   "Format 1: WWPN %8phC.\n",
+		   vha->port_name);
+
+		/* N2N.  direct connect */
+		if (IS_QLA27XX(ha) &&
+		    ((rptid_entry->u.f1.flags>>1) & 0x7) == 2) {
+			/* if our portname is higher then initiate N2N login */
+			if (wwn_to_u64(vha->port_name) >
+			    wwn_to_u64(rptid_entry->u.f1.port_name)) {
+				// ??? qlt_update_host_map(vha, id);
+				vha->n2n_id = 0x1;
+				ql_dbg(ql_dbg_async, vha, 0x5075,
+				    "Format 1: Setting n2n_update_needed for id %d\n",
+				    vha->n2n_id);
+			} else {
+				ql_dbg(ql_dbg_async, vha, 0x5075,
+				    "Format 1: Remote login - Waiting for WWPN %8phC.\n",
+				    rptid_entry->u.f1.port_name);
+			}
+
+			memcpy(vha->n2n_port_name, rptid_entry->u.f1.port_name,
+			    WWN_SIZE);
+			set_bit(N2N_LOGIN_NEEDED, &vha->dpc_flags);
+			set_bit(REGISTER_FC4_NEEDED, &vha->dpc_flags);
+			set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
+			return;
+		}
 
 		/* buffer to buffer credit flag */
 		vha->flags.bbcr_enable = (rptid_entry->u.f1.bbcr & 0xf) != 0;
@@ -4595,6 +4629,48 @@ qla25xx_set_driver_version(scsi_qla_host_t *vha, char *version)
 	}
 
 	dma_pool_free(ha->s_dma_pool, str, str_dma);
+
+	return rval;
+}
+
+int
+qla24xx_get_port_login_templ(scsi_qla_host_t *vha, dma_addr_t buf_dma,
+			     void *buf, uint16_t bufsiz)
+{
+	int rval, i;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+	uint32_t	*bp;
+
+	if (!IS_FWI2_CAPABLE(vha->hw))
+		return QLA_FUNCTION_FAILED;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1159,
+	    "Entered %s.\n", __func__);
+
+	mcp->mb[0] = MBC_GET_RNID_PARAMS;
+	mcp->mb[1] = RNID_TYPE_PORT_LOGIN << 8;
+	mcp->mb[2] = MSW(buf_dma);
+	mcp->mb[3] = LSW(buf_dma);
+	mcp->mb[6] = MSW(MSD(buf_dma));
+	mcp->mb[7] = LSW(MSD(buf_dma));
+	mcp->mb[8] = bufsiz/4;
+	mcp->out_mb = MBX_8|MBX_7|MBX_6|MBX_5|MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_1|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x115a,
+		    "Failed=%x mb[0]=%x,%x.\n", rval, mcp->mb[0], mcp->mb[1]);
+	} else {
+		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x115b,
+		    "Done %s.\n", __func__);
+		bp = (uint32_t *) buf;
+		for (i = 0; i < (bufsiz-4)/4; i++, bp++)
+			*bp = cpu_to_be32(*bp);
+	}
 
 	return rval;
 }

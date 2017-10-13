@@ -323,6 +323,12 @@ struct els_logo_payload {
 	uint8_t wwpn[WWN_SIZE];
 };
 
+struct els_plogi_payload {
+	uint8_t opcode;
+	uint8_t rsvd[3];
+	uint8_t data[112];
+};
+
 struct ct_arg {
 	void		*iocb;
 	u16		nport_handle;
@@ -357,6 +363,19 @@ struct srb_iocb {
 			struct els_logo_payload *els_logo_pyld;
 			dma_addr_t els_logo_pyld_dma;
 		} els_logo;
+		struct {
+#define ELS_DCMD_PLOGI 0x3
+			uint32_t flags;
+			uint32_t els_cmd;
+			struct completion comp;
+			struct els_plogi_payload *els_plogi_pyld;
+			struct els_plogi_payload *els_resp_pyld;
+			dma_addr_t els_plogi_pyld_dma;
+			dma_addr_t els_resp_pyld_dma;
+			uint32_t	fw_status[3];
+			__le16	comp_status;
+			__le16	len;
+		} els_plogi;
 		struct {
 			/*
 			 * Values for flags field below are as
@@ -2349,6 +2368,7 @@ typedef struct fc_port {
 	uint8_t fc4_type;
 	uint8_t	fc4f_nvme;
 	uint8_t scan_state;
+	uint8_t n2n_flag;
 
 	unsigned long last_queue_full;
 	unsigned long last_ramp_up;
@@ -2372,6 +2392,7 @@ typedef struct fc_port {
 	u8 iocb[IOCB_SIZE];
 	u8 current_login_state;
 	u8 last_login_state;
+	struct completion n2n_done;
 } fc_port_t;
 
 #define QLA_FCPORT_SCAN		1
@@ -4228,6 +4249,9 @@ typedef struct scsi_qla_host {
 	wait_queue_head_t fcport_waitQ;
 	wait_queue_head_t vref_waitq;
 	uint8_t min_link_speed_feat;
+	uint8_t n2n_node_name[WWN_SIZE];
+	uint8_t n2n_port_name[WWN_SIZE];
+	uint16_t	n2n_id;
 } scsi_qla_host_t;
 
 struct qla27xx_image_status {
