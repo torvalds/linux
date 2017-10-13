@@ -1468,6 +1468,31 @@ static int __init vga_arb_device_init(void)
 			vgaarb_info(dev, "no bridge control possible\n");
 	}
 
+	if (!vga_default_device()) {
+		list_for_each_entry(vgadev, &vga_list, list) {
+			struct device *dev = &vgadev->pdev->dev;
+			u16 cmd;
+
+			pdev = vgadev->pdev;
+			pci_read_config_word(pdev, PCI_COMMAND, &cmd);
+			if (cmd & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY)) {
+				vgaarb_info(dev, "setting as boot device (VGA legacy resources not available)\n");
+				vga_set_default_device(pdev);
+				break;
+			}
+		}
+	}
+
+	if (!vga_default_device()) {
+		vgadev = list_first_entry_or_null(&vga_list,
+						  struct vga_device, list);
+		if (vgadev) {
+			struct device *dev = &vgadev->pdev->dev;
+			vgaarb_info(dev, "setting as boot device (VGA legacy resources not available)\n");
+			vga_set_default_device(vgadev->pdev);
+		}
+	}
+
 	pr_info("loaded\n");
 	return rc;
 }
