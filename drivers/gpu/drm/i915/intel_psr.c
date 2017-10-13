@@ -75,37 +75,6 @@ static bool vlv_is_psr_active_on_pipe(struct drm_device *dev, int pipe)
 	       (val == VLV_EDP_PSR_ACTIVE_SF_UPDATE);
 }
 
-static void intel_psr_write_vsc(struct intel_dp *intel_dp,
-				const struct edp_vsc_psr *vsc_psr)
-{
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_device *dev = dig_port->base.base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *crtc = to_intel_crtc(dig_port->base.base.crtc);
-	enum transcoder cpu_transcoder = crtc->config->cpu_transcoder;
-	i915_reg_t ctl_reg = HSW_TVIDEO_DIP_CTL(cpu_transcoder);
-	uint32_t *data = (uint32_t *) vsc_psr;
-	unsigned int i;
-
-	/* As per BSPec (Pipe Video Data Island Packet), we need to disable
-	   the video DIP being updated before program video DIP data buffer
-	   registers for DIP being updated. */
-	I915_WRITE(ctl_reg, 0);
-	POSTING_READ(ctl_reg);
-
-	for (i = 0; i < sizeof(*vsc_psr); i += 4) {
-		I915_WRITE(HSW_TVIDEO_DIP_VSC_DATA(cpu_transcoder,
-						   i >> 2), *data);
-		data++;
-	}
-	for (; i < VIDEO_DIP_VSC_DATA_SIZE; i += 4)
-		I915_WRITE(HSW_TVIDEO_DIP_VSC_DATA(cpu_transcoder,
-						   i >> 2), 0);
-
-	I915_WRITE(ctl_reg, VIDEO_DIP_ENABLE_VSC_HSW);
-	POSTING_READ(ctl_reg);
-}
-
 static void vlv_psr_setup_vsc(struct intel_dp *intel_dp,
 			      const struct intel_crtc_state *crtc_state)
 {
@@ -152,7 +121,8 @@ static void hsw_psr_setup_vsc(struct intel_dp *intel_dp,
 		psr_vsc.sdp_header.HB3 = 0x8;
 	}
 
-	intel_psr_write_vsc(intel_dp, &psr_vsc);
+	intel_dig_port->write_infoframe(&intel_dig_port->base.base, crtc_state,
+					DP_SDP_VSC, &psr_vsc, sizeof(psr_vsc));
 }
 
 static void vlv_psr_enable_sink(struct intel_dp *intel_dp)

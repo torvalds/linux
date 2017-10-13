@@ -1069,7 +1069,7 @@ struct intel_digital_port {
 
 	void (*write_infoframe)(struct drm_encoder *encoder,
 				const struct intel_crtc_state *crtc_state,
-				enum hdmi_infoframe_type type,
+				unsigned int type,
 				const void *frame, ssize_t len);
 	void (*set_infoframes)(struct drm_encoder *encoder,
 			       bool enable,
