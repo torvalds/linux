@@ -87,7 +87,12 @@ static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
  * to init_mm when we switch to a kernel thread (e.g. the idle thread).  If
  * it's false, then we immediately switch CR3 when entering a kernel thread.
  */
-DECLARE_STATIC_KEY_TRUE(tlb_use_lazy_mode);
+DECLARE_STATIC_KEY_TRUE(__tlb_defer_switch_to_init_mm);
+
+static inline bool tlb_defer_switch_to_init_mm(void)
+{
+	return static_branch_unlikely(&__tlb_defer_switch_to_init_mm);
+}
 
 /*
  * 6 because 6 should be plenty and struct tlb_state will fit in

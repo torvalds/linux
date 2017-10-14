@@ -30,7 +30,7 @@
 
 atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
 
-DEFINE_STATIC_KEY_TRUE(tlb_use_lazy_mode);
+DEFINE_STATIC_KEY_TRUE(__tlb_defer_switch_to_init_mm);
 
 static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
 			    u16 *new_asid, bool *need_flush)
@@ -213,6 +213,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 }
 
 /*
+ * Please ignore the name of this function.  It should be called
+ * switch_to_kernel_thread().
+ *
  * enter_lazy_tlb() is a hint from the scheduler that we are entering a
  * kernel thread or other context without an mm.  Acceptable implementations
  * include doing nothing whatsoever, switching to init_mm, or various clever
@@ -227,7 +230,7 @@ void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 	if (this_cpu_read(cpu_tlbstate.loaded_mm) == &init_mm)
 		return;
 
-	if (static_branch_unlikely(&tlb_use_lazy_mode)) {
+	if (tlb_defer_switch_to_init_mm()) {
 		/*
 		 * There's a significant optimization that may be possible
 		 * here.  We have accurate enough TLB flush tracking that we
@@ -632,7 +635,8 @@ static ssize_t tlblazy_read_file(struct file *file, char __user *user_buf,
 {
 	char buf[2];
 
-	buf[0] = static_branch_likely(&tlb_use_lazy_mode) ? '1' : '0';
+	buf[0] = static_branch_likely(&__tlb_defer_switch_to_init_mm)
+		? '1' : '0';
 	buf[1] = '\n';
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
@@ -647,9 +651,9 @@ static ssize_t tlblazy_write_file(struct file *file,
 		return -EINVAL;
 
 	if (val)
-		static_branch_enable(&tlb_use_lazy_mode);
+		static_branch_enable(&__tlb_defer_switch_to_init_mm);
 	else
-		static_branch_disable(&tlb_use_lazy_mode);
+		static_branch_disable(&__tlb_defer_switch_to_init_mm);
 
 	return count;
 }
@@ -660,23 +664,25 @@ static const struct file_operations fops_tlblazy = {
 	.llseek = default_llseek,
 };
 
-static int __init init_tlb_use_lazy_mode(void)
+static int __init init_tlblazy(void)
 {
 	if (boot_cpu_has(X86_FEATURE_PCID)) {
 		/*
-		 * Heuristic: with PCID on, switching to and from
-		 * init_mm is reasonably fast, but remote flush IPIs
-		 * as expensive as ever, so turn off lazy TLB mode.
+		 * If we have PCID, then switching to init_mm is reasonably
+		 * fast.  If we don't have PCID, then switching to init_mm is
+		 * quite slow, so we default to trying to defer it in the
+		 * hopes that we can avoid it entirely.  The latter approach
+		 * runs the risk of receiving otherwise unnecessary IPIs.
 		 *
 		 * We can't do this in setup_pcid() because static keys
 		 * haven't been initialized yet, and it would blow up
 		 * badly.
 		 */
-		static_branch_disable(&tlb_use_lazy_mode);
+		static_branch_disable(&__tlb_defer_switch_to_init_mm);
 	}
 
-	debugfs_create_file("tlb_use_lazy_mode", S_IRUSR | S_IWUSR,
+	debugfs_create_file("tlb_defer_switch_to_init_mm", S_IRUSR | S_IWUSR,
 			    arch_debugfs_dir, NULL, &fops_tlblazy);
 	return 0;
 }
-late_initcall(init_tlb_use_lazy_mode);
+late_initcall(init_tlblazy);
