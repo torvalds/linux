@@ -7965,7 +7965,7 @@ static void bnxt_parse_log_pcie_link(struct bnxt *bp)
 	enum pcie_link_width width = PCIE_LNK_WIDTH_UNKNOWN;
 	enum pci_bus_speed speed = PCI_SPEED_UNKNOWN;
 
-	if (pcie_get_minimum_link(bp->pdev, &speed, &width) ||
+	if (pcie_get_minimum_link(pci_physfn(bp->pdev), &speed, &width) ||
 	    speed == PCI_SPEED_UNKNOWN || width == PCIE_LNK_WIDTH_UNKNOWN)
 		netdev_info(bp->dev, "Failed to determine PCIe Link Info\n");
 	else
