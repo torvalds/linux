@@ -30,7 +30,6 @@
 
 atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
 
-DEFINE_STATIC_KEY_TRUE(__tlb_defer_switch_to_init_mm);
 
 static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
 			    u16 *new_asid, bool *need_flush)
@@ -629,60 +628,3 @@ static int __init create_tlb_single_page_flush_ceiling(void)
 	return 0;
 }
 late_initcall(create_tlb_single_page_flush_ceiling);
-
-static ssize_t tlblazy_read_file(struct file *file, char __user *user_buf,
-				 size_t count, loff_t *ppos)
-{
-	char buf[2];
-
-	buf[0] = static_branch_likely(&__tlb_defer_switch_to_init_mm)
-		? '1' : '0';
-	buf[1] = '\n';
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
-}
-
-static ssize_t tlblazy_write_file(struct file *file,
-		 const char __user *user_buf, size_t count, loff_t *ppos)
-{
-	bool val;
-
-	if (kstrtobool_from_user(user_buf, count, &val))
-		return -EINVAL;
-
-	if (val)
-		static_branch_enable(&__tlb_defer_switch_to_init_mm);
-	else
-		static_branch_disable(&__tlb_defer_switch_to_init_mm);
-
-	return count;
-}
-
-static const struct file_operations fops_tlblazy = {
-	.read = tlblazy_read_file,
-	.write = tlblazy_write_file,
-	.llseek = default_llseek,
-};
-
-static int __init init_tlblazy(void)
-{
-	if (boot_cpu_has(X86_FEATURE_PCID)) {
-		/*
-		 * If we have PCID, then switching to init_mm is reasonably
-		 * fast.  If we don't have PCID, then switching to init_mm is
-		 * quite slow, so we default to trying to defer it in the
-		 * hopes that we can avoid it entirely.  The latter approach
-		 * runs the risk of receiving otherwise unnecessary IPIs.
-		 *
-		 * We can't do this in setup_pcid() because static keys
-		 * haven't been initialized yet, and it would blow up
-		 * badly.
-		 */
-		static_branch_disable(&__tlb_defer_switch_to_init_mm);
-	}
-
-	debugfs_create_file("tlb_defer_switch_to_init_mm", S_IRUSR | S_IWUSR,
-			    arch_debugfs_dir, NULL, &fops_tlblazy);
-	return 0;
-}
-late_initcall(init_tlblazy);
