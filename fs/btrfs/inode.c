@@ -8485,7 +8485,7 @@ static void btrfs_end_dio_bio(struct bio *bio)
 	if (dip->errors) {
 		bio_io_error(dip->orig_bio);
 	} else {
-		dip->dio_bio->bi_status = 0;
+		dip->dio_bio->bi_status = BLK_STS_OK;
 		bio_endio(dip->orig_bio);
 	}
 out:
