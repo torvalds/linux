@@ -147,8 +147,8 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 	this_cpu_write(cpu_tlbstate.is_lazy, false);
 
 	if (real_prev == next) {
-		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[prev_asid].ctx_id) !=
-			  next->context.ctx_id);
+		VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[prev_asid].ctx_id) !=
+			   next->context.ctx_id);
 
 		/*
 		 * We don't currently support having a real mm loaded without
