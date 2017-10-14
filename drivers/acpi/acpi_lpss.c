@@ -713,7 +713,7 @@ static int acpi_lpss_activate(struct device *dev)
 
 static void acpi_lpss_dismiss(struct device *dev)
 {
-	acpi_dev_runtime_suspend(dev);
+	acpi_dev_suspend(dev, false);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -729,7 +729,7 @@ static int acpi_lpss_suspend_late(struct device *dev)
 	if (pdata->dev_desc->flags & LPSS_SAVE_CTX)
 		acpi_lpss_save_ctx(dev, pdata);
 
-	return acpi_dev_suspend_late(dev);
+	return acpi_dev_suspend(dev, device_may_wakeup(dev));
 }
 
 static int acpi_lpss_resume_early(struct device *dev)
@@ -847,7 +847,7 @@ static int acpi_lpss_runtime_suspend(struct device *dev)
 	if (pdata->dev_desc->flags & LPSS_SAVE_CTX)
 		acpi_lpss_save_ctx(dev, pdata);
 
-	ret = acpi_dev_runtime_suspend(dev);
+	ret = acpi_dev_suspend(dev, true);
 
 	/*
 	 * This call must be last in the sequence, otherwise PMC will return
