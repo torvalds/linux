@@ -4205,7 +4205,12 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 		}
 
 		if (insn->imm == BPF_FUNC_redirect_map) {
-			u64 addr = (unsigned long)prog;
+			/* Note, we cannot use prog directly as imm as subsequent
+			 * rewrites would still change the prog pointer. The only
+			 * stable address we can use is aux, which also works with
+			 * prog clones during blinding.
+			 */
+			u64 addr = (unsigned long)prog->aux;
 			struct bpf_insn r4_ld[] = {
 				BPF_LD_IMM64(BPF_REG_4, addr),
 				*insn,

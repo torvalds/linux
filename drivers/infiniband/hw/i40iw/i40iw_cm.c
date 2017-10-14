@@ -1504,23 +1504,40 @@ static void i40iw_add_hte_node(struct i40iw_cm_core *cm_core,
 }
 
 /**
- * listen_port_in_use - determine if port is in use
- * @port: Listen port number
+ * i40iw_port_in_use - determine if port is in use
+ * @port: port number
+ * @active_side: flag for listener side vs active side
  */
-static bool i40iw_listen_port_in_use(struct i40iw_cm_core *cm_core, u16 port)
+static bool i40iw_port_in_use(struct i40iw_cm_core *cm_core, u16 port, bool active_side)
 {
 	struct i40iw_cm_listener *listen_node;
+	struct i40iw_cm_node *cm_node;
 	unsigned long flags;
 	bool ret = false;
 
-	spin_lock_irqsave(&cm_core->listen_list_lock, flags);
-	list_for_each_entry(listen_node, &cm_core->listen_nodes, list) {
-		if (listen_node->loc_port == port) {
-			ret = true;
-			break;
+	if (active_side) {
+		/* search connected node list */
+		spin_lock_irqsave(&cm_core->ht_lock, flags);
+		list_for_each_entry(cm_node, &cm_core->connected_nodes, list) {
+			if (cm_node->loc_port == port) {
+				ret = true;
+				break;
+			}
 		}
+			if (!ret)
+				clear_bit(port, cm_core->active_side_ports);
+		spin_unlock_irqrestore(&cm_core->ht_lock, flags);
+	} else {
+		spin_lock_irqsave(&cm_core->listen_list_lock, flags);
+		list_for_each_entry(listen_node, &cm_core->listen_nodes, list) {
+			if (listen_node->loc_port == port) {
+				ret = true;
+				break;
+			}
+		}
+		spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
 	}
-	spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
+
 	return ret;
 }
 
@@ -1868,7 +1885,7 @@ static int i40iw_dec_refcnt_listen(struct i40iw_cm_core *cm_core,
 		spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
 
 		if (listener->iwdev) {
-			if (apbvt_del && !i40iw_listen_port_in_use(cm_core, listener->loc_port))
+			if (apbvt_del && !i40iw_port_in_use(cm_core, listener->loc_port, false))
 				i40iw_manage_apbvt(listener->iwdev,
 						   listener->loc_port,
 						   I40IW_MANAGE_APBVT_DEL);
@@ -2247,21 +2264,21 @@ static void i40iw_rem_ref_cm_node(struct i40iw_cm_node *cm_node)
 	if (cm_node->listener) {
 		i40iw_dec_refcnt_listen(cm_core, cm_node->listener, 0, true);
 	} else {
-		if (!i40iw_listen_port_in_use(cm_core, cm_node->loc_port) &&
-		    cm_node->apbvt_set) {
+		if (!i40iw_port_in_use(cm_core, cm_node->loc_port, true) && cm_node->apbvt_set) {
 			i40iw_manage_apbvt(cm_node->iwdev,
 					   cm_node->loc_port,
 					   I40IW_MANAGE_APBVT_DEL);
-			i40iw_get_addr_info(cm_node, &nfo);
-			if (cm_node->qhash_set) {
-				i40iw_manage_qhash(cm_node->iwdev,
-						   &nfo,
-						   I40IW_QHASH_TYPE_TCP_ESTABLISHED,
-						   I40IW_QHASH_MANAGE_TYPE_DELETE,
-						   NULL,
-						   false);
-				cm_node->qhash_set = 0;
-			}
+			cm_node->apbvt_set = 0;
+		}
+		i40iw_get_addr_info(cm_node, &nfo);
+		if (cm_node->qhash_set) {
+			i40iw_manage_qhash(cm_node->iwdev,
+					   &nfo,
+					   I40IW_QHASH_TYPE_TCP_ESTABLISHED,
+					   I40IW_QHASH_MANAGE_TYPE_DELETE,
+					   NULL,
+					   false);
+			cm_node->qhash_set = 0;
 		}
 	}
 
@@ -3255,7 +3272,8 @@ static void i40iw_init_tcp_ctx(struct i40iw_cm_node *cm_node,
 	tcp_info->snd_mss = cpu_to_le32(((u32)cm_node->tcp_cntxt.mss));
 	if (cm_node->vlan_id < VLAN_TAG_PRESENT) {
 		tcp_info->insert_vlan_tag = true;
-		tcp_info->vlan_tag = cpu_to_le16(cm_node->vlan_id);
+		tcp_info->vlan_tag = cpu_to_le16(((u16)cm_node->user_pri << I40IW_VLAN_PRIO_SHIFT) |
+						  cm_node->vlan_id);
 	}
 	if (cm_node->ipv4) {
 		tcp_info->src_port = cpu_to_le16(cm_node->loc_port);
@@ -3737,10 +3755,8 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct sockaddr_in *raddr;
 	struct sockaddr_in6 *laddr6;
 	struct sockaddr_in6 *raddr6;
-	bool qhash_set = false;
-	int apbvt_set = 0;
-	int err = 0;
-	enum i40iw_status_code status;
+	int ret = 0;
+	unsigned long flags;
 
 	ibqp = i40iw_get_qp(cm_id->device, conn_param->qpn);
 	if (!ibqp)
@@ -3789,32 +3805,6 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	cm_info.user_pri = rt_tos2priority(cm_id->tos);
 	i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_DCB, "%s TOS:[%d] UP:[%d]\n",
 		    __func__, cm_id->tos, cm_info.user_pri);
-	if ((cm_info.ipv4 && (laddr->sin_addr.s_addr != raddr->sin_addr.s_addr)) ||
-	    (!cm_info.ipv4 && memcmp(laddr6->sin6_addr.in6_u.u6_addr32,
-				     raddr6->sin6_addr.in6_u.u6_addr32,
-				     sizeof(laddr6->sin6_addr.in6_u.u6_addr32)))) {
-		status = i40iw_manage_qhash(iwdev,
-					    &cm_info,
-					    I40IW_QHASH_TYPE_TCP_ESTABLISHED,
-					    I40IW_QHASH_MANAGE_TYPE_ADD,
-					    NULL,
-					    true);
-		if (status)
-			return -EINVAL;
-		qhash_set = true;
-	}
-	status = i40iw_manage_apbvt(iwdev, cm_info.loc_port, I40IW_MANAGE_APBVT_ADD);
-	if (status) {
-		i40iw_manage_qhash(iwdev,
-				   &cm_info,
-				   I40IW_QHASH_TYPE_TCP_ESTABLISHED,
-				   I40IW_QHASH_MANAGE_TYPE_DELETE,
-				   NULL,
-				   false);
-		return -EINVAL;
-	}
-
-	apbvt_set = 1;
 	cm_id->add_ref(cm_id);
 	cm_node = i40iw_create_cm_node(&iwdev->cm_core, iwdev,
 				       conn_param->private_data_len,
@@ -3822,17 +3812,40 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 				       &cm_info);
 
 	if (IS_ERR(cm_node)) {
-		err = PTR_ERR(cm_node);
-		goto err_out;
+		ret = PTR_ERR(cm_node);
+		cm_id->rem_ref(cm_id);
+		return ret;
 	}
 
+	if ((cm_info.ipv4 && (laddr->sin_addr.s_addr != raddr->sin_addr.s_addr)) ||
+	    (!cm_info.ipv4 && memcmp(laddr6->sin6_addr.in6_u.u6_addr32,
+				     raddr6->sin6_addr.in6_u.u6_addr32,
+				     sizeof(laddr6->sin6_addr.in6_u.u6_addr32)))) {
+		if (i40iw_manage_qhash(iwdev, &cm_info, I40IW_QHASH_TYPE_TCP_ESTABLISHED,
+				       I40IW_QHASH_MANAGE_TYPE_ADD, NULL, true)) {
+			ret = -EINVAL;
+			goto err;
+		}
+		cm_node->qhash_set = true;
+	}
+
+	spin_lock_irqsave(&iwdev->cm_core.ht_lock, flags);
+	if (!test_and_set_bit(cm_info.loc_port, iwdev->cm_core.active_side_ports)) {
+		spin_unlock_irqrestore(&iwdev->cm_core.ht_lock, flags);
+		if (i40iw_manage_apbvt(iwdev, cm_info.loc_port, I40IW_MANAGE_APBVT_ADD)) {
+			ret =  -EINVAL;
+			goto err;
+		}
+	} else {
+		spin_unlock_irqrestore(&iwdev->cm_core.ht_lock, flags);
+	}
+
+	cm_node->apbvt_set = true;
 	i40iw_record_ird_ord(cm_node, (u16)conn_param->ird, (u16)conn_param->ord);
 	if (cm_node->send_rdma0_op == SEND_RDMA_READ_ZERO &&
 	    !cm_node->ord_size)
 		cm_node->ord_size = 1;
 
-	cm_node->apbvt_set = apbvt_set;
-	cm_node->qhash_set = qhash_set;
 	iwqp->cm_node = cm_node;
 	cm_node->iwqp = iwqp;
 	iwqp->cm_id = cm_id;
@@ -3840,11 +3853,9 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	if (cm_node->state != I40IW_CM_STATE_OFFLOADED) {
 		cm_node->state = I40IW_CM_STATE_SYN_SENT;
-		err = i40iw_send_syn(cm_node, 0);
-		if (err) {
-			i40iw_rem_ref_cm_node(cm_node);
-			goto err_out;
-		}
+		ret = i40iw_send_syn(cm_node, 0);
+		if (ret)
+			goto err;
 	}
 
 	i40iw_debug(cm_node->dev,
@@ -3853,9 +3864,10 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		    cm_node->rem_port,
 		    cm_node,
 		    cm_node->cm_id);
+
 	return 0;
 
-err_out:
+err:
 	if (cm_info.ipv4)
 		i40iw_debug(&iwdev->sc_dev,
 			    I40IW_DEBUG_CM,
@@ -3867,22 +3879,10 @@ err_out:
 			    "Api - connect() FAILED: dest addr=%pI6",
 			    cm_info.rem_addr);
 
-	if (qhash_set)
-		i40iw_manage_qhash(iwdev,
-				   &cm_info,
-				   I40IW_QHASH_TYPE_TCP_ESTABLISHED,
-				   I40IW_QHASH_MANAGE_TYPE_DELETE,
-				   NULL,
-				   false);
-
-	if (apbvt_set && !i40iw_listen_port_in_use(&iwdev->cm_core,
-						   cm_info.loc_port))
-		i40iw_manage_apbvt(iwdev,
-				   cm_info.loc_port,
-				   I40IW_MANAGE_APBVT_DEL);
+	i40iw_rem_ref_cm_node(cm_node);
 	cm_id->rem_ref(cm_id);
 	iwdev->cm_core.stats_connect_errs++;
-	return err;
+	return ret;
 }
 
 /**
