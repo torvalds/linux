@@ -381,12 +381,12 @@ cleanup_pagelistinfo(struct vchiq_pagelist_info *pagelistinfo)
 }
 
 /* There is a potential problem with partial cache lines (pages?)
-** at the ends of the block when reading. If the CPU accessed anything in
-** the same line (page?) then it may have pulled old data into the cache,
-** obscuring the new data underneath. We can solve this by transferring the
-** partial cache lines separately, and allowing the ARM to copy into the
-** cached area.
-*/
+ * at the ends of the block when reading. If the CPU accessed anything in
+ * the same line (page?) then it may have pulled old data into the cache,
+ * obscuring the new data underneath. We can solve this by transferring the
+ * partial cache lines separately, and allowing the ARM to copy into the
+ * cached area.
+ */
 
 static struct vchiq_pagelist_info *
 create_pagelist(char __user *buf, size_t count, unsigned short type,
@@ -413,8 +413,8 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 			sizeof(struct vchiq_pagelist_info);
 
 	/* Allocate enough storage to hold the page pointers and the page
-	** list
-	*/
+	 * list
+	 */
 	pagelist = dma_zalloc_coherent(g_dev,
 				       pagelist_size,
 				       &dma_addr,
