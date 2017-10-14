@@ -3176,18 +3176,17 @@ static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
 		if (!has_cap_mac_admin(true)) {
 			struct audit_buffer *ab;
 			size_t audit_size;
-			const char *str;
 
 			/* We strip a nul only if it is at the end, otherwise the
 			 * context contains a nul and we should audit that */
 			if (value) {
-				str = value;
+				const char *str = value;
+
 				if (str[size - 1] == '\0')
 					audit_size = size - 1;
 				else
 					audit_size = size;
 			} else {
-				str = "";
 				audit_size = 0;
 			}
 			ab = audit_log_start(current->audit_context, GFP_ATOMIC, AUDIT_SELINUX_ERR);
