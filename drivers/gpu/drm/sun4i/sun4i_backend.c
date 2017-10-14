@@ -209,22 +209,11 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 {
 	struct drm_plane_state *state = plane->state;
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_cma_object *gem;
 	u32 lo_paddr, hi_paddr;
 	dma_addr_t paddr;
-	int bpp;
 
-	/* Get the physical address of the buffer in memory */
-	gem = drm_fb_cma_get_gem_obj(fb, 0);
-
-	DRM_DEBUG_DRIVER("Using GEM @ %pad\n", &gem->paddr);
-
-	/* Compute the start of the displayed memory */
-	bpp = fb->format->cpp[0];
-	paddr = gem->paddr + fb->offsets[0];
-	paddr += (state->src_x >> 16) * bpp;
-	paddr += (state->src_y >> 16) * fb->pitches[0];
-
+	/* Get the start of the displayed memory */
+	paddr = drm_fb_cma_get_gem_addr(fb, state, 0);
 	DRM_DEBUG_DRIVER("Setting buffer address to %pad\n", &paddr);
 
 	/* Write the 32 lower bits of the address (in bits) */
