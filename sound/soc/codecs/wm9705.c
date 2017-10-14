@@ -321,7 +321,6 @@ static int wm9705_soc_probe(struct snd_soc_codec *codec)
 {
 	struct wm9705_priv *wm9705 = snd_soc_codec_get_drvdata(codec);
 	struct regmap *regmap;
-	int ret;
 
 	if (wm9705->mfd_pdata) {
 		wm9705->ac97 = wm9705->mfd_pdata->ac97;
@@ -337,8 +336,8 @@ static int wm9705_soc_probe(struct snd_soc_codec *codec)
 
 		regmap = regmap_init_ac97(wm9705->ac97, &wm9705_regmap_config);
 		if (IS_ERR(regmap)) {
-			ret = PTR_ERR(regmap);
-			goto err_free_ac97_codec;
+			snd_soc_free_ac97_codec(wm9705->ac97);
+			return PTR_ERR(regmap);
 		}
 #endif
 	}
@@ -347,9 +346,6 @@ static int wm9705_soc_probe(struct snd_soc_codec *codec)
 	snd_soc_codec_init_regmap(codec, regmap);
 
 	return 0;
-err_free_ac97_codec:
-	snd_soc_free_ac97_codec(wm9705->ac97);
-	return ret;
 }
 
 static int wm9705_soc_remove(struct snd_soc_codec *codec)

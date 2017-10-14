@@ -656,8 +656,8 @@ static int wm9712_soc_probe(struct snd_soc_codec *codec)
 
 		regmap = regmap_init_ac97(wm9712->ac97, &wm9712_regmap_config);
 		if (IS_ERR(regmap)) {
-			ret = PTR_ERR(regmap);
-			goto err_free_ac97_codec;
+			snd_soc_free_ac97_codec(wm9712->ac97);
+			return PTR_ERR(regmap);
 		}
 #endif
 	}
@@ -668,9 +668,6 @@ static int wm9712_soc_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, AC97_VIDEO, 0x3000, 0x3000);
 
 	return 0;
-err_free_ac97_codec:
-	snd_soc_free_ac97_codec(wm9712->ac97);
-	return ret;
 }
 
 static int wm9712_soc_remove(struct snd_soc_codec *codec)
