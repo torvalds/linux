@@ -412,7 +412,14 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 
 	list_add_tail(&backend->engine.list, &drv->engine_list);
 
-	/* Reset the registers */
+	/*
+	 * Many of the backend's layer configuration registers have
+	 * undefined default values. This poses a risk as we use
+	 * regmap_update_bits in some places, and don't overwrite
+	 * the whole register.
+	 *
+	 * Clear the registers here to have something predictable.
+	 */
 	for (i = 0x800; i < 0x1000; i += 4)
 		regmap_write(backend->engine.regs, i, 0);
 
