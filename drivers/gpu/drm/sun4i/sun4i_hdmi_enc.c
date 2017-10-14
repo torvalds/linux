@@ -144,6 +144,22 @@ static void sun4i_hdmi_mode_set(struct drm_encoder *encoder,
 	writel(SUN4I_HDMI_UNKNOWN_INPUT_SYNC,
 	       hdmi->base + SUN4I_HDMI_UNKNOWN_REG);
 
+	/*
+	 * Setup output pad (?) controls
+	 *
+	 * This is done here instead of at probe/bind time because
+	 * the controller seems to toggle some of the bits on its own.
+	 *
+	 * We can't just initialize the register there, we need to
+	 * protect the clock bits that have already been read out and
+	 * cached by the clock framework.
+	 */
+	val = readl(hdmi->base + SUN4I_HDMI_PAD_CTRL1_REG);
+	val &= SUN4I_HDMI_PAD_CTRL1_HALVE_CLK;
+	val |= hdmi->variant->pad_ctrl1_init_val;
+	writel(val, hdmi->base + SUN4I_HDMI_PAD_CTRL1_REG);
+	val = readl(hdmi->base + SUN4I_HDMI_PAD_CTRL1_REG);
+
 	/* Setup timing registers */
 	writel(SUN4I_HDMI_VID_TIMING_X(mode->hdisplay) |
 	       SUN4I_HDMI_VID_TIMING_Y(mode->vdisplay),
@@ -488,16 +504,6 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 
 	writel(hdmi->variant->pad_ctrl0_init_val,
 	       hdmi->base + SUN4I_HDMI_PAD_CTRL0_REG);
-
-	/*
-	 * We can't just initialize the register there, we need to
-	 * protect the clock bits that have already been read out and
-	 * cached by the clock framework.
-	 */
-	reg = readl(hdmi->base + SUN4I_HDMI_PAD_CTRL1_REG);
-	reg &= SUN4I_HDMI_PAD_CTRL1_HALVE_CLK;
-	reg |= hdmi->variant->pad_ctrl1_init_val;
-	writel(reg, hdmi->base + SUN4I_HDMI_PAD_CTRL1_REG);
 
 	reg = readl(hdmi->base + SUN4I_HDMI_PLL_CTRL_REG);
 	reg &= SUN4I_HDMI_PLL_CTRL_DIV_MASK;
