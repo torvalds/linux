@@ -21,3 +21,5 @@ lkl-$(CONFIG_AUTO_LKL_POSIX_HOST) += virtio_net_macvtap.o
 lkl-$(CONFIG_AUTO_LKL_POSIX_HOST) += virtio_net_dpdk.o
 lkl-$(CONFIG_AUTO_LKL_POSIX_HOST) += virtio_net_vde.o
 lkl-$(CONFIG_AUTO_LKL_POSIX_HOST) += virtio_net_pipe.o
+lkl-y += ../../perf/pmu-events/jsmn.o
+lkl-y += config.o

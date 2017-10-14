@@ -61,6 +61,7 @@ clean() {
 }
 
 clean_with_tap() {
+    rm -rf ${work_dir}
     sudo ip link set dev $LKL_HIJACK_NET_IFPARAMS down &> /dev/null || true
     sudo ip tuntap del dev $LKL_HIJACK_NET_IFPARAMS mode tap &> /dev/null || true
     clean
@@ -68,17 +69,28 @@ clean_with_tap() {
 
 trap clean EXIT
 
-# LKL_HIJACK_NET_IFTYPE is not set, which means it's not called from
+# LKL_HIJACK_CONFIG_FILE is not set, which means it's not called from
 # hijack-test.sh. Needs to set up things first.
-if [ -z ${LKL_HIJACK_NET_IFTYPE+x} ]
+if [ -z ${LKL_HIJACK_CONFIG_FILE+x} ]
 then
     # Setting up environmental vars and TAP
-    export LKL_HIJACK_NET_IFTYPE=tap
-    export LKL_HIJACK_NET_IFPARAMS=lkl_ptt0
-    export LKL_HIJACK_NET_IP=192.168.13.2
-    export LKL_HIJACK_NET_NETMASK_LEN=24
-    export LKL_HIJACK_NET_IPV6=fc03::2
-    export LKL_HIJACK_NET_NETMASK6_LEN=64
+    work_dir=$(mktemp -d)
+    cfgjson=${work_dir}/hijack-test.conf
+    echo \
+    "{" \
+         "\"gateway\":\"192.168.13.1\"," \
+         "\"gateway6\":\"fc03::1\"," \
+         "\"interfaces\":[" \
+               "{" \
+                    "\"type\":\"tap\"" \
+                    "\"param\":\"lkl_ptt0\"" \
+                    "\"ip\":\"192.168.13.2\"" \
+                    "\"masklen\":\"24\"" \
+                    "\"ipv6\":\"fc03::2\"" \
+                    "\"masklen6\":\"64\"" \
+               "}" \
+         "]" \
+    "}" > ${cfgjson}
 
     sudo ip tuntap del dev $LKL_HIJACK_NET_IFPARAMS mode tap || true
     sudo ip tuntap add dev $LKL_HIJACK_NET_IFPARAMS mode tap user $USER

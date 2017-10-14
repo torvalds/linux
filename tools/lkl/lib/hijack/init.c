@@ -25,6 +25,7 @@
 #include <lkl_host.h>
 
 #include "xlate.h"
+#include "../config.h"
 
 #define __USE_GNU
 #include <dlfcn.h>
@@ -178,61 +179,251 @@ static void PinToFirstCpu(const cpu_set_t* cpus)
 
 int lkl_debug, lkl_running;
 
-static int nd_id = -1;
-static struct lkl_netdev *nd;
+static int nd_id[LKL_IF_MAX];
+static struct lkl_netdev *nd[LKL_IF_MAX];
+static struct lkl_config *cfg;
+
+static int config_load(void)
+{
+	int len, ret = -1;
+	char *buf;
+	int fd;
+	char *path = getenv("LKL_HIJACK_CONFIG_FILE");
+
+	cfg = (struct lkl_config *)malloc(sizeof(struct lkl_config));
+	if (!cfg) {
+		perror("config malloc");
+		return -1;
+	}
+	init_config(cfg);
+
+	ret = load_config_env(cfg);
+	if (ret < 0)
+		return ret;
+
+	if (path)
+		fd = open(path, O_RDONLY, 0);
+	else if (access("lkl-hijack.json", R_OK) == 0)
+		fd = open("lkl-hijack.json", O_RDONLY, 0);
+	else
+		return 0;
+	if (fd < 0) {
+		fprintf(stderr, "config_file open %s: %s\n",
+			path, strerror(errno));
+		return -1;
+	}
+	len = lseek(fd, 0, SEEK_END);
+	lseek(fd, 0, SEEK_SET);
+	if (len < 0) {
+		perror("config size check (lseek)");
+		return -1;
+	} else if (len == 0) {
+		return 0;
+	}
+	buf = (char *)malloc(len * sizeof(char) + 1);
+	if (!buf) {
+		perror("config buf malloc");
+		return -1;
+	}
+	ret = read(fd, buf, len);
+	if (ret < 0) {
+		perror("config file read");
+		free(buf);
+		return -1;
+	}
+	ret = load_config_json(cfg, buf);
+	free(buf);
+	return ret;
+}
+
+static int lkl_hijack_netdev_create(struct lkl_config *cfg, int ifidx)
+{
+	int ret, offload = 0;
+	struct lkl_netdev_args nd_args;
+	__lkl__u8 mac[LKL_ETH_ALEN] = {0};
+
+	if (cfg->ifoffload_str[ifidx])
+		offload = strtol(cfg->ifoffload_str[ifidx], NULL, 0);
+	memset(&nd_args, 0, sizeof(struct lkl_netdev_args));
+	if (cfg->iftap[ifidx]) {
+		fprintf(stderr, "WARN: LKL_HIJACK_NET_TAP is now obsoleted.\n");
+		fprintf(stderr, "use LKL_HIJACK_NET_IFTYPE and PARAMS\n");
+		nd[ifidx] = lkl_netdev_tap_create(cfg->iftap[ifidx], offload);
+	}
+
+	if (!nd[ifidx] && cfg->iftype[ifidx] && cfg->ifparams[ifidx]) {
+		if ((strcmp(cfg->iftype[ifidx], "tap") == 0)) {
+			nd[ifidx] =
+				lkl_netdev_tap_create(cfg->ifparams[ifidx],
+							offload);
+		} else if ((strcmp(cfg->iftype[ifidx], "macvtap") == 0)) {
+			nd[ifidx] =
+				lkl_netdev_macvtap_create(cfg->ifparams[ifidx],
+							offload);
+		} else if ((strcmp(cfg->iftype[ifidx], "dpdk") == 0)) {
+			nd[ifidx] =
+				lkl_netdev_dpdk_create(cfg->ifparams[ifidx],
+							offload, mac);
+		} else if ((strcmp(cfg->iftype[ifidx], "pipe") == 0)) {
+			nd[ifidx] =
+				lkl_netdev_pipe_create(cfg->ifparams[ifidx],
+							offload);
+		} else {
+			if (offload) {
+				fprintf(stderr,
+					"WARN: %s isn't supported on %s\n",
+					"LKL_HIJACK_OFFLOAD",
+					cfg->iftype[ifidx]);
+				fprintf(stderr,
+					"WARN: Disabling offload features.\n");
+			}
+			offload = 0;
+		}
+		if (strcmp(cfg->iftype[ifidx], "vde") == 0)
+			nd[ifidx] = lkl_netdev_vde_create(cfg->ifparams[ifidx]);
+		if (strcmp(cfg->iftype[ifidx], "raw") == 0)
+			nd[ifidx] = lkl_netdev_raw_create(cfg->ifparams[ifidx]);
+	}
+
+	if (nd[ifidx]) {
+		if ((mac[0] != 0) || (mac[1] != 0) ||
+				(mac[2] != 0) || (mac[3] != 0) ||
+				(mac[4] != 0) || (mac[5] != 0)) {
+			nd_args.mac = mac;
+		} else {
+			ret = parse_mac_str(cfg->ifmac_str[ifidx], mac);
+
+			if (ret < 0) {
+				fprintf(stderr, "failed to parse mac\n");
+				return -1;
+			} else if (ret > 0) {
+				nd_args.mac = mac;
+			} else {
+				nd_args.mac = NULL;
+			}
+		}
+
+		nd_args.offload = offload;
+		ret = lkl_netdev_add(nd[ifidx], &nd_args);
+		if (ret < 0) {
+			fprintf(stderr, "failed to add netdev: %s\n",
+					lkl_strerror(ret));
+			return -1;
+		}
+		nd_id[ifidx] = ret;
+	}
+	return 0;
+}
+
+static int lkl_hijack_netdev_configure(struct lkl_config *cfg, int ifidx)
+{
+	int ret, nd_ifindex = -1;
+
+	if (nd_id[ifidx] >= 0) {
+		nd_ifindex = lkl_netdev_get_ifindex(nd_id[ifidx]);
+		if (nd_ifindex > 0)
+			lkl_if_up(nd_ifindex);
+		else
+			fprintf(stderr,
+				"failed to get ifindex for netdev id %d: %s\n",
+				nd_id[ifidx], lkl_strerror(nd_ifindex));
+	}
+
+	if (nd_ifindex >= 0 && cfg->ifmtu_str[ifidx]) {
+		int mtu = atoi(cfg->ifmtu_str[ifidx]);
+
+		ret = lkl_if_set_mtu(nd_ifindex, mtu);
+		if (ret < 0)
+			fprintf(stderr, "failed to set MTU: %s\n",
+					lkl_strerror(ret));
+	}
+
+	if (nd_ifindex >= 0 && cfg->ifip[ifidx] && cfg->ifnetmask_len[ifidx]) {
+		unsigned int addr = inet_addr(cfg->ifip[ifidx]);
+		int nmlen = atoi(cfg->ifnetmask_len[ifidx]);
+
+		if (addr != INADDR_NONE && nmlen > 0 && nmlen < 32) {
+			ret = lkl_if_set_ipv4(nd_ifindex, addr, nmlen);
+			if (ret < 0)
+				fprintf(stderr,
+					"failed to set IPv4 address: %s\n",
+					lkl_strerror(ret));
+		}
+		if (cfg->ifgateway[ifidx]) {
+			unsigned int gwaddr = inet_addr(cfg->ifgateway[ifidx]);
+
+			if (gwaddr != INADDR_NONE) {
+				ret = lkl_if_set_ipv4_gateway(nd_ifindex,
+						addr, nmlen, gwaddr);
+				if (ret < 0)
+					fprintf(stderr,
+							"failed to set v4 if gw: %s\n",
+							lkl_strerror(ret));
+			}
+		}
+	}
+
+	if (nd_ifindex >= 0 && cfg->ifipv6[ifidx] &&
+			cfg->ifnetmask6_len[ifidx]) {
+		struct in6_addr addr;
+		unsigned int pflen = atoi(cfg->ifnetmask6_len[ifidx]);
+
+		if (inet_pton(AF_INET6, cfg->ifipv6[ifidx], &addr) != 1) {
+			fprintf(stderr, "Invalid ipv6 addr: %s\n",
+					cfg->ifipv6[ifidx]);
+		}  else {
+			ret = lkl_if_set_ipv6(nd_ifindex, &addr, pflen);
+			if (ret < 0)
+				fprintf(stderr,
+					"failed to set IPv6 address: %s\n",
+					lkl_strerror(ret));
+		}
+		if (cfg->ifgateway6[ifidx]) {
+			char gwaddr[16];
+
+			if (inet_pton(AF_INET6, cfg->ifgateway6[ifidx],
+								gwaddr) != 1) {
+				fprintf(stderr, "Invalid ipv6 gateway: %s\n",
+						cfg->ifgateway6[ifidx]);
+			} else {
+				ret = lkl_if_set_ipv6_gateway(nd_ifindex,
+						&addr, pflen, gwaddr);
+				if (ret < 0)
+					fprintf(stderr,
+							"failed to set v6 if gw: %s\n",
+							lkl_strerror(ret));
+			}
+		}
+	}
+
+	if (nd_ifindex >= 0 && cfg->ifneigh_entries[ifidx])
+		add_neighbor(nd_ifindex, cfg->ifneigh_entries[ifidx]);
+
+	if (nd_ifindex >= 0 && cfg->ifqdisc_entries[ifidx])
+		lkl_qdisc_parse_add(nd_ifindex, cfg->ifqdisc_entries[ifidx]);
+
+	return 0;
+}
 
 void __attribute__((constructor))
 hijack_init(void)
 {
-	int ret, i, dev_null, nd_ifindex = -1;
-	/* OBSOLETE: should use IFTYPE and IFPARAMS */
-	char *tap = getenv("LKL_HIJACK_NET_TAP");
-	char *iftype = getenv("LKL_HIJACK_NET_IFTYPE");
-	char *ifparams = getenv("LKL_HIJACK_NET_IFPARAMS");
-	char *mtu_str = getenv("LKL_HIJACK_NET_MTU");
-	__lkl__u8 mac[LKL_ETH_ALEN] = {0};
-	char *ip = getenv("LKL_HIJACK_NET_IP");
-	char *ipv6 = getenv("LKL_HIJACK_NET_IPV6");
-	char *mac_str = getenv("LKL_HIJACK_NET_MAC");
-	char *netmask_len = getenv("LKL_HIJACK_NET_NETMASK_LEN");
-	char *netmask6_len = getenv("LKL_HIJACK_NET_NETMASK6_LEN");
-	char *ifgateway = getenv("LKL_HIJACK_NET_IFGATEWAY");
-	char *ifgateway6 = getenv("LKL_HIJACK_NET_IFGATEWAY6");
-	char *gateway = getenv("LKL_HIJACK_NET_GATEWAY");
-	char *gateway6 = getenv("LKL_HIJACK_NET_GATEWAY6");
-	char *debug = getenv("LKL_HIJACK_DEBUG");
-	char *mount = getenv("LKL_HIJACK_MOUNT");
-	struct lkl_netdev_args nd_args;
-	char *neigh_entries = getenv("LKL_HIJACK_NET_NEIGHBOR");
-	char *qdisc_entries = getenv("LKL_HIJACK_NET_QDISC");
-	/* single_cpu mode:
-	 * 0: Don't pin to single CPU (default).
-	 * 1: Pin only LKL kernel threads to single CPU.
-	 * 2: Pin all LKL threads to single CPU including all LKL kernel threads
-	 * and device polling threads. Avoid this mode if having busy polling
-	 * threads.
-	 *
-	 * mode 2 can achieve better TCP_RR but worse TCP_STREAM than mode 1.
-	 * You should choose the best for your application and virtio device
-	 * type.
-	 */
-	char *single_cpu= getenv("LKL_HIJACK_SINGLE_CPU");
+	int ret, i, dev_null;
 	int single_cpu_mode = 0;
+	int ifidx;
 	cpu_set_t ori_cpu;
-	char *offload1 = getenv("LKL_HIJACK_OFFLOAD");
-	int offload = 0;
-	char *sysctls = getenv("LKL_HIJACK_SYSCTL");
-	char *boot_cmdline = getenv("LKL_HIJACK_BOOT_CMDLINE") ? : "";
 
-	memset(&nd_args, 0, sizeof(struct lkl_netdev_args));
-	if (!debug) {
+	ret = config_load();
+	if (ret < 0)
+		return;
+	for (i = 0; i < LKL_IF_MAX; i++)
+		nd_id[i] = -1;
+	if (!cfg->debug) {
 		lkl_host_ops.print = NULL;
 	} else {
 		lkl_register_dbg_handler();
-		lkl_debug = strtol(debug, NULL, 0);
+		lkl_debug = strtol(cfg->debug, NULL, 0);
 	}
-	if (offload1)
-		offload = strtol(offload1, NULL, 0);
 
 	if (lkl_debug & 0x200) {
 		char c;
@@ -243,8 +434,8 @@ hijack_init(void)
 			return;
 		}
 	}
-	if (single_cpu) {
-		single_cpu_mode = atoi(single_cpu);
+	if (cfg->single_cpu) {
+		single_cpu_mode = atoi(cfg->single_cpu);
 		switch (single_cpu_mode) {
 			case 0:
 			case 1:
@@ -269,65 +460,10 @@ hijack_init(void)
 	if (single_cpu_mode == 2)
 		PinToFirstCpu(&ori_cpu);
 
-	if (tap) {
-		fprintf(stderr,
-			"WARN: variable LKL_HIJACK_NET_TAP is now obsoleted.\n"
-			"      please use LKL_HIJACK_NET_IFTYPE and "
-			"LKL_HIJACK_NET_IFPARAMS instead.\n");
-		nd = lkl_netdev_tap_create(tap, offload);
-	}
-
-	if (!nd && iftype && ifparams) {
-		if ((strcmp(iftype, "tap") == 0)) {
-			nd = lkl_netdev_tap_create(ifparams, offload);
-		} else if ((strcmp(iftype, "macvtap") == 0)) {
-			nd = lkl_netdev_macvtap_create(ifparams, offload);
-		} else if ((strcmp(iftype, "dpdk") == 0)) {
-			nd = lkl_netdev_dpdk_create(ifparams, offload, mac);
-		} else if ((strcmp(iftype, "pipe") == 0)) {
-			nd = lkl_netdev_pipe_create(ifparams, offload);
-		} else {
-			if (offload) {
-				fprintf(stderr,
-					"WARN: %s isn't supported on %s\n",
-					"LKL_HIJACK_OFFLOAD", iftype);
-				fprintf(stderr,
-					"WARN: Disabling offload features.\n");
-			}
-			offload = 0;
-			if (strcmp(iftype, "vde") == 0)
-				nd = lkl_netdev_vde_create(ifparams);
-			else if (strcmp(iftype, "raw") == 0)
-				nd = lkl_netdev_raw_create(ifparams);
-		}
-	}
-
-	if (nd) {
-		if ((mac[0] != 0) || (mac[1] != 0) || (mac[2] != 0) ||
-			(mac[3] != 0) || (mac[4] != 0) || (mac[5] != 0)) {
-			nd_args.mac = mac;
-		} else {
-			ret = parse_mac_str(mac_str, mac);
-
-			if (ret < 0) {
-				fprintf(stderr, "failed to parse mac\n");
-				return;
-			} else if (ret > 0) {
-				nd_args.mac = mac;
-			} else {
-				nd_args.mac = NULL;
-			}
-		}
-
-		nd_args.offload = offload;
-		ret = lkl_netdev_add(nd, &nd_args);
-
-		if (ret < 0) {
-			fprintf(stderr, "failed to add netdev: %s\n",
-				lkl_strerror(ret));
+	for (ifidx = 0; ifidx < cfg->ifnum; ifidx++) {
+		ret = lkl_hijack_netdev_create(cfg, ifidx);
+		if (ret < 0)
 			return;
-		}
-		nd_id = ret;
 	}
 
 	if (single_cpu_mode == 1)
@@ -344,7 +480,7 @@ hijack_init(void)
 	}
 #endif
 
-	ret = lkl_start_kernel(&lkl_host_ops, boot_cmdline);
+	ret = lkl_start_kernel(&lkl_host_ops, cfg->boot_cmdline);
 	if (ret) {
 		fprintf(stderr, "can't start kernel: %s\n", lkl_strerror(ret));
 		return;
@@ -365,7 +501,8 @@ hijack_init(void)
 	ret = lkl_sys_mknod("/dev_null", LKL_S_IFCHR | 0600, LKL_MKDEV(1, 3));
 	dev_null = lkl_sys_open("/dev_null", LKL_O_RDONLY, 0);
 	if (dev_null < 0) {
-		fprintf(stderr, "failed to open /dev/null: %s\n", lkl_strerror(dev_null));
+		fprintf(stderr, "failed to open /dev/null: %s\n",
+				lkl_strerror(dev_null));
 		return;
 	}
 
@@ -375,49 +512,14 @@ hijack_init(void)
 	/* lo iff_up */
 	lkl_if_up(1);
 
-	if (nd_id >= 0) {
-		nd_ifindex = lkl_netdev_get_ifindex(nd_id);
-		if (nd_ifindex > 0)
-			lkl_if_up(nd_ifindex);
-		else
-			fprintf(stderr, "failed to get ifindex for netdev id %d: %s\n",
-				nd_id, lkl_strerror(nd_ifindex));
-	}
-
-	if (nd_ifindex >= 0 && mtu_str) {
-		int mtu = atoi(mtu_str);
-
-		ret = lkl_if_set_mtu(nd_ifindex, mtu);
+	for (ifidx = 0; ifidx < cfg->ifnum; ifidx++) {
+		ret = lkl_hijack_netdev_configure(cfg, ifidx);
 		if (ret < 0)
-			fprintf(stderr, "failed to set MTU: %s\n", lkl_strerror(ret));
+			return;
 	}
 
-	if (nd_ifindex >= 0 && ip && netmask_len) {
-		unsigned int addr = inet_addr(ip);
-		int nmlen = atoi(netmask_len);
-
-		if (addr != INADDR_NONE && nmlen > 0 && nmlen < 32) {
-			ret = lkl_if_set_ipv4(nd_ifindex, addr, nmlen);
-			if (ret < 0)
-				fprintf(stderr, "failed to set IPv4 address: %s\n",
-					lkl_strerror(ret));
-		}
-		if (ifgateway) {
-			unsigned int gwaddr = inet_addr(ifgateway);
-
-			if (gwaddr != INADDR_NONE) {
-				ret = lkl_if_set_ipv4_gateway(nd_ifindex,
-						addr, nmlen, gwaddr);
-				if (ret < 0)
-					fprintf(stderr,
-						"failed to set v4 if gw: %s\n",
-						lkl_strerror(ret));
-			}
-		}
-	}
-
-	if (nd_ifindex >= 0 && gateway) {
-		unsigned int gwaddr = inet_addr(gateway);
+	if (cfg->gateway) {
+		unsigned int gwaddr = inet_addr(cfg->gateway);
 
 		if (gwaddr != INADDR_NONE) {
 			ret = lkl_set_ipv4_gateway(gwaddr);
@@ -427,66 +529,32 @@ hijack_init(void)
 		}
 	}
 
-	if (nd_ifindex >= 0 && ipv6 && netmask6_len) {
-		struct in6_addr addr;
-		unsigned int pflen = atoi(netmask6_len);
+	if (cfg->gateway6) {
+		char gw[16];
 
-		if (inet_pton(AF_INET6, ipv6, &addr) != 1) {
-			fprintf(stderr, "Invalid ipv6 addr: %s\n", ipv6);
-		}  else {
-			ret = lkl_if_set_ipv6(nd_ifindex, &addr, pflen);
-			if (ret < 0)
-				fprintf(stderr, "failed to set IPv6address: %s\n",
-					lkl_strerror(ret));
-		}
-		if (ifgateway6) {
-			char gwaddr[16];
-
-			if (inet_pton(AF_INET6, ifgateway6, gwaddr) != 1) {
-				fprintf(stderr, "Invalid ipv6 gateway: %s\n",
-							ifgateway6);
-			} else {
-				ret = lkl_if_set_ipv6_gateway(nd_ifindex,
-						&addr, pflen, gwaddr);
-				if (ret < 0)
-					fprintf(stderr,
-						"failed to set v6 if gw: %s\n",
-						lkl_strerror(ret));
-			}
-		}
-	}
-
-	if (nd_ifindex >= 0 && gateway6) {
-		char gwaddr[16];
-
-		if (inet_pton(AF_INET6, gateway6, gwaddr) != 1) {
-			fprintf(stderr, "Invalid ipv6 gateway: %s\n", gateway6);
+		if (inet_pton(AF_INET6, cfg->gateway6, gw) != 1) {
+			fprintf(stderr, "Invalid ipv6 gateway: %s\n",
+					cfg->gateway6);
 		} else {
-			ret = lkl_set_ipv6_gateway(gwaddr);
+			ret = lkl_set_ipv6_gateway(gw);
 			if (ret < 0)
-				fprintf(stderr, "failed to set IPv6 gateway: %s\n",
+				fprintf(stderr,
+					"failed to set IPv6 gateway: %s\n",
 					lkl_strerror(ret));
 		}
 	}
 
-	if (mount)
-		mount_cmds_exec(mount, lkl_mount_fs);
+	if (cfg->mount)
+		mount_cmds_exec(cfg->mount, lkl_mount_fs);
 
-	if (nd_ifindex >= 0 && neigh_entries)
-		add_neighbor(nd_ifindex, neigh_entries);
-
-	if (nd_ifindex >= 0 && qdisc_entries)
-		lkl_qdisc_parse_add(nd_ifindex, qdisc_entries);
-
-	if (sysctls)
-		lkl_sysctl_parse_write(sysctls);
+	if (cfg->sysctls)
+		lkl_sysctl_parse_write(cfg->sysctls);
 }
 
 void __attribute__((destructor))
 hijack_fini(void)
 {
 	int i;
-	char *dump = getenv("LKL_HIJACK_DUMP");
 	int err;
 
 	/* The following pauses the kernel before exiting allowing one
@@ -496,17 +564,24 @@ hijack_fini(void)
 		while (1)
 			pause();
 	}
-	if (dump)
-		mount_cmds_exec(dump, dump_file);
+
+	if (cfg) {
+		if (cfg->dump)
+			mount_cmds_exec(cfg->dump, dump_file);
+		for (i = 0; i < cfg->ifnum; i++)
+			if (nd_id[i] >= 0)
+				lkl_netdev_remove(nd_id[i]);
+		for (i = 0; i < cfg->ifnum; i++)
+			if (nd[i])
+				lkl_netdev_free(nd[i]);
+		clean_config(cfg);
+		free(cfg);
+	}
+	if (!lkl_running)
+		return;
 
 	for (i = 0; i < LKL_FD_OFFSET; i++)
 		lkl_sys_close(i);
-
-	if (nd_id >= 0)
-		lkl_netdev_remove(nd_id);
-
-	if (nd)
-		lkl_netdev_free(nd);
 
 	err = lkl_sys_halt();
 	if (err)
