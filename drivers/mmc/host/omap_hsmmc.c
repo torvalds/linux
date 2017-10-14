@@ -445,7 +445,7 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 
 
 	ret = mmc_regulator_get_supply(mmc);
-	if (ret == -EPROBE_DEFER)
+	if (ret)
 		return ret;
 
 	/* Allow an aux regulator */
