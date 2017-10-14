@@ -1301,7 +1301,7 @@ scsi_prep_state_check(struct scsi_device *sdev, struct request *req)
 			/*
 			 * If the devices is blocked we defer normal commands.
 			 */
-			if (!(req->rq_flags & RQF_PREEMPT))
+			if (req && !(req->rq_flags & RQF_PREEMPT))
 				ret = BLKPREP_DEFER;
 			break;
 		default:
@@ -1310,7 +1310,7 @@ scsi_prep_state_check(struct scsi_device *sdev, struct request *req)
 			 * special commands.  In particular any user initiated
 			 * command is not allowed.
 			 */
-			if (!(req->rq_flags & RQF_PREEMPT))
+			if (req && !(req->rq_flags & RQF_PREEMPT))
 				ret = BLKPREP_KILL;
 			break;
 		}
