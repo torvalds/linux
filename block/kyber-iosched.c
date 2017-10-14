@@ -649,7 +649,7 @@ static bool kyber_has_work(struct blk_mq_hw_ctx *hctx)
 		if (!list_empty_careful(&khd->rqs[i]))
 			return true;
 	}
-	return false;
+	return sbitmap_any_bit_set(&hctx->ctx_map);
 }
 
 #define KYBER_LAT_SHOW_STORE(op)					\
