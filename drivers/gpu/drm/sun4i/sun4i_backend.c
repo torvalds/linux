@@ -369,13 +369,6 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
-	backend->engine.regs = devm_regmap_init_mmio(dev, regs,
-						     &sun4i_backend_regmap_config);
-	if (IS_ERR(backend->engine.regs)) {
-		dev_err(dev, "Couldn't create the backend regmap\n");
-		return PTR_ERR(backend->engine.regs);
-	}
-
 	backend->reset = devm_reset_control_get(dev, NULL);
 	if (IS_ERR(backend->reset)) {
 		dev_err(dev, "Couldn't get our reset line\n");
@@ -419,6 +412,13 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 			dev_err(dev, "Couldn't init SAT resources\n");
 			goto err_disable_ram_clk;
 		}
+	}
+
+	backend->engine.regs = devm_regmap_init_mmio(dev, regs,
+						     &sun4i_backend_regmap_config);
+	if (IS_ERR(backend->engine.regs)) {
+		dev_err(dev, "Couldn't create the backend regmap\n");
+		return PTR_ERR(backend->engine.regs);
 	}
 
 	list_add_tail(&backend->engine.list, &drv->engine_list);
