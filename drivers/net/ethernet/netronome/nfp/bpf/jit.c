@@ -402,8 +402,8 @@ __emit_ld_field(struct nfp_prog *nfp_prog, enum shf_sc sc,
 }
 
 static void
-emit_ld_field_any(struct nfp_prog *nfp_prog, enum shf_sc sc, u8 shift,
-		  swreg dst, u8 bmask, swreg src, bool zero)
+emit_ld_field_any(struct nfp_prog *nfp_prog, swreg dst, u8 bmask, swreg src,
+		  enum shf_sc sc, u8 shift, bool zero)
 {
 	struct nfp_insn_re_regs reg;
 	int err;
@@ -424,7 +424,7 @@ static void
 emit_ld_field(struct nfp_prog *nfp_prog, swreg dst, u8 bmask, swreg src,
 	      enum shf_sc sc, u8 shift)
 {
-	emit_ld_field_any(nfp_prog, sc, shift, dst, bmask, src, false);
+	emit_ld_field_any(nfp_prog, dst, bmask, src, sc, shift, false);
 }
 
 static void emit_nop(struct nfp_prog *nfp_prog)
@@ -504,70 +504,136 @@ wrp_br_special(struct nfp_prog *nfp_prog, enum br_mask mask,
 		FIELD_PREP(OP_BR_SPECIAL, special);
 }
 
+static void wrp_mov(struct nfp_prog *nfp_prog, swreg dst, swreg src)
+{
+	emit_alu(nfp_prog, dst, reg_none(), ALU_OP_NONE, src);
+}
+
 static void wrp_reg_mov(struct nfp_prog *nfp_prog, u16 dst, u16 src)
 {
-	emit_alu(nfp_prog, reg_both(dst), reg_none(), ALU_OP_NONE, reg_b(src));
+	wrp_mov(nfp_prog, reg_both(dst), reg_b(src));
 }
 
 static int
-construct_data_ind_ld(struct nfp_prog *nfp_prog, u16 offset,
-		      u16 src, bool src_valid, u8 size)
+data_ld(struct nfp_prog *nfp_prog, swreg offset, u8 dst_gpr, int size)
 {
 	unsigned int i;
 	u16 shift, sz;
-	swreg tmp_reg;
 
 	/* We load the value from the address indicated in @offset and then
 	 * shift out the data we don't need.  Note: this is big endian!
 	 */
-	sz = size < 4 ? 4 : size;
+	sz = max(size, 4);
 	shift = size < 4 ? 4 - size : 0;
 
-	if (src_valid) {
-		/* Calculate the true offset (src_reg + imm) */
-		tmp_reg = ur_load_imm_any(nfp_prog, offset, imm_b(nfp_prog));
-		emit_alu(nfp_prog, imm_both(nfp_prog),
-			 reg_a(src), ALU_OP_ADD, tmp_reg);
-		/* Check packet length (size guaranteed to fit b/c it's u8) */
-		emit_alu(nfp_prog, imm_a(nfp_prog),
-			 imm_a(nfp_prog), ALU_OP_ADD, reg_imm(size));
-		emit_alu(nfp_prog, reg_none(),
-			 plen_reg(nfp_prog), ALU_OP_SUB, imm_a(nfp_prog));
-		wrp_br_special(nfp_prog, BR_BLO, OP_BR_GO_ABORT);
-		/* Load data */
-		emit_cmd(nfp_prog, CMD_TGT_READ8, CMD_MODE_32b, 0,
-			 pptr_reg(nfp_prog), imm_b(nfp_prog), sz - 1, true);
-	} else {
-		/* Check packet length */
-		tmp_reg = ur_load_imm_any(nfp_prog, offset + size,
-					  imm_a(nfp_prog));
-		emit_alu(nfp_prog, reg_none(),
-			 plen_reg(nfp_prog), ALU_OP_SUB, tmp_reg);
-		wrp_br_special(nfp_prog, BR_BLO, OP_BR_GO_ABORT);
-		/* Load data */
-		tmp_reg = re_load_imm_any(nfp_prog, offset, imm_b(nfp_prog));
-		emit_cmd(nfp_prog, CMD_TGT_READ8, CMD_MODE_32b, 0,
-			 pptr_reg(nfp_prog), tmp_reg, sz - 1, true);
-	}
+	emit_cmd(nfp_prog, CMD_TGT_READ8, CMD_MODE_32b, 0,
+		 pptr_reg(nfp_prog), offset, sz - 1, true);
 
 	i = 0;
 	if (shift)
-		emit_shf(nfp_prog, reg_both(0), reg_none(), SHF_OP_NONE,
+		emit_shf(nfp_prog, reg_both(dst_gpr), reg_none(), SHF_OP_NONE,
 			 reg_xfer(0), SHF_SC_R_SHF, shift * 8);
 	else
 		for (; i * 4 < size; i++)
-			emit_alu(nfp_prog, reg_both(i),
-				 reg_none(), ALU_OP_NONE, reg_xfer(i));
+			wrp_mov(nfp_prog, reg_both(dst_gpr + i), reg_xfer(i));
 
 	if (i < 2)
-		wrp_immed(nfp_prog, reg_both(1), 0);
+		wrp_immed(nfp_prog, reg_both(dst_gpr + 1), 0);
 
 	return 0;
 }
 
+static int
+data_ld_host_order(struct nfp_prog *nfp_prog, u8 src_gpr, swreg offset,
+		   u8 dst_gpr, int size)
+{
+	unsigned int i;
+	u8 mask, sz;
+
+	/* We load the value from the address indicated in @offset and then
+	 * mask out the data we don't need.  Note: this is little endian!
+	 */
+	sz = max(size, 4);
+	mask = size < 4 ? GENMASK(size - 1, 0) : 0;
+
+	emit_cmd(nfp_prog, CMD_TGT_READ32_SWAP, CMD_MODE_32b, 0,
+		 reg_a(src_gpr), offset, sz / 4 - 1, true);
+
+	i = 0;
+	if (mask)
+		emit_ld_field_any(nfp_prog, reg_both(dst_gpr), mask,
+				  reg_xfer(0), SHF_SC_NONE, 0, true);
+	else
+		for (; i * 4 < size; i++)
+			wrp_mov(nfp_prog, reg_both(dst_gpr + i), reg_xfer(i));
+
+	if (i < 2)
+		wrp_immed(nfp_prog, reg_both(dst_gpr + 1), 0);
+
+	return 0;
+}
+
+static int
+construct_data_ind_ld(struct nfp_prog *nfp_prog, u16 offset, u16 src, u8 size)
+{
+	swreg tmp_reg;
+
+	/* Calculate the true offset (src_reg + imm) */
+	tmp_reg = ur_load_imm_any(nfp_prog, offset, imm_b(nfp_prog));
+	emit_alu(nfp_prog, imm_both(nfp_prog), reg_a(src), ALU_OP_ADD, tmp_reg);
+
+	/* Check packet length (size guaranteed to fit b/c it's u8) */
+	emit_alu(nfp_prog, imm_a(nfp_prog),
+		 imm_a(nfp_prog), ALU_OP_ADD, reg_imm(size));
+	emit_alu(nfp_prog, reg_none(),
+		 plen_reg(nfp_prog), ALU_OP_SUB, imm_a(nfp_prog));
+	wrp_br_special(nfp_prog, BR_BLO, OP_BR_GO_ABORT);
+
+	/* Load data */
+	return data_ld(nfp_prog, imm_b(nfp_prog), 0, size);
+}
+
 static int construct_data_ld(struct nfp_prog *nfp_prog, u16 offset, u8 size)
 {
-	return construct_data_ind_ld(nfp_prog, offset, 0, false, size);
+	swreg tmp_reg;
+
+	/* Check packet length */
+	tmp_reg = ur_load_imm_any(nfp_prog, offset + size, imm_a(nfp_prog));
+	emit_alu(nfp_prog, reg_none(), plen_reg(nfp_prog), ALU_OP_SUB, tmp_reg);
+	wrp_br_special(nfp_prog, BR_BLO, OP_BR_GO_ABORT);
+
+	/* Load data */
+	tmp_reg = re_load_imm_any(nfp_prog, offset, imm_b(nfp_prog));
+	return data_ld(nfp_prog, tmp_reg, 0, size);
+}
+
+static int
+data_stx_host_order(struct nfp_prog *nfp_prog, u8 dst_gpr, swreg offset,
+		    u8 src_gpr, u8 size)
+{
+	unsigned int i;
+
+	for (i = 0; i * 4 < size; i++)
+		wrp_mov(nfp_prog, reg_xfer(i), reg_a(src_gpr + i));
+
+	emit_cmd(nfp_prog, CMD_TGT_WRITE8_SWAP, CMD_MODE_32b, 0,
+		 reg_a(dst_gpr), offset, size - 1, true);
+
+	return 0;
+}
+
+static int
+data_st_host_order(struct nfp_prog *nfp_prog, u8 dst_gpr, swreg offset,
+		   u64 imm, u8 size)
+{
+	wrp_immed(nfp_prog, reg_xfer(0), imm);
+	if (size == 8)
+		wrp_immed(nfp_prog, reg_xfer(1), imm >> 32);
+
+	emit_cmd(nfp_prog, CMD_TGT_WRITE8_SWAP, CMD_MODE_32b, 0,
+		 reg_a(dst_gpr), offset, size - 1, true);
+
+	return 0;
 }
 
 static void
@@ -720,7 +786,10 @@ wrp_cmp_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	    enum br_mask br_mask, bool swap)
 {
 	const struct bpf_insn *insn = &meta->insn;
-	u8 areg = insn->src_reg * 2, breg = insn->dst_reg * 2;
+	u8 areg, breg;
+
+	areg = insn->dst_reg * 2;
+	breg = insn->src_reg * 2;
 
 	if (insn->off < 0) /* TODO */
 		return -EOPNOTSUPP;
@@ -737,6 +806,14 @@ wrp_cmp_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	emit_br(nfp_prog, br_mask, insn->off, 0);
 
 	return 0;
+}
+
+static void wrp_end32(struct nfp_prog *nfp_prog, swreg reg_in, u8 gpr_out)
+{
+	emit_ld_field(nfp_prog, reg_both(gpr_out), 0xf, reg_in,
+		      SHF_SC_R_ROT, 8);
+	emit_ld_field(nfp_prog, reg_both(gpr_out), 0x5, reg_a(gpr_out),
+		      SHF_SC_R_ROT, 16);
 }
 
 /* --- Callbacks --- */
@@ -975,6 +1052,35 @@ static int shl_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return 0;
 }
 
+static int end_reg32(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	const struct bpf_insn *insn = &meta->insn;
+	u8 gpr = insn->dst_reg * 2;
+
+	switch (insn->imm) {
+	case 16:
+		emit_ld_field(nfp_prog, reg_both(gpr), 0x9, reg_b(gpr),
+			      SHF_SC_R_ROT, 8);
+		emit_ld_field(nfp_prog, reg_both(gpr), 0xe, reg_a(gpr),
+			      SHF_SC_R_SHF, 16);
+
+		wrp_immed(nfp_prog, reg_both(gpr + 1), 0);
+		break;
+	case 32:
+		wrp_end32(nfp_prog, reg_a(gpr), gpr);
+		wrp_immed(nfp_prog, reg_both(gpr + 1), 0);
+		break;
+	case 64:
+		wrp_mov(nfp_prog, imm_a(nfp_prog), reg_b(gpr + 1));
+
+		wrp_end32(nfp_prog, reg_a(gpr), gpr + 1);
+		wrp_end32(nfp_prog, imm_a(nfp_prog), gpr);
+		break;
+	}
+
+	return 0;
+}
+
 static int imm_ld8_part2(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	wrp_immed(nfp_prog, reg_both(nfp_meta_prev(meta)->insn.dst_reg * 2 + 1),
@@ -1011,79 +1117,209 @@ static int data_ld4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 static int data_ind_ld1(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	return construct_data_ind_ld(nfp_prog, meta->insn.imm,
-				     meta->insn.src_reg * 2, true, 1);
+				     meta->insn.src_reg * 2, 1);
 }
 
 static int data_ind_ld2(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	return construct_data_ind_ld(nfp_prog, meta->insn.imm,
-				     meta->insn.src_reg * 2, true, 2);
+				     meta->insn.src_reg * 2, 2);
 }
 
 static int data_ind_ld4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	return construct_data_ind_ld(nfp_prog, meta->insn.imm,
-				     meta->insn.src_reg * 2, true, 4);
+				     meta->insn.src_reg * 2, 4);
 }
 
-static int mem_ldx4_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
-{
-	if (meta->insn.off == offsetof(struct sk_buff, len))
-		emit_alu(nfp_prog, reg_both(meta->insn.dst_reg * 2),
-			 reg_none(), ALU_OP_NONE, plen_reg(nfp_prog));
-	else
-		return -EOPNOTSUPP;
-
-	return 0;
-}
-
-static int mem_ldx4_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+static int mem_ldx_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+		       u8 size)
 {
 	swreg dst = reg_both(meta->insn.dst_reg * 2);
 
-	if (meta->insn.off != offsetof(struct xdp_md, data) &&
-	    meta->insn.off != offsetof(struct xdp_md, data_end))
+	switch (meta->insn.off) {
+	case offsetof(struct sk_buff, len):
+		if (size != FIELD_SIZEOF(struct sk_buff, len))
+			return -EOPNOTSUPP;
+		wrp_mov(nfp_prog, dst, plen_reg(nfp_prog));
+		break;
+	case offsetof(struct sk_buff, data):
+		if (size != sizeof(void *))
+			return -EOPNOTSUPP;
+		wrp_mov(nfp_prog, dst, pptr_reg(nfp_prog));
+		break;
+	case offsetof(struct sk_buff, cb) +
+	     offsetof(struct bpf_skb_data_end, data_end):
+		if (size != sizeof(void *))
+			return -EOPNOTSUPP;
+		emit_alu(nfp_prog, dst,
+			 plen_reg(nfp_prog), ALU_OP_ADD, pptr_reg(nfp_prog));
+		break;
+	default:
 		return -EOPNOTSUPP;
+	}
 
-	emit_alu(nfp_prog, dst, reg_none(), ALU_OP_NONE, pptr_reg(nfp_prog));
-
-	if (meta->insn.off == offsetof(struct xdp_md, data))
-		return 0;
-
-	emit_alu(nfp_prog, dst,	dst, ALU_OP_ADD, plen_reg(nfp_prog));
+	wrp_immed(nfp_prog, reg_both(meta->insn.dst_reg * 2 + 1), 0);
 
 	return 0;
+}
+
+static int mem_ldx_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+		       u8 size)
+{
+	swreg dst = reg_both(meta->insn.dst_reg * 2);
+
+	if (size != sizeof(void *))
+		return -EINVAL;
+
+	switch (meta->insn.off) {
+	case offsetof(struct xdp_buff, data):
+		wrp_mov(nfp_prog, dst, pptr_reg(nfp_prog));
+		break;
+	case offsetof(struct xdp_buff, data_end):
+		emit_alu(nfp_prog, dst,
+			 plen_reg(nfp_prog), ALU_OP_ADD, pptr_reg(nfp_prog));
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	wrp_immed(nfp_prog, reg_both(meta->insn.dst_reg * 2 + 1), 0);
+
+	return 0;
+}
+
+static int
+mem_ldx_data(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+	     unsigned int size)
+{
+	swreg tmp_reg;
+
+	tmp_reg = re_load_imm_any(nfp_prog, meta->insn.off, imm_b(nfp_prog));
+
+	return data_ld_host_order(nfp_prog, meta->insn.src_reg * 2, tmp_reg,
+				  meta->insn.dst_reg * 2, size);
+}
+
+static int
+mem_ldx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+	unsigned int size)
+{
+	if (meta->ptr.type == PTR_TO_CTX) {
+		if (nfp_prog->act == NN_ACT_XDP)
+			return mem_ldx_xdp(nfp_prog, meta, size);
+		else
+			return mem_ldx_skb(nfp_prog, meta, size);
+	}
+
+	if (meta->ptr.type == PTR_TO_PACKET)
+		return mem_ldx_data(nfp_prog, meta, size);
+
+	return -EOPNOTSUPP;
+}
+
+static int mem_ldx1(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return mem_ldx(nfp_prog, meta, 1);
+}
+
+static int mem_ldx2(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return mem_ldx(nfp_prog, meta, 2);
 }
 
 static int mem_ldx4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	int ret;
-
-	if (nfp_prog->act == NN_ACT_XDP)
-		ret = mem_ldx4_xdp(nfp_prog, meta);
-	else
-		ret = mem_ldx4_skb(nfp_prog, meta);
-
-	wrp_immed(nfp_prog, reg_both(meta->insn.dst_reg * 2 + 1), 0);
-
-	return ret;
+	return mem_ldx(nfp_prog, meta, 4);
 }
 
-static int mem_stx4_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+static int mem_ldx8(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
+	return mem_ldx(nfp_prog, meta, 8);
+}
+
+static int
+mem_st_data(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+	    unsigned int size)
+{
+	u64 imm = meta->insn.imm; /* sign extend */
+	swreg off_reg;
+
+	off_reg = re_load_imm_any(nfp_prog, meta->insn.off, imm_b(nfp_prog));
+
+	return data_st_host_order(nfp_prog, meta->insn.dst_reg * 2, off_reg,
+				  imm, size);
+}
+
+static int mem_st(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+		  unsigned int size)
+{
+	if (meta->ptr.type == PTR_TO_PACKET)
+		return mem_st_data(nfp_prog, meta, size);
+
 	return -EOPNOTSUPP;
 }
 
-static int mem_stx4_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+static int mem_st1(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
+	return mem_st(nfp_prog, meta, 1);
+}
+
+static int mem_st2(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return mem_st(nfp_prog, meta, 2);
+}
+
+static int mem_st4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return mem_st(nfp_prog, meta, 4);
+}
+
+static int mem_st8(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return mem_st(nfp_prog, meta, 8);
+}
+
+static int
+mem_stx_data(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+	     unsigned int size)
+{
+	swreg off_reg;
+
+	off_reg = re_load_imm_any(nfp_prog, meta->insn.off, imm_b(nfp_prog));
+
+	return data_stx_host_order(nfp_prog, meta->insn.dst_reg * 2, off_reg,
+				   meta->insn.src_reg * 2, size);
+}
+
+static int
+mem_stx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+	unsigned int size)
+{
+	if (meta->ptr.type == PTR_TO_PACKET)
+		return mem_stx_data(nfp_prog, meta, size);
+
 	return -EOPNOTSUPP;
+}
+
+static int mem_stx1(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return mem_stx(nfp_prog, meta, 1);
+}
+
+static int mem_stx2(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return mem_stx(nfp_prog, meta, 2);
 }
 
 static int mem_stx4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	if (nfp_prog->act == NN_ACT_XDP)
-		return mem_stx4_xdp(nfp_prog, meta);
-	return mem_stx4_skb(nfp_prog, meta);
+	return mem_stx(nfp_prog, meta, 4);
+}
+
+static int mem_stx8(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return mem_stx(nfp_prog, meta, 8);
 }
 
 static int jump(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
@@ -1129,22 +1365,22 @@ static int jeq_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int jgt_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_cmp_imm(nfp_prog, meta, BR_BLO, false);
+	return wrp_cmp_imm(nfp_prog, meta, BR_BLO, true);
 }
 
 static int jge_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_cmp_imm(nfp_prog, meta, BR_BHS, true);
+	return wrp_cmp_imm(nfp_prog, meta, BR_BHS, false);
 }
 
 static int jlt_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_cmp_imm(nfp_prog, meta, BR_BHS, false);
+	return wrp_cmp_imm(nfp_prog, meta, BR_BLO, false);
 }
 
 static int jle_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_cmp_imm(nfp_prog, meta, BR_BLO, true);
+	return wrp_cmp_imm(nfp_prog, meta, BR_BHS, true);
 }
 
 static int jset_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
@@ -1191,6 +1427,7 @@ static int jne_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		emit_alu(nfp_prog, reg_none(), reg_a(insn->dst_reg * 2),
 			 ALU_OP_OR, reg_b(insn->dst_reg * 2 + 1));
 		emit_br(nfp_prog, BR_BNE, insn->off, 0);
+		return 0;
 	}
 
 	tmp_reg = ur_load_imm_any(nfp_prog, imm & ~0U, imm_b(nfp_prog));
@@ -1226,22 +1463,22 @@ static int jeq_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int jgt_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_cmp_reg(nfp_prog, meta, BR_BLO, false);
+	return wrp_cmp_reg(nfp_prog, meta, BR_BLO, true);
 }
 
 static int jge_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_cmp_reg(nfp_prog, meta, BR_BHS, true);
+	return wrp_cmp_reg(nfp_prog, meta, BR_BHS, false);
 }
 
 static int jlt_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_cmp_reg(nfp_prog, meta, BR_BHS, false);
+	return wrp_cmp_reg(nfp_prog, meta, BR_BLO, false);
 }
 
 static int jle_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_cmp_reg(nfp_prog, meta, BR_BLO, true);
+	return wrp_cmp_reg(nfp_prog, meta, BR_BHS, true);
 }
 
 static int jset_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
@@ -1289,6 +1526,7 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_ALU | BPF_SUB | BPF_X] =	sub_reg,
 	[BPF_ALU | BPF_SUB | BPF_K] =	sub_imm,
 	[BPF_ALU | BPF_LSH | BPF_K] =	shl_imm,
+	[BPF_ALU | BPF_END | BPF_X] =	end_reg32,
 	[BPF_LD | BPF_IMM | BPF_DW] =	imm_ld8,
 	[BPF_LD | BPF_ABS | BPF_B] =	data_ld1,
 	[BPF_LD | BPF_ABS | BPF_H] =	data_ld2,
@@ -1296,8 +1534,18 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_LD | BPF_IND | BPF_B] =	data_ind_ld1,
 	[BPF_LD | BPF_IND | BPF_H] =	data_ind_ld2,
 	[BPF_LD | BPF_IND | BPF_W] =	data_ind_ld4,
+	[BPF_LDX | BPF_MEM | BPF_B] =	mem_ldx1,
+	[BPF_LDX | BPF_MEM | BPF_H] =	mem_ldx2,
 	[BPF_LDX | BPF_MEM | BPF_W] =	mem_ldx4,
+	[BPF_LDX | BPF_MEM | BPF_DW] =	mem_ldx8,
+	[BPF_STX | BPF_MEM | BPF_B] =	mem_stx1,
+	[BPF_STX | BPF_MEM | BPF_H] =	mem_stx2,
 	[BPF_STX | BPF_MEM | BPF_W] =	mem_stx4,
+	[BPF_STX | BPF_MEM | BPF_DW] =	mem_stx8,
+	[BPF_ST | BPF_MEM | BPF_B] =	mem_st1,
+	[BPF_ST | BPF_MEM | BPF_H] =	mem_st2,
+	[BPF_ST | BPF_MEM | BPF_W] =	mem_st4,
+	[BPF_ST | BPF_MEM | BPF_DW] =	mem_st8,
 	[BPF_JMP | BPF_JA | BPF_K] =	jump,
 	[BPF_JMP | BPF_JEQ | BPF_K] =	jeq_imm,
 	[BPF_JMP | BPF_JGT | BPF_K] =	jgt_imm,
@@ -1434,8 +1682,7 @@ static void nfp_outro_tc_legacy(struct nfp_prog *nfp_prog)
 	 *  ife + tx  0x24 -> redir, count as stat1
 	 */
 	emit_br_byte_neq(nfp_prog, reg_b(0), 0xff, 0, nfp_prog->tgt_done, 2);
-	emit_alu(nfp_prog, reg_a(0),
-		 reg_none(), ALU_OP_NONE, NFP_BPF_ABI_FLAGS);
+	wrp_mov(nfp_prog, reg_a(0), NFP_BPF_ABI_FLAGS);
 	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_imm(0x11), SHF_SC_L_SHF, 16);
 
 	emit_br(nfp_prog, BR_UNC, nfp_prog->tgt_done, 1);
@@ -1462,8 +1709,7 @@ static void nfp_outro_tc_da(struct nfp_prog *nfp_prog)
 
 	emit_br_def(nfp_prog, nfp_prog->tgt_done, 2);
 
-	emit_alu(nfp_prog, reg_a(0),
-		 reg_none(), ALU_OP_NONE, NFP_BPF_ABI_FLAGS);
+	wrp_mov(nfp_prog, reg_a(0), NFP_BPF_ABI_FLAGS);
 	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_imm(0x11), SHF_SC_L_SHF, 16);
 
 	/* Target for normal exits */
@@ -1472,8 +1718,7 @@ static void nfp_outro_tc_da(struct nfp_prog *nfp_prog)
 	/* if R0 > 7 jump to abort */
 	emit_alu(nfp_prog, reg_none(), reg_imm(7), ALU_OP_SUB, reg_b(0));
 	emit_br(nfp_prog, BR_BLO, nfp_prog->tgt_abort, 0);
-	emit_alu(nfp_prog, reg_a(0),
-		 reg_none(), ALU_OP_NONE, NFP_BPF_ABI_FLAGS);
+	wrp_mov(nfp_prog, reg_a(0), NFP_BPF_ABI_FLAGS);
 
 	wrp_immed(nfp_prog, reg_b(2), 0x41221211);
 	wrp_immed(nfp_prog, reg_b(3), 0x41001211);
@@ -1510,8 +1755,7 @@ static void nfp_outro_xdp(struct nfp_prog *nfp_prog)
 
 	emit_br_def(nfp_prog, nfp_prog->tgt_done, 2);
 
-	emit_alu(nfp_prog, reg_a(0),
-		 reg_none(), ALU_OP_NONE, NFP_BPF_ABI_FLAGS);
+	wrp_mov(nfp_prog, reg_a(0), NFP_BPF_ABI_FLAGS);
 	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_imm(0x82), SHF_SC_L_SHF, 16);
 
 	/* Target for normal exits */
@@ -1532,8 +1776,7 @@ static void nfp_outro_xdp(struct nfp_prog *nfp_prog)
 
 	emit_br_def(nfp_prog, nfp_prog->tgt_done, 2);
 
-	emit_alu(nfp_prog, reg_a(0),
-		 reg_none(), ALU_OP_NONE, NFP_BPF_ABI_FLAGS);
+	wrp_mov(nfp_prog, reg_a(0), NFP_BPF_ABI_FLAGS);
 	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_b(2), SHF_SC_L_SHF, 16);
 }
 
