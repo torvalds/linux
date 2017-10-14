@@ -1641,7 +1641,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	}
 
 	ret = mmc_regulator_get_supply(mmc);
-	if (ret == -EPROBE_DEFER)
+	if (ret)
 		goto host_free;
 
 	host->src_clk = devm_clk_get(&pdev->dev, "source");
