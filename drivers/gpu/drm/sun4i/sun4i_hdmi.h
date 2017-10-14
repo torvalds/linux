@@ -72,6 +72,11 @@
 #define SUN4I_HDMI_PAD_CTRL1_HALVE_CLK		BIT(6)
 #define SUN4I_HDMI_PAD_CTRL1_REG_AMP(n)		(((n) & 7) << 3)
 
+/* These bits seem to invert the TMDS data channels */
+#define SUN4I_HDMI_PAD_CTRL1_INVERT_R		BIT(2)
+#define SUN4I_HDMI_PAD_CTRL1_INVERT_G		BIT(1)
+#define SUN4I_HDMI_PAD_CTRL1_INVERT_B		BIT(0)
+
 #define SUN4I_HDMI_PLL_CTRL_REG		0x208
 #define SUN4I_HDMI_PLL_CTRL_PLL_EN		BIT(31)
 #define SUN4I_HDMI_PLL_CTRL_BWS			BIT(30)
