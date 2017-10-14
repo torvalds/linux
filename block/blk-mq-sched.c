@@ -128,6 +128,61 @@ static bool blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 	return false;
 }
 
+static struct blk_mq_ctx *blk_mq_next_ctx(struct blk_mq_hw_ctx *hctx,
+					  struct blk_mq_ctx *ctx)
+{
+	unsigned idx = ctx->index_hw;
+
+	if (++idx == hctx->nr_ctx)
+		idx = 0;
+
+	return hctx->ctxs[idx];
+}
+
+/* return true if hctx need to run again */
+static bool blk_mq_do_dispatch_ctx(struct blk_mq_hw_ctx *hctx)
+{
+	struct request_queue *q = hctx->queue;
+	LIST_HEAD(rq_list);
+	struct blk_mq_ctx *ctx = READ_ONCE(hctx->dispatch_from);
+
+	do {
+		struct request *rq;
+		blk_status_t ret;
+
+		if (!sbitmap_any_bit_set(&hctx->ctx_map))
+			break;
+
+		ret = blk_mq_get_dispatch_budget(hctx);
+		if (ret == BLK_STS_RESOURCE)
+			return true;
+
+		rq = blk_mq_dequeue_from_ctx(hctx, ctx);
+		if (!rq) {
+			blk_mq_put_dispatch_budget(hctx);
+			break;
+		} else if (ret != BLK_STS_OK) {
+			blk_mq_end_request(rq, ret);
+			continue;
+		}
+
+		/*
+		 * Now this rq owns the budget which has to be released
+		 * if this rq won't be queued to driver via .queue_rq()
+		 * in blk_mq_dispatch_rq_list().
+		 */
+		list_add(&rq->queuelist, &rq_list);
+
+		/* round robin for fair dispatch */
+		ctx = blk_mq_next_ctx(hctx, rq->mq_ctx);
+
+	} while (blk_mq_dispatch_rq_list(q, &rq_list, true));
+
+	WRITE_ONCE(hctx->dispatch_from, ctx);
+
+	return false;
+}
+
 /* return true if hw queue need to be run again */
 bool blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 {
@@ -169,11 +224,24 @@ bool blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	 */
 	if (!list_empty(&rq_list)) {
 		blk_mq_sched_mark_restart_hctx(hctx);
-		if (blk_mq_dispatch_rq_list(q, &rq_list, false) &&
-				has_sched_dispatch)
-			run_queue = blk_mq_do_dispatch_sched(hctx);
+		if (blk_mq_dispatch_rq_list(q, &rq_list, false)) {
+			if (has_sched_dispatch)
+				run_queue = blk_mq_do_dispatch_sched(hctx);
+			else
+				run_queue = blk_mq_do_dispatch_ctx(hctx);
+		}
 	} else if (has_sched_dispatch) {
 		run_queue = blk_mq_do_dispatch_sched(hctx);
+	} else if (q->mq_ops->get_budget) {
+		/*
+		 * If we need to get budget before queuing request, we
+		 * dequeue request one by one from sw queue for avoiding
+		 * to mess up I/O merge when dispatch runs out of resource.
+		 *
+		 * TODO: get more budgets, and dequeue more requests in
+		 * one time.
+		 */
+		run_queue = blk_mq_do_dispatch_ctx(hctx);
 	} else {
 		blk_mq_flush_busy_ctxs(hctx, &rq_list);
 		blk_mq_dispatch_rq_list(q, &rq_list, false);

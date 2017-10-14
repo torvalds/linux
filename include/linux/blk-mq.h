@@ -30,6 +30,8 @@ struct blk_mq_hw_ctx {
 
 	struct sbitmap		ctx_map;
 
+	struct blk_mq_ctx	*dispatch_from;
+
 	struct blk_mq_ctx	**ctxs;
 	unsigned int		nr_ctx;
 

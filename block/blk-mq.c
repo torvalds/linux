@@ -914,6 +914,45 @@ void blk_mq_flush_busy_ctxs(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 }
 EXPORT_SYMBOL_GPL(blk_mq_flush_busy_ctxs);
 
+struct dispatch_rq_data {
+	struct blk_mq_hw_ctx *hctx;
+	struct request *rq;
+};
+
+static bool dispatch_rq_from_ctx(struct sbitmap *sb, unsigned int bitnr,
+		void *data)
+{
+	struct dispatch_rq_data *dispatch_data = data;
+	struct blk_mq_hw_ctx *hctx = dispatch_data->hctx;
+	struct blk_mq_ctx *ctx = hctx->ctxs[bitnr];
+
+	spin_lock(&ctx->lock);
+	if (unlikely(!list_empty(&ctx->rq_list))) {
+		dispatch_data->rq = list_entry_rq(ctx->rq_list.next);
+		list_del_init(&dispatch_data->rq->queuelist);
+		if (list_empty(&ctx->rq_list))
+			sbitmap_clear_bit(sb, bitnr);
+	}
+	spin_unlock(&ctx->lock);
+
+	return !dispatch_data->rq;
+}
+
+struct request *blk_mq_dequeue_from_ctx(struct blk_mq_hw_ctx *hctx,
+					struct blk_mq_ctx *start)
+{
+	unsigned off = start ? start->index_hw : 0;
+	struct dispatch_rq_data data = {
+		.hctx = hctx,
+		.rq   = NULL,
+	};
+
+	__sbitmap_for_each_set(&hctx->ctx_map, off,
+			       dispatch_rq_from_ctx, &data);
+
+	return data.rq;
+}
+
 static inline unsigned int queued_to_index(unsigned int queued)
 {
 	if (!queued)
