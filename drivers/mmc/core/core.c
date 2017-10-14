@@ -1588,6 +1588,16 @@ EXPORT_SYMBOL_GPL(mmc_regulator_set_vqmmc);
 
 #endif /* CONFIG_REGULATOR */
 
+/**
+ * mmc_regulator_get_supply - try to get VMMC and VQMMC regulators for a host
+ * @mmc: the host to regulate
+ *
+ * Returns 0 or errno. errno should be handled, it is either a critical error
+ * or -EPROBE_DEFER. 0 means no critical error but it does not mean all
+ * regulators have been found because they all are optional. If you require
+ * certain regulators, you need to check separately in your driver if they got
+ * populated after calling this function.
+ */
 int mmc_regulator_get_supply(struct mmc_host *mmc)
 {
 	struct device *dev = mmc_dev(mmc);
