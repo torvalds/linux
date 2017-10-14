@@ -3466,6 +3466,12 @@ int _hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
 	return bnxt_hwrm_do_send_msg(bp, msg, msg_len, timeout, false);
 }
 
+int _hwrm_send_message_silent(struct bnxt *bp, void *msg, u32 msg_len,
+			      int timeout)
+{
+	return bnxt_hwrm_do_send_msg(bp, msg, msg_len, timeout, true);
+}
+
 int hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
 {
 	int rc;
