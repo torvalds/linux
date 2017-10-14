@@ -420,8 +420,8 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 				       &dma_addr,
 				       GFP_KERNEL);
 
-	vchiq_log_trace(vchiq_arm_log_level, "create_pagelist - %pK",
-			pagelist);
+	vchiq_log_trace(vchiq_arm_log_level, "%s - %pK", __func__, pagelist);
+
 	if (!pagelist)
 		return NULL;
 
@@ -481,9 +481,8 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 
 		if (actual_pages != num_pages) {
 			vchiq_log_info(vchiq_arm_log_level,
-				       "create_pagelist - only %d/%d pages locked",
-				       actual_pages,
-				       num_pages);
+				       "%s - only %d/%d pages locked",
+				       __func__, actual_pages, num_pages);
 
 			/* This is probably due to the process being killed */
 			while (actual_pages > 0)
