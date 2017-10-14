@@ -1976,7 +1976,16 @@ int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
 	int ret;
 
 	ret = proc_dointvec(table, write, buffer, length, ppos);
-	if (!ret && !old_interval && dirty_writeback_interval)
+
+	/*
+	 * Writing 0 to dirty_writeback_interval will disable periodic writeback
+	 * and a different non-zero value will wakeup the writeback threads.
+	 * wb_wakeup_delayed() would be more appropriate, but it's a pain to
+	 * iterate over all bdis and wbs.
+	 * The reason we do this is to make the change take effect immediately.
+	 */
+	if (!ret && write && dirty_writeback_interval &&
+		dirty_writeback_interval != old_interval)
 		wakeup_flusher_threads(WB_REASON_PERIODIC);
 
 	return ret;
