@@ -60,7 +60,7 @@
 		};
 	};
 
-	cpu_opp: opp_table {
+	cpu_opp: opp-table {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -110,7 +110,7 @@
 			clock-frequency = <25000000>;
 		};
 
-		arm_timer_clk: arm_timer_clk {
+		arm_timer_clk: arm-timer {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <50000000>;
