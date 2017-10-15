@@ -792,7 +792,7 @@ static int mma8452_get_event_regs(struct mma8452_data *data,
 	}
 }
 
-static int mma8452_read_thresh(struct iio_dev *indio_dev,
+static int mma8452_read_event_value(struct iio_dev *indio_dev,
 			       const struct iio_chan_spec *chan,
 			       enum iio_event_type type,
 			       enum iio_event_direction dir,
@@ -855,7 +855,7 @@ static int mma8452_read_thresh(struct iio_dev *indio_dev,
 	}
 }
 
-static int mma8452_write_thresh(struct iio_dev *indio_dev,
+static int mma8452_write_event_value(struct iio_dev *indio_dev,
 				const struct iio_chan_spec *chan,
 				enum iio_event_type type,
 				enum iio_event_direction dir,
@@ -1391,8 +1391,8 @@ static const struct iio_info mma8452_info = {
 	.read_raw = &mma8452_read_raw,
 	.write_raw = &mma8452_write_raw,
 	.event_attrs = &mma8452_event_attribute_group,
-	.read_event_value = &mma8452_read_thresh,
-	.write_event_value = &mma8452_write_thresh,
+	.read_event_value = &mma8452_read_event_value,
+	.write_event_value = &mma8452_write_event_value,
 	.read_event_config = &mma8452_read_event_config,
 	.write_event_config = &mma8452_write_event_config,
 	.debugfs_reg_access = &mma8452_reg_access_dbg,

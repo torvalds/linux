@@ -231,6 +231,7 @@ struct hid_sensor_common {
 	unsigned usage_id;
 	atomic_t data_ready;
 	atomic_t user_requested_state;
+	atomic_t runtime_pm_enable;
 	int poll_interval;
 	int raw_hystersis;
 	int latency_ms;

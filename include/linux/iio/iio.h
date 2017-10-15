@@ -365,7 +365,6 @@ unsigned int iio_get_time_res(const struct iio_dev *indio_dev);
 #define INDIO_MAX_RAW_ELEMENTS		4
 
 struct iio_trigger; /* forward declaration */
-struct iio_dev;
 
 /**
  * struct iio_info - constant information about device
