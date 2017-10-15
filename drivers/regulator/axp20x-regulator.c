@@ -657,6 +657,7 @@ static bool axp20x_is_polyphase_slave(struct axp20x_dev *axp20x, int id)
 	 */
 	switch (axp20x->variant) {
 	case AXP803_ID:
+	case AXP813_ID:
 		regmap_read(axp20x->regmap, AXP803_POLYPHASE_CTRL, &reg);
 
 		switch (id) {
@@ -677,17 +678,6 @@ static bool axp20x_is_polyphase_slave(struct axp20x_dev *axp20x, int id)
 		case AXP806_DCDCC:
 			return ((reg & GENMASK(7, 6)) == BIT(7));
 		case AXP806_DCDCE:
-			return !!(reg & BIT(5));
-		}
-		break;
-
-	case AXP813_ID:
-		regmap_read(axp20x->regmap, AXP803_POLYPHASE_CTRL, &reg);
-
-		switch (id) {
-		case AXP803_DCDC3:
-			return !!(reg & BIT(6));
-		case AXP803_DCDC6:
 			return !!(reg & BIT(5));
 		}
 		break;
