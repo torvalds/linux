@@ -260,7 +260,7 @@ static int slot_ts_enable_xo2(struct dvb_ca_en50221 *ca, int slot)
 {
 	struct ddb_ci *ci = ca->data;
 
-	dev_info(ci->port->dev->dev, "%s\n", __func__);
+	dev_dbg(ci->port->dev->dev, "%s\n", __func__);
 	write_creg(ci, 0x00, 0x10);
 	return 0;
 }
