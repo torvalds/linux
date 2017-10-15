@@ -252,8 +252,8 @@ static inline int netvsc_get_tx_queue(struct net_device *ndev,
 	struct sock *sk = skb->sk;
 	int q_idx;
 
-	q_idx = ndc->tx_send_table[netvsc_get_hash(skb, ndc) &
-				   (VRSS_SEND_TAB_SIZE - 1)];
+	q_idx = ndc->tx_table[netvsc_get_hash(skb, ndc) &
+			      (VRSS_SEND_TAB_SIZE - 1)];
 
 	/* If queue index changed record the new value */
 	if (q_idx != old_idx &&
@@ -1434,7 +1434,7 @@ static int netvsc_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
 	rndis_dev = ndev->extension;
 	if (indir) {
 		for (i = 0; i < ITAB_NUM; i++)
-			indir[i] = rndis_dev->ind_table[i];
+			indir[i] = rndis_dev->rx_table[i];
 	}
 
 	if (key)
@@ -1464,7 +1464,7 @@ static int netvsc_set_rxfh(struct net_device *dev, const u32 *indir,
 				return -EINVAL;
 
 		for (i = 0; i < ITAB_NUM; i++)
-			rndis_dev->ind_table[i] = indir[i];
+			rndis_dev->rx_table[i] = indir[i];
 	}
 
 	if (!key) {
