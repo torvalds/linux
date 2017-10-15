@@ -25,6 +25,7 @@
 #include <drm/drm_print.h>
 
 #include "i915_drv.h"
+#include "i915_vgpu.h"
 #include "intel_ringbuffer.h"
 #include "intel_lrc.h"
 
@@ -386,16 +387,16 @@ static void intel_engine_init_timeline(struct intel_engine_cs *engine)
 
 static bool csb_force_mmio(struct drm_i915_private *i915)
 {
-	/* GVT emulation depends upon intercepting CSB mmio */
-	if (intel_vgpu_active(i915))
-		return true;
-
 	/*
 	 * IOMMU adds unpredictable latency causing the CSB write (from the
 	 * GPU into the HWSP) to only be visible some time after the interrupt
 	 * (missed breadcrumb syndrome).
 	 */
 	if (intel_vtd_active())
+		return true;
+
+	/* Older GVT emulation depends upon intercepting CSB mmio */
+	if (intel_vgpu_active(i915) && !intel_vgpu_has_hwsp_emulation(i915))
 		return true;
 
 	return false;
