@@ -172,12 +172,6 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 	if (ret)
 		return ret;
 
-	if (ops->set_addr) {
-		ret = ops->set_addr(ds, master->dev_addr);
-		if (ret < 0)
-			return ret;
-	}
-
 	if (!ds->slave_mii_bus && ops->phy_read) {
 		ds->slave_mii_bus = devm_mdiobus_alloc(ds->dev);
 		if (!ds->slave_mii_bus)
