@@ -1498,6 +1498,19 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 				enable_puncture_rate(state,
 						     state->puncture_rate);
 		}
+
+		/* Use highest signaled ModCod for quality */
+		if (state->is_vcm) {
+			u8 tmp;
+			enum fe_stv0910_mod_cod mod_cod;
+
+			read_reg(state, RSTV0910_P2_DMDMODCOD + state->regoff,
+				 &tmp);
+			mod_cod = (enum fe_stv0910_mod_cod)((tmp & 0x7c) >> 2);
+
+			if (mod_cod > state->mod_cod)
+				state->mod_cod = mod_cod;
+		}
 	}
 
 	/* read signal statistics */
