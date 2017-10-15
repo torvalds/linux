@@ -4867,6 +4867,10 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 	init_unused_rings(dev_priv);
 
 	BUG_ON(!dev_priv->kernel_context);
+	if (i915_terminally_wedged(&dev_priv->gpu_error)) {
+		ret = -EIO;
+		goto out;
+	}
 
 	ret = i915_ppgtt_init_hw(dev_priv);
 	if (ret) {
@@ -4965,8 +4969,10 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 		 * wedged. But we only want to do this where the GPU is angry,
 		 * for all other failure, such as an allocation failure, bail.
 		 */
-		DRM_ERROR("Failed to initialize GPU, declaring it wedged\n");
-		i915_gem_set_wedged(dev_priv);
+		if (!i915_terminally_wedged(&dev_priv->gpu_error)) {
+			DRM_ERROR("Failed to initialize GPU, declaring it wedged\n");
+			i915_gem_set_wedged(dev_priv);
+		}
 		ret = 0;
 	}
 
