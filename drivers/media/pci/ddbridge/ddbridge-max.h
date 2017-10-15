@@ -1,5 +1,5 @@
 /*
- * ddbridge-maxs8.h: Digital Devices bridge MaxS4/8 support
+ * ddbridge-max.h: Digital Devices bridge MAX card support
  *
  * Copyright (C) 2010-2017 Digital Devices GmbH
  *                         Ralph Metzler <rjkm@metzlerbros.de>
@@ -16,8 +16,8 @@
  *
  */
 
-#ifndef _DDBRIDGE_MAXS8_H_
-#define _DDBRIDGE_MAXS8_H_
+#ifndef _DDBRIDGE_MAX_H_
+#define _DDBRIDGE_MAX_H_
 
 #include "ddbridge.h"
 
@@ -26,4 +26,4 @@
 int lnb_init_fmode(struct ddb *dev, struct ddb_link *link, u32 fm);
 int fe_attach_mxl5xx(struct ddb_input *input);
 
-#endif /* _DDBRIDGE_MAXS8_H */
+#endif /* _DDBRIDGE_MAX_H */

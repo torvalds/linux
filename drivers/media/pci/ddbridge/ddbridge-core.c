@@ -37,7 +37,7 @@
 #include "ddbridge.h"
 #include "ddbridge-i2c.h"
 #include "ddbridge-regs.h"
-#include "ddbridge-maxs8.h"
+#include "ddbridge-max.h"
 #include "ddbridge-ci.h"
 #include "ddbridge-io.h"
 

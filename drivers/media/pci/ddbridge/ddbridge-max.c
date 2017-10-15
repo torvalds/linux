@@ -1,5 +1,5 @@
 /*
- * ddbridge-maxs8.c: Digital Devices bridge MaxS4/8 support
+ * ddbridge-max.c: Digital Devices bridge MAX card support
  *
  * Copyright (C) 2010-2017 Digital Devices GmbH
  *                         Ralph Metzler <rjkm@metzlerbros.de>
@@ -34,7 +34,7 @@
 #include "ddbridge-regs.h"
 #include "ddbridge-io.h"
 
-#include "ddbridge-maxs8.h"
+#include "ddbridge-max.h"
 #include "mxl5xx.h"
 
 /******************************************************************************/
