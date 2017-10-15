@@ -122,15 +122,8 @@ run_cmd_parmap() {
 	if [ $VERBOSE -ne 0 ] ; then
 		echo "Running ($NPROC in parallel): $@"
 	fi
-	if [ "$DEBUG_FILE" != "/dev/null" -a "$DEBUG_FILE" != "" ]; then
-		if [ -f $DEBUG_FILE ]; then
-			echo "Debug file $DEBUG_FILE exists, bailing"
-			exit
-		fi
-	else
-		DEBUG_FILE="/dev/null"
-	fi
-	$@ 2>$DEBUG_FILE
+	echo $@ >>$DEBUG_FILE
+	$@ 2>>$DEBUG_FILE
 	if [[ $? -ne 0 ]]; then
 		echo "coccicheck failed"
 		exit $?
@@ -245,6 +238,15 @@ coccinelle () {
     fi
 
 }
+
+if [ "$DEBUG_FILE" != "/dev/null" -a "$DEBUG_FILE" != "" ]; then
+	if [ -f $DEBUG_FILE ]; then
+		echo "Debug file $DEBUG_FILE exists, bailing"
+		exit
+	fi
+else
+	DEBUG_FILE="/dev/null"
+fi
 
 if [ "$COCCI" = "" ] ; then
     for f in `find $srctree/scripts/coccinelle/ -name '*.cocci' -type f | sort`; do
