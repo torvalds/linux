@@ -407,6 +407,7 @@ int i40evf_request_queues(struct i40evf_adapter *adapter, int num)
 	vfres.num_queue_pairs = num;
 
 	adapter->current_op = VIRTCHNL_OP_REQUEST_QUEUES;
+	adapter->flags |= I40EVF_FLAG_REINIT_ITR_NEEDED;
 	return i40evf_send_pf_msg(adapter, VIRTCHNL_OP_REQUEST_QUEUES,
 				  (u8 *)&vfres, sizeof(vfres));
 }
@@ -1098,15 +1099,13 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 	case VIRTCHNL_OP_REQUEST_QUEUES: {
 		struct virtchnl_vf_res_request *vfres =
 			(struct virtchnl_vf_res_request *)msg;
-		if (vfres->num_queue_pairs == adapter->num_req_queues) {
-			adapter->flags |= I40EVF_FLAG_REINIT_ITR_NEEDED;
-			i40evf_schedule_reset(adapter);
-		} else {
+		if (vfres->num_queue_pairs != adapter->num_req_queues) {
 			dev_info(&adapter->pdev->dev,
 				 "Requested %d queues, PF can support %d\n",
 				 adapter->num_req_queues,
 				 vfres->num_queue_pairs);
 			adapter->num_req_queues = 0;
+			adapter->flags &= ~I40EVF_FLAG_REINIT_ITR_NEEDED;
 		}
 		}
 		break;

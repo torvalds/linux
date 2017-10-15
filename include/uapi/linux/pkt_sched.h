@@ -625,6 +625,22 @@ enum {
 
 #define TC_MQPRIO_HW_OFFLOAD_MAX (__TC_MQPRIO_HW_OFFLOAD_MAX - 1)
 
+enum {
+	TC_MQPRIO_MODE_DCB,
+	TC_MQPRIO_MODE_CHANNEL,
+	__TC_MQPRIO_MODE_MAX
+};
+
+#define __TC_MQPRIO_MODE_MAX (__TC_MQPRIO_MODE_MAX - 1)
+
+enum {
+	TC_MQPRIO_SHAPER_DCB,
+	TC_MQPRIO_SHAPER_BW_RATE,	/* Add new shapers below */
+	__TC_MQPRIO_SHAPER_MAX
+};
+
+#define __TC_MQPRIO_SHAPER_MAX (__TC_MQPRIO_SHAPER_MAX - 1)
+
 struct tc_mqprio_qopt {
 	__u8	num_tc;
 	__u8	prio_tc_map[TC_QOPT_BITMASK + 1];
@@ -632,6 +648,22 @@ struct tc_mqprio_qopt {
 	__u16	count[TC_QOPT_MAX_QUEUE];
 	__u16	offset[TC_QOPT_MAX_QUEUE];
 };
+
+#define TC_MQPRIO_F_MODE		0x1
+#define TC_MQPRIO_F_SHAPER		0x2
+#define TC_MQPRIO_F_MIN_RATE		0x4
+#define TC_MQPRIO_F_MAX_RATE		0x8
+
+enum {
+	TCA_MQPRIO_UNSPEC,
+	TCA_MQPRIO_MODE,
+	TCA_MQPRIO_SHAPER,
+	TCA_MQPRIO_MIN_RATE64,
+	TCA_MQPRIO_MAX_RATE64,
+	__TCA_MQPRIO_MAX,
+};
+
+#define TCA_MQPRIO_MAX (__TCA_MQPRIO_MAX - 1)
 
 /* SFB */
 

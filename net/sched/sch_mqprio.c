@@ -18,10 +18,16 @@
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/sch_generic.h>
+#include <net/pkt_cls.h>
 
 struct mqprio_sched {
 	struct Qdisc		**qdiscs;
+	u16 mode;
+	u16 shaper;
 	int hw_offload;
+	u32 flags;
+	u64 min_rate[TC_QOPT_MAX_QUEUE];
+	u64 max_rate[TC_QOPT_MAX_QUEUE];
 };
 
 static void mqprio_destroy(struct Qdisc *sch)
@@ -39,9 +45,17 @@ static void mqprio_destroy(struct Qdisc *sch)
 	}
 
 	if (priv->hw_offload && dev->netdev_ops->ndo_setup_tc) {
-		struct tc_mqprio_qopt mqprio = {};
+		struct tc_mqprio_qopt_offload mqprio = { { 0 } };
 
-		dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_MQPRIO, &mqprio);
+		switch (priv->mode) {
+		case TC_MQPRIO_MODE_DCB:
+		case TC_MQPRIO_MODE_CHANNEL:
+			dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_MQPRIO,
+						      &mqprio);
+			break;
+		default:
+			return;
+		}
 	} else {
 		netdev_set_num_tc(dev, 0);
 	}
@@ -97,6 +111,26 @@ static int mqprio_parse_opt(struct net_device *dev, struct tc_mqprio_qopt *qopt)
 	return 0;
 }
 
+static const struct nla_policy mqprio_policy[TCA_MQPRIO_MAX + 1] = {
+	[TCA_MQPRIO_MODE]	= { .len = sizeof(u16) },
+	[TCA_MQPRIO_SHAPER]	= { .len = sizeof(u16) },
+	[TCA_MQPRIO_MIN_RATE64]	= { .type = NLA_NESTED },
+	[TCA_MQPRIO_MAX_RATE64]	= { .type = NLA_NESTED },
+};
+
+static int parse_attr(struct nlattr *tb[], int maxtype, struct nlattr *nla,
+		      const struct nla_policy *policy, int len)
+{
+	int nested_len = nla_len(nla) - NLA_ALIGN(len);
+
+	if (nested_len >= nla_attr_size(0))
+		return nla_parse(tb, maxtype, nla_data(nla) + NLA_ALIGN(len),
+				 nested_len, policy, NULL);
+
+	memset(tb, 0, sizeof(struct nlattr *) * (maxtype + 1));
+	return 0;
+}
+
 static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct net_device *dev = qdisc_dev(sch);
@@ -105,6 +139,10 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
 	struct Qdisc *qdisc;
 	int i, err = -EOPNOTSUPP;
 	struct tc_mqprio_qopt *qopt = NULL;
+	struct nlattr *tb[TCA_MQPRIO_MAX + 1];
+	struct nlattr *attr;
+	int rem;
+	int len = nla_len(opt) - NLA_ALIGN(sizeof(*qopt));
 
 	BUILD_BUG_ON(TC_MAX_QUEUE != TC_QOPT_MAX_QUEUE);
 	BUILD_BUG_ON(TC_BITMASK != TC_QOPT_BITMASK);
@@ -121,6 +159,58 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
 	qopt = nla_data(opt);
 	if (mqprio_parse_opt(dev, qopt))
 		return -EINVAL;
+
+	if (len > 0) {
+		err = parse_attr(tb, TCA_MQPRIO_MAX, opt, mqprio_policy,
+				 sizeof(*qopt));
+		if (err < 0)
+			return err;
+
+		if (!qopt->hw)
+			return -EINVAL;
+
+		if (tb[TCA_MQPRIO_MODE]) {
+			priv->flags |= TC_MQPRIO_F_MODE;
+			priv->mode = *(u16 *)nla_data(tb[TCA_MQPRIO_MODE]);
+		}
+
+		if (tb[TCA_MQPRIO_SHAPER]) {
+			priv->flags |= TC_MQPRIO_F_SHAPER;
+			priv->shaper = *(u16 *)nla_data(tb[TCA_MQPRIO_SHAPER]);
+		}
+
+		if (tb[TCA_MQPRIO_MIN_RATE64]) {
+			if (priv->shaper != TC_MQPRIO_SHAPER_BW_RATE)
+				return -EINVAL;
+			i = 0;
+			nla_for_each_nested(attr, tb[TCA_MQPRIO_MIN_RATE64],
+					    rem) {
+				if (nla_type(attr) != TCA_MQPRIO_MIN_RATE64)
+					return -EINVAL;
+				if (i >= qopt->num_tc)
+					break;
+				priv->min_rate[i] = *(u64 *)nla_data(attr);
+				i++;
+			}
+			priv->flags |= TC_MQPRIO_F_MIN_RATE;
+		}
+
+		if (tb[TCA_MQPRIO_MAX_RATE64]) {
+			if (priv->shaper != TC_MQPRIO_SHAPER_BW_RATE)
+				return -EINVAL;
+			i = 0;
+			nla_for_each_nested(attr, tb[TCA_MQPRIO_MAX_RATE64],
+					    rem) {
+				if (nla_type(attr) != TCA_MQPRIO_MAX_RATE64)
+					return -EINVAL;
+				if (i >= qopt->num_tc)
+					break;
+				priv->max_rate[i] = *(u64 *)nla_data(attr);
+				i++;
+			}
+			priv->flags |= TC_MQPRIO_F_MAX_RATE;
+		}
+	}
 
 	/* pre-allocate qdisc, attachment can't fail */
 	priv->qdiscs = kcalloc(dev->num_tx_queues, sizeof(priv->qdiscs[0]),
@@ -146,14 +236,36 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
 	 * supplied and verified mapping
 	 */
 	if (qopt->hw) {
-		struct tc_mqprio_qopt mqprio = *qopt;
+		struct tc_mqprio_qopt_offload mqprio = {.qopt = *qopt};
 
-		err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_MQPRIO,
+		switch (priv->mode) {
+		case TC_MQPRIO_MODE_DCB:
+			if (priv->shaper != TC_MQPRIO_SHAPER_DCB)
+				return -EINVAL;
+			break;
+		case TC_MQPRIO_MODE_CHANNEL:
+			mqprio.flags = priv->flags;
+			if (priv->flags & TC_MQPRIO_F_MODE)
+				mqprio.mode = priv->mode;
+			if (priv->flags & TC_MQPRIO_F_SHAPER)
+				mqprio.shaper = priv->shaper;
+			if (priv->flags & TC_MQPRIO_F_MIN_RATE)
+				for (i = 0; i < mqprio.qopt.num_tc; i++)
+					mqprio.min_rate[i] = priv->min_rate[i];
+			if (priv->flags & TC_MQPRIO_F_MAX_RATE)
+				for (i = 0; i < mqprio.qopt.num_tc; i++)
+					mqprio.max_rate[i] = priv->max_rate[i];
+			break;
+		default:
+			return -EINVAL;
+		}
+		err = dev->netdev_ops->ndo_setup_tc(dev,
+						    TC_SETUP_MQPRIO,
 						    &mqprio);
 		if (err)
 			return err;
 
-		priv->hw_offload = mqprio.hw;
+		priv->hw_offload = mqprio.qopt.hw;
 	} else {
 		netdev_set_num_tc(dev, qopt->num_tc);
 		for (i = 0; i < qopt->num_tc; i++)
@@ -223,11 +335,51 @@ static int mqprio_graft(struct Qdisc *sch, unsigned long cl, struct Qdisc *new,
 	return 0;
 }
 
+static int dump_rates(struct mqprio_sched *priv,
+		      struct tc_mqprio_qopt *opt, struct sk_buff *skb)
+{
+	struct nlattr *nest;
+	int i;
+
+	if (priv->flags & TC_MQPRIO_F_MIN_RATE) {
+		nest = nla_nest_start(skb, TCA_MQPRIO_MIN_RATE64);
+		if (!nest)
+			goto nla_put_failure;
+
+		for (i = 0; i < opt->num_tc; i++) {
+			if (nla_put(skb, TCA_MQPRIO_MIN_RATE64,
+				    sizeof(priv->min_rate[i]),
+				    &priv->min_rate[i]))
+				goto nla_put_failure;
+		}
+		nla_nest_end(skb, nest);
+	}
+
+	if (priv->flags & TC_MQPRIO_F_MAX_RATE) {
+		nest = nla_nest_start(skb, TCA_MQPRIO_MAX_RATE64);
+		if (!nest)
+			goto nla_put_failure;
+
+		for (i = 0; i < opt->num_tc; i++) {
+			if (nla_put(skb, TCA_MQPRIO_MAX_RATE64,
+				    sizeof(priv->max_rate[i]),
+				    &priv->max_rate[i]))
+				goto nla_put_failure;
+		}
+		nla_nest_end(skb, nest);
+	}
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(skb, nest);
+	return -1;
+}
+
 static int mqprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct mqprio_sched *priv = qdisc_priv(sch);
-	unsigned char *b = skb_tail_pointer(skb);
+	struct nlattr *nla = (struct nlattr *)skb_tail_pointer(skb);
 	struct tc_mqprio_qopt opt = { 0 };
 	struct Qdisc *qdisc;
 	unsigned int i;
@@ -258,12 +410,25 @@ static int mqprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 		opt.offset[i] = dev->tc_to_txq[i].offset;
 	}
 
-	if (nla_put(skb, TCA_OPTIONS, sizeof(opt), &opt))
+	if (nla_put(skb, TCA_OPTIONS, NLA_ALIGN(sizeof(opt)), &opt))
 		goto nla_put_failure;
 
-	return skb->len;
+	if ((priv->flags & TC_MQPRIO_F_MODE) &&
+	    nla_put_u16(skb, TCA_MQPRIO_MODE, priv->mode))
+		goto nla_put_failure;
+
+	if ((priv->flags & TC_MQPRIO_F_SHAPER) &&
+	    nla_put_u16(skb, TCA_MQPRIO_SHAPER, priv->shaper))
+		goto nla_put_failure;
+
+	if ((priv->flags & TC_MQPRIO_F_MIN_RATE ||
+	     priv->flags & TC_MQPRIO_F_MAX_RATE) &&
+	    (dump_rates(priv, &opt, skb) != 0))
+		goto nla_put_failure;
+
+	return nla_nest_end(skb, nla);
 nla_put_failure:
-	nlmsg_trim(skb, b);
+	nlmsg_trim(skb, nla);
 	return -1;
 }
 
