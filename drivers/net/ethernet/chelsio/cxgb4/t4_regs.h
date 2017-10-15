@@ -1447,6 +1447,8 @@
 #define LKPTBLQUEUE0_M    0x3ffU
 #define LKPTBLQUEUE0_G(x) (((x) >> LKPTBLQUEUE0_S) & LKPTBLQUEUE0_M)
 
+#define TP_TM_PIO_ADDR_A 0x7e18
+#define TP_TM_PIO_DATA_A 0x7e1c
 #define TP_PIO_ADDR_A	0x7e40
 #define TP_PIO_DATA_A	0x7e44
 #define TP_MIB_INDEX_A	0x7e50
