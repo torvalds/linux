@@ -664,54 +664,6 @@ static int i915_gem_batch_pool_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static void print_request(struct seq_file *m,
-			  struct drm_i915_gem_request *rq,
-			  const char *prefix)
-{
-	seq_printf(m, "%s%x [%x:%x] prio=%d @ %dms: %s\n", prefix,
-		   rq->global_seqno, rq->ctx->hw_id, rq->fence.seqno,
-		   rq->priotree.priority,
-		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),
-		   rq->timeline->common->name);
-}
-
-static int i915_gem_request_info(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	struct drm_i915_gem_request *req;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int ret, any;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	any = 0;
-	for_each_engine(engine, dev_priv, id) {
-		int count;
-
-		count = 0;
-		list_for_each_entry(req, &engine->timeline->requests, link)
-			count++;
-		if (count == 0)
-			continue;
-
-		seq_printf(m, "%s requests: %d\n", engine->name, count);
-		list_for_each_entry(req, &engine->timeline->requests, link)
-			print_request(m, req, "    ");
-
-		any++;
-	}
-	mutex_unlock(&dev->struct_mutex);
-
-	if (any == 0)
-		seq_puts(m, "No requests\n");
-
-	return 0;
-}
-
 static void i915_ring_seqno_info(struct seq_file *m,
 				 struct intel_engine_cs *engine)
 {
@@ -4783,7 +4735,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_objects", i915_gem_object_info, 0},
 	{"i915_gem_gtt", i915_gem_gtt_info, 0},
 	{"i915_gem_stolen", i915_gem_stolen_list_info },
-	{"i915_gem_request", i915_gem_request_info, 0},
 	{"i915_gem_seqno", i915_gem_seqno_info, 0},
 	{"i915_gem_fence_regs", i915_gem_fence_regs_info, 0},
 	{"i915_gem_interrupt", i915_interrupt_info, 0},

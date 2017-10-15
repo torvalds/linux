@@ -1623,8 +1623,10 @@ static void print_request(struct drm_printer *m,
 			  struct drm_i915_gem_request *rq,
 			  const char *prefix)
 {
-	drm_printf(m, "%s%x [%x:%x] prio=%d @ %dms: %s\n", prefix,
-		   rq->global_seqno, rq->ctx->hw_id, rq->fence.seqno,
+	drm_printf(m, "%s%x%s [%x:%x] prio=%d @ %dms: %s\n", prefix,
+		   rq->global_seqno,
+		   i915_gem_request_completed(rq) ? "!" : "",
+		   rq->ctx->hw_id, rq->fence.seqno,
 		   rq->priotree.priority,
 		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),
 		   rq->timeline->common->name);
@@ -1632,8 +1634,9 @@ static void print_request(struct drm_printer *m,
 
 void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
 {
-	struct intel_breadcrumbs *b = &engine->breadcrumbs;
-	struct i915_gpu_error *error = &engine->i915->gpu_error;
+	struct intel_breadcrumbs * const b = &engine->breadcrumbs;
+	const struct intel_engine_execlists * const execlists = &engine->execlists;
+	struct i915_gpu_error * const error = &engine->i915->gpu_error;
 	struct drm_i915_private *dev_priv = engine->i915;
 	struct drm_i915_gem_request *rq;
 	struct rb_node *rb;
@@ -1697,7 +1700,6 @@ void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
 
 	if (i915_modparams.enable_execlists) {
 		const u32 *hws = &engine->status_page.page_addr[I915_HWS_CSB_BUF0_INDEX];
-		struct intel_engine_execlists * const execlists = &engine->execlists;
 		u32 ptr, read, write;
 		unsigned int idx;
 
@@ -1745,17 +1747,6 @@ void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
 			}
 		}
 		rcu_read_unlock();
-
-		spin_lock_irq(&engine->timeline->lock);
-		for (rb = execlists->first; rb; rb = rb_next(rb)) {
-			struct i915_priolist *p =
-				rb_entry(rb, typeof(*p), node);
-
-			list_for_each_entry(rq, &p->requests,
-					    priotree.link)
-				print_request(m, rq, "\t\tQ ");
-		}
-		spin_unlock_irq(&engine->timeline->lock);
 	} else if (INTEL_GEN(dev_priv) > 6) {
 		drm_printf(m, "\tPP_DIR_BASE: 0x%08x\n",
 			   I915_READ(RING_PP_DIR_BASE(engine)));
@@ -1764,6 +1755,18 @@ void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
 		drm_printf(m, "\tPP_DIR_DCLV: 0x%08x\n",
 			   I915_READ(RING_PP_DIR_DCLV(engine)));
 	}
+
+	spin_lock_irq(&engine->timeline->lock);
+	list_for_each_entry(rq, &engine->timeline->requests, link)
+		print_request(m, rq, "\t\tE ");
+	for (rb = execlists->first; rb; rb = rb_next(rb)) {
+		struct i915_priolist *p =
+			rb_entry(rb, typeof(*p), node);
+
+		list_for_each_entry(rq, &p->requests, priotree.link)
+			print_request(m, rq, "\t\tQ ");
+	}
+	spin_unlock_irq(&engine->timeline->lock);
 
 	spin_lock_irq(&b->rb_lock);
 	for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
