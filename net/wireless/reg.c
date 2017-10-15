@@ -723,7 +723,7 @@ static int __init load_builtin_regdb_keys(void)
 #ifdef CONFIG_CFG80211_USE_KERNEL_REGDB_KEYS
 	load_keys_from_buffer(shipped_regdb_certs, shipped_regdb_certs_len);
 #endif
-#ifdef CFG80211_EXTRA_REGDB_KEYDIR
+#ifdef CONFIG_CFG80211_EXTRA_REGDB_KEYDIR
 	if (CONFIG_CFG80211_EXTRA_REGDB_KEYDIR[0] != '\0')
 		load_keys_from_buffer(extra_regdb_certs, extra_regdb_certs_len);
 #endif
