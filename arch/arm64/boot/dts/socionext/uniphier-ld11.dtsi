@@ -49,7 +49,7 @@
 		};
 	};
 
-	cluster0_opp: opp_table {
+	cluster0_opp: opp-table {
 		compatible = "operating-points-v2";
 		opp-shared;
 
