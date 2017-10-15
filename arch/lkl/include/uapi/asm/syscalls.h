@@ -122,6 +122,7 @@ struct sockaddr {
 #include <linux/netlink.h>
 #include <linux/neighbour.h>
 #include <linux/rtnetlink.h>
+#include <linux/fib_rules.h>
 
 #include <linux/kdev_t.h>
 #include <asm/irq.h>
