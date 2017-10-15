@@ -354,6 +354,8 @@ struct mmc_host {
 #define MMC_CAP2_CQE		(1 << 23)	/* Has eMMC command queue engine */
 #define MMC_CAP2_CQE_DCMD	(1 << 24)	/* CQE can issue a direct command */
 
+	int			fixed_drv_type;	/* fixed driver type for non-removable media */
+
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
 
 	/* host specific block data */
