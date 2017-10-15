@@ -848,21 +848,20 @@ static int demod_attach_drxk(struct ddb_input *input)
 	struct i2c_adapter *i2c = &input->port->i2c->adap;
 	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	struct device *dev = input->port->dev->dev;
-	struct dvb_frontend *fe;
 	struct drxk_config config;
 
 	memset(&config, 0, sizeof(config));
 	config.adr = 0x29 + (input->nr & 1);
 	config.microcode_name = "drxk_a3.mc";
 
-	fe = dvb->fe = dvb_attach(drxk_attach, &config, i2c);
-	if (!fe) {
+	dvb->fe = dvb_attach(drxk_attach, &config, i2c);
+	if (!dvb->fe) {
 		dev_err(dev, "No DRXK found!\n");
 		return -ENODEV;
 	}
-	fe->sec_priv = input;
-	dvb->i2c_gate_ctrl = fe->ops.i2c_gate_ctrl;
-	fe->ops.i2c_gate_ctrl = locked_gate_ctrl;
+	dvb->fe->sec_priv = input;
+	dvb->i2c_gate_ctrl = dvb->fe->ops.i2c_gate_ctrl;
+	dvb->fe->ops.i2c_gate_ctrl = locked_gate_ctrl;
 	return 0;
 }
 
@@ -912,19 +911,18 @@ static int demod_attach_stv0367(struct ddb_input *input)
 	struct i2c_adapter *i2c = &input->port->i2c->adap;
 	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	struct device *dev = input->port->dev->dev;
-	struct dvb_frontend *fe;
 
 	/* attach frontend */
-	fe = dvb->fe = dvb_attach(stv0367ddb_attach,
+	dvb->fe = dvb_attach(stv0367ddb_attach,
 		&ddb_stv0367_config[(input->nr & 1)], i2c);
 
 	if (!dvb->fe) {
 		dev_err(dev, "No stv0367 found!\n");
 		return -ENODEV;
 	}
-	fe->sec_priv = input;
-	dvb->i2c_gate_ctrl = fe->ops.i2c_gate_ctrl;
-	fe->ops.i2c_gate_ctrl = locked_gate_ctrl;
+	dvb->fe->sec_priv = input;
+	dvb->i2c_gate_ctrl = dvb->fe->ops.i2c_gate_ctrl;
+	dvb->fe->ops.i2c_gate_ctrl = locked_gate_ctrl;
 	return 0;
 }
 
@@ -956,7 +954,6 @@ static int demod_attach_cxd28xx(struct ddb_input *input, int par, int osc24)
 	struct i2c_adapter *i2c = &input->port->i2c->adap;
 	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	struct device *dev = input->port->dev->dev;
-	struct dvb_frontend *fe;
 	struct cxd2841er_config cfg;
 
 	/* the cxd2841er driver expects 8bit/shifted I2C addresses */
@@ -971,15 +968,15 @@ static int demod_attach_cxd28xx(struct ddb_input *input, int par, int osc24)
 		cfg.flags |= CXD2841ER_TS_SERIAL;
 
 	/* attach frontend */
-	fe = dvb->fe = dvb_attach(cxd2841er_attach_t_c, &cfg, i2c);
+	dvb->fe = dvb_attach(cxd2841er_attach_t_c, &cfg, i2c);
 
 	if (!dvb->fe) {
 		dev_err(dev, "No cxd2837/38/43/54 found!\n");
 		return -ENODEV;
 	}
-	fe->sec_priv = input;
-	dvb->i2c_gate_ctrl = fe->ops.i2c_gate_ctrl;
-	fe->ops.i2c_gate_ctrl = locked_gate_ctrl;
+	dvb->fe->sec_priv = input;
+	dvb->i2c_gate_ctrl = dvb->fe->ops.i2c_gate_ctrl;
+	dvb->fe->ops.i2c_gate_ctrl = locked_gate_ctrl;
 	return 0;
 }
 
