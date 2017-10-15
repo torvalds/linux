@@ -2096,7 +2096,6 @@ static int try_smi_init(struct smi_info *new_smi)
 	/* Allocate the state machine's data and initialize it. */
 	new_smi->si_sm = kmalloc(new_smi->handlers->size(), GFP_KERNEL);
 	if (!new_smi->si_sm) {
-		pr_err(PFX "Could not allocate state machine memory\n");
 		rv = -ENOMEM;
 		goto out_err;
 	}
