@@ -1442,7 +1442,7 @@ static int dvb_input_attach(struct ddb_input *input)
 	dvb->fe2 = NULL;
 	switch (port->type) {
 	case DDB_TUNER_MXL5XX:
-		if (fe_attach_mxl5xx(input) < 0)
+		if (ddb_fe_attach_mxl5xx(input) < 0)
 			return -ENODEV;
 		break;
 	case DDB_TUNER_DVBS_ST:
@@ -2955,7 +2955,7 @@ static ssize_t fmode_store(struct device *device, struct device_attribute *attr,
 		return -EINVAL;
 	if (val > 3)
 		return -EINVAL;
-	lnb_init_fmode(dev, &dev->link[num], val);
+	ddb_lnb_init_fmode(dev, &dev->link[num], val);
 	return count;
 }
 

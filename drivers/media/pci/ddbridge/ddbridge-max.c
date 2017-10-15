@@ -360,7 +360,7 @@ static int mxl_fw_read(void *priv, u8 *buf, u32 len)
 	return ddbridge_flashread(dev, link->nr, buf, 0xc0000, len);
 }
 
-int lnb_init_fmode(struct ddb *dev, struct ddb_link *link, u32 fm)
+int ddb_lnb_init_fmode(struct ddb *dev, struct ddb_link *link, u32 fm)
 {
 	u32 l = link->nr;
 
@@ -404,7 +404,7 @@ static struct mxl5xx_cfg mxl5xx = {
 	.fw_read  = mxl_fw_read,
 };
 
-int fe_attach_mxl5xx(struct ddb_input *input)
+int ddb_fe_attach_mxl5xx(struct ddb_input *input)
 {
 	struct ddb *dev = input->port->dev;
 	struct i2c_adapter *i2c = &input->port->i2c->adap;
@@ -440,7 +440,7 @@ int fe_attach_mxl5xx(struct ddb_input *input)
 		lnb_command(dev, port->lnr, input->nr, LNB_CMD_INIT);
 		lnb_set_voltage(dev, port->lnr, input->nr, SEC_VOLTAGE_OFF);
 	}
-	lnb_init_fmode(dev, link, fmode);
+	ddb_lnb_init_fmode(dev, link, fmode);
 
 	dvb->fe->ops.set_voltage = max_set_voltage;
 	dvb->fe->ops.enable_high_lnb_voltage = max_enable_high_lnb_voltage;
