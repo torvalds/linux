@@ -229,9 +229,10 @@ void ovl_dentry_set_opaque(struct dentry *dentry)
 }
 
 /*
- * For hard links it's possible for ovl_dentry_upper() to return positive, while
- * there's no actual upper alias for the inode.  Copy up code needs to know
- * about the existence of the upper alias, so it can't use ovl_dentry_upper().
+ * For hard links and decoded file handles, it's possible for ovl_dentry_upper()
+ * to return positive, while there's no actual upper alias for the inode.
+ * Copy up code needs to know about the existence of the upper alias, so it
+ * can't use ovl_dentry_upper().
  */
 bool ovl_dentry_has_upper_alias(struct dentry *dentry)
 {
