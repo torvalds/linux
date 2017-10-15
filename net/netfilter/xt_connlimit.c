@@ -46,7 +46,6 @@
 struct xt_connlimit_conn {
 	struct hlist_node		node;
 	struct nf_conntrack_tuple	tuple;
-	union nf_inet_addr		addr;
 };
 
 struct xt_connlimit_rb {
@@ -125,7 +124,6 @@ static bool add_hlist(struct hlist_head *head,
 	if (conn == NULL)
 		return false;
 	conn->tuple = *tuple;
-	conn->addr = *addr;
 	hlist_add_head(&conn->node, head);
 	return true;
 }
@@ -270,7 +268,6 @@ count_tree(struct net *net, struct rb_root *root,
 	}
 
 	conn->tuple = *tuple;
-	conn->addr = *addr;
 	rbconn->addr = *addr;
 
 	INIT_HLIST_HEAD(&rbconn->hhead);
