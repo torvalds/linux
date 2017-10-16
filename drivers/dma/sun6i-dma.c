@@ -42,6 +42,9 @@
 
 #define DMA_STAT		0x30
 
+/* Offset between DMA_IRQ_EN and DMA_IRQ_STAT limits number of channels */
+#define DMA_MAX_CHANNELS	(DMA_IRQ_CHAN_NR * 0x10 / 4)
+
 /*
  * sun8i specific registers
  */
@@ -65,7 +68,8 @@
 #define DMA_CHAN_LLI_ADDR	0x08
 
 #define DMA_CHAN_CUR_CFG	0x0c
-#define DMA_CHAN_CFG_SRC_DRQ(x)		((x) & 0x1f)
+#define DMA_CHAN_MAX_DRQ		0x1f
+#define DMA_CHAN_CFG_SRC_DRQ(x)		((x) & DMA_CHAN_MAX_DRQ)
 #define DMA_CHAN_CFG_SRC_IO_MODE	BIT(5)
 #define DMA_CHAN_CFG_SRC_LINEAR_MODE	(0 << 5)
 #define DMA_CHAN_CFG_SRC_BURST_A31(x)	(((x) & 0x3) << 7)
@@ -1174,6 +1178,7 @@ MODULE_DEVICE_TABLE(of, sun6i_dma_match);
 
 static int sun6i_dma_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct sun6i_dma_dev *sdc;
 	struct resource *res;
 	int ret, i;
@@ -1247,6 +1252,26 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	sdc->num_pchans = sdc->cfg->nr_max_channels;
 	sdc->num_vchans = sdc->cfg->nr_max_vchans;
 	sdc->max_request = sdc->cfg->nr_max_requests;
+
+	ret = of_property_read_u32(np, "dma-channels", &sdc->num_pchans);
+	if (ret && !sdc->num_pchans) {
+		dev_err(&pdev->dev, "Can't get dma-channels.\n");
+		return ret;
+	}
+
+	ret = of_property_read_u32(np, "dma-requests", &sdc->max_request);
+	if (ret && !sdc->max_request) {
+		dev_info(&pdev->dev, "Missing dma-requests, using %u.\n",
+			 DMA_CHAN_MAX_DRQ);
+		sdc->max_request = DMA_CHAN_MAX_DRQ;
+	}
+
+	/*
+	 * If the number of vchans is not specified, derive it from the
+	 * highest port number, at most one channel per port and direction.
+	 */
+	if (!sdc->num_vchans)
+		sdc->num_vchans = 2 * (sdc->max_request + 1);
 
 	sdc->pchans = devm_kcalloc(&pdev->dev, sdc->num_pchans,
 				   sizeof(struct sun6i_pchan), GFP_KERNEL);
