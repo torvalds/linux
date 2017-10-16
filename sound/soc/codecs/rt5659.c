@@ -3385,10 +3385,9 @@ static int rt5659_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
-static int rt5659_set_dai_sysclk(struct snd_soc_dai *dai,
-		int clk_id, unsigned int freq, int dir)
+static int rt5659_set_codec_sysclk(struct snd_soc_codec *codec, int clk_id,
+				   int source, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = dai->codec;
 	struct rt5659_priv *rt5659 = snd_soc_codec_get_drvdata(codec);
 	unsigned int reg_val = 0;
 
@@ -3414,7 +3413,8 @@ static int rt5659_set_dai_sysclk(struct snd_soc_dai *dai,
 	rt5659->sysclk = freq;
 	rt5659->sysclk_src = clk_id;
 
-	dev_dbg(dai->dev, "Sysclk is %dHz and clock id is %d\n", freq, clk_id);
+	dev_dbg(codec->dev, "Sysclk is %dHz and clock id is %d\n",
+		freq, clk_id);
 
 	return 0;
 }
@@ -3666,7 +3666,6 @@ static int rt5659_resume(struct snd_soc_codec *codec)
 static const struct snd_soc_dai_ops rt5659_aif_dai_ops = {
 	.hw_params = rt5659_hw_params,
 	.set_fmt = rt5659_set_dai_fmt,
-	.set_sysclk = rt5659_set_dai_sysclk,
 	.set_tdm_slot = rt5659_set_tdm_slot,
 	.set_pll = rt5659_set_dai_pll,
 	.set_bclk_ratio = rt5659_set_bclk_ratio,
@@ -3747,6 +3746,7 @@ static const struct snd_soc_codec_driver soc_codec_dev_rt5659 = {
 		.dapm_routes		= rt5659_dapm_routes,
 		.num_dapm_routes	= ARRAY_SIZE(rt5659_dapm_routes),
 	},
+	.set_sysclk = rt5659_set_codec_sysclk,
 };
 
 
