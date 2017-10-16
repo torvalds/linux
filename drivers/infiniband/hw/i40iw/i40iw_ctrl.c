@@ -482,6 +482,7 @@ static enum i40iw_status_code i40iw_sc_cqp_init(struct i40iw_sc_cqp *cqp,
 	I40IW_RING_INIT(cqp->sq_ring, cqp->sq_size);
 	cqp->dev->cqp_cmd_stats[OP_REQUESTED_COMMANDS] = 0;
 	cqp->dev->cqp_cmd_stats[OP_COMPLETED_COMMANDS] = 0;
+	INIT_LIST_HEAD(&cqp->dev->cqp_cmd_head);               /* for the cqp commands backlog. */
 
 	i40iw_wr32(cqp->dev->hw, I40E_PFPE_CQPTAIL, 0);
 	i40iw_wr32(cqp->dev->hw, I40E_PFPE_CQPDB, 0);
@@ -5067,7 +5068,6 @@ enum i40iw_status_code i40iw_device_init(struct i40iw_sc_dev *dev,
 	u8 db_size;
 
 	spin_lock_init(&dev->cqp_lock);
-	INIT_LIST_HEAD(&dev->cqp_cmd_head);             /* for the cqp commands backlog. */
 
 	i40iw_device_init_uk(&dev->dev_uk);
 
