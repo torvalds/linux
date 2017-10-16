@@ -195,6 +195,85 @@ fail:
 }
 
 /**
+ * intel_uc_fw_upload - load uC firmware using custom loader
+ *
+ * @uc_fw: uC firmware
+ * @loader: custom uC firmware loader function
+ *
+ * Loads uC firmware using custom loader and updates internal flags.
+ */
+int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
+		       int (*xfer)(struct intel_uc_fw *uc_fw,
+				   struct i915_vma *vma))
+{
+	struct i915_vma *vma;
+	int err;
+
+	DRM_DEBUG_DRIVER("%s fw load %s\n",
+			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path);
+
+	if (uc_fw->fetch_status != INTEL_UC_FIRMWARE_SUCCESS)
+		return -EIO;
+
+	uc_fw->load_status = INTEL_UC_FIRMWARE_PENDING;
+	DRM_DEBUG_DRIVER("%s fw load %s\n",
+			 intel_uc_fw_type_repr(uc_fw->type),
+			 intel_uc_fw_status_repr(uc_fw->load_status));
+
+	/* Pin object with firmware */
+	err = i915_gem_object_set_to_gtt_domain(uc_fw->obj, false);
+	if (err) {
+		DRM_DEBUG_DRIVER("%s fw set-domain err=%d\n",
+				 intel_uc_fw_type_repr(uc_fw->type), err);
+		goto fail;
+	}
+
+	vma = i915_gem_object_ggtt_pin(uc_fw->obj, NULL, 0, 0,
+				       PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		DRM_DEBUG_DRIVER("%s fw ggtt-pin err=%d\n",
+				 intel_uc_fw_type_repr(uc_fw->type), err);
+		goto fail;
+	}
+
+	/* Call custom loader */
+	err = xfer(uc_fw, vma);
+
+	/*
+	 * We keep the object pages for reuse during resume. But we can unpin it
+	 * now that DMA has completed, so it doesn't continue to take up space.
+	 */
+	i915_vma_unpin(vma);
+
+	if (err)
+		goto fail;
+
+	uc_fw->load_status = INTEL_UC_FIRMWARE_SUCCESS;
+	DRM_DEBUG_DRIVER("%s fw load %s\n",
+			 intel_uc_fw_type_repr(uc_fw->type),
+			 intel_uc_fw_status_repr(uc_fw->load_status));
+
+	DRM_INFO("%s: Loaded firmware %s (version %u.%u)\n",
+		 intel_uc_fw_type_repr(uc_fw->type),
+		 uc_fw->path,
+		 uc_fw->major_ver_found, uc_fw->minor_ver_found);
+
+	return 0;
+
+fail:
+	uc_fw->load_status = INTEL_UC_FIRMWARE_FAIL;
+	DRM_DEBUG_DRIVER("%s fw load %s\n",
+			 intel_uc_fw_type_repr(uc_fw->type),
+			 intel_uc_fw_status_repr(uc_fw->load_status));
+
+	DRM_WARN("%s: Failed to load firmware %s (error %d)\n",
+		 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path, err);
+
+	return err;
+}
+
+/**
  * intel_uc_fw_fini - cleanup uC firmware
  *
  * @uc_fw: uC firmware

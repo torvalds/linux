@@ -26,6 +26,7 @@
 #define _INTEL_UC_FW_H_
 
 struct drm_i915_private;
+struct i915_vma;
 
 /* Home of GuC, HuC and DMC firmwares */
 #define INTEL_UC_FIRMWARE_URL "https://01.org/linuxgraphics/downloads/firmware"
@@ -110,6 +111,9 @@ void intel_uc_fw_init(struct intel_uc_fw *uc_fw, enum intel_uc_fw_type type)
 
 void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 		       struct intel_uc_fw *uc_fw);
+int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
+		       int (*xfer)(struct intel_uc_fw *uc_fw,
+				   struct i915_vma *vma));
 void intel_uc_fw_fini(struct intel_uc_fw *uc_fw);
 
 #endif

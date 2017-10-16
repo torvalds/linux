@@ -85,26 +85,15 @@ MODULE_FIRMWARE(I915_KBL_HUC_UCODE);
  *
  * Return: 0 on success, non-zero on failure
  */
-static int huc_ucode_xfer(struct drm_i915_private *dev_priv)
+static int huc_ucode_xfer(struct intel_uc_fw *huc_fw, struct i915_vma *vma)
 {
-	struct intel_uc_fw *huc_fw = &dev_priv->huc.fw;
-	struct i915_vma *vma;
+	struct intel_huc *huc = container_of(huc_fw, struct intel_huc, fw);
+	struct drm_i915_private *dev_priv = huc_to_i915(huc);
 	unsigned long offset = 0;
 	u32 size;
 	int ret;
 
-	ret = i915_gem_object_set_to_gtt_domain(huc_fw->obj, false);
-	if (ret) {
-		DRM_DEBUG_DRIVER("set-domain failed %d\n", ret);
-		return ret;
-	}
-
-	vma = i915_gem_object_ggtt_pin(huc_fw->obj, NULL, 0, 0,
-				PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
-	if (IS_ERR(vma)) {
-		DRM_DEBUG_DRIVER("pin failed %d\n", (int)PTR_ERR(vma));
-		return PTR_ERR(vma);
-	}
+	GEM_BUG_ON(huc_fw->type != INTEL_UC_FW_TYPE_HUC);
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
@@ -134,12 +123,6 @@ static int huc_ucode_xfer(struct drm_i915_private *dev_priv)
 	I915_WRITE(DMA_CTRL, _MASKED_BIT_DISABLE(HUC_UKERNEL));
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
-
-	/*
-	 * We keep the object pages for reuse during resume. But we can unpin it
-	 * now that DMA has completed, so it doesn't continue to take up space.
-	 */
-	i915_vma_unpin(vma);
 
 	return ret;
 }
@@ -194,33 +177,7 @@ void intel_huc_select_fw(struct intel_huc *huc)
  */
 void intel_huc_init_hw(struct intel_huc *huc)
 {
-	struct drm_i915_private *dev_priv = huc_to_i915(huc);
-	int err;
-
-	DRM_DEBUG_DRIVER("%s fw status: fetch %s, load %s\n",
-		huc->fw.path,
-		intel_uc_fw_status_repr(huc->fw.fetch_status),
-		intel_uc_fw_status_repr(huc->fw.load_status));
-
-	if (huc->fw.fetch_status != INTEL_UC_FIRMWARE_SUCCESS)
-		return;
-
-	huc->fw.load_status = INTEL_UC_FIRMWARE_PENDING;
-
-	err = huc_ucode_xfer(dev_priv);
-
-	huc->fw.load_status = err ?
-		INTEL_UC_FIRMWARE_FAIL : INTEL_UC_FIRMWARE_SUCCESS;
-
-	DRM_DEBUG_DRIVER("%s fw status: fetch %s, load %s\n",
-		huc->fw.path,
-		intel_uc_fw_status_repr(huc->fw.fetch_status),
-		intel_uc_fw_status_repr(huc->fw.load_status));
-
-	if (huc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
-		DRM_ERROR("Failed to complete HuC uCode load with ret %d\n", err);
-
-	return;
+	intel_uc_fw_upload(&huc->fw, huc_ucode_xfer);
 }
 
 /**

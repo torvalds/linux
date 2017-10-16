@@ -188,24 +188,13 @@ static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv,
 /*
  * Load the GuC firmware blob into the MinuteIA.
  */
-static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
+static int guc_ucode_xfer(struct intel_uc_fw *guc_fw, struct i915_vma *vma)
 {
-	struct intel_uc_fw *guc_fw = &dev_priv->guc.fw;
-	struct i915_vma *vma;
+	struct intel_guc *guc = container_of(guc_fw, struct intel_guc, fw);
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	int ret;
 
-	ret = i915_gem_object_set_to_gtt_domain(guc_fw->obj, false);
-	if (ret) {
-		DRM_DEBUG_DRIVER("set-domain failed %d\n", ret);
-		return ret;
-	}
-
-	vma = i915_gem_object_ggtt_pin(guc_fw->obj, NULL, 0, 0,
-				       PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
-	if (IS_ERR(vma)) {
-		DRM_DEBUG_DRIVER("pin failed %d\n", (int)PTR_ERR(vma));
-		return PTR_ERR(vma);
-	}
+	GEM_BUG_ON(guc_fw->type != INTEL_UC_FW_TYPE_GUC);
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
@@ -240,12 +229,6 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
-	/*
-	 * We keep the object pages for reuse during resume. But we can unpin it
-	 * now that DMA has completed, so it doesn't continue to take up space.
-	 */
-	i915_vma_unpin(vma);
-
 	return ret;
 }
 
@@ -264,30 +247,5 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
  */
 int intel_guc_fw_upload(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	const char *fw_path = guc->fw.path;
-	int ret;
-
-	DRM_DEBUG_DRIVER("GuC fw status: path %s, fetch %s, load %s\n",
-		fw_path,
-		intel_uc_fw_status_repr(guc->fw.fetch_status),
-		intel_uc_fw_status_repr(guc->fw.load_status));
-
-	if (guc->fw.fetch_status != INTEL_UC_FIRMWARE_SUCCESS)
-		return -EIO;
-
-	guc->fw.load_status = INTEL_UC_FIRMWARE_PENDING;
-
-	DRM_DEBUG_DRIVER("GuC fw status: fetch %s, load %s\n",
-		intel_uc_fw_status_repr(guc->fw.fetch_status),
-		intel_uc_fw_status_repr(guc->fw.load_status));
-
-	ret = guc_ucode_xfer(dev_priv);
-
-	if (ret)
-		return -EAGAIN;
-
-	guc->fw.load_status = INTEL_UC_FIRMWARE_SUCCESS;
-
-	return 0;
+	return intel_uc_fw_upload(&guc->fw, guc_ucode_xfer);
 }
