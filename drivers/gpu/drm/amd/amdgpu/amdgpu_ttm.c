@@ -689,7 +689,6 @@ struct amdgpu_ttm_tt {
 	struct list_head        guptasks;
 	atomic_t		mmu_invalidations;
 	uint32_t		last_set_pages;
-	struct list_head        list;
 };
 
 int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages)
@@ -865,21 +864,14 @@ static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 		return 0;
 	}
 
-	spin_lock(&gtt->adev->gtt_list_lock);
 	flags = amdgpu_ttm_tt_pte_flags(gtt->adev, ttm, bo_mem);
 	gtt->offset = (u64)bo_mem->start << PAGE_SHIFT;
 	r = amdgpu_gart_bind(gtt->adev, gtt->offset, ttm->num_pages,
 		ttm->pages, gtt->ttm.dma_address, flags);
 
-	if (r) {
+	if (r)
 		DRM_ERROR("failed to bind %lu pages at 0x%08llX\n",
 			  ttm->num_pages, gtt->offset);
-		goto error_gart_bind;
-	}
-
-	list_add_tail(&gtt->list, &gtt->adev->gtt_list);
-error_gart_bind:
-	spin_unlock(&gtt->adev->gtt_list_lock);
 	return r;
 }
 
@@ -920,29 +912,23 @@ int amdgpu_ttm_bind(struct ttm_buffer_object *bo)
 	return r;
 }
 
-int amdgpu_ttm_recover_gart(struct amdgpu_device *adev)
+int amdgpu_ttm_recover_gart(struct ttm_buffer_object *tbo)
 {
-	struct amdgpu_ttm_tt *gtt, *tmp;
-	struct ttm_mem_reg bo_mem;
+	struct amdgpu_device *adev = amdgpu_ttm_adev(tbo->bdev);
+	struct amdgpu_ttm_tt *gtt = (void *)tbo->ttm;
 	uint64_t flags;
 	int r;
 
-	bo_mem.mem_type = TTM_PL_TT;
-	spin_lock(&adev->gtt_list_lock);
-	list_for_each_entry_safe(gtt, tmp, &adev->gtt_list, list) {
-		flags = amdgpu_ttm_tt_pte_flags(gtt->adev, &gtt->ttm.ttm, &bo_mem);
-		r = amdgpu_gart_bind(adev, gtt->offset, gtt->ttm.ttm.num_pages,
-				     gtt->ttm.ttm.pages, gtt->ttm.dma_address,
-				     flags);
-		if (r) {
-			spin_unlock(&adev->gtt_list_lock);
-			DRM_ERROR("failed to bind %lu pages at 0x%08llX\n",
-				  gtt->ttm.ttm.num_pages, gtt->offset);
-			return r;
-		}
-	}
-	spin_unlock(&adev->gtt_list_lock);
-	return 0;
+	if (!gtt)
+		return 0;
+
+	flags = amdgpu_ttm_tt_pte_flags(adev, &gtt->ttm.ttm, &tbo->mem);
+	r = amdgpu_gart_bind(adev, gtt->offset, gtt->ttm.ttm.num_pages,
+			     gtt->ttm.ttm.pages, gtt->ttm.dma_address, flags);
+	if (r)
+		DRM_ERROR("failed to bind %lu pages at 0x%08llX\n",
+			  gtt->ttm.ttm.num_pages, gtt->offset);
+	return r;
 }
 
 static int amdgpu_ttm_backend_unbind(struct ttm_tt *ttm)
@@ -957,16 +943,10 @@ static int amdgpu_ttm_backend_unbind(struct ttm_tt *ttm)
 		return 0;
 
 	/* unbind shouldn't be done for GDS/GWS/OA in ttm_bo_clean_mm */
-	spin_lock(&gtt->adev->gtt_list_lock);
 	r = amdgpu_gart_unbind(gtt->adev, gtt->offset, ttm->num_pages);
-	if (r) {
+	if (r)
 		DRM_ERROR("failed to unbind %lu pages at 0x%08llX\n",
 			  gtt->ttm.ttm.num_pages, gtt->offset);
-		goto error_unbind;
-	}
-	list_del_init(&gtt->list);
-error_unbind:
-	spin_unlock(&gtt->adev->gtt_list_lock);
 	return r;
 }
 
@@ -1003,7 +983,6 @@ static struct ttm_tt *amdgpu_ttm_tt_create(struct ttm_bo_device *bdev,
 		kfree(gtt);
 		return NULL;
 	}
-	INIT_LIST_HEAD(&gtt->list);
 	return &gtt->ttm.ttm;
 }
 

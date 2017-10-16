@@ -69,6 +69,7 @@ extern const struct ttm_mem_type_manager_func amdgpu_vram_mgr_func;
 
 bool amdgpu_gtt_mgr_has_gart_addr(struct ttm_mem_reg *mem);
 uint64_t amdgpu_gtt_mgr_usage(struct ttm_mem_type_manager *man);
+int amdgpu_gtt_mgr_recover(struct ttm_mem_type_manager *man);
 
 uint64_t amdgpu_vram_mgr_usage(struct ttm_mem_type_manager *man);
 uint64_t amdgpu_vram_mgr_vis_usage(struct ttm_mem_type_manager *man);
@@ -91,7 +92,7 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 
 int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma);
 int amdgpu_ttm_bind(struct ttm_buffer_object *bo);
-int amdgpu_ttm_recover_gart(struct amdgpu_device *adev);
+int amdgpu_ttm_recover_gart(struct ttm_buffer_object *tbo);
 
 int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages);
 void amdgpu_ttm_tt_set_user_pages(struct ttm_tt *ttm, struct page **pages);
