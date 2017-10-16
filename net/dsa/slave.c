@@ -1117,15 +1117,12 @@ int dsa_slave_resume(struct net_device *slave_dev)
 int dsa_slave_create(struct dsa_port *port, const char *name)
 {
 	struct dsa_notifier_register_info rinfo = { };
+	struct dsa_port *cpu_dp = port->cpu_dp;
+	struct net_device *master = cpu_dp->netdev;
 	struct dsa_switch *ds = port->ds;
-	struct net_device *master;
 	struct net_device *slave_dev;
 	struct dsa_slave_priv *p;
-	struct dsa_port *cpu_dp;
 	int ret;
-
-	cpu_dp = ds->dst->cpu_dp;
-	master = cpu_dp->netdev;
 
 	if (!ds->num_tx_queues)
 		ds->num_tx_queues = 1;
