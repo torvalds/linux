@@ -66,8 +66,8 @@ static struct omap_intc_regs intc_context;
 
 static struct irq_domain *domain;
 static void __iomem *omap_irq_base;
-static int omap_nr_pending = 3;
-static int omap_nr_irqs = 96;
+static int omap_nr_pending;
+static int omap_nr_irqs;
 
 static void intc_writel(u32 reg, u32 val)
 {
