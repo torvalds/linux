@@ -511,9 +511,9 @@ static void serial_unlink_irq_chain(struct uart_sio_port *up)
 /*
  * This function is used to handle ports that do not have an interrupt.
  */
-static void m32r_sio_timeout(unsigned long data)
+static void m32r_sio_timeout(struct timer_list *t)
 {
-	struct uart_sio_port *up = (struct uart_sio_port *)data;
+	struct uart_sio_port *up = from_timer(up, t, timer);
 	unsigned int timeout;
 	unsigned int sts;
 
@@ -907,8 +907,7 @@ static void __init m32r_sio_register_ports(struct uart_driver *drv)
 
 		up->port.line = i;
 		up->port.ops = &m32r_sio_pops;
-		init_timer(&up->timer);
-		up->timer.function = m32r_sio_timeout;
+		timer_setup(&up->timer, m32r_sio_timeout, 0);
 
 		uart_add_one_port(drv, &up->port);
 	}
