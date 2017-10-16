@@ -250,17 +250,6 @@ static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv,
 	return ret;
 }
 
-u32 intel_guc_wopcm_size(struct drm_i915_private *dev_priv)
-{
-	u32 wopcm_size = GUC_WOPCM_TOP;
-
-	/* On BXT, the top of WOPCM is reserved for RC6 context */
-	if (IS_GEN9_LP(dev_priv))
-		wopcm_size -= BXT_GUC_WOPCM_RC6_RESERVED;
-
-	return wopcm_size;
-}
-
 /*
  * Load the GuC firmware blob into the MinuteIA.
  */
