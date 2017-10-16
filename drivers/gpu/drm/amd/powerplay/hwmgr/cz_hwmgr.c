@@ -1274,10 +1274,8 @@ static int cz_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 
 int cz_dpm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 {
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-					 PHM_PlatformCaps_UVDPowerGating))
-		return smum_send_msg_to_smc(hwmgr,
-						     PPSMC_MSG_UVDPowerOFF);
+	if (PP_CAP(PHM_PlatformCaps_UVDPowerGating))
+		return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_UVDPowerOFF);
 	return 0;
 }
 
