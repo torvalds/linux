@@ -920,9 +920,8 @@ static __init void uv_rtc_init(void)
 /*
  * percpu heartbeat timer
  */
-static void uv_heartbeat(unsigned long ignored)
+static void uv_heartbeat(struct timer_list *timer)
 {
-	struct timer_list *timer = &uv_scir_info->timer;
 	unsigned char bits = uv_scir_info->state;
 
 	/* Flip heartbeat bit: */
@@ -947,7 +946,7 @@ static int uv_heartbeat_enable(unsigned int cpu)
 		struct timer_list *timer = &uv_cpu_scir_info(cpu)->timer;
 
 		uv_set_cpu_scir_bits(cpu, SCIR_CPU_HEARTBEAT|SCIR_CPU_ACTIVITY);
-		setup_pinned_timer(timer, uv_heartbeat, cpu);
+		timer_setup(timer, uv_heartbeat, TIMER_PINNED);
 		timer->expires = jiffies + SCIR_CPU_HB_INTERVAL;
 		add_timer_on(timer, cpu);
 		uv_cpu_scir_info(cpu)->enabled = 1;
