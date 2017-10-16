@@ -377,7 +377,7 @@ void i40iw_change_l2params(struct i40iw_sc_vsi *vsi, struct i40iw_l2params *l2pa
  * i40iw_qp_rem_qos - remove qp from qos lists during destroy qp
  * @qp: qp to be removed from qos
  */
-static void i40iw_qp_rem_qos(struct i40iw_sc_qp *qp)
+void i40iw_qp_rem_qos(struct i40iw_sc_qp *qp)
 {
 	struct i40iw_sc_vsi *vsi = qp->vsi;
 	unsigned long flags;

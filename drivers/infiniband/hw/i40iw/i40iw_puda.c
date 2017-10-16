@@ -615,8 +615,10 @@ static enum i40iw_status_code i40iw_puda_qp_create(struct i40iw_puda_rsrc *rsrc)
 		ret = i40iw_cqp_qp_create_cmd(rsrc->dev, qp);
 	else
 		ret = i40iw_puda_qp_wqe(rsrc->dev, qp);
-	if (ret)
+	if (ret) {
+		i40iw_qp_rem_qos(qp);
 		i40iw_free_dma_mem(rsrc->dev->hw, &rsrc->qpmem);
+	}
 	return ret;
 }
 

@@ -86,7 +86,7 @@ void i40iw_sc_vsi_init(struct i40iw_sc_vsi *vsi, struct i40iw_vsi_init_info *inf
 
 void i40iw_change_l2params(struct i40iw_sc_vsi *vsi, struct i40iw_l2params *l2params);
 void i40iw_qp_add_qos(struct i40iw_sc_qp *qp);
-
+void i40iw_qp_rem_qos(struct i40iw_sc_qp *qp);
 void i40iw_terminate_send_fin(struct i40iw_sc_qp *qp);
 
 void i40iw_terminate_connection(struct i40iw_sc_qp *qp, struct i40iw_aeqe_info *info);
