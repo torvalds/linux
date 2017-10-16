@@ -129,8 +129,9 @@ fsm_getstate_str(fsm_instance *fi)
 }
 
 static void
-fsm_expire_timer(fsm_timer *this)
+fsm_expire_timer(struct timer_list *t)
 {
+	fsm_timer *this = from_timer(this, t, tl);
 #if FSM_TIMER_DEBUG
 	printk(KERN_DEBUG "fsm(%s): Timer %p expired\n",
 	       this->fi->name, this);
@@ -146,7 +147,7 @@ fsm_settimer(fsm_instance *fi, fsm_timer *this)
 	printk(KERN_DEBUG "fsm(%s): Create timer %p\n", fi->name,
 	       this);
 #endif
-	setup_timer(&this->tl, (void *)fsm_expire_timer, (long)this);
+	timer_setup(&this->tl, fsm_expire_timer, 0);
 }
 
 void
@@ -168,7 +169,7 @@ fsm_addtimer(fsm_timer *this, int millisec, int event, void *arg)
 	       this->fi->name, this, millisec);
 #endif
 
-	setup_timer(&this->tl, (void *)fsm_expire_timer, (long)this);
+	timer_setup(&this->tl, fsm_expire_timer, 0);
 	this->expire_event = event;
 	this->event_arg = arg;
 	this->tl.expires = jiffies + (millisec * HZ) / 1000;
@@ -187,7 +188,7 @@ fsm_modtimer(fsm_timer *this, int millisec, int event, void *arg)
 #endif
 
 	del_timer(&this->tl);
-	setup_timer(&this->tl, (void *)fsm_expire_timer, (long)this);
+	timer_setup(&this->tl, fsm_expire_timer, 0);
 	this->expire_event = event;
 	this->event_arg = arg;
 	this->tl.expires = jiffies + (millisec * HZ) / 1000;

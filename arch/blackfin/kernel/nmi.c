@@ -166,7 +166,7 @@ int check_nmi_wdt_touched(void)
 	return 1;
 }
 
-static void nmi_wdt_timer(unsigned long data)
+static void nmi_wdt_timer(struct timer_list *unused)
 {
 	if (check_nmi_wdt_touched())
 		nmi_wdt_keepalive();
@@ -180,7 +180,7 @@ static int __init init_nmi_wdt(void)
 	nmi_wdt_start();
 	nmi_active = true;
 
-	setup_timer(&ntimer, nmi_wdt_timer, 0UL);
+	timer_setup(&ntimer, nmi_wdt_timer, 0);
 	ntimer.expires = jiffies + NMI_CHECK_TIMEOUT;
 	add_timer(&ntimer);
 

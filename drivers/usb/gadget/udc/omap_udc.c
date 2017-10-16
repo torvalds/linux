@@ -1854,9 +1854,9 @@ static irqreturn_t omap_udc_irq(int irq, void *_udc)
 #define PIO_OUT_TIMEOUT	(jiffies + HZ/3)
 #define HALF_FULL(f)	(!((f)&(UDC_NON_ISO_FIFO_FULL|UDC_NON_ISO_FIFO_EMPTY)))
 
-static void pio_out_timer(unsigned long _ep)
+static void pio_out_timer(struct timer_list *t)
 {
-	struct omap_ep	*ep = (void *) _ep;
+	struct omap_ep	*ep = from_timer(ep, t, timer);
 	unsigned long	flags;
 	u16		stat_flg;
 
@@ -2542,7 +2542,7 @@ omap_ep_setup(char *name, u8 addr, u8 type,
 		}
 		if (dbuf && addr)
 			epn_rxtx |= UDC_EPN_RX_DB;
-		setup_timer(&ep->timer, pio_out_timer, (unsigned long)ep);
+		timer_setup(&ep->timer, pio_out_timer, 0);
 	}
 	if (addr)
 		epn_rxtx |= UDC_EPN_RX_VALID;

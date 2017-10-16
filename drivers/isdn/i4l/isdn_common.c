@@ -231,7 +231,7 @@ static int isdn_timer_cnt2 = 0;
 static int isdn_timer_cnt3 = 0;
 
 static void
-isdn_timer_funct(ulong dummy)
+isdn_timer_funct(struct timer_list *unused)
 {
 	int tf = dev->tflags;
 	if (tf & ISDN_TIMER_FAST) {
@@ -2294,7 +2294,7 @@ static int __init isdn_init(void)
 		printk(KERN_WARNING "isdn: Could not allocate device-struct.\n");
 		return -EIO;
 	}
-	setup_timer(&dev->timer, isdn_timer_funct, 0UL);
+	timer_setup(&dev->timer, isdn_timer_funct, 0);
 	spin_lock_init(&dev->lock);
 	spin_lock_init(&dev->timerlock);
 #ifdef MODULE

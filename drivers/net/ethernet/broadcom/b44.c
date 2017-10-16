@@ -599,9 +599,9 @@ static void b44_check_phy(struct b44 *bp)
 	}
 }
 
-static void b44_timer(unsigned long __opaque)
+static void b44_timer(struct timer_list *t)
 {
-	struct b44 *bp = (struct b44 *) __opaque;
+	struct b44 *bp = from_timer(bp, t, timer);
 
 	spin_lock_irq(&bp->lock);
 
@@ -1474,7 +1474,7 @@ static int b44_open(struct net_device *dev)
 		goto out;
 	}
 
-	setup_timer(&bp->timer, b44_timer, (unsigned long)bp);
+	timer_setup(&bp->timer, b44_timer, 0);
 	bp->timer.expires = jiffies + HZ;
 	add_timer(&bp->timer);
 

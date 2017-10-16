@@ -1259,9 +1259,9 @@ static irqreturn_t m66592_irq(int irq, void *_m66592)
 	return IRQ_HANDLED;
 }
 
-static void m66592_timer(unsigned long _m66592)
+static void m66592_timer(struct timer_list *t)
 {
-	struct m66592 *m66592 = (struct m66592 *)_m66592;
+	struct m66592 *m66592 = from_timer(m66592, t, timer);
 	unsigned long flags;
 	u16 tmp;
 
@@ -1589,7 +1589,7 @@ static int m66592_probe(struct platform_device *pdev)
 	m66592->gadget.max_speed = USB_SPEED_HIGH;
 	m66592->gadget.name = udc_name;
 
-	setup_timer(&m66592->timer, m66592_timer, (unsigned long)m66592);
+	timer_setup(&m66592->timer, m66592_timer, 0);
 	m66592->reg = reg;
 
 	ret = request_irq(ires->start, m66592_irq, IRQF_SHARED,

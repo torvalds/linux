@@ -105,9 +105,9 @@ static struct tda18271_config hauppauge_woodbury_tunerconfig = {
 
 static void au0828_restart_dvb_streaming(struct work_struct *work);
 
-static void au0828_bulk_timeout(unsigned long data)
+static void au0828_bulk_timeout(struct timer_list *t)
 {
-	struct au0828_dev *dev = (struct au0828_dev *) data;
+	struct au0828_dev *dev = from_timer(dev, t, bulk_timeout);
 
 	dprintk(1, "%s called\n", __func__);
 	dev->bulk_timeout_running = 0;
@@ -648,8 +648,7 @@ int au0828_dvb_register(struct au0828_dev *dev)
 		return ret;
 	}
 
-	setup_timer(&dev->bulk_timeout, au0828_bulk_timeout,
-		    (unsigned long)dev);
+	timer_setup(&dev->bulk_timeout, au0828_bulk_timeout, 0);
 
 	return 0;
 }

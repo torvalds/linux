@@ -488,9 +488,9 @@ static void batadv_tp_reset_sender_timer(struct batadv_tp_vars *tp_vars)
  * Switch to Slow Start, set the ss_threshold to half of the current cwnd and
  * reset the cwnd to 3*MSS
  */
-static void batadv_tp_sender_timeout(unsigned long arg)
+static void batadv_tp_sender_timeout(struct timer_list *t)
 {
-	struct batadv_tp_vars *tp_vars = (struct batadv_tp_vars *)arg;
+	struct batadv_tp_vars *tp_vars = from_timer(tp_vars, t, timer);
 	struct batadv_priv *bat_priv = tp_vars->bat_priv;
 
 	if (atomic_read(&tp_vars->sending) == 0)
@@ -1020,8 +1020,7 @@ void batadv_tp_start(struct batadv_priv *bat_priv, const u8 *dst,
 	atomic64_set(&tp_vars->tot_sent, 0);
 
 	kref_get(&tp_vars->refcount);
-	setup_timer(&tp_vars->timer, batadv_tp_sender_timeout,
-		    (unsigned long)tp_vars);
+	timer_setup(&tp_vars->timer, batadv_tp_sender_timeout, 0);
 
 	tp_vars->bat_priv = bat_priv;
 	tp_vars->start_time = jiffies;
@@ -1109,9 +1108,9 @@ static void batadv_tp_reset_receiver_timer(struct batadv_tp_vars *tp_vars)
  *  reached without received ack
  * @arg: address of the related tp_vars
  */
-static void batadv_tp_receiver_shutdown(unsigned long arg)
+static void batadv_tp_receiver_shutdown(struct timer_list *t)
 {
-	struct batadv_tp_vars *tp_vars = (struct batadv_tp_vars *)arg;
+	struct batadv_tp_vars *tp_vars = from_timer(tp_vars, t, timer);
 	struct batadv_tp_unacked *un, *safe;
 	struct batadv_priv *bat_priv;
 
@@ -1373,8 +1372,7 @@ batadv_tp_init_recv(struct batadv_priv *bat_priv,
 	hlist_add_head_rcu(&tp_vars->list, &bat_priv->tp_list);
 
 	kref_get(&tp_vars->refcount);
-	setup_timer(&tp_vars->timer, batadv_tp_receiver_shutdown,
-		    (unsigned long)tp_vars);
+	timer_setup(&tp_vars->timer, batadv_tp_receiver_shutdown, 0);
 
 	batadv_tp_reset_receiver_timer(tp_vars);
 

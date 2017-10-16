@@ -361,9 +361,9 @@ static irqreturn_t kw_i2c_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void kw_i2c_timeout(unsigned long data)
+static void kw_i2c_timeout(struct timer_list *t)
 {
-	struct pmac_i2c_host_kw *host = (struct pmac_i2c_host_kw *)data;
+	struct pmac_i2c_host_kw *host = from_timer(host, t, timeout_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&host->lock, flags);
@@ -513,7 +513,7 @@ static struct pmac_i2c_host_kw *__init kw_i2c_host_init(struct device_node *np)
 	mutex_init(&host->mutex);
 	init_completion(&host->complete);
 	spin_lock_init(&host->lock);
-	setup_timer(&host->timeout_timer, kw_i2c_timeout, (unsigned long)host);
+	timer_setup(&host->timeout_timer, kw_i2c_timeout, 0);
 
 	psteps = of_get_property(np, "AAPL,address-step", NULL);
 	steps = psteps ? (*psteps) : 0x10;

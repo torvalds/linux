@@ -558,9 +558,9 @@ out:
 	return NET_RX_DROP;
 }
 
-static void ppp_timer(unsigned long arg)
+static void ppp_timer(struct timer_list *t)
 {
-	struct proto *proto = (struct proto *)arg;
+	struct proto *proto = from_timer(proto, t, timer);
 	struct ppp *ppp = get_ppp(proto->dev);
 	unsigned long flags;
 
@@ -610,7 +610,7 @@ static void ppp_start(struct net_device *dev)
 	for (i = 0; i < IDX_COUNT; i++) {
 		struct proto *proto = &ppp->protos[i];
 		proto->dev = dev;
-		setup_timer(&proto->timer, ppp_timer, (unsigned long)proto);
+		timer_setup(&proto->timer, ppp_timer, 0);
 		proto->state = CLOSED;
 	}
 	ppp->protos[IDX_LCP].pid = PID_LCP;

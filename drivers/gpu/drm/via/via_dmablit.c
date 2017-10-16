@@ -452,9 +452,9 @@ via_dmablit_sync(struct drm_device *dev, uint32_t handle, int engine)
 
 
 static void
-via_dmablit_timer(unsigned long data)
+via_dmablit_timer(struct timer_list *t)
 {
-	drm_via_blitq_t *blitq = (drm_via_blitq_t *) data;
+	drm_via_blitq_t *blitq = from_timer(blitq, t, poll_timer);
 	struct drm_device *dev = blitq->dev;
 	int engine = (int)
 		(blitq - ((drm_via_private_t *)dev->dev_private)->blit_queues);
@@ -559,8 +559,7 @@ via_init_dmablit(struct drm_device *dev)
 			init_waitqueue_head(blitq->blit_queue + j);
 		init_waitqueue_head(&blitq->busy_queue);
 		INIT_WORK(&blitq->wq, via_dmablit_workqueue);
-		setup_timer(&blitq->poll_timer, via_dmablit_timer,
-				(unsigned long)blitq);
+		timer_setup(&blitq->poll_timer, via_dmablit_timer, 0);
 	}
 }
 

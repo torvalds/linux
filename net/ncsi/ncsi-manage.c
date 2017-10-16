@@ -529,9 +529,9 @@ struct ncsi_dev *ncsi_find_dev(struct net_device *dev)
 	return NULL;
 }
 
-static void ncsi_request_timeout(unsigned long data)
+static void ncsi_request_timeout(struct timer_list *t)
 {
-	struct ncsi_request *nr = (struct ncsi_request *)data;
+	struct ncsi_request *nr = from_timer(nr, t, timer);
 	struct ncsi_dev_priv *ndp = nr->ndp;
 	unsigned long flags;
 
@@ -1577,9 +1577,7 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 	for (i = 0; i < ARRAY_SIZE(ndp->requests); i++) {
 		ndp->requests[i].id = i;
 		ndp->requests[i].ndp = ndp;
-		setup_timer(&ndp->requests[i].timer,
-			    ncsi_request_timeout,
-			    (unsigned long)&ndp->requests[i]);
+		timer_setup(&ndp->requests[i].timer, ncsi_request_timeout, 0);
 	}
 
 	spin_lock_irqsave(&ncsi_dev_lock, flags);

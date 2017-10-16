@@ -85,18 +85,18 @@ int __init pci_is_66mhz_capable(struct pci_channel *hose,
 	return cap66 > 0;
 }
 
-static void pcibios_enable_err(unsigned long __data)
+static void pcibios_enable_err(struct timer_list *t)
 {
-	struct pci_channel *hose = (struct pci_channel *)__data;
+	struct pci_channel *hose = from_timer(hose, t, err_timer);
 
 	del_timer(&hose->err_timer);
 	printk(KERN_DEBUG "PCI: re-enabling error IRQ.\n");
 	enable_irq(hose->err_irq);
 }
 
-static void pcibios_enable_serr(unsigned long __data)
+static void pcibios_enable_serr(struct timer_list *t)
 {
-	struct pci_channel *hose = (struct pci_channel *)__data;
+	struct pci_channel *hose = from_timer(hose, t, serr_timer);
 
 	del_timer(&hose->serr_timer);
 	printk(KERN_DEBUG "PCI: re-enabling system error IRQ.\n");
@@ -106,13 +106,11 @@ static void pcibios_enable_serr(unsigned long __data)
 void pcibios_enable_timers(struct pci_channel *hose)
 {
 	if (hose->err_irq) {
-		setup_timer(&hose->err_timer, pcibios_enable_err,
-			    (unsigned long)hose);
+		timer_setup(&hose->err_timer, pcibios_enable_err, 0);
 	}
 
 	if (hose->serr_irq) {
-		setup_timer(&hose->serr_timer, pcibios_enable_serr,
-			    (unsigned long)hose);
+		timer_setup(&hose->serr_timer, pcibios_enable_serr, 0);
 	}
 }
 

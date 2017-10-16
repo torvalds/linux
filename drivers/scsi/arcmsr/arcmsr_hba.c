@@ -101,7 +101,7 @@ static void arcmsr_enable_outbound_ints(struct AdapterControlBlock *acb,
 static void arcmsr_stop_adapter_bgrb(struct AdapterControlBlock *acb);
 static void arcmsr_hbaA_flush_cache(struct AdapterControlBlock *acb);
 static void arcmsr_hbaB_flush_cache(struct AdapterControlBlock *acb);
-static void arcmsr_request_device_map(unsigned long pacb);
+static void arcmsr_request_device_map(struct timer_list *t);
 static void arcmsr_hbaA_request_device_map(struct AdapterControlBlock *acb);
 static void arcmsr_hbaB_request_device_map(struct AdapterControlBlock *acb);
 static void arcmsr_hbaC_request_device_map(struct AdapterControlBlock *acb);
@@ -837,8 +837,7 @@ static int arcmsr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	atomic_set(&acb->rq_map_token, 16);
 	atomic_set(&acb->ante_token_value, 16);
 	acb->fw_flag = FW_NORMAL;
-	setup_timer(&acb->eternal_timer, &arcmsr_request_device_map,
-		    (unsigned long)acb);
+	timer_setup(&acb->eternal_timer, arcmsr_request_device_map, 0);
 	acb->eternal_timer.expires = jiffies + msecs_to_jiffies(6 * HZ);
 	add_timer(&acb->eternal_timer);
 	if(arcmsr_alloc_sysfs_attr(acb))
@@ -929,8 +928,7 @@ static int arcmsr_resume(struct pci_dev *pdev)
 	atomic_set(&acb->rq_map_token, 16);
 	atomic_set(&acb->ante_token_value, 16);
 	acb->fw_flag = FW_NORMAL;
-	setup_timer(&acb->eternal_timer, &arcmsr_request_device_map,
-		    (unsigned long)acb);
+	timer_setup(&acb->eternal_timer, arcmsr_request_device_map, 0);
 	acb->eternal_timer.expires = jiffies + msecs_to_jiffies(6 * HZ);
 	add_timer(&acb->eternal_timer);
 	return 0;
@@ -3457,9 +3455,9 @@ static void arcmsr_hbaD_request_device_map(struct AdapterControlBlock *acb)
 	}
 }
 
-static void arcmsr_request_device_map(unsigned long pacb)
+static void arcmsr_request_device_map(struct timer_list *t)
 {
-	struct AdapterControlBlock *acb = (struct AdapterControlBlock *)pacb;
+	struct AdapterControlBlock *acb = from_timer(acb, t, eternal_timer);
 	switch (acb->adapter_type) {
 		case ACB_ADAPTER_TYPE_A: {
 			arcmsr_hbaA_request_device_map(acb);

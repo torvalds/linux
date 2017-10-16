@@ -305,7 +305,7 @@ static void n2100_restart(enum reboot_mode mode, const char *cmd)
 
 static struct timer_list power_button_poll_timer;
 
-static void power_button_poll(unsigned long dummy)
+static void power_button_poll(struct timer_list *unused)
 {
 	if (gpio_get_value(N2100_POWER_BUTTON) == 0) {
 		ctrl_alt_del();
@@ -336,7 +336,7 @@ static int __init n2100_request_gpios(void)
 			pr_err("could not set power GPIO as input\n");
 	}
 	/* Set up power button poll timer */
-	setup_timer(&power_button_poll_timer, power_button_poll, 0UL);
+	timer_setup(&power_button_poll_timer, power_button_poll, 0);
 	power_button_poll_timer.expires = jiffies + (HZ / 10);
 	add_timer(&power_button_poll_timer);
 	return 0;

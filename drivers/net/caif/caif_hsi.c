@@ -66,9 +66,9 @@ static const struct cfhsi_config  hsi_default_config = {
 
 static LIST_HEAD(cfhsi_list);
 
-static void cfhsi_inactivity_tout(unsigned long arg)
+static void cfhsi_inactivity_tout(struct timer_list *t)
 {
-	struct cfhsi *cfhsi = (struct cfhsi *)arg;
+	struct cfhsi *cfhsi = from_timer(cfhsi, t, inactivity_timer);
 
 	netdev_dbg(cfhsi->ndev, "%s.\n",
 		__func__);
@@ -737,9 +737,9 @@ out_of_sync:
 	schedule_work(&cfhsi->out_of_sync_work);
 }
 
-static void cfhsi_rx_slowpath(unsigned long arg)
+static void cfhsi_rx_slowpath(struct timer_list *t)
 {
-	struct cfhsi *cfhsi = (struct cfhsi *)arg;
+	struct cfhsi *cfhsi = from_timer(cfhsi, t, rx_slowpath_timer);
 
 	netdev_dbg(cfhsi->ndev, "%s.\n",
 		__func__);
@@ -997,9 +997,9 @@ static void cfhsi_wake_down_cb(struct cfhsi_cb_ops *cb_ops)
 	wake_up_interruptible(&cfhsi->wake_down_wait);
 }
 
-static void cfhsi_aggregation_tout(unsigned long arg)
+static void cfhsi_aggregation_tout(struct timer_list *t)
 {
-	struct cfhsi *cfhsi = (struct cfhsi *)arg;
+	struct cfhsi *cfhsi = from_timer(cfhsi, t, aggregation_timer);
 
 	netdev_dbg(cfhsi->ndev, "%s.\n",
 		__func__);
@@ -1211,14 +1211,11 @@ static int cfhsi_open(struct net_device *ndev)
 	init_waitqueue_head(&cfhsi->flush_fifo_wait);
 
 	/* Setup the inactivity timer. */
-	setup_timer(&cfhsi->inactivity_timer, cfhsi_inactivity_tout,
-		    (unsigned long)cfhsi);
+	timer_setup(&cfhsi->inactivity_timer, cfhsi_inactivity_tout, 0);
 	/* Setup the slowpath RX timer. */
-	setup_timer(&cfhsi->rx_slowpath_timer, cfhsi_rx_slowpath,
-		    (unsigned long)cfhsi);
+	timer_setup(&cfhsi->rx_slowpath_timer, cfhsi_rx_slowpath, 0);
 	/* Setup the aggregation timer. */
-	setup_timer(&cfhsi->aggregation_timer, cfhsi_aggregation_tout,
-		    (unsigned long)cfhsi);
+	timer_setup(&cfhsi->aggregation_timer, cfhsi_aggregation_tout, 0);
 
 	/* Activate HSI interface. */
 	res = cfhsi->ops->cfhsi_up(cfhsi->ops);

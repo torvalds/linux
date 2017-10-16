@@ -788,9 +788,11 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 EXPORT_SYMBOL_GPL(usb_hcd_poll_rh_status);
 
 /* timer callback */
-static void rh_timer_func (unsigned long _hcd)
+static void rh_timer_func (struct timer_list *t)
 {
-	usb_hcd_poll_rh_status((struct usb_hcd *) _hcd);
+	struct usb_hcd *_hcd = from_timer(_hcd, t, rh_timer);
+
+	usb_hcd_poll_rh_status(_hcd);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -2545,7 +2547,7 @@ struct usb_hcd *__usb_create_hcd(const struct hc_driver *driver,
 	hcd->self.bus_name = bus_name;
 	hcd->self.uses_dma = (sysdev->dma_mask != NULL);
 
-	setup_timer(&hcd->rh_timer, rh_timer_func, (unsigned long)hcd);
+	timer_setup(&hcd->rh_timer, rh_timer_func, 0);
 #ifdef CONFIG_PM
 	INIT_WORK(&hcd->wakeup_work, hcd_resume_work);
 #endif

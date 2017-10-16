@@ -585,8 +585,7 @@ static int uhci_start(struct usb_hcd *hcd)
 		hcd->self.sg_tablesize = ~0;
 
 	spin_lock_init(&uhci->lock);
-	setup_timer(&uhci->fsbr_timer, uhci_fsbr_timeout,
-			(unsigned long) uhci);
+	timer_setup(&uhci->fsbr_timer, uhci_fsbr_timeout, 0);
 	INIT_LIST_HEAD(&uhci->idle_qh_list);
 	init_waitqueue_head(&uhci->waitqh);
 

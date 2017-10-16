@@ -101,9 +101,9 @@ static void psr_set_state(struct psr_drv *psr, enum psr_state state)
 	spin_unlock_irqrestore(&psr->lock, flags);
 }
 
-static void psr_flush_handler(unsigned long data)
+static void psr_flush_handler(struct timer_list *t)
 {
-	struct psr_drv *psr = (struct psr_drv *)data;
+	struct psr_drv *psr = from_timer(psr, t, flush_timer);
 	unsigned long flags;
 
 	/* If the state has changed since we initiated the flush, do nothing */
@@ -232,7 +232,7 @@ int rockchip_drm_psr_register(struct drm_encoder *encoder,
 	if (!psr)
 		return -ENOMEM;
 
-	setup_timer(&psr->flush_timer, psr_flush_handler, (unsigned long)psr);
+	timer_setup(&psr->flush_timer, psr_flush_handler, 0);
 	spin_lock_init(&psr->lock);
 
 	psr->active = true;
