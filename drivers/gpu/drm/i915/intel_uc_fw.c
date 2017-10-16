@@ -85,6 +85,15 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 	uc_fw->ucode_offset = uc_fw->header_offset + uc_fw->header_size;
 	uc_fw->ucode_size = (css->size_dw - css->header_size_dw) * sizeof(u32);
 
+	/* Header and uCode will be loaded to WOPCM */
+	size = uc_fw->header_size + uc_fw->ucode_size;
+	if (size > intel_guc_wopcm_size(dev_priv)) {
+		DRM_WARN("%s: Firmware is too large to fit in WOPCM\n",
+			 intel_uc_fw_type_repr(uc_fw->type));
+		err = -E2BIG;
+		goto fail;
+	}
+
 	/* now RSA */
 	if (css->key_size_dw != UOS_RSA_SCRATCH_MAX_COUNT) {
 		DRM_NOTE("RSA key size is bad\n");
@@ -108,14 +117,6 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 	 */
 	switch (uc_fw->type) {
 	case INTEL_UC_FW_TYPE_GUC:
-		/* Header and uCode will be loaded to WOPCM. Size of the two. */
-		size = uc_fw->header_size + uc_fw->ucode_size;
-
-		/* Top 32k of WOPCM is reserved (8K stack + 24k RC6 context). */
-		if (size > intel_guc_wopcm_size(dev_priv)) {
-			DRM_ERROR("Firmware is too large to fit in WOPCM\n");
-			goto fail;
-		}
 		uc_fw->major_ver_found = css->guc.sw_version >> 16;
 		uc_fw->minor_ver_found = css->guc.sw_version & 0xFFFF;
 		break;
