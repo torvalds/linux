@@ -2885,6 +2885,7 @@ static void tcp_fastretrans_alert(struct sock *sk, const int acked,
 		      (*ack_flag & FLAG_LOST_RETRANS)))
 			return;
 		/* Change state if cwnd is undone or retransmits are lost */
+		/* fall through */
 	default:
 		if (tcp_is_reno(tp)) {
 			if (flag & FLAG_SND_UNA_ADVANCED)
@@ -6044,6 +6045,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 	case TCP_LAST_ACK:
 		if (!before(TCP_SKB_CB(skb)->seq, tp->rcv_nxt))
 			break;
+		/* fall through */
 	case TCP_FIN_WAIT1:
 	case TCP_FIN_WAIT2:
 		/* RFC 793 says to queue data in these states,

@@ -1522,6 +1522,7 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 		if (inetdev_valid_mtu(dev->mtu))
 			break;
 		/* disable IP when MTU is not enough */
+		/* fall through */
 	case NETDEV_UNREGISTER:
 		inetdev_destroy(in_dev);
 		break;
