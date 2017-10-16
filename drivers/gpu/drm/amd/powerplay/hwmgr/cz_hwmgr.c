@@ -961,18 +961,13 @@ static void cz_clear_voting_clients(struct pp_hwmgr *hwmgr)
 
 static int cz_start_dpm(struct pp_hwmgr *hwmgr)
 {
-	int ret = 0;
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
-	unsigned long dpm_features = 0;
 
 	cz_hwmgr->dpm_flags |= DPMFlags_SCLK_Enabled;
-	dpm_features |= SCLK_DPM_MASK;
 
-	ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+	return smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_EnableAllSmuFeatures,
-				dpm_features);
-
-	return ret;
+				SCLK_DPM_MASK);
 }
 
 static int cz_stop_dpm(struct pp_hwmgr *hwmgr)
