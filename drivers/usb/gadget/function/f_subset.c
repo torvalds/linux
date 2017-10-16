@@ -412,7 +412,7 @@ static struct configfs_attribute *gether_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type gether_func_type = {
+static const struct config_item_type gether_func_type = {
 	.ct_item_ops	= &gether_item_ops,
 	.ct_attrs	= gether_attrs,
 	.ct_owner	= THIS_MODULE,
