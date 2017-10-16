@@ -1114,9 +1114,23 @@ int dsa_slave_resume(struct net_device *slave_dev)
 	return 0;
 }
 
+static void dsa_slave_notify(struct net_device *dev, unsigned long val)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct net_device *master = dsa_master_netdev(p);
+	struct dsa_port *dp = p->dp;
+	struct dsa_notifier_register_info rinfo = {
+		.switch_number = dp->ds->index,
+		.port_number = dp->index,
+		.master = master,
+		.info.dev = dev,
+	};
+
+	call_dsa_notifiers(val, dev, &rinfo.info);
+}
+
 int dsa_slave_create(struct dsa_port *port, const char *name)
 {
-	struct dsa_notifier_register_info rinfo = { };
 	struct dsa_port *cpu_dp = port->cpu_dp;
 	struct net_device *master = cpu_dp->netdev;
 	struct dsa_switch *ds = port->ds;
@@ -1175,11 +1189,7 @@ int dsa_slave_create(struct dsa_port *port, const char *name)
 		goto out_free;
 	}
 
-	rinfo.info.dev = slave_dev;
-	rinfo.master = master;
-	rinfo.port_number = p->dp->index;
-	rinfo.switch_number = p->dp->ds->index;
-	call_dsa_notifiers(DSA_PORT_REGISTER, slave_dev, &rinfo.info);
+	dsa_slave_notify(slave_dev, DSA_PORT_REGISTER);
 
 	ret = register_netdev(slave_dev);
 	if (ret) {
@@ -1204,7 +1214,6 @@ out_free:
 void dsa_slave_destroy(struct net_device *slave_dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(slave_dev);
-	struct dsa_notifier_register_info rinfo = { };
 	struct device_node *port_dn;
 
 	port_dn = p->dp->dn;
@@ -1216,11 +1225,7 @@ void dsa_slave_destroy(struct net_device *slave_dev)
 		if (of_phy_is_fixed_link(port_dn))
 			of_phy_deregister_fixed_link(port_dn);
 	}
-	rinfo.info.dev = slave_dev;
-	rinfo.master = p->dp->cpu_dp->netdev;
-	rinfo.port_number = p->dp->index;
-	rinfo.switch_number = p->dp->ds->index;
-	call_dsa_notifiers(DSA_PORT_UNREGISTER, slave_dev, &rinfo.info);
+	dsa_slave_notify(slave_dev, DSA_PORT_UNREGISTER);
 	unregister_netdev(slave_dev);
 	free_percpu(p->stats64);
 	free_netdev(slave_dev);
