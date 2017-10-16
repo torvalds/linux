@@ -1444,6 +1444,11 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 		if (func_id != BPF_FUNC_redirect_map)
 			goto error;
 		break;
+	/* Restrict bpf side of cpumap, open when use-cases appear */
+	case BPF_MAP_TYPE_CPUMAP:
+		if (func_id != BPF_FUNC_redirect_map)
+			goto error;
+		break;
 	case BPF_MAP_TYPE_ARRAY_OF_MAPS:
 	case BPF_MAP_TYPE_HASH_OF_MAPS:
 		if (func_id != BPF_FUNC_map_lookup_elem)
