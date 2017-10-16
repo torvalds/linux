@@ -41,12 +41,14 @@
 
 struct ipmmu_features {
 	bool use_ns_alias_offset;
+	bool has_cache_leaf_nodes;
 };
 
 struct ipmmu_vmsa_device {
 	struct device *dev;
 	void __iomem *base;
 	struct iommu_device iommu;
+	struct ipmmu_vmsa_device *root;
 	const struct ipmmu_features *features;
 	unsigned int num_utlbs;
 	spinlock_t lock;			/* Protects ctx and domains[] */
@@ -199,6 +201,36 @@ static struct ipmmu_vmsa_device *to_ipmmu(struct device *dev)
 #define IMUASID_ASID0_SHIFT		0
 
 /* -----------------------------------------------------------------------------
+ * Root device handling
+ */
+
+static struct platform_driver ipmmu_driver;
+
+static bool ipmmu_is_root(struct ipmmu_vmsa_device *mmu)
+{
+	return mmu->root == mmu;
+}
+
+static int __ipmmu_check_device(struct device *dev, void *data)
+{
+	struct ipmmu_vmsa_device *mmu = dev_get_drvdata(dev);
+	struct ipmmu_vmsa_device **rootp = data;
+
+	if (ipmmu_is_root(mmu))
+		*rootp = mmu;
+
+	return 0;
+}
+
+static struct ipmmu_vmsa_device *ipmmu_find_root(void)
+{
+	struct ipmmu_vmsa_device *root = NULL;
+
+	return driver_for_each_device(&ipmmu_driver.driver, NULL, &root,
+				      __ipmmu_check_device) == 0 ? root : NULL;
+}
+
+/* -----------------------------------------------------------------------------
  * Read/Write Access
  */
 
@@ -215,13 +247,15 @@ static void ipmmu_write(struct ipmmu_vmsa_device *mmu, unsigned int offset,
 
 static u32 ipmmu_ctx_read(struct ipmmu_vmsa_domain *domain, unsigned int reg)
 {
-	return ipmmu_read(domain->mmu, domain->context_id * IM_CTX_SIZE + reg);
+	return ipmmu_read(domain->mmu->root,
+			  domain->context_id * IM_CTX_SIZE + reg);
 }
 
 static void ipmmu_ctx_write(struct ipmmu_vmsa_domain *domain, unsigned int reg,
 			    u32 data)
 {
-	ipmmu_write(domain->mmu, domain->context_id * IM_CTX_SIZE + reg, data);
+	ipmmu_write(domain->mmu->root,
+		    domain->context_id * IM_CTX_SIZE + reg, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -369,12 +403,12 @@ static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 	 * TODO: Add support for coherent walk through CCI with DVM and remove
 	 * cache handling. For now, delegate it to the io-pgtable code.
 	 */
-	domain->cfg.iommu_dev = domain->mmu->dev;
+	domain->cfg.iommu_dev = domain->mmu->root->dev;
 
 	/*
 	 * Find an unused context.
 	 */
-	ret = ipmmu_domain_allocate_context(domain->mmu, domain);
+	ret = ipmmu_domain_allocate_context(domain->mmu->root, domain);
 	if (ret == IPMMU_CTX_MAX)
 		return -EBUSY;
 
@@ -383,7 +417,8 @@ static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 	domain->iop = alloc_io_pgtable_ops(ARM_32_LPAE_S1, &domain->cfg,
 					   domain);
 	if (!domain->iop) {
-		ipmmu_domain_free_context(domain->mmu, domain->context_id);
+		ipmmu_domain_free_context(domain->mmu->root,
+					  domain->context_id);
 		return -EINVAL;
 	}
 
@@ -437,7 +472,7 @@ static void ipmmu_domain_destroy_context(struct ipmmu_vmsa_domain *domain)
 	 */
 	ipmmu_ctx_write(domain, IMCTR, IMCTR_FLUSH);
 	ipmmu_tlb_sync(domain);
-	ipmmu_domain_free_context(domain->mmu, domain->context_id);
+	ipmmu_domain_free_context(domain->mmu->root, domain->context_id);
 }
 
 /* -----------------------------------------------------------------------------
@@ -824,6 +859,7 @@ static void ipmmu_device_reset(struct ipmmu_vmsa_device *mmu)
 
 static const struct ipmmu_features ipmmu_features_default = {
 	.use_ns_alias_offset = true,
+	.has_cache_leaf_nodes = false,
 };
 
 static const struct of_device_id ipmmu_of_ids[] = {
@@ -878,19 +914,39 @@ static int ipmmu_probe(struct platform_device *pdev)
 		mmu->base += IM_NS_ALIAS_OFFSET;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "no IRQ found\n");
-		return irq;
-	}
 
-	ret = devm_request_irq(&pdev->dev, irq, ipmmu_irq, 0,
-			       dev_name(&pdev->dev), mmu);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to request IRQ %d\n", irq);
-		return ret;
-	}
+	/*
+	 * Determine if this IPMMU instance is a root device by checking for
+	 * the lack of has_cache_leaf_nodes flag or renesas,ipmmu-main property.
+	 */
+	if (!mmu->features->has_cache_leaf_nodes ||
+	    !of_find_property(pdev->dev.of_node, "renesas,ipmmu-main", NULL))
+		mmu->root = mmu;
+	else
+		mmu->root = ipmmu_find_root();
 
-	ipmmu_device_reset(mmu);
+	/*
+	 * Wait until the root device has been registered for sure.
+	 */
+	if (!mmu->root)
+		return -EPROBE_DEFER;
+
+	/* Root devices have mandatory IRQs */
+	if (ipmmu_is_root(mmu)) {
+		if (irq < 0) {
+			dev_err(&pdev->dev, "no IRQ found\n");
+			return irq;
+		}
+
+		ret = devm_request_irq(&pdev->dev, irq, ipmmu_irq, 0,
+				       dev_name(&pdev->dev), mmu);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "failed to request IRQ %d\n", irq);
+			return ret;
+		}
+
+		ipmmu_device_reset(mmu);
+	}
 
 	ret = iommu_device_sysfs_add(&mmu->iommu, &pdev->dev, NULL,
 				     dev_name(&pdev->dev));
