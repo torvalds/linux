@@ -1295,6 +1295,25 @@ mlxsw_sp_ipip_entry_find_by_decap(struct mlxsw_sp *mlxsw_sp,
 	return NULL;
 }
 
+static bool mlxsw_sp_netdev_ipip_type(const struct mlxsw_sp *mlxsw_sp,
+				      const struct net_device *dev,
+				      enum mlxsw_sp_ipip_type *p_type)
+{
+	struct mlxsw_sp_router *router = mlxsw_sp->router;
+	const struct mlxsw_sp_ipip_ops *ipip_ops;
+	enum mlxsw_sp_ipip_type ipipt;
+
+	for (ipipt = 0; ipipt < MLXSW_SP_IPIP_TYPE_MAX; ++ipipt) {
+		ipip_ops = router->ipip_ops_arr[ipipt];
+		if (dev->type == ipip_ops->dev_type) {
+			if (p_type)
+				*p_type = ipipt;
+			return true;
+		}
+	}
+	return false;
+}
+
 struct mlxsw_sp_neigh_key {
 	struct neighbour *n;
 };
@@ -2783,25 +2802,6 @@ static void mlxsw_sp_nexthop_neigh_fini(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_neigh_entry_destroy(mlxsw_sp, neigh_entry);
 
 	neigh_release(n);
-}
-
-static bool mlxsw_sp_netdev_ipip_type(const struct mlxsw_sp *mlxsw_sp,
-				      const struct net_device *dev,
-				      enum mlxsw_sp_ipip_type *p_type)
-{
-	struct mlxsw_sp_router *router = mlxsw_sp->router;
-	const struct mlxsw_sp_ipip_ops *ipip_ops;
-	enum mlxsw_sp_ipip_type ipipt;
-
-	for (ipipt = 0; ipipt < MLXSW_SP_IPIP_TYPE_MAX; ++ipipt) {
-		ipip_ops = router->ipip_ops_arr[ipipt];
-		if (dev->type == ipip_ops->dev_type) {
-			if (p_type)
-				*p_type = ipipt;
-			return true;
-		}
-	}
-	return false;
 }
 
 static int mlxsw_sp_nexthop_ipip_init(struct mlxsw_sp *mlxsw_sp,
