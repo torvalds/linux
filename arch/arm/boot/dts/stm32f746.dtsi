@@ -42,7 +42,7 @@
 
 #include "skeleton.dtsi"
 #include "armv7-m.dtsi"
-#include <dt-bindings/pinctrl/stm32f746-pinfunc.h>
+#include <dt-bindings/pinctrl/stm32-pinfunc.h>
 #include <dt-bindings/clock/stm32fx-clock.h>
 #include <dt-bindings/mfd/stm32f7-rcc.h>
 
@@ -619,7 +619,7 @@
 
 			cec_pins_a: cec@0 {
 				pins {
-					pinmux = <STM32F746_PA15_FUNC_HDMI_CEC>;
+					pinmux = <STM32_PINMUX('A', 15, AF4)>; /* HDMI CEC */
 					slew-rate = <0>;
 					drive-open-drain;
 					bias-disable;
@@ -628,34 +628,34 @@
 
 			usart1_pins_a: usart1@0 {
 				pins1 {
-					pinmux = <STM32F746_PA9_FUNC_USART1_TX>;
+					pinmux = <STM32_PINMUX('A', 9, AF7)>; /* USART1_TX */
 					bias-disable;
 					drive-push-pull;
 					slew-rate = <0>;
 				};
 				pins2 {
-					pinmux = <STM32F746_PA10_FUNC_USART1_RX>;
+					pinmux = <STM32_PINMUX('A', 10, AF7)>; /* USART1_RX */
 					bias-disable;
 				};
 			};
 
 			usart1_pins_b: usart1@1 {
 				pins1 {
-					pinmux = <STM32F746_PA9_FUNC_USART1_TX>;
+					pinmux = <STM32_PINMUX('A', 9, AF7)>; /* USART1_TX */
 					bias-disable;
 					drive-push-pull;
 					slew-rate = <0>;
 				};
 				pins2 {
-					pinmux = <STM32F746_PB7_FUNC_USART1_RX>;
+					pinmux = <STM32_PINMUX('B', 7, AF7)>; /* USART1_RX */
 					bias-disable;
 				};
 			};
 
 			i2c1_pins_b: i2c1@0 {
 				pins {
-					pinmux = <STM32F746_PB9_FUNC_I2C1_SDA>,
-						 <STM32F746_PB8_FUNC_I2C1_SCL>;
+					pinmux = <STM32_PINMUX('B', 9, AF4)>, /* I2C1 SDA */
+						 <STM32_PINMUX('B', 8, AF4)>; /* I2C1 SCL */
 					bias-disable;
 					drive-open-drain;
 					slew-rate = <0>;

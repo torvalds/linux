@@ -40,7 +40,7 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <dt-bindings/pinctrl/stm32h7-pinfunc.h>
+#include <dt-bindings/pinctrl/stm32-pinfunc.h>
 
 / {
 	soc {
@@ -141,26 +141,26 @@
 
 			usart1_pins: usart1@0 {
 				pins1 {
-					pinmux = <STM32H7_PB14_FUNC_USART1_TX>;
+					pinmux = <STM32_PINMUX('B', 14, AF4)>; /* USART1_TX */
 					bias-disable;
 					drive-push-pull;
 					slew-rate = <0>;
 				};
 				pins2 {
-					pinmux = <STM32H7_PB15_FUNC_USART1_RX>;
+					pinmux = <STM32_PINMUX('B', 15, AF4)>; /* USART1_RX */
 					bias-disable;
 				};
 			};
 
 			usart2_pins: usart2@0 {
 				pins1 {
-					pinmux = <STM32H7_PD5_FUNC_USART2_TX>;
+					pinmux = <STM32_PINMUX('D', 5, AF7)>; /* USART2_TX */
 					bias-disable;
 					drive-push-pull;
 					slew-rate = <0>;
 				};
 				pins2 {
-					pinmux = <STM32H7_PD6_FUNC_USART2_RX>;
+					pinmux = <STM32_PINMUX('D', 6, AF7)>; /* USART2_RX */
 					bias-disable;
 				};
 			};
