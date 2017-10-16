@@ -61,11 +61,11 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 	(*job)->vm = vm;
 	(*job)->ibs = (void *)&(*job)[1];
 	(*job)->num_ibs = num_ibs;
-	(*job)->vram_lost_counter = atomic_read(&adev->vram_lost_counter);
 
 	amdgpu_sync_create(&(*job)->sync);
 	amdgpu_sync_create(&(*job)->dep_sync);
 	amdgpu_sync_create(&(*job)->sched_sync);
+	(*job)->vram_lost_counter = atomic_read(&adev->vram_lost_counter);
 
 	return 0;
 }
