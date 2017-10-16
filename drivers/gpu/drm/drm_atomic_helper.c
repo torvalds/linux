@@ -1772,15 +1772,15 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 	}
 
 	for_each_oldnew_connector_in_state(state, conn, old_conn_state, new_conn_state, i) {
-		/* commit tracked through new_crtc_state->commit, no need to do it explicitly */
-		if (new_conn_state->crtc)
-			continue;
-
 		/* Userspace is not allowed to get ahead of the previous
 		 * commit with nonblocking ones. */
 		if (nonblock && old_conn_state->commit &&
 		    !try_wait_for_completion(&old_conn_state->commit->flip_done))
 			return -EBUSY;
+
+		/* commit tracked through new_crtc_state->commit, no need to do it explicitly */
+		if (new_conn_state->crtc)
+			continue;
 
 		commit = crtc_or_fake_commit(state, old_conn_state->crtc);
 		if (!commit)
@@ -1790,17 +1790,16 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 	}
 
 	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
-		/*
-		 * Unlike connectors, always track planes explicitly for
-		 * async pageflip support.
-		 */
-
 		/* Userspace is not allowed to get ahead of the previous
 		 * commit with nonblocking ones. */
 		if (nonblock && old_plane_state->commit &&
 		    !try_wait_for_completion(&old_plane_state->commit->flip_done))
 			return -EBUSY;
 
+		/*
+		 * Unlike connectors, always track planes explicitly for
+		 * async pageflip support.
+		 */
 		commit = crtc_or_fake_commit(state, new_plane_state->crtc ?: old_plane_state->crtc);
 		if (!commit)
 			return -ENOMEM;
