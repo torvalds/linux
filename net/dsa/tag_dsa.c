@@ -67,8 +67,6 @@ static struct sk_buff *dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 			       struct packet_type *pt)
 {
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_switch *ds;
 	u8 *dsa_header;
 	int source_device;
 	int source_port;
@@ -93,18 +91,8 @@ static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	source_device = dsa_header[0] & 0x1f;
 	source_port = (dsa_header[1] >> 3) & 0x1f;
 
-	/*
-	 * Check that the source device exists and that the source
-	 * port is a registered DSA port.
-	 */
-	if (source_device >= DSA_MAX_SWITCHES)
-		return NULL;
-
-	ds = dst->ds[source_device];
-	if (!ds)
-		return NULL;
-
-	if (source_port >= ds->num_ports || !ds->ports[source_port].netdev)
+	skb->dev = dsa_master_get_slave(dev, source_device, source_port);
+	if (!skb->dev)
 		return NULL;
 
 	/*
@@ -152,8 +140,6 @@ static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 			skb->data - ETH_HLEN - DSA_HLEN,
 			2 * ETH_ALEN);
 	}
-
-	skb->dev = ds->ports[source_port].netdev;
 
 	return skb;
 }

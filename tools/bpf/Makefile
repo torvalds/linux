@@ -3,6 +3,7 @@ prefix = /usr
 CC = gcc
 LEX = flex
 YACC = bison
+MAKE = make
 
 CFLAGS += -Wall -O2
 CFLAGS += -D__EXPORTED_HEADERS__ -I../../include/uapi -I../../include
@@ -13,7 +14,7 @@ CFLAGS += -D__EXPORTED_HEADERS__ -I../../include/uapi -I../../include
 %.lex.c: %.l
 	$(LEX) -o $@ $<
 
-all : bpf_jit_disasm bpf_dbg bpf_asm
+all: bpf_jit_disasm bpf_dbg bpf_asm bpftool
 
 bpf_jit_disasm : CFLAGS += -DPACKAGE='bpf_jit_disasm'
 bpf_jit_disasm : LDLIBS = -lopcodes -lbfd -ldl
@@ -26,10 +27,21 @@ bpf_asm : LDLIBS =
 bpf_asm : bpf_asm.o bpf_exp.yacc.o bpf_exp.lex.o
 bpf_exp.lex.o : bpf_exp.yacc.c
 
-clean :
+clean: bpftool_clean
 	rm -rf *.o bpf_jit_disasm bpf_dbg bpf_asm bpf_exp.yacc.* bpf_exp.lex.*
 
-install :
+install: bpftool_install
 	install bpf_jit_disasm $(prefix)/bin/bpf_jit_disasm
 	install bpf_dbg $(prefix)/bin/bpf_dbg
 	install bpf_asm $(prefix)/bin/bpf_asm
+
+bpftool:
+	$(MAKE) -C bpftool
+
+bpftool_install:
+	$(MAKE) -C bpftool install
+
+bpftool_clean:
+	$(MAKE) -C bpftool clean
+
+.PHONY: bpftool FORCE

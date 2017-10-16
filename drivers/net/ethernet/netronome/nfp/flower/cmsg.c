@@ -38,16 +38,9 @@
 #include <net/dst_metadata.h>
 
 #include "main.h"
-#include "../nfpcore/nfp_cpp.h"
 #include "../nfp_net.h"
 #include "../nfp_net_repr.h"
 #include "./cmsg.h"
-
-#define nfp_flower_cmsg_warn(app, fmt, args...)				\
-	do {								\
-		if (net_ratelimit())					\
-			nfp_warn((app)->cpp, fmt, ## args);		\
-	} while (0)
 
 static struct nfp_flower_cmsg_hdr *
 nfp_flower_cmsg_get_hdr(struct sk_buff *skb)
@@ -187,6 +180,15 @@ nfp_flower_cmsg_process_one_rx(struct nfp_app *app, struct sk_buff *skb)
 		break;
 	case NFP_FLOWER_CMSG_TYPE_FLOW_STATS:
 		nfp_flower_rx_flow_stats(app, skb);
+		break;
+	case NFP_FLOWER_CMSG_TYPE_NO_NEIGH:
+		nfp_tunnel_request_route(app, skb);
+		break;
+	case NFP_FLOWER_CMSG_TYPE_ACTIVE_TUNS:
+		nfp_tunnel_keep_alive(app, skb);
+		break;
+	case NFP_FLOWER_CMSG_TYPE_TUN_NEIGH:
+		/* Acks from the NFP that the route is added - ignore. */
 		break;
 	default:
 		nfp_flower_cmsg_warn(app, "Cannot handle invalid repr control type %u\n",

@@ -3891,10 +3891,8 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 	INIT_DELAYED_WORK(&qdev->tx_timeout_work, ql_tx_timeout_work);
 	INIT_DELAYED_WORK(&qdev->link_state_work, ql_link_state_machine_work);
 
-	init_timer(&qdev->adapter_timer);
-	qdev->adapter_timer.function = ql3xxx_timer;
+	setup_timer(&qdev->adapter_timer, ql3xxx_timer, (unsigned long)qdev);
 	qdev->adapter_timer.expires = jiffies + HZ * 2;	/* two second delay */
-	qdev->adapter_timer.data = (unsigned long)qdev;
 
 	if (!cards_found) {
 		pr_alert("%s\n", DRV_STRING);

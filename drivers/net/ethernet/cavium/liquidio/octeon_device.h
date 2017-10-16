@@ -50,6 +50,13 @@ enum octeon_pci_swap_mode {
 	OCTEON_PCI_32BIT_LW_SWAP = 3
 };
 
+enum lio_fw_state {
+	FW_IS_PRELOADED = 0,
+	FW_NEEDS_TO_BE_LOADED = 1,
+	FW_IS_BEING_LOADED = 2,
+	FW_HAS_BEEN_LOADED = 3,
+};
+
 enum {
 	OCTEON_CONFIG_TYPE_DEFAULT = 0,
 	NUM_OCTEON_CONFS,
@@ -557,6 +564,9 @@ struct octeon_device {
 	} loc;
 
 	atomic_t *adapter_refcount; /* reference count of adapter */
+
+	atomic_t *adapter_fw_state; /* per-adapter, lio_fw_state */
+
 	bool ptp_enable;
 };
 

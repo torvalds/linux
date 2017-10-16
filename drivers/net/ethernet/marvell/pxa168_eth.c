@@ -1496,9 +1496,8 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	netif_napi_add(dev, &pep->napi, pxa168_rx_poll, pep->rx_ring_size);
 
 	memset(&pep->timeout, 0, sizeof(struct timer_list));
-	init_timer(&pep->timeout);
-	pep->timeout.function = rxq_refill_timer_wrapper;
-	pep->timeout.data = (unsigned long)pep;
+	setup_timer(&pep->timeout, rxq_refill_timer_wrapper,
+		    (unsigned long)pep);
 
 	pep->smi_bus = mdiobus_alloc();
 	if (!pep->smi_bus) {

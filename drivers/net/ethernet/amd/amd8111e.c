@@ -1883,9 +1883,8 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 
 	/* Initialize software ipg timer */
 	if(lp->options & OPTION_DYN_IPG_ENABLE){
-		init_timer(&lp->ipg_data.ipg_timer);
-		lp->ipg_data.ipg_timer.data = (unsigned long) dev;
-		lp->ipg_data.ipg_timer.function = (void *)&amd8111e_config_ipg;
+		setup_timer(&lp->ipg_data.ipg_timer,
+			    (void *)&amd8111e_config_ipg, (unsigned long)dev);
 		lp->ipg_data.ipg_timer.expires = jiffies +
 						 IPG_CONVERGE_JIFFIES;
 		lp->ipg_data.ipg = DEFAULT_IPG;

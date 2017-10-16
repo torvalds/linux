@@ -1652,9 +1652,7 @@ static int ns83820_open(struct net_device *ndev)
 	writel(0, dev->base + TXDP_HI);
 	writel(desc, dev->base + TXDP);
 
-	init_timer(&dev->tx_watchdog);
-	dev->tx_watchdog.data = (unsigned long)ndev;
-	dev->tx_watchdog.function = ns83820_tx_watch;
+	setup_timer(&dev->tx_watchdog, ns83820_tx_watch, (unsigned long)ndev);
 	mod_timer(&dev->tx_watchdog, jiffies + 2*HZ);
 
 	netif_start_queue(ndev);	/* FIXME: wait for phy to come up */

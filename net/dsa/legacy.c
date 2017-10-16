@@ -144,14 +144,19 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 	 * switch.
 	 */
 	if (dst->cpu_dp->ds == ds) {
+		const struct dsa_device_ops *tag_ops;
 		enum dsa_tag_protocol tag_protocol;
 
 		tag_protocol = ops->get_tag_protocol(ds);
-		dst->tag_ops = dsa_resolve_tag_protocol(tag_protocol);
-		if (IS_ERR(dst->tag_ops))
-			return PTR_ERR(dst->tag_ops);
+		tag_ops = dsa_resolve_tag_protocol(tag_protocol);
+		if (IS_ERR(tag_ops))
+			return PTR_ERR(tag_ops);
 
-		dst->rcv = dst->tag_ops->rcv;
+		dst->cpu_dp->tag_ops = tag_ops;
+
+		/* Few copies for faster access in master receive hot path */
+		dst->cpu_dp->rcv = dst->cpu_dp->tag_ops->rcv;
+		dst->cpu_dp->dst = dst;
 	}
 
 	memcpy(ds->rtable, cd->rtable, sizeof(ds->rtable));
@@ -205,10 +210,6 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 	if (ret < 0)
 		netdev_err(master, "[%d] : can't configure CPU and DSA ports\n",
 			   index);
-
-	ret = dsa_cpu_port_ethtool_setup(ds->dst->cpu_dp);
-	if (ret)
-		return ret;
 
 	return 0;
 }
@@ -604,9 +605,9 @@ static int dsa_setup_dst(struct dsa_switch_tree *dst, struct net_device *dev,
 	 * sent to the tag format's receive function.
 	 */
 	wmb();
-	dev->dsa_ptr = dst;
+	dev->dsa_ptr = dst->cpu_dp;
 
-	return 0;
+	return dsa_master_ethtool_setup(dst->cpu_dp->netdev);
 }
 
 static int dsa_probe(struct platform_device *pdev)
@@ -671,6 +672,8 @@ static void dsa_remove_dst(struct dsa_switch_tree *dst)
 {
 	int i;
 
+	dsa_master_ethtool_restore(dst->cpu_dp->netdev);
+
 	dst->cpu_dp->netdev->dsa_ptr = NULL;
 
 	/* If we used a tagging format that doesn't have an ethertype
@@ -685,8 +688,6 @@ static void dsa_remove_dst(struct dsa_switch_tree *dst)
 		if (ds)
 			dsa_switch_destroy(ds);
 	}
-
-	dsa_cpu_port_ethtool_restore(dst->cpu_dp);
 
 	dev_put(dst->cpu_dp->netdev);
 }

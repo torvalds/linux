@@ -403,8 +403,9 @@ static void ravb_emac_init(struct net_device *ndev)
 	/* Receive frame limit set register */
 	ravb_write(ndev, ndev->mtu + ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN, RFLR);
 
-	/* PAUSE prohibition */
+	/* EMAC Mode: PAUSE prohibition; Duplex; RX Checksum; TX; RX */
 	ravb_write(ndev, ECMR_ZPF | (priv->duplex ? ECMR_DM : 0) |
+		   (ndev->features & NETIF_F_RXCSUM ? ECMR_RCSC : 0) |
 		   ECMR_TE | ECMR_RE, ECMR);
 
 	ravb_set_rate(ndev);
@@ -520,6 +521,19 @@ static void ravb_get_tx_tstamp(struct net_device *ndev)
 	}
 }
 
+static void ravb_rx_csum(struct sk_buff *skb)
+{
+	u8 *hw_csum;
+
+	/* The hardware checksum is 2 bytes appended to packet data */
+	if (unlikely(skb->len < 2))
+		return;
+	hw_csum = skb_tail_pointer(skb) - 2;
+	skb->csum = csum_unfold((__force __sum16)get_unaligned_le16(hw_csum));
+	skb->ip_summed = CHECKSUM_COMPLETE;
+	skb_trim(skb, skb->len - 2);
+}
+
 /* Packet receive function for Ethernet AVB */
 static bool ravb_rx(struct net_device *ndev, int *quota, int q)
 {
@@ -587,8 +601,11 @@ static bool ravb_rx(struct net_device *ndev, int *quota, int q)
 				ts.tv_nsec = le32_to_cpu(desc->ts_n);
 				shhwtstamps->hwtstamp = timespec64_to_ktime(ts);
 			}
+
 			skb_put(skb, pkt_len);
 			skb->protocol = eth_type_trans(skb, ndev);
+			if (ndev->features & NETIF_F_RXCSUM)
+				ravb_rx_csum(skb);
 			napi_gro_receive(&priv->napi[q], skb);
 			stats->rx_packets++;
 			stats->rx_bytes += pkt_len;
@@ -1842,6 +1859,38 @@ static int ravb_do_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 	return phy_mii_ioctl(phydev, req, cmd);
 }
 
+static void ravb_set_rx_csum(struct net_device *ndev, bool enable)
+{
+	struct ravb_private *priv = netdev_priv(ndev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	/* Disable TX and RX */
+	ravb_rcv_snd_disable(ndev);
+
+	/* Modify RX Checksum setting */
+	ravb_modify(ndev, ECMR, ECMR_RCSC, enable ? ECMR_RCSC : 0);
+
+	/* Enable TX and RX */
+	ravb_rcv_snd_enable(ndev);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+}
+
+static int ravb_set_features(struct net_device *ndev,
+			     netdev_features_t features)
+{
+	netdev_features_t changed = ndev->features ^ features;
+
+	if (changed & NETIF_F_RXCSUM)
+		ravb_set_rx_csum(ndev, features & NETIF_F_RXCSUM);
+
+	ndev->features = features;
+
+	return 0;
+}
+
 static const struct net_device_ops ravb_netdev_ops = {
 	.ndo_open		= ravb_open,
 	.ndo_stop		= ravb_close,
@@ -1853,6 +1902,7 @@ static const struct net_device_ops ravb_netdev_ops = {
 	.ndo_do_ioctl		= ravb_do_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_set_features	= ravb_set_features,
 };
 
 /* MDIO bus init function */
@@ -2003,6 +2053,9 @@ static int ravb_probe(struct platform_device *pdev)
 				  NUM_TX_QUEUE, NUM_RX_QUEUE);
 	if (!ndev)
 		return -ENOMEM;
+
+	ndev->features = NETIF_F_RXCSUM;
+	ndev->hw_features = NETIF_F_RXCSUM;
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);

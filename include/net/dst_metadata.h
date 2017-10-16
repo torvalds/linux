@@ -24,7 +24,7 @@ struct metadata_dst {
 	} u;
 };
 
-static inline struct metadata_dst *skb_metadata_dst(struct sk_buff *skb)
+static inline struct metadata_dst *skb_metadata_dst(const struct sk_buff *skb)
 {
 	struct metadata_dst *md_dst = (struct metadata_dst *) skb_dst(skb);
 
@@ -34,7 +34,8 @@ static inline struct metadata_dst *skb_metadata_dst(struct sk_buff *skb)
 	return NULL;
 }
 
-static inline struct ip_tunnel_info *skb_tunnel_info(struct sk_buff *skb)
+static inline struct ip_tunnel_info *
+skb_tunnel_info(const struct sk_buff *skb)
 {
 	struct metadata_dst *md_dst = skb_metadata_dst(skb);
 	struct dst_entry *dst;

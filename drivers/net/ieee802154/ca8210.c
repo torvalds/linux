@@ -1944,7 +1944,7 @@ static int ca8210_skb_tx(
 )
 {
 	int status;
-	struct ieee802154_hdr header = { 0 };
+	struct ieee802154_hdr header = { };
 	struct secspec secspec;
 	unsigned int mac_len;
 

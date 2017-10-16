@@ -148,6 +148,106 @@ static int get_filter_steerq(struct net_device *dev,
 	return iq;
 }
 
+static int get_filter_count(struct adapter *adapter, unsigned int fidx,
+			    u64 *pkts, u64 *bytes)
+{
+	unsigned int tcb_base, tcbaddr;
+	unsigned int word_offset;
+	struct filter_entry *f;
+	__be64 be64_byte_count;
+	int ret;
+
+	tcb_base = t4_read_reg(adapter, TP_CMM_TCB_BASE_A);
+	if ((fidx != (adapter->tids.nftids + adapter->tids.nsftids - 1)) &&
+	    fidx >= adapter->tids.nftids)
+		return -E2BIG;
+
+	f = &adapter->tids.ftid_tab[fidx];
+	if (!f->valid)
+		return -EINVAL;
+
+	tcbaddr = tcb_base + f->tid * TCB_SIZE;
+
+	spin_lock(&adapter->win0_lock);
+	if (is_t4(adapter->params.chip)) {
+		__be64 be64_count;
+
+		/* T4 doesn't maintain byte counts in hw */
+		*bytes = 0;
+
+		/* Get pkts */
+		word_offset = 4;
+		ret = t4_memory_rw(adapter, MEMWIN_NIC, MEM_EDC0,
+				   tcbaddr + (word_offset * sizeof(__be32)),
+				   sizeof(be64_count),
+				   (__be32 *)&be64_count,
+				   T4_MEMORY_READ);
+		if (ret < 0)
+			goto out;
+		*pkts = be64_to_cpu(be64_count);
+	} else {
+		__be32 be32_count;
+
+		/* Get bytes */
+		word_offset = 4;
+		ret = t4_memory_rw(adapter, MEMWIN_NIC, MEM_EDC0,
+				   tcbaddr + (word_offset * sizeof(__be32)),
+				   sizeof(be64_byte_count),
+				   &be64_byte_count,
+				   T4_MEMORY_READ);
+		if (ret < 0)
+			goto out;
+		*bytes = be64_to_cpu(be64_byte_count);
+
+		/* Get pkts */
+		word_offset = 6;
+		ret = t4_memory_rw(adapter, MEMWIN_NIC, MEM_EDC0,
+				   tcbaddr + (word_offset * sizeof(__be32)),
+				   sizeof(be32_count),
+				   &be32_count,
+				   T4_MEMORY_READ);
+		if (ret < 0)
+			goto out;
+		*pkts = (u64)be32_to_cpu(be32_count);
+	}
+
+out:
+	spin_unlock(&adapter->win0_lock);
+	return ret;
+}
+
+int cxgb4_get_filter_counters(struct net_device *dev, unsigned int fidx,
+			      u64 *hitcnt, u64 *bytecnt)
+{
+	struct adapter *adapter = netdev2adap(dev);
+
+	return get_filter_count(adapter, fidx, hitcnt, bytecnt);
+}
+
+int cxgb4_get_free_ftid(struct net_device *dev, int family)
+{
+	struct adapter *adap = netdev2adap(dev);
+	struct tid_info *t = &adap->tids;
+	int ftid;
+
+	spin_lock_bh(&t->ftid_lock);
+	if (family == PF_INET) {
+		ftid = find_first_zero_bit(t->ftid_bmap, t->nftids);
+		if (ftid >= t->nftids)
+			ftid = -1;
+	} else {
+		ftid = bitmap_find_free_region(t->ftid_bmap, t->nftids, 2);
+		if (ftid < 0)
+			goto out_unlock;
+
+		/* this is only a lookup, keep the found region unallocated */
+		bitmap_release_region(t->ftid_bmap, ftid, 2);
+	}
+out_unlock:
+	spin_unlock_bh(&t->ftid_lock);
+	return ftid;
+}
+
 static int cxgb4_set_ftid(struct tid_info *t, int fidx, int family)
 {
 	spin_lock_bh(&t->ftid_lock);
@@ -191,7 +291,8 @@ static int del_filter_wr(struct adapter *adapter, int fidx)
 		return -ENOMEM;
 
 	fwr = __skb_put(skb, len);
-	t4_mk_filtdelwr(f->tid, fwr, adapter->sge.fw_evtq.abs_id);
+	t4_mk_filtdelwr(f->tid, fwr, (adapter->flags & SHUTTING_DOWN) ? -1
+			: adapter->sge.fw_evtq.abs_id);
 
 	/* Mark the filter as "pending" and ship off the Filter Work Request.
 	 * When we get the Work Request Reply we'll clear the pending status.
@@ -635,6 +736,10 @@ int cxgb4_del_filter(struct net_device *dev, int filter_id)
 {
 	struct filter_ctx ctx;
 	int ret;
+
+	/* If we are shutting down the adapter do not wait for completion */
+	if (netdev2adap(dev)->flags & SHUTTING_DOWN)
+		return __cxgb4_del_filter(dev, filter_id, NULL);
 
 	init_completion(&ctx.completion);
 

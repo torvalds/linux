@@ -1004,9 +1004,8 @@ int nfc_hci_register_device(struct nfc_hci_dev *hdev)
 
 	INIT_WORK(&hdev->msg_tx_work, nfc_hci_msg_tx_work);
 
-	init_timer(&hdev->cmd_timer);
-	hdev->cmd_timer.data = (unsigned long)hdev;
-	hdev->cmd_timer.function = nfc_hci_cmd_timeout;
+	setup_timer(&hdev->cmd_timer, nfc_hci_cmd_timeout,
+		    (unsigned long)hdev);
 
 	skb_queue_head_init(&hdev->rx_hcp_frags);
 

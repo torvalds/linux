@@ -2256,16 +2256,14 @@ spider_net_setup_netdev(struct spider_net_card *card)
 
 	pci_set_drvdata(card->pdev, netdev);
 
-	init_timer(&card->tx_timer);
-	card->tx_timer.function =
-		(void (*)(unsigned long)) spider_net_cleanup_tx_ring;
-	card->tx_timer.data = (unsigned long) card;
+	setup_timer(&card->tx_timer,
+		    (void(*)(unsigned long))spider_net_cleanup_tx_ring,
+		    (unsigned long)card);
 	netdev->irq = card->pdev->irq;
 
 	card->aneg_count = 0;
-	init_timer(&card->aneg_timer);
-	card->aneg_timer.function = spider_net_link_phy;
-	card->aneg_timer.data = (unsigned long) card;
+	setup_timer(&card->aneg_timer, spider_net_link_phy,
+		    (unsigned long)card);
 
 	netif_napi_add(netdev, &card->napi,
 		       spider_net_poll, SPIDER_NET_NAPI_WEIGHT);

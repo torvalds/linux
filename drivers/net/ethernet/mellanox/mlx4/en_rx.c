@@ -762,6 +762,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 
 			xdp.data_hard_start = va - frags[0].page_offset;
 			xdp.data = va;
+			xdp_set_data_meta_invalid(&xdp);
 			xdp.data_end = xdp.data + length;
 			orig_data = xdp.data;
 

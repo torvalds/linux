@@ -1126,6 +1126,8 @@ static const struct {
 	{ "tx_busy",	  offsetof(struct netvsc_ethtool_stats, tx_busy) },
 	{ "tx_send_full", offsetof(struct netvsc_ethtool_stats, tx_send_full) },
 	{ "rx_comp_busy", offsetof(struct netvsc_ethtool_stats, rx_comp_busy) },
+	{ "stop_queue", offsetof(struct netvsc_ethtool_stats, stop_queue) },
+	{ "wake_queue", offsetof(struct netvsc_ethtool_stats, wake_queue) },
 }, vf_stats[] = {
 	{ "vf_rx_packets", offsetof(struct netvsc_vf_pcpu_stats, rx_packets) },
 	{ "vf_rx_bytes",   offsetof(struct netvsc_vf_pcpu_stats, rx_bytes) },
@@ -1746,7 +1748,7 @@ static int netvsc_vf_join(struct net_device *vf_netdev,
 		goto rx_handler_failed;
 	}
 
-	ret = netdev_upper_dev_link(vf_netdev, ndev);
+	ret = netdev_upper_dev_link(vf_netdev, ndev, NULL);
 	if (ret != 0) {
 		netdev_err(vf_netdev,
 			   "can not set master device %s (err = %d)\n",
@@ -1934,6 +1936,12 @@ static int netvsc_probe(struct hv_device *dev,
 
 	/* We always need headroom for rndis header */
 	net->needed_headroom = RNDIS_AND_PPI_SIZE;
+
+	/* Initialize the number of queues to be 1, we may change it if more
+	 * channels are offered later.
+	 */
+	netif_set_real_num_tx_queues(net, 1);
+	netif_set_real_num_rx_queues(net, 1);
 
 	/* Notify the netvsc driver of the new device */
 	memset(&device_info, 0, sizeof(device_info));

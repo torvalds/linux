@@ -358,14 +358,14 @@ static bool i40e_set_new_dynamic_itr(struct i40e_ring_container *rc)
 {
 	enum i40e_latency_range new_latency_range = rc->latency_range;
 	u32 new_itr = rc->itr;
-	int bytes_per_int;
+	int bytes_per_usec;
 	unsigned int usecs, estimated_usecs;
 
 	if (rc->total_packets == 0 || !rc->itr)
 		return false;
 
 	usecs = (rc->itr << 1) * ITR_COUNTDOWN_START;
-	bytes_per_int = rc->total_bytes / usecs;
+	bytes_per_usec = rc->total_bytes / usecs;
 
 	/* The calculations in this algorithm depend on interrupts actually
 	 * firing at the ITR rate. This may not happen if the packet rate is
@@ -391,18 +391,18 @@ static bool i40e_set_new_dynamic_itr(struct i40e_ring_container *rc)
 	 */
 	switch (new_latency_range) {
 	case I40E_LOWEST_LATENCY:
-		if (bytes_per_int > 10)
+		if (bytes_per_usec > 10)
 			new_latency_range = I40E_LOW_LATENCY;
 		break;
 	case I40E_LOW_LATENCY:
-		if (bytes_per_int > 20)
+		if (bytes_per_usec > 20)
 			new_latency_range = I40E_BULK_LATENCY;
-		else if (bytes_per_int <= 10)
+		else if (bytes_per_usec <= 10)
 			new_latency_range = I40E_LOWEST_LATENCY;
 		break;
 	case I40E_BULK_LATENCY:
 	default:
-		if (bytes_per_int <= 20)
+		if (bytes_per_usec <= 20)
 			new_latency_range = I40E_LOW_LATENCY;
 		break;
 	}

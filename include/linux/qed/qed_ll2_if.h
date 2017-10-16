@@ -101,6 +101,7 @@ struct qed_ll2_comp_rx_data {
 	void *cookie;
 	dma_addr_t rx_buf_addr;
 	u16 parse_flags;
+	u16 err_flags;
 	u16 vlan;
 	bool b_last_packet;
 	u8 connection_handle;

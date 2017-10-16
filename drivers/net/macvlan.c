@@ -1231,11 +1231,14 @@ static int macvlan_validate(struct nlattr *tb[], struct nlattr *data[],
 			return -EADDRNOTAVAIL;
 	}
 
-	if (data && data[IFLA_MACVLAN_FLAGS] &&
+	if (!data)
+		return 0;
+
+	if (data[IFLA_MACVLAN_FLAGS] &&
 	    nla_get_u16(data[IFLA_MACVLAN_FLAGS]) & ~MACVLAN_FLAG_NOPROMISC)
 		return -EINVAL;
 
-	if (data && data[IFLA_MACVLAN_MODE]) {
+	if (data[IFLA_MACVLAN_MODE]) {
 		switch (nla_get_u32(data[IFLA_MACVLAN_MODE])) {
 		case MACVLAN_MODE_PRIVATE:
 		case MACVLAN_MODE_VEPA:
@@ -1248,7 +1251,7 @@ static int macvlan_validate(struct nlattr *tb[], struct nlattr *data[],
 		}
 	}
 
-	if (data && data[IFLA_MACVLAN_MACADDR_MODE]) {
+	if (data[IFLA_MACVLAN_MACADDR_MODE]) {
 		switch (nla_get_u32(data[IFLA_MACVLAN_MACADDR_MODE])) {
 		case MACVLAN_MACADDR_ADD:
 		case MACVLAN_MACADDR_DEL:
@@ -1260,7 +1263,7 @@ static int macvlan_validate(struct nlattr *tb[], struct nlattr *data[],
 		}
 	}
 
-	if (data && data[IFLA_MACVLAN_MACADDR]) {
+	if (data[IFLA_MACVLAN_MACADDR]) {
 		if (nla_len(data[IFLA_MACVLAN_MACADDR]) != ETH_ALEN)
 			return -EINVAL;
 
@@ -1268,7 +1271,7 @@ static int macvlan_validate(struct nlattr *tb[], struct nlattr *data[],
 			return -EADDRNOTAVAIL;
 	}
 
-	if (data && data[IFLA_MACVLAN_MACADDR_COUNT])
+	if (data[IFLA_MACVLAN_MACADDR_COUNT])
 		return -EINVAL;
 
 	return 0;
@@ -1341,7 +1344,8 @@ static int macvlan_changelink_sources(struct macvlan_dev *vlan, u32 mode,
 }
 
 int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
-			   struct nlattr *tb[], struct nlattr *data[])
+			   struct nlattr *tb[], struct nlattr *data[],
+			   struct netlink_ext_ack *extack)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct macvlan_port *port;
@@ -1430,7 +1434,7 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 		goto destroy_macvlan_port;
 
 	dev->priv_flags |= IFF_MACVLAN;
-	err = netdev_upper_dev_link(lowerdev, dev);
+	err = netdev_upper_dev_link(lowerdev, dev, extack);
 	if (err)
 		goto unregister_netdev;
 
@@ -1453,7 +1457,7 @@ static int macvlan_newlink(struct net *src_net, struct net_device *dev,
 			   struct nlattr *tb[], struct nlattr *data[],
 			   struct netlink_ext_ack *extack)
 {
-	return macvlan_common_newlink(src_net, dev, tb, data);
+	return macvlan_common_newlink(src_net, dev, tb, data, extack);
 }
 
 void macvlan_dellink(struct net_device *dev, struct list_head *head)

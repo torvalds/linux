@@ -1003,11 +1003,10 @@ static void fr_start(struct net_device *dev)
 		state(hdlc)->n391cnt = 0;
 		state(hdlc)->txseq = state(hdlc)->rxseq = 0;
 
-		init_timer(&state(hdlc)->timer);
+		setup_timer(&state(hdlc)->timer, fr_timer,
+			    (unsigned long)dev);
 		/* First poll after 1 s */
 		state(hdlc)->timer.expires = jiffies + HZ;
-		state(hdlc)->timer.function = fr_timer;
-		state(hdlc)->timer.data = (unsigned long)dev;
 		add_timer(&state(hdlc)->timer);
 	} else
 		fr_set_link_state(1, dev);

@@ -66,7 +66,7 @@ struct dsa_notifier_vlan_info {
 };
 
 struct dsa_slave_priv {
-	/* Copy of dp->ds->dst->tag_ops->xmit for faster access in hot path */
+	/* Copy of CPU port xmit for faster access in slave transmit hot path */
 	struct sk_buff *	(*xmit)(struct sk_buff *skb,
 					struct net_device *dev);
 
@@ -79,7 +79,6 @@ struct dsa_slave_priv {
 	 * The phylib phy_device pointer for the PHY connected
 	 * to this port.
 	 */
-	struct phy_device	*phy;
 	phy_interface_t		phy_interface;
 	int			old_link;
 	int			old_pause;
@@ -97,8 +96,6 @@ struct dsa_slave_priv {
 int dsa_cpu_dsa_setup(struct dsa_port *port);
 void dsa_cpu_dsa_destroy(struct dsa_port *dport);
 const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol);
-int dsa_cpu_port_ethtool_setup(struct dsa_port *cpu_dp);
-void dsa_cpu_port_ethtool_restore(struct dsa_port *cpu_dp);
 bool dsa_schedule_work(struct work_struct *work);
 
 /* legacy.c */
@@ -112,10 +109,35 @@ int dsa_legacy_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 		       struct net_device *dev,
 		       const unsigned char *addr, u16 vid);
 
+/* master.c */
+int dsa_master_ethtool_setup(struct net_device *dev);
+void dsa_master_ethtool_restore(struct net_device *dev);
+
+static inline struct net_device *dsa_master_get_slave(struct net_device *dev,
+						      int device, int port)
+{
+	struct dsa_port *cpu_dp = dev->dsa_ptr;
+	struct dsa_switch_tree *dst = cpu_dp->dst;
+	struct dsa_switch *ds;
+
+	if (device < 0 || device >= DSA_MAX_SWITCHES)
+		return NULL;
+
+	ds = dst->ds[device];
+	if (!ds)
+		return NULL;
+
+	if (port < 0 || port >= ds->num_ports)
+		return NULL;
+
+	return ds->ports[port].netdev;
+}
+
 /* port.c */
 int dsa_port_set_state(struct dsa_port *dp, u8 state,
 		       struct switchdev_trans *trans);
-void dsa_port_set_state_now(struct dsa_port *dp, u8 state);
+int dsa_port_enable(struct dsa_port *dp, struct phy_device *phy);
+void dsa_port_disable(struct dsa_port *dp, struct phy_device *phy);
 int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br);
 void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br);
 int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
@@ -126,6 +148,7 @@ int dsa_port_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 		     u16 vid);
 int dsa_port_fdb_del(struct dsa_port *dp, const unsigned char *addr,
 		     u16 vid);
+int dsa_port_fdb_dump(struct dsa_port *dp, dsa_fdb_dump_cb_t *cb, void *data);
 int dsa_port_mdb_add(struct dsa_port *dp,
 		     const struct switchdev_obj_port_mdb *mdb,
 		     struct switchdev_trans *trans);
@@ -139,7 +162,6 @@ int dsa_port_vlan_del(struct dsa_port *dp,
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;
 void dsa_slave_mii_bus_init(struct dsa_switch *ds);
-void dsa_cpu_port_ethtool_init(struct ethtool_ops *ops);
 int dsa_slave_create(struct dsa_port *port, const char *name);
 void dsa_slave_destroy(struct net_device *slave_dev);
 int dsa_slave_suspend(struct net_device *slave_dev);
@@ -178,11 +200,6 @@ extern const struct dsa_device_ops trailer_netdev_ops;
 static inline struct net_device *dsa_master_netdev(struct dsa_slave_priv *p)
 {
 	return p->dp->cpu_dp->netdev;
-}
-
-static inline struct dsa_port *dsa_get_cpu_port(struct dsa_switch_tree *dst)
-{
-	return dst->cpu_dp;
 }
 
 #endif

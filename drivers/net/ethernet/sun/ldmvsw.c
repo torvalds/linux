@@ -307,7 +307,7 @@ static int vsw_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	/* Get (or create) the vnet associated with this port */
 	vp = vsw_get_vnet(hp, vdev->mp, &handle);
-	if (unlikely(IS_ERR(vp))) {
+	if (IS_ERR(vp)) {
 		err = PTR_ERR(vp);
 		pr_err("Failed to get vnet for vsw-port\n");
 		mdesc_release(hp);

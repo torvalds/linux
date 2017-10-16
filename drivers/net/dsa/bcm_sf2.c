@@ -40,66 +40,6 @@ static enum dsa_tag_protocol bcm_sf2_sw_get_tag_protocol(struct dsa_switch *ds)
 	return DSA_TAG_PROTO_BRCM;
 }
 
-static void bcm_sf2_imp_vlan_setup(struct dsa_switch *ds, int cpu_port)
-{
-	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	unsigned int i;
-	u32 reg;
-
-	/* Enable the IMP Port to be in the same VLAN as the other ports
-	 * on a per-port basis such that we only have Port i and IMP in
-	 * the same VLAN.
-	 */
-	for (i = 0; i < priv->hw_params.num_ports; i++) {
-		if (!((1 << i) & ds->enabled_port_mask))
-			continue;
-
-		reg = core_readl(priv, CORE_PORT_VLAN_CTL_PORT(i));
-		reg |= (1 << cpu_port);
-		core_writel(priv, reg, CORE_PORT_VLAN_CTL_PORT(i));
-	}
-}
-
-static void bcm_sf2_brcm_hdr_setup(struct bcm_sf2_priv *priv, int port)
-{
-	u32 reg, val;
-
-	/* Resolve which bit controls the Broadcom tag */
-	switch (port) {
-	case 8:
-		val = BRCM_HDR_EN_P8;
-		break;
-	case 7:
-		val = BRCM_HDR_EN_P7;
-		break;
-	case 5:
-		val = BRCM_HDR_EN_P5;
-		break;
-	default:
-		val = 0;
-		break;
-	}
-
-	/* Enable Broadcom tags for IMP port */
-	reg = core_readl(priv, CORE_BRCM_HDR_CTRL);
-	reg |= val;
-	core_writel(priv, reg, CORE_BRCM_HDR_CTRL);
-
-	/* Enable reception Broadcom tag for CPU TX (switch RX) to
-	 * allow us to tag outgoing frames
-	 */
-	reg = core_readl(priv, CORE_BRCM_HDR_RX_DIS);
-	reg &= ~(1 << port);
-	core_writel(priv, reg, CORE_BRCM_HDR_RX_DIS);
-
-	/* Enable transmission of Broadcom tags from the switch (CPU RX) to
-	 * allow delivering frames to the per-port net_devices
-	 */
-	reg = core_readl(priv, CORE_BRCM_HDR_TX_DIS);
-	reg &= ~(1 << port);
-	core_writel(priv, reg, CORE_BRCM_HDR_TX_DIS);
-}
-
 static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
@@ -138,25 +78,12 @@ static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 		reg |= i << (PRT_TO_QID_SHIFT * i);
 	core_writel(priv, reg, CORE_PORT_TC2_QOS_MAP_PORT(port));
 
-	bcm_sf2_brcm_hdr_setup(priv, port);
+	b53_brcm_hdr_setup(ds, port);
 
 	/* Force link status for IMP port */
 	reg = core_readl(priv, offset);
 	reg |= (MII_SW_OR | LINK_STS);
 	core_writel(priv, reg, offset);
-}
-
-static void bcm_sf2_eee_enable_set(struct dsa_switch *ds, int port, bool enable)
-{
-	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	u32 reg;
-
-	reg = core_readl(priv, CORE_EEE_EN_CTRL);
-	if (enable)
-		reg |= 1 << port;
-	else
-		reg &= ~(1 << port);
-	core_writel(priv, reg, CORE_EEE_EN_CTRL);
 }
 
 static void bcm_sf2_gphy_enable_set(struct dsa_switch *ds, bool enable)
@@ -236,7 +163,6 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 			      struct phy_device *phy)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	s8 cpu_port = ds->dst->cpu_dp->index;
 	unsigned int i;
 	u32 reg;
 
@@ -247,7 +173,7 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 
 	/* Enable Broadcom tags for that port if requested */
 	if (priv->brcm_tag_mask & BIT(port))
-		bcm_sf2_brcm_hdr_setup(priv, port);
+		b53_brcm_hdr_setup(ds, port);
 
 	/* Configure Traffic Class to QoS mapping, allow each priority to map
 	 * to a different queue number
@@ -256,9 +182,6 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	for (i = 0; i < SF2_NUM_EGRESS_QUEUES; i++)
 		reg |= i << (PRT_TO_QID_SHIFT * i);
 	core_writel(priv, reg, CORE_PORT_TC2_QOS_MAP_PORT(port));
-
-	/* Clear the Rx and Tx disable bits and set to no spanning tree */
-	core_writel(priv, 0, CORE_G_PCTL_PORT(port));
 
 	/* Re-enable the GPHY and re-apply workarounds */
 	if (priv->int_phy_mask & 1 << port && priv->hw_params.num_gphy == 1) {
@@ -282,23 +205,7 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	if (port == priv->moca_port)
 		bcm_sf2_port_intr_enable(priv, port);
 
-	/* Set this port, and only this one to be in the default VLAN,
-	 * if member of a bridge, restore its membership prior to
-	 * bringing down this port.
-	 */
-	reg = core_readl(priv, CORE_PORT_VLAN_CTL_PORT(port));
-	reg &= ~PORT_VLAN_CTRL_MASK;
-	reg |= (1 << port);
-	reg |= priv->dev->ports[port].vlan_ctl_mask;
-	core_writel(priv, reg, CORE_PORT_VLAN_CTL_PORT(port));
-
-	bcm_sf2_imp_vlan_setup(ds, cpu_port);
-
-	/* If EEE was enabled, restore it */
-	if (priv->port_sts[port].eee.eee_enabled)
-		bcm_sf2_eee_enable_set(ds, port, true);
-
-	return 0;
+	return b53_enable_port(ds, port, phy);
 }
 
 static void bcm_sf2_port_disable(struct dsa_switch *ds, int port,
@@ -321,9 +228,7 @@ static void bcm_sf2_port_disable(struct dsa_switch *ds, int port,
 	else
 		off = CORE_G_PCTL_PORT(port);
 
-	reg = core_readl(priv, off);
-	reg |= RX_DIS | TX_DIS;
-	core_writel(priv, reg, off);
+	b53_disable_port(ds, port, phy);
 
 	/* Power down the port memory */
 	reg = core_readl(priv, CORE_MEM_PSM_VDD_CTRL);
@@ -331,47 +236,6 @@ static void bcm_sf2_port_disable(struct dsa_switch *ds, int port,
 	core_writel(priv, reg, CORE_MEM_PSM_VDD_CTRL);
 }
 
-/* Returns 0 if EEE was not enabled, or 1 otherwise
- */
-static int bcm_sf2_eee_init(struct dsa_switch *ds, int port,
-			    struct phy_device *phy)
-{
-	int ret;
-
-	ret = phy_init_eee(phy, 0);
-	if (ret)
-		return 0;
-
-	bcm_sf2_eee_enable_set(ds, port, true);
-
-	return 1;
-}
-
-static int bcm_sf2_sw_get_mac_eee(struct dsa_switch *ds, int port,
-				  struct ethtool_eee *e)
-{
-	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	struct ethtool_eee *p = &priv->port_sts[port].eee;
-	u32 reg;
-
-	reg = core_readl(priv, CORE_EEE_LPI_INDICATE);
-	e->eee_enabled = p->eee_enabled;
-	e->eee_active = !!(reg & (1 << port));
-
-	return 0;
-}
-
-static int bcm_sf2_sw_set_mac_eee(struct dsa_switch *ds, int port,
-				  struct ethtool_eee *e)
-{
-	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	struct ethtool_eee *p = &priv->port_sts[port].eee;
-
-	p->eee_enabled = e->eee_enabled;
-	bcm_sf2_eee_enable_set(ds, port, e->eee_enabled);
-
-	return 0;
-}
 
 static int bcm_sf2_sw_indir_rw(struct bcm_sf2_priv *priv, int op, int addr,
 			       int regnum, u16 val)
@@ -606,7 +470,7 @@ static void bcm_sf2_sw_adjust_link(struct dsa_switch *ds, int port,
 				   struct phy_device *phydev)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	struct ethtool_eee *p = &priv->port_sts[port].eee;
+	struct ethtool_eee *p = &priv->dev->ports[port].eee;
 	u32 id_mode_dis = 0, port_mode;
 	const char *str = NULL;
 	u32 reg, offset;
@@ -688,7 +552,7 @@ force_link:
 	core_writel(priv, reg, offset);
 
 	if (!phydev->is_pseudo_fixed_link)
-		p->eee_enabled = bcm_sf2_eee_init(ds, port, phydev);
+		p->eee_enabled = b53_eee_init(ds, port, phydev);
 }
 
 static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
@@ -797,7 +661,7 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 			       struct ethtool_wolinfo *wol)
 {
-	struct net_device *p = ds->dst->cpu_dp->netdev;
+	struct net_device *p = ds->ports[port].cpu_dp->netdev;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	struct ethtool_wolinfo pwol;
 
@@ -820,9 +684,9 @@ static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 static int bcm_sf2_sw_set_wol(struct dsa_switch *ds, int port,
 			      struct ethtool_wolinfo *wol)
 {
-	struct net_device *p = ds->dst->cpu_dp->netdev;
+	struct net_device *p = ds->ports[port].cpu_dp->netdev;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	s8 cpu_port = ds->dst->cpu_dp->index;
+	s8 cpu_port = ds->ports[port].cpu_dp->index;
 	struct ethtool_wolinfo pwol;
 
 	p->ethtool_ops->get_wol(p, &pwol);
@@ -1020,8 +884,8 @@ static const struct dsa_switch_ops bcm_sf2_ops = {
 	.set_wol		= bcm_sf2_sw_set_wol,
 	.port_enable		= bcm_sf2_port_setup,
 	.port_disable		= bcm_sf2_port_disable,
-	.get_mac_eee		= bcm_sf2_sw_get_mac_eee,
-	.set_mac_eee		= bcm_sf2_sw_set_mac_eee,
+	.get_mac_eee		= b53_get_mac_eee,
+	.set_mac_eee		= b53_set_mac_eee,
 	.port_bridge_join	= b53_br_join,
 	.port_bridge_leave	= b53_br_leave,
 	.port_stp_state_set	= b53_br_set_stp_state,

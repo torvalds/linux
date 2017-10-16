@@ -112,34 +112,6 @@ const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol)
 	return ops;
 }
 
-int dsa_cpu_port_ethtool_setup(struct dsa_port *cpu_dp)
-{
-	struct dsa_switch *ds = cpu_dp->ds;
-	struct net_device *master;
-	struct ethtool_ops *cpu_ops;
-
-	master = cpu_dp->netdev;
-
-	cpu_ops = devm_kzalloc(ds->dev, sizeof(*cpu_ops), GFP_KERNEL);
-	if (!cpu_ops)
-		return -ENOMEM;
-
-	memcpy(&cpu_dp->ethtool_ops, master->ethtool_ops,
-	       sizeof(struct ethtool_ops));
-	cpu_dp->orig_ethtool_ops = master->ethtool_ops;
-	memcpy(cpu_ops, &cpu_dp->ethtool_ops,
-	       sizeof(struct ethtool_ops));
-	dsa_cpu_port_ethtool_init(cpu_ops);
-	master->ethtool_ops = cpu_ops;
-
-	return 0;
-}
-
-void dsa_cpu_port_ethtool_restore(struct dsa_port *cpu_dp)
-{
-	cpu_dp->netdev->ethtool_ops = cpu_dp->orig_ethtool_ops;
-}
-
 void dsa_cpu_dsa_destroy(struct dsa_port *port)
 {
 	struct device_node *port_dn = port->dn;
@@ -188,12 +160,12 @@ EXPORT_SYMBOL_GPL(dsa_dev_to_net_device);
 static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 			  struct packet_type *pt, struct net_device *unused)
 {
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
+	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	struct sk_buff *nskb = NULL;
 	struct pcpu_sw_netstats *s;
 	struct dsa_slave_priv *p;
 
-	if (unlikely(dst == NULL)) {
+	if (unlikely(!cpu_dp)) {
 		kfree_skb(skb);
 		return 0;
 	}
@@ -202,7 +174,7 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (!skb)
 		return 0;
 
-	nskb = dst->rcv(skb, dev, pt);
+	nskb = cpu_dp->rcv(skb, dev, pt);
 	if (!nskb) {
 		kfree_skb(skb);
 		return 0;

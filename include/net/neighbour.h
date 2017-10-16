@@ -190,8 +190,8 @@ struct neigh_hash_table {
 
 struct neigh_table {
 	int			family;
-	int			entry_size;
-	int			key_len;
+	unsigned int		entry_size;
+	unsigned int		key_len;
 	__be16			protocol;
 	__u32			(*hash)(const void *pkey,
 					const struct net_device *dev,

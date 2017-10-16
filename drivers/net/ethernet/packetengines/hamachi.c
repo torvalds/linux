@@ -979,10 +979,8 @@ static int hamachi_open(struct net_device *dev)
 			   dev->name, readw(ioaddr + RxStatus), readw(ioaddr + TxStatus));
 	}
 	/* Set the timer to check for link beat. */
-	init_timer(&hmp->timer);
+	setup_timer(&hmp->timer, hamachi_timer, (unsigned long)dev);
 	hmp->timer.expires = RUN_AT((24*HZ)/10);			/* 2.4 sec. */
-	hmp->timer.data = (unsigned long)dev;
-	hmp->timer.function = hamachi_timer;				/* timer handler */
 	add_timer(&hmp->timer);
 
 	return 0;

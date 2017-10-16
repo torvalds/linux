@@ -584,7 +584,7 @@ int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	if (err < 0)
 		goto remove_ida;
 
-	err = netdev_upper_dev_link(phy_dev, dev);
+	err = netdev_upper_dev_link(phy_dev, dev, extack);
 	if (err) {
 		goto unregister_netdev;
 	}

@@ -58,9 +58,6 @@ static struct sk_buff *trailer_xmit(struct sk_buff *skb, struct net_device *dev)
 static struct sk_buff *trailer_rcv(struct sk_buff *skb, struct net_device *dev,
 				   struct packet_type *pt)
 {
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_port *cpu_dp = dsa_get_cpu_port(dst);
-	struct dsa_switch *ds = cpu_dp->ds;
 	u8 *trailer;
 	int source_port;
 
@@ -73,12 +70,12 @@ static struct sk_buff *trailer_rcv(struct sk_buff *skb, struct net_device *dev,
 		return NULL;
 
 	source_port = trailer[1] & 7;
-	if (source_port >= ds->num_ports || !ds->ports[source_port].netdev)
+
+	skb->dev = dsa_master_get_slave(dev, 0, source_port);
+	if (!skb->dev)
 		return NULL;
 
 	pskb_trim_rcsum(skb, skb->len - 4);
-
-	skb->dev = ds->ports[source_port].netdev;
 
 	return skb;
 }

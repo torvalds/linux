@@ -1848,19 +1848,22 @@ err_alloc_dev:
 	return err;
 }
 
-static void __net_exit sit_exit_net(struct net *net)
+static void __net_exit sit_exit_batch_net(struct list_head *net_list)
 {
 	LIST_HEAD(list);
+	struct net *net;
 
 	rtnl_lock();
-	sit_destroy_tunnels(net, &list);
+	list_for_each_entry(net, net_list, exit_list)
+		sit_destroy_tunnels(net, &list);
+
 	unregister_netdevice_many(&list);
 	rtnl_unlock();
 }
 
 static struct pernet_operations sit_net_ops = {
 	.init = sit_init_net,
-	.exit = sit_exit_net,
+	.exit_batch = sit_exit_batch_net,
 	.id   = &sit_net_id,
 	.size = sizeof(struct sit_net),
 };

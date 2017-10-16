@@ -45,7 +45,7 @@ static bool tcp_rack_sent_after(u64 t1, u64 t2, u32 seq1, u32 seq2)
 static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct sk_buff *skb;
+	struct sk_buff *skb, *n;
 	u32 reo_wnd;
 
 	*reo_timeout = 0;
@@ -58,45 +58,31 @@ static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 	if ((tp->rack.reord || !tp->lost_out) && tcp_min_rtt(tp) != ~0U)
 		reo_wnd = max(tcp_min_rtt(tp) >> 2, reo_wnd);
 
-	tcp_for_write_queue(skb, sk) {
+	list_for_each_entry_safe(skb, n, &tp->tsorted_sent_queue,
+				 tcp_tsorted_anchor) {
 		struct tcp_skb_cb *scb = TCP_SKB_CB(skb);
+		s32 remaining;
 
-		if (skb == tcp_send_head(sk))
-			break;
-
-		/* Skip ones already (s)acked */
-		if (!after(scb->end_seq, tp->snd_una) ||
-		    scb->sacked & TCPCB_SACKED_ACKED)
+		/* Skip ones marked lost but not yet retransmitted */
+		if ((scb->sacked & TCPCB_LOST) &&
+		    !(scb->sacked & TCPCB_SACKED_RETRANS))
 			continue;
 
-		if (tcp_rack_sent_after(tp->rack.mstamp, skb->skb_mstamp,
-					tp->rack.end_seq, scb->end_seq)) {
-			/* Step 3 in draft-cheng-tcpm-rack-00.txt:
-			 * A packet is lost if its elapsed time is beyond
-			 * the recent RTT plus the reordering window.
-			 */
-			u32 elapsed = tcp_stamp_us_delta(tp->tcp_mstamp,
-							 skb->skb_mstamp);
-			s32 remaining = tp->rack.rtt_us + reo_wnd - elapsed;
+		if (!tcp_rack_sent_after(tp->rack.mstamp, skb->skb_mstamp,
+					 tp->rack.end_seq, scb->end_seq))
+			break;
 
-			if (remaining < 0) {
-				tcp_rack_mark_skb_lost(sk, skb);
-				continue;
-			}
-
-			/* Skip ones marked lost but not yet retransmitted */
-			if ((scb->sacked & TCPCB_LOST) &&
-			    !(scb->sacked & TCPCB_SACKED_RETRANS))
-				continue;
-
+		/* A packet is lost if it has not been s/acked beyond
+		 * the recent RTT plus the reordering window.
+		 */
+		remaining = tp->rack.rtt_us + reo_wnd -
+			    tcp_stamp_us_delta(tp->tcp_mstamp, skb->skb_mstamp);
+		if (remaining < 0) {
+			tcp_rack_mark_skb_lost(sk, skb);
+			list_del_init(&skb->tcp_tsorted_anchor);
+		} else {
 			/* Record maximum wait time (+1 to avoid 0) */
 			*reo_timeout = max_t(u32, *reo_timeout, 1 + remaining);
-
-		} else if (!(scb->sacked & TCPCB_RETRANS)) {
-			/* Original data are sent sequentially so stop early
-			 * b/c the rest are all sent after rack_sent
-			 */
-			break;
 		}
 	}
 }

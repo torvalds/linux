@@ -689,10 +689,8 @@ void qdisc_reset(struct Qdisc *qdisc)
 }
 EXPORT_SYMBOL(qdisc_reset);
 
-static void qdisc_rcu_free(struct rcu_head *head)
+static void qdisc_free(struct Qdisc *qdisc)
 {
-	struct Qdisc *qdisc = container_of(head, struct Qdisc, rcu_head);
-
 	if (qdisc_is_percpu_stats(qdisc)) {
 		free_percpu(qdisc->cpu_bstats);
 		free_percpu(qdisc->cpu_qstats);
@@ -725,11 +723,7 @@ void qdisc_destroy(struct Qdisc *qdisc)
 
 	kfree_skb_list(qdisc->gso_skb);
 	kfree_skb(qdisc->skb_bad_txq);
-	/*
-	 * gen_estimator est_timer() might access qdisc->q.lock,
-	 * wait a RCU grace period before freeing qdisc.
-	 */
-	call_rcu(&qdisc->rcu_head, qdisc_rcu_free);
+	qdisc_free(qdisc);
 }
 EXPORT_SYMBOL(qdisc_destroy);
 

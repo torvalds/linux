@@ -549,6 +549,7 @@ enum {                                 /* adapter flags */
 	MASTER_PF          = (1 << 7),
 	FW_OFLD_CONN       = (1 << 9),
 	ROOT_NO_RELAXED_ORDERING = (1 << 10),
+	SHUTTING_DOWN	   = (1 << 11),
 };
 
 enum {
@@ -904,6 +905,10 @@ struct adapter {
 	/* TC u32 offload */
 	struct cxgb4_tc_u32_table *tc_u32;
 	struct chcr_stats_debug chcr_stats;
+
+	/* TC flower offload */
+	DECLARE_HASHTABLE(flower_anymatch_tbl, 9);
+	struct timer_list flower_stats_timer;
 };
 
 /* Support for "sched-class" command to allow a TX Scheduling Class to be

@@ -1084,10 +1084,8 @@ static int lmc_open(struct net_device *dev)
      * Setup a timer for the watchdog on probe, and start it running.
      * Since lmc_ok == 0, it will be a NOP for now.
      */
-    init_timer (&sc->timer);
+    setup_timer(&sc->timer, lmc_watchdog, (unsigned long)dev);
     sc->timer.expires = jiffies + HZ;
-    sc->timer.data = (unsigned long) dev;
-    sc->timer.function = lmc_watchdog;
     add_timer (&sc->timer);
 
     lmc_trace(dev, "lmc_open out");

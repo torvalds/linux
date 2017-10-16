@@ -1211,17 +1211,14 @@ static int cfhsi_open(struct net_device *ndev)
 	init_waitqueue_head(&cfhsi->flush_fifo_wait);
 
 	/* Setup the inactivity timer. */
-	init_timer(&cfhsi->inactivity_timer);
-	cfhsi->inactivity_timer.data = (unsigned long)cfhsi;
-	cfhsi->inactivity_timer.function = cfhsi_inactivity_tout;
+	setup_timer(&cfhsi->inactivity_timer, cfhsi_inactivity_tout,
+		    (unsigned long)cfhsi);
 	/* Setup the slowpath RX timer. */
-	init_timer(&cfhsi->rx_slowpath_timer);
-	cfhsi->rx_slowpath_timer.data = (unsigned long)cfhsi;
-	cfhsi->rx_slowpath_timer.function = cfhsi_rx_slowpath;
+	setup_timer(&cfhsi->rx_slowpath_timer, cfhsi_rx_slowpath,
+		    (unsigned long)cfhsi);
 	/* Setup the aggregation timer. */
-	init_timer(&cfhsi->aggregation_timer);
-	cfhsi->aggregation_timer.data = (unsigned long)cfhsi;
-	cfhsi->aggregation_timer.function = cfhsi_aggregation_tout;
+	setup_timer(&cfhsi->aggregation_timer, cfhsi_aggregation_tout,
+		    (unsigned long)cfhsi);
 
 	/* Activate HSI interface. */
 	res = cfhsi->ops->cfhsi_up(cfhsi->ops);

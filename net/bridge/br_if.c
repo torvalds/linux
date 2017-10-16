@@ -480,7 +480,8 @@ netdev_features_t br_features_recompute(struct net_bridge *br,
 }
 
 /* called with RTNL */
-int br_add_if(struct net_bridge *br, struct net_device *dev)
+int br_add_if(struct net_bridge *br, struct net_device *dev,
+	      struct netlink_ext_ack *extack)
 {
 	struct net_bridge_port *p;
 	int err = 0;
@@ -500,16 +501,22 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 		return -EINVAL;
 
 	/* No bridging of bridges */
-	if (dev->netdev_ops->ndo_start_xmit == br_dev_xmit)
+	if (dev->netdev_ops->ndo_start_xmit == br_dev_xmit) {
+		NL_SET_ERR_MSG(extack,
+			       "Can not enslave a bridge to a bridge");
 		return -ELOOP;
+	}
 
 	/* Device is already being bridged */
 	if (br_port_exists(dev))
 		return -EBUSY;
 
 	/* No bridging devices that dislike that (e.g. wireless) */
-	if (dev->priv_flags & IFF_DONT_BRIDGE)
+	if (dev->priv_flags & IFF_DONT_BRIDGE) {
+		NL_SET_ERR_MSG(extack,
+			       "Device does not allow enslaving to a bridge");
 		return -EOPNOTSUPP;
+	}
 
 	p = new_nbp(br, dev);
 	if (IS_ERR(p))
@@ -540,7 +547,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	dev->priv_flags |= IFF_BRIDGE_PORT;
 
-	err = netdev_master_upper_dev_link(dev, br->dev, NULL, NULL);
+	err = netdev_master_upper_dev_link(dev, br->dev, NULL, NULL, extack);
 	if (err)
 		goto err5;
 

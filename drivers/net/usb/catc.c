@@ -805,9 +805,7 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
 	spin_lock_init(&catc->tx_lock);
 	spin_lock_init(&catc->ctrl_lock);
 
-	init_timer(&catc->timer);
-	catc->timer.data = (long) catc;
-	catc->timer.function = catc_stats_timer;
+	setup_timer(&catc->timer, catc_stats_timer, (long)catc);
 
 	catc->ctrl_urb = usb_alloc_urb(0, GFP_KERNEL);
 	catc->tx_urb = usb_alloc_urb(0, GFP_KERNEL);

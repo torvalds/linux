@@ -1500,7 +1500,6 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 	int s_idx, s_q_idx;
 	struct net_device *dev;
 	const struct nlmsghdr *nlh = cb->nlh;
-	struct tcmsg *tcm = nlmsg_data(nlh);
 	struct nlattr *tca[TCA_MAX + 1];
 	int err;
 
@@ -1510,7 +1509,7 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 	idx = 0;
 	ASSERT_RTNL();
 
-	err = nlmsg_parse(nlh, sizeof(*tcm), tca, TCA_MAX, NULL, NULL);
+	err = nlmsg_parse(nlh, sizeof(struct tcmsg), tca, TCA_MAX, NULL, NULL);
 	if (err < 0)
 		return err;
 

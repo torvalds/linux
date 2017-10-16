@@ -307,10 +307,10 @@ static void qca_wq_serial_tx_clock_vote_off(struct work_struct *work)
 	serial_clock_vote(HCI_IBS_TX_VOTE_CLOCK_OFF, hu);
 }
 
-static void hci_ibs_tx_idle_timeout(unsigned long arg)
+static void hci_ibs_tx_idle_timeout(struct timer_list *t)
 {
-	struct hci_uart *hu = (struct hci_uart *)arg;
-	struct qca_data *qca = hu->priv;
+	struct qca_data *qca = from_timer(qca, t, tx_idle_timer);
+	struct hci_uart *hu = qca->hu;
 	unsigned long flags;
 
 	BT_DBG("hu %p idle timeout in %d state", hu, qca->tx_ibs_state);
@@ -342,10 +342,10 @@ static void hci_ibs_tx_idle_timeout(unsigned long arg)
 	spin_unlock_irqrestore(&qca->hci_ibs_lock, flags);
 }
 
-static void hci_ibs_wake_retrans_timeout(unsigned long arg)
+static void hci_ibs_wake_retrans_timeout(struct timer_list *t)
 {
-	struct hci_uart *hu = (struct hci_uart *)arg;
-	struct qca_data *qca = hu->priv;
+	struct qca_data *qca = from_timer(qca, t, wake_retrans_timer);
+	struct hci_uart *hu = qca->hu;
 	unsigned long flags, retrans_delay;
 	bool retransmit = false;
 
@@ -438,11 +438,10 @@ static int qca_open(struct hci_uart *hu)
 
 	hu->priv = qca;
 
-	setup_timer(&qca->wake_retrans_timer, hci_ibs_wake_retrans_timeout,
-		    (u_long)hu);
+	timer_setup(&qca->wake_retrans_timer, hci_ibs_wake_retrans_timeout, 0);
 	qca->wake_retrans = IBS_WAKE_RETRANS_TIMEOUT_MS;
 
-	setup_timer(&qca->tx_idle_timer, hci_ibs_tx_idle_timeout, (u_long)hu);
+	timer_setup(&qca->tx_idle_timer, hci_ibs_tx_idle_timeout, 0);
 	qca->tx_idle_delay = IBS_TX_IDLE_TIMEOUT_MS;
 
 	BT_DBG("HCI_UART_QCA open, tx_idle_delay=%u, wake_retrans=%u",

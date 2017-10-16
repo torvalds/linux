@@ -6123,10 +6123,8 @@ static int niu_open(struct net_device *dev)
 
 	err = niu_init_hw(np);
 	if (!err) {
-		init_timer(&np->timer);
+		setup_timer(&np->timer, niu_timer, (unsigned long)np);
 		np->timer.expires = jiffies + HZ;
-		np->timer.data = (unsigned long) np;
-		np->timer.function = niu_timer;
 
 		err = niu_enable_interrupts(np, 1);
 		if (err)

@@ -56,13 +56,42 @@ int dsa_port_set_state(struct dsa_port *dp, u8 state,
 	return 0;
 }
 
-void dsa_port_set_state_now(struct dsa_port *dp, u8 state)
+static void dsa_port_set_state_now(struct dsa_port *dp, u8 state)
 {
 	int err;
 
 	err = dsa_port_set_state(dp, state, NULL);
 	if (err)
 		pr_err("DSA: failed to set STP state %u (%d)\n", state, err);
+}
+
+int dsa_port_enable(struct dsa_port *dp, struct phy_device *phy)
+{
+	u8 stp_state = dp->bridge_dev ? BR_STATE_BLOCKING : BR_STATE_FORWARDING;
+	struct dsa_switch *ds = dp->ds;
+	int port = dp->index;
+	int err;
+
+	if (ds->ops->port_enable) {
+		err = ds->ops->port_enable(ds, port, phy);
+		if (err)
+			return err;
+	}
+
+	dsa_port_set_state_now(dp, stp_state);
+
+	return 0;
+}
+
+void dsa_port_disable(struct dsa_port *dp, struct phy_device *phy)
+{
+	struct dsa_switch *ds = dp->ds;
+	int port = dp->index;
+
+	dsa_port_set_state_now(dp, BR_STATE_DISABLED);
+
+	if (ds->ops->port_disable)
+		ds->ops->port_disable(ds, port, phy);
 }
 
 int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br)
@@ -171,6 +200,17 @@ int dsa_port_fdb_del(struct dsa_port *dp, const unsigned char *addr,
 	};
 
 	return dsa_port_notify(dp, DSA_NOTIFIER_FDB_DEL, &info);
+}
+
+int dsa_port_fdb_dump(struct dsa_port *dp, dsa_fdb_dump_cb_t *cb, void *data)
+{
+	struct dsa_switch *ds = dp->ds;
+	int port = dp->index;
+
+	if (!ds->ops->port_fdb_dump)
+		return -EOPNOTSUPP;
+
+	return ds->ops->port_fdb_dump(ds, port, cb, data);
 }
 
 int dsa_port_mdb_add(struct dsa_port *dp,

@@ -421,8 +421,11 @@ struct hclge_dev {
 #define HCLGE_FLAG_TC_BASE_SCH_MODE		1
 #define HCLGE_FLAG_VNET_BASE_SCH_MODE		2
 	u8 tx_sch_mode;
+	u8 tc_max;
+	u8 pfc_max;
 
 	u8 default_up;
+	u8 dcbx_cap;
 	struct hclge_tm_info tm_info;
 
 	u16 num_msi;
@@ -463,8 +466,6 @@ struct hclge_dev {
 
 	u32 pkt_buf_size; /* Total pf buf size for tx/rx */
 	u32 mps; /* Max packet size */
-	struct hclge_priv_buf *priv_buf;
-	struct hclge_shared_buf s_buf;
 
 	enum hclge_mta_dmac_sel_type mta_mac_sel_type;
 	bool enable_mta; /* Mutilcast filter enable */
@@ -517,4 +518,7 @@ static inline int hclge_get_queue_id(struct hnae3_queue *queue)
 int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex);
 int hclge_set_vf_vlan_common(struct hclge_dev *vport, int vfid,
 			     bool is_kill, u16 vlan, u8 qos, __be16 proto);
+
+int hclge_buffer_alloc(struct hclge_dev *hdev);
+int hclge_rss_init_hw(struct hclge_dev *hdev);
 #endif

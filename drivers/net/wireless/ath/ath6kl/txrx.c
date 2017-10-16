@@ -1753,9 +1753,7 @@ void aggr_conn_init(struct ath6kl_vif *vif, struct aggr_info *aggr_info,
 
 	aggr_conn->aggr_sz = AGGR_SZ_DEFAULT;
 	aggr_conn->dev = vif->ndev;
-	init_timer(&aggr_conn->timer);
-	aggr_conn->timer.function = aggr_timeout;
-	aggr_conn->timer.data = (unsigned long) aggr_conn;
+	setup_timer(&aggr_conn->timer, aggr_timeout, (unsigned long)aggr_conn);
 	aggr_conn->aggr_info = aggr_info;
 
 	aggr_conn->timer_scheduled = false;

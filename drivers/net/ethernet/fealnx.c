@@ -909,17 +909,13 @@ static int netdev_open(struct net_device *dev)
 		printk(KERN_DEBUG "%s: Done netdev_open().\n", dev->name);
 
 	/* Set the timer to check for link beat. */
-	init_timer(&np->timer);
+	setup_timer(&np->timer, netdev_timer, (unsigned long)dev);
 	np->timer.expires = RUN_AT(3 * HZ);
-	np->timer.data = (unsigned long) dev;
-	np->timer.function = netdev_timer;
 
 	/* timer handler */
 	add_timer(&np->timer);
 
-	init_timer(&np->reset_timer);
-	np->reset_timer.data = (unsigned long) dev;
-	np->reset_timer.function = reset_timer;
+	setup_timer(&np->reset_timer, reset_timer, (unsigned long)dev);
 	np->reset_timer_armed = 0;
 	return rc;
 }

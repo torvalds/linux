@@ -94,7 +94,8 @@ struct mlxsw_sp_mid {
 	unsigned char addr[ETH_ALEN];
 	u16 fid;
 	u16 mid;
-	unsigned int ref_count;
+	bool in_hw;
+	unsigned long *ports_in_mid; /* bits array */
 };
 
 enum mlxsw_sp_span_type {
@@ -138,6 +139,7 @@ struct mlxsw_sp_port_mall_tc_entry {
 struct mlxsw_sp_sb;
 struct mlxsw_sp_bridge;
 struct mlxsw_sp_router;
+struct mlxsw_sp_mr;
 struct mlxsw_sp_acl;
 struct mlxsw_sp_counter_pool;
 struct mlxsw_sp_fid_core;
@@ -152,6 +154,8 @@ struct mlxsw_sp {
 	struct mlxsw_sp_sb *sb;
 	struct mlxsw_sp_bridge *bridge;
 	struct mlxsw_sp_router *router;
+	struct mlxsw_sp_mr *mr;
+	struct mlxsw_afa *afa;
 	struct mlxsw_sp_acl *acl;
 	struct mlxsw_sp_fid_core *fid_core;
 	struct {
@@ -466,9 +470,9 @@ void mlxsw_sp_acl_rulei_keymask_buf(struct mlxsw_sp_acl_rule_info *rulei,
 				    enum mlxsw_afk_element element,
 				    const char *key_value,
 				    const char *mask_value, unsigned int len);
-void mlxsw_sp_acl_rulei_act_continue(struct mlxsw_sp_acl_rule_info *rulei);
-void mlxsw_sp_acl_rulei_act_jump(struct mlxsw_sp_acl_rule_info *rulei,
-				 u16 group_id);
+int mlxsw_sp_acl_rulei_act_continue(struct mlxsw_sp_acl_rule_info *rulei);
+int mlxsw_sp_acl_rulei_act_jump(struct mlxsw_sp_acl_rule_info *rulei,
+				u16 group_id);
 int mlxsw_sp_acl_rulei_act_drop(struct mlxsw_sp_acl_rule_info *rulei);
 int mlxsw_sp_acl_rulei_act_trap(struct mlxsw_sp_acl_rule_info *rulei);
 int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,

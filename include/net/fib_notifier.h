@@ -20,6 +20,8 @@ enum fib_event_type {
 	FIB_EVENT_RULE_DEL,
 	FIB_EVENT_NH_ADD,
 	FIB_EVENT_NH_DEL,
+	FIB_EVENT_VIF_ADD,
+	FIB_EVENT_VIF_DEL,
 };
 
 struct fib_notifier_ops {

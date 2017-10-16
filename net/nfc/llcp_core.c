@@ -1573,9 +1573,8 @@ int nfc_llcp_register_device(struct nfc_dev *ndev)
 	INIT_LIST_HEAD(&local->list);
 	kref_init(&local->ref);
 	mutex_init(&local->sdp_lock);
-	init_timer(&local->link_timer);
-	local->link_timer.data = (unsigned long) local;
-	local->link_timer.function = nfc_llcp_symm_timer;
+	setup_timer(&local->link_timer, nfc_llcp_symm_timer,
+		    (unsigned long)local);
 
 	skb_queue_head_init(&local->tx_queue);
 	INIT_WORK(&local->tx_work, nfc_llcp_tx_work);
@@ -1601,9 +1600,8 @@ int nfc_llcp_register_device(struct nfc_dev *ndev)
 
 	mutex_init(&local->sdreq_lock);
 	INIT_HLIST_HEAD(&local->pending_sdreqs);
-	init_timer(&local->sdreq_timer);
-	local->sdreq_timer.data = (unsigned long) local;
-	local->sdreq_timer.function = nfc_llcp_sdreq_timer;
+	setup_timer(&local->sdreq_timer, nfc_llcp_sdreq_timer,
+		    (unsigned long)local);
 	INIT_WORK(&local->sdreq_timeout_work, nfc_llcp_sdreq_timeout_work);
 
 	list_add(&local->list, &llcp_devices);

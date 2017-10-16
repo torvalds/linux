@@ -65,9 +65,6 @@ static struct sk_buff *qca_tag_xmit(struct sk_buff *skb, struct net_device *dev)
 static struct sk_buff *qca_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 				   struct packet_type *pt)
 {
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_port *cpu_dp = dsa_get_cpu_port(dst);
-	struct dsa_switch *ds;
 	u8 ver;
 	int port;
 	__be16 *phdr, hdr;
@@ -92,20 +89,12 @@ static struct sk_buff *qca_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	memmove(skb->data - ETH_HLEN, skb->data - ETH_HLEN - QCA_HDR_LEN,
 		ETH_HLEN - QCA_HDR_LEN);
 
-	/* This protocol doesn't support cascading multiple switches so it's
-	 * safe to assume the switch is first in the tree
-	 */
-	ds = cpu_dp->ds;
-	if (!ds)
-		return NULL;
-
 	/* Get source port information */
 	port = (hdr & QCA_HDR_RECV_SOURCE_PORT_MASK);
-	if (!ds->ports[port].netdev)
-		return NULL;
 
-	/* Update skb & forward the frame accordingly */
-	skb->dev = ds->ports[port].netdev;
+	skb->dev = dsa_master_get_slave(dev, 0, port);
+	if (!skb->dev)
+		return NULL;
 
 	return skb;
 }

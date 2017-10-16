@@ -144,7 +144,7 @@ static int bcm_sf2_cfp_rule_set(struct dsa_switch *ds, int port,
 	 * destination port is enabled and that we are within the
 	 * number of ports supported by the switch
 	 */
-	port_num = fs->ring_cookie / 8;
+	port_num = fs->ring_cookie / SF2_NUM_EGRESS_QUEUES;
 
 	if (fs->ring_cookie == RX_CLS_FLOW_DISC ||
 	    !(BIT(port_num) & ds->enabled_port_mask) ||
@@ -280,7 +280,7 @@ static int bcm_sf2_cfp_rule_set(struct dsa_switch *ds, int port,
 	 * We have a small oddity where Port 6 just does not have a
 	 * valid bit here (so we subtract by one).
 	 */
-	queue_num = fs->ring_cookie % 8;
+	queue_num = fs->ring_cookie % SF2_NUM_EGRESS_QUEUES;
 	if (port_num >= 7)
 		port_num -= 1;
 
@@ -401,7 +401,7 @@ static int bcm_sf2_cfp_rule_get(struct bcm_sf2_priv *priv, int port,
 	/* There is no Port 6, so we compensate for that here */
 	if (nfc->fs.ring_cookie >= 6)
 		nfc->fs.ring_cookie++;
-	nfc->fs.ring_cookie *= 8;
+	nfc->fs.ring_cookie *= SF2_NUM_EGRESS_QUEUES;
 
 	/* Extract the destination queue */
 	queue_num = (reg >> NEW_TC_SHIFT) & NEW_TC_MASK;

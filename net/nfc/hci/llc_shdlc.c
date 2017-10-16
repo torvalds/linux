@@ -763,17 +763,14 @@ static void *llc_shdlc_init(struct nfc_hci_dev *hdev, xmit_to_drv_t xmit_to_drv,
 	mutex_init(&shdlc->state_mutex);
 	shdlc->state = SHDLC_DISCONNECTED;
 
-	init_timer(&shdlc->connect_timer);
-	shdlc->connect_timer.data = (unsigned long)shdlc;
-	shdlc->connect_timer.function = llc_shdlc_connect_timeout;
+	setup_timer(&shdlc->connect_timer, llc_shdlc_connect_timeout,
+		    (unsigned long)shdlc);
 
-	init_timer(&shdlc->t1_timer);
-	shdlc->t1_timer.data = (unsigned long)shdlc;
-	shdlc->t1_timer.function = llc_shdlc_t1_timeout;
+	setup_timer(&shdlc->t1_timer, llc_shdlc_t1_timeout,
+		    (unsigned long)shdlc);
 
-	init_timer(&shdlc->t2_timer);
-	shdlc->t2_timer.data = (unsigned long)shdlc;
-	shdlc->t2_timer.function = llc_shdlc_t2_timeout;
+	setup_timer(&shdlc->t2_timer, llc_shdlc_t2_timeout,
+		    (unsigned long)shdlc);
 
 	shdlc->w = SHDLC_MAX_WINDOW;
 	shdlc->srej_support = SHDLC_SREJ_SUPPORT;

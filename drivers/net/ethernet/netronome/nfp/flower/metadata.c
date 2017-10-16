@@ -140,7 +140,7 @@ exit_rcu_unlock:
 
 void nfp_flower_rx_flow_stats(struct nfp_app *app, struct sk_buff *skb)
 {
-	unsigned int msg_len = skb->len - NFP_FLOWER_CMSG_HLEN;
+	unsigned int msg_len = nfp_flower_cmsg_get_data_len(skb);
 	struct nfp_fl_stats_frame *stats_frame;
 	unsigned char *msg;
 	int i;

@@ -146,7 +146,6 @@ struct netem_sched_data {
  */
 struct netem_skb_cb {
 	psched_time_t	time_to_send;
-	ktime_t		tstamp_save;
 };
 
 
@@ -362,12 +361,13 @@ static psched_time_t packet_len_2_sched_time(unsigned int len, struct netem_sche
 static void tfifo_reset(struct Qdisc *sch)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
-	struct rb_node *p;
+	struct rb_node *p = rb_first(&q->t_root);
 
-	while ((p = rb_first(&q->t_root))) {
+	while (p) {
 		struct sk_buff *skb = netem_rb_to_skb(p);
 
-		rb_erase(p, &q->t_root);
+		p = rb_next(p);
+		rb_erase(&skb->rbnode, &q->t_root);
 		rtnl_kfree_skbs(skb, skb);
 	}
 }
@@ -561,7 +561,6 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		}
 
 		cb->time_to_send = now + delay;
-		cb->tstamp_save = skb->tstamp;
 		++q->counter;
 		tfifo_enqueue(skb, sch);
 	} else {
@@ -629,7 +628,10 @@ deliver:
 			qdisc_qstats_backlog_dec(sch, skb);
 			skb->next = NULL;
 			skb->prev = NULL;
-			skb->tstamp = netem_skb_cb(skb)->tstamp_save;
+			/* skb->dev shares skb->rbnode area,
+			 * we need to restore its value.
+			 */
+			skb->dev = qdisc_dev(sch);
 
 #ifdef CONFIG_NET_CLS_ACT
 			/*

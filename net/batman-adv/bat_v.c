@@ -767,7 +767,7 @@ batadv_v_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 		if (batadv_v_gw_throughput_get(gw_node, &bw) < 0)
 			goto next;
 
-		if (curr_gw && (bw <= max_bw))
+		if (curr_gw && bw <= max_bw)
 			goto next;
 
 		if (curr_gw)

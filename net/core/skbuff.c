@@ -1509,6 +1509,8 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	skb->nohdr    = 0;
 	atomic_set(&skb_shinfo(skb)->dataref, 1);
 
+	skb_metadata_clear(skb);
+
 	/* It is not generally safe to change skb->truesize.
 	 * For the moment, we really care of rx path, or
 	 * when skb is orphaned (not attached to a socket).
@@ -2848,12 +2850,15 @@ EXPORT_SYMBOL(skb_queue_purge);
  */
 void skb_rbtree_purge(struct rb_root *root)
 {
-	struct sk_buff *skb, *next;
+	struct rb_node *p = rb_first(root);
 
-	rbtree_postorder_for_each_entry_safe(skb, next, root, rbnode)
+	while (p) {
+		struct sk_buff *skb = rb_entry(p, struct sk_buff, rbnode);
+
+		p = rb_next(p);
+		rb_erase(&skb->rbnode, root);
 		kfree_skb(skb);
-
-	*root = RB_ROOT;
+	}
 }
 
 /**
@@ -4762,6 +4767,7 @@ EXPORT_SYMBOL(kfree_skb_partial);
 bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 		      bool *fragstolen, int *delta_truesize)
 {
+	struct skb_shared_info *to_shinfo, *from_shinfo;
 	int i, delta, len = from->len;
 
 	*fragstolen = false;
@@ -4776,7 +4782,9 @@ bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 		return true;
 	}
 
-	if (skb_has_frag_list(to) || skb_has_frag_list(from))
+	to_shinfo = skb_shinfo(to);
+	from_shinfo = skb_shinfo(from);
+	if (to_shinfo->frag_list || from_shinfo->frag_list)
 		return false;
 	if (skb_zcopy(to) || skb_zcopy(from))
 		return false;
@@ -4785,8 +4793,8 @@ bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 		struct page *page;
 		unsigned int offset;
 
-		if (skb_shinfo(to)->nr_frags +
-		    skb_shinfo(from)->nr_frags >= MAX_SKB_FRAGS)
+		if (to_shinfo->nr_frags +
+		    from_shinfo->nr_frags >= MAX_SKB_FRAGS)
 			return false;
 
 		if (skb_head_is_locked(from))
@@ -4797,12 +4805,12 @@ bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 		page = virt_to_head_page(from->head);
 		offset = from->data - (unsigned char *)page_address(page);
 
-		skb_fill_page_desc(to, skb_shinfo(to)->nr_frags,
+		skb_fill_page_desc(to, to_shinfo->nr_frags,
 				   page, offset, skb_headlen(from));
 		*fragstolen = true;
 	} else {
-		if (skb_shinfo(to)->nr_frags +
-		    skb_shinfo(from)->nr_frags > MAX_SKB_FRAGS)
+		if (to_shinfo->nr_frags +
+		    from_shinfo->nr_frags > MAX_SKB_FRAGS)
 			return false;
 
 		delta = from->truesize - SKB_TRUESIZE(skb_end_offset(from));
@@ -4810,19 +4818,19 @@ bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 
 	WARN_ON_ONCE(delta < len);
 
-	memcpy(skb_shinfo(to)->frags + skb_shinfo(to)->nr_frags,
-	       skb_shinfo(from)->frags,
-	       skb_shinfo(from)->nr_frags * sizeof(skb_frag_t));
-	skb_shinfo(to)->nr_frags += skb_shinfo(from)->nr_frags;
+	memcpy(to_shinfo->frags + to_shinfo->nr_frags,
+	       from_shinfo->frags,
+	       from_shinfo->nr_frags * sizeof(skb_frag_t));
+	to_shinfo->nr_frags += from_shinfo->nr_frags;
 
 	if (!skb_cloned(from))
-		skb_shinfo(from)->nr_frags = 0;
+		from_shinfo->nr_frags = 0;
 
 	/* if the skb is not cloned this does nothing
 	 * since we set nr_frags to 0.
 	 */
-	for (i = 0; i < skb_shinfo(from)->nr_frags; i++)
-		skb_frag_ref(from, i);
+	for (i = 0; i < from_shinfo->nr_frags; i++)
+		__skb_frag_ref(&from_shinfo->frags[i]);
 
 	to->truesize += delta;
 	to->len += len;

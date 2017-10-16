@@ -360,6 +360,15 @@ i40e_status i40e_aq_rx_ctl_write_register(struct i40e_hw *hw,
 				u32 reg_addr, u32 reg_val,
 				struct i40e_asq_cmd_details *cmd_details);
 void i40e_write_rx_ctl(struct i40e_hw *hw, u32 reg_addr, u32 reg_val);
+i40e_status i40e_aq_set_phy_register(struct i40e_hw *hw,
+				     u8 phy_select, u8 dev_addr,
+				     u32 reg_addr, u32 reg_val,
+				     struct i40e_asq_cmd_details *cmd_details);
+i40e_status i40e_aq_get_phy_register(struct i40e_hw *hw,
+				     u8 phy_select, u8 dev_addr,
+				     u32 reg_addr, u32 *reg_val,
+				     struct i40e_asq_cmd_details *cmd_details);
+
 i40e_status i40e_read_phy_register_clause22(struct i40e_hw *hw,
 					    u16 reg, u8 phy_addr, u16 *value);
 i40e_status i40e_write_phy_register_clause22(struct i40e_hw *hw,
