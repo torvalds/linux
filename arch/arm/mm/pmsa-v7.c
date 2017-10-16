@@ -15,6 +15,8 @@
 static unsigned int __initdata mpu_min_region_order;
 static unsigned int __initdata mpu_max_regions;
 
+#ifndef CONFIG_CPU_V7M
+
 #define DRBAR	__ACCESS_CP15(c6, 0, c1, 0)
 #define IRBAR	__ACCESS_CP15(c6, 0, c1, 1)
 #define DRSR	__ACCESS_CP15(c6, 0, c1, 2)
@@ -77,6 +79,51 @@ static inline u32 irbar_read(void)
 {
 	return read_sysreg(IRBAR);
 }
+
+#else
+
+static inline void rgnr_write(u32 v)
+{
+	writel_relaxed(v, BASEADDR_V7M_SCB + MPU_RNR);
+}
+
+/* Data-side / unified region attributes */
+
+/* Region access control register */
+static inline void dracr_write(u32 v)
+{
+	u32 rsr = readl_relaxed(BASEADDR_V7M_SCB + MPU_RASR) & GENMASK(15, 0);
+
+	writel_relaxed((v << 16) | rsr, BASEADDR_V7M_SCB + MPU_RASR);
+}
+
+/* Region size register */
+static inline void drsr_write(u32 v)
+{
+	u32 racr = readl_relaxed(BASEADDR_V7M_SCB + MPU_RASR) & GENMASK(31, 16);
+
+	writel_relaxed(v | racr, BASEADDR_V7M_SCB + MPU_RASR);
+}
+
+/* Region base address register */
+static inline void drbar_write(u32 v)
+{
+	writel_relaxed(v, BASEADDR_V7M_SCB + MPU_RBAR);
+}
+
+static inline u32 drbar_read(void)
+{
+	return readl_relaxed(BASEADDR_V7M_SCB + MPU_RBAR);
+}
+
+/* ARMv7-M only supports a unified MPU, so I-side operations are nop */
+
+static inline void iracr_write(u32 v) {}
+static inline void irsr_write(u32 v) {}
+static inline void irbar_write(u32 v) {}
+static inline unsigned long irbar_read(void) {return 0;}
+
+#endif
 
 static int __init mpu_present(void)
 {
@@ -166,7 +213,7 @@ static int __init __mpu_max_regions(void)
 	 */
 	u32 dregions, iregions, mpuir;
 
-	mpuir = read_cpuid(CPUID_MPUIR);
+	mpuir = read_cpuid_mputype();
 
 	dregions = iregions = (mpuir & MPUIR_DREGION_SZMASK) >> MPUIR_DREGION;
 
@@ -181,7 +228,7 @@ static int __init __mpu_max_regions(void)
 static int __init mpu_iside_independent(void)
 {
 	/* MPUIR.nU specifies whether there is *not* a unified memory map */
-	return read_cpuid(CPUID_MPUIR) & MPUIR_nU;
+	return read_cpuid_mputype() & MPUIR_nU;
 }
 
 static int __init __mpu_min_region_order(void)
@@ -284,9 +331,11 @@ void __init mpu_setup(void)
 				MPU_AP_PL1RW_PL0RW | MPU_RGN_NORMAL);
 
 	/* Vectors */
+#ifndef CONFIG_CPU_V7M
 	err |= mpu_setup_region(region++, vectors_base,
 				ilog2(2 * PAGE_SIZE),
 				MPU_AP_PL1RW_PL0NA | MPU_RGN_NORMAL);
+#endif
 	if (err) {
 		panic("MPU region initialization failure! %d", err);
 	} else {

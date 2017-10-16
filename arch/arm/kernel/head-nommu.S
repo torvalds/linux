@@ -176,19 +176,33 @@ ENDPROC(__after_proc_init)
 #ifdef CONFIG_ARM_MPU
 
 
+#ifndef CONFIG_CPU_V7M
 /* Set which MPU region should be programmed */
-.macro set_region_nr tmp, rgnr
+.macro set_region_nr tmp, rgnr, unused
 	mov	\tmp, \rgnr			@ Use static region numbers
 	mcr	p15, 0, \tmp, c6, c2, 0		@ Write RGNR
 .endm
 
 /* Setup a single MPU region, either D or I side (D-side for unified) */
-.macro setup_region bar, acr, sr, side = MPU_DATA_SIDE
+.macro setup_region bar, acr, sr, side = MPU_DATA_SIDE, unused
 	mcr	p15, 0, \bar, c6, c1, (0 + \side)	@ I/DRBAR
 	mcr	p15, 0, \acr, c6, c1, (4 + \side)	@ I/DRACR
 	mcr	p15, 0, \sr, c6, c1, (2 + \side)		@ I/DRSR
 .endm
+#else
+.macro set_region_nr tmp, rgnr, base
+	mov	\tmp, \rgnr
+	str     \tmp, [\base, #MPU_RNR]
+.endm
 
+.macro setup_region bar, acr, sr, unused, base
+	lsl     \acr, \acr, #16
+	orr     \acr, \acr, \sr
+	str     \bar, [\base, #MPU_RBAR]
+	str     \acr, [\base, #MPU_RASR]
+.endm
+
+#endif
 /*
  * Setup the MPU and initial MPU Regions. We create the following regions:
  * Region 0: Use this for probing the MPU details, so leave disabled.
@@ -202,48 +216,58 @@ ENDPROC(__after_proc_init)
 ENTRY(__setup_mpu)
 
 	/* Probe for v7 PMSA compliance */
-	mrc	p15, 0, r0, c0, c1, 4		@ Read ID_MMFR0
+M_CLASS(movw	r12, #:lower16:BASEADDR_V7M_SCB)
+M_CLASS(movt	r12, #:upper16:BASEADDR_V7M_SCB)
+
+AR_CLASS(mrc	p15, 0, r0, c0, c1, 4)		@ Read ID_MMFR0
+M_CLASS(ldr	r0, [r12, 0x50])
 	and	r0, r0, #(MMFR0_PMSA)		@ PMSA field
 	teq	r0, #(MMFR0_PMSAv7)		@ PMSA v7
 	bxne	lr
 
 	/* Determine whether the D/I-side memory map is unified. We set the
 	 * flags here and continue to use them for the rest of this function */
-	mrc	p15, 0, r0, c0, c0, 4		@ MPUIR
+AR_CLASS(mrc	p15, 0, r0, c0, c0, 4)		@ MPUIR
+M_CLASS(ldr    r0, [r12, #MPU_TYPE])
 	ands	r5, r0, #MPUIR_DREGION_SZMASK	@ 0 size d region => No MPU
 	bxeq	lr
 	tst	r0, #MPUIR_nU			@ MPUIR_nU = 0 for unified
 
 	/* Setup second region first to free up r6 */
-	set_region_nr r0, #MPU_RAM_REGION
+	set_region_nr r0, #MPU_RAM_REGION, r12
 	isb
 	/* Full access from PL0, PL1, shared for CONFIG_SMP, cacheable */
 	ldr	r0, =PLAT_PHYS_OFFSET		@ RAM starts at PHYS_OFFSET
 	ldr	r5,=(MPU_AP_PL1RW_PL0RW | MPU_RGN_NORMAL)
 
-	setup_region r0, r5, r6, MPU_DATA_SIDE	@ PHYS_OFFSET, shared, enabled
-	beq	1f				@ Memory-map not unified
-	setup_region r0, r5, r6, MPU_INSTR_SIDE @ PHYS_OFFSET, shared, enabled
+	setup_region r0, r5, r6, MPU_DATA_SIDE, r12	@ PHYS_OFFSET, shared, enabled
+	beq	1f					@ Memory-map not unified
+	setup_region r0, r5, r6, MPU_INSTR_SIDE, r12	@ PHYS_OFFSET, shared, enabled
 1:	isb
 
 	/* First/background region */
-	set_region_nr r0, #MPU_BG_REGION
+	set_region_nr r0, #MPU_BG_REGION, r12
 	isb
 	/* Execute Never,  strongly ordered, inaccessible to PL0, rw PL1  */
 	mov	r0, #0				@ BG region starts at 0x0
 	ldr	r5,=(MPU_ACR_XN | MPU_RGN_STRONGLY_ORDERED | MPU_AP_PL1RW_PL0NA)
 	mov	r6, #MPU_RSR_ALL_MEM		@ 4GB region, enabled
 
-	setup_region r0, r5, r6, MPU_DATA_SIDE	@ 0x0, BG region, enabled
-	beq	2f				@ Memory-map not unified
-	setup_region r0, r5, r6, MPU_INSTR_SIDE @ 0x0, BG region, enabled
+	setup_region r0, r5, r6, MPU_DATA_SIDE, r12	@ 0x0, BG region, enabled
+	beq	2f					@ Memory-map not unified
+	setup_region r0, r5, r6, MPU_INSTR_SIDE r12	@ 0x0, BG region, enabled
 2:	isb
 
 	/* Enable the MPU */
-	mrc	p15, 0, r0, c1, c0, 0		@ Read SCTLR
-	bic	r0, r0, #CR_BR			@ Disable the 'default mem-map'
-	orr	r0, r0, #CR_M			@ Set SCTRL.M (MPU on)
-	mcr	p15, 0, r0, c1, c0, 0		@ Enable MPU
+AR_CLASS(mrc	p15, 0, r0, c1, c0, 0)		@ Read SCTLR
+AR_CLASS(bic	r0, r0, #CR_BR)			@ Disable the 'default mem-map'
+AR_CLASS(orr	r0, r0, #CR_M)			@ Set SCTRL.M (MPU on)
+AR_CLASS(mcr	p15, 0, r0, c1, c0, 0)		@ Enable MPU
+
+M_CLASS(ldr	r0, [r12, #MPU_CTRL])
+M_CLASS(bic	r0, #MPU_CTRL_PRIVDEFENA)
+M_CLASS(orr	r0, #MPU_CTRL_ENABLE)
+M_CLASS(str	r0, [r12, #MPU_CTRL])
 	isb
 
 	ret	lr
