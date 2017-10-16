@@ -1582,14 +1582,14 @@ int amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 	if (READ_ONCE((*bo)->tbo.resv->lock.ctx) != &parser->ticket)
 		return -EINVAL;
 
-	r = amdgpu_ttm_bind(&(*bo)->tbo, &(*bo)->tbo.mem);
-	if (unlikely(r))
-		return r;
+	if (!((*bo)->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS)) {
+		(*bo)->flags |= AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
+		amdgpu_ttm_placement_from_domain(*bo, (*bo)->allowed_domains);
+		r = ttm_bo_validate(&(*bo)->tbo, &(*bo)->placement, false,
+				    false);
+		if (r)
+			return r;
+	}
 
-	if ((*bo)->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS)
-		return 0;
-
-	(*bo)->flags |= AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
-	amdgpu_ttm_placement_from_domain(*bo, (*bo)->allowed_domains);
-	return ttm_bo_validate(&(*bo)->tbo, &(*bo)->placement, false, false);
+	return amdgpu_ttm_bind(&(*bo)->tbo, &(*bo)->tbo.mem);
 }
