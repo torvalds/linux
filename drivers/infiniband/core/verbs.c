@@ -53,6 +53,9 @@
 
 #include "core_priv.h"
 
+static int ib_resolve_eth_dmac(struct ib_device *device,
+			       struct rdma_ah_attr *ah_attr);
+
 static const char * const ib_events[] = {
 	[IB_EVENT_CQ_ERR]		= "CQ error",
 	[IB_EVENT_QP_FATAL]		= "QP fatal error",
@@ -1257,8 +1260,8 @@ int ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
 }
 EXPORT_SYMBOL(ib_modify_qp_is_ok);
 
-int ib_resolve_eth_dmac(struct ib_device *device,
-			struct rdma_ah_attr *ah_attr)
+static int ib_resolve_eth_dmac(struct ib_device *device,
+			       struct rdma_ah_attr *ah_attr)
 {
 	int           ret = 0;
 	struct ib_global_route *grh;
@@ -1317,7 +1320,6 @@ int ib_resolve_eth_dmac(struct ib_device *device,
 out:
 	return ret;
 }
-EXPORT_SYMBOL(ib_resolve_eth_dmac);
 
 /**
  * ib_modify_qp_with_udata - Modifies the attributes for the specified QP.

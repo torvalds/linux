@@ -729,14 +729,6 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 			ah->qplib_ah.nw_type = CMDQ_CREATE_AH_TYPE_V1;
 			break;
 		}
-		rc = rdma_addr_find_l2_eth_by_grh(&sgid, &grh->dgid,
-						  ah_attr->roce.dmac, &vlan_tag,
-						  &sgid_attr.ndev->ifindex,
-						  NULL);
-		if (rc) {
-			dev_err(rdev_to_dev(rdev), "Failed to get dmac\n");
-			goto fail;
-		}
 	}
 
 	memcpy(ah->qplib_ah.dmac, ah_attr->roce.dmac, ETH_ALEN);
