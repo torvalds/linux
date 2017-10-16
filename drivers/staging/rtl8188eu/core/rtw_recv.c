@@ -39,7 +39,7 @@ static u8 rtw_rfc1042_header[] = {
        0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00
 };
 
-static void rtw_signal_stat_timer_hdl(unsigned long data);
+static void rtw_signal_stat_timer_hdl(struct timer_list *t);
 
 void _rtw_init_sta_recv_priv(struct sta_recv_priv *psta_recvpriv)
 {
@@ -86,9 +86,8 @@ int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
 	}
 	res = rtw_hal_init_recv_priv(padapter);
 
-	setup_timer(&precvpriv->signal_stat_timer,
-		    rtw_signal_stat_timer_hdl,
-		    (unsigned long)padapter);
+	timer_setup(&precvpriv->signal_stat_timer, rtw_signal_stat_timer_hdl,
+		    0);
 
 	precvpriv->signal_stat_sampling_interval = 1000; /* ms */
 
@@ -1837,9 +1836,10 @@ _err_exit:
 	return _FAIL;
 }
 
-void rtw_reordering_ctrl_timeout_handler(unsigned long data)
+void rtw_reordering_ctrl_timeout_handler(struct timer_list *t)
 {
-	struct recv_reorder_ctrl *preorder_ctrl = (struct recv_reorder_ctrl *)data;
+	struct recv_reorder_ctrl *preorder_ctrl = from_timer(preorder_ctrl, t,
+							   reordering_ctrl_timer);
 	struct adapter *padapter = preorder_ctrl->padapter;
 	struct __queue *ppending_recvframe_queue = &preorder_ctrl->pending_recvframe_queue;
 
@@ -2007,9 +2007,10 @@ _recv_entry_drop:
 	return ret;
 }
 
-static void rtw_signal_stat_timer_hdl(unsigned long data)
+static void rtw_signal_stat_timer_hdl(struct timer_list *t)
 {
-	struct adapter *adapter = (struct adapter *)data;
+	struct adapter *adapter =
+		from_timer(adapter, t, recvpriv.signal_stat_timer);
 	struct recv_priv *recvpriv = &adapter->recvpriv;
 
 	u32 tmp_s, tmp_q;

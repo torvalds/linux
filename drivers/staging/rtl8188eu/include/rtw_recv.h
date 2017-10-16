@@ -247,7 +247,7 @@ void rtw_free_recvframe_queue(struct __queue *pframequeue,
 			      struct __queue *pfree_recv_queue);
 u32 rtw_free_uc_swdec_pending_queue(struct adapter *adapter);
 
-void rtw_reordering_ctrl_timeout_handler(unsigned long data);
+void rtw_reordering_ctrl_timeout_handler(struct timer_list *t);
 
 static inline s32 translate_percentage_to_dbm(u32 sig_stren_index)
 {

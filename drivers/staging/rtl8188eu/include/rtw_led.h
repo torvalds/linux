@@ -91,7 +91,6 @@ struct led_priv {
 	/* add for led control */
 };
 
-void BlinkTimerCallback(unsigned long data);
 void BlinkWorkItemCallback(struct work_struct *work);
 
 void ResetLedStatus(struct LED_871x *pLed);

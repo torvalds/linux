@@ -1332,9 +1332,10 @@ void rtw_cpwm_event_callback(struct adapter *padapter, u8 *pbuf)
  * _rtw_join_timeout_handler - Timeout/failure handler for CMD JoinBss
  * @adapter: pointer to struct adapter structure
  */
-void _rtw_join_timeout_handler (unsigned long data)
+void _rtw_join_timeout_handler (struct timer_list *t)
 {
-	struct adapter *adapter = (struct adapter *)data;
+	struct adapter *adapter =
+		from_timer(adapter, t, mlmepriv.assoc_timer);
 	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	int do_join_r;
 
@@ -1373,9 +1374,10 @@ void _rtw_join_timeout_handler (unsigned long data)
  * rtw_scan_timeout_handler - Timeout/Faliure handler for CMD SiteSurvey
  * @adapter: pointer to struct adapter structure
  */
-void rtw_scan_timeout_handler (unsigned long data)
+void rtw_scan_timeout_handler (struct timer_list *t)
 {
-	struct adapter *adapter = (struct adapter *)data;
+	struct adapter *adapter =
+		from_timer(adapter, t, mlmepriv.scan_to_timer);
 	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
 	DBG_88E(FUNC_ADPT_FMT" fw_state=%x\n", FUNC_ADPT_ARG(adapter), get_fwstate(pmlmepriv));
@@ -1400,9 +1402,10 @@ static void rtw_auto_scan_handler(struct adapter *padapter)
 	}
 }
 
-void rtw_dynamic_check_timer_handlder(unsigned long data)
+void rtw_dynamic_check_timer_handlder(struct timer_list *t)
 {
-	struct adapter *adapter = (struct adapter *)data;
+	struct adapter *adapter =
+		from_timer(adapter, t, mlmepriv.dynamic_chk_timer);
 	struct registry_priv *pregistrypriv = &adapter->registrypriv;
 
 	if (!adapter)

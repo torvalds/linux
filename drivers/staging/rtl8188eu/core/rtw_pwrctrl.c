@@ -276,9 +276,11 @@ exit:
 	pwrpriv->ps_processing = false;
 }
 
-static void pwr_state_check_handler(unsigned long data)
+static void pwr_state_check_handler(struct timer_list *t)
 {
-	struct adapter *padapter = (struct adapter *)data;
+	struct adapter *padapter =
+		from_timer(padapter, t,
+				pwrctrlpriv.pwr_state_check_timer);
 
 	rtw_ps_cmd(padapter);
 }
@@ -540,9 +542,8 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 
 	pwrctrlpriv->btcoex_rfon = false;
 
-	setup_timer(&pwrctrlpriv->pwr_state_check_timer,
-		    pwr_state_check_handler,
-		    (unsigned long)padapter);
+	timer_setup(&pwrctrlpriv->pwr_state_check_timer,
+		    pwr_state_check_handler, 0);
 }
 
 /*
