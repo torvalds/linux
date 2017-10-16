@@ -2448,7 +2448,6 @@ static enum i40iw_status_code i40iw_sc_qp_create(
 		 LS_64(qp->qp_type, I40IW_CQPSQ_QP_QPTYPE) |
 		 LS_64(qp->virtual_map, I40IW_CQPSQ_QP_VQ) |
 		 LS_64(info->cq_num_valid, I40IW_CQPSQ_QP_CQNUMVALID) |
-		 LS_64(info->static_rsrc, I40IW_CQPSQ_QP_STATRSRC) |
 		 LS_64(info->arp_cache_idx_valid, I40IW_CQPSQ_QP_ARPTABIDXVALID) |
 		 LS_64(info->next_iwarp_state, I40IW_CQPSQ_QP_NEXTIWSTATE) |
 		 LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID);
@@ -2511,7 +2510,6 @@ static enum i40iw_status_code i40iw_sc_qp_modify(
 		 LS_64(info->cq_num_valid, I40IW_CQPSQ_QP_CQNUMVALID) |
 		 LS_64(info->force_loopback, I40IW_CQPSQ_QP_FORCELOOPBACK) |
 		 LS_64(qp->qp_type, I40IW_CQPSQ_QP_QPTYPE) |
-		 LS_64(info->static_rsrc, I40IW_CQPSQ_QP_STATRSRC) |
 		 LS_64(info->remove_hash_idx, I40IW_CQPSQ_QP_REMOVEHASHENTRY) |
 		 LS_64(term_actions, I40IW_CQPSQ_QP_TERMACT) |
 		 LS_64(info->reset_tcp_conn, I40IW_CQPSQ_QP_RESETCON) |

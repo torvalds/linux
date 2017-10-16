@@ -535,7 +535,6 @@ struct i40iw_create_qp_info {
 	bool ord_valid;
 	bool tcp_ctx_valid;
 	bool cq_num_valid;
-	bool static_rsrc;
 	bool arp_cache_idx_valid;
 };
 
@@ -547,7 +546,6 @@ struct i40iw_modify_qp_info {
 	bool ord_valid;
 	bool tcp_ctx_valid;
 	bool cq_num_valid;
-	bool static_rsrc;
 	bool arp_cache_idx_valid;
 	bool reset_tcp_conn;
 	bool remove_hash_idx;
