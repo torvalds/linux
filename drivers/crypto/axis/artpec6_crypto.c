@@ -349,8 +349,6 @@ struct artpec6_crypto_aead_req_ctx {
 /* The crypto framework makes it hard to avoid this global. */
 static struct device *artpec6_crypto_dev;
 
-static struct dentry *dbgfs_root;
-
 #ifdef CONFIG_FAULT_INJECTION
 static DECLARE_FAULT_ATTR(artpec6_crypto_fail_status_read);
 static DECLARE_FAULT_ATTR(artpec6_crypto_fail_dma_array_full);
@@ -2983,6 +2981,8 @@ struct dbgfs_u32 {
 	u32 *flag;
 	char *desc;
 };
+
+static struct dentry *dbgfs_root;
 
 static void artpec6_crypto_init_debugfs(void)
 {

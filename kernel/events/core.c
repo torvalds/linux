@@ -662,7 +662,7 @@ static inline void update_cgrp_time_from_event(struct perf_event *event)
 	/*
 	 * Do not update time when cgroup is not active
 	 */
-	if (cgrp == event->cgrp)
+       if (cgroup_is_descendant(cgrp->css.cgroup, event->cgrp->css.cgroup))
 		__update_cgrp_time(event->cgrp);
 }
 
@@ -8955,6 +8955,14 @@ static struct perf_cpu_context __percpu *find_pmu_context(int ctxn)
 
 static void free_pmu_context(struct pmu *pmu)
 {
+	/*
+	 * Static contexts such as perf_sw_context have a global lifetime
+	 * and may be shared between different PMUs. Avoid freeing them
+	 * when a single PMU is going away.
+	 */
+	if (pmu->task_ctx_nr > perf_invalid_context)
+		return;
+
 	mutex_lock(&pmus_lock);
 	free_percpu(pmu->pmu_cpu_context);
 	mutex_unlock(&pmus_lock);

@@ -2266,16 +2266,17 @@ int __netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 	cb->min_dump_alloc = control->min_dump_alloc;
 	cb->skb = skb;
 
+	if (cb->start) {
+		ret = cb->start(cb);
+		if (ret)
+			goto error_unlock;
+	}
+
 	nlk->cb_running = true;
 
 	mutex_unlock(nlk->cb_mutex);
 
-	ret = 0;
-	if (cb->start)
-		ret = cb->start(cb);
-
-	if (!ret)
-		ret = netlink_dump(sk);
+	ret = netlink_dump(sk);
 
 	sock_put(sk);
 
