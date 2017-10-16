@@ -1,3 +1,5 @@
+menu "IRQ chip support"
+
 config IRQCHIP
 	def_bool y
 	depends on OF_IRQ
@@ -321,3 +323,5 @@ config IRQ_UNIPHIER_AIDET
 	select IRQ_DOMAIN_HIERARCHY
 	help
 	  Support for the UniPhier AIDET (ARM Interrupt Detector).
+
+endmenu
