@@ -2478,20 +2478,18 @@ static unsigned int mv_get_err_pmp_map(struct ata_port *ap)
 
 static void mv_pmp_eh_prep(struct ata_port *ap, unsigned int pmp_map)
 {
-	struct ata_eh_info *ehi;
 	unsigned int pmp;
 
 	/*
 	 * Initialize EH info for PMPs which saw device errors
 	 */
-	ehi = &ap->link.eh_info;
 	for (pmp = 0; pmp_map != 0; pmp++) {
 		unsigned int this_pmp = (1 << pmp);
 		if (pmp_map & this_pmp) {
 			struct ata_link *link = &ap->pmp_link[pmp];
+			struct ata_eh_info *ehi = &link->eh_info;
 
 			pmp_map &= ~this_pmp;
-			ehi = &link->eh_info;
 			ata_ehi_clear_desc(ehi);
 			ata_ehi_push_desc(ehi, "dev err");
 			ehi->err_mask |= AC_ERR_DEV;
