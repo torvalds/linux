@@ -1057,6 +1057,7 @@ struct tpt_led_trigger {
 	const struct ieee80211_tpt_blink *blink_table;
 	unsigned int blink_table_len;
 	struct timer_list timer;
+	struct ieee80211_local *local;
 	unsigned long prev_traffic;
 	unsigned long tx_bytes, rx_bytes;
 	unsigned int active, want;
@@ -1932,7 +1933,7 @@ static inline int ieee80211_ac_from_tid(int tid)
 
 void ieee80211_dynamic_ps_enable_work(struct work_struct *work);
 void ieee80211_dynamic_ps_disable_work(struct work_struct *work);
-void ieee80211_dynamic_ps_timer(unsigned long data);
+void ieee80211_dynamic_ps_timer(struct timer_list *t);
 void ieee80211_send_nullfunc(struct ieee80211_local *local,
 			     struct ieee80211_sub_if_data *sdata,
 			     bool powersave);

@@ -1064,9 +1064,9 @@ int sta_info_destroy_addr_bss(struct ieee80211_sub_if_data *sdata,
 	return ret;
 }
 
-static void sta_info_cleanup(unsigned long data)
+static void sta_info_cleanup(struct timer_list *t)
 {
-	struct ieee80211_local *local = (struct ieee80211_local *) data;
+	struct ieee80211_local *local = from_timer(local, t, sta_cleanup);
 	struct sta_info *sta;
 	bool timer_needed = false;
 
@@ -1098,8 +1098,7 @@ int sta_info_init(struct ieee80211_local *local)
 	mutex_init(&local->sta_mtx);
 	INIT_LIST_HEAD(&local->sta_list);
 
-	setup_timer(&local->sta_cleanup, sta_info_cleanup,
-		    (unsigned long)local);
+	timer_setup(&local->sta_cleanup, sta_info_cleanup, 0);
 	return 0;
 }
 
