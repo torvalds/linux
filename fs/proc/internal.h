@@ -257,6 +257,15 @@ static inline void proc_sys_evict_inode(struct  inode *inode,
 #endif
 
 /*
+ * uid.c
+ */
+#ifdef CONFIG_PROC_UID
+extern int proc_uid_init(void);
+#else
+static inline void proc_uid_init(void) { }
+#endif
+
+/*
  * proc_tty.c
  */
 #ifdef CONFIG_TTY
