@@ -58,8 +58,10 @@ i915_vma_retire(struct i915_gem_active *active,
 	 * so that we don't steal from recently used but inactive objects
 	 * (unless we are forced to ofc!)
 	 */
+	spin_lock(&rq->i915->mm.obj_lock);
 	if (obj->bind_count)
-		list_move_tail(&obj->global_link, &rq->i915->mm.bound_list);
+		list_move_tail(&obj->mm.link, &rq->i915->mm.bound_list);
+	spin_unlock(&rq->i915->mm.obj_lock);
 
 	obj->mm.dirty = true; /* be paranoid  */
 
@@ -563,9 +565,13 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	GEM_BUG_ON(!i915_gem_valid_gtt_space(vma, obj->cache_level));
 
-	list_move_tail(&obj->global_link, &dev_priv->mm.bound_list);
 	list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
+
+	spin_lock(&dev_priv->mm.obj_lock);
+	list_move_tail(&obj->mm.link, &dev_priv->mm.bound_list);
 	obj->bind_count++;
+	spin_unlock(&dev_priv->mm.obj_lock);
+
 	GEM_BUG_ON(atomic_read(&obj->mm.pages_pin_count) < obj->bind_count);
 
 	return 0;
@@ -580,6 +586,7 @@ err_unpin:
 static void
 i915_vma_remove(struct i915_vma *vma)
 {
+	struct drm_i915_private *i915 = vma->vm->i915;
 	struct drm_i915_gem_object *obj = vma->obj;
 
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
@@ -593,9 +600,10 @@ i915_vma_remove(struct i915_vma *vma)
 	/* Since the unbound list is global, only move to that list if
 	 * no more VMAs exist.
 	 */
+	spin_lock(&i915->mm.obj_lock);
 	if (--obj->bind_count == 0)
-		list_move_tail(&obj->global_link,
-			       &to_i915(obj->base.dev)->mm.unbound_list);
+		list_move_tail(&obj->mm.link, &i915->mm.unbound_list);
+	spin_unlock(&i915->mm.obj_lock);
 
 	/* And finally now the object is completely decoupled from this vma,
 	 * we can drop its hold on the backing storage and allow it to be

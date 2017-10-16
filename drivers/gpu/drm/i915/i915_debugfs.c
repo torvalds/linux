@@ -271,7 +271,9 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 		goto out;
 
 	total_obj_size = total_gtt_size = count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_link) {
+
+	spin_lock(&dev_priv->mm.obj_lock);
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, mm.link) {
 		if (count == total)
 			break;
 
@@ -283,7 +285,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 		total_gtt_size += i915_gem_obj_total_ggtt_size(obj);
 
 	}
-	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_link) {
+	list_for_each_entry(obj, &dev_priv->mm.unbound_list, mm.link) {
 		if (count == total)
 			break;
 
@@ -293,6 +295,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 		objects[count++] = obj;
 		total_obj_size += obj->base.size;
 	}
+	spin_unlock(&dev_priv->mm.obj_lock);
 
 	sort(objects, count, sizeof(*objects), obj_rank_by_stolen, NULL);
 
@@ -454,7 +457,9 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 	mapped_size = mapped_count = 0;
 	purgeable_size = purgeable_count = 0;
 	huge_size = huge_count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_link) {
+
+	spin_lock(&dev_priv->mm.obj_lock);
+	list_for_each_entry(obj, &dev_priv->mm.unbound_list, mm.link) {
 		size += obj->base.size;
 		++count;
 
@@ -477,7 +482,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 	seq_printf(m, "%u unbound objects, %llu bytes\n", count, size);
 
 	size = count = dpy_size = dpy_count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_link) {
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, mm.link) {
 		size += obj->base.size;
 		++count;
 
@@ -502,6 +507,8 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 			page_sizes |= obj->mm.page_sizes.sg;
 		}
 	}
+	spin_unlock(&dev_priv->mm.obj_lock);
+
 	seq_printf(m, "%u bound objects, %llu bytes\n",
 		   count, size);
 	seq_printf(m, "%u purgeable objects, %llu bytes\n",
@@ -568,28 +575,46 @@ static int i915_gem_gtt_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = m->private;
 	struct drm_i915_private *dev_priv = node_to_i915(node);
 	struct drm_device *dev = &dev_priv->drm;
+	struct drm_i915_gem_object **objects;
 	struct drm_i915_gem_object *obj;
 	u64 total_obj_size, total_gtt_size;
+	unsigned long nobject, n;
 	int count, ret;
+
+	nobject = READ_ONCE(dev_priv->mm.object_count);
+	objects = kvmalloc_array(nobject, sizeof(*objects), GFP_KERNEL);
+	if (!objects)
+		return -ENOMEM;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
-	total_obj_size = total_gtt_size = count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_link) {
+	count = 0;
+	spin_lock(&dev_priv->mm.obj_lock);
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, mm.link) {
+		objects[count++] = obj;
+		if (count == nobject)
+			break;
+	}
+	spin_unlock(&dev_priv->mm.obj_lock);
+
+	total_obj_size = total_gtt_size = 0;
+	for (n = 0;  n < count; n++) {
+		obj = objects[n];
+
 		seq_puts(m, "   ");
 		describe_obj(m, obj);
 		seq_putc(m, '\n');
 		total_obj_size += obj->base.size;
 		total_gtt_size += i915_gem_obj_total_ggtt_size(obj);
-		count++;
 	}
 
 	mutex_unlock(&dev->struct_mutex);
 
 	seq_printf(m, "Total %d objects, %llu bytes, %llu GTT size\n",
 		   count, total_obj_size, total_gtt_size);
+	kvfree(objects);
 
 	return 0;
 }

@@ -50,7 +50,7 @@ static int populate_ggtt(struct drm_i915_private *i915)
 
 	if (!list_empty(&i915->mm.unbound_list)) {
 		size = 0;
-		list_for_each_entry(obj, &i915->mm.unbound_list, global_link)
+		list_for_each_entry(obj, &i915->mm.unbound_list, mm.link)
 			size++;
 
 		pr_err("Found %lld objects unbound!\n", size);
@@ -77,10 +77,10 @@ static void cleanup_objects(struct drm_i915_private *i915)
 {
 	struct drm_i915_gem_object *obj, *on;
 
-	list_for_each_entry_safe(obj, on, &i915->mm.unbound_list, global_link)
+	list_for_each_entry_safe(obj, on, &i915->mm.unbound_list, mm.link)
 		i915_gem_object_put(obj);
 
-	list_for_each_entry_safe(obj, on, &i915->mm.bound_list, global_link)
+	list_for_each_entry_safe(obj, on, &i915->mm.bound_list, mm.link)
 		i915_gem_object_put(obj);
 
 	mutex_unlock(&i915->drm.struct_mutex);
@@ -151,8 +151,6 @@ static int igt_overcommit(void *arg)
 		err = PTR_ERR(obj);
 		goto cleanup;
 	}
-
-	list_move(&obj->global_link, &i915->mm.unbound_list);
 
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
 	if (!IS_ERR(vma) || PTR_ERR(vma) != -ENOSPC) {

@@ -1490,6 +1490,9 @@ struct i915_gem_mm {
 	 * always the inner lock when overlapping with struct_mutex. */
 	struct mutex stolen_lock;
 
+	/* Protects bound_list/unbound_list and #drm_i915_gem_object.mm.link */
+	spinlock_t obj_lock;
+
 	/** List of all objects in gtt_space. Used to restore gtt
 	 * mappings on resume */
 	struct list_head bound_list;
