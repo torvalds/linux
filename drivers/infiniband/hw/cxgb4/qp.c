@@ -1935,7 +1935,6 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 		qhp->ucontext = ucontext;
 	}
 	qhp->ibqp.qp_num = qhp->wq.sq.qid;
-	init_timer(&(qhp->timer));
 	INIT_LIST_HEAD(&qhp->db_fc_entry);
 	pr_debug("%s sq id %u size %u memsize %zu num_entries %u rq id %u size %u memsize %zu num_entries %u\n",
 		 __func__,
