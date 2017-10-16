@@ -25,10 +25,6 @@
 
 #include <linux/irqchip/irq-omap-intc.h>
 
-/* Define these here for now until we drop all board-files */
-#define OMAP24XX_IC_BASE	0x480fe000
-#define OMAP34XX_IC_BASE	0x48200000
-
 /* selected INTC register offsets */
 
 #define INTC_REVISION		0x0000
@@ -362,14 +358,6 @@ omap_intc_handle_irq(struct pt_regs *regs)
 
 	irqnr &= ACTIVEIRQ_MASK;
 	handle_domain_irq(domain, irqnr, regs);
-}
-
-void __init omap3_init_irq(void)
-{
-	omap_nr_irqs = 96;
-	omap_nr_pending = 3;
-	omap_init_irq(OMAP34XX_IC_BASE, NULL);
-	set_handle_irq(omap_intc_handle_irq);
 }
 
 static int __init intc_of_init(struct device_node *node,
