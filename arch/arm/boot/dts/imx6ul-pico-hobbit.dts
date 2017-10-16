@@ -175,7 +175,7 @@
 			reg = <1>;
 			max-speed = <100>;
 			interrupt-parent = <&gpio5>;
-			interrupts = <6 IRQ_TYPE_LEVEL_LOW 0>;
+			interrupts = <6 IRQ_TYPE_LEVEL_LOW>;
 		};
 	};
 };
