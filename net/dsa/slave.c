@@ -1123,7 +1123,7 @@ static void dsa_slave_notify(struct net_device *dev, unsigned long val)
 int dsa_slave_create(struct dsa_port *port, const char *name)
 {
 	struct dsa_port *cpu_dp = port->cpu_dp;
-	struct net_device *master = cpu_dp->netdev;
+	struct net_device *master = cpu_dp->master;
 	struct dsa_switch *ds = port->ds;
 	struct net_device *slave_dev;
 	struct dsa_slave_priv *p;
@@ -1170,7 +1170,7 @@ int dsa_slave_create(struct dsa_port *port, const char *name)
 	p->old_link = -1;
 	p->old_duplex = -1;
 
-	port->netdev = slave_dev;
+	port->slave = slave_dev;
 
 	netif_carrier_off(slave_dev);
 
@@ -1198,7 +1198,7 @@ out_phy:
 out_free:
 	free_percpu(p->stats64);
 	free_netdev(slave_dev);
-	port->netdev = NULL;
+	port->slave = NULL;
 	return ret;
 }
 

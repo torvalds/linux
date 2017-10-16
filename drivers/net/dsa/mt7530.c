@@ -933,7 +933,7 @@ mt7530_setup(struct dsa_switch *ds)
 	 * controller also is the container for two GMACs nodes representing
 	 * as two netdev instances.
 	 */
-	dn = ds->ports[MT7530_CPU_PORT].netdev->dev.of_node->parent;
+	dn = ds->ports[MT7530_CPU_PORT].master->dev.of_node->parent;
 	priv->ethernet = syscon_node_to_regmap(dn);
 	if (IS_ERR(priv->ethernet))
 		return PTR_ERR(priv->ethernet);

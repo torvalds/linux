@@ -130,7 +130,7 @@ static inline struct net_device *dsa_master_find_slave(struct net_device *dev,
 	if (port < 0 || port >= ds->num_ports)
 		return NULL;
 
-	return ds->ports[port].netdev;
+	return ds->ports[port].slave;
 }
 
 /* port.c */
@@ -181,7 +181,7 @@ dsa_slave_to_master(const struct net_device *dev)
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 
-	return dp->cpu_dp->netdev;
+	return dp->cpu_dp->master;
 }
 
 /* switch.c */
