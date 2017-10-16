@@ -305,35 +305,34 @@ struct bxt_ddi_buf_trans {
 	u8 scale;	/* scale value */
 	u8 enable;	/* scale enable */
 	u8 deemphasis;
-	bool default_index; /* true if the entry represents default value */
 };
 
 static const struct bxt_ddi_buf_trans bxt_ddi_translations_dp[] = {
 					/* Idx	NT mV diff	db  */
-	{ 52,  0x9A, 0, 128, true  },	/* 0:	400		0   */
-	{ 78,  0x9A, 0, 85,  false },	/* 1:	400		3.5 */
-	{ 104, 0x9A, 0, 64,  false },	/* 2:	400		6   */
-	{ 154, 0x9A, 0, 43,  false },	/* 3:	400		9.5 */
-	{ 77,  0x9A, 0, 128, false },	/* 4:	600		0   */
-	{ 116, 0x9A, 0, 85,  false },	/* 5:	600		3.5 */
-	{ 154, 0x9A, 0, 64,  false },	/* 6:	600		6   */
-	{ 102, 0x9A, 0, 128, false },	/* 7:	800		0   */
-	{ 154, 0x9A, 0, 85,  false },	/* 8:	800		3.5 */
-	{ 154, 0x9A, 1, 128, false },	/* 9:	1200		0   */
+	{ 52,  0x9A, 0, 128, },	/* 0:	400		0   */
+	{ 78,  0x9A, 0, 85,  },	/* 1:	400		3.5 */
+	{ 104, 0x9A, 0, 64,  },	/* 2:	400		6   */
+	{ 154, 0x9A, 0, 43,  },	/* 3:	400		9.5 */
+	{ 77,  0x9A, 0, 128, },	/* 4:	600		0   */
+	{ 116, 0x9A, 0, 85,  },	/* 5:	600		3.5 */
+	{ 154, 0x9A, 0, 64,  },	/* 6:	600		6   */
+	{ 102, 0x9A, 0, 128, },	/* 7:	800		0   */
+	{ 154, 0x9A, 0, 85,  },	/* 8:	800		3.5 */
+	{ 154, 0x9A, 1, 128, },	/* 9:	1200		0   */
 };
 
 static const struct bxt_ddi_buf_trans bxt_ddi_translations_edp[] = {
 					/* Idx	NT mV diff	db  */
-	{ 26, 0, 0, 128, false },	/* 0:	200		0   */
-	{ 38, 0, 0, 112, false },	/* 1:	200		1.5 */
-	{ 48, 0, 0, 96,  false },	/* 2:	200		4   */
-	{ 54, 0, 0, 69,  false },	/* 3:	200		6   */
-	{ 32, 0, 0, 128, false },	/* 4:	250		0   */
-	{ 48, 0, 0, 104, false },	/* 5:	250		1.5 */
-	{ 54, 0, 0, 85,  false },	/* 6:	250		4   */
-	{ 43, 0, 0, 128, false },	/* 7:	300		0   */
-	{ 54, 0, 0, 101, false },	/* 8:	300		1.5 */
-	{ 48, 0, 0, 128, false },	/* 9:	300		0   */
+	{ 26, 0, 0, 128, },	/* 0:	200		0   */
+	{ 38, 0, 0, 112, },	/* 1:	200		1.5 */
+	{ 48, 0, 0, 96,  },	/* 2:	200		4   */
+	{ 54, 0, 0, 69,  },	/* 3:	200		6   */
+	{ 32, 0, 0, 128, },	/* 4:	250		0   */
+	{ 48, 0, 0, 104, },	/* 5:	250		1.5 */
+	{ 54, 0, 0, 85,  },	/* 6:	250		4   */
+	{ 43, 0, 0, 128, },	/* 7:	300		0   */
+	{ 54, 0, 0, 101, },	/* 8:	300		1.5 */
+	{ 48, 0, 0, 128, },	/* 9:	300		0   */
 };
 
 /* BSpec has 2 recommended values - entries 0 and 8.
@@ -341,16 +340,16 @@ static const struct bxt_ddi_buf_trans bxt_ddi_translations_edp[] = {
  */
 static const struct bxt_ddi_buf_trans bxt_ddi_translations_hdmi[] = {
 					/* Idx	NT mV diff	db  */
-	{ 52,  0x9A, 0, 128, false },	/* 0:	400		0   */
-	{ 52,  0x9A, 0, 85,  false },	/* 1:	400		3.5 */
-	{ 52,  0x9A, 0, 64,  false },	/* 2:	400		6   */
-	{ 42,  0x9A, 0, 43,  false },	/* 3:	400		9.5 */
-	{ 77,  0x9A, 0, 128, false },	/* 4:	600		0   */
-	{ 77,  0x9A, 0, 85,  false },	/* 5:	600		3.5 */
-	{ 77,  0x9A, 0, 64,  false },	/* 6:	600		6   */
-	{ 102, 0x9A, 0, 128, false },	/* 7:	800		0   */
-	{ 102, 0x9A, 0, 85,  false },	/* 8:	800		3.5 */
-	{ 154, 0x9A, 1, 128, true },	/* 9:	1200		0   */
+	{ 52,  0x9A, 0, 128, },	/* 0:	400		0   */
+	{ 52,  0x9A, 0, 85,  },	/* 1:	400		3.5 */
+	{ 52,  0x9A, 0, 64,  },	/* 2:	400		6   */
+	{ 42,  0x9A, 0, 43,  },	/* 3:	400		9.5 */
+	{ 77,  0x9A, 0, 128, },	/* 4:	600		0   */
+	{ 77,  0x9A, 0, 85,  },	/* 5:	600		3.5 */
+	{ 77,  0x9A, 0, 64,  },	/* 6:	600		6   */
+	{ 102, 0x9A, 0, 128, },	/* 7:	800		0   */
+	{ 102, 0x9A, 0, 85,  },	/* 8:	800		3.5 */
+	{ 154, 0x9A, 1, 128, },	/* 9:	1200		0   */
 };
 
 struct cnl_ddi_buf_trans {
@@ -759,11 +758,11 @@ static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port por
 
 	hdmi_level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
 
-	if (IS_GEN9_LP(dev_priv))
-		return hdmi_level;
-
 	if (IS_CANNONLAKE(dev_priv)) {
 		cnl_get_buf_trans_hdmi(dev_priv, &n_hdmi_entries);
+		hdmi_default_entry = n_hdmi_entries - 1;
+	} else if (IS_GEN9_LP(dev_priv)) {
+		bxt_get_buf_trans_hdmi(dev_priv, &n_hdmi_entries);
 		hdmi_default_entry = n_hdmi_entries - 1;
 	} else if (IS_GEN9_BC(dev_priv)) {
 		intel_ddi_get_buf_trans_hdmi(dev_priv, &n_hdmi_entries);
@@ -1862,7 +1861,7 @@ static void bxt_ddi_vswing_sequence(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	const struct bxt_ddi_buf_trans *ddi_translations;
 	enum port port = encoder->port;
-	int n_entries, i;
+	int n_entries;
 
 	if (type == INTEL_OUTPUT_HDMI)
 		ddi_translations = bxt_get_buf_trans_hdmi(dev_priv, &n_entries);
@@ -1870,17 +1869,6 @@ static void bxt_ddi_vswing_sequence(struct intel_encoder *encoder,
 		ddi_translations = bxt_get_buf_trans_edp(dev_priv, &n_entries);
 	else
 		ddi_translations = bxt_get_buf_trans_dp(dev_priv, &n_entries);
-
-	/* Check if default value has to be used */
-	if (level >= n_entries ||
-	    (type == INTEL_OUTPUT_HDMI && level == HDMI_LEVEL_SHIFT_UNKNOWN)) {
-		for (i = 0; i < n_entries; i++) {
-			if (ddi_translations[i].default_index) {
-				level = i;
-				break;
-			}
-		}
-	}
 
 	bxt_ddi_phy_set_signal_level(dev_priv, port,
 				     ddi_translations[level].margin,
