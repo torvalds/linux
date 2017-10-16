@@ -2695,7 +2695,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	net_dev = alloc_etherdev_mq(sizeof(*priv), DPAA_ETH_TXQ_NUM);
 	if (!net_dev) {
 		dev_err(dev, "alloc_etherdev_mq() failed\n");
-		goto alloc_etherdev_mq_failed;
+		return -ENOMEM;
 	}
 
 	/* Do this here, so we can be verbose early */
@@ -2711,7 +2711,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	if (IS_ERR(mac_dev)) {
 		dev_err(dev, "dpaa_mac_dev_get() failed\n");
 		err = PTR_ERR(mac_dev);
-		goto mac_probe_failed;
+		goto free_netdev;
 	}
 
 	/* If fsl_fm_max_frm is set to a higher value than the all-common 1500,
@@ -2735,7 +2735,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 
 		dpaa_bps[i] = dpaa_bp_alloc(dev);
 		if (IS_ERR(dpaa_bps[i]))
-			return PTR_ERR(dpaa_bps[i]);
+			goto free_dpaa_bps;
 		/* the raw size of the buffers used for reception */
 		dpaa_bps[i]->raw_size = bpool_buffer_raw_size(i, DPAA_BPS_NUM);
 		/* avoid runtime computations by keeping the usable size here */
@@ -2743,11 +2743,8 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 		dpaa_bps[i]->dev = dev;
 
 		err = dpaa_bp_alloc_pool(dpaa_bps[i]);
-		if (err < 0) {
-			dpaa_bps_free(priv);
-			priv->dpaa_bps[i] = NULL;
-			goto bp_create_failed;
-		}
+		if (err < 0)
+			goto free_dpaa_bps;
 		priv->dpaa_bps[i] = dpaa_bps[i];
 	}
 
@@ -2758,7 +2755,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	err = dpaa_alloc_all_fqs(dev, &priv->dpaa_fq_list, &port_fqs);
 	if (err < 0) {
 		dev_err(dev, "dpaa_alloc_all_fqs() failed\n");
-		goto fq_probe_failed;
+		goto free_dpaa_bps;
 	}
 
 	priv->mac_dev = mac_dev;
@@ -2767,7 +2764,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	if (channel < 0) {
 		dev_err(dev, "dpaa_get_channel() failed\n");
 		err = channel;
-		goto get_channel_failed;
+		goto free_dpaa_bps;
 	}
 
 	priv->channel = (u16)channel;
@@ -2787,20 +2784,20 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	err = dpaa_eth_cgr_init(priv);
 	if (err < 0) {
 		dev_err(dev, "Error initializing CGR\n");
-		goto tx_cgr_init_failed;
+		goto free_dpaa_bps;
 	}
 
 	err = dpaa_ingress_cgr_init(priv);
 	if (err < 0) {
 		dev_err(dev, "Error initializing ingress CGR\n");
-		goto rx_cgr_init_failed;
+		goto delete_egress_cgr;
 	}
 
 	/* Add the FQs to the interface, and make them active */
 	list_for_each_entry_safe(dpaa_fq, tmp, &priv->dpaa_fq_list, list) {
 		err = dpaa_fq_init(dpaa_fq, false);
 		if (err < 0)
-			goto fq_alloc_failed;
+			goto free_dpaa_fqs;
 	}
 
 	priv->tx_headroom = dpaa_get_headroom(&priv->buf_layout[TX]);
@@ -2810,7 +2807,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	err = dpaa_eth_init_ports(mac_dev, dpaa_bps, DPAA_BPS_NUM, &port_fqs,
 				  &priv->buf_layout[0], dev);
 	if (err)
-		goto init_ports_failed;
+		goto free_dpaa_fqs;
 
 	/* Rx traffic distribution based on keygen hashing defaults to on */
 	priv->keygen_in_use = true;
@@ -2819,7 +2816,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	if (!priv->percpu_priv) {
 		dev_err(dev, "devm_alloc_percpu() failed\n");
 		err = -ENOMEM;
-		goto alloc_percpu_failed;
+		goto free_dpaa_fqs;
 	}
 	for_each_possible_cpu(i) {
 		percpu_priv = per_cpu_ptr(priv->percpu_priv, i);
@@ -2832,11 +2829,11 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	/* Initialize NAPI */
 	err = dpaa_napi_add(net_dev);
 	if (err < 0)
-		goto napi_add_failed;
+		goto delete_dpaa_napi;
 
 	err = dpaa_netdev_init(net_dev, &dpaa_ops, tx_timeout);
 	if (err < 0)
-		goto netdev_init_failed;
+		goto delete_dpaa_napi;
 
 	dpaa_eth_sysfs_init(&net_dev->dev);
 
@@ -2845,31 +2842,21 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 
 	return 0;
 
-netdev_init_failed:
-napi_add_failed:
+delete_dpaa_napi:
 	dpaa_napi_del(net_dev);
-alloc_percpu_failed:
-init_ports_failed:
+free_dpaa_fqs:
 	dpaa_fq_free(dev, &priv->dpaa_fq_list);
-fq_alloc_failed:
 	qman_delete_cgr_safe(&priv->ingress_cgr);
 	qman_release_cgrid(priv->ingress_cgr.cgrid);
-rx_cgr_init_failed:
+delete_egress_cgr:
 	qman_delete_cgr_safe(&priv->cgr_data.cgr);
 	qman_release_cgrid(priv->cgr_data.cgr.cgrid);
-tx_cgr_init_failed:
-get_channel_failed:
+free_dpaa_bps:
 	dpaa_bps_free(priv);
-bp_create_failed:
-fq_probe_failed:
-mac_probe_failed:
+free_netdev:
 	dev_set_drvdata(dev, NULL);
 	free_netdev(net_dev);
-alloc_etherdev_mq_failed:
-	for (i = 0; i < DPAA_BPS_NUM && dpaa_bps[i]; i++) {
-		if (atomic_read(&dpaa_bps[i]->refs) == 0)
-			devm_kfree(dev, dpaa_bps[i]);
-	}
+
 	return err;
 }
 
