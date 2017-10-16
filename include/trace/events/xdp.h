@@ -136,12 +136,18 @@ DEFINE_EVENT_PRINT(xdp_redirect_template, xdp_redirect_map_err,
 		  __entry->map_id, __entry->map_index)
 );
 
+#define devmap_ifindex(fwd, map)				\
+	(!fwd ? 0 :						\
+	 (!map ? 0 :						\
+	  ((map->map_type == BPF_MAP_TYPE_DEVMAP) ?		\
+	   ((struct net_device *)fwd)->ifindex : 0)))
+
 #define _trace_xdp_redirect_map(dev, xdp, fwd, map, idx)		\
-	 trace_xdp_redirect_map(dev, xdp, fwd ? fwd->ifindex : 0,	\
+	 trace_xdp_redirect_map(dev, xdp, devmap_ifindex(fwd, map),	\
 				0, map, idx)
 
 #define _trace_xdp_redirect_map_err(dev, xdp, fwd, map, idx, err)	\
-	 trace_xdp_redirect_map_err(dev, xdp, fwd ? fwd->ifindex : 0,	\
+	 trace_xdp_redirect_map_err(dev, xdp, devmap_ifindex(fwd, map),	\
 				    err, map, idx)
 
 #endif /* _TRACE_XDP_H */

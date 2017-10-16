@@ -500,7 +500,7 @@ struct xdp_pkt {
 /* Runs under RCU-read-side, plus in softirq under NAPI protection.
  * Thus, safe percpu variable access.
  */
-int bq_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_pkt *xdp_pkt)
+static int bq_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_pkt *xdp_pkt)
 {
 	struct xdp_bulk_queue *bq = this_cpu_ptr(rcpu->bulkq);
 
@@ -517,6 +517,26 @@ int bq_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_pkt *xdp_pkt)
 	 * operation, when completing napi->poll call.
 	 */
 	bq->q[bq->count++] = xdp_pkt;
+	return 0;
+}
+
+int cpu_map_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_buff *xdp,
+		    struct net_device *dev_rx)
+{
+	struct xdp_pkt *xdp_pkt;
+	int headroom;
+
+	/* For now this is just used as a void pointer to data_hard_start.
+	 * Followup patch will generalize this.
+	 */
+	xdp_pkt = xdp->data_hard_start;
+
+	/* Fake writing into xdp_pkt->data to measure overhead */
+	headroom = xdp->data - xdp->data_hard_start;
+	if (headroom < sizeof(*xdp_pkt))
+		xdp_pkt->data = xdp->data;
+
+	bq_enqueue(rcpu, xdp_pkt);
 	return 0;
 }
 
