@@ -250,12 +250,14 @@ err_submission:
 err_guc:
 	i915_ggtt_disable_guc(dev_priv);
 
-	DRM_ERROR("GuC init failed\n");
 	if (i915_modparams.enable_guc_loading > 1 ||
-	    i915_modparams.enable_guc_submission > 1)
+	    i915_modparams.enable_guc_submission > 1) {
+		DRM_ERROR("GuC init failed. Firmware loading disabled.\n");
 		ret = -EIO;
-	else
+	} else {
+		DRM_NOTE("GuC init failed. Firmware loading disabled.\n");
 		ret = 0;
+	}
 
 	if (i915_modparams.enable_guc_submission) {
 		i915_modparams.enable_guc_submission = 0;
@@ -263,7 +265,6 @@ err_guc:
 	}
 
 	i915_modparams.enable_guc_loading = 0;
-	DRM_NOTE("GuC firmware loading disabled\n");
 
 	return ret;
 }
