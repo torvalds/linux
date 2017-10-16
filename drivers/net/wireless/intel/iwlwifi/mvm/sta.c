@@ -644,8 +644,7 @@ int iwl_mvm_scd_queue_redirect(struct iwl_mvm *mvm, int queue, int tid,
 
 	/* Redirect to lower AC */
 	iwl_mvm_reconfig_scd(mvm, queue, iwl_mvm_ac_to_tx_fifo[ac],
-			     cmd.sta_id, tid, LINK_QUAL_AGG_FRAME_LIMIT_DEF,
-			     ssn);
+			     cmd.sta_id, tid, IWL_FRAME_LIMIT, ssn);
 
 	/* Update AC marking of the queue */
 	spin_lock_bh(&mvm->queue_info_lock);
@@ -2544,12 +2543,6 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	BUILD_BUG_ON((sizeof(mvmsta->agg_tids) * BITS_PER_BYTE)
 		     != IWL_MAX_TID_COUNT);
 
-	if (!mvm->trans->cfg->gen2)
-		buf_size = min_t(int, buf_size, LINK_QUAL_AGG_FRAME_LIMIT_DEF);
-	else
-		buf_size = min_t(int, buf_size,
-				 LINK_QUAL_AGG_FRAME_LIMIT_GEN2_DEF);
-
 	spin_lock_bh(&mvmsta->lock);
 	ssn = tid_data->ssn;
 	queue = tid_data->txq_id;
@@ -2561,10 +2554,17 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	if (iwl_mvm_has_new_tx_api(mvm)) {
 		/*
-		 * If no queue iwl_mvm_sta_tx_agg_start() would have failed so
-		 * no need to check queue's status
+		 * If there is no queue for this tid, iwl_mvm_sta_tx_agg_start()
+		 * would have failed, so if we are here there is no need to
+		 * allocate a queue.
+		 * However, if aggregation size is different than the default
+		 * size, the scheduler should be reconfigured.
+		 * We cannot do this with the new TX API, so return unsupported
+		 * for now, until it will be offloaded to firmware..
+		 * Note that if SCD default value changes - this condition
+		 * should be updated as well.
 		 */
-		if (buf_size < mvmsta->max_agg_bufsize)
+		if (buf_size < IWL_FRAME_LIMIT)
 			return -ENOTSUPP;
 
 		ret = iwl_mvm_sta_tx_agg(mvm, sta, tid, queue, true);
@@ -2587,7 +2587,7 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * Only reconfig the SCD for the queue if the window size has
 	 * changed from current (become smaller)
 	 */
-	if (!alloc_queue && buf_size < mvmsta->max_agg_bufsize) {
+	if (!alloc_queue && buf_size < IWL_FRAME_LIMIT) {
 		/*
 		 * If reconfiguring an existing queue, it first must be
 		 * drained
