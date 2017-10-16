@@ -1052,6 +1052,7 @@ static bool tipc_data_input(struct tipc_link *l, struct sk_buff *skb,
 			return true;
 		}
 	case CONN_MANAGER:
+		skb_queue_tail(inputq, skb);
 		return true;
 	case GROUP_PROTOCOL:
 		skb_queue_tail(mc_inputq, skb);
