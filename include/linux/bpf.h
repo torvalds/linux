@@ -188,7 +188,6 @@ struct bpf_prog_aux {
 	struct latch_tree_node ksym_tnode;
 	struct list_head ksym_lnode;
 	const struct bpf_prog_ops *ops;
-	const struct bpf_verifier_ops *vops;
 	struct bpf_map **used_maps;
 	struct bpf_prog *prog;
 	struct user_struct *user;
