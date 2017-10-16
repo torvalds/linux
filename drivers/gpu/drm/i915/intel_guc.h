@@ -26,6 +26,7 @@
 #define _INTEL_GUC_H_
 
 #include "intel_uncore.h"
+#include "intel_guc_fw.h"
 #include "intel_guc_fwif.h"
 #include "intel_guc_ct.h"
 #include "intel_guc_log.h"
@@ -114,9 +115,6 @@ int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset);
 int intel_guc_suspend(struct drm_i915_private *dev_priv);
 int intel_guc_resume(struct drm_i915_private *dev_priv);
 struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size);
-
-int intel_guc_select_fw(struct intel_guc *guc);
-int intel_guc_init_hw(struct intel_guc *guc);
 u32 intel_guc_wopcm_size(struct drm_i915_private *dev_priv);
 
 #endif

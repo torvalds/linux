@@ -26,8 +26,9 @@
  *    Dave Gordon <david.s.gordon@intel.com>
  *    Alex Dai <yu.dai@intel.com>
  */
+
+#include "intel_guc_fw.h"
 #include "i915_drv.h"
-#include "intel_uc.h"
 
 #define SKL_FW_MAJOR 6
 #define SKL_FW_MINOR 1
@@ -54,7 +55,6 @@ MODULE_FIRMWARE(I915_BXT_GUC_UCODE);
 MODULE_FIRMWARE(I915_KBL_GUC_UCODE);
 
 #define I915_GLK_GUC_UCODE GUC_FW_PATH(glk, GLK_FW_MAJOR, GLK_FW_MINOR)
-
 
 /*
  * Read the GuC status register (GUC_STATUS) and store it in the
@@ -209,7 +209,7 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_guc_init_hw() - finish preparing the GuC for activity
+ * intel_guc_fw_upload() - finish preparing the GuC for activity
  * @guc: intel_guc structure
  *
  * Called during driver loading and also after a GPU reset.
@@ -221,7 +221,7 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
  *
  * Return:	non-zero code on error
  */
-int intel_guc_init_hw(struct intel_guc *guc)
+int intel_guc_fw_upload(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	const char *fw_path = guc->fw.path;
@@ -258,12 +258,12 @@ int intel_guc_init_hw(struct intel_guc *guc)
 }
 
 /**
- * intel_guc_select_fw() - selects GuC firmware for loading
+ * intel_guc_fw_select() - selects GuC firmware for loading
  * @guc:	intel_guc struct
  *
  * Return: zero when we know firmware, non-zero in other case
  */
-int intel_guc_select_fw(struct intel_guc *guc)
+int intel_guc_fw_select(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
