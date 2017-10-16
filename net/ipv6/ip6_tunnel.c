@@ -593,6 +593,7 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	case NDISC_REDIRECT:
 		rel_type = ICMP_REDIRECT;
 		rel_code = ICMP_REDIR_HOST;
+		/* fall through */
 	default:
 		return 0;
 	}
