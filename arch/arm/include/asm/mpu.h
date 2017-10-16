@@ -15,6 +15,11 @@
 /* MPU D/I Size Register fields */
 #define MPU_RSR_SZ		1
 #define MPU_RSR_EN		0
+#define MPU_RSR_SD		8
+
+/* Number of subregions (SD) */
+#define MPU_NR_SUBREGS		8
+#define MPU_MIN_SUBREG_SIZE	256
 
 /* The D/I RSR value for an enabled region spanning the whole of memory */
 #define MPU_RSR_ALL_MEM		63
