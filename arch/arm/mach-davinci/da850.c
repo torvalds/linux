@@ -1347,7 +1347,7 @@ int __init da850_register_gpio(void)
 	return da8xx_register_gpio(&da850_gpio_platform_data);
 }
 
-static struct davinci_soc_info davinci_soc_info_da850 = {
+static const struct davinci_soc_info davinci_soc_info_da850 = {
 	.io_desc		= da850_io_desc,
 	.io_desc_num		= ARRAY_SIZE(da850_io_desc),
 	.jtag_id_reg		= DA8XX_SYSCFG0_BASE + DA8XX_JTAG_ID_REG,

@@ -1108,7 +1108,7 @@ struct platform_device dm365_serial_device[] = {
 	}
 };
 
-static struct davinci_soc_info davinci_soc_info_dm365 = {
+static const struct davinci_soc_info davinci_soc_info_dm365 = {
 	.io_desc		= dm365_io_desc,
 	.io_desc_num		= ARRAY_SIZE(dm365_io_desc),
 	.jtag_id_reg		= 0x01c40028,
