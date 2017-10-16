@@ -399,9 +399,9 @@ static void send_trap(struct hfi1_ibport *ibp, struct trap_node *trap)
 		ib_free_send_mad(send_buf);
 }
 
-void hfi1_handle_trap_timer(unsigned long data)
+void hfi1_handle_trap_timer(struct timer_list *t)
 {
-	struct hfi1_ibport *ibp = (struct hfi1_ibport *)data;
+	struct hfi1_ibport *ibp = from_timer(ibp, t, rvp.trap_timer);
 	struct trap_node *trap = NULL;
 	unsigned long flags;
 	int i;
