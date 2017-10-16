@@ -64,15 +64,12 @@ void dsa_slave_mii_bus_init(struct dsa_switch *ds)
 /* slave device handling ****************************************************/
 static int dsa_slave_get_iflink(const struct net_device *dev)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
-
-	return dsa_master_netdev(p)->ifindex;
+	return dsa_slave_to_master(dev)->ifindex;
 }
 
 static int dsa_slave_open(struct net_device *dev)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct net_device *master = dsa_master_netdev(p);
+	struct net_device *master = dsa_slave_to_master(dev);
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	int err;
 
@@ -120,8 +117,7 @@ out:
 
 static int dsa_slave_close(struct net_device *dev)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct net_device *master = dsa_master_netdev(p);
+	struct net_device *master = dsa_slave_to_master(dev);
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 
 	if (dev->phydev)
@@ -144,8 +140,7 @@ static int dsa_slave_close(struct net_device *dev)
 
 static void dsa_slave_change_rx_flags(struct net_device *dev, int change)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct net_device *master = dsa_master_netdev(p);
+	struct net_device *master = dsa_slave_to_master(dev);
 
 	if (change & IFF_ALLMULTI)
 		dev_set_allmulti(master, dev->flags & IFF_ALLMULTI ? 1 : -1);
@@ -155,8 +150,7 @@ static void dsa_slave_change_rx_flags(struct net_device *dev, int change)
 
 static void dsa_slave_set_rx_mode(struct net_device *dev)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct net_device *master = dsa_master_netdev(p);
+	struct net_device *master = dsa_slave_to_master(dev);
 
 	dev_mc_sync(master, dev);
 	dev_uc_sync(master, dev);
@@ -164,8 +158,7 @@ static void dsa_slave_set_rx_mode(struct net_device *dev)
 
 static int dsa_slave_set_mac_address(struct net_device *dev, void *a)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct net_device *master = dsa_master_netdev(p);
+	struct net_device *master = dsa_slave_to_master(dev);
 	struct sockaddr *addr = a;
 	int err;
 
@@ -409,7 +402,7 @@ static netdev_tx_t dsa_slave_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Queue the SKB for transmission on the parent interface, but
 	 * do not modify its EtherType
 	 */
-	nskb->dev = dsa_master_netdev(p);
+	nskb->dev = dsa_slave_to_master(dev);
 	dev_queue_xmit(nskb);
 
 	return NETDEV_TX_OK;
@@ -632,8 +625,8 @@ static int dsa_slave_get_eee(struct net_device *dev, struct ethtool_eee *e)
 static int dsa_slave_netpoll_setup(struct net_device *dev,
 				   struct netpoll_info *ni)
 {
+	struct net_device *master = dsa_slave_to_master(dev);
 	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct net_device *master = dsa_master_netdev(p);
 	struct netpoll *netpoll;
 	int err = 0;
 
@@ -1115,8 +1108,7 @@ int dsa_slave_resume(struct net_device *slave_dev)
 
 static void dsa_slave_notify(struct net_device *dev, unsigned long val)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct net_device *master = dsa_master_netdev(p);
+	struct net_device *master = dsa_slave_to_master(dev);
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	struct dsa_notifier_register_info rinfo = {
 		.switch_number = dp->ds->index,

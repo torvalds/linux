@@ -176,6 +176,14 @@ static inline struct dsa_port *dsa_slave_to_port(const struct net_device *dev)
 	return p->dp;
 }
 
+static inline struct net_device *
+dsa_slave_to_master(const struct net_device *dev)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+
+	return dp->cpu_dp->netdev;
+}
+
 /* switch.c */
 int dsa_switch_register_notifier(struct dsa_switch *ds);
 void dsa_switch_unregister_notifier(struct dsa_switch *ds);
@@ -203,10 +211,5 @@ extern const struct dsa_device_ops qca_netdev_ops;
 
 /* tag_trailer.c */
 extern const struct dsa_device_ops trailer_netdev_ops;
-
-static inline struct net_device *dsa_master_netdev(struct dsa_slave_priv *p)
-{
-	return p->dp->cpu_dp->netdev;
-}
 
 #endif
