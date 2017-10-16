@@ -630,6 +630,7 @@ struct ap_queue *ap_queue_create(ap_qid_t qid, int device_type)
 	aq->state = AP_STATE_RESET_START;
 	aq->interrupt = AP_INTR_DISABLED;
 	spin_lock_init(&aq->lock);
+	INIT_LIST_HEAD(&aq->list);
 	INIT_LIST_HEAD(&aq->pendingq);
 	INIT_LIST_HEAD(&aq->requestq);
 	setup_timer(&aq->timeout, ap_request_timeout, (unsigned long) aq);

@@ -116,6 +116,49 @@ static inline int ap_qci(void *config)
 	return reg1;
 }
 
+/*
+ * struct ap_qact_ap_info - used together with the
+ * ap_aqic() function to provide a convenient way
+ * to handle the ap info needed by the qact function.
+ */
+struct ap_qact_ap_info {
+	unsigned int _res1   : 3;
+	unsigned int mode    : 3;
+	unsigned int _res2   : 26;
+	unsigned int cat     : 8;
+	unsigned int _res3   : 8;
+	unsigned char ver[2];
+};
+
+/**
+ * ap_qact(): Query AP combatibility type.
+ * @qid: The AP queue number
+ * @apinfo: On input the info about the AP queue (content of GR1
+ *	    according to the AR). On output the alternate AP queue
+ *	    info provided by the qact function in GR2 is stored in.
+ *
+ * Returns AP queue status. Check response_code field for failures.
+ */
+static inline struct ap_queue_status ap_qact(ap_qid_t qid, int ifbit,
+					     struct ap_qact_ap_info *apinfo)
+{
+	register unsigned long reg0 asm ("0") = qid | (5UL << 24)
+		| ((ifbit & 0x01) << 22);
+	register struct ap_qact_ap_info reg1_in asm ("1") = *apinfo;
+	register struct ap_queue_status reg1_out asm ("1");
+	register unsigned long reg2_in asm ("2") = 0;
+	register struct ap_qact_ap_info reg2_out asm ("2");
+
+	asm volatile(
+		".long 0xb2af0000"		/* PQAP(QACT) */
+		: "+d" (reg0), "+d" (reg1_in), "=d" (reg1_out),
+		  "+d" (reg2_in), "=d" (reg2_out)
+		:
+		: "cc");
+	*apinfo = reg2_out;
+	return reg1_out;
+}
+
 /**
  * ap_nqap(): Send message to adjunct processor queue.
  * @qid: The AP queue number
