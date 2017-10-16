@@ -947,14 +947,11 @@ void xhci_hc_died(struct xhci_hcd *xhci)
  * Instead we use a combination of that flag and checking if a new timer is
  * pending.
  */
-void xhci_stop_endpoint_command_watchdog(unsigned long arg)
+void xhci_stop_endpoint_command_watchdog(struct timer_list *t)
 {
-	struct xhci_hcd *xhci;
-	struct xhci_virt_ep *ep;
+	struct xhci_virt_ep *ep = from_timer(ep, t, stop_cmd_timer);
+	struct xhci_hcd *xhci = ep->xhci;
 	unsigned long flags;
-
-	ep = (struct xhci_virt_ep *) arg;
-	xhci = ep->xhci;
 
 	spin_lock_irqsave(&xhci->lock, flags);
 
