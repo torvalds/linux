@@ -380,7 +380,7 @@ static void rga_cmd_set_mode(struct rga_ctx *ctx)
 	dest[(RGA_MODE_CTRL - RGA_MODE_BASE_REG) >> 2] = mode.val;
 }
 
-void rga_cmd_set(struct rga_ctx *ctx)
+static void rga_cmd_set(struct rga_ctx *ctx)
 {
 	struct rockchip_rga *rga = ctx->rga;
 

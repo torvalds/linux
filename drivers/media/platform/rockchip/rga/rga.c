@@ -356,7 +356,7 @@ struct rga_fmt formats[] = {
 
 #define NUM_FORMATS ARRAY_SIZE(formats)
 
-struct rga_fmt *rga_fmt_find(struct v4l2_format *f)
+static struct rga_fmt *rga_fmt_find(struct v4l2_format *f)
 {
 	unsigned int i;
 
