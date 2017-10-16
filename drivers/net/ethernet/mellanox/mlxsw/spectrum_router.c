@@ -1002,9 +1002,8 @@ err_ol_ipip_lb_create:
 }
 
 static void
-mlxsw_sp_ipip_entry_destroy(struct mlxsw_sp_ipip_entry *ipip_entry)
+mlxsw_sp_ipip_entry_dealloc(struct mlxsw_sp_ipip_entry *ipip_entry)
 {
-	WARN_ON(ipip_entry->ref_count > 0);
 	mlxsw_sp_rif_destroy(&ipip_entry->ol_lb->common);
 	kfree(ipip_entry);
 }
@@ -1200,9 +1199,9 @@ mlxsw_sp_ipip_entry_find_decap(struct mlxsw_sp *mlxsw_sp,
 }
 
 static struct mlxsw_sp_ipip_entry *
-mlxsw_sp_ipip_entry_get(struct mlxsw_sp *mlxsw_sp,
-			enum mlxsw_sp_ipip_type ipipt,
-			struct net_device *ol_dev)
+mlxsw_sp_ipip_entry_create(struct mlxsw_sp *mlxsw_sp,
+			   enum mlxsw_sp_ipip_type ipipt,
+			   struct net_device *ol_dev)
 {
 	u32 ul_tb_id = mlxsw_sp_ipip_dev_ul_tb_id(ol_dev);
 	struct mlxsw_sp_router *router = mlxsw_sp->router;
@@ -1210,15 +1209,12 @@ mlxsw_sp_ipip_entry_get(struct mlxsw_sp *mlxsw_sp,
 	enum mlxsw_sp_l3proto ul_proto;
 	union mlxsw_sp_l3addr saddr;
 
+	/* The configuration where several tunnels have the same local address
+	 * in the same underlay table needs special treatment in the HW. That is
+	 * currently not implemented in the driver.
+	 */
 	list_for_each_entry(ipip_entry, &mlxsw_sp->router->ipip_list,
 			    ipip_list_node) {
-		if (ipip_entry->ol_dev == ol_dev)
-			goto inc_ref_count;
-
-		/* The configuration where several tunnels have the same local
-		 * address in the same underlay table needs special treatment in
-		 * the HW. That is currently not implemented in the driver.
-		 */
 		ul_proto = router->ipip_ops_arr[ipip_entry->ipipt]->ul_proto;
 		saddr = mlxsw_sp_ipip_netdev_saddr(ul_proto, ol_dev);
 		if (mlxsw_sp_ipip_entry_saddr_matches(mlxsw_sp, ul_proto, saddr,
@@ -1233,19 +1229,15 @@ mlxsw_sp_ipip_entry_get(struct mlxsw_sp *mlxsw_sp,
 	list_add_tail(&ipip_entry->ipip_list_node,
 		      &mlxsw_sp->router->ipip_list);
 
-inc_ref_count:
-	++ipip_entry->ref_count;
 	return ipip_entry;
 }
 
 static void
-mlxsw_sp_ipip_entry_put(struct mlxsw_sp *mlxsw_sp,
-			struct mlxsw_sp_ipip_entry *ipip_entry)
+mlxsw_sp_ipip_entry_destroy(struct mlxsw_sp *mlxsw_sp,
+			    struct mlxsw_sp_ipip_entry *ipip_entry)
 {
-	if (--ipip_entry->ref_count == 0) {
-		list_del(&ipip_entry->ipip_list_node);
-		mlxsw_sp_ipip_entry_destroy(ipip_entry);
-	}
+	list_del(&ipip_entry->ipip_list_node);
+	mlxsw_sp_ipip_entry_dealloc(ipip_entry);
 }
 
 static bool
@@ -1338,7 +1330,8 @@ static int mlxsw_sp_netdevice_ipip_reg_event(struct mlxsw_sp *mlxsw_sp,
 						     MLXSW_SP_L3_PROTO_IPV4) ||
 	    router->ipip_ops_arr[ipipt]->can_offload(mlxsw_sp, ol_dev,
 						     MLXSW_SP_L3_PROTO_IPV6)) {
-		ipip_entry = mlxsw_sp_ipip_entry_get(mlxsw_sp, ipipt, ol_dev);
+		ipip_entry = mlxsw_sp_ipip_entry_create(mlxsw_sp, ipipt,
+							ol_dev);
 		if (IS_ERR(ipip_entry))
 			return PTR_ERR(ipip_entry);
 	}
@@ -1353,7 +1346,7 @@ static void mlxsw_sp_netdevice_ipip_unreg_event(struct mlxsw_sp *mlxsw_sp,
 
 	ipip_entry = mlxsw_sp_ipip_entry_find_by_ol_dev(mlxsw_sp, ol_dev);
 	if (ipip_entry)
-		mlxsw_sp_ipip_entry_put(mlxsw_sp, ipip_entry);
+		mlxsw_sp_ipip_entry_destroy(mlxsw_sp, ipip_entry);
 }
 
 static int mlxsw_sp_netdevice_ipip_up_event(struct mlxsw_sp *mlxsw_sp,
@@ -2939,16 +2932,15 @@ static void mlxsw_sp_nexthop_neigh_fini(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int mlxsw_sp_nexthop_ipip_init(struct mlxsw_sp *mlxsw_sp,
-				      enum mlxsw_sp_ipip_type ipipt,
 				      struct mlxsw_sp_nexthop *nh,
 				      struct net_device *ol_dev)
 {
 	if (!nh->nh_grp->gateway || nh->ipip_entry)
 		return 0;
 
-	nh->ipip_entry = mlxsw_sp_ipip_entry_get(mlxsw_sp, ipipt, ol_dev);
-	if (IS_ERR(nh->ipip_entry))
-		return PTR_ERR(nh->ipip_entry);
+	nh->ipip_entry = mlxsw_sp_ipip_entry_find_by_ol_dev(mlxsw_sp, ol_dev);
+	if (!nh->ipip_entry)
+		return -ENOENT;
 
 	__mlxsw_sp_nexthop_neigh_update(nh, false);
 	return 0;
@@ -2963,7 +2955,6 @@ static void mlxsw_sp_nexthop_ipip_fini(struct mlxsw_sp *mlxsw_sp,
 		return;
 
 	__mlxsw_sp_nexthop_neigh_update(nh, true);
-	mlxsw_sp_ipip_entry_put(mlxsw_sp, ipip_entry);
 	nh->ipip_entry = NULL;
 }
 
@@ -3007,7 +2998,7 @@ static int mlxsw_sp_nexthop4_type_init(struct mlxsw_sp *mlxsw_sp,
 	    router->ipip_ops_arr[ipipt]->can_offload(mlxsw_sp, dev,
 						     MLXSW_SP_L3_PROTO_IPV4)) {
 		nh->type = MLXSW_SP_NEXTHOP_TYPE_IPIP;
-		err = mlxsw_sp_nexthop_ipip_init(mlxsw_sp, ipipt, nh, dev);
+		err = mlxsw_sp_nexthop_ipip_init(mlxsw_sp, nh, dev);
 		if (err)
 			return err;
 		mlxsw_sp_nexthop_rif_init(nh, &nh->ipip_entry->ol_lb->common);
@@ -4269,7 +4260,7 @@ static int mlxsw_sp_nexthop6_type_init(struct mlxsw_sp *mlxsw_sp,
 	    router->ipip_ops_arr[ipipt]->can_offload(mlxsw_sp, dev,
 						     MLXSW_SP_L3_PROTO_IPV6)) {
 		nh->type = MLXSW_SP_NEXTHOP_TYPE_IPIP;
-		err = mlxsw_sp_nexthop_ipip_init(mlxsw_sp, ipipt, nh, dev);
+		err = mlxsw_sp_nexthop_ipip_init(mlxsw_sp, nh, dev);
 		if (err)
 			return err;
 		mlxsw_sp_nexthop_rif_init(nh, &nh->ipip_entry->ol_lb->common);

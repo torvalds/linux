@@ -47,7 +47,6 @@ struct mlxsw_sp_ipip_entry {
 	enum mlxsw_sp_ipip_type ipipt;
 	struct net_device *ol_dev; /* Overlay. */
 	struct mlxsw_sp_rif_ipip_lb *ol_lb;
-	unsigned int ref_count; /* Number of next hops using the tunnel. */
 	struct mlxsw_sp_fib_entry *decap_fib_entry;
 	struct list_head ipip_list_node;
 };
