@@ -1788,49 +1788,36 @@ static void _skl_ddi_set_iboost(struct drm_i915_private *dev_priv,
 	I915_WRITE(DISPIO_CR_TX_BMU_CR0, tmp);
 }
 
-static void skl_ddi_set_iboost(struct intel_encoder *encoder, u32 level)
+static void skl_ddi_set_iboost(struct intel_encoder *encoder,
+			       int level, enum intel_output_type type)
 {
 	struct intel_digital_port *intel_dig_port = enc_to_dig_port(&encoder->base);
 	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
 	enum port port = intel_dig_port->port;
-	int type = encoder->type;
-	const struct ddi_buf_trans *ddi_translations;
 	uint8_t iboost;
-	uint8_t dp_iboost, hdmi_iboost;
-	int n_entries;
 
-	/* VBT may override standard boost values */
-	dp_iboost = dev_priv->vbt.ddi_port_info[port].dp_boost_level;
-	hdmi_iboost = dev_priv->vbt.ddi_port_info[port].hdmi_boost_level;
+	if (type == INTEL_OUTPUT_HDMI)
+		iboost = dev_priv->vbt.ddi_port_info[port].hdmi_boost_level;
+	else
+		iboost = dev_priv->vbt.ddi_port_info[port].dp_boost_level;
 
-	if (type == INTEL_OUTPUT_DP) {
-		if (dp_iboost) {
-			iboost = dp_iboost;
-		} else {
-			ddi_translations = intel_ddi_get_buf_trans_dp(dev_priv, &n_entries);
-			iboost = ddi_translations[level].i_boost;
-		}
-	} else if (type == INTEL_OUTPUT_EDP) {
-		if (dp_iboost) {
-			iboost = dp_iboost;
-		} else {
-			ddi_translations = intel_ddi_get_buf_trans_edp(dev_priv, &n_entries);
+	if (iboost == 0) {
+		const struct ddi_buf_trans *ddi_translations;
+		int n_entries;
 
-			if (WARN_ON(port != PORT_A &&
-				    port != PORT_E && n_entries > 9))
-				n_entries = 9;
-
-			iboost = ddi_translations[level].i_boost;
-		}
-	} else if (type == INTEL_OUTPUT_HDMI) {
-		if (hdmi_iboost) {
-			iboost = hdmi_iboost;
-		} else {
+		if (type == INTEL_OUTPUT_HDMI)
 			ddi_translations = intel_ddi_get_buf_trans_hdmi(dev_priv, &n_entries);
-			iboost = ddi_translations[level].i_boost;
-		}
-	} else {
-		return;
+		else if (type == INTEL_OUTPUT_EDP)
+			ddi_translations = intel_ddi_get_buf_trans_edp(dev_priv, &n_entries);
+		else
+			ddi_translations = intel_ddi_get_buf_trans_dp(dev_priv, &n_entries);
+
+		if (WARN_ON(type != INTEL_OUTPUT_HDMI &&
+			    port != PORT_A &&
+			    port != PORT_E && n_entries > 9))
+			n_entries = 9;
+
+		iboost = ddi_translations[level].i_boost;
 	}
 
 	/* Make sure that the requested I_boost is valid */
@@ -2096,7 +2083,7 @@ uint32_t ddi_signal_levels(struct intel_dp *intel_dp)
 	uint32_t level = intel_ddi_dp_level(intel_dp);
 
 	if (IS_GEN9_BC(dev_priv))
-	    skl_ddi_set_iboost(encoder, level);
+		skl_ddi_set_iboost(encoder, level, encoder->type);
 
 	return DDI_BUF_TRANS_SELECT(level);
 }
@@ -2218,7 +2205,7 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 		intel_prepare_hdmi_ddi_buffers(encoder);
 
 	if (IS_GEN9_BC(dev_priv))
-		skl_ddi_set_iboost(encoder, level);
+		skl_ddi_set_iboost(encoder, level, INTEL_OUTPUT_HDMI);
 
 	intel_dig_port->set_infoframes(&encoder->base,
 				       crtc_state->has_infoframe,
