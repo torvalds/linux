@@ -87,7 +87,7 @@ static struct sk_buff *ksz_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	source_port = tag[0] & 7;
 
-	skb->dev = dsa_master_get_slave(dev, 0, source_port);
+	skb->dev = dsa_master_find_slave(dev, 0, source_port);
 	if (!skb->dev)
 		return NULL;
 

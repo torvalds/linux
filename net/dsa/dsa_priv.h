@@ -113,8 +113,8 @@ int dsa_legacy_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 int dsa_master_ethtool_setup(struct net_device *dev);
 void dsa_master_ethtool_restore(struct net_device *dev);
 
-static inline struct net_device *dsa_master_get_slave(struct net_device *dev,
-						      int device, int port)
+static inline struct net_device *dsa_master_find_slave(struct net_device *dev,
+						       int device, int port)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	struct dsa_switch_tree *dst = cpu_dp->dst;

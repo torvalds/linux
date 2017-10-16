@@ -104,7 +104,7 @@ static struct sk_buff *edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	source_device = edsa_header[0] & 0x1f;
 	source_port = (edsa_header[1] >> 3) & 0x1f;
 
-	skb->dev = dsa_master_get_slave(dev, source_device, source_port);
+	skb->dev = dsa_master_find_slave(dev, source_device, source_port);
 	if (!skb->dev)
 		return NULL;
 
