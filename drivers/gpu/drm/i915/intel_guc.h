@@ -33,6 +33,11 @@
 #include "i915_guc_reg.h"
 #include "i915_vma.h"
 
+/*
+ * Top level structure of GuC. It handles firmware loading and manages client
+ * pool and doorbells. intel_guc owns a i915_guc_client to replace the legacy
+ * ExecList submission.
+ */
 struct intel_guc {
 	struct intel_uc_fw fw;
 	struct intel_guc_log log;
@@ -83,6 +88,12 @@ static inline void intel_guc_notify(struct intel_guc *guc)
 	guc->notify(guc);
 }
 
+/*
+ * GuC does not allow any gfx GGTT address that falls into range [0, WOPCM_TOP),
+ * which is reserved for Boot ROM, SRAM and WOPCM. Currently this top address is
+ * 512K. In order to exclude 0-512K address space from GGTT, all gfx objects
+ * used by GuC is pinned with PIN_OFFSET_BIAS along with size of WOPCM.
+ */
 static inline u32 guc_ggtt_offset(struct i915_vma *vma)
 {
 	u32 offset = i915_ggtt_offset(vma);

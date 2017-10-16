@@ -50,6 +50,11 @@ struct intel_uc_fw {
 	enum intel_uc_fw_status fetch_status;
 	enum intel_uc_fw_status load_status;
 
+	/*
+	 * The firmware build process will generate a version header file with major and
+	 * minor version defined. The versions are built into CSS header of firmware.
+	 * i915 kernel driver set the minimal firmware version required per platform.
+	 */
 	u16 major_ver_wanted;
 	u16 minor_ver_wanted;
 	u16 major_ver_found;
