@@ -115,6 +115,20 @@
 		vin-supply = <&vcc_io>;
 	};
 
+	vusb1_5v: vusb1-5v {
+		compatible = "regulator-fixed";
+		regulator-name = "vusb1_5v";
+		enable-active-high;
+		gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>; /* OTG_VBUS_DRV */
+		pinctrl-names = "default";
+		pinctrl-0 = <&otg_vbus_drv>;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vsus_5v>;
+	};
+
 	vusb2_5v: vusb2-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "vusb2_5v";
@@ -401,6 +415,10 @@
 	status = "okay";
 };
 
+&usb_otg {
+	status = "okay";
+};
+
 &vopb {
 	status = "okay";
 };
@@ -453,6 +471,13 @@
 
 		usb2_pwr_en: usb2-pwr-en {
 			rockchip,pins = <8 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	usb_otg {
+		otg_vbus_drv: otg-vbus-drv {
+			rockchip,pins = <RK_GPIO0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+
 		};
 	};
 };
