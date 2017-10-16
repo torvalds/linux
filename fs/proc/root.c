@@ -182,7 +182,7 @@ void __init proc_root_init(void)
 	proc_symlink("mounts", NULL, "self/mounts");
 
 	proc_net_init();
-
+	proc_uid_init();
 #ifdef CONFIG_SYSVIPC
 	proc_mkdir("sysvipc", NULL);
 #endif
