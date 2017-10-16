@@ -29,6 +29,7 @@ struct gmin_subdev {
 	struct v4l2_subdev *subdev;
 	int clock_num;
 	int clock_src;
+	bool clock_on;
 	struct clk *pmc_clk;
 	struct gpio_desc *gpio0;
 	struct gpio_desc *gpio1;
@@ -572,6 +573,9 @@ static int gmin_flisclk_ctrl(struct v4l2_subdev *subdev, int on)
 	struct gmin_subdev *gs = find_gmin_subdev(subdev);
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
 
+	if (gs->clock_on == !!on)
+		return 0;
+
 	if (on) {
 		ret = clk_set_rate(gs->pmc_clk, gs->clock_src);
 
@@ -580,8 +584,11 @@ static int gmin_flisclk_ctrl(struct v4l2_subdev *subdev, int on)
 				gs->clock_src);
 
 		ret = clk_prepare_enable(gs->pmc_clk);
+		if (ret == 0)
+			gs->clock_on = true;
 	} else {
 		clk_disable_unprepare(gs->pmc_clk);
+		gs->clock_on = false;
 	}
 
 	return ret;
