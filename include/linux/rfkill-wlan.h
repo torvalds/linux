@@ -30,6 +30,7 @@ struct rksdmmc_gpio_wifi_moudle {
     bool wifi_power_remain;
     struct rksdmmc_pmu    mregulator;
     struct rksdmmc_pmu    ioregulator;
+    struct rksdmmc_gpio   vbat_n;
     struct rksdmmc_gpio   power_n;  //PMU_EN  
     struct rksdmmc_gpio   reset_n;  //SYSRET_B, DAIRST 
     struct rksdmmc_gpio   vddio;

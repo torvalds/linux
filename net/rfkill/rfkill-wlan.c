@@ -635,6 +635,14 @@ static int wlan_platdata_parse_dt(struct device *dev,
 			data->power_n.enable = (flags == GPIO_ACTIVE_HIGH)? 1:0;
 			LOG("%s: get property: WIFI,poweren_gpio = %d, flags = %d.\n", __func__, gpio, flags);
         } else data->power_n.io = -1;
+	gpio = of_get_named_gpio_flags(node, "WIFI,vbat_gpio", 0, &flags);
+	if (gpio_is_valid(gpio)) {
+			data->vbat_n.io = gpio;
+			data->vbat_n.enable = (flags == GPIO_ACTIVE_HIGH) ? 1:0;
+			LOG("%s: get property: WIFI,vbat_gpio = %d, flags = %d.\n", __func__, gpio, flags);
+	} else {
+		data->vbat_n.io = -1;
+	}
         gpio = of_get_named_gpio_flags(node, "WIFI,reset_gpio", 0, &flags);
         if (gpio_is_valid(gpio)){
 			data->reset_n.io = gpio;
@@ -752,15 +760,24 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
     LOG("%s: init gpio\n", __func__);
 
     if (!pdata->mregulator.power_ctrl_by_pmu) {
+	ret = rfkill_rk_setup_gpio(&pdata->vbat_n, wlan_name, "wlan_vbat");
+	if (ret)
+		goto fail_alloc;
+
         ret = rfkill_rk_setup_gpio(&pdata->power_n, wlan_name, "wlan_poweren");
-        if (ret) goto fail_alloc;
+	if (ret)
+		goto fail_alloc;
 
         ret = rfkill_rk_setup_gpio(&pdata->reset_n, wlan_name, "wlan_reset");
-        if (ret) goto fail_alloc;
+	if (ret)
+		goto fail_alloc;
     }
 
     wake_lock_init(&(rfkill->wlan_irq_wl), WAKE_LOCK_SUSPEND, "rfkill_wlan_wake");
 
+    if (gpio_is_valid(pdata->vbat_n.io)) {
+	gpio_direction_output(pdata->vbat_n.io, pdata->vbat_n.enable);
+    }
     // Turn off wifi power as default
     if (gpio_is_valid(pdata->power_n.io))
     {
