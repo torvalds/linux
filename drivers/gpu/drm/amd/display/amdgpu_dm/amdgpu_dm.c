@@ -4154,6 +4154,33 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			mod_freesync_add_stream(adev->dm.freesync_module,
 						new_stream, &aconnector->caps);
 		}
+
+		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+
+			struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+			struct amdgpu_dm_connector *aconnector = NULL;
+			struct dm_connector_state *conn_state = NULL;
+			struct dm_crtc_state *acrtc_state = NULL;
+
+			acrtc_state = to_dm_crtc_state(acrtc->base.state);
+
+
+			aconnector =
+				amdgpu_dm_find_first_crtc_matching_connector(
+					state,
+					crtc,
+					false);
+			if (aconnector) {
+				conn_state = to_dm_connector_state(aconnector->base.state);
+
+				if (new_stream) {
+					mod_freesync_set_user_enable(adev->dm.freesync_module,
+								     &acrtc_state->stream,
+								     1,
+								     &conn_state->user_enable);
+				}
+			}
+		}
 	}
 
 	if (dm_state->context)
