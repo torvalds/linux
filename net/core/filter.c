@@ -3738,6 +3738,8 @@ tc_cls_act_is_valid_access_analyzer(int off, int size,
 				    struct bpf_insn_access_aux *info)
 {
 	switch (off) {
+	case offsetof(struct sk_buff, len):
+		return true;
 	case offsetof(struct sk_buff, data):
 		info->reg_type = PTR_TO_PACKET;
 		return true;
