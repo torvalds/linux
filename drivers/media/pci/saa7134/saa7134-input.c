@@ -447,10 +447,10 @@ void saa7134_input_irq(struct saa7134_dev *dev)
 	}
 }
 
-static void saa7134_input_timer(unsigned long data)
+static void saa7134_input_timer(struct timer_list *t)
 {
-	struct saa7134_dev *dev = (struct saa7134_dev *)data;
-	struct saa7134_card_ir *ir = dev->remote;
+	struct saa7134_card_ir *ir = from_timer(ir, t, timer);
+	struct saa7134_dev *dev = ir->dev->priv;
 
 	build_key(dev);
 	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
@@ -507,8 +507,7 @@ static int __saa7134_ir_start(void *priv)
 	ir->running = true;
 
 	if (ir->polling) {
-		setup_timer(&ir->timer, saa7134_input_timer,
-			    (unsigned long)dev);
+		timer_setup(&ir->timer, saa7134_input_timer, 0);
 		ir->timer.expires = jiffies + HZ;
 		add_timer(&ir->timer);
 	}

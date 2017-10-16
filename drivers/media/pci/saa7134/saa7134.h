@@ -773,7 +773,7 @@ int saa7134_buffer_queue(struct saa7134_dev *dev, struct saa7134_dmaqueue *q,
 void saa7134_buffer_finish(struct saa7134_dev *dev, struct saa7134_dmaqueue *q,
 			   unsigned int state);
 void saa7134_buffer_next(struct saa7134_dev *dev, struct saa7134_dmaqueue *q);
-void saa7134_buffer_timeout(unsigned long data);
+void saa7134_buffer_timeout(struct timer_list *t);
 void saa7134_stop_streaming(struct saa7134_dev *dev, struct saa7134_dmaqueue *q);
 
 int saa7134_set_dmabits(struct saa7134_dev *dev);
