@@ -218,6 +218,9 @@ enum {
 
 struct rpcrdma_rep {
 	struct ib_cqe		rr_cqe;
+	__be32			rr_xid;
+	__be32			rr_vers;
+	__be32			rr_proc;
 	int			rr_wc_flags;
 	u32			rr_inv_rkey;
 	struct rpcrdma_regbuf	*rr_rdmabuf;

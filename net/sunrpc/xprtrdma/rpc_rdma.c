@@ -970,14 +970,13 @@ rpcrdma_mark_remote_invalidation(struct list_head *mws,
  * straightforward to check the RPC header's direction field.
  */
 static bool
-rpcrdma_is_bcall(struct rpcrdma_xprt *r_xprt, struct rpcrdma_rep *rep,
-		 __be32 xid, __be32 proc)
+rpcrdma_is_bcall(struct rpcrdma_xprt *r_xprt, struct rpcrdma_rep *rep)
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
 {
 	struct xdr_stream *xdr = &rep->rr_stream;
 	__be32 *p;
 
-	if (proc != rdma_msg)
+	if (rep->rr_proc != rdma_msg)
 		return false;
 
 	/* Peek at stream contents without advancing. */
@@ -992,7 +991,7 @@ rpcrdma_is_bcall(struct rpcrdma_xprt *r_xprt, struct rpcrdma_rep *rep,
 		return false;
 
 	/* RPC header */
-	if (*p++ != xid)
+	if (*p++ != rep->rr_xid)
 		return false;
 	if (*p != cpu_to_be32(RPC_CALL))
 		return false;
@@ -1224,41 +1223,40 @@ rpcrdma_reply_handler(struct work_struct *work)
 			container_of(work, struct rpcrdma_rep, rr_work);
 	struct rpcrdma_xprt *r_xprt = rep->rr_rxprt;
 	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
-	struct xdr_stream *xdr = &rep->rr_stream;
 	struct rpcrdma_req *req;
 	struct rpc_rqst *rqst;
-	__be32 *p, xid, vers, proc;
 	unsigned long cwnd;
 	int status;
+	__be32 *p;
 
 	dprintk("RPC:       %s: incoming rep %p\n", __func__, rep);
 
 	if (rep->rr_hdrbuf.head[0].iov_len == 0)
 		goto out_badstatus;
 
-	xdr_init_decode(xdr, &rep->rr_hdrbuf,
+	xdr_init_decode(&rep->rr_stream, &rep->rr_hdrbuf,
 			rep->rr_hdrbuf.head[0].iov_base);
 
 	/* Fixed transport header fields */
-	p = xdr_inline_decode(xdr, 4 * sizeof(*p));
+	p = xdr_inline_decode(&rep->rr_stream, 4 * sizeof(*p));
 	if (unlikely(!p))
 		goto out_shortreply;
-	xid = *p++;
-	vers = *p++;
+	rep->rr_xid = *p++;
+	rep->rr_vers = *p++;
 	p++;	/* credits */
-	proc = *p++;
+	rep->rr_proc = *p++;
 
-	if (vers != rpcrdma_version)
+	if (rep->rr_vers != rpcrdma_version)
 		goto out_badversion;
 
-	if (rpcrdma_is_bcall(r_xprt, rep, xid, proc))
+	if (rpcrdma_is_bcall(r_xprt, rep))
 		return;
 
 	/* Match incoming rpcrdma_rep to an rpcrdma_req to
 	 * get context for handling any incoming chunks.
 	 */
 	spin_lock(&xprt->recv_lock);
-	rqst = xprt_lookup_rqst(xprt, xid);
+	rqst = xprt_lookup_rqst(xprt, rep->rr_xid);
 	if (!rqst)
 		goto out_norqst;
 	xprt_pin_rqst(rqst);
@@ -1267,7 +1265,7 @@ rpcrdma_reply_handler(struct work_struct *work)
 	req->rl_reply = rep;
 
 	dprintk("RPC:       %s: reply %p completes request %p (xid 0x%08x)\n",
-		__func__, rep, req, be32_to_cpu(xid));
+		__func__, rep, req, be32_to_cpu(rep->rr_xid));
 
 	/* Invalidate and unmap the data payloads before waking the
 	 * waiting application. This guarantees the memory regions
@@ -1284,7 +1282,7 @@ rpcrdma_reply_handler(struct work_struct *work)
 
 	xprt->reestablish_timeout = 0;
 
-	switch (proc) {
+	switch (rep->rr_proc) {
 	case rdma_msg:
 		status = rpcrdma_decode_msg(r_xprt, rep, rqst);
 		break;
@@ -1324,7 +1322,7 @@ out_badstatus:
 
 out_badversion:
 	dprintk("RPC:       %s: invalid version %d\n",
-		__func__, be32_to_cpu(vers));
+		__func__, be32_to_cpu(rep->rr_vers));
 	goto repost;
 
 /* If the incoming reply terminated a pending RPC, the next
@@ -1333,7 +1331,7 @@ out_badversion:
  */
 out_badheader:
 	dprintk("RPC: %5u %s: invalid rpcrdma reply (type %u)\n",
-		rqst->rq_task->tk_pid, __func__, be32_to_cpu(proc));
+		rqst->rq_task->tk_pid, __func__, be32_to_cpu(rep->rr_proc));
 	r_xprt->rx_stats.bad_reply_count++;
 	status = -EIO;
 	goto out;
@@ -1345,7 +1343,7 @@ out_badheader:
 out_norqst:
 	spin_unlock(&xprt->recv_lock);
 	dprintk("RPC:       %s: no match for incoming xid 0x%08x\n",
-		__func__, be32_to_cpu(xid));
+		__func__, be32_to_cpu(rep->rr_xid));
 	goto repost;
 
 out_shortreply:
