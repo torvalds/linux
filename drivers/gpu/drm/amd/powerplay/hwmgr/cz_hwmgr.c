@@ -1369,8 +1369,7 @@ int cz_dpm_powerdown_vce(struct pp_hwmgr *hwmgr)
 
 int cz_dpm_powerup_vce(struct pp_hwmgr *hwmgr)
 {
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-					 PHM_PlatformCaps_VCEPowerGating))
+	if (PP_CAP(PHM_PlatformCaps_VCEPowerGating))
 		return smum_send_msg_to_smc(hwmgr,
 						     PPSMC_MSG_VCEPowerON);
 	return 0;
