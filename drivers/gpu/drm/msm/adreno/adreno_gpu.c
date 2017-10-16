@@ -64,12 +64,43 @@ int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 	}
 }
 
+static int adreno_load_fw(struct adreno_gpu *adreno_gpu)
+{
+	struct drm_device *drm = adreno_gpu->base.dev;
+	int ret;
+
+	if (adreno_gpu->pm4)
+		return 0;
+
+	ret = request_firmware(&adreno_gpu->pm4, adreno_gpu->info->pm4fw, drm->dev);
+	if (ret) {
+		dev_err(drm->dev, "failed to load %s PM4 firmware: %d\n",
+				adreno_gpu->info->pm4fw, ret);
+		return ret;
+	}
+
+	ret = request_firmware(&adreno_gpu->pfp, adreno_gpu->info->pfpfw, drm->dev);
+	if (ret) {
+		dev_err(drm->dev, "failed to load %s PFP firmware: %d\n",
+				adreno_gpu->info->pfpfw, ret);
+		release_firmware(adreno_gpu->pm4);
+		adreno_gpu->pm4 = NULL;
+		return ret;
+	}
+
+	return 0;
+}
+
 int adreno_hw_init(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	int ret;
 
 	DBG("%s", gpu->name);
+
+	ret = adreno_load_fw(adreno_gpu);
+	if (ret)
+		return ret;
 
 	ret = msm_gem_get_iova(gpu->rb->bo, gpu->aspace, &gpu->rb_iova);
 	if (ret) {
@@ -376,20 +407,6 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 			adreno_gpu->info->name, &adreno_gpu_config);
 	if (ret)
 		return ret;
-
-	ret = request_firmware(&adreno_gpu->pm4, adreno_gpu->info->pm4fw, drm->dev);
-	if (ret) {
-		dev_err(drm->dev, "failed to load %s PM4 firmware: %d\n",
-				adreno_gpu->info->pm4fw, ret);
-		return ret;
-	}
-
-	ret = request_firmware(&adreno_gpu->pfp, adreno_gpu->info->pfpfw, drm->dev);
-	if (ret) {
-		dev_err(drm->dev, "failed to load %s PFP firmware: %d\n",
-				adreno_gpu->info->pfpfw, ret);
-		return ret;
-	}
 
 	adreno_gpu->memptrs = msm_gem_kernel_new(drm,
 		sizeof(*adreno_gpu->memptrs), MSM_BO_UNCACHED, gpu->aspace,

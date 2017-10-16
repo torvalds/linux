@@ -211,7 +211,6 @@ static int msm_drm_uninit(struct device *dev)
 	struct drm_device *ddev = platform_get_drvdata(pdev);
 	struct msm_drm_private *priv = ddev->dev_private;
 	struct msm_kms *kms = priv->kms;
-	struct msm_gpu *gpu = priv->gpu;
 	struct msm_vblank_ctrl *vbl_ctrl = &priv->vblank_ctrl;
 	struct vblank_event *vbl_ev, *tmp;
 
@@ -252,15 +251,6 @@ static int msm_drm_uninit(struct device *dev)
 
 	if (kms && kms->funcs)
 		kms->funcs->destroy(kms);
-
-	if (gpu) {
-		mutex_lock(&ddev->struct_mutex);
-		// XXX what do we do here?
-		//pm_runtime_enable(&pdev->dev);
-		gpu->funcs->pm_suspend(gpu);
-		mutex_unlock(&ddev->struct_mutex);
-		gpu->funcs->destroy(gpu);
-	}
 
 	if (priv->vram.paddr) {
 		unsigned long attrs = DMA_ATTR_NO_KERNEL_MAPPING;

@@ -536,12 +536,11 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 		REG_A5XX_RBBM_SECVID_TSB_TRUSTED_BASE_HI, 0x00000000);
 	gpu_write(gpu, REG_A5XX_RBBM_SECVID_TSB_TRUSTED_SIZE, 0x00000000);
 
-	/* Load the GPMU firmware before starting the HW init */
-	a5xx_gpmu_ucode_init(gpu);
-
 	ret = adreno_hw_init(gpu);
 	if (ret)
 		return ret;
+
+	a5xx_gpmu_ucode_init(gpu);
 
 	ret = a5xx_ucode_init(gpu);
 	if (ret)
