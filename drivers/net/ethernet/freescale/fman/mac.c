@@ -542,8 +542,7 @@ static const u16 phy2speed[] = {
 };
 
 static struct platform_device *dpaa_eth_add_device(int fman_id,
-						   struct mac_device *mac_dev,
-						   struct device_node *node)
+						   struct mac_device *mac_dev)
 {
 	struct platform_device *pdev;
 	struct dpaa_eth_data data;
@@ -556,10 +555,8 @@ static struct platform_device *dpaa_eth_add_device(int fman_id,
 	data.mac_dev = mac_dev;
 	data.mac_hw_id = priv->cell_index;
 	data.fman_hw_id = fman_id;
-	data.mac_node = node;
 
 	mutex_lock(&eth_lock);
-
 	pdev = platform_device_alloc("dpaa-ethernet", dpaa_eth_dev_cnt);
 	if (!pdev) {
 		ret = -ENOMEM;
@@ -648,9 +645,6 @@ static int mac_probe(struct platform_device *_of_dev)
 		goto _return;
 	}
 
-	/* Register mac_dev */
-	dev_set_drvdata(dev, mac_dev);
-
 	INIT_LIST_HEAD(&priv->mc_addr_list);
 
 	/* Get the FM node */
@@ -659,7 +653,7 @@ static int mac_probe(struct platform_device *_of_dev)
 		dev_err(dev, "of_get_parent(%pOF) failed\n",
 			mac_node);
 		err = -EINVAL;
-		goto _return_dev_set_drvdata;
+		goto _return_of_get_parent;
 	}
 
 	of_dev = of_find_device_by_node(dev_node);
@@ -693,7 +687,7 @@ static int mac_probe(struct platform_device *_of_dev)
 	if (err < 0) {
 		dev_err(dev, "of_address_to_resource(%pOF) = %d\n",
 			mac_node, err);
-		goto _return_dev_set_drvdata;
+		goto _return_of_get_parent;
 	}
 
 	mac_dev->res = __devm_request_region(dev,
@@ -703,7 +697,7 @@ static int mac_probe(struct platform_device *_of_dev)
 	if (!mac_dev->res) {
 		dev_err(dev, "__devm_request_mem_region(mac) failed\n");
 		err = -EBUSY;
-		goto _return_dev_set_drvdata;
+		goto _return_of_get_parent;
 	}
 
 	priv->vaddr = devm_ioremap(dev, mac_dev->res->start,
@@ -711,7 +705,7 @@ static int mac_probe(struct platform_device *_of_dev)
 	if (!priv->vaddr) {
 		dev_err(dev, "devm_ioremap() failed\n");
 		err = -EIO;
-		goto _return_dev_set_drvdata;
+		goto _return_of_get_parent;
 	}
 
 	if (!of_device_is_available(mac_node)) {
@@ -728,7 +722,7 @@ static int mac_probe(struct platform_device *_of_dev)
 	if (err) {
 		dev_err(dev, "failed to read cell-index for %pOF\n", mac_node);
 		err = -EINVAL;
-		goto _return_dev_set_drvdata;
+		goto _return_of_get_parent;
 	}
 	priv->cell_index = (u8)val;
 
@@ -737,7 +731,7 @@ static int mac_probe(struct platform_device *_of_dev)
 	if (!mac_addr) {
 		dev_err(dev, "of_get_mac_address(%pOF) failed\n", mac_node);
 		err = -EINVAL;
-		goto _return_dev_set_drvdata;
+		goto _return_of_get_parent;
 	}
 	memcpy(mac_dev->addr, mac_addr, sizeof(mac_dev->addr));
 
@@ -747,14 +741,14 @@ static int mac_probe(struct platform_device *_of_dev)
 		dev_err(dev, "of_count_phandle_with_args(%pOF, fsl,fman-ports) failed\n",
 			mac_node);
 		err = nph;
-		goto _return_dev_set_drvdata;
+		goto _return_of_get_parent;
 	}
 
 	if (nph != ARRAY_SIZE(mac_dev->port)) {
 		dev_err(dev, "Not supported number of fman-ports handles of mac node %pOF from device tree\n",
 			mac_node);
 		err = -EINVAL;
-		goto _return_dev_set_drvdata;
+		goto _return_of_get_parent;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(mac_dev->port); i++) {
@@ -818,20 +812,20 @@ static int mac_probe(struct platform_device *_of_dev)
 
 		err = of_phy_register_fixed_link(mac_node);
 		if (err)
-			goto _return_dev_set_drvdata;
+			goto _return_of_get_parent;
 
 		priv->fixed_link = kzalloc(sizeof(*priv->fixed_link),
 					   GFP_KERNEL);
 		if (!priv->fixed_link) {
 			err = -ENOMEM;
-			goto _return_dev_set_drvdata;
+			goto _return_of_get_parent;
 		}
 
 		mac_dev->phy_node = of_node_get(mac_node);
 		phy = of_phy_find_device(mac_dev->phy_node);
 		if (!phy) {
 			err = -EINVAL;
-			goto _return_dev_set_drvdata;
+			goto _return_of_get_parent;
 		}
 
 		priv->fixed_link->link = phy->link;
@@ -847,7 +841,7 @@ static int mac_probe(struct platform_device *_of_dev)
 	if (err < 0) {
 		dev_err(dev, "mac_dev->init() = %d\n", err);
 		of_node_put(mac_dev->phy_node);
-		goto _return_dev_set_drvdata;
+		goto _return_of_get_parent;
 	}
 
 	/* pause frame autonegotiation enabled */
@@ -868,7 +862,7 @@ static int mac_probe(struct platform_device *_of_dev)
 		 mac_dev->addr[0], mac_dev->addr[1], mac_dev->addr[2],
 		 mac_dev->addr[3], mac_dev->addr[4], mac_dev->addr[5]);
 
-	priv->eth_dev = dpaa_eth_add_device(fman_id, mac_dev, mac_node);
+	priv->eth_dev = dpaa_eth_add_device(fman_id, mac_dev);
 	if (IS_ERR(priv->eth_dev)) {
 		dev_err(dev, "failed to add Ethernet platform device for MAC %d\n",
 			priv->cell_index);
@@ -879,9 +873,8 @@ static int mac_probe(struct platform_device *_of_dev)
 
 _return_of_node_put:
 	of_node_put(dev_node);
-_return_dev_set_drvdata:
+_return_of_get_parent:
 	kfree(priv->fixed_link);
-	dev_set_drvdata(dev, NULL);
 _return:
 	return err;
 }

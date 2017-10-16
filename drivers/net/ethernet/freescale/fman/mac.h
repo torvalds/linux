@@ -83,7 +83,6 @@ struct mac_device {
 };
 
 struct dpaa_eth_data {
-	struct device_node *mac_node;
 	struct mac_device *mac_dev;
 	int mac_hw_id;
 	int fman_hw_id;

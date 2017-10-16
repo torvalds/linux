@@ -385,34 +385,19 @@ out:
 
 static struct mac_device *dpaa_mac_dev_get(struct platform_device *pdev)
 {
-	struct platform_device *of_dev;
 	struct dpaa_eth_data *eth_data;
-	struct device *dpaa_dev, *dev;
-	struct device_node *mac_node;
+	struct device *dpaa_dev;
 	struct mac_device *mac_dev;
 
 	dpaa_dev = &pdev->dev;
 	eth_data = dpaa_dev->platform_data;
-	if (!eth_data)
+	if (!eth_data) {
+		dev_err(dpaa_dev, "eth_data missing\n");
 		return ERR_PTR(-ENODEV);
-
-	mac_node = eth_data->mac_node;
-
-	of_dev = of_find_device_by_node(mac_node);
-	if (!of_dev) {
-		dev_err(dpaa_dev, "of_find_device_by_node(%pOF) failed\n",
-			mac_node);
-		of_node_put(mac_node);
-		return ERR_PTR(-EINVAL);
 	}
-	of_node_put(mac_node);
-
-	dev = &of_dev->dev;
-
-	mac_dev = dev_get_drvdata(dev);
+	mac_dev = eth_data->mac_dev;
 	if (!mac_dev) {
-		dev_err(dpaa_dev, "dev_get_drvdata(%s) failed\n",
-			dev_name(dev));
+		dev_err(dpaa_dev, "mac_dev missing\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -2696,7 +2681,13 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	int err = 0, i, channel;
 	struct device *dev;
 
-	dev = &pdev->dev;
+	/* device used for DMA mapping */
+	dev = pdev->dev.parent;
+	err = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(40));
+	if (err) {
+		dev_err(dev, "dma_coerce_mask_and_coherent() failed\n");
+		return err;
+	}
 
 	/* Allocate this early, so we can store relevant information in
 	 * the private area
@@ -2737,14 +2728,6 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 
 	priv->buf_layout[RX].priv_data_size = DPAA_RX_PRIV_DATA_SIZE; /* Rx */
 	priv->buf_layout[TX].priv_data_size = DPAA_TX_PRIV_DATA_SIZE; /* Tx */
-
-	/* device used for DMA mapping */
-	set_dma_ops(dev, get_dma_ops(&pdev->dev));
-	err = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(40));
-	if (err) {
-		dev_err(dev, "dma_coerce_mask_and_coherent() failed\n");
-		goto dev_mask_failed;
-	}
 
 	/* bp init */
 	for (i = 0; i < DPAA_BPS_NUM; i++) {
@@ -2879,7 +2862,6 @@ get_channel_failed:
 	dpaa_bps_free(priv);
 bp_create_failed:
 fq_probe_failed:
-dev_mask_failed:
 mac_probe_failed:
 	dev_set_drvdata(dev, NULL);
 	free_netdev(net_dev);
