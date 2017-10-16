@@ -6645,6 +6645,20 @@ static struct bpf_test tests[] = {
 		.errstr = "BPF_END uses reserved fields",
 		.result = REJECT,
 	},
+	{
+		"arithmetic ops make PTR_TO_CTX unusable",
+		.insns = {
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_1,
+				      offsetof(struct __sk_buff, data) -
+				      offsetof(struct __sk_buff, mark)),
+			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, mark)),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "dereference of modified ctx ptr R1 off=68+8, ctx+const is allowed, ctx+const+const is not",
+		.result = REJECT,
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	},
 };
 
 static int probe_filter_length(const struct bpf_insn *fp)
