@@ -2517,13 +2517,6 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIAC, mask);
 }
 
-enum latency_range {
-	lowest_latency = 0,
-	low_latency = 1,
-	bulk_latency = 2,
-	latency_invalid = 255
-};
-
 /**
  * ixgbe_update_itr - update the dynamic ITR value based on statistics
  * @q_vector: structure containing interrupt and ring information
