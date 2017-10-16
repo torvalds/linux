@@ -1244,7 +1244,7 @@ void rpcrdma_complete_rqst(struct rpcrdma_rep *rep)
 out:
 	spin_lock(&xprt->recv_lock);
 	cwnd = xprt->cwnd;
-	xprt->cwnd = atomic_read(&r_xprt->rx_buf.rb_credits) << RPC_CWNDSHIFT;
+	xprt->cwnd = r_xprt->rx_buf.rb_credits << RPC_CWNDSHIFT;
 	if (xprt->cwnd > cwnd)
 		xprt_release_rqst_cong(rqst->rq_task);
 
@@ -1297,8 +1297,10 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 {
 	struct rpcrdma_xprt *r_xprt = rep->rr_rxprt;
 	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	struct rpcrdma_req *req;
 	struct rpc_rqst *rqst;
+	u32 credits;
 	__be32 *p;
 
 	dprintk("RPC:       %s: incoming rep %p\n", __func__, rep);
@@ -1315,7 +1317,7 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 		goto out_shortreply;
 	rep->rr_xid = *p++;
 	rep->rr_vers = *p++;
-	p++;	/* credits */
+	credits = be32_to_cpu(*p++);
 	rep->rr_proc = *p++;
 
 	if (rep->rr_vers != rpcrdma_version)
@@ -1332,7 +1334,15 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	if (!rqst)
 		goto out_norqst;
 	xprt_pin_rqst(rqst);
+
+	if (credits == 0)
+		credits = 1;	/* don't deadlock */
+	else if (credits > buf->rb_max_requests)
+		credits = buf->rb_max_requests;
+	buf->rb_credits = credits;
+
 	spin_unlock(&xprt->recv_lock);
+
 	req = rpcr_to_rdmar(rqst);
 	req->rl_reply = rep;
 	rep->rr_rqst = rqst;

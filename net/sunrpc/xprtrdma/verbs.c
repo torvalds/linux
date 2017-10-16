@@ -133,25 +133,6 @@ rpcrdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 		       wc->status, wc->vendor_err);
 }
 
-/* Perform basic sanity checking to avoid using garbage
- * to update the credit grant value.
- */
-static void
-rpcrdma_update_granted_credits(struct rpcrdma_rep *rep)
-{
-	struct rpcrdma_buffer *buffer = &rep->rr_rxprt->rx_buf;
-	__be32 *p = rep->rr_rdmabuf->rg_base;
-	u32 credits;
-
-	credits = be32_to_cpup(p + 2);
-	if (credits == 0)
-		credits = 1;	/* don't deadlock */
-	else if (credits > buffer->rb_max_requests)
-		credits = buffer->rb_max_requests;
-
-	atomic_set(&buffer->rb_credits, credits);
-}
-
 /**
  * rpcrdma_wc_receive - Invoked by RDMA provider for each polled Receive WC
  * @cq:	completion queue (ignored)
@@ -180,9 +161,6 @@ rpcrdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	ib_dma_sync_single_for_cpu(rdmab_device(rep->rr_rdmabuf),
 				   rdmab_addr(rep->rr_rdmabuf),
 				   wc->byte_len, DMA_FROM_DEVICE);
-
-	if (wc->byte_len >= RPCRDMA_HDRLEN_ERR)
-		rpcrdma_update_granted_credits(rep);
 
 out_schedule:
 	rpcrdma_reply_handler(rep);
@@ -295,7 +273,7 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	case RDMA_CM_EVENT_DISCONNECTED:
 		connstate = -ECONNABORTED;
 connected:
-		atomic_set(&xprt->rx_buf.rb_credits, 1);
+		xprt->rx_buf.rb_credits = 1;
 		ep->rep_connected = connstate;
 		rpcrdma_conn_func(ep);
 		wake_up_all(&ep->rep_connect_wait);
@@ -995,7 +973,6 @@ rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 
 	buf->rb_max_requests = r_xprt->rx_data.max_requests;
 	buf->rb_bc_srv_max_requests = 0;
-	atomic_set(&buf->rb_credits, 1);
 	spin_lock_init(&buf->rb_mwlock);
 	spin_lock_init(&buf->rb_lock);
 	spin_lock_init(&buf->rb_recovery_lock);
