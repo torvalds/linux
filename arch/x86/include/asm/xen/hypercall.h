@@ -113,10 +113,9 @@ extern struct { char _entry[32]; } hypercall_page[];
 	register unsigned long __arg2 asm(__HYPERCALL_ARG2REG) = __arg2; \
 	register unsigned long __arg3 asm(__HYPERCALL_ARG3REG) = __arg3; \
 	register unsigned long __arg4 asm(__HYPERCALL_ARG4REG) = __arg4; \
-	register unsigned long __arg5 asm(__HYPERCALL_ARG5REG) = __arg5; \
-	register void *__sp asm(_ASM_SP);
+	register unsigned long __arg5 asm(__HYPERCALL_ARG5REG) = __arg5;
 
-#define __HYPERCALL_0PARAM	"=r" (__res), "+r" (__sp)
+#define __HYPERCALL_0PARAM	"=r" (__res), ASM_CALL_CONSTRAINT
 #define __HYPERCALL_1PARAM	__HYPERCALL_0PARAM, "+r" (__arg1)
 #define __HYPERCALL_2PARAM	__HYPERCALL_1PARAM, "+r" (__arg2)
 #define __HYPERCALL_3PARAM	__HYPERCALL_2PARAM, "+r" (__arg3)
@@ -552,13 +551,13 @@ static inline void
 MULTI_update_descriptor(struct multicall_entry *mcl, u64 maddr,
 			struct desc_struct desc)
 {
-	u32 *p = (u32 *) &desc;
-
 	mcl->op = __HYPERVISOR_update_descriptor;
 	if (sizeof(maddr) == sizeof(long)) {
 		mcl->args[0] = maddr;
 		mcl->args[1] = *(unsigned long *)&desc;
 	} else {
+		u32 *p = (u32 *)&desc;
+
 		mcl->args[0] = maddr;
 		mcl->args[1] = maddr >> 32;
 		mcl->args[2] = *p++;

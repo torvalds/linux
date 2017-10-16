@@ -22,10 +22,10 @@
 #include "pci.h"
 
 static int (*ath79_pci_plat_dev_init)(struct pci_dev *dev);
-static const struct ath79_pci_irq *ath79_pci_irq_map __initdata;
-static unsigned ath79_pci_nr_irqs __initdata;
+static const struct ath79_pci_irq *ath79_pci_irq_map;
+static unsigned ath79_pci_nr_irqs;
 
-static const struct ath79_pci_irq ar71xx_pci_irq_map[] __initconst = {
+static const struct ath79_pci_irq ar71xx_pci_irq_map[] = {
 	{
 		.slot	= 17,
 		.pin	= 1,
@@ -41,7 +41,7 @@ static const struct ath79_pci_irq ar71xx_pci_irq_map[] __initconst = {
 	}
 };
 
-static const struct ath79_pci_irq ar724x_pci_irq_map[] __initconst = {
+static const struct ath79_pci_irq ar724x_pci_irq_map[] = {
 	{
 		.slot	= 0,
 		.pin	= 1,
@@ -49,7 +49,7 @@ static const struct ath79_pci_irq ar724x_pci_irq_map[] __initconst = {
 	}
 };
 
-static const struct ath79_pci_irq qca955x_pci_irq_map[] __initconst = {
+static const struct ath79_pci_irq qca955x_pci_irq_map[] = {
 	{
 		.bus	= 0,
 		.slot	= 0,
@@ -64,7 +64,7 @@ static const struct ath79_pci_irq qca955x_pci_irq_map[] __initconst = {
 	},
 };
 
-int __init pcibios_map_irq(const struct pci_dev *dev, uint8_t slot, uint8_t pin)
+int pcibios_map_irq(const struct pci_dev *dev, uint8_t slot, uint8_t pin)
 {
 	int irq = -1;
 	int i;

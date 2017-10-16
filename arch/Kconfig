@@ -937,9 +937,6 @@ config STRICT_MODULE_RWX
 	  and non-text memory will be made non-executable. This provides
 	  protection against certain security exploits (e.g. writing to text)
 
-config ARCH_WANT_RELAX_ORDER
-	bool
-
 config ARCH_HAS_REFCOUNT
 	bool
 	help

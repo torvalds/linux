@@ -878,7 +878,6 @@ static int hci_sock_release(struct socket *sock)
 	return 0;
 }
 
-#ifdef CONFIG_BT_LEGACY_IOCTL
 static int hci_sock_blacklist_add(struct hci_dev *hdev, void __user *arg)
 {
 	bdaddr_t bdaddr;
@@ -1050,7 +1049,6 @@ done:
 	release_sock(sk);
 	return err;
 }
-#endif
 
 static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 			 int addr_len)
@@ -1971,11 +1969,7 @@ static const struct proto_ops hci_sock_ops = {
 	.getname	= hci_sock_getname,
 	.sendmsg	= hci_sock_sendmsg,
 	.recvmsg	= hci_sock_recvmsg,
-#ifdef CONFIG_BT_LEGACY_IOCTL
 	.ioctl		= hci_sock_ioctl,
-#else
-	.ioctl		= sock_no_ioctl,
-#endif
 	.poll		= datagram_poll,
 	.listen		= sock_no_listen,
 	.shutdown	= sock_no_shutdown,

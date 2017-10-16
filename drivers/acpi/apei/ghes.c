@@ -743,17 +743,19 @@ static int ghes_proc(struct ghes *ghes)
 	}
 	ghes_do_proc(ghes, ghes->estatus);
 
+out:
+	ghes_clear_estatus(ghes);
+
+	if (rc == -ENOENT)
+		return rc;
+
 	/*
 	 * GHESv2 type HEST entries introduce support for error acknowledgment,
 	 * so only acknowledge the error if this support is present.
 	 */
-	if (is_hest_type_generic_v2(ghes)) {
-		rc = ghes_ack_error(ghes->generic_v2);
-		if (rc)
-			return rc;
-	}
-out:
-	ghes_clear_estatus(ghes);
+	if (is_hest_type_generic_v2(ghes))
+		return ghes_ack_error(ghes->generic_v2);
+
 	return rc;
 }
 

@@ -7,7 +7,6 @@
 #include <linux/sched.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
-#include <linux/utsname.h>
 #include <linux/ratelimit.h>
 
 #include "super.h"
@@ -735,12 +734,13 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 			inode = req->r_inode;
 			ihold(inode);
 		} else {
-			/* req->r_dentry is non-null for LSSNAP request.
-			 * fall-thru */
-			WARN_ON_ONCE(!req->r_dentry);
+			/* req->r_dentry is non-null for LSSNAP request */
+			rcu_read_lock();
+			inode = get_nonsnap_parent(req->r_dentry);
+			rcu_read_unlock();
+			dout("__choose_mds using snapdir's parent %p\n", inode);
 		}
-	}
-	if (!inode && req->r_dentry) {
+	} else if (req->r_dentry) {
 		/* ignore race with rename; old or new d_parent is okay */
 		struct dentry *parent;
 		struct inode *dir;
@@ -884,8 +884,8 @@ static struct ceph_msg *create_session_open_msg(struct ceph_mds_client *mdsc, u6
 	void *p;
 
 	const char* metadata[][2] = {
-		{"hostname", utsname()->nodename},
-		{"kernel_version", utsname()->release},
+		{"hostname", mdsc->nodename},
+		{"kernel_version", init_utsname()->release},
 		{"entity_id", opt->name ? : ""},
 		{"root", fsopt->server_path ? : "/"},
 		{NULL, NULL}
@@ -3539,6 +3539,8 @@ int ceph_mdsc_init(struct ceph_fs_client *fsc)
 	init_rwsem(&mdsc->pool_perm_rwsem);
 	mdsc->pool_perm_tree = RB_ROOT;
 
+	strncpy(mdsc->nodename, utsname()->nodename,
+		sizeof(mdsc->nodename) - 1);
 	return 0;
 }
 

@@ -186,15 +186,17 @@ static int bpf_map_alloc_id(struct bpf_map *map)
 
 static void bpf_map_free_id(struct bpf_map *map, bool do_idr_lock)
 {
+	unsigned long flags;
+
 	if (do_idr_lock)
-		spin_lock_bh(&map_idr_lock);
+		spin_lock_irqsave(&map_idr_lock, flags);
 	else
 		__acquire(&map_idr_lock);
 
 	idr_remove(&map_idr, map->id);
 
 	if (do_idr_lock)
-		spin_unlock_bh(&map_idr_lock);
+		spin_unlock_irqrestore(&map_idr_lock, flags);
 	else
 		__release(&map_idr_lock);
 }

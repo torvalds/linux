@@ -98,6 +98,7 @@
 
 /* Auxiliary registers */
 #define AUX_IDENTITY		4
+#define AUX_EXEC_CTRL		8
 #define AUX_INTR_VEC_BASE	0x25
 #define AUX_VOL			0x5e
 
@@ -135,12 +136,12 @@ struct bcr_identity {
 #endif
 };
 
-struct bcr_isa {
+struct bcr_isa_arcv2 {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	unsigned int div_rem:4, pad2:4, ldd:1, unalign:1, atomic:1, be:1,
-		     pad1:11, atomic1:1, ver:8;
+		     pad1:12, ver:8;
 #else
-	unsigned int ver:8, atomic1:1, pad1:11, be:1, atomic:1, unalign:1,
+	unsigned int ver:8, pad1:12, be:1, atomic:1, unalign:1,
 		     ldd:1, pad2:4, div_rem:4;
 #endif
 };
@@ -263,13 +264,13 @@ struct cpuinfo_arc {
 	struct cpuinfo_arc_mmu mmu;
 	struct cpuinfo_arc_bpu bpu;
 	struct bcr_identity core;
-	struct bcr_isa isa;
+	struct bcr_isa_arcv2 isa;
 	const char *details, *name;
 	unsigned int vec_base;
 	struct cpuinfo_arc_ccm iccm, dccm;
 	struct {
 		unsigned int swap:1, norm:1, minmax:1, barrel:1, crc:1, swape:1, pad1:2,
-			     fpu_sp:1, fpu_dp:1, pad2:6,
+			     fpu_sp:1, fpu_dp:1, dual_iss_enb:1, dual_iss_exist:1, pad2:4,
 			     debug:1, ap:1, smart:1, rtt:1, pad3:4,
 			     timer0:1, timer1:1, rtc:1, gfrc:1, pad4:4;
 	} extn;

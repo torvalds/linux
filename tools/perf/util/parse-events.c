@@ -309,10 +309,11 @@ static char *get_config_name(struct list_head *head_terms)
 static struct perf_evsel *
 __add_event(struct list_head *list, int *idx,
 	    struct perf_event_attr *attr,
-	    char *name, struct cpu_map *cpus,
+	    char *name, struct perf_pmu *pmu,
 	    struct list_head *config_terms, bool auto_merge_stats)
 {
 	struct perf_evsel *evsel;
+	struct cpu_map *cpus = pmu ? pmu->cpus : NULL;
 
 	event_attr_init(attr);
 
@@ -323,7 +324,7 @@ __add_event(struct list_head *list, int *idx,
 	(*idx)++;
 	evsel->cpus        = cpu_map__get(cpus);
 	evsel->own_cpus    = cpu_map__get(cpus);
-	evsel->system_wide = !!cpus;
+	evsel->system_wide = pmu ? pmu->is_uncore : false;
 	evsel->auto_merge_stats = auto_merge_stats;
 
 	if (name)
@@ -1233,7 +1234,7 @@ static int __parse_events_add_pmu(struct parse_events_state *parse_state,
 
 	if (!head_config) {
 		attr.type = pmu->type;
-		evsel = __add_event(list, &parse_state->idx, &attr, NULL, pmu->cpus, NULL, auto_merge_stats);
+		evsel = __add_event(list, &parse_state->idx, &attr, NULL, pmu, NULL, auto_merge_stats);
 		return evsel ? 0 : -ENOMEM;
 	}
 
@@ -1254,7 +1255,7 @@ static int __parse_events_add_pmu(struct parse_events_state *parse_state,
 		return -EINVAL;
 
 	evsel = __add_event(list, &parse_state->idx, &attr,
-			    get_config_name(head_config), pmu->cpus,
+			    get_config_name(head_config), pmu,
 			    &config_terms, auto_merge_stats);
 	if (evsel) {
 		evsel->unit = info.unit;
