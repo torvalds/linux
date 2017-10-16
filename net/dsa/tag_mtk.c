@@ -23,7 +23,7 @@
 static struct sk_buff *mtk_tag_xmit(struct sk_buff *skb,
 				    struct net_device *dev)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_port *dp = dsa_slave_to_port(dev);
 	u8 *mtk_tag;
 
 	if (skb_cow_head(skb, MTK_HDR_LEN) < 0)
@@ -36,7 +36,7 @@ static struct sk_buff *mtk_tag_xmit(struct sk_buff *skb,
 	/* Build the tag after the MAC Source Address */
 	mtk_tag = skb->data + 2 * ETH_ALEN;
 	mtk_tag[0] = 0;
-	mtk_tag[1] = (1 << p->dp->index) & MTK_HDR_XMIT_DP_BIT_MASK;
+	mtk_tag[1] = (1 << dp->index) & MTK_HDR_XMIT_DP_BIT_MASK;
 	mtk_tag[2] = 0;
 	mtk_tag[3] = 0;
 

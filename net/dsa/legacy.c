@@ -740,8 +740,7 @@ int dsa_legacy_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 		       const unsigned char *addr, u16 vid,
 		       u16 flags)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_port *dp = p->dp;
+	struct dsa_port *dp = dsa_slave_to_port(dev);
 
 	return dsa_port_fdb_add(dp, addr, vid);
 }
@@ -750,8 +749,7 @@ int dsa_legacy_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 		       struct net_device *dev,
 		       const unsigned char *addr, u16 vid)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_port *dp = p->dp;
+	struct dsa_port *dp = dsa_slave_to_port(dev);
 
 	return dsa_port_fdb_del(dp, addr, vid);
 }
