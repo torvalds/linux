@@ -573,10 +573,8 @@ static void snd_card_asihpi_pcm_int_start(struct snd_pcm_substream *substream)
 
 static void snd_card_asihpi_pcm_int_stop(struct snd_pcm_substream *substream)
 {
-	struct snd_card_asihpi_pcm *dpcm;
 	struct snd_card_asihpi *card;
 
-	dpcm = (struct snd_card_asihpi_pcm *)substream->runtime->private_data;
 	card = snd_pcm_substream_chip(substream);
 
 	hpi_handle_error(hpi_adapter_set_property(card->hpi->adapter->index,
@@ -863,7 +861,6 @@ static void snd_card_asihpi_timer_function(struct timer_list *t)
 
 	snd_pcm_group_for_each_entry(s, substream) {
 		struct snd_card_asihpi_pcm *ds = s->runtime->private_data;
-		runtime = s->runtime;
 
 		/* don't link Cap and Play */
 		if (substream->stream != s->stream)
