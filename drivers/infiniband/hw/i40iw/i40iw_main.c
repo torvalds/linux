@@ -353,6 +353,8 @@ static void i40iw_dele_ceqs(struct i40iw_device *iwdev)
 		i40iw_disable_irq(dev, msix_vec, (void *)iwceq);
 		i40iw_destroy_ceq(iwdev, iwceq);
 	}
+
+	iwdev->sc_dev.ceq_valid = false;
 }
 
 /**
@@ -810,17 +812,16 @@ static enum i40iw_status_code i40iw_setup_ceqs(struct i40iw_device *iwdev,
 		i40iw_enable_intr(&iwdev->sc_dev, msix_vec->idx);
 		iwdev->ceqs_count++;
 	}
-
 exit:
-	if (status) {
-		if (!iwdev->ceqs_count) {
-			kfree(iwdev->ceqlist);
-			iwdev->ceqlist = NULL;
-		} else {
-			status = 0;
-		}
+	if (status && !iwdev->ceqs_count) {
+		kfree(iwdev->ceqlist);
+		iwdev->ceqlist = NULL;
+		return status;
+	} else {
+		iwdev->sc_dev.ceq_valid = true;
+		return 0;
 	}
-	return status;
+
 }
 
 /**

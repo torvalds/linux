@@ -611,7 +611,7 @@ static enum i40iw_status_code i40iw_puda_qp_create(struct i40iw_puda_rsrc *rsrc)
 	qp->user_pri = 0;
 	i40iw_qp_add_qos(qp);
 	i40iw_puda_qp_setctx(rsrc);
-	if (rsrc->ceq_valid)
+	if (rsrc->dev->ceq_valid)
 		ret = i40iw_cqp_qp_create_cmd(rsrc->dev, qp);
 	else
 		ret = i40iw_puda_qp_wqe(rsrc->dev, qp);
@@ -704,7 +704,7 @@ static enum i40iw_status_code i40iw_puda_cq_create(struct i40iw_puda_rsrc *rsrc)
 	ret = dev->iw_priv_cq_ops->cq_init(cq, &info);
 	if (ret)
 		goto error;
-	if (rsrc->ceq_valid)
+	if (rsrc->dev->ceq_valid)
 		ret = i40iw_cqp_cq_create_cmd(dev, cq);
 	else
 		ret = i40iw_puda_cq_wqe(dev, cq);
@@ -724,7 +724,7 @@ static void i40iw_puda_free_qp(struct i40iw_puda_rsrc *rsrc)
 	struct i40iw_ccq_cqe_info compl_info;
 	struct i40iw_sc_dev *dev = rsrc->dev;
 
-	if (rsrc->ceq_valid) {
+	if (rsrc->dev->ceq_valid) {
 		i40iw_cqp_qp_destroy_cmd(dev, &rsrc->qp);
 		return;
 	}
@@ -757,7 +757,7 @@ static void i40iw_puda_free_cq(struct i40iw_puda_rsrc *rsrc)
 	struct i40iw_ccq_cqe_info compl_info;
 	struct i40iw_sc_dev *dev = rsrc->dev;
 
-	if (rsrc->ceq_valid) {
+	if (rsrc->dev->ceq_valid) {
 		i40iw_cqp_cq_destroy_cmd(dev, &rsrc->cq);
 		return;
 	}
@@ -922,7 +922,6 @@ enum i40iw_status_code i40iw_puda_create_rsrc(struct i40iw_sc_vsi *vsi,
 		rsrc->xmit_complete = i40iw_ieq_tx_compl;
 	}
 
-	rsrc->ceq_valid = info->ceq_valid;
 	rsrc->type = info->type;
 	rsrc->sq_wrtrk_array = (struct i40iw_sq_uk_wr_trk_info *)((u8 *)vmem->va + pudasize);
 	rsrc->rq_wrid_array = (u64 *)((u8 *)vmem->va + pudasize + sqwridsize);

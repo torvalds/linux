@@ -505,6 +505,7 @@ struct i40iw_sc_dev {
 	u8 hmc_fn_id;
 	bool is_pf;
 	bool vchnl_up;
+	bool ceq_valid;
 	u8 vf_id;
 	wait_queue_head_t vf_reqs;
 	u64 cqp_cmd_stats[OP_SIZE_CQP_STAT_ARRAY];
