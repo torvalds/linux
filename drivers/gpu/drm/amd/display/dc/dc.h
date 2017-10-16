@@ -60,6 +60,7 @@ struct dc_caps {
 	unsigned int max_video_width;
 	bool dcc_const_color;
 	bool dynamic_audio;
+	bool is_apu;
 };
 
 struct dc_dcc_surface_param {

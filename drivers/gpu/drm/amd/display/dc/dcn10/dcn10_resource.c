@@ -1235,6 +1235,7 @@ static bool construct(
 	dc->caps.max_cursor_size = 256;
 
 	dc->caps.max_slave_planes = 1;
+	dc->caps.is_apu = true;
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;
