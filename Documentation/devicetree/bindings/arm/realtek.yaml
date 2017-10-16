@@ -27,4 +27,10 @@ properties:
               - probox2,ava # ProBox2 AVA
               - zidoo,x9s # Zidoo X9S
           - const: realtek,rtd1295
+
+      # RTD1296 SoC based boards
+      - items:
+          - enum:
+              - synology,ds418 # Synology DiskStation DS418
+          - const: realtek,rtd1296
 ...
