@@ -3879,14 +3879,14 @@ void ceph_mdsc_handle_fsmap(struct ceph_mds_client *mdsc, struct ceph_msg *msg)
 		goto err_out;
 	}
 	return;
+
 bad:
 	pr_err("error decoding fsmap\n");
 err_out:
 	mutex_lock(&mdsc->mutex);
-	mdsc->mdsmap_err = -ENOENT;
+	mdsc->mdsmap_err = err;
 	__wake_requests(mdsc, &mdsc->waiting_for_map);
 	mutex_unlock(&mdsc->mutex);
-	return;
 }
 
 /*
