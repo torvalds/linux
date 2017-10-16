@@ -1920,20 +1920,21 @@ u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
 		DP_TRAIN_VOLTAGE_SWING_MASK;
 }
 
-static void cnl_ddi_vswing_program(struct drm_i915_private *dev_priv,
-				    u32 level, enum port port, int type)
+static void cnl_ddi_vswing_program(struct intel_encoder *encoder,
+				   int level, enum intel_output_type type)
 {
-	const struct cnl_ddi_buf_trans *ddi_translations = NULL;
-	u32 n_entries, val;
-	int ln;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum port port = intel_ddi_get_encoder_port(encoder);
+	const struct cnl_ddi_buf_trans *ddi_translations;
+	int n_entries, ln;
+	u32 val;
 
-	if (type == INTEL_OUTPUT_HDMI) {
+	if (type == INTEL_OUTPUT_HDMI)
 		ddi_translations = cnl_get_buf_trans_hdmi(dev_priv, &n_entries);
-	} else if (type == INTEL_OUTPUT_DP) {
-		ddi_translations = cnl_get_buf_trans_dp(dev_priv, &n_entries);
-	} else if (type == INTEL_OUTPUT_EDP) {
+	else if (type == INTEL_OUTPUT_EDP)
 		ddi_translations = cnl_get_buf_trans_edp(dev_priv, &n_entries);
-	}
+	else
+		ddi_translations = cnl_get_buf_trans_dp(dev_priv, &n_entries);
 
 	if (WARN_ON(ddi_translations == NULL))
 		return;
@@ -1986,26 +1987,22 @@ static void cnl_ddi_vswing_program(struct drm_i915_private *dev_priv,
 	I915_WRITE(CNL_PORT_TX_DW7_GRP(port), val);
 }
 
-static void cnl_ddi_vswing_sequence(struct intel_encoder *encoder, u32 level)
+static void cnl_ddi_vswing_sequence(struct intel_encoder *encoder,
+				    int level, enum intel_output_type type)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	enum port port = intel_ddi_get_encoder_port(encoder);
-	int type = encoder->type;
-	int width = 0;
-	int rate = 0;
+	int width, rate, ln;
 	u32 val;
-	int ln = 0;
 
-	if ((intel_dp) && (type == INTEL_OUTPUT_EDP || type == INTEL_OUTPUT_DP)) {
+	if (type == INTEL_OUTPUT_HDMI) {
+		width = 4;
+		rate = 0; /* Rate is always < than 6GHz for HDMI */
+	} else {
+		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+
 		width = intel_dp->lane_count;
 		rate = intel_dp->link_rate;
-	} else if (type == INTEL_OUTPUT_HDMI) {
-		width = 4;
-		/* Rate is always < than 6GHz for HDMI */
-	} else {
-		MISSING_CASE(type);
-		return;
 	}
 
 	/*
@@ -2014,7 +2011,7 @@ static void cnl_ddi_vswing_sequence(struct intel_encoder *encoder, u32 level)
 	 * else clear to 0b.
 	 */
 	val = I915_READ(CNL_PORT_PCS_DW1_LN0(port));
-	if (type == INTEL_OUTPUT_EDP || type == INTEL_OUTPUT_DP)
+	if (type != INTEL_OUTPUT_HDMI)
 		val |= COMMON_KEEPER_EN;
 	else
 		val &= ~COMMON_KEEPER_EN;
@@ -2049,7 +2046,7 @@ static void cnl_ddi_vswing_sequence(struct intel_encoder *encoder, u32 level)
 	I915_WRITE(CNL_PORT_TX_DW5_GRP(port), val);
 
 	/* 5. Program swing and de-emphasis */
-	cnl_ddi_vswing_program(dev_priv, level, port, type);
+	cnl_ddi_vswing_program(encoder, level, type);
 
 	/* 6. Set training enable to trigger update */
 	val = I915_READ(CNL_PORT_TX_DW5_LN0(port));
@@ -2089,7 +2086,7 @@ u32 bxt_signal_levels(struct intel_dp *intel_dp)
 	u32 level = intel_ddi_dp_level(intel_dp);
 
 	if (IS_CANNONLAKE(dev_priv))
-		cnl_ddi_vswing_sequence(encoder, level);
+		cnl_ddi_vswing_sequence(encoder, level, encoder->type);
 	else
 		bxt_ddi_vswing_sequence(encoder, level, encoder->type);
 
@@ -2187,7 +2184,7 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	intel_display_power_get(dev_priv, dig_port->ddi_io_power_domain);
 
 	if (IS_CANNONLAKE(dev_priv))
-		cnl_ddi_vswing_sequence(encoder, level);
+		cnl_ddi_vswing_sequence(encoder, level, encoder->type);
 	else if (IS_GEN9_LP(dev_priv))
 		bxt_ddi_vswing_sequence(encoder, level, encoder->type);
 	else
@@ -2218,7 +2215,7 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 	intel_display_power_get(dev_priv, dig_port->ddi_io_power_domain);
 
 	if (IS_CANNONLAKE(dev_priv))
-		cnl_ddi_vswing_sequence(encoder, level);
+		cnl_ddi_vswing_sequence(encoder, level, INTEL_OUTPUT_HDMI);
 	else if (IS_GEN9_LP(dev_priv))
 		bxt_ddi_vswing_sequence(encoder, level, INTEL_OUTPUT_HDMI);
 	else
