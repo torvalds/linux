@@ -483,6 +483,9 @@ static enum i40iw_status_code i40iw_sc_cqp_init(struct i40iw_sc_cqp *cqp,
 	cqp->dev->cqp_cmd_stats[OP_REQUESTED_COMMANDS] = 0;
 	cqp->dev->cqp_cmd_stats[OP_COMPLETED_COMMANDS] = 0;
 
+	i40iw_wr32(cqp->dev->hw, I40E_PFPE_CQPTAIL, 0);
+	i40iw_wr32(cqp->dev->hw, I40E_PFPE_CQPDB, 0);
+
 	i40iw_debug(cqp->dev, I40IW_DEBUG_WQE,
 		    "%s: sq_size[%04d] hw_sq_size[%04d] sq_base[%p] sq_pa[%llxh] cqp[%p] polarity[x%04X]\n",
 		    __func__, cqp->sq_size, cqp->hw_sq_size,
