@@ -1248,6 +1248,9 @@ rpcrdma_reply_handler(struct work_struct *work)
 	p++;	/* credits */
 	proc = *p++;
 
+	if (vers != rpcrdma_version)
+		goto out_badversion;
+
 	if (rpcrdma_is_bcall(r_xprt, rep, xid, proc))
 		return;
 
@@ -1280,8 +1283,6 @@ rpcrdma_reply_handler(struct work_struct *work)
 	}
 
 	xprt->reestablish_timeout = 0;
-	if (vers != rpcrdma_version)
-		goto out_badversion;
 
 	switch (proc) {
 	case rdma_msg:
@@ -1321,17 +1322,15 @@ out_badstatus:
 	}
 	return;
 
+out_badversion:
+	dprintk("RPC:       %s: invalid version %d\n",
+		__func__, be32_to_cpu(vers));
+	goto repost;
+
 /* If the incoming reply terminated a pending RPC, the next
  * RPC call will post a replacement receive buffer as it is
  * being marshaled.
  */
-out_badversion:
-	dprintk("RPC:       %s: invalid version %d\n",
-		__func__, be32_to_cpu(vers));
-	status = -EIO;
-	r_xprt->rx_stats.bad_reply_count++;
-	goto out;
-
 out_badheader:
 	dprintk("RPC: %5u %s: invalid rpcrdma reply (type %u)\n",
 		rqst->rq_task->tk_pid, __func__, be32_to_cpu(proc));
