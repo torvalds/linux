@@ -69,15 +69,72 @@ adreno_request_fw(struct adreno_gpu *adreno_gpu, const char *fwname)
 {
 	struct drm_device *drm = adreno_gpu->base.dev;
 	const struct firmware *fw = NULL;
+	char newname[strlen("qcom/") + strlen(fwname) + 1];
 	int ret;
 
-	ret = request_firmware(&fw, fwname, drm->dev);
-	if (ret) {
-		dev_err(drm->dev, "failed to load %s: %d\n", fwname, ret);
-		return ERR_PTR(ret);
+	sprintf(newname, "qcom/%s", fwname);
+
+	/*
+	 * Try first to load from qcom/$fwfile using a direct load (to avoid
+	 * a potential timeout waiting for usermode helper)
+	 */
+	if ((adreno_gpu->fwloc == FW_LOCATION_UNKNOWN) ||
+	    (adreno_gpu->fwloc == FW_LOCATION_NEW)) {
+
+		ret = request_firmware_direct(&fw, newname, drm->dev);
+		if (!ret) {
+			dev_info(drm->dev, "loaded %s from new location\n",
+				newname);
+			adreno_gpu->fwloc = FW_LOCATION_NEW;
+			return fw;
+		} else if (adreno_gpu->fwloc != FW_LOCATION_UNKNOWN) {
+			dev_err(drm->dev, "failed to load %s: %d\n",
+				newname, ret);
+			return ERR_PTR(ret);
+		}
 	}
 
-	return fw;
+	/*
+	 * Then try the legacy location without qcom/ prefix
+	 */
+	if ((adreno_gpu->fwloc == FW_LOCATION_UNKNOWN) ||
+	    (adreno_gpu->fwloc == FW_LOCATION_LEGACY)) {
+
+		ret = request_firmware_direct(&fw, fwname, drm->dev);
+		if (!ret) {
+			dev_info(drm->dev, "loaded %s from legacy location\n",
+				newname);
+			adreno_gpu->fwloc = FW_LOCATION_LEGACY;
+			return fw;
+		} else if (adreno_gpu->fwloc != FW_LOCATION_UNKNOWN) {
+			dev_err(drm->dev, "failed to load %s: %d\n",
+				fwname, ret);
+			return ERR_PTR(ret);
+		}
+	}
+
+	/*
+	 * Finally fall back to request_firmware() for cases where the
+	 * usermode helper is needed (I think mainly android)
+	 */
+	if ((adreno_gpu->fwloc == FW_LOCATION_UNKNOWN) ||
+	    (adreno_gpu->fwloc == FW_LOCATION_HELPER)) {
+
+		ret = request_firmware(&fw, newname, drm->dev);
+		if (!ret) {
+			dev_info(drm->dev, "loaded %s with helper\n",
+				newname);
+			adreno_gpu->fwloc = FW_LOCATION_HELPER;
+			return fw;
+		} else if (adreno_gpu->fwloc != FW_LOCATION_UNKNOWN) {
+			dev_err(drm->dev, "failed to load %s: %d\n",
+				newname, ret);
+			return ERR_PTR(ret);
+		}
+	}
+
+	dev_err(drm->dev, "failed to load %s\n", fwname);
+	return ERR_PTR(-ENOENT);
 }
 
 static int adreno_load_fw(struct adreno_gpu *adreno_gpu)

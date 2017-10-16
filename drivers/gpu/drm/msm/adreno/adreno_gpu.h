@@ -101,6 +101,27 @@ struct adreno_gpu {
 	/* interesting register offsets to dump: */
 	const unsigned int *registers;
 
+	/*
+	 * Are we loading fw from legacy path?  Prior to addition
+	 * of gpu firmware to linux-firmware, the fw files were
+	 * placed in toplevel firmware directory, following qcom's
+	 * android kernel.  But linux-firmware preferred they be
+	 * placed in a 'qcom' subdirectory.
+	 *
+	 * For backwards compatibility, we try first to load from
+	 * the new path, using request_firmware_direct() to avoid
+	 * any potential timeout waiting for usermode helper, then
+	 * fall back to the old path (with direct load).  And
+	 * finally fall back to request_firmware() with the new
+	 * path to allow the usermode helper.
+	 */
+	enum {
+		FW_LOCATION_UNKNOWN = 0,
+		FW_LOCATION_NEW,       /* /lib/firmware/qcom/$fwfile */
+		FW_LOCATION_LEGACY,    /* /lib/firmware/$fwfile */
+		FW_LOCATION_HELPER,
+	} fwloc;
+
 	/* firmware: */
 	const struct firmware *pm4, *pfp;
 

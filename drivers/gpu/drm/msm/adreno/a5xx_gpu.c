@@ -76,9 +76,26 @@ static int zap_shader_load_mdt(struct msm_gpu *gpu, const char *fwname)
 		goto out;
 	}
 
-	/* Load the rest of the MDT */
-	ret = qcom_mdt_load(dev, fw, fwname, GPU_PAS_ID, mem_region, mem_phys,
-		mem_size);
+	/*
+	 * Load the rest of the MDT
+	 *
+	 * Note that we could be dealing with two different paths, since
+	 * with upstream linux-firmware it would be in a qcom/ subdir..
+	 * adreno_request_fw() handles this, but qcom_mdt_load() does
+	 * not.  But since we've already gotten thru adreno_request_fw()
+	 * we know which of the two cases it is:
+	 */
+	if (to_adreno_gpu(gpu)->fwloc == FW_LOCATION_LEGACY) {
+		ret = qcom_mdt_load(dev, fw, fwname, GPU_PAS_ID,
+				mem_region, mem_phys, mem_size);
+	} else {
+		char newname[strlen("qcom/") + strlen(fwname) + 1];
+
+		sprintf(newname, "qcom/%s", fwname);
+
+		ret = qcom_mdt_load(dev, fw, newname, GPU_PAS_ID,
+				mem_region, mem_phys, mem_size);
+	}
 	if (ret)
 		goto out;
 
