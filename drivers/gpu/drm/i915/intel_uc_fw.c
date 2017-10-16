@@ -188,6 +188,8 @@ fail:
 
 	DRM_WARN("%s: Failed to fetch firmware %s (error %d)\n",
 		 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path, err);
+	DRM_INFO("%s: Firmware can be downloaded from %s\n",
+		 intel_uc_fw_type_repr(uc_fw->type), INTEL_UC_FIRMWARE_URL);
 
 	release_firmware(fw);		/* OK even if fw is NULL */
 }

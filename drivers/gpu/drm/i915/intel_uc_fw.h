@@ -27,6 +27,8 @@
 
 struct drm_i915_private;
 
+#define INTEL_UC_FIRMWARE_URL "https://01.org/linuxgraphics/downloads/firmware"
+
 enum intel_uc_fw_status {
 	INTEL_UC_FIRMWARE_FAIL = -1,
 	INTEL_UC_FIRMWARE_NONE = 0,
