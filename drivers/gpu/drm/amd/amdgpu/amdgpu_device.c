@@ -2625,6 +2625,9 @@ static bool amdgpu_check_soft_reset(struct amdgpu_device *adev)
 	int i;
 	bool asic_hang = false;
 
+	if (amdgpu_sriov_vf(adev))
+		return true;
+
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.valid)
 			continue;
