@@ -41,6 +41,7 @@
 #endif
 
 /* Access permission bits of ACR (only define those that we use)*/
+#define MPU_AP_PL1RO_PL0NA	(0x5 << 8)
 #define MPU_AP_PL1RW_PL0RW	(0x3 << 8)
 #define MPU_AP_PL1RW_PL0R0	(0x2 << 8)
 #define MPU_AP_PL1RW_PL0NA	(0x1 << 8)
@@ -49,7 +50,7 @@
 #define MPU_PROBE_REGION	0
 #define MPU_BG_REGION		1
 #define MPU_RAM_REGION		2
-#define MPU_VECTORS_REGION	3
+#define MPU_ROM_REGION		3
 
 /* Maximum number of regions Linux is interested in */
 #define MPU_MAX_REGIONS		16

@@ -7,9 +7,11 @@
 #include <linux/bitops.h>
 #include <linux/memblock.h>
 
+#include <asm/cacheflush.h>
 #include <asm/cp15.h>
 #include <asm/cputype.h>
 #include <asm/mpu.h>
+#include <asm/sections.h>
 
 #include "mm.h"
 
@@ -20,6 +22,9 @@ struct region {
 };
 
 static struct region __initdata mem[MPU_MAX_REGIONS];
+#ifdef CONFIG_XIP_KERNEL
+static struct region __initdata xip[MPU_MAX_REGIONS];
+#endif
 
 static unsigned int __initdata mpu_min_region_order;
 static unsigned int __initdata mpu_max_regions;
@@ -229,7 +234,6 @@ static int __init allocate_region(phys_addr_t base, phys_addr_t size,
 /* MPU initialisation functions */
 void __init adjust_lowmem_bounds_mpu(void)
 {
-	phys_addr_t phys_offset = PHYS_OFFSET;
 	phys_addr_t  specified_mem_size, total_mem_size = 0;
 	struct memblock_region *reg;
 	bool first = true;
@@ -256,8 +260,19 @@ void __init adjust_lowmem_bounds_mpu(void)
 	/* ... and one for vectors */
 	mem_max_regions--;
 #endif
+
+#ifdef CONFIG_XIP_KERNEL
+	/* plus some regions to cover XIP ROM */
+	num = allocate_region(CONFIG_XIP_PHYS_ADDR, __pa(_exiprom) - CONFIG_XIP_PHYS_ADDR,
+			      mem_max_regions, xip);
+
+	mem_max_regions -= num;
+#endif
+
 	for_each_memblock(memory, reg) {
 		if (first) {
+			phys_addr_t phys_offset = PHYS_OFFSET;
+
 			/*
 			 * Initially only use memory continuous from
 			 * PHYS_OFFSET */
@@ -355,7 +370,7 @@ static int __init __mpu_min_region_order(void)
 
 static int __init mpu_setup_region(unsigned int number, phys_addr_t start,
 				   unsigned int size_order, unsigned int properties,
-				   unsigned int subregions)
+				   unsigned int subregions, bool need_flush)
 {
 	u32 size_data;
 
@@ -373,6 +388,9 @@ static int __init mpu_setup_region(unsigned int number, phys_addr_t start,
 	/* Writing N to bits 5:1 (RSR_SZ)  specifies region size 2^N+1 */
 	size_data = ((size_order - 1) << MPU_RSR_SZ) | 1 << MPU_RSR_EN;
 	size_data |= subregions << MPU_RSR_SD;
+
+	if (need_flush)
+		flush_cache_all();
 
 	dsb(); /* Ensure all previous data accesses occur with old mappings */
 	rgnr_write(number);
@@ -416,7 +434,28 @@ void __init mpu_setup(void)
 	/* Background */
 	err |= mpu_setup_region(region++, 0, 32,
 				MPU_ACR_XN | MPU_RGN_STRONGLY_ORDERED | MPU_AP_PL1RW_PL0NA,
-				0);
+				0, false);
+
+#ifdef CONFIG_XIP_KERNEL
+	/* ROM */
+	for (i = 0; i < ARRAY_SIZE(xip); i++) {
+		/*
+                 * In case we overwrite RAM region we set earlier in
+                 * head-nommu.S (which is cachable) all subsequent
+                 * data access till we setup RAM bellow would be done
+                 * with BG region (which is uncachable), thus we need
+                 * to clean and invalidate cache.
+		 */
+		bool need_flush = region == MPU_RAM_REGION;
+
+		if (!xip[i].size)
+			continue;
+
+		err |= mpu_setup_region(region++, xip[i].base, ilog2(xip[i].size),
+					MPU_AP_PL1RO_PL0NA | MPU_RGN_NORMAL,
+					xip[i].subreg, need_flush);
+	}
+#endif
 
 	/* RAM */
 	for (i = 0; i < ARRAY_SIZE(mem); i++) {
@@ -425,14 +464,14 @@ void __init mpu_setup(void)
 
 		err |= mpu_setup_region(region++, mem[i].base, ilog2(mem[i].size),
 					MPU_AP_PL1RW_PL0RW | MPU_RGN_NORMAL,
-					mem[i].subreg);
+					mem[i].subreg, false);
 	}
 
 	/* Vectors */
 #ifndef CONFIG_CPU_V7M
 	err |= mpu_setup_region(region++, vectors_base, ilog2(2 * PAGE_SIZE),
 				MPU_AP_PL1RW_PL0NA | MPU_RGN_NORMAL,
-				0);
+				0, false);
 #endif
 	if (err) {
 		panic("MPU region initialization failure! %d", err);

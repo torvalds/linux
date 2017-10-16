@@ -258,6 +258,26 @@ M_CLASS(ldr    r0, [r12, #MPU_TYPE])
 	setup_region r0, r5, r6, MPU_INSTR_SIDE r12	@ 0x0, BG region, enabled
 2:	isb
 
+#ifdef CONFIG_XIP_KERNEL
+	set_region_nr r0, #MPU_ROM_REGION, r12
+	isb
+
+	ldr	r5,=(MPU_AP_PL1RO_PL0NA | MPU_RGN_NORMAL)
+
+	ldr	r0, =CONFIG_XIP_PHYS_ADDR		@ ROM start
+	ldr     r6, =(_exiprom)				@ ROM end
+	sub	r6, r6, r0				@ Minimum size of region to map
+	clz	r6, r6					@ Region size must be 2^N...
+	rsb	r6, r6, #31				@ ...so round up region size
+	lsl	r6, r6, #MPU_RSR_SZ			@ Put size in right field
+	orr	r6, r6, #(1 << MPU_RSR_EN)		@ Set region enabled bit
+
+	setup_region r0, r5, r6, MPU_DATA_SIDE, r12	@ XIP_PHYS_ADDR, shared, enabled
+	beq	3f					@ Memory-map not unified
+	setup_region r0, r5, r6, MPU_INSTR_SIDE, r12	@ XIP_PHYS_ADDR, shared, enabled
+3:	isb
+#endif
+
 	/* Enable the MPU */
 AR_CLASS(mrc	p15, 0, r0, c1, c0, 0)		@ Read SCTLR
 AR_CLASS(bic	r0, r0, #CR_BR)			@ Disable the 'default mem-map'
