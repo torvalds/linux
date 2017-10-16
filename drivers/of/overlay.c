@@ -162,6 +162,7 @@ static int of_overlay_apply_single_property(struct of_overlay *ov,
 		bool is_symbols_node)
 {
 	struct property *propn = NULL, *tprop;
+	int ret = 0;
 
 	/* NOTE: Multiple changes of single properties not supported */
 	tprop = of_find_property(target, prop->name, NULL);
@@ -186,10 +187,16 @@ static int of_overlay_apply_single_property(struct of_overlay *ov,
 
 	/* not found? add */
 	if (tprop == NULL)
-		return of_changeset_add_property(&ov->cset, target, propn);
+		ret = of_changeset_add_property(&ov->cset, target, propn);
+	else /* found? update */
+		ret = of_changeset_update_property(&ov->cset, target, propn);
 
-	/* found? update */
-	return of_changeset_update_property(&ov->cset, target, propn);
+	if (ret) {
+		kfree(propn->name);
+		kfree(propn->value);
+		kfree(propn);
+	}
+	return ret;
 }
 
 static int of_overlay_apply_single_device_node(struct of_overlay *ov,
