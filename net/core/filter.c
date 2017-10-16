@@ -3732,6 +3732,23 @@ static bool tc_cls_act_is_valid_access(int off, int size,
 	return bpf_skb_is_valid_access(off, size, type, info);
 }
 
+static bool
+tc_cls_act_is_valid_access_analyzer(int off, int size,
+				    enum bpf_access_type type,
+				    struct bpf_insn_access_aux *info)
+{
+	switch (off) {
+	case offsetof(struct sk_buff, data):
+		info->reg_type = PTR_TO_PACKET;
+		return true;
+	case offsetof(struct sk_buff, cb) +
+	     offsetof(struct bpf_skb_data_end, data_end):
+		info->reg_type = PTR_TO_PACKET_END;
+		return true;
+	}
+	return false;
+}
+
 static bool __is_valid_xdp_access(int off, int size)
 {
 	if (off < 0 || off >= sizeof(struct xdp_md))
@@ -3764,6 +3781,21 @@ static bool xdp_is_valid_access(int off, int size,
 	}
 
 	return __is_valid_xdp_access(off, size);
+}
+
+static bool xdp_is_valid_access_analyzer(int off, int size,
+					 enum bpf_access_type type,
+					 struct bpf_insn_access_aux *info)
+{
+	switch (off) {
+	case offsetof(struct xdp_buff, data):
+		info->reg_type = PTR_TO_PACKET;
+		return true;
+	case offsetof(struct xdp_buff, data_end):
+		info->reg_type = PTR_TO_PACKET_END;
+		return true;
+	}
+	return false;
 }
 
 void bpf_warn_invalid_xdp_action(u32 act)
@@ -4411,6 +4443,10 @@ const struct bpf_verifier_ops tc_cls_act_verifier_ops = {
 	.gen_prologue		= tc_cls_act_prologue,
 };
 
+const struct bpf_verifier_ops tc_cls_act_analyzer_ops = {
+	.is_valid_access	= tc_cls_act_is_valid_access_analyzer,
+};
+
 const struct bpf_prog_ops tc_cls_act_prog_ops = {
 	.test_run		= bpf_prog_test_run_skb,
 };
@@ -4419,6 +4455,10 @@ const struct bpf_verifier_ops xdp_verifier_ops = {
 	.get_func_proto		= xdp_func_proto,
 	.is_valid_access	= xdp_is_valid_access,
 	.convert_ctx_access	= xdp_convert_ctx_access,
+};
+
+const struct bpf_verifier_ops xdp_analyzer_ops = {
+	.is_valid_access	= xdp_is_valid_access_analyzer,
 };
 
 const struct bpf_prog_ops xdp_prog_ops = {
