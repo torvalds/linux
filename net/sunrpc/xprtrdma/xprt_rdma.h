@@ -202,18 +202,17 @@ enum {
 };
 
 /*
- * struct rpcrdma_rep -- this structure encapsulates state required to recv
- * and complete a reply, asychronously. It needs several pieces of
- * state:
- *   o recv buffer (posted to provider)
- *   o ib_sge (also donated to provider)
- *   o status of reply (length, success or not)
- *   o bookkeeping state to get run by reply handler (list, etc)
+ * struct rpcrdma_rep -- this structure encapsulates state required
+ * to receive and complete an RPC Reply, asychronously. It needs
+ * several pieces of state:
  *
- * These are allocated during initialization, per-transport instance.
+ *   o receive buffer and ib_sge (donated to provider)
+ *   o status of receive (success or not, length, inv rkey)
+ *   o bookkeeping state to get run by reply handler (XDR stream)
  *
- * N of these are associated with a transport instance, and stored in
- * struct rpcrdma_buffer. N is the max number of outstanding requests.
+ * These structures are allocated during transport initialization.
+ * N of these are associated with a transport instance, managed by
+ * struct rpcrdma_buffer. N is the max number of outstanding RPCs.
  */
 
 struct rpcrdma_rep {
@@ -228,6 +227,7 @@ struct rpcrdma_rep {
 	struct work_struct	rr_work;
 	struct xdr_buf		rr_hdrbuf;
 	struct xdr_stream	rr_stream;
+	struct rpc_rqst		*rr_rqst;
 	struct list_head	rr_list;
 	struct ib_recv_wr	rr_recv_wr;
 };
@@ -616,6 +616,7 @@ bool rpcrdma_prepare_send_sges(struct rpcrdma_ia *, struct rpcrdma_req *,
 void rpcrdma_unmap_sges(struct rpcrdma_ia *, struct rpcrdma_req *);
 int rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst);
 void rpcrdma_set_max_header_sizes(struct rpcrdma_xprt *);
+void rpcrdma_complete_rqst(struct rpcrdma_rep *rep);
 void rpcrdma_reply_handler(struct work_struct *work);
 
 static inline void rpcrdma_set_xdrlen(struct xdr_buf *xdr, size_t len)

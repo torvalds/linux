@@ -1211,6 +1211,60 @@ rpcrdma_decode_error(struct rpcrdma_xprt *r_xprt, struct rpcrdma_rep *rep,
 	return -EREMOTEIO;
 }
 
+/* Perform XID lookup, reconstruction of the RPC reply, and
+ * RPC completion while holding the transport lock to ensure
+ * the rep, rqst, and rq_task pointers remain stable.
+ */
+void rpcrdma_complete_rqst(struct rpcrdma_rep *rep)
+{
+	struct rpcrdma_xprt *r_xprt = rep->rr_rxprt;
+	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
+	struct rpc_rqst *rqst = rep->rr_rqst;
+	unsigned long cwnd;
+	int status;
+
+	xprt->reestablish_timeout = 0;
+
+	switch (rep->rr_proc) {
+	case rdma_msg:
+		status = rpcrdma_decode_msg(r_xprt, rep, rqst);
+		break;
+	case rdma_nomsg:
+		status = rpcrdma_decode_nomsg(r_xprt, rep);
+		break;
+	case rdma_error:
+		status = rpcrdma_decode_error(r_xprt, rep, rqst);
+		break;
+	default:
+		status = -EIO;
+	}
+	if (status < 0)
+		goto out_badheader;
+
+out:
+	spin_lock(&xprt->recv_lock);
+	cwnd = xprt->cwnd;
+	xprt->cwnd = atomic_read(&r_xprt->rx_buf.rb_credits) << RPC_CWNDSHIFT;
+	if (xprt->cwnd > cwnd)
+		xprt_release_rqst_cong(rqst->rq_task);
+
+	xprt_complete_rqst(rqst->rq_task, status);
+	xprt_unpin_rqst(rqst);
+	spin_unlock(&xprt->recv_lock);
+	return;
+
+/* If the incoming reply terminated a pending RPC, the next
+ * RPC call will post a replacement receive buffer as it is
+ * being marshaled.
+ */
+out_badheader:
+	dprintk("RPC: %5u %s: invalid rpcrdma reply (type %u)\n",
+		rqst->rq_task->tk_pid, __func__, be32_to_cpu(rep->rr_proc));
+	r_xprt->rx_stats.bad_reply_count++;
+	status = -EIO;
+	goto out;
+}
+
 /* Process received RPC/RDMA messages.
  *
  * Errors must result in the RPC task either being awakened, or
@@ -1225,8 +1279,6 @@ rpcrdma_reply_handler(struct work_struct *work)
 	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
 	struct rpcrdma_req *req;
 	struct rpc_rqst *rqst;
-	unsigned long cwnd;
-	int status;
 	__be32 *p;
 
 	dprintk("RPC:       %s: incoming rep %p\n", __func__, rep);
@@ -1263,6 +1315,7 @@ rpcrdma_reply_handler(struct work_struct *work)
 	spin_unlock(&xprt->recv_lock);
 	req = rpcr_to_rdmar(rqst);
 	req->rl_reply = rep;
+	rep->rr_rqst = rqst;
 
 	dprintk("RPC:       %s: reply %p completes request %p (xid 0x%08x)\n",
 		__func__, rep, req, be32_to_cpu(rep->rr_xid));
@@ -1280,36 +1333,7 @@ rpcrdma_reply_handler(struct work_struct *work)
 						    &req->rl_registered);
 	}
 
-	xprt->reestablish_timeout = 0;
-
-	switch (rep->rr_proc) {
-	case rdma_msg:
-		status = rpcrdma_decode_msg(r_xprt, rep, rqst);
-		break;
-	case rdma_nomsg:
-		status = rpcrdma_decode_nomsg(r_xprt, rep);
-		break;
-	case rdma_error:
-		status = rpcrdma_decode_error(r_xprt, rep, rqst);
-		break;
-	default:
-		status = -EIO;
-	}
-	if (status < 0)
-		goto out_badheader;
-
-out:
-	spin_lock(&xprt->recv_lock);
-	cwnd = xprt->cwnd;
-	xprt->cwnd = atomic_read(&r_xprt->rx_buf.rb_credits) << RPC_CWNDSHIFT;
-	if (xprt->cwnd > cwnd)
-		xprt_release_rqst_cong(rqst->rq_task);
-
-	xprt_complete_rqst(rqst->rq_task, status);
-	xprt_unpin_rqst(rqst);
-	spin_unlock(&xprt->recv_lock);
-	dprintk("RPC:       %s: xprt_complete_rqst(0x%p, 0x%p, %d)\n",
-		__func__, xprt, rqst, status);
+	rpcrdma_complete_rqst(rep);
 	return;
 
 out_badstatus:
@@ -1325,20 +1349,8 @@ out_badversion:
 		__func__, be32_to_cpu(rep->rr_vers));
 	goto repost;
 
-/* If the incoming reply terminated a pending RPC, the next
- * RPC call will post a replacement receive buffer as it is
- * being marshaled.
- */
-out_badheader:
-	dprintk("RPC: %5u %s: invalid rpcrdma reply (type %u)\n",
-		rqst->rq_task->tk_pid, __func__, be32_to_cpu(rep->rr_proc));
-	r_xprt->rx_stats.bad_reply_count++;
-	status = -EIO;
-	goto out;
-
-/* The req was still available, but by the time the recv_lock
- * was acquired, the rqst and task had been released. Thus the RPC
- * has already been terminated.
+/* The RPC transaction has already been terminated, or the header
+ * is corrupt.
  */
 out_norqst:
 	spin_unlock(&xprt->recv_lock);
@@ -1348,7 +1360,6 @@ out_norqst:
 
 out_shortreply:
 	dprintk("RPC:       %s: short/invalid reply\n", __func__);
-	goto repost;
 
 /* If no pending RPC transaction was matched, post a replacement
  * receive buffer before returning.
