@@ -30,6 +30,8 @@
 #define WDRESTART_MAGIC		0x5AB9
 
 #define WDCR_CLOCK_5MHZ		BIT(4)
+#define WDCR_WDEXT		BIT(3)
+#define WDCR_WDINTR		BIT(2)
 #define WDCR_SYS_RST		BIT(1)
 #define WDCR_ENABLE		BIT(0)
 
@@ -39,6 +41,7 @@ struct ftwdt010_wdt {
 	struct watchdog_device	wdd;
 	struct device		*dev;
 	void __iomem		*base;
+	bool			has_irq;
 };
 
 static inline
@@ -50,14 +53,17 @@ struct ftwdt010_wdt *to_ftwdt010_wdt(struct watchdog_device *wdd)
 static int ftwdt010_wdt_start(struct watchdog_device *wdd)
 {
 	struct ftwdt010_wdt *gwdt = to_ftwdt010_wdt(wdd);
+	u32 enable;
 
 	writel(wdd->timeout * WDT_CLOCK, gwdt->base + FTWDT010_WDLOAD);
 	writel(WDRESTART_MAGIC, gwdt->base + FTWDT010_WDRESTART);
 	/* set clock before enabling */
-	writel(WDCR_CLOCK_5MHZ | WDCR_SYS_RST,
-			gwdt->base + FTWDT010_WDCR);
-	writel(WDCR_CLOCK_5MHZ | WDCR_SYS_RST | WDCR_ENABLE,
-			gwdt->base + FTWDT010_WDCR);
+	enable = WDCR_CLOCK_5MHZ | WDCR_SYS_RST;
+	writel(enable, gwdt->base + FTWDT010_WDCR);
+	if (gwdt->has_irq)
+		enable |= WDCR_WDINTR;
+	enable |= WDCR_ENABLE;
+	writel(enable, gwdt->base + FTWDT010_WDCR);
 
 	return 0;
 }
@@ -133,10 +139,6 @@ static int ftwdt010_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(gwdt->base))
 		return PTR_ERR(gwdt->base);
 
-	irq = platform_get_irq(pdev, 0);
-	if (!irq)
-		return -EINVAL;
-
 	gwdt->dev = dev;
 	gwdt->wdd.info = &ftwdt010_wdt_info;
 	gwdt->wdd.ops = &ftwdt010_wdt_ops;
@@ -158,10 +160,14 @@ static int ftwdt010_wdt_probe(struct platform_device *pdev)
 		writel(reg, gwdt->base + FTWDT010_WDCR);
 	}
 
-	ret = devm_request_irq(dev, irq, ftwdt010_wdt_interrupt, 0,
-			       "watchdog bark", gwdt);
-	if (ret)
-		return ret;
+	irq = platform_get_irq(pdev, 0);
+	if (irq) {
+		ret = devm_request_irq(dev, irq, ftwdt010_wdt_interrupt, 0,
+				       "watchdog bark", gwdt);
+		if (ret)
+			return ret;
+		gwdt->has_irq = true;
+	}
 
 	ret = devm_watchdog_register_device(dev, &gwdt->wdd);
 	if (ret) {
