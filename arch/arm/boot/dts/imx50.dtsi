@@ -443,6 +443,7 @@
 				clocks = <&clks IMX5_CLK_SDMA_GATE>,
 					 <&clks IMX5_CLK_SDMA_GATE>;
 				clock-names = "ipg", "ahb";
+				#dma-cells = <3>;
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx50.bin";
 			};
 
