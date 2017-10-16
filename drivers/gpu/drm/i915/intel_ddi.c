@@ -659,6 +659,31 @@ intel_ddi_get_buf_trans_hdmi(struct drm_i915_private *dev_priv,
 	return NULL;
 }
 
+static const struct bxt_ddi_buf_trans *
+bxt_get_buf_trans_dp(struct drm_i915_private *dev_priv, int *n_entries)
+{
+	*n_entries = ARRAY_SIZE(bxt_ddi_translations_dp);
+	return bxt_ddi_translations_dp;
+}
+
+static const struct bxt_ddi_buf_trans *
+bxt_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
+{
+	if (dev_priv->vbt.edp.low_vswing) {
+		*n_entries = ARRAY_SIZE(bxt_ddi_translations_edp);
+		return bxt_ddi_translations_edp;
+	}
+
+	return bxt_get_buf_trans_dp(dev_priv, n_entries);
+}
+
+static const struct bxt_ddi_buf_trans *
+bxt_get_buf_trans_hdmi(struct drm_i915_private *dev_priv, int *n_entries)
+{
+	*n_entries = ARRAY_SIZE(bxt_ddi_translations_hdmi);
+	return bxt_ddi_translations_hdmi;
+}
+
 static const struct cnl_ddi_buf_trans *
 cnl_get_buf_trans_hdmi(struct drm_i915_private *dev_priv, int *n_entries)
 {
@@ -1831,27 +1856,20 @@ static void skl_ddi_set_iboost(struct intel_encoder *encoder,
 		_skl_ddi_set_iboost(dev_priv, PORT_E, iboost);
 }
 
-static void bxt_ddi_vswing_sequence(struct drm_i915_private *dev_priv,
-				    u32 level, enum port port, int type)
+static void bxt_ddi_vswing_sequence(struct intel_encoder *encoder,
+				    int level, enum intel_output_type type)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	const struct bxt_ddi_buf_trans *ddi_translations;
-	u32 n_entries, i;
+	enum port port = encoder->port;
+	int n_entries, i;
 
-	if (type == INTEL_OUTPUT_EDP && dev_priv->vbt.edp.low_vswing) {
-		n_entries = ARRAY_SIZE(bxt_ddi_translations_edp);
-		ddi_translations = bxt_ddi_translations_edp;
-	} else if (type == INTEL_OUTPUT_DP
-			|| type == INTEL_OUTPUT_EDP) {
-		n_entries = ARRAY_SIZE(bxt_ddi_translations_dp);
-		ddi_translations = bxt_ddi_translations_dp;
-	} else if (type == INTEL_OUTPUT_HDMI) {
-		n_entries = ARRAY_SIZE(bxt_ddi_translations_hdmi);
-		ddi_translations = bxt_ddi_translations_hdmi;
-	} else {
-		DRM_DEBUG_KMS("Vswing programming not done for encoder %d\n",
-				type);
-		return;
-	}
+	if (type == INTEL_OUTPUT_HDMI)
+		ddi_translations = bxt_get_buf_trans_hdmi(dev_priv, &n_entries);
+	else if (type == INTEL_OUTPUT_EDP)
+		ddi_translations = bxt_get_buf_trans_edp(dev_priv, &n_entries);
+	else
+		ddi_translations = bxt_get_buf_trans_dp(dev_priv, &n_entries);
 
 	/* Check if default value has to be used */
 	if (level >= n_entries ||
@@ -1881,6 +1899,11 @@ u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
 			cnl_get_buf_trans_edp(dev_priv, &n_entries);
 		else
 			cnl_get_buf_trans_dp(dev_priv, &n_entries);
+	} else if (IS_GEN9_LP(dev_priv)) {
+		if (encoder->type == INTEL_OUTPUT_EDP)
+			bxt_get_buf_trans_edp(dev_priv, &n_entries);
+		else
+			bxt_get_buf_trans_dp(dev_priv, &n_entries);
 	} else {
 		if (encoder->type == INTEL_OUTPUT_EDP)
 			intel_ddi_get_buf_trans_edp(dev_priv, &n_entries);
@@ -2063,13 +2086,12 @@ u32 bxt_signal_levels(struct intel_dp *intel_dp)
 	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dport->base.base.dev);
 	struct intel_encoder *encoder = &dport->base;
-	enum port port = dport->port;
 	u32 level = intel_ddi_dp_level(intel_dp);
 
 	if (IS_CANNONLAKE(dev_priv))
 		cnl_ddi_vswing_sequence(encoder, level);
 	else
-		bxt_ddi_vswing_sequence(dev_priv, level, port, encoder->type);
+		bxt_ddi_vswing_sequence(encoder, level, encoder->type);
 
 	return 0;
 }
@@ -2167,7 +2189,7 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	if (IS_CANNONLAKE(dev_priv))
 		cnl_ddi_vswing_sequence(encoder, level);
 	else if (IS_GEN9_LP(dev_priv))
-		bxt_ddi_vswing_sequence(dev_priv, level, port, encoder->type);
+		bxt_ddi_vswing_sequence(encoder, level, encoder->type);
 	else
 		intel_prepare_dp_ddi_buffers(encoder);
 
@@ -2198,8 +2220,7 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 	if (IS_CANNONLAKE(dev_priv))
 		cnl_ddi_vswing_sequence(encoder, level);
 	else if (IS_GEN9_LP(dev_priv))
-		bxt_ddi_vswing_sequence(dev_priv, level, port,
-					INTEL_OUTPUT_HDMI);
+		bxt_ddi_vswing_sequence(encoder, level, INTEL_OUTPUT_HDMI);
 	else
 		intel_prepare_hdmi_ddi_buffers(encoder, level);
 
