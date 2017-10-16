@@ -1328,17 +1328,16 @@ int  cz_dpm_update_vce_dpm(struct pp_hwmgr *hwmgr)
 		hwmgr->dyn_state.vce_clock_voltage_dependency_table;
 
 	/* Stable Pstate is enabled and we need to set the VCE DPM to highest level */
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-					PHM_PlatformCaps_StablePState)
-					|| hwmgr->en_umd_pstate) {
+	if (PP_CAP(PHM_PlatformCaps_StablePState) ||
+	    hwmgr->en_umd_pstate) {
 		cz_hwmgr->vce_dpm.hard_min_clk =
 				  ptable->entries[ptable->count - 1].ecclk;
 
 		smum_send_msg_to_smc_with_parameter(hwmgr,
-					PPSMC_MSG_SetEclkHardMin,
-					cz_get_eclk_level(hwmgr,
-					     cz_hwmgr->vce_dpm.hard_min_clk,
-						PPSMC_MSG_SetEclkHardMin));
+			PPSMC_MSG_SetEclkHardMin,
+			cz_get_eclk_level(hwmgr,
+				cz_hwmgr->vce_dpm.hard_min_clk,
+				PPSMC_MSG_SetEclkHardMin));
 	} else {
 		/*Program HardMin based on the vce_arbiter.ecclk */
 		if (hwmgr->vce_arbiter.ecclk == 0) {
@@ -1351,10 +1350,10 @@ int  cz_dpm_update_vce_dpm(struct pp_hwmgr *hwmgr)
 		} else {
 			cz_hwmgr->vce_dpm.hard_min_clk = hwmgr->vce_arbiter.ecclk;
 			smum_send_msg_to_smc_with_parameter(hwmgr,
-						PPSMC_MSG_SetEclkHardMin,
-						cz_get_eclk_level(hwmgr,
-						cz_hwmgr->vce_dpm.hard_min_clk,
-						PPSMC_MSG_SetEclkHardMin));
+				PPSMC_MSG_SetEclkHardMin,
+				cz_get_eclk_level(hwmgr,
+					cz_hwmgr->vce_dpm.hard_min_clk,
+					PPSMC_MSG_SetEclkHardMin));
 		}
 	}
 	return 0;
