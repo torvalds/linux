@@ -588,6 +588,59 @@ skl_get_buf_trans_hdmi(struct drm_i915_private *dev_priv, int *n_entries)
 	}
 }
 
+static const struct ddi_buf_trans *
+intel_ddi_get_buf_trans_dp(struct drm_i915_private *dev_priv,
+			   int *n_entries)
+{
+	if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
+		return kbl_get_buf_trans_dp(dev_priv, n_entries);
+	} else if (IS_SKYLAKE(dev_priv)) {
+		return skl_get_buf_trans_dp(dev_priv, n_entries);
+	} else if (IS_BROADWELL(dev_priv)) {
+		*n_entries = ARRAY_SIZE(bdw_ddi_translations_dp);
+		return  bdw_ddi_translations_dp;
+	} else if (IS_HASWELL(dev_priv)) {
+		*n_entries = ARRAY_SIZE(hsw_ddi_translations_dp);
+		return hsw_ddi_translations_dp;
+	}
+
+	*n_entries = 0;
+	return NULL;
+}
+
+static const struct ddi_buf_trans *
+intel_ddi_get_buf_trans_edp(struct drm_i915_private *dev_priv,
+			    int *n_entries)
+{
+	if (IS_GEN9_BC(dev_priv)) {
+		return skl_get_buf_trans_edp(dev_priv, n_entries);
+	} else if (IS_BROADWELL(dev_priv)) {
+		return bdw_get_buf_trans_edp(dev_priv, n_entries);
+	} else if (IS_HASWELL(dev_priv)) {
+		*n_entries = ARRAY_SIZE(hsw_ddi_translations_dp);
+		return hsw_ddi_translations_dp;
+	}
+
+	*n_entries = 0;
+	return NULL;
+}
+
+static const struct ddi_buf_trans *
+intel_ddi_get_buf_trans_fdi(struct drm_i915_private *dev_priv,
+			    int *n_entries)
+{
+	if (IS_BROADWELL(dev_priv)) {
+		*n_entries = ARRAY_SIZE(bdw_ddi_translations_fdi);
+		return bdw_ddi_translations_fdi;
+	} else if (IS_HASWELL(dev_priv)) {
+		*n_entries = ARRAY_SIZE(hsw_ddi_translations_fdi);
+		return hsw_ddi_translations_fdi;
+	}
+
+	*n_entries = 0;
+	return NULL;
+}
+
 static const struct cnl_ddi_buf_trans *
 cnl_get_buf_trans_hdmi(struct drm_i915_private *dev_priv, int *n_entries)
 {
@@ -690,59 +743,6 @@ static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port por
 		hdmi_level = hdmi_default_entry;
 
 	return hdmi_level;
-}
-
-static const struct ddi_buf_trans *
-intel_ddi_get_buf_trans_dp(struct drm_i915_private *dev_priv,
-			   int *n_entries)
-{
-	if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
-		return kbl_get_buf_trans_dp(dev_priv, n_entries);
-	} else if (IS_SKYLAKE(dev_priv)) {
-		return skl_get_buf_trans_dp(dev_priv, n_entries);
-	} else if (IS_BROADWELL(dev_priv)) {
-		*n_entries = ARRAY_SIZE(bdw_ddi_translations_dp);
-		return  bdw_ddi_translations_dp;
-	} else if (IS_HASWELL(dev_priv)) {
-		*n_entries = ARRAY_SIZE(hsw_ddi_translations_dp);
-		return hsw_ddi_translations_dp;
-	}
-
-	*n_entries = 0;
-	return NULL;
-}
-
-static const struct ddi_buf_trans *
-intel_ddi_get_buf_trans_edp(struct drm_i915_private *dev_priv,
-			    int *n_entries)
-{
-	if (IS_GEN9_BC(dev_priv)) {
-		return skl_get_buf_trans_edp(dev_priv, n_entries);
-	} else if (IS_BROADWELL(dev_priv)) {
-		return bdw_get_buf_trans_edp(dev_priv, n_entries);
-	} else if (IS_HASWELL(dev_priv)) {
-		*n_entries = ARRAY_SIZE(hsw_ddi_translations_dp);
-		return hsw_ddi_translations_dp;
-	}
-
-	*n_entries = 0;
-	return NULL;
-}
-
-static const struct ddi_buf_trans *
-intel_ddi_get_buf_trans_fdi(struct drm_i915_private *dev_priv,
-			    int *n_entries)
-{
-	if (IS_BROADWELL(dev_priv)) {
-		*n_entries = ARRAY_SIZE(bdw_ddi_translations_fdi);
-		return bdw_ddi_translations_fdi;
-	} else if (IS_HASWELL(dev_priv)) {
-		*n_entries = ARRAY_SIZE(hsw_ddi_translations_fdi);
-		return hsw_ddi_translations_fdi;
-	}
-
-	*n_entries = 0;
-	return NULL;
 }
 
 /*
@@ -1801,19 +1801,14 @@ static void skl_ddi_set_iboost(struct intel_encoder *encoder, u32 level)
 		if (dp_iboost) {
 			iboost = dp_iboost;
 		} else {
-			if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv))
-				ddi_translations = kbl_get_buf_trans_dp(dev_priv,
-									&n_entries);
-			else
-				ddi_translations = skl_get_buf_trans_dp(dev_priv,
-									&n_entries);
+			ddi_translations = intel_ddi_get_buf_trans_dp(dev_priv, &n_entries);
 			iboost = ddi_translations[level].i_boost;
 		}
 	} else if (type == INTEL_OUTPUT_EDP) {
 		if (dp_iboost) {
 			iboost = dp_iboost;
 		} else {
-			ddi_translations = skl_get_buf_trans_edp(dev_priv, &n_entries);
+			ddi_translations = intel_ddi_get_buf_trans_edp(dev_priv, &n_entries);
 
 			if (WARN_ON(port != PORT_A &&
 				    port != PORT_E && n_entries > 9))
