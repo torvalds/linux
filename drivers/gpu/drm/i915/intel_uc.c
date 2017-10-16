@@ -195,6 +195,7 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 			goto err_submission;
 
 		intel_huc_init_hw(&dev_priv->huc);
+		intel_guc_init_params(guc);
 		ret = intel_guc_init_hw(&dev_priv->guc);
 		if (ret == 0 || ret != -EAGAIN)
 			break;
