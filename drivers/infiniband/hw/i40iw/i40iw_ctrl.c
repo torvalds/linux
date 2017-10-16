@@ -1774,6 +1774,53 @@ static enum i40iw_status_code i40iw_sc_get_next_aeqe(struct i40iw_sc_aeq *aeq,
 	info->iwarp_state = (u8)RS_64(temp, I40IW_AEQE_IWSTATE);
 	info->q2_data_written = (u8)RS_64(temp, I40IW_AEQE_Q2DATA);
 	info->aeqe_overflow = (bool)RS_64(temp, I40IW_AEQE_OVERFLOW);
+
+	switch (info->ae_id) {
+	case I40IW_AE_PRIV_OPERATION_DENIED:
+	case I40IW_AE_UDA_XMIT_DGRAM_TOO_LONG:
+	case I40IW_AE_UDA_XMIT_DGRAM_TOO_SHORT:
+	case I40IW_AE_BAD_CLOSE:
+	case I40IW_AE_RDMAP_ROE_BAD_LLP_CLOSE:
+	case I40IW_AE_RDMA_READ_WHILE_ORD_ZERO:
+	case I40IW_AE_STAG_ZERO_INVALID:
+	case I40IW_AE_IB_RREQ_AND_Q1_FULL:
+	case I40IW_AE_WQE_UNEXPECTED_OPCODE:
+	case I40IW_AE_DDP_UBE_INVALID_DDP_VERSION:
+	case I40IW_AE_DDP_UBE_INVALID_MO:
+	case I40IW_AE_DDP_UBE_INVALID_QN:
+	case I40IW_AE_DDP_NO_L_BIT:
+	case I40IW_AE_RDMAP_ROE_INVALID_RDMAP_VERSION:
+	case I40IW_AE_RDMAP_ROE_UNEXPECTED_OPCODE:
+	case I40IW_AE_ROE_INVALID_RDMA_READ_REQUEST:
+	case I40IW_AE_ROE_INVALID_RDMA_WRITE_OR_READ_RESP:
+	case I40IW_AE_INVALID_ARP_ENTRY:
+	case I40IW_AE_INVALID_TCP_OPTION_RCVD:
+	case I40IW_AE_STALE_ARP_ENTRY:
+	case I40IW_AE_LLP_CLOSE_COMPLETE:
+	case I40IW_AE_LLP_CONNECTION_RESET:
+	case I40IW_AE_LLP_FIN_RECEIVED:
+	case I40IW_AE_LLP_RECEIVED_MPA_CRC_ERROR:
+	case I40IW_AE_LLP_SEGMENT_TOO_SMALL:
+	case I40IW_AE_LLP_SYN_RECEIVED:
+	case I40IW_AE_LLP_TERMINATE_RECEIVED:
+	case I40IW_AE_LLP_TOO_MANY_RETRIES:
+	case I40IW_AE_LLP_DOUBT_REACHABILITY:
+	case I40IW_AE_RESET_SENT:
+	case I40IW_AE_TERMINATE_SENT:
+	case I40IW_AE_RESET_NOT_SENT:
+	case I40IW_AE_LCE_QP_CATASTROPHIC:
+	case I40IW_AE_QP_SUSPEND_COMPLETE:
+		info->qp = true;
+		info->compl_ctx = compl_ctx;
+		ae_src = I40IW_AE_SOURCE_RSVD;
+		break;
+	case I40IW_AE_LCE_CQ_CATASTROPHIC:
+		info->cq = true;
+		info->compl_ctx = LS_64_1(compl_ctx, 1);
+		ae_src = I40IW_AE_SOURCE_RSVD;
+		break;
+	}
+
 	switch (ae_src) {
 	case I40IW_AE_SOURCE_RQ:
 	case I40IW_AE_SOURCE_RQ_0011:
@@ -1807,6 +1854,8 @@ static enum i40iw_status_code i40iw_sc_get_next_aeqe(struct i40iw_sc_aeq *aeq,
 		info->compl_ctx = compl_ctx;
 		info->out_rdrsp = true;
 		break;
+	case I40IW_AE_SOURCE_RSVD:
+		/* fallthrough */
 	default:
 		break;
 	}

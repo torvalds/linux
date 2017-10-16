@@ -128,6 +128,7 @@
 		&_ceq->ceqe_base[I40IW_RING_GETCURRENT_TAIL(_ceq->ceq_ring)]   \
 	)
 
+#define I40IW_AE_SOURCE_RSVD            0x0
 #define I40IW_AE_SOURCE_RQ              0x1
 #define I40IW_AE_SOURCE_RQ_0011         0x3
 
