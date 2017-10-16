@@ -1481,9 +1481,9 @@ static irqreturn_t tc358743_irq_handler(int irq, void *dev_id)
 	return handled ? IRQ_HANDLED : IRQ_NONE;
 }
 
-static void tc358743_irq_poll_timer(unsigned long arg)
+static void tc358743_irq_poll_timer(struct timer_list *t)
 {
-	struct tc358743_state *state = (struct tc358743_state *)arg;
+	struct tc358743_state *state = from_timer(state, t, timer);
 	unsigned int msecs;
 
 	schedule_work(&state->work_i2c_poll);
@@ -2153,8 +2153,7 @@ static int tc358743_probe(struct i2c_client *client,
 	} else {
 		INIT_WORK(&state->work_i2c_poll,
 			  tc358743_work_i2c_poll);
-		setup_timer(&state->timer, tc358743_irq_poll_timer,
-			    (unsigned long)state);
+		timer_setup(&state->timer, tc358743_irq_poll_timer, 0);
 		state->timer.expires = jiffies +
 				       msecs_to_jiffies(POLL_INTERVAL_MS);
 		add_timer(&state->timer);
