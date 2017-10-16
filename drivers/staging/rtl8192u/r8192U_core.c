@@ -497,7 +497,7 @@ inline void force_pci_posting(struct net_device *dev)
 
 static struct net_device_stats *rtl8192_stats(struct net_device *dev);
 static void rtl8192_restart(struct work_struct *work);
-static void watch_dog_timer_callback(unsigned long data);
+static void watch_dog_timer_callback(struct timer_list *t);
 
 /****************************************************************************
  *   -----------------------------PROCFS STUFF-------------------------
@@ -2698,8 +2698,7 @@ static short rtl8192_init(struct net_device *dev)
 	}
 	rtl8192_get_channel_map(dev);
 	init_hal_dm(dev);
-	setup_timer(&priv->watch_dog_timer, watch_dog_timer_callback,
-		    (unsigned long)dev);
+	timer_setup(&priv->watch_dog_timer, watch_dog_timer_callback, 0);
 	if (rtl8192_usb_initendpoints(dev) != 0) {
 		DMESG("Endopoints initialization failed");
 		return -ENOMEM;
@@ -3500,9 +3499,9 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 	RT_TRACE(COMP_TRACE, " <==RtUsbCheckForHangWorkItemCallback()\n");
 }
 
-static void watch_dog_timer_callback(unsigned long data)
+static void watch_dog_timer_callback(struct timer_list *t)
 {
-	struct r8192_priv *priv = ieee80211_priv((struct net_device *)data);
+	struct r8192_priv *priv = from_timer(priv, t, watch_dog_timer);
 
 	schedule_delayed_work(&priv->watch_dog_wq, 0);
 	mod_timer(&priv->watch_dog_timer,
@@ -3529,7 +3528,7 @@ static int _rtl8192_up(struct net_device *dev)
 	if (priv->ieee80211->state != IEEE80211_LINKED)
 		ieee80211_softmac_start_protocol(priv->ieee80211);
 	ieee80211_reset_queue(priv->ieee80211);
-	watch_dog_timer_callback((unsigned long)dev);
+	watch_dog_timer_callback(&priv->watch_dog_timer);
 	if (!netif_queue_stopped(dev))
 		netif_start_queue(dev);
 	else

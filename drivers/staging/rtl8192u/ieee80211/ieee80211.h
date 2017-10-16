@@ -2392,9 +2392,9 @@ void TsInitAddBA(struct ieee80211_device *ieee, PTX_TS_RECORD pTS,
 		 u8 Policy, u8 bOverwritePending);
 void TsInitDelBA(struct ieee80211_device *ieee,
 		 PTS_COMMON_INFO pTsCommonInfo, TR_SELECT TxRxSelect);
-void BaSetupTimeOut(unsigned long data);
-void TxBaInactTimeout(unsigned long data);
-void RxBaInactTimeout(unsigned long data);
+void BaSetupTimeOut(struct timer_list *t);
+void TxBaInactTimeout(struct timer_list *t);
+void RxBaInactTimeout(struct timer_list *t);
 void ResetBaEntry(PBA_RECORD pBA);
 //function in TS.c
 bool GetTs(

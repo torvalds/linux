@@ -672,18 +672,18 @@ TsInitDelBA( struct ieee80211_device *ieee, PTS_COMMON_INFO pTsCommonInfo, TR_SE
  *  return:  NULL
  *  notice:
  ********************************************************************************************************************/
-void BaSetupTimeOut(unsigned long data)
+void BaSetupTimeOut(struct timer_list *t)
 {
-	PTX_TS_RECORD	pTxTs = (PTX_TS_RECORD)data;
+	PTX_TS_RECORD	pTxTs = from_timer(pTxTs, t, TxPendingBARecord.Timer);
 
 	pTxTs->bAddBaReqInProgress = false;
 	pTxTs->bAddBaReqDelayed = true;
 	pTxTs->TxPendingBARecord.bValid = false;
 }
 
-void TxBaInactTimeout(unsigned long data)
+void TxBaInactTimeout(struct timer_list *t)
 {
-	PTX_TS_RECORD	pTxTs = (PTX_TS_RECORD)data;
+	PTX_TS_RECORD	pTxTs = from_timer(pTxTs, t, TxAdmittedBARecord.Timer);
 	struct ieee80211_device *ieee = container_of(pTxTs, struct ieee80211_device, TxTsRecord[pTxTs->num]);
 	TxTsDeleteBA(ieee, pTxTs);
 	ieee80211_send_DELBA(
@@ -694,9 +694,9 @@ void TxBaInactTimeout(unsigned long data)
 		DELBA_REASON_TIMEOUT);
 }
 
-void RxBaInactTimeout(unsigned long data)
+void RxBaInactTimeout(struct timer_list *t)
 {
-	PRX_TS_RECORD	pRxTs = (PRX_TS_RECORD)data;
+	PRX_TS_RECORD	pRxTs = from_timer(pRxTs, t, RxAdmittedBARecord.Timer);
 	struct ieee80211_device *ieee = container_of(pRxTs, struct ieee80211_device, RxTsRecord[pRxTs->num]);
 
 	RxTsDeleteBA(ieee, pRxTs);
