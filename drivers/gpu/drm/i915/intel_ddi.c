@@ -641,6 +641,24 @@ intel_ddi_get_buf_trans_fdi(struct drm_i915_private *dev_priv,
 	return NULL;
 }
 
+static const struct ddi_buf_trans *
+intel_ddi_get_buf_trans_hdmi(struct drm_i915_private *dev_priv,
+			     int *n_entries)
+{
+	if (IS_GEN9_BC(dev_priv)) {
+		return skl_get_buf_trans_hdmi(dev_priv, n_entries);
+	} else if (IS_BROADWELL(dev_priv)) {
+		*n_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi);
+		return bdw_ddi_translations_hdmi;
+	} else if (IS_HASWELL(dev_priv)) {
+		*n_entries = ARRAY_SIZE(hsw_ddi_translations_hdmi);
+		return hsw_ddi_translations_hdmi;
+	}
+
+	*n_entries = 0;
+	return NULL;
+}
+
 static const struct cnl_ddi_buf_trans *
 cnl_get_buf_trans_hdmi(struct drm_i915_private *dev_priv, int *n_entries)
 {
@@ -723,18 +741,17 @@ static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port por
 		cnl_get_buf_trans_hdmi(dev_priv, &n_hdmi_entries);
 		hdmi_default_entry = n_hdmi_entries - 1;
 	} else if (IS_GEN9_BC(dev_priv)) {
-		skl_get_buf_trans_hdmi(dev_priv, &n_hdmi_entries);
+		intel_ddi_get_buf_trans_hdmi(dev_priv, &n_hdmi_entries);
 		hdmi_default_entry = 8;
 	} else if (IS_BROADWELL(dev_priv)) {
-		n_hdmi_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi);
+		intel_ddi_get_buf_trans_hdmi(dev_priv, &n_hdmi_entries);
 		hdmi_default_entry = 7;
 	} else if (IS_HASWELL(dev_priv)) {
-		n_hdmi_entries = ARRAY_SIZE(hsw_ddi_translations_hdmi);
+		intel_ddi_get_buf_trans_hdmi(dev_priv, &n_hdmi_entries);
 		hdmi_default_entry = 6;
 	} else {
 		WARN(1, "ddi translation table missing\n");
-		n_hdmi_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi);
-		hdmi_default_entry = 7;
+		return 0;
 	}
 
 	/* Choose a good default if VBT is badly populated */
@@ -810,23 +827,12 @@ static void intel_prepare_hdmi_ddi_buffers(struct intel_encoder *encoder)
 
 	hdmi_level = intel_ddi_hdmi_level(dev_priv, port);
 
-	if (IS_GEN9_BC(dev_priv)) {
-		ddi_translations_hdmi = skl_get_buf_trans_hdmi(dev_priv, &n_hdmi_entries);
+	ddi_translations_hdmi = intel_ddi_get_buf_trans_hdmi(dev_priv, &n_hdmi_entries);
 
-		/* If we're boosting the current, set bit 31 of trans1 */
-		if (dev_priv->vbt.ddi_port_info[port].hdmi_boost_level)
-			iboost_bit = DDI_BUF_BALANCE_LEG_ENABLE;
-	} else if (IS_BROADWELL(dev_priv)) {
-		ddi_translations_hdmi = bdw_ddi_translations_hdmi;
-		n_hdmi_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi);
-	} else if (IS_HASWELL(dev_priv)) {
-		ddi_translations_hdmi = hsw_ddi_translations_hdmi;
-		n_hdmi_entries = ARRAY_SIZE(hsw_ddi_translations_hdmi);
-	} else {
-		WARN(1, "ddi translation table missing\n");
-		ddi_translations_hdmi = bdw_ddi_translations_hdmi;
-		n_hdmi_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi);
-	}
+	/* If we're boosting the current, set bit 31 of trans1 */
+	if (IS_GEN9_BC(dev_priv) &&
+	    dev_priv->vbt.ddi_port_info[port].hdmi_boost_level)
+		iboost_bit = DDI_BUF_BALANCE_LEG_ENABLE;
 
 	/* Entry 9 is for HDMI: */
 	I915_WRITE(DDI_BUF_TRANS_LO(port, 9),
@@ -1820,7 +1826,7 @@ static void skl_ddi_set_iboost(struct intel_encoder *encoder, u32 level)
 		if (hdmi_iboost) {
 			iboost = hdmi_iboost;
 		} else {
-			ddi_translations = skl_get_buf_trans_hdmi(dev_priv, &n_entries);
+			ddi_translations = intel_ddi_get_buf_trans_hdmi(dev_priv, &n_entries);
 			iboost = ddi_translations[level].i_boost;
 		}
 	} else {
