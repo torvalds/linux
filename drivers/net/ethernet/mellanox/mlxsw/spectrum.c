@@ -3667,6 +3667,9 @@ static int mlxsw_sp_basic_trap_groups_set(struct mlxsw_core *mlxsw_core)
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
 }
 
+static int mlxsw_sp_netdevice_event(struct notifier_block *unused,
+				    unsigned long event, void *ptr);
+
 static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 			 const struct mlxsw_bus_info *mlxsw_bus_info)
 {
@@ -3736,6 +3739,16 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_router_init;
 	}
 
+	/* Initialize netdevice notifier after router is initialized, so that
+	 * the event handler can use router structures.
+	 */
+	mlxsw_sp->netdevice_nb.notifier_call = mlxsw_sp_netdevice_event;
+	err = register_netdevice_notifier(&mlxsw_sp->netdevice_nb);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to register netdev notifier\n");
+		goto err_netdev_notifier;
+	}
+
 	err = mlxsw_sp_span_init(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to init span system\n");
@@ -3769,6 +3782,8 @@ err_dpipe_init:
 err_acl_init:
 	mlxsw_sp_span_fini(mlxsw_sp);
 err_span_init:
+	unregister_netdevice_notifier(&mlxsw_sp->netdevice_nb);
+err_netdev_notifier:
 	mlxsw_sp_router_fini(mlxsw_sp);
 err_router_init:
 	mlxsw_sp_afa_fini(mlxsw_sp);
@@ -3795,6 +3810,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	mlxsw_sp_dpipe_fini(mlxsw_sp);
 	mlxsw_sp_acl_fini(mlxsw_sp);
 	mlxsw_sp_span_fini(mlxsw_sp);
+	unregister_netdevice_notifier(&mlxsw_sp->netdevice_nb);
 	mlxsw_sp_router_fini(mlxsw_sp);
 	mlxsw_sp_afa_fini(mlxsw_sp);
 	mlxsw_sp_counter_pool_fini(mlxsw_sp);
@@ -4481,13 +4497,17 @@ static bool mlxsw_sp_is_vrf_event(unsigned long event, void *ptr)
 	return netif_is_l3_master(info->upper_dev);
 }
 
-static int mlxsw_sp_netdevice_event(struct notifier_block *unused,
+static int mlxsw_sp_netdevice_event(struct notifier_block *nb,
 				    unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct mlxsw_sp *mlxsw_sp;
 	int err = 0;
 
-	if (event == NETDEV_CHANGEADDR || event == NETDEV_CHANGEMTU)
+	mlxsw_sp = container_of(nb, struct mlxsw_sp, netdevice_nb);
+	if (mlxsw_sp_netdev_is_ipip(mlxsw_sp, dev))
+		err = mlxsw_sp_netdevice_ipip_event(mlxsw_sp, dev, event, ptr);
+	else if (event == NETDEV_CHANGEADDR || event == NETDEV_CHANGEMTU)
 		err = mlxsw_sp_netdevice_router_port_event(dev);
 	else if (mlxsw_sp_is_vrf_event(event, ptr))
 		err = mlxsw_sp_netdevice_vrf_event(dev, event, ptr);
@@ -4500,10 +4520,6 @@ static int mlxsw_sp_netdevice_event(struct notifier_block *unused,
 
 	return notifier_from_errno(err);
 }
-
-static struct notifier_block mlxsw_sp_netdevice_nb __read_mostly = {
-	.notifier_call = mlxsw_sp_netdevice_event,
-};
 
 static struct notifier_block mlxsw_sp_inetaddr_nb __read_mostly = {
 	.notifier_call = mlxsw_sp_inetaddr_event,
@@ -4532,7 +4548,6 @@ static int __init mlxsw_sp_module_init(void)
 {
 	int err;
 
-	register_netdevice_notifier(&mlxsw_sp_netdevice_nb);
 	register_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
 	register_inet6addr_notifier(&mlxsw_sp_inet6addr_nb);
 	register_netevent_notifier(&mlxsw_sp_router_netevent_nb);
@@ -4553,7 +4568,6 @@ err_core_driver_register:
 	unregister_netevent_notifier(&mlxsw_sp_router_netevent_nb);
 	unregister_inet6addr_notifier(&mlxsw_sp_inet6addr_nb);
 	unregister_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
-	unregister_netdevice_notifier(&mlxsw_sp_netdevice_nb);
 	return err;
 }
 
@@ -4564,7 +4578,6 @@ static void __exit mlxsw_sp_module_exit(void)
 	unregister_netevent_notifier(&mlxsw_sp_router_netevent_nb);
 	unregister_inet6addr_notifier(&mlxsw_sp_inet6addr_nb);
 	unregister_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
-	unregister_netdevice_notifier(&mlxsw_sp_netdevice_nb);
 }
 
 module_init(mlxsw_sp_module_init);
