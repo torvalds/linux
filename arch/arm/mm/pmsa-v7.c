@@ -12,63 +12,67 @@
 
 #include "mm.h"
 
+#define DRBAR	__ACCESS_CP15(c6, 0, c1, 0)
+#define IRBAR	__ACCESS_CP15(c6, 0, c1, 1)
+#define DRSR	__ACCESS_CP15(c6, 0, c1, 2)
+#define IRSR	__ACCESS_CP15(c6, 0, c1, 3)
+#define DRACR	__ACCESS_CP15(c6, 0, c1, 4)
+#define IRACR	__ACCESS_CP15(c6, 0, c1, 5)
+#define RNGNR	__ACCESS_CP15(c6, 0, c2, 0)
+
 /* Region number */
-static void rgnr_write(u32 v)
+static inline void rgnr_write(u32 v)
 {
-	asm("mcr        p15, 0, %0, c6, c2, 0" : : "r" (v));
+	write_sysreg(v, RNGNR);
 }
 
 /* Data-side / unified region attributes */
 
 /* Region access control register */
-static void dracr_write(u32 v)
+static inline void dracr_write(u32 v)
 {
-	asm("mcr        p15, 0, %0, c6, c1, 4" : : "r" (v));
+	write_sysreg(v, DRACR);
 }
 
 /* Region size register */
-static void drsr_write(u32 v)
+static inline void drsr_write(u32 v)
 {
-	asm("mcr        p15, 0, %0, c6, c1, 2" : : "r" (v));
+	write_sysreg(v, DRSR);
 }
 
 /* Region base address register */
-static void drbar_write(u32 v)
+static inline void drbar_write(u32 v)
 {
-	asm("mcr        p15, 0, %0, c6, c1, 0" : : "r" (v));
+	write_sysreg(v, DRBAR);
 }
 
-static u32 drbar_read(void)
+static inline u32 drbar_read(void)
 {
-	u32 v;
-	asm("mrc        p15, 0, %0, c6, c1, 0" : "=r" (v));
-	return v;
+	return read_sysreg(DRBAR);
 }
 /* Optional instruction-side region attributes */
 
 /* I-side Region access control register */
-static void iracr_write(u32 v)
+static inline void iracr_write(u32 v)
 {
-	asm("mcr        p15, 0, %0, c6, c1, 5" : : "r" (v));
+	write_sysreg(v, IRACR);
 }
 
 /* I-side Region size register */
-static void irsr_write(u32 v)
+static inline void irsr_write(u32 v)
 {
-	asm("mcr        p15, 0, %0, c6, c1, 3" : : "r" (v));
+	write_sysreg(v, IRSR);
 }
 
 /* I-side Region base address register */
-static void irbar_write(u32 v)
+static inline void irbar_write(u32 v)
 {
-	asm("mcr        p15, 0, %0, c6, c1, 1" : : "r" (v));
+	write_sysreg(v, IRBAR);
 }
 
-static unsigned long irbar_read(void)
+static inline u32 irbar_read(void)
 {
-	unsigned long v;
-	asm("mrc        p15, 0, %0, c6, c1, 1" : "=r" (v));
-	return v;
+	return read_sysreg(IRBAR);
 }
 
 /* MPU initialisation functions */
