@@ -105,7 +105,7 @@
 					dev = "/dev/block/platform/ff0f0000.dwmmc/by-name/vendor";
 					type = "ext4";
 					mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-					fsmgr_flags = "wait";
+					fsmgr_flags = "wait,verify";
 				};
 			};
 		};
