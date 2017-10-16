@@ -27,6 +27,7 @@
 
 struct drm_i915_private;
 
+/* Home of GuC, HuC and DMC firmwares */
 #define INTEL_UC_FIRMWARE_URL "https://01.org/linuxgraphics/downloads/firmware"
 
 enum intel_uc_fw_status {
