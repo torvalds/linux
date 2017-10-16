@@ -701,6 +701,17 @@
 					slew-rate = <2>;
 				};
 			};
+
+			usbotg_fs_pins_a: usbotg-fs@0 {
+				pins {
+					pinmux = <STM32_PINMUX('A', 10, AF10)>, /* OTG_FS_ID */
+						 <STM32_PINMUX('A', 11, AF10)>, /* OTG_FS_DM */
+						 <STM32_PINMUX('A', 12, AF10)>; /* OTG_FS_DP */
+					bias-disable;
+					drive-push-pull;
+					slew-rate = <2>;
+				};
+			};
 		};
 
 		crc: crc@40023000 {
@@ -759,6 +770,15 @@
 			reg = <0x40040000 0x40000>;
 			interrupts = <77>;
 			clocks = <&rcc 0 STM32F7_AHB1_CLOCK(OTGHS)>;
+			clock-names = "otg";
+			status = "disabled";
+		};
+
+		usbotg_fs: usb@50000000 {
+			compatible = "st,stm32f4x9-fsotg";
+			reg = <0x50000000 0x40000>;
+			interrupts = <67>;
+			clocks = <&rcc 0 STM32F7_AHB2_CLOCK(OTGFS)>;
 			clock-names = "otg";
 			status = "disabled";
 		};
