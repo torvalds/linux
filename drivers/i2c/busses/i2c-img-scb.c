@@ -826,9 +826,9 @@ next_atomic_cmd:
  * Timer function to check if something has gone wrong in automatic mode (so we
  * don't have to handle so many interrupts just to catch an exception).
  */
-static void img_i2c_check_timer(unsigned long arg)
+static void img_i2c_check_timer(struct timer_list *t)
 {
-	struct img_i2c *i2c = (struct img_i2c *)arg;
+	struct img_i2c *i2c = from_timer(i2c, t, check_timer);
 	unsigned long flags;
 	unsigned int line_status;
 
@@ -1362,8 +1362,7 @@ static int img_i2c_probe(struct platform_device *pdev)
 	}
 
 	/* Set up the exception check timer */
-	setup_timer(&i2c->check_timer, img_i2c_check_timer,
-		    (unsigned long)i2c);
+	timer_setup(&i2c->check_timer, img_i2c_check_timer, 0);
 
 	i2c->bitrate = timings[0].max_bitrate;
 	if (!of_property_read_u32(node, "clock-frequency", &val))
