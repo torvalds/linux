@@ -27,7 +27,6 @@ TRACE_EVENT(tcp_retransmit_skb,
 	),
 
 	TP_fast_assign(
-		struct ipv6_pinfo *np = inet6_sk(sk);
 		struct inet_sock *inet = inet_sk(sk);
 		struct in6_addr *pin6;
 		__be32 *p32;
@@ -44,11 +43,12 @@ TRACE_EVENT(tcp_retransmit_skb,
 		p32 = (__be32 *) __entry->daddr;
 		*p32 =  inet->inet_daddr;
 
-		if (np) {
+		/* IPv6 socket ? */
+		if (inet6_sk(sk)) {
 			pin6 = (struct in6_addr *)__entry->saddr_v6;
-			*pin6 = np->saddr;
+			*pin6 = sk->sk_v6_rcv_saddr;
 			pin6 = (struct in6_addr *)__entry->daddr_v6;
-			*pin6 = *(np->daddr_cache);
+			*pin6 = sk->sk_v6_daddr;
 		} else {
 			pin6 = (struct in6_addr *)__entry->saddr_v6;
 			ipv6_addr_set_v4mapped(inet->inet_saddr, pin6);
