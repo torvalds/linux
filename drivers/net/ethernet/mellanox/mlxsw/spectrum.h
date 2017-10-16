@@ -161,6 +161,7 @@ struct mlxsw_sp {
 	struct {
 		DECLARE_BITMAP(usage, MLXSW_SP_KVD_LINEAR_SIZE);
 	} kvdl;
+	struct notifier_block netdevice_nb;
 
 	struct mlxsw_sp_counter_pool *counter_pool;
 	struct {
