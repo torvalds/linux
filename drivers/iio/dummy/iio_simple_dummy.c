@@ -26,7 +26,7 @@
 #include <linux/iio/sw_device.h>
 #include "iio_simple_dummy.h"
 
-static struct config_item_type iio_dummy_type = {
+static const struct config_item_type iio_dummy_type = {
 	.ct_owner = THIS_MODULE,
 };
 

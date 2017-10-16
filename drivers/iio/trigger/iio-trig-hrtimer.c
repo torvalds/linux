@@ -30,7 +30,7 @@ struct iio_hrtimer_info {
 	ktime_t period;
 };
 
-static struct config_item_type iio_hrtimer_type = {
+static const struct config_item_type iio_hrtimer_type = {
 	.ct_owner = THIS_MODULE,
 };
 
