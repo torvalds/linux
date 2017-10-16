@@ -44,6 +44,7 @@ struct ipmmu_features {
 	bool use_ns_alias_offset;
 	bool has_cache_leaf_nodes;
 	unsigned int number_of_contexts;
+	bool setup_imbuscr;
 };
 
 struct ipmmu_vmsa_device {
@@ -457,9 +458,10 @@ static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 			     domain->cfg.arm_lpae_s1_cfg.mair[0]);
 
 	/* IMBUSCR */
-	ipmmu_ctx_write_root(domain, IMBUSCR,
-			     ipmmu_ctx_read_root(domain, IMBUSCR) &
-			     ~(IMBUSCR_DVM | IMBUSCR_BUSSEL_MASK));
+	if (domain->mmu->features->setup_imbuscr)
+		ipmmu_ctx_write_root(domain, IMBUSCR,
+				     ipmmu_ctx_read_root(domain, IMBUSCR) &
+				     ~(IMBUSCR_DVM | IMBUSCR_BUSSEL_MASK));
 
 	/*
 	 * IMSTR
@@ -886,6 +888,7 @@ static const struct ipmmu_features ipmmu_features_default = {
 	.use_ns_alias_offset = true,
 	.has_cache_leaf_nodes = false,
 	.number_of_contexts = 1, /* software only tested with one context */
+	.setup_imbuscr = true,
 };
 
 static const struct of_device_id ipmmu_of_ids[] = {
