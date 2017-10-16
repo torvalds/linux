@@ -523,7 +523,7 @@ struct btrfs_caching_control {
 };
 
 /* Once caching_thread() finds this much free space, it will wake up waiters. */
-#define CACHING_CTL_WAKE_UP (1024 * 1024 * 2)
+#define CACHING_CTL_WAKE_UP SZ_2M
 
 struct btrfs_io_ctl {
 	void *cur, *orig;

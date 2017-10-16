@@ -2126,7 +2126,7 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	 * succeed even if the Avail is zero. But this is better than the other
 	 * way around.
 	 */
-	thresh = 4 * 1024 * 1024;
+	thresh = SZ_4M;
 
 	if (!mixed && total_free_meta - thresh < block_rsv->size)
 		buf->f_bavail = 0;

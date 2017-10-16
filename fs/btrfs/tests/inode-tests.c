@@ -770,7 +770,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	offset = em->start + em->len;
 	free_extent_map(em);
 
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, 4096 * 1024, 0);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, SZ_4M, 0);
 	if (IS_ERR(em)) {
 		test_msg("Got an error when we shouldn't have\n");
 		goto out;
