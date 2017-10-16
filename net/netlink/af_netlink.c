@@ -2336,16 +2336,8 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
 
 	skb = nlmsg_new(payload + tlvlen, GFP_KERNEL);
 	if (!skb) {
-		struct sock *sk;
-
-		sk = netlink_lookup(sock_net(in_skb->sk),
-				    in_skb->sk->sk_protocol,
-				    NETLINK_CB(in_skb).portid);
-		if (sk) {
-			sk->sk_err = ENOBUFS;
-			sk->sk_error_report(sk);
-			sock_put(sk);
-		}
+		NETLINK_CB(in_skb).sk->sk_err = ENOBUFS;
+		NETLINK_CB(in_skb).sk->sk_error_report(NETLINK_CB(in_skb).sk);
 		return;
 	}
 
