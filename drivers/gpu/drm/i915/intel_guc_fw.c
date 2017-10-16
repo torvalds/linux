@@ -289,11 +289,5 @@ int intel_guc_fw_upload(struct intel_guc *guc)
 
 	guc->fw.load_status = INTEL_UC_FIRMWARE_SUCCESS;
 
-	DRM_INFO("GuC %s (firmware %s [version %u.%u])\n",
-		 i915_modparams.enable_guc_submission ? "submission enabled" :
-							"loaded",
-		 guc->fw.path,
-		 guc->fw.major_ver_found, guc->fw.minor_ver_found);
-
 	return 0;
 }

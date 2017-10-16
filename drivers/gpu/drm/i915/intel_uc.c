@@ -222,6 +222,12 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 			goto err_interrupts;
 	}
 
+	dev_info(dev_priv->drm.dev, "GuC %s (firmware %s [version %u.%u])\n",
+		 i915_modparams.enable_guc_submission ? "submission enabled" :
+							"loaded",
+		 guc->fw.path,
+		 guc->fw.major_ver_found, guc->fw.minor_ver_found);
+
 	return 0;
 
 	/*
