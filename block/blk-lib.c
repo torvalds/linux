@@ -275,6 +275,40 @@ static unsigned int __blkdev_sectors_to_bio_pages(sector_t nr_sects)
 	return min(pages, (sector_t)BIO_MAX_PAGES);
 }
 
+static int __blkdev_issue_zero_pages(struct block_device *bdev,
+		sector_t sector, sector_t nr_sects, gfp_t gfp_mask,
+		struct bio **biop)
+{
+	struct request_queue *q = bdev_get_queue(bdev);
+	struct bio *bio = *biop;
+	int bi_size = 0;
+	unsigned int sz;
+
+	if (!q)
+		return -ENXIO;
+
+	while (nr_sects != 0) {
+		bio = next_bio(bio, __blkdev_sectors_to_bio_pages(nr_sects),
+			       gfp_mask);
+		bio->bi_iter.bi_sector = sector;
+		bio_set_dev(bio, bdev);
+		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+
+		while (nr_sects != 0) {
+			sz = min((sector_t) PAGE_SIZE, nr_sects << 9);
+			bi_size = bio_add_page(bio, ZERO_PAGE(0), sz, 0);
+			nr_sects -= bi_size >> 9;
+			sector += bi_size >> 9;
+			if (bi_size < sz)
+				break;
+		}
+		cond_resched();
+	}
+
+	*biop = bio;
+	return 0;
+}
+
 /**
  * __blkdev_issue_zeroout - generate number of zero filed write bios
  * @bdev:	blockdev to issue
@@ -305,9 +339,6 @@ int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 		unsigned flags)
 {
 	int ret;
-	int bi_size = 0;
-	struct bio *bio = *biop;
-	unsigned int sz;
 	sector_t bs_mask;
 
 	bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
@@ -317,30 +348,10 @@ int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 	ret = __blkdev_issue_write_zeroes(bdev, sector, nr_sects, gfp_mask,
 			biop, flags);
 	if (ret != -EOPNOTSUPP || (flags & BLKDEV_ZERO_NOFALLBACK))
-		goto out;
+		return ret;
 
-	ret = 0;
-	while (nr_sects != 0) {
-		bio = next_bio(bio, __blkdev_sectors_to_bio_pages(nr_sects),
-			       gfp_mask);
-		bio->bi_iter.bi_sector = sector;
-		bio_set_dev(bio, bdev);
-		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
-
-		while (nr_sects != 0) {
-			sz = min((sector_t) PAGE_SIZE, nr_sects << 9);
-			bi_size = bio_add_page(bio, ZERO_PAGE(0), sz, 0);
-			nr_sects -= bi_size >> 9;
-			sector += bi_size >> 9;
-			if (bi_size < sz)
-				break;
-		}
-		cond_resched();
-	}
-
-	*biop = bio;
-out:
-	return ret;
+	return __blkdev_issue_zero_pages(bdev, sector, nr_sects, gfp_mask,
+					 biop);
 }
 EXPORT_SYMBOL(__blkdev_issue_zeroout);
 
