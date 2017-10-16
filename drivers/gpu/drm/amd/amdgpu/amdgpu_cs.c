@@ -684,7 +684,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	if (!r && p->uf_entry.robj) {
 		struct amdgpu_bo *uf = p->uf_entry.robj;
 
-		r = amdgpu_ttm_bind(&uf->tbo, &uf->tbo.mem);
+		r = amdgpu_ttm_bind(&uf->tbo);
 		p->job->uf_addr += amdgpu_bo_gpu_offset(uf);
 	}
 
@@ -1601,5 +1601,5 @@ int amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 			return r;
 	}
 
-	return amdgpu_ttm_bind(&(*bo)->tbo, &(*bo)->tbo.mem);
+	return amdgpu_ttm_bind(&(*bo)->tbo);
 }

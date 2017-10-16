@@ -889,7 +889,7 @@ bool amdgpu_ttm_is_bound(struct ttm_tt *ttm)
 	return gtt && !list_empty(&gtt->list);
 }
 
-int amdgpu_ttm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *bo_mem)
+int amdgpu_ttm_bind(struct ttm_buffer_object *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
 	struct ttm_tt *ttm = bo->ttm;
@@ -1628,7 +1628,7 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 	}
 
 	if (bo->tbo.mem.mem_type == TTM_PL_TT) {
-		r = amdgpu_ttm_bind(&bo->tbo, &bo->tbo.mem);
+		r = amdgpu_ttm_bind(&bo->tbo);
 		if (r)
 			return r;
 	}
