@@ -232,6 +232,7 @@ struct ov7670_info {
 		struct v4l2_ctrl *saturation;
 		struct v4l2_ctrl *hue;
 	};
+	struct v4l2_mbus_framefmt format;
 	struct ov7670_format_struct *fmt;  /* Current format */
 	struct clk *clk;
 	struct gpio_desc *resetb_gpio;
@@ -975,6 +976,9 @@ static int ov7670_try_fmt_internal(struct v4l2_subdev *sd,
 	fmt->width = wsize->width;
 	fmt->height = wsize->height;
 	fmt->colorspace = ov7670_formats[index].colorspace;
+
+	info->format = *fmt;
+
 	return 0;
 }
 
@@ -988,6 +992,9 @@ static int ov7670_set_fmt(struct v4l2_subdev *sd,
 	struct ov7670_format_struct *ovfmt;
 	struct ov7670_win_size *wsize;
 	struct ov7670_info *info = to_state(sd);
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+	struct v4l2_mbus_framefmt *mbus_fmt;
+#endif
 	unsigned char com7;
 	int ret;
 
@@ -998,8 +1005,13 @@ static int ov7670_set_fmt(struct v4l2_subdev *sd,
 		ret = ov7670_try_fmt_internal(sd, &format->format, NULL, NULL);
 		if (ret)
 			return ret;
-		cfg->try_fmt = format->format;
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+		mbus_fmt = v4l2_subdev_get_try_format(sd, cfg, format->pad);
+		*mbus_fmt = format->format;
 		return 0;
+#else
+		return -ENOTTY;
+#endif
 	}
 
 	ret = ov7670_try_fmt_internal(sd, &format->format, &ovfmt, &wsize);
@@ -1038,6 +1050,30 @@ static int ov7670_set_fmt(struct v4l2_subdev *sd,
 	 */
 	if (ret == 0)
 		ret = ov7670_write(sd, REG_CLKRC, info->clkrc);
+	return 0;
+}
+
+static int ov7670_get_fmt(struct v4l2_subdev *sd,
+			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_format *format)
+{
+	struct ov7670_info *info = to_state(sd);
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+	struct v4l2_mbus_framefmt *mbus_fmt;
+#endif
+
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+		mbus_fmt = v4l2_subdev_get_try_format(sd, cfg, 0);
+		format->format = *mbus_fmt;
+		return 0;
+#else
+		return -ENOTTY;
+#endif
+	} else {
+		format->format = info->format;
+	}
+
 	return 0;
 }
 
@@ -1508,6 +1544,30 @@ static int ov7670_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_regis
 }
 #endif
 
+static void ov7670_get_default_format(struct v4l2_subdev *sd,
+				      struct v4l2_mbus_framefmt *format)
+{
+	struct ov7670_info *info = to_state(sd);
+
+	format->width = info->devtype->win_sizes[0].width;
+	format->height = info->devtype->win_sizes[0].height;
+	format->colorspace = info->fmt->colorspace;
+	format->code = info->fmt->mbus_code;
+	format->field = V4L2_FIELD_NONE;
+}
+
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+static int ov7670_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+{
+	struct v4l2_mbus_framefmt *format =
+				v4l2_subdev_get_try_format(sd, fh->pad, 0);
+
+	ov7670_get_default_format(sd, format);
+
+	return 0;
+}
+#endif
+
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops ov7670_core_ops = {
@@ -1528,6 +1588,7 @@ static const struct v4l2_subdev_pad_ops ov7670_pad_ops = {
 	.enum_frame_interval = ov7670_enum_frame_interval,
 	.enum_frame_size = ov7670_enum_frame_size,
 	.enum_mbus_code = ov7670_enum_mbus_code,
+	.get_fmt = ov7670_get_fmt,
 	.set_fmt = ov7670_set_fmt,
 };
 
@@ -1536,6 +1597,12 @@ static const struct v4l2_subdev_ops ov7670_ops = {
 	.video = &ov7670_video_ops,
 	.pad = &ov7670_pad_ops,
 };
+
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+static const struct v4l2_subdev_internal_ops ov7670_subdev_internal_ops = {
+	.open = ov7670_open,
+};
+#endif
 
 /* ----------------------------------------------------------------------- */
 
@@ -1588,6 +1655,11 @@ static int ov7670_probe(struct i2c_client *client,
 		return -ENOMEM;
 	sd = &info->sd;
 	v4l2_i2c_subdev_init(sd, client, &ov7670_ops);
+
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+	sd->internal_ops = &ov7670_subdev_internal_ops;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+#endif
 
 	info->clock_speed = 30; /* default: a guess */
 	if (client->dev.platform_data) {
@@ -1645,6 +1717,9 @@ static int ov7670_probe(struct i2c_client *client,
 
 	info->devtype = &ov7670_devdata[id->driver_data];
 	info->fmt = &ov7670_formats[0];
+
+	ov7670_get_default_format(sd, &info->format);
+
 	info->clkrc = 0;
 
 	/* Set default frame rate to 30 fps */
