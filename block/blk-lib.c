@@ -322,12 +322,6 @@ static int __blkdev_issue_zero_pages(struct block_device *bdev,
  *  Zero-fill a block range, either using hardware offload or by explicitly
  *  writing zeroes to the device.
  *
- *  Note that this function may fail with -EOPNOTSUPP if the driver signals
- *  zeroing offload support, but the device fails to process the command (for
- *  some devices there is no non-destructive way to verify whether this
- *  operation is actually supported).  In this case the caller should call
- *  retry the call to blkdev_issue_zeroout() and the fallback path will be used.
- *
  *  If a device is using logical block provisioning, the underlying space will
  *  not be released if %flags contains BLKDEV_ZERO_NOUNMAP.
  *
@@ -371,18 +365,49 @@ EXPORT_SYMBOL(__blkdev_issue_zeroout);
 int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, unsigned flags)
 {
-	int ret;
-	struct bio *bio = NULL;
+	int ret = 0;
+	sector_t bs_mask;
+	struct bio *bio;
 	struct blk_plug plug;
+	bool try_write_zeroes = !!bdev_write_zeroes_sectors(bdev);
 
+	bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
+	if ((sector | nr_sects) & bs_mask)
+		return -EINVAL;
+
+retry:
+	bio = NULL;
 	blk_start_plug(&plug);
-	ret = __blkdev_issue_zeroout(bdev, sector, nr_sects, gfp_mask,
-			&bio, flags);
+	if (try_write_zeroes) {
+		ret = __blkdev_issue_write_zeroes(bdev, sector, nr_sects,
+						  gfp_mask, &bio, flags);
+	} else if (!(flags & BLKDEV_ZERO_NOFALLBACK)) {
+		ret = __blkdev_issue_zero_pages(bdev, sector, nr_sects,
+						gfp_mask, &bio);
+	} else {
+		/* No zeroing offload support */
+		ret = -EOPNOTSUPP;
+	}
 	if (ret == 0 && bio) {
 		ret = submit_bio_wait(bio);
 		bio_put(bio);
 	}
 	blk_finish_plug(&plug);
+	if (ret && try_write_zeroes) {
+		if (!(flags & BLKDEV_ZERO_NOFALLBACK)) {
+			try_write_zeroes = false;
+			goto retry;
+		}
+		if (!bdev_write_zeroes_sectors(bdev)) {
+			/*
+			 * Zeroing offload support was indicated, but the
+			 * device reported ILLEGAL REQUEST (for some devices
+			 * there is no non-destructive way to verify whether
+			 * WRITE ZEROES is actually supported).
+			 */
+			ret = -EOPNOTSUPP;
+		}
+	}
 
 	return ret;
 }
