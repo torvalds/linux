@@ -510,11 +510,11 @@ static int gpio_fan_probe(struct platform_device *pdev)
 	if (!fan_data)
 		return -ENOMEM;
 
+	fan_data->dev = dev;
 	err = gpio_fan_get_of_data(fan_data);
 	if (err)
 		return err;
 
-	fan_data->dev = dev;
 	platform_set_drvdata(pdev, fan_data);
 	mutex_init(&fan_data->lock);
 
