@@ -2435,6 +2435,48 @@ static void dpaa_eth_napi_disable(struct dpaa_priv *priv)
 	}
 }
 
+static void dpaa_adjust_link(struct net_device *net_dev)
+{
+	struct mac_device *mac_dev;
+	struct dpaa_priv *priv;
+
+	priv = netdev_priv(net_dev);
+	mac_dev = priv->mac_dev;
+	mac_dev->adjust_link(mac_dev);
+}
+
+static int dpaa_phy_init(struct net_device *net_dev)
+{
+	struct mac_device *mac_dev;
+	struct phy_device *phy_dev;
+	struct dpaa_priv *priv;
+
+	priv = netdev_priv(net_dev);
+	mac_dev = priv->mac_dev;
+
+	phy_dev = of_phy_connect(net_dev, mac_dev->phy_node,
+				 &dpaa_adjust_link, 0,
+				 mac_dev->phy_if);
+	if (!phy_dev) {
+		netif_err(priv, ifup, net_dev, "init_phy() failed\n");
+		return -ENODEV;
+	}
+
+	/* Remove any features not supported by the controller */
+	phy_dev->supported &= mac_dev->if_support;
+
+	/* Enable the symmetric and asymmetric PAUSE frame advertisements,
+	 * as most of the PHY drivers do not enable them by default.
+	 */
+	phy_dev->supported |= (SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+	phy_dev->advertising = phy_dev->supported;
+
+	mac_dev->phy_dev = phy_dev;
+	net_dev->phydev = phy_dev;
+
+	return 0;
+}
+
 static int dpaa_open(struct net_device *net_dev)
 {
 	struct mac_device *mac_dev;
@@ -2445,12 +2487,8 @@ static int dpaa_open(struct net_device *net_dev)
 	mac_dev = priv->mac_dev;
 	dpaa_eth_napi_enable(priv);
 
-	net_dev->phydev = mac_dev->init_phy(net_dev, priv->mac_dev);
-	if (!net_dev->phydev) {
-		netif_err(priv, ifup, net_dev, "init_phy() failed\n");
-		err = -ENODEV;
+	if (dpaa_phy_init(net_dev))
 		goto phy_init_failed;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(mac_dev->port); i++) {
 		err = fman_port_enable(mac_dev->port[i]);
