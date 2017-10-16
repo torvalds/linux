@@ -2872,7 +2872,7 @@ int amdgpu_sriov_gpu_reset(struct amdgpu_device *adev, struct amdgpu_job *job)
 		amd_sched_hw_job_reset(&ring->sched);
 
 		/* after all hw jobs are reset, hw fence is meaningless, so force_completion */
-		amdgpu_fence_driver_force_completion_ring(ring);
+		amdgpu_fence_driver_force_completion(ring);
 	}
 
 	/* request to take full control of GPU before re-initialization  */
@@ -2991,9 +2991,9 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 			continue;
 		kthread_park(ring->sched.thread);
 		amd_sched_hw_job_reset(&ring->sched);
+		/* after all hw jobs are reset, hw fence is meaningless, so force_completion */
+		amdgpu_fence_driver_force_completion(ring);
 	}
-	/* after all hw jobs are reset, hw fence is meaningless, so force_completion */
-	amdgpu_fence_driver_force_completion(adev);
 
 	need_full_reset = amdgpu_need_full_reset(adev);
 

@@ -499,7 +499,7 @@ void amdgpu_fence_driver_fini(struct amdgpu_device *adev)
 		r = amdgpu_fence_wait_empty(ring);
 		if (r) {
 			/* no need to trigger GPU reset as we are unloading */
-			amdgpu_fence_driver_force_completion(adev);
+			amdgpu_fence_driver_force_completion(ring);
 		}
 		amdgpu_irq_put(adev, ring->fence_drv.irq_src,
 			       ring->fence_drv.irq_type);
@@ -534,7 +534,7 @@ void amdgpu_fence_driver_suspend(struct amdgpu_device *adev)
 		r = amdgpu_fence_wait_empty(ring);
 		if (r) {
 			/* delay GPU reset to resume */
-			amdgpu_fence_driver_force_completion(adev);
+			amdgpu_fence_driver_force_completion(ring);
 		}
 
 		/* disable the interrupt */
@@ -571,30 +571,15 @@ void amdgpu_fence_driver_resume(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_fence_driver_force_completion - force all fence waiter to complete
+ * amdgpu_fence_driver_force_completion - force signal latest fence of ring
  *
- * @adev: amdgpu device pointer
+ * @ring: fence of the ring to signal
  *
- * In case of GPU reset failure make sure no process keep waiting on fence
- * that will never complete.
  */
-void amdgpu_fence_driver_force_completion(struct amdgpu_device *adev)
+void amdgpu_fence_driver_force_completion(struct amdgpu_ring *ring)
 {
-	int i;
-
-	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
-		struct amdgpu_ring *ring = adev->rings[i];
-		if (!ring || !ring->fence_drv.initialized)
-			continue;
-
-		amdgpu_fence_write(ring, ring->fence_drv.sync_seq);
-	}
-}
-
-void amdgpu_fence_driver_force_completion_ring(struct amdgpu_ring *ring)
-{
-	if (ring)
-		amdgpu_fence_write(ring, ring->fence_drv.sync_seq);
+	amdgpu_fence_write(ring, ring->fence_drv.sync_seq);
+	amdgpu_fence_process(ring);
 }
 
 /*
