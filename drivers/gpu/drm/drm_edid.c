@@ -159,6 +159,9 @@ static const struct edid_quirk {
 
 	/* Rotel RSX-1058 forwards sink's EDID but only does HDMI 1.1*/
 	{ "ETR", 13896, EDID_QUIRK_FORCE_8BPC },
+
+	/* HTC Vive VR Headset */
+	{ "HVR", 0xaa01, EDID_QUIRK_NON_DESKTOP },
 };
 
 /*
