@@ -2449,10 +2449,6 @@ static int dpaa_phy_init(struct net_device *net_dev)
 
 	/* Remove any features not supported by the controller */
 	phy_dev->supported &= mac_dev->if_support;
-
-	/* Enable the symmetric and asymmetric PAUSE frame advertisements,
-	 * as most of the PHY drivers do not enable them by default.
-	 */
 	phy_dev->supported |= (SUPPORTED_Pause | SUPPORTED_Asym_Pause);
 	phy_dev->advertising = phy_dev->supported;
 
