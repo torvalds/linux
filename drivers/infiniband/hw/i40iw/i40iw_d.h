@@ -73,6 +73,10 @@
 #define I40IW_FIRST_NON_PF_STAT	4
 
 
+#define I40IW_MTU_TO_MSS_IPV4		40
+#define I40IW_MTU_TO_MSS_IPV6		60
+#define I40IW_DEFAULT_MTU		1500
+
 #define LS_64_1(val, bits)      ((u64)(uintptr_t)val << bits)
 #define RS_64_1(val, bits)      ((u64)(uintptr_t)val >> bits)
 #define LS_32_1(val, bits)      (u32)(val << bits)

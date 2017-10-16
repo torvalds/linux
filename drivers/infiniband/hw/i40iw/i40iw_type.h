@@ -460,7 +460,7 @@ struct i40iw_sc_vsi {
 	struct i40iw_virt_mem ieq_mem;
 	struct i40iw_puda_rsrc *ieq;
 	u16 exception_lan_queue;
-	u16 mss;
+	u16 mtu;
 	u8 fcn_id;
 	bool stats_fcn_id_alloc;
 	struct i40iw_qos qos[I40IW_MAX_USER_PRIORITY];
@@ -566,7 +566,7 @@ struct i40iw_ccq_cqe_info {
 
 struct i40iw_l2params {
 	u16 qs_handle_list[I40IW_MAX_USER_PRIORITY];
-	u16 mss;
+	u16 mtu;
 };
 
 struct i40iw_vsi_init_info {

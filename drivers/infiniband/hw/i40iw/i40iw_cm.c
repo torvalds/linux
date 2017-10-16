@@ -2193,7 +2193,8 @@ static struct i40iw_cm_node *i40iw_make_cm_node(
 			I40IW_CM_DEFAULT_RCV_WND_SCALED >> I40IW_CM_DEFAULT_RCV_WND_SCALE;
 	ts = current_kernel_time();
 	cm_node->tcp_cntxt.loc_seq_num = ts.tv_nsec;
-	cm_node->tcp_cntxt.mss = iwdev->vsi.mss;
+	cm_node->tcp_cntxt.mss = (cm_node->ipv4) ? (iwdev->vsi.mtu - I40IW_MTU_TO_MSS_IPV4) :
+				 (iwdev->vsi.mtu - I40IW_MTU_TO_MSS_IPV6);
 
 	cm_node->iwdev = iwdev;
 	cm_node->dev = &iwdev->sc_dev;

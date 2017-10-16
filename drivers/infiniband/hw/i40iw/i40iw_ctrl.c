@@ -348,7 +348,7 @@ void i40iw_change_l2params(struct i40iw_sc_vsi *vsi, struct i40iw_l2params *l2pa
 	u16 qs_handle;
 	int i;
 
-	vsi->mss = l2params->mss;
+	vsi->mtu = l2params->mtu;
 
 	i40iw_fill_qos_list(l2params->qs_handle_list);
 	for (i = 0; i < I40IW_MAX_USER_PRIORITY; i++) {
@@ -4582,9 +4582,8 @@ void i40iw_sc_vsi_init(struct i40iw_sc_vsi *vsi, struct i40iw_vsi_init_info *inf
 
 	vsi->dev = info->dev;
 	vsi->back_vsi = info->back_vsi;
-	vsi->mss = info->params->mss;
+	vsi->mtu = info->params->mtu;
 	vsi->exception_lan_queue = info->exception_lan_queue;
-
 	i40iw_fill_qos_list(info->params->qs_handle_list);
 
 	for (i = 0; i < I40IW_MAX_USER_PRIORITY; i++) {
