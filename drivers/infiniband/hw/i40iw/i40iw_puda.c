@@ -488,7 +488,7 @@ static void i40iw_puda_qp_setctx(struct i40iw_puda_rsrc *rsrc)
 		      LS_64(qp->hw_rq_size, I40IWQPC_RQSIZE) |
 		      LS_64(qp->hw_sq_size, I40IWQPC_SQSIZE));
 
-	set_64bit_val(qp_ctx, 48, LS_64(1514, I40IWQPC_SNDMSS));
+	set_64bit_val(qp_ctx, 48, LS_64(rsrc->buf_size, I40IW_UDA_QPC_MAXFRAMESIZE));
 	set_64bit_val(qp_ctx, 56, 0);
 	set_64bit_val(qp_ctx, 64, 1);
 

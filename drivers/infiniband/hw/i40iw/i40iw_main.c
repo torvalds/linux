@@ -964,12 +964,27 @@ static enum i40iw_status_code i40iw_initialize_ieq(struct i40iw_device *iwdev)
 	info.pd_id = 2;
 	info.sq_size = 8192;
 	info.rq_size = 8192;
-	info.buf_size = 2048;
-	info.tx_buf_cnt = 16384;
+	info.buf_size = iwdev->vsi.mtu + VLAN_ETH_HLEN;
+	info.tx_buf_cnt = 4096;
 	status = i40iw_puda_create_rsrc(&iwdev->vsi, &info);
 	if (status)
 		i40iw_pr_err("ieq create fail\n");
 	return status;
+}
+
+/**
+ * i40iw_reinitialize_ieq - destroy and re-create ieq
+ * @dev: iwarp device
+ */
+void i40iw_reinitialize_ieq(struct i40iw_sc_dev *dev)
+{
+	struct i40iw_device *iwdev = (struct i40iw_device *)dev->back_dev;
+
+	i40iw_puda_dele_resources(&iwdev->vsi, I40IW_PUDA_RSRC_TYPE_IEQ, false);
+	if (i40iw_initialize_ieq(iwdev)) {
+		iwdev->reset = true;
+		i40iw_request_reset(iwdev);
+	}
 }
 
 /**

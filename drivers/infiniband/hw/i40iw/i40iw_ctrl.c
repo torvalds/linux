@@ -348,7 +348,10 @@ void i40iw_change_l2params(struct i40iw_sc_vsi *vsi, struct i40iw_l2params *l2pa
 	u16 qs_handle;
 	int i;
 
-	vsi->mtu = l2params->mtu;
+	if (vsi->mtu != l2params->mtu) {
+		vsi->mtu = l2params->mtu;
+		i40iw_reinitialize_ieq(dev);
+	}
 
 	i40iw_fill_qos_list(l2params->qs_handle_list);
 	for (i = 0; i < I40IW_MAX_USER_PRIORITY; i++) {

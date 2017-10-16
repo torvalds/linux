@@ -123,5 +123,6 @@ enum i40iw_status_code i40iw_allocate_virt_mem(struct i40iw_hw *hw,
 enum i40iw_status_code i40iw_free_virt_mem(struct i40iw_hw *hw,
 					   struct i40iw_virt_mem *mem);
 u8 i40iw_get_encoded_wqe_size(u32 wqsize, bool cqpsq);
+void i40iw_reinitialize_ieq(struct i40iw_sc_dev *dev);
 
 #endif
