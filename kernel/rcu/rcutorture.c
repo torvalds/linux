@@ -316,7 +316,7 @@ static void rcu_read_delay(struct torture_random_state *rrsp)
 	if (!(torture_random(rrsp) % (nrealreaders * 2 * shortdelay_us)))
 		udelay(shortdelay_us);
 	if (!preempt_count() &&
-	    !(torture_random(rrsp) % (nrealreaders * 20000)))
+	    !(torture_random(rrsp) % (nrealreaders * 500)))
 		torture_preempt_schedule();  /* QS only if preemptible. */
 }
 
