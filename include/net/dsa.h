@@ -269,6 +269,11 @@ static inline bool dsa_is_normal_port(struct dsa_switch *ds, int p)
 	return !dsa_is_cpu_port(ds, p) && !dsa_is_dsa_port(ds, p);
 }
 
+static inline const struct dsa_port *dsa_to_port(struct dsa_switch *ds, int p)
+{
+	return &ds->ports[p];
+}
+
 static inline u8 dsa_upstream_port(struct dsa_switch *ds)
 {
 	struct dsa_switch_tree *dst = ds->dst;
