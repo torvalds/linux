@@ -105,6 +105,30 @@
 		vin-supply = <&dc12_vbat>;
 	};
 
+	vsus_5v: vsus-5v {
+		compatible = "regulator-fixed";
+		regulator-name = "vsus_5v";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vcc_io>;
+	};
+
+	vusb2_5v: vusb2-5v {
+		compatible = "regulator-fixed";
+		regulator-name = "vusb2_5v";
+		enable-active-high;
+		gpio = <&gpio8 RK_PB1 GPIO_ACTIVE_HIGH>; /* USB2_PWR_EN */
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb2_pwr_en>;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vsus_5v>;
+	};
+
 	ext_gmac: external-gmac-clock {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -363,6 +387,20 @@
 	status = "okay";
 };
 
+&usbphy {
+	status = "okay";
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&phy_pwr_en>;
+	status = "okay";
+};
+
 &vopb {
 	status = "okay";
 };
@@ -405,6 +443,16 @@
 	pmic {
 		pmic_int: pmic-int {
 			rockchip,pins = <RK_GPIO0 4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	usb_host {
+		phy_pwr_en: phy-pwr-en {
+			rockchip,pins = <RK_GPIO2 RK_PB1 RK_FUNC_GPIO &pcfg_output_high>;
+		};
+
+		usb2_pwr_en: usb2-pwr-en {
+			rockchip,pins = <8 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
