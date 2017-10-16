@@ -8357,9 +8357,7 @@ struct Scsi_Host * __init ncr_attach(struct scsi_host_template *tpnt,
 	if (!np->scripth0)
 		goto attach_error;
 
-	init_timer(&np->timer);
-	np->timer.data     = (unsigned long) np;
-	np->timer.function = ncr53c8xx_timeout;
+	setup_timer(&np->timer, ncr53c8xx_timeout, (unsigned long)np);
 
 	/* Try to map the controller chip to virtual and physical memory. */
 

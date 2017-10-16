@@ -119,9 +119,8 @@ struct dasd_device *dasd_alloc_device(void)
 		     (void (*)(unsigned long)) dasd_device_tasklet,
 		     (unsigned long) device);
 	INIT_LIST_HEAD(&device->ccw_queue);
-	init_timer(&device->timer);
-	device->timer.function = dasd_device_timeout;
-	device->timer.data = (unsigned long) device;
+	setup_timer(&device->timer, dasd_device_timeout,
+		    (unsigned long)device);
 	INIT_WORK(&device->kick_work, do_kick_device);
 	INIT_WORK(&device->restore_device, do_restore_device);
 	INIT_WORK(&device->reload_device, do_reload_device);
@@ -163,9 +162,7 @@ struct dasd_block *dasd_alloc_block(void)
 		     (unsigned long) block);
 	INIT_LIST_HEAD(&block->ccw_queue);
 	spin_lock_init(&block->queue_lock);
-	init_timer(&block->timer);
-	block->timer.function = dasd_block_timeout;
-	block->timer.data = (unsigned long) block;
+	setup_timer(&block->timer, dasd_block_timeout, (unsigned long)block);
 	spin_lock_init(&block->profile.lock);
 
 	return block;

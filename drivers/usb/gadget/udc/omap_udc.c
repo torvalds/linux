@@ -2542,9 +2542,7 @@ omap_ep_setup(char *name, u8 addr, u8 type,
 		}
 		if (dbuf && addr)
 			epn_rxtx |= UDC_EPN_RX_DB;
-		init_timer(&ep->timer);
-		ep->timer.function = pio_out_timer;
-		ep->timer.data = (unsigned long) ep;
+		setup_timer(&ep->timer, pio_out_timer, (unsigned long)ep);
 	}
 	if (addr)
 		epn_rxtx |= UDC_EPN_RX_VALID;

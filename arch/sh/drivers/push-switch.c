@@ -78,10 +78,7 @@ static int switch_drv_probe(struct platform_device *pdev)
 	}
 
 	INIT_WORK(&psw->work, switch_work_handler);
-	init_timer(&psw->debounce);
-
-	psw->debounce.function = switch_timer;
-	psw->debounce.data = (unsigned long)psw;
+	setup_timer(&psw->debounce, switch_timer, (unsigned long)psw);
 
 	/* Workqueue API brain-damage */
 	psw->pdev = pdev;

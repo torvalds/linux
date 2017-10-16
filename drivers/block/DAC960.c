@@ -3079,11 +3079,10 @@ DAC960_InitializeController(DAC960_Controller_T *Controller)
       /*
 	Initialize the Monitoring Timer.
       */
-      init_timer(&Controller->MonitoringTimer);
+      setup_timer(&Controller->MonitoringTimer,
+                  DAC960_MonitoringTimerFunction, (unsigned long)Controller);
       Controller->MonitoringTimer.expires =
 	jiffies + DAC960_MonitoringTimerInterval;
-      Controller->MonitoringTimer.data = (unsigned long) Controller;
-      Controller->MonitoringTimer.function = DAC960_MonitoringTimerFunction;
       add_timer(&Controller->MonitoringTimer);
       Controller->ControllerInitialized = true;
       return true;

@@ -5449,9 +5449,7 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 			     dsi_framedone_timeout_work_callback);
 
 #ifdef DSI_CATCH_MISSING_TE
-	init_timer(&dsi->te_timer);
-	dsi->te_timer.function = dsi_te_timeout;
-	dsi->te_timer.data = 0;
+	setup_timer(&dsi->te_timer, dsi_te_timeout, 0);
 #endif
 
 	dsi_mem = platform_get_resource_byname(dsidev, IORESOURCE_MEM, "proto");

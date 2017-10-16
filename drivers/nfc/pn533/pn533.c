@@ -2632,9 +2632,8 @@ struct pn533 *pn533_register_device(u32 device_type,
 	if (priv->wq == NULL)
 		goto error;
 
-	init_timer(&priv->listen_timer);
-	priv->listen_timer.data = (unsigned long) priv;
-	priv->listen_timer.function = pn533_listen_mode_timer;
+	setup_timer(&priv->listen_timer, pn533_listen_mode_timer,
+		    (unsigned long)priv);
 
 	skb_queue_head_init(&priv->resp_q);
 	skb_queue_head_init(&priv->fragment_skb);

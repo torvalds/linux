@@ -837,10 +837,9 @@ static int arcmsr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	atomic_set(&acb->rq_map_token, 16);
 	atomic_set(&acb->ante_token_value, 16);
 	acb->fw_flag = FW_NORMAL;
-	init_timer(&acb->eternal_timer);
+	setup_timer(&acb->eternal_timer, &arcmsr_request_device_map,
+		    (unsigned long)acb);
 	acb->eternal_timer.expires = jiffies + msecs_to_jiffies(6 * HZ);
-	acb->eternal_timer.data = (unsigned long) acb;
-	acb->eternal_timer.function = &arcmsr_request_device_map;
 	add_timer(&acb->eternal_timer);
 	if(arcmsr_alloc_sysfs_attr(acb))
 		goto out_free_sysfs;
@@ -930,10 +929,9 @@ static int arcmsr_resume(struct pci_dev *pdev)
 	atomic_set(&acb->rq_map_token, 16);
 	atomic_set(&acb->ante_token_value, 16);
 	acb->fw_flag = FW_NORMAL;
-	init_timer(&acb->eternal_timer);
+	setup_timer(&acb->eternal_timer, &arcmsr_request_device_map,
+		    (unsigned long)acb);
 	acb->eternal_timer.expires = jiffies + msecs_to_jiffies(6 * HZ);
-	acb->eternal_timer.data = (unsigned long) acb;
-	acb->eternal_timer.function = &arcmsr_request_device_map;
 	add_timer(&acb->eternal_timer);
 	return 0;
 controller_stop:

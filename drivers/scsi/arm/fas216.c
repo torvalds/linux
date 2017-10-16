@@ -2849,9 +2849,7 @@ int fas216_init(struct Scsi_Host *host)
 	info->rst_dev_status = -1;
 	info->rst_bus_status = -1;
 	init_waitqueue_head(&info->eh_wait);
-	init_timer(&info->eh_timer);
-	info->eh_timer.data  = (unsigned long)info;
-	info->eh_timer.function = fas216_eh_timer;
+	setup_timer(&info->eh_timer, fas216_eh_timer, (unsigned long)info);
 	
 	spin_lock_init(&info->host_lock);
 

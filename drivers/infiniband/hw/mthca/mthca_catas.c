@@ -149,7 +149,7 @@ void mthca_start_catas_poll(struct mthca_dev *dev)
 {
 	phys_addr_t addr;
 
-	init_timer(&dev->catas_err.timer);
+	setup_timer(&dev->catas_err.timer, poll_catas, (unsigned long)dev);
 	dev->catas_err.map  = NULL;
 
 	addr = pci_resource_start(dev->pdev, 0) +
@@ -164,8 +164,6 @@ void mthca_start_catas_poll(struct mthca_dev *dev)
 		return;
 	}
 
-	dev->catas_err.timer.data     = (unsigned long) dev;
-	dev->catas_err.timer.function = poll_catas;
 	dev->catas_err.timer.expires  = jiffies + MTHCA_CATAS_POLL_INTERVAL;
 	INIT_LIST_HEAD(&dev->catas_err.list);
 	add_timer(&dev->catas_err.timer);

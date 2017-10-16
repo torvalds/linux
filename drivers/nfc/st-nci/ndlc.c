@@ -282,13 +282,8 @@ int ndlc_probe(void *phy_id, struct nfc_phy_ops *phy_ops, struct device *dev,
 	*ndlc_id = ndlc;
 
 	/* initialize timers */
-	init_timer(&ndlc->t1_timer);
-	ndlc->t1_timer.data = (unsigned long)ndlc;
-	ndlc->t1_timer.function = ndlc_t1_timeout;
-
-	init_timer(&ndlc->t2_timer);
-	ndlc->t2_timer.data = (unsigned long)ndlc;
-	ndlc->t2_timer.function = ndlc_t2_timeout;
+	setup_timer(&ndlc->t1_timer, ndlc_t1_timeout, (unsigned long)ndlc);
+	setup_timer(&ndlc->t2_timer, ndlc_t2_timeout, (unsigned long)ndlc);
 
 	skb_queue_head_init(&ndlc->rcv_q);
 	skb_queue_head_init(&ndlc->send_q);

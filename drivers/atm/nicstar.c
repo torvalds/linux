@@ -284,10 +284,8 @@ static int __init nicstar_init(void)
 	XPRINTK("nicstar: nicstar_init() returned.\n");
 
 	if (!error) {
-		init_timer(&ns_timer);
+		setup_timer(&ns_timer, ns_poll, 0UL);
 		ns_timer.expires = jiffies + NS_POLL_PERIOD;
-		ns_timer.data = 0UL;
-		ns_timer.function = ns_poll;
 		add_timer(&ns_timer);
 	}
 

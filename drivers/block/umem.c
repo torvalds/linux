@@ -738,8 +738,7 @@ static void check_all_batteries(unsigned long ptr)
 
 static void init_battery_timer(void)
 {
-	init_timer(&battery_timer);
-	battery_timer.function = check_all_batteries;
+	setup_timer(&battery_timer, check_all_batteries, 0UL);
 	battery_timer.expires = jiffies + (HZ * 60);
 	add_timer(&battery_timer);
 }

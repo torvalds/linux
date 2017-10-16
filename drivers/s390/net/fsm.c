@@ -142,13 +142,11 @@ void
 fsm_settimer(fsm_instance *fi, fsm_timer *this)
 {
 	this->fi = fi;
-	this->tl.function = (void *)fsm_expire_timer;
-	this->tl.data = (long)this;
 #if FSM_TIMER_DEBUG
 	printk(KERN_DEBUG "fsm(%s): Create timer %p\n", fi->name,
 	       this);
 #endif
-	init_timer(&this->tl);
+	setup_timer(&this->tl, (void *)fsm_expire_timer, (long)this);
 }
 
 void

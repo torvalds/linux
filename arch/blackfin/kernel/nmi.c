@@ -180,8 +180,7 @@ static int __init init_nmi_wdt(void)
 	nmi_wdt_start();
 	nmi_active = true;
 
-	init_timer(&ntimer);
-	ntimer.function = nmi_wdt_timer;
+	setup_timer(&ntimer, nmi_wdt_timer, 0UL);
 	ntimer.expires = jiffies + NMI_CHECK_TIMEOUT;
 	add_timer(&ntimer);
 

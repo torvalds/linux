@@ -336,8 +336,7 @@ static int __init n2100_request_gpios(void)
 			pr_err("could not set power GPIO as input\n");
 	}
 	/* Set up power button poll timer */
-	init_timer(&power_button_poll_timer);
-	power_button_poll_timer.function = power_button_poll;
+	setup_timer(&power_button_poll_timer, power_button_poll, 0UL);
 	power_button_poll_timer.expires = jiffies + (HZ / 10);
 	add_timer(&power_button_poll_timer);
 	return 0;

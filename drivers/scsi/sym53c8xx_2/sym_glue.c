@@ -1351,9 +1351,7 @@ static struct Scsi_Host *sym_attach(struct scsi_host_template *tpnt, int unit,
 	/*
 	 *  Start the timer daemon
 	 */
-	init_timer(&np->s.timer);
-	np->s.timer.data     = (unsigned long) np;
-	np->s.timer.function = sym53c8xx_timer;
+	setup_timer(&np->s.timer, sym53c8xx_timer, (unsigned long)np);
 	np->s.lasttime=0;
 	sym_timer (np);
 

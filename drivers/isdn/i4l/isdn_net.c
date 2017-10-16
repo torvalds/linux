@@ -1615,9 +1615,9 @@ isdn_net_ciscohdlck_connected(isdn_net_local *lp)
 	/* send slarp request because interface/seq.no.s reset */
 	isdn_net_ciscohdlck_slarp_send_request(lp);
 
-	init_timer(&lp->cisco_timer);
-	lp->cisco_timer.data = (unsigned long) lp;
-	lp->cisco_timer.function = isdn_net_ciscohdlck_slarp_send_keepalive;
+	setup_timer(&lp->cisco_timer,
+		    isdn_net_ciscohdlck_slarp_send_keepalive,
+		    (unsigned long)lp);
 	lp->cisco_timer.expires = jiffies + lp->cisco_keepalive_period * HZ;
 	add_timer(&lp->cisco_timer);
 }
