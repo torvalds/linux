@@ -163,9 +163,9 @@ void saa7146_buffer_next(struct saa7146_dev *dev,
 	}
 }
 
-void saa7146_buffer_timeout(unsigned long data)
+void saa7146_buffer_timeout(struct timer_list *t)
 {
-	struct saa7146_dmaqueue *q = (struct saa7146_dmaqueue*)data;
+	struct saa7146_dmaqueue *q = from_timer(q, t, timeout);
 	struct saa7146_dev *dev = q->dev;
 	unsigned long flags;
 
