@@ -302,11 +302,13 @@ EXPORT_SYMBOL(ib_dealloc_pd);
 
 /* Address handles */
 
-struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr)
+static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
+				     struct rdma_ah_attr *ah_attr,
+				     struct ib_udata *udata)
 {
 	struct ib_ah *ah;
 
-	ah = pd->device->create_ah(pd, ah_attr, NULL);
+	ah = pd->device->create_ah(pd, ah_attr, udata);
 
 	if (!IS_ERR(ah)) {
 		ah->device  = pd->device;
@@ -318,7 +320,41 @@ struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr)
 
 	return ah;
 }
+
+struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr)
+{
+	return _rdma_create_ah(pd, ah_attr, NULL);
+}
 EXPORT_SYMBOL(rdma_create_ah);
+
+/**
+ * rdma_create_user_ah - Creates an address handle for the
+ * given address vector.
+ * It resolves destination mac address for ah attribute of RoCE type.
+ * @pd: The protection domain associated with the address handle.
+ * @ah_attr: The attributes of the address vector.
+ * @udata: pointer to user's input output buffer information need by
+ *         provider driver.
+ *
+ * It returns 0 on success and returns appropriate error code on error.
+ * The address handle is used to reference a local or global destination
+ * in all UD QP post sends.
+ */
+struct ib_ah *rdma_create_user_ah(struct ib_pd *pd,
+				  struct rdma_ah_attr *ah_attr,
+				  struct ib_udata *udata)
+{
+	int err;
+
+	if (ah_attr->type == RDMA_AH_ATTR_TYPE_ROCE) {
+		err = ib_resolve_eth_dmac(pd->device, ah_attr);
+		if (err)
+			return ERR_PTR(err);
+	}
+
+	return _rdma_create_ah(pd, ah_attr, udata);
+}
+EXPORT_SYMBOL(rdma_create_user_ah);
 
 int ib_get_rdma_header_version(const union rdma_network_hdr *hdr)
 {

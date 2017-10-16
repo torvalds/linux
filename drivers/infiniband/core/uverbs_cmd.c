@@ -2537,7 +2537,6 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 	struct rdma_ah_attr		attr;
 	int ret;
 	struct ib_udata                   udata;
-	u8				*dmac;
 
 	if (out_len < sizeof resp)
 		return -ENOSPC;
@@ -2580,20 +2579,13 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 	} else {
 		rdma_ah_set_ah_flags(&attr, 0);
 	}
-	dmac = rdma_ah_retrieve_dmac(&attr);
-	if (dmac)
-		memset(dmac, 0, ETH_ALEN);
 
-	ah = pd->device->create_ah(pd, &attr, &udata);
-
+	ah = rdma_create_user_ah(pd, &attr, &udata);
 	if (IS_ERR(ah)) {
 		ret = PTR_ERR(ah);
 		goto err_put;
 	}
 
-	ah->device  = pd->device;
-	ah->pd      = pd;
-	atomic_inc(&pd->usecnt);
 	ah->uobject  = uobj;
 	uobj->user_handle = cmd.user_handle;
 	uobj->object = ah;

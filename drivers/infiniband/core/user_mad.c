@@ -506,7 +506,7 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 		rdma_ah_set_dgid_raw(&ah_attr, packet->mad.hdr.gid);
 	}
 
-	ah = rdma_create_ah(agent->qp->pd, &ah_attr);
+	ah = rdma_create_user_ah(agent->qp->pd, &ah_attr, NULL);
 	if (IS_ERR(ah)) {
 		ret = PTR_ERR(ah);
 		goto err_up;
