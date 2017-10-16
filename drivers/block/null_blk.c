@@ -476,7 +476,7 @@ static struct configfs_item_operations nullb_device_ops = {
 	.release	= nullb_device_release,
 };
 
-static struct config_item_type nullb_device_type = {
+static const struct config_item_type nullb_device_type = {
 	.ct_item_ops	= &nullb_device_ops,
 	.ct_attrs	= nullb_device_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -528,7 +528,7 @@ static struct configfs_group_operations nullb_group_ops = {
 	.drop_item	= nullb_group_drop_item,
 };
 
-static struct config_item_type nullb_group_type = {
+static const struct config_item_type nullb_group_type = {
 	.ct_group_ops	= &nullb_group_ops,
 	.ct_attrs	= nullb_group_attrs,
 	.ct_owner	= THIS_MODULE,
