@@ -121,8 +121,8 @@
 		vcc12-supply = <&vcc_io>;
 
 		regulators {
-			vdd_cpu: vdd_log: DCDC_REG1 {
-				regulator-name = "vdd_log";
+			vdd_cpu: DCDC_REG1 {
+				regulator-name = "vdd_arm";
 				regulator-min-microvolt = <750000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-always-on;
