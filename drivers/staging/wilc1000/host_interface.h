@@ -279,8 +279,13 @@ struct host_if_drv {
 	struct completion comp_inactive_time;
 
 	struct timer_list scan_timer;
+	struct wilc_vif *scan_timer_vif;
+
 	struct timer_list connect_timer;
+	struct wilc_vif *connect_timer_vif;
+
 	struct timer_list remain_on_ch_timer;
+	struct wilc_vif *remain_on_ch_timer_vif;
 
 	bool IFC_UP;
 	int driver_handler_id;
