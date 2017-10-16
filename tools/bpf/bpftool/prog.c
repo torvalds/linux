@@ -224,7 +224,7 @@ static int show_prog(int fd)
 		printf("name %s  ", info.name);
 
 	printf("tag ");
-	print_hex(info.tag, BPF_TAG_SIZE, ":");
+	print_hex(info.tag, BPF_TAG_SIZE, "");
 	printf("\n");
 
 	if (info.load_time) {

@@ -53,8 +53,7 @@
 #define NEXT_ARGP()	({ (*argc)--; (*argv)++; if (*argc < 0) usage(); })
 #define BAD_ARG()	({ err("what is '%s'?\n", *argv); -1; })
 
-#define BPF_TAG_FMT	"%02hhx:%02hhx:%02hhx:%02hhx:"	\
-			"%02hhx:%02hhx:%02hhx:%02hhx"
+#define BPF_TAG_FMT	"%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx"
 
 #define HELP_SPEC_PROGRAM						\
 	"PROG := { id PROG_ID | pinned FILE | tag PROG_TAG }"
