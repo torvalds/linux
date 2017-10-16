@@ -213,6 +213,11 @@ static int dwc2_hs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 		usbcfg &= ~(GUSBCFG_PHYIF16 | GUSBCFG_DDRSEL);
 		if (hsotg->params.phy_ulpi_ddr)
 			usbcfg |= GUSBCFG_DDRSEL;
+
+		/* Set external VBUS indicator as needed. */
+		if (hsotg->params.oc_disable)
+			usbcfg |= (GUSBCFG_ULPI_INT_VBUS_IND |
+				   GUSBCFG_INDICATORPASSTHROUGH);
 		break;
 	case DWC2_PHY_TYPE_PARAM_UTMI:
 		/* UTMI+ interface */
