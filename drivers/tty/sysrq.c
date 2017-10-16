@@ -653,9 +653,9 @@ static void sysrq_parse_reset_sequence(struct sysrq_state *state)
 	state->reset_seq_version = sysrq_reset_seq_version;
 }
 
-static void sysrq_do_reset(unsigned long _state)
+static void sysrq_do_reset(struct timer_list *t)
 {
-	struct sysrq_state *state = (struct sysrq_state *) _state;
+	struct sysrq_state *state = from_timer(state, t, keyreset_timer);
 
 	state->reset_requested = true;
 
@@ -672,7 +672,7 @@ static void sysrq_handle_reset_request(struct sysrq_state *state)
 		mod_timer(&state->keyreset_timer,
 			jiffies + msecs_to_jiffies(sysrq_reset_downtime_ms));
 	else
-		sysrq_do_reset((unsigned long)state);
+		sysrq_do_reset(&state->keyreset_timer);
 }
 
 static void sysrq_detect_reset_sequence(struct sysrq_state *state,
@@ -908,8 +908,7 @@ static int sysrq_connect(struct input_handler *handler,
 	sysrq->handle.handler = handler;
 	sysrq->handle.name = "sysrq";
 	sysrq->handle.private = sysrq;
-	setup_timer(&sysrq->keyreset_timer,
-		    sysrq_do_reset, (unsigned long)sysrq);
+	timer_setup(&sysrq->keyreset_timer, sysrq_do_reset, 0);
 
 	error = input_register_handle(&sysrq->handle);
 	if (error) {
