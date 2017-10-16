@@ -63,7 +63,7 @@
 		 * - SDIO_RESET_L_WL_REG_ON
 		 * - PDN (power down when low)
 		 */
-		reset-gpios = <&gpio2 26 GPIO_ACTIVE_LOW>; /* GPIO2_D2 */
+		reset-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>; /* GPIO3_B7 */
 	};
 
 	wireless-bluetooth {
@@ -341,7 +341,7 @@
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <2 26 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 15 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
