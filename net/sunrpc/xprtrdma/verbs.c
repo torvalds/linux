@@ -73,7 +73,7 @@ static void rpcrdma_create_mrs(struct rpcrdma_xprt *r_xprt);
 static void rpcrdma_destroy_mrs(struct rpcrdma_buffer *buf);
 static void rpcrdma_dma_unmap_regbuf(struct rpcrdma_regbuf *rb);
 
-static struct workqueue_struct *rpcrdma_receive_wq __read_mostly;
+struct workqueue_struct *rpcrdma_receive_wq __read_mostly;
 
 int
 rpcrdma_alloc_wq(void)
@@ -185,7 +185,7 @@ rpcrdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 		rpcrdma_update_granted_credits(rep);
 
 out_schedule:
-	queue_work(rpcrdma_receive_wq, &rep->rr_work);
+	rpcrdma_reply_handler(rep);
 	return;
 
 out_fail:
@@ -583,7 +583,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 
 	recvcq = ib_alloc_cq(ia->ri_device, NULL,
 			     ep->rep_attr.cap.max_recv_wr + 1,
-			     0, IB_POLL_SOFTIRQ);
+			     0, IB_POLL_WORKQUEUE);
 	if (IS_ERR(recvcq)) {
 		rc = PTR_ERR(recvcq);
 		dprintk("RPC:       %s: failed to create recv CQ: %i\n",
@@ -974,7 +974,7 @@ rpcrdma_create_rep(struct rpcrdma_xprt *r_xprt)
 
 	rep->rr_cqe.done = rpcrdma_wc_receive;
 	rep->rr_rxprt = r_xprt;
-	INIT_WORK(&rep->rr_work, rpcrdma_reply_handler);
+	INIT_WORK(&rep->rr_work, rpcrdma_deferred_completion);
 	rep->rr_recv_wr.next = NULL;
 	rep->rr_recv_wr.wr_cqe = &rep->rr_cqe;
 	rep->rr_recv_wr.sg_list = &rep->rr_rdmabuf->rg_iov;

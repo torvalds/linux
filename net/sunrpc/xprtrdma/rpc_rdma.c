@@ -1265,16 +1265,36 @@ out_badheader:
 	goto out;
 }
 
+/* Reply handling runs in the poll worker thread. Anything that
+ * might wait is deferred to a separate workqueue.
+ */
+void rpcrdma_deferred_completion(struct work_struct *work)
+{
+	struct rpcrdma_rep *rep =
+			container_of(work, struct rpcrdma_rep, rr_work);
+	struct rpcrdma_req *req = rpcr_to_rdmar(rep->rr_rqst);
+	struct rpcrdma_xprt *r_xprt = rep->rr_rxprt;
+
+	/* Invalidate and unmap the data payloads before waking
+	 * the waiting application. This guarantees the memory
+	 * regions are properly fenced from the server before the
+	 * application accesses the data. It also ensures proper
+	 * send flow control: waking the next RPC waits until this
+	 * RPC has relinquished all its Send Queue entries.
+	 */
+	rpcrdma_mark_remote_invalidation(&req->rl_registered, rep);
+	r_xprt->rx_ia.ri_ops->ro_unmap_sync(r_xprt, &req->rl_registered);
+
+	rpcrdma_complete_rqst(rep);
+}
+
 /* Process received RPC/RDMA messages.
  *
  * Errors must result in the RPC task either being awakened, or
  * allowed to timeout, to discover the errors at that time.
  */
-void
-rpcrdma_reply_handler(struct work_struct *work)
+void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 {
-	struct rpcrdma_rep *rep =
-			container_of(work, struct rpcrdma_rep, rr_work);
 	struct rpcrdma_xprt *r_xprt = rep->rr_rxprt;
 	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
 	struct rpcrdma_req *req;
@@ -1320,20 +1340,10 @@ rpcrdma_reply_handler(struct work_struct *work)
 	dprintk("RPC:       %s: reply %p completes request %p (xid 0x%08x)\n",
 		__func__, rep, req, be32_to_cpu(rep->rr_xid));
 
-	/* Invalidate and unmap the data payloads before waking the
-	 * waiting application. This guarantees the memory regions
-	 * are properly fenced from the server before the application
-	 * accesses the data. It also ensures proper send flow control:
-	 * waking the next RPC waits until this RPC has relinquished
-	 * all its Send Queue entries.
-	 */
-	if (!list_empty(&req->rl_registered)) {
-		rpcrdma_mark_remote_invalidation(&req->rl_registered, rep);
-		r_xprt->rx_ia.ri_ops->ro_unmap_sync(r_xprt,
-						    &req->rl_registered);
-	}
-
-	rpcrdma_complete_rqst(rep);
+	if (list_empty(&req->rl_registered))
+		rpcrdma_complete_rqst(rep);
+	else
+		queue_work(rpcrdma_receive_wq, &rep->rr_work);
 	return;
 
 out_badstatus:

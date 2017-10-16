@@ -533,6 +533,8 @@ void rpcrdma_ia_close(struct rpcrdma_ia *);
 bool frwr_is_supported(struct rpcrdma_ia *);
 bool fmr_is_supported(struct rpcrdma_ia *);
 
+extern struct workqueue_struct *rpcrdma_receive_wq;
+
 /*
  * Endpoint calls - xprtrdma/verbs.c
  */
@@ -617,7 +619,8 @@ void rpcrdma_unmap_sges(struct rpcrdma_ia *, struct rpcrdma_req *);
 int rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst);
 void rpcrdma_set_max_header_sizes(struct rpcrdma_xprt *);
 void rpcrdma_complete_rqst(struct rpcrdma_rep *rep);
-void rpcrdma_reply_handler(struct work_struct *work);
+void rpcrdma_reply_handler(struct rpcrdma_rep *rep);
+void rpcrdma_deferred_completion(struct work_struct *work);
 
 static inline void rpcrdma_set_xdrlen(struct xdr_buf *xdr, size_t len)
 {
