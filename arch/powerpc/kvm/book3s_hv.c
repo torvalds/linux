@@ -98,6 +98,10 @@ static int target_smt_mode;
 module_param(target_smt_mode, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(target_smt_mode, "Target threads per core (0 = max)");
 
+static bool indep_threads_mode = true;
+module_param(indep_threads_mode, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(indep_threads_mode, "Independent-threads mode (only on POWER9)");
+
 #ifdef CONFIG_KVM_XICS
 static struct kernel_param_ops module_param_ops = {
 	.set = param_set_int,
@@ -1734,9 +1738,9 @@ static int kvmppc_set_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
  * MMU mode (radix or HPT), unfortunately, but since we only support
  * HPT guests on a HPT host so far, that isn't an impediment yet.
  */
-static int threads_per_vcore(void)
+static int threads_per_vcore(struct kvm *kvm)
 {
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
+	if (kvm->arch.threads_indep)
 		return 1;
 	return threads_per_subcore;
 }
@@ -2228,11 +2232,10 @@ static void kvmppc_start_thread(struct kvm_vcpu *vcpu, struct kvmppc_vcore *vc)
 		kvmppc_ipi_thread(cpu);
 }
 
-static void kvmppc_wait_for_nap(void)
+static void kvmppc_wait_for_nap(int n_threads)
 {
 	int cpu = smp_processor_id();
 	int i, loops;
-	int n_threads = threads_per_vcore();
 
 	if (n_threads <= 1)
 		return;
@@ -2319,7 +2322,7 @@ static void kvmppc_vcore_preempt(struct kvmppc_vcore *vc)
 
 	vc->vcore_state = VCORE_PREEMPT;
 	vc->pcpu = smp_processor_id();
-	if (vc->num_threads < threads_per_vcore()) {
+	if (vc->num_threads < threads_per_vcore(vc->kvm)) {
 		spin_lock(&lp->lock);
 		list_add_tail(&vc->preempt_list, &lp->list);
 		spin_unlock(&lp->lock);
@@ -2357,7 +2360,7 @@ struct core_info {
 
 /*
  * This mapping means subcores 0 and 1 can use threads 0-3 and 4-7
- * respectively in 2-way micro-threading (split-core) mode.
+ * respectively in 2-way micro-threading (split-core) mode on POWER8.
  */
 static int subcore_thread_map[MAX_SUBCORES] = { 0, 4, 2, 6 };
 
@@ -2373,7 +2376,14 @@ static void init_core_info(struct core_info *cip, struct kvmppc_vcore *vc)
 
 static bool subcore_config_ok(int n_subcores, int n_threads)
 {
-	/* Can only dynamically split if unsplit to begin with */
+	/*
+	 * POWER9 "SMT4" cores are permanently in what is effectively a 4-way split-core
+	 * mode, with one thread per subcore.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		return n_subcores <= 4 && n_threads == 1;
+
+	/* On POWER8, can only dynamically split if unsplit to begin with */
 	if (n_subcores > 1 && threads_per_subcore < MAX_SMT_THREADS)
 		return false;
 	if (n_subcores > MAX_SUBCORES)
@@ -2632,6 +2642,7 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	int target_threads;
 	int controlled_threads;
 	int trap;
+	bool is_power8;
 
 	/*
 	 * Remove from the list any threads that have a signal pending
@@ -2654,7 +2665,7 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	 * the number of threads per subcore, except on POWER9,
 	 * where it's 1 because the threads are (mostly) independent.
 	 */
-	controlled_threads = threads_per_vcore();
+	controlled_threads = threads_per_vcore(vc->kvm);
 
 	/*
 	 * Make sure we are running on primary threads, and that secondary
@@ -2725,32 +2736,40 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	cmd_bit = stat_bit = 0;
 	split = core_info.n_subcores;
 	sip = NULL;
+	is_power8 = cpu_has_feature(CPU_FTR_ARCH_207S)
+		&& !cpu_has_feature(CPU_FTR_ARCH_300);
+
 	if (split > 1) {
-		/* threads_per_subcore must be MAX_SMT_THREADS (8) here */
-		if (split == 2 && (dynamic_mt_modes & 2)) {
-			cmd_bit = HID0_POWER8_1TO2LPAR;
-			stat_bit = HID0_POWER8_2LPARMODE;
-		} else {
-			split = 4;
-			cmd_bit = HID0_POWER8_1TO4LPAR;
-			stat_bit = HID0_POWER8_4LPARMODE;
-		}
-		subcore_size = MAX_SMT_THREADS / split;
 		sip = &split_info;
 		memset(&split_info, 0, sizeof(split_info));
-		split_info.rpr = mfspr(SPRN_RPR);
-		split_info.pmmar = mfspr(SPRN_PMMAR);
-		split_info.ldbar = mfspr(SPRN_LDBAR);
-		split_info.subcore_size = subcore_size;
 		for (sub = 0; sub < core_info.n_subcores; ++sub)
 			split_info.vc[sub] = core_info.vc[sub];
+
+		if (is_power8) {
+			if (split == 2 && (dynamic_mt_modes & 2)) {
+				cmd_bit = HID0_POWER8_1TO2LPAR;
+				stat_bit = HID0_POWER8_2LPARMODE;
+			} else {
+				split = 4;
+				cmd_bit = HID0_POWER8_1TO4LPAR;
+				stat_bit = HID0_POWER8_4LPARMODE;
+			}
+			subcore_size = MAX_SMT_THREADS / split;
+			split_info.rpr = mfspr(SPRN_RPR);
+			split_info.pmmar = mfspr(SPRN_PMMAR);
+			split_info.ldbar = mfspr(SPRN_LDBAR);
+			split_info.subcore_size = subcore_size;
+		} else {
+			split_info.subcore_size = 1;
+		}
+
 		/* order writes to split_info before kvm_split_mode pointer */
 		smp_wmb();
 	}
 	for (thr = 0; thr < controlled_threads; ++thr)
 		paca[pcpu + thr].kvm_hstate.kvm_split_mode = sip;
 
-	/* Initiate micro-threading (split-core) if required */
+	/* Initiate micro-threading (split-core) on POWER8 if required */
 	if (cmd_bit) {
 		unsigned long hid0 = mfspr(SPRN_HID0);
 
@@ -2769,7 +2788,7 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	/* Start all the threads */
 	active = 0;
 	for (sub = 0; sub < core_info.n_subcores; ++sub) {
-		thr = subcore_thread_map[sub];
+		thr = is_power8 ? subcore_thread_map[sub] : sub;
 		thr0_done = false;
 		active |= 1 << thr;
 		pvc = core_info.vc[sub];
@@ -2796,18 +2815,18 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	 * the vcore pointer in the PACA of the secondaries.
 	 */
 	smp_mb();
-	if (cmd_bit)
-		split_info.do_nap = 1;	/* ask secondaries to nap when done */
 
 	/*
 	 * When doing micro-threading, poke the inactive threads as well.
 	 * This gets them to the nap instruction after kvm_do_nap,
 	 * which reduces the time taken to unsplit later.
 	 */
-	if (split > 1)
+	if (cmd_bit) {
+		split_info.do_nap = 1;	/* ask secondaries to nap when done */
 		for (thr = 1; thr < threads_per_subcore; ++thr)
 			if (!(active & (1 << thr)))
 				kvmppc_ipi_thread(pcpu + thr);
+	}
 
 	vc->vcore_state = VCORE_RUNNING;
 	preempt_disable();
@@ -2841,10 +2860,10 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	vc->vcore_state = VCORE_EXITING;
 
 	/* wait for secondary threads to finish writing their state to memory */
-	kvmppc_wait_for_nap();
+	kvmppc_wait_for_nap(controlled_threads);
 
 	/* Return to whole-core mode if we split the core earlier */
-	if (split > 1) {
+	if (cmd_bit) {
 		unsigned long hid0 = mfspr(SPRN_HID0);
 		unsigned long loops = 0;
 
@@ -3822,10 +3841,12 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	/*
 	 * Track that we now have a HV mode VM active. This blocks secondary
 	 * CPU threads from coming online.
-	 * On POWER9, we only need to do this for HPT guests on a radix
-	 * host, which is not yet supported.
+	 * On POWER9, we only need to do this if the "indep_threads_mode"
+	 * module parameter has been set to N.
 	 */
-	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		kvm->arch.threads_indep = indep_threads_mode;
+	if (!kvm->arch.threads_indep)
 		kvm_hv_vm_activated();
 
 	/*
@@ -3865,7 +3886,7 @@ static void kvmppc_core_destroy_vm_hv(struct kvm *kvm)
 {
 	debugfs_remove_recursive(kvm->arch.debugfs_dir);
 
-	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+	if (!kvm->arch.threads_indep)
 		kvm_hv_vm_deactivated();
 
 	kvmppc_free_vcores(kvm);

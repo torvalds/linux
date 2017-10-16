@@ -281,6 +281,7 @@ struct kvm_arch {
 	cpumask_t cpu_in_guest;
 	u8 radix;
 	u8 fwnmi_enabled;
+	bool threads_indep;
 	pgd_t *pgtable;
 	u64 process_table;
 	struct dentry *debugfs_dir;
