@@ -443,9 +443,18 @@ static void amd_sched_job_timedout(struct work_struct *work)
 	job->sched->ops->timedout_job(job);
 }
 
-void amd_sched_hw_job_reset(struct amd_gpu_scheduler *sched)
+static void amd_sched_set_guilty(struct amd_sched_job *s_job)
+{
+	if (atomic_inc_return(&s_job->karma) > s_job->sched->hang_limit)
+		if (s_job->s_entity->guilty)
+			atomic_set(s_job->s_entity->guilty, 1);
+}
+
+void amd_sched_hw_job_reset(struct amd_gpu_scheduler *sched, struct amd_sched_job *bad)
 {
 	struct amd_sched_job *s_job;
+	struct amd_sched_entity *entity, *tmp;
+	int i;;
 
 	spin_lock(&sched->job_list_lock);
 	list_for_each_entry_reverse(s_job, &sched->ring_mirror_list, node) {
@@ -458,6 +467,26 @@ void amd_sched_hw_job_reset(struct amd_gpu_scheduler *sched)
 		}
 	}
 	spin_unlock(&sched->job_list_lock);
+
+	if (bad) {
+		bool found = false;
+
+		for (i = AMD_SCHED_PRIORITY_MIN; i < AMD_SCHED_PRIORITY_MAX; i++ ) {
+			struct amd_sched_rq *rq = &sched->sched_rq[i];
+
+			spin_lock(&rq->lock);
+			list_for_each_entry_safe(entity, tmp, &rq->entities, list) {
+				if (bad->s_fence->scheduled.context == entity->fence_context) {
+					found = true;
+					amd_sched_set_guilty(bad);
+					break;
+				}
+			}
+			spin_unlock(&rq->lock);
+			if (found)
+				break;
+		}
+	}
 }
 
 void amd_sched_job_kickout(struct amd_sched_job *s_job)
