@@ -1281,18 +1281,11 @@ int cz_dpm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 
 int cz_dpm_powerup_uvd(struct pp_hwmgr *hwmgr)
 {
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-					 PHM_PlatformCaps_UVDPowerGating)) {
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-				  PHM_PlatformCaps_UVDDynamicPowerGating)) {
-			return smum_send_msg_to_smc_with_parameter(
-								hwmgr,
-						   PPSMC_MSG_UVDPowerON, 1);
-		} else {
-			return smum_send_msg_to_smc_with_parameter(
-								hwmgr,
-						   PPSMC_MSG_UVDPowerON, 0);
-		}
+	if (PP_CAP(PHM_PlatformCaps_UVDPowerGating)) {
+		return smum_send_msg_to_smc_with_parameter(
+			hwmgr,
+			PPSMC_MSG_UVDPowerON,
+			PP_CAP(PHM_PlatformCaps_UVDDynamicPowerGating) ? 1 : 0);
 	}
 
 	return 0;
