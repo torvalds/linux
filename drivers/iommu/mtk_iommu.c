@@ -371,7 +371,8 @@ static int mtk_iommu_map(struct iommu_domain *domain, unsigned long iova,
 	int ret;
 
 	spin_lock_irqsave(&dom->pgtlock, flags);
-	ret = dom->iop->map(dom->iop, iova, paddr, size, prot);
+	ret = dom->iop->map(dom->iop, iova, paddr & DMA_BIT_MASK(32),
+			    size, prot);
 	spin_unlock_irqrestore(&dom->pgtlock, flags);
 
 	return ret;

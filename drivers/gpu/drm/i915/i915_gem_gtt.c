@@ -3231,7 +3231,7 @@ intel_rotate_pages(struct intel_rotation_info *rot_info,
 	/* Allocate a temporary list of source pages for random access. */
 	page_addr_list = kvmalloc_array(n_pages,
 					sizeof(dma_addr_t),
-					GFP_TEMPORARY);
+					GFP_KERNEL);
 	if (!page_addr_list)
 		return ERR_PTR(ret);
 

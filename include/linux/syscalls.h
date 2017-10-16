@@ -200,6 +200,8 @@ static inline int is_syscall_trace_event(struct trace_event_call *tp_event)
 #define SYSCALL_DEFINE5(name, ...) SYSCALL_DEFINEx(5, _##name, __VA_ARGS__)
 #define SYSCALL_DEFINE6(name, ...) SYSCALL_DEFINEx(6, _##name, __VA_ARGS__)
 
+#define SYSCALL_DEFINE_MAXARGS	6
+
 #define SYSCALL_DEFINEx(x, sname, ...)				\
 	SYSCALL_METADATA(sname, x, __VA_ARGS__)			\
 	__SYSCALL_DEFINEx(x, sname, __VA_ARGS__)
@@ -219,21 +221,25 @@ static inline int is_syscall_trace_event(struct trace_event_call *tp_event)
 	}								\
 	static inline long SYSC##name(__MAP(x,__SC_DECL,__VA_ARGS__))
 
-#ifdef TIF_FSCHECK
 /*
  * Called before coming back to user-mode. Returning to user-mode with an
  * address limit different than USER_DS can allow to overwrite kernel memory.
  */
 static inline void addr_limit_user_check(void)
 {
-
+#ifdef TIF_FSCHECK
 	if (!test_thread_flag(TIF_FSCHECK))
 		return;
-
-	BUG_ON(!segment_eq(get_fs(), USER_DS));
-	clear_thread_flag(TIF_FSCHECK);
-}
 #endif
+
+	if (CHECK_DATA_CORRUPTION(!segment_eq(get_fs(), USER_DS),
+				  "Invalid address limit on user-mode return"))
+		force_sig(SIGKILL, current);
+
+#ifdef TIF_FSCHECK
+	clear_thread_flag(TIF_FSCHECK);
+#endif
+}
 
 asmlinkage long sys32_quotactl(unsigned int cmd, const char __user *special,
 			       qid_t id, void __user *addr);

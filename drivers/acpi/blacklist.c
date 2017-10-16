@@ -30,7 +30,7 @@
 
 #include "internal.h"
 
-static struct dmi_system_id acpi_rev_dmi_table[] __initdata;
+static const struct dmi_system_id acpi_rev_dmi_table[] __initconst;
 
 /*
  * POLICY: If *anything* doesn't work, put it on the blacklist.
@@ -89,7 +89,7 @@ static int __init dmi_enable_rev_override(const struct dmi_system_id *d)
 }
 #endif
 
-static struct dmi_system_id acpi_rev_dmi_table[] __initdata = {
+static const struct dmi_system_id acpi_rev_dmi_table[] __initconst = {
 #ifdef CONFIG_ACPI_REV_OVERRIDE_POSSIBLE
 	/*
 	 * DELL XPS 13 (2015) switches sound between HDA and I2S

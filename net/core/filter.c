@@ -1794,7 +1794,7 @@ struct redirect_info {
 	u32 flags;
 	struct bpf_map *map;
 	struct bpf_map *map_to_flush;
-	const struct bpf_prog *map_owner;
+	unsigned long   map_owner;
 };
 
 static DEFINE_PER_CPU(struct redirect_info, redirect_info);
@@ -2500,27 +2500,31 @@ void xdp_do_flush_map(void)
 }
 EXPORT_SYMBOL_GPL(xdp_do_flush_map);
 
+static inline bool xdp_map_invalid(const struct bpf_prog *xdp_prog,
+				   unsigned long aux)
+{
+	return (unsigned long)xdp_prog->aux != aux;
+}
+
 static int xdp_do_redirect_map(struct net_device *dev, struct xdp_buff *xdp,
 			       struct bpf_prog *xdp_prog)
 {
 	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
-	const struct bpf_prog *map_owner = ri->map_owner;
+	unsigned long map_owner = ri->map_owner;
 	struct bpf_map *map = ri->map;
+	struct net_device *fwd = NULL;
 	u32 index = ri->ifindex;
-	struct net_device *fwd;
 	int err;
 
 	ri->ifindex = 0;
 	ri->map = NULL;
-	ri->map_owner = NULL;
+	ri->map_owner = 0;
 
-	/* This is really only caused by a deliberately crappy
-	 * BPF program, normally we would never hit that case,
-	 * so no need to inform someone via tracepoints either,
-	 * just bail out.
-	 */
-	if (unlikely(map_owner != xdp_prog))
-		return -EINVAL;
+	if (unlikely(xdp_map_invalid(xdp_prog, map_owner))) {
+		err = -EFAULT;
+		map = NULL;
+		goto err;
+	}
 
 	fwd = __dev_map_lookup_elem(map, index);
 	if (!fwd) {
@@ -2576,13 +2580,27 @@ int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb,
 			    struct bpf_prog *xdp_prog)
 {
 	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
+	unsigned long map_owner = ri->map_owner;
+	struct bpf_map *map = ri->map;
+	struct net_device *fwd = NULL;
 	u32 index = ri->ifindex;
-	struct net_device *fwd;
 	unsigned int len;
 	int err = 0;
 
-	fwd = dev_get_by_index_rcu(dev_net(dev), index);
 	ri->ifindex = 0;
+	ri->map = NULL;
+	ri->map_owner = 0;
+
+	if (map) {
+		if (unlikely(xdp_map_invalid(xdp_prog, map_owner))) {
+			err = -EFAULT;
+			map = NULL;
+			goto err;
+		}
+		fwd = __dev_map_lookup_elem(map, index);
+	} else {
+		fwd = dev_get_by_index_rcu(dev_net(dev), index);
+	}
 	if (unlikely(!fwd)) {
 		err = -EINVAL;
 		goto err;
@@ -2600,10 +2618,12 @@ int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb,
 	}
 
 	skb->dev = fwd;
-	_trace_xdp_redirect(dev, xdp_prog, index);
+	map ? _trace_xdp_redirect_map(dev, xdp_prog, fwd, map, index)
+		: _trace_xdp_redirect(dev, xdp_prog, index);
 	return 0;
 err:
-	_trace_xdp_redirect_err(dev, xdp_prog, index, err);
+	map ? _trace_xdp_redirect_map_err(dev, xdp_prog, fwd, map, index, err)
+		: _trace_xdp_redirect_err(dev, xdp_prog, index, err);
 	return err;
 }
 EXPORT_SYMBOL_GPL(xdp_do_generic_redirect);
@@ -2618,7 +2638,7 @@ BPF_CALL_2(bpf_xdp_redirect, u32, ifindex, u64, flags)
 	ri->ifindex = ifindex;
 	ri->flags = flags;
 	ri->map = NULL;
-	ri->map_owner = NULL;
+	ri->map_owner = 0;
 
 	return XDP_REDIRECT;
 }
@@ -2632,7 +2652,7 @@ static const struct bpf_func_proto bpf_xdp_redirect_proto = {
 };
 
 BPF_CALL_4(bpf_xdp_redirect_map, struct bpf_map *, map, u32, ifindex, u64, flags,
-	   const struct bpf_prog *, map_owner)
+	   unsigned long, map_owner)
 {
 	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
 

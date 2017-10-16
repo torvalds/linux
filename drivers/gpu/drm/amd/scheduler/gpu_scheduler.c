@@ -205,17 +205,32 @@ void amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 			   struct amd_sched_entity *entity)
 {
 	struct amd_sched_rq *rq = entity->rq;
+	int r;
 
 	if (!amd_sched_entity_is_initialized(sched, entity))
 		return;
-
 	/**
 	 * The client will not queue more IBs during this fini, consume existing
-	 * queued IBs
+	 * queued IBs or discard them on SIGKILL
 	*/
-	wait_event(sched->job_scheduled, amd_sched_entity_is_idle(entity));
-
+	if ((current->flags & PF_SIGNALED) && current->exit_code == SIGKILL)
+		r = -ERESTARTSYS;
+	else
+		r = wait_event_killable(sched->job_scheduled,
+					amd_sched_entity_is_idle(entity));
 	amd_sched_rq_remove_entity(rq, entity);
+	if (r) {
+		struct amd_sched_job *job;
+
+		/* Park the kernel for a moment to make sure it isn't processing
+		 * our enity.
+		 */
+		kthread_park(sched->thread);
+		kthread_unpark(sched->thread);
+		while (kfifo_out(&entity->job_queue, &job, sizeof(job)))
+			sched->ops->free_job(job);
+
+	}
 	kfifo_free(&entity->job_queue);
 }
 

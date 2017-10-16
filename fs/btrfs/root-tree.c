@@ -228,7 +228,7 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 	int ret;
 	bool can_recover = true;
 
-	if (fs_info->sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(fs_info->sb))
 		can_recover = false;
 
 	path = btrfs_alloc_path();

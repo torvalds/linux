@@ -350,8 +350,8 @@ static int iomap_zero(struct inode *inode, loff_t pos, unsigned offset,
 static int iomap_dax_zero(loff_t pos, unsigned offset, unsigned bytes,
 		struct iomap *iomap)
 {
-	sector_t sector = iomap->blkno +
-		(((pos & ~(PAGE_SIZE - 1)) - iomap->offset) >> 9);
+	sector_t sector = (iomap->addr +
+			   (pos & PAGE_MASK) - iomap->offset) >> 9;
 
 	return __dax_zero_page_range(iomap->bdev, iomap->dax_dev, sector,
 			offset, bytes);
@@ -510,11 +510,12 @@ static int iomap_to_fiemap(struct fiemap_extent_info *fi,
 		flags |= FIEMAP_EXTENT_MERGED;
 	if (iomap->flags & IOMAP_F_SHARED)
 		flags |= FIEMAP_EXTENT_SHARED;
+	if (iomap->flags & IOMAP_F_DATA_INLINE)
+		flags |= FIEMAP_EXTENT_DATA_INLINE;
 
 	return fiemap_fill_next_extent(fi, iomap->offset,
-			iomap->blkno != IOMAP_NULL_BLOCK ? iomap->blkno << 9: 0,
+			iomap->addr != IOMAP_NULL_ADDR ? iomap->addr : 0,
 			iomap->length, flags);
-
 }
 
 static loff_t
@@ -713,7 +714,23 @@ struct iomap_dio {
 static ssize_t iomap_dio_complete(struct iomap_dio *dio)
 {
 	struct kiocb *iocb = dio->iocb;
+	struct inode *inode = file_inode(iocb->ki_filp);
 	ssize_t ret;
+
+	/*
+	 * Try again to invalidate clean pages which might have been cached by
+	 * non-direct readahead, or faulted in by get_user_pages() if the source
+	 * of the write was an mmap'ed region of the file we're writing.  Either
+	 * one is a pretty crazy thing to do, so we don't support it 100%.  If
+	 * this invalidation fails, tough, the write still worked...
+	 */
+	if (!dio->error &&
+	    (dio->flags & IOMAP_DIO_WRITE) && inode->i_mapping->nrpages) {
+		ret = invalidate_inode_pages2_range(inode->i_mapping,
+				iocb->ki_pos >> PAGE_SHIFT,
+				(iocb->ki_pos + dio->size - 1) >> PAGE_SHIFT);
+		WARN_ON_ONCE(ret);
+	}
 
 	if (dio->end_io) {
 		ret = dio->end_io(iocb,
@@ -807,7 +824,7 @@ iomap_dio_zero(struct iomap_dio *dio, struct iomap *iomap, loff_t pos,
 	bio = bio_alloc(GFP_KERNEL, 1);
 	bio_set_dev(bio, iomap->bdev);
 	bio->bi_iter.bi_sector =
-		iomap->blkno + ((pos - iomap->offset) >> 9);
+		(iomap->addr + pos - iomap->offset) >> 9;
 	bio->bi_private = dio;
 	bio->bi_end_io = iomap_dio_bio_end_io;
 
@@ -886,7 +903,7 @@ iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
 		bio = bio_alloc(GFP_KERNEL, nr_pages);
 		bio_set_dev(bio, iomap->bdev);
 		bio->bi_iter.bi_sector =
-			iomap->blkno + ((pos - iomap->offset) >> 9);
+			(iomap->addr + pos - iomap->offset) >> 9;
 		bio->bi_write_hint = dio->iocb->ki_hint;
 		bio->bi_private = dio;
 		bio->bi_end_io = iomap_dio_bio_end_io;
@@ -993,6 +1010,13 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	WARN_ON_ONCE(ret);
 	ret = 0;
 
+	if (iov_iter_rw(iter) == WRITE && !is_sync_kiocb(iocb) &&
+	    !inode->i_sb->s_dio_done_wq) {
+		ret = sb_init_dio_done_wq(inode->i_sb);
+		if (ret < 0)
+			goto out_free_dio;
+	}
+
 	inode_dio_begin(inode);
 
 	blk_start_plug(&plug);
@@ -1015,13 +1039,6 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	if (ret < 0)
 		iomap_dio_set_error(dio, ret);
 
-	if (ret >= 0 && iov_iter_rw(iter) == WRITE && !is_sync_kiocb(iocb) &&
-			!inode->i_sb->s_dio_done_wq) {
-		ret = sb_init_dio_done_wq(inode->i_sb);
-		if (ret < 0)
-			iomap_dio_set_error(dio, ret);
-	}
-
 	if (!atomic_dec_and_test(&dio->ref)) {
 		if (!is_sync_kiocb(iocb))
 			return -EIOCBQUEUED;
@@ -1041,19 +1058,6 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	}
 
 	ret = iomap_dio_complete(dio);
-
-	/*
-	 * Try again to invalidate clean pages which might have been cached by
-	 * non-direct readahead, or faulted in by get_user_pages() if the source
-	 * of the write was an mmap'ed region of the file we're writing.  Either
-	 * one is a pretty crazy thing to do, so we don't support it 100%.  If
-	 * this invalidation fails, tough, the write still worked...
-	 */
-	if (iov_iter_rw(iter) == WRITE) {
-		int err = invalidate_inode_pages2_range(mapping,
-				start >> PAGE_SHIFT, end >> PAGE_SHIFT);
-		WARN_ON_ONCE(err);
-	}
 
 	return ret;
 

@@ -49,7 +49,7 @@
 #define NETVSC_MIN_TX_SECTIONS	10
 #define NETVSC_DEFAULT_TX	192	/* ~1M */
 #define NETVSC_MIN_RX_SECTIONS	10	/* ~64K */
-#define NETVSC_DEFAULT_RX	2048	/* ~4M */
+#define NETVSC_DEFAULT_RX	10485   /* Max ~16M */
 
 #define LINKCHANGE_INT (2 * HZ)
 #define VF_TAKEOVER_INT (HZ / 10)
@@ -848,15 +848,14 @@ static int netvsc_set_channels(struct net_device *net,
 	device_info.num_chn = count;
 	device_info.ring_size = ring_size;
 	device_info.send_sections = nvdev->send_section_cnt;
+	device_info.send_section_size = nvdev->send_section_size;
 	device_info.recv_sections = nvdev->recv_section_cnt;
+	device_info.recv_section_size = nvdev->recv_section_size;
 
 	rndis_filter_device_remove(dev, nvdev);
 
 	nvdev = rndis_filter_device_add(dev, &device_info);
-	if (!IS_ERR(nvdev)) {
-		netif_set_real_num_tx_queues(net, nvdev->num_chn);
-		netif_set_real_num_rx_queues(net, nvdev->num_chn);
-	} else {
+	if (IS_ERR(nvdev)) {
 		ret = PTR_ERR(nvdev);
 		device_info.num_chn = orig;
 		nvdev = rndis_filter_device_add(dev, &device_info);
@@ -966,7 +965,9 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	device_info.ring_size = ring_size;
 	device_info.num_chn = nvdev->num_chn;
 	device_info.send_sections = nvdev->send_section_cnt;
+	device_info.send_section_size = nvdev->send_section_size;
 	device_info.recv_sections = nvdev->recv_section_cnt;
+	device_info.recv_section_size = nvdev->recv_section_size;
 
 	rndis_filter_device_remove(hdev, nvdev);
 
@@ -1488,7 +1489,9 @@ static int netvsc_set_ringparam(struct net_device *ndev,
 	device_info.num_chn = nvdev->num_chn;
 	device_info.ring_size = ring_size;
 	device_info.send_sections = new_tx;
+	device_info.send_section_size = nvdev->send_section_size;
 	device_info.recv_sections = new_rx;
+	device_info.recv_section_size = nvdev->recv_section_size;
 
 	netif_device_detach(ndev);
 	was_opened = rndis_filter_opened(nvdev);
@@ -1937,7 +1940,9 @@ static int netvsc_probe(struct hv_device *dev,
 	device_info.ring_size = ring_size;
 	device_info.num_chn = VRSS_CHANNEL_DEFAULT;
 	device_info.send_sections = NETVSC_DEFAULT_TX;
+	device_info.send_section_size = NETVSC_SEND_SECTION_SIZE;
 	device_info.recv_sections = NETVSC_DEFAULT_RX;
+	device_info.recv_section_size = NETVSC_RECV_SECTION_SIZE;
 
 	nvdev = rndis_filter_device_add(dev, &device_info);
 	if (IS_ERR(nvdev)) {
@@ -1953,9 +1958,6 @@ static int netvsc_probe(struct hv_device *dev,
 		NETIF_F_HIGHDMA | NETIF_F_SG |
 		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 	net->vlan_features = net->features;
-
-	netif_set_real_num_tx_queues(net, nvdev->num_chn);
-	netif_set_real_num_rx_queues(net, nvdev->num_chn);
 
 	netdev_lockdep_set_classes(net);
 
@@ -2012,9 +2014,10 @@ static int netvsc_remove(struct hv_device *dev)
 	if (vf_netdev)
 		netvsc_unregister_vf(vf_netdev);
 
+	unregister_netdevice(net);
+
 	rndis_filter_device_remove(dev,
 				   rtnl_dereference(ndev_ctx->nvdev));
-	unregister_netdevice(net);
 	rtnl_unlock();
 
 	hv_set_drvdata(dev, NULL);

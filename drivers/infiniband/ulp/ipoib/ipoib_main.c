@@ -2180,6 +2180,7 @@ static struct net_device *ipoib_add_port(const char *format,
 {
 	struct ipoib_dev_priv *priv;
 	struct ib_port_attr attr;
+	struct rdma_netdev *rn;
 	int result = -ENOMEM;
 
 	priv = ipoib_intf_alloc(hca, port, format);
@@ -2279,7 +2280,8 @@ register_failed:
 	ipoib_dev_cleanup(priv->dev);
 
 device_init_failed:
-	free_netdev(priv->dev);
+	rn = netdev_priv(priv->dev);
+	rn->free_rdma_netdev(priv->dev);
 	kfree(priv);
 
 alloc_mem_failed:
@@ -2328,7 +2330,7 @@ static void ipoib_remove_one(struct ib_device *device, void *client_data)
 		return;
 
 	list_for_each_entry_safe(priv, tmp, dev_list, list) {
-		struct rdma_netdev *rn = netdev_priv(priv->dev);
+		struct rdma_netdev *parent_rn = netdev_priv(priv->dev);
 
 		ib_unregister_event_handler(&priv->event_handler);
 		flush_workqueue(ipoib_workqueue);
@@ -2350,10 +2352,15 @@ static void ipoib_remove_one(struct ib_device *device, void *client_data)
 		unregister_netdev(priv->dev);
 		mutex_unlock(&priv->sysfs_mutex);
 
-		rn->free_rdma_netdev(priv->dev);
+		parent_rn->free_rdma_netdev(priv->dev);
 
-		list_for_each_entry_safe(cpriv, tcpriv, &priv->child_intfs, list)
+		list_for_each_entry_safe(cpriv, tcpriv, &priv->child_intfs, list) {
+			struct rdma_netdev *child_rn;
+
+			child_rn = netdev_priv(cpriv->dev);
+			child_rn->free_rdma_netdev(cpriv->dev);
 			kfree(cpriv);
+		}
 
 		kfree(priv);
 	}

@@ -58,7 +58,7 @@ xfs_zero_range(
 	xfs_off_t		count,
 	bool			*did_zero)
 {
-	return iomap_zero_range(VFS_I(ip), pos, count, NULL, &xfs_iomap_ops);
+	return iomap_zero_range(VFS_I(ip), pos, count, did_zero, &xfs_iomap_ops);
 }
 
 int
@@ -259,7 +259,11 @@ xfs_file_buffered_aio_read(
 
 	trace_xfs_file_buffered_read(ip, iov_iter_count(to), iocb->ki_pos);
 
-	xfs_ilock(ip, XFS_IOLOCK_SHARED);
+	if (!xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED)) {
+		if (iocb->ki_flags & IOCB_NOWAIT)
+			return -EAGAIN;
+		xfs_ilock(ip, XFS_IOLOCK_SHARED);
+	}
 	ret = generic_file_read_iter(iocb, to);
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
@@ -373,8 +377,6 @@ restart:
 	 */
 	spin_lock(&ip->i_flags_lock);
 	if (iocb->ki_pos > i_size_read(inode)) {
-		bool	zero = false;
-
 		spin_unlock(&ip->i_flags_lock);
 		if (!drained_dio) {
 			if (*iolock == XFS_IOLOCK_SHARED) {
@@ -395,7 +397,7 @@ restart:
 			drained_dio = true;
 			goto restart;
 		}
-		error = xfs_zero_eof(ip, iocb->ki_pos, i_size_read(inode), &zero);
+		error = xfs_zero_eof(ip, iocb->ki_pos, i_size_read(inode), NULL);
 		if (error)
 			return error;
 	} else
@@ -432,7 +434,6 @@ xfs_dio_write_end_io(
 	struct inode		*inode = file_inode(iocb->ki_filp);
 	struct xfs_inode	*ip = XFS_I(inode);
 	loff_t			offset = iocb->ki_pos;
-	bool			update_size = false;
 	int			error = 0;
 
 	trace_xfs_end_io_direct_write(ip, offset, size);
@@ -442,6 +443,21 @@ xfs_dio_write_end_io(
 
 	if (size <= 0)
 		return size;
+
+	if (flags & IOMAP_DIO_COW) {
+		error = xfs_reflink_end_cow(ip, offset, size);
+		if (error)
+			return error;
+	}
+
+	/*
+	 * Unwritten conversion updates the in-core isize after extent
+	 * conversion but before updating the on-disk size. Updating isize any
+	 * earlier allows a racing dio read to find unwritten extents before
+	 * they are converted.
+	 */
+	if (flags & IOMAP_DIO_UNWRITTEN)
+		return xfs_iomap_write_unwritten(ip, offset, size, true);
 
 	/*
 	 * We need to update the in-core inode size here so that we don't end up
@@ -457,20 +473,11 @@ xfs_dio_write_end_io(
 	spin_lock(&ip->i_flags_lock);
 	if (offset + size > i_size_read(inode)) {
 		i_size_write(inode, offset + size);
-		update_size = true;
-	}
-	spin_unlock(&ip->i_flags_lock);
-
-	if (flags & IOMAP_DIO_COW) {
-		error = xfs_reflink_end_cow(ip, offset, size);
-		if (error)
-			return error;
-	}
-
-	if (flags & IOMAP_DIO_UNWRITTEN)
-		error = xfs_iomap_write_unwritten(ip, offset, size);
-	else if (update_size)
+		spin_unlock(&ip->i_flags_lock);
 		error = xfs_setfilesize(ip, offset, size);
+	} else {
+		spin_unlock(&ip->i_flags_lock);
+	}
 
 	return error;
 }
@@ -635,6 +642,9 @@ xfs_file_buffered_aio_write(
 	ssize_t			ret;
 	int			enospc = 0;
 	int			iolock;
+
+	if (iocb->ki_flags & IOCB_NOWAIT)
+		return -EOPNOTSUPP;
 
 write_retry:
 	iolock = XFS_IOLOCK_EXCL;
@@ -912,7 +922,7 @@ xfs_file_open(
 		return -EFBIG;
 	if (XFS_FORCED_SHUTDOWN(XFS_M(inode->i_sb)))
 		return -EIO;
-	file->f_mode |= FMODE_AIO_NOWAIT;
+	file->f_mode |= FMODE_NOWAIT;
 	return 0;
 }
 

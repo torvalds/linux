@@ -753,7 +753,7 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 	case Q_XGETNEXTQUOTA:
 		return quota_getnextxquota(sb, type, id, addr);
 	case Q_XQUOTASYNC:
-		if (sb->s_flags & MS_RDONLY)
+		if (sb_rdonly(sb))
 			return -EROFS;
 		/* XFS quotas are fully coherent now, making this call a noop */
 		return 0;

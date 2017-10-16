@@ -48,7 +48,6 @@
 #define __x_tima		xive_tima
 #define __x_eoi_page(xd)	((void __iomem *)((xd)->eoi_mmio))
 #define __x_trig_page(xd)	((void __iomem *)((xd)->trig_mmio))
-#define __x_readb	__raw_readb
 #define __x_writeb	__raw_writeb
 #define __x_readw	__raw_readw
 #define __x_readq	__raw_readq

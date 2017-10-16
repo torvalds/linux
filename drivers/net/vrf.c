@@ -957,12 +957,12 @@ static void vrf_ip6_input_dst(struct sk_buff *skb, struct net_device *vrf_dev,
 {
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct flowi6 fl6 = {
+		.flowi6_iif     = ifindex,
+		.flowi6_mark    = skb->mark,
+		.flowi6_proto   = iph->nexthdr,
 		.daddr          = iph->daddr,
 		.saddr          = iph->saddr,
 		.flowlabel      = ip6_flowinfo(iph),
-		.flowi6_mark    = skb->mark,
-		.flowi6_proto   = iph->nexthdr,
-		.flowi6_iif     = ifindex,
 	};
 	struct net *net = dev_net(vrf_dev);
 	struct rt6_info *rt6;

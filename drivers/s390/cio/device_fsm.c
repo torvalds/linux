@@ -476,6 +476,17 @@ static void create_fake_irb(struct irb *irb, int type)
 	}
 }
 
+static void ccw_device_handle_broken_paths(struct ccw_device *cdev)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+	u8 broken_paths = (sch->schib.pmcw.pam & sch->opm) ^ sch->vpm;
+
+	if (broken_paths && (cdev->private->path_broken_mask != broken_paths))
+		ccw_device_schedule_recovery();
+
+	cdev->private->path_broken_mask = broken_paths;
+}
+
 void ccw_device_verify_done(struct ccw_device *cdev, int err)
 {
 	struct subchannel *sch;
@@ -508,6 +519,7 @@ callback:
 			memset(&cdev->private->irb, 0, sizeof(struct irb));
 		}
 		ccw_device_report_path_events(cdev);
+		ccw_device_handle_broken_paths(cdev);
 		break;
 	case -ETIME:
 	case -EUSERS:

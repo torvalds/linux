@@ -1027,7 +1027,19 @@ int i40iw_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				iwqp->hw_tcp_state = I40IW_TCP_STATE_CLOSED;
 				iwqp->last_aeq = I40IW_AE_RESET_SENT;
 				spin_unlock_irqrestore(&iwqp->lock, flags);
+				i40iw_cm_disconn(iwqp);
 			}
+		} else {
+			spin_lock_irqsave(&iwqp->lock, flags);
+			if (iwqp->cm_id) {
+				if (atomic_inc_return(&iwqp->close_timer_started) == 1) {
+					iwqp->cm_id->add_ref(iwqp->cm_id);
+					i40iw_schedule_cm_timer(iwqp->cm_node,
+								(struct i40iw_puda_buf *)iwqp,
+								 I40IW_TIMER_TYPE_CLOSE, 1, 0);
+				}
+			}
+			spin_unlock_irqrestore(&iwqp->lock, flags);
 		}
 	}
 	return 0;

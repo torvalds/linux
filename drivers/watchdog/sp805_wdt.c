@@ -281,7 +281,7 @@ static int __maybe_unused sp805_wdt_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(sp805_wdt_dev_pm_ops, sp805_wdt_suspend,
 		sp805_wdt_resume);
 
-static struct amba_id sp805_wdt_ids[] = {
+static const struct amba_id sp805_wdt_ids[] = {
 	{
 		.id	= 0x00141805,
 		.mask	= 0x00ffffff,

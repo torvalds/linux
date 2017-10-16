@@ -4193,7 +4193,7 @@ static struct pci_driver skge_driver = {
 	.driver.pm =	SKGE_PM_OPS,
 };
 
-static struct dmi_system_id skge_32bit_dma_boards[] = {
+static const struct dmi_system_id skge_32bit_dma_boards[] = {
 	{
 		.ident = "Gigabyte nForce boards",
 		.matches = {

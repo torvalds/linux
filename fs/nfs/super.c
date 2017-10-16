@@ -812,7 +812,7 @@ int nfs_show_stats(struct seq_file *m, struct dentry *root)
 	 * Display all mount option settings
 	 */
 	seq_printf(m, "\n\topts:\t");
-	seq_puts(m, root->d_sb->s_flags & MS_RDONLY ? "ro" : "rw");
+	seq_puts(m, sb_rdonly(root->d_sb) ? "ro" : "rw");
 	seq_puts(m, root->d_sb->s_flags & MS_SYNCHRONOUS ? ",sync" : "");
 	seq_puts(m, root->d_sb->s_flags & MS_NOATIME ? ",noatime" : "");
 	seq_puts(m, root->d_sb->s_flags & MS_NODIRATIME ? ",nodiratime" : "");

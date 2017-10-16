@@ -210,7 +210,7 @@ xfs_parseargs(
 	/*
 	 * Copy binary VFS mount flags we are interested in.
 	 */
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		mp->m_flags |= XFS_MOUNT_RDONLY;
 	if (sb->s_flags & MS_DIRSYNC)
 		mp->m_flags |= XFS_MOUNT_DIRSYNC;
@@ -1652,6 +1652,16 @@ xfs_fs_fill_super(
 		if (xfs_sb_version_hasreflink(&mp->m_sb))
 			xfs_alert(mp,
 		"DAX and reflink have not been tested together!");
+	}
+
+	if (mp->m_flags & XFS_MOUNT_DISCARD) {
+		struct request_queue *q = bdev_get_queue(sb->s_bdev);
+
+		if (!blk_queue_discard(q)) {
+			xfs_warn(mp, "mounting with \"discard\" option, but "
+					"the device does not support discard");
+			mp->m_flags &= ~XFS_MOUNT_DISCARD;
+		}
 	}
 
 	if (xfs_sb_version_hasrmapbt(&mp->m_sb)) {

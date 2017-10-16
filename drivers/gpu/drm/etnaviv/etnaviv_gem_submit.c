@@ -37,7 +37,7 @@ static struct etnaviv_gem_submit *submit_create(struct drm_device *dev,
 	struct etnaviv_gem_submit *submit;
 	size_t sz = size_vstruct(nr, sizeof(submit->bos[0]), sizeof(*submit));
 
-	submit = kmalloc(sz, GFP_TEMPORARY | __GFP_NOWARN | __GFP_NORETRY);
+	submit = kmalloc(sz, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
 	if (submit) {
 		submit->dev = dev;
 		submit->gpu = gpu;
@@ -445,8 +445,10 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	cmdbuf->user_size = ALIGN(args->stream_size, 8);
 
 	ret = etnaviv_gpu_submit(gpu, submit, cmdbuf);
-	if (ret == 0)
-		cmdbuf = NULL;
+	if (ret)
+		goto out;
+
+	cmdbuf = NULL;
 
 	if (args->flags & ETNA_SUBMIT_FENCE_FD_OUT) {
 		/*

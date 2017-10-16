@@ -1373,7 +1373,7 @@ static void __init acpi_reduced_hw_init(void)
  * If your system is blacklisted here, but you find that acpi=force
  * works for you, please contact linux-acpi@vger.kernel.org
  */
-static struct dmi_system_id __initdata acpi_dmi_table[] = {
+static const struct dmi_system_id acpi_dmi_table[] __initconst = {
 	/*
 	 * Boxes that need ACPI disabled
 	 */
@@ -1448,7 +1448,7 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 };
 
 /* second table for DMI checks that should run after early-quirks */
-static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
+static const struct dmi_system_id acpi_dmi_table_late[] __initconst = {
 	/*
 	 * HP laptops which use a DSDT reporting as HP/SB400/10000,
 	 * which includes some code which overrides all temperature

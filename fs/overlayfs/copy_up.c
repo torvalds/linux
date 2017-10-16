@@ -241,7 +241,7 @@ struct ovl_fh *ovl_encode_fh(struct dentry *lower, bool is_upper)
 	int buflen = MAX_HANDLE_SZ;
 	uuid_t *uuid = &lower->d_sb->s_uuid;
 
-	buf = kmalloc(buflen, GFP_TEMPORARY);
+	buf = kmalloc(buflen, GFP_KERNEL);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 

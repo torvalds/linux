@@ -14,7 +14,7 @@
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 #include <asm/r4kcache.h>
-#include <asm/mips-cm.h>
+#include <asm/mips-cps.h>
 
 /*
  * MIPS32/MIPS64 L2 cache handling
@@ -63,34 +63,25 @@ static void mips_sc_prefetch_enable(void)
 	 * prefetching for both code & data, for all ports.
 	 */
 	pftctl = read_gcr_l2_pft_control();
-	if (pftctl & CM_GCR_L2_PFT_CONTROL_NPFT_MSK) {
-		pftctl &= ~CM_GCR_L2_PFT_CONTROL_PAGEMASK_MSK;
-		pftctl |= PAGE_MASK & CM_GCR_L2_PFT_CONTROL_PAGEMASK_MSK;
-		pftctl |= CM_GCR_L2_PFT_CONTROL_PFTEN_MSK;
+	if (pftctl & CM_GCR_L2_PFT_CONTROL_NPFT) {
+		pftctl &= ~CM_GCR_L2_PFT_CONTROL_PAGEMASK;
+		pftctl |= PAGE_MASK & CM_GCR_L2_PFT_CONTROL_PAGEMASK;
+		pftctl |= CM_GCR_L2_PFT_CONTROL_PFTEN;
 		write_gcr_l2_pft_control(pftctl);
 
-		pftctl = read_gcr_l2_pft_control_b();
-		pftctl |= CM_GCR_L2_PFT_CONTROL_B_PORTID_MSK;
-		pftctl |= CM_GCR_L2_PFT_CONTROL_B_CEN_MSK;
-		write_gcr_l2_pft_control_b(pftctl);
+		set_gcr_l2_pft_control_b(CM_GCR_L2_PFT_CONTROL_B_PORTID |
+					 CM_GCR_L2_PFT_CONTROL_B_CEN);
 	}
 }
 
 static void mips_sc_prefetch_disable(void)
 {
-	unsigned long pftctl;
-
 	if (mips_cm_revision() < CM_REV_CM2_5)
 		return;
 
-	pftctl = read_gcr_l2_pft_control();
-	pftctl &= ~CM_GCR_L2_PFT_CONTROL_PFTEN_MSK;
-	write_gcr_l2_pft_control(pftctl);
-
-	pftctl = read_gcr_l2_pft_control_b();
-	pftctl &= ~CM_GCR_L2_PFT_CONTROL_B_PORTID_MSK;
-	pftctl &= ~CM_GCR_L2_PFT_CONTROL_B_CEN_MSK;
-	write_gcr_l2_pft_control_b(pftctl);
+	clear_gcr_l2_pft_control(CM_GCR_L2_PFT_CONTROL_PFTEN);
+	clear_gcr_l2_pft_control_b(CM_GCR_L2_PFT_CONTROL_B_PORTID |
+				   CM_GCR_L2_PFT_CONTROL_B_CEN);
 }
 
 static bool mips_sc_prefetch_is_enabled(void)
@@ -101,9 +92,9 @@ static bool mips_sc_prefetch_is_enabled(void)
 		return false;
 
 	pftctl = read_gcr_l2_pft_control();
-	if (!(pftctl & CM_GCR_L2_PFT_CONTROL_NPFT_MSK))
+	if (!(pftctl & CM_GCR_L2_PFT_CONTROL_NPFT))
 		return false;
-	return !!(pftctl & CM_GCR_L2_PFT_CONTROL_PFTEN_MSK);
+	return !!(pftctl & CM_GCR_L2_PFT_CONTROL_PFTEN);
 }
 
 static struct bcache_ops mips_sc_ops = {
@@ -160,21 +151,21 @@ static int __init mips_sc_probe_cm3(void)
 	unsigned long cfg = read_gcr_l2_config();
 	unsigned long sets, line_sz, assoc;
 
-	if (cfg & CM_GCR_L2_CONFIG_BYPASS_MSK)
+	if (cfg & CM_GCR_L2_CONFIG_BYPASS)
 		return 0;
 
-	sets = cfg & CM_GCR_L2_CONFIG_SET_SIZE_MSK;
-	sets >>= CM_GCR_L2_CONFIG_SET_SIZE_SHF;
+	sets = cfg & CM_GCR_L2_CONFIG_SET_SIZE;
+	sets >>= __ffs(CM_GCR_L2_CONFIG_SET_SIZE);
 	if (sets)
 		c->scache.sets = 64 << sets;
 
-	line_sz = cfg & CM_GCR_L2_CONFIG_LINE_SIZE_MSK;
-	line_sz >>= CM_GCR_L2_CONFIG_LINE_SIZE_SHF;
+	line_sz = cfg & CM_GCR_L2_CONFIG_LINE_SIZE;
+	line_sz >>= __ffs(CM_GCR_L2_CONFIG_LINE_SIZE);
 	if (line_sz)
 		c->scache.linesz = 2 << line_sz;
 
-	assoc = cfg & CM_GCR_L2_CONFIG_ASSOC_MSK;
-	assoc >>= CM_GCR_L2_CONFIG_ASSOC_SHF;
+	assoc = cfg & CM_GCR_L2_CONFIG_ASSOC;
+	assoc >>= __ffs(CM_GCR_L2_CONFIG_ASSOC);
 	c->scache.ways = assoc + 1;
 	c->scache.waysize = c->scache.sets * c->scache.linesz;
 	c->scache.waybit = __ffs(c->scache.waysize);

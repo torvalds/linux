@@ -292,7 +292,10 @@ static int create_signal_event(struct file *devkfd,
 				struct kfd_event *ev)
 {
 	if (p->signal_event_count == KFD_SIGNAL_EVENT_LIMIT) {
-		pr_warn("Signal event wasn't created because limit was reached\n");
+		if (!p->signal_event_limit_reached) {
+			pr_warn("Signal event wasn't created because limit was reached\n");
+			p->signal_event_limit_reached = true;
+		}
 		return -ENOMEM;
 	}
 

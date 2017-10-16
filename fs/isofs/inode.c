@@ -514,9 +514,11 @@ static int isofs_show_options(struct seq_file *m, struct dentry *root)
 	if (sbi->s_fmode != ISOFS_INVALID_MODE)
 		seq_printf(m, ",fmode=%o", sbi->s_fmode);
 
+#ifdef CONFIG_JOLIET
 	if (sbi->s_nls_iocharset &&
 	    strcmp(sbi->s_nls_iocharset->charset, CONFIG_NLS_DEFAULT) != 0)
 		seq_printf(m, ",iocharset=%s", sbi->s_nls_iocharset->charset);
+#endif
 	return 0;
 }
 
@@ -737,7 +739,7 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 
 root_found:
 	/* We don't support read-write mounts */
-	if (!(s->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(s)) {
 		error = -EACCES;
 		goto out_freebh;
 	}

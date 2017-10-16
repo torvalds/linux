@@ -686,9 +686,8 @@ static int do_read(struct fsg_common *common)
 
 		/* Perform the read */
 		file_offset_tmp = file_offset;
-		nread = vfs_read(curlun->filp,
-				 (char __user *)bh->buf,
-				 amount, &file_offset_tmp);
+		nread = kernel_read(curlun->filp, bh->buf, amount,
+				&file_offset_tmp);
 		VLDBG(curlun, "file read %u @ %llu -> %d\n", amount,
 		      (unsigned long long)file_offset, (int)nread);
 		if (signal_pending(current))
@@ -883,8 +882,8 @@ static int do_write(struct fsg_common *common)
 
 		/* Perform the write */
 		file_offset_tmp = file_offset;
-		nwritten = vfs_write(curlun->filp, (char __user *)bh->buf,
-				amount, &file_offset_tmp);
+		nwritten = kernel_write(curlun->filp, bh->buf, amount,
+				&file_offset_tmp);
 		VLDBG(curlun, "file write %u @ %llu -> %d\n", amount,
 				(unsigned long long)file_offset, (int)nwritten);
 		if (signal_pending(current))
@@ -1021,9 +1020,8 @@ static int do_verify(struct fsg_common *common)
 
 		/* Perform the read */
 		file_offset_tmp = file_offset;
-		nread = vfs_read(curlun->filp,
-				(char __user *) bh->buf,
-				amount, &file_offset_tmp);
+		nread = kernel_read(curlun->filp, bh->buf, amount,
+				&file_offset_tmp);
 		VLDBG(curlun, "file read %u @ %llu -> %d\n", amount,
 				(unsigned long long) file_offset,
 				(int) nread);
@@ -2452,13 +2450,6 @@ static int fsg_main_thread(void *common_)
 
 	/* Allow the thread to be frozen */
 	set_freezable();
-
-	/*
-	 * Arrange for userspace references to be interpreted as kernel
-	 * pointers.  That way we can pass a kernel pointer to a routine
-	 * that expects a __user pointer and it will work okay.
-	 */
-	set_fs(get_ds());
 
 	/* The main loop */
 	while (common->state != FSG_STATE_TERMINATED) {

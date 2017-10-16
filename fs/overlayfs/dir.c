@@ -833,7 +833,7 @@ static char *ovl_get_redirect(struct dentry *dentry, bool samedir)
 		goto out;
 	}
 
-	buf = ret = kmalloc(buflen, GFP_TEMPORARY);
+	buf = ret = kmalloc(buflen, GFP_KERNEL);
 	if (!buf)
 		goto out;
 

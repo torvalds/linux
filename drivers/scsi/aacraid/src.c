@@ -740,6 +740,8 @@ static void aac_send_iop_reset(struct aac_dev *dev)
 	aac_set_intx_mode(dev);
 
 	src_writel(dev, MUnit.IDR, IOP_SRC_RESET_MASK);
+
+	msleep(5000);
 }
 
 static void aac_send_hardware_soft_reset(struct aac_dev *dev)

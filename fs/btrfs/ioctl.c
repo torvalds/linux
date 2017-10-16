@@ -296,8 +296,10 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 
 		if (fs_info->compress_type == BTRFS_COMPRESS_LZO)
 			comp = "lzo";
-		else
+		else if (fs_info->compress_type == BTRFS_COMPRESS_ZLIB)
 			comp = "zlib";
+		else
+			comp = "zstd";
 		ret = btrfs_set_prop(inode, "btrfs.compression",
 				     comp, strlen(comp), 0);
 		if (ret)
@@ -1435,6 +1437,8 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 
 	if (range->compress_type == BTRFS_COMPRESS_LZO) {
 		btrfs_set_fs_incompat(fs_info, COMPRESS_LZO);
+	} else if (range->compress_type == BTRFS_COMPRESS_ZSTD) {
+		btrfs_set_fs_incompat(fs_info, COMPRESS_ZSTD);
 	}
 
 	ret = defrag_count;
@@ -2769,9 +2773,9 @@ static long btrfs_ioctl_fs_info(struct btrfs_fs_info *fs_info,
 	}
 	mutex_unlock(&fs_devices->device_list_mutex);
 
-	fi_args->nodesize = fs_info->super_copy->nodesize;
-	fi_args->sectorsize = fs_info->super_copy->sectorsize;
-	fi_args->clone_alignment = fs_info->super_copy->sectorsize;
+	fi_args->nodesize = fs_info->nodesize;
+	fi_args->sectorsize = fs_info->sectorsize;
+	fi_args->clone_alignment = fs_info->sectorsize;
 
 	if (copy_to_user(arg, fi_args, sizeof(*fi_args)))
 		ret = -EFAULT;
@@ -3028,7 +3032,7 @@ static int btrfs_cmp_data_prepare(struct inode *src, u64 loff,
 out:
 	if (ret)
 		btrfs_cmp_data_free(cmp);
-	return 0;
+	return ret;
 }
 
 static int btrfs_cmp_data(u64 len, struct cmp_pages *cmp)
@@ -4057,6 +4061,10 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 		ret = PTR_ERR(new_root);
 		goto out;
 	}
+	if (!is_fstree(new_root->objectid)) {
+		ret = -ENOENT;
+		goto out;
+	}
 
 	path = btrfs_alloc_path();
 	if (!path) {
@@ -4422,7 +4430,7 @@ static long btrfs_ioctl_dev_replace(struct btrfs_fs_info *fs_info,
 
 	switch (p->cmd) {
 	case BTRFS_IOCTL_DEV_REPLACE_CMD_START:
-		if (fs_info->sb->s_flags & MS_RDONLY) {
+		if (sb_rdonly(fs_info->sb)) {
 			ret = -EROFS;
 			goto out;
 		}

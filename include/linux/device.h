@@ -838,7 +838,7 @@ struct dev_links_info {
  * @driver_data: Private pointer for driver specific info.
  * @links:	Links to suppliers and consumers of this device.
  * @power:	For device power management.
- * 		See Documentation/power/admin-guide/devices.rst for details.
+ *		See Documentation/driver-api/pm/devices.rst for details.
  * @pm_domain:	Provide callbacks that are executed during system suspend,
  * 		hibernation, system resume and during runtime PM transitions
  * 		along with subsystem-level and driver-level callbacks.

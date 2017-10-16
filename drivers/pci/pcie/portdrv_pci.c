@@ -260,7 +260,7 @@ static int __init dmi_pcie_pme_disable_msi(const struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id __initdata pcie_portdrv_dmi_table[] = {
+static const struct dmi_system_id pcie_portdrv_dmi_table[] __initconst = {
 	/*
 	 * Boxes that should not use MSI for PCIe PME signaling.
 	 */

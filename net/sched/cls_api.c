@@ -182,7 +182,7 @@ static struct tcf_chain *tcf_chain_create(struct tcf_block *block,
 	list_add_tail(&chain->list, &block->chain_list);
 	chain->block = block;
 	chain->index = chain_index;
-	chain->refcnt = 0;
+	chain->refcnt = 1;
 	return chain;
 }
 
@@ -194,21 +194,20 @@ static void tcf_chain_flush(struct tcf_chain *chain)
 		RCU_INIT_POINTER(*chain->p_filter_chain, NULL);
 	while ((tp = rtnl_dereference(chain->filter_chain)) != NULL) {
 		RCU_INIT_POINTER(chain->filter_chain, tp->next);
+		tcf_chain_put(chain);
 		tcf_proto_destroy(tp);
 	}
 }
 
 static void tcf_chain_destroy(struct tcf_chain *chain)
 {
-	/* May be already removed from the list by the previous call. */
-	if (!list_empty(&chain->list))
-		list_del_init(&chain->list);
+	list_del(&chain->list);
+	kfree(chain);
+}
 
-	/* There might still be a reference held when we got here from
-	 * tcf_block_put. Wait for the user to drop reference before free.
-	 */
-	if (!chain->refcnt)
-		kfree(chain);
+static void tcf_chain_hold(struct tcf_chain *chain)
+{
+	++chain->refcnt;
 }
 
 struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
@@ -217,24 +216,19 @@ struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
 	struct tcf_chain *chain;
 
 	list_for_each_entry(chain, &block->chain_list, list) {
-		if (chain->index == chain_index)
-			goto incref;
+		if (chain->index == chain_index) {
+			tcf_chain_hold(chain);
+			return chain;
+		}
 	}
-	chain = create ? tcf_chain_create(block, chain_index) : NULL;
 
-incref:
-	if (chain)
-		chain->refcnt++;
-	return chain;
+	return create ? tcf_chain_create(block, chain_index) : NULL;
 }
 EXPORT_SYMBOL(tcf_chain_get);
 
 void tcf_chain_put(struct tcf_chain *chain)
 {
-	/* Destroy unused chain, with exception of chain 0, which is the
-	 * default one and has to be always present.
-	 */
-	if (--chain->refcnt == 0 && !chain->filter_chain && chain->index != 0)
+	if (--chain->refcnt == 0)
 		tcf_chain_destroy(chain);
 }
 EXPORT_SYMBOL(tcf_chain_put);
@@ -279,10 +273,31 @@ void tcf_block_put(struct tcf_block *block)
 	if (!block)
 		return;
 
-	list_for_each_entry_safe(chain, tmp, &block->chain_list, list) {
+	/* XXX: Standalone actions are not allowed to jump to any chain, and
+	 * bound actions should be all removed after flushing. However,
+	 * filters are destroyed in RCU callbacks, we have to hold the chains
+	 * first, otherwise we would always race with RCU callbacks on this list
+	 * without proper locking.
+	 */
+
+	/* Wait for existing RCU callbacks to cool down. */
+	rcu_barrier();
+
+	/* Hold a refcnt for all chains, except 0, in case they are gone. */
+	list_for_each_entry(chain, &block->chain_list, list)
+		if (chain->index)
+			tcf_chain_hold(chain);
+
+	/* No race on the list, because no chain could be destroyed. */
+	list_for_each_entry(chain, &block->chain_list, list)
 		tcf_chain_flush(chain);
-		tcf_chain_destroy(chain);
-	}
+
+	/* Wait for RCU callbacks to release the reference count. */
+	rcu_barrier();
+
+	/* At this point, all the chains should have refcnt == 1. */
+	list_for_each_entry_safe(chain, tmp, &block->chain_list, list)
+		tcf_chain_put(chain);
 	kfree(block);
 }
 EXPORT_SYMBOL(tcf_block_put);
@@ -360,6 +375,7 @@ static void tcf_chain_tp_insert(struct tcf_chain *chain,
 		rcu_assign_pointer(*chain->p_filter_chain, tp);
 	RCU_INIT_POINTER(tp->next, tcf_chain_tp_prev(chain_info));
 	rcu_assign_pointer(*chain_info->pprev, tp);
+	tcf_chain_hold(chain);
 }
 
 static void tcf_chain_tp_remove(struct tcf_chain *chain,
@@ -371,6 +387,7 @@ static void tcf_chain_tp_remove(struct tcf_chain *chain,
 	if (chain->p_filter_chain && tp == chain->filter_chain)
 		RCU_INIT_POINTER(*chain->p_filter_chain, next);
 	RCU_INIT_POINTER(*chain_info->pprev, next);
+	tcf_chain_put(chain);
 }
 
 static struct tcf_proto *tcf_chain_tp_find(struct tcf_chain *chain,

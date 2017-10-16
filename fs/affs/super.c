@@ -80,7 +80,7 @@ void affs_mark_sb_dirty(struct super_block *sb)
 	struct affs_sb_info *sbi = AFFS_SB(sb);
 	unsigned long delay;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 	       return;
 
 	spin_lock(&sbi->work_lock);
@@ -464,7 +464,7 @@ got_root:
 	 * not recommended.
 	 */
 	if ((chksum == FS_DCFFS || chksum == MUFS_DCFFS || chksum == FS_DCOFS
-	     || chksum == MUFS_DCOFS) && !(sb->s_flags & MS_RDONLY)) {
+	     || chksum == MUFS_DCOFS) && !sb_rdonly(sb)) {
 		pr_notice("Dircache FS - mounting %s read only\n", sb->s_id);
 		sb->s_flags |= MS_RDONLY;
 	}
@@ -596,7 +596,7 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	memcpy(sbi->s_volume, volume, 32);
 	spin_unlock(&sbi->symlink_lock);
 
-	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
+	if ((bool)(*flags & MS_RDONLY) == sb_rdonly(sb))
 		return 0;
 
 	if (*flags & MS_RDONLY)

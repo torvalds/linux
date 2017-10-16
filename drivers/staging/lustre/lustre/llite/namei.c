@@ -561,8 +561,7 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 		}
 	}
 
-	if (it->it_op & IT_OPEN && it->it_flags & FMODE_WRITE &&
-	    dentry->d_sb->s_flags & MS_RDONLY)
+	if (it->it_op & IT_OPEN && it->it_flags & FMODE_WRITE && sb_rdonly(dentry->d_sb))
 		return ERR_PTR(-EROFS);
 
 	if (it->it_op & IT_CREAT)

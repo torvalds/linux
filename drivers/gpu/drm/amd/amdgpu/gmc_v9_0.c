@@ -499,7 +499,21 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 	if (adev->mc.visible_vram_size > adev->mc.real_vram_size)
 		adev->mc.visible_vram_size = adev->mc.real_vram_size;
 
-	amdgpu_gart_set_defaults(adev);
+	/* set the gart size */
+	if (amdgpu_gart_size == -1) {
+		switch (adev->asic_type) {
+		case CHIP_VEGA10:  /* all engines support GPUVM */
+		default:
+			adev->mc.gart_size = 256ULL << 20;
+			break;
+		case CHIP_RAVEN:   /* DCE SG support */
+			adev->mc.gart_size = 1024ULL << 20;
+			break;
+		}
+	} else {
+		adev->mc.gart_size = (u64)amdgpu_gart_size << 20;
+	}
+
 	gmc_v9_0_vram_gtt_location(adev, &adev->mc);
 
 	return 0;

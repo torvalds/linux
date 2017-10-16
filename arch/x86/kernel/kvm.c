@@ -140,7 +140,8 @@ void kvm_async_pf_task_wait(u32 token)
 
 	n.token = token;
 	n.cpu = smp_processor_id();
-	n.halted = is_idle_task(current) || preempt_count() > 1;
+	n.halted = is_idle_task(current) || preempt_count() > 1 ||
+		   rcu_preempt_depth();
 	init_swait_queue_head(&n.wq);
 	hlist_add_head(&n.link, &b->list);
 	raw_spin_unlock(&b->lock);
@@ -180,7 +181,7 @@ static void apf_task_wake_one(struct kvm_task_sleep_node *n)
 	hlist_del_init(&n->link);
 	if (n->halted)
 		smp_send_reschedule(n->cpu);
-	else if (swait_active(&n->wq))
+	else if (swq_has_sleeper(&n->wq))
 		swake_up(&n->wq);
 }
 

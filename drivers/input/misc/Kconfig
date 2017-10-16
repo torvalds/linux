@@ -581,6 +581,18 @@ config INPUT_PWM_BEEPER
 	  To compile this driver as a module, choose M here: the module will be
 	  called pwm-beeper.
 
+config INPUT_PWM_VIBRA
+	tristate "PWM vibrator support"
+	depends on PWM
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here to get support for PWM based vibrator devices.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called pwm-vibra.
+
 config INPUT_RK805_PWRKEY
 	tristate "Rockchip RK805 PMIC power key support"
 	depends on MFD_RK808

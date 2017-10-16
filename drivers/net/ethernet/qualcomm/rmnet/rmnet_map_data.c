@@ -84,6 +84,10 @@ struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb)
 	if (((int)skb->len - (int)packet_len) < 0)
 		return NULL;
 
+	/* Some hardware can send us empty frames. Catch them */
+	if (ntohs(maph->pkt_len) == 0)
+		return NULL;
+
 	skbn = alloc_skb(packet_len + RMNET_MAP_DEAGGR_SPACING, GFP_ATOMIC);
 	if (!skbn)
 		return NULL;
@@ -93,12 +97,6 @@ struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb)
 	skb_put(skbn, packet_len);
 	memcpy(skbn->data, skb->data, packet_len);
 	skb_pull(skb, packet_len);
-
-	/* Some hardware can send us empty frames. Catch them */
-	if (ntohs(maph->pkt_len) == 0) {
-		kfree_skb(skb);
-		return NULL;
-	}
 
 	return skbn;
 }

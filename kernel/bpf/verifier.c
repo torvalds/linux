@@ -2292,7 +2292,8 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 			}
 		} else {
 			if (insn->src_reg != BPF_REG_0 || insn->off != 0 ||
-			    (insn->imm != 16 && insn->imm != 32 && insn->imm != 64)) {
+			    (insn->imm != 16 && insn->imm != 32 && insn->imm != 64) ||
+			    BPF_CLASS(insn->code) == BPF_ALU64) {
 				verbose("BPF_END uses reserved fields\n");
 				return -EINVAL;
 			}
@@ -4204,7 +4205,12 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 		}
 
 		if (insn->imm == BPF_FUNC_redirect_map) {
-			u64 addr = (unsigned long)prog;
+			/* Note, we cannot use prog directly as imm as subsequent
+			 * rewrites would still change the prog pointer. The only
+			 * stable address we can use is aux, which also works with
+			 * prog clones during blinding.
+			 */
+			u64 addr = (unsigned long)prog->aux;
 			struct bpf_insn r4_ld[] = {
 				BPF_LD_IMM64(BPF_REG_4, addr),
 				*insn,

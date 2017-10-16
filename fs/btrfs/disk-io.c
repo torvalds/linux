@@ -2478,7 +2478,7 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 		return ret;
 	}
 
-	if (fs_info->sb->s_flags & MS_RDONLY) {
+	if (sb_rdonly(fs_info->sb)) {
 		ret = btrfs_commit_super(fs_info);
 		if (ret)
 			return ret;
@@ -2828,6 +2828,8 @@ int open_ctree(struct super_block *sb,
 	features |= BTRFS_FEATURE_INCOMPAT_MIXED_BACKREF;
 	if (fs_info->compress_type == BTRFS_COMPRESS_LZO)
 		features |= BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO;
+	else if (fs_info->compress_type == BTRFS_COMPRESS_ZSTD)
+		features |= BTRFS_FEATURE_INCOMPAT_COMPRESS_ZSTD;
 
 	if (features & BTRFS_FEATURE_INCOMPAT_SKINNY_METADATA)
 		btrfs_info(fs_info, "has skinny extents");
@@ -2874,7 +2876,7 @@ int open_ctree(struct super_block *sb,
 
 	features = btrfs_super_compat_ro_flags(disk_super) &
 		~BTRFS_FEATURE_COMPAT_RO_SUPP;
-	if (!(sb->s_flags & MS_RDONLY) && features) {
+	if (!sb_rdonly(sb) && features) {
 		btrfs_err(fs_info,
 	"cannot mount read-write because of unsupported optional features (%llx)",
 		       features);
@@ -3036,7 +3038,7 @@ retry_root_backup:
 		goto fail_sysfs;
 	}
 
-	if (!(sb->s_flags & MS_RDONLY) && !btrfs_check_rw_degradable(fs_info)) {
+	if (!sb_rdonly(sb) && !btrfs_check_rw_degradable(fs_info)) {
 		btrfs_warn(fs_info,
 		"writeable mount is not allowed due to too many missing devices");
 		goto fail_sysfs;
@@ -3095,7 +3097,7 @@ retry_root_backup:
 	if (ret)
 		goto fail_qgroup;
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		ret = btrfs_cleanup_fs_roots(fs_info);
 		if (ret)
 			goto fail_qgroup;
@@ -3121,7 +3123,7 @@ retry_root_backup:
 		goto fail_qgroup;
 	}
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return 0;
 
 	if (btrfs_test_opt(fs_info, CLEAR_CACHE) &&
@@ -3641,7 +3643,14 @@ int write_all_supers(struct btrfs_fs_info *fs_info, int max_mirrors)
 	u64 flags;
 
 	do_barriers = !btrfs_test_opt(fs_info, NOBARRIER);
-	backup_super_roots(fs_info);
+
+	/*
+	 * max_mirrors == 0 indicates we're from commit_transaction,
+	 * not from fsync where the tree roots in fs_info have not
+	 * been consistent on disk.
+	 */
+	if (max_mirrors == 0)
+		backup_super_roots(fs_info);
 
 	sb = fs_info->super_for_commit;
 	dev_item = &sb->dev_item;
@@ -3876,7 +3885,7 @@ void close_ctree(struct btrfs_fs_info *fs_info)
 
 	cancel_work_sync(&fs_info->async_reclaim_work);
 
-	if (!(fs_info->sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(fs_info->sb)) {
 		/*
 		 * If the cleaner thread is stopped and there are
 		 * block groups queued for removal, the deletion will be

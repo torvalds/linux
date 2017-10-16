@@ -88,12 +88,11 @@ bad_wait:
 
 extern unsigned long current_stub_stack(void);
 
-static void get_skas_faultinfo(int pid, struct faultinfo *fi)
+static void get_skas_faultinfo(int pid, struct faultinfo *fi, unsigned long *aux_fp_regs)
 {
 	int err;
-	unsigned long fpregs[FP_SIZE];
 
-	err = get_fp_registers(pid, fpregs);
+	err = get_fp_registers(pid, aux_fp_regs);
 	if (err < 0) {
 		printk(UM_KERN_ERR "save_fp_registers returned %d\n",
 		       err);
@@ -113,7 +112,7 @@ static void get_skas_faultinfo(int pid, struct faultinfo *fi)
 	 */
 	memcpy(fi, (void *)current_stub_stack(), sizeof(*fi));
 
-	err = put_fp_registers(pid, fpregs);
+	err = put_fp_registers(pid, aux_fp_regs);
 	if (err < 0) {
 		printk(UM_KERN_ERR "put_fp_registers returned %d\n",
 		       err);
@@ -121,9 +120,9 @@ static void get_skas_faultinfo(int pid, struct faultinfo *fi)
 	}
 }
 
-static void handle_segv(int pid, struct uml_pt_regs * regs)
+static void handle_segv(int pid, struct uml_pt_regs *regs, unsigned long *aux_fp_regs)
 {
-	get_skas_faultinfo(pid, &regs->faultinfo);
+	get_skas_faultinfo(pid, &regs->faultinfo, aux_fp_regs);
 	segv(regs->faultinfo, 0, 1, NULL);
 }
 
@@ -332,7 +331,7 @@ int start_userspace(unsigned long stub_stack)
 	return err;
 }
 
-void userspace(struct uml_pt_regs *regs)
+void userspace(struct uml_pt_regs *regs, unsigned long *aux_fp_regs)
 {
 	int err, status, op, pid = userspace_pid[0];
 	/* To prevent races if using_sysemu changes under us.*/
@@ -407,11 +406,11 @@ void userspace(struct uml_pt_regs *regs)
 			case SIGSEGV:
 				if (PTRACE_FULL_FAULTINFO) {
 					get_skas_faultinfo(pid,
-							   &regs->faultinfo);
+							   &regs->faultinfo, aux_fp_regs);
 					(*sig_info[SIGSEGV])(SIGSEGV, (struct siginfo *)&si,
 							     regs);
 				}
-				else handle_segv(pid, regs);
+				else handle_segv(pid, regs, aux_fp_regs);
 				break;
 			case SIGTRAP + 0x80:
 			        handle_trap(pid, regs, local_using_sysemu);
