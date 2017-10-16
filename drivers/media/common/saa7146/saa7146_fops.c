@@ -559,7 +559,7 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 	vbi->start[1] = 312;
 	vbi->count[1] = 16;
 
-	init_timer(&vv->vbi_read_timeout);
+	timer_setup(&vv->vbi_read_timeout, NULL, 0);
 
 	vv->ov_fb.capability = V4L2_FBUF_CAP_LIST_CLIPPING;
 	vv->ov_fb.flags = V4L2_FBUF_FLAG_PRIMARY;

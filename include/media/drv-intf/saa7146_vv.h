@@ -107,6 +107,7 @@ struct saa7146_vv
 	struct saa7146_dmaqueue		vbi_dmaq;
 	struct v4l2_vbi_format		vbi_fmt;
 	struct timer_list		vbi_read_timeout;
+	struct file			*vbi_read_timeout_file;
 	/* vbi workaround interrupt queue */
 	wait_queue_head_t		vbi_wq;
 	int				vbi_fieldcount;

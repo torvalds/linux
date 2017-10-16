@@ -348,9 +348,10 @@ static void vbi_stop(struct saa7146_fh *fh, struct file *file)
 	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
-static void vbi_read_timeout(unsigned long data)
+static void vbi_read_timeout(struct timer_list *t)
 {
-	struct file *file = (struct file*)data;
+	struct saa7146_vv *vv = from_timer(vv, t, vbi_read_timeout);
+	struct file *file = vv->vbi_read_timeout_file;
 	struct saa7146_fh *fh = file->private_data;
 	struct saa7146_dev *dev = fh->dev;
 
@@ -401,8 +402,8 @@ static int vbi_open(struct saa7146_dev *dev, struct file *file)
 			    sizeof(struct saa7146_buf),
 			    file, &dev->v4l2_lock);
 
-	vv->vbi_read_timeout.function = vbi_read_timeout;
-	vv->vbi_read_timeout.data = (unsigned long)file;
+	vv->vbi_read_timeout.function = (TIMER_FUNC_TYPE)vbi_read_timeout;
+	vv->vbi_read_timeout_file = file;
 
 	/* initialize the brs */
 	if ( 0 != (SAA7146_USE_PORT_B_FOR_VBI & dev->ext_vv_data->flags)) {
