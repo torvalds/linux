@@ -116,7 +116,7 @@
 		ethphy0: ethernet0-phy@0 {
 			reg = <0>;
 			max-speed = <100>;
-			interrupts-parent = <&gpio2>;
+			interrupt-parent = <&gpio2>;
 			interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
 		};
 	};
@@ -139,7 +139,7 @@
 		ethphy1: ethernet1-phy@0 {
 			reg = <0>;
 			max-speed = <100>;
-			interrupts-parent = <&gpio2>;
+			interrupt-parent = <&gpio2>;
 			interrupts = <19 IRQ_TYPE_LEVEL_LOW>;
 		};
 	};
