@@ -196,6 +196,8 @@ static inline int adreno_is_a530(struct adreno_gpu *gpu)
 }
 
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value);
+const struct firmware *adreno_request_fw(struct adreno_gpu *adreno_gpu,
+		const char *fwname);
 int adreno_hw_init(struct msm_gpu *gpu);
 uint32_t adreno_last_fence(struct msm_gpu *gpu);
 void adreno_recover(struct msm_gpu *gpu);

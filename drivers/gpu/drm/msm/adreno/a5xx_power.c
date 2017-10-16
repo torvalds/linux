@@ -264,7 +264,8 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 		return;
 
 	/* Get the firmware */
-	if (request_firmware(&fw, adreno_gpu->info->gpmufw, drm->dev)) {
+	fw = adreno_request_fw(adreno_gpu, adreno_gpu->info->gpmufw);
+	if (IS_ERR(fw)) {
 		DRM_ERROR("%s: Could not get GPMU firmware. GPMU will not be active\n",
 			gpu->name);
 		return;

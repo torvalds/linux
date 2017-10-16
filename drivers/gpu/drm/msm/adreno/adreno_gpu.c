@@ -64,29 +64,41 @@ int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 	}
 }
 
-static int adreno_load_fw(struct adreno_gpu *adreno_gpu)
+const struct firmware *
+adreno_request_fw(struct adreno_gpu *adreno_gpu, const char *fwname)
 {
 	struct drm_device *drm = adreno_gpu->base.dev;
+	const struct firmware *fw = NULL;
 	int ret;
+
+	ret = request_firmware(&fw, fwname, drm->dev);
+	if (ret) {
+		dev_err(drm->dev, "failed to load %s: %d\n", fwname, ret);
+		return ERR_PTR(ret);
+	}
+
+	return fw;
+}
+
+static int adreno_load_fw(struct adreno_gpu *adreno_gpu)
+{
+	const struct firmware *fw;
 
 	if (adreno_gpu->pm4)
 		return 0;
 
-	ret = request_firmware(&adreno_gpu->pm4, adreno_gpu->info->pm4fw, drm->dev);
-	if (ret) {
-		dev_err(drm->dev, "failed to load %s PM4 firmware: %d\n",
-				adreno_gpu->info->pm4fw, ret);
-		return ret;
-	}
+	fw = adreno_request_fw(adreno_gpu, adreno_gpu->info->pm4fw);
+	if (IS_ERR(fw))
+		return PTR_ERR(fw);
+	adreno_gpu->pm4 = fw;
 
-	ret = request_firmware(&adreno_gpu->pfp, adreno_gpu->info->pfpfw, drm->dev);
-	if (ret) {
-		dev_err(drm->dev, "failed to load %s PFP firmware: %d\n",
-				adreno_gpu->info->pfpfw, ret);
+	fw = adreno_request_fw(adreno_gpu, adreno_gpu->info->pfpfw);
+	if (IS_ERR(fw)) {
 		release_firmware(adreno_gpu->pm4);
 		adreno_gpu->pm4 = NULL;
-		return ret;
+		return PTR_ERR(fw);
 	}
+	adreno_gpu->pfp = fw;
 
 	return 0;
 }

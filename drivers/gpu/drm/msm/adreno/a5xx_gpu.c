@@ -26,8 +26,9 @@ static void a5xx_dump(struct msm_gpu *gpu);
 
 #define GPU_PAS_ID 13
 
-static int zap_shader_load_mdt(struct device *dev, const char *fwname)
+static int zap_shader_load_mdt(struct msm_gpu *gpu, const char *fwname)
 {
+	struct device *dev = &gpu->pdev->dev;
 	const struct firmware *fw;
 	struct device_node *np;
 	struct resource r;
@@ -55,10 +56,10 @@ static int zap_shader_load_mdt(struct device *dev, const char *fwname)
 	mem_size = resource_size(&r);
 
 	/* Request the MDT file for the firmware */
-	ret = request_firmware(&fw, fwname, dev);
-	if (ret) {
+	fw = adreno_request_fw(to_adreno_gpu(gpu), fwname);
+	if (IS_ERR(fw)) {
 		DRM_DEV_ERROR(dev, "Unable to load %s\n", fwname);
-		return ret;
+		return PTR_ERR(fw);
 	}
 
 	/* Figure out how much memory we need */
@@ -381,7 +382,7 @@ static int a5xx_zap_shader_init(struct msm_gpu *gpu)
 		return -ENODEV;
 	}
 
-	ret = zap_shader_load_mdt(&pdev->dev, adreno_gpu->info->zapfw);
+	ret = zap_shader_load_mdt(gpu, adreno_gpu->info->zapfw);
 
 	loaded = !ret;
 
