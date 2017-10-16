@@ -8,6 +8,8 @@ squote  := '
 empty   :=
 space   := $(empty) $(empty)
 space_escape := _-_SPACE_-_
+right_paren := )
+left_paren := (
 
 ###
 # Name of target with a '.' as filename prefix. foo/bar.o => foo/.bar.o
@@ -80,6 +82,60 @@ cc-cross-prefix =  \
 			echo $(c);                                    \
 		fi)))
 
+# Tools for caching Makefile variables that are "expensive" to compute.
+#
+# Here we want to help deal with variables that take a long time to compute
+# by making it easy to store these variables in a cache.
+#
+# The canonical example here is testing for compiler flags.  On a simple system
+# each call to the compiler takes 10 ms, but on a system with a compiler that's
+# called through various wrappers it can take upwards of 100 ms.  If we have
+# 100 calls to the compiler this can take 1 second (on a simple system) or 10
+# seconds (on a complicated system).
+#
+# The "cache" will be in Makefile syntax and can be directly included.
+# Any time we try to reference a variable that's not in the cache we'll
+# calculate it and store it in the cache for next time.
+
+# Include values from last time
+make-cache := $(if $(KBUILD_EXTMOD),$(KBUILD_EXTMOD)/,$(if $(obj),$(obj)/)).cache.mk
+ifeq ($(wildcard $(dir $(make-cache))),)
+$(shell mkdir -p '$(dir $(make-cache))')
+endif
+$(make-cache): ;
+-include $(make-cache)
+
+# Usage: $(call __sanitize-opt,Hello=Hola$(comma)Goodbye Adios)
+#
+# Convert all '$', ')', '(', '\', '=', ' ', ',', ':' to '_'
+__sanitize-opt = $(subst $$,_,$(subst $(right_paren),_,$(subst $(left_paren),_,$(subst \,_,$(subst =,_,$(subst $(space),_,$(subst $(comma),_,$(subst :,_,$(1)))))))))
+
+# Usage:   $(call shell-cached,shell_command)
+# Example: $(call shell-cached,md5sum /usr/bin/gcc)
+#
+# If we've already seen a call to this exact shell command (even in a
+# previous invocation of make!) we'll return the value.  If not, we'll
+# compute it and store the result for future runs.
+#
+# This is a bit of voodoo, but basic explanation is that if the variable
+# was undefined then we'll evaluate the shell command and store the result
+# into the variable.  We'll then store that value in the cache and finally
+# output the value.
+#
+# NOTE: The $$(2) here isn't actually a parameter to __run-and-store.  We
+# happen to know that the caller will have their shell command in $(2) so the
+# result of "call"ing this will produce a reference to that $(2).  The reason
+# for this strangeness is to avoid an extra level of eval (and escaping) of
+# $(2).
+define __run-and-store
+ifeq ($(origin $(1)),undefined)
+  $$(eval $(1) := $$(shell $$(2)))
+  $$(shell echo '$(1) := $$($(1))' >> $(make-cache))
+endif
+endef
+__shell-cached = $(eval $(call __run-and-store,$(1)))$($(1))
+shell-cached = $(call __shell-cached,__cached_$(call __sanitize-opt,$(1)),$(1))
+
 # output directory for tests below
 TMPOUT := $(if $(KBUILD_EXTMOD),$(firstword $(KBUILD_EXTMOD))/)
 
@@ -87,30 +143,36 @@ TMPOUT := $(if $(KBUILD_EXTMOD),$(firstword $(KBUILD_EXTMOD))/)
 # Usage: option = $(call try-run, $(CC)...-o "$$TMP",option-ok,otherwise)
 # Exit code chooses option. "$$TMP" serves as a temporary file and is
 # automatically cleaned up.
-try-run = $(shell set -e;		\
+__try-run = set -e;			\
 	TMP="$(TMPOUT).$$$$.tmp";	\
 	TMPO="$(TMPOUT).$$$$.o";	\
 	if ($(1)) >/dev/null 2>&1;	\
 	then echo "$(2)";		\
 	else echo "$(3)";		\
 	fi;				\
-	rm -f "$$TMP" "$$TMPO")
+	rm -f "$$TMP" "$$TMPO"
+
+try-run = $(shell $(__try-run))
+
+# try-run-cached
+# This works like try-run, but the result is cached.
+try-run-cached = $(call shell-cached,$(__try-run))
 
 # as-option
 # Usage: cflags-y += $(call as-option,-Wa$(comma)-isa=foo,)
 
-as-option = $(call try-run,\
+as-option = $(call try-run-cached,\
 	$(CC) $(KBUILD_CFLAGS) $(1) -c -x assembler /dev/null -o "$$TMP",$(1),$(2))
 
 # as-instr
 # Usage: cflags-y += $(call as-instr,instr,option1,option2)
 
-as-instr = $(call try-run,\
+as-instr = $(call try-run-cached,\
 	printf "%b\n" "$(1)" | $(CC) $(KBUILD_AFLAGS) -c -x assembler -o "$$TMP" -,$(2),$(3))
 
 # __cc-option
 # Usage: MY_CFLAGS += $(call __cc-option,$(CC),$(MY_CFLAGS),-march=winchip-c6,-march=i586)
-__cc-option = $(call try-run,\
+__cc-option = $(call try-run-cached,\
 	$(1) -Werror $(2) $(3) -c -x c /dev/null -o "$$TMP",$(3),$(4))
 
 # Do not attempt to build with gcc plugins during cc-option tests.
@@ -130,23 +192,23 @@ hostcc-option = $(call __cc-option, $(HOSTCC),\
 
 # cc-option-yn
 # Usage: flag := $(call cc-option-yn,-march=winchip-c6)
-cc-option-yn = $(call try-run,\
+cc-option-yn = $(call try-run-cached,\
 	$(CC) -Werror $(KBUILD_CPPFLAGS) $(CC_OPTION_CFLAGS) $(1) -c -x c /dev/null -o "$$TMP",y,n)
 
 # cc-disable-warning
 # Usage: cflags-y += $(call cc-disable-warning,unused-but-set-variable)
-cc-disable-warning = $(call try-run,\
+cc-disable-warning = $(call try-run-cached,\
 	$(CC) -Werror $(KBUILD_CPPFLAGS) $(CC_OPTION_CFLAGS) -W$(strip $(1)) -c -x c /dev/null -o "$$TMP",-Wno-$(strip $(1)))
 
 # cc-name
 # Expands to either gcc or clang
-cc-name = $(shell $(CC) -v 2>&1 | grep -q "clang version" && echo clang || echo gcc)
+cc-name = $(call shell-cached,$(CC) -v 2>&1 | grep -q "clang version" && echo clang || echo gcc)
 
 # cc-version
-cc-version = $(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-version.sh $(CC))
+cc-version = $(call shell-cached,$(CONFIG_SHELL) $(srctree)/scripts/gcc-version.sh $(CC))
 
 # cc-fullversion
-cc-fullversion = $(shell $(CONFIG_SHELL) \
+cc-fullversion = $(call shell-cached,$(CONFIG_SHELL) \
 	$(srctree)/scripts/gcc-version.sh -p $(CC))
 
 # cc-ifversion
@@ -159,22 +221,22 @@ cc-if-fullversion = $(shell [ $(cc-fullversion) $(1) $(2) ] && echo $(3) || echo
 
 # cc-ldoption
 # Usage: ldflags += $(call cc-ldoption, -Wl$(comma)--hash-style=both)
-cc-ldoption = $(call try-run,\
+cc-ldoption = $(call try-run-cached,\
 	$(CC) $(1) -nostdlib -x c /dev/null -o "$$TMP",$(1),$(2))
 
 # ld-option
 # Usage: LDFLAGS += $(call ld-option, -X)
-ld-option = $(call try-run,\
+ld-option = $(call try-run-cached,\
 	$(CC) -x c /dev/null -c -o "$$TMPO" ; $(LD) $(1) "$$TMPO" -o "$$TMP",$(1),$(2))
 
 # ar-option
 # Usage: KBUILD_ARFLAGS := $(call ar-option,D)
 # Important: no spaces around options
-ar-option = $(call try-run, $(AR) rc$(1) "$$TMP",$(1),$(2))
+ar-option = $(call try-run-cached, $(AR) rc$(1) "$$TMP",$(1),$(2))
 
 # ld-version
 # Note this is mainly for HJ Lu's 3 number binutil versions
-ld-version = $(shell $(LD) --version | $(srctree)/scripts/ld-version.sh)
+ld-version = $(call shell-cached,$(LD) --version | $(srctree)/scripts/ld-version.sh)
 
 # ld-ifversion
 # Usage:  $(call ld-ifversion, -ge, 22252, y)
