@@ -1271,12 +1271,6 @@ static int __iterate_backrefs(u64 ino, u64 offset, u64 root, void *ctx_)
 		 */
 		if (ino >= bctx->cur_objectid)
 			return 0;
-#if 0
-		if (ino > bctx->cur_objectid)
-			return 0;
-		if (offset + bctx->extent_len > bctx->cur_offset)
-			return 0;
-#endif
 	}
 
 	bctx->found++;
