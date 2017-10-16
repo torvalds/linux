@@ -37,11 +37,12 @@
 
 #include "io-pgtable.h"
 
-#define IPMMU_CTX_MAX 1
+#define IPMMU_CTX_MAX 8
 
 struct ipmmu_features {
 	bool use_ns_alias_offset;
 	bool has_cache_leaf_nodes;
+	unsigned int number_of_contexts;
 };
 
 struct ipmmu_vmsa_device {
@@ -51,6 +52,7 @@ struct ipmmu_vmsa_device {
 	struct ipmmu_vmsa_device *root;
 	const struct ipmmu_features *features;
 	unsigned int num_utlbs;
+	unsigned int num_ctx;
 	spinlock_t lock;			/* Protects ctx and domains[] */
 	DECLARE_BITMAP(ctx, IPMMU_CTX_MAX);
 	struct ipmmu_vmsa_domain *domains[IPMMU_CTX_MAX];
@@ -352,11 +354,12 @@ static int ipmmu_domain_allocate_context(struct ipmmu_vmsa_device *mmu,
 
 	spin_lock_irqsave(&mmu->lock, flags);
 
-	ret = find_first_zero_bit(mmu->ctx, IPMMU_CTX_MAX);
-	if (ret != IPMMU_CTX_MAX) {
+	ret = find_first_zero_bit(mmu->ctx, mmu->num_ctx);
+	if (ret != mmu->num_ctx) {
 		mmu->domains[ret] = domain;
 		set_bit(ret, mmu->ctx);
-	}
+	} else
+		ret = -EBUSY;
 
 	spin_unlock_irqrestore(&mmu->lock, flags);
 
@@ -409,8 +412,8 @@ static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 	 * Find an unused context.
 	 */
 	ret = ipmmu_domain_allocate_context(domain->mmu->root, domain);
-	if (ret == IPMMU_CTX_MAX)
-		return -EBUSY;
+	if (ret < 0)
+		return ret;
 
 	domain->context_id = ret;
 
@@ -539,7 +542,7 @@ static irqreturn_t ipmmu_irq(int irq, void *dev)
 	/*
 	 * Check interrupts for all active contexts.
 	 */
-	for (i = 0; i < IPMMU_CTX_MAX; i++) {
+	for (i = 0; i < mmu->num_ctx; i++) {
 		if (!mmu->domains[i])
 			continue;
 		if (ipmmu_domain_irq(mmu->domains[i]) == IRQ_HANDLED)
@@ -624,6 +627,13 @@ static int ipmmu_attach_device(struct iommu_domain *io_domain,
 		/* The domain hasn't been used yet, initialize it. */
 		domain->mmu = mmu;
 		ret = ipmmu_domain_init_context(domain);
+		if (ret < 0) {
+			dev_err(dev, "Unable to initialize IPMMU context\n");
+			domain->mmu = NULL;
+		} else {
+			dev_info(dev, "Using IPMMU context %u\n",
+				 domain->context_id);
+		}
 	} else if (domain->mmu != mmu) {
 		/*
 		 * Something is wrong, we can't attach two devices using
@@ -853,13 +863,14 @@ static void ipmmu_device_reset(struct ipmmu_vmsa_device *mmu)
 	unsigned int i;
 
 	/* Disable all contexts. */
-	for (i = 0; i < 4; ++i)
+	for (i = 0; i < mmu->num_ctx; ++i)
 		ipmmu_write(mmu, i * IM_CTX_SIZE + IMCTR, 0);
 }
 
 static const struct ipmmu_features ipmmu_features_default = {
 	.use_ns_alias_offset = true,
 	.has_cache_leaf_nodes = false,
+	.number_of_contexts = 1, /* software only tested with one context */
 };
 
 static const struct of_device_id ipmmu_of_ids[] = {
@@ -912,6 +923,9 @@ static int ipmmu_probe(struct platform_device *pdev)
 	 */
 	if (mmu->features->use_ns_alias_offset)
 		mmu->base += IM_NS_ALIAS_OFFSET;
+
+	mmu->num_ctx = min_t(unsigned int, IPMMU_CTX_MAX,
+			     mmu->features->number_of_contexts);
 
 	irq = platform_get_irq(pdev, 0);
 
