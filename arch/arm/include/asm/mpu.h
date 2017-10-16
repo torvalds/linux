@@ -1,8 +1,6 @@
 #ifndef __ARM_MPU_H
 #define __ARM_MPU_H
 
-#ifdef CONFIG_ARM_MPU
-
 /* MPUIR layout */
 #define MPUIR_nU		1
 #define MPUIR_DREGION		8
@@ -69,8 +67,18 @@ struct mpu_rgn_info {
 };
 extern struct mpu_rgn_info mpu_rgn_info;
 
-#endif /* __ASSEMBLY__ */
+#ifdef CONFIG_ARM_MPU
 
-#endif /* CONFIG_ARM_MPU */
+extern void __init adjust_lowmem_bounds_mpu(void);
+extern void __init mpu_setup(void);
+
+#else
+
+static inline void adjust_lowmem_bounds_mpu(void) {}
+static inline void mpu_setup(void) {}
+
+#endif /* !CONFIG_ARM_MPU */
+
+#endif /* __ASSEMBLY__ */
 
 #endif
