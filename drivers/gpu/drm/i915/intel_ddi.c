@@ -587,14 +587,29 @@ skl_get_buf_trans_hdmi(struct drm_i915_private *dev_priv, int *n_entries)
 	}
 }
 
+static int skl_buf_trans_num_entries(enum port port, int n_entries)
+{
+	/* Only DDIA and DDIE can select the 10th register with DP */
+	if (port == PORT_A || port == PORT_E)
+		return min(n_entries, 10);
+	else
+		return min(n_entries, 9);
+}
+
 static const struct ddi_buf_trans *
 intel_ddi_get_buf_trans_dp(struct drm_i915_private *dev_priv,
-			   int *n_entries)
+			   enum port port, int *n_entries)
 {
 	if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
-		return kbl_get_buf_trans_dp(dev_priv, n_entries);
+		const struct ddi_buf_trans *ddi_translations =
+			kbl_get_buf_trans_dp(dev_priv, n_entries);
+		*n_entries = skl_buf_trans_num_entries(port, *n_entries);
+		return ddi_translations;
 	} else if (IS_SKYLAKE(dev_priv)) {
-		return skl_get_buf_trans_dp(dev_priv, n_entries);
+		const struct ddi_buf_trans *ddi_translations =
+			skl_get_buf_trans_dp(dev_priv, n_entries);
+		*n_entries = skl_buf_trans_num_entries(port, *n_entries);
+		return ddi_translations;
 	} else if (IS_BROADWELL(dev_priv)) {
 		*n_entries = ARRAY_SIZE(bdw_ddi_translations_dp);
 		return  bdw_ddi_translations_dp;
@@ -609,10 +624,13 @@ intel_ddi_get_buf_trans_dp(struct drm_i915_private *dev_priv,
 
 static const struct ddi_buf_trans *
 intel_ddi_get_buf_trans_edp(struct drm_i915_private *dev_priv,
-			    int *n_entries)
+			    enum port port, int *n_entries)
 {
 	if (IS_GEN9_BC(dev_priv)) {
-		return skl_get_buf_trans_edp(dev_priv, n_entries);
+		const struct ddi_buf_trans *ddi_translations =
+			skl_get_buf_trans_edp(dev_priv, n_entries);
+		*n_entries = skl_buf_trans_num_entries(port, *n_entries);
+		return ddi_translations;
 	} else if (IS_BROADWELL(dev_priv)) {
 		return bdw_get_buf_trans_edp(dev_priv, n_entries);
 	} else if (IS_HASWELL(dev_priv)) {
@@ -801,11 +819,11 @@ static void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder)
 
 	switch (encoder->type) {
 	case INTEL_OUTPUT_EDP:
-		ddi_translations = intel_ddi_get_buf_trans_edp(dev_priv,
+		ddi_translations = intel_ddi_get_buf_trans_edp(dev_priv, port,
 							       &n_entries);
 		break;
 	case INTEL_OUTPUT_DP:
-		ddi_translations = intel_ddi_get_buf_trans_dp(dev_priv,
+		ddi_translations = intel_ddi_get_buf_trans_dp(dev_priv, port,
 							      &n_entries);
 		break;
 	case INTEL_OUTPUT_ANALOG:
@@ -817,16 +835,10 @@ static void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder)
 		return;
 	}
 
-	if (IS_GEN9_BC(dev_priv)) {
-		/* If we're boosting the current, set bit 31 of trans1 */
-		if (dev_priv->vbt.ddi_port_info[port].dp_boost_level)
-			iboost_bit = DDI_BUF_BALANCE_LEG_ENABLE;
-
-		if (WARN_ON(encoder->type == INTEL_OUTPUT_EDP &&
-			    port != PORT_A && port != PORT_E &&
-			    n_entries > 9))
-			n_entries = 9;
-	}
+	/* If we're boosting the current, set bit 31 of trans1 */
+	if (IS_GEN9_BC(dev_priv) &&
+	    dev_priv->vbt.ddi_port_info[port].dp_boost_level)
+		iboost_bit = DDI_BUF_BALANCE_LEG_ENABLE;
 
 	for (i = 0; i < n_entries; i++) {
 		I915_WRITE(DDI_BUF_TRANS_LO(port, i),
@@ -1831,14 +1843,9 @@ static void skl_ddi_set_iboost(struct intel_encoder *encoder,
 		if (type == INTEL_OUTPUT_HDMI)
 			ddi_translations = intel_ddi_get_buf_trans_hdmi(dev_priv, &n_entries);
 		else if (type == INTEL_OUTPUT_EDP)
-			ddi_translations = intel_ddi_get_buf_trans_edp(dev_priv, &n_entries);
+			ddi_translations = intel_ddi_get_buf_trans_edp(dev_priv, port, &n_entries);
 		else
-			ddi_translations = intel_ddi_get_buf_trans_dp(dev_priv, &n_entries);
-
-		if (WARN_ON(type != INTEL_OUTPUT_HDMI &&
-			    port != PORT_A &&
-			    port != PORT_E && n_entries > 9))
-			n_entries = 9;
+			ddi_translations = intel_ddi_get_buf_trans_dp(dev_priv, port, &n_entries);
 
 		iboost = ddi_translations[level].i_boost;
 	}
@@ -1880,6 +1887,7 @@ static void bxt_ddi_vswing_sequence(struct intel_encoder *encoder,
 u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum port port = encoder->port;
 	int n_entries;
 
 	if (IS_CANNONLAKE(dev_priv)) {
@@ -1894,9 +1902,9 @@ u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
 			bxt_get_buf_trans_dp(dev_priv, &n_entries);
 	} else {
 		if (encoder->type == INTEL_OUTPUT_EDP)
-			intel_ddi_get_buf_trans_edp(dev_priv, &n_entries);
+			intel_ddi_get_buf_trans_edp(dev_priv, port, &n_entries);
 		else
-			intel_ddi_get_buf_trans_dp(dev_priv, &n_entries);
+			intel_ddi_get_buf_trans_dp(dev_priv, port, &n_entries);
 	}
 
 	if (WARN_ON(n_entries < 1))
