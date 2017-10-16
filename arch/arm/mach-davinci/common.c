@@ -77,7 +77,7 @@ static int __init davinci_init_id(struct davinci_soc_info *soc_info)
 	return -EINVAL;
 }
 
-void __init davinci_common_init(struct davinci_soc_info *soc_info)
+void __init davinci_common_init(const struct davinci_soc_info *soc_info)
 {
 	int ret;
 
