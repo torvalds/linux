@@ -408,7 +408,7 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 		case I40IW_AE_LCE_FUNCTION_CATASTROPHIC:
 		case I40IW_AE_LCE_CQ_CATASTROPHIC:
 		case I40IW_AE_UDA_XMIT_DGRAM_TOO_LONG:
-		case I40IW_AE_UDA_XMIT_IPADDR_MISMATCH:
+		case I40IW_AE_UDA_XMIT_DGRAM_TOO_SHORT:
 			ctx_info->err_rq_idx_valid = false;
 			/* fall through */
 		default:

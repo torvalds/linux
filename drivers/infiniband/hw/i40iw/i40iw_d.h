@@ -1636,7 +1636,8 @@ enum i40iw_alignment {
 #define I40IW_AE_AMP_MWBIND_INVALID_BOUNDS                              0x0119
 #define I40IW_AE_AMP_MWBIND_TO_INVALID_PARENT                           0x011a
 #define I40IW_AE_AMP_MWBIND_BIND_DISABLED                               0x011b
-#define I40IW_AE_AMP_WQE_INVALID_PARAMETER                              0x0130
+#define I40IW_AE_UDA_XMIT_DGRAM_TOO_LONG                                0x0132
+#define I40IW_AE_UDA_XMIT_DGRAM_TOO_SHORT                               0x0134
 #define I40IW_AE_BAD_CLOSE                                              0x0201
 #define I40IW_AE_RDMAP_ROE_BAD_LLP_CLOSE                                0x0202
 #define I40IW_AE_CQ_OPERATION_ERROR                                     0x0203
@@ -1644,12 +1645,10 @@ enum i40iw_alignment {
 #define I40IW_AE_RDMA_READ_WHILE_ORD_ZERO                               0x0205
 #define I40IW_AE_STAG_ZERO_INVALID                                      0x0206
 #define I40IW_AE_IB_RREQ_AND_Q1_FULL                                    0x0207
-#define I40IW_AE_SRQ_LIMIT                                              0x0209
 #define I40IW_AE_WQE_UNEXPECTED_OPCODE                                  0x020a
 #define I40IW_AE_WQE_INVALID_PARAMETER                                  0x020b
 #define I40IW_AE_WQE_LSMM_TOO_LONG                                      0x0220
 #define I40IW_AE_DDP_INVALID_MSN_GAP_IN_MSN                             0x0301
-#define I40IW_AE_DDP_INVALID_MSN_RANGE_IS_NOT_VALID                     0x0302
 #define I40IW_AE_DDP_UBE_DDP_MESSAGE_TOO_LONG_FOR_AVAILABLE_BUFFER      0x0303
 #define I40IW_AE_DDP_UBE_INVALID_DDP_VERSION                            0x0304
 #define I40IW_AE_DDP_UBE_INVALID_MO                                     0x0305
@@ -1663,12 +1662,10 @@ enum i40iw_alignment {
 #define I40IW_AE_INVALID_ARP_ENTRY                                      0x0401
 #define I40IW_AE_INVALID_TCP_OPTION_RCVD                                0x0402
 #define I40IW_AE_STALE_ARP_ENTRY                                        0x0403
-#define I40IW_AE_INVALID_WQE_LENGTH                                     0x0404
 #define I40IW_AE_INVALID_MAC_ENTRY                                      0x0405
 #define I40IW_AE_LLP_CLOSE_COMPLETE                                     0x0501
 #define I40IW_AE_LLP_CONNECTION_RESET                                   0x0502
 #define I40IW_AE_LLP_FIN_RECEIVED                                       0x0503
-#define I40IW_AE_LLP_RECEIVED_MARKER_AND_LENGTH_FIELDS_DONT_MATCH       0x0504
 #define I40IW_AE_LLP_RECEIVED_MPA_CRC_ERROR                             0x0505
 #define I40IW_AE_LLP_SEGMENT_TOO_LARGE                                  0x0506
 #define I40IW_AE_LLP_SEGMENT_TOO_SMALL                                  0x0507
@@ -1685,9 +1682,6 @@ enum i40iw_alignment {
 #define I40IW_AE_LCE_QP_CATASTROPHIC                                    0x0700
 #define I40IW_AE_LCE_FUNCTION_CATASTROPHIC                              0x0701
 #define I40IW_AE_LCE_CQ_CATASTROPHIC                                    0x0702
-#define I40IW_AE_UDA_XMIT_FRAG_SEQ                                      0x0800
-#define I40IW_AE_UDA_XMIT_DGRAM_TOO_LONG                                0x0801
-#define I40IW_AE_UDA_XMIT_IPADDR_MISMATCH                               0x0802
 #define I40IW_AE_QP_SUSPEND_COMPLETE                                    0x0900
 
 #define OP_DELETE_LOCAL_MAC_IPADDR_ENTRY        1

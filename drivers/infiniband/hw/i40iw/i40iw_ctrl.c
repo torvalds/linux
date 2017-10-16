@@ -4376,10 +4376,6 @@ static int i40iw_bld_terminate_hdr(struct i40iw_sc_qp *qp,
 		i40iw_setup_termhdr(qp, termhdr, FLUSH_REM_ACCESS_ERR,
 				    (LAYER_RDMA << 4) | RDMAP_REMOTE_PROT, RDMAP_TO_WRAP);
 		break;
-	case I40IW_AE_LLP_RECEIVED_MARKER_AND_LENGTH_FIELDS_DONT_MATCH:
-		i40iw_setup_termhdr(qp, termhdr, FLUSH_LOC_LEN_ERR,
-				    (LAYER_MPA << 4) | DDP_LLP, MPA_MARKER);
-		break;
 	case I40IW_AE_LLP_RECEIVED_MPA_CRC_ERROR:
 		i40iw_setup_termhdr(qp, termhdr, FLUSH_GENERAL_ERR,
 				    (LAYER_MPA << 4) | DDP_LLP, MPA_CRC);
@@ -4395,7 +4391,6 @@ static int i40iw_bld_terminate_hdr(struct i40iw_sc_qp *qp,
 				    (LAYER_DDP << 4) | DDP_CATASTROPHIC, DDP_CATASTROPHIC_LOCAL);
 		break;
 	case I40IW_AE_DDP_INVALID_MSN_GAP_IN_MSN:
-	case I40IW_AE_DDP_INVALID_MSN_RANGE_IS_NOT_VALID:
 		i40iw_setup_termhdr(qp, termhdr, FLUSH_GENERAL_ERR,
 				    (LAYER_DDP << 4) | DDP_UNTAGGED_BUFFER, DDP_UNTAGGED_INV_MSN_RANGE);
 		break;
