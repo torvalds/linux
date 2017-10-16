@@ -2406,7 +2406,6 @@ static enum i40iw_status_code i40iw_sc_qp_init(struct i40iw_sc_qp *qp,
 	qp->rcv_tph_en = info->rcv_tph_en;
 	qp->xmit_tph_en = info->xmit_tph_en;
 	qp->qs_handle = qp->vsi->qos[qp->user_pri].qs_handle;
-	qp->exception_lan_queue = qp->pd->dev->exception_lan_queue;
 
 	return 0;
 }
@@ -2741,7 +2740,7 @@ static enum i40iw_status_code i40iw_sc_qp_setctx(
 		      LS_64(qp->sq_tph_val, I40IWQPC_SQTPHVAL) |
 		      LS_64(qp->rq_tph_val, I40IWQPC_RQTPHVAL) |
 		      LS_64(qp->qs_handle, I40IWQPC_QSHANDLE) |
-		      LS_64(qp->exception_lan_queue, I40IWQPC_EXCEPTION_LAN_QUEUE));
+		      LS_64(vsi->exception_lan_queue, I40IWQPC_EXCEPTION_LAN_QUEUE));
 
 	if (info->iwarp_info_valid) {
 		qw0 |= LS_64(iw->ddp_ver, I40IWQPC_DDP_VER) |
@@ -4584,6 +4583,8 @@ void i40iw_sc_vsi_init(struct i40iw_sc_vsi *vsi, struct i40iw_vsi_init_info *inf
 	vsi->dev = info->dev;
 	vsi->back_vsi = info->back_vsi;
 	vsi->mss = info->params->mss;
+	vsi->exception_lan_queue = info->exception_lan_queue;
+
 	i40iw_fill_qos_list(info->params->qs_handle_list);
 
 	for (i = 0; i < I40IW_MAX_USER_PRIORITY; i++) {
@@ -5068,7 +5069,6 @@ enum i40iw_status_code i40iw_device_init(struct i40iw_sc_dev *dev,
 	dev->debug_mask = info->debug_mask;
 
 	dev->hmc_fn_id = info->hmc_fn_id;
-	dev->exception_lan_queue = info->exception_lan_queue;
 	dev->is_pf = info->is_pf;
 
 	dev->fpm_query_buf_pa = info->fpm_query_buf_pa;
