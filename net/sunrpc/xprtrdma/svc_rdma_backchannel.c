@@ -132,6 +132,10 @@ static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
 	if (ret)
 		goto out_err;
 
+	/* Bump page refcnt so Send completion doesn't release
+	 * the rq_buffer before all retransmits are complete.
+	 */
+	get_page(virt_to_page(rqst->rq_buffer));
 	ret = svc_rdma_post_send_wr(rdma, ctxt, 1, 0);
 	if (ret)
 		goto out_unmap;
@@ -164,7 +168,6 @@ xprt_rdma_bc_allocate(struct rpc_task *task)
 		return -EINVAL;
 	}
 
-	/* svc_rdma_sendto releases this page */
 	page = alloc_page(RPCRDMA_DEF_GFP);
 	if (!page)
 		return -ENOMEM;
@@ -183,6 +186,7 @@ xprt_rdma_bc_free(struct rpc_task *task)
 {
 	struct rpc_rqst *rqst = task->tk_rqstp;
 
+	put_page(virt_to_page(rqst->rq_buffer));
 	kfree(rqst->rq_rbuffer);
 }
 
