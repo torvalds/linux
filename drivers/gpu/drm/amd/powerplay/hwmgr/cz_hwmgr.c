@@ -1299,17 +1299,16 @@ int cz_dpm_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 
 	if (!bgate) {
 		/* Stable Pstate is enabled and we need to set the UVD DPM to highest level */
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-					 PHM_PlatformCaps_StablePState)
-			|| hwmgr->en_umd_pstate) {
+		if (PP_CAP(PHM_PlatformCaps_StablePState) ||
+		    hwmgr->en_umd_pstate) {
 			cz_hwmgr->uvd_dpm.hard_min_clk =
 				   ptable->entries[ptable->count - 1].vclk;
 
 			smum_send_msg_to_smc_with_parameter(hwmgr,
-						     PPSMC_MSG_SetUvdHardMin,
-						      cz_get_uvd_level(hwmgr,
-					     cz_hwmgr->uvd_dpm.hard_min_clk,
-						   PPSMC_MSG_SetUvdHardMin));
+				PPSMC_MSG_SetUvdHardMin,
+				cz_get_uvd_level(hwmgr,
+					cz_hwmgr->uvd_dpm.hard_min_clk,
+					PPSMC_MSG_SetUvdHardMin));
 
 			cz_enable_disable_uvd_dpm(hwmgr, true);
 		} else {
