@@ -360,24 +360,28 @@ TRACE_EVENT(vector_setup,
 
 TRACE_EVENT(vector_free_moved,
 
-	TP_PROTO(unsigned int irq, unsigned int vector, bool is_managed),
+	TP_PROTO(unsigned int irq, unsigned int cpu, unsigned int vector,
+		 bool is_managed),
 
-	TP_ARGS(irq, vector, is_managed),
+	TP_ARGS(irq, cpu, vector, is_managed),
 
 	TP_STRUCT__entry(
 		__field(	unsigned int,	irq		)
+		__field(	unsigned int,	cpu		)
 		__field(	unsigned int,	vector		)
 		__field(	bool,		is_managed	)
 	),
 
 	TP_fast_assign(
 		__entry->irq		= irq;
+		__entry->cpu		= cpu;
 		__entry->vector		= vector;
 		__entry->is_managed	= is_managed;
 	),
 
-	TP_printk("irq=%u vector=%u is_managed=%d",
-		  __entry->irq, __entry->vector, __entry->is_managed)
+	TP_printk("irq=%u cpu=%u vector=%u is_managed=%d",
+		  __entry->irq, __entry->cpu, __entry->vector,
+		  __entry->is_managed)
 );
 
 

@@ -797,9 +797,9 @@ static void free_moved_vector(struct apic_chip_data *apicd)
 	 */
 	WARN_ON_ONCE(managed);
 
-	trace_vector_free_moved(apicd->irq, vector, managed);
+	trace_vector_free_moved(apicd->irq, cpu, vector, managed);
 	irq_matrix_free(vector_matrix, cpu, vector, managed);
-	__this_cpu_write(vector_irq[vector], VECTOR_UNUSED);
+	per_cpu(vector_irq, cpu)[vector] = VECTOR_UNUSED;
 	hlist_del_init(&apicd->clist);
 	apicd->prev_vector = 0;
 	apicd->move_in_progress = 0;
