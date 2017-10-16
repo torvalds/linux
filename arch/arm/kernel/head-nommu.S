@@ -13,6 +13,7 @@
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/errno.h>
 
 #include <asm/assembler.h>
 #include <asm/ptrace.h>
@@ -110,8 +111,8 @@ ENTRY(secondary_startup)
 
 #ifdef CONFIG_ARM_MPU
 	/* Use MPU region info supplied by __cpu_up */
-	ldr	r6, [r7]			@ get secondary_data.mpu_szr
-	bl      __setup_mpu			@ Initialize the MPU
+	ldr	r6, [r7]			@ get secondary_data.mpu_rgn_info
+	bl      __secondary_setup_mpu		@ Initialize the MPU
 #endif
 
 	badr	lr, 1f				@ return (PIC) address
@@ -204,13 +205,13 @@ ENTRY(__setup_mpu)
 	mrc	p15, 0, r0, c0, c1, 4		@ Read ID_MMFR0
 	and	r0, r0, #(MMFR0_PMSA)		@ PMSA field
 	teq	r0, #(MMFR0_PMSAv7)		@ PMSA v7
-	bne	__error_p			@ Fail: ARM_MPU on NOT v7 PMSA
+	bxne	lr
 
 	/* Determine whether the D/I-side memory map is unified. We set the
 	 * flags here and continue to use them for the rest of this function */
 	mrc	p15, 0, r0, c0, c0, 4		@ MPUIR
 	ands	r5, r0, #MPUIR_DREGION_SZMASK	@ 0 size d region => No MPU
-	beq	__error_p			@ Fail: ARM_MPU and no MPU
+	bxeq	lr
 	tst	r0, #MPUIR_nU			@ MPUIR_nU = 0 for unified
 
 	/* Setup second region first to free up r6 */
@@ -238,27 +239,70 @@ ENTRY(__setup_mpu)
 	setup_region r0, r5, r6, MPU_INSTR_SIDE @ 0x0, BG region, enabled
 2:	isb
 
-	/* Vectors region */
-	set_region_nr r0, #MPU_VECTORS_REGION
-	isb
-	/* Shared, inaccessible to PL0, rw PL1 */
-	mov	r0, #CONFIG_VECTORS_BASE	@ Cover from VECTORS_BASE
-	ldr	r5,=(MPU_AP_PL1RW_PL0NA | MPU_RGN_NORMAL)
-	/* Writing N to bits 5:1 (RSR_SZ) --> region size 2^N+1 */
-	mov	r6, #(((2 * PAGE_SHIFT - 1) << MPU_RSR_SZ) | 1 << MPU_RSR_EN)
-
-	setup_region r0, r5, r6, MPU_DATA_SIDE	@ VECTORS_BASE, PL0 NA, enabled
-	beq	3f				@ Memory-map not unified
-	setup_region r0, r5, r6, MPU_INSTR_SIDE	@ VECTORS_BASE, PL0 NA, enabled
-3:	isb
-
 	/* Enable the MPU */
 	mrc	p15, 0, r0, c1, c0, 0		@ Read SCTLR
-	bic     r0, r0, #CR_BR			@ Disable the 'default mem-map'
+	bic	r0, r0, #CR_BR			@ Disable the 'default mem-map'
 	orr	r0, r0, #CR_M			@ Set SCTRL.M (MPU on)
 	mcr	p15, 0, r0, c1, c0, 0		@ Enable MPU
 	isb
+
 	ret	lr
 ENDPROC(__setup_mpu)
-#endif
+
+#ifdef CONFIG_SMP
+/*
+ * r6: pointer at mpu_rgn_info
+ */
+
+ENTRY(__secondary_setup_mpu)
+	/* Probe for v7 PMSA compliance */
+	mrc	p15, 0, r0, c0, c1, 4		@ Read ID_MMFR0
+	and	r0, r0, #(MMFR0_PMSA)		@ PMSA field
+	teq	r0, #(MMFR0_PMSAv7)		@ PMSA v7
+	bne	__error_p
+
+	/* Determine whether the D/I-side memory map is unified. We set the
+	 * flags here and continue to use them for the rest of this function */
+	mrc	p15, 0, r0, c0, c0, 4		@ MPUIR
+	ands	r5, r0, #MPUIR_DREGION_SZMASK	@ 0 size d region => No MPU
+	beq	__error_p
+
+	ldr	r4, [r6, #MPU_RNG_INFO_USED]
+	mov	r5, #MPU_RNG_SIZE
+	add	r3, r6, #MPU_RNG_INFO_RNGS
+	mla	r3, r4, r5, r3
+
+1:
+	tst	r0, #MPUIR_nU			@ MPUIR_nU = 0 for unified
+	sub	r3, r3, #MPU_RNG_SIZE
+	sub	r4, r4, #1
+
+	set_region_nr r0, r4
+	isb
+
+	ldr	r0, [r3, #MPU_RGN_DRBAR]
+	ldr	r6, [r3, #MPU_RGN_DRSR]
+	ldr	r5, [r3, #MPU_RGN_DRACR]
+
+	setup_region r0, r5, r6, MPU_DATA_SIDE
+	beq	2f
+	setup_region r0, r5, r6, MPU_INSTR_SIDE
+2:	isb
+
+	mrc	p15, 0, r0, c0, c0, 4		@ Reevaluate the MPUIR
+	cmp	r4, #0
+	bgt	1b
+
+	/* Enable the MPU */
+	mrc	p15, 0, r0, c1, c0, 0		@ Read SCTLR
+	bic	r0, r0, #CR_BR			@ Disable the 'default mem-map'
+	orr	r0, r0, #CR_M			@ Set SCTRL.M (MPU on)
+	mcr	p15, 0, r0, c1, c0, 0		@ Enable MPU
+	isb
+
+	ret	lr
+ENDPROC(__secondary_setup_mpu)
+
+#endif /* CONFIG_SMP */
+#endif /* CONFIG_ARM_MPU */
 #include "head-common.S"

@@ -62,7 +62,7 @@ struct mpu_rgn {
 };
 
 struct mpu_rgn_info {
-	u32 mpuir;
+	unsigned int used;
 	struct mpu_rgn rgns[MPU_MAX_REGIONS];
 };
 extern struct mpu_rgn_info mpu_rgn_info;

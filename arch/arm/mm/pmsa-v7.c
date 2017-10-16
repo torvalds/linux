@@ -12,6 +12,9 @@
 
 #include "mm.h"
 
+static unsigned int __initdata mpu_min_region_order;
+static unsigned int __initdata mpu_max_regions;
+
 #define DRBAR	__ACCESS_CP15(c6, 0, c1, 0)
 #define IRBAR	__ACCESS_CP15(c6, 0, c1, 1)
 #define DRSR	__ACCESS_CP15(c6, 0, c1, 2)
@@ -75,6 +78,11 @@ static inline u32 irbar_read(void)
 	return read_sysreg(IRBAR);
 }
 
+static int __init mpu_present(void)
+{
+	return ((read_cpuid_ext(CPUID_EXT_MMFR0) & MMFR0_PMSA) == MMFR0_PMSAv7);
+}
+
 /* MPU initialisation functions */
 void __init adjust_lowmem_bounds_mpu(void)
 {
@@ -84,6 +92,9 @@ void __init adjust_lowmem_bounds_mpu(void)
 	bool first = true;
 	phys_addr_t mem_start;
 	phys_addr_t mem_end;
+
+	if (!mpu_present())
+		return;
 
 	for_each_memblock(memory, reg) {
 		if (first) {
@@ -146,12 +157,7 @@ void __init adjust_lowmem_bounds_mpu(void)
 
 }
 
-static int mpu_present(void)
-{
-	return ((read_cpuid_ext(CPUID_EXT_MMFR0) & MMFR0_PMSA) == MMFR0_PMSAv7);
-}
-
-static int mpu_max_regions(void)
+static int __init __mpu_max_regions(void)
 {
 	/*
 	 * We don't support a different number of I/D side regions so if we
@@ -159,6 +165,7 @@ static int mpu_max_regions(void)
 	 * whichever side has a smaller number of supported regions.
 	 */
 	u32 dregions, iregions, mpuir;
+
 	mpuir = read_cpuid(CPUID_MPUIR);
 
 	dregions = iregions = (mpuir & MPUIR_DREGION_SZMASK) >> MPUIR_DREGION;
@@ -171,15 +178,16 @@ static int mpu_max_regions(void)
 	return min(dregions, iregions);
 }
 
-static int mpu_iside_independent(void)
+static int __init mpu_iside_independent(void)
 {
 	/* MPUIR.nU specifies whether there is *not* a unified memory map */
 	return read_cpuid(CPUID_MPUIR) & MPUIR_nU;
 }
 
-static int mpu_min_region_order(void)
+static int __init __mpu_min_region_order(void)
 {
 	u32 drbar_result, irbar_result;
+
 	/* We've kept a region free for this probing */
 	rgnr_write(MPU_PROBE_REGION);
 	isb();
@@ -198,22 +206,24 @@ static int mpu_min_region_order(void)
 	}
 	isb(); /* Ensure that MPU region operations have completed */
 	/* Return whichever result is larger */
+
 	return __ffs(max(drbar_result, irbar_result));
 }
 
-static int mpu_setup_region(unsigned int number, phys_addr_t start,
+static int __init mpu_setup_region(unsigned int number, phys_addr_t start,
 			unsigned int size_order, unsigned int properties)
 {
 	u32 size_data;
 
 	/* We kept a region free for probing resolution of MPU regions*/
-	if (number > mpu_max_regions() || number == MPU_PROBE_REGION)
+	if (number > mpu_max_regions
+	    || number >= MPU_MAX_REGIONS)
 		return -ENOENT;
 
 	if (size_order > 32)
 		return -ENOMEM;
 
-	if (size_order < mpu_min_region_order())
+	if (size_order < mpu_min_region_order)
 		return -ENOMEM;
 
 	/* Writing N to bits 5:1 (RSR_SZ)  specifies region size 2^N+1 */
@@ -240,6 +250,9 @@ static int mpu_setup_region(unsigned int number, phys_addr_t start,
 	mpu_rgn_info.rgns[number].dracr = properties;
 	mpu_rgn_info.rgns[number].drbar = start;
 	mpu_rgn_info.rgns[number].drsr = size_data;
+
+	mpu_rgn_info.used++;
+
 	return 0;
 }
 
@@ -248,19 +261,38 @@ static int mpu_setup_region(unsigned int number, phys_addr_t start,
 */
 void __init mpu_setup(void)
 {
-	int region_err;
+	int region = 0, err = 0;
+
 	if (!mpu_present())
 		return;
 
-	region_err = mpu_setup_region(MPU_RAM_REGION, PHYS_OFFSET,
-					ilog2(memblock.memory.regions[0].size),
-					MPU_AP_PL1RW_PL0RW | MPU_RGN_NORMAL);
-	if (region_err) {
-		panic("MPU region initialization failure! %d", region_err);
+	/* Free-up MPU_PROBE_REGION */
+	mpu_min_region_order = __mpu_min_region_order();
+
+	/* How many regions are supported */
+	mpu_max_regions = __mpu_max_regions();
+
+	/* Now setup MPU (order is important) */
+
+	/* Background */
+	err |= mpu_setup_region(region++, 0, 32,
+				MPU_ACR_XN | MPU_RGN_STRONGLY_ORDERED | MPU_AP_PL1RW_PL0NA);
+
+	/* RAM */
+	err |= mpu_setup_region(region++, PHYS_OFFSET,
+				ilog2(memblock.memory.regions[0].size),
+				MPU_AP_PL1RW_PL0RW | MPU_RGN_NORMAL);
+
+	/* Vectors */
+	err |= mpu_setup_region(region++, vectors_base,
+				ilog2(2 * PAGE_SIZE),
+				MPU_AP_PL1RW_PL0NA | MPU_RGN_NORMAL);
+	if (err) {
+		panic("MPU region initialization failure! %d", err);
 	} else {
 		pr_info("Using ARMv7 PMSA Compliant MPU. "
-			 "Region independence: %s, Max regions: %d\n",
+			 "Region independence: %s, Used %d of %d regions\n",
 			mpu_iside_independent() ? "Yes" : "No",
-			mpu_max_regions());
+			mpu_rgn_info.used, mpu_max_regions);
 	}
 }

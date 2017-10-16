@@ -23,6 +23,7 @@
 #include <asm/mach/arch.h>
 #include <asm/thread_info.h>
 #include <asm/memory.h>
+#include <asm/mpu.h>
 #include <asm/procinfo.h>
 #include <asm/suspend.h>
 #include <asm/vdso_datapage.h>
@@ -186,6 +187,16 @@ int main(void)
   BLANK();
 #ifdef CONFIG_VDSO
   DEFINE(VDSO_DATA_SIZE,	sizeof(union vdso_data_store));
+#endif
+  BLANK();
+#ifdef CONFIG_ARM_MPU
+  DEFINE(MPU_RNG_INFO_RNGS,	offsetof(struct mpu_rgn_info, rgns));
+  DEFINE(MPU_RNG_INFO_USED,	offsetof(struct mpu_rgn_info, used));
+
+  DEFINE(MPU_RNG_SIZE,		sizeof(struct mpu_rgn));
+  DEFINE(MPU_RGN_DRBAR,		offsetof(struct mpu_rgn, drbar));
+  DEFINE(MPU_RGN_DRSR,		offsetof(struct mpu_rgn, drsr));
+  DEFINE(MPU_RGN_DRACR,		offsetof(struct mpu_rgn, dracr));
 #endif
   return 0; 
 }
