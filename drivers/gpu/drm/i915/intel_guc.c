@@ -67,7 +67,7 @@ void intel_guc_init_early(struct intel_guc *guc)
 	guc->notify = gen8_guc_raise_irq;
 }
 
-static u32 get_gttype(struct drm_i915_private *dev_priv)
+static u32 get_gt_type(struct drm_i915_private *dev_priv)
 {
 	/* XXX: GT type based on PCI device ID? field seems unused by fw */
 	return 0;
@@ -98,11 +98,11 @@ void intel_guc_init_params(struct intel_guc *guc)
 	u32 params[GUC_CTL_MAX_DWORDS];
 	int i;
 
-	memset(&params, 0, sizeof(params));
+	memset(params, 0, sizeof(params));
 
 	params[GUC_CTL_DEVICE_INFO] |=
-		(get_gttype(dev_priv) << GUC_CTL_GTTYPE_SHIFT) |
-		(get_core_family(dev_priv) << GUC_CTL_COREFAMILY_SHIFT);
+		(get_gt_type(dev_priv) << GUC_CTL_GT_TYPE_SHIFT) |
+		(get_core_family(dev_priv) << GUC_CTL_CORE_FAMILY_SHIFT);
 
 	/*
 	 * GuC ARAT increment is 10 ns. GuC default scheduler quantum is one
@@ -122,8 +122,9 @@ void intel_guc_init_params(struct intel_guc *guc)
 	if (i915_modparams.guc_log_level >= 0) {
 		params[GUC_CTL_DEBUG] =
 			i915_modparams.guc_log_level << GUC_LOG_VERBOSITY_SHIFT;
-	} else
+	} else {
 		params[GUC_CTL_DEBUG] = GUC_LOG_DISABLED;
+	}
 
 	/* If GuC submission is enabled, set up additional parameters here */
 	if (i915_modparams.enable_guc_submission) {
