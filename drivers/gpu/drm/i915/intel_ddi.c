@@ -817,15 +817,14 @@ static void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder)
  * values in advance. This function programs the correct values for
  * HDMI/DVI use cases.
  */
-static void intel_prepare_hdmi_ddi_buffers(struct intel_encoder *encoder)
+static void intel_prepare_hdmi_ddi_buffers(struct intel_encoder *encoder,
+					   int hdmi_level)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 iboost_bit = 0;
-	int n_hdmi_entries, hdmi_level;
+	int n_hdmi_entries;
 	enum port port = intel_ddi_get_encoder_port(encoder);
 	const struct ddi_buf_trans *ddi_translations_hdmi;
-
-	hdmi_level = intel_ddi_hdmi_level(dev_priv, port);
 
 	ddi_translations_hdmi = intel_ddi_get_buf_trans_hdmi(dev_priv, &n_hdmi_entries);
 
@@ -2202,7 +2201,7 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 		bxt_ddi_vswing_sequence(dev_priv, level, port,
 					INTEL_OUTPUT_HDMI);
 	else
-		intel_prepare_hdmi_ddi_buffers(encoder);
+		intel_prepare_hdmi_ddi_buffers(encoder, level);
 
 	if (IS_GEN9_BC(dev_priv))
 		skl_ddi_set_iboost(encoder, level, INTEL_OUTPUT_HDMI);
