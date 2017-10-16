@@ -1831,9 +1831,9 @@ static void destroy_worker(struct worker *worker)
 	wake_up_process(worker->task);
 }
 
-static void idle_worker_timeout(unsigned long __pool)
+static void idle_worker_timeout(struct timer_list *t)
 {
-	struct worker_pool *pool = (void *)__pool;
+	struct worker_pool *pool = from_timer(pool, t, idle_timer);
 
 	spin_lock_irq(&pool->lock);
 
@@ -1879,9 +1879,9 @@ static void send_mayday(struct work_struct *work)
 	}
 }
 
-static void pool_mayday_timeout(unsigned long __pool)
+static void pool_mayday_timeout(struct timer_list *t)
 {
-	struct worker_pool *pool = (void *)__pool;
+	struct worker_pool *pool = from_timer(pool, t, mayday_timer);
 	struct work_struct *work;
 
 	spin_lock_irq(&pool->lock);
@@ -3241,11 +3241,9 @@ static int init_worker_pool(struct worker_pool *pool)
 	INIT_LIST_HEAD(&pool->idle_list);
 	hash_init(pool->busy_hash);
 
-	setup_deferrable_timer(&pool->idle_timer, idle_worker_timeout,
-			       (unsigned long)pool);
+	timer_setup(&pool->idle_timer, idle_worker_timeout, TIMER_DEFERRABLE);
 
-	setup_timer(&pool->mayday_timer, pool_mayday_timeout,
-		    (unsigned long)pool);
+	timer_setup(&pool->mayday_timer, pool_mayday_timeout, 0);
 
 	mutex_init(&pool->manager_arb);
 	mutex_init(&pool->attach_mutex);
