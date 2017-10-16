@@ -41,8 +41,7 @@ static const char * const hdmi_phy_8x74_reg_names[] = {
 };
 
 static const char * const hdmi_phy_8x74_clk_names[] = {
-	"iface_clk",
-	"alt_iface_clk"
+	"iface", "alt_iface"
 };
 
 const struct hdmi_phy_cfg msm_hdmi_phy_8x74_cfg = {
