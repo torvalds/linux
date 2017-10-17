@@ -2350,11 +2350,11 @@ static int hclge_get_status(struct hnae3_handle *handle)
 	return hdev->hw.mac.link;
 }
 
-static void hclge_service_timer(unsigned long data)
+static void hclge_service_timer(struct timer_list *t)
 {
-	struct hclge_dev *hdev = (struct hclge_dev *)data;
-	(void)mod_timer(&hdev->service_timer, jiffies + HZ);
+	struct hclge_dev *hdev = from_timer(hdev, t, service_timer);
 
+	mod_timer(&hdev->service_timer, jiffies + HZ);
 	hclge_task_schedule(hdev);
 }
 
@@ -3204,7 +3204,7 @@ static int hclge_ae_start(struct hnae3_handle *handle)
 	/* mac enable */
 	hclge_cfg_mac_mode(hdev, true);
 	clear_bit(HCLGE_STATE_DOWN, &hdev->state);
-	(void)mod_timer(&hdev->service_timer, jiffies + HZ);
+	mod_timer(&hdev->service_timer, jiffies + HZ);
 
 	ret = hclge_mac_start_phy(hdev);
 	if (ret)
@@ -4436,8 +4436,7 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 
 	hclge_dcb_ops_set(hdev);
 
-	setup_timer(&hdev->service_timer, hclge_service_timer,
-		    (unsigned long)hdev);
+	timer_setup(&hdev->service_timer, hclge_service_timer, 0);
 	INIT_WORK(&hdev->service_task, hclge_service_task);
 
 	set_bit(HCLGE_STATE_SERVICE_INITED, &hdev->state);
@@ -4464,7 +4463,7 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 	if (IS_ENABLED(CONFIG_PCI_IOV))
 		hclge_disable_sriov(hdev);
 
-	if (hdev->service_timer.data)
+	if (hdev->service_timer.function)
 		del_timer_sync(&hdev->service_timer);
 	if (hdev->service_task.func)
 		cancel_work_sync(&hdev->service_task);
