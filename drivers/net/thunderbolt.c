@@ -394,7 +394,7 @@ static int tbnet_handle_packet(const void *buf, size_t size, void *data)
 	struct tbnet *net = data;
 	u32 command_id;
 	int ret = 0;
-	u8 sequence;
+	u32 sequence;
 	u64 route;
 
 	/* Make sure the packet is for us */
