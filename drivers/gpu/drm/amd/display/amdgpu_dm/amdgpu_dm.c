@@ -1024,20 +1024,20 @@ static void handle_hpd_rx_irq(void *param)
 	struct amdgpu_dm_connector *aconnector = (struct amdgpu_dm_connector *)param;
 	struct drm_connector *connector = &aconnector->base;
 	struct drm_device *dev = connector->dev;
-	const struct dc_link *dc_link = aconnector->dc_link;
+	struct dc_link *dc_link = aconnector->dc_link;
 	bool is_mst_root_connector = aconnector->mst_mgr.mst_state;
 
 	/* TODO:Temporary add mutex to protect hpd interrupt not have a gpio
 	 * conflict, after implement i2c helper, this mutex should be
 	 * retired.
 	 */
-	if (aconnector->dc_link->type != dc_connection_mst_branch)
+	if (dc_link->type != dc_connection_mst_branch)
 		mutex_lock(&aconnector->hpd_lock);
 
-	if (dc_link_handle_hpd_rx_irq(aconnector->dc_link, NULL) &&
+	if (dc_link_handle_hpd_rx_irq(dc_link, NULL) &&
 			!is_mst_root_connector) {
 		/* Downstream Port status changed. */
-		if (dc_link_detect(aconnector->dc_link, DETECT_REASON_HPDRX)) {
+		if (dc_link_detect(dc_link, DETECT_REASON_HPDRX)) {
 			amdgpu_dm_update_connector_after_detect(aconnector);
 
 
@@ -1049,10 +1049,10 @@ static void handle_hpd_rx_irq(void *param)
 		}
 	}
 	if ((dc_link->cur_link_settings.lane_count != LANE_COUNT_UNKNOWN) ||
-				(dc_link->type == dc_connection_mst_branch))
+	    (dc_link->type == dc_connection_mst_branch))
 		dm_handle_hpd_rx_irq(aconnector);
 
-	if (aconnector->dc_link->type != dc_connection_mst_branch)
+	if (dc_link->type != dc_connection_mst_branch)
 		mutex_unlock(&aconnector->hpd_lock);
 }
 
