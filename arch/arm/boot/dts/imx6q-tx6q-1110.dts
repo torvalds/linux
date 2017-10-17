@@ -98,19 +98,6 @@
 	};
 };
 
-&i2c3 {
-	polytouch1: eeti@04 {
-		compatible = "eeti,egalax_ts";
-		reg = <0x04>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_eeti>;
-		interrupt-parent = <&gpio3>;
-		interrupts = <22 0>;
-		wakeup-gpios = <&gpio3 22 GPIO_ACTIVE_HIGH>;
-		wakeup-source;
-	};
-};
-
 &kpp {
 	status = "disabled"; /* pad conflict with backlight1 PWM */
 };
@@ -171,12 +158,4 @@
 
 &sata {
 	status = "okay";
-};
-
-&iomuxc {
-	pinctrl_eeti: eetigrp {
-		fsl,pins = <
-			MX6QDL_PAD_EIM_D22__GPIO3_IO22 0x1b0b1 /* Interrupt */
-		>;
-	};
 };

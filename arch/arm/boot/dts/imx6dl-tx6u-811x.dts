@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2016 Lothar Waßmann <LW@KARO-electronics.de>
+ * Copyright 2014-2017 Lothar Waßmann <LW@KARO-electronics.de>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -98,19 +98,6 @@
 	};
 };
 
-&i2c3 {
-	polytouch2: eeti@04 {
-		compatible = "eeti,egalax_ts";
-		reg = <0x04>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_eeti>;
-		interrupt-parent = <&gpio3>;
-		interrupts = <22 0>;
-		wakeup-gpios = <&gpio3 22 GPIO_ACTIVE_HIGH>;
-		wakeup-source;
-	};
-};
-
 &kpp {
 	status = "disabled"; /* pad conflict with backlight1 PWM */
 };
@@ -167,12 +154,4 @@
 
 &pwm1 {
 	status = "okay";
-};
-
-&iomuxc {
-	pinctrl_eeti: eetigrp {
-		fsl,pins = <
-			MX6QDL_PAD_EIM_D22__GPIO3_IO22 0x1b0b1 /* Interrupt */
-		>;
-	};
 };
