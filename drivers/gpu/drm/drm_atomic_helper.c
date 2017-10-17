@@ -1704,7 +1704,7 @@ crtc_or_fake_commit(struct drm_atomic_state *state, struct drm_crtc *crtc)
  * drm_atomic_helper_commit_cleanup_done().
  *
  * This is all implemented by in drm_atomic_helper_commit(), giving drivers a
- * complete and esay-to-use default implementation of the atomic_commit() hook.
+ * complete and easy-to-use default implementation of the atomic_commit() hook.
  *
  * The tracking of asynchronously executed and still pending commits is done
  * using the core structure &drm_crtc_commit.
@@ -1819,7 +1819,7 @@ EXPORT_SYMBOL(drm_atomic_helper_setup_commit);
  * This function waits for all preceeding commits that touch the same CRTC as
  * @old_state to both be committed to the hardware (as signalled by
  * drm_atomic_helper_commit_hw_done) and executed by the hardware (as signalled
- * by calling drm_crtc_vblank_send_event() on the &drm_crtc_state.event).
+ * by calling drm_crtc_send_vblank_event() on the &drm_crtc_state.event).
  *
  * This is part of the atomic helper support for nonblocking commits, see
  * drm_atomic_helper_setup_commit() for an overview.

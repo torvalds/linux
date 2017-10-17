@@ -226,6 +226,18 @@ struct endpoint_list {
 	struct list_head list;
 };
 
+static bool node_is_in_list(struct list_head *endpoints,
+			    struct device_node *node)
+{
+	struct endpoint_list *endpoint;
+
+	list_for_each_entry(endpoint, endpoints, list)
+		if (endpoint->node == node)
+			return true;
+
+	return false;
+}
+
 static int sun4i_drv_add_endpoints(struct device *dev,
 				   struct list_head *endpoints,
 				   struct component_match **match,
@@ -291,6 +303,10 @@ static int sun4i_drv_add_endpoints(struct device *dev,
 				continue;
 			}
 		}
+
+		/* skip downstream node if it is already in the queue */
+		if (node_is_in_list(endpoints, remote))
+			continue;
 
 		/* Add downstream nodes to the queue */
 		endpoint = kzalloc(sizeof(*endpoint), GFP_KERNEL);

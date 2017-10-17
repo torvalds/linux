@@ -845,7 +845,8 @@ static int drm_syncobj_array_wait(struct drm_device *dev,
 }
 
 static int drm_syncobj_array_find(struct drm_file *file_private,
-				  void *user_handles, uint32_t count_handles,
+				  void __user *user_handles,
+				  uint32_t count_handles,
 				  struct drm_syncobj ***syncobjs_out)
 {
 	uint32_t i, *handles;

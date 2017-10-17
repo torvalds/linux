@@ -209,22 +209,11 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 {
 	struct drm_plane_state *state = plane->state;
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_cma_object *gem;
 	u32 lo_paddr, hi_paddr;
 	dma_addr_t paddr;
-	int bpp;
 
-	/* Get the physical address of the buffer in memory */
-	gem = drm_fb_cma_get_gem_obj(fb, 0);
-
-	DRM_DEBUG_DRIVER("Using GEM @ %pad\n", &gem->paddr);
-
-	/* Compute the start of the displayed memory */
-	bpp = fb->format->cpp[0];
-	paddr = gem->paddr + fb->offsets[0];
-	paddr += (state->src_x >> 16) * bpp;
-	paddr += (state->src_y >> 16) * fb->pitches[0];
-
+	/* Get the start of the displayed memory */
+	paddr = drm_fb_cma_get_gem_addr(fb, state, 0);
 	DRM_DEBUG_DRIVER("Setting buffer address to %pad\n", &paddr);
 
 	/* Write the 32 lower bits of the address (in bits) */
@@ -369,13 +358,6 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
-	backend->engine.regs = devm_regmap_init_mmio(dev, regs,
-						     &sun4i_backend_regmap_config);
-	if (IS_ERR(backend->engine.regs)) {
-		dev_err(dev, "Couldn't create the backend regmap\n");
-		return PTR_ERR(backend->engine.regs);
-	}
-
 	backend->reset = devm_reset_control_get(dev, NULL);
 	if (IS_ERR(backend->reset)) {
 		dev_err(dev, "Couldn't get our reset line\n");
@@ -421,9 +403,23 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 		}
 	}
 
+	backend->engine.regs = devm_regmap_init_mmio(dev, regs,
+						     &sun4i_backend_regmap_config);
+	if (IS_ERR(backend->engine.regs)) {
+		dev_err(dev, "Couldn't create the backend regmap\n");
+		return PTR_ERR(backend->engine.regs);
+	}
+
 	list_add_tail(&backend->engine.list, &drv->engine_list);
 
-	/* Reset the registers */
+	/*
+	 * Many of the backend's layer configuration registers have
+	 * undefined default values. This poses a risk as we use
+	 * regmap_update_bits in some places, and don't overwrite
+	 * the whole register.
+	 *
+	 * Clear the registers here to have something predictable.
+	 */
 	for (i = 0x800; i < 0x1000; i += 4)
 		regmap_write(backend->engine.regs, i, 0);
 

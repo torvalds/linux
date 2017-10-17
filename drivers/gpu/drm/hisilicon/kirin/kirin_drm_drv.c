@@ -237,8 +237,8 @@ static int kirin_drm_platform_probe(struct platform_device *pdev)
 	}
 
 	remote = of_graph_get_remote_node(np, 0, 0);
-	if (IS_ERR(remote))
-		return PTR_ERR(remote);
+	if (!remote)
+		return -ENODEV;
 
 	drm_of_component_match_add(dev, &match, compare_of, remote);
 	of_node_put(remote);
