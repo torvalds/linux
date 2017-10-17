@@ -232,7 +232,7 @@ static struct cache_head *expkey_alloc(void)
 		return NULL;
 }
 
-static struct cache_detail svc_expkey_cache_template = {
+static const struct cache_detail svc_expkey_cache_template = {
 	.owner		= THIS_MODULE,
 	.hash_size	= EXPKEY_HASHMAX,
 	.name		= "nfsd.fh",
@@ -748,7 +748,7 @@ static struct cache_head *svc_export_alloc(void)
 		return NULL;
 }
 
-static struct cache_detail svc_export_cache_template = {
+static const struct cache_detail svc_export_cache_template = {
 	.owner		= THIS_MODULE,
 	.hash_size	= EXPORT_HASHMAX,
 	.name		= "nfsd.export",
