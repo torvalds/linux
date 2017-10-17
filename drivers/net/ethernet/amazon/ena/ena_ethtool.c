@@ -60,6 +60,8 @@ struct ena_stats {
 
 static const struct ena_stats ena_stats_global_strings[] = {
 	ENA_STAT_GLOBAL_ENTRY(tx_timeout),
+	ENA_STAT_GLOBAL_ENTRY(suspend),
+	ENA_STAT_GLOBAL_ENTRY(resume),
 	ENA_STAT_GLOBAL_ENTRY(wd_expired),
 	ENA_STAT_GLOBAL_ENTRY(interface_up),
 	ENA_STAT_GLOBAL_ENTRY(interface_down),

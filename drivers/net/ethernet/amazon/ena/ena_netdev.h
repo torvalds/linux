@@ -257,6 +257,8 @@ struct ena_ring {
 
 struct ena_stats_dev {
 	u64 tx_timeout;
+	u64 suspend;
+	u64 resume;
 	u64 wd_expired;
 	u64 interface_up;
 	u64 interface_down;
@@ -327,6 +329,7 @@ struct ena_adapter {
 	struct timer_list timer_service;
 
 	bool wd_state;
+	bool dev_up_before_reset;
 	unsigned long last_keep_alive_jiffies;
 
 	struct u64_stats_sync syncp;
