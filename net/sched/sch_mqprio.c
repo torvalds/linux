@@ -142,7 +142,7 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
 	struct nlattr *tb[TCA_MQPRIO_MAX + 1];
 	struct nlattr *attr;
 	int rem;
-	int len = nla_len(opt) - NLA_ALIGN(sizeof(*qopt));
+	int len;
 
 	BUILD_BUG_ON(TC_MAX_QUEUE != TC_QOPT_MAX_QUEUE);
 	BUILD_BUG_ON(TC_BITMASK != TC_QOPT_BITMASK);
@@ -164,6 +164,7 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
 	if (mqprio_parse_opt(dev, qopt))
 		return -EINVAL;
 
+	len = nla_len(opt) - NLA_ALIGN(sizeof(*qopt));
 	if (len > 0) {
 		err = parse_attr(tb, TCA_MQPRIO_MAX, opt, mqprio_policy,
 				 sizeof(*qopt));
