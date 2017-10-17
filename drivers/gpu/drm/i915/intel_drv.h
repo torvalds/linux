@@ -1925,6 +1925,7 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state);
 void skl_update_plane(struct intel_plane *plane,
 		      const struct intel_crtc_state *crtc_state,
 		      const struct intel_plane_state *plane_state);
+void skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc);
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_i915_private *dev_priv);

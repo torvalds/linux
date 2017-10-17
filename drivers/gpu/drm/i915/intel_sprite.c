@@ -311,7 +311,7 @@ skl_update_plane(struct intel_plane *plane,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-static void
+void
 skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);

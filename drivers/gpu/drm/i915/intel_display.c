@@ -3541,23 +3541,6 @@ u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
 	return plane_ctl;
 }
 
-static void skylake_disable_primary_plane(struct intel_plane *primary,
-					  struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = to_i915(primary->base.dev);
-	enum plane_id plane_id = primary->id;
-	enum pipe pipe = primary->pipe;
-	unsigned long irqflags;
-
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-
-	I915_WRITE_FW(PLANE_CTL(pipe, plane_id), 0);
-	I915_WRITE_FW(PLANE_SURF(pipe, plane_id), 0);
-	POSTING_READ_FW(PLANE_SURF(pipe, plane_id));
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
-}
-
 static int
 __intel_display_resume(struct drm_device *dev,
 		       struct drm_atomic_state *state,
@@ -13214,7 +13197,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		modifiers = skl_format_modifiers_ccs;
 
 		primary->update_plane = skl_update_plane;
-		primary->disable_plane = skylake_disable_primary_plane;
+		primary->disable_plane = skl_disable_plane;
 	} else if (INTEL_GEN(dev_priv) >= 9) {
 		intel_primary_formats = skl_primary_formats;
 		num_formats = ARRAY_SIZE(skl_primary_formats);
@@ -13224,7 +13207,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 			modifiers = skl_format_modifiers_noccs;
 
 		primary->update_plane = skl_update_plane;
-		primary->disable_plane = skylake_disable_primary_plane;
+		primary->disable_plane = skl_disable_plane;
 	} else if (INTEL_GEN(dev_priv) >= 4) {
 		intel_primary_formats = i965_primary_formats;
 		num_formats = ARRAY_SIZE(i965_primary_formats);
