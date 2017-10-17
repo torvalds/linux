@@ -504,7 +504,7 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 		/* This should be 0 if all bytes were transferred
 		 * or dev->cmd_err denotes an error.
 		 */
-		dev_err(dev->dev, "abnormal termination buf_len=%i\n",
+		dev_err(dev->dev, "abnormal termination buf_len=%zu\n",
 			dev->buf_len);
 		dev->terminate = 1;
 		wmb();
