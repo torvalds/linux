@@ -163,7 +163,6 @@ static struct device_node * __init tilcdc_get_overlay(struct kfree_table *kft)
 		return NULL;
 	}
 
-	of_node_set_flag(overlay, OF_DETACHED);
 	ret = of_resolve_phandles(overlay);
 	if (ret) {
 		pr_err("%s: Failed to resolve phandles: %d\n", __func__, ret);
