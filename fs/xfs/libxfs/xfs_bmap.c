@@ -1574,7 +1574,6 @@ xfs_bmap_add_extent_delay_real(
 	int			whichfork)
 {
 	struct xfs_bmbt_irec	*new = &bma->got;
-	int			diff;	/* temp value */
 	int			error;	/* error return value */
 	int			i;	/* temp state */
 	xfs_ifork_t		*ifp;	/* inode fork pointer */
@@ -2072,17 +2071,6 @@ xfs_bmap_add_extent_delay_real(
 
 		da_new = startblockval(PREV.br_startblock) +
 			 startblockval(RIGHT.br_startblock);
-		diff = da_new - startblockval(old.br_startblock);
-		if (bma->cur)
-			diff += bma->cur->bc_private.b.allocated;
-		if (diff > 0) {
-			error = xfs_mod_fdblocks(bma->ip->i_mount,
-						 -((int64_t)diff), false);
-			ASSERT(!error);
-			if (error)
-				goto done;
-		}
-
 		bma->idx++;
 		break;
 
@@ -2117,19 +2105,17 @@ xfs_bmap_add_extent_delay_real(
 			goto done;
 	}
 
-	/* adjust for changes in reserved delayed indirect blocks */
-	if (da_old || da_new) {
-		temp = da_new;
-		if (bma->cur)
-			temp += bma->cur->bc_private.b.allocated;
-		if (temp < da_old)
-			xfs_mod_fdblocks(bma->ip->i_mount,
-					(int64_t)(da_old - temp), false);
+	if (bma->cur) {
+		da_new += bma->cur->bc_private.b.allocated;
+		bma->cur->bc_private.b.allocated = 0;
 	}
 
-	/* clear out the allocated field, done with it now in any case. */
-	if (bma->cur)
-		bma->cur->bc_private.b.allocated = 0;
+	/* adjust for changes in reserved delayed indirect blocks */
+	if (da_new != da_old) {
+		ASSERT(state == 0 || da_new < da_old);
+		error = xfs_mod_fdblocks(mp, (int64_t)(da_old - da_new),
+				false);
+	}
 
 	xfs_bmap_check_leaf_extents(bma->cur, bma->ip, whichfork);
 done:
