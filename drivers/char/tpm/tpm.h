@@ -512,8 +512,6 @@ int tpm_do_selftest(struct tpm_chip *chip);
 unsigned long tpm_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal);
 int tpm_pm_suspend(struct device *dev);
 int tpm_pm_resume(struct device *dev);
-int wait_for_tpm_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
-		      wait_queue_head_t *queue, bool check_cancel);
 
 static inline void tpm_msleep(unsigned int delay_msec)
 {
