@@ -993,9 +993,17 @@ static int __init unittest_data_add(void)
 		pr_warn("%s: No tree to attach; not running tests\n", __func__);
 		return -ENODATA;
 	}
+
+	/*
+	 * This lock normally encloses of_overlay_apply() as well as
+	 * of_resolve_phandles().
+	 */
+	of_overlay_mutex_lock();
+
 	rc = of_resolve_phandles(unittest_data_node);
 	if (rc) {
 		pr_err("%s: Failed to resolve phandles (rc=%i)\n", __func__, rc);
+		of_overlay_mutex_unlock();
 		return -EINVAL;
 	}
 
@@ -1005,6 +1013,7 @@ static int __init unittest_data_add(void)
 			__of_attach_node_sysfs(np);
 		of_aliases = of_find_node_by_path("/aliases");
 		of_chosen = of_find_node_by_path("/chosen");
+		of_overlay_mutex_unlock();
 		return 0;
 	}
 
@@ -1017,6 +1026,9 @@ static int __init unittest_data_add(void)
 		attach_node_and_children(np);
 		np = next;
 	}
+
+	of_overlay_mutex_unlock();
+
 	return 0;
 }
 
@@ -2148,16 +2160,11 @@ static int __init overlay_data_add(int onum)
 		goto out_free_data;
 	}
 
-	ret = of_resolve_phandles(info->np_overlay);
-	if (ret) {
-		pr_err("resolve ot phandles (ret=%d), %d\n", ret, onum);
-		goto out_free_np_overlay;
-	}
-
 	info->overlay_id = 0;
 	ret = of_overlay_apply(info->np_overlay, &info->overlay_id);
 	if (ret < 0) {
 		pr_err("of_overlay_apply() (ret=%d), %d\n", ret, onum);
+		of_overlay_mutex_unlock();
 		goto out_free_np_overlay;
 	}
 
@@ -2207,7 +2214,10 @@ static __init void of_unittest_overlay_high_level(void)
 	 * Could not fixup phandles in unittest_unflatten_overlay_base()
 	 * because kmalloc() was not yet available.
 	 */
+	of_overlay_mutex_lock();
 	of_resolve_phandles(overlay_base_root);
+	of_overlay_mutex_unlock();
+
 
 	/*
 	 * do not allow overlay_base to duplicate any node already in

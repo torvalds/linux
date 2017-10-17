@@ -71,6 +71,28 @@ static int build_changeset_next_level(struct overlay_changeset *ovcs,
 		const struct device_node *overlay_node,
 		bool is_symbols_node);
 
+/*
+ * of_resolve_phandles() finds the largest phandle in the live tree.
+ * of_overlay_apply() may add a larger phandle to the live tree.
+ * Do not allow race between two overlays being applied simultaneously:
+ *    mutex_lock(&of_overlay_phandle_mutex)
+ *    of_resolve_phandles()
+ *    of_overlay_apply()
+ *    mutex_unlock(&of_overlay_phandle_mutex)
+ */
+static DEFINE_MUTEX(of_overlay_phandle_mutex);
+
+void of_overlay_mutex_lock(void)
+{
+	mutex_lock(&of_overlay_phandle_mutex);
+}
+
+void of_overlay_mutex_unlock(void)
+{
+	mutex_unlock(&of_overlay_phandle_mutex);
+}
+
+
 static LIST_HEAD(ovcs_list);
 static DEFINE_IDR(ovcs_idr);
 
@@ -624,6 +646,12 @@ int of_overlay_apply(struct device_node *tree, int *ovcs_id)
 		goto out;
 	}
 
+	of_overlay_mutex_lock();
+
+	ret = of_resolve_phandles(tree);
+	if (ret)
+		goto err_overlay_unlock;
+
 	mutex_lock(&of_mutex);
 
 	ret = init_overlay_changeset(ovcs, tree);
@@ -669,8 +697,12 @@ int of_overlay_apply(struct device_node *tree, int *ovcs_id)
 	}
 
 	mutex_unlock(&of_mutex);
+	of_overlay_mutex_unlock();
 
 	goto out;
+
+err_overlay_unlock:
+	of_overlay_mutex_unlock();
 
 err_free_overlay_changeset:
 	free_overlay_changeset(ovcs);
