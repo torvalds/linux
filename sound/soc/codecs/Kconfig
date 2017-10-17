@@ -69,6 +69,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ES8328_SPI if SPI_MASTER
 	select SND_SOC_ES8328_I2C if I2C
 	select SND_SOC_ES8396 if I2C
+	select SND_SOC_FM1288 if I2C
 	select SND_SOC_GTM601
 	select SND_SOC_ICS43432
 	select SND_SOC_ISABELLE if I2C
@@ -503,6 +504,11 @@ config SND_SOC_GTM601
 
 config SND_SOC_ICS43432
 	tristate
+
+config SND_SOC_FM1288
+	tristate "Voice Processor support for FM1288"
+	help
+	  Say Y if you want to add support for Voice Processor FM1288.
 
 config SND_SOC_ISABELLE
         tristate

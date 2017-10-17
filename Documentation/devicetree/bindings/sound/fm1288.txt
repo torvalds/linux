@@ -1,0 +1,20 @@
+FM1288 Voice Processor Codec
+
+Required properties:
+
+  - compatible: "fm1288"
+  - reg: the I2C address of the device for I2C
+  - pwd-gpios: Power down control
+
+Optional properties:
+
+- bypass-gpios: Voice data by-pass control
+
+Example:
+
+fm1288: fm1288@60 {
+	compatible = "fm1288";
+	reg = <0x60>;
+	pwd-gpios = <&gpio0 RK_PD1 GPIO_ACTIVE_HIGH>;
+	bypass-gpios = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
+};
