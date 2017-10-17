@@ -1246,17 +1246,17 @@ static int sa1100fb_probe(struct platform_device *pdev)
 		goto failed;
 	}
 
-	/* Initialize video memory */
-	ret = sa1100fb_map_video_memory(fbi);
-	if (ret)
-		goto failed;
-
 	if (machine_is_shannon()) {
-		ret = gpio_request_one(SHANNON_GPIO_DISP_EN,
+		ret = devm_gpio_request_one(&pdev->dev, SHANNON_GPIO_DISP_EN,
 			GPIOF_OUT_INIT_LOW, "display enable");
 		if (ret)
 			goto failed;
 	}
+
+	/* Initialize video memory */
+	ret = sa1100fb_map_video_memory(fbi);
+	if (ret)
+		goto failed;
 
 	/*
 	 * This makes sure that our colour bitfield
@@ -1268,7 +1268,7 @@ static int sa1100fb_probe(struct platform_device *pdev)
 
 	ret = register_framebuffer(&fbi->fb);
 	if (ret < 0)
-		goto err_reg_fb;
+		goto failed;
 
 #ifdef CONFIG_CPU_FREQ
 	fbi->freq_transition.notifier_call = sa1100fb_freq_transition;
@@ -1280,9 +1280,6 @@ static int sa1100fb_probe(struct platform_device *pdev)
 	/* This driver cannot be unloaded at the moment */
 	return 0;
 
- err_reg_fb:
-	if (machine_is_shannon())
-		gpio_free(SHANNON_GPIO_DISP_EN);
  failed:
 	return ret;
 }
