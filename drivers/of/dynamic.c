@@ -758,7 +758,7 @@ int of_changeset_revert(struct of_changeset *ocs)
 EXPORT_SYMBOL_GPL(of_changeset_revert);
 
 /**
- * of_changeset_action - Perform a changeset action
+ * of_changeset_action - Add an action to the tail of the changeset list
  *
  * @ocs:	changeset pointer
  * @action:	action to perform

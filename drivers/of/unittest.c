@@ -1230,7 +1230,7 @@ static void of_unittest_destroy_tracked_overlays(void)
 			if (!(overlay_id_bits[BIT_WORD(id)] & BIT_MASK(id)))
 				continue;
 
-			ret = of_overlay_destroy(id + overlay_first_id);
+			ret = of_overlay_remove(id + overlay_first_id);
 			if (ret == -ENODEV) {
 				pr_warn("%s: no overlay to destroy for #%d\n",
 					__func__, id + overlay_first_id);
@@ -1262,7 +1262,7 @@ static int of_unittest_apply_overlay(int overlay_nr, int unittest_nr,
 		goto out;
 	}
 
-	ret = of_overlay_create(np);
+	ret = of_overlay_apply(np);
 	if (ret < 0) {
 		unittest(0, "could not create overlay from \"%s\"\n",
 				overlay_path(overlay_nr));
@@ -1347,7 +1347,7 @@ static int of_unittest_apply_revert_overlay_check(int overlay_nr,
 		return -EINVAL;
 	}
 
-	ret = of_overlay_destroy(ov_id);
+	ret = of_overlay_remove(ov_id);
 	if (ret != 0) {
 		unittest(0, "overlay @\"%s\" failed to be destroyed @\"%s\"\n",
 				overlay_path(overlay_nr),
@@ -1476,7 +1476,7 @@ static void of_unittest_overlay_6(void)
 			return;
 		}
 
-		ret = of_overlay_create(np);
+		ret = of_overlay_apply(np);
 		if (ret < 0)  {
 			unittest(0, "could not create overlay from \"%s\"\n",
 					overlay_path(overlay_nr + i));
@@ -1500,7 +1500,7 @@ static void of_unittest_overlay_6(void)
 	}
 
 	for (i = 1; i >= 0; i--) {
-		ret = of_overlay_destroy(ov_id[i]);
+		ret = of_overlay_remove(ov_id[i]);
 		if (ret != 0) {
 			unittest(0, "overlay @\"%s\" failed destroy @\"%s\"\n",
 					overlay_path(overlay_nr + i),
@@ -1546,7 +1546,7 @@ static void of_unittest_overlay_8(void)
 			return;
 		}
 
-		ret = of_overlay_create(np);
+		ret = of_overlay_apply(np);
 		if (ret < 0)  {
 			unittest(0, "could not create overlay from \"%s\"\n",
 					overlay_path(overlay_nr + i));
@@ -1557,7 +1557,7 @@ static void of_unittest_overlay_8(void)
 	}
 
 	/* now try to remove first overlay (it should fail) */
-	ret = of_overlay_destroy(ov_id[0]);
+	ret = of_overlay_remove(ov_id[0]);
 	if (ret == 0) {
 		unittest(0, "overlay @\"%s\" was destroyed @\"%s\"\n",
 				overlay_path(overlay_nr + 0),
@@ -1568,7 +1568,7 @@ static void of_unittest_overlay_8(void)
 
 	/* removing them in order should work */
 	for (i = 1; i >= 0; i--) {
-		ret = of_overlay_destroy(ov_id[i]);
+		ret = of_overlay_remove(ov_id[i]);
 		if (ret != 0) {
 			unittest(0, "overlay @\"%s\" not destroyed @\"%s\"\n",
 					overlay_path(overlay_nr + i),
@@ -2149,9 +2149,9 @@ static int __init overlay_data_add(int onum)
 		goto out_free_np_overlay;
 	}
 
-	ret = of_overlay_create(info->np_overlay);
+	ret = of_overlay_apply(info->np_overlay);
 	if (ret < 0) {
-		pr_err("of_overlay_create() (ret=%d), %d\n", ret, onum);
+		pr_err("of_overlay_apply() (ret=%d), %d\n", ret, onum);
 		goto out_free_np_overlay;
 	} else {
 		info->overlay_id = ret;

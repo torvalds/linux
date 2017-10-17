@@ -1312,26 +1312,26 @@ struct of_overlay_notify_data {
 #ifdef CONFIG_OF_OVERLAY
 
 /* ID based overlays; the API for external users */
-int of_overlay_create(struct device_node *tree);
-int of_overlay_destroy(int id);
-int of_overlay_destroy_all(void);
+int of_overlay_apply(struct device_node *tree);
+int of_overlay_remove(int id);
+int of_overlay_remove_all(void);
 
 int of_overlay_notifier_register(struct notifier_block *nb);
 int of_overlay_notifier_unregister(struct notifier_block *nb);
 
 #else
 
-static inline int of_overlay_create(struct device_node *tree)
+static inline int of_overlay_apply(struct device_node *tree)
 {
 	return -ENOTSUPP;
 }
 
-static inline int of_overlay_destroy(int id)
+static inline int of_overlay_remove(int id)
 {
 	return -ENOTSUPP;
 }
 
-static inline int of_overlay_destroy_all(void)
+static inline int of_overlay_remove_all(void)
 {
 	return -ENOTSUPP;
 }

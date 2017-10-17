@@ -247,9 +247,10 @@ static void __init tilcdc_convert_slave_node(void)
 
 	tilcdc_node_disable(slave);
 
-	ret = of_overlay_create(overlay);
+	ret = of_overlay_apply(overlay);
 	if (ret)
-		pr_err("%s: Creating overlay failed: %d\n", __func__, ret);
+		pr_err("%s: Applying overlay changeset failed: %d\n",
+			__func__, ret);
 	else
 		pr_info("%s: ti,tilcdc,slave node successfully converted\n",
 			__func__);
