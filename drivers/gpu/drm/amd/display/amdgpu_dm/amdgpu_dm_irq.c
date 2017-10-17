@@ -208,24 +208,21 @@ static void remove_timer_handler(struct amdgpu_device *adev,
 			DM_IRQ_TABLE_LOCK(adev, irq_table_flags);
 		}
 
-		if (handler_in == NULL) {
-			/* Remove ALL handlers. */
+		/* Remove ALL handlers. */
+		if (handler_in == NULL)
 			continue;
-		}
 
-		if (handler_in == handler_temp) {
-			/* Remove a SPECIFIC handler.
-			 * Found our handler - we can stop here. */
+		/* Remove a SPECIFIC handler.
+		 * Found our handler - we can stop here. */
+		if (handler_in == handler_temp)
 			break;
-		}
 	}
 
 	DM_IRQ_TABLE_UNLOCK(adev, irq_table_flags);
 
-	if (handler_in != NULL && handler_removed == false) {
+	if (handler_in != NULL && handler_removed == false)
 		DRM_ERROR("DM_IRQ: handler: %p is not in the list!\n",
 				handler_in);
-	}
 }
 
 static bool
