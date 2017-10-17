@@ -1801,7 +1801,7 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 		    !try_wait_for_completion(&old_plane_state->commit->flip_done))
 			return -EBUSY;
 
-		commit = crtc_or_fake_commit(state, old_plane_state->crtc);
+		commit = crtc_or_fake_commit(state, new_plane_state->crtc ?: old_plane_state->crtc);
 		if (!commit)
 			return -ENOMEM;
 
