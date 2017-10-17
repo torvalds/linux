@@ -146,7 +146,7 @@ void sun4i_tcon_set_mux(struct sun4i_tcon *tcon, int channel,
 }
 EXPORT_SYMBOL(sun4i_tcon_set_mux);
 
-static int sun4i_tcon_get_clk_delay(struct drm_display_mode *mode,
+static int sun4i_tcon_get_clk_delay(const struct drm_display_mode *mode,
 				    int channel)
 {
 	int delay = mode->vtotal - mode->vdisplay;
