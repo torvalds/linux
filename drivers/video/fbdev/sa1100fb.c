@@ -1222,41 +1222,36 @@ static int sa1100fb_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	fbi = sa1100fb_init_fbinfo(&pdev->dev);
-	ret = -ENOMEM;
 	if (!fbi)
-		goto failed;
+		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	fbi->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(fbi->base)) {
-		ret = PTR_ERR(fbi->base);
-		goto failed;
-	}
+	if (IS_ERR(fbi->base))
+		return PTR_ERR(fbi->base);
 
 	fbi->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(fbi->clk)) {
-		ret = PTR_ERR(fbi->clk);
-		goto failed;
-	}
+	if (IS_ERR(fbi->clk))
+		return PTR_ERR(fbi->clk);
 
 	ret = devm_request_irq(&pdev->dev, irq, sa1100fb_handle_irq, 0,
 			       "LCD", fbi);
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq failed: %d\n", ret);
-		goto failed;
+		return ret;
 	}
 
 	if (machine_is_shannon()) {
 		ret = devm_gpio_request_one(&pdev->dev, SHANNON_GPIO_DISP_EN,
 			GPIOF_OUT_INIT_LOW, "display enable");
 		if (ret)
-			goto failed;
+			return ret;
 	}
 
 	/* Initialize video memory */
 	ret = sa1100fb_map_video_memory(fbi);
 	if (ret)
-		goto failed;
+		return ret;
 
 	/*
 	 * This makes sure that our colour bitfield
