@@ -538,9 +538,8 @@ static int detect_mst_link_for_all_connectors(struct drm_device *dev)
 static int dm_late_init(void *handle)
 {
 	struct drm_device *dev = ((struct amdgpu_device *)handle)->ddev;
-	int r = detect_mst_link_for_all_connectors(dev);
 
-	return r;
+	return detect_mst_link_for_all_connectors(dev);
 }
 
 static void s3_handle_mst(struct drm_device *dev, bool suspend)
