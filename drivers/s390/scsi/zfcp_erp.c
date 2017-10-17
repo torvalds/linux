@@ -56,8 +56,6 @@ enum zfcp_erp_act_result {
 	ZFCP_ERP_NOMEM     = 5,
 };
 
-static void zfcp_erp_memwait_handler(struct timer_list *t);
-
 static void zfcp_erp_adapter_block(struct zfcp_adapter *adapter, int mask)
 {
 	zfcp_erp_clear_adapter_status(adapter,
@@ -239,7 +237,6 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(int need, u32 act_status,
 	erp_action->fsf_req_id = 0;
 	erp_action->action = need;
 	erp_action->status = act_status;
-	timer_setup(&erp_action->timer, zfcp_erp_memwait_handler, 0);
 
 	return erp_action;
 }
@@ -571,6 +568,7 @@ void zfcp_erp_timeout_handler(struct timer_list *t)
 {
 	struct zfcp_fsf_req *fsf_req = from_timer(fsf_req, t, timer);
 	struct zfcp_erp_action *act = fsf_req->erp_action;
+
 	zfcp_erp_notify(act, ZFCP_STATUS_ERP_TIMEDOUT);
 }
 
@@ -583,6 +581,7 @@ static void zfcp_erp_memwait_handler(struct timer_list *t)
 
 static void zfcp_erp_strategy_memwait(struct zfcp_erp_action *erp_action)
 {
+	timer_setup(&erp_action->timer, zfcp_erp_memwait_handler, 0);
 	erp_action->timer.expires = jiffies + HZ;
 	add_timer(&erp_action->timer);
 }
