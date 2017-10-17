@@ -966,7 +966,7 @@ static inline void ena_rx_checksum(struct ena_ring *rx_ring,
 		u64_stats_update_begin(&rx_ring->syncp);
 		rx_ring->rx_stats.bad_csum++;
 		u64_stats_update_end(&rx_ring->syncp);
-		netif_err(rx_ring->adapter, rx_err, rx_ring->netdev,
+		netif_dbg(rx_ring->adapter, rx_err, rx_ring->netdev,
 			  "RX IPv4 header checksum error\n");
 		return;
 	}
@@ -979,7 +979,7 @@ static inline void ena_rx_checksum(struct ena_ring *rx_ring,
 			u64_stats_update_begin(&rx_ring->syncp);
 			rx_ring->rx_stats.bad_csum++;
 			u64_stats_update_end(&rx_ring->syncp);
-			netif_err(rx_ring->adapter, rx_err, rx_ring->netdev,
+			netif_dbg(rx_ring->adapter, rx_err, rx_ring->netdev,
 				  "RX L4 checksum error\n");
 			skb->ip_summed = CHECKSUM_NONE;
 			return;
