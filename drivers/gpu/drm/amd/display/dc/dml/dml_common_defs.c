@@ -39,4 +39,23 @@ double dml_round(double a)
 		return floor;
 }
 
+unsigned int dml_round_to_multiple(
+	unsigned int num,
+	unsigned int multiple,
+	bool up)
+{
+	unsigned int remainder;
 
+	if (multiple == 0)
+		return num;
+
+	remainder = num % multiple;
+
+	if (remainder == 0)
+		return num;
+
+	if (up)
+		return (num + multiple - remainder);
+	else
+		return (num - remainder);
+}

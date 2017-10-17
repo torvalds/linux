@@ -33,5 +33,7 @@
 #define DTRACE(str, ...) dm_logger_write(mode_lib->logger, LOG_DML, str, ##__VA_ARGS__);
 
 double dml_round(double a);
+unsigned int dml_round_to_multiple(
+			unsigned int num, unsigned int multiple, bool up);
 
 #endif /* __DC_COMMON_DEFS_H__ */

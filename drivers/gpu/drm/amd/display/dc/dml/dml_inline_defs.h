@@ -58,23 +58,4 @@ static inline double dml_log(double x, double base)
 	return (double) dcn_bw_log(x, base);
 }
 
-static inline unsigned int dml_round_to_multiple(unsigned int num,
-						 unsigned int multiple,
-						 bool up)
-{
-	unsigned int remainder;
-
-	if (multiple == 0)
-		return num;
-
-	remainder = num % multiple;
-
-	if (remainder == 0)
-		return num;
-
-	if (up)
-		return (num + multiple - remainder);
-	else
-		return (num - remainder);
-}
 #endif
