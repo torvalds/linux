@@ -389,9 +389,13 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-ts4900.dtb \
 	imx6dl-tx6dl-comtft.dtb \
 	imx6dl-tx6s-8034.dtb \
+	imx6dl-tx6s-8034-mb7.dtb \
 	imx6dl-tx6s-8035.dtb \
+	imx6dl-tx6s-8035-mb7.dtb \
 	imx6dl-tx6u-801x.dtb \
+	imx6dl-tx6u-80xx-mb7.dtb \
 	imx6dl-tx6u-8033.dtb \
+	imx6dl-tx6u-8033-mb7.dtb \
 	imx6dl-tx6u-811x.dtb \
 	imx6dl-tx6u-81xx-mb7.dtb \
 	imx6dl-udoo.dtb \
@@ -450,6 +454,8 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-tx6q-1020.dtb \
 	imx6q-tx6q-1020-comtft.dtb \
 	imx6q-tx6q-1036.dtb \
+	imx6q-tx6q-1036-mb7.dtb \
+	imx6q-tx6q-10x0-mb7.dtb \
 	imx6q-tx6q-1110.dtb \
 	imx6q-tx6q-11x0-mb7.dtb \
 	imx6q-udoo.dtb \
@@ -463,7 +469,9 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6qp-sabreauto.dtb \
 	imx6qp-sabresd.dtb \
 	imx6qp-tx6qp-8037.dtb \
+	imx6qp-tx6qp-8037-mb7.dtb \
 	imx6qp-tx6qp-8137.dtb \
+	imx6qp-tx6qp-8137-mb7.dtb \
 	imx6qp-wandboard-revd1.dtb \
 	imx6qp-zii-rdu2.dtb
 dtb-$(CONFIG_SOC_IMX6SL) += \
