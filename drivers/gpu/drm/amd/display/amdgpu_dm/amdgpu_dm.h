@@ -220,6 +220,7 @@ struct dm_connector_state {
 	uint8_t underscan_hborder;
 	bool underscan_enable;
 	struct mod_freesync_user_enable user_enable;
+	bool freesync_capable;
 };
 
 #define to_dm_connector_state(x)\

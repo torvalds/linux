@@ -5118,16 +5118,23 @@ void amdgpu_dm_add_sink_to_freesync_module(struct drm_connector *connector,
 					   struct edid *edid)
 {
 	int i;
-	uint64_t val_capable;
 	bool edid_check_required;
 	struct detailed_timing *timing;
 	struct detailed_non_pixel *data;
 	struct detailed_data_monitor_range *range;
 	struct amdgpu_dm_connector *amdgpu_dm_connector =
 			to_amdgpu_dm_connector(connector);
+	struct dm_connector_state *dm_con_state;
 
 	struct drm_device *dev = connector->dev;
 	struct amdgpu_device *adev = dev->dev_private;
+
+	if (!connector->state) {
+		DRM_ERROR("%s - Connector has no state", __func__);
+		return;
+	}
+
+	dm_con_state = to_dm_connector_state(connector->state);
 
 	edid_check_required = false;
 	if (!amdgpu_dm_connector->dc_sink) {
@@ -5147,7 +5154,7 @@ void amdgpu_dm_add_sink_to_freesync_module(struct drm_connector *connector,
 						amdgpu_dm_connector);
 		}
 	}
-	val_capable = 0;
+	dm_con_state->freesync_capable = false;
 	if (edid_check_required == true && (edid->version > 1 ||
 	   (edid->version == 1 && edid->revision > 1))) {
 		for (i = 0; i < 4; i++) {
@@ -5183,7 +5190,7 @@ void amdgpu_dm_add_sink_to_freesync_module(struct drm_connector *connector,
 					amdgpu_dm_connector->min_vfreq * 1000000;
 			amdgpu_dm_connector->caps.max_refresh_in_micro_hz =
 					amdgpu_dm_connector->max_vfreq * 1000000;
-				val_capable = 1;
+			dm_con_state->freesync_capable = true;
 		}
 	}
 
