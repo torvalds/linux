@@ -880,14 +880,10 @@ static void ltpc_poll(unsigned long l)
 		}
 		ltpc_poll_counter--;
 	}
-  
-	if (!dev)
-		return;  /* we've been downed */
 
 	/* poll 20 times per second */
 	idle(dev);
 	ltpc_timer.expires = jiffies + HZ/20;
-	
 	add_timer(&ltpc_timer);
 }
 
@@ -1251,8 +1247,6 @@ static void __exit ltpc_cleanup(void)
 
 	if(debug & DEBUG_VERBOSE) printk("unregister_netdev\n");
 	unregister_netdev(dev_ltpc);
-
-	ltpc_timer.data = 0;  /* signal the poll routine that we're done */
 
 	del_timer_sync(&ltpc_timer);
 
