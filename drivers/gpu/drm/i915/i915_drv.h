@@ -785,7 +785,6 @@ struct intel_csr {
 	func(has_logical_ring_contexts); \
 	func(has_logical_ring_preemption); \
 	func(has_overlay); \
-	func(has_pipe_cxsr); \
 	func(has_pooled_eu); \
 	func(has_psr); \
 	func(has_rc6); \
@@ -3177,7 +3176,6 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define I915_HAS_HOTPLUG(dev_priv)	((dev_priv)->info.has_hotplug)
 
 #define HAS_FW_BLC(dev_priv) 	(INTEL_GEN(dev_priv) > 2)
-#define HAS_PIPE_CXSR(dev_priv) ((dev_priv)->info.has_pipe_cxsr)
 #define HAS_FBC(dev_priv)	((dev_priv)->info.has_fbc)
 #define HAS_CUR_FBC(dev_priv)	(!HAS_GMCH_DISPLAY(dev_priv) && INTEL_INFO(dev_priv)->gen >= 7)
 
