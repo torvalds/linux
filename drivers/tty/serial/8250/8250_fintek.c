@@ -118,6 +118,9 @@ static int fintek_8250_enter_key(u16 base_port, u8 key)
 	if (!request_muxed_region(base_port, 2, "8250_fintek"))
 		return -EBUSY;
 
+	/* Force to deactive all SuperIO in this base_port */
+	outb(EXIT_KEY, base_port + ADDR_PORT);
+
 	outb(key, base_port + ADDR_PORT);
 	outb(key, base_port + ADDR_PORT);
 	return 0;
