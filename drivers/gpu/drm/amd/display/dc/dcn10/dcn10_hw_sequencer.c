@@ -2436,7 +2436,8 @@ static void program_all_pipe_in_tree(
 		/* TODO: this is a hack w/a for switching from mpo to pipe split */
 		dc_stream_set_cursor_position(pipe_ctx->stream, &position);
 
-		dc_stream_set_cursor_attributes(pipe_ctx->stream,
+		if (pipe_ctx->stream->cursor_attributes.address.quad_part != 0)
+			dc_stream_set_cursor_attributes(pipe_ctx->stream,
 				&pipe_ctx->stream->cursor_attributes);
 
 		if (cur_pipe_ctx->plane_state != pipe_ctx->plane_state) {
