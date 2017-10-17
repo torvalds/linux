@@ -2191,9 +2191,13 @@ query_info(const unsigned int xid, struct cifs_tcon *tcon,
 	req->PersistentFileId = persistent_fid;
 	req->VolatileFileId = volatile_fid;
 	req->AdditionalInformation = cpu_to_le32(additional_info);
-	/* 4 for rfc1002 length field and 1 for Buffer */
-	req->InputBufferOffset =
-		cpu_to_le16(sizeof(struct smb2_query_info_req) - 1 - 4);
+
+	/*
+	 * We do not use the input buffer (do not send extra byte)
+	 */
+	req->InputBufferOffset = 0;
+	inc_rfc1001_len(req, -1);
+
 	req->OutputBufferLength = cpu_to_le32(output_len);
 
 	iov[0].iov_base = (char *)req;
