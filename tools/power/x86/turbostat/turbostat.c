@@ -50,6 +50,7 @@ int *fd_percpu;
 struct timespec interval_ts = {5, 0};
 unsigned int debug;
 unsigned int quiet;
+unsigned int shown;
 unsigned int sums_need_wide_columns;
 unsigned int rapl_joules;
 unsigned int summary_only;
@@ -346,6 +347,8 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
  * Thus, strings that are proper sub-sets must follow their more specific peers.
  */
 struct msr_counter bic[] = {
+	{ 0x0, "usec" },
+	{ 0x0, "Time_Of_Day_Seconds" },
 	{ 0x0, "Package" },
 	{ 0x0, "Avg_MHz" },
 	{ 0x0, "Bzy_MHz" },
@@ -394,56 +397,62 @@ struct msr_counter bic[] = {
 
 
 #define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
-#define	BIC_Package	(1ULL << 0)
-#define	BIC_Avg_MHz	(1ULL << 1)
-#define	BIC_Bzy_MHz	(1ULL << 2)
-#define	BIC_TSC_MHz	(1ULL << 3)
-#define	BIC_IRQ		(1ULL << 4)
-#define	BIC_SMI		(1ULL << 5)
-#define	BIC_Busy	(1ULL << 6)
-#define	BIC_CPU_c1	(1ULL << 7)
-#define	BIC_CPU_c3	(1ULL << 8)
-#define	BIC_CPU_c6	(1ULL << 9)
-#define	BIC_CPU_c7	(1ULL << 10)
-#define	BIC_ThreadC	(1ULL << 11)
-#define	BIC_CoreTmp	(1ULL << 12)
-#define	BIC_CoreCnt	(1ULL << 13)
-#define	BIC_PkgTmp	(1ULL << 14)
-#define	BIC_GFX_rc6	(1ULL << 15)
-#define	BIC_GFXMHz	(1ULL << 16)
-#define	BIC_Pkgpc2	(1ULL << 17)
-#define	BIC_Pkgpc3	(1ULL << 18)
-#define	BIC_Pkgpc6	(1ULL << 19)
-#define	BIC_Pkgpc7	(1ULL << 20)
-#define	BIC_Pkgpc8	(1ULL << 21)
-#define	BIC_Pkgpc9	(1ULL << 22)
-#define	BIC_Pkgpc10	(1ULL << 23)
-#define	BIC_PkgWatt	(1ULL << 24)
-#define	BIC_CorWatt	(1ULL << 25)
-#define	BIC_GFXWatt	(1ULL << 26)
-#define	BIC_PkgCnt	(1ULL << 27)
-#define	BIC_RAMWatt	(1ULL << 28)
-#define	BIC_PKG__	(1ULL << 29)
-#define	BIC_RAM__	(1ULL << 30)
-#define	BIC_Pkg_J	(1ULL << 31)
-#define	BIC_Cor_J	(1ULL << 32)
-#define	BIC_GFX_J	(1ULL << 33)
-#define	BIC_RAM_J	(1ULL << 34)
-#define	BIC_Core	(1ULL << 35)
-#define	BIC_CPU		(1ULL << 36)
-#define	BIC_Mod_c6	(1ULL << 37)
-#define	BIC_sysfs	(1ULL << 38)
-#define	BIC_Totl_c0	(1ULL << 39)
-#define	BIC_Any_c0	(1ULL << 40)
-#define	BIC_GFX_c0	(1ULL << 41)
-#define	BIC_CPUGFX	(1ULL << 42)
+#define	BIC_USEC	(1ULL << 0)
+#define	BIC_TOD		(1ULL << 1)
+#define	BIC_Package	(1ULL << 2)
+#define	BIC_Avg_MHz	(1ULL << 3)
+#define	BIC_Bzy_MHz	(1ULL << 4)
+#define	BIC_TSC_MHz	(1ULL << 5)
+#define	BIC_IRQ		(1ULL << 6)
+#define	BIC_SMI		(1ULL << 7)
+#define	BIC_Busy	(1ULL << 8)
+#define	BIC_CPU_c1	(1ULL << 9)
+#define	BIC_CPU_c3	(1ULL << 10)
+#define	BIC_CPU_c6	(1ULL << 11)
+#define	BIC_CPU_c7	(1ULL << 12)
+#define	BIC_ThreadC	(1ULL << 13)
+#define	BIC_CoreTmp	(1ULL << 14)
+#define	BIC_CoreCnt	(1ULL << 15)
+#define	BIC_PkgTmp	(1ULL << 16)
+#define	BIC_GFX_rc6	(1ULL << 17)
+#define	BIC_GFXMHz	(1ULL << 18)
+#define	BIC_Pkgpc2	(1ULL << 19)
+#define	BIC_Pkgpc3	(1ULL << 20)
+#define	BIC_Pkgpc6	(1ULL << 21)
+#define	BIC_Pkgpc7	(1ULL << 22)
+#define	BIC_Pkgpc8	(1ULL << 23)
+#define	BIC_Pkgpc9	(1ULL << 24)
+#define	BIC_Pkgpc10	(1ULL << 25)
+#define	BIC_PkgWatt	(1ULL << 26)
+#define	BIC_CorWatt	(1ULL << 27)
+#define	BIC_GFXWatt	(1ULL << 28)
+#define	BIC_PkgCnt	(1ULL << 29)
+#define	BIC_RAMWatt	(1ULL << 30)
+#define	BIC_PKG__	(1ULL << 31)
+#define	BIC_RAM__	(1ULL << 32)
+#define	BIC_Pkg_J	(1ULL << 33)
+#define	BIC_Cor_J	(1ULL << 34)
+#define	BIC_GFX_J	(1ULL << 35)
+#define	BIC_RAM_J	(1ULL << 36)
+#define	BIC_Core	(1ULL << 37)
+#define	BIC_CPU		(1ULL << 38)
+#define	BIC_Mod_c6	(1ULL << 39)
+#define	BIC_sysfs	(1ULL << 40)
+#define	BIC_Totl_c0	(1ULL << 41)
+#define	BIC_Any_c0	(1ULL << 42)
+#define	BIC_GFX_c0	(1ULL << 43)
+#define	BIC_CPUGFX	(1ULL << 44)
 
-unsigned long long bic_enabled = 0xFFFFFFFFFFFFFFFFULL;
-unsigned long long bic_present = BIC_sysfs;
+#define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD)
+
+unsigned long long bic_enabled = (0xFFFFFFFFFFFFFFFFULL & ~BIC_DISABLED_BY_DEFAULT);
+unsigned long long bic_present = BIC_USEC | BIC_TOD | BIC_sysfs;
 
 #define DO_BIC(COUNTER_NAME) (bic_enabled & bic_present & COUNTER_NAME)
+#define ENABLE_BIC(COUNTER_NAME) (bic_enabled |= COUNTER_NAME)
 #define BIC_PRESENT(COUNTER_BIT) (bic_present |= COUNTER_BIT)
 #define BIC_NOT_PRESENT(COUNTER_BIT) (bic_present &= ~COUNTER_BIT)
+
 
 #define MAX_DEFERRED 16
 char *deferred_skip_names[MAX_DEFERRED];
@@ -496,6 +505,9 @@ unsigned long long bic_lookup(char *name_list, enum show_hide_mode mode)
 		if (comma)
 			*comma = '\0';
 
+		if (!strcmp(name_list, "all"))
+			return ~0;
+
 		for (i = 0; i < MAX_BIC; ++i) {
 			if (!strcmp(name_list, bic[i].name)) {
 				retval |= (1ULL << i);
@@ -532,8 +544,10 @@ void print_header(char *delim)
 	struct msr_counter *mp;
 	int printed = 0;
 
-	if (debug)
-		outp += sprintf(outp, "usec %s", delim);
+	if (DO_BIC(BIC_USEC))
+		outp += sprintf(outp, "%susec", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_TOD))
+		outp += sprintf(outp, "%sTime_Of_Day_Seconds", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Package))
 		outp += sprintf(outp, "%sPackage", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Core))
@@ -786,13 +800,17 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		(cpu_subset && !CPU_ISSET_S(t->cpu_id, cpu_subset_size, cpu_subset)))
 		return 0;
 
-	if (debug) {
+	if (DO_BIC(BIC_USEC)) {
 		/* on each row, print how many usec each timestamp took to gather */
 		struct timeval tv;
 
 		timersub(&t->tv_end, &t->tv_begin, &tv);
 		outp += sprintf(outp, "%5ld\t", tv.tv_sec * 1000000 + tv.tv_usec);
 	}
+
+	/* Time_Of_Day_Seconds: on each row, print sec.usec last timestamp taken */
+	if (DO_BIC(BIC_TOD))
+		outp += sprintf(outp, "%10ld.%06ld\t", t->tv_end.tv_sec, t->tv_end.tv_usec);
 
 	interval_float = tv_delta.tv_sec + tv_delta.tv_usec/1000000.0;
 
@@ -1140,6 +1158,15 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 	int i;
 	struct msr_counter *mp;
 
+	/*
+	 * the timestamps from start of measurement interval are in "old"
+	 * the timestamp from end of measurement interval are in "new"
+	 * over-write old w/ new so we can print end of interval values
+	 */
+
+	old->tv_begin = new->tv_begin;
+	old->tv_end = new->tv_end;
+
 	old->tsc = new->tsc - old->tsc;
 
 	/* check for TSC < 1 Mcycles over interval */
@@ -1228,6 +1255,11 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	int i;
 	struct msr_counter  *mp;
 
+	t->tv_begin.tv_sec = 0;
+	t->tv_begin.tv_usec = 0;
+	t->tv_end.tv_sec = 0;
+	t->tv_end.tv_usec = 0;
+
 	t->tsc = 0;
 	t->aperf = 0;
 	t->mperf = 0;
@@ -1285,6 +1317,13 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 {
 	int i;
 	struct msr_counter *mp;
+
+	/* remember first tv_begin */
+	if (average.threads.tv_begin.tv_sec == 0)
+		average.threads.tv_begin = t->tv_begin;
+
+	/* remember last tv_end */
+	average.threads.tv_end = t->tv_end;
 
 	average.threads.tsc += t->tsc;
 	average.threads.aperf += t->aperf;
@@ -4960,34 +4999,6 @@ error:
 	exit(-1);
 }
 
-int shown;
-/*
- * parse_show_hide() - process cmdline to set default counter action
- */
-void parse_show_hide(char *optarg, enum show_hide_mode new_mode)
-{
-	/*
-	 * --show: show only those specified
-	 *  The 1st invocation will clear and replace the enabled mask
-	 *  subsequent invocations can add to it.
-	 */
-	if (new_mode == SHOW_LIST) {
-		if (shown == 0)
-			bic_enabled = bic_lookup(optarg, new_mode);
-		else
-			bic_enabled |= bic_lookup(optarg, new_mode);
-		shown = 1;
-
-		return;
-	}
-
-	/*
-	 * --hide: do not show those specified
-	 *  multiple invocations simply clear more bits in enabled mask
-	 */
-	bic_enabled &= ~bic_lookup(optarg, new_mode);
-
-}
 
 void cmdline(int argc, char **argv)
 {
@@ -4998,6 +5009,7 @@ void cmdline(int argc, char **argv)
 		{"cpu",		required_argument,	0, 'c'},
 		{"Dump",	no_argument,		0, 'D'},
 		{"debug",	no_argument,		0, 'd'},	/* internal, not documented */
+		{"enable",	required_argument,	0, 'e'},
 		{"interval",	required_argument,	0, 'i'},
 		{"help",	no_argument,		0, 'h'},
 		{"hide",	required_argument,	0, 'H'},	// meh, -h taken by --help
@@ -5014,7 +5026,7 @@ void cmdline(int argc, char **argv)
 
 	progname = argv[0];
 
-	while ((opt = getopt_long_only(argc, argv, "+C:c:Ddhi:JM:m:o:qST:v",
+	while ((opt = getopt_long_only(argc, argv, "+C:c:Dde:hi:Jo:qST:v",
 				long_options, &option_index)) != -1) {
 		switch (opt) {
 		case 'a':
@@ -5026,11 +5038,20 @@ void cmdline(int argc, char **argv)
 		case 'D':
 			dump_only++;
 			break;
+		case 'e':
+			/* --enable specified counter */
+			bic_enabled |= bic_lookup(optarg, SHOW_LIST);
+			break;
 		case 'd':
 			debug++;
+			ENABLE_BIC(BIC_DISABLED_BY_DEFAULT);
 			break;
 		case 'H':
-			parse_show_hide(optarg, HIDE_LIST);
+			/*
+			 * --hide: do not show those specified
+			 *  multiple invocations simply clear more bits in enabled mask
+			 */
+			bic_enabled &= ~bic_lookup(optarg, HIDE_LIST);
 			break;
 		case 'h':
 		default:
@@ -5054,6 +5075,7 @@ void cmdline(int argc, char **argv)
 			rapl_joules++;
 			break;
 		case 'l':
+			ENABLE_BIC(BIC_DISABLED_BY_DEFAULT);
 			list_header_only++;
 			quiet++;
 			break;
@@ -5064,7 +5086,16 @@ void cmdline(int argc, char **argv)
 			quiet = 1;
 			break;
 		case 's':
-			parse_show_hide(optarg, SHOW_LIST);
+			/*
+			 * --show: show only those specified
+			 *  The 1st invocation will clear and replace the enabled mask
+			 *  subsequent invocations can add to it.
+			 */
+			if (shown == 0)
+				bic_enabled = bic_lookup(optarg, SHOW_LIST);
+			else
+				bic_enabled |= bic_lookup(optarg, SHOW_LIST);
+			shown = 1;
 			break;
 		case 'S':
 			summary_only++;
