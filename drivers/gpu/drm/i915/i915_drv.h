@@ -1108,6 +1108,14 @@ struct intel_fbc {
 			int src_w;
 			int src_h;
 			bool visible;
+			/*
+			 * Display surface base address adjustement for
+			 * pageflips. Note that on gen4+ this only adjusts up
+			 * to a tile, offsets within a tile are handled in
+			 * the hw itself (with the TILEOFF register).
+			 */
+			int adjusted_x;
+			int adjusted_y;
 		} plane;
 
 		struct {

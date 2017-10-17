@@ -3306,9 +3306,6 @@ static void i9xx_update_primary_plane(struct intel_plane *primary,
 	else
 		crtc->dspaddr_offset = linear_offset;
 
-	crtc->adjusted_x = x;
-	crtc->adjusted_y = y;
-
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	if (INTEL_GEN(dev_priv) < 4) {
@@ -3576,9 +3573,6 @@ static void skylake_update_primary_plane(struct intel_plane *plane,
 	dst_h--;
 
 	crtc->dspaddr_offset = surf_addr;
-
-	crtc->adjusted_x = src_x;
-	crtc->adjusted_y = src_y;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
