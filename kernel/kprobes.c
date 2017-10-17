@@ -387,10 +387,7 @@ void opt_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	list_for_each_entry_rcu(kp, &p->list, list) {
 		if (kp->pre_handler && likely(!kprobe_disabled(kp))) {
 			set_kprobe_instance(kp);
-			if (kp->pre_handler(kp, regs)) {
-				if (WARN_ON_ONCE(1))
-					pr_err("Optprobe ignores instruction pointer changing.(%pF)\n", p->addr);
-			}
+			kp->pre_handler(kp, regs);
 		}
 		reset_kprobe_instance();
 	}
