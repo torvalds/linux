@@ -628,10 +628,7 @@ static int dm_resume(void *handle)
 	struct amdgpu_display_manager *dm = &adev->dm;
 
 	/* power on hardware */
-	dc_set_power_state(
-		dm->dc,
-		DC_ACPI_CM_POWER_STATE_D0
-		);
+	dc_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D0);
 
 	return 0;
 }
