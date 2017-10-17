@@ -2200,7 +2200,7 @@ static int gigaset_initcshw(struct cardstate *cs)
 {
 	struct bas_cardstate *ucs;
 
-	cs->hw.bas = ucs = kmalloc(sizeof *ucs, GFP_KERNEL);
+	cs->hw.bas = ucs = kzalloc(sizeof(*ucs), GFP_KERNEL);
 	if (!ucs) {
 		pr_err("out of memory\n");
 		return -ENOMEM;
@@ -2212,15 +2212,7 @@ static int gigaset_initcshw(struct cardstate *cs)
 		return -ENOMEM;
 	}
 
-	ucs->urb_cmd_in = NULL;
-	ucs->urb_cmd_out = NULL;
-	ucs->rcvbuf = NULL;
-	ucs->rcvbuf_size = 0;
-
 	spin_lock_init(&ucs->lock);
-	ucs->pending = 0;
-
-	ucs->basstate = 0;
 	setup_timer(&ucs->timer_ctrl, req_timeout, (unsigned long) cs);
 	setup_timer(&ucs->timer_atrdy, atrdy_timeout, (unsigned long) cs);
 	setup_timer(&ucs->timer_cmd_in, cmd_in_timeout, (unsigned long) cs);
