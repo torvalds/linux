@@ -308,6 +308,10 @@ struct mlx5_ib_alloc_mw {
 	__u16	reserved2;
 };
 
+enum mlx5_ib_create_wq_mask {
+	MLX5_IB_CREATE_WQ_STRIDING_RQ	= (1 << 0),
+};
+
 struct mlx5_ib_create_wq {
 	__u64   buf_addr;
 	__u64   db_addr;
@@ -316,7 +320,9 @@ struct mlx5_ib_create_wq {
 	__u32   user_index;
 	__u32   flags;
 	__u32   comp_mask;
-	__u32   reserved;
+	__u32	single_stride_log_num_of_bytes;
+	__u32	single_wqe_log_num_of_strides;
+	__u32	two_byte_shift_en;
 };
 
 struct mlx5_ib_create_ah_resp {
