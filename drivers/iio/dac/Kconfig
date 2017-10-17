@@ -310,6 +310,16 @@ config STM32_DAC
 config STM32_DAC_CORE
 	tristate
 
+config TI_DAC082S085
+	tristate "Texas Instruments 8/10/12-bit 2/4-channel DAC driver"
+	depends on SPI_MASTER
+	help
+	  Driver for the Texas Instruments (formerly National Semiconductor)
+	  DAC082S085, DAC102S085, DAC122S085, DAC084S085, DAC104S085 and
+	  DAC124S085.
+
+	  If compiled as a module, it will be called ti-dac082s085.
+
 config VF610_DAC
 	tristate "Vybrid vf610 DAC driver"
 	depends on OF

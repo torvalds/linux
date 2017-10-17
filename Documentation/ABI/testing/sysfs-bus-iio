@@ -522,6 +522,7 @@ Description:
 		Specifies the output powerdown mode.
 		DAC output stage is disconnected from the amplifier and
 		1kohm_to_gnd: connected to ground via an 1kOhm resistor,
+		2.5kohm_to_gnd: connected to ground via a 2.5kOhm resistor,
 		6kohm_to_gnd: connected to ground via a 6kOhm resistor,
 		20kohm_to_gnd: connected to ground via a 20kOhm resistor,
 		90kohm_to_gnd: connected to ground via a 90kOhm resistor,
