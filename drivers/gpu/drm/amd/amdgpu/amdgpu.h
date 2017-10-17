@@ -1643,7 +1643,8 @@ struct amdgpu_device {
 
 	/* record last mm index being written through WREG32*/
 	unsigned long last_mm_index;
-	bool                            in_sriov_reset;
+	bool                            in_gpu_reset;
+	struct mutex  lock_reset;
 };
 
 static inline struct amdgpu_device *amdgpu_ttm_adev(struct ttm_bo_device *bdev)

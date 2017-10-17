@@ -370,7 +370,7 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 		return 0;
 	}
 
-	if (!amdgpu_sriov_vf(adev) || !adev->in_sriov_reset) {
+	if (!amdgpu_sriov_vf(adev) || !adev->in_gpu_reset) {
 		err = amdgpu_bo_create(adev, adev->firmware.fw_size, PAGE_SIZE, true,
 					amdgpu_sriov_vf(adev) ? AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
 					AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,

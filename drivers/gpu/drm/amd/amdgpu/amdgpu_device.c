@@ -2163,6 +2163,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	mutex_init(&adev->mn_lock);
 	mutex_init(&adev->virt.vf_errors.lock);
 	hash_init(adev->mn_hash);
+	mutex_init(&adev->lock_reset);
 
 	amdgpu_check_arguments(adev);
 
@@ -2990,9 +2991,9 @@ int amdgpu_gpu_recover(struct amdgpu_device *adev, struct amdgpu_job *job)
 
 	dev_info(adev->dev, "GPU reset begin!\n");
 
-	mutex_lock(&adev->virt.lock_reset);
+	mutex_lock(&adev->lock_reset);
 	atomic_inc(&adev->gpu_reset_counter);
-	adev->in_sriov_reset = 1;
+	adev->in_gpu_reset = 1;
 
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&adev->mman.bdev);
@@ -3102,8 +3103,8 @@ int amdgpu_gpu_recover(struct amdgpu_device *adev, struct amdgpu_job *job)
 	}
 
 	amdgpu_vf_error_trans_all(adev);
-	adev->in_sriov_reset = 0;
-	mutex_unlock(&adev->virt.lock_reset);
+	adev->in_gpu_reset = 0;
+	mutex_unlock(&adev->lock_reset);
 	return r;
 }
 

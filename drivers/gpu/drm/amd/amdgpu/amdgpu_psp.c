@@ -264,7 +264,7 @@ static int psp_hw_start(struct psp_context *psp)
 	struct amdgpu_device *adev = psp->adev;
 	int ret;
 
-	if (!amdgpu_sriov_vf(adev) || !adev->in_sriov_reset) {
+	if (!amdgpu_sriov_vf(adev) || !adev->in_gpu_reset) {
 		ret = psp_bootloader_load_sysdrv(psp);
 		if (ret)
 			return ret;
