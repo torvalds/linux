@@ -11,6 +11,7 @@
  */
 
 #include <linux/component.h>
+#include <linux/kfifo.h>
 #include <linux/of_graph.h>
 #include <linux/of_reserved_mem.h>
 
@@ -222,29 +223,15 @@ static int compare_of(struct device *dev, void *data)
  * matching system handles this for us.
  */
 struct endpoint_list {
-	struct device_node *node;
-	struct list_head list;
+	DECLARE_KFIFO(fifo, struct device_node *, 16);
 };
 
-static bool node_is_in_list(struct list_head *endpoints,
-			    struct device_node *node)
-{
-	struct endpoint_list *endpoint;
-
-	list_for_each_entry(endpoint, endpoints, list)
-		if (endpoint->node == node)
-			return true;
-
-	return false;
-}
-
 static int sun4i_drv_add_endpoints(struct device *dev,
-				   struct list_head *endpoints,
+				   struct endpoint_list *list,
 				   struct component_match **match,
 				   struct device_node *node)
 {
 	struct device_node *port, *ep, *remote;
-	struct endpoint_list *endpoint;
 	int count = 0;
 
 	/*
@@ -304,19 +291,7 @@ static int sun4i_drv_add_endpoints(struct device *dev,
 			}
 		}
 
-		/* skip downstream node if it is already in the queue */
-		if (node_is_in_list(endpoints, remote))
-			continue;
-
-		/* Add downstream nodes to the queue */
-		endpoint = kzalloc(sizeof(*endpoint), GFP_KERNEL);
-		if (!endpoint) {
-			of_node_put(remote);
-			return -ENOMEM;
-		}
-
-		endpoint->node = remote;
-		list_add_tail(&endpoint->list, endpoints);
+		kfifo_put(&list->fifo, remote);
 	}
 
 	return count;
@@ -325,10 +300,11 @@ static int sun4i_drv_add_endpoints(struct device *dev,
 static int sun4i_drv_probe(struct platform_device *pdev)
 {
 	struct component_match *match = NULL;
-	struct device_node *np = pdev->dev.of_node;
-	struct endpoint_list *endpoint, *endpoint_temp;
+	struct device_node *np = pdev->dev.of_node, *endpoint;
+	struct endpoint_list list;
 	int i, ret, count = 0;
-	LIST_HEAD(endpoints);
+
+	INIT_KFIFO(list.fifo);
 
 	for (i = 0;; i++) {
 		struct device_node *pipeline = of_parse_phandle(np,
@@ -337,31 +313,19 @@ static int sun4i_drv_probe(struct platform_device *pdev)
 		if (!pipeline)
 			break;
 
-		endpoint = kzalloc(sizeof(*endpoint), GFP_KERNEL);
-		if (!endpoint) {
-			ret = -ENOMEM;
-			goto err_free_endpoints;
-		}
-
-		endpoint->node = pipeline;
-		list_add_tail(&endpoint->list, &endpoints);
+		kfifo_put(&list.fifo, pipeline);
 	}
 
-	list_for_each_entry_safe(endpoint, endpoint_temp, &endpoints, list) {
+	while (kfifo_get(&list.fifo, &endpoint)) {
 		/* process this endpoint */
-		ret = sun4i_drv_add_endpoints(&pdev->dev, &endpoints, &match,
-					      endpoint->node);
+		ret = sun4i_drv_add_endpoints(&pdev->dev, &list, &match,
+					      endpoint);
 
 		/* sun4i_drv_add_endpoints can fail to allocate memory */
 		if (ret < 0)
-			goto err_free_endpoints;
+			return ret;
 
 		count += ret;
-
-		/* delete and cleanup the current entry */
-		list_del(&endpoint->list);
-		of_node_put(endpoint->node);
-		kfree(endpoint);
 	}
 
 	if (count)
@@ -370,15 +334,6 @@ static int sun4i_drv_probe(struct platform_device *pdev)
 						       match);
 	else
 		return 0;
-
-err_free_endpoints:
-	list_for_each_entry_safe(endpoint, endpoint_temp, &endpoints, list) {
-		list_del(&endpoint->list);
-		of_node_put(endpoint->node);
-		kfree(endpoint);
-	}
-
-	return ret;
 }
 
 static int sun4i_drv_remove(struct platform_device *pdev)
