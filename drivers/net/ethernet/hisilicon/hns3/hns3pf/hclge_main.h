@@ -470,6 +470,7 @@ struct hclge_dev {
 #define HCLGE_FLAG_MAIN		0x00000004
 #define HCLGE_FLAG_DCB_CAPABLE	0x00000008
 #define HCLGE_FLAG_DCB_ENABLE	0x00000010
+#define HCLGE_FLAG_MQPRIO_ENABLE	0x00000020
 	u32 flag;
 
 	u32 pkt_buf_size; /* Total pf buf size for tx/rx */

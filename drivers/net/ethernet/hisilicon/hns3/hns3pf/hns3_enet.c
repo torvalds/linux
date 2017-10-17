@@ -19,6 +19,7 @@
 #include <linux/sctp.h>
 #include <linux/vermagic.h>
 #include <net/gre.h>
+#include <net/pkt_cls.h>
 #include <net/vxlan.h>
 
 #include "hnae3.h"
@@ -1186,53 +1187,74 @@ static void hns3_nic_udp_tunnel_del(struct net_device *netdev,
 	}
 }
 
-static int hns3_setup_tc(struct net_device *netdev, u8 tc)
+static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 {
+	struct tc_mqprio_qopt_offload *mqprio_qopt = type_data;
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	struct hnae3_knic_private_info *kinfo = &h->kinfo;
+	u8 *prio_tc = mqprio_qopt->qopt.prio_tc_map;
+	u8 tc = mqprio_qopt->qopt.num_tc;
+	u16 mode = mqprio_qopt->mode;
+	u8 hw = mqprio_qopt->qopt.hw;
+	bool if_running;
 	unsigned int i;
 	int ret;
+
+	if (!((hw == TC_MQPRIO_HW_OFFLOAD_TCS &&
+	       mode == TC_MQPRIO_MODE_CHANNEL) || (!hw && tc == 0)))
+		return -EOPNOTSUPP;
 
 	if (tc > HNAE3_MAX_TC)
 		return -EINVAL;
 
-	if (kinfo->num_tc == tc)
-		return 0;
-
 	if (!netdev)
 		return -EINVAL;
 
-	if (!tc) {
-		netdev_reset_tc(netdev);
-		return 0;
+	if_running = netif_running(netdev);
+	if (if_running) {
+		hns3_nic_net_stop(netdev);
+		msleep(100);
 	}
 
-	/* Set num_tc for netdev */
-	ret = netdev_set_num_tc(netdev, tc);
+	ret = (kinfo->dcb_ops && kinfo->dcb_ops->setup_tc) ?
+		kinfo->dcb_ops->setup_tc(h, tc, prio_tc) : -EOPNOTSUPP;
 	if (ret)
-		return ret;
+		goto out;
 
-	/* Set per TC queues for the VSI */
-	for (i = 0; i < HNAE3_MAX_TC; i++) {
-		if (kinfo->tc_info[i].enable)
+	if (tc <= 1) {
+		netdev_reset_tc(netdev);
+	} else {
+		ret = netdev_set_num_tc(netdev, tc);
+		if (ret)
+			goto out;
+
+		for (i = 0; i < HNAE3_MAX_TC; i++) {
+			if (!kinfo->tc_info[i].enable)
+				continue;
+
 			netdev_set_tc_queue(netdev,
 					    kinfo->tc_info[i].tc,
 					    kinfo->tc_info[i].tqp_count,
 					    kinfo->tc_info[i].tqp_offset);
+		}
 	}
 
-	return 0;
+	ret = hns3_nic_set_real_num_queue(netdev);
+
+out:
+	if (if_running)
+		hns3_nic_net_open(netdev);
+
+	return ret;
 }
 
 static int hns3_nic_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			     void *type_data)
 {
-	struct tc_mqprio_qopt *mqprio = type_data;
-
 	if (type != TC_SETUP_MQPRIO)
 		return -EOPNOTSUPP;
 
-	return hns3_setup_tc(dev, mqprio->num_tc);
+	return hns3_setup_tc(dev, type_data);
 }
 
 static int hns3_vlan_rx_add_vid(struct net_device *netdev,

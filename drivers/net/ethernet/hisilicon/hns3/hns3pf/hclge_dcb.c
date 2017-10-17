@@ -178,7 +178,8 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 	u8 num_tc = 0;
 	int ret;
 
-	if (!(hdev->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
+	if (!(hdev->dcbx_cap & DCB_CAP_DCBX_VER_IEEE) ||
+	    hdev->flag & HCLGE_FLAG_MQPRIO_ENABLE)
 		return -EINVAL;
 
 	ret = hclge_ets_validate(hdev, ets, &num_tc, &map_changed);
@@ -228,7 +229,8 @@ static int hclge_ieee_setpfc(struct hnae3_handle *h, struct ieee_pfc *pfc)
 	struct hclge_dev *hdev = vport->back;
 	u8 i, j, pfc_map, *prio_tc;
 
-	if (!(hdev->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
+	if (!(hdev->dcbx_cap & DCB_CAP_DCBX_VER_IEEE) ||
+	    hdev->flag & HCLGE_FLAG_MQPRIO_ENABLE)
 		return -EINVAL;
 
 	prio_tc = hdev->tm_info.prio_tc;
@@ -257,6 +259,9 @@ static u8 hclge_getdcbx(struct hnae3_handle *h)
 	struct hclge_vport *vport = hclge_get_vport(h);
 	struct hclge_dev *hdev = vport->back;
 
+	if (hdev->flag & HCLGE_FLAG_MQPRIO_ENABLE)
+		return 0;
+
 	return hdev->dcbx_cap;
 }
 
@@ -276,6 +281,43 @@ static u8 hclge_setdcbx(struct hnae3_handle *h, u8 mode)
 	return 0;
 }
 
+/* Set up TC for hardware offloaded mqprio in channel mode */
+static int hclge_setup_tc(struct hnae3_handle *h, u8 tc, u8 *prio_tc)
+{
+	struct hclge_vport *vport = hclge_get_vport(h);
+	struct hclge_dev *hdev = vport->back;
+	int ret;
+
+	if (hdev->flag & HCLGE_FLAG_DCB_ENABLE)
+		return -EINVAL;
+
+	if (tc > hdev->tc_max) {
+		dev_err(&hdev->pdev->dev,
+			"setup tc failed, tc(%u) > tc_max(%u)\n",
+			tc, hdev->tc_max);
+		return -EINVAL;
+	}
+
+	hclge_tm_schd_info_update(hdev, tc);
+
+	ret = hclge_tm_prio_tc_info_update(hdev, prio_tc);
+	if (ret)
+		return ret;
+
+	ret = hclge_tm_init_hw(hdev);
+	if (ret)
+		return ret;
+
+	hdev->flag &= ~HCLGE_FLAG_DCB_ENABLE;
+
+	if (tc > 1)
+		hdev->flag |= HCLGE_FLAG_MQPRIO_ENABLE;
+	else
+		hdev->flag &= ~HCLGE_FLAG_MQPRIO_ENABLE;
+
+	return 0;
+}
+
 static const struct hnae3_dcb_ops hns3_dcb_ops = {
 	.ieee_getets	= hclge_ieee_getets,
 	.ieee_setets	= hclge_ieee_setets,
@@ -284,6 +326,7 @@ static const struct hnae3_dcb_ops hns3_dcb_ops = {
 	.getdcbx	= hclge_getdcbx,
 	.setdcbx	= hclge_setdcbx,
 	.map_update	= hclge_map_update,
+	.setup_tc	= hclge_setup_tc,
 };
 
 void hclge_dcb_ops_set(struct hclge_dev *hdev)
