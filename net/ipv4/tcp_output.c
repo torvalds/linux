@@ -2921,7 +2921,7 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb, int segs)
 void tcp_xmit_retransmit_queue(struct sock *sk)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
-	struct sk_buff *skb, *rtx_head = NULL, *hole = NULL;
+	struct sk_buff *skb, *rtx_head, *hole = NULL;
 	struct tcp_sock *tp = tcp_sk(sk);
 	u32 max_segs;
 	int mib_idx;
@@ -2929,11 +2929,8 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 	if (!tp->packets_out)
 		return;
 
-	skb = tp->retransmit_skb_hint;
-	if (!skb) {
-		rtx_head = tcp_rtx_queue_head(sk);
-		skb = rtx_head;
-	}
+	rtx_head = tcp_rtx_queue_head(sk);
+	skb = tp->retransmit_skb_hint ?: rtx_head;
 	max_segs = tcp_tso_segs(sk, tcp_current_mss(sk));
 	skb_rbtree_walk_from(skb) {
 		__u8 sacked;
