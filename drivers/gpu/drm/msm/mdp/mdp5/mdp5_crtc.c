@@ -422,6 +422,9 @@ static void mdp5_crtc_atomic_disable(struct drm_crtc *crtc,
 	if (WARN_ON(!mdp5_crtc->enabled))
 		return;
 
+	/* Disable/save vblank irq handling before power is disabled */
+	drm_crtc_vblank_off(crtc);
+
 	if (mdp5_cstate->cmd_mode)
 		mdp_irq_unregister(&mdp5_kms->base, &mdp5_crtc->pp_done);
 
@@ -445,6 +448,9 @@ static void mdp5_crtc_atomic_enable(struct drm_crtc *crtc,
 		return;
 
 	pm_runtime_get_sync(dev);
+
+	/* Restore vblank irq handling after power is enabled */
+	drm_crtc_vblank_on(crtc);
 
 	mdp5_crtc_mode_set_nofb(crtc);
 
