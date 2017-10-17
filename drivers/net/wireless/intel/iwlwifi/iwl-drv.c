@@ -1039,12 +1039,6 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			drv->fw.img[usniffer_img].paging_mem_size =
 				paging_mem_size;
 			break;
-		case IWL_UCODE_TLV_SDIO_ADMA_ADDR:
-			if (tlv_len != sizeof(u32))
-				goto invalid_tlv_len;
-			drv->fw.sdio_adma_addr =
-				le32_to_cpup((__le32 *)tlv_data);
-			break;
 		case IWL_UCODE_TLV_FW_GSCAN_CAPA:
 			/*
 			 * Don't return an error in case of a shorter tlv_len

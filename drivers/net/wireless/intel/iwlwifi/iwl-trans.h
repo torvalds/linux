@@ -398,8 +398,6 @@ struct iwl_hcmd_arr {
  * @command_groups: array of command groups, each member is an array of the
  *	commands in the group; for debugging only
  * @command_groups_size: number of command groups, to avoid illegal access
- * @sdio_adma_addr: the default address to set for the ADMA in SDIO mode until
- *	we get the ALIVE from the uCode
  * @cb_data_offs: offset inside skb->cb to store transport data at, must have
  *	space for at least two pointers
  */
@@ -418,8 +416,6 @@ struct iwl_trans_config {
 	bool sw_csum_tx;
 	const struct iwl_hcmd_arr *command_groups;
 	int command_groups_size;
-
-	u32 sdio_adma_addr;
 
 	u8 cb_data_offs;
 };
@@ -531,8 +527,6 @@ struct iwl_trans_ops {
 	void (*op_mode_leave)(struct iwl_trans *iwl_trans);
 	int (*start_fw)(struct iwl_trans *trans, const struct fw_img *fw,
 			bool run_in_rfkill);
-	int (*update_sf)(struct iwl_trans *trans,
-			 struct iwl_sf_region *st_fwrd_space);
 	void (*fw_alive)(struct iwl_trans *trans, u32 scd_addr);
 	void (*stop_device)(struct iwl_trans *trans, bool low_power);
 
@@ -826,17 +820,6 @@ static inline int iwl_trans_start_fw(struct iwl_trans *trans,
 
 	clear_bit(STATUS_FW_ERROR, &trans->status);
 	return trans->ops->start_fw(trans, fw, run_in_rfkill);
-}
-
-static inline int iwl_trans_update_sf(struct iwl_trans *trans,
-				      struct iwl_sf_region *st_fwrd_space)
-{
-	might_sleep();
-
-	if (trans->ops->update_sf)
-		return trans->ops->update_sf(trans, st_fwrd_space);
-
-	return 0;
 }
 
 static inline void _iwl_trans_stop_device(struct iwl_trans *trans,
