@@ -707,13 +707,13 @@ static int find_node(struct device_node *tree, struct device_node *np)
 }
 
 /*
- * Is @remove_ce_np a child of or the same as any
+ * Is @remove_ce_node a child of, a parent of, or the same as any
  * node in an overlay changeset more topmost than @remove_ovcs?
  *
  * Returns 1 if found, else 0
  */
-static int node_in_later_cs(struct overlay_changeset *remove_ovcs,
-		struct device_node *remove_ce_np)
+static int node_overlaps_later_cs(struct overlay_changeset *remove_ovcs,
+		struct device_node *remove_ce_node)
 {
 	struct overlay_changeset *ovcs;
 	struct of_changeset_entry *ce;
@@ -723,10 +723,16 @@ static int node_in_later_cs(struct overlay_changeset *remove_ovcs,
 			break;
 
 		list_for_each_entry(ce, &ovcs->cset.entries, node) {
-			if (find_node(ce->np, remove_ce_np)) {
-				pr_err("%s: #%d clashes #%d @%pOF\n",
+			if (find_node(ce->np, remove_ce_node)) {
+				pr_err("%s: #%d overlaps with #%d @%pOF\n",
 					__func__, remove_ovcs->id, ovcs->id,
-					remove_ce_np);
+					remove_ce_node);
+				return 1;
+			}
+			if (find_node(remove_ce_node, ce->np)) {
+				pr_err("%s: #%d overlaps with #%d @%pOF\n",
+					__func__, remove_ovcs->id, ovcs->id,
+					remove_ce_node);
 				return 1;
 			}
 		}
@@ -750,7 +756,7 @@ static int overlay_removal_is_ok(struct overlay_changeset *remove_ovcs)
 	struct of_changeset_entry *remove_ce;
 
 	list_for_each_entry(remove_ce, &remove_ovcs->cset.entries, node) {
-		if (node_in_later_cs(remove_ovcs, remove_ce->np)) {
+		if (node_overlaps_later_cs(remove_ovcs, remove_ce->np)) {
 			pr_err("overlay #%d is not topmost\n", remove_ovcs->id);
 			return 0;
 		}
