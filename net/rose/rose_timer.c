@@ -28,7 +28,7 @@
 #include <linux/interrupt.h>
 #include <net/rose.h>
 
-static void rose_heartbeat_expiry(unsigned long);
+static void rose_heartbeat_expiry(struct timer_list *t);
 static void rose_timer_expiry(struct timer_list *);
 static void rose_idletimer_expiry(struct timer_list *);
 
@@ -36,7 +36,7 @@ void rose_start_heartbeat(struct sock *sk)
 {
 	del_timer(&sk->sk_timer);
 
-	sk->sk_timer.function = &rose_heartbeat_expiry;
+	sk->sk_timer.function = (TIMER_FUNC_TYPE)rose_heartbeat_expiry;
 	sk->sk_timer.expires  = jiffies + 5 * HZ;
 
 	add_timer(&sk->sk_timer);
@@ -119,9 +119,9 @@ void rose_stop_idletimer(struct sock *sk)
 	del_timer(&rose_sk(sk)->idletimer);
 }
 
-static void rose_heartbeat_expiry(unsigned long param)
+static void rose_heartbeat_expiry(struct timer_list *t)
 {
-	struct sock *sk = (struct sock *)param;
+	struct sock *sk = from_timer(sk, t, sk_timer);
 	struct rose_sock *rose = rose_sk(sk);
 
 	bh_lock_sock(sk);
