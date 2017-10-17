@@ -1239,22 +1239,23 @@ static int sa1100fb_probe(struct platform_device *pdev)
 		goto failed;
 	}
 
-	/* Initialize video memory */
-	ret = sa1100fb_map_video_memory(fbi);
-	if (ret)
-		goto failed;
-
-	ret = request_irq(irq, sa1100fb_handle_irq, 0, "LCD", fbi);
+	ret = devm_request_irq(&pdev->dev, irq, sa1100fb_handle_irq, 0,
+			       "LCD", fbi);
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq failed: %d\n", ret);
 		goto failed;
 	}
 
+	/* Initialize video memory */
+	ret = sa1100fb_map_video_memory(fbi);
+	if (ret)
+		goto failed;
+
 	if (machine_is_shannon()) {
 		ret = gpio_request_one(SHANNON_GPIO_DISP_EN,
 			GPIOF_OUT_INIT_LOW, "display enable");
 		if (ret)
-			goto err_free_irq;
+			goto failed;
 	}
 
 	/*
@@ -1282,8 +1283,6 @@ static int sa1100fb_probe(struct platform_device *pdev)
  err_reg_fb:
 	if (machine_is_shannon())
 		gpio_free(SHANNON_GPIO_DISP_EN);
- err_free_irq:
-	free_irq(irq, fbi);
  failed:
 	return ret;
 }
