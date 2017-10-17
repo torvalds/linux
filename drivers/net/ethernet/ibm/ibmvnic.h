@@ -39,6 +39,9 @@
 #define IBMVNIC_BUFFS_PER_POOL	100
 #define IBMVNIC_MAX_TX_QUEUES	5
 
+#define IBMVNIC_TSO_BUF_SZ	65536
+#define IBMVNIC_TSO_BUFS	64
+
 struct ibmvnic_login_buffer {
 	__be32 len;
 	__be32 version;
@@ -896,6 +899,8 @@ struct ibmvnic_tx_pool {
 	wait_queue_head_t ibmvnic_tx_comp_q;
 	struct task_struct *work_thread;
 	struct ibmvnic_long_term_buff long_term_buff;
+	struct ibmvnic_long_term_buff tso_ltb;
+	int tso_index;
 };
 
 struct ibmvnic_rx_buff {

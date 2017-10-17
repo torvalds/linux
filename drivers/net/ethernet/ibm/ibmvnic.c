@@ -553,6 +553,10 @@ static int reset_tx_pools(struct ibmvnic_adapter *adapter)
 		if (rc)
 			return rc;
 
+		rc = reset_long_term_buff(adapter, &tx_pool->tso_ltb);
+		if (rc)
+			return rc;
+
 		memset(tx_pool->tx_buff, 0,
 		       adapter->req_tx_entries_per_subcrq *
 		       sizeof(struct ibmvnic_tx_buff));
@@ -562,6 +566,7 @@ static int reset_tx_pools(struct ibmvnic_adapter *adapter)
 
 		tx_pool->consumer_index = 0;
 		tx_pool->producer_index = 0;
+		tx_pool->tso_index = 0;
 	}
 
 	return 0;
@@ -581,6 +586,7 @@ static void release_tx_pools(struct ibmvnic_adapter *adapter)
 		tx_pool = &adapter->tx_pool[i];
 		kfree(tx_pool->tx_buff);
 		free_long_term_buff(adapter, &tx_pool->long_term_buff);
+		free_long_term_buff(adapter, &tx_pool->tso_ltb);
 		kfree(tx_pool->free_map);
 	}
 
@@ -624,6 +630,16 @@ static int init_tx_pools(struct net_device *netdev)
 			release_tx_pools(adapter);
 			return -1;
 		}
+
+		/* alloc TSO ltb */
+		if (alloc_long_term_buff(adapter, &tx_pool->tso_ltb,
+					 IBMVNIC_TSO_BUFS *
+					 IBMVNIC_TSO_BUF_SZ)) {
+			release_tx_pools(adapter);
+			return -1;
+		}
+
+		tx_pool->tso_index = 0;
 
 		tx_pool->free_map = kcalloc(adapter->req_tx_entries_per_subcrq,
 					    sizeof(int), GFP_KERNEL);
@@ -1201,10 +1217,21 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		be32_to_cpu(adapter->login_rsp_buf->off_txsubm_subcrqs));
 
 	index = tx_pool->free_map[tx_pool->consumer_index];
-	offset = index * adapter->req_mtu;
-	dst = tx_pool->long_term_buff.buff + offset;
-	memset(dst, 0, adapter->req_mtu);
-	data_dma_addr = tx_pool->long_term_buff.addr + offset;
+
+	if (skb_is_gso(skb)) {
+		offset = tx_pool->tso_index * IBMVNIC_TSO_BUF_SZ;
+		dst = tx_pool->tso_ltb.buff + offset;
+		memset(dst, 0, IBMVNIC_TSO_BUF_SZ);
+		data_dma_addr = tx_pool->tso_ltb.addr + offset;
+		tx_pool->tso_index++;
+		if (tx_pool->tso_index == IBMVNIC_TSO_BUFS)
+			tx_pool->tso_index = 0;
+	} else {
+		offset = index * adapter->req_mtu;
+		dst = tx_pool->long_term_buff.buff + offset;
+		memset(dst, 0, adapter->req_mtu);
+		data_dma_addr = tx_pool->long_term_buff.addr + offset;
+	}
 
 	if (skb_shinfo(skb)->nr_frags) {
 		int cur, i;
@@ -1245,7 +1272,10 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	tx_crq.v1.n_sge = 1;
 	tx_crq.v1.flags1 = IBMVNIC_TX_COMP_NEEDED;
 	tx_crq.v1.correlator = cpu_to_be32(index);
-	tx_crq.v1.dma_reg = cpu_to_be16(tx_pool->long_term_buff.map_id);
+	if (skb_is_gso(skb))
+		tx_crq.v1.dma_reg = cpu_to_be16(tx_pool->tso_ltb.map_id);
+	else
+		tx_crq.v1.dma_reg = cpu_to_be16(tx_pool->long_term_buff.map_id);
 	tx_crq.v1.sge_len = cpu_to_be32(skb->len);
 	tx_crq.v1.ioba = cpu_to_be64(data_dma_addr);
 
@@ -1268,6 +1298,11 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		tx_crq.v1.flags1 |= IBMVNIC_TX_CHKSUM_OFFLOAD;
+		hdrs += 2;
+	}
+	if (skb_is_gso(skb)) {
+		tx_crq.v1.flags1 |= IBMVNIC_TX_LSO;
+		tx_crq.v1.mss = cpu_to_be16(skb_shinfo(skb)->gso_size);
 		hdrs += 2;
 	}
 	/* determine if l2/3/4 headers are sent to firmware */
@@ -2960,10 +2995,10 @@ static void handle_query_ip_offload_rsp(struct ibmvnic_adapter *adapter)
 	adapter->ip_offload_ctrl.udp_ipv4_chksum = buf->udp_ipv4_chksum;
 	adapter->ip_offload_ctrl.tcp_ipv6_chksum = buf->tcp_ipv6_chksum;
 	adapter->ip_offload_ctrl.udp_ipv6_chksum = buf->udp_ipv6_chksum;
+	adapter->ip_offload_ctrl.large_tx_ipv4 = buf->large_tx_ipv4;
+	adapter->ip_offload_ctrl.large_tx_ipv6 = buf->large_tx_ipv6;
 
-	/* large_tx/rx disabled for now, additional features needed */
-	adapter->ip_offload_ctrl.large_tx_ipv4 = 0;
-	adapter->ip_offload_ctrl.large_tx_ipv6 = 0;
+	/* large_rx disabled for now, additional features needed */
 	adapter->ip_offload_ctrl.large_rx_ipv4 = 0;
 	adapter->ip_offload_ctrl.large_rx_ipv6 = 0;
 
@@ -2978,6 +3013,11 @@ static void handle_query_ip_offload_rsp(struct ibmvnic_adapter *adapter)
 	if ((adapter->netdev->features &
 	    (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM)))
 		adapter->netdev->features |= NETIF_F_RXCSUM;
+
+	if (buf->large_tx_ipv4)
+		adapter->netdev->features |= NETIF_F_TSO;
+	if (buf->large_tx_ipv6)
+		adapter->netdev->features |= NETIF_F_TSO6;
 
 	memset(&crq, 0, sizeof(crq));
 	crq.control_ip_offload.first = IBMVNIC_CRQ_CMD;
