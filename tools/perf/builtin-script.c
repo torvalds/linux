@@ -1164,40 +1164,40 @@ struct printer_data {
 	bool is_printable;
 };
 
-static void
-print_sample_bpf_output_printer(enum binary_printer_ops op,
-				unsigned int val,
-				void *extra)
+static int sample__fprintf_bpf_output(enum binary_printer_ops op,
+				      unsigned int val,
+				      void *extra, FILE *fp)
 {
 	unsigned char ch = (unsigned char)val;
 	struct printer_data *printer_data = extra;
+	int printed = 0;
 
 	switch (op) {
 	case BINARY_PRINT_DATA_BEGIN:
-		printf("\n");
+		printed += fprintf(fp, "\n");
 		break;
 	case BINARY_PRINT_LINE_BEGIN:
-		printf("%17s", !printer_data->line_no ? "BPF output:" :
+		printed += fprintf(fp, "%17s", !printer_data->line_no ? "BPF output:" :
 						        "           ");
 		break;
 	case BINARY_PRINT_ADDR:
-		printf(" %04x:", val);
+		printed += fprintf(fp, " %04x:", val);
 		break;
 	case BINARY_PRINT_NUM_DATA:
-		printf(" %02x", val);
+		printed += fprintf(fp, " %02x", val);
 		break;
 	case BINARY_PRINT_NUM_PAD:
-		printf("   ");
+		printed += fprintf(fp, "   ");
 		break;
 	case BINARY_PRINT_SEP:
-		printf("  ");
+		printed += fprintf(fp, "  ");
 		break;
 	case BINARY_PRINT_CHAR_DATA:
 		if (printer_data->hit_nul && ch)
 			printer_data->is_printable = false;
 
 		if (!isprint(ch)) {
-			printf("%c", '.');
+			printed += fprintf(fp, "%c", '.');
 
 			if (!printer_data->is_printable)
 				break;
@@ -1207,20 +1207,22 @@ print_sample_bpf_output_printer(enum binary_printer_ops op,
 			else
 				printer_data->is_printable = false;
 		} else {
-			printf("%c", ch);
+			printed += fprintf(fp, "%c", ch);
 		}
 		break;
 	case BINARY_PRINT_CHAR_PAD:
-		printf(" ");
+		printed += fprintf(fp, " ");
 		break;
 	case BINARY_PRINT_LINE_END:
-		printf("\n");
+		printed += fprintf(fp, "\n");
 		printer_data->line_no++;
 		break;
 	case BINARY_PRINT_DATA_END:
 	default:
 		break;
 	}
+
+	return printed;
 }
 
 static void print_sample_bpf_output(struct perf_sample *sample)
@@ -1229,7 +1231,7 @@ static void print_sample_bpf_output(struct perf_sample *sample)
 	struct printer_data printer_data = {0, false, true};
 
 	print_binary(sample->raw_data, nr_bytes, 8,
-		     print_sample_bpf_output_printer, &printer_data);
+		     sample__fprintf_bpf_output, &printer_data);
 
 	if (printer_data.is_printable && printer_data.hit_nul)
 		printf("%17s \"%s\"\n", "BPF string:",
