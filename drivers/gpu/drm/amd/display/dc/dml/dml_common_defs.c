@@ -59,3 +59,36 @@ unsigned int dml_round_to_multiple(
 	else
 		return (num - remainder);
 }
+
+bool dml_util_is_420(enum source_format_class sorce_format)
+{
+	bool val = false;
+
+	switch (sorce_format) {
+	case dm_444_16:
+		val = false;
+		break;
+	case dm_444_32:
+		val = false;
+		break;
+	case dm_444_64:
+		val = false;
+		break;
+	case dm_420_8:
+		val = true;
+		break;
+	case dm_420_10:
+		val = true;
+		break;
+	case dm_422_8:
+		val = false;
+		break;
+	case dm_422_10:
+		val = false;
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+	}
+
+	return val;
+}
