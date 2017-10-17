@@ -236,6 +236,7 @@ static enum ieee80211_ac_numbers ieee80211_ac_from_wmm(int ac)
 	switch (ac) {
 	default:
 		WARN_ON_ONCE(1);
+		/* fall through */
 	case 0:
 		return IEEE80211_AC_BE;
 	case 1:
