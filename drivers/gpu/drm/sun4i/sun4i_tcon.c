@@ -134,7 +134,7 @@ static struct sun4i_tcon *sun4i_get_tcon0(struct drm_device *drm)
 }
 
 void sun4i_tcon_set_mux(struct sun4i_tcon *tcon, int channel,
-			struct drm_encoder *encoder)
+			const struct drm_encoder *encoder)
 {
 	int ret = -ENOTSUPP;
 
@@ -783,7 +783,7 @@ static int sun4i_tcon_remove(struct platform_device *pdev)
 
 /* platform specific TCON muxing callbacks */
 static int sun5i_a13_tcon_set_mux(struct sun4i_tcon *tcon,
-				  struct drm_encoder *encoder)
+				  const struct drm_encoder *encoder)
 {
 	u32 val;
 
@@ -799,7 +799,7 @@ static int sun5i_a13_tcon_set_mux(struct sun4i_tcon *tcon,
 }
 
 static int sun6i_tcon_set_mux(struct sun4i_tcon *tcon,
-			      struct drm_encoder *encoder)
+			      const struct drm_encoder *encoder)
 {
 	struct sun4i_tcon *tcon0 = sun4i_get_tcon0(encoder->dev);
 	u32 shift;

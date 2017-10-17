@@ -152,7 +152,7 @@ struct sun4i_tcon_quirks {
 	bool	needs_de_be_mux; /* sun6i needs mux to select backend */
 
 	/* callback to handle tcon muxing options */
-	int	(*set_mux)(struct sun4i_tcon *, struct drm_encoder *);
+	int	(*set_mux)(struct sun4i_tcon *, const struct drm_encoder *);
 };
 
 struct sun4i_tcon {
