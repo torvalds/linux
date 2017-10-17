@@ -35,66 +35,61 @@
 #include "sun4i_tcon.h"
 #include "sunxi_engine.h"
 
-void sun4i_tcon_disable(struct sun4i_tcon *tcon)
+static void sun4i_tcon_channel_set_status(struct sun4i_tcon *tcon, int channel,
+					  bool enabled)
 {
-	DRM_DEBUG_DRIVER("Disabling TCON\n");
+	struct clk *clk;
 
-	/* Disable the TCON */
-	regmap_update_bits(tcon->regs, SUN4I_TCON_GCTL_REG,
-			   SUN4I_TCON_GCTL_TCON_ENABLE, 0);
-}
-EXPORT_SYMBOL(sun4i_tcon_disable);
-
-void sun4i_tcon_enable(struct sun4i_tcon *tcon)
-{
-	DRM_DEBUG_DRIVER("Enabling TCON\n");
-
-	/* Enable the TCON */
-	regmap_update_bits(tcon->regs, SUN4I_TCON_GCTL_REG,
-			   SUN4I_TCON_GCTL_TCON_ENABLE,
-			   SUN4I_TCON_GCTL_TCON_ENABLE);
-}
-EXPORT_SYMBOL(sun4i_tcon_enable);
-
-void sun4i_tcon_channel_disable(struct sun4i_tcon *tcon, int channel)
-{
-	DRM_DEBUG_DRIVER("Disabling TCON channel %d\n", channel);
-
-	/* Disable the TCON's channel */
-	if (channel == 0) {
-		regmap_update_bits(tcon->regs, SUN4I_TCON0_CTL_REG,
-				   SUN4I_TCON0_CTL_TCON_ENABLE, 0);
-		clk_disable_unprepare(tcon->dclk);
-		return;
-	}
-
-	WARN_ON(!tcon->quirks->has_channel_1);
-	regmap_update_bits(tcon->regs, SUN4I_TCON1_CTL_REG,
-			   SUN4I_TCON1_CTL_TCON_ENABLE, 0);
-	clk_disable_unprepare(tcon->sclk1);
-}
-EXPORT_SYMBOL(sun4i_tcon_channel_disable);
-
-void sun4i_tcon_channel_enable(struct sun4i_tcon *tcon, int channel)
-{
-	DRM_DEBUG_DRIVER("Enabling TCON channel %d\n", channel);
-
-	/* Enable the TCON's channel */
-	if (channel == 0) {
+	switch (channel) {
+	case 0:
 		regmap_update_bits(tcon->regs, SUN4I_TCON0_CTL_REG,
 				   SUN4I_TCON0_CTL_TCON_ENABLE,
-				   SUN4I_TCON0_CTL_TCON_ENABLE);
-		clk_prepare_enable(tcon->dclk);
+				   enabled ? SUN4I_TCON0_CTL_TCON_ENABLE : 0);
+		clk = tcon->dclk;
+		break;
+	case 1:
+		WARN_ON(!tcon->quirks->has_channel_1);
+		regmap_update_bits(tcon->regs, SUN4I_TCON1_CTL_REG,
+				   SUN4I_TCON1_CTL_TCON_ENABLE,
+				   enabled ? SUN4I_TCON1_CTL_TCON_ENABLE : 0);
+		clk = tcon->sclk1;
+		break;
+	default:
+		DRM_WARN("Unknown channel... doing nothing\n");
 		return;
 	}
 
-	WARN_ON(!tcon->quirks->has_channel_1);
-	regmap_update_bits(tcon->regs, SUN4I_TCON1_CTL_REG,
-			   SUN4I_TCON1_CTL_TCON_ENABLE,
-			   SUN4I_TCON1_CTL_TCON_ENABLE);
-	clk_prepare_enable(tcon->sclk1);
+	if (enabled)
+		clk_prepare_enable(clk);
+	else
+		clk_disable_unprepare(clk);
 }
-EXPORT_SYMBOL(sun4i_tcon_channel_enable);
+
+void sun4i_tcon_set_status(struct sun4i_tcon *tcon,
+			   const struct drm_encoder *encoder,
+			   bool enabled)
+{
+	int channel;
+
+	switch (encoder->encoder_type) {
+	case DRM_MODE_ENCODER_NONE:
+		channel = 0;
+		break;
+	case DRM_MODE_ENCODER_TMDS:
+	case DRM_MODE_ENCODER_TVDAC:
+		channel = 1;
+		break;
+	default:
+		DRM_DEBUG_DRIVER("Unknown encoder type, doing nothing...\n");
+		return;
+	}
+
+	regmap_update_bits(tcon->regs, SUN4I_TCON_GCTL_REG,
+			   SUN4I_TCON_GCTL_TCON_ENABLE,
+			   enabled ? SUN4I_TCON_GCTL_TCON_ENABLE : 0);
+
+	sun4i_tcon_channel_set_status(tcon, channel, enabled);
+}
 
 void sun4i_tcon_enable_vblank(struct sun4i_tcon *tcon, bool enable)
 {

@@ -345,11 +345,8 @@ static void sun4i_tv_disable(struct drm_encoder *encoder)
 {
 	struct sun4i_tv *tv = drm_encoder_to_sun4i_tv(encoder);
 	struct sun4i_crtc *crtc = drm_crtc_to_sun4i_crtc(encoder->crtc);
-	struct sun4i_tcon *tcon = crtc->tcon;
 
 	DRM_DEBUG_DRIVER("Disabling the TV Output\n");
-
-	sun4i_tcon_channel_disable(tcon, 1);
 
 	regmap_update_bits(tv->regs, SUN4I_TVE_EN_REG,
 			   SUN4I_TVE_EN_ENABLE,
@@ -362,7 +359,6 @@ static void sun4i_tv_enable(struct drm_encoder *encoder)
 {
 	struct sun4i_tv *tv = drm_encoder_to_sun4i_tv(encoder);
 	struct sun4i_crtc *crtc = drm_crtc_to_sun4i_crtc(encoder->crtc);
-	struct sun4i_tcon *tcon = crtc->tcon;
 
 	DRM_DEBUG_DRIVER("Enabling the TV Output\n");
 
@@ -371,8 +367,6 @@ static void sun4i_tv_enable(struct drm_encoder *encoder)
 	regmap_update_bits(tv->regs, SUN4I_TVE_EN_REG,
 			   SUN4I_TVE_EN_ENABLE,
 			   SUN4I_TVE_EN_ENABLE);
-
-	sun4i_tcon_channel_enable(tcon, 1);
 }
 
 static void sun4i_tv_mode_set(struct drm_encoder *encoder,

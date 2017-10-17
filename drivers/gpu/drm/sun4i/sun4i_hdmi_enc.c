@@ -86,8 +86,6 @@ static int sun4i_hdmi_atomic_check(struct drm_encoder *encoder,
 static void sun4i_hdmi_disable(struct drm_encoder *encoder)
 {
 	struct sun4i_hdmi *hdmi = drm_encoder_to_sun4i_hdmi(encoder);
-	struct sun4i_crtc *crtc = drm_crtc_to_sun4i_crtc(encoder->crtc);
-	struct sun4i_tcon *tcon = crtc->tcon;
 	u32 val;
 
 	DRM_DEBUG_DRIVER("Disabling the HDMI Output\n");
@@ -95,21 +93,15 @@ static void sun4i_hdmi_disable(struct drm_encoder *encoder)
 	val = readl(hdmi->base + SUN4I_HDMI_VID_CTRL_REG);
 	val &= ~SUN4I_HDMI_VID_CTRL_ENABLE;
 	writel(val, hdmi->base + SUN4I_HDMI_VID_CTRL_REG);
-
-	sun4i_tcon_channel_disable(tcon, 1);
 }
 
 static void sun4i_hdmi_enable(struct drm_encoder *encoder)
 {
 	struct drm_display_mode *mode = &encoder->crtc->state->adjusted_mode;
 	struct sun4i_hdmi *hdmi = drm_encoder_to_sun4i_hdmi(encoder);
-	struct sun4i_crtc *crtc = drm_crtc_to_sun4i_crtc(encoder->crtc);
-	struct sun4i_tcon *tcon = crtc->tcon;
 	u32 val = 0;
 
 	DRM_DEBUG_DRIVER("Enabling the HDMI Output\n");
-
-	sun4i_tcon_channel_enable(tcon, 1);
 
 	sun4i_hdmi_setup_avi_infoframes(hdmi, mode);
 	val |= SUN4I_HDMI_PKT_CTRL_TYPE(0, SUN4I_HDMI_PKT_AVI);
