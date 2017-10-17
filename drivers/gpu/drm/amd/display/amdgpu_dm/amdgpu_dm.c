@@ -3460,7 +3460,8 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 	struct dc *dc = dm->dc;
 	struct dc_link *link = dc_get_link_at_index(dc, link_index);
 	struct amdgpu_i2c_adapter *i2c;
-	((struct dc_link *)link)->priv = aconnector;
+
+	link->priv = aconnector;
 
 	DRM_DEBUG_DRIVER("%s()\n", __func__);
 
