@@ -94,9 +94,9 @@ static void wakeup_mirrord(void *context)
 	queue_work(ms->kmirrord_wq, &ms->kmirrord_work);
 }
 
-static void delayed_wake_fn(unsigned long data)
+static void delayed_wake_fn(struct timer_list *t)
 {
-	struct mirror_set *ms = (struct mirror_set *) data;
+	struct mirror_set *ms = from_timer(ms, t, timer);
 
 	clear_bit(0, &ms->timer_pending);
 	wakeup_mirrord(ms);
@@ -108,8 +108,6 @@ static void delayed_wake(struct mirror_set *ms)
 		return;
 
 	ms->timer.expires = jiffies + HZ / 5;
-	ms->timer.data = (unsigned long) ms;
-	ms->timer.function = delayed_wake_fn;
 	add_timer(&ms->timer);
 }
 
@@ -1133,7 +1131,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto err_free_context;
 	}
 	INIT_WORK(&ms->kmirrord_work, do_mirror);
-	init_timer(&ms->timer);
+	timer_setup(&ms->timer, delayed_wake_fn, 0);
 	ms->timer_pending = 0;
 	INIT_WORK(&ms->trigger_event, trigger_event);
 

@@ -1094,9 +1094,9 @@ static void sleep_on_endio_wait(struct dm_integrity_c *ic)
 	__remove_wait_queue(&ic->endio_wait, &wait);
 }
 
-static void autocommit_fn(unsigned long data)
+static void autocommit_fn(struct timer_list *t)
 {
-	struct dm_integrity_c *ic = (struct dm_integrity_c *)data;
+	struct dm_integrity_c *ic = from_timer(ic, t, autocommit_timer);
 
 	if (likely(!dm_integrity_failed(ic)))
 		queue_work(ic->commit_wq, &ic->commit_work);
@@ -2942,7 +2942,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	ic->autocommit_jiffies = msecs_to_jiffies(sync_msec);
 	ic->autocommit_msec = sync_msec;
-	setup_timer(&ic->autocommit_timer, autocommit_fn, (unsigned long)ic);
+	timer_setup(&ic->autocommit_timer, autocommit_fn, 0);
 
 	ic->io = dm_io_client_create();
 	if (IS_ERR(ic->io)) {
