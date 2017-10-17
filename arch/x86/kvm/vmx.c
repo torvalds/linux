@@ -11973,6 +11973,11 @@ static int vmx_pre_leave_smm(struct kvm_vcpu *vcpu, u64 smbase)
 	return 0;
 }
 
+static int enable_smi_window(struct kvm_vcpu *vcpu)
+{
+	return 0;
+}
+
 static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.cpu_has_kvm_support = cpu_has_kvm_support,
 	.disabled_by_bios = vmx_disabled_by_bios,
@@ -12102,6 +12107,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.smi_allowed = vmx_smi_allowed,
 	.pre_enter_smm = vmx_pre_enter_smm,
 	.pre_leave_smm = vmx_pre_leave_smm,
+	.enable_smi_window = enable_smi_window,
 };
 
 static int __init vmx_init(void)

@@ -3187,7 +3187,7 @@ static int stgi_interception(struct vcpu_svm *svm)
 
 	/*
 	 * If VGIF is enabled, the STGI intercept is only added to
-	 * detect the opening of the NMI window; remove it now.
+	 * detect the opening of the SMI/NMI window; remove it now.
 	 */
 	if (vgif_enabled(svm))
 		clr_intercept(svm, INTERCEPT_STGI);
@@ -5476,6 +5476,19 @@ static int svm_pre_leave_smm(struct kvm_vcpu *vcpu, u64 smbase)
 	return ret;
 }
 
+static int enable_smi_window(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (!gif_set(svm)) {
+		if (vgif_enabled(svm))
+			set_intercept(svm, INTERCEPT_STGI);
+		/* STGI will cause a vm exit */
+		return 1;
+	}
+	return 0;
+}
+
 static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -5590,6 +5603,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.smi_allowed = svm_smi_allowed,
 	.pre_enter_smm = svm_pre_enter_smm,
 	.pre_leave_smm = svm_pre_leave_smm,
+	.enable_smi_window = enable_smi_window,
 };
 
 static int __init svm_init(void)
