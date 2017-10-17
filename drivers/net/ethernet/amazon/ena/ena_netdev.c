@@ -2648,7 +2648,7 @@ static int check_missing_comp_in_queue(struct ena_adapter *adapter,
 	struct ena_tx_buffer *tx_buf;
 	unsigned long last_jiffies;
 	u32 missed_tx = 0;
-	int i;
+	int i, rc = 0;
 
 	for (i = 0; i < tx_ring->ring_size; i++) {
 		tx_buf = &tx_ring->tx_buffer_info[i];
@@ -2662,21 +2662,25 @@ static int check_missing_comp_in_queue(struct ena_adapter *adapter,
 
 			tx_buf->print_once = 1;
 			missed_tx++;
-
-			if (unlikely(missed_tx > adapter->missing_tx_completion_threshold)) {
-				netif_err(adapter, tx_err, adapter->netdev,
-					  "The number of lost tx completions is above the threshold (%d > %d). Reset the device\n",
-					  missed_tx,
-					  adapter->missing_tx_completion_threshold);
-				adapter->reset_reason =
-					ENA_REGS_RESET_MISS_TX_CMPL;
-				set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
-				return -EIO;
-			}
 		}
 	}
 
-	return 0;
+	if (unlikely(missed_tx > adapter->missing_tx_completion_threshold)) {
+		netif_err(adapter, tx_err, adapter->netdev,
+			  "The number of lost tx completions is above the threshold (%d > %d). Reset the device\n",
+			  missed_tx,
+			  adapter->missing_tx_completion_threshold);
+		adapter->reset_reason =
+			ENA_REGS_RESET_MISS_TX_CMPL;
+		set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+		rc = -EIO;
+	}
+
+	u64_stats_update_begin(&tx_ring->syncp);
+	tx_ring->tx_stats.missed_tx = missed_tx;
+	u64_stats_update_end(&tx_ring->syncp);
+
+	return rc;
 }
 
 static void check_for_missing_tx_completions(struct ena_adapter *adapter)
