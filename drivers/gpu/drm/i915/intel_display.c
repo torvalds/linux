@@ -3289,7 +3289,6 @@ static void i9xx_update_primary_plane(struct intel_plane *primary,
 				      const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(primary->base.dev);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	enum plane plane = primary->plane;
 	u32 linear_offset;
@@ -3298,13 +3297,14 @@ static void i9xx_update_primary_plane(struct intel_plane *primary,
 	int x = plane_state->main.x;
 	int y = plane_state->main.y;
 	unsigned long irqflags;
+	u32 dspaddr_offset;
 
 	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
 
 	if (INTEL_GEN(dev_priv) >= 4)
-		crtc->dspaddr_offset = plane_state->main.offset;
+		dspaddr_offset = plane_state->main.offset;
 	else
-		crtc->dspaddr_offset = linear_offset;
+		dspaddr_offset = linear_offset;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
@@ -3330,18 +3330,18 @@ static void i9xx_update_primary_plane(struct intel_plane *primary,
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		I915_WRITE_FW(DSPSURF(plane),
 			      intel_plane_ggtt_offset(plane_state) +
-			      crtc->dspaddr_offset);
+			      dspaddr_offset);
 		I915_WRITE_FW(DSPOFFSET(plane), (y << 16) | x);
 	} else if (INTEL_GEN(dev_priv) >= 4) {
 		I915_WRITE_FW(DSPSURF(plane),
 			      intel_plane_ggtt_offset(plane_state) +
-			      crtc->dspaddr_offset);
+			      dspaddr_offset);
 		I915_WRITE_FW(DSPTILEOFF(plane), (y << 16) | x);
 		I915_WRITE_FW(DSPLINOFF(plane), linear_offset);
 	} else {
 		I915_WRITE_FW(DSPADDR(plane),
 			      intel_plane_ggtt_offset(plane_state) +
-			      crtc->dspaddr_offset);
+			      dspaddr_offset);
 	}
 	POSTING_READ_FW(reg);
 
@@ -3546,7 +3546,6 @@ static void skylake_update_primary_plane(struct intel_plane *plane,
 					 const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
@@ -3571,8 +3570,6 @@ static void skylake_update_primary_plane(struct intel_plane *plane,
 	src_h--;
 	dst_w--;
 	dst_h--;
-
-	crtc->dspaddr_offset = surf_addr;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 

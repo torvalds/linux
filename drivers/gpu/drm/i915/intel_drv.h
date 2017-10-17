@@ -808,11 +808,6 @@ struct intel_crtc {
 	unsigned long long enabled_power_domains;
 	struct intel_overlay *overlay;
 
-	/* Display surface base address adjustement for pageflips. Note that on
-	 * gen4+ this only adjusts up to a tile, offsets within a tile are
-	 * handled in the hw itself (with the TILEOFF register). */
-	u32 dspaddr_offset;
-
 	struct intel_crtc_state *config;
 
 	/* global reset count when the last flip was submitted */
