@@ -964,7 +964,8 @@ static void switchtec_ntb_init_shared(struct switchtec_ntb *sndev)
 static int switchtec_ntb_init_shared_mw(struct switchtec_ntb *sndev)
 {
 	struct ntb_ctrl_regs __iomem *ctl = sndev->mmio_peer_ctrl;
-	int bar = sndev->direct_mw_to_bar[0];
+	int self_bar = sndev->direct_mw_to_bar[0];
+	int peer_bar = sndev->peer_direct_mw_to_bar[0];
 	u32 ctl_val;
 	int rc;
 
@@ -985,12 +986,12 @@ static int switchtec_ntb_init_shared_mw(struct switchtec_ntb *sndev)
 	if (rc)
 		goto unalloc_and_exit;
 
-	ctl_val = ioread32(&ctl->bar_entry[bar].ctl);
+	ctl_val = ioread32(&ctl->bar_entry[peer_bar].ctl);
 	ctl_val &= 0xFF;
 	ctl_val |= NTB_CTRL_BAR_LUT_WIN_EN;
 	ctl_val |= ilog2(LUT_SIZE) << 8;
 	ctl_val |= (sndev->nr_lut_mw - 1) << 14;
-	iowrite32(ctl_val, &ctl->bar_entry[bar].ctl);
+	iowrite32(ctl_val, &ctl->bar_entry[peer_bar].ctl);
 
 	iowrite64((NTB_CTRL_LUT_EN | (sndev->self_partition << 1) |
 		   sndev->self_shared_dma),
@@ -1009,7 +1010,7 @@ static int switchtec_ntb_init_shared_mw(struct switchtec_ntb *sndev)
 		goto unalloc_and_exit;
 	}
 
-	sndev->peer_shared = pci_iomap(sndev->stdev->pdev, bar, LUT_SIZE);
+	sndev->peer_shared = pci_iomap(sndev->stdev->pdev, self_bar, LUT_SIZE);
 	if (!sndev->peer_shared) {
 		rc = -ENOMEM;
 		goto unalloc_and_exit;
