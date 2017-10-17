@@ -227,6 +227,40 @@ static int amdgpu_ctx_query(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int amdgpu_ctx_query2(struct amdgpu_device *adev,
+	struct amdgpu_fpriv *fpriv, uint32_t id,
+	union drm_amdgpu_ctx_out *out)
+{
+	struct amdgpu_ctx *ctx;
+	struct amdgpu_ctx_mgr *mgr;
+
+	if (!fpriv)
+		return -EINVAL;
+
+	mgr = &fpriv->ctx_mgr;
+	mutex_lock(&mgr->lock);
+	ctx = idr_find(&mgr->ctx_handles, id);
+	if (!ctx) {
+		mutex_unlock(&mgr->lock);
+		return -EINVAL;
+	}
+
+	out->state.flags = 0x0;
+	out->state.hangs = 0x0;
+
+	if (ctx->reset_counter != atomic_read(&adev->gpu_reset_counter))
+		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_RESET;
+
+	if (ctx->vram_lost_counter != atomic_read(&adev->vram_lost_counter))
+		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_VRAMLOST;
+
+	if (atomic_read(&ctx->guilty))
+		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_GUILTY;
+
+	mutex_unlock(&mgr->lock);
+	return 0;
+}
+
 int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 		     struct drm_file *filp)
 {
@@ -257,6 +291,9 @@ int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 		break;
 	case AMDGPU_CTX_OP_QUERY_STATE:
 		r = amdgpu_ctx_query(adev, fpriv, id, &args->out);
+		break;
+	case AMDGPU_CTX_OP_QUERY_STATE2:
+		r = amdgpu_ctx_query2(adev, fpriv, id, &args->out);
 		break;
 	default:
 		return -EINVAL;

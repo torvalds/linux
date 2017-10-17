@@ -160,6 +160,7 @@ union drm_amdgpu_bo_list {
 #define AMDGPU_CTX_OP_ALLOC_CTX	1
 #define AMDGPU_CTX_OP_FREE_CTX	2
 #define AMDGPU_CTX_OP_QUERY_STATE	3
+#define AMDGPU_CTX_OP_QUERY_STATE2	4
 
 /* GPU reset status */
 #define AMDGPU_CTX_NO_RESET		0
@@ -169,6 +170,13 @@ union drm_amdgpu_bo_list {
 #define AMDGPU_CTX_INNOCENT_RESET	2
 /* unknown cause */
 #define AMDGPU_CTX_UNKNOWN_RESET	3
+
+/* indicate gpu reset occured after ctx created */
+#define AMDGPU_CTX_QUERY2_FLAGS_RESET    (1<<0)
+/* indicate vram lost occured after ctx created */
+#define AMDGPU_CTX_QUERY2_FLAGS_VRAMLOST (1<<1)
+/* indicate some job from this context once cause gpu hang */
+#define AMDGPU_CTX_QUERY2_FLAGS_GUILTY   (1<<2)
 
 /* Context priority level */
 #define AMDGPU_CTX_PRIORITY_UNSET       -2048
