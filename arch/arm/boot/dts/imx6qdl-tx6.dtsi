@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2016 Lothar Waßmann <LW@KARO-electronics.de>
+ * Copyright 2014-2017 Lothar Waßmann <LW@KARO-electronics.de>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -241,7 +241,7 @@
 
 &fec {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_enet>;
+	pinctrl-0 = <&pinctrl_enet &pinctrl_enet_mdio &pinctrl_etnphy_rst>;
 	clocks = <&clks IMX6QDL_CLK_ENET>,
 		 <&clks IMX6QDL_CLK_ENET>,
 		 <&clks IMX6QDL_CLK_ENET_REF>,
@@ -261,8 +261,9 @@
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <0>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_enet_mdio>;
-			interrupts-extended = <&gpio7 1 IRQ_TYPE_EDGE_FALLING>;
+			pinctrl-0 = <&pinctrl_etnphy_int>;
+			interrupt-parent = <&gpio7>;
+			interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
 		};
 	};
 };
@@ -334,8 +335,6 @@
 
 	pinctrl_hog: hoggrp {
 		fsl,pins = <
-			MX6QDL_PAD_SD3_DAT2__GPIO7_IO06		0x1b0b1 /* ETN PHY RESET */
-			MX6QDL_PAD_SD3_DAT4__GPIO7_IO01		0x1b0b1 /* ETN PHY INT */
 			MX6QDL_PAD_EIM_A25__GPIO5_IO02		0x1b0b1 /* PWR BTN */
 		>;
 	};
@@ -453,9 +452,21 @@
 		>;
 	};
 
+	pinctrl_etnphy_int: etnphy-intgrp {
+		fsl,pins = <
+			MX6QDL_PAD_SD3_DAT4__GPIO7_IO01		0x1b0b1 /* ETN PHY INT */
+		>;
+	};
+
 	pinctrl_etnphy_power: etnphy-pwrgrp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D20__GPIO3_IO20		0x1b0b1 /* ETN PHY POWER */
+		>;
+	};
+
+	pinctrl_etnphy_rst: etnphy-rstgrp {
+		fsl,pins = <
+			MX6QDL_PAD_SD3_DAT2__GPIO7_IO06		0x1b0b1 /* ETN PHY RESET */
 		>;
 	};
 
