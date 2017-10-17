@@ -331,8 +331,6 @@ static int add_changeset_node(struct overlay_changeset *ovcs,
 	int ret = 0;
 
 	node_kbasename = kbasename(node->full_name);
-	if (!node_kbasename)
-		return -ENOMEM;
 
 	for_each_child_of_node(target_node, tchild)
 		if (!of_node_cmp(node_kbasename, kbasename(tchild->full_name)))
