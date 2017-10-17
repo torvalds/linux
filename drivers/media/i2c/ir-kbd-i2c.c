@@ -298,6 +298,22 @@ static void ir_work(struct work_struct *work)
 	schedule_delayed_work(&ir->work, msecs_to_jiffies(ir->polling_interval));
 }
 
+static int ir_open(struct rc_dev *dev)
+{
+	struct IR_i2c *ir = dev->priv;
+
+	schedule_delayed_work(&ir->work, 0);
+
+	return 0;
+}
+
+static void ir_close(struct rc_dev *dev)
+{
+	struct IR_i2c *ir = dev->priv;
+
+	cancel_delayed_work_sync(&ir->work);
+}
+
 /* ----------------------------------------------------------------------- */
 
 static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
@@ -441,6 +457,9 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	rc->input_phys       = ir->phys;
 	rc->device_name	     = name;
 	rc->dev.parent       = &client->dev;
+	rc->priv             = ir;
+	rc->open             = ir_open;
+	rc->close            = ir_close;
 
 	/*
 	 * Initialize the other fields of rc_dev
@@ -450,13 +469,11 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (!rc->driver_name)
 		rc->driver_name = KBUILD_MODNAME;
 
+	INIT_DELAYED_WORK(&ir->work, ir_work);
+
 	err = rc_register_device(rc);
 	if (err)
 		goto err_out_free;
-
-	/* start polling via eventd */
-	INIT_DELAYED_WORK(&ir->work, ir_work);
-	schedule_delayed_work(&ir->work, 0);
 
 	return 0;
 
