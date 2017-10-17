@@ -2004,6 +2004,7 @@ int ipmi_si_add_smi(struct si_sm_io *io)
 				 ipmi_addr_src_to_str(new_smi->io.addr_source),
 				 si_to_str[new_smi->io.si_type]);
 			rv = -EBUSY;
+			kfree(new_smi);
 			goto out_err;
 		}
 	}
