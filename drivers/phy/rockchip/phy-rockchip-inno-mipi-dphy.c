@@ -18,13 +18,24 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/phy/phy.h>
 #include <linux/pm_runtime.h>
+#include <linux/mfd/syscon.h>
+#include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pinctrl/pinctrl.h>
+#include <linux/pinctrl/pinmux.h>
+#include "../../pinctrl/pinctrl-utils.h"
 
 #define UPDATE(x, h, l)	(((x) << (l)) & GENMASK((h), (l)))
+#define HIWORD_UPDATE(v, h, l)	(((v) << (l)) | (GENMASK(h, l) << 16))
+
+#define RK3368_GRF_SOC_CON7		0x041c
+#define VIDEO_PHY_TTL_MODE_ENBALE	HIWORD_UPDATE(1, 15, 15)
+#define VIDEO_PHY_TTL_MODE_DISABLE	HIWORD_UPDATE(0, 15, 15)
 
 /* Innosilicon MIPI D-PHY registers */
 #define INNO_PHY_LANE_CTRL	0x00000
@@ -50,14 +61,16 @@
 #define DIGITAL_RESET_MASK	BIT(0)
 #define DIGITAL_NORMAL		BIT(0)
 #define DIGITAL_RESET		0
+#define INNO_PHY_MODE		0x0038c
+#define TTL_MODE_ENABLE		BIT(2)
+#define LVDS_MODE_ENABLE	BIT(1)
+#define MIPI_MODE_ENABLE	BIT(0)
 
 #define INNO_CLOCK_LANE_REG_BASE	0x00100
 #define INNO_DATA_LANE_0_REG_BASE	0x00180
 #define INNO_DATA_LANE_1_REG_BASE	0x00200
 #define INNO_DATA_LANE_2_REG_BASE	0x00280
 #define INNO_DATA_LANE_3_REG_BASE	0x00300
-#define INNO_MIPI_DPHY_MAX_REGISTER	(INNO_DATA_LANE_3_REG_BASE + \
-					 T_TA_WAIT_OFFSET)
 
 #define T_LPX_OFFSET		0x00014
 #define T_HS_PREPARE_OFFSET	0x00018
@@ -105,6 +118,13 @@ enum lane_type {
 	DATA_LANE_3,
 };
 
+enum inno_video_phy_functions {
+	INNO_PHY_PADCTL_FUNC_MIPI,
+	INNO_PHY_PADCTL_FUNC_LVDS,
+	INNO_PHY_PADCTL_FUNC_TTL,
+	INNO_PHY_PADCTL_FUNC_IDLE,
+};
+
 struct mipi_dphy_timing {
 	unsigned int clkmiss;
 	unsigned int clkpost;
@@ -145,12 +165,20 @@ struct inno_mipi_dphy_timing {
 	u8 ta_wait;
 };
 
+struct inno_video_phy_socdata {
+	bool pinmux;
+	bool has_h2p_clk;
+};
+
 struct inno_mipi_dphy {
 	struct device *dev;
 	struct clk *ref_clk;
 	struct clk *h2p_clk;
 	struct regmap *regmap;
 	struct reset_control *rst;
+	struct regmap *grf;
+	struct pinctrl_dev *pinctrl;
+	struct pinctrl_desc desc;
 
 	unsigned int lanes;
 	unsigned long lane_rate;
@@ -160,6 +188,8 @@ struct inno_mipi_dphy {
 		u8 prediv;
 		u16 fbdiv;
 	} pll;
+
+	const struct inno_video_phy_socdata *socdata;
 };
 
 static const u32 lane_reg_offset[] = {
@@ -205,6 +235,142 @@ static const struct {
 	FIXED_PARAM(700,  0x3e, 0x1e, 0x08, 0x6a),
 	FIXED_PARAM(800,  0x21, 0x1f, 0x09, 0x29),
 	FIXED_PARAM(1000, 0x09, 0x20, 0x09, 0x27),
+};
+
+static const struct pinctrl_pin_desc inno_video_phy_pins[] = {
+	PINCTRL_PIN(0, "DATAP0"),	/* pin_ttl_data[0] */
+	PINCTRL_PIN(1, "DATAN0"),	/* pin_ttl_data[1] */
+	PINCTRL_PIN(2, "DATAP1"),	/* pin_ttl_data[2] */
+	PINCTRL_PIN(3, "DATAN1"),	/* pin_ttl_data[3] */
+	PINCTRL_PIN(4, "DATAP2"),	/* pin_ttl_data[4] */
+	PINCTRL_PIN(5, "DATAN2"),	/* pin_ttl_data[5] */
+	PINCTRL_PIN(6, "DATAP3"),	/* pin_ttl_data[6] */
+	PINCTRL_PIN(7, "DATAN3"),	/* pin_ttl_data[7] */
+	PINCTRL_PIN(8, "CLKP"),		/* pin_ttl_data[8] */
+	PINCTRL_PIN(9, "CLKN"),		/* pin_ttl_data[9] */
+};
+
+static const char * const inno_video_phy_groups[] = {
+	"video-phy-io",
+};
+
+static const unsigned int inno_video_phy_pin_numbers[] = {
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+};
+
+static const char * const inno_video_phy_functions[] = {
+	"mipi",
+	"lvds",
+	"ttl",
+	"idle",
+};
+
+static int
+inno_video_phy_pad_config(struct inno_mipi_dphy *inno, unsigned int function)
+{
+	switch (function) {
+	case INNO_PHY_PADCTL_FUNC_TTL:
+		pm_runtime_get_sync(inno->dev);
+		regmap_write(inno->grf, RK3368_GRF_SOC_CON7,
+			     VIDEO_PHY_TTL_MODE_ENBALE);
+		regmap_write(inno->regmap, INNO_PHY_MODE, TTL_MODE_ENABLE);
+		/* Enable analog driver */
+		regmap_write(inno->regmap, 0x3ac, 0xfd);
+		break;
+	case INNO_PHY_PADCTL_FUNC_MIPI:
+		pm_runtime_get_sync(inno->dev);
+		regmap_write(inno->grf, RK3368_GRF_SOC_CON7,
+			     VIDEO_PHY_TTL_MODE_DISABLE);
+		regmap_write(inno->regmap, INNO_PHY_MODE, MIPI_MODE_ENABLE);
+		break;
+	case INNO_PHY_PADCTL_FUNC_LVDS:
+		pm_runtime_get_sync(inno->dev);
+		regmap_write(inno->grf, RK3368_GRF_SOC_CON7,
+			     VIDEO_PHY_TTL_MODE_DISABLE);
+		regmap_write(inno->regmap, INNO_PHY_MODE, LVDS_MODE_ENABLE);
+		/* Enable LVDS analog driver */
+		regmap_write(inno->regmap, 0x3ac, 0xf8);
+		break;
+	case INNO_PHY_PADCTL_FUNC_IDLE:
+		/* Disable analog driver */
+		regmap_write(inno->regmap, 0x3ac, 0x04);
+		regmap_write(inno->regmap, INNO_PHY_MODE, 0x00);
+		pm_runtime_put(inno->dev);
+		break;
+	default:
+		return -ENOTSUPP;
+	}
+
+	return 0;
+}
+
+static int inno_video_phy_get_groups_count(struct pinctrl_dev *pinctrl)
+{
+	return ARRAY_SIZE(inno_video_phy_groups);
+}
+
+static const char *
+inno_video_phy_get_group_name(struct pinctrl_dev *pinctrl, unsigned int group)
+{
+	return inno_video_phy_groups[group];
+}
+
+static int
+inno_video_phy_get_group_pins(struct pinctrl_dev *pinctrl, unsigned int group,
+			      const unsigned int **pins, unsigned int *num_pins)
+{
+	*pins = inno_video_phy_pin_numbers;
+	*num_pins = ARRAY_SIZE(inno_video_phy_pin_numbers);
+
+	return 0;
+}
+
+static const struct pinctrl_ops inno_video_phy_pinctrl_ops = {
+	.get_groups_count = inno_video_phy_get_groups_count,
+	.get_group_name = inno_video_phy_get_group_name,
+	.get_group_pins = inno_video_phy_get_group_pins,
+	.dt_node_to_map = pinconf_generic_dt_node_to_map_group,
+	.dt_free_map = pinctrl_utils_dt_free_map,
+};
+
+static int inno_video_phy_get_functions_count(struct pinctrl_dev *pinctrl)
+{
+	return ARRAY_SIZE(inno_video_phy_functions);
+}
+
+static const char *
+inno_video_phy_get_function_name(struct pinctrl_dev *pinctrl,
+				 unsigned int function)
+{
+	return inno_video_phy_functions[function];
+}
+
+static int
+inno_video_phy_get_function_groups(struct pinctrl_dev *pinctrl,
+				   unsigned int function,
+				   const char * const **groups,
+				   unsigned * const num_groups)
+{
+	*num_groups = ARRAY_SIZE(inno_video_phy_groups);
+	*groups = inno_video_phy_groups;
+
+	return 0;
+}
+
+static int
+inno_video_phy_set_mux(struct pinctrl_dev *pinctrl, unsigned int function,
+		       unsigned int group)
+{
+	struct inno_mipi_dphy *inno = pinctrl_dev_get_drvdata(pinctrl);
+
+	return inno_video_phy_pad_config(inno, function);
+}
+
+static const struct pinmux_ops inno_video_phy_pinmux_ops = {
+	.get_functions_count = inno_video_phy_get_functions_count,
+	.get_function_name = inno_video_phy_get_function_name,
+	.get_function_groups = inno_video_phy_get_function_groups,
+	.set_mux = inno_video_phy_set_mux,
 };
 
 static inline struct inno_mipi_dphy *hw_to_inno(struct clk_hw *hw)
@@ -585,6 +751,11 @@ static int inno_mipi_dphy_pll_register(struct inno_mipi_dphy *inno)
 	return of_clk_add_provider(np, of_clk_src_simple_get, clk);
 }
 
+static void inno_mipi_dphy_pll_unregister(struct inno_mipi_dphy *inno)
+{
+	of_clk_del_provider(inno->dev->of_node);
+}
+
 static int inno_mipi_dphy_parse_dt(struct device_node *np,
 				   struct inno_mipi_dphy *inno)
 {
@@ -594,11 +765,11 @@ static int inno_mipi_dphy_parse_dt(struct device_node *np,
 	return 0;
 }
 
-static struct regmap_config inno_mipi_dphy_regmap_cfg = {
+static const struct regmap_config inno_mipi_dphy_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
-	.max_register = INNO_MIPI_DPHY_MAX_REGISTER,
+	.max_register = 0x3ac,
 };
 
 static int inno_mipi_dphy_probe(struct platform_device *pdev)
@@ -616,6 +787,7 @@ static int inno_mipi_dphy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	inno->dev = dev;
+	inno->socdata = of_device_get_match_data(dev);
 	platform_set_drvdata(pdev, inno);
 
 	ret = inno_mipi_dphy_parse_dt(dev->of_node, inno);
@@ -630,7 +802,7 @@ static int inno_mipi_dphy_probe(struct platform_device *pdev)
 		return PTR_ERR(regs);
 
 	inno->regmap = devm_regmap_init_mmio_clk(dev, "pclk", regs,
-						 &inno_mipi_dphy_regmap_cfg);
+						 &inno_mipi_dphy_regmap_config);
 	if (IS_ERR(inno->regmap)) {
 		ret = PTR_ERR(inno->regmap);
 		dev_err(dev, "failed to init regmap: %d\n", ret);
@@ -643,22 +815,25 @@ static int inno_mipi_dphy_probe(struct platform_device *pdev)
 		return PTR_ERR(inno->ref_clk);
 	}
 
-	/* Check if h2p_clk provided */
-	inno->h2p_clk = devm_clk_get(dev, "h2p");
-	if (IS_ERR(inno->h2p_clk)) {
-		if (PTR_ERR(inno->h2p_clk) != -ENOENT) {
+	if (inno->socdata->has_h2p_clk) {
+		inno->h2p_clk = devm_clk_get(dev, "h2p");
+		if (IS_ERR(inno->h2p_clk)) {
 			dev_err(dev, "failed to get h2p clock\n");
 			return PTR_ERR(inno->h2p_clk);
 		}
-
-		/* Otherwise mark the h2p_clk pointer to NULL */
-		inno->h2p_clk = NULL;
 	}
 
 	inno->rst = devm_reset_control_get(dev, "apb");
 	if (IS_ERR(inno->rst)) {
 		dev_err(dev, "failed to get system reset control\n");
 		return PTR_ERR(inno->rst);
+	}
+
+	inno->grf = syscon_regmap_lookup_by_phandle(dev->of_node,
+						    "rockchip,grf");
+	if (IS_ERR(inno->grf)) {
+		dev_err(dev, "failed to get grf regmap\n");
+		return PTR_ERR(inno->grf);
 	}
 
 	phy = devm_phy_create(dev, NULL, &inno_mipi_dphy_ops);
@@ -675,12 +850,23 @@ static int inno_mipi_dphy_probe(struct platform_device *pdev)
 		return PTR_ERR(phy_provider);
 	}
 
-	clk_prepare_enable(inno->ref_clk);
-
 	ret = inno_mipi_dphy_pll_register(inno);
-	if (ret) {
-		clk_disable_unprepare(inno->ref_clk);
+	if (ret)
 		return ret;
+
+	if (inno->socdata->pinmux) {
+		inno->desc.name = dev_name(dev);
+		inno->desc.pins = inno_video_phy_pins;
+		inno->desc.npins = ARRAY_SIZE(inno_video_phy_pins);
+		inno->desc.pctlops = &inno_video_phy_pinctrl_ops;
+		inno->desc.pmxops = &inno_video_phy_pinmux_ops;
+		inno->desc.owner = THIS_MODULE;
+
+		inno->pinctrl = pinctrl_register(&inno->desc, dev, inno);
+		if (IS_ERR(inno->pinctrl)) {
+			dev_err(dev, "failed to register pincontrol\n");
+			return PTR_ERR(inno->pinctrl);
+		}
 	}
 
 	pm_runtime_enable(dev);
@@ -692,17 +878,34 @@ static int inno_mipi_dphy_remove(struct platform_device *pdev)
 {
 	struct inno_mipi_dphy *inno = platform_get_drvdata(pdev);
 
+	if (inno->socdata->pinmux)
+		pinctrl_unregister(inno->pinctrl);
+
+	inno_mipi_dphy_pll_unregister(inno);
 	pm_runtime_disable(inno->dev);
-	of_clk_del_provider(inno->dev->of_node);
-	clk_disable_unprepare(inno->ref_clk);
 
 	return 0;
 }
 
+static const struct inno_video_phy_socdata rk3128_socdata = {
+	.has_h2p_clk = true,
+	.pinmux = false,
+};
+
+static const struct inno_video_phy_socdata rk3366_socdata = {
+	.has_h2p_clk = false,
+	.pinmux = false,
+};
+
+static const struct inno_video_phy_socdata rk3368_socdata = {
+	.has_h2p_clk = false,
+	.pinmux = true,
+};
+
 static const struct of_device_id inno_mipi_dphy_of_match[] = {
-	{ .compatible = "rockchip,rk3128-mipi-dphy", },
-	{ .compatible = "rockchip,rk3366-mipi-dphy", },
-	{ .compatible = "rockchip,rk3368-mipi-dphy", },
+	{ .compatible = "rockchip,rk3128-mipi-dphy", .data = &rk3128_socdata },
+	{ .compatible = "rockchip,rk3366-mipi-dphy", .data = &rk3366_socdata },
+	{ .compatible = "rockchip,rk3368-mipi-dphy", .data = &rk3368_socdata },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, inno_mipi_dphy_of_match);
