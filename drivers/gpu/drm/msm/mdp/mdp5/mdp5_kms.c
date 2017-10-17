@@ -599,7 +599,7 @@ static u32 mdp5_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 	struct drm_crtc *crtc;
 	struct drm_encoder *encoder;
 
-	if (pipe < 0 || pipe >= priv->num_crtcs)
+	if (pipe >= priv->num_crtcs)
 		return 0;
 
 	crtc = priv->crtcs[pipe];

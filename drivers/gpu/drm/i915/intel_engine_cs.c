@@ -39,6 +39,7 @@
 
 #define GEN8_LR_CONTEXT_RENDER_SIZE	(20 * PAGE_SIZE)
 #define GEN9_LR_CONTEXT_RENDER_SIZE	(22 * PAGE_SIZE)
+#define GEN10_LR_CONTEXT_RENDER_SIZE	(19 * PAGE_SIZE)
 
 #define GEN8_LR_CONTEXT_OTHER_SIZE	( 2 * PAGE_SIZE)
 
@@ -150,10 +151,11 @@ __intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
 		default:
 			MISSING_CASE(INTEL_GEN(dev_priv));
 		case 10:
+			return GEN10_LR_CONTEXT_RENDER_SIZE;
 		case 9:
 			return GEN9_LR_CONTEXT_RENDER_SIZE;
 		case 8:
-			return i915.enable_execlists ?
+			return i915_modparams.enable_execlists ?
 			       GEN8_LR_CONTEXT_RENDER_SIZE :
 			       GEN8_CXT_TOTAL_SIZE;
 		case 7:
@@ -301,7 +303,7 @@ int intel_engines_init(struct drm_i915_private *dev_priv)
 			&intel_engine_classes[engine->class];
 		int (*init)(struct intel_engine_cs *engine);
 
-		if (i915.enable_execlists)
+		if (i915_modparams.enable_execlists)
 			init = class_info->init_execlists;
 		else
 			init = class_info->init_legacy;
@@ -380,6 +382,37 @@ static void intel_engine_init_timeline(struct intel_engine_cs *engine)
 	engine->timeline = &engine->i915->gt.global_timeline.engine[engine->id];
 }
 
+static bool csb_force_mmio(struct drm_i915_private *i915)
+{
+	/* GVT emulation depends upon intercepting CSB mmio */
+	if (intel_vgpu_active(i915))
+		return true;
+
+	/*
+	 * IOMMU adds unpredictable latency causing the CSB write (from the
+	 * GPU into the HWSP) to only be visible some time after the interrupt
+	 * (missed breadcrumb syndrome).
+	 */
+	if (intel_vtd_active())
+		return true;
+
+	return false;
+}
+
+static void intel_engine_init_execlist(struct intel_engine_cs *engine)
+{
+	struct intel_engine_execlists * const execlists = &engine->execlists;
+
+	execlists->csb_use_mmio = csb_force_mmio(engine->i915);
+
+	execlists->port_mask = 1;
+	BUILD_BUG_ON_NOT_POWER_OF_2(execlists_num_ports(execlists));
+	GEM_BUG_ON(execlists_num_ports(execlists) > EXECLIST_MAX_PORTS);
+
+	execlists->queue = RB_ROOT;
+	execlists->first = NULL;
+}
+
 /**
  * intel_engines_setup_common - setup engine state not requiring hw access
  * @engine: Engine to setup.
@@ -391,8 +424,7 @@ static void intel_engine_init_timeline(struct intel_engine_cs *engine)
  */
 void intel_engine_setup_common(struct intel_engine_cs *engine)
 {
-	engine->execlist_queue = RB_ROOT;
-	engine->execlist_first = NULL;
+	intel_engine_init_execlist(engine);
 
 	intel_engine_init_timeline(engine);
 	intel_engine_init_hangcheck(engine);
@@ -442,6 +474,116 @@ static void intel_engine_cleanup_scratch(struct intel_engine_cs *engine)
 	i915_vma_unpin_and_release(&engine->scratch);
 }
 
+static void cleanup_phys_status_page(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+
+	if (!dev_priv->status_page_dmah)
+		return;
+
+	drm_pci_free(&dev_priv->drm, dev_priv->status_page_dmah);
+	engine->status_page.page_addr = NULL;
+}
+
+static void cleanup_status_page(struct intel_engine_cs *engine)
+{
+	struct i915_vma *vma;
+	struct drm_i915_gem_object *obj;
+
+	vma = fetch_and_zero(&engine->status_page.vma);
+	if (!vma)
+		return;
+
+	obj = vma->obj;
+
+	i915_vma_unpin(vma);
+	i915_vma_close(vma);
+
+	i915_gem_object_unpin_map(obj);
+	__i915_gem_object_release_unless_active(obj);
+}
+
+static int init_status_page(struct intel_engine_cs *engine)
+{
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	unsigned int flags;
+	void *vaddr;
+	int ret;
+
+	obj = i915_gem_object_create_internal(engine->i915, PAGE_SIZE);
+	if (IS_ERR(obj)) {
+		DRM_ERROR("Failed to allocate status page\n");
+		return PTR_ERR(obj);
+	}
+
+	ret = i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
+	if (ret)
+		goto err;
+
+	vma = i915_vma_instance(obj, &engine->i915->ggtt.base, NULL);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto err;
+	}
+
+	flags = PIN_GLOBAL;
+	if (!HAS_LLC(engine->i915))
+		/* On g33, we cannot place HWS above 256MiB, so
+		 * restrict its pinning to the low mappable arena.
+		 * Though this restriction is not documented for
+		 * gen4, gen5, or byt, they also behave similarly
+		 * and hang if the HWS is placed at the top of the
+		 * GTT. To generalise, it appears that all !llc
+		 * platforms have issues with us placing the HWS
+		 * above the mappable region (even though we never
+		 * actually map it).
+		 */
+		flags |= PIN_MAPPABLE;
+	else
+		flags |= PIN_HIGH;
+	ret = i915_vma_pin(vma, 0, 4096, flags);
+	if (ret)
+		goto err;
+
+	vaddr = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	if (IS_ERR(vaddr)) {
+		ret = PTR_ERR(vaddr);
+		goto err_unpin;
+	}
+
+	engine->status_page.vma = vma;
+	engine->status_page.ggtt_offset = i915_ggtt_offset(vma);
+	engine->status_page.page_addr = memset(vaddr, 0, PAGE_SIZE);
+
+	DRM_DEBUG_DRIVER("%s hws offset: 0x%08x\n",
+			 engine->name, i915_ggtt_offset(vma));
+	return 0;
+
+err_unpin:
+	i915_vma_unpin(vma);
+err:
+	i915_gem_object_put(obj);
+	return ret;
+}
+
+static int init_phys_status_page(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+
+	GEM_BUG_ON(engine->id != RCS);
+
+	dev_priv->status_page_dmah =
+		drm_pci_alloc(&dev_priv->drm, PAGE_SIZE, PAGE_SIZE);
+	if (!dev_priv->status_page_dmah)
+		return -ENOMEM;
+
+	engine->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
+	memset(engine->status_page.page_addr, 0, PAGE_SIZE);
+
+	return 0;
+}
+
 /**
  * intel_engines_init_common - initialize cengine state which might require hw access
  * @engine: Engine to initialize.
@@ -477,10 +619,21 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 
 	ret = i915_gem_render_state_init(engine);
 	if (ret)
-		goto err_unpin;
+		goto err_breadcrumbs;
+
+	if (HWS_NEEDS_PHYSICAL(engine->i915))
+		ret = init_phys_status_page(engine);
+	else
+		ret = init_status_page(engine);
+	if (ret)
+		goto err_rs_fini;
 
 	return 0;
 
+err_rs_fini:
+	i915_gem_render_state_fini(engine);
+err_breadcrumbs:
+	intel_engine_fini_breadcrumbs(engine);
 err_unpin:
 	engine->context_unpin(engine, engine->i915->kernel_context);
 	return ret;
@@ -496,6 +649,11 @@ err_unpin:
 void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 {
 	intel_engine_cleanup_scratch(engine);
+
+	if (HWS_NEEDS_PHYSICAL(engine->i915))
+		cleanup_phys_status_page(engine);
+	else
+		cleanup_status_page(engine);
 
 	i915_gem_render_state_fini(engine);
 	intel_engine_fini_breadcrumbs(engine);
@@ -812,6 +970,19 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 		I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
 			   ECOCHK_DIS_TLB);
 
+	if (HAS_LLC(dev_priv)) {
+		/* WaCompressedResourceSamplerPbeMediaNewHashMode:skl,kbl
+		 *
+		 * Must match Display Engine. See
+		 * WaCompressedResourceDisplayNewHashMode.
+		 */
+		WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
+				  GEN9_PBE_COMPRESSED_HASH_SELECTION);
+		WA_SET_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN7,
+				  GEN9_SAMPLER_HASH_COMPRESSED_READ_ADDR);
+		WA_SET_BIT(MMCD_MISC_CTRL, MMCD_PCLA | MMCD_HOTSPOT_EN);
+	}
+
 	/* WaClearFlowControlGpgpuContextSave:skl,bxt,kbl,glk,cfl */
 	/* WaDisablePartialInstShootdown:skl,bxt,kbl,glk,cfl */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
@@ -981,12 +1152,14 @@ static int skl_init_workarounds(struct intel_engine_cs *engine)
 				   GEN9_GAPS_TSV_CREDIT_DISABLE));
 
 	/* WaDisableGafsUnitClkGating:skl */
-	WA_SET_BIT(GEN7_UCGCTL4, GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE);
+	I915_WRITE(GEN7_UCGCTL4, (I915_READ(GEN7_UCGCTL4) |
+				  GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE));
 
 	/* WaInPlaceDecompressionHang:skl */
 	if (IS_SKL_REVID(dev_priv, SKL_REVID_H0, REVID_FOREVER))
-		WA_SET_BIT(GEN9_GAMT_ECO_REG_RW_IA,
-			   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+		I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
+			   (I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
+			    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS));
 
 	/* WaDisableLSQCROPERFforOCL:skl */
 	ret = wa_ring_whitelist_reg(engine, GEN8_L3SQCREG4);
@@ -1022,8 +1195,8 @@ static int bxt_init_workarounds(struct intel_engine_cs *engine)
 
 	/* WaDisablePooledEuLoadBalancingFix:bxt */
 	if (IS_BXT_REVID(dev_priv, BXT_REVID_B0, REVID_FOREVER)) {
-		WA_SET_BIT_MASKED(FF_SLICE_CS_CHICKEN2,
-				  GEN9_POOLED_EU_LOAD_BALANCING_FIX_DISABLE);
+		I915_WRITE(FF_SLICE_CS_CHICKEN2,
+			   _MASKED_BIT_ENABLE(GEN9_POOLED_EU_LOAD_BALANCING_FIX_DISABLE));
 	}
 
 	/* WaDisableSbeCacheDispatchPortSharing:bxt */
@@ -1059,8 +1232,9 @@ static int bxt_init_workarounds(struct intel_engine_cs *engine)
 
 	/* WaInPlaceDecompressionHang:bxt */
 	if (IS_BXT_REVID(dev_priv, BXT_REVID_C0, REVID_FOREVER))
-		WA_SET_BIT(GEN9_GAMT_ECO_REG_RW_IA,
-			   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+		I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
+			   (I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
+			    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS));
 
 	return 0;
 }
@@ -1070,10 +1244,11 @@ static int cnl_init_workarounds(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 	int ret;
 
-	/* WaDisableI2mCycleOnWRPort: cnl (pre-prod) */
+	/* WaDisableI2mCycleOnWRPort:cnl (pre-prod) */
 	if (IS_CNL_REVID(dev_priv, CNL_REVID_B0, CNL_REVID_B0))
-		WA_SET_BIT(GAMT_CHKN_BIT_REG,
-			   GAMT_CHKN_DISABLE_I2M_CYCLE_ON_WR_PORT);
+		I915_WRITE(GAMT_CHKN_BIT_REG,
+			   (I915_READ(GAMT_CHKN_BIT_REG) |
+			    GAMT_CHKN_DISABLE_I2M_CYCLE_ON_WR_PORT));
 
 	/* WaForceContextSaveRestoreNonCoherent:cnl */
 	WA_SET_BIT_MASKED(CNL_HDC_CHICKEN0,
@@ -1093,11 +1268,12 @@ static int cnl_init_workarounds(struct intel_engine_cs *engine)
 				  GEN8_CSC2_SBE_VUE_CACHE_CONSERVATIVE);
 
 	/* WaInPlaceDecompressionHang:cnl */
-	WA_SET_BIT(GEN9_GAMT_ECO_REG_RW_IA,
-		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
+		   (I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
+		    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS));
 
 	/* WaPushConstantDereferenceHoldDisable:cnl */
-	WA_SET_BIT(GEN7_ROW_CHICKEN2, PUSH_CONSTANT_DEREF_DISABLE);
+	WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2, PUSH_CONSTANT_DEREF_DISABLE);
 
 	/* FtrEnableFastAnisoL1BankingFix: cnl */
 	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3, CNL_FAST_ANISO_L1_BANKING_FIX);
@@ -1125,8 +1301,9 @@ static int kbl_init_workarounds(struct intel_engine_cs *engine)
 
 	/* WaDisableDynamicCreditSharing:kbl */
 	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_B0))
-		WA_SET_BIT(GAMT_CHKN_BIT_REG,
-			   GAMT_CHKN_DISABLE_DYNAMIC_CREDIT_SHARING);
+		I915_WRITE(GAMT_CHKN_BIT_REG,
+			   (I915_READ(GAMT_CHKN_BIT_REG) |
+			    GAMT_CHKN_DISABLE_DYNAMIC_CREDIT_SHARING));
 
 	/* WaDisableFenceDestinationToSLM:kbl (pre-prod) */
 	if (IS_KBL_REVID(dev_priv, KBL_REVID_A0, KBL_REVID_A0))
@@ -1139,7 +1316,8 @@ static int kbl_init_workarounds(struct intel_engine_cs *engine)
 				  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
 
 	/* WaDisableGafsUnitClkGating:kbl */
-	WA_SET_BIT(GEN7_UCGCTL4, GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE);
+	I915_WRITE(GEN7_UCGCTL4, (I915_READ(GEN7_UCGCTL4) |
+				  GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE));
 
 	/* WaDisableSbeCacheDispatchPortSharing:kbl */
 	WA_SET_BIT_MASKED(
@@ -1147,8 +1325,9 @@ static int kbl_init_workarounds(struct intel_engine_cs *engine)
 		GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
 
 	/* WaInPlaceDecompressionHang:kbl */
-	WA_SET_BIT(GEN9_GAMT_ECO_REG_RW_IA,
-		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
+		   (I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
+		    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS));
 
 	/* WaDisableLSQCROPERFforOCL:kbl */
 	ret = wa_ring_whitelist_reg(engine, GEN8_L3SQCREG4);
@@ -1192,7 +1371,8 @@ static int cfl_init_workarounds(struct intel_engine_cs *engine)
 			  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
 
 	/* WaDisableGafsUnitClkGating:cfl */
-	WA_SET_BIT(GEN7_UCGCTL4, GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE);
+	I915_WRITE(GEN7_UCGCTL4, (I915_READ(GEN7_UCGCTL4) |
+				  GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE));
 
 	/* WaDisableSbeCacheDispatchPortSharing:cfl */
 	WA_SET_BIT_MASKED(
@@ -1200,8 +1380,9 @@ static int cfl_init_workarounds(struct intel_engine_cs *engine)
 		GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
 
 	/* WaInPlaceDecompressionHang:cfl */
-	WA_SET_BIT(GEN9_GAMT_ECO_REG_RW_IA,
-		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
+		   (I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
+		    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS));
 
 	return 0;
 }
@@ -1324,11 +1505,11 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 		return false;
 
 	/* Both ports drained, no more ELSP submission? */
-	if (port_request(&engine->execlist_port[0]))
+	if (port_request(&engine->execlists.port[0]))
 		return false;
 
 	/* ELSP is empty, but there are ready requests? */
-	if (READ_ONCE(engine->execlist_first))
+	if (READ_ONCE(engine->execlists.first))
 		return false;
 
 	/* Ring stopped? */
@@ -1377,8 +1558,8 @@ void intel_engines_mark_idle(struct drm_i915_private *i915)
 	for_each_engine(engine, i915, id) {
 		intel_engine_disarm_breadcrumbs(engine);
 		i915_gem_batch_pool_fini(&engine->batch_pool);
-		tasklet_kill(&engine->irq_tasklet);
-		engine->no_priolist = false;
+		tasklet_kill(&engine->execlists.irq_tasklet);
+		engine->execlists.no_priolist = false;
 	}
 }
 

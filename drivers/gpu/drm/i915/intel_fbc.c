@@ -859,7 +859,7 @@ static bool intel_fbc_can_enable(struct drm_i915_private *dev_priv)
 		return false;
 	}
 
-	if (!i915.enable_fbc) {
+	if (!i915_modparams.enable_fbc) {
 		fbc->no_fbc_reason = "disabled per module param or by default";
 		return false;
 	}
@@ -1310,8 +1310,8 @@ void intel_fbc_init_pipe_state(struct drm_i915_private *dev_priv)
  */
 static int intel_sanitize_fbc_option(struct drm_i915_private *dev_priv)
 {
-	if (i915.enable_fbc >= 0)
-		return !!i915.enable_fbc;
+	if (i915_modparams.enable_fbc >= 0)
+		return !!i915_modparams.enable_fbc;
 
 	if (!HAS_FBC(dev_priv))
 		return 0;
@@ -1355,8 +1355,9 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 	if (need_fbc_vtd_wa(dev_priv))
 		mkwrite_device_info(dev_priv)->has_fbc = false;
 
-	i915.enable_fbc = intel_sanitize_fbc_option(dev_priv);
-	DRM_DEBUG_KMS("Sanitized enable_fbc value: %d\n", i915.enable_fbc);
+	i915_modparams.enable_fbc = intel_sanitize_fbc_option(dev_priv);
+	DRM_DEBUG_KMS("Sanitized enable_fbc value: %d\n",
+		      i915_modparams.enable_fbc);
 
 	if (!HAS_FBC(dev_priv)) {
 		fbc->no_fbc_reason = "unsupported by this chipset";

@@ -58,12 +58,12 @@ static unsigned int i915_load_fail_count;
 
 bool __i915_inject_load_failure(const char *func, int line)
 {
-	if (i915_load_fail_count >= i915.inject_load_failure)
+	if (i915_load_fail_count >= i915_modparams.inject_load_failure)
 		return false;
 
-	if (++i915_load_fail_count == i915.inject_load_failure) {
+	if (++i915_load_fail_count == i915_modparams.inject_load_failure) {
 		DRM_INFO("Injecting failure at checkpoint %u [%s:%d]\n",
-			 i915.inject_load_failure, func, line);
+			 i915_modparams.inject_load_failure, func, line);
 		return true;
 	}
 
@@ -106,8 +106,8 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 
 static bool i915_error_injected(struct drm_i915_private *dev_priv)
 {
-	return i915.inject_load_failure &&
-	       i915_load_fail_count == i915.inject_load_failure;
+	return i915_modparams.inject_load_failure &&
+	       i915_load_fail_count == i915_modparams.inject_load_failure;
 }
 
 #define i915_load_error(dev_priv, fmt, ...)				     \
@@ -321,7 +321,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = USES_PPGTT(dev_priv);
 		break;
 	case I915_PARAM_HAS_SEMAPHORES:
-		value = i915.semaphores;
+		value = i915_modparams.semaphores;
 		break;
 	case I915_PARAM_HAS_SECURE_BATCHES:
 		value = capable(CAP_SYS_ADMIN);
@@ -340,7 +340,8 @@ static int i915_getparam(struct drm_device *dev, void *data,
 			return -ENODEV;
 		break;
 	case I915_PARAM_HAS_GPU_RESET:
-		value = i915.enable_hangcheck && intel_has_gpu_reset(dev_priv);
+		value = i915_modparams.enable_hangcheck &&
+			intel_has_gpu_reset(dev_priv);
 		if (value && intel_has_reset_engine(dev_priv))
 			value = 2;
 		break;
@@ -869,6 +870,10 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	memcpy(device_info, match_info, sizeof(*device_info));
 	device_info->device_id = dev_priv->drm.pdev->device;
 
+	BUILD_BUG_ON(INTEL_MAX_PLATFORMS >
+		     sizeof(device_info->platform_mask) * BITS_PER_BYTE);
+	device_info->platform_mask = BIT(device_info->platform);
+
 	BUG_ON(device_info->gen > sizeof(device_info->gen_mask) * BITS_PER_BYTE);
 	device_info->gen_mask = BIT(device_info->gen - 1);
 
@@ -1031,9 +1036,9 @@ static void i915_driver_cleanup_mmio(struct drm_i915_private *dev_priv)
 
 static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 {
-	i915.enable_execlists =
+	i915_modparams.enable_execlists =
 		intel_sanitize_enable_execlists(dev_priv,
-						i915.enable_execlists);
+						i915_modparams.enable_execlists);
 
 	/*
 	 * i915.enable_ppgtt is read-only, so do an early pass to validate the
@@ -1041,12 +1046,15 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 	 * do this now so that we can print out any log messages once rather
 	 * than every time we check intel_enable_ppgtt().
 	 */
-	i915.enable_ppgtt =
-		intel_sanitize_enable_ppgtt(dev_priv, i915.enable_ppgtt);
-	DRM_DEBUG_DRIVER("ppgtt mode: %i\n", i915.enable_ppgtt);
+	i915_modparams.enable_ppgtt =
+		intel_sanitize_enable_ppgtt(dev_priv,
+					    i915_modparams.enable_ppgtt);
+	DRM_DEBUG_DRIVER("ppgtt mode: %i\n", i915_modparams.enable_ppgtt);
 
-	i915.semaphores = intel_sanitize_semaphores(dev_priv, i915.semaphores);
-	DRM_DEBUG_DRIVER("use GPU semaphores? %s\n", yesno(i915.semaphores));
+	i915_modparams.semaphores =
+		intel_sanitize_semaphores(dev_priv, i915_modparams.semaphores);
+	DRM_DEBUG_DRIVER("use GPU semaphores? %s\n",
+			 yesno(i915_modparams.semaphores));
 
 	intel_uc_sanitize_options(dev_priv);
 
@@ -1277,7 +1285,7 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int ret;
 
 	/* Enable nuclear pageflip on ILK+ */
-	if (!i915.nuclear_pageflip && match_info->gen < 5)
+	if (!i915_modparams.nuclear_pageflip && match_info->gen < 5)
 		driver.driver_features &= ~DRIVER_ATOMIC;
 
 	ret = -ENOMEM;
@@ -1341,7 +1349,7 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	intel_runtime_pm_enable(dev_priv);
 
-	dev_priv->ipc_enabled = false;
+	intel_init_ipc(dev_priv);
 
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG))
 		DRM_INFO("DRM_I915_DEBUG enabled\n");
@@ -2608,6 +2616,8 @@ static int intel_runtime_resume(struct device *kdev)
 	 */
 	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
 		intel_hpd_init(dev_priv);
+
+	intel_enable_ipc(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 

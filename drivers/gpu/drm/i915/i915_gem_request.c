@@ -1021,11 +1021,27 @@ static bool busywait_stop(unsigned long timeout, unsigned int cpu)
 	return this_cpu != cpu;
 }
 
-bool __i915_spin_request(const struct drm_i915_gem_request *req,
-			 u32 seqno, int state, unsigned long timeout_us)
+static bool __i915_spin_request(const struct drm_i915_gem_request *req,
+				u32 seqno, int state, unsigned long timeout_us)
 {
 	struct intel_engine_cs *engine = req->engine;
 	unsigned int irq, cpu;
+
+	GEM_BUG_ON(!seqno);
+
+	/*
+	 * Only wait for the request if we know it is likely to complete.
+	 *
+	 * We don't track the timestamps around requests, nor the average
+	 * request length, so we do not have a good indicator that this
+	 * request will complete within the timeout. What we do know is the
+	 * order in which requests are executed by the engine and so we can
+	 * tell if the request has started. If the request hasn't started yet,
+	 * it is a fair assumption that it will not complete within our
+	 * relatively short timeout.
+	 */
+	if (!i915_seqno_passed(intel_engine_get_seqno(engine), seqno - 1))
+		return false;
 
 	/* When waiting for high frequency requests, e.g. during synchronous
 	 * rendering split between the CPU and GPU, the finite amount of time
@@ -1040,12 +1056,8 @@ bool __i915_spin_request(const struct drm_i915_gem_request *req,
 	irq = atomic_read(&engine->irq_count);
 	timeout_us += local_clock_us(&cpu);
 	do {
-		if (seqno != i915_gem_request_global_seqno(req))
-			break;
-
-		if (i915_seqno_passed(intel_engine_get_seqno(req->engine),
-				      seqno))
-			return true;
+		if (i915_seqno_passed(intel_engine_get_seqno(engine), seqno))
+			return seqno == i915_gem_request_global_seqno(req);
 
 		/* Seqno are meant to be ordered *before* the interrupt. If
 		 * we see an interrupt without a corresponding seqno advance,
@@ -1156,7 +1168,7 @@ restart:
 	GEM_BUG_ON(!i915_sw_fence_signaled(&req->submit));
 
 	/* Optimistic short spin before touching IRQs */
-	if (i915_spin_request(req, state, 5))
+	if (__i915_spin_request(req, wait.seqno, state, 5))
 		goto complete;
 
 	set_current_state(state);
@@ -1213,7 +1225,7 @@ wakeup:
 			continue;
 
 		/* Only spin if we know the GPU is processing this request */
-		if (i915_spin_request(req, state, 2))
+		if (__i915_spin_request(req, wait.seqno, state, 2))
 			break;
 
 		if (!intel_wait_check_request(&wait, req)) {

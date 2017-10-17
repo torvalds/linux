@@ -2638,7 +2638,7 @@ static struct drm_encoder *best_encoder(struct drm_connector *connector)
 
 	/* pick the encoder ids */
 	if (enc_id) {
-		obj = drm_mode_object_find(connector->dev, enc_id, DRM_MODE_OBJECT_ENCODER);
+		obj = drm_mode_object_find(connector->dev, NULL, enc_id, DRM_MODE_OBJECT_ENCODER);
 		if (!obj) {
 			DRM_ERROR("Couldn't find a matching encoder for our connector\n");
 			return NULL;

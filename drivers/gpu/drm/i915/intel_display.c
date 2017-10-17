@@ -3701,7 +3701,7 @@ void intel_prepare_reset(struct drm_i915_private *dev_priv)
 
 
 	/* reset doesn't touch the display */
-	if (!i915.force_reset_modeset_test &&
+	if (!i915_modparams.force_reset_modeset_test &&
 	    !gpu_reset_clobbers_display(dev_priv))
 		return;
 
@@ -3757,7 +3757,7 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 	int ret;
 
 	/* reset doesn't touch the display */
-	if (!i915.force_reset_modeset_test &&
+	if (!i915_modparams.force_reset_modeset_test &&
 	    !gpu_reset_clobbers_display(dev_priv))
 		return;
 
@@ -4956,7 +4956,8 @@ void hsw_enable_ips(struct intel_crtc *crtc)
 	assert_plane_enabled(dev_priv, crtc->plane);
 	if (IS_BROADWELL(dev_priv)) {
 		mutex_lock(&dev_priv->rps.hw_lock);
-		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL, 0xc0000000));
+		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL,
+						IPS_ENABLE | IPS_PCODE_CONTROL));
 		mutex_unlock(&dev_priv->rps.hw_lock);
 		/* Quoting Art Runyan: "its not safe to expect any particular
 		 * value in IPS_CTL bit 31 after enabling IPS through the
@@ -6312,7 +6313,7 @@ static void hsw_compute_ips_config(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	pipe_config->ips_enabled = i915.enable_ips &&
+	pipe_config->ips_enabled = i915_modparams.enable_ips &&
 		hsw_crtc_supports_ips(crtc) &&
 		pipe_config_supports_ips(dev_priv, pipe_config);
 }
@@ -6493,8 +6494,8 @@ intel_link_compute_m_n(int bits_per_pixel, int nlanes,
 
 static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
 {
-	if (i915.panel_use_ssc >= 0)
-		return i915.panel_use_ssc != 0;
+	if (i915_modparams.panel_use_ssc >= 0)
+		return i915_modparams.panel_use_ssc != 0;
 	return dev_priv->vbt.lvds_use_ssc
 		&& !(dev_priv->quirks & QUIRK_LVDS_SSC_DISABLE);
 }
@@ -9309,11 +9310,11 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	pipe_config->gamma_mode =
 		I915_READ(GAMMA_MODE(crtc->pipe)) & GAMMA_MODE_MODE_MASK;
 
-	if (IS_BROADWELL(dev_priv) || dev_priv->info.gen >= 9) {
+	if (IS_BROADWELL(dev_priv) || INTEL_GEN(dev_priv) >= 9) {
 		u32 tmp = I915_READ(PIPEMISC(crtc->pipe));
 		bool clrspace_yuv = tmp & PIPEMISC_OUTPUT_COLORSPACE_YUV;
 
-		if (IS_GEMINILAKE(dev_priv) || dev_priv->info.gen >= 10) {
+		if (IS_GEMINILAKE(dev_priv) || INTEL_GEN(dev_priv) >= 10) {
 			bool blend_mode_420 = tmp &
 					      PIPEMISC_YUV420_MODE_FULL_BLEND;
 
@@ -10223,7 +10224,7 @@ int intel_dotclock_calculate(int link_freq,
 	if (!m_n->link_n)
 		return 0;
 
-	return div_u64((u64)m_n->link_m * link_freq, m_n->link_n);
+	return div_u64(mul_u32_u32(m_n->link_m, link_freq), m_n->link_n);
 }
 
 static void ironlake_pch_clock_get(struct intel_crtc *crtc,
@@ -12083,7 +12084,7 @@ static int intel_atomic_check(struct drm_device *dev,
 			return ret;
 		}
 
-		if (i915.fastboot &&
+		if (i915_modparams.fastboot &&
 		    intel_pipe_config_compare(dev_priv,
 					to_intel_crtc_state(old_crtc_state),
 					pipe_config, true)) {
@@ -12298,7 +12299,6 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct drm_crtc *crtc;
 	struct intel_crtc_state *intel_cstate;
-	bool hw_check = intel_state->modeset;
 	u64 put_domains[I915_MAX_PIPES] = {};
 	int i;
 
@@ -12314,7 +12314,6 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 
 		if (needs_modeset(new_crtc_state) ||
 		    to_intel_crtc_state(new_crtc_state)->update_pipe) {
-			hw_check = true;
 
 			put_domains[to_intel_crtc(crtc)->pipe] =
 				modeset_get_crtc_power_domains(crtc,
@@ -13511,7 +13510,7 @@ int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 	struct drm_crtc *drmmode_crtc;
 	struct intel_crtc *crtc;
 
-	drmmode_crtc = drm_crtc_find(dev, pipe_from_crtc_id->crtc_id);
+	drmmode_crtc = drm_crtc_find(dev, file, pipe_from_crtc_id->crtc_id);
 	if (!drmmode_crtc)
 		return -ENOENT;
 
@@ -14218,7 +14217,7 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.fdi_link_train = hsw_fdi_link_train;
 	}
 
-	if (dev_priv->info.gen >= 9)
+	if (INTEL_GEN(dev_priv) >= 9)
 		dev_priv->display.update_crtcs = skl_update_crtcs;
 	else
 		dev_priv->display.update_crtcs = intel_update_crtcs;
@@ -15192,6 +15191,7 @@ void intel_display_resume(struct drm_device *dev)
 	if (!ret)
 		ret = __intel_display_resume(dev, state, &ctx);
 
+	intel_enable_ipc(dev_priv);
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 

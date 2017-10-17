@@ -56,10 +56,6 @@
 #define WQ_LEN_SHIFT			16
 #define WQ_NO_WCFLUSH_WAIT		(1 << 27)
 #define WQ_PRESENT_WORKLOAD		(1 << 28)
-#define WQ_WORKLOAD_SHIFT		29
-#define   WQ_WORKLOAD_GENERAL		(0 << WQ_WORKLOAD_SHIFT)
-#define   WQ_WORKLOAD_GPGPU		(1 << WQ_WORKLOAD_SHIFT)
-#define   WQ_WORKLOAD_TOUCH		(2 << WQ_WORKLOAD_SHIFT)
 
 #define WQ_RING_TAIL_SHIFT		20
 #define WQ_RING_TAIL_MAX		0x7FF	/* 2^11 QWords */
@@ -388,7 +384,11 @@ struct guc_ct_buffer_desc {
 /* Preempt to idle on quantum expiry */
 #define POLICY_PREEMPT_TO_IDLE		(1<<1)
 
-#define POLICY_MAX_NUM_WI		15
+#define POLICY_MAX_NUM_WI 15
+#define POLICY_DEFAULT_DPC_PROMOTE_TIME_US 500000
+#define POLICY_DEFAULT_EXECUTION_QUANTUM_US 1000000
+#define POLICY_DEFAULT_PREEMPTION_TIME_US 500000
+#define POLICY_DEFAULT_FAULT_TIME_US 250000
 
 struct guc_policy {
 	/* Time for one workload to execute. (in micro seconds) */

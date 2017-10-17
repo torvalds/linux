@@ -14,8 +14,11 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_of.h>
+
+#include <uapi/drm/drm_mode.h>
 
 #include <linux/component.h>
 #include <linux/ioport.h>
@@ -109,26 +112,37 @@ void sun4i_tcon_enable_vblank(struct sun4i_tcon *tcon, bool enable)
 }
 EXPORT_SYMBOL(sun4i_tcon_enable_vblank);
 
+/*
+ * This function is a helper for TCON output muxing. The TCON output
+ * muxing control register in earlier SoCs (without the TCON TOP block)
+ * are located in TCON0. This helper returns a pointer to TCON0's
+ * sun4i_tcon structure, or NULL if not found.
+ */
+static struct sun4i_tcon *sun4i_get_tcon0(struct drm_device *drm)
+{
+	struct sun4i_drv *drv = drm->dev_private;
+	struct sun4i_tcon *tcon;
+
+	list_for_each_entry(tcon, &drv->tcon_list, list)
+		if (tcon->id == 0)
+			return tcon;
+
+	dev_warn(drm->dev,
+		 "TCON0 not found, display output muxing may not work\n");
+
+	return NULL;
+}
+
 void sun4i_tcon_set_mux(struct sun4i_tcon *tcon, int channel,
 			struct drm_encoder *encoder)
 {
-	u32 val;
+	int ret = -ENOTSUPP;
 
-	if (!tcon->quirks->has_unknown_mux)
-		return;
+	if (tcon->quirks->set_mux)
+		ret = tcon->quirks->set_mux(tcon, encoder);
 
-	if (channel != 1)
-		return;
-
-	if (encoder->encoder_type == DRM_MODE_ENCODER_TVDAC)
-		val = 1;
-	else
-		val = 0;
-
-	/*
-	 * FIXME: Undocumented bits
-	 */
-	regmap_write(tcon->regs, SUN4I_TCON_MUX_CTRL_REG, val);
+	DRM_DEBUG_DRIVER("Muxing encoder %s to CRTC %s: %d\n",
+			 encoder->name, encoder->crtc->name, ret);
 }
 EXPORT_SYMBOL(sun4i_tcon_set_mux);
 
@@ -767,14 +781,57 @@ static int sun4i_tcon_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/* platform specific TCON muxing callbacks */
+static int sun5i_a13_tcon_set_mux(struct sun4i_tcon *tcon,
+				  struct drm_encoder *encoder)
+{
+	u32 val;
+
+	if (encoder->encoder_type == DRM_MODE_ENCODER_TVDAC)
+		val = 1;
+	else
+		val = 0;
+
+	/*
+	 * FIXME: Undocumented bits
+	 */
+	return regmap_write(tcon->regs, SUN4I_TCON_MUX_CTRL_REG, val);
+}
+
+static int sun6i_tcon_set_mux(struct sun4i_tcon *tcon,
+			      struct drm_encoder *encoder)
+{
+	struct sun4i_tcon *tcon0 = sun4i_get_tcon0(encoder->dev);
+	u32 shift;
+
+	if (!tcon0)
+		return -EINVAL;
+
+	switch (encoder->encoder_type) {
+	case DRM_MODE_ENCODER_TMDS:
+		/* HDMI */
+		shift = 8;
+		break;
+	default:
+		/* TODO A31 has MIPI DSI but A31s does not */
+		return -EINVAL;
+	}
+
+	regmap_update_bits(tcon0->regs, SUN4I_TCON_MUX_CTRL_REG,
+			   0x3 << shift, tcon->id << shift);
+
+	return 0;
+}
+
 static const struct sun4i_tcon_quirks sun5i_a13_quirks = {
-	.has_unknown_mux = true,
-	.has_channel_1	= true,
+	.has_channel_1		= true,
+	.set_mux		= sun5i_a13_tcon_set_mux,
 };
 
 static const struct sun4i_tcon_quirks sun6i_a31_quirks = {
 	.has_channel_1		= true,
 	.needs_de_be_mux	= true,
+	.set_mux		= sun6i_tcon_set_mux,
 };
 
 static const struct sun4i_tcon_quirks sun6i_a31s_quirks = {

@@ -621,7 +621,12 @@ static int igt_wait_reset(void *arg)
 	__i915_add_request(rq, true);
 
 	if (!wait_for_hang(&h, rq)) {
-		pr_err("Failed to start request %x\n", rq->fence.seqno);
+		pr_err("Failed to start request %x, at %x\n",
+		       rq->fence.seqno, hws_seqno(&h, rq));
+
+		i915_reset(i915, 0);
+		i915_gem_set_wedged(i915);
+
 		err = -EIO;
 		goto out_rq;
 	}
@@ -708,10 +713,14 @@ static int igt_reset_queue(void *arg)
 			__i915_add_request(rq, true);
 
 			if (!wait_for_hang(&h, prev)) {
-				pr_err("Failed to start request %x\n",
-				       prev->fence.seqno);
+				pr_err("Failed to start request %x, at %x\n",
+				       prev->fence.seqno, hws_seqno(&h, prev));
 				i915_gem_request_put(rq);
 				i915_gem_request_put(prev);
+
+				i915_reset(i915, 0);
+				i915_gem_set_wedged(i915);
+
 				err = -EIO;
 				goto fini;
 			}
@@ -806,7 +815,12 @@ static int igt_handle_error(void *arg)
 	__i915_add_request(rq, true);
 
 	if (!wait_for_hang(&h, rq)) {
-		pr_err("Failed to start request %x\n", rq->fence.seqno);
+		pr_err("Failed to start request %x, at %x\n",
+		       rq->fence.seqno, hws_seqno(&h, rq));
+
+		i915_reset(i915, 0);
+		i915_gem_set_wedged(i915);
+
 		err = -EIO;
 		goto err_request;
 	}
@@ -843,8 +857,8 @@ err_unlock:
 int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
+		SUBTEST(igt_global_reset), /* attempt to recover GPU first */
 		SUBTEST(igt_hang_sanitycheck),
-		SUBTEST(igt_global_reset),
 		SUBTEST(igt_reset_engine),
 		SUBTEST(igt_reset_active_engines),
 		SUBTEST(igt_wait_reset),
