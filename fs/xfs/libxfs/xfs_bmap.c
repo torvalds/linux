@@ -2688,7 +2688,7 @@ xfs_bmap_add_extent_hole_delay(
 	xfs_filblks_t		oldlen=0;	/* old indirect size */
 	xfs_bmbt_irec_t		right;	/* right neighbor extent entry */
 	int			state;  /* state bits, accessed thru macros */
-	xfs_filblks_t		temp=0;	/* temp for indirect calculations */
+	xfs_filblks_t		temp;	 /* temp for indirect calculations */
 
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	state = 0;
@@ -2751,14 +2751,14 @@ xfs_bmap_add_extent_hole_delay(
 			right.br_blockcount;
 
 		trace_xfs_bmap_pre_update(ip, *idx, state, _THIS_IP_);
-		xfs_bmbt_set_blockcount(xfs_iext_get_ext(ifp, *idx), temp);
 		oldlen = startblockval(left.br_startblock) +
 			startblockval(new->br_startblock) +
 			startblockval(right.br_startblock);
 		newlen = XFS_FILBLKS_MIN(xfs_bmap_worst_indlen(ip, temp),
 					 oldlen);
-		xfs_bmbt_set_startblock(xfs_iext_get_ext(ifp, *idx),
-			nullstartblock((int)newlen));
+		left.br_startblock = nullstartblock(newlen);
+		left.br_blockcount = temp;
+		xfs_iext_update_extent(ifp, *idx, &left);
 		trace_xfs_bmap_post_update(ip, *idx, state, _THIS_IP_);
 
 		xfs_iext_remove(ip, *idx + 1, 1, state);
@@ -2774,13 +2774,13 @@ xfs_bmap_add_extent_hole_delay(
 		temp = left.br_blockcount + new->br_blockcount;
 
 		trace_xfs_bmap_pre_update(ip, *idx, state, _THIS_IP_);
-		xfs_bmbt_set_blockcount(xfs_iext_get_ext(ifp, *idx), temp);
 		oldlen = startblockval(left.br_startblock) +
 			startblockval(new->br_startblock);
 		newlen = XFS_FILBLKS_MIN(xfs_bmap_worst_indlen(ip, temp),
 					 oldlen);
-		xfs_bmbt_set_startblock(xfs_iext_get_ext(ifp, *idx),
-			nullstartblock((int)newlen));
+		left.br_blockcount = temp;
+		left.br_startblock = nullstartblock(newlen);
+		xfs_iext_update_extent(ifp, *idx, &left);
 		trace_xfs_bmap_post_update(ip, *idx, state, _THIS_IP_);
 		break;
 
@@ -2796,9 +2796,10 @@ xfs_bmap_add_extent_hole_delay(
 			startblockval(right.br_startblock);
 		newlen = XFS_FILBLKS_MIN(xfs_bmap_worst_indlen(ip, temp),
 					 oldlen);
-		xfs_bmbt_set_allf(xfs_iext_get_ext(ifp, *idx),
-			new->br_startoff,
-			nullstartblock((int)newlen), temp, right.br_state);
+		right.br_startoff = new->br_startoff;
+		right.br_startblock = nullstartblock(newlen);
+		right.br_blockcount = temp;
+		xfs_iext_update_extent(ifp, *idx, &right);
 		trace_xfs_bmap_post_update(ip, *idx, state, _THIS_IP_);
 		break;
 
