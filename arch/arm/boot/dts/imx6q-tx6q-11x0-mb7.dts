@@ -40,47 +40,9 @@
  */
 
 /dts-v1/;
-#include "imx6q.dtsi"
-#include "imx6qdl-tx6.dtsi"
-#include "imx6qdl-tx6-lvds.dtsi"
+#include "imx6q-tx6q-1110.dts"
+#include "imx6qdl-tx6-mb7.dtsi"
 
 / {
 	model = "Ka-Ro electronics TX6Q-1110/-1130 Module on MB7 baseboard";
-	compatible = "karo,imx6q-tx6q", "fsl,imx6q";
-};
-
-&backlight0 {
-	pwms = <&pwm2 0 500000 PWM_POLARITY_INVERTED>;
-	turn-on-delay-ms = <35>;
-	power-supply = <&reg_lcd1_pwr>;
-};
-
-&backlight1 {
-	pwms = <&pwm1 0 500000 PWM_POLARITY_INVERTED>;
-	turn-on-delay-ms = <35>;
-	power-supply = <&reg_lcd1_pwr>;
-};
-
-&can1 {
-	status = "disabled";
-};
-
-&can2 {
-	xceiver-supply = <&reg_3v3>;
-};
-
-&ipu2 {
-	status = "disabled";
-};
-
-&lvds0_panel {
-	compatible = "edt,et057090dhu";
-};
-
-&lvds1_panel {
-	compatible = "edt,et057090dhu";
-};
-
-&sata {
-	status = "okay";
 };

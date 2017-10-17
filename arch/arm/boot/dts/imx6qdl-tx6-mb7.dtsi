@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2017 Lothar Waßmann <LW@KARO-electronics.de>
+ * Copyright 2017 Lothar Waßmann <LW@KARO-electronics.de>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -39,23 +39,61 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/dts-v1/;
-#include "imx6dl.dtsi"
-#include "imx6qdl-tx6.dtsi"
-#include "imx6qdl-tx6-lvds.dtsi"
-#include "imx6qdl-tx6-mb7.dtsi"
-
 / {
-	model = "Ka-Ro electronics TX6U-81xx Module on MB7 baseboard";
-	compatible = "karo,imx6dl-tx6dl", "fsl,imx6dl";
+	backlight0 {
+		pwms = <&pwm1 0 500000 PWM_POLARITY_INVERTED>;
+		turn-on-delay-ms = <35>;
+		power-supply = <&reg_lcd1_pwr>;
+	};
+
+	backlight1 {
+		pwms = <&pwm2 0 500000 PWM_POLARITY_INVERTED>;
+		turn-on-delay-ms = <35>;
+		power-supply = <&reg_lcd1_pwr>;
+	};
+
+	lcd-panel {
+		compatible = "edt,et057090dhu";
+		bus-format-override = "rgb24";
+		pixelclk-active = <0>;
+	};
+
+	lvds0-panel {
+		compatible = "edt,etml1010g0dka";
+		bus-format-override = "spwg-18";
+		pixelclk-active = <0>;
+	};
+
+	lvds1-panel {
+		compatible = "edt,etml1010g0dka";
+		bus-format-override = "spwg-18";
+		pixelclk-active = <0>;
+	};
 };
 
-&backlight0 {
-	pwms = <&pwm2 0 500000 PWM_POLARITY_INVERTED>;
-	turn-on-delay-ms = <35>;
+&can1 {
+	status = "disabled";
 };
 
-&backlight1 {
-	pwms = <&pwm1 0 500000 PWM_POLARITY_INVERTED>;
-	turn-on-delay-ms = <35>;
+&can2 {
+	xceiver-supply = <&reg_3v3>;
+};
+
+&ds1339 {
+	/*
+	 * The backup voltage of the module internal RTC is not wired
+	 * by default on the MB7, so disable that RTC chip.
+	 */
+	status = "disabled";
+};
+
+&i2c3 {
+	rtc: mcp7940x@6f {
+		compatible = "microchip,mcp7940x";
+		reg = <0x6f>;
+	};
+};
+
+&reg_lcd0_pwr {
+	status = "disabled";
 };
