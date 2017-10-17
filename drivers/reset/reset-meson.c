@@ -83,9 +83,6 @@ static int meson_reset_reset(struct reset_controller_dev *rcdev,
 	unsigned int offset = id % BITS_PER_REG;
 	void __iomem *reg_addr = data->reg_base + (bank << 2);
 
-	if (bank >= REG_COUNT)
-		return -EINVAL;
-
 	writel(BIT(offset), reg_addr);
 
 	return 0;
