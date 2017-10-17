@@ -1985,8 +1985,10 @@ static int __init null_init(void)
 
 	for (i = 0; i < nr_devices; i++) {
 		dev = null_alloc_dev();
-		if (!dev)
+		if (!dev) {
+			ret = -ENOMEM;
 			goto err_dev;
+		}
 		ret = null_add_dev(dev);
 		if (ret) {
 			null_free_dev(dev);
