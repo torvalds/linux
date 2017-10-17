@@ -4214,12 +4214,14 @@ static int pci_quirk_amd_sb_acs(struct pci_dev *dev, u16 acs_flags)
 static int pci_quirk_cavium_acs(struct pci_dev *dev, u16 acs_flags)
 {
 	/*
-	 * Cavium devices matching this quirk do not perform peer-to-peer
-	 * with other functions, allowing masking out these bits as if they
-	 * were unimplemented in the ACS capability.
+	 * Cavium root ports don't advertise an ACS capability.  However,
+	 * the RTL internally implements similar protection as if ACS had
+	 * Request Redirection, Completion Redirection, Source Validation,
+	 * and Upstream Forwarding features enabled.  Assert that the
+	 * hardware implements and enables equivalent ACS functionality for
+	 * these flags.
 	 */
-	acs_flags &= ~(PCI_ACS_SV | PCI_ACS_TB | PCI_ACS_RR |
-		       PCI_ACS_CR | PCI_ACS_UF | PCI_ACS_DT);
+	acs_flags &= ~(PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_SV | PCI_ACS_UF);
 
 	if (!((dev->device >= 0xa000) && (dev->device <= 0xa0ff)))
 		return -ENOTTY;
