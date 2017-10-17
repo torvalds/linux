@@ -1410,13 +1410,18 @@ int qed_iwarp_alloc(struct qed_hwfn *p_hwfn)
 	INIT_LIST_HEAD(&p_hwfn->p_rdma_info->iwarp.ep_free_list);
 	spin_lock_init(&p_hwfn->p_rdma_info->iwarp.iw_lock);
 
-	return qed_iwarp_prealloc_ep(p_hwfn, true);
+	rc = qed_iwarp_prealloc_ep(p_hwfn, true);
+	if (rc)
+		return rc;
+
+	return qed_ooo_alloc(p_hwfn);
 }
 
 void qed_iwarp_resc_free(struct qed_hwfn *p_hwfn)
 {
 	struct qed_iwarp_info *iwarp_info = &p_hwfn->p_rdma_info->iwarp;
 
+	qed_ooo_free(p_hwfn);
 	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->tcp_cid_map, 1);
 	kfree(iwarp_info->mpa_bufs);
 	kfree(iwarp_info->partial_fpdus);
