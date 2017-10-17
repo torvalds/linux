@@ -716,6 +716,62 @@ TRACE_EVENT(f2fs_get_victim,
 		__entry->free)
 );
 
+TRACE_EVENT(f2fs_lookup_start,
+
+	TP_PROTO(struct inode *dir, struct dentry *dentry, unsigned int flags),
+
+	TP_ARGS(dir, dentry, flags),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(const char *,	name)
+		__field(unsigned int, flags)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= dir->i_sb->s_dev;
+		__entry->ino	= dir->i_ino;
+		__entry->name	= dentry->d_name.name;
+		__entry->flags	= flags;
+	),
+
+	TP_printk("dev = (%d,%d), pino = %lu, name:%s, flags:%u",
+		show_dev_ino(__entry),
+		__entry->name,
+		__entry->flags)
+);
+
+TRACE_EVENT(f2fs_lookup_end,
+
+	TP_PROTO(struct inode *dir, struct dentry *dentry, nid_t ino,
+		int err),
+
+	TP_ARGS(dir, dentry, ino, err),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(const char *,	name)
+		__field(nid_t,	cino)
+		__field(int,	err)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= dir->i_sb->s_dev;
+		__entry->ino	= dir->i_ino;
+		__entry->name	= dentry->d_name.name;
+		__entry->cino	= ino;
+		__entry->err	= err;
+	),
+
+	TP_printk("dev = (%d,%d), pino = %lu, name:%s, ino:%u, err:%d",
+		show_dev_ino(__entry),
+		__entry->name,
+		__entry->cino,
+		__entry->err)
+);
+
 TRACE_EVENT(f2fs_fallocate,
 
 	TP_PROTO(struct inode *inode, int mode,
