@@ -139,7 +139,6 @@ void sun4i_tcon_set_mux(struct sun4i_tcon *tcon, int channel,
 	DRM_DEBUG_DRIVER("Muxing encoder %s to CRTC %s: %d\n",
 			 encoder->name, encoder->crtc->name, ret);
 }
-EXPORT_SYMBOL(sun4i_tcon_set_mux);
 
 static int sun4i_tcon_get_clk_delay(const struct drm_display_mode *mode,
 				    int channel)
@@ -159,8 +158,8 @@ static int sun4i_tcon_get_clk_delay(const struct drm_display_mode *mode,
 	return delay;
 }
 
-void sun4i_tcon0_mode_set(struct sun4i_tcon *tcon,
-			  struct drm_display_mode *mode)
+static void sun4i_tcon0_mode_set(struct sun4i_tcon *tcon,
+				 const struct drm_display_mode *mode)
 {
 	unsigned int bp, hsync, vsync;
 	u8 clk_delay;
@@ -233,10 +232,9 @@ void sun4i_tcon0_mode_set(struct sun4i_tcon *tcon,
 	/* Enable the output on the pins */
 	regmap_write(tcon->regs, SUN4I_TCON0_IO_TRI_REG, 0);
 }
-EXPORT_SYMBOL(sun4i_tcon0_mode_set);
 
-void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
-			  struct drm_display_mode *mode)
+static void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
+				 const struct drm_display_mode *mode)
 {
 	unsigned int bp, hsync, vsync, vtotal;
 	u8 clk_delay;
@@ -324,7 +322,26 @@ void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
 			   SUN4I_TCON_GCTL_IOMAP_MASK,
 			   SUN4I_TCON_GCTL_IOMAP_TCON1);
 }
-EXPORT_SYMBOL(sun4i_tcon1_mode_set);
+
+void sun4i_tcon_mode_set(struct sun4i_tcon *tcon,
+			 const struct drm_encoder *encoder,
+			 const struct drm_display_mode *mode)
+{
+	switch (encoder->encoder_type) {
+	case DRM_MODE_ENCODER_NONE:
+		sun4i_tcon0_mode_set(tcon, mode);
+		sun4i_tcon_set_mux(tcon, 0, encoder);
+		break;
+	case DRM_MODE_ENCODER_TVDAC:
+	case DRM_MODE_ENCODER_TMDS:
+		sun4i_tcon1_mode_set(tcon, mode);
+		sun4i_tcon_set_mux(tcon, 1, encoder);
+		break;
+	default:
+		DRM_DEBUG_DRIVER("Unknown encoder type, doing nothing...\n");
+	}
+}
+EXPORT_SYMBOL(sun4i_tcon_mode_set);
 
 static void sun4i_tcon_finish_page_flip(struct drm_device *dev,
 					struct sun4i_crtc *scrtc)

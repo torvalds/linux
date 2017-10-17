@@ -153,22 +153,7 @@ static void sun4i_rgb_encoder_disable(struct drm_encoder *encoder)
 	}
 }
 
-static void sun4i_rgb_encoder_mode_set(struct drm_encoder *encoder,
-				       struct drm_display_mode *mode,
-				       struct drm_display_mode *adjusted_mode)
-{
-	struct sun4i_rgb *rgb = drm_encoder_to_sun4i_rgb(encoder);
-	struct sun4i_tcon *tcon = rgb->tcon;
-
-	sun4i_tcon0_mode_set(tcon, mode);
-	sun4i_tcon_set_mux(tcon, 0, encoder);
-
-	/* FIXME: This seems to be board specific */
-	clk_set_phase(tcon->dclk, 120);
-}
-
 static struct drm_encoder_helper_funcs sun4i_rgb_enc_helper_funcs = {
-	.mode_set	= sun4i_rgb_encoder_mode_set,
 	.disable	= sun4i_rgb_encoder_disable,
 	.enable		= sun4i_rgb_encoder_enable,
 };
