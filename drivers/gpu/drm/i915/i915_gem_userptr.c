@@ -221,15 +221,17 @@ i915_mmu_notifier_find(struct i915_mm_struct *mm)
 			/* Protected by mm_lock */
 			mm->mn = fetch_and_zero(&mn);
 		}
-	} else {
-		/* someone else raced and successfully installed the mmu
-		 * notifier, we can cancel our own errors */
+	} else if (mm->mn) {
+		/*
+		 * Someone else raced and successfully installed the mmu
+		 * notifier, we can cancel our own errors.
+		 */
 		err = 0;
 	}
 	mutex_unlock(&mm->i915->mm_lock);
 	up_write(&mm->mm->mmap_sem);
 
-	if (mn) {
+	if (mn && !IS_ERR(mn)) {
 		destroy_workqueue(mn->wq);
 		kfree(mn);
 	}
