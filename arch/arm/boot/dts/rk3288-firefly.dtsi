@@ -317,10 +317,6 @@
 	};
 };
 
-&edp_in {
-	/delete-node/ endpoint@0;
-};
-
 &edp_phy {
 	status = "okay";
 };
@@ -366,10 +362,6 @@
 &hevc_service {
 	status = "okay";
 
-};
-
-&hdmi_in {
-	/delete-node/ endpoint@1;
 };
 
 &i2c0 {
@@ -779,10 +771,6 @@
 	status = "okay";
 };
 
-&vopb_out {
-	/delete-node/ endpoint@1;
-};
-
 &vopl {
 	status = "okay";
 };
@@ -793,10 +781,6 @@
 
 &vpu_service {
 	status = "okay";
-};
-
-&vopl_out {
-	/delete-node/ endpoint@0;
 };
 
 &wdt {
