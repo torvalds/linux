@@ -44,7 +44,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/display/media-bus-format.h>
-#include"rk3288-firefly.dtsi"
+#include "rk3288-firefly.dtsi"
 #include "rk3288-android.dtsi"
 
 / {
@@ -104,27 +104,27 @@
 			"Headphone Jack", "HPOR";
 
 		simple-audio-card,dai-link@0 {
-		format = "i2s";
-		cpu {
-			sound-dai = <&i2s>;
+			format = "i2s";
+			cpu {
+				sound-dai = <&i2s>;
+			};
+
+			codec {
+				sound-dai = <&es8323>;
+			};
 		};
 
-		codec {
-			sound-dai = <&es8323>;
+		simple-audio-card,dai-link@1 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&i2s>;
+			};
+
+			codec {
+				sound-dai = <&hdmi>;
+			};
 		};
 	};
-
-	simple-audio-card,dai-link@1 {
-		format = "i2s";
-		cpu {
-			sound-dai = <&i2s>;
-		};
-
-		codec {
-			sound-dai = <&hdmi>;
-		};
-	};
-};
 
 	spdif-sound {
 		status = "okay";
@@ -140,30 +140,6 @@
 
 	backlight: backlight {
 		pwms = <&pwm1 0 1000000 0>;
-	};
-
-	display-subsystem {
-		status = "okay";
-		ports = <&vopb_out>, <&vopl_out>;
-		memory-region = <&drm_logo>;
-		route {
-			route_edp: route-edp {
-				status = "disabled";
-				logo,uboot = "logo.bmp";
-				logo,kernel = "logo_kernel.bmp";
-				logo,mode = "center";
-				charge_logo,mode = "center";
-				connect = <&vopb_out_edp>;
-			};
-			route_mipi: route-mipi {
-				status = "disabled";
-				logo,uboot = "logo.bmp";
-				logo,kernel = "logo_kernel.bmp";
-				logo,mode = "center";
-				charge_logo,mode = "center";
-				//connect = <&vopb_out_mipi>;
-			};
-		};
 	};
 
 	hdmi_analog_sound: hdmi-analog-sound {
@@ -384,35 +360,6 @@
 	/delete-property/ pinctrl-0;
 };
 
-&hdmi {
-	#address-cells = <1>;
-	#size-cells = <0>;
-	#sound-dai-cells = <0>;
-	status = "okay";
-	   ports {
-			hdmi_in: port {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				hdmi_in_vopb: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&vopb_out_hdmi>;
-				};
-				hdmi_in_vopl: endpoint@1 {
-					reg = <1>;
-					remote-endpoint = <&vopl_out_hdmi>;
-				};
-			};
-		};
-};
-
-&hdmi_in_vopb {
-	status = "disabled";
-};
-
-&hdmi_in_vopl {
-	status = "okay";
-};
-
 &gmac {
 	phy-supply = <&vcc_phy>;
 	snps,reset-gpio = <&gpio4 7 0>;
@@ -435,38 +382,13 @@
 	status = "okay";
 };
 
+&hdmi {
+	status = "okay";
+};
+
 &edp {
 	force-hpd;
 	status = "okay";
-
-	ports {
-		edp_in: port@0 {
-				reg = <0>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				edp_in_vopb: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&vopb_out_edp>;
-				};
-			};
-		edp_out: port@1 {
-			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			edp_out_panel: endpoint {
-				reg = <0>;
-				remote-endpoint = <&panel_in_edp>;
-			};
-		};
-	};
-};
-
-&edp_in_vopb {
-	status = "okay";
-};
-
-&edp_in_vopl {
-	status = "disabled";
 };
 
 &edp_panel {
@@ -769,25 +691,10 @@
 
 &vopb {
 	status = "okay";
-		vopb_out: port {
-			vopb_out_edp: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&edp_in_vopb>;
-			};
-		};
 };
 
 &vopl {
 	status = "okay";
-	vopl_out: port {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			vopl_out_hdmi: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&hdmi_in_vopl>;
-			};
-		};
 };
 
 &cpu0 {
