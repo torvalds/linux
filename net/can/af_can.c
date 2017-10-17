@@ -78,7 +78,7 @@ MODULE_PARM_DESC(stats_timer, "enable timer for statistics (default:on)");
 static struct kmem_cache *rcv_cache __read_mostly;
 
 /* table of registered CAN protocols */
-static const struct can_proto *proto_tab[CAN_NPROTO] __read_mostly;
+static const struct can_proto __rcu *proto_tab[CAN_NPROTO] __read_mostly;
 static DEFINE_MUTEX(proto_tab_lock);
 
 static atomic_t skbcounter = ATOMIC_INIT(0);
@@ -788,7 +788,7 @@ int can_proto_register(const struct can_proto *cp)
 
 	mutex_lock(&proto_tab_lock);
 
-	if (proto_tab[proto]) {
+	if (rcu_access_pointer(proto_tab[proto])) {
 		pr_err("can: protocol %d already registered\n", proto);
 		err = -EBUSY;
 	} else
@@ -812,7 +812,7 @@ void can_proto_unregister(const struct can_proto *cp)
 	int proto = cp->protocol;
 
 	mutex_lock(&proto_tab_lock);
-	BUG_ON(proto_tab[proto] != cp);
+	BUG_ON(rcu_access_pointer(proto_tab[proto]) != cp);
 	RCU_INIT_POINTER(proto_tab[proto], NULL);
 	mutex_unlock(&proto_tab_lock);
 
