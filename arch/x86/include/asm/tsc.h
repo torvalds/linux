@@ -42,7 +42,11 @@ extern unsigned long native_calibrate_tsc(void);
 extern unsigned long long native_sched_clock_from_tsc(u64 tsc);
 
 extern int tsc_clocksource_reliable;
+#ifdef CONFIG_X86_TSC
 extern bool tsc_async_resets;
+#else
+# define tsc_async_resets	false
+#endif
 
 /*
  * Boot-time check whether the TSCs are synchronized across
