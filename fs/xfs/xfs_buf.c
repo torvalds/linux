@@ -42,6 +42,7 @@
 #include "xfs_mount.h"
 #include "xfs_trace.h"
 #include "xfs_log.h"
+#include "xfs_error.h"
 
 static kmem_zone_t *xfs_buf_zone;
 
@@ -2128,4 +2129,19 @@ void
 xfs_buf_terminate(void)
 {
 	kmem_zone_destroy(xfs_buf_zone);
+}
+
+void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)
+{
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+
+	/*
+	 * Set the lru reference count to 0 based on the error injection tag.
+	 * This allows userspace to disrupt buffer caching for debug/testing
+	 * purposes.
+	 */
+	if (XFS_TEST_ERROR(false, mp, XFS_ERRTAG_BUF_LRU_REF))
+		lru_ref = 0;
+
+	atomic_set(&bp->b_lru_ref, lru_ref);
 }
