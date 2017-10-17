@@ -700,9 +700,9 @@ F:	include/linux/altera_uart.h
 F:	include/linux/altera_jtaguart.h
 
 AMAZON ETHERNET DRIVERS
-M:	Netanel Belgazal <netanel@annapurnalabs.com>
-R:	Saeed Bishara <saeed@annapurnalabs.com>
-R:	Zorik Machulsky <zorik@annapurnalabs.com>
+M:	Netanel Belgazal <netanel@amazon.com>
+R:	Saeed Bishara <saeedb@amazon.com>
+R:	Zorik Machulsky <zorik@amazon.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/ena.txt
