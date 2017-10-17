@@ -31,6 +31,12 @@
 #include "tpm.h"
 #include "tpm_tis_core.h"
 
+/* This is a polling delay to check for status and burstcount.
+ * As per ddwg input, expectation is that status check and burstcount
+ * check should return within few usecs.
+ */
+#define TPM_POLL_SLEEP	1  /* msec */
+
 static bool wait_for_tpm_stat_cond(struct tpm_chip *chip, u8 mask,
 					bool check_cancel, bool *canceled)
 {
@@ -82,7 +88,7 @@ again:
 		}
 	} else {
 		do {
-			tpm_msleep(TPM_TIMEOUT);
+			tpm_msleep(TPM_POLL_SLEEP);
 			status = chip->ops->status(chip);
 			if ((status & mask) == mask)
 				return 0;
@@ -224,7 +230,7 @@ static int get_burstcount(struct tpm_chip *chip)
 		burstcnt = (value >> 8) & 0xFFFF;
 		if (burstcnt)
 			return burstcnt;
-		tpm_msleep(TPM_TIMEOUT);
+		tpm_msleep(TPM_POLL_SLEEP);
 	} while (time_before(jiffies, stop));
 	return -EBUSY;
 }
