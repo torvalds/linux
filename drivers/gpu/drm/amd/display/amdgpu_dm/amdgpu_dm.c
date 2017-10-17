@@ -4038,7 +4038,6 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct amdgpu_crtc *new_crtcs[MAX_STREAMS];
-	struct dc_stream_state *new_stream = NULL;
 	unsigned long flags;
 	bool wait_for_vblank = true;
 	struct drm_connector *connector;
@@ -4133,52 +4132,36 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	 * are removed from freesync module
 	 */
 	if (adev->dm.freesync_module) {
-		for (i = 0; i < new_crtcs_count; i++) {
+		for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
 			struct amdgpu_dm_connector *aconnector = NULL;
+			struct dm_connector_state *dm_new_con_state = NULL;
+			struct amdgpu_crtc *acrtc = NULL;
 
-			new_crtc_state = drm_atomic_get_new_crtc_state(state,
-					&new_crtcs[i]->base);
 			dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
+			acrtc = to_amdgpu_crtc(crtc);
 
-			new_stream = dm_new_crtc_state->stream;
-			aconnector = amdgpu_dm_find_first_crtc_matching_connector(
-					state,
-					&new_crtcs[i]->base);
+			aconnector =
+				amdgpu_dm_find_first_crtc_matching_connector(
+					state, crtc);
 			if (!aconnector) {
 				DRM_DEBUG_DRIVER("Atomic commit: Failed to find connector for acrtc id:%d "
 					 "skipping freesync init\n",
-					 new_crtcs[i]->crtc_id);
+					 acrtc->crtc_id);
 				continue;
 			}
 
 			mod_freesync_add_stream(adev->dm.freesync_module,
-						new_stream, &aconnector->caps);
-		}
+						dm_new_crtc_state->stream,
+						&aconnector->caps);
+			new_con_state = drm_atomic_get_new_connector_state(
+					state, &aconnector->base);
+			dm_new_con_state = to_dm_connector_state(new_con_state);
 
-		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-
-			struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
-			struct amdgpu_dm_connector *aconnector = NULL;
-			struct dm_connector_state *conn_state = NULL;
-			struct dm_crtc_state *acrtc_state = NULL;
-
-			acrtc_state = to_dm_crtc_state(acrtc->base.state);
-
-
-			aconnector =
-				amdgpu_dm_find_first_crtc_matching_connector(
-					state,
-					crtc,
-					false);
-			if (aconnector) {
-				conn_state = to_dm_connector_state(aconnector->base.state);
-
-				if (new_stream) {
-					mod_freesync_set_user_enable(adev->dm.freesync_module,
-								     &acrtc_state->stream,
-								     1,
-								     &conn_state->user_enable);
-				}
+			if (dm_new_crtc_state->stream) {
+				mod_freesync_set_user_enable(adev->dm.freesync_module,
+							     &dm_new_crtc_state->stream,
+							     1,
+							     &dm_new_con_state->user_enable);
 			}
 		}
 	}
