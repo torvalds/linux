@@ -136,7 +136,7 @@ static struct clk_ops clk_aux_ops = {
 
 struct clk *clk_register_aux(const char *aux_name, const char *gate_name,
 		const char *parent_name, unsigned long flags, void __iomem *reg,
-		struct aux_clk_masks *masks, struct aux_rate_tbl *rtbl,
+	        const struct aux_clk_masks *masks, struct aux_rate_tbl *rtbl,
 		u8 rtbl_cnt, spinlock_t *lock, struct clk **gate_clk)
 {
 	struct clk_aux *aux;
