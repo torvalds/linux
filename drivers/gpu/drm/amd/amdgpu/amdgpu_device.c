@@ -546,7 +546,7 @@ int amdgpu_wb_get(struct amdgpu_device *adev, u32 *wb)
 
 	if (offset < adev->wb.num_wb) {
 		__set_bit(offset, adev->wb.used);
-		*wb = offset * 8; /* convert to dw offset */
+		*wb = offset << 3; /* convert to dw offset */
 		return 0;
 	} else {
 		return -EINVAL;
@@ -564,7 +564,7 @@ int amdgpu_wb_get(struct amdgpu_device *adev, u32 *wb)
 void amdgpu_wb_free(struct amdgpu_device *adev, u32 wb)
 {
 	if (wb < adev->wb.num_wb)
-		__clear_bit(wb, adev->wb.used);
+		__clear_bit(wb >> 3, adev->wb.used);
 }
 
 /**
