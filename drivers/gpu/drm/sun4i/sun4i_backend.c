@@ -20,6 +20,7 @@
 
 #include <linux/component.h>
 #include <linux/list.h>
+#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/reset.h>
 
@@ -27,6 +28,11 @@
 #include "sun4i_drv.h"
 #include "sun4i_layer.h"
 #include "sunxi_engine.h"
+
+struct sun4i_backend_quirks {
+	/* backend <-> TCON muxing selection done in backend */
+	bool needs_output_muxing;
+};
 
 static const u32 sunxi_rgb2yuv_coef[12] = {
 	0x00000107, 0x00000204, 0x00000064, 0x00000108,
@@ -345,6 +351,7 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	struct drm_device *drm = data;
 	struct sun4i_drv *drv = drm->dev_private;
 	struct sun4i_backend *backend;
+	const struct sun4i_backend_quirks *quirks;
 	struct resource *res;
 	void __iomem *regs;
 	int i, ret;
@@ -439,6 +446,27 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 		     SUN4I_BACKEND_MODCTL_DEBE_EN |
 		     SUN4I_BACKEND_MODCTL_START_CTL);
 
+	/* Set output selection if needed */
+	quirks = of_device_get_match_data(dev);
+	if (quirks->needs_output_muxing) {
+		/*
+		 * We assume there is no dynamic muxing of backends
+		 * and TCONs, so we select the backend with same ID.
+		 *
+		 * While dynamic selection might be interesting, since
+		 * the CRTC is tied to the TCON, while the layers are
+		 * tied to the backends, this means, we will need to
+		 * switch between groups of layers. There might not be
+		 * a way to represent this constraint in DRM.
+		 */
+		regmap_update_bits(backend->engine.regs,
+				   SUN4I_BACKEND_MODCTL_REG,
+				   SUN4I_BACKEND_MODCTL_OUT_SEL,
+				   (backend->engine.id
+				    ? SUN4I_BACKEND_MODCTL_OUT_LCD1
+				    : SUN4I_BACKEND_MODCTL_OUT_LCD0));
+	}
+
 	return 0;
 
 err_disable_ram_clk:
@@ -486,10 +514,28 @@ static int sun4i_backend_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct sun4i_backend_quirks sun5i_backend_quirks = {
+};
+
+static const struct sun4i_backend_quirks sun6i_backend_quirks = {
+};
+
+static const struct sun4i_backend_quirks sun8i_a33_backend_quirks = {
+};
+
 static const struct of_device_id sun4i_backend_of_table[] = {
-	{ .compatible = "allwinner,sun5i-a13-display-backend" },
-	{ .compatible = "allwinner,sun6i-a31-display-backend" },
-	{ .compatible = "allwinner,sun8i-a33-display-backend" },
+	{
+		.compatible = "allwinner,sun5i-a13-display-backend",
+		.data = &sun5i_backend_quirks,
+	},
+	{
+		.compatible = "allwinner,sun6i-a31-display-backend",
+		.data = &sun6i_backend_quirks,
+	},
+	{
+		.compatible = "allwinner,sun8i-a33-display-backend",
+		.data = &sun8i_a33_backend_quirks,
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_backend_of_table);
