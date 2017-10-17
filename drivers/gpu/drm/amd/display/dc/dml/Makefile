@@ -10,10 +10,12 @@ CFLAGS_display_rq_dlg_helpers.o := -mhard-float -msse -mpreferred-stack-boundary
 CFLAGS_display_watermark.o := -mhard-float -msse -mpreferred-stack-boundary=4
 CFLAGS_soc_bounding_box.o := -mhard-float -msse -mpreferred-stack-boundary=4
 CFLAGS_dml_common_defs.o := -mhard-float -msse -mpreferred-stack-boundary=4
+CFLAGS_display_mode_support.o := -mhard-float -msse -mpreferred-stack-boundary=4
+
 
 DML = display_mode_lib.o display_rq_dlg_calc.o \
 	  display_rq_dlg_helpers.o display_watermark.o \
-	  soc_bounding_box.o dml_common_defs.o
+	  soc_bounding_box.o dml_common_defs.o display_mode_support.o
 
 AMD_DAL_DML = $(addprefix $(AMDDALPATH)/dc/dml/,$(DML))
 

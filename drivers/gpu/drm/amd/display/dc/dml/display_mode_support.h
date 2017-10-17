@@ -191,4 +191,9 @@ struct dml_ms_internal_vars {
 	struct _vcs_dpi_wm_calc_pipe_params_st planes[DC__NUM_PIPES__MAX];
 };
 
+int dml_ms_check(
+		struct display_mode_lib *mode_lib,
+		struct _vcs_dpi_display_e2e_pipe_params_st *e2e,
+		int num_pipes);
+
 #endif
