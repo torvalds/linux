@@ -1132,12 +1132,11 @@ static struct sa1100fb_info *sa1100fb_init_fbinfo(struct device *dev)
 	struct sa1100fb_info *fbi;
 	unsigned i;
 
-	fbi = kmalloc(sizeof(struct sa1100fb_info) + sizeof(u32) * 16,
-		      GFP_KERNEL);
+	fbi = devm_kzalloc(dev, sizeof(struct sa1100fb_info) + sizeof(u32) * 16,
+			   GFP_KERNEL);
 	if (!fbi)
 		return NULL;
 
-	memset(fbi, 0, sizeof(struct sa1100fb_info));
 	fbi->dev = dev;
 
 	strcpy(fbi->fb.fix.id, SA1100_NAME);
@@ -1292,7 +1291,6 @@ static int sa1100fb_probe(struct platform_device *pdev)
 		iounmap(fbi->base);
 	if (fbi->clk)
 		clk_put(fbi->clk);
-	kfree(fbi);
 	release_mem_region(res->start, resource_size(res));
 	return ret;
 }
