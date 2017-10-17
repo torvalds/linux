@@ -152,6 +152,7 @@ system.
 
 Required properties:
   - compatible: value must be one of:
+    * allwinner,sun4i-a10-display-backend
     * allwinner,sun5i-a13-display-backend
     * allwinner,sun6i-a31-display-backend
     * allwinner,sun8i-a33-display-backend
@@ -184,6 +185,7 @@ deinterlacing and color space conversion.
 
 Required properties:
   - compatible: value must be one of:
+    * allwinner,sun4i-a10-display-frontend
     * allwinner,sun5i-a13-display-frontend
     * allwinner,sun6i-a31-display-frontend
     * allwinner,sun8i-a33-display-frontend
@@ -230,6 +232,7 @@ extra node.
 
 Required properties:
   - compatible: value must be one of:
+    * allwinner,sun4i-a10-display-engine
     * allwinner,sun5i-a10s-display-engine
     * allwinner,sun5i-a13-display-engine
     * allwinner,sun6i-a31-display-engine
