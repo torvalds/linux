@@ -989,7 +989,7 @@ static int csi_link_validate(struct v4l2_subdev *sd,
 	sensor = __imx_media_find_sensor(priv->md, &priv->sd.entity);
 	if (IS_ERR(sensor)) {
 		v4l2_err(&priv->sd, "no sensor attached\n");
-		return PTR_ERR(priv->sensor);
+		return PTR_ERR(sensor);
 	}
 
 	mutex_lock(&priv->lock);
