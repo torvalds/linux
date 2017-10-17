@@ -1230,10 +1230,9 @@ static int sa1100fb_probe(struct platform_device *pdev)
 	if (!fbi)
 		goto failed;
 
-	fbi->clk = clk_get(&pdev->dev, NULL);
+	fbi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(fbi->clk)) {
 		ret = PTR_ERR(fbi->clk);
-		fbi->clk = NULL;
 		goto failed;
 	}
 
@@ -1289,8 +1288,6 @@ static int sa1100fb_probe(struct platform_device *pdev)
  failed:
 	if (fbi)
 		iounmap(fbi->base);
-	if (fbi->clk)
-		clk_put(fbi->clk);
 	release_mem_region(res->start, resource_size(res));
 	return ret;
 }
