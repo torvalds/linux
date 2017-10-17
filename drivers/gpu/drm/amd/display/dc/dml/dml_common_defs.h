@@ -32,9 +32,20 @@
 
 #define DTRACE(str, ...) dm_logger_write(mode_lib->logger, LOG_DML, str, ##__VA_ARGS__);
 
+double dml_min(double a, double b);
+double dml_max(double a, double b);
 bool dml_util_is_420(enum source_format_class sorce_format);
+double dml_ceil_ex(double x, double granularity);
+double dml_floor_ex(double x, double granularity);
+double dml_log(double x, double base);
+double dml_ceil(double a);
+double dml_floor(double a);
 double dml_round(double a);
+int dml_log2(double x);
+double dml_pow(double a, int exp);
 unsigned int dml_round_to_multiple(
 			unsigned int num, unsigned int multiple, bool up);
+double dml_fmod(double f, int val);
+double dml_ceil_2(double f);
 
 #endif /* __DC_COMMON_DEFS_H__ */

@@ -26,7 +26,6 @@
 #include "display_mode_support.h"
 #include "display_mode_lib.h"
 
-#include "dml_inline_defs.h"
 int dml_ms_check(
 		struct display_mode_lib *mode_lib,
 		struct _vcs_dpi_display_e2e_pipe_params_st *e2e,

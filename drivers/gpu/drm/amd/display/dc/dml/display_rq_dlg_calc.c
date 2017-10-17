@@ -25,8 +25,6 @@
 #include "display_rq_dlg_calc.h"
 #include "display_mode_lib.h"
 
-#include "dml_inline_defs.h"
-
 static unsigned int get_bytes_per_element(enum source_format_class source_format, bool is_chroma)
 {
 	unsigned int ret_val = 0;

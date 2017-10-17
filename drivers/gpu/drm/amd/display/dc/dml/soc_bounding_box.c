@@ -25,7 +25,6 @@
 #include "soc_bounding_box.h"
 #include "display_mode_lib.h"
 
-#include "dml_inline_defs.h"
 void dml_socbb_set_latencies(
 		struct display_mode_lib *mode_lib,
 		struct _vcs_dpi_soc_bounding_box_st *from_box)

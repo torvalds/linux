@@ -24,7 +24,6 @@
  */
 #include "display_watermark.h"
 #include "display_mode_lib.h"
-#include "dml_inline_defs.h"
 
 static void get_bytes_per_pixel(
 		enum source_format_class format,
