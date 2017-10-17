@@ -1000,7 +1000,7 @@ static int isif_close(struct device *device)
 	return 0;
 }
 
-static struct ccdc_hw_device isif_hw_dev = {
+static const struct ccdc_hw_device isif_hw_dev = {
 	.name = "ISIF",
 	.owner = THIS_MODULE,
 	.hw_ops = {
