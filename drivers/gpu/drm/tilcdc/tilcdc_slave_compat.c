@@ -204,7 +204,7 @@ static void __init tilcdc_convert_slave_node(void)
 	/* For all memory needed for the overlay tree. This memory can
 	   be freed after the overlay has been applied. */
 	struct kfree_table kft;
-	int ret;
+	int ovcs_id, ret;
 
 	if (kfree_table_init(&kft))
 		return;
@@ -247,7 +247,8 @@ static void __init tilcdc_convert_slave_node(void)
 
 	tilcdc_node_disable(slave);
 
-	ret = of_overlay_apply(overlay);
+	ovcs_id = 0;
+	ret = of_overlay_apply(overlay, &ovcs_id);
 	if (ret)
 		pr_err("%s: Applying overlay changeset failed: %d\n",
 			__func__, ret);
