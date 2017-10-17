@@ -89,10 +89,8 @@ static struct hmm_vm_node *alloc_hmm_vm_node(unsigned int pgnr,
 	struct hmm_vm_node *node;
 
 	node = kmem_cache_alloc(vm->cache, GFP_KERNEL);
-	if (!node) {
-		dev_err(atomisp_dev, "out of memory.\n");
+	if (!node)
 		return NULL;
-	}
 
 	INIT_LIST_HEAD(&node->list);
 	node->pgnr = pgnr;

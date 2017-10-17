@@ -1863,10 +1863,8 @@ static int mt9m114_probe(struct i2c_client *client,
 
 	/* Setup sensor configuration structure */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
-		dev_err(&client->dev, "out of memory\n");
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	v4l2_i2c_subdev_init(&dev->sd, client, &mt9m114_ops);
 	pdata = client->dev.platform_data;

@@ -871,10 +871,8 @@ static int lm3554_probe(struct i2c_client *client,
 	int ret;
 
 	flash = kzalloc(sizeof(*flash), GFP_KERNEL);
-	if (!flash) {
-		dev_err(&client->dev, "out of memory\n");
+	if (!flash)
 		return -ENOMEM;
-	}
 
 	flash->pdata = client->dev.platform_data;
 

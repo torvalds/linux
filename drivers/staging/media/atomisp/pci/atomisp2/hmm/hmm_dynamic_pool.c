@@ -116,8 +116,6 @@ static void free_pages_to_dynamic_pool(void *pool,
 	hmm_page = kmem_cache_zalloc(dypool_info->pgptr_cache,
 						GFP_KERNEL);
 	if (!hmm_page) {
-		dev_err(atomisp_dev, "out of memory for hmm_page.\n");
-
 		/* free page directly */
 		ret = set_pages_wb(page_obj->page, 1);
 		if (ret)
@@ -151,10 +149,8 @@ static int hmm_dynamic_pool_init(void **pool, unsigned int pool_size)
 
 	dypool_info = kmalloc(sizeof(struct hmm_dynamic_pool_info),
 		GFP_KERNEL);
-	if (unlikely(!dypool_info)) {
-		dev_err(atomisp_dev, "out of memory for repool_info.\n");
+	if (unlikely(!dypool_info))
 		return -ENOMEM;
-	}
 
 	dypool_info->pgptr_cache = kmem_cache_create("pgptr_cache",
 						sizeof(struct hmm_page), 0,

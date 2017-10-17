@@ -942,10 +942,8 @@ int atomisp_alloc_css_stat_bufs(struct atomisp_sub_device *asd,
 		dev_dbg(isp->dev, "allocating %d 3a buffers\n", count);
 		while (count--) {
 			s3a_buf = kzalloc(sizeof(struct atomisp_s3a_buf), GFP_KERNEL);
-			if (!s3a_buf) {
-				dev_err(isp->dev, "s3a stat buf alloc failed\n");
+			if (!s3a_buf)
 				goto error;
-			}
 
 			if (atomisp_css_allocate_stat_buffers(
 					asd, stream_id, s3a_buf, NULL, NULL)) {
@@ -964,7 +962,6 @@ int atomisp_alloc_css_stat_bufs(struct atomisp_sub_device *asd,
 		while (count--) {
 			dis_buf = kzalloc(sizeof(struct atomisp_dis_buf), GFP_KERNEL);
 			if (!dis_buf) {
-				dev_err(isp->dev, "dis stat buf alloc failed\n");
 				kfree(s3a_buf);
 				goto error;
 			}
@@ -989,10 +986,8 @@ int atomisp_alloc_css_stat_bufs(struct atomisp_sub_device *asd,
 			while (count--) {
 				md_buf = kzalloc(sizeof(struct atomisp_metadata_buf),
 						 GFP_KERNEL);
-				if (!md_buf) {
-					dev_err(isp->dev, "metadata buf alloc failed\n");
+				if (!md_buf)
 					goto error;
-				}
 
 				if (atomisp_css_allocate_stat_buffers(
 						asd, stream_id, NULL, NULL, md_buf)) {
