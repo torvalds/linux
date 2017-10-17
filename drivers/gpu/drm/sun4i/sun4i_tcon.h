@@ -190,15 +190,9 @@ struct sun4i_tcon {
 struct drm_bridge *sun4i_tcon_find_bridge(struct device_node *node);
 struct drm_panel *sun4i_tcon_find_panel(struct device_node *node);
 
-/* Global Control */
-void sun4i_tcon_disable(struct sun4i_tcon *tcon);
-void sun4i_tcon_enable(struct sun4i_tcon *tcon);
-
-/* Channel Control */
-void sun4i_tcon_channel_disable(struct sun4i_tcon *tcon, int channel);
-void sun4i_tcon_channel_enable(struct sun4i_tcon *tcon, int channel);
-
 void sun4i_tcon_enable_vblank(struct sun4i_tcon *tcon, bool enable);
+void sun4i_tcon_set_status(struct sun4i_tcon *crtc,
+			   const struct drm_encoder *encoder, bool enable);
 
 /* Mode Related Controls */
 void sun4i_tcon_set_mux(struct sun4i_tcon *tcon, int channel,
