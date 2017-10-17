@@ -2040,6 +2040,7 @@ int netdev_txq_to_tc(struct net_device *dev, unsigned int txq)
 
 	return 0;
 }
+EXPORT_SYMBOL(netdev_txq_to_tc);
 
 #ifdef CONFIG_XPS
 static DEFINE_MUTEX(xps_map_mutex);
