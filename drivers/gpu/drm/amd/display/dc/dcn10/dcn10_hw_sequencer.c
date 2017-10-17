@@ -617,32 +617,6 @@ static void plane_atomic_disable(struct dc *dc,
 		verify_allow_pstate_change_high(dc->hwseq);
 }
 
-/*
- * kill power to plane hw
- * note: cannot power down until plane is disable
- */
-static void plane_atomic_power_down(struct dc *dc, int fe_idx)
-{
-	struct dce_hwseq *hws = dc->hwseq;
-	struct dpp *dpp = dc->res_pool->dpps[fe_idx];
-
-	if (REG(DC_IP_REQUEST_CNTL)) {
-		REG_SET(DC_IP_REQUEST_CNTL, 0,
-				IP_REQUEST_EN, 1);
-		dpp_pg_control(hws, fe_idx, false);
-		hubp_pg_control(hws, fe_idx, false);
-		dpp->funcs->dpp_reset(dpp);
-		REG_SET(DC_IP_REQUEST_CNTL, 0,
-				IP_REQUEST_EN, 0);
-		dm_logger_write(dc->ctx->logger, LOG_DEBUG,
-				"Power gated front end %d\n", fe_idx);
-
-		if (dc->debug.sanity_checks)
-			verify_allow_pstate_change_high(dc->hwseq);
-	}
-}
-
-
 static void reset_front_end(
 		struct dc *dc,
 		int fe_idx)
@@ -791,56 +765,6 @@ static void reset_hw_ctx_wrap(
 		struct dc_state *context)
 {
 	int i;
-
-	/* Reset Front End*/
-	/* Lock*/
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *cur_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
-		struct timing_generator *tg = cur_pipe_ctx->stream_res.tg;
-
-		if (cur_pipe_ctx->stream)
-			tg->funcs->lock(tg);
-	}
-	/* Disconnect*/
-	for (i = dc->res_pool->pipe_count - 1; i >= 0 ; i--) {
-		struct pipe_ctx *pipe_ctx_old =
-			&dc->current_state->res_ctx.pipe_ctx[i];
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-		if (!pipe_ctx->stream ||
-				!pipe_ctx->plane_state ||
-				pipe_need_reprogram(pipe_ctx_old, pipe_ctx)) {
-
-			plane_atomic_disconnect(dc, i);
-		}
-	}
-	/* Unlock*/
-	for (i = dc->res_pool->pipe_count - 1; i >= 0; i--) {
-		struct pipe_ctx *cur_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
-		struct timing_generator *tg = cur_pipe_ctx->stream_res.tg;
-
-		if (cur_pipe_ctx->stream)
-			tg->funcs->unlock(tg);
-	}
-
-	/* Disable and Powerdown*/
-	for (i = dc->res_pool->pipe_count - 1; i >= 0 ; i--) {
-		struct pipe_ctx *pipe_ctx_old =
-			&dc->current_state->res_ctx.pipe_ctx[i];
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-		/*if (!pipe_ctx_old->stream)
-			continue;*/
-
-		if (pipe_ctx->stream && pipe_ctx->plane_state
-				&& !pipe_need_reprogram(pipe_ctx_old, pipe_ctx))
-			continue;
-
-		plane_atomic_disable(dc, i);
-
-		if (!pipe_ctx->stream || !pipe_ctx->plane_state)
-			plane_atomic_power_down(dc, i);
-	}
 
 	/* Reset Back End*/
 	for (i = dc->res_pool->pipe_count - 1; i >= 0 ; i--) {
