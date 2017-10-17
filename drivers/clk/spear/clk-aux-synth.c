@@ -29,7 +29,7 @@
 
 #define to_clk_aux(_hw) container_of(_hw, struct clk_aux, hw)
 
-static struct aux_clk_masks default_aux_masks = {
+static const  struct aux_clk_masks default_aux_masks = {
 	.eq_sel_mask = AUX_EQ_SEL_MASK,
 	.eq_sel_shift = AUX_EQ_SEL_SHIFT,
 	.eq1_mask = AUX_EQ1_SEL,
