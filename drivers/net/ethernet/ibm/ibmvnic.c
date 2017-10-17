@@ -3019,6 +3019,8 @@ static void handle_query_ip_offload_rsp(struct ibmvnic_adapter *adapter)
 	if (buf->large_tx_ipv6)
 		adapter->netdev->features |= NETIF_F_TSO6;
 
+	adapter->netdev->hw_features |= adapter->netdev->features;
+
 	memset(&crq, 0, sizeof(crq));
 	crq.control_ip_offload.first = IBMVNIC_CRQ_CMD;
 	crq.control_ip_offload.cmd = CONTROL_IP_OFFLOAD;
