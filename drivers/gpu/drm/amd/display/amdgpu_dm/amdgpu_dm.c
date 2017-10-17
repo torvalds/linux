@@ -890,9 +890,9 @@ amdgpu_dm_update_connector_after_detect(struct amdgpu_dm_connector *aconnector)
 							connector);
 
 		aconnector->dc_sink = sink;
-		if (sink->dc_edid.length == 0)
+		if (sink->dc_edid.length == 0) {
 			aconnector->edid = NULL;
-		else {
+		} else {
 			aconnector->edid =
 				(struct edid *) sink->dc_edid.raw_edid;
 
