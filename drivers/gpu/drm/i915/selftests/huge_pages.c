@@ -609,7 +609,7 @@ static int igt_mock_ppgtt_huge_fill(void *arg)
 	bool single = false;
 	LIST_HEAD(objects);
 	IGT_TIMEOUT(end_time);
-	int err;
+	int err = -ENODEV;
 
 	for_each_prime_number_from(page_num, 1, max_pages) {
 		struct drm_i915_gem_object *obj;
@@ -1157,7 +1157,7 @@ static int igt_ppgtt_exhaust_huge(void *arg)
 	unsigned int size_mask;
 	unsigned int page_mask;
 	int n, i;
-	int err;
+	int err = -ENODEV;
 
 	/*
 	 * Sanity check creating objects with a varying mix of page sizes --
