@@ -1174,7 +1174,6 @@ int vega10_pp_tables_initialize(struct pp_hwmgr *hwmgr)
 
 static int vega10_pp_tables_uninitialize(struct pp_hwmgr *hwmgr)
 {
-	int result = 0;
 	struct phm_ppt_v2_information *pp_table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
 
@@ -1217,7 +1216,7 @@ static int vega10_pp_tables_uninitialize(struct pp_hwmgr *hwmgr)
 	kfree(hwmgr->pptable);
 	hwmgr->pptable = NULL;
 
-	return result;
+	return 0;
 }
 
 const struct pp_table_func vega10_pptable_funcs = {
