@@ -1262,8 +1262,11 @@ static int sa1100fb_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, fbi);
 
 	ret = register_framebuffer(&fbi->fb);
-	if (ret < 0)
-		goto failed;
+	if (ret < 0) {
+		dma_free_wc(fbi->dev, fbi->map_size, fbi->map_cpu,
+			    fbi->map_dma);
+		return ret;
+	}
 
 #ifdef CONFIG_CPU_FREQ
 	fbi->freq_transition.notifier_call = sa1100fb_freq_transition;
@@ -1274,9 +1277,6 @@ static int sa1100fb_probe(struct platform_device *pdev)
 
 	/* This driver cannot be unloaded at the moment */
 	return 0;
-
- failed:
-	return ret;
 }
 
 static struct platform_driver sa1100fb_driver = {
