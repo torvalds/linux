@@ -146,3 +146,4 @@ we might work for today, have in the past, or will in the future.
   - Masahiro Yamada
   - Wei Yongjun
   - Lv Zheng
+  - Eduardo Valentin <Amazon.com>
