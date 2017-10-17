@@ -38,22 +38,6 @@
 #include "xfs_rmap.h"
 
 /*
- * Determine the extent state.
- */
-/* ARGSUSED */
-STATIC xfs_exntst_t
-xfs_extent_state(
-	xfs_filblks_t		blks,
-	int			extent_flag)
-{
-	if (extent_flag) {
-		ASSERT(blks != 0);	/* saved for DMIG */
-		return XFS_EXT_UNWRITTEN;
-	}
-	return XFS_EXT_NORM;
-}
-
-/*
  * Convert on-disk form of btree root to in-memory form.
  */
 void
@@ -90,7 +74,7 @@ xfs_bmdr_to_bmbt(
 /*
  * Convert a compressed bmap extent record to an uncompressed form.
  * This code must be in sync with the routines xfs_bmbt_get_startoff,
- * xfs_bmbt_get_startblock, xfs_bmbt_get_blockcount and xfs_bmbt_get_state.
+ * xfs_bmbt_get_startblock and xfs_bmbt_get_blockcount.
  */
 STATIC void
 __xfs_bmbt_get_all(
@@ -154,17 +138,6 @@ xfs_bmbt_get_startoff(
 {
 	return ((xfs_fileoff_t)r->l0 &
 		 xfs_mask64lo(64 - BMBT_EXNTFLAG_BITLEN)) >> 9;
-}
-
-xfs_exntst_t
-xfs_bmbt_get_state(
-	xfs_bmbt_rec_host_t	*r)
-{
-	int	ext_flag;
-
-	ext_flag = (int)((r->l0) >> (64 - BMBT_EXNTFLAG_BITLEN));
-	return xfs_extent_state(xfs_bmbt_get_blockcount(r),
-				ext_flag);
 }
 
 /*
