@@ -2550,6 +2550,11 @@ static void dcn10_apply_ctx_for_surface(
 		if (!pipe_ctx->plane_state && !old_pipe_ctx->plane_state)
 			continue;
 
+		if (pipe_ctx->stream_res.tg &&
+			pipe_ctx->stream_res.tg->inst == be_idx &&
+			!pipe_ctx->top_pipe)
+			pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
+
 		/*
 		 * Powergate reused pipes that are not powergated
 		 * fairly hacky right now, using opp_id as indicator
@@ -2605,13 +2610,19 @@ static void dcn10_apply_ctx_for_surface(
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *old_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
 
 		if (pipe_ctx->stream != stream)
 			continue;
 
 		/* looking for top pipe to program */
-		if (!pipe_ctx->top_pipe)
+		if (!pipe_ctx->top_pipe) {
 			program_all_pipe_in_tree(dc, pipe_ctx, context);
+			if (pipe_ctx->stream_res.tg &&
+				pipe_ctx->stream_res.tg->inst == be_idx &&
+				(pipe_ctx->plane_state || old_pipe_ctx->plane_state))
+				pipe_ctx->stream_res.tg->funcs->unlock(pipe_ctx->stream_res.tg);
+		}
 	}
 
 	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,

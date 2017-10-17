@@ -839,7 +839,7 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	struct pipe_ctx *pipe;
-	int i, j, k, l;
+	int i, k, l;
 	struct dc_stream_state *dc_streams[MAX_STREAMS] = {0};
 
 	disable_dangling_plane(dc, context);
@@ -892,15 +892,6 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	program_timing_sync(dc, context);
 
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
-
-	for (i = 0; i < context->stream_count; i++) {
-		for (j = 0; j < MAX_PIPES; j++) {
-			pipe = &context->res_ctx.pipe_ctx[j];
-
-			if (!pipe->top_pipe && pipe->stream == context->streams[i])
-				dc->hwss.pipe_control_lock(dc, pipe, false);
-		}
-	}
 
 	dc_release_state(dc->current_state);
 
@@ -1313,27 +1304,6 @@ static void commit_planes_for_stream(struct dc *dc,
 		return;
 	}
 
-	/* Lock pipes for provided surfaces, or all active if full update*/
-	for (i = 0; i < surface_count; i++) {
-		struct dc_plane_state *plane_state = srf_updates[i].surface;
-
-		for (j = 0; j < dc->res_pool->pipe_count; j++) {
-			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
-
-			if (update_type != UPDATE_TYPE_FULL && pipe_ctx->plane_state != plane_state)
-				continue;
-			if (!pipe_ctx->plane_state || pipe_ctx->top_pipe)
-				continue;
-
-			dc->hwss.pipe_control_lock(
-					dc,
-					pipe_ctx,
-					true);
-		}
-		if (update_type == UPDATE_TYPE_FULL)
-			break;
-	}
-
 	/* Full fe update*/
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
@@ -1388,26 +1358,6 @@ static void commit_planes_for_stream(struct dc *dc,
 				resource_build_info_frame(pipe_ctx);
 				dc->hwss.update_info_frame(pipe_ctx);
 			}
-		}
-	}
-
-	/* Unlock pipes */
-	for (i = dc->res_pool->pipe_count - 1; i >= 0; i--) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-		for (j = 0; j < surface_count; j++) {
-			if (update_type != UPDATE_TYPE_FULL &&
-			    srf_updates[j].surface != pipe_ctx->plane_state)
-				continue;
-			if (!pipe_ctx->plane_state || pipe_ctx->top_pipe)
-				continue;
-
-			dc->hwss.pipe_control_lock(
-					dc,
-					pipe_ctx,
-					false);
-
-			break;
 		}
 	}
 }
