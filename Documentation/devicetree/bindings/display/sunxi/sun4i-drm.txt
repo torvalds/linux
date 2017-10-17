@@ -40,6 +40,7 @@ CEC. It is one end of the pipeline.
 
 Required properties:
   - compatible: value must be one of:
+    * allwinner,sun4i-a10-hdmi
     * allwinner,sun5i-a10s-hdmi
   - reg: base address and size of memory-mapped region
   - interrupts: interrupt associated to this IP
