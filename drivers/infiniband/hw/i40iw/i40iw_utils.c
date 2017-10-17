@@ -870,9 +870,9 @@ void i40iw_terminate_done(struct i40iw_sc_qp *qp, int timeout_occurred)
  * i40iw_terminate_imeout - timeout happened
  * @context: points to iwarp qp
  */
-static void i40iw_terminate_timeout(unsigned long context)
+static void i40iw_terminate_timeout(struct timer_list *t)
 {
-	struct i40iw_qp *iwqp = (struct i40iw_qp *)context;
+	struct i40iw_qp *iwqp = from_timer(iwqp, t, terminate_timer);
 	struct i40iw_sc_qp *qp = (struct i40iw_sc_qp *)&iwqp->sc_qp;
 
 	i40iw_terminate_done(qp, 1);
@@ -889,8 +889,7 @@ void i40iw_terminate_start_timer(struct i40iw_sc_qp *qp)
 
 	iwqp = (struct i40iw_qp *)qp->back_qp;
 	i40iw_add_ref(&iwqp->ibqp);
-	setup_timer(&iwqp->terminate_timer, i40iw_terminate_timeout,
-		    (unsigned long)iwqp);
+	timer_setup(&iwqp->terminate_timer, i40iw_terminate_timeout, 0);
 	iwqp->terminate_timer.expires = jiffies + HZ;
 	add_timer(&iwqp->terminate_timer);
 }
