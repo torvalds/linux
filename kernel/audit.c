@@ -1197,25 +1197,28 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			pid_t auditd_pid;
 			struct pid *req_pid = task_tgid(current);
 
-			/* sanity check - PID values must match */
-			if (new_pid != pid_vnr(req_pid))
+			/* Sanity check - PID values must match. Setting
+			 * pid to 0 is how auditd ends auditing. */
+			if (new_pid && (new_pid != pid_vnr(req_pid)))
 				return -EINVAL;
 
 			/* test the auditd connection */
 			audit_replace(req_pid);
 
 			auditd_pid = auditd_pid_vnr();
-			/* only the current auditd can unregister itself */
-			if ((!new_pid) && (new_pid != auditd_pid)) {
-				audit_log_config_change("audit_pid", new_pid,
-							auditd_pid, 0);
-				return -EACCES;
-			}
-			/* replacing a healthy auditd is not allowed */
-			if (auditd_pid && new_pid) {
-				audit_log_config_change("audit_pid", new_pid,
-							auditd_pid, 0);
-				return -EEXIST;
+			if (auditd_pid) {
+				/* replacing a healthy auditd is not allowed */
+				if (new_pid) {
+					audit_log_config_change("audit_pid",
+							new_pid, auditd_pid, 0);
+					return -EEXIST;
+				}
+				/* only current auditd can unregister itself */
+				if (pid_vnr(req_pid) != auditd_pid) {
+					audit_log_config_change("audit_pid",
+							new_pid, auditd_pid, 0);
+					return -EACCES;
+				}
 			}
 
 			if (new_pid) {
