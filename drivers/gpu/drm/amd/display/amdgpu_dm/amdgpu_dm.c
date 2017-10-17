@@ -1010,8 +1010,9 @@ static void dm_handle_hpd_rx_irq(struct amdgpu_dm_connector *aconnector)
 				dpcd_bytes_to_read);
 
 			new_irq_handled = false;
-		} else
+		} else {
 			break;
+		}
 	}
 
 	if (process_count == max_process_count)
