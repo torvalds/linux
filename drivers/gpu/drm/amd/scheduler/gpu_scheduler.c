@@ -676,13 +676,17 @@ static int amd_sched_main(void *param)
 */
 int amd_sched_init(struct amd_gpu_scheduler *sched,
 		   const struct amd_sched_backend_ops *ops,
-		   unsigned hw_submission, long timeout, const char *name)
+		   unsigned hw_submission,
+		   unsigned hang_limit,
+		   long timeout,
+		   const char *name)
 {
 	int i;
 	sched->ops = ops;
 	sched->hw_submission_limit = hw_submission;
 	sched->name = name;
 	sched->timeout = timeout;
+	sched->hang_limit = hang_limit;
 	for (i = AMD_SCHED_PRIORITY_MIN; i < AMD_SCHED_PRIORITY_MAX; i++)
 		amd_sched_rq_init(&sched->sched_rq[i]);
 

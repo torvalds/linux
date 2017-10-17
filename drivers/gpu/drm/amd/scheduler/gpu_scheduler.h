@@ -144,11 +144,12 @@ struct amd_gpu_scheduler {
 	struct task_struct		*thread;
 	struct list_head	ring_mirror_list;
 	spinlock_t			job_list_lock;
+	int hang_limit;
 };
 
 int amd_sched_init(struct amd_gpu_scheduler *sched,
 		   const struct amd_sched_backend_ops *ops,
-		   uint32_t hw_submission, long timeout, const char *name);
+		   uint32_t hw_submission, unsigned hang_limit, long timeout, const char *name);
 void amd_sched_fini(struct amd_gpu_scheduler *sched);
 
 int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
