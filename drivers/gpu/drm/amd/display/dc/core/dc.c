@@ -918,6 +918,12 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 	return true;
 }
 
+/*
+ * TODO this whole function needs to go
+ *
+ * dc_surface_update is needlessly complex. See if we can just replace this
+ * with a dc_plane_state and follow the atomic model a bit more closely here.
+ */
 bool dc_commit_planes_to_stream(
 		struct dc *dc,
 		struct dc_plane_state **plane_states,
@@ -925,6 +931,7 @@ bool dc_commit_planes_to_stream(
 		struct dc_stream_state *dc_stream,
 		struct dc_state *state)
 {
+	/* no need to dynamically allocate this. it's pretty small */
 	struct dc_surface_update updates[MAX_SURFACES];
 	struct dc_flip_addrs *flip_addr;
 	struct dc_plane_info *plane_info;
