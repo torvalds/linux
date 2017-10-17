@@ -1834,6 +1834,7 @@ static size_t vop_crtc_bandwidth(struct drm_crtc *crtc,
 	sort(pbandwidth, cnt, sizeof(pbandwidth[0]), vop_bandwidth_cmp, NULL);
 
 	bandwidth = vop_calc_max_bandwidth(pbandwidth, 0, cnt, vdisplay);
+	kfree(pbandwidth);
 	/*
 	 * bandwidth(MB/s)
 	 *    = line_bandwidth / line_time
