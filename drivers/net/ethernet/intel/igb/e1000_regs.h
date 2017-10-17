@@ -421,6 +421,14 @@ do { \
 
 #define E1000_I210_FLA		0x1201C
 
+#define E1000_I210_DTXMXPKTSZ	0x355C
+
+#define E1000_I210_TXDCTL(_n)	(0x0E028 + ((_n) * 0x40))
+
+#define E1000_I210_TQAVCTRL	0x3570
+#define E1000_I210_TQAVCC(_n)	(0x3004 + ((_n) * 0x40))
+#define E1000_I210_TQAVHC(_n)	(0x300C + ((_n) * 0x40))
+
 #define E1000_INVM_DATA_REG(_n)	(0x12120 + 4*(_n))
 #define E1000_INVM_SIZE		64 /* Number of INVM Data Registers */
 
