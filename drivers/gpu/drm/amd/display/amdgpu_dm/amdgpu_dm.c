@@ -1412,9 +1412,8 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 			goto fail_free_planes;
 
 		aencoder = kzalloc(sizeof(*aencoder), GFP_KERNEL);
-		if (!aencoder) {
+		if (!aencoder)
 			goto fail_free_connector;
-		}
 
 		if (amdgpu_dm_encoder_init(dm->ddev, aencoder, i)) {
 			DRM_ERROR("KMS: Failed to initialize encoder\n");
