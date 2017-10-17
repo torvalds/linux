@@ -1021,7 +1021,7 @@ static int get_vddc_lookup_table(
 
 	table = kzalloc(table_size, GFP_KERNEL);
 
-	if (NULL == table)
+	if (table == NULL)
 		return -ENOMEM;
 
 	table->count = vddc_lookup_pp_tables->ucNumEntries;
@@ -1130,12 +1130,12 @@ int vega10_pp_tables_initialize(struct pp_hwmgr *hwmgr)
 
 	hwmgr->pptable = kzalloc(sizeof(struct phm_ppt_v2_information), GFP_KERNEL);
 
-	PP_ASSERT_WITH_CODE((NULL != hwmgr->pptable),
+	PP_ASSERT_WITH_CODE((hwmgr->pptable != NULL),
 			    "Failed to allocate hwmgr->pptable!", return -ENOMEM);
 
 	powerplay_table = get_powerplay_table(hwmgr);
 
-	PP_ASSERT_WITH_CODE((NULL != powerplay_table),
+	PP_ASSERT_WITH_CODE((powerplay_table != NULL),
 		"Missing PowerPlay Table!", return -1);
 
 	result = check_powerplay_tables(hwmgr, powerplay_table);
@@ -1229,7 +1229,7 @@ int vega10_get_number_of_powerplay_table_entries(struct pp_hwmgr *hwmgr)
 	const ATOM_Vega10_State_Array *state_arrays;
 	const ATOM_Vega10_POWERPLAYTABLE *pp_table = get_powerplay_table(hwmgr);
 
-	PP_ASSERT_WITH_CODE((NULL != pp_table),
+	PP_ASSERT_WITH_CODE((pp_table != NULL),
 			"Missing PowerPlay Table!", return -1);
 	PP_ASSERT_WITH_CODE((pp_table->sHeader.format_revision >=
 			ATOM_Vega10_TABLE_REVISION_VEGA10),
