@@ -2847,6 +2847,7 @@ xfs_bmap_add_extent_hole_real(
 	xfs_bmbt_irec_t		right;	/* right neighbor extent entry */
 	int			rval=0;	/* return value (logging flags) */
 	int			state;	/* state bits, accessed thru macros */
+	struct xfs_bmbt_irec	old;
 
 	ASSERT(*idx >= 0);
 	ASSERT(*idx <= xfs_iext_count(ifp));
@@ -2916,9 +2917,8 @@ xfs_bmap_add_extent_hole_real(
 		 */
 		--*idx;
 		trace_xfs_bmap_pre_update(ip, *idx, state, _THIS_IP_);
-		xfs_bmbt_set_blockcount(xfs_iext_get_ext(ifp, *idx),
-			left.br_blockcount + new->br_blockcount +
-			right.br_blockcount);
+		left.br_blockcount += new->br_blockcount + right.br_blockcount;
+		xfs_iext_update_extent(ifp, *idx, &left);
 		trace_xfs_bmap_post_update(ip, *idx, state, _THIS_IP_);
 
 		xfs_iext_remove(ip, *idx + 1, 1, state);
@@ -2945,10 +2945,7 @@ xfs_bmap_add_extent_hole_real(
 			XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
 			error = xfs_bmbt_update(cur, left.br_startoff,
 					left.br_startblock,
-					left.br_blockcount +
-						new->br_blockcount +
-						right.br_blockcount,
-					left.br_state);
+					left.br_blockcount, left.br_state);
 			if (error)
 				goto done;
 		}
@@ -2961,26 +2958,25 @@ xfs_bmap_add_extent_hole_real(
 		 * Merge the new allocation with the left neighbor.
 		 */
 		--*idx;
+		old = left;
 		trace_xfs_bmap_pre_update(ip, *idx, state, _THIS_IP_);
-		xfs_bmbt_set_blockcount(xfs_iext_get_ext(ifp, *idx),
-			left.br_blockcount + new->br_blockcount);
+		left.br_blockcount += new->br_blockcount;
+		xfs_iext_update_extent(ifp, *idx, &left);
 		trace_xfs_bmap_post_update(ip, *idx, state, _THIS_IP_);
 
 		if (cur == NULL) {
 			rval = xfs_ilog_fext(whichfork);
 		} else {
 			rval = 0;
-			error = xfs_bmbt_lookup_eq(cur, left.br_startoff,
-					left.br_startblock, left.br_blockcount,
+			error = xfs_bmbt_lookup_eq(cur, old.br_startoff,
+					old.br_startblock, old.br_blockcount,
 					&i);
 			if (error)
 				goto done;
 			XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
 			error = xfs_bmbt_update(cur, left.br_startoff,
 					left.br_startblock,
-					left.br_blockcount +
-						new->br_blockcount,
-					left.br_state);
+					left.br_blockcount, left.br_state);
 			if (error)
 				goto done;
 		}
@@ -2992,29 +2988,27 @@ xfs_bmap_add_extent_hole_real(
 		 * on the right.
 		 * Merge the new allocation with the right neighbor.
 		 */
+		old = right;
 		trace_xfs_bmap_pre_update(ip, *idx, state, _THIS_IP_);
-		xfs_bmbt_set_allf(xfs_iext_get_ext(ifp, *idx),
-			new->br_startoff, new->br_startblock,
-			new->br_blockcount + right.br_blockcount,
-			right.br_state);
+		right.br_startoff = new->br_startoff;
+		right.br_startblock = new->br_startblock;
+		right.br_blockcount += new->br_blockcount;
+		xfs_iext_update_extent(ifp, *idx, &right);
 		trace_xfs_bmap_post_update(ip, *idx, state, _THIS_IP_);
 
 		if (cur == NULL) {
 			rval = xfs_ilog_fext(whichfork);
 		} else {
 			rval = 0;
-			error = xfs_bmbt_lookup_eq(cur,
-					right.br_startoff,
-					right.br_startblock,
-					right.br_blockcount, &i);
+			error = xfs_bmbt_lookup_eq(cur, old.br_startoff,
+					old.br_startblock, old.br_blockcount,
+					&i);
 			if (error)
 				goto done;
 			XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
-			error = xfs_bmbt_update(cur, new->br_startoff,
-					new->br_startblock,
-					new->br_blockcount +
-						right.br_blockcount,
-					right.br_state);
+			error = xfs_bmbt_update(cur, right.br_startoff,
+					right.br_startblock,
+					right.br_blockcount, right.br_state);
 			if (error)
 				goto done;
 		}
