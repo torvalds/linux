@@ -266,16 +266,31 @@ static DEFINE_SPINLOCK(all_mddevs_lock);
  * call has finished, the bio has been linked into some internal structure
  * and so is visible to ->quiesce(), so we don't need the refcount any more.
  */
+static bool is_suspended(struct mddev *mddev, struct bio *bio)
+{
+	if (mddev->suspended)
+		return true;
+	if (bio_data_dir(bio) != WRITE)
+		return false;
+	if (mddev->suspend_lo >= mddev->suspend_hi)
+		return false;
+	if (bio->bi_iter.bi_sector >= mddev->suspend_hi)
+		return false;
+	if (bio_end_sector(bio) < mddev->suspend_lo)
+		return false;
+	return true;
+}
+
 void md_handle_request(struct mddev *mddev, struct bio *bio)
 {
 check_suspended:
 	rcu_read_lock();
-	if (mddev->suspended) {
+	if (is_suspended(mddev, bio)) {
 		DEFINE_WAIT(__wait);
 		for (;;) {
 			prepare_to_wait(&mddev->sb_wait, &__wait,
 					TASK_UNINTERRUPTIBLE);
-			if (!mddev->suspended)
+			if (!is_suspended(mddev, bio))
 				break;
 			rcu_read_unlock();
 			schedule();
@@ -4849,10 +4864,11 @@ suspend_lo_store(struct mddev *mddev, const char *buf, size_t len)
 		goto unlock;
 	old = mddev->suspend_lo;
 	mddev->suspend_lo = new;
-	if (new >= old)
+	if (new >= old) {
 		/* Shrinking suspended region */
+		wake_up(&mddev->sb_wait);
 		mddev->pers->quiesce(mddev, 2);
-	else {
+	} else {
 		/* Expanding suspended region - need to wait */
 		mddev->pers->quiesce(mddev, 1);
 		mddev->pers->quiesce(mddev, 0);
@@ -4892,10 +4908,11 @@ suspend_hi_store(struct mddev *mddev, const char *buf, size_t len)
 		goto unlock;
 	old = mddev->suspend_hi;
 	mddev->suspend_hi = new;
-	if (new <= old)
+	if (new <= old) {
 		/* Shrinking suspended region */
+		wake_up(&mddev->sb_wait);
 		mddev->pers->quiesce(mddev, 2);
-	else {
+	} else {
 		/* Expanding suspended region - need to wait */
 		mddev->pers->quiesce(mddev, 1);
 		mddev->pers->quiesce(mddev, 0);
