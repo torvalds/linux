@@ -610,12 +610,28 @@ static bool tgn10_did_triggered_reset_occur(
 	struct timing_generator *tg)
 {
 	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
-	uint32_t occurred;
+	uint32_t occurred_force, occurred_vsync;
 
 	REG_GET(OTG_FORCE_COUNT_NOW_CNTL,
-		OTG_FORCE_COUNT_NOW_OCCURRED, &occurred);
+		OTG_FORCE_COUNT_NOW_OCCURRED, &occurred_force);
 
-	return occurred != 0;
+	REG_GET(OTG_VERT_SYNC_CONTROL,
+		OTG_FORCE_VSYNC_NEXT_LINE_OCCURRED, &occurred_vsync);
+
+	return occurred_vsync != 0 || occurred_force != 0;
+}
+
+static void tgn10_disable_reset_trigger(struct timing_generator *tg)
+{
+	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
+
+	REG_WRITE(OTG_TRIGA_CNTL, 0);
+
+	REG_SET(OTG_FORCE_COUNT_NOW_CNTL, 0,
+		OTG_FORCE_COUNT_NOW_CLEAR, 1);
+
+	REG_SET(OTG_VERT_SYNC_CONTROL, 0,
+		OTG_FORCE_VSYNC_NEXT_LINE_CLEAR, 1);
 }
 
 static void tgn10_enable_reset_trigger(struct timing_generator *tg, int source_tg_inst)
@@ -652,14 +668,49 @@ static void tgn10_enable_reset_trigger(struct timing_generator *tg, int source_t
 			OTG_FORCE_COUNT_NOW_MODE, 2);
 }
 
-static void tgn10_disable_reset_trigger(struct timing_generator *tg)
+void tgn10_enable_crtc_reset(
+		struct timing_generator *tg,
+		int source_tg_inst,
+		struct crtc_trigger_info *crtc_tp)
 {
 	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
+	uint32_t falling_edge = 0;
+	uint32_t rising_edge = 0;
 
-	REG_WRITE(OTG_TRIGA_CNTL, 0);
+	switch (crtc_tp->event) {
 
-	REG_SET(OTG_FORCE_COUNT_NOW_CNTL, 0,
-			OTG_FORCE_COUNT_NOW_CLEAR, 1);
+	case CRTC_EVENT_VSYNC_RISING:
+		rising_edge = 1;
+		break;
+
+	case CRTC_EVENT_VSYNC_FALLING:
+		falling_edge = 1;
+		break;
+	}
+
+	REG_SET_4(OTG_TRIGA_CNTL, 0,
+		 /* vsync signal from selected OTG pipe based
+		  * on OTG_TRIG_SOURCE_PIPE_SELECT setting
+		  */
+		  OTG_TRIGA_SOURCE_SELECT, 20,
+		  OTG_TRIGA_SOURCE_PIPE_SELECT, source_tg_inst,
+		  /* always detect falling edge */
+		  OTG_TRIGA_RISING_EDGE_DETECT_CNTL, rising_edge,
+		  OTG_TRIGA_FALLING_EDGE_DETECT_CNTL, falling_edge);
+
+	switch (crtc_tp->delay) {
+	case TRIGGER_DELAY_NEXT_LINE:
+		REG_SET(OTG_VERT_SYNC_CONTROL, 0,
+				OTG_AUTO_FORCE_VSYNC_MODE, 1);
+		break;
+	case TRIGGER_DELAY_NEXT_PIXEL:
+		REG_SET(OTG_FORCE_COUNT_NOW_CNTL, 0,
+			/* force H count to H_TOTAL and V count to V_TOTAL in
+			 * progressive mode and V_TOTAL-1 in interlaced mode
+			 */
+			OTG_FORCE_COUNT_NOW_MODE, 2);
+		break;
+	}
 }
 
 static void tgn10_wait_for_state(struct timing_generator *tg,
@@ -1174,6 +1225,7 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.set_blank_color = tgn10_program_blank_color,
 		.did_triggered_reset_occur = tgn10_did_triggered_reset_occur,
 		.enable_reset_trigger = tgn10_enable_reset_trigger,
+		.enable_crtc_reset = tgn10_enable_crtc_reset,
 		.disable_reset_trigger = tgn10_disable_reset_trigger,
 		.lock = tgn10_lock,
 		.unlock = tgn10_unlock,

@@ -2457,19 +2457,15 @@ static void dce110_enable_timing_synchronization(
 
 	for (i = 1 /* skip the master */; i < group_size; i++)
 		grouped_pipes[i]->stream_res.tg->funcs->enable_reset_trigger(
-					grouped_pipes[i]->stream_res.tg, gsl_params.gsl_group);
-
-
+				grouped_pipes[i]->stream_res.tg,
+				gsl_params.gsl_group);
 
 	for (i = 1 /* skip the master */; i < group_size; i++) {
 		DC_SYNC_INFO("GSL: waiting for reset to occur.\n");
 		wait_for_reset_trigger_to_occur(dc_ctx, grouped_pipes[i]->stream_res.tg);
-		/* Regardless of success of the wait above, remove the reset or
-		 * the driver will start timing out on Display requests. */
-		DC_SYNC_INFO("GSL: disabling trigger-reset.\n");
-		grouped_pipes[i]->stream_res.tg->funcs->disable_reset_trigger(grouped_pipes[i]->stream_res.tg);
+		grouped_pipes[i]->stream_res.tg->funcs->disable_reset_trigger(
+				grouped_pipes[i]->stream_res.tg);
 	}
-
 
 	/* GSL Vblank synchronization is a one time sync mechanism, assumption
 	 * is that the sync'ed displays will not drift out of sync over time*/
@@ -2478,6 +2474,39 @@ static void dce110_enable_timing_synchronization(
 		grouped_pipes[i]->stream_res.tg->funcs->tear_down_global_swap_lock(grouped_pipes[i]->stream_res.tg);
 
 	DC_SYNC_INFO("GSL: Set-up complete.\n");
+}
+
+static void dce110_enable_per_frame_crtc_position_reset(
+		struct dc *dc,
+		int group_size,
+		struct pipe_ctx *grouped_pipes[])
+{
+	struct dc_context *dc_ctx = dc->ctx;
+	struct dcp_gsl_params gsl_params = { 0 };
+	int i;
+
+	gsl_params.gsl_group = 0;
+	gsl_params.gsl_master = grouped_pipes[0]->stream->triggered_crtc_reset.event_source->status.primary_otg_inst;
+
+	for (i = 0; i < group_size; i++)
+		grouped_pipes[i]->stream_res.tg->funcs->setup_global_swap_lock(
+					grouped_pipes[i]->stream_res.tg, &gsl_params);
+
+	DC_SYNC_INFO("GSL: enabling trigger-reset\n");
+
+	for (i = 1; i < group_size; i++)
+		grouped_pipes[i]->stream_res.tg->funcs->enable_crtc_reset(
+				grouped_pipes[i]->stream_res.tg,
+				gsl_params.gsl_master,
+				&grouped_pipes[i]->stream->triggered_crtc_reset);
+
+	DC_SYNC_INFO("GSL: waiting for reset to occur.\n");
+	for (i = 1; i < group_size; i++)
+		wait_for_reset_trigger_to_occur(dc_ctx, grouped_pipes[i]->stream_res.tg);
+
+	for (i = 0; i < group_size; i++)
+		grouped_pipes[i]->stream_res.tg->funcs->tear_down_global_swap_lock(grouped_pipes[i]->stream_res.tg);
+
 }
 
 static void init_hw(struct dc *dc)
@@ -2976,6 +3005,7 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.power_down = dce110_power_down,
 	.enable_accelerated_mode = dce110_enable_accelerated_mode,
 	.enable_timing_synchronization = dce110_enable_timing_synchronization,
+	.enable_per_frame_crtc_position_reset = dce110_enable_per_frame_crtc_position_reset,
 	.update_info_frame = dce110_update_info_frame,
 	.enable_stream = dce110_enable_stream,
 	.disable_stream = dce110_disable_stream,

@@ -713,6 +713,28 @@ void dc_destroy(struct dc **dc)
 	*dc = NULL;
 }
 
+static void enable_timing_multisync(
+		struct dc *dc,
+		struct dc_state *ctx)
+{
+	int i = 0, multisync_count = 0;
+	int pipe_count = dc->res_pool->pipe_count;
+	struct pipe_ctx *multisync_pipes[MAX_PIPES] = { NULL };
+
+	for (i = 0; i < pipe_count; i++) {
+		if (!ctx->res_ctx.pipe_ctx[i].stream ||
+				!ctx->res_ctx.pipe_ctx[i].stream->triggered_crtc_reset.enabled)
+			continue;
+		multisync_pipes[multisync_count] = &ctx->res_ctx.pipe_ctx[i];
+		multisync_count++;
+	}
+
+	if (multisync_count > 1) {
+		dc->hwss.enable_per_frame_crtc_position_reset(
+			dc, multisync_count, multisync_pipes);
+	}
+}
+
 static void program_timing_sync(
 		struct dc *dc,
 		struct dc_state *ctx)
@@ -891,7 +913,9 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	}
 	result = dc->hwss.apply_ctx_to_hw(dc, context);
 
-	program_timing_sync(dc, context);
+	if (context->stream_count > 1)
+		enable_timing_multisync(dc, context);
+		program_timing_sync(dc, context);
 
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
 

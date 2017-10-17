@@ -1304,20 +1304,44 @@ static void dcn10_enable_timing_synchronization(
 
 	for (i = 1; i < group_size; i++)
 		grouped_pipes[i]->stream_res.tg->funcs->enable_reset_trigger(
-				grouped_pipes[i]->stream_res.tg, grouped_pipes[0]->stream_res.tg->inst);
-
+				grouped_pipes[i]->stream_res.tg,
+				grouped_pipes[0]->stream_res.tg->inst);
 
 	DC_SYNC_INFO("Waiting for trigger\n");
 
 	/* Need to get only check 1 pipe for having reset as all the others are
 	 * synchronized. Look at last pipe programmed to reset.
 	 */
+
 	wait_for_reset_trigger_to_occur(dc_ctx, grouped_pipes[1]->stream_res.tg);
 	for (i = 1; i < group_size; i++)
 		grouped_pipes[i]->stream_res.tg->funcs->disable_reset_trigger(
 				grouped_pipes[i]->stream_res.tg);
 
 	DC_SYNC_INFO("Sync complete\n");
+}
+
+static void dcn10_enable_per_frame_crtc_position_reset(
+	struct dc *dc,
+	int group_size,
+	struct pipe_ctx *grouped_pipes[])
+{
+	struct dc_context *dc_ctx = dc->ctx;
+	int i;
+
+	DC_SYNC_INFO("Setting up\n");
+	for (i = 0; i < group_size; i++)
+		grouped_pipes[i]->stream_res.tg->funcs->enable_crtc_reset(
+				grouped_pipes[i]->stream_res.tg,
+				grouped_pipes[i]->stream->triggered_crtc_reset.event_source->status.primary_otg_inst,
+				&grouped_pipes[i]->stream->triggered_crtc_reset);
+
+	DC_SYNC_INFO("Waiting for trigger\n");
+
+	for (i = 1; i < group_size; i++)
+		wait_for_reset_trigger_to_occur(dc_ctx, grouped_pipes[i]->stream_res.tg);
+
+	DC_SYNC_INFO("Multi-display sync is complete\n");
 }
 
 static void print_rq_dlg_ttu(
@@ -2485,6 +2509,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.power_down = dce110_power_down,
 	.enable_accelerated_mode = dce110_enable_accelerated_mode,
 	.enable_timing_synchronization = dcn10_enable_timing_synchronization,
+	.enable_per_frame_crtc_position_reset = dcn10_enable_per_frame_crtc_position_reset,
 	.update_info_frame = dce110_update_info_frame,
 	.enable_stream = dce110_enable_stream,
 	.disable_stream = dce110_disable_stream,

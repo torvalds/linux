@@ -2298,6 +2298,56 @@ static int create_fake_sink(struct amdgpu_dm_connector *aconnector)
 	return 0;
 }
 
+static void set_multisync_trigger_params(
+		struct dc_stream_state *stream)
+{
+	if (stream->triggered_crtc_reset.enabled) {
+		stream->triggered_crtc_reset.event = CRTC_EVENT_VSYNC_RISING;
+		stream->triggered_crtc_reset.delay = TRIGGER_DELAY_NEXT_LINE;
+	}
+}
+
+static void set_master_stream(struct dc_stream_state *stream_set[],
+			      int stream_count)
+{
+	int j, highest_rfr = 0, master_stream = 0;
+
+	for (j = 0;  j < stream_count; j++) {
+		if (stream_set[j] && stream_set[j]->triggered_crtc_reset.enabled) {
+			int refresh_rate = 0;
+
+			refresh_rate = (stream_set[j]->timing.pix_clk_khz*1000)/
+				(stream_set[j]->timing.h_total*stream_set[j]->timing.v_total);
+			if (refresh_rate > highest_rfr) {
+				highest_rfr = refresh_rate;
+				master_stream = j;
+			}
+		}
+	}
+	for (j = 0;  j < stream_count; j++) {
+		if (stream_set[j] && j != master_stream)
+			stream_set[j]->triggered_crtc_reset.event_source = stream_set[master_stream];
+	}
+}
+
+static void dm_enable_per_frame_crtc_master_sync(struct dc_state *context)
+{
+	int i = 0;
+
+	if (context->stream_count < 2)
+		return;
+	for (i = 0; i < context->stream_count ; i++) {
+		if (!context->streams[i])
+			continue;
+		/* TODO: add a function to read AMD VSDB bits and will set
+		 * crtc_sync_master.multi_sync_enabled flag
+		 * For now its set to false
+		 */
+		set_multisync_trigger_params(context->streams[i]);
+	}
+	set_master_stream(context->streams, context->stream_count);
+}
+
 static struct dc_stream_state *
 create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		       const struct drm_display_mode *drm_mode,
@@ -4132,8 +4182,10 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		}
 	}
 
-	if (dm_state->context)
+	if (dm_state->context) {
+		dm_enable_per_frame_crtc_master_sync(dm_state->context);
 		WARN_ON(!dc_commit_state(dm->dc, dm_state->context));
+	}
 
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);

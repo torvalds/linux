@@ -673,6 +673,22 @@ enum dc_timing_3d_format {
 	TIMING_3D_FORMAT_MAX,
 };
 
+enum trigger_delay {
+	TRIGGER_DELAY_NEXT_PIXEL = 0,
+	TRIGGER_DELAY_NEXT_LINE,
+};
+
+enum crtc_event {
+	CRTC_EVENT_VSYNC_RISING = 0,
+	CRTC_EVENT_VSYNC_FALLING
+};
+
+struct crtc_trigger_info {
+	bool enabled;
+	struct dc_stream_state *event_source;
+	enum crtc_event event;
+	enum trigger_delay delay;
+};
 
 struct dc_crtc_timing {
 

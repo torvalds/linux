@@ -114,6 +114,11 @@ struct hw_sequencer_funcs {
 			int group_size,
 			struct pipe_ctx *grouped_pipes[]);
 
+	void (*enable_per_frame_crtc_position_reset)(
+			struct dc *dc,
+			int group_size,
+			struct pipe_ctx *grouped_pipes[]);
+
 	void (*enable_display_pipe_clock_gating)(
 					struct dc_context *ctx,
 					bool clock_gating);

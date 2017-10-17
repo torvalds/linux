@@ -607,6 +607,9 @@ struct dc_stream_state {
 
 	/* from stream struct */
 	struct kref refcount;
+
+	struct crtc_trigger_info triggered_crtc_reset;
+
 };
 
 struct dc_stream_update {
