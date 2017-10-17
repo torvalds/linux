@@ -1232,7 +1232,7 @@ static void lane2_associate_ind(struct net_device *dev, const u8 *mac_addr,
 #define LEC_ARP_REFRESH_INTERVAL (3*HZ)
 
 static void lec_arp_check_expire(struct work_struct *work);
-static void lec_arp_expire_arp(unsigned long data);
+static void lec_arp_expire_arp(struct timer_list *t);
 
 /*
  * Arp table funcs
@@ -1559,8 +1559,7 @@ static struct lec_arp_table *make_entry(struct lec_priv *priv,
 	}
 	ether_addr_copy(to_return->mac_addr, mac_addr);
 	INIT_HLIST_NODE(&to_return->next);
-	setup_timer(&to_return->timer, lec_arp_expire_arp,
-			(unsigned long)to_return);
+	timer_setup(&to_return->timer, lec_arp_expire_arp, 0);
 	to_return->last_used = jiffies;
 	to_return->priv = priv;
 	skb_queue_head_init(&to_return->tx_wait);
@@ -1569,11 +1568,11 @@ static struct lec_arp_table *make_entry(struct lec_priv *priv,
 }
 
 /* Arp sent timer expired */
-static void lec_arp_expire_arp(unsigned long data)
+static void lec_arp_expire_arp(struct timer_list *t)
 {
 	struct lec_arp_table *entry;
 
-	entry = (struct lec_arp_table *)data;
+	entry = from_timer(entry, t, timer);
 
 	pr_debug("\n");
 	if (entry->status == ESI_ARP_PENDING) {
@@ -1591,10 +1590,10 @@ static void lec_arp_expire_arp(unsigned long data)
 }
 
 /* Unknown/unused vcc expire, remove associated entry */
-static void lec_arp_expire_vcc(unsigned long data)
+static void lec_arp_expire_vcc(struct timer_list *t)
 {
 	unsigned long flags;
-	struct lec_arp_table *to_remove = (struct lec_arp_table *)data;
+	struct lec_arp_table *to_remove = from_timer(to_remove, t, timer);
 	struct lec_priv *priv = to_remove->priv;
 
 	del_timer(&to_remove->timer);
@@ -1799,7 +1798,7 @@ static struct atm_vcc *lec_arp_resolve(struct lec_priv *priv,
 		else
 			send_to_lecd(priv, l_arp_xmt, mac_to_find, NULL, NULL);
 		entry->timer.expires = jiffies + (1 * HZ);
-		entry->timer.function = lec_arp_expire_arp;
+		entry->timer.function = (TIMER_FUNC_TYPE)lec_arp_expire_arp;
 		add_timer(&entry->timer);
 		found = priv->mcast_vcc;
 	}
@@ -1999,7 +1998,7 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 		entry->old_recv_push = old_push;
 		entry->status = ESI_UNKNOWN;
 		entry->timer.expires = jiffies + priv->vcc_timeout_period;
-		entry->timer.function = lec_arp_expire_vcc;
+		entry->timer.function = (TIMER_FUNC_TYPE)lec_arp_expire_vcc;
 		hlist_add_head(&entry->next, &priv->lec_no_forward);
 		add_timer(&entry->timer);
 		dump_arp_table(priv);
@@ -2083,7 +2082,7 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 	entry->status = ESI_UNKNOWN;
 	hlist_add_head(&entry->next, &priv->lec_arp_empty_ones);
 	entry->timer.expires = jiffies + priv->vcc_timeout_period;
-	entry->timer.function = lec_arp_expire_vcc;
+	entry->timer.function = (TIMER_FUNC_TYPE)lec_arp_expire_vcc;
 	add_timer(&entry->timer);
 	pr_debug("After vcc was added\n");
 	dump_arp_table(priv);
