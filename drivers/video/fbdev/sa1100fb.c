@@ -1217,28 +1217,27 @@ static int sa1100fb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0 || !res)
+	if (irq < 0)
 		return -EINVAL;
-
-	if (!request_mem_region(res->start, resource_size(res), "LCD"))
-		return -EBUSY;
 
 	fbi = sa1100fb_init_fbinfo(&pdev->dev);
 	ret = -ENOMEM;
 	if (!fbi)
 		goto failed;
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	fbi->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(fbi->base)) {
+		ret = PTR_ERR(fbi->base);
+		goto failed;
+	}
+
 	fbi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(fbi->clk)) {
 		ret = PTR_ERR(fbi->clk);
 		goto failed;
 	}
-
-	fbi->base = ioremap(res->start, resource_size(res));
-	if (!fbi->base)
-		goto failed;
 
 	/* Initialize video memory */
 	ret = sa1100fb_map_video_memory(fbi);
@@ -1286,9 +1285,6 @@ static int sa1100fb_probe(struct platform_device *pdev)
  err_free_irq:
 	free_irq(irq, fbi);
  failed:
-	if (fbi)
-		iounmap(fbi->base);
-	release_mem_region(res->start, resource_size(res));
 	return ret;
 }
 
