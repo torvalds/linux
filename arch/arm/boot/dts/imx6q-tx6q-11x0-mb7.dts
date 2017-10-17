@@ -49,7 +49,6 @@
 
 	aliases {
 		display = &lvds0;
-		ipu1 = &ipu2;
 		lvds0 = &lvds0;
 		lvds1 = &lvds1;
 	};
