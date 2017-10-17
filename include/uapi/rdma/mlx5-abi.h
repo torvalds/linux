@@ -190,6 +190,19 @@ struct mlx5_ib_sw_parsing_caps {
 	__u32 supported_qpts;
 };
 
+struct mlx5_ib_striding_rq_caps {
+	__u32 min_single_stride_log_num_of_bytes;
+	__u32 max_single_stride_log_num_of_bytes;
+	__u32 min_single_wqe_log_num_of_strides;
+	__u32 max_single_wqe_log_num_of_strides;
+
+	/* Corresponding bit will be set if qp type from
+	 * 'enum ib_qp_type' is supported, e.g.
+	 * supported_qpts |= 1 << IB_QPT_RAW_PACKET
+	 */
+	__u32 supported_qpts;
+};
+
 struct mlx5_ib_query_device_resp {
 	__u32	comp_mask;
 	__u32	response_length;
@@ -200,6 +213,7 @@ struct mlx5_ib_query_device_resp {
 	__u32	mlx5_ib_support_multi_pkt_send_wqes;
 	__u32	reserved;
 	struct mlx5_ib_sw_parsing_caps sw_parsing_caps;
+	struct mlx5_ib_striding_rq_caps striding_rq_caps;
 };
 
 struct mlx5_ib_create_cq {
