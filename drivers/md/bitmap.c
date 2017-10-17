@@ -625,7 +625,7 @@ re_read:
 		err = read_sb_page(bitmap->mddev,
 				   offset,
 				   sb_page,
-				   0, PAGE_SIZE);
+				   0, sizeof(bitmap_super_t));
 	}
 	if (err)
 		return err;
@@ -2123,7 +2123,7 @@ int bitmap_resize(struct bitmap *bitmap, sector_t blocks,
 	if (store.sb_page && bitmap->storage.sb_page)
 		memcpy(page_address(store.sb_page),
 		       page_address(bitmap->storage.sb_page),
-		       PAGE_SIZE);
+		       sizeof(bitmap_super_t));
 	bitmap_file_unmap(&bitmap->storage);
 	bitmap->storage = store;
 
