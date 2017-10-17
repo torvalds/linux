@@ -68,6 +68,8 @@
 #define BYTES_PER_KBIT (1000LL / 8)
 
 struct cbs_sched_data {
+	bool offload;
+	int queue;
 	s64 port_rate; /* in bytes/s */
 	s64 last; /* timestamp in ns */
 	s64 credits; /* in bytes */
@@ -79,6 +81,11 @@ struct cbs_sched_data {
 	int (*enqueue)(struct sk_buff *skb, struct Qdisc *sch);
 	struct sk_buff *(*dequeue)(struct Qdisc *sch);
 };
+
+static int cbs_enqueue_offload(struct sk_buff *skb, struct Qdisc *sch)
+{
+	return qdisc_enqueue_tail(skb, sch);
+}
 
 static int cbs_enqueue_soft(struct sk_buff *skb, struct Qdisc *sch)
 {
@@ -169,6 +176,11 @@ static struct sk_buff *cbs_dequeue_soft(struct Qdisc *sch)
 	return skb;
 }
 
+static struct sk_buff *cbs_dequeue_offload(struct Qdisc *sch)
+{
+	return qdisc_dequeue_head(sch);
+}
+
 static struct sk_buff *cbs_dequeue(struct Qdisc *sch)
 {
 	struct cbs_sched_data *q = qdisc_priv(sch);
@@ -180,14 +192,66 @@ static const struct nla_policy cbs_policy[TCA_CBS_MAX + 1] = {
 	[TCA_CBS_PARMS]	= { .len = sizeof(struct tc_cbs_qopt) },
 };
 
+static void cbs_disable_offload(struct net_device *dev,
+				struct cbs_sched_data *q)
+{
+	struct tc_cbs_qopt_offload cbs = { };
+	const struct net_device_ops *ops;
+	int err;
+
+	if (!q->offload)
+		return;
+
+	q->enqueue = cbs_enqueue_soft;
+	q->dequeue = cbs_dequeue_soft;
+
+	ops = dev->netdev_ops;
+	if (!ops->ndo_setup_tc)
+		return;
+
+	cbs.queue = q->queue;
+	cbs.enable = 0;
+
+	err = ops->ndo_setup_tc(dev, TC_SETUP_CBS, &cbs);
+	if (err < 0)
+		pr_warn("Couldn't disable CBS offload for queue %d\n",
+			cbs.queue);
+}
+
+static int cbs_enable_offload(struct net_device *dev, struct cbs_sched_data *q,
+			      const struct tc_cbs_qopt *opt)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+	struct tc_cbs_qopt_offload cbs = { };
+	int err;
+
+	if (!ops->ndo_setup_tc)
+		return -EOPNOTSUPP;
+
+	cbs.queue = q->queue;
+
+	cbs.enable = 1;
+	cbs.hicredit = opt->hicredit;
+	cbs.locredit = opt->locredit;
+	cbs.idleslope = opt->idleslope;
+	cbs.sendslope = opt->sendslope;
+
+	err = ops->ndo_setup_tc(dev, TC_SETUP_CBS, &cbs);
+	if (err < 0)
+		return err;
+
+	q->enqueue = cbs_enqueue_offload;
+	q->dequeue = cbs_dequeue_offload;
+
+	return 0;
+}
+
 static int cbs_change(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct cbs_sched_data *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
 	struct nlattr *tb[TCA_CBS_MAX + 1];
-	struct ethtool_link_ksettings ecmd;
 	struct tc_cbs_qopt *qopt;
-	s64 link_speed;
 	int err;
 
 	err = nla_parse_nested(tb, TCA_CBS_MAX, opt, cbs_policy, NULL);
@@ -199,23 +263,30 @@ static int cbs_change(struct Qdisc *sch, struct nlattr *opt)
 
 	qopt = nla_data(tb[TCA_CBS_PARMS]);
 
-	if (qopt->offload)
-		return -EOPNOTSUPP;
+	if (!qopt->offload) {
+		struct ethtool_link_ksettings ecmd;
+		s64 link_speed;
 
-	if (!__ethtool_get_link_ksettings(dev, &ecmd))
-		link_speed = ecmd.base.speed;
-	else
-		link_speed = SPEED_1000;
+		if (!__ethtool_get_link_ksettings(dev, &ecmd))
+			link_speed = ecmd.base.speed;
+		else
+			link_speed = SPEED_1000;
 
-	q->port_rate = link_speed * 1000 * BYTES_PER_KBIT;
+		q->port_rate = link_speed * 1000 * BYTES_PER_KBIT;
 
-	q->enqueue = cbs_enqueue_soft;
-	q->dequeue = cbs_dequeue_soft;
+		cbs_disable_offload(dev, q);
+	} else {
+		err = cbs_enable_offload(dev, q, qopt);
+		if (err < 0)
+			return err;
+	}
 
+	/* Everything went OK, save the parameters used. */
 	q->hicredit = qopt->hicredit;
 	q->locredit = qopt->locredit;
 	q->idleslope = qopt->idleslope * BYTES_PER_KBIT;
 	q->sendslope = qopt->sendslope * BYTES_PER_KBIT;
+	q->offload = qopt->offload;
 
 	return 0;
 }
@@ -223,9 +294,15 @@ static int cbs_change(struct Qdisc *sch, struct nlattr *opt)
 static int cbs_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct cbs_sched_data *q = qdisc_priv(sch);
+	struct net_device *dev = qdisc_dev(sch);
 
 	if (!opt)
 		return -EINVAL;
+
+	q->queue = sch->dev_queue - netdev_get_tx_queue(dev, 0);
+
+	q->enqueue = cbs_enqueue_soft;
+	q->dequeue = cbs_dequeue_soft;
 
 	qdisc_watchdog_init(&q->watchdog, sch);
 
@@ -235,8 +312,11 @@ static int cbs_init(struct Qdisc *sch, struct nlattr *opt)
 static void cbs_destroy(struct Qdisc *sch)
 {
 	struct cbs_sched_data *q = qdisc_priv(sch);
+	struct net_device *dev = qdisc_dev(sch);
 
 	qdisc_watchdog_cancel(&q->watchdog);
+
+	cbs_disable_offload(dev, q);
 }
 
 static int cbs_dump(struct Qdisc *sch, struct sk_buff *skb)
@@ -253,7 +333,7 @@ static int cbs_dump(struct Qdisc *sch, struct sk_buff *skb)
 	opt.locredit = q->locredit;
 	opt.sendslope = div64_s64(q->sendslope, BYTES_PER_KBIT);
 	opt.idleslope = div64_s64(q->idleslope, BYTES_PER_KBIT);
-	opt.offload = 0;
+	opt.offload = q->offload;
 
 	if (nla_put(skb, TCA_CBS_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;

@@ -140,4 +140,13 @@ static inline struct net *qdisc_net(struct Qdisc *q)
 	return dev_net(q->dev_queue->dev);
 }
 
+struct tc_cbs_qopt_offload {
+	u8 enable;
+	s32 queue;
+	s32 hicredit;
+	s32 locredit;
+	s32 idleslope;
+	s32 sendslope;
+};
+
 #endif
