@@ -75,6 +75,7 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 	}
 
 	ctx->reset_counter = atomic_read(&adev->gpu_reset_counter);
+	ctx->reset_counter_query = ctx->reset_counter;
 	ctx->vram_lost_counter = atomic_read(&adev->vram_lost_counter);
 	ctx->init_priority = priority;
 	ctx->override_priority = AMD_SCHED_PRIORITY_UNSET;
@@ -216,11 +217,11 @@ static int amdgpu_ctx_query(struct amdgpu_device *adev,
 	/* determine if a GPU reset has occured since the last call */
 	reset_counter = atomic_read(&adev->gpu_reset_counter);
 	/* TODO: this should ideally return NO, GUILTY, or INNOCENT. */
-	if (ctx->reset_counter == reset_counter)
+	if (ctx->reset_counter_query == reset_counter)
 		out->state.reset_status = AMDGPU_CTX_NO_RESET;
 	else
 		out->state.reset_status = AMDGPU_CTX_UNKNOWN_RESET;
-	ctx->reset_counter = reset_counter;
+	ctx->reset_counter_query = reset_counter;
 
 	mutex_unlock(&mgr->lock);
 	return 0;
