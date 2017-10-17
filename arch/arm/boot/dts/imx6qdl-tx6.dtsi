@@ -146,7 +146,7 @@
 		pinctrl-0 = <&pinctrl_lcd0_pwr>;
 		gpio = <&gpio3 29 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-		regulator-boot-on;
+		status = "disabled";
 	};
 
 	reg_lcd1_pwr: regulator-lcd1-pwr {
@@ -158,7 +158,7 @@
 		pinctrl-0 = <&pinctrl_lcd1_pwr>;
 		gpio = <&gpio2 31 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-		regulator-boot-on;
+		status = "disabled";
 	};
 
 	reg_usbh1_vbus: regulator-usbh1-vbus {
