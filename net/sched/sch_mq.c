@@ -130,15 +130,7 @@ static struct netdev_queue *mq_queue_get(struct Qdisc *sch, unsigned long cl)
 static struct netdev_queue *mq_select_queue(struct Qdisc *sch,
 					    struct tcmsg *tcm)
 {
-	unsigned int ntx = TC_H_MIN(tcm->tcm_parent);
-	struct netdev_queue *dev_queue = mq_queue_get(sch, ntx);
-
-	if (!dev_queue) {
-		struct net_device *dev = qdisc_dev(sch);
-
-		return netdev_get_tx_queue(dev, 0);
-	}
-	return dev_queue;
+	return mq_queue_get(sch, TC_H_MIN(tcm->tcm_parent));
 }
 
 static int mq_graft(struct Qdisc *sch, unsigned long cl, struct Qdisc *new,
