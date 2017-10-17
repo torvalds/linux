@@ -2720,8 +2720,7 @@ static void create_eml_sink(struct amdgpu_dm_connector *aconnector)
 		(edid->extensions + 1) * EDID_LENGTH,
 		&init_params);
 
-	if (aconnector->base.force
-					== DRM_FORCE_ON)
+	if (aconnector->base.force == DRM_FORCE_ON)
 		aconnector->dc_sink = aconnector->dc_link->local_sink ?
 		aconnector->dc_link->local_sink :
 		aconnector->dc_em_sink;
