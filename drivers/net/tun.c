@@ -1737,7 +1737,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		/* Exercise flow dissector code path. */
 		u32 headlen = eth_get_headlen(skb->data, skb_headlen(skb));
 
-		if (headlen > skb_headlen(skb) || headlen < ETH_HLEN) {
+		if (unlikely(headlen > skb_headlen(skb))) {
 			this_cpu_inc(tun->pcpu_stats->rx_dropped);
 			napi_free_frags(&tfile->napi);
 			mutex_unlock(&tfile->napi_mutex);
