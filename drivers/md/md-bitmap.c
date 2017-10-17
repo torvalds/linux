@@ -1816,6 +1816,12 @@ struct bitmap *bitmap_create(struct mddev *mddev, int slot)
 
 	BUG_ON(file && mddev->bitmap_info.offset);
 
+	if (test_bit(MD_HAS_JOURNAL, &mddev->flags)) {
+		pr_notice("md/raid:%s: array with journal cannot have bitmap\n",
+			  mdname(mddev));
+		return ERR_PTR(-EBUSY);
+	}
+
 	bitmap = kzalloc(sizeof(*bitmap), GFP_KERNEL);
 	if (!bitmap)
 		return ERR_PTR(-ENOMEM);
