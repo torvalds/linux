@@ -1477,6 +1477,9 @@
 		clock-names = "pclk", "hs_clk";
 		resets = <&cru SRST_MIPIDSI0>;
 		reset-names = "apb";
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&state_video_phy_mipi>;
+		pinctrl-1 = <&state_video_phy_idle>;
 		phys = <&mipi_dphy>;
 		phy-names = "mipi_dphy";
 		rockchip,grf = <&grf>;
@@ -1505,7 +1508,28 @@
 		reset-names = "apb";
 		power-domains = <&power RK3368_PD_VIO>;
 		#phy-cells = <0>;
+		rockchip,grf = <&grf>;
 		status = "disabled";
+
+		state_video_phy_mipi: pinmux-mipi {
+			groups = "video-phy-io";
+			function = "mipi";
+		};
+
+		state_video_phy_lvds: pinmux-lvds {
+			groups = "video-phy-io";
+			function = "lvds";
+		};
+
+		state_video_phy_ttl: pinmux-ttl {
+			groups = "video-phy-io";
+			function = "ttl";
+		};
+
+		state_video_phy_idle: pinmux-idle {
+			groups = "video-phy-io";
+			function = "idle";
+		};
 	};
 
 	lvds: lvds@ff968000 {
