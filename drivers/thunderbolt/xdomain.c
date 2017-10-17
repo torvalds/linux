@@ -56,7 +56,7 @@ static bool tb_xdomain_match(const struct tb_cfg_request *req,
 	case TB_CFG_PKG_XDOMAIN_RESP: {
 		const struct tb_xdp_header *res_hdr = pkg->buffer;
 		const struct tb_xdp_header *req_hdr = req->request;
-		u8 req_seq, res_seq;
+		u32 req_seq, res_seq;
 
 		if (pkg->frame.size < req->response_size / 4)
 			return false;
@@ -476,7 +476,7 @@ static void tb_xdp_handle_request(struct work_struct *work)
 	struct tb_ctl *ctl = tb->ctl;
 	const uuid_t *uuid;
 	int ret = 0;
-	u8 sequence;
+	u32 sequence;
 	u64 route;
 
 	route = ((u64)xhdr->route_hi << 32 | xhdr->route_lo) & ~BIT_ULL(63);
