@@ -1204,8 +1204,27 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	offset = index * adapter->req_mtu;
 	dst = tx_pool->long_term_buff.buff + offset;
 	memset(dst, 0, adapter->req_mtu);
-	skb_copy_from_linear_data(skb, dst, skb->len);
 	data_dma_addr = tx_pool->long_term_buff.addr + offset;
+
+	if (skb_shinfo(skb)->nr_frags) {
+		int cur, i;
+
+		/* Copy the head */
+		skb_copy_from_linear_data(skb, dst, skb_headlen(skb));
+		cur = skb_headlen(skb);
+
+		/* Copy the frags */
+		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+			const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+
+			memcpy(dst + cur,
+			       page_address(skb_frag_page(frag)) +
+			       frag->page_offset, skb_frag_size(frag));
+			cur += skb_frag_size(frag);
+		}
+	} else {
+		skb_copy_from_linear_data(skb, dst, skb->len);
+	}
 
 	tx_pool->consumer_index =
 	    (tx_pool->consumer_index + 1) %
@@ -2948,7 +2967,7 @@ static void handle_query_ip_offload_rsp(struct ibmvnic_adapter *adapter)
 	adapter->ip_offload_ctrl.large_rx_ipv4 = 0;
 	adapter->ip_offload_ctrl.large_rx_ipv6 = 0;
 
-	adapter->netdev->features = NETIF_F_GSO;
+	adapter->netdev->features = NETIF_F_SG | NETIF_F_GSO;
 
 	if (buf->tcp_ipv4_chksum || buf->udp_ipv4_chksum)
 		adapter->netdev->features |= NETIF_F_IP_CSUM;
