@@ -28,7 +28,7 @@ module_param(svc_rpc_per_connection_limit, uint, 0644);
 static struct svc_deferred_req *svc_deferred_dequeue(struct svc_xprt *xprt);
 static int svc_deferred_recv(struct svc_rqst *rqstp);
 static struct cache_deferred_req *svc_defer(struct cache_req *req);
-static void svc_age_temp_xprts(unsigned long closure);
+static void svc_age_temp_xprts(struct timer_list *t);
 static void svc_delete_xprt(struct svc_xprt *xprt);
 
 /* apparently the "standard" is that clients close
@@ -785,8 +785,7 @@ static void svc_add_new_temp_xprt(struct svc_serv *serv, struct svc_xprt *newxpt
 	serv->sv_tmpcnt++;
 	if (serv->sv_temptimer.function == NULL) {
 		/* setup timer to age temp transports */
-		setup_timer(&serv->sv_temptimer, svc_age_temp_xprts,
-			    (unsigned long)serv);
+		serv->sv_temptimer.function = (TIMER_FUNC_TYPE)svc_age_temp_xprts;
 		mod_timer(&serv->sv_temptimer,
 			  jiffies + svc_conn_age_period * HZ);
 	}
@@ -960,9 +959,9 @@ out:
  * Timer function to close old temporary transports, using
  * a mark-and-sweep algorithm.
  */
-static void svc_age_temp_xprts(unsigned long closure)
+static void svc_age_temp_xprts(struct timer_list *t)
 {
-	struct svc_serv *serv = (struct svc_serv *)closure;
+	struct svc_serv *serv = from_timer(serv, t, sv_temptimer);
 	struct svc_xprt *xprt;
 	struct list_head *le, *next;
 
