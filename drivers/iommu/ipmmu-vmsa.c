@@ -871,7 +871,7 @@ static struct iommu_group *ipmmu_find_group_dma(struct device *dev)
 	sibling = ipmmu_find_sibling_device(dev);
 	if (sibling)
 		group = iommu_group_get(sibling);
-	if (!sibling || IS_ERR(group))
+	if (!sibling || !group)
 		group = generic_device_group(dev);
 
 	return group;
