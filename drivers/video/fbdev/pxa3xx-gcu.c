@@ -520,12 +520,8 @@ static void pxa3xx_gcu_debug_timedout(unsigned long ptr)
 	QERROR("Timer DUMP");
 
 	/* init the timer structure */
-	init_timer(&pxa3xx_gcu_debug_timer);
-	pxa3xx_gcu_debug_timer.function = pxa3xx_gcu_debug_timedout;
-	pxa3xx_gcu_debug_timer.data = ptr;
-	pxa3xx_gcu_debug_timer.expires = jiffies + 5*HZ; /* one second */
-
-	add_timer(&pxa3xx_gcu_debug_timer);
+	setup_timer(&pxa3xx_gcu_debug_timer, pxa3xx_gcu_debug_timedout, ptr);
+	mod_timer(&pxa3xx_gcu_debug_timer, jiffies + 5 * HZ);
 }
 
 static void pxa3xx_gcu_init_debug_timer(void)
