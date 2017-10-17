@@ -2683,7 +2683,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	sk_init_common(sk);
 	sk->sk_send_head	=	NULL;
 
-	init_timer(&sk->sk_timer);
+	setup_timer(&sk->sk_timer, NULL, (unsigned long)sk);
 
 	sk->sk_allocation	=	GFP_KERNEL;
 	sk->sk_rcvbuf		=	sysctl_rmem_default;

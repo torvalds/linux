@@ -45,7 +45,6 @@ void nr_init_timers(struct sock *sk)
 	setup_timer(&nr->idletimer, nr_idletimer_expiry, (unsigned long)sk);
 
 	/* initialized by sock_init_data */
-	sk->sk_timer.data     = (unsigned long)sk;
 	sk->sk_timer.function = &nr_heartbeat_expiry;
 }
 
