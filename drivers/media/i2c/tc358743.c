@@ -1941,6 +1941,11 @@ static int tc358743_probe_of(struct tc358743_state *state)
 		goto free_endpoint;
 	}
 
+	if (endpoint->bus.mipi_csi2.num_data_lanes > 4) {
+		dev_err(dev, "invalid number of lanes\n");
+		goto free_endpoint;
+	}
+
 	state->bus = endpoint->bus.mipi_csi2;
 
 	ret = clk_prepare_enable(refclk);
