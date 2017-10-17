@@ -323,13 +323,11 @@ sa1100fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		 * according to the RGB bitfield information.
 		 */
 		if (regno < 16) {
-			u32 *pal = fbi->fb.pseudo_palette;
-
 			val  = chan_to_field(red, &fbi->fb.var.red);
 			val |= chan_to_field(green, &fbi->fb.var.green);
 			val |= chan_to_field(blue, &fbi->fb.var.blue);
 
-			pal[regno] = val;
+			fbi->pseudo_palette[regno] = val;
 			ret = 0;
 		}
 		break;
@@ -1132,8 +1130,7 @@ static struct sa1100fb_info *sa1100fb_init_fbinfo(struct device *dev)
 	struct sa1100fb_info *fbi;
 	unsigned i;
 
-	fbi = devm_kzalloc(dev, sizeof(struct sa1100fb_info) + sizeof(u32) * 16,
-			   GFP_KERNEL);
+	fbi = devm_kzalloc(dev, sizeof(struct sa1100fb_info), GFP_KERNEL);
 	if (!fbi)
 		return NULL;
 
@@ -1158,7 +1155,7 @@ static struct sa1100fb_info *sa1100fb_init_fbinfo(struct device *dev)
 	fbi->fb.fbops		= &sa1100fb_ops;
 	fbi->fb.flags		= FBINFO_DEFAULT;
 	fbi->fb.monspecs	= monspecs;
-	fbi->fb.pseudo_palette	= (fbi + 1);
+	fbi->fb.pseudo_palette	= fbi->pseudo_palette;
 
 	fbi->rgb[RGB_4]		= &rgb_4;
 	fbi->rgb[RGB_8]		= &rgb_8;
