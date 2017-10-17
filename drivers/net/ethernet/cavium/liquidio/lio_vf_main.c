@@ -435,8 +435,7 @@ static void delete_glists(struct lio *lio)
 		do {
 			g = (struct octnic_gather *)
 			    list_delete_head(&lio->glist[i]);
-			if (g)
-				kfree(g);
+			kfree(g);
 		} while (g);
 
 		if (lio->glists_virt_base && lio->glists_virt_base[i] &&
