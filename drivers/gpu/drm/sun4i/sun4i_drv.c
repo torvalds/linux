@@ -181,6 +181,7 @@ static bool sun4i_drv_node_is_frontend(struct device_node *node)
 	return of_device_is_compatible(node, "allwinner,sun4i-a10-display-frontend") ||
 		of_device_is_compatible(node, "allwinner,sun5i-a13-display-frontend") ||
 		of_device_is_compatible(node, "allwinner,sun6i-a31-display-frontend") ||
+		of_device_is_compatible(node, "allwinner,sun7i-a20-display-frontend") ||
 		of_device_is_compatible(node, "allwinner,sun8i-a33-display-frontend");
 }
 
@@ -190,6 +191,7 @@ static bool sun4i_drv_node_is_tcon(struct device_node *node)
 		of_device_is_compatible(node, "allwinner,sun5i-a13-tcon") ||
 		of_device_is_compatible(node, "allwinner,sun6i-a31-tcon") ||
 		of_device_is_compatible(node, "allwinner,sun6i-a31s-tcon") ||
+		of_device_is_compatible(node, "allwinner,sun7i-a20-tcon") ||
 		of_device_is_compatible(node, "allwinner,sun8i-a33-tcon") ||
 		of_device_is_compatible(node, "allwinner,sun8i-v3s-tcon");
 }
@@ -349,6 +351,7 @@ static const struct of_device_id sun4i_drv_of_table[] = {
 	{ .compatible = "allwinner,sun5i-a13-display-engine" },
 	{ .compatible = "allwinner,sun6i-a31-display-engine" },
 	{ .compatible = "allwinner,sun6i-a31s-display-engine" },
+	{ .compatible = "allwinner,sun7i-a20-display-engine" },
 	{ .compatible = "allwinner,sun8i-a33-display-engine" },
 	{ .compatible = "allwinner,sun8i-v3s-display-engine" },
 	{ }
