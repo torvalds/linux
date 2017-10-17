@@ -636,7 +636,7 @@ static struct rk3368_dram_timing *of_get_rk3368_timings(struct device *dev,
 {
 	struct rk3368_dram_timing *timing = NULL;
 	struct device_node *np_tim;
-	int ret;
+	int ret = 0;
 
 	np_tim = of_parse_phandle(np, "ddr_timing", 0);
 	if (np_tim) {
