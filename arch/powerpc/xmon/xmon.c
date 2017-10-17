@@ -2475,6 +2475,11 @@ static void dump_xives(void)
 	unsigned long num;
 	int c;
 
+	if (!xive_enabled()) {
+		printf("Xive disabled on this system\n");
+		return;
+	}
+
 	c = inchar();
 	if (c == 'a') {
 		dump_all_xives();
