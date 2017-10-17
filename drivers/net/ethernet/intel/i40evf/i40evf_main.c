@@ -1594,9 +1594,10 @@ err:
  * i40evf_watchdog_timer - Periodic call-back timer
  * @data: pointer to adapter disguised as unsigned long
  **/
-static void i40evf_watchdog_timer(unsigned long data)
+static void i40evf_watchdog_timer(struct timer_list *t)
 {
-	struct i40evf_adapter *adapter = (struct i40evf_adapter *)data;
+	struct i40evf_adapter *adapter = from_timer(adapter, t,
+						    watchdog_timer);
 
 	schedule_work(&adapter->watchdog_task);
 	/* timer will be rescheduled in watchdog task */
@@ -2748,8 +2749,7 @@ static void i40evf_init_task(struct work_struct *work)
 		ether_addr_copy(netdev->perm_addr, adapter->hw.mac.addr);
 	}
 
-	setup_timer(&adapter->watchdog_timer, &i40evf_watchdog_timer,
-		    (unsigned long)adapter);
+	timer_setup(&adapter->watchdog_timer, i40evf_watchdog_timer, 0);
 	mod_timer(&adapter->watchdog_timer, jiffies + 1);
 
 	adapter->tx_desc_count = I40EVF_DEFAULT_TXD;
