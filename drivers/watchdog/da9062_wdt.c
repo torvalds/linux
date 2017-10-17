@@ -175,6 +175,25 @@ static int da9062_wdt_set_timeout(struct watchdog_device *wdd,
 	return ret;
 }
 
+static int da9062_wdt_restart(struct watchdog_device *wdd, unsigned long action,
+			      void *data)
+{
+	struct da9062_watchdog *wdt = watchdog_get_drvdata(wdd);
+	int ret;
+
+	ret = regmap_write(wdt->hw->regmap,
+			   DA9062AA_CONTROL_F,
+			   DA9062AA_SHUTDOWN_MASK);
+	if (ret)
+		dev_alert(wdt->hw->dev, "Failed to shutdown (err = %d)\n",
+			  ret);
+
+	/* wait for reset to assert... */
+	mdelay(500);
+
+	return ret;
+}
+
 static const struct watchdog_info da9062_watchdog_info = {
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
 	.identity = "DA9062 WDT",
@@ -186,6 +205,7 @@ static const struct watchdog_ops da9062_watchdog_ops = {
 	.stop = da9062_wdt_stop,
 	.ping = da9062_wdt_ping,
 	.set_timeout = da9062_wdt_set_timeout,
+	.restart = da9062_wdt_restart,
 };
 
 static const struct of_device_id da9062_compatible_id_table[] = {
@@ -218,6 +238,8 @@ static int da9062_wdt_probe(struct platform_device *pdev)
 	wdt->wdtdev.timeout = DA9062_WDG_DEFAULT_TIMEOUT;
 	wdt->wdtdev.status = WATCHDOG_NOWAYOUT_INIT_STATUS;
 	wdt->wdtdev.parent = &pdev->dev;
+
+	watchdog_set_restart_priority(&wdt->wdtdev, 128);
 
 	watchdog_set_drvdata(&wdt->wdtdev, wdt);
 
