@@ -144,7 +144,7 @@ static noinline void __machine_kdump(void *image)
 /*
  * Check if kdump checksums are valid: We call purgatory with parameter "0"
  */
-static int kdump_csum_valid(struct kimage *image)
+static bool kdump_csum_valid(struct kimage *image)
 {
 #ifdef CONFIG_CRASH_DUMP
 	int (*start_kdump)(int) = (void *)image->start;
@@ -153,9 +153,9 @@ static int kdump_csum_valid(struct kimage *image)
 	__arch_local_irq_stnsm(0xfb); /* disable DAT */
 	rc = start_kdump(0);
 	__arch_local_irq_stosm(0x04); /* enable DAT */
-	return rc ? 0 : -EINVAL;
+	return rc == 0;
 #else
-	return -EINVAL;
+	return false;
 #endif
 }
 
