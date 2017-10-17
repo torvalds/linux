@@ -68,6 +68,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ES8323 if I2C
 	select SND_SOC_ES8328_SPI if SPI_MASTER
 	select SND_SOC_ES8328_I2C if I2C
+	select SND_SOC_ES8396 if I2C
 	select SND_SOC_GTM601
 	select SND_SOC_ICS43432
 	select SND_SOC_ISABELLE if I2C
@@ -493,6 +494,9 @@ config SND_SOC_ES8328_I2C
 config SND_SOC_ES8328_SPI
 	tristate
 	select SND_SOC_ES8328
+
+config SND_SOC_ES8396
+	tristate "Everest Semi ES8396 CODEC"
 
 config SND_SOC_GTM601
 	tristate 'GTM601 UMTS modem audio codec'
