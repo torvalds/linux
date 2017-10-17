@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2016 Lothar Waßmann <LW@KARO-electronics.de>
+ * Copyright 2014-2017 Lothar Waßmann <LW@KARO-electronics.de>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -44,7 +44,7 @@
 #include "imx6qdl-tx6.dtsi"
 
 / {
-	model = "Ka-Ro electronics TX6Q-1010 Module";
+	model = "Ka-Ro electronics TX6Q-1010/-1030 Module";
 	compatible = "karo,imx6q-tx6q", "fsl,imx6q";
 
 	aliases {
