@@ -69,12 +69,9 @@ static inline bool no_fbc_on_multiple_pipes(struct drm_i915_private *dev_priv)
  * address we program because it starts at the real start of the buffer, so we
  * have to take this into consideration here.
  */
-static unsigned int get_crtc_fence_y_offset(struct intel_crtc *crtc)
+static unsigned int get_crtc_fence_y_offset(struct intel_fbc *fbc)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_fbc *fbc = &dev_priv->fbc;
-
-	return crtc->base.y - fbc->state_cache.plane.adjusted_y;
+	return fbc->state_cache.plane.y - fbc->state_cache.plane.adjusted_y;
 }
 
 /*
@@ -762,6 +759,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	cache->plane.visible = plane_state->base.visible;
 	cache->plane.adjusted_x = plane_state->main.x;
 	cache->plane.adjusted_y = plane_state->main.y;
+	cache->plane.y = plane_state->base.src.y1 >> 16;
 
 	if (!cache->plane.visible)
 		return;
@@ -893,7 +891,7 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 
 	params->crtc.pipe = crtc->pipe;
 	params->crtc.plane = crtc->plane;
-	params->crtc.fence_y_offset = get_crtc_fence_y_offset(crtc);
+	params->crtc.fence_y_offset = get_crtc_fence_y_offset(fbc);
 
 	params->fb.format = cache->fb.format;
 	params->fb.stride = cache->fb.stride;
