@@ -562,7 +562,8 @@
 	};
 
 	sdhi0: sd@ee100000 {
-		compatible = "renesas,sdhi-r8a7793";
+		compatible = "renesas,sdhi-r8a7793",
+			     "renesas,rcar-gen2-sdhi";
 		reg = <0 0xee100000 0 0x328>;
 		interrupts = <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cpg CPG_MOD 314>;
@@ -576,7 +577,8 @@
 	};
 
 	sdhi1: sd@ee140000 {
-		compatible = "renesas,sdhi-r8a7793";
+		compatible = "renesas,sdhi-r8a7793",
+			     "renesas,rcar-gen2-sdhi";
 		reg = <0 0xee140000 0 0x100>;
 		interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cpg CPG_MOD 312>;
@@ -590,7 +592,8 @@
 	};
 
 	sdhi2: sd@ee160000 {
-		compatible = "renesas,sdhi-r8a7793";
+		compatible = "renesas,sdhi-r8a7793",
+			     "renesas,rcar-gen2-sdhi";
 		reg = <0 0xee160000 0 0x100>;
 		interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cpg CPG_MOD 311>;
