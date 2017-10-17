@@ -311,10 +311,10 @@ static int add_changeset_node(struct overlay_changeset *ovcs,
 		return build_changeset_next_level(ovcs, tchild, node, 0);
 	}
 
-	if (node->phandle)
-		return -EINVAL;
-
-	ret = build_changeset_next_level(ovcs, tchild, node, 0);
+	if (node->phandle && tchild->phandle)
+		ret = -EINVAL;
+	else
+		ret = build_changeset_next_level(ovcs, tchild, node, 0);
 	of_node_put(tchild);
 
 	return ret;
