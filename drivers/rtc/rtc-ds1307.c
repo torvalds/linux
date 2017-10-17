@@ -325,6 +325,10 @@ static const struct of_device_id ds1307_of_match[] = {
 		.compatible = "isil,isl12057",
 		.data = (void *)ds_1337
 	},
+	{
+		.compatible = "epson,rx8130",
+		.data = (void *)rx_8130
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ds1307_of_match);
@@ -348,6 +352,7 @@ static const struct acpi_device_id ds1307_acpi_ids[] = {
 	{ .id = "PT7C4338", .driver_data = ds_1307 },
 	{ .id = "RX8025", .driver_data = rx_8025 },
 	{ .id = "ISL12057", .driver_data = ds_1337 },
+	{ .id = "RX8130", .driver_data = rx_8130 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, ds1307_acpi_ids);
