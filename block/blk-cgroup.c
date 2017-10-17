@@ -1419,6 +1419,11 @@ int blkcg_policy_register(struct blkcg_policy *pol)
 	if (i >= BLKCG_MAX_POLS)
 		goto err_unlock;
 
+	/* Make sure cpd/pd_alloc_fn and cpd/pd_free_fn in pairs */
+	if ((!pol->cpd_alloc_fn ^ !pol->cpd_free_fn) ||
+		(!pol->pd_alloc_fn ^ !pol->pd_free_fn))
+		goto err_unlock;
+
 	/* register @pol */
 	pol->plid = i;
 	blkcg_policy[pol->plid] = pol;
