@@ -93,7 +93,7 @@
 			SYS_STATUS_ISP		396000
 		>;
 		auto-min-freq = <396000>;
-		auto-freq-en = <1>;
+		auto-freq-en = <0>;
 		status = "diasbled";
 	};
 
