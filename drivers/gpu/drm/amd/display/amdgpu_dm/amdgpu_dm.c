@@ -2873,13 +2873,13 @@ static void dm_drm_plane_reset(struct drm_plane *plane)
 		plane->funcs->atomic_destroy_state(plane, plane->state);
 
 	amdgpu_state = kzalloc(sizeof(*amdgpu_state), GFP_KERNEL);
-
+	WARN_ON(amdgpu_state == NULL);
+	
 	if (amdgpu_state) {
 		plane->state = &amdgpu_state->base;
 		plane->state->plane = plane;
 		plane->state->rotation = DRM_MODE_ROTATE_0;
-	} else
-		WARN_ON(1);
+	}
 }
 
 static struct drm_plane_state *
