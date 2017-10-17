@@ -158,7 +158,7 @@ static struct line6_pcm_properties podx3_pcm_properties = {
 };
 static struct usb_driver podhd_driver;
 
-static void podhd_startup_start_workqueue(unsigned long data);
+static void podhd_startup_start_workqueue(struct timer_list *t);
 static void podhd_startup_workqueue(struct work_struct *work);
 static int podhd_startup_finalize(struct usb_line6_podhd *pod);
 
@@ -208,12 +208,12 @@ static void podhd_startup(struct usb_line6_podhd *pod)
 
 	/* delay startup procedure: */
 	line6_start_timer(&pod->startup_timer, PODHD_STARTUP_DELAY,
-		podhd_startup_start_workqueue, (unsigned long)pod);
+		podhd_startup_start_workqueue);
 }
 
-static void podhd_startup_start_workqueue(unsigned long data)
+static void podhd_startup_start_workqueue(struct timer_list *t)
 {
-	struct usb_line6_podhd *pod = (struct usb_line6_podhd *)data;
+	struct usb_line6_podhd *pod = from_timer(pod, t, startup_timer);
 
 	CHECK_STARTUP_PROGRESS(pod->startup_progress,
 		PODHD_STARTUP_SCHEDULE_WORKQUEUE);
@@ -319,7 +319,7 @@ static int podhd_init(struct usb_line6 *line6,
 
 	line6->disconnect = podhd_disconnect;
 
-	init_timer(&pod->startup_timer);
+	timer_setup(&pod->startup_timer, NULL, 0);
 	INIT_WORK(&pod->startup_work, podhd_startup_workqueue);
 
 	if (pod->line6.properties->capabilities & LINE6_CAP_CONTROL) {
