@@ -216,6 +216,13 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 	paddr = drm_fb_cma_get_gem_addr(fb, state, 0);
 	DRM_DEBUG_DRIVER("Setting buffer address to %pad\n", &paddr);
 
+	/*
+	 * backend DMA accesses DRAM directly, bypassing the system
+	 * bus. As such, the address range is different and the buffer
+	 * address needs to be corrected.
+	 */
+	paddr -= PHYS_OFFSET;
+
 	/* Write the 32 lower bits of the address (in bits) */
 	lo_paddr = paddr << 3;
 	DRM_DEBUG_DRIVER("Setting address lower bits to 0x%x\n", lo_paddr);
