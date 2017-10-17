@@ -637,7 +637,7 @@ static void _rtl_query_shortgi(struct ieee80211_hw *hw,
 	sgi_20 = sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20;
 	sgi_80 = sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80;
 
-	if ((!sta->ht_cap.ht_supported) && (!sta->vht_cap.vht_supported))
+	if (!sta->ht_cap.ht_supported && !sta->vht_cap.vht_supported)
 		return;
 
 	if (!sgi_40 && !sgi_20)
@@ -734,10 +734,10 @@ u8 rtl_mrate_idx_to_arfr_id(
 		ret = RATEID_IDX_B;
 		break;
 	case RATR_INX_WIRELESS_MC:
-		if ((wirelessmode == WIRELESS_MODE_B) ||
-		    (wirelessmode == WIRELESS_MODE_G) ||
-		    (wirelessmode == WIRELESS_MODE_N_24G) ||
-		    (wirelessmode == WIRELESS_MODE_AC_24G))
+		if (wirelessmode == WIRELESS_MODE_B ||
+		    wirelessmode == WIRELESS_MODE_G ||
+		    wirelessmode == WIRELESS_MODE_N_24G ||
+		    wirelessmode == WIRELESS_MODE_AC_24G)
 			ret = RATEID_IDX_BG;
 		else
 			ret = RATEID_IDX_G;
@@ -948,8 +948,8 @@ static u8 _rtl_get_highest_n_rate(struct ieee80211_hw *hw,
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
 	u8 hw_rate;
 
-	if ((get_rf_type(rtlphy) == RF_2T2R) &&
-	    (sta->ht_cap.mcs.rx_mask[1] != 0))
+	if (get_rf_type(rtlphy) == RF_2T2R &&
+	    sta->ht_cap.mcs.rx_mask[1] != 0)
 		hw_rate = rtlpriv->cfg->maps[RTL_RC_HT_RATEMCS15];
 	else
 		hw_rate = rtlpriv->cfg->maps[RTL_RC_HT_RATEMCS7];
@@ -1277,7 +1277,7 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 				tcb_desc->hw_rate =
 				_rtl_get_vht_highest_n_rate(hw, sta);
 			} else {
-				if (sta && (sta->ht_cap.ht_supported)) {
+				if (sta && sta->ht_cap.ht_supported) {
 					tcb_desc->hw_rate =
 					    _rtl_get_highest_n_rate(hw, sta);
 				} else {
@@ -2080,9 +2080,9 @@ void rtl_watchdog_wq_callback(void *data)
 		    rtlpriv->btcoexist.btc_ops->btc_is_bt_ctrl_lps(rtlpriv))
 			goto label_lps_done;
 
-		if (((rtlpriv->link_info.num_rx_inperiod +
-		      rtlpriv->link_info.num_tx_inperiod) > 8) ||
-		    (rtlpriv->link_info.num_rx_inperiod > 2))
+		if (rtlpriv->link_info.num_rx_inperiod +
+		      rtlpriv->link_info.num_tx_inperiod > 8 ||
+		    rtlpriv->link_info.num_rx_inperiod > 2)
 			rtl_lps_leave(hw);
 		else
 			rtl_lps_enter(hw);
@@ -2551,8 +2551,8 @@ bool rtl_check_beacon_key(struct ieee80211_hw *hw, void *data, unsigned int len)
 	bcn_key.valid = true;
 
 	/* update cur_beacon_keys or compare beacon key */
-	if ((rtlpriv->mac80211.link_state != MAC80211_LINKED) &&
-	    (rtlpriv->mac80211.link_state != MAC80211_LINKED_SCANNING))
+	if (rtlpriv->mac80211.link_state != MAC80211_LINKED &&
+	    rtlpriv->mac80211.link_state != MAC80211_LINKED_SCANNING)
 		return true;
 
 	if (!cur_bcn_key->valid) {
@@ -2575,8 +2575,8 @@ bool rtl_check_beacon_key(struct ieee80211_hw *hw, void *data, unsigned int len)
 		goto chk_exit;
 	}
 
-	if ((cur_bcn_key->bcn_channel == bcn_key.bcn_channel) &&
-	    (cur_bcn_key->ht_cap_info == bcn_key.ht_cap_info)) {
+	if (cur_bcn_key->bcn_channel == bcn_key.bcn_channel &&
+	    cur_bcn_key->ht_cap_info == bcn_key.ht_cap_info) {
 		/* Beacon HT info IE, secondary channel offset check */
 		/* 40M -> 20M */
 		if (cur_bcn_key->ht_info_infos_0_sco >

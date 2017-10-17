@@ -33,7 +33,7 @@ void _rtl_dbg_trace(struct rtl_priv *rtlpriv, u64 comp, int level,
 		    const char *fmt, ...)
 {
 	if (unlikely((comp & rtlpriv->cfg->mod_params->debug_mask) &&
-		     (level <= rtlpriv->cfg->mod_params->debug_level))) {
+		     level <= rtlpriv->cfg->mod_params->debug_level)) {
 		struct va_format vaf;
 		va_list args;
 
@@ -52,7 +52,7 @@ void _rtl_dbg_print(struct rtl_priv *rtlpriv, u64 comp, int level,
 		    const char *fmt, ...)
 {
 	if (unlikely((comp & rtlpriv->cfg->mod_params->debug_mask) &&
-		     (level <= rtlpriv->cfg->mod_params->debug_level))) {
+		     level <= rtlpriv->cfg->mod_params->debug_level)) {
 		struct va_format vaf;
 		va_list args;
 
