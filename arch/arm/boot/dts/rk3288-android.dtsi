@@ -210,7 +210,7 @@
 				logo,kernel = "logo_kernel.bmp";
 				logo,mode = "center";
 				charge_logo,mode = "center";
-				connect = <&vopb_out_edp>;
+				connect = <&vopl_out_edp>;
 			};
 
 			route_dsi0: route-dsi0 {
@@ -219,7 +219,7 @@
 				logo,kernel = "logo_kernel.bmp";
 				logo,mode = "center";
 				charge_logo,mode = "center";
-				connect = <&vopb_out_dsi0>;
+				connect = <&vopl_out_dsi0>;
 			};
 
 			route_lvds: route-lvds {
@@ -228,7 +228,7 @@
 				logo,kernel = "logo_kernel.bmp";
 				logo,mode = "center";
 				charge_logo,mode = "center";
-				connect = <&vopb_out_lvds>;
+				connect = <&vopl_out_lvds>;
 			};
 		};
 	};
@@ -405,11 +405,15 @@
 	status = "okay";
 };
 
-&dsi0_in_vopl {
+&dsi0_in_vopb {
 	status = "disabled";
 };
 
-&edp_in_vopl {
+&edp_in_vopb {
+	status = "disabled";
+};
+
+&hdmi_in_vopl {
 	status = "disabled";
 };
 
