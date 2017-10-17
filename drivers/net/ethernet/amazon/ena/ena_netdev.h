@@ -257,8 +257,6 @@ struct ena_ring {
 
 struct ena_stats_dev {
 	u64 tx_timeout;
-	u64 io_suspend;
-	u64 io_resume;
 	u64 wd_expired;
 	u64 interface_up;
 	u64 interface_down;
@@ -326,8 +324,6 @@ struct ena_adapter {
 
 	/* timer service */
 	struct work_struct reset_task;
-	struct work_struct suspend_io_task;
-	struct work_struct resume_io_task;
 	struct timer_list timer_service;
 
 	bool wd_state;
