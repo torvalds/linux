@@ -2359,27 +2359,13 @@ static int i915_llc(struct seq_file *m, void *data)
 static int i915_huc_load_status_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct intel_uc_fw *huc_fw = &dev_priv->huc.fw;
+	struct drm_printer p;
 
 	if (!HAS_HUC_UCODE(dev_priv))
 		return 0;
 
-	seq_puts(m, "HuC firmware status:\n");
-	seq_printf(m, "\tpath: %s\n", huc_fw->path);
-	seq_printf(m, "\tfetch: %s\n",
-		intel_uc_fw_status_repr(huc_fw->fetch_status));
-	seq_printf(m, "\tload: %s\n",
-		intel_uc_fw_status_repr(huc_fw->load_status));
-	seq_printf(m, "\tversion wanted: %d.%d\n",
-		huc_fw->major_ver_wanted, huc_fw->minor_ver_wanted);
-	seq_printf(m, "\tversion found: %d.%d\n",
-		huc_fw->major_ver_found, huc_fw->minor_ver_found);
-	seq_printf(m, "\theader: offset is %d; size = %d\n",
-		huc_fw->header_offset, huc_fw->header_size);
-	seq_printf(m, "\tuCode: offset is %d; size = %d\n",
-		huc_fw->ucode_offset, huc_fw->ucode_size);
-	seq_printf(m, "\tRSA: offset is %d; size = %d\n",
-		huc_fw->rsa_offset, huc_fw->rsa_size);
+	p = drm_seq_file_printer(m);
+	intel_uc_fw_dump(&dev_priv->huc.fw, &p);
 
 	intel_runtime_pm_get(dev_priv);
 	seq_printf(m, "\nHuC status 0x%08x:\n", I915_READ(HUC_STATUS2));
@@ -2391,29 +2377,14 @@ static int i915_huc_load_status_info(struct seq_file *m, void *data)
 static int i915_guc_load_status_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct intel_uc_fw *guc_fw = &dev_priv->guc.fw;
+	struct drm_printer p;
 	u32 tmp, i;
 
 	if (!HAS_GUC_UCODE(dev_priv))
 		return 0;
 
-	seq_printf(m, "GuC firmware status:\n");
-	seq_printf(m, "\tpath: %s\n",
-		guc_fw->path);
-	seq_printf(m, "\tfetch: %s\n",
-		intel_uc_fw_status_repr(guc_fw->fetch_status));
-	seq_printf(m, "\tload: %s\n",
-		intel_uc_fw_status_repr(guc_fw->load_status));
-	seq_printf(m, "\tversion wanted: %d.%d\n",
-		guc_fw->major_ver_wanted, guc_fw->minor_ver_wanted);
-	seq_printf(m, "\tversion found: %d.%d\n",
-		guc_fw->major_ver_found, guc_fw->minor_ver_found);
-	seq_printf(m, "\theader: offset is %d; size = %d\n",
-		guc_fw->header_offset, guc_fw->header_size);
-	seq_printf(m, "\tuCode: offset is %d; size = %d\n",
-		guc_fw->ucode_offset, guc_fw->ucode_size);
-	seq_printf(m, "\tRSA: offset is %d; size = %d\n",
-		guc_fw->rsa_offset, guc_fw->rsa_size);
+	p = drm_seq_file_printer(m);
+	intel_uc_fw_dump(&dev_priv->guc.fw, &p);
 
 	intel_runtime_pm_get(dev_priv);
 

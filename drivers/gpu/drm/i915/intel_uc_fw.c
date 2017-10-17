@@ -23,6 +23,7 @@
  */
 
 #include <linux/firmware.h>
+#include <drm/drm_print.h>
 
 #include "intel_uc_fw.h"
 #include "i915_drv.h"
@@ -289,4 +290,29 @@ void intel_uc_fw_fini(struct intel_uc_fw *uc_fw)
 		i915_gem_object_put(obj);
 
 	uc_fw->fetch_status = INTEL_UC_FIRMWARE_NONE;
+}
+
+/**
+ * intel_uc_fw_dump - dump information about uC firmware
+ * @uc_fw: uC firmware
+ * @p: the &drm_printer
+ *
+ * Pretty printer for uC firmware.
+ */
+void intel_uc_fw_dump(struct intel_uc_fw *uc_fw, struct drm_printer *p)
+{
+	drm_printf(p, "%s firmware: %s\n",
+		   intel_uc_fw_type_repr(uc_fw->type), uc_fw->path);
+	drm_printf(p, "\tstatus: fetch %s, load %s\n",
+		   intel_uc_fw_status_repr(uc_fw->fetch_status),
+		   intel_uc_fw_status_repr(uc_fw->load_status));
+	drm_printf(p, "\tversion: wanted %u.%u, found %u.%u\n",
+		   uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted,
+		   uc_fw->major_ver_found, uc_fw->minor_ver_found);
+	drm_printf(p, "\theader: offset %u, size %u\n",
+		   uc_fw->header_offset, uc_fw->header_size);
+	drm_printf(p, "\tuCode: offset %u, size %u\n",
+		   uc_fw->ucode_offset, uc_fw->ucode_size);
+	drm_printf(p, "\tRSA: offset %u, size %u\n",
+		   uc_fw->rsa_offset, uc_fw->rsa_size);
 }
