@@ -1130,15 +1130,27 @@ static struct bpf_test tests[] = {
 		.errstr = "invalid bpf_context access",
 	},
 	{
-		"check skb->mark is writeable by SK_SKB",
+		"invalid access of skb->mark for SK_SKB",
+		.insns = {
+			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, mark)),
+			BPF_EXIT_INSN(),
+		},
+		.result =  REJECT,
+		.prog_type = BPF_PROG_TYPE_SK_SKB,
+		.errstr = "invalid bpf_context access",
+	},
+	{
+		"check skb->mark is not writeable by SK_SKB",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_STX_MEM(BPF_W, BPF_REG_1, BPF_REG_0,
 				    offsetof(struct __sk_buff, mark)),
 			BPF_EXIT_INSN(),
 		},
-		.result = ACCEPT,
+		.result =  REJECT,
 		.prog_type = BPF_PROG_TYPE_SK_SKB,
+		.errstr = "invalid bpf_context access",
 	},
 	{
 		"check skb->tc_index is writeable by SK_SKB",
