@@ -246,6 +246,26 @@ xfs_scrub_set_incomplete(
  * cleaning everything up once we're through.
  */
 
+/* Decide if we want to return an AG header read failure. */
+static inline bool
+want_ag_read_header_failure(
+	struct xfs_scrub_context	*sc,
+	unsigned int			type)
+{
+	/* Return all AG header read failures when scanning btrees. */
+	if (sc->sm->sm_type != XFS_SCRUB_TYPE_AGF &&
+	    sc->sm->sm_type != XFS_SCRUB_TYPE_AGFL)
+		return true;
+	/*
+	 * If we're scanning a given type of AG header, we only want to
+	 * see read failures from that specific header.  We'd like the
+	 * other headers to cross-check them, but this isn't required.
+	 */
+	if (sc->sm->sm_type == type)
+		return true;
+	return false;
+}
+
 /*
  * Grab all the headers for an AG.
  *
@@ -269,15 +289,11 @@ xfs_scrub_ag_read_headers(
 		goto out;
 
 	error = xfs_alloc_read_agf(mp, sc->tp, agno, 0, agf);
-	if (error)
+	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGF))
 		goto out;
-	if (!*agf) {
-		error = -ENOMEM;
-		goto out;
-	}
 
 	error = xfs_alloc_read_agfl(mp, sc->tp, agno, agfl);
-	if (error)
+	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGFL))
 		goto out;
 
 out:

@@ -30,6 +30,7 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_inode.h"
+#include "xfs_alloc.h"
 #include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
@@ -50,6 +51,65 @@ xfs_scrub_setup_ag_header(
 	    sc->sm->sm_ino || sc->sm->sm_gen)
 		return -EINVAL;
 	return xfs_scrub_setup_fs(sc, ip);
+}
+
+/* Walk all the blocks in the AGFL. */
+int
+xfs_scrub_walk_agfl(
+	struct xfs_scrub_context	*sc,
+	int				(*fn)(struct xfs_scrub_context *,
+					      xfs_agblock_t bno, void *),
+	void				*priv)
+{
+	struct xfs_agf			*agf;
+	__be32				*agfl_bno;
+	struct xfs_mount		*mp = sc->mp;
+	unsigned int			flfirst;
+	unsigned int			fllast;
+	int				i;
+	int				error;
+
+	agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	agfl_bno = XFS_BUF_TO_AGFL_BNO(mp, sc->sa.agfl_bp);
+	flfirst = be32_to_cpu(agf->agf_flfirst);
+	fllast = be32_to_cpu(agf->agf_fllast);
+
+	/* Nothing to walk in an empty AGFL. */
+	if (agf->agf_flcount == cpu_to_be32(0))
+		return 0;
+
+	/* first to last is a consecutive list. */
+	if (fllast >= flfirst) {
+		for (i = flfirst; i <= fllast; i++) {
+			error = fn(sc, be32_to_cpu(agfl_bno[i]), priv);
+			if (error)
+				return error;
+			if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+				return error;
+		}
+
+		return 0;
+	}
+
+	/* first to the end */
+	for (i = flfirst; i < XFS_AGFL_SIZE(mp); i++) {
+		error = fn(sc, be32_to_cpu(agfl_bno[i]), priv);
+		if (error)
+			return error;
+		if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+			return error;
+	}
+
+	/* the start to last. */
+	for (i = 0; i <= fllast; i++) {
+		error = fn(sc, be32_to_cpu(agfl_bno[i]), priv);
+		if (error)
+			return error;
+		if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+			return error;
+	}
+
+	return 0;
 }
 
 /* Superblock */
@@ -326,5 +386,129 @@ xfs_scrub_superblock(
 			BBTOB(bp->b_length) - sizeof(struct xfs_dsb)))
 		xfs_scrub_block_set_corrupt(sc, bp);
 
+	return error;
+}
+
+/* AGF */
+
+/* Scrub the AGF. */
+int
+xfs_scrub_agf(
+	struct xfs_scrub_context	*sc)
+{
+	struct xfs_mount		*mp = sc->mp;
+	struct xfs_agf			*agf;
+	xfs_agnumber_t			agno;
+	xfs_agblock_t			agbno;
+	xfs_agblock_t			eoag;
+	xfs_agblock_t			agfl_first;
+	xfs_agblock_t			agfl_last;
+	xfs_agblock_t			agfl_count;
+	xfs_agblock_t			fl_count;
+	int				level;
+	int				error = 0;
+
+	agno = sc->sa.agno = sc->sm->sm_agno;
+	error = xfs_scrub_ag_read_headers(sc, agno, &sc->sa.agi_bp,
+			&sc->sa.agf_bp, &sc->sa.agfl_bp);
+	if (!xfs_scrub_process_error(sc, agno, XFS_AGF_BLOCK(sc->mp), &error))
+		goto out;
+
+	agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+
+	/* Check the AG length */
+	eoag = be32_to_cpu(agf->agf_length);
+	if (eoag != xfs_ag_block_count(mp, agno))
+		xfs_scrub_block_set_corrupt(sc, sc->sa.agf_bp);
+
+	/* Check the AGF btree roots and levels */
+	agbno = be32_to_cpu(agf->agf_roots[XFS_BTNUM_BNO]);
+	if (!xfs_verify_agbno(mp, agno, agbno))
+		xfs_scrub_block_set_corrupt(sc, sc->sa.agf_bp);
+
+	agbno = be32_to_cpu(agf->agf_roots[XFS_BTNUM_CNT]);
+	if (!xfs_verify_agbno(mp, agno, agbno))
+		xfs_scrub_block_set_corrupt(sc, sc->sa.agf_bp);
+
+	level = be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNO]);
+	if (level <= 0 || level > XFS_BTREE_MAXLEVELS)
+		xfs_scrub_block_set_corrupt(sc, sc->sa.agf_bp);
+
+	level = be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNT]);
+	if (level <= 0 || level > XFS_BTREE_MAXLEVELS)
+		xfs_scrub_block_set_corrupt(sc, sc->sa.agf_bp);
+
+	if (xfs_sb_version_hasrmapbt(&mp->m_sb)) {
+		agbno = be32_to_cpu(agf->agf_roots[XFS_BTNUM_RMAP]);
+		if (!xfs_verify_agbno(mp, agno, agbno))
+			xfs_scrub_block_set_corrupt(sc, sc->sa.agf_bp);
+
+		level = be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAP]);
+		if (level <= 0 || level > XFS_BTREE_MAXLEVELS)
+			xfs_scrub_block_set_corrupt(sc, sc->sa.agf_bp);
+	}
+
+	if (xfs_sb_version_hasreflink(&mp->m_sb)) {
+		agbno = be32_to_cpu(agf->agf_refcount_root);
+		if (!xfs_verify_agbno(mp, agno, agbno))
+			xfs_scrub_block_set_corrupt(sc, sc->sa.agf_bp);
+
+		level = be32_to_cpu(agf->agf_refcount_level);
+		if (level <= 0 || level > XFS_BTREE_MAXLEVELS)
+			xfs_scrub_block_set_corrupt(sc, sc->sa.agf_bp);
+	}
+
+	/* Check the AGFL counters */
+	agfl_first = be32_to_cpu(agf->agf_flfirst);
+	agfl_last = be32_to_cpu(agf->agf_fllast);
+	agfl_count = be32_to_cpu(agf->agf_flcount);
+	if (agfl_last > agfl_first)
+		fl_count = agfl_last - agfl_first + 1;
+	else
+		fl_count = XFS_AGFL_SIZE(mp) - agfl_first + agfl_last + 1;
+	if (agfl_count != 0 && fl_count != agfl_count)
+		xfs_scrub_block_set_corrupt(sc, sc->sa.agf_bp);
+
+out:
+	return error;
+}
+
+/* AGFL */
+
+/* Scrub an AGFL block. */
+STATIC int
+xfs_scrub_agfl_block(
+	struct xfs_scrub_context	*sc,
+	xfs_agblock_t			agbno,
+	void				*priv)
+{
+	struct xfs_mount		*mp = sc->mp;
+	xfs_agnumber_t			agno = sc->sa.agno;
+
+	if (!xfs_verify_agbno(mp, agno, agbno))
+		xfs_scrub_block_set_corrupt(sc, sc->sa.agfl_bp);
+
+	return 0;
+}
+
+/* Scrub the AGFL. */
+int
+xfs_scrub_agfl(
+	struct xfs_scrub_context	*sc)
+{
+	xfs_agnumber_t			agno;
+	int				error;
+
+	agno = sc->sa.agno = sc->sm->sm_agno;
+	error = xfs_scrub_ag_read_headers(sc, agno, &sc->sa.agi_bp,
+			&sc->sa.agf_bp, &sc->sa.agfl_bp);
+	if (!xfs_scrub_process_error(sc, agno, XFS_AGFL_BLOCK(sc->mp), &error))
+		goto out;
+	if (!sc->sa.agf_bp)
+		return -EFSCORRUPTED;
+
+	/* Check the blocks in the AGFL. */
+	return xfs_scrub_walk_agfl(sc, xfs_scrub_agfl_block, NULL);
+out:
 	return error;
 }

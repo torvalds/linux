@@ -485,9 +485,11 @@ struct xfs_scrub_metadata {
 /* Scrub subcommands. */
 #define XFS_SCRUB_TYPE_PROBE	0	/* presence test ioctl */
 #define XFS_SCRUB_TYPE_SB	1	/* superblock */
+#define XFS_SCRUB_TYPE_AGF	2	/* AG free header */
+#define XFS_SCRUB_TYPE_AGFL	3	/* AG free list */
 
 /* Number of scrub subcommands. */
-#define XFS_SCRUB_TYPE_NR	2
+#define XFS_SCRUB_TYPE_NR	4
 
 /* i: Repair this metadata. */
 #define XFS_SCRUB_IFLAG_REPAIR		(1 << 0)
