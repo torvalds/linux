@@ -147,6 +147,19 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 		fs->mask.fport = cpu_to_be16(mask->src);
 	}
 
+	if (dissector_uses_key(cls->dissector, FLOW_DISSECTOR_KEY_IP)) {
+		struct flow_dissector_key_ip *key, *mask;
+
+		key = skb_flow_dissector_target(cls->dissector,
+						FLOW_DISSECTOR_KEY_IP,
+						cls->key);
+		mask = skb_flow_dissector_target(cls->dissector,
+						 FLOW_DISSECTOR_KEY_IP,
+						 cls->mask);
+		fs->val.tos = key->tos;
+		fs->mask.tos = mask->tos;
+	}
+
 	/* Match only packets coming from the ingress port where this
 	 * filter will be created.
 	 */
@@ -157,16 +170,52 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 static int cxgb4_validate_flow_match(struct net_device *dev,
 				     struct tc_cls_flower_offload *cls)
 {
+	u16 ethtype_mask = 0;
+	u16 ethtype_key = 0;
+
 	if (cls->dissector->used_keys &
 	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
 	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
-	      BIT(FLOW_DISSECTOR_KEY_PORTS))) {
+	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT(FLOW_DISSECTOR_KEY_IP))) {
 		netdev_warn(dev, "Unsupported key used: 0x%x\n",
 			    cls->dissector->used_keys);
 		return -EOPNOTSUPP;
 	}
+
+	if (dissector_uses_key(cls->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_dissector_key_basic *key =
+			skb_flow_dissector_target(cls->dissector,
+						  FLOW_DISSECTOR_KEY_BASIC,
+						  cls->key);
+		struct flow_dissector_key_basic *mask =
+			skb_flow_dissector_target(cls->dissector,
+						  FLOW_DISSECTOR_KEY_BASIC,
+						  cls->mask);
+		ethtype_key = ntohs(key->n_proto);
+		ethtype_mask = ntohs(mask->n_proto);
+	}
+
+	if (dissector_uses_key(cls->dissector, FLOW_DISSECTOR_KEY_IP)) {
+		u16 eth_ip_type = ethtype_key & ethtype_mask;
+		struct flow_dissector_key_ip *mask;
+
+		if (eth_ip_type != ETH_P_IP && eth_ip_type != ETH_P_IPV6) {
+			netdev_err(dev, "IP Key supported only with IPv4/v6");
+			return -EINVAL;
+		}
+
+		mask = skb_flow_dissector_target(cls->dissector,
+						 FLOW_DISSECTOR_KEY_IP,
+						 cls->mask);
+		if (mask->ttl) {
+			netdev_warn(dev, "ttl match unsupported for offload");
+			return -EOPNOTSUPP;
+		}
+	}
+
 	return 0;
 }
 
