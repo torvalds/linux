@@ -117,6 +117,7 @@ we might work for today, have in the past, or will in the future.
   - David S. Miller
   - Ingo Molnar
   - Kuninori Morimoto
+  - Trond Myklebust
   - Borislav Petkov
   - Jiri Pirko
   - Josh Poimboeuf
