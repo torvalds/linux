@@ -36,9 +36,7 @@
 		 * - SDIO_RESET_L_WL_RST
 		 * - SDIO_RESET_L_BT_EN
 		 */
-		reset-gpios = <&gpio0 RK_PD2 GPIO_ACTIVE_LOW>, /* WL_REG_ON */
-			      <&gpio0 RK_PD3 GPIO_ACTIVE_LOW>, /* WL_RST */
-			      <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>; /* BT_EN */
+		reset-gpios = <&gpio0 26 GPIO_ACTIVE_LOW>; /* WL_REG_ON */
 	};
 
 	sound {
@@ -86,6 +84,26 @@
 		regulator-max-microvolt = <5000000>;
 		regulator-always-on;
 		regulator-boot-on;
+	};
+
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		uart_rts_gpios = <&gpio0 19 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart0_rts>;
+		pinctrl-1 = <&uart0_gpios>;
+		BT,reset_gpio = <&gpio2 9 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio = <&gpio2 8 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio2 3 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		wifi_chip_type = "ap6212";
+		WIFI,host_wake_irq = <&gpio0 27 GPIO_ACTIVE_HIGH>;
+		status = "okay";
 	};
 };
 
@@ -344,6 +362,7 @@
 	sd-uhs-sdr25;
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
+	supports-sdio;
 };
 
 &sdmmc {
@@ -412,6 +431,12 @@
 	sleep {
 		global_pwroff: global-pwroff {
 			rockchip,pins = <2 7 RK_FUNC_1 &pcfg_pull_none>;
+		};
+	};
+
+	wireless-bluetooth {
+		uart0_gpios: uart0-gpios {
+			rockchip,pins = <0 19 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
