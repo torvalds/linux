@@ -571,9 +571,9 @@ static u8 rtl8822be_sc_mapping(struct ieee80211_hw *hw,
 				sc_setting_of_desc =
 					VHT_DATA_SC_20_UPPERST_OF_80MHZ;
 			else
-				RT_TRACE(
-					rtlpriv, COMP_SEND, DBG_LOUD,
-					"rtl8822be_sc_mapping: Not Correct Primary40MHz Setting\n");
+				RT_TRACE(rtlpriv, COMP_SEND, DBG_LOUD,
+					 "%s: Not Correct Primary40MHz Setting\n",
+					 __func__);
 		}
 	} else if (rtlphy->current_chan_bw == HT_CHANNEL_WIDTH_20_40) {
 		if (ptcb_desc->packet_bw == HT_CHANNEL_WIDTH_20_40) {
