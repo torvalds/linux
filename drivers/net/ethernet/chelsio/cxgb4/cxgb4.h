@@ -1097,6 +1097,10 @@ enum {
 	VLAN_REWRITE
 };
 
+enum {
+	NAT_MODE_ALL = 7,	/* NAT on entire 4-tuple */
+};
+
 /* Host shadow copy of ingress filter entry.  This is in host native format
  * and doesn't match the ordering or bit order, etc. of the hardware of the
  * firmware command.  The use of bit-field structure elements is purely to

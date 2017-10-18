@@ -47,6 +47,20 @@ struct ch_tc_pedit_fields pedits[] = {
 	PEDIT_FIELDS(ETH_, DMAC_47_32, 2, dmac, 4),
 	PEDIT_FIELDS(ETH_, SMAC_15_0, 2, smac, 0),
 	PEDIT_FIELDS(ETH_, SMAC_47_16, 4, smac, 2),
+	PEDIT_FIELDS(IP4_, SRC, 4, nat_fip, 0),
+	PEDIT_FIELDS(IP4_, DST, 4, nat_lip, 0),
+	PEDIT_FIELDS(IP6_, SRC_31_0, 4, nat_fip, 0),
+	PEDIT_FIELDS(IP6_, SRC_63_32, 4, nat_fip, 4),
+	PEDIT_FIELDS(IP6_, SRC_95_64, 4, nat_fip, 8),
+	PEDIT_FIELDS(IP6_, SRC_127_96, 4, nat_fip, 12),
+	PEDIT_FIELDS(IP6_, DST_31_0, 4, nat_lip, 0),
+	PEDIT_FIELDS(IP6_, DST_63_32, 4, nat_lip, 4),
+	PEDIT_FIELDS(IP6_, DST_95_64, 4, nat_lip, 8),
+	PEDIT_FIELDS(IP6_, DST_127_96, 4, nat_lip, 12),
+	PEDIT_FIELDS(TCP_, SPORT, 2, nat_fport, 0),
+	PEDIT_FIELDS(TCP_, DPORT, 2, nat_lport, 0),
+	PEDIT_FIELDS(UDP_, SPORT, 2, nat_fport, 0),
+	PEDIT_FIELDS(UDP_, DPORT, 2, nat_lport, 0),
 };
 
 static struct ch_tc_flower_entry *allocate_flower_entry(void)
@@ -121,6 +135,11 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 		memcpy(&fs->val.fip[0], &key->src, sizeof(key->src));
 		memcpy(&fs->mask.lip[0], &mask->dst, sizeof(mask->dst));
 		memcpy(&fs->mask.fip[0], &mask->src, sizeof(mask->src));
+
+		/* also initialize nat_lip/fip to same values */
+		memcpy(&fs->nat_lip[0], &key->dst, sizeof(key->dst));
+		memcpy(&fs->nat_fip[0], &key->src, sizeof(key->src));
+
 	}
 
 	if (addr_type == FLOW_DISSECTOR_KEY_IPV6_ADDRS) {
@@ -138,6 +157,10 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 		memcpy(&fs->val.fip[0], key->src.s6_addr, sizeof(key->src));
 		memcpy(&fs->mask.lip[0], mask->dst.s6_addr, sizeof(mask->dst));
 		memcpy(&fs->mask.fip[0], mask->src.s6_addr, sizeof(mask->src));
+
+		/* also initialize nat_lip/fip to same values */
+		memcpy(&fs->nat_lip[0], key->dst.s6_addr, sizeof(key->dst));
+		memcpy(&fs->nat_fip[0], key->src.s6_addr, sizeof(key->src));
 	}
 
 	if (dissector_uses_key(cls->dissector, FLOW_DISSECTOR_KEY_PORTS)) {
@@ -153,6 +176,10 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 		fs->mask.lport = cpu_to_be16(mask->dst);
 		fs->val.fport = cpu_to_be16(key->src);
 		fs->mask.fport = cpu_to_be16(mask->src);
+
+		/* also initialize nat_lport/fport to same values */
+		fs->nat_lport = cpu_to_be16(key->dst);
+		fs->nat_fport = cpu_to_be16(key->src);
 	}
 
 	if (dissector_uses_key(cls->dissector, FLOW_DISSECTOR_KEY_IP)) {
@@ -301,6 +328,70 @@ static void process_pedit_field(struct ch_filter_specification *fs, u32 val,
 			fs->newsmac = 1;
 			offload_pedit(fs, val, mask, ETH_SMAC_47_16);
 		}
+		break;
+	case TCA_PEDIT_KEY_EX_HDR_TYPE_IP4:
+		switch (offset) {
+		case PEDIT_IP4_SRC:
+			offload_pedit(fs, val, mask, IP4_SRC);
+			break;
+		case PEDIT_IP4_DST:
+			offload_pedit(fs, val, mask, IP4_DST);
+		}
+		fs->nat_mode = NAT_MODE_ALL;
+		break;
+	case TCA_PEDIT_KEY_EX_HDR_TYPE_IP6:
+		switch (offset) {
+		case PEDIT_IP6_SRC_31_0:
+			offload_pedit(fs, val, mask, IP6_SRC_31_0);
+			break;
+		case PEDIT_IP6_SRC_63_32:
+			offload_pedit(fs, val, mask, IP6_SRC_63_32);
+			break;
+		case PEDIT_IP6_SRC_95_64:
+			offload_pedit(fs, val, mask, IP6_SRC_95_64);
+			break;
+		case PEDIT_IP6_SRC_127_96:
+			offload_pedit(fs, val, mask, IP6_SRC_127_96);
+			break;
+		case PEDIT_IP6_DST_31_0:
+			offload_pedit(fs, val, mask, IP6_DST_31_0);
+			break;
+		case PEDIT_IP6_DST_63_32:
+			offload_pedit(fs, val, mask, IP6_DST_63_32);
+			break;
+		case PEDIT_IP6_DST_95_64:
+			offload_pedit(fs, val, mask, IP6_DST_95_64);
+			break;
+		case PEDIT_IP6_DST_127_96:
+			offload_pedit(fs, val, mask, IP6_DST_127_96);
+		}
+		fs->nat_mode = NAT_MODE_ALL;
+		break;
+	case TCA_PEDIT_KEY_EX_HDR_TYPE_TCP:
+		switch (offset) {
+		case PEDIT_TCP_SPORT_DPORT:
+			if (~mask & PEDIT_TCP_UDP_SPORT_MASK)
+				offload_pedit(fs, cpu_to_be32(val) >> 16,
+					      cpu_to_be32(mask) >> 16,
+					      TCP_SPORT);
+			else
+				offload_pedit(fs, cpu_to_be32(val),
+					      cpu_to_be32(mask), TCP_DPORT);
+		}
+		fs->nat_mode = NAT_MODE_ALL;
+		break;
+	case TCA_PEDIT_KEY_EX_HDR_TYPE_UDP:
+		switch (offset) {
+		case PEDIT_UDP_SPORT_DPORT:
+			if (~mask & PEDIT_TCP_UDP_SPORT_MASK)
+				offload_pedit(fs, cpu_to_be32(val) >> 16,
+					      cpu_to_be32(mask) >> 16,
+					      UDP_SPORT);
+			else
+				offload_pedit(fs, cpu_to_be32(val),
+					      cpu_to_be32(mask), UDP_DPORT);
+		}
+		fs->nat_mode = NAT_MODE_ALL;
 	}
 }
 
@@ -365,6 +456,119 @@ static void cxgb4_process_flow_actions(struct net_device *in,
 	}
 }
 
+static bool valid_l4_mask(u32 mask)
+{
+	u16 hi, lo;
+
+	/* Either the upper 16-bits (SPORT) OR the lower
+	 * 16-bits (DPORT) can be set, but NOT BOTH.
+	 */
+	hi = (mask >> 16) & 0xFFFF;
+	lo = mask & 0xFFFF;
+
+	return hi && lo ? false : true;
+}
+
+static bool valid_pedit_action(struct net_device *dev,
+			       const struct tc_action *a)
+{
+	u32 mask, offset;
+	u8 cmd, htype;
+	int nkeys, i;
+
+	nkeys = tcf_pedit_nkeys(a);
+	for (i = 0; i < nkeys; i++) {
+		htype = tcf_pedit_htype(a, i);
+		cmd = tcf_pedit_cmd(a, i);
+		mask = tcf_pedit_mask(a, i);
+		offset = tcf_pedit_offset(a, i);
+
+		if (cmd != TCA_PEDIT_KEY_EX_CMD_SET) {
+			netdev_err(dev, "%s: Unsupported pedit cmd\n",
+				   __func__);
+			return false;
+		}
+
+		switch (htype) {
+		case TCA_PEDIT_KEY_EX_HDR_TYPE_ETH:
+			switch (offset) {
+			case PEDIT_ETH_DMAC_31_0:
+			case PEDIT_ETH_DMAC_47_32_SMAC_15_0:
+			case PEDIT_ETH_SMAC_47_16:
+				break;
+			default:
+				netdev_err(dev, "%s: Unsupported pedit field\n",
+					   __func__);
+				return false;
+			}
+			break;
+		case TCA_PEDIT_KEY_EX_HDR_TYPE_IP4:
+			switch (offset) {
+			case PEDIT_IP4_SRC:
+			case PEDIT_IP4_DST:
+				break;
+			default:
+				netdev_err(dev, "%s: Unsupported pedit field\n",
+					   __func__);
+				return false;
+			}
+			break;
+		case TCA_PEDIT_KEY_EX_HDR_TYPE_IP6:
+			switch (offset) {
+			case PEDIT_IP6_SRC_31_0:
+			case PEDIT_IP6_SRC_63_32:
+			case PEDIT_IP6_SRC_95_64:
+			case PEDIT_IP6_SRC_127_96:
+			case PEDIT_IP6_DST_31_0:
+			case PEDIT_IP6_DST_63_32:
+			case PEDIT_IP6_DST_95_64:
+			case PEDIT_IP6_DST_127_96:
+				break;
+			default:
+				netdev_err(dev, "%s: Unsupported pedit field\n",
+					   __func__);
+				return false;
+			}
+			break;
+		case TCA_PEDIT_KEY_EX_HDR_TYPE_TCP:
+			switch (offset) {
+			case PEDIT_TCP_SPORT_DPORT:
+				if (!valid_l4_mask(~mask)) {
+					netdev_err(dev, "%s: Unsupported mask for TCP L4 ports\n",
+						   __func__);
+					return false;
+				}
+				break;
+			default:
+				netdev_err(dev, "%s: Unsupported pedit field\n",
+					   __func__);
+				return false;
+			}
+			break;
+		case TCA_PEDIT_KEY_EX_HDR_TYPE_UDP:
+			switch (offset) {
+			case PEDIT_UDP_SPORT_DPORT:
+				if (!valid_l4_mask(~mask)) {
+					netdev_err(dev, "%s: Unsupported mask for UDP L4 ports\n",
+						   __func__);
+					return false;
+				}
+				break;
+			default:
+				netdev_err(dev, "%s: Unsupported pedit field\n",
+					   __func__);
+				return false;
+			}
+			break;
+		default:
+			netdev_err(dev, "%s: Unsupported pedit type\n",
+				   __func__);
+			return false;
+		}
+	}
+	return true;
+}
+
 static int cxgb4_validate_flow_actions(struct net_device *dev,
 				       struct tc_cls_flower_offload *cls)
 {
@@ -426,43 +630,10 @@ static int cxgb4_validate_flow_actions(struct net_device *dev,
 			}
 			act_vlan = true;
 		} else if (is_tcf_pedit(a)) {
-			u32 mask, val, offset;
-			u8 cmd, htype;
-			int nkeys, i;
+			bool pedit_valid = valid_pedit_action(dev, a);
 
-			nkeys = tcf_pedit_nkeys(a);
-			for (i = 0; i < nkeys; i++) {
-				htype = tcf_pedit_htype(a, i);
-				cmd = tcf_pedit_cmd(a, i);
-				mask = tcf_pedit_mask(a, i);
-				val = tcf_pedit_val(a, i);
-				offset = tcf_pedit_offset(a, i);
-
-				if (cmd != TCA_PEDIT_KEY_EX_CMD_SET) {
-					netdev_err(dev, "%s: Unsupported pedit cmd\n",
-						   __func__);
-					return -EOPNOTSUPP;
-				}
-
-				switch (htype) {
-				case TCA_PEDIT_KEY_EX_HDR_TYPE_ETH:
-					switch (offset) {
-					case PEDIT_ETH_DMAC_31_0:
-					case PEDIT_ETH_DMAC_47_32_SMAC_15_0:
-					case PEDIT_ETH_SMAC_47_16:
-						break;
-					default:
-						netdev_err(dev, "%s: Unsupported pedit field\n",
-							   __func__);
-						return -EOPNOTSUPP;
-					}
-					break;
-				default:
-					netdev_err(dev, "%s: Unsupported pedit type\n",
-						   __func__);
-					return -EOPNOTSUPP;
-				}
-			}
+			if (!pedit_valid)
+				return -EOPNOTSUPP;
 			act_pedit = true;
 		} else {
 			netdev_err(dev, "%s: Unsupported action\n", __func__);
@@ -503,8 +674,8 @@ int cxgb4_tc_flower_replace(struct net_device *dev,
 
 	fs = &ch_flower->fs;
 	fs->hitcnts = 1;
-	cxgb4_process_flow_actions(dev, cls, fs);
 	cxgb4_process_flow_match(dev, cls, fs);
+	cxgb4_process_flow_actions(dev, cls, fs);
 
 	fidx = cxgb4_get_free_ftid(dev, fs->type ? PF_INET6 : PF_INET);
 	if (fidx < 0) {
