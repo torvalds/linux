@@ -724,9 +724,9 @@ TRACE_EVENT(sched_load_avg_cpu,
 		__entry->util_avg_pelt	= cfs_rq->avg.util_avg;
 		__entry->util_avg_walt	= 0;
 #ifdef CONFIG_SCHED_WALT
-		__entry->util_avg_walt	=
-				cpu_rq(cpu)->prev_runnable_sum << SCHED_LOAD_SHIFT;
-		do_div(__entry->util_avg_walt, walt_ravg_window);
+		__entry->util_avg_walt =
+				div64_u64(cpu_rq(cpu)->cumulative_runnable_avg,
+						  walt_ravg_window >> SCHED_LOAD_SHIFT);
 		if (!walt_disabled && sysctl_sched_use_walt_cpu_util)
 			__entry->util_avg		= __entry->util_avg_walt;
 #endif
