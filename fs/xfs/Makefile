@@ -148,6 +148,7 @@ xfs-y				+= $(addprefix scrub/, \
 				   bmap.o \
 				   btree.o \
 				   common.o \
+				   dabtree.o \
 				   ialloc.o \
 				   inode.o \
 				   refcount.o \
