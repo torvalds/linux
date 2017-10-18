@@ -987,7 +987,7 @@ static struct inet6_ifaddr *
 ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 	      const struct in6_addr *peer_addr, int pfxlen,
 	      int scope, u32 flags, u32 valid_lft, u32 prefered_lft,
-	      bool can_block)
+	      bool can_block, struct netlink_ext_ack *extack)
 {
 	gfp_t gfp_flags = can_block ? GFP_KERNEL : GFP_ATOMIC;
 	struct net *net = dev_net(idev->dev);
@@ -1019,6 +1019,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 		struct in6_validator_info i6vi = {
 			.i6vi_addr = *addr,
 			.i6vi_dev = idev,
+			.extack = extack,
 		};
 
 		err = inet6addr_validator_notifier_call_chain(NETDEV_UP, &i6vi);
@@ -1356,7 +1357,7 @@ retry:
 
 	ift = ipv6_add_addr(idev, &addr, NULL, tmp_plen,
 			    ipv6_addr_scope(&addr), addr_flags,
-			    tmp_valid_lft, tmp_prefered_lft, true);
+			    tmp_valid_lft, tmp_prefered_lft, true, NULL);
 	if (IS_ERR(ift)) {
 		in6_ifa_put(ifp);
 		in6_dev_put(idev);
@@ -2040,7 +2041,7 @@ void addrconf_dad_failure(struct inet6_ifaddr *ifp)
 
 		ifp2 = ipv6_add_addr(idev, &new_addr, NULL, pfxlen,
 				     scope, flags, valid_lft,
-				     preferred_lft, false);
+				     preferred_lft, false, NULL);
 		if (IS_ERR(ifp2))
 			goto lock_errdad;
 
@@ -2498,7 +2499,7 @@ int addrconf_prefix_rcv_add_addr(struct net *net, struct net_device *dev,
 					    pinfo->prefix_len,
 					    addr_type&IPV6_ADDR_SCOPE_MASK,
 					    addr_flags, valid_lft,
-					    prefered_lft, false);
+					    prefered_lft, false, NULL);
 
 		if (IS_ERR_OR_NULL(ifp))
 			return -1;
@@ -2808,7 +2809,8 @@ static int inet6_addr_add(struct net *net, int ifindex,
 			  const struct in6_addr *pfx,
 			  const struct in6_addr *peer_pfx,
 			  unsigned int plen, __u32 ifa_flags,
-			  __u32 prefered_lft, __u32 valid_lft)
+			  __u32 prefered_lft, __u32 valid_lft,
+			  struct netlink_ext_ack *extack)
 {
 	struct inet6_ifaddr *ifp;
 	struct inet6_dev *idev;
@@ -2867,7 +2869,7 @@ static int inet6_addr_add(struct net *net, int ifindex,
 	}
 
 	ifp = ipv6_add_addr(idev, pfx, peer_pfx, plen, scope, ifa_flags,
-			    valid_lft, prefered_lft, true);
+			    valid_lft, prefered_lft, true, extack);
 
 	if (!IS_ERR(ifp)) {
 		if (!(ifa_flags & IFA_F_NOPREFIXROUTE)) {
@@ -2952,7 +2954,7 @@ int addrconf_add_ifaddr(struct net *net, void __user *arg)
 	rtnl_lock();
 	err = inet6_addr_add(net, ireq.ifr6_ifindex, &ireq.ifr6_addr, NULL,
 			     ireq.ifr6_prefixlen, IFA_F_PERMANENT,
-			     INFINITY_LIFE_TIME, INFINITY_LIFE_TIME);
+			     INFINITY_LIFE_TIME, INFINITY_LIFE_TIME, NULL);
 	rtnl_unlock();
 	return err;
 }
@@ -2983,7 +2985,7 @@ static void add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 	ifp = ipv6_add_addr(idev, addr, NULL, plen,
 			    scope, IFA_F_PERMANENT,
 			    INFINITY_LIFE_TIME, INFINITY_LIFE_TIME,
-			    true);
+			    true, NULL);
 	if (!IS_ERR(ifp)) {
 		spin_lock_bh(&ifp->lock);
 		ifp->flags &= ~IFA_F_TENTATIVE;
@@ -3083,7 +3085,7 @@ void addrconf_add_linklocal(struct inet6_dev *idev,
 #endif
 
 	ifp = ipv6_add_addr(idev, addr, NULL, 64, IFA_LINK, addr_flags,
-			    INFINITY_LIFE_TIME, INFINITY_LIFE_TIME, true);
+			    INFINITY_LIFE_TIME, INFINITY_LIFE_TIME, true, NULL);
 	if (!IS_ERR(ifp)) {
 		addrconf_prefix_route(&ifp->addr, ifp->prefix_len, idev->dev, 0, 0);
 		addrconf_dad_start(ifp);
@@ -4586,7 +4588,7 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 		 */
 		return inet6_addr_add(net, ifm->ifa_index, pfx, peer_pfx,
 				      ifm->ifa_prefixlen, ifa_flags,
-				      preferred_lft, valid_lft);
+				      preferred_lft, valid_lft, extack);
 	}
 
 	if (nlh->nlmsg_flags & NLM_F_EXCL ||

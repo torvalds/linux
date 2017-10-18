@@ -444,7 +444,7 @@ static void check_lifetime(struct work_struct *work);
 static DECLARE_DELAYED_WORK(check_lifetime_work, check_lifetime);
 
 static int __inet_insert_ifa(struct in_ifaddr *ifa, struct nlmsghdr *nlh,
-			     u32 portid)
+			     u32 portid, struct netlink_ext_ack *extack)
 {
 	struct in_device *in_dev = ifa->ifa_dev;
 	struct in_ifaddr *ifa1, **ifap, **last_primary;
@@ -489,6 +489,7 @@ static int __inet_insert_ifa(struct in_ifaddr *ifa, struct nlmsghdr *nlh,
 	 */
 	ivi.ivi_addr = ifa->ifa_address;
 	ivi.ivi_dev = ifa->ifa_dev;
+	ivi.extack = extack;
 	ret = blocking_notifier_call_chain(&inetaddr_validator_chain,
 					   NETDEV_UP, &ivi);
 	ret = notifier_to_errno(ret);
@@ -521,7 +522,7 @@ static int __inet_insert_ifa(struct in_ifaddr *ifa, struct nlmsghdr *nlh,
 
 static int inet_insert_ifa(struct in_ifaddr *ifa)
 {
-	return __inet_insert_ifa(ifa, NULL, 0);
+	return __inet_insert_ifa(ifa, NULL, 0, NULL);
 }
 
 static int inet_set_ifa(struct net_device *dev, struct in_ifaddr *ifa)
@@ -902,7 +903,8 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 				return ret;
 			}
 		}
-		return __inet_insert_ifa(ifa, nlh, NETLINK_CB(skb).portid);
+		return __inet_insert_ifa(ifa, nlh, NETLINK_CB(skb).portid,
+					 extack);
 	} else {
 		inet_free_ifa(ifa);
 

@@ -55,6 +55,7 @@ struct prefix_info {
 struct in6_validator_info {
 	struct in6_addr		i6vi_addr;
 	struct inet6_dev	*i6vi_dev;
+	struct netlink_ext_ack	*extack;
 };
 
 #define IN6_ADDR_HSIZE_SHIFT	4
