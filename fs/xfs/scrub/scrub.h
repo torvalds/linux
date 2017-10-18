@@ -67,5 +67,6 @@ struct xfs_scrub_context {
 
 /* Metadata scrubbers */
 int xfs_scrub_tester(struct xfs_scrub_context *sc);
+int xfs_scrub_superblock(struct xfs_scrub_context *sc);
 
 #endif	/* __XFS_SCRUB_SCRUB_H__ */
