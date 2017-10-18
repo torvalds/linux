@@ -44,6 +44,8 @@ struct ceph_connection_operations {
 					struct ceph_msg_header *hdr,
 					int *skip);
 
+	void (*reencode_message) (struct ceph_msg *msg);
+
 	int (*sign_message) (struct ceph_msg *msg);
 	int (*check_message_signature) (struct ceph_msg *msg);
 };

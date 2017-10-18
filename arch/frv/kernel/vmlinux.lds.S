@@ -102,6 +102,8 @@ SECTIONS
 
   _edata = .;			/* End of data section */
 
+  BUG_TABLE
+
   /* GP section */
   . = ALIGN(L1_CACHE_BYTES);
   _gp = . + 2048;

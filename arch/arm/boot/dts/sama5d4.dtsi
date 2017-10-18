@@ -124,6 +124,12 @@
 		#size-cells = <1>;
 		ranges;
 
+		nfc_sram: sram@100000 {
+			compatible = "mmio-sram";
+			no-memory-wc;
+			reg = <0x100000 0x2400>;
+		};
+
 		usb0: gadget@00400000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -280,35 +286,35 @@
 			cache-level = <2>;
 		};
 
-		nand0: nand@80000000 {
-			compatible = "atmel,sama5d4-nand", "atmel,at91rm9200-nand";
-			#address-cells = <1>;
+		ebi: ebi@10000000 {
+			compatible = "atmel,sama5d3-ebi";
+			#address-cells = <2>;
 			#size-cells = <1>;
-			ranges;
-			reg = <	0x80000000 0x08000000	/* EBI CS3 */
-				0xfc05c070 0x00000490	/* SMC PMECC regs */
-				0xfc05c500 0x00000100	/* SMC PMECC Error Location regs */
-				>;
-			interrupts = <22 IRQ_TYPE_LEVEL_HIGH 6>;
-			atmel,nand-addr-offset = <21>;
-			atmel,nand-cmd-offset = <22>;
-			atmel,nand-has-dma;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_nand>;
+			atmel,smc = <&hsmc>;
+			reg = <0x10000000 0x10000000
+			       0x60000000 0x28000000>;
+			ranges = <0x0 0x0 0x10000000 0x10000000
+				  0x1 0x0 0x60000000 0x10000000
+				  0x2 0x0 0x70000000 0x10000000
+				  0x3 0x0 0x80000000 0x8000000>;
+			clocks = <&mck>;
 			status = "disabled";
 
-			nfc@90000000 {
-				compatible = "atmel,sama5d3-nfc";
-				#address-cells = <1>;
+			nand_controller: nand-controller {
+				compatible = "atmel,sama5d3-nand-controller";
+				atmel,nfc-sram = <&nfc_sram>;
+				atmel,nfc-io = <&nfc_io>;
+				ecc-engine = <&pmecc>;
+				#address-cells = <2>;
 				#size-cells = <1>;
-				reg = <
-					0x90000000 0x08000000	/* NFC Command Registers */
-					0xfc05c000 0x00000070	/* NFC HSMC regs */
-					0x00100000 0x00100000	/* NFC SRAM banks */
-                                         >;
-				clocks = <&hsmc_clk>;
-				atmel,write-by-sram;
+				ranges;
+				status = "disabled";
 			};
+		};
+
+		nfc_io: nfc-io@90000000 {
+			compatible = "atmel,sama5d3-nfc-io", "syscon";
+			reg = <0x90000000 0x8000000>;
 		};
 
 		apb {
@@ -1287,6 +1293,22 @@
 				status = "okay";
 			};
 
+			hsmc: smc@fc05c000 {
+				compatible = "atmel,sama5d3-smc", "syscon", "simple-mfd";
+				reg = <0xfc05c000 0x1000>;
+				interrupts = <22 IRQ_TYPE_LEVEL_HIGH 6>;
+				clocks = <&hsmc_clk>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges;
+
+				pmecc: ecc-engine@ffffc070 {
+					compatible = "atmel,sama5d4-pmecc";
+					reg = <0xfc05c070 0x490>,
+					      <0xfc05c500 0x100>;
+				};
+			};
+
 			rstc@fc068600 {
 				compatible = "atmel,sama5d3-rstc", "atmel,at91sam9g45-rstc";
 				reg = <0xfc068600 0x10>;
@@ -1444,6 +1466,113 @@
 						atmel,pins =
 							<AT91_PIOB 24 AT91_PERIPH_A AT91_PINCTRL_PULL_UP	/* conflicts with D14 and TDI */
 							 AT91_PIOB 25 AT91_PERIPH_A AT91_PINCTRL_NONE>;		/* conflicts with D15 and TDO */
+					};
+				};
+
+				ebi {
+					pinctrl_ebi_addr: ebi-addr-0 {
+						atmel,pins =
+							<AT91_PIOE 0 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 1 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 2 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 3 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 4 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 5 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 6 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 7 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 8 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 9 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 10 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 11 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 12 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 13 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 14 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 15 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 16 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 17 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 18 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 19 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 20 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOC 17 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOC 18 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 21 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 22 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOE 23 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_ebi_nand_addr: ebi-addr-1 {
+						atmel,pins =
+							<AT91_PIOC 17 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOC 18 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_ebi_cs0: ebi-cs0-0 {
+						atmel,pins =
+							<AT91_PIOE 26 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_ebi_cs1: ebi-cs1-0 {
+						atmel,pins =
+							<AT91_PIOE 27 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_ebi_cs2: ebi-cs2-0 {
+						atmel,pins =
+							<AT91_PIOE 28 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_ebi_cs3: ebi-cs3-0 {
+						atmel,pins =
+							<AT91_PIOC 15 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_ebi_data_0_7: ebi-data-lsb-0 {
+						atmel,pins =
+							<AT91_PIOC 5 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOC 6 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOC 7 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOC 8 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOC 9 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOC 10 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOC 11 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOC 12 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_ebi_data_8_15: ebi-data-msb-0 {
+						atmel,pins =
+							<AT91_PIOB 18 AT91_PERIPH_B AT91_PINCTRL_NONE
+							 AT91_PIOB 19 AT91_PERIPH_B AT91_PINCTRL_NONE
+							 AT91_PIOB 20 AT91_PERIPH_B AT91_PINCTRL_NONE
+							 AT91_PIOB 21 AT91_PERIPH_B AT91_PINCTRL_NONE
+							 AT91_PIOB 22 AT91_PERIPH_B AT91_PINCTRL_NONE
+							 AT91_PIOB 23 AT91_PERIPH_B AT91_PINCTRL_NONE
+							 AT91_PIOB 24 AT91_PERIPH_B AT91_PINCTRL_NONE
+							 AT91_PIOB 25 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_ebi_nandrdy: ebi-nandrdy-0 {
+						atmel,pins =
+							<AT91_PIOC 16 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_ebi_nrd_nandoe: ebi-nrd-nandoe-0 {
+						atmel,pins =
+							<AT91_PIOC 13 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_ebi_nwait: ebi-nwait-0 {
+						atmel,pins =
+							<AT91_PIOE 30 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_ebi_nwe_nandwe: ebi-nwe-nandwe-0 {
+						atmel,pins =
+							<AT91_PIOC 14 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_ebi_nwr1_nbs1: ebi-nwr1-nbs1-0 {
+						atmel,pins =
+							<AT91_PIOE 29 AT91_PERIPH_A AT91_PINCTRL_NONE>;
 					};
 				};
 

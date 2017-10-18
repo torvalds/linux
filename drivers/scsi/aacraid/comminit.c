@@ -53,11 +53,8 @@ static inline int aac_is_msix_mode(struct aac_dev *dev)
 {
 	u32 status = 0;
 
-	if (dev->pdev->device == PMC_DEVICE_S6 ||
-		dev->pdev->device == PMC_DEVICE_S7 ||
-		dev->pdev->device == PMC_DEVICE_S8) {
+	if (aac_is_src(dev))
 		status = src_readl(dev, MUnit.OMR);
-	}
 	return (status & AAC_INT_MODE_MSIX);
 }
 
@@ -99,8 +96,7 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	size = fibsize + aac_init_size + commsize + commalign +
 			printfbufsiz + host_rrq_size;
 
-	base = pci_alloc_consistent(dev->pdev, size, &phys);
-
+	base = dma_alloc_coherent(&dev->pdev->dev, size, &phys, GFP_KERNEL);
 	if (base == NULL) {
 		printk(KERN_ERR "aacraid: unable to create mapping.\n");
 		return 0;
@@ -326,9 +322,7 @@ int aac_send_shutdown(struct aac_dev * dev)
 	/* FIB should be freed only after getting the response from the F/W */
 	if (status != -ERESTARTSYS)
 		aac_fib_free(fibctx);
-	if ((dev->pdev->device == PMC_DEVICE_S7 ||
-	     dev->pdev->device == PMC_DEVICE_S8 ||
-	     dev->pdev->device == PMC_DEVICE_S9) &&
+	if (aac_is_src(dev) &&
 	     dev->msi_enabled)
 		aac_set_intx_mode(dev);
 	return status;
@@ -584,9 +578,7 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 		dev->max_fib_size = status[1] & 0xFFE0;
 		host->sg_tablesize = status[2] >> 16;
 		dev->sg_tablesize = status[2] & 0xFFFF;
-		if (dev->pdev->device == PMC_DEVICE_S7 ||
-		    dev->pdev->device == PMC_DEVICE_S8 ||
-		    dev->pdev->device == PMC_DEVICE_S9) {
+		if (aac_is_src(dev)) {
 			if (host->can_queue > (status[3] >> 16) -
 					AAC_NUM_MGT_FIB)
 				host->can_queue = (status[3] >> 16) -
@@ -605,10 +597,7 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 			pr_warn("numacb=%d ignored\n", numacb);
 	}
 
-	if (dev->pdev->device == PMC_DEVICE_S6 ||
-	    dev->pdev->device == PMC_DEVICE_S7 ||
-	    dev->pdev->device == PMC_DEVICE_S8 ||
-	    dev->pdev->device == PMC_DEVICE_S9)
+	if (aac_is_src(dev))
 		aac_define_int_mode(dev);
 	/*
 	 *	Ok now init the communication subsystem

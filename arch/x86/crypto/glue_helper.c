@@ -27,6 +27,7 @@
 
 #include <linux/module.h>
 #include <crypto/b128ops.h>
+#include <crypto/gf128mul.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/lrw.h>
 #include <crypto/xts.h>
@@ -175,9 +176,6 @@ __glue_cbc_decrypt_128bit(const struct common_glue_ctx *gctx,
 				src -= 1;
 				dst -= 1;
 			} while (nbytes >= func_bytes);
-
-			if (nbytes < bsize)
-				goto done;
 		}
 	}
 
@@ -457,7 +455,7 @@ void glue_xts_crypt_128bit_one(void *ctx, u128 *dst, const u128 *src, le128 *iv,
 	le128 ivblk = *iv;
 
 	/* generate next IV */
-	le128_gf128mul_x_ble(iv, &ivblk);
+	gf128mul_x_ble(iv, &ivblk);
 
 	/* CC <- T xor C */
 	u128_xor(dst, src, (u128 *)&ivblk);

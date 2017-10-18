@@ -272,6 +272,8 @@ static ssize_t pm_qos_latency_tolerance_store(struct device *dev,
 			value = PM_QOS_LATENCY_TOLERANCE_NO_CONSTRAINT;
 		else if (!strcmp(buf, "any") || !strcmp(buf, "any\n"))
 			value = PM_QOS_LATENCY_ANY;
+		else
+			return -EINVAL;
 	}
 	ret = dev_pm_qos_update_user_latency_tolerance(dev, value);
 	return ret < 0 ? ret : n;
@@ -607,7 +609,7 @@ static struct attribute *power_attrs[] = {
 #endif /* CONFIG_PM_ADVANCED_DEBUG */
 	NULL,
 };
-static struct attribute_group pm_attr_group = {
+static const struct attribute_group pm_attr_group = {
 	.name	= power_group_name,
 	.attrs	= power_attrs,
 };
@@ -629,7 +631,7 @@ static struct attribute *wakeup_attrs[] = {
 #endif
 	NULL,
 };
-static struct attribute_group pm_wakeup_attr_group = {
+static const struct attribute_group pm_wakeup_attr_group = {
 	.name	= power_group_name,
 	.attrs	= wakeup_attrs,
 };
@@ -644,7 +646,7 @@ static struct attribute *runtime_attrs[] = {
 	&dev_attr_autosuspend_delay_ms.attr,
 	NULL,
 };
-static struct attribute_group pm_runtime_attr_group = {
+static const struct attribute_group pm_runtime_attr_group = {
 	.name	= power_group_name,
 	.attrs	= runtime_attrs,
 };
@@ -653,7 +655,7 @@ static struct attribute *pm_qos_resume_latency_attrs[] = {
 	&dev_attr_pm_qos_resume_latency_us.attr,
 	NULL,
 };
-static struct attribute_group pm_qos_resume_latency_attr_group = {
+static const struct attribute_group pm_qos_resume_latency_attr_group = {
 	.name	= power_group_name,
 	.attrs	= pm_qos_resume_latency_attrs,
 };
@@ -662,7 +664,7 @@ static struct attribute *pm_qos_latency_tolerance_attrs[] = {
 	&dev_attr_pm_qos_latency_tolerance_us.attr,
 	NULL,
 };
-static struct attribute_group pm_qos_latency_tolerance_attr_group = {
+static const struct attribute_group pm_qos_latency_tolerance_attr_group = {
 	.name	= power_group_name,
 	.attrs	= pm_qos_latency_tolerance_attrs,
 };
@@ -672,7 +674,7 @@ static struct attribute *pm_qos_flags_attrs[] = {
 	&dev_attr_pm_qos_remote_wakeup.attr,
 	NULL,
 };
-static struct attribute_group pm_qos_flags_attr_group = {
+static const struct attribute_group pm_qos_flags_attr_group = {
 	.name	= power_group_name,
 	.attrs	= pm_qos_flags_attrs,
 };

@@ -282,7 +282,7 @@ static void bt3c_receive(struct bt3c_info *info)
 
 			__u8 x = inb(iobase + DATA_L);
 
-			*skb_put(info->rx_skb, 1) = x;
+			skb_put_u8(info->rx_skb, x);
 			inb(iobase + DATA_H);
 			info->rx_count--;
 

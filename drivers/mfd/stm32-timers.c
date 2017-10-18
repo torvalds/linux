@@ -15,7 +15,7 @@ static const struct regmap_config stm32_timers_regmap_cfg = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = sizeof(u32),
-	.max_register = 0x400,
+	.max_register = 0x3fc,
 };
 
 static void stm32_timers_get_arr_size(struct stm32_timers *ddata)
@@ -58,7 +58,7 @@ static int stm32_timers_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ddata);
 
-	return of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	return devm_of_platform_populate(&pdev->dev);
 }
 
 static const struct of_device_id stm32_timers_of_match[] = {

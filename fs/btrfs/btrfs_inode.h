@@ -125,6 +125,13 @@ struct btrfs_inode {
 	u64 delalloc_bytes;
 
 	/*
+	 * Total number of bytes pending delalloc that fall within a file
+	 * range that is either a hole or beyond EOF (and no prealloc extent
+	 * exists in the range). This is always <= delalloc_bytes.
+	 */
+	u64 new_delalloc_bytes;
+
+	/*
 	 * total number of bytes pending defrag, used by stat to check whether
 	 * it needs COW.
 	 */
@@ -303,7 +310,8 @@ struct btrfs_dio_private {
 	 * The original bio may be split to several sub-bios, this is
 	 * done during endio of sub-bios
 	 */
-	int (*subio_endio)(struct inode *, struct btrfs_io_bio *, int);
+	blk_status_t (*subio_endio)(struct inode *, struct btrfs_io_bio *,
+			blk_status_t);
 };
 
 /*

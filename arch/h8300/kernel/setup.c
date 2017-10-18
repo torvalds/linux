@@ -246,5 +246,5 @@ void __init calibrate_delay(void)
 void __init time_init(void)
 {
 	of_clk_init(NULL);
-	clocksource_probe();
+	timer_probe();
 }

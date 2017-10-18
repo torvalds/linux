@@ -62,8 +62,7 @@ static void __test_function(volatile long *ptr)
 }
 #endif
 
-__attribute__ ((noinline))
-static int test_function(void)
+static noinline int test_function(void)
 {
 	__test_function(&the_var);
 	the_var++;
@@ -287,4 +286,18 @@ int test__bp_signal(int subtest __maybe_unused)
 
 	return count1 == 1 && overflows == 3 && count2 == 3 && overflows_2 == 3 && count3 == 2 ?
 		TEST_OK : TEST_FAIL;
+}
+
+bool test__bp_signal_is_supported(void)
+{
+/*
+ * The powerpc so far does not have support to even create
+ * instruction breakpoint using the perf event interface.
+ * Once it's there we can release this.
+ */
+#ifdef __powerpc__
+	return false;
+#else
+	return true;
+#endif
 }

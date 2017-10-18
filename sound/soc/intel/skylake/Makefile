@@ -1,6 +1,10 @@
 snd-soc-skl-objs := skl.o skl-pcm.o skl-nhlt.o skl-messages.o \
 skl-topology.o
 
+ifdef CONFIG_DEBUG_FS
+  snd-soc-skl-objs += skl-debug.o
+endif
+
 obj-$(CONFIG_SND_SOC_INTEL_SKYLAKE) += snd-soc-skl.o
 
 # Skylake IPC Support

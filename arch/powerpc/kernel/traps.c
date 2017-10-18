@@ -35,13 +35,13 @@
 #include <linux/backlight.h>
 #include <linux/bug.h>
 #include <linux/kdebug.h>
-#include <linux/debugfs.h>
 #include <linux/ratelimit.h>
 #include <linux/context_tracking.h>
 
 #include <asm/emulated_ops.h>
 #include <asm/pgtable.h>
 #include <linux/uaccess.h>
+#include <asm/debugfs.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
 #include <asm/rtas.h>
@@ -237,6 +237,7 @@ void die(const char *str, struct pt_regs *regs, long err)
 		err = 0;
 	oops_end(flags, regs, err);
 }
+NOKPROBE_SYMBOL(die);
 
 void user_single_step_siginfo(struct task_struct *tsk,
 				struct pt_regs *regs, siginfo_t *info)
@@ -279,17 +280,34 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 
 void system_reset_exception(struct pt_regs *regs)
 {
+	/*
+	 * Avoid crashes in case of nested NMI exceptions. Recoverability
+	 * is determined by RI and in_nmi
+	 */
+	bool nested = in_nmi();
+	if (!nested)
+		nmi_enter();
+
 	/* See if any machine dependent calls */
 	if (ppc_md.system_reset_exception) {
 		if (ppc_md.system_reset_exception(regs))
-			return;
+			goto out;
 	}
 
 	die("System Reset", regs, SIGABRT);
 
+out:
+#ifdef CONFIG_PPC_BOOK3S_64
+	BUG_ON(get_paca()->in_nmi == 0);
+	if (get_paca()->in_nmi > 1)
+		panic("Unrecoverable nested System Reset");
+#endif
 	/* Must die if the interrupt is not recoverable */
 	if (!(regs->msr & MSR_RI))
 		panic("Unrecoverable System Reset");
+
+	if (!nested)
+		nmi_exit();
 
 	/* What should we do here? We could issue a shutdown or hard reset. */
 }
@@ -305,8 +323,6 @@ long machine_check_early(struct pt_regs *regs)
 	long handled = 0;
 
 	__this_cpu_inc(irq_stat.mce_exceptions);
-
-	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
 
 	if (cur_cpu_spec && cur_cpu_spec->machine_check_early)
 		handled = cur_cpu_spec->machine_check_early(regs);
@@ -740,6 +756,8 @@ void machine_check_exception(struct pt_regs *regs)
 	int recover = 0;
 
 	__this_cpu_inc(irq_stat.mce_exceptions);
+
+	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
 
 	/* See if any machine dependent calls. In theory, we would want
 	 * to call the CPU first, and call the ppc_md. one if the CPU
@@ -1440,6 +1458,8 @@ void facility_unavailable_exception(struct pt_regs *regs)
 		[FSCR_TM_LG] = "TM",
 		[FSCR_EBB_LG] = "EBB",
 		[FSCR_TAR_LG] = "TAR",
+		[FSCR_MSGP_LG] = "MSGP",
+		[FSCR_SCV_LG] = "SCV",
 	};
 	char *facility = "unknown";
 	u64 value;
@@ -1949,6 +1969,7 @@ void unrecoverable_exception(struct pt_regs *regs)
 	       regs->trap, regs->nip);
 	die("Unrecoverable exception", regs, SIGABRT);
 }
+NOKPROBE_SYMBOL(unrecoverable_exception);
 
 #if defined(CONFIG_BOOKE_WDT) || defined(CONFIG_40x)
 /*
@@ -1979,6 +2000,7 @@ void kernel_bad_stack(struct pt_regs *regs)
 	       regs->gpr[1], regs->nip);
 	die("Bad kernel stack pointer", regs, SIGABRT);
 }
+NOKPROBE_SYMBOL(kernel_bad_stack);
 
 void __init trap_init(void)
 {

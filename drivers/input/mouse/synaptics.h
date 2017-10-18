@@ -25,36 +25,37 @@
 #define SYN_QUE_MEXT_CAPAB_10		0x10
 
 /* synatics modes */
-#define SYN_BIT_ABSOLUTE_MODE		(1 << 7)
-#define SYN_BIT_HIGH_RATE		(1 << 6)
-#define SYN_BIT_SLEEP_MODE		(1 << 3)
-#define SYN_BIT_DISABLE_GESTURE		(1 << 2)
-#define SYN_BIT_FOUR_BYTE_CLIENT	(1 << 1)
-#define SYN_BIT_W_MODE			(1 << 0)
+#define SYN_BIT_ABSOLUTE_MODE		BIT(7)
+#define SYN_BIT_HIGH_RATE		BIT(6)
+#define SYN_BIT_SLEEP_MODE		BIT(3)
+#define SYN_BIT_DISABLE_GESTURE		BIT(2)
+#define SYN_BIT_FOUR_BYTE_CLIENT	BIT(1)
+#define SYN_BIT_W_MODE			BIT(0)
 
 /* synaptics model ID bits */
-#define SYN_MODEL_ROT180(m)		((m) & (1 << 23))
-#define SYN_MODEL_PORTRAIT(m)		((m) & (1 << 22))
-#define SYN_MODEL_SENSOR(m)		(((m) >> 16) & 0x3f)
-#define SYN_MODEL_HARDWARE(m)		(((m) >> 9) & 0x7f)
-#define SYN_MODEL_NEWABS(m)		((m) & (1 << 7))
-#define SYN_MODEL_PEN(m)		((m) & (1 << 6))
-#define SYN_MODEL_SIMPLIC(m)		((m) & (1 << 5))
-#define SYN_MODEL_GEOMETRY(m)		((m) & 0x0f)
+#define SYN_MODEL_ROT180(m)		((m) & BIT(23))
+#define SYN_MODEL_PORTRAIT(m)		((m) & BIT(22))
+#define SYN_MODEL_SENSOR(m)		(((m) & GENMASK(21, 16)) >> 16)
+#define SYN_MODEL_HARDWARE(m)		(((m) & GENMASK(15, 9)) >> 9)
+#define SYN_MODEL_NEWABS(m)		((m) & BIT(7))
+#define SYN_MODEL_PEN(m)		((m) & BIT(6))
+#define SYN_MODEL_SIMPLIC(m)		((m) & BIT(5))
+#define SYN_MODEL_GEOMETRY(m)		((m) & GENMASK(3, 0))
 
 /* synaptics capability bits */
-#define SYN_CAP_EXTENDED(c)		((c) & (1 << 23))
-#define SYN_CAP_MIDDLE_BUTTON(c)	((c) & (1 << 18))
-#define SYN_CAP_PASS_THROUGH(c)		((c) & (1 << 7))
-#define SYN_CAP_SLEEP(c)		((c) & (1 << 4))
-#define SYN_CAP_FOUR_BUTTON(c)		((c) & (1 << 3))
-#define SYN_CAP_MULTIFINGER(c)		((c) & (1 << 1))
-#define SYN_CAP_PALMDETECT(c)		((c) & (1 << 0))
-#define SYN_CAP_SUBMODEL_ID(c)		(((c) & 0x00ff00) >> 8)
-#define SYN_EXT_CAP_REQUESTS(c)		(((c) & 0x700000) >> 20)
-#define SYN_CAP_MULTI_BUTTON_NO(ec)	(((ec) & 0x00f000) >> 12)
-#define SYN_CAP_PRODUCT_ID(ec)		(((ec) & 0xff0000) >> 16)
-#define SYN_MEXT_CAP_BIT(m)		((m) & (1 << 1))
+#define SYN_CAP_EXTENDED(c)		((c) & BIT(23))
+#define SYN_CAP_MIDDLE_BUTTON(c)	((c) & BIT(18))
+#define SYN_CAP_PASS_THROUGH(c)		((c) & BIT(7))
+#define SYN_CAP_SLEEP(c)		((c) & BIT(4))
+#define SYN_CAP_FOUR_BUTTON(c)		((c) & BIT(3))
+#define SYN_CAP_MULTIFINGER(c)		((c) & BIT(1))
+#define SYN_CAP_PALMDETECT(c)		((c) & BIT(0))
+#define SYN_CAP_SUBMODEL_ID(c)		(((c) & GENMASK(15, 8)) >> 8)
+#define SYN_EXT_CAP_REQUESTS(c)		(((c) & GENMASK(22, 20)) >> 20)
+#define SYN_CAP_MB_MASK			GENMASK(15, 12)
+#define SYN_CAP_MULTI_BUTTON_NO(ec)	(((ec) & SYN_CAP_MB_MASK) >> 12)
+#define SYN_CAP_PRODUCT_ID(ec)		(((ec) & GENMASK(23, 16)) >> 16)
+#define SYN_MEXT_CAP_BIT(m)		((m) & BIT(1))
 
 /*
  * The following describes response for the 0x0c query.
@@ -83,13 +84,14 @@
  *					hinged at the top.
  * 2	0x20	report min		query 0x0f gives min coord reported
  */
-#define SYN_CAP_CLICKPAD(ex0c)		((ex0c) & 0x100000) /* 1-button ClickPad */
-#define SYN_CAP_CLICKPAD2BTN(ex0c)	((ex0c) & 0x000100) /* 2-button ClickPad */
-#define SYN_CAP_MAX_DIMENSIONS(ex0c)	((ex0c) & 0x020000)
-#define SYN_CAP_MIN_DIMENSIONS(ex0c)	((ex0c) & 0x002000)
-#define SYN_CAP_ADV_GESTURE(ex0c)	((ex0c) & 0x080000)
-#define SYN_CAP_REDUCED_FILTERING(ex0c)	((ex0c) & 0x000400)
-#define SYN_CAP_IMAGE_SENSOR(ex0c)	((ex0c) & 0x000800)
+#define SYN_CAP_CLICKPAD(ex0c)		((ex0c) & BIT(20)) /* 1-button ClickPad */
+#define SYN_CAP_CLICKPAD2BTN(ex0c)	((ex0c) & BIT(8))  /* 2-button ClickPad */
+#define SYN_CAP_MAX_DIMENSIONS(ex0c)	((ex0c) & BIT(17))
+#define SYN_CAP_MIN_DIMENSIONS(ex0c)	((ex0c) & BIT(13))
+#define SYN_CAP_ADV_GESTURE(ex0c)	((ex0c) & BIT(19))
+#define SYN_CAP_REDUCED_FILTERING(ex0c)	((ex0c) & BIT(10))
+#define SYN_CAP_IMAGE_SENSOR(ex0c)	((ex0c) & BIT(11))
+#define SYN_CAP_INTERTOUCH(ex0c)	((ex0c) & BIT(14))
 
 /*
  * The following descibes response for the 0x10 query.
@@ -108,41 +110,43 @@
  * 3	0xff	SecurePad height	the height of the SecurePad fingerprint
  *					reader.
  */
-#define SYN_CAP_EXT_BUTTONS_STICK(ex10)	((ex10) & 0x010000)
-#define SYN_CAP_SECUREPAD(ex10)		((ex10) & 0x020000)
+#define SYN_CAP_EXT_BUTTONS_STICK(ex10)	((ex10) & BIT(16))
+#define SYN_CAP_SECUREPAD(ex10)		((ex10) & BIT(17))
 
-#define SYN_CAP_EXT_BUTTON_STICK_L(eb)	(!!((eb) & 0x01))
-#define SYN_CAP_EXT_BUTTON_STICK_M(eb)	(!!((eb) & 0x02))
-#define SYN_CAP_EXT_BUTTON_STICK_R(eb)	(!!((eb) & 0x04))
+#define SYN_EXT_BUTTON_STICK_L(eb)	(((eb) & BIT(0)) >> 0)
+#define SYN_EXT_BUTTON_STICK_M(eb)	(((eb) & BIT(1)) >> 1)
+#define SYN_EXT_BUTTON_STICK_R(eb)	(((eb) & BIT(2)) >> 2)
 
 /* synaptics modes query bits */
-#define SYN_MODE_ABSOLUTE(m)		((m) & (1 << 7))
-#define SYN_MODE_RATE(m)		((m) & (1 << 6))
-#define SYN_MODE_BAUD_SLEEP(m)		((m) & (1 << 3))
-#define SYN_MODE_DISABLE_GESTURE(m)	((m) & (1 << 2))
-#define SYN_MODE_PACKSIZE(m)		((m) & (1 << 1))
-#define SYN_MODE_WMODE(m)		((m) & (1 << 0))
+#define SYN_MODE_ABSOLUTE(m)		((m) & BIT(7))
+#define SYN_MODE_RATE(m)		((m) & BIT(6))
+#define SYN_MODE_BAUD_SLEEP(m)		((m) & BIT(3))
+#define SYN_MODE_DISABLE_GESTURE(m)	((m) & BIT(2))
+#define SYN_MODE_PACKSIZE(m)		((m) & BIT(1))
+#define SYN_MODE_WMODE(m)		((m) & BIT(0))
 
 /* synaptics identify query bits */
-#define SYN_ID_MODEL(i)			(((i) >> 4) & 0x0f)
-#define SYN_ID_MAJOR(i)			((i) & 0x0f)
-#define SYN_ID_MINOR(i)			(((i) >> 16) & 0xff)
+#define SYN_ID_MODEL(i)			(((i) & GENMASK(7, 4)) >> 4)
+#define SYN_ID_MAJOR(i)			(((i) & GENMASK(3, 0)) >> 0)
+#define SYN_ID_MINOR(i)			(((i) & GENMASK(23, 16)) >> 16)
 #define SYN_ID_FULL(i)			((SYN_ID_MAJOR(i) << 8) | SYN_ID_MINOR(i))
-#define SYN_ID_IS_SYNAPTICS(i)		((((i) >> 8) & 0xff) == 0x47)
+#define SYN_ID_IS_SYNAPTICS(i)		(((i) & GENMASK(15, 8)) == 0x004700U)
 #define SYN_ID_DISGEST_SUPPORTED(i)	(SYN_ID_MAJOR(i) >= 4)
 
 /* synaptics special commands */
 #define SYN_PS_SET_MODE2		0x14
 #define SYN_PS_CLIENT_CMD		0x28
 
-/* synaptics packet types */
-#define SYN_NEWABS			0
-#define SYN_NEWABS_STRICT		1
-#define SYN_NEWABS_RELAXED		2
-#define SYN_OLDABS			3
-
 /* amount to fuzz position data when touchpad reports reduced filtering */
 #define SYN_REDUCED_FILTER_FUZZ		8
+
+/* synaptics packet types */
+enum synaptics_pkt_type {
+	SYN_NEWABS,
+	SYN_NEWABS_STRICT,
+	SYN_NEWABS_RELAXED,
+	SYN_OLDABS,
+};
 
 /*
  * A structure to describe the state of the touchpad hardware (buttons and pad)
@@ -157,26 +161,30 @@ struct synaptics_hw_state {
 	unsigned int middle:1;
 	unsigned int up:1;
 	unsigned int down:1;
-	unsigned char ext_buttons;
-	signed char scroll;
+	u8 ext_buttons;
+	s8 scroll;
+};
+
+/* Data read from the touchpad */
+struct synaptics_device_info {
+	u32 model_id;		/* Model-ID */
+	u32 firmware_id;	/* Firmware-ID */
+	u32 board_id;		/* Board-ID */
+	u32 capabilities;	/* Capabilities */
+	u32 ext_cap;		/* Extended Capabilities */
+	u32 ext_cap_0c;		/* Ext Caps from 0x0c query */
+	u32 ext_cap_10;		/* Ext Caps from 0x10 query */
+	u32 identity;		/* Identification */
+	u32 x_res, y_res;	/* X/Y resolution in units/mm */
+	u32 x_max, y_max;	/* Max coordinates (from FW) */
+	u32 x_min, y_min;	/* Min coordinates (from FW) */
 };
 
 struct synaptics_data {
-	/* Data read from the touchpad */
-	unsigned long int model_id;		/* Model-ID */
-	unsigned long int firmware_id;		/* Firmware-ID */
-	unsigned long int board_id;		/* Board-ID */
-	unsigned long int capabilities;		/* Capabilities */
-	unsigned long int ext_cap;		/* Extended Capabilities */
-	unsigned long int ext_cap_0c;		/* Ext Caps from 0x0c query */
-	unsigned long int ext_cap_10;		/* Ext Caps from 0x10 query */
-	unsigned long int identity;		/* Identification */
-	unsigned int x_res, y_res;		/* X/Y resolution in units/mm */
-	unsigned int x_max, y_max;		/* Max coordinates (from FW) */
-	unsigned int x_min, y_min;		/* Min coordinates (from FW) */
+	struct synaptics_device_info info;
 
-	unsigned char pkt_type;			/* packet type - old, new, etc */
-	unsigned char mode;			/* current mode byte */
+	enum synaptics_pkt_type pkt_type;	/* packet type - old, new, etc */
+	u8 mode;				/* current mode byte */
 	int scroll;
 
 	bool absolute_mode;			/* run in Absolute mode */
@@ -200,8 +208,10 @@ struct synaptics_data {
 
 void synaptics_module_init(void);
 int synaptics_detect(struct psmouse *psmouse, bool set_properties);
-int synaptics_init(struct psmouse *psmouse);
+int synaptics_init_absolute(struct psmouse *psmouse);
 int synaptics_init_relative(struct psmouse *psmouse);
+int synaptics_init_smbus(struct psmouse *psmouse);
+int synaptics_init(struct psmouse *psmouse);
 void synaptics_reset(struct psmouse *psmouse);
 
 #endif /* _SYNAPTICS_H */

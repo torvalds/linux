@@ -119,7 +119,7 @@ static int
 cfg_copy(struct hashlimit_cfg2 *to, void *from, int revision)
 {
 	if (revision == 1) {
-		struct hashlimit_cfg1 *cfg = (struct hashlimit_cfg1 *)from;
+		struct hashlimit_cfg1 *cfg = from;
 
 		to->mode = cfg->mode;
 		to->avg = cfg->avg;
@@ -895,7 +895,7 @@ static void *dl_seq_start(struct seq_file *s, loff_t *pos)
 static void *dl_seq_next(struct seq_file *s, void *v, loff_t *pos)
 {
 	struct xt_hashlimit_htable *htable = s->private;
-	unsigned int *bucket = (unsigned int *)v;
+	unsigned int *bucket = v;
 
 	*pos = ++(*bucket);
 	if (*pos >= htable->cfg.size) {
@@ -909,7 +909,7 @@ static void dl_seq_stop(struct seq_file *s, void *v)
 	__releases(htable->lock)
 {
 	struct xt_hashlimit_htable *htable = s->private;
-	unsigned int *bucket = (unsigned int *)v;
+	unsigned int *bucket = v;
 
 	if (!IS_ERR(bucket))
 		kfree(bucket);
@@ -980,7 +980,7 @@ static int dl_seq_real_show(struct dsthash_ent *ent, u_int8_t family,
 static int dl_seq_show_v1(struct seq_file *s, void *v)
 {
 	struct xt_hashlimit_htable *htable = s->private;
-	unsigned int *bucket = (unsigned int *)v;
+	unsigned int *bucket = v;
 	struct dsthash_ent *ent;
 
 	if (!hlist_empty(&htable->hash[*bucket])) {
@@ -994,7 +994,7 @@ static int dl_seq_show_v1(struct seq_file *s, void *v)
 static int dl_seq_show(struct seq_file *s, void *v)
 {
 	struct xt_hashlimit_htable *htable = s->private;
-	unsigned int *bucket = (unsigned int *)v;
+	unsigned int *bucket = v;
 	struct dsthash_ent *ent;
 
 	if (!hlist_empty(&htable->hash[*bucket])) {

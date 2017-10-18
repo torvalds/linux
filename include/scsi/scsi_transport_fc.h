@@ -162,6 +162,7 @@ enum fc_tgtid_binding_type  {
 #define FC_PORT_ROLE_FCP_TARGET			0x01
 #define FC_PORT_ROLE_FCP_INITIATOR		0x02
 #define FC_PORT_ROLE_IP_PORT			0x04
+#define FC_PORT_ROLE_FCP_DUMMY_INITIATOR	0x08
 
 /* The following are for compatibility */
 #define FC_RPORT_ROLE_UNKNOWN			FC_PORT_ROLE_UNKNOWN
@@ -656,10 +657,6 @@ struct fc_function_template {
 	int  	(*vport_create)(struct fc_vport *, bool);
 	int	(*vport_disable)(struct fc_vport *, bool);
 	int  	(*vport_delete)(struct fc_vport *);
-
-	/* target-mode drivers' functions */
-	int     (* tsk_mgmt_response)(struct Scsi_Host *, u64, u64, int);
-	int     (* it_nexus_response)(struct Scsi_Host *, u64, int);
 
 	/* bsg support */
 	int	(*bsg_request)(struct bsg_job *);

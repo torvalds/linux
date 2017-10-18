@@ -606,7 +606,7 @@ const struct xfs_buf_ops xfs_agfl_buf_ops = {
 /*
  * Read in the allocation group free block array.
  */
-STATIC int				/* error */
+int					/* error */
 xfs_alloc_read_agfl(
 	xfs_mount_t	*mp,		/* mount point structure */
 	xfs_trans_t	*tp,		/* transaction pointer */
@@ -2454,8 +2454,7 @@ xfs_agf_read_verify(
 	    !xfs_buf_verify_cksum(bp, XFS_AGF_CRC_OFF))
 		xfs_buf_ioerror(bp, -EFSBADCRC);
 	else if (XFS_TEST_ERROR(!xfs_agf_verify(mp, bp), mp,
-				XFS_ERRTAG_ALLOC_READ_AGF,
-				XFS_RANDOM_ALLOC_READ_AGF))
+				XFS_ERRTAG_ALLOC_READ_AGF))
 		xfs_buf_ioerror(bp, -EFSCORRUPTED);
 
 	if (bp->b_error)
@@ -2842,8 +2841,7 @@ xfs_free_extent(
 	ASSERT(type != XFS_AG_RESV_AGFL);
 
 	if (XFS_TEST_ERROR(false, mp,
-			XFS_ERRTAG_FREE_EXTENT,
-			XFS_RANDOM_FREE_EXTENT))
+			XFS_ERRTAG_FREE_EXTENT))
 		return -EIO;
 
 	error = xfs_free_extent_fix_freelist(tp, agno, &agbp);
@@ -2867,4 +2865,61 @@ xfs_free_extent(
 err:
 	xfs_trans_brelse(tp, agbp);
 	return error;
+}
+
+struct xfs_alloc_query_range_info {
+	xfs_alloc_query_range_fn	fn;
+	void				*priv;
+};
+
+/* Format btree record and pass to our callback. */
+STATIC int
+xfs_alloc_query_range_helper(
+	struct xfs_btree_cur		*cur,
+	union xfs_btree_rec		*rec,
+	void				*priv)
+{
+	struct xfs_alloc_query_range_info	*query = priv;
+	struct xfs_alloc_rec_incore		irec;
+
+	irec.ar_startblock = be32_to_cpu(rec->alloc.ar_startblock);
+	irec.ar_blockcount = be32_to_cpu(rec->alloc.ar_blockcount);
+	return query->fn(cur, &irec, query->priv);
+}
+
+/* Find all free space within a given range of blocks. */
+int
+xfs_alloc_query_range(
+	struct xfs_btree_cur			*cur,
+	struct xfs_alloc_rec_incore		*low_rec,
+	struct xfs_alloc_rec_incore		*high_rec,
+	xfs_alloc_query_range_fn		fn,
+	void					*priv)
+{
+	union xfs_btree_irec			low_brec;
+	union xfs_btree_irec			high_brec;
+	struct xfs_alloc_query_range_info	query;
+
+	ASSERT(cur->bc_btnum == XFS_BTNUM_BNO);
+	low_brec.a = *low_rec;
+	high_brec.a = *high_rec;
+	query.priv = priv;
+	query.fn = fn;
+	return xfs_btree_query_range(cur, &low_brec, &high_brec,
+			xfs_alloc_query_range_helper, &query);
+}
+
+/* Find all free space records. */
+int
+xfs_alloc_query_all(
+	struct xfs_btree_cur			*cur,
+	xfs_alloc_query_range_fn		fn,
+	void					*priv)
+{
+	struct xfs_alloc_query_range_info	query;
+
+	ASSERT(cur->bc_btnum == XFS_BTNUM_BNO);
+	query.priv = priv;
+	query.fn = fn;
+	return xfs_btree_query_all(cur, xfs_alloc_query_range_helper, &query);
 }

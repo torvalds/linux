@@ -1,13 +1,13 @@
 [
     {
-        "BriefDescription": "Uncore cache clock ticks. Derived from unc_c_clockticks",
+        "BriefDescription": "Uncore cache clock ticks",
         "Counter": "0,1,2,3",
         "EventName": "UNC_C_CLOCKTICKS",
         "PerPkg": "1",
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "All LLC Misses (code+ data rd + data wr - including demand and prefetch). Derived from unc_c_llc_lookup.any",
+        "BriefDescription": "All LLC Misses (code+ data rd + data wr - including demand and prefetch)",
         "Counter": "0,1,2,3",
         "EventCode": "0x34",
         "EventName": "UNC_C_LLC_LOOKUP.ANY",
@@ -18,7 +18,7 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "M line evictions from LLC (writebacks to memory). Derived from unc_c_llc_victims.m_state",
+        "BriefDescription": "M line evictions from LLC (writebacks to memory)",
         "Counter": "0,1,2,3",
         "EventCode": "0x37",
         "EventName": "UNC_C_LLC_VICTIMS.M_STATE",
@@ -212,7 +212,7 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "read requests to home agent. Derived from unc_h_requests.reads",
+        "BriefDescription": "read requests to home agent",
         "Counter": "0,1,2,3",
         "EventCode": "0x1",
         "EventName": "UNC_H_REQUESTS.READS",
@@ -221,7 +221,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "read requests to local home agent. Derived from unc_h_requests.reads_local",
+        "BriefDescription": "read requests to local home agent",
         "Counter": "0,1,2,3",
         "EventCode": "0x1",
         "EventName": "UNC_H_REQUESTS.READS_LOCAL",
@@ -230,7 +230,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "read requests to remote home agent. Derived from unc_h_requests.reads_remote",
+        "BriefDescription": "read requests to remote home agent",
         "Counter": "0,1,2,3",
         "EventCode": "0x1",
         "EventName": "UNC_H_REQUESTS.READS_REMOTE",
@@ -239,7 +239,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "write requests to home agent. Derived from unc_h_requests.writes",
+        "BriefDescription": "write requests to home agent",
         "Counter": "0,1,2,3",
         "EventCode": "0x1",
         "EventName": "UNC_H_REQUESTS.WRITES",
@@ -248,7 +248,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "write requests to local home agent. Derived from unc_h_requests.writes_local",
+        "BriefDescription": "write requests to local home agent",
         "Counter": "0,1,2,3",
         "EventCode": "0x1",
         "EventName": "UNC_H_REQUESTS.WRITES_LOCAL",
@@ -257,7 +257,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "write requests to remote home agent. Derived from unc_h_requests.writes_remote",
+        "BriefDescription": "write requests to remote home agent",
         "Counter": "0,1,2,3",
         "EventCode": "0x1",
         "EventName": "UNC_H_REQUESTS.WRITES_REMOTE",
@@ -266,7 +266,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "Conflict requests (requests for same address from multiple agents simultaneously). Derived from unc_h_snoop_resp.rspcnflct",
+        "BriefDescription": "Conflict requests (requests for same address from multiple agents simultaneously)",
         "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "UNC_H_SNOOP_RESP.RSPCNFLCT",
@@ -275,7 +275,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "M line forwarded from remote cache along with writeback to memory. Derived from unc_h_snoop_resp.rsp_fwd_wb",
+        "BriefDescription": "M line forwarded from remote cache along with writeback to memory",
         "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "UNC_H_SNOOP_RESP.RSP_FWD_WB",
@@ -285,7 +285,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "M line forwarded from remote cache with no writeback to memory. Derived from unc_h_snoop_resp.rspifwd",
+        "BriefDescription": "M line forwarded from remote cache with no writeback to memory",
         "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "UNC_H_SNOOP_RESP.RSPIFWD",
@@ -295,7 +295,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "Shared line response from remote cache. Derived from unc_h_snoop_resp.rsps",
+        "BriefDescription": "Shared line response from remote cache",
         "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "UNC_H_SNOOP_RESP.RSPS",
@@ -305,7 +305,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "Shared line forwarded from remote cache. Derived from unc_h_snoop_resp.rspsfwd",
+        "BriefDescription": "Shared line forwarded from remote cache",
         "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "UNC_H_SNOOP_RESP.RSPSFWD",

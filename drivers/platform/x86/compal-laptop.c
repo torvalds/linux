@@ -718,7 +718,7 @@ static struct attribute *compal_platform_attrs[] = {
 	&dev_attr_wake_up_mouse.attr,
 	NULL
 };
-static struct attribute_group compal_platform_attr_group = {
+static const struct attribute_group compal_platform_attr_group = {
 	.attrs = compal_platform_attrs
 };
 

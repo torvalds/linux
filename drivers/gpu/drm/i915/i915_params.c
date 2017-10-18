@@ -59,6 +59,8 @@ struct i915_params i915 __read_mostly = {
 	.enable_guc_loading = 0,
 	.enable_guc_submission = 0,
 	.guc_log_level = -1,
+	.guc_firmware_path = NULL,
+	.huc_firmware_path = NULL,
 	.enable_dp_mst = true,
 	.inject_load_failure = 0,
 	.enable_dpcd_backlight = false,
@@ -145,7 +147,7 @@ MODULE_PARM_DESC(enable_psr, "Enable PSR "
 		 "(0=disabled, 1=enabled - link mode chosen per-platform, 2=force link-standby mode, 3=force link-off mode) "
 		 "Default: -1 (use per-chip default)");
 
-module_param_named_unsafe(alpha_support, i915.alpha_support, int, 0400);
+module_param_named_unsafe(alpha_support, i915.alpha_support, bool, 0400);
 MODULE_PARM_DESC(alpha_support,
 	"Enable alpha quality driver support for latest hardware. "
 	"See also CONFIG_DRM_I915_ALPHA_SUPPORT.");
@@ -205,9 +207,9 @@ module_param_named(verbose_state_checks, i915.verbose_state_checks, bool, 0600);
 MODULE_PARM_DESC(verbose_state_checks,
 	"Enable verbose logs (ie. WARN_ON()) in case of unexpected hw state conditions.");
 
-module_param_named_unsafe(nuclear_pageflip, i915.nuclear_pageflip, bool, 0600);
+module_param_named_unsafe(nuclear_pageflip, i915.nuclear_pageflip, bool, 0400);
 MODULE_PARM_DESC(nuclear_pageflip,
-		 "Force atomic modeset functionality; asynchronous mode is not yet supported. (default: false).");
+		 "Force enable atomic functionality on platforms that don't have full support yet.");
 
 /* WA to get away with the default setting in VBT for early platforms.Will be removed */
 module_param_named_unsafe(edp_vswing, i915.edp_vswing, int, 0400);
@@ -229,6 +231,14 @@ MODULE_PARM_DESC(enable_guc_submission,
 module_param_named(guc_log_level, i915.guc_log_level, int, 0400);
 MODULE_PARM_DESC(guc_log_level,
 	"GuC firmware logging level (-1:disabled (default), 0-3:enabled)");
+
+module_param_named_unsafe(guc_firmware_path, i915.guc_firmware_path, charp, 0400);
+MODULE_PARM_DESC(guc_firmware_path,
+	"GuC firmware path to use instead of the default one");
+
+module_param_named_unsafe(huc_firmware_path, i915.huc_firmware_path, charp, 0400);
+MODULE_PARM_DESC(huc_firmware_path,
+	"HuC firmware path to use instead of the default one");
 
 module_param_named_unsafe(enable_dp_mst, i915.enable_dp_mst, bool, 0600);
 MODULE_PARM_DESC(enable_dp_mst,

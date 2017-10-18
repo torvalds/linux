@@ -71,11 +71,10 @@ static void __nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 	if (ct == NULL)
 		return;
 
-	family = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
-	rcu_read_lock();
+	family = nf_ct_l3num(ct);
 	l3proto = __nf_nat_l3proto_find(family);
 	if (l3proto == NULL)
-		goto out;
+		return;
 
 	dir = CTINFO2DIR(ctinfo);
 	if (dir == IP_CT_DIR_ORIGINAL)
@@ -84,8 +83,6 @@ static void __nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 		statusbit = IPS_SRC_NAT;
 
 	l3proto->decode_session(skb, ct, dir, statusbit, fl);
-out:
-	rcu_read_unlock();
 }
 
 int nf_xfrm_me_harder(struct net *net, struct sk_buff *skb, unsigned int family)
@@ -225,20 +222,21 @@ find_appropriate_src(struct net *net,
 		.tuple = tuple,
 		.zone = zone
 	};
-	struct rhlist_head *hl;
+	struct rhlist_head *hl, *h;
 
 	hl = rhltable_lookup(&nf_nat_bysource_table, &key,
 			     nf_nat_bysource_params);
-	if (!hl)
-		return 0;
 
-	ct = container_of(hl, typeof(*ct), nat_bysource);
+	rhl_for_each_entry_rcu(ct, h, hl, nat_bysource) {
+		nf_ct_invert_tuplepr(result,
+				     &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
+		result->dst = tuple->dst;
 
-	nf_ct_invert_tuplepr(result,
-			     &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
-	result->dst = tuple->dst;
+		if (in_range(l3proto, l4proto, result, range))
+			return 1;
+	}
 
-	return in_range(l3proto, l4proto, result, range);
+	return 0;
 }
 
 /* For [FUTURE] fragmentation handling, we want the least-used
@@ -411,11 +409,9 @@ nf_nat_setup_info(struct nf_conn *ct,
 		  enum nf_nat_manip_type maniptype)
 {
 	struct nf_conntrack_tuple curr_tuple, new_tuple;
-	struct nf_conn_nat *nat;
 
-	/* nat helper or nfctnetlink also setup binding */
-	nat = nf_ct_nat_ext_add(ct);
-	if (nat == NULL)
+	/* Can't setup nat info for confirmed ct. */
+	if (nf_ct_is_confirmed(ct))
 		return NF_ACCEPT;
 
 	NF_CT_ASSERT(maniptype == NF_NAT_MANIP_SRC ||
@@ -445,7 +441,7 @@ nf_nat_setup_info(struct nf_conn *ct,
 		else
 			ct->status |= IPS_DST_NAT;
 
-		if (nfct_help(ct))
+		if (nfct_help(ct) && !nfct_seqadj(ct))
 			if (!nfct_seqadj_ext_add(ct))
 				return NF_DROP;
 	}
@@ -549,10 +545,6 @@ struct nf_nat_proto_clean {
 static int nf_nat_proto_remove(struct nf_conn *i, void *data)
 {
 	const struct nf_nat_proto_clean *clean = data;
-	struct nf_conn_nat *nat = nfct_nat(i);
-
-	if (!nat)
-		return 0;
 
 	if ((clean->l3proto && nf_ct_l3num(i) != clean->l3proto) ||
 	    (clean->l4proto && nf_ct_protonum(i) != clean->l4proto))
@@ -563,12 +555,10 @@ static int nf_nat_proto_remove(struct nf_conn *i, void *data)
 
 static int nf_nat_proto_clean(struct nf_conn *ct, void *data)
 {
-	struct nf_conn_nat *nat = nfct_nat(ct);
-
 	if (nf_nat_proto_remove(ct, data))
 		return 1;
 
-	if (!nat)
+	if ((ct->status & IPS_SRC_NAT_DONE) == 0)
 		return 0;
 
 	/* This netns is being destroyed, and conntrack has nat null binding.
@@ -577,7 +567,7 @@ static int nf_nat_proto_clean(struct nf_conn *ct, void *data)
 	 * Else, when the conntrack is destoyed, nf_nat_cleanup_conntrack()
 	 * will delete entry from already-freed table.
 	 */
-	ct->status &= ~IPS_NAT_DONE_MASK;
+	clear_bit(IPS_SRC_NAT_DONE_BIT, &ct->status);
 	rhltable_remove(&nf_nat_bysource_table, &ct->nat_bysource,
 			nf_nat_bysource_params);
 
@@ -593,12 +583,8 @@ static void nf_nat_l4proto_clean(u8 l3proto, u8 l4proto)
 		.l3proto = l3proto,
 		.l4proto = l4proto,
 	};
-	struct net *net;
 
-	rtnl_lock();
-	for_each_net(net)
-		nf_ct_iterate_cleanup(net, nf_nat_proto_remove, &clean, 0, 0);
-	rtnl_unlock();
+	nf_ct_iterate_destroy(nf_nat_proto_remove, &clean);
 }
 
 static void nf_nat_l3proto_clean(u8 l3proto)
@@ -606,13 +592,8 @@ static void nf_nat_l3proto_clean(u8 l3proto)
 	struct nf_nat_proto_clean clean = {
 		.l3proto = l3proto,
 	};
-	struct net *net;
 
-	rtnl_lock();
-
-	for_each_net(net)
-		nf_ct_iterate_cleanup(net, nf_nat_proto_remove, &clean, 0, 0);
-	rtnl_unlock();
+	nf_ct_iterate_destroy(nf_nat_proto_remove, &clean);
 }
 
 /* Protocol registration. */
@@ -716,13 +697,9 @@ EXPORT_SYMBOL_GPL(nf_nat_l3proto_unregister);
 /* No one using conntrack by the time this called. */
 static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
 {
-	struct nf_conn_nat *nat = nf_ct_ext_find(ct, NF_CT_EXT_NAT);
-
-	if (!nat)
-		return;
-
-	rhltable_remove(&nf_nat_bysource_table, &ct->nat_bysource,
-			nf_nat_bysource_params);
+	if (ct->status & IPS_SRC_NAT_DONE)
+		rhltable_remove(&nf_nat_bysource_table, &ct->nat_bysource,
+				nf_nat_bysource_params);
 }
 
 static struct nf_ct_ext_type nat_extend __read_mostly = {
@@ -730,7 +707,6 @@ static struct nf_ct_ext_type nat_extend __read_mostly = {
 	.align		= __alignof__(struct nf_conn_nat),
 	.destroy	= nf_nat_cleanup_conntrack,
 	.id		= NF_CT_EXT_NAT,
-	.flags		= NF_CT_EXT_F_PREALLOC,
 };
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
@@ -751,7 +727,8 @@ static int nfnetlink_parse_nat_proto(struct nlattr *attr,
 	const struct nf_nat_l4proto *l4proto;
 	int err;
 
-	err = nla_parse_nested(tb, CTA_PROTONAT_MAX, attr, protonat_nla_policy);
+	err = nla_parse_nested(tb, CTA_PROTONAT_MAX, attr,
+			       protonat_nla_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -780,7 +757,7 @@ nfnetlink_parse_nat(const struct nlattr *nat,
 
 	memset(range, 0, sizeof(*range));
 
-	err = nla_parse_nested(tb, CTA_NAT_MAX, nat, nat_nla_policy);
+	err = nla_parse_nested(tb, CTA_NAT_MAX, nat, nat_nla_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -819,7 +796,7 @@ nfnetlink_parse_nat_setup(struct nf_conn *ct,
 
 	/* No NAT information has been passed, allocate the null-binding */
 	if (attr == NULL)
-		return __nf_nat_alloc_null_binding(ct, manip);
+		return __nf_nat_alloc_null_binding(ct, manip) == NF_DROP ? -ENOMEM : 0;
 
 	err = nfnetlink_parse_nat(attr, ct, &range, l3proto);
 	if (err < 0)
@@ -836,17 +813,6 @@ nfnetlink_parse_nat_setup(struct nf_conn *ct,
 	return -EOPNOTSUPP;
 }
 #endif
-
-static void __net_exit nf_nat_net_exit(struct net *net)
-{
-	struct nf_nat_proto_clean clean = {};
-
-	nf_ct_iterate_cleanup(net, nf_nat_proto_clean, &clean, 0, 0);
-}
-
-static struct pernet_operations nf_nat_net_ops = {
-	.exit = nf_nat_net_exit,
-};
 
 static struct nf_ct_helper_expectfn follow_master_nat = {
 	.name		= "nat-follow-master",
@@ -868,14 +834,7 @@ static int __init nf_nat_init(void)
 		return ret;
 	}
 
-	ret = register_pernet_subsys(&nf_nat_net_ops);
-	if (ret < 0)
-		goto cleanup_extend;
-
 	nf_ct_helper_expectfn_register(&follow_master_nat);
-
-	/* Initialize fake conntrack so that NAT will skip it */
-	nf_ct_untracked_status_or(IPS_NAT_DONE_MASK);
 
 	BUG_ON(nfnetlink_parse_nat_setup_hook != NULL);
 	RCU_INIT_POINTER(nfnetlink_parse_nat_setup_hook,
@@ -885,18 +844,15 @@ static int __init nf_nat_init(void)
 	RCU_INIT_POINTER(nf_nat_decode_session_hook, __nf_nat_decode_session);
 #endif
 	return 0;
-
- cleanup_extend:
-	rhltable_destroy(&nf_nat_bysource_table);
-	nf_ct_extend_unregister(&nat_extend);
-	return ret;
 }
 
 static void __exit nf_nat_cleanup(void)
 {
+	struct nf_nat_proto_clean clean = {};
 	unsigned int i;
 
-	unregister_pernet_subsys(&nf_nat_net_ops);
+	nf_ct_iterate_destroy(nf_nat_proto_clean, &clean);
+
 	nf_ct_extend_unregister(&nat_extend);
 	nf_ct_helper_expectfn_unregister(&follow_master_nat);
 	RCU_INIT_POINTER(nfnetlink_parse_nat_setup_hook, NULL);

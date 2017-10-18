@@ -126,7 +126,7 @@ static inline unsigned long kmem_cache_flags(unsigned long object_size,
 
 /* Legal flag mask for kmem_cache_create(), for various configurations */
 #define SLAB_CORE_FLAGS (SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA | SLAB_PANIC | \
-			 SLAB_DESTROY_BY_RCU | SLAB_DEBUG_OBJECTS )
+			 SLAB_TYPESAFE_BY_RCU | SLAB_DEBUG_OBJECTS )
 
 #if defined(CONFIG_DEBUG_SLAB)
 #define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER)
@@ -274,22 +274,11 @@ static __always_inline int memcg_charge_slab(struct page *page,
 					     gfp_t gfp, int order,
 					     struct kmem_cache *s)
 {
-	int ret;
-
 	if (!memcg_kmem_enabled())
 		return 0;
 	if (is_root_cache(s))
 		return 0;
-
-	ret = memcg_kmem_charge_memcg(page, gfp, order, s->memcg_params.memcg);
-	if (ret)
-		return ret;
-
-	memcg_kmem_update_page_stat(page,
-			(s->flags & SLAB_RECLAIM_ACCOUNT) ?
-			MEMCG_SLAB_RECLAIMABLE : MEMCG_SLAB_UNRECLAIMABLE,
-			1 << order);
-	return 0;
+	return memcg_kmem_charge_memcg(page, gfp, order, s->memcg_params.memcg);
 }
 
 static __always_inline void memcg_uncharge_slab(struct page *page, int order,
@@ -297,11 +286,6 @@ static __always_inline void memcg_uncharge_slab(struct page *page, int order,
 {
 	if (!memcg_kmem_enabled())
 		return;
-
-	memcg_kmem_update_page_stat(page,
-			(s->flags & SLAB_RECLAIM_ACCOUNT) ?
-			MEMCG_SLAB_RECLAIMABLE : MEMCG_SLAB_UNRECLAIMABLE,
-			-(1 << order));
 	memcg_kmem_uncharge(page, order);
 }
 
@@ -415,7 +399,7 @@ static inline size_t slab_ksize(const struct kmem_cache *s)
 	 * back there or track user information then we can
 	 * only use the space before that information.
 	 */
-	if (s->flags & (SLAB_DESTROY_BY_RCU | SLAB_STORE_USER))
+	if (s->flags & (SLAB_TYPESAFE_BY_RCU | SLAB_STORE_USER))
 		return s->inuse;
 	/*
 	 * Else we can use all the padding etc for the allocation

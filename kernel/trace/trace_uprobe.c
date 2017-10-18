@@ -1156,7 +1156,7 @@ static void __uprobe_perf_func(struct trace_uprobe *tu,
 	}
 
 	perf_trace_buf_submit(entry, size, rctx, call->event.type, 1, regs,
-			      head, NULL);
+			      head, NULL, NULL);
  out:
 	preempt_enable();
 }

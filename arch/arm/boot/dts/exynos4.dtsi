@@ -59,6 +59,9 @@
 		compatible = "samsung,exynos4210-audss-clock";
 		reg = <0x03810000 0x0C>;
 		#clock-cells = <1>;
+		clocks = <&clock CLK_FIN_PLL>, <&clock CLK_FOUT_EPLL>,
+			 <&clock CLK_SCLK_AUDIO0>, <&clock CLK_SCLK_AUDIO0>;
+		clock-names = "pll_ref", "pll_in", "sclk_audio", "sclk_pcm_in";
 	};
 
 	i2s0: i2s@03830000 {
@@ -281,15 +284,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
-	};
-
-	watchdog: watchdog@10060000 {
-		compatible = "samsung,s3c2410-wdt";
-		reg = <0x10060000 0x100>;
-		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clock CLK_WDT>;
-		clock-names = "watchdog";
-		status = "disabled";
 	};
 
 	rtc: rtc@10070000 {
@@ -771,6 +765,7 @@
 		clocks = <&clock CLK_HDMI_CEC>;
 		clock-names = "hdmicec";
 		samsung,syscon-phandle = <&pmu_system_controller>;
+		hdmi-phandle = <&hdmi>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&hdmi_cec>;
 		status = "disabled";

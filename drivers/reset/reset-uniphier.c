@@ -50,6 +50,15 @@ struct uniphier_reset_data {
 	}
 
 /* System reset data */
+#define UNIPHIER_SLD3_SYS_RESET_NAND(id)		\
+	UNIPHIER_RESETX((id), 0x2004, 2)
+
+#define UNIPHIER_LD11_SYS_RESET_NAND(id)		\
+	UNIPHIER_RESETX((id), 0x200c, 0)
+
+#define UNIPHIER_LD11_SYS_RESET_EMMC(id)		\
+	UNIPHIER_RESETX((id), 0x200c, 2)
+
 #define UNIPHIER_SLD3_SYS_RESET_STDMAC(id)		\
 	UNIPHIER_RESETX((id), 0x2000, 10)
 
@@ -65,12 +74,14 @@ struct uniphier_reset_data {
 #define UNIPHIER_PRO4_SYS_RESET_USB3(id, ch)		\
 	UNIPHIER_RESETX((id), 0x2000 + 0x4 * (ch), 17)
 
-const struct uniphier_reset_data uniphier_sld3_sys_reset_data[] = {
+static const struct uniphier_reset_data uniphier_sld3_sys_reset_data[] = {
+	UNIPHIER_SLD3_SYS_RESET_NAND(2),
 	UNIPHIER_SLD3_SYS_RESET_STDMAC(8),	/* Ether, HSC, MIO */
 	UNIPHIER_RESET_END,
 };
 
-const struct uniphier_reset_data uniphier_pro4_sys_reset_data[] = {
+static const struct uniphier_reset_data uniphier_pro4_sys_reset_data[] = {
+	UNIPHIER_SLD3_SYS_RESET_NAND(2),
 	UNIPHIER_SLD3_SYS_RESET_STDMAC(8),	/* HSC, MIO, RLE */
 	UNIPHIER_PRO4_SYS_RESET_GIO(12),	/* Ether, SATA, USB3 */
 	UNIPHIER_PRO4_SYS_RESET_USB3(14, 0),
@@ -78,7 +89,8 @@ const struct uniphier_reset_data uniphier_pro4_sys_reset_data[] = {
 	UNIPHIER_RESET_END,
 };
 
-const struct uniphier_reset_data uniphier_pro5_sys_reset_data[] = {
+static const struct uniphier_reset_data uniphier_pro5_sys_reset_data[] = {
+	UNIPHIER_SLD3_SYS_RESET_NAND(2),
 	UNIPHIER_SLD3_SYS_RESET_STDMAC(8),	/* HSC */
 	UNIPHIER_PRO4_SYS_RESET_GIO(12),	/* PCIe, USB3 */
 	UNIPHIER_PRO4_SYS_RESET_USB3(14, 0),
@@ -86,7 +98,8 @@ const struct uniphier_reset_data uniphier_pro5_sys_reset_data[] = {
 	UNIPHIER_RESET_END,
 };
 
-const struct uniphier_reset_data uniphier_pxs2_sys_reset_data[] = {
+static const struct uniphier_reset_data uniphier_pxs2_sys_reset_data[] = {
+	UNIPHIER_SLD3_SYS_RESET_NAND(2),
 	UNIPHIER_SLD3_SYS_RESET_STDMAC(8),	/* HSC, RLE */
 	UNIPHIER_PRO4_SYS_RESET_USB3(14, 0),
 	UNIPHIER_PRO4_SYS_RESET_USB3(15, 1),
@@ -100,12 +113,16 @@ const struct uniphier_reset_data uniphier_pxs2_sys_reset_data[] = {
 	UNIPHIER_RESET_END,
 };
 
-const struct uniphier_reset_data uniphier_ld11_sys_reset_data[] = {
+static const struct uniphier_reset_data uniphier_ld11_sys_reset_data[] = {
+	UNIPHIER_LD11_SYS_RESET_NAND(2),
+	UNIPHIER_LD11_SYS_RESET_EMMC(4),
 	UNIPHIER_LD11_SYS_RESET_STDMAC(8),	/* HSC, MIO */
 	UNIPHIER_RESET_END,
 };
 
-const struct uniphier_reset_data uniphier_ld20_sys_reset_data[] = {
+static const struct uniphier_reset_data uniphier_ld20_sys_reset_data[] = {
+	UNIPHIER_LD11_SYS_RESET_NAND(2),
+	UNIPHIER_LD11_SYS_RESET_EMMC(4),
 	UNIPHIER_LD11_SYS_RESET_STDMAC(8),	/* HSC */
 	UNIPHIER_LD20_SYS_RESET_GIO(12),	/* PCIe, USB3 */
 	UNIPHIER_RESETX(16, 0x200c, 12),	/* USB30-PHY0 */
@@ -134,7 +151,7 @@ const struct uniphier_reset_data uniphier_ld20_sys_reset_data[] = {
 #define UNIPHIER_MIO_RESET_DMAC(id)			\
 	UNIPHIER_RESETX((id), 0x110, 17)
 
-const struct uniphier_reset_data uniphier_sld3_mio_reset_data[] = {
+static const struct uniphier_reset_data uniphier_sld3_mio_reset_data[] = {
 	UNIPHIER_MIO_RESET_SD(0, 0),
 	UNIPHIER_MIO_RESET_SD(1, 1),
 	UNIPHIER_MIO_RESET_SD(2, 2),
@@ -154,7 +171,7 @@ const struct uniphier_reset_data uniphier_sld3_mio_reset_data[] = {
 	UNIPHIER_RESET_END,
 };
 
-const struct uniphier_reset_data uniphier_pro5_sd_reset_data[] = {
+static const struct uniphier_reset_data uniphier_pro5_sd_reset_data[] = {
 	UNIPHIER_MIO_RESET_SD(0, 0),
 	UNIPHIER_MIO_RESET_SD(1, 1),
 	UNIPHIER_MIO_RESET_EMMC_HW_RESET(6, 1),
@@ -171,7 +188,7 @@ const struct uniphier_reset_data uniphier_pro5_sd_reset_data[] = {
 #define UNIPHIER_PERI_RESET_FI2C(id, ch)		\
 	UNIPHIER_RESETX((id), 0x114, 24 + (ch))
 
-const struct uniphier_reset_data uniphier_ld4_peri_reset_data[] = {
+static const struct uniphier_reset_data uniphier_ld4_peri_reset_data[] = {
 	UNIPHIER_PERI_RESET_UART(0, 0),
 	UNIPHIER_PERI_RESET_UART(1, 1),
 	UNIPHIER_PERI_RESET_UART(2, 2),
@@ -184,7 +201,7 @@ const struct uniphier_reset_data uniphier_ld4_peri_reset_data[] = {
 	UNIPHIER_RESET_END,
 };
 
-const struct uniphier_reset_data uniphier_pro4_peri_reset_data[] = {
+static const struct uniphier_reset_data uniphier_pro4_peri_reset_data[] = {
 	UNIPHIER_PERI_RESET_UART(0, 0),
 	UNIPHIER_PERI_RESET_UART(1, 1),
 	UNIPHIER_PERI_RESET_UART(2, 2),

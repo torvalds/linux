@@ -1533,7 +1533,8 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 	if (conf & 0x100000)
 		entry->i2c_upper_default = true;
 
-	entry->hasht = (entry->location << 4) | entry->type;
+	entry->hasht = (entry->extdev << 8) | (entry->location << 4) |
+			entry->type;
 	entry->hashm = (entry->heads << 8) | (link << 6) | entry->or;
 	return true;
 }

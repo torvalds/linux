@@ -159,11 +159,11 @@ struct badblocks;
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 
 struct blk_integrity {
-	struct blk_integrity_profile	*profile;
-	unsigned char			flags;
-	unsigned char			tuple_size;
-	unsigned char			interval_exp;
-	unsigned char			tag_size;
+	const struct blk_integrity_profile	*profile;
+	unsigned char				flags;
+	unsigned char				tuple_size;
+	unsigned char				interval_exp;
+	unsigned char				tag_size;
 };
 
 #endif	/* CONFIG_BLK_DEV_INTEGRITY */
@@ -217,12 +217,6 @@ static inline struct gendisk *part_to_disk(struct hd_struct *part)
 			return dev_to_disk(part_to_dev(part));
 	}
 	return NULL;
-}
-
-static inline int blk_part_pack_uuid(const u8 *uuid_str, u8 *to)
-{
-	uuid_be_to_bin(uuid_str, (uuid_be *)to);
-	return 0;
 }
 
 static inline int disk_max_parts(struct gendisk *disk)
@@ -722,11 +716,9 @@ static inline void part_nr_sects_write(struct hd_struct *part, sector_t size)
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 extern void blk_integrity_add(struct gendisk *);
 extern void blk_integrity_del(struct gendisk *);
-extern void blk_integrity_revalidate(struct gendisk *);
 #else	/* CONFIG_BLK_DEV_INTEGRITY */
 static inline void blk_integrity_add(struct gendisk *disk) { }
 static inline void blk_integrity_del(struct gendisk *disk) { }
-static inline void blk_integrity_revalidate(struct gendisk *disk) { }
 #endif	/* CONFIG_BLK_DEV_INTEGRITY */
 
 #else /* CONFIG_BLOCK */
@@ -737,11 +729,6 @@ static inline dev_t blk_lookup_devt(const char *name, int partno)
 {
 	dev_t devt = MKDEV(0, 0);
 	return devt;
-}
-
-static inline int blk_part_pack_uuid(const u8 *uuid_str, u8 *to)
-{
-	return -EINVAL;
 }
 #endif /* CONFIG_BLOCK */
 

@@ -102,9 +102,9 @@ static int nft_range_init(const struct nft_ctx *ctx, const struct nft_expr *expr
 	priv->len = desc_from.len;
 	return 0;
 err2:
-	nft_data_uninit(&priv->data_to, desc_to.type);
+	nft_data_release(&priv->data_to, desc_to.type);
 err1:
-	nft_data_uninit(&priv->data_from, desc_from.type);
+	nft_data_release(&priv->data_from, desc_from.type);
 	return err;
 }
 

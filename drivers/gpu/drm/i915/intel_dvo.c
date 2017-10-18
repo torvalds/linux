@@ -350,7 +350,7 @@ static const struct drm_connector_funcs intel_dvo_connector_funcs = {
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_dvo_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.atomic_get_property = intel_connector_atomic_get_property,
+	.set_property = drm_atomic_helper_connector_set_property,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 };
@@ -515,6 +515,7 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 				 "DVO %c", port_name(port));
 
 		intel_encoder->type = INTEL_OUTPUT_DVO;
+		intel_encoder->power_domain = POWER_DOMAIN_PORT_OTHER;
 		intel_encoder->port = port;
 		intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
 

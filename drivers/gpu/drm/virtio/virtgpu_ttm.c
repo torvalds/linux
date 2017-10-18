@@ -25,11 +25,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <ttm/ttm_bo_api.h>
-#include <ttm/ttm_bo_driver.h>
-#include <ttm/ttm_placement.h>
-#include <ttm/ttm_page_alloc.h>
-#include <ttm/ttm_module.h>
+#include <drm/ttm/ttm_bo_api.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_page_alloc.h>
+#include <drm/ttm/ttm_module.h>
 #include <drm/drmP.h>
 #include <drm/drm.h>
 #include <drm/virtgpu_drm.h>
@@ -431,6 +431,7 @@ static struct ttm_bo_driver virtio_gpu_bo_driver = {
 	.verify_access = &virtio_gpu_verify_access,
 	.io_mem_reserve = &virtio_gpu_ttm_io_mem_reserve,
 	.io_mem_free = &virtio_gpu_ttm_io_mem_free,
+	.io_mem_pfn = ttm_bo_default_io_mem_pfn,
 	.move_notify = &virtio_gpu_bo_move_notify,
 	.swap_notify = &virtio_gpu_bo_swap_notify,
 };

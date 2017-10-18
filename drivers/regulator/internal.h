@@ -29,7 +29,7 @@ struct regulator {
 	int uA_load;
 	int min_uV;
 	int max_uV;
-	char *supply_name;
+	const char *supply_name;
 	struct device_attribute dev_attr;
 	struct regulator_dev *rdev;
 	struct dentry *debugfs;

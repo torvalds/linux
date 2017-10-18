@@ -812,13 +812,6 @@ struct ldlm_lock {
 	/** referenced export object */
 	struct obd_export	*l_exp_refs_target;
 #endif
-	/**
-	 * export blocking dlm lock list, protected by
-	 * l_export->exp_bl_list_lock.
-	 * Lock order of waiting_lists_spinlock, exp_bl_list_lock and res lock
-	 * is: res lock -> exp_bl_list_lock -> wanting_lists_spinlock.
-	 */
-	struct list_head		l_exp_list;
 };
 
 /**
@@ -1192,6 +1185,10 @@ ldlm_namespace_new(struct obd_device *obd, char *name,
 		   enum ldlm_side client, enum ldlm_appetite apt,
 		   enum ldlm_ns_type ns_type);
 int ldlm_namespace_cleanup(struct ldlm_namespace *ns, __u64 flags);
+void ldlm_namespace_free_prior(struct ldlm_namespace *ns,
+			       struct obd_import *imp,
+			       int force);
+void ldlm_namespace_free_post(struct ldlm_namespace *ns);
 void ldlm_namespace_get(struct ldlm_namespace *ns);
 void ldlm_namespace_put(struct ldlm_namespace *ns);
 int ldlm_debugfs_setup(void);

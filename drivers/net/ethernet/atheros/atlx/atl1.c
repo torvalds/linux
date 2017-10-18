@@ -1886,7 +1886,7 @@ static u16 atl1_alloc_rx_buffers(struct atl1_adapter *adapter)
 		buffer_info->skb = skb;
 		buffer_info->length = (u16) adapter->rx_buffer_len;
 		page = virt_to_page(skb->data);
-		offset = (unsigned long)skb->data & ~PAGE_MASK;
+		offset = offset_in_page(skb->data);
 		buffer_info->dma = pci_map_page(pdev, page, offset,
 						adapter->rx_buffer_len,
 						PCI_DMA_FROMDEVICE);
@@ -2230,7 +2230,7 @@ static void atl1_tx_map(struct atl1_adapter *adapter, struct sk_buff *skb,
 		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
 		buffer_info->length = hdr_len;
 		page = virt_to_page(skb->data);
-		offset = (unsigned long)skb->data & ~PAGE_MASK;
+		offset = offset_in_page(skb->data);
 		buffer_info->dma = pci_map_page(adapter->pdev, page,
 						offset, hdr_len,
 						PCI_DMA_TODEVICE);
@@ -2254,9 +2254,8 @@ static void atl1_tx_map(struct atl1_adapter *adapter, struct sk_buff *skb,
 				data_len -= buffer_info->length;
 				page = virt_to_page(skb->data +
 					(hdr_len + i * ATL1_MAX_TX_BUF_LEN));
-				offset = (unsigned long)(skb->data +
-					(hdr_len + i * ATL1_MAX_TX_BUF_LEN)) &
-					~PAGE_MASK;
+				offset = offset_in_page(skb->data +
+					(hdr_len + i * ATL1_MAX_TX_BUF_LEN));
 				buffer_info->dma = pci_map_page(adapter->pdev,
 					page, offset, buffer_info->length,
 					PCI_DMA_TODEVICE);
@@ -2268,7 +2267,7 @@ static void atl1_tx_map(struct atl1_adapter *adapter, struct sk_buff *skb,
 		/* not TSO */
 		buffer_info->length = buf_len;
 		page = virt_to_page(skb->data);
-		offset = (unsigned long)skb->data & ~PAGE_MASK;
+		offset = offset_in_page(skb->data);
 		buffer_info->dma = pci_map_page(adapter->pdev, page,
 			offset, buf_len, PCI_DMA_TODEVICE);
 		if (++next_to_use == tpd_ring->count)

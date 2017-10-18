@@ -767,6 +767,8 @@ static int get_oxygen_model(struct oxygen *chip,
 		[MODEL_FANTASIA]	= "TempoTec HiFier Fantasia",
 		[MODEL_SERENADE]	= "TempoTec HiFier Serenade",
 		[MODEL_HG2PCI]		= "CMI8787-HG2PCI",
+		[MODEL_XONAR_DG]        = "Xonar DG",
+		[MODEL_XONAR_DGX]       = "Xonar DGX",
 	};
 
 	chip->model = model_generic;
@@ -829,12 +831,8 @@ static int get_oxygen_model(struct oxygen *chip,
 		chip->model.dac_channels_mixer = 2;
 		break;
 	case MODEL_XONAR_DG:
-		chip->model = model_xonar_dg;
-		chip->model.shortname = "Xonar DG";
-		break;
 	case MODEL_XONAR_DGX:
 		chip->model = model_xonar_dg;
-		chip->model.shortname = "Xonar DGX";
 		break;
 	}
 	if (id->driver_data == MODEL_MERIDIAN ||

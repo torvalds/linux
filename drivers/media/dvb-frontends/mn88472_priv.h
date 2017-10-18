@@ -18,6 +18,7 @@
 #define MN88472_PRIV_H
 
 #include "dvb_frontend.h"
+#include "dvb_math.h"
 #include "mn88472.h"
 #include <linux/firmware.h>
 #include <linux/regmap.h>

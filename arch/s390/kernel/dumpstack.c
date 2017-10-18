@@ -98,8 +98,10 @@ static int show_address(void *data, unsigned long address, int reliable)
 	return 0;
 }
 
-static void show_trace(struct task_struct *task, unsigned long sp)
+void show_stack(struct task_struct *task, unsigned long *stack)
 {
+	unsigned long sp = (unsigned long) stack;
+
 	if (!sp)
 		sp = task ? task->thread.ksp : current_stack_pointer();
 	printk("Call Trace:\n");
@@ -107,29 +109,6 @@ static void show_trace(struct task_struct *task, unsigned long sp)
 	if (!task)
 		task = current;
 	debug_show_held_locks(task);
-}
-
-void show_stack(struct task_struct *task, unsigned long *sp)
-{
-	unsigned long *stack;
-	int i;
-
-	stack = sp;
-	if (!stack) {
-		if (!task)
-			stack = (unsigned long *)current_stack_pointer();
-		else
-			stack = (unsigned long *)task->thread.ksp;
-	}
-	printk(KERN_DEFAULT "Stack:\n");
-	for (i = 0; i < 20; i++) {
-		if (((addr_t) stack & (THREAD_SIZE-1)) == 0)
-			break;
-		if (i % 4 == 0)
-			printk(KERN_DEFAULT "       ");
-		pr_cont("%016lx%c", *stack++, i % 4 == 3 ? '\n' : ' ');
-	}
-	show_trace(task, (unsigned long)sp);
 }
 
 static void show_last_breaking_event(struct pt_regs *regs)
@@ -149,8 +128,8 @@ void show_registers(struct pt_regs *regs)
 		pr_cont(" (%pSR)", (void *)regs->psw.addr);
 	pr_cont("\n");
 	printk("           R:%x T:%x IO:%x EX:%x Key:%x M:%x W:%x "
-	       "P:%x AS:%x CC:%x PM:%x", psw->r, psw->t, psw->i, psw->e,
-	       psw->key, psw->m, psw->w, psw->p, psw->as, psw->cc, psw->pm);
+	       "P:%x AS:%x CC:%x PM:%x", psw->per, psw->dat, psw->io, psw->ext,
+	       psw->key, psw->mcheck, psw->wait, psw->pstate, psw->as, psw->cc, psw->pm);
 	pr_cont(" RI:%x EA:%x\n", psw->ri, psw->eaba);
 	printk("%s GPRS: %016lx %016lx %016lx %016lx\n", mode,
 	       regs->gprs[0], regs->gprs[1], regs->gprs[2], regs->gprs[3]);
@@ -169,7 +148,7 @@ void show_regs(struct pt_regs *regs)
 	show_registers(regs);
 	/* Show stack backtrace if pt_regs is from kernel mode */
 	if (!user_mode(regs))
-		show_trace(NULL, regs->gprs[15]);
+		show_stack(NULL, (unsigned long *) regs->gprs[15]);
 	show_last_breaking_event(regs);
 }
 

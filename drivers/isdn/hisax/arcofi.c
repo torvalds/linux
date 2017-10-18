@@ -125,9 +125,7 @@ clear_arcofi(struct IsdnCardState *cs) {
 
 void
 init_arcofi(struct IsdnCardState *cs) {
-	cs->dc.isac.arcofitimer.function = (void *) arcofi_timer;
-	cs->dc.isac.arcofitimer.data = (long) cs;
-	init_timer(&cs->dc.isac.arcofitimer);
+	setup_timer(&cs->dc.isac.arcofitimer, (void *)arcofi_timer, (long)cs);
 	init_waitqueue_head(&cs->dc.isac.arcofi_wait);
 	test_and_set_bit(HW_ARCOFI, &cs->HW_Flags);
 }

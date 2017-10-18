@@ -8,6 +8,8 @@
  */
 #include "util.h"
 #include <api/fs/fs.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <poll.h>
 #include "cpumap.h"
 #include "thread_map.h"
@@ -15,12 +17,15 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "debug.h"
+#include "units.h"
 #include "asm/bug.h"
+#include <signal.h>
 #include <unistd.h>
 
 #include "parse-events.h"
 #include <subcmd/parse-options.h>
 
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 
 #include <linux/bitops.h>
@@ -777,7 +782,7 @@ union perf_event *perf_mmap__read_forward(struct perf_mmap *md, bool check_messu
 	/*
 	 * Check if event was unmapped due to a POLLHUP/POLLERR.
 	 */
-	if (!atomic_read(&md->refcnt))
+	if (!refcount_read(&md->refcnt))
 		return NULL;
 
 	head = perf_mmap__read_head(md);
@@ -794,7 +799,7 @@ perf_mmap__read_backward(struct perf_mmap *md)
 	/*
 	 * Check if event was unmapped due to a POLLHUP/POLLERR.
 	 */
-	if (!atomic_read(&md->refcnt))
+	if (!refcount_read(&md->refcnt))
 		return NULL;
 
 	head = perf_mmap__read_head(md);
@@ -856,7 +861,7 @@ void perf_mmap__read_catchup(struct perf_mmap *md)
 {
 	u64 head;
 
-	if (!atomic_read(&md->refcnt))
+	if (!refcount_read(&md->refcnt))
 		return;
 
 	head = perf_mmap__read_head(md);
@@ -875,14 +880,14 @@ static bool perf_mmap__empty(struct perf_mmap *md)
 
 static void perf_mmap__get(struct perf_mmap *map)
 {
-	atomic_inc(&map->refcnt);
+	refcount_inc(&map->refcnt);
 }
 
 static void perf_mmap__put(struct perf_mmap *md)
 {
-	BUG_ON(md->base && atomic_read(&md->refcnt) == 0);
+	BUG_ON(md->base && refcount_read(&md->refcnt) == 0);
 
-	if (atomic_dec_and_test(&md->refcnt))
+	if (refcount_dec_and_test(&md->refcnt))
 		perf_mmap__munmap(md);
 }
 
@@ -894,7 +899,7 @@ void perf_mmap__consume(struct perf_mmap *md, bool overwrite)
 		perf_mmap__write_tail(md, old);
 	}
 
-	if (atomic_read(&md->refcnt) == 1 && perf_mmap__empty(md))
+	if (refcount_read(&md->refcnt) == 1 && perf_mmap__empty(md))
 		perf_mmap__put(md);
 }
 
@@ -937,7 +942,7 @@ static void perf_mmap__munmap(struct perf_mmap *map)
 		munmap(map->base, perf_mmap__mmap_len(map));
 		map->base = NULL;
 		map->fd = -1;
-		atomic_set(&map->refcnt, 0);
+		refcount_set(&map->refcnt, 0);
 	}
 	auxtrace_mmap__munmap(&map->auxtrace_mmap);
 }
@@ -974,8 +979,19 @@ static struct perf_mmap *perf_evlist__alloc_mmap(struct perf_evlist *evlist)
 	if (!map)
 		return NULL;
 
-	for (i = 0; i < evlist->nr_mmaps; i++)
+	for (i = 0; i < evlist->nr_mmaps; i++) {
 		map[i].fd = -1;
+		/*
+		 * When the perf_mmap() call is made we grab one refcount, plus
+		 * one extra to let perf_evlist__mmap_consume() get the last
+		 * events after all real references (perf_mmap__get()) are
+		 * dropped.
+		 *
+		 * Each PERF_EVENT_IOC_SET_OUTPUT points to this mmap and
+		 * thus does perf_mmap__get() on it.
+		 */
+		refcount_set(&map[i].refcnt, 0);
+	}
 	return map;
 }
 
@@ -1001,7 +1017,7 @@ static int perf_mmap__mmap(struct perf_mmap *map,
 	 * evlist layer can't just drop it when filtering events in
 	 * perf_evlist__filter_pollfd().
 	 */
-	atomic_set(&map->refcnt, 2);
+	refcount_set(&map->refcnt, 2);
 	map->prev = 0;
 	map->mask = mp->mask;
 	map->base = mmap(NULL, perf_mmap__mmap_len(map), mp->prot,

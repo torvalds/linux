@@ -26,8 +26,9 @@
  * Authors: Dave Airlie <airlied@redhat.com>
  */
 #include <drm/drmP.h>
+#include <drm/ttm/ttm_page_alloc.h>
+
 #include "cirrus_drv.h"
-#include <ttm/ttm_page_alloc.h>
 
 static inline struct cirrus_device *
 cirrus_bdev(struct ttm_bo_device *bd)
@@ -236,6 +237,7 @@ struct ttm_bo_driver cirrus_bo_driver = {
 	.verify_access = cirrus_bo_verify_access,
 	.io_mem_reserve = &cirrus_ttm_io_mem_reserve,
 	.io_mem_free = &cirrus_ttm_io_mem_free,
+	.io_mem_pfn = ttm_bo_default_io_mem_pfn,
 };
 
 int cirrus_mm_init(struct cirrus_device *cirrus)

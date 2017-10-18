@@ -340,6 +340,7 @@ out:
 static struct target_type delay_target = {
 	.name	     = "delay",
 	.version     = {1, 2, 1},
+	.features    = DM_TARGET_PASSES_INTEGRITY,
 	.module      = THIS_MODULE,
 	.ctr	     = delay_ctr,
 	.dtr	     = delay_dtr,

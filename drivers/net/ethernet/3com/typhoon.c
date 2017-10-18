@@ -283,7 +283,6 @@ struct typhoon {
 	spinlock_t		command_lock	____cacheline_aligned;
 	struct basic_ring	cmdRing;
 	struct basic_ring	respRing;
-	struct net_device_stats	stats;
 	struct net_device_stats	stats_saved;
 	struct typhoon_shared *	shared;
 	dma_addr_t		shared_dma;
@@ -898,7 +897,7 @@ typhoon_set_rx_mode(struct net_device *dev)
 static int
 typhoon_do_get_stats(struct typhoon *tp)
 {
-	struct net_device_stats *stats = &tp->stats;
+	struct net_device_stats *stats = &tp->dev->stats;
 	struct net_device_stats *saved = &tp->stats_saved;
 	struct cmd_desc xp_cmd;
 	struct resp_desc xp_resp[7];
@@ -951,7 +950,7 @@ static struct net_device_stats *
 typhoon_get_stats(struct net_device *dev)
 {
 	struct typhoon *tp = netdev_priv(dev);
-	struct net_device_stats *stats = &tp->stats;
+	struct net_device_stats *stats = &tp->dev->stats;
 	struct net_device_stats *saved = &tp->stats_saved;
 
 	smp_rmb();
@@ -1991,7 +1990,7 @@ typhoon_stop_runtime(struct typhoon *tp, int wait_type)
 	tp->card_state = Sleeping;
 	smp_wmb();
 	typhoon_do_get_stats(tp);
-	memcpy(&tp->stats_saved, &tp->stats, sizeof(struct net_device_stats));
+	memcpy(&tp->stats_saved, &tp->dev->stats, sizeof(struct net_device_stats));
 
 	INIT_COMMAND_NO_RESPONSE(&xp_cmd, TYPHOON_CMD_HALT);
 	typhoon_issue_command(tp, 1, &xp_cmd, 0, NULL);

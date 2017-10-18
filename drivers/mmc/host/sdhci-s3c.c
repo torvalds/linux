@@ -190,9 +190,7 @@ static unsigned int sdhci_s3c_consider_clock(struct sdhci_s3c *ourhost,
 	 * speed possible with selected clock source and skip the division.
 	 */
 	if (ourhost->no_divider) {
-		spin_unlock_irq(&ourhost->host->lock);
 		rate = clk_round_rate(clksrc, wanted);
-		spin_lock_irq(&ourhost->host->lock);
 		return wanted - rate;
 	}
 
@@ -389,9 +387,7 @@ static void sdhci_cmu_set_clock(struct sdhci_host *host, unsigned int clock)
 	clk &= ~SDHCI_CLOCK_CARD_EN;
 	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
 
-	spin_unlock_irq(&host->lock);
 	ret = clk_set_rate(ourhost->clk_bus[ourhost->cur_clk], clock);
-	spin_lock_irq(&host->lock);
 	if (ret != 0) {
 		dev_err(dev, "%s: failed to set clock rate %uHz\n",
 			mmc_hostname(host->mmc), clock);
@@ -743,6 +739,9 @@ static int sdhci_s3c_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
+
 	return sdhci_suspend_host(host);
 }
 
@@ -763,6 +762,9 @@ static int sdhci_s3c_runtime_suspend(struct device *dev)
 	int ret;
 
 	ret = sdhci_runtime_suspend_host(host);
+
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
 
 	if (ourhost->cur_clk >= 0)
 		clk_disable_unprepare(ourhost->clk_bus[ourhost->cur_clk]);

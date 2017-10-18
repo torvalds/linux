@@ -50,6 +50,7 @@ struct i915_vma {
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm;
 	struct drm_i915_fence_reg *fence;
+	struct reservation_object *resv; /** Alias of obj->resv */
 	struct sg_table *pages;
 	void __iomem *iomap;
 	u64 size;
@@ -99,16 +100,25 @@ struct i915_vma {
 
 	struct list_head obj_link; /* Link in the object's VMA list */
 	struct rb_node obj_node;
+	struct hlist_node obj_hash;
 
-	/** This vma's place in the batchbuffer or on the eviction list */
-	struct list_head exec_list;
+	/** This vma's place in the execbuf reservation list */
+	struct list_head exec_link;
+	struct list_head reloc_link;
+
+	/** This vma's place in the eviction list */
+	struct list_head evict_link;
 
 	/**
 	 * Used for performing relocations during execbuffer insertion.
 	 */
-	struct hlist_node exec_node;
-	unsigned long exec_handle;
 	struct drm_i915_gem_exec_object2 *exec_entry;
+	struct hlist_node exec_node;
+	u32 exec_handle;
+
+	struct i915_gem_context *ctx;
+	struct hlist_node ctx_node;
+	u32 ctx_handle;
 };
 
 struct i915_vma *
@@ -228,12 +238,12 @@ i915_vma_compare(struct i915_vma *vma,
 int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 		  u32 flags);
 bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long cache_level);
-bool
-i915_vma_misplaced(struct i915_vma *vma, u64 size, u64 alignment, u64 flags);
+bool i915_vma_misplaced(const struct i915_vma *vma,
+			u64 size, u64 alignment, u64 flags);
 void __i915_vma_set_map_and_fenceable(struct i915_vma *vma);
 int __must_check i915_vma_unbind(struct i915_vma *vma);
+void i915_vma_unlink_ctx(struct i915_vma *vma);
 void i915_vma_close(struct i915_vma *vma);
-void i915_vma_destroy(struct i915_vma *vma);
 
 int __i915_vma_do_pin(struct i915_vma *vma,
 		      u64 size, u64 alignment, u64 flags);
@@ -274,12 +284,12 @@ static inline void __i915_vma_pin(struct i915_vma *vma)
 
 static inline void __i915_vma_unpin(struct i915_vma *vma)
 {
-	GEM_BUG_ON(!i915_vma_is_pinned(vma));
 	vma->flags--;
 }
 
 static inline void i915_vma_unpin(struct i915_vma *vma)
 {
+	GEM_BUG_ON(!i915_vma_is_pinned(vma));
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	__i915_vma_unpin(vma);
 }

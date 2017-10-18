@@ -169,9 +169,7 @@ void
 L3InitTimer(struct l3_process *pc, struct L3Timer *t)
 {
 	t->pc = pc;
-	t->tl.function = (void *) L3ExpireTimer;
-	t->tl.data = (long) t;
-	init_timer(&t->tl);
+	setup_timer(&t->tl, (void *)L3ExpireTimer, (long)t);
 }
 
 void

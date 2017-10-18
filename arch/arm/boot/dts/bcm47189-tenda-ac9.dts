@@ -26,25 +26,31 @@
 		usb {
 			label = "bcm53xx:blue:usb";
 			gpios = <&chipcommon 1 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
 		};
 
 		wps {
 			label = "bcm53xx:blue:wps";
 			gpios = <&chipcommon 10 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
 		};
 
 		5ghz {
 			label = "bcm53xx:blue:5ghz";
 			gpios = <&chipcommon 11 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
 		};
 
 		system {
 			label = "bcm53xx:blue:system";
 			gpios = <&chipcommon 15 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "timer";
+		};
+	};
+
+	pcie0_leds {
+		compatible = "gpio-leds";
+
+		2ghz {
+			label = "bcm53xx:blue:2ghz";
+			gpios = <&pcie0_chipcommon 3 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -69,6 +75,33 @@
 			label = "WPS";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&chipcommon 9 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&pcie0 {
+	ranges = <0x00000000 0 0 0 0 0x00100000>;
+	#address-cells = <3>;
+	#size-cells = <2>;
+
+	bridge@0,0,0 {
+		reg = <0x0000 0 0 0 0>;
+		ranges = <0x00000000 0 0 0 0 0 0 0x00100000>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		wifi@0,1,0 {
+			reg = <0x0000 0 0 0 0>;
+			ranges = <0x00000000 0 0 0 0x00100000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			pcie0_chipcommon: chipcommon@0 {
+				reg = <0 0x1000>;
+
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
 		};
 	};
 };

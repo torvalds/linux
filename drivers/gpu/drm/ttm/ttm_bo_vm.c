@@ -30,9 +30,9 @@
 
 #define pr_fmt(fmt) "[TTM] " fmt
 
-#include <ttm/ttm_module.h>
-#include <ttm/ttm_bo_driver.h>
-#include <ttm/ttm_placement.h>
+#include <drm/ttm/ttm_module.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_placement.h>
 #include <drm/drm_vma_manager.h>
 #include <linux/mm.h>
 #include <linux/pfn_t.h>
@@ -231,7 +231,7 @@ static int ttm_bo_vm_fault(struct vm_fault *vmf)
 	 */
 	for (i = 0; i < TTM_BO_VM_NUM_PREFAULT; ++i) {
 		if (bo->mem.bus.is_iomem)
-			pfn = ((bo->mem.bus.base + bo->mem.bus.offset) >> PAGE_SHIFT) + page_offset;
+			pfn = bdev->driver->io_mem_pfn(bo, page_offset);
 		else {
 			page = ttm->pages[page_offset];
 			if (unlikely(!page && i == 0)) {
@@ -323,6 +323,14 @@ static struct ttm_buffer_object *ttm_bo_vm_lookup(struct ttm_bo_device *bdev,
 
 	return bo;
 }
+
+unsigned long ttm_bo_default_io_mem_pfn(struct ttm_buffer_object *bo,
+					unsigned long page_offset)
+{
+	return ((bo->mem.bus.base + bo->mem.bus.offset) >> PAGE_SHIFT)
+		+ page_offset;
+}
+EXPORT_SYMBOL(ttm_bo_default_io_mem_pfn);
 
 int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
 		struct ttm_bo_device *bdev)

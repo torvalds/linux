@@ -818,7 +818,7 @@ static const struct super_operations s_ops = {
 static int bm_fill_super(struct super_block *sb, void *data, int silent)
 {
 	int err;
-	static struct tree_descr bm_files[] = {
+	static const struct tree_descr bm_files[] = {
 		[2] = {"status", &bm_status_operations, S_IWUSR|S_IRUGO},
 		[3] = {"register", &bm_register_operations, S_IWUSR},
 		/* last one */ {""}

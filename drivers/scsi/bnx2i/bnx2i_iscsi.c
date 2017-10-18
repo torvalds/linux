@@ -1909,7 +1909,8 @@ static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 
 	bnx2i_ep_active_list_add(hba, bnx2i_ep);
 
-	if (bnx2i_map_ep_dbell_regs(bnx2i_ep))
+	rc = bnx2i_map_ep_dbell_regs(bnx2i_ep);
+	if (rc)
 		goto del_active_ep;
 
 	mutex_unlock(&hba->net_dev_lock);

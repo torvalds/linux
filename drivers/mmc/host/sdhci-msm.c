@@ -991,12 +991,8 @@ static void sdhci_msm_set_uhs_signaling(struct sdhci_host *host,
 		mmc_hostname(host->mmc), host->clock, uhs, ctrl_2);
 	sdhci_writew(host, ctrl_2, SDHCI_HOST_CONTROL2);
 
-	spin_unlock_irq(&host->lock);
-
 	if (mmc->ios.timing == MMC_TIMING_MMC_HS400)
 		sdhci_msm_hs400(host, &mmc->ios);
-
-	spin_lock_irq(&host->lock);
 }
 
 static void sdhci_msm_voltage_switch(struct sdhci_host *host)
@@ -1089,13 +1085,9 @@ static void sdhci_msm_set_clock(struct sdhci_host *host, unsigned int clock)
 		goto out;
 	}
 
-	spin_unlock_irq(&host->lock);
-
 	sdhci_msm_hc_select_mode(host);
 
 	msm_set_clock_rate_for_bus_mode(host, clock);
-
-	spin_lock_irq(&host->lock);
 out:
 	__sdhci_msm_set_clock(host, clock);
 }

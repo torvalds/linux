@@ -16,7 +16,6 @@
 #include <linux/msi.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
-#include "../include/mc-bus.h"
 #include "fsl-mc-private.h"
 
 static struct irq_chip its_msi_irq_chip = {
@@ -95,8 +94,8 @@ int __init its_fsl_mc_msi_init(void)
 			continue;
 		}
 
-		WARN_ON(mc_msi_domain->
-				host_data != &its_fsl_mc_msi_domain_info);
+		WARN_ON(mc_msi_domain->host_data !=
+			&its_fsl_mc_msi_domain_info);
 
 		pr_info("fsl-mc MSI: %s domain created\n", np->full_name);
 	}

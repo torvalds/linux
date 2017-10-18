@@ -362,7 +362,7 @@ static int snd_audigy2nx_led_resume(struct usb_mixer_elem_list *list)
 }
 
 /* name and private_value are set dynamically */
-static struct snd_kcontrol_new snd_audigy2nx_control = {
+static const struct snd_kcontrol_new snd_audigy2nx_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.info = snd_audigy2nx_led_info,
 	.get = snd_audigy2nx_led_get,
@@ -1877,6 +1877,12 @@ void snd_usb_mixer_fu_apply_quirk(struct usb_mixer_interface *mixer,
 	case USB_ID(0x21b4, 0x0081): /* AudioQuest DragonFly */
 		if (unitid == 7 && cval->control == UAC_FU_VOLUME)
 			snd_dragonfly_quirk_db_scale(mixer, cval, kctl);
+		break;
+	/* lowest playback value is muted on C-Media devices */
+	case USB_ID(0x0d8c, 0x000c):
+	case USB_ID(0x0d8c, 0x0014):
+		if (strstr(kctl->id.name, "Playback"))
+			cval->min_mute = 1;
 		break;
 	}
 }

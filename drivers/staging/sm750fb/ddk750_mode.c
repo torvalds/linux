@@ -12,7 +12,8 @@
  * HW only supports 7 predefined pixel clocks, and clock select is
  * in bit 29:27 of Display Control register.
  */
-static unsigned long displayControlAdjust_SM750LE(mode_parameter_t *pModeParam, unsigned long dispControl)
+static unsigned long displayControlAdjust_SM750LE(struct mode_parameter *pModeParam,
+						  unsigned long dispControl)
 {
 	unsigned long x, y;
 
@@ -28,9 +29,9 @@ static unsigned long displayControlAdjust_SM750LE(mode_parameter_t *pModeParam, 
 	poke32(CRT_AUTO_CENTERING_TL, 0);
 
 	poke32(CRT_AUTO_CENTERING_BR,
-		(((y - 1) << CRT_AUTO_CENTERING_BR_BOTTOM_SHIFT) &
-			CRT_AUTO_CENTERING_BR_BOTTOM_MASK) |
-		((x - 1) & CRT_AUTO_CENTERING_BR_RIGHT_MASK));
+	       (((y - 1) << CRT_AUTO_CENTERING_BR_BOTTOM_SHIFT) &
+		CRT_AUTO_CENTERING_BR_BOTTOM_MASK) |
+	       ((x - 1) & CRT_AUTO_CENTERING_BR_RIGHT_MASK));
 
 	/*
 	 * Assume common fields in dispControl have been properly set before
@@ -71,11 +72,9 @@ static unsigned long displayControlAdjust_SM750LE(mode_parameter_t *pModeParam, 
 	return dispControl;
 }
 
-
-
 /* only timing related registers will be  programed */
-static int programModeRegisters(mode_parameter_t *pModeParam,
-						struct pll_value *pll)
+static int programModeRegisters(struct mode_parameter *pModeParam,
+				struct pll_value *pll)
 {
 	int ret = 0;
 	int cnt = 0;
@@ -84,34 +83,38 @@ static int programModeRegisters(mode_parameter_t *pModeParam,
 	if (pll->clockType == SECONDARY_PLL) {
 		/* programe secondary pixel clock */
 		poke32(CRT_PLL_CTRL, sm750_format_pll_reg(pll));
-		poke32(CRT_HORIZONTAL_TOTAL,
-			(((pModeParam->horizontal_total - 1) <<
-				CRT_HORIZONTAL_TOTAL_TOTAL_SHIFT) &
-				CRT_HORIZONTAL_TOTAL_TOTAL_MASK) |
-			((pModeParam->horizontal_display_end - 1) &
-				CRT_HORIZONTAL_TOTAL_DISPLAY_END_MASK));
 
-		poke32(CRT_HORIZONTAL_SYNC,
-			((pModeParam->horizontal_sync_width <<
-				CRT_HORIZONTAL_SYNC_WIDTH_SHIFT) &
-				CRT_HORIZONTAL_SYNC_WIDTH_MASK) |
-			((pModeParam->horizontal_sync_start - 1) &
-				CRT_HORIZONTAL_SYNC_START_MASK));
+		tmp = ((pModeParam->horizontal_total - 1) <<
+		       CRT_HORIZONTAL_TOTAL_TOTAL_SHIFT) &
+		     CRT_HORIZONTAL_TOTAL_TOTAL_MASK;
+		tmp |= (pModeParam->horizontal_display_end - 1) &
+		      CRT_HORIZONTAL_TOTAL_DISPLAY_END_MASK;
 
-		poke32(CRT_VERTICAL_TOTAL,
-			(((pModeParam->vertical_total - 1) <<
-				CRT_VERTICAL_TOTAL_TOTAL_SHIFT) &
-				CRT_VERTICAL_TOTAL_TOTAL_MASK) |
-			((pModeParam->vertical_display_end - 1) &
-				CRT_VERTICAL_TOTAL_DISPLAY_END_MASK));
+		poke32(CRT_HORIZONTAL_TOTAL, tmp);
 
-		poke32(CRT_VERTICAL_SYNC,
-			((pModeParam->vertical_sync_height <<
-				CRT_VERTICAL_SYNC_HEIGHT_SHIFT) &
-				CRT_VERTICAL_SYNC_HEIGHT_MASK) |
-			((pModeParam->vertical_sync_start - 1) &
-				CRT_VERTICAL_SYNC_START_MASK));
+		tmp = (pModeParam->horizontal_sync_width <<
+		       CRT_HORIZONTAL_SYNC_WIDTH_SHIFT) &
+		     CRT_HORIZONTAL_SYNC_WIDTH_MASK;
+		tmp |= (pModeParam->horizontal_sync_start - 1) &
+		      CRT_HORIZONTAL_SYNC_START_MASK;
 
+		poke32(CRT_HORIZONTAL_SYNC, tmp);
+
+		tmp = ((pModeParam->vertical_total - 1) <<
+		       CRT_VERTICAL_TOTAL_TOTAL_SHIFT) &
+		     CRT_VERTICAL_TOTAL_TOTAL_MASK;
+		tmp |= (pModeParam->vertical_display_end - 1) &
+		      CRT_VERTICAL_TOTAL_DISPLAY_END_MASK;
+
+		poke32(CRT_VERTICAL_TOTAL, tmp);
+
+		tmp = ((pModeParam->vertical_sync_height <<
+		       CRT_VERTICAL_SYNC_HEIGHT_SHIFT)) &
+		     CRT_VERTICAL_SYNC_HEIGHT_MASK;
+		tmp |= (pModeParam->vertical_sync_start - 1) &
+		      CRT_VERTICAL_SYNC_START_MASK;
+
+		poke32(CRT_VERTICAL_SYNC, tmp);
 
 		tmp = DISPLAY_CTRL_TIMING | DISPLAY_CTRL_PLANE;
 		if (pModeParam->vertical_sync_polarity)
@@ -143,25 +146,25 @@ static int programModeRegisters(mode_parameter_t *pModeParam,
 		poke32(PANEL_HORIZONTAL_TOTAL, reg);
 
 		poke32(PANEL_HORIZONTAL_SYNC,
-			((pModeParam->horizontal_sync_width <<
-				PANEL_HORIZONTAL_SYNC_WIDTH_SHIFT) &
-				PANEL_HORIZONTAL_SYNC_WIDTH_MASK) |
-			((pModeParam->horizontal_sync_start - 1) &
-				PANEL_HORIZONTAL_SYNC_START_MASK));
+		       ((pModeParam->horizontal_sync_width <<
+			 PANEL_HORIZONTAL_SYNC_WIDTH_SHIFT) &
+			PANEL_HORIZONTAL_SYNC_WIDTH_MASK) |
+		       ((pModeParam->horizontal_sync_start - 1) &
+			PANEL_HORIZONTAL_SYNC_START_MASK));
 
 		poke32(PANEL_VERTICAL_TOTAL,
-			(((pModeParam->vertical_total - 1) <<
-				PANEL_VERTICAL_TOTAL_TOTAL_SHIFT) &
-				PANEL_VERTICAL_TOTAL_TOTAL_MASK) |
-			((pModeParam->vertical_display_end - 1) &
-				PANEL_VERTICAL_TOTAL_DISPLAY_END_MASK));
+		       (((pModeParam->vertical_total - 1) <<
+			 PANEL_VERTICAL_TOTAL_TOTAL_SHIFT) &
+			PANEL_VERTICAL_TOTAL_TOTAL_MASK) |
+		       ((pModeParam->vertical_display_end - 1) &
+			PANEL_VERTICAL_TOTAL_DISPLAY_END_MASK));
 
 		poke32(PANEL_VERTICAL_SYNC,
-			((pModeParam->vertical_sync_height <<
-				PANEL_VERTICAL_SYNC_HEIGHT_SHIFT) &
-				PANEL_VERTICAL_SYNC_HEIGHT_MASK) |
-			((pModeParam->vertical_sync_start - 1) &
-				PANEL_VERTICAL_SYNC_START_MASK));
+		       ((pModeParam->vertical_sync_height <<
+			 PANEL_VERTICAL_SYNC_HEIGHT_SHIFT) &
+			PANEL_VERTICAL_SYNC_HEIGHT_MASK) |
+		       ((pModeParam->vertical_sync_start - 1) &
+			PANEL_VERTICAL_SYNC_START_MASK));
 
 		tmp = DISPLAY_CTRL_TIMING | DISPLAY_CTRL_PLANE;
 		if (pModeParam->vertical_sync_polarity)
@@ -202,7 +205,7 @@ static int programModeRegisters(mode_parameter_t *pModeParam,
 	return ret;
 }
 
-int ddk750_setModeTiming(mode_parameter_t *parm, clock_type_t clock)
+int ddk750_setModeTiming(struct mode_parameter *parm, clock_type_t clock)
 {
 	struct pll_value pll;
 	unsigned int uiActualPixelClk;
@@ -219,5 +222,3 @@ int ddk750_setModeTiming(mode_parameter_t *parm, clock_type_t clock)
 	programModeRegisters(parm, &pll);
 	return 0;
 }
-
-

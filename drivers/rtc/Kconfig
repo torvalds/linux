@@ -77,6 +77,14 @@ config RTC_DEBUG
 	  Say yes here to enable debugging support in the RTC framework
 	  and individual RTC drivers.
 
+config RTC_NVMEM
+	bool "RTC non volatile storage support"
+	select NVMEM
+	default RTC_CLASS
+	help
+	  Say yes here to add support for the non volatile (often battery
+	  backed) storage present on RTCs.
+
 comment "RTC interfaces"
 
 config RTC_INTF_SYSFS
@@ -196,6 +204,17 @@ config RTC_DRV_AC100
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ac100.
+
+config RTC_DRV_BRCMSTB
+	tristate "Broadcom STB wake-timer"
+	depends on ARCH_BRCMSTB || BMIPS_GENERIC || COMPILE_TEST
+	default ARCH_BRCMSTB || BMIPS_GENERIC
+	help
+	  If you say yes here you get support for the wake-timer found on
+	  Broadcom STB SoCs (BCM7xxx).
+
+	  This driver can also be built as a module. If so, the module will
+	  be called rtc-brcmstb-waketimer.
 
 config RTC_DRV_AS3722
 	tristate "ams AS3722 RTC driver"
@@ -791,6 +810,14 @@ config RTC_DRV_DS3232
 	  This driver can also be built as a module.  If so, the module
 	  will be called rtc-ds3232.
 
+config RTC_DRV_DS3232_HWMON
+	bool "HWMON support for Dallas/Maxim DS3232/DS3234"
+	depends on RTC_DRV_DS3232 && HWMON && !(RTC_DRV_DS3232=y && HWMON=m)
+	default y
+	help
+	  Say Y here if you want to expose temperature sensor data on
+	  rtc-ds3232
+
 config RTC_DRV_PCF2127
 	tristate "NXP PCF2127"
 	depends on RTC_I2C_AND_SPI
@@ -1303,10 +1330,10 @@ config RTC_DRV_SA1100
 
 config RTC_DRV_SH
 	tristate "SuperH On-Chip RTC"
-	depends on SUPERH && HAVE_CLK
+	depends on SUPERH || ARCH_RENESAS
 	help
 	  Say Y here to enable support for the on-chip RTC found in
-	  most SuperH processors.
+	  most SuperH processors. This RTC is also found in RZ/A SoCs.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-sh.
@@ -1484,16 +1511,16 @@ config RTC_DRV_ARMADA38X
 	  This driver can also be built as a module. If so, the module
 	  will be called armada38x-rtc.
 
-config RTC_DRV_GEMINI
-	tristate "Gemini SoC RTC"
-	depends on ARCH_GEMINI || COMPILE_TEST
+config RTC_DRV_FTRTC010
+	tristate "Faraday Technology FTRTC010 RTC"
 	depends on HAS_IOMEM
+	default ARCH_GEMINI
 	help
 	  If you say Y here you will get support for the
-	  RTC found on Gemini SoC's.
+	  Faraday Technolog FTRTC010 found on e.g. Gemini SoC's.
 
 	  This driver can also be built as a module. If so, the module
-	  will be called rtc-gemini.
+	  will be called rtc-ftrtc010.
 
 config RTC_DRV_PS3
 	tristate "PS3 RTC"
@@ -1730,6 +1757,13 @@ config RTC_DRV_STM32
 
 	   This driver can also be built as a module, if so, the module
 	   will be called "rtc-stm32".
+
+config RTC_DRV_CPCAP
+	depends on MFD_CPCAP
+	tristate "Motorola CPCAP RTC"
+	help
+	   Say y here for CPCAP rtc found on some Motorola phones
+	   and tablets such as Droid 4.
 
 comment "HID Sensor RTC drivers"
 

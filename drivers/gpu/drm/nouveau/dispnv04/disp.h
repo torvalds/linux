@@ -169,18 +169,10 @@ static inline void
 nouveau_bios_run_init_table(struct drm_device *dev, u16 table,
 			    struct dcb_output *outp, int crtc)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvkm_bios *bios = nvxx_bios(&drm->client.device);
-	struct nvbios_init init = {
-		.subdev = &bios->subdev,
-		.bios = bios,
-		.offset = table,
-		.outp = outp,
-		.crtc = crtc,
-		.execute = 1,
-	};
-
-	nvbios_exec(&init);
+	nvbios_init(&nvxx_bios(&nouveau_drm(dev)->client.device)->subdev, table,
+		init.outp = outp;
+		init.head = crtc;
+	);
 }
 
 #endif

@@ -35,11 +35,11 @@
 #ifndef _ASM_ARC_PGTABLE_H
 #define _ASM_ARC_PGTABLE_H
 
-#include <asm/page.h>
-#include <asm/mmu.h>
+#include <linux/const.h>
 #define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopmd.h>
-#include <linux/const.h>
+#include <asm/page.h>
+#include <asm/mmu.h>	/* to propagate CONFIG_ARC_MMU_VER <n> */
 
 /**************************************************************************
  * Page Table Flags

@@ -103,15 +103,15 @@ struct audit_fsnotify_mark *audit_alloc_mark(struct audit_krule *krule, char *pa
 		goto out;
 	}
 
-	fsnotify_init_mark(&audit_mark->mark, audit_fsnotify_free_mark);
+	fsnotify_init_mark(&audit_mark->mark, audit_fsnotify_group);
 	audit_mark->mark.mask = AUDIT_FS_EVENTS;
 	audit_mark->path = pathname;
 	audit_update_mark(audit_mark, dentry->d_inode);
 	audit_mark->rule = krule;
 
-	ret = fsnotify_add_mark(&audit_mark->mark, audit_fsnotify_group, inode, NULL, true);
+	ret = fsnotify_add_mark(&audit_mark->mark, inode, NULL, true);
 	if (ret < 0) {
-		audit_fsnotify_mark_free(audit_mark);
+		fsnotify_put_mark(&audit_mark->mark);
 		audit_mark = ERR_PTR(ret);
 	}
 out:
@@ -168,7 +168,8 @@ static int audit_mark_handle_event(struct fsnotify_group *group,
 				    struct fsnotify_mark *inode_mark,
 				    struct fsnotify_mark *vfsmount_mark,
 				    u32 mask, const void *data, int data_type,
-				    const unsigned char *dname, u32 cookie)
+				    const unsigned char *dname, u32 cookie,
+				    struct fsnotify_iter_info *iter_info)
 {
 	struct audit_fsnotify_mark *audit_mark;
 	const struct inode *inode = NULL;
@@ -187,7 +188,7 @@ static int audit_mark_handle_event(struct fsnotify_group *group,
 	default:
 		BUG();
 		return 0;
-	};
+	}
 
 	if (mask & (FS_CREATE|FS_MOVED_TO|FS_DELETE|FS_MOVED_FROM)) {
 		if (audit_compare_dname_path(dname, audit_mark->path, AUDIT_NAME_FULL))
@@ -201,6 +202,7 @@ static int audit_mark_handle_event(struct fsnotify_group *group,
 
 static const struct fsnotify_ops audit_mark_fsnotify_ops = {
 	.handle_event =	audit_mark_handle_event,
+	.free_mark = audit_fsnotify_free_mark,
 };
 
 static int __init audit_fsnotify_init(void)

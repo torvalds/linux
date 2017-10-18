@@ -31,7 +31,6 @@ rt_status SendTxCommandPacket(struct net_device *dev, void *pData, u32 DataLen)
 	struct r8192_priv   *priv = ieee80211_priv(dev);
 	struct sk_buff	    *skb;
 	struct cb_desc	    *tcb_desc;
-	unsigned char	    *ptr_buf;
 
 	/* Get TCB and local buffer from common pool.
 	 * (It is shared by CmdQ, MgntQ, and USB coalesce DataQ)
@@ -45,8 +44,7 @@ rt_status SendTxCommandPacket(struct net_device *dev, void *pData, u32 DataLen)
 	tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_NORMAL;
 	tcb_desc->bLastIniPkt = 0;
 	skb_reserve(skb, USB_HWDESC_HEADER_LEN);
-	ptr_buf = skb_put(skb, DataLen);
-	memcpy(ptr_buf, pData, DataLen);
+	skb_put_data(skb, pData, DataLen);
 	tcb_desc->txbuf_size = (u16)DataLen;
 
 	if (!priv->ieee80211->check_nic_enough_desc(dev, tcb_desc->queue_index) ||
@@ -495,7 +493,7 @@ u32 cmpk_message_handle_rx(struct net_device *dev,
 	u8			element_id;
 	u8			*pcmd_buff;
 
-	/* 0. Check inpt arguments. If is is a command queue message or
+	/* 0. Check inpt arguments. It is a command queue message or
 	 * pointer is null.
 	 */
 	if (pstats == NULL)

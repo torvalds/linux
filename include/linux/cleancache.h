@@ -27,7 +27,7 @@ struct cleancache_filekey {
 
 struct cleancache_ops {
 	int (*init_fs)(size_t);
-	int (*init_shared_fs)(char *uuid, size_t);
+	int (*init_shared_fs)(uuid_t *uuid, size_t);
 	int (*get_page)(int, struct cleancache_filekey,
 			pgoff_t, struct page *);
 	void (*put_page)(int, struct cleancache_filekey,

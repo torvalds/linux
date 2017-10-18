@@ -557,7 +557,7 @@ static inline void isac_rme_interrupt(struct isac *isac)
 		DBG(DBG_WARN, "no memory, dropping\n");
 		goto out;
 	}
-	memcpy(skb_put(skb, count), isac->rcvbuf, count);
+	skb_put_data(skb, isac->rcvbuf, count);
 	DBG_SKB(DBG_RPACKET, skb);
 	D_L1L2(isac, PH_DATA | INDICATION, skb);
 out:
@@ -687,7 +687,7 @@ static inline void isacsx_rme_interrupt(struct isac *isac)
 		DBG(DBG_WARN, "no memory, dropping");
 		goto out;
 	}
-	memcpy(skb_put(skb, count), isac->rcvbuf, count);
+	skb_put_data(skb, isac->rcvbuf, count);
 	DBG_SKB(DBG_RPACKET, skb);
 	D_L1L2(isac, PH_DATA | INDICATION, skb);
 out:

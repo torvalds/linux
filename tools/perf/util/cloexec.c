@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <sched.h>
 #include "util.h"
 #include "../perf.h"

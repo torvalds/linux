@@ -451,7 +451,8 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 	return len;
 
 out_trigger_put:
-	iio_trigger_put(trig);
+	if (trig)
+		iio_trigger_put(trig);
 	return ret;
 }
 

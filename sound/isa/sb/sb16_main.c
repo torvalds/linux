@@ -737,7 +737,7 @@ static int snd_sb16_dma_control_put(struct snd_kcontrol *kcontrol, struct snd_ct
 	return change;
 }
 
-static struct snd_kcontrol_new snd_sb16_dma_control = {
+static const struct snd_kcontrol_new snd_sb16_dma_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
 	.name = "16-bit DMA Allocation",
 	.info = snd_sb16_dma_control_info,

@@ -41,15 +41,6 @@
 #include "objsec.h"
 #include "conditional.h"
 
-/* Policy capability filenames */
-static char *policycap_names[] = {
-	"network_peer_controls",
-	"open_perms",
-	"extended_socket_class",
-	"always_check_network",
-	"cgroup_seclabel"
-};
-
 unsigned int selinux_checkreqprot = CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE;
 
 static int __init checkreqprot_setup(char *str)
@@ -163,6 +154,8 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 			avc_ss_reset(0);
 		selnl_notify_setenforce(selinux_enforcing);
 		selinux_status_update_setenforce(selinux_enforcing);
+		if (!selinux_enforcing)
+			call_lsm_notifier(LSM_POLICY_CHANGE, NULL);
 	}
 	length = count;
 out:
@@ -656,14 +649,12 @@ static ssize_t sel_write_validatetrans(struct file *file,
 	if (*ppos != 0)
 		goto out;
 
-	rc = -ENOMEM;
-	req = kzalloc(count + 1, GFP_KERNEL);
-	if (!req)
+	req = memdup_user_nul(buf, count);
+	if (IS_ERR(req)) {
+		rc = PTR_ERR(req);
+		req = NULL;
 		goto out;
-
-	rc = -EFAULT;
-	if (copy_from_user(req, buf, count))
-		goto out;
+	}
 
 	rc = -ENOMEM;
 	oldcon = kzalloc(count + 1, GFP_KERNEL);
@@ -1456,10 +1447,10 @@ static int sel_avc_stats_seq_show(struct seq_file *seq, void *v)
 {
 	struct avc_cache_stats *st = v;
 
-	if (v == SEQ_START_TOKEN)
-		seq_printf(seq, "lookups hits misses allocations reclaims "
-			   "frees\n");
-	else {
+	if (v == SEQ_START_TOKEN) {
+		seq_puts(seq,
+			 "lookups hits misses allocations reclaims frees\n");
+	} else {
 		unsigned int lookups = st->lookups;
 		unsigned int misses = st->misses;
 		unsigned int hits = lookups - misses;
@@ -1496,7 +1487,7 @@ static const struct file_operations sel_avc_cache_stats_ops = {
 static int sel_make_avc_files(struct dentry *dir)
 {
 	int i;
-	static struct tree_descr files[] = {
+	static const struct tree_descr files[] = {
 		{ "cache_threshold",
 		  &sel_avc_cache_threshold_ops, S_IRUGO|S_IWUSR },
 		{ "hash_stats", &sel_avc_hash_stats_ops, S_IRUGO },
@@ -1750,9 +1741,9 @@ static int sel_make_policycap(void)
 	sel_remove_entries(policycap_dir);
 
 	for (iter = 0; iter <= POLICYDB_CAPABILITY_MAX; iter++) {
-		if (iter < ARRAY_SIZE(policycap_names))
+		if (iter < ARRAY_SIZE(selinux_policycap_names))
 			dentry = d_alloc_name(policycap_dir,
-					      policycap_names[iter]);
+					      selinux_policycap_names[iter]);
 		else
 			dentry = d_alloc_name(policycap_dir, "unknown");
 
@@ -1805,7 +1796,7 @@ static int sel_fill_super(struct super_block *sb, void *data, int silent)
 	struct inode *inode;
 	struct inode_security_struct *isec;
 
-	static struct tree_descr selinux_files[] = {
+	static const struct tree_descr selinux_files[] = {
 		[SEL_LOAD] = {"load", &sel_load_ops, S_IRUSR|S_IWUSR},
 		[SEL_ENFORCE] = {"enforce", &sel_enforce_ops, S_IRUGO|S_IWUSR},
 		[SEL_CONTEXT] = {"context", &transaction_ops, S_IRUGO|S_IWUGO},

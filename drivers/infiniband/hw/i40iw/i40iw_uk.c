@@ -435,7 +435,7 @@ static enum i40iw_status_code i40iw_inline_rdma_write(struct i40iw_qp_uk *qp,
 
 	op_info = &info->op.inline_rdma_write;
 	if (op_info->len > I40IW_MAX_INLINE_DATA_SIZE)
-		return I40IW_ERR_INVALID_IMM_DATA_SIZE;
+		return I40IW_ERR_INVALID_INLINE_DATA_SIZE;
 
 	ret_code = i40iw_inline_data_size_to_wqesize(op_info->len, &wqe_size);
 	if (ret_code)
@@ -511,7 +511,7 @@ static enum i40iw_status_code i40iw_inline_send(struct i40iw_qp_uk *qp,
 
 	op_info = &info->op.inline_send;
 	if (op_info->len > I40IW_MAX_INLINE_DATA_SIZE)
-		return I40IW_ERR_INVALID_IMM_DATA_SIZE;
+		return I40IW_ERR_INVALID_INLINE_DATA_SIZE;
 
 	ret_code = i40iw_inline_data_size_to_wqesize(op_info->len, &wqe_size);
 	if (ret_code)
@@ -784,7 +784,7 @@ static enum i40iw_status_code i40iw_cq_poll_completion(struct i40iw_cq_uk *cq,
 	get_64bit_val(cqe, 0, &qword0);
 	get_64bit_val(cqe, 16, &qword2);
 
-	info->tcp_seq_num = (u8)RS_64(qword0, I40IWCQ_TCPSEQNUM);
+	info->tcp_seq_num = (u32)RS_64(qword0, I40IWCQ_TCPSEQNUM);
 
 	info->qp_id = (u32)RS_64(qword2, I40IWCQ_QPID);
 
@@ -1187,7 +1187,7 @@ enum i40iw_status_code i40iw_inline_data_size_to_wqesize(u32 data_size,
 							 u8 *wqe_size)
 {
 	if (data_size > I40IW_MAX_INLINE_DATA_SIZE)
-		return I40IW_ERR_INVALID_IMM_DATA_SIZE;
+		return I40IW_ERR_INVALID_INLINE_DATA_SIZE;
 
 	if (data_size <= 16)
 		*wqe_size = I40IW_QP_WQE_MIN_SIZE;

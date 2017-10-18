@@ -13,6 +13,7 @@
 #include <linux/device.h>
 #include <linux/iio/sysfs.h>
 #include <linux/delay.h>
+#include <linux/pm.h>
 #include <asm/unaligned.h>
 
 #include "hts221.h"
@@ -307,15 +308,30 @@ hts221_sysfs_temp_oversampling_avail(struct device *dev,
 
 int hts221_power_on(struct hts221_hw *hw)
 {
-	return hts221_update_odr(hw, hw->odr);
+	int err;
+
+	err = hts221_update_odr(hw, hw->odr);
+	if (err < 0)
+		return err;
+
+	hw->enabled = true;
+
+	return 0;
 }
 
 int hts221_power_off(struct hts221_hw *hw)
 {
-	u8 data[] = {0x00, 0x00};
+	__le16 data = 0;
+	int err;
 
-	return hw->tf->write(hw->dev, HTS221_REG_CNTRL1_ADDR, sizeof(data),
-			     data);
+	err = hw->tf->write(hw->dev, HTS221_REG_CNTRL1_ADDR, sizeof(data),
+			    (u8 *)&data);
+	if (err < 0)
+		return err;
+
+	hw->enabled = false;
+
+	return 0;
 }
 
 static int hts221_parse_temp_caldata(struct hts221_hw *hw)
@@ -681,6 +697,36 @@ int hts221_probe(struct iio_dev *iio_dev)
 	return devm_iio_device_register(hw->dev, iio_dev);
 }
 EXPORT_SYMBOL(hts221_probe);
+
+static int __maybe_unused hts221_suspend(struct device *dev)
+{
+	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct hts221_hw *hw = iio_priv(iio_dev);
+	__le16 data = 0;
+	int err;
+
+	err = hw->tf->write(hw->dev, HTS221_REG_CNTRL1_ADDR, sizeof(data),
+			    (u8 *)&data);
+
+	return err < 0 ? err : 0;
+}
+
+static int __maybe_unused hts221_resume(struct device *dev)
+{
+	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct hts221_hw *hw = iio_priv(iio_dev);
+	int err = 0;
+
+	if (hw->enabled)
+		err = hts221_update_odr(hw, hw->odr);
+
+	return err;
+}
+
+const struct dev_pm_ops hts221_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(hts221_suspend, hts221_resume)
+};
+EXPORT_SYMBOL(hts221_pm_ops);
 
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics hts221 sensor driver");

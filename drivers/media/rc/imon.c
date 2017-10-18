@@ -1722,7 +1722,7 @@ static void imon_incoming_scancode(struct imon_context *ictx,
 	if (kc == KEY_KEYBOARD && !ictx->release_code) {
 		ictx->last_keycode = kc;
 		if (!nomouse) {
-			ictx->pad_mouse = ~(ictx->pad_mouse) & 0x1;
+			ictx->pad_mouse = !ictx->pad_mouse;
 			dev_dbg(dev, "toggling to %s mode\n",
 				ictx->pad_mouse ? "mouse" : "keyboard");
 			spin_unlock_irqrestore(&ictx->kc_lock, flags);
@@ -2412,9 +2412,8 @@ static struct imon_context *imon_init_intf1(struct usb_interface *intf,
 	mutex_lock(&ictx->lock);
 
 	if (ictx->display_type == IMON_DISPLAY_TYPE_VGA) {
-		init_timer(&ictx->ttimer);
-		ictx->ttimer.data = (unsigned long)ictx;
-		ictx->ttimer.function = imon_touch_display_timeout;
+		setup_timer(&ictx->ttimer, imon_touch_display_timeout,
+			    (unsigned long)ictx);
 	}
 
 	ictx->usbdev_intf1 = usb_get_dev(interface_to_usbdev(intf));

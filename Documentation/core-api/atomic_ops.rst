@@ -303,6 +303,11 @@ defined which accomplish this::
 	void smp_mb__before_atomic(void);
 	void smp_mb__after_atomic(void);
 
+Preceding a non-value-returning read-modify-write atomic operation with
+smp_mb__before_atomic() and following it with smp_mb__after_atomic()
+provides the same full ordering that is provided by value-returning
+read-modify-write atomic operations.
+
 For example, smp_mb__before_atomic() can be used like so::
 
 	obj->dead = 1;

@@ -17,6 +17,7 @@
 #include <asm/efi.h>
 
 static bool request_mem_succeeded = false;
+static bool nowc = false;
 
 static struct fb_var_screeninfo efifb_defined = {
 	.activate		= FB_ACTIVATE_NOW,
@@ -99,6 +100,8 @@ static int efifb_setup(char *options)
 				screen_info.lfb_height = simple_strtoul(this_opt+7, NULL, 0);
 			else if (!strncmp(this_opt, "width:", 6))
 				screen_info.lfb_width = simple_strtoul(this_opt+6, NULL, 0);
+			else if (!strcmp(this_opt, "nowc"))
+				nowc = true;
 		}
 	}
 
@@ -255,7 +258,10 @@ static int efifb_probe(struct platform_device *dev)
 	info->apertures->ranges[0].base = efifb_fix.smem_start;
 	info->apertures->ranges[0].size = size_remap;
 
-	info->screen_base = ioremap_wc(efifb_fix.smem_start, efifb_fix.smem_len);
+	if (nowc)
+		info->screen_base = ioremap(efifb_fix.smem_start, efifb_fix.smem_len);
+	else
+		info->screen_base = ioremap_wc(efifb_fix.smem_start, efifb_fix.smem_len);
 	if (!info->screen_base) {
 		pr_err("efifb: abort, cannot ioremap video memory 0x%x @ 0x%lx\n",
 			efifb_fix.smem_len, efifb_fix.smem_start);
@@ -408,7 +414,7 @@ static void efifb_fixup_resources(struct pci_dev *dev)
 	if (!base)
 		return;
 
-	for (i = 0; i < PCI_STD_RESOURCE_END; i++) {
+	for (i = 0; i <= PCI_STD_RESOURCE_END; i++) {
 		struct resource *res = &dev->resource[i];
 
 		if (!(res->flags & IORESOURCE_MEM))

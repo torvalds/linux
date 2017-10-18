@@ -74,6 +74,16 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define pte_user_exec(pte)	(!(pte_val(pte) & PTE_UXN))
 #define pte_cont(pte)		(!!(pte_val(pte) & PTE_CONT))
 
+#define pte_cont_addr_end(addr, end)						\
+({	unsigned long __boundary = ((addr) + CONT_PTE_SIZE) & CONT_PTE_MASK;	\
+	(__boundary - 1 < (end) - 1) ? __boundary : (end);			\
+})
+
+#define pmd_cont_addr_end(addr, end)						\
+({	unsigned long __boundary = ((addr) + CONT_PMD_SIZE) & CONT_PMD_MASK;	\
+	(__boundary - 1 < (end) - 1) ? __boundary : (end);			\
+})
+
 #ifdef CONFIG_ARM64_HW_AFDBM
 #define pte_hw_dirty(pte)	(pte_write(pte) && !(pte_val(pte) & PTE_RDONLY))
 #else
@@ -431,7 +441,7 @@ static inline phys_addr_t pmd_page_paddr(pmd_t pmd)
 
 #define pud_none(pud)		(!pud_val(pud))
 #define pud_bad(pud)		(!(pud_val(pud) & PUD_TABLE_BIT))
-#define pud_present(pud)	(pud_val(pud))
+#define pud_present(pud)	pte_present(pud_pte(pud))
 
 static inline void set_pud(pud_t *pudp, pud_t pud)
 {

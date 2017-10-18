@@ -70,7 +70,8 @@ static int inet_diag_msg_sctpladdrs_fill(struct sk_buff *skb,
 
 	info = nla_data(attr);
 	list_for_each_entry_rcu(laddr, address_list, list) {
-		memcpy(info, &laddr->a, addrlen);
+		memcpy(info, &laddr->a, sizeof(laddr->a));
+		memset(info + sizeof(laddr->a), 0, addrlen - sizeof(laddr->a));
 		info += addrlen;
 	}
 
@@ -93,7 +94,9 @@ static int inet_diag_msg_sctpaddrs_fill(struct sk_buff *skb,
 	info = nla_data(attr);
 	list_for_each_entry(from, &asoc->peer.transport_addr_list,
 			    transports) {
-		memcpy(info, &from->ipaddr, addrlen);
+		memcpy(info, &from->ipaddr, sizeof(from->ipaddr));
+		memset(info + sizeof(from->ipaddr), 0,
+		       addrlen - sizeof(from->ipaddr));
 		info += addrlen;
 	}
 
@@ -278,7 +281,6 @@ out:
 
 static int sctp_sock_dump(struct sock *sk, void *p)
 {
-	struct sctp_endpoint *ep = sctp_sk(sk)->ep;
 	struct sctp_comm_param *commp = p;
 	struct sk_buff *skb = commp->skb;
 	struct netlink_callback *cb = commp->cb;
@@ -287,7 +289,9 @@ static int sctp_sock_dump(struct sock *sk, void *p)
 	int err = 0;
 
 	lock_sock(sk);
-	list_for_each_entry(assoc, &ep->asocs, asocs) {
+	if (!sctp_sk(sk)->ep)
+		goto release;
+	list_for_each_entry(assoc, &sctp_sk(sk)->ep->asocs, asocs) {
 		if (cb->args[4] < cb->args[1])
 			goto next;
 

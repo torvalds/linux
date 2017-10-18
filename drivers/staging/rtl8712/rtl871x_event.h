@@ -34,7 +34,7 @@
 
 /*
  * Used to report a bss has been scanned
-*/
+ */
 struct survey_event	{
 	struct wlan_bssid_ex bss;
 };
@@ -42,7 +42,7 @@ struct survey_event	{
 /*
  * Used to report that the requested site survey has been done.
  * bss_cnt indicates the number of bss that has been reported.
-*/
+ */
 struct surveydone_event {
 	unsigned int	bss_cnt;
 
@@ -54,7 +54,7 @@ struct surveydone_event {
  *  -1: authentication fail
  *  -2: association fail
  *  > 0: TID
-*/
+ */
 struct joinbss_event {
 	struct	wlan_network	network;
 };
@@ -62,7 +62,7 @@ struct joinbss_event {
 /*
  * Used to report a given STA has joinned the created BSS.
  * It is used in AP/Ad-HoC(M) mode.
-*/
+ */
 struct stassoc_event {
 	unsigned char macaddr[6];
 	unsigned char rsvd[2];

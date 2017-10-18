@@ -267,7 +267,6 @@
 #define REG_RD_NAV_NXT				0x0544
 #define REG_NAV_PROT_LEN			0x0546
 #define REG_BCN_CTRL				0x0550
-#define REG_USTIME_TSF				0x0551
 #define REG_MBID_NUM				0x0552
 #define REG_DUAL_TSF_RST			0x0553
 #define REG_BCN_INTERVAL			0x0554
@@ -275,6 +274,7 @@
 #define REG_DRVERLYINT				0x0558
 #define REG_BCNDMATIM				0x0559
 #define REG_ATIMWND				0x055A
+#define REG_USTIME_TSF				0x055C
 #define REG_BCN_MAX_ERR				0x055D
 #define REG_RXTSF_OFFSET_CCK			0x055E
 #define REG_RXTSF_OFFSET_OFDM			0x055F
@@ -2424,6 +2424,7 @@
 #define	BMASKH4BITS			0xf0000000
 #define BMASKOFDM_D			0xffc00000
 #define	BMASKCCK			0x3f3f3f3f
+#define BMASKRFEINV			0x3ff00000
 
 #define BRFREGOFFSETMASK		0xfffff
 

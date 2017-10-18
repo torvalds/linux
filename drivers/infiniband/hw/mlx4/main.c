@@ -61,8 +61,7 @@
 #include <rdma/mlx4-abi.h>
 
 #define DRV_NAME	MLX4_IB_DRV_NAME
-#define DRV_VERSION	"2.2-1"
-#define DRV_RELDATE	"Feb 2014"
+#define DRV_VERSION	"4.0-0"
 
 #define MLX4_IB_FLOW_MAX_PRIO 0xFFF
 #define MLX4_IB_FLOW_QPN_MASK 0xFFFFFF
@@ -79,7 +78,7 @@ MODULE_PARM_DESC(sm_guid_assign, "Enable SM alias_GUID assignment if sm_guid_ass
 
 static const char mlx4_ib_version[] =
 	DRV_NAME ": Mellanox ConnectX InfiniBand driver v"
-	DRV_VERSION " (" DRV_RELDATE ")\n";
+	DRV_VERSION "\n";
 
 static void do_slave_init(struct mlx4_ib_dev *ibdev, int slave, int do_init);
 
@@ -1156,7 +1155,7 @@ static void mlx4_ib_disassociate_ucontext(struct ib_ucontext *ibcontext)
 			 * call to mlx4_ib_vma_close.
 			 */
 			put_task_struct(owning_process);
-			msleep(1);
+			usleep_range(1000, 2000);
 			owning_process = get_pid_task(ibcontext->tgid,
 						      PIDTYPE_PID);
 			if (!owning_process ||
@@ -1173,7 +1172,7 @@ static void mlx4_ib_disassociate_ucontext(struct ib_ucontext *ibcontext)
 	/* need to protect from a race on closing the vma as part of
 	 * mlx4_ib_vma_close().
 	 */
-	down_read(&owning_mm->mmap_sem);
+	down_write(&owning_mm->mmap_sem);
 	for (i = 0; i < HW_BAR_COUNT; i++) {
 		vma = context->hw_bar_info[i].vma;
 		if (!vma)
@@ -1187,11 +1186,13 @@ static void mlx4_ib_disassociate_ucontext(struct ib_ucontext *ibcontext)
 			BUG_ON(1);
 		}
 
+		context->hw_bar_info[i].vma->vm_flags &=
+			~(VM_SHARED | VM_MAYSHARE);
 		/* context going to be destroyed, should not access ops any more */
 		context->hw_bar_info[i].vma->vm_ops = NULL;
 	}
 
-	up_read(&owning_mm->mmap_sem);
+	up_write(&owning_mm->mmap_sem);
 	mmput(owning_mm);
 	put_task_struct(owning_process);
 }
@@ -2867,22 +2868,18 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	if (mlx4_ib_init_sriov(ibdev))
 		goto err_mad;
 
-	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_IBOE ||
-	    dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ROCE_V1_V2) {
-		if (!iboe->nb.notifier_call) {
-			iboe->nb.notifier_call = mlx4_ib_netdev_event;
-			err = register_netdevice_notifier(&iboe->nb);
-			if (err) {
-				iboe->nb.notifier_call = NULL;
-				goto err_notif;
-			}
+	if (!iboe->nb.notifier_call) {
+		iboe->nb.notifier_call = mlx4_ib_netdev_event;
+		err = register_netdevice_notifier(&iboe->nb);
+		if (err) {
+			iboe->nb.notifier_call = NULL;
+			goto err_notif;
 		}
-		if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ROCE_V1_V2) {
-			err = mlx4_config_roce_v2_port(dev, ROCE_V2_UDP_DPORT);
-			if (err) {
-				goto err_notif;
-			}
-		}
+	}
+	if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ROCE_V1_V2) {
+		err = mlx4_config_roce_v2_port(dev, ROCE_V2_UDP_DPORT);
+		if (err)
+			goto err_notif;
 	}
 
 	for (j = 0; j < ARRAY_SIZE(mlx4_class_attributes); ++j) {
@@ -2941,6 +2938,7 @@ err_counter:
 		mlx4_ib_delete_counters_table(ibdev, &ibdev->counters_table[i]);
 
 err_map:
+	mlx4_ib_free_eqs(dev, ibdev);
 	iounmap(ibdev->uar_map);
 
 err_uar:

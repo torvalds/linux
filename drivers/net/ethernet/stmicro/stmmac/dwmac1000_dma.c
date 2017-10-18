@@ -205,8 +205,8 @@ static void dwmac1000_dump_dma_regs(void __iomem *ioaddr, u32 *reg_space)
 {
 	int i;
 
-	for (i = 0; i < 22; i++)
-		if ((i < 9) || (i > 17))
+	for (i = 0; i < NUM_DWMAC1000_DMA_REGS; i++)
+		if ((i < 12) || (i > 17))
 			reg_space[DMA_BUS_MODE / 4 + i] =
 				readl(ioaddr + DMA_BUS_MODE + i * 4);
 }
@@ -247,7 +247,8 @@ static void dwmac1000_get_hw_feature(void __iomem *ioaddr,
 	dma_cap->enh_desc = (hw_cap & DMA_HW_FEAT_ENHDESSEL) >> 24;
 }
 
-static void dwmac1000_rx_watchdog(void __iomem *ioaddr, u32 riwt)
+static void dwmac1000_rx_watchdog(void __iomem *ioaddr, u32 riwt,
+				  u32 number_chan)
 {
 	writel(riwt, ioaddr + DMA_RX_WATCHDOG);
 }

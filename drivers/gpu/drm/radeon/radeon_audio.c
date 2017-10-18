@@ -576,9 +576,9 @@ static void radeon_audio_calc_cts(unsigned int clock, int *CTS, int *N, int freq
 
 	/* Check that we are in spec (not always possible) */
 	if (n < (128*freq/1500))
-		printk(KERN_WARNING "Calculated ACR N value is too small. You may experience audio problems.\n");
+		pr_warn("Calculated ACR N value is too small. You may experience audio problems.\n");
 	if (n > (128*freq/300))
-		printk(KERN_WARNING "Calculated ACR N value is too large. You may experience audio problems.\n");
+		pr_warn("Calculated ACR N value is too large. You may experience audio problems.\n");
 
 	*N = n;
 	*CTS = cts;

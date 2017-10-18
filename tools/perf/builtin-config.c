@@ -154,11 +154,12 @@ static int parse_config_arg(char *arg, char **var, char **value)
 	return 0;
 }
 
-int cmd_config(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_config(int argc, const char **argv)
 {
-	int i, ret = 0;
+	int i, ret = -1;
 	struct perf_config_set *set;
 	char *user_config = mkpath("%s/.perfconfig", getenv("HOME"));
+	const char *config_filename;
 
 	argc = parse_options(argc, argv, config_options, config_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
@@ -175,15 +176,18 @@ int cmd_config(int argc, const char **argv, const char *prefix __maybe_unused)
 	else if (use_user_config)
 		config_exclusive_filename = user_config;
 
+	if (!config_exclusive_filename)
+		config_filename = user_config;
+	else
+		config_filename = config_exclusive_filename;
+
 	/*
 	 * At only 'config' sub-command, individually use the config set
 	 * because of reinitializing with options config file location.
 	 */
 	set = perf_config_set__new();
-	if (!set) {
-		ret = -1;
+	if (!set)
 		goto out_err;
-	}
 
 	switch (actions) {
 	case ACTION_LIST:
@@ -191,50 +195,54 @@ int cmd_config(int argc, const char **argv, const char *prefix __maybe_unused)
 			pr_err("Error: takes no arguments\n");
 			parse_options_usage(config_usage, config_options, "l", 1);
 		} else {
-			ret = show_config(set);
-			if (ret < 0) {
-				const char * config_filename = config_exclusive_filename;
-				if (!config_exclusive_filename)
-					config_filename = user_config;
+			if (show_config(set) < 0) {
 				pr_err("Nothing configured, "
 				       "please check your %s \n", config_filename);
+				goto out_err;
 			}
 		}
 		break;
 	default:
-		if (argc) {
-			for (i = 0; argv[i]; i++) {
-				char *var, *value;
-				char *arg = strdup(argv[i]);
-
-				if (!arg) {
-					pr_err("%s: strdup failed\n", __func__);
-					ret = -1;
-					break;
-				}
-
-				if (parse_config_arg(arg, &var, &value) < 0) {
-					free(arg);
-					ret = -1;
-					break;
-				}
-
-				if (value == NULL)
-					ret = show_spec_config(set, var);
-				else {
-					const char *config_filename = config_exclusive_filename;
-
-					if (!config_exclusive_filename)
-						config_filename = user_config;
-					ret = set_config(set, config_filename, var, value);
-				}
-				free(arg);
-			}
-		} else
+		if (!argc) {
 			usage_with_options(config_usage, config_options);
+			break;
+		}
+
+		for (i = 0; argv[i]; i++) {
+			char *var, *value;
+			char *arg = strdup(argv[i]);
+
+			if (!arg) {
+				pr_err("%s: strdup failed\n", __func__);
+				goto out_err;
+			}
+
+			if (parse_config_arg(arg, &var, &value) < 0) {
+				free(arg);
+				goto out_err;
+			}
+
+			if (value == NULL) {
+				if (show_spec_config(set, var) < 0) {
+					pr_err("%s is not configured: %s\n",
+					       var, config_filename);
+					free(arg);
+					goto out_err;
+				}
+			} else {
+				if (set_config(set, config_filename, var, value) < 0) {
+					pr_err("Failed to set '%s=%s' on %s\n",
+					       var, value, config_filename);
+					free(arg);
+					goto out_err;
+				}
+			}
+			free(arg);
+		}
 	}
 
-	perf_config_set__delete(set);
+	ret = 0;
 out_err:
+	perf_config_set__delete(set);
 	return ret;
 }

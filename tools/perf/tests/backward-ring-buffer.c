@@ -8,6 +8,7 @@
 #include <sys/prctl.h>
 #include "tests.h"
 #include "debug.h"
+#include <errno.h>
 
 #define NR_ITERS 111
 

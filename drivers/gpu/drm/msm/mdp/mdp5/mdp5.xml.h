@@ -8,9 +8,17 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /local/mnt/workspace/source_trees/envytools/rnndb/../rnndb/mdp/mdp5.xml   (  37411 bytes, from 2017-01-11 05:19:19)
-- /local/mnt/workspace/source_trees/envytools/rnndb/freedreno_copyright.xml (   1572 bytes, from 2016-05-09 06:32:54)
-- /local/mnt/workspace/source_trees/envytools/rnndb/mdp/mdp_common.xml      (   2849 bytes, from 2016-01-07 08:45:55)
+- /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    676 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml (   1572 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  20915 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   2849 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  37411 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/dsi.xml             (  33004 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/sfpb.xml            (    602 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  41799 bytes, from 2017-06-16 12:32:42)
+- /home/robclark/src/freedreno/envytools/rnndb/edp/edp.xml             (  10416 bytes, from 2017-05-17 13:21:27)
 
 Copyright (C) 2013-2017 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)

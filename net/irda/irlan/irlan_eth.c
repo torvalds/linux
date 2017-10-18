@@ -65,7 +65,7 @@ static void irlan_eth_setup(struct net_device *dev)
 	ether_setup(dev);
 
 	dev->netdev_ops		= &irlan_eth_netdev_ops;
-	dev->destructor		= free_netdev;
+	dev->needs_free_netdev	= true;
 	dev->min_mtu		= 0;
 	dev->max_mtu		= ETH_MAX_MTU;
 

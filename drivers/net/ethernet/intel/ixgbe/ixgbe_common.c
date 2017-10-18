@@ -155,7 +155,7 @@ s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw)
 		if (ret_val)
 			return ret_val;
 
-		/* only backplane uses autoc so fall though */
+		/* fall through - only backplane uses autoc */
 	case ixgbe_media_type_fiber:
 		reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
 
@@ -395,7 +395,8 @@ s32 ixgbe_init_hw_generic(struct ixgbe_hw *hw)
 	}
 
 	/* Initialize the LED link active for LED blink support */
-	hw->mac.ops.init_led_link_act(hw);
+	if (hw->mac.ops.init_led_link_act)
+		hw->mac.ops.init_led_link_act(hw);
 
 	return status;
 }
@@ -3548,7 +3549,7 @@ void ixgbe_set_rxpba_generic(struct ixgbe_hw *hw,
 		rxpktsize <<= IXGBE_RXPBSIZE_SHIFT;
 		for (; i < (num_pb / 2); i++)
 			IXGBE_WRITE_REG(hw, IXGBE_RXPBSIZE(i), rxpktsize);
-		/* Fall through to configure remaining packet buffers */
+		/* fall through - configure remaining packet buffers */
 	case (PBA_STRATEGY_EQUAL):
 		/* Divide the remaining Rx packet buffer evenly among the TCs */
 		rxpktsize = (pbsize / (num_pb - i)) << IXGBE_RXPBSIZE_SHIFT;
@@ -4120,15 +4121,6 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 		speedcnt++;
 		highest_link_speed = IXGBE_LINK_SPEED_10GB_FULL;
 
-		/* If we already have link at this speed, just jump out */
-		status = hw->mac.ops.check_link(hw, &link_speed, &link_up,
-						false);
-		if (status)
-			return status;
-
-		if (link_speed == IXGBE_LINK_SPEED_10GB_FULL && link_up)
-			goto out;
-
 		/* Set the module link speed */
 		switch (hw->phy.media_type) {
 		case ixgbe_media_type_fiber:
@@ -4179,15 +4171,6 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 		speedcnt++;
 		if (highest_link_speed == IXGBE_LINK_SPEED_UNKNOWN)
 			highest_link_speed = IXGBE_LINK_SPEED_1GB_FULL;
-
-		/* If we already have link at this speed, just jump out */
-		status = hw->mac.ops.check_link(hw, &link_speed, &link_up,
-						false);
-		if (status)
-			return status;
-
-		if (link_speed == IXGBE_LINK_SPEED_1GB_FULL && link_up)
-			goto out;
 
 		/* Set the module link speed */
 		switch (hw->phy.media_type) {
@@ -4293,6 +4276,25 @@ void ixgbe_set_soft_rate_select_speed(struct ixgbe_hw *hw,
 					    eeprom_data);
 	if (status) {
 		hw_dbg(hw, "Failed to write Rx Rate Select RS0\n");
+		return;
+	}
+
+	/* Set RS1 */
+	status = hw->phy.ops.read_i2c_byte(hw, IXGBE_SFF_SFF_8472_ESCB,
+					   IXGBE_I2C_EEPROM_DEV_ADDR2,
+					   &eeprom_data);
+	if (status) {
+		hw_dbg(hw, "Failed to read Rx Rate Select RS1\n");
+		return;
+	}
+
+	eeprom_data = (eeprom_data & ~IXGBE_SFF_SOFT_RS_SELECT_MASK) | rs;
+
+	status = hw->phy.ops.write_i2c_byte(hw, IXGBE_SFF_SFF_8472_ESCB,
+					    IXGBE_I2C_EEPROM_DEV_ADDR2,
+					    eeprom_data);
+	if (status) {
+		hw_dbg(hw, "Failed to write Rx Rate Select RS1\n");
 		return;
 	}
 }

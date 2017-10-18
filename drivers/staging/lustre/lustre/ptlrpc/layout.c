@@ -58,7 +58,6 @@
 /* struct ptlrpc_request, lustre_msg* */
 #include "../include/lustre_req_layout.h"
 #include "../include/lustre_acl.h"
-#include "../include/lustre_debug.h"
 
 /*
  * RQFs (see below) refer to two struct req_msg_field arrays describing the
@@ -1762,7 +1761,7 @@ static u32 __req_capsule_offset(const struct req_capsule *pill,
 		 field->rmf_name, offset, loc);
 	offset--;
 
-	LASSERT(0 <= offset && offset < REQ_MAX_FIELD_NR);
+	LASSERT(offset < REQ_MAX_FIELD_NR);
 	return offset;
 }
 

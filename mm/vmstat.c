@@ -928,8 +928,6 @@ const char * const vmstat_text[] = {
 	"nr_zone_unevictable",
 	"nr_zone_write_pending",
 	"nr_mlock",
-	"nr_slab_reclaimable",
-	"nr_slab_unreclaimable",
 	"nr_page_table_pages",
 	"nr_kernel_stack",
 	"nr_bounce",
@@ -952,9 +950,10 @@ const char * const vmstat_text[] = {
 	"nr_inactive_file",
 	"nr_active_file",
 	"nr_unevictable",
+	"nr_slab_reclaimable",
+	"nr_slab_unreclaimable",
 	"nr_isolated_anon",
 	"nr_isolated_file",
-	"nr_pages_scanned",
 	"workingset_refault",
 	"workingset_activate",
 	"workingset_nodereclaim",
@@ -992,6 +991,7 @@ const char * const vmstat_text[] = {
 	"pgfree",
 	"pgactivate",
 	"pgdeactivate",
+	"pglazyfree",
 
 	"pgfault",
 	"pgmajfault",
@@ -1018,6 +1018,7 @@ const char * const vmstat_text[] = {
 
 	"drop_pagecache",
 	"drop_slab",
+	"oom_kill",
 
 #ifdef CONFIG_NUMA_BALANCING
 	"numa_pte_updates",
@@ -1124,8 +1125,12 @@ static void frag_stop(struct seq_file *m, void *arg)
 {
 }
 
-/* Walk all the zones in a node and print using a callback */
+/*
+ * Walk zones in a node and print using a callback.
+ * If @assert_populated is true, only use callback for zones that are populated.
+ */
 static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
+		bool assert_populated, bool nolock,
 		void (*print)(struct seq_file *m, pg_data_t *, struct zone *))
 {
 	struct zone *zone;
@@ -1133,12 +1138,14 @@ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
 	unsigned long flags;
 
 	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
-		if (!populated_zone(zone))
+		if (assert_populated && !populated_zone(zone))
 			continue;
 
-		spin_lock_irqsave(&zone->lock, flags);
+		if (!nolock)
+			spin_lock_irqsave(&zone->lock, flags);
 		print(m, pgdat, zone);
-		spin_unlock_irqrestore(&zone->lock, flags);
+		if (!nolock)
+			spin_unlock_irqrestore(&zone->lock, flags);
 	}
 }
 #endif
@@ -1161,7 +1168,7 @@ static void frag_show_print(struct seq_file *m, pg_data_t *pgdat,
 static int frag_show(struct seq_file *m, void *arg)
 {
 	pg_data_t *pgdat = (pg_data_t *)arg;
-	walk_zones_in_node(m, pgdat, frag_show_print);
+	walk_zones_in_node(m, pgdat, true, false, frag_show_print);
 	return 0;
 }
 
@@ -1202,7 +1209,7 @@ static int pagetypeinfo_showfree(struct seq_file *m, void *arg)
 		seq_printf(m, "%6d ", order);
 	seq_putc(m, '\n');
 
-	walk_zones_in_node(m, pgdat, pagetypeinfo_showfree_print);
+	walk_zones_in_node(m, pgdat, true, false, pagetypeinfo_showfree_print);
 
 	return 0;
 }
@@ -1219,10 +1226,9 @@ static void pagetypeinfo_showblockcount_print(struct seq_file *m,
 	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
 		struct page *page;
 
-		if (!pfn_valid(pfn))
+		page = pfn_to_online_page(pfn);
+		if (!page)
 			continue;
-
-		page = pfn_to_page(pfn);
 
 		/* Watch for unexpected holes punched in the memmap */
 		if (!memmap_valid_within(pfn, page, zone))
@@ -1254,7 +1260,8 @@ static int pagetypeinfo_showblockcount(struct seq_file *m, void *arg)
 	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++)
 		seq_printf(m, "%12s ", migratetype_names[mtype]);
 	seq_putc(m, '\n');
-	walk_zones_in_node(m, pgdat, pagetypeinfo_showblockcount_print);
+	walk_zones_in_node(m, pgdat, true, false,
+		pagetypeinfo_showblockcount_print);
 
 	return 0;
 }
@@ -1280,7 +1287,8 @@ static void pagetypeinfo_showmixedcount(struct seq_file *m, pg_data_t *pgdat)
 		seq_printf(m, "%12s ", migratetype_names[mtype]);
 	seq_putc(m, '\n');
 
-	walk_zones_in_node(m, pgdat, pagetypeinfo_showmixedcount_print);
+	walk_zones_in_node(m, pgdat, true, true,
+		pagetypeinfo_showmixedcount_print);
 #endif /* CONFIG_PAGE_OWNER */
 }
 
@@ -1318,7 +1326,7 @@ static int fragmentation_open(struct inode *inode, struct file *file)
 	return seq_open(file, &fragmentation_op);
 }
 
-static const struct file_operations fragmentation_file_operations = {
+static const struct file_operations buddyinfo_file_operations = {
 	.open		= fragmentation_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -1337,7 +1345,7 @@ static int pagetypeinfo_open(struct inode *inode, struct file *file)
 	return seq_open(file, &pagetypeinfo_op);
 }
 
-static const struct file_operations pagetypeinfo_file_ops = {
+static const struct file_operations pagetypeinfo_file_operations = {
 	.open		= pagetypeinfo_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -1355,8 +1363,6 @@ static bool is_zone_first_populated(pg_data_t *pgdat, struct zone *zone)
 			return zone == compare;
 	}
 
-	/* The zone must be somewhere! */
-	WARN_ON_ONCE(1);
 	return false;
 }
 
@@ -1378,7 +1384,6 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   "\n        min      %lu"
 		   "\n        low      %lu"
 		   "\n        high     %lu"
-		   "\n   node_scanned  %lu"
 		   "\n        spanned  %lu"
 		   "\n        present  %lu"
 		   "\n        managed  %lu",
@@ -1386,23 +1391,28 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   min_wmark_pages(zone),
 		   low_wmark_pages(zone),
 		   high_wmark_pages(zone),
-		   node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED),
 		   zone->spanned_pages,
 		   zone->present_pages,
 		   zone->managed_pages);
-
-	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
-		seq_printf(m, "\n      %-12s %lu", vmstat_text[i],
-				zone_page_state(zone, i));
 
 	seq_printf(m,
 		   "\n        protection: (%ld",
 		   zone->lowmem_reserve[0]);
 	for (i = 1; i < ARRAY_SIZE(zone->lowmem_reserve); i++)
 		seq_printf(m, ", %ld", zone->lowmem_reserve[i]);
-	seq_printf(m,
-		   ")"
-		   "\n  pagesets");
+	seq_putc(m, ')');
+
+	/* If unpopulated, no other information is useful */
+	if (!populated_zone(zone)) {
+		seq_putc(m, '\n');
+		return;
+	}
+
+	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
+		seq_printf(m, "\n      %-12s %lu", vmstat_text[i],
+				zone_page_state(zone, i));
+
+	seq_printf(m, "\n  pagesets");
 	for_each_online_cpu(i) {
 		struct per_cpu_pageset *pageset;
 
@@ -1425,19 +1435,22 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   "\n  node_unreclaimable:  %u"
 		   "\n  start_pfn:           %lu"
 		   "\n  node_inactive_ratio: %u",
-		   !pgdat_reclaimable(zone->zone_pgdat),
+		   pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES,
 		   zone->zone_start_pfn,
 		   zone->zone_pgdat->inactive_ratio);
 	seq_putc(m, '\n');
 }
 
 /*
- * Output information about zones in @pgdat.
+ * Output information about zones in @pgdat.  All zones are printed regardless
+ * of whether they are populated or not: lowmem_reserve_ratio operates on the
+ * set of all zones and userspace would not be aware of such zones if they are
+ * suppressed here (zoneinfo displays the effect of lowmem_reserve_ratio).
  */
 static int zoneinfo_show(struct seq_file *m, void *arg)
 {
 	pg_data_t *pgdat = (pg_data_t *)arg;
-	walk_zones_in_node(m, pgdat, zoneinfo_show_print);
+	walk_zones_in_node(m, pgdat, false, false, zoneinfo_show_print);
 	return 0;
 }
 
@@ -1454,7 +1467,7 @@ static int zoneinfo_open(struct inode *inode, struct file *file)
 	return seq_open(file, &zoneinfo_op);
 }
 
-static const struct file_operations proc_zoneinfo_file_operations = {
+static const struct file_operations zoneinfo_file_operations = {
 	.open		= zoneinfo_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -1543,7 +1556,7 @@ static int vmstat_open(struct inode *inode, struct file *file)
 	return seq_open(file, &vmstat_op);
 }
 
-static const struct file_operations proc_vmstat_file_operations = {
+static const struct file_operations vmstat_file_operations = {
 	.open		= vmstat_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -1586,22 +1599,9 @@ int vmstat_refresh(struct ctl_table *table, int write,
 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++) {
 		val = atomic_long_read(&vm_zone_stat[i]);
 		if (val < 0) {
-			switch (i) {
-			case NR_PAGES_SCANNED:
-				/*
-				 * This is often seen to go negative in
-				 * recent kernels, but not to go permanently
-				 * negative.  Whilst it would be nicer not to
-				 * have exceptions, rooting them out would be
-				 * another task, of rather low priority.
-				 */
-				break;
-			default:
-				pr_warn("%s: %s %ld\n",
-					__func__, vmstat_text[i], val);
-				err = -EINVAL;
-				break;
-			}
+			pr_warn("%s: %s %ld\n",
+				__func__, vmstat_text[i], val);
+			err = -EINVAL;
 		}
 	}
 	if (err)
@@ -1789,10 +1789,10 @@ void __init init_mm_internals(void)
 	start_shepherd_timer();
 #endif
 #ifdef CONFIG_PROC_FS
-	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
-	proc_create("pagetypeinfo", S_IRUGO, NULL, &pagetypeinfo_file_ops);
-	proc_create("vmstat", S_IRUGO, NULL, &proc_vmstat_file_operations);
-	proc_create("zoneinfo", S_IRUGO, NULL, &proc_zoneinfo_file_operations);
+	proc_create("buddyinfo", 0444, NULL, &buddyinfo_file_operations);
+	proc_create("pagetypeinfo", 0444, NULL, &pagetypeinfo_file_operations);
+	proc_create("vmstat", 0444, NULL, &vmstat_file_operations);
+	proc_create("zoneinfo", 0444, NULL, &zoneinfo_file_operations);
 #endif
 }
 
@@ -1856,7 +1856,7 @@ static int unusable_show(struct seq_file *m, void *arg)
 	if (!node_state(pgdat->node_id, N_MEMORY))
 		return 0;
 
-	walk_zones_in_node(m, pgdat, unusable_show_print);
+	walk_zones_in_node(m, pgdat, true, false, unusable_show_print);
 
 	return 0;
 }
@@ -1908,7 +1908,7 @@ static int extfrag_show(struct seq_file *m, void *arg)
 {
 	pg_data_t *pgdat = (pg_data_t *)arg;
 
-	walk_zones_in_node(m, pgdat, extfrag_show_print);
+	walk_zones_in_node(m, pgdat, true, false, extfrag_show_print);
 
 	return 0;
 }

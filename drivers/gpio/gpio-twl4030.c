@@ -485,7 +485,8 @@ static int gpio_twl4030_probe(struct platform_device *pdev)
 		goto no_irqs;
 	}
 
-	irq_base = irq_alloc_descs(-1, 0, TWL4030_GPIO_MAX, 0);
+	irq_base = devm_irq_alloc_descs(&pdev->dev, -1,
+					0, TWL4030_GPIO_MAX, 0);
 	if (irq_base < 0) {
 		dev_err(&pdev->dev, "Failed to alloc irq_descs\n");
 		return irq_base;

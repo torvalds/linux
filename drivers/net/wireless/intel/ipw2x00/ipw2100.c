@@ -4160,12 +4160,12 @@ static ssize_t show_bssinfo(struct device *d, struct device_attribute *attr,
 static DEVICE_ATTR(bssinfo, S_IRUGO, show_bssinfo, NULL);
 
 #ifdef CONFIG_IPW2100_DEBUG
-static ssize_t show_debug_level(struct device_driver *d, char *buf)
+static ssize_t debug_level_show(struct device_driver *d, char *buf)
 {
 	return sprintf(buf, "0x%08X\n", ipw2100_debug_level);
 }
 
-static ssize_t store_debug_level(struct device_driver *d,
+static ssize_t debug_level_store(struct device_driver *d,
 				 const char *buf, size_t count)
 {
 	u32 val;
@@ -4179,9 +4179,7 @@ static ssize_t store_debug_level(struct device_driver *d,
 
 	return strnlen(buf, count);
 }
-
-static DRIVER_ATTR(debug_level, S_IWUSR | S_IRUGO, show_debug_level,
-		   store_debug_level);
+static DRIVER_ATTR_RW(debug_level);
 #endif				/* CONFIG_IPW2100_DEBUG */
 
 static ssize_t show_fatal_error(struct device *d,

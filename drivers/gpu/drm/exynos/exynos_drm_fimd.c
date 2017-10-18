@@ -179,7 +179,6 @@ struct fimd_context {
 	u32				i80ifcon;
 	bool				i80_if;
 	bool				suspended;
-	int				pipe;
 	wait_queue_head_t		wait_vsync_queue;
 	atomic_t			wait_vsync_event;
 	atomic_t			win_updated;
@@ -354,18 +353,13 @@ static void fimd_clear_channels(struct exynos_drm_crtc *crtc)
 
 	/* Wait for vsync, as disable channel takes effect at next vsync */
 	if (ch_enabled) {
-		int pipe = ctx->pipe;
-
-		/* ensure that vblank interrupt won't be reported to core */
 		ctx->suspended = false;
-		ctx->pipe = -1;
 
 		fimd_enable_vblank(ctx->crtc);
 		fimd_wait_for_vblank(ctx->crtc);
 		fimd_disable_vblank(ctx->crtc);
 
 		ctx->suspended = true;
-		ctx->pipe = pipe;
 	}
 
 	clk_disable_unprepare(ctx->lcd_clk);
@@ -899,7 +893,7 @@ static void fimd_te_handler(struct exynos_drm_crtc *crtc)
 	u32 trg_type = ctx->driver_data->trg_type;
 
 	/* Checks the crtc is detached already from encoder */
-	if (ctx->pipe < 0 || !ctx->drm_dev)
+	if (!ctx->drm_dev)
 		return;
 
 	if (trg_type == I80_HW_TRG)
@@ -934,7 +928,6 @@ static void fimd_dp_clock_enable(struct exynos_drm_clk *clk, bool enable)
 static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
 	.enable = fimd_enable,
 	.disable = fimd_disable,
-	.commit = fimd_commit,
 	.enable_vblank = fimd_enable_vblank,
 	.disable_vblank = fimd_disable_vblank,
 	.atomic_begin = fimd_atomic_begin,
@@ -957,7 +950,7 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 		writel(clear_bit, ctx->regs + VIDINTCON1);
 
 	/* check the crtc is detached already from encoder */
-	if (ctx->pipe < 0 || !ctx->drm_dev)
+	if (!ctx->drm_dev)
 		goto out;
 
 	if (!ctx->i80_if)
@@ -982,13 +975,11 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 {
 	struct fimd_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct exynos_drm_private *priv = drm_dev->dev_private;
 	struct exynos_drm_plane *exynos_plane;
 	unsigned int i;
 	int ret;
 
 	ctx->drm_dev = drm_dev;
-	ctx->pipe = priv->pipe++;
 
 	for (i = 0; i < WINDOWS_NR; i++) {
 		ctx->configs[i].pixel_formats = fimd_formats;
@@ -996,15 +987,14 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 		ctx->configs[i].zpos = i;
 		ctx->configs[i].type = fimd_win_types[i];
 		ret = exynos_plane_init(drm_dev, &ctx->planes[i], i,
-					1 << ctx->pipe, &ctx->configs[i]);
+					&ctx->configs[i]);
 		if (ret)
 			return ret;
 	}
 
 	exynos_plane = &ctx->planes[DEFAULT_WIN];
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
-					   ctx->pipe, EXYNOS_DISPLAY_TYPE_LCD,
-					   &fimd_crtc_ops, ctx);
+			EXYNOS_DISPLAY_TYPE_LCD, &fimd_crtc_ops, ctx);
 	if (IS_ERR(ctx->crtc))
 		return PTR_ERR(ctx->crtc);
 
@@ -1019,11 +1009,7 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	if (is_drm_iommu_supported(drm_dev))
 		fimd_clear_channels(ctx->crtc);
 
-	ret = drm_iommu_attach_device(drm_dev, dev);
-	if (ret)
-		priv->pipe--;
-
-	return ret;
+	return drm_iommu_attach_device(drm_dev, dev);
 }
 
 static void fimd_unbind(struct device *dev, struct device *master,

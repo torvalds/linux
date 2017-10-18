@@ -68,7 +68,7 @@
 
 #define AQ_CFG_DRV_AUTHOR      "aQuantia"
 #define AQ_CFG_DRV_DESC        "aQuantia Corporation(R) Network Driver"
-#define AQ_CFG_DRV_NAME        "aquantia"
+#define AQ_CFG_DRV_NAME        "atlantic"
 #define AQ_CFG_DRV_VERSION	__stringify(NIC_MAJOR_DRIVER_VERSION)"."\
 				__stringify(NIC_MINOR_DRIVER_VERSION)"."\
 				__stringify(NIC_BUILD_DRIVER_VERSION)"."\

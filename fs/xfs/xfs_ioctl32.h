@@ -112,9 +112,9 @@ typedef struct compat_xfs_fsop_handlereq {
 
 /* The bstat field in the swapext struct needs translation */
 typedef struct compat_xfs_swapext {
-	__int64_t		sx_version;	/* version */
-	__int64_t		sx_fdtarget;	/* fd of target file */
-	__int64_t		sx_fdtmp;	/* fd of tmp file */
+	int64_t			sx_version;	/* version */
+	int64_t			sx_fdtarget;	/* fd of target file */
+	int64_t			sx_fdtmp;	/* fd of tmp file */
 	xfs_off_t		sx_offset;	/* offset into file */
 	xfs_off_t		sx_length;	/* leng from offset */
 	char			sx_pad[16];	/* pad space, unused */

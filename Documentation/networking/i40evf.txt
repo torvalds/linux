@@ -1,8 +1,8 @@
 Linux* Base Driver for Intel(R) Network Connection
 ==================================================
 
-Intel XL710 X710 Virtual Function Linux driver.
-Copyright(c) 2013 Intel Corporation.
+Intel Ethernet Adaptive Virtual Function Linux driver.
+Copyright(c) 2013-2017 Intel Corporation.
 
 Contents
 ========
@@ -11,19 +11,26 @@ Contents
 - Known Issues/Troubleshooting
 - Support
 
-This file describes the i40evf Linux* Base Driver for the Intel(R) XL710
-X710 Virtual Function.
+This file describes the i40evf Linux* Base Driver.
 
-The i40evf driver supports XL710 and X710 virtual function devices that
-can only be activated on kernels with CONFIG_PCI_IOV enabled.
+The i40evf driver supports the below mentioned virtual function
+devices and can only be activated on kernels running the i40e or
+newer Physical Function (PF) driver compiled with CONFIG_PCI_IOV.
+The i40evf driver requires CONFIG_PCI_MSI to be enabled.
 
 The guest OS loading the i40evf driver must support MSI-X interrupts.
+
+Supported Hardware
+==================
+Intel XL710 X710 Virtual Function
+Intel Ethernet Adaptive Virtual Function
+Intel X722 Virtual Function
 
 Identifying Your Adapter
 ========================
 
-For more information on how to identify your adapter, go to the Adapter &
-Driver ID Guide at:
+For more information on how to identify your adapter, go to the
+Adapter & Driver ID Guide at:
 
     http://support.intel.com/support/go/network/adapter/idguide.htm
 

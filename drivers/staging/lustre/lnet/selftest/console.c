@@ -65,7 +65,8 @@ lstcon_node_get(struct lstcon_node *nd)
 }
 
 static int
-lstcon_node_find(lnet_process_id_t id, struct lstcon_node **ndpp, int create)
+lstcon_node_find(struct lnet_process_id id, struct lstcon_node **ndpp,
+		 int create)
 {
 	struct lstcon_ndlink	*ndl;
 	unsigned int idx = LNET_NIDADDR(id.nid) % LST_GLOBAL_HASHSIZE;
@@ -135,7 +136,7 @@ lstcon_node_put(struct lstcon_node *nd)
 }
 
 static int
-lstcon_ndlink_find(struct list_head *hash, lnet_process_id_t id,
+lstcon_ndlink_find(struct list_head *hash, struct lnet_process_id id,
 		   struct lstcon_ndlink **ndlpp, int create)
 {
 	unsigned int idx = LNET_NIDADDR(id.nid) % LST_NODE_HASHSIZE;
@@ -283,7 +284,7 @@ lstcon_group_find(const char *name, struct lstcon_group **grpp)
 }
 
 static int
-lstcon_group_ndlink_find(struct lstcon_group *grp, lnet_process_id_t id,
+lstcon_group_ndlink_find(struct lstcon_group *grp, struct lnet_process_id id,
 			 struct lstcon_ndlink **ndlpp, int create)
 {
 	int rc;
@@ -397,14 +398,14 @@ lstcon_sesrpc_readent(int transop, struct srpc_msg *msg,
 
 static int
 lstcon_group_nodes_add(struct lstcon_group *grp,
-		       int count, lnet_process_id_t __user *ids_up,
+		       int count, struct lnet_process_id __user *ids_up,
 		       unsigned int *featp,
 		       struct list_head __user *result_up)
 {
 	struct lstcon_rpc_trans *trans;
 	struct lstcon_ndlink	*ndl;
 	struct lstcon_group *tmp;
-	lnet_process_id_t id;
+	struct lnet_process_id id;
 	int i;
 	int rc;
 
@@ -465,13 +466,13 @@ lstcon_group_nodes_add(struct lstcon_group *grp,
 
 static int
 lstcon_group_nodes_remove(struct lstcon_group *grp,
-			  int count, lnet_process_id_t __user *ids_up,
+			  int count, struct lnet_process_id __user *ids_up,
 			  struct list_head __user *result_up)
 {
 	struct lstcon_rpc_trans *trans;
 	struct lstcon_ndlink *ndl;
 	struct lstcon_group *tmp;
-	lnet_process_id_t id;
+	struct lnet_process_id id;
 	int rc;
 	int i;
 
@@ -543,9 +544,8 @@ lstcon_group_add(char *name)
 }
 
 int
-lstcon_nodes_add(char *name, int count, lnet_process_id_t __user *ids_up,
-		 unsigned int *featp,
-		 struct list_head __user *result_up)
+lstcon_nodes_add(char *name, int count, struct lnet_process_id __user *ids_up,
+		 unsigned int *featp, struct list_head __user *result_up)
 {
 	struct lstcon_group *grp;
 	int rc;
@@ -650,7 +650,8 @@ lstcon_group_clean(char *name, int args)
 }
 
 int
-lstcon_nodes_remove(char *name, int count, lnet_process_id_t __user *ids_up,
+lstcon_nodes_remove(char *name, int count,
+		    struct lnet_process_id __user *ids_up,
 		    struct list_head __user *result_up)
 {
 	struct lstcon_group *grp = NULL;
@@ -1469,14 +1470,14 @@ lstcon_statrpc_readent(int transop, struct srpc_msg *msg,
 	struct srpc_stat_reply *rep = &msg->msg_body.stat_reply;
 	struct sfw_counters __user *sfwk_stat;
 	struct srpc_counters __user *srpc_stat;
-	lnet_counters_t __user *lnet_stat;
+	struct lnet_counters __user *lnet_stat;
 
 	if (rep->str_status)
 		return 0;
 
 	sfwk_stat = (struct sfw_counters __user *)&ent_up->rpe_payload[0];
 	srpc_stat = (struct srpc_counters __user *)(sfwk_stat + 1);
-	lnet_stat = (lnet_counters_t __user *)(srpc_stat + 1);
+	lnet_stat = (struct lnet_counters __user *)(srpc_stat + 1);
 
 	if (copy_to_user(sfwk_stat, &rep->str_fw, sizeof(*sfwk_stat)) ||
 	    copy_to_user(srpc_stat, &rep->str_rpc, sizeof(*srpc_stat)) ||
@@ -1533,12 +1534,12 @@ lstcon_group_stat(char *grp_name, int timeout,
 }
 
 int
-lstcon_nodes_stat(int count, lnet_process_id_t __user *ids_up,
+lstcon_nodes_stat(int count, struct lnet_process_id __user *ids_up,
 		  int timeout, struct list_head __user *result_up)
 {
 	struct lstcon_ndlink	*ndl;
 	struct lstcon_group *tmp;
-	lnet_process_id_t id;
+	struct lnet_process_id id;
 	int i;
 	int rc;
 
@@ -1644,11 +1645,11 @@ lstcon_group_debug(int timeout, char *name,
 }
 
 int
-lstcon_nodes_debug(int timeout,
-		   int count, lnet_process_id_t __user *ids_up,
+lstcon_nodes_debug(int timeout, int count,
+		   struct lnet_process_id __user *ids_up,
 		   struct list_head __user *result_up)
 {
-	lnet_process_id_t id;
+	struct lnet_process_id id;
 	struct lstcon_ndlink *ndl;
 	struct lstcon_group *grp;
 	int i;
@@ -1697,7 +1698,7 @@ lstcon_session_match(struct lst_sid sid)
 static void
 lstcon_new_session_id(struct lst_sid *sid)
 {
-	lnet_process_id_t id;
+	struct lnet_process_id id;
 
 	LASSERT(console_session.ses_state == LST_SESSION_NONE);
 

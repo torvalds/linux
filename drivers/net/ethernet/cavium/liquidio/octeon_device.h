@@ -453,9 +453,6 @@ struct octeon_device {
 	/** List of dispatch functions */
 	struct octeon_dispatch_list dispatch;
 
-	/* Interrupt Moderation */
-	struct oct_intrmod_cfg intrmod;
-
 	u32 int_status;
 
 	u64 droq_intr;
@@ -517,6 +514,9 @@ struct octeon_device {
 
 	void *msix_entries;
 
+	/* when requesting IRQs, the names are stored here */
+	void *irq_name_storage;
+
 	struct octeon_sriov_info sriov_info;
 
 	struct octeon_pf_vf_hs_word pfvf_hsword;
@@ -538,6 +538,20 @@ struct octeon_device {
 	u32 priv_flags;
 
 	void *watchdog_task;
+
+	u32 rx_coalesce_usecs;
+	u32 rx_max_coalesced_frames;
+	u32 tx_max_coalesced_frames;
+
+	bool cores_crashed;
+
+	struct {
+		int bus;
+		int dev;
+		int func;
+	} loc;
+
+	atomic_t *adapter_refcount; /* reference count of adapter */
 };
 
 #define  OCT_DRV_ONLINE 1
@@ -550,12 +564,6 @@ struct octeon_device {
 #define  OCTEON_CN23XX_VF(oct)        ((oct)->chip_id == OCTEON_CN23XX_VF_VID)
 #define CHIP_CONF(oct, TYPE)             \
 	(((struct octeon_ ## TYPE  *)((oct)->chip))->conf)
-
-struct oct_intrmod_cmd {
-	struct octeon_device *oct_dev;
-	struct octeon_soft_command *sc;
-	struct oct_intrmod_cfg *cfg;
-};
 
 /*------------------ Function Prototypes ----------------------*/
 
@@ -571,6 +579,23 @@ void octeon_free_device_mem(struct octeon_device *oct);
  */
 struct octeon_device *octeon_allocate_device(u32 pci_id,
 					     u32 priv_size);
+
+/** Register a device's bus location at initialization time.
+ *  @param octeon_dev - pointer to the octeon device structure.
+ *  @param bus        - PCIe bus #
+ *  @param dev        - PCIe device #
+ *  @param func       - PCIe function #
+ *  @param is_pf      - TRUE for PF, FALSE for VF
+ *  @return reference count of device's adapter
+ */
+int octeon_register_device(struct octeon_device *oct,
+			   int bus, int dev, int func, int is_pf);
+
+/** Deregister a device at de-initialization time.
+ *  @param octeon_dev - pointer to the octeon device structure.
+ *  @return reference count of device's adapter
+ */
+int octeon_deregister_device(struct octeon_device *oct);
 
 /**  Initialize the driver's dispatch list which is a mix of a hash table
  *  and a linked list. This is done at driver load time.

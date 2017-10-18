@@ -182,18 +182,6 @@ struct page_map {
 	struct vmem_altmap altmap;
 };
 
-void get_zone_device_page(struct page *page)
-{
-	percpu_ref_get(page->pgmap->ref);
-}
-EXPORT_SYMBOL(get_zone_device_page);
-
-void put_zone_device_page(struct page *page)
-{
-	put_dev_pagemap(page->pgmap);
-}
-EXPORT_SYMBOL(put_zone_device_page);
-
 static void pgmap_radix_release(struct resource *res)
 {
 	resource_size_t key, align_start, align_size, align_end;
@@ -237,6 +225,10 @@ static void devm_memremap_pages_release(struct device *dev, void *data)
 	struct resource *res = &page_map->res;
 	resource_size_t align_start, align_size;
 	struct dev_pagemap *pgmap = &page_map->pgmap;
+	unsigned long pfn;
+
+	for_each_device_pfn(pfn, page_map)
+		put_page(pfn_to_page(pfn));
 
 	if (percpu_ref_tryget_live(pgmap->ref)) {
 		dev_WARN(dev, "%s: page mapping is still live!\n", __func__);
@@ -277,7 +269,10 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
  *
  * Notes:
  * 1/ @ref must be 'live' on entry and 'dead' before devm_memunmap_pages() time
- *    (or devm release event).
+ *    (or devm release event). The expected order of events is that @ref has
+ *    been through percpu_ref_kill() before devm_memremap_pages_release(). The
+ *    wait for the completion of all references being dropped and
+ *    percpu_ref_exit() must occur after devm_memremap_pages_release().
  *
  * 2/ @res is expected to be a host memory range that could feasibly be
  *    treated as a "System RAM" range, i.e. not a device mmio range, but
@@ -363,7 +358,11 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
 		goto err_pfn_remap;
 
 	mem_hotplug_begin();
-	error = arch_add_memory(nid, align_start, align_size, true);
+	error = arch_add_memory(nid, align_start, align_size, false);
+	if (!error)
+		move_pfn_range_to_zone(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
+					align_start >> PAGE_SHIFT,
+					align_size >> PAGE_SHIFT);
 	mem_hotplug_done();
 	if (error)
 		goto err_add_memory;
@@ -379,6 +378,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
 		 */
 		list_del(&page->lru);
 		page->pgmap = pgmap;
+		percpu_ref_get(ref);
 	}
 	devres_add(dev, page_map);
 	return __va(res->start);

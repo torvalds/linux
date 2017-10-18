@@ -59,7 +59,8 @@ static int exynos_drm_alloc_buf(struct exynos_drm_gem *exynos_gem)
 
 	nr_pages = exynos_gem->size >> PAGE_SHIFT;
 
-	exynos_gem->pages = drm_calloc_large(nr_pages, sizeof(struct page *));
+	exynos_gem->pages = kvmalloc_array(nr_pages, sizeof(struct page *),
+			GFP_KERNEL | __GFP_ZERO);
 	if (!exynos_gem->pages) {
 		DRM_ERROR("failed to allocate pages.\n");
 		return -ENOMEM;
@@ -101,7 +102,7 @@ err_dma_free:
 	dma_free_attrs(to_dma_dev(dev), exynos_gem->size, exynos_gem->cookie,
 		       exynos_gem->dma_addr, exynos_gem->dma_attrs);
 err_free:
-	drm_free_large(exynos_gem->pages);
+	kvfree(exynos_gem->pages);
 
 	return ret;
 }
@@ -122,7 +123,7 @@ static void exynos_drm_free_buf(struct exynos_drm_gem *exynos_gem)
 			(dma_addr_t)exynos_gem->dma_addr,
 			exynos_gem->dma_attrs);
 
-	drm_free_large(exynos_gem->pages);
+	kvfree(exynos_gem->pages);
 }
 
 static int exynos_drm_gem_handle_create(struct drm_gem_object *obj,
@@ -559,7 +560,7 @@ exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
 	exynos_gem->dma_addr = sg_dma_address(sgt->sgl);
 
 	npages = exynos_gem->size >> PAGE_SHIFT;
-	exynos_gem->pages = drm_malloc_ab(npages, sizeof(struct page *));
+	exynos_gem->pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (!exynos_gem->pages) {
 		ret = -ENOMEM;
 		goto err;
@@ -588,7 +589,7 @@ exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
 	return &exynos_gem->base;
 
 err_free_large:
-	drm_free_large(exynos_gem->pages);
+	kvfree(exynos_gem->pages);
 err:
 	drm_gem_object_release(&exynos_gem->base);
 	kfree(exynos_gem);

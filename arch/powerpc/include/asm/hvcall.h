@@ -295,6 +295,8 @@
 #define H_DISABLE_ALL_VIO_INTS	0x0A
 #define H_DISABLE_VIO_INTERRUPT	0x0B
 #define H_ENABLE_VIO_INTERRUPT	0x0C
+#define H_GET_SESSION_TOKEN	0x19
+#define H_SESSION_ERR_DETECTED	0x1A
 
 
 /* Platform specific hcalls, used by KVM */
@@ -376,16 +378,6 @@ long plpar_hcall_raw(unsigned long opcode, unsigned long *retbuf, ...);
 #define PLPAR_HCALL9_BUFSIZE 9
 long plpar_hcall9(unsigned long opcode, unsigned long *retbuf, ...);
 long plpar_hcall9_raw(unsigned long opcode, unsigned long *retbuf, ...);
-
-/* For hcall instrumentation.  One structure per-hcall, per-CPU */
-struct hcall_stats {
-	unsigned long	num_calls;	/* number of calls (on this CPU) */
-	unsigned long	tb_total;	/* total wall time (mftb) of calls. */
-	unsigned long	purr_total;	/* total cpu time (PURR) of calls. */
-	unsigned long	tb_start;
-	unsigned long	purr_start;
-};
-#define HCALL_STAT_ARRAY_SIZE	((MAX_HCALL_OPCODE >> 2) + 1)
 
 struct hvcall_mpp_data {
 	unsigned long entitled_mem;

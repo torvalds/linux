@@ -616,7 +616,7 @@ int vivid_try_fmt_vid_cap(struct file *file, void *priv,
 	/* This driver supports custom bytesperline values */
 
 	mp->num_planes = fmt->buffers;
-	for (p = 0; p < mp->num_planes; p++) {
+	for (p = 0; p < fmt->buffers; p++) {
 		/* Calculate the minimum supported bytesperline value */
 		bytesperline = (mp->width * fmt->bit_depth[p]) >> 3;
 		/* Calculate the maximum supported bytesperline value */
@@ -626,10 +626,17 @@ int vivid_try_fmt_vid_cap(struct file *file, void *priv,
 			pfmt[p].bytesperline = max_bpl;
 		if (pfmt[p].bytesperline < bytesperline)
 			pfmt[p].bytesperline = bytesperline;
-		pfmt[p].sizeimage = tpg_calc_line_width(&dev->tpg, p, pfmt[p].bytesperline) *
-			mp->height + fmt->data_offset[p];
+
+		pfmt[p].sizeimage = (pfmt[p].bytesperline * mp->height) /
+				fmt->vdownsampling[p] + fmt->data_offset[p];
+
 		memset(pfmt[p].reserved, 0, sizeof(pfmt[p].reserved));
 	}
+	for (p = fmt->buffers; p < fmt->planes; p++)
+		pfmt[0].sizeimage += (pfmt[0].bytesperline * mp->height *
+			(fmt->bit_depth[p] / fmt->vdownsampling[p])) /
+			(fmt->bit_depth[0] / fmt->vdownsampling[0]);
+
 	mp->colorspace = vivid_colorspace_cap(dev);
 	if (fmt->color_enc == TGP_COLOR_ENC_HSV)
 		mp->hsv_enc = vivid_hsv_enc_cap(dev);

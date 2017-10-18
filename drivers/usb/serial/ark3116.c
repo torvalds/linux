@@ -122,19 +122,6 @@ static inline int calc_divisor(int bps)
 	return (12000000 + 2*bps) / (4*bps);
 }
 
-static int ark3116_attach(struct usb_serial *serial)
-{
-	/* make sure we have our end-points */
-	if (serial->num_bulk_in == 0 ||
-			serial->num_bulk_out == 0 ||
-			serial->num_interrupt_in == 0) {
-		dev_err(&serial->interface->dev, "missing endpoint\n");
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
 static int ark3116_port_probe(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
@@ -671,7 +658,9 @@ static struct usb_serial_driver ark3116_device = {
 	},
 	.id_table =		id_table,
 	.num_ports =		1,
-	.attach =		ark3116_attach,
+	.num_bulk_in =		1,
+	.num_bulk_out =		1,
+	.num_interrupt_in =	1,
 	.port_probe =		ark3116_port_probe,
 	.port_remove =		ark3116_port_remove,
 	.set_termios =		ark3116_set_termios,

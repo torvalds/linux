@@ -3,15 +3,12 @@
 
 #include <linux/bug.h>
 #include <linux/signal_types.h>
+#include <linux/string.h>
 
 struct task_struct;
 
 /* for sysctl */
 extern int print_fatal_signals;
-
-#ifndef HAVE_ARCH_COPY_SIGINFO
-
-#include <linux/string.h>
 
 static inline void copy_siginfo(struct siginfo *to, struct siginfo *from)
 {
@@ -22,7 +19,7 @@ static inline void copy_siginfo(struct siginfo *to, struct siginfo *from)
 		memcpy(to, from, __ARCH_SI_PREAMBLE_SIZE + sizeof(from->_sifields._sigchld));
 }
 
-#endif
+int copy_siginfo_to_user(struct siginfo __user *to, const struct siginfo *from);
 
 /*
  * Define some primitives to manipulate sigset_t.
@@ -246,8 +243,6 @@ extern int do_send_sig_info(int sig, struct siginfo *info,
 				struct task_struct *p, bool group);
 extern int group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p);
 extern int __group_send_sig_info(int, struct siginfo *, struct task_struct *);
-extern int do_sigtimedwait(const sigset_t *, siginfo_t *,
-				const struct timespec *);
 extern int sigprocmask(int, sigset_t *, sigset_t *);
 extern void set_current_blocked(sigset_t *);
 extern void __set_current_blocked(const sigset_t *);
@@ -389,10 +384,6 @@ int unhandled_signal(struct task_struct *tsk, int sig);
 #define sig_kernel_coredump(sig)	siginmask(sig, SIG_KERNEL_COREDUMP_MASK)
 #define sig_kernel_ignore(sig)		siginmask(sig, SIG_KERNEL_IGNORE_MASK)
 #define sig_kernel_stop(sig)		siginmask(sig, SIG_KERNEL_STOP_MASK)
-
-#define sig_user_defined(t, signr) \
-	(((t)->sighand->action[(signr)-1].sa.sa_handler != SIG_DFL) &&	\
-	 ((t)->sighand->action[(signr)-1].sa.sa_handler != SIG_IGN))
 
 #define sig_fatal(t, signr) \
 	(!siginmask(signr, SIG_KERNEL_IGNORE_MASK|SIG_KERNEL_STOP_MASK) && \

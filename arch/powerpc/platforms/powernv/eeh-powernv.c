@@ -48,6 +48,7 @@ static int pnv_eeh_init(void)
 {
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
+	int max_diag_size = PNV_PCI_DIAG_BUF_SIZE;
 
 	if (!firmware_has_feature(FW_FEATURE_OPAL)) {
 		pr_warn("%s: OPAL is required !\n",
@@ -69,6 +70,9 @@ static int pnv_eeh_init(void)
 		if (phb->model == PNV_PHB_MODEL_P7IOC)
 			eeh_add_flag(EEH_ENABLE_IO_FOR_LOG);
 
+		if (phb->diag_data_size > max_diag_size)
+			max_diag_size = phb->diag_data_size;
+
 		/*
 		 * PE#0 should be regarded as valid by EEH core
 		 * if it's not the reserved one. Currently, we
@@ -81,6 +85,8 @@ static int pnv_eeh_init(void)
 
 		break;
 	}
+
+	eeh_set_pe_aux_size(max_diag_size);
 
 	return 0;
 }
@@ -412,11 +418,14 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	 * been set for the PE, we will set EEH_PE_CFG_BLOCKED for
 	 * that PE to block its config space.
 	 *
+	 * Broadcom BCM5718 2-ports NICs (14e4:1656)
 	 * Broadcom Austin 4-ports NICs (14e4:1657)
 	 * Broadcom Shiner 4-ports 1G NICs (14e4:168a)
 	 * Broadcom Shiner 2-ports 10G NICs (14e4:168e)
 	 */
 	if ((pdn->vendor_id == PCI_VENDOR_ID_BROADCOM &&
+	     pdn->device_id == 0x1656) ||
+	    (pdn->vendor_id == PCI_VENDOR_ID_BROADCOM &&
 	     pdn->device_id == 0x1657) ||
 	    (pdn->vendor_id == PCI_VENDOR_ID_BROADCOM &&
 	     pdn->device_id == 0x168a) ||
@@ -537,7 +546,7 @@ static void pnv_eeh_get_phb_diag(struct eeh_pe *pe)
 	s64 rc;
 
 	rc = opal_pci_get_phb_diag_data2(phb->opal_id, pe->data,
-					 PNV_PCI_DIAG_BUF_SIZE);
+					 phb->diag_data_size);
 	if (rc != OPAL_SUCCESS)
 		pr_warn("%s: Failure %lld getting PHB#%x diag-data\n",
 			__func__, rc, pe->phb->global_number);
@@ -1102,6 +1111,13 @@ static int pnv_eeh_reset(struct eeh_pe *pe, int option)
 		return -EIO;
 	}
 
+	/*
+	 * If dealing with the root bus (or the bus underneath the
+	 * root port), we reset the bus underneath the root port.
+	 *
+	 * The cxl driver depends on this behaviour for bi-modal card
+	 * switching.
+	 */
 	if (pci_is_root_bus(bus) ||
 	    pci_is_root_bus(bus->parent))
 		return pnv_eeh_root_reset(hose, option);
@@ -1304,7 +1320,8 @@ static void pnv_eeh_dump_hub_diag_common(struct OpalIoP7IOCErrorData *data)
 static void pnv_eeh_get_and_dump_hub_diag(struct pci_controller *hose)
 {
 	struct pnv_phb *phb = hose->private_data;
-	struct OpalIoP7IOCErrorData *data = &phb->diag.hub_diag;
+	struct OpalIoP7IOCErrorData *data =
+		(struct OpalIoP7IOCErrorData*)phb->diag_data;
 	long rc;
 
 	rc = opal_pci_get_hub_diag_data(phb->hub_id, data, sizeof(*data));
@@ -1539,10 +1556,10 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 
 				/* Dump PHB diag-data */
 				rc = opal_pci_get_phb_diag_data2(phb->opal_id,
-					phb->diag.blob, PNV_PCI_DIAG_BUF_SIZE);
+					phb->diag_data, phb->diag_data_size);
 				if (rc == OPAL_SUCCESS)
 					pnv_pci_dump_phb_diag_data(hose,
-							phb->diag.blob);
+							phb->diag_data);
 
 				/* Try best to clear it */
 				opal_pci_eeh_freeze_clear(phb->opal_id,
@@ -1785,7 +1802,6 @@ static int __init eeh_powernv_init(void)
 {
 	int ret = -EINVAL;
 
-	eeh_set_pe_aux_size(PNV_PCI_DIAG_BUF_SIZE);
 	ret = eeh_ops_register(&pnv_eeh_ops);
 	if (!ret)
 		pr_info("EEH: PowerNV platform initialized\n");

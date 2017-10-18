@@ -54,6 +54,6 @@ extern int smu7_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *spe
 extern int smu7_fan_ctrl_stop_smc_fan_control(struct pp_hwmgr *hwmgr);
 extern int smu7_thermal_enable_alert(struct pp_hwmgr *hwmgr);
 extern int smu7_thermal_disable_alert(struct pp_hwmgr *hwmgr);
-
+extern int smu7_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr);
 #endif
 

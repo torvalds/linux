@@ -893,7 +893,7 @@ hfcsusb_rx_frame(struct usb_fifo *fifo, __u8 *data, unsigned int len,
 		}
 	}
 
-	memcpy(skb_put(rx_skb, len), data, len);
+	skb_put_data(rx_skb, data, len);
 
 	if (hdlc) {
 		/* we have a complete hdlc packet */

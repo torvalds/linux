@@ -292,6 +292,10 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	whdr._rsvd	= htons(sp->hdr._rsvd);
 	whdr.serviceId	= htons(call->service_id);
 
+	if (test_bit(RXRPC_CONN_PROBING_FOR_UPGRADE, &conn->flags) &&
+	    sp->hdr.seq == 1)
+		whdr.userStatus	= RXRPC_USERSTATUS_SERVICE_UPGRADE;
+
 	iov[0].iov_base = &whdr;
 	iov[0].iov_len = sizeof(whdr);
 	iov[1].iov_base = skb->head;

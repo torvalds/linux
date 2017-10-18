@@ -43,13 +43,8 @@
 #define USBA_REMOTE_WAKE_UP			(1 << 10)
 #define USBA_PULLD_DIS				(1 << 11)
 
-#if defined(CONFIG_AVR32)
-#define USBA_ENABLE_MASK			USBA_EN_USBA
-#define USBA_DISABLE_MASK			0
-#elif defined(CONFIG_ARCH_AT91)
 #define USBA_ENABLE_MASK			(USBA_EN_USBA | USBA_PULLD_DIS)
 #define USBA_DISABLE_MASK			USBA_DETACH
-#endif /* CONFIG_ARCH_AT91 */
 
 /* Bitfields in FNUM */
 #define USBA_MICRO_FRAME_NUM_OFFSET		0
@@ -191,28 +186,18 @@
 	 | USBA_BF(name, value))
 
 /* Register access macros */
-#ifdef CONFIG_AVR32
-#define usba_io_readl	__raw_readl
-#define usba_io_writel	__raw_writel
-#define usba_io_writew	__raw_writew
-#else
-#define usba_io_readl	readl_relaxed
-#define usba_io_writel	writel_relaxed
-#define usba_io_writew	writew_relaxed
-#endif
-
 #define usba_readl(udc, reg)					\
-	usba_io_readl((udc)->regs + USBA_##reg)
+	readl_relaxed((udc)->regs + USBA_##reg)
 #define usba_writel(udc, reg, value)				\
-	usba_io_writel((value), (udc)->regs + USBA_##reg)
+	writel_relaxed((value), (udc)->regs + USBA_##reg)
 #define usba_ep_readl(ep, reg)					\
-	usba_io_readl((ep)->ep_regs + USBA_EPT_##reg)
+	readl_relaxed((ep)->ep_regs + USBA_EPT_##reg)
 #define usba_ep_writel(ep, reg, value)				\
-	usba_io_writel((value), (ep)->ep_regs + USBA_EPT_##reg)
+	writel_relaxed((value), (ep)->ep_regs + USBA_EPT_##reg)
 #define usba_dma_readl(ep, reg)					\
-	usba_io_readl((ep)->dma_regs + USBA_DMA_##reg)
+	readl_relaxed((ep)->dma_regs + USBA_DMA_##reg)
 #define usba_dma_writel(ep, reg, value)				\
-	usba_io_writel((value), (ep)->dma_regs + USBA_DMA_##reg)
+	writel_relaxed((value), (ep)->dma_regs + USBA_DMA_##reg)
 
 /* Calculate base address for a given endpoint or DMA controller */
 #define USBA_EPT_BASE(x)	(0x100 + (x) * 0x20)

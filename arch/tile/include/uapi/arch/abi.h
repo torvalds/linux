@@ -20,58 +20,17 @@
 
 #ifndef __ARCH_ABI_H__
 
-#if !defined __need_int_reg_t && !defined __DOXYGEN__
-# define __ARCH_ABI_H__
-# include <arch/chip.h>
-#endif
-
-/* Provide the basic machine types. */
-#ifndef __INT_REG_BITS
-
-/** Number of bits in a register. */
-#if defined __tilegx__
-# define __INT_REG_BITS 64
-#elif defined __tilepro__
-# define __INT_REG_BITS 32
-#elif !defined __need_int_reg_t
+#ifndef __tile__   /* support uncommon use of arch headers in non-tile builds */
 # include <arch/chip.h>
 # define __INT_REG_BITS CHIP_WORD_SIZE()
-#else
-# error Unrecognized architecture with __need_int_reg_t
 #endif
 
-#if __INT_REG_BITS == 64
+#include <arch/intreg.h>
 
-#ifndef __ASSEMBLER__
-/** Unsigned type that can hold a register. */
-typedef unsigned long long __uint_reg_t;
-
-/** Signed type that can hold a register. */
-typedef long long __int_reg_t;
-#endif
-
-/** String prefix to use for printf(). */
-#define __INT_REG_FMT "ll"
-
-#else
-
-#ifndef __ASSEMBLER__
-/** Unsigned type that can hold a register. */
-typedef unsigned long __uint_reg_t;
-
-/** Signed type that can hold a register. */
-typedef long __int_reg_t;
-#endif
-
-/** String prefix to use for printf(). */
-#define __INT_REG_FMT "l"
-
-#endif
-#endif /* __INT_REG_BITS */
-
-
+/* __need_int_reg_t is deprecated: just include <arch/intreg.h> */
 #ifndef __need_int_reg_t
 
+#define __ARCH_ABI_H__
 
 #ifndef __ASSEMBLER__
 /** Unsigned type that can hold a register. */

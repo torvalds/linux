@@ -200,29 +200,18 @@ err_exit:
 static int hw_atl_a0_hw_offload_set(struct aq_hw_s *self,
 				    struct aq_nic_cfg_s *aq_nic_cfg)
 {
-	int err = 0;
-
 	/* TX checksums offloads*/
 	tpo_ipv4header_crc_offload_en_set(self, 1);
 	tpo_tcp_udp_crc_offload_en_set(self, 1);
-	if (err < 0)
-		goto err_exit;
 
 	/* RX checksums offloads*/
 	rpo_ipv4header_crc_offload_en_set(self, 1);
 	rpo_tcp_udp_crc_offload_en_set(self, 1);
-	if (err < 0)
-		goto err_exit;
 
 	/* LSO offloads*/
 	tdm_large_send_offload_en_set(self, 0xFFFFFFFFU);
-	if (err < 0)
-		goto err_exit;
 
-	err = aq_hw_err_from_flags(self);
-
-err_exit:
-	return err;
+	return aq_hw_err_from_flags(self);
 }
 
 static int hw_atl_a0_hw_init_tx_path(struct aq_hw_s *self)
@@ -640,6 +629,12 @@ static int hw_atl_a0_hw_ring_rx_receive(struct aq_hw_s *self,
 				buff->is_udp_cso = (is_err & 0x10U) ? 0 : 1;
 			else if (0x0U == (pkt_type & 0x1CU))
 				buff->is_tcp_cso = (is_err & 0x10U) ? 0 : 1;
+
+			/* Checksum offload workaround for small packets */
+			if (rxd_wb->pkt_len <= 60) {
+				buff->is_ip_cso = 0U;
+				buff->is_cso_err = 0U;
+			}
 		}
 
 		is_err &= ~0x18U;

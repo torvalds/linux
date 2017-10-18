@@ -183,7 +183,6 @@ static void qrk_serial_setup_dma(struct lpss8250 *lpss, struct uart_port *port)
 	if (ret)
 		return;
 
-	pci_set_master(pdev);
 	pci_try_set_mwi(pdev);
 
 	/* Special DMA address for UART */
@@ -215,6 +214,8 @@ static int qrk_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 {
 	struct pci_dev *pdev = to_pci_dev(port->dev);
 	int ret;
+
+	pci_set_master(pdev);
 
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
 	if (ret < 0)

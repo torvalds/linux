@@ -252,11 +252,7 @@ static inline int x2apic_enabled(void) { return 0; }
 #define	x2apic_supported()	(0)
 #endif /* !CONFIG_X86_X2APIC */
 
-#ifdef CONFIG_X86_64
-#define	SET_APIC_ID(x)		(apic->set_apic_id(x))
-#else
-
-#endif
+struct irq_data;
 
 /*
  * Copyright 2004 James Cleverdon, IBM.
@@ -299,11 +295,12 @@ struct apic {
 	int (*phys_pkg_id)(int cpuid_apic, int index_msb);
 
 	unsigned int (*get_apic_id)(unsigned long x);
+	/* Can't be NULL on 64-bit */
 	unsigned long (*set_apic_id)(unsigned int id);
 
-	int (*cpu_mask_to_apicid_and)(const struct cpumask *cpumask,
-				      const struct cpumask *andmask,
-				      unsigned int *apicid);
+	int (*cpu_mask_to_apicid)(const struct cpumask *cpumask,
+				  struct irq_data *irqdata,
+				  unsigned int *apicid);
 
 	/* ipi */
 	void (*send_IPI)(int cpu, int vector);
@@ -545,28 +542,12 @@ static inline int default_phys_pkg_id(int cpuid_apic, int index_msb)
 
 #endif
 
-static inline int
-flat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-			    const struct cpumask *andmask,
-			    unsigned int *apicid)
-{
-	unsigned long cpu_mask = cpumask_bits(cpumask)[0] &
-				 cpumask_bits(andmask)[0] &
-				 cpumask_bits(cpu_online_mask)[0] &
-				 APIC_ALL_CPUS;
-
-	if (likely(cpu_mask)) {
-		*apicid = (unsigned int)cpu_mask;
-		return 0;
-	} else {
-		return -EINVAL;
-	}
-}
-
-extern int
-default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-			       const struct cpumask *andmask,
-			       unsigned int *apicid);
+extern int flat_cpu_mask_to_apicid(const struct cpumask *cpumask,
+				   struct irq_data *irqdata,
+				   unsigned int *apicid);
+extern int default_cpu_mask_to_apicid(const struct cpumask *cpumask,
+				      struct irq_data *irqdata,
+				      unsigned int *apicid);
 
 static inline void
 flat_vector_allocation_domain(int cpu, struct cpumask *retmask,

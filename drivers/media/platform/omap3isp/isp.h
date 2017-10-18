@@ -23,7 +23,6 @@
 #include <linux/clk-provider.h>
 #include <linux/device.h>
 #include <linux/io.h>
-#include <linux/iommu.h>
 #include <linux/platform_device.h>
 #include <linux/wait.h>
 

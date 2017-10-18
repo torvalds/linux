@@ -596,7 +596,7 @@ static void perf_syscall_enter(void *ignore, struct pt_regs *regs, long id)
 			       (unsigned long *)&rec->args);
 	perf_trace_buf_submit(rec, size, rctx,
 			      sys_data->enter_event->event.type, 1, regs,
-			      head, NULL);
+			      head, NULL, NULL);
 }
 
 static int perf_sysenter_enable(struct trace_event_call *call)
@@ -667,7 +667,7 @@ static void perf_syscall_exit(void *ignore, struct pt_regs *regs, long ret)
 	rec->nr = syscall_nr;
 	rec->ret = syscall_get_return_value(current, regs);
 	perf_trace_buf_submit(rec, size, rctx, sys_data->exit_event->event.type,
-			      1, regs, head, NULL);
+			      1, regs, head, NULL, NULL);
 }
 
 static int perf_sysexit_enable(struct trace_event_call *call)

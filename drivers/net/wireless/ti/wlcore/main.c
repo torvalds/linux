@@ -1308,13 +1308,12 @@ static struct sk_buff *wl12xx_alloc_dummy_packet(struct wl1271 *wl)
 
 	skb_reserve(skb, sizeof(struct wl1271_tx_hw_descr));
 
-	hdr = (struct ieee80211_hdr_3addr *) skb_put(skb, sizeof(*hdr));
-	memset(hdr, 0, sizeof(*hdr));
+	hdr = skb_put_zero(skb, sizeof(*hdr));
 	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA |
 					 IEEE80211_STYPE_NULLFUNC |
 					 IEEE80211_FCTL_TODS);
 
-	memset(skb_put(skb, dummy_packet_size), 0, dummy_packet_size);
+	skb_put_zero(skb, dummy_packet_size);
 
 	/* Dummy packets require the TID to be management */
 	skb->priority = WL1271_TID_MGMT;
@@ -6128,6 +6127,7 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 	wl->hw->wiphy->max_scan_ie_len = WL1271_CMD_TEMPL_MAX_SIZE -
 			sizeof(struct ieee80211_header);
 
+	wl->hw->wiphy->max_sched_scan_reqs = 1;
 	wl->hw->wiphy->max_sched_scan_ie_len = WL1271_CMD_TEMPL_MAX_SIZE -
 		sizeof(struct ieee80211_header);
 
@@ -6135,7 +6135,6 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 
 	wl->hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD |
 				WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
-				WIPHY_FLAG_SUPPORTS_SCHED_SCAN |
 				WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 
 	wl->hw->wiphy->features |= NL80211_FEATURE_AP_SCAN;

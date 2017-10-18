@@ -418,6 +418,25 @@ static bool armada_drm_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
+/* These are locked by dev->vbl_lock */
+static void armada_drm_crtc_disable_irq(struct armada_crtc *dcrtc, u32 mask)
+{
+	if (dcrtc->irq_ena & mask) {
+		dcrtc->irq_ena &= ~mask;
+		writel(dcrtc->irq_ena, dcrtc->base + LCD_SPU_IRQ_ENA);
+	}
+}
+
+static void armada_drm_crtc_enable_irq(struct armada_crtc *dcrtc, u32 mask)
+{
+	if ((dcrtc->irq_ena & mask) != mask) {
+		dcrtc->irq_ena |= mask;
+		writel(dcrtc->irq_ena, dcrtc->base + LCD_SPU_IRQ_ENA);
+		if (readl_relaxed(dcrtc->base + LCD_SPU_IRQ_ISR) & mask)
+			writel(0, dcrtc->base + LCD_SPU_IRQ_ISR);
+	}
+}
+
 static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 {
 	void __iomem *base = dcrtc->base;
@@ -489,25 +508,6 @@ static irqreturn_t armada_drm_irq(int irq, void *arg)
 		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
-}
-
-/* These are locked by dev->vbl_lock */
-void armada_drm_crtc_disable_irq(struct armada_crtc *dcrtc, u32 mask)
-{
-	if (dcrtc->irq_ena & mask) {
-		dcrtc->irq_ena &= ~mask;
-		writel(dcrtc->irq_ena, dcrtc->base + LCD_SPU_IRQ_ENA);
-	}
-}
-
-void armada_drm_crtc_enable_irq(struct armada_crtc *dcrtc, u32 mask)
-{
-	if ((dcrtc->irq_ena & mask) != mask) {
-		dcrtc->irq_ena |= mask;
-		writel(dcrtc->irq_ena, dcrtc->base + LCD_SPU_IRQ_ENA);
-		if (readl_relaxed(dcrtc->base + LCD_SPU_IRQ_ISR) & mask)
-			writel(0, dcrtc->base + LCD_SPU_IRQ_ISR);
-	}
 }
 
 static uint32_t armada_drm_crtc_calculate_csc(struct armada_crtc *dcrtc)
@@ -1027,7 +1027,8 @@ static void armada_drm_crtc_destroy(struct drm_crtc *crtc)
  * and a mode_set.
  */
 static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
-	struct drm_framebuffer *fb, struct drm_pending_vblank_event *event, uint32_t page_flip_flags)
+	struct drm_framebuffer *fb, struct drm_pending_vblank_event *event, uint32_t page_flip_flags,
+	struct drm_modeset_acquire_ctx *ctx)
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	struct armada_frame_work *work;
@@ -1109,6 +1110,22 @@ armada_drm_crtc_set_property(struct drm_crtc *crtc,
 	return 0;
 }
 
+/* These are called under the vbl_lock. */
+static int armada_drm_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
+
+	armada_drm_crtc_enable_irq(dcrtc, VSYNC_IRQ_ENA);
+	return 0;
+}
+
+static void armada_drm_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
+
+	armada_drm_crtc_disable_irq(dcrtc, VSYNC_IRQ_ENA);
+}
+
 static const struct drm_crtc_funcs armada_crtc_funcs = {
 	.cursor_set	= armada_drm_crtc_cursor_set,
 	.cursor_move	= armada_drm_crtc_cursor_move,
@@ -1116,6 +1133,8 @@ static const struct drm_crtc_funcs armada_crtc_funcs = {
 	.set_config	= drm_crtc_helper_set_config,
 	.page_flip	= armada_drm_crtc_page_flip,
 	.set_property	= armada_drm_crtc_set_property,
+	.enable_vblank	= armada_drm_crtc_enable_vblank,
+	.disable_vblank	= armada_drm_crtc_disable_vblank,
 };
 
 static const struct drm_plane_funcs armada_primary_plane_funcs = {

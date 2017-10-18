@@ -75,7 +75,8 @@ SYSCALL_DEFINE3(ioprio_set, int, which, int, who, int, ioprio)
 		case IOPRIO_CLASS_RT:
 			if (!capable(CAP_SYS_ADMIN))
 				return -EPERM;
-			/* fall through, rt has prio field too */
+			/* fall through */
+			/* rt has prio field too */
 		case IOPRIO_CLASS_BE:
 			if (data >= IOPRIO_BE_NR || data < 0)
 				return -EINVAL;
@@ -163,22 +164,12 @@ out:
 
 int ioprio_best(unsigned short aprio, unsigned short bprio)
 {
-	unsigned short aclass;
-	unsigned short bclass;
-
 	if (!ioprio_valid(aprio))
 		aprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, IOPRIO_NORM);
 	if (!ioprio_valid(bprio))
 		bprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, IOPRIO_NORM);
 
-	aclass = IOPRIO_PRIO_CLASS(aprio);
-	bclass = IOPRIO_PRIO_CLASS(bprio);
-	if (aclass == bclass)
-		return min(aprio, bprio);
-	if (aclass > bclass)
-		return bprio;
-	else
-		return aprio;
+	return min(aprio, bprio);
 }
 
 SYSCALL_DEFINE2(ioprio_get, int, which, int, who)

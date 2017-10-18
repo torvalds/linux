@@ -290,8 +290,8 @@ struct clip_tbl *t4_init_clip_tbl(unsigned int clipt_start,
 	if (clipt_size < CLIPT_MIN_HASH_BUCKETS)
 		return NULL;
 
-	ctbl = t4_alloc_mem(sizeof(*ctbl) +
-			    clipt_size*sizeof(struct list_head));
+	ctbl = kvzalloc(sizeof(*ctbl) +
+			    clipt_size*sizeof(struct list_head), GFP_KERNEL);
 	if (!ctbl)
 		return NULL;
 
@@ -305,9 +305,9 @@ struct clip_tbl *t4_init_clip_tbl(unsigned int clipt_start,
 	for (i = 0; i < ctbl->clipt_size; ++i)
 		INIT_LIST_HEAD(&ctbl->hash_list[i]);
 
-	cl_list = t4_alloc_mem(clipt_size*sizeof(struct clip_entry));
+	cl_list = kvzalloc(clipt_size*sizeof(struct clip_entry), GFP_KERNEL);
 	if (!cl_list) {
-		t4_free_mem(ctbl);
+		kvfree(ctbl);
 		return NULL;
 	}
 	ctbl->cl_list = (void *)cl_list;
@@ -326,8 +326,8 @@ void t4_cleanup_clip_tbl(struct adapter *adap)
 
 	if (ctbl) {
 		if (ctbl->cl_list)
-			t4_free_mem(ctbl->cl_list);
-		t4_free_mem(ctbl);
+			kvfree(ctbl->cl_list);
+		kvfree(ctbl);
 	}
 }
 EXPORT_SYMBOL(t4_cleanup_clip_tbl);

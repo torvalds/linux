@@ -1028,7 +1028,7 @@ static const struct ltq_pin_group xrx200_grps[] = {
 	GRP_MUX("spi_cs5", SPI, xrx200_pins_spi_cs5),
 	GRP_MUX("spi_cs6", SPI, xrx200_pins_spi_cs6),
 	GRP_MUX("usif uart_rx", USIF, xrx200_pins_usif_uart_rx),
-	GRP_MUX("usif uart_rx", USIF, xrx200_pins_usif_uart_tx),
+	GRP_MUX("usif uart_tx", USIF, xrx200_pins_usif_uart_tx),
 	GRP_MUX("usif uart_rts", USIF, xrx200_pins_usif_uart_rts),
 	GRP_MUX("usif uart_cts", USIF, xrx200_pins_usif_uart_cts),
 	GRP_MUX("usif uart_dtr", USIF, xrx200_pins_usif_uart_dtr),

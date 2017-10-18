@@ -14,7 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
-#include <linux/i2c/pcf857x.h>
+#include <linux/platform_data/pcf857x.h>
 #include <linux/platform_data/at24.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -744,7 +744,8 @@ static int davinci_phy_fixup(struct phy_device *phydev)
 	return 0;
 }
 
-#define HAS_ATA		IS_ENABLED(CONFIG_BLK_DEV_PALMCHIP_BK3710)
+#define HAS_ATA		(IS_ENABLED(CONFIG_BLK_DEV_PALMCHIP_BK3710) || \
+			 IS_ENABLED(CONFIG_PATA_BK3710))
 
 #define HAS_NOR		IS_ENABLED(CONFIG_MTD_PHYSMAP)
 

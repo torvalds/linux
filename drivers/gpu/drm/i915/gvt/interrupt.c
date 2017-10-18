@@ -31,6 +31,7 @@
 
 #include "i915_drv.h"
 #include "gvt.h"
+#include "trace.h"
 
 /* common offset among interrupt control registers */
 #define regbase_to_isr(base)	(base)
@@ -178,8 +179,8 @@ int intel_vgpu_reg_imr_handler(struct intel_vgpu *vgpu,
 	struct intel_gvt_irq_ops *ops = gvt->irq.ops;
 	u32 imr = *(u32 *)p_data;
 
-	gvt_dbg_irq("write IMR %x, new %08x, old %08x, changed %08x\n",
-		    reg, imr, vgpu_vreg(vgpu, reg), vgpu_vreg(vgpu, reg) ^ imr);
+	trace_write_ir(vgpu->id, "IMR", reg, imr, vgpu_vreg(vgpu, reg),
+		       (vgpu_vreg(vgpu, reg) ^ imr));
 
 	vgpu_vreg(vgpu, reg) = imr;
 
@@ -209,8 +210,8 @@ int intel_vgpu_reg_master_irq_handler(struct intel_vgpu *vgpu,
 	u32 ier = *(u32 *)p_data;
 	u32 virtual_ier = vgpu_vreg(vgpu, reg);
 
-	gvt_dbg_irq("write MASTER_IRQ %x, new %08x, old %08x, changed %08x\n",
-		    reg, ier, virtual_ier, virtual_ier ^ ier);
+	trace_write_ir(vgpu->id, "MASTER_IRQ", reg, ier, virtual_ier,
+		       (virtual_ier ^ ier));
 
 	/*
 	 * GEN8_MASTER_IRQ is a special irq register,
@@ -248,8 +249,8 @@ int intel_vgpu_reg_ier_handler(struct intel_vgpu *vgpu,
 	struct intel_gvt_irq_info *info;
 	u32 ier = *(u32 *)p_data;
 
-	gvt_dbg_irq("write IER %x, new %08x, old %08x, changed %08x\n",
-		    reg, ier, vgpu_vreg(vgpu, reg), vgpu_vreg(vgpu, reg) ^ ier);
+	trace_write_ir(vgpu->id, "IER", reg, ier, vgpu_vreg(vgpu, reg),
+		       (vgpu_vreg(vgpu, reg) ^ ier));
 
 	vgpu_vreg(vgpu, reg) = ier;
 
@@ -285,8 +286,8 @@ int intel_vgpu_reg_iir_handler(struct intel_vgpu *vgpu, unsigned int reg,
 		iir_to_regbase(reg));
 	u32 iir = *(u32 *)p_data;
 
-	gvt_dbg_irq("write IIR %x, new %08x, old %08x, changed %08x\n",
-		    reg, iir, vgpu_vreg(vgpu, reg), vgpu_vreg(vgpu, reg) ^ iir);
+	trace_write_ir(vgpu->id, "IIR", reg, iir, vgpu_vreg(vgpu, reg),
+		       (vgpu_vreg(vgpu, reg) ^ iir));
 
 	if (WARN_ON(!info))
 		return -EINVAL;
@@ -411,8 +412,7 @@ static void propagate_event(struct intel_gvt_irq *irq,
 
 	if (!test_bit(bit, (void *)&vgpu_vreg(vgpu,
 					regbase_to_imr(reg_base)))) {
-		gvt_dbg_irq("set bit (%d) for (%s) for vgpu (%d)\n",
-				bit, irq_name[event], vgpu->id);
+		trace_propagate_event(vgpu->id, irq_name[event], bit);
 		set_bit(bit, (void *)&vgpu_vreg(vgpu,
 					regbase_to_iir(reg_base)));
 	}
@@ -580,7 +580,7 @@ static void gen8_init_irq(
 
 		SET_BIT_INFO(irq, 4, PRIMARY_C_FLIP_DONE, INTEL_GVT_IRQ_INFO_DE_PIPE_C);
 		SET_BIT_INFO(irq, 5, SPRITE_C_FLIP_DONE, INTEL_GVT_IRQ_INFO_DE_PIPE_C);
-	} else if (IS_SKYLAKE(gvt->dev_priv)) {
+	} else if (IS_SKYLAKE(gvt->dev_priv) || IS_KABYLAKE(gvt->dev_priv)) {
 		SET_BIT_INFO(irq, 25, AUX_CHANNEL_B, INTEL_GVT_IRQ_INFO_DE_PORT);
 		SET_BIT_INFO(irq, 26, AUX_CHANNEL_C, INTEL_GVT_IRQ_INFO_DE_PORT);
 		SET_BIT_INFO(irq, 27, AUX_CHANNEL_D, INTEL_GVT_IRQ_INFO_DE_PORT);
@@ -690,7 +690,8 @@ int intel_gvt_init_irq(struct intel_gvt *gvt)
 
 	gvt_dbg_core("init irq framework\n");
 
-	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)) {
+	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)
+		|| IS_KABYLAKE(gvt->dev_priv)) {
 		irq->ops = &gen8_irq_ops;
 		irq->irq_map = gen8_irq_map;
 	} else {

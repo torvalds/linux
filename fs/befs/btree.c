@@ -120,18 +120,15 @@ static int befs_compare_strings(const void *key1, int keylen1,
 				const void *key2, int keylen2);
 
 /**
- * befs_bt_read_super - read in btree superblock convert to cpu byteorder
- * @sb: Filesystem superblock
- * @ds: Datastream to read from
- * @sup: Buffer in which to place the btree superblock
+ * befs_bt_read_super() - read in btree superblock convert to cpu byteorder
+ * @sb:        Filesystem superblock
+ * @ds:        Datastream to read from
+ * @sup:       Buffer in which to place the btree superblock
  *
  * Calls befs_read_datastream to read in the btree superblock and
  * makes sure it is in cpu byteorder, byteswapping if necessary.
- *
- * On success, returns BEFS_OK and *@sup contains the btree superblock,
- * in cpu byte order.
- *
- * On failure, BEFS_ERR is returned.
+ * Return: BEFS_OK on success and if *@sup contains the btree superblock in cpu
+ * byte order. Otherwise return BEFS_ERR on error.
  */
 static int
 befs_bt_read_super(struct super_block *sb, const befs_data_stream *ds,

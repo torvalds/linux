@@ -40,20 +40,6 @@
 asmlinkage void ret_from_fork(void);
 asmlinkage void ret_from_kernel_thread(void);
 
-
-/*
- * Return saved PC from a blocked thread
- */
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	struct switch_stack *sw = (struct switch_stack *)tsk->thread.ksp;
-	/* Check whether the thread is blocked in resume() */
-	if (in_sched_functions(sw->retpc))
-		return ((unsigned long *)sw->a6)[1];
-	else
-		return sw->retpc;
-}
-
 void arch_cpu_idle(void)
 {
 #if defined(MACH_ATARI_ONLY)

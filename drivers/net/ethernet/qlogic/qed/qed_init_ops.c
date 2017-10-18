@@ -158,6 +158,7 @@ int qed_init_alloc(struct qed_hwfn *p_hwfn)
 				    GFP_KERNEL);
 	if (!rt_data->init_val) {
 		kfree(rt_data->b_valid);
+		rt_data->b_valid = NULL;
 		return -ENOMEM;
 	}
 
@@ -167,7 +168,9 @@ int qed_init_alloc(struct qed_hwfn *p_hwfn)
 void qed_init_free(struct qed_hwfn *p_hwfn)
 {
 	kfree(p_hwfn->rt_data.init_val);
+	p_hwfn->rt_data.init_val = NULL;
 	kfree(p_hwfn->rt_data.b_valid);
+	p_hwfn->rt_data.b_valid = NULL;
 }
 
 static int qed_init_array_dmae(struct qed_hwfn *p_hwfn,
@@ -525,6 +528,7 @@ int qed_init_run(struct qed_hwfn *p_hwfn,
 	}
 
 	kfree(p_hwfn->unzip_buf);
+	p_hwfn->unzip_buf = NULL;
 	return rc;
 }
 
@@ -554,7 +558,7 @@ int qed_init_fw_data(struct qed_dev *cdev, const u8 *data)
 	}
 
 	/* First Dword contains metadata and should be skipped */
-	buf_hdr = (struct bin_buffer_hdr *)(data + sizeof(u32));
+	buf_hdr = (struct bin_buffer_hdr *)data;
 
 	offset = buf_hdr[BIN_BUF_INIT_FW_VER_INFO].offset;
 	fw->fw_ver_info = (struct fw_ver_info *)(data + offset);

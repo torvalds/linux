@@ -32,9 +32,7 @@ static void *lzo_alloc_ctx(struct crypto_scomp *tfm)
 {
 	void *ctx;
 
-	ctx = kmalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL | __GFP_NOWARN);
-	if (!ctx)
-		ctx = vmalloc(LZO1X_MEM_COMPRESS);
+	ctx = kvmalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 

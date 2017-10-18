@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 # (c) 2007, Joe Perches <joe@perches.com>
 #           created from checkpatch.pl
 #
@@ -10,6 +10,7 @@
 #
 # Licensed under the terms of the GNU GPL License version 2
 
+use warnings;
 use strict;
 
 my $P = $0;
@@ -17,6 +18,7 @@ my $V = '0.26';
 
 use Getopt::Long qw(:config no_auto_abbrev);
 use Cwd;
+use File::Find;
 
 my $cur_path = fastgetcwd() . '/';
 my $lk_path = "./";
@@ -57,6 +59,7 @@ my $from_filename = 0;
 my $pattern_depth = 0;
 my $version = 0;
 my $help = 0;
+my $find_maintainer_files = 0;
 
 my $vcs_used = 0;
 
@@ -248,6 +251,7 @@ if (!GetOptions(
 		'sections!' => \$sections,
 		'fe|file-emails!' => \$file_emails,
 		'f|file' => \$from_filename,
+		'find-maintainer-files' => \$find_maintainer_files,
 		'v|version' => \$version,
 		'h|help|usage' => \$help,
 		)) {
@@ -306,36 +310,74 @@ if (!top_of_kernel_tree($lk_path)) {
 
 my @typevalue = ();
 my %keyword_hash;
+my @mfiles = ();
 
-open (my $maint, '<', "${lk_path}MAINTAINERS")
-    or die "$P: Can't open MAINTAINERS: $!\n";
-while (<$maint>) {
-    my $line = $_;
+sub read_maintainer_file {
+    my ($file) = @_;
 
-    if ($line =~ m/^([A-Z]):\s*(.*)/) {
-	my $type = $1;
-	my $value = $2;
+    open (my $maint, '<', "$file")
+	or die "$P: Can't open MAINTAINERS file '$file': $!\n";
+    while (<$maint>) {
+	my $line = $_;
 
-	##Filename pattern matching
-	if ($type eq "F" || $type eq "X") {
-	    $value =~ s@\.@\\\.@g;       ##Convert . to \.
-	    $value =~ s/\*/\.\*/g;       ##Convert * to .*
-	    $value =~ s/\?/\./g;         ##Convert ? to .
-	    ##if pattern is a directory and it lacks a trailing slash, add one
-	    if ((-d $value)) {
-		$value =~ s@([^/])$@$1/@;
+	if ($line =~ m/^([A-Z]):\s*(.*)/) {
+	    my $type = $1;
+	    my $value = $2;
+
+	    ##Filename pattern matching
+	    if ($type eq "F" || $type eq "X") {
+		$value =~ s@\.@\\\.@g;       ##Convert . to \.
+		$value =~ s/\*/\.\*/g;       ##Convert * to .*
+		$value =~ s/\?/\./g;         ##Convert ? to .
+		##if pattern is a directory and it lacks a trailing slash, add one
+		if ((-d $value)) {
+		    $value =~ s@([^/])$@$1/@;
+		}
+	    } elsif ($type eq "K") {
+		$keyword_hash{@typevalue} = $value;
 	    }
-	} elsif ($type eq "K") {
-	    $keyword_hash{@typevalue} = $value;
+	    push(@typevalue, "$type:$value");
+	} elsif (!(/^\s*$/ || /^\s*\#/)) {
+	    $line =~ s/\n$//g;
+	    push(@typevalue, $line);
 	}
-	push(@typevalue, "$type:$value");
-    } elsif (!/^(\s)*$/) {
-	$line =~ s/\n$//g;
-	push(@typevalue, $line);
+    }
+    close($maint);
+}
+
+sub find_is_maintainer_file {
+    my ($file) = $_;
+    return if ($file !~ m@/MAINTAINERS$@);
+    $file = $File::Find::name;
+    return if (! -f $file);
+    push(@mfiles, $file);
+}
+
+sub find_ignore_git {
+    return grep { $_ !~ /^\.git$/; } @_;
+}
+
+if (-d "${lk_path}MAINTAINERS") {
+    opendir(DIR, "${lk_path}MAINTAINERS") or die $!;
+    my @files = readdir(DIR);
+    closedir(DIR);
+    foreach my $file (@files) {
+	push(@mfiles, "${lk_path}MAINTAINERS/$file") if ($file !~ /^\./);
     }
 }
-close($maint);
 
+if ($find_maintainer_files) {
+    find( { wanted => \&find_is_maintainer_file,
+	    preprocess => \&find_ignore_git,
+	    no_chdir => 1,
+	}, "${lk_path}");
+} else {
+    push(@mfiles, "${lk_path}MAINTAINERS") if -f "${lk_path}MAINTAINERS";
+}
+
+foreach my $file (@mfiles) {
+    read_maintainer_file("$file");
+}
 
 #
 # Read mail address map
@@ -872,7 +914,7 @@ sub top_of_kernel_tree {
     if (   (-f "${lk_path}COPYING")
 	&& (-f "${lk_path}CREDITS")
 	&& (-f "${lk_path}Kbuild")
-	&& (-f "${lk_path}MAINTAINERS")
+	&& (-e "${lk_path}MAINTAINERS")
 	&& (-f "${lk_path}Makefile")
 	&& (-f "${lk_path}README")
 	&& (-d "${lk_path}Documentation")

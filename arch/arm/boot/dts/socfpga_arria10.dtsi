@@ -14,7 +14,6 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "skeleton.dtsi"
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/reset/altr,rst-mgr-a10.h>
 
@@ -119,7 +118,7 @@
 						compatible = "fixed-clock";
 					};
 
-					main_pll: main_pll {
+					main_pll: main_pll@40 {
 						#address-cells = <1>;
 						#size-cells = <0>;
 						#clock-cells = <0>;
@@ -142,35 +141,35 @@
 							div-reg = <0x144 0 11>;
 						};
 
-						main_emaca_clk: main_emaca_clk {
+						main_emaca_clk: main_emaca_clk@68 {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-a10-perip-clk";
 							clocks = <&main_pll>;
 							reg = <0x68>;
 						};
 
-						main_emacb_clk: main_emacb_clk {
+						main_emacb_clk: main_emacb_clk@6c {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-a10-perip-clk";
 							clocks = <&main_pll>;
 							reg = <0x6C>;
 						};
 
-						main_emac_ptp_clk: main_emac_ptp_clk {
+						main_emac_ptp_clk: main_emac_ptp_clk@70 {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-a10-perip-clk";
 							clocks = <&main_pll>;
 							reg = <0x70>;
 						};
 
-						main_gpio_db_clk: main_gpio_db_clk {
+						main_gpio_db_clk: main_gpio_db_clk@74 {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-a10-perip-clk";
 							clocks = <&main_pll>;
 							reg = <0x74>;
 						};
 
-						main_sdmmc_clk: main_sdmmc_clk {
+						main_sdmmc_clk: main_sdmmc_clk@78 {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-a10-perip-clk"
 ;
@@ -178,28 +177,28 @@
 							reg = <0x78>;
 						};
 
-						main_s2f_usr0_clk: main_s2f_usr0_clk {
+						main_s2f_usr0_clk: main_s2f_usr0_clk@7c {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-a10-perip-clk";
 							clocks = <&main_pll>;
 							reg = <0x7C>;
 						};
 
-						main_s2f_usr1_clk: main_s2f_usr1_clk {
+						main_s2f_usr1_clk: main_s2f_usr1_clk@80 {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-a10-perip-clk";
 							clocks = <&main_pll>;
 							reg = <0x80>;
 						};
 
-						main_hmc_pll_ref_clk: main_hmc_pll_ref_clk {
+						main_hmc_pll_ref_clk: main_hmc_pll_ref_clk@84 {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-a10-perip-clk";
 							clocks = <&main_pll>;
 							reg = <0x84>;
 						};
 
-						main_periph_ref_clk: main_periph_ref_clk {
+						main_periph_ref_clk: main_periph_ref_clk@9c {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-a10-perip-clk";
 							clocks = <&main_pll>;
@@ -207,7 +206,7 @@
 						};
 					};
 
-					periph_pll: periph_pll {
+					periph_pll: periph_pll@c0 {
 						#address-cells = <1>;
 						#size-cells = <0>;
 						#clock-cells = <0>;
@@ -230,56 +229,56 @@
 							div-reg = <0x144 16 11>;
 						};
 
-						peri_emaca_clk: peri_emaca_clk {
+						peri_emaca_clk: peri_emaca_clk@e8 {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-a10-perip-clk";
 							clocks = <&periph_pll>;
 							reg = <0xE8>;
 						};
 
-						peri_emacb_clk: peri_emacb_clk {
+						peri_emacb_clk: peri_emacb_clk@ec {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-a10-perip-clk";
 							clocks = <&periph_pll>;
 							reg = <0xEC>;
 						};
 
-						peri_emac_ptp_clk: peri_emac_ptp_clk {
+						peri_emac_ptp_clk: peri_emac_ptp_clk@f0 {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-a10-perip-clk";
 							clocks = <&periph_pll>;
 							reg = <0xF0>;
 						};
 
-						peri_gpio_db_clk: peri_gpio_db_clk {
+						peri_gpio_db_clk: peri_gpio_db_clk@f4 {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-a10-perip-clk";
 							clocks = <&periph_pll>;
 							reg = <0xF4>;
 						};
 
-						peri_sdmmc_clk: peri_sdmmc_clk {
+						peri_sdmmc_clk: peri_sdmmc_clk@f8 {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-a10-perip-clk";
 							clocks = <&periph_pll>;
 							reg = <0xF8>;
 						};
 
-						peri_s2f_usr0_clk: peri_s2f_usr0_clk {
+						peri_s2f_usr0_clk: peri_s2f_usr0_clk@fc {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-a10-perip-clk";
 							clocks = <&periph_pll>;
 							reg = <0xFC>;
 						};
 
-						peri_s2f_usr1_clk: peri_s2f_usr1_clk {
+						peri_s2f_usr1_clk: peri_s2f_usr1_clk@100 {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-a10-perip-clk";
 							clocks = <&periph_pll>;
 							reg = <0x100>;
 						};
 
-						peri_hmc_pll_ref_clk: peri_hmc_pll_ref_clk {
+						peri_hmc_pll_ref_clk: peri_hmc_pll_ref_clk@104 {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-a10-perip-clk";
 							clocks = <&periph_pll>;
@@ -287,7 +286,7 @@
 						};
 					};
 
-					mpu_free_clk: mpu_free_clk {
+					mpu_free_clk: mpu_free_clk@60 {
 						#clock-cells = <0>;
 						compatible = "altr,socfpga-a10-perip-clk";
 						clocks = <&main_mpu_base_clk>, <&peri_mpu_base_clk>,
@@ -296,7 +295,7 @@
 						reg = <0x60>;
 					};
 
-					noc_free_clk: noc_free_clk {
+					noc_free_clk: noc_free_clk@64 {
 						#clock-cells = <0>;
 						compatible = "altr,socfpga-a10-perip-clk";
 						clocks = <&main_noc_base_clk>, <&peri_noc_base_clk>,
@@ -305,7 +304,7 @@
 						reg = <0x64>;
 					};
 
-					s2f_user1_free_clk: s2f_user1_free_clk {
+					s2f_user1_free_clk: s2f_user1_free_clk@104 {
 						#clock-cells = <0>;
 						compatible = "altr,socfpga-a10-perip-clk";
 						clocks = <&main_s2f_usr1_clk>, <&peri_s2f_usr1_clk>,
@@ -314,7 +313,7 @@
 						reg = <0x104>;
 					};
 
-					sdmmc_free_clk: sdmmc_free_clk {
+					sdmmc_free_clk: sdmmc_free_clk@f8 {
 						#clock-cells = <0>;
 						compatible = "altr,socfpga-a10-perip-clk";
 						clocks = <&main_sdmmc_clk>, <&peri_sdmmc_clk>,
@@ -649,7 +648,7 @@
 			reg = <0xffe00000 0x40000>;
 		};
 
-		eccmgr: eccmgr@ffd06000 {
+		eccmgr: eccmgr {
 			compatible = "altr,socfpga-a10-ecc-manager";
 			altr,sysmgr-syscon = <&sysmgr>;
 			#address-cells = <1>;
@@ -806,7 +805,7 @@
 			status = "disabled";
 		};
 
-		usbphy0: usbphy@0 {
+		usbphy0: usbphy {
 			#phy-cells = <0>;
 			compatible = "usb-nop-xceiv";
 			status = "okay";

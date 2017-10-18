@@ -20,11 +20,6 @@
 #include "drm.h"
 #include "gem.h"
 
-static inline struct tegra_bo *host1x_to_tegra_bo(struct host1x_bo *bo)
-{
-	return container_of(bo, struct tegra_bo, base);
-}
-
 static void tegra_bo_put(struct host1x_bo *bo)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
@@ -128,12 +123,14 @@ static int tegra_bo_iommu_map(struct tegra_drm *tegra, struct tegra_bo *bo)
 	if (!bo->mm)
 		return -ENOMEM;
 
+	mutex_lock(&tegra->mm_lock);
+
 	err = drm_mm_insert_node_generic(&tegra->mm,
 					 bo->mm, bo->gem.size, PAGE_SIZE, 0, 0);
 	if (err < 0) {
 		dev_err(tegra->drm->dev, "out of I/O virtual memory: %zd\n",
 			err);
-		goto free;
+		goto unlock;
 	}
 
 	bo->paddr = bo->mm->start;
@@ -147,11 +144,14 @@ static int tegra_bo_iommu_map(struct tegra_drm *tegra, struct tegra_bo *bo)
 
 	bo->size = err;
 
+	mutex_unlock(&tegra->mm_lock);
+
 	return 0;
 
 remove:
 	drm_mm_remove_node(bo->mm);
-free:
+unlock:
+	mutex_unlock(&tegra->mm_lock);
 	kfree(bo->mm);
 	return err;
 }
@@ -161,8 +161,11 @@ static int tegra_bo_iommu_unmap(struct tegra_drm *tegra, struct tegra_bo *bo)
 	if (!bo->mm)
 		return 0;
 
+	mutex_lock(&tegra->mm_lock);
 	iommu_unmap(tegra->domain, bo->paddr, bo->size);
 	drm_mm_remove_node(bo->mm);
+	mutex_unlock(&tegra->mm_lock);
+
 	kfree(bo->mm);
 
 	return 0;
@@ -619,10 +622,10 @@ static const struct dma_buf_ops tegra_gem_prime_dmabuf_ops = {
 	.map_dma_buf = tegra_gem_prime_map_dma_buf,
 	.unmap_dma_buf = tegra_gem_prime_unmap_dma_buf,
 	.release = tegra_gem_prime_release,
-	.kmap_atomic = tegra_gem_prime_kmap_atomic,
-	.kunmap_atomic = tegra_gem_prime_kunmap_atomic,
-	.kmap = tegra_gem_prime_kmap,
-	.kunmap = tegra_gem_prime_kunmap,
+	.map_atomic = tegra_gem_prime_kmap_atomic,
+	.unmap_atomic = tegra_gem_prime_kunmap_atomic,
+	.map = tegra_gem_prime_kmap,
+	.unmap = tegra_gem_prime_kunmap,
 	.mmap = tegra_gem_prime_mmap,
 	.vmap = tegra_gem_prime_vmap,
 	.vunmap = tegra_gem_prime_vunmap,

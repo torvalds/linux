@@ -13,6 +13,7 @@
 / {
 	aliases {
 		serial3 = &uart4;
+		can = &hecc;
 	};
 
 	ocp@68000000 {
@@ -71,6 +72,17 @@
 			interrupt-controller;
 			pinctrl-single,register-width = <16>;
 			pinctrl-single,function-mask = <0xff1f>;
+		};
+
+		hecc: can@5c050000 {
+			compatible = "ti,am3517-hecc";
+			status = "disabled";
+			reg = <0x5c050000 0x80>,
+			      <0x5c053000 0x180>,
+			      <0x5c052000 0x200>;
+			reg-names = "hecc", "hecc-ram", "mbx";
+			interrupts = <24>;
+			clocks = <&hecc_ck>;
 		};
 	};
 };

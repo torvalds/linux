@@ -166,8 +166,8 @@ static int parse_ofoldpart_partitions(struct mtd_info *master,
 	if (!part)
 		return 0; /* No partitions found */
 
-	pr_warning("Device tree uses obsolete partition map binding: %s\n",
-			dp->full_name);
+	pr_warn("Device tree uses obsolete partition map binding: %s\n",
+		dp->full_name);
 
 	nr_parts = plen / sizeof(part[0]);
 

@@ -155,7 +155,7 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 
 static enum drm_mode_status
 dw_hdmi_rockchip_mode_valid(struct drm_connector *connector,
-			    struct drm_display_mode *mode)
+			    const struct drm_display_mode *mode)
 {
 	const struct dw_hdmi_mpll_config *mpll_cfg = rockchip_mpll_cfg;
 	int pclk = mode->clock * 1000;
@@ -237,7 +237,6 @@ static const struct dw_hdmi_plat_data rockchip_hdmi_drv_data = {
 	.mpll_cfg   = rockchip_mpll_cfg,
 	.cur_ctr    = rockchip_cur_ctr,
 	.phy_config = rockchip_phy_config,
-	.dev_type   = RK3288_HDMI,
 };
 
 static const struct of_device_id dw_hdmi_rockchip_dt_ids[] = {
@@ -326,7 +325,7 @@ static int dw_hdmi_rockchip_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver dw_hdmi_rockchip_pltfm_driver = {
+struct platform_driver dw_hdmi_rockchip_pltfm_driver = {
 	.probe  = dw_hdmi_rockchip_probe,
 	.remove = dw_hdmi_rockchip_remove,
 	.driver = {
@@ -334,11 +333,3 @@ static struct platform_driver dw_hdmi_rockchip_pltfm_driver = {
 		.of_match_table = dw_hdmi_rockchip_dt_ids,
 	},
 };
-
-module_platform_driver(dw_hdmi_rockchip_pltfm_driver);
-
-MODULE_AUTHOR("Andy Yan <andy.yan@rock-chips.com>");
-MODULE_AUTHOR("Yakir Yang <ykk@rock-chips.com>");
-MODULE_DESCRIPTION("Rockchip Specific DW-HDMI Driver Extension");
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:dwhdmi-rockchip");

@@ -223,7 +223,7 @@ static inline int cec_msg_status_is_ok(const struct cec_msg *msg)
 #define CEC_LOG_ADDR_BACKUP_2		13
 #define CEC_LOG_ADDR_SPECIFIC		14
 #define CEC_LOG_ADDR_UNREGISTERED	15 /* as initiator address */
-#define CEC_LOG_ADDR_BROADCAST		15 /* ad destination address */
+#define CEC_LOG_ADDR_BROADCAST		15 /* as destination address */
 
 /* The logical address types that the CEC device wants to claim */
 #define CEC_LOG_ADDR_TYPE_TV		0
@@ -336,6 +336,8 @@ static inline int cec_is_unconfigured(__u16 log_addr_mask)
 #define CEC_CAP_RC		(1 << 4)
 /* Hardware can monitor all messages, not just directed and broadcast. */
 #define CEC_CAP_MONITOR_ALL	(1 << 5)
+/* Hardware can use CEC only if the HDMI HPD pin is high. */
+#define CEC_CAP_NEEDS_HPD	(1 << 6)
 
 /**
  * struct cec_caps - CEC capabilities structure.

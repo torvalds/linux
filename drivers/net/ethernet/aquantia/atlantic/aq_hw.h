@@ -105,8 +105,7 @@ struct aq_hw_ops {
 
 	int (*hw_set_mac_address)(struct aq_hw_s *self, u8 *mac_addr);
 
-	int (*hw_get_link_status)(struct aq_hw_s *self,
-				  struct aq_hw_link_status_s *link_status);
+	int (*hw_get_link_status)(struct aq_hw_s *self);
 
 	int (*hw_set_link_speed)(struct aq_hw_s *self, u32 speed);
 

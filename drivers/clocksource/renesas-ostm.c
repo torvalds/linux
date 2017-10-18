@@ -262,4 +262,4 @@ err:
 	return 0;
 }
 
-CLOCKSOURCE_OF_DECLARE(ostm, "renesas,ostm", ostm_init);
+TIMER_OF_DECLARE(ostm, "renesas,ostm", ostm_init);

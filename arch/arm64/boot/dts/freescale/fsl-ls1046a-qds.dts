@@ -1,7 +1,7 @@
 /*
  * Device Tree Include file for Freescale Layerscape-1046A family SoC.
  *
- * Copyright 2016, Freescale Semiconductor, Inc.
+ * Copyright 2016 Freescale Semiconductor, Inc.
  *
  * Shaohui Xie <Shaohui.Xie@nxp.com>
  *
@@ -210,3 +210,5 @@
 		reg = <0>;
 	};
 };
+
+#include "fsl-ls1046-post.dtsi"

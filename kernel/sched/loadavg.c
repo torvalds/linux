@@ -117,7 +117,7 @@ calc_load(unsigned long load, unsigned long exp, unsigned long active)
  * load-average relies on per-cpu sampling from the tick, it is affected by
  * NO_HZ.
  *
- * The basic idea is to fold the nr_active delta into a global idle-delta upon
+ * The basic idea is to fold the nr_active delta into a global NO_HZ-delta upon
  * entering NO_HZ state such that we can include this as an 'extra' cpu delta
  * when we read the global state.
  *
@@ -126,7 +126,7 @@ calc_load(unsigned long load, unsigned long exp, unsigned long active)
  *  - When we go NO_HZ idle during the window, we can negate our sample
  *    contribution, causing under-accounting.
  *
- *    We avoid this by keeping two idle-delta counters and flipping them
+ *    We avoid this by keeping two NO_HZ-delta counters and flipping them
  *    when the window starts, thus separating old and new NO_HZ load.
  *
  *    The only trick is the slight shift in index flip for read vs write.
@@ -137,22 +137,22 @@ calc_load(unsigned long load, unsigned long exp, unsigned long active)
  *    r:0 0 1           1 0           0 1           1 0
  *    w:0 1 1           0 0           1 1           0 0
  *
- *    This ensures we'll fold the old idle contribution in this window while
+ *    This ensures we'll fold the old NO_HZ contribution in this window while
  *    accumlating the new one.
  *
- *  - When we wake up from NO_HZ idle during the window, we push up our
+ *  - When we wake up from NO_HZ during the window, we push up our
  *    contribution, since we effectively move our sample point to a known
  *    busy state.
  *
  *    This is solved by pushing the window forward, and thus skipping the
- *    sample, for this cpu (effectively using the idle-delta for this cpu which
+ *    sample, for this cpu (effectively using the NO_HZ-delta for this cpu which
  *    was in effect at the time the window opened). This also solves the issue
- *    of having to deal with a cpu having been in NOHZ idle for multiple
- *    LOAD_FREQ intervals.
+ *    of having to deal with a cpu having been in NO_HZ for multiple LOAD_FREQ
+ *    intervals.
  *
  * When making the ILB scale, we should try to pull this in as well.
  */
-static atomic_long_t calc_load_idle[2];
+static atomic_long_t calc_load_nohz[2];
 static int calc_load_idx;
 
 static inline int calc_load_write_idx(void)
@@ -167,7 +167,7 @@ static inline int calc_load_write_idx(void)
 
 	/*
 	 * If the folding window started, make sure we start writing in the
-	 * next idle-delta.
+	 * next NO_HZ-delta.
 	 */
 	if (!time_before(jiffies, READ_ONCE(calc_load_update)))
 		idx++;
@@ -180,24 +180,24 @@ static inline int calc_load_read_idx(void)
 	return calc_load_idx & 1;
 }
 
-void calc_load_enter_idle(void)
+void calc_load_nohz_start(void)
 {
 	struct rq *this_rq = this_rq();
 	long delta;
 
 	/*
-	 * We're going into NOHZ mode, if there's any pending delta, fold it
-	 * into the pending idle delta.
+	 * We're going into NO_HZ mode, if there's any pending delta, fold it
+	 * into the pending NO_HZ delta.
 	 */
 	delta = calc_load_fold_active(this_rq, 0);
 	if (delta) {
 		int idx = calc_load_write_idx();
 
-		atomic_long_add(delta, &calc_load_idle[idx]);
+		atomic_long_add(delta, &calc_load_nohz[idx]);
 	}
 }
 
-void calc_load_exit_idle(void)
+void calc_load_nohz_stop(void)
 {
 	struct rq *this_rq = this_rq();
 
@@ -217,13 +217,13 @@ void calc_load_exit_idle(void)
 		this_rq->calc_load_update += LOAD_FREQ;
 }
 
-static long calc_load_fold_idle(void)
+static long calc_load_nohz_fold(void)
 {
 	int idx = calc_load_read_idx();
 	long delta = 0;
 
-	if (atomic_long_read(&calc_load_idle[idx]))
-		delta = atomic_long_xchg(&calc_load_idle[idx], 0);
+	if (atomic_long_read(&calc_load_nohz[idx]))
+		delta = atomic_long_xchg(&calc_load_nohz[idx], 0);
 
 	return delta;
 }
@@ -299,9 +299,9 @@ calc_load_n(unsigned long load, unsigned long exp,
 
 /*
  * NO_HZ can leave us missing all per-cpu ticks calling
- * calc_load_account_active(), but since an idle CPU folds its delta into
- * calc_load_tasks_idle per calc_load_account_idle(), all we need to do is fold
- * in the pending idle delta if our idle period crossed a load cycle boundary.
+ * calc_load_fold_active(), but since a NO_HZ CPU folds its delta into
+ * calc_load_nohz per calc_load_nohz_start(), all we need to do is fold
+ * in the pending NO_HZ delta if our NO_HZ period crossed a load cycle boundary.
  *
  * Once we've updated the global active value, we need to apply the exponential
  * weights adjusted to the number of cycles missed.
@@ -330,7 +330,7 @@ static void calc_global_nohz(void)
 	}
 
 	/*
-	 * Flip the idle index...
+	 * Flip the NO_HZ index...
 	 *
 	 * Make sure we first write the new time then flip the index, so that
 	 * calc_load_write_idx() will see the new time when it reads the new
@@ -341,7 +341,7 @@ static void calc_global_nohz(void)
 }
 #else /* !CONFIG_NO_HZ_COMMON */
 
-static inline long calc_load_fold_idle(void) { return 0; }
+static inline long calc_load_nohz_fold(void) { return 0; }
 static inline void calc_global_nohz(void) { }
 
 #endif /* CONFIG_NO_HZ_COMMON */
@@ -362,9 +362,9 @@ void calc_global_load(unsigned long ticks)
 		return;
 
 	/*
-	 * Fold the 'old' idle-delta to include all NO_HZ cpus.
+	 * Fold the 'old' NO_HZ-delta to include all NO_HZ cpus.
 	 */
-	delta = calc_load_fold_idle();
+	delta = calc_load_nohz_fold();
 	if (delta)
 		atomic_long_add(delta, &calc_load_tasks);
 
@@ -378,7 +378,8 @@ void calc_global_load(unsigned long ticks)
 	WRITE_ONCE(calc_load_update, sample_window + LOAD_FREQ);
 
 	/*
-	 * In case we idled for multiple LOAD_FREQ intervals, catch up in bulk.
+	 * In case we went to NO_HZ for multiple LOAD_FREQ intervals
+	 * catch up in bulk.
 	 */
 	calc_global_nohz();
 }

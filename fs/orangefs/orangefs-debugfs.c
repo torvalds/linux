@@ -440,6 +440,9 @@ static ssize_t orangefs_debug_write(struct file *file,
 		"orangefs_debug_write: %pD\n",
 		file);
 
+	if (count == 0)
+		return 0;
+
 	/*
 	 * Thwart users who try to jamb a ridiculous number
 	 * of bytes into the debug file...

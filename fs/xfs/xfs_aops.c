@@ -111,11 +111,11 @@ xfs_finish_page_writeback(
 
 	bsize = bh->b_size;
 	do {
+		if (off > end)
+			break;
 		next = bh->b_this_page;
 		if (off < bvec->bv_offset)
 			goto next_bh;
-		if (off > end)
-			break;
 		bh->b_end_io(bh, !error);
 next_bh:
 		off += bsize;
@@ -189,7 +189,7 @@ xfs_setfilesize_trans_alloc(
 	 * We hand off the transaction to the completion thread now, so
 	 * clear the flag here.
 	 */
-	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
+	current_restore_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
 	return 0;
 }
 
@@ -252,7 +252,7 @@ xfs_setfilesize_ioend(
 	 * thus we need to mark ourselves as being in a transaction manually.
 	 * Similarly for freeze protection.
 	 */
-	current_set_flags_nested(&tp->t_pflags, PF_FSTRANS);
+	current_set_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
 	__sb_writers_acquired(VFS_I(ip)->i_sb, SB_FREEZE_FS);
 
 	/* we abort the update if there was an IO error */
@@ -276,7 +276,7 @@ xfs_end_io(
 	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
 	xfs_off_t		offset = ioend->io_offset;
 	size_t			size = ioend->io_size;
-	int			error = ioend->io_bio->bi_error;
+	int			error;
 
 	/*
 	 * Just clean up the in-memory strutures if the fs has been shut down.
@@ -289,6 +289,7 @@ xfs_end_io(
 	/*
 	 * Clean up any COW blocks on an I/O error.
 	 */
+	error = blk_status_to_errno(ioend->io_bio->bi_status);
 	if (unlikely(error)) {
 		switch (ioend->io_type) {
 		case XFS_IO_COW:
@@ -332,7 +333,7 @@ xfs_end_bio(
 	else if (ioend->io_append_trans)
 		queue_work(mp->m_data_workqueue, &ioend->io_work);
 	else
-		xfs_destroy_ioend(ioend, bio->bi_error);
+		xfs_destroy_ioend(ioend, blk_status_to_errno(bio->bi_status));
 }
 
 STATIC int
@@ -500,11 +501,12 @@ xfs_submit_ioend(
 	 * time.
 	 */
 	if (status) {
-		ioend->io_bio->bi_error = status;
+		ioend->io_bio->bi_status = errno_to_blk_status(status);
 		bio_endio(ioend->io_bio);
 		return status;
 	}
 
+	ioend->io_bio->bi_write_hint = ioend->io_inode->i_write_hint;
 	submit_bio(ioend->io_bio);
 	return 0;
 }
@@ -564,6 +566,7 @@ xfs_chain_bio(
 	bio_chain(ioend->io_bio, new);
 	bio_get(ioend->io_bio);		/* for xfs_destroy_ioend */
 	ioend->io_bio->bi_opf = REQ_OP_WRITE | wbc_to_write_flags(wbc);
+	ioend->io_bio->bi_write_hint = ioend->io_inode->i_write_hint;
 	submit_bio(ioend->io_bio);
 	ioend->io_bio = new;
 }
@@ -836,7 +839,7 @@ xfs_writepage_map(
 	struct inode		*inode,
 	struct page		*page,
 	loff_t			offset,
-	__uint64_t              end_offset)
+	uint64_t              end_offset)
 {
 	LIST_HEAD(submit_list);
 	struct xfs_ioend	*ioend, *next;
@@ -991,7 +994,7 @@ xfs_do_writepage(
 	struct xfs_writepage_ctx *wpc = data;
 	struct inode		*inode = page->mapping->host;
 	loff_t			offset;
-	__uint64_t              end_offset;
+	uint64_t              end_offset;
 	pgoff_t                 end_index;
 
 	trace_xfs_writepage(inode, page, 0, 0);
@@ -1016,7 +1019,7 @@ xfs_do_writepage(
 	 * Given that we do not allow direct reclaim to call us, we should
 	 * never be called while in a filesystem transaction.
 	 */
-	if (WARN_ON_ONCE(current->flags & PF_FSTRANS))
+	if (WARN_ON_ONCE(current->flags & PF_MEMALLOC_NOFS))
 		goto redirty;
 
 	/*
@@ -1261,8 +1264,8 @@ xfs_get_blocks(
 
 	if (nimaps) {
 		trace_xfs_get_blocks_found(ip, offset, size,
-				ISUNWRITTEN(&imap) ? XFS_IO_UNWRITTEN
-						   : XFS_IO_OVERWRITE, &imap);
+			imap.br_state == XFS_EXT_UNWRITTEN ?
+				XFS_IO_UNWRITTEN : XFS_IO_OVERWRITE, &imap);
 		xfs_iunlock(ip, lockmode);
 	} else {
 		trace_xfs_get_blocks_notfound(ip, offset, size);
@@ -1276,9 +1279,7 @@ xfs_get_blocks(
 	 * For unwritten extents do not report a disk address in the buffered
 	 * read case (treat as if we're reading into a hole).
 	 */
-	if (imap.br_startblock != HOLESTARTBLOCK &&
-	    imap.br_startblock != DELAYSTARTBLOCK &&
-	    !ISUNWRITTEN(&imap))
+	if (xfs_bmap_is_real_extent(&imap))
 		xfs_map_buffer(inode, bh_result, &imap, offset);
 
 	/*
@@ -1318,9 +1319,12 @@ xfs_vm_bmap(
 	 * The swap code (ab-)uses ->bmap to get a block mapping and then
 	 * bypasseѕ the file system for actual I/O.  We really can't allow
 	 * that on reflinks inodes, so we have to skip out here.  And yes,
-	 * 0 is the magic code for a bmap error..
+	 * 0 is the magic code for a bmap error.
+	 *
+	 * Since we don't pass back blockdev info, we can't return bmap
+	 * information for rt files either.
 	 */
-	if (xfs_is_reflink_inode(ip))
+	if (xfs_is_reflink_inode(ip) || XFS_IS_REALTIME_INODE(ip))
 		return 0;
 
 	filemap_write_and_wait(mapping);

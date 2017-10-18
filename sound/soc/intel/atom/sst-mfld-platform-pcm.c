@@ -690,7 +690,7 @@ static int sst_pcm_new(struct snd_soc_pcm_runtime *rtd)
 			snd_dma_continuous_data(GFP_DMA),
 			SST_MIN_BUFFER, SST_MAX_BUFFER);
 		if (retval) {
-			dev_err(rtd->dev, "dma buffer allocationf fail\n");
+			dev_err(rtd->dev, "dma buffer allocation failure\n");
 			return retval;
 		}
 	}

@@ -9,35 +9,35 @@ menuconfig PINCTRL_UNIPHIER
 if PINCTRL_UNIPHIER
 
 config PINCTRL_UNIPHIER_LD4
-	tristate "UniPhier PH1-LD4 SoC pinctrl driver"
+	bool "UniPhier LD4 SoC pinctrl driver"
 	default ARM
 
 config PINCTRL_UNIPHIER_PRO4
-	tristate "UniPhier PH1-Pro4 SoC pinctrl driver"
+	bool "UniPhier Pro4 SoC pinctrl driver"
 	default ARM
 
 config PINCTRL_UNIPHIER_SLD8
-	tristate "UniPhier PH1-sLD8 SoC pinctrl driver"
+	bool "UniPhier sLD8 SoC pinctrl driver"
 	default ARM
 
 config PINCTRL_UNIPHIER_PRO5
-	tristate "UniPhier PH1-Pro5 SoC pinctrl driver"
+	bool "UniPhier Pro5 SoC pinctrl driver"
 	default ARM
 
 config PINCTRL_UNIPHIER_PXS2
-	tristate "UniPhier ProXstream2 SoC pinctrl driver"
+	bool "UniPhier PXs2 SoC pinctrl driver"
 	default ARM
 
 config PINCTRL_UNIPHIER_LD6B
-	tristate "UniPhier PH1-LD6b SoC pinctrl driver"
+	bool "UniPhier LD6b SoC pinctrl driver"
 	default ARM
 
 config PINCTRL_UNIPHIER_LD11
-	tristate "UniPhier PH1-LD11 SoC pinctrl driver"
+	bool "UniPhier LD11 SoC pinctrl driver"
 	default ARM64
 
 config PINCTRL_UNIPHIER_LD20
-	tristate "UniPhier PH1-LD20 SoC pinctrl driver"
+	bool "UniPhier LD20 SoC pinctrl driver"
 	default ARM64
 
 endif

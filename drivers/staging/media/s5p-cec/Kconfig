@@ -1,9 +1,0 @@
-config VIDEO_SAMSUNG_S5P_CEC
-       tristate "Samsung S5P CEC driver"
-       depends on VIDEO_DEV && MEDIA_CEC_SUPPORT && (ARCH_EXYNOS || COMPILE_TEST)
-       ---help---
-         This is a driver for Samsung S5P HDMI CEC interface. It uses the
-         generic CEC framework interface.
-         CEC bus is present in the HDMI connector and enables communication
-         between compatible devices.
-

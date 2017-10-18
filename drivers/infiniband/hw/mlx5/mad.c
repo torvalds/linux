@@ -187,6 +187,8 @@ static void pma_cnt_assign(struct ib_pma_portcounters *pma_cnt,
 			     port_xmit_discards);
 	MLX5_ASSIGN_PMA_CNTR(pma_cnt->port_xmit_constraint_errors,
 			     port_xmit_constraint_errors);
+	MLX5_ASSIGN_PMA_CNTR(pma_cnt->port_xmit_wait,
+			     port_xmit_wait);
 	MLX5_ASSIGN_PMA_CNTR(pma_cnt->port_rcv_constraint_errors,
 			     port_rcv_constraint_errors);
 	MLX5_ASSIGN_PMA_CNTR(pma_cnt->link_overrun_errors,
@@ -216,7 +218,7 @@ static int process_pma_cmd(struct ib_device *ibdev, u8 port_num,
 			(struct ib_pma_portcounters_ext *)(out_mad->data + 40);
 		int sz = MLX5_ST_SZ_BYTES(query_vport_counter_out);
 
-		out_cnt = mlx5_vzalloc(sz);
+		out_cnt = kvzalloc(sz, GFP_KERNEL);
 		if (!out_cnt)
 			return IB_MAD_RESULT_FAILURE;
 
@@ -229,7 +231,7 @@ static int process_pma_cmd(struct ib_device *ibdev, u8 port_num,
 			(struct ib_pma_portcounters *)(out_mad->data + 40);
 		int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
 
-		out_cnt = mlx5_vzalloc(sz);
+		out_cnt = kvzalloc(sz, GFP_KERNEL);
 		if (!out_cnt)
 			return IB_MAD_RESULT_FAILURE;
 

@@ -54,6 +54,8 @@
 #include <asm/mce.h>
 #include <asm/tsc.h>
 #include <asm/hypervisor.h>
+#include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 
 unsigned int num_processors;
 
@@ -545,6 +547,81 @@ static struct clock_event_device lapic_clockevent = {
 };
 static DEFINE_PER_CPU(struct clock_event_device, lapic_events);
 
+#define DEADLINE_MODEL_MATCH_FUNC(model, func)	\
+	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long)&func }
+
+#define DEADLINE_MODEL_MATCH_REV(model, rev)	\
+	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long)rev }
+
+static u32 hsx_deadline_rev(void)
+{
+	switch (boot_cpu_data.x86_mask) {
+	case 0x02: return 0x3a; /* EP */
+	case 0x04: return 0x0f; /* EX */
+	}
+
+	return ~0U;
+}
+
+static u32 bdx_deadline_rev(void)
+{
+	switch (boot_cpu_data.x86_mask) {
+	case 0x02: return 0x00000011;
+	case 0x03: return 0x0700000e;
+	case 0x04: return 0x0f00000c;
+	case 0x05: return 0x0e000003;
+	}
+
+	return ~0U;
+}
+
+static const struct x86_cpu_id deadline_match[] = {
+	DEADLINE_MODEL_MATCH_FUNC( INTEL_FAM6_HASWELL_X,	hsx_deadline_rev),
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_BROADWELL_X,	0x0b000020),
+	DEADLINE_MODEL_MATCH_FUNC( INTEL_FAM6_BROADWELL_XEON_D,	bdx_deadline_rev),
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_SKYLAKE_X,	0x02000014),
+
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_HASWELL_CORE,	0x22),
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_HASWELL_ULT,	0x20),
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_HASWELL_GT3E,	0x17),
+
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_BROADWELL_CORE,	0x25),
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_BROADWELL_GT3E,	0x17),
+
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_SKYLAKE_MOBILE,	0xb2),
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_SKYLAKE_DESKTOP,	0xb2),
+
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_KABYLAKE_MOBILE,	0x52),
+	DEADLINE_MODEL_MATCH_REV ( INTEL_FAM6_KABYLAKE_DESKTOP,	0x52),
+
+	{},
+};
+
+static void apic_check_deadline_errata(void)
+{
+	const struct x86_cpu_id *m = x86_match_cpu(deadline_match);
+	u32 rev;
+
+	if (!m)
+		return;
+
+	/*
+	 * Function pointers will have the MSB set due to address layout,
+	 * immediate revisions will not.
+	 */
+	if ((long)m->driver_data < 0)
+		rev = ((u32 (*)(void))(m->driver_data))();
+	else
+		rev = (u32)m->driver_data;
+
+	if (boot_cpu_data.microcode >= rev)
+		return;
+
+	setup_clear_cpu_cap(X86_FEATURE_TSC_DEADLINE_TIMER);
+	pr_err(FW_BUG "TSC_DEADLINE disabled due to Errata; "
+	       "please update microcode to version: 0x%x (or later)\n", rev);
+}
+
 /*
  * Setup the local APIC timer for this CPU. Copy the initialized values
  * of the boot CPU and register the clock event in the framework.
@@ -563,6 +640,7 @@ static void setup_APIC_timer(void)
 	levt->cpumask = cpumask_of(smp_processor_id());
 
 	if (this_cpu_has(X86_FEATURE_TSC_DEADLINE_TIMER)) {
+		levt->name = "lapic-deadline";
 		levt->features &= ~(CLOCK_EVT_FEAT_PERIODIC |
 				    CLOCK_EVT_FEAT_DUMMY);
 		levt->set_next_event = lapic_next_deadline;
@@ -731,8 +809,10 @@ static int __init calibrate_APIC_clock(void)
 					TICK_NSEC, lapic_clockevent.shift);
 		lapic_clockevent.max_delta_ns =
 			clockevent_delta2ns(0x7FFFFF, &lapic_clockevent);
+		lapic_clockevent.max_delta_ticks = 0x7FFFFF;
 		lapic_clockevent.min_delta_ns =
 			clockevent_delta2ns(0xF, &lapic_clockevent);
+		lapic_clockevent.min_delta_ticks = 0xF;
 		lapic_clockevent.features &= ~CLOCK_EVT_FEAT_DUMMY;
 		return 0;
 	}
@@ -778,8 +858,10 @@ static int __init calibrate_APIC_clock(void)
 				       lapic_clockevent.shift);
 	lapic_clockevent.max_delta_ns =
 		clockevent_delta2ns(0x7FFFFFFF, &lapic_clockevent);
+	lapic_clockevent.max_delta_ticks = 0x7FFFFFFF;
 	lapic_clockevent.min_delta_ns =
 		clockevent_delta2ns(0xF, &lapic_clockevent);
+	lapic_clockevent.min_delta_ticks = 0xF;
 
 	lapic_timer_frequency = (delta * APIC_DIVISOR) / LAPIC_CAL_LOOPS;
 
@@ -1775,6 +1857,8 @@ void __init init_apic_mappings(void)
 {
 	unsigned int new_apicid;
 
+	apic_check_deadline_errata();
+
 	if (x2apic_mode) {
 		boot_cpu_physical_apicid = read_apic_id();
 		return;
@@ -1789,8 +1873,8 @@ void __init init_apic_mappings(void)
 		apic_phys = mp_lapic_addr;
 
 		/*
-		 * acpi lapic path already maps that address in
-		 * acpi_register_lapic_address()
+		 * If the system has ACPI MADT tables or MP info, the LAPIC
+		 * address is already registered.
 		 */
 		if (!acpi_lapic && !smp_found_config)
 			register_lapic_address(apic_phys);
@@ -2197,23 +2281,32 @@ void default_init_apic_ldr(void)
 	apic_write(APIC_LDR, val);
 }
 
-int default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-				   const struct cpumask *andmask,
-				   unsigned int *apicid)
+int default_cpu_mask_to_apicid(const struct cpumask *mask,
+			       struct irq_data *irqdata,
+			       unsigned int *apicid)
 {
-	unsigned int cpu;
+	unsigned int cpu = cpumask_first(mask);
 
-	for_each_cpu_and(cpu, cpumask, andmask) {
-		if (cpumask_test_cpu(cpu, cpu_online_mask))
-			break;
-	}
+	if (cpu >= nr_cpu_ids)
+		return -EINVAL;
+	*apicid = per_cpu(x86_cpu_to_apicid, cpu);
+	irq_data_update_effective_affinity(irqdata, cpumask_of(cpu));
+	return 0;
+}
 
-	if (likely(cpu < nr_cpu_ids)) {
-		*apicid = per_cpu(x86_cpu_to_apicid, cpu);
-		return 0;
-	}
+int flat_cpu_mask_to_apicid(const struct cpumask *mask,
+			    struct irq_data *irqdata,
+			    unsigned int *apicid)
 
-	return -EINVAL;
+{
+	struct cpumask *effmsk = irq_data_get_effective_affinity_mask(irqdata);
+	unsigned long cpu_mask = cpumask_bits(mask)[0] & APIC_ALL_CPUS;
+
+	if (!cpu_mask)
+		return -EINVAL;
+	*apicid = (unsigned int)cpu_mask;
+	cpumask_bits(effmsk)[0] = cpu_mask;
+	return 0;
 }
 
 /*
@@ -2237,7 +2330,7 @@ void __init apic_set_eoi_write(void (*eoi_write)(u32 reg, u32 v))
 static void __init apic_bsp_up_setup(void)
 {
 #ifdef CONFIG_X86_64
-	apic_write(APIC_ID, SET_APIC_ID(boot_cpu_physical_apicid));
+	apic_write(APIC_ID, apic->set_apic_id(boot_cpu_physical_apicid));
 #else
 	/*
 	 * Hack: In case of kdump, after a crash, kernel might be booting
@@ -2627,7 +2720,7 @@ static int __init lapic_insert_resource(void)
 }
 
 /*
- * need call insert after e820_reserve_resources()
+ * need call insert after e820__reserve_resources()
  * that is using request_resource
  */
 late_initcall(lapic_insert_resource);

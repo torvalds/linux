@@ -31,11 +31,11 @@
 #include <linux/unistd.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
-#include <linux/debugfs.h>
 #include <linux/percpu.h>
 #include <linux/memblock.h>
 #include <linux/of_platform.h>
 #include <linux/hugetlb.h>
+#include <asm/debugfs.h>
 #include <asm/io.h>
 #include <asm/paca.h>
 #include <asm/prom.h>
@@ -123,6 +123,11 @@ EXPORT_SYMBOL_GPL(of_i8042_aux_irq);
 /* XXX should go elsewhere eventually */
 int ppc_do_canonicalize_irqs;
 EXPORT_SYMBOL(ppc_do_canonicalize_irqs);
+#endif
+
+#ifdef CONFIG_CRASH_CORE
+/* This keeps a track of which one is the crashing cpu. */
+int crashing_cpu = -1;
 #endif
 
 /* also used by kexec */
@@ -256,7 +261,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "processor\t: %lu\n", cpu_id);
 	seq_printf(m, "cpu\t\t: ");
 
-	if (cur_cpu_spec->pvr_mask)
+	if (cur_cpu_spec->pvr_mask && cur_cpu_spec->cpu_name)
 		seq_printf(m, "%s", cur_cpu_spec->cpu_name);
 	else
 		seq_printf(m, "unknown (%08x)", pvr);
@@ -328,6 +333,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 				break;
 			case 0x1008:	/* 740P/750P ?? */
 				maj = ((pvr >> 8) & 0xFF) - 1;
+				min = pvr & 0xFF;
+				break;
+			case 0x004e: /* POWER9 bits 12-15 give chip type */
+				maj = (pvr >> 8) & 0x0F;
 				min = pvr & 0xFF;
 				break;
 			default:
@@ -920,6 +929,15 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_code = (unsigned long) _etext;
 	init_mm.end_data = (unsigned long) _edata;
 	init_mm.brk = klimit;
+
+#ifdef CONFIG_PPC_MM_SLICES
+#ifdef CONFIG_PPC64
+	init_mm.context.addr_limit = DEFAULT_MAP_WINDOW_USER64;
+#else
+#error	"context.addr_limit not initialized."
+#endif
+#endif
+
 #ifdef CONFIG_PPC_64K_PAGES
 	init_mm.context.pte_frag = NULL;
 #endif

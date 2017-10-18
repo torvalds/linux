@@ -31,15 +31,15 @@ nvkm_mm_dump(struct nvkm_mm *mm, const char *header)
 {
 	struct nvkm_mm_node *node;
 
-	printk(KERN_ERR "nvkm: %s\n", header);
-	printk(KERN_ERR "nvkm: node list:\n");
+	pr_err("nvkm: %s\n", header);
+	pr_err("nvkm: node list:\n");
 	list_for_each_entry(node, &mm->nodes, nl_entry) {
-		printk(KERN_ERR "nvkm: \t%08x %08x %d\n",
+		pr_err("nvkm: \t%08x %08x %d\n",
 		       node->offset, node->length, node->type);
 	}
-	printk(KERN_ERR "nvkm: free list:\n");
+	pr_err("nvkm: free list:\n");
 	list_for_each_entry(node, &mm->free, fl_entry) {
-		printk(KERN_ERR "nvkm: \t%08x %08x %d\n",
+		pr_err("nvkm: \t%08x %08x %d\n",
 		       node->offset, node->length, node->type);
 	}
 }

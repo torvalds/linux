@@ -44,22 +44,6 @@ static struct pwm_lookup crc_pwm_lookup[] = {
 	PWM_LOOKUP("crystal_cove_pwm", 0, "0000:00:02.0", "pwm_backlight", 0, PWM_POLARITY_NORMAL),
 };
 
-static int intel_soc_pmic_find_gpio_irq(struct device *dev)
-{
-	struct gpio_desc *desc;
-	int irq;
-
-	desc = devm_gpiod_get_index(dev, "intel_soc_pmic", 0, GPIOD_IN);
-	if (IS_ERR(desc))
-		return PTR_ERR(desc);
-
-	irq = gpiod_to_irq(desc);
-	if (irq < 0)
-		dev_warn(dev, "Can't get irq: %d\n", irq);
-
-	return irq;
-}
-
 static int intel_soc_pmic_i2c_probe(struct i2c_client *i2c,
 				    const struct i2c_device_id *i2c_id)
 {
@@ -68,7 +52,6 @@ static int intel_soc_pmic_i2c_probe(struct i2c_client *i2c,
 	struct intel_soc_pmic_config *config;
 	struct intel_soc_pmic *pmic;
 	int ret;
-	int irq;
 
 	id = acpi_match_device(dev->driver->acpi_match_table, dev);
 	if (!id || !id->driver_data)
@@ -83,14 +66,10 @@ static int intel_soc_pmic_i2c_probe(struct i2c_client *i2c,
 	dev_set_drvdata(dev, pmic);
 
 	pmic->regmap = devm_regmap_init_i2c(i2c, config->regmap_config);
+	if (IS_ERR(pmic->regmap))
+		return PTR_ERR(pmic->regmap);
 
-	/*
-	 * On some boards the PMIC interrupt may come from a GPIO line. Try to
-	 * lookup the ACPI table for a such connection and setup a GPIO
-	 * interrupt if it exists. Otherwise use the IRQ provided by I2C
-	 */
-	irq = intel_soc_pmic_find_gpio_irq(dev);
-	pmic->irq = (irq < 0) ? i2c->irq : irq;
+	pmic->irq = i2c->irq;
 
 	ret = regmap_add_irq_chip(pmic->regmap, pmic->irq,
 				  config->irq_flags | IRQF_ONESHOT,

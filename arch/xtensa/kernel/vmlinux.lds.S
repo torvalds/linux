@@ -118,7 +118,7 @@ SECTIONS
   SECTION_VECTOR (.KernelExceptionVector.text, KERNEL_VECTOR_VADDR)
   SECTION_VECTOR (.UserExceptionVector.literal, USER_VECTOR_VADDR - 4)
   SECTION_VECTOR (.UserExceptionVector.text, USER_VECTOR_VADDR)
-  SECTION_VECTOR (.DoubleExceptionVector.literal, DOUBLEEXC_VECTOR_VADDR - 48)
+  SECTION_VECTOR (.DoubleExceptionVector.literal, DOUBLEEXC_VECTOR_VADDR - 20)
   SECTION_VECTOR (.DoubleExceptionVector.text, DOUBLEEXC_VECTOR_VADDR)
 #endif
 
@@ -306,13 +306,13 @@ SECTIONS
 		  .UserExceptionVector.literal)
   SECTION_VECTOR (_DoubleExceptionVector_literal,
 		  .DoubleExceptionVector.literal,
-		  DOUBLEEXC_VECTOR_VADDR - 48,
+		  DOUBLEEXC_VECTOR_VADDR - 20,
 		  SIZEOF(.UserExceptionVector.text),
 		  .UserExceptionVector.text)
   SECTION_VECTOR (_DoubleExceptionVector_text,
 		  .DoubleExceptionVector.text,
 		  DOUBLEEXC_VECTOR_VADDR,
-		  48,
+		  20,
 		  .DoubleExceptionVector.literal)
 
   . = (LOADADDR( .DoubleExceptionVector.text ) + SIZEOF( .DoubleExceptionVector.text ) + 3) & ~ 3;

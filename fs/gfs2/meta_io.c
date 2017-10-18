@@ -201,7 +201,7 @@ static void gfs2_meta_read_endio(struct bio *bio)
 		do {
 			struct buffer_head *next = bh->b_this_page;
 			len -= bh->b_size;
-			bh->b_end_io(bh, !bio->bi_error);
+			bh->b_end_io(bh, !bio->bi_status);
 			bh = next;
 		} while (bh && len);
 	}

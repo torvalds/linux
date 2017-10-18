@@ -144,7 +144,7 @@ static void next_decode_page(struct nfsd4_compoundargs *argp)
 	argp->p = page_address(argp->pagelist[0]);
 	argp->pagelist++;
 	if (argp->pagelen < PAGE_SIZE) {
-		argp->end = argp->p + (argp->pagelen>>2);
+		argp->end = argp->p + XDR_QUADLEN(argp->pagelen);
 		argp->pagelen = 0;
 	} else {
 		argp->end = argp->p + (PAGE_SIZE>>2);
@@ -1279,9 +1279,7 @@ nfsd4_decode_write(struct nfsd4_compoundargs *argp, struct nfsd4_write *write)
 		argp->pagelen -= pages * PAGE_SIZE;
 		len -= pages * PAGE_SIZE;
 
-		argp->p = (__be32 *)page_address(argp->pagelist[0]);
-		argp->pagelist++;
-		argp->end = argp->p + XDR_QUADLEN(PAGE_SIZE);
+		next_decode_page(argp);
 	}
 	argp->p += XDR_QUADLEN(len);
 
@@ -1973,7 +1971,7 @@ static __be32 *encode_change(__be32 *p, struct kstat *stat, struct inode *inode,
 		*p++ = cpu_to_be32(convert_to_wallclock(exp->cd->flush_time));
 		*p++ = 0;
 	} else if (IS_I_VERSION(inode)) {
-		p = xdr_encode_hyper(p, inode->i_version);
+		p = xdr_encode_hyper(p, nfsd4_change_attribute(inode));
 	} else {
 		*p++ = cpu_to_be32(stat->ctime.tv_sec);
 		*p++ = cpu_to_be32(stat->ctime.tv_nsec);
@@ -2831,9 +2829,14 @@ out_acl:
 	}
 #endif /* CONFIG_NFSD_PNFS */
 	if (bmval2 & FATTR4_WORD2_SUPPATTR_EXCLCREAT) {
-		status = nfsd4_encode_bitmap(xdr, NFSD_SUPPATTR_EXCLCREAT_WORD0,
-						  NFSD_SUPPATTR_EXCLCREAT_WORD1,
-						  NFSD_SUPPATTR_EXCLCREAT_WORD2);
+		u32 supp[3];
+
+		memcpy(supp, nfsd_suppattrs[minorversion], sizeof(supp));
+		supp[0] &= NFSD_SUPPATTR_EXCLCREAT_WORD0;
+		supp[1] &= NFSD_SUPPATTR_EXCLCREAT_WORD1;
+		supp[2] &= NFSD_SUPPATTR_EXCLCREAT_WORD2;
+
+		status = nfsd4_encode_bitmap(xdr, supp[0], supp[1], supp[2]);
 		if (status)
 			goto out;
 	}
@@ -4119,8 +4122,7 @@ nfsd4_encode_getdeviceinfo(struct nfsd4_compoundres *resp, __be32 nfserr,
 		struct nfsd4_getdeviceinfo *gdev)
 {
 	struct xdr_stream *xdr = &resp->xdr;
-	const struct nfsd4_layout_ops *ops =
-		nfsd4_layout_ops[gdev->gd_layout_type];
+	const struct nfsd4_layout_ops *ops;
 	u32 starting_len = xdr->buf->len, needed_len;
 	__be32 *p;
 
@@ -4137,6 +4139,7 @@ nfsd4_encode_getdeviceinfo(struct nfsd4_compoundres *resp, __be32 nfserr,
 
 	/* If maxcount is 0 then just update notifications */
 	if (gdev->gd_maxcount != 0) {
+		ops = nfsd4_layout_ops[gdev->gd_layout_type];
 		nfserr = ops->encode_getdeviceinfo(xdr, gdev);
 		if (nfserr) {
 			/*
@@ -4189,8 +4192,7 @@ nfsd4_encode_layoutget(struct nfsd4_compoundres *resp, __be32 nfserr,
 		struct nfsd4_layoutget *lgp)
 {
 	struct xdr_stream *xdr = &resp->xdr;
-	const struct nfsd4_layout_ops *ops =
-		nfsd4_layout_ops[lgp->lg_layout_type];
+	const struct nfsd4_layout_ops *ops;
 	__be32 *p;
 
 	dprintk("%s: err %d\n", __func__, nfserr);
@@ -4213,6 +4215,7 @@ nfsd4_encode_layoutget(struct nfsd4_compoundres *resp, __be32 nfserr,
 	*p++ = cpu_to_be32(lgp->lg_seg.iomode);
 	*p++ = cpu_to_be32(lgp->lg_layout_type);
 
+	ops = nfsd4_layout_ops[lgp->lg_layout_type];
 	nfserr = ops->encode_layoutget(xdr, lgp);
 out:
 	kfree(lgp->lg_content);
@@ -4533,14 +4536,13 @@ nfsd4_encode_replay(struct xdr_stream *xdr, struct nfsd4_op *op)
 }
 
 int
-nfs4svc_encode_voidres(struct svc_rqst *rqstp, __be32 *p, void *dummy)
+nfs4svc_encode_voidres(struct svc_rqst *rqstp, __be32 *p)
 {
         return xdr_ressize_check(rqstp, p);
 }
 
-int nfsd4_release_compoundargs(void *rq, __be32 *p, void *resp)
+void nfsd4_release_compoundargs(struct svc_rqst *rqstp)
 {
-	struct svc_rqst *rqstp = rq;
 	struct nfsd4_compoundargs *args = rqstp->rq_argp;
 
 	if (args->ops != args->iops) {
@@ -4554,12 +4556,13 @@ int nfsd4_release_compoundargs(void *rq, __be32 *p, void *resp)
 		args->to_free = tb->next;
 		kfree(tb);
 	}
-	return 1;
 }
 
 int
-nfs4svc_decode_compoundargs(struct svc_rqst *rqstp, __be32 *p, struct nfsd4_compoundargs *args)
+nfs4svc_decode_compoundargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd4_compoundargs *args = rqstp->rq_argp;
+
 	if (rqstp->rq_arg.head[0].iov_len % 4) {
 		/* client is nuts */
 		dprintk("%s: compound not properly padded! (peeraddr=%pISc xid=0x%x)",
@@ -4579,11 +4582,12 @@ nfs4svc_decode_compoundargs(struct svc_rqst *rqstp, __be32 *p, struct nfsd4_comp
 }
 
 int
-nfs4svc_encode_compoundres(struct svc_rqst *rqstp, __be32 *p, struct nfsd4_compoundres *resp)
+nfs4svc_encode_compoundres(struct svc_rqst *rqstp, __be32 *p)
 {
 	/*
 	 * All that remains is to write the tag and operation count...
 	 */
+	struct nfsd4_compoundres *resp = rqstp->rq_resp;
 	struct xdr_buf *buf = resp->xdr.buf;
 
 	WARN_ON_ONCE(buf->len != buf->head[0].iov_len + buf->page_len +

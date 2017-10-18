@@ -1945,9 +1945,9 @@ static int init_vqs(struct ports_device *portdev)
 		}
 	}
 	/* Find the queues. */
-	err = portdev->vdev->config->find_vqs(portdev->vdev, nr_queues, vqs,
-					      io_callbacks,
-					      (const char **)io_names, NULL);
+	err = virtio_find_vqs(portdev->vdev, nr_queues, vqs,
+			      io_callbacks,
+			      (const char **)io_names, NULL);
 	if (err)
 		goto free;
 
@@ -2304,7 +2304,7 @@ static int __init init(void)
 
 	pdrvdata.debugfs_dir = debugfs_create_dir("virtio-ports", NULL);
 	if (!pdrvdata.debugfs_dir)
-		pr_warning("Error creating debugfs dir for virtio-ports\n");
+		pr_warn("Error creating debugfs dir for virtio-ports\n");
 	INIT_LIST_HEAD(&pdrvdata.consoles);
 	INIT_LIST_HEAD(&pdrvdata.portdevs);
 

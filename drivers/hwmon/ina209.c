@@ -117,7 +117,7 @@ static long ina209_from_reg(const u8 reg, const u16 val)
 	case INA209_SHUNT_VOLTAGE_POS_WARN:
 	case INA209_SHUNT_VOLTAGE_NEG_WARN:
 		/* LSB=10 uV. Convert to mV. */
-		return DIV_ROUND_CLOSEST(val, 100);
+		return DIV_ROUND_CLOSEST((s16)val, 100);
 
 	case INA209_BUS_VOLTAGE:
 	case INA209_BUS_VOLTAGE_MAX_PEAK:
@@ -146,7 +146,7 @@ static long ina209_from_reg(const u8 reg, const u16 val)
 
 	case INA209_CURRENT:
 		/* LSB=1 mA (selected). Is in mA */
-		return val;
+		return (s16)val;
 	}
 
 	/* programmer goofed */
@@ -608,11 +608,18 @@ static const struct i2c_device_id ina209_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ina209_id);
 
+static const struct of_device_id ina209_of_match[] = {
+	{ .compatible = "ti,ina209" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ina209_of_match);
+
 /* This is the driver that will be inserted */
 static struct i2c_driver ina209_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "ina209",
+		.of_match_table = of_match_ptr(ina209_of_match),
 	},
 	.probe		= ina209_probe,
 	.remove		= ina209_remove,

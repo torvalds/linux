@@ -2,6 +2,9 @@
 cfg80211 subsystem
 ==================
 
+.. kernel-doc:: include/net/cfg80211.h
+   :doc: Introduction
+
 Device registration
 ===================
 
@@ -178,6 +181,12 @@ Actions and configuration
 
 .. kernel-doc:: include/net/cfg80211.h
    :functions: cfg80211_ibss_joined
+
+.. kernel-doc:: include/net/cfg80211.h
+   :functions: cfg80211_connect_resp_params
+
+.. kernel-doc:: include/net/cfg80211.h
+   :functions: cfg80211_connect_done
 
 .. kernel-doc:: include/net/cfg80211.h
    :functions: cfg80211_connect_result

@@ -18,6 +18,7 @@
 #include <linux/skbuff.h>
 #include <linux/timer.h>
 #include <linux/in.h>
+#include <linux/refcount.h>
 #include <uapi/linux/igmp.h>
 
 static inline struct igmphdr *igmp_hdr(const struct sk_buff *skb)
@@ -84,7 +85,7 @@ struct ip_mc_list {
 	struct ip_mc_list __rcu *next_hash;
 	struct timer_list	timer;
 	int			users;
-	atomic_t		refcnt;
+	refcount_t		refcnt;
 	spinlock_t		lock;
 	char			tm_running;
 	char			reporter;

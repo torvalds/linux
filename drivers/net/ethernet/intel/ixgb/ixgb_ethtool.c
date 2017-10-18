@@ -94,24 +94,30 @@ static struct ixgb_stats ixgb_gstrings_stats[] = {
 #define IXGB_STATS_LEN	ARRAY_SIZE(ixgb_gstrings_stats)
 
 static int
-ixgb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
+ixgb_get_link_ksettings(struct net_device *netdev,
+			struct ethtool_link_ksettings *cmd)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
-	ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
-	ecmd->advertising = (ADVERTISED_10000baseT_Full | ADVERTISED_FIBRE);
-	ecmd->port = PORT_FIBRE;
-	ecmd->transceiver = XCVR_EXTERNAL;
+	ethtool_link_ksettings_zero_link_mode(cmd, supported);
+	ethtool_link_ksettings_add_link_mode(cmd, supported, 10000baseT_Full);
+	ethtool_link_ksettings_add_link_mode(cmd, supported, FIBRE);
+
+	ethtool_link_ksettings_zero_link_mode(cmd, advertising);
+	ethtool_link_ksettings_add_link_mode(cmd, advertising, 10000baseT_Full);
+	ethtool_link_ksettings_add_link_mode(cmd, advertising, FIBRE);
+
+	cmd->base.port = PORT_FIBRE;
 
 	if (netif_carrier_ok(adapter->netdev)) {
-		ethtool_cmd_speed_set(ecmd, SPEED_10000);
-		ecmd->duplex = DUPLEX_FULL;
+		cmd->base.speed = SPEED_10000;
+		cmd->base.duplex = DUPLEX_FULL;
 	} else {
-		ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
-		ecmd->duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKNOWN;
+		cmd->base.duplex = DUPLEX_UNKNOWN;
 	}
 
-	ecmd->autoneg = AUTONEG_DISABLE;
+	cmd->base.autoneg = AUTONEG_DISABLE;
 	return 0;
 }
 
@@ -126,13 +132,14 @@ void ixgb_set_speed_duplex(struct net_device *netdev)
 }
 
 static int
-ixgb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
+ixgb_set_link_ksettings(struct net_device *netdev,
+			const struct ethtool_link_ksettings *cmd)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
-	u32 speed = ethtool_cmd_speed(ecmd);
+	u32 speed = cmd->base.speed;
 
-	if (ecmd->autoneg == AUTONEG_ENABLE ||
-	    (speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL))
+	if (cmd->base.autoneg == AUTONEG_ENABLE ||
+	    (speed + cmd->base.duplex != SPEED_10000 + DUPLEX_FULL))
 		return -EINVAL;
 
 	if (netif_running(adapter->netdev)) {
@@ -630,8 +637,6 @@ ixgb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 }
 
 static const struct ethtool_ops ixgb_ethtool_ops = {
-	.get_settings = ixgb_get_settings,
-	.set_settings = ixgb_set_settings,
 	.get_drvinfo = ixgb_get_drvinfo,
 	.get_regs_len = ixgb_get_regs_len,
 	.get_regs = ixgb_get_regs,
@@ -649,6 +654,8 @@ static const struct ethtool_ops ixgb_ethtool_ops = {
 	.set_phys_id = ixgb_set_phys_id,
 	.get_sset_count = ixgb_get_sset_count,
 	.get_ethtool_stats = ixgb_get_ethtool_stats,
+	.get_link_ksettings = ixgb_get_link_ksettings,
+	.set_link_ksettings = ixgb_set_link_ksettings,
 };
 
 void ixgb_set_ethtool_ops(struct net_device *netdev)

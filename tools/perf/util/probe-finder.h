@@ -2,9 +2,9 @@
 #define _PROBE_FINDER_H
 
 #include <stdbool.h>
-#include "util.h"
 #include "intlist.h"
 #include "probe-event.h"
+#include "sane_ctype.h"
 
 #define MAX_PROBE_BUFFER	1024
 #define MAX_PROBES		 128

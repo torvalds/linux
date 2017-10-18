@@ -1156,8 +1156,7 @@ static int fjes_poll(struct napi_struct *napi, int budget)
 				hw->ep_shm_info[cur_epid].net_stats
 							 .rx_errors += 1;
 			} else {
-				memcpy(skb_put(skb, frame_len),
-				       frame, frame_len);
+				skb_put_data(skb, frame, frame_len);
 				skb->protocol = eth_type_trans(skb, netdev);
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 
@@ -1348,7 +1347,6 @@ static void fjes_netdev_setup(struct net_device *netdev)
 	netdev->mtu = fjes_support_mtu[3];
 	netdev->min_mtu = fjes_support_mtu[0];
 	netdev->max_mtu = fjes_support_mtu[3];
-	netdev->flags |= IFF_BROADCAST;
 	netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 }
 

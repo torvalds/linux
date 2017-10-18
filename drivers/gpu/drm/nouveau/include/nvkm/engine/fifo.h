@@ -68,4 +68,5 @@ int gm107_fifo_new(struct nvkm_device *, int, struct nvkm_fifo **);
 int gm200_fifo_new(struct nvkm_device *, int, struct nvkm_fifo **);
 int gm20b_fifo_new(struct nvkm_device *, int, struct nvkm_fifo **);
 int gp100_fifo_new(struct nvkm_device *, int, struct nvkm_fifo **);
+int gp10b_fifo_new(struct nvkm_device *, int, struct nvkm_fifo **);
 #endif

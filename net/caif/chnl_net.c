@@ -392,14 +392,14 @@ static void chnl_net_destructor(struct net_device *dev)
 {
 	struct chnl_net *priv = netdev_priv(dev);
 	caif_free_client(&priv->chnl);
-	free_netdev(dev);
 }
 
 static void ipcaif_net_setup(struct net_device *dev)
 {
 	struct chnl_net *priv;
 	dev->netdev_ops = &netdev_ops;
-	dev->destructor = chnl_net_destructor;
+	dev->needs_free_netdev = true;
+	dev->priv_destructor = chnl_net_destructor;
 	dev->flags |= IFF_NOARP;
 	dev->flags |= IFF_POINTOPOINT;
 	dev->mtu = GPRS_PDP_MTU;
@@ -461,7 +461,8 @@ static void caif_netlink_parms(struct nlattr *data[],
 }
 
 static int ipcaif_newlink(struct net *src_net, struct net_device *dev,
-			  struct nlattr *tb[], struct nlattr *data[])
+			  struct nlattr *tb[], struct nlattr *data[],
+			  struct netlink_ext_ack *extack)
 {
 	int ret;
 	struct chnl_net *caifdev;
@@ -484,7 +485,8 @@ static int ipcaif_newlink(struct net *src_net, struct net_device *dev,
 }
 
 static int ipcaif_changelink(struct net_device *dev, struct nlattr *tb[],
-			     struct nlattr *data[])
+			     struct nlattr *data[],
+			     struct netlink_ext_ack *extack)
 {
 	struct chnl_net *caifdev;
 	ASSERT_RTNL();

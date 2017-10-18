@@ -47,7 +47,6 @@
 #include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Merrii A31 Hummingbird";
@@ -254,6 +253,10 @@
 
 #include "axp22x.dtsi"
 
+&ac_power_supply {
+	status = "okay";
+};
+
 &reg_aldo1 {
 	regulator-min-microvolt = <3300000>;
 	regulator-max-microvolt = <3300000>;
@@ -320,7 +323,6 @@
 &tcon0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&lcd0_rgb888_pins>;
-	status = "okay";
 };
 
 &tcon0_out {
@@ -343,11 +345,6 @@
 
 &usb_power_supply {
 	status = "okay";
-};
-
-&usb1_vbus_pin_a {
-	/* different pin from sunxi-common-regulators */
-	pins = "PH24";
 };
 
 &usbphy {

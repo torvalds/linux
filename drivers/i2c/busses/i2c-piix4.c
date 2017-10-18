@@ -106,7 +106,7 @@ MODULE_PARM_DESC(force, "Forcibly enable the PIIX4. DANGEROUS!");
 /* If force_addr is set to anything different from 0, we forcibly enable
    the PIIX4 at the given address. VERY DANGEROUS! */
 static int force_addr;
-module_param (force_addr, int, 0);
+module_param_hw(force_addr, int, ioport, 0);
 MODULE_PARM_DESC(force_addr,
 		 "Forcibly enable the PIIX4 at the given address. "
 		 "EXTREMELY DANGEROUS!");

@@ -46,7 +46,6 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "HSG H702";
@@ -187,7 +186,6 @@
 };
 
 &reg_usb0_vbus {
-	pinctrl-0 = <&usb0_vbus_pin_a>;
 	gpio = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
 	status = "okay";
 };
@@ -201,10 +199,6 @@
 &usb_otg {
 	dr_mode = "otg";
 	status = "okay";
-};
-
-&usb0_vbus_pin_a {
-	pins = "PG12";
 };
 
 &usbphy {

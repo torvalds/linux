@@ -291,7 +291,7 @@ static void __init ks_pcie_host_init(struct pcie_port *pp)
 			"Asynchronous external abort");
 }
 
-static struct dw_pcie_host_ops keystone_pcie_host_ops = {
+static const struct dw_pcie_host_ops keystone_pcie_host_ops = {
 	.rd_other_conf = ks_dw_pcie_rd_other_conf,
 	.wr_other_conf = ks_dw_pcie_wr_other_conf,
 	.host_init = ks_pcie_host_init,

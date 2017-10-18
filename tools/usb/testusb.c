@@ -387,15 +387,17 @@ int main (int argc, char **argv)
 	/* pick defaults that works with all speeds, without short packets.
 	 *
 	 * Best per-frame data rates:
-	 *     high speed, bulk       512 * 13 * 8 = 53248
-	 *                 interrupt 1024 *  3 * 8 = 24576
-	 *     full speed, bulk/intr   64 * 19     =  1216
-	 *                 interrupt   64 *  1     =    64
-	 *      low speed, interrupt    8 *  1     =     8
+	 *     super speed,bulk      1024 * 16 * 8 = 131072
+	 *                 interrupt 1024 *  3 * 8 =  24576
+	 *     high speed, bulk       512 * 13 * 8 =  53248
+	 *                 interrupt 1024 *  3 * 8 =  24576
+	 *     full speed, bulk/intr   64 * 19     =   1216
+	 *                 interrupt   64 *  1     =     64
+	 *      low speed, interrupt    8 *  1     =      8
 	 */
 	param.iterations = 1000;
 	param.length = 1024;
-	param.vary = 512;
+	param.vary = 1024;
 	param.sglen = 32;
 
 	/* for easy use when hotplugging */
@@ -457,7 +459,7 @@ usage:
 			"\t-c iterations		default 1000\n"
 			"\t-s transfer length	default 1024\n"
 			"\t-g sglen		default 32\n"
-			"\t-v vary			default 512\n",
+			"\t-v vary			default 1024\n",
 			argv[0]);
 		return 1;
 	}

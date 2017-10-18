@@ -111,7 +111,7 @@ static int etnaviv_open(struct drm_device *dev, struct drm_file *file)
 	return 0;
 }
 
-static void etnaviv_preclose(struct drm_device *dev, struct drm_file *file)
+static void etnaviv_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct etnaviv_drm_private *priv = dev->dev_private;
 	struct etnaviv_file_private *ctx = file->driver_priv;
@@ -488,13 +488,14 @@ static struct drm_driver etnaviv_drm_driver = {
 				DRIVER_PRIME |
 				DRIVER_RENDER,
 	.open               = etnaviv_open,
-	.preclose           = etnaviv_preclose,
+	.postclose           = etnaviv_postclose,
 	.gem_free_object_unlocked = etnaviv_gem_free_object,
 	.gem_vm_ops         = &vm_ops,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export   = drm_gem_prime_export,
 	.gem_prime_import   = drm_gem_prime_import,
+	.gem_prime_res_obj  = etnaviv_gem_prime_res_obj,
 	.gem_prime_pin      = etnaviv_gem_prime_pin,
 	.gem_prime_unpin    = etnaviv_gem_prime_unpin,
 	.gem_prime_get_sg_table = etnaviv_gem_prime_get_sg_table,
@@ -512,7 +513,7 @@ static struct drm_driver etnaviv_drm_driver = {
 	.desc               = "etnaviv DRM",
 	.date               = "20151214",
 	.major              = 1,
-	.minor              = 0,
+	.minor              = 1,
 };
 
 /*

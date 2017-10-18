@@ -3,6 +3,7 @@ zxdrm-y := \
 	zx_hdmi.o \
 	zx_plane.o \
 	zx_tvenc.o \
+	zx_vga.o \
 	zx_vou.o
 
 obj-$(CONFIG_DRM_ZTE) += zxdrm.o

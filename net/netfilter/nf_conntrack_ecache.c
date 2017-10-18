@@ -195,7 +195,7 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct)
 
 	events = xchg(&e->cache, 0);
 
-	if (!nf_ct_is_confirmed(ct) || nf_ct_is_dying(ct) || !events)
+	if (!nf_ct_is_confirmed(ct) || nf_ct_is_dying(ct))
 		goto out_unlock;
 
 	/* We make a copy of the missed event cache without taking
@@ -212,7 +212,7 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct)
 
 	ret = notify->fcn(events | missed, &item);
 
-	if (likely(ret >= 0 && !missed))
+	if (likely(ret == 0 && !missed))
 		goto out_unlock;
 
 	spin_lock_bh(&ct->lock);
@@ -347,7 +347,7 @@ static struct ctl_table event_sysctl_table[] = {
 };
 #endif /* CONFIG_SYSCTL */
 
-static struct nf_ct_ext_type event_extend __read_mostly = {
+static const struct nf_ct_ext_type event_extend = {
 	.len	= sizeof(struct nf_conntrack_ecache),
 	.align	= __alignof__(struct nf_conntrack_ecache),
 	.id	= NF_CT_EXT_ECACHE,
@@ -420,6 +420,9 @@ int nf_conntrack_ecache_init(void)
 	int ret = nf_ct_extend_register(&event_extend);
 	if (ret < 0)
 		pr_err("nf_ct_event: Unable to register event extension.\n");
+
+	BUILD_BUG_ON(__IPCT_MAX >= 16);	/* ctmask, missed use u16 */
+
 	return ret;
 }
 

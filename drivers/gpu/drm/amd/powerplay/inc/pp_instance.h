@@ -39,6 +39,7 @@ struct pp_instance {
 	struct pp_smumgr *smu_mgr;
 	struct pp_hwmgr *hwmgr;
 	struct pp_eventmgr *eventmgr;
+	struct mutex pp_lock;
 };
 
 #endif

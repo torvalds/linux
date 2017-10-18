@@ -286,7 +286,7 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 		if (!addr)
 			return -ENOMEM;
 
-		addr->u.a6.addr.s6_addr32[0] = 0xfe800000;
+		addr->u.a6.addr.s6_addr32[0] = cpu_to_be32(0xfe800000);
 		addr->u.a6.addr.s6_addr32[1] = 0x00000000;
 		for (i = 8; i < 16; i++)
 			addr->u.a6.addr.s6_addr[i] =
@@ -320,7 +320,7 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 
 	addr = qeth_l3_get_addr_buffer(QETH_PROT_IPV6);
 	if (addr != NULL) {
-		addr->u.a6.addr.s6_addr32[0] = 0xfe800000;
+		addr->u.a6.addr.s6_addr32[0] = cpu_to_be32(0xfe800000);
 		addr->u.a6.addr.s6_addr32[1] = 0x00000000;
 		for (i = 8; i < 16; i++)
 			addr->u.a6.addr.s6_addr[i] = card->options.hsuid[i - 8];
@@ -1049,3 +1049,14 @@ void qeth_l3_remove_device_attributes(struct device *dev)
 	sysfs_remove_group(&dev->kobj, &qeth_device_vipa_group);
 	sysfs_remove_group(&dev->kobj, &qeth_device_rxip_group);
 }
+
+const struct attribute_group *qeth_l3_attr_groups[] = {
+	&qeth_device_attr_group,
+	&qeth_device_blkt_group,
+	/* l3 specific, see l3_{create,remove}_device_attributes(): */
+	&qeth_l3_device_attr_group,
+	&qeth_device_ipato_group,
+	&qeth_device_vipa_group,
+	&qeth_device_rxip_group,
+NULL,
+};

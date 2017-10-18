@@ -167,7 +167,7 @@ static void dirty_endio(struct bio *bio)
 	struct keybuf_key *w = bio->bi_private;
 	struct dirty_io *io = w->private;
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		SET_KEY_DIRTY(&w->key, false);
 
 	closure_put(&io->cl);
@@ -195,7 +195,7 @@ static void read_dirty_endio(struct bio *bio)
 	struct dirty_io *io = w->private;
 
 	bch_count_io_errors(PTR_CACHE(io->dc->disk.c, &w->key, 0),
-			    bio->bi_error, "reading dirty data from cache");
+			    bio->bi_status, "reading dirty data from cache");
 
 	dirty_endio(bio);
 }

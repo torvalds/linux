@@ -61,14 +61,12 @@ static void _rtw_init_stainfo(struct sta_info *psta)
 	psta->keep_alive_trycnt = 0;
 
 #endif	/*  CONFIG_88EU_AP_MODE */
-
 }
 
 u32	_rtw_init_sta_priv(struct	sta_priv *pstapriv)
 {
 	struct sta_info *psta;
 	s32 i;
-
 
 	pstapriv->pallocated_stainfo_buf = vzalloc(sizeof(struct sta_info) * NUM_STA + 4);
 
@@ -115,7 +113,6 @@ u32	_rtw_init_sta_priv(struct	sta_priv *pstapriv)
 	pstapriv->expire_to = 3; /*  3*2 = 6 sec */
 	pstapriv->max_num_sta = NUM_STA;
 #endif
-
 
 	return _SUCCESS;
 }
@@ -263,7 +260,6 @@ u32	rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 	struct	xmit_priv	*pxmitpriv = &padapter->xmitpriv;
 	struct	sta_priv *pstapriv = &padapter->stapriv;
 
-
 	if (!psta)
 		goto exit;
 
@@ -381,7 +377,6 @@ u32	rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 
 exit:
 
-
 	return _SUCCESS;
 }
 
@@ -393,7 +388,6 @@ void rtw_free_all_stainfo(struct adapter *padapter)
 	struct sta_info *psta = NULL;
 	struct	sta_priv *pstapriv = &padapter->stapriv;
 	struct sta_info *pbcmc_stainfo = rtw_get_bcmc_stainfo(padapter);
-
 
 	if (pstapriv->asoc_sta_count == 1)
 		return;
@@ -424,7 +418,6 @@ struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	u32	index;
 	u8 *addr;
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
 
 	if (!hwaddr)
 		return NULL;
@@ -462,7 +455,6 @@ u32 rtw_init_bcmc_stainfo(struct adapter *padapter)
 	u32 res = _SUCCESS;
 	unsigned char bcast_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct	sta_priv *pstapriv = &padapter->stapriv;
-
 
 	psta = rtw_alloc_stainfo(pstapriv, bcast_addr);
 

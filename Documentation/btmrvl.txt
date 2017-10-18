@@ -1,18 +1,16 @@
-=======================================================================
-		README for btmrvl driver
-=======================================================================
-
+=============
+btmrvl driver
+=============
 
 All commands are used via debugfs interface.
 
-=====================
-Set/get driver configurations:
+Set/get driver configurations
+=============================
 
 Path:	/debug/btmrvl/config/
 
-gpiogap=[n]
-hscfgcmd
-	These commands are used to configure the host sleep parameters.
+gpiogap=[n], hscfgcmd
+	These commands are used to configure the host sleep parameters::
 	bit 8:0  -- Gap
 	bit 16:8 -- GPIO
 
@@ -23,7 +21,8 @@ hscfgcmd
 	where Gap is the gap in milli seconds between wakeup signal and
 	wakeup event, or 0xff for special host sleep setting.
 
-	Usage:
+	Usage::
+
 		# Use SDIO interface to wake up the host and set GAP to 0x80:
 		echo 0xff80 > /debug/btmrvl/config/gpiogap
 		echo 1 > /debug/btmrvl/config/hscfgcmd
@@ -32,15 +31,16 @@ hscfgcmd
 		echo 0x03ff >  /debug/btmrvl/config/gpiogap
 		echo 1 > /debug/btmrvl/config/hscfgcmd
 
-psmode=[n]
-pscmd
+psmode=[n], pscmd
 	These commands are used to enable/disable auto sleep mode
 
-	where the option is:
+	where the option is::
+
 			1 	-- Enable auto sleep mode
 			0 	-- Disable auto sleep mode
 
-	Usage:
+	Usage::
+
 		# Enable auto sleep mode
 		echo 1 > /debug/btmrvl/config/psmode
 		echo 1 > /debug/btmrvl/config/pscmd
@@ -50,15 +50,16 @@ pscmd
 		echo 1 > /debug/btmrvl/config/pscmd
 
 
-hsmode=[n]
-hscmd
+hsmode=[n], hscmd
 	These commands are used to enable host sleep or wake up firmware
 
-	where the option is:
+	where the option is::
+
 			1	-- Enable host sleep
 			0	-- Wake up firmware
 
-	Usage:
+	Usage::
+
 		# Enable host sleep
 		echo 1 > /debug/btmrvl/config/hsmode
 		echo 1 > /debug/btmrvl/config/hscmd
@@ -68,12 +69,13 @@ hscmd
 		echo 1 > /debug/btmrvl/config/hscmd
 
 
-======================
-Get driver status:
+Get driver status
+=================
 
 Path:	/debug/btmrvl/status/
 
-Usage:
+Usage::
+
 	cat /debug/btmrvl/status/<args>
 
 where the args are:
@@ -90,14 +92,17 @@ hsstate
 txdnldrdy
 	This command displays the value of Tx download ready flag.
 
-
-=====================
+Issuing a raw hci command
+=========================
 
 Use hcitool to issue raw hci command, refer to hcitool manual
 
-	Usage: Hcitool cmd <ogf> <ocf> [Parameters]
+Usage::
 
-	Interface Control Command
+	Hcitool cmd <ogf> <ocf> [Parameters]
+
+Interface Control Command::
+
 	hcitool cmd 0x3f 0x5b 0xf5 0x01 0x00    --Enable All interface
 	hcitool cmd 0x3f 0x5b 0xf5 0x01 0x01    --Enable Wlan interface
 	hcitool cmd 0x3f 0x5b 0xf5 0x01 0x02    --Enable BT interface
@@ -105,13 +110,13 @@ Use hcitool to issue raw hci command, refer to hcitool manual
 	hcitool cmd 0x3f 0x5b 0xf5 0x00 0x01    --Disable Wlan interface
 	hcitool cmd 0x3f 0x5b 0xf5 0x00 0x02    --Disable BT interface
 
-=======================================================================
+SD8688 firmware
+===============
 
+Images:
 
-SD8688 firmware:
-
-/lib/firmware/sd8688_helper.bin
-/lib/firmware/sd8688.bin
+- /lib/firmware/sd8688_helper.bin
+- /lib/firmware/sd8688.bin
 
 
 The images can be downloaded from:

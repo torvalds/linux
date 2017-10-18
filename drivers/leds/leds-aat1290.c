@@ -503,8 +503,9 @@ static int aat1290_led_probe(struct platform_device *pdev)
 	aat1290_init_v4l2_flash_config(led, &led_cfg, &v4l2_sd_cfg);
 
 	/* Create V4L2 Flash subdev. */
-	led->v4l2_flash = v4l2_flash_init(dev, sub_node, fled_cdev, NULL,
-					  &v4l2_flash_ops, &v4l2_sd_cfg);
+	led->v4l2_flash = v4l2_flash_init(dev, of_fwnode_handle(sub_node),
+					  fled_cdev, NULL, &v4l2_flash_ops,
+					  &v4l2_sd_cfg);
 	if (IS_ERR(led->v4l2_flash)) {
 		ret = PTR_ERR(led->v4l2_flash);
 		goto error_v4l2_flash_init;

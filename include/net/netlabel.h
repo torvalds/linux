@@ -37,7 +37,7 @@
 #include <linux/in6.h>
 #include <net/netlink.h>
 #include <net/request_sock.h>
-#include <linux/atomic.h>
+#include <linux/refcount.h>
 
 struct cipso_v4_doi;
 struct calipso_doi;
@@ -136,7 +136,7 @@ struct netlbl_audit {
  *
  */
 struct netlbl_lsm_cache {
-	atomic_t refcount;
+	refcount_t refcount;
 	void (*free) (const void *data);
 	void *data;
 };
@@ -295,7 +295,7 @@ static inline struct netlbl_lsm_cache *netlbl_secattr_cache_alloc(gfp_t flags)
 
 	cache = kzalloc(sizeof(*cache), flags);
 	if (cache)
-		atomic_set(&cache->refcount, 1);
+		refcount_set(&cache->refcount, 1);
 	return cache;
 }
 
@@ -309,7 +309,7 @@ static inline struct netlbl_lsm_cache *netlbl_secattr_cache_alloc(gfp_t flags)
  */
 static inline void netlbl_secattr_cache_free(struct netlbl_lsm_cache *cache)
 {
-	if (!atomic_dec_and_test(&cache->refcount))
+	if (!refcount_dec_and_test(&cache->refcount))
 		return;
 
 	if (cache->free)

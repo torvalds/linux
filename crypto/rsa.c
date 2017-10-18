@@ -337,11 +337,11 @@ err:
 	return -ENOMEM;
 }
 
-static int rsa_max_size(struct crypto_akcipher *tfm)
+static unsigned int rsa_max_size(struct crypto_akcipher *tfm)
 {
 	struct rsa_mpi_key *pkey = akcipher_tfm_ctx(tfm);
 
-	return pkey->n ? mpi_get_size(pkey->n) : -EINVAL;
+	return mpi_get_size(pkey->n);
 }
 
 static void rsa_exit_tfm(struct crypto_akcipher *tfm)

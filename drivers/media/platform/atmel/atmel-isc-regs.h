@@ -65,6 +65,7 @@
 #define ISC_INTSR       0x00000034
 
 #define ISC_INT_DDONE		BIT(8)
+#define ISC_INT_HISDONE		BIT(12)
 
 /* ISC White Balance Control Register */
 #define ISC_WB_CTRL     0x00000058
@@ -72,29 +73,97 @@
 /* ISC White Balance Configuration Register */
 #define ISC_WB_CFG      0x0000005c
 
+/* ISC White Balance Offset for R, GR Register */
+#define ISC_WB_O_RGR	0x00000060
+
+/* ISC White Balance Offset for B, GB Register */
+#define ISC_WB_O_BGR	0x00000064
+
+/* ISC White Balance Gain for R, GR Register */
+#define ISC_WB_G_RGR	0x00000068
+
+/* ISC White Balance Gain for B, GB Register */
+#define ISC_WB_G_BGR	0x0000006c
+
 /* ISC Color Filter Array Control Register */
 #define ISC_CFA_CTRL    0x00000070
 
 /* ISC Color Filter Array Configuration Register */
 #define ISC_CFA_CFG     0x00000074
+#define ISC_CFA_CFG_EITPOL	BIT(4)
 
 #define ISC_BAY_CFG_GRGR	0x0
 #define ISC_BAY_CFG_RGRG	0x1
 #define ISC_BAY_CFG_GBGB	0x2
 #define ISC_BAY_CFG_BGBG	0x3
-#define ISC_BAY_CFG_MASK	GENMASK(1, 0)
 
 /* ISC Color Correction Control Register */
 #define ISC_CC_CTRL     0x00000078
 
+/* ISC Color Correction RR RG Register */
+#define ISC_CC_RR_RG	0x0000007c
+
+/* ISC Color Correction RB OR Register */
+#define ISC_CC_RB_OR	0x00000080
+
+/* ISC Color Correction GR GG Register */
+#define ISC_CC_GR_GG	0x00000084
+
+/* ISC Color Correction GB OG Register */
+#define ISC_CC_GB_OG	0x00000088
+
+/* ISC Color Correction BR BG Register */
+#define ISC_CC_BR_BG	0x0000008c
+
+/* ISC Color Correction BB OB Register */
+#define ISC_CC_BB_OB	0x00000090
+
 /* ISC Gamma Correction Control Register */
 #define ISC_GAM_CTRL    0x00000094
+
+/* ISC_Gamma Correction Blue Entry Register */
+#define ISC_GAM_BENTRY	0x00000098
+
+/* ISC_Gamma Correction Green Entry Register */
+#define ISC_GAM_GENTRY	0x00000198
+
+/* ISC_Gamma Correction Green Entry Register */
+#define ISC_GAM_RENTRY	0x00000298
 
 /* Color Space Conversion Control Register */
 #define ISC_CSC_CTRL    0x00000398
 
+/* Color Space Conversion YR YG Register */
+#define ISC_CSC_YR_YG	0x0000039c
+
+/* Color Space Conversion YB OY Register */
+#define ISC_CSC_YB_OY	0x000003a0
+
+/* Color Space Conversion CBR CBG Register */
+#define ISC_CSC_CBR_CBG	0x000003a4
+
+/* Color Space Conversion CBB OCB Register */
+#define ISC_CSC_CBB_OCB	0x000003a8
+
+/* Color Space Conversion CRR CRG Register */
+#define ISC_CSC_CRR_CRG	0x000003ac
+
+/* Color Space Conversion CRB OCR Register */
+#define ISC_CSC_CRB_OCR	0x000003b0
+
 /* Contrast And Brightness Control Register */
 #define ISC_CBC_CTRL    0x000003b4
+
+/* Contrast And Brightness Configuration Register */
+#define ISC_CBC_CFG	0x000003b8
+
+/* Brightness Register */
+#define ISC_CBC_BRIGHT	0x000003bc
+#define ISC_CBC_BRIGHT_MASK	GENMASK(10, 0)
+
+/* Contrast Register */
+#define ISC_CBC_CONTRAST	0x000003c0
+#define ISC_CBC_CONTRAST_MASK	GENMASK(11, 0)
 
 /* Subsampling 4:4:4 to 4:2:2 Control Register */
 #define ISC_SUB422_CTRL 0x000003c4
@@ -119,6 +188,27 @@
 #define ISC_RLP_CFG_MODE_YYCC           0xb
 #define ISC_RLP_CFG_MODE_YYCC_LIMITED   0xc
 #define ISC_RLP_CFG_MODE_MASK           GENMASK(3, 0)
+
+/* Histogram Control Register */
+#define ISC_HIS_CTRL	0x000003d4
+
+#define ISC_HIS_CTRL_EN			BIT(0)
+#define ISC_HIS_CTRL_DIS		0x0
+
+/* Histogram Configuration Register */
+#define ISC_HIS_CFG	0x000003d8
+
+#define ISC_HIS_CFG_MODE_GR		0x0
+#define ISC_HIS_CFG_MODE_R		0x1
+#define ISC_HIS_CFG_MODE_GB		0x2
+#define ISC_HIS_CFG_MODE_B		0x3
+#define ISC_HIS_CFG_MODE_Y		0x4
+#define ISC_HIS_CFG_MODE_RAW		0x5
+#define ISC_HIS_CFG_MODE_YCCIR656	0x6
+
+#define ISC_HIS_CFG_BAYSEL_SHIFT	4
+
+#define ISC_HIS_CFG_RAR			BIT(8)
 
 /* DMA Configuration Register */
 #define ISC_DCFG        0x000003e0
@@ -159,7 +249,13 @@
 /* DMA Address 0 Register */
 #define ISC_DAD0        0x000003ec
 
-/* DMA Stride 0 Register */
-#define ISC_DST0        0x000003f0
+/* DMA Address 1 Register */
+#define ISC_DAD1        0x000003f4
+
+/* DMA Address 2 Register */
+#define ISC_DAD2        0x000003fc
+
+/* Histogram Entry */
+#define ISC_HIS_ENTRY	0x00000410
 
 #endif

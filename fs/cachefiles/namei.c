@@ -204,7 +204,7 @@ wait_for_old_object:
 		wait_queue_head_t *wq;
 
 		signed long timeout = 60 * HZ;
-		wait_queue_t wait;
+		wait_queue_entry_t wait;
 		bool requeue;
 
 		/* if the object we're waiting for is queued for processing,

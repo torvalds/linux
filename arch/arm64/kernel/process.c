@@ -205,13 +205,12 @@ void __show_regs(struct pt_regs *regs)
 
 		pr_cont("\n");
 	}
-	printk("\n");
 }
 
 void show_regs(struct pt_regs * regs)
 {
-	printk("\n");
 	__show_regs(regs);
+	dump_backtrace(regs, NULL);
 }
 
 static void tls_thread_flush(void)
@@ -299,12 +298,16 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	return 0;
 }
 
+void tls_preserve_current_state(void)
+{
+	*task_user_tls(current) = read_sysreg(tpidr_el0);
+}
+
 static void tls_thread_switch(struct task_struct *next)
 {
 	unsigned long tpidr, tpidrro;
 
-	tpidr = read_sysreg(tpidr_el0);
-	*task_user_tls(current) = tpidr;
+	tls_preserve_current_state();
 
 	tpidr = *task_user_tls(next);
 	tpidrro = is_compat_thread(task_thread_info(next)) ?

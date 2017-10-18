@@ -11,7 +11,7 @@ config RASPBERRYPI_POWER
 
 config SOC_BRCMSTB
 	bool "Broadcom STB SoC drivers"
-	depends on ARM
+	depends on ARM || ARM64 || BMIPS_GENERIC || COMPILE_TEST
 	select SOC_BUS
 	help
 	  Enables drivers for the Broadcom Set-Top Box (STB) series of chips.

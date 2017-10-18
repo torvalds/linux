@@ -37,3 +37,6 @@ Boards:
 
 -  K2G EVM
    compatible = "ti,k2g-evm", "ti,k2g", "ti-keystone"
+
+-  K2G Industrial Communication Engine EVM
+   compatible = "ti,k2g-ice", "ti,k2g", "ti-keystone"

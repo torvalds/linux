@@ -88,7 +88,7 @@ static inline int frame_extra_sizes(int f)
 	return frame_size_change[f];
 }
 
-int handle_kernel_fault(struct pt_regs *regs)
+int fixup_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *fixup;
 	struct pt_regs *tregs;
@@ -107,22 +107,6 @@ int handle_kernel_fault(struct pt_regs *regs)
 	tregs->sr = regs->sr;
 
 	return 1;
-}
-
-void ptrace_signal_deliver(void)
-{
-	struct pt_regs *regs = signal_pt_regs();
-	if (regs->orig_d0 < 0)
-		return;
-	switch (regs->d0) {
-	case -ERESTARTNOHAND:
-	case -ERESTARTSYS:
-	case -ERESTARTNOINTR:
-		regs->d0 = regs->orig_d0;
-		regs->orig_d0 = -1;
-		regs->pc -= 2;
-		break;
-	}
 }
 
 static inline void push_cache (unsigned long vaddr)

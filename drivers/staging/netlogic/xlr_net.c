@@ -179,7 +179,10 @@ static int xlr_get_link_ksettings(struct net_device *ndev,
 
 	if (!phydev)
 		return -ENODEV;
-	return phy_ethtool_ksettings_get(phydev, ecmd);
+
+	phy_ethtool_ksettings_get(phydev, ecmd);
+
+	return 0;
 }
 
 static int xlr_set_link_ksettings(struct net_device *ndev,

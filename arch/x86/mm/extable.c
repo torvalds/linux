@@ -162,6 +162,9 @@ void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 	if (fixup_exception(regs, trapnr))
 		return;
 
+	if (fixup_bug(regs, trapnr))
+		return;
+
 fail:
 	early_printk("PANIC: early exception 0x%02x IP %lx:%lx error %lx cr2 0x%lx\n",
 		     (unsigned)trapnr, (unsigned long)regs->cs, regs->ip,

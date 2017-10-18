@@ -199,6 +199,18 @@ config CURRITUCK
 	help
 	  This option enables support for the IBM Currituck (476fpe) evaluation board
 
+config FSP2
+	bool "IBM FSP2 (476fpe) Support"
+	depends on PPC_47x
+	default n
+	select 476FPE
+	select IBM_EMAC_EMAC4 if IBM_EMAC
+	select IBM_EMAC_RGMII if IBM_EMAC
+	select COMMON_CLK
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the IBM FSP2 (476fpe) board
+
 config AKEBONO
 	bool "IBM Akebono (476gtr) Support"
 	depends on PPC_47x

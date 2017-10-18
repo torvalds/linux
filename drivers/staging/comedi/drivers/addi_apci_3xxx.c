@@ -502,7 +502,7 @@ static int apci3xxx_ai_ns_to_timer(struct comedi_device *dev,
 			timer = *ns / base;
 			break;
 		case CMDF_ROUND_UP:
-			timer = (*ns + base - 1) / base;
+			timer = DIV_ROUND_UP(*ns, base);
 			break;
 		}
 
@@ -787,6 +787,8 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 
 	dev->iobase = pci_resource_start(pcidev, 2);
 	dev->mmio = pci_ioremap_bar(pcidev, 3);
+	if (!dev->mmio)
+		return -ENOMEM;
 
 	if (pcidev->irq > 0) {
 		ret = request_irq(pcidev->irq, apci3xxx_irq_handler,

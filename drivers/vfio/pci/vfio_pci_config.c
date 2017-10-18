@@ -839,7 +839,7 @@ static int vfio_exp_config_write(struct vfio_pci_device *vdev, int pos,
 /* Permissions for PCI Express capability */
 static int __init init_pci_cap_exp_perm(struct perm_bits *perm)
 {
-	/* Alloc larger of two possible sizes */
+	/* Alloc largest of possible sizes */
 	if (alloc_perm_bits(perm, PCI_CAP_EXP_ENDPOINT_SIZEOF_V2))
 		return -ENOMEM;
 
@@ -1243,11 +1243,16 @@ static int vfio_cap_len(struct vfio_pci_device *vdev, u8 cap, u8 pos)
 			vdev->extended_caps = (dword != 0);
 		}
 
-		/* length based on version */
-		if ((pcie_caps_reg(pdev) & PCI_EXP_FLAGS_VERS) == 1)
+		/* length based on version and type */
+		if ((pcie_caps_reg(pdev) & PCI_EXP_FLAGS_VERS) == 1) {
+			if (pci_pcie_type(pdev) == PCI_EXP_TYPE_RC_END)
+				return 0xc; /* "All Devices" only, no link */
 			return PCI_CAP_EXP_ENDPOINT_SIZEOF_V1;
-		else
+		} else {
+			if (pci_pcie_type(pdev) == PCI_EXP_TYPE_RC_END)
+				return 0x2c; /* No link */
 			return PCI_CAP_EXP_ENDPOINT_SIZEOF_V2;
+		}
 	case PCI_CAP_ID_HT:
 		ret = pci_read_config_byte(pdev, pos + 3, &byte);
 		if (ret)

@@ -158,7 +158,9 @@ void init_cpu_timer(void)
 	cd->mult		= 16777;
 	cd->shift		= 12;
 	cd->min_delta_ns	= 1;
+	cd->min_delta_ticks	= 1;
 	cd->max_delta_ns	= LONG_MAX;
+	cd->max_delta_ticks	= ULONG_MAX;
 	cd->rating		= 400;
 	cd->cpumask		= cpumask_of(cpu);
 	cd->set_next_event	= s390_next_event;
@@ -634,10 +636,10 @@ static void stp_work_fn(struct work_struct *work)
 		goto out_unlock;
 
 	memset(&stp_sync, 0, sizeof(stp_sync));
-	get_online_cpus();
+	cpus_read_lock();
 	atomic_set(&stp_sync.cpus, num_online_cpus() - 1);
-	stop_machine(stp_sync_clock, &stp_sync, cpu_online_mask);
-	put_online_cpus();
+	stop_machine_cpuslocked(stp_sync_clock, &stp_sync, cpu_online_mask);
+	cpus_read_unlock();
 
 	if (!check_sync_clock())
 		/*

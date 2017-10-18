@@ -1430,6 +1430,7 @@ static struct clk_branch gcc_ultaudio_stc_xo_clk = {
 };
 
 static const struct freq_tbl ftbl_codec_clk[] = {
+	F(9600000, P_XO, 2, 0, 0),
 	F(19200000, P_XO, 1, 0, 0),
 	F(11289600, P_EXT_MCLK, 1, 0, 0),
 	{ }

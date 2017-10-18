@@ -190,9 +190,6 @@ acpi_ns_handle_to_pathname(acpi_handle target_handle,
 
 	(void)acpi_ns_build_normalized_path(node, buffer->pointer,
 					    required_size, no_trailing);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%s [%X]\n",
 			  (char *)buffer->pointer, (u32) required_size));

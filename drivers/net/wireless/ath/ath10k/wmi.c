@@ -3210,7 +3210,8 @@ static void ath10k_wmi_update_tim(struct ath10k *ar,
 	tim_len = tim_info->tim_len ? __le32_to_cpu(tim_info->tim_len) : 1;
 
 	/* if next SWBA has no tim_changed the tim_bitmap is garbage.
-	 * we must copy the bitmap upon change and reuse it later */
+	 * we must copy the bitmap upon change and reuse it later
+	 */
 	if (__le32_to_cpu(tim_info->tim_changed)) {
 		int i;
 
@@ -3303,9 +3304,8 @@ static void ath10k_wmi_update_noa(struct ath10k *ar, struct ath10k_vif *arvif,
 
 	if (arvif->u.ap.noa_data)
 		if (!pskb_expand_head(bcn, 0, arvif->u.ap.noa_len, GFP_ATOMIC))
-			memcpy(skb_put(bcn, arvif->u.ap.noa_len),
-			       arvif->u.ap.noa_data,
-			       arvif->u.ap.noa_len);
+			skb_put_data(bcn, arvif->u.ap.noa_data,
+			             arvif->u.ap.noa_len);
 }
 
 static int ath10k_wmi_op_pull_swba_ev(struct ath10k *ar, struct sk_buff *skb,
@@ -3529,7 +3529,8 @@ void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 		 * before telling mac80211 to decrement CSA counter
 		 *
 		 * Once CSA counter is completed stop sending beacons until
-		 * actual channel switch is done */
+		 * actual channel switch is done
+		 */
 		if (arvif->vif->csa_active &&
 		    ieee80211_csa_is_complete(arvif->vif)) {
 			ieee80211_csa_finish(arvif->vif);
@@ -3643,6 +3644,11 @@ static void ath10k_dfs_radar_report(struct ath10k *ar,
 
 	spin_lock_bh(&ar->data_lock);
 	ch = ar->rx_channel;
+
+	/* fetch target operating channel during channel change */
+	if (!ch)
+		ch = ar->tgt_oper_chan;
+
 	spin_unlock_bh(&ar->data_lock);
 
 	if (!ch) {
@@ -3686,7 +3692,8 @@ radar_detected:
 	ATH10K_DFS_STAT_INC(ar, radar_detected);
 
 	/* Control radar events reporting in debugfs file
-	   dfs_block_radar_events */
+	 * dfs_block_radar_events
+	 */
 	if (ar->dfs_block_radar_events) {
 		ath10k_info(ar, "DFS Radar detected, but ignored as requested\n");
 		return;
@@ -4474,31 +4481,17 @@ static int ath10k_wmi_alloc_chunk(struct ath10k *ar, u32 req_id,
 				  u32 num_units, u32 unit_len)
 {
 	dma_addr_t paddr;
-	u32 pool_size = 0;
+	u32 pool_size;
 	int idx = ar->wmi.num_mem_chunks;
-	void *vaddr = NULL;
+	void *vaddr;
 
-	if (ar->wmi.num_mem_chunks == ARRAY_SIZE(ar->wmi.mem_chunks))
+	pool_size = num_units * round_up(unit_len, 4);
+	vaddr = dma_alloc_coherent(ar->dev, pool_size, &paddr, GFP_KERNEL);
+
+	if (!vaddr)
 		return -ENOMEM;
 
-	while (!vaddr && num_units) {
-		pool_size = num_units * round_up(unit_len, 4);
-		if (!pool_size)
-			return -EINVAL;
-
-		vaddr = kzalloc(pool_size, GFP_KERNEL | __GFP_NOWARN);
-		if (!vaddr)
-			num_units /= 2;
-	}
-
-	if (!num_units)
-		return -ENOMEM;
-
-	paddr = dma_map_single(ar->dev, vaddr, pool_size, DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(ar->dev, paddr)) {
-		kfree(vaddr);
-		return -ENOMEM;
-	}
+	memset(vaddr, 0, pool_size);
 
 	ar->wmi.mem_chunks[idx].vaddr = vaddr;
 	ar->wmi.mem_chunks[idx].paddr = paddr;
@@ -4593,6 +4586,8 @@ ath10k_wmi_main_op_pull_svc_rdy_ev(struct ath10k *ar, struct sk_buff *skb,
 	arg->phy_capab = ev->phy_capability;
 	arg->num_rf_chains = ev->num_rf_chains;
 	arg->eeprom_rd = ev->hal_reg_capabilities.eeprom_rd;
+	arg->low_5ghz_chan = ev->hal_reg_capabilities.low_5ghz_chan;
+	arg->high_5ghz_chan = ev->hal_reg_capabilities.high_5ghz_chan;
 	arg->num_mem_reqs = ev->num_mem_reqs;
 	arg->service_map = ev->wmi_service_bitmap;
 	arg->service_map_len = sizeof(ev->wmi_service_bitmap);
@@ -4629,6 +4624,8 @@ ath10k_wmi_10x_op_pull_svc_rdy_ev(struct ath10k *ar, struct sk_buff *skb,
 	arg->phy_capab = ev->phy_capability;
 	arg->num_rf_chains = ev->num_rf_chains;
 	arg->eeprom_rd = ev->hal_reg_capabilities.eeprom_rd;
+	arg->low_5ghz_chan = ev->hal_reg_capabilities.low_5ghz_chan;
+	arg->high_5ghz_chan = ev->hal_reg_capabilities.high_5ghz_chan;
 	arg->num_mem_reqs = ev->num_mem_reqs;
 	arg->service_map = ev->wmi_service_bitmap;
 	arg->service_map_len = sizeof(ev->wmi_service_bitmap);
@@ -4682,6 +4679,8 @@ static void ath10k_wmi_event_service_ready_work(struct work_struct *work)
 	ar->phy_capability = __le32_to_cpu(arg.phy_capab);
 	ar->num_rf_chains = __le32_to_cpu(arg.num_rf_chains);
 	ar->hw_eeprom_rd = __le32_to_cpu(arg.eeprom_rd);
+	ar->low_5ghz_chan = __le32_to_cpu(arg.low_5ghz_chan);
+	ar->high_5ghz_chan = __le32_to_cpu(arg.high_5ghz_chan);
 
 	ath10k_dbg_dump(ar, ATH10K_DBG_WMI, NULL, "wmi svc: ",
 			arg.service_map, arg.service_map_len);
@@ -4758,9 +4757,10 @@ static void ath10k_wmi_event_service_ready_work(struct work_struct *work)
 				num_units = ar->max_num_peers + 1;
 		} else if (num_unit_info & NUM_UNITS_IS_NUM_PEERS) {
 			/* number of units to allocate is number of
-			 * peers, 1 extra for self peer on target */
-			/* this needs to be tied, host and target
-			 * can get out of sync */
+			 * peers, 1 extra for self peer on target
+			 * this needs to be tied, host and target
+			 * can get out of sync
+			 */
 			num_units = ar->max_num_peers + 1;
 		} else if (num_unit_info & NUM_UNITS_IS_NUM_VDEVS) {
 			num_units = ar->max_num_vdevs + 1;
@@ -5933,15 +5933,6 @@ static struct sk_buff *ath10k_wmi_10_4_op_gen_init(struct ath10k *ar)
 
 int ath10k_wmi_start_scan_verify(const struct wmi_start_scan_arg *arg)
 {
-	if (arg->ie_len && !arg->ie)
-		return -EINVAL;
-	if (arg->n_channels && !arg->channels)
-		return -EINVAL;
-	if (arg->n_ssids && !arg->ssids)
-		return -EINVAL;
-	if (arg->n_bssids && !arg->bssids)
-		return -EINVAL;
-
 	if (arg->ie_len > WLAN_SCAN_PARAMS_MAX_IE_LEN)
 		return -EINVAL;
 	if (arg->n_channels > ARRAY_SIZE(arg->channels))
@@ -6742,7 +6733,12 @@ ath10k_wmi_peer_assoc_fill_10_4(struct ath10k *ar, void *buf,
 	struct wmi_10_4_peer_assoc_complete_cmd *cmd = buf;
 
 	ath10k_wmi_peer_assoc_fill_10_2(ar, buf, arg);
-	cmd->peer_bw_rxnss_override = 0;
+	if (arg->peer_bw_rxnss_override)
+		cmd->peer_bw_rxnss_override =
+			__cpu_to_le32((arg->peer_bw_rxnss_override - 1) |
+				      BIT(PEER_BW_RXNSS_OVERRIDE_OFFSET));
+	else
+		cmd->peer_bw_rxnss_override = 0;
 }
 
 static int
@@ -8275,11 +8271,10 @@ void ath10k_wmi_free_host_mem(struct ath10k *ar)
 
 	/* free the host memory chunks requested by firmware */
 	for (i = 0; i < ar->wmi.num_mem_chunks; i++) {
-		dma_unmap_single(ar->dev,
-				 ar->wmi.mem_chunks[i].paddr,
-				 ar->wmi.mem_chunks[i].len,
-				 DMA_BIDIRECTIONAL);
-		kfree(ar->wmi.mem_chunks[i].vaddr);
+		dma_free_coherent(ar->dev,
+				  ar->wmi.mem_chunks[i].len,
+				  ar->wmi.mem_chunks[i].vaddr,
+				  ar->wmi.mem_chunks[i].paddr);
 	}
 
 	ar->wmi.num_mem_chunks = 0;

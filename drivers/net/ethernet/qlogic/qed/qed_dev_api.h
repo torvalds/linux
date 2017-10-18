@@ -82,26 +82,63 @@ int qed_resc_alloc(struct qed_dev *cdev);
  */
 void qed_resc_setup(struct qed_dev *cdev);
 
+enum qed_override_force_load {
+	QED_OVERRIDE_FORCE_LOAD_NONE,
+	QED_OVERRIDE_FORCE_LOAD_ALWAYS,
+	QED_OVERRIDE_FORCE_LOAD_NEVER,
+};
+
+struct qed_drv_load_params {
+	/* Indicates whether the driver is running over a crash kernel.
+	 * As part of the load request, this will be used for providing the
+	 * driver role to the MFW.
+	 * In case of a crash kernel over PDA - this should be set to false.
+	 */
+	bool is_crash_kernel;
+
+	/* The timeout value that the MFW should use when locking the engine for
+	 * the driver load process.
+	 * A value of '0' means the default value, and '255' means no timeout.
+	 */
+	u8 mfw_timeout_val;
+#define QED_LOAD_REQ_LOCK_TO_DEFAULT    0
+#define QED_LOAD_REQ_LOCK_TO_NONE       255
+
+	/* Avoid engine reset when first PF loads on it */
+	bool avoid_eng_reset;
+
+	/* Allow overriding the default force load behavior */
+	enum qed_override_force_load override_force_load;
+};
+
+struct qed_hw_init_params {
+	/* Tunneling parameters */
+	struct qed_tunnel_info *p_tunn;
+
+	bool b_hw_start;
+
+	/* Interrupt mode [msix, inta, etc.] to use */
+	enum qed_int_mode int_mode;
+
+	/* NPAR tx switching to be used for vports for tx-switching */
+	bool allow_npar_tx_switch;
+
+	/* Binary fw data pointer in binary fw file */
+	const u8 *bin_fw_data;
+
+	/* Driver load parameters */
+	struct qed_drv_load_params *p_drv_load_params;
+};
+
 /**
  * @brief qed_hw_init -
  *
  * @param cdev
- * @param p_tunn
- * @param b_hw_start
- * @param int_mode - interrupt mode [msix, inta, etc.] to use.
- * @param allow_npar_tx_switch - npar tx switching to be used
- *	  for vports configured for tx-switching.
- * @param bin_fw_data - binary fw data pointer in binary fw file.
- *			Pass NULL if not using binary fw file.
+ * @param p_params
  *
  * @return int
  */
-int qed_hw_init(struct qed_dev *cdev,
-		struct qed_tunn_start_params *p_tunn,
-		bool b_hw_start,
-		enum qed_int_mode int_mode,
-		bool allow_npar_tx_switch,
-		const u8 *bin_fw_data);
+int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params);
 
 /**
  * @brief qed_hw_timers_stop_all - stop the timers HW block
@@ -128,26 +165,20 @@ int qed_hw_stop(struct qed_dev *cdev);
  *
  * @param cdev
  *
+ * @return int
  */
-void qed_hw_stop_fastpath(struct qed_dev *cdev);
+int qed_hw_stop_fastpath(struct qed_dev *cdev);
 
 /**
  * @brief qed_hw_start_fastpath -restart fastpath traffic,
  *		only if hw_stop_fastpath was called
  *
- * @param cdev
- *
- */
-void qed_hw_start_fastpath(struct qed_hwfn *p_hwfn);
-
-/**
- * @brief qed_hw_reset -
- *
- * @param cdev
+ * @param p_hwfn
  *
  * @return int
  */
-int qed_hw_reset(struct qed_dev *cdev);
+int qed_hw_start_fastpath(struct qed_hwfn *p_hwfn);
+
 
 /**
  * @brief qed_hw_prepare -
@@ -276,6 +307,7 @@ int qed_dmae_host2host(struct qed_hwfn *p_hwfn,
  * @param num_elems
  * @param elem_size
  * @param p_chain
+ * @param ext_pbl - a possible external PBL
  *
  * @return int
  */
@@ -284,7 +316,9 @@ qed_chain_alloc(struct qed_dev *cdev,
 		enum qed_chain_use_mode intended_use,
 		enum qed_chain_mode mode,
 		enum qed_chain_cnt_type cnt_type,
-		u32 num_elems, size_t elem_size, struct qed_chain *p_chain);
+		u32 num_elems,
+		size_t elem_size,
+		struct qed_chain *p_chain, struct qed_chain_ext_pbl *ext_pbl);
 
 /**
  * @brief qed_chain_free - Free chain DMA memory
@@ -423,7 +457,7 @@ int qed_final_cleanup(struct qed_hwfn *p_hwfn,
  * @return int
  */
 int qed_set_rxq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
-			 u16 coalesce, u8 qid, u16 sb_id);
+			 u16 coalesce, u16 qid, u16 sb_id);
 
 /**
  * @brief qed_set_txq_coalesce - Configure coalesce parameters for a Tx queue
@@ -440,5 +474,7 @@ int qed_set_rxq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
  * @return int
  */
 int qed_set_txq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
-			 u16 coalesce, u8 qid, u16 sb_id);
+			 u16 coalesce, u16 qid, u16 sb_id);
+
+const char *qed_hw_get_resc_name(enum qed_resources res_id);
 #endif

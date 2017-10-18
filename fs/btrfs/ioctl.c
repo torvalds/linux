@@ -37,7 +37,7 @@
 #include <linux/bit_spinlock.h>
 #include <linux/security.h>
 #include <linux/xattr.h>
-#include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/uuid.h>
@@ -689,7 +689,7 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 	if (ret)
 		goto dec_and_free;
 
-	btrfs_wait_ordered_extents(root, -1, 0, (u64)-1);
+	btrfs_wait_ordered_extents(root, U64_MAX, 0, (u64)-1);
 
 	btrfs_init_block_rsv(&pending_snapshot->block_rsv,
 			     BTRFS_BLOCK_RSV_TEMP);
@@ -1127,6 +1127,7 @@ static int cluster_pages_for_defrag(struct inode *inode,
 	struct btrfs_ordered_extent *ordered;
 	struct extent_state *cached_state = NULL;
 	struct extent_io_tree *tree;
+	struct extent_changeset *data_reserved = NULL;
 	gfp_t mask = btrfs_alloc_write_mask(inode->i_mapping);
 
 	file_end = (isize - 1) >> PAGE_SHIFT;
@@ -1135,7 +1136,7 @@ static int cluster_pages_for_defrag(struct inode *inode,
 
 	page_cnt = min_t(u64, (u64)num_pages, (u64)file_end - start_index + 1);
 
-	ret = btrfs_delalloc_reserve_space(inode,
+	ret = btrfs_delalloc_reserve_space(inode, &data_reserved,
 			start_index << PAGE_SHIFT,
 			page_cnt << PAGE_SHIFT);
 	if (ret)
@@ -1226,7 +1227,7 @@ again:
 		spin_lock(&BTRFS_I(inode)->lock);
 		BTRFS_I(inode)->outstanding_extents++;
 		spin_unlock(&BTRFS_I(inode)->lock);
-		btrfs_delalloc_release_space(inode,
+		btrfs_delalloc_release_space(inode, data_reserved,
 				start_index << PAGE_SHIFT,
 				(page_cnt - i_done) << PAGE_SHIFT);
 	}
@@ -1247,15 +1248,17 @@ again:
 		unlock_page(pages[i]);
 		put_page(pages[i]);
 	}
+	extent_changeset_free(data_reserved);
 	return i_done;
 out:
 	for (i = 0; i < i_done; i++) {
 		unlock_page(pages[i]);
 		put_page(pages[i]);
 	}
-	btrfs_delalloc_release_space(inode,
+	btrfs_delalloc_release_space(inode, data_reserved,
 			start_index << PAGE_SHIFT,
 			page_cnt << PAGE_SHIFT);
+	extent_changeset_free(data_reserved);
 	return ret;
 
 }
@@ -1504,7 +1507,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 	if (ret)
 		return ret;
 
-	if (atomic_xchg(&fs_info->mutually_exclusive_operation_running, 1)) {
+	if (test_and_set_bit(BTRFS_FS_EXCL_OP, &fs_info->flags)) {
 		mnt_drop_write_file(file);
 		return BTRFS_ERROR_DEV_EXCL_RUN_IN_PROGRESS;
 	}
@@ -1619,7 +1622,7 @@ out_free:
 	kfree(vol_args);
 out:
 	mutex_unlock(&fs_info->volume_mutex);
-	atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
+	clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
 	mnt_drop_write_file(file);
 	return ret;
 }
@@ -2661,7 +2664,7 @@ static long btrfs_ioctl_add_dev(struct btrfs_fs_info *fs_info, void __user *arg)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (atomic_xchg(&fs_info->mutually_exclusive_operation_running, 1))
+	if (test_and_set_bit(BTRFS_FS_EXCL_OP, &fs_info->flags))
 		return BTRFS_ERROR_DEV_EXCL_RUN_IN_PROGRESS;
 
 	mutex_lock(&fs_info->volume_mutex);
@@ -2680,7 +2683,7 @@ static long btrfs_ioctl_add_dev(struct btrfs_fs_info *fs_info, void __user *arg)
 	kfree(vol_args);
 out:
 	mutex_unlock(&fs_info->volume_mutex);
-	atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
+	clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
 	return ret;
 }
 
@@ -2708,7 +2711,7 @@ static long btrfs_ioctl_rm_dev_v2(struct file *file, void __user *arg)
 	if (vol_args->flags & ~BTRFS_VOL_ARG_V2_FLAGS_SUPPORTED)
 		return -EOPNOTSUPP;
 
-	if (atomic_xchg(&fs_info->mutually_exclusive_operation_running, 1)) {
+	if (test_and_set_bit(BTRFS_FS_EXCL_OP, &fs_info->flags)) {
 		ret = BTRFS_ERROR_DEV_EXCL_RUN_IN_PROGRESS;
 		goto out;
 	}
@@ -2721,7 +2724,7 @@ static long btrfs_ioctl_rm_dev_v2(struct file *file, void __user *arg)
 		ret = btrfs_rm_device(fs_info, vol_args->name, 0);
 	}
 	mutex_unlock(&fs_info->volume_mutex);
-	atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
+	clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
 
 	if (!ret) {
 		if (vol_args->flags & BTRFS_DEVICE_SPEC_BY_ID)
@@ -2752,7 +2755,7 @@ static long btrfs_ioctl_rm_dev(struct file *file, void __user *arg)
 	if (ret)
 		return ret;
 
-	if (atomic_xchg(&fs_info->mutually_exclusive_operation_running, 1)) {
+	if (test_and_set_bit(BTRFS_FS_EXCL_OP, &fs_info->flags)) {
 		ret = BTRFS_ERROR_DEV_EXCL_RUN_IN_PROGRESS;
 		goto out_drop_write;
 	}
@@ -2772,7 +2775,7 @@ static long btrfs_ioctl_rm_dev(struct file *file, void __user *arg)
 		btrfs_info(fs_info, "disk deleted %s", vol_args->name);
 	kfree(vol_args);
 out:
-	atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
+	clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
 out_drop_write:
 	mnt_drop_write_file(file);
 
@@ -3539,12 +3542,9 @@ static int btrfs_clone(struct inode *src, struct inode *inode,
 	u64 last_dest_end = destoff;
 
 	ret = -ENOMEM;
-	buf = kmalloc(fs_info->nodesize, GFP_KERNEL | __GFP_NOWARN);
-	if (!buf) {
-		buf = vmalloc(fs_info->nodesize);
-		if (!buf)
-			return ret;
-	}
+	buf = kvmalloc(fs_info->nodesize, GFP_KERNEL);
+	if (!buf)
+		return ret;
 
 	path = btrfs_alloc_path();
 	if (!path) {
@@ -4442,13 +4442,11 @@ static long btrfs_ioctl_dev_replace(struct btrfs_fs_info *fs_info,
 			ret = -EROFS;
 			goto out;
 		}
-		if (atomic_xchg(
-			&fs_info->mutually_exclusive_operation_running, 1)) {
+		if (test_and_set_bit(BTRFS_FS_EXCL_OP, &fs_info->flags)) {
 			ret = BTRFS_ERROR_DEV_EXCL_RUN_IN_PROGRESS;
 		} else {
 			ret = btrfs_dev_replace_by_ioctl(fs_info, p);
-			atomic_set(
-			 &fs_info->mutually_exclusive_operation_running, 0);
+			clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
 		}
 		break;
 	case BTRFS_IOCTL_DEV_REPLACE_CMD_STATUS:
@@ -4593,7 +4591,7 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_fs_info *fs_info,
 
 out:
 	btrfs_free_path(path);
-	vfree(inodes);
+	kvfree(inodes);
 	kfree(loi);
 
 	return ret;
@@ -4643,7 +4641,7 @@ static long btrfs_ioctl_balance(struct file *file, void __user *arg)
 		return ret;
 
 again:
-	if (!atomic_xchg(&fs_info->mutually_exclusive_operation_running, 1)) {
+	if (!test_and_set_bit(BTRFS_FS_EXCL_OP, &fs_info->flags)) {
 		mutex_lock(&fs_info->volume_mutex);
 		mutex_lock(&fs_info->balance_mutex);
 		need_unlock = true;
@@ -4689,7 +4687,7 @@ again:
 	}
 
 locked:
-	BUG_ON(!atomic_read(&fs_info->mutually_exclusive_operation_running));
+	BUG_ON(!test_bit(BTRFS_FS_EXCL_OP, &fs_info->flags));
 
 	if (arg) {
 		bargs = memdup_user(arg, sizeof(*bargs));
@@ -4745,11 +4743,10 @@ locked:
 
 do_balance:
 	/*
-	 * Ownership of bctl and mutually_exclusive_operation_running
+	 * Ownership of bctl and filesystem flag BTRFS_FS_EXCL_OP
 	 * goes to to btrfs_balance.  bctl is freed in __cancel_balance,
 	 * or, if restriper was paused all the way until unmount, in
-	 * free_fs_info.  mutually_exclusive_operation_running is
-	 * cleared in __cancel_balance.
+	 * free_fs_info.  The flag is cleared in __cancel_balance.
 	 */
 	need_unlock = false;
 
@@ -4769,7 +4766,7 @@ out_unlock:
 	mutex_unlock(&fs_info->balance_mutex);
 	mutex_unlock(&fs_info->volume_mutex);
 	if (need_unlock)
-		atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
+		clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
 out:
 	mnt_drop_write_file(file);
 	return ret;
@@ -4903,7 +4900,6 @@ static long btrfs_ioctl_qgroup_assign(struct file *file, void __user *arg)
 		goto out;
 	}
 
-	/* FIXME: check if the IDs really exist */
 	if (sa->assign) {
 		ret = btrfs_add_qgroup_relation(trans, fs_info,
 						sa->src, sa->dst);
@@ -4962,7 +4958,6 @@ static long btrfs_ioctl_qgroup_create(struct file *file, void __user *arg)
 		goto out;
 	}
 
-	/* FIXME: check if the IDs really exist */
 	if (sa->create) {
 		ret = btrfs_create_qgroup(trans, fs_info, sa->qgroupid);
 	} else {
@@ -5016,7 +5011,6 @@ static long btrfs_ioctl_qgroup_limit(struct file *file, void __user *arg)
 		qgroupid = root->root_key.objectid;
 	}
 
-	/* FIXME: check if the IDs really exist */
 	ret = btrfs_limit_qgroup(trans, fs_info, qgroupid, &sa->lim);
 
 	err = btrfs_end_transaction(trans);

@@ -114,6 +114,7 @@
  *     THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/kmod.h>
 #include <linux/mdio.h>
@@ -664,6 +665,10 @@ static void xgbe_an37_isr(struct xgbe_prv_data *pdata)
 	} else {
 		/* Enable AN interrupts */
 		xgbe_an37_enable_interrupts(pdata);
+
+		/* Reissue interrupt if status is not clear */
+		if (pdata->vdata->irq_reissue_support)
+			XP_IOWRITE(pdata, XP_INT_REISSUE_EN, 1 << 3);
 	}
 }
 
@@ -683,10 +688,14 @@ static void xgbe_an73_isr(struct xgbe_prv_data *pdata)
 	} else {
 		/* Enable AN interrupts */
 		xgbe_an73_enable_interrupts(pdata);
+
+		/* Reissue interrupt if status is not clear */
+		if (pdata->vdata->irq_reissue_support)
+			XP_IOWRITE(pdata, XP_INT_REISSUE_EN, 1 << 3);
 	}
 }
 
-static irqreturn_t xgbe_an_isr(int irq, void *data)
+static void xgbe_an_isr_task(unsigned long data)
 {
 	struct xgbe_prv_data *pdata = (struct xgbe_prv_data *)data;
 
@@ -704,13 +713,25 @@ static irqreturn_t xgbe_an_isr(int irq, void *data)
 	default:
 		break;
 	}
+}
+
+static irqreturn_t xgbe_an_isr(int irq, void *data)
+{
+	struct xgbe_prv_data *pdata = (struct xgbe_prv_data *)data;
+
+	if (pdata->isr_as_tasklet)
+		tasklet_schedule(&pdata->tasklet_an);
+	else
+		xgbe_an_isr_task((unsigned long)pdata);
 
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t xgbe_an_combined_isr(int irq, struct xgbe_prv_data *pdata)
+static irqreturn_t xgbe_an_combined_isr(struct xgbe_prv_data *pdata)
 {
-	return xgbe_an_isr(irq, pdata);
+	xgbe_an_isr_task((unsigned long)pdata);
+
+	return IRQ_HANDLED;
 }
 
 static void xgbe_an_irq_work(struct work_struct *work)
@@ -913,6 +934,10 @@ static void xgbe_an_state_machine(struct work_struct *work)
 	default:
 		break;
 	}
+
+	/* Reissue interrupt if status is not clear */
+	if (pdata->vdata->irq_reissue_support)
+		XP_IOWRITE(pdata, XP_INT_REISSUE_EN, 1 << 3);
 
 	mutex_unlock(&pdata->an_mutex);
 }
@@ -1378,6 +1403,9 @@ static int xgbe_phy_start(struct xgbe_prv_data *pdata)
 
 	/* If we have a separate AN irq, enable it */
 	if (pdata->dev_irq != pdata->an_irq) {
+		tasklet_init(&pdata->tasklet_an, xgbe_an_isr_task,
+			     (unsigned long)pdata);
+
 		ret = devm_request_irq(pdata->dev, pdata->an_irq,
 				       xgbe_an_isr, 0, pdata->an_name,
 				       pdata);

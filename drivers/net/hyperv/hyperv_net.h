@@ -146,7 +146,6 @@ struct hv_netvsc_packet {
 
 struct netvsc_device_info {
 	unsigned char mac_adr[ETH_ALEN];
-	bool link_state;	/* 0 - link up, 1 - link down */
 	int  ring_size;
 	u32  max_num_vrss_chns;
 	u32  num_chn;
@@ -165,11 +164,15 @@ struct rndis_device {
 	struct net_device *ndev;
 
 	enum rndis_device_state state;
-	bool link_state;
+
 	atomic_t new_req_id;
 
 	spinlock_t request_lock;
 	struct list_head req_list;
+
+	struct work_struct mcast_work;
+
+	bool link_state;        /* 0 - link up, 1 - link down */
 
 	u8 hw_mac_adr[ETH_ALEN];
 	u8 rss_key[NETVSC_HASH_KEYLEN];
@@ -196,10 +199,12 @@ int netvsc_recv_callback(struct net_device *net,
 			 const struct ndis_tcp_ip_checksum_info *csum_info,
 			 const struct ndis_pkt_8021q_info *vlan);
 void netvsc_channel_cb(void *context);
+int netvsc_poll(struct napi_struct *napi, int budget);
 int rndis_filter_open(struct netvsc_device *nvdev);
 int rndis_filter_close(struct netvsc_device *nvdev);
 int rndis_filter_device_add(struct hv_device *dev,
 			    struct netvsc_device_info *info);
+void rndis_filter_update(struct netvsc_device *nvdev);
 void rndis_filter_device_remove(struct hv_device *dev,
 				struct netvsc_device *nvdev);
 int rndis_filter_set_rss_param(struct rndis_device *rdev,
@@ -210,7 +215,6 @@ int rndis_filter_receive(struct net_device *ndev,
 			 struct vmbus_channel *channel,
 			 void *data, u32 buflen);
 
-int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter);
 int rndis_filter_set_device_mac(struct net_device *ndev, char *mac);
 
 void netvsc_switch_datapath(struct net_device *nv_dev, bool vf);
@@ -632,7 +636,7 @@ struct nvsp_message {
 
 #define NETVSC_PACKET_SIZE                      4096
 
-#define VRSS_SEND_TAB_SIZE 16
+#define VRSS_SEND_TAB_SIZE 16  /* must be power of 2 */
 #define VRSS_CHANNEL_MAX 64
 #define VRSS_CHANNEL_DEFAULT 8
 
@@ -685,7 +689,7 @@ struct net_device_context {
 	/* point back to our device context */
 	struct hv_device *device_ctx;
 	/* netvsc_device */
-	struct netvsc_device *nvdev;
+	struct netvsc_device __rcu *nvdev;
 	/* reconfigure work */
 	struct delayed_work dwork;
 	/* last reconfig time */
@@ -695,7 +699,6 @@ struct net_device_context {
 	/* list protection */
 	spinlock_t lock;
 
-	struct work_struct work;
 	u32 msg_enable; /* debug level */
 
 	u32 tx_checksum_mask;
@@ -707,9 +710,6 @@ struct net_device_context {
 	u32 speed;
 	struct netvsc_ethtool_stats eth_stats;
 
-	/* the device is going away */
-	bool start_remove;
-
 	/* State to manage the associated VF interface. */
 	struct net_device __rcu *vf_netdev;
 
@@ -717,11 +717,15 @@ struct net_device_context {
 	u32 vf_alloc;
 	/* Serial number of the VF to team with */
 	u32 vf_serial;
+
+	bool datapath;	/* 0 - synthetic, 1 - VF nic */
 };
 
 /* Per channel data */
 struct netvsc_channel {
 	struct vmbus_channel *channel;
+	const struct vmpacket_descriptor *desc;
+	struct napi_struct napi;
 	struct multi_send_data msd;
 	struct multi_recv_comp mrc;
 	atomic_t queue_sends;
@@ -760,11 +764,11 @@ struct netvsc_device {
 
 	u32 max_chn;
 	u32 num_chn;
-	spinlock_t sc_lock; /* Protects num_sc_offered variable */
-	u32 num_sc_offered;
 
-	/* Holds rndis device info */
-	void *extension;
+	atomic_t open_chn;
+	wait_queue_head_t subchan_open;
+
+	struct rndis_device *extension;
 
 	int ring_size;
 
@@ -776,6 +780,8 @@ struct netvsc_device {
 	atomic_t open_cnt;
 
 	struct netvsc_channel chan_table[VRSS_CHANNEL_MAX];
+
+	struct rcu_head rcu;
 };
 
 static inline struct netvsc_device *
@@ -1422,9 +1428,6 @@ struct rndis_message {
 /* get pointer to contained message from NDIS_MESSAGE pointer */
 #define RNDIS_MESSAGE_RAW_PTR_TO_MESSAGE_PTR(rndis_msg)	\
 	((void *) rndis_msg)
-
-
-#define __struct_bcount(x)
 
 
 

@@ -15,7 +15,6 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/keystone.h>
-#include "skeleton.dtsi"
 
 / {
 	compatible = "ti,k2g","ti,keystone";
@@ -23,6 +22,8 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 	interrupt-parent = <&gic>;
+
+	chosen { };
 
 	aliases {
 		serial0 = &uart0;

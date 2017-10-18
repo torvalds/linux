@@ -49,6 +49,7 @@
 #include <asm/paca.h>
 #include <asm/time.h>
 #include <asm/cputable.h>
+#include <asm/dt_cpu_ftrs.h>
 #include <asm/sections.h>
 #include <asm/btext.h>
 #include <asm/nvram.h>
@@ -230,8 +231,8 @@ static void cpu_ready_for_interrupts(void)
 	 * If we are not in hypervisor mode the job is done once for
 	 * the whole partition in configure_exceptions().
 	 */
-	if (early_cpu_has_feature(CPU_FTR_HVMODE) &&
-	    early_cpu_has_feature(CPU_FTR_ARCH_207S)) {
+	if (cpu_has_feature(CPU_FTR_HVMODE) &&
+	    cpu_has_feature(CPU_FTR_ARCH_207S)) {
 		unsigned long lpcr = mfspr(SPRN_LPCR);
 		mtspr(SPRN_LPCR, lpcr | LPCR_AIL_3);
 	}
@@ -274,8 +275,10 @@ void __init early_setup(unsigned long dt_ptr)
 
 	/* -------- printk is _NOT_ safe to use here ! ------- */
 
-	/* Identify CPU type */
-	identify_cpu(0, mfspr(SPRN_PVR));
+	/* Try new device tree based feature discovery ... */
+	if (!dt_cpu_ftrs_init(__va(dt_ptr)))
+		/* Otherwise use the old style CPU table */
+		identify_cpu(0, mfspr(SPRN_PVR));
 
 	/* Assume we're on cpu 0 for now. Don't write to the paca yet! */
 	initialise_paca(&boot_paca, 0);
@@ -541,6 +544,9 @@ void __init initialize_cache_info(void)
 	dcache_bsize = ppc64_caches.l1d.block_size;
 	icache_bsize = ppc64_caches.l1i.block_size;
 
+	cur_cpu_spec->dcache_bsize = dcache_bsize;
+	cur_cpu_spec->icache_bsize = icache_bsize;
+
 	DBG(" <- initialize_cache_info()\n");
 }
 
@@ -610,6 +616,24 @@ void __init exc_lvl_early_init(void)
 #endif
 
 /*
+ * Emergency stacks are used for a range of things, from asynchronous
+ * NMIs (system reset, machine check) to synchronous, process context.
+ * We set preempt_count to zero, even though that isn't necessarily correct. To
+ * get the right value we'd need to copy it from the previous thread_info, but
+ * doing that might fault causing more problems.
+ * TODO: what to do with accounting?
+ */
+static void emerg_stack_init_thread_info(struct thread_info *ti, int cpu)
+{
+	ti->task = NULL;
+	ti->cpu = cpu;
+	ti->preempt_count = 0;
+	ti->local_flags = 0;
+	ti->flags = 0;
+	klp_init_thread_info(ti);
+}
+
+/*
  * Stack space used when we detect a bad kernel stack pointer, and
  * early in SMP boots before relocation is enabled. Exclusive emergency
  * stack for machine checks.
@@ -627,19 +651,31 @@ void __init emergency_stack_init(void)
 	 * Since we use these as temporary stacks during secondary CPU
 	 * bringup, we need to get at them in real mode. This means they
 	 * must also be within the RMO region.
+	 *
+	 * The IRQ stacks allocated elsewhere in this file are zeroed and
+	 * initialized in kernel/irq.c. These are initialized here in order
+	 * to have emergency stacks available as early as possible.
 	 */
 	limit = min(safe_stack_limit(), ppc64_rma_size);
 
 	for_each_possible_cpu(i) {
 		struct thread_info *ti;
 		ti = __va(memblock_alloc_base(THREAD_SIZE, THREAD_SIZE, limit));
-		klp_init_thread_info(ti);
+		memset(ti, 0, THREAD_SIZE);
+		emerg_stack_init_thread_info(ti, i);
 		paca[i].emergency_sp = (void *)ti + THREAD_SIZE;
 
 #ifdef CONFIG_PPC_BOOK3S_64
+		/* emergency stack for NMI exception handling. */
+		ti = __va(memblock_alloc_base(THREAD_SIZE, THREAD_SIZE, limit));
+		memset(ti, 0, THREAD_SIZE);
+		emerg_stack_init_thread_info(ti, i);
+		paca[i].nmi_emergency_sp = (void *)ti + THREAD_SIZE;
+
 		/* emergency stack for machine check exception handling. */
 		ti = __va(memblock_alloc_base(THREAD_SIZE, THREAD_SIZE, limit));
-		klp_init_thread_info(ti);
+		memset(ti, 0, THREAD_SIZE);
+		emerg_stack_init_thread_info(ti, i);
 		paca[i].mc_emergency_sp = (void *)ti + THREAD_SIZE;
 #endif
 	}
@@ -650,7 +686,7 @@ void __init emergency_stack_init(void)
 
 static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size, size_t align)
 {
-	return __alloc_bootmem_node(NODE_DATA(cpu_to_node(cpu)), size, align,
+	return __alloc_bootmem_node(NODE_DATA(early_cpu_to_node(cpu)), size, align,
 				    __pa(MAX_DMA_ADDRESS));
 }
 
@@ -661,7 +697,7 @@ static void __init pcpu_fc_free(void *ptr, size_t size)
 
 static int pcpu_cpu_distance(unsigned int from, unsigned int to)
 {
-	if (cpu_to_node(from) == cpu_to_node(to))
+	if (early_cpu_to_node(from) == early_cpu_to_node(to))
 		return LOCAL_DISTANCE;
 	else
 		return REMOTE_DISTANCE;
@@ -714,23 +750,4 @@ unsigned long memory_block_size_bytes(void)
 #if defined(CONFIG_PPC_INDIRECT_PIO) || defined(CONFIG_PPC_INDIRECT_MMIO)
 struct ppc_pci_io ppc_pci_io;
 EXPORT_SYMBOL(ppc_pci_io);
-#endif
-
-#ifdef CONFIG_HARDLOCKUP_DETECTOR
-u64 hw_nmi_get_sample_period(int watchdog_thresh)
-{
-	return ppc_proc_freq * watchdog_thresh;
-}
-
-/*
- * The hardlockup detector breaks PMU event based branches and is likely
- * to get false positives in KVM guests, so disable it by default.
- */
-static int __init disable_hardlockup_detector(void)
-{
-	hardlockup_detector_disable();
-
-	return 0;
-}
-early_initcall(disable_hardlockup_detector);
 #endif

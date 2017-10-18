@@ -131,8 +131,14 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 		prop = of_find_property(opp->np, name, NULL);
 
 		/* Missing property isn't a problem, but an invalid entry is */
-		if (!prop)
-			return 0;
+		if (!prop) {
+			if (!opp_table->regulator_count)
+				return 0;
+
+			dev_err(dev, "%s: opp-microvolt missing although OPP managing regulators\n",
+				__func__);
+			return -EINVAL;
+		}
 	}
 
 	vcount = of_property_count_u32_elems(opp->np, name);

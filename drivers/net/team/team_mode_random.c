@@ -65,4 +65,4 @@ module_exit(rnd_cleanup_module);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Jiri Pirko <jiri@resnulli.us>");
 MODULE_DESCRIPTION("Random mode for team");
-MODULE_ALIAS("team-mode-random");
+MODULE_ALIAS_TEAM_MODE("random");

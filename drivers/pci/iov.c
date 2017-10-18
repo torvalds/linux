@@ -450,6 +450,7 @@ found:
 	iov->total_VFs = total;
 	iov->pgsz = pgsz;
 	iov->self = dev;
+	iov->drivers_autoprobe = true;
 	pci_read_config_dword(dev, pos + PCI_SRIOV_CAP, &iov->cap);
 	pci_read_config_byte(dev, pos + PCI_SRIOV_FUNC_LINK, &iov->link);
 	if (pci_pcie_type(dev) == PCI_EXP_TYPE_RC_END)
@@ -459,8 +460,6 @@ found:
 		iov->dev = pci_dev_get(pdev);
 	else
 		iov->dev = dev;
-
-	mutex_init(&iov->lock);
 
 	dev->sriov = iov;
 	dev->is_physfn = 1;
@@ -489,8 +488,6 @@ static void sriov_release(struct pci_dev *dev)
 
 	if (dev != dev->sriov->dev)
 		pci_dev_put(dev->sriov->dev);
-
-	mutex_destroy(&dev->sriov->lock);
 
 	kfree(dev->sriov);
 	dev->sriov = NULL;

@@ -116,7 +116,7 @@ nvkm_therm_update(struct nvkm_therm *therm, int mode)
 
 	switch (mode) {
 	case NVKM_THERM_CTRL_MANUAL:
-		nvkm_timer_alarm_cancel(tmr, &therm->alarm);
+		nvkm_timer_alarm(tmr, 0, &therm->alarm);
 		duty = nvkm_therm_fan_get(therm);
 		if (duty < 0)
 			duty = 100;
@@ -142,11 +142,11 @@ nvkm_therm_update(struct nvkm_therm *therm, int mode)
 		break;
 	case NVKM_THERM_CTRL_NONE:
 	default:
-		nvkm_timer_alarm_cancel(tmr, &therm->alarm);
+		nvkm_timer_alarm(tmr, 0, &therm->alarm);
 		poll = false;
 	}
 
-	if (list_empty(&therm->alarm.head) && poll)
+	if (poll)
 		nvkm_timer_alarm(tmr, 1000000000ULL, &therm->alarm);
 	spin_unlock_irqrestore(&therm->lock, flags);
 

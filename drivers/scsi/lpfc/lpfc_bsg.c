@@ -2486,6 +2486,10 @@ static int lpfcdiag_loop_self_reg(struct lpfc_hba *phba, uint16_t *rpi)
 				mbox, *rpi);
 	else {
 		*rpi = lpfc_sli4_alloc_rpi(phba);
+		if (*rpi == LPFC_RPI_ALLOC_ERROR) {
+			mempool_free(mbox, phba->mbox_mem_pool);
+			return -EBUSY;
+		}
 		status = lpfc_reg_rpi(phba, phba->pport->vpi,
 				phba->pport->fc_myDID,
 				(uint8_t *)&phba->pport->fc_sparam,

@@ -214,5 +214,5 @@ static int __init pistachio_clksrc_of_init(struct device_node *node)
 	sched_clock_register(pistachio_read_sched_clock, 32, rate);
 	return clocksource_register_hz(&pcs_gpt.cs, rate);
 }
-CLOCKSOURCE_OF_DECLARE(pistachio_gptimer, "img,pistachio-gptimer",
+TIMER_OF_DECLARE(pistachio_gptimer, "img,pistachio-gptimer",
 		       pistachio_clksrc_of_init);

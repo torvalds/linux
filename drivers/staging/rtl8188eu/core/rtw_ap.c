@@ -30,7 +30,6 @@ void init_mlme_ap_info(struct adapter *padapter)
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
 
-
 	spin_lock_init(&pmlmepriv->bcn_update_lock);
 
 	/* for ACL */
@@ -448,10 +447,8 @@ void	expire_timeout_chk(struct adapter *padapter)
 void add_RATid(struct adapter *padapter, struct sta_info *psta, u8 rssi_level)
 {
 	int i;
-	u8 rf_type;
 	u32 init_rate = 0;
 	unsigned char sta_band = 0, raid, shortGIrate = false;
-	unsigned char limit;
 	unsigned int tx_ra_bitmap = 0;
 	struct ht_priv	*psta_ht = NULL;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -472,16 +469,9 @@ void add_RATid(struct adapter *padapter, struct sta_info *psta, u8 rssi_level)
 	}
 	/* n mode ra_bitmap */
 	if (psta_ht->ht_option) {
-		rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
-		if (rf_type == RF_2T2R)
-			limit = 16;/*  2R */
-		else
-			limit = 8;/*   1R */
-
-		for (i = 0; i < limit; i++) {
-			if (psta_ht->ht_cap.mcs.rx_mask[i / 8] & BIT(i % 8))
+		for (i = 0; i < 8; i++)
+			if (psta_ht->ht_cap.mcs.rx_mask[0] & BIT(i))
 				tx_ra_bitmap |= BIT(i + 12);
-		}
 
 		/* max short GI rate */
 		shortGIrate = psta_ht->sgi;
@@ -729,7 +719,7 @@ static void start_bss_network(struct adapter *padapter, u8 *pbuf)
 	u8 val8, cur_channel, cur_bwmode, cur_ch_offset;
 	u16 bcn_interval;
 	u32	acparm;
-	int	ie_len;
+	uint	ie_len;
 	struct registry_priv	 *pregpriv = &padapter->registrypriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
@@ -745,9 +735,11 @@ static void start_bss_network(struct adapter *padapter, u8 *pbuf)
 	cur_ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
 
-	/* check if there is wps ie, */
-	/* if there is wpsie in beacon, the hostapd will update beacon twice when stating hostapd, */
-	/* and at first time the security ie (RSN/WPA IE) will not include in beacon. */
+	/* check if there is wps ie,
+	 * if there is wpsie in beacon, the hostapd will update
+	 * beacon twice when stating hostapd, and at first time the
+	 * security ie (RSN/WPA IE) will not include in beacon.
+	 */
 	if (!rtw_get_wps_ie(pnetwork->IEs + _FIXED_IE_LENGTH_, pnetwork->IELength - _FIXED_IE_LENGTH_, NULL, NULL))
 		pmlmeext->bstart_bss = true;
 
@@ -761,8 +753,11 @@ static void start_bss_network(struct adapter *padapter, u8 *pbuf)
 		update_hw_ht_param(padapter);
 	}
 
-	if (pmlmepriv->cur_network.join_res != true) { /* setting only at  first time */
-		/* WEP Key will be set before this function, do not clear CAM. */
+	/* setting only at  first time */
+	if (!(pmlmepriv->cur_network.join_res)) {
+		/* WEP Key will be set before this function, do not
+		 * clear CAM.
+		 */
 		if ((psecuritypriv->dot11PrivacyAlgrthm != _WEP40_) &&
 		    (psecuritypriv->dot11PrivacyAlgrthm != _WEP104_))
 			flush_all_cam_entry(padapter);	/* clear CAM */
@@ -819,7 +814,9 @@ static void start_bss_network(struct adapter *padapter, u8 *pbuf)
 			}
 		}
 	}
-	/* TODO: need to judge the phy parameters on concurrent mode for single phy */
+	/* TODO: need to judge the phy parameters on concurrent
+	 * mode for single phy
+	 */
 	set_channel_bwmode(padapter, cur_channel, cur_ch_offset, cur_bwmode);
 
 	DBG_88E("CH =%d, BW =%d, offset =%d\n", cur_channel, cur_bwmode, cur_ch_offset);
@@ -888,7 +885,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 		return _FAIL;
 
 
-	if (len > MAX_IE_SZ)
+	if (len < 0 || len > MAX_IE_SZ)
 		return _FAIL;
 
 	pbss_network->IELength = len;
@@ -1001,7 +998,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 			}
 			break;
 		}
-		if ((p == NULL) || (ie_len == 0))
+		if ((!p) || (ie_len == 0))
 			break;
 	}
 
@@ -1015,9 +1012,12 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 			if ((p) && !memcmp(p + 2, WMM_PARA_IE, 6)) {
 				pmlmepriv->qospriv.qos_option = 1;
 
-				*(p + 8) |= BIT(7);/* QoS Info, support U-APSD */
+				/* QoS Info, support U-APSD */
+				*(p + 8) |= BIT(7);
 
-				/* disable all ACM bits since the WMM admission control is not supported */
+				/* disable all ACM bits since the WMM
+				 * admission control is not supported
+				 */
 				*(p + 10) &= ~BIT(4); /* BE */
 				*(p + 14) &= ~BIT(4); /* BK */
 				*(p + 18) &= ~BIT(4); /* VI */
@@ -1025,7 +1025,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 				break;
 			}
 
-			if ((p == NULL) || (ie_len == 0))
+			if ((!p) || (ie_len == 0))
 				break;
 		}
 	}
@@ -1033,14 +1033,11 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 	p = rtw_get_ie(ie + _BEACON_IE_OFFSET_, _HT_CAPABILITY_IE_, &ie_len,
 		       (pbss_network->IELength - _BEACON_IE_OFFSET_));
 	if (p && ie_len > 0) {
-		u8 rf_type;
 		struct ieee80211_ht_cap *pht_cap = (struct ieee80211_ht_cap *)(p + 2);
 
 		pHT_caps_ie = p;
 		ht_cap = true;
 		network_type |= WIRELESS_11_24N;
-
-		rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
 
 		if ((psecuritypriv->wpa_pairwise_cipher & WPA_CIPHER_CCMP) ||
 		    (psecuritypriv->wpa2_pairwise_cipher & WPA_CIPHER_CCMP))
@@ -1051,10 +1048,8 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 		/* set  Max Rx AMPDU size  to 64K */
 		pht_cap->ampdu_params_info |= (IEEE80211_HT_CAP_AMPDU_FACTOR & 0x03);
 
-		if (rf_type == RF_1T1R) {
-			pht_cap->mcs.rx_mask[0] = 0xff;
-			pht_cap->mcs.rx_mask[1] = 0x0;
-		}
+		pht_cap->mcs.rx_mask[0] = 0xff;
+		pht_cap->mcs.rx_mask[1] = 0x0;
 		memcpy(&pmlmepriv->htpriv.ht_cap, p+2, ie_len);
 	}
 
@@ -1112,7 +1107,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 	psta = rtw_get_stainfo(&padapter->stapriv, pbss_network->MacAddress);
 	if (!psta) {
 		psta = rtw_alloc_stainfo(&padapter->stapriv, pbss_network->MacAddress);
-		if (psta == NULL)
+		if (!psta)
 			return _FAIL;
 	}
 
@@ -1283,12 +1278,12 @@ static void update_bcn_wps_ie(struct adapter *padapter)
 	DBG_88E("%s\n", __func__);
 
 	pwps_ie_src = pmlmepriv->wps_beacon_ie;
-	if (pwps_ie_src == NULL)
+	if (!pwps_ie_src)
 		return;
 
 	pwps_ie = rtw_get_wps_ie(ie+_FIXED_IE_LENGTH_, ielen-_FIXED_IE_LENGTH_, NULL, &wps_ielen);
 
-	if (pwps_ie == NULL || wps_ielen == 0)
+	if (!pwps_ie || wps_ielen == 0)
 		return;
 
 	wps_offset = (uint)(pwps_ie-ie);
@@ -1849,7 +1844,9 @@ void stop_ap_mode(struct adapter *padapter)
 	pmlmepriv->update_bcn = false;
 	pmlmeext->bstart_bss = false;
 
-	/* reset and init security priv , this can refine with rtw_reset_securitypriv */
+	/* reset and init security priv , this can refine with
+	 * rtw_reset_securitypriv
+	 */
 	memset((unsigned char *)&padapter->securitypriv, 0, sizeof(struct security_priv));
 	padapter->securitypriv.ndisauthtype = Ndis802_11AuthModeOpen;
 	padapter->securitypriv.ndisencryptstatus = Ndis802_11WEPDisabled;

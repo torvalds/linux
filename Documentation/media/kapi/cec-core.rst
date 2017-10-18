@@ -27,11 +27,8 @@ HDMI 1.3a specification is sufficient:
 http://www.microprocessor.org/HDMISpecification13a.pdf
 
 
-The Kernel Interface
-====================
-
-CEC Adapter
------------
+CEC Adapter Interface
+---------------------
 
 The struct cec_adapter represents the CEC adapter hardware. It is created by
 calling cec_allocate_adapter() and deleted by calling cec_delete_adapter():
@@ -51,6 +48,7 @@ ops:
 
 priv:
 	will be stored in adap->priv and can be used by the adapter ops.
+	Use cec_get_drvdata(adap) to get the priv pointer.
 
 name:
 	the name of the CEC adapter. Note: this name will be copied.
@@ -65,6 +63,10 @@ available_las:
 	the number of simultaneous logical addresses that this
 	adapter can handle. Must be 1 <= available_las <= CEC_MAX_LOG_ADDRS.
 
+To obtain the priv pointer use this helper function:
+
+.. c:function::
+	void *cec_get_drvdata(const struct cec_adapter *adap);
 
 To register the /dev/cecX device node and the remote control device (if
 CEC_CAP_RC is set) you call:
@@ -192,6 +194,11 @@ When a transmit finished (successfully or otherwise):
 	void cec_transmit_done(struct cec_adapter *adap, u8 status, u8 arb_lost_cnt,
 		       u8 nack_cnt, u8 low_drive_cnt, u8 error_cnt);
 
+or:
+
+.. c:function::
+	void cec_transmit_attempt_done(struct cec_adapter *adap, u8 status);
+
 The status can be one of:
 
 CEC_TX_STATUS_OK:
@@ -228,6 +235,11 @@ hardware retry can just set the counter corresponding to the transmit error
 to 1, if the hardware does support retry then either set these counters to
 0 if the hardware provides no feedback of which errors occurred and how many
 times, or fill in the correct values as reported by the hardware.
+
+The cec_transmit_attempt_done() function is a helper for cases where the
+hardware never retries, so the transmit is always for just a single
+attempt. It will call cec_transmit_done() in turn, filling in 1 for the
+count argument corresponding to the status. Or all 0 if the status was OK.
 
 When a CEC message was received:
 
@@ -303,6 +315,14 @@ be enabled (see the adap_enable op). When it is set to CEC_PHYS_ADDR_INVALID,
 then the CEC adapter will be disabled. If you change a valid physical address
 to another valid physical address, then this function will first set the
 address to CEC_PHYS_ADDR_INVALID before enabling the new physical address.
+
+.. c:function::
+	void cec_s_phys_addr_from_edid(struct cec_adapter *adap,
+				       const struct edid *edid);
+
+A helper function that extracts the physical address from the edid struct
+and calls cec_s_phys_addr() with that address, or CEC_PHYS_ADDR_INVALID
+if the EDID did not contain a physical address or edid was a NULL pointer.
 
 .. c:function::
 	int cec_s_log_addrs(struct cec_adapter *adap,

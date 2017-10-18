@@ -101,7 +101,8 @@ static int ath10k_pci_init_irq(struct ath10k *ar);
 static int ath10k_pci_deinit_irq(struct ath10k *ar);
 static int ath10k_pci_request_irq(struct ath10k *ar);
 static void ath10k_pci_free_irq(struct ath10k *ar);
-static int ath10k_pci_bmi_wait(struct ath10k_ce_pipe *tx_pipe,
+static int ath10k_pci_bmi_wait(struct ath10k *ar,
+			       struct ath10k_ce_pipe *tx_pipe,
 			       struct ath10k_ce_pipe *rx_pipe,
 			       struct bmi_xfer *xfer);
 static int ath10k_pci_qca99x0_chip_reset(struct ath10k *ar);
@@ -468,7 +469,7 @@ static int ath10k_pci_wake_wait(struct ath10k *ar)
 	while (tot_delay < PCIE_WAKE_TIMEOUT) {
 		if (ath10k_pci_is_awake(ar)) {
 			if (tot_delay > PCIE_WAKE_LATE_US)
-				ath10k_warn(ar, "device wakeup took %d ms which is unusally long, otherwise it works normally.\n",
+				ath10k_warn(ar, "device wakeup took %d ms which is unusually long, otherwise it works normally.\n",
 					    tot_delay / 1000);
 			return 0;
 		}
@@ -720,14 +721,16 @@ void ath10k_pci_disable_and_clear_legacy_irq(struct ath10k *ar)
 {
 	/* IMPORTANT: INTR_CLR register has to be set after
 	 * INTR_ENABLE is set to 0, otherwise interrupt can not be
-	 * really cleared. */
+	 * really cleared.
+	 */
 	ath10k_pci_write32(ar, SOC_CORE_BASE_ADDRESS + PCIE_INTR_ENABLE_ADDRESS,
 			   0);
 	ath10k_pci_write32(ar, SOC_CORE_BASE_ADDRESS + PCIE_INTR_CLR_ADDRESS,
 			   PCIE_INTR_FIRMWARE_MASK | PCIE_INTR_CE_MASK_ALL);
 
 	/* IMPORTANT: this extra read transaction is required to
-	 * flush the posted write buffer. */
+	 * flush the posted write buffer.
+	 */
 	(void)ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
 				PCIE_INTR_ENABLE_ADDRESS);
 }
@@ -739,7 +742,8 @@ void ath10k_pci_enable_legacy_irq(struct ath10k *ar)
 			   PCIE_INTR_FIRMWARE_MASK | PCIE_INTR_CE_MASK_ALL);
 
 	/* IMPORTANT: this extra read transaction is required to
-	 * flush the posted write buffer. */
+	 * flush the posted write buffer.
+	 */
 	(void)ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
 				PCIE_INTR_ENABLE_ADDRESS);
 }
@@ -970,12 +974,6 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 		}
 
 		remaining_bytes -= nbytes;
-
-		if (ret) {
-			ath10k_warn(ar, "failed to read diag value at 0x%x: %d\n",
-				    address, ret);
-			break;
-		}
 		memcpy(data, data_buf, nbytes);
 
 		address += nbytes;
@@ -1849,7 +1847,7 @@ int ath10k_pci_hif_exchange_bmi_msg(struct ath10k *ar,
 	if (ret)
 		goto err_resp;
 
-	ret = ath10k_pci_bmi_wait(ce_tx, ce_rx, &xfer);
+	ret = ath10k_pci_bmi_wait(ar, ce_tx, ce_rx, &xfer);
 	if (ret) {
 		u32 unused_buffer;
 		unsigned int unused_nbytes;
@@ -1916,23 +1914,37 @@ static void ath10k_pci_bmi_recv_data(struct ath10k_ce_pipe *ce_state)
 	xfer->rx_done = true;
 }
 
-static int ath10k_pci_bmi_wait(struct ath10k_ce_pipe *tx_pipe,
+static int ath10k_pci_bmi_wait(struct ath10k *ar,
+			       struct ath10k_ce_pipe *tx_pipe,
 			       struct ath10k_ce_pipe *rx_pipe,
 			       struct bmi_xfer *xfer)
 {
 	unsigned long timeout = jiffies + BMI_COMMUNICATION_TIMEOUT_HZ;
+	unsigned long started = jiffies;
+	unsigned long dur;
+	int ret;
 
 	while (time_before_eq(jiffies, timeout)) {
 		ath10k_pci_bmi_send_done(tx_pipe);
 		ath10k_pci_bmi_recv_data(rx_pipe);
 
-		if (xfer->tx_done && (xfer->rx_done == xfer->wait_for_resp))
-			return 0;
+		if (xfer->tx_done && (xfer->rx_done == xfer->wait_for_resp)) {
+			ret = 0;
+			goto out;
+		}
 
 		schedule();
 	}
 
-	return -ETIMEDOUT;
+	ret = -ETIMEDOUT;
+
+out:
+	dur = jiffies - started;
+	if (dur > HZ)
+		ath10k_dbg(ar, ATH10K_DBG_BMI,
+			   "bmi cmd took %lu jiffies hz %d ret %d\n",
+			   dur, HZ, ret);
+	return ret;
 }
 
 /*
@@ -2914,7 +2926,8 @@ static int ath10k_pci_init_irq(struct ath10k *ar)
 	 * host won't know when target writes BAR to CORE_CTRL.
 	 * This write might get lost if target has NOT written BAR.
 	 * For now, fix the race by repeating the write in below
-	 * synchronization checking. */
+	 * synchronization checking.
+	 */
 	ar_pci->oper_irq_mode = ATH10K_PCI_IRQ_LEGACY;
 
 	ath10k_pci_write32(ar, SOC_CORE_BASE_ADDRESS + PCIE_INTR_ENABLE_ADDRESS,
@@ -3430,6 +3443,7 @@ MODULE_FIRMWARE(QCA6174_HW_2_1_FW_DIR "/" ATH10K_BOARD_API2_FILE);
 /* QCA6174 3.1 firmware files */
 MODULE_FIRMWARE(QCA6174_HW_3_0_FW_DIR "/" ATH10K_FW_API4_FILE);
 MODULE_FIRMWARE(QCA6174_HW_3_0_FW_DIR "/" ATH10K_FW_API5_FILE);
+MODULE_FIRMWARE(QCA6174_HW_3_0_FW_DIR "/" ATH10K_FW_API6_FILE);
 MODULE_FIRMWARE(QCA6174_HW_3_0_FW_DIR "/" QCA6174_HW_3_0_BOARD_DATA_FILE);
 MODULE_FIRMWARE(QCA6174_HW_3_0_FW_DIR "/" ATH10K_BOARD_API2_FILE);
 

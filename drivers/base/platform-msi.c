@@ -195,7 +195,7 @@ struct irq_domain *platform_msi_create_irq_domain(struct fwnode_handle *fwnode,
 
 	domain = msi_create_irq_domain(fwnode, info, parent);
 	if (domain)
-		domain->bus_token = DOMAIN_BUS_PLATFORM_MSI;
+		irq_domain_update_bus_token(domain, DOMAIN_BUS_PLATFORM_MSI);
 
 	return domain;
 }
@@ -345,8 +345,7 @@ platform_msi_create_device_domain(struct device *dev,
 
 	data->host_data = host_data;
 	domain = irq_domain_create_hierarchy(dev->msi_domain, 0, nvec,
-					     of_node_to_fwnode(dev->of_node),
-					     ops, data);
+					     dev->fwnode, ops, data);
 	if (!domain)
 		goto free_priv;
 

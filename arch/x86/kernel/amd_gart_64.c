@@ -36,7 +36,7 @@
 #include <asm/proto.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
-#include <asm/cacheflush.h>
+#include <asm/set_memory.h>
 #include <asm/swiotlb.h>
 #include <asm/dma.h>
 #include <asm/amd_nb.h>
@@ -704,6 +704,7 @@ static const struct dma_map_ops gart_dma_ops = {
 	.alloc				= gart_alloc_coherent,
 	.free				= gart_free_coherent,
 	.mapping_error			= gart_mapping_error,
+	.dma_supported			= x86_dma_supported,
 };
 
 static void gart_iommu_shutdown(void)

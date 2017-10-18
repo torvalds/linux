@@ -559,6 +559,7 @@ static void chp_process_crw(struct crw *crw0, struct crw *crw1,
 	chpid.id = crw0->rsid;
 	switch (crw0->erc) {
 	case CRW_ERC_IPARM: /* Path has come. */
+	case CRW_ERC_INIT:
 		if (!chp_is_registered(chpid))
 			chp_new(chpid);
 		chsc_chp_online(chpid);

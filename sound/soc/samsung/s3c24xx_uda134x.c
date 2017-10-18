@@ -44,7 +44,7 @@ struct s3c24xx_uda134x {
 
 static unsigned int rates[33 * 2];
 #ifdef ENFORCE_RATES
-static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 	.count	= ARRAY_SIZE(rates),
 	.list	= rates,
 	.mask	= 0,

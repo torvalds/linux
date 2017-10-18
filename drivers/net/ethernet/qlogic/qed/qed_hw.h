@@ -297,9 +297,6 @@ union qed_qm_pq_params {
 	} roce;
 };
 
-u16 qed_get_qm_pq(struct qed_hwfn *p_hwfn,
-		  enum protocol_type proto, union qed_qm_pq_params *params);
-
 int qed_init_fw_data(struct qed_dev *cdev,
 		     const u8 *fw_data);
 #endif

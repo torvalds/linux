@@ -14,15 +14,17 @@
 #include <linux/bitops.h>
 #include <linux/threads.h>
 
+extern p4d_t level4_kernel_pgt[512];
+extern p4d_t level4_ident_pgt[512];
 extern pud_t level3_kernel_pgt[512];
 extern pud_t level3_ident_pgt[512];
 extern pmd_t level2_kernel_pgt[512];
 extern pmd_t level2_fixmap_pgt[512];
 extern pmd_t level2_ident_pgt[512];
 extern pte_t level1_fixmap_pgt[512];
-extern pgd_t init_level4_pgt[];
+extern pgd_t init_top_pgt[];
 
-#define swapper_pg_dir init_level4_pgt
+#define swapper_pg_dir init_top_pgt
 
 extern void paging_init(void);
 
@@ -35,14 +37,21 @@ extern void paging_init(void);
 #define pud_ERROR(e)					\
 	pr_err("%s:%d: bad pud %p(%016lx)\n",		\
 	       __FILE__, __LINE__, &(e), pud_val(e))
+
+#if CONFIG_PGTABLE_LEVELS >= 5
+#define p4d_ERROR(e)					\
+	pr_err("%s:%d: bad p4d %p(%016lx)\n",		\
+	       __FILE__, __LINE__, &(e), p4d_val(e))
+#endif
+
 #define pgd_ERROR(e)					\
 	pr_err("%s:%d: bad pgd %p(%016lx)\n",		\
 	       __FILE__, __LINE__, &(e), pgd_val(e))
 
 struct mm_struct;
 
+void set_pte_vaddr_p4d(p4d_t *p4d_page, unsigned long vaddr, pte_t new_pte);
 void set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte);
-
 
 static inline void native_pte_clear(struct mm_struct *mm, unsigned long addr,
 				    pte_t *ptep)
@@ -118,6 +127,20 @@ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
 
 	native_pud_clear(xp);
 	return ret;
+#endif
+}
+
+static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
+{
+	*p4dp = p4d;
+}
+
+static inline void native_p4d_clear(p4d_t *p4d)
+{
+#ifdef CONFIG_X86_5LEVEL
+	native_set_p4d(p4d, native_make_p4d(0));
+#else
+	native_set_p4d(p4d, (p4d_t) { .pgd = native_make_pgd(0)});
 #endif
 }
 
@@ -206,6 +229,20 @@ extern void cleanup_highmap(void);
 extern void init_extra_mapping_uc(unsigned long phys, unsigned long size);
 extern void init_extra_mapping_wb(unsigned long phys, unsigned long size);
 
-#endif /* !__ASSEMBLY__ */
+#define gup_fast_permitted gup_fast_permitted
+static inline bool gup_fast_permitted(unsigned long start, int nr_pages,
+		int write)
+{
+	unsigned long len, end;
 
+	len = (unsigned long)nr_pages << PAGE_SHIFT;
+	end = start + len;
+	if (end < start)
+		return false;
+	if (end >> __VIRTUAL_MASK_SHIFT)
+		return false;
+	return true;
+}
+
+#endif /* !__ASSEMBLY__ */
 #endif /* _ASM_X86_PGTABLE_64_H */

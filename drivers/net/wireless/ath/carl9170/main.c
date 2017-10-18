@@ -1874,6 +1874,8 @@ void *carl9170_alloc(size_t priv_size)
 	for (i = 0; i < ARRAY_SIZE(ar->noise); i++)
 		ar->noise[i] = -95; /* ATH_DEFAULT_NOISE_FLOOR */
 
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
 	return ar;
 
 err_nomem:

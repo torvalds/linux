@@ -37,9 +37,11 @@ static int tick_broadcast_forced;
 static __cacheline_aligned_in_smp DEFINE_RAW_SPINLOCK(tick_broadcast_lock);
 
 #ifdef CONFIG_TICK_ONESHOT
+static void tick_broadcast_setup_oneshot(struct clock_event_device *bc);
 static void tick_broadcast_clear_oneshot(int cpu);
 static void tick_resume_broadcast_oneshot(struct clock_event_device *bc);
 #else
+static inline void tick_broadcast_setup_oneshot(struct clock_event_device *bc) { BUG(); }
 static inline void tick_broadcast_clear_oneshot(int cpu) { }
 static inline void tick_resume_broadcast_oneshot(struct clock_event_device *bc) { }
 #endif
@@ -867,7 +869,7 @@ static void tick_broadcast_init_next_event(struct cpumask *mask,
 /**
  * tick_broadcast_setup_oneshot - setup the broadcast device
  */
-void tick_broadcast_setup_oneshot(struct clock_event_device *bc)
+static void tick_broadcast_setup_oneshot(struct clock_event_device *bc)
 {
 	int cpu = smp_processor_id();
 

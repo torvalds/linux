@@ -137,7 +137,7 @@ static void write_propval_string(FILE *f, struct data val)
 static void write_propval_cells(FILE *f, struct data val)
 {
 	void *propend = val.val + val.len;
-	cell_t *cp = (cell_t *)val.val;
+	fdt32_t *cp = (fdt32_t *)val.val;
 	struct marker *m = val.markers;
 
 	fprintf(f, "<");
@@ -275,8 +275,8 @@ void dt_to_source(FILE *f, struct dt_info *dti)
 		for_each_label(re->labels, l)
 			fprintf(f, "%s: ", l->label);
 		fprintf(f, "/memreserve/\t0x%016llx 0x%016llx;\n",
-			(unsigned long long)re->re.address,
-			(unsigned long long)re->re.size);
+			(unsigned long long)re->address,
+			(unsigned long long)re->size);
 	}
 
 	write_tree_source_node(f, dti->dt, 0);

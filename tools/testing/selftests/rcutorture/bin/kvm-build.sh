@@ -45,7 +45,7 @@ T=/tmp/test-linux.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
 
-grep -v 'CONFIG_[A-Z]*_TORTURE_TEST' < ${config_template} > $T/config
+grep -v 'CONFIG_[A-Z]*_TORTURE_TEST=' < ${config_template} > $T/config
 cat << ___EOF___ >> $T/config
 CONFIG_INITRAMFS_SOURCE="$TORTURE_INITRD"
 CONFIG_VIRTIO_PCI=y

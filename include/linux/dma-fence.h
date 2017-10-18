@@ -55,6 +55,7 @@ struct dma_fence_cb;
  * of the time.
  *
  * DMA_FENCE_FLAG_SIGNALED_BIT - fence is already signaled
+ * DMA_FENCE_FLAG_TIMESTAMP_BIT - timestamp recorded for fence signaling
  * DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT - enable_signaling might have been called
  * DMA_FENCE_FLAG_USER_BITS - start of the unused bits, can be used by the
  * implementer of the fence for its own purposes. Can be used in different
@@ -84,6 +85,7 @@ struct dma_fence {
 
 enum dma_fence_flag_bits {
 	DMA_FENCE_FLAG_SIGNALED_BIT,
+	DMA_FENCE_FLAG_TIMESTAMP_BIT,
 	DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
 	DMA_FENCE_FLAG_USER_BITS, /* must always be last member */
 };
@@ -229,7 +231,7 @@ static inline struct dma_fence *dma_fence_get_rcu(struct dma_fence *fence)
  *
  * Function returns NULL if no refcount could be obtained, or the fence.
  * This function handles acquiring a reference to a fence that may be
- * reallocated within the RCU grace period (such as with SLAB_DESTROY_BY_RCU),
+ * reallocated within the RCU grace period (such as with SLAB_TYPESAFE_BY_RCU),
  * so long as the caller is using RCU on the pointer to the fence.
  *
  * An alternative mechanism is to employ a seqlock to protect a bunch of
@@ -257,7 +259,7 @@ dma_fence_get_rcu_safe(struct dma_fence * __rcu *fencep)
 		 * have successfully acquire a reference to it. If it no
 		 * longer matches, we are holding a reference to some other
 		 * reallocated pointer. This is possible if the allocator
-		 * is using a freelist like SLAB_DESTROY_BY_RCU where the
+		 * is using a freelist like SLAB_TYPESAFE_BY_RCU where the
 		 * fence remains valid for the RCU grace period, but it
 		 * may be reallocated. When using such allocators, we are
 		 * responsible for ensuring the reference we get is to

@@ -6,15 +6,9 @@
  */
 #include <asm/page.h>
 #include <asm/cache.h>
-#include <asm/errno.h>
-#include <asm-generic/uaccess-unaligned.h>
 
 #include <linux/bug.h>
 #include <linux/string.h>
-#include <linux/thread_info.h>
-
-#define VERIFY_READ 0
-#define VERIFY_WRITE 1
 
 #define KERNEL_DS	((mm_segment_t){0})
 #define USER_DS 	((mm_segment_t){1})
@@ -72,17 +66,6 @@ struct exception_table_entry {
  */
 #define ASM_EXCEPTIONTABLE_ENTRY_EFAULT( fault_addr, except_addr )\
 	ASM_EXCEPTIONTABLE_ENTRY( fault_addr, except_addr + 1)
-
-/*
- * The page fault handler stores, in a per-cpu area, the following information
- * if a fixup routine is available.
- */
-struct exception_data {
-	unsigned long fault_ip;
-	unsigned long fault_gp;
-	unsigned long fault_space;
-	unsigned long fault_addr;
-};
 
 /*
  * load_sr2() preloads the space register %%sr2 - based on the value of
@@ -216,9 +199,6 @@ struct exception_data {
  * Complex access routines -- external declarations
  */
 
-extern unsigned long lcopy_to_user(void __user *, const void *, unsigned long);
-extern unsigned long lcopy_from_user(void *, const void __user *, unsigned long);
-extern unsigned long lcopy_in_user(void __user *, const void __user *, unsigned long);
 extern long strncpy_from_user(char *, const char __user *, long);
 extern unsigned lclear_user(void __user *, unsigned long);
 extern long lstrnlen_user(const char __user *, long);
@@ -228,63 +208,17 @@ extern long lstrnlen_user(const char __user *, long);
 #define user_addr_max() (~0UL)
 
 #define strnlen_user lstrnlen_user
-#define strlen_user(str) lstrnlen_user(str, 0x7fffffffL)
 #define clear_user lclear_user
 #define __clear_user lclear_user
 
-unsigned long __must_check __copy_to_user(void __user *dst, const void *src,
-					  unsigned long len);
-unsigned long __must_check __copy_from_user(void *dst, const void __user *src,
-					  unsigned long len);
-unsigned long copy_in_user(void __user *dst, const void __user *src,
-			   unsigned long len);
-#define __copy_in_user copy_in_user
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
-
-extern void __compiletime_error("usercopy buffer size is too small")
-__bad_copy_user(void);
-
-static inline void copy_user_overflow(int size, unsigned long count)
-{
-	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
-}
-
-static __always_inline unsigned long __must_check
-copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	int sz = __compiletime_object_size(to);
-	unsigned long ret = n;
-
-	if (likely(sz < 0 || sz >= n)) {
-		check_object_size(to, n, false);
-		ret = __copy_from_user(to, from, n);
-	} else if (!__builtin_constant_p(n))
-		copy_user_overflow(sz, n);
-	else
-		__bad_copy_user();
-
-	if (unlikely(ret))
-		memset(to + (n - ret), 0, ret);
-
-	return ret;
-}
-
-static __always_inline unsigned long __must_check
-copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	int sz = __compiletime_object_size(from);
-
-	if (likely(sz < 0 || sz >= n)) {
-		check_object_size(from, n, true);
-		n = __copy_to_user(to, from, n);
-	} else if (!__builtin_constant_p(n))
-		copy_user_overflow(sz, n);
-	else
-		__bad_copy_user();
-
-	return n;
-}
+unsigned long __must_check raw_copy_to_user(void __user *dst, const void *src,
+					    unsigned long len);
+unsigned long __must_check raw_copy_from_user(void *dst, const void __user *src,
+					    unsigned long len);
+unsigned long __must_check raw_copy_in_user(void __user *dst, const void __user *src,
+					    unsigned long len);
+#define INLINE_COPY_TO_USER
+#define INLINE_COPY_FROM_USER
 
 struct pt_regs;
 int fixup_exception(struct pt_regs *regs);

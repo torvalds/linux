@@ -53,13 +53,6 @@ struct esw_uc_addr {
 	u32                vport;
 };
 
-/* E-Switch MC FDB table hash node */
-struct esw_mc_addr { /* SRIOV only */
-	struct l2addr_node     node;
-	struct mlx5_flow_handle *uplink_rule; /* Forward to uplink rule */
-	u32                    refcnt;
-};
-
 /* Vport UC/MC hash node */
 struct vport_addr {
 	struct l2addr_node     node;
@@ -255,11 +248,10 @@ __esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u32 vport, bool rx_rule,
 	if (rx_rule)
 		match_header |= MLX5_MATCH_MISC_PARAMETERS;
 
-	spec = mlx5_vzalloc(sizeof(*spec));
-	if (!spec) {
-		esw_warn(esw->dev, "FDB: Failed to alloc match parameters\n");
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
 		return NULL;
-	}
+
 	dmac_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
 			      outer_headers.dmac_47_16);
 	dmac_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
@@ -337,6 +329,7 @@ esw_fdb_set_vport_promisc_rule(struct mlx5_eswitch *esw, u32 vport)
 static int esw_create_legacy_fdb_table(struct mlx5_eswitch *esw, int nvports)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
+	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_core_dev *dev = esw->dev;
 	struct mlx5_flow_namespace *root_ns;
 	struct mlx5_flow_table *fdb;
@@ -356,13 +349,14 @@ static int esw_create_legacy_fdb_table(struct mlx5_eswitch *esw, int nvports)
 		return -EOPNOTSUPP;
 	}
 
-	flow_group_in = mlx5_vzalloc(inlen);
+	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
 		return -ENOMEM;
-	memset(flow_group_in, 0, inlen);
 
 	table_size = BIT(MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size));
-	fdb = mlx5_create_flow_table(root_ns, 0, table_size, 0, 0);
+
+	ft_attr.max_fte = table_size;
+	fdb = mlx5_create_flow_table(root_ns, &ft_attr);
 	if (IS_ERR(fdb)) {
 		err = PTR_ERR(fdb);
 		esw_warn(dev, "Failed to create FDB Table err %d\n", err);
@@ -814,7 +808,7 @@ static void esw_update_vport_mc_promisc(struct mlx5_eswitch *esw, u32 vport_num)
 static void esw_apply_vport_rx_mode(struct mlx5_eswitch *esw, u32 vport_num,
 				    bool promisc, bool mc_promisc)
 {
-	struct esw_mc_addr *allmulti_addr = esw->mc_promisc;
+	struct esw_mc_addr *allmulti_addr = &esw->mc_promisc;
 	struct mlx5_vport *vport = &esw->vports[vport_num];
 
 	if (IS_ERR_OR_NULL(vport->allmulti_rule) != mc_promisc)
@@ -965,7 +959,7 @@ static int esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
 		return -EOPNOTSUPP;
 	}
 
-	flow_group_in = mlx5_vzalloc(inlen);
+	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
 		return -ENOMEM;
 
@@ -1082,7 +1076,7 @@ static int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
 		return -EOPNOTSUPP;
 	}
 
-	flow_group_in = mlx5_vzalloc(inlen);
+	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
 		return -ENOMEM;
 
@@ -1223,7 +1217,6 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 			       "vport[%d] configure ingress rules failed, illegal mac with spoofchk\n",
 			       vport->vport);
 		return -EPERM;
-
 	}
 
 	esw_vport_cleanup_ingress_rules(esw, vport);
@@ -1245,11 +1238,9 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 		  "vport[%d] configure ingress rules, vlan(%d) qos(%d)\n",
 		  vport->vport, vport->info.vlan, vport->info.qos);
 
-	spec = mlx5_vzalloc(sizeof(*spec));
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
 		err = -ENOMEM;
-		esw_warn(esw->dev, "vport[%d] configure ingress rules failed, err(%d)\n",
-			 vport->vport, err);
 		goto out;
 	}
 
@@ -1326,11 +1317,9 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 		  "vport[%d] configure egress rules, vlan(%d) qos(%d)\n",
 		  vport->vport, vport->info.vlan, vport->info.qos);
 
-	spec = mlx5_vzalloc(sizeof(*spec));
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
 		err = -ENOMEM;
-		esw_warn(esw->dev, "vport[%d] configure egress rules failed, err(%d)\n",
-			 vport->vport, err);
 		goto out;
 	}
 
@@ -1679,13 +1668,14 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 	int i;
 
 	if (!esw || !MLX5_CAP_GEN(esw->dev, vport_group_manager) ||
-	    MLX5_CAP_GEN(esw->dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+	    MLX5_CAP_GEN(esw->dev, port_type) != MLX5_CAP_PORT_TYPE_ETH ||
+	    esw->mode == SRIOV_NONE)
 		return;
 
 	esw_info(esw->dev, "disable SRIOV: active vports(%d) mode(%d)\n",
 		 esw->enabled_vports, esw->mode);
 
-	mc_promisc = esw->mc_promisc;
+	mc_promisc = &esw->mc_promisc;
 	nvports = esw->enabled_vports;
 
 	for (i = 0; i < esw->total_vports; i++)
@@ -1729,7 +1719,6 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 {
 	int l2_table_size = 1 << MLX5_CAP_GEN(dev, log_max_l2_table);
 	int total_vports = MLX5_TOTAL_VPORTS(dev);
-	struct esw_mc_addr *mc_promisc;
 	struct mlx5_eswitch *esw;
 	int vport_num;
 	int err;
@@ -1758,13 +1747,6 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	}
 	esw->l2_table.size = l2_table_size;
 
-	mc_promisc = kzalloc(sizeof(*mc_promisc), GFP_KERNEL);
-	if (!mc_promisc) {
-		err = -ENOMEM;
-		goto abort;
-	}
-	esw->mc_promisc = mc_promisc;
-
 	esw->work_queue = create_singlethread_workqueue("mlx5_esw_wq");
 	if (!esw->work_queue) {
 		err = -ENOMEM;
@@ -1787,6 +1769,7 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	}
 
 	hash_init(esw->offloads.encap_tbl);
+	hash_init(esw->offloads.mod_hdr_tbl);
 	mutex_init(&esw->state_lock);
 
 	for (vport_num = 0; vport_num < total_vports; vport_num++) {
@@ -1803,6 +1786,11 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	esw->enabled_vports = 0;
 	esw->mode = SRIOV_NONE;
 	esw->offloads.inline_mode = MLX5_INLINE_MODE_NONE;
+	if (MLX5_CAP_ESW_FLOWTABLE_FDB(dev, encap) &&
+	    MLX5_CAP_ESW_FLOWTABLE_FDB(dev, decap))
+		esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_BASIC;
+	else
+		esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_NONE;
 
 	dev->priv.eswitch = esw;
 	return 0;
@@ -1827,7 +1815,6 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 	esw->dev->priv.eswitch = NULL;
 	destroy_workqueue(esw->work_queue);
 	kfree(esw->l2_table.bitmap);
-	kfree(esw->mc_promisc);
 	kfree(esw->offloads.vport_reps);
 	kfree(esw->vports);
 	kfree(esw);
@@ -2166,7 +2153,7 @@ int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
 	if (!LEGAL_VPORT(esw, vport))
 		return -EINVAL;
 
-	out = mlx5_vzalloc(outlen);
+	out = kvzalloc(outlen, GFP_KERNEL);
 	if (!out)
 		return -ENOMEM;
 

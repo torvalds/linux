@@ -845,7 +845,7 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc,
 				    * state->dataAlign;
 				break;
 			case DW_CFA_def_cfa_register:
-				unw_debug("cfa_def_cfa_regsiter: ");
+				unw_debug("cfa_def_cfa_register: ");
 				state->cfa.reg = get_uleb128(&ptr.p8, end);
 				break;
 				/*todo case DW_CFA_def_cfa_expression: */

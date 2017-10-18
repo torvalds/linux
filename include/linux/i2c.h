@@ -38,6 +38,7 @@
 
 extern struct bus_type i2c_bus_type;
 extern struct device_type i2c_adapter_type;
+extern struct device_type i2c_client_type;
 
 /* --- General options ------------------------------------------------	*/
 
@@ -149,6 +150,7 @@ enum i2c_alert_protocol {
  * @detect: Callback for device detection
  * @address_list: The I2C addresses to probe (for detect)
  * @clients: List of detected clients we created (for i2c-core use only)
+ * @disable_i2c_core_irq_mapping: Tell the i2c-core to not do irq-mapping
  *
  * The driver.owner field should be set to the module owner of this driver.
  * The driver.name field should be set to the name of this driver.
@@ -212,6 +214,8 @@ struct i2c_driver {
 	int (*detect)(struct i2c_client *, struct i2c_board_info *);
 	const unsigned short *address_list;
 	struct list_head clients;
+
+	bool disable_i2c_core_irq_mapping;
 };
 #define to_i2c_driver(d) container_of(d, struct i2c_driver, driver)
 
@@ -291,6 +295,8 @@ static inline int i2c_slave_event(struct i2c_client *client,
 {
 	return client->slave_cb(client, event, val);
 }
+#else
+static inline bool i2c_detect_slave_mode(struct device *dev) { return false; }
 #endif
 
 /**
@@ -303,6 +309,8 @@ static inline int i2c_slave_event(struct i2c_client *client,
  * @of_node: pointer to OpenFirmware device node
  * @fwnode: device node supplied by the platform firmware
  * @properties: additional device properties for the device
+ * @resources: resources associated with the device
+ * @num_resources: number of resources in the @resources array
  * @irq: stored in i2c_client.irq
  *
  * I2C doesn't actually support hardware probing, although controllers and
@@ -325,6 +333,8 @@ struct i2c_board_info {
 	struct device_node *of_node;
 	struct fwnode_handle *fwnode;
 	const struct property_entry *properties;
+	const struct resource *resources;
+	unsigned int	num_resources;
 	int		irq;
 };
 
@@ -679,7 +689,8 @@ i2c_unlock_adapter(struct i2c_adapter *adapter)
 #define I2C_CLASS_HWMON		(1<<0)	/* lm_sensors, ... */
 #define I2C_CLASS_DDC		(1<<3)	/* DDC bus on graphics adapters */
 #define I2C_CLASS_SPD		(1<<7)	/* Memory modules */
-#define I2C_CLASS_DEPRECATED	(1<<8)	/* Warn users that adapter will stop using classes */
+/* Warn users that the adapter doesn't support classes anymore */
+#define I2C_CLASS_DEPRECATED	(1<<8)
 
 /* Internal numbers to terminate lists */
 #define I2C_CLIENT_END		0xfffeU
@@ -824,10 +835,17 @@ static inline const struct of_device_id
 
 #if IS_ENABLED(CONFIG_ACPI)
 u32 i2c_acpi_find_bus_speed(struct device *dev);
+struct i2c_client *i2c_acpi_new_device(struct device *dev, int index,
+				       struct i2c_board_info *info);
 #else
 static inline u32 i2c_acpi_find_bus_speed(struct device *dev)
 {
 	return 0;
+}
+static inline struct i2c_client *i2c_acpi_new_device(struct device *dev,
+					int index, struct i2c_board_info *info)
+{
+	return NULL;
 }
 #endif /* CONFIG_ACPI */
 

@@ -213,11 +213,6 @@ static void __init save_l2x0_context(void)
 {}
 #endif
 
-u32 omap4_get_cpu1_ns_pa_addr(void)
-{
-	return old_cpu1_ns_pa_addr;
-}
-
 /**
  * omap4_enter_lowpower: OMAP4 MPUSS Low Power Entry Function
  * The purpose of this function is to manage low power programming
@@ -456,6 +451,11 @@ int __init omap4_mpuss_init(void)
 }
 
 #endif
+
+u32 omap4_get_cpu1_ns_pa_addr(void)
+{
+	return old_cpu1_ns_pa_addr;
+}
 
 /*
  * For kexec, we must set CPU1_WAKEUP_NS_PA_ADDR to point to

@@ -7,6 +7,7 @@
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
+#include <linux/pfn.h>
 
 static void *dma_noop_alloc(struct device *dev, size_t size,
 			    dma_addr_t *dma_handle, gfp_t gfp,
@@ -16,7 +17,8 @@ static void *dma_noop_alloc(struct device *dev, size_t size,
 
 	ret = (void *)__get_free_pages(gfp, get_order(size));
 	if (ret)
-		*dma_handle = virt_to_phys(ret);
+		*dma_handle = virt_to_phys(ret) - PFN_PHYS(dev->dma_pfn_offset);
+
 	return ret;
 }
 
@@ -32,7 +34,7 @@ static dma_addr_t dma_noop_map_page(struct device *dev, struct page *page,
 				      enum dma_data_direction dir,
 				      unsigned long attrs)
 {
-	return page_to_phys(page) + offset;
+	return page_to_phys(page) + offset - PFN_PHYS(dev->dma_pfn_offset);
 }
 
 static int dma_noop_map_sg(struct device *dev, struct scatterlist *sgl, int nents,
@@ -43,25 +45,16 @@ static int dma_noop_map_sg(struct device *dev, struct scatterlist *sgl, int nent
 	struct scatterlist *sg;
 
 	for_each_sg(sgl, sg, nents, i) {
+		dma_addr_t offset = PFN_PHYS(dev->dma_pfn_offset);
 		void *va;
 
 		BUG_ON(!sg_page(sg));
 		va = sg_virt(sg);
-		sg_dma_address(sg) = (dma_addr_t)virt_to_phys(va);
+		sg_dma_address(sg) = (dma_addr_t)virt_to_phys(va) - offset;
 		sg_dma_len(sg) = sg->length;
 	}
 
 	return nents;
-}
-
-static int dma_noop_mapping_error(struct device *dev, dma_addr_t dma_addr)
-{
-	return 0;
-}
-
-static int dma_noop_supported(struct device *dev, u64 mask)
-{
-	return 1;
 }
 
 const struct dma_map_ops dma_noop_ops = {
@@ -69,8 +62,6 @@ const struct dma_map_ops dma_noop_ops = {
 	.free			= dma_noop_free,
 	.map_page		= dma_noop_map_page,
 	.map_sg			= dma_noop_map_sg,
-	.mapping_error		= dma_noop_mapping_error,
-	.dma_supported		= dma_noop_supported,
 };
 
 EXPORT_SYMBOL(dma_noop_ops);

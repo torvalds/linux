@@ -14,7 +14,6 @@
  */
 #ifndef __ASSEMBLY__
 #include <asm/processor.h>
-#include <asm/fixmap.h>
 #include <linux/threads.h>
 #include <asm/paravirt.h>
 

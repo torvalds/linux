@@ -32,6 +32,7 @@
 #include "dsi.xml.h"
 #include "sfpb.xml.h"
 #include "dsi_cfg.h"
+#include "msm_kms.h"
 
 static int dsi_get_version(const void __iomem *base, u32 *major, u32 *minor)
 {
@@ -975,23 +976,23 @@ static void dsi_wait4video_eng_busy(struct msm_dsi_host *msm_host)
 static int dsi_tx_buf_alloc(struct msm_dsi_host *msm_host, int size)
 {
 	struct drm_device *dev = msm_host->dev;
+	struct msm_drm_private *priv = dev->dev_private;
 	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	int ret;
 	uint64_t iova;
 
 	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) {
-		mutex_lock(&dev->struct_mutex);
 		msm_host->tx_gem_obj = msm_gem_new(dev, size, MSM_BO_UNCACHED);
 		if (IS_ERR(msm_host->tx_gem_obj)) {
 			ret = PTR_ERR(msm_host->tx_gem_obj);
 			pr_err("%s: failed to allocate gem, %d\n",
 				__func__, ret);
 			msm_host->tx_gem_obj = NULL;
-			mutex_unlock(&dev->struct_mutex);
 			return ret;
 		}
 
-		ret = msm_gem_get_iova_locked(msm_host->tx_gem_obj, 0, &iova);
+		ret = msm_gem_get_iova(msm_host->tx_gem_obj,
+				priv->kms->aspace, &iova);
 		mutex_unlock(&dev->struct_mutex);
 		if (ret) {
 			pr_err("%s: failed to get iova, %d\n", __func__, ret);
@@ -1141,12 +1142,15 @@ static int dsi_long_read_resp(u8 *buf, const struct mipi_dsi_msg *msg)
 static int dsi_cmd_dma_tx(struct msm_dsi_host *msm_host, int len)
 {
 	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
+	struct drm_device *dev = msm_host->dev;
+	struct msm_drm_private *priv = dev->dev_private;
 	int ret;
 	uint64_t dma_base;
 	bool triggered;
 
 	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) {
-		ret = msm_gem_get_iova(msm_host->tx_gem_obj, 0, &dma_base);
+		ret = msm_gem_get_iova(msm_host->tx_gem_obj,
+				priv->kms->aspace, &dma_base);
 		if (ret) {
 			pr_err("%s: failed to get iova: %d\n", __func__, ret);
 			return ret;
@@ -1635,7 +1639,7 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 	}
 
 	/* Get panel node from the output port's endpoint data */
-	device_node = of_graph_get_remote_port_parent(endpoint);
+	device_node = of_graph_get_remote_node(np, 1, 0);
 	if (!device_node) {
 		dev_dbg(dev, "%s: no valid device\n", __func__);
 		goto err;
@@ -1740,6 +1744,7 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 
 	msm_host->rx_buf = devm_kzalloc(&pdev->dev, SZ_4K, GFP_KERNEL);
 	if (!msm_host->rx_buf) {
+		ret = -ENOMEM;
 		pr_err("%s: alloc rx temp buf failed\n", __func__);
 		goto fail;
 	}
@@ -2132,6 +2137,13 @@ void msm_dsi_host_get_phy_clk_req(struct mipi_dsi_host *host,
 	struct msm_dsi_phy_clk_request *clk_req)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
+	int ret;
+
+	ret = dsi_calc_clk_rate(msm_host);
+	if (ret) {
+		pr_err("%s: unable to calc clk rate, %d\n", __func__, ret);
+		return;
+	}
 
 	clk_req->bitclk_rate = msm_host->byte_clk_rate * 8;
 	clk_req->escclk_rate = msm_host->esc_clk_rate;
@@ -2275,7 +2287,6 @@ int msm_dsi_host_set_display_mode(struct mipi_dsi_host *host,
 					struct drm_display_mode *mode)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
-	int ret;
 
 	if (msm_host->mode) {
 		drm_mode_destroy(msm_host->dev, msm_host->mode);
@@ -2286,12 +2297,6 @@ int msm_dsi_host_set_display_mode(struct mipi_dsi_host *host,
 	if (!msm_host->mode) {
 		pr_err("%s: cannot duplicate mode\n", __func__);
 		return -ENOMEM;
-	}
-
-	ret = dsi_calc_clk_rate(msm_host);
-	if (ret) {
-		pr_err("%s: unable to calc clk rate, %d\n", __func__, ret);
-		return ret;
 	}
 
 	return 0;

@@ -14,8 +14,6 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 
-#include <video/omap-panel-data.h>
-
 #include "../dss/omapdss.h"
 
 struct panel_drv_data {
@@ -25,8 +23,6 @@ struct panel_drv_data {
 	struct device *dev;
 
 	struct videomode vm;
-
-	bool invert_polarity;
 };
 
 static const struct videomode tvc_pal_vm = {
@@ -94,13 +90,6 @@ static int tvc_enable(struct omap_dss_device *dssdev)
 		return 0;
 
 	in->ops.atv->set_timings(in, &ddata->vm);
-
-	if (!ddata->dev->of_node) {
-		in->ops.atv->set_type(in, OMAP_DSS_VENC_TYPE_COMPOSITE);
-
-		in->ops.atv->invert_vid_out_polarity(in,
-			ddata->invert_polarity);
-	}
 
 	r = in->ops.atv->enable(in);
 	if (r)
@@ -182,35 +171,9 @@ static struct omap_dss_driver tvc_driver = {
 	.get_timings		= tvc_get_timings,
 	.check_timings		= tvc_check_timings,
 
-	.get_resolution		= omapdss_default_get_resolution,
-
 	.get_wss		= tvc_get_wss,
 	.set_wss		= tvc_set_wss,
 };
-
-static int tvc_probe_pdata(struct platform_device *pdev)
-{
-	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct connector_atv_platform_data *pdata;
-	struct omap_dss_device *in, *dssdev;
-
-	pdata = dev_get_platdata(&pdev->dev);
-
-	in = omap_dss_find_output(pdata->source);
-	if (in == NULL) {
-		dev_err(&pdev->dev, "Failed to find video source\n");
-		return -EPROBE_DEFER;
-	}
-
-	ddata->in = in;
-
-	ddata->invert_polarity = pdata->invert_polarity;
-
-	dssdev = &ddata->dssdev;
-	dssdev->name = pdata->name;
-
-	return 0;
-}
 
 static int tvc_probe_of(struct platform_device *pdev)
 {
@@ -242,17 +205,9 @@ static int tvc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ddata);
 	ddata->dev = &pdev->dev;
 
-	if (dev_get_platdata(&pdev->dev)) {
-		r = tvc_probe_pdata(pdev);
-		if (r)
-			return r;
-	} else if (pdev->dev.of_node) {
-		r = tvc_probe_of(pdev);
-		if (r)
-			return r;
-	} else {
-		return -ENODEV;
-	}
+	r = tvc_probe_of(pdev);
+	if (r)
+		return r;
 
 	ddata->vm = tvc_pal_vm;
 

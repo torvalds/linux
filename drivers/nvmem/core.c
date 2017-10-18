@@ -287,9 +287,15 @@ static struct nvmem_cell *nvmem_find_cell(const char *cell_id)
 {
 	struct nvmem_cell *p;
 
+	mutex_lock(&nvmem_cells_mutex);
+
 	list_for_each_entry(p, &nvmem_cells, node)
-		if (p && !strcmp(p->name, cell_id))
+		if (p && !strcmp(p->name, cell_id)) {
+			mutex_unlock(&nvmem_cells_mutex);
 			return p;
+		}
+
+	mutex_unlock(&nvmem_cells_mutex);
 
 	return NULL;
 }
@@ -468,7 +474,8 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	np = config->dev->of_node;
 	nvmem->dev.of_node = np;
 	dev_set_name(&nvmem->dev, "%s%d",
-		     config->name ? : "nvmem", config->id);
+		     config->name ? : "nvmem",
+		     config->name ? config->id : nvmem->id);
 
 	nvmem->read_only = of_property_read_bool(np, "read-only") |
 			   config->read_only;
@@ -488,21 +495,24 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 
 	rval = device_add(&nvmem->dev);
 	if (rval)
-		goto out;
+		goto err_put_device;
 
 	if (config->compat) {
 		rval = nvmem_setup_compat(nvmem, config);
 		if (rval)
-			goto out;
+			goto err_device_del;
 	}
 
 	if (config->cells)
 		nvmem_add_cells(nvmem, config);
 
 	return nvmem;
-out:
-	ida_simple_remove(&nvmem_ida, nvmem->id);
-	kfree(nvmem);
+
+err_device_del:
+	device_del(&nvmem->dev);
+err_put_device:
+	put_device(&nvmem->dev);
+
 	return ERR_PTR(rval);
 }
 EXPORT_SYMBOL_GPL(nvmem_register);
@@ -528,6 +538,7 @@ int nvmem_unregister(struct nvmem_device *nvmem)
 
 	nvmem_device_remove_all_cells(nvmem);
 	device_del(&nvmem->dev);
+	put_device(&nvmem->dev);
 
 	return 0;
 }

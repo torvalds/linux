@@ -249,6 +249,24 @@ static const struct dma_slave_map omap24xx_sdma_map[] = {
 	{ "omap_uart.2", "rx", SDMA_FILTER_PARAM(54) },
 	{ "omap_hsmmc.0", "tx", SDMA_FILTER_PARAM(61) },
 	{ "omap_hsmmc.0", "rx", SDMA_FILTER_PARAM(62) },
+
+	/* external DMA requests when tusb6010 is used */
+	{ "musb-tusb", "dmareq0", SDMA_FILTER_PARAM(2) },
+	{ "musb-tusb", "dmareq1", SDMA_FILTER_PARAM(3) },
+	{ "musb-tusb", "dmareq2", SDMA_FILTER_PARAM(14) }, /* OMAP2420 only */
+	{ "musb-tusb", "dmareq3", SDMA_FILTER_PARAM(15) }, /* OMAP2420 only */
+	{ "musb-tusb", "dmareq4", SDMA_FILTER_PARAM(16) }, /* OMAP2420 only */
+	{ "musb-tusb", "dmareq5", SDMA_FILTER_PARAM(64) }, /* OMAP2420 only */
+};
+
+static const struct dma_slave_map omap24xx_sdma_dt_map[] = {
+	/* external DMA requests when tusb6010 is used */
+	{ "musb-hdrc.1.auto", "dmareq0", SDMA_FILTER_PARAM(2) },
+	{ "musb-hdrc.1.auto", "dmareq1", SDMA_FILTER_PARAM(3) },
+	{ "musb-hdrc.1.auto", "dmareq2", SDMA_FILTER_PARAM(14) }, /* OMAP2420 only */
+	{ "musb-hdrc.1.auto", "dmareq3", SDMA_FILTER_PARAM(15) }, /* OMAP2420 only */
+	{ "musb-hdrc.1.auto", "dmareq4", SDMA_FILTER_PARAM(16) }, /* OMAP2420 only */
+	{ "musb-hdrc.1.auto", "dmareq5", SDMA_FILTER_PARAM(64) }, /* OMAP2420 only */
 };
 
 static const struct dma_slave_map omap3xxx_sdma_map[] = {
@@ -345,6 +363,12 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 			pr_err("%s: The legacy DMA map is not provided!\n",
 			       __func__);
 			return -ENODEV;
+		}
+	} else {
+		if (soc_is_omap24xx()) {
+			/* DMA slave map for drivers not yet converted to DT */
+			p.slave_map = omap24xx_sdma_dt_map;
+			p.slavecnt = ARRAY_SIZE(omap24xx_sdma_dt_map);
 		}
 	}
 

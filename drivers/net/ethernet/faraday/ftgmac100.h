@@ -86,6 +86,20 @@
 #define FTGMAC100_INT_PHYSTS_CHG	(1 << 9)
 #define FTGMAC100_INT_NO_HPTXBUF	(1 << 10)
 
+/* Interrupts we care about in NAPI mode */
+#define FTGMAC100_INT_BAD  (FTGMAC100_INT_RPKT_LOST | \
+			    FTGMAC100_INT_XPKT_LOST | \
+			    FTGMAC100_INT_AHB_ERR   | \
+			    FTGMAC100_INT_NO_RXBUF)
+
+/* Normal RX/TX interrupts, enabled when NAPI off */
+#define FTGMAC100_INT_RXTX (FTGMAC100_INT_XPKT_ETH  | \
+			    FTGMAC100_INT_RPKT_BUF)
+
+/* All the interrupts we care about */
+#define FTGMAC100_INT_ALL (FTGMAC100_INT_RPKT_BUF  |  \
+			   FTGMAC100_INT_BAD)
+
 /*
  * Interrupt timer control register
  */
@@ -185,13 +199,20 @@
 #define FTGMAC100_PHYDATA_MIIRDATA(phydata)	(((phydata) >> 16) & 0xffff)
 
 /*
+ * Flow control register
+ */
+#define FTGMAC100_FCR_FC_EN		(1 << 0)
+#define FTGMAC100_FCR_FCTHR_EN		(1 << 2)
+#define FTGMAC100_FCR_PAUSE_TIME(x)	(((x) & 0xffff) << 16)
+
+/*
  * Transmit descriptor, aligned to 16 bytes
  */
 struct ftgmac100_txdes {
-	unsigned int	txdes0;
-	unsigned int	txdes1;
-	unsigned int	txdes2;	/* not used by HW */
-	unsigned int	txdes3;	/* TXBUF_BADR */
+	__le32	txdes0; /* Control & status bits */
+	__le32	txdes1; /* Irq, checksum and vlan control */
+	__le32	txdes2; /* Reserved */
+	__le32	txdes3; /* DMA buffer address */
 } __attribute__ ((aligned(16)));
 
 #define FTGMAC100_TXDES0_TXBUF_SIZE(x)	((x) & 0x3fff)
@@ -213,10 +234,10 @@ struct ftgmac100_txdes {
  * Receive descriptor, aligned to 16 bytes
  */
 struct ftgmac100_rxdes {
-	unsigned int	rxdes0;
-	unsigned int	rxdes1;
-	unsigned int	rxdes2;	/* not used by HW */
-	unsigned int	rxdes3;	/* RXBUF_BADR */
+	__le32	rxdes0; /* Control & status bits */
+	__le32	rxdes1;	/* Checksum and vlan status */
+	__le32	rxdes2; /* length/type on AST2500 */
+	__le32	rxdes3;	/* DMA buffer address */
 } __attribute__ ((aligned(16)));
 
 #define FTGMAC100_RXDES0_VDBC		0x3fff
@@ -233,6 +254,14 @@ struct ftgmac100_rxdes {
 #define FTGMAC100_RXDES0_LRS		(1 << 28)
 #define FTGMAC100_RXDES0_FRS		(1 << 29)
 #define FTGMAC100_RXDES0_RXPKT_RDY	(1 << 31)
+
+/* Errors we care about for dropping packets */
+#define RXDES0_ANY_ERROR		( \
+	FTGMAC100_RXDES0_RX_ERR		| \
+	FTGMAC100_RXDES0_CRC_ERR	| \
+	FTGMAC100_RXDES0_FTL		| \
+	FTGMAC100_RXDES0_RUNT		| \
+	FTGMAC100_RXDES0_RX_ODD_NB)
 
 #define FTGMAC100_RXDES1_VLANTAG_CI	0xffff
 #define FTGMAC100_RXDES1_PROT_MASK	(0x3 << 20)

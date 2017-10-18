@@ -306,7 +306,6 @@ static void __init omap4_smp_maybe_reset_cpu1(struct omap_smp_config *c)
 
 	cpu1_startup_pa = readl_relaxed(cfg.wakeupgen_base +
 					OMAP_AUX_CORE_BOOT_1);
-	cpu1_ns_pa_addr = omap4_get_cpu1_ns_pa_addr();
 
 	/* Did the configured secondary_startup() get overwritten? */
 	if (!omap4_smp_cpu1_startup_valid(cpu1_startup_pa))
@@ -316,9 +315,13 @@ static void __init omap4_smp_maybe_reset_cpu1(struct omap_smp_config *c)
 	 * If omap4 or 5 has NS_PA_ADDR configured, CPU1 may be in a
 	 * deeper idle state in WFI and will wake to an invalid address.
 	 */
-	if ((soc_is_omap44xx() || soc_is_omap54xx()) &&
-	    !omap4_smp_cpu1_startup_valid(cpu1_ns_pa_addr))
-		needs_reset = true;
+	if ((soc_is_omap44xx() || soc_is_omap54xx())) {
+		cpu1_ns_pa_addr = omap4_get_cpu1_ns_pa_addr();
+		if (!omap4_smp_cpu1_startup_valid(cpu1_ns_pa_addr))
+			needs_reset = true;
+	} else {
+		cpu1_ns_pa_addr = 0;
+	}
 
 	if (!needs_reset || !c->cpu1_rstctrl_va)
 		return;

@@ -86,14 +86,41 @@
 		#io-channel-cells = <1>;
 	};
 
-	envelope-detector {
+	env_det: envelope-detector {
 		compatible = "axentia,tse850-envelope-detector";
 		io-channels = <&dac 0>;
 		io-channel-names = "dac";
+		#io-channel-cells = <1>;
 
 		interrupt-parent = <&pioA>;
 		interrupts = <3 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "comp";
+	};
+
+	mux: mux-controller {
+		compatible = "gpio-mux";
+		#mux-control-cells = <0>;
+
+		mux-gpios = <&pioA 0 GPIO_ACTIVE_HIGH>,
+			    <&pioA 1 GPIO_ACTIVE_HIGH>,
+			    <&pioA 2 GPIO_ACTIVE_HIGH>;
+		idle-state = <0>;
+	};
+
+	envelope-detector-mux {
+		compatible = "io-channel-mux";
+		io-channels = <&env_det 0>;
+		io-channel-names = "parent";
+
+		mux-controls = <&mux>;
+
+		channels = "", "",
+			 "sync-1",
+			 "in",
+			 "out",
+			 "sync-2",
+			 "sys-reg",
+			 "ana-reg";
 	};
 
 	leds {
@@ -134,45 +161,51 @@
 	};
 };
 
-&nand0 {
-	at91bootstrap@0 {
-		label = "at91bootstrap";
-		reg = <0x0 0x40000>;
-	};
+&nand {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
 
-	barebox@40000 {
-		label = "bootloader";
-		reg = <0x40000 0x60000>;
-	};
+		at91bootstrap@0 {
+			label = "at91bootstrap";
+			reg = <0x0 0x40000>;
+		};
 
-	bareboxenv@c0000 {
-		label = "bareboxenv";
-		reg = <0xc0000 0x40000>;
-	};
+		barebox@40000 {
+			label = "bootloader";
+			reg = <0x40000 0x60000>;
+		};
 
-	bareboxenv2@100000 {
-		label = "bareboxenv2";
-		reg = <0x100000 0x40000>;
-	};
+		bareboxenv@c0000 {
+			label = "bareboxenv";
+			reg = <0xc0000 0x40000>;
+		};
 
-	oftree@180000 {
-		label = "oftree";
-		reg = <0x180000 0x20000>;
-	};
+		bareboxenv2@100000 {
+			label = "bareboxenv2";
+			reg = <0x100000 0x40000>;
+		};
 
-	kernel@200000 {
-		label = "kernel";
-		reg = <0x200000 0x500000>;
-	};
+		oftree@180000 {
+			label = "oftree";
+			reg = <0x180000 0x20000>;
+		};
 
-	rootfs@800000 {
-		label = "rootfs";
-		reg = <0x800000 0x0f800000>;
-	};
+		kernel@200000 {
+			label = "kernel";
+			reg = <0x200000 0x500000>;
+		};
 
-	ovlfs@10000000 {
-		label = "ovlfs";
-		reg = <0x10000000 0x10000000>;
+		rootfs@800000 {
+			label = "rootfs";
+			reg = <0x800000 0x0f800000>;
+		};
+
+		ovlfs@10000000 {
+			label = "ovlfs";
+			reg = <0x10000000 0x10000000>;
+		};
 	};
 };
 
@@ -212,7 +245,7 @@
 	};
 
 	eeprom@50 {
-		compatible = "nxp,24c02";
+		compatible = "nxp,24c02", "atmel,24c02";
 		reg = <0x50>;
 		pagesize = <16>;
 	};

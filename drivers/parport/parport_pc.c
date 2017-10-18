@@ -3150,13 +3150,13 @@ static char *irq[PARPORT_PC_MAX_PORTS];
 static char *dma[PARPORT_PC_MAX_PORTS];
 
 MODULE_PARM_DESC(io, "Base I/O address (SPP regs)");
-module_param_array(io, int, NULL, 0);
+module_param_hw_array(io, int, ioport, NULL, 0);
 MODULE_PARM_DESC(io_hi, "Base I/O address (ECR)");
-module_param_array(io_hi, int, NULL, 0);
+module_param_hw_array(io_hi, int, ioport, NULL, 0);
 MODULE_PARM_DESC(irq, "IRQ line");
-module_param_array(irq, charp, NULL, 0);
+module_param_hw_array(irq, charp, irq, NULL, 0);
 MODULE_PARM_DESC(dma, "DMA channel");
-module_param_array(dma, charp, NULL, 0);
+module_param_hw_array(dma, charp, dma, NULL, 0);
 #if defined(CONFIG_PARPORT_PC_SUPERIO) || \
        (defined(CONFIG_PARPORT_1284) && defined(CONFIG_PARPORT_PC_FIFO))
 MODULE_PARM_DESC(verbose_probing, "Log chit-chat during initialisation");

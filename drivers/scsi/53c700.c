@@ -296,8 +296,8 @@ NCR_700_detect(struct scsi_host_template *tpnt,
 	if(tpnt->sdev_attrs == NULL)
 		tpnt->sdev_attrs = NCR_700_dev_attrs;
 
-	memory = dma_alloc_noncoherent(hostdata->dev, TOTAL_MEM_SIZE,
-				       &pScript, GFP_KERNEL);
+	memory = dma_alloc_attrs(hostdata->dev, TOTAL_MEM_SIZE, &pScript,
+				 GFP_KERNEL, DMA_ATTR_NON_CONSISTENT);
 	if(memory == NULL) {
 		printk(KERN_ERR "53c700: Failed to allocate memory for driver, detaching\n");
 		return NULL;
@@ -410,8 +410,8 @@ NCR_700_release(struct Scsi_Host *host)
 	struct NCR_700_Host_Parameters *hostdata = 
 		(struct NCR_700_Host_Parameters *)host->hostdata[0];
 
-	dma_free_noncoherent(hostdata->dev, TOTAL_MEM_SIZE,
-			       hostdata->script, hostdata->pScript);
+	dma_free_attrs(hostdata->dev, TOTAL_MEM_SIZE, hostdata->script,
+		       hostdata->pScript, DMA_ATTR_NON_CONSISTENT);
 	return 1;
 }
 

@@ -205,6 +205,7 @@ enum cmd_frame_type {
 	CW_MODE_REQ,
 	PER_CMD_PKT,
 	ANT_SEL_FRAME = 0x20,
+	COMMON_DEV_CONFIG = 0x28,
 	RADIO_PARAMS_UPDATE = 0x29
 };
 
@@ -282,6 +283,76 @@ struct rsi_radio_caps {
 	__le16 preamble_type;
 } __packed;
 
+/* ULP GPIO flags */
+#define RSI_GPIO_MOTION_SENSOR_ULP_WAKEUP	BIT(0)
+#define RSI_GPIO_SLEEP_IND_FROM_DEVICE		BIT(1)
+#define RSI_GPIO_2_ULP				BIT(2)
+#define RSI_GPIO_PUSH_BUTTON_ULP_WAKEUP		BIT(3)
+
+/* SOC GPIO flags */
+#define RSI_GPIO_0_PSPI_CSN_0			BIT(0)
+#define RSI_GPIO_1_PSPI_CSN_1			BIT(1)
+#define RSI_GPIO_2_HOST_WAKEUP_INTR		BIT(2)
+#define RSI_GPIO_3_PSPI_DATA_0			BIT(3)
+#define RSI_GPIO_4_PSPI_DATA_1			BIT(4)
+#define RSI_GPIO_5_PSPI_DATA_2			BIT(5)
+#define RSI_GPIO_6_PSPI_DATA_3			BIT(6)
+#define RSI_GPIO_7_I2C_SCL			BIT(7)
+#define RSI_GPIO_8_I2C_SDA			BIT(8)
+#define RSI_GPIO_9_UART1_RX			BIT(9)
+#define RSI_GPIO_10_UART1_TX			BIT(10)
+#define RSI_GPIO_11_UART1_RTS_I2S_CLK		BIT(11)
+#define RSI_GPIO_12_UART1_CTS_I2S_WS		BIT(12)
+#define RSI_GPIO_13_DBG_UART_RX_I2S_DIN		BIT(13)
+#define RSI_GPIO_14_DBG_UART_RX_I2S_DOUT	BIT(14)
+#define RSI_GPIO_15_LP_WAKEUP_BOOT_BYPASS	BIT(15)
+#define RSI_GPIO_16_LED_0			BIT(16)
+#define RSI_GPIO_17_BTCOEX_WLAN_ACT_EXT_ANT_SEL	BIT(17)
+#define RSI_GPIO_18_BTCOEX_BT_PRIO_EXT_ANT_SEL	BIT(18)
+#define RSI_GPIO_19_BTCOEX_BT_ACT_EXT_ON_OFF	BIT(19)
+#define RSI_GPIO_20_RF_RESET			BIT(20)
+#define RSI_GPIO_21_SLEEP_IND_FROM_DEVICE	BIT(21)
+
+#define RSI_UNUSED_SOC_GPIO_BITMAP (RSI_GPIO_9_UART1_RX | \
+				    RSI_GPIO_10_UART1_TX | \
+				    RSI_GPIO_11_UART1_RTS_I2S_CLK | \
+				    RSI_GPIO_12_UART1_CTS_I2S_WS | \
+				    RSI_GPIO_13_DBG_UART_RX_I2S_DIN | \
+				    RSI_GPIO_14_DBG_UART_RX_I2S_DOUT | \
+				    RSI_GPIO_15_LP_WAKEUP_BOOT_BYPASS | \
+				    RSI_GPIO_17_BTCOEX_WLAN_ACT_EXT_ANT_SEL | \
+				    RSI_GPIO_18_BTCOEX_BT_PRIO_EXT_ANT_SEL | \
+				    RSI_GPIO_19_BTCOEX_BT_ACT_EXT_ON_OFF | \
+				    RSI_GPIO_21_SLEEP_IND_FROM_DEVICE)
+
+#define RSI_UNUSED_ULP_GPIO_BITMAP (RSI_GPIO_MOTION_SENSOR_ULP_WAKEUP | \
+				    RSI_GPIO_SLEEP_IND_FROM_DEVICE | \
+				    RSI_GPIO_2_ULP | \
+				    RSI_GPIO_PUSH_BUTTON_ULP_WAKEUP);
+struct rsi_config_vals {
+	__le16 len_qno;
+	u8 pkt_type;
+	u8 misc_flags;
+	__le16 reserved1[6];
+	u8 lp_ps_handshake;
+	u8 ulp_ps_handshake;
+	u8 sleep_config_params; /* 0 for no handshake,
+				 * 1 for GPIO based handshake,
+				 * 2 packet handshake
+				 */
+	u8 unused_ulp_gpio;
+	__le32 unused_soc_gpio_bitmap;
+	u8 ext_pa_or_bt_coex_en;
+	u8 opermode;
+	u8 wlan_rf_pwr_mode;
+	u8 bt_rf_pwr_mode;
+	u8 zigbee_rf_pwr_mode;
+	u8 driver_mode;
+	u8 region_code;
+	u8 antenna_sel_val;
+	u8 reserved2[16];
+} __packed;
+
 static inline u32 rsi_get_queueno(u8 *addr, u16 offset)
 {
 	return (le16_to_cpu(*(__le16 *)&addr[offset]) & 0x7000) >> 12;
@@ -305,6 +376,11 @@ static inline u8 rsi_get_rssi(u8 *addr)
 static inline u8 rsi_get_channel(u8 *addr)
 {
 	return *(char *)(addr + 15);
+}
+
+static inline void rsi_set_len_qno(__le16 *addr, u16 len, u8 qno)
+{
+	*addr = cpu_to_le16(len | ((qno & 7) << 12));
 }
 
 int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg);

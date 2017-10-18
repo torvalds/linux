@@ -402,7 +402,7 @@ static void sctp_packet_set_owner_w(struct sk_buff *skb, struct sock *sk)
 	 * therefore only reserve a single byte to keep socket around until
 	 * the packet has been transmitted.
 	 */
-	atomic_inc(&sk->sk_wmem_alloc);
+	refcount_inc(&sk->sk_wmem_alloc);
 }
 
 static int sctp_packet_pack(struct sctp_packet *packet,
@@ -463,14 +463,13 @@ merge:
 
 			padding = SCTP_PAD4(chunk->skb->len) - chunk->skb->len;
 			if (padding)
-				memset(skb_put(chunk->skb, padding), 0, padding);
+				skb_put_zero(chunk->skb, padding);
 
 			if (chunk == packet->auth)
 				auth = (struct sctp_auth_chunk *)
 							skb_tail_pointer(nskb);
 
-			memcpy(skb_put(nskb, chunk->skb->len), chunk->skb->data,
-			       chunk->skb->len);
+			skb_put_data(nskb, chunk->skb->data, chunk->skb->len);
 
 			pr_debug("*** Chunk:%p[%s] %s 0x%x, length:%d, chunk->skb->len:%d, rtt_in_progress:%d\n",
 				 chunk,
@@ -538,6 +537,7 @@ merge:
 	} else {
 chksum:
 		head->ip_summed = CHECKSUM_PARTIAL;
+		head->csum_not_inet = 1;
 		head->csum_start = skb_transport_header(head) - head->head;
 		head->csum_offset = offsetof(struct sctphdr, checksum);
 	}
@@ -585,7 +585,7 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 	sctp_packet_set_owner_w(head, sk);
 
 	/* set sctp header */
-	sh = (struct sctphdr *)skb_push(head, sizeof(struct sctphdr));
+	sh = skb_push(head, sizeof(struct sctphdr));
 	skb_reset_transport_header(head);
 	sh->source = htons(packet->source_port);
 	sh->dest = htons(packet->destination_port);
@@ -723,8 +723,8 @@ static sctp_xmit_t sctp_packet_can_append_data(struct sctp_packet *packet,
 	/* Check whether this chunk and all the rest of pending data will fit
 	 * or delay in hopes of bundling a full sized packet.
 	 */
-	if (chunk->skb->len + q->out_qlen >
-		transport->pathmtu - packet->overhead - sizeof(sctp_data_chunk_t) - 4)
+	if (chunk->skb->len + q->out_qlen > transport->pathmtu -
+		packet->overhead - sizeof(struct sctp_data_chunk) - 4)
 		/* Enough data queued to fill a packet */
 		return SCTP_XMIT_OK;
 

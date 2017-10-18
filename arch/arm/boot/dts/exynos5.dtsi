@@ -55,38 +55,38 @@
 			interrupt-controller;
 			samsung,combiner-nr = <32>;
 			reg = <0x10440000 0x1000>;
-			interrupts = <0 0 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 1 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 2 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 3 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 4 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 5 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 6 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 7 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 8 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 9 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 10 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 11 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 12 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 13 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 14 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 15 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 16 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 17 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 18 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 19 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 20 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 21 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 22 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 23 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 24 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 25 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 26 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 27 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 28 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 29 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 30 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 31 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		gic: interrupt-controller@10481000 {
@@ -109,31 +109,31 @@
 		serial_0: serial@12C00000 {
 			compatible = "samsung,exynos4210-uart";
 			reg = <0x12C00000 0x100>;
-			interrupts = <0 51 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		serial_1: serial@12C10000 {
 			compatible = "samsung,exynos4210-uart";
 			reg = <0x12C10000 0x100>;
-			interrupts = <0 52 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		serial_2: serial@12C20000 {
 			compatible = "samsung,exynos4210-uart";
 			reg = <0x12C20000 0x100>;
-			interrupts = <0 53 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		serial_3: serial@12C30000 {
 			compatible = "samsung,exynos4210-uart";
 			reg = <0x12C30000 0x100>;
-			interrupts = <0 54 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		i2c_0: i2c@12C60000 {
 			compatible = "samsung,s3c2440-i2c";
 			reg = <0x12C60000 0x100>;
-			interrupts = <0 56 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			samsung,sysreg-phandle = <&sysreg_system_controller>;
@@ -143,7 +143,7 @@
 		i2c_1: i2c@12C70000 {
 			compatible = "samsung,s3c2440-i2c";
 			reg = <0x12C70000 0x100>;
-			interrupts = <0 57 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			samsung,sysreg-phandle = <&sysreg_system_controller>;
@@ -153,7 +153,7 @@
 		i2c_2: i2c@12C80000 {
 			compatible = "samsung,s3c2440-i2c";
 			reg = <0x12C80000 0x100>;
-			interrupts = <0 58 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			samsung,sysreg-phandle = <&sysreg_system_controller>;
@@ -163,7 +163,7 @@
 		i2c_3: i2c@12C90000 {
 			compatible = "samsung,s3c2440-i2c";
 			reg = <0x12C90000 0x100>;
-			interrupts = <0 59 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			samsung,sysreg-phandle = <&sysreg_system_controller>;
@@ -180,8 +180,8 @@
 		rtc: rtc@101E0000 {
 			compatible = "samsung,s3c6410-rtc";
 			reg = <0x101E0000 0x100>;
-			interrupts = <0 43 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 44 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
 

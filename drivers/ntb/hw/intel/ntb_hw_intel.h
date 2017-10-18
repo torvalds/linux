@@ -382,9 +382,6 @@ struct intel_ntb_dev {
 	struct dentry			*debugfs_info;
 };
 
-#define ndev_pdev(ndev) ((ndev)->ntb.pdev)
-#define ndev_name(ndev) pci_name(ndev_pdev(ndev))
-#define ndev_dev(ndev) (&ndev_pdev(ndev)->dev)
 #define ntb_ndev(__ntb) container_of(__ntb, struct intel_ntb_dev, ntb)
 #define hb_ndev(__work) container_of(__work, struct intel_ntb_dev, \
 				     hb_timer.work)

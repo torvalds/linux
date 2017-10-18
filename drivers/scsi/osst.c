@@ -320,14 +320,14 @@ static int osst_chk_result(struct osst_tape * STp, struct osst_request * SRpnt)
 
 
 /* Wakeup from interrupt */
-static void osst_end_async(struct request *req, int update)
+static void osst_end_async(struct request *req, blk_status_t status)
 {
 	struct scsi_request *rq = scsi_req(req);
 	struct osst_request *SRpnt = req->end_io_data;
 	struct osst_tape *STp = SRpnt->stp;
 	struct rq_map_data *mdata = &SRpnt->stp->buffer->map_data;
 
-	STp->buffer->cmdstat.midlevel_result = SRpnt->result = req->errors;
+	STp->buffer->cmdstat.midlevel_result = SRpnt->result = rq->result;
 #if DEBUG
 	STp->write_pending = 0;
 #endif
@@ -373,7 +373,6 @@ static int osst_execute(struct osst_request *SRpnt, const unsigned char *cmd,
 		return DRIVER_ERROR << 24;
 
 	rq = scsi_req(req);
-	scsi_req_init(req);
 	req->rq_flags |= RQF_QUIET;
 
 	SRpnt->bio = NULL;
@@ -414,7 +413,7 @@ static int osst_execute(struct osst_request *SRpnt, const unsigned char *cmd,
 	memset(rq->cmd, 0, BLK_MAX_CDB); /* ATAPI hates garbage after CDB */
 	memcpy(rq->cmd, cmd, rq->cmd_len);
 	req->timeout = timeout;
-	req->retries = retries;
+	rq->retries = retries;
 	req->end_io_data = SRpnt;
 
 	blk_execute_rq_nowait(req->q, NULL, req, 1, osst_end_async);

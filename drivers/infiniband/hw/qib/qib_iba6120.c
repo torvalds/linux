@@ -3295,13 +3295,11 @@ static int init_6120_variables(struct qib_devdata *dd)
 	dd->rhdrhead_intr_off = 1ULL << 32;
 
 	/* setup the stats timer; the add_timer is done at end of init */
-	init_timer(&dd->stats_timer);
-	dd->stats_timer.function = qib_get_6120_faststats;
-	dd->stats_timer.data = (unsigned long) dd;
+	setup_timer(&dd->stats_timer, qib_get_6120_faststats,
+		    (unsigned long)dd);
 
-	init_timer(&dd->cspec->pma_timer);
-	dd->cspec->pma_timer.function = pma_6120_timer;
-	dd->cspec->pma_timer.data = (unsigned long) ppd;
+	setup_timer(&dd->cspec->pma_timer, pma_6120_timer,
+		    (unsigned long)ppd);
 
 	dd->ureg_align = qib_read_kreg32(dd, kr_palign);
 

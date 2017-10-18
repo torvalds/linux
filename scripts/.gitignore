@@ -9,7 +9,6 @@ unifdef
 unifdef.exe
 ihex2fw
 recordmcount
-docproc
 check-lc_ctype
 sortextable
 asn1_compiler

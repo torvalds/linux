@@ -320,9 +320,7 @@ static void mtk_cpufreq_ready(struct cpufreq_policy *policy)
 		of_property_read_u32(np, DYNAMIC_POWER, &capacitance);
 
 		info->cdev = of_cpufreq_power_cooling_register(np,
-						policy->related_cpus,
-						capacitance,
-						NULL);
+						policy, capacitance, NULL);
 
 		if (IS_ERR(info->cdev)) {
 			dev_err(info->cpu_dev,
@@ -573,13 +571,32 @@ static struct platform_driver mt8173_cpufreq_platdrv = {
 	.probe		= mt8173_cpufreq_probe,
 };
 
-static int mt8173_cpufreq_driver_init(void)
+/* List of machines supported by this driver */
+static const struct of_device_id mt8173_cpufreq_machines[] __initconst = {
+	{ .compatible = "mediatek,mt817x", },
+	{ .compatible = "mediatek,mt8173", },
+	{ .compatible = "mediatek,mt8176", },
+
+	{ }
+};
+
+static int __init mt8173_cpufreq_driver_init(void)
 {
+	struct device_node *np;
+	const struct of_device_id *match;
 	struct platform_device *pdev;
 	int err;
 
-	if (!of_machine_is_compatible("mediatek,mt8173"))
+	np = of_find_node_by_path("/");
+	if (!np)
 		return -ENODEV;
+
+	match = of_match_node(mt8173_cpufreq_machines, np);
+	of_node_put(np);
+	if (!match) {
+		pr_warn("Machine is not compatible with mt8173-cpufreq\n");
+		return -ENODEV;
+	}
 
 	err = platform_driver_register(&mt8173_cpufreq_platdrv);
 	if (err)

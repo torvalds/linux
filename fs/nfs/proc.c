@@ -485,7 +485,7 @@ nfs_proc_rmdir(struct inode *dir, const struct qstr *name)
  */
 static int
 nfs_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
-		 u64 cookie, struct page **pages, unsigned int count, int plus)
+		 u64 cookie, struct page **pages, unsigned int count, bool plus)
 {
 	struct inode		*dir = d_inode(dentry);
 	struct nfs_readdirargs	arg = {
@@ -638,7 +638,7 @@ nfs_proc_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
 	struct inode *inode = file_inode(filp);
 
-	return nlmclnt_proc(NFS_SERVER(inode)->nlm_host, cmd, fl);
+	return nlmclnt_proc(NFS_SERVER(inode)->nlm_host, cmd, fl, NULL);
 }
 
 /* Helper functions for NFS lock bounds checking */

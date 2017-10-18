@@ -2,33 +2,21 @@
 # PHY Layer Configuration
 #
 
-menuconfig PHYLIB
-	tristate "PHY Device support and infrastructure"
-	depends on NETDEVICES
+menuconfig MDIO_DEVICE
+	tristate "MDIO bus device drivers"
 	help
-	  Ethernet controllers are usually attached to PHY
-	  devices.  This option provides infrastructure for
-	  managing PHY devices.
+	   MDIO devices and driver infrastructure code.
 
-if PHYLIB
+config MDIO_BUS
+	tristate
+	default m if PHYLIB=m
+	default MDIO_DEVICE
+	help
+	  This internal symbol is used for link time dependencies and it
+	  reflects whether the mdio_bus/mdio_device code is built as a
+	  loadable module or built-in.
 
-config SWPHY
-	bool
-
-config LED_TRIGGER_PHY
-	bool "Support LED triggers for tracking link state"
-	depends on LEDS_TRIGGERS
-	---help---
-	  Adds support for a set of LED trigger events per-PHY.  Link
-	  state change will trigger the events, for consumption by an
-	  LED class driver.  There are triggers for each link speed currently
-	  supported by the phy, and are of the form:
-	       <mii bus id>:<phy>:<speed>
-
-	  Where speed is in the form:
-		<Speed in megabits>Mbps or <Speed in gigabits>Gbps
-
-comment "MDIO bus device drivers"
+if MDIO_BUS
 
 config MDIO_BCM_IPROC
 	tristate "Broadcom iProc MDIO bus controller"
@@ -40,7 +28,7 @@ config MDIO_BCM_IPROC
 
 config MDIO_BCM_UNIMAC
 	tristate "Broadcom UniMAC MDIO bus controller"
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && OF_MDIO
 	help
 	  This module provides a driver for the Broadcom UniMAC MDIO busses.
 	  This hardware can be found in the Broadcom GENET Ethernet MAC
@@ -128,7 +116,7 @@ config MDIO_MOXART
 config MDIO_OCTEON
 	tristate "Octeon and some ThunderX SOCs MDIO buses"
 	depends on 64BIT
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && OF_MDIO
 	select MDIO_CAVIUM
 	help
 	  This module provides a driver for the Octeon and ThunderX MDIO
@@ -159,6 +147,36 @@ config MDIO_XGENE
 	help
 	  This module provides a driver for the MDIO busses found in the
 	  APM X-Gene SoC's.
+
+endif
+
+menuconfig PHYLIB
+	tristate "PHY Device support and infrastructure"
+	depends on NETDEVICES
+	select MDIO_DEVICE
+	help
+	  Ethernet controllers are usually attached to PHY
+	  devices.  This option provides infrastructure for
+	  managing PHY devices.
+
+if PHYLIB
+
+config SWPHY
+	bool
+
+config LED_TRIGGER_PHY
+	bool "Support LED triggers for tracking link state"
+	depends on LEDS_TRIGGERS
+	---help---
+	  Adds support for a set of LED trigger events per-PHY.  Link
+	  state change will trigger the events, for consumption by an
+	  LED class driver.  There are triggers for each link speed currently
+	  supported by the phy, and are of the form:
+	       <mii bus id>:<phy>:<speed>
+
+	  Where speed is in the form:
+		<Speed in megabits>Mbps or <Speed in gigabits>Gbps
+
 
 comment "MII PHY device drivers"
 
@@ -224,6 +242,11 @@ config CICADA_PHY
 	---help---
 	  Currently supports the cis8204
 
+config CORTINA_PHY
+	tristate "Cortina EDC CDR 10G Ethernet PHY"
+	---help---
+	  Currently supports the CS4340 phy.
+
 config DAVICOM_PHY
 	tristate "Davicom PHYs"
 	---help---
@@ -276,6 +299,11 @@ config MARVELL_PHY
 	tristate "Marvell PHYs"
 	---help---
 	  Currently has a driver for the 88E1011S
+
+config MARVELL_10G_PHY
+	tristate "Marvell Alaska 10Gbit PHYs"
+	---help---
+	  Support for the Marvell Alaska MV88X3310 and compatible PHYs.
 
 config MESON_GXL_PHY
 	tristate "Amlogic Meson GXL Internal PHY"

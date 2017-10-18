@@ -41,6 +41,9 @@
 #include "xfs_trans.h"
 #include "xfs_pnfs.h"
 #include "xfs_acl.h"
+#include "xfs_btree.h"
+#include <linux/fsmap.h>
+#include "xfs_fsmap.h"
 
 #include <linux/capability.h>
 #include <linux/cred.h>
@@ -117,8 +120,7 @@ xfs_find_handle(
 		handle.ha_fid.fid_pad = 0;
 		handle.ha_fid.fid_gen = inode->i_generation;
 		handle.ha_fid.fid_ino = ip->i_ino;
-
-		hsize = XFS_HSIZE(handle);
+		hsize = sizeof(xfs_handle_t);
 	}
 
 	error = -EFAULT;
@@ -441,8 +443,8 @@ xfs_attrmulti_attr_get(
 	struct inode		*inode,
 	unsigned char		*name,
 	unsigned char		__user *ubuf,
-	__uint32_t		*len,
-	__uint32_t		flags)
+	uint32_t		*len,
+	uint32_t		flags)
 {
 	unsigned char		*kbuf;
 	int			error = -EFAULT;
@@ -470,8 +472,8 @@ xfs_attrmulti_attr_set(
 	struct inode		*inode,
 	unsigned char		*name,
 	const unsigned char	__user *ubuf,
-	__uint32_t		len,
-	__uint32_t		flags)
+	uint32_t		len,
+	uint32_t		flags)
 {
 	unsigned char		*kbuf;
 	int			error;
@@ -496,7 +498,7 @@ int
 xfs_attrmulti_attr_remove(
 	struct inode		*inode,
 	unsigned char		*name,
-	__uint32_t		flags)
+	uint32_t		flags)
 {
 	int			error;
 
@@ -874,7 +876,7 @@ xfs_merge_ioc_xflags(
 
 STATIC unsigned int
 xfs_di2lxflags(
-	__uint16_t	di_flags)
+	uint16_t	di_flags)
 {
 	unsigned int	flags = 0;
 
@@ -1285,7 +1287,7 @@ xfs_ioctl_setattr_check_projid(
 	struct fsxattr		*fa)
 {
 	/* Disallow 32bit project ids if projid32bit feature is not enabled. */
-	if (fa->fsx_projid > (__uint16_t)-1 &&
+	if (fa->fsx_projid > (uint16_t)-1 &&
 	    !xfs_sb_version_hasprojid32bit(&ip->i_mount->m_sb))
 		return -EINVAL;
 
@@ -1543,10 +1545,11 @@ xfs_ioc_getbmap(
 	unsigned int		cmd,
 	void			__user *arg)
 {
-	struct getbmapx		bmx;
+	struct getbmapx		bmx = { 0 };
 	int			error;
 
-	if (copy_from_user(&bmx, arg, sizeof(struct getbmapx)))
+	/* struct getbmap is a strict subset of struct getbmapx. */
+	if (copy_from_user(&bmx, arg, offsetof(struct getbmapx, bmv_iflags)))
 		return -EFAULT;
 
 	if (bmx.bmv_count < 2)
@@ -1603,6 +1606,84 @@ xfs_ioc_getbmapx(
 
 	/* copy back header */
 	if (copy_to_user(arg, &bmx, sizeof(struct getbmapx)))
+		return -EFAULT;
+
+	return 0;
+}
+
+struct getfsmap_info {
+	struct xfs_mount	*mp;
+	struct fsmap_head __user *data;
+	unsigned int		idx;
+	__u32			last_flags;
+};
+
+STATIC int
+xfs_getfsmap_format(struct xfs_fsmap *xfm, void *priv)
+{
+	struct getfsmap_info	*info = priv;
+	struct fsmap		fm;
+
+	trace_xfs_getfsmap_mapping(info->mp, xfm);
+
+	info->last_flags = xfm->fmr_flags;
+	xfs_fsmap_from_internal(&fm, xfm);
+	if (copy_to_user(&info->data->fmh_recs[info->idx++], &fm,
+			sizeof(struct fsmap)))
+		return -EFAULT;
+
+	return 0;
+}
+
+STATIC int
+xfs_ioc_getfsmap(
+	struct xfs_inode	*ip,
+	struct fsmap_head	__user *arg)
+{
+	struct getfsmap_info	info = { NULL };
+	struct xfs_fsmap_head	xhead = {0};
+	struct fsmap_head	head;
+	bool			aborted = false;
+	int			error;
+
+	if (copy_from_user(&head, arg, sizeof(struct fsmap_head)))
+		return -EFAULT;
+	if (memchr_inv(head.fmh_reserved, 0, sizeof(head.fmh_reserved)) ||
+	    memchr_inv(head.fmh_keys[0].fmr_reserved, 0,
+		       sizeof(head.fmh_keys[0].fmr_reserved)) ||
+	    memchr_inv(head.fmh_keys[1].fmr_reserved, 0,
+		       sizeof(head.fmh_keys[1].fmr_reserved)))
+		return -EINVAL;
+
+	xhead.fmh_iflags = head.fmh_iflags;
+	xhead.fmh_count = head.fmh_count;
+	xfs_fsmap_to_internal(&xhead.fmh_keys[0], &head.fmh_keys[0]);
+	xfs_fsmap_to_internal(&xhead.fmh_keys[1], &head.fmh_keys[1]);
+
+	trace_xfs_getfsmap_low_key(ip->i_mount, &xhead.fmh_keys[0]);
+	trace_xfs_getfsmap_high_key(ip->i_mount, &xhead.fmh_keys[1]);
+
+	info.mp = ip->i_mount;
+	info.data = arg;
+	error = xfs_getfsmap(ip->i_mount, &xhead, xfs_getfsmap_format, &info);
+	if (error == XFS_BTREE_QUERY_RANGE_ABORT) {
+		error = 0;
+		aborted = true;
+	} else if (error)
+		return error;
+
+	/* If we didn't abort, set the "last" flag in the last fmx */
+	if (!aborted && info.idx) {
+		info.last_flags |= FMR_OF_LAST;
+		if (copy_to_user(&info.data->fmh_recs[info.idx - 1].fmr_flags,
+				&info.last_flags, sizeof(info.last_flags)))
+			return -EFAULT;
+	}
+
+	/* copy back header */
+	head.fmh_entries = xhead.fmh_entries;
+	head.fmh_oflags = xhead.fmh_oflags;
+	if (copy_to_user(arg, &head, sizeof(struct fsmap_head)))
 		return -EFAULT;
 
 	return 0;
@@ -1788,6 +1869,9 @@ xfs_file_ioctl(
 	case XFS_IOC_GETBMAPX:
 		return xfs_ioc_getbmapx(ip, arg);
 
+	case FS_IOC_GETFSMAP:
+		return xfs_ioc_getfsmap(ip, arg);
+
 	case XFS_IOC_FD_TO_HANDLE:
 	case XFS_IOC_PATH_TO_HANDLE:
 	case XFS_IOC_PATH_TO_FSHANDLE: {
@@ -1847,7 +1931,7 @@ xfs_file_ioctl(
 
 	case XFS_IOC_SET_RESBLKS: {
 		xfs_fsop_resblks_t inout;
-		__uint64_t	   in;
+		uint64_t	   in;
 
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
@@ -1933,12 +2017,12 @@ xfs_file_ioctl(
 	}
 
 	case XFS_IOC_GOINGDOWN: {
-		__uint32_t in;
+		uint32_t in;
 
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
-		if (get_user(in, (__uint32_t __user *)arg))
+		if (get_user(in, (uint32_t __user *)arg))
 			return -EFAULT;
 
 		return xfs_fs_goingdown(mp, in);
@@ -1953,14 +2037,14 @@ xfs_file_ioctl(
 		if (copy_from_user(&in, arg, sizeof(in)))
 			return -EFAULT;
 
-		return xfs_errortag_add(in.errtag, mp);
+		return xfs_errortag_add(mp, in.errtag);
 	}
 
 	case XFS_IOC_ERROR_CLEARALL:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
-		return xfs_errortag_clearall(mp, 1);
+		return xfs_errortag_clearall(mp);
 
 	case XFS_IOC_FREE_EOFBLOCKS: {
 		struct xfs_fs_eofblocks eofb;

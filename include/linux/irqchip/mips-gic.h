@@ -258,7 +258,6 @@ extern unsigned int gic_present;
 extern void gic_init(unsigned long gic_base_addr,
 	unsigned long gic_addrspace_size, unsigned int cpu_vec,
 	unsigned int irqbase);
-extern void gic_clocksource_init(unsigned int);
 extern u64 gic_read_count(void);
 extern unsigned int gic_get_count_width(void);
 extern u64 gic_read_compare(void);

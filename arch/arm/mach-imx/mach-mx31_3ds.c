@@ -375,6 +375,8 @@ static struct imx_ssi_platform_data mx31_3ds_ssi_pdata = {
 
 /* SPI */
 static int spi0_internal_chipselect[] = {
+	MXC_SPI_CS(0),
+	MXC_SPI_CS(1),
 	MXC_SPI_CS(2),
 };
 
@@ -385,6 +387,7 @@ static const struct spi_imx_master spi0_pdata __initconst = {
 
 static int spi1_internal_chipselect[] = {
 	MXC_SPI_CS(0),
+	MXC_SPI_CS(1),
 	MXC_SPI_CS(2),
 };
 
@@ -398,7 +401,7 @@ static struct spi_board_info mx31_3ds_spi_devs[] __initdata = {
 		.modalias	= "mc13783",
 		.max_speed_hz	= 1000000,
 		.bus_num	= 1,
-		.chip_select	= 1, /* SS2 */
+		.chip_select	= 2, /* SS2 */
 		.platform_data	= &mc13783_pdata,
 		/* irq number is run-time assigned */
 		.mode = SPI_CS_HIGH,
@@ -406,7 +409,7 @@ static struct spi_board_info mx31_3ds_spi_devs[] __initdata = {
 		.modalias	= "l4f00242t03",
 		.max_speed_hz	= 5000000,
 		.bus_num	= 0,
-		.chip_select	= 0, /* SS2 */
+		.chip_select	= 2, /* SS2 */
 		.platform_data	= &mx31_3ds_l4f00242t03_pdata,
 	},
 };

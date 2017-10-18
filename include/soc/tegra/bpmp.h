@@ -15,6 +15,7 @@
 #define __SOC_TEGRA_BPMP_H
 
 #include <linux/mailbox_client.h>
+#include <linux/pm_domain.h>
 #include <linux/reset-controller.h>
 #include <linux/semaphore.h>
 #include <linux/types.h>
@@ -91,6 +92,8 @@ struct tegra_bpmp {
 	unsigned int num_clocks;
 
 	struct reset_controller_dev rstc;
+
+	struct genpd_onecell_data genpd;
 };
 
 struct tegra_bpmp *tegra_bpmp_get(struct device *dev);
@@ -133,6 +136,15 @@ static inline int tegra_bpmp_init_clocks(struct tegra_bpmp *bpmp)
 int tegra_bpmp_init_resets(struct tegra_bpmp *bpmp);
 #else
 static inline int tegra_bpmp_init_resets(struct tegra_bpmp *bpmp)
+{
+	return 0;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_SOC_TEGRA_POWERGATE_BPMP)
+int tegra_bpmp_init_powergates(struct tegra_bpmp *bpmp);
+#else
+static inline int tegra_bpmp_init_powergates(struct tegra_bpmp *bpmp)
 {
 	return 0;
 }

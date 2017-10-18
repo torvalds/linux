@@ -458,5 +458,5 @@ static int __init u300_timer_init_of(struct device_node *np)
 	return 0;
 }
 
-CLOCKSOURCE_OF_DECLARE(u300_timer, "stericsson,u300-apptimer",
+TIMER_OF_DECLARE(u300_timer, "stericsson,u300-apptimer",
 		       u300_timer_init_of);

@@ -44,6 +44,7 @@
 #include <linux/workqueue.h>
 #include <linux/mempool.h>
 #include <linux/interrupt.h>
+#include <linux/idr.h>
 
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/doorbell.h>
@@ -108,6 +109,9 @@ enum {
 	MLX5_REG_QTCT		 = 0x400a,
 	MLX5_REG_DCBX_PARAM      = 0x4020,
 	MLX5_REG_DCBX_APP        = 0x4021,
+	MLX5_REG_FPGA_CAP	 = 0x4022,
+	MLX5_REG_FPGA_CTRL	 = 0x4023,
+	MLX5_REG_FPGA_ACCESS_REG = 0x4024,
 	MLX5_REG_PCAP		 = 0x5001,
 	MLX5_REG_PMTU		 = 0x5003,
 	MLX5_REG_PTYS		 = 0x5004,
@@ -129,6 +133,9 @@ enum {
 	MLX5_REG_MPCNT		 = 0x9051,
 	MLX5_REG_MTPPS		 = 0x9053,
 	MLX5_REG_MTPPSE		 = 0x9054,
+	MLX5_REG_MCQI		 = 0x9061,
+	MLX5_REG_MCC		 = 0x9062,
+	MLX5_REG_MCDA		 = 0x9063,
 	MLX5_REG_MCAM		 = 0x907f,
 };
 
@@ -540,6 +547,7 @@ struct mlx5_fc_stats {
 	struct workqueue_struct *wq;
 	struct delayed_work work;
 	unsigned long next_query;
+	unsigned long sampling_interval; /* jiffies */
 };
 
 struct mlx5_eswitch;
@@ -665,9 +673,7 @@ enum mlx5_device_state {
 };
 
 enum mlx5_interface_state {
-	MLX5_INTERFACE_STATE_DOWN = BIT(0),
-	MLX5_INTERFACE_STATE_UP = BIT(1),
-	MLX5_INTERFACE_STATE_SHUTDOWN = BIT(2),
+	MLX5_INTERFACE_STATE_UP = BIT(0),
 };
 
 enum mlx5_pci_status {
@@ -728,6 +734,15 @@ struct mlx5e_resources {
 	u32                        pdn;
 	struct mlx5_td             td;
 	struct mlx5_core_mkey      mkey;
+	struct mlx5_sq_bfreg       bfreg;
+};
+
+#define MLX5_MAX_RESERVED_GIDS 8
+
+struct mlx5_rsvd_gids {
+	unsigned int start;
+	unsigned int count;
+	struct ida ida;
 };
 
 struct mlx5_core_dev {
@@ -759,6 +774,13 @@ struct mlx5_core_dev {
 	atomic_t		num_qps;
 	u32			issi;
 	struct mlx5e_resources  mlx5e_res;
+	struct {
+		struct mlx5_rsvd_gids	reserved_gids;
+		atomic_t                roce_en;
+	} roce;
+#ifdef CONFIG_MLX5_FPGA
+	struct mlx5_fpga_device *fpga;
+#endif
 #ifdef CONFIG_RFS_ACCEL
 	struct cpu_rmap         *rmap;
 #endif
@@ -785,7 +807,12 @@ enum {
 
 typedef void (*mlx5_cmd_cbk_t)(int status, void *context);
 
+enum {
+	MLX5_CMD_ENT_STATE_PENDING_COMP,
+};
+
 struct mlx5_cmd_work_ent {
+	unsigned long		state;
 	struct mlx5_cmd_msg    *in;
 	struct mlx5_cmd_msg    *out;
 	void		       *uout;
@@ -805,6 +832,7 @@ struct mlx5_cmd_work_ent {
 	u64			ts1;
 	u64			ts2;
 	u16			op;
+	bool			polling;
 };
 
 struct mlx5_pas {
@@ -888,16 +916,6 @@ static inline u16 cmdif_rev(struct mlx5_core_dev *dev)
 	return ioread32be(&dev->iseg->cmdif_rev_fw_sub) >> 16;
 }
 
-static inline void *mlx5_vzalloc(unsigned long size)
-{
-	void *rtn;
-
-	rtn = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
-	if (!rtn)
-		rtn = vzalloc(size);
-	return rtn;
-}
-
 static inline u32 mlx5_base_mkey(const u32 key)
 {
 	return key & 0xffffff00u;
@@ -913,6 +931,8 @@ int mlx5_cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 int mlx5_cmd_exec_cb(struct mlx5_core_dev *dev, void *in, int in_size,
 		     void *out, int out_size, mlx5_cmd_cbk_t callback,
 		     void *context);
+int mlx5_cmd_exec_polling(struct mlx5_core_dev *dev, void *in, int in_size,
+			  void *out, int out_size);
 void mlx5_cmd_mbox_status(void *out, u8 *status, u32 *syndrome);
 
 int mlx5_core_get_caps(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type);
@@ -923,6 +943,8 @@ int mlx5_health_init(struct mlx5_core_dev *dev);
 void mlx5_start_health_poll(struct mlx5_core_dev *dev);
 void mlx5_stop_health_poll(struct mlx5_core_dev *dev);
 void mlx5_drain_health_wq(struct mlx5_core_dev *dev);
+void mlx5_trigger_health_work(struct mlx5_core_dev *dev);
+void mlx5_drain_health_recovery(struct mlx5_core_dev *dev);
 int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size,
 			struct mlx5_buf *buf, int node);
 int mlx5_buf_alloc(struct mlx5_core_dev *dev, int size, struct mlx5_buf *buf);
@@ -979,7 +1001,7 @@ void mlx5_cq_completion(struct mlx5_core_dev *dev, u32 cqn);
 void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type);
 void mlx5_srq_event(struct mlx5_core_dev *dev, u32 srqn, int event_type);
 struct mlx5_core_srq *mlx5_core_get_srq(struct mlx5_core_dev *dev, u32 srqn);
-void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec);
+void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec, bool forced);
 void mlx5_cq_event(struct mlx5_core_dev *dev, u32 cqn, int event_type);
 int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 		       int nent, u64 mask, const char *name,
@@ -1035,6 +1057,11 @@ bool mlx5_rl_is_in_range(struct mlx5_core_dev *dev, u32 rate);
 int mlx5_alloc_bfreg(struct mlx5_core_dev *mdev, struct mlx5_sq_bfreg *bfreg,
 		     bool map_wc, bool fast_path);
 void mlx5_free_bfreg(struct mlx5_core_dev *mdev, struct mlx5_sq_bfreg *bfreg);
+
+unsigned int mlx5_core_reserved_gids_count(struct mlx5_core_dev *dev);
+int mlx5_core_roce_gid_set(struct mlx5_core_dev *dev, unsigned int index,
+			   u8 roce_version, u8 roce_l3_type, const u8 *gid,
+			   const u8 *mac, bool vlan, u16 vlan_id);
 
 static inline int fw_initializing(struct mlx5_core_dev *dev)
 {
@@ -1099,6 +1126,25 @@ bool mlx5_lag_is_active(struct mlx5_core_dev *dev);
 struct net_device *mlx5_lag_get_roce_netdev(struct mlx5_core_dev *dev);
 struct mlx5_uars_page *mlx5_get_uars_page(struct mlx5_core_dev *mdev);
 void mlx5_put_uars_page(struct mlx5_core_dev *mdev, struct mlx5_uars_page *up);
+
+#ifndef CONFIG_MLX5_CORE_IPOIB
+static inline
+struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
+					  struct ib_device *ibdev,
+					  const char *name,
+					  void (*setup)(struct net_device *))
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline void mlx5_rdma_netdev_free(struct net_device *netdev) {}
+#else
+struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
+					  struct ib_device *ibdev,
+					  const char *name,
+					  void (*setup)(struct net_device *));
+void mlx5_rdma_netdev_free(struct net_device *netdev);
+#endif /* CONFIG_MLX5_CORE_IPOIB */
 
 struct mlx5_profile {
 	u64	mask;

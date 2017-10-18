@@ -228,7 +228,7 @@ static void ide_cd_complete_failed_rq(ide_drive_t *drive, struct request *rq)
 		scsi_req(failed)->sense_len = scsi_req(rq)->sense_len;
 		cdrom_analyze_sense_data(drive, failed);
 
-		if (ide_end_rq(drive, failed, -EIO, blk_rq_bytes(failed)))
+		if (ide_end_rq(drive, failed, BLK_STS_IOERR, blk_rq_bytes(failed)))
 			BUG();
 	} else
 		cdrom_analyze_sense_data(drive, NULL);
@@ -247,10 +247,10 @@ static int ide_cd_breathe(ide_drive_t *drive, struct request *rq)
 
 	struct cdrom_info *info = drive->driver_data;
 
-	if (!rq->errors)
+	if (!scsi_req(rq)->result)
 		info->write_timeout = jiffies +	ATAPI_WAIT_WRITE_BUSY;
 
-	rq->errors = 1;
+	scsi_req(rq)->result = 1;
 
 	if (time_after(jiffies, info->write_timeout))
 		return 0;
@@ -294,8 +294,8 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 	}
 
 	/* if we have an error, pass CHECK_CONDITION as the SCSI status byte */
-	if (blk_rq_is_scsi(rq) && !rq->errors)
-		rq->errors = SAM_STAT_CHECK_CONDITION;
+	if (blk_rq_is_scsi(rq) && !scsi_req(rq)->result)
+		scsi_req(rq)->result = SAM_STAT_CHECK_CONDITION;
 
 	if (blk_noretry_request(rq))
 		do_end_request = 1;
@@ -325,7 +325,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 		 * Arrange to retry the request but be sure to give up if we've
 		 * retried too many times.
 		 */
-		if (++rq->errors > ERROR_MAX)
+		if (++scsi_req(rq)->result > ERROR_MAX)
 			do_end_request = 1;
 		break;
 	case ILLEGAL_REQUEST:
@@ -372,7 +372,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 			/* go to the default handler for other errors */
 			ide_error(drive, "cdrom_decode_status", stat);
 			return 1;
-		} else if (++rq->errors > ERROR_MAX)
+		} else if (++scsi_req(rq)->result > ERROR_MAX)
 			/* we've racked up too many retries, abort */
 			do_end_request = 1;
 	}
@@ -438,7 +438,6 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 
 		rq = blk_get_request(drive->queue,
 			write ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN,  __GFP_RECLAIM);
-		scsi_req_init(rq);
 		memcpy(scsi_req(rq)->cmd, cmd, BLK_MAX_CDB);
 		ide_req(rq)->type = ATA_PRIV_PC;
 		rq->rq_flags |= rq_flags;
@@ -452,7 +451,8 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 			}
 		}
 
-		error = blk_execute_rq(drive->queue, info->disk, rq, 0);
+		blk_execute_rq(drive->queue, info->disk, rq, 0);
+		error = scsi_req(rq)->result ? -EIO : 0;
 
 		if (buffer)
 			*bufflen = scsi_req(rq)->resid_len;
@@ -507,7 +507,7 @@ static bool ide_cd_error_cmd(ide_drive_t *drive, struct ide_cmd *cmd)
 		nr_bytes -= cmd->last_xfer_len;
 
 	if (nr_bytes > 0) {
-		ide_complete_rq(drive, 0, nr_bytes);
+		ide_complete_rq(drive, BLK_STS_OK, nr_bytes);
 		return true;
 	}
 
@@ -673,7 +673,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 out_end:
 	if (blk_rq_is_scsi(rq) && rc == 0) {
 		scsi_req(rq)->resid_len = 0;
-		blk_end_request_all(rq, 0);
+		blk_end_request_all(rq, BLK_STS_OK);
 		hwif->rq = NULL;
 	} else {
 		if (sense && uptodate)
@@ -683,8 +683,8 @@ out_end:
 			if (cmd->nleft == 0)
 				uptodate = 1;
 		} else {
-			if (uptodate <= 0 && rq->errors == 0)
-				rq->errors = -EIO;
+			if (uptodate <= 0 && scsi_req(rq)->result == 0)
+				scsi_req(rq)->result = -EIO;
 		}
 
 		if (uptodate == 0 && rq->bio)
@@ -698,7 +698,7 @@ out_end:
 				scsi_req(rq)->resid_len += cmd->last_xfer_len;
 		}
 
-		ide_complete_rq(drive, uptodate ? 0 : -EIO, blk_rq_bytes(rq));
+		ide_complete_rq(drive, uptodate ? BLK_STS_OK : BLK_STS_IOERR, blk_rq_bytes(rq));
 
 		if (sense && rc == 2)
 			ide_error(drive, "request sense failure", stat);
@@ -843,7 +843,7 @@ out_end:
 	if (nsectors == 0)
 		nsectors = 1;
 
-	ide_complete_rq(drive, uptodate ? 0 : -EIO, nsectors << 9);
+	ide_complete_rq(drive, uptodate ? BLK_STS_OK : BLK_STS_IOERR, nsectors << 9);
 
 	return ide_stopped;
 }
@@ -1379,7 +1379,7 @@ static int ide_cdrom_prep_pc(struct request *rq)
 	 * appropriate action
 	 */
 	if (c[0] == MODE_SENSE || c[0] == MODE_SELECT) {
-		rq->errors = ILLEGAL_REQUEST;
+		scsi_req(rq)->result = ILLEGAL_REQUEST;
 		return BLKPREP_KILL;
 	}
 

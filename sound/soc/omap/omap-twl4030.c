@@ -73,7 +73,7 @@ static int omap_twl4030_hw_params(struct snd_pcm_substream *substream,
 	return snd_soc_runtime_set_dai_fmt(rtd, fmt);
 }
 
-static struct snd_soc_ops omap_twl4030_ops = {
+static const struct snd_soc_ops omap_twl4030_ops = {
 	.hw_params = omap_twl4030_hw_params,
 };
 

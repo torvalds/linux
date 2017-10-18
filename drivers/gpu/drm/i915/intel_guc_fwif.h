@@ -23,17 +23,17 @@
 #ifndef _INTEL_GUC_FWIF_H
 #define _INTEL_GUC_FWIF_H
 
-#define GFXCORE_FAMILY_GEN9		12
-#define GFXCORE_FAMILY_UNKNOWN		0x7fffffff
+#define GUC_CORE_FAMILY_GEN9		12
+#define GUC_CORE_FAMILY_UNKNOWN		0x7fffffff
 
-#define GUC_CTX_PRIORITY_KMD_HIGH	0
-#define GUC_CTX_PRIORITY_HIGH		1
-#define GUC_CTX_PRIORITY_KMD_NORMAL	2
-#define GUC_CTX_PRIORITY_NORMAL		3
-#define GUC_CTX_PRIORITY_NUM		4
+#define GUC_CLIENT_PRIORITY_KMD_HIGH	0
+#define GUC_CLIENT_PRIORITY_HIGH	1
+#define GUC_CLIENT_PRIORITY_KMD_NORMAL	2
+#define GUC_CLIENT_PRIORITY_NORMAL	3
+#define GUC_CLIENT_PRIORITY_NUM		4
 
-#define GUC_MAX_GPU_CONTEXTS		1024
-#define	GUC_INVALID_CTX_ID		GUC_MAX_GPU_CONTEXTS
+#define GUC_MAX_STAGE_DESCRIPTORS	1024
+#define	GUC_INVALID_STAGE_ID		GUC_MAX_STAGE_DESCRIPTORS
 
 #define GUC_RENDER_ENGINE		0
 #define GUC_VIDEO_ENGINE		1
@@ -68,14 +68,14 @@
 #define GUC_DOORBELL_ENABLED		1
 #define GUC_DOORBELL_DISABLED		0
 
-#define GUC_CTX_DESC_ATTR_ACTIVE	(1 << 0)
-#define GUC_CTX_DESC_ATTR_PENDING_DB	(1 << 1)
-#define GUC_CTX_DESC_ATTR_KERNEL	(1 << 2)
-#define GUC_CTX_DESC_ATTR_PREEMPT	(1 << 3)
-#define GUC_CTX_DESC_ATTR_RESET		(1 << 4)
-#define GUC_CTX_DESC_ATTR_WQLOCKED	(1 << 5)
-#define GUC_CTX_DESC_ATTR_PCH		(1 << 6)
-#define GUC_CTX_DESC_ATTR_TERMINATED	(1 << 7)
+#define GUC_STAGE_DESC_ATTR_ACTIVE	BIT(0)
+#define GUC_STAGE_DESC_ATTR_PENDING_DB	BIT(1)
+#define GUC_STAGE_DESC_ATTR_KERNEL	BIT(2)
+#define GUC_STAGE_DESC_ATTR_PREEMPT	BIT(3)
+#define GUC_STAGE_DESC_ATTR_RESET	BIT(4)
+#define GUC_STAGE_DESC_ATTR_WQLOCKED	BIT(5)
+#define GUC_STAGE_DESC_ATTR_PCH		BIT(6)
+#define GUC_STAGE_DESC_ATTR_TERMINATED	BIT(7)
 
 /* The guc control data is 10 DWORDs */
 #define GUC_CTL_CTXINFO			0
@@ -241,8 +241,8 @@ union guc_doorbell_qw {
 	u64 value_qw;
 } __packed;
 
-#define GUC_MAX_DOORBELLS		256
-#define GUC_INVALID_DOORBELL_ID		(GUC_MAX_DOORBELLS)
+#define GUC_NUM_DOORBELLS	256
+#define GUC_DOORBELL_INVALID	(GUC_NUM_DOORBELLS)
 
 #define GUC_DB_SIZE			(PAGE_SIZE)
 #define GUC_WQ_SIZE			(PAGE_SIZE * 2)
@@ -251,12 +251,12 @@ union guc_doorbell_qw {
 struct guc_wq_item {
 	u32 header;
 	u32 context_desc;
-	u32 ring_tail;
+	u32 submit_element_info;
 	u32 fence_id;
 } __packed;
 
 struct guc_process_desc {
-	u32 context_id;
+	u32 stage_id;
 	u64 db_base_addr;
 	u32 head;
 	u32 tail;
@@ -278,7 +278,7 @@ struct guc_execlist_context {
 	u32 context_desc;
 	u32 context_id;
 	u32 ring_status;
-	u32 ring_lcra;
+	u32 ring_lrca;
 	u32 ring_begin;
 	u32 ring_end;
 	u32 ring_next_free_location;
@@ -289,10 +289,18 @@ struct guc_execlist_context {
 	u16 engine_submit_queue_count;
 } __packed;
 
-/*Context descriptor for communicating between uKernel and Driver*/
-struct guc_context_desc {
+/*
+ * This structure describes a stage set arranged for a particular communication
+ * between uKernel (GuC) and Driver (KMD). Technically, this is known as a
+ * "GuC Context descriptor" in the specs, but we use the term "stage descriptor"
+ * to avoid confusion with all the other things already named "context" in the
+ * driver. A static pool of these descriptors are stored inside a GEM object
+ * (stage_desc_pool) which is held for the entire lifetime of our interaction
+ * with the GuC, being allocated before the GuC is loaded with its firmware.
+ */
+struct guc_stage_desc {
 	u32 sched_common_area;
-	u32 context_id;
+	u32 stage_id;
 	u32 pas_id;
 	u8 engines_used;
 	u64 db_trigger_cpu;
@@ -322,6 +330,47 @@ struct guc_context_desc {
 
 	u64 desc_private;
 } __packed;
+
+/*
+ * Describes single command transport buffer.
+ * Used by both guc-master and clients.
+ */
+struct guc_ct_buffer_desc {
+	u32 addr;		/* gfx address */
+	u64 host_private;	/* host private data */
+	u32 size;		/* size in bytes */
+	u32 head;		/* offset updated by GuC*/
+	u32 tail;		/* offset updated by owner */
+	u32 is_in_error;	/* error indicator */
+	u32 fence;		/* fence updated by GuC */
+	u32 status;		/* status updated by GuC */
+	u32 owner;		/* id of the channel owner */
+	u32 owner_sub_id;	/* owner-defined field for extra tracking */
+	u32 reserved[5];
+} __packed;
+
+/* Type of command transport buffer */
+#define INTEL_GUC_CT_BUFFER_TYPE_SEND	0x0u
+#define INTEL_GUC_CT_BUFFER_TYPE_RECV	0x1u
+
+/*
+ * Definition of the command transport message header (DW0)
+ *
+ * bit[4..0]	message len (in dwords)
+ * bit[7..5]	reserved
+ * bit[8]	write fence to desc
+ * bit[9]	write status to H2G buff
+ * bit[10]	send status (via G2H)
+ * bit[15..11]	reserved
+ * bit[31..16]	action code
+ */
+#define GUC_CT_MSG_LEN_SHIFT			0
+#define GUC_CT_MSG_LEN_MASK			0x1F
+#define GUC_CT_MSG_WRITE_FENCE_TO_DESC		(1 << 8)
+#define GUC_CT_MSG_WRITE_STATUS_TO_BUFF		(1 << 9)
+#define GUC_CT_MSG_SEND_STATUS			(1 << 10)
+#define GUC_CT_MSG_ACTION_SHIFT			16
+#define GUC_CT_MSG_ACTION_MASK			0xFFFF
 
 #define GUC_FORCEWAKE_RENDER	(1 << 0)
 #define GUC_FORCEWAKE_MEDIA	(1 << 1)
@@ -359,7 +408,7 @@ struct guc_policy {
 } __packed;
 
 struct guc_policies {
-	struct guc_policy policy[GUC_CTX_PRIORITY_NUM][GUC_MAX_ENGINES_NUM];
+	struct guc_policy policy[GUC_CLIENT_PRIORITY_NUM][GUC_MAX_ENGINES_NUM];
 
 	/* In micro seconds. How much time to allow before DPC processing is
 	 * called back via interrupt (to prevent DPC queue drain starving).
@@ -401,16 +450,17 @@ struct guc_mmio_regset {
 	u32 number_of_registers;
 } __packed;
 
+/* MMIO registers that are set as non privileged */
+struct mmio_white_list {
+	u32 mmio_start;
+	u32 offsets[GUC_MMIO_WHITE_LIST_MAX];
+	u32 count;
+} __packed;
+
 struct guc_mmio_reg_state {
 	struct guc_mmio_regset global_reg;
 	struct guc_mmio_regset engine_reg[GUC_MAX_ENGINES_NUM];
-
-	/* MMIO registers that are set as non privileged */
-	struct __packed {
-		u32 mmio_start;
-		u32 offsets[GUC_MMIO_WHITE_LIST_MAX];
-		u32 count;
-	} mmio_white_list[GUC_MAX_ENGINES_NUM];
+	struct mmio_white_list white_list[GUC_MAX_ENGINES_NUM];
 } __packed;
 
 /* GuC Additional Data Struct */
@@ -506,6 +556,8 @@ enum intel_guc_action {
 	INTEL_GUC_ACTION_EXIT_S_STATE = 0x502,
 	INTEL_GUC_ACTION_SLPC_REQUEST = 0x3003,
 	INTEL_GUC_ACTION_AUTHENTICATE_HUC = 0x4000,
+	INTEL_GUC_ACTION_REGISTER_COMMAND_TRANSPORT_BUFFER = 0x4505,
+	INTEL_GUC_ACTION_DEREGISTER_COMMAND_TRANSPORT_BUFFER = 0x4506,
 	INTEL_GUC_ACTION_UK_LOG_ENABLE_LOGGING = 0x0E000,
 	INTEL_GUC_ACTION_LIMIT
 };

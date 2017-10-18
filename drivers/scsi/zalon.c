@@ -167,7 +167,7 @@ static struct parisc_device_id zalon_tbl[] = {
 
 MODULE_DEVICE_TABLE(parisc, zalon_tbl);
 
-static int __exit zalon_remove(struct parisc_device *dev)
+static int zalon_remove(struct parisc_device *dev)
 {
 	struct Scsi_Host *host = dev_get_drvdata(&dev->dev);
 

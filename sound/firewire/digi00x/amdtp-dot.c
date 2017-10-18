@@ -28,6 +28,9 @@
  */
 #define MAX_MIDI_RX_BLOCKS	8
 
+/* 3 = MAX(DOT_MIDI_IN_PORTS, DOT_MIDI_OUT_PORTS) + 1. */
+#define MAX_MIDI_PORTS		3
+
 /*
  * The double-oh-three algorithm was discovered by Robin Gareus and Damien
  * Zammit in 2012, with reverse-engineering for Digi 003 Rack.
@@ -42,15 +45,9 @@ struct amdtp_dot {
 	unsigned int pcm_channels;
 	struct dot_state state;
 
-	unsigned int midi_ports;
-	/* 2 = MAX(DOT_MIDI_IN_PORTS, DOT_MIDI_OUT_PORTS) */
-	struct snd_rawmidi_substream *midi[2];
-	int midi_fifo_used[2];
+	struct snd_rawmidi_substream *midi[MAX_MIDI_PORTS];
+	int midi_fifo_used[MAX_MIDI_PORTS];
 	int midi_fifo_limit;
-
-	void (*transfer_samples)(struct amdtp_stream *s,
-				 struct snd_pcm_substream *pcm,
-				 __be32 *buffer, unsigned int frames);
 };
 
 /*
@@ -124,8 +121,8 @@ int amdtp_dot_set_parameters(struct amdtp_stream *s, unsigned int rate,
 		return -EBUSY;
 
 	/*
-	 * A first data channel is for MIDI conformant data channel, the rest is
-	 * Multi Bit Linear Audio data channel.
+	 * A first data channel is for MIDI messages, the rest is Multi Bit
+	 * Linear Audio data channel.
 	 */
 	err = amdtp_stream_set_parameters(s, rate, pcm_channels + 1);
 	if (err < 0)
@@ -134,11 +131,6 @@ int amdtp_dot_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	s->fdf = AMDTP_FDF_AM824 | s->sfc;
 
 	p->pcm_channels = pcm_channels;
-
-	if (s->direction == AMDTP_IN_STREAM)
-		p->midi_ports = DOT_MIDI_IN_PORTS;
-	else
-		p->midi_ports = DOT_MIDI_OUT_PORTS;
 
 	/*
 	 * We do not know the actual MIDI FIFO size of most devices.  Just
@@ -168,32 +160,6 @@ static void write_pcm_s32(struct amdtp_stream *s, struct snd_pcm_substream *pcm,
 	for (i = 0; i < frames; ++i) {
 		for (c = 0; c < channels; ++c) {
 			buffer[c] = cpu_to_be32((*src >> 8) | 0x40000000);
-			dot_encode_step(&p->state, &buffer[c]);
-			src++;
-		}
-		buffer += s->data_block_quadlets;
-		if (--remaining_frames == 0)
-			src = (void *)runtime->dma_area;
-	}
-}
-
-static void write_pcm_s16(struct amdtp_stream *s, struct snd_pcm_substream *pcm,
-			  __be32 *buffer, unsigned int frames)
-{
-	struct amdtp_dot *p = s->protocol;
-	struct snd_pcm_runtime *runtime = pcm->runtime;
-	unsigned int channels, remaining_frames, i, c;
-	const u16 *src;
-
-	channels = p->pcm_channels;
-	src = (void *)runtime->dma_area +
-			frames_to_bytes(runtime, s->pcm_buffer_pointer);
-	remaining_frames = runtime->buffer_size - s->pcm_buffer_pointer;
-
-	buffer++;
-	for (i = 0; i < frames; ++i) {
-		for (c = 0; c < channels; ++c) {
-			buffer[c] = cpu_to_be32((*src << 8) | 0x40000000);
 			dot_encode_step(&p->state, &buffer[c]);
 			src++;
 		}
@@ -281,13 +247,25 @@ static void write_midi_messages(struct amdtp_stream *s, __be32 *buffer,
 		b = (u8 *)&buffer[0];
 
 		len = 0;
-		if (port < p->midi_ports &&
+		if (port < MAX_MIDI_PORTS &&
 		    midi_ratelimit_per_packet(s, port) &&
 		    p->midi[port] != NULL)
 			len = snd_rawmidi_transmit(p->midi[port], b + 1, 2);
 
 		if (len > 0) {
-			b[3] = (0x10 << port) | len;
+			/*
+			 * Upper 4 bits of LSB represent port number.
+			 * - 0000b: physical MIDI port 1.
+			 * - 0010b: physical MIDI port 2.
+			 * - 1110b: console MIDI port.
+			 */
+			if (port == 2)
+				b[3] = 0xe0;
+			else if (port == 1)
+				b[3] = 0x20;
+			else
+				b[3] = 0x00;
+			b[3] |= len;
 			midi_use_bytes(s, port, len);
 		} else {
 			b[1] = 0;
@@ -309,11 +287,22 @@ static void read_midi_messages(struct amdtp_stream *s, __be32 *buffer,
 
 	for (f = 0; f < data_blocks; f++) {
 		b = (u8 *)&buffer[0];
-		port = b[3] >> 4;
-		len = b[3] & 0x0f;
 
-		if (port < p->midi_ports && p->midi[port] && len > 0)
-			snd_rawmidi_receive(p->midi[port], b + 1, len);
+		len = b[3] & 0x0f;
+		if (len > 0) {
+			/*
+			 * Upper 4 bits of LSB represent port number.
+			 * - 0000b: physical MIDI port 1. Use port 0.
+			 * - 1110b: console MIDI port. Use port 2.
+			 */
+			if (b[3] >> 4 > 0)
+				port = 2;
+			else
+				port = 0;
+
+			if (port < MAX_MIDI_PORTS && p->midi[port])
+				snd_rawmidi_receive(p->midi[port], b + 1, len);
+		}
 
 		buffer += s->data_block_quadlets;
 	}
@@ -332,39 +321,12 @@ int amdtp_dot_add_pcm_hw_constraints(struct amdtp_stream *s,
 	return amdtp_stream_add_pcm_hw_constraints(s, runtime);
 }
 
-void amdtp_dot_set_pcm_format(struct amdtp_stream *s, snd_pcm_format_t format)
-{
-	struct amdtp_dot *p = s->protocol;
-
-	if (WARN_ON(amdtp_stream_pcm_running(s)))
-		return;
-
-	switch (format) {
-	default:
-		WARN_ON(1);
-		/* fall through */
-	case SNDRV_PCM_FORMAT_S16:
-		if (s->direction == AMDTP_OUT_STREAM) {
-			p->transfer_samples = write_pcm_s16;
-			break;
-		}
-		WARN_ON(1);
-		/* fall through */
-	case SNDRV_PCM_FORMAT_S32:
-		if (s->direction == AMDTP_OUT_STREAM)
-			p->transfer_samples = write_pcm_s32;
-		else
-			p->transfer_samples = read_pcm_s32;
-		break;
-	}
-}
-
 void amdtp_dot_midi_trigger(struct amdtp_stream *s, unsigned int port,
 			  struct snd_rawmidi_substream *midi)
 {
 	struct amdtp_dot *p = s->protocol;
 
-	if (port < p->midi_ports)
+	if (port < MAX_MIDI_PORTS)
 		ACCESS_ONCE(p->midi[port]) = midi;
 }
 
@@ -373,13 +335,12 @@ static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
 					   unsigned int data_blocks,
 					   unsigned int *syt)
 {
-	struct amdtp_dot *p = (struct amdtp_dot *)s->protocol;
 	struct snd_pcm_substream *pcm;
 	unsigned int pcm_frames;
 
 	pcm = ACCESS_ONCE(s->pcm);
 	if (pcm) {
-		p->transfer_samples(s, pcm, buffer, data_blocks);
+		read_pcm_s32(s, pcm, buffer, data_blocks);
 		pcm_frames = data_blocks;
 	} else {
 		pcm_frames = 0;
@@ -395,13 +356,12 @@ static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
 					   unsigned int data_blocks,
 					   unsigned int *syt)
 {
-	struct amdtp_dot *p = (struct amdtp_dot *)s->protocol;
 	struct snd_pcm_substream *pcm;
 	unsigned int pcm_frames;
 
 	pcm = ACCESS_ONCE(s->pcm);
 	if (pcm) {
-		p->transfer_samples(s, pcm, buffer, data_blocks);
+		write_pcm_s32(s, pcm, buffer, data_blocks);
 		pcm_frames = data_blocks;
 	} else {
 		write_pcm_silence(s, buffer, data_blocks);

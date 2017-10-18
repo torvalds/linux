@@ -11,6 +11,7 @@ Required properties :
    - "rockchip,rk3188-i2c": for rk3188
    - "rockchip,rk3228-i2c": for rk3228
    - "rockchip,rk3288-i2c": for rk3288
+   - "rockchip,rk3328-i2c", "rockchip,rk3399-i2c": for rk3328
    - "rockchip,rk3399-i2c": for rk3399
  - interrupts : interrupt number
  - clocks: See ../clock/clock-bindings.txt

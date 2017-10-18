@@ -26,7 +26,9 @@
 				#size-cells = <0>;
 
 				dev@100 {
-					compatible = "test-sub-device";
+					compatible = "test-sub-device",
+						     "test-compat2",
+						     "test-compat3";
 					reg = <0x100>;
 				};
 			};

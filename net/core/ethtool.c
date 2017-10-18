@@ -90,6 +90,7 @@ static const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN]
 	[NETIF_F_GSO_UDP_TUNNEL_CSUM_BIT] = "tx-udp_tnl-csum-segmentation",
 	[NETIF_F_GSO_PARTIAL_BIT] =	 "tx-gso-partial",
 	[NETIF_F_GSO_SCTP_BIT] =	 "tx-sctp-segmentation",
+	[NETIF_F_GSO_ESP_BIT] =		 "tx-esp-segmentation",
 
 	[NETIF_F_FCOE_CRC_BIT] =         "tx-checksum-fcoe-crc",
 	[NETIF_F_SCTP_CRC_BIT] =        "tx-checksum-sctp",
@@ -103,12 +104,15 @@ static const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN]
 	[NETIF_F_RXALL_BIT] =            "rx-all",
 	[NETIF_F_HW_L2FW_DOFFLOAD_BIT] = "l2-fwd-offload",
 	[NETIF_F_HW_TC_BIT] =		 "hw-tc-offload",
+	[NETIF_F_HW_ESP_BIT] =		 "esp-hw-offload",
+	[NETIF_F_HW_ESP_TX_CSUM_BIT] =	 "esp-tx-csum-hw-offload",
 };
 
 static const char
 rss_hash_func_strings[ETH_RSS_HASH_FUNCS_COUNT][ETH_GSTRING_LEN] = {
 	[ETH_RSS_HASH_TOP_BIT] =	"toeplitz",
 	[ETH_RSS_HASH_XOR_BIT] =	"xor",
+	[ETH_RSS_HASH_CRC32_BIT] =	"crc32",
 };
 
 static const char
@@ -2318,16 +2322,12 @@ static int ethtool_set_tunable(struct net_device *dev, void __user *useraddr)
 	ret = ethtool_tunable_valid(&tuna);
 	if (ret)
 		return ret;
-	data = kmalloc(tuna.len, GFP_USER);
-	if (!data)
-		return -ENOMEM;
 	useraddr += sizeof(tuna);
-	ret = -EFAULT;
-	if (copy_from_user(data, useraddr, tuna.len))
-		goto out;
+	data = memdup_user(useraddr, tuna.len);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 	ret = ops->set_tunable(dev, &tuna, data);
 
-out:
 	kfree(data);
 	return ret;
 }
@@ -2503,18 +2503,14 @@ static int set_phy_tunable(struct net_device *dev, void __user *useraddr)
 	ret = ethtool_phy_tunable_valid(&tuna);
 	if (ret)
 		return ret;
-	data = kmalloc(tuna.len, GFP_USER);
-	if (!data)
-		return -ENOMEM;
 	useraddr += sizeof(tuna);
-	ret = -EFAULT;
-	if (copy_from_user(data, useraddr, tuna.len))
-		goto out;
+	data = memdup_user(useraddr, tuna.len);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 	mutex_lock(&phydev->lock);
 	ret = phydev->drv->set_tunable(phydev, &tuna, data);
 	mutex_unlock(&phydev->lock);
 
-out:
 	kfree(data);
 	return ret;
 }

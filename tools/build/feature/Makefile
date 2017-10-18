@@ -48,21 +48,22 @@ FILES=                                          \
          test-get_cpuid.bin                     \
          test-sdt.bin                           \
          test-cxx.bin                           \
-         test-jvmti.bin
+         test-jvmti.bin				\
+         test-sched_getcpu.bin
 
 FILES := $(addprefix $(OUTPUT),$(FILES))
 
-CC := $(CROSS_COMPILE)gcc -MD
-CXX := $(CROSS_COMPILE)g++ -MD
-PKG_CONFIG := $(CROSS_COMPILE)pkg-config
+CC ?= $(CROSS_COMPILE)gcc
+CXX ?= $(CROSS_COMPILE)g++
+PKG_CONFIG ?= $(CROSS_COMPILE)pkg-config
 LLVM_CONFIG ?= llvm-config
 
 all: $(FILES)
 
-__BUILD = $(CC) $(CFLAGS) -Wall -Werror -o $@ $(patsubst %.bin,%.c,$(@F)) $(LDFLAGS)
+__BUILD = $(CC) $(CFLAGS) -MD -Wall -Werror -o $@ $(patsubst %.bin,%.c,$(@F)) $(LDFLAGS)
   BUILD = $(__BUILD) > $(@:.bin=.make.output) 2>&1
 
-__BUILDXX = $(CXX) $(CXXFLAGS) -Wall -Werror -o $@ $(patsubst %.bin,%.cpp,$(@F)) $(LDFLAGS)
+__BUILDXX = $(CXX) $(CXXFLAGS) -MD -Wall -Werror -o $@ $(patsubst %.bin,%.cpp,$(@F)) $(LDFLAGS)
   BUILDXX = $(__BUILDXX) > $(@:.bin=.make.output) 2>&1
 
 ###############################
@@ -89,6 +90,9 @@ $(OUTPUT)test-libelf.bin:
 	$(BUILD) -lelf
 
 $(OUTPUT)test-glibc.bin:
+	$(BUILD)
+
+$(OUTPUT)test-sched_getcpu.bin:
 	$(BUILD)
 
 DWARFLIBS := -ldw
@@ -171,7 +175,7 @@ $(OUTPUT)test-libperl.bin:
 	$(BUILD) $(FLAGS_PERL_EMBED)
 
 $(OUTPUT)test-libpython.bin:
-	$(BUILD)
+	$(BUILD) $(FLAGS_PYTHON_EMBED)
 
 $(OUTPUT)test-libpython-version.bin:
 	$(BUILD)

@@ -333,7 +333,7 @@ static int create_gpadl_header(void *kbuffer, u32 size,
 			 * Gpadl is u32 and we are using a pointer which could
 			 * be 64-bit
 			 * This is governed by the guest/host protocol and
-			 * so the hypervisor gurantees that this is ok.
+			 * so the hypervisor guarantees that this is ok.
 			 */
 			for (i = 0; i < pfncurr; i++)
 				gpadl_body->pfn[i] = slow_virt_to_phys(
@@ -380,7 +380,7 @@ nomem:
 }
 
 /*
- * vmbus_establish_gpadl - Estabish a GPADL for the specified buffer
+ * vmbus_establish_gpadl - Establish a GPADL for the specified buffer
  *
  * @channel: a channel
  * @kbuffer: from kmalloc or vmalloc
@@ -606,6 +606,8 @@ static int vmbus_close_internal(struct vmbus_channel *channel)
 		get_order(channel->ringbuffer_pagecount * PAGE_SIZE));
 
 out:
+	/* re-enable tasklet for use on re-open */
+	tasklet_enable(&channel->callback_event);
 	return ret;
 }
 
@@ -630,9 +632,13 @@ void vmbus_close(struct vmbus_channel *channel)
 	 */
 	list_for_each_safe(cur, tmp, &channel->sc_list) {
 		cur_channel = list_entry(cur, struct vmbus_channel, sc_list);
-		if (cur_channel->state != CHANNEL_OPENED_STATE)
-			continue;
 		vmbus_close_internal(cur_channel);
+		if (cur_channel->rescind) {
+			mutex_lock(&vmbus_connection.channel_mutex);
+			hv_process_channel_removal(cur_channel,
+					   cur_channel->offermsg.child_relid);
+			mutex_unlock(&vmbus_connection.channel_mutex);
+		}
 	}
 	/*
 	 * Now close the primary.
@@ -731,7 +737,7 @@ int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
 	/* Setup the descriptor */
 	desc.type = VM_PKT_DATA_USING_GPA_DIRECT;
 	desc.flags = flags;
-	desc.dataoffset8 = descsize >> 3; /* in 8-bytes grandularity */
+	desc.dataoffset8 = descsize >> 3; /* in 8-bytes granularity */
 	desc.length8 = (u16)(packetlen_aligned >> 3);
 	desc.transactionid = requestid;
 	desc.rangecount = pagecount;
@@ -792,7 +798,7 @@ int vmbus_sendpacket_mpb_desc(struct vmbus_channel *channel,
 	/* Setup the descriptor */
 	desc->type = VM_PKT_DATA_USING_GPA_DIRECT;
 	desc->flags = VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
-	desc->dataoffset8 = desc_size >> 3; /* in 8-bytes grandularity */
+	desc->dataoffset8 = desc_size >> 3; /* in 8-bytes granularity */
 	desc->length8 = (u16)(packetlen_aligned >> 3);
 	desc->transactionid = requestid;
 	desc->rangecount = 1;
@@ -842,7 +848,7 @@ int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 	/* Setup the descriptor */
 	desc.type = VM_PKT_DATA_USING_GPA_DIRECT;
 	desc.flags = VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
-	desc.dataoffset8 = descsize >> 3; /* in 8-bytes grandularity */
+	desc.dataoffset8 = descsize >> 3; /* in 8-bytes granularity */
 	desc.length8 = (u16)(packetlen_aligned >> 3);
 	desc.transactionid = requestid;
 	desc.rangecount = 1;

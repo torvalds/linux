@@ -37,7 +37,28 @@ enum {
 #define TC_ACT_QUEUED		5
 #define TC_ACT_REPEAT		6
 #define TC_ACT_REDIRECT		7
-#define TC_ACT_JUMP		0x10000000
+#define TC_ACT_TRAP		8 /* For hw path, this means "trap to cpu"
+				   * and don't further process the frame
+				   * in hardware. For sw path, this is
+				   * equivalent of TC_ACT_STOLEN - drop
+				   * the skb and act like everything
+				   * is alright.
+				   */
+
+/* There is a special kind of actions called "extended actions",
+ * which need a value parameter. These have a local opcode located in
+ * the highest nibble, starting from 1. The rest of the bits
+ * are used to carry the value. These two parts together make
+ * a combined opcode.
+ */
+#define __TC_ACT_EXT_SHIFT 28
+#define __TC_ACT_EXT(local) ((local) << __TC_ACT_EXT_SHIFT)
+#define TC_ACT_EXT_VAL_MASK ((1 << __TC_ACT_EXT_SHIFT) - 1)
+#define TC_ACT_EXT_CMP(combined, opcode) \
+	(((combined) & (~TC_ACT_EXT_VAL_MASK)) == opcode)
+
+#define TC_ACT_JUMP __TC_ACT_EXT(1)
+#define TC_ACT_GOTO_CHAIN __TC_ACT_EXT(2)
 
 /* Action type identifiers*/
 enum {
@@ -348,6 +369,7 @@ enum {
 	TCA_BPF_FLAGS,
 	TCA_BPF_FLAGS_GEN,
 	TCA_BPF_TAG,
+	TCA_BPF_ID,
 	__TCA_BPF_MAX,
 };
 
@@ -431,6 +453,19 @@ enum {
 	TCA_FLOWER_KEY_ARP_SHA_MASK,	/* ETH_ALEN */
 	TCA_FLOWER_KEY_ARP_THA,		/* ETH_ALEN */
 	TCA_FLOWER_KEY_ARP_THA_MASK,	/* ETH_ALEN */
+
+	TCA_FLOWER_KEY_MPLS_TTL,	/* u8 - 8 bits */
+	TCA_FLOWER_KEY_MPLS_BOS,	/* u8 - 1 bit */
+	TCA_FLOWER_KEY_MPLS_TC,		/* u8 - 3 bits */
+	TCA_FLOWER_KEY_MPLS_LABEL,	/* be32 - 20 bits */
+
+	TCA_FLOWER_KEY_TCP_FLAGS,	/* be16 */
+	TCA_FLOWER_KEY_TCP_FLAGS_MASK,	/* be16 */
+
+	TCA_FLOWER_KEY_IP_TOS,		/* u8 */
+	TCA_FLOWER_KEY_IP_TOS_MASK,	/* u8 */
+	TCA_FLOWER_KEY_IP_TTL,		/* u8 */
+	TCA_FLOWER_KEY_IP_TTL_MASK,	/* u8 */
 
 	__TCA_FLOWER_MAX,
 };

@@ -195,7 +195,7 @@ struct wcn36xx {
 	void __iomem		*ccu_base;
 	void __iomem		*dxe_base;
 
-	struct qcom_smd_channel *smd_channel;
+	struct rpmsg_endpoint	*smd_channel;
 
 	struct qcom_smem_state  *tx_enable_state;
 	unsigned		tx_enable_state_bit;

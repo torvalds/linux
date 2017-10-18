@@ -191,10 +191,8 @@ int rxe_mem_init_user(struct rxe_dev *rxe, struct rxe_pd *pd, u64 start,
 		goto err1;
 	}
 
-	WARN_ON_ONCE(!is_power_of_2(umem->page_size));
-
-	mem->page_shift		= ilog2(umem->page_size);
-	mem->page_mask		= umem->page_size - 1;
+	mem->page_shift		= umem->page_shift;
+	mem->page_mask		= BIT(umem->page_shift) - 1;
 
 	num_buf			= 0;
 	map			= mem->map;
@@ -210,7 +208,7 @@ int rxe_mem_init_user(struct rxe_dev *rxe, struct rxe_pd *pd, u64 start,
 			}
 
 			buf->addr = (uintptr_t)vaddr;
-			buf->size = umem->page_size;
+			buf->size = BIT(umem->page_shift);
 			num_buf++;
 			buf++;
 
@@ -370,7 +368,8 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 			((void *)(uintptr_t)iova) : addr;
 
 		if (crcp)
-			*crcp = crc32_le(*crcp, src, length);
+			*crcp = rxe_crc32(to_rdev(mem->pd->ibpd.device),
+					*crcp, src, length);
 
 		memcpy(dest, src, length);
 
@@ -403,7 +402,8 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 			bytes = length;
 
 		if (crcp)
-			crc = crc32_le(crc, src, bytes);
+			crc = rxe_crc32(to_rdev(mem->pd->ibpd.device),
+					crc, src, bytes);
 
 		memcpy(dest, src, bytes);
 

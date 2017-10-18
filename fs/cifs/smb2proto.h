@@ -135,6 +135,9 @@ extern int SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon,
 extern int SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 			   u64 persistent_file_id, u64 volatile_file_id,
 			   struct smb2_file_all_info *data);
+extern int SMB2_query_acl(const unsigned int xid, struct cifs_tcon *tcon,
+			   u64 persistent_file_id, u64 volatile_file_id,
+			   void **data, unsigned int *plen);
 extern int SMB2_get_srv_num(const unsigned int xid, struct cifs_tcon *tcon,
 			    u64 persistent_fid, u64 volatile_fid,
 			    __le64 *uniqueid);
@@ -163,6 +166,9 @@ extern int SMB2_set_eof(const unsigned int xid, struct cifs_tcon *tcon,
 extern int SMB2_set_info(const unsigned int xid, struct cifs_tcon *tcon,
 			 u64 persistent_fid, u64 volatile_fid,
 			 FILE_BASIC_INFO *buf);
+extern int SMB2_set_acl(const unsigned int xid, struct cifs_tcon *tcon,
+			u64 persistent_fid, u64 volatile_fid,
+			struct cifs_ntsd *pnntsd, int pacllen, int aclflag);
 extern int SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
 				u64 persistent_fid, u64 volatile_fid);
 extern int SMB2_oplock_break(const unsigned int xid, struct cifs_tcon *tcon,

@@ -93,6 +93,8 @@ TRACE_EVENT(kvm_arm_set_dreg32,
 	TP_printk("%s: 0x%08x", __entry->name, __entry->value)
 );
 
+TRACE_DEFINE_SIZEOF(__u64);
+
 TRACE_EVENT(kvm_arm_set_regset,
 	TP_PROTO(const char *type, int len, __u64 *control, __u64 *value),
 	TP_ARGS(type, len, control, value),

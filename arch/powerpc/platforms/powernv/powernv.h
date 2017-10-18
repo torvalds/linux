@@ -18,8 +18,6 @@ static inline void pnv_pci_shutdown(void) { }
 #endif
 
 extern u32 pnv_get_supported_cpuidle_states(void);
-extern u64 pnv_deepest_stop_psscr_val;
-extern u64 pnv_deepest_stop_psscr_mask;
 
 extern void pnv_lpc_init(void);
 

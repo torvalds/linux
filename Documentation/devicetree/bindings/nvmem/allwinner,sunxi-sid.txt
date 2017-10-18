@@ -1,7 +1,11 @@
 Allwinner sunxi-sid
 
 Required properties:
-- compatible: "allwinner,sun4i-a10-sid" or "allwinner,sun7i-a20-sid"
+- compatible: Should be one of the following:
+  "allwinner,sun4i-a10-sid"
+  "allwinner,sun7i-a20-sid"
+  "allwinner,sun8i-h3-sid"
+
 - reg: Should contain registers location and length
 
 = Data cells =

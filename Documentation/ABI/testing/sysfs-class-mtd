@@ -229,6 +229,6 @@ KernelVersion:	4.1
 Contact:	linux-mtd@lists.infradead.org
 Description:
 		For a partition, the offset of that partition from the start
-		of the master device in bytes. This attribute is absent on
-		main devices, so it can be used to distinguish between
-		partitions and devices that aren't partitions.
+		of the parent (another partition or a flash device) in bytes.
+		This attribute is absent on flash devices, so it can be used
+		to distinguish them from partitions.

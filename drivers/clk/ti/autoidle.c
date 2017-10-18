@@ -25,7 +25,7 @@
 #include "clock.h"
 
 struct clk_ti_autoidle {
-	void __iomem		*reg;
+	struct clk_omap_reg	reg;
 	u8			shift;
 	u8			flags;
 	const char		*name;
@@ -73,28 +73,28 @@ static void _allow_autoidle(struct clk_ti_autoidle *clk)
 {
 	u32 val;
 
-	val = ti_clk_ll_ops->clk_readl(clk->reg);
+	val = ti_clk_ll_ops->clk_readl(&clk->reg);
 
 	if (clk->flags & AUTOIDLE_LOW)
 		val &= ~(1 << clk->shift);
 	else
 		val |= (1 << clk->shift);
 
-	ti_clk_ll_ops->clk_writel(val, clk->reg);
+	ti_clk_ll_ops->clk_writel(val, &clk->reg);
 }
 
 static void _deny_autoidle(struct clk_ti_autoidle *clk)
 {
 	u32 val;
 
-	val = ti_clk_ll_ops->clk_readl(clk->reg);
+	val = ti_clk_ll_ops->clk_readl(&clk->reg);
 
 	if (clk->flags & AUTOIDLE_LOW)
 		val |= (1 << clk->shift);
 	else
 		val &= ~(1 << clk->shift);
 
-	ti_clk_ll_ops->clk_writel(val, clk->reg);
+	ti_clk_ll_ops->clk_writel(val, &clk->reg);
 }
 
 /**
@@ -140,6 +140,7 @@ int __init of_ti_clk_autoidle_setup(struct device_node *node)
 {
 	u32 shift;
 	struct clk_ti_autoidle *clk;
+	int ret;
 
 	/* Check if this clock has autoidle support or not */
 	if (of_property_read_u32(node, "ti,autoidle-shift", &shift))
@@ -152,11 +153,10 @@ int __init of_ti_clk_autoidle_setup(struct device_node *node)
 
 	clk->shift = shift;
 	clk->name = node->name;
-	clk->reg = ti_clk_get_reg_addr(node, 0);
-
-	if (IS_ERR(clk->reg)) {
+	ret = ti_clk_get_reg_addr(node, 0, &clk->reg);
+	if (ret) {
 		kfree(clk);
-		return -EINVAL;
+		return ret;
 	}
 
 	if (of_property_read_bool(node, "ti,invert-autoidle-bit"))

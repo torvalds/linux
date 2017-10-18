@@ -35,8 +35,19 @@
 #include <linux/srcu.h>
 #include <linux/miscdevice.h>
 #include <linux/debugfs.h>
+#include <linux/gfp.h>
+#include <linux/vmalloc.h>
+#include <linux/highmem.h>
+#include <linux/hugetlb.h>
+#include <linux/kvm_irqfd.h>
+#include <linux/irqbypass.h>
+#include <linux/module.h>
+#include <linux/compiler.h>
+#include <linux/of.h>
 
 #include <asm/reg.h>
+#include <asm/ppc-opcode.h>
+#include <asm/disassemble.h>
 #include <asm/cputable.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
@@ -58,15 +69,7 @@
 #include <asm/mmu.h>
 #include <asm/opal.h>
 #include <asm/xics.h>
-#include <linux/gfp.h>
-#include <linux/vmalloc.h>
-#include <linux/highmem.h>
-#include <linux/hugetlb.h>
-#include <linux/kvm_irqfd.h>
-#include <linux/irqbypass.h>
-#include <linux/module.h>
-#include <linux/compiler.h>
-#include <linux/of.h>
+#include <asm/xive.h>
 
 #include "book3s.h"
 
@@ -644,6 +647,7 @@ static void kvmppc_create_dtl_entry(struct kvm_vcpu *vcpu,
 	unsigned long stolen;
 	unsigned long core_stolen;
 	u64 now;
+	unsigned long flags;
 
 	dt = vcpu->arch.dtl_ptr;
 	vpa = vcpu->arch.vpa.pinned_addr;
@@ -651,10 +655,10 @@ static void kvmppc_create_dtl_entry(struct kvm_vcpu *vcpu,
 	core_stolen = vcore_stolen_time(vc, now);
 	stolen = core_stolen - vcpu->arch.stolen_logged;
 	vcpu->arch.stolen_logged = core_stolen;
-	spin_lock_irq(&vcpu->arch.tbacct_lock);
+	spin_lock_irqsave(&vcpu->arch.tbacct_lock, flags);
 	stolen += vcpu->arch.busy_stolen;
 	vcpu->arch.busy_stolen = 0;
-	spin_unlock_irq(&vcpu->arch.tbacct_lock);
+	spin_unlock_irqrestore(&vcpu->arch.tbacct_lock, flags);
 	if (!dt || !vpa)
 		return;
 	memset(dt, 0, sizeof(struct dtl_entry));
@@ -672,6 +676,26 @@ static void kvmppc_create_dtl_entry(struct kvm_vcpu *vcpu,
 	smp_wmb();
 	vpa->dtl_idx = cpu_to_be64(++vcpu->arch.dtl_index);
 	vcpu->arch.dtl.dirty = true;
+}
+
+/* See if there is a doorbell interrupt pending for a vcpu */
+static bool kvmppc_doorbell_pending(struct kvm_vcpu *vcpu)
+{
+	int thr;
+	struct kvmppc_vcore *vc;
+
+	if (vcpu->arch.doorbell_request)
+		return true;
+	/*
+	 * Ensure that the read of vcore->dpdes comes after the read
+	 * of vcpu->doorbell_request.  This barrier matches the
+	 * lwsync in book3s_hv_rmhandlers.S just before the
+	 * fast_guest_return label.
+	 */
+	smp_rmb();
+	vc = vcpu->arch.vcore;
+	thr = vcpu->vcpu_id - vc->first_vcpuid;
+	return !!(vc->dpdes & (1 << thr));
 }
 
 static bool kvmppc_power8_compatible(struct kvm_vcpu *vcpu)
@@ -837,6 +861,10 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 	case H_IPOLL:
 	case H_XIRR_X:
 		if (kvmppc_xics_enabled(vcpu)) {
+			if (xive_enabled()) {
+				ret = H_NOT_AVAILABLE;
+				return RESUME_GUEST;
+			}
 			ret = kvmppc_xics_hcall(vcpu, req);
 			break;
 		}
@@ -921,6 +949,101 @@ static int kvmppc_emulate_debug_inst(struct kvm_run *run,
 	}
 }
 
+static void do_nothing(void *x)
+{
+}
+
+static unsigned long kvmppc_read_dpdes(struct kvm_vcpu *vcpu)
+{
+	int thr, cpu, pcpu, nthreads;
+	struct kvm_vcpu *v;
+	unsigned long dpdes;
+
+	nthreads = vcpu->kvm->arch.emul_smt_mode;
+	dpdes = 0;
+	cpu = vcpu->vcpu_id & ~(nthreads - 1);
+	for (thr = 0; thr < nthreads; ++thr, ++cpu) {
+		v = kvmppc_find_vcpu(vcpu->kvm, cpu);
+		if (!v)
+			continue;
+		/*
+		 * If the vcpu is currently running on a physical cpu thread,
+		 * interrupt it in order to pull it out of the guest briefly,
+		 * which will update its vcore->dpdes value.
+		 */
+		pcpu = READ_ONCE(v->cpu);
+		if (pcpu >= 0)
+			smp_call_function_single(pcpu, do_nothing, NULL, 1);
+		if (kvmppc_doorbell_pending(v))
+			dpdes |= 1 << thr;
+	}
+	return dpdes;
+}
+
+/*
+ * On POWER9, emulate doorbell-related instructions in order to
+ * give the guest the illusion of running on a multi-threaded core.
+ * The instructions emulated are msgsndp, msgclrp, mfspr TIR,
+ * and mfspr DPDES.
+ */
+static int kvmppc_emulate_doorbell_instr(struct kvm_vcpu *vcpu)
+{
+	u32 inst, rb, thr;
+	unsigned long arg;
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_vcpu *tvcpu;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		return EMULATE_FAIL;
+	if (kvmppc_get_last_inst(vcpu, INST_GENERIC, &inst) != EMULATE_DONE)
+		return RESUME_GUEST;
+	if (get_op(inst) != 31)
+		return EMULATE_FAIL;
+	rb = get_rb(inst);
+	thr = vcpu->vcpu_id & (kvm->arch.emul_smt_mode - 1);
+	switch (get_xop(inst)) {
+	case OP_31_XOP_MSGSNDP:
+		arg = kvmppc_get_gpr(vcpu, rb);
+		if (((arg >> 27) & 0xf) != PPC_DBELL_SERVER)
+			break;
+		arg &= 0x3f;
+		if (arg >= kvm->arch.emul_smt_mode)
+			break;
+		tvcpu = kvmppc_find_vcpu(kvm, vcpu->vcpu_id - thr + arg);
+		if (!tvcpu)
+			break;
+		if (!tvcpu->arch.doorbell_request) {
+			tvcpu->arch.doorbell_request = 1;
+			kvmppc_fast_vcpu_kick_hv(tvcpu);
+		}
+		break;
+	case OP_31_XOP_MSGCLRP:
+		arg = kvmppc_get_gpr(vcpu, rb);
+		if (((arg >> 27) & 0xf) != PPC_DBELL_SERVER)
+			break;
+		vcpu->arch.vcore->dpdes = 0;
+		vcpu->arch.doorbell_request = 0;
+		break;
+	case OP_31_XOP_MFSPR:
+		switch (get_sprn(inst)) {
+		case SPRN_TIR:
+			arg = thr;
+			break;
+		case SPRN_DPDES:
+			arg = kvmppc_read_dpdes(vcpu);
+			break;
+		default:
+			return EMULATE_FAIL;
+		}
+		kvmppc_set_gpr(vcpu, get_rt(inst), arg);
+		break;
+	default:
+		return EMULATE_FAIL;
+	}
+	kvmppc_set_pc(vcpu, kvmppc_get_pc(vcpu) + 4);
+	return RESUME_GUEST;
+}
+
 static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				 struct task_struct *tsk)
 {
@@ -966,15 +1089,20 @@ static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = RESUME_GUEST;
 		break;
 	case BOOK3S_INTERRUPT_MACHINE_CHECK:
-		/*
-		 * Deliver a machine check interrupt to the guest.
-		 * We have to do this, even if the host has handled the
-		 * machine check, because machine checks use SRR0/1 and
-		 * the interrupt might have trashed guest state in them.
-		 */
-		kvmppc_book3s_queue_irqprio(vcpu,
-					    BOOK3S_INTERRUPT_MACHINE_CHECK);
-		r = RESUME_GUEST;
+		/* Exit to guest with KVM_EXIT_NMI as exit reason */
+		run->exit_reason = KVM_EXIT_NMI;
+		run->hw.hardware_exit_reason = vcpu->arch.trap;
+		/* Clear out the old NMI status from run->flags */
+		run->flags &= ~KVM_RUN_PPC_NMI_DISP_MASK;
+		/* Now set the NMI status */
+		if (vcpu->arch.mce_evt.disposition == MCE_DISPOSITION_RECOVERED)
+			run->flags |= KVM_RUN_PPC_NMI_DISP_FULLY_RECOV;
+		else
+			run->flags |= KVM_RUN_PPC_NMI_DISP_NOT_RECOV;
+
+		r = RESUME_HOST;
+		/* Print the MCE event to host console. */
+		machine_check_print_event_info(&vcpu->arch.mce_evt, false);
 		break;
 	case BOOK3S_INTERRUPT_PROGRAM:
 	{
@@ -1043,12 +1171,19 @@ static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 	/*
 	 * This occurs if the guest (kernel or userspace), does something that
-	 * is prohibited by HFSCR.  We just generate a program interrupt to
-	 * the guest.
+	 * is prohibited by HFSCR.
+	 * On POWER9, this could be a doorbell instruction that we need
+	 * to emulate.
+	 * Otherwise, we just generate a program interrupt to the guest.
 	 */
 	case BOOK3S_INTERRUPT_H_FAC_UNAVAIL:
-		kvmppc_core_queue_program(vcpu, SRR1_PROGILL);
-		r = RESUME_GUEST;
+		r = EMULATE_FAIL;
+		if ((vcpu->arch.hfscr >> 56) == FSCR_MSGP_LG)
+			r = kvmppc_emulate_doorbell_instr(vcpu);
+		if (r == EMULATE_FAIL) {
+			kvmppc_core_queue_program(vcpu, SRR1_PROGILL);
+			r = RESUME_GUEST;
+		}
 		break;
 	case BOOK3S_INTERRUPT_HV_RM_HARD:
 		r = RESUME_PASSTHROUGH;
@@ -1138,6 +1273,12 @@ static void kvmppc_set_lpcr(struct kvm_vcpu *vcpu, u64 new_lpcr,
 	mask = LPCR_DPFD | LPCR_ILE | LPCR_TC;
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
 		mask |= LPCR_AIL;
+	/*
+	 * On POWER9, allow userspace to enable large decrementer for the
+	 * guest, whether or not the host has it enabled.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		mask |= LPCR_LD;
 
 	/* Broken 32-bit version of LPCR must not clear top bits */
 	if (preserve_top32)
@@ -1481,6 +1622,14 @@ static int kvmppc_set_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 		r = set_vpa(vcpu, &vcpu->arch.dtl, addr, len);
 		break;
 	case KVM_REG_PPC_TB_OFFSET:
+		/*
+		 * POWER9 DD1 has an erratum where writing TBU40 causes
+		 * the timebase to lose ticks.  So we don't let the
+		 * timebase offset be changed on P9 DD1.  (It is
+		 * initialized to zero.)
+		 */
+		if (cpu_has_feature(CPU_FTR_POWER9_DD1))
+			break;
 		/* round up to multiple of 2^24 */
 		vcpu->arch.vcore->tb_offset =
 			ALIGN(set_reg_val(id, *val), 1UL << 24);
@@ -1598,7 +1747,7 @@ static struct kvmppc_vcore *kvmppc_vcore_create(struct kvm *kvm, int core)
 	init_swait_queue_head(&vcore->wq);
 	vcore->preempt_tb = TB_NIL;
 	vcore->lpcr = kvm->arch.lpcr;
-	vcore->first_vcpuid = core * threads_per_vcore();
+	vcore->first_vcpuid = core * kvm->arch.smt_mode;
 	vcore->kvm = kvm;
 	INIT_LIST_HEAD(&vcore->preempt_list);
 
@@ -1757,13 +1906,9 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 						   unsigned int id)
 {
 	struct kvm_vcpu *vcpu;
-	int err = -EINVAL;
+	int err;
 	int core;
 	struct kvmppc_vcore *vcore;
-
-	core = id / threads_per_vcore();
-	if (core >= KVM_MAX_VCORES)
-		goto out;
 
 	err = -ENOMEM;
 	vcpu = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL);
@@ -1795,6 +1940,20 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 	vcpu->arch.busy_preempt = TB_NIL;
 	vcpu->arch.intr_msr = MSR_SF | MSR_ME;
 
+	/*
+	 * Set the default HFSCR for the guest from the host value.
+	 * This value is only used on POWER9.
+	 * On POWER9 DD1, TM doesn't work, so we make sure to
+	 * prevent the guest from using it.
+	 * On POWER9, we want to virtualize the doorbell facility, so we
+	 * turn off the HFSCR bit, which causes those instructions to trap.
+	 */
+	vcpu->arch.hfscr = mfspr(SPRN_HFSCR);
+	if (!cpu_has_feature(CPU_FTR_TM))
+		vcpu->arch.hfscr &= ~HFSCR_TM;
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		vcpu->arch.hfscr &= ~HFSCR_MSGP;
+
 	kvmppc_mmu_book3s_hv_init(vcpu);
 
 	vcpu->arch.state = KVMPPC_VCPU_NOTREADY;
@@ -1802,11 +1961,17 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 	init_waitqueue_head(&vcpu->arch.cpu_run);
 
 	mutex_lock(&kvm->lock);
-	vcore = kvm->arch.vcores[core];
-	if (!vcore) {
-		vcore = kvmppc_vcore_create(kvm, core);
-		kvm->arch.vcores[core] = vcore;
-		kvm->arch.online_vcores++;
+	vcore = NULL;
+	err = -EINVAL;
+	core = id / kvm->arch.smt_mode;
+	if (core < KVM_MAX_VCORES) {
+		vcore = kvm->arch.vcores[core];
+		if (!vcore) {
+			err = -ENOMEM;
+			vcore = kvmppc_vcore_create(kvm, core);
+			kvm->arch.vcores[core] = vcore;
+			kvm->arch.online_vcores++;
+		}
 	}
 	mutex_unlock(&kvm->lock);
 
@@ -1832,6 +1997,43 @@ free_vcpu:
 	kmem_cache_free(kvm_vcpu_cache, vcpu);
 out:
 	return ERR_PTR(err);
+}
+
+static int kvmhv_set_smt_mode(struct kvm *kvm, unsigned long smt_mode,
+			      unsigned long flags)
+{
+	int err;
+	int esmt = 0;
+
+	if (flags)
+		return -EINVAL;
+	if (smt_mode > MAX_SMT_THREADS || !is_power_of_2(smt_mode))
+		return -EINVAL;
+	if (!cpu_has_feature(CPU_FTR_ARCH_300)) {
+		/*
+		 * On POWER8 (or POWER7), the threading mode is "strict",
+		 * so we pack smt_mode vcpus per vcore.
+		 */
+		if (smt_mode > threads_per_subcore)
+			return -EINVAL;
+	} else {
+		/*
+		 * On POWER9, the threading mode is "loose",
+		 * so each vcpu gets its own vcore.
+		 */
+		esmt = smt_mode;
+		smt_mode = 1;
+	}
+	mutex_lock(&kvm->lock);
+	err = -EBUSY;
+	if (!kvm->arch.online_vcores) {
+		kvm->arch.smt_mode = smt_mode;
+		kvm->arch.emul_smt_mode = esmt;
+		err = 0;
+	}
+	mutex_unlock(&kvm->lock);
+
+	return err;
 }
 
 static void unpin_vpa(struct kvm *kvm, struct kvmppc_vpa *vpa)
@@ -1884,7 +2086,7 @@ static void kvmppc_end_cede(struct kvm_vcpu *vcpu)
 	}
 }
 
-extern void __kvmppc_vcore_entry(void);
+extern int __kvmppc_vcore_entry(void);
 
 static void kvmppc_remove_runnable(struct kvmppc_vcore *vc,
 				   struct kvm_vcpu *vcpu)
@@ -1949,10 +2151,6 @@ static void kvmppc_release_hwthread(int cpu)
 	tpaca->kvm_hstate.kvm_split_mode = NULL;
 }
 
-static void do_nothing(void *x)
-{
-}
-
 static void radix_flush_cpu(struct kvm *kvm, int cpu, struct kvm_vcpu *vcpu)
 {
 	int i;
@@ -1970,11 +2168,35 @@ static void radix_flush_cpu(struct kvm *kvm, int cpu, struct kvm_vcpu *vcpu)
 			smp_call_function_single(cpu + i, do_nothing, NULL, 1);
 }
 
+static void kvmppc_prepare_radix_vcpu(struct kvm_vcpu *vcpu, int pcpu)
+{
+	struct kvm *kvm = vcpu->kvm;
+
+	/*
+	 * With radix, the guest can do TLB invalidations itself,
+	 * and it could choose to use the local form (tlbiel) if
+	 * it is invalidating a translation that has only ever been
+	 * used on one vcpu.  However, that doesn't mean it has
+	 * only ever been used on one physical cpu, since vcpus
+	 * can move around between pcpus.  To cope with this, when
+	 * a vcpu moves from one pcpu to another, we need to tell
+	 * any vcpus running on the same core as this vcpu previously
+	 * ran to flush the TLB.  The TLB is shared between threads,
+	 * so we use a single bit in .need_tlb_flush for all 4 threads.
+	 */
+	if (vcpu->arch.prev_cpu != pcpu) {
+		if (vcpu->arch.prev_cpu >= 0 &&
+		    cpu_first_thread_sibling(vcpu->arch.prev_cpu) !=
+		    cpu_first_thread_sibling(pcpu))
+			radix_flush_cpu(kvm, vcpu->arch.prev_cpu, vcpu);
+		vcpu->arch.prev_cpu = pcpu;
+	}
+}
+
 static void kvmppc_start_thread(struct kvm_vcpu *vcpu, struct kvmppc_vcore *vc)
 {
 	int cpu;
 	struct paca_struct *tpaca;
-	struct kvmppc_vcore *mvc = vc->master_vcore;
 	struct kvm *kvm = vc->kvm;
 
 	cpu = vc->pcpu;
@@ -1984,36 +2206,16 @@ static void kvmppc_start_thread(struct kvm_vcpu *vcpu, struct kvmppc_vcore *vc)
 			vcpu->arch.timer_running = 0;
 		}
 		cpu += vcpu->arch.ptid;
-		vcpu->cpu = mvc->pcpu;
+		vcpu->cpu = vc->pcpu;
 		vcpu->arch.thread_cpu = cpu;
-
-		/*
-		 * With radix, the guest can do TLB invalidations itself,
-		 * and it could choose to use the local form (tlbiel) if
-		 * it is invalidating a translation that has only ever been
-		 * used on one vcpu.  However, that doesn't mean it has
-		 * only ever been used on one physical cpu, since vcpus
-		 * can move around between pcpus.  To cope with this, when
-		 * a vcpu moves from one pcpu to another, we need to tell
-		 * any vcpus running on the same core as this vcpu previously
-		 * ran to flush the TLB.  The TLB is shared between threads,
-		 * so we use a single bit in .need_tlb_flush for all 4 threads.
-		 */
-		if (kvm_is_radix(kvm) && vcpu->arch.prev_cpu != cpu) {
-			if (vcpu->arch.prev_cpu >= 0 &&
-			    cpu_first_thread_sibling(vcpu->arch.prev_cpu) !=
-			    cpu_first_thread_sibling(cpu))
-				radix_flush_cpu(kvm, vcpu->arch.prev_cpu, vcpu);
-			vcpu->arch.prev_cpu = cpu;
-		}
 		cpumask_set_cpu(cpu, &kvm->arch.cpu_in_guest);
 	}
 	tpaca = &paca[cpu];
 	tpaca->kvm_hstate.kvm_vcpu = vcpu;
-	tpaca->kvm_hstate.ptid = cpu - mvc->pcpu;
+	tpaca->kvm_hstate.ptid = cpu - vc->pcpu;
 	/* Order stores to hstate.kvm_vcpu etc. before store to kvm_vcore */
 	smp_wmb();
-	tpaca->kvm_hstate.kvm_vcore = mvc;
+	tpaca->kvm_hstate.kvm_vcore = vc;
 	if (cpu != smp_processor_id())
 		kvmppc_ipi_thread(cpu);
 }
@@ -2142,8 +2344,7 @@ struct core_info {
 	int		max_subcore_threads;
 	int		total_threads;
 	int		subcore_threads[MAX_SUBCORES];
-	struct kvm	*subcore_vm[MAX_SUBCORES];
-	struct list_head vcs[MAX_SUBCORES];
+	struct kvmppc_vcore *vc[MAX_SUBCORES];
 };
 
 /*
@@ -2154,17 +2355,12 @@ static int subcore_thread_map[MAX_SUBCORES] = { 0, 4, 2, 6 };
 
 static void init_core_info(struct core_info *cip, struct kvmppc_vcore *vc)
 {
-	int sub;
-
 	memset(cip, 0, sizeof(*cip));
 	cip->n_subcores = 1;
 	cip->max_subcore_threads = vc->num_threads;
 	cip->total_threads = vc->num_threads;
 	cip->subcore_threads[0] = vc->num_threads;
-	cip->subcore_vm[0] = vc->kvm;
-	for (sub = 0; sub < MAX_SUBCORES; ++sub)
-		INIT_LIST_HEAD(&cip->vcs[sub]);
-	list_add_tail(&vc->preempt_list, &cip->vcs[0]);
+	cip->vc[0] = vc;
 }
 
 static bool subcore_config_ok(int n_subcores, int n_threads)
@@ -2184,9 +2380,8 @@ static bool subcore_config_ok(int n_subcores, int n_threads)
 	return n_subcores * roundup_pow_of_two(n_threads) <= MAX_SMT_THREADS;
 }
 
-static void init_master_vcore(struct kvmppc_vcore *vc)
+static void init_vcore_to_run(struct kvmppc_vcore *vc)
 {
-	vc->master_vcore = vc;
 	vc->entry_exit_map = 0;
 	vc->in_guest = 0;
 	vc->napping_threads = 0;
@@ -2211,9 +2406,9 @@ static bool can_dynamic_split(struct kvmppc_vcore *vc, struct core_info *cip)
 	++cip->n_subcores;
 	cip->total_threads += vc->num_threads;
 	cip->subcore_threads[sub] = vc->num_threads;
-	cip->subcore_vm[sub] = vc->kvm;
-	init_master_vcore(vc);
-	list_move_tail(&vc->preempt_list, &cip->vcs[sub]);
+	cip->vc[sub] = vc;
+	init_vcore_to_run(vc);
+	list_del_init(&vc->preempt_list);
 
 	return true;
 }
@@ -2281,6 +2476,18 @@ static void collect_piggybacks(struct core_info *cip, int target_threads)
 	spin_unlock(&lp->lock);
 }
 
+static bool recheck_signals(struct core_info *cip)
+{
+	int sub, i;
+	struct kvm_vcpu *vcpu;
+
+	for (sub = 0; sub < cip->n_subcores; ++sub)
+		for_each_runnable_thread(i, vcpu, cip->vc[sub])
+			if (signal_pending(vcpu->arch.run_task))
+				return true;
+	return false;
+}
+
 static void post_guest_process(struct kvmppc_vcore *vc, bool is_master)
 {
 	int still_running = 0, i;
@@ -2318,7 +2525,6 @@ static void post_guest_process(struct kvmppc_vcore *vc, bool is_master)
 			wake_up(&vcpu->arch.cpu_run);
 		}
 	}
-	list_del_init(&vc->preempt_list);
 	if (!is_master) {
 		if (still_running > 0) {
 			kvmppc_vcore_preempt(vc);
@@ -2380,6 +2586,21 @@ static inline int kvmppc_set_host_core(unsigned int cpu)
 	return 0;
 }
 
+static void set_irq_happened(int trap)
+{
+	switch (trap) {
+	case BOOK3S_INTERRUPT_EXTERNAL:
+		local_paca->irq_happened |= PACA_IRQ_EE;
+		break;
+	case BOOK3S_INTERRUPT_H_DOORBELL:
+		local_paca->irq_happened |= PACA_IRQ_DBELL;
+		break;
+	case BOOK3S_INTERRUPT_HMI:
+		local_paca->irq_happened |= PACA_IRQ_HMI;
+		break;
+	}
+}
+
 /*
  * Run a set of guest threads on a physical core.
  * Called with vc->lock held.
@@ -2390,7 +2611,7 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	int i;
 	int srcu_idx;
 	struct core_info core_info;
-	struct kvmppc_vcore *pvc, *vcnext;
+	struct kvmppc_vcore *pvc;
 	struct kvm_split_mode split_info, *sip;
 	int split, subcore_size, active;
 	int sub;
@@ -2399,6 +2620,7 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	int pcpu, thr;
 	int target_threads;
 	int controlled_threads;
+	int trap;
 
 	/*
 	 * Remove from the list any threads that have a signal pending
@@ -2413,7 +2635,7 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	/*
 	 * Initialize *vc.
 	 */
-	init_master_vcore(vc);
+	init_vcore_to_run(vc);
 	vc->preempt_tb = TB_NIL;
 
 	/*
@@ -2450,6 +2672,43 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	if (vc->num_threads < target_threads)
 		collect_piggybacks(&core_info, target_threads);
 
+	/*
+	 * On radix, arrange for TLB flushing if necessary.
+	 * This has to be done before disabling interrupts since
+	 * it uses smp_call_function().
+	 */
+	pcpu = smp_processor_id();
+	if (kvm_is_radix(vc->kvm)) {
+		for (sub = 0; sub < core_info.n_subcores; ++sub)
+			for_each_runnable_thread(i, vcpu, core_info.vc[sub])
+				kvmppc_prepare_radix_vcpu(vcpu, pcpu);
+	}
+
+	/*
+	 * Hard-disable interrupts, and check resched flag and signals.
+	 * If we need to reschedule or deliver a signal, clean up
+	 * and return without going into the guest(s).
+	 */
+	local_irq_disable();
+	hard_irq_disable();
+	if (lazy_irq_pending() || need_resched() ||
+	    recheck_signals(&core_info)) {
+		local_irq_enable();
+		vc->vcore_state = VCORE_INACTIVE;
+		/* Unlock all except the primary vcore */
+		for (sub = 1; sub < core_info.n_subcores; ++sub) {
+			pvc = core_info.vc[sub];
+			/* Put back on to the preempted vcores list */
+			kvmppc_vcore_preempt(pvc);
+			spin_unlock(&pvc->lock);
+		}
+		for (i = 0; i < controlled_threads; ++i)
+			kvmppc_release_hwthread(pcpu + i);
+		return;
+	}
+
+	kvmppc_clear_host_core(pcpu);
+
 	/* Decide on micro-threading (split-core) mode */
 	subcore_size = threads_per_subcore;
 	cmd_bit = stat_bit = 0;
@@ -2473,13 +2732,10 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 		split_info.ldbar = mfspr(SPRN_LDBAR);
 		split_info.subcore_size = subcore_size;
 		for (sub = 0; sub < core_info.n_subcores; ++sub)
-			split_info.master_vcs[sub] =
-				list_first_entry(&core_info.vcs[sub],
-					struct kvmppc_vcore, preempt_list);
+			split_info.vc[sub] = core_info.vc[sub];
 		/* order writes to split_info before kvm_split_mode pointer */
 		smp_wmb();
 	}
-	pcpu = smp_processor_id();
 	for (thr = 0; thr < controlled_threads; ++thr)
 		paca[pcpu + thr].kvm_hstate.kvm_split_mode = sip;
 
@@ -2499,32 +2755,29 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 		}
 	}
 
-	kvmppc_clear_host_core(pcpu);
-
 	/* Start all the threads */
 	active = 0;
 	for (sub = 0; sub < core_info.n_subcores; ++sub) {
 		thr = subcore_thread_map[sub];
 		thr0_done = false;
 		active |= 1 << thr;
-		list_for_each_entry(pvc, &core_info.vcs[sub], preempt_list) {
-			pvc->pcpu = pcpu + thr;
-			for_each_runnable_thread(i, vcpu, pvc) {
-				kvmppc_start_thread(vcpu, pvc);
-				kvmppc_create_dtl_entry(vcpu, pvc);
-				trace_kvm_guest_enter(vcpu);
-				if (!vcpu->arch.ptid)
-					thr0_done = true;
-				active |= 1 << (thr + vcpu->arch.ptid);
-			}
-			/*
-			 * We need to start the first thread of each subcore
-			 * even if it doesn't have a vcpu.
-			 */
-			if (pvc->master_vcore == pvc && !thr0_done)
-				kvmppc_start_thread(NULL, pvc);
-			thr += pvc->num_threads;
+		pvc = core_info.vc[sub];
+		pvc->pcpu = pcpu + thr;
+		for_each_runnable_thread(i, vcpu, pvc) {
+			kvmppc_start_thread(vcpu, pvc);
+			kvmppc_create_dtl_entry(vcpu, pvc);
+			trace_kvm_guest_enter(vcpu);
+			if (!vcpu->arch.ptid)
+				thr0_done = true;
+			active |= 1 << (thr + vcpu->arch.ptid);
 		}
+		/*
+		 * We need to start the first thread of each subcore
+		 * even if it doesn't have a vcpu.
+		 */
+		if (!thr0_done)
+			kvmppc_start_thread(NULL, pvc);
+		thr += pvc->num_threads;
 	}
 
 	/*
@@ -2551,16 +2804,26 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	trace_kvmppc_run_core(vc, 0);
 
 	for (sub = 0; sub < core_info.n_subcores; ++sub)
-		list_for_each_entry(pvc, &core_info.vcs[sub], preempt_list)
-			spin_unlock(&pvc->lock);
+		spin_unlock(&core_info.vc[sub]->lock);
+
+	/*
+	 * Interrupts will be enabled once we get into the guest,
+	 * so tell lockdep that we're about to enable interrupts.
+	 */
+	trace_hardirqs_on();
 
 	guest_enter();
 
 	srcu_idx = srcu_read_lock(&vc->kvm->srcu);
 
-	__kvmppc_vcore_entry();
+	trap = __kvmppc_vcore_entry();
 
 	srcu_read_unlock(&vc->kvm->srcu, srcu_idx);
+
+	guest_exit();
+
+	trace_hardirqs_off();
+	set_irq_happened(trap);
 
 	spin_lock(&vc->lock);
 	/* prevent other vcpu threads from doing kvmppc_start_thread() now */
@@ -2589,6 +2852,10 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 		split_info.do_nap = 0;
 	}
 
+	kvmppc_set_host_core(pcpu);
+
+	local_irq_enable();
+
 	/* Let secondaries go back to the offline loop */
 	for (i = 0; i < controlled_threads; ++i) {
 		kvmppc_release_hwthread(pcpu + i);
@@ -2597,18 +2864,15 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 		cpumask_clear_cpu(pcpu + i, &vc->kvm->arch.cpu_in_guest);
 	}
 
-	kvmppc_set_host_core(pcpu);
-
 	spin_unlock(&vc->lock);
 
 	/* make sure updates to secondary vcpu structs are visible now */
 	smp_mb();
-	guest_exit();
 
-	for (sub = 0; sub < core_info.n_subcores; ++sub)
-		list_for_each_entry_safe(pvc, vcnext, &core_info.vcs[sub],
-					 preempt_list)
-			post_guest_process(pvc, pvc == vc);
+	for (sub = 0; sub < core_info.n_subcores; ++sub) {
+		pvc = core_info.vc[sub];
+		post_guest_process(pvc, pvc == vc);
+	}
 
 	spin_lock(&vc->lock);
 	preempt_enable();
@@ -2653,6 +2917,30 @@ static void shrink_halt_poll_ns(struct kvmppc_vcore *vc)
 		vc->halt_poll_ns /= halt_poll_ns_shrink;
 }
 
+#ifdef CONFIG_KVM_XICS
+static inline bool xive_interrupt_pending(struct kvm_vcpu *vcpu)
+{
+	if (!xive_enabled())
+		return false;
+	return vcpu->arch.xive_saved_state.pipr <
+		vcpu->arch.xive_saved_state.cppr;
+}
+#else
+static inline bool xive_interrupt_pending(struct kvm_vcpu *vcpu)
+{
+	return false;
+}
+#endif /* CONFIG_KVM_XICS */
+
+static bool kvmppc_vcpu_woken(struct kvm_vcpu *vcpu)
+{
+	if (vcpu->arch.pending_exceptions || vcpu->arch.prodded ||
+	    kvmppc_doorbell_pending(vcpu) || xive_interrupt_pending(vcpu))
+		return true;
+
+	return false;
+}
+
 /*
  * Check to see if any of the runnable vcpus on the vcore have pending
  * exceptions or are no longer ceded
@@ -2663,8 +2951,7 @@ static int kvmppc_vcore_check_block(struct kvmppc_vcore *vc)
 	int i;
 
 	for_each_runnable_thread(i, vcpu, vc) {
-		if (vcpu->arch.pending_exceptions || !vcpu->arch.ceded ||
-		    vcpu->arch.prodded)
+		if (!vcpu->arch.ceded || kvmppc_vcpu_woken(vcpu))
 			return 1;
 	}
 
@@ -2806,15 +3093,14 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	 */
 	if (!signal_pending(current)) {
 		if (vc->vcore_state == VCORE_PIGGYBACK) {
-			struct kvmppc_vcore *mvc = vc->master_vcore;
-			if (spin_trylock(&mvc->lock)) {
-				if (mvc->vcore_state == VCORE_RUNNING &&
-				    !VCORE_IS_EXITING(mvc)) {
+			if (spin_trylock(&vc->lock)) {
+				if (vc->vcore_state == VCORE_RUNNING &&
+				    !VCORE_IS_EXITING(vc)) {
 					kvmppc_create_dtl_entry(vcpu, vc);
 					kvmppc_start_thread(vcpu, vc);
 					trace_kvm_guest_enter(vcpu);
 				}
-				spin_unlock(&mvc->lock);
+				spin_unlock(&vc->lock);
 			}
 		} else if (vc->vcore_state == VCORE_RUNNING &&
 			   !VCORE_IS_EXITING(vc)) {
@@ -2850,7 +3136,7 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 			break;
 		n_ceded = 0;
 		for_each_runnable_thread(i, v, vc) {
-			if (!v->arch.pending_exceptions && !v->arch.prodded)
+			if (!kvmppc_vcpu_woken(v))
 				n_ceded += v->arch.ceded;
 			else
 				v->arch.ceded = 0;
@@ -2902,11 +3188,37 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 {
 	int r;
 	int srcu_idx;
+	unsigned long ebb_regs[3] = {};	/* shut up GCC */
+	unsigned long user_tar = 0;
+	unsigned int user_vrsave;
 
 	if (!vcpu->arch.sane) {
 		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		return -EINVAL;
 	}
+
+	/*
+	 * Don't allow entry with a suspended transaction, because
+	 * the guest entry/exit code will lose it.
+	 * If the guest has TM enabled, save away their TM-related SPRs
+	 * (they will get restored by the TM unavailable interrupt).
+	 */
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	if (cpu_has_feature(CPU_FTR_TM) && current->thread.regs &&
+	    (current->thread.regs->msr & MSR_TM)) {
+		if (MSR_TM_ACTIVE(current->thread.regs->msr)) {
+			run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+			run->fail_entry.hardware_entry_failure_reason = 0;
+			return -EINVAL;
+		}
+		/* Enable TM so we can read the TM SPRs */
+		mtmsr(mfmsr() | MSR_TM);
+		current->thread.tm_tfhar = mfspr(SPRN_TFHAR);
+		current->thread.tm_tfiar = mfspr(SPRN_TFIAR);
+		current->thread.tm_texasr = mfspr(SPRN_TEXASR);
+		current->thread.regs->msr &= ~MSR_TM;
+	}
+#endif
 
 	kvmppc_core_prepare_to_enter(vcpu);
 
@@ -2929,6 +3241,15 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 	flush_all_to_thread(current);
 
+	/* Save userspace EBB and other register values */
+	if (cpu_has_feature(CPU_FTR_ARCH_207S)) {
+		ebb_regs[0] = mfspr(SPRN_EBBHR);
+		ebb_regs[1] = mfspr(SPRN_EBBRR);
+		ebb_regs[2] = mfspr(SPRN_BESCR);
+		user_tar = mfspr(SPRN_TAR);
+	}
+	user_vrsave = mfspr(SPRN_VRSAVE);
+
 	vcpu->arch.wqp = &vcpu->arch.vcore->wq;
 	vcpu->arch.pgdir = current->mm->pgd;
 	vcpu->arch.state = KVMPPC_VCPU_BUSY_IN_HOST;
@@ -2947,9 +3268,23 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			r = kvmppc_book3s_hv_page_fault(run, vcpu,
 				vcpu->arch.fault_dar, vcpu->arch.fault_dsisr);
 			srcu_read_unlock(&vcpu->kvm->srcu, srcu_idx);
-		} else if (r == RESUME_PASSTHROUGH)
-			r = kvmppc_xics_rm_complete(vcpu, 0);
+		} else if (r == RESUME_PASSTHROUGH) {
+			if (WARN_ON(xive_enabled()))
+				r = H_SUCCESS;
+			else
+				r = kvmppc_xics_rm_complete(vcpu, 0);
+		}
 	} while (is_kvmppc_resume_guest(r));
+
+	/* Restore userspace EBB and other register values */
+	if (cpu_has_feature(CPU_FTR_ARCH_207S)) {
+		mtspr(SPRN_EBBHR, ebb_regs[0]);
+		mtspr(SPRN_EBBRR, ebb_regs[1]);
+		mtspr(SPRN_BESCR, ebb_regs[2]);
+		mtspr(SPRN_TAR, user_tar);
+		mtspr(SPRN_FSCR, current->thread.fscr);
+	}
+	mtspr(SPRN_VRSAVE, user_vrsave);
 
  out:
 	vcpu->arch.state = KVMPPC_VCPU_NOTREADY;
@@ -3308,7 +3643,7 @@ void kvmppc_alloc_host_rm_ops(void)
 		return;
 	}
 
-	get_online_cpus();
+	cpus_read_lock();
 
 	for (cpu = 0; cpu < nr_cpu_ids; cpu += threads_per_core) {
 		if (!cpu_online(cpu))
@@ -3330,17 +3665,17 @@ void kvmppc_alloc_host_rm_ops(void)
 	l_ops = (unsigned long) ops;
 
 	if (cmpxchg64((unsigned long *)&kvmppc_host_rm_ops_hv, 0, l_ops)) {
-		put_online_cpus();
+		cpus_read_unlock();
 		kfree(ops->rm_core);
 		kfree(ops);
 		return;
 	}
 
-	cpuhp_setup_state_nocalls(CPUHP_KVM_PPC_BOOK3S_PREPARE,
-				  "ppc/kvm_book3s:prepare",
-				  kvmppc_set_host_core,
-				  kvmppc_clear_host_core);
-	put_online_cpus();
+	cpuhp_setup_state_nocalls_cpuslocked(CPUHP_KVM_PPC_BOOK3S_PREPARE,
+					     "ppc/kvm_book3s:prepare",
+					     kvmppc_set_host_core,
+					     kvmppc_clear_host_core);
+	cpus_read_unlock();
 }
 
 void kvmppc_free_host_rm_ops(void)
@@ -3400,10 +3735,20 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	/*
 	 * On POWER9, VPM0 bit is reserved (VPM0=1 behaviour is assumed)
 	 * Set HVICE bit to enable hypervisor virtualization interrupts.
+	 * Set HEIC to prevent OS interrupts to go to hypervisor (should
+	 * be unnecessary but better safe than sorry in case we re-enable
+	 * EE in HV mode with this LPCR still set)
 	 */
 	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
 		lpcr &= ~LPCR_VPM0;
-		lpcr |= LPCR_HVICE;
+		lpcr |= LPCR_HVICE | LPCR_HEIC;
+
+		/*
+		 * If xive is enabled, we route 0x500 interrupts directly
+		 * to the guest.
+		 */
+		if (xive_enabled())
+			lpcr |= LPCR_LPES;
 	}
 
 	/*
@@ -3447,6 +3792,19 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	 */
 	if (!cpu_has_feature(CPU_FTR_ARCH_300))
 		kvm_hv_vm_activated();
+
+	/*
+	 * Initialize smt_mode depending on processor.
+	 * POWER8 and earlier have to use "strict" threading, where
+	 * all vCPUs in a vcore have to run on the same (sub)core,
+	 * whereas on POWER9 the threads can each run a different
+	 * guest.
+	 */
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		kvm->arch.smt_mode = threads_per_subcore;
+	else
+		kvm->arch.smt_mode = 1;
+	kvm->arch.emul_smt_mode = 1;
 
 	/*
 	 * Create a debugfs directory for the VM
@@ -3533,7 +3891,7 @@ static int kvmppc_set_passthru_irq(struct kvm *kvm, int host_irq, int guest_gsi)
 	struct kvmppc_irq_map *irq_map;
 	struct kvmppc_passthru_irqmap *pimap;
 	struct irq_chip *chip;
-	int i;
+	int i, rc = 0;
 
 	if (!kvm_irq_bypass)
 		return 1;
@@ -3558,10 +3916,10 @@ static int kvmppc_set_passthru_irq(struct kvm *kvm, int host_irq, int guest_gsi)
 	/*
 	 * For now, we only support interrupts for which the EOI operation
 	 * is an OPAL call followed by a write to XIRR, since that's
-	 * what our real-mode EOI code does.
+	 * what our real-mode EOI code does, or a XIVE interrupt
 	 */
 	chip = irq_data_get_irq_chip(&desc->irq_data);
-	if (!chip || !is_pnv_opal_msi(chip)) {
+	if (!chip || !(is_pnv_opal_msi(chip) || is_xive_irq(chip))) {
 		pr_warn("kvmppc_set_passthru_irq_hv: Could not assign IRQ map for (%d,%d)\n",
 			host_irq, guest_gsi);
 		mutex_unlock(&kvm->lock);
@@ -3603,7 +3961,12 @@ static int kvmppc_set_passthru_irq(struct kvm *kvm, int host_irq, int guest_gsi)
 	if (i == pimap->n_mapped)
 		pimap->n_mapped++;
 
-	kvmppc_xics_set_mapped(kvm, guest_gsi, desc->irq_data.hwirq);
+	if (xive_enabled())
+		rc = kvmppc_xive_set_mapped(kvm, guest_gsi, desc);
+	else
+		kvmppc_xics_set_mapped(kvm, guest_gsi, desc->irq_data.hwirq);
+	if (rc)
+		irq_map->r_hwirq = 0;
 
 	mutex_unlock(&kvm->lock);
 
@@ -3614,7 +3977,7 @@ static int kvmppc_clr_passthru_irq(struct kvm *kvm, int host_irq, int guest_gsi)
 {
 	struct irq_desc *desc;
 	struct kvmppc_passthru_irqmap *pimap;
-	int i;
+	int i, rc = 0;
 
 	if (!kvm_irq_bypass)
 		return 0;
@@ -3624,11 +3987,9 @@ static int kvmppc_clr_passthru_irq(struct kvm *kvm, int host_irq, int guest_gsi)
 		return -EIO;
 
 	mutex_lock(&kvm->lock);
+	if (!kvm->arch.pimap)
+		goto unlock;
 
-	if (kvm->arch.pimap == NULL) {
-		mutex_unlock(&kvm->lock);
-		return 0;
-	}
 	pimap = kvm->arch.pimap;
 
 	for (i = 0; i < pimap->n_mapped; i++) {
@@ -3641,18 +4002,21 @@ static int kvmppc_clr_passthru_irq(struct kvm *kvm, int host_irq, int guest_gsi)
 		return -ENODEV;
 	}
 
-	kvmppc_xics_clr_mapped(kvm, guest_gsi, pimap->mapped[i].r_hwirq);
+	if (xive_enabled())
+		rc = kvmppc_xive_clr_mapped(kvm, guest_gsi, pimap->mapped[i].desc);
+	else
+		kvmppc_xics_clr_mapped(kvm, guest_gsi, pimap->mapped[i].r_hwirq);
 
-	/* invalidate the entry */
+	/* invalidate the entry (what do do on error from the above ?) */
 	pimap->mapped[i].r_hwirq = 0;
 
 	/*
 	 * We don't free this structure even when the count goes to
 	 * zero. The structure is freed when we destroy the VM.
 	 */
-
+ unlock:
 	mutex_unlock(&kvm->lock);
-	return 0;
+	return rc;
 }
 
 static int kvmppc_irq_bypass_add_producer_hv(struct irq_bypass_consumer *cons,
@@ -3871,6 +4235,7 @@ static struct kvmppc_ops kvm_ops_hv = {
 #endif
 	.configure_mmu = kvmhv_configure_mmu,
 	.get_rmmu_info = kvmhv_get_rmmu_info,
+	.set_smt_mode = kvmhv_set_smt_mode,
 };
 
 static int kvm_init_subcore_bitmap(void)
@@ -3930,7 +4295,7 @@ static int kvmppc_book3s_init_hv(void)
 	 * indirectly, via OPAL.
 	 */
 #ifdef CONFIG_SMP
-	if (!get_paca()->kvm_hstate.xics_phys) {
+	if (!xive_enabled() && !local_paca->kvm_hstate.xics_phys) {
 		struct device_node *np;
 
 		np = of_find_compatible_node(NULL, NULL, "ibm,opal-intc");

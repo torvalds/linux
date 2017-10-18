@@ -140,6 +140,7 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 		inode->i_fop = &affs_file_operations;
 		break;
 	case ST_SOFTLINK:
+		inode->i_size = strlen((char *)AFFS_HEAD(bh)->table);
 		inode->i_mode |= S_IFLNK;
 		inode_nohighmem(inode);
 		inode->i_op = &affs_symlink_inode_operations;

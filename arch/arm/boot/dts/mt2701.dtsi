@@ -16,13 +16,14 @@
 #include <dt-bindings/power/mt2701-power.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/memory/mt2701-larb-port.h>
 #include <dt-bindings/reset/mt2701-resets.h>
 #include "skeleton64.dtsi"
 #include "mt2701-pinfunc.h"
 
 / {
 	compatible = "mediatek,mt2701";
-	interrupt-parent = <&sysirq>;
+	interrupt-parent = <&cirq>;
 
 	cpus {
 		#address-cells = <1>;
@@ -210,6 +211,16 @@
 		reg = <0 0x10200100 0 0x1c>;
 	};
 
+	cirq: interrupt-controller@10204000 {
+		compatible = "mediatek,mt2701-cirq",
+			     "mediatek,mtk-cirq";
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		interrupt-parent = <&sysirq>;
+		reg = <0 0x10204000 0 0x400>;
+		mediatek,ext-irq-range = <32 200>;
+	};
+
 	iommu: mmsys_iommu@10205000 {
 		compatible = "mediatek,mt2701-m4u";
 		reg = <0 0x10205000 0 0x1000>;
@@ -286,6 +297,48 @@
 		status = "disabled";
 	};
 
+	i2c0: i2c@11007000 {
+		compatible = "mediatek,mt2701-i2c",
+			     "mediatek,mt6577-i2c";
+		reg = <0 0x11007000 0 0x70>,
+		      <0 0x11000200 0 0x80>;
+		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_LOW>;
+		clock-div = <16>;
+		clocks = <&pericfg CLK_PERI_I2C0>, <&pericfg CLK_PERI_AP_DMA>;
+		clock-names = "main", "dma";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	i2c1: i2c@11008000 {
+		compatible = "mediatek,mt2701-i2c",
+			     "mediatek,mt6577-i2c";
+		reg = <0 0x11008000 0 0x70>,
+		      <0 0x11000280 0 0x80>;
+		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_LOW>;
+		clock-div = <16>;
+		clocks = <&pericfg CLK_PERI_I2C1>, <&pericfg CLK_PERI_AP_DMA>;
+		clock-names = "main", "dma";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	i2c2: i2c@11009000 {
+		compatible = "mediatek,mt2701-i2c",
+			     "mediatek,mt6577-i2c";
+		reg = <0 0x11009000 0 0x70>,
+		      <0 0x11000300 0 0x80>;
+		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_LOW>;
+		clock-div = <16>;
+		clocks = <&pericfg CLK_PERI_I2C2>, <&pericfg CLK_PERI_AP_DMA>;
+		clock-names = "main", "dma";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
 	spi0: spi@1100a000 {
 		compatible = "mediatek,mt2701-spi";
 		#address-cells = <1>;
@@ -334,6 +387,18 @@
 		status = "disabled";
 	};
 
+	nor_flash: spi@11014000 {
+		compatible = "mediatek,mt2701-nor",
+			     "mediatek,mt8173-nor";
+		reg = <0 0x11014000 0 0xe0>;
+		clocks = <&pericfg CLK_PERI_FLASH>,
+			 <&topckgen CLK_TOP_FLASH_SEL>;
+		clock-names = "spi", "sf";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
 	spi1: spi@11016000 {
 		compatible = "mediatek,mt2701-spi";
 		#address-cells = <1>;
@@ -358,6 +423,104 @@
 			 <&pericfg CLK_PERI_SPI2>;
 		clock-names = "parent-clk", "sel-clk", "spi-clk";
 		status = "disabled";
+	};
+
+	afe: audio-controller@11220000 {
+		compatible = "mediatek,mt2701-audio";
+		reg = <0 0x11220000 0 0x2000>,
+		      <0 0x112a0000 0 0x20000>;
+		interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_LOW>;
+		power-domains = <&scpsys MT2701_POWER_DOMAIN_IFR_MSC>;
+
+		clocks = <&infracfg CLK_INFRA_AUDIO>,
+			 <&topckgen CLK_TOP_AUD_MUX1_SEL>,
+			 <&topckgen CLK_TOP_AUD_MUX2_SEL>,
+			 <&topckgen CLK_TOP_AUD_MUX1_DIV>,
+			 <&topckgen CLK_TOP_AUD_MUX2_DIV>,
+			 <&topckgen CLK_TOP_AUD_48K_TIMING>,
+			 <&topckgen CLK_TOP_AUD_44K_TIMING>,
+			 <&topckgen CLK_TOP_AUDPLL_MUX_SEL>,
+			 <&topckgen CLK_TOP_APLL_SEL>,
+			 <&topckgen CLK_TOP_AUD1PLL_98M>,
+			 <&topckgen CLK_TOP_AUD2PLL_90M>,
+			 <&topckgen CLK_TOP_HADDS2PLL_98M>,
+			 <&topckgen CLK_TOP_HADDS2PLL_294M>,
+			 <&topckgen CLK_TOP_AUDPLL>,
+			 <&topckgen CLK_TOP_AUDPLL_D4>,
+			 <&topckgen CLK_TOP_AUDPLL_D8>,
+			 <&topckgen CLK_TOP_AUDPLL_D16>,
+			 <&topckgen CLK_TOP_AUDPLL_D24>,
+			 <&topckgen CLK_TOP_AUDINTBUS_SEL>,
+			 <&clk26m>,
+			 <&topckgen CLK_TOP_SYSPLL1_D4>,
+			 <&topckgen CLK_TOP_AUD_K1_SRC_SEL>,
+			 <&topckgen CLK_TOP_AUD_K2_SRC_SEL>,
+			 <&topckgen CLK_TOP_AUD_K3_SRC_SEL>,
+			 <&topckgen CLK_TOP_AUD_K4_SRC_SEL>,
+			 <&topckgen CLK_TOP_AUD_K5_SRC_SEL>,
+			 <&topckgen CLK_TOP_AUD_K6_SRC_SEL>,
+			 <&topckgen CLK_TOP_AUD_K1_SRC_DIV>,
+			 <&topckgen CLK_TOP_AUD_K2_SRC_DIV>,
+			 <&topckgen CLK_TOP_AUD_K3_SRC_DIV>,
+			 <&topckgen CLK_TOP_AUD_K4_SRC_DIV>,
+			 <&topckgen CLK_TOP_AUD_K5_SRC_DIV>,
+			 <&topckgen CLK_TOP_AUD_K6_SRC_DIV>,
+			 <&topckgen CLK_TOP_AUD_I2S1_MCLK>,
+			 <&topckgen CLK_TOP_AUD_I2S2_MCLK>,
+			 <&topckgen CLK_TOP_AUD_I2S3_MCLK>,
+			 <&topckgen CLK_TOP_AUD_I2S4_MCLK>,
+			 <&topckgen CLK_TOP_AUD_I2S5_MCLK>,
+			 <&topckgen CLK_TOP_AUD_I2S6_MCLK>,
+			 <&topckgen CLK_TOP_ASM_M_SEL>,
+			 <&topckgen CLK_TOP_ASM_H_SEL>,
+			 <&topckgen CLK_TOP_UNIVPLL2_D4>,
+			 <&topckgen CLK_TOP_UNIVPLL2_D2>,
+			 <&topckgen CLK_TOP_SYSPLL_D5>;
+
+		clock-names = "infra_sys_audio_clk",
+			 "top_audio_mux1_sel",
+			 "top_audio_mux2_sel",
+			 "top_audio_mux1_div",
+			 "top_audio_mux2_div",
+			 "top_audio_48k_timing",
+			 "top_audio_44k_timing",
+			 "top_audpll_mux_sel",
+			 "top_apll_sel",
+			 "top_aud1_pll_98M",
+			 "top_aud2_pll_90M",
+			 "top_hadds2_pll_98M",
+			 "top_hadds2_pll_294M",
+			 "top_audpll",
+			 "top_audpll_d4",
+			 "top_audpll_d8",
+			 "top_audpll_d16",
+			 "top_audpll_d24",
+			 "top_audintbus_sel",
+			 "clk_26m",
+			 "top_syspll1_d4",
+			 "top_aud_k1_src_sel",
+			 "top_aud_k2_src_sel",
+			 "top_aud_k3_src_sel",
+			 "top_aud_k4_src_sel",
+			 "top_aud_k5_src_sel",
+			 "top_aud_k6_src_sel",
+			 "top_aud_k1_src_div",
+			 "top_aud_k2_src_div",
+			 "top_aud_k3_src_div",
+			 "top_aud_k4_src_div",
+			 "top_aud_k5_src_div",
+			 "top_aud_k6_src_div",
+			 "top_aud_i2s1_mclk",
+			 "top_aud_i2s2_mclk",
+			 "top_aud_i2s3_mclk",
+			 "top_aud_i2s4_mclk",
+			 "top_aud_i2s5_mclk",
+			 "top_aud_i2s6_mclk",
+			 "top_asm_m_sel",
+			 "top_asm_h_sel",
+			 "top_univpll2_d4",
+			 "top_univpll2_d2",
+			 "top_syspll_d5";
 	};
 
 	mmsys: syscon@14000000 {
@@ -390,6 +553,20 @@
 			 <&imgsys CLK_IMG_SMI_COMM>;
 		clock-names = "apb", "smi";
 		power-domains = <&scpsys MT2701_POWER_DOMAIN_ISP>;
+	};
+
+	jpegdec: jpegdec@15004000 {
+		compatible = "mediatek,mt2701-jpgdec";
+		reg = <0 0x15004000 0 0x1000>;
+		interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_LOW>;
+		clocks =  <&imgsys CLK_IMG_JPGDEC_SMI>,
+			  <&imgsys CLK_IMG_JPGDEC>;
+		clock-names = "jpgdec-smi",
+			      "jpgdec";
+		power-domains = <&scpsys MT2701_POWER_DOMAIN_ISP>;
+		mediatek,larb = <&larb2>;
+		iommus = <&iommu MT2701_M4U_PORT_JPGDEC_WDMA>,
+			 <&iommu MT2701_M4U_PORT_JPGDEC_BSDMA>;
 	};
 
 	vdecsys: syscon@16000000 {

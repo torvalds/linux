@@ -8,6 +8,8 @@
 #include <linux/list.h>
 #include <linux/refcount.h>
 #include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/uaccess.h>
 
 struct lkdtm_list {
 	struct list_head node;
@@ -67,7 +69,7 @@ void lkdtm_WARNING(void)
 
 void lkdtm_EXCEPTION(void)
 {
-	*((int *) 0) = 0;
+	*((volatile int *) 0) = 0;
 }
 
 void lkdtm_LOOP(void)
@@ -278,4 +280,13 @@ void lkdtm_CORRUPT_LIST_DEL(void)
 		pr_err("Overwrite did not happen, but no BUG?!\n");
 	else
 		pr_err("list_del() corruption not detected!\n");
+}
+
+void lkdtm_CORRUPT_USER_DS(void)
+{
+	pr_info("setting bad task size limit\n");
+	set_fs(KERNEL_DS);
+
+	/* Make sure we do not keep running with a KERNEL_DS! */
+	force_sig(SIGKILL, current);
 }

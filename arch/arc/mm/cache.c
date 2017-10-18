@@ -21,6 +21,10 @@
 #include <asm/cachectl.h>
 #include <asm/setup.h>
 
+#ifdef CONFIG_ISA_ARCV2
+#define USE_RGN_FLSH	1
+#endif
+
 static int l2_line_sz;
 static int ioc_exists;
 int slc_enable = 1, ioc_enable = 1;
@@ -28,7 +32,7 @@ unsigned long perip_base = ARC_UNCACHED_ADDR_SPACE; /* legacy value for boot */
 unsigned long perip_end = 0xFFFFFFFF; /* legacy value */
 
 void (*_cache_line_loop_ic_fn)(phys_addr_t paddr, unsigned long vaddr,
-			       unsigned long sz, const int cacheop);
+			       unsigned long sz, const int op, const int full_page);
 
 void (*__dma_cache_wback_inv)(phys_addr_t start, unsigned long sz);
 void (*__dma_cache_inv)(phys_addr_t start, unsigned long sz);
@@ -233,11 +237,10 @@ slc_chk:
 
 static inline
 void __cache_line_loop_v2(phys_addr_t paddr, unsigned long vaddr,
-			  unsigned long sz, const int op)
+			  unsigned long sz, const int op, const int full_page)
 {
 	unsigned int aux_cmd;
 	int num_lines;
-	const int full_page = __builtin_constant_p(sz) && sz == PAGE_SIZE;
 
 	if (op == OP_INV_IC) {
 		aux_cmd = ARC_REG_IC_IVIL;
@@ -279,11 +282,10 @@ void __cache_line_loop_v2(phys_addr_t paddr, unsigned long vaddr,
  */
 static inline
 void __cache_line_loop_v3(phys_addr_t paddr, unsigned long vaddr,
-			  unsigned long sz, const int op)
+			  unsigned long sz, const int op, const int full_page)
 {
 	unsigned int aux_cmd, aux_tag;
 	int num_lines;
-	const int full_page = __builtin_constant_p(sz) && sz == PAGE_SIZE;
 
 	if (op == OP_INV_IC) {
 		aux_cmd = ARC_REG_IC_IVIL;
@@ -334,6 +336,8 @@ void __cache_line_loop_v3(phys_addr_t paddr, unsigned long vaddr,
 	}
 }
 
+#ifndef USE_RGN_FLSH
+
 /*
  * In HS38x (MMU v4), I-cache is VIPT (can alias), D-cache is PIPT
  * Here's how cache ops are implemented
@@ -349,17 +353,16 @@ void __cache_line_loop_v3(phys_addr_t paddr, unsigned long vaddr,
  */
 static inline
 void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
-			  unsigned long sz, const int cacheop)
+			  unsigned long sz, const int op, const int full_page)
 {
 	unsigned int aux_cmd;
 	int num_lines;
-	const int full_page_op = __builtin_constant_p(sz) && sz == PAGE_SIZE;
 
-	if (cacheop == OP_INV_IC) {
+	if (op == OP_INV_IC) {
 		aux_cmd = ARC_REG_IC_IVIL;
 	} else {
 		/* d$ cmd: INV (discard or wback-n-discard) OR FLUSH (wback) */
-		aux_cmd = cacheop & OP_INV ? ARC_REG_DC_IVDL : ARC_REG_DC_FLDL;
+		aux_cmd = op & OP_INV ? ARC_REG_DC_IVDL : ARC_REG_DC_FLDL;
 	}
 
 	/* Ensure we properly floor/ceil the non-line aligned/sized requests
@@ -368,7 +371,7 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 	 *  -@paddr will be cache-line aligned already (being page aligned)
 	 *  -@sz will be integral multiple of line size (being page sized).
 	 */
-	if (!full_page_op) {
+	if (!full_page) {
 		sz += paddr & ~CACHE_LINE_MASK;
 		paddr &= CACHE_LINE_MASK;
 	}
@@ -381,7 +384,7 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 	 *   - (and needs to be written before the lower 32 bits)
 	 */
 	if (is_pae40_enabled()) {
-		if (cacheop == OP_INV_IC)
+		if (op == OP_INV_IC)
 			/*
 			 * Non aliasing I-cache in HS38,
 			 * aliasing I-cache handled in __cache_line_loop_v3()
@@ -397,6 +400,55 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 	}
 }
 
+#else
+
+/*
+ * optimized flush operation which takes a region as opposed to iterating per line
+ */
+static inline
+void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
+			  unsigned long sz, const int op, const int full_page)
+{
+	unsigned int s, e;
+
+	/* Only for Non aliasing I-cache in HS38 */
+	if (op == OP_INV_IC) {
+		s = ARC_REG_IC_IVIR;
+		e = ARC_REG_IC_ENDR;
+	} else {
+		s = ARC_REG_DC_STARTR;
+		e = ARC_REG_DC_ENDR;
+	}
+
+	if (!full_page) {
+		/* for any leading gap between @paddr and start of cache line */
+		sz += paddr & ~CACHE_LINE_MASK;
+		paddr &= CACHE_LINE_MASK;
+
+		/*
+		 *  account for any trailing gap to end of cache line
+		 *  this is equivalent to DIV_ROUND_UP() in line ops above
+		 */
+		sz += L1_CACHE_BYTES - 1;
+	}
+
+	if (is_pae40_enabled()) {
+		/* TBD: check if crossing 4TB boundary */
+		if (op == OP_INV_IC)
+			write_aux_reg(ARC_REG_IC_PTAG_HI, (u64)paddr >> 32);
+		else
+			write_aux_reg(ARC_REG_DC_PTAG_HI, (u64)paddr >> 32);
+	}
+
+	/* ENDR needs to be set ahead of START */
+	write_aux_reg(e, paddr + sz);	/* ENDR is exclusive */
+	write_aux_reg(s, paddr);
+
+	/* caller waits on DC_CTRL.FS */
+}
+
+#endif
+
 #if (CONFIG_ARC_MMU_VER < 3)
 #define __cache_line_loop	__cache_line_loop_v2
 #elif (CONFIG_ARC_MMU_VER == 3)
@@ -411,6 +463,11 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
  * Machine specific helpers for Entire D-Cache or Per Line ops
  */
 
+#ifndef USE_RGN_FLSH
+/*
+ * this version avoids extra read/write of DC_CTRL for flush or invalid ops
+ * in the non region flush regime (such as for ARCompact)
+ */
 static inline void __before_dc_op(const int op)
 {
 	if (op == OP_FLUSH_N_INV) {
@@ -423,6 +480,32 @@ static inline void __before_dc_op(const int op)
 		write_aux_reg(ctl, read_aux_reg(ctl) | DC_CTRL_INV_MODE_FLUSH);
 	}
 }
+
+#else
+
+static inline void __before_dc_op(const int op)
+{
+	const unsigned int ctl = ARC_REG_DC_CTRL;
+	unsigned int val = read_aux_reg(ctl);
+
+	if (op == OP_FLUSH_N_INV) {
+		val |= DC_CTRL_INV_MODE_FLUSH;
+	}
+
+	if (op != OP_INV_IC) {
+		/*
+		 * Flush / Invalidate is provided by DC_CTRL.RNG_OP 0 or 1
+		 * combined Flush-n-invalidate uses DC_CTRL.IM = 1 set above
+		 */
+		val &= ~DC_CTRL_RGN_OP_MSK;
+		if (op & OP_INV)
+			val |= DC_CTRL_RGN_OP_INV;
+	}
+	write_aux_reg(ctl, val);
+}
+
+#endif
+
 
 static inline void __after_dc_op(const int op)
 {
@@ -486,13 +569,14 @@ static void __dc_enable(void)
 static inline void __dc_line_op(phys_addr_t paddr, unsigned long vaddr,
 				unsigned long sz, const int op)
 {
+	const int full_page = __builtin_constant_p(sz) && sz == PAGE_SIZE;
 	unsigned long flags;
 
 	local_irq_save(flags);
 
 	__before_dc_op(op);
 
-	__cache_line_loop(paddr, vaddr, sz, op);
+	__cache_line_loop(paddr, vaddr, sz, op, full_page);
 
 	__after_dc_op(op);
 
@@ -521,10 +605,11 @@ static inline void
 __ic_line_inv_vaddr_local(phys_addr_t paddr, unsigned long vaddr,
 			  unsigned long sz)
 {
+	const int full_page = __builtin_constant_p(sz) && sz == PAGE_SIZE;
 	unsigned long flags;
 
 	local_irq_save(flags);
-	(*_cache_line_loop_ic_fn)(paddr, vaddr, sz, OP_INV_IC);
+	(*_cache_line_loop_ic_fn)(paddr, vaddr, sz, OP_INV_IC, full_page);
 	local_irq_restore(flags);
 }
 
@@ -580,6 +665,7 @@ noinline void slc_op(phys_addr_t paddr, unsigned long sz, const int op)
 	static DEFINE_SPINLOCK(lock);
 	unsigned long flags;
 	unsigned int ctrl;
+	phys_addr_t end;
 
 	spin_lock_irqsave(&lock, flags);
 
@@ -609,8 +695,19 @@ noinline void slc_op(phys_addr_t paddr, unsigned long sz, const int op)
 	 * END needs to be setup before START (latter triggers the operation)
 	 * END can't be same as START, so add (l2_line_sz - 1) to sz
 	 */
-	write_aux_reg(ARC_REG_SLC_RGN_END, (paddr + sz + l2_line_sz - 1));
-	write_aux_reg(ARC_REG_SLC_RGN_START, paddr);
+	end = paddr + sz + l2_line_sz - 1;
+	if (is_pae40_enabled())
+		write_aux_reg(ARC_REG_SLC_RGN_END1, upper_32_bits(end));
+
+	write_aux_reg(ARC_REG_SLC_RGN_END, lower_32_bits(end));
+
+	if (is_pae40_enabled())
+		write_aux_reg(ARC_REG_SLC_RGN_START1, upper_32_bits(paddr));
+
+	write_aux_reg(ARC_REG_SLC_RGN_START, lower_32_bits(paddr));
+
+	/* Make sure "busy" bit reports correct stataus, see STAR 9001165532 */
+	read_aux_reg(ARC_REG_SLC_CTRL);
 
 	while (read_aux_reg(ARC_REG_SLC_CTRL) & SLC_CTRL_BUSY);
 
@@ -1026,6 +1123,13 @@ noinline void __init arc_ioc_setup(void)
 	__dc_enable();
 }
 
+/*
+ * Cache related boot time checks/setups only needed on master CPU:
+ *  - Geometry checks (kernel build and hardware agree: e.g. L1_CACHE_BYTES)
+ *    Assume SMP only, so all cores will have same cache config. A check on
+ *    one core suffices for all
+ *  - IOC setup / dma callbacks only need to be done once
+ */
 void __init arc_cache_init_master(void)
 {
 	unsigned int __maybe_unused cpu = smp_processor_id();
@@ -1105,12 +1209,27 @@ void __ref arc_cache_init(void)
 
 	printk(arc_cache_mumbojumbo(0, str, sizeof(str)));
 
-	/*
-	 * Only master CPU needs to execute rest of function:
-	 *  - Assume SMP so all cores will have same cache config so
-	 *    any geomtry checks will be same for all
-	 *  - IOC setup / dma callbacks only need to be setup once
-	 */
 	if (!cpu)
 		arc_cache_init_master();
+
+	/*
+	 * In PAE regime, TLB and cache maintenance ops take wider addresses
+	 * And even if PAE is not enabled in kernel, the upper 32-bits still need
+	 * to be zeroed to keep the ops sane.
+	 * As an optimization for more common !PAE enabled case, zero them out
+	 * once at init, rather than checking/setting to 0 for every runtime op
+	 */
+	if (is_isa_arcv2() && pae40_exist_but_not_enab()) {
+
+		if (IS_ENABLED(CONFIG_ARC_HAS_ICACHE))
+			write_aux_reg(ARC_REG_IC_PTAG_HI, 0);
+
+		if (IS_ENABLED(CONFIG_ARC_HAS_DCACHE))
+			write_aux_reg(ARC_REG_DC_PTAG_HI, 0);
+
+		if (l2_line_sz) {
+			write_aux_reg(ARC_REG_SLC_RGN_END1, 0);
+			write_aux_reg(ARC_REG_SLC_RGN_START1, 0);
+		}
+	}
 }

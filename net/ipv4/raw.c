@@ -358,6 +358,9 @@ static int raw_send_hdrinc(struct sock *sk, struct flowi4 *fl4,
 			       rt->dst.dev->mtu);
 		return -EMSGSIZE;
 	}
+	if (length < sizeof(struct iphdr))
+		return -EINVAL;
+
 	if (flags&MSG_PROBE)
 		goto out;
 
@@ -1060,7 +1063,7 @@ static void raw_sock_seq_show(struct seq_file *seq, struct sock *sp, int i)
 		0, 0L, 0,
 		from_kuid_munged(seq_user_ns(seq), sock_i_uid(sp)),
 		0, sock_i_ino(sp),
-		atomic_read(&sp->sk_refcnt), sp, atomic_read(&sp->sk_drops));
+		refcount_read(&sp->sk_refcnt), sp, atomic_read(&sp->sk_drops));
 }
 
 static int raw_seq_show(struct seq_file *seq, void *v)

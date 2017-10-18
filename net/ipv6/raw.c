@@ -632,6 +632,8 @@ static int rawv6_send_hdrinc(struct sock *sk, struct msghdr *msg, int length,
 		ipv6_local_error(sk, EMSGSIZE, fl6, rt->dst.dev->mtu);
 		return -EMSGSIZE;
 	}
+	if (length < sizeof(struct ipv6hdr))
+		return -EINVAL;
 	if (flags&MSG_PROBE)
 		goto out;
 
@@ -1336,7 +1338,7 @@ void raw6_proc_exit(void)
 #endif	/* CONFIG_PROC_FS */
 
 /* Same as inet6_dgram_ops, sans udp_poll.  */
-static const struct proto_ops inet6_sockraw_ops = {
+const struct proto_ops inet6_sockraw_ops = {
 	.family		   = PF_INET6,
 	.owner		   = THIS_MODULE,
 	.release	   = inet6_release,

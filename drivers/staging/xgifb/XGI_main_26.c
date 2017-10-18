@@ -178,9 +178,9 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 		*sync |= FB_SYNC_HOR_HIGH_ACT;
 
 	*vmode = FB_VMODE_NONINTERLACED;
-	if (XGI330_RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x0080)
+	if (XGI330_RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x0080) {
 		*vmode = FB_VMODE_INTERLACED;
-	else {
+	} else {
 		j = 0;
 		while (XGI330_EModeIDTable[j].Ext_ModeID != 0xff) {
 			if (XGI330_EModeIDTable[j].Ext_ModeID ==
@@ -878,30 +878,14 @@ static void XGIfb_post_setmode(struct xgifb_video_info *xgifb_info)
 			}
 
 			if ((filter >= 0) && (filter <= 7)) {
+				const u8 *f = XGI_TV_filter[filter_tb].filter[filter];
+
 				pr_debug("FilterTable[%d]-%d: %*ph\n",
-					 filter_tb, filter,
-					 4, XGI_TV_filter[filter_tb].
-						   filter[filter]);
-				xgifb_reg_set(
-					XGIPART2,
-					0x35,
-					(XGI_TV_filter[filter_tb].
-						filter[filter][0]));
-				xgifb_reg_set(
-					XGIPART2,
-					0x36,
-					(XGI_TV_filter[filter_tb].
-						filter[filter][1]));
-				xgifb_reg_set(
-					XGIPART2,
-					0x37,
-					(XGI_TV_filter[filter_tb].
-						filter[filter][2]));
-				xgifb_reg_set(
-					XGIPART2,
-					0x38,
-					(XGI_TV_filter[filter_tb].
-						filter[filter][3]));
+					 filter_tb, filter, 4, f);
+				xgifb_reg_set(XGIPART2, 0x35, f[0]);
+				xgifb_reg_set(XGIPART2, 0x36, f[1]);
+				xgifb_reg_set(XGIPART2, 0x37, f[2]);
+				xgifb_reg_set(XGIPART2, 0x38, f[3]);
 			}
 		}
 	}
@@ -1480,9 +1464,9 @@ static void XGIfb_detect_VB(struct xgifb_video_info *xgifb_info)
 
 	cr32 = xgifb_reg_get(XGICR, IND_XGI_SCRATCH_REG_CR32);
 
-	if ((cr32 & SIS_CRT1) && !XGIfb_crt1off)
+	if ((cr32 & SIS_CRT1) && !XGIfb_crt1off) {
 		XGIfb_crt1off = 0;
-	else {
+	} else {
 		if (cr32 & 0x5F)
 			XGIfb_crt1off = 1;
 		else
@@ -1500,18 +1484,19 @@ static void XGIfb_detect_VB(struct xgifb_video_info *xgifb_info)
 			xgifb_info->display2 = XGIFB_DISP_NONE;
 	}
 
-	if (XGIfb_tvplug != -1)
+	if (XGIfb_tvplug != -1) {
 		/* Override with option */
 		xgifb_info->TV_plug = XGIfb_tvplug;
-	else if (cr32 & SIS_VB_HIVISION) {
+	} else if (cr32 & SIS_VB_HIVISION) {
 		xgifb_info->TV_type = TVMODE_HIVISION;
 		xgifb_info->TV_plug = TVPLUG_SVIDEO;
-	} else if (cr32 & SIS_VB_SVIDEO)
+	} else if (cr32 & SIS_VB_SVIDEO) {
 		xgifb_info->TV_plug = TVPLUG_SVIDEO;
-	else if (cr32 & SIS_VB_COMPOSITE)
+	} else if (cr32 & SIS_VB_COMPOSITE) {
 		xgifb_info->TV_plug = TVPLUG_COMPOSITE;
-	else if (cr32 & SIS_VB_SCART)
+	} else if (cr32 & SIS_VB_SCART) {
 		xgifb_info->TV_plug = TVPLUG_SCART;
+	}
 
 	if (xgifb_info->TV_type == 0) {
 		temp = xgifb_reg_get(XGICR, 0x38);
@@ -1659,7 +1644,7 @@ static int xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	xgifb_info->mmio_base = pci_resource_start(pdev, 1);
 	xgifb_info->mmio_size = pci_resource_len(pdev, 1);
 	xgifb_info->vga_base = pci_resource_start(pdev, 2) + 0x30;
-	dev_info(&pdev->dev, "Relocate IO address: %Lx [%08lx]\n",
+	dev_info(&pdev->dev, "Relocate IO address: %llx [%08lx]\n",
 		 (u64)pci_resource_start(pdev, 2),
 		 xgifb_info->vga_base);
 
@@ -1754,13 +1739,13 @@ static int xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 					    xgifb_info->mmio_size);
 
 	dev_info(&pdev->dev,
-		 "Framebuffer at 0x%Lx, mapped to 0x%p, size %dk\n",
+		 "Framebuffer at 0x%llx, mapped to 0x%p, size %dk\n",
 		 (u64)xgifb_info->video_base,
 		 xgifb_info->video_vbase,
 		 xgifb_info->video_size / 1024);
 
 	dev_info(&pdev->dev,
-		 "MMIO at 0x%Lx, mapped to 0x%p, size %ldk\n",
+		 "MMIO at 0x%llx, mapped to 0x%p, size %ldk\n",
 		 (u64)xgifb_info->mmio_base, xgifb_info->mmio_vbase,
 		 xgifb_info->mmio_size / 1024);
 

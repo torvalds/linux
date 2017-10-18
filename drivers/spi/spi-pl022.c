@@ -2074,7 +2074,7 @@ pl022_platform_data_dt_get(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
 	struct pl022_ssp_controller *pd;
-	u32 tmp;
+	u32 tmp = 0;
 
 	if (!np) {
 		dev_err(dev, "no dt node defined\n");

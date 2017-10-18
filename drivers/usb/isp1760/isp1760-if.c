@@ -21,11 +21,11 @@
 #include "isp1760-core.h"
 #include "isp1760-regs.h"
 
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 #include <linux/pci.h>
 #endif
 
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 static int isp1761_pci_init(struct pci_dev *dev)
 {
 	resource_size_t mem_start;
@@ -286,7 +286,7 @@ static int __init isp1760_init(void)
 	ret = platform_driver_register(&isp1760_plat_driver);
 	if (!ret)
 		any_ret = 0;
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 	ret = pci_register_driver(&isp1761_pci_driver);
 	if (!ret)
 		any_ret = 0;
@@ -301,7 +301,7 @@ module_init(isp1760_init);
 static void __exit isp1760_exit(void)
 {
 	platform_driver_unregister(&isp1760_plat_driver);
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 	pci_unregister_driver(&isp1761_pci_driver);
 #endif
 	isp1760_deinit_kmem_cache();

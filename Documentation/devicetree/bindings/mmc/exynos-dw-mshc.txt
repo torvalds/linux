@@ -78,7 +78,6 @@ Example:
 	};
 
 	dwmmc0@12200000 {
-		num-slots = <1>;
 		cap-mmc-highspeed;
 		cap-sd-highspeed;
 		broken-cd;

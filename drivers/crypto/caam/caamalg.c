@@ -266,8 +266,9 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 
 	/* aead_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
-	cnstr_shdsc_aead_encap(desc, &ctx->cdata, &ctx->adata, ctx->authsize,
-			       is_rfc3686, nonce, ctx1_iv_off);
+	cnstr_shdsc_aead_encap(desc, &ctx->cdata, &ctx->adata, ivsize,
+			       ctx->authsize, is_rfc3686, nonce, ctx1_iv_off,
+			       false);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_enc_dma,
 				   desc_bytes(desc), DMA_TO_DEVICE);
 
@@ -299,7 +300,7 @@ skip_enc:
 	desc = ctx->sh_desc_dec;
 	cnstr_shdsc_aead_decap(desc, &ctx->cdata, &ctx->adata, ivsize,
 			       ctx->authsize, alg->caam.geniv, is_rfc3686,
-			       nonce, ctx1_iv_off);
+			       nonce, ctx1_iv_off, false);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_dec_dma,
 				   desc_bytes(desc), DMA_TO_DEVICE);
 
@@ -333,7 +334,7 @@ skip_enc:
 	desc = ctx->sh_desc_enc;
 	cnstr_shdsc_aead_givencap(desc, &ctx->cdata, &ctx->adata, ivsize,
 				  ctx->authsize, is_rfc3686, nonce,
-				  ctx1_iv_off);
+				  ctx1_iv_off, false);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_enc_dma,
 				   desc_bytes(desc), DMA_TO_DEVICE);
 
@@ -881,10 +882,10 @@ static void ablkcipher_encrypt_done(struct device *jrdev, u32 *desc, u32 err,
 {
 	struct ablkcipher_request *req = context;
 	struct ablkcipher_edesc *edesc;
-#ifdef DEBUG
 	struct crypto_ablkcipher *ablkcipher = crypto_ablkcipher_reqtfm(req);
 	int ivsize = crypto_ablkcipher_ivsize(ablkcipher);
 
+#ifdef DEBUG
 	dev_err(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 #endif
 
@@ -903,6 +904,14 @@ static void ablkcipher_encrypt_done(struct device *jrdev, u32 *desc, u32 err,
 #endif
 
 	ablkcipher_unmap(jrdev, edesc, req);
+
+	/*
+	 * The crypto API expects us to set the IV (req->info) to the last
+	 * ciphertext block. This is used e.g. by the CTS mode.
+	 */
+	scatterwalk_map_and_copy(req->info, req->dst, req->nbytes - ivsize,
+				 ivsize, 0);
+
 	kfree(edesc);
 
 	ablkcipher_request_complete(req, err);
@@ -913,10 +922,10 @@ static void ablkcipher_decrypt_done(struct device *jrdev, u32 *desc, u32 err,
 {
 	struct ablkcipher_request *req = context;
 	struct ablkcipher_edesc *edesc;
-#ifdef DEBUG
 	struct crypto_ablkcipher *ablkcipher = crypto_ablkcipher_reqtfm(req);
 	int ivsize = crypto_ablkcipher_ivsize(ablkcipher);
 
+#ifdef DEBUG
 	dev_err(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 #endif
 
@@ -934,6 +943,14 @@ static void ablkcipher_decrypt_done(struct device *jrdev, u32 *desc, u32 err,
 #endif
 
 	ablkcipher_unmap(jrdev, edesc, req);
+
+	/*
+	 * The crypto API expects us to set the IV (req->info) to the last
+	 * ciphertext block.
+	 */
+	scatterwalk_map_and_copy(req->info, req->src, req->nbytes - ivsize,
+				 ivsize, 0);
+
 	kfree(edesc);
 
 	ablkcipher_request_complete(req, err);
@@ -1186,8 +1203,8 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
-	gfp_t flags = (req->base.flags & (CRYPTO_TFM_REQ_MAY_BACKLOG |
-		       CRYPTO_TFM_REQ_MAY_SLEEP)) ? GFP_KERNEL : GFP_ATOMIC;
+	gfp_t flags = (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
+		       GFP_KERNEL : GFP_ATOMIC;
 	int src_nents, mapped_src_nents, dst_nents = 0, mapped_dst_nents = 0;
 	struct aead_edesc *edesc;
 	int sec4_sg_index, sec4_sg_len, sec4_sg_bytes;
@@ -1474,8 +1491,7 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 	struct crypto_ablkcipher *ablkcipher = crypto_ablkcipher_reqtfm(req);
 	struct caam_ctx *ctx = crypto_ablkcipher_ctx(ablkcipher);
 	struct device *jrdev = ctx->jrdev;
-	gfp_t flags = (req->base.flags & (CRYPTO_TFM_REQ_MAY_BACKLOG |
-					  CRYPTO_TFM_REQ_MAY_SLEEP)) ?
+	gfp_t flags = (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
 		       GFP_KERNEL : GFP_ATOMIC;
 	int src_nents, mapped_src_nents, dst_nents = 0, mapped_dst_nents = 0;
 	struct ablkcipher_edesc *edesc;
@@ -1680,8 +1696,7 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 	struct crypto_ablkcipher *ablkcipher = crypto_ablkcipher_reqtfm(req);
 	struct caam_ctx *ctx = crypto_ablkcipher_ctx(ablkcipher);
 	struct device *jrdev = ctx->jrdev;
-	gfp_t flags = (req->base.flags & (CRYPTO_TFM_REQ_MAY_BACKLOG |
-					  CRYPTO_TFM_REQ_MAY_SLEEP)) ?
+	gfp_t flags = (req->base.flags &  CRYPTO_TFM_REQ_MAY_SLEEP) ?
 		       GFP_KERNEL : GFP_ATOMIC;
 	int src_nents, mapped_src_nents, dst_nents, mapped_dst_nents;
 	struct ablkcipher_edesc *edesc;

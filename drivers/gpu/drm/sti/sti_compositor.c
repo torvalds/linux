@@ -89,7 +89,7 @@ static int sti_compositor_bind(struct device *dev,
 			/* Nothing to do, wait for the second round */
 			break;
 		default:
-			DRM_ERROR("Unknow subdev compoment type\n");
+			DRM_ERROR("Unknown subdev component type\n");
 			return 1;
 		}
 	}
@@ -129,7 +129,7 @@ static int sti_compositor_bind(struct device *dev,
 			}
 			break;
 		default:
-			DRM_ERROR("Unknown subdev compoment type\n");
+			DRM_ERROR("Unknown subdev component type\n");
 			return 1;
 		}
 

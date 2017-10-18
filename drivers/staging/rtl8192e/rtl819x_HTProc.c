@@ -489,7 +489,7 @@ u8 HTGetHighestMCSRate(struct rtllib_device *ieee, u8 *pMCSRateSet,
 				if ((bitMap%2) != 0) {
 					if (HTMcsToDataRate(ieee, (8*i+j)) >
 					    HTMcsToDataRate(ieee, mcsRate))
-						mcsRate = (8*i+j);
+						mcsRate = 8 * i + j;
 				}
 				bitMap >>= 1;
 			}
@@ -908,8 +908,8 @@ void HTSetConnectBwMode(struct rtllib_device *ieee,
 		pHTInfo->CurSTAExtChnlOffset = HT_EXTCHNL_OFFSET_NO_EXT;
 	}
 
-	pr_info("%s():pHTInfo->bCurBW40MHz:%x\n", __func__,
-	       pHTInfo->bCurBW40MHz);
+	netdev_dbg(ieee->dev, "%s():pHTInfo->bCurBW40MHz:%x\n", __func__,
+		   pHTInfo->bCurBW40MHz);
 
 	pHTInfo->bSwBwInProgress = true;
 

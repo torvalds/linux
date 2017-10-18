@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <linux/types.h>
 #include <linux/perf_event.h>
+#include <string.h>
 
 struct list_head;
 struct perf_evsel;
@@ -166,6 +167,14 @@ int parse_events_add_breakpoint(struct list_head *list, int *idx,
 int parse_events_add_pmu(struct parse_events_evlist *data,
 			 struct list_head *list, char *name,
 			 struct list_head *head_config);
+
+int parse_events_multi_pmu_add(struct parse_events_evlist *data,
+			       char *str,
+			       struct list_head **listp);
+
+int parse_events_copy_term_list(struct list_head *old,
+				 struct list_head **new);
+
 enum perf_pmu_event_symbol_type
 perf_pmu__parse_check(const char *name);
 void parse_events__set_leader(char *name, struct list_head *list);
@@ -175,7 +184,7 @@ void parse_events_evlist_error(struct parse_events_evlist *data,
 			       int idx, const char *str);
 
 void print_events(const char *event_glob, bool name_only, bool quiet,
-		  bool long_desc);
+		  bool long_desc, bool details_flag);
 
 struct event_symbol {
 	const char	*symbol;
@@ -195,5 +204,24 @@ int is_valid_tracepoint(const char *event_string);
 
 int valid_event_mount(const char *eventfs);
 char *parse_events_formats_error_string(char *additional_terms);
+
+#ifdef HAVE_LIBELF_SUPPORT
+/*
+ * If the probe point starts with '%',
+ * or starts with "sdt_" and has a ':' but no '=',
+ * then it should be a SDT/cached probe point.
+ */
+static inline bool is_sdt_event(char *str)
+{
+	return (str[0] == '%' ||
+		(!strncmp(str, "sdt_", 4) &&
+		 !!strchr(str, ':') && !strchr(str, '=')));
+}
+#else
+static inline bool is_sdt_event(char *str __maybe_unused)
+{
+	return false;
+}
+#endif /* HAVE_LIBELF_SUPPORT */
 
 #endif /* __PERF_PARSE_EVENTS_H */

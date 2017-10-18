@@ -269,6 +269,10 @@ struct arcnet_local {
 
 	struct timer_list	timer;
 
+	struct net_device *dev;
+	int reply_status;
+	struct tasklet_struct reply_tasklet;
+
 	/*
 	 * Buffer management: an ARCnet card has 4 x 512-byte buffers, each of
 	 * which can be used for either sending or receiving.  The new dynamic

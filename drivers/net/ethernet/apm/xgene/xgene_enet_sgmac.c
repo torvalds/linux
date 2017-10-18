@@ -54,41 +54,6 @@ static void xgene_enet_wr_mcx_csr(struct xgene_enet_pdata *pdata,
 	iowrite32(val, addr);
 }
 
-static bool xgene_enet_wr_indirect(struct xgene_indirect_ctl *ctl,
-				   u32 wr_addr, u32 wr_data)
-{
-	int i;
-
-	iowrite32(wr_addr, ctl->addr);
-	iowrite32(wr_data, ctl->ctl);
-	iowrite32(XGENE_ENET_WR_CMD, ctl->cmd);
-
-	/* wait for write command to complete */
-	for (i = 0; i < 10; i++) {
-		if (ioread32(ctl->cmd_done)) {
-			iowrite32(0, ctl->cmd);
-			return true;
-		}
-		udelay(1);
-	}
-
-	return false;
-}
-
-static void xgene_enet_wr_mac(struct xgene_enet_pdata *p,
-			      u32 wr_addr, u32 wr_data)
-{
-	struct xgene_indirect_ctl ctl = {
-		.addr = p->mcx_mac_addr + MAC_ADDR_REG_OFFSET,
-		.ctl = p->mcx_mac_addr + MAC_WRITE_REG_OFFSET,
-		.cmd = p->mcx_mac_addr + MAC_COMMAND_REG_OFFSET,
-		.cmd_done = p->mcx_mac_addr + MAC_COMMAND_DONE_REG_OFFSET
-	};
-
-	if (!xgene_enet_wr_indirect(&ctl, wr_addr, wr_data))
-		netdev_err(p->ndev, "mac write failed, addr: %04x\n", wr_addr);
-}
-
 static u32 xgene_enet_rd_csr(struct xgene_enet_pdata *p, u32 offset)
 {
 	return ioread32(p->eth_csr_addr + offset);
@@ -102,42 +67,6 @@ static u32 xgene_enet_rd_diag_csr(struct xgene_enet_pdata *p, u32 offset)
 static u32 xgene_enet_rd_mcx_csr(struct xgene_enet_pdata *p, u32 offset)
 {
 	return ioread32(p->mcx_mac_csr_addr + offset);
-}
-
-static u32 xgene_enet_rd_indirect(struct xgene_indirect_ctl *ctl, u32 rd_addr)
-{
-	u32 rd_data;
-	int i;
-
-	iowrite32(rd_addr, ctl->addr);
-	iowrite32(XGENE_ENET_RD_CMD, ctl->cmd);
-
-	/* wait for read command to complete */
-	for (i = 0; i < 10; i++) {
-		if (ioread32(ctl->cmd_done)) {
-			rd_data = ioread32(ctl->ctl);
-			iowrite32(0, ctl->cmd);
-
-			return rd_data;
-		}
-		udelay(1);
-	}
-
-	pr_err("%s: mac read failed, addr: %04x\n", __func__, rd_addr);
-
-	return 0;
-}
-
-static u32 xgene_enet_rd_mac(struct xgene_enet_pdata *p, u32 rd_addr)
-{
-	struct xgene_indirect_ctl ctl = {
-		.addr = p->mcx_mac_addr + MAC_ADDR_REG_OFFSET,
-		.ctl = p->mcx_mac_addr + MAC_READ_REG_OFFSET,
-		.cmd = p->mcx_mac_addr + MAC_COMMAND_REG_OFFSET,
-		.cmd_done = p->mcx_mac_addr + MAC_COMMAND_DONE_REG_OFFSET
-	};
-
-	return xgene_enet_rd_indirect(&ctl, rd_addr);
 }
 
 static int xgene_enet_ecc_init(struct xgene_enet_pdata *p)
@@ -164,6 +93,24 @@ static int xgene_enet_ecc_init(struct xgene_enet_pdata *p)
 
 	netdev_err(ndev, "Failed to release memory from shutdown\n");
 	return -ENODEV;
+}
+
+static void xgene_sgmac_get_drop_cnt(struct xgene_enet_pdata *pdata,
+				     u32 *rx, u32 *tx)
+{
+	u32 addr, count;
+
+	addr = (pdata->enet_id != XGENE_ENET1) ?
+		XG_MCX_ICM_ECM_DROP_COUNT_REG0_ADDR :
+		ICM_ECM_DROP_COUNT_REG0_ADDR + pdata->port_id * OFFSET_4;
+	count = xgene_enet_rd_mcx_csr(pdata, addr);
+	*rx = ICM_DROP_COUNT(count);
+	*tx = ECM_DROP_COUNT(count);
+	/* Errata: 10GE_4 - ICM_ECM_DROP_COUNT not clear-on-read */
+	addr = (pdata->enet_id != XGENE_ENET1) ?
+		XG_MCX_ECM_CONFIG0_REG_0_ADDR :
+		ECM_CONFIG0_REG_0_ADDR + pdata->port_id * OFFSET_4;
+	xgene_enet_rd_mcx_csr(pdata, addr);
 }
 
 static void xgene_enet_config_ring_if_assoc(struct xgene_enet_pdata *p)
@@ -587,26 +534,6 @@ static void xgene_enet_clear(struct xgene_enet_pdata *pdata,
 static void xgene_enet_shutdown(struct xgene_enet_pdata *p)
 {
 	struct device *dev = &p->pdev->dev;
-	struct xgene_enet_desc_ring *ring;
-	u32 pb;
-	int i;
-
-	pb = 0;
-	for (i = 0; i < p->rxq_cnt; i++) {
-		ring = p->rx_ring[i]->buf_pool;
-		pb |= BIT(xgene_enet_get_fpsel(ring->id));
-		ring = p->rx_ring[i]->page_pool;
-		if (ring)
-			pb |= BIT(xgene_enet_get_fpsel(ring->id));
-	}
-	xgene_enet_wr_ring_if(p, ENET_CFGSSQMIFPRESET_ADDR, pb);
-
-	pb = 0;
-	for (i = 0; i < p->txq_cnt; i++) {
-		ring = p->tx_ring[i];
-		pb |= BIT(xgene_enet_ring_bufnum(ring->id));
-	}
-	xgene_enet_wr_ring_if(p, ENET_CFGSSQMIWQRESET_ADDR, pb);
 
 	if (dev->of_node) {
 		if (!IS_ERR(p->clk))
@@ -671,6 +598,7 @@ const struct xgene_mac_ops xgene_sgmac_ops = {
 	.tx_enable	= xgene_sgmac_tx_enable,
 	.rx_disable	= xgene_sgmac_rx_disable,
 	.tx_disable	= xgene_sgmac_tx_disable,
+	.get_drop_cnt   = xgene_sgmac_get_drop_cnt,
 	.set_speed	= xgene_sgmac_set_speed,
 	.set_mac_addr	= xgene_sgmac_set_mac_addr,
 	.set_framesize  = xgene_sgmac_set_frame_size,

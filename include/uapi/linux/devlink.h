@@ -65,8 +65,12 @@ enum devlink_command {
 #define DEVLINK_CMD_ESWITCH_MODE_SET /* obsolete, never use this! */ \
 	DEVLINK_CMD_ESWITCH_SET
 
-	/* add new commands above here */
+	DEVLINK_CMD_DPIPE_TABLE_GET,
+	DEVLINK_CMD_DPIPE_ENTRIES_GET,
+	DEVLINK_CMD_DPIPE_HEADERS_GET,
+	DEVLINK_CMD_DPIPE_TABLE_COUNTERS_SET,
 
+	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
 	DEVLINK_CMD_MAX = __DEVLINK_CMD_MAX - 1
 };
@@ -115,6 +119,11 @@ enum devlink_eswitch_inline_mode {
 	DEVLINK_ESWITCH_INLINE_MODE_TRANSPORT,
 };
 
+enum devlink_eswitch_encap_mode {
+	DEVLINK_ESWITCH_ENCAP_MODE_NONE,
+	DEVLINK_ESWITCH_ENCAP_MODE_BASIC,
+};
+
 enum devlink_attr {
 	/* don't change the order or add anything between, this is ABI! */
 	DEVLINK_ATTR_UNSPEC,
@@ -148,10 +157,73 @@ enum devlink_attr {
 	DEVLINK_ATTR_ESWITCH_MODE,		/* u16 */
 	DEVLINK_ATTR_ESWITCH_INLINE_MODE,	/* u8 */
 
+	DEVLINK_ATTR_DPIPE_TABLES,		/* nested */
+	DEVLINK_ATTR_DPIPE_TABLE,		/* nested */
+	DEVLINK_ATTR_DPIPE_TABLE_NAME,		/* string */
+	DEVLINK_ATTR_DPIPE_TABLE_SIZE,		/* u64 */
+	DEVLINK_ATTR_DPIPE_TABLE_MATCHES,	/* nested */
+	DEVLINK_ATTR_DPIPE_TABLE_ACTIONS,	/* nested */
+	DEVLINK_ATTR_DPIPE_TABLE_COUNTERS_ENABLED,	/* u8 */
+
+	DEVLINK_ATTR_DPIPE_ENTRIES,		/* nested */
+	DEVLINK_ATTR_DPIPE_ENTRY,		/* nested */
+	DEVLINK_ATTR_DPIPE_ENTRY_INDEX,		/* u64 */
+	DEVLINK_ATTR_DPIPE_ENTRY_MATCH_VALUES,	/* nested */
+	DEVLINK_ATTR_DPIPE_ENTRY_ACTION_VALUES,	/* nested */
+	DEVLINK_ATTR_DPIPE_ENTRY_COUNTER,	/* u64 */
+
+	DEVLINK_ATTR_DPIPE_MATCH,		/* nested */
+	DEVLINK_ATTR_DPIPE_MATCH_VALUE,		/* nested */
+	DEVLINK_ATTR_DPIPE_MATCH_TYPE,		/* u32 */
+
+	DEVLINK_ATTR_DPIPE_ACTION,		/* nested */
+	DEVLINK_ATTR_DPIPE_ACTION_VALUE,	/* nested */
+	DEVLINK_ATTR_DPIPE_ACTION_TYPE,		/* u32 */
+
+	DEVLINK_ATTR_DPIPE_VALUE,
+	DEVLINK_ATTR_DPIPE_VALUE_MASK,
+	DEVLINK_ATTR_DPIPE_VALUE_MAPPING,	/* u32 */
+
+	DEVLINK_ATTR_DPIPE_HEADERS,		/* nested */
+	DEVLINK_ATTR_DPIPE_HEADER,		/* nested */
+	DEVLINK_ATTR_DPIPE_HEADER_NAME,		/* string */
+	DEVLINK_ATTR_DPIPE_HEADER_ID,		/* u32 */
+	DEVLINK_ATTR_DPIPE_HEADER_FIELDS,	/* nested */
+	DEVLINK_ATTR_DPIPE_HEADER_GLOBAL,	/* u8 */
+	DEVLINK_ATTR_DPIPE_HEADER_INDEX,	/* u32 */
+
+	DEVLINK_ATTR_DPIPE_FIELD,		/* nested */
+	DEVLINK_ATTR_DPIPE_FIELD_NAME,		/* string */
+	DEVLINK_ATTR_DPIPE_FIELD_ID,		/* u32 */
+	DEVLINK_ATTR_DPIPE_FIELD_BITWIDTH,	/* u32 */
+	DEVLINK_ATTR_DPIPE_FIELD_MAPPING_TYPE,	/* u32 */
+
+	DEVLINK_ATTR_PAD,
+
+	DEVLINK_ATTR_ESWITCH_ENCAP_MODE,	/* u8 */
+
 	/* add new attributes above here, update the policy in devlink.c */
 
 	__DEVLINK_ATTR_MAX,
 	DEVLINK_ATTR_MAX = __DEVLINK_ATTR_MAX - 1
+};
+
+/* Mapping between internal resource described by the field and system
+ * structure
+ */
+enum devlink_dpipe_field_mapping_type {
+	DEVLINK_DPIPE_FIELD_MAPPING_TYPE_NONE,
+	DEVLINK_DPIPE_FIELD_MAPPING_TYPE_IFINDEX,
+};
+
+/* Match type - specify the type of the match */
+enum devlink_dpipe_match_type {
+	DEVLINK_DPIPE_MATCH_TYPE_FIELD_EXACT,
+};
+
+/* Action type - specify the action type */
+enum devlink_dpipe_action_type {
+	DEVLINK_DPIPE_ACTION_TYPE_FIELD_MODIFY,
 };
 
 #endif /* _UAPI_LINUX_DEVLINK_H_ */

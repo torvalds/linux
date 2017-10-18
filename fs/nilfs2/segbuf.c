@@ -338,7 +338,7 @@ static void nilfs_end_bio_write(struct bio *bio)
 {
 	struct nilfs_segment_buffer *segbuf = bio->bi_private;
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		atomic_inc(&segbuf->sb_err);
 
 	bio_put(bio);

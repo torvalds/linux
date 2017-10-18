@@ -117,8 +117,13 @@ static void amdgpu_benchmark_move(struct amdgpu_device *adev, unsigned size,
 	}
 
 out_cleanup:
+	/* Check error value now. The value can be overwritten when clean up.*/
+	if (r) {
+		DRM_ERROR("Error while benchmarking BO move.\n");
+	}
+
 	if (sobj) {
-		r = amdgpu_bo_reserve(sobj, false);
+		r = amdgpu_bo_reserve(sobj, true);
 		if (likely(r == 0)) {
 			amdgpu_bo_unpin(sobj);
 			amdgpu_bo_unreserve(sobj);
@@ -126,16 +131,12 @@ out_cleanup:
 		amdgpu_bo_unref(&sobj);
 	}
 	if (dobj) {
-		r = amdgpu_bo_reserve(dobj, false);
+		r = amdgpu_bo_reserve(dobj, true);
 		if (likely(r == 0)) {
 			amdgpu_bo_unpin(dobj);
 			amdgpu_bo_unreserve(dobj);
 		}
 		amdgpu_bo_unref(&dobj);
-	}
-
-	if (r) {
-		DRM_ERROR("Error while benchmarking BO move.\n");
 	}
 }
 

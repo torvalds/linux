@@ -1,5 +1,0 @@
-#
-# Makefile for the pNFS Objects Layout Driver kernel module
-#
-objlayoutdriver-y := objio_osd.o pnfs_osd_xdr_cli.o objlayout.o
-obj-$(CONFIG_PNFS_OBJLAYOUT) += objlayoutdriver.o

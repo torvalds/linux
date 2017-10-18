@@ -166,7 +166,7 @@ static int elan_smbus_get_version(struct i2c_client *client,
 }
 
 static int elan_smbus_get_sm_version(struct i2c_client *client,
-				     u8 *ic_type, u8 *version)
+				     u16 *ic_type, u8 *version)
 {
 	int error;
 	u8 val[3];
@@ -495,6 +495,12 @@ static int elan_smbus_finish_fw_update(struct i2c_client *client,
 	return 0;
 }
 
+static int elan_smbus_get_pattern(struct i2c_client *client, u8 *pattern)
+{
+	*pattern = 0;
+	return 0;
+}
+
 const struct elan_transport_ops elan_smbus_ops = {
 	.initialize		= elan_smbus_initialize,
 	.sleep_control		= elan_smbus_sleep_control,
@@ -524,4 +530,5 @@ const struct elan_transport_ops elan_smbus_ops = {
 	.finish_fw_update	= elan_smbus_finish_fw_update,
 
 	.get_report		= elan_smbus_get_report,
+	.get_pattern		= elan_smbus_get_pattern,
 };

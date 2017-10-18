@@ -124,11 +124,11 @@
 
 		i2c@118100 {
 			eeprom@51 {
-				compatible = "at24,24c256";
+				compatible = "atmel,24c256";
 				reg = <0x51>;
 			};
 			eeprom@52 {
-				compatible = "at24,24c256";
+				compatible = "atmel,24c256";
 				reg = <0x52>;
 			};
 		};

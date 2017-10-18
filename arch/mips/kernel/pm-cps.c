@@ -56,7 +56,6 @@ DECLARE_BITMAP(state_support, CPS_PM_STATE_COUNT);
  * state. Actually per-core rather than per-CPU.
  */
 static DEFINE_PER_CPU_ALIGNED(u32*, ready_count);
-static DEFINE_PER_CPU_ALIGNED(void*, ready_count_alloc);
 
 /* Indicates online CPUs coupled with the current CPU */
 static DEFINE_PER_CPU_ALIGNED(cpumask_t, online_coupled);
@@ -642,7 +641,6 @@ static int cps_pm_online_cpu(unsigned int cpu)
 {
 	enum cps_pm_state state;
 	unsigned core = cpu_data[cpu].core;
-	unsigned dlinesz = cpu_data[cpu].dcache.linesz;
 	void *entry_fn, *core_rc;
 
 	for (state = CPS_PM_NC_WAIT; state < CPS_PM_STATE_COUNT; state++) {
@@ -662,16 +660,11 @@ static int cps_pm_online_cpu(unsigned int cpu)
 	}
 
 	if (!per_cpu(ready_count, core)) {
-		core_rc = kmalloc(dlinesz * 2, GFP_KERNEL);
+		core_rc = kmalloc(sizeof(u32), GFP_KERNEL);
 		if (!core_rc) {
 			pr_err("Failed allocate core %u ready_count\n", core);
 			return -ENOMEM;
 		}
-		per_cpu(ready_count_alloc, core) = core_rc;
-
-		/* Ensure ready_count is aligned to a cacheline boundary */
-		core_rc += dlinesz - 1;
-		core_rc = (void *)((unsigned long)core_rc & ~(dlinesz - 1));
 		per_cpu(ready_count, core) = core_rc;
 	}
 

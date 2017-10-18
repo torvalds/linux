@@ -9,6 +9,7 @@ Pin controller node:
 Required properies:
  - compatible: value should be one of the following:
    "st,stm32f429-pinctrl"
+   "st,stm32f469-pinctrl"
    "st,stm32f746-pinctrl"
    "st,stm32h743-pinctrl"
  - #address-cells: The value of this property must be 1
@@ -38,8 +39,6 @@ Optional properties:
  - st,syscfg: Should be phandle/offset pair. The phandle to the syscon node
    which includes IRQ mux selection register, and the offset of the IRQ mux
    selection register.
- - ngpios: Number of gpios in a bank (to use if bank gpio numbers is less
-   than 16).
  - gpio-ranges: Define a dedicated mapping between a pin-controller and
    a gpio controller. Format is <&phandle a b c> with:
 	-(phandle): phandle of pin-controller.

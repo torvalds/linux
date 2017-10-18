@@ -4074,9 +4074,8 @@ static int qib_init_7220_variables(struct qib_devdata *dd)
 	if (!qib_mini_init)
 		qib_write_kreg(dd, kr_rcvbthqp, QIB_KD_QP);
 
-	init_timer(&ppd->cpspec->chase_timer);
-	ppd->cpspec->chase_timer.function = reenable_7220_chase;
-	ppd->cpspec->chase_timer.data = (unsigned long)ppd;
+	setup_timer(&ppd->cpspec->chase_timer, reenable_7220_chase,
+		    (unsigned long)ppd);
 
 	qib_num_cfg_vls = 1; /* if any 7220's, only one VL */
 

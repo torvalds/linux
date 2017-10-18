@@ -114,7 +114,6 @@ static int exynos_dpi_create_connector(struct drm_encoder *encoder)
 	}
 
 	drm_connector_helper_add(connector, &exynos_dpi_connector_helper_funcs);
-	drm_connector_register(connector);
 	drm_mode_connector_attach_encoder(connector, encoder);
 
 	return 0;
@@ -164,27 +163,13 @@ enum {
 	FIMD_PORT_WRB,
 };
 
-static struct device_node *exynos_dpi_of_find_panel_node(struct device *dev)
-{
-	struct device_node *np, *ep;
-
-	ep = of_graph_get_endpoint_by_regs(dev->of_node, FIMD_PORT_RGB, 0);
-	if (!ep)
-		return NULL;
-
-	np = of_graph_get_remote_port_parent(ep);
-	of_node_put(ep);
-
-	return np;
-}
-
 static int exynos_dpi_parse_dt(struct exynos_dpi *ctx)
 {
 	struct device *dev = ctx->dev;
 	struct device_node *dn = dev->of_node;
 	struct device_node *np;
 
-	ctx->panel_node = exynos_dpi_of_find_panel_node(dev);
+	ctx->panel_node = of_graph_get_remote_node(dn, FIMD_PORT_RGB, 0);
 
 	np = of_get_child_by_name(dn, "display-timings");
 	if (np) {

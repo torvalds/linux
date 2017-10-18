@@ -1,5 +1,5 @@
 /*
-* Copyright(c) 2015, 2016 Intel Corporation.
+* Copyright(c) 2015, 2016, 2017 Intel Corporation.
 *
 * This file is provided under a dual BSD/GPLv2 license.  When using or
 * redistributing this file, you may do so under either license.
@@ -100,11 +100,6 @@ DEFINE_EVENT(hfi1_rc_template, hfi1_sendcomplete,
 );
 
 DEFINE_EVENT(hfi1_rc_template, hfi1_ack,
-	     TP_PROTO(struct rvt_qp *qp, u32 psn),
-	     TP_ARGS(qp, psn)
-);
-
-DEFINE_EVENT(hfi1_rc_template, hfi1_timeout,
 	     TP_PROTO(struct rvt_qp *qp, u32 psn),
 	     TP_ARGS(qp, psn)
 );

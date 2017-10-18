@@ -1055,7 +1055,7 @@ static int snd_cs4281_put_volume(struct snd_kcontrol *kcontrol,
 
 static const DECLARE_TLV_DB_SCALE(db_scale_dsp, -4650, 150, 0);
 
-static struct snd_kcontrol_new snd_cs4281_fm_vol = 
+static const struct snd_kcontrol_new snd_cs4281_fm_vol =
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Synth Playback Volume",
@@ -1066,7 +1066,7 @@ static struct snd_kcontrol_new snd_cs4281_fm_vol =
 	.tlv = { .p = db_scale_dsp },
 };
 
-static struct snd_kcontrol_new snd_cs4281_pcm_vol = 
+static const struct snd_kcontrol_new snd_cs4281_pcm_vol =
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "PCM Stream Playback Volume",
@@ -1296,7 +1296,7 @@ static void snd_cs4281_free_gameport(struct cs4281 *chip)
 #else
 static inline int snd_cs4281_create_gameport(struct cs4281 *chip) { return -ENOSYS; }
 static inline void snd_cs4281_free_gameport(struct cs4281 *chip) { }
-#endif /* CONFIG_GAMEPORT || (MODULE && CONFIG_GAMEPORT_MODULE) */
+#endif /* IS_REACHABLE(CONFIG_GAMEPORT) */
 
 static int snd_cs4281_free(struct cs4281 *chip)
 {

@@ -229,29 +229,6 @@ static void mic_set_reg_on(struct exynos_mic *mic, bool enable)
 	writel(reg, mic->reg + MIC_OP);
 }
 
-static struct device_node *get_remote_node(struct device_node *from, int reg)
-{
-	struct device_node *endpoint = NULL, *remote_node = NULL;
-
-	endpoint = of_graph_get_endpoint_by_regs(from, reg, -1);
-	if (!endpoint) {
-		DRM_ERROR("mic: Failed to find remote port from %s",
-				from->full_name);
-		goto exit;
-	}
-
-	remote_node = of_graph_get_remote_port_parent(endpoint);
-	if (!remote_node) {
-		DRM_ERROR("mic: Failed to find remote port parent from %s",
-							from->full_name);
-		goto exit;
-	}
-
-exit:
-	of_node_put(endpoint);
-	return remote_node;
-}
-
 static int parse_dt(struct exynos_mic *mic)
 {
 	int ret = 0, i, j;
@@ -263,7 +240,7 @@ static int parse_dt(struct exynos_mic *mic)
 	 * The first node must be for decon and the second one must be for dsi.
 	 */
 	for (i = 0, j = 0; i < NUM_ENDPOINTS; i++) {
-		remote_node = get_remote_node(mic->dev->of_node, i);
+		remote_node = of_graph_get_remote_node(mic->dev->of_node, i, 0);
 		if (!remote_node) {
 			ret = -EPIPE;
 			goto exit;
@@ -363,16 +340,10 @@ static int exynos_mic_bind(struct device *dev, struct device *master,
 			   void *data)
 {
 	struct exynos_mic *mic = dev_get_drvdata(dev);
-	int ret;
 
-	mic->bridge.funcs = &mic_bridge_funcs;
-	mic->bridge.of_node = dev->of_node;
 	mic->bridge.driver_private = mic;
-	ret = drm_bridge_add(&mic->bridge);
-	if (ret)
-		DRM_ERROR("mic: Failed to add MIC to the global bridge list\n");
 
-	return ret;
+	return 0;
 }
 
 static void exynos_mic_unbind(struct device *dev, struct device *master,
@@ -388,8 +359,6 @@ static void exynos_mic_unbind(struct device *dev, struct device *master,
 
 already_disabled:
 	mutex_unlock(&mic_mutex);
-
-	drm_bridge_remove(&mic->bridge);
 }
 
 static const struct component_ops exynos_mic_component_ops = {
@@ -484,6 +453,15 @@ static int exynos_mic_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mic);
 
+	mic->bridge.funcs = &mic_bridge_funcs;
+	mic->bridge.of_node = dev->of_node;
+
+	ret = drm_bridge_add(&mic->bridge);
+	if (ret) {
+		DRM_ERROR("mic: Failed to add MIC to the global bridge list\n");
+		return ret;
+	}
+
 	pm_runtime_enable(dev);
 
 	ret = component_add(dev, &exynos_mic_component_ops);
@@ -502,8 +480,13 @@ err:
 
 static int exynos_mic_remove(struct platform_device *pdev)
 {
+	struct exynos_mic *mic = platform_get_drvdata(pdev);
+
 	component_del(&pdev->dev, &exynos_mic_component_ops);
 	pm_runtime_disable(&pdev->dev);
+
+	drm_bridge_remove(&mic->bridge);
+
 	return 0;
 }
 

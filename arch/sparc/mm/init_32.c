@@ -290,7 +290,7 @@ void __init mem_init(void)
 
 
 	/* Saves us work later. */
-	memset((void *)&empty_zero_page, 0, PAGE_SIZE);
+	memset((void *)empty_zero_page, 0, PAGE_SIZE);
 
 	i = last_valid_pfn >> ((20 - PAGE_SHIFT) + 5);
 	i += 1;

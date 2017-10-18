@@ -350,7 +350,7 @@ mwifiex_get_cfp(struct mwifiex_private *priv, u8 band, u16 channel, u32 freq)
 		}
 	}
 	if (i == sband->n_channels) {
-		mwifiex_dbg(priv->adapter, ERROR,
+		mwifiex_dbg(priv->adapter, WARN,
 			    "%s: cannot find cfp by band %d\t"
 			    "& channel=%d freq=%d\n",
 			    __func__, band, channel, freq);

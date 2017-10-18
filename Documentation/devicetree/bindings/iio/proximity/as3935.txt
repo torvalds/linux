@@ -3,6 +3,7 @@ Austrian Microsystems AS3935 Franklin lightning sensor device driver
 Required properties:
 	- compatible: must be "ams,as3935"
 	- reg: SPI chip select number for the device
+	- spi-max-frequency: specifies maximum SPI clock frequency
 	- spi-cpha: SPI Mode 1. Refer to spi/spi-bus.txt for generic SPI
 	slave node bindings.
 	- interrupt-parent : should be the phandle for the interrupt controller
@@ -21,6 +22,7 @@ Example:
 as3935@0 {
 	compatible = "ams,as3935";
 	reg = <0>;
+	spi-max-frequency = <400000>;
 	spi-cpha;
 	interrupt-parent = <&gpio1>;
 	interrupts = <16 1>;

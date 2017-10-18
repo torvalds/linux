@@ -370,7 +370,7 @@ int _access_ok(unsigned long addr, unsigned long size)
 	/* Check that things do not wrap around */
 	if (addr > ULONG_MAX - size)
 		return 0;
-	if (segment_eq(get_fs(), KERNEL_DS))
+	if (uaccess_kernel())
 		return 1;
 #ifdef CONFIG_MTD_UCLINUX
 	if (1)

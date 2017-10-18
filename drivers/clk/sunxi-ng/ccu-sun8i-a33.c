@@ -159,13 +159,17 @@ static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK(pll_de_clk, "pll-de",
 					BIT(28),	/* lock */
 					CLK_SET_RATE_UNGATE);
 
-/* TODO: Fix N */
-static SUNXI_CCU_N_WITH_GATE_LOCK(pll_ddr1_clk, "pll-ddr1",
-				  "osc24M", 0x04c,
-				  8, 6,			/* N */
-				  BIT(31),		/* gate */
-				  BIT(28),		/* lock */
-				  CLK_SET_RATE_UNGATE);
+static struct ccu_mult pll_ddr1_clk = {
+	.enable	= BIT(31),
+	.lock	= BIT(28),
+	.mult	= _SUNXI_CCU_MULT_OFFSET_MIN_MAX(8, 6, 0, 12, 0),
+	.common	= {
+		.reg		= 0x04c,
+		.hw.init	= CLK_HW_INIT("pll-ddr1", "osc24M",
+					      &ccu_mult_ops,
+					      CLK_SET_RATE_UNGATE),
+	},
+};
 
 static const char * const cpux_parents[] = { "osc32k", "osc24M",
 					     "pll-cpux" , "pll-cpux" };
@@ -176,6 +180,9 @@ static SUNXI_CCU_M(axi_clk, "axi", "cpux", 0x050, 0, 2, 0);
 
 static const char * const ahb1_parents[] = { "osc32k", "osc24M",
 					     "axi" , "pll-periph" };
+static const struct ccu_mux_var_prediv ahb1_predivs[] = {
+	{ .index = 3, .shift = 6, .width = 2 },
+};
 static struct ccu_div ahb1_clk = {
 	.div		= _SUNXI_CCU_DIV_FLAGS(4, 2, CLK_DIVIDER_POWER_OF_TWO),
 
@@ -183,11 +190,8 @@ static struct ccu_div ahb1_clk = {
 		.shift	= 12,
 		.width	= 2,
 
-		.variable_prediv	= {
-			.index	= 3,
-			.shift	= 6,
-			.width	= 2,
-		},
+		.var_predivs	= ahb1_predivs,
+		.n_var_predivs	= ARRAY_SIZE(ahb1_predivs),
 	},
 
 	.common		= {

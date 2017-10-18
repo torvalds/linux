@@ -1529,6 +1529,10 @@ struct rtl_hal {
 	u8 external_lna_2g;
 	u8 external_pa_5g;
 	u8 external_lna_5g;
+	u8 type_glna;
+	u8 type_gpa;
+	u8 type_alna;
+	u8 type_apa;
 	u8 rfe_type;
 
 	/*firmware */
@@ -1882,6 +1886,13 @@ struct rtl_efuse {
 	u8 channel_plan;
 };
 
+struct rtl_tx_report {
+	atomic_t sn;
+	u16 last_sent_sn;
+	unsigned long last_sent_time;
+	u16 last_recv_sn;
+};
+
 struct rtl_ps_ctl {
 	bool pwrdomain_protect;
 	bool in_powersavemode;
@@ -2070,6 +2081,8 @@ struct rtl_tcb_desc {
 	u8 use_shortpreamble:1;
 	u8 use_driver_rate:1;
 	u8 disable_ratefallback:1;
+
+	u8 use_spe_rpt:1;
 
 	u8 ratr_index;
 	u8 mac_id;
@@ -2320,6 +2333,7 @@ struct rtl_locks {
 	spinlock_t entry_list_lock;
 	spinlock_t usb_lock;
 	spinlock_t c2hcmd_lock;
+	spinlock_t scan_list_lock; /* lock for the scan list */
 
 	/*FW clock change */
 	spinlock_t fw_ps_lock;
@@ -2468,6 +2482,9 @@ struct rtl_btc_info {
 	u8 btcoexist;
 	u8 ant_num;
 	u8 single_ant_path;
+
+	u8 ap_num;
+	bool in_4way;
 };
 
 struct bt_coexist_info {
@@ -2546,6 +2563,13 @@ struct rtl_btc_ops {
 	bool (*btc_is_bt_disabled) (struct rtl_priv *rtlpriv);
 	void (*btc_special_packet_notify)(struct rtl_priv *rtlpriv,
 					  u8 pkt_type);
+	void (*btc_record_pwr_mode)(struct rtl_priv *rtlpriv, u8 *buf, u8 len);
+	u8   (*btc_get_lps_val)(struct rtl_priv *rtlpriv);
+	u8   (*btc_get_rpwm_val)(struct rtl_priv *rtlpriv);
+	bool (*btc_is_bt_ctrl_lps)(struct rtl_priv *rtlpriv);
+	void (*btc_get_ampdu_cfg)(struct rtl_priv *rtlpriv, u8 *reject_agg,
+				  u8 *ctrl_agg_size, u8 *agg_size);
+	bool (*btc_is_bt_lps_on)(struct rtl_priv *rtlpriv);
 };
 
 struct proxim {
@@ -2562,6 +2586,17 @@ struct rtl_c2hcmd {
 	u8 tag;
 	u8 len;
 	u8 *val;
+};
+
+struct rtl_bssid_entry {
+	struct list_head list;
+	u8 bssid[ETH_ALEN];
+	u32 age;
+};
+
+struct rtl_scan_list {
+	int num;
+	struct list_head list;	/* sort by age */
 };
 
 struct rtl_priv {
@@ -2584,6 +2619,8 @@ struct rtl_priv {
 	struct rtl_security sec;
 	struct rtl_efuse efuse;
 	struct rtl_led_ctl ledctl;
+	struct rtl_tx_report tx_report;
+	struct rtl_scan_list scan_list;
 
 	struct rtl_ps_ctl psc;
 	struct rate_adaptive ra;
@@ -2933,6 +2970,14 @@ static inline void rtl_write_byte(struct rtl_priv *rtlpriv, u32 addr, u8 val8)
 		rtlpriv->io.read8_sync(rtlpriv, addr);
 }
 
+static inline void rtl_write_byte_with_val32(struct ieee80211_hw *hw,
+					     u32 addr, u32 val8)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
+	rtl_write_byte(rtlpriv, addr, (u8)val8);
+}
+
 static inline void rtl_write_word(struct rtl_priv *rtlpriv, u32 addr, u16 val16)
 {
 	rtlpriv->io.write16_async(rtlpriv, addr, val16);
@@ -2964,6 +3009,12 @@ static inline void rtl_set_bbreg(struct ieee80211_hw *hw, u32 regaddr,
 	struct rtl_priv *rtlpriv = hw->priv;
 
 	rtlpriv->cfg->ops->set_bbreg(hw, regaddr, bitmask, data);
+}
+
+static inline void rtl_set_bbreg_with_dwmask(struct ieee80211_hw *hw,
+				 u32 regaddr, u32 data)
+{
+	rtl_set_bbreg(hw, regaddr, 0xffffffff, data);
 }
 
 static inline u32 rtl_get_rfreg(struct ieee80211_hw *hw,

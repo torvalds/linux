@@ -27,46 +27,53 @@
 
 #include <linux/cache.h> /* for __read_mostly */
 
+#define I915_PARAMS_FOR_EACH(func) \
+	func(int, modeset); \
+	func(int, panel_ignore_lid); \
+	func(int, semaphores); \
+	func(int, lvds_channel_mode); \
+	func(int, panel_use_ssc); \
+	func(int, vbt_sdvo_panel_type); \
+	func(int, enable_rc6); \
+	func(int, enable_dc); \
+	func(int, enable_fbc); \
+	func(int, enable_ppgtt); \
+	func(int, enable_execlists); \
+	func(int, enable_psr); \
+	func(int, disable_power_well); \
+	func(int, enable_ips); \
+	func(int, invert_brightness); \
+	func(int, enable_guc_loading); \
+	func(int, enable_guc_submission); \
+	func(int, guc_log_level); \
+	func(char *, guc_firmware_path); \
+	func(char *, huc_firmware_path); \
+	func(int, use_mmio_flip); \
+	func(int, mmio_debug); \
+	func(int, edp_vswing); \
+	func(unsigned int, inject_load_failure); \
+	/* leave bools at the end to not create holes */ \
+	func(bool, alpha_support); \
+	func(bool, enable_cmd_parser); \
+	func(bool, enable_hangcheck); \
+	func(bool, fastboot); \
+	func(bool, prefault_disable); \
+	func(bool, load_detect_test); \
+	func(bool, force_reset_modeset_test); \
+	func(bool, reset); \
+	func(bool, error_capture); \
+	func(bool, disable_display); \
+	func(bool, verbose_state_checks); \
+	func(bool, nuclear_pageflip); \
+	func(bool, enable_dp_mst); \
+	func(bool, enable_dpcd_backlight); \
+	func(bool, enable_gvt)
+
+#define MEMBER(T, member) T member
 struct i915_params {
-	int modeset;
-	int panel_ignore_lid;
-	int semaphores;
-	int lvds_channel_mode;
-	int panel_use_ssc;
-	int vbt_sdvo_panel_type;
-	int enable_rc6;
-	int enable_dc;
-	int enable_fbc;
-	int enable_ppgtt;
-	int enable_execlists;
-	int enable_psr;
-	unsigned int alpha_support;
-	int disable_power_well;
-	int enable_ips;
-	int invert_brightness;
-	int enable_guc_loading;
-	int enable_guc_submission;
-	int guc_log_level;
-	int use_mmio_flip;
-	int mmio_debug;
-	int edp_vswing;
-	unsigned int inject_load_failure;
-	/* leave bools at the end to not create holes */
-	bool enable_cmd_parser;
-	bool enable_hangcheck;
-	bool fastboot;
-	bool prefault_disable;
-	bool load_detect_test;
-	bool force_reset_modeset_test;
-	bool reset;
-	bool error_capture;
-	bool disable_display;
-	bool verbose_state_checks;
-	bool nuclear_pageflip;
-	bool enable_dp_mst;
-	bool enable_dpcd_backlight;
-	bool enable_gvt;
+	I915_PARAMS_FOR_EACH(MEMBER);
 };
+#undef MEMBER
 
 extern struct i915_params i915 __read_mostly;
 

@@ -373,19 +373,16 @@ u8 sdio_readb(struct sdio_func *func, unsigned int addr, int *err_ret)
 	u8 val;
 
 	if (!func) {
-		*err_ret = -EINVAL;
+		if (err_ret)
+			*err_ret = -EINVAL;
 		return 0xFF;
 	}
-
-	if (err_ret)
-		*err_ret = 0;
 
 	ret = mmc_io_rw_direct(func->card, 0, func->num, addr, 0, &val);
-	if (ret) {
-		if (err_ret)
-			*err_ret = ret;
+	if (err_ret)
+		*err_ret = ret;
+	if (ret)
 		return 0xFF;
-	}
 
 	return val;
 }
@@ -407,7 +404,8 @@ void sdio_writeb(struct sdio_func *func, u8 b, unsigned int addr, int *err_ret)
 	int ret;
 
 	if (!func) {
-		*err_ret = -EINVAL;
+		if (err_ret)
+			*err_ret = -EINVAL;
 		return;
 	}
 
@@ -441,7 +439,7 @@ u8 sdio_writeb_readb(struct sdio_func *func, u8 write_byte,
 	if (err_ret)
 		*err_ret = ret;
 	if (ret)
-		val = 0xff;
+		return 0xff;
 
 	return val;
 }
@@ -529,15 +527,11 @@ u16 sdio_readw(struct sdio_func *func, unsigned int addr, int *err_ret)
 {
 	int ret;
 
-	if (err_ret)
-		*err_ret = 0;
-
 	ret = sdio_memcpy_fromio(func, func->tmpbuf, addr, 2);
-	if (ret) {
-		if (err_ret)
-			*err_ret = ret;
+	if (err_ret)
+		*err_ret = ret;
+	if (ret)
 		return 0xFFFF;
-	}
 
 	return le16_to_cpup((__le16 *)func->tmpbuf);
 }
@@ -581,15 +575,11 @@ u32 sdio_readl(struct sdio_func *func, unsigned int addr, int *err_ret)
 {
 	int ret;
 
-	if (err_ret)
-		*err_ret = 0;
-
 	ret = sdio_memcpy_fromio(func, func->tmpbuf, addr, 4);
-	if (ret) {
-		if (err_ret)
-			*err_ret = ret;
+	if (err_ret)
+		*err_ret = ret;
+	if (ret)
 		return 0xFFFFFFFF;
-	}
 
 	return le32_to_cpup((__le32 *)func->tmpbuf);
 }
@@ -635,19 +625,16 @@ unsigned char sdio_f0_readb(struct sdio_func *func, unsigned int addr,
 	unsigned char val;
 
 	if (!func) {
-		*err_ret = -EINVAL;
+		if (err_ret)
+			*err_ret = -EINVAL;
 		return 0xFF;
 	}
-
-	if (err_ret)
-		*err_ret = 0;
 
 	ret = mmc_io_rw_direct(func->card, 0, 0, addr, 0, &val);
-	if (ret) {
-		if (err_ret)
-			*err_ret = ret;
+	if (err_ret)
+		*err_ret = ret;
+	if (ret)
 		return 0xFF;
-	}
 
 	return val;
 }
@@ -673,7 +660,8 @@ void sdio_f0_writeb(struct sdio_func *func, unsigned char b, unsigned int addr,
 	int ret;
 
 	if (!func) {
-		*err_ret = -EINVAL;
+		if (err_ret)
+			*err_ret = -EINVAL;
 		return;
 	}
 

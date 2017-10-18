@@ -27,8 +27,8 @@
 
 static struct dentry *root_folder;
 
-static int brcmf_debug_create_memdump(struct brcmf_bus *bus, const void *data,
-				      size_t len)
+int brcmf_debug_create_memdump(struct brcmf_bus *bus, const void *data,
+			       size_t len)
 {
 	void *dump;
 	size_t ramsize;
@@ -52,24 +52,6 @@ static int brcmf_debug_create_memdump(struct brcmf_bus *bus, const void *data,
 	dev_coredumpv(bus->dev, dump, len + ramsize, GFP_KERNEL);
 
 	return 0;
-}
-
-static int brcmf_debug_psm_watchdog_notify(struct brcmf_if *ifp,
-					   const struct brcmf_event_msg *evtmsg,
-					   void *data)
-{
-	int err;
-
-	brcmf_dbg(TRACE, "enter: bsscfgidx=%d\n", ifp->bsscfgidx);
-
-	brcmf_err("PSM's watchdog has fired!\n");
-
-	err = brcmf_debug_create_memdump(ifp->drvr->bus_if, data,
-					 evtmsg->datalen);
-	if (err)
-		brcmf_err("Failed to get memory dump, %d\n", err);
-
-	return err;
 }
 
 void brcmf_debugfs_init(void)
@@ -99,9 +81,7 @@ int brcmf_debug_attach(struct brcmf_pub *drvr)
 	if (IS_ERR(drvr->dbgfs_dir))
 		return PTR_ERR(drvr->dbgfs_dir);
 
-
-	return brcmf_fweh_register(drvr, BRCMF_E_PSM_WATCHDOG,
-				   brcmf_debug_psm_watchdog_notify);
+	return 0;
 }
 
 void brcmf_debug_detach(struct brcmf_pub *drvr)

@@ -41,6 +41,7 @@
 
 #include "blk.h"
 #include "blk-mq-sched.h"
+#include "blk-wbt.h"
 
 static DEFINE_SPINLOCK(elv_list_lock);
 static LIST_HEAD(elv_list);
@@ -680,6 +681,7 @@ void __elv_add_request(struct request_queue *q, struct request *rq, int where)
 		 */
 		if (elv_attempt_insert_merge(q, rq))
 			break;
+		/* fall through */
 	case ELEVATOR_INSERT_SORT:
 		BUG_ON(blk_rq_is_passthrough(rq));
 		rq->rq_flags |= RQF_SORTED;
@@ -877,6 +879,8 @@ void elv_unregister_queue(struct request_queue *q)
 		kobject_uevent(&e->kobj, KOBJ_REMOVE);
 		kobject_del(&e->kobj);
 		e->registered = 0;
+		/* Re-enable throttling in case elevator disabled it */
+		wbt_enable_default(q);
 	}
 }
 EXPORT_SYMBOL(elv_unregister_queue);
@@ -947,7 +951,6 @@ static int elevator_switch_mq(struct request_queue *q,
 	int ret;
 
 	blk_mq_freeze_queue(q);
-	blk_mq_quiesce_queue(q);
 
 	if (q->elevator) {
 		if (q->elevator->registered)
@@ -975,9 +978,7 @@ static int elevator_switch_mq(struct request_queue *q,
 
 out:
 	blk_mq_unfreeze_queue(q);
-	blk_mq_start_stopped_hw_queues(q, true);
 	return ret;
-
 }
 
 /*
@@ -1062,10 +1063,8 @@ static int __elevator_change(struct request_queue *q, const char *name)
 
 	strlcpy(elevator_name, name, sizeof(elevator_name));
 	e = elevator_get(strstrip(elevator_name), true);
-	if (!e) {
-		printk(KERN_ERR "elevator: type %s not found\n", elevator_name);
+	if (!e)
 		return -EINVAL;
-	}
 
 	if (q->elevator &&
 	    !strcmp(elevator_name, q->elevator->type->elevator_name)) {
@@ -1084,19 +1083,6 @@ static int __elevator_change(struct request_queue *q, const char *name)
 
 	return elevator_switch(q, e);
 }
-
-int elevator_change(struct request_queue *q, const char *name)
-{
-	int ret;
-
-	/* Protect q->elevator from elevator_init() */
-	mutex_lock(&q->sysfs_lock);
-	ret = __elevator_change(q, name);
-	mutex_unlock(&q->sysfs_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL(elevator_change);
 
 static inline bool elv_support_iosched(struct request_queue *q)
 {
@@ -1118,7 +1104,6 @@ ssize_t elv_iosched_store(struct request_queue *q, const char *name,
 	if (!ret)
 		return count;
 
-	printk(KERN_ERR "elevator: switch to %s failed\n", name);
 	return ret;
 }
 

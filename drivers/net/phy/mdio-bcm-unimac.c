@@ -1,7 +1,7 @@
 /*
  * Broadcom UniMAC MDIO bus controller driver
  *
- * Copyright (C) 2014, Broadcom Corporation
+ * Copyright (C) 2014-2017 Broadcom
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -228,6 +228,7 @@ static int unimac_mdio_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id unimac_mdio_ids[] = {
+	{ .compatible = "brcm,genet-mdio-v5", },
 	{ .compatible = "brcm,genet-mdio-v4", },
 	{ .compatible = "brcm,genet-mdio-v3", },
 	{ .compatible = "brcm,genet-mdio-v2", },

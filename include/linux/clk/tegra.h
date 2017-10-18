@@ -125,5 +125,8 @@ extern void tegra210_xusb_pll_hw_control_enable(void);
 extern void tegra210_xusb_pll_hw_sequence_start(void);
 extern void tegra210_sata_pll_hw_control_enable(void);
 extern void tegra210_sata_pll_hw_sequence_start(void);
+extern void tegra210_set_sata_pll_seq_sw(bool state);
+extern void tegra210_put_utmipll_in_iddq(void);
+extern void tegra210_put_utmipll_out_iddq(void);
 
 #endif /* __LINUX_CLK_TEGRA_H_ */

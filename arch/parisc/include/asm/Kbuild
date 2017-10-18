@@ -1,5 +1,3 @@
-
-generic-y += auxvec.h
 generic-y += barrier.h
 generic-y += clkdev.h
 generic-y += current.h
@@ -11,14 +9,12 @@ generic-y += hw_irq.h
 generic-y += irq_regs.h
 generic-y += irq_work.h
 generic-y += kdebug.h
-generic-y += kvm_para.h
+generic-y += kprobes.h
 generic-y += local.h
 generic-y += local64.h
 generic-y += mcs_spinlock.h
 generic-y += mm-arch-hooks.h
-generic-y += param.h
 generic-y += percpu.h
-generic-y += poll.h
 generic-y += preempt.h
 generic-y += seccomp.h
 generic-y += segment.h
@@ -28,4 +24,3 @@ generic-y += user.h
 generic-y += vga.h
 generic-y += word-at-a-time.h
 generic-y += xor.h
-generic-y += kprobes.h

@@ -491,6 +491,69 @@ int intel_scu_ipc_command(int cmd, int sub, u32 *in, int inlen,
 }
 EXPORT_SYMBOL(intel_scu_ipc_command);
 
+#define IPC_SPTR		0x08
+#define IPC_DPTR		0x0C
+
+/**
+ * intel_scu_ipc_raw_command() - IPC command with data and pointers
+ * @cmd:	IPC command code.
+ * @sub:	IPC command sub type.
+ * @in:		input data of this IPC command.
+ * @inlen:	input data length in dwords.
+ * @out:	output data of this IPC command.
+ * @outlen:	output data length in dwords.
+ * @sptr:	data writing to SPTR register.
+ * @dptr:	data writing to DPTR register.
+ *
+ * Send an IPC command to SCU with input/output data and source/dest pointers.
+ *
+ * Return:	an IPC error code or 0 on success.
+ */
+int intel_scu_ipc_raw_command(int cmd, int sub, u8 *in, int inlen,
+			      u32 *out, int outlen, u32 dptr, u32 sptr)
+{
+	struct intel_scu_ipc_dev *scu = &ipcdev;
+	int inbuflen = DIV_ROUND_UP(inlen, 4);
+	u32 inbuf[4];
+	int i, err;
+
+	/* Up to 16 bytes */
+	if (inbuflen > 4)
+		return -EINVAL;
+
+	mutex_lock(&ipclock);
+	if (scu->dev == NULL) {
+		mutex_unlock(&ipclock);
+		return -ENODEV;
+	}
+
+	writel(dptr, scu->ipc_base + IPC_DPTR);
+	writel(sptr, scu->ipc_base + IPC_SPTR);
+
+	/*
+	 * SRAM controller doesn't support 8-bit writes, it only
+	 * supports 32-bit writes, so we have to copy input data into
+	 * the temporary buffer, and SCU FW will use the inlen to
+	 * determine the actual input data length in the temporary
+	 * buffer.
+	 */
+	memcpy(inbuf, in, inlen);
+
+	for (i = 0; i < inbuflen; i++)
+		ipc_data_writel(scu, inbuf[i], 4 * i);
+
+	ipc_command(scu, (inlen << 16) | (sub << 12) | cmd);
+	err = intel_scu_ipc_check_status(scu);
+	if (!err) {
+		for (i = 0; i < outlen; i++)
+			*out++ = ipc_data_readl(scu, 4 * i);
+	}
+
+	mutex_unlock(&ipclock);
+	return err;
+}
+EXPORT_SYMBOL_GPL(intel_scu_ipc_raw_command);
+
 /* I2C commands */
 #define IPC_I2C_WRITE 1 /* I2C Write command */
 #define IPC_I2C_READ  2 /* I2C Read command */
@@ -566,21 +629,17 @@ static irqreturn_t ioc(int irq, void *dev_id)
  */
 static int ipc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	int platform;		/* Platform type */
 	int err;
 	struct intel_scu_ipc_dev *scu = &ipcdev;
 	struct intel_scu_ipc_pdata_t *pdata;
-
-	platform = intel_mid_identify_cpu();
-	if (platform == 0)
-		return -ENODEV;
 
 	if (scu->dev)		/* We support only one SCU */
 		return -EBUSY;
 
 	pdata = (struct intel_scu_ipc_pdata_t *)id->driver_data;
+	if (!pdata)
+		return -ENODEV;
 
-	scu->dev = &pdev->dev;
 	scu->irq_mode = pdata->irq_mode;
 
 	err = pcim_enable_device(pdev);
@@ -593,16 +652,19 @@ static int ipc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	init_completion(&scu->cmd_complete);
 
-	err = devm_request_irq(&pdev->dev, pdev->irq, ioc, 0, "intel_scu_ipc",
-			       scu);
-	if (err)
-		return err;
-
 	scu->ipc_base = pcim_iomap_table(pdev)[0];
 
 	scu->i2c_base = ioremap_nocache(pdata->i2c_base, pdata->i2c_len);
 	if (!scu->i2c_base)
 		return -ENOMEM;
+
+	err = devm_request_irq(&pdev->dev, pdev->irq, ioc, 0, "intel_scu_ipc",
+			       scu);
+	if (err)
+		return err;
+
+	/* Assign device at last */
+	scu->dev = &pdev->dev;
 
 	intel_scu_devices_create();
 
@@ -610,22 +672,14 @@ static int ipc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 }
 
+#define SCU_DEVICE(id, pdata)	{PCI_VDEVICE(INTEL, id), (kernel_ulong_t)&pdata}
+
 static const struct pci_device_id pci_ids[] = {
-	{
-		PCI_VDEVICE(INTEL, PCI_DEVICE_ID_LINCROFT),
-		(kernel_ulong_t)&intel_scu_ipc_lincroft_pdata,
-	}, {
-		PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PENWELL),
-		(kernel_ulong_t)&intel_scu_ipc_penwell_pdata,
-	}, {
-		PCI_VDEVICE(INTEL, PCI_DEVICE_ID_CLOVERVIEW),
-		(kernel_ulong_t)&intel_scu_ipc_penwell_pdata,
-	}, {
-		PCI_VDEVICE(INTEL, PCI_DEVICE_ID_TANGIER),
-		(kernel_ulong_t)&intel_scu_ipc_tangier_pdata,
-	}, {
-		0,
-	}
+	SCU_DEVICE(PCI_DEVICE_ID_LINCROFT,	intel_scu_ipc_lincroft_pdata),
+	SCU_DEVICE(PCI_DEVICE_ID_PENWELL,	intel_scu_ipc_penwell_pdata),
+	SCU_DEVICE(PCI_DEVICE_ID_CLOVERVIEW,	intel_scu_ipc_penwell_pdata),
+	SCU_DEVICE(PCI_DEVICE_ID_TANGIER,	intel_scu_ipc_tangier_pdata),
+	{}
 };
 
 static struct pci_driver ipc_driver = {

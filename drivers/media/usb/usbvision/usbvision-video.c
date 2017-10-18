@@ -1427,8 +1427,8 @@ static int usbvision_probe(struct usb_interface *intf,
 	int model, i, ret;
 
 	PDEBUG(DBG_PROBE, "VID=%#04x, PID=%#04x, ifnum=%u",
-				dev->descriptor.idVendor,
-				dev->descriptor.idProduct, ifnum);
+				le16_to_cpu(dev->descriptor.idVendor),
+				le16_to_cpu(dev->descriptor.idProduct), ifnum);
 
 	model = devid->driver_info;
 	if (model < 0 || model >= usbvision_device_data_size) {
@@ -1501,7 +1501,14 @@ static int usbvision_probe(struct usb_interface *intf,
 	}
 
 	for (i = 0; i < usbvision->num_alt; i++) {
-		u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[1].desc.
+		u16 tmp;
+
+		if (uif->altsetting[i].desc.bNumEndpoints < 2) {
+			ret = -ENODEV;
+			goto err_pkt;
+		}
+
+		tmp = le16_to_cpu(uif->altsetting[i].endpoint[1].desc.
 				      wMaxPacketSize);
 		usbvision->alt_max_pkt_size[i] =
 			(tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);

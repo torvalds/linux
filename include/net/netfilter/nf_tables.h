@@ -176,7 +176,7 @@ struct nft_data_desc {
 int nft_data_init(const struct nft_ctx *ctx,
 		  struct nft_data *data, unsigned int size,
 		  struct nft_data_desc *desc, const struct nlattr *nla);
-void nft_data_uninit(const struct nft_data *data, enum nft_data_types type);
+void nft_data_release(const struct nft_data *data, enum nft_data_types type);
 int nft_data_dump(struct sk_buff *skb, int attr, const struct nft_data *data,
 		  enum nft_data_types type, unsigned int len);
 
@@ -281,6 +281,23 @@ struct nft_set_estimate {
 	enum nft_set_class	space;
 };
 
+/**
+ *      struct nft_set_type - nf_tables set type
+ *
+ *      @select_ops: function to select nft_set_ops
+ *      @ops: default ops, used when no select_ops functions is present
+ *      @list: used internally
+ *      @owner: module reference
+ */
+struct nft_set_type {
+	const struct nft_set_ops	*(*select_ops)(const struct nft_ctx *,
+						       const struct nft_set_desc *desc,
+						       u32 flags);
+	const struct nft_set_ops	*ops;
+	struct list_head		list;
+	struct module			*owner;
+};
+
 struct nft_set_ext;
 struct nft_expr;
 
@@ -297,8 +314,6 @@ struct nft_expr;
  *	@privsize: function to return size of set private data
  *	@init: initialize private data of new set instance
  *	@destroy: destroy private data of set instance
- *	@list: nf_tables_set_ops list node
- *	@owner: module reference
  *	@elemsize: element private size
  *	@features: features supported by the implementation
  */
@@ -336,7 +351,8 @@ struct nft_set_ops {
 						struct nft_set *set,
 						struct nft_set_iter *iter);
 
-	unsigned int			(*privsize)(const struct nlattr * const nla[]);
+	unsigned int			(*privsize)(const struct nlattr * const nla[],
+						    const struct nft_set_desc *desc);
 	bool				(*estimate)(const struct nft_set_desc *desc,
 						    u32 features,
 						    struct nft_set_estimate *est);
@@ -345,14 +361,13 @@ struct nft_set_ops {
 						const struct nlattr * const nla[]);
 	void				(*destroy)(const struct nft_set *set);
 
-	struct list_head		list;
-	struct module			*owner;
 	unsigned int			elemsize;
 	u32				features;
+	const struct nft_set_type	*type;
 };
 
-int nft_register_set(struct nft_set_ops *ops);
-void nft_unregister_set(struct nft_set_ops *ops);
+int nft_register_set(struct nft_set_type *type);
+void nft_unregister_set(struct nft_set_type *type);
 
 /**
  * 	struct nft_set - nf_tables set instance
@@ -413,10 +428,11 @@ static inline struct nft_set *nft_set_container_of(const void *priv)
 	return (void *)priv - offsetof(struct nft_set, data);
 }
 
-struct nft_set *nf_tables_set_lookup(const struct nft_table *table,
-				     const struct nlattr *nla, u8 genmask);
-struct nft_set *nf_tables_set_lookup_byid(const struct net *net,
-					  const struct nlattr *nla, u8 genmask);
+struct nft_set *nft_set_lookup(const struct net *net,
+			       const struct nft_table *table,
+			       const struct nlattr *nla_set_name,
+			       const struct nlattr *nla_set_id,
+			       u8 genmask);
 
 static inline unsigned long nft_set_gc_interval(const struct nft_set *set)
 {
@@ -910,6 +926,11 @@ static inline struct nft_base_chain *nft_base_chain(const struct nft_chain *chai
 	return container_of(chain, struct nft_base_chain, chain);
 }
 
+static inline bool nft_is_base_chain(const struct nft_chain *chain)
+{
+	return chain->flags & NFT_BASE_CHAIN;
+}
+
 int __nft_release_basechain(struct nft_ctx *ctx);
 
 unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
@@ -1044,7 +1065,8 @@ struct nft_object_type {
 	unsigned int			maxattr;
 	struct module			*owner;
 	const struct nla_policy		*policy;
-	int				(*init)(const struct nlattr * const tb[],
+	int				(*init)(const struct nft_ctx *ctx,
+						const struct nlattr *const tb[],
 						struct nft_object *obj);
 	void				(*destroy)(struct nft_object *obj);
 	int				(*dump)(struct sk_buff *skb,

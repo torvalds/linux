@@ -1096,26 +1096,26 @@ static const struct dev_pm_ops sclp_pm_ops = {
 	.restore	= sclp_restore,
 };
 
-static ssize_t sclp_show_console_pages(struct device_driver *dev, char *buf)
+static ssize_t con_pages_show(struct device_driver *dev, char *buf)
 {
 	return sprintf(buf, "%i\n", sclp_console_pages);
 }
 
-static DRIVER_ATTR(con_pages, S_IRUSR, sclp_show_console_pages, NULL);
+static DRIVER_ATTR_RO(con_pages);
 
-static ssize_t sclp_show_con_drop(struct device_driver *dev, char *buf)
+static ssize_t con_drop_show(struct device_driver *dev, char *buf)
 {
 	return sprintf(buf, "%i\n", sclp_console_drop);
 }
 
-static DRIVER_ATTR(con_drop, S_IRUSR, sclp_show_con_drop, NULL);
+static DRIVER_ATTR_RO(con_drop);
 
-static ssize_t sclp_show_console_full(struct device_driver *dev, char *buf)
+static ssize_t con_full_show(struct device_driver *dev, char *buf)
 {
 	return sprintf(buf, "%lu\n", sclp_console_full);
 }
 
-static DRIVER_ATTR(con_full, S_IRUSR, sclp_show_console_full, NULL);
+static DRIVER_ATTR_RO(con_full);
 
 static struct attribute *sclp_drv_attrs[] = {
 	&driver_attr_con_pages.attr,

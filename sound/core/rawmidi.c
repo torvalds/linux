@@ -368,7 +368,7 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 	int err;
 	struct snd_rawmidi *rmidi;
 	struct snd_rawmidi_file *rawmidi_file = NULL;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 
 	if ((file->f_flags & O_APPEND) && !(file->f_flags & O_NONBLOCK)) 
 		return -EINVAL;		/* invalid combination */
@@ -1002,7 +1002,7 @@ static ssize_t snd_rawmidi_read(struct file *file, char __user *buf, size_t coun
 	while (count > 0) {
 		spin_lock_irq(&runtime->lock);
 		while (!snd_rawmidi_ready(substream)) {
-			wait_queue_t wait;
+			wait_queue_entry_t wait;
 			if ((file->f_flags & O_NONBLOCK) != 0 || result > 0) {
 				spin_unlock_irq(&runtime->lock);
 				return result > 0 ? result : -EAGAIN;
@@ -1306,7 +1306,7 @@ static ssize_t snd_rawmidi_write(struct file *file, const char __user *buf,
 	while (count > 0) {
 		spin_lock_irq(&runtime->lock);
 		while (!snd_rawmidi_ready_append(substream, count)) {
-			wait_queue_t wait;
+			wait_queue_entry_t wait;
 			if (file->f_flags & O_NONBLOCK) {
 				spin_unlock_irq(&runtime->lock);
 				return result > 0 ? result : -EAGAIN;
@@ -1338,7 +1338,7 @@ static ssize_t snd_rawmidi_write(struct file *file, const char __user *buf,
 	if (file->f_flags & O_DSYNC) {
 		spin_lock_irq(&runtime->lock);
 		while (runtime->avail != runtime->buffer_size) {
-			wait_queue_t wait;
+			wait_queue_entry_t wait;
 			unsigned int last_avail = runtime->avail;
 			init_waitqueue_entry(&wait, current);
 			add_wait_queue(&runtime->sleep, &wait);
@@ -1610,7 +1610,7 @@ static int snd_rawmidi_dev_free(struct snd_device *device)
 	return snd_rawmidi_free(rmidi);
 }
 
-#if IS_REACHABLE(CONFIG_SND_SEQUENCER)
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
 static void snd_rawmidi_dev_seq_free(struct snd_seq_device *device)
 {
 	struct snd_rawmidi *rmidi = device->private_data;
@@ -1691,7 +1691,7 @@ static int snd_rawmidi_dev_register(struct snd_device *device)
 		}
 	}
 	rmidi->proc_entry = entry;
-#if IS_REACHABLE(CONFIG_SND_SEQUENCER)
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
 	if (!rmidi->ops || !rmidi->ops->dev_register) { /* own registration mechanism */
 		if (snd_seq_device_new(rmidi->card, rmidi->device, SNDRV_SEQ_DEV_ID_MIDISYNTH, 0, &rmidi->seq_dev) >= 0) {
 			rmidi->seq_dev->private_data = rmidi;

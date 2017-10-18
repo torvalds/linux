@@ -21,6 +21,7 @@
 #define TIM_CCMR1	0x18	/* Capt/Comp 1 Mode Reg    */
 #define TIM_CCMR2	0x1C	/* Capt/Comp 2 Mode Reg    */
 #define TIM_CCER	0x20	/* Capt/Comp Enable Reg    */
+#define TIM_CNT		0x24	/* Counter		   */
 #define TIM_PSC		0x28	/* Prescaler               */
 #define TIM_ARR		0x2c	/* Auto-Reload Register    */
 #define TIM_CCR1	0x34	/* Capt/Comp Register 1    */
@@ -30,8 +31,10 @@
 #define TIM_BDTR	0x44	/* Break and Dead-Time Reg */
 
 #define TIM_CR1_CEN	BIT(0)	/* Counter Enable	   */
+#define TIM_CR1_DIR	BIT(4)  /* Counter Direction	   */
 #define TIM_CR1_ARPE	BIT(7)	/* Auto-reload Preload Ena */
 #define TIM_CR2_MMS	(BIT(4) | BIT(5) | BIT(6)) /* Master mode selection */
+#define TIM_CR2_MMS2	GENMASK(23, 20) /* Master mode selection 2 */
 #define TIM_SMCR_SMS	(BIT(0) | BIT(1) | BIT(2)) /* Slave mode selection */
 #define TIM_SMCR_TS	(BIT(4) | BIT(5) | BIT(6)) /* Trigger selection */
 #define TIM_DIER_UIE	BIT(0)	/* Update interrupt	   */
@@ -58,6 +61,7 @@
 
 #define MAX_TIM_PSC		0xFFFF
 #define TIM_CR2_MMS_SHIFT	4
+#define TIM_CR2_MMS2_SHIFT	20
 #define TIM_SMCR_TS_SHIFT	4
 #define TIM_BDTR_BKF_MASK	0xF
 #define TIM_BDTR_BKF_SHIFT	16

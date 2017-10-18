@@ -45,6 +45,7 @@
 #include "accommon.h"
 #include "amlcode.h"
 #include "acdebug.h"
+#include "acinterp.h"
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
 ACPI_MODULE_NAME("dbxface")
@@ -125,7 +126,7 @@ error_exit:
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Called for AML_BREAK_POINT_OP
+ * DESCRIPTION: Called for AML_BREAKPOINT_OP
  *
  ******************************************************************************/
 
@@ -243,7 +244,7 @@ acpi_db_single_step(struct acpi_walk_state *walk_state,
 		if ((acpi_gbl_db_output_to_file) ||
 		    (acpi_dbg_level & ACPI_LV_PARSE)) {
 			acpi_os_printf
-			    ("\n[AmlDebug] Next AML Opcode to execute:\n");
+			    ("\nAML Debug: Next AML Opcode to execute:\n");
 		}
 
 		/*
@@ -368,7 +369,9 @@ acpi_db_single_step(struct acpi_walk_state *walk_state,
 		walk_state->method_breakpoint = 1;	/* Must be non-zero! */
 	}
 
+	acpi_ex_exit_interpreter();
 	status = acpi_db_start_command(walk_state, op);
+	acpi_ex_enter_interpreter();
 
 	/* User commands complete, continue execution of the interrupted method */
 

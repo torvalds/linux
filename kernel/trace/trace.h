@@ -262,6 +262,12 @@ struct trace_array {
 #ifdef CONFIG_FUNCTION_TRACER
 	struct ftrace_ops	*ops;
 	struct trace_pid_list	__rcu *function_pids;
+#ifdef CONFIG_DYNAMIC_FTRACE
+	/* All of these are protected by the ftrace_lock */
+	struct list_head	func_probes;
+	struct list_head	mod_trace;
+	struct list_head	mod_notrace;
+#endif
 	/* function tracing enabled */
 	int			function_enabled;
 #endif
@@ -579,6 +585,8 @@ void tracing_reset_all_online_cpus(void);
 int tracing_open_generic(struct inode *inode, struct file *filp);
 bool tracing_is_disabled(void);
 int tracer_tracing_is_on(struct trace_array *tr);
+void tracer_tracing_on(struct trace_array *tr);
+void tracer_tracing_off(struct trace_array *tr);
 struct dentry *trace_create_file(const char *name,
 				 umode_t mode,
 				 struct dentry *parent,
@@ -632,6 +640,9 @@ void set_graph_array(struct trace_array *tr);
 
 void tracing_start_cmdline_record(void);
 void tracing_stop_cmdline_record(void);
+void tracing_start_tgid_record(void);
+void tracing_stop_tgid_record(void);
+
 int register_tracer(struct tracer *type);
 int is_tracing_stopped(void);
 
@@ -692,10 +703,14 @@ static inline void __trace_stack(struct trace_array *tr, unsigned long flags,
 extern u64 ftrace_now(int cpu);
 
 extern void trace_find_cmdline(int pid, char comm[]);
+extern int trace_find_tgid(int pid);
 extern void trace_event_follow_fork(struct trace_array *tr, bool enable);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 extern unsigned long ftrace_update_tot_cnt;
+void ftrace_init_trace_array(struct trace_array *tr);
+#else
+static inline void ftrace_init_trace_array(struct trace_array *tr) { }
 #endif
 #define DYN_FTRACE_TEST_NAME trace_selftest_dynamic_test_func
 extern int DYN_FTRACE_TEST_NAME(void);
@@ -753,10 +768,24 @@ enum print_line_t print_trace_line(struct trace_iterator *iter);
 
 extern char trace_find_mark(unsigned long long duration);
 
+struct ftrace_hash;
+
+struct ftrace_mod_load {
+	struct list_head	list;
+	char			*func;
+	char			*module;
+	int			 enable;
+};
+
+enum {
+	FTRACE_HASH_FL_MOD	= (1 << 0),
+};
+
 struct ftrace_hash {
 	unsigned long		size_bits;
 	struct hlist_head	*buckets;
 	unsigned long		count;
+	unsigned long		flags;
 	struct rcu_head		rcu;
 };
 
@@ -765,7 +794,7 @@ ftrace_lookup_ip(struct ftrace_hash *hash, unsigned long ip);
 
 static __always_inline bool ftrace_hash_empty(struct ftrace_hash *hash)
 {
-	return !hash || !hash->count;
+	return !hash || !(hash->count || (hash->flags & FTRACE_HASH_FL_MOD));
 }
 
 /* Standard output formatting function used for function return traces */
@@ -880,6 +909,14 @@ print_graph_function_flags(struct trace_iterator *iter, u32 flags)
 extern struct list_head ftrace_pids;
 
 #ifdef CONFIG_FUNCTION_TRACER
+struct ftrace_func_command {
+	struct list_head	list;
+	char			*name;
+	int			(*func)(struct trace_array *tr,
+					struct ftrace_hash *hash,
+					char *func, char *cmd,
+					char *params, int enable);
+};
 extern bool ftrace_filter_param __initdata;
 static inline int ftrace_trace_task(struct trace_array *tr)
 {
@@ -897,6 +934,8 @@ void ftrace_init_tracefs(struct trace_array *tr, struct dentry *d_tracer);
 void ftrace_init_tracefs_toplevel(struct trace_array *tr,
 				  struct dentry *d_tracer);
 void ftrace_clear_pids(struct trace_array *tr);
+int init_function_trace(void);
+void ftrace_pid_follow_fork(struct trace_array *tr, bool enable);
 #else
 static inline int ftrace_trace_task(struct trace_array *tr)
 {
@@ -916,15 +955,75 @@ static inline void ftrace_reset_array_ops(struct trace_array *tr) { }
 static inline void ftrace_init_tracefs(struct trace_array *tr, struct dentry *d) { }
 static inline void ftrace_init_tracefs_toplevel(struct trace_array *tr, struct dentry *d) { }
 static inline void ftrace_clear_pids(struct trace_array *tr) { }
+static inline int init_function_trace(void) { return 0; }
+static inline void ftrace_pid_follow_fork(struct trace_array *tr, bool enable) { }
 /* ftace_func_t type is not defined, use macro instead of static inline */
 #define ftrace_init_array_ops(tr, func) do { } while (0)
 #endif /* CONFIG_FUNCTION_TRACER */
 
 #if defined(CONFIG_FUNCTION_TRACER) && defined(CONFIG_DYNAMIC_FTRACE)
+
+struct ftrace_probe_ops {
+	void			(*func)(unsigned long ip,
+					unsigned long parent_ip,
+					struct trace_array *tr,
+					struct ftrace_probe_ops *ops,
+					void *data);
+	int			(*init)(struct ftrace_probe_ops *ops,
+					struct trace_array *tr,
+					unsigned long ip, void *init_data,
+					void **data);
+	void			(*free)(struct ftrace_probe_ops *ops,
+					struct trace_array *tr,
+					unsigned long ip, void *data);
+	int			(*print)(struct seq_file *m,
+					 unsigned long ip,
+					 struct ftrace_probe_ops *ops,
+					 void *data);
+};
+
+struct ftrace_func_mapper;
+typedef int (*ftrace_mapper_func)(void *data);
+
+struct ftrace_func_mapper *allocate_ftrace_func_mapper(void);
+void **ftrace_func_mapper_find_ip(struct ftrace_func_mapper *mapper,
+					   unsigned long ip);
+int ftrace_func_mapper_add_ip(struct ftrace_func_mapper *mapper,
+			       unsigned long ip, void *data);
+void *ftrace_func_mapper_remove_ip(struct ftrace_func_mapper *mapper,
+				   unsigned long ip);
+void free_ftrace_func_mapper(struct ftrace_func_mapper *mapper,
+			     ftrace_mapper_func free_func);
+
+extern int
+register_ftrace_function_probe(char *glob, struct trace_array *tr,
+			       struct ftrace_probe_ops *ops, void *data);
+extern int
+unregister_ftrace_function_probe_func(char *glob, struct trace_array *tr,
+				      struct ftrace_probe_ops *ops);
+extern void clear_ftrace_function_probes(struct trace_array *tr);
+
+int register_ftrace_command(struct ftrace_func_command *cmd);
+int unregister_ftrace_command(struct ftrace_func_command *cmd);
+
 void ftrace_create_filter_files(struct ftrace_ops *ops,
 				struct dentry *parent);
 void ftrace_destroy_filter_files(struct ftrace_ops *ops);
 #else
+struct ftrace_func_command;
+
+static inline __init int register_ftrace_command(struct ftrace_func_command *cmd)
+{
+	return -EINVAL;
+}
+static inline __init int unregister_ftrace_command(char *cmd_name)
+{
+	return -EINVAL;
+}
+static inline void clear_ftrace_function_probes(struct trace_array *tr)
+{
+}
+
 /*
  * The ops parameter passed in is usually undefined.
  * This must be a macro.
@@ -989,11 +1088,13 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 
 #ifdef CONFIG_FUNCTION_TRACER
 # define FUNCTION_FLAGS						\
-		C(FUNCTION,		"function-trace"),
+		C(FUNCTION,		"function-trace"),	\
+		C(FUNC_FORK,		"function-fork"),
 # define FUNCTION_DEFAULT_FLAGS		TRACE_ITER_FUNCTION
 #else
 # define FUNCTION_FLAGS
 # define FUNCTION_DEFAULT_FLAGS		0UL
+# define TRACE_ITER_FUNC_FORK		0UL
 #endif
 
 #ifdef CONFIG_STACKTRACE
@@ -1027,6 +1128,7 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		C(CONTEXT_INFO,		"context-info"),   /* Print pid/cpu/time */ \
 		C(LATENCY_FMT,		"latency-format"),	\
 		C(RECORD_CMD,		"record-cmd"),		\
+		C(RECORD_TGID,		"record-tgid"),		\
 		C(OVERWRITE,		"overwrite"),		\
 		C(STOP_ON_FREE,		"disable_on_free"),	\
 		C(IRQ_INFO,		"irq-info"),		\
@@ -1108,9 +1210,9 @@ struct ftrace_event_field {
 struct event_filter {
 	int			n_preds;	/* Number assigned */
 	int			a_preds;	/* allocated */
-	struct filter_pred	*preds;
-	struct filter_pred	*root;
-	char			*filter_string;
+	struct filter_pred __rcu	*preds;
+	struct filter_pred __rcu	*root;
+	char				*filter_string;
 };
 
 struct event_subsystem {
@@ -1343,6 +1445,8 @@ struct ftrace_event_field *
 trace_find_event_field(struct trace_event_call *call, char *name);
 
 extern void trace_event_enable_cmd_record(bool enable);
+extern void trace_event_enable_tgid_record(bool enable);
+
 extern int event_trace_add_tracer(struct dentry *parent, struct trace_array *tr);
 extern int event_trace_del_tracer(struct trace_array *tr);
 
@@ -1693,10 +1797,10 @@ static inline const char *get_syscall_name(int syscall)
 
 #ifdef CONFIG_EVENT_TRACING
 void trace_event_init(void);
-void trace_event_enum_update(struct trace_enum_map **map, int len);
+void trace_event_eval_update(struct trace_eval_map **map, int len);
 #else
 static inline void __init trace_event_init(void) { }
-static inline void trace_event_enum_update(struct trace_enum_map **map, int len) { }
+static inline void trace_event_eval_update(struct trace_eval_map **map, int len) { }
 #endif
 
 extern struct trace_iterator *tracepoint_print_iter;

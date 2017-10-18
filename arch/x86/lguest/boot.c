@@ -67,7 +67,7 @@
 #include <asm/pgtable.h>
 #include <asm/desc.h>
 #include <asm/setup.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/mce.h>
 #include <asm/io.h>
 #include <asm/fpu/api.h>
@@ -994,7 +994,9 @@ static struct clock_event_device lguest_clockevent = {
 	.mult                   = 1,
 	.shift                  = 0,
 	.min_delta_ns           = LG_CLOCK_MIN_DELTA,
+	.min_delta_ticks        = LG_CLOCK_MIN_DELTA,
 	.max_delta_ns           = LG_CLOCK_MAX_DELTA,
+	.max_delta_ticks        = LG_CLOCK_MAX_DELTA,
 };
 
 /*
@@ -1178,9 +1180,9 @@ static __init char *lguest_memory_setup(void)
 	 * The Linux bootloader header contains an "e820" memory map: the
 	 * Launcher populated the first entry with our memory limit.
 	 */
-	e820_add_region(boot_params.e820_map[0].addr,
-			  boot_params.e820_map[0].size,
-			  boot_params.e820_map[0].type);
+	e820__range_add(boot_params.e820_table[0].addr,
+			  boot_params.e820_table[0].size,
+			  boot_params.e820_table[0].type);
 
 	/* This string is for the boot messages. */
 	return "LGUEST";

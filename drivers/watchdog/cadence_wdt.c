@@ -49,7 +49,7 @@
 /* Counter maximum value */
 #define CDNS_WDT_COUNTER_MAX 0xFFF
 
-static int wdt_timeout = CDNS_WDT_DEFAULT_TIMEOUT;
+static int wdt_timeout;
 static int nowayout = WATCHDOG_NOWAYOUT;
 
 module_param(wdt_timeout, int, 0);
@@ -458,7 +458,7 @@ static int __maybe_unused cdns_wdt_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(cdns_wdt_pm_ops, cdns_wdt_suspend, cdns_wdt_resume);
 
-static struct of_device_id cdns_wdt_of_match[] = {
+static const struct of_device_id cdns_wdt_of_match[] = {
 	{ .compatible = "cdns,wdt-r1p2", },
 	{ /* end of table */ }
 };

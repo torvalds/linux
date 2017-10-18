@@ -30,7 +30,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		name = "memory";
 		device_type = "memory";
 		reg = <0x0 0x40000000>; /* 1GB */
@@ -121,17 +121,22 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
+
+		a10sr_rst: reset-controller {
+			compatible = "altr,a10sr-reset";
+			#reset-cells = <1>;
+		};
 	};
 };
 
 &i2c1 {
-	speed-mode = <0>;
 	status = "okay";
 
 	/*
 	 * adjust the falling times to decrease the i2c frequency to 50Khz
 	 * because the LCD module does not work at the standard 100Khz
 	 */
+	clock-frequency = <100000>;
 	i2c-sda-falling-time-ns = <6000>;
 	i2c-scl-falling-time-ns = <6000>;
 

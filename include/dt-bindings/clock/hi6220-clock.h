@@ -124,7 +124,10 @@
 #define HI6220_CS_DAPB		57
 #define HI6220_CS_ATB_DIV	58
 
-#define HI6220_SYS_NR_CLKS	59
+/* gate clock */
+#define HI6220_DAPB_CLK		59
+
+#define HI6220_SYS_NR_CLKS	60
 
 /* clk in Hi6220 media controller */
 /* gate clocks */
@@ -171,4 +174,8 @@
 #define HI6220_DDRC_AXI1	7
 
 #define HI6220_POWER_NR_CLKS	8
+
+/* clk in Hi6220 acpu sctrl */
+#define HI6220_ACPU_SFT_AT_S		0
+
 #endif

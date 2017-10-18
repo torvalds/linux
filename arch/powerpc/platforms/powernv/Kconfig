@@ -4,6 +4,7 @@ config PPC_POWERNV
 	select PPC_NATIVE
 	select PPC_XICS
 	select PPC_ICP_NATIVE
+	select PPC_XIVE_NATIVE
 	select PPC_P7_NAP
 	select PCI
 	select PCI_MSI
@@ -19,6 +20,8 @@ config PPC_POWERNV
 	select CPU_FREQ_GOV_ONDEMAND
 	select CPU_FREQ_GOV_CONSERVATIVE
 	select PPC_DOORBELL
+	select MMU_NOTIFIER
+	select FORCE_SMP
 	default y
 
 config OPAL_PRD

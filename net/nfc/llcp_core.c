@@ -1390,7 +1390,7 @@ static void nfc_llcp_recv_agf(struct nfc_llcp_local *local, struct sk_buff *skb)
 			return;
 		}
 
-		memcpy(skb_put(new_skb, pdu_len), skb->data, pdu_len);
+		skb_put_data(new_skb, skb->data, pdu_len);
 
 		nfc_llcp_rx_skb(local, new_skb);
 

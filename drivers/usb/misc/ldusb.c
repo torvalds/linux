@@ -122,13 +122,13 @@ MODULE_SUPPORTED_DEVICE("LD USB Devices");
  * avoid racing conditions and get better performance of the driver.
  */
 static int ring_buffer_size = 128;
-module_param(ring_buffer_size, int, 0);
+module_param(ring_buffer_size, int, 0000);
 MODULE_PARM_DESC(ring_buffer_size, "Read ring buffer size in reports");
 
 /* The write_buffer can contain more than one interrupt out transfer.
  */
 static int write_buffer_size = 10;
-module_param(write_buffer_size, int, 0);
+module_param(write_buffer_size, int, 0000);
 MODULE_PARM_DESC(write_buffer_size, "Write buffer size in reports");
 
 /* As of kernel version 2.6.4 ehci-hcd uses an
@@ -141,30 +141,30 @@ MODULE_PARM_DESC(write_buffer_size, "Write buffer size in reports");
  * or set to 1 to use the standard interval from the endpoint descriptors.
  */
 static int min_interrupt_in_interval = 2;
-module_param(min_interrupt_in_interval, int, 0);
+module_param(min_interrupt_in_interval, int, 0000);
 MODULE_PARM_DESC(min_interrupt_in_interval, "Minimum interrupt in interval in ms");
 
 static int min_interrupt_out_interval = 2;
-module_param(min_interrupt_out_interval, int, 0);
+module_param(min_interrupt_out_interval, int, 0000);
 MODULE_PARM_DESC(min_interrupt_out_interval, "Minimum interrupt out interval in ms");
 
 /* Structure to hold all of our device specific stuff */
 struct ld_usb {
 	struct mutex		mutex;		/* locks this structure */
-	struct usb_interface*	intf;		/* save off the usb interface pointer */
+	struct usb_interface	*intf;		/* save off the usb interface pointer */
 
 	int			open_count;	/* number of times this port has been opened */
 
-	char*			ring_buffer;
+	char			*ring_buffer;
 	unsigned int		ring_head;
 	unsigned int		ring_tail;
 
 	wait_queue_head_t	read_wait;
 	wait_queue_head_t	write_wait;
 
-	char*			interrupt_in_buffer;
-	struct usb_endpoint_descriptor* interrupt_in_endpoint;
-	struct urb*		interrupt_in_urb;
+	char			*interrupt_in_buffer;
+	struct usb_endpoint_descriptor *interrupt_in_endpoint;
+	struct urb		*interrupt_in_urb;
 	int			interrupt_in_interval;
 	size_t			interrupt_in_endpoint_size;
 	int			interrupt_in_running;
@@ -172,9 +172,9 @@ struct ld_usb {
 	int			buffer_overflow;
 	spinlock_t		rbsl;
 
-	char*			interrupt_out_buffer;
-	struct usb_endpoint_descriptor* interrupt_out_endpoint;
-	struct urb*		interrupt_out_urb;
+	char			*interrupt_out_buffer;
+	struct usb_endpoint_descriptor *interrupt_out_endpoint;
+	struct urb		*interrupt_out_urb;
 	int			interrupt_out_interval;
 	size_t			interrupt_out_endpoint_size;
 	int			interrupt_out_busy;
@@ -244,7 +244,7 @@ static void ld_usb_interrupt_in_callback(struct urb *urb)
 	if (urb->actual_length > 0) {
 		next_ring_head = (dev->ring_head+1) % ring_buffer_size;
 		if (next_ring_head != dev->ring_tail) {
-			actual_buffer = (size_t*)(dev->ring_buffer + dev->ring_head*(sizeof(size_t)+dev->interrupt_in_endpoint_size));
+			actual_buffer = (size_t *)(dev->ring_buffer + dev->ring_head * (sizeof(size_t)+dev->interrupt_in_endpoint_size));
 			/* actual_buffer gets urb->actual_length + interrupt_in_buffer */
 			*actual_buffer = urb->actual_length;
 			memcpy(actual_buffer+1, dev->interrupt_in_buffer, urb->actual_length);
@@ -483,7 +483,7 @@ static ssize_t ld_usb_read(struct file *file, char __user *buffer, size_t count,
 	}
 
 	/* actual_buffer contains actual_length + interrupt_in_buffer */
-	actual_buffer = (size_t*)(dev->ring_buffer + dev->ring_tail*(sizeof(size_t)+dev->interrupt_in_endpoint_size));
+	actual_buffer = (size_t *)(dev->ring_buffer + dev->ring_tail * (sizeof(size_t)+dev->interrupt_in_endpoint_size));
 	bytes_to_read = min(count, *actual_buffer);
 	if (bytes_to_read < *actual_buffer)
 		dev_warn(&dev->intf->dev, "Read buffer overflow, %zd bytes dropped\n",
@@ -561,7 +561,7 @@ static ssize_t ld_usb_write(struct file *file, const char __user *buffer,
 	/* write the data into interrupt_out_buffer from userspace */
 	bytes_to_write = min(count, write_buffer_size*dev->interrupt_out_endpoint_size);
 	if (bytes_to_write < count)
-		dev_warn(&dev->intf->dev, "Write buffer overflow, %zd bytes dropped\n",count-bytes_to_write);
+		dev_warn(&dev->intf->dev, "Write buffer overflow, %zd bytes dropped\n", count-bytes_to_write);
 	dev_dbg(&dev->intf->dev, "%s: count = %zd, bytes_to_write = %zd\n",
 		__func__, count, bytes_to_write);
 
@@ -650,10 +650,9 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct ld_usb *dev = NULL;
 	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *endpoint;
 	char *buffer;
-	int i;
 	int retval = -ENOMEM;
+	int res;
 
 	/* allocate memory for our device state and initialize it */
 
@@ -681,21 +680,17 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 
 	iface_desc = intf->cur_altsetting;
 
-	/* set up the endpoint information */
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-
-		if (usb_endpoint_is_int_in(endpoint))
-			dev->interrupt_in_endpoint = endpoint;
-
-		if (usb_endpoint_is_int_out(endpoint))
-			dev->interrupt_out_endpoint = endpoint;
-	}
-	if (dev->interrupt_in_endpoint == NULL) {
+	res = usb_find_last_int_in_endpoint(iface_desc,
+			&dev->interrupt_in_endpoint);
+	if (res) {
 		dev_err(&intf->dev, "Interrupt in endpoint not found\n");
+		retval = res;
 		goto error;
 	}
-	if (dev->interrupt_out_endpoint == NULL)
+
+	res = usb_find_last_int_out_endpoint(iface_desc,
+			&dev->interrupt_out_endpoint);
+	if (res)
 		dev_warn(&intf->dev, "Interrupt out endpoint not found (using control endpoint instead)\n");
 
 	dev->interrupt_in_endpoint_size = usb_endpoint_maxp(dev->interrupt_in_endpoint);

@@ -353,12 +353,12 @@
 /*-------------------------------------------------------------*/
 /* Commonly used basic types */
 struct hfa384x_bytestr {
-	u16 len;
+	__le16 len;
 	u8 data[0];
 } __packed;
 
 struct hfa384x_bytestr32 {
-	u16 len;
+	__le16 len;
 	u8 data[32];
 } __packed;
 
@@ -399,8 +399,8 @@ struct hfa384x_caplevel {
 
 /*-- Configuration Record: HostScanRequest (data portion only) --*/
 struct hfa384x_host_scan_request_data {
-	u16 channel_list;
-	u16 tx_rate;
+	__le16 channel_list;
+	__le16 tx_rate;
 	struct hfa384x_bytestr32 ssid;
 } __packed;
 
@@ -419,7 +419,7 @@ struct hfa384x_authenticate_station_data {
 
 /*-- Configuration Record: WPAData       (data portion only) --*/
 struct hfa384x_wpa_data {
-	u16 datalen;
+	__le16 datalen;
 	u8 data[0];		/* max 80 */
 } __packed;
 
@@ -482,7 +482,7 @@ struct hfa384x_tx_frame {
 	u8 address3[6];
 	u16 sequence_control;
 	u8 address4[6];
-	u16 data_len;		/* little endian format */
+	__le16 data_len;		/* little endian format */
 
 	/*-- 802.3 Header Information --*/
 
@@ -682,16 +682,16 @@ struct hfa384x_ch_info_result {
 
 /*--  Inquiry Frame, Diagnose: Host Scan Results & Subfields--*/
 struct hfa384x_hscan_result_sub {
-	u16 chid;
-	u16 anl;
-	u16 sl;
+	__le16 chid;
+	__le16 anl;
+	__le16 sl;
 	u8 bssid[WLAN_BSSID_LEN];
-	u16 bcnint;
-	u16 capinfo;
+	__le16 bcnint;
+	__le16 capinfo;
 	struct hfa384x_bytestr32 ssid;
 	u8 supprates[10];	/* 802.11 info element */
 	u16 proberesp_rate;
-	u16 atim;
+	__le16 atim;
 } __packed;
 
 struct hfa384x_hscan_result {
@@ -801,41 +801,41 @@ struct hfa384x_usb_txfrm {
 } __packed;
 
 struct hfa384x_usb_cmdreq {
-	u16 type;
-	u16 cmd;
-	u16 parm0;
-	u16 parm1;
-	u16 parm2;
+	__le16 type;
+	__le16 cmd;
+	__le16 parm0;
+	__le16 parm1;
+	__le16 parm2;
 	u8 pad[54];
 } __packed;
 
 struct hfa384x_usb_wridreq {
-	u16 type;
-	u16 frmlen;
-	u16 rid;
+	__le16 type;
+	__le16 frmlen;
+	__le16 rid;
 	u8 data[HFA384x_RIDDATA_MAXLEN];
 } __packed;
 
 struct hfa384x_usb_rridreq {
-	u16 type;
-	u16 frmlen;
-	u16 rid;
+	__le16 type;
+	__le16 frmlen;
+	__le16 rid;
 	u8 pad[58];
 } __packed;
 
 struct hfa384x_usb_wmemreq {
-	u16 type;
-	u16 frmlen;
-	u16 offset;
-	u16 page;
+	__le16 type;
+	__le16 frmlen;
+	__le16 offset;
+	__le16 page;
 	u8 data[HFA384x_USB_RWMEM_MAXLEN];
 } __packed;
 
 struct hfa384x_usb_rmemreq {
-	u16 type;
-	u16 frmlen;
-	u16 offset;
-	u16 page;
+	__le16 type;
+	__le16 frmlen;
+	__le16 offset;
+	__le16 page;
 	u8 pad[56];
 } __packed;
 
@@ -854,16 +854,16 @@ struct hfa384x_usb_infofrm {
 
 struct hfa384x_usb_statusresp {
 	u16 type;
-	u16 status;
-	u16 resp0;
-	u16 resp1;
-	u16 resp2;
+	__le16 status;
+	__le16 resp0;
+	__le16 resp1;
+	__le16 resp2;
 } __packed;
 
 struct hfa384x_usb_rridresp {
 	u16 type;
-	u16 frmlen;
-	u16 rid;
+	__le16 frmlen;
+	__le16 rid;
 	u8 data[HFA384x_RIDDATA_MAXLEN];
 } __packed;
 
@@ -1078,8 +1078,8 @@ struct hfa384x_pdr_end_of_pda {
 } __packed;
 
 struct hfa384x_pdrec {
-	u16 len;		/* in words */
-	u16 code;
+	__le16 len;		/* in words */
+	__le16 code;
 	union pdr {
 		struct hfa384x_pdr_pcb_partnum pcb_partnum;
 		struct hfa384x_pdr_pcb_tracenum pcb_tracenum;
@@ -1408,7 +1408,7 @@ hfa384x_drvr_setconfig_async(struct hfa384x *hw,
 static inline int
 hfa384x_drvr_setconfig16_async(struct hfa384x *hw, u16 rid, u16 val)
 {
-	u16 value = cpu_to_le16(val);
+	__le16 value = cpu_to_le16(val);
 
 	return hfa384x_drvr_setconfig_async(hw, rid, &value, sizeof(value),
 					    NULL, NULL);

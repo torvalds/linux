@@ -393,31 +393,36 @@ static int to_ib_qp_access_flags(int mthca_flags)
 	return ib_flags;
 }
 
-static void to_ib_ah_attr(struct mthca_dev *dev, struct ib_ah_attr *ib_ah_attr,
-				struct mthca_qp_path *path)
+static void to_rdma_ah_attr(struct mthca_dev *dev,
+			    struct rdma_ah_attr *ah_attr,
+			    struct mthca_qp_path *path)
 {
-	memset(ib_ah_attr, 0, sizeof *ib_ah_attr);
-	ib_ah_attr->port_num 	  = (be32_to_cpu(path->port_pkey) >> 24) & 0x3;
+	u8 port_num = (be32_to_cpu(path->port_pkey) >> 24) & 0x3;
 
-	if (ib_ah_attr->port_num == 0 || ib_ah_attr->port_num > dev->limits.num_ports)
+	memset(ah_attr, 0, sizeof(*ah_attr));
+
+	if (port_num == 0 || port_num > dev->limits.num_ports)
 		return;
+	ah_attr->type = rdma_ah_find_type(&dev->ib_dev, port_num);
+	rdma_ah_set_port_num(ah_attr, port_num);
 
-	ib_ah_attr->dlid     	  = be16_to_cpu(path->rlid);
-	ib_ah_attr->sl       	  = be32_to_cpu(path->sl_tclass_flowlabel) >> 28;
-	ib_ah_attr->src_path_bits = path->g_mylmc & 0x7f;
-	ib_ah_attr->static_rate   = mthca_rate_to_ib(dev,
-						     path->static_rate & 0xf,
-						     ib_ah_attr->port_num);
-	ib_ah_attr->ah_flags      = (path->g_mylmc & (1 << 7)) ? IB_AH_GRH : 0;
-	if (ib_ah_attr->ah_flags) {
-		ib_ah_attr->grh.sgid_index = path->mgid_index & (dev->limits.gid_table_len - 1);
-		ib_ah_attr->grh.hop_limit  = path->hop_limit;
-		ib_ah_attr->grh.traffic_class =
-			(be32_to_cpu(path->sl_tclass_flowlabel) >> 20) & 0xff;
-		ib_ah_attr->grh.flow_label =
-			be32_to_cpu(path->sl_tclass_flowlabel) & 0xfffff;
-		memcpy(ib_ah_attr->grh.dgid.raw,
-			path->rgid, sizeof ib_ah_attr->grh.dgid.raw);
+	rdma_ah_set_dlid(ah_attr, be16_to_cpu(path->rlid));
+	rdma_ah_set_sl(ah_attr, be32_to_cpu(path->sl_tclass_flowlabel) >> 28);
+	rdma_ah_set_path_bits(ah_attr, path->g_mylmc & 0x7f);
+	rdma_ah_set_static_rate(ah_attr,
+				mthca_rate_to_ib(dev,
+						 path->static_rate & 0xf,
+						 port_num));
+	if (path->g_mylmc & (1 << 7)) {
+		u32 tc_fl = be32_to_cpu(path->sl_tclass_flowlabel);
+
+		rdma_ah_set_grh(ah_attr, NULL,
+				tc_fl & 0xfffff,
+				path->mgid_index &
+				(dev->limits.gid_table_len - 1),
+				path->hop_limit,
+				(tc_fl >> 20) & 0xff);
+		rdma_ah_set_dgid_raw(ah_attr, path->rgid);
 	}
 }
 
@@ -468,11 +473,12 @@ int mthca_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr_m
 		to_ib_qp_access_flags(be32_to_cpu(context->params2));
 
 	if (qp->transport == RC || qp->transport == UC) {
-		to_ib_ah_attr(dev, &qp_attr->ah_attr, &context->pri_path);
-		to_ib_ah_attr(dev, &qp_attr->alt_ah_attr, &context->alt_path);
+		to_rdma_ah_attr(dev, &qp_attr->ah_attr, &context->pri_path);
+		to_rdma_ah_attr(dev, &qp_attr->alt_ah_attr, &context->alt_path);
 		qp_attr->alt_pkey_index =
 			be32_to_cpu(context->alt_path.port_pkey) & 0x7f;
-		qp_attr->alt_port_num 	= qp_attr->alt_ah_attr.port_num;
+		qp_attr->alt_port_num	=
+			rdma_ah_get_port_num(&qp_attr->alt_ah_attr);
 	}
 
 	qp_attr->pkey_index = be32_to_cpu(context->pri_path.port_pkey) & 0x7f;
@@ -512,30 +518,36 @@ out:
 	return err;
 }
 
-static int mthca_path_set(struct mthca_dev *dev, const struct ib_ah_attr *ah,
+static int mthca_path_set(struct mthca_dev *dev, const struct rdma_ah_attr *ah,
 			  struct mthca_qp_path *path, u8 port)
 {
-	path->g_mylmc     = ah->src_path_bits & 0x7f;
-	path->rlid        = cpu_to_be16(ah->dlid);
-	path->static_rate = mthca_get_rate(dev, ah->static_rate, port);
+	path->g_mylmc     = rdma_ah_get_path_bits(ah) & 0x7f;
+	path->rlid        = cpu_to_be16(rdma_ah_get_dlid(ah));
+	path->static_rate = mthca_get_rate(dev, rdma_ah_get_static_rate(ah),
+					   port);
 
-	if (ah->ah_flags & IB_AH_GRH) {
-		if (ah->grh.sgid_index >= dev->limits.gid_table_len) {
+	if (rdma_ah_get_ah_flags(ah) & IB_AH_GRH) {
+		const struct ib_global_route *grh = rdma_ah_read_grh(ah);
+
+		if (grh->sgid_index >= dev->limits.gid_table_len) {
 			mthca_dbg(dev, "sgid_index (%u) too large. max is %d\n",
-				  ah->grh.sgid_index, dev->limits.gid_table_len-1);
+				  grh->sgid_index,
+				  dev->limits.gid_table_len - 1);
 			return -1;
 		}
 
 		path->g_mylmc   |= 1 << 7;
-		path->mgid_index = ah->grh.sgid_index;
-		path->hop_limit  = ah->grh.hop_limit;
+		path->mgid_index = grh->sgid_index;
+		path->hop_limit  = grh->hop_limit;
 		path->sl_tclass_flowlabel =
-			cpu_to_be32((ah->sl << 28)                |
-				    (ah->grh.traffic_class << 20) |
-				    (ah->grh.flow_label));
-		memcpy(path->rgid, ah->grh.dgid.raw, 16);
-	} else
-		path->sl_tclass_flowlabel = cpu_to_be32(ah->sl << 28);
+			cpu_to_be32((rdma_ah_get_sl(ah) << 28) |
+				    (grh->traffic_class << 20) |
+				    (grh->flow_label));
+		memcpy(path->rgid, grh->dgid.raw, 16);
+	} else {
+		path->sl_tclass_flowlabel = cpu_to_be32(rdma_ah_get_sl(ah) <<
+							28);
+	}
 
 	return 0;
 }
@@ -680,7 +692,7 @@ static int __mthca_modify_qp(struct ib_qp *ibqp,
 		}
 
 		if (mthca_path_set(dev, &attr->alt_ah_attr, &qp_context->alt_path,
-				   attr->alt_ah_attr.port_num))
+				   rdma_ah_get_port_num(&attr->alt_ah_attr)))
 			goto out_mailbox;
 
 		qp_context->alt_path.port_pkey |= cpu_to_be32(attr->alt_pkey_index |

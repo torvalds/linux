@@ -61,15 +61,15 @@ static int __initdata uart401	= 0;
 static int __initdata pnp       = 0;
 #endif
 
-module_param(io, int, 000);
+module_param_hw(io, int, ioport, 000);
 MODULE_PARM_DESC(io,       "Soundblaster i/o base address (0x220,0x240,0x260,0x280)");
-module_param(irq, int, 000);
+module_param_hw(irq, int, irq, 000);
 MODULE_PARM_DESC(irq,	   "IRQ (5,7,9,10)");
-module_param(dma, int, 000);
+module_param_hw(dma, int, dma, 000);
 MODULE_PARM_DESC(dma,	   "8-bit DMA channel (0,1,3)");
-module_param(dma16, int, 000);
+module_param_hw(dma16, int, dma, 000);
 MODULE_PARM_DESC(dma16,	   "16-bit DMA channel (5,6,7)");
-module_param(mpu_io, int, 000);
+module_param_hw(mpu_io, int, ioport, 000);
 MODULE_PARM_DESC(mpu_io,   "MPU base address");
 module_param(type, int, 000);
 MODULE_PARM_DESC(type,	   "You can set this to specific card type (doesn't " \

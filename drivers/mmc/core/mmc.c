@@ -27,6 +27,7 @@
 #include "mmc_ops.h"
 #include "quirks.h"
 #include "sd_ops.h"
+#include "pwrseq.h"
 
 #define DEFAULT_CMD6_TIMEOUT_MS	500
 
@@ -790,6 +791,7 @@ MMC_DEV_ATTR(enhanced_area_size, "%u\n", card->ext_csd.enhanced_area_size);
 MMC_DEV_ATTR(raw_rpmb_size_mult, "%#x\n", card->ext_csd.raw_rpmb_size_mult);
 MMC_DEV_ATTR(rel_sectors, "%#x\n", card->ext_csd.rel_sectors);
 MMC_DEV_ATTR(ocr, "%08x\n", card->ocr);
+MMC_DEV_ATTR(cmdq_en, "%d\n", card->ext_csd.cmdq_en);
 
 static ssize_t mmc_fwrev_show(struct device *dev,
 			      struct device_attribute *attr,
@@ -845,6 +847,7 @@ static struct attribute *mmc_std_attrs[] = {
 	&dev_attr_rel_sectors.attr,
 	&dev_attr_ocr.attr,
 	&dev_attr_dsr.attr,
+	&dev_attr_cmdq_en.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(mmc_std);
@@ -1286,7 +1289,7 @@ out_err:
 static int mmc_select_hs400es(struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;
-	int err = 0;
+	int err = -EINVAL;
 	u8 val;
 
 	if (!(host->caps & MMC_CAP_8_BIT_DATA)) {
@@ -1553,10 +1556,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	/*
 	 * Fetch CID from card.
 	 */
-	if (mmc_host_is_spi(host))
-		err = mmc_send_cid(host, cid);
-	else
-		err = mmc_all_send_cid(host, cid);
+	err = mmc_send_cid(host, cid);
 	if (err)
 		goto err;
 
@@ -1651,12 +1651,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		mmc_set_erase_size(card);
 	}
 
-	/*
-	 * If enhanced_area_en is TRUE, host needs to enable ERASE_GRP_DEF
-	 * bit.  This bit will be lost every time after a reset or power off.
-	 */
-	if (card->ext_csd.partition_setting_completed ||
-	    (card->ext_csd.rev >= 3 && (host->caps2 & MMC_CAP2_HC_ERASE_SZ))) {
+	/* Enable ERASE_GRP_DEF. This bit is lost after a reset or power off. */
+	if (card->ext_csd.rev >= 3) {
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				 EXT_CSD_ERASE_GROUP_DEF, 1,
 				 card->ext_csd.generic_cmd6_time);
@@ -1786,6 +1782,13 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 			card->ext_csd.cache_ctrl = 1;
 		}
 	}
+
+	/*
+	 * In some cases (e.g. RPMB or mmc_test), the Command Queue must be
+	 * disabled for a time, so a flag is needed to indicate to re-enable the
+	 * Command Queue.
+	 */
+	card->reenable_cmdq = card->ext_csd.cmdq_en;
 
 	/*
 	 * The mandatory minimum values are defined for packed command.
@@ -2087,7 +2090,7 @@ static int mmc_runtime_resume(struct mmc_host *host)
 	return 0;
 }
 
-int mmc_can_reset(struct mmc_card *card)
+static int mmc_can_reset(struct mmc_card *card)
 {
 	u8 rst_n_function;
 
@@ -2096,7 +2099,6 @@ int mmc_can_reset(struct mmc_card *card)
 		return 0;
 	return 1;
 }
-EXPORT_SYMBOL(mmc_can_reset);
 
 static int mmc_reset(struct mmc_host *host)
 {
@@ -2118,6 +2120,7 @@ static int mmc_reset(struct mmc_host *host)
 	} else {
 		/* Do a brute force power cycle */
 		mmc_power_cycle(host, card->ocr);
+		mmc_pwrseq_reset(host);
 	}
 	return mmc_init_card(host, card->ocr, card);
 }

@@ -387,8 +387,8 @@ int rxe_rcv(struct sk_buff *skb)
 	pack_icrc = be32_to_cpu(*icrcp);
 
 	calc_icrc = rxe_icrc_hdr(pkt, skb);
-	calc_icrc = crc32_le(calc_icrc, (u8 *)payload_addr(pkt),
-			     payload_size(pkt));
+	calc_icrc = rxe_crc32(rxe, calc_icrc, (u8 *)payload_addr(pkt),
+			      payload_size(pkt));
 	calc_icrc = (__force u32)cpu_to_be32(~calc_icrc);
 	if (unlikely(calc_icrc != pack_icrc)) {
 		if (skb->protocol == htons(ETH_P_IPV6))
@@ -402,6 +402,8 @@ int rxe_rcv(struct sk_buff *skb)
 
 		goto drop;
 	}
+
+	rxe_counter_inc(rxe, RXE_CNT_RCVD_PKTS);
 
 	if (unlikely(bth_qpn(pkt) == IB_MULTICAST_QPN))
 		rxe_rcv_mcast_pkt(rxe, skb);
@@ -417,4 +419,3 @@ drop:
 	kfree_skb(skb);
 	return 0;
 }
-EXPORT_SYMBOL(rxe_rcv);
