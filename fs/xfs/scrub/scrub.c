@@ -170,6 +170,10 @@ static const struct xfs_scrub_meta_ops meta_scrub_ops[] = {
 		.setup	= xfs_scrub_setup_ag_header,
 		.scrub	= xfs_scrub_agfl,
 	},
+	{ /* agi */
+		.setup	= xfs_scrub_setup_ag_header,
+		.scrub	= xfs_scrub_agi,
+	},
 };
 
 /* This isn't a stable feature, warn once per day. */

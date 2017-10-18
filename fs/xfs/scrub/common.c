@@ -254,7 +254,8 @@ want_ag_read_header_failure(
 {
 	/* Return all AG header read failures when scanning btrees. */
 	if (sc->sm->sm_type != XFS_SCRUB_TYPE_AGF &&
-	    sc->sm->sm_type != XFS_SCRUB_TYPE_AGFL)
+	    sc->sm->sm_type != XFS_SCRUB_TYPE_AGFL &&
+	    sc->sm->sm_type != XFS_SCRUB_TYPE_AGI)
 		return true;
 	/*
 	 * If we're scanning a given type of AG header, we only want to
@@ -285,7 +286,7 @@ xfs_scrub_ag_read_headers(
 	int				error;
 
 	error = xfs_ialloc_read_agi(mp, sc->tp, agno, agi);
-	if (error)
+	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGI))
 		goto out;
 
 	error = xfs_alloc_read_agf(mp, sc->tp, agno, 0, agf);
