@@ -222,7 +222,8 @@ __weak phys_addr_t dax_pgoff_to_phys(struct dev_dax *dev_dax, pgoff_t pgoff,
 		unsigned long size)
 {
 	struct resource *res;
-	phys_addr_t phys;
+	/* gcc-4.6.3-nolibc for i386 complains that this is uninitialized */
+	phys_addr_t uninitialized_var(phys);
 	int i;
 
 	for (i = 0; i < dev_dax->num_resources; i++) {
