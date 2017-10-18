@@ -610,7 +610,7 @@ static bool timer_fixup_init(void *addr, enum debug_obj_state state)
 }
 
 /* Stub timer callback for improperly used timers. */
-static void stub_timer(unsigned long data)
+static void stub_timer(struct timer_list *unused)
 {
 	WARN_ON(1);
 }
@@ -626,7 +626,7 @@ static bool timer_fixup_activate(void *addr, enum debug_obj_state state)
 
 	switch (state) {
 	case ODEBUG_STATE_NOTAVAILABLE:
-		setup_timer(timer, stub_timer, 0);
+		timer_setup(timer, stub_timer, 0);
 		return true;
 
 	case ODEBUG_STATE_ACTIVE:
@@ -665,7 +665,7 @@ static bool timer_fixup_assert_init(void *addr, enum debug_obj_state state)
 
 	switch (state) {
 	case ODEBUG_STATE_NOTAVAILABLE:
-		setup_timer(timer, stub_timer, 0);
+		timer_setup(timer, stub_timer, 0);
 		return true;
 	default:
 		return false;
