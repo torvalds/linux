@@ -330,7 +330,7 @@ void rtl8822be_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode)
 			byte5 = btc_ops->btc_get_lps_val(rtlpriv);
 			power_state = btc_ops->btc_get_rpwm_val(rtlpriv);
 
-			if ((rlbm == 2) && (byte5 & BIT(4))) {
+			if (rlbm == 2 && (byte5 & BIT(4))) {
 				/* Keep awake interval to 1 to prevent from
 				 * decreasing coex performance
 				 */
@@ -835,7 +835,7 @@ void rtl8822be_set_p2p_ps_offload_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state)
 			rtl_write_dword(rtlpriv, 0x5EC,
 					p2pinfo->noa_count_type[i]);
 		}
-		if ((p2pinfo->opp_ps == 1) || (p2pinfo->noa_num > 0)) {
+		if (p2pinfo->opp_ps == 1 || p2pinfo->noa_num > 0) {
 			/* rst p2p circuit */
 			rtl_write_byte(rtlpriv, REG_DUAL_TSF_RST_8822B, BIT(4));
 			p2p_ps_offload->offload_en = 1;

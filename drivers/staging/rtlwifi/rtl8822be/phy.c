@@ -1610,9 +1610,9 @@ u8 rtl8822be_get_txpower_index(struct ieee80211_hw *hw, u8 path, u8 rate,
 	char limit;
 	char powerdiff_byrate = 0;
 
-	if (((rtlhal->current_bandtype == BAND_ON_2_4G) &&
+	if ((rtlhal->current_bandtype == BAND_ON_2_4G &&
 	     (channel > 14 || channel < 1)) ||
-	    ((rtlhal->current_bandtype == BAND_ON_5G) && (channel <= 14))) {
+	    (rtlhal->current_bandtype == BAND_ON_5G && channel <= 14)) {
 		index = 0;
 		RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
 			 "Illegal channel!!\n");
@@ -1913,8 +1913,8 @@ static u8 _rtl8822be_phy_get_pri_ch_id(struct rtl_priv *rtlpriv)
 
 	if (rtlphy->current_chan_bw == HT_CHANNEL_WIDTH_80) {
 		/* primary channel is at lower subband of 80MHz & 40MHz */
-		if ((mac->cur_40_prime_sc == HAL_PRIME_CHNL_OFFSET_LOWER) &&
-		    (mac->cur_80_prime_sc == HAL_PRIME_CHNL_OFFSET_LOWER)) {
+		if (mac->cur_40_prime_sc == HAL_PRIME_CHNL_OFFSET_LOWER &&
+		    mac->cur_80_prime_sc == HAL_PRIME_CHNL_OFFSET_LOWER) {
 			pri_ch_idx = VHT_DATA_SC_20_LOWEST_OF_80MHZ;
 		/* primary channel is at
 		 * lower subband of 80MHz & upper subband of 40MHz
@@ -2142,7 +2142,7 @@ static bool _rtl8822be_phy_set_rf_power_state(struct ieee80211_hw *hw,
 
 	switch (rfpwr_state) {
 	case ERFON:
-		if ((ppsc->rfpwr_state == ERFOFF) &&
+		if (ppsc->rfpwr_state == ERFOFF &&
 		    RT_IN_PS_LEVEL(ppsc, RT_RF_OFF_LEVL_HALT_NIC)) {
 			bool rtstatus = false;
 			u32 initialize_count = 0;
