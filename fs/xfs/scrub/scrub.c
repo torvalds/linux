@@ -42,6 +42,7 @@
 #include "xfs_rmap_btree.h"
 #include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
+#include "scrub/common.h"
 #include "scrub/trace.h"
 
 /*
@@ -108,6 +109,30 @@
  * will be set.
  */
 
+/*
+ * Scrub probe -- userspace uses this to probe if we're willing to scrub
+ * or repair a given mountpoint.  This will be used by xfs_scrub to
+ * probe the kernel's abilities to scrub (and repair) the metadata.  We
+ * do this by validating the ioctl inputs from userspace, preparing the
+ * filesystem for a scrub (or a repair) operation, and immediately
+ * returning to userspace.  Userspace can use the returned errno and
+ * structure state to decide (in broad terms) if scrub/repair are
+ * supported by the running kernel.
+ */
+int
+xfs_scrub_probe(
+	struct xfs_scrub_context	*sc)
+{
+	int				error = 0;
+
+	if (sc->sm->sm_ino || sc->sm->sm_agno)
+		return -EINVAL;
+	if (xfs_scrub_should_terminate(sc, &error))
+		return error;
+
+	return 0;
+}
+
 /* Scrub setup and teardown */
 
 /* Free all the resources and finish the transactions. */
@@ -126,6 +151,10 @@ xfs_scrub_teardown(
 /* Scrubbing dispatch. */
 
 static const struct xfs_scrub_meta_ops meta_scrub_ops[] = {
+	{ /* ioctl presence test */
+		.setup	= xfs_scrub_setup_fs,
+		.scrub	= xfs_scrub_probe,
+	},
 };
 
 /* This isn't a stable feature, warn once per day. */
