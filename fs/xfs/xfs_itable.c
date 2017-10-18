@@ -31,16 +31,6 @@
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 
-int
-xfs_internal_inum(
-	xfs_mount_t	*mp,
-	xfs_ino_t	ino)
-{
-	return (ino == mp->m_sb.sb_rbmino || ino == mp->m_sb.sb_rsumino ||
-		(xfs_sb_version_hasquota(&mp->m_sb) &&
-		 xfs_is_quota_inode(&mp->m_sb, ino)));
-}
-
 /*
  * Return stat information for one inode.
  * Return 0 if ok, else errno.
