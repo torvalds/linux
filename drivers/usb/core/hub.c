@@ -4180,6 +4180,19 @@ static int hub_port_disable(struct usb_hub *hub, int port1, int set_state)
 	return ret;
 }
 
+/*
+ * usb_port_disable - disable a usb device's upstream port
+ * @udev: device to disable
+ * Context: @udev locked, must be able to sleep.
+ *
+ * Disables a USB device that isn't in active use.
+ */
+int usb_port_disable(struct usb_device *udev)
+{
+	struct usb_hub *hub = usb_hub_to_struct_hub(udev->parent);
+
+	return hub_port_disable(hub, udev->portnum, 0);
+}
 
 /* USB 2.0 spec, 7.1.7.3 / fig 7-29:
  *
