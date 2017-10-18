@@ -23,6 +23,15 @@
 
 #include "disasm.h"
 
+static const struct bpf_verifier_ops * const bpf_verifier_ops[] = {
+#define BPF_PROG_TYPE(_id, _name) \
+	[_id] = & _name ## _verifier_ops,
+#define BPF_MAP_TYPE(_id, _ops)
+#include <linux/bpf_types.h>
+#undef BPF_PROG_TYPE
+#undef BPF_MAP_TYPE
+};
+
 /* bpf_check() is a static code analyzer that walks eBPF program
  * instruction by instruction and updates register/stack state.
  * All paths of conditional branches are analyzed until 'bpf_exit' insn.
@@ -813,36 +822,6 @@ static int check_packet_access(struct bpf_verifier_env *env, u32 regno, int off,
 	return err;
 }
 
-static bool analyzer_is_valid_access(struct bpf_verifier_env *env, int off,
-				     struct bpf_insn_access_aux *info)
-{
-	switch (env->prog->type) {
-	case BPF_PROG_TYPE_XDP:
-		switch (off) {
-		case offsetof(struct xdp_buff, data):
-			info->reg_type = PTR_TO_PACKET;
-			return true;
-		case offsetof(struct xdp_buff, data_end):
-			info->reg_type = PTR_TO_PACKET_END;
-			return true;
-		}
-		return false;
-	case BPF_PROG_TYPE_SCHED_CLS:
-		switch (off) {
-		case offsetof(struct sk_buff, data):
-			info->reg_type = PTR_TO_PACKET;
-			return true;
-		case offsetof(struct sk_buff, cb) +
-		     offsetof(struct bpf_skb_data_end, data_end):
-			info->reg_type = PTR_TO_PACKET_END;
-			return true;
-		}
-		return false;
-	default:
-		return false;
-	}
-}
-
 /* check access to 'struct bpf_context' fields.  Supports fixed offsets only */
 static int check_ctx_access(struct bpf_verifier_env *env, int insn_idx, int off, int size,
 			    enum bpf_access_type t, enum bpf_reg_type *reg_type)
@@ -851,13 +830,8 @@ static int check_ctx_access(struct bpf_verifier_env *env, int insn_idx, int off,
 		.reg_type = *reg_type,
 	};
 
-	if (env->analyzer_ops) {
-		if (analyzer_is_valid_access(env, off, &info)) {
-			*reg_type = info.reg_type;
-			return 0;
-		}
-	} else if (env->prog->aux->ops->is_valid_access &&
-		   env->prog->aux->ops->is_valid_access(off, size, t, &info)) {
+	if (env->ops->is_valid_access &&
+	    env->ops->is_valid_access(off, size, t, &info)) {
 		/* A non zero info.ctx_field_size indicates that this field is a
 		 * candidate for later verifier transformation to load the whole
 		 * field and then apply a mask when accessed with a narrower
@@ -865,9 +839,12 @@ static int check_ctx_access(struct bpf_verifier_env *env, int insn_idx, int off,
 		 * will only allow for whole field access and rejects any other
 		 * type of narrower access.
 		 */
-		env->insn_aux_data[insn_idx].ctx_field_size = info.ctx_field_size;
 		*reg_type = info.reg_type;
 
+		if (env->analyzer_ops)
+			return 0;
+
+		env->insn_aux_data[insn_idx].ctx_field_size = info.ctx_field_size;
 		/* remember the offset of last byte accessed in ctx */
 		if (env->prog->aux->max_ctx_offset < off + size)
 			env->prog->aux->max_ctx_offset = off + size;
@@ -1565,8 +1542,8 @@ static int check_call(struct bpf_verifier_env *env, int func_id, int insn_idx)
 		return -EINVAL;
 	}
 
-	if (env->prog->aux->ops->get_func_proto)
-		fn = env->prog->aux->ops->get_func_proto(func_id);
+	if (env->ops->get_func_proto)
+		fn = env->ops->get_func_proto(func_id);
 
 	if (!fn) {
 		verbose(env, "unknown func %s#%d\n", func_id_name(func_id),
@@ -4035,7 +4012,7 @@ static struct bpf_prog *bpf_patch_insn_data(struct bpf_verifier_env *env, u32 of
  */
 static int convert_ctx_accesses(struct bpf_verifier_env *env)
 {
-	const struct bpf_verifier_ops *ops = env->prog->aux->ops;
+	const struct bpf_verifier_ops *ops = env->ops;
 	int i, cnt, size, ctx_field_size, delta = 0;
 	const int insn_cnt = env->prog->len;
 	struct bpf_insn insn_buf[16], *insn;
@@ -4236,7 +4213,7 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 			insn      = new_prog->insnsi + i + delta;
 		}
 patch_call_imm:
-		fn = prog->aux->ops->get_func_proto(insn->imm);
+		fn = env->ops->get_func_proto(insn->imm);
 		/* all functions that have prototype and verifier allowed
 		 * programs to call them, must be real in-kernel functions
 		 */
@@ -4294,6 +4271,7 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
 	if (!env->insn_aux_data)
 		goto err_free_env;
 	env->prog = *prog;
+	env->ops = bpf_verifier_ops[env->prog->type];
 
 	/* grab the mutex to protect few globals used by verifier */
 	mutex_lock(&bpf_verifier_lock);
@@ -4390,11 +4368,20 @@ err_free_env:
 	return ret;
 }
 
+static const struct bpf_verifier_ops * const bpf_analyzer_ops[] = {
+	[BPF_PROG_TYPE_XDP]		= &xdp_analyzer_ops,
+	[BPF_PROG_TYPE_SCHED_CLS]	= &tc_cls_act_analyzer_ops,
+};
+
 int bpf_analyzer(struct bpf_prog *prog, const struct bpf_ext_analyzer_ops *ops,
 		 void *priv)
 {
 	struct bpf_verifier_env *env;
 	int ret;
+
+	if (prog->type >= ARRAY_SIZE(bpf_analyzer_ops) ||
+	    !bpf_analyzer_ops[prog->type])
+		return -EOPNOTSUPP;
 
 	env = kzalloc(sizeof(struct bpf_verifier_env), GFP_KERNEL);
 	if (!env)
@@ -4406,6 +4393,7 @@ int bpf_analyzer(struct bpf_prog *prog, const struct bpf_ext_analyzer_ops *ops,
 	if (!env->insn_aux_data)
 		goto err_free_env;
 	env->prog = prog;
+	env->ops = bpf_analyzer_ops[env->prog->type];
 	env->analyzer_ops = ops;
 	env->analyzer_priv = priv;
 
