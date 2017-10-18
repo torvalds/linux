@@ -3383,6 +3383,7 @@ static int tcp_send_syn_data(struct sock *sk, struct sk_buff *syn)
 		int copied = copy_from_iter(skb_put(syn_data, space), space,
 					    &fo->data->msg_iter);
 		if (unlikely(!copied)) {
+			tcp_skb_tsorted_anchor_cleanup(syn_data);
 			kfree_skb(syn_data);
 			goto fallback;
 		}
