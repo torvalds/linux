@@ -930,7 +930,7 @@ static int adapter_alloc_cq(struct nvme_dev *dev, u16 qid,
 	int flags = NVME_QUEUE_PHYS_CONTIG | NVME_CQ_IRQ_ENABLED;
 
 	/*
-	 * Note: we (ab)use the fact the the prp fields survive if no data
+	 * Note: we (ab)use the fact that the prp fields survive if no data
 	 * is attached to the request.
 	 */
 	memset(&c, 0, sizeof(c));
@@ -951,7 +951,7 @@ static int adapter_alloc_sq(struct nvme_dev *dev, u16 qid,
 	int flags = NVME_QUEUE_PHYS_CONTIG;
 
 	/*
-	 * Note: we (ab)use the fact the the prp fields survive if no data
+	 * Note: we (ab)use the fact that the prp fields survive if no data
 	 * is attached to the request.
 	 */
 	memset(&c, 0, sizeof(c));
