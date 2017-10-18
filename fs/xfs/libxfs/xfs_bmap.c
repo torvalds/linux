@@ -646,8 +646,8 @@ xfs_bmap_btree_to_extents(
 	cbno = be64_to_cpu(*pp);
 	*logflagsp = 0;
 #ifdef DEBUG
-	if ((error = xfs_btree_check_lptr(cur, cbno, 1)))
-		return error;
+	XFS_WANT_CORRUPTED_RETURN(cur->bc_mp,
+			xfs_btree_check_lptr(cur, cbno, 1));
 #endif
 	error = xfs_btree_read_bufl(mp, tp, cbno, 0, &cbp, XFS_BMAP_BTREE_REF,
 				&xfs_bmbt_buf_ops);

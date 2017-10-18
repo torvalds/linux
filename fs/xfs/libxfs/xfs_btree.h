@@ -269,10 +269,19 @@ xfs_btree_check_block(
 /*
  * Check that (long) pointer is ok.
  */
-int					/* error (0 or EFSCORRUPTED) */
+bool					/* error (0 or EFSCORRUPTED) */
 xfs_btree_check_lptr(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
-	xfs_fsblock_t		ptr,	/* btree block disk address */
+	xfs_fsblock_t		fsbno,	/* btree block disk address */
+	int			level);	/* btree block level */
+
+/*
+ * Check that (short) pointer is ok.
+ */
+bool					/* error (0 or EFSCORRUPTED) */
+xfs_btree_check_sptr(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_agblock_t		agbno,	/* btree block disk address */
 	int			level);	/* btree block level */
 
 /*
