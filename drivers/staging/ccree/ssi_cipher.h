@@ -75,7 +75,7 @@ struct arm_hw_key_info {
 
 static inline bool ssi_is_hw_key(struct crypto_tfm *tfm)
 {
-	return 0;
+	return false;
 }
 
 #endif /* CRYPTO_TFM_REQ_HW_KEY */
