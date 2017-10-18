@@ -137,8 +137,8 @@ static void config_dma_descriptor_in_sram(void __iomem *acp_mmio,
  * system memory <-> ACP SRAM
  */
 static void set_acp_sysmem_dma_descriptors(void __iomem *acp_mmio,
-					   u32 size, int direction,
-					   u32 pte_offset)
+					u32 size, int direction,
+					u32 pte_offset, u32 asic_type)
 {
 	u16 i;
 	u16 dma_dscr_idx = PLAYBACK_START_DMA_DESCR_CH12;
@@ -152,20 +152,42 @@ static void set_acp_sysmem_dma_descriptors(void __iomem *acp_mmio,
 					(size / 2) - (i * (size/2));
 			dmadscr[i].src = ACP_INTERNAL_APERTURE_WINDOW_0_ADDRESS
 				+ (pte_offset * SZ_4K) + (i * (size/2));
-			dmadscr[i].xfer_val |=
-			(ACP_DMA_ATTRIBUTES_DAGB_ONION_TO_SHAREDMEM << 16) |
-			(size / 2);
+			switch (asic_type) {
+			case CHIP_STONEY:
+				dmadscr[i].xfer_val |=
+				(ACP_DMA_ATTRIBUTES_DAGB_GARLIC_TO_SHAREDMEM  << 16) |
+				(size / 2);
+				break;
+			default:
+				dmadscr[i].xfer_val |=
+				(ACP_DMA_ATTRIBUTES_DAGB_ONION_TO_SHAREDMEM  << 16) |
+				(size / 2);
+			}
 		} else {
 			dma_dscr_idx = CAPTURE_START_DMA_DESCR_CH14 + i;
-			dmadscr[i].src = ACP_SHARED_RAM_BANK_5_ADDRESS +
-					(i * (size/2));
-			dmadscr[i].dest = ACP_INTERNAL_APERTURE_WINDOW_0_ADDRESS
-						+ (pte_offset * SZ_4K) +
-						(i * (size/2));
-			dmadscr[i].xfer_val |=
-			BIT(22) |
-			(ACP_DMA_ATTRIBUTES_SHAREDMEM_TO_DAGB_ONION << 16) |
-			(size / 2);
+			switch (asic_type) {
+			case CHIP_STONEY:
+				dmadscr[i].src = ACP_SHARED_RAM_BANK_3_ADDRESS +
+				(i * (size/2));
+				dmadscr[i].dest =
+				ACP_INTERNAL_APERTURE_WINDOW_0_ADDRESS +
+				(pte_offset * SZ_4K) + (i * (size/2));
+				dmadscr[i].xfer_val |=
+				BIT(22) |
+				(ACP_DMA_ATTRIBUTES_SHARED_MEM_TO_DAGB_GARLIC << 16) |
+				(size / 2);
+				break;
+			default:
+				dmadscr[i].src = ACP_SHARED_RAM_BANK_5_ADDRESS +
+				(i * (size/2));
+				dmadscr[i].dest =
+				ACP_INTERNAL_APERTURE_WINDOW_0_ADDRESS +
+				(pte_offset * SZ_4K) + (i * (size/2));
+				dmadscr[i].xfer_val |=
+				BIT(22) |
+				(ACP_DMA_ATTRIBUTES_SHAREDMEM_TO_DAGB_ONION << 16) |
+				(size / 2);
+			}
 		}
 		config_dma_descriptor_in_sram(acp_mmio, dma_dscr_idx,
 						&dmadscr[i]);
@@ -186,7 +208,8 @@ static void set_acp_sysmem_dma_descriptors(void __iomem *acp_mmio,
  * ACP SRAM <-> I2S
  */
 static void set_acp_to_i2s_dma_descriptors(void __iomem *acp_mmio,
-					   u32 size, int direction)
+					u32 size, int direction,
+					u32 asic_type)
 {
 
 	u16 i;
@@ -207,8 +230,17 @@ static void set_acp_to_i2s_dma_descriptors(void __iomem *acp_mmio,
 			dma_dscr_idx = CAPTURE_START_DMA_DESCR_CH15 + i;
 			/* dmadscr[i].src is unused by hardware. */
 			dmadscr[i].src = 0;
-			dmadscr[i].dest = ACP_SHARED_RAM_BANK_5_ADDRESS +
+			switch (asic_type) {
+			case CHIP_STONEY:
+				dmadscr[i].dest =
+					 ACP_SHARED_RAM_BANK_3_ADDRESS +
 					(i * (size / 2));
+				break;
+			default:
+				dmadscr[i].dest =
+					 ACP_SHARED_RAM_BANK_5_ADDRESS +
+					(i * (size / 2));
+			}
 			dmadscr[i].xfer_val |= BIT(22) |
 					(FROM_ACP_I2S_1 << 16) | (size / 2);
 		}
@@ -264,7 +296,8 @@ static void acp_pte_config(void __iomem *acp_mmio, struct page *pg,
 }
 
 static void config_acp_dma(void __iomem *acp_mmio,
-			   struct audio_substream_data *audio_config)
+			struct audio_substream_data *audio_config,
+			u32 asic_type)
 {
 	u32 pte_offset;
 
@@ -278,11 +311,11 @@ static void config_acp_dma(void __iomem *acp_mmio,
 
 	/* Configure System memory <-> ACP SRAM DMA descriptors */
 	set_acp_sysmem_dma_descriptors(acp_mmio, audio_config->size,
-				       audio_config->direction, pte_offset);
+				audio_config->direction, pte_offset, asic_type);
 
 	/* Configure ACP SRAM <-> I2S DMA descriptors */
 	set_acp_to_i2s_dma_descriptors(acp_mmio, audio_config->size,
-					audio_config->direction);
+				audio_config->direction, asic_type);
 }
 
 /* Start a given DMA channel transfer */
@@ -502,6 +535,12 @@ static int acp_init(void __iomem *acp_mmio, u32 asic_type)
 			acp_set_sram_bank_state(acp_mmio, bank, false);
 	}
 
+	/* Stoney supports 16bit resolution */
+	if (asic_type == CHIP_STONEY) {
+		val = acp_reg_read(acp_mmio, mmACP_I2S_16BIT_RESOLUTION_EN);
+		val |= 0x03;
+		acp_reg_write(val, acp_mmio, mmACP_I2S_16BIT_RESOLUTION_EN);
+	}
 	return 0;
 }
 
@@ -680,6 +719,8 @@ static int acp_dma_hw_params(struct snd_pcm_substream *substream,
 	struct page *pg;
 	struct snd_pcm_runtime *runtime;
 	struct audio_substream_data *rtd;
+	struct snd_soc_pcm_runtime *prtd = substream->private_data;
+	struct audio_drv_data *adata = dev_get_drvdata(prtd->platform->dev);
 
 	runtime = substream->runtime;
 	rtd = runtime->private_data;
@@ -707,7 +748,7 @@ static int acp_dma_hw_params(struct snd_pcm_substream *substream,
 		rtd->num_of_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
 		rtd->direction = substream->stream;
 
-		config_acp_dma(rtd->acp_mmio, rtd);
+		config_acp_dma(rtd->acp_mmio, rtd, adata->asic_type);
 		status = 0;
 	} else {
 		status = -ENOMEM;
@@ -1011,7 +1052,8 @@ static int acp_pcm_resume(struct device *dev)
 						true);
 		}
 		config_acp_dma(adata->acp_mmio,
-				adata->play_stream->runtime->private_data);
+			adata->play_stream->runtime->private_data,
+			adata->asic_type);
 	}
 	if (adata->capture_stream && adata->capture_stream->runtime) {
 		if (adata->asic_type != CHIP_STONEY) {
@@ -1020,7 +1062,8 @@ static int acp_pcm_resume(struct device *dev)
 						true);
 		}
 		config_acp_dma(adata->acp_mmio,
-				adata->capture_stream->runtime->private_data);
+			adata->capture_stream->runtime->private_data,
+			adata->asic_type);
 	}
 	acp_reg_write(1, adata->acp_mmio, mmACP_EXTERNAL_INTR_ENB);
 	return 0;

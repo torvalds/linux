@@ -19,6 +19,7 @@
 
 /* Capture SRAM address (as a source in dma descriptor) */
 #define ACP_SHARED_RAM_BANK_5_ADDRESS		0x400A000
+#define ACP_SHARED_RAM_BANK_3_ADDRESS		0x4006000
 
 #define ACP_DMA_RESET_TIME			10000
 #define ACP_CLOCK_EN_TIME_OUT_VALUE		0x000000FF
@@ -67,6 +68,7 @@
 #define CAPTURE_START_DMA_DESCR_CH15 6
 #define CAPTURE_END_DMA_DESCR_CH15 7
 
+#define mmACP_I2S_16BIT_RESOLUTION_EN       0x5209
 enum acp_dma_priority_level {
 	/* 0x0 Specifies the DMA channel is given normal priority */
 	ACP_DMA_PRIORITY_LEVEL_NORMAL = 0x0,
