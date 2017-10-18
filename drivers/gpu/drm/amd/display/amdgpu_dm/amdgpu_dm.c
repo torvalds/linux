@@ -4132,7 +4132,8 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	 * are removed from freesync module
 	 */
 	if (adev->dm.freesync_module) {
-		for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state,
+					      new_crtc_state, i) {
 			struct amdgpu_dm_connector *aconnector = NULL;
 			struct dm_connector_state *dm_new_con_state = NULL;
 			struct amdgpu_crtc *acrtc = NULL;
@@ -4160,9 +4161,11 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 				amdgpu_dm_find_first_crtc_matching_connector(
 					state, crtc);
 			if (!aconnector) {
-				DRM_DEBUG_DRIVER("Atomic commit: Failed to find connector for acrtc id:%d "
-					 "skipping freesync init\n",
-					 acrtc->crtc_id);
+				DRM_DEBUG_DRIVER("Atomic commit: Failed to "
+						 "find connector for acrtc "
+						 "id:%d skipping freesync "
+						 "init\n",
+						 acrtc->crtc_id);
 				continue;
 			}
 
