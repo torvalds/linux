@@ -57,6 +57,8 @@ struct ch_tc_flower_entry {
 enum {
 	ETH_DMAC_31_0,	/* dmac bits 0.. 31 */
 	ETH_DMAC_47_32,	/* dmac bits 32..47 */
+	ETH_SMAC_15_0,	/* smac bits 0.. 15 */
+	ETH_SMAC_47_16,	/* smac bits 16..47 */
 };
 
 struct ch_tc_pedit_fields {
@@ -72,6 +74,7 @@ struct ch_tc_pedit_fields {
 #define PEDIT_ETH_DMAC_MASK		0xffff
 #define PEDIT_ETH_DMAC_31_0		0x0
 #define PEDIT_ETH_DMAC_47_32_SMAC_15_0	0x4
+#define PEDIT_ETH_SMAC_47_16		0x8
 
 int cxgb4_tc_flower_replace(struct net_device *dev,
 			    struct tc_cls_flower_offload *cls);

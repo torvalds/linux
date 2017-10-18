@@ -45,6 +45,8 @@
 struct ch_tc_pedit_fields pedits[] = {
 	PEDIT_FIELDS(ETH_, DMAC_31_0, 4, dmac, 0),
 	PEDIT_FIELDS(ETH_, DMAC_47_32, 2, dmac, 4),
+	PEDIT_FIELDS(ETH_, SMAC_15_0, 2, smac, 0),
+	PEDIT_FIELDS(ETH_, SMAC_47_16, 4, smac, 2),
 };
 
 static struct ch_tc_flower_entry *allocate_flower_entry(void)
@@ -291,6 +293,13 @@ static void process_pedit_field(struct ch_filter_specification *fs, u32 val,
 		case PEDIT_ETH_DMAC_47_32_SMAC_15_0:
 			if (~mask & PEDIT_ETH_DMAC_MASK)
 				offload_pedit(fs, val, mask, ETH_DMAC_47_32);
+			else
+				offload_pedit(fs, val >> 16, mask >> 16,
+					      ETH_SMAC_15_0);
+			break;
+		case PEDIT_ETH_SMAC_47_16:
+			fs->newsmac = 1;
+			offload_pedit(fs, val, mask, ETH_SMAC_47_16);
 		}
 	}
 }
@@ -440,6 +449,7 @@ static int cxgb4_validate_flow_actions(struct net_device *dev,
 					switch (offset) {
 					case PEDIT_ETH_DMAC_31_0:
 					case PEDIT_ETH_DMAC_47_32_SMAC_15_0:
+					case PEDIT_ETH_SMAC_47_16:
 						break;
 					default:
 						netdev_err(dev, "%s: Unsupported pedit field\n",
