@@ -1086,3 +1086,15 @@ xfs_rtalloc_query_all(
 
 	return xfs_rtalloc_query_range(tp, &keys[0], &keys[1], fn, priv);
 }
+
+/*
+ * Verify that an realtime block number pointer doesn't point off the
+ * end of the realtime device.
+ */
+bool
+xfs_verify_rtbno(
+	struct xfs_mount	*mp,
+	xfs_rtblock_t		rtbno)
+{
+	return rtbno < mp->m_sb.sb_rblocks;
+}
