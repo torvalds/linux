@@ -1033,6 +1033,30 @@ The kernel interface functions are as follows:
 
      It returns 0 if the call was requeued and an error otherwise.
 
+ (*) Get call RTT.
+
+	u64 rxrpc_kernel_get_rtt(struct socket *sock, struct rxrpc_call *call);
+
+     Get the RTT time to the peer in use by a call.  The value returned is in
+     nanoseconds.
+
+ (*) Check call still alive.
+
+	u32 rxrpc_kernel_check_life(struct socket *sock,
+				    struct rxrpc_call *call);
+
+     This returns a number that is updated when ACKs are received from the peer
+     (notably including PING RESPONSE ACKs which we can elicit by sending PING
+     ACKs to see if the call still exists on the server).  The caller should
+     compare the numbers of two calls to see if the call is still alive after
+     waiting for a suitable interval.
+
+     This allows the caller to work out if the server is still contactable and
+     if the call is still alive on the server whilst waiting for the server to
+     process a client operation.
+
+     This function may transmit a PING ACK.
+
 
 =======================
 CONFIGURABLE PARAMETERS

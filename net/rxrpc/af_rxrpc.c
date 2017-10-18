@@ -340,6 +340,25 @@ void rxrpc_kernel_end_call(struct socket *sock, struct rxrpc_call *call)
 EXPORT_SYMBOL(rxrpc_kernel_end_call);
 
 /**
+ * rxrpc_kernel_check_life - Check to see whether a call is still alive
+ * @sock: The socket the call is on
+ * @call: The call to check
+ *
+ * Allow a kernel service to find out whether a call is still alive - ie. we're
+ * getting ACKs from the server.  Returns a number representing the life state
+ * which can be compared to that returned by a previous call.
+ *
+ * If this is a client call, ping ACKs will be sent to the server to find out
+ * whether it's still responsive and whether the call is still alive on the
+ * server.
+ */
+u32 rxrpc_kernel_check_life(struct socket *sock, struct rxrpc_call *call)
+{
+	return call->acks_latest;
+}
+EXPORT_SYMBOL(rxrpc_kernel_check_life);
+
+/**
  * rxrpc_kernel_check_call - Check a call's state
  * @sock: The socket the call is on
  * @call: The call to check
