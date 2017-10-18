@@ -943,6 +943,7 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	caps->cqe_ba_pg_sz	= 0;
 	caps->cqe_buf_pg_sz	= 0;
 	caps->cqe_hop_num	= HNS_ROCE_CQE_HOP_NUM;
+	caps->chunk_sz		= HNS_ROCE_V2_TABLE_CHUNK_SIZE;
 
 	caps->pkey_table_len[0] = 1;
 	caps->gid_table_len[0] = 2;

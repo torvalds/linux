@@ -36,9 +36,6 @@
 #include "hns_roce_hem.h"
 #include "hns_roce_common.h"
 
-#define HNS_ROCE_HEM_ALLOC_SIZE		(1 << 17)
-#define HNS_ROCE_TABLE_CHUNK_SIZE	(1 << 17)
-
 #define DMA_ADDR_T_SHIFT		12
 #define BT_BA_SHIFT			32
 
@@ -296,7 +293,7 @@ static int hns_roce_set_hem(struct hns_roce_dev *hr_dev,
 
 	/* Find the HEM(Hardware Entry Memory) entry */
 	unsigned long i = (obj & (table->num_obj - 1)) /
-			  (HNS_ROCE_TABLE_CHUNK_SIZE / table->obj_size);
+			  (table->table_chunk_size / table->obj_size);
 
 	switch (table->type) {
 	case HEM_TYPE_QPC:
@@ -541,7 +538,7 @@ int hns_roce_table_get(struct hns_roce_dev *hr_dev,
 	if (hns_roce_check_whether_mhop(hr_dev, table->type))
 		return hns_roce_table_mhop_get(hr_dev, table, obj);
 
-	i = (obj & (table->num_obj - 1)) / (HNS_ROCE_TABLE_CHUNK_SIZE /
+	i = (obj & (table->num_obj - 1)) / (table->table_chunk_size /
 	     table->obj_size);
 
 	mutex_lock(&table->mutex);
@@ -552,8 +549,8 @@ int hns_roce_table_get(struct hns_roce_dev *hr_dev,
 	}
 
 	table->hem[i] = hns_roce_alloc_hem(hr_dev,
-				       HNS_ROCE_TABLE_CHUNK_SIZE >> PAGE_SHIFT,
-				       HNS_ROCE_HEM_ALLOC_SIZE,
+				       table->table_chunk_size >> PAGE_SHIFT,
+				       table->table_chunk_size,
 				       (table->lowmem ? GFP_KERNEL :
 					GFP_HIGHUSER) | __GFP_NOWARN);
 	if (!table->hem[i]) {
@@ -702,7 +699,7 @@ void hns_roce_table_put(struct hns_roce_dev *hr_dev,
 	}
 
 	i = (obj & (table->num_obj - 1)) /
-	    (HNS_ROCE_TABLE_CHUNK_SIZE / table->obj_size);
+	    (table->table_chunk_size / table->obj_size);
 
 	mutex_lock(&table->mutex);
 
@@ -739,8 +736,8 @@ void *hns_roce_table_find(struct hns_roce_dev *hr_dev,
 
 	if (!hns_roce_check_whether_mhop(hr_dev, table->type)) {
 		idx = (obj & (table->num_obj - 1)) * table->obj_size;
-		hem = table->hem[idx / HNS_ROCE_TABLE_CHUNK_SIZE];
-		dma_offset = offset = idx % HNS_ROCE_TABLE_CHUNK_SIZE;
+		hem = table->hem[idx / table->table_chunk_size];
+		dma_offset = offset = idx % table->table_chunk_size;
 	} else {
 		hns_roce_calc_hem_mhop(hr_dev, table, &mhop_obj, &mhop);
 		/* mtt mhop */
@@ -791,7 +788,7 @@ int hns_roce_table_get_range(struct hns_roce_dev *hr_dev,
 			     unsigned long start, unsigned long end)
 {
 	struct hns_roce_hem_mhop mhop;
-	unsigned long inc = HNS_ROCE_TABLE_CHUNK_SIZE / table->obj_size;
+	unsigned long inc = table->table_chunk_size / table->obj_size;
 	unsigned long i;
 	int ret;
 
@@ -822,7 +819,7 @@ void hns_roce_table_put_range(struct hns_roce_dev *hr_dev,
 			      unsigned long start, unsigned long end)
 {
 	struct hns_roce_hem_mhop mhop;
-	unsigned long inc = HNS_ROCE_TABLE_CHUNK_SIZE / table->obj_size;
+	unsigned long inc = table->table_chunk_size / table->obj_size;
 	unsigned long i;
 
 	if (hns_roce_check_whether_mhop(hr_dev, table->type)) {
@@ -830,8 +827,7 @@ void hns_roce_table_put_range(struct hns_roce_dev *hr_dev,
 		inc = mhop.bt_chunk_size / table->obj_size;
 	}
 
-	for (i = start; i <= end;
-		i += inc)
+	for (i = start; i <= end; i += inc)
 		hns_roce_table_put(hr_dev, table, i);
 }
 
@@ -845,7 +841,8 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 	unsigned long num_hem;
 
 	if (!hns_roce_check_whether_mhop(hr_dev, type)) {
-		obj_per_chunk = HNS_ROCE_TABLE_CHUNK_SIZE / obj_size;
+		table->table_chunk_size = hr_dev->caps.chunk_sz;
+		obj_per_chunk = table->table_chunk_size / obj_size;
 		num_hem = (nobj + obj_per_chunk - 1) / obj_per_chunk;
 
 		table->hem = kcalloc(num_hem, sizeof(*table->hem), GFP_KERNEL);
@@ -1027,7 +1024,7 @@ void hns_roce_cleanup_hem_table(struct hns_roce_dev *hr_dev,
 	for (i = 0; i < table->num_hem; ++i)
 		if (table->hem[i]) {
 			if (hr_dev->hw->clear_hem(hr_dev, table,
-			    i * HNS_ROCE_TABLE_CHUNK_SIZE / table->obj_size, 0))
+			    i * table->table_chunk_size / table->obj_size, 0))
 				dev_err(dev, "Clear HEM base address failed.\n");
 
 			hns_roce_free_hem(hr_dev, table->hem[i]);

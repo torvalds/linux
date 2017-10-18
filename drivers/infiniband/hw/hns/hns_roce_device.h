@@ -236,6 +236,7 @@ struct hns_roce_hem_table {
 	unsigned long	num_obj;
 	/*Single obj size */
 	unsigned long	obj_size;
+	unsigned long	table_chunk_size;
 	int		lowmem;
 	struct mutex	mutex;
 	struct hns_roce_hem **hem;
@@ -565,6 +566,7 @@ struct hns_roce_caps {
 	u32		cqe_ba_pg_sz;
 	u32		cqe_buf_pg_sz;
 	u32		cqe_hop_num;
+	u32		chunk_sz;	/* chunk size in non multihop mode*/
 };
 
 struct hns_roce_hw {
