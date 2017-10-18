@@ -1161,6 +1161,8 @@ static void vega10_setup_default_single_dpm_table(struct pp_hwmgr *hwmgr,
 {
 	int i;
 
+	dpm_table->count = 0;
+
 	for (i = 0; i < dep_table->count; i++) {
 		if (i == 0 || dpm_table->dpm_levels[dpm_table->count - 1].value <=
 				dep_table->entries[i].clk) {
@@ -1269,10 +1271,6 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 			return -EINVAL);
 
 	/* Initialize Sclk DPM table based on allow Sclk values */
-	data->dpm_table.soc_table.count = 0;
-	data->dpm_table.gfx_table.count = 0;
-	data->dpm_table.dcef_table.count = 0;
-
 	dpm_table = &(data->dpm_table.soc_table);
 	vega10_setup_default_single_dpm_table(hwmgr,
 			dpm_table,
