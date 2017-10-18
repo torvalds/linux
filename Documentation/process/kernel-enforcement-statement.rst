@@ -67,6 +67,7 @@ we might work for today, have in the past, or will in the future.
   - Javier Martinez Canillas
   - Rob Clark
   - Jonathan Corbet
+  - Dennis Dalessandro
   - Vivien Didelot (Savoir-faire Linux)
   - Hans de Goede (Red Hat)
   - Mel Gorman (SUSE)
