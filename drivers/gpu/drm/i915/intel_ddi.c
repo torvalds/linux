@@ -1156,14 +1156,14 @@ static int hsw_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
 }
 
 static int skl_calc_wrpll_link(struct drm_i915_private *dev_priv,
-			       uint32_t dpll)
+			       enum intel_dpll_id pll_id)
 {
 	i915_reg_t cfgcr1_reg, cfgcr2_reg;
 	uint32_t cfgcr1_val, cfgcr2_val;
 	uint32_t p0, p1, p2, dco_freq;
 
-	cfgcr1_reg = DPLL_CFGCR1(dpll);
-	cfgcr2_reg = DPLL_CFGCR2(dpll);
+	cfgcr1_reg = DPLL_CFGCR1(pll_id);
+	cfgcr2_reg = DPLL_CFGCR2(pll_id);
 
 	cfgcr1_val = I915_READ(cfgcr1_reg);
 	cfgcr2_val = I915_READ(cfgcr2_reg);
@@ -1216,7 +1216,7 @@ static int skl_calc_wrpll_link(struct drm_i915_private *dev_priv,
 }
 
 static int cnl_calc_wrpll_link(struct drm_i915_private *dev_priv,
-			       uint32_t pll_id)
+			       enum intel_dpll_id pll_id)
 {
 	uint32_t cfgcr0, cfgcr1;
 	uint32_t p0, p1, p2, dco_freq, ref_clock;
@@ -1303,7 +1303,8 @@ static void cnl_ddi_clock_get(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	int link_clock = 0;
-	uint32_t cfgcr0, pll_id;
+	uint32_t cfgcr0;
+	enum intel_dpll_id pll_id;
 
 	pll_id = intel_get_shared_dpll_id(dev_priv, pipe_config->shared_dpll);
 
@@ -1356,17 +1357,18 @@ static void skl_ddi_clock_get(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	int link_clock = 0;
-	uint32_t dpll_ctl1, dpll;
+	uint32_t dpll_ctl1;
+	enum intel_dpll_id pll_id;
 
-	dpll = intel_get_shared_dpll_id(dev_priv, pipe_config->shared_dpll);
+	pll_id = intel_get_shared_dpll_id(dev_priv, pipe_config->shared_dpll);
 
 	dpll_ctl1 = I915_READ(DPLL_CTRL1);
 
-	if (dpll_ctl1 & DPLL_CTRL1_HDMI_MODE(dpll)) {
-		link_clock = skl_calc_wrpll_link(dev_priv, dpll);
+	if (dpll_ctl1 & DPLL_CTRL1_HDMI_MODE(pll_id)) {
+		link_clock = skl_calc_wrpll_link(dev_priv, pll_id);
 	} else {
-		link_clock = dpll_ctl1 & DPLL_CTRL1_LINK_RATE_MASK(dpll);
-		link_clock >>= DPLL_CTRL1_LINK_RATE_SHIFT(dpll);
+		link_clock = dpll_ctl1 & DPLL_CTRL1_LINK_RATE_MASK(pll_id);
+		link_clock >>= DPLL_CTRL1_LINK_RATE_SHIFT(pll_id);
 
 		switch (link_clock) {
 		case DPLL_CTRL1_LINK_RATE_810:
@@ -1447,17 +1449,17 @@ static void hsw_ddi_clock_get(struct intel_encoder *encoder,
 }
 
 static int bxt_calc_pll_link(struct drm_i915_private *dev_priv,
-				enum intel_dpll_id dpll)
+			     enum intel_dpll_id pll_id)
 {
 	struct intel_shared_dpll *pll;
 	struct intel_dpll_hw_state *state;
 	struct dpll clock;
 
 	/* For DDI ports we always use a shared PLL. */
-	if (WARN_ON(dpll == DPLL_ID_PRIVATE))
+	if (WARN_ON(pll_id == DPLL_ID_PRIVATE))
 		return 0;
 
-	pll = &dev_priv->shared_dplls[dpll];
+	pll = &dev_priv->shared_dplls[pll_id];
 	state = &pll->state.hw_state;
 
 	clock.m1 = 2;
@@ -1476,9 +1478,9 @@ static void bxt_ddi_clock_get(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = intel_ddi_get_encoder_port(encoder);
-	uint32_t dpll = port;
+	enum intel_dpll_id pll_id = port;
 
-	pipe_config->port_clock = bxt_calc_pll_link(dev_priv, dpll);
+	pipe_config->port_clock = bxt_calc_pll_link(dev_priv, pll_id);
 
 	ddi_dotclock_get(pipe_config);
 }
