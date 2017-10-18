@@ -827,23 +827,44 @@ static int pwrap_init_dual_io(struct pmic_wrapper *wrp)
 	return 0;
 }
 
-static int pwrap_mt8135_init_reg_clock(struct pmic_wrapper *wrp)
+/*
+ * pwrap_init_chip_select_ext is used to configure CS extension time for each
+ * phase during data transactions on the pwrap bus.
+ */
+static void pwrap_init_chip_select_ext(struct pmic_wrapper *wrp, u8 hext_write,
+				       u8 hext_read, u8 lext_start,
+				       u8 lext_end)
 {
-	pwrap_writel(wrp, 0x4, PWRAP_CSHEXT);
-	pwrap_writel(wrp, 0x0, PWRAP_CSHEXT_WRITE);
-	pwrap_writel(wrp, 0x4, PWRAP_CSHEXT_READ);
-	pwrap_writel(wrp, 0x0, PWRAP_CSLEXT_START);
-	pwrap_writel(wrp, 0x0, PWRAP_CSLEXT_END);
+	/*
+	 * After finishing a write and read transaction, extends CS high time
+	 * to be at least xT of BUS CLK as hext_write and hext_read specifies
+	 * respectively.
+	 */
+	pwrap_writel(wrp, hext_write, PWRAP_CSHEXT_WRITE);
+	pwrap_writel(wrp, hext_read, PWRAP_CSHEXT_READ);
 
-	return 0;
+	/*
+	 * Extends CS low time after CSL and before CSH command to be at
+	 * least xT of BUS CLK as lext_start and lext_end specifies
+	 * respectively.
+	 */
+	pwrap_writel(wrp, lext_start, PWRAP_CSLEXT_START);
+	pwrap_writel(wrp, lext_end, PWRAP_CSLEXT_END);
 }
 
-static int pwrap_mt8173_init_reg_clock(struct pmic_wrapper *wrp)
+static int pwrap_common_init_reg_clock(struct pmic_wrapper *wrp)
 {
-	pwrap_writel(wrp, 0x0, PWRAP_CSHEXT_WRITE);
-	pwrap_writel(wrp, 0x4, PWRAP_CSHEXT_READ);
-	pwrap_writel(wrp, 0x2, PWRAP_CSLEXT_START);
-	pwrap_writel(wrp, 0x2, PWRAP_CSLEXT_END);
+	switch (wrp->master->type) {
+	case PWRAP_MT8173:
+		pwrap_init_chip_select_ext(wrp, 0, 4, 2, 2);
+		break;
+	case PWRAP_MT8135:
+		pwrap_writel(wrp, 0x4, PWRAP_CSHEXT);
+		pwrap_init_chip_select_ext(wrp, 0, 4, 0, 0);
+		break;
+	default:
+		break;
+	}
 
 	return 0;
 }
@@ -853,20 +874,14 @@ static int pwrap_mt2701_init_reg_clock(struct pmic_wrapper *wrp)
 	switch (wrp->slave->type) {
 	case PMIC_MT6397:
 		pwrap_writel(wrp, 0xc, PWRAP_RDDMY);
-		pwrap_writel(wrp, 0x4, PWRAP_CSHEXT_WRITE);
-		pwrap_writel(wrp, 0x0, PWRAP_CSHEXT_READ);
-		pwrap_writel(wrp, 0x2, PWRAP_CSLEXT_START);
-		pwrap_writel(wrp, 0x2, PWRAP_CSLEXT_END);
+		pwrap_init_chip_select_ext(wrp, 4, 0, 2, 2);
 		break;
 
 	case PMIC_MT6323:
 		pwrap_writel(wrp, 0x8, PWRAP_RDDMY);
 		pwrap_write(wrp, wrp->slave->dew_regs[PWRAP_DEW_RDDMY_NO],
 			    0x8);
-		pwrap_writel(wrp, 0x5, PWRAP_CSHEXT_WRITE);
-		pwrap_writel(wrp, 0x0, PWRAP_CSHEXT_READ);
-		pwrap_writel(wrp, 0x2, PWRAP_CSLEXT_START);
-		pwrap_writel(wrp, 0x2, PWRAP_CSLEXT_END);
+		pwrap_init_chip_select_ext(wrp, 5, 0, 2, 2);
 		break;
 	default:
 		break;
@@ -1235,7 +1250,7 @@ static const struct pmic_wrapper_type pwrap_mt8135 = {
 	.spi_w = PWRAP_MAN_CMD_SPI_WRITE,
 	.wdt_src = PWRAP_WDT_SRC_MASK_ALL,
 	.has_bridge = 1,
-	.init_reg_clock = pwrap_mt8135_init_reg_clock,
+	.init_reg_clock = pwrap_common_init_reg_clock,
 	.init_soc_specific = pwrap_mt8135_init_soc_specific,
 };
 
@@ -1247,7 +1262,7 @@ static const struct pmic_wrapper_type pwrap_mt8173 = {
 	.spi_w = PWRAP_MAN_CMD_SPI_WRITE,
 	.wdt_src = PWRAP_WDT_SRC_MASK_NO_STAUPD,
 	.has_bridge = 0,
-	.init_reg_clock = pwrap_mt8173_init_reg_clock,
+	.init_reg_clock = pwrap_common_init_reg_clock,
 	.init_soc_specific = pwrap_mt8173_init_soc_specific,
 };
 
