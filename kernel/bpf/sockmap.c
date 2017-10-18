@@ -39,6 +39,7 @@
 #include <linux/workqueue.h>
 #include <linux/list.h>
 #include <net/strparser.h>
+#include <net/tcp.h>
 
 struct bpf_stab {
 	struct bpf_map map;
@@ -101,9 +102,16 @@ static int smap_verdict_func(struct smap_psock *psock, struct sk_buff *skb)
 		return SK_DROP;
 
 	skb_orphan(skb);
+	/* We need to ensure that BPF metadata for maps is also cleared
+	 * when we orphan the skb so that we don't have the possibility
+	 * to reference a stale map.
+	 */
+	TCP_SKB_CB(skb)->bpf.map = NULL;
 	skb->sk = psock->sock;
 	bpf_compute_data_end(skb);
+	preempt_disable();
 	rc = (*prog->bpf_func)(skb, prog->insnsi);
+	preempt_enable();
 	skb->sk = NULL;
 
 	return rc;
@@ -114,17 +122,10 @@ static void smap_do_verdict(struct smap_psock *psock, struct sk_buff *skb)
 	struct sock *sk;
 	int rc;
 
-	/* Because we use per cpu values to feed input from sock redirect
-	 * in BPF program to do_sk_redirect_map() call we need to ensure we
-	 * are not preempted. RCU read lock is not sufficient in this case
-	 * with CONFIG_PREEMPT_RCU enabled so we must be explicit here.
-	 */
-	preempt_disable();
 	rc = smap_verdict_func(psock, skb);
 	switch (rc) {
 	case SK_REDIRECT:
-		sk = do_sk_redirect_map();
-		preempt_enable();
+		sk = do_sk_redirect_map(skb);
 		if (likely(sk)) {
 			struct smap_psock *peer = smap_psock_sk(sk);
 
@@ -141,8 +142,6 @@ static void smap_do_verdict(struct smap_psock *psock, struct sk_buff *skb)
 	/* Fall through and free skb otherwise */
 	case SK_DROP:
 	default:
-		if (rc != SK_REDIRECT)
-			preempt_enable();
 		kfree_skb(skb);
 	}
 }
