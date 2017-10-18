@@ -142,6 +142,10 @@ static int open_proxy_open(struct inode *inode, struct file *filp)
 	const struct file_operations *real_fops = NULL;
 	int r;
 
+	if (kernel_is_locked_down("debugfs"))
+		return -EPERM;
+
+
 	r = debugfs_file_get(dentry);
 	if (r)
 		return r == -EIO ? -ENOENT : r;
@@ -266,6 +270,9 @@ static int full_proxy_open(struct inode *inode, struct file *filp)
 	const struct file_operations *real_fops = NULL;
 	struct file_operations *proxy_fops = NULL;
 	int r;
+
+	if (kernel_is_locked_down("debugfs"))
+		return -EPERM;
 
 	r = debugfs_file_get(dentry);
 	if (r)
