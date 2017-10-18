@@ -158,6 +158,10 @@ xfs_scrub_teardown(
 			iput(VFS_I(sc->ip));
 		sc->ip = NULL;
 	}
+	if (sc->buf) {
+		kmem_free(sc->buf);
+		sc->buf = NULL;
+	}
 	return error;
 }
 
@@ -230,6 +234,10 @@ static const struct xfs_scrub_meta_ops meta_scrub_ops[] = {
 	{ /* directory */
 		.setup	= xfs_scrub_setup_directory,
 		.scrub	= xfs_scrub_directory,
+	},
+	{ /* extended attributes */
+		.setup	= xfs_scrub_setup_xattr,
+		.scrub	= xfs_scrub_xattr,
 	},
 };
 

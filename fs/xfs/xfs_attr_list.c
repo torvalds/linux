@@ -407,7 +407,8 @@ xfs_attr3_leaf_list_int(
 			cursor->offset = 0;
 		}
 
-		if (entry->flags & XFS_ATTR_INCOMPLETE)
+		if ((entry->flags & XFS_ATTR_INCOMPLETE) &&
+		    !(context->flags & ATTR_INCOMPLETE))
 			continue;		/* skip incomplete entries */
 
 		if (entry->flags & XFS_ATTR_LOCAL) {
@@ -581,6 +582,10 @@ xfs_attr_list(
 		return -EINVAL;
 	if ((cursor->initted == 0) &&
 	    (cursor->hashval || cursor->blkno || cursor->offset))
+		return -EINVAL;
+
+	/* Only internal consumers can retrieve incomplete attrs. */
+	if (flags & ATTR_INCOMPLETE)
 		return -EINVAL;
 
 	/*
