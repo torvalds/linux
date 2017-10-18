@@ -34,6 +34,24 @@ struct xfs_scrub_meta_ops {
 	bool		(*has)(struct xfs_sb *);
 };
 
+/* Buffer pointers and btree cursors for an entire AG. */
+struct xfs_scrub_ag {
+	xfs_agnumber_t			agno;
+
+	/* AG btree roots */
+	struct xfs_buf			*agf_bp;
+	struct xfs_buf			*agfl_bp;
+	struct xfs_buf			*agi_bp;
+
+	/* AG btrees */
+	struct xfs_btree_cur		*bno_cur;
+	struct xfs_btree_cur		*cnt_cur;
+	struct xfs_btree_cur		*ino_cur;
+	struct xfs_btree_cur		*fino_cur;
+	struct xfs_btree_cur		*rmap_cur;
+	struct xfs_btree_cur		*refc_cur;
+};
+
 struct xfs_scrub_context {
 	/* General scrub state. */
 	struct xfs_mount		*mp;
@@ -42,6 +60,9 @@ struct xfs_scrub_context {
 	struct xfs_trans		*tp;
 	struct xfs_inode		*ip;
 	bool				try_harder;
+
+	/* State tracking for single-AG operations. */
+	struct xfs_scrub_ag		sa;
 };
 
 /* Metadata scrubbers */

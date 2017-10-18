@@ -44,6 +44,8 @@
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
+#include "scrub/scrub.h"
+#include "scrub/btree.h"
 
 /*
  * Online Scrub and Repair
@@ -141,6 +143,7 @@ xfs_scrub_teardown(
 	struct xfs_scrub_context	*sc,
 	int				error)
 {
+	xfs_scrub_ag_free(sc, &sc->sa);
 	if (sc->tp) {
 		xfs_trans_cancel(sc->tp);
 		sc->tp = NULL;
@@ -241,6 +244,7 @@ retry_op:
 	sc.sm = sm;
 	sc.ops = ops;
 	sc.try_harder = try_harder;
+	sc.sa.agno = NULLAGNUMBER;
 	error = sc.ops->setup(&sc, ip);
 	if (error)
 		goto out_teardown;
