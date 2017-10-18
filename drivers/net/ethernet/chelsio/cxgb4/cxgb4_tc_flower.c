@@ -263,7 +263,9 @@ static void cxgb4_process_flow_actions(struct net_device *in,
 
 	tcf_exts_to_list(cls->exts, &actions);
 	list_for_each_entry(a, &actions, list) {
-		if (is_tcf_gact_shot(a)) {
+		if (is_tcf_gact_ok(a)) {
+			fs->action = FILTER_PASS;
+		} else if (is_tcf_gact_shot(a)) {
 			fs->action = FILTER_DROP;
 		} else if (is_tcf_mirred_egress_redirect(a)) {
 			int ifindex = tcf_mirred_ifindex(a);
@@ -306,7 +308,9 @@ static int cxgb4_validate_flow_actions(struct net_device *dev,
 
 	tcf_exts_to_list(cls->exts, &actions);
 	list_for_each_entry(a, &actions, list) {
-		if (is_tcf_gact_shot(a)) {
+		if (is_tcf_gact_ok(a)) {
+			/* Do nothing */
+		} else if (is_tcf_gact_shot(a)) {
 			/* Do nothing */
 		} else if (is_tcf_mirred_egress_redirect(a)) {
 			struct adapter *adap = netdev2adap(dev);
