@@ -443,11 +443,12 @@ static int blkdev_roset(struct block_device *bdev, fmode_t mode,
 {
 	int ret, n;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
 	ret = __blkdev_driver_ioctl(bdev, mode, cmd, arg);
 	if (!is_unrecognized_ioctl(ret))
 		return ret;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EACCES;
 	if (get_user(n, (int __user *)arg))
 		return -EFAULT;
 	set_device_ro(bdev, n);
