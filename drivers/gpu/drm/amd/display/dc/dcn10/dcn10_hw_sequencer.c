@@ -2414,7 +2414,6 @@ static void program_all_pipe_in_tree(
 	}
 
 	if (pipe_ctx->plane_state != NULL) {
-		struct dc_cursor_position position = { 0 };
 		struct pipe_ctx *cur_pipe_ctx =
 				&dc->current_state->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
 
@@ -2434,11 +2433,13 @@ static void program_all_pipe_in_tree(
 		update_dchubp_dpp(dc, pipe_ctx, context);
 
 		/* TODO: this is a hack w/a for switching from mpo to pipe split */
-		dc_stream_set_cursor_position(pipe_ctx->stream, &position);
+		if (pipe_ctx->stream->cursor_attributes.address.quad_part != 0) {
+			struct dc_cursor_position position = { 0 };
 
-		if (pipe_ctx->stream->cursor_attributes.address.quad_part != 0)
+			dc_stream_set_cursor_position(pipe_ctx->stream, &position);
 			dc_stream_set_cursor_attributes(pipe_ctx->stream,
 				&pipe_ctx->stream->cursor_attributes);
+		}
 
 		if (cur_pipe_ctx->plane_state != pipe_ctx->plane_state) {
 			dc->hwss.set_input_transfer_func(
