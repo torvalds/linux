@@ -79,6 +79,7 @@ we might work for today, have in the past, or will in the future.
   - Juergen Gross
   - Shawn Guo
   - Ulf Hansson
+  - Stephen Hemminger (Microsoft)
   - Tejun Heo
   - Rob Herring
   - Masami Hiramatsu
