@@ -6403,32 +6403,29 @@ static int qeth_set_ipa_tso(struct qeth_card *card, int on)
 	return rc;
 }
 
-/* try to restore device features on a device after recovery */
-int qeth_recover_features(struct net_device *dev)
+#define QETH_HW_FEATURES (NETIF_F_RXCSUM | NETIF_F_IP_CSUM | NETIF_F_TSO)
+
+/**
+ * qeth_recover_features() - Restore device features after recovery
+ * @dev:	the recovering net_device
+ *
+ * Caller must hold rtnl lock.
+ */
+void qeth_recover_features(struct net_device *dev)
 {
+	netdev_features_t features = dev->features;
 	struct qeth_card *card = dev->ml_priv;
-	netdev_features_t recover = dev->features;
 
-	if (recover & NETIF_F_IP_CSUM) {
-		if (qeth_set_ipa_csum(card, 1, IPA_OUTBOUND_CHECKSUM))
-			recover ^= NETIF_F_IP_CSUM;
-	}
-	if (recover & NETIF_F_RXCSUM) {
-		if (qeth_set_ipa_csum(card, 1, IPA_INBOUND_CHECKSUM))
-			recover ^= NETIF_F_RXCSUM;
-	}
-	if (recover & NETIF_F_TSO) {
-		if (qeth_set_ipa_tso(card, 1))
-			recover ^= NETIF_F_TSO;
-	}
+	/* force-off any feature that needs an IPA sequence.
+	 * netdev_update_features() will restart them.
+	 */
+	dev->features &= ~QETH_HW_FEATURES;
+	netdev_update_features(dev);
 
-	if (recover == dev->features)
-		return 0;
-
+	if (features == dev->features)
+		return;
 	dev_warn(&card->gdev->dev,
 		 "Device recovery failed to restore all offload features\n");
-	dev->features = recover;
-	return -EIO;
 }
 EXPORT_SYMBOL_GPL(qeth_recover_features);
 
@@ -6485,8 +6482,7 @@ netdev_features_t qeth_fix_features(struct net_device *dev,
 	/* if the card isn't up, remove features that require hw changes */
 	if (card->state == CARD_STATE_DOWN ||
 	    card->state == CARD_STATE_RECOVER)
-		features = features & ~(NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
-					NETIF_F_TSO);
+		features &= ~QETH_HW_FEATURES;
 	QETH_DBF_HEX(SETUP, 2, &features, sizeof(features));
 	return features;
 }
