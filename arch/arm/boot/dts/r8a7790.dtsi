@@ -906,7 +906,8 @@
 	};
 
 	ether: ethernet@ee700000 {
-		compatible = "renesas,ether-r8a7790";
+		compatible = "renesas,ether-r8a7790",
+			     "renesas,rcar-gen2-ether";
 		reg = <0 0xee700000 0 0x400>;
 		interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cpg CPG_MOD 813>;
