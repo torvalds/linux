@@ -1756,9 +1756,9 @@ static void _rtl8822be_phy_set_txpower_index(struct ieee80211_hw *hw,
 	static u32 index;
 
 	/*
-	* For 8822B, phydm api use 4 bytes txagc value
-	* driver must combine every four 1 byte to one 4 byte and send to phydm
-	*/
+	 * For 8822B, phydm api use 4 bytes txagc value driver must
+	 * combine every four 1 byte to one 4 byte and send to phydm
+	 */
 	shift = rate & 0x03;
 	index |= ((u32)power_index << (shift * 8));
 
