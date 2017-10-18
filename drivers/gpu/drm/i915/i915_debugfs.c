@@ -4179,18 +4179,20 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_ring_test_irq_fops,
 			i915_ring_test_irq_get, i915_ring_test_irq_set,
 			"0x%08llx\n");
 
-#define DROP_UNBOUND 0x1
-#define DROP_BOUND 0x2
-#define DROP_RETIRE 0x4
-#define DROP_ACTIVE 0x8
-#define DROP_FREED 0x10
-#define DROP_SHRINK_ALL 0x20
+#define DROP_UNBOUND	BIT(0)
+#define DROP_BOUND	BIT(1)
+#define DROP_RETIRE	BIT(2)
+#define DROP_ACTIVE	BIT(3)
+#define DROP_FREED	BIT(4)
+#define DROP_SHRINK_ALL	BIT(5)
+#define DROP_IDLE	BIT(6)
 #define DROP_ALL (DROP_UNBOUND	| \
 		  DROP_BOUND	| \
 		  DROP_RETIRE	| \
 		  DROP_ACTIVE	| \
 		  DROP_FREED	| \
-		  DROP_SHRINK_ALL)
+		  DROP_SHRINK_ALL |\
+		  DROP_IDLE)
 static int
 i915_drop_caches_get(void *data, u64 *val)
 {
@@ -4206,7 +4208,8 @@ i915_drop_caches_set(void *data, u64 val)
 	struct drm_device *dev = &dev_priv->drm;
 	int ret = 0;
 
-	DRM_DEBUG("Dropping caches: 0x%08llx\n", val);
+	DRM_DEBUG("Dropping caches: 0x%08llx [0x%08llx]\n",
+		  val, val & DROP_ALL);
 
 	/* No need to check and wait for gpu resets, only libdrm auto-restarts
 	 * on ioctls on -EAGAIN. */
@@ -4236,6 +4239,9 @@ i915_drop_caches_set(void *data, u64 val)
 	if (val & DROP_SHRINK_ALL)
 		i915_gem_shrink_all(dev_priv);
 	fs_reclaim_release(GFP_KERNEL);
+
+	if (val & DROP_IDLE)
+		drain_delayed_work(&dev_priv->gt.idle_work);
 
 	if (val & DROP_FREED) {
 		synchronize_rcu();
