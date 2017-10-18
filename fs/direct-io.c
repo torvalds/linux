@@ -265,12 +265,24 @@ static ssize_t dio_complete(struct dio *dio, ssize_t ret, unsigned int flags)
 	if (ret == 0)
 		ret = transferred;
 
+	if (dio->end_io) {
+		// XXX: ki_pos??
+		err = dio->end_io(dio->iocb, offset, ret, dio->private);
+		if (err)
+			ret = err;
+	}
+
 	/*
 	 * Try again to invalidate clean pages which might have been cached by
 	 * non-direct readahead, or faulted in by get_user_pages() if the source
 	 * of the write was an mmap'ed region of the file we're writing.  Either
 	 * one is a pretty crazy thing to do, so we don't support it 100%.  If
 	 * this invalidation fails, tough, the write still worked...
+	 *
+	 * And this page cache invalidation has to be after dio->end_io(), as
+	 * some filesystems convert unwritten extents to real allocations in
+	 * end_io() when necessary, otherwise a racing buffer read would cache
+	 * zeros from unwritten extents.
 	 */
 	if (flags & DIO_COMPLETE_INVALIDATE &&
 	    ret > 0 && dio->op == REQ_OP_WRITE &&
@@ -279,14 +291,6 @@ static ssize_t dio_complete(struct dio *dio, ssize_t ret, unsigned int flags)
 					offset >> PAGE_SHIFT,
 					(offset + ret - 1) >> PAGE_SHIFT);
 		WARN_ON_ONCE(err);
-	}
-
-	if (dio->end_io) {
-
-		// XXX: ki_pos??
-		err = dio->end_io(dio->iocb, offset, ret, dio->private);
-		if (err)
-			ret = err;
 	}
 
 	if (!(dio->flags & DIO_SKIP_DIO_COUNT))
