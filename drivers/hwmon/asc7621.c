@@ -579,7 +579,6 @@ static ssize_t show_pwm_enable(struct device *dev,
 	mutex_unlock(&data->update_lock);
 
 	val = config | (altbit << 3);
-	newval = 0;
 
 	if (val == 3 || val >= 10)
 		newval = 255;
