@@ -50,6 +50,7 @@ be stronger.
 Except where noted below, we speak only for ourselves, and not for any company
 we might work for today, have in the past, or will in the future.
 
+  - Laura Abbott
   - Bjorn Andersson (Linaro)
   - Andrea Arcangeli (Red Hat)
   - Neil Armstrong
