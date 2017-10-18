@@ -1300,6 +1300,7 @@ tcf_action_egdev_get(const struct net_device *dev)
 	if (!egdev)
 		return NULL;
 	INIT_LIST_HEAD(&egdev->cb_list);
+	egdev->dev = dev;
 	tan = net_generic(dev_net(dev), tcf_action_net_id);
 	rhashtable_insert_fast(&tan->egdev_ht, &egdev->ht_node,
 			       tcf_action_egdev_ht_params);
