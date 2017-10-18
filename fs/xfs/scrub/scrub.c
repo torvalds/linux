@@ -257,6 +257,18 @@ static const struct xfs_scrub_meta_ops meta_scrub_ops[] = {
 		.scrub	= xfs_scrub_rtsummary,
 		.has	= xfs_sb_version_hasrealtime,
 	},
+	{ /* user quota */
+		.setup = xfs_scrub_setup_quota,
+		.scrub = xfs_scrub_quota,
+	},
+	{ /* group quota */
+		.setup = xfs_scrub_setup_quota,
+		.scrub = xfs_scrub_quota,
+	},
+	{ /* project quota */
+		.setup = xfs_scrub_setup_quota,
+		.scrub = xfs_scrub_quota,
+	},
 };
 
 /* This isn't a stable feature, warn once per day. */

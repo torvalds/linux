@@ -102,5 +102,14 @@ xfs_scrub_rtsummary(struct xfs_scrub_context *sc)
 	return -ENOENT;
 }
 #endif
+#ifdef CONFIG_XFS_QUOTA
+int xfs_scrub_quota(struct xfs_scrub_context *sc);
+#else
+static inline int
+xfs_scrub_quota(struct xfs_scrub_context *sc)
+{
+	return -ENOENT;
+}
+#endif
 
 #endif	/* __XFS_SCRUB_SCRUB_H__ */

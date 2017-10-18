@@ -504,9 +504,12 @@ struct xfs_scrub_metadata {
 #define XFS_SCRUB_TYPE_PARENT	18	/* parent pointers */
 #define XFS_SCRUB_TYPE_RTBITMAP	19	/* realtime bitmap */
 #define XFS_SCRUB_TYPE_RTSUM	20	/* realtime summary */
+#define XFS_SCRUB_TYPE_UQUOTA	21	/* user quotas */
+#define XFS_SCRUB_TYPE_GQUOTA	22	/* group quotas */
+#define XFS_SCRUB_TYPE_PQUOTA	23	/* project quotas */
 
 /* Number of scrub subcommands. */
-#define XFS_SCRUB_TYPE_NR	21
+#define XFS_SCRUB_TYPE_NR	24
 
 /* i: Repair this metadata. */
 #define XFS_SCRUB_IFLAG_REPAIR		(1 << 0)
