@@ -208,8 +208,6 @@ static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 
 	return 0;
 
-remove_cdev:
-	cdev_device_del(&rmtfs_mem->cdev, &rmtfs_mem->dev);
 put_device:
 	put_device(&rmtfs_mem->dev);
 
