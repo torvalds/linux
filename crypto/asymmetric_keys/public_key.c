@@ -57,29 +57,13 @@ static void public_key_destroy(void *payload0, void *payload3)
 	public_key_signature_free(payload3);
 }
 
-struct public_key_completion {
-	struct completion completion;
-	int err;
-};
-
-static void public_key_verify_done(struct crypto_async_request *req, int err)
-{
-	struct public_key_completion *compl = req->data;
-
-	if (err == -EINPROGRESS)
-		return;
-
-	compl->err = err;
-	complete(&compl->completion);
-}
-
 /*
  * Verify a signature using a public key.
  */
 int public_key_verify_signature(const struct public_key *pkey,
 				const struct public_key_signature *sig)
 {
-	struct public_key_completion compl;
+	struct crypto_wait cwait;
 	struct crypto_akcipher *tfm;
 	struct akcipher_request *req;
 	struct scatterlist sig_sg, digest_sg;
@@ -131,20 +115,16 @@ int public_key_verify_signature(const struct public_key *pkey,
 	sg_init_one(&digest_sg, output, outlen);
 	akcipher_request_set_crypt(req, &sig_sg, &digest_sg, sig->s_size,
 				   outlen);
-	init_completion(&compl.completion);
+	crypto_init_wait(&cwait);
 	akcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG |
 				      CRYPTO_TFM_REQ_MAY_SLEEP,
-				      public_key_verify_done, &compl);
+				      crypto_req_done, &cwait);
 
 	/* Perform the verification calculation.  This doesn't actually do the
 	 * verification, but rather calculates the hash expected by the
 	 * signature and returns that to us.
 	 */
-	ret = crypto_akcipher_verify(req);
-	if ((ret == -EINPROGRESS) || (ret == -EBUSY)) {
-		wait_for_completion(&compl.completion);
-		ret = compl.err;
-	}
+	ret = crypto_wait_req(crypto_akcipher_verify(req), &cwait);
 	if (ret < 0)
 		goto out_free_output;
 
