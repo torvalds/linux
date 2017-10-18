@@ -32,14 +32,20 @@
  * SOFTWARE.
  */
 
-#include <net/tc_act/tc_gact.h>
 #include <net/tc_act/tc_mirred.h>
+#include <net/tc_act/tc_pedit.h>
+#include <net/tc_act/tc_gact.h>
 #include <net/tc_act/tc_vlan.h>
 
 #include "cxgb4.h"
 #include "cxgb4_tc_flower.h"
 
 #define STATS_CHECK_PERIOD (HZ / 2)
+
+struct ch_tc_pedit_fields pedits[] = {
+	PEDIT_FIELDS(ETH_, DMAC_31_0, 4, dmac, 0),
+	PEDIT_FIELDS(ETH_, DMAC_47_32, 2, dmac, 4),
+};
 
 static struct ch_tc_flower_entry *allocate_flower_entry(void)
 {
@@ -254,6 +260,41 @@ static int cxgb4_validate_flow_match(struct net_device *dev,
 	return 0;
 }
 
+static void offload_pedit(struct ch_filter_specification *fs, u32 val, u32 mask,
+			  u8 field)
+{
+	u32 set_val = val & ~mask;
+	u32 offset;
+	u8 size;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pedits); i++) {
+		if (pedits[i].field == field) {
+			offset = pedits[i].offset;
+			size = pedits[i].size;
+			break;
+		}
+	}
+	memcpy((u8 *)fs + offset, &set_val, size);
+}
+
+static void process_pedit_field(struct ch_filter_specification *fs, u32 val,
+				u32 mask, u32 offset, u8 htype)
+{
+	switch (htype) {
+	case TCA_PEDIT_KEY_EX_HDR_TYPE_ETH:
+		switch (offset) {
+		case PEDIT_ETH_DMAC_31_0:
+			fs->newdmac = 1;
+			offload_pedit(fs, val, mask, ETH_DMAC_31_0);
+			break;
+		case PEDIT_ETH_DMAC_47_32_SMAC_15_0:
+			if (~mask & PEDIT_ETH_DMAC_MASK)
+				offload_pedit(fs, val, mask, ETH_DMAC_47_32);
+		}
+	}
+}
+
 static void cxgb4_process_flow_actions(struct net_device *in,
 				       struct tc_cls_flower_offload *cls,
 				       struct ch_filter_specification *fs)
@@ -296,6 +337,21 @@ static void cxgb4_process_flow_actions(struct net_device *in,
 			default:
 				break;
 			}
+		} else if (is_tcf_pedit(a)) {
+			u32 mask, val, offset;
+			int nkeys, i;
+			u8 htype;
+
+			nkeys = tcf_pedit_nkeys(a);
+			for (i = 0; i < nkeys; i++) {
+				htype = tcf_pedit_htype(a, i);
+				mask = tcf_pedit_mask(a, i);
+				val = tcf_pedit_val(a, i);
+				offset = tcf_pedit_offset(a, i);
+
+				process_pedit_field(fs, val, mask, offset,
+						    htype);
+			}
 		}
 	}
 }
@@ -304,6 +360,9 @@ static int cxgb4_validate_flow_actions(struct net_device *dev,
 				       struct tc_cls_flower_offload *cls)
 {
 	const struct tc_action *a;
+	bool act_redir = false;
+	bool act_pedit = false;
+	bool act_vlan = false;
 	LIST_HEAD(actions);
 
 	tcf_exts_to_list(cls->exts, &actions);
@@ -335,6 +394,7 @@ static int cxgb4_validate_flow_actions(struct net_device *dev,
 					   __func__);
 				return -EINVAL;
 			}
+			act_redir = true;
 		} else if (is_tcf_vlan(a)) {
 			u16 proto = be16_to_cpu(tcf_vlan_push_proto(a));
 			u32 vlan_action = tcf_vlan_action(a);
@@ -355,11 +415,57 @@ static int cxgb4_validate_flow_actions(struct net_device *dev,
 					   __func__);
 				return -EOPNOTSUPP;
 			}
+			act_vlan = true;
+		} else if (is_tcf_pedit(a)) {
+			u32 mask, val, offset;
+			u8 cmd, htype;
+			int nkeys, i;
+
+			nkeys = tcf_pedit_nkeys(a);
+			for (i = 0; i < nkeys; i++) {
+				htype = tcf_pedit_htype(a, i);
+				cmd = tcf_pedit_cmd(a, i);
+				mask = tcf_pedit_mask(a, i);
+				val = tcf_pedit_val(a, i);
+				offset = tcf_pedit_offset(a, i);
+
+				if (cmd != TCA_PEDIT_KEY_EX_CMD_SET) {
+					netdev_err(dev, "%s: Unsupported pedit cmd\n",
+						   __func__);
+					return -EOPNOTSUPP;
+				}
+
+				switch (htype) {
+				case TCA_PEDIT_KEY_EX_HDR_TYPE_ETH:
+					switch (offset) {
+					case PEDIT_ETH_DMAC_31_0:
+					case PEDIT_ETH_DMAC_47_32_SMAC_15_0:
+						break;
+					default:
+						netdev_err(dev, "%s: Unsupported pedit field\n",
+							   __func__);
+						return -EOPNOTSUPP;
+					}
+					break;
+				default:
+					netdev_err(dev, "%s: Unsupported pedit type\n",
+						   __func__);
+					return -EOPNOTSUPP;
+				}
+			}
+			act_pedit = true;
 		} else {
 			netdev_err(dev, "%s: Unsupported action\n", __func__);
 			return -EOPNOTSUPP;
 		}
 	}
+
+	if ((act_pedit || act_vlan) && !act_redir) {
+		netdev_err(dev, "%s: pedit/vlan rewrite invalid without egress redirect\n",
+			   __func__);
+		return -EINVAL;
+	}
+
 	return 0;
 }
 

@@ -54,6 +54,25 @@ struct ch_tc_flower_entry {
 	u32 filter_id;
 };
 
+enum {
+	ETH_DMAC_31_0,	/* dmac bits 0.. 31 */
+	ETH_DMAC_47_32,	/* dmac bits 32..47 */
+};
+
+struct ch_tc_pedit_fields {
+	u8 field;
+	u8 size;
+	u32 offset;
+};
+
+#define PEDIT_FIELDS(type, field, size, fs_field, offset) \
+	{ type## field, size, \
+		offsetof(struct ch_filter_specification, fs_field) + (offset) }
+
+#define PEDIT_ETH_DMAC_MASK		0xffff
+#define PEDIT_ETH_DMAC_31_0		0x0
+#define PEDIT_ETH_DMAC_47_32_SMAC_15_0	0x4
+
 int cxgb4_tc_flower_replace(struct net_device *dev,
 			    struct tc_cls_flower_offload *cls);
 int cxgb4_tc_flower_destroy(struct net_device *dev,
