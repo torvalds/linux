@@ -782,7 +782,9 @@ The kernel interface functions are as follows:
 				struct key *key,
 				unsigned long user_call_ID,
 				s64 tx_total_len,
-				gfp_t gfp);
+				gfp_t gfp,
+				rxrpc_notify_rx_t notify_rx,
+				bool upgrade);
 
      This allocates the infrastructure to make a new RxRPC call and assigns
      call and connection numbers.  The call will be made on the UDP port that
@@ -802,6 +804,13 @@ The kernel interface functions are as follows:
      with this call (or -1 if unknown at this point).  Setting the data size
      allows the kernel to encrypt directly to the packet buffers, thereby
      saving a copy.  The value may not be less than -1.
+
+     notify_rx is a pointer to a function to be called when events such as
+     incoming data packets or remote aborts happen.
+
+     upgrade should be set to true if a client operation should request that
+     the server upgrade the service to a better one.  The resultant service ID
+     is returned by rxrpc_kernel_recv_data().
 
      If this function is successful, an opaque reference to the RxRPC call is
      returned.  The caller now holds a reference on this and it must be
@@ -850,7 +859,8 @@ The kernel interface functions are as follows:
 				   size_t size,
 				   size_t *_offset,
 				   bool want_more,
-				   u32 *_abort)
+				   u32 *_abort,
+				   u16 *_service)
 
       This is used to receive data from either the reply part of a client call
       or the request part of a service call.  buf and size specify how much
@@ -872,6 +882,9 @@ The kernel interface functions are as follows:
 
       If a remote ABORT is detected, the abort code received will be stored in
       *_abort and ECONNABORTED will be returned.
+
+      The service ID that the call ended up with is returned into *_service.
+      This can be used to see if a call got a service upgrade.
 
  (*) Abort a call.
 

@@ -265,6 +265,7 @@ static int rxrpc_listen(struct socket *sock, int backlog)
  * @tx_total_len: Total length of data to transmit during the call (or -1)
  * @gfp: The allocation constraints
  * @notify_rx: Where to send notifications instead of socket queue
+ * @upgrade: Request service upgrade for call
  *
  * Allow a kernel service to begin a call on the nominated socket.  This just
  * sets up all the internal tracking structures and allocates connection and
@@ -279,7 +280,8 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 					   unsigned long user_call_ID,
 					   s64 tx_total_len,
 					   gfp_t gfp,
-					   rxrpc_notify_rx_t notify_rx)
+					   rxrpc_notify_rx_t notify_rx,
+					   bool upgrade)
 {
 	struct rxrpc_conn_parameters cp;
 	struct rxrpc_call *call;
@@ -304,6 +306,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	cp.key			= key;
 	cp.security_level	= 0;
 	cp.exclusive		= false;
+	cp.upgrade		= upgrade;
 	cp.service_id		= srx->srx_service;
 	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, tx_total_len,
 				     gfp);
