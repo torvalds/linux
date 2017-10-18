@@ -1665,8 +1665,7 @@ static int ipoib_dev_init_default(struct net_device *dev)
 	priv->dev->dev_addr[2] = (priv->qp->qp_num >>  8) & 0xff;
 	priv->dev->dev_addr[3] = (priv->qp->qp_num) & 0xff;
 
-	setup_timer(&priv->poll_timer, ipoib_ib_tx_timer_func,
-		    (unsigned long)dev);
+	timer_setup(&priv->poll_timer, ipoib_ib_tx_timer_func, 0);
 
 	return 0;
 

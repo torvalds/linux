@@ -1169,7 +1169,7 @@ int qib_set_lid(struct qib_pportdata *, u32, u8);
 void qib_hol_down(struct qib_pportdata *);
 void qib_hol_init(struct qib_pportdata *);
 void qib_hol_up(struct qib_pportdata *);
-void qib_hol_event(unsigned long);
+void qib_hol_event(struct timer_list *);
 void qib_disable_after_error(struct qib_devdata *);
 int qib_set_uevent_bits(struct qib_pportdata *, const int);
 
@@ -1282,7 +1282,7 @@ int qib_twsi_blk_wr(struct qib_devdata *dd, int dev, int addr,
 void qib_get_eeprom_info(struct qib_devdata *);
 void qib_dump_lookup_output_queue(struct qib_devdata *);
 void qib_force_pio_avail_update(struct qib_devdata *);
-void qib_clear_symerror_on_linkup(unsigned long opaque);
+void qib_clear_symerror_on_linkup(struct timer_list *t);
 
 /*
  * Set LED override, only the two LSBs have "public" meaning, but

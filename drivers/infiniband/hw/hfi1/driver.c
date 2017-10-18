@@ -1258,9 +1258,9 @@ void shutdown_led_override(struct hfi1_pportdata *ppd)
 	write_csr(dd, DCC_CFG_LED_CNTRL, 0);
 }
 
-static void run_led_override(unsigned long opaque)
+static void run_led_override(struct timer_list *t)
 {
-	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)opaque;
+	struct hfi1_pportdata *ppd = from_timer(ppd, t, led_override_timer);
 	struct hfi1_devdata *dd = ppd->dd;
 	unsigned long timeout;
 	int phase_idx;
@@ -1304,8 +1304,7 @@ void hfi1_start_led_override(struct hfi1_pportdata *ppd, unsigned int timeon,
 	 * timeout so the handler will be called soon to look at our request.
 	 */
 	if (!timer_pending(&ppd->led_override_timer)) {
-		setup_timer(&ppd->led_override_timer, run_led_override,
-			    (unsigned long)ppd);
+		timer_setup(&ppd->led_override_timer, run_led_override, 0);
 		ppd->led_override_timer.expires = jiffies + 1;
 		add_timer(&ppd->led_override_timer);
 		atomic_set(&ppd->led_override_timer_active, 1);

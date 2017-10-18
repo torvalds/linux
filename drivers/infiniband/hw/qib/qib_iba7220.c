@@ -1042,9 +1042,11 @@ done:
 	return iserr;
 }
 
-static void reenable_7220_chase(unsigned long opaque)
+static void reenable_7220_chase(struct timer_list *t)
 {
-	struct qib_pportdata *ppd = (struct qib_pportdata *)opaque;
+	struct qib_chippport_specific *cpspec = from_timer(cpspec, t,
+							 chase_timer);
+	struct qib_pportdata *ppd = &cpspec->pportdata;
 
 	ppd->cpspec->chase_timer.expires = 0;
 	qib_set_ib_7220_lstate(ppd, QLOGIC_IB_IBCC_LINKCMD_DOWN,
@@ -1653,7 +1655,7 @@ static void qib_7220_quiet_serdes(struct qib_pportdata *ppd)
 		       dd->control | QLOGIC_IB_C_FREEZEMODE);
 
 	ppd->cpspec->chase_end = 0;
-	if (ppd->cpspec->chase_timer.data) /* if initted */
+	if (ppd->cpspec->chase_timer.function) /* if initted */
 		del_timer_sync(&ppd->cpspec->chase_timer);
 
 	if (ppd->cpspec->ibsymdelta || ppd->cpspec->iblnkerrdelta ||
@@ -3238,9 +3240,9 @@ done:
  * need traffic_wds done the way it is
  * called from add_timer
  */
-static void qib_get_7220_faststats(unsigned long opaque)
+static void qib_get_7220_faststats(struct timer_list *t)
 {
-	struct qib_devdata *dd = (struct qib_devdata *) opaque;
+	struct qib_devdata *dd = from_timer(dd, t, stats_timer);
 	struct qib_pportdata *ppd = dd->pport;
 	unsigned long flags;
 	u64 traffic_wds;
@@ -3965,6 +3967,7 @@ static int qib_init_7220_variables(struct qib_devdata *dd)
 	dd->num_pports = 1;
 
 	dd->cspec = (struct qib_chip_specific *)(cpspec + dd->num_pports);
+	dd->cspec->dd = dd;
 	ppd->cpspec = cpspec;
 
 	spin_lock_init(&dd->cspec->sdepb_lock);
@@ -4027,8 +4030,7 @@ static int qib_init_7220_variables(struct qib_devdata *dd)
 	if (!qib_mini_init)
 		qib_write_kreg(dd, kr_rcvbthqp, QIB_KD_QP);
 
-	setup_timer(&ppd->cpspec->chase_timer, reenable_7220_chase,
-		    (unsigned long)ppd);
+	timer_setup(&ppd->cpspec->chase_timer, reenable_7220_chase, 0);
 
 	qib_num_cfg_vls = 1; /* if any 7220's, only one VL */
 
@@ -4053,9 +4055,7 @@ static int qib_init_7220_variables(struct qib_devdata *dd)
 	dd->rhdrhead_intr_off = 1ULL << 32;
 
 	/* setup the stats timer; the add_timer is done at end of init */
-	init_timer(&dd->stats_timer);
-	dd->stats_timer.function = qib_get_7220_faststats;
-	dd->stats_timer.data = (unsigned long) dd;
+	timer_setup(&dd->stats_timer, qib_get_7220_faststats, 0);
 	dd->stats_timer.expires = jiffies + ACTIVITY_TIMER * HZ;
 
 	/*

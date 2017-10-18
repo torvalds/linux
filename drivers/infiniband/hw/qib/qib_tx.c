@@ -548,9 +548,9 @@ void qib_hol_up(struct qib_pportdata *ppd)
 /*
  * This is only called via the timer.
  */
-void qib_hol_event(unsigned long opaque)
+void qib_hol_event(struct timer_list *t)
 {
-	struct qib_pportdata *ppd = (struct qib_pportdata *)opaque;
+	struct qib_pportdata *ppd = from_timer(ppd, t, hol_timer);
 
 	/* If hardware error, etc, skip. */
 	if (!(ppd->dd->flags & QIB_INITTED))

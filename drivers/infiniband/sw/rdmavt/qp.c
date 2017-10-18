@@ -57,7 +57,7 @@
 #include "vt.h"
 #include "trace.h"
 
-static void rvt_rc_timeout(unsigned long arg);
+static void rvt_rc_timeout(struct timer_list *t);
 
 /*
  * Convert the AETH RNR timeout code into the number of microseconds.
@@ -845,7 +845,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 				goto bail_qp;
 		}
 		/* initialize timers needed for rc qp */
-		setup_timer(&qp->s_timer, rvt_rc_timeout, (unsigned long)qp);
+		timer_setup(&qp->s_timer, rvt_rc_timeout, 0);
 		hrtimer_init(&qp->s_rnr_timer, CLOCK_MONOTONIC,
 			     HRTIMER_MODE_REL);
 		qp->s_rnr_timer.function = rvt_rc_rnr_retry;
@@ -894,8 +894,6 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		atomic_set(&qp->refcount, 0);
 		atomic_set(&qp->local_ops_pending, 0);
 		init_waitqueue_head(&qp->wait);
-		init_timer(&qp->s_timer);
-		qp->s_timer.data = (unsigned long)qp;
 		INIT_LIST_HEAD(&qp->rspwait);
 		qp->state = IB_QPS_RESET;
 		qp->s_wq = swq;
@@ -2133,9 +2131,9 @@ EXPORT_SYMBOL(rvt_del_timers_sync);
 /**
  * This is called from s_timer for missing responses.
  */
-static void rvt_rc_timeout(unsigned long arg)
+static void rvt_rc_timeout(struct timer_list *t)
 {
-	struct rvt_qp *qp = (struct rvt_qp *)arg;
+	struct rvt_qp *qp = from_timer(qp, t, s_timer);
 	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
 	unsigned long flags;
 

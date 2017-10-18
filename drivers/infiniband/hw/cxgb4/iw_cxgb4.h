@@ -537,7 +537,6 @@ struct c4iw_qp {
 	struct mutex mutex;
 	struct kref kref;
 	wait_queue_head_t wait;
-	struct timer_list timer;
 	int sq_sig_all;
 	struct work_struct free_work;
 	struct c4iw_ucontext *ucontext;

@@ -670,9 +670,9 @@ void hfi1_16B_rcv(struct hfi1_packet *packet)
  * This is called from a timer to check for QPs
  * which need kernel memory in order to send a packet.
  */
-static void mem_timer(unsigned long data)
+static void mem_timer(struct timer_list *t)
 {
-	struct hfi1_ibdev *dev = (struct hfi1_ibdev *)data;
+	struct hfi1_ibdev *dev = from_timer(dev, t, mem_timer);
 	struct list_head *list = &dev->memwait;
 	struct rvt_qp *qp = NULL;
 	struct iowait *wait;
@@ -1620,8 +1620,7 @@ static void init_ibport(struct hfi1_pportdata *ppd)
 
 	for (i = 0; i < RVT_MAX_TRAP_LISTS ; i++)
 		INIT_LIST_HEAD(&ibp->rvp.trap_lists[i].list);
-	setup_timer(&ibp->rvp.trap_timer, hfi1_handle_trap_timer,
-		    (unsigned long)ibp);
+	timer_setup(&ibp->rvp.trap_timer, hfi1_handle_trap_timer, 0);
 
 	spin_lock_init(&ibp->rvp.lock);
 	/* Set the prefix to the default value (see ch. 4.1.1) */
@@ -1828,7 +1827,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 
 	/* Only need to initialize non-zero fields. */
 
-	setup_timer(&dev->mem_timer, mem_timer, (unsigned long)dev);
+	timer_setup(&dev->mem_timer, mem_timer, 0);
 
 	seqlock_init(&dev->iowait_lock);
 	seqlock_init(&dev->txwait_lock);

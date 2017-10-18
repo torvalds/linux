@@ -140,7 +140,7 @@ static struct workqueue_struct *workq;
 static struct sk_buff_head rxq;
 
 static struct sk_buff *get_skb(struct sk_buff *skb, int len, gfp_t gfp);
-static void ep_timeout(unsigned long arg);
+static void ep_timeout(struct timer_list *t);
 static void connect_reply_upcall(struct c4iw_ep *ep, int status);
 static int sched(struct c4iw_dev *dev, struct sk_buff *skb);
 
@@ -185,8 +185,6 @@ static void start_ep_timer(struct c4iw_ep *ep)
 	clear_bit(TIMEOUT, &ep->com.flags);
 	c4iw_get_ep(&ep->com);
 	ep->timer.expires = jiffies + ep_timeout_secs * HZ;
-	ep->timer.data = (unsigned long)ep;
-	ep->timer.function = ep_timeout;
 	add_timer(&ep->timer);
 }
 
@@ -2103,7 +2101,6 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 	__u8 *ra;
 
 	pr_debug("qp %p cm_id %p\n", ep->com.qp, ep->com.cm_id);
-	init_timer(&ep->timer);
 	c4iw_init_wr_wait(ep->com.wr_waitp);
 
 	/* When MPA revision is different on nodes, the node with MPA_rev=2
@@ -2581,7 +2578,7 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 	pr_debug("tx_chan %u smac_idx %u rss_qid %u\n",
 		 child_ep->tx_chan, child_ep->smac_idx, child_ep->rss_qid);
 
-	init_timer(&child_ep->timer);
+	timer_setup(&child_ep->timer, ep_timeout, 0);
 	cxgb4_insert_tid(t, child_ep, hwtid,
 			 child_ep->com.local_addr.ss_family);
 	insert_ep_tid(child_ep);
@@ -3206,7 +3203,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		goto fail1;
 	}
 
-	init_timer(&ep->timer);
+	timer_setup(&ep->timer, ep_timeout, 0);
 	ep->plen = conn_param->private_data_len;
 	if (ep->plen)
 		memcpy(ep->mpa_pkt + sizeof(struct mpa_message),
@@ -4116,9 +4113,9 @@ static void process_work(struct work_struct *work)
 
 static DECLARE_WORK(skb_work, process_work);
 
-static void ep_timeout(unsigned long arg)
+static void ep_timeout(struct timer_list *t)
 {
-	struct c4iw_ep *ep = (struct c4iw_ep *)arg;
+	struct c4iw_ep *ep = from_timer(ep, t, timer);
 	int kickit = 0;
 
 	spin_lock(&timeout_lock);

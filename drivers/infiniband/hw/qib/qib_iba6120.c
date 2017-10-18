@@ -265,6 +265,7 @@ struct qib_chip_specific {
 	u64 rpkts; /* total packets received (sample result) */
 	u64 xmit_wait; /* # of ticks no data sent (sample result) */
 	struct timer_list pma_timer;
+	struct qib_pportdata *ppd;
 	char emsgbuf[128];
 	char bitsmsgbuf[64];
 	u8 pma_sample_status;
@@ -2619,9 +2620,9 @@ static void qib_chk_6120_errormask(struct qib_devdata *dd)
  * need traffic_wds done the way it is
  * called from add_timer
  */
-static void qib_get_6120_faststats(unsigned long opaque)
+static void qib_get_6120_faststats(struct timer_list *t)
 {
-	struct qib_devdata *dd = (struct qib_devdata *) opaque;
+	struct qib_devdata *dd = from_timer(dd, t, stats_timer);
 	struct qib_pportdata *ppd = dd->pport;
 	unsigned long flags;
 	u64 traffic_wds;
@@ -2909,10 +2910,10 @@ static int qib_6120_set_loopback(struct qib_pportdata *ppd, const char *what)
 	return ret;
 }
 
-static void pma_6120_timer(unsigned long data)
+static void pma_6120_timer(struct timer_list *t)
 {
-	struct qib_pportdata *ppd = (struct qib_pportdata *)data;
-	struct qib_chip_specific *cs = ppd->dd->cspec;
+	struct qib_chip_specific *cs = from_timer(cs, t, pma_timer);
+	struct qib_pportdata *ppd = cs->ppd;
 	struct qib_ibport *ibp = &ppd->ibport_data;
 	unsigned long flags;
 
@@ -3177,6 +3178,7 @@ static int init_6120_variables(struct qib_devdata *dd)
 	dd->num_pports = 1;
 
 	dd->cspec = (struct qib_chip_specific *)(ppd + dd->num_pports);
+	dd->cspec->ppd = ppd;
 	ppd->cpspec = NULL; /* not used in this chip */
 
 	spin_lock_init(&dd->cspec->kernel_tid_lock);
@@ -3247,11 +3249,8 @@ static int init_6120_variables(struct qib_devdata *dd)
 	dd->rhdrhead_intr_off = 1ULL << 32;
 
 	/* setup the stats timer; the add_timer is done at end of init */
-	setup_timer(&dd->stats_timer, qib_get_6120_faststats,
-		    (unsigned long)dd);
-
-	setup_timer(&dd->cspec->pma_timer, pma_6120_timer,
-		    (unsigned long)ppd);
+	timer_setup(&dd->stats_timer, qib_get_6120_faststats, 0);
+	timer_setup(&dd->cspec->pma_timer, pma_6120_timer, 0);
 
 	dd->ureg_align = qib_read_kreg32(dd, kr_palign);
 

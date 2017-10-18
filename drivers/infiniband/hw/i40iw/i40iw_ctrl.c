@@ -4873,6 +4873,7 @@ enum i40iw_status_code i40iw_vsi_stats_init(struct i40iw_sc_vsi *vsi, struct i40
 
 	vsi->pestat = info->pestat;
 	vsi->pestat->hw = vsi->dev->hw;
+	vsi->pestat->vsi = vsi;
 
 	if (info->stats_initialize) {
 		i40iw_hw_stats_init(vsi->pestat, fcn_id, true);
