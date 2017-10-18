@@ -1417,14 +1417,15 @@ static int mlx5e_set_pauseparam(struct net_device *netdev,
 int mlx5e_ethtool_get_ts_info(struct mlx5e_priv *priv,
 			      struct ethtool_ts_info *info)
 {
+	struct mlx5_core_dev *mdev = priv->mdev;
 	int ret;
 
 	ret = ethtool_op_get_ts_info(priv->netdev, info);
 	if (ret)
 		return ret;
 
-	info->phc_index = priv->tstamp.ptp ?
-			  ptp_clock_index(priv->tstamp.ptp) : -1;
+	info->phc_index = mdev->clock.ptp ?
+			  ptp_clock_index(mdev->clock.ptp) : -1;
 
 	if (!MLX5_CAP_GEN(priv->mdev, device_frequency_khz))
 		return 0;
@@ -1754,7 +1755,7 @@ static int set_pflag_rx_cqe_compress(struct net_device *netdev,
 	if (!MLX5_CAP_GEN(mdev, cqe_compression))
 		return -EOPNOTSUPP;
 
-	if (enable && priv->tstamp.hwtstamp_config.rx_filter != HWTSTAMP_FILTER_NONE) {
+	if (enable && priv->tstamp.rx_filter != HWTSTAMP_FILTER_NONE) {
 		netdev_err(netdev, "Can't enable cqe compression while timestamping is enabled.\n");
 		return -EINVAL;
 	}

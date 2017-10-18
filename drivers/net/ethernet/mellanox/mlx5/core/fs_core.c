@@ -693,8 +693,10 @@ static int update_root_ft_create(struct mlx5_flow_table *ft, struct fs_prio
 				 *prio)
 {
 	struct mlx5_flow_root_namespace *root = find_root(&prio->node);
+	struct mlx5_ft_underlay_qp *uqp;
 	int min_level = INT_MAX;
 	int err;
+	u32 qpn;
 
 	if (root->root_ft)
 		min_level = root->root_ft->level;
@@ -702,10 +704,24 @@ static int update_root_ft_create(struct mlx5_flow_table *ft, struct fs_prio
 	if (ft->level >= min_level)
 		return 0;
 
-	err = mlx5_cmd_update_root_ft(root->dev, ft, root->underlay_qpn);
+	if (list_empty(&root->underlay_qpns)) {
+		/* Don't set any QPN (zero) in case QPN list is empty */
+		qpn = 0;
+		err = mlx5_cmd_update_root_ft(root->dev, ft, qpn, false);
+	} else {
+		list_for_each_entry(uqp, &root->underlay_qpns, list) {
+			qpn = uqp->qpn;
+			err = mlx5_cmd_update_root_ft(root->dev, ft, qpn,
+						      false);
+			if (err)
+				break;
+		}
+	}
+
 	if (err)
-		mlx5_core_warn(root->dev, "Update root flow table of id=%u failed\n",
-			       ft->id);
+		mlx5_core_warn(root->dev,
+			       "Update root flow table of id(%u) qpn(%d) failed\n",
+			       ft->id, qpn);
 	else
 		root->root_ft = ft;
 
@@ -1661,23 +1677,43 @@ static struct mlx5_flow_table *find_next_ft(struct mlx5_flow_table *ft)
 static int update_root_ft_destroy(struct mlx5_flow_table *ft)
 {
 	struct mlx5_flow_root_namespace *root = find_root(&ft->node);
+	struct mlx5_ft_underlay_qp *uqp;
 	struct mlx5_flow_table *new_root_ft = NULL;
+	int err = 0;
+	u32 qpn;
 
 	if (root->root_ft != ft)
 		return 0;
 
 	new_root_ft = find_next_ft(ft);
-	if (new_root_ft) {
-		int err = mlx5_cmd_update_root_ft(root->dev, new_root_ft,
-						  root->underlay_qpn);
 
-		if (err) {
-			mlx5_core_warn(root->dev, "Update root flow table of id=%u failed\n",
-				       ft->id);
-			return err;
+	if (!new_root_ft) {
+		root->root_ft = NULL;
+		return 0;
+	}
+
+	if (list_empty(&root->underlay_qpns)) {
+		/* Don't set any QPN (zero) in case QPN list is empty */
+		qpn = 0;
+		err = mlx5_cmd_update_root_ft(root->dev, new_root_ft, qpn,
+					      false);
+	} else {
+		list_for_each_entry(uqp, &root->underlay_qpns, list) {
+			qpn = uqp->qpn;
+			err = mlx5_cmd_update_root_ft(root->dev, new_root_ft,
+						      qpn, false);
+			if (err)
+				break;
 		}
 	}
-	root->root_ft = new_root_ft;
+
+	if (err)
+		mlx5_core_warn(root->dev,
+			       "Update root flow table of id(%u) qpn(%d) failed\n",
+			       ft->id, qpn);
+	else
+		root->root_ft = new_root_ft;
+
 	return 0;
 }
 
@@ -1965,6 +2001,8 @@ static struct mlx5_flow_root_namespace *create_root_ns(struct mlx5_flow_steering
 	root_ns->dev = steering->dev;
 	root_ns->table_type = table_type;
 
+	INIT_LIST_HEAD(&root_ns->underlay_qpns);
+
 	ns = &root_ns->ns;
 	fs_init_namespace(ns);
 	mutex_init(&root_ns->chain_lock);
@@ -2245,17 +2283,76 @@ err:
 int mlx5_fs_add_rx_underlay_qpn(struct mlx5_core_dev *dev, u32 underlay_qpn)
 {
 	struct mlx5_flow_root_namespace *root = dev->priv.steering->root_ns;
+	struct mlx5_ft_underlay_qp *new_uqp;
+	int err = 0;
 
-	root->underlay_qpn = underlay_qpn;
+	new_uqp = kzalloc(sizeof(*new_uqp), GFP_KERNEL);
+	if (!new_uqp)
+		return -ENOMEM;
+
+	mutex_lock(&root->chain_lock);
+
+	if (!root->root_ft) {
+		err = -EINVAL;
+		goto update_ft_fail;
+	}
+
+	err = mlx5_cmd_update_root_ft(dev, root->root_ft, underlay_qpn, false);
+	if (err) {
+		mlx5_core_warn(dev, "Failed adding underlay QPN (%u) to root FT err(%d)\n",
+			       underlay_qpn, err);
+		goto update_ft_fail;
+	}
+
+	new_uqp->qpn = underlay_qpn;
+	list_add_tail(&new_uqp->list, &root->underlay_qpns);
+
+	mutex_unlock(&root->chain_lock);
+
 	return 0;
+
+update_ft_fail:
+	mutex_unlock(&root->chain_lock);
+	kfree(new_uqp);
+	return err;
 }
 EXPORT_SYMBOL(mlx5_fs_add_rx_underlay_qpn);
 
 int mlx5_fs_remove_rx_underlay_qpn(struct mlx5_core_dev *dev, u32 underlay_qpn)
 {
 	struct mlx5_flow_root_namespace *root = dev->priv.steering->root_ns;
+	struct mlx5_ft_underlay_qp *uqp;
+	bool found = false;
+	int err = 0;
 
-	root->underlay_qpn = 0;
+	mutex_lock(&root->chain_lock);
+	list_for_each_entry(uqp, &root->underlay_qpns, list) {
+		if (uqp->qpn == underlay_qpn) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		mlx5_core_warn(dev, "Failed finding underlay qp (%u) in qpn list\n",
+			       underlay_qpn);
+		err = -EINVAL;
+		goto out;
+	}
+
+	err = mlx5_cmd_update_root_ft(dev, root->root_ft, underlay_qpn, true);
+	if (err)
+		mlx5_core_warn(dev, "Failed removing underlay QPN (%u) from root FT err(%d)\n",
+			       underlay_qpn, err);
+
+	list_del(&uqp->list);
+	mutex_unlock(&root->chain_lock);
+	kfree(uqp);
+
 	return 0;
+
+out:
+	mutex_unlock(&root->chain_lock);
+	return err;
 }
 EXPORT_SYMBOL(mlx5_fs_remove_rx_underlay_qpn);
