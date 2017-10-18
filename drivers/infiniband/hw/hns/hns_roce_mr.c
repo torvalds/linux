@@ -708,11 +708,17 @@ static int hns_roce_write_mtt_chunk(struct hns_roce_dev *hr_dev,
 	dma_addr_t dma_handle;
 	__le64 *mtts;
 	u32 s = start_index * sizeof(u64);
+	u32 bt_page_size;
 	u32 i;
 
+	if (mtt->mtt_type == MTT_TYPE_WQE)
+		bt_page_size = 1 << (hr_dev->caps.mtt_ba_pg_sz + PAGE_SHIFT);
+	else
+		bt_page_size = 1 << (hr_dev->caps.cqe_ba_pg_sz + PAGE_SHIFT);
+
 	/* All MTTs must fit in the same page */
-	if (start_index / (PAGE_SIZE / sizeof(u64)) !=
-		(start_index + npages - 1) / (PAGE_SIZE / sizeof(u64)))
+	if (start_index / (bt_page_size / sizeof(u64)) !=
+		(start_index + npages - 1) / (bt_page_size / sizeof(u64)))
 		return -EINVAL;
 
 	if (start_index & (HNS_ROCE_MTT_ENTRY_PER_SEG - 1))
@@ -746,12 +752,18 @@ static int hns_roce_write_mtt(struct hns_roce_dev *hr_dev,
 {
 	int chunk;
 	int ret;
+	u32 bt_page_size;
 
 	if (mtt->order < 0)
 		return -EINVAL;
 
+	if (mtt->mtt_type == MTT_TYPE_WQE)
+		bt_page_size = 1 << (hr_dev->caps.mtt_ba_pg_sz + PAGE_SHIFT);
+	else
+		bt_page_size = 1 << (hr_dev->caps.cqe_ba_pg_sz + PAGE_SHIFT);
+
 	while (npages > 0) {
-		chunk = min_t(int, PAGE_SIZE / sizeof(u64), npages);
+		chunk = min_t(int, bt_page_size / sizeof(u64), npages);
 
 		ret = hns_roce_write_mtt_chunk(hr_dev, mtt, start_index, chunk,
 					       page_list);
@@ -869,25 +881,44 @@ err_free:
 int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_mtt *mtt, struct ib_umem *umem)
 {
+	struct device *dev = hr_dev->dev;
 	struct scatterlist *sg;
+	unsigned int order;
 	int i, k, entry;
+	int npage = 0;
 	int ret = 0;
-	u64 *pages;
-	u32 n;
 	int len;
+	u64 page_addr;
+	u64 *pages;
+	u32 bt_page_size;
+	u32 n;
 
-	pages = (u64 *) __get_free_page(GFP_KERNEL);
+	order = mtt->mtt_type == MTT_TYPE_WQE ? hr_dev->caps.mtt_ba_pg_sz :
+		hr_dev->caps.cqe_ba_pg_sz;
+	bt_page_size = 1 << (order + PAGE_SHIFT);
+
+	pages = (u64 *) __get_free_pages(GFP_KERNEL, order);
 	if (!pages)
 		return -ENOMEM;
 
 	i = n = 0;
 
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		len = sg_dma_len(sg) >> mtt->page_shift;
+		len = sg_dma_len(sg) >> PAGE_SHIFT;
 		for (k = 0; k < len; ++k) {
-			pages[i++] = sg_dma_address(sg) +
-				(k << umem->page_shift);
-			if (i == PAGE_SIZE / sizeof(u64)) {
+			page_addr =
+				sg_dma_address(sg) + (k << umem->page_shift);
+			if (!(npage % (1 << (mtt->page_shift - PAGE_SHIFT)))) {
+				if (page_addr & ((1 << mtt->page_shift) - 1)) {
+					dev_err(dev, "page_addr 0x%llx is not page_shift %d alignment!\n",
+						page_addr, mtt->page_shift);
+					ret = -EINVAL;
+					goto out;
+				}
+				pages[i++] = page_addr;
+			}
+			npage++;
+			if (i == bt_page_size / sizeof(u64)) {
 				ret = hns_roce_write_mtt(hr_dev, mtt, n, i,
 							 pages);
 				if (ret)
@@ -911,29 +942,37 @@ static int hns_roce_ib_umem_write_mr(struct hns_roce_dev *hr_dev,
 				     struct ib_umem *umem)
 {
 	struct scatterlist *sg;
-	int i = 0, j = 0;
+	int i = 0, j = 0, k;
 	int entry;
+	int len;
+	u64 page_addr;
+	u32 pbl_bt_sz;
 
 	if (hr_dev->caps.pbl_hop_num == HNS_ROCE_HOP_NUM_0)
 		return 0;
 
+	pbl_bt_sz = 1 << (hr_dev->caps.pbl_ba_pg_sz + PAGE_SHIFT);
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		if (!hr_dev->caps.pbl_hop_num) {
-			mr->pbl_buf[i] = ((u64)sg_dma_address(sg)) >> 12;
-			i++;
-		} else if (hr_dev->caps.pbl_hop_num == 1) {
-			mr->pbl_buf[i] = sg_dma_address(sg);
-			i++;
-		} else {
-			if (hr_dev->caps.pbl_hop_num == 2)
-				mr->pbl_bt_l1[i][j] = sg_dma_address(sg);
-			else if (hr_dev->caps.pbl_hop_num == 3)
-				mr->pbl_bt_l2[i][j] = sg_dma_address(sg);
+		len = sg_dma_len(sg) >> PAGE_SHIFT;
+		for (k = 0; k < len; ++k) {
+			page_addr = sg_dma_address(sg) +
+				    (k << umem->page_shift);
 
-			j++;
-			if (j >= (PAGE_SIZE / 8)) {
-				i++;
-				j = 0;
+			if (!hr_dev->caps.pbl_hop_num) {
+				mr->pbl_buf[i++] = page_addr >> 12;
+			} else if (hr_dev->caps.pbl_hop_num == 1) {
+				mr->pbl_buf[i++] = page_addr;
+			} else {
+				if (hr_dev->caps.pbl_hop_num == 2)
+					mr->pbl_bt_l1[i][j] = page_addr;
+				else if (hr_dev->caps.pbl_hop_num == 3)
+					mr->pbl_bt_l2[i][j] = page_addr;
+
+				j++;
+				if (j >= (pbl_bt_sz / 8)) {
+					i++;
+					j = 0;
+				}
 			}
 		}
 	}
@@ -986,7 +1025,7 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	} else {
 		int pbl_size = 1;
 
-		bt_size = (1 << PAGE_SHIFT) / 8;
+		bt_size = (1 << (hr_dev->caps.pbl_ba_pg_sz + PAGE_SHIFT)) / 8;
 		for (i = 0; i < hr_dev->caps.pbl_hop_num; i++)
 			pbl_size *= bt_size;
 		if (n > pbl_size) {

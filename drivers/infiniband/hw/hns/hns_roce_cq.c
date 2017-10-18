@@ -220,6 +220,8 @@ static int hns_roce_ib_get_cq_umem(struct hns_roce_dev *hr_dev,
 				   struct ib_umem **umem, u64 buf_addr, int cqe)
 {
 	int ret;
+	u32 page_shift;
+	u32 npages;
 
 	*umem = ib_umem_get(context, buf_addr, cqe * hr_dev->caps.cq_entry_sz,
 			    IB_ACCESS_LOCAL_WRITE, 1);
@@ -230,8 +232,19 @@ static int hns_roce_ib_get_cq_umem(struct hns_roce_dev *hr_dev,
 		buf->hr_mtt.mtt_type = MTT_TYPE_CQE;
 	else
 		buf->hr_mtt.mtt_type = MTT_TYPE_WQE;
-	ret = hns_roce_mtt_init(hr_dev, ib_umem_page_count(*umem),
-				(*umem)->page_shift, &buf->hr_mtt);
+
+	if (hr_dev->caps.cqe_buf_pg_sz) {
+		npages = (ib_umem_page_count(*umem) +
+			(1 << hr_dev->caps.cqe_buf_pg_sz) - 1) /
+			(1 << hr_dev->caps.cqe_buf_pg_sz);
+		page_shift = PAGE_SHIFT + hr_dev->caps.cqe_buf_pg_sz;
+		ret = hns_roce_mtt_init(hr_dev, npages, page_shift,
+					&buf->hr_mtt);
+	} else {
+		ret = hns_roce_mtt_init(hr_dev, ib_umem_page_count(*umem),
+				(*umem)->page_shift,
+				&buf->hr_mtt);
+	}
 	if (ret)
 		goto err_buf;
 
@@ -253,9 +266,11 @@ static int hns_roce_ib_alloc_cq_buf(struct hns_roce_dev *hr_dev,
 				    struct hns_roce_cq_buf *buf, u32 nent)
 {
 	int ret;
+	u32 page_shift = PAGE_SHIFT + hr_dev->caps.cqe_buf_pg_sz;
 
 	ret = hns_roce_buf_alloc(hr_dev, nent * hr_dev->caps.cq_entry_sz,
-				 PAGE_SIZE * 2, &buf->hr_buf);
+				 (1 << page_shift) * 2, &buf->hr_buf,
+				 page_shift);
 	if (ret)
 		goto out;
 

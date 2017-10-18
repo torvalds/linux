@@ -167,12 +167,12 @@ void hns_roce_buf_free(struct hns_roce_dev *hr_dev, u32 size,
 	if (buf->nbufs == 1) {
 		dma_free_coherent(dev, size, buf->direct.buf, buf->direct.map);
 	} else {
-		if (bits_per_long == 64)
+		if (bits_per_long == 64 && buf->page_shift == PAGE_SHIFT)
 			vunmap(buf->direct.buf);
 
 		for (i = 0; i < buf->nbufs; ++i)
 			if (buf->page_list[i].buf)
-				dma_free_coherent(dev, PAGE_SIZE,
+				dma_free_coherent(dev, 1 << buf->page_shift,
 						  buf->page_list[i].buf,
 						  buf->page_list[i].map);
 		kfree(buf->page_list);
@@ -181,20 +181,27 @@ void hns_roce_buf_free(struct hns_roce_dev *hr_dev, u32 size,
 EXPORT_SYMBOL_GPL(hns_roce_buf_free);
 
 int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
-		       struct hns_roce_buf *buf)
+		       struct hns_roce_buf *buf, u32 page_shift)
 {
 	int i = 0;
 	dma_addr_t t;
 	struct page **pages;
 	struct device *dev = hr_dev->dev;
 	u32 bits_per_long = BITS_PER_LONG;
+	u32 page_size = 1 << page_shift;
+	u32 order;
 
 	/* SQ/RQ buf lease than one page, SQ + RQ = 8K */
 	if (size <= max_direct) {
 		buf->nbufs = 1;
 		/* Npages calculated by page_size */
-		buf->npages = 1 << get_order(size);
-		buf->page_shift = PAGE_SHIFT;
+		order = get_order(size);
+		if (order <= page_shift - PAGE_SHIFT)
+			order = 0;
+		else
+			order -= page_shift - PAGE_SHIFT;
+		buf->npages = 1 << order;
+		buf->page_shift = page_shift;
 		/* MTT PA must be recorded in 4k alignment, t is 4k aligned */
 		buf->direct.buf = dma_alloc_coherent(dev, size, &t, GFP_KERNEL);
 		if (!buf->direct.buf)
@@ -209,9 +216,9 @@ int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
 
 		memset(buf->direct.buf, 0, size);
 	} else {
-		buf->nbufs = (size + PAGE_SIZE - 1) / PAGE_SIZE;
+		buf->nbufs = (size + page_size - 1) / page_size;
 		buf->npages = buf->nbufs;
-		buf->page_shift = PAGE_SHIFT;
+		buf->page_shift = page_shift;
 		buf->page_list = kcalloc(buf->nbufs, sizeof(*buf->page_list),
 					 GFP_KERNEL);
 
@@ -220,16 +227,16 @@ int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
 
 		for (i = 0; i < buf->nbufs; ++i) {
 			buf->page_list[i].buf = dma_alloc_coherent(dev,
-								  PAGE_SIZE, &t,
+								  page_size, &t,
 								  GFP_KERNEL);
 
 			if (!buf->page_list[i].buf)
 				goto err_free;
 
 			buf->page_list[i].map = t;
-			memset(buf->page_list[i].buf, 0, PAGE_SIZE);
+			memset(buf->page_list[i].buf, 0, page_size);
 		}
-		if (bits_per_long == 64) {
+		if (bits_per_long == 64 && page_shift == PAGE_SHIFT) {
 			pages = kmalloc_array(buf->nbufs, sizeof(*pages),
 					      GFP_KERNEL);
 			if (!pages)
@@ -243,6 +250,8 @@ int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
 			kfree(pages);
 			if (!buf->direct.buf)
 				goto err_free;
+		} else {
+			buf->direct.buf = NULL;
 		}
 	}
 

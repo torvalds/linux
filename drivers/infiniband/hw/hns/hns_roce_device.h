@@ -711,12 +711,14 @@ static inline struct hns_roce_qp
 static inline void *hns_roce_buf_offset(struct hns_roce_buf *buf, int offset)
 {
 	u32 bits_per_long_val = BITS_PER_LONG;
+	u32 page_size = 1 << buf->page_shift;
 
-	if (bits_per_long_val == 64 || buf->nbufs == 1)
+	if ((bits_per_long_val == 64 && buf->page_shift == PAGE_SHIFT) ||
+	    buf->nbufs == 1)
 		return (char *)(buf->direct.buf) + offset;
 	else
-		return (char *)(buf->page_list[offset >> PAGE_SHIFT].buf) +
-		       (offset & (PAGE_SIZE - 1));
+		return (char *)(buf->page_list[offset >> buf->page_shift].buf) +
+		       (offset & (page_size - 1));
 }
 
 int hns_roce_init_uar_table(struct hns_roce_dev *dev);
@@ -787,7 +789,7 @@ unsigned long key_to_hw_index(u32 key);
 void hns_roce_buf_free(struct hns_roce_dev *hr_dev, u32 size,
 		       struct hns_roce_buf *buf);
 int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
-		       struct hns_roce_buf *buf);
+		       struct hns_roce_buf *buf, u32 page_shift);
 
 int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_mtt *mtt, struct ib_umem *umem);

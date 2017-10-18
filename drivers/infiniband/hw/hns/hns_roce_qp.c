@@ -322,6 +322,7 @@ static int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
 {
 	u32 roundup_sq_stride = roundup_pow_of_two(hr_dev->caps.max_sq_desc_sz);
 	u8 max_sq_stride = ilog2(roundup_sq_stride);
+	u32 page_size;
 	u32 max_cnt;
 
 	/* Sanity check SQ size before proceeding */
@@ -363,28 +364,29 @@ static int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
 		hr_qp->rq.offset = HNS_ROCE_ALOGN_UP((hr_qp->sq.wqe_cnt <<
 					     hr_qp->sq.wqe_shift), PAGE_SIZE);
 	} else {
+		page_size = 1 << (hr_dev->caps.mtt_buf_pg_sz + PAGE_SHIFT);
 		hr_qp->buff_size = HNS_ROCE_ALOGN_UP((hr_qp->rq.wqe_cnt <<
-					     hr_qp->rq.wqe_shift), PAGE_SIZE) +
+					     hr_qp->rq.wqe_shift), page_size) +
 				   HNS_ROCE_ALOGN_UP((hr_qp->sge.sge_cnt <<
-					     hr_qp->sge.sge_shift), PAGE_SIZE) +
+					     hr_qp->sge.sge_shift), page_size) +
 				   HNS_ROCE_ALOGN_UP((hr_qp->sq.wqe_cnt <<
-					     hr_qp->sq.wqe_shift), PAGE_SIZE);
+					     hr_qp->sq.wqe_shift), page_size);
 
 		hr_qp->sq.offset = 0;
 		if (hr_qp->sge.sge_cnt) {
 			hr_qp->sge.offset = HNS_ROCE_ALOGN_UP(
 							(hr_qp->sq.wqe_cnt <<
 							hr_qp->sq.wqe_shift),
-							PAGE_SIZE);
+							page_size);
 			hr_qp->rq.offset = hr_qp->sge.offset +
 					HNS_ROCE_ALOGN_UP((hr_qp->sge.sge_cnt <<
 						hr_qp->sge.sge_shift),
-						PAGE_SIZE);
+						page_size);
 		} else {
 			hr_qp->rq.offset = HNS_ROCE_ALOGN_UP(
 							(hr_qp->sq.wqe_cnt <<
 							hr_qp->sq.wqe_shift),
-							PAGE_SIZE);
+							page_size);
 		}
 	}
 
@@ -396,6 +398,7 @@ static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 				       struct hns_roce_qp *hr_qp)
 {
 	struct device *dev = hr_dev->dev;
+	u32 page_size;
 	u32 max_cnt;
 	int size;
 
@@ -435,19 +438,20 @@ static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 	}
 
 	/* Get buf size, SQ and RQ are aligned to PAGE_SIZE */
+	page_size = 1 << (hr_dev->caps.mtt_buf_pg_sz + PAGE_SHIFT);
 	hr_qp->sq.offset = 0;
 	size = HNS_ROCE_ALOGN_UP(hr_qp->sq.wqe_cnt << hr_qp->sq.wqe_shift,
-				 PAGE_SIZE);
+				 page_size);
 
 	if (hr_dev->caps.max_sq_sg > 2 && hr_qp->sge.sge_cnt) {
 		hr_qp->sge.offset = size;
 		size += HNS_ROCE_ALOGN_UP(hr_qp->sge.sge_cnt <<
-					  hr_qp->sge.sge_shift, PAGE_SIZE);
+					  hr_qp->sge.sge_shift, page_size);
 	}
 
 	hr_qp->rq.offset = size;
 	size += HNS_ROCE_ALOGN_UP((hr_qp->rq.wqe_cnt << hr_qp->rq.wqe_shift),
-				  PAGE_SIZE);
+				  page_size);
 	hr_qp->buff_size = size;
 
 	/* Get wr and sge number which send */
@@ -470,6 +474,8 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	struct hns_roce_ib_create_qp ucmd;
 	unsigned long qpn = 0;
 	int ret = 0;
+	u32 page_shift;
+	u32 npages;
 
 	mutex_init(&hr_qp->mutex);
 	spin_lock_init(&hr_qp->sq.lock);
@@ -513,8 +519,20 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		}
 
 		hr_qp->mtt.mtt_type = MTT_TYPE_WQE;
-		ret = hns_roce_mtt_init(hr_dev, ib_umem_page_count(hr_qp->umem),
-					hr_qp->umem->page_shift, &hr_qp->mtt);
+		if (hr_dev->caps.mtt_buf_pg_sz) {
+			npages = (ib_umem_page_count(hr_qp->umem) +
+				  (1 << hr_dev->caps.mtt_buf_pg_sz) - 1) /
+				  (1 << hr_dev->caps.mtt_buf_pg_sz);
+			page_shift = PAGE_SHIFT + hr_dev->caps.mtt_buf_pg_sz;
+			ret = hns_roce_mtt_init(hr_dev, npages,
+				    page_shift,
+				    &hr_qp->mtt);
+		} else {
+			ret = hns_roce_mtt_init(hr_dev,
+				    ib_umem_page_count(hr_qp->umem),
+				    hr_qp->umem->page_shift,
+				    &hr_qp->mtt);
+		}
 		if (ret) {
 			dev_err(dev, "hns_roce_mtt_init error for create qp\n");
 			goto err_buf;
@@ -555,8 +573,10 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				     DB_REG_OFFSET * hr_dev->priv_uar.index;
 
 		/* Allocate QP buf */
-		if (hns_roce_buf_alloc(hr_dev, hr_qp->buff_size, PAGE_SIZE * 2,
-				       &hr_qp->hr_buf)) {
+		page_shift = PAGE_SHIFT + hr_dev->caps.mtt_buf_pg_sz;
+		if (hns_roce_buf_alloc(hr_dev, hr_qp->buff_size,
+				       (1 << page_shift) * 2,
+				       &hr_qp->hr_buf, page_shift)) {
 			dev_err(dev, "hns_roce_buf_alloc error!\n");
 			ret = -ENOMEM;
 			goto err_out;
