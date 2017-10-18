@@ -385,7 +385,6 @@ void drm_mode_config_init(struct drm_device *dev)
 	dev->mode_config.num_connector = 0;
 	dev->mode_config.num_crtc = 0;
 	dev->mode_config.num_encoder = 0;
-	dev->mode_config.num_overlay_plane = 0;
 	dev->mode_config.num_total_plane = 0;
 }
 EXPORT_SYMBOL(drm_mode_config_init);

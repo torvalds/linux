@@ -3583,7 +3583,7 @@ static void gfx_v9_0_ring_set_wptr_gfx(struct amdgpu_ring *ring)
 static void gfx_v9_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 {
 	u32 ref_and_mask, reg_mem_engine;
-	struct nbio_hdp_flush_reg *nbio_hf_reg;
+	const struct nbio_hdp_flush_reg *nbio_hf_reg;
 
 	if (ring->adev->flags & AMD_IS_APU)
 		nbio_hf_reg = &nbio_v7_0_hdp_flush_reg;
@@ -3806,7 +3806,7 @@ static void gfx_v9_ring_emit_sb(struct amdgpu_ring *ring)
 
 static void gfx_v9_0_ring_emit_ce_meta(struct amdgpu_ring *ring)
 {
-	static struct v9_ce_ib_state ce_payload = {0};
+	struct v9_ce_ib_state ce_payload = {0};
 	uint64_t csa_addr;
 	int cnt;
 
@@ -3825,7 +3825,7 @@ static void gfx_v9_0_ring_emit_ce_meta(struct amdgpu_ring *ring)
 
 static void gfx_v9_0_ring_emit_de_meta(struct amdgpu_ring *ring)
 {
-	static struct v9_de_ib_state de_payload = {0};
+	struct v9_de_ib_state de_payload = {0};
 	uint64_t csa_addr, gds_addr;
 	int cnt;
 

@@ -312,37 +312,37 @@ static int rv_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 }
 
 /* temporary hardcoded clock voltage breakdown tables */
-DpmClock_t VddDcfClk[]= {
+static const DpmClock_t VddDcfClk[]= {
 	{ 300, 2600},
 	{ 600, 3200},
 	{ 600, 3600},
 };
 
-DpmClock_t VddSocClk[]= {
+static const DpmClock_t VddSocClk[]= {
 	{ 478, 2600},
 	{ 722, 3200},
 	{ 722, 3600},
 };
 
-DpmClock_t VddFClk[]= {
+static const DpmClock_t VddFClk[]= {
 	{ 400, 2600},
 	{1200, 3200},
 	{1200, 3600},
 };
 
-DpmClock_t VddDispClk[]= {
+static const DpmClock_t VddDispClk[]= {
 	{ 435, 2600},
 	{ 661, 3200},
 	{1086, 3600},
 };
 
-DpmClock_t VddDppClk[]= {
+static const DpmClock_t VddDppClk[]= {
 	{ 435, 2600},
 	{ 661, 3200},
 	{ 661, 3600},
 };
 
-DpmClock_t VddPhyClk[]= {
+static const DpmClock_t VddPhyClk[]= {
 	{ 540, 2600},
 	{ 810, 3200},
 	{ 810, 3600},
@@ -350,7 +350,7 @@ DpmClock_t VddPhyClk[]= {
 
 static int rv_get_clock_voltage_dependency_table(struct pp_hwmgr *hwmgr,
 			struct rv_voltage_dependency_table **pptable,
-			uint32_t num_entry, DpmClock_t *pclk_dependency_table)
+			uint32_t num_entry, const DpmClock_t *pclk_dependency_table)
 {
 	uint32_t table_size, i;
 	struct rv_voltage_dependency_table *ptable;
@@ -420,6 +420,26 @@ static int rv_populate_clock_table(struct pp_hwmgr *hwmgr)
 					ARRAY_SIZE(VddDppClk), &VddDppClk[0]);
 	rv_get_clock_voltage_dependency_table(hwmgr, &pinfo->vdd_dep_on_phyclk,
 					ARRAY_SIZE(VddPhyClk), &VddPhyClk[0]);
+
+	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
+			PPSMC_MSG_GetMinGfxclkFrequency),
+			"Attempt to get min GFXCLK Failed!",
+			return -1);
+	PP_ASSERT_WITH_CODE(!rv_read_arg_from_smc(hwmgr,
+			&result),
+			"Attempt to get min GFXCLK Failed!",
+			return -1);
+	rv_data->gfx_min_freq_limit = result * 100;
+
+	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
+			PPSMC_MSG_GetMaxGfxclkFrequency),
+			"Attempt to get max GFXCLK Failed!",
+			return -1);
+	PP_ASSERT_WITH_CODE(!rv_read_arg_from_smc(hwmgr,
+			&result),
+			"Attempt to get max GFXCLK Failed!",
+			return -1);
+	rv_data->gfx_max_freq_limit = result * 100;
 
 	return 0;
 }
@@ -599,7 +619,53 @@ static int rv_force_clock_level(struct pp_hwmgr *hwmgr,
 static int rv_print_clock_levels(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, char *buf)
 {
-	return 0;
+	struct rv_hwmgr *data = (struct rv_hwmgr *)(hwmgr->backend);
+	struct rv_voltage_dependency_table *mclk_table =
+			data->clock_vol_info.vdd_dep_on_fclk;
+	int i, now, size = 0;
+
+	switch (type) {
+	case PP_SCLK:
+		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
+				PPSMC_MSG_GetGfxclkFrequency),
+				"Attempt to get current GFXCLK Failed!",
+				return -1);
+		PP_ASSERT_WITH_CODE(!rv_read_arg_from_smc(hwmgr,
+				&now),
+				"Attempt to get current GFXCLK Failed!",
+				return -1);
+
+		size += sprintf(buf + size, "0: %uMhz %s\n",
+				data->gfx_min_freq_limit / 100,
+				((data->gfx_min_freq_limit / 100)
+				 == now) ? "*" : "");
+		size += sprintf(buf + size, "1: %uMhz %s\n",
+				data->gfx_max_freq_limit / 100,
+				((data->gfx_max_freq_limit / 100)
+				 == now) ? "*" : "");
+		break;
+	case PP_MCLK:
+		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
+				PPSMC_MSG_GetFclkFrequency),
+				"Attempt to get current MEMCLK Failed!",
+				return -1);
+		PP_ASSERT_WITH_CODE(!rv_read_arg_from_smc(hwmgr,
+				&now),
+				"Attempt to get current MEMCLK Failed!",
+				return -1);
+
+		for (i = 0; i < mclk_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					i,
+					mclk_table->entries[i].clk / 100,
+					((mclk_table->entries[i].clk / 100)
+					 == now) ? "*" : "");
+		break;
+	default:
+		break;
+	}
+
+	return size;
 }
 
 static int rv_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *state,
@@ -830,13 +896,37 @@ static int rv_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 static int rv_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			  void *value, int *size)
 {
+	uint32_t sclk, mclk;
+	int ret = 0;
+
 	switch (idx) {
+	case AMDGPU_PP_SENSOR_GFX_SCLK:
+		ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetGfxclkFrequency);
+		if (!ret) {
+			rv_read_arg_from_smc(hwmgr, &sclk);
+			/* in units of 10KHZ */
+			*((uint32_t *)value) = sclk * 100;
+			*size = 4;
+		}
+		break;
+	case AMDGPU_PP_SENSOR_GFX_MCLK:
+		ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetFclkFrequency);
+		if (!ret) {
+			rv_read_arg_from_smc(hwmgr, &mclk);
+			/* in units of 10KHZ */
+			*((uint32_t *)value) = mclk * 100;
+			*size = 4;
+		}
+		break;
 	case AMDGPU_PP_SENSOR_GPU_TEMP:
 		*((uint32_t *)value) = rv_thermal_get_temperature(hwmgr);
-		return 0;
+		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		break;
 	}
+
+	return ret;
 }
 
 static const struct pp_hwmgr_func rv_hwmgr_funcs = {

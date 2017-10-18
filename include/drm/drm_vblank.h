@@ -92,7 +92,7 @@ struct drm_vblank_crtc {
 	/**
 	 * @time: Vblank timestamp corresponding to @count.
 	 */
-	struct timeval time;
+	ktime_t time;
 
 	/**
 	 * @refcount: Number of users/waiters of the vblank interrupt. Only when
@@ -154,7 +154,7 @@ struct drm_vblank_crtc {
 int drm_vblank_init(struct drm_device *dev, unsigned int num_crtcs);
 u32 drm_crtc_vblank_count(struct drm_crtc *crtc);
 u32 drm_crtc_vblank_count_and_time(struct drm_crtc *crtc,
-				   struct timeval *vblanktime);
+				   ktime_t *vblanktime);
 void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
 			       struct drm_pending_vblank_event *e);
 void drm_crtc_arm_vblank_event(struct drm_crtc *crtc,
@@ -172,7 +172,7 @@ u32 drm_crtc_accurate_vblank_count(struct drm_crtc *crtc);
 
 bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 					   unsigned int pipe, int *max_error,
-					   struct timeval *vblank_time,
+					   ktime_t *vblank_time,
 					   bool in_vblank_irq);
 void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 				     const struct drm_display_mode *mode);

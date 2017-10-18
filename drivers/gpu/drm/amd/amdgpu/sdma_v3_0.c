@@ -819,23 +819,12 @@ static int sdma_v3_0_load_microcode(struct amdgpu_device *adev)
  */
 static int sdma_v3_0_start(struct amdgpu_device *adev)
 {
-	int r, i;
+	int r;
 
-	if (!adev->pp_enabled) {
-		if (adev->firmware.load_type != AMDGPU_FW_LOAD_SMU) {
-			r = sdma_v3_0_load_microcode(adev);
-			if (r)
-				return r;
-		} else {
-			for (i = 0; i < adev->sdma.num_instances; i++) {
-				r = adev->smu.smumgr_funcs->check_fw_load_finish(adev,
-										 (i == 0) ?
-										 AMDGPU_UCODE_ID_SDMA0 :
-										 AMDGPU_UCODE_ID_SDMA1);
-				if (r)
-					return -EINVAL;
-			}
-		}
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
+		r = sdma_v3_0_load_microcode(adev);
+		if (r)
+			return r;
 	}
 
 	/* disable sdma engine before programing it */

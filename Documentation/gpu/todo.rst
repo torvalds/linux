@@ -184,12 +184,6 @@ Contact: Sean Paul, Maintainer of the driver you plan to convert
 Core refactorings
 =================
 
-Use new IDR deletion interface to clean up drm_gem_handle_delete()
-------------------------------------------------------------------
-
-See the "This is gross" comment -- apparently the IDR system now can return an
-error code instead of oopsing.
-
 Clean up the DRM header mess
 ----------------------------
 
@@ -357,7 +351,16 @@ those drivers as simple as possible, so lots of room for refactoring:
 - backlight helpers, probably best to put them into a new drm_backlight.c.
   This is because drivers/video is de-facto unmaintained. We could also
   move drivers/video/backlight to drivers/gpu/backlight and take it all
-  over within drm-misc, but that's more work.
+  over within drm-misc, but that's more work. Backlight helpers require a fair
+  bit of reworking and refactoring. A simple example is the enabling of a backlight.
+  Tinydrm has helpers for this. It would be good if other drivers can also use the
+  helper. However, there are various cases we need to consider i.e different
+  drivers seem to have different ways of enabling/disabling a backlight.
+  We also need to consider the backlight drivers (like gpio_backlight). The situation
+  is further complicated by the fact that the backlight is tied to fbdev
+  via fb_notifier_callback() which has complicated logic. For further details, refer
+  to the following discussion thread:
+  https://groups.google.com/forum/#!topic/outreachy-kernel/8rBe30lwtdA
 
 - spi helpers, probably best put into spi core/helper code. Thierry said
   the spi maintainer is fast&reactive, so shouldn't be a big issue.

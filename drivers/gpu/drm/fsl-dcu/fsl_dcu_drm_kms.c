@@ -13,6 +13,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 
 #include "fsl_dcu_drm_crtc.h"
 #include "fsl_dcu_drm_drv.h"
@@ -20,7 +21,7 @@
 static const struct drm_mode_config_funcs fsl_dcu_drm_mode_config_funcs = {
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
-	.fb_create = drm_fb_cma_create,
+	.fb_create = drm_gem_fb_create,
 };
 
 int fsl_dcu_drm_modeset_init(struct fsl_dcu_drm_device *fsl_dev)

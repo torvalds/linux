@@ -8,7 +8,6 @@
 #include <linux/dma-buf.h>
 #include <linux/dma-mapping.h>
 #include <linux/shmem_fs.h>
-#include <drm/drmP.h>
 #include "armada_drm.h"
 #include "armada_gem.h"
 #include <drm/armada_drm.h>

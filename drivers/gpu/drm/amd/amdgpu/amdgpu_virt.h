@@ -36,6 +36,18 @@ struct amdgpu_mm_table {
 	uint64_t		gpu_addr;
 };
 
+#define AMDGPU_VF_ERROR_ENTRY_SIZE    16
+
+/* struct error_entry - amdgpu VF error information. */
+struct amdgpu_vf_error_buffer {
+	struct mutex lock;
+	int read_count;
+	int write_count;
+	uint16_t code[AMDGPU_VF_ERROR_ENTRY_SIZE];
+	uint16_t flags[AMDGPU_VF_ERROR_ENTRY_SIZE];
+	uint64_t data[AMDGPU_VF_ERROR_ENTRY_SIZE];
+};
+
 /**
  * struct amdgpu_virt_ops - amdgpu device virt operations
  */
@@ -59,6 +71,7 @@ struct amdgpu_virt {
 	struct work_struct		flr_work;
 	struct amdgpu_mm_table		mm_table;
 	const struct amdgpu_virt_ops	*ops;
+	struct amdgpu_vf_error_buffer   vf_errors;
 };
 
 #define AMDGPU_CSA_SIZE    (8 * 1024)

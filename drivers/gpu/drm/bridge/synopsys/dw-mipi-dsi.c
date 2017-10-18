@@ -221,7 +221,6 @@ struct dw_mipi_dsi {
 	struct drm_bridge bridge;
 	struct mipi_dsi_host dsi_host;
 	struct drm_bridge *panel_bridge;
-	bool is_panel_bridge;
 	struct device *dev;
 	void __iomem *base;
 
@@ -297,7 +296,6 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 		bridge = drm_panel_bridge_add(panel, DRM_MODE_CONNECTOR_DSI);
 		if (IS_ERR(bridge))
 			return PTR_ERR(bridge);
-		dsi->is_panel_bridge = true;
 	}
 
 	dsi->panel_bridge = bridge;
@@ -312,8 +310,7 @@ static int dw_mipi_dsi_host_detach(struct mipi_dsi_host *host,
 {
 	struct dw_mipi_dsi *dsi = host_to_dsi(host);
 
-	if (dsi->is_panel_bridge)
-		drm_panel_bridge_remove(dsi->panel_bridge);
+	drm_of_panel_bridge_remove(host->dev->of_node, 1, 0);
 
 	drm_bridge_remove(&dsi->bridge);
 

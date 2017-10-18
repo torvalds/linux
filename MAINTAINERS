@@ -5461,6 +5461,7 @@ F:	drivers/net/wan/sdla.c
 
 FRAMEBUFFER LAYER
 M:	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+L:	dri-devel@lists.freedesktop.org
 L:	linux-fbdev@vger.kernel.org
 T:	git git://github.com/bzolnier/linux.git
 Q:	http://patchwork.kernel.org/project/linux-fbdev/list/
@@ -8602,6 +8603,12 @@ MEDIATEK CIR DRIVER
 M:	Sean Wang <sean.wang@mediatek.com>
 S:	Maintained
 F:	drivers/media/rc/mtk-cir.c
+
+MEDIATEK PMIC LED DRIVER
+M:	Sean Wang <sean.wang@mediatek.com>
+S:	Maintained
+F:	drivers/leds/leds-mt6323.c
+F:	Documentation/devicetree/bindings/leds/leds-mt6323.txt
 
 MEDIATEK ETHERNET DRIVER
 M:	Felix Fietkau <nbd@openwrt.org>

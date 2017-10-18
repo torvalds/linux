@@ -561,21 +561,11 @@ static int sdma_v2_4_start(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (!adev->pp_enabled) {
-		if (adev->firmware.load_type != AMDGPU_FW_LOAD_SMU) {
-			r = sdma_v2_4_load_microcode(adev);
-			if (r)
-				return r;
-		} else {
-			r = adev->smu.smumgr_funcs->check_fw_load_finish(adev,
-							AMDGPU_UCODE_ID_SDMA0);
-			if (r)
-				return -EINVAL;
-			r = adev->smu.smumgr_funcs->check_fw_load_finish(adev,
-							AMDGPU_UCODE_ID_SDMA1);
-			if (r)
-				return -EINVAL;
-		}
+
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
+		r = sdma_v2_4_load_microcode(adev);
+		if (r)
+			return r;
 	}
 
 	/* halt the engine before programing */

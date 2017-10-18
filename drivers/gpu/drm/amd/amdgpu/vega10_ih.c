@@ -260,14 +260,17 @@ static bool vega10_ih_prescreen_iv(struct amdgpu_device *adev)
 		return true;
 	}
 
-	/* Not a retry fault */
-	if (!(dw5 & 0x80))
-		return true;
-
 	pasid = dw3 & 0xffff;
 	/* No PASID, can't identify faulting process */
 	if (!pasid)
 		return true;
+
+	/* Not a retry fault, check fault credit */
+	if (!(dw5 & 0x80)) {
+		if (!amdgpu_vm_pasid_fault_credit(adev, pasid))
+			goto ignore_iv;
+		return true;
+	}
 
 	addr = ((u64)(dw5 & 0xf) << 44) | ((u64)dw4 << 12);
 	key = AMDGPU_VM_FAULT(pasid, addr);

@@ -9,7 +9,6 @@
 #include <linux/component.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
-#include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_of.h>
 #include "armada_crtc.h"

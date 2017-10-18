@@ -121,6 +121,7 @@ extern int amdgpu_cntl_sb_buf_per_se;
 extern int amdgpu_param_buf_per_se;
 extern int amdgpu_job_hang_limit;
 extern int amdgpu_lbpw;
+extern int amdgpu_compute_multipipe;
 
 #ifdef CONFIG_DRM_AMDGPU_SI
 extern int amdgpu_si_support;
@@ -1310,6 +1311,8 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *filp);
 int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
+int amdgpu_cs_fence_to_handle_ioctl(struct drm_device *dev, void *data,
+				    struct drm_file *filp);
 int amdgpu_cs_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 int amdgpu_cs_wait_fences_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
@@ -1524,7 +1527,6 @@ struct amdgpu_device {
 
 	/* powerplay */
 	struct amd_powerplay		powerplay;
-	bool				pp_enabled;
 	bool				pp_force_state_enabled;
 
 	/* dpm */

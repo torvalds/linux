@@ -1459,7 +1459,19 @@ xfs_shift_file_space(
 		return error;
 
 	/*
-	 * The extent shiting code works on extent granularity. So, if
+	 * Clean out anything hanging around in the cow fork now that
+	 * we've flushed all the dirty data out to disk to avoid having
+	 * CoW extents at the wrong offsets.
+	 */
+	if (xfs_is_reflink_inode(ip)) {
+		error = xfs_reflink_cancel_cow_range(ip, offset, NULLFILEOFF,
+				true);
+		if (error)
+			return error;
+	}
+
+	/*
+	 * The extent shifting code works on extent granularity. So, if
 	 * stop_fsb is not the starting block of extent, we need to split
 	 * the extent at stop_fsb.
 	 */

@@ -25,6 +25,7 @@
  *    Jerome Glisse <glisse@freedesktop.org>
  */
 #include <linux/pagemap.h>
+#include <linux/sync_file.h>
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_syncobj.h>
@@ -1328,6 +1329,66 @@ static struct dma_fence *amdgpu_cs_get_fence(struct amdgpu_device *adev,
 	amdgpu_ctx_put(ctx);
 
 	return fence;
+}
+
+int amdgpu_cs_fence_to_handle_ioctl(struct drm_device *dev, void *data,
+				    struct drm_file *filp)
+{
+	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_fpriv *fpriv = filp->driver_priv;
+	union drm_amdgpu_fence_to_handle *info = data;
+	struct dma_fence *fence;
+	struct drm_syncobj *syncobj;
+	struct sync_file *sync_file;
+	int fd, r;
+
+	if (amdgpu_kms_vram_lost(adev, fpriv))
+		return -ENODEV;
+
+	fence = amdgpu_cs_get_fence(adev, filp, &info->in.fence);
+	if (IS_ERR(fence))
+		return PTR_ERR(fence);
+
+	switch (info->in.what) {
+	case AMDGPU_FENCE_TO_HANDLE_GET_SYNCOBJ:
+		r = drm_syncobj_create(&syncobj, 0, fence);
+		dma_fence_put(fence);
+		if (r)
+			return r;
+		r = drm_syncobj_get_handle(filp, syncobj, &info->out.handle);
+		drm_syncobj_put(syncobj);
+		return r;
+
+	case AMDGPU_FENCE_TO_HANDLE_GET_SYNCOBJ_FD:
+		r = drm_syncobj_create(&syncobj, 0, fence);
+		dma_fence_put(fence);
+		if (r)
+			return r;
+		r = drm_syncobj_get_fd(syncobj, (int*)&info->out.handle);
+		drm_syncobj_put(syncobj);
+		return r;
+
+	case AMDGPU_FENCE_TO_HANDLE_GET_SYNC_FILE_FD:
+		fd = get_unused_fd_flags(O_CLOEXEC);
+		if (fd < 0) {
+			dma_fence_put(fence);
+			return fd;
+		}
+
+		sync_file = sync_file_create(fence);
+		dma_fence_put(fence);
+		if (!sync_file) {
+			put_unused_fd(fd);
+			return -ENOMEM;
+		}
+
+		fd_install(fd, sync_file->file);
+		info->out.handle = fd;
+		return 0;
+
+	default:
+		return -EINVAL;
+	}
 }
 
 /**

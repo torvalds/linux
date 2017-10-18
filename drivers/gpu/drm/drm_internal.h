@@ -55,7 +55,6 @@ int drm_clients_info(struct seq_file *m, void* data);
 int drm_gem_name_info(struct seq_file *m, void *data);
 
 /* drm_vblank.c */
-extern unsigned int drm_timestamp_monotonic;
 void drm_vblank_disable_and_save(struct drm_device *dev, unsigned int pipe);
 void drm_vblank_cleanup(struct drm_device *dev);
 

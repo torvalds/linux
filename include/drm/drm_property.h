@@ -312,10 +312,11 @@ drm_property_unreference_blob(struct drm_property_blob *blob)
  * This function looks up the property object specified by id and returns it.
  */
 static inline struct drm_property *drm_property_find(struct drm_device *dev,
+						     struct drm_file *file_priv,
 						     uint32_t id)
 {
 	struct drm_mode_object *mo;
-	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_PROPERTY);
+	mo = drm_mode_object_find(dev, file_priv, id, DRM_MODE_OBJECT_PROPERTY);
 	return mo ? obj_to_property(mo) : NULL;
 }
 

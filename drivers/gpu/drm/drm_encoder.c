@@ -220,7 +220,7 @@ int drm_mode_getencoder(struct drm_device *dev, void *data,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	encoder = drm_encoder_find(dev, enc_resp->encoder_id);
+	encoder = drm_encoder_find(dev, file_priv, enc_resp->encoder_id);
 	if (!encoder)
 		return -ENOENT;
 

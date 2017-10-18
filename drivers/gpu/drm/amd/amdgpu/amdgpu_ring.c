@@ -315,14 +315,16 @@ static bool amdgpu_ring_is_blacklisted(struct amdgpu_ring *ring,
  * @type: amdgpu_ring_type enum
  * @blacklist: blacklisted ring ids array
  * @num_blacklist: number of entries in @blacklist
+ * @lru_pipe_order: find a ring from the least recently used pipe
  * @ring: output ring
  *
  * Retrieve the amdgpu_ring structure for the least recently used ring of
  * a specific IP block (all asics).
  * Returns 0 on success, error on failure.
  */
-int amdgpu_ring_lru_get(struct amdgpu_device *adev, int type, int *blacklist,
-			int num_blacklist, struct amdgpu_ring **ring)
+int amdgpu_ring_lru_get(struct amdgpu_device *adev, int type,
+			int *blacklist,	int num_blacklist,
+			bool lru_pipe_order, struct amdgpu_ring **ring)
 {
 	struct amdgpu_ring *entry;
 
@@ -337,10 +339,23 @@ int amdgpu_ring_lru_get(struct amdgpu_device *adev, int type, int *blacklist,
 		if (amdgpu_ring_is_blacklisted(entry, blacklist, num_blacklist))
 			continue;
 
-		*ring = entry;
-		amdgpu_ring_lru_touch_locked(adev, *ring);
-		break;
+		if (!*ring) {
+			*ring = entry;
+
+			/* We are done for ring LRU */
+			if (!lru_pipe_order)
+				break;
+		}
+
+		/* Move all rings on the same pipe to the end of the list */
+		if (entry->pipe == (*ring)->pipe)
+			amdgpu_ring_lru_touch_locked(adev, entry);
 	}
+
+	/* Move the ring we found to the end of the list */
+	if (*ring)
+		amdgpu_ring_lru_touch_locked(adev, *ring);
+
 	spin_unlock(&adev->ring_lru_list_lock);
 
 	if (!*ring) {

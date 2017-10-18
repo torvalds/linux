@@ -200,6 +200,8 @@ struct loaded_vmcs {
 	int cpu;
 	bool launched;
 	bool nmi_known_unmasked;
+	unsigned long vmcs_host_cr3;	/* May not match real cr3 */
+	unsigned long vmcs_host_cr4;	/* May not match real cr4 */
 	struct list_head loaded_vmcss_on_cpu_link;
 };
 
@@ -600,8 +602,6 @@ struct vcpu_vmx {
 		int           gs_ldt_reload_needed;
 		int           fs_reload_needed;
 		u64           msr_host_bndcfgs;
-		unsigned long vmcs_host_cr3;	/* May not match real cr3 */
-		unsigned long vmcs_host_cr4;	/* May not match real cr4 */
 	} host_state;
 	struct {
 		int vm86_active;
@@ -2202,46 +2202,44 @@ static void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 	struct pi_desc old, new;
 	unsigned int dest;
 
-	if (!kvm_arch_has_assigned_device(vcpu->kvm) ||
-		!irq_remapping_cap(IRQ_POSTING_CAP)  ||
-		!kvm_vcpu_apicv_active(vcpu))
+	/*
+	 * In case of hot-plug or hot-unplug, we may have to undo
+	 * vmx_vcpu_pi_put even if there is no assigned device.  And we
+	 * always keep PI.NDST up to date for simplicity: it makes the
+	 * code easier, and CPU migration is not a fast path.
+	 */
+	if (!pi_test_sn(pi_desc) && vcpu->cpu == cpu)
 		return;
 
+	/*
+	 * First handle the simple case where no cmpxchg is necessary; just
+	 * allow posting non-urgent interrupts.
+	 *
+	 * If the 'nv' field is POSTED_INTR_WAKEUP_VECTOR, do not change
+	 * PI.NDST: pi_post_block will do it for us and the wakeup_handler
+	 * expects the VCPU to be on the blocked_vcpu_list that matches
+	 * PI.NDST.
+	 */
+	if (pi_desc->nv == POSTED_INTR_WAKEUP_VECTOR ||
+	    vcpu->cpu == cpu) {
+		pi_clear_sn(pi_desc);
+		return;
+	}
+
+	/* The full case.  */
 	do {
 		old.control = new.control = pi_desc->control;
 
-		/*
-		 * If 'nv' field is POSTED_INTR_WAKEUP_VECTOR, there
-		 * are two possible cases:
-		 * 1. After running 'pre_block', context switch
-		 *    happened. For this case, 'sn' was set in
-		 *    vmx_vcpu_put(), so we need to clear it here.
-		 * 2. After running 'pre_block', we were blocked,
-		 *    and woken up by some other guy. For this case,
-		 *    we don't need to do anything, 'pi_post_block'
-		 *    will do everything for us. However, we cannot
-		 *    check whether it is case #1 or case #2 here
-		 *    (maybe, not needed), so we also clear sn here,
-		 *    I think it is not a big deal.
-		 */
-		if (pi_desc->nv != POSTED_INTR_WAKEUP_VECTOR) {
-			if (vcpu->cpu != cpu) {
-				dest = cpu_physical_id(cpu);
+		dest = cpu_physical_id(cpu);
 
-				if (x2apic_enabled())
-					new.ndst = dest;
-				else
-					new.ndst = (dest << 8) & 0xFF00;
-			}
+		if (x2apic_enabled())
+			new.ndst = dest;
+		else
+			new.ndst = (dest << 8) & 0xFF00;
 
-			/* set 'NV' to 'notification vector' */
-			new.nv = POSTED_INTR_VECTOR;
-		}
-
-		/* Allow posting non-urgent interrupts */
 		new.sn = 0;
-	} while (cmpxchg(&pi_desc->control, old.control,
-			new.control) != old.control);
+	} while (cmpxchg64(&pi_desc->control, old.control,
+			   new.control) != old.control);
 }
 
 static void decache_tsc_multiplier(struct vcpu_vmx *vmx)
@@ -5178,12 +5176,12 @@ static void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 	 */
 	cr3 = __read_cr3();
 	vmcs_writel(HOST_CR3, cr3);		/* 22.2.3  FIXME: shadow tables */
-	vmx->host_state.vmcs_host_cr3 = cr3;
+	vmx->loaded_vmcs->vmcs_host_cr3 = cr3;
 
 	/* Save the most likely value for this task's CR4 in the VMCS. */
 	cr4 = cr4_read_shadow();
 	vmcs_writel(HOST_CR4, cr4);			/* 22.2.3, 22.2.5 */
-	vmx->host_state.vmcs_host_cr4 = cr4;
+	vmx->loaded_vmcs->vmcs_host_cr4 = cr4;
 
 	vmcs_write16(HOST_CS_SELECTOR, __KERNEL_CS);  /* 22.2.4 */
 #ifdef CONFIG_X86_64
@@ -9273,15 +9271,15 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		vmcs_writel(GUEST_RIP, vcpu->arch.regs[VCPU_REGS_RIP]);
 
 	cr3 = __get_current_cr3_fast();
-	if (unlikely(cr3 != vmx->host_state.vmcs_host_cr3)) {
+	if (unlikely(cr3 != vmx->loaded_vmcs->vmcs_host_cr3)) {
 		vmcs_writel(HOST_CR3, cr3);
-		vmx->host_state.vmcs_host_cr3 = cr3;
+		vmx->loaded_vmcs->vmcs_host_cr3 = cr3;
 	}
 
 	cr4 = cr4_read_shadow();
-	if (unlikely(cr4 != vmx->host_state.vmcs_host_cr4)) {
+	if (unlikely(cr4 != vmx->loaded_vmcs->vmcs_host_cr4)) {
 		vmcs_writel(HOST_CR4, cr4);
-		vmx->host_state.vmcs_host_cr4 = cr4;
+		vmx->loaded_vmcs->vmcs_host_cr4 = cr4;
 	}
 
 	/* When single-stepping over STI and MOV SS, we must clear the
@@ -9591,6 +9589,13 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 
 	vmx->msr_ia32_feature_control_valid_bits = FEATURE_CONTROL_LOCKED;
 
+	/*
+	 * Enforce invariant: pi_desc.nv is always either POSTED_INTR_VECTOR
+	 * or POSTED_INTR_WAKEUP_VECTOR.
+	 */
+	vmx->pi_desc.nv = POSTED_INTR_VECTOR;
+	vmx->pi_desc.sn = 1;
+
 	return &vmx->vcpu;
 
 free_vmcs:
@@ -9839,7 +9844,8 @@ static void vmx_inject_page_fault_nested(struct kvm_vcpu *vcpu,
 
 	WARN_ON(!is_guest_mode(vcpu));
 
-	if (nested_vmx_is_page_fault_vmexit(vmcs12, fault->error_code)) {
+	if (nested_vmx_is_page_fault_vmexit(vmcs12, fault->error_code) &&
+		!to_vmx(vcpu)->nested.nested_run_pending) {
 		vmcs12->vm_exit_intr_error_code = fault->error_code;
 		nested_vmx_vmexit(vcpu, EXIT_REASON_EXCEPTION_NMI,
 				  PF_VECTOR | INTR_TYPE_HARD_EXCEPTION |
@@ -11704,6 +11710,37 @@ static void vmx_enable_log_dirty_pt_masked(struct kvm *kvm,
 	kvm_mmu_clear_dirty_pt_masked(kvm, memslot, offset, mask);
 }
 
+static void __pi_post_block(struct kvm_vcpu *vcpu)
+{
+	struct pi_desc *pi_desc = vcpu_to_pi_desc(vcpu);
+	struct pi_desc old, new;
+	unsigned int dest;
+
+	do {
+		old.control = new.control = pi_desc->control;
+		WARN(old.nv != POSTED_INTR_WAKEUP_VECTOR,
+		     "Wakeup handler not enabled while the VCPU is blocked\n");
+
+		dest = cpu_physical_id(vcpu->cpu);
+
+		if (x2apic_enabled())
+			new.ndst = dest;
+		else
+			new.ndst = (dest << 8) & 0xFF00;
+
+		/* set 'NV' to 'notification vector' */
+		new.nv = POSTED_INTR_VECTOR;
+	} while (cmpxchg64(&pi_desc->control, old.control,
+			   new.control) != old.control);
+
+	if (!WARN_ON_ONCE(vcpu->pre_pcpu == -1)) {
+		spin_lock(&per_cpu(blocked_vcpu_on_cpu_lock, vcpu->pre_pcpu));
+		list_del(&vcpu->blocked_vcpu_list);
+		spin_unlock(&per_cpu(blocked_vcpu_on_cpu_lock, vcpu->pre_pcpu));
+		vcpu->pre_pcpu = -1;
+	}
+}
+
 /*
  * This routine does the following things for vCPU which is going
  * to be blocked if VT-d PI is enabled.
@@ -11719,7 +11756,6 @@ static void vmx_enable_log_dirty_pt_masked(struct kvm *kvm,
  */
 static int pi_pre_block(struct kvm_vcpu *vcpu)
 {
-	unsigned long flags;
 	unsigned int dest;
 	struct pi_desc old, new;
 	struct pi_desc *pi_desc = vcpu_to_pi_desc(vcpu);
@@ -11729,33 +11765,19 @@ static int pi_pre_block(struct kvm_vcpu *vcpu)
 		!kvm_vcpu_apicv_active(vcpu))
 		return 0;
 
-	vcpu->pre_pcpu = vcpu->cpu;
-	spin_lock_irqsave(&per_cpu(blocked_vcpu_on_cpu_lock,
-			  vcpu->pre_pcpu), flags);
-	list_add_tail(&vcpu->blocked_vcpu_list,
-		      &per_cpu(blocked_vcpu_on_cpu,
-		      vcpu->pre_pcpu));
-	spin_unlock_irqrestore(&per_cpu(blocked_vcpu_on_cpu_lock,
-			       vcpu->pre_pcpu), flags);
+	WARN_ON(irqs_disabled());
+	local_irq_disable();
+	if (!WARN_ON_ONCE(vcpu->pre_pcpu != -1)) {
+		vcpu->pre_pcpu = vcpu->cpu;
+		spin_lock(&per_cpu(blocked_vcpu_on_cpu_lock, vcpu->pre_pcpu));
+		list_add_tail(&vcpu->blocked_vcpu_list,
+			      &per_cpu(blocked_vcpu_on_cpu,
+				       vcpu->pre_pcpu));
+		spin_unlock(&per_cpu(blocked_vcpu_on_cpu_lock, vcpu->pre_pcpu));
+	}
 
 	do {
 		old.control = new.control = pi_desc->control;
-
-		/*
-		 * We should not block the vCPU if
-		 * an interrupt is posted for it.
-		 */
-		if (pi_test_on(pi_desc) == 1) {
-			spin_lock_irqsave(&per_cpu(blocked_vcpu_on_cpu_lock,
-					  vcpu->pre_pcpu), flags);
-			list_del(&vcpu->blocked_vcpu_list);
-			spin_unlock_irqrestore(
-					&per_cpu(blocked_vcpu_on_cpu_lock,
-					vcpu->pre_pcpu), flags);
-			vcpu->pre_pcpu = -1;
-
-			return 1;
-		}
 
 		WARN((pi_desc->sn == 1),
 		     "Warning: SN field of posted-interrupts "
@@ -11778,10 +11800,15 @@ static int pi_pre_block(struct kvm_vcpu *vcpu)
 
 		/* set 'NV' to 'wakeup vector' */
 		new.nv = POSTED_INTR_WAKEUP_VECTOR;
-	} while (cmpxchg(&pi_desc->control, old.control,
-			new.control) != old.control);
+	} while (cmpxchg64(&pi_desc->control, old.control,
+			   new.control) != old.control);
 
-	return 0;
+	/* We should not block the vCPU if an interrupt is posted for it.  */
+	if (pi_test_on(pi_desc) == 1)
+		__pi_post_block(vcpu);
+
+	local_irq_enable();
+	return (vcpu->pre_pcpu == -1);
 }
 
 static int vmx_pre_block(struct kvm_vcpu *vcpu)
@@ -11797,44 +11824,13 @@ static int vmx_pre_block(struct kvm_vcpu *vcpu)
 
 static void pi_post_block(struct kvm_vcpu *vcpu)
 {
-	struct pi_desc *pi_desc = vcpu_to_pi_desc(vcpu);
-	struct pi_desc old, new;
-	unsigned int dest;
-	unsigned long flags;
-
-	if (!kvm_arch_has_assigned_device(vcpu->kvm) ||
-		!irq_remapping_cap(IRQ_POSTING_CAP)  ||
-		!kvm_vcpu_apicv_active(vcpu))
+	if (vcpu->pre_pcpu == -1)
 		return;
 
-	do {
-		old.control = new.control = pi_desc->control;
-
-		dest = cpu_physical_id(vcpu->cpu);
-
-		if (x2apic_enabled())
-			new.ndst = dest;
-		else
-			new.ndst = (dest << 8) & 0xFF00;
-
-		/* Allow posting non-urgent interrupts */
-		new.sn = 0;
-
-		/* set 'NV' to 'notification vector' */
-		new.nv = POSTED_INTR_VECTOR;
-	} while (cmpxchg(&pi_desc->control, old.control,
-			new.control) != old.control);
-
-	if(vcpu->pre_pcpu != -1) {
-		spin_lock_irqsave(
-			&per_cpu(blocked_vcpu_on_cpu_lock,
-			vcpu->pre_pcpu), flags);
-		list_del(&vcpu->blocked_vcpu_list);
-		spin_unlock_irqrestore(
-			&per_cpu(blocked_vcpu_on_cpu_lock,
-			vcpu->pre_pcpu), flags);
-		vcpu->pre_pcpu = -1;
-	}
+	WARN_ON(irqs_disabled());
+	local_irq_disable();
+	__pi_post_block(vcpu);
+	local_irq_enable();
 }
 
 static void vmx_post_block(struct kvm_vcpu *vcpu)

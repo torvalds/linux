@@ -7604,11 +7604,6 @@ static int si_dpm_late_init(void *handle)
 	if (!amdgpu_dpm)
 		return 0;
 
-	/* init the sysfs and debugfs files late */
-	ret = amdgpu_pm_sysfs_init(adev);
-	if (ret)
-		return ret;
-
 	ret = si_set_temperature_range(adev);
 	if (ret)
 		return ret;
@@ -7764,7 +7759,6 @@ static int si_dpm_sw_fini(void *handle)
 	flush_work(&adev->pm.dpm.thermal.work);
 
 	mutex_lock(&adev->pm.mutex);
-	amdgpu_pm_sysfs_fini(adev);
 	si_dpm_fini(adev);
 	mutex_unlock(&adev->pm.mutex);
 

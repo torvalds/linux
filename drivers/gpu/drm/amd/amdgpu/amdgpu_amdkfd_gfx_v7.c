@@ -338,6 +338,7 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 	struct cik_mqd *m;
 	uint32_t *mqd_hqd;
 	uint32_t reg, wptr_val, data;
+	bool valid_wptr = false;
 
 	m = get_mqd(mqd);
 
@@ -356,7 +357,14 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 			     CP_HQD_PQ_DOORBELL_CONTROL, DOORBELL_EN, 1);
 	WREG32(mmCP_HQD_PQ_DOORBELL_CONTROL, data);
 
-	if (read_user_wptr(mm, wptr, wptr_val))
+	/* read_user_ptr may take the mm->mmap_sem.
+	 * release srbm_mutex to avoid circular dependency between
+	 * srbm_mutex->mm_sem->reservation_ww_class_mutex->srbm_mutex.
+	 */
+	release_queue(kgd);
+	valid_wptr = read_user_wptr(mm, wptr, wptr_val);
+	acquire_queue(kgd, pipe_id, queue_id);
+	if (valid_wptr)
 		WREG32(mmCP_HQD_PQ_WPTR, (wptr_val << wptr_shift) & wptr_mask);
 
 	data = REG_SET_FIELD(m->cp_hqd_active, CP_HQD_ACTIVE, ACTIVE, 1);

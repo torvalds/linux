@@ -352,7 +352,7 @@ static uint32_t get_max_engine_clock_in_mhz(struct kgd_dev *kgd)
  */
 static DEFINE_IDA(pasid_ida);
 
-int alloc_pasid(unsigned int bits)
+static int alloc_pasid(unsigned int bits)
 {
 	int pasid = -EINVAL;
 
@@ -367,7 +367,7 @@ int alloc_pasid(unsigned int bits)
 	return pasid;
 }
 
-void free_pasid(unsigned int pasid)
+static void free_pasid(unsigned int pasid)
 {
 	ida_simple_remove(&pasid_ida, pasid);
 }

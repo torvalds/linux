@@ -28,7 +28,6 @@
 
 #include "smumgr.h"
 #include "pp_debug.h"
-#include "ci_smc.h"
 #include "ci_smumgr.h"
 #include "ppsmc.h"
 #include "smu7_hwmgr.h"
@@ -208,7 +207,7 @@ static int ci_read_smc_sram_dword(struct pp_hwmgr *hwmgr, uint32_t smc_addr,
 	return 0;
 }
 
-int ci_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
+static int ci_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 {
 	int ret;
 
@@ -227,7 +226,7 @@ int ci_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 	return 0;
 }
 
-int ci_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
+static int ci_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 					uint16_t msg, uint32_t parameter)
 {
 	cgs_write_register(hwmgr->device, mmSMC_MSG_ARG_0, parameter);
@@ -476,7 +475,7 @@ static int ci_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
-int ci_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
+static int ci_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
@@ -1297,7 +1296,7 @@ static int ci_populate_single_memory_level(
 	return result;
 }
 
-int ci_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
+static int ci_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
@@ -1944,7 +1943,7 @@ static int ci_start_smc(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int ci_init_smc_table(struct pp_hwmgr *hwmgr)
+static int ci_init_smc_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
@@ -2125,7 +2124,7 @@ int ci_init_smc_table(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int ci_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
+static int ci_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 {
 	struct ci_smumgr *ci_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	SMU7_Discrete_FanTable fan_table = { FDO_MODE_HARDWARE };
@@ -2211,7 +2210,7 @@ static int ci_program_mem_timing_parameters(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int ci_update_sclk_threshold(struct pp_hwmgr *hwmgr)
+static int ci_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
@@ -2252,7 +2251,7 @@ int ci_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-uint32_t ci_get_offsetof(uint32_t type, uint32_t member)
+static uint32_t ci_get_offsetof(uint32_t type, uint32_t member)
 {
 	switch (type) {
 	case SMU_SoftRegisters:
@@ -2278,7 +2277,7 @@ uint32_t ci_get_offsetof(uint32_t type, uint32_t member)
 	return 0;
 }
 
-uint32_t ci_get_mac_definition(uint32_t value)
+static uint32_t ci_get_mac_definition(uint32_t value)
 {
 	switch (value) {
 	case SMU_MAX_LEVELS_GRAPHICS:
@@ -2332,7 +2331,7 @@ static int ci_load_smc_ucode(struct pp_hwmgr *hwmgr)
 	PHM_WRITE_FIELD(hwmgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 0);
 
 	if (0 != byte_count) {
-		pr_err("SMC size must be dividable by 4\n");
+		pr_err("SMC size must be divisible by 4\n");
 		return -EINVAL;
 	}
 
@@ -2355,7 +2354,7 @@ static int ci_upload_firmware(struct pp_hwmgr *hwmgr)
 	return ci_load_smc_ucode(hwmgr);
 }
 
-int ci_process_firmware_header(struct pp_hwmgr *hwmgr)
+static int ci_process_firmware_header(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct ci_smumgr *ci_data = (struct ci_smumgr *)(hwmgr->smu_backend);
@@ -2667,7 +2666,7 @@ static int ci_set_valid_flag(struct ci_mc_reg_table *table)
 	return 0;
 }
 
-int ci_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
+static int ci_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
 	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
@@ -2722,13 +2721,13 @@ int ci_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-bool ci_is_dpm_running(struct pp_hwmgr *hwmgr)
+static bool ci_is_dpm_running(struct pp_hwmgr *hwmgr)
 {
 	return ci_is_smc_ram_running(hwmgr);
 }
 
-int ci_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
-		struct amd_pp_profile *request)
+static int ci_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
+						struct amd_pp_profile *request)
 {
 	struct ci_smumgr *smu_data = (struct ci_smumgr *)
 			(hwmgr->smu_backend);
@@ -2751,3 +2750,59 @@ int ci_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
 	return ci_copy_bytes_to_smc(hwmgr, array, (uint8_t *)levels,
 				array_size, SMC_RAM_END);
 }
+
+
+static int ci_smu_init(struct pp_hwmgr *hwmgr)
+{
+	int i;
+	struct ci_smumgr *ci_priv = NULL;
+
+	ci_priv = kzalloc(sizeof(struct ci_smumgr), GFP_KERNEL);
+
+	if (ci_priv == NULL)
+		return -ENOMEM;
+
+	for (i = 0; i < SMU7_MAX_LEVELS_GRAPHICS; i++)
+		ci_priv->activity_target[i] = 30;
+
+	hwmgr->smu_backend = ci_priv;
+
+	return 0;
+}
+
+static int ci_smu_fini(struct pp_hwmgr *hwmgr)
+{
+	kfree(hwmgr->smu_backend);
+	hwmgr->smu_backend = NULL;
+	cgs_rel_firmware(hwmgr->device, CGS_UCODE_ID_SMU);
+	return 0;
+}
+
+static int ci_start_smu(struct pp_hwmgr *hwmgr)
+{
+	return 0;
+}
+
+const struct pp_smumgr_func ci_smu_funcs = {
+	.smu_init = ci_smu_init,
+	.smu_fini = ci_smu_fini,
+	.start_smu = ci_start_smu,
+	.check_fw_load_finish = NULL,
+	.request_smu_load_fw = NULL,
+	.request_smu_load_specific_fw = NULL,
+	.send_msg_to_smc = ci_send_msg_to_smc,
+	.send_msg_to_smc_with_parameter = ci_send_msg_to_smc_with_parameter,
+	.download_pptable_settings = NULL,
+	.upload_pptable_settings = NULL,
+	.get_offsetof = ci_get_offsetof,
+	.process_firmware_header = ci_process_firmware_header,
+	.init_smc_table = ci_init_smc_table,
+	.update_sclk_threshold = ci_update_sclk_threshold,
+	.thermal_setup_fan_table = ci_thermal_setup_fan_table,
+	.populate_all_graphic_levels = ci_populate_all_graphic_levels,
+	.populate_all_memory_levels = ci_populate_all_memory_levels,
+	.get_mac_definition = ci_get_mac_definition,
+	.initialize_mc_reg_table = ci_initialize_mc_reg_table,
+	.is_dpm_running = ci_is_dpm_running,
+	.populate_requested_graphic_levels = ci_populate_requested_graphic_levels,
+};

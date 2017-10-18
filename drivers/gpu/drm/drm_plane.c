@@ -241,8 +241,6 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 
 	list_add_tail(&plane->head, &config->plane_list);
 	plane->index = config->num_total_plane++;
-	if (plane->type == DRM_PLANE_TYPE_OVERLAY)
-		config->num_overlay_plane++;
 
 	drm_object_attach_property(&plane->base,
 				   config->plane_type_property,
@@ -353,8 +351,6 @@ void drm_plane_cleanup(struct drm_plane *plane)
 
 	list_del(&plane->head);
 	dev->mode_config.num_total_plane--;
-	if (plane->type == DRM_PLANE_TYPE_OVERLAY)
-		dev->mode_config.num_overlay_plane--;
 
 	WARN_ON(plane->state && !plane->funcs->atomic_destroy_state);
 	if (plane->state && plane->funcs->atomic_destroy_state)
@@ -462,43 +458,33 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 	struct drm_mode_config *config;
 	struct drm_plane *plane;
 	uint32_t __user *plane_ptr;
-	int copied = 0;
-	unsigned num_planes;
+	int count = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
 	config = &dev->mode_config;
-
-	if (file_priv->universal_planes)
-		num_planes = config->num_total_plane;
-	else
-		num_planes = config->num_overlay_plane;
+	plane_ptr = u64_to_user_ptr(plane_resp->plane_id_ptr);
 
 	/*
 	 * This ioctl is called twice, once to determine how much space is
 	 * needed, and the 2nd time to fill it.
 	 */
-	if (num_planes &&
-	    (plane_resp->count_planes >= num_planes)) {
-		plane_ptr = (uint32_t __user *)(unsigned long)plane_resp->plane_id_ptr;
+	drm_for_each_plane(plane, dev) {
+		/*
+		 * Unless userspace set the 'universal planes'
+		 * capability bit, only advertise overlays.
+		 */
+		if (plane->type != DRM_PLANE_TYPE_OVERLAY &&
+		    !file_priv->universal_planes)
+			continue;
 
-		/* Plane lists are invariant, no locking needed. */
-		drm_for_each_plane(plane, dev) {
-			/*
-			 * Unless userspace set the 'universal planes'
-			 * capability bit, only advertise overlays.
-			 */
-			if (plane->type != DRM_PLANE_TYPE_OVERLAY &&
-			    !file_priv->universal_planes)
-				continue;
-
-			if (put_user(plane->base.id, plane_ptr + copied))
-				return -EFAULT;
-			copied++;
-		}
+		if (count < plane_resp->count_planes &&
+		    put_user(plane->base.id, plane_ptr + count))
+			return -EFAULT;
+		count++;
 	}
-	plane_resp->count_planes = num_planes;
+	plane_resp->count_planes = count;
 
 	return 0;
 }
@@ -513,7 +499,7 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	plane = drm_plane_find(dev, plane_resp->plane_id);
+	plane = drm_plane_find(dev, file_priv, plane_resp->plane_id);
 	if (!plane)
 		return -ENOENT;
 
@@ -703,7 +689,7 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	 * First, find the plane, crtc, and fb objects.  If not available,
 	 * we don't bother to call the driver.
 	 */
-	plane = drm_plane_find(dev, plane_req->plane_id);
+	plane = drm_plane_find(dev, file_priv, plane_req->plane_id);
 	if (!plane) {
 		DRM_DEBUG_KMS("Unknown plane ID %d\n",
 			      plane_req->plane_id);
@@ -711,14 +697,14 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	}
 
 	if (plane_req->fb_id) {
-		fb = drm_framebuffer_lookup(dev, plane_req->fb_id);
+		fb = drm_framebuffer_lookup(dev, file_priv, plane_req->fb_id);
 		if (!fb) {
 			DRM_DEBUG_KMS("Unknown framebuffer ID %d\n",
 				      plane_req->fb_id);
 			return -ENOENT;
 		}
 
-		crtc = drm_crtc_find(dev, plane_req->crtc_id);
+		crtc = drm_crtc_find(dev, file_priv, plane_req->crtc_id);
 		if (!crtc) {
 			drm_framebuffer_put(fb);
 			DRM_DEBUG_KMS("Unknown crtc ID %d\n",
@@ -829,7 +815,7 @@ static int drm_mode_cursor_common(struct drm_device *dev,
 	if (!req->flags || (~DRM_MODE_CURSOR_FLAGS & req->flags))
 		return -EINVAL;
 
-	crtc = drm_crtc_find(dev, req->crtc_id);
+	crtc = drm_crtc_find(dev, file_priv, req->crtc_id);
 	if (!crtc) {
 		DRM_DEBUG_KMS("Unknown CRTC ID %d\n", req->crtc_id);
 		return -ENOENT;
@@ -944,7 +930,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	if ((page_flip->flags & DRM_MODE_PAGE_FLIP_ASYNC) && !dev->mode_config.async_page_flip)
 		return -EINVAL;
 
-	crtc = drm_crtc_find(dev, page_flip->crtc_id);
+	crtc = drm_crtc_find(dev, file_priv, page_flip->crtc_id);
 	if (!crtc)
 		return -ENOENT;
 
@@ -1005,7 +991,7 @@ retry:
 		goto out;
 	}
 
-	fb = drm_framebuffer_lookup(dev, page_flip->fb_id);
+	fb = drm_framebuffer_lookup(dev, file_priv, page_flip->fb_id);
 	if (!fb) {
 		ret = -ENOENT;
 		goto out;

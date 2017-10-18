@@ -304,10 +304,10 @@ static int convert_bpc_to_bpp(int bpc)
 
 /***** radeon specific DP functions *****/
 
-int radeon_dp_get_dp_link_config(struct drm_connector *connector,
-				 const u8 dpcd[DP_DPCD_SIZE],
-				 unsigned pix_clock,
-				 unsigned *dp_lanes, unsigned *dp_rate)
+static int radeon_dp_get_dp_link_config(struct drm_connector *connector,
+					const u8 dpcd[DP_DPCD_SIZE],
+					unsigned pix_clock,
+					unsigned *dp_lanes, unsigned *dp_rate)
 {
 	int bpp = convert_bpc_to_bpp(radeon_get_monitor_bpc(connector));
 	static const unsigned link_rates[3] = { 162000, 270000, 540000 };

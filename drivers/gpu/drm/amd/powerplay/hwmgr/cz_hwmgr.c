@@ -704,7 +704,7 @@ static int cz_update_sclk_limit(struct pp_hwmgr *hwmgr)
 
 	clock = hwmgr->display_config.min_core_set_clock;
 	if (clock == 0)
-		pr_info("min_core_set_clock not set\n");
+		pr_debug("min_core_set_clock not set\n");
 
 	if (cz_hwmgr->sclk_dpm.hard_min_clk != clock) {
 		cz_hwmgr->sclk_dpm.hard_min_clk = clock;

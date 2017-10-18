@@ -108,7 +108,7 @@ static int iceland_upload_smc_firmware_data(struct pp_hwmgr *hwmgr,
 
 	PHM_WRITE_FIELD(hwmgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 0);
 
-	PP_ASSERT_WITH_CODE((0 == byte_count), "SMC size must be dividable by 4.", return -EINVAL);
+	PP_ASSERT_WITH_CODE((0 == byte_count), "SMC size must be divisible by 4.", return -EINVAL);
 
 	return 0;
 }

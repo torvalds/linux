@@ -371,7 +371,7 @@ static void sdma_v4_0_ring_emit_ib(struct amdgpu_ring *ring,
 static void sdma_v4_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 {
 	u32 ref_and_mask = 0;
-	struct nbio_hdp_flush_reg *nbio_hf_reg;
+	const struct nbio_hdp_flush_reg *nbio_hf_reg;
 
 	if (ring->adev->flags & AMD_IS_APU)
 		nbio_hf_reg = &nbio_v7_0_hdp_flush_reg;

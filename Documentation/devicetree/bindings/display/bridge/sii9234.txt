@@ -1,0 +1,49 @@
+Silicon Image SiI9234 HDMI/MHL bridge bindings
+
+Required properties:
+	- compatible : "sil,sii9234".
+	- reg : I2C address for TPI interface, use 0x39
+	- avcc33-supply : MHL/USB Switch Supply Voltage (3.3V)
+	- iovcc18-supply : I/O Supply Voltage (1.8V)
+	- avcc12-supply : TMDS Analog Supply Voltage (1.2V)
+	- cvcc12-supply : Digital Core Supply Voltage (1.2V)
+	- interrupts, interrupt-parent: interrupt specifier of INT pin
+	- reset-gpios: gpio specifier of RESET pin (active low)
+	- video interfaces: Device node can contain two video interface port
+			    nodes for HDMI encoder and connector according to [1].
+			    - port@0 - MHL to HDMI
+			    - port@1 - MHL to connector
+
+[1]: Documentation/devicetree/bindings/media/video-interfaces.txt
+
+
+Example:
+	sii9234@39 {
+		compatible = "sil,sii9234";
+		reg = <0x39>;
+		avcc33-supply = <&vcc33mhl>;
+		iovcc18-supply = <&vcc18mhl>;
+		avcc12-supply = <&vsil12>;
+		cvcc12-supply = <&vsil12>;
+		reset-gpios = <&gpf3 4 GPIO_ACTIVE_LOW>;
+		interrupt-parent = <&gpf3>;
+		interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				mhl_to_hdmi: endpoint {
+					remote-endpoint = <&hdmi_to_mhl>;
+				};
+			};
+			port@1 {
+				reg = <1>;
+				mhl_to_connector: endpoint {
+					remote-endpoint = <&connector_to_mhl>;
+				};
+			};
+		};
+	};
