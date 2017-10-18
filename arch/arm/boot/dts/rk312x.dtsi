@@ -308,6 +308,11 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
+			vop_out_dsi: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&dsi_in_vop>;
+			};
+
 			vop_out_lvds: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&lvds_in_vop>;
@@ -324,6 +329,30 @@
 		clock-names = "aclk", "hclk";
 		#iommu-cells = <0>;
 		status = "disabled";
+	};
+
+	dsi: dsi@10110000 {
+		compatible = "rockchip,rk3128-mipi-dsi";
+		reg = <0x10110000 0x4000>;
+		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_MIPI>, <&mipi_dphy>;
+		clock-names = "pclk", "hs_clk";
+		resets = <&cru SRST_VIO_MIPI_DSI>;
+		reset-names = "apb";
+		phys = <&mipi_dphy>;
+		phy-names = "mipi_dphy";
+		rockchip,grf = <&grf>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+
+		ports {
+			port {
+				dsi_in_vop: endpoint {
+					remote-endpoint = <&vop_out_dsi>;
+				};
+			};
+		};
 	};
 
 	gic: interrupt-controller@10139000 {
@@ -475,6 +504,19 @@
 				status = "disabled";
 			};
 		};
+	};
+
+	mipi_dphy: mipi-dphy@20038000 {
+		compatible = "rockchip,rk3128-mipi-dphy";
+		reg = <0x20038000 0x4000>;
+		clocks = <&cru SCLK_MIPI_24M>, <&cru PCLK_MIPIPHY>, <&cru HCLK_VIO_H2P>;
+		clock-names = "ref", "pclk", "h2p";
+		clock-output-names = "mipi_dphy_pll";
+		#clock-cells = <0>;
+		resets = <&cru SRST_MIPIPHY_P>;
+		reset-names = "apb";
+		#phy-cells = <0>;
+		status = "disabled";
 	};
 
 	lvds: lvds@20038000 {
