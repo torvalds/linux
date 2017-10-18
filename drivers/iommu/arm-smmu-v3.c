@@ -419,6 +419,7 @@
 /* High-level queue structures */
 #define ARM_SMMU_POLL_TIMEOUT_US	100
 #define ARM_SMMU_CMDQ_SYNC_TIMEOUT_US	1000000 /* 1s! */
+#define ARM_SMMU_CMDQ_SYNC_SPIN_COUNT	10
 
 #define MSI_IOVA_BASE			0x8000000
 #define MSI_IOVA_LENGTH			0x100000
@@ -769,7 +770,7 @@ static void queue_inc_prod(struct arm_smmu_queue *q)
 static int queue_poll_cons(struct arm_smmu_queue *q, bool sync, bool wfe)
 {
 	ktime_t timeout;
-	unsigned int delay = 1;
+	unsigned int delay = 1, spin_cnt = 0;
 
 	/* Wait longer if it's a CMD_SYNC */
 	timeout = ktime_add_us(ktime_get(), sync ?
@@ -782,10 +783,13 @@ static int queue_poll_cons(struct arm_smmu_queue *q, bool sync, bool wfe)
 
 		if (wfe) {
 			wfe();
-		} else {
+		} else if (++spin_cnt < ARM_SMMU_CMDQ_SYNC_SPIN_COUNT) {
 			cpu_relax();
+			continue;
+		} else {
 			udelay(delay);
 			delay *= 2;
+			spin_cnt = 0;
 		}
 	}
 
