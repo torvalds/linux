@@ -51,7 +51,6 @@
 #include <net/addrconf.h>
 #include <linux/inetdevice.h>
 #include <rdma/ib_cache.h>
-#include <linux/pci.h>
 
 #define DRV_VERSION "1.0.0"
 
@@ -2314,7 +2313,8 @@ static void ipoib_add_one(struct ib_device *device)
 	}
 
 	if (!count) {
-		kfree(dev_list);
+		pr_err("Failed to init port, removing it\n");
+		ipoib_remove_one(device, dev_list);
 		return;
 	}
 

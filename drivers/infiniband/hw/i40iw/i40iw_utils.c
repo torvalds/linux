@@ -168,11 +168,16 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 	if (netdev != event_netdev)
 		return NOTIFY_DONE;
 
-	if (upper_dev)
-		local_ipaddr = ntohl(
-			((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address);
-	else
+	if (upper_dev) {
+		struct in_device *in;
+
+		rcu_read_lock();
+		in = __in_dev_get_rcu(upper_dev);
+		local_ipaddr = ntohl(in->ifa_list->ifa_address);
+		rcu_read_unlock();
+	} else {
 		local_ipaddr = ntohl(ifa->ifa_address);
+	}
 	switch (event) {
 	case NETDEV_DOWN:
 		action = I40IW_ARP_DELETE;

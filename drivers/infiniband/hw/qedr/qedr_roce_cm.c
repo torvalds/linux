@@ -48,7 +48,7 @@
 #include "qedr.h"
 #include "verbs.h"
 #include <rdma/qedr-abi.h>
-#include "qedr_cm.h"
+#include "qedr_roce_cm.h"
 
 void qedr_inc_sw_gsi_cons(struct qedr_qp_hwq_info *info)
 {
@@ -64,11 +64,11 @@ void qedr_store_gsi_qp_cq(struct qedr_dev *dev, struct qedr_qp *qp,
 	dev->gsi_qp = qp;
 }
 
-void qedr_ll2_complete_tx_packet(void *cxt,
-				 u8 connection_handle,
-				 void *cookie,
-				 dma_addr_t first_frag_addr,
-				 bool b_last_fragment, bool b_last_packet)
+static void qedr_ll2_complete_tx_packet(void *cxt, u8 connection_handle,
+					void *cookie,
+					dma_addr_t first_frag_addr,
+					bool b_last_fragment,
+					bool b_last_packet)
 {
 	struct qedr_dev *dev = (struct qedr_dev *)cxt;
 	struct qed_roce_ll2_packet *pkt = cookie;
@@ -93,8 +93,8 @@ void qedr_ll2_complete_tx_packet(void *cxt,
 		(*cq->ibcq.comp_handler) (&cq->ibcq, cq->ibcq.cq_context);
 }
 
-void qedr_ll2_complete_rx_packet(void *cxt,
-				 struct qed_ll2_comp_rx_data *data)
+static void qedr_ll2_complete_rx_packet(void *cxt,
+					struct qed_ll2_comp_rx_data *data)
 {
 	struct qedr_dev *dev = (struct qedr_dev *)cxt;
 	struct qedr_cq *cq = dev->gsi_rqcq;
@@ -122,10 +122,9 @@ void qedr_ll2_complete_rx_packet(void *cxt,
 		(*cq->ibcq.comp_handler) (&cq->ibcq, cq->ibcq.cq_context);
 }
 
-void qedr_ll2_release_rx_packet(void *cxt,
-				u8 connection_handle,
-				void *cookie,
-				dma_addr_t rx_buf_addr, bool b_last_packet)
+static void qedr_ll2_release_rx_packet(void *cxt, u8 connection_handle,
+				       void *cookie, dma_addr_t rx_buf_addr,
+				       bool b_last_packet)
 {
 	/* Do nothing... */
 }
@@ -237,7 +236,7 @@ static int qedr_ll2_post_tx(struct qedr_dev *dev,
 	return 0;
 }
 
-int qedr_ll2_stop(struct qedr_dev *dev)
+static int qedr_ll2_stop(struct qedr_dev *dev)
 {
 	int rc;
 
@@ -260,8 +259,8 @@ int qedr_ll2_stop(struct qedr_dev *dev)
 	return rc;
 }
 
-int qedr_ll2_start(struct qedr_dev *dev,
-		   struct ib_qp_init_attr *attrs, struct qedr_qp *qp)
+static int qedr_ll2_start(struct qedr_dev *dev,
+			  struct ib_qp_init_attr *attrs, struct qedr_qp *qp)
 {
 	struct qed_ll2_acquire_data data;
 	struct qed_ll2_cbs cbs;
@@ -660,7 +659,7 @@ int qedr_gsi_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 						  dev->gsi_ll2_handle,
 						  wr->sg_list[0].addr,
 						  wr->sg_list[0].length,
-						  0 /* cookie */,
+						  NULL /* cookie */,
 						  1 /* notify_fw */);
 		if (rc) {
 			DP_ERR(dev,

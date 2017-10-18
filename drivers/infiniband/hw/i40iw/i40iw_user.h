@@ -376,6 +376,7 @@ struct i40iw_qp_uk {
 	u8 rwqe_polarity;
 	u8 rq_wqe_size;
 	u8 rq_wqe_size_multiplier;
+	bool first_sq_wq;
 	bool deferred_flag;
 };
 

@@ -234,7 +234,7 @@ int c4iw_ev_handler(struct c4iw_dev *dev, u32 qid)
 		if (atomic_dec_and_test(&chp->refcnt))
 			wake_up(&chp->wait);
 	} else {
-		pr_debug("%s unknown cqid 0x%x\n", __func__, qid);
+		pr_warn("%s unknown cqid 0x%x\n", __func__, qid);
 		spin_unlock_irqrestore(&dev->lock, flag);
 	}
 	return 0;

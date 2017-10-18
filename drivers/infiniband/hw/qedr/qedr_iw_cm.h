@@ -1,5 +1,5 @@
-/*
- * Copyright (C) 2006-2008 Chelsio Communications.  All rights reserved.
+/* QLogic qed NIC Driver
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -17,7 +17,7 @@
  *
  *      - Redistributions in binary form must reproduce the above
  *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
+ *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,42 +29,21 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef _T3CDEV_H_
-#define _T3CDEV_H_
+#include <rdma/iw_cm.h>
 
-#include <linux/list.h>
-#include <linux/atomic.h>
-#include <linux/netdevice.h>
-#include <linux/proc_fs.h>
-#include <linux/skbuff.h>
-#include <net/neighbour.h>
+int qedr_iw_connect(struct iw_cm_id *cm_id,
+		    struct iw_cm_conn_param *conn_param);
 
-#define T3CNAMSIZ 16
+int qedr_iw_create_listen(struct iw_cm_id *cm_id, int backlog);
 
-struct cxgb3_client;
+int qedr_iw_destroy_listen(struct iw_cm_id *cm_id);
 
-enum t3ctype {
-	T3A = 0,
-	T3B,
-	T3C,
-};
+int qedr_iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
 
-struct t3cdev {
-	char name[T3CNAMSIZ];	/* T3C device name */
-	enum t3ctype type;
-	struct list_head ofld_dev_list;	/* for list linking */
-	struct net_device *lldev;	/* LL dev associated with T3C messages */
-	struct proc_dir_entry *proc_dir;	/* root of proc dir for this T3C */
-	int (*send)(struct t3cdev *dev, struct sk_buff *skb);
-	int (*recv)(struct t3cdev *dev, struct sk_buff **skb, int n);
-	int (*ctl)(struct t3cdev *dev, unsigned int req, void *data);
-	void (*neigh_update)(struct t3cdev *dev, struct neighbour *neigh);
-	void *priv;		/* driver private data */
-	void __rcu *l2opt;	/* optional layer 2 data */
-	void *l3opt;		/* optional layer 3 data */
-	void *l4opt;		/* optional layer 4 data */
-	void *ulp;		/* ulp stuff */
-	void *ulp_iscsi;	/* ulp iscsi */
-};
+int qedr_iw_reject(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len);
 
-#endif				/* _T3CDEV_H_ */
+void qedr_iw_qp_add_ref(struct ib_qp *qp);
+
+void qedr_iw_qp_rem_ref(struct ib_qp *qp);
+
+struct ib_qp *qedr_iw_get_qp(struct ib_device *dev, int qpn);

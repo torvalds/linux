@@ -755,7 +755,6 @@ static int qib_sd7220_ram_xfer(struct qib_devdata *dd, int sdnum, u32 loc,
 	int addr;
 	int ret;
 	unsigned long flags;
-	const char *op;
 
 	/* Pick appropriate transaction reg and "Chip select" for this serdes */
 	switch (sdnum) {
@@ -775,7 +774,6 @@ static int qib_sd7220_ram_xfer(struct qib_devdata *dd, int sdnum, u32 loc,
 		return -1;
 	}
 
-	op = rd_notwr ? "Rd" : "Wr";
 	spin_lock_irqsave(&dd->cspec->sdepb_lock, flags);
 
 	owned = epb_access(dd, sdnum, 1);

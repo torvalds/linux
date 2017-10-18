@@ -1071,9 +1071,10 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 	 */
 	rc = bnxt_qplib_alloc_rcfw_channel(rdev->en_dev->pdev, &rdev->rcfw,
 					   BNXT_RE_MAX_QPC_COUNT);
-	if (rc)
+	if (rc) {
+		pr_err("Failed to allocate RCFW Channel: %#x\n", rc);
 		goto fail;
-
+	}
 	rc = bnxt_re_net_ring_alloc
 			(rdev, rdev->rcfw.creq.pbl[PBL_LVL_0].pg_map_arr,
 			 rdev->rcfw.creq.pbl[rdev->rcfw.creq.level].pg_count,

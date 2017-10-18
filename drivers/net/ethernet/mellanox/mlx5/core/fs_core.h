@@ -66,6 +66,8 @@ enum fs_fte_status {
 
 struct mlx5_flow_steering {
 	struct mlx5_core_dev *dev;
+	struct kmem_cache               *fgs_cache;
+	struct kmem_cache               *ftes_cache;
 	struct mlx5_flow_root_namespace *root_ns;
 	struct mlx5_flow_root_namespace *fdb_root_ns;
 	struct mlx5_flow_root_namespace *esw_egress_root_ns;
@@ -81,9 +83,12 @@ struct fs_node {
 	struct fs_node		*parent;
 	struct fs_node		*root;
 	/* lock the node for writing and traversing */
-	struct mutex		lock;
+	struct rw_semaphore	lock;
 	atomic_t		refcount;
-	void			(*remove_func)(struct fs_node *);
+	bool			active;
+	void			(*del_hw_func)(struct fs_node *);
+	void			(*del_sw_func)(struct fs_node *);
+	atomic_t		version;
 };
 
 struct mlx5_flow_rule {
@@ -120,7 +125,6 @@ struct mlx5_flow_table {
 	/* FWD rules that point on this flow table */
 	struct list_head		fwd_rules;
 	u32				flags;
-	struct ida			fte_allocator;
 	struct rhltable			fgs_hash;
 };
 
@@ -205,6 +209,7 @@ struct mlx5_flow_group {
 	struct mlx5_flow_group_mask	mask;
 	u32				start_index;
 	u32				max_ftes;
+	struct ida			fte_allocator;
 	u32				id;
 	struct rhashtable		ftes_hash;
 	struct rhlist_head		hash;

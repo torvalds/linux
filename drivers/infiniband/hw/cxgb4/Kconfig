@@ -1,6 +1,6 @@
 config INFINIBAND_CXGB4
 	tristate "Chelsio T4/T5 RDMA Driver"
-	depends on CHELSIO_T4 && INET && (IPV6 || IPV6=n)
+	depends on CHELSIO_T4 && INET
 	select CHELSIO_LIB
 	select GENERIC_ALLOCATOR
 	---help---

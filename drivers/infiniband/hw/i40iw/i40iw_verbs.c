@@ -2204,6 +2204,12 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 	ukqp = &iwqp->sc_qp.qp_uk;
 
 	spin_lock_irqsave(&iwqp->lock, flags);
+
+	if (iwqp->flush_issued) {
+		err = -EINVAL;
+		goto out;
+	}
+
 	while (ib_wr) {
 		inv_stag = false;
 		memset(&info, 0, sizeof(info));
@@ -2346,6 +2352,7 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 		ib_wr = ib_wr->next;
 	}
 
+out:
 	if (err)
 		*bad_wr = ib_wr;
 	else
@@ -2378,6 +2385,12 @@ static int i40iw_post_recv(struct ib_qp *ibqp,
 
 	memset(&post_recv, 0, sizeof(post_recv));
 	spin_lock_irqsave(&iwqp->lock, flags);
+
+	if (iwqp->flush_issued) {
+		err = -EINVAL;
+		goto out;
+	}
+
 	while (ib_wr) {
 		post_recv.num_sges = ib_wr->num_sge;
 		post_recv.wr_id = ib_wr->wr_id;

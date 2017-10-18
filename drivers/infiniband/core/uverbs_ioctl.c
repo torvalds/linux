@@ -241,9 +241,7 @@ static long ib_uverbs_cmd_verbs(struct ib_device *ib_dev,
 	struct uverbs_attr *curr_attr;
 	unsigned long *curr_bitmap;
 	size_t ctx_size;
-#ifdef UVERBS_OPTIMIZE_USING_STACK_SZ
 	uintptr_t data[UVERBS_OPTIMIZE_USING_STACK_SZ / sizeof(uintptr_t)];
-#endif
 
 	if (hdr->reserved)
 		return -EINVAL;
@@ -269,13 +267,10 @@ static long ib_uverbs_cmd_verbs(struct ib_device *ib_dev,
 			(method_spec->num_child_attrs / BITS_PER_LONG +
 			 method_spec->num_buckets);
 
-#ifdef UVERBS_OPTIMIZE_USING_STACK_SZ
 	if (ctx_size <= UVERBS_OPTIMIZE_USING_STACK_SZ)
 		ctx = (void *)data;
-
 	if (!ctx)
-#endif
-	ctx = kmalloc(ctx_size, GFP_KERNEL);
+		ctx = kmalloc(ctx_size, GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -311,10 +306,8 @@ static long ib_uverbs_cmd_verbs(struct ib_device *ib_dev,
 	err = uverbs_handle_method(buf, ctx->uattrs, hdr->num_attrs, ib_dev,
 				   file, method_spec, ctx->uverbs_attr_bundle);
 out:
-#ifdef UVERBS_OPTIMIZE_USING_STACK_SZ
-	if (ctx_size > UVERBS_OPTIMIZE_USING_STACK_SZ)
-#endif
-	kfree(ctx);
+	if (ctx != (void *)data)
+		kfree(ctx);
 	return err;
 }
 

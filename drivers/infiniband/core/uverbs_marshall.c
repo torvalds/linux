@@ -176,18 +176,18 @@ EXPORT_SYMBOL(ib_copy_path_rec_to_user);
 void ib_copy_path_rec_from_user(struct sa_path_rec *dst,
 				struct ib_user_path_rec *src)
 {
-	__be32 slid, dlid;
+	u32 slid, dlid;
 
 	memset(dst, 0, sizeof(*dst));
 	if ((ib_is_opa_gid((union ib_gid *)src->sgid)) ||
 	    (ib_is_opa_gid((union ib_gid *)src->dgid))) {
 		dst->rec_type = SA_PATH_REC_TYPE_OPA;
-		slid = htonl(opa_get_lid_from_gid((union ib_gid *)src->sgid));
-		dlid = htonl(opa_get_lid_from_gid((union ib_gid *)src->dgid));
+		slid = opa_get_lid_from_gid((union ib_gid *)src->sgid);
+		dlid = opa_get_lid_from_gid((union ib_gid *)src->dgid);
 	} else {
 		dst->rec_type = SA_PATH_REC_TYPE_IB;
-		slid = htonl(ntohs(src->slid));
-		dlid = htonl(ntohs(src->dlid));
+		slid = ntohs(src->slid);
+		dlid = ntohs(src->dlid);
 	}
 	memcpy(dst->dgid.raw, src->dgid, sizeof dst->dgid);
 	memcpy(dst->sgid.raw, src->sgid, sizeof dst->sgid);

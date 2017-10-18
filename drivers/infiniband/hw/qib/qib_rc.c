@@ -1869,7 +1869,7 @@ send_middle:
 		qp->r_rcv_len = 0;
 		if (opcode == OP(SEND_ONLY))
 			goto no_immediate_data;
-		/* FALLTHROUGH for SEND_ONLY_WITH_IMMEDIATE */
+		/* fall through -- for SEND_ONLY_WITH_IMMEDIATE */
 	case OP(SEND_LAST_WITH_IMMEDIATE):
 send_last_imm:
 		wc.ex.imm_data = ohdr->u.imm_data;

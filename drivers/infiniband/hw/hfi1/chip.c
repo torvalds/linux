@@ -6520,12 +6520,11 @@ static void _dc_start(struct hfi1_devdata *dd)
 	if (!dd->dc_shutdown)
 		return;
 
-	/* Take the 8051 out of reset */
-	write_csr(dd, DC_DC8051_CFG_RST, 0ull);
-	/* Wait until 8051 is ready */
-	if (wait_fm_ready(dd, TIMEOUT_8051_START))
-		dd_dev_err(dd, "%s: timeout starting 8051 firmware\n",
-			   __func__);
+	/*
+	 * Take the 8051 out of reset, wait until 8051 is ready, and set host
+	 * version bit.
+	 */
+	release_and_wait_ready_8051_firmware(dd);
 
 	/* Take away reset for LCB and RX FPE (set in lcb_shutdown). */
 	write_csr(dd, DCC_CFG_RESET, 0x10);
@@ -8595,29 +8594,22 @@ int write_lcb_csr(struct hfi1_devdata *dd, u32 addr, u64 data)
 }
 
 /*
+ * If the 8051 is in reset mode (dd->dc_shutdown == 1), this function
+ * will still continue executing.
+ *
  * Returns:
  *	< 0 = Linux error, not able to get access
  *	> 0 = 8051 command RETURN_CODE
  */
-static int do_8051_command(
-	struct hfi1_devdata *dd,
-	u32 type,
-	u64 in_data,
-	u64 *out_data)
+static int _do_8051_command(struct hfi1_devdata *dd, u32 type, u64 in_data,
+			    u64 *out_data)
 {
 	u64 reg, completed;
 	int return_code;
 	unsigned long timeout;
 
+	lockdep_assert_held(&dd->dc8051_lock);
 	hfi1_cdbg(DC8051, "type %d, data 0x%012llx", type, in_data);
-
-	mutex_lock(&dd->dc8051_lock);
-
-	/* We can't send any commands to the 8051 if it's in reset */
-	if (dd->dc_shutdown) {
-		return_code = -ENODEV;
-		goto fail;
-	}
 
 	/*
 	 * If an 8051 host command timed out previously, then the 8051 is
@@ -8719,6 +8711,29 @@ static int do_8051_command(
 	write_csr(dd, DC_DC8051_CFG_HOST_CMD_0, 0);
 
 fail:
+	return return_code;
+}
+
+/*
+ * Returns:
+ *	< 0 = Linux error, not able to get access
+ *	> 0 = 8051 command RETURN_CODE
+ */
+static int do_8051_command(struct hfi1_devdata *dd, u32 type, u64 in_data,
+			   u64 *out_data)
+{
+	int return_code;
+
+	mutex_lock(&dd->dc8051_lock);
+	/* We can't send any commands to the 8051 if it's in reset */
+	if (dd->dc_shutdown) {
+		return_code = -ENODEV;
+		goto fail;
+	}
+
+	return_code = _do_8051_command(dd, type, in_data, out_data);
+
+fail:
 	mutex_unlock(&dd->dc8051_lock);
 	return return_code;
 }
@@ -8728,22 +8743,35 @@ static int set_physical_link_state(struct hfi1_devdata *dd, u64 state)
 	return do_8051_command(dd, HCMD_CHANGE_PHY_STATE, state, NULL);
 }
 
-int load_8051_config(struct hfi1_devdata *dd, u8 field_id,
-		     u8 lane_id, u32 config_data)
+static int _load_8051_config(struct hfi1_devdata *dd, u8 field_id,
+			     u8 lane_id, u32 config_data)
 {
 	u64 data;
 	int ret;
 
+	lockdep_assert_held(&dd->dc8051_lock);
 	data = (u64)field_id << LOAD_DATA_FIELD_ID_SHIFT
 		| (u64)lane_id << LOAD_DATA_LANE_ID_SHIFT
 		| (u64)config_data << LOAD_DATA_DATA_SHIFT;
-	ret = do_8051_command(dd, HCMD_LOAD_CONFIG_DATA, data, NULL);
+	ret = _do_8051_command(dd, HCMD_LOAD_CONFIG_DATA, data, NULL);
 	if (ret != HCMD_SUCCESS) {
 		dd_dev_err(dd,
 			   "load 8051 config: field id %d, lane %d, err %d\n",
 			   (int)field_id, (int)lane_id, ret);
 	}
 	return ret;
+}
+
+int load_8051_config(struct hfi1_devdata *dd, u8 field_id,
+		     u8 lane_id, u32 config_data)
+{
+	int return_code;
+
+	mutex_lock(&dd->dc8051_lock);
+	return_code = _load_8051_config(dd, field_id, lane_id, config_data);
+	mutex_unlock(&dd->dc8051_lock);
+
+	return return_code;
 }
 
 /*
@@ -8861,13 +8889,14 @@ int write_host_interface_version(struct hfi1_devdata *dd, u8 version)
 	u32 frame;
 	u32 mask;
 
+	lockdep_assert_held(&dd->dc8051_lock);
 	mask = (HOST_INTERFACE_VERSION_MASK << HOST_INTERFACE_VERSION_SHIFT);
 	read_8051_config(dd, RESERVED_REGISTERS, GENERAL_CONFIG, &frame);
 	/* Clear, then set field */
 	frame &= ~mask;
 	frame |= ((u32)version << HOST_INTERFACE_VERSION_SHIFT);
-	return load_8051_config(dd, RESERVED_REGISTERS, GENERAL_CONFIG,
-				frame);
+	return _load_8051_config(dd, RESERVED_REGISTERS, GENERAL_CONFIG,
+				 frame);
 }
 
 void read_misc_status(struct hfi1_devdata *dd, u8 *ver_major, u8 *ver_minor,
@@ -9161,25 +9190,6 @@ static int do_quick_linkup(struct hfi1_devdata *dd)
 }
 
 /*
- * Set the SerDes to internal loopback mode.
- * Returns 0 on success, -errno on error.
- */
-static int set_serdes_loopback_mode(struct hfi1_devdata *dd)
-{
-	int ret;
-
-	ret = set_physical_link_state(dd, PLS_INTERNAL_SERDES_LOOPBACK);
-	if (ret == HCMD_SUCCESS)
-		return 0;
-	dd_dev_err(dd,
-		   "Set physical link state to SerDes Loopback failed with return %d\n",
-		   ret);
-	if (ret >= 0)
-		ret = -EINVAL;
-	return ret;
-}
-
-/*
  * Do all special steps to set up loopback.
  */
 static int init_loopback(struct hfi1_devdata *dd)
@@ -9204,13 +9214,11 @@ static int init_loopback(struct hfi1_devdata *dd)
 		return 0;
 	}
 
-	/* handle serdes loopback */
-	if (loopback == LOOPBACK_SERDES) {
-		/* internal serdes loopack needs quick linkup on RTL */
-		if (dd->icode == ICODE_RTL_SILICON)
-			quick_linkup = 1;
-		return set_serdes_loopback_mode(dd);
-	}
+	/*
+	 * SerDes loopback init sequence is handled in set_local_link_attributes
+	 */
+	if (loopback == LOOPBACK_SERDES)
+		return 0;
 
 	/* LCB loopback - handled at poll time */
 	if (loopback == LOOPBACK_LCB) {
@@ -9269,7 +9277,7 @@ static int set_local_link_attributes(struct hfi1_pportdata *ppd)
 	u8 tx_polarity_inversion;
 	u8 rx_polarity_inversion;
 	int ret;
-
+	u32 misc_bits = 0;
 	/* reset our fabric serdes to clear any lingering problems */
 	fabric_serdes_reset(dd);
 
@@ -9315,7 +9323,14 @@ static int set_local_link_attributes(struct hfi1_pportdata *ppd)
 	if (ret != HCMD_SUCCESS)
 		goto set_local_link_attributes_fail;
 
-	ret = write_vc_local_link_width(dd, 0, 0,
+	/*
+	 * SerDes loopback init sequence requires
+	 * setting bit 0 of MISC_CONFIG_BITS
+	 */
+	if (loopback == LOOPBACK_SERDES)
+		misc_bits |= 1 << LOOPBACK_SERDES_CONFIG_BIT_MASK_SHIFT;
+
+	ret = write_vc_local_link_width(dd, misc_bits, 0,
 					opa_to_vc_link_widths(
 						ppd->link_width_enabled));
 	if (ret != HCMD_SUCCESS)
@@ -9967,7 +9982,7 @@ int hfi1_get_ib_cfg(struct hfi1_pportdata *ppd, int which)
 		val = ppd->phy_error_threshold;
 		break;
 	case HFI1_IB_CFG_LINKDEFAULT: /* IB link default (sleep/poll) */
-		val = dd->link_default;
+		val = HLS_DEFAULT;
 		break;
 
 	case HFI1_IB_CFG_HRTBT: /* Heartbeat off/enable/auto */
@@ -10170,6 +10185,10 @@ static const char * const state_complete_reasons[] = {
 	[0x33] =
 	  "Link partner completed the VerifyCap state, but the passing lanes do not meet the local link width policy",
 	[0x34] = tx_out_of_policy,
+	[0x35] = "Negotiated link width is mutually exclusive",
+	[0x36] =
+	  "Timed out before receiving verifycap frames in VerifyCap.Exchange",
+	[0x37] = "Unable to resolve secure data exchange",
 };
 
 static const char *state_complete_reason_code_string(struct hfi1_pportdata *ppd,
@@ -10569,7 +10588,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 
 	orig_new_state = state;
 	if (state == HLS_DN_DOWNDEF)
-		state = dd->link_default;
+		state = HLS_DEFAULT;
 
 	/* interpret poll -> poll as a link bounce */
 	poll_bounce = ppd->host_link_state == HLS_DN_POLL &&
@@ -12980,7 +12999,7 @@ static void clean_up_interrupts(struct hfi1_devdata *dd)
 			if (!me->arg) /* => no irq, no affinity */
 				continue;
 			hfi1_put_irq_affinity(dd, me);
-			free_irq(me->irq, me->arg);
+			pci_free_irq(dd->pcidev, i, me->arg);
 		}
 
 		/* clean structures */
@@ -12990,7 +13009,7 @@ static void clean_up_interrupts(struct hfi1_devdata *dd)
 	} else {
 		/* INTx */
 		if (dd->requested_intx_irq) {
-			free_irq(dd->pcidev->irq, dd);
+			pci_free_irq(dd->pcidev, 0, dd);
 			dd->requested_intx_irq = 0;
 		}
 		disable_intx(dd->pcidev);
@@ -13049,10 +13068,8 @@ static int request_intx_irq(struct hfi1_devdata *dd)
 {
 	int ret;
 
-	snprintf(dd->intx_name, sizeof(dd->intx_name), DRIVER_NAME "_%d",
-		 dd->unit);
-	ret = request_irq(dd->pcidev->irq, general_interrupt,
-			  IRQF_SHARED, dd->intx_name, dd);
+	ret = pci_request_irq(dd->pcidev, 0, general_interrupt, NULL, dd,
+			      DRIVER_NAME "_%d", dd->unit);
 	if (ret)
 		dd_dev_err(dd, "unable to request INTx interrupt, err %d\n",
 			   ret);
@@ -13074,7 +13091,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 	first_sdma = last_general;
 	last_sdma = first_sdma + dd->num_sdma;
 	first_rx = last_sdma;
-	last_rx = first_rx + dd->n_krcv_queues + HFI1_NUM_VNIC_CTXT;
+	last_rx = first_rx + dd->n_krcv_queues + dd->num_vnic_contexts;
 
 	/* VNIC MSIx interrupts get mapped when VNIC contexts are created */
 	dd->first_dyn_msix_idx = first_rx + dd->n_krcv_queues;
@@ -13095,13 +13112,14 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 		int idx;
 		struct hfi1_ctxtdata *rcd = NULL;
 		struct sdma_engine *sde = NULL;
+		char name[MAX_NAME_SIZE];
 
-		/* obtain the arguments to request_irq */
+		/* obtain the arguments to pci_request_irq */
 		if (first_general <= i && i < last_general) {
 			idx = i - first_general;
 			handler = general_interrupt;
 			arg = dd;
-			snprintf(me->name, sizeof(me->name),
+			snprintf(name, sizeof(name),
 				 DRIVER_NAME "_%d", dd->unit);
 			err_info = "general";
 			me->type = IRQ_GENERAL;
@@ -13110,14 +13128,14 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			sde = &dd->per_sdma[idx];
 			handler = sdma_interrupt;
 			arg = sde;
-			snprintf(me->name, sizeof(me->name),
+			snprintf(name, sizeof(name),
 				 DRIVER_NAME "_%d sdma%d", dd->unit, idx);
 			err_info = "sdma";
 			remap_sdma_interrupts(dd, idx, i);
 			me->type = IRQ_SDMA;
 		} else if (first_rx <= i && i < last_rx) {
 			idx = i - first_rx;
-			rcd = hfi1_rcd_get_by_index(dd, idx);
+			rcd = hfi1_rcd_get_by_index_safe(dd, idx);
 			if (rcd) {
 				/*
 				 * Set the interrupt register and mask for this
@@ -13129,7 +13147,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 				handler = receive_context_interrupt;
 				thread = receive_context_thread;
 				arg = rcd;
-				snprintf(me->name, sizeof(me->name),
+				snprintf(name, sizeof(name),
 					 DRIVER_NAME "_%d kctxt%d",
 					 dd->unit, idx);
 				err_info = "receive context";
@@ -13150,18 +13168,10 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 		if (!arg)
 			continue;
 		/* make sure the name is terminated */
-		me->name[sizeof(me->name) - 1] = 0;
+		name[sizeof(name) - 1] = 0;
 		me->irq = pci_irq_vector(dd->pcidev, i);
-		/*
-		 * On err return me->irq.  Don't need to clear this
-		 * because 'arg' has not been set, and cleanup will
-		 * do the right thing.
-		 */
-		if (me->irq < 0)
-			return me->irq;
-
-		ret = request_threaded_irq(me->irq, handler, thread, 0,
-					   me->name, arg);
+		ret = pci_request_irq(dd->pcidev, i, handler, thread, arg,
+				      name);
 		if (ret) {
 			dd_dev_err(dd,
 				   "unable to allocate %s interrupt, irq %d, index %d, err %d\n",
@@ -13169,7 +13179,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			return ret;
 		}
 		/*
-		 * assign arg after request_irq call, so it will be
+		 * assign arg after pci_request_irq call, so it will be
 		 * cleaned up
 		 */
 		me->arg = arg;
@@ -13187,7 +13197,7 @@ void hfi1_vnic_synchronize_irq(struct hfi1_devdata *dd)
 	int i;
 
 	if (!dd->num_msix_entries) {
-		synchronize_irq(dd->pcidev->irq);
+		synchronize_irq(pci_irq_vector(dd->pcidev, 0));
 		return;
 	}
 
@@ -13208,7 +13218,7 @@ void hfi1_reset_vnic_msix_info(struct hfi1_ctxtdata *rcd)
 		return;
 
 	hfi1_put_irq_affinity(dd, me);
-	free_irq(me->irq, me->arg);
+	pci_free_irq(dd->pcidev, rcd->msix_intr, me->arg);
 
 	me->arg = NULL;
 }
@@ -13231,28 +13241,21 @@ void hfi1_set_vnic_msix_info(struct hfi1_ctxtdata *rcd)
 	rcd->ireg = (IS_RCVAVAIL_START + idx) / 64;
 	rcd->imask = ((u64)1) <<
 		  ((IS_RCVAVAIL_START + idx) % 64);
-
-	snprintf(me->name, sizeof(me->name),
-		 DRIVER_NAME "_%d kctxt%d", dd->unit, idx);
-	me->name[sizeof(me->name) - 1] = 0;
 	me->type = IRQ_RCVCTXT;
 	me->irq = pci_irq_vector(dd->pcidev, rcd->msix_intr);
-	if (me->irq < 0) {
-		dd_dev_err(dd, "vnic irq vector request (idx %d) fail %d\n",
-			   idx, me->irq);
-		return;
-	}
 	remap_intr(dd, IS_RCVAVAIL_START + idx, rcd->msix_intr);
 
-	ret = request_threaded_irq(me->irq, receive_context_interrupt,
-				   receive_context_thread, 0, me->name, arg);
+	ret = pci_request_irq(dd->pcidev, rcd->msix_intr,
+			      receive_context_interrupt,
+			      receive_context_thread, arg,
+			      DRIVER_NAME "_%d kctxt%d", dd->unit, idx);
 	if (ret) {
 		dd_dev_err(dd, "vnic irq request (irq %d, idx %d) fail %d\n",
 			   me->irq, idx, ret);
 		return;
 	}
 	/*
-	 * assign arg after request_irq call, so it will be
+	 * assign arg after pci_request_irq call, so it will be
 	 * cleaned up
 	 */
 	me->arg = arg;
@@ -13261,7 +13264,7 @@ void hfi1_set_vnic_msix_info(struct hfi1_ctxtdata *rcd)
 	if (ret) {
 		dd_dev_err(dd,
 			   "unable to pin IRQ %d\n", ret);
-		free_irq(me->irq, me->arg);
+		pci_free_irq(dd->pcidev, rcd->msix_intr, me->arg);
 	}
 }
 
@@ -13294,8 +13297,9 @@ static int set_up_interrupts(struct hfi1_devdata *dd)
 	 *		slow source, SDMACleanupDone)
 	 *	N interrupts - one per used SDMA engine
 	 *	M interrupt - one per kernel receive context
+	 *	V interrupt - one for each VNIC context
 	 */
-	total = 1 + dd->num_sdma + dd->n_krcv_queues + HFI1_NUM_VNIC_CTXT;
+	total = 1 + dd->num_sdma + dd->n_krcv_queues + dd->num_vnic_contexts;
 
 	/* ask for MSI-X interrupts */
 	request = request_msix(dd, total);
@@ -13356,10 +13360,12 @@ fail:
  *                             in array of contexts
  *	freectxts  - number of free user contexts
  *	num_send_contexts - number of PIO send contexts being used
+ *	num_vnic_contexts - number of contexts reserved for VNIC
  */
 static int set_up_context_variables(struct hfi1_devdata *dd)
 {
 	unsigned long num_kernel_contexts;
+	u16 num_vnic_contexts = HFI1_NUM_VNIC_CTXT;
 	int total_contexts;
 	int ret;
 	unsigned ngroups;
@@ -13393,6 +13399,14 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 			   num_kernel_contexts);
 		num_kernel_contexts = dd->chip_send_contexts - num_vls - 1;
 	}
+
+	/* Accommodate VNIC contexts if possible */
+	if ((num_kernel_contexts + num_vnic_contexts) > dd->chip_rcv_contexts) {
+		dd_dev_err(dd, "No receive contexts available for VNIC\n");
+		num_vnic_contexts = 0;
+	}
+	total_contexts = num_kernel_contexts + num_vnic_contexts;
+
 	/*
 	 * User contexts:
 	 *	- default to 1 user context per real (non-HT) CPU core if
@@ -13402,19 +13416,16 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 		num_user_contexts =
 			cpumask_weight(&node_affinity.real_cpu_mask);
 
-	total_contexts = num_kernel_contexts + num_user_contexts;
-
 	/*
 	 * Adjust the counts given a global max.
 	 */
-	if (total_contexts > dd->chip_rcv_contexts) {
+	if (total_contexts + num_user_contexts > dd->chip_rcv_contexts) {
 		dd_dev_err(dd,
 			   "Reducing # user receive contexts to: %d, from %d\n",
-			   (int)(dd->chip_rcv_contexts - num_kernel_contexts),
+			   (int)(dd->chip_rcv_contexts - total_contexts),
 			   (int)num_user_contexts);
-		num_user_contexts = dd->chip_rcv_contexts - num_kernel_contexts;
 		/* recalculate */
-		total_contexts = num_kernel_contexts + num_user_contexts;
+		num_user_contexts = dd->chip_rcv_contexts - total_contexts;
 	}
 
 	/* each user context requires an entry in the RMT */
@@ -13427,25 +13438,24 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 			   user_rmt_reduced);
 		/* recalculate */
 		num_user_contexts = user_rmt_reduced;
-		total_contexts = num_kernel_contexts + num_user_contexts;
 	}
 
-	/* Accommodate VNIC contexts */
-	if ((total_contexts + HFI1_NUM_VNIC_CTXT) <= dd->chip_rcv_contexts)
-		total_contexts += HFI1_NUM_VNIC_CTXT;
+	total_contexts += num_user_contexts;
 
 	/* the first N are kernel contexts, the rest are user/vnic contexts */
 	dd->num_rcv_contexts = total_contexts;
 	dd->n_krcv_queues = num_kernel_contexts;
 	dd->first_dyn_alloc_ctxt = num_kernel_contexts;
+	dd->num_vnic_contexts = num_vnic_contexts;
 	dd->num_user_contexts = num_user_contexts;
 	dd->freectxts = num_user_contexts;
 	dd_dev_info(dd,
-		    "rcv contexts: chip %d, used %d (kernel %d, user %d)\n",
+		    "rcv contexts: chip %d, used %d (kernel %d, vnic %u, user %u)\n",
 		    (int)dd->chip_rcv_contexts,
 		    (int)dd->num_rcv_contexts,
 		    (int)dd->n_krcv_queues,
-		    (int)dd->num_rcv_contexts - dd->n_krcv_queues);
+		    dd->num_vnic_contexts,
+		    dd->num_user_contexts);
 
 	/*
 	 * Receive array allocation:
@@ -14961,8 +14971,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		ppd->host_link_state = HLS_DN_OFFLINE;
 		init_vl_arb_caches(ppd);
 	}
-
-	dd->link_default = HLS_DN_POLL;
 
 	/*
 	 * Do remaining PCIe setup and save PCIe values in dd.

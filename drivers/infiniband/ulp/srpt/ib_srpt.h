@@ -252,6 +252,7 @@ enum rdma_ch_state {
  * @free_list:     Head of list with free send I/O contexts.
  * @state:         channel state. See also enum rdma_ch_state.
  * @ioctx_ring:    Send ring.
+ * @ioctx_recv_ring: Receive I/O context ring.
  * @list:          Node for insertion in the srpt_device.rch_list list.
  * @cmd_wait_list: List of SCSI commands that arrived before the RTU event. This
  *                 list contains struct srpt_ioctx elements and is protected
@@ -281,6 +282,7 @@ struct srpt_rdma_ch {
 	struct list_head	free_list;
 	enum rdma_ch_state	state;
 	struct srpt_send_ioctx	**ioctx_ring;
+	struct srpt_recv_ioctx	**ioctx_recv_ring;
 	struct list_head	list;
 	struct list_head	cmd_wait_list;
 	struct se_session	*sess;
@@ -295,11 +297,13 @@ struct srpt_rdma_ch {
  * @srp_max_rdma_size: Maximum size of SRP RDMA transfers for new connections.
  * @srp_max_rsp_size: Maximum size of SRP response messages in bytes.
  * @srp_sq_size: Shared receive queue (SRQ) size.
+ * @use_srq: Whether or not to use SRQ.
  */
 struct srpt_port_attrib {
 	u32			srp_max_rdma_size;
 	u32			srp_max_rsp_size;
 	u32			srp_sq_size;
+	bool			use_srq;
 };
 
 /**
@@ -343,10 +347,11 @@ struct srpt_port {
  * struct srpt_device - Information associated by SRPT with a single HCA.
  * @device:        Backpointer to the struct ib_device managed by the IB core.
  * @pd:            IB protection domain.
- * @mr:            L_Key (local key) with write access to all local memory.
+ * @lkey:          L_Key (local key) with write access to all local memory.
  * @srq:           Per-HCA SRQ (shared receive queue).
  * @cm_id:         Connection identifier.
  * @srq_size:      SRQ size.
+ * @use_srq:       Whether or not to use SRQ.
  * @ioctx_ring:    Per-HCA SRQ.
  * @rch_list:      Per-device channel list -- see also srpt_rdma_ch.list.
  * @ch_releaseQ:   Enables waiting for removal from rch_list.
@@ -358,9 +363,11 @@ struct srpt_port {
 struct srpt_device {
 	struct ib_device	*device;
 	struct ib_pd		*pd;
+	u32			lkey;
 	struct ib_srq		*srq;
 	struct ib_cm_id		*cm_id;
 	int			srq_size;
+	bool			use_srq;
 	struct srpt_recv_ioctx	**ioctx_ring;
 	struct list_head	rch_list;
 	wait_queue_head_t	ch_releaseQ;

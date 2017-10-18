@@ -1472,31 +1472,29 @@ static void cm_format_path_lid_from_req(struct cm_req_msg *req_msg,
 
 	if (primary_path->rec_type != SA_PATH_REC_TYPE_OPA) {
 		sa_path_set_dlid(primary_path,
-				 htonl(ntohs(req_msg->primary_local_lid)));
+				 ntohs(req_msg->primary_local_lid));
 		sa_path_set_slid(primary_path,
-				 htonl(ntohs(req_msg->primary_remote_lid)));
+				 ntohs(req_msg->primary_remote_lid));
 	} else {
 		lid = opa_get_lid_from_gid(&req_msg->primary_local_gid);
-		sa_path_set_dlid(primary_path, cpu_to_be32(lid));
+		sa_path_set_dlid(primary_path, lid);
 
 		lid = opa_get_lid_from_gid(&req_msg->primary_remote_gid);
-		sa_path_set_slid(primary_path, cpu_to_be32(lid));
+		sa_path_set_slid(primary_path, lid);
 	}
 
 	if (!cm_req_has_alt_path(req_msg))
 		return;
 
 	if (alt_path->rec_type != SA_PATH_REC_TYPE_OPA) {
-		sa_path_set_dlid(alt_path,
-				 htonl(ntohs(req_msg->alt_local_lid)));
-		sa_path_set_slid(alt_path,
-				 htonl(ntohs(req_msg->alt_remote_lid)));
+		sa_path_set_dlid(alt_path, ntohs(req_msg->alt_local_lid));
+		sa_path_set_slid(alt_path, ntohs(req_msg->alt_remote_lid));
 	} else {
 		lid = opa_get_lid_from_gid(&req_msg->alt_local_gid);
-		sa_path_set_dlid(alt_path, cpu_to_be32(lid));
+		sa_path_set_dlid(alt_path, lid);
 
 		lid = opa_get_lid_from_gid(&req_msg->alt_remote_gid);
-		sa_path_set_slid(alt_path, cpu_to_be32(lid));
+		sa_path_set_slid(alt_path, lid);
 	}
 }
 
@@ -2810,6 +2808,7 @@ int ib_send_cm_mra(struct ib_cm_id *cm_id,
 			msg_response = CM_MSG_RESPONSE_OTHER;
 			break;
 		}
+		/* fall through */
 	default:
 		ret = -EINVAL;
 		goto error1;
@@ -3037,14 +3036,14 @@ static void cm_format_path_lid_from_lap(struct cm_lap_msg *lap_msg,
 	u32 lid;
 
 	if (path->rec_type != SA_PATH_REC_TYPE_OPA) {
-		sa_path_set_dlid(path, htonl(ntohs(lap_msg->alt_local_lid)));
-		sa_path_set_slid(path, htonl(ntohs(lap_msg->alt_remote_lid)));
+		sa_path_set_dlid(path, ntohs(lap_msg->alt_local_lid));
+		sa_path_set_slid(path, ntohs(lap_msg->alt_remote_lid));
 	} else {
 		lid = opa_get_lid_from_gid(&lap_msg->alt_local_gid);
-		sa_path_set_dlid(path, cpu_to_be32(lid));
+		sa_path_set_dlid(path, lid);
 
 		lid = opa_get_lid_from_gid(&lap_msg->alt_remote_gid);
-		sa_path_set_slid(path, cpu_to_be32(lid));
+		sa_path_set_slid(path, lid);
 	}
 }
 

@@ -948,6 +948,11 @@ struct hns_roce_qp_context {
 #define QP_CONTEXT_QPC_BYTES_188_TX_RETRY_CUR_INDEX_M   \
 	(((1UL << 15) - 1) << QP_CONTEXT_QPC_BYTES_188_TX_RETRY_CUR_INDEX_S)
 
+#define STATUS_MASK		0xff
+#define GO_BIT_TIMEOUT_MSECS	10000
+#define HCR_STATUS_OFFSET	0x18
+#define HCR_GO_BIT		15
+
 struct hns_roce_rq_db {
 	u32    u32_4;
 	u32    u32_8;

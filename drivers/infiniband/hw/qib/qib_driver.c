@@ -735,11 +735,9 @@ void qib_set_led_override(struct qib_pportdata *ppd, unsigned int val)
 	 */
 	if (atomic_inc_return(&ppd->led_override_timer_active) == 1) {
 		/* Need to start timer */
-		init_timer(&ppd->led_override_timer);
-		ppd->led_override_timer.function = qib_run_led_override;
-		ppd->led_override_timer.data = (unsigned long) ppd;
-		ppd->led_override_timer.expires = jiffies + 1;
-		add_timer(&ppd->led_override_timer);
+		setup_timer(&ppd->led_override_timer, qib_run_led_override,
+			    (unsigned long)ppd);
+		mod_timer(&ppd->led_override_timer, jiffies + 1);
 	} else {
 		if (ppd->led_override_vals[0] || ppd->led_override_vals[1])
 			mod_timer(&ppd->led_override_timer, jiffies + 1);

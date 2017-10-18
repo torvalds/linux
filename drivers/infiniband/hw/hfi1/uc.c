@@ -93,7 +93,6 @@ int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		goto done_free_tx;
 	}
 
-	ps->s_txreq->phdr.hdr.hdr_type = priv->hdr_type;
 	if (priv->hdr_type == HFI1_PKT_TYPE_9B) {
 		/* header size in 32-bit words LRH+BTH = (8+12)/4. */
 		hwords = 5;

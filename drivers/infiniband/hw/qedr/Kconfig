@@ -1,6 +1,7 @@
 config INFINIBAND_QEDR
 	tristate "QLogic RoCE driver"
 	depends on 64BIT && QEDE
+	depends on PCI
 	select QED_LL2
 	select QED_RDMA
 	---help---

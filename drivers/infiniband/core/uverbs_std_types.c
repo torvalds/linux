@@ -246,7 +246,8 @@ static void create_udata(struct uverbs_attr_bundle *ctx,
 		outbuf_len = uhw_out->ptr_attr.len;
 	}
 
-	INIT_UDATA_BUF_OR_NULL(udata, inbuf, outbuf, inbuf_len, outbuf_len);
+	ib_uverbs_init_udata_buf_or_null(udata, inbuf, outbuf, inbuf_len,
+					 outbuf_len);
 }
 
 static int uverbs_create_cq_handler(struct ib_device *ib_dev,

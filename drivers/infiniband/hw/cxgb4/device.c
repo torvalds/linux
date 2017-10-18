@@ -811,8 +811,8 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 
 	rdev->qpmask = rdev->lldi.udb_density - 1;
 	rdev->cqmask = rdev->lldi.ucq_density - 1;
-	pr_debug("%s dev %s stag start 0x%0x size 0x%0x num stags %d pbl start 0x%0x size 0x%0x rq start 0x%0x size 0x%0x qp qid start %u size %u cq qid start %u size %u\n",
-		 __func__, pci_name(rdev->lldi.pdev), rdev->lldi.vr->stag.start,
+	pr_debug("dev %s stag start 0x%0x size 0x%0x num stags %d pbl start 0x%0x size 0x%0x rq start 0x%0x size 0x%0x qp qid start %u size %u cq qid start %u size %u\n",
+		 pci_name(rdev->lldi.pdev), rdev->lldi.vr->stag.start,
 		 rdev->lldi.vr->stag.size, c4iw_num_stags(rdev),
 		 rdev->lldi.vr->pbl.start,
 		 rdev->lldi.vr->pbl.size, rdev->lldi.vr->rq.start,
@@ -935,7 +935,7 @@ static void c4iw_dealloc(struct uld_ctx *ctx)
 
 static void c4iw_remove(struct uld_ctx *ctx)
 {
-	pr_debug("%s c4iw_dev %p\n", __func__,  ctx->dev);
+	pr_debug("c4iw_dev %p\n", ctx->dev);
 	c4iw_unregister_device(ctx->dev);
 	c4iw_dealloc(ctx);
 }
@@ -969,8 +969,8 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	devp->rdev.lldi = *infop;
 
 	/* init various hw-queue params based on lld info */
-	pr_debug("%s: Ing. padding boundary is %d, egrsstatuspagesize = %d\n",
-		 __func__, devp->rdev.lldi.sge_ingpadboundary,
+	pr_debug("Ing. padding boundary is %d, egrsstatuspagesize = %d\n",
+		 devp->rdev.lldi.sge_ingpadboundary,
 		 devp->rdev.lldi.sge_egrstatuspagesize);
 
 	devp->rdev.hw_queue.t4_eq_status_entries =
@@ -1069,8 +1069,8 @@ static void *c4iw_uld_add(const struct cxgb4_lld_info *infop)
 	}
 	ctx->lldi = *infop;
 
-	pr_debug("%s found device %s nchan %u nrxq %u ntxq %u nports %u\n",
-		 __func__, pci_name(ctx->lldi.pdev),
+	pr_debug("found device %s nchan %u nrxq %u ntxq %u nports %u\n",
+		 pci_name(ctx->lldi.pdev),
 		 ctx->lldi.nchan, ctx->lldi.nrxq,
 		 ctx->lldi.ntxq, ctx->lldi.nports);
 
@@ -1102,8 +1102,8 @@ static inline struct sk_buff *copy_gl_to_skb_pkt(const struct pkt_gl *gl,
 	if (unlikely(!skb))
 		return NULL;
 
-	 __skb_put(skb, gl->tot_len + sizeof(struct cpl_pass_accept_req) +
-		   sizeof(struct rss_header) - pktshift);
+	__skb_put(skb, gl->tot_len + sizeof(struct cpl_pass_accept_req) +
+		  sizeof(struct rss_header) - pktshift);
 
 	/*
 	 * This skb will contain:
@@ -1203,7 +1203,7 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 {
 	struct uld_ctx *ctx = handle;
 
-	pr_debug("%s new_state %u\n", __func__, new_state);
+	pr_debug("new_state %u\n", new_state);
 	switch (new_state) {
 	case CXGB4_STATE_UP:
 		pr_info("%s: Up\n", pci_name(ctx->lldi.pdev));
@@ -1517,6 +1517,27 @@ static struct cxgb4_uld_info c4iw_uld_info = {
 	.state_change = c4iw_uld_state_change,
 	.control = c4iw_uld_control,
 };
+
+void _c4iw_free_wr_wait(struct kref *kref)
+{
+	struct c4iw_wr_wait *wr_waitp;
+
+	wr_waitp = container_of(kref, struct c4iw_wr_wait, kref);
+	pr_debug("Free wr_wait %p\n", wr_waitp);
+	kfree(wr_waitp);
+}
+
+struct c4iw_wr_wait *c4iw_alloc_wr_wait(gfp_t gfp)
+{
+	struct c4iw_wr_wait *wr_waitp;
+
+	wr_waitp = kzalloc(sizeof(*wr_waitp), gfp);
+	if (wr_waitp) {
+		kref_init(&wr_waitp->kref);
+		pr_debug("wr_wait %p\n", wr_waitp);
+	}
+	return wr_waitp;
+}
 
 static int __init c4iw_init_module(void)
 {

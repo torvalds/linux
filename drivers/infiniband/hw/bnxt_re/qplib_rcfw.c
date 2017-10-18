@@ -88,7 +88,6 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw, struct cmdq_base *req,
 	unsigned long flags;
 	u32 size, opcode;
 	u16 cookie, cbit;
-	int pg, idx;
 	u8 *preq;
 
 	opcode = req->opcode;
@@ -149,9 +148,6 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw, struct cmdq_base *req,
 	preq = (u8 *)req;
 	size = req->cmd_size * BNXT_QPLIB_CMDQE_UNITS;
 	do {
-		pg = 0;
-		idx = 0;
-
 		/* Locate the next cmdq slot */
 		sw_prod = HWQ_CMP(cmdq->prod, cmdq);
 		cmdqe = &cmdq_ptr[get_cmdq_pg(sw_prod)][get_cmdq_idx(sw_prod)];
@@ -172,14 +168,14 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw, struct cmdq_base *req,
 	rcfw->seq_num++;
 
 	cmdq_prod = cmdq->prod;
-	if (rcfw->flags & FIRMWARE_FIRST_FLAG) {
+	if (test_bit(FIRMWARE_FIRST_FLAG, &rcfw->flags)) {
 		/* The very first doorbell write
 		 * is required to set this flag
 		 * which prompts the FW to reset
 		 * its internal pointers
 		 */
-		cmdq_prod |= FIRMWARE_FIRST_FLAG;
-		rcfw->flags &= ~FIRMWARE_FIRST_FLAG;
+		cmdq_prod |= BIT(FIRMWARE_FIRST_FLAG);
+		clear_bit(FIRMWARE_FIRST_FLAG, &rcfw->flags);
 	}
 
 	/* ring CMDQ DB */
@@ -622,7 +618,7 @@ int bnxt_qplib_enable_rcfw_channel(struct pci_dev *pdev,
 
 	/* General */
 	rcfw->seq_num = 0;
-	rcfw->flags = FIRMWARE_FIRST_FLAG;
+	set_bit(FIRMWARE_FIRST_FLAG, &rcfw->flags);
 	bmap_size = BITS_TO_LONGS(RCFW_MAX_OUTSTANDING_CMD *
 				  sizeof(unsigned long));
 	rcfw->cmdq_bitmap = kzalloc(bmap_size, GFP_KERNEL);

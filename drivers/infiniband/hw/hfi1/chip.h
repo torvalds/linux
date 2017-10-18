@@ -583,6 +583,9 @@ enum {
 #define LOOPBACK_LCB	2
 #define LOOPBACK_CABLE	3	/* external cable */
 
+/* set up serdes bit in MISC_CONFIG_BITS */
+#define LOOPBACK_SERDES_CONFIG_BIT_MASK_SHIFT 0
+
 /* read and write hardware registers */
 u64 read_csr(const struct hfi1_devdata *dd, u32 offset);
 void write_csr(const struct hfi1_devdata *dd, u32 offset, u64 value);
@@ -710,6 +713,7 @@ void read_misc_status(struct hfi1_devdata *dd, u8 *ver_major, u8 *ver_minor,
 		      u8 *ver_patch);
 int write_host_interface_version(struct hfi1_devdata *dd, u8 version);
 void read_guid(struct hfi1_devdata *dd);
+int release_and_wait_ready_8051_firmware(struct hfi1_devdata *dd);
 int wait_fm_ready(struct hfi1_devdata *dd, u32 mstimeout);
 void set_link_down_reason(struct hfi1_pportdata *ppd, u8 lcl_reason,
 			  u8 neigh_reason, u8 rem_reason);

@@ -160,11 +160,6 @@ void bnxt_qplib_add_flush_qp(struct bnxt_qplib_qp *qp)
 
 static void __bnxt_qplib_del_flush_qp(struct bnxt_qplib_qp *qp)
 {
-	struct bnxt_qplib_cq *scq, *rcq;
-
-	scq = qp->scq;
-	rcq = qp->rcq;
-
 	if (qp->sq.flushed) {
 		qp->sq.flushed = false;
 		list_del(&qp->sq_flush);
@@ -1360,7 +1355,7 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 
 			break;
 		}
-		/* else, just fall thru */
+		/* fall thru */
 	case BNXT_QPLIB_SWQE_TYPE_SEND_WITH_IMM:
 	case BNXT_QPLIB_SWQE_TYPE_SEND_WITH_INV:
 	{

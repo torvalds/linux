@@ -717,7 +717,6 @@ static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 
 		/* take qp out the hash and wait for it to be unused */
 		rvt_remove_qp(rdi, qp);
-		wait_event(qp->wait, !atomic_read(&qp->refcount));
 
 		/* grab the lock b/c it was locked at call time */
 		spin_lock_irq(&qp->r_lock);
@@ -807,6 +806,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		if (init_attr->port_num == 0 ||
 		    init_attr->port_num > ibpd->device->phys_port_cnt)
 			return ERR_PTR(-EINVAL);
+		/* fall through */
 	case IB_QPT_UC:
 	case IB_QPT_RC:
 	case IB_QPT_UD:
@@ -1443,6 +1443,7 @@ int rvt_destroy_qp(struct ib_qp *ibqp)
 	spin_unlock(&qp->s_hlock);
 	spin_unlock_irq(&qp->r_lock);
 
+	wait_event(qp->wait, !atomic_read(&qp->refcount));
 	/* qpn is now available for use again */
 	rvt_free_qpn(&rdi->qp_dev->qpn_table, qp->ibqp.qp_num);
 

@@ -711,6 +711,7 @@ static int check_mkey(struct hfi1_ibport *ibp, struct ib_mad_hdr *mad,
 			/* Bad mkey not a violation below level 2 */
 			if (ibp->rvp.mkeyprot < 2)
 				break;
+			/* fall through */
 		case IB_MGMT_METHOD_SET:
 		case IB_MGMT_METHOD_TRAP_REPRESS:
 			if (ibp->rvp.mkey_violations != 0xFFFF)
@@ -2888,7 +2889,6 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 	struct _vls_dctrs *vlinfo;
 	size_t response_data_size;
 	u32 num_ports;
-	u8 num_pslm;
 	u8 lq, num_vls;
 	u8 res_lli, res_ler;
 	u64 port_mask;
@@ -2898,7 +2898,6 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 	int vfi;
 
 	num_ports = be32_to_cpu(pmp->mad_hdr.attr_mod) >> 24;
-	num_pslm = hweight64(be64_to_cpu(req->port_select_mask[3]));
 	num_vls = hweight32(be32_to_cpu(req->vl_select_mask));
 	vl_select_mask = be32_to_cpu(req->vl_select_mask);
 	res_lli = (u8)(be32_to_cpu(req->resolution) & MSK_LLI) >> MSK_LLI_SFT;
@@ -4293,7 +4292,6 @@ static int opa_local_smp_check(struct hfi1_ibport *ibp,
 			       const struct ib_wc *in_wc)
 {
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
-	u16 slid = ib_lid_cpu16(in_wc->slid);
 	u16 pkey;
 
 	if (in_wc->pkey_index >= ARRAY_SIZE(ppd->pkeys))
@@ -4320,7 +4318,11 @@ static int opa_local_smp_check(struct hfi1_ibport *ibp,
 	 */
 	if (pkey == LIM_MGMT_P_KEY || pkey == FULL_MGMT_P_KEY)
 		return 0;
-	ingress_pkey_table_fail(ppd, pkey, slid);
+	/*
+	 * On OPA devices it is okay to lose the upper 16 bits of LID as this
+	 * information is obtained elsewhere. Mask off the upper 16 bits.
+	 */
+	ingress_pkey_table_fail(ppd, pkey, ib_lid_cpu16(0xFFFF & in_wc->slid));
 	return 1;
 }
 
