@@ -27,6 +27,7 @@
 /* banks shared by multiple phys */
 #define SSUSB_SIFSLV_V1_SPLLC		0x000	/* shared by u3 phys */
 #define SSUSB_SIFSLV_V1_U2FREQ		0x100	/* shared by u2 phys */
+#define SSUSB_SIFSLV_V1_CHIP		0x300	/* shared by u3 phys */
 /* u2 phy bank */
 #define SSUSB_SIFSLV_V1_U2PHY_COM	0x000
 /* u3/pcie/sata phy banks */
@@ -762,7 +763,7 @@ static void phy_v1_banks_init(struct mtk_tphy *tphy,
 	case PHY_TYPE_USB3:
 	case PHY_TYPE_PCIE:
 		u3_banks->spllc = tphy->sif_base + SSUSB_SIFSLV_V1_SPLLC;
-		u3_banks->chip = NULL;
+		u3_banks->chip = tphy->sif_base + SSUSB_SIFSLV_V1_CHIP;
 		u3_banks->phyd = instance->port_base + SSUSB_SIFSLV_V1_U3PHYD;
 		u3_banks->phya = instance->port_base + SSUSB_SIFSLV_V1_U3PHYA;
 		break;
