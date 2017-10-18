@@ -15,6 +15,7 @@
 #define _NVME_H
 
 #include <linux/nvme.h>
+#include <linux/cdev.h>
 #include <linux/pci.h>
 #include <linux/kref.h>
 #include <linux/blk-mq.h>
@@ -134,7 +135,7 @@ struct nvme_ctrl {
 	struct mutex namespaces_mutex;
 	struct device ctrl_device;
 	struct device *device;	/* char device */
-	struct list_head node;
+	struct cdev cdev;
 	struct ida ns_ida;
 	struct work_struct reset_work;
 
