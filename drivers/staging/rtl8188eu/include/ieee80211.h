@@ -202,9 +202,9 @@ enum NETWORK_TYPE {
 #define IsSupportedTxCCK(NetType)				\
 	((NetType) & (WIRELESS_11B) ? true : false)
 #define IsSupportedTxOFDM(NetType)				\
-	((NetType) & (WIRELESS_11G|WIRELESS_11A) ? true : false)
+	((NetType) & (WIRELESS_11G | WIRELESS_11A) ? true : false)
 #define IsSupportedTxMCS(NetType)				\
-	((NetType) & (WIRELESS_11_24N|WIRELESS_11_5N) ? true : false)
+	((NetType) & (WIRELESS_11_24N | WIRELESS_11_5N) ? true : false)
 
 
 struct ieee_param {
@@ -542,7 +542,7 @@ static inline int is_broadcast_mac_addr(const u8 *addr)
 #define IEEE_A	    BIT(0)
 #define IEEE_B	    BIT(1)
 #define IEEE_G	    BIT(2)
-#define IEEE_MODE_MASK    (IEEE_A|IEEE_B|IEEE_G)
+#define IEEE_MODE_MASK    (IEEE_A | IEEE_B | IEEE_G)
 
 /* Action category code */
 enum rtw_ieee80211_category {
