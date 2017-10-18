@@ -6357,6 +6357,7 @@ static const struct hda_model_fixup alc269_fixup_models[] = {
 	{.id = ALC292_FIXUP_TPT440, .name = "tpt440"},
 	{.id = ALC292_FIXUP_TPT460, .name = "tpt460"},
 	{.id = ALC233_FIXUP_LENOVO_MULTI_CODECS, .name = "dual-codecs"},
+	{.id = ALC700_FIXUP_INTEL_REFERENCE, .name = "alc700-ref"},
 	{}
 };
 #define ALC225_STANDARD_PINS \
