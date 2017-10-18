@@ -5108,6 +5108,7 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.avfs_control = vega10_avfs_enable,
 	.notify_cac_buffer_info = vega10_notify_cac_buffer_info,
 	.register_internal_thermal_interrupt = vega10_register_thermal_interrupt,
+	.start_thermal_controller = vega10_start_thermal_controller,
 };
 
 int vega10_hwmgr_init(struct pp_hwmgr *hwmgr)
