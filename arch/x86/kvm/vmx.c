@@ -3681,14 +3681,25 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 				SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE |
 				SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY);
 
+	rdmsr_safe(MSR_IA32_VMX_EPT_VPID_CAP,
+		&vmx_capability.ept, &vmx_capability.vpid);
+
 	if (_cpu_based_2nd_exec_control & SECONDARY_EXEC_ENABLE_EPT) {
 		/* CR3 accesses and invlpg don't need to cause VM Exits when EPT
 		   enabled */
 		_cpu_based_exec_control &= ~(CPU_BASED_CR3_LOAD_EXITING |
 					     CPU_BASED_CR3_STORE_EXITING |
 					     CPU_BASED_INVLPG_EXITING);
-		rdmsr(MSR_IA32_VMX_EPT_VPID_CAP,
-		      vmx_capability.ept, vmx_capability.vpid);
+	} else if (vmx_capability.ept) {
+		vmx_capability.ept = 0;
+		pr_warn_once("EPT CAP should not exist if not support "
+				"1-setting enable EPT VM-execution control\n");
+	}
+	if (!(_cpu_based_2nd_exec_control & SECONDARY_EXEC_ENABLE_VPID) &&
+		vmx_capability.vpid) {
+		vmx_capability.vpid = 0;
+		pr_warn_once("VPID CAP should not exist if not support "
+				"1-setting enable VPID VM-execution control\n");
 	}
 
 	min = VM_EXIT_SAVE_DEBUG_CONTROLS | VM_EXIT_ACK_INTR_ON_EXIT;
