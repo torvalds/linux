@@ -239,6 +239,10 @@ static const struct xfs_scrub_meta_ops meta_scrub_ops[] = {
 		.setup	= xfs_scrub_setup_xattr,
 		.scrub	= xfs_scrub_xattr,
 	},
+	{ /* symbolic link */
+		.setup	= xfs_scrub_setup_symlink,
+		.scrub	= xfs_scrub_symlink,
+	},
 };
 
 /* This isn't a stable feature, warn once per day. */

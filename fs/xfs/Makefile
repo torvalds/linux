@@ -156,5 +156,6 @@ xfs-y				+= $(addprefix scrub/, \
 				   refcount.o \
 				   rmap.o \
 				   scrub.o \
+				   symlink.o \
 				   )
 endif
