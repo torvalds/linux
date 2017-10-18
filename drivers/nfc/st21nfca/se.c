@@ -252,7 +252,7 @@ int st21nfca_hci_se_io(struct nfc_hci_dev *hdev, u32 se_idx,
 }
 EXPORT_SYMBOL(st21nfca_hci_se_io);
 
-static void st21nfca_se_wt_timeout(unsigned long data)
+static void st21nfca_se_wt_timeout(struct timer_list *t)
 {
 	/*
 	 * No answer from the secure element
@@ -265,7 +265,8 @@ static void st21nfca_se_wt_timeout(unsigned long data)
 	 */
 	/* hardware reset managed through VCC_UICC_OUT power supply */
 	u8 param = 0x01;
-	struct st21nfca_hci_info *info = (struct st21nfca_hci_info *) data;
+	struct st21nfca_hci_info *info = from_timer(info, t,
+						    se_info.bwi_timer);
 
 	pr_debug("\n");
 
@@ -283,9 +284,10 @@ static void st21nfca_se_wt_timeout(unsigned long data)
 	info->se_info.cb(info->se_info.cb_context, NULL, 0, -ETIME);
 }
 
-static void st21nfca_se_activation_timeout(unsigned long data)
+static void st21nfca_se_activation_timeout(struct timer_list *t)
 {
-	struct st21nfca_hci_info *info = (struct st21nfca_hci_info *) data;
+	struct st21nfca_hci_info *info = from_timer(info, t,
+						    se_info.se_active_timer);
 
 	pr_debug("\n");
 
@@ -392,12 +394,11 @@ void st21nfca_se_init(struct nfc_hci_dev *hdev)
 
 	init_completion(&info->se_info.req_completion);
 	/* initialize timers */
-	setup_timer(&info->se_info.bwi_timer, st21nfca_se_wt_timeout,
-		    (unsigned long)info);
+	timer_setup(&info->se_info.bwi_timer, st21nfca_se_wt_timeout, 0);
 	info->se_info.bwi_active = false;
 
-	setup_timer(&info->se_info.se_active_timer,
-		    st21nfca_se_activation_timeout, (unsigned long)info);
+	timer_setup(&info->se_info.se_active_timer,
+		    st21nfca_se_activation_timeout, 0);
 	info->se_info.se_active = false;
 
 	info->se_info.count_pipes = 0;

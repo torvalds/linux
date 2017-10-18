@@ -184,9 +184,9 @@ report:
 	nd->handler(nd);
 }
 
-static void ncsi_channel_monitor(unsigned long data)
+static void ncsi_channel_monitor(struct timer_list *t)
 {
-	struct ncsi_channel *nc = (struct ncsi_channel *)data;
+	struct ncsi_channel *nc = from_timer(nc, t, monitor.timer);
 	struct ncsi_package *np = nc->package;
 	struct ncsi_dev_priv *ndp = np->ndp;
 	struct ncsi_channel_mode *ncm;
@@ -313,8 +313,7 @@ struct ncsi_channel *ncsi_add_channel(struct ncsi_package *np, unsigned char id)
 	nc->package = np;
 	nc->state = NCSI_CHANNEL_INACTIVE;
 	nc->monitor.enabled = false;
-	setup_timer(&nc->monitor.timer,
-		    ncsi_channel_monitor, (unsigned long)nc);
+	timer_setup(&nc->monitor.timer, ncsi_channel_monitor, 0);
 	spin_lock_init(&nc->lock);
 	INIT_LIST_HEAD(&nc->link);
 	for (index = 0; index < NCSI_CAP_MAX; index++)

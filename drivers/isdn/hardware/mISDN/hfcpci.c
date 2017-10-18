@@ -301,8 +301,9 @@ reset_hfcpci(struct hfc_pci *hc)
  * Timer function called when kernel timer expires
  */
 static void
-hfcpci_Timer(struct hfc_pci *hc)
+hfcpci_Timer(struct timer_list *t)
 {
+	struct hfc_pci *hc = from_timer(hc, t, hw.timer);
 	hc->hw.timer.expires = jiffies + 75;
 	/* WD RESET */
 /*
@@ -2042,7 +2043,7 @@ setup_hw(struct hfc_pci *hc)
 	Write_hfc(hc, HFCPCI_INT_M1, hc->hw.int_m1);
 	/* At this point the needed PCI config is done */
 	/* fifos are still not enabled */
-	setup_timer(&hc->hw.timer, (void *)hfcpci_Timer, (long)hc);
+	timer_setup(&hc->hw.timer, hfcpci_Timer, 0);
 	/* default PCM master */
 	test_and_set_bit(HFC_CFG_MASTER, &hc->cfg);
 	return 0;
