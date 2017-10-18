@@ -288,6 +288,9 @@ int bpf_prog_array_copy_to_user(struct bpf_prog_array __rcu *progs,
 #ifdef CONFIG_BPF_SYSCALL
 DECLARE_PER_CPU(int, bpf_prog_active);
 
+extern const struct file_operations bpf_map_fops;
+extern const struct file_operations bpf_prog_fops;
+
 #define BPF_PROG_TYPE(_id, _name) \
 	extern const struct bpf_prog_ops _name ## _prog_ops; \
 	extern const struct bpf_verifier_ops _name ## _verifier_ops;
