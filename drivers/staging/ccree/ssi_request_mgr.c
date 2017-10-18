@@ -272,7 +272,7 @@ int send_request(
 	unsigned int max_required_seq_len = (total_seq_len +
 					((ssi_req->ivgen_dma_addr_len == 0) ? 0 :
 					SSI_IVPOOL_SEQ_LEN) +
-					((is_dout == 0) ? 1 : 0));
+					(!is_dout ? 1 : 0));
 
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 	rc = ssi_power_mgr_runtime_get(dev);
