@@ -87,5 +87,20 @@ int xfs_scrub_directory(struct xfs_scrub_context *sc);
 int xfs_scrub_xattr(struct xfs_scrub_context *sc);
 int xfs_scrub_symlink(struct xfs_scrub_context *sc);
 int xfs_scrub_parent(struct xfs_scrub_context *sc);
+#ifdef CONFIG_XFS_RT
+int xfs_scrub_rtbitmap(struct xfs_scrub_context *sc);
+int xfs_scrub_rtsummary(struct xfs_scrub_context *sc);
+#else
+static inline int
+xfs_scrub_rtbitmap(struct xfs_scrub_context *sc)
+{
+	return -ENOENT;
+}
+static inline int
+xfs_scrub_rtsummary(struct xfs_scrub_context *sc)
+{
+	return -ENOENT;
+}
+#endif
 
 #endif	/* __XFS_SCRUB_SCRUB_H__ */

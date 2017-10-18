@@ -159,4 +159,6 @@ xfs-y				+= $(addprefix scrub/, \
 				   scrub.o \
 				   symlink.o \
 				   )
+
+xfs-$(CONFIG_XFS_RT)		+= scrub/rtbitmap.o
 endif

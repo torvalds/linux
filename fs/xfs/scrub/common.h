@@ -101,6 +101,15 @@ int xfs_scrub_setup_symlink(struct xfs_scrub_context *sc,
 			    struct xfs_inode *ip);
 int xfs_scrub_setup_parent(struct xfs_scrub_context *sc,
 			   struct xfs_inode *ip);
+#ifdef CONFIG_XFS_RT
+int xfs_scrub_setup_rt(struct xfs_scrub_context *sc, struct xfs_inode *ip);
+#else
+static inline int
+xfs_scrub_setup_rt(struct xfs_scrub_context *sc, struct xfs_inode *ip)
+{
+	return -ENOENT;
+}
+#endif
 
 void xfs_scrub_ag_free(struct xfs_scrub_context *sc, struct xfs_scrub_ag *sa);
 int xfs_scrub_ag_init(struct xfs_scrub_context *sc, xfs_agnumber_t agno,
