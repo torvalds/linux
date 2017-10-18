@@ -182,6 +182,15 @@ static const struct xfs_scrub_meta_ops meta_scrub_ops[] = {
 		.setup	= xfs_scrub_setup_ag_allocbt,
 		.scrub	= xfs_scrub_cntbt,
 	},
+	{ /* inobt */
+		.setup	= xfs_scrub_setup_ag_iallocbt,
+		.scrub	= xfs_scrub_inobt,
+	},
+	{ /* finobt */
+		.setup	= xfs_scrub_setup_ag_iallocbt,
+		.scrub	= xfs_scrub_finobt,
+		.has	= xfs_sb_version_hasfinobt,
+	},
 };
 
 /* This isn't a stable feature, warn once per day. */

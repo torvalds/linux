@@ -40,6 +40,8 @@
 #include "xfs_refcount_btree.h"
 #include "xfs_rmap.h"
 #include "xfs_rmap_btree.h"
+#include "xfs_log.h"
+#include "xfs_trans_priv.h"
 #include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
@@ -451,11 +453,38 @@ xfs_scrub_setup_ag_btree(
 	struct xfs_inode		*ip,
 	bool				force_log)
 {
+	struct xfs_mount		*mp = sc->mp;
 	int				error;
+
+	/*
+	 * If the caller asks us to checkpont the log, do so.  This
+	 * expensive operation should be performed infrequently and only
+	 * as a last resort.  Any caller that sets force_log should
+	 * document why they need to do so.
+	 */
+	if (force_log) {
+		error = xfs_scrub_checkpoint_log(mp);
+		if (error)
+			return error;
+	}
 
 	error = xfs_scrub_setup_ag_header(sc, ip);
 	if (error)
 		return error;
 
 	return xfs_scrub_ag_init(sc, sc->sm->sm_agno, &sc->sa);
+}
+
+/* Push everything out of the log onto disk. */
+int
+xfs_scrub_checkpoint_log(
+	struct xfs_mount	*mp)
+{
+	int			error;
+
+	error = _xfs_log_force(mp, XFS_LOG_SYNC, NULL);
+	if (error)
+		return error;
+	xfs_ail_push_all_sync(mp->m_ail);
+	return 0;
 }

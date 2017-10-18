@@ -73,6 +73,7 @@ void xfs_scrub_fblock_set_warning(struct xfs_scrub_context *sc, int whichfork,
 		xfs_fileoff_t offset);
 
 void xfs_scrub_set_incomplete(struct xfs_scrub_context *sc);
+int xfs_scrub_checkpoint_log(struct xfs_mount *mp);
 
 /* Setup functions */
 int xfs_scrub_setup_fs(struct xfs_scrub_context *sc, struct xfs_inode *ip);
@@ -80,6 +81,8 @@ int xfs_scrub_setup_ag_header(struct xfs_scrub_context *sc,
 			      struct xfs_inode *ip);
 int xfs_scrub_setup_ag_allocbt(struct xfs_scrub_context *sc,
 			       struct xfs_inode *ip);
+int xfs_scrub_setup_ag_iallocbt(struct xfs_scrub_context *sc,
+				struct xfs_inode *ip);
 
 
 void xfs_scrub_ag_free(struct xfs_scrub_context *sc, struct xfs_scrub_ag *sa);

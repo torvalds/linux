@@ -147,6 +147,7 @@ xfs-y				+= $(addprefix scrub/, \
 				   alloc.o \
 				   btree.o \
 				   common.o \
+				   ialloc.o \
 				   scrub.o \
 				   )
 endif
