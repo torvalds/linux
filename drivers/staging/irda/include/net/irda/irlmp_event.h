@@ -82,9 +82,9 @@ typedef enum {
 extern const char *const irlmp_state[];
 extern const char *const irlsap_state[];
 
-void irlmp_watchdog_timer_expired(void *data);
-void irlmp_discovery_timer_expired(void *data);
-void irlmp_idle_timer_expired(void *data);
+void irlmp_watchdog_timer_expired(struct timer_list *t);
+void irlmp_discovery_timer_expired(struct timer_list *t);
+void irlmp_idle_timer_expired(struct timer_list *t);
 
 void irlmp_do_lap_event(struct lap_cb *self, IRLMP_EVENT event, 
 			struct sk_buff *skb);

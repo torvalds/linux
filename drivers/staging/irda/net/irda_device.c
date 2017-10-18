@@ -57,7 +57,7 @@ static void __irda_task_delete(struct irda_task *task);
 static hashbin_t *dongles;
 static hashbin_t *tasks;
 
-static void irda_task_timer_expired(void *data);
+static void irda_task_timer_expired(struct timer_list *timer);
 
 int __init irda_device_init(void)
 {
@@ -233,7 +233,7 @@ static int irda_task_kick(struct irda_task *task)
 		}
 		irda_task_delete(task);
 	} else if (timeout > 0) {
-		irda_start_timer(&task->timer, timeout, (void *)task,
+		irda_start_timer(&task->timer, timeout,
 				 irda_task_timer_expired);
 		finished = FALSE;
 	} else {
@@ -251,11 +251,9 @@ static int irda_task_kick(struct irda_task *task)
  *    Task time has expired. We now try to execute task (again), and restart
  *    the timer if the task has not finished yet
  */
-static void irda_task_timer_expired(void *data)
+static void irda_task_timer_expired(struct timer_list *t)
 {
-	struct irda_task *task;
-
-	task = data;
+	struct irda_task *task = from_timer(task, t, timer);
 
 	irda_task_kick(task);
 }

@@ -163,9 +163,9 @@ static int (*state[])(struct irlap_cb *self, IRLAP_EVENT event,
  *    Poll timer has expired. Normally we must now send a RR frame to the
  *    remote device
  */
-static void irlap_poll_timer_expired(void *data)
+static void irlap_poll_timer_expired(struct timer_list *t)
 {
-	struct irlap_cb *self = (struct irlap_cb *) data;
+	struct irlap_cb *self = from_timer(self, t, poll_timer);
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == LAP_MAGIC, return;);
@@ -222,7 +222,7 @@ static void irlap_start_poll_timer(struct irlap_cb *self, int timeout)
 	if (timeout == 0)
 		irlap_do_event(self, POLL_TIMER_EXPIRED, NULL, NULL);
 	else
-		irda_start_timer(&self->poll_timer, timeout, self,
+		irda_start_timer(&self->poll_timer, timeout,
 				 irlap_poll_timer_expired);
 }
 
