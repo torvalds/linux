@@ -132,7 +132,7 @@ static void pm8001_phy_init(struct pm8001_hba_info *pm8001_ha, int phy_id)
 	sas_phy->oob_mode = OOB_NOT_CONNECTED;
 	sas_phy->linkrate = SAS_LINK_RATE_UNKNOWN;
 	sas_phy->id = phy_id;
-	sas_phy->sas_addr = &pm8001_ha->sas_addr[0];
+	sas_phy->sas_addr = (u8 *)&phy->dev_sas_addr;
 	sas_phy->frame_rcvd = &phy->frame_rcvd[0];
 	sas_phy->ha = (struct sas_ha_struct *)pm8001_ha->shost->hostdata;
 	sas_phy->lldd_phy = phy;
@@ -591,10 +591,12 @@ static void  pm8001_post_sas_ha_init(struct Scsi_Host *shost,
 	for (i = 0; i < chip_info->n_phy; i++) {
 		sha->sas_phy[i] = &pm8001_ha->phy[i].sas_phy;
 		sha->sas_port[i] = &pm8001_ha->port[i].sas_port;
+		sha->sas_phy[i]->sas_addr =
+			(u8 *)&pm8001_ha->phy[i].dev_sas_addr;
 	}
 	sha->sas_ha_name = DRV_NAME;
 	sha->dev = pm8001_ha->dev;
-
+	sha->strict_wide_ports = 1;
 	sha->lldd_module = THIS_MODULE;
 	sha->sas_addr = &pm8001_ha->sas_addr[0];
 	sha->num_phys = chip_info->n_phy;
@@ -611,6 +613,7 @@ static void  pm8001_post_sas_ha_init(struct Scsi_Host *shost,
 static void pm8001_init_sas_add(struct pm8001_hba_info *pm8001_ha)
 {
 	u8 i, j;
+	u8 sas_add[8];
 #ifdef PM8001_READ_VPD
 	/* For new SPC controllers WWN is stored in flash vpd
 	*  For SPC/SPCve controllers WWN is stored in EEPROM
@@ -672,10 +675,12 @@ static void pm8001_init_sas_add(struct pm8001_hba_info *pm8001_ha)
 			pm8001_ha->sas_addr[j] =
 					payload.func_specific[0x804 + i];
 	}
-
+	memcpy(sas_add, pm8001_ha->sas_addr, SAS_ADDR_SIZE);
 	for (i = 0; i < pm8001_ha->chip->n_phy; i++) {
+		if (i && ((i % 4) == 0))
+			sas_add[7] = sas_add[7] + 4;
 		memcpy(&pm8001_ha->phy[i].dev_sas_addr,
-			pm8001_ha->sas_addr, SAS_ADDR_SIZE);
+			sas_add, SAS_ADDR_SIZE);
 		PM8001_INIT_DBG(pm8001_ha,
 			pm8001_printk("phy %d sas_addr = %016llx\n", i,
 			pm8001_ha->phy[i].dev_sas_addr));

@@ -3041,7 +3041,6 @@ hw_event_phy_down(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	port->port_state = portstate;
 	phy->identify.device_type = 0;
 	phy->phy_attached = 0;
-	memset(&phy->dev_sas_addr, 0, SAS_ADDR_SIZE);
 	switch (portstate) {
 	case PORT_VALID:
 		break;
@@ -4394,7 +4393,7 @@ pm80xx_chip_phy_start_req(struct pm8001_hba_info *pm8001_ha, u8 phy_id)
 	payload.sas_identify.dev_type = SAS_END_DEVICE;
 	payload.sas_identify.initiator_bits = SAS_PROTOCOL_ALL;
 	memcpy(payload.sas_identify.sas_addr,
-		pm8001_ha->sas_addr, SAS_ADDR_SIZE);
+	  &pm8001_ha->phy[phy_id].dev_sas_addr, SAS_ADDR_SIZE);
 	payload.sas_identify.phy_id = phy_id;
 	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opcode, &payload, 0);
 	return ret;
