@@ -2692,14 +2692,10 @@ nvme_fc_del_nvme_ctrl(struct nvme_ctrl *nctrl)
 	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(nctrl);
 	int ret;
 
-	if (!kref_get_unless_zero(&ctrl->ctrl.kref))
-		return -EBUSY;
-
+	nvme_get_ctrl(&ctrl->ctrl);
 	ret = __nvme_fc_del_ctrl(ctrl);
-
 	if (!ret)
 		flush_workqueue(nvme_wq);
-
 	nvme_put_ctrl(&ctrl->ctrl);
 
 	return ret;
@@ -2918,7 +2914,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 		return ERR_PTR(ret);
 	}
 
-	kref_get(&ctrl->ctrl.kref);
+	nvme_get_ctrl(&ctrl->ctrl);
 
 	dev_info(ctrl->ctrl.device,
 		"NVME-FC{%d}: new ctrl: NQN \"%s\"\n",

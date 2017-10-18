@@ -1793,8 +1793,7 @@ static int nvme_rdma_del_ctrl(struct nvme_ctrl *nctrl)
 	 * Keep a reference until all work is flushed since
 	 * __nvme_rdma_del_ctrl can free the ctrl mem
 	 */
-	if (!kref_get_unless_zero(&ctrl->ctrl.kref))
-		return -EBUSY;
+	nvme_get_ctrl(&ctrl->ctrl);
 	ret = __nvme_rdma_del_ctrl(ctrl);
 	if (!ret)
 		flush_work(&ctrl->delete_work);
@@ -1955,7 +1954,7 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 	dev_info(ctrl->ctrl.device, "new ctrl: NQN \"%s\", addr %pISpcs\n",
 		ctrl->ctrl.opts->subsysnqn, &ctrl->addr);
 
-	kref_get(&ctrl->ctrl.kref);
+	nvme_get_ctrl(&ctrl->ctrl);
 
 	mutex_lock(&nvme_rdma_ctrl_mutex);
 	list_add_tail(&ctrl->list, &nvme_rdma_ctrl_list);

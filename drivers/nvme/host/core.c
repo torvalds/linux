@@ -1915,7 +1915,7 @@ static int nvme_dev_open(struct inode *inode, struct file *file)
 			ret = -EWOULDBLOCK;
 			break;
 		}
-		if (!kref_get_unless_zero(&ctrl->kref))
+		if (!kobject_get_unless_zero(&ctrl->device->kobj))
 			break;
 		file->private_data = ctrl;
 		ret = 0;
@@ -2374,7 +2374,7 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	list_add_tail(&ns->list, &ctrl->namespaces);
 	mutex_unlock(&ctrl->namespaces_mutex);
 
-	kref_get(&ctrl->kref);
+	nvme_get_ctrl(ctrl);
 
 	kfree(id);
 
@@ -2703,7 +2703,7 @@ EXPORT_SYMBOL_GPL(nvme_start_ctrl);
 
 void nvme_uninit_ctrl(struct nvme_ctrl *ctrl)
 {
-	device_destroy(nvme_class, MKDEV(nvme_char_major, ctrl->instance));
+	device_del(ctrl->device);
 
 	spin_lock(&dev_list_lock);
 	list_del(&ctrl->node);
@@ -2711,22 +2711,16 @@ void nvme_uninit_ctrl(struct nvme_ctrl *ctrl)
 }
 EXPORT_SYMBOL_GPL(nvme_uninit_ctrl);
 
-static void nvme_free_ctrl(struct kref *kref)
+static void nvme_free_ctrl(struct device *dev)
 {
-	struct nvme_ctrl *ctrl = container_of(kref, struct nvme_ctrl, kref);
+	struct nvme_ctrl *ctrl =
+		container_of(dev, struct nvme_ctrl, ctrl_device);
 
-	put_device(ctrl->device);
 	ida_simple_remove(&nvme_instance_ida, ctrl->instance);
 	ida_destroy(&ctrl->ns_ida);
 
 	ctrl->ops->free_ctrl(ctrl);
 }
-
-void nvme_put_ctrl(struct nvme_ctrl *ctrl)
-{
-	kref_put(&ctrl->kref, nvme_free_ctrl);
-}
-EXPORT_SYMBOL_GPL(nvme_put_ctrl);
 
 /*
  * Initialize a NVMe controller structures.  This needs to be called during
@@ -2742,7 +2736,6 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 	spin_lock_init(&ctrl->lock);
 	INIT_LIST_HEAD(&ctrl->namespaces);
 	mutex_init(&ctrl->namespaces_mutex);
-	kref_init(&ctrl->kref);
 	ctrl->dev = dev;
 	ctrl->ops = ops;
 	ctrl->quirks = quirks;
@@ -2755,15 +2748,21 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 		goto out;
 	ctrl->instance = ret;
 
-	ctrl->device = device_create_with_groups(nvme_class, ctrl->dev,
-				MKDEV(nvme_char_major, ctrl->instance),
-				ctrl, nvme_dev_attr_groups,
-				"nvme%d", ctrl->instance);
-	if (IS_ERR(ctrl->device)) {
-		ret = PTR_ERR(ctrl->device);
+	device_initialize(&ctrl->ctrl_device);
+	ctrl->device = &ctrl->ctrl_device;
+	ctrl->device->devt = MKDEV(nvme_char_major, ctrl->instance);
+	ctrl->device->class = nvme_class;
+	ctrl->device->parent = ctrl->dev;
+	ctrl->device->groups = nvme_dev_attr_groups;
+	ctrl->device->release = nvme_free_ctrl;
+	dev_set_drvdata(ctrl->device, ctrl);
+	ret = dev_set_name(ctrl->device, "nvme%d", ctrl->instance);
+	if (ret)
 		goto out_release_instance;
-	}
-	get_device(ctrl->device);
+	ret = device_add(ctrl->device);
+	if (ret)
+		goto out_free_name;
+
 	ida_init(&ctrl->ns_ida);
 
 	spin_lock(&dev_list_lock);
@@ -2779,6 +2778,8 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 		min(default_ps_max_latency_us, (unsigned long)S32_MAX));
 
 	return 0;
+out_free_name:
+	kfree_const(dev->kobj.name);
 out_release_instance:
 	ida_simple_remove(&nvme_instance_ida, ctrl->instance);
 out:

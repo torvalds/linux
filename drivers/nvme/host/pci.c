@@ -2292,7 +2292,7 @@ static void nvme_remove_dead_ctrl(struct nvme_dev *dev, int status)
 {
 	dev_warn(dev->ctrl.device, "Removing after probe failure status: %d\n", status);
 
-	kref_get(&dev->ctrl.kref);
+	nvme_get_ctrl(&dev->ctrl);
 	nvme_dev_disable(dev, false);
 	if (!schedule_work(&dev->remove_work))
 		nvme_put_ctrl(&dev->ctrl);

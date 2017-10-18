@@ -127,12 +127,12 @@ struct nvme_ctrl {
 	struct request_queue *admin_q;
 	struct request_queue *connect_q;
 	struct device *dev;
-	struct kref kref;
 	int instance;
 	struct blk_mq_tag_set *tagset;
 	struct blk_mq_tag_set *admin_tagset;
 	struct list_head namespaces;
 	struct mutex namespaces_mutex;
+	struct device ctrl_device;
 	struct device *device;	/* char device */
 	struct list_head node;
 	struct ida ns_ida;
@@ -277,6 +277,16 @@ static inline void nvme_end_request(struct request *req, __le16 status,
 	rq->status = le16_to_cpu(status) >> 1;
 	rq->result = result;
 	blk_mq_complete_request(req);
+}
+
+static inline void nvme_get_ctrl(struct nvme_ctrl *ctrl)
+{
+	get_device(ctrl->device);
+}
+
+static inline void nvme_put_ctrl(struct nvme_ctrl *ctrl)
+{
+	put_device(ctrl->device);
 }
 
 void nvme_complete_rq(struct request *req);
