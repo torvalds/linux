@@ -504,7 +504,7 @@ bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type,
 	*(u32 *)&sub.usr_handle = port;
 
 	con = tipc_alloc_conn(tipc_topsrv(net));
-	if (!con)
+	if (IS_ERR(con))
 		return false;
 
 	*conid = con->conid;
