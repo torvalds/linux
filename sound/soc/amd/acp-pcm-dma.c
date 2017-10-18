@@ -35,6 +35,11 @@
 #define MAX_BUFFER (PLAYBACK_MAX_PERIOD_SIZE * PLAYBACK_MAX_NUM_PERIODS)
 #define MIN_BUFFER MAX_BUFFER
 
+#define ST_PLAYBACK_MAX_PERIOD_SIZE 8192
+#define ST_CAPTURE_MAX_PERIOD_SIZE  ST_PLAYBACK_MAX_PERIOD_SIZE
+#define ST_MAX_BUFFER (ST_PLAYBACK_MAX_PERIOD_SIZE * PLAYBACK_MAX_NUM_PERIODS)
+#define ST_MIN_BUFFER ST_MAX_BUFFER
+
 static const struct snd_pcm_hardware acp_pcm_hardware_playback = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_MMAP |
@@ -69,6 +74,44 @@ static const struct snd_pcm_hardware acp_pcm_hardware_capture = {
 	.buffer_bytes_max = CAPTURE_MAX_NUM_PERIODS * CAPTURE_MAX_PERIOD_SIZE,
 	.period_bytes_min = CAPTURE_MIN_PERIOD_SIZE,
 	.period_bytes_max = CAPTURE_MAX_PERIOD_SIZE,
+	.periods_min = CAPTURE_MIN_NUM_PERIODS,
+	.periods_max = CAPTURE_MAX_NUM_PERIODS,
+};
+
+static const struct snd_pcm_hardware acp_st_pcm_hardware_playback = {
+	.info = SNDRV_PCM_INFO_INTERLEAVED |
+		SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_MMAP |
+		SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_BATCH |
+		SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME,
+	.formats = SNDRV_PCM_FMTBIT_S16_LE |
+		SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE,
+	.channels_min = 1,
+	.channels_max = 8,
+	.rates = SNDRV_PCM_RATE_8000_96000,
+	.rate_min = 8000,
+	.rate_max = 96000,
+	.buffer_bytes_max = ST_MAX_BUFFER,
+	.period_bytes_min = PLAYBACK_MIN_PERIOD_SIZE,
+	.period_bytes_max = ST_PLAYBACK_MAX_PERIOD_SIZE,
+	.periods_min = PLAYBACK_MIN_NUM_PERIODS,
+	.periods_max = PLAYBACK_MAX_NUM_PERIODS,
+};
+
+static const struct snd_pcm_hardware acp_st_pcm_hardware_capture = {
+	.info = SNDRV_PCM_INFO_INTERLEAVED |
+		SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_MMAP |
+		SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_BATCH |
+		SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME,
+	.formats = SNDRV_PCM_FMTBIT_S16_LE |
+		SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE,
+	.channels_min = 1,
+	.channels_max = 2,
+	.rates = SNDRV_PCM_RATE_8000_48000,
+	.rate_min = 8000,
+	.rate_max = 48000,
+	.buffer_bytes_max = ST_MAX_BUFFER,
+	.period_bytes_min = CAPTURE_MIN_PERIOD_SIZE,
+	.period_bytes_max = ST_CAPTURE_MAX_PERIOD_SIZE,
 	.periods_min = CAPTURE_MIN_NUM_PERIODS,
 	.periods_max = CAPTURE_MAX_NUM_PERIODS,
 };
@@ -664,10 +707,23 @@ static int acp_dma_open(struct snd_pcm_substream *substream)
 	if (adata == NULL)
 		return -ENOMEM;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		runtime->hw = acp_pcm_hardware_playback;
-	else
-		runtime->hw = acp_pcm_hardware_capture;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		switch (intr_data->asic_type) {
+		case CHIP_STONEY:
+			runtime->hw = acp_st_pcm_hardware_playback;
+			break;
+		default:
+			runtime->hw = acp_pcm_hardware_playback;
+		}
+	} else {
+		switch (intr_data->asic_type) {
+		case CHIP_STONEY:
+			runtime->hw = acp_st_pcm_hardware_capture;
+			break;
+		default:
+			runtime->hw = acp_pcm_hardware_capture;
+		}
+	}
 
 	ret = snd_pcm_hw_constraint_integer(runtime,
 					    SNDRV_PCM_HW_PARAM_PERIODS);
@@ -905,10 +961,27 @@ static int acp_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 
 static int acp_dma_new(struct snd_soc_pcm_runtime *rtd)
 {
-	return snd_pcm_lib_preallocate_pages_for_all(rtd->pcm,
+	int ret;
+	struct audio_drv_data *adata = dev_get_drvdata(rtd->platform->dev);
+
+	switch (adata->asic_type) {
+	case CHIP_STONEY:
+		ret = snd_pcm_lib_preallocate_pages_for_all(rtd->pcm,
+							SNDRV_DMA_TYPE_DEV,
+							NULL, ST_MIN_BUFFER,
+							ST_MAX_BUFFER);
+		break;
+	default:
+		ret = snd_pcm_lib_preallocate_pages_for_all(rtd->pcm,
 							SNDRV_DMA_TYPE_DEV,
 							NULL, MIN_BUFFER,
 							MAX_BUFFER);
+		break;
+	}
+	if (ret < 0)
+		dev_err(rtd->platform->dev,
+				"buffer preallocation failer error:%d\n", ret);
+	return ret;
 }
 
 static int acp_dma_close(struct snd_pcm_substream *substream)
