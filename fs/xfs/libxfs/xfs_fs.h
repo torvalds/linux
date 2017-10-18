@@ -494,9 +494,10 @@ struct xfs_scrub_metadata {
 #define XFS_SCRUB_TYPE_FINOBT	8	/* free inode btree */
 #define XFS_SCRUB_TYPE_RMAPBT	9	/* reverse mapping btree */
 #define XFS_SCRUB_TYPE_REFCNTBT	10	/* reference count btree */
+#define XFS_SCRUB_TYPE_INODE	11	/* inode record */
 
 /* Number of scrub subcommands. */
-#define XFS_SCRUB_TYPE_NR	11
+#define XFS_SCRUB_TYPE_NR	12
 
 /* i: Repair this metadata. */
 #define XFS_SCRUB_IFLAG_REPAIR		(1 << 0)

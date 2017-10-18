@@ -30,6 +30,8 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_inode.h"
+#include "xfs_icache.h"
+#include "xfs_itable.h"
 #include "xfs_alloc.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_bmap.h"
@@ -486,5 +488,57 @@ xfs_scrub_checkpoint_log(
 	if (error)
 		return error;
 	xfs_ail_push_all_sync(mp->m_ail);
+	return 0;
+}
+
+/*
+ * Given an inode and the scrub control structure, grab either the
+ * inode referenced in the control structure or the inode passed in.
+ * The inode is not locked.
+ */
+int
+xfs_scrub_get_inode(
+	struct xfs_scrub_context	*sc,
+	struct xfs_inode		*ip_in)
+{
+	struct xfs_mount		*mp = sc->mp;
+	struct xfs_inode		*ip = NULL;
+	int				error;
+
+	/*
+	 * If userspace passed us an AG number or a generation number
+	 * without an inode number, they haven't got a clue so bail out
+	 * immediately.
+	 */
+	if (sc->sm->sm_agno || (sc->sm->sm_gen && !sc->sm->sm_ino))
+		return -EINVAL;
+
+	/* We want to scan the inode we already had opened. */
+	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == ip_in->i_ino) {
+		sc->ip = ip_in;
+		return 0;
+	}
+
+	/* Look up the inode, see if the generation number matches. */
+	if (xfs_internal_inum(mp, sc->sm->sm_ino))
+		return -ENOENT;
+	error = xfs_iget(mp, NULL, sc->sm->sm_ino,
+			XFS_IGET_UNTRUSTED | XFS_IGET_DONTCACHE, 0, &ip);
+	if (error == -ENOENT || error == -EINVAL) {
+		/* inode doesn't exist... */
+		return -ENOENT;
+	} else if (error) {
+		trace_xfs_scrub_op_error(sc,
+				XFS_INO_TO_AGNO(mp, sc->sm->sm_ino),
+				XFS_INO_TO_AGBNO(mp, sc->sm->sm_ino),
+				error, __return_address);
+		return error;
+	}
+	if (VFS_I(ip)->i_generation != sc->sm->sm_gen) {
+		iput(VFS_I(ip));
+		return -ENOENT;
+	}
+
+	sc->ip = ip;
 	return 0;
 }

@@ -1202,6 +1202,8 @@ out_unlock:
  * 8. for non-realtime files, the extent size hint must be limited
  *    to half the AG size to avoid alignment extending the extent beyond the
  *    limits of the AG.
+ *
+ * Please keep this function in sync with xfs_scrub_inode_extsize.
  */
 static int
 xfs_ioctl_setattr_check_extsize(
@@ -1258,6 +1260,8 @@ xfs_ioctl_setattr_check_extsize(
  * 5. Extent size must be a multiple of the appropriate block size.
  * 6. The extent size hint must be limited to half the AG size to avoid
  *    alignment extending the extent beyond the limits of the AG.
+ *
+ * Please keep this function in sync with xfs_scrub_inode_cowextsize.
  */
 static int
 xfs_ioctl_setattr_check_cowextsize(
