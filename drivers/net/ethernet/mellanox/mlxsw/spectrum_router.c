@@ -5209,25 +5209,35 @@ static void mlxsw_sp_router_fibmr_event_work(struct work_struct *work)
 static void mlxsw_sp_router_fib4_event(struct mlxsw_sp_fib_event_work *fib_work,
 				       struct fib_notifier_info *info)
 {
+	struct fib_entry_notifier_info *fen_info;
+	struct fib_rule_notifier_info *fr_info;
+	struct fib_nh_notifier_info *fnh_info;
+
 	switch (fib_work->event) {
 	case FIB_EVENT_ENTRY_REPLACE: /* fall through */
 	case FIB_EVENT_ENTRY_APPEND: /* fall through */
 	case FIB_EVENT_ENTRY_ADD: /* fall through */
 	case FIB_EVENT_ENTRY_DEL:
-		memcpy(&fib_work->fen_info, info, sizeof(fib_work->fen_info));
-		/* Take referece on fib_info to prevent it from being
+		fen_info = container_of(info, struct fib_entry_notifier_info,
+					info);
+		fib_work->fen_info = *fen_info;
+		/* Take reference on fib_info to prevent it from being
 		 * freed while work is queued. Release it afterwards.
 		 */
 		fib_info_hold(fib_work->fen_info.fi);
 		break;
 	case FIB_EVENT_RULE_ADD: /* fall through */
 	case FIB_EVENT_RULE_DEL:
-		memcpy(&fib_work->fr_info, info, sizeof(fib_work->fr_info));
+		fr_info = container_of(info, struct fib_rule_notifier_info,
+				       info);
+		fib_work->fr_info = *fr_info;
 		fib_rule_get(fib_work->fr_info.rule);
 		break;
 	case FIB_EVENT_NH_ADD: /* fall through */
 	case FIB_EVENT_NH_DEL:
-		memcpy(&fib_work->fnh_info, info, sizeof(fib_work->fnh_info));
+		fnh_info = container_of(info, struct fib_nh_notifier_info,
+					info);
+		fib_work->fnh_info = *fnh_info;
 		fib_info_hold(fib_work->fnh_info.fib_nh->nh_parent);
 		break;
 	}
@@ -5236,16 +5246,23 @@ static void mlxsw_sp_router_fib4_event(struct mlxsw_sp_fib_event_work *fib_work,
 static void mlxsw_sp_router_fib6_event(struct mlxsw_sp_fib_event_work *fib_work,
 				       struct fib_notifier_info *info)
 {
+	struct fib6_entry_notifier_info *fen6_info;
+	struct fib_rule_notifier_info *fr_info;
+
 	switch (fib_work->event) {
 	case FIB_EVENT_ENTRY_REPLACE: /* fall through */
 	case FIB_EVENT_ENTRY_ADD: /* fall through */
 	case FIB_EVENT_ENTRY_DEL:
-		memcpy(&fib_work->fen6_info, info, sizeof(fib_work->fen6_info));
+		fen6_info = container_of(info, struct fib6_entry_notifier_info,
+					 info);
+		fib_work->fen6_info = *fen6_info;
 		rt6_hold(fib_work->fen6_info.rt);
 		break;
 	case FIB_EVENT_RULE_ADD: /* fall through */
 	case FIB_EVENT_RULE_DEL:
-		memcpy(&fib_work->fr_info, info, sizeof(fib_work->fr_info));
+		fr_info = container_of(info, struct fib_rule_notifier_info,
+				       info);
+		fib_work->fr_info = *fr_info;
 		fib_rule_get(fib_work->fr_info.rule);
 		break;
 	}
