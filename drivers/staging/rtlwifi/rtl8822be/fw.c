@@ -766,9 +766,10 @@ void rtl8822be_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished)
 		rtl8822be_fill_h2c_cmd(hw, H2C_8822B_RSVDPAGE,
 				       sizeof(u1_rsvd_page_loc),
 				       u1_rsvd_page_loc);
-	} else
+	} else {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
 			 "Set RSVD page location to Fw FAIL!!!!!!.\n");
+	}
 }
 
 /* Should check FW support p2p or not. */

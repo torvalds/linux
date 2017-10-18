@@ -1562,9 +1562,10 @@ static char _rtl8822be_phy_get_txpower_limit(struct ieee80211_hw *hw, u8 band,
 						      [channel_index]
 						      [rate_section]
 						      [channel_index][rf_path];
-	} else
+	} else {
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 			 "No power limit table of the specified band\n");
+	}
 
 	return power_limit;
 }
