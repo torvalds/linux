@@ -1781,6 +1781,8 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha , void *piomb)
 			"task 0x%p done with io_status 0x%x resp 0x%x "
 			"stat 0x%x but aborted by upper layer!\n",
 			t, status, ts->resp, ts->stat));
+		if (t->slow_task)
+			complete(&t->slow_task->completion);
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 	} else {
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
@@ -3044,6 +3046,7 @@ hw_event_phy_down(struct pm8001_hba_info *pm8001_ha, void *piomb)
 
 	struct pm8001_port *port = &pm8001_ha->port[port_id];
 	struct pm8001_phy *phy = &pm8001_ha->phy[phy_id];
+	u32 port_sata = (phy->phy_type & PORT_TYPE_SATA);
 	port->port_state = portstate;
 	phy->identify.device_type = 0;
 	phy->phy_attached = 0;
@@ -3055,7 +3058,7 @@ hw_event_phy_down(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			pm8001_printk(" PortInvalid portID %d\n", port_id));
 		PM8001_MSG_DBG(pm8001_ha,
 			pm8001_printk(" Last phy Down and port invalid\n"));
-		if (phy->phy_type & PORT_TYPE_SATA) {
+		if (port_sata) {
 			phy->phy_type = 0;
 			port->port_attached = 0;
 			pm80xx_hw_event_ack_req(pm8001_ha, 0, HW_EVENT_PHY_DOWN,
@@ -3077,7 +3080,7 @@ hw_event_phy_down(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			pm8001_printk(" Phy Down and PORT_LOSTCOMM\n"));
 		PM8001_MSG_DBG(pm8001_ha,
 			pm8001_printk(" Last phy Down and port invalid\n"));
-		if (phy->phy_type & PORT_TYPE_SATA) {
+		if (port_sata) {
 			port->port_attached = 0;
 			phy->phy_type = 0;
 			pm80xx_hw_event_ack_req(pm8001_ha, 0, HW_EVENT_PHY_DOWN,
@@ -3092,6 +3095,11 @@ hw_event_phy_down(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			portstate));
 		break;
 
+	}
+	if (port_sata && (portstate != PORT_IN_RESET)) {
+		struct sas_ha_struct *sas_ha = pm8001_ha->sas;
+
+		sas_ha->notify_phy_event(&phy->sas_phy, PHYE_LOSS_OF_SIGNAL);
 	}
 }
 
@@ -3195,12 +3203,14 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	case HW_EVENT_PHY_DOWN:
 		PM8001_MSG_DBG(pm8001_ha,
 			pm8001_printk("HW_EVENT_PHY_DOWN\n"));
-		if (phy->phy_type & PORT_TYPE_SATA)
-			sas_ha->notify_phy_event(&phy->sas_phy,
-				PHYE_LOSS_OF_SIGNAL);
+		hw_event_phy_down(pm8001_ha, piomb);
+		if (pm8001_ha->reset_in_progress) {
+			PM8001_MSG_DBG(pm8001_ha,
+				pm8001_printk("Reset in progress\n"));
+			return 0;
+		}
 		phy->phy_attached = 0;
 		phy->phy_state = 0;
-		hw_event_phy_down(pm8001_ha, piomb);
 		break;
 	case HW_EVENT_PORT_INVALID:
 		PM8001_MSG_DBG(pm8001_ha,
@@ -3307,9 +3317,17 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	case HW_EVENT_PORT_RESET_TIMER_TMO:
 		PM8001_MSG_DBG(pm8001_ha,
 			pm8001_printk("HW_EVENT_PORT_RESET_TIMER_TMO\n"));
+		pm80xx_hw_event_ack_req(pm8001_ha, 0, HW_EVENT_PHY_DOWN,
+			port_id, phy_id, 0, 0);
 		sas_phy_disconnected(sas_phy);
 		phy->phy_attached = 0;
 		sas_ha->notify_port_event(sas_phy, PORTE_LINK_RESET_ERR);
+		if (pm8001_ha->phy[phy_id].reset_completion) {
+			pm8001_ha->phy[phy_id].port_reset_status =
+					PORT_RESET_TMO;
+			complete(pm8001_ha->phy[phy_id].reset_completion);
+			pm8001_ha->phy[phy_id].reset_completion = NULL;
+		}
 		break;
 	case HW_EVENT_PORT_RECOVERY_TIMER_TMO:
 		PM8001_MSG_DBG(pm8001_ha,
@@ -3334,6 +3352,12 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	case HW_EVENT_PORT_RESET_COMPLETE:
 		PM8001_MSG_DBG(pm8001_ha,
 			pm8001_printk("HW_EVENT_PORT_RESET_COMPLETE\n"));
+		if (pm8001_ha->phy[phy_id].reset_completion) {
+			pm8001_ha->phy[phy_id].port_reset_status =
+					PORT_RESET_SUCCESS;
+			complete(pm8001_ha->phy[phy_id].reset_completion);
+			pm8001_ha->phy[phy_id].reset_completion = NULL;
+		}
 		break;
 	case EVENT_BROADCAST_ASYNCH_EVENT:
 		PM8001_MSG_DBG(pm8001_ha,
