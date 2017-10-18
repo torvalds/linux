@@ -2,6 +2,7 @@ ROCKCHIP MIPI DPHY WITH INNO IP BLOCK
 
 Required properties:
  - compatible : must be one of:
+	"rockchip,rk3128-mipi-dphy";
 	"rockchip,rk3366-mipi-dphy";
 	"rockchip,rk3368-mipi-dphy";
  - reg : the address offset of register for mipi-dphy configuration.
@@ -14,10 +15,12 @@ Required properties:
  - clock-output-names: from common clock binding.
 	See ../clocks/clock-bindings.txt for details.
  - #clock-cells : from common clock binding; shall be set to 0.
-
-Optional properties
  - resets : phandle to the reset of MIPI DSI PHY APB clock.
  - reset-names : should be "apb".
+
+Optional properties
+ - clocks: phandle to the h2p clock.
+ - clock-names: should be "h2p".
 
 Example:
 

@@ -148,6 +148,7 @@ struct inno_mipi_dphy_timing {
 struct inno_mipi_dphy {
 	struct device *dev;
 	struct clk *ref_clk;
+	struct clk *h2p_clk;
 	struct regmap *regmap;
 	struct reset_control *rst;
 
@@ -470,6 +471,7 @@ static int inno_mipi_dphy_power_on(struct phy *phy)
 {
 	struct inno_mipi_dphy *inno = phy_get_drvdata(phy);
 
+	clk_prepare_enable(inno->h2p_clk);
 	pm_runtime_get_sync(inno->dev);
 	inno_mipi_dphy_pll_enable(inno);
 	inno_mipi_dphy_lane_enable(inno);
@@ -487,6 +489,7 @@ static int inno_mipi_dphy_power_off(struct phy *phy)
 	inno_mipi_dphy_lane_disable(inno);
 	inno_mipi_dphy_pll_disable(inno);
 	pm_runtime_put(inno->dev);
+	clk_disable_unprepare(inno->h2p_clk);
 
 	return 0;
 }
@@ -640,6 +643,18 @@ static int inno_mipi_dphy_probe(struct platform_device *pdev)
 		return PTR_ERR(inno->ref_clk);
 	}
 
+	/* Check if h2p_clk provided */
+	inno->h2p_clk = devm_clk_get(dev, "h2p");
+	if (IS_ERR(inno->h2p_clk)) {
+		if (PTR_ERR(inno->h2p_clk) != -ENOENT) {
+			dev_err(dev, "failed to get h2p clock\n");
+			return PTR_ERR(inno->h2p_clk);
+		}
+
+		/* Otherwise mark the h2p_clk pointer to NULL */
+		inno->h2p_clk = NULL;
+	}
+
 	inno->rst = devm_reset_control_get(dev, "apb");
 	if (IS_ERR(inno->rst)) {
 		dev_err(dev, "failed to get system reset control\n");
@@ -685,6 +700,7 @@ static int inno_mipi_dphy_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id inno_mipi_dphy_of_match[] = {
+	{ .compatible = "rockchip,rk3128-mipi-dphy", },
 	{ .compatible = "rockchip,rk3366-mipi-dphy", },
 	{ .compatible = "rockchip,rk3368-mipi-dphy", },
 	{ /* Sentinel */ }
