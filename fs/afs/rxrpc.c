@@ -407,7 +407,7 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 		      call->request_size);
 	msg.msg_control		= NULL;
 	msg.msg_controllen	= 0;
-	msg.msg_flags		= (call->send_pages ? MSG_MORE : 0);
+	msg.msg_flags		= MSG_WAITALL | (call->send_pages ? MSG_MORE : 0);
 
 	/* We have to change the state *before* sending the last packet as
 	 * rxrpc might give us the reply before it returns from sending the
@@ -538,15 +538,26 @@ call_complete:
  */
 static int afs_wait_for_call_to_complete(struct afs_call *call)
 {
+	signed long rtt2, timeout;
 	int ret;
+	u64 rtt;
+	u32 life, last_life;
 
 	DECLARE_WAITQUEUE(myself, current);
 
 	_enter("");
 
+	rtt = rxrpc_kernel_get_rtt(afs_socket, call->rxcall);
+	rtt2 = nsecs_to_jiffies64(rtt) * 2;
+	if (rtt2 < 2)
+		rtt2 = 2;
+
+	timeout = rtt2;
+	last_life = rxrpc_kernel_check_life(afs_socket, call->rxcall);
+
 	add_wait_queue(&call->waitq, &myself);
 	for (;;) {
-		set_current_state(TASK_INTERRUPTIBLE);
+		set_current_state(TASK_UNINTERRUPTIBLE);
 
 		/* deliver any messages that are in the queue */
 		if (call->state < AFS_CALL_COMPLETE && call->need_attention) {
@@ -556,10 +567,20 @@ static int afs_wait_for_call_to_complete(struct afs_call *call)
 			continue;
 		}
 
-		if (call->state == AFS_CALL_COMPLETE ||
-		    signal_pending(current))
+		if (call->state == AFS_CALL_COMPLETE)
 			break;
-		schedule();
+
+		life = rxrpc_kernel_check_life(afs_socket, call->rxcall);
+		if (timeout == 0 &&
+		    life == last_life && signal_pending(current))
+				break;
+
+		if (life != last_life) {
+			timeout = rtt2;
+			last_life = life;
+		}
+
+		timeout = schedule_timeout(timeout);
 	}
 
 	remove_wait_queue(&call->waitq, &myself);

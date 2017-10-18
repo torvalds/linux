@@ -280,6 +280,18 @@ Interaction with the user of the RxRPC socket:
      nominated by a socket option.
 
 
+Notes on sendmsg:
+
+ (*) MSG_WAITALL can be set to tell sendmsg to ignore signals if the peer is
+     making progress at accepting packets within a reasonable time such that we
+     manage to queue up all the data for transmission.  This requires the
+     client to accept at least one packet per 2*RTT time period.
+
+     If this isn't set, sendmsg() will return immediately, either returning
+     EINTR/ERESTARTSYS if nothing was consumed or returning the amount of data
+     consumed.
+
+
 Notes on recvmsg:
 
  (*) If there's a sequence of data messages belonging to a particular call on
