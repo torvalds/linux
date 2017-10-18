@@ -75,11 +75,17 @@ static inline void clear_feature(struct cpuinfo_x86 *c, unsigned int feature)
 		__clear_cpu_cap(c, feature);
 }
 
+/* Take the capabilities and the BUG bits into account */
+#define MAX_FEATURE_BITS ((NCAPINTS + NBUGINTS) * sizeof(u32) * 8)
+
 static void do_clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int feature)
 {
-	bool changed;
-	DECLARE_BITMAP(disable, NCAPINTS * sizeof(u32) * 8);
+	DECLARE_BITMAP(disable, MAX_FEATURE_BITS);
 	const struct cpuid_dep *d;
+	bool changed;
+
+	if (WARN_ON(feature >= MAX_FEATURE_BITS))
+		return;
 
 	clear_feature(c, feature);
 
