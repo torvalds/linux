@@ -179,9 +179,8 @@ void drm_dev_printk(const struct device *dev, const char *level,
 __printf(3, 4)
 void drm_printk(const char *level, unsigned int category,
 		const char *format, ...);
-/***********************************************************************/
-/** \name Macros to make printk easier */
-/*@{*/
+
+/* Macros to make printk easier */
 
 #define _DRM_PRINTK(once, level, fmt, ...)				\
 	do {								\
@@ -206,8 +205,8 @@ void drm_printk(const char *level, unsigned int category,
 /**
  * Error output.
  *
- * \param fmt printf() like format string.
- * \param arg arguments
+ * @dev: device pointer
+ * @fmt: printf() like format string.
  */
 #define DRM_DEV_ERROR(dev, fmt, ...)					\
 	drm_dev_printk(dev, KERN_ERR, DRM_UT_NONE, __func__, " *ERROR*",\
@@ -218,8 +217,8 @@ void drm_printk(const char *level, unsigned int category,
 /**
  * Rate limited error output.  Like DRM_ERROR() but won't flood the log.
  *
- * \param fmt printf() like format string.
- * \param arg arguments
+ * @dev: device pointer
+ * @fmt: printf() like format string.
  */
 #define DRM_DEV_ERROR_RATELIMITED(dev, fmt, ...)			\
 ({									\
@@ -249,8 +248,8 @@ void drm_printk(const char *level, unsigned int category,
 /**
  * Debug output.
  *
- * \param fmt printf() like format string.
- * \param arg arguments
+ * @dev: device pointer
+ * @fmt: printf() like format string.
  */
 #define DRM_DEV_DEBUG(dev, fmt, args...)				\
 	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_CORE, __func__, "", fmt,	\
@@ -301,8 +300,8 @@ void drm_printk(const char *level, unsigned int category,
 /**
  * Rate limited debug output. Like DRM_DEBUG() but won't flood the log.
  *
- * \param fmt printf() like format string.
- * \param arg arguments
+ * @dev: device pointer
+ * @fmt: printf() like format string.
  */
 #define DRM_DEV_DEBUG_RATELIMITED(dev, fmt, args...)			\
 	DEV__DRM_DEFINE_DEBUG_RATELIMITED(dev, CORE, fmt, ##args)
@@ -320,11 +319,5 @@ void drm_printk(const char *level, unsigned int category,
 	_DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, PRIME, fmt, ##args)
 #define DRM_DEBUG_PRIME_RATELIMITED(fmt, args...)			\
 	DRM_DEV_DEBUG_PRIME_RATELIMITED(NULL, fmt, ##args)
-
-/* Format strings and argument splitters to simplify printing
- * various "complex" objects
- */
-
-/*@}*/
 
 #endif /* DRM_PRINT_H_ */
