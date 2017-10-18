@@ -491,17 +491,6 @@ void dn_send_conn_ack (struct sock *sk)
 	dn_nsp_send(skb);
 }
 
-void dn_nsp_delayed_ack(struct sock *sk)
-{
-	struct dn_scp *scp = DN_SK(sk);
-
-	if (scp->ackxmt_oth != scp->numoth_rcv)
-		dn_nsp_send_oth_ack(sk);
-
-	if (scp->ackxmt_dat != scp->numdat_rcv)
-		dn_nsp_send_data_ack(sk);
-}
-
 static int dn_nsp_retrans_conn_conf(struct sock *sk)
 {
 	struct dn_scp *scp = DN_SK(sk);

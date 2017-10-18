@@ -213,9 +213,10 @@ static void fm10k_start_service_event(struct fm10k_intfc *interface)
  * fm10k_service_timer - Timer Call-back
  * @data: pointer to interface cast into an unsigned long
  **/
-static void fm10k_service_timer(unsigned long data)
+static void fm10k_service_timer(struct timer_list *t)
 {
-	struct fm10k_intfc *interface = (struct fm10k_intfc *)data;
+	struct fm10k_intfc *interface = from_timer(interface, t,
+						   service_timer);
 
 	/* Reset the timer */
 	mod_timer(&interface->service_timer, (HZ * 2) + jiffies);
@@ -2315,8 +2316,7 @@ static int fm10k_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Initialize service timer and service task late in order to avoid
 	 * cleanup issues.
 	 */
-	setup_timer(&interface->service_timer, &fm10k_service_timer,
-		    (unsigned long)interface);
+	timer_setup(&interface->service_timer, fm10k_service_timer, 0);
 	INIT_WORK(&interface->service_task, fm10k_service_task);
 
 	/* Setup the MAC/VLAN queue */

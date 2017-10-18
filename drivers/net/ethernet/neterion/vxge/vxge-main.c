@@ -2597,9 +2597,9 @@ INTA_MODE:
 	return VXGE_HW_OK;
 }
 
-static void vxge_poll_vp_reset(unsigned long data)
+static void vxge_poll_vp_reset(struct timer_list *t)
 {
-	struct vxgedev *vdev = (struct vxgedev *)data;
+	struct vxgedev *vdev = from_timer(vdev, t, vp_reset_timer);
 	int i, j = 0;
 
 	for (i = 0; i < vdev->no_of_vpath; i++) {
@@ -2616,9 +2616,9 @@ static void vxge_poll_vp_reset(unsigned long data)
 	mod_timer(&vdev->vp_reset_timer, jiffies + HZ / 2);
 }
 
-static void vxge_poll_vp_lockup(unsigned long data)
+static void vxge_poll_vp_lockup(struct timer_list *t)
 {
-	struct vxgedev *vdev = (struct vxgedev *)data;
+	struct vxgedev *vdev = from_timer(vdev, t, vp_lockup_timer);
 	enum vxge_hw_status status = VXGE_HW_OK;
 	struct vxge_vpath *vpath;
 	struct vxge_ring *ring;
@@ -2858,12 +2858,12 @@ static int vxge_open(struct net_device *dev)
 		vdev->config.rx_pause_enable);
 
 	if (vdev->vp_reset_timer.function == NULL)
-		vxge_os_timer(&vdev->vp_reset_timer, vxge_poll_vp_reset, vdev,
+		vxge_os_timer(&vdev->vp_reset_timer, vxge_poll_vp_reset,
 			      HZ / 2);
 
 	/* There is no need to check for RxD leak and RxD lookup on Titan1A */
 	if (vdev->titan1 && vdev->vp_lockup_timer.function == NULL)
-		vxge_os_timer(&vdev->vp_lockup_timer, vxge_poll_vp_lockup, vdev,
+		vxge_os_timer(&vdev->vp_lockup_timer, vxge_poll_vp_lockup,
 			      HZ / 2);
 
 	set_bit(__VXGE_STATE_CARD_UP, &vdev->state);
