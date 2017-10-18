@@ -801,6 +801,11 @@ static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port por
 	    hdmi_level >= n_hdmi_entries)
 		hdmi_level = hdmi_default_entry;
 
+	if (WARN_ON_ONCE(n_hdmi_entries == 0))
+		return 0;
+	if (WARN_ON_ONCE(hdmi_level >= n_hdmi_entries))
+		hdmi_level = n_hdmi_entries - 1;
+
 	return hdmi_level;
 }
 
@@ -863,6 +868,11 @@ static void intel_prepare_hdmi_ddi_buffers(struct intel_encoder *encoder,
 	const struct ddi_buf_trans *ddi_translations_hdmi;
 
 	ddi_translations_hdmi = intel_ddi_get_buf_trans_hdmi(dev_priv, &n_hdmi_entries);
+
+	if (WARN_ON_ONCE(!ddi_translations_hdmi))
+		return;
+	if (WARN_ON_ONCE(hdmi_level >= n_hdmi_entries))
+		hdmi_level = n_hdmi_entries - 1;
 
 	/* If we're boosting the current, set bit 31 of trans1 */
 	if (IS_GEN9_BC(dev_priv) &&
@@ -1847,6 +1857,11 @@ static void skl_ddi_set_iboost(struct intel_encoder *encoder,
 		else
 			ddi_translations = intel_ddi_get_buf_trans_dp(dev_priv, port, &n_entries);
 
+		if (WARN_ON_ONCE(!ddi_translations))
+			return;
+		if (WARN_ON_ONCE(level >= n_entries))
+			level = n_entries - 1;
+
 		iboost = ddi_translations[level].i_boost;
 	}
 
@@ -1876,6 +1891,11 @@ static void bxt_ddi_vswing_sequence(struct intel_encoder *encoder,
 		ddi_translations = bxt_get_buf_trans_edp(dev_priv, &n_entries);
 	else
 		ddi_translations = bxt_get_buf_trans_dp(dev_priv, &n_entries);
+
+	if (WARN_ON_ONCE(!ddi_translations))
+		return;
+	if (WARN_ON_ONCE(level >= n_entries))
+		level = n_entries - 1;
 
 	bxt_ddi_phy_set_signal_level(dev_priv, port,
 				     ddi_translations[level].margin,
@@ -1932,13 +1952,10 @@ static void cnl_ddi_vswing_program(struct intel_encoder *encoder,
 	else
 		ddi_translations = cnl_get_buf_trans_dp(dev_priv, &n_entries);
 
-	if (WARN_ON(ddi_translations == NULL))
+	if (WARN_ON_ONCE(!ddi_translations))
 		return;
-
-	if (level >= n_entries) {
-		DRM_DEBUG_KMS("DDI translation not found for level %d. Using %d instead.", level, n_entries - 1);
+	if (WARN_ON_ONCE(level >= n_entries))
 		level = n_entries - 1;
-	}
 
 	/* Set PORT_TX_DW5 Scaling Mode Sel to 010b. */
 	val = I915_READ(CNL_PORT_TX_DW5_LN0(port));
