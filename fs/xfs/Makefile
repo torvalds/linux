@@ -135,3 +135,14 @@ xfs-$(CONFIG_XFS_POSIX_ACL)	+= xfs_acl.o
 xfs-$(CONFIG_SYSCTL)		+= xfs_sysctl.o
 xfs-$(CONFIG_COMPAT)		+= xfs_ioctl32.o
 xfs-$(CONFIG_EXPORTFS_BLOCK_OPS)	+= xfs_pnfs.o
+
+# online scrub/repair
+ifeq ($(CONFIG_XFS_ONLINE_SCRUB),y)
+
+# Tracepoints like to blow up, so build that before everything else
+
+xfs-y				+= $(addprefix scrub/, \
+				   trace.o \
+				   scrub.o \
+				   )
+endif

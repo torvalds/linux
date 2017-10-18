@@ -468,6 +468,58 @@ typedef struct xfs_swapext
 #define XFS_FSOP_GOING_FLAGS_LOGFLUSH		0x1	/* flush log but not data */
 #define XFS_FSOP_GOING_FLAGS_NOLOGFLUSH		0x2	/* don't flush log nor data */
 
+/* metadata scrubbing */
+struct xfs_scrub_metadata {
+	__u32 sm_type;		/* What to check? */
+	__u32 sm_flags;		/* flags; see below. */
+	__u64 sm_ino;		/* inode number. */
+	__u32 sm_gen;		/* inode generation. */
+	__u32 sm_agno;		/* ag number. */
+	__u64 sm_reserved[5];	/* pad to 64 bytes */
+};
+
+/*
+ * Metadata types and flags for scrub operation.
+ */
+
+/* Scrub subcommands. */
+
+/* Number of scrub subcommands. */
+#define XFS_SCRUB_TYPE_NR	0
+
+/* i: Repair this metadata. */
+#define XFS_SCRUB_IFLAG_REPAIR		(1 << 0)
+
+/* o: Metadata object needs repair. */
+#define XFS_SCRUB_OFLAG_CORRUPT		(1 << 1)
+
+/*
+ * o: Metadata object could be optimized.  It's not corrupt, but
+ *    we could improve on it somehow.
+ */
+#define XFS_SCRUB_OFLAG_PREEN		(1 << 2)
+
+/* o: Cross-referencing failed. */
+#define XFS_SCRUB_OFLAG_XFAIL		(1 << 3)
+
+/* o: Metadata object disagrees with cross-referenced metadata. */
+#define XFS_SCRUB_OFLAG_XCORRUPT	(1 << 4)
+
+/* o: Scan was not complete. */
+#define XFS_SCRUB_OFLAG_INCOMPLETE	(1 << 5)
+
+/* o: Metadata object looked funny but isn't corrupt. */
+#define XFS_SCRUB_OFLAG_WARNING		(1 << 6)
+
+#define XFS_SCRUB_FLAGS_IN	(XFS_SCRUB_IFLAG_REPAIR)
+#define XFS_SCRUB_FLAGS_OUT	(XFS_SCRUB_OFLAG_CORRUPT | \
+				 XFS_SCRUB_OFLAG_PREEN | \
+				 XFS_SCRUB_OFLAG_XFAIL | \
+				 XFS_SCRUB_OFLAG_XCORRUPT | \
+				 XFS_SCRUB_OFLAG_INCOMPLETE | \
+				 XFS_SCRUB_OFLAG_WARNING)
+#define XFS_SCRUB_FLAGS_ALL	(XFS_SCRUB_FLAGS_IN | XFS_SCRUB_FLAGS_OUT)
+
 /*
  * ioctl limits
  */
@@ -511,6 +563,7 @@ typedef struct xfs_swapext
 #define XFS_IOC_ZERO_RANGE	_IOW ('X', 57, struct xfs_flock64)
 #define XFS_IOC_FREE_EOFBLOCKS	_IOR ('X', 58, struct xfs_fs_eofblocks)
 /*	XFS_IOC_GETFSMAP ------ hoisted 59         */
+#define XFS_IOC_SCRUB_METADATA	_IOWR('X', 60, struct xfs_scrub_metadata)
 
 /*
  * ioctl commands that replace IRIX syssgi()'s
