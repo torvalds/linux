@@ -1369,6 +1369,11 @@ static int dw_mipi_dsi_register(struct drm_device *drm,
 	return 0;
 }
 
+static struct dw_mipi_dsi_plat_data rk3128_mipi_dsi_drv_data = {
+	.max_data_lanes = 4,
+	.max_bit_rate_per_lane = 1000000000,
+};
+
 static struct dw_mipi_dsi_plat_data rk3288_mipi_dsi_drv_data = {
 	.dsi0_en_bit = RK3288_DSI0_SEL_VOP_LIT,
 	.dsi1_en_bit = RK3288_DSI1_SEL_VOP_LIT,
@@ -1413,6 +1418,9 @@ static struct dw_mipi_dsi_plat_data rk3399_mipi_dsi_drv_data = {
 
 static const struct of_device_id dw_mipi_dsi_dt_ids[] = {
 	{
+	 .compatible = "rockchip,rk3128-mipi-dsi",
+	 .data = &rk3128_mipi_dsi_drv_data,
+	}, {
 	 .compatible = "rockchip,rk3288-mipi-dsi",
 	 .data = &rk3288_mipi_dsi_drv_data,
 	}, {
