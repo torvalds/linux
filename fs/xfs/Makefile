@@ -145,6 +145,7 @@ xfs-y				+= $(addprefix scrub/, \
 				   trace.o \
 				   agheader.o \
 				   alloc.o \
+				   bmap.o \
 				   btree.o \
 				   common.o \
 				   ialloc.o \

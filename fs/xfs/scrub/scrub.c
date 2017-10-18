@@ -215,6 +215,18 @@ static const struct xfs_scrub_meta_ops meta_scrub_ops[] = {
 		.setup	= xfs_scrub_setup_inode,
 		.scrub	= xfs_scrub_inode,
 	},
+	{ /* inode data fork */
+		.setup	= xfs_scrub_setup_inode_bmap,
+		.scrub	= xfs_scrub_bmap_data,
+	},
+	{ /* inode attr fork */
+		.setup	= xfs_scrub_setup_inode_bmap,
+		.scrub	= xfs_scrub_bmap_attr,
+	},
+	{ /* inode CoW fork */
+		.setup	= xfs_scrub_setup_inode_bmap,
+		.scrub	= xfs_scrub_bmap_cow,
+	},
 };
 
 /* This isn't a stable feature, warn once per day. */
