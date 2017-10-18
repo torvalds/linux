@@ -3910,6 +3910,16 @@ static int adap_init0(struct adapter *adap)
 			      1, params, val);
 	adap->params.fr_nsmr_tpte_wr_support = (ret == 0 && val[0] != 0);
 
+	/* See if FW supports FW_FILTER2 work request */
+	if (is_t4(adap->params.chip)) {
+		adap->params.filter2_wr_support = 0;
+	} else {
+		params[0] = FW_PARAM_DEV(FILTER2_WR);
+		ret = t4_query_params(adap, adap->mbox, adap->pf, 0,
+				      1, params, val);
+		adap->params.filter2_wr_support = (ret == 0 && val[0] != 0);
+	}
+
 	/*
 	 * Get device capabilities so we can determine what resources we need
 	 * to manage.
