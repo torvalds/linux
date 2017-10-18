@@ -12,7 +12,6 @@
 
 #include <linux/clk-provider.h>
 
-#include "sun4i_tcon.h"
 #include "sun4i_hdmi.h"
 
 struct sun4i_tmds {

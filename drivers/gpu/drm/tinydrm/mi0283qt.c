@@ -31,7 +31,7 @@ static int mi0283qt_init(struct mipi_dbi *mipi)
 
 	ret = regulator_enable(mipi->regulator);
 	if (ret) {
-		dev_err(dev, "Failed to enable regulator %d\n", ret);
+		DRM_DEV_ERROR(dev, "Failed to enable regulator %d\n", ret);
 		return ret;
 	}
 
@@ -42,7 +42,7 @@ static int mi0283qt_init(struct mipi_dbi *mipi)
 	mipi_dbi_hw_reset(mipi);
 	ret = mipi_dbi_command(mipi, MIPI_DCS_SOFT_RESET);
 	if (ret) {
-		dev_err(dev, "Error sending command %d\n", ret);
+		DRM_DEV_ERROR(dev, "Error sending command %d\n", ret);
 		regulator_disable(mipi->regulator);
 		return ret;
 	}
@@ -174,13 +174,13 @@ static int mi0283qt_probe(struct spi_device *spi)
 
 	mipi->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(mipi->reset)) {
-		dev_err(dev, "Failed to get gpio 'reset'\n");
+		DRM_DEV_ERROR(dev, "Failed to get gpio 'reset'\n");
 		return PTR_ERR(mipi->reset);
 	}
 
 	dc = devm_gpiod_get_optional(dev, "dc", GPIOD_OUT_LOW);
 	if (IS_ERR(dc)) {
-		dev_err(dev, "Failed to get gpio 'dc'\n");
+		DRM_DEV_ERROR(dev, "Failed to get gpio 'dc'\n");
 		return PTR_ERR(dc);
 	}
 
