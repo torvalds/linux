@@ -2845,8 +2845,9 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 		 * Advertise EPTP switching unconditionally
 		 * since we emulate it
 		 */
-		vmx->nested.nested_vmx_vmfunc_controls =
-			VMX_VMFUNC_EPTP_SWITCHING;
+		if (enable_ept)
+			vmx->nested.nested_vmx_vmfunc_controls =
+				VMX_VMFUNC_EPTP_SWITCHING;
 	}
 
 	/*
