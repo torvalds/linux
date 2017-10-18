@@ -2004,9 +2004,9 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 	mod_timer(&hw->commsqual_timer, jiffies + HZ);
 }
 
-void prism2sta_commsqual_timer(unsigned long data)
+void prism2sta_commsqual_timer(struct timer_list *t)
 {
-	struct hfa384x *hw = (struct hfa384x *)data;
+	struct hfa384x *hw = from_timer(hw, t, commsqual_timer);
 
 	schedule_work(&hw->commsqual_bh);
 }
