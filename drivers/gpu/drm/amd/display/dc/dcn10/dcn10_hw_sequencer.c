@@ -31,6 +31,7 @@
 #include "dce110/dce110_hw_sequencer.h"
 #include "dce/dce_hwseq.h"
 #include "abm.h"
+#include "dmcu.h"
 #include "dcn10/dcn10_timing_generator.h"
 #include "dcn10/dcn10_dpp.h"
 #include "dcn10/dcn10_mpc.h"
@@ -863,6 +864,7 @@ static void dcn10_init_hw(struct dc *dc)
 {
 	int i;
 	struct abm *abm = dc->res_pool->abm;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
 	struct dce_hwseq *hws = dc->hwseq;
 
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
@@ -924,6 +926,9 @@ static void dcn10_init_hw(struct dc *dc)
 		abm->funcs->init_backlight(abm);
 		abm->funcs->abm_init(abm);
 	}
+
+	if (dmcu != NULL)
+		dmcu->funcs->dmcu_init(dmcu);
 
 	/* power AFMT HDMI memory TODO: may move to dis/en output save power*/
 	REG_WRITE(DIO_MEM_PWR_CTRL, 0);

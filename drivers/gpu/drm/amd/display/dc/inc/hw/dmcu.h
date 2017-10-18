@@ -27,12 +27,28 @@
 
 #include "dm_services_types.h"
 
+enum dmcu_state {
+	DMCU_NOT_INITIALIZED = 0,
+	DMCU_RUNNING = 1
+};
+
+struct dmcu_version {
+	unsigned int day;
+	unsigned int month;
+	unsigned int year;
+	unsigned int interface_version;
+};
+
 struct dmcu {
 	struct dc_context *ctx;
 	const struct dmcu_funcs *funcs;
+
+	enum dmcu_state dmcu_state;
+	struct dmcu_version dmcu_version;
 };
 
 struct dmcu_funcs {
+	bool (*dmcu_init)(struct dmcu *dmcu);
 	bool (*load_iram)(struct dmcu *dmcu,
 			unsigned int start_offset,
 			const char *src,
