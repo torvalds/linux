@@ -144,6 +144,7 @@ ifeq ($(CONFIG_XFS_ONLINE_SCRUB),y)
 xfs-y				+= $(addprefix scrub/, \
 				   trace.o \
 				   agheader.o \
+				   alloc.o \
 				   btree.o \
 				   common.o \
 				   scrub.o \
