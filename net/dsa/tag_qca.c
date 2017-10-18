@@ -38,7 +38,7 @@
 
 static struct sk_buff *qca_tag_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_port *dp = dsa_slave_to_port(dev);
 	u16 *phdr, hdr;
 
 	dev->stats.tx_packets++;
@@ -54,8 +54,7 @@ static struct sk_buff *qca_tag_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Set the version field, and set destination port information */
 	hdr = QCA_HDR_VERSION << QCA_HDR_XMIT_VERSION_S |
-		QCA_HDR_XMIT_FROM_CPU |
-		BIT(p->dp->index);
+		QCA_HDR_XMIT_FROM_CPU | BIT(dp->index);
 
 	*phdr = htons(hdr);
 
@@ -92,7 +91,7 @@ static struct sk_buff *qca_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	/* Get source port information */
 	port = (hdr & QCA_HDR_RECV_SOURCE_PORT_MASK);
 
-	skb->dev = dsa_master_get_slave(dev, 0, port);
+	skb->dev = dsa_master_find_slave(dev, 0, port);
 	if (!skb->dev)
 		return NULL;
 

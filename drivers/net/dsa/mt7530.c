@@ -782,7 +782,7 @@ mt7530_port_bridge_join(struct dsa_switch *ds, int port,
 		 * and not being setup until the port becomes enabled.
 		 */
 		if (ds->enabled_port_mask & BIT(i) && i != port) {
-			if (ds->ports[i].bridge_dev != bridge)
+			if (dsa_to_port(ds, i)->bridge_dev != bridge)
 				continue;
 			if (priv->ports[i].enable)
 				mt7530_set(priv, MT7530_PCR_P(i),
@@ -819,7 +819,7 @@ mt7530_port_bridge_leave(struct dsa_switch *ds, int port,
 		 * is kept and not being setup until the port becomes enabled.
 		 */
 		if (ds->enabled_port_mask & BIT(i) && i != port) {
-			if (ds->ports[i].bridge_dev != bridge)
+			if (dsa_to_port(ds, i)->bridge_dev != bridge)
 				continue;
 			if (priv->ports[i].enable)
 				mt7530_clear(priv, MT7530_PCR_P(i),
@@ -933,7 +933,7 @@ mt7530_setup(struct dsa_switch *ds)
 	 * controller also is the container for two GMACs nodes representing
 	 * as two netdev instances.
 	 */
-	dn = ds->ports[MT7530_CPU_PORT].netdev->dev.of_node->parent;
+	dn = ds->ports[MT7530_CPU_PORT].master->dev.of_node->parent;
 	priv->ethernet = syscon_node_to_regmap(dn);
 	if (IS_ERR(priv->ethernet))
 		return PTR_ERR(priv->ethernet);

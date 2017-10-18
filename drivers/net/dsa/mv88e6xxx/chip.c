@@ -851,7 +851,7 @@ static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
 	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i)
 		if (dsa_is_cpu_port(chip->ds, i) ||
 		    dsa_is_dsa_port(chip->ds, i) ||
-		    (br && chip->ds->ports[i].bridge_dev == br))
+		    (br && dsa_to_port(chip->ds, i)->bridge_dev == br))
 			pvlan |= BIT(i);
 
 	return pvlan;
@@ -1137,23 +1137,23 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 			if (dsa_is_dsa_port(ds, i) || dsa_is_cpu_port(ds, i))
 				continue;
 
-			if (!ds->ports[port].netdev)
+			if (!ds->ports[port].slave)
 				continue;
 
 			if (vlan.member[i] ==
 			    MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER)
 				continue;
 
-			if (ds->ports[i].bridge_dev ==
+			if (dsa_to_port(ds, i)->bridge_dev ==
 			    ds->ports[port].bridge_dev)
 				break; /* same bridge, check next VLAN */
 
-			if (!ds->ports[i].bridge_dev)
+			if (!dsa_to_port(ds, i)->bridge_dev)
 				continue;
 
 			dev_err(ds->dev, "p%d: hw VLAN %d already used by %s\n",
 				port, vlan.vid,
-				netdev_name(ds->ports[i].bridge_dev));
+				netdev_name(dsa_to_port(ds, i)->bridge_dev));
 			err = -EOPNOTSUPP;
 			goto unlock;
 		}

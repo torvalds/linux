@@ -42,7 +42,7 @@
 
 static struct sk_buff *lan9303_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_port *dp = dsa_slave_to_port(dev);
 	u16 *lan9303_tag;
 
 	/* insert a special VLAN tag between the MAC addresses
@@ -62,7 +62,7 @@ static struct sk_buff *lan9303_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	lan9303_tag = (u16 *)(skb->data + 2 * ETH_ALEN);
 	lan9303_tag[0] = htons(ETH_P_8021Q);
-	lan9303_tag[1] = htons(p->dp->index | BIT(4));
+	lan9303_tag[1] = htons(dp->index | BIT(4));
 
 	return skb;
 }
@@ -94,7 +94,7 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	source_port = ntohs(lan9303_tag[1]) & 0x3;
 
-	skb->dev = dsa_master_get_slave(dev, 0, source_port);
+	skb->dev = dsa_master_find_slave(dev, 0, source_port);
 	if (!skb->dev) {
 		dev_warn_ratelimited(&dev->dev, "Dropping packet due to invalid source port\n");
 		return NULL;

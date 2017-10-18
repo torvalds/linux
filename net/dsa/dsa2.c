@@ -279,7 +279,7 @@ static int dsa_user_port_apply(struct dsa_port *port)
 	if (err) {
 		dev_warn(ds->dev, "Failed to create slave %d: %d\n",
 			 port->index, err);
-		port->netdev = NULL;
+		port->slave = NULL;
 		return err;
 	}
 
@@ -289,7 +289,7 @@ static int dsa_user_port_apply(struct dsa_port *port)
 	if (err)
 		return err;
 
-	devlink_port_type_eth_set(&port->devlink_port, port->netdev);
+	devlink_port_type_eth_set(&port->devlink_port, port->slave);
 
 	return 0;
 }
@@ -297,9 +297,9 @@ static int dsa_user_port_apply(struct dsa_port *port)
 static void dsa_user_port_unapply(struct dsa_port *port)
 {
 	devlink_port_unregister(&port->devlink_port);
-	if (port->netdev) {
-		dsa_slave_destroy(port->netdev);
-		port->netdev = NULL;
+	if (port->slave) {
+		dsa_slave_destroy(port->slave);
+		port->slave = NULL;
 		port->ds->enabled_port_mask &= ~(1 << port->index);
 	}
 }
@@ -432,9 +432,9 @@ static int dsa_dst_apply(struct dsa_switch_tree *dst)
 	 * sent to the tag format's receive function.
 	 */
 	wmb();
-	dst->cpu_dp->netdev->dsa_ptr = dst->cpu_dp;
+	dst->cpu_dp->master->dsa_ptr = dst->cpu_dp;
 
-	err = dsa_master_ethtool_setup(dst->cpu_dp->netdev);
+	err = dsa_master_ethtool_setup(dst->cpu_dp->master);
 	if (err)
 		return err;
 
@@ -451,9 +451,9 @@ static void dsa_dst_unapply(struct dsa_switch_tree *dst)
 	if (!dst->applied)
 		return;
 
-	dsa_master_ethtool_restore(dst->cpu_dp->netdev);
+	dsa_master_ethtool_restore(dst->cpu_dp->master);
 
-	dst->cpu_dp->netdev->dsa_ptr = NULL;
+	dst->cpu_dp->master->dsa_ptr = NULL;
 
 	/* If we used a tagging format that doesn't have an ethertype
 	 * field, make sure that all packets from this point get sent
@@ -499,7 +499,7 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 
 	if (!dst->cpu_dp) {
 		dst->cpu_dp = port;
-		dst->cpu_dp->netdev = ethernet_dev;
+		dst->cpu_dp->master = ethernet_dev;
 	}
 
 	/* Initialize cpu_port_mask now for drv->setup()

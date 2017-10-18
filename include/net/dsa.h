@@ -164,6 +164,14 @@ struct dsa_mall_tc_entry {
 
 
 struct dsa_port {
+	/* A CPU port is physically connected to a master device.
+	 * A user port exposed to userspace has a slave device.
+	 */
+	union {
+		struct net_device *master;
+		struct net_device *slave;
+	};
+
 	/* CPU port tagging operations used by master or slave devices */
 	const struct dsa_device_ops *tag_ops;
 
@@ -176,7 +184,6 @@ struct dsa_port {
 	unsigned int		index;
 	const char		*name;
 	struct dsa_port		*cpu_dp;
-	struct net_device	*netdev;
 	struct device_node	*dn;
 	unsigned int		ageing_time;
 	u8			stp_state;
@@ -260,6 +267,11 @@ static inline bool dsa_is_dsa_port(struct dsa_switch *ds, int p)
 static inline bool dsa_is_normal_port(struct dsa_switch *ds, int p)
 {
 	return !dsa_is_cpu_port(ds, p) && !dsa_is_dsa_port(ds, p);
+}
+
+static inline const struct dsa_port *dsa_to_port(struct dsa_switch *ds, int p)
+{
+	return &ds->ports[p];
 }
 
 static inline u8 dsa_upstream_port(struct dsa_switch *ds)

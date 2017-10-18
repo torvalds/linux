@@ -19,7 +19,7 @@
 
 static struct sk_buff *edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_port *dp = dsa_slave_to_port(dev);
 	u8 *edsa_header;
 
 	/*
@@ -43,8 +43,8 @@ static struct sk_buff *edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		edsa_header[1] = ETH_P_EDSA & 0xff;
 		edsa_header[2] = 0x00;
 		edsa_header[3] = 0x00;
-		edsa_header[4] = 0x60 | p->dp->ds->index;
-		edsa_header[5] = p->dp->index << 3;
+		edsa_header[4] = 0x60 | dp->ds->index;
+		edsa_header[5] = dp->index << 3;
 
 		/*
 		 * Move CFI field from byte 6 to byte 5.
@@ -68,8 +68,8 @@ static struct sk_buff *edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		edsa_header[1] = ETH_P_EDSA & 0xff;
 		edsa_header[2] = 0x00;
 		edsa_header[3] = 0x00;
-		edsa_header[4] = 0x40 | p->dp->ds->index;
-		edsa_header[5] = p->dp->index << 3;
+		edsa_header[4] = 0x40 | dp->ds->index;
+		edsa_header[5] = dp->index << 3;
 		edsa_header[6] = 0x00;
 		edsa_header[7] = 0x00;
 	}
@@ -104,7 +104,7 @@ static struct sk_buff *edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	source_device = edsa_header[0] & 0x1f;
 	source_port = (edsa_header[1] >> 3) & 0x1f;
 
-	skb->dev = dsa_master_get_slave(dev, source_device, source_port);
+	skb->dev = dsa_master_find_slave(dev, source_device, source_port);
 	if (!skb->dev)
 		return NULL;
 

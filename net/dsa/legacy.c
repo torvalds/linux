@@ -120,7 +120,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 				return -EINVAL;
 			}
 			dst->cpu_dp = &ds->ports[i];
-			dst->cpu_dp->netdev = master;
+			dst->cpu_dp->master = master;
 			ds->cpu_port_mask |= 1 << i;
 		} else if (!strcmp(name, "dsa")) {
 			ds->dsa_port_mask |= 1 << i;
@@ -261,10 +261,10 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 		if (!(ds->enabled_port_mask & (1 << port)))
 			continue;
 
-		if (!ds->ports[port].netdev)
+		if (!ds->ports[port].slave)
 			continue;
 
-		dsa_slave_destroy(ds->ports[port].netdev);
+		dsa_slave_destroy(ds->ports[port].slave);
 	}
 
 	/* Disable configuration of the CPU and DSA ports */
@@ -601,7 +601,7 @@ static int dsa_setup_dst(struct dsa_switch_tree *dst, struct net_device *dev,
 	wmb();
 	dev->dsa_ptr = dst->cpu_dp;
 
-	return dsa_master_ethtool_setup(dst->cpu_dp->netdev);
+	return dsa_master_ethtool_setup(dst->cpu_dp->master);
 }
 
 static int dsa_probe(struct platform_device *pdev)
@@ -666,9 +666,9 @@ static void dsa_remove_dst(struct dsa_switch_tree *dst)
 {
 	int i;
 
-	dsa_master_ethtool_restore(dst->cpu_dp->netdev);
+	dsa_master_ethtool_restore(dst->cpu_dp->master);
 
-	dst->cpu_dp->netdev->dsa_ptr = NULL;
+	dst->cpu_dp->master->dsa_ptr = NULL;
 
 	/* If we used a tagging format that doesn't have an ethertype
 	 * field, make sure that all packets from this point get sent
@@ -683,7 +683,7 @@ static void dsa_remove_dst(struct dsa_switch_tree *dst)
 			dsa_switch_destroy(ds);
 	}
 
-	dev_put(dst->cpu_dp->netdev);
+	dev_put(dst->cpu_dp->master);
 }
 
 static int dsa_remove(struct platform_device *pdev)
@@ -740,8 +740,7 @@ int dsa_legacy_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 		       const unsigned char *addr, u16 vid,
 		       u16 flags)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_port *dp = p->dp;
+	struct dsa_port *dp = dsa_slave_to_port(dev);
 
 	return dsa_port_fdb_add(dp, addr, vid);
 }
@@ -750,8 +749,7 @@ int dsa_legacy_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 		       struct net_device *dev,
 		       const unsigned char *addr, u16 vid)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_port *dp = p->dp;
+	struct dsa_port *dp = dsa_slave_to_port(dev);
 
 	return dsa_port_fdb_del(dp, addr, vid);
 }
