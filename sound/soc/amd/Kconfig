@@ -2,3 +2,10 @@ config SND_SOC_AMD_ACP
 	tristate "AMD Audio Coprocessor support"
 	help
 	 This option enables ACP DMA support on AMD platform.
+
+config SND_SOC_AMD_CZ_RT5645_MACH
+	tristate "AMD CZ support for RT5645"
+	select SND_SOC_RT5645
+	depends on SND_SOC_AMD_ACP && I2C
+	help
+	 This option enables machine driver for rt5645.
