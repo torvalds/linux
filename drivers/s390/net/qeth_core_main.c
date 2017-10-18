@@ -52,7 +52,6 @@ EXPORT_SYMBOL_GPL(qeth_core_header_cache);
 static struct kmem_cache *qeth_qdio_outbuf_cache;
 
 static struct device *qeth_core_root_dev;
-static unsigned int known_devices[][6] = QETH_MODELLIST_ARRAY;
 static struct lock_class_key qdio_out_skb_queue_key;
 static struct mutex qeth_mod_mutex;
 
@@ -1386,6 +1385,7 @@ static void qeth_init_qdio_info(struct qeth_card *card)
 	QETH_DBF_TEXT(SETUP, 4, "intqdinf");
 	atomic_set(&card->qdio.state, QETH_QDIO_UNINITIALIZED);
 	/* inbound */
+	card->qdio.no_in_queues = 1;
 	card->qdio.in_buf_size = QETH_IN_BUF_SIZE_DEFAULT;
 	if (card->info.type == QETH_CARD_TYPE_IQD)
 		card->qdio.init_pool.buf_count = QETH_IN_BUF_COUNT_HSDEFAULT;
@@ -1519,34 +1519,17 @@ out:
 	return NULL;
 }
 
-static int qeth_determine_card_type(struct qeth_card *card)
+static void qeth_determine_card_type(struct qeth_card *card)
 {
-	int i = 0;
-
 	QETH_DBF_TEXT(SETUP, 2, "detcdtyp");
 
 	card->qdio.do_prio_queueing = QETH_PRIOQ_DEFAULT;
 	card->qdio.default_out_queue = QETH_DEFAULT_QUEUE;
-	while (known_devices[i][QETH_DEV_MODEL_IND]) {
-		if ((CARD_RDEV(card)->id.dev_type ==
-				known_devices[i][QETH_DEV_TYPE_IND]) &&
-		    (CARD_RDEV(card)->id.dev_model ==
-				known_devices[i][QETH_DEV_MODEL_IND])) {
-			card->info.type = known_devices[i][QETH_DEV_MODEL_IND];
-			card->qdio.no_out_queues =
-				known_devices[i][QETH_QUEUE_NO_IND];
-			card->qdio.no_in_queues = 1;
-			card->info.is_multicast_different =
-				known_devices[i][QETH_MULTICAST_IND];
-			qeth_update_from_chp_desc(card);
-			return 0;
-		}
-		i++;
-	}
-	card->info.type = QETH_CARD_TYPE_UNKNOWN;
-	dev_err(&card->gdev->dev, "The adapter hardware is of an "
-		"unknown type\n");
-	return -ENOENT;
+	card->info.type = CARD_RDEV(card)->id.driver_info;
+	card->qdio.no_out_queues = QETH_MAX_QUEUES;
+	if (card->info.type == QETH_CARD_TYPE_IQD)
+		card->info.is_multicast_different = 0x0103;
+	qeth_update_from_chp_desc(card);
 }
 
 static int qeth_clear_channel(struct qeth_channel *channel)
@@ -2233,8 +2216,6 @@ static int qeth_cm_setup(struct qeth_card *card)
 static int qeth_get_initial_mtu_for_card(struct qeth_card *card)
 {
 	switch (card->info.type) {
-	case QETH_CARD_TYPE_UNKNOWN:
-		return 1500;
 	case QETH_CARD_TYPE_IQD:
 		return card->info.max_mtu;
 	case QETH_CARD_TYPE_OSD:
@@ -2279,7 +2260,6 @@ static int qeth_mtu_is_valid(struct qeth_card *card, int mtu)
 		return ((mtu >= 576) &&
 			(mtu <= card->info.max_mtu));
 	case QETH_CARD_TYPE_OSN:
-	case QETH_CARD_TYPE_UNKNOWN:
 	default:
 		return 1;
 	}
@@ -5724,11 +5704,7 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 	gdev->cdev[1]->handler = qeth_irq;
 	gdev->cdev[2]->handler = qeth_irq;
 
-	rc = qeth_determine_card_type(card);
-	if (rc) {
-		QETH_DBF_TEXT_(SETUP, 2, "3err%d", rc);
-		goto err_card;
-	}
+	qeth_determine_card_type(card);
 	rc = qeth_setup_card(card);
 	if (rc) {
 		QETH_DBF_TEXT_(SETUP, 2, "2err%d", rc);
