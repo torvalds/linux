@@ -175,6 +175,7 @@ struct tun_file {
 		unsigned int ifindex;
 	};
 	struct napi_struct napi;
+	bool napi_enabled;
 	struct mutex napi_mutex;	/* Protects access to the above napi */
 	struct list_head next;
 	struct tun_struct *detached;
@@ -276,6 +277,7 @@ static int tun_napi_poll(struct napi_struct *napi, int budget)
 static void tun_napi_init(struct tun_struct *tun, struct tun_file *tfile,
 			  bool napi_en)
 {
+	tfile->napi_enabled = napi_en;
 	if (napi_en) {
 		netif_napi_add(tun->dev, &tfile->napi, tun_napi_poll,
 			       NAPI_POLL_WEIGHT);
@@ -286,13 +288,13 @@ static void tun_napi_init(struct tun_struct *tun, struct tun_file *tfile,
 
 static void tun_napi_disable(struct tun_struct *tun, struct tun_file *tfile)
 {
-	if (tun->flags & IFF_NAPI)
+	if (tfile->napi_enabled)
 		napi_disable(&tfile->napi);
 }
 
 static void tun_napi_del(struct tun_struct *tun, struct tun_file *tfile)
 {
-	if (tun->flags & IFF_NAPI)
+	if (tfile->napi_enabled)
 		netif_napi_del(&tfile->napi);
 }
 
@@ -1055,7 +1057,8 @@ static void tun_poll_controller(struct net_device *dev)
 		rcu_read_lock();
 		for (i = 0; i < tun->numqueues; i++) {
 			tfile = rcu_dereference(tun->tfiles[i]);
-			napi_schedule(&tfile->napi);
+			if (tfile->napi_enabled)
+				napi_schedule(&tfile->napi);
 		}
 		rcu_read_unlock();
 	}
@@ -1749,7 +1752,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		napi_gro_frags(&tfile->napi);
 		local_bh_enable();
 		mutex_unlock(&tfile->napi_mutex);
-	} else if (tun->flags & IFF_NAPI) {
+	} else if (tfile->napi_enabled) {
 		struct sk_buff_head *queue = &tfile->sk.sk_write_queue;
 		int queue_len;
 
