@@ -2571,6 +2571,17 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		release_sock(sk);
 		return err;
 	}
+	case TCP_FASTOPEN_KEY: {
+		__u8 key[TCP_FASTOPEN_KEY_LENGTH];
+
+		if (optlen != sizeof(key))
+			return -EINVAL;
+
+		if (copy_from_user(key, optval, optlen))
+			return -EFAULT;
+
+		return tcp_fastopen_reset_cipher(net, sk, key, sizeof(key));
+	}
 	default:
 		/* fallthru */
 		break;
@@ -3157,6 +3168,28 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 			return -EFAULT;
 		return 0;
 
+	case TCP_FASTOPEN_KEY: {
+		__u8 key[TCP_FASTOPEN_KEY_LENGTH];
+		struct tcp_fastopen_context *ctx;
+
+		if (get_user(len, optlen))
+			return -EFAULT;
+
+		rcu_read_lock();
+		ctx = rcu_dereference(icsk->icsk_accept_queue.fastopenq.ctx);
+		if (ctx)
+			memcpy(key, ctx->key, sizeof(key));
+		else
+			len = 0;
+		rcu_read_unlock();
+
+		len = min_t(unsigned int, len, sizeof(key));
+		if (put_user(len, optlen))
+			return -EFAULT;
+		if (copy_to_user(optval, key, len))
+			return -EFAULT;
+		return 0;
+	}
 	case TCP_THIN_LINEAR_TIMEOUTS:
 		val = tp->thin_lto;
 		break;
