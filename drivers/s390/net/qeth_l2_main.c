@@ -348,10 +348,6 @@ static int qeth_l2_vlan_rx_add_vid(struct net_device *dev,
 	QETH_CARD_TEXT_(card, 4, "aid:%d", vid);
 	if (!vid)
 		return 0;
-	if (card->info.type == QETH_CARD_TYPE_OSM) {
-		QETH_CARD_TEXT(card, 3, "aidOSM");
-		return 0;
-	}
 	if (qeth_wait_for_threads(card, QETH_RECOVER_THREAD)) {
 		QETH_CARD_TEXT(card, 3, "aidREC");
 		return 0;
@@ -381,10 +377,6 @@ static int qeth_l2_vlan_rx_kill_vid(struct net_device *dev,
 	int rc = 0;
 
 	QETH_CARD_TEXT_(card, 4, "kid:%d", vid);
-	if (card->info.type == QETH_CARD_TYPE_OSM) {
-		QETH_CARD_TEXT(card, 3, "kidOSM");
-		return 0;
-	}
 	if (qeth_wait_for_threads(card, QETH_RECOVER_THREAD)) {
 		QETH_CARD_TEXT(card, 3, "kidREC");
 		return 0;
@@ -1010,7 +1002,11 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 	} else {
 		card->dev->ethtool_ops = &qeth_l2_ethtool_ops;
 	}
-	card->dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+
+	if (card->info.type == QETH_CARD_TYPE_OSM)
+		card->dev->features |= NETIF_F_VLAN_CHALLENGED;
+	else
+		card->dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	if (card->info.type == QETH_CARD_TYPE_OSD && !card->info.guestlan) {
 		card->dev->hw_features = NETIF_F_SG;
 		card->dev->vlan_features = NETIF_F_SG;
@@ -1120,8 +1116,7 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 			goto out_remove;
 	}
 
-	if (card->info.type != QETH_CARD_TYPE_OSN &&
-	    card->info.type != QETH_CARD_TYPE_OSM)
+	if (card->info.type != QETH_CARD_TYPE_OSN)
 		qeth_l2_process_vlans(card);
 
 	netif_tx_disable(card->dev);
