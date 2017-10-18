@@ -866,7 +866,7 @@ fail:
 
 static int pblk_writer_init(struct pblk *pblk)
 {
-	setup_timer(&pblk->wtimer, pblk_write_timer_fn, (unsigned long)pblk);
+	timer_setup(&pblk->wtimer, pblk_write_timer_fn, 0);
 	mod_timer(&pblk->wtimer, jiffies + msecs_to_jiffies(100));
 
 	pblk->writer_ts = kthread_create(pblk_write_ts, pblk, "pblk-writer-t");
