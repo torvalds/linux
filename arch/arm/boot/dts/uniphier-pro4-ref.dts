@@ -40,7 +40,7 @@
 };
 
 &ethsc {
-	interrupts = <0 50 4>;
+	interrupts = <2 8>;
 };
 
 &serial0 {
