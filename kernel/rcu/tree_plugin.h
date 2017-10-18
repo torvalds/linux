@@ -54,6 +54,7 @@ DEFINE_PER_CPU(char, rcu_cpu_has_work);
  * This probably needs to be excluded from -rt builds.
  */
 #define rt_mutex_owner(a) ({ WARN_ON_ONCE(1); NULL; })
+#define rt_mutex_futex_unlock(x) WARN_ON_ONCE(1)
 
 #endif /* #else #ifdef CONFIG_RCU_BOOST */
 
@@ -910,8 +911,6 @@ void exit_rcu(void)
 #endif /* #else #ifdef CONFIG_PREEMPT_RCU */
 
 #ifdef CONFIG_RCU_BOOST
-
-#include "../locking/rtmutex_common.h"
 
 static void rcu_wake_cond(struct task_struct *t, int status)
 {
