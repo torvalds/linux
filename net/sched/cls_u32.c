@@ -335,7 +335,7 @@ static struct hlist_head *tc_u_common_hash;
 
 static unsigned int tc_u_hash(const struct tcf_proto *tp)
 {
-	return hash_64((u64) tp->chain->block, U32_HASH_SHIFT);
+	return hash_ptr(tp->chain->block, U32_HASH_SHIFT);
 }
 
 static struct tc_u_common *tc_u_common_find(const struct tcf_proto *tp)
