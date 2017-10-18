@@ -240,6 +240,21 @@ static int max77843_muic_set_path(struct max77843_muic_info *info,
 	return 0;
 }
 
+static void max77843_charger_set_otg_vbus(struct max77843_muic_info *info,
+		 bool on)
+{
+	struct max77693_dev *max77843 = info->max77843;
+	unsigned int cnfg00;
+
+	if (on)
+		cnfg00 = MAX77843_CHG_OTG_MASK | MAX77843_CHG_BOOST_MASK;
+	else
+		cnfg00 = MAX77843_CHG_ENABLE | MAX77843_CHG_BUCK_MASK;
+
+	regmap_update_bits(max77843->regmap_chg, MAX77843_CHG_REG_CHG_CNFG_00,
+			   MAX77843_CHG_MODE_MASK, cnfg00);
+}
+
 static int max77843_muic_get_cable_type(struct max77843_muic_info *info,
 		enum max77843_muic_cable_group group, bool *attached)
 {
@@ -355,6 +370,7 @@ static int max77843_muic_adc_gnd_handler(struct max77843_muic_info *info)
 			return ret;
 
 		extcon_set_state_sync(info->edev, EXTCON_USB_HOST, attached);
+		max77843_charger_set_otg_vbus(info, attached);
 		break;
 	case MAX77843_MUIC_GND_MHL_VB:
 	case MAX77843_MUIC_GND_MHL:
