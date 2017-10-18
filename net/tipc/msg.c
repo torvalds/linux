@@ -551,7 +551,7 @@ bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 		return false;
 	if (msg_errcode(msg))
 		return false;
-	*err = -TIPC_ERR_NO_NAME;
+	*err = TIPC_ERR_NO_NAME;
 	if (skb_linearize(skb))
 		return false;
 	msg = buf_msg(skb);
@@ -568,6 +568,14 @@ bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 	msg_set_destnode(msg, dnode);
 	msg_set_destport(msg, dport);
 	*err = TIPC_OK;
+
+	if (!skb_cloned(skb))
+		return true;
+
+	/* Unclone buffer in case it was bundled */
+	if (pskb_expand_head(skb, BUF_HEADROOM, BUF_TAILROOM, GFP_ATOMIC))
+		return false;
+
 	return true;
 }
 
@@ -657,4 +665,11 @@ void __tipc_skb_queue_sorted(struct sk_buff_head *list, u16 seqno,
 		return;
 	}
 	kfree_skb(skb);
+}
+
+void tipc_skb_reject(struct net *net, int err, struct sk_buff *skb,
+		     struct sk_buff_head *xmitq)
+{
+	if (tipc_msg_reverse(tipc_own_addr(net), &skb, err))
+		__skb_queue_tail(xmitq, skb);
 }

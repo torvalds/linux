@@ -1661,9 +1661,11 @@ static int tcf_node_bind(struct tcf_proto *tp, void *n, struct tcf_walker *arg)
 	struct tcf_bind_args *a = (void *)arg;
 
 	if (tp->ops->bind_class) {
-		tcf_tree_lock(tp);
+		struct Qdisc *q = tcf_block_q(tp->chain->block);
+
+		sch_tree_lock(q);
 		tp->ops->bind_class(n, a->classid, a->cl);
-		tcf_tree_unlock(tp);
+		sch_tree_unlock(q);
 	}
 	return 0;
 }

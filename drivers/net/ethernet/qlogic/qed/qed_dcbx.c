@@ -2308,7 +2308,7 @@ static int qed_dcbnl_ieee_setapp(struct qed_dev *cdev, struct dcb_app *app)
 
 	DP_VERBOSE(hwfn, QED_MSG_DCB, "selector = %d protocol = %d pri = %d\n",
 		   app->selector, app->protocol, app->priority);
-	if (app->priority < 0 || app->priority >= QED_MAX_PFC_PRIORITIES) {
+	if (app->priority >= QED_MAX_PFC_PRIORITIES) {
 		DP_INFO(hwfn, "Invalid priority %d\n", app->priority);
 		return -EINVAL;
 	}

@@ -197,3 +197,27 @@ information is missing.
 
 To recover from this mode, one needs to flash a valid NVM image to the
 host host controller in the same way it is done in the previous chapter.
+
+Networking over Thunderbolt cable
+---------------------------------
+Thunderbolt technology allows software communication across two hosts
+connected by a Thunderbolt cable.
+
+It is possible to tunnel any kind of traffic over Thunderbolt link but
+currently we only support Apple ThunderboltIP protocol.
+
+If the other host is running Windows or macOS only thing you need to
+do is to connect Thunderbolt cable between the two hosts, the
+``thunderbolt-net`` is loaded automatically. If the other host is also
+Linux you should load ``thunderbolt-net`` manually on one host (it does
+not matter which one)::
+
+  # modprobe thunderbolt-net
+
+This triggers module load on the other host automatically. If the driver
+is built-in to the kernel image, there is no need to do anything.
+
+The driver will create one virtual ethernet interface per Thunderbolt
+port which are named like ``thunderbolt0`` and so on. From this point
+you can either use standard userspace tools like ``ifconfig`` to
+configure the interface or let your GUI to handle it automatically.

@@ -240,7 +240,6 @@ void tcp_time_wait(struct sock *sk, int state, int timeo);
 
 
 /* sysctl variables for tcp */
-extern int sysctl_tcp_fastopen;
 extern int sysctl_tcp_retrans_collapse;
 extern int sysctl_tcp_stdurg;
 extern int sysctl_tcp_rfc1337;
@@ -345,7 +344,7 @@ void tcp_v4_err(struct sk_buff *skb, u32);
 
 void tcp_shutdown(struct sock *sk, int how);
 
-void tcp_v4_early_demux(struct sk_buff *skb);
+int tcp_v4_early_demux(struct sk_buff *skb);
 int tcp_v4_rcv(struct sk_buff *skb);
 
 int tcp_v4_tw_remember_stamp(struct inet_timewait_sock *tw);
@@ -417,6 +416,7 @@ bool tcp_peer_is_proven(struct request_sock *req, struct dst_entry *dst);
 void tcp_disable_fack(struct tcp_sock *tp);
 void tcp_close(struct sock *sk, long timeout);
 void tcp_init_sock(struct sock *sk);
+void tcp_init_transfer(struct sock *sk, int bpf_op);
 unsigned int tcp_poll(struct file *file, struct socket *sock,
 		      struct poll_table_struct *wait);
 int tcp_getsockopt(struct sock *sk, int level, int optname,
@@ -551,7 +551,13 @@ void tcp_xmit_retransmit_queue(struct sock *);
 void tcp_simple_retransmit(struct sock *);
 void tcp_enter_recovery(struct sock *sk, bool ece_ack);
 int tcp_trim_head(struct sock *, struct sk_buff *, u32);
-int tcp_fragment(struct sock *, struct sk_buff *, u32, unsigned int, gfp_t);
+enum tcp_queue {
+	TCP_FRAG_IN_WRITE_QUEUE,
+	TCP_FRAG_IN_RTX_QUEUE,
+};
+int tcp_fragment(struct sock *sk, enum tcp_queue tcp_queue,
+		 struct sk_buff *skb, u32 len,
+		 unsigned int mss_now, gfp_t gfp);
 
 void tcp_send_probe0(struct sock *);
 void tcp_send_partial(struct sock *);
@@ -1550,13 +1556,13 @@ struct tcp_fastopen_request {
 };
 void tcp_free_fastopen_req(struct tcp_sock *tp);
 
-extern struct tcp_fastopen_context __rcu *tcp_fastopen_ctx;
-int tcp_fastopen_reset_cipher(void *key, unsigned int len);
+void tcp_fastopen_ctx_destroy(struct net *net);
+int tcp_fastopen_reset_cipher(struct net *net, void *key, unsigned int len);
 void tcp_fastopen_add_skb(struct sock *sk, struct sk_buff *skb);
 struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 			      struct request_sock *req,
 			      struct tcp_fastopen_cookie *foc);
-void tcp_fastopen_init_key_once(bool publish);
+void tcp_fastopen_init_key_once(struct net *net);
 bool tcp_fastopen_cookie_check(struct sock *sk, u16 *mss,
 			     struct tcp_fastopen_cookie *cookie);
 bool tcp_fastopen_defer_connect(struct sock *sk, int *err);
@@ -1589,16 +1595,28 @@ enum tcp_chrono {
 void tcp_chrono_start(struct sock *sk, const enum tcp_chrono type);
 void tcp_chrono_stop(struct sock *sk, const enum tcp_chrono type);
 
-/* write queue abstraction */
-static inline void tcp_write_queue_purge(struct sock *sk)
+/* This helper is needed, because skb->tcp_tsorted_anchor uses
+ * the same memory storage than skb->destructor/_skb_refdst
+ */
+static inline void tcp_skb_tsorted_anchor_cleanup(struct sk_buff *skb)
 {
-	struct sk_buff *skb;
+	skb->destructor = NULL;
+	skb->_skb_refdst = 0UL;
+}
 
-	tcp_chrono_stop(sk, TCP_CHRONO_BUSY);
-	while ((skb = __skb_dequeue(&sk->sk_write_queue)) != NULL)
-		sk_wmem_free_skb(sk, skb);
-	sk_mem_reclaim(sk);
-	tcp_clear_all_retrans_hints(tcp_sk(sk));
+#define tcp_skb_tsorted_save(skb) {		\
+	unsigned long _save = skb->_skb_refdst;	\
+	skb->_skb_refdst = 0UL;
+
+#define tcp_skb_tsorted_restore(skb)		\
+	skb->_skb_refdst = _save;		\
+}
+
+void tcp_write_queue_purge(struct sock *sk);
+
+static inline struct sk_buff *tcp_rtx_queue_head(const struct sock *sk)
+{
+	return skb_rb_first(&sk->tcp_rtx_queue);
 }
 
 static inline struct sk_buff *tcp_write_queue_head(const struct sock *sk)
@@ -1611,30 +1629,12 @@ static inline struct sk_buff *tcp_write_queue_tail(const struct sock *sk)
 	return skb_peek_tail(&sk->sk_write_queue);
 }
 
-static inline struct sk_buff *tcp_write_queue_next(const struct sock *sk,
-						   const struct sk_buff *skb)
-{
-	return skb_queue_next(&sk->sk_write_queue, skb);
-}
-
-static inline struct sk_buff *tcp_write_queue_prev(const struct sock *sk,
-						   const struct sk_buff *skb)
-{
-	return skb_queue_prev(&sk->sk_write_queue, skb);
-}
-
-#define tcp_for_write_queue(skb, sk)					\
-	skb_queue_walk(&(sk)->sk_write_queue, skb)
-
-#define tcp_for_write_queue_from(skb, sk)				\
-	skb_queue_walk_from(&(sk)->sk_write_queue, skb)
-
 #define tcp_for_write_queue_from_safe(skb, tmp, sk)			\
 	skb_queue_walk_from_safe(&(sk)->sk_write_queue, skb, tmp)
 
 static inline struct sk_buff *tcp_send_head(const struct sock *sk)
 {
-	return sk->sk_send_head;
+	return skb_peek(&sk->sk_write_queue);
 }
 
 static inline bool tcp_skb_is_last(const struct sock *sk,
@@ -1643,27 +1643,28 @@ static inline bool tcp_skb_is_last(const struct sock *sk,
 	return skb_queue_is_last(&sk->sk_write_queue, skb);
 }
 
-static inline void tcp_advance_send_head(struct sock *sk, const struct sk_buff *skb)
+static inline bool tcp_write_queue_empty(const struct sock *sk)
 {
-	if (tcp_skb_is_last(sk, skb))
-		sk->sk_send_head = NULL;
-	else
-		sk->sk_send_head = tcp_write_queue_next(sk, skb);
+	return skb_queue_empty(&sk->sk_write_queue);
+}
+
+static inline bool tcp_rtx_queue_empty(const struct sock *sk)
+{
+	return RB_EMPTY_ROOT(&sk->tcp_rtx_queue);
+}
+
+static inline bool tcp_rtx_and_write_queues_empty(const struct sock *sk)
+{
+	return tcp_rtx_queue_empty(sk) && tcp_write_queue_empty(sk);
 }
 
 static inline void tcp_check_send_head(struct sock *sk, struct sk_buff *skb_unlinked)
 {
-	if (sk->sk_send_head == skb_unlinked) {
-		sk->sk_send_head = NULL;
+	if (tcp_write_queue_empty(sk))
 		tcp_chrono_stop(sk, TCP_CHRONO_BUSY);
-	}
+
 	if (tcp_sk(sk)->highest_sack == skb_unlinked)
 		tcp_sk(sk)->highest_sack = NULL;
-}
-
-static inline void tcp_init_send_head(struct sock *sk)
-{
-	sk->sk_send_head = NULL;
 }
 
 static inline void __tcp_add_write_queue_tail(struct sock *sk, struct sk_buff *skb)
@@ -1676,26 +1677,12 @@ static inline void tcp_add_write_queue_tail(struct sock *sk, struct sk_buff *skb
 	__tcp_add_write_queue_tail(sk, skb);
 
 	/* Queue it, remembering where we must start sending. */
-	if (sk->sk_send_head == NULL) {
-		sk->sk_send_head = skb;
+	if (sk->sk_write_queue.next == skb) {
 		tcp_chrono_start(sk, TCP_CHRONO_BUSY);
 
 		if (tcp_sk(sk)->highest_sack == NULL)
 			tcp_sk(sk)->highest_sack = skb;
 	}
-}
-
-static inline void __tcp_add_write_queue_head(struct sock *sk, struct sk_buff *skb)
-{
-	__skb_queue_head(&sk->sk_write_queue, skb);
-}
-
-/* Insert buff after skb on the write queue of sk.  */
-static inline void tcp_insert_write_queue_after(struct sk_buff *skb,
-						struct sk_buff *buff,
-						struct sock *sk)
-{
-	__skb_queue_after(&sk->sk_write_queue, skb, buff);
 }
 
 /* Insert new before skb on the write queue of sk.  */
@@ -1704,19 +1691,27 @@ static inline void tcp_insert_write_queue_before(struct sk_buff *new,
 						  struct sock *sk)
 {
 	__skb_queue_before(&sk->sk_write_queue, skb, new);
-
-	if (sk->sk_send_head == skb)
-		sk->sk_send_head = new;
 }
 
 static inline void tcp_unlink_write_queue(struct sk_buff *skb, struct sock *sk)
 {
+	tcp_skb_tsorted_anchor_cleanup(skb);
 	__skb_unlink(skb, &sk->sk_write_queue);
 }
 
-static inline bool tcp_write_queue_empty(struct sock *sk)
+void tcp_rbtree_insert(struct rb_root *root, struct sk_buff *skb);
+
+static inline void tcp_rtx_queue_unlink(struct sk_buff *skb, struct sock *sk)
 {
-	return skb_queue_empty(&sk->sk_write_queue);
+	tcp_skb_tsorted_anchor_cleanup(skb);
+	rb_erase(&skb->rbnode, &sk->tcp_rtx_queue);
+}
+
+static inline void tcp_rtx_queue_unlink_and_free(struct sk_buff *skb, struct sock *sk)
+{
+	list_del(&skb->tcp_tsorted_anchor);
+	tcp_rtx_queue_unlink(skb, sk);
+	sk_wmem_free_skb(sk, skb);
 }
 
 static inline void tcp_push_pending_frames(struct sock *sk)
@@ -1745,8 +1740,9 @@ static inline u32 tcp_highest_sack_seq(struct tcp_sock *tp)
 
 static inline void tcp_advance_highest_sack(struct sock *sk, struct sk_buff *skb)
 {
-	tcp_sk(sk)->highest_sack = tcp_skb_is_last(sk, skb) ? NULL :
-						tcp_write_queue_next(sk, skb);
+	struct sk_buff *next = skb_rb_next(skb);
+
+	tcp_sk(sk)->highest_sack = next ?: tcp_send_head(sk);
 }
 
 static inline struct sk_buff *tcp_highest_sack(struct sock *sk)
@@ -1756,7 +1752,9 @@ static inline struct sk_buff *tcp_highest_sack(struct sock *sk)
 
 static inline void tcp_highest_sack_reset(struct sock *sk)
 {
-	tcp_sk(sk)->highest_sack = tcp_write_queue_head(sk);
+	struct sk_buff *skb = tcp_rtx_queue_head(sk);
+
+	tcp_sk(sk)->highest_sack = skb ?: tcp_send_head(sk);
 }
 
 /* Called when old skb is about to be deleted (to be combined with new skb) */
@@ -1926,7 +1924,7 @@ extern void tcp_rack_reo_timeout(struct sock *sk);
 /* At how many usecs into the future should the RTO fire? */
 static inline s64 tcp_rto_delta_us(const struct sock *sk)
 {
-	const struct sk_buff *skb = tcp_write_queue_head(sk);
+	const struct sk_buff *skb = tcp_rtx_queue_head(sk);
 	u32 rto = inet_csk(sk)->icsk_rto;
 	u64 rto_time_stamp_us = skb->skb_mstamp + jiffies_to_usecs(rto);
 

@@ -94,10 +94,6 @@ struct e1000_info;
  */
 #define E1000_CHECK_RESET_COUNT		25
 
-#define DEFAULT_RDTR			0
-#define DEFAULT_RADV			8
-#define BURST_RDTR			0x20
-#define BURST_RADV			0x20
 #define PCICFG_DESC_RING_STATUS		0xe4
 #define FLUSH_DESC_REQUIRED		0x100
 

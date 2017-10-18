@@ -399,23 +399,25 @@ u32 mlxsw_afa_block_first_set_kvdl_index(struct mlxsw_afa_block *block)
 }
 EXPORT_SYMBOL(mlxsw_afa_block_first_set_kvdl_index);
 
-void mlxsw_afa_block_continue(struct mlxsw_afa_block *block)
+int mlxsw_afa_block_continue(struct mlxsw_afa_block *block)
 {
-	if (WARN_ON(block->finished))
-		return;
+	if (block->finished)
+		return -EINVAL;
 	mlxsw_afa_set_goto_set(block->cur_set,
 			       MLXSW_AFA_SET_GOTO_BINDING_CMD_NONE, 0);
 	block->finished = true;
+	return 0;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_continue);
 
-void mlxsw_afa_block_jump(struct mlxsw_afa_block *block, u16 group_id)
+int mlxsw_afa_block_jump(struct mlxsw_afa_block *block, u16 group_id)
 {
-	if (WARN_ON(block->finished))
-		return;
+	if (block->finished)
+		return -EINVAL;
 	mlxsw_afa_set_goto_set(block->cur_set,
 			       MLXSW_AFA_SET_GOTO_BINDING_CMD_JUMP, group_id);
 	block->finished = true;
+	return 0;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_jump);
 
@@ -674,6 +676,7 @@ enum mlxsw_afa_trapdisc_trap_action {
 MLXSW_ITEM32(afa, trapdisc, trap_action, 0x00, 24, 4);
 
 enum mlxsw_afa_trapdisc_forward_action {
+	MLXSW_AFA_TRAPDISC_FORWARD_ACTION_FORWARD = 1,
 	MLXSW_AFA_TRAPDISC_FORWARD_ACTION_DISCARD = 3,
 };
 
@@ -726,6 +729,22 @@ int mlxsw_afa_block_append_trap(struct mlxsw_afa_block *block, u16 trap_id)
 	return 0;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_trap);
+
+int mlxsw_afa_block_append_trap_and_forward(struct mlxsw_afa_block *block,
+					    u16 trap_id)
+{
+	char *act = mlxsw_afa_block_append_action(block,
+						  MLXSW_AFA_TRAPDISC_CODE,
+						  MLXSW_AFA_TRAPDISC_SIZE);
+
+	if (!act)
+		return -ENOBUFS;
+	mlxsw_afa_trapdisc_pack(act, MLXSW_AFA_TRAPDISC_TRAP_ACTION_TRAP,
+				MLXSW_AFA_TRAPDISC_FORWARD_ACTION_FORWARD,
+				trap_id);
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_trap_and_forward);
 
 /* Forwarding Action
  * -----------------

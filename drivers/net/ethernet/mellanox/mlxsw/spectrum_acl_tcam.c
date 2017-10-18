@@ -608,7 +608,10 @@ mlxsw_sp_acl_tcam_region_catchall_add(struct mlxsw_sp *mlxsw_sp,
 		goto err_rulei_create;
 	}
 
-	mlxsw_sp_acl_rulei_act_continue(rulei);
+	err = mlxsw_sp_acl_rulei_act_continue(rulei);
+	if (WARN_ON(err))
+		goto err_rulei_act_continue;
+
 	err = mlxsw_sp_acl_rulei_commit(rulei);
 	if (err)
 		goto err_rulei_commit;
@@ -623,6 +626,7 @@ mlxsw_sp_acl_tcam_region_catchall_add(struct mlxsw_sp *mlxsw_sp,
 
 err_rule_insert:
 err_rulei_commit:
+err_rulei_act_continue:
 	mlxsw_sp_acl_rulei_destroy(rulei);
 err_rulei_create:
 	parman_item_remove(region->parman, parman_prio, parman_item);

@@ -407,7 +407,7 @@ static int ipvlan_hard_header(struct sk_buff *skb, struct net_device *dev,
 	 * while the packets use the mac-addr on the physical device.
 	 */
 	return dev_hard_header(skb, phy_dev, type, daddr,
-			       saddr ? : dev->dev_addr, len);
+			       saddr ? : phy_dev->dev_addr, len);
 }
 
 static const struct header_ops ipvlan_header_ops = {
@@ -584,7 +584,7 @@ int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	if (err < 0)
 		goto remove_ida;
 
-	err = netdev_upper_dev_link(phy_dev, dev);
+	err = netdev_upper_dev_link(phy_dev, dev, extack);
 	if (err) {
 		goto unregister_netdev;
 	}
@@ -728,6 +728,11 @@ static int ipvlan_device_event(struct notifier_block *unused,
 	case NETDEV_CHANGEMTU:
 		list_for_each_entry(ipvlan, &port->ipvlans, pnode)
 			ipvlan_adjust_mtu(ipvlan, dev);
+		break;
+
+	case NETDEV_CHANGEADDR:
+		list_for_each_entry(ipvlan, &port->ipvlans, pnode)
+			ether_addr_copy(ipvlan->dev->dev_addr, dev->dev_addr);
 		break;
 
 	case NETDEV_PRE_TYPE_CHANGE:

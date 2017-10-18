@@ -42,9 +42,11 @@
 
 static bool nfp_net_ebpf_capable(struct nfp_net *nn)
 {
+#ifdef __LITTLE_ENDIAN
 	if (nn->cap & NFP_NET_CFG_CTRL_BPF &&
 	    nn_readb(nn, NFP_NET_CFG_BPF_ABI) == NFP_NET_BPF_ABI)
 		return true;
+#endif
 	return false;
 }
 
@@ -88,14 +90,6 @@ nfp_bpf_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 {
 	struct nfp_net_bpf_priv *priv;
 	int ret;
-
-	/* Limit to single port, otherwise it's just a NIC */
-	if (id > 0) {
-		nfp_warn(app->cpp,
-			 "BPF NIC doesn't support more than one port right now\n");
-		nn->port = nfp_port_alloc(app, NFP_PORT_INVALID, nn->dp.netdev);
-		return PTR_ERR_OR_ZERO(nn->port);
-	}
 
 	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)

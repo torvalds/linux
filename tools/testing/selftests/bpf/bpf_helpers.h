@@ -62,6 +62,8 @@ static unsigned long long (*bpf_get_prandom_u32)(void) =
 	(void *) BPF_FUNC_get_prandom_u32;
 static int (*bpf_xdp_adjust_head)(void *ctx, int offset) =
 	(void *) BPF_FUNC_xdp_adjust_head;
+static int (*bpf_xdp_adjust_meta)(void *ctx, int offset) =
+	(void *) BPF_FUNC_xdp_adjust_meta;
 static int (*bpf_setsockopt)(void *ctx, int level, int optname, void *optval,
 			     int optlen) =
 	(void *) BPF_FUNC_setsockopt;
@@ -70,6 +72,12 @@ static int (*bpf_sk_redirect_map)(void *map, int key, int flags) =
 static int (*bpf_sock_map_update)(void *map, void *key, void *value,
 				  unsigned long long flags) =
 	(void *) BPF_FUNC_sock_map_update;
+static int (*bpf_perf_event_read_value)(void *map, unsigned long long flags,
+					void *buf, unsigned int buf_size) =
+	(void *) BPF_FUNC_perf_event_read_value;
+static int (*bpf_perf_prog_read_value)(void *ctx, void *buf,
+				       unsigned int buf_size) =
+	(void *) BPF_FUNC_perf_prog_read_value;
 
 
 /* llvm builtin functions that eBPF C program may use to

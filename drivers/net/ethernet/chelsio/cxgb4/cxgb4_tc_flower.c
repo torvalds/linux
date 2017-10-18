@@ -366,7 +366,7 @@ err:
 	return ret;
 }
 
-void ch_flower_stats_cb(unsigned long data)
+static void ch_flower_stats_cb(unsigned long data)
 {
 	struct adapter *adap = (struct adapter *)data;
 	struct ch_tc_flower_entry *flower_entry;

@@ -23,8 +23,6 @@
 #include "bnxt_tc.h"
 #include "bnxt_vfr.h"
 
-#ifdef CONFIG_BNXT_FLOWER_OFFLOAD
-
 #define BNXT_FID_INVALID			0xffff
 #define VLAN_TCI(vid, prio)	((vid) | ((prio) << VLAN_PRIO_SHIFT))
 
@@ -833,6 +831,3 @@ void bnxt_shutdown_tc(struct bnxt *bp)
 	rhashtable_destroy(&tc_info->flow_table);
 	rhashtable_destroy(&tc_info->l2_table);
 }
-
-#else
-#endif

@@ -89,6 +89,7 @@ static bool ip6_tlvopt_unknown(struct sk_buff *skb, int optoff)
 		 */
 		if (ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr))
 			break;
+		/* fall through */
 	case 2: /* send ICMP PARM PROB regardless and drop packet */
 		icmpv6_param_prob(skb, ICMPV6_UNK_OPTION, optoff);
 		return false;

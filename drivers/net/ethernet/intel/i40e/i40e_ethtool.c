@@ -227,6 +227,8 @@ static const struct i40e_priv_flags i40e_gstrings_priv_flags[] = {
 	I40E_PRIV_FLAG("veb-stats", I40E_FLAG_VEB_STATS_ENABLED, 0),
 	I40E_PRIV_FLAG("hw-atr-eviction", I40E_FLAG_HW_ATR_EVICT_ENABLED, 0),
 	I40E_PRIV_FLAG("legacy-rx", I40E_FLAG_LEGACY_RX, 0),
+	I40E_PRIV_FLAG("disable-source-pruning",
+		       I40E_FLAG_SOURCE_PRUNING_DISABLED, 0),
 };
 
 #define I40E_PRIV_FLAGS_STR_LEN ARRAY_SIZE(i40e_gstrings_priv_flags)
@@ -2008,7 +2010,9 @@ static int i40e_set_phys_id(struct net_device *netdev,
 		if (!(pf->hw_features & I40E_HW_PHY_CONTROLS_LEDS)) {
 			pf->led_status = i40e_led_get(hw);
 		} else {
-			i40e_aq_set_phy_debug(hw, I40E_PHY_DEBUG_ALL, NULL);
+			if (!(hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE))
+				i40e_aq_set_phy_debug(hw, I40E_PHY_DEBUG_ALL,
+						      NULL);
 			ret = i40e_led_get_phy(hw, &temp_status,
 					       &pf->phy_led_val);
 			pf->led_status = temp_status;
@@ -2033,7 +2037,8 @@ static int i40e_set_phys_id(struct net_device *netdev,
 			ret = i40e_led_set_phy(hw, false, pf->led_status,
 					       (pf->phy_led_val |
 					       I40E_PHY_LED_MODE_ORIG));
-			i40e_aq_set_phy_debug(hw, 0, NULL);
+			if (!(hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE))
+				i40e_aq_set_phy_debug(hw, 0, NULL);
 		}
 		break;
 	default:
@@ -2647,7 +2652,7 @@ static int i40e_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
-		cmd->data = vsi->num_queue_pairs;
+		cmd->data = vsi->rss_size;
 		ret = 0;
 		break;
 	case ETHTOOL_GRXFH:
@@ -3892,6 +3897,12 @@ static int i40e_set_channels(struct net_device *dev,
 	if (vsi->type != I40E_VSI_MAIN)
 		return -EINVAL;
 
+	/* We do not support setting channels via ethtool when TCs are
+	 * configured through mqprio
+	 */
+	if (pf->flags & I40E_FLAG_TC_MQPRIO)
+		return -EINVAL;
+
 	/* verify they are not requesting separate vectors */
 	if (!count || ch->rx_count || ch->tx_count)
 		return -EINVAL;
@@ -4090,7 +4101,7 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 	struct i40e_netdev_priv *np = netdev_priv(dev);
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
-	u64 orig_flags, new_flags, changed_flags;
+	u32 orig_flags, new_flags, changed_flags;
 	u32 i, j;
 
 	orig_flags = READ_ONCE(pf->flags);
@@ -4142,12 +4153,12 @@ flags_complete:
 		return -EOPNOTSUPP;
 
 	/* Compare and exchange the new flags into place. If we failed, that
-	 * is if cmpxchg64 returns anything but the old value, this means that
+	 * is if cmpxchg returns anything but the old value, this means that
 	 * something else has modified the flags variable since we copied it
 	 * originally. We'll just punt with an error and log something in the
 	 * message buffer.
 	 */
-	if (cmpxchg64(&pf->flags, orig_flags, new_flags) != orig_flags) {
+	if (cmpxchg(&pf->flags, orig_flags, new_flags) != orig_flags) {
 		dev_warn(&pf->pdev->dev,
 			 "Unable to update pf->flags as it was modified by another thread...\n");
 		return -EAGAIN;
@@ -4189,10 +4200,163 @@ flags_complete:
 	/* Issue reset to cause things to take effect, as additional bits
 	 * are added we will need to create a mask of bits requiring reset
 	 */
-	if ((changed_flags & I40E_FLAG_VEB_STATS_ENABLED) ||
-	    ((changed_flags & I40E_FLAG_LEGACY_RX) && netif_running(dev)))
+	if (changed_flags & (I40E_FLAG_VEB_STATS_ENABLED |
+			     I40E_FLAG_LEGACY_RX |
+			     I40E_FLAG_SOURCE_PRUNING_DISABLED))
 		i40e_do_reset(pf, BIT(__I40E_PF_RESET_REQUESTED), true);
 
+	return 0;
+}
+
+/**
+ * i40e_get_module_info - get (Q)SFP+ module type info
+ * @netdev: network interface device structure
+ * @modinfo: module EEPROM size and layout information structure
+ **/
+static int i40e_get_module_info(struct net_device *netdev,
+				struct ethtool_modinfo *modinfo)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+	struct i40e_hw *hw = &pf->hw;
+	u32 sff8472_comp = 0;
+	u32 sff8472_swap = 0;
+	u32 sff8636_rev = 0;
+	i40e_status status;
+	u32 type = 0;
+
+	/* Check if firmware supports reading module EEPROM. */
+	if (!(hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE)) {
+		netdev_err(vsi->netdev, "Module EEPROM memory read not supported. Please update the NVM image.\n");
+		return -EINVAL;
+	}
+
+	status = i40e_update_link_info(hw);
+	if (status)
+		return -EIO;
+
+	if (hw->phy.link_info.phy_type == I40E_PHY_TYPE_EMPTY) {
+		netdev_err(vsi->netdev, "Cannot read module EEPROM memory. No module connected.\n");
+		return -EINVAL;
+	}
+
+	type = hw->phy.link_info.module_type[0];
+
+	switch (type) {
+	case I40E_MODULE_TYPE_SFP:
+		status = i40e_aq_get_phy_register(hw,
+				I40E_AQ_PHY_REG_ACCESS_EXTERNAL_MODULE,
+				I40E_I2C_EEPROM_DEV_ADDR,
+				I40E_MODULE_SFF_8472_COMP,
+				&sff8472_comp, NULL);
+		if (status)
+			return -EIO;
+
+		status = i40e_aq_get_phy_register(hw,
+				I40E_AQ_PHY_REG_ACCESS_EXTERNAL_MODULE,
+				I40E_I2C_EEPROM_DEV_ADDR,
+				I40E_MODULE_SFF_8472_SWAP,
+				&sff8472_swap, NULL);
+		if (status)
+			return -EIO;
+
+		/* Check if the module requires address swap to access
+		 * the other EEPROM memory page.
+		 */
+		if (sff8472_swap & I40E_MODULE_SFF_ADDR_MODE) {
+			netdev_warn(vsi->netdev, "Module address swap to access page 0xA2 is not supported.\n");
+			modinfo->type = ETH_MODULE_SFF_8079;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
+		} else if (sff8472_comp == 0x00) {
+			/* Module is not SFF-8472 compliant */
+			modinfo->type = ETH_MODULE_SFF_8079;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
+		} else {
+			modinfo->type = ETH_MODULE_SFF_8472;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
+		}
+		break;
+	case I40E_MODULE_TYPE_QSFP_PLUS:
+		/* Read from memory page 0. */
+		status = i40e_aq_get_phy_register(hw,
+				I40E_AQ_PHY_REG_ACCESS_EXTERNAL_MODULE,
+				0,
+				I40E_MODULE_REVISION_ADDR,
+				&sff8636_rev, NULL);
+		if (status)
+			return -EIO;
+		/* Determine revision compliance byte */
+		if (sff8636_rev > 0x02) {
+			/* Module is SFF-8636 compliant */
+			modinfo->type = ETH_MODULE_SFF_8636;
+			modinfo->eeprom_len = I40E_MODULE_QSFP_MAX_LEN;
+		} else {
+			modinfo->type = ETH_MODULE_SFF_8436;
+			modinfo->eeprom_len = I40E_MODULE_QSFP_MAX_LEN;
+		}
+		break;
+	case I40E_MODULE_TYPE_QSFP28:
+		modinfo->type = ETH_MODULE_SFF_8636;
+		modinfo->eeprom_len = I40E_MODULE_QSFP_MAX_LEN;
+		break;
+	default:
+		netdev_err(vsi->netdev, "Module type unrecognized\n");
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/**
+ * i40e_get_module_eeprom - fills buffer with (Q)SFP+ module memory contents
+ * @netdev: network interface device structure
+ * @ee: EEPROM dump request structure
+ * @data: buffer to be filled with EEPROM contents
+ **/
+static int i40e_get_module_eeprom(struct net_device *netdev,
+				  struct ethtool_eeprom *ee,
+				  u8 *data)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+	struct i40e_hw *hw = &pf->hw;
+	bool is_sfp = false;
+	i40e_status status;
+	u32 value = 0;
+	int i;
+
+	if (!ee || !ee->len || !data)
+		return -EINVAL;
+
+	if (hw->phy.link_info.module_type[0] == I40E_MODULE_TYPE_SFP)
+		is_sfp = true;
+
+	for (i = 0; i < ee->len; i++) {
+		u32 offset = i + ee->offset;
+		u32 addr = is_sfp ? I40E_I2C_EEPROM_DEV_ADDR : 0;
+
+		/* Check if we need to access the other memory page */
+		if (is_sfp) {
+			if (offset >= ETH_MODULE_SFF_8079_LEN) {
+				offset -= ETH_MODULE_SFF_8079_LEN;
+				addr = I40E_I2C_EEPROM_DEV_ADDR2;
+			}
+		} else {
+			while (offset >= ETH_MODULE_SFF_8436_LEN) {
+				/* Compute memory page number and offset. */
+				offset -= ETH_MODULE_SFF_8436_LEN / 2;
+				addr++;
+			}
+		}
+
+		status = i40e_aq_get_phy_register(hw,
+				I40E_AQ_PHY_REG_ACCESS_EXTERNAL_MODULE,
+				addr, offset, &value, NULL);
+		if (status)
+			return -EIO;
+		data[i] = value;
+	}
 	return 0;
 }
 
@@ -4228,6 +4392,8 @@ static const struct ethtool_ops i40e_ethtool_ops = {
 	.set_rxfh		= i40e_set_rxfh,
 	.get_channels		= i40e_get_channels,
 	.set_channels		= i40e_set_channels,
+	.get_module_info	= i40e_get_module_info,
+	.get_module_eeprom	= i40e_get_module_eeprom,
 	.get_ts_info		= i40e_get_ts_info,
 	.get_priv_flags		= i40e_get_priv_flags,
 	.set_priv_flags		= i40e_set_priv_flags,

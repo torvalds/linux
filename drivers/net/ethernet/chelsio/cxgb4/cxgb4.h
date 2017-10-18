@@ -909,6 +909,9 @@ struct adapter {
 	/* TC flower offload */
 	DECLARE_HASHTABLE(flower_anymatch_tbl, 9);
 	struct timer_list flower_stats_timer;
+
+	/* Ethtool Dump */
+	struct ethtool_dump eth_dump;
 };
 
 /* Support for "sched-class" command to allow a TX Scheduling Class to be
@@ -1456,7 +1459,7 @@ unsigned int qtimer_val(const struct adapter *adap,
 
 int t4_init_devlog_params(struct adapter *adapter);
 int t4_init_sge_params(struct adapter *adapter);
-int t4_init_tp_params(struct adapter *adap);
+int t4_init_tp_params(struct adapter *adap, bool sleep_ok);
 int t4_filter_field_shift(const struct adapter *adap, int filter_sel);
 int t4_init_rss_mode(struct adapter *adap, int mbox);
 int t4_init_portinfo(struct port_info *pi, int mbox,
@@ -1470,14 +1473,15 @@ int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
 int t4_config_vi_rss(struct adapter *adapter, int mbox, unsigned int viid,
 		     unsigned int flags, unsigned int defq);
 int t4_read_rss(struct adapter *adapter, u16 *entries);
-void t4_read_rss_key(struct adapter *adapter, u32 *key);
-void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx);
+void t4_read_rss_key(struct adapter *adapter, u32 *key, bool sleep_ok);
+void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx,
+		      bool sleep_ok);
 void t4_read_rss_pf_config(struct adapter *adapter, unsigned int index,
-			   u32 *valp);
+			   u32 *valp, bool sleep_ok);
 void t4_read_rss_vf_config(struct adapter *adapter, unsigned int index,
-			   u32 *vfl, u32 *vfh);
-u32 t4_read_rss_pf_map(struct adapter *adapter);
-u32 t4_read_rss_pf_mask(struct adapter *adapter);
+			   u32 *vfl, u32 *vfh, bool sleep_ok);
+u32 t4_read_rss_pf_map(struct adapter *adapter, bool sleep_ok);
+u32 t4_read_rss_pf_mask(struct adapter *adapter, bool sleep_ok);
 
 unsigned int t4_get_mps_bg_map(struct adapter *adapter, int pidx);
 unsigned int t4_get_tp_ch_map(struct adapter *adapter, int pidx);
@@ -1508,14 +1512,18 @@ void t4_read_cong_tbl(struct adapter *adap, u16 incr[NMTUS][NCCTRL_WIN]);
 void t4_tp_wr_bits_indirect(struct adapter *adap, unsigned int addr,
 			    unsigned int mask, unsigned int val);
 void t4_tp_read_la(struct adapter *adap, u64 *la_buf, unsigned int *wrptr);
-void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st);
-void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st);
-void t4_tp_get_rdma_stats(struct adapter *adap, struct tp_rdma_stats *st);
-void t4_get_usm_stats(struct adapter *adap, struct tp_usm_stats *st);
+void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st,
+			 bool sleep_ok);
+void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st,
+			 bool sleep_ok);
+void t4_tp_get_rdma_stats(struct adapter *adap, struct tp_rdma_stats *st,
+			  bool sleep_ok);
+void t4_get_usm_stats(struct adapter *adap, struct tp_usm_stats *st,
+		      bool sleep_ok);
 void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
-			 struct tp_tcp_stats *v6);
+			 struct tp_tcp_stats *v6, bool sleep_ok);
 void t4_get_fcoe_stats(struct adapter *adap, unsigned int idx,
-		       struct tp_fcoe_stats *st);
+		       struct tp_fcoe_stats *st, bool sleep_ok);
 void t4_load_mtus(struct adapter *adap, const unsigned short *mtus,
 		  const unsigned short *alpha, const unsigned short *beta);
 
@@ -1624,6 +1632,13 @@ void t4_idma_monitor(struct adapter *adapter,
 		     int hz, int ticks);
 int t4_set_vf_mac_acl(struct adapter *adapter, unsigned int vf,
 		      unsigned int naddr, u8 *addr);
+void t4_tp_pio_read(struct adapter *adap, u32 *buff, u32 nregs,
+		    u32 start_index, bool sleep_ok);
+void t4_tp_tm_pio_read(struct adapter *adap, u32 *buff, u32 nregs,
+		       u32 start_index, bool sleep_ok);
+void t4_tp_mib_read(struct adapter *adap, u32 *buff, u32 nregs,
+		    u32 start_index, bool sleep_ok);
+
 void t4_uld_mem_free(struct adapter *adap);
 int t4_uld_mem_alloc(struct adapter *adap);
 void t4_uld_clean_up(struct adapter *adap);

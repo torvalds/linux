@@ -491,8 +491,7 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 			break;
 
 		case MLX5_EVENT_TYPE_PPS_EVENT:
-			if (dev->event)
-				dev->event(dev, MLX5_DEV_EVENT_PPS, (unsigned long)eqe);
+			mlx5_pps_event(dev, eqe);
 			break;
 
 		case MLX5_EVENT_TYPE_FPGA_ERROR:

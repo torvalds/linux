@@ -36,9 +36,11 @@
 
 #include <linux/bitfield.h>
 #include <linux/bpf.h>
+#include <linux/bpf_verifier.h>
 #include <linux/list.h>
 #include <linux/types.h>
 
+#include "../nfp_asm.h"
 #include "../nfp_net.h"
 
 /* For branch fixup logic use up-most byte of branch instruction as scratch
@@ -53,9 +55,13 @@ enum br_special {
 };
 
 enum static_regs {
-	STATIC_REG_PKT		= 1,
-#define REG_PKT_BANK	ALU_DST_A
-	STATIC_REG_IMM		= 2, /* Bank AB */
+	STATIC_REG_IMM		= 21, /* Bank AB */
+	STATIC_REG_PKT_LEN	= 22, /* Bank B */
+};
+
+enum pkt_vec {
+	PKT_VEC_PKT_LEN		= 0,
+	PKT_VEC_PKT_PTR		= 2,
 };
 
 enum nfp_bpf_action_type {
@@ -65,39 +71,17 @@ enum nfp_bpf_action_type {
 	NN_ACT_XDP,
 };
 
-/* Software register representation, hardware encoding in asm.h */
-#define NN_REG_TYPE	GENMASK(31, 24)
-#define NN_REG_VAL	GENMASK(7, 0)
+#define pv_len(np)	reg_lm(1, PKT_VEC_PKT_LEN)
+#define pv_ctm_ptr(np)	reg_lm(1, PKT_VEC_PKT_PTR)
 
-enum nfp_bpf_reg_type {
-	NN_REG_GPR_A =	BIT(0),
-	NN_REG_GPR_B =	BIT(1),
-	NN_REG_NNR =	BIT(2),
-	NN_REG_XFER =	BIT(3),
-	NN_REG_IMM =	BIT(4),
-	NN_REG_NONE =	BIT(5),
-};
+#define plen_reg(np)	reg_b(STATIC_REG_PKT_LEN)
+#define pptr_reg(np)	pv_ctm_ptr(np)
+#define imm_a(np)	reg_a(STATIC_REG_IMM)
+#define imm_b(np)	reg_b(STATIC_REG_IMM)
+#define imm_both(np)	reg_both(STATIC_REG_IMM)
 
-#define NN_REG_GPR_BOTH	(NN_REG_GPR_A | NN_REG_GPR_B)
-
-#define reg_both(x)	((x) | FIELD_PREP(NN_REG_TYPE, NN_REG_GPR_BOTH))
-#define reg_a(x)	((x) | FIELD_PREP(NN_REG_TYPE, NN_REG_GPR_A))
-#define reg_b(x)	((x) | FIELD_PREP(NN_REG_TYPE, NN_REG_GPR_B))
-#define reg_nnr(x)	((x) | FIELD_PREP(NN_REG_TYPE, NN_REG_NNR))
-#define reg_xfer(x)	((x) | FIELD_PREP(NN_REG_TYPE, NN_REG_XFER))
-#define reg_imm(x)	((x) | FIELD_PREP(NN_REG_TYPE, NN_REG_IMM))
-#define reg_none()	(FIELD_PREP(NN_REG_TYPE, NN_REG_NONE))
-
-#define pkt_reg(np)	reg_a((np)->regs_per_thread - STATIC_REG_PKT)
-#define imm_a(np)	reg_a((np)->regs_per_thread - STATIC_REG_IMM)
-#define imm_b(np)	reg_b((np)->regs_per_thread - STATIC_REG_IMM)
-#define imm_both(np)	reg_both((np)->regs_per_thread - STATIC_REG_IMM)
-
-#define NFP_BPF_ABI_FLAGS	reg_nnr(0)
+#define NFP_BPF_ABI_FLAGS	reg_imm(0)
 #define   NFP_BPF_ABI_FLAG_MARK	1
-#define NFP_BPF_ABI_MARK	reg_nnr(1)
-#define NFP_BPF_ABI_PKT		reg_nnr(2)
-#define NFP_BPF_ABI_LEN		reg_nnr(3)
 
 struct nfp_prog;
 struct nfp_insn_meta;
@@ -113,6 +97,7 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
 /**
  * struct nfp_insn_meta - BPF instruction wrapper
  * @insn: BPF instruction
+ * @ptr: pointer type for memory operations
  * @off: index of first generated machine instruction (in nfp_prog.prog)
  * @n: eBPF instruction number
  * @skip: skip this instruction (optimized out)
@@ -121,6 +106,7 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
  */
 struct nfp_insn_meta {
 	struct bpf_insn insn;
+	struct bpf_reg_state ptr;
 	unsigned int off;
 	unsigned short n;
 	bool skip;

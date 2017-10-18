@@ -45,8 +45,8 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 	struct rmnet_priv *priv;
 
 	priv = netdev_priv(dev);
-	if (priv->local_ep.egress_dev) {
-		rmnet_egress_handler(skb, &priv->local_ep);
+	if (priv->real_dev) {
+		rmnet_egress_handler(skb);
 	} else {
 		dev->stats.tx_dropped++;
 		kfree_skb(skb);
@@ -74,6 +74,8 @@ static const struct net_device_ops rmnet_vnd_ops = {
 	.ndo_start_xmit = rmnet_vnd_start_xmit,
 	.ndo_change_mtu = rmnet_vnd_change_mtu,
 	.ndo_get_iflink = rmnet_vnd_get_iflink,
+	.ndo_add_slave  = rmnet_add_bridge,
+	.ndo_del_slave  = rmnet_del_bridge,
 };
 
 /* Called by kernel whenever a new rmnet<n> device is created. Sets MTU,
@@ -100,17 +102,19 @@ void rmnet_vnd_setup(struct net_device *rmnet_dev)
 
 int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 		      struct rmnet_port *port,
-		      struct net_device *real_dev)
+		      struct net_device *real_dev,
+		      struct rmnet_endpoint *ep)
 {
 	struct rmnet_priv *priv;
 	int rc;
 
-	if (port->rmnet_devices[id])
+	if (ep->egress_dev)
 		return -EINVAL;
 
 	rc = register_netdevice(rmnet_dev);
 	if (!rc) {
-		port->rmnet_devices[id] = rmnet_dev;
+		ep->egress_dev = rmnet_dev;
+		ep->mux_id = id;
 		port->nr_rmnet_devs++;
 
 		rmnet_dev->rtnl_link_ops = &rmnet_link_ops;
@@ -125,12 +129,13 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 	return rc;
 }
 
-int rmnet_vnd_dellink(u8 id, struct rmnet_port *port)
+int rmnet_vnd_dellink(u8 id, struct rmnet_port *port,
+		      struct rmnet_endpoint *ep)
 {
-	if (id >= RMNET_MAX_LOGICAL_EP || !port->rmnet_devices[id])
+	if (id >= RMNET_MAX_LOGICAL_EP || !ep->egress_dev)
 		return -EINVAL;
 
-	port->rmnet_devices[id] = NULL;
+	ep->egress_dev = NULL;
 	port->nr_rmnet_devs--;
 	return 0;
 }
@@ -141,21 +146,6 @@ u8 rmnet_vnd_get_mux(struct net_device *rmnet_dev)
 
 	priv = netdev_priv(rmnet_dev);
 	return priv->mux_id;
-}
-
-/* Gets the logical endpoint configuration for a RmNet virtual network device
- * node. Caller should confirm that devices is a RmNet VND before calling.
- */
-struct rmnet_endpoint *rmnet_vnd_get_endpoint(struct net_device *rmnet_dev)
-{
-	struct rmnet_priv *priv;
-
-	if (!rmnet_dev)
-		return NULL;
-
-	priv = netdev_priv(rmnet_dev);
-
-	return &priv->local_ep;
 }
 
 int rmnet_vnd_do_flow_control(struct net_device *rmnet_dev, int enable)

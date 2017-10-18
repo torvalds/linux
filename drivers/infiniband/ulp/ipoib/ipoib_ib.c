@@ -893,13 +893,17 @@ dev_stop:
 void ipoib_pkey_dev_check_presence(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+	struct rdma_netdev *rn = netdev_priv(dev);
 
 	if (!(priv->pkey & 0x7fff) ||
 	    ib_find_pkey(priv->ca, priv->port, priv->pkey,
-			 &priv->pkey_index))
+			 &priv->pkey_index)) {
 		clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
-	else
+	} else {
+		if (rn->set_id)
+			rn->set_id(dev, priv->pkey_index);
 		set_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
+	}
 }
 
 void ipoib_ib_dev_up(struct net_device *dev)
@@ -1000,19 +1004,6 @@ static inline int update_parent_pkey(struct ipoib_dev_priv *priv)
 		 */
 		priv->dev->broadcast[8] = priv->pkey >> 8;
 		priv->dev->broadcast[9] = priv->pkey & 0xff;
-
-		/*
-		 * Update the broadcast address in the priv->broadcast object,
-		 * in case it already exists, otherwise no one will do that.
-		 */
-		if (priv->broadcast) {
-			spin_lock_irq(&priv->lock);
-			memcpy(priv->broadcast->mcmember.mgid.raw,
-			       priv->dev->broadcast + 4,
-			sizeof(union ib_gid));
-			spin_unlock_irq(&priv->lock);
-		}
-
 		return 0;
 	}
 
@@ -1216,10 +1207,15 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 		ipoib_ib_dev_down(dev);
 
 	if (level == IPOIB_FLUSH_HEAVY) {
+		rtnl_lock();
 		if (test_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
 			ipoib_ib_dev_stop(dev);
-		if (ipoib_ib_dev_open(dev) != 0)
+
+		result = ipoib_ib_dev_open(dev);
+		rtnl_unlock();
+		if (result)
 			return;
+
 		if (netif_queue_stopped(dev))
 			netif_start_queue(dev);
 	}

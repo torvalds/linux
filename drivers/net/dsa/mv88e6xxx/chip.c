@@ -851,7 +851,7 @@ static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
 	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i)
 		if (dsa_is_cpu_port(chip->ds, i) ||
 		    dsa_is_dsa_port(chip->ds, i) ||
-		    (br && chip->ds->ports[i].bridge_dev == br))
+		    (br && dsa_to_port(chip->ds, i)->bridge_dev == br))
 			pvlan |= BIT(i);
 
 	return pvlan;
@@ -927,6 +927,19 @@ static int mv88e6xxx_irl_setup(struct mv88e6xxx_chip *chip)
 		err = chip->info->ops->irl_init_all(chip, port);
 		if (err)
 			return err;
+	}
+
+	return 0;
+}
+
+static int mv88e6xxx_mac_setup(struct mv88e6xxx_chip *chip)
+{
+	if (chip->info->ops->set_switch_mac) {
+		u8 addr[ETH_ALEN];
+
+		eth_random_addr(addr);
+
+		return chip->info->ops->set_switch_mac(chip, addr);
 	}
 
 	return 0;
@@ -1100,6 +1113,10 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 	};
 	int i, err;
 
+	/* DSA and CPU ports have to be members of multiple vlans */
+	if (dsa_is_dsa_port(ds, port) || dsa_is_cpu_port(ds, port))
+		return 0;
+
 	if (!vid_begin)
 		return -EOPNOTSUPP;
 
@@ -1120,23 +1137,23 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 			if (dsa_is_dsa_port(ds, i) || dsa_is_cpu_port(ds, i))
 				continue;
 
-			if (!ds->ports[port].netdev)
+			if (!ds->ports[port].slave)
 				continue;
 
 			if (vlan.member[i] ==
 			    MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER)
 				continue;
 
-			if (ds->ports[i].bridge_dev ==
+			if (dsa_to_port(ds, i)->bridge_dev ==
 			    ds->ports[port].bridge_dev)
 				break; /* same bridge, check next VLAN */
 
-			if (!ds->ports[i].bridge_dev)
+			if (!dsa_to_port(ds, i)->bridge_dev)
 				continue;
 
 			dev_err(ds->dev, "p%d: hw VLAN %d already used by %s\n",
 				port, vlan.vid,
-				netdev_name(ds->ports[i].bridge_dev));
+				netdev_name(dsa_to_port(ds, i)->bridge_dev));
 			err = -EOPNOTSUPP;
 			goto unlock;
 		}
@@ -2009,6 +2026,10 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 	if (err)
 		goto unlock;
 
+	err = mv88e6xxx_mac_setup(chip);
+	if (err)
+		goto unlock;
+
 	err = mv88e6xxx_phy_setup(chip);
 	if (err)
 		goto unlock;
@@ -2034,21 +2055,6 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 		goto unlock;
 
 unlock:
-	mutex_unlock(&chip->reg_lock);
-
-	return err;
-}
-
-static int mv88e6xxx_set_addr(struct dsa_switch *ds, u8 *addr)
-{
-	struct mv88e6xxx_chip *chip = ds->priv;
-	int err;
-
-	if (!chip->info->ops->set_switch_mac)
-		return -EOPNOTSUPP;
-
-	mutex_lock(&chip->reg_lock);
-	err = chip->info->ops->set_switch_mac(chip, addr);
 	mutex_unlock(&chip->reg_lock);
 
 	return err;
@@ -3781,7 +3787,6 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.probe			= mv88e6xxx_drv_probe,
 	.get_tag_protocol	= mv88e6xxx_get_tag_protocol,
 	.setup			= mv88e6xxx_setup,
-	.set_addr		= mv88e6xxx_set_addr,
 	.adjust_link		= mv88e6xxx_adjust_link,
 	.get_strings		= mv88e6xxx_get_strings,
 	.get_ethtool_stats	= mv88e6xxx_get_ethtool_stats,
@@ -3947,7 +3952,9 @@ static void mv88e6xxx_remove(struct mdio_device *mdiodev)
 	if (chip->irq > 0) {
 		if (chip->info->g2_irqs > 0)
 			mv88e6xxx_g2_irq_free(chip);
+		mutex_lock(&chip->reg_lock);
 		mv88e6xxx_g1_irq_free(chip);
+		mutex_unlock(&chip->reg_lock);
 	}
 }
 

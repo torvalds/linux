@@ -22,6 +22,7 @@
 
 static void check_on_cpu(int cpu, struct perf_event_attr *attr)
 {
+	struct bpf_perf_event_value value2;
 	int pmu_fd, error = 0;
 	cpu_set_t set;
 	__u64 value;
@@ -46,8 +47,18 @@ static void check_on_cpu(int cpu, struct perf_event_attr *attr)
 		fprintf(stderr, "Value missing for CPU %d\n", cpu);
 		error = 1;
 		goto on_exit;
+	} else {
+		fprintf(stderr, "CPU %d: %llu\n", cpu, value);
 	}
-	fprintf(stderr, "CPU %d: %llu\n", cpu, value);
+	/* The above bpf_map_lookup_elem should trigger the second kprobe */
+	if (bpf_map_lookup_elem(map_fd[2], &cpu, &value2)) {
+		fprintf(stderr, "Value2 missing for CPU %d\n", cpu);
+		error = 1;
+		goto on_exit;
+	} else {
+		fprintf(stderr, "CPU %d: counter: %llu, enabled: %llu, running: %llu\n", cpu,
+			value2.counter, value2.enabled, value2.running);
+	}
 
 on_exit:
 	assert(bpf_map_delete_elem(map_fd[0], &cpu) == 0 || error);

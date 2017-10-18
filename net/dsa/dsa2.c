@@ -279,7 +279,7 @@ static int dsa_user_port_apply(struct dsa_port *port)
 	if (err) {
 		dev_warn(ds->dev, "Failed to create slave %d: %d\n",
 			 port->index, err);
-		port->netdev = NULL;
+		port->slave = NULL;
 		return err;
 	}
 
@@ -289,7 +289,7 @@ static int dsa_user_port_apply(struct dsa_port *port)
 	if (err)
 		return err;
 
-	devlink_port_type_eth_set(&port->devlink_port, port->netdev);
+	devlink_port_type_eth_set(&port->devlink_port, port->slave);
 
 	return 0;
 }
@@ -297,9 +297,9 @@ static int dsa_user_port_apply(struct dsa_port *port)
 static void dsa_user_port_unapply(struct dsa_port *port)
 {
 	devlink_port_unregister(&port->devlink_port);
-	if (port->netdev) {
-		dsa_slave_destroy(port->netdev);
-		port->netdev = NULL;
+	if (port->slave) {
+		dsa_slave_destroy(port->slave);
+		port->slave = NULL;
 		port->ds->enabled_port_mask &= ~(1 << port->index);
 	}
 }
@@ -335,12 +335,6 @@ static int dsa_ds_apply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 	err = dsa_switch_register_notifier(ds);
 	if (err)
 		return err;
-
-	if (ds->ops->set_addr) {
-		err = ds->ops->set_addr(ds, dst->cpu_dp->netdev->dev_addr);
-		if (err < 0)
-			return err;
-	}
 
 	if (!ds->slave_mii_bus && ds->ops->phy_read) {
 		ds->slave_mii_bus = devm_mdiobus_alloc(ds->dev);
@@ -438,9 +432,9 @@ static int dsa_dst_apply(struct dsa_switch_tree *dst)
 	 * sent to the tag format's receive function.
 	 */
 	wmb();
-	dst->cpu_dp->netdev->dsa_ptr = dst;
+	dst->cpu_dp->master->dsa_ptr = dst->cpu_dp;
 
-	err = dsa_master_ethtool_setup(dst->cpu_dp->netdev);
+	err = dsa_master_ethtool_setup(dst->cpu_dp->master);
 	if (err)
 		return err;
 
@@ -457,9 +451,9 @@ static void dsa_dst_unapply(struct dsa_switch_tree *dst)
 	if (!dst->applied)
 		return;
 
-	dsa_master_ethtool_restore(dst->cpu_dp->netdev);
+	dsa_master_ethtool_restore(dst->cpu_dp->master);
 
-	dst->cpu_dp->netdev->dsa_ptr = NULL;
+	dst->cpu_dp->master->dsa_ptr = NULL;
 
 	/* If we used a tagging format that doesn't have an ethertype
 	 * field, make sure that all packets from this point get sent
@@ -485,6 +479,7 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 			 struct dsa_switch_tree *dst,
 			 struct dsa_switch *ds)
 {
+	const struct dsa_device_ops *tag_ops;
 	enum dsa_tag_protocol tag_protocol;
 	struct net_device *ethernet_dev;
 	struct device_node *ethernet;
@@ -504,7 +499,7 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 
 	if (!dst->cpu_dp) {
 		dst->cpu_dp = port;
-		dst->cpu_dp->netdev = ethernet_dev;
+		dst->cpu_dp->master = ethernet_dev;
 	}
 
 	/* Initialize cpu_port_mask now for drv->setup()
@@ -514,14 +509,18 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 	ds->cpu_port_mask |= BIT(index);
 
 	tag_protocol = ds->ops->get_tag_protocol(ds);
-	dst->tag_ops = dsa_resolve_tag_protocol(tag_protocol);
-	if (IS_ERR(dst->tag_ops)) {
+	tag_ops = dsa_resolve_tag_protocol(tag_protocol);
+	if (IS_ERR(tag_ops)) {
 		dev_warn(ds->dev, "No tagger for this switch\n");
 		ds->cpu_port_mask &= ~BIT(index);
-		return PTR_ERR(dst->tag_ops);
+		return PTR_ERR(tag_ops);
 	}
 
-	dst->rcv = dst->tag_ops->rcv;
+	dst->cpu_dp->tag_ops = tag_ops;
+
+	/* Make a few copies for faster access in master receive hot path */
+	dst->cpu_dp->rcv = dst->cpu_dp->tag_ops->rcv;
+	dst->cpu_dp->dst = dst;
 
 	return 0;
 }

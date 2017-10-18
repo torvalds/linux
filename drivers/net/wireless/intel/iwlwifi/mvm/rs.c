@@ -661,7 +661,8 @@ static void rs_tl_turn_on_agg(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 	    (lq_sta->tx_agg_tid_en & BIT(tid)) &&
 	    (tid_data->tx_count_last >= IWL_MVM_RS_AGG_START_THRESHOLD)) {
 		IWL_DEBUG_RATE(mvm, "try to aggregate tid %d\n", tid);
-		rs_tl_turn_on_agg_for_tid(mvm, lq_sta, tid, sta);
+		if (rs_tl_turn_on_agg_for_tid(mvm, lq_sta, tid, sta) == 0)
+			tid_data->state = IWL_AGG_QUEUED;
 	}
 }
 

@@ -28,6 +28,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/dcbnl.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/module.h>
@@ -131,6 +132,7 @@ struct hnae3_client_ops {
 	int (*init_instance)(struct hnae3_handle *handle);
 	void (*uninit_instance)(struct hnae3_handle *handle, bool reset);
 	void (*link_status_change)(struct hnae3_handle *handle, bool state);
+	int (*setup_tc)(struct hnae3_handle *handle, u8 tc);
 };
 
 #define HNAE3_CLIENT_NAME_LENGTH 16
@@ -337,6 +339,10 @@ struct hnae3_ae_ops {
 		       u8 *hfunc);
 	int (*set_rss)(struct hnae3_handle *handle, const u32 *indir,
 		       const u8 *key, const u8 hfunc);
+	int (*set_rss_tuple)(struct hnae3_handle *handle,
+			     struct ethtool_rxnfc *cmd);
+	int (*get_rss_tuple)(struct hnae3_handle *handle,
+			     struct ethtool_rxnfc *cmd);
 
 	int (*get_tc_size)(struct hnae3_handle *handle);
 
@@ -361,6 +367,20 @@ struct hnae3_ae_ops {
 			       u16 vlan_id, bool is_kill);
 	int (*set_vf_vlan_filter)(struct hnae3_handle *handle, int vfid,
 				  u16 vlan, u8 qos, __be16 proto);
+};
+
+struct hnae3_dcb_ops {
+	/* IEEE 802.1Qaz std */
+	int (*ieee_getets)(struct hnae3_handle *, struct ieee_ets *);
+	int (*ieee_setets)(struct hnae3_handle *, struct ieee_ets *);
+	int (*ieee_getpfc)(struct hnae3_handle *, struct ieee_pfc *);
+	int (*ieee_setpfc)(struct hnae3_handle *, struct ieee_pfc *);
+
+	/* DCBX configuration */
+	u8   (*getdcbx)(struct hnae3_handle *);
+	u8   (*setdcbx)(struct hnae3_handle *, u8);
+
+	int (*map_update)(struct hnae3_handle *);
 };
 
 struct hnae3_ae_algo {
@@ -394,6 +414,7 @@ struct hnae3_knic_private_info {
 
 	u16 num_tqps;		  /* total number of TQPs in this handle */
 	struct hnae3_queue **tqp;  /* array base of all TQPs in this instance */
+	const struct hnae3_dcb_ops *dcb_ops;
 };
 
 struct hnae3_roce_private_info {

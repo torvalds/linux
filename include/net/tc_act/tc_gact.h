@@ -33,6 +33,11 @@ static inline bool __is_tcf_gact_act(const struct tc_action *a, int act,
 	return false;
 }
 
+static inline bool is_tcf_gact_ok(const struct tc_action *a)
+{
+	return __is_tcf_gact_act(a, TC_ACT_OK, false);
+}
+
 static inline bool is_tcf_gact_shot(const struct tc_action *a)
 {
 	return __is_tcf_gact_act(a, TC_ACT_SHOT, false);

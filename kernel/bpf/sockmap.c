@@ -102,7 +102,7 @@ static int smap_verdict_func(struct smap_psock *psock, struct sk_buff *skb)
 
 	skb_orphan(skb);
 	skb->sk = psock->sock;
-	bpf_compute_data_end(skb);
+	bpf_compute_data_pointers(skb);
 	rc = (*prog->bpf_func)(skb, prog->insnsi);
 	skb->sk = NULL;
 
@@ -369,7 +369,7 @@ static int smap_parse_func_strparser(struct strparser *strp,
 	 * any socket yet.
 	 */
 	skb->sk = psock->sock;
-	bpf_compute_data_end(skb);
+	bpf_compute_data_pointers(skb);
 	rc = (*prog->bpf_func)(skb, prog->insnsi);
 	skb->sk = NULL;
 	rcu_read_unlock();

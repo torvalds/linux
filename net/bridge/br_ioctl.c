@@ -98,7 +98,7 @@ static int add_del_if(struct net_bridge *br, int ifindex, int isadd)
 		return -EINVAL;
 
 	if (isadd)
-		ret = br_add_if(br, dev);
+		ret = br_add_if(br, dev, NULL);
 	else
 		ret = br_del_if(br, dev);
 

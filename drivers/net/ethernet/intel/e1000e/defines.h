@@ -398,6 +398,7 @@
 #define E1000_ICR_LSC           0x00000004 /* Link Status Change */
 #define E1000_ICR_RXSEQ         0x00000008 /* Rx sequence error */
 #define E1000_ICR_RXDMT0        0x00000010 /* Rx desc min. threshold (0) */
+#define E1000_ICR_RXO           0x00000040 /* Receiver Overrun */
 #define E1000_ICR_RXT0          0x00000080 /* Rx timer intr (ring 0) */
 #define E1000_ICR_ECCER         0x00400000 /* Uncorrectable ECC Error */
 /* If this bit asserted, the driver should claim the interrupt */

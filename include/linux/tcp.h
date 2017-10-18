@@ -191,6 +191,7 @@ struct tcp_sock {
 	u32	tsoffset;	/* timestamp offset */
 
 	struct list_head tsq_node; /* anchor in tsq_tasklet.head list */
+	struct list_head tsorted_sent_queue; /* time-sorted sent but un-SACKed skbs */
 
 	u32	snd_wl1;	/* Sequence for window update		*/
 	u32	snd_wnd;	/* The window we expect to receive	*/

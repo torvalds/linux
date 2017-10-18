@@ -212,9 +212,18 @@ netdev_tx_t hinic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	sq_wqe = hinic_sq_get_wqe(txq->sq, wqe_size, &prod_idx);
 	if (!sq_wqe) {
-		tx_unmap_skb(nic_dev, skb, txq->sges);
-
 		netif_stop_subqueue(netdev, qp->q_id);
+
+		/* Check for the case free_tx_poll is called in another cpu
+		 * and we stopped the subqueue after free_tx_poll check.
+		 */
+		sq_wqe = hinic_sq_get_wqe(txq->sq, wqe_size, &prod_idx);
+		if (sq_wqe) {
+			netif_wake_subqueue(nic_dev->netdev, qp->q_id);
+			goto process_sq_wqe;
+		}
+
+		tx_unmap_skb(nic_dev, skb, txq->sges);
 
 		u64_stats_update_begin(&txq->txq_stats.syncp);
 		txq->txq_stats.tx_busy++;
@@ -223,6 +232,7 @@ netdev_tx_t hinic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		goto flush_skbs;
 	}
 
+process_sq_wqe:
 	hinic_sq_prepare_wqe(txq->sq, prod_idx, sq_wqe, txq->sges, nr_sges);
 
 	hinic_sq_write_wqe(txq->sq, prod_idx, sq_wqe, skb, wqe_size);

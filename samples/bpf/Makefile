@@ -39,6 +39,7 @@ hostprogs-y += per_socket_stats_example
 hostprogs-y += load_sock_ops
 hostprogs-y += xdp_redirect
 hostprogs-y += xdp_redirect_map
+hostprogs-y += xdp_redirect_cpu
 hostprogs-y += xdp_monitor
 hostprogs-y += syscall_tp
 
@@ -84,6 +85,7 @@ test_map_in_map-objs := bpf_load.o $(LIBBPF) test_map_in_map_user.o
 per_socket_stats_example-objs := $(LIBBPF) cookie_uid_helper_example.o
 xdp_redirect-objs := bpf_load.o $(LIBBPF) xdp_redirect_user.o
 xdp_redirect_map-objs := bpf_load.o $(LIBBPF) xdp_redirect_map_user.o
+xdp_redirect_cpu-objs := bpf_load.o $(LIBBPF) xdp_redirect_cpu_user.o
 xdp_monitor-objs := bpf_load.o $(LIBBPF) xdp_monitor_user.o
 syscall_tp-objs := bpf_load.o $(LIBBPF) syscall_tp_user.o
 
@@ -129,6 +131,7 @@ always += tcp_iw_kern.o
 always += tcp_clamp_kern.o
 always += xdp_redirect_kern.o
 always += xdp_redirect_map_kern.o
+always += xdp_redirect_cpu_kern.o
 always += xdp_monitor_kern.o
 always += syscall_tp_kern.o
 
@@ -169,6 +172,7 @@ HOSTLOADLIBES_xdp_tx_iptunnel += -lelf
 HOSTLOADLIBES_test_map_in_map += -lelf
 HOSTLOADLIBES_xdp_redirect += -lelf
 HOSTLOADLIBES_xdp_redirect_map += -lelf
+HOSTLOADLIBES_xdp_redirect_cpu += -lelf
 HOSTLOADLIBES_xdp_monitor += -lelf
 HOSTLOADLIBES_syscall_tp += -lelf
 
@@ -180,6 +184,7 @@ CLANG ?= clang
 # Detect that we're cross compiling and use the cross compiler
 ifdef CROSS_COMPILE
 HOSTCC = $(CROSS_COMPILE)gcc
+CLANG_ARCH_ARGS = -target $(ARCH)
 endif
 
 # Trick to allow make to be run from this directory
@@ -229,9 +234,9 @@ $(obj)/tracex5_kern.o: $(obj)/syscall_nrs.h
 $(obj)/%.o: $(src)/%.c
 	$(CLANG) $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(EXTRA_CFLAGS) -I$(obj) \
 		-I$(srctree)/tools/testing/selftests/bpf/ \
-		-D__KERNEL__ -D__ASM_SYSREG_H -Wno-unused-value -Wno-pointer-sign \
+		-D__KERNEL__ -Wno-unused-value -Wno-pointer-sign \
 		-D__TARGET_ARCH_$(ARCH) -Wno-compare-distinct-pointer-types \
 		-Wno-gnu-variable-sized-type-not-at-end \
 		-Wno-address-of-packed-member -Wno-tautological-compare \
-		-Wno-unknown-warning-option \
+		-Wno-unknown-warning-option $(CLANG_ARCH_ARGS) \
 		-O2 -emit-llvm -c $< -o -| $(LLC) -march=bpf -filetype=obj -o $@

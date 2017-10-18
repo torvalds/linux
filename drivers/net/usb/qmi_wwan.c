@@ -221,7 +221,7 @@ static int qmimux_register_device(struct net_device *real_dev, u8 mux_id)
 	/* Account for reference in struct qmimux_priv_priv */
 	dev_hold(real_dev);
 
-	err = netdev_upper_dev_link(real_dev, new_dev);
+	err = netdev_upper_dev_link(real_dev, new_dev, NULL);
 	if (err)
 		goto out_unregister_netdev;
 

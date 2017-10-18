@@ -81,6 +81,7 @@
 #include "cxgb4_tc_u32.h"
 #include "cxgb4_tc_flower.h"
 #include "cxgb4_ptp.h"
+#include "cxgb4_cudbg.h"
 
 char cxgb4_driver_name[] = KBUILD_MODNAME;
 
@@ -1638,7 +1639,7 @@ void cxgb4_get_tcp_stats(struct pci_dev *pdev, struct tp_tcp_stats *v4,
 	struct adapter *adap = pci_get_drvdata(pdev);
 
 	spin_lock(&adap->stats_lock);
-	t4_tp_get_tcp_stats(adap, v4, v6);
+	t4_tp_get_tcp_stats(adap, v4, v6, false);
 	spin_unlock(&adap->stats_lock);
 }
 EXPORT_SYMBOL(cxgb4_get_tcp_stats);
@@ -4076,7 +4077,7 @@ static int adap_init0(struct adapter *adap)
 	}
 	t4_init_sge_params(adap);
 	adap->flags |= FW_OK;
-	t4_init_tp_params(adap);
+	t4_init_tp_params(adap, true);
 	return 0;
 
 	/*
@@ -5024,7 +5025,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->priv_flags |= IFF_UNICAST_FLT;
 
 		/* MTU range: 81 - 9600 */
-		netdev->min_mtu = 81;
+		netdev->min_mtu = 81;              /* accommodate SACK */
 		netdev->max_mtu = MAX_MTU;
 
 		netdev->netdev_ops = &cxgb4_netdev_ops;
@@ -5034,6 +5035,8 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 		cxgb4_set_ethtool_ops(netdev);
 	}
+
+	cxgb4_init_ethtool_dump(adapter);
 
 	pci_set_drvdata(pdev, adapter);
 

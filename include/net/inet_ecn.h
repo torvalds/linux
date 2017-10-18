@@ -133,11 +133,6 @@ static inline int IP6_ECN_set_ce(struct sk_buff *skb, struct ipv6hdr *iph)
 	return 1;
 }
 
-static inline void IP6_ECN_clear(struct ipv6hdr *iph)
-{
-	*(__be32*)iph &= ~htonl(INET_ECN_MASK << 20);
-}
-
 static inline void ipv6_copy_dscp(unsigned int dscp, struct ipv6hdr *inner)
 {
 	dscp &= ~INET_ECN_MASK;

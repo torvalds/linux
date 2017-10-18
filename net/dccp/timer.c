@@ -125,10 +125,11 @@ static void dccp_retransmit_timer(struct sock *sk)
 		__sk_dst_reset(sk);
 }
 
-static void dccp_write_timer(unsigned long data)
+static void dccp_write_timer(struct timer_list *t)
 {
-	struct sock *sk = (struct sock *)data;
-	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct inet_connection_sock *icsk =
+			from_timer(icsk, t, icsk_retransmit_timer);
+	struct sock *sk = &icsk->icsk_inet.sk;
 	int event = 0;
 
 	bh_lock_sock(sk);
@@ -161,19 +162,20 @@ out:
 	sock_put(sk);
 }
 
-static void dccp_keepalive_timer(unsigned long data)
+static void dccp_keepalive_timer(struct timer_list *t)
 {
-	struct sock *sk = (struct sock *)data;
+	struct sock *sk = from_timer(sk, t, sk_timer);
 
 	pr_err("dccp should not use a keepalive timer !\n");
 	sock_put(sk);
 }
 
 /* This is the same as tcp_delack_timer, sans prequeue & mem_reclaim stuff */
-static void dccp_delack_timer(unsigned long data)
+static void dccp_delack_timer(struct timer_list *t)
 {
-	struct sock *sk = (struct sock *)data;
-	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct inet_connection_sock *icsk =
+			from_timer(icsk, t, icsk_delack_timer);
+	struct sock *sk = &icsk->icsk_inet.sk;
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {

@@ -609,6 +609,7 @@ static void netvsc_send_tx_complete(struct netvsc_device *net_device,
 {
 	struct sk_buff *skb = (struct sk_buff *)(unsigned long)desc->trans_id;
 	struct net_device *ndev = hv_get_drvdata(device);
+	struct net_device_context *ndev_ctx = netdev_priv(ndev);
 	struct vmbus_channel *channel = device->channel;
 	u16 q_idx = 0;
 	int queue_sends;
@@ -643,8 +644,10 @@ static void netvsc_send_tx_complete(struct netvsc_device *net_device,
 
 	if (netif_tx_queue_stopped(netdev_get_tx_queue(ndev, q_idx)) &&
 	    (hv_ringbuf_avail_percent(&channel->outbound) > RING_AVAIL_PERCENT_HIWATER ||
-	     queue_sends < 1))
+	     queue_sends < 1)) {
 		netif_tx_wake_queue(netdev_get_tx_queue(ndev, q_idx));
+		ndev_ctx->eth_stats.wake_queue++;
+	}
 }
 
 static void netvsc_send_completion(struct netvsc_device *net_device,
@@ -749,6 +752,7 @@ static inline int netvsc_send_pkt(
 		&net_device->chan_table[packet->q_idx];
 	struct vmbus_channel *out_channel = nvchan->channel;
 	struct net_device *ndev = hv_get_drvdata(device);
+	struct net_device_context *ndev_ctx = netdev_priv(ndev);
 	struct netdev_queue *txq = netdev_get_tx_queue(ndev, packet->q_idx);
 	u64 req_id;
 	int ret;
@@ -789,12 +793,16 @@ static inline int netvsc_send_pkt(
 	if (ret == 0) {
 		atomic_inc_return(&nvchan->queue_sends);
 
-		if (ring_avail < RING_AVAIL_PERCENT_LOWATER)
+		if (ring_avail < RING_AVAIL_PERCENT_LOWATER) {
 			netif_tx_stop_queue(txq);
+			ndev_ctx->eth_stats.stop_queue++;
+		}
 	} else if (ret == -EAGAIN) {
 		netif_tx_stop_queue(txq);
+		ndev_ctx->eth_stats.stop_queue++;
 		if (atomic_read(&nvchan->queue_sends) < 1) {
 			netif_tx_wake_queue(txq);
+			ndev_ctx->eth_stats.wake_queue++;
 			ret = -ENOSPC;
 		}
 	} else {
@@ -1102,7 +1110,7 @@ static void netvsc_send_table(struct hv_device *hdev,
 		      nvmsg->msg.v5_msg.send_table.offset);
 
 	for (i = 0; i < count; i++)
-		net_device_ctx->tx_send_table[i] = tab[i];
+		net_device_ctx->tx_table[i] = tab[i];
 }
 
 static void netvsc_send_vf(struct net_device_context *net_device_ctx,
@@ -1246,6 +1254,9 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 	net_device = alloc_net_device();
 	if (!net_device)
 		return ERR_PTR(-ENOMEM);
+
+	for (i = 0; i < VRSS_SEND_TAB_SIZE; i++)
+		net_device_ctx->tx_table[i] = 0;
 
 	net_device->ring_size = ring_size;
 

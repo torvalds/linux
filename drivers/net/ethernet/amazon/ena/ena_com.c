@@ -315,7 +315,7 @@ static struct ena_comp_ctx *ena_com_submit_admin_cmd(struct ena_com_admin_queue 
 					      cmd_size_in_bytes,
 					      comp,
 					      comp_size_in_bytes);
-	if (unlikely(IS_ERR(comp_ctx)))
+	if (IS_ERR(comp_ctx))
 		admin_queue->running_state = false;
 	spin_unlock_irqrestore(&admin_queue->q_lock, flags);
 
@@ -1130,7 +1130,7 @@ int ena_com_execute_admin_command(struct ena_com_admin_queue *admin_queue,
 
 	comp_ctx = ena_com_submit_admin_cmd(admin_queue, cmd, cmd_size,
 					    comp, comp_size);
-	if (unlikely(IS_ERR(comp_ctx))) {
+	if (IS_ERR(comp_ctx)) {
 		if (comp_ctx == ERR_PTR(-ENODEV))
 			pr_debug("Failed to submit command [%ld]\n",
 				 PTR_ERR(comp_ctx));

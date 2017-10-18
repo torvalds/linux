@@ -184,7 +184,6 @@ static void mlx5e_update_sw_counters(struct mlx5e_priv *priv)
 	struct mlx5e_sw_stats temp, *s = &temp;
 	struct mlx5e_rq_stats *rq_stats;
 	struct mlx5e_sq_stats *sq_stats;
-	u64 tx_offload_none = 0;
 	int i, j;
 
 	memset(s, 0, sizeof(*s));
@@ -199,6 +198,7 @@ static void mlx5e_update_sw_counters(struct mlx5e_priv *priv)
 		s->rx_lro_bytes	+= rq_stats->lro_bytes;
 		s->rx_csum_none	+= rq_stats->csum_none;
 		s->rx_csum_complete += rq_stats->csum_complete;
+		s->rx_csum_unnecessary += rq_stats->csum_unnecessary;
 		s->rx_csum_unnecessary_inner += rq_stats->csum_unnecessary_inner;
 		s->rx_xdp_drop += rq_stats->xdp_drop;
 		s->rx_xdp_tx += rq_stats->xdp_tx;
@@ -229,13 +229,10 @@ static void mlx5e_update_sw_counters(struct mlx5e_priv *priv)
 			s->tx_queue_dropped	+= sq_stats->dropped;
 			s->tx_xmit_more		+= sq_stats->xmit_more;
 			s->tx_csum_partial_inner += sq_stats->csum_partial_inner;
-			tx_offload_none		+= sq_stats->csum_none;
+			s->tx_csum_none		+= sq_stats->csum_none;
+			s->tx_csum_partial	+= sq_stats->csum_partial;
 		}
 	}
-
-	/* Update calculated offload counters */
-	s->tx_csum_partial = s->tx_packets - tx_offload_none - s->tx_csum_partial_inner;
-	s->rx_csum_unnecessary = s->rx_packets - s->rx_csum_none - s->rx_csum_complete;
 
 	s->link_down_events_phy = MLX5_GET(ppcnt_reg,
 				priv->stats.pport.phy_counters,
@@ -376,8 +373,6 @@ static void mlx5e_async_event(struct mlx5_core_dev *mdev, void *vpriv,
 			      enum mlx5_dev_event event, unsigned long param)
 {
 	struct mlx5e_priv *priv = vpriv;
-	struct ptp_clock_event ptp_event;
-	struct mlx5_eqe *eqe = NULL;
 
 	if (!test_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLED, &priv->state))
 		return;
@@ -386,14 +381,6 @@ static void mlx5e_async_event(struct mlx5_core_dev *mdev, void *vpriv,
 	case MLX5_DEV_EVENT_PORT_UP:
 	case MLX5_DEV_EVENT_PORT_DOWN:
 		queue_work(priv->wq, &priv->update_carrier_work);
-		break;
-	case MLX5_DEV_EVENT_PPS:
-		eqe = (struct mlx5_eqe *)param;
-		ptp_event.index = eqe->data.pps.pin;
-		ptp_event.timestamp =
-			timecounter_cyc2time(&priv->tstamp.clock,
-					     be64_to_cpu(eqe->data.pps.time_stamp));
-		mlx5e_pps_event_handler(vpriv, &ptp_event);
 		break;
 	default:
 		break;
@@ -588,6 +575,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 	rq->pdev    = c->pdev;
 	rq->netdev  = c->netdev;
 	rq->tstamp  = c->tstamp;
+	rq->clock   = &mdev->clock;
 	rq->channel = c;
 	rq->ix      = c->ix;
 	rq->mdev    = mdev;
@@ -1126,6 +1114,7 @@ static int mlx5e_alloc_txqsq(struct mlx5e_channel *c,
 
 	sq->pdev      = c->pdev;
 	sq->tstamp    = c->tstamp;
+	sq->clock     = &mdev->clock;
 	sq->mkey_be   = c->mkey_be;
 	sq->channel   = c;
 	sq->txq_ix    = txq_ix;
@@ -2681,6 +2670,12 @@ void mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
 		netif_carrier_on(netdev);
 }
 
+void mlx5e_timestamp_set(struct mlx5e_priv *priv)
+{
+	priv->tstamp.tx_type   = HWTSTAMP_TX_OFF;
+	priv->tstamp.rx_filter = HWTSTAMP_FILTER_NONE;
+}
+
 int mlx5e_open_locked(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
@@ -2696,7 +2691,7 @@ int mlx5e_open_locked(struct net_device *netdev)
 	mlx5e_activate_priv_channels(priv);
 	if (priv->profile->update_carrier)
 		priv->profile->update_carrier(priv);
-	mlx5e_timestamp_init(priv);
+	mlx5e_timestamp_set(priv);
 
 	if (priv->profile->update_stats)
 		queue_delayed_work(priv->wq, &priv->update_stats_work, 0);
@@ -2734,7 +2729,6 @@ int mlx5e_close_locked(struct net_device *netdev)
 
 	clear_bit(MLX5E_STATE_OPENED, &priv->state);
 
-	mlx5e_timestamp_cleanup(priv);
 	netif_carrier_off(priv->netdev);
 	mlx5e_deactivate_priv_channels(priv);
 	mlx5e_close_channels(&priv->channels);
@@ -3111,8 +3105,8 @@ static int mlx5e_setup_tc_cls_flower(struct net_device *dev,
 }
 #endif
 
-static int mlx5e_setup_tc(struct net_device *dev, enum tc_setup_type type,
-			  void *type_data)
+int mlx5e_setup_tc(struct net_device *dev, enum tc_setup_type type,
+		   void *type_data)
 {
 	switch (type) {
 #ifdef CONFIG_MLX5_ESWITCH
@@ -3333,8 +3327,8 @@ static int mlx5e_handle_feature(struct net_device *netdev,
 
 	err = feature_handler(netdev, enable);
 	if (err) {
-		netdev_err(netdev, "%s feature 0x%llx failed err %d\n",
-			   enable ? "Enable" : "Disable", feature, err);
+		netdev_err(netdev, "%s feature %pNF failed, err %d\n",
+			   enable ? "Enable" : "Disable", &feature, err);
 		return err;
 	}
 
@@ -3404,6 +3398,80 @@ static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 out:
 	mutex_unlock(&priv->state_lock);
 	return err;
+}
+
+int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
+{
+	struct hwtstamp_config config;
+	int err;
+
+	if (!MLX5_CAP_GEN(priv->mdev, device_frequency_khz))
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
+		return -EFAULT;
+
+	/* TX HW timestamp */
+	switch (config.tx_type) {
+	case HWTSTAMP_TX_OFF:
+	case HWTSTAMP_TX_ON:
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	mutex_lock(&priv->state_lock);
+	/* RX HW timestamp */
+	switch (config.rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		/* Reset CQE compression to Admin default */
+		mlx5e_modify_rx_cqe_compression_locked(priv, priv->channels.params.rx_cqe_compress_def);
+		break;
+	case HWTSTAMP_FILTER_ALL:
+	case HWTSTAMP_FILTER_SOME:
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_NTP_ALL:
+		/* Disable CQE compression */
+		netdev_warn(priv->netdev, "Disabling cqe compression");
+		err = mlx5e_modify_rx_cqe_compression_locked(priv, false);
+		if (err) {
+			netdev_err(priv->netdev, "Failed disabling cqe compression err=%d\n", err);
+			mutex_unlock(&priv->state_lock);
+			return err;
+		}
+		config.rx_filter = HWTSTAMP_FILTER_ALL;
+		break;
+	default:
+		mutex_unlock(&priv->state_lock);
+		return -ERANGE;
+	}
+
+	memcpy(&priv->tstamp, &config, sizeof(config));
+	mutex_unlock(&priv->state_lock);
+
+	return copy_to_user(ifr->ifr_data, &config,
+			    sizeof(config)) ? -EFAULT : 0;
+}
+
+int mlx5e_hwstamp_get(struct mlx5e_priv *priv, struct ifreq *ifr)
+{
+	struct hwtstamp_config *cfg = &priv->tstamp;
+
+	if (!MLX5_CAP_GEN(priv->mdev, device_frequency_khz))
+		return -EOPNOTSUPP;
+
+	return copy_to_user(ifr->ifr_data, cfg, sizeof(*cfg)) ? -EFAULT : 0;
 }
 
 static int mlx5e_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)

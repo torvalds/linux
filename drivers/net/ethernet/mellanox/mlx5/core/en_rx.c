@@ -42,10 +42,11 @@
 #include "en_rep.h"
 #include "ipoib/ipoib.h"
 #include "en_accel/ipsec_rxtx.h"
+#include "lib/clock.h"
 
-static inline bool mlx5e_rx_hw_stamp(struct mlx5e_tstamp *tstamp)
+static inline bool mlx5e_rx_hw_stamp(struct hwtstamp_config *config)
 {
-	return tstamp->hwtstamp_config.rx_filter == HWTSTAMP_FILTER_ALL;
+	return config->rx_filter == HWTSTAMP_FILTER_ALL;
 }
 
 static inline void mlx5e_read_cqe_slot(struct mlx5e_cq *cq, u32 cqcc,
@@ -627,6 +628,7 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 
 	if (lro) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
+		rq->stats.csum_unnecessary++;
 		return;
 	}
 
@@ -644,7 +646,9 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 			skb->csum_level = 1;
 			skb->encapsulation = 1;
 			rq->stats.csum_unnecessary_inner++;
+			return;
 		}
+		rq->stats.csum_unnecessary++;
 		return;
 	}
 csum_none:
@@ -658,7 +662,6 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 				      struct sk_buff *skb)
 {
 	struct net_device *netdev = rq->netdev;
-	struct mlx5e_tstamp *tstamp = rq->tstamp;
 	int lro_num_seg;
 
 	lro_num_seg = be32_to_cpu(cqe->srqn) >> 24;
@@ -673,8 +676,9 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 		rq->stats.lro_bytes += cqe_bcnt;
 	}
 
-	if (unlikely(mlx5e_rx_hw_stamp(tstamp)))
-		mlx5e_fill_hwstamp(tstamp, get_cqe_ts(cqe), skb_hwtstamps(skb));
+	if (unlikely(mlx5e_rx_hw_stamp(rq->tstamp)))
+		skb_hwtstamps(skb)->hwtstamp =
+				mlx5_timecounter_cyc2time(rq->clock, get_cqe_ts(cqe));
 
 	skb_record_rx_queue(skb, rq->ix);
 
@@ -794,6 +798,7 @@ static inline int mlx5e_xdp_handle(struct mlx5e_rq *rq,
 		return false;
 
 	xdp.data = va + *rx_headroom;
+	xdp_set_data_meta_invalid(&xdp);
 	xdp.data_end = xdp.data + *len;
 	xdp.data_hard_start = va;
 
@@ -1159,11 +1164,24 @@ static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 					 u32 cqe_bcnt,
 					 struct sk_buff *skb)
 {
-	struct net_device *netdev = rq->netdev;
-	struct mlx5e_tstamp *tstamp = rq->tstamp;
+	struct net_device *netdev;
 	char *pseudo_header;
+	u32 qpn;
 	u8 *dgid;
 	u8 g;
+
+	qpn = be32_to_cpu(cqe->sop_drop_qpn) & 0xffffff;
+	netdev = mlx5i_pkey_get_netdev(rq->netdev, qpn);
+
+	/* No mapping present, cannot process SKB. This might happen if a child
+	 * interface is going down while having unprocessed CQEs on parent RQ
+	 */
+	if (unlikely(!netdev)) {
+		/* TODO: add drop counters support */
+		skb->dev = NULL;
+		pr_warn_once("Unable to map QPN %u to dev - dropping skb\n", qpn);
+		return;
+	}
 
 	g = (be32_to_cpu(cqe->flags_rqpn) >> 28) & 3;
 	dgid = skb->data + MLX5_IB_GRH_DGID_OFFSET;
@@ -1185,8 +1203,9 @@ static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 	skb->ip_summed = CHECKSUM_COMPLETE;
 	skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
 
-	if (unlikely(mlx5e_rx_hw_stamp(tstamp)))
-		mlx5e_fill_hwstamp(tstamp, get_cqe_ts(cqe), skb_hwtstamps(skb));
+	if (unlikely(mlx5e_rx_hw_stamp(rq->tstamp)))
+		skb_hwtstamps(skb)->hwtstamp =
+				mlx5_timecounter_cyc2time(rq->clock, get_cqe_ts(cqe));
 
 	skb_record_rx_queue(skb, rq->ix);
 
@@ -1226,6 +1245,10 @@ void mlx5i_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 		goto wq_free_wqe;
 
 	mlx5i_complete_rx_cqe(rq, cqe, cqe_bcnt, skb);
+	if (unlikely(!skb->dev)) {
+		dev_kfree_skb_any(skb);
+		goto wq_free_wqe;
+	}
 	napi_gro_receive(rq->cq.napi, skb);
 
 wq_free_wqe:

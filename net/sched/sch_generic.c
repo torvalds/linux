@@ -288,9 +288,9 @@ unsigned long dev_trans_start(struct net_device *dev)
 }
 EXPORT_SYMBOL(dev_trans_start);
 
-static void dev_watchdog(unsigned long arg)
+static void dev_watchdog(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)arg;
+	struct net_device *dev = from_timer(dev, t, watchdog_timer);
 
 	netif_tx_lock(dev);
 	if (!qdisc_tx_is_noop(dev)) {
@@ -954,7 +954,7 @@ void dev_init_scheduler(struct net_device *dev)
 	if (dev_ingress_queue(dev))
 		dev_init_scheduler_queue(dev, dev_ingress_queue(dev), &noop_qdisc);
 
-	setup_timer(&dev->watchdog_timer, dev_watchdog, (unsigned long)dev);
+	timer_setup(&dev->watchdog_timer, dev_watchdog, 0);
 }
 
 static void shutdown_scheduler_queue(struct net_device *dev,

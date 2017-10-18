@@ -93,9 +93,6 @@ struct rtnl_link_ops {
 
 	int			slave_maxtype;
 	const struct nla_policy	*slave_policy;
-	int			(*slave_validate)(struct nlattr *tb[],
-						  struct nlattr *data[],
-						  struct netlink_ext_ack *extack);
 	int			(*slave_changelink)(struct net_device *dev,
 						    struct net_device *slave_dev,
 						    struct nlattr *tb[],
@@ -153,8 +150,6 @@ struct rtnl_af_ops {
 						 const struct net_device *dev);
 	size_t			(*get_stats_af_size)(const struct net_device *dev);
 };
-
-void __rtnl_af_unregister(struct rtnl_af_ops *ops);
 
 void rtnl_af_register(struct rtnl_af_ops *ops);
 void rtnl_af_unregister(struct rtnl_af_ops *ops);

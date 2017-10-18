@@ -139,6 +139,7 @@ struct mlxsw_sp_port_mall_tc_entry {
 struct mlxsw_sp_sb;
 struct mlxsw_sp_bridge;
 struct mlxsw_sp_router;
+struct mlxsw_sp_mr;
 struct mlxsw_sp_acl;
 struct mlxsw_sp_counter_pool;
 struct mlxsw_sp_fid_core;
@@ -153,12 +154,14 @@ struct mlxsw_sp {
 	struct mlxsw_sp_sb *sb;
 	struct mlxsw_sp_bridge *bridge;
 	struct mlxsw_sp_router *router;
+	struct mlxsw_sp_mr *mr;
 	struct mlxsw_afa *afa;
 	struct mlxsw_sp_acl *acl;
 	struct mlxsw_sp_fid_core *fid_core;
 	struct {
 		DECLARE_BITMAP(usage, MLXSW_SP_KVD_LINEAR_SIZE);
 	} kvdl;
+	struct notifier_block netdevice_nb;
 
 	struct mlxsw_sp_counter_pool *counter_pool;
 	struct {
@@ -324,7 +327,8 @@ void
 mlxsw_sp_port_vlan_bridge_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan);
 int mlxsw_sp_port_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port,
 			      struct net_device *brport_dev,
-			      struct net_device *br_dev);
+			      struct net_device *br_dev,
+			      struct netlink_ext_ack *extack);
 void mlxsw_sp_port_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 				struct net_device *brport_dev,
 				struct net_device *br_dev);
@@ -391,6 +395,13 @@ int mlxsw_sp_inet6addr_event(struct notifier_block *unused,
 			     unsigned long event, void *ptr);
 int mlxsw_sp_netdevice_vrf_event(struct net_device *l3_dev, unsigned long event,
 				 struct netdev_notifier_changeupper_info *info);
+bool mlxsw_sp_netdev_is_ipip(const struct mlxsw_sp *mlxsw_sp,
+			     const struct net_device *dev);
+int
+mlxsw_sp_netdevice_ipip_event(struct mlxsw_sp *mlxsw_sp,
+			      struct net_device *l3_dev,
+			      unsigned long event,
+			      struct netdev_notifier_changeupper_info *info);
 void
 mlxsw_sp_port_vlan_router_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan);
 void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif);
@@ -468,9 +479,9 @@ void mlxsw_sp_acl_rulei_keymask_buf(struct mlxsw_sp_acl_rule_info *rulei,
 				    enum mlxsw_afk_element element,
 				    const char *key_value,
 				    const char *mask_value, unsigned int len);
-void mlxsw_sp_acl_rulei_act_continue(struct mlxsw_sp_acl_rule_info *rulei);
-void mlxsw_sp_acl_rulei_act_jump(struct mlxsw_sp_acl_rule_info *rulei,
-				 u16 group_id);
+int mlxsw_sp_acl_rulei_act_continue(struct mlxsw_sp_acl_rule_info *rulei);
+int mlxsw_sp_acl_rulei_act_jump(struct mlxsw_sp_acl_rule_info *rulei,
+				u16 group_id);
 int mlxsw_sp_acl_rulei_act_drop(struct mlxsw_sp_acl_rule_info *rulei);
 int mlxsw_sp_acl_rulei_act_trap(struct mlxsw_sp_acl_rule_info *rulei);
 int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,

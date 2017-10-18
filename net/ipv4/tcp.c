@@ -413,8 +413,10 @@ void tcp_init_sock(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	tp->out_of_order_queue = RB_ROOT;
+	sk->tcp_rtx_queue = RB_ROOT;
 	tcp_init_xmit_timers(sk);
 	INIT_LIST_HEAD(&tp->tsq_node);
+	INIT_LIST_HEAD(&tp->tsorted_sent_queue);
 
 	icsk->icsk_rto = TCP_TIMEOUT_INIT;
 	tp->mdev_us = jiffies_to_usecs(TCP_TIMEOUT_INIT);
@@ -456,8 +458,22 @@ void tcp_init_sock(struct sock *sk)
 }
 EXPORT_SYMBOL(tcp_init_sock);
 
-static void tcp_tx_timestamp(struct sock *sk, u16 tsflags, struct sk_buff *skb)
+void tcp_init_transfer(struct sock *sk, int bpf_op)
 {
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	tcp_mtup_init(sk);
+	icsk->icsk_af_ops->rebuild_header(sk);
+	tcp_init_metrics(sk);
+	tcp_call_bpf(sk, bpf_op);
+	tcp_init_congestion_control(sk);
+	tcp_init_buffer_space(sk);
+}
+
+static void tcp_tx_timestamp(struct sock *sk, u16 tsflags)
+{
+	struct sk_buff *skb = tcp_write_queue_tail(sk);
+
 	if (tsflags && skb) {
 		struct skb_shared_info *shinfo = skb_shinfo(skb);
 		struct tcp_skb_cb *tcb = TCP_SKB_CB(skb);
@@ -686,10 +702,9 @@ static void tcp_push(struct sock *sk, int flags, int mss_now,
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 
-	if (!tcp_send_head(sk))
-		return;
-
 	skb = tcp_write_queue_tail(sk);
+	if (!skb)
+		return;
 	if (!(flags & MSG_MORE) || forced_push(tp))
 		tcp_mark_push(tp, skb);
 
@@ -869,6 +884,7 @@ struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp,
 			 * available to the caller, no more, no less.
 			 */
 			skb->reserved_tailroom = skb->end - skb->tail - size;
+			INIT_LIST_HEAD(&skb->tcp_tsorted_anchor);
 			return skb;
 		}
 		__kfree_skb(skb);
@@ -948,14 +964,14 @@ ssize_t do_tcp_sendpages(struct sock *sk, struct page *page, int offset,
 		int copy, i;
 		bool can_coalesce;
 
-		if (!tcp_send_head(sk) || (copy = size_goal - skb->len) <= 0 ||
+		if (!skb || (copy = size_goal - skb->len) <= 0 ||
 		    !tcp_skb_can_collapse_to(skb)) {
 new_segment:
 			if (!sk_stream_memory_free(sk))
 				goto wait_for_sndbuf;
 
 			skb = sk_stream_alloc_skb(sk, 0, sk->sk_allocation,
-						  skb_queue_empty(&sk->sk_write_queue));
+					tcp_rtx_and_write_queues_empty(sk));
 			if (!skb)
 				goto wait_for_memory;
 
@@ -1027,7 +1043,7 @@ wait_for_memory:
 
 out:
 	if (copied) {
-		tcp_tx_timestamp(sk, sk->sk_tsflags, tcp_write_queue_tail(sk));
+		tcp_tx_timestamp(sk, sk->sk_tsflags);
 		if (!(flags & MSG_SENDPAGE_NOTLAST))
 			tcp_push(sk, flags, mss_now, tp->nonagle, size_goal);
 	}
@@ -1126,7 +1142,7 @@ static int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg,
 	struct sockaddr *uaddr = msg->msg_name;
 	int err, flags;
 
-	if (!(sysctl_tcp_fastopen & TFO_CLIENT_ENABLE) ||
+	if (!(sock_net(sk)->ipv4.sysctl_tcp_fastopen & TFO_CLIENT_ENABLE) ||
 	    (uaddr && msg->msg_namelen >= sizeof(uaddr->sa_family) &&
 	     uaddr->sa_family == AF_UNSPEC))
 		return -EOPNOTSUPP;
@@ -1183,7 +1199,7 @@ int tcp_sendmsg_locked(struct sock *sk, struct msghdr *msg, size_t size)
 			goto out_err;
 		}
 
-		skb = tcp_send_head(sk) ? tcp_write_queue_tail(sk) : NULL;
+		skb = tcp_write_queue_tail(sk);
 		uarg = sock_zerocopy_realloc(sk, size, skb_zcopy(skb));
 		if (!uarg) {
 			err = -ENOBUFS;
@@ -1259,7 +1275,7 @@ restart:
 		int max = size_goal;
 
 		skb = tcp_write_queue_tail(sk);
-		if (tcp_send_head(sk)) {
+		if (skb) {
 			if (skb->ip_summed == CHECKSUM_NONE)
 				max = mss_now;
 			copy = max - skb->len;
@@ -1279,7 +1295,7 @@ new_segment:
 				process_backlog = false;
 				goto restart;
 			}
-			first_skb = skb_queue_empty(&sk->sk_write_queue);
+			first_skb = tcp_rtx_and_write_queues_empty(sk);
 			skb = sk_stream_alloc_skb(sk,
 						  select_size(sk, sg, first_skb),
 						  sk->sk_allocation,
@@ -1404,7 +1420,7 @@ wait_for_memory:
 
 out:
 	if (copied) {
-		tcp_tx_timestamp(sk, sockc.tsflags, tcp_write_queue_tail(sk));
+		tcp_tx_timestamp(sk, sockc.tsflags);
 		tcp_push(sk, flags, mss_now, tp->nonagle, size_goal);
 	}
 out_nopush:
@@ -1504,6 +1520,13 @@ static int tcp_peek_sndq(struct sock *sk, struct msghdr *msg, int len)
 	int copied = 0, err = 0;
 
 	/* XXX -- need to support SO_PEEK_OFF */
+
+	skb_rbtree_walk(skb, &sk->tcp_rtx_queue) {
+		err = skb_copy_datagram_msg(skb, 0, msg, skb->len);
+		if (err)
+			return err;
+		copied += skb->len;
+	}
 
 	skb_queue_walk(&sk->sk_write_queue, skb) {
 		err = skb_copy_datagram_msg(skb, 0, msg, skb->len);
@@ -2304,6 +2327,37 @@ static inline bool tcp_need_reset(int state)
 		TCPF_FIN_WAIT2 | TCPF_SYN_RECV);
 }
 
+static void tcp_rtx_queue_purge(struct sock *sk)
+{
+	struct rb_node *p = rb_first(&sk->tcp_rtx_queue);
+
+	while (p) {
+		struct sk_buff *skb = rb_to_skb(p);
+
+		p = rb_next(p);
+		/* Since we are deleting whole queue, no need to
+		 * list_del(&skb->tcp_tsorted_anchor)
+		 */
+		tcp_rtx_queue_unlink(skb, sk);
+		sk_wmem_free_skb(sk, skb);
+	}
+}
+
+void tcp_write_queue_purge(struct sock *sk)
+{
+	struct sk_buff *skb;
+
+	tcp_chrono_stop(sk, TCP_CHRONO_BUSY);
+	while ((skb = __skb_dequeue(&sk->sk_write_queue)) != NULL) {
+		tcp_skb_tsorted_anchor_cleanup(skb);
+		sk_wmem_free_skb(sk, skb);
+	}
+	tcp_rtx_queue_purge(sk);
+	INIT_LIST_HEAD(&tcp_sk(sk)->tsorted_sent_queue);
+	sk_mem_reclaim(sk);
+	tcp_clear_all_retrans_hints(tcp_sk(sk));
+}
+
 int tcp_disconnect(struct sock *sk, int flags)
 {
 	struct inet_sock *inet = inet_sk(sk);
@@ -2362,7 +2416,6 @@ int tcp_disconnect(struct sock *sk, int flags)
 	 * issue in __tcp_select_window()
 	 */
 	icsk->icsk_ack.rcv_mss = TCP_MIN_MSS;
-	tcp_init_send_head(sk);
 	memset(&tp->rx_opt, 0, sizeof(tp->rx_opt));
 	__sk_dst_reset(sk);
 	dst_release(sk->sk_rx_dst);
@@ -2749,7 +2802,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 	case TCP_FASTOPEN:
 		if (val >= 0 && ((1 << sk->sk_state) & (TCPF_CLOSE |
 		    TCPF_LISTEN))) {
-			tcp_fastopen_init_key_once(true);
+			tcp_fastopen_init_key_once(net);
 
 			fastopen_queue_tune(sk, val);
 		} else {
@@ -2759,7 +2812,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 	case TCP_FASTOPEN_CONNECT:
 		if (val > 1 || val < 0) {
 			err = -EINVAL;
-		} else if (sysctl_tcp_fastopen & TFO_CLIENT_ENABLE) {
+		} else if (net->ipv4.sysctl_tcp_fastopen & TFO_CLIENT_ENABLE) {
 			if (sk->sk_state == TCP_CLOSE)
 				tp->fastopen_connect = val;
 			else

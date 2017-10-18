@@ -102,8 +102,7 @@ static void hns3_driv_to_eth_caps(u32 caps, struct ethtool_link_ksettings *cmd,
 
 static int hns3_get_sset_count(struct net_device *netdev, int stringset)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 	const struct hnae3_ae_ops *ops = h->ae_algo->ops;
 
 	if (!ops->get_sset_count)
@@ -164,8 +163,7 @@ static u8 *hns3_get_strings_tqps(struct hnae3_handle *handle, u8 *data)
 
 static void hns3_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 	const struct hnae3_ae_ops *ops = h->ae_algo->ops;
 	char *buff = (char *)data;
 
@@ -217,11 +215,10 @@ static u64 *hns3_get_stats_tqps(struct hnae3_handle *handle, u64 *data)
  * @stats: statistics info.
  * @data: statistics data.
  */
-void hns3_get_stats(struct net_device *netdev, struct ethtool_stats *stats,
-		    u64 *data)
+static void hns3_get_stats(struct net_device *netdev,
+			   struct ethtool_stats *stats, u64 *data)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 	u64 *p = data;
 
 	if (!h->ae_algo->ops->get_stats || !h->ae_algo->ops->update_stats) {
@@ -262,10 +259,7 @@ static void hns3_get_drvinfo(struct net_device *netdev,
 
 static u32 hns3_get_link(struct net_device *netdev)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h;
-
-	h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 
 	if (h->ae_algo && h->ae_algo->ops && h->ae_algo->ops->get_status)
 		return h->ae_algo->ops->get_status(h);
@@ -277,7 +271,8 @@ static void hns3_get_ringparam(struct net_device *netdev,
 			       struct ethtool_ringparam *param)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	int queue_num = priv->ae_handle->kinfo.num_tqps;
+	struct hnae3_handle *h = priv->ae_handle;
+	int queue_num = h->kinfo.num_tqps;
 
 	param->tx_max_pending = HNS3_RING_MAX_PENDING;
 	param->rx_max_pending = HNS3_RING_MAX_PENDING;
@@ -289,8 +284,7 @@ static void hns3_get_ringparam(struct net_device *netdev,
 static void hns3_get_pauseparam(struct net_device *netdev,
 				struct ethtool_pauseparam *param)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 
 	if (h->ae_algo && h->ae_algo->ops && h->ae_algo->ops->get_pauseparam)
 		h->ae_algo->ops->get_pauseparam(h, &param->autoneg,
@@ -300,8 +294,7 @@ static void hns3_get_pauseparam(struct net_device *netdev,
 static int hns3_get_link_ksettings(struct net_device *netdev,
 				   struct ethtool_link_ksettings *cmd)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 	u32 supported_caps;
 	u32 advertised_caps;
 	u8 media_type = HNAE3_MEDIA_TYPE_UNKNOWN;
@@ -392,8 +385,7 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 
 static u32 hns3_get_rss_key_size(struct net_device *netdev)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 
 	if (!h->ae_algo || !h->ae_algo->ops ||
 	    !h->ae_algo->ops->get_rss_key_size)
@@ -404,8 +396,7 @@ static u32 hns3_get_rss_key_size(struct net_device *netdev)
 
 static u32 hns3_get_rss_indir_size(struct net_device *netdev)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 
 	if (!h->ae_algo || !h->ae_algo->ops ||
 	    !h->ae_algo->ops->get_rss_indir_size)
@@ -417,8 +408,7 @@ static u32 hns3_get_rss_indir_size(struct net_device *netdev)
 static int hns3_get_rss(struct net_device *netdev, u32 *indir, u8 *key,
 			u8 *hfunc)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 
 	if (!h->ae_algo || !h->ae_algo->ops || !h->ae_algo->ops->get_rss)
 		return -EOPNOTSUPP;
@@ -429,8 +419,7 @@ static int hns3_get_rss(struct net_device *netdev, u32 *indir, u8 *key,
 static int hns3_set_rss(struct net_device *netdev, const u32 *indir,
 			const u8 *key, const u8 hfunc)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 
 	if (!h->ae_algo || !h->ae_algo->ops || !h->ae_algo->ops->set_rss)
 		return -EOPNOTSUPP;
@@ -454,16 +443,17 @@ static int hns3_get_rxnfc(struct net_device *netdev,
 			  struct ethtool_rxnfc *cmd,
 			  u32 *rule_locs)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 
 	if (!h->ae_algo || !h->ae_algo->ops || !h->ae_algo->ops->get_tc_size)
 		return -EOPNOTSUPP;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
-		cmd->data = h->ae_algo->ops->get_tc_size(h);
+		cmd->data = h->kinfo.num_tc * h->kinfo.rss_size;
 		break;
+	case ETHTOOL_GRXFH:
+		return h->ae_algo->ops->get_rss_tuple(h, cmd);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -471,15 +461,108 @@ static int hns3_get_rxnfc(struct net_device *netdev,
 	return 0;
 }
 
+static int hns3_change_all_ring_bd_num(struct hns3_nic_priv *priv,
+				       u32 new_desc_num)
+{
+	struct hnae3_handle *h = priv->ae_handle;
+	int i;
+
+	h->kinfo.num_desc = new_desc_num;
+
+	for (i = 0; i < h->kinfo.num_tqps * 2; i++)
+		priv->ring_data[i].ring->desc_num = new_desc_num;
+
+	return hns3_init_all_ring(priv);
+}
+
+static int hns3_set_ringparam(struct net_device *ndev,
+			      struct ethtool_ringparam *param)
+{
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+	struct hnae3_handle *h = priv->ae_handle;
+	bool if_running = netif_running(ndev);
+	u32 old_desc_num, new_desc_num;
+	int ret;
+
+	if (param->rx_mini_pending || param->rx_jumbo_pending)
+		return -EINVAL;
+
+	if (param->tx_pending != param->rx_pending) {
+		netdev_err(ndev,
+			   "Descriptors of tx and rx must be equal");
+		return -EINVAL;
+	}
+
+	if (param->tx_pending > HNS3_RING_MAX_PENDING ||
+	    param->tx_pending < HNS3_RING_MIN_PENDING) {
+		netdev_err(ndev,
+			   "Descriptors requested (Tx/Rx: %d) out of range [%d-%d]\n",
+			   param->tx_pending, HNS3_RING_MIN_PENDING,
+			   HNS3_RING_MAX_PENDING);
+		return -EINVAL;
+	}
+
+	new_desc_num = param->tx_pending;
+
+	/* Hardware requires that its descriptors must be multiple of eight */
+	new_desc_num = ALIGN(new_desc_num, HNS3_RING_BD_MULTIPLE);
+	old_desc_num = h->kinfo.num_desc;
+	if (old_desc_num == new_desc_num)
+		return 0;
+
+	netdev_info(ndev,
+		    "Changing descriptor count from %d to %d.\n",
+		    old_desc_num, new_desc_num);
+
+	if (if_running)
+		dev_close(ndev);
+
+	ret = hns3_uninit_all_ring(priv);
+	if (ret)
+		return ret;
+
+	ret = hns3_change_all_ring_bd_num(priv, new_desc_num);
+	if (ret) {
+		ret = hns3_change_all_ring_bd_num(priv, old_desc_num);
+		if (ret) {
+			netdev_err(ndev,
+				   "Revert to old bd num fail, ret=%d.\n", ret);
+			return ret;
+		}
+	}
+
+	if (if_running)
+		ret = dev_open(ndev);
+
+	return ret;
+}
+
+static int hns3_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (!h->ae_algo || !h->ae_algo->ops || !h->ae_algo->ops->set_rss_tuple)
+		return -EOPNOTSUPP;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXFH:
+		return h->ae_algo->ops->set_rss_tuple(h, cmd);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct ethtool_ops hns3_ethtool_ops = {
 	.get_drvinfo = hns3_get_drvinfo,
 	.get_link = hns3_get_link,
 	.get_ringparam = hns3_get_ringparam,
+	.set_ringparam = hns3_set_ringparam,
 	.get_pauseparam = hns3_get_pauseparam,
 	.get_strings = hns3_get_strings,
 	.get_ethtool_stats = hns3_get_stats,
 	.get_sset_count = hns3_get_sset_count,
 	.get_rxnfc = hns3_get_rxnfc,
+	.set_rxnfc = hns3_set_rxnfc,
 	.get_rxfh_key_size = hns3_get_rss_key_size,
 	.get_rxfh_indir_size = hns3_get_rss_indir_size,
 	.get_rxfh = hns3_get_rss,

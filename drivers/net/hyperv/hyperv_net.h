@@ -179,7 +179,7 @@ struct rndis_device {
 
 	u8 hw_mac_adr[ETH_ALEN];
 	u8 rss_key[NETVSC_HASH_KEYLEN];
-	u16 ind_table[ITAB_NUM];
+	u16 rx_table[ITAB_NUM];
 };
 
 
@@ -686,6 +686,8 @@ struct netvsc_ethtool_stats {
 	unsigned long tx_busy;
 	unsigned long tx_send_full;
 	unsigned long rx_comp_busy;
+	unsigned long stop_queue;
+	unsigned long wake_queue;
 };
 
 struct netvsc_vf_pcpu_stats {
@@ -701,6 +703,14 @@ struct netvsc_reconfig {
 	struct list_head list;
 	u32 event;
 };
+
+/* L4 hash bits for different protocols */
+#define HV_TCP4_L4HASH 1
+#define HV_TCP6_L4HASH 2
+#define HV_UDP4_L4HASH 4
+#define HV_UDP6_L4HASH 8
+#define HV_DEFAULT_L4HASH (HV_TCP4_L4HASH | HV_TCP6_L4HASH | HV_UDP4_L4HASH | \
+			   HV_UDP6_L4HASH)
 
 /* The context of the netvsc device  */
 struct net_device_context {
@@ -721,13 +731,12 @@ struct net_device_context {
 
 	u32 tx_checksum_mask;
 
-	u32 tx_send_table[VRSS_SEND_TAB_SIZE];
+	u32 tx_table[VRSS_SEND_TAB_SIZE];
 
 	/* Ethtool settings */
-	bool udp4_l4_hash;
-	bool udp6_l4_hash;
 	u8 duplex;
 	u32 speed;
+	u32 l4_hash; /* L4 hash settings */
 	struct netvsc_ethtool_stats eth_stats;
 
 	/* State to manage the associated VF interface. */

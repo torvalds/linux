@@ -284,6 +284,7 @@ struct in6_flowlabel_req {
 #define IPV6_TRANSPARENT        75
 #define IPV6_UNICAST_IF         76
 #define IPV6_RECVFRAGSIZE	77
+#define IPV6_FREEBIND		78
 
 /*
  * Multicast Routing:

@@ -130,11 +130,6 @@ struct dsa_switch_tree {
 	 */
 	struct dsa_platform_data	*pd;
 
-	/* Copy of tag_ops->rcv for faster access in hot path */
-	struct sk_buff *	(*rcv)(struct sk_buff *skb,
-				       struct net_device *dev,
-				       struct packet_type *pt);
-
 	/*
 	 * The switch port to which the CPU is attached.
 	 */
@@ -144,12 +139,6 @@ struct dsa_switch_tree {
 	 * Data for the individual switch chips.
 	 */
 	struct dsa_switch	*ds[DSA_MAX_SWITCHES];
-
-	/*
-	 * Tagging protocol operations for adding and removing an
-	 * encapsulation tag.
-	 */
-	const struct dsa_device_ops *tag_ops;
 };
 
 /* TC matchall action types, only mirroring for now */
@@ -175,11 +164,26 @@ struct dsa_mall_tc_entry {
 
 
 struct dsa_port {
+	/* A CPU port is physically connected to a master device.
+	 * A user port exposed to userspace has a slave device.
+	 */
+	union {
+		struct net_device *master;
+		struct net_device *slave;
+	};
+
+	/* CPU port tagging operations used by master or slave devices */
+	const struct dsa_device_ops *tag_ops;
+
+	/* Copies for faster access in master receive hot path */
+	struct dsa_switch_tree *dst;
+	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev,
+			       struct packet_type *pt);
+
 	struct dsa_switch	*ds;
 	unsigned int		index;
 	const char		*name;
 	struct dsa_port		*cpu_dp;
-	struct net_device	*netdev;
 	struct device_node	*dn;
 	unsigned int		ageing_time;
 	u8			stp_state;
@@ -265,6 +269,11 @@ static inline bool dsa_is_normal_port(struct dsa_switch *ds, int p)
 	return !dsa_is_cpu_port(ds, p) && !dsa_is_dsa_port(ds, p);
 }
 
+static inline const struct dsa_port *dsa_to_port(struct dsa_switch *ds, int p)
+{
+	return &ds->ports[p];
+}
+
 static inline u8 dsa_upstream_port(struct dsa_switch *ds)
 {
 	struct dsa_switch_tree *dst = ds->dst;
@@ -294,7 +303,6 @@ struct dsa_switch_ops {
 	enum dsa_tag_protocol (*get_tag_protocol)(struct dsa_switch *ds);
 
 	int	(*setup)(struct dsa_switch *ds);
-	int	(*set_addr)(struct dsa_switch *ds, u8 *addr);
 	u32	(*get_phy_flags)(struct dsa_switch *ds, int port);
 
 	/*
@@ -473,5 +481,55 @@ static inline int dsa_switch_resume(struct dsa_switch *ds)
 	return 0;
 }
 #endif /* CONFIG_PM_SLEEP */
+
+enum dsa_notifier_type {
+	DSA_PORT_REGISTER,
+	DSA_PORT_UNREGISTER,
+};
+
+struct dsa_notifier_info {
+	struct net_device *dev;
+};
+
+struct dsa_notifier_register_info {
+	struct dsa_notifier_info info;	/* must be first */
+	struct net_device *master;
+	unsigned int port_number;
+	unsigned int switch_number;
+};
+
+static inline struct net_device *
+dsa_notifier_info_to_dev(const struct dsa_notifier_info *info)
+{
+	return info->dev;
+}
+
+#if IS_ENABLED(CONFIG_NET_DSA)
+int register_dsa_notifier(struct notifier_block *nb);
+int unregister_dsa_notifier(struct notifier_block *nb);
+int call_dsa_notifiers(unsigned long val, struct net_device *dev,
+		       struct dsa_notifier_info *info);
+#else
+static inline int register_dsa_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int unregister_dsa_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int call_dsa_notifiers(unsigned long val, struct net_device *dev,
+				     struct dsa_notifier_info *info)
+{
+	return NOTIFY_DONE;
+}
+#endif
+
+/* Broadcom tag specific helpers to insert and extract queue/port number */
+#define BRCM_TAG_SET_PORT_QUEUE(p, q)	((p) << 8 | q)
+#define BRCM_TAG_GET_PORT(v)		((v) >> 8)
+#define BRCM_TAG_GET_QUEUE(v)		((v) & 0xff)
 
 #endif

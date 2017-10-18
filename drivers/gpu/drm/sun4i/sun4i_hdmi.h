@@ -15,7 +15,7 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_encoder.h>
 
-#include <media/cec.h>
+#include <media/cec-pin.h>
 
 #define SUN4I_HDMI_CTRL_REG		0x004
 #define SUN4I_HDMI_CTRL_ENABLE			BIT(31)

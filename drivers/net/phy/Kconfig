@@ -277,6 +277,11 @@ config DAVICOM_PHY
 	---help---
 	  Currently supports dm9161e and dm9131
 
+config DP83822_PHY
+	tristate "Texas Instruments DP83822 PHY"
+	---help---
+	  Supports the DP83822 PHY.
+
 config DP83848_PHY
 	tristate "Texas Instruments DP83848 PHY"
 	---help---
@@ -365,6 +370,11 @@ config REALTEK_PHY
 	tristate "Realtek PHYs"
 	---help---
 	  Supports the Realtek 821x PHY.
+
+config RENESAS_PHY
+	tristate "Driver for Renesas PHYs"
+	---help---
+	  Supports the Renesas PHYs uPD60620 and uPD60620A.
 
 config ROCKCHIP_PHY
         tristate "Driver for Rockchip Ethernet PHYs"

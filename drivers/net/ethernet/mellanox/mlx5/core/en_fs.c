@@ -291,7 +291,7 @@ void mlx5e_enable_vlan_filter(struct mlx5e_priv *priv)
 	priv->fs.vlan.filter_disabled = false;
 	if (priv->netdev->flags & IFF_PROMISC)
 		return;
-	mlx5e_del_any_vid_rules(priv);
+	mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_CTAG_VID, 0);
 }
 
 void mlx5e_disable_vlan_filter(struct mlx5e_priv *priv)
@@ -302,7 +302,7 @@ void mlx5e_disable_vlan_filter(struct mlx5e_priv *priv)
 	priv->fs.vlan.filter_disabled = true;
 	if (priv->netdev->flags & IFF_PROMISC)
 		return;
-	mlx5e_add_any_vid_rules(priv);
+	mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_CTAG_VID, 0);
 }
 
 int mlx5e_vlan_rx_add_vid(struct net_device *dev, __always_unused __be16 proto,

@@ -76,6 +76,8 @@ enum hns3_nic_state {
 #define HNS3_RING_NAME_LEN			16
 #define HNS3_BUFFER_SIZE_2048			2048
 #define HNS3_RING_MAX_PENDING			32768
+#define HNS3_RING_MIN_PENDING			8
+#define HNS3_RING_BD_MULTIPLE			8
 #define HNS3_MAX_MTU				9728
 
 #define HNS3_BD_SIZE_512_TYPE			0
@@ -587,7 +589,19 @@ static inline void hns3_write_reg(void __iomem *base, u32 reg, u32 value)
 #define hns3_for_each_ring(pos, head) \
 	for (pos = (head).ring; pos; pos = pos->next)
 
+#define hns3_get_handle(ndev) \
+	(((struct hns3_nic_priv *)netdev_priv(ndev))->ae_handle)
+
 void hns3_ethtool_set_ops(struct net_device *netdev);
 
 int hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget);
+int hns3_init_all_ring(struct hns3_nic_priv *priv);
+int hns3_uninit_all_ring(struct hns3_nic_priv *priv);
+
+#ifdef CONFIG_HNS3_DCB
+void hns3_dcbnl_setup(struct hnae3_handle *handle);
+#else
+static inline void hns3_dcbnl_setup(struct hnae3_handle *handle) {}
+#endif
+
 #endif

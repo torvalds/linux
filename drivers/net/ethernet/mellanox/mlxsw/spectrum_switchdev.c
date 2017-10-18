@@ -46,8 +46,10 @@
 #include <linux/workqueue.h>
 #include <linux/jiffies.h>
 #include <linux/rtnetlink.h>
+#include <linux/netlink.h>
 #include <net/switchdev.h>
 
+#include "spectrum_router.h"
 #include "spectrum.h"
 #include "core.h"
 #include "reg.h"
@@ -78,7 +80,8 @@ struct mlxsw_sp_bridge_device {
 	struct list_head ports_list;
 	struct list_head mids_list;
 	u8 vlan_enabled:1,
-	   multicast_enabled:1;
+	   multicast_enabled:1,
+	   mrouter:1;
 	const struct mlxsw_sp_bridge_ops *ops;
 };
 
@@ -107,7 +110,8 @@ struct mlxsw_sp_bridge_vlan {
 struct mlxsw_sp_bridge_ops {
 	int (*port_join)(struct mlxsw_sp_bridge_device *bridge_device,
 			 struct mlxsw_sp_bridge_port *bridge_port,
-			 struct mlxsw_sp_port *mlxsw_sp_port);
+			 struct mlxsw_sp_port *mlxsw_sp_port,
+			 struct netlink_ext_ack *extack);
 	void (*port_leave)(struct mlxsw_sp_bridge_device *bridge_device,
 			   struct mlxsw_sp_bridge_port *bridge_port,
 			   struct mlxsw_sp_port *mlxsw_sp_port);
@@ -168,6 +172,7 @@ mlxsw_sp_bridge_device_create(struct mlxsw_sp_bridge *bridge,
 	bridge_device->dev = br_dev;
 	bridge_device->vlan_enabled = vlan_enabled;
 	bridge_device->multicast_enabled = br_multicast_enabled(br_dev);
+	bridge_device->mrouter = br_multicast_router(br_dev);
 	INIT_LIST_HEAD(&bridge_device->ports_list);
 	if (vlan_enabled) {
 		bridge->vlan_enabled_exists = true;
@@ -810,6 +815,60 @@ static int mlxsw_sp_port_mc_disabled_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	return 0;
 }
 
+static int mlxsw_sp_smid_router_port_set(struct mlxsw_sp *mlxsw_sp,
+					 u16 mid_idx, bool add)
+{
+	char *smid_pl;
+	int err;
+
+	smid_pl = kmalloc(MLXSW_REG_SMID_LEN, GFP_KERNEL);
+	if (!smid_pl)
+		return -ENOMEM;
+
+	mlxsw_reg_smid_pack(smid_pl, mid_idx,
+			    mlxsw_sp_router_port(mlxsw_sp), add);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(smid), smid_pl);
+	kfree(smid_pl);
+	return err;
+}
+
+static void
+mlxsw_sp_bridge_mrouter_update_mdb(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_bridge_device *bridge_device,
+				   bool add)
+{
+	struct mlxsw_sp_mid *mid;
+
+	list_for_each_entry(mid, &bridge_device->mids_list, list)
+		mlxsw_sp_smid_router_port_set(mlxsw_sp, mid->mid, add);
+}
+
+static int
+mlxsw_sp_port_attr_br_mrouter_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				  struct switchdev_trans *trans,
+				  struct net_device *orig_dev,
+				  bool is_mrouter)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_bridge_device *bridge_device;
+
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
+
+	/* It's possible we failed to enslave the port, yet this
+	 * operation is executed due to it being deferred.
+	 */
+	bridge_device = mlxsw_sp_bridge_device_find(mlxsw_sp->bridge, orig_dev);
+	if (!bridge_device)
+		return 0;
+
+	if (bridge_device->mrouter != is_mrouter)
+		mlxsw_sp_bridge_mrouter_update_mdb(mlxsw_sp, bridge_device,
+						   is_mrouter);
+	bridge_device->mrouter = is_mrouter;
+	return 0;
+}
+
 static int mlxsw_sp_port_attr_set(struct net_device *dev,
 				  const struct switchdev_attr *attr,
 				  struct switchdev_trans *trans)
@@ -846,6 +905,11 @@ static int mlxsw_sp_port_attr_set(struct net_device *dev,
 		err = mlxsw_sp_port_mc_disabled_set(mlxsw_sp_port, trans,
 						    attr->orig_dev,
 						    attr->u.mc_disabled);
+		break;
+	case SWITCHDEV_ATTR_ID_BRIDGE_MROUTER:
+		err = mlxsw_sp_port_attr_br_mrouter_set(mlxsw_sp_port, trans,
+							attr->orig_dev,
+							attr->u.mrouter);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -1241,7 +1305,8 @@ static int mlxsw_sp_port_mdb_op(struct mlxsw_sp *mlxsw_sp, const char *addr,
 }
 
 static int mlxsw_sp_port_smid_full_entry(struct mlxsw_sp *mlxsw_sp, u16 mid_idx,
-					 long *ports_bitmap)
+					 long *ports_bitmap,
+					 bool set_router_port)
 {
 	char *smid_pl;
 	int err, i;
@@ -1256,8 +1321,14 @@ static int mlxsw_sp_port_smid_full_entry(struct mlxsw_sp *mlxsw_sp, u16 mid_idx,
 			mlxsw_reg_smid_port_mask_set(smid_pl, i, 1);
 	}
 
+	mlxsw_reg_smid_port_mask_set(smid_pl,
+				     mlxsw_sp_router_port(mlxsw_sp), 1);
+
 	for_each_set_bit(i, ports_bitmap, mlxsw_core_max_ports(mlxsw_sp->core))
 		mlxsw_reg_smid_port_set(smid_pl, i, 1);
+
+	mlxsw_reg_smid_port_set(smid_pl, mlxsw_sp_router_port(mlxsw_sp),
+				set_router_port);
 
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(smid), smid_pl);
 	kfree(smid_pl);
@@ -1362,7 +1433,8 @@ mlxsw_sp_mc_write_mdb_entry(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_mc_get_mrouters_bitmap(flood_bitmap, bridge_device, mlxsw_sp);
 
 	mid->mid = mid_idx;
-	err = mlxsw_sp_port_smid_full_entry(mlxsw_sp, mid_idx, flood_bitmap);
+	err = mlxsw_sp_port_smid_full_entry(mlxsw_sp, mid_idx, flood_bitmap,
+					    bridge_device->mrouter);
 	kfree(flood_bitmap);
 	if (err)
 		return false;
@@ -1735,12 +1807,15 @@ static const struct switchdev_ops mlxsw_sp_port_switchdev_ops = {
 static int
 mlxsw_sp_bridge_8021q_port_join(struct mlxsw_sp_bridge_device *bridge_device,
 				struct mlxsw_sp_bridge_port *bridge_port,
-				struct mlxsw_sp_port *mlxsw_sp_port)
+				struct mlxsw_sp_port *mlxsw_sp_port,
+				struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 
-	if (is_vlan_dev(bridge_port->dev))
+	if (is_vlan_dev(bridge_port->dev)) {
+		NL_SET_ERR_MSG(extack, "spectrum: Can not enslave a VLAN device to a VLAN-aware bridge");
 		return -EINVAL;
+	}
 
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, 1);
 	if (WARN_ON(!mlxsw_sp_port_vlan))
@@ -1797,13 +1872,16 @@ mlxsw_sp_port_is_br_member(const struct mlxsw_sp_port *mlxsw_sp_port,
 static int
 mlxsw_sp_bridge_8021d_port_join(struct mlxsw_sp_bridge_device *bridge_device,
 				struct mlxsw_sp_bridge_port *bridge_port,
-				struct mlxsw_sp_port *mlxsw_sp_port)
+				struct mlxsw_sp_port *mlxsw_sp_port,
+				struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 	u16 vid;
 
-	if (!is_vlan_dev(bridge_port->dev))
+	if (!is_vlan_dev(bridge_port->dev)) {
+		NL_SET_ERR_MSG(extack, "spectrum: Only VLAN devices can be enslaved to a VLAN-unaware bridge");
 		return -EINVAL;
+	}
 	vid = vlan_dev_vlan_id(bridge_port->dev);
 
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
@@ -1811,7 +1889,7 @@ mlxsw_sp_bridge_8021d_port_join(struct mlxsw_sp_bridge_device *bridge_device,
 		return -EINVAL;
 
 	if (mlxsw_sp_port_is_br_member(mlxsw_sp_port, bridge_device->dev)) {
-		netdev_err(mlxsw_sp_port->dev, "Can't bridge VLAN uppers of the same port\n");
+		NL_SET_ERR_MSG(extack, "spectrum: Can not bridge VLAN uppers of the same port");
 		return -EINVAL;
 	}
 
@@ -1854,7 +1932,8 @@ static const struct mlxsw_sp_bridge_ops mlxsw_sp_bridge_8021d_ops = {
 
 int mlxsw_sp_port_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port,
 			      struct net_device *brport_dev,
-			      struct net_device *br_dev)
+			      struct net_device *br_dev,
+			      struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct mlxsw_sp_bridge_device *bridge_device;
@@ -1867,7 +1946,7 @@ int mlxsw_sp_port_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	bridge_device = bridge_port->bridge_device;
 
 	err = bridge_device->ops->port_join(bridge_device, bridge_port,
-					    mlxsw_sp_port);
+					    mlxsw_sp_port, extack);
 	if (err)
 		goto err_port_join;
 

@@ -306,11 +306,9 @@ static int idt77105_start(struct atm_dev *dev)
 	if (start_timer) {
 		start_timer = 0;
                 
-		setup_timer(&stats_timer, idt77105_stats_timer_func, 0UL);
 		stats_timer.expires = jiffies+IDT77105_STATS_TIMER_PERIOD;
 		add_timer(&stats_timer);
                 
-		setup_timer(&restart_timer, idt77105_restart_timer_func, 0UL);
 		restart_timer.expires = jiffies+IDT77105_RESTART_TIMER_PERIOD;
 		add_timer(&restart_timer);
 	}

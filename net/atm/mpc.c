@@ -799,7 +799,6 @@ static int atm_mpoa_mpoad_attach(struct atm_vcc *vcc, int arg)
 	int err;
 
 	if (mpcs == NULL) {
-		init_timer(&mpc_timer);
 		mpc_timer_refresh();
 
 		/* This lets us now how our LECs are doing */

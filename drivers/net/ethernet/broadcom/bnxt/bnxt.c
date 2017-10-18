@@ -1491,7 +1491,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 				   (struct rx_tpa_end_cmp *)rxcmp,
 				   (struct rx_tpa_end_cmp_ext *)rxcmp1, event);
 
-		if (unlikely(IS_ERR(skb)))
+		if (IS_ERR(skb))
 			return -EBUSY;
 
 		rc = -ENOMEM;

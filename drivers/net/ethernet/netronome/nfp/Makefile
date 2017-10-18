@@ -14,6 +14,7 @@ nfp-objs := \
 	    nfpcore/nfp_resource.o \
 	    nfpcore/nfp_rtsym.o \
 	    nfpcore/nfp_target.o \
+	    nfp_asm.o \
 	    nfp_app.o \
 	    nfp_app_nic.o \
 	    nfp_devlink.o \
@@ -37,7 +38,8 @@ nfp-objs += \
 	    flower/main.o \
 	    flower/match.o \
 	    flower/metadata.o \
-	    flower/offload.o
+	    flower/offload.o \
+	    flower/tunnel_conf.o
 endif
 
 ifeq ($(CONFIG_BPF_SYSCALL),y)

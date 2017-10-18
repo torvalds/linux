@@ -413,7 +413,9 @@ static void macvlan_forward_source_one(struct sk_buff *skb,
 
 	len = nskb->len + ETH_HLEN;
 	nskb->dev = dev;
-	nskb->pkt_type = PACKET_HOST;
+
+	if (ether_addr_equal_64bits(eth_hdr(skb)->h_dest, dev->dev_addr))
+		nskb->pkt_type = PACKET_HOST;
 
 	ret = netif_rx(nskb);
 	macvlan_count_rx(vlan, len, ret == NET_RX_SUCCESS, false);
@@ -480,7 +482,7 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 					      struct macvlan_dev, list);
 	else
 		vlan = macvlan_hash_lookup(port, eth->h_dest);
-	if (vlan == NULL)
+	if (!vlan || vlan->mode == MACVLAN_MODE_SOURCE)
 		return RX_HANDLER_PASS;
 
 	dev = vlan->dev;
@@ -1344,7 +1346,8 @@ static int macvlan_changelink_sources(struct macvlan_dev *vlan, u32 mode,
 }
 
 int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
-			   struct nlattr *tb[], struct nlattr *data[])
+			   struct nlattr *tb[], struct nlattr *data[],
+			   struct netlink_ext_ack *extack)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct macvlan_port *port;
@@ -1433,7 +1436,7 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 		goto destroy_macvlan_port;
 
 	dev->priv_flags |= IFF_MACVLAN;
-	err = netdev_upper_dev_link(lowerdev, dev);
+	err = netdev_upper_dev_link(lowerdev, dev, extack);
 	if (err)
 		goto unregister_netdev;
 
@@ -1456,7 +1459,7 @@ static int macvlan_newlink(struct net *src_net, struct net_device *dev,
 			   struct nlattr *tb[], struct nlattr *data[],
 			   struct netlink_ext_ack *extack)
 {
-	return macvlan_common_newlink(src_net, dev, tb, data);
+	return macvlan_common_newlink(src_net, dev, tb, data, extack);
 }
 
 void macvlan_dellink(struct net_device *dev, struct list_head *head)

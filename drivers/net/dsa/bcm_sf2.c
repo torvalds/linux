@@ -205,6 +205,19 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	if (port == priv->moca_port)
 		bcm_sf2_port_intr_enable(priv, port);
 
+	/* Set per-queue pause threshold to 32 */
+	core_writel(priv, 32, CORE_TXQ_THD_PAUSE_QN_PORT(port));
+
+	/* Set ACB threshold to 24 */
+	for (i = 0; i < SF2_NUM_EGRESS_QUEUES; i++) {
+		reg = acb_readl(priv, ACB_QUEUE_CFG(port *
+						    SF2_NUM_EGRESS_QUEUES + i));
+		reg &= ~XOFF_THRESHOLD_MASK;
+		reg |= 24;
+		acb_writel(priv, reg, ACB_QUEUE_CFG(port *
+						    SF2_NUM_EGRESS_QUEUES + i));
+	}
+
 	return b53_enable_port(ds, port, phy);
 }
 
@@ -588,7 +601,7 @@ static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
 		 * state machine and make it go in PHY_FORCING state instead.
 		 */
 		if (!status->link)
-			netif_carrier_off(ds->ports[port].netdev);
+			netif_carrier_off(ds->ports[port].slave);
 		status->duplex = 1;
 	} else {
 		status->link = 1;
@@ -611,6 +624,20 @@ static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
 
 	if (pause & (1 << port))
 		status->pause = 1;
+}
+
+static void bcm_sf2_enable_acb(struct dsa_switch *ds)
+{
+	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	u32 reg;
+
+	/* Enable ACB globally */
+	reg = acb_readl(priv, ACB_CONTROL);
+	reg |= (ACB_FLUSH_MASK << ACB_FLUSH_SHIFT);
+	acb_writel(priv, reg, ACB_CONTROL);
+	reg &= ~(ACB_FLUSH_MASK << ACB_FLUSH_SHIFT);
+	reg |= ACB_EN | ACB_ALGORITHM;
+	acb_writel(priv, reg, ACB_CONTROL);
 }
 
 static int bcm_sf2_sw_suspend(struct dsa_switch *ds)
@@ -655,13 +682,15 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 			bcm_sf2_imp_setup(ds, port);
 	}
 
+	bcm_sf2_enable_acb(ds);
+
 	return 0;
 }
 
 static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 			       struct ethtool_wolinfo *wol)
 {
-	struct net_device *p = ds->ports[port].cpu_dp->netdev;
+	struct net_device *p = ds->ports[port].cpu_dp->master;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	struct ethtool_wolinfo pwol;
 
@@ -684,7 +713,7 @@ static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 static int bcm_sf2_sw_set_wol(struct dsa_switch *ds, int port,
 			      struct ethtool_wolinfo *wol)
 {
-	struct net_device *p = ds->ports[port].cpu_dp->netdev;
+	struct net_device *p = ds->ports[port].cpu_dp->master;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	s8 cpu_port = ds->ports[port].cpu_dp->index;
 	struct ethtool_wolinfo pwol;
@@ -754,15 +783,19 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	unsigned int port;
 
-	/* Disable unused ports and configure IMP port */
+	/* Enable all valid ports and disable those unused */
 	for (port = 0; port < priv->hw_params.num_ports; port++) {
-		if (dsa_is_cpu_port(ds, port))
+		/* IMP port receives special treatment */
+		if ((1 << port) & ds->enabled_port_mask)
+			bcm_sf2_port_setup(ds, port, NULL);
+		else if (dsa_is_cpu_port(ds, port))
 			bcm_sf2_imp_setup(ds, port);
-		else if (!((1 << port) & ds->enabled_port_mask))
+		else
 			bcm_sf2_port_disable(ds, port, NULL);
 	}
 
 	bcm_sf2_sw_configure_vlan(ds);
+	bcm_sf2_enable_acb(ds);
 
 	return 0;
 }

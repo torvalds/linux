@@ -115,6 +115,21 @@ struct bpf_insn_aux_data {
 
 #define MAX_USED_MAPS 64 /* max number of maps accessed by one eBPF program */
 
+#define BPF_VERIFIER_TMP_LOG_SIZE	1024
+
+struct bpf_verifer_log {
+	u32 level;
+	char kbuf[BPF_VERIFIER_TMP_LOG_SIZE];
+	char __user *ubuf;
+	u32 len_used;
+	u32 len_total;
+};
+
+static inline bool bpf_verifier_log_full(const struct bpf_verifer_log *log)
+{
+	return log->len_used >= log->len_total - 1;
+}
+
 struct bpf_verifier_env;
 struct bpf_ext_analyzer_ops {
 	int (*insn_hook)(struct bpf_verifier_env *env,
@@ -126,6 +141,7 @@ struct bpf_ext_analyzer_ops {
  */
 struct bpf_verifier_env {
 	struct bpf_prog *prog;		/* eBPF program being verified */
+	const struct bpf_verifier_ops *ops;
 	struct bpf_verifier_stack_elem *head; /* stack of verifier states to be processed */
 	int stack_size;			/* number of states to be processed */
 	bool strict_alignment;		/* perform strict pointer alignment checks */
@@ -139,6 +155,8 @@ struct bpf_verifier_env {
 	bool allow_ptr_leaks;
 	bool seen_direct_write;
 	struct bpf_insn_aux_data *insn_aux_data; /* array of per-insn state */
+
+	struct bpf_verifer_log log;
 };
 
 int bpf_analyzer(struct bpf_prog *prog, const struct bpf_ext_analyzer_ops *ops,

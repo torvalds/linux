@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
@@ -160,12 +161,12 @@ EXPORT_SYMBOL_GPL(dsa_dev_to_net_device);
 static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 			  struct packet_type *pt, struct net_device *unused)
 {
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
+	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	struct sk_buff *nskb = NULL;
 	struct pcpu_sw_netstats *s;
 	struct dsa_slave_priv *p;
 
-	if (unlikely(dst == NULL)) {
+	if (unlikely(!cpu_dp)) {
 		kfree_skb(skb);
 		return 0;
 	}
@@ -174,7 +175,7 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (!skb)
 		return 0;
 
-	nskb = dst->rcv(skb, dev, pt);
+	nskb = cpu_dp->rcv(skb, dev, pt);
 	if (!nskb) {
 		kfree_skb(skb);
 		return 0;
@@ -200,7 +201,7 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 #ifdef CONFIG_PM_SLEEP
 static bool dsa_is_port_initialized(struct dsa_switch *ds, int p)
 {
-	return ds->enabled_port_mask & (1 << p) && ds->ports[p].netdev;
+	return ds->enabled_port_mask & (1 << p) && ds->ports[p].slave;
 }
 
 int dsa_switch_suspend(struct dsa_switch *ds)
@@ -212,7 +213,7 @@ int dsa_switch_suspend(struct dsa_switch *ds)
 		if (!dsa_is_port_initialized(ds, i))
 			continue;
 
-		ret = dsa_slave_suspend(ds->ports[i].netdev);
+		ret = dsa_slave_suspend(ds->ports[i].slave);
 		if (ret)
 			return ret;
 	}
@@ -239,7 +240,7 @@ int dsa_switch_resume(struct dsa_switch *ds)
 		if (!dsa_is_port_initialized(ds, i))
 			continue;
 
-		ret = dsa_slave_resume(ds->ports[i].netdev);
+		ret = dsa_slave_resume(ds->ports[i].slave);
 		if (ret)
 			return ret;
 	}
@@ -260,6 +261,28 @@ bool dsa_schedule_work(struct work_struct *work)
 {
 	return queue_work(dsa_owq, work);
 }
+
+static ATOMIC_NOTIFIER_HEAD(dsa_notif_chain);
+
+int register_dsa_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&dsa_notif_chain, nb);
+}
+EXPORT_SYMBOL_GPL(register_dsa_notifier);
+
+int unregister_dsa_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&dsa_notif_chain, nb);
+}
+EXPORT_SYMBOL_GPL(unregister_dsa_notifier);
+
+int call_dsa_notifiers(unsigned long val, struct net_device *dev,
+		       struct dsa_notifier_info *info)
+{
+	info->dev = dev;
+	return atomic_notifier_call_chain(&dsa_notif_chain, val, info);
+}
+EXPORT_SYMBOL_GPL(call_dsa_notifiers);
 
 static int __init dsa_init_module(void)
 {

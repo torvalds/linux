@@ -523,6 +523,7 @@ static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
 
 	xdp.data_hard_start = page_address(page);
 	xdp.data = (void *)cpu_addr;
+	xdp_set_data_meta_invalid(&xdp);
 	xdp.data_end = xdp.data + len;
 	orig_data = xdp.data;
 
@@ -565,8 +566,10 @@ static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
 		return true;
 	default:
 		bpf_warn_invalid_xdp_action(action);
+		/* fall through */
 	case XDP_ABORTED:
 		trace_xdp_exception(nic->netdev, prog, action);
+		/* fall through */
 	case XDP_DROP:
 		/* Check if it's a recycled page, if not
 		 * unmap the DMA mapping.

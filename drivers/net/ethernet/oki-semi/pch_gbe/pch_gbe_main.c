@@ -781,11 +781,8 @@ static void pch_gbe_free_irq(struct pch_gbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 
-	free_irq(adapter->pdev->irq, netdev);
-	if (adapter->have_msi) {
-		pci_disable_msi(adapter->pdev);
-		netdev_dbg(netdev, "call pci_disable_msi\n");
-	}
+	free_irq(adapter->irq, netdev);
+	pci_free_irq_vectors(adapter->pdev);
 }
 
 /**
@@ -799,7 +796,7 @@ static void pch_gbe_irq_disable(struct pch_gbe_adapter *adapter)
 	atomic_inc(&adapter->irq_sem);
 	iowrite32(0, &hw->reg->INT_EN);
 	ioread32(&hw->reg->INT_ST);
-	synchronize_irq(adapter->pdev->irq);
+	synchronize_irq(adapter->irq);
 
 	netdev_dbg(adapter->netdev, "INT_EN reg : 0x%08x\n",
 		   ioread32(&hw->reg->INT_EN));
@@ -1903,29 +1900,22 @@ static int pch_gbe_request_irq(struct pch_gbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	int err;
-	int flags;
 
-	flags = IRQF_SHARED;
-	adapter->have_msi = false;
-	err = pci_enable_msi(adapter->pdev);
-	netdev_dbg(netdev, "call pci_enable_msi\n");
-	if (err) {
-		netdev_dbg(netdev, "call pci_enable_msi - Error: %d\n", err);
-	} else {
-		flags = 0;
-		adapter->have_msi = true;
-	}
-	err = request_irq(adapter->pdev->irq, &pch_gbe_intr,
-			  flags, netdev->name, netdev);
+	err = pci_alloc_irq_vectors(adapter->pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+	if (err < 0)
+		return err;
+
+	adapter->irq = pci_irq_vector(adapter->pdev, 0);
+
+	err = request_irq(adapter->irq, &pch_gbe_intr, IRQF_SHARED,
+			  netdev->name, netdev);
 	if (err)
 		netdev_err(netdev, "Unable to allocate interrupt Error: %d\n",
 			   err);
-	netdev_dbg(netdev,
-		   "adapter->have_msi : %d  flags : 0x%04x  return : 0x%04x\n",
-		   adapter->have_msi, flags, err);
+	netdev_dbg(netdev, "have_msi : %d  return : 0x%04x\n",
+		   pci_dev_msi_enabled(adapter->pdev), err);
 	return err;
 }
-
 
 /**
  * pch_gbe_up - Up GbE network device
@@ -2399,9 +2389,9 @@ static void pch_gbe_netpoll(struct net_device *netdev)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 
-	disable_irq(adapter->pdev->irq);
-	pch_gbe_intr(adapter->pdev->irq, netdev);
-	enable_irq(adapter->pdev->irq);
+	disable_irq(adapter->irq);
+	pch_gbe_intr(adapter->irq, netdev);
+	enable_irq(adapter->irq);
 }
 #endif
 

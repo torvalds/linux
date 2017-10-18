@@ -842,17 +842,18 @@ l1oip_send_bh(struct work_struct *work)
  * timer stuff
  */
 static void
-l1oip_keepalive(void *data)
+l1oip_keepalive(struct timer_list *t)
 {
-	struct l1oip *hc = (struct l1oip *)data;
+	struct l1oip *hc = from_timer(hc, t, keep_tl);
 
 	schedule_work(&hc->workq);
 }
 
 static void
-l1oip_timeout(void *data)
+l1oip_timeout(struct timer_list *t)
 {
-	struct l1oip			*hc = (struct l1oip *)data;
+	struct l1oip			*hc = from_timer(hc, t,
+								  timeout_tl);
 	struct dchannel		*dch = hc->chan[hc->d_idx].dch;
 
 	if (debug & DEBUG_L1OIP_MSG)
@@ -1437,13 +1438,11 @@ init_card(struct l1oip *hc, int pri, int bundle)
 	if (ret)
 		return ret;
 
-	hc->keep_tl.function = (void *)l1oip_keepalive;
-	hc->keep_tl.data = (ulong)hc;
-	init_timer(&hc->keep_tl);
+	timer_setup(&hc->keep_tl, l1oip_keepalive, 0);
 	hc->keep_tl.expires = jiffies + 2 * HZ; /* two seconds first time */
 	add_timer(&hc->keep_tl);
 
-	setup_timer(&hc->timeout_tl, (void *)l1oip_timeout, (ulong)hc);
+	timer_setup(&hc->timeout_tl, l1oip_timeout, 0);
 	hc->timeout_on = 0; /* state that we have timer off */
 
 	return 0;
