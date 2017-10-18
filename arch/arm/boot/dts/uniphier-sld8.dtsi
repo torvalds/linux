@@ -103,6 +103,24 @@
 			clocks = <&peri_clk 3>;
 		};
 
+		gpio: gpio@55000000 {
+			compatible = "socionext,uniphier-gpio";
+			reg = <0x55000000 0x200>;
+			interrupt-parent = <&aidet>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 0 0>,
+				      <&pinctrl 104 0 0>,
+				      <&pinctrl 112 0 0>;
+			gpio-ranges-group-names = "gpio_range0",
+						  "gpio_range1",
+						  "gpio_range2";
+			ngpios = <136>;
+			socionext,interrupt-ranges = <0 48 13>, <14 62 2>;
+		};
+
 		i2c0: i2c@58400000 {
 			compatible = "socionext,uniphier-i2c";
 			status = "disabled";
