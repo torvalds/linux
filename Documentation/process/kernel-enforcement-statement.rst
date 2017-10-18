@@ -52,7 +52,7 @@ we might work for today, have in the past, or will in the future.
 
   - Laura Abbott
   - Bjorn Andersson (Linaro)
-  - Andrea Arcangeli (Red Hat)
+  - Andrea Arcangeli
   - Neil Armstrong
   - Jens Axboe
   - Pablo Neira Ayuso
@@ -61,7 +61,7 @@ we might work for today, have in the past, or will in the future.
   - Felipe Balbi
   - Arnd Bergmann
   - Ard Biesheuvel
-  - Paolo Bonzini (Red Hat)
+  - Paolo Bonzini
   - Christian Borntraeger
   - Mark Brown (Linaro)
   - Paul Burton
@@ -70,7 +70,7 @@ we might work for today, have in the past, or will in the future.
   - Jonathan Corbet
   - Dennis Dalessandro
   - Vivien Didelot (Savoir-faire Linux)
-  - Hans de Goede (Red Hat)
+  - Hans de Goede
   - Mel Gorman (SUSE)
   - Sven Eckelmann
   - Alex Elder (Linaro)
@@ -107,11 +107,11 @@ we might work for today, have in the past, or will in the future.
   - Viresh Kumar
   - Aneesh Kumar K.V
   - Julia Lawall
-  - Doug Ledford (Red Hat)
+  - Doug Ledford
   - Chuck Lever (Oracle)
   - Daniel Lezcano
   - Shaohua Li
-  - Xin Long (Red Hat)
+  - Xin Long
   - Tony Luck
   - Mike Marshall
   - Chris Mason
