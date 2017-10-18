@@ -1724,8 +1724,8 @@ static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip)
 	acpi_gpiochip_free_interrupts(gpiochip);
 
 	if (gpiochip->irq_chained_parent) {
-		irq_set_chained_handler(gpiochip->irq_chained_parent, NULL);
-		irq_set_handler_data(gpiochip->irq_chained_parent, NULL);
+		irq_set_chained_handler_and_data(
+			gpiochip->irq_chained_parent, NULL, NULL);
 	}
 
 	/* Remove all IRQ mappings and delete the domain */
