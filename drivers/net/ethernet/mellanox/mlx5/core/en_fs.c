@@ -162,7 +162,7 @@ static int __mlx5e_add_vlan_rule(struct mlx5e_priv *priv,
 				 u16 vid, struct mlx5_flow_spec *spec)
 {
 	struct mlx5_flow_table *ft = priv->fs.vlan.ft.t;
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_handle **rule_p;
 	MLX5_DECLARE_FLOW_ACT(flow_act);
 	int err = 0;
@@ -738,7 +738,7 @@ mlx5e_generate_ttc_rule(struct mlx5e_priv *priv,
 
 static int mlx5e_generate_ttc_table_rules(struct mlx5e_priv *priv)
 {
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	struct mlx5e_ttc_table *ttc;
 	struct mlx5_flow_handle **rules;
 	struct mlx5_flow_table *ft;
@@ -909,7 +909,7 @@ mlx5e_generate_inner_ttc_rule(struct mlx5e_priv *priv,
 
 static int mlx5e_generate_inner_ttc_table_rules(struct mlx5e_priv *priv)
 {
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_handle **rules;
 	struct mlx5e_ttc_table *ttc;
 	struct mlx5_flow_table *ft;
@@ -1106,7 +1106,7 @@ static int mlx5e_add_l2_flow_rule(struct mlx5e_priv *priv,
 				  struct mlx5e_l2_rule *ai, int type)
 {
 	struct mlx5_flow_table *ft = priv->fs.l2.ft.t;
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	MLX5_DECLARE_FLOW_ACT(flow_act);
 	struct mlx5_flow_spec *spec;
 	int err = 0;
