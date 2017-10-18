@@ -404,6 +404,8 @@ union main_cfg_table {
 	u32			port_recovery_timer;
 	u32			interrupt_reassertion_delay;
 	u32			fatal_n_non_fatal_dump;	        /* 0x28 */
+	u32			ila_version;
+	u32			inc_fw_version;
 	} pm80xx_tbl;
 };
 

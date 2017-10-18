@@ -1445,6 +1445,8 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define MAIN_SAS_PHY_ATTR_TABLE_OFFSET	0x90 /* DWORD 0x24 */
 #define MAIN_PORT_RECOVERY_TIMER	0x94 /* DWORD 0x25 */
 #define MAIN_INT_REASSERTION_DELAY	0x98 /* DWORD 0x26 */
+#define MAIN_MPI_ILA_RELEASE_TYPE	0xA4 /* DWORD 0x29 */
+#define MAIN_MPI_INACTIVE_FW_VERSION	0XB0 /* DWORD 0x2C */
 
 /* Gereral Status Table offset - byte offset */
 #define GST_GSTLEN_MPIS_OFFSET		0x00

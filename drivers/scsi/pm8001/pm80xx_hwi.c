@@ -312,6 +312,11 @@ static void read_main_config_table(struct pm8001_hba_info *pm8001_ha)
 	/* read port recover and reset timeout */
 	pm8001_ha->main_cfg_tbl.pm80xx_tbl.port_recovery_timer =
 		pm8001_mr32(address, MAIN_PORT_RECOVERY_TIMER);
+	/* read ILA and inactive firmware version */
+	pm8001_ha->main_cfg_tbl.pm80xx_tbl.ila_version =
+		pm8001_mr32(address, MAIN_MPI_ILA_RELEASE_TYPE);
+	pm8001_ha->main_cfg_tbl.pm80xx_tbl.inc_fw_version =
+		pm8001_mr32(address, MAIN_MPI_INACTIVE_FW_VERSION);
 }
 
 /**
