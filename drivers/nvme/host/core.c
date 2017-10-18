@@ -1891,7 +1891,7 @@ static int nvme_dev_open(struct inode *inode, struct file *file)
 	struct nvme_ctrl *ctrl =
 		container_of(inode->i_cdev, struct nvme_ctrl, cdev);
 
-	if (!ctrl->admin_q)
+	if (ctrl->state != NVME_CTRL_LIVE)
 		return -EWOULDBLOCK;
 	file->private_data = ctrl;
 	return 0;
