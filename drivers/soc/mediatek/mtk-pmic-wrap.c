@@ -507,6 +507,7 @@ struct pmic_wrapper;
 struct pwrap_slv_type {
 	const u32 *dew_regs;
 	enum pmic_type type;
+	const struct regmap_config *regmap;
 	/* Flags indicating the capability for the target slave */
 	u32 caps;
 	/*
@@ -1149,7 +1150,7 @@ static irqreturn_t pwrap_interrupt(int irqno, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static const struct regmap_config pwrap_regmap_config = {
+static const struct regmap_config pwrap_regmap_config16 = {
 	.reg_bits = 16,
 	.val_bits = 16,
 	.reg_stride = 2,
@@ -1158,9 +1159,19 @@ static const struct regmap_config pwrap_regmap_config = {
 	.max_register = 0xffff,
 };
 
+static const struct regmap_config pwrap_regmap_config32 = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.reg_read = pwrap_regmap_read,
+	.reg_write = pwrap_regmap_write,
+	.max_register = 0xffff,
+};
+
 static const struct pwrap_slv_type pmic_mt6323 = {
 	.dew_regs = mt6323_regs,
 	.type = PMIC_MT6323,
+	.regmap = &pwrap_regmap_config16,
 	.caps = PWRAP_SLV_CAP_SPI | PWRAP_SLV_CAP_DUALIO |
 		PWRAP_SLV_CAP_SECURITY,
 	.pwrap_read = pwrap_read16,
@@ -1170,6 +1181,7 @@ static const struct pwrap_slv_type pmic_mt6323 = {
 static const struct pwrap_slv_type pmic_mt6380 = {
 	.dew_regs = NULL,
 	.type = PMIC_MT6380,
+	.regmap = &pwrap_regmap_config32,
 	.caps = 0,
 	.pwrap_read = pwrap_read32,
 	.pwrap_write = pwrap_write32,
@@ -1178,6 +1190,7 @@ static const struct pwrap_slv_type pmic_mt6380 = {
 static const struct pwrap_slv_type pmic_mt6397 = {
 	.dew_regs = mt6397_regs,
 	.type = PMIC_MT6397,
+	.regmap = &pwrap_regmap_config16,
 	.caps = PWRAP_SLV_CAP_SPI | PWRAP_SLV_CAP_DUALIO |
 		PWRAP_SLV_CAP_SECURITY,
 	.pwrap_read = pwrap_read16,
@@ -1189,9 +1202,14 @@ static const struct of_device_id of_slave_match_tbl[] = {
 		.compatible = "mediatek,mt6323",
 		.data = &pmic_mt6323,
 	}, {
+		/* The MT6380 PMIC only implements a regulator, so we bind it
+		 * directly instead of using a MFD.
+		 */
+		.compatible = "mediatek,mt6380-regulator",
+		.data = &pmic_mt6380,
+	}, {
 		.compatible = "mediatek,mt6397",
 		.data = &pmic_mt6397,
-	}, {
 		/* sentinel */
 	}
 };
@@ -1372,7 +1390,7 @@ static int pwrap_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_out2;
 
-	wrp->regmap = devm_regmap_init(wrp->dev, NULL, wrp, &pwrap_regmap_config);
+	wrp->regmap = devm_regmap_init(wrp->dev, NULL, wrp, wrp->slave->regmap);
 	if (IS_ERR(wrp->regmap)) {
 		ret = PTR_ERR(wrp->regmap);
 		goto err_out2;
