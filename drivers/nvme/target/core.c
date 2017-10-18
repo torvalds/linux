@@ -57,6 +57,17 @@ u16 nvmet_copy_from_sgl(struct nvmet_req *req, off_t off, void *buf, size_t len)
 	return 0;
 }
 
+static unsigned int nvmet_max_nsid(struct nvmet_subsys *subsys)
+{
+	struct nvmet_ns *ns;
+
+	if (list_empty(&subsys->namespaces))
+		return 0;
+
+	ns = list_last_entry(&subsys->namespaces, struct nvmet_ns, dev_link);
+	return ns->nsid;
+}
+
 static u32 nvmet_async_event_result(struct nvmet_async_event *aen)
 {
 	return aen->event_type | (aen->event_info << 8) | (aen->log_page << 16);
@@ -334,6 +345,8 @@ void nvmet_ns_disable(struct nvmet_ns *ns)
 
 	ns->enabled = false;
 	list_del_rcu(&ns->dev_link);
+	if (ns->nsid == subsys->max_nsid)
+		subsys->max_nsid = nvmet_max_nsid(subsys);
 	mutex_unlock(&subsys->lock);
 
 	/*
