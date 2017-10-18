@@ -142,6 +142,13 @@ typedef __u32			xfs_nlink_t;
 #define SYNCHRONIZE()	barrier()
 #define __return_address __builtin_return_address(0)
 
+/*
+ * Return the address of a label.  Use barrier() so that the optimizer
+ * won't reorder code to refactor the error jumpouts into a single
+ * return, which throws off the reported address.
+ */
+#define __this_address	({ __label__ __here; __here: barrier(); &&__here; })
+
 #define XFS_PROJID_DEFAULT	0
 
 #define MIN(a,b)	(min(a,b))
