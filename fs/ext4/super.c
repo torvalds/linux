@@ -4616,7 +4616,8 @@ static int ext4_load_journal(struct super_block *sb,
 					"required on readonly filesystem");
 			if (really_read_only) {
 				ext4_msg(sb, KERN_ERR, "write access "
-					"unavailable, cannot proceed");
+					"unavailable, cannot proceed "
+					"(try mounting with noload)");
 				return -EROFS;
 			}
 			ext4_msg(sb, KERN_INFO, "write access will "
