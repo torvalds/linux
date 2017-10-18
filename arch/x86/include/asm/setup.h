@@ -9,6 +9,8 @@
 #include <linux/linkage.h>
 #include <asm/page_types.h>
 
+#define LOCKDOWN_LIFT_KEY 'x'
+
 #ifdef __i386__
 
 #include <linux/pfn.h>

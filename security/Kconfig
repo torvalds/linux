@@ -233,6 +233,14 @@ config LOCK_DOWN_KERNEL
 	  turns off various features that might otherwise allow access to the
 	  kernel image (eg. setting MSR registers).
 
+config ALLOW_LOCKDOWN_LIFT_BY_SYSRQ
+	bool "Allow the kernel lockdown to be lifted by SysRq"
+	depends on LOCK_DOWN_KERNEL && MAGIC_SYSRQ
+	help
+	  Allow the lockdown on a kernel to be lifted, by pressing a SysRq key
+	  combination on a wired keyboard.
+
+
 source security/selinux/Kconfig
 source security/smack/Kconfig
 source security/tomoyo/Kconfig

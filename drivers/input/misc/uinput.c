@@ -362,6 +362,7 @@ static int uinput_create_device(struct uinput_device *udev)
 		dev->flush = uinput_dev_flush;
 	}
 
+	dev->flags |= INPUTDEV_FLAGS_SYNTHETIC;
 	dev->event = uinput_dev_event;
 
 	input_set_drvdata(udev->dev, udev);

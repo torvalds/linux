@@ -29,6 +29,8 @@
 #define SYSRQ_ENABLE_BOOT	0x0080
 #define SYSRQ_ENABLE_RTNICE	0x0100
 
+#define SYSRQ_DISABLE_USERSPACE	0x00010000
+
 struct sysrq_key_op {
 	void (*handler)(int);
 	char *help_msg;
@@ -43,8 +45,12 @@ struct sysrq_key_op {
  * are available -- else NULL's).
  */
 
+#define SYSRQ_FROM_KERNEL	0x0001
+#define SYSRQ_FROM_PROC		0x0002
+#define SYSRQ_FROM_SYNTHETIC	0x0004
+
 void handle_sysrq(int key);
-void __handle_sysrq(int key, bool check_mask);
+void __handle_sysrq(int key, unsigned int from);
 int register_sysrq_key(int key, struct sysrq_key_op *op);
 int unregister_sysrq_key(int key, struct sysrq_key_op *op);
 struct sysrq_key_op *__sysrq_get_key_op(int key);
