@@ -993,7 +993,6 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 	struct net *net = dev_net(idev->dev);
 	struct inet6_ifaddr *ifa = NULL;
 	struct rt6_info *rt = NULL;
-	struct in6_validator_info i6vi;
 	int err = 0;
 	int addr_type = ipv6_addr_type(addr);
 
@@ -1013,12 +1012,20 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 		goto out;
 	}
 
-	i6vi.i6vi_addr = *addr;
-	i6vi.i6vi_dev = idev;
-	err = inet6addr_validator_notifier_call_chain(NETDEV_UP, &i6vi);
-	err = notifier_to_errno(err);
-	if (err < 0)
-		goto out;
+	/* validator notifier needs to be blocking;
+	 * do not call in atomic context
+	 */
+	if (can_block) {
+		struct in6_validator_info i6vi = {
+			.i6vi_addr = *addr,
+			.i6vi_dev = idev,
+		};
+
+		err = inet6addr_validator_notifier_call_chain(NETDEV_UP, &i6vi);
+		err = notifier_to_errno(err);
+		if (err < 0)
+			goto out;
+	}
 
 	ifa = kzalloc(sizeof(*ifa), gfp_flags);
 	if (!ifa) {
