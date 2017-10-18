@@ -1518,13 +1518,16 @@ static void __pci_bridge_assign_resources(const struct pci_dev *bridge,
 		break;
 	}
 }
+
+#define PCI_RES_TYPE_MASK \
+	(IORESOURCE_IO | IORESOURCE_MEM | IORESOURCE_PREFETCH |\
+	 IORESOURCE_MEM_64)
+
 static void pci_bridge_release_resources(struct pci_bus *bus,
 					  unsigned long type)
 {
 	struct pci_dev *dev = bus->self;
 	struct resource *r;
-	unsigned long type_mask = IORESOURCE_IO | IORESOURCE_MEM |
-				  IORESOURCE_PREFETCH | IORESOURCE_MEM_64;
 	unsigned old_flags = 0;
 	struct resource *b_res;
 	int idx = 1;
@@ -1567,7 +1570,7 @@ static void pci_bridge_release_resources(struct pci_bus *bus,
 	 */
 	release_child_resources(r);
 	if (!release_resource(r)) {
-		type = old_flags = r->flags & type_mask;
+		type = old_flags = r->flags & PCI_RES_TYPE_MASK;
 		dev_printk(KERN_DEBUG, &dev->dev, "resource %d %pR released\n",
 					PCI_BRIDGE_RESOURCES + idx, r);
 		/* keep the old size */
@@ -1758,8 +1761,6 @@ void pci_assign_unassigned_root_bus_resources(struct pci_bus *bus)
 	enum release_type rel_type = leaf_only;
 	LIST_HEAD(fail_head);
 	struct pci_dev_resource *fail_res;
-	unsigned long type_mask = IORESOURCE_IO | IORESOURCE_MEM |
-				  IORESOURCE_PREFETCH | IORESOURCE_MEM_64;
 	int pci_try_num = 1;
 	enum enable_type enable_local;
 
@@ -1818,7 +1819,7 @@ again:
 	 */
 	list_for_each_entry(fail_res, &fail_head, list)
 		pci_bus_release_bridge_resources(fail_res->dev->bus,
-						 fail_res->flags & type_mask,
+						 fail_res->flags & PCI_RES_TYPE_MASK,
 						 rel_type);
 
 	/* restore size and flags */
@@ -1862,8 +1863,6 @@ void pci_assign_unassigned_bridge_resources(struct pci_dev *bridge)
 	LIST_HEAD(fail_head);
 	struct pci_dev_resource *fail_res;
 	int retval;
-	unsigned long type_mask = IORESOURCE_IO | IORESOURCE_MEM |
-				  IORESOURCE_PREFETCH | IORESOURCE_MEM_64;
 
 again:
 	__pci_bus_size_bridges(parent, &add_list);
@@ -1889,7 +1888,7 @@ again:
 	 */
 	list_for_each_entry(fail_res, &fail_head, list)
 		pci_bus_release_bridge_resources(fail_res->dev->bus,
-						 fail_res->flags & type_mask,
+						 fail_res->flags & PCI_RES_TYPE_MASK,
 						 whole_subtree);
 
 	/* restore size and flags */
