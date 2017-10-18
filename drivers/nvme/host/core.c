@@ -134,8 +134,6 @@ static inline bool nvme_req_needs_retry(struct request *req)
 		return false;
 	if (nvme_req(req)->status & NVME_SC_DNR)
 		return false;
-	if (jiffies - req->start_time >= req->timeout)
-		return false;
 	if (nvme_req(req)->retries >= nvme_max_retries)
 		return false;
 	return true;
@@ -2138,7 +2136,7 @@ static umode_t nvme_ns_attrs_are_visible(struct kobject *kobj,
 	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
 
 	if (a == &dev_attr_uuid.attr) {
-		if (uuid_is_null(&ns->uuid) ||
+		if (uuid_is_null(&ns->uuid) &&
 		    !memchr_inv(ns->nguid, 0, sizeof(ns->nguid)))
 			return 0;
 	}
@@ -2590,7 +2588,7 @@ static void nvme_async_event_work(struct work_struct *work)
 		container_of(work, struct nvme_ctrl, async_event_work);
 
 	spin_lock_irq(&ctrl->lock);
-	while (ctrl->event_limit > 0) {
+	while (ctrl->state == NVME_CTRL_LIVE && ctrl->event_limit > 0) {
 		int aer_idx = --ctrl->event_limit;
 
 		spin_unlock_irq(&ctrl->lock);
@@ -2677,7 +2675,8 @@ void nvme_complete_async_event(struct nvme_ctrl *ctrl, __le16 status,
 		/*FALLTHRU*/
 	case NVME_SC_ABORT_REQ:
 		++ctrl->event_limit;
-		queue_work(nvme_wq, &ctrl->async_event_work);
+		if (ctrl->state == NVME_CTRL_LIVE)
+			queue_work(nvme_wq, &ctrl->async_event_work);
 		break;
 	default:
 		break;
@@ -2692,7 +2691,7 @@ void nvme_complete_async_event(struct nvme_ctrl *ctrl, __le16 status,
 		nvme_queue_scan(ctrl);
 		break;
 	case NVME_AER_NOTICE_FW_ACT_STARTING:
-		schedule_work(&ctrl->fw_act_work);
+		queue_work(nvme_wq, &ctrl->fw_act_work);
 		break;
 	default:
 		dev_warn(ctrl->device, "async event result %08x\n", result);

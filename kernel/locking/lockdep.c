@@ -1873,10 +1873,10 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 	       struct held_lock *next, int distance, struct stack_trace *trace,
 	       int (*save)(struct stack_trace *trace))
 {
-	struct lock_list *entry;
-	int ret;
-	struct lock_list this;
 	struct lock_list *uninitialized_var(target_entry);
+	struct lock_list *entry;
+	struct lock_list this;
+	int ret;
 
 	/*
 	 * Prove that the new <prev> -> <next> dependency would not
@@ -1890,8 +1890,17 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 	this.class = hlock_class(next);
 	this.parent = NULL;
 	ret = check_noncircular(&this, hlock_class(prev), &target_entry);
-	if (unlikely(!ret))
+	if (unlikely(!ret)) {
+		if (!trace->entries) {
+			/*
+			 * If @save fails here, the printing might trigger
+			 * a WARN but because of the !nr_entries it should
+			 * not do bad things.
+			 */
+			save(trace);
+		}
 		return print_circular_bug(&this, target_entry, next, prev, trace);
+	}
 	else if (unlikely(ret < 0))
 		return print_bfs_bug(ret);
 
@@ -1938,7 +1947,7 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 		return print_bfs_bug(ret);
 
 
-	if (save && !save(trace))
+	if (!trace->entries && !save(trace))
 		return 0;
 
 	/*
@@ -1958,20 +1967,6 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 	if (!ret)
 		return 0;
 
-	/*
-	 * Debugging printouts:
-	 */
-	if (verbose(hlock_class(prev)) || verbose(hlock_class(next))) {
-		graph_unlock();
-		printk("\n new dependency: ");
-		print_lock_name(hlock_class(prev));
-		printk(KERN_CONT " => ");
-		print_lock_name(hlock_class(next));
-		printk(KERN_CONT "\n");
-		dump_stack();
-		if (!graph_lock())
-			return 0;
-	}
 	return 2;
 }
 
@@ -1986,8 +1981,12 @@ check_prevs_add(struct task_struct *curr, struct held_lock *next)
 {
 	int depth = curr->lockdep_depth;
 	struct held_lock *hlock;
-	struct stack_trace trace;
-	int (*save)(struct stack_trace *trace) = save_trace;
+	struct stack_trace trace = {
+		.nr_entries = 0,
+		.max_entries = 0,
+		.entries = NULL,
+		.skip = 0,
+	};
 
 	/*
 	 * Debugging checks.
@@ -2018,16 +2017,9 @@ check_prevs_add(struct task_struct *curr, struct held_lock *next)
 			 */
 			if (hlock->read != 2 && hlock->check) {
 				int ret = check_prev_add(curr, hlock, next,
-							 distance, &trace, save);
+							 distance, &trace, save_trace);
 				if (!ret)
 					return 0;
-
-				/*
-				 * Stop saving stack_trace if save_trace() was
-				 * called at least once:
-				 */
-				if (save && ret == 2)
-					save = NULL;
 
 				/*
 				 * Stop after the first non-trylock entry,

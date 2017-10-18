@@ -1,7 +1,7 @@
 VERSION = 4
 PATCHLEVEL = 14
 SUBLEVEL = 0
-EXTRAVERSION = -rc2
+EXTRAVERSION = -rc5
 NAME = Fearless Coyote
 
 # *DOCUMENTATION*
@@ -933,7 +933,11 @@ ifdef CONFIG_STACK_VALIDATION
   ifeq ($(has_libelf),1)
     objtool_target := tools/objtool FORCE
   else
-    $(warning "Cannot use CONFIG_STACK_VALIDATION, please install libelf-dev, libelf-devel or elfutils-libelf-devel")
+    ifdef CONFIG_ORC_UNWINDER
+      $(error "Cannot generate ORC metadata for CONFIG_ORC_UNWINDER=y, please install libelf-dev, libelf-devel or elfutils-libelf-devel")
+    else
+      $(warning "Cannot use CONFIG_STACK_VALIDATION=y, please install libelf-dev, libelf-devel or elfutils-libelf-devel")
+    endif
     SKIP_STACK_VALIDATION := 1
     export SKIP_STACK_VALIDATION
   endif
@@ -1172,11 +1176,11 @@ headers_check: headers_install
 
 PHONY += kselftest
 kselftest:
-	$(Q)$(MAKE) -C tools/testing/selftests run_tests
+	$(Q)$(MAKE) -C $(srctree)/tools/testing/selftests run_tests
 
 PHONY += kselftest-clean
 kselftest-clean:
-	$(Q)$(MAKE) -C tools/testing/selftests clean
+	$(Q)$(MAKE) -C $(srctree)/tools/testing/selftests clean
 
 PHONY += kselftest-merge
 kselftest-merge:

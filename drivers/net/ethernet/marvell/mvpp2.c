@@ -333,7 +333,7 @@
 #define     MVPP2_GMAC_INBAND_AN_MASK		BIT(0)
 #define     MVPP2_GMAC_FLOW_CTRL_MASK		GENMASK(2, 1)
 #define     MVPP2_GMAC_PCS_ENABLE_MASK		BIT(3)
-#define     MVPP2_GMAC_PORT_RGMII_MASK		BIT(4)
+#define     MVPP2_GMAC_INTERNAL_CLK_MASK	BIT(4)
 #define     MVPP2_GMAC_DISABLE_PADDING		BIT(5)
 #define     MVPP2_GMAC_PORT_RESET_MASK		BIT(6)
 #define MVPP2_GMAC_AUTONEG_CONFIG		0xc
@@ -676,6 +676,7 @@ enum mvpp2_tag_type {
 #define MVPP2_PRS_RI_L3_MCAST			BIT(15)
 #define MVPP2_PRS_RI_L3_BCAST			(BIT(15) | BIT(16))
 #define MVPP2_PRS_RI_IP_FRAG_MASK		0x20000
+#define MVPP2_PRS_RI_IP_FRAG_TRUE		BIT(17)
 #define MVPP2_PRS_RI_UDF3_MASK			0x300000
 #define MVPP2_PRS_RI_UDF3_RX_SPECIAL		BIT(21)
 #define MVPP2_PRS_RI_L4_PROTO_MASK		0x1c00000
@@ -792,6 +793,7 @@ struct mvpp2 {
 	struct clk *pp_clk;
 	struct clk *gop_clk;
 	struct clk *mg_clk;
+	struct clk *axi_clk;
 
 	/* List of pointers to port structures */
 	struct mvpp2_port **port_list;
@@ -2315,7 +2317,7 @@ static int mvpp2_prs_ip4_proto(struct mvpp2 *priv, unsigned short proto,
 	    (proto != IPPROTO_IGMP))
 		return -EINVAL;
 
-	/* Fragmented packet */
+	/* Not fragmented packet */
 	tid = mvpp2_prs_tcam_first_free(priv, MVPP2_PE_FIRST_FREE_TID,
 					MVPP2_PE_LAST_FREE_TID);
 	if (tid < 0)
@@ -2334,8 +2336,12 @@ static int mvpp2_prs_ip4_proto(struct mvpp2 *priv, unsigned short proto,
 				  MVPP2_PRS_SRAM_OP_SEL_UDF_ADD);
 	mvpp2_prs_sram_ai_update(&pe, MVPP2_PRS_IPV4_DIP_AI_BIT,
 				 MVPP2_PRS_IPV4_DIP_AI_BIT);
-	mvpp2_prs_sram_ri_update(&pe, ri | MVPP2_PRS_RI_IP_FRAG_MASK,
-				 ri_mask | MVPP2_PRS_RI_IP_FRAG_MASK);
+	mvpp2_prs_sram_ri_update(&pe, ri, ri_mask | MVPP2_PRS_RI_IP_FRAG_MASK);
+
+	mvpp2_prs_tcam_data_byte_set(&pe, 2, 0x00,
+				     MVPP2_PRS_TCAM_PROTO_MASK_L);
+	mvpp2_prs_tcam_data_byte_set(&pe, 3, 0x00,
+				     MVPP2_PRS_TCAM_PROTO_MASK);
 
 	mvpp2_prs_tcam_data_byte_set(&pe, 5, proto, MVPP2_PRS_TCAM_PROTO_MASK);
 	mvpp2_prs_tcam_ai_update(&pe, 0, MVPP2_PRS_IPV4_DIP_AI_BIT);
@@ -2346,7 +2352,7 @@ static int mvpp2_prs_ip4_proto(struct mvpp2 *priv, unsigned short proto,
 	mvpp2_prs_shadow_set(priv, pe.index, MVPP2_PRS_LU_IP4);
 	mvpp2_prs_hw_write(priv, &pe);
 
-	/* Not fragmented packet */
+	/* Fragmented packet */
 	tid = mvpp2_prs_tcam_first_free(priv, MVPP2_PE_FIRST_FREE_TID,
 					MVPP2_PE_LAST_FREE_TID);
 	if (tid < 0)
@@ -2358,8 +2364,11 @@ static int mvpp2_prs_ip4_proto(struct mvpp2 *priv, unsigned short proto,
 	pe.sram.word[MVPP2_PRS_SRAM_RI_CTRL_WORD] = 0x0;
 	mvpp2_prs_sram_ri_update(&pe, ri, ri_mask);
 
-	mvpp2_prs_tcam_data_byte_set(&pe, 2, 0x00, MVPP2_PRS_TCAM_PROTO_MASK_L);
-	mvpp2_prs_tcam_data_byte_set(&pe, 3, 0x00, MVPP2_PRS_TCAM_PROTO_MASK);
+	mvpp2_prs_sram_ri_update(&pe, ri | MVPP2_PRS_RI_IP_FRAG_TRUE,
+				 ri_mask | MVPP2_PRS_RI_IP_FRAG_MASK);
+
+	mvpp2_prs_tcam_data_byte_set(&pe, 2, 0x00, 0x0);
+	mvpp2_prs_tcam_data_byte_set(&pe, 3, 0x00, 0x0);
 
 	/* Update shadow table and hw entry */
 	mvpp2_prs_shadow_set(priv, pe.index, MVPP2_PRS_LU_IP4);
@@ -4591,7 +4600,6 @@ static void mvpp2_port_mii_gmac_configure(struct mvpp2_port *port)
 	        val |= MVPP2_GMAC_INBAND_AN_MASK | MVPP2_GMAC_PCS_ENABLE_MASK;
 	} else if (phy_interface_mode_is_rgmii(port->phy_interface)) {
 		val &= ~MVPP2_GMAC_PCS_ENABLE_MASK;
-		val |= MVPP2_GMAC_PORT_RGMII_MASK;
 	}
 	writel(val, port->base + MVPP2_GMAC_CTRL_2_REG);
 
@@ -7496,7 +7504,7 @@ static void mvpp2_port_copy_mac_addr(struct net_device *dev, struct mvpp2 *priv,
 /* Ports initialization */
 static int mvpp2_port_probe(struct platform_device *pdev,
 			    struct device_node *port_node,
-			    struct mvpp2 *priv)
+			    struct mvpp2 *priv, int index)
 {
 	struct device_node *phy_node;
 	struct phy *comphy;
@@ -7670,7 +7678,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	}
 	netdev_info(dev, "Using %s mac address %pM\n", mac_from, dev->dev_addr);
 
-	priv->port_list[id] = port;
+	priv->port_list[index] = port;
 	return 0;
 
 err_free_port_pcpu:
@@ -7963,6 +7971,18 @@ static int mvpp2_probe(struct platform_device *pdev)
 		err = clk_prepare_enable(priv->mg_clk);
 		if (err < 0)
 			goto err_gop_clk;
+
+		priv->axi_clk = devm_clk_get(&pdev->dev, "axi_clk");
+		if (IS_ERR(priv->axi_clk)) {
+			err = PTR_ERR(priv->axi_clk);
+			if (err == -EPROBE_DEFER)
+				goto err_gop_clk;
+			priv->axi_clk = NULL;
+		} else {
+			err = clk_prepare_enable(priv->axi_clk);
+			if (err < 0)
+				goto err_gop_clk;
+		}
 	}
 
 	/* Get system's tclk rate */
@@ -8005,16 +8025,19 @@ static int mvpp2_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize ports */
+	i = 0;
 	for_each_available_child_of_node(dn, port_node) {
-		err = mvpp2_port_probe(pdev, port_node, priv);
+		err = mvpp2_port_probe(pdev, port_node, priv, i);
 		if (err < 0)
 			goto err_mg_clk;
+		i++;
 	}
 
 	platform_set_drvdata(pdev, priv);
 	return 0;
 
 err_mg_clk:
+	clk_disable_unprepare(priv->axi_clk);
 	if (priv->hw_version == MVPP22)
 		clk_disable_unprepare(priv->mg_clk);
 err_gop_clk:
@@ -8052,6 +8075,7 @@ static int mvpp2_remove(struct platform_device *pdev)
 				  aggr_txq->descs_dma);
 	}
 
+	clk_disable_unprepare(priv->axi_clk);
 	clk_disable_unprepare(priv->mg_clk);
 	clk_disable_unprepare(priv->pp_clk);
 	clk_disable_unprepare(priv->gop_clk);

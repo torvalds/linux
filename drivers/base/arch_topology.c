@@ -166,11 +166,11 @@ bool __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
 }
 
 #ifdef CONFIG_CPU_FREQ
-static cpumask_var_t cpus_to_visit;
-static void parsing_done_workfn(struct work_struct *work);
-static DECLARE_WORK(parsing_done_work, parsing_done_workfn);
+static cpumask_var_t cpus_to_visit __initdata;
+static void __init parsing_done_workfn(struct work_struct *work);
+static __initdata DECLARE_WORK(parsing_done_work, parsing_done_workfn);
 
-static int
+static int __init
 init_cpu_capacity_callback(struct notifier_block *nb,
 			   unsigned long val,
 			   void *data)
@@ -206,7 +206,7 @@ init_cpu_capacity_callback(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block init_cpu_capacity_notifier = {
+static struct notifier_block init_cpu_capacity_notifier __initdata = {
 	.notifier_call = init_cpu_capacity_callback,
 };
 
@@ -232,7 +232,7 @@ static int __init register_cpufreq_notifier(void)
 }
 core_initcall(register_cpufreq_notifier);
 
-static void parsing_done_workfn(struct work_struct *work)
+static void __init parsing_done_workfn(struct work_struct *work)
 {
 	cpufreq_unregister_notifier(&init_cpu_capacity_notifier,
 					 CPUFREQ_POLICY_NOTIFIER);

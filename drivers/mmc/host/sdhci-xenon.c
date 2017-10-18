@@ -466,6 +466,7 @@ static int xenon_probe(struct platform_device *pdev)
 {
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_host *host;
+	struct xenon_priv *priv;
 	int err;
 
 	host = sdhci_pltfm_init(pdev, &sdhci_xenon_pdata,
@@ -474,6 +475,7 @@ static int xenon_probe(struct platform_device *pdev)
 		return PTR_ERR(host);
 
 	pltfm_host = sdhci_priv(host);
+	priv = sdhci_pltfm_priv(pltfm_host);
 
 	/*
 	 * Link Xenon specific mmc_host_ops function,
@@ -491,9 +493,20 @@ static int xenon_probe(struct platform_device *pdev)
 	if (err)
 		goto free_pltfm;
 
+	priv->axi_clk = devm_clk_get(&pdev->dev, "axi");
+	if (IS_ERR(priv->axi_clk)) {
+		err = PTR_ERR(priv->axi_clk);
+		if (err == -EPROBE_DEFER)
+			goto err_clk;
+	} else {
+		err = clk_prepare_enable(priv->axi_clk);
+		if (err)
+			goto err_clk;
+	}
+
 	err = mmc_of_parse(host->mmc);
 	if (err)
-		goto err_clk;
+		goto err_clk_axi;
 
 	sdhci_get_of_property(pdev);
 
@@ -502,11 +515,11 @@ static int xenon_probe(struct platform_device *pdev)
 	/* Xenon specific dt parse */
 	err = xenon_probe_dt(pdev);
 	if (err)
-		goto err_clk;
+		goto err_clk_axi;
 
 	err = xenon_sdhc_prepare(host);
 	if (err)
-		goto err_clk;
+		goto err_clk_axi;
 
 	pm_runtime_get_noresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
@@ -527,6 +540,8 @@ remove_sdhc:
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
 	xenon_sdhc_unprepare(host);
+err_clk_axi:
+	clk_disable_unprepare(priv->axi_clk);
 err_clk:
 	clk_disable_unprepare(pltfm_host->clk);
 free_pltfm:
@@ -538,6 +553,7 @@ static int xenon_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
 
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -546,7 +562,7 @@ static int xenon_remove(struct platform_device *pdev)
 	sdhci_remove_host(host, 0);
 
 	xenon_sdhc_unprepare(host);
-
+	clk_disable_unprepare(priv->axi_clk);
 	clk_disable_unprepare(pltfm_host->clk);
 
 	sdhci_pltfm_free(pdev);

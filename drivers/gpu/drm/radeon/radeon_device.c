@@ -1663,7 +1663,7 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 	radeon_agp_suspend(rdev);
 
 	pci_save_state(dev->pdev);
-	if (freeze && rdev->family >= CHIP_CEDAR) {
+	if (freeze && rdev->family >= CHIP_CEDAR && !(rdev->flags & RADEON_IS_IGP)) {
 		rdev->asic->asic_reset(rdev, true);
 		pci_restore_state(dev->pdev);
 	} else if (suspend) {

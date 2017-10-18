@@ -270,6 +270,7 @@ typedef struct xfs_inode_log_format {
 	uint32_t		ilf_fields;	/* flags for fields logged */
 	uint16_t		ilf_asize;	/* size of attr d/ext/root */
 	uint16_t		ilf_dsize;	/* size of data/ext/root */
+	uint32_t		ilf_pad;	/* pad for 64 bit boundary */
 	uint64_t		ilf_ino;	/* inode number */
 	union {
 		uint32_t	ilfu_rdev;	/* rdev value for dev inode*/
@@ -280,7 +281,12 @@ typedef struct xfs_inode_log_format {
 	int32_t			ilf_boffset;	/* off of inode in buffer */
 } xfs_inode_log_format_t;
 
-typedef struct xfs_inode_log_format_32 {
+/*
+ * Old 32 bit systems will log in this format without the 64 bit
+ * alignment padding. Recovery will detect this and convert it to the
+ * correct format.
+ */
+struct xfs_inode_log_format_32 {
 	uint16_t		ilf_type;	/* inode log item type */
 	uint16_t		ilf_size;	/* size of this item */
 	uint32_t		ilf_fields;	/* flags for fields logged */
@@ -294,24 +300,7 @@ typedef struct xfs_inode_log_format_32 {
 	int64_t			ilf_blkno;	/* blkno of inode buffer */
 	int32_t			ilf_len;	/* len of inode buffer */
 	int32_t			ilf_boffset;	/* off of inode in buffer */
-} __attribute__((packed)) xfs_inode_log_format_32_t;
-
-typedef struct xfs_inode_log_format_64 {
-	uint16_t		ilf_type;	/* inode log item type */
-	uint16_t		ilf_size;	/* size of this item */
-	uint32_t		ilf_fields;	/* flags for fields logged */
-	uint16_t		ilf_asize;	/* size of attr d/ext/root */
-	uint16_t		ilf_dsize;	/* size of data/ext/root */
-	uint32_t		ilf_pad;	/* pad for 64 bit boundary */
-	uint64_t		ilf_ino;	/* inode number */
-	union {
-		uint32_t	ilfu_rdev;	/* rdev value for dev inode*/
-		uuid_t		ilfu_uuid;	/* mount point value */
-	} ilf_u;
-	int64_t			ilf_blkno;	/* blkno of inode buffer */
-	int32_t			ilf_len;	/* len of inode buffer */
-	int32_t			ilf_boffset;	/* off of inode in buffer */
-} xfs_inode_log_format_64_t;
+} __attribute__((packed));
 
 
 /*
