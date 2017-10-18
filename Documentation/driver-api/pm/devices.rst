@@ -274,7 +274,7 @@ sleep states and the hibernation state ("suspend-to-disk").  Each phase involves
 executing callbacks for every device before the next phase begins.  Not all
 buses or classes support all these callbacks and not all drivers use all the
 callbacks.  The various phases always run after tasks have been frozen and
-before they are unfrozen.  Furthermore, the ``*_noirq phases`` run at a time
+before they are unfrozen.  Furthermore, the ``*_noirq`` phases run at a time
 when IRQ handlers have been disabled (except for those marked with the
 IRQF_NO_SUSPEND flag).
 
