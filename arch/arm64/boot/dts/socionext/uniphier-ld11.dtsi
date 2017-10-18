@@ -150,6 +150,31 @@
 			clocks = <&peri_clk 3>;
 		};
 
+		gpio: gpio@55000000 {
+			compatible = "socionext,uniphier-gpio";
+			reg = <0x55000000 0x200>;
+			interrupt-parent = <&aidet>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 0 0>,
+				      <&pinctrl 43 0 0>,
+				      <&pinctrl 51 0 0>,
+				      <&pinctrl 96 0 0>,
+				      <&pinctrl 160 0 0>,
+				      <&pinctrl 184 0 0>;
+			gpio-ranges-group-names = "gpio_range0",
+						  "gpio_range1",
+						  "gpio_range2",
+						  "gpio_range3",
+						  "gpio_range4",
+						  "gpio_range5";
+			ngpios = <200>;
+			socionext,interrupt-ranges = <0 48 16>, <16 154 5>,
+						     <21 217 3>;
+		};
+
 		adamv@57920000 {
 			compatible = "socionext,uniphier-ld11-adamv",
 				     "simple-mfd", "syscon";
