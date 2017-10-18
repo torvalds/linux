@@ -5214,13 +5214,11 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 	int use_rx_sg = 0;
 
 	/* qeth_hdr must not cross element boundaries */
-	if (element->length < offset + sizeof(struct qeth_hdr)) {
+	while (element->length < offset + sizeof(struct qeth_hdr)) {
 		if (qeth_is_last_sbale(element))
 			return NULL;
 		element++;
 		offset = 0;
-		if (element->length < sizeof(struct qeth_hdr))
-			return NULL;
 	}
 	*hdr = element->addr + offset;
 
