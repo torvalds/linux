@@ -4132,12 +4132,28 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	 * are removed from freesync module
 	 */
 	if (adev->dm.freesync_module) {
-		for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
+		for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 			struct amdgpu_dm_connector *aconnector = NULL;
 			struct dm_connector_state *dm_new_con_state = NULL;
 			struct amdgpu_crtc *acrtc = NULL;
+			bool modeset_needed;
 
 			dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
+			dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
+			modeset_needed = modeset_required(
+					new_crtc_state,
+					dm_new_crtc_state->stream,
+					dm_old_crtc_state->stream);
+			/* We add stream to freesync if:
+			 * 1. Said stream is not null, and
+			 * 2. A modeset is requested. This means that the
+			 *    stream was removed previously, and needs to be
+			 *    replaced.
+			 */
+			if (dm_new_crtc_state->stream == NULL ||
+					!modeset_needed)
+				continue;
+
 			acrtc = to_amdgpu_crtc(crtc);
 
 			aconnector =
@@ -4157,12 +4173,10 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 					state, &aconnector->base);
 			dm_new_con_state = to_dm_connector_state(new_con_state);
 
-			if (dm_new_crtc_state->stream) {
-				mod_freesync_set_user_enable(adev->dm.freesync_module,
-							     &dm_new_crtc_state->stream,
-							     1,
-							     &dm_new_con_state->user_enable);
-			}
+			mod_freesync_set_user_enable(adev->dm.freesync_module,
+						     &dm_new_crtc_state->stream,
+						     1,
+						     &dm_new_con_state->user_enable);
 		}
 	}
 
