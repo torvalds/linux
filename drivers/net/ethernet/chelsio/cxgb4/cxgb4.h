@@ -858,6 +858,7 @@ struct adapter {
 	unsigned int clipt_start;
 	unsigned int clipt_end;
 	struct clip_tbl *clipt;
+	struct smt_data *smt;
 	struct cxgb4_uld_info *uld;
 	void *uld_handle[CXGB4_ULD_MAX];
 	unsigned int num_uld;
@@ -1098,9 +1099,9 @@ struct filter_entry {
 	u32 locked:1;           /* filter is administratively locked */
 
 	u32 pending:1;          /* filter action is pending firmware reply */
-	u32 smtidx:8;           /* Source MAC Table index for smac */
 	struct filter_ctx *ctx; /* Caller's completion hook */
 	struct l2t_entry *l2t;  /* Layer Two Table entry for dmac */
+	struct smt_entry *smt;  /* Source Mac Table entry for smac */
 	struct net_device *dev; /* Associated net device */
 	u32 tid;                /* This will store the actual tid */
 
