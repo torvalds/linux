@@ -341,7 +341,8 @@ dtb-$(CONFIG_SOC_IMX51) += \
 	imx51-babbage.dtb \
 	imx51-digi-connectcore-jsk.dtb \
 	imx51-eukrea-mbimxsd51-baseboard.dtb \
-	imx51-ts4800.dtb
+	imx51-ts4800.dtb \
+	imx51-zii-rdu1.dtb
 dtb-$(CONFIG_SOC_IMX53) += \
 	imx53-ard.dtb \
 	imx53-cx9020.dtb \
