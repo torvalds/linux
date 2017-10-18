@@ -5781,6 +5781,32 @@ int mlxsw_sp_inetaddr_event(struct notifier_block *unused,
 	struct mlxsw_sp_rif *rif;
 	int err = 0;
 
+	/* NETDEV_UP event is handled by mlxsw_sp_inetaddr_valid_event */
+	if (event == NETDEV_UP)
+		goto out;
+
+	mlxsw_sp = mlxsw_sp_lower_get(dev);
+	if (!mlxsw_sp)
+		goto out;
+
+	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
+	if (!mlxsw_sp_rif_should_config(rif, dev, event))
+		goto out;
+
+	err = __mlxsw_sp_inetaddr_event(dev, event);
+out:
+	return notifier_from_errno(err);
+}
+
+int mlxsw_sp_inetaddr_valid_event(struct notifier_block *unused,
+				  unsigned long event, void *ptr)
+{
+	struct in_validator_info *ivi = (struct in_validator_info *) ptr;
+	struct net_device *dev = ivi->ivi_dev->dev;
+	struct mlxsw_sp *mlxsw_sp;
+	struct mlxsw_sp_rif *rif;
+	int err = 0;
+
 	mlxsw_sp = mlxsw_sp_lower_get(dev);
 	if (!mlxsw_sp)
 		goto out;
@@ -5833,6 +5859,10 @@ int mlxsw_sp_inet6addr_event(struct notifier_block *unused,
 	struct mlxsw_sp_inet6addr_event_work *inet6addr_work;
 	struct net_device *dev = if6->idev->dev;
 
+	/* NETDEV_UP event is handled by mlxsw_sp_inet6addr_valid_event */
+	if (event == NETDEV_UP)
+		return NOTIFY_DONE;
+
 	if (!mlxsw_sp_port_dev_lower_find_rcu(dev))
 		return NOTIFY_DONE;
 
@@ -5847,6 +5877,28 @@ int mlxsw_sp_inet6addr_event(struct notifier_block *unused,
 	mlxsw_core_schedule_work(&inet6addr_work->work);
 
 	return NOTIFY_DONE;
+}
+
+int mlxsw_sp_inet6addr_valid_event(struct notifier_block *unused,
+				   unsigned long event, void *ptr)
+{
+	struct in6_validator_info *i6vi = (struct in6_validator_info *) ptr;
+	struct net_device *dev = i6vi->i6vi_dev->dev;
+	struct mlxsw_sp *mlxsw_sp;
+	struct mlxsw_sp_rif *rif;
+	int err = 0;
+
+	mlxsw_sp = mlxsw_sp_lower_get(dev);
+	if (!mlxsw_sp)
+		goto out;
+
+	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
+	if (!mlxsw_sp_rif_should_config(rif, dev, event))
+		goto out;
+
+	err = __mlxsw_sp_inetaddr_event(dev, event);
+out:
+	return notifier_from_errno(err);
 }
 
 static int mlxsw_sp_rif_edit(struct mlxsw_sp *mlxsw_sp, u16 rif_index,
