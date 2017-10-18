@@ -45,10 +45,10 @@ static struct bootup_params boot_params_20 = {
 			}
 		},
 		.switch_clk_g = {
-			.switch_clk_info = cpu_to_le16(BIT(3)),
-			.bbp_lmac_clk_reg_val = cpu_to_le16(0x121),
-			.umac_clock_reg_config = 0x0,
-			.qspi_uart_clock_reg_config = 0x0
+			.switch_clk_info = cpu_to_le16(0xb),
+			.bbp_lmac_clk_reg_val = cpu_to_le16(0x111),
+			.umac_clock_reg_config = cpu_to_le16(0x48),
+			.qspi_uart_clock_reg_config = cpu_to_le16(0x1211)
 		}
 	},
 	{
@@ -106,7 +106,10 @@ static struct bootup_params boot_params_20 = {
 	.wdt_prog_value = 0x0,
 	.wdt_soc_rst_delay = 0x0,
 	.dcdc_operation_mode = 0x0,
-	.soc_reset_wait_cnt = 0x0
+	.soc_reset_wait_cnt = 0x0,
+	.waiting_time_at_fresh_sleep = 0x0,
+	.max_threshold_to_avoid_sleep = 0x0,
+	.beacon_resedue_alg_en = 0,
 };
 
 static struct bootup_params boot_params_40 = {
@@ -139,7 +142,7 @@ static struct bootup_params boot_params_40 = {
 			.switch_clk_info = cpu_to_le16(0x09),
 			.bbp_lmac_clk_reg_val = cpu_to_le16(0x1121),
 			.umac_clock_reg_config = cpu_to_le16(0x48),
-			.qspi_uart_clock_reg_config = 0x0
+			.qspi_uart_clock_reg_config = cpu_to_le16(0x1211)
 		}
 	},
 	{
@@ -197,7 +200,10 @@ static struct bootup_params boot_params_40 = {
 	.wdt_prog_value = 0x0,
 	.wdt_soc_rst_delay = 0x0,
 	.dcdc_operation_mode = 0x0,
-	.soc_reset_wait_cnt = 0x0
+	.soc_reset_wait_cnt = 0x0,
+	.waiting_time_at_fresh_sleep = 0x0,
+	.max_threshold_to_avoid_sleep = 0x0,
+	.beacon_resedue_alg_en = 0,
 };
 
 static u16 mcs[] = {13, 26, 39, 52, 78, 104, 117, 130};
@@ -218,6 +224,12 @@ static void rsi_set_default_parameters(struct rsi_common *common)
 	common->fsm_state = FSM_CARD_NOT_READY;
 	common->iface_down = true;
 	common->endpoint = EP_2GHZ_20MHZ;
+	common->driver_mode = 1; /* End to end mode */
+	common->lp_ps_handshake_mode = 0; /* Default no handShake mode*/
+	common->ulp_ps_handshake_mode = 2; /* Default PKT handShake mode*/
+	common->rf_power_val = 0; /* Default 1.9V */
+	common->wlan_rf_power_mode = 0;
+	common->obm_ant_sel_val = 2;
 }
 
 /**
@@ -389,9 +401,7 @@ static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
 	struct ieee80211_tx_info *info;
 	struct skb_info *rx_params;
 	u8 pad_bytes = msg[4];
-	u8 pkt_recv;
 	struct sk_buff *skb;
-	char *buffer;
 
 	if (type == RX_DOT11_MGMT) {
 		if (!adapter->sc_nvifs)
@@ -412,13 +422,9 @@ static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
 			return -ENOMEM;
 		}
 
-		buffer = skb_put(skb, msg_len);
-
-		memcpy(buffer,
-		       (u8 *)(msg +  FRAME_DESC_SZ + pad_bytes),
-		       msg_len);
-
-		pkt_recv = buffer[0];
+		skb_put_data(skb,
+			     (u8 *)(msg + FRAME_DESC_SZ + pad_bytes),
+			     msg_len);
 
 		info = IEEE80211_SKB_CB(skb);
 		rx_params = (struct skb_info *)info->driver_data;
@@ -751,6 +757,53 @@ int rsi_hal_load_key(struct rsi_common *common,
 	memcpy(set_key->rx_mic_key, &data[24], 8);
 
 	skb_put(skb, sizeof(struct rsi_set_key));
+
+	return rsi_send_internal_mgmt_frame(common, skb);
+}
+
+/*
+ * This function sends the common device configuration parameters to device.
+ * This frame includes the useful information to make device works on
+ * specific operating mode.
+ */
+static int rsi_send_common_dev_params(struct rsi_common *common)
+{
+	struct sk_buff *skb;
+	u16 frame_len;
+	struct rsi_config_vals *dev_cfgs;
+
+	frame_len = sizeof(struct rsi_config_vals);
+
+	rsi_dbg(MGMT_TX_ZONE, "Sending common device config params\n");
+	skb = dev_alloc_skb(frame_len);
+	if (!skb) {
+		rsi_dbg(ERR_ZONE, "%s: Unable to allocate skb\n", __func__);
+		return -ENOMEM;
+	}
+
+	memset(skb->data, 0, frame_len);
+
+	dev_cfgs = (struct rsi_config_vals *)skb->data;
+	memset(dev_cfgs, 0, (sizeof(struct rsi_config_vals)));
+
+	rsi_set_len_qno(&dev_cfgs->len_qno, (frame_len - FRAME_DESC_SZ),
+			RSI_COEX_Q);
+	dev_cfgs->pkt_type = COMMON_DEV_CONFIG;
+
+	dev_cfgs->lp_ps_handshake = common->lp_ps_handshake_mode;
+	dev_cfgs->ulp_ps_handshake = common->ulp_ps_handshake_mode;
+
+	dev_cfgs->unused_ulp_gpio = RSI_UNUSED_ULP_GPIO_BITMAP;
+	dev_cfgs->unused_soc_gpio_bitmap =
+				cpu_to_le32(RSI_UNUSED_SOC_GPIO_BITMAP);
+
+	dev_cfgs->opermode = common->oper_mode;
+	dev_cfgs->wlan_rf_pwr_mode = common->wlan_rf_power_mode;
+	dev_cfgs->driver_mode = common->driver_mode;
+	dev_cfgs->region_code = NL80211_DFS_FCC;
+	dev_cfgs->antenna_sel_val = common->obm_ant_sel_val;
+
+	skb_put(skb, frame_len);
 
 	return rsi_send_internal_mgmt_frame(common, skb);
 }
@@ -1487,6 +1540,40 @@ out:
 	return -EINVAL;
 }
 
+static int rsi_handle_card_ready(struct rsi_common *common, u8 *msg)
+{
+	switch (common->fsm_state) {
+	case FSM_CARD_NOT_READY:
+		rsi_dbg(INIT_ZONE, "Card ready indication from Common HAL\n");
+		rsi_set_default_parameters(common);
+		if (rsi_send_common_dev_params(common) < 0)
+			return -EINVAL;
+		common->fsm_state = FSM_COMMON_DEV_PARAMS_SENT;
+		break;
+	case FSM_COMMON_DEV_PARAMS_SENT:
+		rsi_dbg(INIT_ZONE, "Card ready indication from WLAN HAL\n");
+
+		/* Get usb buffer status register address */
+		common->priv->usb_buffer_status_reg = *(u32 *)&msg[8];
+		rsi_dbg(INFO_ZONE, "USB buffer status register = %x\n",
+			common->priv->usb_buffer_status_reg);
+
+		if (rsi_load_bootup_params(common)) {
+			common->fsm_state = FSM_CARD_NOT_READY;
+			return -EINVAL;
+		}
+		common->fsm_state = FSM_BOOT_PARAMS_SENT;
+		break;
+	default:
+		rsi_dbg(ERR_ZONE,
+			"%s: card ready indication in invalid state %d.\n",
+			__func__, common->fsm_state);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /**
  * rsi_mgmt_pkt_recv() - This function processes the management packets
  *			 recieved from the hardware.
@@ -1499,7 +1586,6 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 {
 	s32 msg_len = (le16_to_cpu(*(__le16 *)&msg[0]) & 0x0fff);
 	u16 msg_type = (msg[2]);
-	int ret;
 
 	rsi_dbg(FSM_ZONE, "%s: Msg Len: %d, Msg Type: %4x\n",
 		__func__, msg_len, msg_type);
@@ -1509,17 +1595,7 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 	} else if (msg_type == CARD_READY_IND) {
 		rsi_dbg(FSM_ZONE, "%s: Card ready indication received\n",
 			__func__);
-		if (common->fsm_state == FSM_CARD_NOT_READY) {
-			rsi_set_default_parameters(common);
-
-			ret = rsi_load_bootup_params(common);
-			if (ret)
-				return ret;
-			else
-				common->fsm_state = FSM_BOOT_PARAMS_SENT;
-		} else {
-			return -EINVAL;
-		}
+		return rsi_handle_card_ready(common, msg);
 	} else if (msg_type == TX_STATUS_IND) {
 		if (msg[15] == PROBEREQ_CONFIRM) {
 			common->mgmt_q_block = false;

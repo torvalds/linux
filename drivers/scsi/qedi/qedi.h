@@ -23,10 +23,16 @@
 #include <linux/qed/qed_iscsi_if.h>
 #include <linux/qed/qed_ll2_if.h>
 #include "qedi_version.h"
+#include "qedi_nvm_iscsi_cfg.h"
 
 #define QEDI_MODULE_NAME		"qedi"
 
 struct qedi_endpoint;
+
+#ifndef GET_FIELD2
+#define GET_FIELD2(value, name) \
+	(((value) & (name ## _MASK)) >> (name ## _OFFSET))
+#endif
 
 /*
  * PCI function probe defines
@@ -38,7 +44,7 @@ struct qedi_endpoint;
 #define QEDI_MAX_ISCSI_TASK		4096
 #define QEDI_MAX_TASK_NUM		0x0FFF
 #define QEDI_MAX_ISCSI_CONNS_PER_HBA	1024
-#define QEDI_ISCSI_MAX_BDS_PER_CMD	256	/* Firmware max BDs is 256 */
+#define QEDI_ISCSI_MAX_BDS_PER_CMD	255	/* Firmware max BDs is 255 */
 #define MAX_OUSTANDING_TASKS_PER_CON	1024
 
 #define QEDI_MAX_BD_LEN		0xffff
@@ -63,7 +69,13 @@ struct qedi_endpoint;
 #define QEDI_PAGE_MASK		(~((QEDI_PAGE_SIZE) - 1))
 
 #define QEDI_PAGE_SIZE		4096
+#define QEDI_HW_DMA_BOUNDARY	0xfff
 #define QEDI_PATH_HANDLE	0xFE0000000UL
+
+enum qedi_nvm_tgts {
+	QEDI_NVM_TGT_PRI,
+	QEDI_NVM_TGT_SEC,
+};
 
 struct qedi_uio_ctrl {
 	/* meta data */
@@ -282,6 +294,8 @@ struct qedi_ctx {
 	void *bdq_pbl_list;
 	dma_addr_t bdq_pbl_list_dma;
 	u8 bdq_pbl_list_num_entries;
+	struct nvm_iscsi_cfg *iscsi_cfg;
+	dma_addr_t nvm_buf_dma;
 	void __iomem *bdq_primary_prod;
 	void __iomem *bdq_secondary_prod;
 	u16 bdq_prod_idx;
@@ -336,6 +350,10 @@ struct qedi_ctx {
 	bool use_fast_sge;
 
 	atomic_t num_offloads;
+#define SYSFS_FLAG_FW_SEL_BOOT 2
+#define IPV6_LEN	41
+#define IPV4_LEN	17
+	struct iscsi_boot_kset *boot_kset;
 };
 
 struct qedi_work {

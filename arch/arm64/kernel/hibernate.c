@@ -28,6 +28,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
 #include <asm/irqflags.h>
+#include <asm/kexec.h>
 #include <asm/memory.h>
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
@@ -102,7 +103,8 @@ int pfn_is_nosave(unsigned long pfn)
 	unsigned long nosave_begin_pfn = sym_to_pfn(&__nosave_begin);
 	unsigned long nosave_end_pfn = sym_to_pfn(&__nosave_end - 1);
 
-	return (pfn >= nosave_begin_pfn) && (pfn <= nosave_end_pfn);
+	return ((pfn >= nosave_begin_pfn) && (pfn <= nosave_end_pfn)) ||
+		crash_is_nosave(pfn);
 }
 
 void notrace save_processor_state(void)
@@ -286,6 +288,9 @@ int swsusp_arch_suspend(void)
 	local_dbg_save(flags);
 
 	if (__cpu_suspend_enter(&state)) {
+		/* make the crash dump kernel image visible/saveable */
+		crash_prepare_suspend();
+
 		sleep_cpu = smp_processor_id();
 		ret = swsusp_save();
 	} else {
@@ -296,6 +301,9 @@ int swsusp_arch_suspend(void)
 		/* Clean kvm setup code to PoC? */
 		if (el2_reset_needed())
 			dcache_clean_range(__hyp_idmap_text_start, __hyp_idmap_text_end);
+
+		/* make the crash dump kernel image protected again */
+		crash_post_resume();
 
 		/*
 		 * Tell the hibernation core that we've just restored

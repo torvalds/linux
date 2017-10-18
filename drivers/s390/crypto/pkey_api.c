@@ -80,7 +80,7 @@ struct secaeskeytoken {
  * token. If keybitsize is given, the bitsize of the key is
  * also checked. Returns 0 on success or errno value on failure.
  */
-static int check_secaeskeytoken(u8 *token, int keybitsize)
+static int check_secaeskeytoken(const u8 *token, int keybitsize)
 {
 	struct secaeskeytoken *t = (struct secaeskeytoken *) token;
 
@@ -178,9 +178,9 @@ static inline void prep_xcrb(struct ica_xcRB *pxcrb,
 	pxcrb->user_defined = (cardnr == 0xFFFF ? AUTOSELECT : cardnr);
 	pxcrb->request_control_blk_length =
 		preqcblk->cprb_len + preqcblk->req_parml;
-	pxcrb->request_control_blk_addr = (void *) preqcblk;
+	pxcrb->request_control_blk_addr = (void __user *) preqcblk;
 	pxcrb->reply_control_blk_length = preqcblk->rpl_msgbl;
-	pxcrb->reply_control_blk_addr = (void *) prepcblk;
+	pxcrb->reply_control_blk_addr = (void __user *) prepcblk;
 }
 
 /*
@@ -1004,6 +1004,53 @@ int pkey_skey2pkey(const struct pkey_seckey *seckey,
 EXPORT_SYMBOL(pkey_skey2pkey);
 
 /*
+ * Verify key and give back some info about the key.
+ */
+int pkey_verifykey(const struct pkey_seckey *seckey,
+		   u16 *pcardnr, u16 *pdomain,
+		   u16 *pkeysize, u32 *pattributes)
+{
+	struct secaeskeytoken *t = (struct secaeskeytoken *) seckey;
+	u16 cardnr, domain;
+	u64 mkvp[2];
+	int rc;
+
+	/* check the secure key for valid AES secure key */
+	rc = check_secaeskeytoken((u8 *) seckey, 0);
+	if (rc)
+		goto out;
+	if (pattributes)
+		*pattributes = PKEY_VERIFY_ATTR_AES;
+	if (pkeysize)
+		*pkeysize = t->bitsize;
+
+	/* try to find a card which can handle this key */
+	rc = pkey_findcard(seckey, &cardnr, &domain, 1);
+	if (rc)
+		goto out;
+
+	/* check mkvp for old mkvp match */
+	rc = mkvp_cache_fetch(cardnr, domain, mkvp);
+	if (rc)
+		goto out;
+	if (t->mkvp == mkvp[1]) {
+		DEBUG_DBG("pkey_verifykey secure key has old mkvp\n");
+		if (pattributes)
+			*pattributes |= PKEY_VERIFY_ATTR_OLD_MKVP;
+	}
+
+	if (pcardnr)
+		*pcardnr = cardnr;
+	if (pdomain)
+		*pdomain = domain;
+
+out:
+	DEBUG_DBG("pkey_verifykey rc=%d\n", rc);
+	return rc;
+}
+EXPORT_SYMBOL(pkey_verifykey);
+
+/*
  * File io functions
  */
 
@@ -1104,6 +1151,21 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 			return -EFAULT;
 		break;
 	}
+	case PKEY_VERIFYKEY: {
+		struct pkey_verifykey __user *uvk = (void __user *) arg;
+		struct pkey_verifykey kvk;
+
+		if (copy_from_user(&kvk, uvk, sizeof(kvk)))
+			return -EFAULT;
+		rc = pkey_verifykey(&kvk.seckey, &kvk.cardnr, &kvk.domain,
+				    &kvk.keysize, &kvk.attributes);
+		DEBUG_DBG("pkey_ioctl pkey_verifykey()=%d\n", rc);
+		if (rc)
+			break;
+		if (copy_to_user(uvk, &kvk, sizeof(kvk)))
+			return -EFAULT;
+		break;
+	}
 	default:
 		/* unknown/unsupported ioctl cmd */
 		return -ENOTTY;
@@ -1132,7 +1194,7 @@ static struct miscdevice pkey_dev = {
 /*
  * Module init
  */
-int __init pkey_init(void)
+static int __init pkey_init(void)
 {
 	cpacf_mask_t pckmo_functions;
 

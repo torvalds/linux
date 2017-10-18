@@ -81,7 +81,7 @@ static u32 voffset;
 static int i810fb_cursor(struct fb_info *info, struct fb_cursor *cursor);
 static int i810fb_init_pci(struct pci_dev *dev,
 			   const struct pci_device_id *entry);
-static void __exit i810fb_remove_pci(struct pci_dev *dev);
+static void i810fb_remove_pci(struct pci_dev *dev);
 static int i810fb_resume(struct pci_dev *dev);
 static int i810fb_suspend(struct pci_dev *dev, pm_message_t state);
 
@@ -128,7 +128,7 @@ static struct pci_driver i810fb_driver = {
 	.name     =	"i810fb",
 	.id_table =	i810fb_pci_tbl,
 	.probe    =	i810fb_init_pci,
-	.remove   =	__exit_p(i810fb_remove_pci),
+	.remove   =	i810fb_remove_pci,
 	.suspend  =     i810fb_suspend,
 	.resume   =     i810fb_resume,
 };
@@ -2123,7 +2123,7 @@ static void i810fb_release_resource(struct fb_info *info,
 
 }
 
-static void __exit i810fb_remove_pci(struct pci_dev *dev)
+static void i810fb_remove_pci(struct pci_dev *dev)
 {
 	struct fb_info *info = pci_get_drvdata(dev);
 	struct i810fb_par *par = info->par;

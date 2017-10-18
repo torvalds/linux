@@ -26,8 +26,9 @@
  * Authors: Dave Airlie <airlied@redhat.com>
  */
 #include <drm/drmP.h>
+#include <drm/ttm/ttm_page_alloc.h>
+
 #include "ast_drv.h"
-#include <ttm/ttm_page_alloc.h>
 
 static inline struct ast_private *
 ast_bdev(struct ttm_bo_device *bd)
@@ -236,6 +237,7 @@ struct ttm_bo_driver ast_bo_driver = {
 	.verify_access = ast_bo_verify_access,
 	.io_mem_reserve = &ast_ttm_io_mem_reserve,
 	.io_mem_free = &ast_ttm_io_mem_free,
+	.io_mem_pfn = ttm_bo_default_io_mem_pfn,
 };
 
 int ast_mm_init(struct ast_private *ast)

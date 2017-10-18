@@ -800,7 +800,7 @@ static void hptiop_host_request_callback_itl(struct hptiop_hba *hba, u32 _tag)
 	hptiop_finish_scsi_req(hba, tag, req);
 }
 
-void hptiop_iop_request_callback_itl(struct hptiop_hba *hba, u32 tag)
+static void hptiop_iop_request_callback_itl(struct hptiop_hba *hba, u32 tag)
 {
 	struct hpt_iop_request_header __iomem *req;
 	struct hpt_iop_request_ioctl_command __iomem *p;

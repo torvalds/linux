@@ -311,9 +311,9 @@ int onfi_init_data_interface(struct nand_chip *chip,
 		struct nand_sdr_timings *timings = &iface->timings.sdr;
 
 		/* microseconds -> picoseconds */
-		timings->tPROG_max = 1000000UL * le16_to_cpu(params->t_prog);
-		timings->tBERS_max = 1000000UL * le16_to_cpu(params->t_bers);
-		timings->tR_max = 1000000UL * le16_to_cpu(params->t_r);
+		timings->tPROG_max = 1000000ULL * le16_to_cpu(params->t_prog);
+		timings->tBERS_max = 1000000ULL * le16_to_cpu(params->t_bers);
+		timings->tR_max = 1000000ULL * le16_to_cpu(params->t_r);
 
 		/* nanoseconds -> picoseconds */
 		timings->tCCS_min = 1000UL * le16_to_cpu(params->t_ccs);

@@ -64,7 +64,7 @@ static int bfin_eval_adav80x_codec_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static struct snd_soc_ops bfin_eval_adav80x_ops = {
+static const struct snd_soc_ops bfin_eval_adav80x_ops = {
 	.hw_params = bfin_eval_adav80x_hw_params,
 };
 

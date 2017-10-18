@@ -407,16 +407,6 @@ static void vnt_free_rx_bufs(struct vnt_private *priv)
 	}
 }
 
-static void usb_device_reset(struct vnt_private *priv)
-{
-	int status;
-
-	status = usb_reset_device(priv->usb);
-	if (status)
-		dev_warn(&priv->usb->dev,
-			 "usb_device_reset fail status=%d\n", status);
-}
-
 static void vnt_free_int_bufs(struct vnt_private *priv)
 {
 	kfree(priv->int_buf.data_buf);
@@ -522,6 +512,9 @@ static int vnt_start(struct ieee80211_hw *hw)
 		dev_dbg(&priv->usb->dev, " init register fail\n");
 		goto free_all;
 	}
+
+	if (vnt_key_init_table(priv))
+		goto free_all;
 
 	priv->int_interval = 1;  /* bInterval is set to 1 */
 
@@ -644,7 +637,6 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct vnt_private *priv = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
-	u8 bb_type;
 
 	if (changed & IEEE80211_CONF_CHANGE_PS) {
 		if (conf->flags & IEEE80211_CONF_PS)
@@ -658,15 +650,9 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 		vnt_set_channel(priv, conf->chandef.chan->hw_value);
 
 		if (conf->chandef.chan->band == NL80211_BAND_5GHZ)
-			bb_type = BB_TYPE_11A;
+			priv->bb_type = BB_TYPE_11A;
 		else
-			bb_type = BB_TYPE_11G;
-
-		if (priv->bb_type != bb_type) {
-			priv->bb_type = bb_type;
-
-			vnt_set_bss_mode(priv);
-		}
+			priv->bb_type = BB_TYPE_11G;
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
@@ -697,6 +683,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 		priv->basic_rates = conf->basic_rates;
 
 		vnt_update_top_rates(priv);
+		vnt_set_bss_mode(priv);
 
 		dev_dbg(&priv->usb->dev, "basic rates %x\n", conf->basic_rates);
 	}
@@ -725,6 +712,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 			priv->short_slot_time = false;
 
 		vnt_set_short_slot_time(priv);
+		vnt_update_ifs(priv);
 		vnt_set_vga_gain_offset(priv, priv->bb_vga[0]);
 		vnt_update_pre_ed_threshold(priv, false);
 	}
@@ -856,7 +844,6 @@ static void vnt_sw_scan_start(struct ieee80211_hw *hw,
 {
 	struct vnt_private *priv = hw->priv;
 
-	vnt_set_bss_mode(priv);
 	/* Set max sensitivity*/
 	vnt_update_pre_ed_threshold(priv, true);
 }
@@ -995,7 +982,10 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	SET_IEEE80211_DEV(priv->hw, &intf->dev);
 
-	usb_device_reset(priv);
+	rc = usb_reset_device(priv->usb);
+	if (rc)
+		dev_warn(&priv->usb->dev,
+			 "%s reset fail status=%d\n", __func__, rc);
 
 	clear_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags);
 	vnt_reset_command_timer(priv);

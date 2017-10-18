@@ -30,8 +30,6 @@
 #include "kfd_mqd_manager.h"
 
 #define QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS	(500)
-#define QUEUES_PER_PIPE				(8)
-#define PIPE_PER_ME_CP_SCHEDULING		(3)
 #define CIK_VMID_NUM				(8)
 #define KFD_VMID_START_OFFSET			(8)
 #define VMID_PER_DEVICE				CIK_VMID_NUM
@@ -182,10 +180,9 @@ void device_queue_manager_init_cik(struct device_queue_manager_asic_ops *ops);
 void device_queue_manager_init_vi(struct device_queue_manager_asic_ops *ops);
 void program_sh_mem_settings(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
-int init_pipelines(struct device_queue_manager *dqm,
-		unsigned int pipes_num, unsigned int first_pipe);
-unsigned int get_first_pipe(struct device_queue_manager *dqm);
-unsigned int get_pipes_num(struct device_queue_manager *dqm);
+unsigned int get_queues_num(struct device_queue_manager *dqm);
+unsigned int get_queues_per_pipe(struct device_queue_manager *dqm);
+unsigned int get_pipes_per_mec(struct device_queue_manager *dqm);
 
 static inline unsigned int get_sh_mem_bases_32(struct kfd_process_device *pdd)
 {

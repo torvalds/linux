@@ -72,7 +72,7 @@ struct drm_simple_display_pipe_funcs {
 	 * the hardware lacks vblank support entirely.
 	 */
 	void (*update)(struct drm_simple_display_pipe *pipe,
-		       struct drm_plane_state *plane_state);
+		       struct drm_plane_state *old_plane_state);
 
 	/**
 	 * @prepare_fb:

@@ -43,7 +43,7 @@
 		reg = <0x80000000 0x40000000>;
 	};
 
-	pcie-controller@00003000 {
+	pcie@3000 {
 		status = "okay";
 
 		/* AVDD_PEXA and VDD_PEXA inputs are grounded on Cardhu. */

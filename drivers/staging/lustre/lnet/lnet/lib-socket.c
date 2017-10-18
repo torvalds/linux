@@ -89,7 +89,7 @@ lnet_ipif_query(char *name, int *up, __u32 *ip, __u32 *mask)
 	struct ifreq ifr;
 	int nob;
 	int rc;
-	__u32 val;
+	__be32 val;
 
 	nob = strnlen(name, IFNAMSIZ);
 	if (nob == IFNAMSIZ) {
@@ -516,7 +516,7 @@ lnet_sock_listen(struct socket **sockp, __u32 local_ip, int local_port,
 int
 lnet_sock_accept(struct socket **newsockp, struct socket *sock)
 {
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	struct socket *newsock;
 	int rc;
 

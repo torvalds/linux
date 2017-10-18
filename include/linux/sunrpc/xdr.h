@@ -17,6 +17,8 @@
 #include <asm/unaligned.h>
 #include <linux/scatterlist.h>
 
+struct rpc_rqst;
+
 /*
  * Buffer adjustment
  */
@@ -31,13 +33,6 @@ struct xdr_netobj {
 	unsigned int		len;
 	u8 *			data;
 };
-
-/*
- * This is the legacy generic XDR function. rqstp is either a rpc_rqst
- * (client side) or svc_rqst pointer (server side).
- * Encode functions always assume there's enough room in the buffer.
- */
-typedef int	(*kxdrproc_t)(void *rqstp, __be32 *data, void *obj);
 
 /*
  * Basic structure for transmission/reception of a client XDR message.
@@ -222,8 +217,10 @@ struct xdr_stream {
 /*
  * These are the xdr_stream style generic XDR encode and decode functions.
  */
-typedef void	(*kxdreproc_t)(void *rqstp, struct xdr_stream *xdr, void *obj);
-typedef int	(*kxdrdproc_t)(void *rqstp, struct xdr_stream *xdr, void *obj);
+typedef void	(*kxdreproc_t)(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
+		const void *obj);
+typedef int	(*kxdrdproc_t)(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
+		void *obj);
 
 extern void xdr_init_encode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p);
 extern __be32 *xdr_reserve_space(struct xdr_stream *xdr, size_t nbytes);

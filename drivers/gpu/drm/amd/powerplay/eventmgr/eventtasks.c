@@ -173,6 +173,11 @@ int pem_task_stop_asic_block_usage(struct pp_eventmgr *eventmgr, struct pem_even
 	return 0;
 }
 
+int pem_task_disable_smc_firmware_ctf(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data)
+{
+	return phm_disable_smc_firmware_ctf(eventmgr->hwmgr);
+}
+
 int pem_task_setup_asic(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data)
 {
 	return phm_setup_asic(eventmgr->hwmgr);

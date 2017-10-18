@@ -31,8 +31,9 @@
 #include "ccp-dev.h"
 
 MODULE_AUTHOR("Tom Lendacky <thomas.lendacky@amd.com>");
+MODULE_AUTHOR("Gary R Hook <gary.hook@amd.com>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("1.0.0");
+MODULE_VERSION("1.1.0");
 MODULE_DESCRIPTION("AMD Cryptographic Coprocessor driver");
 
 struct ccp_tasklet_data {

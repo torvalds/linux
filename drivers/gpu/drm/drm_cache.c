@@ -88,7 +88,7 @@ drm_clflush_pages(struct page *pages[], unsigned long num_pages)
 	}
 
 	if (wbinvd_on_all_cpus())
-		printk(KERN_ERR "Timed out waiting for cache flush.\n");
+		pr_err("Timed out waiting for cache flush\n");
 
 #elif defined(__powerpc__)
 	unsigned long i;
@@ -105,7 +105,7 @@ drm_clflush_pages(struct page *pages[], unsigned long num_pages)
 		kunmap_atomic(page_virtual);
 	}
 #else
-	printk(KERN_ERR "Architecture has no drm_cache.c support\n");
+	pr_err("Architecture has no drm_cache.c support\n");
 	WARN_ON_ONCE(1);
 #endif
 }
@@ -134,9 +134,9 @@ drm_clflush_sg(struct sg_table *st)
 	}
 
 	if (wbinvd_on_all_cpus())
-		printk(KERN_ERR "Timed out waiting for cache flush.\n");
+		pr_err("Timed out waiting for cache flush\n");
 #else
-	printk(KERN_ERR "Architecture has no drm_cache.c support\n");
+	pr_err("Architecture has no drm_cache.c support\n");
 	WARN_ON_ONCE(1);
 #endif
 }
@@ -167,9 +167,9 @@ drm_clflush_virt_range(void *addr, unsigned long length)
 	}
 
 	if (wbinvd_on_all_cpus())
-		printk(KERN_ERR "Timed out waiting for cache flush.\n");
+		pr_err("Timed out waiting for cache flush\n");
 #else
-	printk(KERN_ERR "Architecture has no drm_cache.c support\n");
+	pr_err("Architecture has no drm_cache.c support\n");
 	WARN_ON_ONCE(1);
 #endif
 }

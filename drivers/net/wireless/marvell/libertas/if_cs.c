@@ -336,13 +336,11 @@ static inline u32 get_model(u16 manf_id, u16 card_id)
 
 static inline void if_cs_enable_ints(struct if_cs_card *card)
 {
-	lbs_deb_enter(LBS_DEB_CS);
 	if_cs_write16(card, IF_CS_HOST_INT_MASK, 0);
 }
 
 static inline void if_cs_disable_ints(struct if_cs_card *card)
 {
-	lbs_deb_enter(LBS_DEB_CS);
 	if_cs_write16(card, IF_CS_HOST_INT_MASK, IF_CS_BIT_MASK);
 }
 
@@ -355,7 +353,6 @@ static int if_cs_send_cmd(struct lbs_private *priv, u8 *buf, u16 nb)
 	int ret = -1;
 	int loops = 0;
 
-	lbs_deb_enter(LBS_DEB_CS);
 	if_cs_disable_ints(card);
 
 	/* Is hardware ready? */
@@ -388,7 +385,6 @@ static int if_cs_send_cmd(struct lbs_private *priv, u8 *buf, u16 nb)
 
 done:
 	if_cs_enable_ints(card);
-	lbs_deb_leave_args(LBS_DEB_CS, "ret %d", ret);
 	return ret;
 }
 
@@ -400,7 +396,6 @@ static void if_cs_send_data(struct lbs_private *priv, u8 *buf, u16 nb)
 	struct if_cs_card *card = (struct if_cs_card *)priv->card;
 	u16 status;
 
-	lbs_deb_enter(LBS_DEB_CS);
 	if_cs_disable_ints(card);
 
 	status = if_cs_read16(card, IF_CS_CARD_STATUS);
@@ -416,8 +411,6 @@ static void if_cs_send_data(struct lbs_private *priv, u8 *buf, u16 nb)
 	if_cs_write16(card, IF_CS_HOST_STATUS, IF_CS_BIT_TX);
 	if_cs_write16(card, IF_CS_HOST_INT_CAUSE, IF_CS_BIT_TX);
 	if_cs_enable_ints(card);
-
-	lbs_deb_leave(LBS_DEB_CS);
 }
 
 /*
@@ -428,8 +421,6 @@ static int if_cs_receive_cmdres(struct lbs_private *priv, u8 *data, u32 *len)
 	unsigned long flags;
 	int ret = -1;
 	u16 status;
-
-	lbs_deb_enter(LBS_DEB_CS);
 
 	/* is hardware ready? */
 	status = if_cs_read16(priv->card, IF_CS_CARD_STATUS);
@@ -463,7 +454,6 @@ static int if_cs_receive_cmdres(struct lbs_private *priv, u8 *data, u32 *len)
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 out:
-	lbs_deb_leave_args(LBS_DEB_CS, "ret %d, len %d", ret, *len);
 	return ret;
 }
 
@@ -472,8 +462,6 @@ static struct sk_buff *if_cs_receive_data(struct lbs_private *priv)
 	struct sk_buff *skb = NULL;
 	u16 len;
 	u8 *data;
-
-	lbs_deb_enter(LBS_DEB_CS);
 
 	len = if_cs_read16(priv->card, IF_CS_READ_LEN);
 	if (len == 0 || len > MRVDRV_ETH_RX_PACKET_BUFFER_SIZE) {
@@ -501,7 +489,6 @@ dat_err:
 	if_cs_write16(priv->card, IF_CS_HOST_INT_CAUSE, IF_CS_BIT_RX);
 
 out:
-	lbs_deb_leave_args(LBS_DEB_CS, "ret %p", skb);
 	return skb;
 }
 
@@ -510,8 +497,6 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 	struct if_cs_card *card = data;
 	struct lbs_private *priv = card->priv;
 	u16 cause;
-
-	lbs_deb_enter(LBS_DEB_CS);
 
 	/* Ask card interrupt cause register if there is something for us */
 	cause = if_cs_read16(card, IF_CS_CARD_INT_CAUSE);
@@ -569,7 +554,6 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 	/* Clear interrupt cause */
 	if_cs_write16(card, IF_CS_CARD_INT_CAUSE, cause & IF_CS_BIT_MASK);
 
-	lbs_deb_leave(LBS_DEB_CS);
 	return IRQ_HANDLED;
 }
 
@@ -590,8 +574,6 @@ static int if_cs_prog_helper(struct if_cs_card *card, const struct firmware *fw)
 	int ret = 0;
 	int sent = 0;
 	u8  scratch;
-
-	lbs_deb_enter(LBS_DEB_CS);
 
 	/*
 	 * This is the only place where an unaligned register access happens on
@@ -671,7 +653,6 @@ static int if_cs_prog_helper(struct if_cs_card *card, const struct firmware *fw)
 	}
 
 done:
-	lbs_deb_leave_args(LBS_DEB_CS, "ret %d", ret);
 	return ret;
 }
 
@@ -682,8 +663,6 @@ static int if_cs_prog_real(struct if_cs_card *card, const struct firmware *fw)
 	int retry = 0;
 	int len = 0;
 	int sent;
-
-	lbs_deb_enter(LBS_DEB_CS);
 
 	lbs_deb_cs("fw size %td\n", fw->size);
 
@@ -734,7 +713,6 @@ static int if_cs_prog_real(struct if_cs_card *card, const struct firmware *fw)
 		pr_err("firmware download failed\n");
 
 done:
-	lbs_deb_leave_args(LBS_DEB_CS, "ret %d", ret);
 	return ret;
 }
 
@@ -792,8 +770,6 @@ static int if_cs_host_to_card(struct lbs_private *priv,
 {
 	int ret = -1;
 
-	lbs_deb_enter_args(LBS_DEB_CS, "type %d, bytes %d", type, nb);
-
 	switch (type) {
 	case MVMS_DAT:
 		priv->dnld_sent = DNLD_DATA_SENT;
@@ -809,7 +785,6 @@ static int if_cs_host_to_card(struct lbs_private *priv,
 			   __func__, type);
 	}
 
-	lbs_deb_leave_args(LBS_DEB_CS, "ret %d", ret);
 	return ret;
 }
 
@@ -818,14 +793,10 @@ static void if_cs_release(struct pcmcia_device *p_dev)
 {
 	struct if_cs_card *card = p_dev->priv;
 
-	lbs_deb_enter(LBS_DEB_CS);
-
 	free_irq(p_dev->irq, card);
 	pcmcia_disable_device(p_dev);
 	if (card->iobase)
 		ioport_unmap(card->iobase);
-
-	lbs_deb_leave(LBS_DEB_CS);
 }
 
 
@@ -849,8 +820,6 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	unsigned int prod_id;
 	struct lbs_private *priv;
 	struct if_cs_card *card;
-
-	lbs_deb_enter(LBS_DEB_CS);
 
 	card = kzalloc(sizeof(struct if_cs_card), GFP_KERNEL);
 	if (!card)
@@ -961,7 +930,6 @@ out2:
 out1:
 	pcmcia_disable_device(p_dev);
 out:
-	lbs_deb_leave_args(LBS_DEB_CS, "ret %d", ret);
 	return ret;
 }
 
@@ -970,15 +938,11 @@ static void if_cs_detach(struct pcmcia_device *p_dev)
 {
 	struct if_cs_card *card = p_dev->priv;
 
-	lbs_deb_enter(LBS_DEB_CS);
-
 	lbs_stop_card(card->priv);
 	lbs_remove_card(card->priv);
 	if_cs_disable_ints(card);
 	if_cs_release(p_dev);
 	kfree(card);
-
-	lbs_deb_leave(LBS_DEB_CS);
 }
 
 

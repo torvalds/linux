@@ -25,7 +25,7 @@
  *
  *
  *  libata documentation is available via 'make {ps|pdf}docs',
- *  as Documentation/DocBook/libata.*
+ *  as Documentation/driver-api/libata.rst
  *
  *  Hardware documentation available from http://www.t13.org/ and
  *  http://www.sata-io.org/
@@ -716,24 +716,10 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 
 	DPRINTK("data %s\n", qc->tf.flags & ATA_TFLAG_WRITE ? "write" : "read");
 
-	if (PageHighMem(page)) {
-		unsigned long flags;
-
-		/* FIXME: use a bounce buffer */
-		local_irq_save(flags);
-		buf = kmap_atomic(page);
-
-		/* do the actual data transfer */
-		ap->ops->sff_data_xfer(qc, buf + offset, qc->sect_size,
-				       do_write);
-
-		kunmap_atomic(buf);
-		local_irq_restore(flags);
-	} else {
-		buf = page_address(page);
-		ap->ops->sff_data_xfer(qc, buf + offset, qc->sect_size,
-				       do_write);
-	}
+	/* do the actual data transfer */
+	buf = kmap_atomic(page);
+	ap->ops->sff_data_xfer(qc, buf + offset, qc->sect_size, do_write);
+	kunmap_atomic(buf);
 
 	if (!do_write && !PageSlab(page))
 		flush_dcache_page(page);
@@ -861,24 +847,10 @@ next_sg:
 
 	DPRINTK("data %s\n", qc->tf.flags & ATA_TFLAG_WRITE ? "write" : "read");
 
-	if (PageHighMem(page)) {
-		unsigned long flags;
-
-		/* FIXME: use bounce buffer */
-		local_irq_save(flags);
-		buf = kmap_atomic(page);
-
-		/* do the actual data transfer */
-		consumed = ap->ops->sff_data_xfer(qc, buf + offset,
-								count, rw);
-
-		kunmap_atomic(buf);
-		local_irq_restore(flags);
-	} else {
-		buf = page_address(page);
-		consumed = ap->ops->sff_data_xfer(qc, buf + offset,
-								count, rw);
-	}
+	/* do the actual data transfer */
+	buf = kmap_atomic(page);
+	consumed = ap->ops->sff_data_xfer(qc, buf + offset, count, rw);
+	kunmap_atomic(buf);
 
 	bytes -= min(bytes, consumed);
 	qc->curbytes += count;

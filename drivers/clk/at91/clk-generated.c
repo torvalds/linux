@@ -260,13 +260,15 @@ at91_clk_register_generated(struct regmap *regmap, spinlock_t *lock,
 	gck->lock = lock;
 	gck->range = *range;
 
+	clk_generated_startup(gck);
 	hw = &gck->hw;
 	ret = clk_hw_register(NULL, &gck->hw);
 	if (ret) {
 		kfree(gck);
 		hw = ERR_PTR(ret);
-	} else
-		clk_generated_startup(gck);
+	} else {
+		pmc_register_id(id);
+	}
 
 	return hw;
 }

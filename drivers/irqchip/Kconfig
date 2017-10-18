@@ -39,7 +39,6 @@ config ARM_GIC_V3_ITS
 	bool
 	depends on PCI
 	depends on PCI_MSI
-	select ACPI_IORT if ACPI
 
 config ARM_NVIC
 	bool
@@ -115,6 +114,12 @@ config DW_APB_ICTL
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 
+config FARADAY_FTINTC010
+	bool
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
+
 config HISILICON_IRQ_MBIGEN
 	bool
 	select ARM_GIC_V3
@@ -128,7 +133,9 @@ config IMGPDC_IRQ
 config IRQ_MIPS_CPU
 	bool
 	select GENERIC_IRQ_CHIP
+	select GENERIC_IRQ_IPI if SYS_SUPPORTS_MULTITHREADING
 	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY if GENERIC_IRQ_IPI
 
 config CLPS711X_IRQCHIP
 	bool
@@ -259,6 +266,12 @@ config IRQ_MXS
 	def_bool y if MACH_ASM9260 || ARCH_MXS
 	select IRQ_DOMAIN
 	select STMP_DEVICE
+
+config MVEBU_GICP
+	bool
+
+config MVEBU_ICU
+	bool
 
 config MVEBU_ODMI
 	bool

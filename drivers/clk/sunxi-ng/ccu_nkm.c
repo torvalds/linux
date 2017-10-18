@@ -102,23 +102,24 @@ static unsigned long ccu_nkm_recalc_rate(struct clk_hw *hw,
 }
 
 static unsigned long ccu_nkm_round_rate(struct ccu_mux_internal *mux,
-					unsigned long parent_rate,
+					struct clk_hw *hw,
+					unsigned long *parent_rate,
 					unsigned long rate,
 					void *data)
 {
 	struct ccu_nkm *nkm = data;
 	struct _ccu_nkm _nkm;
 
-	_nkm.min_n = nkm->n.min;
+	_nkm.min_n = nkm->n.min ?: 1;
 	_nkm.max_n = nkm->n.max ?: 1 << nkm->n.width;
-	_nkm.min_k = nkm->k.min;
+	_nkm.min_k = nkm->k.min ?: 1;
 	_nkm.max_k = nkm->k.max ?: 1 << nkm->k.width;
 	_nkm.min_m = 1;
 	_nkm.max_m = nkm->m.max ?: 1 << nkm->m.width;
 
-	ccu_nkm_find_best(parent_rate, rate, &_nkm);
+	ccu_nkm_find_best(*parent_rate, rate, &_nkm);
 
-	return parent_rate * _nkm.n * _nkm.k / _nkm.m;
+	return *parent_rate * _nkm.n * _nkm.k / _nkm.m;
 }
 
 static int ccu_nkm_determine_rate(struct clk_hw *hw,
@@ -138,9 +139,9 @@ static int ccu_nkm_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long flags;
 	u32 reg;
 
-	_nkm.min_n = nkm->n.min;
+	_nkm.min_n = nkm->n.min ?: 1;
 	_nkm.max_n = nkm->n.max ?: 1 << nkm->n.width;
-	_nkm.min_k = nkm->k.min;
+	_nkm.min_k = nkm->k.min ?: 1;
 	_nkm.max_k = nkm->k.max ?: 1 << nkm->k.width;
 	_nkm.min_m = 1;
 	_nkm.max_m = nkm->m.max ?: 1 << nkm->m.width;

@@ -14,7 +14,9 @@
  */
 
 #include <endian.h>
+#include <errno.h>
 #include <byteswap.h>
+#include <inttypes.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
@@ -863,8 +865,6 @@ static void intel_bts_print_info(u64 *arr, int start, int finish)
 	for (i = start; i <= finish; i++)
 		fprintf(stdout, intel_bts_info_fmts[i], arr[i]);
 }
-
-u64 intel_bts_auxtrace_info_priv[INTEL_BTS_AUXTRACE_PRIV_SIZE];
 
 int intel_bts_process_auxtrace_info(union perf_event *event,
 				    struct perf_session *session)

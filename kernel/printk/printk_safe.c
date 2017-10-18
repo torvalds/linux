@@ -80,8 +80,8 @@ static void queue_flush_work(struct printk_safe_seq_buf *s)
  * happen, printk_safe_log_store() will notice the buffer->len mismatch
  * and repeat the write.
  */
-static int printk_safe_log_store(struct printk_safe_seq_buf *s,
-				 const char *fmt, va_list args)
+static __printf(2, 0) int printk_safe_log_store(struct printk_safe_seq_buf *s,
+						const char *fmt, va_list args)
 {
 	int add;
 	size_t len;
@@ -299,7 +299,7 @@ void printk_safe_flush_on_panic(void)
  * one writer running. But the buffer might get flushed from another
  * CPU, so we need to be careful.
  */
-static int vprintk_nmi(const char *fmt, va_list args)
+static __printf(1, 0) int vprintk_nmi(const char *fmt, va_list args)
 {
 	struct printk_safe_seq_buf *s = this_cpu_ptr(&nmi_print_seq);
 
@@ -308,17 +308,29 @@ static int vprintk_nmi(const char *fmt, va_list args)
 
 void printk_nmi_enter(void)
 {
-	this_cpu_or(printk_context, PRINTK_NMI_CONTEXT_MASK);
+	/*
+	 * The size of the extra per-CPU buffer is limited. Use it only when
+	 * the main one is locked. If this CPU is not in the safe context,
+	 * the lock must be taken on another CPU and we could wait for it.
+	 */
+	if ((this_cpu_read(printk_context) & PRINTK_SAFE_CONTEXT_MASK) &&
+	    raw_spin_is_locked(&logbuf_lock)) {
+		this_cpu_or(printk_context, PRINTK_NMI_CONTEXT_MASK);
+	} else {
+		this_cpu_or(printk_context, PRINTK_NMI_DEFERRED_CONTEXT_MASK);
+	}
 }
 
 void printk_nmi_exit(void)
 {
-	this_cpu_and(printk_context, ~PRINTK_NMI_CONTEXT_MASK);
+	this_cpu_and(printk_context,
+		     ~(PRINTK_NMI_CONTEXT_MASK |
+		       PRINTK_NMI_DEFERRED_CONTEXT_MASK));
 }
 
 #else
 
-static int vprintk_nmi(const char *fmt, va_list args)
+static __printf(1, 0) int vprintk_nmi(const char *fmt, va_list args)
 {
 	return 0;
 }
@@ -330,7 +342,7 @@ static int vprintk_nmi(const char *fmt, va_list args)
  * into itself. It uses a per-CPU buffer to store the message, just like
  * NMI.
  */
-static int vprintk_safe(const char *fmt, va_list args)
+static __printf(1, 0) int vprintk_safe(const char *fmt, va_list args)
 {
 	struct printk_safe_seq_buf *s = this_cpu_ptr(&safe_print_seq);
 
@@ -351,12 +363,22 @@ void __printk_safe_exit(void)
 
 __printf(1, 0) int vprintk_func(const char *fmt, va_list args)
 {
+	/* Use extra buffer in NMI when logbuf_lock is taken or in safe mode. */
 	if (this_cpu_read(printk_context) & PRINTK_NMI_CONTEXT_MASK)
 		return vprintk_nmi(fmt, args);
 
+	/* Use extra buffer to prevent a recursion deadlock in safe mode. */
 	if (this_cpu_read(printk_context) & PRINTK_SAFE_CONTEXT_MASK)
 		return vprintk_safe(fmt, args);
 
+	/*
+	 * Use the main logbuf when logbuf_lock is available in NMI.
+	 * But avoid calling console drivers that might have their own locks.
+	 */
+	if (this_cpu_read(printk_context) & PRINTK_NMI_DEFERRED_CONTEXT_MASK)
+		return vprintk_deferred(fmt, args);
+
+	/* No obstacles. */
 	return vprintk_default(fmt, args);
 }
 

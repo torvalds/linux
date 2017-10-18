@@ -33,7 +33,7 @@ nvbios_power_budget_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt,
 	u32 power_budget;
 
 	if (bit_entry(bios, 'P', &bit_P) || bit_P.version != 2 ||
-	    bit_P.length < 0x2c)
+	    bit_P.length < 0x30)
 		return 0;
 
 	power_budget = nvbios_rd32(bios, bit_P.offset + 0x2c);

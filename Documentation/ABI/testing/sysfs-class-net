@@ -251,3 +251,11 @@ Contact:	netdev@vger.kernel.org
 Description:
 		Indicates the unique physical switch identifier of a switch this
 		port belongs to, as a string.
+
+What:		/sys/class/net/<iface>/phydev
+Date:		May 2017
+KernelVersion:	4.13
+Contact:	netdev@vger.kernel.org
+Description:
+		Symbolic link to the PHY device this network device is attached
+		to.

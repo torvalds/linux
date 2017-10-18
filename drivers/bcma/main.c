@@ -201,9 +201,6 @@ static void bcma_of_fill_device(struct device *parent,
 {
 	struct device_node *node;
 
-	if (!IS_ENABLED(CONFIG_OF_IRQ))
-		return;
-
 	node = bcma_of_find_child_device(parent, core);
 	if (node)
 		core->dev.of_node = node;
@@ -242,19 +239,18 @@ void bcma_prepare_core(struct bcma_bus *bus, struct bcma_device *core)
 	core->dev.release = bcma_release_core_dev;
 	core->dev.bus = &bcma_bus_type;
 	dev_set_name(&core->dev, "bcma%d:%d", bus->num, core->core_index);
+	core->dev.parent = bcma_bus_get_host_dev(bus);
+	if (core->dev.parent)
+		bcma_of_fill_device(core->dev.parent, core);
 
 	switch (bus->hosttype) {
 	case BCMA_HOSTTYPE_PCI:
-		core->dev.parent = &bus->host_pci->dev;
 		core->dma_dev = &bus->host_pci->dev;
 		core->irq = bus->host_pci->irq;
 		break;
 	case BCMA_HOSTTYPE_SOC:
 		if (IS_ENABLED(CONFIG_OF) && bus->host_pdev) {
 			core->dma_dev = &bus->host_pdev->dev;
-			core->dev.parent = &bus->host_pdev->dev;
-			if (core->dev.parent)
-				bcma_of_fill_device(core->dev.parent, core);
 		} else {
 			core->dev.dma_mask = &core->dev.coherent_dma_mask;
 			core->dma_dev = &core->dev;

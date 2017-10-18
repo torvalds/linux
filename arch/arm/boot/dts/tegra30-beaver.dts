@@ -20,7 +20,7 @@
 		reg = <0x80000000 0x7ff00000>;
 	};
 
-	pcie-controller@00003000 {
+	pcie@3000 {
 		status = "okay";
 
 		avdd-pexa-supply = <&ldo1_reg>;

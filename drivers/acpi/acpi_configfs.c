@@ -15,11 +15,15 @@
 #include <linux/configfs.h>
 #include <linux/acpi.h>
 
+#include "acpica/accommon.h"
+#include "acpica/actables.h"
+
 static struct config_group *acpi_table_group;
 
 struct acpi_table {
 	struct config_item cfg;
 	struct acpi_table_header *header;
+	u32 index;
 };
 
 static ssize_t acpi_table_aml_write(struct config_item *cfg,
@@ -52,7 +56,11 @@ static ssize_t acpi_table_aml_write(struct config_item *cfg,
 	if (!table->header)
 		return -ENOMEM;
 
-	ret = acpi_load_table(table->header);
+	ACPI_INFO(("Host-directed Dynamic ACPI Table Load:"));
+	ret = acpi_tb_install_and_load_table(
+			ACPI_PTR_TO_PHYSADDR(table->header),
+			ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL, FALSE,
+			&table->index);
 	if (ret) {
 		kfree(table->header);
 		table->header = NULL;
@@ -215,8 +223,18 @@ static struct config_item *acpi_table_make_item(struct config_group *group,
 	return &table->cfg;
 }
 
+static void acpi_table_drop_item(struct config_group *group,
+				 struct config_item *cfg)
+{
+	struct acpi_table *table = container_of(cfg, struct acpi_table, cfg);
+
+	ACPI_INFO(("Host-directed Dynamic ACPI Table Unload"));
+	acpi_tb_unload_table(table->index);
+}
+
 struct configfs_group_operations acpi_table_group_ops = {
 	.make_item = acpi_table_make_item,
+	.drop_item = acpi_table_drop_item,
 };
 
 static struct config_item_type acpi_tables_type = {

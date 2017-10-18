@@ -25,22 +25,11 @@ static inline struct imx_crtc_state *to_imx_crtc_state(struct drm_crtc_state *s)
 {
 	return container_of(s, struct imx_crtc_state, base);
 }
-
-struct imx_drm_crtc_helper_funcs {
-	int (*enable_vblank)(struct drm_crtc *crtc);
-	void (*disable_vblank)(struct drm_crtc *crtc);
-	const struct drm_crtc_helper_funcs *crtc_helper_funcs;
-	const struct drm_crtc_funcs *crtc_funcs;
-};
-
-int imx_drm_add_crtc(struct drm_device *drm, struct drm_crtc *crtc,
-		struct imx_drm_crtc **new_crtc, struct drm_plane *primary_plane,
-		const struct imx_drm_crtc_helper_funcs *imx_helper_funcs,
-		struct device_node *port);
-int imx_drm_remove_crtc(struct imx_drm_crtc *);
 int imx_drm_init_drm(struct platform_device *pdev,
 		int preferred_bpp);
 int imx_drm_exit_drm(void);
+
+extern struct platform_driver ipu_drm_driver;
 
 void imx_drm_mode_config_init(struct drm_device *drm);
 
@@ -51,5 +40,8 @@ int imx_drm_encoder_parse_of(struct drm_device *drm,
 
 void imx_drm_connector_destroy(struct drm_connector *connector);
 void imx_drm_encoder_destroy(struct drm_encoder *encoder);
+
+int ipu_planes_assign_pre(struct drm_device *dev,
+			  struct drm_atomic_state *state);
 
 #endif /* _IMX_DRM_H_ */

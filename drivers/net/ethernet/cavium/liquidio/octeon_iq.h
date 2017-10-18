@@ -152,7 +152,7 @@ struct octeon_instr_queue {
 	struct oct_iq_stats stats;
 
 	/** DMA mapped base address of the input descriptor ring. */
-	u64 base_addr_dma;
+	dma_addr_t base_addr_dma;
 
 	/** Application context */
 	void *app_ctx;
@@ -251,7 +251,7 @@ union octeon_instr_64B {
 
 /** The size of each buffer in soft command buffer pool
  */
-#define  SOFT_COMMAND_BUFFER_SIZE	1536
+#define  SOFT_COMMAND_BUFFER_SIZE	2048
 
 struct octeon_soft_command {
 	/** Soft command buffer info. */

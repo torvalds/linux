@@ -25,6 +25,8 @@ BUILD_INTERRUPT3(kvm_posted_intr_ipi, POSTED_INTR_VECTOR,
 		 smp_kvm_posted_intr_ipi)
 BUILD_INTERRUPT3(kvm_posted_intr_wakeup_ipi, POSTED_INTR_WAKEUP_VECTOR,
 		 smp_kvm_posted_intr_wakeup_ipi)
+BUILD_INTERRUPT3(kvm_posted_intr_nested_ipi, POSTED_INTR_NESTED_VECTOR,
+		 smp_kvm_posted_intr_nested_ipi)
 #endif
 
 /*

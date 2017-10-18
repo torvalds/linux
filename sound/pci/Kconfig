@@ -465,6 +465,7 @@ config SND_EMU10K1
 	select SND_RAWMIDI
 	select SND_AC97_CODEC
 	select SND_TIMER
+	select SND_SEQ_DEVICE if SND_SEQUENCER != n
 	depends on ZONE_DMA
 	help
 	  Say Y to include support for Sound Blaster PCI 512, Live!,
@@ -476,6 +477,13 @@ config SND_EMU10K1
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-emu10k1.
+
+# select SEQ stuff to min(SND_SEQUENCER,SND_XXX)
+config SND_EMU10K1_SEQ
+	def_tristate SND_SEQUENCER && SND_EMU10K1
+	select SND_SEQ_MIDI_EMUL
+	select SND_SEQ_VIRMIDI
+	select SND_SYNTH_EMUX
 
 config SND_EMU10K1X
 	tristate "Emu10k1X (Dell OEM Version)"

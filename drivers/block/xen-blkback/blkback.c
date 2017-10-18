@@ -609,8 +609,6 @@ int xen_blkif_schedule(void *arg)
 	unsigned long timeout;
 	int ret;
 
-	xen_blkif_get(blkif);
-
 	set_freezable();
 	while (!kthread_should_stop()) {
 		if (try_to_freeze())
@@ -665,7 +663,6 @@ purge_gnt_list:
 		print_stats(ring);
 
 	ring->xenblkd = NULL;
-	xen_blkif_put(blkif);
 
 	return 0;
 }
@@ -1069,20 +1066,17 @@ static void xen_blk_drain_io(struct xen_blkif_ring *ring)
 	atomic_set(&blkif->drain, 0);
 }
 
-/*
- * Completion callback on the bio's. Called as bh->b_end_io()
- */
-
-static void __end_block_io_op(struct pending_req *pending_req, int error)
+static void __end_block_io_op(struct pending_req *pending_req,
+		blk_status_t error)
 {
 	/* An error fails the entire request. */
-	if ((pending_req->operation == BLKIF_OP_FLUSH_DISKCACHE) &&
-	    (error == -EOPNOTSUPP)) {
+	if (pending_req->operation == BLKIF_OP_FLUSH_DISKCACHE &&
+	    error == BLK_STS_NOTSUPP) {
 		pr_debug("flush diskcache op failed, not supported\n");
 		xen_blkbk_flush_diskcache(XBT_NIL, pending_req->ring->blkif->be, 0);
 		pending_req->status = BLKIF_RSP_EOPNOTSUPP;
-	} else if ((pending_req->operation == BLKIF_OP_WRITE_BARRIER) &&
-		    (error == -EOPNOTSUPP)) {
+	} else if (pending_req->operation == BLKIF_OP_WRITE_BARRIER &&
+		   error == BLK_STS_NOTSUPP) {
 		pr_debug("write barrier op failed, not supported\n");
 		xen_blkbk_barrier(XBT_NIL, pending_req->ring->blkif->be, 0);
 		pending_req->status = BLKIF_RSP_EOPNOTSUPP;
@@ -1106,7 +1100,7 @@ static void __end_block_io_op(struct pending_req *pending_req, int error)
  */
 static void end_block_io_op(struct bio *bio)
 {
-	__end_block_io_op(bio->bi_private, bio->bi_error);
+	__end_block_io_op(bio->bi_private, bio->bi_status);
 	bio_put(bio);
 }
 
@@ -1423,7 +1417,7 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 	for (i = 0; i < nbio; i++)
 		bio_put(biolist[i]);
 	atomic_set(&pending_req->pendcnt, 1);
-	__end_block_io_op(pending_req, -EINVAL);
+	__end_block_io_op(pending_req, BLK_STS_RESOURCE);
 	msleep(1); /* back off a bit */
 	return -EIO;
 }
@@ -1436,34 +1430,35 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 static void make_response(struct xen_blkif_ring *ring, u64 id,
 			  unsigned short op, int st)
 {
-	struct blkif_response  resp;
+	struct blkif_response *resp;
 	unsigned long     flags;
 	union blkif_back_rings *blk_rings;
 	int notify;
-
-	resp.id        = id;
-	resp.operation = op;
-	resp.status    = st;
 
 	spin_lock_irqsave(&ring->blk_ring_lock, flags);
 	blk_rings = &ring->blk_rings;
 	/* Place on the response ring for the relevant domain. */
 	switch (ring->blkif->blk_protocol) {
 	case BLKIF_PROTOCOL_NATIVE:
-		memcpy(RING_GET_RESPONSE(&blk_rings->native, blk_rings->native.rsp_prod_pvt),
-		       &resp, sizeof(resp));
+		resp = RING_GET_RESPONSE(&blk_rings->native,
+					 blk_rings->native.rsp_prod_pvt);
 		break;
 	case BLKIF_PROTOCOL_X86_32:
-		memcpy(RING_GET_RESPONSE(&blk_rings->x86_32, blk_rings->x86_32.rsp_prod_pvt),
-		       &resp, sizeof(resp));
+		resp = RING_GET_RESPONSE(&blk_rings->x86_32,
+					 blk_rings->x86_32.rsp_prod_pvt);
 		break;
 	case BLKIF_PROTOCOL_X86_64:
-		memcpy(RING_GET_RESPONSE(&blk_rings->x86_64, blk_rings->x86_64.rsp_prod_pvt),
-		       &resp, sizeof(resp));
+		resp = RING_GET_RESPONSE(&blk_rings->x86_64,
+					 blk_rings->x86_64.rsp_prod_pvt);
 		break;
 	default:
 		BUG();
 	}
+
+	resp->id        = id;
+	resp->operation = op;
+	resp->status    = st;
+
 	blk_rings->common.rsp_prod_pvt++;
 	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&blk_rings->common, notify);
 	spin_unlock_irqrestore(&ring->blk_ring_lock, flags);

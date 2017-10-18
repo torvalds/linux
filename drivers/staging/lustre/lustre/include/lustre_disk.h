@@ -133,13 +133,9 @@ struct lustre_sb_info {
 	struct obd_export	 *lsi_osd_exp;
 	char			  lsi_osd_type[16];
 	char			  lsi_fstype[16];
-	struct backing_dev_info   lsi_bdi;     /* each client mountpoint needs
-						* own backing_dev_info
-						*/
 };
 
 #define LSI_UMOUNT_FAILOVER	      0x00200000
-#define LSI_BDI_INITIALIZED	      0x00400000
 
 #define     s2lsi(sb)	((struct lustre_sb_info *)((sb)->s_fs_info))
 #define     s2lsi_nocast(sb) ((sb)->s_fs_info)

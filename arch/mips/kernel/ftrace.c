@@ -38,20 +38,6 @@ void arch_ftrace_update_code(int command)
 
 #endif
 
-/*
- * Check if the address is in kernel space
- *
- * Clone core_kernel_text() from kernel/extable.c, but doesn't call
- * init_kernel_text() for Ftrace doesn't trace functions in init sections.
- */
-static inline int in_kernel_space(unsigned long ip)
-{
-	if (ip >= (unsigned long)_stext &&
-	    ip <= (unsigned long)_etext)
-		return 1;
-	return 0;
-}
-
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 #define JAL 0x0c000000		/* jump & link: ip --> ra, jump to target */
@@ -198,7 +184,7 @@ int ftrace_make_nop(struct module *mod,
 	 * If ip is in kernel space, no long call, otherwise, long call is
 	 * needed.
 	 */
-	new = in_kernel_space(ip) ? INSN_NOP : INSN_B_1F;
+	new = core_kernel_text(ip) ? INSN_NOP : INSN_B_1F;
 #ifdef CONFIG_64BIT
 	return ftrace_modify_code(ip, new);
 #else
@@ -218,12 +204,12 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	unsigned int new;
 	unsigned long ip = rec->ip;
 
-	new = in_kernel_space(ip) ? insn_jal_ftrace_caller : insn_la_mcount[0];
+	new = core_kernel_text(ip) ? insn_jal_ftrace_caller : insn_la_mcount[0];
 
 #ifdef CONFIG_64BIT
 	return ftrace_modify_code(ip, new);
 #else
-	return ftrace_modify_code_2r(ip, new, in_kernel_space(ip) ?
+	return ftrace_modify_code_2r(ip, new, core_kernel_text(ip) ?
 						INSN_NOP : insn_la_mcount[1]);
 #endif
 }
@@ -289,7 +275,7 @@ unsigned long ftrace_get_parent_ra_addr(unsigned long self_ra, unsigned long
 	 * instruction "lui v1, hi_16bit_of_mcount"(offset is 24), but for
 	 * kernel, move after the instruction "move ra, at"(offset is 16)
 	 */
-	ip = self_ra - (in_kernel_space(self_ra) ? 16 : 24);
+	ip = self_ra - (core_kernel_text(self_ra) ? 16 : 24);
 
 	/*
 	 * search the text until finding the non-store instruction or "s{d,w}
@@ -394,7 +380,7 @@ void prepare_ftrace_return(unsigned long *parent_ra_addr, unsigned long self_ra,
 	 * entries configured through the tracing/set_graph_function interface.
 	 */
 
-	insns = in_kernel_space(self_ra) ? 2 : MCOUNT_OFFSET_INSNS + 1;
+	insns = core_kernel_text(self_ra) ? 2 : MCOUNT_OFFSET_INSNS + 1;
 	trace.func = self_ra - (MCOUNT_INSN_SIZE * insns);
 
 	/* Only trace if the calling function expects to */

@@ -298,11 +298,6 @@ int main(void)
 	DEFINE(HUGEPAGE_SIZE, PAGE_SIZE);
 #endif
 	BLANK();
-	DEFINE(EXCDATA_IP, offsetof(struct exception_data, fault_ip));
-	DEFINE(EXCDATA_GP, offsetof(struct exception_data, fault_gp));
-	DEFINE(EXCDATA_SPACE, offsetof(struct exception_data, fault_space));
-	DEFINE(EXCDATA_ADDR, offsetof(struct exception_data, fault_addr));
-	BLANK();
 	DEFINE(ASM_PDC_RESULT_SIZE, NUM_PDC_RESULT * sizeof(unsigned long));
 	BLANK();
 	return 0;

@@ -418,52 +418,6 @@ pcibios_align_resource (void *data, const struct resource *res,
 	return res->start;
 }
 
-int
-pci_mmap_page_range (struct pci_dev *dev, struct vm_area_struct *vma,
-		     enum pci_mmap_state mmap_state, int write_combine)
-{
-	unsigned long size = vma->vm_end - vma->vm_start;
-	pgprot_t prot;
-
-	/*
-	 * I/O space cannot be accessed via normal processor loads and
-	 * stores on this platform.
-	 */
-	if (mmap_state == pci_mmap_io)
-		/*
-		 * XXX we could relax this for I/O spaces for which ACPI
-		 * indicates that the space is 1-to-1 mapped.  But at the
-		 * moment, we don't support multiple PCI address spaces and
-		 * the legacy I/O space is not 1-to-1 mapped, so this is moot.
-		 */
-		return -EINVAL;
-
-	if (!valid_mmap_phys_addr_range(vma->vm_pgoff, size))
-		return -EINVAL;
-
-	prot = phys_mem_access_prot(NULL, vma->vm_pgoff, size,
-				    vma->vm_page_prot);
-
-	/*
-	 * If the user requested WC, the kernel uses UC or WC for this region,
-	 * and the chipset supports WC, we can use WC. Otherwise, we have to
-	 * use the same attribute the kernel uses.
-	 */
-	if (write_combine &&
-	    ((pgprot_val(prot) & _PAGE_MA_MASK) == _PAGE_MA_UC ||
-	     (pgprot_val(prot) & _PAGE_MA_MASK) == _PAGE_MA_WC) &&
-	    efi_range_is_wc(vma->vm_start, vma->vm_end - vma->vm_start))
-		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-	else
-		vma->vm_page_prot = prot;
-
-	if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-			     vma->vm_end - vma->vm_start, vma->vm_page_prot))
-		return -EAGAIN;
-
-	return 0;
-}
-
 /**
  * ia64_pci_get_legacy_mem - generic legacy mem routine
  * @bus: bus to get legacy memory base address for

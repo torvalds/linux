@@ -222,7 +222,7 @@ struct pvrdma_sq_wqe_hdr {
 	__u32 opcode;		/* operation type */
 	__u32 send_flags;	/* wr flags */
 	union {
-		__u32 imm_data;
+		__be32 imm_data;
 		__u32 invalidate_rkey;
 	} ex;
 	__u32 reserved;
@@ -273,7 +273,7 @@ struct pvrdma_cqe {
 	__u32 opcode;
 	__u32 status;
 	__u32 byte_len;
-	__u32 imm_data;
+	__be32 imm_data;
 	__u32 src_qp;
 	__u32 wc_flags;
 	__u32 vendor_err;

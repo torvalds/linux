@@ -1042,11 +1042,11 @@ static int md8800_set_high_voltage2(struct dvb_frontend *fe, long arg)
  * nxt200x based ATSC cards, helper functions
  */
 
-static struct nxt200x_config avertvhda180 = {
+static const struct nxt200x_config avertvhda180 = {
 	.demod_address    = 0x0a,
 };
 
-static struct nxt200x_config kworldatsc110 = {
+static const struct nxt200x_config kworldatsc110 = {
 	.demod_address    = 0x0a,
 };
 

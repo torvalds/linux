@@ -7,6 +7,14 @@ registers giving access to numerous features: clocks, pin-muxing and
 many other SoC configuration items. This DT binding allows to describe
 this system controller.
 
+For the top level node:
+ - compatible: must be: "syscon", "simple-mfd";
+  - reg: register area of the AP806 system controller
+
+Clocks:
+-------
+
+
 The Device Tree node representing the AP806 system controller provides
 a number of clocks:
 
@@ -17,19 +25,76 @@ a number of clocks:
 
 Required properties:
 
- - compatible: must be:
-     "marvell,ap806-system-controller", "syscon"
- - reg: register area of the AP806 system controller
+ - compatible: must be: "marvell,ap806-clock"
  - #clock-cells: must be set to 1
- - clock-output-names: must be defined to:
-    "ap-cpu-cluster-0", "ap-cpu-cluster-1", "ap-fixed", "ap-mss"
+
+Pinctrl:
+--------
+
+For common binding part and usage, refer to
+Documentation/devicetree/bindings/pinctrl/marvell,mvebu-pinctrl.txt.
+
+Required properties:
+- compatible must be "marvell,ap806-pinctrl",
+
+Available mpp pins/groups and functions:
+Note: brackets (x) are not part of the mpp name for marvell,function and given
+only for more detailed description in this document.
+
+name	pins	functions
+================================================================================
+mpp0	0	gpio, sdio(clk), spi0(clk)
+mpp1	1	gpio, sdio(cmd), spi0(miso)
+mpp2	2	gpio, sdio(d0), spi0(mosi)
+mpp3	3	gpio, sdio(d1), spi0(cs0n)
+mpp4	4	gpio, sdio(d2), i2c0(sda)
+mpp5	5	gpio, sdio(d3), i2c0(sdk)
+mpp6	6	gpio, sdio(ds)
+mpp7	7	gpio, sdio(d4), uart1(rxd)
+mpp8	8	gpio, sdio(d5), uart1(txd)
+mpp9	9	gpio, sdio(d6), spi0(cs1n)
+mpp10	10	gpio, sdio(d7)
+mpp11	11	gpio, uart0(txd)
+mpp12	12	gpio, sdio(pw_off), sdio(hw_rst)
+mpp13	13	gpio
+mpp14	14	gpio
+mpp15	15	gpio
+mpp16	16	gpio
+mpp17	17	gpio
+mpp18	18	gpio
+mpp19	19	gpio, uart0(rxd), sdio(pw_off)
+
+GPIO:
+-----
+For common binding part and usage, refer to
+Documentation/devicetree/bindings/gpio/gpio-mvebu.txt.
+
+Required properties:
+
+- compatible: "marvell,armada-8k-gpio"
+
+- offset: offset address inside the syscon block
 
 Example:
+ap_syscon: system-controller@6f4000 {
+	compatible = "syscon", "simple-mfd";
+	reg = <0x6f4000 0x1000>;
 
-	syscon: system-controller@6f4000 {
-		compatible = "marvell,ap806-system-controller", "syscon";
+	ap_clk: clock {
+		compatible = "marvell,ap806-clock";
 		#clock-cells = <1>;
-		clock-output-names = "ap-cpu-cluster-0", "ap-cpu-cluster-1",
-				     "ap-fixed", "ap-mss";
-		reg = <0x6f4000 0x1000>;
 	};
+
+	ap_pinctrl: pinctrl {
+		compatible = "marvell,ap806-pinctrl";
+	};
+
+	ap_gpio: gpio {
+		compatible = "marvell,armada-8k-gpio";
+		offset = <0x1040>;
+		ngpios = <19>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-ranges = <&ap_pinctrl 0 0 19>;
+	};
+};

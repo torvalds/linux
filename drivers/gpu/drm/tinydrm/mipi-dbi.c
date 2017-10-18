@@ -590,7 +590,7 @@ static int mipi_dbi_spi1e_transfer(struct mipi_dbi *mipi, int dc,
 		ret = spi_sync(spi, &m);
 		if (ret)
 			return ret;
-	};
+	}
 
 	return 0;
 }
@@ -654,7 +654,7 @@ static int mipi_dbi_spi1_transfer(struct mipi_dbi *mipi, int dc,
 		ret = spi_sync(spi, &m);
 		if (ret)
 			return ret;
-	};
+	}
 
 	return 0;
 }
@@ -914,7 +914,7 @@ static int mipi_dbi_debugfs_command_show(struct seq_file *m, void *unused)
 {
 	struct mipi_dbi *mipi = m->private;
 	u8 cmd, val[4];
-	size_t len, i;
+	size_t len;
 	int ret;
 
 	for (cmd = 0; cmd < 255; cmd++) {
@@ -943,10 +943,7 @@ static int mipi_dbi_debugfs_command_show(struct seq_file *m, void *unused)
 			seq_puts(m, "XX\n");
 			continue;
 		}
-
-		for (i = 0; i < len; i++)
-			seq_printf(m, "%02x", val[i]);
-		seq_puts(m, "\n");
+		seq_printf(m, "%*phN\n", (int)len, val);
 	}
 
 	return 0;

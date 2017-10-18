@@ -46,10 +46,10 @@
 #define SACR0_STRF	(1 << 5)	/* FIFO Select for EFWR Special Function */
 #define SACR0_EFWR	(1 << 4)	/* Enable EFWR Function  */
 #define SACR0_RST	(1 << 3)	/* FIFO, i2s Register Reset */
-#define SACR0_BCKD	(1 << 2) 	/* Bit Clock Direction */
+#define SACR0_BCKD	(1 << 2)	/* Bit Clock Direction */
 #define SACR0_ENB	(1 << 0)	/* Enable I2S Link */
 #define SACR1_ENLBF	(1 << 5)	/* Enable Loopback */
-#define SACR1_DRPL	(1 << 4) 	/* Disable Replaying Function */
+#define SACR1_DRPL	(1 << 4)	/* Disable Replaying Function */
 #define SACR1_DREC	(1 << 3)	/* Disable Recording Function */
 #define SACR1_AMSL	(1 << 0)	/* Specify Alternate Mode */
 
@@ -60,7 +60,7 @@
 #define SASR0_TFS	(1 << 3)	/* Tx FIFO Service Request */
 #define SASR0_BSY	(1 << 2)	/* I2S Busy */
 #define SASR0_RNE	(1 << 1)	/* Rx FIFO Not Empty */
-#define SASR0_TNF	(1 << 0) 	/* Tx FIFO Not Empty */
+#define SASR0_TNF	(1 << 0)	/* Tx FIFO Not Empty */
 
 #define SAICR_ROR	(1 << 6)	/* Clear Rx FIFO Overrun Interrupt */
 #define SAICR_TUR	(1 << 5)	/* Clear Tx FIFO Underrun Interrupt */
@@ -119,7 +119,7 @@ static int pxa_i2s_wait(void)
 	int i;
 
 	/* flush the Rx FIFO */
-	for(i = 0; i < 16; i++)
+	for (i = 0; i < 16; i++)
 		SADR;
 	return 0;
 }

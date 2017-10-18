@@ -85,7 +85,7 @@ static int pxa2xx_soc_pcm_new(struct snd_soc_pcm_runtime *rtd)
 }
 
 static struct snd_soc_platform_driver pxa2xx_soc_platform = {
-	.ops 	= &pxa2xx_pcm_ops,
+	.ops		= &pxa2xx_pcm_ops,
 	.pcm_new	= pxa2xx_soc_pcm_new,
 	.pcm_free	= pxa2xx_pcm_free_dma_buffers,
 };

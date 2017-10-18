@@ -277,7 +277,7 @@ debug_info_alloc(const char *name, int pages_per_area, int nr_areas,
 	memset(rc->views, 0, DEBUG_MAX_VIEWS * sizeof(struct debug_view *));
 	memset(rc->debugfs_entries, 0 ,DEBUG_MAX_VIEWS *
 		sizeof(struct dentry*));
-	atomic_set(&(rc->ref_count), 0);
+	refcount_set(&(rc->ref_count), 0);
 
 	return rc;
 
@@ -361,7 +361,7 @@ debug_info_create(const char *name, int pages_per_area, int nr_areas,
         debug_area_last = rc;
         rc->next = NULL;
 
-	debug_info_get(rc);
+	refcount_set(&rc->ref_count, 1);
 out:
 	return rc;
 }
@@ -416,7 +416,7 @@ static void
 debug_info_get(debug_info_t * db_info)
 {
 	if (db_info)
-		atomic_inc(&db_info->ref_count);
+		refcount_inc(&db_info->ref_count);
 }
 
 /*
@@ -431,7 +431,7 @@ debug_info_put(debug_info_t *db_info)
 
 	if (!db_info)
 		return;
-	if (atomic_dec_and_test(&db_info->ref_count)) {
+	if (refcount_dec_and_test(&db_info->ref_count)) {
 		for (i = 0; i < DEBUG_MAX_VIEWS; i++) {
 			if (!db_info->views[i])
 				continue;

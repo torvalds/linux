@@ -140,17 +140,20 @@
 #define MXR_INT_EN_VSYNC		(1 << 11)
 #define MXR_INT_EN_ALL			(0x0f << 8)
 
-/* bit for MXR_INT_STATUS */
+/* bits for MXR_INT_STATUS */
 #define MXR_INT_CLEAR_VSYNC		(1 << 11)
 #define MXR_INT_STATUS_VSYNC		(1 << 0)
 
-/* bit for MXR_LAYER_CFG */
+/* bits for MXR_LAYER_CFG */
 #define MXR_LAYER_CFG_GRP1_VAL(x)	MXR_MASK_VAL(x, 11, 8)
 #define MXR_LAYER_CFG_GRP1_MASK		MXR_LAYER_CFG_GRP1_VAL(~0)
 #define MXR_LAYER_CFG_GRP0_VAL(x)	MXR_MASK_VAL(x, 7, 4)
 #define MXR_LAYER_CFG_GRP0_MASK		MXR_LAYER_CFG_GRP0_VAL(~0)
 #define MXR_LAYER_CFG_VP_VAL(x)		MXR_MASK_VAL(x, 3, 0)
 #define MXR_LAYER_CFG_VP_MASK		MXR_LAYER_CFG_VP_VAL(~0)
+
+/* bits for MXR_CM_COEFF_Y */
+#define MXR_CM_COEFF_RGB_FULL		(1 << 30)
 
 #endif /* SAMSUNG_REGS_MIXER_H */
 

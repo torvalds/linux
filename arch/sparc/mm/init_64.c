@@ -325,6 +325,29 @@ static void __update_mmu_tsb_insert(struct mm_struct *mm, unsigned long tsb_inde
 }
 
 #ifdef CONFIG_HUGETLB_PAGE
+static void __init add_huge_page_size(unsigned long size)
+{
+	unsigned int order;
+
+	if (size_to_hstate(size))
+		return;
+
+	order = ilog2(size) - PAGE_SHIFT;
+	hugetlb_add_hstate(order);
+}
+
+static int __init hugetlbpage_init(void)
+{
+	add_huge_page_size(1UL << HPAGE_64K_SHIFT);
+	add_huge_page_size(1UL << HPAGE_SHIFT);
+	add_huge_page_size(1UL << HPAGE_256MB_SHIFT);
+	add_huge_page_size(1UL << HPAGE_2GB_SHIFT);
+
+	return 0;
+}
+
+arch_initcall(hugetlbpage_init);
+
 static int __init setup_hugepagesz(char *string)
 {
 	unsigned long long hugepage_size;
@@ -358,12 +381,13 @@ static int __init setup_hugepagesz(char *string)
 	}
 
 	if ((hv_pgsz_mask & cpu_pgsz_mask) == 0U) {
-		pr_warn("hugepagesz=%llu not supported by MMU.\n",
+		hugetlb_bad_size();
+		pr_err("hugepagesz=%llu not supported by MMU.\n",
 			hugepage_size);
 		goto out;
 	}
 
-	hugetlb_add_hstate(hugepage_shift - PAGE_SHIFT);
+	add_huge_page_size(hugepage_size);
 	rc = 1;
 
 out:
@@ -706,10 +730,58 @@ EXPORT_SYMBOL(__flush_dcache_range);
 
 /* get_new_mmu_context() uses "cache + 1".  */
 DEFINE_SPINLOCK(ctx_alloc_lock);
-unsigned long tlb_context_cache = CTX_FIRST_VERSION - 1;
+unsigned long tlb_context_cache = CTX_FIRST_VERSION;
 #define MAX_CTX_NR	(1UL << CTX_NR_BITS)
 #define CTX_BMAP_SLOTS	BITS_TO_LONGS(MAX_CTX_NR)
 DECLARE_BITMAP(mmu_context_bmap, MAX_CTX_NR);
+DEFINE_PER_CPU(struct mm_struct *, per_cpu_secondary_mm) = {0};
+
+static void mmu_context_wrap(void)
+{
+	unsigned long old_ver = tlb_context_cache & CTX_VERSION_MASK;
+	unsigned long new_ver, new_ctx, old_ctx;
+	struct mm_struct *mm;
+	int cpu;
+
+	bitmap_zero(mmu_context_bmap, 1 << CTX_NR_BITS);
+
+	/* Reserve kernel context */
+	set_bit(0, mmu_context_bmap);
+
+	new_ver = (tlb_context_cache & CTX_VERSION_MASK) + CTX_FIRST_VERSION;
+	if (unlikely(new_ver == 0))
+		new_ver = CTX_FIRST_VERSION;
+	tlb_context_cache = new_ver;
+
+	/*
+	 * Make sure that any new mm that are added into per_cpu_secondary_mm,
+	 * are going to go through get_new_mmu_context() path.
+	 */
+	mb();
+
+	/*
+	 * Updated versions to current on those CPUs that had valid secondary
+	 * contexts
+	 */
+	for_each_online_cpu(cpu) {
+		/*
+		 * If a new mm is stored after we took this mm from the array,
+		 * it will go into get_new_mmu_context() path, because we
+		 * already bumped the version in tlb_context_cache.
+		 */
+		mm = per_cpu(per_cpu_secondary_mm, cpu);
+
+		if (unlikely(!mm || mm == &init_mm))
+			continue;
+
+		old_ctx = mm->context.sparc64_ctx_val;
+		if (likely((old_ctx & CTX_VERSION_MASK) == old_ver)) {
+			new_ctx = (old_ctx & ~CTX_VERSION_MASK) | new_ver;
+			set_bit(new_ctx & CTX_NR_MASK, mmu_context_bmap);
+			mm->context.sparc64_ctx_val = new_ctx;
+		}
+	}
+}
 
 /* Caller does TLB context flushing on local CPU if necessary.
  * The caller also ensures that CTX_VALID(mm->context) is false.
@@ -725,48 +797,30 @@ void get_new_mmu_context(struct mm_struct *mm)
 {
 	unsigned long ctx, new_ctx;
 	unsigned long orig_pgsz_bits;
-	int new_version;
 
 	spin_lock(&ctx_alloc_lock);
+retry:
+	/* wrap might have happened, test again if our context became valid */
+	if (unlikely(CTX_VALID(mm->context)))
+		goto out;
 	orig_pgsz_bits = (mm->context.sparc64_ctx_val & CTX_PGSZ_MASK);
 	ctx = (tlb_context_cache + 1) & CTX_NR_MASK;
 	new_ctx = find_next_zero_bit(mmu_context_bmap, 1 << CTX_NR_BITS, ctx);
-	new_version = 0;
 	if (new_ctx >= (1 << CTX_NR_BITS)) {
 		new_ctx = find_next_zero_bit(mmu_context_bmap, ctx, 1);
 		if (new_ctx >= ctx) {
-			int i;
-			new_ctx = (tlb_context_cache & CTX_VERSION_MASK) +
-				CTX_FIRST_VERSION;
-			if (new_ctx == 1)
-				new_ctx = CTX_FIRST_VERSION;
-
-			/* Don't call memset, for 16 entries that's just
-			 * plain silly...
-			 */
-			mmu_context_bmap[0] = 3;
-			mmu_context_bmap[1] = 0;
-			mmu_context_bmap[2] = 0;
-			mmu_context_bmap[3] = 0;
-			for (i = 4; i < CTX_BMAP_SLOTS; i += 4) {
-				mmu_context_bmap[i + 0] = 0;
-				mmu_context_bmap[i + 1] = 0;
-				mmu_context_bmap[i + 2] = 0;
-				mmu_context_bmap[i + 3] = 0;
-			}
-			new_version = 1;
-			goto out;
+			mmu_context_wrap();
+			goto retry;
 		}
 	}
+	if (mm->context.sparc64_ctx_val)
+		cpumask_clear(mm_cpumask(mm));
 	mmu_context_bmap[new_ctx>>6] |= (1UL << (new_ctx & 63));
 	new_ctx |= (tlb_context_cache & CTX_VERSION_MASK);
-out:
 	tlb_context_cache = new_ctx;
 	mm->context.sparc64_ctx_val = new_ctx | orig_pgsz_bits;
+out:
 	spin_unlock(&ctx_alloc_lock);
-
-	if (unlikely(new_version))
-		smp_new_mmu_context_version();
 }
 
 static int numa_enabled = 1;
@@ -1890,11 +1944,21 @@ static void __init setup_page_offset(void)
 			break;
 		case SUN4V_CHIP_SPARC_M7:
 		case SUN4V_CHIP_SPARC_SN:
-		default:
 			/* M7 and later support 52-bit virtual addresses.  */
 			sparc64_va_hole_top =    0xfff8000000000000UL;
 			sparc64_va_hole_bottom = 0x0008000000000000UL;
 			max_phys_bits = 49;
+			break;
+		case SUN4V_CHIP_SPARC_M8:
+		default:
+			/* M8 and later support 54-bit virtual addresses.
+			 * However, restricting M8 and above VA bits to 53
+			 * as 4-level page table cannot support more than
+			 * 53 VA bits.
+			 */
+			sparc64_va_hole_top =    0xfff0000000000000UL;
+			sparc64_va_hole_bottom = 0x0010000000000000UL;
+			max_phys_bits = 51;
 			break;
 		}
 	}
@@ -2107,6 +2171,7 @@ static void __init sun4v_linear_pte_xor_finalize(void)
 	 */
 	switch (sun4v_chip_type) {
 	case SUN4V_CHIP_SPARC_M7:
+	case SUN4V_CHIP_SPARC_M8:
 	case SUN4V_CHIP_SPARC_SN:
 		pagecv_flag = 0x00;
 		break;
@@ -2259,6 +2324,7 @@ void __init paging_init(void)
 	 */
 	switch (sun4v_chip_type) {
 	case SUN4V_CHIP_SPARC_M7:
+	case SUN4V_CHIP_SPARC_M8:
 	case SUN4V_CHIP_SPARC_SN:
 		page_cache4v_flag = _PAGE_CP_4V;
 		break;

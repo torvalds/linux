@@ -188,8 +188,6 @@ static int cifs_creation_time_get(struct dentry *dentry, struct inode *inode,
 	pcreatetime = (__u64 *)value;
 	*pcreatetime = CIFS_I(inode)->createtime;
 	return sizeof(__u64);
-
-	return rc;
 }
 
 
@@ -235,8 +233,7 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 
 		if (pTcon->ses->server->ops->query_all_EAs)
 			rc = pTcon->ses->server->ops->query_all_EAs(xid, pTcon,
-				full_path, name, value, size,
-				cifs_sb->local_nls, cifs_remap(cifs_sb));
+				full_path, name, value, size, cifs_sb);
 		break;
 
 	case XATTR_CIFS_ACL: {
@@ -336,8 +333,7 @@ ssize_t cifs_listxattr(struct dentry *direntry, char *data, size_t buf_size)
 
 	if (pTcon->ses->server->ops->query_all_EAs)
 		rc = pTcon->ses->server->ops->query_all_EAs(xid, pTcon,
-				full_path, NULL, data, buf_size,
-				cifs_sb->local_nls, cifs_remap(cifs_sb));
+				full_path, NULL, data, buf_size, cifs_sb);
 list_ea_exit:
 	kfree(full_path);
 	free_xid(xid);

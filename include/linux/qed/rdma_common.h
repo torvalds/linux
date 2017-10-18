@@ -42,7 +42,7 @@
 #define RDMA_MAX_SGE_PER_SQ_WQE         (4)
 #define RDMA_MAX_SGE_PER_RQ_WQE         (4)
 
-#define RDMA_MAX_DATA_SIZE_IN_WQE       (0x7FFFFFFF)
+#define RDMA_MAX_DATA_SIZE_IN_WQE	(0x80000000)
 
 #define RDMA_REQ_RD_ATOMIC_ELM_SIZE             (0x50)
 #define RDMA_RESP_RD_ATOMIC_ELM_SIZE    (0x20)
@@ -52,7 +52,8 @@
 #define RDMA_MAX_PDS                            (64 * 1024)
 
 #define RDMA_NUM_STATISTIC_COUNTERS                     MAX_NUM_VPORTS
-#define RDMA_NUM_STATISTIC_COUNTERS_BB			MAX_NUM_VPORTS_BB
+#define RDMA_NUM_STATISTIC_COUNTERS_K2                  MAX_NUM_VPORTS_K2
+#define RDMA_NUM_STATISTIC_COUNTERS_BB                  MAX_NUM_VPORTS_BB
 
 #define RDMA_TASK_TYPE (PROTOCOLID_ROCE)
 

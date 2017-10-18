@@ -74,7 +74,8 @@ static long cifs_ioctl_copychunk(unsigned int xid, struct file *dst_file,
 
 	rc = cifs_file_copychunk_range(xid, src_file.file, 0, dst_file, 0,
 					src_inode->i_size, 0);
-
+	if (rc > 0)
+		rc = 0;
 out_fput:
 	fdput(src_file);
 out_drop_write:
@@ -100,7 +101,6 @@ static long smb_mnt_get_fsinfo(unsigned int xid, struct cifs_tcon *tcon,
 	fsinf->fs_attributes = le32_to_cpu(tcon->fsAttrInfo.Attributes);
 	fsinf->max_path_component =
 		le32_to_cpu(tcon->fsAttrInfo.MaxPathNameComponentLength);
-#ifdef CONFIG_CIFS_SMB2
 	fsinf->vol_serial_number = tcon->vol_serial_number;
 	fsinf->vol_create_time = le64_to_cpu(tcon->vol_create_time);
 	fsinf->share_flags = tcon->share_flags;
@@ -109,7 +109,6 @@ static long smb_mnt_get_fsinfo(unsigned int xid, struct cifs_tcon *tcon,
 	fsinf->optimal_sector_size = tcon->perf_sector_size;
 	fsinf->max_bytes_chunk = tcon->max_bytes_chunk;
 	fsinf->maximal_access = tcon->maximal_access;
-#endif /* SMB2 */
 	fsinf->cifs_posix_caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
 
 	if (copy_to_user(arg, fsinf, sizeof(struct smb_mnt_fs_info)))
@@ -208,10 +207,14 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				rc = -EOPNOTSUPP;
 			break;
 		case CIFS_IOC_GET_MNT_INFO:
+			if (pSMBFile == NULL)
+				break;
 			tcon = tlink_tcon(pSMBFile->tlink);
 			rc = smb_mnt_get_fsinfo(xid, tcon, (void __user *)arg);
 			break;
 		case CIFS_ENUMERATE_SNAPSHOTS:
+			if (pSMBFile == NULL)
+				break;
 			if (arg == 0) {
 				rc = -EINVAL;
 				goto cifs_ioc_exit;

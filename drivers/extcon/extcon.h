@@ -21,6 +21,8 @@
  * @dev:		Device of this extcon.
  * @state:		Attach/detach state of this extcon. Do not provide at
  *			register-time.
+ * @nh_all:		Notifier for the state change events for all supported
+ *			external connectors from this extcon.
  * @nh:			Notifier for the state change events from this extcon
  * @entry:		To support list of extcon devices so that users can
  *			search for extcon devices based on the extcon name.
@@ -43,6 +45,7 @@ struct extcon_dev {
 
 	/* Internal data. Please do not set. */
 	struct device dev;
+	struct raw_notifier_head nh_all;
 	struct raw_notifier_head *nh;
 	struct list_head entry;
 	int max_supported;

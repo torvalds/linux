@@ -58,6 +58,9 @@ struct nf_conntrack_l4proto {
 		     unsigned int dataoff,
 		     u_int8_t pf, unsigned int hooknum);
 
+	/* called by gc worker if table is full */
+	bool (*can_early_drop)(const struct nf_conn *ct);
+
 	/* Print out the per-protocol part of the tuple. Return like seq_* */
 	void (*print_tuple)(struct seq_file *s,
 			    const struct nf_conntrack_tuple *);

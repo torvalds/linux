@@ -11,12 +11,13 @@
  *
  * In VC4, the Pixel Valve is what most closely corresponds to the
  * DRM's concept of a CRTC.  The PV generates video timings from the
- * output's clock plus its configuration.  It pulls scaled pixels from
+ * encoder's clock plus its configuration.  It pulls scaled pixels from
  * the HVS at that timing, and feeds it to the encoder.
  *
  * However, the DRM CRTC also collects the configuration of all the
- * DRM planes attached to it.  As a result, this file also manages
- * setup of the VC4 HVS's display elements on the CRTC.
+ * DRM planes attached to it.  As a result, the CRTC is also
+ * responsible for writing the display list for the HVS channel that
+ * the CRTC will use.
  *
  * The 2835 has 3 different pixel valves.  pv0 in the audio power
  * domain feeds DSI0 or DPI, while pv1 feeds DS1 or SMI.  pv2 in the
@@ -31,13 +32,13 @@
  * ones that set the clock.
  */
 
-#include "drm_atomic.h"
-#include "drm_atomic_helper.h"
-#include "drm_crtc_helper.h"
-#include "linux/clk.h"
-#include "drm_fb_cma_helper.h"
-#include "linux/component.h"
-#include "linux/of_device.h"
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc_helper.h>
+#include <linux/clk.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <linux/component.h>
+#include <linux/of_device.h>
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
@@ -150,10 +151,10 @@ int vc4_crtc_debugfs_regs(struct seq_file *m, void *unused)
 }
 #endif
 
-int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
-			    unsigned int flags, int *vpos, int *hpos,
-			    ktime_t *stime, ktime_t *etime,
-			    const struct drm_display_mode *mode)
+bool vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
+			     bool in_vblank_irq, int *vpos, int *hpos,
+			     ktime_t *stime, ktime_t *etime,
+			     const struct drm_display_mode *mode)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_crtc *crtc = drm_crtc_from_index(dev, crtc_id);
@@ -161,7 +162,7 @@ int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 	u32 val;
 	int fifo_lines;
 	int vblank_lines;
-	int ret = 0;
+	bool ret = false;
 
 	/* preempt_disable_rt() should go right here in PREEMPT_RT patchset. */
 
@@ -197,7 +198,7 @@ int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 	fifo_lines = vc4_crtc->cob_size / mode->crtc_hdisplay;
 
 	if (fifo_lines > 0)
-		ret |= DRM_SCANOUTPOS_VALID;
+		ret = true;
 
 	/* HVS more than fifo_lines into frame for compositing? */
 	if (*vpos > fifo_lines) {
@@ -215,7 +216,6 @@ int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 		 */
 		*vpos -= fifo_lines + 1;
 
-		ret |= DRM_SCANOUTPOS_ACCURATE;
 		return ret;
 	}
 
@@ -228,10 +228,9 @@ int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 	 * We can't get meaningful readings wrt. scanline position of the PV
 	 * and need to make things up in a approximative but consistent way.
 	 */
-	ret |= DRM_SCANOUTPOS_IN_VBLANK;
 	vblank_lines = mode->vtotal - mode->vdisplay;
 
-	if (flags & DRM_CALLED_FROM_VBLIRQ) {
+	if (in_vblank_irq) {
 		/*
 		 * Assume the irq handler got called close to first
 		 * line of vblank, so PV has about a full vblank
@@ -253,9 +252,10 @@ int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 		 * we are at the very beginning of vblank, as the hvs just
 		 * started refilling, and the stime and etime timestamps
 		 * truly correspond to start of vblank.
+		 *
+		 * Unfortunately there's no way to report this to upper levels
+		 * and make it more useful.
 		 */
-		if ((val & SCALER_DISPSTATX_FULL) != SCALER_DISPSTATX_FULL)
-			ret |= DRM_SCANOUTPOS_ACCURATE;
 	} else {
 		/*
 		 * No clue where we are inside vblank. Return a vpos of zero,
@@ -267,19 +267,6 @@ int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 	}
 
 	return ret;
-}
-
-int vc4_crtc_get_vblank_timestamp(struct drm_device *dev, unsigned int crtc_id,
-				  int *max_error, struct timeval *vblank_time,
-				  unsigned flags)
-{
-	struct drm_crtc *crtc = drm_crtc_from_index(dev, crtc_id);
-	struct drm_crtc_state *state = crtc->state;
-
-	/* Helper routine in DRM core does all the work: */
-	return drm_calc_vbltimestamp_from_scanoutpos(dev, crtc_id, max_error,
-						     vblank_time, flags,
-						     &state->adjusted_mode);
 }
 
 static void vc4_crtc_destroy(struct drm_crtc *crtc)
@@ -313,7 +300,8 @@ vc4_crtc_lut_load(struct drm_crtc *crtc)
 
 static int
 vc4_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-		   uint32_t size)
+		   uint32_t size,
+		   struct drm_modeset_acquire_ctx *ctx)
 {
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	u32 i;
@@ -357,12 +345,16 @@ static u32 vc4_get_fifo_full_level(u32 format)
 static struct drm_encoder *vc4_get_crtc_encoder(struct drm_crtc *crtc)
 {
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 
-	drm_for_each_connector(connector, crtc->dev) {
+	drm_connector_list_iter_begin(crtc->dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->state->crtc == crtc) {
+			drm_connector_list_iter_end(&conn_iter);
 			return connector->encoder;
 		}
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	return NULL;
 }
@@ -528,6 +520,34 @@ static void vc4_crtc_disable(struct drm_crtc *crtc)
 		     SCALER_DISPSTATX_EMPTY);
 }
 
+static void vc4_crtc_update_dlist(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
+
+	if (crtc->state->event) {
+		unsigned long flags;
+
+		crtc->state->event->pipe = drm_crtc_index(crtc);
+
+		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
+
+		spin_lock_irqsave(&dev->event_lock, flags);
+		vc4_crtc->event = crtc->state->event;
+		crtc->state->event = NULL;
+
+		HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
+			  vc4_state->mm.start);
+
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+	} else {
+		HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
+			  vc4_state->mm.start);
+	}
+}
+
 static void vc4_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -537,6 +557,12 @@ static void vc4_crtc_enable(struct drm_crtc *crtc)
 	struct drm_display_mode *mode = &state->adjusted_mode;
 
 	require_hvs_enabled(dev);
+
+	/* Enable vblank irq handling before crtc is started otherwise
+	 * drm_crtc_get_vblank() fails in vc4_crtc_update_dlist().
+	 */
+	drm_crtc_vblank_on(crtc);
+	vc4_crtc_update_dlist(crtc);
 
 	/* Turn on the scaler, which will wait for vstart to start
 	 * compositing.
@@ -549,9 +575,6 @@ static void vc4_crtc_enable(struct drm_crtc *crtc)
 	/* Turn on the pixel valve, which will emit the vstart signal. */
 	CRTC_WRITE(PV_V_CONTROL,
 		   CRTC_READ(PV_V_CONTROL) | PV_VCONTROL_VIDEN);
-
-	/* Enable vblank irq handling after crtc is started. */
-	drm_crtc_vblank_on(crtc);
 }
 
 static bool vc4_crtc_mode_fixup(struct drm_crtc *crtc,
@@ -606,7 +629,6 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
 	struct drm_plane *plane;
 	bool debug_dump_regs = false;
@@ -628,25 +650,15 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 
 	WARN_ON_ONCE(dlist_next - dlist_start != vc4_state->mm.size);
 
-	if (crtc->state->event) {
-		unsigned long flags;
-
-		crtc->state->event->pipe = drm_crtc_index(crtc);
-
-		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
-
-		spin_lock_irqsave(&dev->event_lock, flags);
-		vc4_crtc->event = crtc->state->event;
-		crtc->state->event = NULL;
-
-		HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
-			  vc4_state->mm.start);
-
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-	} else {
-		HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
-			  vc4_state->mm.start);
-	}
+	/* Only update DISPLIST if the CRTC was already running and is not
+	 * being disabled.
+	 * vc4_crtc_enable() takes care of updating the dlist just after
+	 * re-enabling VBLANK interrupts and before enabling the engine.
+	 * If the CRTC is being disabled, there's no point in updating this
+	 * information.
+	 */
+	if (crtc->state->active && old_state->active)
+		vc4_crtc_update_dlist(crtc);
 
 	if (debug_dump_regs) {
 		DRM_INFO("CRTC %d HVS after:\n", drm_crtc_index(crtc));
@@ -654,9 +666,8 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 }
 
-int vc4_enable_vblank(struct drm_device *dev, unsigned int crtc_id)
+static int vc4_enable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_crtc *crtc = drm_crtc_from_index(dev, crtc_id);
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 
 	CRTC_WRITE(PV_INTEN, PV_INT_VFP_START);
@@ -664,9 +675,8 @@ int vc4_enable_vblank(struct drm_device *dev, unsigned int crtc_id)
 	return 0;
 }
 
-void vc4_disable_vblank(struct drm_device *dev, unsigned int crtc_id)
+static void vc4_disable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_crtc *crtc = drm_crtc_from_index(dev, crtc_id);
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 
 	CRTC_WRITE(PV_INTEN, 0);
@@ -808,12 +818,13 @@ static int vc4_async_page_flip(struct drm_crtc *crtc,
 static int vc4_page_flip(struct drm_crtc *crtc,
 			 struct drm_framebuffer *fb,
 			 struct drm_pending_vblank_event *event,
-			 uint32_t flags)
+			 uint32_t flags,
+			 struct drm_modeset_acquire_ctx *ctx)
 {
 	if (flags & DRM_MODE_PAGE_FLIP_ASYNC)
 		return vc4_async_page_flip(crtc, fb, event, flags);
 	else
-		return drm_atomic_helper_page_flip(crtc, fb, event, flags);
+		return drm_atomic_helper_page_flip(crtc, fb, event, flags, ctx);
 }
 
 static struct drm_crtc_state *vc4_crtc_duplicate_state(struct drm_crtc *crtc)
@@ -868,6 +879,8 @@ static const struct drm_crtc_funcs vc4_crtc_funcs = {
 	.atomic_duplicate_state = vc4_crtc_duplicate_state,
 	.atomic_destroy_state = vc4_crtc_destroy_state,
 	.gamma_set = vc4_crtc_gamma_set,
+	.enable_vblank = vc4_enable_vblank,
+	.disable_vblank = vc4_disable_vblank,
 };
 
 static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {

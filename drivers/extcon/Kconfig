@@ -52,6 +52,13 @@ config EXTCON_INTEL_INT3496
 	  This ACPI device is typically found on Intel Baytrail or Cherrytrail
 	  based tablets, or other Baytrail / Cherrytrail devices.
 
+config EXTCON_INTEL_CHT_WC
+	tristate "Intel Cherrytrail Whiskey Cove PMIC extcon driver"
+	depends on INTEL_SOC_PMIC_CHTWC
+	help
+	  Say Y here to enable extcon support for charger detection / control
+	  on the Intel Cherrytrail Whiskey Cove PMIC.
+
 config EXTCON_MAX14577
 	tristate "Maxim MAX14577/77836 EXTCON Support"
 	depends on MFD_MAX14577
@@ -108,6 +115,7 @@ config EXTCON_PALMAS
 
 config EXTCON_QCOM_SPMI_MISC
 	tristate "Qualcomm USB extcon support"
+	depends on ARCH_QCOM || COMPILE_TEST
 	help
 	  Say Y here to enable SPMI PMIC based USB cable detection
 	  support on Qualcomm PMICs such as PM8941.

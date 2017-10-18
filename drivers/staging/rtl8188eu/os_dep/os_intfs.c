@@ -49,9 +49,6 @@ MODULE_PARM_DESC(rtw_ips_mode, "The default IPS mode");
 
 static int rtw_debug = 1;
 
-static int rtw_software_encrypt;
-static int rtw_software_decrypt;
-
 static int rtw_acm_method;/*  0:By SW 1:By HW. */
 
 static int rtw_wmm_enable = 1;/*  default is set to enable the wmm. */
@@ -166,8 +163,6 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 	registry_par->power_mgnt = (u8)rtw_power_mgnt;
 	registry_par->ips_mode = (u8)rtw_ips_mode;
 	registry_par->mp_mode = 0;
-	registry_par->software_encrypt = (u8)rtw_software_encrypt;
-	registry_par->software_decrypt = (u8)rtw_software_decrypt;
 	registry_par->acm_method = (u8)rtw_acm_method;
 
 	 /* UAPSD */
@@ -393,8 +388,6 @@ static u8 rtw_init_default_value(struct adapter *padapter)
 
 	/* security_priv */
 	psecuritypriv->binstallGrpkey = _FAIL;
-	psecuritypriv->sw_encrypt = pregistrypriv->software_encrypt;
-	psecuritypriv->sw_decrypt = pregistrypriv->software_decrypt;
 	psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open;
 	psecuritypriv->dot11PrivacyAlgrthm = _NO_PRIVACY_;
 	psecuritypriv->dot11PrivacyKeyIndex = 0;

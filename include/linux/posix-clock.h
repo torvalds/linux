@@ -42,12 +42,6 @@ struct posix_clock;
  * @clock_gettime:  Read the current time
  * @clock_getres:   Get the clock resolution
  * @clock_settime:  Set the current time value
- * @timer_create:   Create a new timer
- * @timer_delete:   Remove a previously created timer
- * @timer_gettime:  Get remaining time and interval of a timer
- * @timer_settime: Set a timer's initial expiration and interval
- * @fasync:         Optional character device fasync method
- * @mmap:           Optional character device mmap method
  * @open:           Optional character device open method
  * @release:        Optional character device release method
  * @ioctl:          Optional character device ioctl method
@@ -59,34 +53,18 @@ struct posix_clock_operations {
 
 	int  (*clock_adjtime)(struct posix_clock *pc, struct timex *tx);
 
-	int  (*clock_gettime)(struct posix_clock *pc, struct timespec *ts);
+	int  (*clock_gettime)(struct posix_clock *pc, struct timespec64 *ts);
 
-	int  (*clock_getres) (struct posix_clock *pc, struct timespec *ts);
+	int  (*clock_getres) (struct posix_clock *pc, struct timespec64 *ts);
 
 	int  (*clock_settime)(struct posix_clock *pc,
-			      const struct timespec *ts);
+			      const struct timespec64 *ts);
 
-	int  (*timer_create) (struct posix_clock *pc, struct k_itimer *kit);
-
-	int  (*timer_delete) (struct posix_clock *pc, struct k_itimer *kit);
-
-	void (*timer_gettime)(struct posix_clock *pc,
-			      struct k_itimer *kit, struct itimerspec *tsp);
-
-	int  (*timer_settime)(struct posix_clock *pc,
-			      struct k_itimer *kit, int flags,
-			      struct itimerspec *tsp, struct itimerspec *old);
 	/*
 	 * Optional character device methods:
 	 */
-	int     (*fasync)  (struct posix_clock *pc,
-			    int fd, struct file *file, int on);
-
 	long    (*ioctl)   (struct posix_clock *pc,
 			    unsigned int cmd, unsigned long arg);
-
-	int     (*mmap)    (struct posix_clock *pc,
-			    struct vm_area_struct *vma);
 
 	int     (*open)    (struct posix_clock *pc, fmode_t f_mode);
 

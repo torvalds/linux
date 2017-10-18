@@ -1,0 +1,30 @@
+BROADCOM NORTHSTAR2 USB2 (DUAL ROLE DEVICE) PHY
+
+Required properties:
+ - compatible: brcm,ns2-drd-phy
+ - reg: offset and length of the NS2 PHY related registers.
+ - reg-names
+   The below registers must be provided.
+   icfg - for DRD ICFG configurations
+   rst-ctrl - for DRD IDM reset
+   crmu-ctrl - for CRMU core vdd, PHY and PHY PLL reset
+   usb2-strap - for port over current polarity reversal
+ - #phy-cells: Must be 0. No args required.
+ - vbus-gpios: vbus gpio binding
+ - id-gpios: id gpio binding
+
+Refer to phy/phy-bindings.txt for the generic PHY binding properties
+
+Example:
+	usbdrd_phy: phy@66000960 {
+			#phy-cells = <0>;
+			compatible = "brcm,ns2-drd-phy";
+			reg = <0x66000960 0x24>,
+			      <0x67012800 0x4>,
+			      <0x6501d148 0x4>,
+			      <0x664d0700 0x4>;
+			reg-names = "icfg", "rst-ctrl",
+				    "crmu-ctrl", "usb2-strap";
+			id-gpios = <&gpio_g 30 0>;
+			vbus-gpios = <&gpio_g 31 0>;
+	};

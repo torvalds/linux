@@ -1301,7 +1301,7 @@ static void efx_mcdi_abandon(struct efx_nic *efx)
 	efx_schedule_reset(efx, RESET_TYPE_MCDI_TIMEOUT);
 }
 
-/* Called from  falcon_process_eventq for MCDI events */
+/* Called from efx_farch_ev_process and efx_ef10_ev_process for MCDI events */
 void efx_mcdi_process_event(struct efx_channel *channel,
 			    efx_qword_t *event)
 {
@@ -1389,8 +1389,9 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 				MCDI_EVENT_FIELD(*event, PROXY_RESPONSE_RC));
 		break;
 	default:
-		netif_err(efx, hw, efx->net_dev, "Unknown MCDI event 0x%x\n",
-			  code);
+		netif_err(efx, hw, efx->net_dev,
+			  "Unknown MCDI event " EFX_QWORD_FMT "\n",
+			  EFX_QWORD_VAL(*event));
 	}
 }
 

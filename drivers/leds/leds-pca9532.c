@@ -254,6 +254,21 @@ static void pca9532_input_work(struct work_struct *work)
 	mutex_unlock(&data->update_lock);
 }
 
+static enum pca9532_state pca9532_getled(struct pca9532_led *led)
+{
+	struct i2c_client *client = led->client;
+	struct pca9532_data *data = i2c_get_clientdata(client);
+	u8 maxleds = data->chip_info->num_leds;
+	char reg;
+	enum pca9532_state ret;
+
+	mutex_lock(&data->update_lock);
+	reg = i2c_smbus_read_byte_data(client, LED_REG(maxleds, led->id));
+	ret = reg >> LED_NUM(led->id)/2;
+	mutex_unlock(&data->update_lock);
+	return ret;
+}
+
 #ifdef CONFIG_LEDS_PCA9532_GPIO
 static int pca9532_gpio_request_pin(struct gpio_chip *gc, unsigned offset)
 {
@@ -366,7 +381,10 @@ static int pca9532_configure(struct i2c_client *client,
 			gpios++;
 			break;
 		case PCA9532_TYPE_LED:
-			led->state = pled->state;
+			if (pled->state == PCA9532_KEEP)
+				led->state = pca9532_getled(led);
+			else
+				led->state = pled->state;
 			led->name = pled->name;
 			led->ldev.name = led->name;
 			led->ldev.default_trigger = pled->default_trigger;
@@ -456,6 +474,7 @@ pca9532_of_populate_pdata(struct device *dev, struct device_node *np)
 	const struct of_device_id *match;
 	int devid, maxleds;
 	int i = 0;
+	const char *state;
 
 	match = of_match_device(of_pca9532_leds_match, dev);
 	if (!match)
@@ -475,6 +494,12 @@ pca9532_of_populate_pdata(struct device *dev, struct device_node *np)
 		of_property_read_u32(child, "type", &pdata->leds[i].type);
 		of_property_read_string(child, "linux,default-trigger",
 					&pdata->leds[i].default_trigger);
+		if (!of_property_read_string(child, "default-state", &state)) {
+			if (!strcmp(state, "on"))
+				pdata->leds[i].state = PCA9532_ON;
+			else if (!strcmp(state, "keep"))
+				pdata->leds[i].state = PCA9532_KEEP;
+		}
 		if (++i >= maxleds) {
 			of_node_put(child);
 			break;

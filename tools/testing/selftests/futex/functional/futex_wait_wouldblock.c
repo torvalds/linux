@@ -28,6 +28,7 @@
 #include "futextest.h"
 #include "logging.h"
 
+#define TEST_NAME "futex-wait-wouldblock"
 #define timeout_ns 100000
 
 void usage(char *prog)
@@ -74,6 +75,6 @@ int main(int argc, char *argv[])
 		ret = RET_FAIL;
 	}
 
-	print_result(ret);
+	print_result(TEST_NAME, ret);
 	return ret;
 }

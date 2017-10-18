@@ -58,6 +58,13 @@ static const struct i2c_device_id s35390a_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, s35390a_id);
 
+static const struct of_device_id s35390a_of_match[] = {
+	{ .compatible = "s35390a" },
+	{ .compatible = "sii,s35390a" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, s35390a_of_match);
+
 struct s35390a {
 	struct i2c_client *client[8];
 	struct rtc_device *rtc;
@@ -502,6 +509,7 @@ static int s35390a_remove(struct i2c_client *client)
 static struct i2c_driver s35390a_driver = {
 	.driver		= {
 		.name	= "rtc-s35390a",
+		.of_match_table = of_match_ptr(s35390a_of_match),
 	},
 	.probe		= s35390a_probe,
 	.remove		= s35390a_remove,

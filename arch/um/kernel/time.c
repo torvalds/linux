@@ -65,7 +65,9 @@ static struct clock_event_device timer_clockevent = {
 	.set_next_event		= itimer_next_event,
 	.shift			= 0,
 	.max_delta_ns		= 0xffffffff,
-	.min_delta_ns		= TIMER_MIN_DELTA, //microsecond resolution should be enough for anyone, same as 640K RAM
+	.max_delta_ticks	= 0xffffffff,
+	.min_delta_ns		= TIMER_MIN_DELTA,
+	.min_delta_ticks	= TIMER_MIN_DELTA, // microsecond resolution should be enough for anyone, same as 640K RAM
 	.irq			= 0,
 	.mult			= 1,
 };

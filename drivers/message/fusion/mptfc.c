@@ -1329,7 +1329,7 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 					WQ_MEM_RECLAIM);
 	if (!ioc->fc_rescan_work_q) {
 		error = -ENOMEM;
-		goto out_mptfc_probe;
+		goto out_mptfc_host;
 	}
 
 	/*
@@ -1350,6 +1350,9 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	flush_workqueue(ioc->fc_rescan_work_q);
 
 	return 0;
+
+out_mptfc_host:
+	scsi_remove_host(sh);
 
 out_mptfc_probe:
 
@@ -1529,6 +1532,8 @@ static void mptfc_remove(struct pci_dev *pdev)
 			ioc->fc_data.fc_port_page1[ii].data = NULL;
 		}
 	}
+
+	scsi_remove_host(ioc->sh);
 
 	mptscsih_remove(pdev);
 }

@@ -82,14 +82,14 @@
 _GLOBAL(__copy_tofrom_user_power7)
 #ifdef CONFIG_ALTIVEC
 	cmpldi	r5,16
-	cmpldi	cr1,r5,4096
+	cmpldi	cr1,r5,3328
 
 	std	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
 	std	r4,-STACKFRAMESIZE+STK_REG(R30)(r1)
 	std	r5,-STACKFRAMESIZE+STK_REG(R29)(r1)
 
 	blt	.Lshort_copy
-	bgt	cr1,.Lvmx_copy
+	bge	cr1,.Lvmx_copy
 #else
 	cmpldi	r5,16
 

@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -90,13 +90,13 @@ enum iwl_mac_context_info {
  * @non_cfg_phy_cnt: non configurable DSP phy data byte count
  * @cfg_phy_cnt: configurable DSP phy data byte count
  * @stat_id: configurable DSP phy data set ID
- * @reserved1:
+ * @reserved1: reserved
  * @system_timestamp: GP2  at on air rise
  * @timestamp: TSF at on air rise
  * @beacon_time_stamp: beacon at on-air rise
  * @phy_flags: general phy flags: band, modulation, ...
  * @channel: channel number
- * @non_cfg_phy_buf: for various implementations of non_cfg_phy
+ * @non_cfg_phy: for various implementations of non_cfg_phy
  * @rate_n_flags: RATE_MCS_*
  * @byte_count: frame's byte-count
  * @frame_time: frame's time on the air, based on byte count and frame rate
@@ -147,7 +147,8 @@ enum iwl_csum_rx_assist_info {
 
 /**
  * struct iwl_rx_mpdu_res_start - phy info
- * @assist: see CSUM_RX_ASSIST_ above
+ * @byte_count: byte count of the frame
+ * @assist: see &enum iwl_csum_rx_assist_info
  */
 struct iwl_rx_mpdu_res_start {
 	__le16 byte_count;
@@ -157,10 +158,11 @@ struct iwl_rx_mpdu_res_start {
 /**
  * enum iwl_rx_phy_flags - to parse %iwl_rx_phy_info phy_flags
  * @RX_RES_PHY_FLAGS_BAND_24: true if the packet was received on 2.4 band
- * @RX_RES_PHY_FLAGS_MOD_CCK:
+ * @RX_RES_PHY_FLAGS_MOD_CCK: modulation is CCK
  * @RX_RES_PHY_FLAGS_SHORT_PREAMBLE: true if packet's preamble was short
- * @RX_RES_PHY_FLAGS_NARROW_BAND:
+ * @RX_RES_PHY_FLAGS_NARROW_BAND: narrow band (<20 MHz) receive
  * @RX_RES_PHY_FLAGS_ANTENNA: antenna on which the packet was received
+ * @RX_RES_PHY_FLAGS_ANTENNA_POS: antenna bit position
  * @RX_RES_PHY_FLAGS_AGG: set if the packet was part of an A-MPDU
  * @RX_RES_PHY_FLAGS_OFDM_HT: The frame was an HT frame
  * @RX_RES_PHY_FLAGS_OFDM_GF: The frame used GF preamble
@@ -183,9 +185,9 @@ enum iwl_rx_phy_flags {
  * enum iwl_mvm_rx_status - written by fw for each Rx packet
  * @RX_MPDU_RES_STATUS_CRC_OK: CRC is fine
  * @RX_MPDU_RES_STATUS_OVERRUN_OK: there was no RXE overflow
- * @RX_MPDU_RES_STATUS_SRC_STA_FOUND:
- * @RX_MPDU_RES_STATUS_KEY_VALID:
- * @RX_MPDU_RES_STATUS_KEY_PARAM_OK:
+ * @RX_MPDU_RES_STATUS_SRC_STA_FOUND: station was found
+ * @RX_MPDU_RES_STATUS_KEY_VALID: key was valid
+ * @RX_MPDU_RES_STATUS_KEY_PARAM_OK: key parameters were usable
  * @RX_MPDU_RES_STATUS_ICV_OK: ICV is fine, if not, the packet is destroyed
  * @RX_MPDU_RES_STATUS_MIC_OK: used for CCM alg only. TKIP MIC is checked
  *	in the driver.
@@ -197,21 +199,21 @@ enum iwl_rx_phy_flags {
  * @RX_MPDU_RES_STATUS_SEC_WEP_ENC: this frame is encrypted using WEP
  * @RX_MPDU_RES_STATUS_SEC_CCM_ENC: this frame is encrypted using CCM
  * @RX_MPDU_RES_STATUS_SEC_TKIP_ENC: this frame is encrypted using TKIP
+ * @RX_MPDU_RES_STATUS_SEC_EXT_ENC: this frame is encrypted using extension
+ *	algorithm
  * @RX_MPDU_RES_STATUS_SEC_CCM_CMAC_ENC: this frame is encrypted using CCM_CMAC
  * @RX_MPDU_RES_STATUS_SEC_ENC_ERR: this frame couldn't be decrypted
  * @RX_MPDU_RES_STATUS_SEC_ENC_MSK: bitmask of the encryption algorithm
  * @RX_MPDU_RES_STATUS_DEC_DONE: this frame has been successfully decrypted
- * @RX_MPDU_RES_STATUS_PROTECT_FRAME_BIT_CMP:
- * @RX_MPDU_RES_STATUS_EXT_IV_BIT_CMP:
- * @RX_MPDU_RES_STATUS_KEY_ID_CMP_BIT:
+ * @RX_MPDU_RES_STATUS_EXT_IV_BIT_CMP: extended IV (set with TKIP)
+ * @RX_MPDU_RES_STATUS_KEY_ID_CMP_BIT: key ID comparison done
  * @RX_MPDU_RES_STATUS_ROBUST_MNG_FRAME: this frame is an 11w management frame
  * @RX_MPDU_RES_STATUS_CSUM_DONE: checksum was done by the hw
  * @RX_MPDU_RES_STATUS_CSUM_OK: checksum found no errors
- * @RX_MPDU_RES_STATUS_HASH_INDEX_MSK:
- * @RX_MPDU_RES_STATUS_STA_ID_MSK:
- * @RX_MPDU_RES_STATUS_RRF_KILL:
- * @RX_MPDU_RES_STATUS_FILTERING_MSK:
- * @RX_MPDU_RES_STATUS2_FILTERING_MSK:
+ * @RX_MPDU_RES_STATUS_STA_ID_MSK: station ID mask
+ * @RX_MDPU_RES_STATUS_STA_ID_SHIFT: station ID bit shift
+ * @RX_MPDU_RES_STATUS_FILTERING_MSK: filter status
+ * @RX_MPDU_RES_STATUS2_FILTERING_MSK: filter status 2
  */
 enum iwl_mvm_rx_status {
 	RX_MPDU_RES_STATUS_CRC_OK			= BIT(0),
@@ -232,16 +234,13 @@ enum iwl_mvm_rx_status {
 	RX_MPDU_RES_STATUS_SEC_ENC_ERR			= (7 << 8),
 	RX_MPDU_RES_STATUS_SEC_ENC_MSK			= (7 << 8),
 	RX_MPDU_RES_STATUS_DEC_DONE			= BIT(11),
-	RX_MPDU_RES_STATUS_PROTECT_FRAME_BIT_CMP	= BIT(12),
 	RX_MPDU_RES_STATUS_EXT_IV_BIT_CMP		= BIT(13),
 	RX_MPDU_RES_STATUS_KEY_ID_CMP_BIT		= BIT(14),
 	RX_MPDU_RES_STATUS_ROBUST_MNG_FRAME		= BIT(15),
 	RX_MPDU_RES_STATUS_CSUM_DONE			= BIT(16),
 	RX_MPDU_RES_STATUS_CSUM_OK			= BIT(17),
-	RX_MPDU_RES_STATUS_HASH_INDEX_MSK		= (0x3F0000),
 	RX_MDPU_RES_STATUS_STA_ID_SHIFT			= 24,
 	RX_MPDU_RES_STATUS_STA_ID_MSK			= 0x1f << RX_MDPU_RES_STATUS_STA_ID_SHIFT,
-	RX_MPDU_RES_STATUS_RRF_KILL			= BIT(29),
 	RX_MPDU_RES_STATUS_FILTERING_MSK		= (0xc00000),
 	RX_MPDU_RES_STATUS2_FILTERING_MSK		= (0xc0000000),
 };
@@ -348,35 +347,106 @@ enum iwl_rx_mpdu_mac_info {
 	IWL_RX_MPDU_PHY_PHY_INDEX_MASK		= 0xf0,
 };
 
+/**
+ * struct iwl_rx_mpdu_desc - RX MPDU descriptor
+ */
 struct iwl_rx_mpdu_desc {
 	/* DW2 */
+	/**
+	 * @mpdu_len: MPDU length
+	 */
 	__le16 mpdu_len;
+	/**
+	 * @mac_flags1: &enum iwl_rx_mpdu_mac_flags1
+	 */
 	u8 mac_flags1;
+	/**
+	 * @mac_flags2: &enum iwl_rx_mpdu_mac_flags2
+	 */
 	u8 mac_flags2;
 	/* DW3 */
+	/**
+	 * @amsdu_info: &enum iwl_rx_mpdu_amsdu_info
+	 */
 	u8 amsdu_info;
+	/**
+	 * @phy_info: &enum iwl_rx_mpdu_phy_info
+	 */
 	__le16 phy_info;
+	/**
+	 * @mac_phy_idx: MAC/PHY index
+	 */
 	u8 mac_phy_idx;
 	/* DW4 - carries csum data only when rpa_en == 1 */
-	__le16 raw_csum; /* alledgedly unreliable */
+	/**
+	 * @raw_csum: raw checksum (alledgedly unreliable)
+	 */
+	__le16 raw_csum;
+	/**
+	 * @l3l4_flags: &enum iwl_rx_l3l4_flags
+	 */
 	__le16 l3l4_flags;
 	/* DW5 */
+	/**
+	 * @status: &enum iwl_rx_mpdu_status
+	 */
 	__le16 status;
+	/**
+	 * @hash_filter: hash filter value
+	 */
 	u8 hash_filter;
+	/**
+	 * @sta_id_flags: &enum iwl_rx_mpdu_sta_id_flags
+	 */
 	u8 sta_id_flags;
 	/* DW6 */
+	/**
+	 * @reorder_data: &enum iwl_rx_mpdu_reorder_data
+	 */
 	__le32 reorder_data;
 	/* DW7 - carries rss_hash only when rpa_en == 1 */
+	/**
+	 * @rss_hash: RSS hash value
+	 */
 	__le32 rss_hash;
 	/* DW8 - carries filter_match only when rpa_en == 1 */
+	/**
+	 * @filter_match: filter match value
+	 */
 	__le32 filter_match;
 	/* DW9 */
+	/**
+	 * @rate_n_flags: RX rate/flags encoding
+	 */
 	__le32 rate_n_flags;
 	/* DW10 */
-	u8 energy_a, energy_b, channel, mac_context;
+	/**
+	 * @energy_a: energy chain A
+	 */
+	u8 energy_a;
+	/**
+	 * @energy_b: energy chain B
+	 */
+	u8 energy_b;
+	/**
+	 * @channel: channel number
+	 */
+	u8 channel;
+	/**
+	 * @mac_context: MAC context mask
+	 */
+	u8 mac_context;
 	/* DW11 */
+	/**
+	 * @gp2_on_air_rise: GP2 timer value on air rise (INA)
+	 */
 	__le32 gp2_on_air_rise;
-	/* DW12 & DW13 - carries TSF only TSF_OVERLOAD bit == 0 */
+	/* DW12 & DW13 */
+	/**
+	 * @tsf_on_air_rise:
+	 * TSF value on air rise (INA), only valid if
+	 * %IWL_RX_MPDU_PHY_TSF_OVERLOAD isn't set
+	 */
 	__le64 tsf_on_air_rise;
 } __packed;
 
@@ -404,6 +474,7 @@ enum iwl_rss_hash_func_en {
  *
  * @flags: 1 - enable, 0 - disable
  * @hash_mask: Type of RSS to use. Values are from %iwl_rss_hash_func_en
+ * @reserved: reserved
  * @secret_key: 320 bit input of random key configuration from driver
  * @indirection_table: indirection table
  */
@@ -447,7 +518,7 @@ struct iwl_rxq_sync_notification {
 } __packed; /* MULTI_QUEUE_DRV_SYNC_HDR_CMD_API_S_VER_1 */
 
 /**
- * Internal message identifier
+ * enum iwl_mvm_rxq_notif_type - Internal message identifier
  *
  * @IWL_MVM_RXQ_EMPTY: empty sync notification
  * @IWL_MVM_RXQ_NOTIF_DEL_BA: notify RSS queues of delBA
@@ -491,13 +562,13 @@ enum iwl_mvm_pm_event {
 /**
  * struct iwl_mvm_pm_state_notification - station PM state notification
  * @sta_id: station ID of the station changing state
- * @type: the new powersave state, see IWL_MVM_PM_EVENT_ above
+ * @type: the new powersave state, see &enum iwl_mvm_pm_event
  */
 struct iwl_mvm_pm_state_notification {
 	u8 sta_id;
 	u8 type;
 	/* private: */
-	u16 reserved;
+	__le16 reserved;
 } __packed; /* PEER_PM_NTFY_API_S_VER_1 */
 
 #endif /* __fw_api_rx_h__ */

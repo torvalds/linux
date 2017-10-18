@@ -12,6 +12,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/slab.h>
 
 #include <media/media-entity.h>
@@ -34,6 +35,14 @@
 void vsp1_drm_display_start(struct vsp1_device *vsp1)
 {
 	vsp1_dlm_irq_display_start(vsp1->drm->pipe.output->dlm);
+}
+
+static void vsp1_du_pipeline_frame_end(struct vsp1_pipeline *pipe)
+{
+	struct vsp1_drm *drm = to_vsp1_drm(pipe);
+
+	if (drm->du_complete)
+		drm->du_complete(drm->du_private);
 }
 
 /* -----------------------------------------------------------------------------
@@ -78,7 +87,8 @@ int vsp1_du_setup_lif(struct device *dev, const struct vsp1_du_lif_config *cfg)
 	int ret;
 
 	if (!cfg) {
-		/* NULL configuration means the CRTC is being disabled, stop
+		/*
+		 * NULL configuration means the CRTC is being disabled, stop
 		 * the pipeline and turn the light off.
 		 */
 		ret = vsp1_pipeline_stop(pipe);
@@ -94,6 +104,7 @@ int vsp1_du_setup_lif(struct device *dev, const struct vsp1_du_lif_config *cfg)
 		}
 
 		pipe->num_inputs = 0;
+		vsp1->drm->du_complete = NULL;
 
 		vsp1_dlm_reset(pipe->output->dlm);
 		vsp1_device_put(vsp1);
@@ -106,7 +117,8 @@ int vsp1_du_setup_lif(struct device *dev, const struct vsp1_du_lif_config *cfg)
 	dev_dbg(vsp1->dev, "%s: configuring LIF with format %ux%u\n",
 		__func__, cfg->width, cfg->height);
 
-	/* Configure the format at the BRU sinks and propagate it through the
+	/*
+	 * Configure the format at the BRU sinks and propagate it through the
 	 * pipeline.
 	 */
 	memset(&format, 0, sizeof(format));
@@ -175,7 +187,8 @@ int vsp1_du_setup_lif(struct device *dev, const struct vsp1_du_lif_config *cfg)
 		__func__, format.format.width, format.format.height,
 		format.format.code);
 
-	/* Verify that the format at the output of the pipeline matches the
+	/*
+	 * Verify that the format at the output of the pipeline matches the
 	 * requested frame size and media bus code.
 	 */
 	if (format.format.width != cfg->width ||
@@ -185,7 +198,8 @@ int vsp1_du_setup_lif(struct device *dev, const struct vsp1_du_lif_config *cfg)
 		return -EPIPE;
 	}
 
-	/* Mark the pipeline as streaming and enable the VSP1. This will store
+	/*
+	 * Mark the pipeline as streaming and enable the VSP1. This will store
 	 * the pipeline pointer in all entities, which the s_stream handlers
 	 * will need. We don't start the entities themselves right at this point
 	 * as there's no plane configured yet, so we can't start processing
@@ -194,6 +208,13 @@ int vsp1_du_setup_lif(struct device *dev, const struct vsp1_du_lif_config *cfg)
 	ret = vsp1_device_get(vsp1);
 	if (ret < 0)
 		return ret;
+
+	/*
+	 * Register a callback to allow us to notify the DRM driver of frame
+	 * completion events.
+	 */
+	vsp1->drm->du_complete = cfg->callback;
+	vsp1->drm->du_private = cfg->callback_data;
 
 	ret = media_pipeline_start(&pipe->output->entity.subdev.entity,
 					  &pipe->pipe);
@@ -219,9 +240,6 @@ void vsp1_du_atomic_begin(struct device *dev)
 	struct vsp1_pipeline *pipe = &vsp1->drm->pipe;
 
 	vsp1->drm->num_inputs = pipe->num_inputs;
-
-	/* Prepare the display list. */
-	pipe->dl = vsp1_dl_list_get(pipe->output->dlm);
 }
 EXPORT_SYMBOL_GPL(vsp1_du_atomic_begin);
 
@@ -320,7 +338,8 @@ static int vsp1_du_setup_rpf_pipe(struct vsp1_device *vsp1,
 	const struct v4l2_rect *crop;
 	int ret;
 
-	/* Configure the format on the RPF sink pad and propagate it up to the
+	/*
+	 * Configure the format on the RPF sink pad and propagate it up to the
 	 * BRU sink pad.
 	 */
 	crop = &vsp1->drm->inputs[rpf->entity.index].crop;
@@ -359,7 +378,8 @@ static int vsp1_du_setup_rpf_pipe(struct vsp1_device *vsp1,
 		__func__, sel.r.left, sel.r.top, sel.r.width, sel.r.height,
 		rpf->entity.index);
 
-	/* RPF source, hardcode the format to ARGB8888 to turn on format
+	/*
+	 * RPF source, hardcode the format to ARGB8888 to turn on format
 	 * conversion if needed.
 	 */
 	format.pad = RWPF_PAD_SOURCE;
@@ -425,9 +445,13 @@ void vsp1_du_atomic_flush(struct device *dev)
 	struct vsp1_pipeline *pipe = &vsp1->drm->pipe;
 	struct vsp1_rwpf *inputs[VSP1_MAX_RPF] = { NULL, };
 	struct vsp1_entity *entity;
+	struct vsp1_dl_list *dl;
 	unsigned long flags;
 	unsigned int i;
 	int ret;
+
+	/* Prepare the display list. */
+	dl = vsp1_dl_list_get(pipe->output->dlm);
 
 	/* Count the number of enabled inputs and sort them by Z-order. */
 	pipe->num_inputs = 0;
@@ -483,26 +507,25 @@ void vsp1_du_atomic_flush(struct device *dev)
 			struct vsp1_rwpf *rpf = to_rwpf(&entity->subdev);
 
 			if (!pipe->inputs[rpf->entity.index]) {
-				vsp1_dl_list_write(pipe->dl, entity->route->reg,
+				vsp1_dl_list_write(dl, entity->route->reg,
 						   VI6_DPR_NODE_UNUSED);
 				continue;
 			}
 		}
 
-		vsp1_entity_route_setup(entity, pipe->dl);
+		vsp1_entity_route_setup(entity, pipe, dl);
 
 		if (entity->ops->configure) {
-			entity->ops->configure(entity, pipe, pipe->dl,
+			entity->ops->configure(entity, pipe, dl,
 					       VSP1_ENTITY_PARAMS_INIT);
-			entity->ops->configure(entity, pipe, pipe->dl,
+			entity->ops->configure(entity, pipe, dl,
 					       VSP1_ENTITY_PARAMS_RUNTIME);
-			entity->ops->configure(entity, pipe, pipe->dl,
+			entity->ops->configure(entity, pipe, dl,
 					       VSP1_ENTITY_PARAMS_PARTITION);
 		}
 	}
 
-	vsp1_dl_list_commit(pipe->dl);
-	pipe->dl = NULL;
+	vsp1_dl_list_commit(dl);
 
 	/* Start or stop the pipeline if needed. */
 	if (!vsp1->drm->num_inputs && pipe->num_inputs) {
@@ -518,6 +541,29 @@ void vsp1_du_atomic_flush(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(vsp1_du_atomic_flush);
 
+int vsp1_du_map_sg(struct device *dev, struct sg_table *sgt)
+{
+	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
+
+	/*
+	 * As all the buffers allocated by the DU driver are coherent, we can
+	 * skip cache sync. This will need to be revisited when support for
+	 * non-coherent buffers will be added to the DU driver.
+	 */
+	return dma_map_sg_attrs(vsp1->bus_master, sgt->sgl, sgt->nents,
+				DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+}
+EXPORT_SYMBOL_GPL(vsp1_du_map_sg);
+
+void vsp1_du_unmap_sg(struct device *dev, struct sg_table *sgt)
+{
+	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
+
+	dma_unmap_sg_attrs(vsp1->bus_master, sgt->sgl, sgt->nents,
+			   DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+}
+EXPORT_SYMBOL_GPL(vsp1_du_unmap_sg);
+
 /* -----------------------------------------------------------------------------
  * Initialization
  */
@@ -528,7 +574,8 @@ int vsp1_drm_create_links(struct vsp1_device *vsp1)
 	unsigned int i;
 	int ret;
 
-	/* VSPD instances require a BRU to perform composition and a LIF to
+	/*
+	 * VSPD instances require a BRU to perform composition and a LIF to
 	 * output to the DU.
 	 */
 	if (!vsp1->bru || !vsp1->lif)
@@ -595,6 +642,8 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 	pipe->bru = &vsp1->bru->entity;
 	pipe->lif = &vsp1->lif->entity;
 	pipe->output = vsp1->wpf[0];
+	pipe->output->pipe = pipe;
+	pipe->frame_end = vsp1_du_pipeline_frame_end;
 
 	return 0;
 }

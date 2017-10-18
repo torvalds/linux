@@ -274,7 +274,6 @@ void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db)
 }
 EXPORT_SYMBOL_GPL(mlx5_db_free);
 
-
 void mlx5_fill_page_array(struct mlx5_buf *buf, __be64 *pas)
 {
 	u64 addr;

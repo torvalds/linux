@@ -45,8 +45,6 @@
 
 #include <trace/events/module.h>
 
-extern int max_threads;
-
 #define CAP_BSET	(void *)1
 #define CAP_PI		(void *)2
 
@@ -56,6 +54,33 @@ static DEFINE_SPINLOCK(umh_sysctl_lock);
 static DECLARE_RWSEM(umhelper_sem);
 
 #ifdef CONFIG_MODULES
+/*
+ * Assuming:
+ *
+ * threads = div64_u64((u64) totalram_pages * (u64) PAGE_SIZE,
+ *		       (u64) THREAD_SIZE * 8UL);
+ *
+ * If you need less than 50 threads would mean we're dealing with systems
+ * smaller than 3200 pages. This assuems you are capable of having ~13M memory,
+ * and this would only be an be an upper limit, after which the OOM killer
+ * would take effect. Systems like these are very unlikely if modules are
+ * enabled.
+ */
+#define MAX_KMOD_CONCURRENT 50
+static atomic_t kmod_concurrent_max = ATOMIC_INIT(MAX_KMOD_CONCURRENT);
+static DECLARE_WAIT_QUEUE_HEAD(kmod_wq);
+
+/*
+ * This is a restriction on having *all* MAX_KMOD_CONCURRENT threads
+ * running at the same time without returning. When this happens we
+ * believe you've somehow ended up with a recursive module dependency
+ * creating a loop.
+ *
+ * We have no option but to fail.
+ *
+ * Userspace should proactively try to detect and prevent these.
+ */
+#define MAX_KMOD_ALL_BUSY_TIMEOUT 5
 
 /*
 	modprobe_path is set via /proc/sys.
@@ -127,11 +152,7 @@ int __request_module(bool wait, const char *fmt, ...)
 {
 	va_list args;
 	char module_name[MODULE_NAME_LEN];
-	unsigned int max_modprobes;
 	int ret;
-	static atomic_t kmod_concurrent = ATOMIC_INIT(0);
-#define MAX_KMOD_CONCURRENT 50	/* Completely arbitrary value - KAO */
-	static int kmod_loop_msg;
 
 	/*
 	 * We don't allow synchronous module loading from async.  Module
@@ -154,40 +175,34 @@ int __request_module(bool wait, const char *fmt, ...)
 	if (ret)
 		return ret;
 
-	/* If modprobe needs a service that is in a module, we get a recursive
-	 * loop.  Limit the number of running kmod threads to max_threads/2 or
-	 * MAX_KMOD_CONCURRENT, whichever is the smaller.  A cleaner method
-	 * would be to run the parents of this process, counting how many times
-	 * kmod was invoked.  That would mean accessing the internals of the
-	 * process tables to get the command line, proc_pid_cmdline is static
-	 * and it is not worth changing the proc code just to handle this case. 
-	 * KAO.
-	 *
-	 * "trace the ppid" is simple, but will fail if someone's
-	 * parent exits.  I think this is as good as it gets. --RR
-	 */
-	max_modprobes = min(max_threads/2, MAX_KMOD_CONCURRENT);
-	atomic_inc(&kmod_concurrent);
-	if (atomic_read(&kmod_concurrent) > max_modprobes) {
-		/* We may be blaming an innocent here, but unlikely */
-		if (kmod_loop_msg < 5) {
-			printk(KERN_ERR
-			       "request_module: runaway loop modprobe %s\n",
-			       module_name);
-			kmod_loop_msg++;
+	if (atomic_dec_if_positive(&kmod_concurrent_max) < 0) {
+		pr_warn_ratelimited("request_module: kmod_concurrent_max (%u) close to 0 (max_modprobes: %u), for module %s, throttling...",
+				    atomic_read(&kmod_concurrent_max),
+				    MAX_KMOD_CONCURRENT, module_name);
+		ret = wait_event_killable_timeout(kmod_wq,
+						  atomic_dec_if_positive(&kmod_concurrent_max) >= 0,
+						  MAX_KMOD_ALL_BUSY_TIMEOUT * HZ);
+		if (!ret) {
+			pr_warn_ratelimited("request_module: modprobe %s cannot be processed, kmod busy with %d threads for more than %d seconds now",
+					    module_name, MAX_KMOD_CONCURRENT, MAX_KMOD_ALL_BUSY_TIMEOUT);
+			return -ETIME;
+		} else if (ret == -ERESTARTSYS) {
+			pr_warn_ratelimited("request_module: sigkill sent for modprobe %s, giving up", module_name);
+			return ret;
 		}
-		atomic_dec(&kmod_concurrent);
-		return -ENOMEM;
 	}
 
 	trace_module_request(module_name, wait, _RET_IP_);
 
 	ret = call_modprobe(module_name, wait ? UMH_WAIT_PROC : UMH_WAIT_EXEC);
 
-	atomic_dec(&kmod_concurrent);
+	atomic_inc(&kmod_concurrent_max);
+	wake_up(&kmod_wq);
+
 	return ret;
 }
 EXPORT_SYMBOL(__request_module);
+
 #endif /* CONFIG_MODULES */
 
 static void call_usermodehelper_freeinfo(struct subprocess_info *info)

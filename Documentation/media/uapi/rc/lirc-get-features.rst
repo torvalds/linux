@@ -48,8 +48,8 @@ LIRC features
 
 ``LIRC_CAN_REC_PULSE``
 
-    The driver is capable of receiving using
-    :ref:`LIRC_MODE_PULSE <lirc-mode-pulse>`.
+    Unused. Kept just to avoid breaking uAPI.
+    :ref:`LIRC_MODE_PULSE <lirc-mode-pulse>` can only be used for transmitting.
 
 .. _LIRC-CAN-REC-MODE2:
 
@@ -156,19 +156,22 @@ LIRC features
 
 ``LIRC_CAN_SEND_PULSE``
 
-    The driver supports sending using :ref:`LIRC_MODE_PULSE <lirc-mode-pulse>`.
+    The driver supports sending (also called as IR blasting or IR TX) using
+    :ref:`LIRC_MODE_PULSE <lirc-mode-pulse>`.
 
 .. _LIRC-CAN-SEND-MODE2:
 
 ``LIRC_CAN_SEND_MODE2``
 
-    The driver supports sending using :ref:`LIRC_MODE_MODE2 <lirc-mode-mode2>`.
+    Unused. Kept just to avoid breaking uAPI.
+    :ref:`LIRC_MODE_MODE2 <lirc-mode-mode2>` can only be used for receiving.
 
 .. _LIRC-CAN-SEND-LIRCCODE:
 
 ``LIRC_CAN_SEND_LIRCCODE``
 
-    The driver supports sending codes (also called as IR blasting or IR TX).
+    The driver supports sending (also called as IR blasting or IR TX) using
+    :ref:`LIRC_MODE_LIRCCODE <lirc-mode-LIRCCODE>`.
 
 
 Return Value

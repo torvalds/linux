@@ -609,6 +609,20 @@ out_invalid:
 	return -NF_ACCEPT;
 }
 
+static bool dccp_can_early_drop(const struct nf_conn *ct)
+{
+	switch (ct->proto.dccp.state) {
+	case CT_DCCP_CLOSEREQ:
+	case CT_DCCP_CLOSING:
+	case CT_DCCP_TIMEWAIT:
+		return true;
+	default:
+		break;
+	}
+
+	return false;
+}
+
 static void dccp_print_tuple(struct seq_file *s,
 			     const struct nf_conntrack_tuple *tuple)
 {
@@ -665,7 +679,7 @@ static int nlattr_to_dccp(struct nlattr *cda[], struct nf_conn *ct)
 		return 0;
 
 	err = nla_parse_nested(tb, CTA_PROTOINFO_DCCP_MAX, attr,
-			       dccp_nla_policy);
+			       dccp_nla_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -858,6 +872,11 @@ static int dccp_init_net(struct net *net, u_int16_t proto)
 	return dccp_kmemdup_sysctl_table(net, pn, dn);
 }
 
+static struct nf_proto_net *dccp_get_net_proto(struct net *net)
+{
+	return &net->ct.nf_ct_proto.dccp.pn;
+}
+
 struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 __read_mostly = {
 	.l3proto		= AF_INET,
 	.l4proto		= IPPROTO_DCCP,
@@ -868,6 +887,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 __read_mostly = {
 	.packet			= dccp_packet,
 	.get_timeouts		= dccp_get_timeouts,
 	.error			= dccp_error,
+	.can_early_drop		= dccp_can_early_drop,
 	.print_tuple		= dccp_print_tuple,
 	.print_conntrack	= dccp_print_conntrack,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
@@ -889,6 +909,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 __read_mostly = {
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 	.init_net		= dccp_init_net,
+	.get_net_proto		= dccp_get_net_proto,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_dccp4);
 
@@ -902,6 +923,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 __read_mostly = {
 	.packet			= dccp_packet,
 	.get_timeouts		= dccp_get_timeouts,
 	.error			= dccp_error,
+	.can_early_drop		= dccp_can_early_drop,
 	.print_tuple		= dccp_print_tuple,
 	.print_conntrack	= dccp_print_conntrack,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
@@ -923,5 +945,6 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 __read_mostly = {
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 	.init_net		= dccp_init_net,
+	.get_net_proto		= dccp_get_net_proto,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_dccp6);

@@ -160,7 +160,7 @@ static inline void setup_percpu_segment(int cpu)
 	pack_descriptor(&gdt, per_cpu_offset(cpu), 0xFFFFF,
 			0x2 | DESCTYPE_S, 0x8);
 	gdt.s = 1;
-	write_gdt_entry(get_cpu_gdt_table(cpu),
+	write_gdt_entry(get_cpu_gdt_rw(cpu),
 			GDT_ENTRY_PERCPU, &gdt, DESCTYPE_S);
 #endif
 }
@@ -288,4 +288,25 @@ void __init setup_per_cpu_areas(void)
 
 	/* Setup cpu initialized, callin, callout masks */
 	setup_cpu_local_masks();
+
+#ifdef CONFIG_X86_32
+	/*
+	 * Sync back kernel address range again.  We already did this in
+	 * setup_arch(), but percpu data also needs to be available in
+	 * the smpboot asm.  We can't reliably pick up percpu mappings
+	 * using vmalloc_fault(), because exception dispatch needs
+	 * percpu data.
+	 */
+	clone_pgd_range(initial_page_table + KERNEL_PGD_BOUNDARY,
+			swapper_pg_dir     + KERNEL_PGD_BOUNDARY,
+			KERNEL_PGD_PTRS);
+
+	/*
+	 * sync back low identity map too.  It is used for example
+	 * in the 32-bit EFI stub.
+	 */
+	clone_pgd_range(initial_page_table,
+			swapper_pg_dir     + KERNEL_PGD_BOUNDARY,
+			min(KERNEL_PGD_PTRS, KERNEL_PGD_BOUNDARY));
+#endif
 }

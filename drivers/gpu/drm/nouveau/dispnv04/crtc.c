@@ -788,7 +788,8 @@ nv_crtc_disable(struct drm_crtc *crtc)
 
 static int
 nv_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-		  uint32_t size)
+		  uint32_t size,
+		  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	int i;
@@ -1031,8 +1032,9 @@ nv04_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	return 0;
 }
 
-int
-nouveau_crtc_set_config(struct drm_mode_set *set)
+static int
+nouveau_crtc_set_config(struct drm_mode_set *set,
+			struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev;
 	struct nouveau_drm *drm;
@@ -1049,7 +1051,7 @@ nouveau_crtc_set_config(struct drm_mode_set *set)
 	if (ret < 0 && ret != -EACCES)
 		return ret;
 
-	ret = drm_crtc_helper_set_config(set);
+	ret = drm_crtc_helper_set_config(set, ctx);
 
 	drm = nouveau_drm(dev);
 

@@ -484,7 +484,7 @@ int dccp_insert_option_mandatory(struct sk_buff *skb)
 		return -1;
 
 	DCCP_SKB_CB(skb)->dccpd_opt_len++;
-	*skb_push(skb, 1) = DCCPO_MANDATORY;
+	*(u8 *)skb_push(skb, 1) = DCCPO_MANDATORY;
 	return 0;
 }
 

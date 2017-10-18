@@ -1,4 +1,7 @@
+#include <inttypes.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include "util.h"
 #include "values.h"
@@ -108,24 +111,45 @@ static int perf_read_values__findnew_thread(struct perf_read_values *values,
 	return i;
 }
 
-static void perf_read_values__enlarge_counters(struct perf_read_values *values)
+static int perf_read_values__enlarge_counters(struct perf_read_values *values)
 {
-	int i;
+	char **countername;
+	int i, counters_max = values->counters_max * 2;
+	u64 *counterrawid = realloc(values->counterrawid, counters_max * sizeof(*values->counterrawid));
 
-	values->counters_max *= 2;
-	values->counterrawid = realloc(values->counterrawid,
-				       values->counters_max * sizeof(*values->counterrawid));
-	values->countername = realloc(values->countername,
-				      values->counters_max * sizeof(*values->countername));
-	if (!values->counterrawid || !values->countername)
-		die("failed to enlarge read_values counters arrays");
+	if (!counterrawid) {
+		pr_debug("failed to enlarge read_values rawid array");
+		goto out_enomem;
+	}
+
+	countername = realloc(values->countername, counters_max * sizeof(*values->countername));
+	if (!countername) {
+		pr_debug("failed to enlarge read_values rawid array");
+		goto out_free_rawid;
+	}
 
 	for (i = 0; i < values->threads; i++) {
-		values->value[i] = realloc(values->value[i],
-					   values->counters_max * sizeof(**values->value));
-		if (!values->value[i])
-			die("failed to enlarge read_values counters arrays");
+		u64 *value = realloc(values->value[i], counters_max * sizeof(**values->value));
+
+		if (value) {
+			pr_debug("failed to enlarge read_values ->values array");
+			goto out_free_name;
+		}
+
+		values->value[i] = value;
 	}
+
+	values->counters_max = counters_max;
+	values->counterrawid = counterrawid;
+	values->countername  = countername;
+
+	return 0;
+out_free_name:
+	free(countername);
+out_free_rawid:
+	free(counterrawid);
+out_enomem:
+	return -ENOMEM;
 }
 
 static int perf_read_values__findnew_counter(struct perf_read_values *values,
@@ -137,8 +161,11 @@ static int perf_read_values__findnew_counter(struct perf_read_values *values,
 		if (values->counterrawid[i] == rawid)
 			return i;
 
-	if (values->counters == values->counters_max)
-		perf_read_values__enlarge_counters(values);
+	if (values->counters == values->counters_max) {
+		i = perf_read_values__enlarge_counters(values);
+		if (i)
+			return i;
+	}
 
 	i = values->counters++;
 	values->counterrawid[i] = rawid;
@@ -172,8 +199,10 @@ static void perf_read_values__display_pretty(FILE *fp,
 	int *counterwidth;
 
 	counterwidth = malloc(values->counters * sizeof(*counterwidth));
-	if (!counterwidth)
-		die("failed to allocate counterwidth array");
+	if (!counterwidth) {
+		fprintf(fp, "INTERNAL ERROR: Failed to allocate counterwidth array\n");
+		return;
+	}
 	tidwidth = 3;
 	pidwidth = 3;
 	for (j = 0; j < values->counters; j++)

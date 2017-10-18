@@ -776,7 +776,7 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 	 * from/to alternative Ram.
 	 */
 	if (ATARIHW_PRESENT(ST_SCSI) && !ATARIHW_PRESENT(EXTD_DMA) &&
-	    m68k_num_memory > 1) {
+	    m68k_realnum_memory > 1) {
 		atari_dma_buffer = atari_stram_alloc(STRAM_BUFFER_SIZE, "SCSI");
 		if (!atari_dma_buffer) {
 			pr_err(PFX "can't allocate ST-RAM double buffer\n");

@@ -395,15 +395,20 @@ int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 	if (force_nr) {
 		priv->adap.nr = force_nr;
 		ret = i2c_add_numbered_adapter(&priv->adap);
+		if (ret < 0) {
+			dev_err(&parent->dev,
+				"failed to add mux-adapter %u as bus %u (error=%d)\n",
+				chan_id, force_nr, ret);
+			goto err_free_priv;
+		}
 	} else {
 		ret = i2c_add_adapter(&priv->adap);
-	}
-	if (ret < 0) {
-		dev_err(&parent->dev,
-			"failed to add mux-adapter (error=%d)\n",
-			ret);
-		kfree(priv);
-		return ret;
+		if (ret < 0) {
+			dev_err(&parent->dev,
+				"failed to add mux-adapter %u (error=%d)\n",
+				chan_id, ret);
+			goto err_free_priv;
+		}
 	}
 
 	WARN(sysfs_create_link(&priv->adap.dev.kobj, &muxc->dev->kobj,
@@ -419,6 +424,10 @@ int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 
 	muxc->adapter[muxc->num_adapters++] = &priv->adap;
 	return 0;
+
+err_free_priv:
+	kfree(priv);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(i2c_mux_add_adapter);
 

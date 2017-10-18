@@ -313,7 +313,7 @@ int cl_sb_init(struct super_block *sb)
 	struct cl_device  *cl;
 	struct lu_env     *env;
 	int rc = 0;
-	int refcheck;
+	u16 refcheck;
 
 	sbi  = ll_s2sbi(sb);
 	env = cl_env_get(&refcheck);
@@ -336,7 +336,7 @@ int cl_sb_fini(struct super_block *sb)
 	struct ll_sb_info *sbi;
 	struct lu_env     *env;
 	struct cl_device  *cld;
-	int		refcheck;
+	u16 refcheck;
 	int		result;
 
 	sbi = ll_s2sbi(sb);
@@ -381,11 +381,11 @@ int cl_sb_fini(struct super_block *sb)
 #define PGC_DEPTH_SHIFT (32)
 
 struct vvp_pgcache_id {
-	unsigned		 vpi_bucket;
-	unsigned		 vpi_depth;
+	unsigned int		 vpi_bucket;
+	unsigned int		 vpi_depth;
 	uint32_t		 vpi_index;
 
-	unsigned		 vpi_curdep;
+	unsigned int		 vpi_curdep;
 	struct lu_object_header *vpi_obj;
 };
 
@@ -535,7 +535,7 @@ static int vvp_pgcache_show(struct seq_file *f, void *v)
 	struct cl_object	*clob;
 	struct lu_env	   *env;
 	struct vvp_pgcache_id    id;
-	int		      refcheck;
+	u16 refcheck;
 	int		      result;
 
 	env = cl_env_get(&refcheck);
@@ -584,7 +584,7 @@ static void *vvp_pgcache_start(struct seq_file *f, loff_t *pos)
 {
 	struct ll_sb_info *sbi;
 	struct lu_env     *env;
-	int		refcheck;
+	u16 refcheck;
 
 	sbi = f->private;
 
@@ -608,7 +608,7 @@ static void *vvp_pgcache_next(struct seq_file *f, void *v, loff_t *pos)
 {
 	struct ll_sb_info *sbi;
 	struct lu_env     *env;
-	int		refcheck;
+	u16 refcheck;
 
 	env = cl_env_get(&refcheck);
 	if (!IS_ERR(env)) {

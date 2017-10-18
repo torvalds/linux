@@ -1106,7 +1106,7 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 		return -EIO;
 	}
 
-	dev->destructor = free_netdev;
+	dev->needs_free_netdev = true;
 	*get_dev_p(pvc, type) = dev;
 	if (!used) {
 		state(hdlc)->dce_changed = 1;

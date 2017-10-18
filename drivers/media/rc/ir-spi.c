@@ -57,10 +57,13 @@ static int ir_spi_tx(struct rc_dev *dev,
 
 	/* convert the pulse/space signal to raw binary signal */
 	for (i = 0; i < count; i++) {
+		unsigned int periods;
 		int j;
-		u16 val = ((i + 1) % 2) ? idata->pulse : idata->space;
+		u16 val;
 
-		if (len + buffer[i] >= IR_SPI_MAX_BUFSIZE)
+		periods = DIV_ROUND_CLOSEST(buffer[i] * idata->freq, 1000000);
+
+		if (len + periods >= IR_SPI_MAX_BUFSIZE)
 			return -EINVAL;
 
 		/*
@@ -69,13 +72,13 @@ static int ir_spi_tx(struct rc_dev *dev,
 		 * contain a space duration.
 		 */
 		val = (i % 2) ? idata->space : idata->pulse;
-		for (j = 0; j < buffer[i]; j++)
+		for (j = 0; j < periods; j++)
 			idata->tx_buf[len++] = val;
 	}
 
 	memset(&xfer, 0, sizeof(xfer));
 
-	xfer.speed_hz = idata->freq;
+	xfer.speed_hz = idata->freq * 16;
 	xfer.len = len * sizeof(*idata->tx_buf);
 	xfer.tx_buf = idata->tx_buf;
 

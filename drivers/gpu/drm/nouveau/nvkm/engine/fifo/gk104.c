@@ -148,7 +148,7 @@ gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl)
 	case NVKM_MEM_TARGET_NCOH: target = 3; break;
 	default:
 		WARN_ON(1);
-		return;
+		goto unlock;
 	}
 
 	nvkm_wr32(device, 0x002270, (nvkm_memory_addr(mem) >> 12) |
@@ -160,6 +160,7 @@ gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl)
 				       & 0x00100000),
 			       msecs_to_jiffies(2000)) == 0)
 		nvkm_error(subdev, "runlist %d update timeout\n", runl);
+unlock:
 	mutex_unlock(&subdev->mutex);
 }
 

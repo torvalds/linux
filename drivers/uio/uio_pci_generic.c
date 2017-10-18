@@ -66,14 +66,7 @@ static int probe(struct pci_dev *pdev,
 		return err;
 	}
 
-	if (!pdev->irq) {
-		dev_warn(&pdev->dev, "No IRQ assigned to device: "
-			 "no support for interrupts?\n");
-		pci_disable_device(pdev);
-		return -ENODEV;
-	}
-
-	if (!pci_intx_mask_supported(pdev)) {
+	if (pdev->irq && !pci_intx_mask_supported(pdev)) {
 		err = -ENODEV;
 		goto err_verify;
 	}
@@ -86,10 +79,15 @@ static int probe(struct pci_dev *pdev,
 
 	gdev->info.name = "uio_pci_generic";
 	gdev->info.version = DRIVER_VERSION;
-	gdev->info.irq = pdev->irq;
-	gdev->info.irq_flags = IRQF_SHARED;
-	gdev->info.handler = irqhandler;
 	gdev->pdev = pdev;
+	if (pdev->irq) {
+		gdev->info.irq = pdev->irq;
+		gdev->info.irq_flags = IRQF_SHARED;
+		gdev->info.handler = irqhandler;
+	} else {
+		dev_warn(&pdev->dev, "No IRQ assigned to device: "
+			 "no support for interrupts?\n");
+	}
 
 	err = uio_register_device(&pdev->dev, &gdev->info);
 	if (err)

@@ -52,17 +52,27 @@ static u32 get_bus_freq(void)
 {
 	struct device_node *soc;
 	u32 sysfreq;
+	struct clk *pltclk;
+	int ret;
 
+	/* get platform freq by searching bus-frequency property */
 	soc = of_find_node_by_type(NULL, "soc");
-	if (!soc)
-		return 0;
+	if (soc) {
+		ret = of_property_read_u32(soc, "bus-frequency", &sysfreq);
+		of_node_put(soc);
+		if (!ret)
+			return sysfreq;
+	}
 
-	if (of_property_read_u32(soc, "bus-frequency", &sysfreq))
-		sysfreq = 0;
+	/* get platform freq by its clock name */
+	pltclk = clk_get(NULL, "cg-pll0-div1");
+	if (IS_ERR(pltclk)) {
+		pr_err("%s: can't get bus frequency %ld\n",
+		       __func__, PTR_ERR(pltclk));
+		return PTR_ERR(pltclk);
+	}
 
-	of_node_put(soc);
-
-	return sysfreq;
+	return clk_get_rate(pltclk);
 }
 
 static struct clk *cpu_to_clk(int cpu)
@@ -268,8 +278,7 @@ static void qoriq_cpufreq_ready(struct cpufreq_policy *policy)
 	struct device_node *np = of_get_cpu_node(policy->cpu, NULL);
 
 	if (of_find_property(np, "#cooling-cells", NULL)) {
-		cpud->cdev = of_cpufreq_cooling_register(np,
-							 policy->related_cpus);
+		cpud->cdev = of_cpufreq_cooling_register(np, policy);
 
 		if (IS_ERR(cpud->cdev) && PTR_ERR(cpud->cdev) != -ENOSYS) {
 			pr_err("cpu%d is not running as cooling device: %ld\n",

@@ -385,7 +385,7 @@
 		};
 	};
 
-	etb@0,20010000 {
+	etb@20010000 {
 		compatible = "arm,coresight-etb10", "arm,primecell";
 		reg = <0 0x20010000 0 0x1000>;
 
@@ -399,7 +399,7 @@
 		};
 	};
 
-	tpiu@0,20030000 {
+	tpiu@20030000 {
 		compatible = "arm,coresight-tpiu", "arm,primecell";
 		reg = <0 0x20030000 0 0x1000>;
 
@@ -449,7 +449,7 @@
 		};
 	};
 
-	funnel@0,20040000 {
+	funnel@20040000 {
 		compatible = "arm,coresight-funnel", "arm,primecell";
 		reg = <0 0x20040000 0 0x1000>;
 
@@ -513,7 +513,7 @@
 		};
 	};
 
-	ptm@0,2201c000 {
+	ptm@2201c000 {
 		compatible = "arm,coresight-etm3x", "arm,primecell";
 		reg = <0 0x2201c000 0 0x1000>;
 
@@ -527,7 +527,7 @@
 		};
 	};
 
-	ptm@0,2201d000 {
+	ptm@2201d000 {
 		compatible = "arm,coresight-etm3x", "arm,primecell";
 		reg = <0 0x2201d000 0 0x1000>;
 
@@ -541,7 +541,7 @@
 		};
 	};
 
-	etm@0,2203c000 {
+	etm@2203c000 {
 		compatible = "arm,coresight-etm3x", "arm,primecell";
 		reg = <0 0x2203c000 0 0x1000>;
 
@@ -555,7 +555,7 @@
 		};
 	};
 
-	etm@0,2203d000 {
+	etm@2203d000 {
 		compatible = "arm,coresight-etm3x", "arm,primecell";
 		reg = <0 0x2203d000 0 0x1000>;
 
@@ -569,7 +569,7 @@
 		};
 	};
 
-	etm@0,2203e000 {
+	etm@2203e000 {
 		compatible = "arm,coresight-etm3x", "arm,primecell";
 		reg = <0 0x2203e000 0 0x1000>;
 
@@ -583,7 +583,7 @@
 		};
 	};
 
-	smb@08000000 {
+	smb@8000000 {
 		compatible = "simple-bus";
 
 		#address-cells = <2>;

@@ -458,6 +458,19 @@ static inline void v4l2_ctrl_unlock(struct v4l2_ctrl *ctrl)
 }
 
 /**
+ * __v4l2_ctrl_handler_setup() - Call the s_ctrl op for all controls belonging
+ * to the handler to initialize the hardware to the current control values. The
+ * caller is responsible for acquiring the control handler mutex on behalf of
+ * __v4l2_ctrl_handler_setup().
+ * @hdl:	The control handler.
+ *
+ * Button controls will be skipped, as are read-only controls.
+ *
+ * If @hdl == NULL, then this just returns 0.
+ */
+int __v4l2_ctrl_handler_setup(struct v4l2_ctrl_handler *hdl);
+
+/**
  * v4l2_ctrl_handler_setup() - Call the s_ctrl op for all controls belonging
  * to the handler to initialize the hardware to the current control values.
  * @hdl:	The control handler.

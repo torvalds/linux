@@ -110,7 +110,7 @@ int drm_encoder_init(struct drm_device *dev,
 {
 	int ret;
 
-	ret = drm_mode_object_get(dev, &encoder->base, DRM_MODE_OBJECT_ENCODER);
+	ret = drm_mode_object_add(dev, &encoder->base, DRM_MODE_OBJECT_ENCODER);
 	if (ret)
 		return ret;
 
@@ -188,7 +188,7 @@ static struct drm_crtc *drm_encoder_get_crtc(struct drm_encoder *encoder)
 
 	/* For atomic drivers only state objects are synchronously updated and
 	 * protected by modeset locks, so check those first. */
-	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (!connector->state)
 			continue;
@@ -198,10 +198,10 @@ static struct drm_crtc *drm_encoder_get_crtc(struct drm_encoder *encoder)
 		if (connector->state->best_encoder != encoder)
 			continue;
 
-		drm_connector_list_iter_put(&conn_iter);
+		drm_connector_list_iter_end(&conn_iter);
 		return connector->state->crtc;
 	}
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 
 	/* Don't return stale data (e.g. pending async disable). */
 	if (uses_atomic)

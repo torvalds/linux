@@ -1,6 +1,6 @@
 /*
  *  QLogic FCoE Offload Driver
- *  Copyright (c) 2016 QLogic Corporation
+ *  Copyright (c) 2016-2017 QLogic Corporation
  *
  *  This software is available under the terms of the GNU General Public License
  *  (GPL) Version 2, available from the file COPYING in the main directory of
@@ -449,7 +449,7 @@ const struct file_operations qedf_dbg_fops[] = {
 	qedf_dbg_fileops(qedf, clear_stats),
 	qedf_dbg_fileops_seq(qedf, offload_stats),
 	/* This must be last */
-	{ NULL, NULL },
+	{ },
 };
 
 #else /* CONFIG_DEBUG_FS */

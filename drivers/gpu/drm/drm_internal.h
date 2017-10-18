@@ -24,7 +24,7 @@
 #define DRM_IF_MAJOR 1
 #define DRM_IF_MINOR 4
 
-/* drm_fops.c */
+/* drm_file.c */
 extern struct mutex drm_global_mutex;
 void drm_lastclose(struct drm_device *dev);
 
@@ -53,8 +53,9 @@ int drm_name_info(struct seq_file *m, void *data);
 int drm_clients_info(struct seq_file *m, void* data);
 int drm_gem_name_info(struct seq_file *m, void *data);
 
-/* drm_irq.c */
+/* drm_vblank.c */
 extern unsigned int drm_timestamp_monotonic;
+void drm_vblank_disable_and_save(struct drm_device *dev, unsigned int pipe);
 
 /* IOCTLS */
 int drm_wait_vblank(struct drm_device *dev, void *data,
@@ -100,7 +101,7 @@ int drm_gem_open_ioctl(struct drm_device *dev, void *data,
 void drm_gem_open(struct drm_device *dev, struct drm_file *file_private);
 void drm_gem_release(struct drm_device *dev, struct drm_file *file_private);
 
-/* drm_debugfs.c */
+/* drm_debugfs.c drm_debugfs_crc.c */
 #if defined(CONFIG_DEBUG_FS)
 int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 		     struct dentry *root);
@@ -142,4 +143,21 @@ static inline int drm_debugfs_crtc_crc_add(struct drm_crtc *crtc)
 {
 	return 0;
 }
+
 #endif
+
+drm_ioctl_t drm_version;
+drm_ioctl_t drm_getunique;
+drm_ioctl_t drm_getclient;
+
+/* drm_syncobj.c */
+void drm_syncobj_open(struct drm_file *file_private);
+void drm_syncobj_release(struct drm_file *file_private);
+int drm_syncobj_create_ioctl(struct drm_device *dev, void *data,
+			     struct drm_file *file_private);
+int drm_syncobj_destroy_ioctl(struct drm_device *dev, void *data,
+			      struct drm_file *file_private);
+int drm_syncobj_handle_to_fd_ioctl(struct drm_device *dev, void *data,
+				   struct drm_file *file_private);
+int drm_syncobj_fd_to_handle_ioctl(struct drm_device *dev, void *data,
+				   struct drm_file *file_private);

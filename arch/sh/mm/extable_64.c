@@ -10,6 +10,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
+#include <linux/bsearch.h>
 #include <linux/rwsem.h>
 #include <linux/extable.h>
 #include <linux/uaccess.h>
@@ -40,10 +41,23 @@ static const struct exception_table_entry *check_exception_ranges(unsigned long 
 	return NULL;
 }
 
+static int cmp_ex_search(const void *key, const void *elt)
+{
+	const struct exception_table_entry *_elt = elt;
+	unsigned long _key = *(unsigned long *)key;
+
+	/* avoid overflow */
+	if (_key > _elt->insn)
+		return 1;
+	if (_key < _elt->insn)
+		return -1;
+	return 0;
+}
+
 /* Simple binary search */
 const struct exception_table_entry *
-search_extable(const struct exception_table_entry *first,
-		 const struct exception_table_entry *last,
+search_extable(const struct exception_table_entry *base,
+		 const size_t num,
 		 unsigned long value)
 {
 	const struct exception_table_entry *mid;
@@ -52,20 +66,8 @@ search_extable(const struct exception_table_entry *first,
 	if (mid)
 		return mid;
 
-        while (first <= last) {
-		long diff;
-
-		mid = (last - first) / 2 + first;
-		diff = mid->insn - value;
-                if (diff == 0)
-                        return mid;
-                else if (diff < 0)
-                        first = mid+1;
-                else
-                        last = mid-1;
-        }
-
-        return NULL;
+	return bsearch(&value, base, num,
+		       sizeof(struct exception_table_entry), cmp_ex_search);
 }
 
 int fixup_exception(struct pt_regs *regs)

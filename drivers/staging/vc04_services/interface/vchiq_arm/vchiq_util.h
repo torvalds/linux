@@ -44,7 +44,6 @@
 #include <linux/jiffies.h>
 #include <linux/delay.h>
 #include <linux/string.h>
-#include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/random.h>
 #include <linux/sched/signal.h>
@@ -52,7 +51,6 @@
 #include <linux/uaccess.h>
 #include <linux/time.h>  /* for time_t */
 #include <linux/slab.h>
-#include <linux/vmalloc.h>
 
 #include "vchiq_if.h"
 

@@ -867,6 +867,8 @@ exit:
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_tb_install_and_load_table)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_tb_unload_table
@@ -914,3 +916,5 @@ acpi_status acpi_tb_unload_table(u32 table_index)
 	acpi_tb_set_table_loaded_flag(table_index, FALSE);
 	return_ACPI_STATUS(status);
 }
+
+ACPI_EXPORT_SYMBOL(acpi_tb_unload_table)

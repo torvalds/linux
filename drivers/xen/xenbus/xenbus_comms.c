@@ -299,17 +299,7 @@ static int process_msg(void)
 		mutex_lock(&xb_write_mutex);
 		list_for_each_entry(req, &xs_reply_list, list) {
 			if (req->msg.req_id == state.msg.req_id) {
-				if (req->state == xb_req_state_wait_reply) {
-					req->msg.type = state.msg.type;
-					req->msg.len = state.msg.len;
-					req->body = state.body;
-					req->state = xb_req_state_got_reply;
-					list_del(&req->list);
-					req->cb(req);
-				} else {
-					list_del(&req->list);
-					kfree(req);
-				}
+				list_del(&req->list);
 				err = 0;
 				break;
 			}
@@ -317,6 +307,15 @@ static int process_msg(void)
 		mutex_unlock(&xb_write_mutex);
 		if (err)
 			goto out;
+
+		if (req->state == xb_req_state_wait_reply) {
+			req->msg.type = state.msg.type;
+			req->msg.len = state.msg.len;
+			req->body = state.body;
+			req->state = xb_req_state_got_reply;
+			req->cb(req);
+		} else
+			kfree(req);
 	}
 
 	mutex_unlock(&xs_response_mutex);

@@ -21,7 +21,7 @@ Optional NAND chip properties:
 
 - nand-ecc-mode : String, operation mode of the NAND ecc mode.
 		  Supported values are: "none", "soft", "hw", "hw_syndrome",
-		  "hw_oob_first".
+		  "hw_oob_first", "on-die".
 		  Deprecated values:
 		  "soft_bch": use "soft" and nand-ecc-algo instead
 - nand-ecc-algo: string, algorithm of NAND ECC.

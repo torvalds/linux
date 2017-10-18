@@ -86,9 +86,17 @@ EXPORT_SYMBOL_GPL(user_preparse);
  */
 void user_free_preparse(struct key_preparsed_payload *prep)
 {
-	kfree(prep->payload.data[0]);
+	kzfree(prep->payload.data[0]);
 }
 EXPORT_SYMBOL_GPL(user_free_preparse);
+
+static void user_free_payload_rcu(struct rcu_head *head)
+{
+	struct user_key_payload *payload;
+
+	payload = container_of(head, struct user_key_payload, rcu);
+	kzfree(payload);
+}
 
 /*
  * update a user defined key
@@ -112,7 +120,7 @@ int user_update(struct key *key, struct key_preparsed_payload *prep)
 	prep->payload.data[0] = NULL;
 
 	if (zap)
-		kfree_rcu(zap, rcu);
+		call_rcu(&zap->rcu, user_free_payload_rcu);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(user_update);
@@ -130,7 +138,7 @@ void user_revoke(struct key *key)
 
 	if (upayload) {
 		rcu_assign_keypointer(key, NULL);
-		kfree_rcu(upayload, rcu);
+		call_rcu(&upayload->rcu, user_free_payload_rcu);
 	}
 }
 
@@ -143,7 +151,7 @@ void user_destroy(struct key *key)
 {
 	struct user_key_payload *upayload = key->payload.data[0];
 
-	kfree(upayload);
+	kzfree(upayload);
 }
 
 EXPORT_SYMBOL_GPL(user_destroy);

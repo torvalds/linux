@@ -25,9 +25,12 @@ static inline int init_new_context(struct task_struct *tsk,
 	mm->context.gmap_asce = 0;
 	mm->context.flush_mm = 0;
 #ifdef CONFIG_PGSTE
-	mm->context.alloc_pgste = page_table_allocate_pgste;
+	mm->context.alloc_pgste = page_table_allocate_pgste ||
+		test_thread_flag(TIF_PGSTE) ||
+		current->mm->context.alloc_pgste;
 	mm->context.has_pgste = 0;
 	mm->context.use_skey = 0;
+	mm->context.use_cmma = 0;
 #endif
 	switch (mm->context.asce_limit) {
 	case 1UL << 42:
@@ -40,6 +43,11 @@ static inline int init_new_context(struct task_struct *tsk,
 		mm->context.asce_limit = STACK_TOP_MAX;
 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 				   _ASCE_USER_BITS | _ASCE_TYPE_REGION3;
+		break;
+	case -PAGE_SIZE:
+		/* forked 5-level task, set new asce with new_mm->pgd */
+		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+			_ASCE_USER_BITS | _ASCE_TYPE_REGION1;
 		break;
 	case 1UL << 53:
 		/* forked 4-level task, set new asce with new mm->pgd */
@@ -152,12 +160,6 @@ static inline void arch_bprm_mm_init(struct mm_struct *mm,
 
 static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 		bool write, bool execute, bool foreign)
-{
-	/* by default, allow everything */
-	return true;
-}
-
-static inline bool arch_pte_access_permitted(pte_t pte, bool write)
 {
 	/* by default, allow everything */
 	return true;

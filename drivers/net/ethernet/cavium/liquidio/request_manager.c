@@ -62,8 +62,7 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 	u32 iq_no = (u32)txpciq.s.q_no;
 	u32 q_size;
 	struct cavium_wq *db_wq;
-	int orig_node = dev_to_node(&oct->pci_dev->dev);
-	int numa_node = cpu_to_node(iq_no % num_online_cpus());
+	int numa_node = dev_to_node(&oct->pci_dev->dev);
 
 	if (OCTEON_CN6XXX(oct))
 		conf = &(CFG_GET_IQ_CFG(CHIP_CONF(oct, cn6xxx)));
@@ -91,13 +90,7 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 
 	iq->oct_dev = oct;
 
-	set_dev_node(&oct->pci_dev->dev, numa_node);
-	iq->base_addr = lio_dma_alloc(oct, q_size,
-				      (dma_addr_t *)&iq->base_addr_dma);
-	set_dev_node(&oct->pci_dev->dev, orig_node);
-	if (!iq->base_addr)
-		iq->base_addr = lio_dma_alloc(oct, q_size,
-					      (dma_addr_t *)&iq->base_addr_dma);
+	iq->base_addr = lio_dma_alloc(oct, q_size, &iq->base_addr_dma);
 	if (!iq->base_addr) {
 		dev_err(&oct->pci_dev->dev, "Cannot allocate memory for instr queue %d\n",
 			iq_no);
@@ -211,7 +204,7 @@ int octeon_setup_iq(struct octeon_device *oct,
 		    void *app_ctx)
 {
 	u32 iq_no = (u32)txpciq.s.q_no;
-	int numa_node = cpu_to_node(iq_no % num_online_cpus());
+	int numa_node = dev_to_node(&oct->pci_dev->dev);
 
 	if (oct->instr_queue[iq_no]) {
 		dev_dbg(&oct->pci_dev->dev, "IQ is in use. Cannot create the IQ: %d again\n",
@@ -259,8 +252,7 @@ int lio_wait_for_instr_fetch(struct octeon_device *oct)
 			if (!(oct->io_qmask.iq & BIT_ULL(i)))
 				continue;
 			pending =
-			    atomic_read(&oct->
-					       instr_queue[i]->instr_pending);
+			    atomic_read(&oct->instr_queue[i]->instr_pending);
 			if (pending)
 				__check_db_timeout(oct, i);
 			instr_cnt += pending;

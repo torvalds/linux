@@ -435,7 +435,6 @@ static struct ldlm_lock *ldlm_lock_new(struct ldlm_resource *resource)
 	lock->l_exp_refs_nr = 0;
 	lock->l_exp_refs_target = NULL;
 #endif
-	INIT_LIST_HEAD(&lock->l_exp_list);
 
 	return lock;
 }
@@ -771,25 +770,24 @@ void ldlm_lock_decref_internal(struct ldlm_lock *lock, enum ldlm_mode mode)
 
 	ldlm_lock_decref_internal_nolock(lock, mode);
 
-	if (ldlm_is_local(lock) &&
+	if ((ldlm_is_local(lock) || lock->l_req_mode == LCK_GROUP) &&
 	    !lock->l_readers && !lock->l_writers) {
 		/* If this is a local lock on a server namespace and this was
 		 * the last reference, cancel the lock.
-		 */
-		CDEBUG(D_INFO, "forcing cancel of local lock\n");
-		ldlm_set_cbpending(lock);
-	}
-
-	if (!lock->l_readers && !lock->l_writers &&
-	    (ldlm_is_cbpending(lock) || lock->l_req_mode == LCK_GROUP)) {
-		/* If we received a blocked AST and this was the last reference,
-		 * run the callback.
+		 *
 		 * Group locks are special:
 		 * They must not go in LRU, but they are not called back
 		 * like non-group locks, instead they are manually released.
 		 * They have an l_writers reference which they keep until
 		 * they are manually released, so we remove them when they have
 		 * no more reader or writer references. - LU-6368
+		 */
+		ldlm_set_cbpending(lock);
+	}
+
+	if (!lock->l_readers && !lock->l_writers && ldlm_is_cbpending(lock)) {
+		/* If we received a blocked AST and this was the last reference,
+		 * run the callback.
 		 */
 		LDLM_DEBUG(lock, "final decref done on cbpending lock");
 
@@ -1882,6 +1880,19 @@ out:
 	return rc;
 }
 
+static bool is_bl_done(struct ldlm_lock *lock)
+{
+	bool bl_done = true;
+
+	if (!ldlm_is_bl_done(lock)) {
+		lock_res_and_lock(lock);
+		bl_done = ldlm_is_bl_done(lock);
+		unlock_res_and_lock(lock);
+	}
+
+	return bl_done;
+}
+
 /**
  * Helper function to call blocking AST for LDLM lock \a lock in a
  * "cancelling" mode.
@@ -1899,8 +1910,20 @@ void ldlm_cancel_callback(struct ldlm_lock *lock)
 		} else {
 			LDLM_DEBUG(lock, "no blocking ast");
 		}
+		/* only canceller can set bl_done bit */
+		ldlm_set_bl_done(lock);
+		wake_up_all(&lock->l_waitq);
+	} else if (!ldlm_is_bl_done(lock)) {
+		struct l_wait_info lwi = { 0 };
+
+		/*
+		 * The lock is guaranteed to have been canceled once
+		 * returning from this function.
+		 */
+		unlock_res_and_lock(lock);
+		l_wait_event(lock->l_waitq, is_bl_done(lock), &lwi);
+		lock_res_and_lock(lock);
 	}
-	ldlm_set_bl_done(lock);
 }
 
 /**

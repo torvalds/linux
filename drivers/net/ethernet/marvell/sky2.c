@@ -4544,7 +4544,7 @@ static int sky2_debug_show(struct seq_file *seq, void *v)
 		   sky2_read32(hw, B0_Y2_SP_ICR));
 
 	if (!netif_running(dev)) {
-		seq_printf(seq, "network not running\n");
+		seq_puts(seq, "network not running\n");
 		return 0;
 	}
 

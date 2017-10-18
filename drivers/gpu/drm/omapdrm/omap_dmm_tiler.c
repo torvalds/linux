@@ -388,7 +388,7 @@ struct tiler_block *tiler_reserve_2d(enum tiler_fmt fmt, uint16_t w,
 	u32 min_align = 128;
 	int ret;
 	unsigned long flags;
-	size_t slot_bytes;
+	u32 slot_bytes;
 
 	BUG_ON(!validfmt(fmt));
 

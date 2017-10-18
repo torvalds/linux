@@ -240,9 +240,13 @@ Add a probe on schedule() function 12th line with recording cpu local variable:
  or
  ./perf probe --add='schedule:12 cpu'
 
- this will add one or more probes which has the name start with "schedule".
+Add one or more probes which has the name start with "schedule".
 
- Add probes on lines in schedule() function which calls update_rq_clock().
+ ./perf probe schedule*
+ or
+ ./perf probe --add='schedule*'
+
+Add probes on lines in schedule() function which calls update_rq_clock().
 
  ./perf probe 'schedule;update_rq_clock*'
  or

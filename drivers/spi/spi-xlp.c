@@ -442,6 +442,7 @@ static int xlp_spi_probe(struct platform_device *pdev)
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id xlp_spi_acpi_match[] = {
 	{ "BRCM900D", 0 },
+	{ "CAV900D",  0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, xlp_spi_acpi_match);

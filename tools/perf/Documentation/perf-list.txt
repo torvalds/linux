@@ -8,7 +8,7 @@ perf-list - List all symbolic event types
 SYNOPSIS
 --------
 [verse]
-'perf list' [--no-desc] [--long-desc] [hw|sw|cache|tracepoint|pmu|event_glob]
+'perf list' [--no-desc] [--long-desc] [hw|sw|cache|tracepoint|pmu|sdt|event_glob]
 
 DESCRIPTION
 -----------
@@ -23,6 +23,10 @@ Don't print descriptions.
 -v::
 --long-desc::
 Print longer event descriptions.
+
+--details::
+Print how named events are resolved internally into perf events, and also
+any extra expressions computed by perf stat.
 
 
 [[EVENT_MODIFIERS]]
@@ -239,6 +243,8 @@ To limit the list use:
   block, etc.
 
 . 'pmu' to print the kernel supplied PMU events.
+
+. 'sdt' to list all Statically Defined Tracepoint events.
 
 . If none of the above is matched, it will apply the supplied glob to all
   events, printing the ones that match.

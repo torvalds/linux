@@ -125,8 +125,6 @@ static int handle_en_event(struct hns_roce_dev *hr_dev, u8 port,
 		return -ENODEV;
 	}
 
-	spin_lock_bh(&hr_dev->iboe.lock);
-
 	switch (event) {
 	case NETDEV_UP:
 	case NETDEV_CHANGE:
@@ -144,7 +142,6 @@ static int handle_en_event(struct hns_roce_dev *hr_dev, u8 port,
 		break;
 	}
 
-	spin_unlock_bh(&hr_dev->iboe.lock);
 	return 0;
 }
 

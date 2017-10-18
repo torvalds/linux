@@ -232,6 +232,14 @@
 			};
 		};
 
+		osr: sram@70000000 {
+			compatible = "mmio-sram";
+			reg = <0x70000000 0x10000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&clkosr>;
+		};
+
 		dspgpio0: keystone_dsp_gpio@02620240 {
 			compatible = "ti,keystone-dsp-gpio";
 			gpio-controller;

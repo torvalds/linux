@@ -534,6 +534,9 @@ struct amdgpu_framebuffer {
 				((em) == ATOM_ENCODER_MODE_DP_MST))
 
 /* Driver internal use only flags of amdgpu_get_crtc_scanoutpos() */
+#define DRM_SCANOUTPOS_VALID        (1 << 0)
+#define DRM_SCANOUTPOS_IN_VBLANK    (1 << 1)
+#define DRM_SCANOUTPOS_ACCURATE     (1 << 2)
 #define USE_REAL_VBLANKSTART		(1 << 30)
 #define GET_DISTANCE_TO_VBLANKSTART	(1 << 31)
 
@@ -590,26 +593,13 @@ int amdgpu_align_pitch(struct amdgpu_device *adev, int width, int bpp, bool tile
 /* amdgpu_display.c */
 void amdgpu_print_display_setup(struct drm_device *dev);
 int amdgpu_modeset_create_props(struct amdgpu_device *adev);
-int amdgpu_crtc_set_config(struct drm_mode_set *set);
+int amdgpu_crtc_set_config(struct drm_mode_set *set,
+			   struct drm_modeset_acquire_ctx *ctx);
 int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
 				 struct drm_framebuffer *fb,
 				 struct drm_pending_vblank_event *event,
-				 uint32_t page_flip_flags, uint32_t target);
-void amdgpu_crtc_cleanup_flip_ctx(struct amdgpu_flip_work *work,
-				  struct amdgpu_bo *new_abo);
-int amdgpu_crtc_prepare_flip(struct drm_crtc *crtc,
-			     struct drm_framebuffer *fb,
-			     struct drm_pending_vblank_event *event,
-			     uint32_t page_flip_flags,
-			     uint32_t target,
-			     struct amdgpu_flip_work **work,
-			     struct amdgpu_bo **new_abo);
-
-void amdgpu_crtc_submit_flip(struct drm_crtc *crtc,
-			     struct drm_framebuffer *fb,
-			     struct amdgpu_flip_work *work,
-			     struct amdgpu_bo *new_abo);
-
+				 uint32_t page_flip_flags, uint32_t target,
+				 struct drm_modeset_acquire_ctx *ctx);
 extern const struct drm_mode_config_funcs amdgpu_mode_funcs;
 
 #endif

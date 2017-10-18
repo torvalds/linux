@@ -206,6 +206,39 @@ bool drm_bridge_mode_fixup(struct drm_bridge *bridge,
 EXPORT_SYMBOL(drm_bridge_mode_fixup);
 
 /**
+ * drm_bridge_mode_valid - validate the mode against all bridges in the
+ * 			   encoder chain.
+ * @bridge: bridge control structure
+ * @mode: desired mode to be validated
+ *
+ * Calls &drm_bridge_funcs.mode_valid for all the bridges in the encoder
+ * chain, starting from the first bridge to the last. If at least one bridge
+ * does not accept the mode the function returns the error code.
+ *
+ * Note: the bridge passed should be the one closest to the encoder.
+ *
+ * RETURNS:
+ * MODE_OK on success, drm_mode_status Enum error code on failure
+ */
+enum drm_mode_status drm_bridge_mode_valid(struct drm_bridge *bridge,
+					   const struct drm_display_mode *mode)
+{
+	enum drm_mode_status ret = MODE_OK;
+
+	if (!bridge)
+		return ret;
+
+	if (bridge->funcs->mode_valid)
+		ret = bridge->funcs->mode_valid(bridge, mode);
+
+	if (ret != MODE_OK)
+		return ret;
+
+	return drm_bridge_mode_valid(bridge->next, mode);
+}
+EXPORT_SYMBOL(drm_bridge_mode_valid);
+
+/**
  * drm_bridge_disable - disables all bridges in the encoder chain
  * @bridge: bridge control structure
  *

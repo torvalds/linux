@@ -22,7 +22,8 @@ enum pca9532_state {
 	PCA9532_OFF  = 0x0,
 	PCA9532_ON   = 0x1,
 	PCA9532_PWM0 = 0x2,
-	PCA9532_PWM1 = 0x3
+	PCA9532_PWM1 = 0x3,
+	PCA9532_KEEP = 0xff,
 };
 
 struct pca9532_led {
@@ -44,4 +45,3 @@ struct pca9532_platform_data {
 };
 
 #endif /* __LINUX_PCA9532_H */
-

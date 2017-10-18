@@ -147,6 +147,15 @@ static inline int fscrypt_fname_usr_to_disk(struct inode *inode,
 	return -EOPNOTSUPP;
 }
 
+static inline bool fscrypt_match_name(const struct fscrypt_name *fname,
+				      const u8 *de_name, u32 de_name_len)
+{
+	/* Encryption support disabled; use standard comparison */
+	if (de_name_len != fname->disk_name.len)
+		return false;
+	return !memcmp(de_name, fname->disk_name.name, fname->disk_name.len);
+}
+
 /* bio.c */
 static inline void fscrypt_decrypt_bio_pages(struct fscrypt_ctx *ctx,
 					     struct bio *bio)

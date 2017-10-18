@@ -37,12 +37,9 @@ struct nvkm_acr_func {
 	void (*dtor)(struct nvkm_acr *);
 	int (*oneinit)(struct nvkm_acr *, struct nvkm_secboot *);
 	int (*fini)(struct nvkm_acr *, struct nvkm_secboot *, bool);
-	int (*load)(struct nvkm_acr *, struct nvkm_secboot *,
+	int (*load)(struct nvkm_acr *, struct nvkm_falcon *,
 		    struct nvkm_gpuobj *, u64);
-	int (*reset)(struct nvkm_acr *, struct nvkm_secboot *,
-		     enum nvkm_secboot_falcon);
-	int (*start)(struct nvkm_acr *, struct nvkm_secboot *,
-		     enum nvkm_secboot_falcon);
+	int (*reset)(struct nvkm_acr *, struct nvkm_secboot *, unsigned long);
 };
 
 /**
@@ -50,7 +47,7 @@ struct nvkm_acr_func {
  *
  * @boot_falcon: ID of the falcon that will perform secure boot
  * @managed_falcons: bitfield of falcons managed by this ACR
- * @start_address: virtual start address of the HS bootloader
+ * @optional_falcons: bitfield of falcons we can live without
  */
 struct nvkm_acr {
 	const struct nvkm_acr_func *func;
@@ -58,12 +55,15 @@ struct nvkm_acr {
 
 	enum nvkm_secboot_falcon boot_falcon;
 	unsigned long managed_falcons;
-	u32 start_address;
+	unsigned long optional_falcons;
 };
 
 void *nvkm_acr_load_firmware(const struct nvkm_subdev *, const char *, size_t);
 
 struct nvkm_acr *acr_r352_new(unsigned long);
 struct nvkm_acr *acr_r361_new(unsigned long);
+struct nvkm_acr *acr_r364_new(unsigned long);
+struct nvkm_acr *acr_r367_new(enum nvkm_secboot_falcon, unsigned long);
+struct nvkm_acr *acr_r375_new(enum nvkm_secboot_falcon, unsigned long);
 
 #endif

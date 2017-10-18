@@ -91,14 +91,14 @@ flush_window_regs_user(struct pt_regs *regs)
 			inc = 1;
 
 		} else if (m & 4) {		/* call8 */
-			if (copy_to_user((void*)(sp - 32),
-					   &regs->areg[(base + 1) * 4], 16))
+			if (copy_to_user(&SPILL_SLOT_CALL8(sp, 4),
+					 &regs->areg[(base + 1) * 4], 16))
 				goto errout;
 			inc = 2;
 
 		} else if (m & 8) {	/* call12 */
-			if (copy_to_user((void*)(sp - 48),
-					   &regs->areg[(base + 1) * 4], 32))
+			if (copy_to_user(&SPILL_SLOT_CALL12(sp, 4),
+					 &regs->areg[(base + 1) * 4], 32))
 				goto errout;
 			inc = 3;
 		}
@@ -106,7 +106,7 @@ flush_window_regs_user(struct pt_regs *regs)
 		/* Save current frame a0..a3 under next SP */
 
 		sp = regs->areg[((base + inc) * 4 + 1) % XCHAL_NUM_AREGS];
-		if (copy_to_user((void*)(sp - 16), &regs->areg[base * 4], 16))
+		if (copy_to_user(&SPILL_SLOT(sp, 0), &regs->areg[base * 4], 16))
 			goto errout;
 
 		/* Get current stack pointer for next loop iteration. */

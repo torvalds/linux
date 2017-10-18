@@ -570,18 +570,6 @@ static int startup(struct tty_struct *tty, struct serial_state *info)
 	info->xmit.head = info->xmit.tail = 0;
 
 	/*
-	 * Set up the tty->alt_speed kludge
-	 */
-	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
-		tty->alt_speed = 57600;
-	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
-		tty->alt_speed = 115200;
-	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_SHI)
-		tty->alt_speed = 230400;
-	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_WARP)
-		tty->alt_speed = 460800;
-
-	/*
 	 * and set the speed of the serial port
 	 */
 	change_speed(tty, info, NULL);
@@ -1084,14 +1072,9 @@ static int set_serial_info(struct tty_struct *tty, struct serial_state *state,
 check_and_exit:
 	if (tty_port_initialized(port)) {
 		if (change_spd) {
-			if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
-				tty->alt_speed = 57600;
-			if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
-				tty->alt_speed = 115200;
-			if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_SHI)
-				tty->alt_speed = 230400;
-			if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_WARP)
-				tty->alt_speed = 460800;
+			/* warn about deprecation unless clearing */
+			if (new_serial.flags & ASYNC_SPD_MASK)
+				dev_warn_ratelimited(tty->dev, "use of SPD flags is deprecated\n");
 			change_speed(tty, state, NULL);
 		}
 	} else

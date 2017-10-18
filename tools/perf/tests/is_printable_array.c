@@ -1,7 +1,8 @@
 #include <linux/compiler.h>
+#include <linux/kernel.h>
 #include "tests.h"
 #include "debug.h"
-#include "util.h"
+#include "print_binary.h"
 
 int test__is_printable_array(int subtest __maybe_unused)
 {

@@ -173,12 +173,12 @@ static void exynos_enable_dvfs(unsigned int cur_frequency)
 	/* Enable PSTATE Change Event */
 	tmp = __raw_readl(dvfs_info->base + XMU_PMUEVTEN);
 	tmp |= (1 << PSTATE_CHANGED_EVTEN_SHIFT);
-	 __raw_writel(tmp, dvfs_info->base + XMU_PMUEVTEN);
+	__raw_writel(tmp, dvfs_info->base + XMU_PMUEVTEN);
 
 	/* Enable PSTATE Change IRQ */
 	tmp = __raw_readl(dvfs_info->base + XMU_PMUIRQEN);
 	tmp |= (1 << PSTATE_CHANGED_IRQEN_SHIFT);
-	 __raw_writel(tmp, dvfs_info->base + XMU_PMUIRQEN);
+	__raw_writel(tmp, dvfs_info->base + XMU_PMUIRQEN);
 
 	/* Set initial performance index */
 	cpufreq_for_each_entry(pos, freq_table)
@@ -330,7 +330,7 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 	struct resource res;
 	unsigned int cur_frequency;
 
-	np =  pdev->dev.of_node;
+	np = pdev->dev.of_node;
 	if (!np)
 		return -ENODEV;
 

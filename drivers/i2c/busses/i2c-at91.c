@@ -274,7 +274,7 @@ static void at91_twi_write_next_byte(struct at91_twi_dev *dev)
 		if (!dev->use_alt_cmd)
 			at91_twi_write(dev, AT91_TWI_CR, AT91_TWI_STOP);
 
-	dev_dbg(dev->dev, "wrote 0x%x, to go %d\n", *dev->buf, dev->buf_len);
+	dev_dbg(dev->dev, "wrote 0x%x, to go %zu\n", *dev->buf, dev->buf_len);
 
 	++dev->buf;
 }
@@ -402,7 +402,7 @@ static void at91_twi_read_next_byte(struct at91_twi_dev *dev)
 			dev->msg->flags &= ~I2C_M_RECV_LEN;
 			dev->buf_len += *dev->buf;
 			dev->msg->len = dev->buf_len + 1;
-			dev_dbg(dev->dev, "received block length %d\n",
+			dev_dbg(dev->dev, "received block length %zu\n",
 					 dev->buf_len);
 		} else {
 			/* abort and send the stop by reading one more byte */
@@ -415,7 +415,7 @@ static void at91_twi_read_next_byte(struct at91_twi_dev *dev)
 	if (!dev->use_alt_cmd && dev->buf_len == 1)
 		at91_twi_write(dev, AT91_TWI_CR, AT91_TWI_STOP);
 
-	dev_dbg(dev->dev, "read 0x%x, to go %d\n", *dev->buf, dev->buf_len);
+	dev_dbg(dev->dev, "read 0x%x, to go %zu\n", *dev->buf, dev->buf_len);
 
 	++dev->buf;
 }
@@ -622,7 +622,7 @@ static int at91_do_twi_transfer(struct at91_twi_dev *dev)
 	 * writing the corresponding bit into the Control Register.
 	 */
 
-	dev_dbg(dev->dev, "transfer: %s %d bytes.\n",
+	dev_dbg(dev->dev, "transfer: %s %zu bytes.\n",
 		(dev->msg->flags & I2C_M_RD) ? "read" : "write", dev->buf_len);
 
 	reinit_completion(&dev->cmd_complete);
@@ -1083,12 +1083,16 @@ static int at91_twi_probe(struct platform_device *pdev)
 		dev_err(dev->dev, "no clock defined\n");
 		return -ENODEV;
 	}
-	clk_prepare_enable(dev->clk);
+	rc = clk_prepare_enable(dev->clk);
+	if (rc)
+		return rc;
 
 	if (dev->dev->of_node) {
 		rc = at91_twi_configure_dma(dev, phy_addr);
-		if (rc == -EPROBE_DEFER)
+		if (rc == -EPROBE_DEFER) {
+			clk_disable_unprepare(dev->clk);
 			return rc;
+		}
 	}
 
 	if (!of_property_read_u32(pdev->dev.of_node, "atmel,fifo-size",

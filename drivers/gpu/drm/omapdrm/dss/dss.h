@@ -42,29 +42,26 @@
 
 #ifdef DSS_SUBSYS_NAME
 #define DSSERR(format, ...) \
-	printk(KERN_ERR "omapdss " DSS_SUBSYS_NAME " error: " format, \
-	## __VA_ARGS__)
+	pr_err("omapdss " DSS_SUBSYS_NAME " error: " format, ##__VA_ARGS__)
 #else
 #define DSSERR(format, ...) \
-	printk(KERN_ERR "omapdss error: " format, ## __VA_ARGS__)
+	pr_err("omapdss error: " format, ##__VA_ARGS__)
 #endif
 
 #ifdef DSS_SUBSYS_NAME
 #define DSSINFO(format, ...) \
-	printk(KERN_INFO "omapdss " DSS_SUBSYS_NAME ": " format, \
-	## __VA_ARGS__)
+	pr_info("omapdss " DSS_SUBSYS_NAME ": " format, ##__VA_ARGS__)
 #else
 #define DSSINFO(format, ...) \
-	printk(KERN_INFO "omapdss: " format, ## __VA_ARGS__)
+	pr_info("omapdss: " format, ## __VA_ARGS__)
 #endif
 
 #ifdef DSS_SUBSYS_NAME
 #define DSSWARN(format, ...) \
-	printk(KERN_WARNING "omapdss " DSS_SUBSYS_NAME ": " format, \
-	## __VA_ARGS__)
+	pr_warn("omapdss " DSS_SUBSYS_NAME ": " format, ##__VA_ARGS__)
 #else
 #define DSSWARN(format, ...) \
-	printk(KERN_WARNING "omapdss: " format, ## __VA_ARGS__)
+	pr_warn("omapdss: " format, ##__VA_ARGS__)
 #endif
 
 /* OMAP TRM gives bitfields as start:end, where start is the higher bit
@@ -222,7 +219,6 @@ struct seq_file;
 struct platform_device;
 
 /* core */
-struct platform_device *dss_get_core_pdev(void);
 int dss_dsi_enable_pads(int dsi_id, unsigned lane_mask);
 void dss_dsi_disable_pads(int dsi_id, unsigned lane_mask);
 int dss_set_min_bus_tput(struct device *dev, unsigned long tput);
@@ -256,10 +252,6 @@ struct dss_pll *dss_video_pll_init(struct platform_device *pdev, int id,
 	struct regulator *regulator);
 void dss_video_pll_uninit(struct dss_pll *pll);
 
-/* dss-of */
-struct device_node *dss_of_port_get_parent_device(struct device_node *port);
-u32 dss_of_port_get_port_number(struct device_node *port);
-
 #if defined(CONFIG_OMAP2_DSS_DEBUGFS)
 void dss_debug_dump_clocks(struct seq_file *s);
 #endif
@@ -288,9 +280,6 @@ bool dss_div_calc(unsigned long pck, unsigned long fck_min,
 		dss_div_calc_func func, void *data);
 
 /* SDI */
-int sdi_init_platform_driver(void) __init;
-void sdi_uninit_platform_driver(void);
-
 #ifdef CONFIG_OMAP2_DSS_SDI
 int sdi_init_port(struct platform_device *pdev, struct device_node *port);
 void sdi_uninit_port(struct device_node *port);
@@ -318,21 +307,10 @@ void dsi_uninit_platform_driver(void);
 void dsi_dump_clocks(struct seq_file *s);
 
 void dsi_irq_handler(void);
-u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt);
 
-#else
-static inline u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
-{
-	WARN(1, "%s: DSI not compiled in, returning pixel_size as 0\n",
-	     __func__);
-	return 0;
-}
 #endif
 
 /* DPI */
-int dpi_init_platform_driver(void) __init;
-void dpi_uninit_platform_driver(void);
-
 #ifdef CONFIG_OMAP2_DSS_DPI
 int dpi_init_port(struct platform_device *pdev, struct device_node *port);
 void dpi_uninit_port(struct device_node *port);
@@ -351,6 +329,9 @@ static inline void dpi_uninit_port(struct device_node *port)
 int dispc_init_platform_driver(void) __init;
 void dispc_uninit_platform_driver(void);
 void dispc_dump_clocks(struct seq_file *s);
+
+int dispc_runtime_get(void);
+void dispc_runtime_put(void);
 
 void dispc_enable_sidle(void);
 void dispc_disable_sidle(void);
@@ -371,8 +352,9 @@ int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
 		struct dispc_clock_info *cinfo);
 
 
-void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high);
-void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
+void dispc_ovl_set_fifo_threshold(enum omap_plane_id plane, u32 low,
+				  u32 high);
+void dispc_ovl_compute_fifo_thresholds(enum omap_plane_id plane,
 		u32 *fifo_low, u32 *fifo_high, bool use_fifomerge,
 		bool manual_update);
 
@@ -385,8 +367,6 @@ void dispc_set_tv_pclk(unsigned long pclk);
 u32 dispc_wb_get_framedone_irq(void);
 bool dispc_wb_go_busy(void);
 void dispc_wb_go(void);
-void dispc_wb_enable(bool enable);
-bool dispc_wb_is_enabled(void);
 void dispc_wb_set_channel_in(enum dss_writeback_channel channel);
 int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 		bool mem_to_mem, const struct videomode *vm);
@@ -401,10 +381,6 @@ void hdmi4_uninit_platform_driver(void);
 
 int hdmi5_init_platform_driver(void) __init;
 void hdmi5_uninit_platform_driver(void);
-
-/* RFBI */
-int rfbi_init_platform_driver(void) __init;
-void rfbi_uninit_platform_driver(void);
 
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS

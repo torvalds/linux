@@ -124,11 +124,6 @@ static void __rds_conn_path_init(struct rds_connection *conn,
 	cp->cp_conn = conn;
 	atomic_set(&cp->cp_state, RDS_CONN_DOWN);
 	cp->cp_send_gen = 0;
-	/* cp_outgoing is per-path. So we can only set it here
-	 * for the single-path transports.
-	 */
-	if (!conn->c_trans->t_mp_capable)
-		cp->cp_outgoing = (is_outgoing ? 1 : 0);
 	cp->cp_reconnect_jiffies = 0;
 	INIT_DELAYED_WORK(&cp->cp_send_w, rds_send_worker);
 	INIT_DELAYED_WORK(&cp->cp_recv_w, rds_recv_worker);
@@ -333,11 +328,19 @@ void rds_conn_shutdown(struct rds_conn_path *cp)
 		rds_conn_path_reset(cp);
 
 		if (!rds_conn_path_transition(cp, RDS_CONN_DISCONNECTING,
+					      RDS_CONN_DOWN) &&
+		    !rds_conn_path_transition(cp, RDS_CONN_ERROR,
 					      RDS_CONN_DOWN)) {
 			/* This can happen - eg when we're in the middle of tearing
 			 * down the connection, and someone unloads the rds module.
-			 * Quite reproduceable with loopback connections.
+			 * Quite reproducible with loopback connections.
 			 * Mostly harmless.
+			 *
+			 * Note that this also happens with rds-tcp because
+			 * we could have triggered rds_conn_path_drop in irq
+			 * mode from rds_tcp_state change on the receipt of
+			 * a FIN, thus we need to recheck for RDS_CONN_ERROR
+			 * here.
 			 */
 			rds_conn_path_error(cp, "%s: failed to transition "
 					    "to state DOWN, current state "
@@ -409,6 +412,7 @@ void rds_conn_destroy(struct rds_connection *conn)
 		 "%pI4\n", conn, &conn->c_laddr,
 		 &conn->c_faddr);
 
+	conn->c_destroy_in_prog = 1;
 	/* Ensure conn will not be scheduled for reconnect */
 	spin_lock_irq(&rds_conn_lock);
 	hlist_del_init_rcu(&conn->c_hash_node);

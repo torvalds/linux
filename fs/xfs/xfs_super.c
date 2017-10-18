@@ -52,6 +52,7 @@
 #include "xfs_reflink.h"
 
 #include <linux/namei.h>
+#include <linux/dax.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/mount.h>
@@ -195,7 +196,7 @@ xfs_parseargs(
 	int			dsunit = 0;
 	int			dswidth = 0;
 	int			iosize = 0;
-	__uint8_t		iosizelog = 0;
+	uint8_t			iosizelog = 0;
 
 	/*
 	 * set up the mount name first so all the errors will refer to the
@@ -555,7 +556,7 @@ xfs_showargs(
 
 	return 0;
 }
-static __uint64_t
+static uint64_t
 xfs_max_file_offset(
 	unsigned int		blockshift)
 {
@@ -586,7 +587,7 @@ xfs_max_file_offset(
 # endif
 #endif
 
-	return (((__uint64_t)pagefactor) << bitshift) - 1;
+	return (((uint64_t)pagefactor) << bitshift) - 1;
 }
 
 /*
@@ -621,7 +622,7 @@ xfs_set_inode_alloc(
 	 * the max inode percentage.  Used only for inode32.
 	 */
 	if (mp->m_maxicount) {
-		__uint64_t	icount;
+		uint64_t	icount;
 
 		icount = sbp->sb_dblocks * sbp->sb_imax_pct;
 		do_div(icount, 100);
@@ -877,8 +878,15 @@ xfs_init_mount_workqueues(
 	if (!mp->m_eofblocks_workqueue)
 		goto out_destroy_log;
 
+	mp->m_sync_workqueue = alloc_workqueue("xfs-sync/%s", WQ_FREEZABLE, 0,
+					       mp->m_fsname);
+	if (!mp->m_sync_workqueue)
+		goto out_destroy_eofb;
+
 	return 0;
 
+out_destroy_eofb:
+	destroy_workqueue(mp->m_eofblocks_workqueue);
 out_destroy_log:
 	destroy_workqueue(mp->m_log_workqueue);
 out_destroy_reclaim:
@@ -899,6 +907,7 @@ STATIC void
 xfs_destroy_mount_workqueues(
 	struct xfs_mount	*mp)
 {
+	destroy_workqueue(mp->m_sync_workqueue);
 	destroy_workqueue(mp->m_eofblocks_workqueue);
 	destroy_workqueue(mp->m_log_workqueue);
 	destroy_workqueue(mp->m_reclaim_workqueue);
@@ -1079,12 +1088,12 @@ xfs_fs_statfs(
 	struct xfs_mount	*mp = XFS_M(dentry->d_sb);
 	xfs_sb_t		*sbp = &mp->m_sb;
 	struct xfs_inode	*ip = XFS_I(d_inode(dentry));
-	__uint64_t		fakeinos, id;
-	__uint64_t		icount;
-	__uint64_t		ifree;
-	__uint64_t		fdblocks;
+	uint64_t		fakeinos, id;
+	uint64_t		icount;
+	uint64_t		ifree;
+	uint64_t		fdblocks;
 	xfs_extlen_t		lsize;
-	__int64_t		ffree;
+	int64_t			ffree;
 
 	statp->f_type = XFS_SB_MAGIC;
 	statp->f_namelen = MAXNAMELEN - 1;
@@ -1107,7 +1116,7 @@ xfs_fs_statfs(
 	statp->f_bavail = statp->f_bfree;
 
 	fakeinos = statp->f_bfree << sbp->sb_inopblog;
-	statp->f_files = MIN(icount + fakeinos, (__uint64_t)XFS_MAXINUMBER);
+	statp->f_files = MIN(icount + fakeinos, (uint64_t)XFS_MAXINUMBER);
 	if (mp->m_maxicount)
 		statp->f_files = min_t(typeof(statp->f_files),
 					statp->f_files,
@@ -1120,7 +1129,7 @@ xfs_fs_statfs(
 
 	/* make sure statp->f_ffree does not underflow */
 	ffree = statp->f_files - (icount - ifree);
-	statp->f_ffree = max_t(__int64_t, ffree, 0);
+	statp->f_ffree = max_t(int64_t, ffree, 0);
 
 
 	if ((ip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) &&
@@ -1133,7 +1142,7 @@ xfs_fs_statfs(
 STATIC void
 xfs_save_resvblks(struct xfs_mount *mp)
 {
-	__uint64_t resblks = 0;
+	uint64_t resblks = 0;
 
 	mp->m_resblks_save = mp->m_resblks;
 	xfs_reserve_blocks(mp, &resblks, NULL);
@@ -1142,7 +1151,7 @@ xfs_save_resvblks(struct xfs_mount *mp)
 STATIC void
 xfs_restore_resvblks(struct xfs_mount *mp)
 {
-	__uint64_t resblks;
+	uint64_t resblks;
 
 	if (mp->m_resblks_save) {
 		resblks = mp->m_resblks_save;
@@ -1757,7 +1766,8 @@ STATIC int __init
 xfs_init_zones(void)
 {
 	xfs_ioend_bioset = bioset_create(4 * MAX_BUF_PER_PAGE,
-			offsetof(struct xfs_ioend, io_inline_bio));
+			offsetof(struct xfs_ioend, io_inline_bio),
+			BIOSET_NEED_BVECS);
 	if (!xfs_ioend_bioset)
 		goto out;
 

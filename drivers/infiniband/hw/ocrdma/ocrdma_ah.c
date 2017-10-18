@@ -71,7 +71,7 @@ static u16 ocrdma_hdr_type_to_proto_num(int devid, u8 hdr_type)
 }
 
 static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
-			struct ib_ah_attr *attr, union ib_gid *sgid,
+			struct rdma_ah_attr *attr, union ib_gid *sgid,
 			int pdid, bool *isvlan, u16 vlan_tag)
 {
 	int status;
@@ -81,6 +81,7 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 	u16 proto_num = 0;
 	u8 nxthdr = 0x11;
 	struct iphdr ipv4;
+	const struct ib_global_route *ib_grh;
 	union {
 		struct sockaddr     _sockaddr;
 		struct sockaddr_in  _sockaddr_in;
@@ -120,32 +121,33 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 	status = ocrdma_resolve_dmac(dev, attr, &eth.dmac[0]);
 	if (status)
 		return status;
-	ah->sgid_index = attr->grh.sgid_index;
+	ib_grh = rdma_ah_read_grh(attr);
+	ah->sgid_index = ib_grh->sgid_index;
 	/* Eth HDR */
 	memcpy(&ah->av->eth_hdr, &eth, eth_sz);
 	if (ah->hdr_type == RDMA_NETWORK_IPV4) {
 		*((__be16 *)&ipv4) = htons((4 << 12) | (5 << 8) |
-					   attr->grh.traffic_class);
+					   ib_grh->traffic_class);
 		ipv4.id = cpu_to_be16(pdid);
 		ipv4.frag_off = htons(IP_DF);
 		ipv4.tot_len = htons(0);
-		ipv4.ttl = attr->grh.hop_limit;
+		ipv4.ttl = ib_grh->hop_limit;
 		ipv4.protocol = nxthdr;
 		rdma_gid2ip(&sgid_addr._sockaddr, sgid);
 		ipv4.saddr = sgid_addr._sockaddr_in.sin_addr.s_addr;
-		rdma_gid2ip(&dgid_addr._sockaddr, &attr->grh.dgid);
+		rdma_gid2ip(&dgid_addr._sockaddr, &ib_grh->dgid);
 		ipv4.daddr = dgid_addr._sockaddr_in.sin_addr.s_addr;
 		memcpy((u8 *)ah->av + eth_sz, &ipv4, sizeof(struct iphdr));
 	} else {
 		memcpy(&grh.sgid[0], sgid->raw, sizeof(union ib_gid));
 		grh.tclass_flow = cpu_to_be32((6 << 28) |
-					      (attr->grh.traffic_class << 24) |
-					      attr->grh.flow_label);
-		memcpy(&grh.dgid[0], attr->grh.dgid.raw,
-		       sizeof(attr->grh.dgid.raw));
+					      (ib_grh->traffic_class << 24) |
+					      ib_grh->flow_label);
+		memcpy(&grh.dgid[0], ib_grh->dgid.raw,
+		       sizeof(ib_grh->dgid.raw));
 		grh.pdid_hoplimit = cpu_to_be32((pdid << 16) |
 						(nxthdr << 8) |
-						attr->grh.hop_limit);
+						ib_grh->hop_limit);
 		memcpy((u8 *)ah->av + eth_sz, &grh, sizeof(struct ocrdma_grh));
 	}
 	if (*isvlan)
@@ -154,7 +156,7 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 	return status;
 }
 
-struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr,
+struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
 			       struct ib_udata *udata)
 {
 	u32 *ahid_addr;
@@ -165,11 +167,14 @@ struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr,
 	struct ib_gid_attr sgid_attr;
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
+	const struct ib_global_route *grh;
 	union ib_gid sgid;
 
-	if (!(attr->ah_flags & IB_AH_GRH))
+	if ((attr->type != RDMA_AH_ATTR_TYPE_ROCE) ||
+	    !(rdma_ah_get_ah_flags(attr) & IB_AH_GRH))
 		return ERR_PTR(-EINVAL);
 
+	grh = rdma_ah_read_grh(attr);
 	if (atomic_cmpxchg(&dev->update_sl, 1, 0))
 		ocrdma_init_service_level(dev);
 
@@ -181,7 +186,7 @@ struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr,
 	if (status)
 		goto av_err;
 
-	status = ib_get_cached_gid(&dev->ibdev, 1, attr->grh.sgid_index, &sgid,
+	status = ib_get_cached_gid(&dev->ibdev, 1, grh->sgid_index, &sgid,
 				   &sgid_attr);
 	if (status) {
 		pr_err("%s(): Failed to query sgid, status = %d\n",
@@ -197,10 +202,11 @@ struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr,
 	ah->hdr_type = ib_gid_to_network_type(sgid_attr.gid_type, &sgid);
 
 	if ((pd->uctx) &&
-	    (!rdma_is_multicast_addr((struct in6_addr *)attr->grh.dgid.raw)) &&
-	    (!rdma_link_local_addr((struct in6_addr *)attr->grh.dgid.raw))) {
-		status = rdma_addr_find_l2_eth_by_grh(&sgid, &attr->grh.dgid,
-						      attr->dmac, &vlan_tag,
+	    (!rdma_is_multicast_addr((struct in6_addr *)grh->dgid.raw)) &&
+	    (!rdma_link_local_addr((struct in6_addr *)grh->dgid.raw))) {
+		status = rdma_addr_find_l2_eth_by_grh(&sgid, &grh->dgid,
+						      attr->roce.dmac,
+						      &vlan_tag,
 						      &sgid_attr.ndev->ifindex,
 						      NULL);
 		if (status) {
@@ -216,7 +222,7 @@ struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr,
 
 	/* if pd is for the user process, pass the ah_id to user space */
 	if ((pd->uctx) && (pd->uctx->ah_tbl.va)) {
-		ahid_addr = pd->uctx->ah_tbl.va + attr->dlid;
+		ahid_addr = pd->uctx->ah_tbl.va + rdma_ah_get_dlid(attr);
 		*ahid_addr = 0;
 		*ahid_addr |= ah->id & OCRDMA_AH_ID_MASK;
 		if (ocrdma_is_udp_encap_supported(dev)) {
@@ -248,30 +254,32 @@ int ocrdma_destroy_ah(struct ib_ah *ibah)
 	return 0;
 }
 
-int ocrdma_query_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
+int ocrdma_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 {
 	struct ocrdma_ah *ah = get_ocrdma_ah(ibah);
 	struct ocrdma_av *av = ah->av;
 	struct ocrdma_grh *grh;
-	attr->ah_flags |= IB_AH_GRH;
+
+	attr->type = ibah->type;
 	if (ah->av->valid & OCRDMA_AV_VALID) {
 		grh = (struct ocrdma_grh *)((u8 *)ah->av +
 				sizeof(struct ocrdma_eth_vlan));
-		attr->sl = be16_to_cpu(av->eth_hdr.vlan_tag) >> 13;
+		rdma_ah_set_sl(attr, be16_to_cpu(av->eth_hdr.vlan_tag) >> 13);
 	} else {
 		grh = (struct ocrdma_grh *)((u8 *)ah->av +
 					sizeof(struct ocrdma_eth_basic));
-		attr->sl = 0;
+		rdma_ah_set_sl(attr, 0);
 	}
-	memcpy(&attr->grh.dgid.raw[0], &grh->dgid[0], sizeof(grh->dgid));
-	attr->grh.sgid_index = ah->sgid_index;
-	attr->grh.hop_limit = be32_to_cpu(grh->pdid_hoplimit) & 0xff;
-	attr->grh.traffic_class = be32_to_cpu(grh->tclass_flow) >> 24;
-	attr->grh.flow_label = be32_to_cpu(grh->tclass_flow) & 0x00ffffffff;
+	rdma_ah_set_grh(attr, NULL,
+			be32_to_cpu(grh->tclass_flow) & 0xffffffff,
+			ah->sgid_index,
+			be32_to_cpu(grh->pdid_hoplimit) & 0xff,
+			be32_to_cpu(grh->tclass_flow) >> 24);
+	rdma_ah_set_dgid_raw(attr, &grh->dgid[0]);
 	return 0;
 }
 
-int ocrdma_modify_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
+int ocrdma_modify_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 {
 	/* modify_ah is unsupported */
 	return -ENOSYS;

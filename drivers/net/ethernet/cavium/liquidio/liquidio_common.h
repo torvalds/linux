@@ -27,7 +27,7 @@
 
 #define LIQUIDIO_PACKAGE ""
 #define LIQUIDIO_BASE_MAJOR_VERSION 1
-#define LIQUIDIO_BASE_MINOR_VERSION 4
+#define LIQUIDIO_BASE_MINOR_VERSION 5
 #define LIQUIDIO_BASE_MICRO_VERSION 1
 #define LIQUIDIO_BASE_VERSION   __stringify(LIQUIDIO_BASE_MAJOR_VERSION) "." \
 				__stringify(LIQUIDIO_BASE_MINOR_VERSION)
@@ -83,6 +83,7 @@ enum octeon_tag_type {
 #define OPCODE_NIC_INTRMOD_CFG         0x08
 #define OPCODE_NIC_IF_CFG              0x09
 #define OPCODE_NIC_VF_DRV_NOTICE       0x0A
+#define OPCODE_NIC_INTRMOD_PARAMS      0x0B
 #define VF_DRV_LOADED                  1
 #define VF_DRV_REMOVED                -1
 #define VF_DRV_MACADDR_CHANGED         2
@@ -100,6 +101,11 @@ enum octeon_tag_type {
 
 #define BYTES_PER_DHLEN_UNIT        8
 #define MAX_REG_CNT                 2000000U
+#define INTRNAMSIZ                  32
+#define IRQ_NAME_OFF(i)             ((i) * INTRNAMSIZ)
+#define MAX_IOQ_INTERRUPTS_PER_PF   (64 * 2)
+#define MAX_IOQ_INTERRUPTS_PER_VF   (8 * 2)
+
 
 static inline u32 incr_index(u32 index, u32 count, u32 max)
 {
@@ -167,6 +173,8 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 
 /*------------------------- End Scatter/Gather ---------------------------*/
 
+#define   OCTNET_FRM_LENGTH_SIZE      8
+
 #define   OCTNET_FRM_PTP_HEADER_SIZE  8
 
 #define   OCTNET_FRM_HEADER_SIZE     22 /* VLAN + Ethernet */
@@ -181,6 +189,7 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_Q                0
 
 /* NIC Command types */
+#define   OCTNET_CMD_RESET_PF         0x0
 #define   OCTNET_CMD_CHANGE_MTU       0x1
 #define   OCTNET_CMD_CHANGE_MACADDR   0x2
 #define   OCTNET_CMD_CHANGE_DEVFLAGS  0x3
@@ -208,7 +217,7 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_VERBOSE_ENABLE   0x14
 #define   OCTNET_CMD_VERBOSE_DISABLE  0x15
 
-#define   OCTNET_CMD_ENABLE_VLAN_FILTER 0x16
+#define   OCTNET_CMD_VLAN_FILTER_CTL 0x16
 #define   OCTNET_CMD_ADD_VLAN_FILTER  0x17
 #define   OCTNET_CMD_DEL_VLAN_FILTER  0x18
 #define   OCTNET_CMD_VXLAN_PORT_CONFIG 0x19
@@ -223,6 +232,8 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_RXCSUM_DISABLE    0x1
 #define   OCTNET_CMD_TXCSUM_ENABLE     0x0
 #define   OCTNET_CMD_TXCSUM_DISABLE    0x1
+#define   OCTNET_CMD_VLAN_FILTER_ENABLE 0x1
+#define   OCTNET_CMD_VLAN_FILTER_DISABLE 0x0
 
 /* RX(packets coming from wire) Checksum verification flags */
 /* TCP/UDP csum */
@@ -844,29 +855,6 @@ struct oct_mdio_cmd {
 };
 
 #define OCT_LINK_STATS_SIZE   (sizeof(struct oct_link_stats))
-
-/* intrmod: max. packet rate threshold */
-#define LIO_INTRMOD_MAXPKT_RATETHR	196608
-/* intrmod: min. packet rate threshold */
-#define LIO_INTRMOD_MINPKT_RATETHR	9216
-/* intrmod: max. packets to trigger interrupt */
-#define LIO_INTRMOD_RXMAXCNT_TRIGGER	384
-/* intrmod: min. packets to trigger interrupt */
-#define LIO_INTRMOD_RXMINCNT_TRIGGER	0
-/* intrmod: max. time to trigger interrupt */
-#define LIO_INTRMOD_RXMAXTMR_TRIGGER	128
-/* 66xx:intrmod: min. time to trigger interrupt
- * (value of 1 is optimum for TCP_RR)
- */
-#define LIO_INTRMOD_RXMINTMR_TRIGGER	1
-
-/* intrmod: max. packets to trigger interrupt */
-#define LIO_INTRMOD_TXMAXCNT_TRIGGER	64
-/* intrmod: min. packets to trigger interrupt */
-#define LIO_INTRMOD_TXMINCNT_TRIGGER	0
-
-/* intrmod: poll interval in seconds */
-#define LIO_INTRMOD_CHECK_INTERVAL  1
 
 struct oct_intrmod_cfg {
 	u64 rx_enable;

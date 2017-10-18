@@ -293,6 +293,22 @@ struct sctp_chunk *sctp_process_strreset_inreq(
 				struct sctp_association *asoc,
 				union sctp_params param,
 				struct sctp_ulpevent **evp);
+struct sctp_chunk *sctp_process_strreset_tsnreq(
+				struct sctp_association *asoc,
+				union sctp_params param,
+				struct sctp_ulpevent **evp);
+struct sctp_chunk *sctp_process_strreset_addstrm_out(
+				struct sctp_association *asoc,
+				union sctp_params param,
+				struct sctp_ulpevent **evp);
+struct sctp_chunk *sctp_process_strreset_addstrm_in(
+				struct sctp_association *asoc,
+				union sctp_params param,
+				struct sctp_ulpevent **evp);
+struct sctp_chunk *sctp_process_strreset_resp(
+				struct sctp_association *asoc,
+				union sctp_params param,
+				struct sctp_ulpevent **evp);
 
 /* Prototypes for statetable processing. */
 
@@ -309,19 +325,17 @@ void sctp_generate_heartbeat_event(unsigned long peer);
 void sctp_generate_reconf_event(unsigned long peer);
 void sctp_generate_proto_unreach_event(unsigned long peer);
 
-void sctp_ootb_pkt_free(struct sctp_packet *);
+void sctp_ootb_pkt_free(struct sctp_packet *packet);
 
-struct sctp_association *sctp_unpack_cookie(const struct sctp_endpoint *,
-				       const struct sctp_association *,
-				       struct sctp_chunk *,
+struct sctp_association *sctp_unpack_cookie(const struct sctp_endpoint *ep,
+				       const struct sctp_association *asoc,
+				       struct sctp_chunk *chunk,
 				       gfp_t gfp, int *err,
 				       struct sctp_chunk **err_chk_p);
-int sctp_addip_addr_config(struct sctp_association *, sctp_param_t,
-			   struct sockaddr_storage*, int);
 
 /* 3rd level prototypes */
-__u32 sctp_generate_tag(const struct sctp_endpoint *);
-__u32 sctp_generate_tsn(const struct sctp_endpoint *);
+__u32 sctp_generate_tag(const struct sctp_endpoint *ep);
+__u32 sctp_generate_tsn(const struct sctp_endpoint *ep);
 
 /* Extern declarations for major data structures.  */
 extern sctp_timer_event_t *sctp_timer_events[SCTP_NUM_TIMEOUT_TYPES];
@@ -333,7 +347,7 @@ static inline __u16 sctp_data_size(struct sctp_chunk *chunk)
 	__u16 size;
 
 	size = ntohs(chunk->chunk_hdr->length);
-	size -= sizeof(sctp_data_chunk_t);
+	size -= sizeof(struct sctp_data_chunk);
 
 	return size;
 }

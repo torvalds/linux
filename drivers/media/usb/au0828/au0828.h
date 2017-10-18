@@ -195,6 +195,8 @@ struct au0828_dev {
 	/* Digital */
 	struct au0828_dvb		dvb;
 	struct work_struct              restart_streaming;
+	struct timer_list               bulk_timeout;
+	int                             bulk_timeout_running;
 
 #ifdef CONFIG_VIDEO_AU0828_V4L2
 	/* Analog */

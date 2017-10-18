@@ -3,8 +3,7 @@ Device Tree Overlay Notes
 
 This document describes the implementation of the in-kernel
 device tree overlay functionality residing in drivers/of/overlay.c and is a
-companion document to Documentation/devicetree/dt-object-internal.txt[1] &
-Documentation/devicetree/dynamic-resolution-notes.txt[2]
+companion document to Documentation/devicetree/dynamic-resolution-notes.txt[1]
 
 How overlays work
 -----------------
@@ -16,8 +15,7 @@ Since the kernel mainly deals with devices, any new device node that result
 in an active device should have it created while if the device node is either
 disabled or removed all together, the affected device should be deregistered.
 
-Lets take an example where we have a foo board with the following base tree
-which is taken from [1].
+Lets take an example where we have a foo board with the following base tree:
 
 ---- foo.dts -----------------------------------------------------------------
 	/* FOO platform */
@@ -36,7 +34,7 @@ which is taken from [1].
 	};
 ---- foo.dts -----------------------------------------------------------------
 
-The overlay bar.dts, when loaded (and resolved as described in [2]) should
+The overlay bar.dts, when loaded (and resolved as described in [1]) should
 
 ---- bar.dts -----------------------------------------------------------------
 /plugin/;	/* allow undefined label references and record them */

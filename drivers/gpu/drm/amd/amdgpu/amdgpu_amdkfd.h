@@ -39,15 +39,15 @@ struct kgd_mem {
 int amdgpu_amdkfd_init(void);
 void amdgpu_amdkfd_fini(void);
 
-bool amdgpu_amdkfd_load_interface(struct amdgpu_device *rdev);
+bool amdgpu_amdkfd_load_interface(struct amdgpu_device *adev);
 
-void amdgpu_amdkfd_suspend(struct amdgpu_device *rdev);
-int amdgpu_amdkfd_resume(struct amdgpu_device *rdev);
-void amdgpu_amdkfd_interrupt(struct amdgpu_device *rdev,
+void amdgpu_amdkfd_suspend(struct amdgpu_device *adev);
+int amdgpu_amdkfd_resume(struct amdgpu_device *adev);
+void amdgpu_amdkfd_interrupt(struct amdgpu_device *adev,
 			const void *ih_ring_entry);
-void amdgpu_amdkfd_device_probe(struct amdgpu_device *rdev);
-void amdgpu_amdkfd_device_init(struct amdgpu_device *rdev);
-void amdgpu_amdkfd_device_fini(struct amdgpu_device *rdev);
+void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev);
+void amdgpu_amdkfd_device_init(struct amdgpu_device *adev);
+void amdgpu_amdkfd_device_fini(struct amdgpu_device *adev);
 
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_7_get_functions(void);
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_8_0_get_functions(void);

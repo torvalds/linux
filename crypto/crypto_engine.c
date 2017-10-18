@@ -70,7 +70,7 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 
 		if (engine->unprepare_crypt_hardware &&
 		    engine->unprepare_crypt_hardware(engine))
-			pr_err("failed to unprepare crypt hardware\n");
+			dev_err(engine->dev, "failed to unprepare crypt hardware\n");
 
 		spin_lock_irqsave(&engine->queue_lock, flags);
 		engine->idling = false;
@@ -99,7 +99,7 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 	if (!was_busy && engine->prepare_crypt_hardware) {
 		ret = engine->prepare_crypt_hardware(engine);
 		if (ret) {
-			pr_err("failed to prepare crypt hardware\n");
+			dev_err(engine->dev, "failed to prepare crypt hardware\n");
 			goto req_err;
 		}
 	}
@@ -110,14 +110,15 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 		if (engine->prepare_hash_request) {
 			ret = engine->prepare_hash_request(engine, hreq);
 			if (ret) {
-				pr_err("failed to prepare request: %d\n", ret);
+				dev_err(engine->dev, "failed to prepare request: %d\n",
+					ret);
 				goto req_err;
 			}
 			engine->cur_req_prepared = true;
 		}
 		ret = engine->hash_one_request(engine, hreq);
 		if (ret) {
-			pr_err("failed to hash one request from queue\n");
+			dev_err(engine->dev, "failed to hash one request from queue\n");
 			goto req_err;
 		}
 		return;
@@ -126,19 +127,20 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 		if (engine->prepare_cipher_request) {
 			ret = engine->prepare_cipher_request(engine, breq);
 			if (ret) {
-				pr_err("failed to prepare request: %d\n", ret);
+				dev_err(engine->dev, "failed to prepare request: %d\n",
+					ret);
 				goto req_err;
 			}
 			engine->cur_req_prepared = true;
 		}
 		ret = engine->cipher_one_request(engine, breq);
 		if (ret) {
-			pr_err("failed to cipher one request from queue\n");
+			dev_err(engine->dev, "failed to cipher one request from queue\n");
 			goto req_err;
 		}
 		return;
 	default:
-		pr_err("failed to prepare request of unknown type\n");
+		dev_err(engine->dev, "failed to prepare request of unknown type\n");
 		return;
 	}
 
@@ -275,7 +277,7 @@ void crypto_finalize_cipher_request(struct crypto_engine *engine,
 		    engine->unprepare_cipher_request) {
 			ret = engine->unprepare_cipher_request(engine, req);
 			if (ret)
-				pr_err("failed to unprepare request\n");
+				dev_err(engine->dev, "failed to unprepare request\n");
 		}
 		spin_lock_irqsave(&engine->queue_lock, flags);
 		engine->cur_req = NULL;
@@ -312,7 +314,7 @@ void crypto_finalize_hash_request(struct crypto_engine *engine,
 		    engine->unprepare_hash_request) {
 			ret = engine->unprepare_hash_request(engine, req);
 			if (ret)
-				pr_err("failed to unprepare request\n");
+				dev_err(engine->dev, "failed to unprepare request\n");
 		}
 		spin_lock_irqsave(&engine->queue_lock, flags);
 		engine->cur_req = NULL;
@@ -384,7 +386,7 @@ int crypto_engine_stop(struct crypto_engine *engine)
 	spin_unlock_irqrestore(&engine->queue_lock, flags);
 
 	if (ret)
-		pr_warn("could not stop engine\n");
+		dev_warn(engine->dev, "could not stop engine\n");
 
 	return ret;
 }
@@ -411,6 +413,7 @@ struct crypto_engine *crypto_engine_alloc_init(struct device *dev, bool rt)
 	if (!engine)
 		return NULL;
 
+	engine->dev = dev;
 	engine->rt = rt;
 	engine->running = false;
 	engine->busy = false;

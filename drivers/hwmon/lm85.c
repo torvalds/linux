@@ -25,6 +25,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
@@ -1552,7 +1553,10 @@ static int lm85_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return -ENOMEM;
 
 	data->client = client;
-	data->type = id->driver_data;
+	if (client->dev.of_node)
+		data->type = (enum chips)of_device_get_match_data(&client->dev);
+	else
+		data->type = id->driver_data;
 	mutex_init(&data->update_lock);
 
 	/* Fill in the chip specific driver values */
@@ -1623,10 +1627,60 @@ static const struct i2c_device_id lm85_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, lm85_id);
 
+static const struct of_device_id lm85_of_match[] = {
+	{
+		.compatible = "adi,adm1027",
+		.data = (void *)adm1027
+	},
+	{
+		.compatible = "adi,adt7463",
+		.data = (void *)adt7463
+	},
+	{
+		.compatible = "adi,adt7468",
+		.data = (void *)adt7468
+	},
+	{
+		.compatible = "national,lm85",
+		.data = (void *)lm85
+	},
+	{
+		.compatible = "national,lm85b",
+		.data = (void *)lm85
+	},
+	{
+		.compatible = "national,lm85c",
+		.data = (void *)lm85
+	},
+	{
+		.compatible = "smsc,emc6d100",
+		.data = (void *)emc6d100
+	},
+	{
+		.compatible = "smsc,emc6d101",
+		.data = (void *)emc6d100
+	},
+	{
+		.compatible = "smsc,emc6d102",
+		.data = (void *)emc6d102
+	},
+	{
+		.compatible = "smsc,emc6d103",
+		.data = (void *)emc6d103
+	},
+	{
+		.compatible = "smsc,emc6d103s",
+		.data = (void *)emc6d103s
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, lm85_of_match);
+
 static struct i2c_driver lm85_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name   = "lm85",
+		.of_match_table = of_match_ptr(lm85_of_match),
 	},
 	.probe		= lm85_probe,
 	.id_table	= lm85_id,

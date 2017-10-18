@@ -116,20 +116,6 @@ struct dw_dma_regs {
 	DW_REG(GLOBAL_CFG);
 };
 
-/*
- * Big endian I/O access when reading and writing to the DMA controller
- * registers.  This is needed on some platforms, like the Atmel AVR32
- * architecture.
- */
-
-#ifdef CONFIG_DW_DMAC_BIG_ENDIAN_IO
-#define dma_readl_native ioread32be
-#define dma_writel_native iowrite32be
-#else
-#define dma_readl_native readl
-#define dma_writel_native writel
-#endif
-
 /* Bitfields in DW_PARAMS */
 #define DW_PARAMS_NR_CHAN	8		/* number of channels */
 #define DW_PARAMS_NR_MASTER	11		/* number of AHB masters */
@@ -280,7 +266,6 @@ struct dw_dma_chan {
 	unsigned long		flags;
 	struct list_head	active_list;
 	struct list_head	queue;
-	struct dw_cyclic_desc	*cdesc;
 
 	unsigned int		descs_allocated;
 
@@ -302,9 +287,9 @@ __dwc_regs(struct dw_dma_chan *dwc)
 }
 
 #define channel_readl(dwc, name) \
-	dma_readl_native(&(__dwc_regs(dwc)->name))
+	readl(&(__dwc_regs(dwc)->name))
 #define channel_writel(dwc, name, val) \
-	dma_writel_native((val), &(__dwc_regs(dwc)->name))
+	writel((val), &(__dwc_regs(dwc)->name))
 
 static inline struct dw_dma_chan *to_dw_dma_chan(struct dma_chan *chan)
 {
@@ -333,9 +318,9 @@ static inline struct dw_dma_regs __iomem *__dw_regs(struct dw_dma *dw)
 }
 
 #define dma_readl(dw, name) \
-	dma_readl_native(&(__dw_regs(dw)->name))
+	readl(&(__dw_regs(dw)->name))
 #define dma_writel(dw, name, val) \
-	dma_writel_native((val), &(__dw_regs(dw)->name))
+	writel((val), &(__dw_regs(dw)->name))
 
 #define idma32_readq(dw, name)				\
 	hi_lo_readq(&(__dw_regs(dw)->name))
@@ -352,43 +337,30 @@ static inline struct dw_dma *to_dw_dma(struct dma_device *ddev)
 	return container_of(ddev, struct dw_dma, dma);
 }
 
-#ifdef CONFIG_DW_DMAC_BIG_ENDIAN_IO
-typedef __be32 __dw32;
-#else
-typedef __le32 __dw32;
-#endif
-
 /* LLI == Linked List Item; a.k.a. DMA block descriptor */
 struct dw_lli {
 	/* values that are not changed by hardware */
-	__dw32		sar;
-	__dw32		dar;
-	__dw32		llp;		/* chain to next lli */
-	__dw32		ctllo;
+	__le32		sar;
+	__le32		dar;
+	__le32		llp;		/* chain to next lli */
+	__le32		ctllo;
 	/* values that may get written back: */
-	__dw32		ctlhi;
+	__le32		ctlhi;
 	/* sstat and dstat can snapshot peripheral register state.
 	 * silicon config may discard either or both...
 	 */
-	__dw32		sstat;
-	__dw32		dstat;
+	__le32		sstat;
+	__le32		dstat;
 };
 
 struct dw_desc {
 	/* FIRST values the hardware uses */
 	struct dw_lli			lli;
 
-#ifdef CONFIG_DW_DMAC_BIG_ENDIAN_IO
-#define lli_set(d, reg, v)		((d)->lli.reg |= cpu_to_be32(v))
-#define lli_clear(d, reg, v)		((d)->lli.reg &= ~cpu_to_be32(v))
-#define lli_read(d, reg)		be32_to_cpu((d)->lli.reg)
-#define lli_write(d, reg, v)		((d)->lli.reg = cpu_to_be32(v))
-#else
 #define lli_set(d, reg, v)		((d)->lli.reg |= cpu_to_le32(v))
 #define lli_clear(d, reg, v)		((d)->lli.reg &= ~cpu_to_le32(v))
 #define lli_read(d, reg)		le32_to_cpu((d)->lli.reg)
 #define lli_write(d, reg, v)		((d)->lli.reg = cpu_to_le32(v))
-#endif
 
 	/* THEN values for driver housekeeping */
 	struct list_head		desc_node;

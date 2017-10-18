@@ -512,7 +512,7 @@ void lu_object_header_print(const struct lu_env *env, void *cookie,
 			    lu_printer_t printer,
 			    const struct lu_object_header *hdr)
 {
-	(*printer)(env, cookie, "header@%p[%#lx, %d, "DFID"%s%s%s]",
+	(*printer)(env, cookie, "header@%p[%#lx, %d, " DFID "%s%s%s]",
 		   hdr, hdr->loh_flags, atomic_read(&hdr->loh_ref),
 		   PFID(&hdr->loh_fid),
 		   hlist_unhashed(&hdr->loh_hash) ? "" : " hash",
@@ -556,7 +556,7 @@ EXPORT_SYMBOL(lu_object_print);
 static struct lu_object *htable_lookup(struct lu_site *s,
 				       struct cfs_hash_bd *bd,
 				       const struct lu_fid *f,
-				       wait_queue_t *waiter,
+				       wait_queue_entry_t *waiter,
 				       __u64 *version)
 {
 	struct lu_site_bkt_data *bkt;
@@ -670,7 +670,7 @@ static struct lu_object *lu_object_find_try(const struct lu_env *env,
 					    struct lu_device *dev,
 					    const struct lu_fid *f,
 					    const struct lu_object_conf *conf,
-					    wait_queue_t *waiter)
+					    wait_queue_entry_t *waiter)
 {
 	struct lu_object      *o;
 	struct lu_object      *shadow;
@@ -750,7 +750,7 @@ struct lu_object *lu_object_find_at(const struct lu_env *env,
 {
 	struct lu_site_bkt_data *bkt;
 	struct lu_object	*obj;
-	wait_queue_t	   wait;
+	wait_queue_entry_t	   wait;
 
 	while (1) {
 		obj = lu_object_find_try(env, dev, f, conf, &wait);
@@ -918,9 +918,8 @@ static unsigned long lu_htable_order(struct lu_device *top)
 	cache_size = cache_size / 100 * lu_cache_percent *
 		(PAGE_SIZE / 1024);
 
-	for (bits = 1; (1 << bits) < cache_size; ++bits) {
+	for (bits = 1; (1 << bits) < cache_size; ++bits)
 		;
-	}
 	return clamp_t(typeof(bits), bits, LU_SITE_BITS_MIN, bits_max);
 }
 

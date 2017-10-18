@@ -19,10 +19,14 @@
 
 #include <linux/compat.h>
 #include <linux/errno.h>
+#include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/personality.h>
 #include <linux/freezer.h>
+#include <linux/stddef.h>
 #include <linux/uaccess.h>
+#include <linux/sizes.h>
+#include <linux/string.h>
 #include <linux/tracehook.h>
 #include <linux/ratelimit.h>
 
@@ -41,9 +45,132 @@
 struct rt_sigframe {
 	struct siginfo info;
 	struct ucontext uc;
+};
+
+struct frame_record {
 	u64 fp;
 	u64 lr;
 };
+
+struct rt_sigframe_user_layout {
+	struct rt_sigframe __user *sigframe;
+	struct frame_record __user *next_frame;
+
+	unsigned long size;	/* size of allocated sigframe data */
+	unsigned long limit;	/* largest allowed size */
+
+	unsigned long fpsimd_offset;
+	unsigned long esr_offset;
+	unsigned long extra_offset;
+	unsigned long end_offset;
+};
+
+#define BASE_SIGFRAME_SIZE round_up(sizeof(struct rt_sigframe), 16)
+#define TERMINATOR_SIZE round_up(sizeof(struct _aarch64_ctx), 16)
+#define EXTRA_CONTEXT_SIZE round_up(sizeof(struct extra_context), 16)
+
+static void init_user_layout(struct rt_sigframe_user_layout *user)
+{
+	const size_t reserved_size =
+		sizeof(user->sigframe->uc.uc_mcontext.__reserved);
+
+	memset(user, 0, sizeof(*user));
+	user->size = offsetof(struct rt_sigframe, uc.uc_mcontext.__reserved);
+
+	user->limit = user->size + reserved_size;
+
+	user->limit -= TERMINATOR_SIZE;
+	user->limit -= EXTRA_CONTEXT_SIZE;
+	/* Reserve space for extension and terminator ^ */
+}
+
+static size_t sigframe_size(struct rt_sigframe_user_layout const *user)
+{
+	return round_up(max(user->size, sizeof(struct rt_sigframe)), 16);
+}
+
+/*
+ * Sanity limit on the approximate maximum size of signal frame we'll
+ * try to generate.  Stack alignment padding and the frame record are
+ * not taken into account.  This limit is not a guarantee and is
+ * NOT ABI.
+ */
+#define SIGFRAME_MAXSZ SZ_64K
+
+static int __sigframe_alloc(struct rt_sigframe_user_layout *user,
+			    unsigned long *offset, size_t size, bool extend)
+{
+	size_t padded_size = round_up(size, 16);
+
+	if (padded_size > user->limit - user->size &&
+	    !user->extra_offset &&
+	    extend) {
+		int ret;
+
+		user->limit += EXTRA_CONTEXT_SIZE;
+		ret = __sigframe_alloc(user, &user->extra_offset,
+				       sizeof(struct extra_context), false);
+		if (ret) {
+			user->limit -= EXTRA_CONTEXT_SIZE;
+			return ret;
+		}
+
+		/* Reserve space for the __reserved[] terminator */
+		user->size += TERMINATOR_SIZE;
+
+		/*
+		 * Allow expansion up to SIGFRAME_MAXSZ, ensuring space for
+		 * the terminator:
+		 */
+		user->limit = SIGFRAME_MAXSZ - TERMINATOR_SIZE;
+	}
+
+	/* Still not enough space?  Bad luck! */
+	if (padded_size > user->limit - user->size)
+		return -ENOMEM;
+
+	*offset = user->size;
+	user->size += padded_size;
+
+	return 0;
+}
+
+/*
+ * Allocate space for an optional record of <size> bytes in the user
+ * signal frame.  The offset from the signal frame base address to the
+ * allocated block is assigned to *offset.
+ */
+static int sigframe_alloc(struct rt_sigframe_user_layout *user,
+			  unsigned long *offset, size_t size)
+{
+	return __sigframe_alloc(user, offset, size, true);
+}
+
+/* Allocate the null terminator record and prevent further allocations */
+static int sigframe_alloc_end(struct rt_sigframe_user_layout *user)
+{
+	int ret;
+
+	/* Un-reserve the space reserved for the terminator: */
+	user->limit += TERMINATOR_SIZE;
+
+	ret = sigframe_alloc(user, &user->end_offset,
+			     sizeof(struct _aarch64_ctx));
+	if (ret)
+		return ret;
+
+	/* Prevent further allocation: */
+	user->limit = user->size;
+	return 0;
+}
+
+static void __user *apply_user_offset(
+	struct rt_sigframe_user_layout const *user, unsigned long offset)
+{
+	char __user *base = (char __user *)user->sigframe;
+
+	return base + offset;
+}
 
 static int preserve_fpsimd_context(struct fpsimd_context __user *ctx)
 {
@@ -92,12 +219,159 @@ static int restore_fpsimd_context(struct fpsimd_context __user *ctx)
 	return err ? -EFAULT : 0;
 }
 
+struct user_ctxs {
+	struct fpsimd_context __user *fpsimd;
+};
+
+static int parse_user_sigframe(struct user_ctxs *user,
+			       struct rt_sigframe __user *sf)
+{
+	struct sigcontext __user *const sc = &sf->uc.uc_mcontext;
+	struct _aarch64_ctx __user *head;
+	char __user *base = (char __user *)&sc->__reserved;
+	size_t offset = 0;
+	size_t limit = sizeof(sc->__reserved);
+	bool have_extra_context = false;
+	char const __user *const sfp = (char const __user *)sf;
+
+	user->fpsimd = NULL;
+
+	if (!IS_ALIGNED((unsigned long)base, 16))
+		goto invalid;
+
+	while (1) {
+		int err = 0;
+		u32 magic, size;
+		char const __user *userp;
+		struct extra_context const __user *extra;
+		u64 extra_datap;
+		u32 extra_size;
+		struct _aarch64_ctx const __user *end;
+		u32 end_magic, end_size;
+
+		if (limit - offset < sizeof(*head))
+			goto invalid;
+
+		if (!IS_ALIGNED(offset, 16))
+			goto invalid;
+
+		head = (struct _aarch64_ctx __user *)(base + offset);
+		__get_user_error(magic, &head->magic, err);
+		__get_user_error(size, &head->size, err);
+		if (err)
+			return err;
+
+		if (limit - offset < size)
+			goto invalid;
+
+		switch (magic) {
+		case 0:
+			if (size)
+				goto invalid;
+
+			goto done;
+
+		case FPSIMD_MAGIC:
+			if (user->fpsimd)
+				goto invalid;
+
+			if (size < sizeof(*user->fpsimd))
+				goto invalid;
+
+			user->fpsimd = (struct fpsimd_context __user *)head;
+			break;
+
+		case ESR_MAGIC:
+			/* ignore */
+			break;
+
+		case EXTRA_MAGIC:
+			if (have_extra_context)
+				goto invalid;
+
+			if (size < sizeof(*extra))
+				goto invalid;
+
+			userp = (char const __user *)head;
+
+			extra = (struct extra_context const __user *)userp;
+			userp += size;
+
+			__get_user_error(extra_datap, &extra->datap, err);
+			__get_user_error(extra_size, &extra->size, err);
+			if (err)
+				return err;
+
+			/* Check for the dummy terminator in __reserved[]: */
+
+			if (limit - offset - size < TERMINATOR_SIZE)
+				goto invalid;
+
+			end = (struct _aarch64_ctx const __user *)userp;
+			userp += TERMINATOR_SIZE;
+
+			__get_user_error(end_magic, &end->magic, err);
+			__get_user_error(end_size, &end->size, err);
+			if (err)
+				return err;
+
+			if (end_magic || end_size)
+				goto invalid;
+
+			/* Prevent looping/repeated parsing of extra_context */
+			have_extra_context = true;
+
+			base = (__force void __user *)extra_datap;
+			if (!IS_ALIGNED((unsigned long)base, 16))
+				goto invalid;
+
+			if (!IS_ALIGNED(extra_size, 16))
+				goto invalid;
+
+			if (base != userp)
+				goto invalid;
+
+			/* Reject "unreasonably large" frames: */
+			if (extra_size > sfp + SIGFRAME_MAXSZ - userp)
+				goto invalid;
+
+			/*
+			 * Ignore trailing terminator in __reserved[]
+			 * and start parsing extra data:
+			 */
+			offset = 0;
+			limit = extra_size;
+			continue;
+
+		default:
+			goto invalid;
+		}
+
+		if (size < sizeof(*head))
+			goto invalid;
+
+		if (limit - offset < size)
+			goto invalid;
+
+		offset += size;
+	}
+
+done:
+	if (!user->fpsimd)
+		goto invalid;
+
+	return 0;
+
+invalid:
+	return -EINVAL;
+}
+
 static int restore_sigframe(struct pt_regs *regs,
 			    struct rt_sigframe __user *sf)
 {
 	sigset_t set;
 	int i, err;
-	void *aux = sf->uc.uc_mcontext.__reserved;
+	struct user_ctxs user;
 
 	err = __copy_from_user(&set, &sf->uc.uc_sigmask, sizeof(set));
 	if (err == 0)
@@ -116,12 +390,11 @@ static int restore_sigframe(struct pt_regs *regs,
 	regs->syscallno = ~0UL;
 
 	err |= !valid_user_regs(&regs->user_regs, current);
+	if (err == 0)
+		err = parse_user_sigframe(&user, sf);
 
-	if (err == 0) {
-		struct fpsimd_context *fpsimd_ctx =
-			container_of(aux, struct fpsimd_context, head);
-		err |= restore_fpsimd_context(fpsimd_ctx);
-	}
+	if (err == 0)
+		err = restore_fpsimd_context(user.fpsimd);
 
 	return err;
 }
@@ -162,16 +435,37 @@ badframe:
 	return 0;
 }
 
-static int setup_sigframe(struct rt_sigframe __user *sf,
+/* Determine the layout of optional records in the signal frame */
+static int setup_sigframe_layout(struct rt_sigframe_user_layout *user)
+{
+	int err;
+
+	err = sigframe_alloc(user, &user->fpsimd_offset,
+			     sizeof(struct fpsimd_context));
+	if (err)
+		return err;
+
+	/* fault information, if valid */
+	if (current->thread.fault_code) {
+		err = sigframe_alloc(user, &user->esr_offset,
+				     sizeof(struct esr_context));
+		if (err)
+			return err;
+	}
+
+	return sigframe_alloc_end(user);
+}
+
+
+static int setup_sigframe(struct rt_sigframe_user_layout *user,
 			  struct pt_regs *regs, sigset_t *set)
 {
 	int i, err = 0;
-	void *aux = sf->uc.uc_mcontext.__reserved;
-	struct _aarch64_ctx *end;
+	struct rt_sigframe __user *sf = user->sigframe;
 
 	/* set up the stack frame for unwinding */
-	__put_user_error(regs->regs[29], &sf->fp, err);
-	__put_user_error(regs->regs[30], &sf->lr, err);
+	__put_user_error(regs->regs[29], &user->next_frame->fp, err);
+	__put_user_error(regs->regs[30], &user->next_frame->lr, err);
 
 	for (i = 0; i < 31; i++)
 		__put_user_error(regs->regs[i], &sf->uc.uc_mcontext.regs[i],
@@ -185,58 +479,103 @@ static int setup_sigframe(struct rt_sigframe __user *sf,
 	err |= __copy_to_user(&sf->uc.uc_sigmask, set, sizeof(*set));
 
 	if (err == 0) {
-		struct fpsimd_context *fpsimd_ctx =
-			container_of(aux, struct fpsimd_context, head);
+		struct fpsimd_context __user *fpsimd_ctx =
+			apply_user_offset(user, user->fpsimd_offset);
 		err |= preserve_fpsimd_context(fpsimd_ctx);
-		aux += sizeof(*fpsimd_ctx);
 	}
 
 	/* fault information, if valid */
-	if (current->thread.fault_code) {
-		struct esr_context *esr_ctx =
-			container_of(aux, struct esr_context, head);
+	if (err == 0 && user->esr_offset) {
+		struct esr_context __user *esr_ctx =
+			apply_user_offset(user, user->esr_offset);
+
 		__put_user_error(ESR_MAGIC, &esr_ctx->head.magic, err);
 		__put_user_error(sizeof(*esr_ctx), &esr_ctx->head.size, err);
 		__put_user_error(current->thread.fault_code, &esr_ctx->esr, err);
-		aux += sizeof(*esr_ctx);
+	}
+
+	if (err == 0 && user->extra_offset) {
+		char __user *sfp = (char __user *)user->sigframe;
+		char __user *userp =
+			apply_user_offset(user, user->extra_offset);
+
+		struct extra_context __user *extra;
+		struct _aarch64_ctx __user *end;
+		u64 extra_datap;
+		u32 extra_size;
+
+		extra = (struct extra_context __user *)userp;
+		userp += EXTRA_CONTEXT_SIZE;
+
+		end = (struct _aarch64_ctx __user *)userp;
+		userp += TERMINATOR_SIZE;
+
+		/*
+		 * extra_datap is just written to the signal frame.
+		 * The value gets cast back to a void __user *
+		 * during sigreturn.
+		 */
+		extra_datap = (__force u64)userp;
+		extra_size = sfp + round_up(user->size, 16) - userp;
+
+		__put_user_error(EXTRA_MAGIC, &extra->head.magic, err);
+		__put_user_error(EXTRA_CONTEXT_SIZE, &extra->head.size, err);
+		__put_user_error(extra_datap, &extra->datap, err);
+		__put_user_error(extra_size, &extra->size, err);
+
+		/* Add the terminator */
+		__put_user_error(0, &end->magic, err);
+		__put_user_error(0, &end->size, err);
 	}
 
 	/* set the "end" magic */
-	end = aux;
-	__put_user_error(0, &end->magic, err);
-	__put_user_error(0, &end->size, err);
+	if (err == 0) {
+		struct _aarch64_ctx __user *end =
+			apply_user_offset(user, user->end_offset);
+
+		__put_user_error(0, &end->magic, err);
+		__put_user_error(0, &end->size, err);
+	}
 
 	return err;
 }
 
-static struct rt_sigframe __user *get_sigframe(struct ksignal *ksig,
-					       struct pt_regs *regs)
+static int get_sigframe(struct rt_sigframe_user_layout *user,
+			 struct ksignal *ksig, struct pt_regs *regs)
 {
 	unsigned long sp, sp_top;
-	struct rt_sigframe __user *frame;
+	int err;
+
+	init_user_layout(user);
+	err = setup_sigframe_layout(user);
+	if (err)
+		return err;
 
 	sp = sp_top = sigsp(regs->sp, ksig);
 
-	sp = (sp - sizeof(struct rt_sigframe)) & ~15;
-	frame = (struct rt_sigframe __user *)sp;
+	sp = round_down(sp - sizeof(struct frame_record), 16);
+	user->next_frame = (struct frame_record __user *)sp;
+
+	sp = round_down(sp, 16) - sigframe_size(user);
+	user->sigframe = (struct rt_sigframe __user *)sp;
 
 	/*
 	 * Check that we can actually write to the signal frame.
 	 */
-	if (!access_ok(VERIFY_WRITE, frame, sp_top - sp))
-		frame = NULL;
+	if (!access_ok(VERIFY_WRITE, user->sigframe, sp_top - sp))
+		return -EFAULT;
 
-	return frame;
+	return 0;
 }
 
 static void setup_return(struct pt_regs *regs, struct k_sigaction *ka,
-			 void __user *frame, int usig)
+			 struct rt_sigframe_user_layout *user, int usig)
 {
 	__sigrestore_t sigtramp;
 
 	regs->regs[0] = usig;
-	regs->sp = (unsigned long)frame;
-	regs->regs[29] = regs->sp + offsetof(struct rt_sigframe, fp);
+	regs->sp = (unsigned long)user->sigframe;
+	regs->regs[29] = (unsigned long)&user->next_frame->fp;
 	regs->pc = (unsigned long)ka->sa.sa_handler;
 
 	if (ka->sa.sa_flags & SA_RESTORER)
@@ -250,20 +589,22 @@ static void setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 static int setup_rt_frame(int usig, struct ksignal *ksig, sigset_t *set,
 			  struct pt_regs *regs)
 {
+	struct rt_sigframe_user_layout user;
 	struct rt_sigframe __user *frame;
 	int err = 0;
 
-	frame = get_sigframe(ksig, regs);
-	if (!frame)
+	if (get_sigframe(&user, ksig, regs))
 		return 1;
+
+	frame = user.sigframe;
 
 	__put_user_error(0, &frame->uc.uc_flags, err);
 	__put_user_error(NULL, &frame->uc.uc_link, err);
 
 	err |= __save_altstack(&frame->uc.uc_stack, regs->sp);
-	err |= setup_sigframe(frame, regs, set);
+	err |= setup_sigframe(&user, regs, set);
 	if (err == 0) {
-		setup_return(regs, &ksig->ka, frame, usig);
+		setup_return(regs, &ksig->ka, &user, usig);
 		if (ksig->ka.sa.sa_flags & SA_SIGINFO) {
 			err |= copy_siginfo_to_user(&frame->info, &ksig->info);
 			regs->regs[1] = (unsigned long)&frame->info;

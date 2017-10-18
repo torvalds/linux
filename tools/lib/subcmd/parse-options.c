@@ -1,4 +1,5 @@
 #include <linux/compiler.h>
+#include <linux/string.h>
 #include <linux/types.h>
 #include <stdio.h>
 #include <stdlib.h>

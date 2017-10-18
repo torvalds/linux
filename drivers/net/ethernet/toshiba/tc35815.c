@@ -23,7 +23,7 @@
  */
 
 #define DRV_VERSION	"1.39"
-static const char *version = "tc35815.c:v" DRV_VERSION "\n";
+static const char version[] = "tc35815.c:v" DRV_VERSION "\n";
 #define MODNAME			"tc35815"
 
 #include <linux/module.h>
@@ -1338,7 +1338,7 @@ static int tc35815_send_packet(struct sk_buff *skb, struct net_device *dev)
 static void tc35815_fatal_error_interrupt(struct net_device *dev, u32 status)
 {
 	static int count;
-	printk(KERN_WARNING "%s: Fatal Error Intterrupt (%#x):",
+	printk(KERN_WARNING "%s: Fatal Error Interrupt (%#x):",
 	       dev->name, status);
 	if (status & Int_IntPCI)
 		printk(" IntPCI");

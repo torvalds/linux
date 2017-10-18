@@ -1901,16 +1901,10 @@ static int irda_setsockopt(struct socket *sock, int level, int optname,
 			goto out;
 		}
 
-		ias_opt = kmalloc(sizeof(struct irda_ias_set), GFP_ATOMIC);
-		if (ias_opt == NULL) {
-			err = -ENOMEM;
-			goto out;
-		}
-
 		/* Copy query to the driver. */
-		if (copy_from_user(ias_opt, optval, optlen)) {
-			kfree(ias_opt);
-			err = -EFAULT;
+		ias_opt = memdup_user(optval, optlen);
+		if (IS_ERR(ias_opt)) {
+			err = PTR_ERR(ias_opt);
 			goto out;
 		}
 
@@ -2032,16 +2026,10 @@ static int irda_setsockopt(struct socket *sock, int level, int optname,
 			goto out;
 		}
 
-		ias_opt = kmalloc(sizeof(struct irda_ias_set), GFP_ATOMIC);
-		if (ias_opt == NULL) {
-			err = -ENOMEM;
-			goto out;
-		}
-
 		/* Copy query to the driver. */
-		if (copy_from_user(ias_opt, optval, optlen)) {
-			kfree(ias_opt);
-			err = -EFAULT;
+		ias_opt = memdup_user(optval, optlen);
+		if (IS_ERR(ias_opt)) {
+			err = PTR_ERR(ias_opt);
 			goto out;
 		}
 
@@ -2225,7 +2213,7 @@ static int irda_getsockopt(struct socket *sock, int level, int optname,
 {
 	struct sock *sk = sock->sk;
 	struct irda_sock *self = irda_sk(sk);
-	struct irda_device_list list;
+	struct irda_device_list list = { 0 };
 	struct irda_device_info *discoveries;
 	struct irda_ias_set *	ias_opt;	/* IAS get/query params */
 	struct ias_object *	ias_obj;	/* Object in IAS */
@@ -2317,16 +2305,10 @@ bed:
 			goto out;
 		}
 
-		ias_opt = kmalloc(sizeof(struct irda_ias_set), GFP_ATOMIC);
-		if (ias_opt == NULL) {
-			err = -ENOMEM;
-			goto out;
-		}
-
 		/* Copy query to the driver. */
-		if (copy_from_user(ias_opt, optval, len)) {
-			kfree(ias_opt);
-			err = -EFAULT;
+		ias_opt = memdup_user(optval, len);
+		if (IS_ERR(ias_opt)) {
+			err = PTR_ERR(ias_opt);
 			goto out;
 		}
 
@@ -2381,16 +2363,10 @@ bed:
 			goto out;
 		}
 
-		ias_opt = kmalloc(sizeof(struct irda_ias_set), GFP_ATOMIC);
-		if (ias_opt == NULL) {
-			err = -ENOMEM;
-			goto out;
-		}
-
 		/* Copy query to the driver. */
-		if (copy_from_user(ias_opt, optval, len)) {
-			kfree(ias_opt);
-			err = -EFAULT;
+		ias_opt = memdup_user(optval, len);
+		if (IS_ERR(ias_opt)) {
+			err = PTR_ERR(ias_opt);
 			goto out;
 		}
 

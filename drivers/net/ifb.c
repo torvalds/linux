@@ -207,7 +207,6 @@ static void ifb_dev_free(struct net_device *dev)
 		__skb_queue_purge(&txp->tq);
 	}
 	kfree(dp->tx_private);
-	free_netdev(dev);
 }
 
 static void ifb_setup(struct net_device *dev)
@@ -230,7 +229,8 @@ static void ifb_setup(struct net_device *dev)
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	netif_keep_dst(dev);
 	eth_hw_addr_random(dev);
-	dev->destructor = ifb_dev_free;
+	dev->needs_free_netdev = true;
+	dev->priv_destructor = ifb_dev_free;
 }
 
 static netdev_tx_t ifb_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -273,7 +273,8 @@ static int ifb_open(struct net_device *dev)
 	return 0;
 }
 
-static int ifb_validate(struct nlattr *tb[], struct nlattr *data[])
+static int ifb_validate(struct nlattr *tb[], struct nlattr *data[],
+			struct netlink_ext_ack *extack)
 {
 	if (tb[IFLA_ADDRESS]) {
 		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)

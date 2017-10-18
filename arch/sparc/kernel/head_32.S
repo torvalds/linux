@@ -809,10 +809,3 @@ lvl14_save:
 	.word	0
 	.word	0
 	.word	t_irq14
-
-        .section        ".fixup",#alloc,#execinstr
-        .globl  __ret_efault
-__ret_efault:
-        ret
-         restore %g0, -EFAULT, %o0
-EXPORT_SYMBOL(__ret_efault)

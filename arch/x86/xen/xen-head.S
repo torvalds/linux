@@ -16,6 +16,7 @@
 #include <xen/interface/xen-mca.h>
 #include <asm/xen/interface.h>
 
+#ifdef CONFIG_XEN_PV
 	__INIT
 ENTRY(startup_xen)
 	cld
@@ -34,6 +35,7 @@ ENTRY(startup_xen)
 	jmp xen_start_kernel
 
 	__FINIT
+#endif
 
 .pushsection .text
 	.balign PAGE_SIZE
@@ -58,7 +60,9 @@ ENTRY(hypercall_page)
 	/* Map the p2m table to a 512GB-aligned user address. */
 	ELFNOTE(Xen, XEN_ELFNOTE_INIT_P2M,       .quad PGDIR_SIZE)
 #endif
+#ifdef CONFIG_XEN_PV
 	ELFNOTE(Xen, XEN_ELFNOTE_ENTRY,          _ASM_PTR startup_xen)
+#endif
 	ELFNOTE(Xen, XEN_ELFNOTE_HYPERCALL_PAGE, _ASM_PTR hypercall_page)
 	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,
 		.ascii "!writable_page_tables|pae_pgdir_above_4gb")

@@ -1595,8 +1595,7 @@ send_packet:
 				thh = mISDN_HEAD_P(txskb);
 				thh->prim = DL_DATA_REQ;
 				thh->id = 0;
-				memcpy(skb_put(txskb, len), nskb->data + preload,
-				       len);
+				skb_put_data(txskb, nskb->data + preload, len);
 				/* queue (trigger later) */
 				skb_queue_tail(&dsp->sendq, txskb);
 			}

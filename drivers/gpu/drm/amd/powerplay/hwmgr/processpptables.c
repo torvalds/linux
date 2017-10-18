@@ -1015,6 +1015,10 @@ static int init_overdrive_limits(struct pp_hwmgr *hwmgr,
 	hwmgr->platform_descriptor.overdriveLimit.memoryClock = 0;
 	hwmgr->platform_descriptor.minOverdriveVDDC = 0;
 	hwmgr->platform_descriptor.maxOverdriveVDDC = 0;
+	hwmgr->platform_descriptor.overdriveVDDCStep = 0;
+
+	if (hwmgr->chip_id == CHIP_RAVEN)
+		return 0;
 
 	/* We assume here that fw_info is unchanged if this call fails.*/
 	fw_info = cgs_atom_get_data_table(hwmgr->device,
@@ -1559,6 +1563,9 @@ static int pp_tables_initialize(struct pp_hwmgr *hwmgr)
 	int result;
 	const ATOM_PPLIB_POWERPLAYTABLE *powerplay_table;
 
+	if (hwmgr->chip_id == CHIP_RAVEN)
+		return 0;
+
 	hwmgr->need_pp_table_upload = true;
 
 	powerplay_table = get_powerplay_table(hwmgr);
@@ -1605,6 +1612,9 @@ static int pp_tables_initialize(struct pp_hwmgr *hwmgr)
 
 static int pp_tables_uninitialize(struct pp_hwmgr *hwmgr)
 {
+	if (hwmgr->chip_id == CHIP_RAVEN)
+		return 0;
+
 	if (NULL != hwmgr->dyn_state.vddc_dependency_on_sclk) {
 		kfree(hwmgr->dyn_state.vddc_dependency_on_sclk);
 		hwmgr->dyn_state.vddc_dependency_on_sclk = NULL;

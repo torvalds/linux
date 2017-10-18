@@ -197,6 +197,8 @@ enum drm_mode_status {
  * there's the hardware timings, which are corrected for interlacing,
  * double-clocking and similar things. They are provided as a convenience, and
  * can be appropriately computed using drm_mode_set_crtcinfo().
+ *
+ * For printing you can use %DRM_MODE_FMT and DRM_MODE_ARG().
  */
 struct drm_display_mode {
 	/**
@@ -406,6 +408,21 @@ struct drm_display_mode {
 	 */
 	enum hdmi_picture_aspect picture_aspect_ratio;
 };
+
+/**
+ * DRM_MODE_FMT - printf string for &struct drm_display_mode
+ */
+#define DRM_MODE_FMT    "%d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x"
+
+/**
+ * DRM_MODE_ARG - printf arguments for &struct drm_display_mode
+ * @m: display mode
+ */
+#define DRM_MODE_ARG(m) \
+	(m)->base.id, (m)->name, (m)->vrefresh, (m)->clock, \
+	(m)->hdisplay, (m)->hsync_start, (m)->hsync_end, (m)->htotal, \
+	(m)->vdisplay, (m)->vsync_start, (m)->vsync_end, (m)->vtotal, \
+	(m)->type, (m)->flags
 
 #define obj_to_mode(x) container_of(x, struct drm_display_mode, base)
 

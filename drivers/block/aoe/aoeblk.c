@@ -388,6 +388,7 @@ aoeblk_gdalloc(void *vp)
 			d->aoemajor, d->aoeminor);
 		goto err_mempool;
 	}
+	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
 
 	spin_lock_irqsave(&d->lock, flags);
 	WARN_ON(!(d->flags & DEVFL_GD_NOW));

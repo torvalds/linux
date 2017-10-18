@@ -8,17 +8,17 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/adreno.xml               (    431 bytes, from 2016-04-26 17:56:44)
-- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2016-02-10 17:07:21)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a2xx.xml          (  32907 bytes, from 2016-11-26 23:01:08)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_common.xml (  12025 bytes, from 2016-11-26 23:01:08)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  22544 bytes, from 2016-11-26 23:01:08)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  83840 bytes, from 2016-11-26 23:01:08)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          ( 110765 bytes, from 2016-11-26 23:01:48)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a5xx.xml          (  90321 bytes, from 2016-11-28 16:50:05)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2015-09-24 17:30:00)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno.xml               (    431 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a2xx.xml          (  37162 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_common.xml (  13324 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  31866 bytes, from 2017-06-06 18:26:14)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  83840 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          ( 111898 bytes, from 2017-06-06 18:23:59)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a5xx.xml          ( 139480 bytes, from 2017-06-16 12:44:39)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2017-05-17 13:21:27)
 
-Copyright (C) 2013-2016 by the following authors:
+Copyright (C) 2013-2017 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
@@ -3010,11 +3010,11 @@ static inline uint32_t A4XX_VFD_FETCH_INSTR_0_BUFSTRIDE(uint32_t val)
 static inline uint32_t REG_A4XX_VFD_FETCH_INSTR_1(uint32_t i0) { return 0x0000220b + 0x4*i0; }
 
 static inline uint32_t REG_A4XX_VFD_FETCH_INSTR_2(uint32_t i0) { return 0x0000220c + 0x4*i0; }
-#define A4XX_VFD_FETCH_INSTR_2_SIZE__MASK			0xfffffff0
-#define A4XX_VFD_FETCH_INSTR_2_SIZE__SHIFT			4
+#define A4XX_VFD_FETCH_INSTR_2_SIZE__MASK			0xffffffff
+#define A4XX_VFD_FETCH_INSTR_2_SIZE__SHIFT			0
 static inline uint32_t A4XX_VFD_FETCH_INSTR_2_SIZE(uint32_t val)
 {
-	return ((val >> 4) << A4XX_VFD_FETCH_INSTR_2_SIZE__SHIFT) & A4XX_VFD_FETCH_INSTR_2_SIZE__MASK;
+	return ((val) << A4XX_VFD_FETCH_INSTR_2_SIZE__SHIFT) & A4XX_VFD_FETCH_INSTR_2_SIZE__MASK;
 }
 
 static inline uint32_t REG_A4XX_VFD_FETCH_INSTR_3(uint32_t i0) { return 0x0000220d + 0x4*i0; }
@@ -3828,6 +3828,44 @@ static inline uint32_t A4XX_PC_HS_PARAM_SPACING(enum a4xx_tess_spacing val)
 #define REG_A4XX_VBIF_IN_WR_LIM_CONF1				0x00003031
 
 #define REG_A4XX_VBIF_ROUND_ROBIN_QOS_ARB			0x00003049
+
+#define REG_A4XX_VBIF_PERF_CNT_EN0				0x000030c0
+
+#define REG_A4XX_VBIF_PERF_CNT_EN1				0x000030c1
+
+#define REG_A4XX_VBIF_PERF_CNT_EN2				0x000030c2
+
+#define REG_A4XX_VBIF_PERF_CNT_EN3				0x000030c3
+
+#define REG_A4XX_VBIF_PERF_CNT_SEL0				0x000030d0
+
+#define REG_A4XX_VBIF_PERF_CNT_SEL1				0x000030d1
+
+#define REG_A4XX_VBIF_PERF_CNT_SEL2				0x000030d2
+
+#define REG_A4XX_VBIF_PERF_CNT_SEL3				0x000030d3
+
+#define REG_A4XX_VBIF_PERF_CNT_LOW0				0x000030d8
+
+#define REG_A4XX_VBIF_PERF_CNT_LOW1				0x000030d9
+
+#define REG_A4XX_VBIF_PERF_CNT_LOW2				0x000030da
+
+#define REG_A4XX_VBIF_PERF_CNT_LOW3				0x000030db
+
+#define REG_A4XX_VBIF_PERF_CNT_HIGH0				0x000030e0
+
+#define REG_A4XX_VBIF_PERF_CNT_HIGH1				0x000030e1
+
+#define REG_A4XX_VBIF_PERF_CNT_HIGH2				0x000030e2
+
+#define REG_A4XX_VBIF_PERF_CNT_HIGH3				0x000030e3
+
+#define REG_A4XX_VBIF_PERF_PWR_CNT_EN0				0x00003100
+
+#define REG_A4XX_VBIF_PERF_PWR_CNT_EN1				0x00003101
+
+#define REG_A4XX_VBIF_PERF_PWR_CNT_EN2				0x00003102
 
 #define REG_A4XX_UNKNOWN_0CC5					0x00000cc5
 

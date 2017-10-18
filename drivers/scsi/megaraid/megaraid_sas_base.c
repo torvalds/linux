@@ -244,7 +244,7 @@ struct megasas_cmd *megasas_get_cmd(struct megasas_instance
  * @instance:		Adapter soft state
  * @cmd:		Command packet to be returned to free command pool
  */
-inline void
+void
 megasas_return_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd)
 {
 	unsigned long flags;
@@ -6228,8 +6228,8 @@ static int megasas_probe_one(struct pci_dev *pdev,
 fail_start_aen:
 fail_io_attach:
 	megasas_mgmt_info.count--;
-	megasas_mgmt_info.instance[megasas_mgmt_info.max_index] = NULL;
 	megasas_mgmt_info.max_index--;
+	megasas_mgmt_info.instance[megasas_mgmt_info.max_index] = NULL;
 
 	instance->instancet->disable_intr(instance);
 	megasas_destroy_irqs(instance);

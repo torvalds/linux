@@ -24,6 +24,7 @@
 #define _BLK_BSG_
 
 #include <linux/blkdev.h>
+#include <scsi/scsi_request.h>
 
 struct request;
 struct device;
@@ -37,6 +38,7 @@ struct bsg_buffer {
 };
 
 struct bsg_job {
+	struct scsi_request sreq;
 	struct device *dev;
 	struct request *req;
 

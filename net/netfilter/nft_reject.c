@@ -42,11 +42,6 @@ int nft_reject_init(const struct nft_ctx *ctx,
 		    const struct nlattr * const tb[])
 {
 	struct nft_reject *priv = nft_expr_priv(expr);
-	int err;
-
-	err = nft_reject_validate(ctx, expr, NULL);
-	if (err < 0)
-		return err;
 
 	if (tb[NFTA_REJECT_TYPE] == NULL)
 		return -EINVAL;

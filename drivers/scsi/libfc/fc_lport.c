@@ -887,8 +887,6 @@ out:
 static void fc_lport_recv_els_req(struct fc_lport *lport,
 				  struct fc_frame *fp)
 {
-	void (*recv)(struct fc_lport *, struct fc_frame *);
-
 	mutex_lock(&lport->lp_mutex);
 
 	/*
@@ -902,31 +900,31 @@ static void fc_lport_recv_els_req(struct fc_lport *lport,
 		/*
 		 * Check opcode.
 		 */
-		recv = fc_rport_recv_req;
 		switch (fc_frame_payload_op(fp)) {
 		case ELS_FLOGI:
 			if (!lport->point_to_multipoint)
-				recv = fc_lport_recv_flogi_req;
+				fc_lport_recv_flogi_req(lport, fp);
 			break;
 		case ELS_LOGO:
 			if (fc_frame_sid(fp) == FC_FID_FLOGI)
-				recv = fc_lport_recv_logo_req;
+				fc_lport_recv_logo_req(lport, fp);
 			break;
 		case ELS_RSCN:
-			recv = lport->tt.disc_recv_req;
+			lport->tt.disc_recv_req(lport, fp);
 			break;
 		case ELS_ECHO:
-			recv = fc_lport_recv_echo_req;
+			fc_lport_recv_echo_req(lport, fp);
 			break;
 		case ELS_RLIR:
-			recv = fc_lport_recv_rlir_req;
+			fc_lport_recv_rlir_req(lport, fp);
 			break;
 		case ELS_RNID:
-			recv = fc_lport_recv_rnid_req;
+			fc_lport_recv_rnid_req(lport, fp);
+			break;
+		default:
+			fc_rport_recv_req(lport, fp);
 			break;
 		}
-
-		recv(lport, fp);
 	}
 	mutex_unlock(&lport->lp_mutex);
 }

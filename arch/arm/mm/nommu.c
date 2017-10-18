@@ -436,6 +436,18 @@ void __iomem *ioremap_wc(resource_size_t res_cookie, size_t size)
 }
 EXPORT_SYMBOL(ioremap_wc);
 
+#ifdef CONFIG_PCI
+
+#include <asm/mach/map.h>
+
+void __iomem *pci_remap_cfgspace(resource_size_t res_cookie, size_t size)
+{
+	return arch_ioremap_caller(res_cookie, size, MT_UNCACHED,
+				   __builtin_return_address(0));
+}
+EXPORT_SYMBOL_GPL(pci_remap_cfgspace);
+#endif
+
 void *arch_memremap_wb(phys_addr_t phys_addr, size_t size)
 {
 	return (void *)phys_addr;

@@ -724,8 +724,10 @@ void kvm_free_pit(struct kvm *kvm)
 	struct kvm_pit *pit = kvm->arch.vpit;
 
 	if (pit) {
+		mutex_lock(&kvm->slots_lock);
 		kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS, &pit->dev);
 		kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS, &pit->speaker_dev);
+		mutex_unlock(&kvm->slots_lock);
 		kvm_pit_set_reinject(pit, false);
 		hrtimer_cancel(&pit->pit_state.timer);
 		kthread_destroy_worker(pit->worker);

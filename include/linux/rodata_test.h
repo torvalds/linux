@@ -14,7 +14,6 @@
 #define _RODATA_TEST_H
 
 #ifdef CONFIG_DEBUG_RODATA_TEST
-extern const int rodata_test_data;
 void rodata_test(void);
 #else
 static inline void rodata_test(void) {}

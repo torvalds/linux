@@ -192,8 +192,6 @@ int rio_add_device(struct rio_dev *rdev)
 	}
 	spin_unlock(&rio_global_list_lock);
 
-	rio_create_sysfs_dev_files(rdev);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rio_add_device);
@@ -220,7 +218,6 @@ void rio_del_device(struct rio_dev *rdev, enum rio_device_state state)
 		}
 	}
 	spin_unlock(&rio_global_list_lock);
-	rio_remove_sysfs_dev_files(rdev);
 	device_unregister(&rdev->dev);
 }
 EXPORT_SYMBOL_GPL(rio_del_device);

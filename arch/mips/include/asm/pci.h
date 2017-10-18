@@ -39,7 +39,6 @@ struct pci_controller {
 	unsigned long io_offset;
 	unsigned long io_map_base;
 	struct resource *busn_resource;
-	unsigned long busn_offset;
 
 #ifndef CONFIG_PCI_DOMAINS_GENERIC
 	unsigned int index;
@@ -110,10 +109,7 @@ extern unsigned long PCIBIOS_MIN_MEM;
 extern void pcibios_set_master(struct pci_dev *dev);
 
 #define HAVE_PCI_MMAP
-
-extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
-	enum pci_mmap_state mmap_state, int write_combine);
-
+#define ARCH_GENERIC_PCI_MMAP_RESOURCE
 #define HAVE_ARCH_PCI_RESOURCE_TO_USER
 
 /*

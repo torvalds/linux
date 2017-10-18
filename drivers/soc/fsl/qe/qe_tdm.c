@@ -177,6 +177,7 @@ err_miss_siram_property:
 	devm_iounmap(&pdev->dev, utdm->si_regs);
 	return ret;
 }
+EXPORT_SYMBOL(ucc_of_parse_tdm);
 
 void ucc_tdm_init(struct ucc_tdm *utdm, struct ucc_tdm_info *ut_info)
 {
@@ -274,3 +275,4 @@ void ucc_tdm_init(struct ucc_tdm *utdm, struct ucc_tdm_info *ut_info)
 		break;
 	}
 }
+EXPORT_SYMBOL(ucc_tdm_init);

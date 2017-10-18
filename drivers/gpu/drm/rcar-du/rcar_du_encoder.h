@@ -17,22 +17,14 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
 
+struct drm_panel;
 struct rcar_du_device;
-struct rcar_du_hdmienc;
 struct rcar_du_lvdsenc;
-
-enum rcar_du_encoder_type {
-	RCAR_DU_ENCODER_UNUSED = 0,
-	RCAR_DU_ENCODER_NONE,
-	RCAR_DU_ENCODER_VGA,
-	RCAR_DU_ENCODER_LVDS,
-	RCAR_DU_ENCODER_HDMI,
-};
 
 struct rcar_du_encoder {
 	struct drm_encoder base;
 	enum rcar_du_output output;
-	struct rcar_du_hdmienc *hdmi;
+	struct rcar_du_connector *connector;
 	struct rcar_du_lvdsenc *lvds;
 };
 
@@ -44,13 +36,13 @@ struct rcar_du_encoder {
 struct rcar_du_connector {
 	struct drm_connector connector;
 	struct rcar_du_encoder *encoder;
+	struct drm_panel *panel;
 };
 
 #define to_rcar_connector(c) \
 	container_of(c, struct rcar_du_connector, connector)
 
 int rcar_du_encoder_init(struct rcar_du_device *rcdu,
-			 enum rcar_du_encoder_type type,
 			 enum rcar_du_output output,
 			 struct device_node *enc_node,
 			 struct device_node *con_node);

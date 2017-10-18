@@ -32,7 +32,7 @@ sctp_manip_pkt(struct sk_buff *skb,
 	       const struct nf_conntrack_tuple *tuple,
 	       enum nf_nat_manip_type maniptype)
 {
-	sctp_sctphdr_t *hdr;
+	struct sctphdr *hdr;
 	int hdrsize = 8;
 
 	/* This could be an inner header returned in imcp packet; in such

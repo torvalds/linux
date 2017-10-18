@@ -16,6 +16,7 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drmP.h>
 
+#include "zx_common_regs.h"
 #include "zx_drm_drv.h"
 #include "zx_plane.h"
 #include "zx_plane_regs.h"

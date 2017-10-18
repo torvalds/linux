@@ -522,9 +522,9 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 		pr_err("current sp %lx does not match saved sp %lx\n",
 		       orig_sp, stack_addr);
 		pr_err("Saved registers for jprobe %p\n", jp);
-		show_regs(saved_regs);
+		__show_regs(saved_regs);
 		pr_err("Current registers\n");
-		show_regs(regs);
+		__show_regs(regs);
 		BUG();
 	}
 	unpause_graph_tracing();

@@ -154,7 +154,7 @@ int __cgroup_bpf_update(struct cgroup *cgrp, struct cgroup *parent,
 
 /**
  * __cgroup_bpf_run_filter_skb() - Run a program for packet filtering
- * @sk: The socken sending or receiving traffic
+ * @sk: The socket sending or receiving traffic
  * @skb: The skb that is being sent or received
  * @type: The type of program to be exectuted
  *
@@ -189,10 +189,13 @@ int __cgroup_bpf_run_filter_skb(struct sock *sk,
 	prog = rcu_dereference(cgrp->bpf.effective[type]);
 	if (prog) {
 		unsigned int offset = skb->data - skb_network_header(skb);
+		struct sock *save_sk = skb->sk;
 
+		skb->sk = sk;
 		__skb_push(skb, offset);
 		ret = bpf_prog_run_save_cb(prog, skb) == 1 ? 0 : -EPERM;
 		__skb_pull(skb, offset);
+		skb->sk = save_sk;
 	}
 
 	rcu_read_unlock();
@@ -233,3 +236,40 @@ int __cgroup_bpf_run_filter_sk(struct sock *sk,
 	return ret;
 }
 EXPORT_SYMBOL(__cgroup_bpf_run_filter_sk);
+
+/**
+ * __cgroup_bpf_run_filter_sock_ops() - Run a program on a sock
+ * @sk: socket to get cgroup from
+ * @sock_ops: bpf_sock_ops_kern struct to pass to program. Contains
+ * sk with connection information (IP addresses, etc.) May not contain
+ * cgroup info if it is a req sock.
+ * @type: The type of program to be exectuted
+ *
+ * socket passed is expected to be of type INET or INET6.
+ *
+ * The program type passed in via @type must be suitable for sock_ops
+ * filtering. No further check is performed to assert that.
+ *
+ * This function will return %-EPERM if any if an attached program was found
+ * and if it returned != 1 during execution. In all other cases, 0 is returned.
+ */
+int __cgroup_bpf_run_filter_sock_ops(struct sock *sk,
+				     struct bpf_sock_ops_kern *sock_ops,
+				     enum bpf_attach_type type)
+{
+	struct cgroup *cgrp = sock_cgroup_ptr(&sk->sk_cgrp_data);
+	struct bpf_prog *prog;
+	int ret = 0;
+
+
+	rcu_read_lock();
+
+	prog = rcu_dereference(cgrp->bpf.effective[type]);
+	if (prog)
+		ret = BPF_PROG_RUN(prog, sock_ops) == 1 ? 0 : -EPERM;
+
+	rcu_read_unlock();
+
+	return ret;
+}
+EXPORT_SYMBOL(__cgroup_bpf_run_filter_sock_ops);

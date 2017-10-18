@@ -199,7 +199,9 @@ static void __init ls1x_time_init(void)
 
 	clockevent_set_clock(cd, mips_hpt_frequency);
 	cd->max_delta_ns = clockevent_delta2ns(0xffffff, cd);
+	cd->max_delta_ticks = 0xffffff;
 	cd->min_delta_ns = clockevent_delta2ns(0x000300, cd);
+	cd->min_delta_ticks = 0x000300;
 	cd->cpumask = cpumask_of(smp_processor_id());
 	clockevents_register_device(cd);
 

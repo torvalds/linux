@@ -1803,6 +1803,8 @@ static int save_frame(struct s2255_dev *dev, struct s2255_pipeinfo *pipe_info)
 				default:
 					pr_info("s2255 unknown resp\n");
 				}
+				pdata++;
+				break;
 			default:
 				pdata++;
 				break;

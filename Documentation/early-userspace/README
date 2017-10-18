@@ -86,7 +86,7 @@ early userspace useful.  The klibc distribution is currently
 maintained separately from the kernel.
 
 You can obtain somewhat infrequent snapshots of klibc from
-ftp://ftp.kernel.org/pub/linux/libs/klibc/
+https://www.kernel.org/pub/linux/libs/klibc/
 
 For active users, you are better off using the klibc git
 repository, at http://git.kernel.org/?p=libs/klibc/klibc.git

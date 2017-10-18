@@ -118,7 +118,7 @@ struct lov_device_emerg {
 	 *
 	 * \see cl_env_get()
 	 */
-	int		 emrg_refcheck;
+	u16		 emrg_refcheck;
 };
 
 struct lov_device {
@@ -370,7 +370,7 @@ struct lov_thread_info {
 	struct ost_lvb	  lti_lvb;
 	struct cl_2queue	lti_cl2q;
 	struct cl_page_list     lti_plist;
-	wait_queue_t	  lti_waiter;
+	wait_queue_entry_t	  lti_waiter;
 	struct cl_attr          lti_attr;
 };
 
@@ -378,7 +378,29 @@ struct lov_thread_info {
  * State that lov_io maintains for every sub-io.
  */
 struct lov_io_sub {
-	int		  sub_stripe;
+	u16		 sub_stripe;
+	/**
+	 * environment's refcheck.
+	 *
+	 * \see cl_env_get()
+	 */
+	u16			 sub_refcheck;
+	u16			 sub_reenter;
+	/**
+	 * true, iff cl_io_init() was successfully executed against
+	 * lov_io_sub::sub_io.
+	 */
+	u16			 sub_io_initialized:1,
+	/**
+	 * True, iff lov_io_sub::sub_io and lov_io_sub::sub_env weren't
+	 * allocated, but borrowed from a per-device emergency pool.
+	 */
+				 sub_borrowed:1;
+	/**
+	 * Linkage into a list (hanging off lov_io::lis_active) of all
+	 * sub-io's active for the current IO iteration.
+	 */
+	struct list_head	 sub_linkage;
 	/**
 	 * sub-io for a stripe. Ideally sub-io's can be stopped and resumed
 	 * independently, with lov acting as a scheduler to maximize overall
@@ -386,32 +408,9 @@ struct lov_io_sub {
 	 */
 	struct cl_io	*sub_io;
 	/**
-	 * Linkage into a list (hanging off lov_io::lis_active) of all
-	 * sub-io's active for the current IO iteration.
-	 */
-	struct list_head	   sub_linkage;
-	/**
-	 * true, iff cl_io_init() was successfully executed against
-	 * lov_io_sub::sub_io.
-	 */
-	int		  sub_io_initialized;
-	/**
-	 * True, iff lov_io_sub::sub_io and lov_io_sub::sub_env weren't
-	 * allocated, but borrowed from a per-device emergency pool.
-	 */
-	int		  sub_borrowed;
-	/**
 	 * environment, in which sub-io executes.
 	 */
 	struct lu_env *sub_env;
-	/**
-	 * environment's refcheck.
-	 *
-	 * \see cl_env_get()
-	 */
-	int		  sub_refcheck;
-	int		  sub_refcheck2;
-	int		  sub_reenter;
 };
 
 /**

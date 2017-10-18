@@ -121,7 +121,7 @@ static void nvmet_execute_get_log_page(struct nvmet_req *req)
 	}
 
 	switch (req->cmd->get_log_page.lid) {
-	case 0x01:
+	case NVME_LOG_ERROR:
 		/*
 		 * We currently never set the More bit in the status field,
 		 * so all error log entries are invalid and can be zeroed out.
@@ -129,7 +129,7 @@ static void nvmet_execute_get_log_page(struct nvmet_req *req)
 		 * mandatory log page.
 		 */
 		break;
-	case 0x02:
+	case NVME_LOG_SMART:
 		/*
 		 * XXX: fill out actual smart log
 		 *
@@ -149,7 +149,7 @@ static void nvmet_execute_get_log_page(struct nvmet_req *req)
 			goto err;
 		}
 		break;
-	case 0x03:
+	case NVME_LOG_FW_SLOT:
 		/*
 		 * We only support a single firmware slot which always is
 		 * active, so we can zero out the whole firmware slot log and
@@ -168,11 +168,21 @@ out:
 	nvmet_req_complete(req, status);
 }
 
+static void copy_and_pad(char *dst, int dst_len, const char *src, int src_len)
+{
+	int len = min(src_len, dst_len);
+
+	memcpy(dst, src, len);
+	if (dst_len > len)
+		memset(dst + len, ' ', dst_len - len);
+}
+
 static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 {
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
 	struct nvme_id_ctrl *id;
 	u16 status = 0;
+	const char model[] = "Linux";
 
 	id = kzalloc(sizeof(*id), GFP_KERNEL);
 	if (!id) {
@@ -184,14 +194,10 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	id->vid = 0;
 	id->ssvid = 0;
 
-	memset(id->sn, ' ', sizeof(id->sn));
-	snprintf(id->sn, sizeof(id->sn), "%llx", ctrl->serial);
-
-	memset(id->mn, ' ', sizeof(id->mn));
-	strncpy((char *)id->mn, "Linux", sizeof(id->mn));
-
-	memset(id->fr, ' ', sizeof(id->fr));
-	strncpy((char *)id->fr, UTS_RELEASE, sizeof(id->fr));
+	bin2hex(id->sn, &ctrl->subsys->serial,
+		min(sizeof(ctrl->subsys->serial), sizeof(id->sn) / 2));
+	copy_and_pad(id->mn, sizeof(id->mn), model, sizeof(model) - 1);
+	copy_and_pad(id->fr, sizeof(id->fr), UTS_RELEASE, strlen(UTS_RELEASE));
 
 	id->rab = 6;
 
@@ -336,7 +342,7 @@ out:
 
 static void nvmet_execute_identify_nslist(struct nvmet_req *req)
 {
-	static const int buf_size = 4096;
+	static const int buf_size = NVME_IDENTIFY_DATA_SIZE;
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
 	struct nvmet_ns *ns;
 	u32 min_nsid = le32_to_cpu(req->cmd->identify.nsid);
@@ -363,6 +369,64 @@ static void nvmet_execute_identify_nslist(struct nvmet_req *req)
 	status = nvmet_copy_to_sgl(req, 0, list, buf_size);
 
 	kfree(list);
+out:
+	nvmet_req_complete(req, status);
+}
+
+static u16 nvmet_copy_ns_identifier(struct nvmet_req *req, u8 type, u8 len,
+				    void *id, off_t *off)
+{
+	struct nvme_ns_id_desc desc = {
+		.nidt = type,
+		.nidl = len,
+	};
+	u16 status;
+
+	status = nvmet_copy_to_sgl(req, *off, &desc, sizeof(desc));
+	if (status)
+		return status;
+	*off += sizeof(desc);
+
+	status = nvmet_copy_to_sgl(req, *off, id, len);
+	if (status)
+		return status;
+	*off += len;
+
+	return 0;
+}
+
+static void nvmet_execute_identify_desclist(struct nvmet_req *req)
+{
+	struct nvmet_ns *ns;
+	u16 status = 0;
+	off_t off = 0;
+
+	ns = nvmet_find_namespace(req->sq->ctrl, req->cmd->identify.nsid);
+	if (!ns) {
+		status = NVME_SC_INVALID_NS | NVME_SC_DNR;
+		goto out;
+	}
+
+	if (memchr_inv(&ns->uuid, 0, sizeof(ns->uuid))) {
+		status = nvmet_copy_ns_identifier(req, NVME_NIDT_UUID,
+						  NVME_NIDT_UUID_LEN,
+						  &ns->uuid, &off);
+		if (status)
+			goto out_put_ns;
+	}
+	if (memchr_inv(ns->nguid, 0, sizeof(ns->nguid))) {
+		status = nvmet_copy_ns_identifier(req, NVME_NIDT_NGUID,
+						  NVME_NIDT_NGUID_LEN,
+						  &ns->nguid, &off);
+		if (status)
+			goto out_put_ns;
+	}
+
+	if (sg_zero_buffer(req->sg, req->sg_cnt, NVME_IDENTIFY_DATA_SIZE - off,
+			off) != NVME_IDENTIFY_DATA_SIZE - off)
+		status = NVME_SC_INTERNAL | NVME_SC_DNR;
+out_put_ns:
+	nvmet_put_namespace(ns);
 out:
 	nvmet_req_complete(req, status);
 }
@@ -480,37 +544,31 @@ static void nvmet_execute_keep_alive(struct nvmet_req *req)
 	nvmet_req_complete(req, 0);
 }
 
-int nvmet_parse_admin_cmd(struct nvmet_req *req)
+u16 nvmet_parse_admin_cmd(struct nvmet_req *req)
 {
 	struct nvme_command *cmd = req->cmd;
+	u16 ret;
 
 	req->ns = NULL;
 
-	if (unlikely(!(req->sq->ctrl->cc & NVME_CC_ENABLE))) {
-		pr_err("nvmet: got admin cmd %d while CC.EN == 0\n",
-				cmd->common.opcode);
-		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
-	}
-	if (unlikely(!(req->sq->ctrl->csts & NVME_CSTS_RDY))) {
-		pr_err("nvmet: got admin cmd %d while CSTS.RDY == 0\n",
-				cmd->common.opcode);
-		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
-	}
+	ret = nvmet_check_ctrl_status(req, cmd);
+	if (unlikely(ret))
+		return ret;
 
 	switch (cmd->common.opcode) {
 	case nvme_admin_get_log_page:
 		req->data_len = nvmet_get_log_page_len(cmd);
 
 		switch (cmd->get_log_page.lid) {
-		case 0x01:
-		case 0x02:
-		case 0x03:
+		case NVME_LOG_ERROR:
+		case NVME_LOG_SMART:
+		case NVME_LOG_FW_SLOT:
 			req->execute = nvmet_execute_get_log_page;
 			return 0;
 		}
 		break;
 	case nvme_admin_identify:
-		req->data_len = 4096;
+		req->data_len = NVME_IDENTIFY_DATA_SIZE;
 		switch (cmd->identify.cns) {
 		case NVME_ID_CNS_NS:
 			req->execute = nvmet_execute_identify_ns;
@@ -520,6 +578,9 @@ int nvmet_parse_admin_cmd(struct nvmet_req *req)
 			return 0;
 		case NVME_ID_CNS_NS_ACTIVE_LIST:
 			req->execute = nvmet_execute_identify_nslist;
+			return 0;
+		case NVME_ID_CNS_NS_DESC_LIST:
+			req->execute = nvmet_execute_identify_desclist;
 			return 0;
 		}
 		break;
@@ -545,6 +606,7 @@ int nvmet_parse_admin_cmd(struct nvmet_req *req)
 		return 0;
 	}
 
-	pr_err("nvmet: unhandled cmd %d\n", cmd->common.opcode);
+	pr_err("unhandled cmd %d on qid %d\n", cmd->common.opcode,
+	       req->sq->qid);
 	return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 }

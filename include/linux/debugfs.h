@@ -9,7 +9,7 @@
  *	2 as published by the Free Software Foundation.
  *
  *  debugfs is for people to use instead of /proc or /sys.
- *  See Documentation/DocBook/filesystems for more details.
+ *  See Documentation/filesystems/ for more details.
  */
 
 #ifndef _DEBUGFS_H_
@@ -74,7 +74,7 @@ static const struct file_operations __fops = {				\
 	.release = simple_attr_release,					\
 	.read	 = debugfs_attr_read,					\
 	.write	 = debugfs_attr_write,					\
-	.llseek  = generic_file_llseek,					\
+	.llseek  = no_llseek,						\
 }
 
 #if defined(CONFIG_DEBUG_FS)

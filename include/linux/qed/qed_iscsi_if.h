@@ -67,6 +67,8 @@ struct qed_dev_iscsi_info {
 
 	void __iomem *primary_dbq_rq_addr;
 	void __iomem *secondary_bdq_rq_addr;
+
+	u8 num_cqs;
 };
 
 struct qed_iscsi_id_params {
@@ -208,6 +210,11 @@ struct qed_iscsi_cb_ops {
  *			@param stats - pointer to struck that would be filled
  *				we stats
  *			@return 0 on success, error otherwise.
+ * @change_mac		Change MAC of interface
+ *			@param cdev
+ *			@param handle - the connection handle.
+ *			@param mac - new MAC to configure.
+ *			@return 0 on success, otherwise error value.
  */
 struct qed_iscsi_ops {
 	const struct qed_common_ops *common;
@@ -246,6 +253,8 @@ struct qed_iscsi_ops {
 
 	int (*get_stats)(struct qed_dev *cdev,
 			 struct qed_iscsi_stats *stats);
+
+	int (*change_mac)(struct qed_dev *cdev, u32 handle, const u8 *mac);
 };
 
 const struct qed_iscsi_ops *qed_get_iscsi_ops(void);

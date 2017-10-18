@@ -33,7 +33,7 @@ xfs_fill_statvfs_from_dquot(
 	struct kstatfs		*statp,
 	struct xfs_dquot	*dqp)
 {
-	__uint64_t		limit;
+	uint64_t		limit;
 
 	limit = dqp->q_core.d_blk_softlimit ?
 		be64_to_cpu(dqp->q_core.d_blk_softlimit) :

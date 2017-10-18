@@ -54,7 +54,7 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 		return ieee754dp_nanxcpt(z);
 	case IEEE754_CLASS_DNORM:
 		DPDNORMZ;
-	/* QNAN is handled separately below */
+	/* QNAN and ZERO cases are handled separately below */
 	}
 
 	switch (CLPAIR(xc, yc)) {
@@ -209,6 +209,9 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 		     ((rm << (DP_FBITS + 1 + 3 + 1)) != 0);
 	}
 	assert(rm & (DP_HIDDEN_BIT << 3));
+
+	if (zc == IEEE754_CLASS_ZERO)
+		return ieee754dp_format(rs, re, rm);
 
 	/* And now the addition */
 	assert(zm & DP_HIDDEN_BIT);

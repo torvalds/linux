@@ -236,11 +236,11 @@ extern int extcon_set_property_capability(struct extcon_dev *edev,
 				unsigned int id, unsigned int prop);
 
 /*
- * Following APIs are to monitor every action of a notifier.
- * Registrar gets notified for every external port of a connection device.
- * Probably this could be used to debug an action of notifier; however,
- * we do not recommend to use this for normal 'notifiee' device drivers who
- * want to be notified by a specific external port of the notifier.
+ * Following APIs are to monitor the status change of the external connectors.
+ * extcon_register_notifier(*edev, id, *nb) : Register a notifier block
+ *			for specific external connector of the extcon.
+ * extcon_register_notifier_all(*edev, *nb) : Register a notifier block
+ *			for all supported external connectors of the extcon.
  */
 extern int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
 				    struct notifier_block *nb);
@@ -251,6 +251,17 @@ extern int devm_extcon_register_notifier(struct device *dev,
 				struct notifier_block *nb);
 extern void devm_extcon_unregister_notifier(struct device *dev,
 				struct extcon_dev *edev, unsigned int id,
+				struct notifier_block *nb);
+
+extern int extcon_register_notifier_all(struct extcon_dev *edev,
+				struct notifier_block *nb);
+extern int extcon_unregister_notifier_all(struct extcon_dev *edev,
+				struct notifier_block *nb);
+extern int devm_extcon_register_notifier_all(struct device *dev,
+				struct extcon_dev *edev,
+				struct notifier_block *nb);
+extern void devm_extcon_unregister_notifier_all(struct device *dev,
+				struct extcon_dev *edev,
 				struct notifier_block *nb);
 
 /*

@@ -21,5 +21,15 @@
 #define CLKID_ZERO		13
 #define CLKID_MPEG_SEL		14
 #define CLKID_MPEG_DIV		15
+#define CLKID_SAR_ADC		23
+#define CLKID_RNG0		25
+#define CLKID_SDIO		30
+#define CLKID_ETH		36
+#define CLKID_USB0		50
+#define CLKID_USB1		51
+#define CLKID_USB		55
+#define CLKID_USB1_DDR_BRIDGE	64
+#define CLKID_USB0_DDR_BRIDGE	65
+#define CLKID_SANA		69
 
 #endif /* __MESON8B_CLKC_H */

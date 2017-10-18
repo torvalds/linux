@@ -544,6 +544,9 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 	case V4L2_BUF_TYPE_SDR_OUTPUT:
 		requested_sizes[0] = f->fmt.sdr.buffersize;
 		break;
+	case V4L2_BUF_TYPE_META_CAPTURE:
+		requested_sizes[0] = f->fmt.meta.buffersize;
+		break;
 	default:
 		return -EINVAL;
 	}

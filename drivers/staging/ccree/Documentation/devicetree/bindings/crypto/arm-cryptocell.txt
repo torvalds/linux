@@ -1,0 +1,27 @@
+Arm TrustZone CryptoCell cryptographic accelerators
+
+Required properties:
+- compatible: must be "arm,cryptocell-712-ree".
+- reg: shall contain base register location and length.
+	Typically length is 0x10000.
+- interrupts: shall contain the interrupt for the device.
+
+Optional properties:
+- interrupt-parent: can designate the interrupt controller the
+	device interrupt is connected to, if needed.
+- clocks: may contain the clock handling the device, if needed.
+- power-domains: may contain a reference to the PM domain, if applicable.
+
+
+Examples:
+
+Zynq FPGA device
+----------------
+
+       arm_cc7x: arm_cc7x@80000000 {
+               compatible = "arm,cryptocell-712-ree";
+               interrupt-parent = <&intc>;
+               interrupts = < 0 30 4 >;
+               reg = < 0x80000000 0x10000 >;
+       };
+

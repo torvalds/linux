@@ -407,7 +407,7 @@ static void hangcheck_declare_hang(struct drm_i915_private *i915,
 				 "%s, ", engine->name);
 	msg[len-2] = '\0';
 
-	return i915_handle_error(i915, hung, msg);
+	return i915_handle_error(i915, hung, "%s", msg);
 }
 
 /*
@@ -480,3 +480,7 @@ void intel_hangcheck_init(struct drm_i915_private *i915)
 	INIT_DELAYED_WORK(&i915->gpu_error.hangcheck_work,
 			  i915_hangcheck_elapsed);
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftests/intel_hangcheck.c"
+#endif

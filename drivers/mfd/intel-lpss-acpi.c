@@ -22,10 +22,6 @@
 
 #include "intel-lpss.h"
 
-static const struct intel_lpss_platform_info spt_info = {
-	.clk_rate = 120000000,
-};
-
 static struct property_entry spt_i2c_properties[] = {
 	PROPERTY_ENTRY_U32("i2c-sda-hold-time-ns", 230),
 	{ },

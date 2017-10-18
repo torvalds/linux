@@ -247,7 +247,7 @@ err_alloc:
 	return err;
 }
 
-static int __exit pmagaafb_remove(struct device *dev)
+static int pmagaafb_remove(struct device *dev)
 {
 	struct tc_dev *tdev = to_tc_dev(dev);
 	struct fb_info *info = dev_get_drvdata(dev);
@@ -280,7 +280,7 @@ static struct tc_driver pmagaafb_driver = {
 		.name	= "pmagaafb",
 		.bus	= &tc_bus_type,
 		.probe	= pmagaafb_probe,
-		.remove	= __exit_p(pmagaafb_remove),
+		.remove	= pmagaafb_remove,
 	},
 };
 

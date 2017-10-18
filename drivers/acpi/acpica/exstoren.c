@@ -107,7 +107,7 @@ acpi_ex_resolve_object(union acpi_operand_object **source_desc_ptr,
 
 		/* For copy_object, no further validation necessary */
 
-		if (walk_state->opcode == AML_COPY_OP) {
+		if (walk_state->opcode == AML_COPY_OBJECT_OP) {
 			break;
 		}
 

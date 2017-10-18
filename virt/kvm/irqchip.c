@@ -142,8 +142,8 @@ static int setup_routing_entry(struct kvm *kvm,
 			       struct kvm_kernel_irq_routing_entry *e,
 			       const struct kvm_irq_routing_entry *ue)
 {
-	int r = -EINVAL;
 	struct kvm_kernel_irq_routing_entry *ei;
+	int r;
 
 	/*
 	 * Do not allow GSI to be mapped to the same irqchip more than once.
@@ -153,24 +153,28 @@ static int setup_routing_entry(struct kvm *kvm,
 		if (ei->type != KVM_IRQ_ROUTING_IRQCHIP ||
 		    ue->type != KVM_IRQ_ROUTING_IRQCHIP ||
 		    ue->u.irqchip.irqchip == ei->irqchip.irqchip)
-			return r;
+			return -EINVAL;
 
 	e->gsi = ue->gsi;
 	e->type = ue->type;
 	r = kvm_set_routing_entry(kvm, e, ue);
 	if (r)
-		goto out;
+		return r;
 	if (e->type == KVM_IRQ_ROUTING_IRQCHIP)
 		rt->chip[e->irqchip.irqchip][e->irqchip.pin] = e->gsi;
 
 	hlist_add_head(&e->link, &rt->map[e->gsi]);
-	r = 0;
-out:
-	return r;
+
+	return 0;
 }
 
 void __attribute__((weak)) kvm_arch_irq_routing_update(struct kvm *kvm)
 {
+}
+
+bool __weak kvm_arch_can_set_irq_routing(struct kvm *kvm)
+{
+	return true;
 }
 
 int kvm_set_irq_routing(struct kvm *kvm,
@@ -226,7 +230,7 @@ int kvm_set_irq_routing(struct kvm *kvm,
 	}
 
 	mutex_lock(&kvm->irq_lock);
-	old = kvm->irq_routing;
+	old = rcu_dereference_protected(kvm->irq_routing, 1);
 	rcu_assign_pointer(kvm->irq_routing, new);
 	kvm_irq_routing_update(kvm);
 	kvm_arch_irq_routing_update(kvm);

@@ -307,7 +307,7 @@ static int i8259A_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops i8259A_ops = {
+static const struct irq_domain_ops i8259A_ops = {
 	.map = i8259A_irq_domain_map,
 	.xlate = irq_domain_xlate_onecell,
 };

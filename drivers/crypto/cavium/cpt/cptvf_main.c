@@ -525,7 +525,7 @@ static irqreturn_t cptvf_misc_intr_handler(int irq, void *cptvf_irq)
 	intr = cptvf_read_vf_misc_intr_status(cptvf);
 	/*Check for MISC interrupt types*/
 	if (likely(intr & CPT_VF_INTR_MBOX_MASK)) {
-		dev_err(&pdev->dev, "Mailbox interrupt 0x%llx on CPT VF %d\n",
+		dev_dbg(&pdev->dev, "Mailbox interrupt 0x%llx on CPT VF %d\n",
 			intr, cptvf->vfid);
 		cptvf_handle_mbox_intr(cptvf);
 		cptvf_clear_mbox_intr(cptvf);

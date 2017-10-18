@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,10 +8,61 @@
 #include "util/dso.h"
 #include "util/util.h"
 #include "util/debug.h"
+#include "util/callchain.h"
+#include "srcline.h"
 
 #include "symbol.h"
 
 bool srcline_full_filename;
+
+static const char *dso__name(struct dso *dso)
+{
+	const char *dso_name;
+
+	if (dso->symsrc_filename)
+		dso_name = dso->symsrc_filename;
+	else
+		dso_name = dso->long_name;
+
+	if (dso_name[0] == '[')
+		return NULL;
+
+	if (!strncmp(dso_name, "/tmp/perf-", 10))
+		return NULL;
+
+	return dso_name;
+}
+
+static int inline_list__append(char *filename, char *funcname, int line_nr,
+			       struct inline_node *node, struct dso *dso)
+{
+	struct inline_list *ilist;
+	char *demangled;
+
+	ilist = zalloc(sizeof(*ilist));
+	if (ilist == NULL)
+		return -1;
+
+	ilist->filename = filename;
+	ilist->line_nr = line_nr;
+
+	if (dso != NULL) {
+		demangled = dso__demangle_sym(dso, 0, funcname);
+		if (demangled == NULL) {
+			ilist->funcname = funcname;
+		} else {
+			ilist->funcname = demangled;
+			free(funcname);
+		}
+	}
+
+	if (callchain_param.order == ORDER_CALLEE)
+		list_add_tail(&ilist->list, &node->val);
+	else
+		list_add(&ilist->list, &node->val);
+
+	return 0;
+}
 
 #ifdef HAVE_LIBBFD_SUPPORT
 
@@ -151,9 +203,19 @@ static void addr2line_cleanup(struct a2l_data *a2l)
 
 #define MAX_INLINE_NEST 1024
 
+static int inline_list__append_dso_a2l(struct dso *dso,
+				       struct inline_node *node)
+{
+	struct a2l_data *a2l = dso->a2l;
+	char *funcname = a2l->funcname ? strdup(a2l->funcname) : NULL;
+	char *filename = a2l->filename ? strdup(a2l->filename) : NULL;
+
+	return inline_list__append(filename, funcname, a2l->line, node, dso);
+}
+
 static int addr2line(const char *dso_name, u64 addr,
 		     char **file, unsigned int *line, struct dso *dso,
-		     bool unwind_inlines)
+		     bool unwind_inlines, struct inline_node *node)
 {
 	int ret = 0;
 	struct a2l_data *a2l = dso->a2l;
@@ -173,22 +235,35 @@ static int addr2line(const char *dso_name, u64 addr,
 
 	bfd_map_over_sections(a2l->abfd, find_address_in_section, a2l);
 
-	if (a2l->found && unwind_inlines) {
+	if (!a2l->found)
+		return 0;
+
+	if (unwind_inlines) {
 		int cnt = 0;
+
+		if (node && inline_list__append_dso_a2l(dso, node))
+			return 0;
 
 		while (bfd_find_inliner_info(a2l->abfd, &a2l->filename,
 					     &a2l->funcname, &a2l->line) &&
-		       cnt++ < MAX_INLINE_NEST)
-			;
+		       cnt++ < MAX_INLINE_NEST) {
+
+			if (node != NULL) {
+				if (inline_list__append_dso_a2l(dso, node))
+					return 0;
+				// found at least one inline frame
+				ret = 1;
+			}
+		}
 	}
 
-	if (a2l->found && a2l->filename) {
-		*file = strdup(a2l->filename);
+	if (file) {
+		*file = a2l->filename ? strdup(a2l->filename) : NULL;
+		ret = *file ? 1 : 0;
+	}
+
+	if (line)
 		*line = a2l->line;
-
-		if (*file)
-			ret = 1;
-	}
 
 	return ret;
 }
@@ -205,18 +280,66 @@ void dso__free_a2l(struct dso *dso)
 	dso->a2l = NULL;
 }
 
+static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
+	struct dso *dso)
+{
+	struct inline_node *node;
+
+	node = zalloc(sizeof(*node));
+	if (node == NULL) {
+		perror("not enough memory for the inline node");
+		return NULL;
+	}
+
+	INIT_LIST_HEAD(&node->val);
+	node->addr = addr;
+
+	if (!addr2line(dso_name, addr, NULL, NULL, dso, TRUE, node))
+		goto out_free_inline_node;
+
+	if (list_empty(&node->val))
+		goto out_free_inline_node;
+
+	return node;
+
+out_free_inline_node:
+	inline_node__delete(node);
+	return NULL;
+}
+
 #else /* HAVE_LIBBFD_SUPPORT */
+
+static int filename_split(char *filename, unsigned int *line_nr)
+{
+	char *sep;
+
+	sep = strchr(filename, '\n');
+	if (sep)
+		*sep = '\0';
+
+	if (!strcmp(filename, "??:0"))
+		return 0;
+
+	sep = strchr(filename, ':');
+	if (sep) {
+		*sep++ = '\0';
+		*line_nr = strtoul(sep, NULL, 0);
+		return 1;
+	}
+
+	return 0;
+}
 
 static int addr2line(const char *dso_name, u64 addr,
 		     char **file, unsigned int *line_nr,
 		     struct dso *dso __maybe_unused,
-		     bool unwind_inlines __maybe_unused)
+		     bool unwind_inlines __maybe_unused,
+		     struct inline_node *node __maybe_unused)
 {
 	FILE *fp;
 	char cmd[PATH_MAX];
 	char *filename = NULL;
 	size_t len;
-	char *sep;
 	int ret = 0;
 
 	scnprintf(cmd, sizeof(cmd), "addr2line -e %s %016"PRIx64,
@@ -233,23 +356,14 @@ static int addr2line(const char *dso_name, u64 addr,
 		goto out;
 	}
 
-	sep = strchr(filename, '\n');
-	if (sep)
-		*sep = '\0';
-
-	if (!strcmp(filename, "??:0")) {
-		pr_debug("no debugging info in %s\n", dso_name);
+	ret = filename_split(filename, line_nr);
+	if (ret != 1) {
 		free(filename);
 		goto out;
 	}
 
-	sep = strchr(filename, ':');
-	if (sep) {
-		*sep++ = '\0';
-		*file = filename;
-		*line_nr = strtoul(sep, NULL, 0);
-		ret = 1;
-	}
+	*file = filename;
+
 out:
 	pclose(fp);
 	return ret;
@@ -257,6 +371,58 @@ out:
 
 void dso__free_a2l(struct dso *dso __maybe_unused)
 {
+}
+
+static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
+	struct dso *dso __maybe_unused)
+{
+	FILE *fp;
+	char cmd[PATH_MAX];
+	struct inline_node *node;
+	char *filename = NULL;
+	size_t len;
+	unsigned int line_nr = 0;
+
+	scnprintf(cmd, sizeof(cmd), "addr2line -e %s -i %016"PRIx64,
+		  dso_name, addr);
+
+	fp = popen(cmd, "r");
+	if (fp == NULL) {
+		pr_err("popen failed for %s\n", dso_name);
+		return NULL;
+	}
+
+	node = zalloc(sizeof(*node));
+	if (node == NULL) {
+		perror("not enough memory for the inline node");
+		goto out;
+	}
+
+	INIT_LIST_HEAD(&node->val);
+	node->addr = addr;
+
+	while (getline(&filename, &len, fp) != -1) {
+		if (filename_split(filename, &line_nr) != 1) {
+			free(filename);
+			goto out;
+		}
+
+		if (inline_list__append(filename, NULL, line_nr, node,
+					NULL) != 0)
+			goto out;
+
+		filename = NULL;
+	}
+
+out:
+	pclose(fp);
+
+	if (list_empty(&node->val)) {
+		inline_node__delete(node);
+		return NULL;
+	}
+
+	return node;
 }
 
 #endif /* HAVE_LIBBFD_SUPPORT */
@@ -268,7 +434,7 @@ void dso__free_a2l(struct dso *dso __maybe_unused)
 #define A2L_FAIL_LIMIT 123
 
 char *__get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
-		  bool show_sym, bool unwind_inlines)
+		  bool show_sym, bool show_addr, bool unwind_inlines)
 {
 	char *file = NULL;
 	unsigned line = 0;
@@ -278,18 +444,11 @@ char *__get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
 	if (!dso->has_srcline)
 		goto out;
 
-	if (dso->symsrc_filename)
-		dso_name = dso->symsrc_filename;
-	else
-		dso_name = dso->long_name;
-
-	if (dso_name[0] == '[')
+	dso_name = dso__name(dso);
+	if (dso_name == NULL)
 		goto out;
 
-	if (!strncmp(dso_name, "/tmp/perf-", 10))
-		goto out;
-
-	if (!addr2line(dso_name, addr, &file, &line, dso, unwind_inlines))
+	if (!addr2line(dso_name, addr, &file, &line, dso, unwind_inlines, NULL))
 		goto out;
 
 	if (asprintf(&srcline, "%s:%u",
@@ -309,6 +468,11 @@ out:
 		dso->has_srcline = 0;
 		dso__free_a2l(dso);
 	}
+
+	if (!show_addr)
+		return (show_sym && sym) ?
+			    strndup(sym->name, sym->namelen) : NULL;
+
 	if (sym) {
 		if (asprintf(&srcline, "%s+%" PRIu64, show_sym ? sym->name : "",
 					addr - sym->start) < 0)
@@ -325,7 +489,32 @@ void free_srcline(char *srcline)
 }
 
 char *get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
-		  bool show_sym)
+		  bool show_sym, bool show_addr)
 {
-	return __get_srcline(dso, addr, sym, show_sym, false);
+	return __get_srcline(dso, addr, sym, show_sym, show_addr, false);
+}
+
+struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr)
+{
+	const char *dso_name;
+
+	dso_name = dso__name(dso);
+	if (dso_name == NULL)
+		return NULL;
+
+	return addr2inlines(dso_name, addr, dso);
+}
+
+void inline_node__delete(struct inline_node *node)
+{
+	struct inline_list *ilist, *tmp;
+
+	list_for_each_entry_safe(ilist, tmp, &node->val, list) {
+		list_del_init(&ilist->list);
+		zfree(&ilist->filename);
+		zfree(&ilist->funcname);
+		free(ilist);
+	}
+
+	free(node);
 }

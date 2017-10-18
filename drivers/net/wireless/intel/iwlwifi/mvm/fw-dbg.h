@@ -65,8 +65,8 @@
 
 #ifndef __mvm_fw_dbg_h__
 #define __mvm_fw_dbg_h__
-#include "iwl-fw-file.h"
-#include "iwl-fw-error-dump.h"
+#include "fw/file.h"
+#include "fw/error-dump.h"
 #include "mvm.h"
 
 void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm);
