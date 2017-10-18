@@ -150,6 +150,28 @@ echo "$qdisc"
 echo "$qdisc" | grep "qdisc fq" > /dev/null
 echo "$qdisc" | grep throttled > /dev/null
 
+# Make sure our device has ipv4 rule we expect
+addr=$(LKL_HIJACK_NET_IFGATEWAY=192.168.13.5 \
+	${hijack_script} ip rule show)
+echo "$addr" | grep 192.168.13.2
+
+# Make sure our device has ipv6 rule we expect
+addr=$(LKL_HIJACK_NET_IFGATEWAY6=fc03::5 \
+	${hijack_script} ip -6 rule show)
+echo "$addr" | grep fc03::2
+
+# Make sure our device has ipv4 rule table
+addr=$(LKL_HIJACK_NET_IFGATEWAY=192.168.13.5 \
+	${hijack_script} ip route show table 4)
+echo "$addr" | grep 192.168.13.5
+echo "$addr" | grep 192.168.13.0
+
+# Make sure our device has ipv6 rule table
+addr=$(LKL_HIJACK_NET_IFGATEWAY6=fc03::5 \
+	${hijack_script} ip -6 route show table 5)
+echo "$addr" | grep fc03::5
+echo "$addr" | grep fc03::
+
 if [ -z "`printenv CONFIG_AUTO_LKL_VIRTIO_NET_VDE`" ]; then
     exit 0
 fi

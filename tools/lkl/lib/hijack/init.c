@@ -196,6 +196,8 @@ hijack_init(void)
 	char *mac_str = getenv("LKL_HIJACK_NET_MAC");
 	char *netmask_len = getenv("LKL_HIJACK_NET_NETMASK_LEN");
 	char *netmask6_len = getenv("LKL_HIJACK_NET_NETMASK6_LEN");
+	char *ifgateway = getenv("LKL_HIJACK_NET_IFGATEWAY");
+	char *ifgateway6 = getenv("LKL_HIJACK_NET_IFGATEWAY6");
 	char *gateway = getenv("LKL_HIJACK_NET_GATEWAY");
 	char *gateway6 = getenv("LKL_HIJACK_NET_GATEWAY6");
 	char *debug = getenv("LKL_HIJACK_DEBUG");
@@ -398,13 +400,25 @@ hijack_init(void)
 				fprintf(stderr, "failed to set IPv4 address: %s\n",
 					lkl_strerror(ret));
 		}
+		if (ifgateway) {
+			unsigned int gwaddr = inet_addr(ifgateway);
+
+			if (gwaddr != INADDR_NONE) {
+				ret = lkl_if_set_ipv4_gateway(nd_ifindex,
+						addr, nmlen, gwaddr);
+				if (ret < 0)
+					fprintf(stderr,
+						"failed to set v4 if gw: %s\n",
+						lkl_strerror(ret));
+			}
+		}
 	}
 
 	if (nd_ifindex >= 0 && gateway) {
-		unsigned int addr = inet_addr(gateway);
+		unsigned int gwaddr = inet_addr(gateway);
 
-		if (addr != INADDR_NONE) {
-			ret = lkl_set_ipv4_gateway(addr);
+		if (gwaddr != INADDR_NONE) {
+			ret = lkl_set_ipv4_gateway(gwaddr);
 			if (ret< 0)
 				fprintf(stderr, "failed to set IPv4 gateway: %s\n",
 					lkl_strerror(ret));
@@ -423,16 +437,31 @@ hijack_init(void)
 				fprintf(stderr, "failed to set IPv6address: %s\n",
 					lkl_strerror(ret));
 		}
+		if (ifgateway6) {
+			char gwaddr[16];
+
+			if (inet_pton(AF_INET6, ifgateway6, gwaddr) != 1) {
+				fprintf(stderr, "Invalid ipv6 gateway: %s\n",
+							ifgateway6);
+			} else {
+				ret = lkl_if_set_ipv6_gateway(nd_ifindex,
+						&addr, pflen, gwaddr);
+				if (ret < 0)
+					fprintf(stderr,
+						"failed to set v6 if gw: %s\n",
+						lkl_strerror(ret));
+			}
+		}
 	}
 
 	if (nd_ifindex >= 0 && gateway6) {
-		char gw[16];
+		char gwaddr[16];
 
-		if (inet_pton(AF_INET6, gateway6, gw) != 1) {
+		if (inet_pton(AF_INET6, gateway6, gwaddr) != 1) {
 			fprintf(stderr, "Invalid ipv6 gateway: %s\n", gateway6);
 		} else {
-			ret = lkl_set_ipv6_gateway(gw);
-			if (ret< 0)
+			ret = lkl_set_ipv6_gateway(gwaddr);
+			if (ret < 0)
 				fprintf(stderr, "failed to set IPv6 gateway: %s\n",
 					lkl_strerror(ret));
 		}
