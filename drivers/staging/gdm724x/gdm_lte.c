@@ -26,6 +26,7 @@
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
 #include <linux/uaccess.h>
+#include <linux/errno.h>
 #include <net/ndisc.h>
 
 #include "gdm_lte.h"
@@ -117,6 +118,10 @@ static int gdm_lte_emulate_arp(struct sk_buff *skb_in, u32 nic_type)
 	u8 arp_temp[60];
 	void *mac_header_data;
 	u32 mac_header_len;
+
+	/* Check for skb->len, discard if empty */
+	if (skb_in->len == 0)
+		return -ENODATA;
 
 	/* Format the mac header so that it can be put to skb */
 	if (ntohs(((struct ethhdr *)skb_in->data)->h_proto) == ETH_P_8021Q) {
