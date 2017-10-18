@@ -597,6 +597,12 @@ static void update_main_config_table(struct pm8001_hba_info *pm8001_ha)
 	pm8001_ha->main_cfg_tbl.pm80xx_tbl.port_recovery_timer &= 0xffff0000;
 	pm8001_ha->main_cfg_tbl.pm80xx_tbl.port_recovery_timer |=
 							PORT_RECOVERY_TIMEOUT;
+	if (pm8001_ha->chip_id == chip_8006) {
+		pm8001_ha->main_cfg_tbl.pm80xx_tbl.port_recovery_timer &=
+					0x0000ffff;
+		pm8001_ha->main_cfg_tbl.pm80xx_tbl.port_recovery_timer |=
+					0x140000;
+	}
 	pm8001_mw32(address, MAIN_PORT_RECOVERY_TIMER,
 			pm8001_ha->main_cfg_tbl.pm80xx_tbl.port_recovery_timer);
 }
