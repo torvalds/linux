@@ -797,7 +797,7 @@ struct cec_adapter *cec_pin_allocate_adapter(const struct cec_pin_ops *pin_ops,
 			    caps | CEC_CAP_MONITOR_ALL | CEC_CAP_MONITOR_PIN,
 			    CEC_MAX_LOG_ADDRS);
 
-	if (PTR_ERR_OR_ZERO(adap)) {
+	if (IS_ERR(adap)) {
 		kfree(pin);
 		return adap;
 	}
