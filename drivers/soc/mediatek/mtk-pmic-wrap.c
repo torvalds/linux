@@ -507,6 +507,7 @@ struct pwrap_slv_type {
 	 * which type is used by the detection through device tree.
 	 */
 	int (*pwrap_read)(struct pmic_wrapper *wrp, u32 adr, u32 *rdata);
+	int (*pwrap_write)(struct pmic_wrapper *wrp, u32 adr, u32 wdata);
 };
 
 struct pmic_wrapper {
@@ -601,22 +602,6 @@ static int pwrap_wait_for_state(struct pmic_wrapper *wrp,
 	} while (1);
 }
 
-static int pwrap_write(struct pmic_wrapper *wrp, u32 adr, u32 wdata)
-{
-	int ret;
-
-	ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle);
-	if (ret) {
-		pwrap_leave_fsm_vldclr(wrp);
-		return ret;
-	}
-
-	pwrap_writel(wrp, (1 << 31) | ((adr >> 1) << 16) | wdata,
-			PWRAP_WACS2_CMD);
-
-	return 0;
-}
-
 static int pwrap_read16(struct pmic_wrapper *wrp, u32 adr, u32 *rdata)
 {
 	int ret;
@@ -671,6 +656,56 @@ static int pwrap_read32(struct pmic_wrapper *wrp, u32 adr, u32 *rdata)
 static int pwrap_read(struct pmic_wrapper *wrp, u32 adr, u32 *rdata)
 {
 	return wrp->slave->pwrap_read(wrp, adr, rdata);
+}
+
+static int pwrap_write16(struct pmic_wrapper *wrp, u32 adr, u32 wdata)
+{
+	int ret;
+
+	ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle);
+	if (ret) {
+		pwrap_leave_fsm_vldclr(wrp);
+		return ret;
+	}
+
+	pwrap_writel(wrp, (1 << 31) | ((adr >> 1) << 16) | wdata,
+		     PWRAP_WACS2_CMD);
+
+	return 0;
+}
+
+static int pwrap_write32(struct pmic_wrapper *wrp, u32 adr, u32 wdata)
+{
+	int ret, msb, rdata;
+
+	for (msb = 0; msb < 2; msb++) {
+		ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle);
+		if (ret) {
+			pwrap_leave_fsm_vldclr(wrp);
+			return ret;
+		}
+
+		pwrap_writel(wrp, (1 << 31) | (msb << 30) | (adr << 16) |
+			     ((wdata >> (msb * 16)) & 0xffff),
+			     PWRAP_WACS2_CMD);
+
+		/*
+		 * The pwrap_read operation is the requirement of hardware used
+		 * for the synchronization between two successive 16-bit
+		 * pwrap_writel operations composing one 32-bit bus writing.
+		 * Otherwise, we'll find the result fails on the lower 16-bit
+		 * pwrap writing.
+		 */
+		if (!msb)
+			pwrap_read(wrp, adr, &rdata);
+	}
+
+	return 0;
+}
+
+static int pwrap_write(struct pmic_wrapper *wrp, u32 adr, u32 wdata)
+{
+	return wrp->slave->pwrap_write(wrp, adr, wdata);
 }
 
 static int pwrap_regmap_read(void *context, u32 adr, u32 *rdata)
@@ -1082,18 +1117,21 @@ static const struct pwrap_slv_type pmic_mt6323 = {
 	.dew_regs = mt6323_regs,
 	.type = PMIC_MT6323,
 	.pwrap_read = pwrap_read16,
+	.pwrap_write = pwrap_write16,
 };
 
 static const struct pwrap_slv_type pmic_mt6380 = {
 	.dew_regs = NULL,
 	.type = PMIC_MT6380,
 	.pwrap_read = pwrap_read32,
+	.pwrap_write = pwrap_write32,
 };
 
 static const struct pwrap_slv_type pmic_mt6397 = {
 	.dew_regs = mt6397_regs,
 	.type = PMIC_MT6397,
 	.pwrap_read = pwrap_read16,
+	.pwrap_write = pwrap_write16,
 };
 
 static const struct of_device_id of_slave_match_tbl[] = {
