@@ -5170,41 +5170,27 @@ out:
 }
 EXPORT_SYMBOL_GPL(qeth_core_hardsetup_card);
 
-static int qeth_create_skb_frag(struct qeth_qdio_buffer *qethbuffer,
-				struct qdio_buffer_element *element,
-				struct sk_buff **pskb, int offset, int data_len)
+static void qeth_create_skb_frag(struct qdio_buffer_element *element,
+				 struct sk_buff *skb, int offset, int data_len)
 {
 	struct page *page = virt_to_page(element->addr);
 	unsigned int next_frag;
 
-	if (*pskb == NULL) {
-		if (qethbuffer->rx_skb) {
-			/* only if qeth_card.options.cq == QETH_CQ_ENABLED */
-			*pskb = qethbuffer->rx_skb;
-			qethbuffer->rx_skb = NULL;
-		} else {
-			*pskb = dev_alloc_skb(QETH_RX_PULL_LEN + ETH_HLEN);
-			if (!(*pskb))
-				return -ENOMEM;
-		}
+	/* first fill the linear space */
+	if (!skb->len) {
+		unsigned int linear = min(data_len, skb_tailroom(skb));
 
-		skb_reserve(*pskb, ETH_HLEN);
-		if (data_len <= QETH_RX_PULL_LEN) {
-			skb_put_data(*pskb, element->addr + offset, data_len);
-			return 0;
-		} else {
-			skb_put_data(*pskb, element->addr + offset,
-				     QETH_RX_PULL_LEN);
-			data_len -= QETH_RX_PULL_LEN;
-			offset += QETH_RX_PULL_LEN;
-			/* fall through to add page frag for remaining data */
-		}
+		skb_put_data(skb, element->addr + offset, linear);
+		data_len -= linear;
+		if (!data_len)
+			return;
+		offset += linear;
+		/* fall through to add page frag for remaining data */
 	}
 
-	next_frag = skb_shinfo(*pskb)->nr_frags;
+	next_frag = skb_shinfo(skb)->nr_frags;
 	get_page(page);
-	skb_add_rx_frag(*pskb, next_frag, page, offset, data_len, data_len);
-	return 0;
+	skb_add_rx_frag(skb, next_frag, page, offset, data_len, data_len);
 }
 
 static inline int qeth_is_last_sbale(struct qdio_buffer_element *sbale)
@@ -5220,7 +5206,7 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 	struct qdio_buffer_element *element = *__element;
 	struct qdio_buffer *buffer = qethbuffer->buffer;
 	int offset = *__offset;
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 	int skb_len = 0;
 	void *data_ptr;
 	int data_len;
@@ -5261,27 +5247,32 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 	if (((skb_len >= card->options.rx_sg_cb) &&
 	     (!(card->info.type == QETH_CARD_TYPE_OSN)) &&
 	     (!atomic_read(&card->force_alloc_skb))) ||
-	    (card->options.cq == QETH_CQ_ENABLED)) {
+	    (card->options.cq == QETH_CQ_ENABLED))
 		use_rx_sg = 1;
+
+	if (use_rx_sg && qethbuffer->rx_skb) {
+		/* QETH_CQ_ENABLED only: */
+		skb = qethbuffer->rx_skb;
+		qethbuffer->rx_skb = NULL;
 	} else {
-		skb = dev_alloc_skb(skb_len + headroom);
-		if (!skb)
-			goto no_mem;
-		if (headroom)
-			skb_reserve(skb, headroom);
+		unsigned int linear = (use_rx_sg) ? QETH_RX_PULL_LEN : skb_len;
+
+		skb = dev_alloc_skb(linear + headroom);
 	}
+	if (!skb)
+		goto no_mem;
+	if (headroom)
+		skb_reserve(skb, headroom);
 
 	data_ptr = element->addr + offset;
 	while (skb_len) {
 		data_len = min(skb_len, (int)(element->length - offset));
 		if (data_len) {
-			if (use_rx_sg) {
-				if (qeth_create_skb_frag(qethbuffer, element,
-				    &skb, offset, data_len))
-					goto no_mem;
-			} else {
+			if (use_rx_sg)
+				qeth_create_skb_frag(element, skb, offset,
+						     data_len);
+			else
 				skb_put_data(skb, data_ptr, data_len);
-			}
 		}
 		skb_len -= data_len;
 		if (skb_len) {
