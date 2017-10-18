@@ -840,6 +840,12 @@ static int sock_map_update_elem(struct bpf_map *map,
 		return -EINVAL;
 	}
 
+	if (skops.sk->sk_type != SOCK_STREAM ||
+	    skops.sk->sk_protocol != IPPROTO_TCP) {
+		fput(socket->file);
+		return -EOPNOTSUPP;
+	}
+
 	err = sock_map_ctx_update_elem(&skops, map, key, flags);
 	fput(socket->file);
 	return err;
