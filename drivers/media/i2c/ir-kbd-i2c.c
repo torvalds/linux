@@ -439,12 +439,9 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		goto err_out_free;
 	}
 
-	/* Sets name */
-	snprintf(ir->name, sizeof(ir->name), "i2c IR (%s)", name);
 	ir->ir_codes = ir_codes;
 
-	snprintf(ir->phys, sizeof(ir->phys), "%s/%s/ir0",
-		 dev_name(&adap->dev),
+	snprintf(ir->phys, sizeof(ir->phys), "%s/%s", dev_name(&adap->dev),
 		 dev_name(&client->dev));
 
 	/*
@@ -453,7 +450,8 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	 */
 	rc->input_id.bustype = BUS_I2C;
 	rc->input_phys       = ir->phys;
-	rc->device_name	     = ir->name;
+	rc->device_name	     = name;
+	rc->dev.parent       = &client->dev;
 
 	/*
 	 * Initialize the other fields of rc_dev
@@ -466,9 +464,6 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	err = rc_register_device(rc);
 	if (err)
 		goto err_out_free;
-
-	printk(MODULE_NAME ": %s detected at %s [%s]\n",
-	       ir->name, ir->phys, adap->name);
 
 	/* start polling via eventd */
 	INIT_DELAYED_WORK(&ir->work, ir_work);

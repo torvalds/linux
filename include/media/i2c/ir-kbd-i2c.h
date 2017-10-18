@@ -19,7 +19,6 @@ struct IR_i2c {
 	u32                    polling_interval; /* in ms */
 
 	struct delayed_work    work;
-	char                   name[32];
 	char                   phys[32];
 	int                    (*get_key)(struct IR_i2c *ir,
 					  enum rc_proto *protocol,
