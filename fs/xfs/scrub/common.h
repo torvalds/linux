@@ -93,6 +93,8 @@ int xfs_scrub_setup_inode_bmap(struct xfs_scrub_context *sc,
 			       struct xfs_inode *ip);
 int xfs_scrub_setup_inode_bmap_data(struct xfs_scrub_context *sc,
 				    struct xfs_inode *ip);
+int xfs_scrub_setup_directory(struct xfs_scrub_context *sc,
+			      struct xfs_inode *ip);
 
 void xfs_scrub_ag_free(struct xfs_scrub_context *sc, struct xfs_scrub_ag *sa);
 int xfs_scrub_ag_init(struct xfs_scrub_context *sc, xfs_agnumber_t agno,
@@ -111,5 +113,7 @@ int xfs_scrub_walk_agfl(struct xfs_scrub_context *sc,
 int xfs_scrub_setup_ag_btree(struct xfs_scrub_context *sc,
 			     struct xfs_inode *ip, bool force_log);
 int xfs_scrub_get_inode(struct xfs_scrub_context *sc, struct xfs_inode *ip_in);
+int xfs_scrub_setup_inode_contents(struct xfs_scrub_context *sc,
+				   struct xfs_inode *ip, unsigned int resblks);
 
 #endif	/* __XFS_SCRUB_COMMON_H__ */

@@ -41,7 +41,7 @@ static unsigned char xfs_dir3_filetype_table[] = {
 	DT_FIFO, DT_SOCK, DT_LNK, DT_WHT,
 };
 
-static unsigned char
+unsigned char
 xfs_dir3_get_dtype(
 	struct xfs_mount	*mp,
 	uint8_t			filetype)

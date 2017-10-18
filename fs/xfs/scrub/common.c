@@ -542,3 +542,31 @@ xfs_scrub_get_inode(
 	sc->ip = ip;
 	return 0;
 }
+
+/* Set us up to scrub a file's contents. */
+int
+xfs_scrub_setup_inode_contents(
+	struct xfs_scrub_context	*sc,
+	struct xfs_inode		*ip,
+	unsigned int			resblks)
+{
+	struct xfs_mount		*mp = sc->mp;
+	int				error;
+
+	error = xfs_scrub_get_inode(sc, ip);
+	if (error)
+		return error;
+
+	/* Got the inode, lock it and we're ready to go. */
+	sc->ilock_flags = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
+	xfs_ilock(sc->ip, sc->ilock_flags);
+	error = xfs_scrub_trans_alloc(sc->sm, mp, &sc->tp);
+	if (error)
+		goto out;
+	sc->ilock_flags |= XFS_ILOCK_EXCL;
+	xfs_ilock(sc->ip, XFS_ILOCK_EXCL);
+
+out:
+	/* scrub teardown will unlock and release the inode for us */
+	return error;
+}
