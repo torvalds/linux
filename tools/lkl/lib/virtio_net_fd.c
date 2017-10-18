@@ -23,7 +23,8 @@
 struct lkl_netdev_fd {
 	struct lkl_netdev dev;
 	/* file-descriptor based device */
-	int fd;
+	int fd_rx;
+	int fd_tx;
 	/*
 	 * Controlls the poll mask for fd. Can be acccessed concurrently from
 	 * poll, tx, or rx routines but there is no need for syncronization
@@ -48,7 +49,7 @@ static int fd_net_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 		container_of(nd, struct lkl_netdev_fd, dev);
 
 	do {
-		ret = writev(nd_fd->fd, iov, cnt);
+		ret = writev(nd_fd->fd_tx, iov, cnt);
 	} while (ret == -1 && errno == EINTR);
 
 	if (ret < 0) {
@@ -72,7 +73,7 @@ static int fd_net_rx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 		container_of(nd, struct lkl_netdev_fd, dev);
 
 	do {
-		ret = readv(nd_fd->fd, (struct iovec *)iov, cnt);
+		ret = readv(nd_fd->fd_rx, (struct iovec *)iov, cnt);
 	} while (ret == -1 && errno == EINTR);
 
 	if (ret < 0) {
@@ -93,9 +94,12 @@ static int fd_net_poll(struct lkl_netdev *nd)
 {
 	struct lkl_netdev_fd *nd_fd =
 		container_of(nd, struct lkl_netdev_fd, dev);
-	struct pollfd pfds[2] = {
+	struct pollfd pfds[3] = {
 		{
-			.fd = nd_fd->fd,
+			.fd = nd_fd->fd_rx,
+		},
+		{
+			.fd = nd_fd->fd_tx,
 		},
 		{
 			.fd = nd_fd->pipe[0],
@@ -107,10 +111,10 @@ static int fd_net_poll(struct lkl_netdev *nd)
 	if (nd_fd->poll_rx)
 		pfds[0].events |= POLLIN|POLLPRI;
 	if (nd_fd->poll_tx)
-		pfds[0].events |= POLLOUT;
+		pfds[1].events |= POLLOUT;
 
 	do {
-		ret = poll(pfds, 2, -1);
+		ret = poll(pfds, 3, -1);
 	} while (ret == -1 && errno == EINTR);
 
 	if (ret < 0) {
@@ -118,10 +122,10 @@ static int fd_net_poll(struct lkl_netdev *nd)
 		return 0;
 	}
 
-	if (pfds[1].revents & (POLLHUP|POLLNVAL))
+	if (pfds[2].revents & (POLLHUP|POLLNVAL))
 		return LKL_DEV_NET_POLL_HUP;
 
-	if (pfds[1].revents & POLLIN) {
+	if (pfds[2].revents & POLLIN) {
 		char tmp[PIPE_BUF];
 
 		ret = read(nd_fd->pipe[0], tmp, PIPE_BUF);
@@ -138,7 +142,7 @@ static int fd_net_poll(struct lkl_netdev *nd)
 		ret |= LKL_DEV_NET_POLL_RX;
 	}
 
-	if (pfds[0].revents & POLLOUT) {
+	if (pfds[1].revents & POLLOUT) {
 		nd_fd->poll_tx = 0;
 		ret |= LKL_DEV_NET_POLL_TX;
 	}
@@ -161,7 +165,8 @@ static void fd_net_free(struct lkl_netdev *nd)
 	struct lkl_netdev_fd *nd_fd =
 		container_of(nd, struct lkl_netdev_fd, dev);
 
-	close(nd_fd->fd);
+	close(nd_fd->fd_rx);
+	close(nd_fd->fd_tx);
 	free(nd_fd);
 }
 
@@ -173,7 +178,7 @@ struct lkl_dev_net_ops fd_net_ops =  {
 	.free = fd_net_free,
 };
 
-struct lkl_netdev *lkl_register_netdev_fd(int fd)
+struct lkl_netdev *lkl_register_netdev_fd(int fd_rx, int fd_tx)
 {
 	struct lkl_netdev_fd *nd;
 
@@ -186,7 +191,8 @@ struct lkl_netdev *lkl_register_netdev_fd(int fd)
 
 	memset(nd, 0, sizeof(*nd));
 
-	nd->fd = fd;
+	nd->fd_rx = fd_rx;
+	nd->fd_tx = fd_tx;
 	if (pipe(nd->pipe) < 0) {
 		perror("pipe");
 		free(nd);

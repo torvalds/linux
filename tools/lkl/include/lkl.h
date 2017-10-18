@@ -450,6 +450,16 @@ struct lkl_netdev *lkl_netdev_raw_create(const char *ifname);
  */
 struct lkl_netdev *lkl_netdev_macvtap_create(const char *path, int offload);
 
+/**
+ * lkl_netdev_pipe_create - create pipe net_device for the virtio
+ * net backend
+ *
+ * @ifname - a file name for the rx and tx pipe device. need to be configured
+ * on host in advance. delimiter is "|". e.g. "rx_name|tx_name".
+ * @offload - offload bits for the device
+ */
+struct lkl_netdev *lkl_netdev_pipe_create(char *ifname, int offload);
+
 /*
  * lkl_register_dbg_handler- register a signal handler that loads a debug lib.
  *

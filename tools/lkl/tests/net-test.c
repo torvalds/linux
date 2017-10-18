@@ -144,6 +144,8 @@ static int test_net_init(int argc, char **argv)
 		nd = lkl_netdev_raw_create(ifname);
 	else if (iftype && ifname && (strncmp(iftype, "macvtap", 7) == 0))
 		nd = lkl_netdev_macvtap_create(ifname, 0);
+	else if (iftype && ifname && (strncmp(iftype, "pipe", 4) == 0))
+		nd = lkl_netdev_pipe_create(ifname, 0);
 
 	if (!nd) {
 		fprintf(stderr, "init netdev failed\n");
