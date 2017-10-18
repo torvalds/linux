@@ -55,7 +55,6 @@
 #include <linux/ratelimit.h>
 #include <linux/nodemask.h>
 #include <linux/flex_array.h>
-#include <linux/sched/signal.h>
 
 #include <trace/events/block.h>
 #include <linux/list_sort.h>
