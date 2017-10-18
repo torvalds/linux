@@ -34,6 +34,8 @@
 #define IS_FD_HASH(map) ((map)->map_type == BPF_MAP_TYPE_HASH_OF_MAPS)
 #define IS_FD_MAP(map) (IS_FD_ARRAY(map) || IS_FD_HASH(map))
 
+#define BPF_OBJ_FLAG_MASK   (BPF_F_RDONLY | BPF_F_WRONLY)
+
 DEFINE_PER_CPU(int, bpf_prog_active);
 static DEFINE_IDR(prog_idr);
 static DEFINE_SPINLOCK(prog_idr_lock);
@@ -294,17 +296,48 @@ static void bpf_map_show_fdinfo(struct seq_file *m, struct file *filp)
 }
 #endif
 
+static ssize_t bpf_dummy_read(struct file *filp, char __user *buf, size_t siz,
+			      loff_t *ppos)
+{
+	/* We need this handler such that alloc_file() enables
+	 * f_mode with FMODE_CAN_READ.
+	 */
+	return -EINVAL;
+}
+
+static ssize_t bpf_dummy_write(struct file *filp, const char __user *buf,
+			       size_t siz, loff_t *ppos)
+{
+	/* We need this handler such that alloc_file() enables
+	 * f_mode with FMODE_CAN_WRITE.
+	 */
+	return -EINVAL;
+}
+
 static const struct file_operations bpf_map_fops = {
 #ifdef CONFIG_PROC_FS
 	.show_fdinfo	= bpf_map_show_fdinfo,
 #endif
 	.release	= bpf_map_release,
+	.read		= bpf_dummy_read,
+	.write		= bpf_dummy_write,
 };
 
-int bpf_map_new_fd(struct bpf_map *map)
+int bpf_map_new_fd(struct bpf_map *map, int flags)
 {
 	return anon_inode_getfd("bpf-map", &bpf_map_fops, map,
-				O_RDWR | O_CLOEXEC);
+				flags | O_CLOEXEC);
+}
+
+int bpf_get_file_flag(int flags)
+{
+	if ((flags & BPF_F_RDONLY) && (flags & BPF_F_WRONLY))
+		return -EINVAL;
+	if (flags & BPF_F_RDONLY)
+		return O_RDONLY;
+	if (flags & BPF_F_WRONLY)
+		return O_WRONLY;
+	return O_RDWR;
 }
 
 /* helper macro to check that unused fields 'union bpf_attr' are zero */
@@ -344,11 +377,16 @@ static int map_create(union bpf_attr *attr)
 {
 	int numa_node = bpf_map_attr_numa_node(attr);
 	struct bpf_map *map;
+	int f_flags;
 	int err;
 
 	err = CHECK_ATTR(BPF_MAP_CREATE);
 	if (err)
 		return -EINVAL;
+
+	f_flags = bpf_get_file_flag(attr->map_flags);
+	if (f_flags < 0)
+		return f_flags;
 
 	if (numa_node != NUMA_NO_NODE &&
 	    ((unsigned int)numa_node >= nr_node_ids ||
@@ -375,7 +413,7 @@ static int map_create(union bpf_attr *attr)
 	if (err)
 		goto free_map;
 
-	err = bpf_map_new_fd(map);
+	err = bpf_map_new_fd(map, f_flags);
 	if (err < 0) {
 		/* failed to allocate fd.
 		 * bpf_map_put() is needed because the above
@@ -490,6 +528,11 @@ static int map_lookup_elem(union bpf_attr *attr)
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
+	if (!(f.file->f_mode & FMODE_CAN_READ)) {
+		err = -EPERM;
+		goto err_put;
+	}
+
 	key = memdup_user(ukey, map->key_size);
 	if (IS_ERR(key)) {
 		err = PTR_ERR(key);
@@ -569,6 +612,11 @@ static int map_update_elem(union bpf_attr *attr)
 	map = __bpf_map_get(f);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
+
+	if (!(f.file->f_mode & FMODE_CAN_WRITE)) {
+		err = -EPERM;
+		goto err_put;
+	}
 
 	key = memdup_user(ukey, map->key_size);
 	if (IS_ERR(key)) {
@@ -659,6 +707,11 @@ static int map_delete_elem(union bpf_attr *attr)
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
+	if (!(f.file->f_mode & FMODE_CAN_WRITE)) {
+		err = -EPERM;
+		goto err_put;
+	}
+
 	key = memdup_user(ukey, map->key_size);
 	if (IS_ERR(key)) {
 		err = PTR_ERR(key);
@@ -701,6 +754,11 @@ static int map_get_next_key(union bpf_attr *attr)
 	map = __bpf_map_get(f);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
+
+	if (!(f.file->f_mode & FMODE_CAN_READ)) {
+		err = -EPERM;
+		goto err_put;
+	}
 
 	if (ukey) {
 		key = memdup_user(ukey, map->key_size);
@@ -908,6 +966,8 @@ static const struct file_operations bpf_prog_fops = {
 	.show_fdinfo	= bpf_prog_show_fdinfo,
 #endif
 	.release	= bpf_prog_release,
+	.read		= bpf_dummy_read,
+	.write		= bpf_dummy_write,
 };
 
 int bpf_prog_new_fd(struct bpf_prog *prog)
@@ -1117,11 +1177,11 @@ free_prog_nouncharge:
 	return err;
 }
 
-#define BPF_OBJ_LAST_FIELD bpf_fd
+#define BPF_OBJ_LAST_FIELD file_flags
 
 static int bpf_obj_pin(const union bpf_attr *attr)
 {
-	if (CHECK_ATTR(BPF_OBJ))
+	if (CHECK_ATTR(BPF_OBJ) || attr->file_flags != 0)
 		return -EINVAL;
 
 	return bpf_obj_pin_user(attr->bpf_fd, u64_to_user_ptr(attr->pathname));
@@ -1129,10 +1189,12 @@ static int bpf_obj_pin(const union bpf_attr *attr)
 
 static int bpf_obj_get(const union bpf_attr *attr)
 {
-	if (CHECK_ATTR(BPF_OBJ) || attr->bpf_fd != 0)
+	if (CHECK_ATTR(BPF_OBJ) || attr->bpf_fd != 0 ||
+	    attr->file_flags & ~BPF_OBJ_FLAG_MASK)
 		return -EINVAL;
 
-	return bpf_obj_get_user(u64_to_user_ptr(attr->pathname));
+	return bpf_obj_get_user(u64_to_user_ptr(attr->pathname),
+				attr->file_flags);
 }
 
 #ifdef CONFIG_CGROUP_BPF
@@ -1392,19 +1454,25 @@ static int bpf_prog_get_fd_by_id(const union bpf_attr *attr)
 	return fd;
 }
 
-#define BPF_MAP_GET_FD_BY_ID_LAST_FIELD map_id
+#define BPF_MAP_GET_FD_BY_ID_LAST_FIELD open_flags
 
 static int bpf_map_get_fd_by_id(const union bpf_attr *attr)
 {
 	struct bpf_map *map;
 	u32 id = attr->map_id;
+	int f_flags;
 	int fd;
 
-	if (CHECK_ATTR(BPF_MAP_GET_FD_BY_ID))
+	if (CHECK_ATTR(BPF_MAP_GET_FD_BY_ID) ||
+	    attr->open_flags & ~BPF_OBJ_FLAG_MASK)
 		return -EINVAL;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
+
+	f_flags = bpf_get_file_flag(attr->open_flags);
+	if (f_flags < 0)
+		return f_flags;
 
 	spin_lock_bh(&map_idr_lock);
 	map = idr_find(&map_idr, id);
@@ -1417,7 +1485,7 @@ static int bpf_map_get_fd_by_id(const union bpf_attr *attr)
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
-	fd = bpf_map_new_fd(map);
+	fd = bpf_map_new_fd(map, f_flags);
 	if (fd < 0)
 		bpf_map_put(map);
 
