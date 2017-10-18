@@ -38,24 +38,6 @@ static void qeth_l2_vnicc_init(struct qeth_card *card);
 static bool qeth_l2_vnicc_recover_timeout(struct qeth_card *card, u32 vnicc,
 					  u32 *timeout);
 
-static int qeth_l2_verify_dev(struct net_device *dev)
-{
-	struct qeth_card *card;
-	unsigned long flags;
-	int rc = 0;
-
-	read_lock_irqsave(&qeth_core_card_list.rwlock, flags);
-	list_for_each_entry(card, &qeth_core_card_list.list, list) {
-		if (card->dev == dev) {
-			rc = QETH_REAL_CARD;
-			break;
-		}
-	}
-	read_unlock_irqrestore(&qeth_core_card_list.rwlock, flags);
-
-	return rc;
-}
-
 static struct net_device *qeth_l2_netdev_by_devno(unsigned char *read_dev_no)
 {
 	struct qeth_card *card;
@@ -567,11 +549,6 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 	int rc = 0;
 
 	QETH_CARD_TEXT(card, 3, "setmac");
-
-	if (qeth_l2_verify_dev(dev) != QETH_REAL_CARD) {
-		QETH_CARD_TEXT(card, 3, "setmcINV");
-		return -EOPNOTSUPP;
-	}
 
 	if (card->info.type == QETH_CARD_TYPE_OSN ||
 	    card->info.type == QETH_CARD_TYPE_OSM ||
