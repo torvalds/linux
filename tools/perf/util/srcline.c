@@ -353,17 +353,8 @@ static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
 	INIT_LIST_HEAD(&node->val);
 	node->addr = addr;
 
-	if (!addr2line(dso_name, addr, NULL, NULL, dso, TRUE, node, sym))
-		goto out_free_inline_node;
-
-	if (list_empty(&node->val))
-		goto out_free_inline_node;
-
+	addr2line(dso_name, addr, NULL, NULL, dso, true, node, sym);
 	return node;
-
-out_free_inline_node:
-	inline_node__delete(node);
-	return NULL;
 }
 
 #else /* HAVE_LIBBFD_SUPPORT */
@@ -479,11 +470,6 @@ static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
 
 out:
 	pclose(fp);
-
-	if (list_empty(&node->val)) {
-		inline_node__delete(node);
-		return NULL;
-	}
 
 	return node;
 }
