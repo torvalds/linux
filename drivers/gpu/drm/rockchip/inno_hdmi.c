@@ -68,6 +68,7 @@ struct inno_hdmi {
 	struct drm_device *drm_dev;
 
 	int irq;
+	struct clk *aclk;
 	struct clk *pclk;
 	void __iomem *regs;
 
@@ -893,23 +894,33 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	if (IS_ERR(hdmi->regs))
 		return PTR_ERR(hdmi->regs);
 
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	hdmi->aclk = devm_clk_get(hdmi->dev, "aclk");
+	if (IS_ERR(hdmi->aclk)) {
+		dev_err(hdmi->dev, "Unable to get HDMI aclk clk\n");
+		return PTR_ERR(hdmi->aclk);
+	}
+
 	hdmi->pclk = devm_clk_get(hdmi->dev, "pclk");
 	if (IS_ERR(hdmi->pclk)) {
 		DRM_DEV_ERROR(hdmi->dev, "Unable to get HDMI pclk clk\n");
 		return PTR_ERR(hdmi->pclk);
 	}
 
-	ret = clk_prepare_enable(hdmi->pclk);
+	ret = clk_prepare_enable(hdmi->aclk);
 	if (ret) {
 		DRM_DEV_ERROR(hdmi->dev,
-			      "Cannot enable HDMI pclk clock: %d\n", ret);
+			      "Cannot enable HDMI aclk clock: %d\n", ret);
 		return ret;
 	}
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		ret = irq;
-		goto err_disable_clk;
+	ret = clk_prepare_enable(hdmi->pclk);
+	if (ret) {
+		dev_err(hdmi->dev, "Cannot enable HDMI pclk clock: %d\n", ret);
+		goto err_disable_aclk;
 	}
 
 	inno_hdmi_reset(hdmi);
@@ -918,7 +929,7 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	if (IS_ERR(hdmi->ddc)) {
 		ret = PTR_ERR(hdmi->ddc);
 		hdmi->ddc = NULL;
-		goto err_disable_clk;
+		goto err_disable_pclk;
 	}
 
 	/*
@@ -942,17 +953,23 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	ret = devm_request_threaded_irq(dev, irq, inno_hdmi_hardirq,
 					inno_hdmi_irq, IRQF_SHARED,
 					dev_name(dev), hdmi);
-	if (ret < 0)
+	if (ret) {
+		dev_err(hdmi->dev,
+			"failed to request hdmi irq: %d\n", ret);
 		goto err_cleanup_hdmi;
+	}
 
 	return 0;
+
 err_cleanup_hdmi:
 	hdmi->connector.funcs->destroy(&hdmi->connector);
 	hdmi->encoder.funcs->destroy(&hdmi->encoder);
 err_put_adapter:
 	i2c_put_adapter(hdmi->ddc);
-err_disable_clk:
+err_disable_pclk:
 	clk_disable_unprepare(hdmi->pclk);
+err_disable_aclk:
+	clk_disable_unprepare(hdmi->aclk);
 	return ret;
 }
 
@@ -966,6 +983,7 @@ static void inno_hdmi_unbind(struct device *dev, struct device *master,
 
 	i2c_put_adapter(hdmi->ddc);
 	clk_disable_unprepare(hdmi->pclk);
+	clk_disable_unprepare(hdmi->aclk);
 }
 
 static const struct component_ops inno_hdmi_ops = {
