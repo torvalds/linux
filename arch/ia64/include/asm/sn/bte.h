@@ -17,6 +17,8 @@
 #include <asm/sn/types.h>
 #include <asm/sn/shub_mmr.h>
 
+struct nodepda_s;
+
 #define IBCT_NOTIFY             (0x1UL << 4)
 #define IBCT_ZFIL_MODE          (0x1UL << 0)
 
@@ -210,7 +212,7 @@ struct bteinfo_s {
  */
 extern bte_result_t bte_copy(u64, u64, u64, u64, void *);
 extern bte_result_t bte_unaligned_copy(u64, u64, u64, u64);
-extern void bte_error_handler(unsigned long);
+extern void bte_error_handler(struct nodepda_s *);
 
 #define bte_zero(dest, len, mode, notification) \
 	bte_copy(0, dest, len, ((mode) | BTE_ZERO_FILL), notification)
