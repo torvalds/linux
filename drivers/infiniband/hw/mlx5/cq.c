@@ -804,8 +804,10 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	*index = to_mucontext(context)->bfregi.sys_pages[0];
 
 	if (ucmd.cqe_comp_en == 1) {
-		if (unlikely((*cqe_size != 64) ||
-			     !MLX5_CAP_GEN(dev->mdev, cqe_compression))) {
+		if (!((*cqe_size == 128 &&
+		       MLX5_CAP_GEN(dev->mdev, cqe_compression_128)) ||
+		      (*cqe_size == 64  &&
+		       MLX5_CAP_GEN(dev->mdev, cqe_compression)))) {
 			err = -EOPNOTSUPP;
 			mlx5_ib_warn(dev, "CQE compression is not supported for size %d!\n",
 				     *cqe_size);

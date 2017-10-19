@@ -203,6 +203,11 @@ struct mlx5_ib_striding_rq_caps {
 	__u32 supported_qpts;
 };
 
+enum mlx5_ib_query_dev_resp_flags {
+	/* Support 128B CQE compression */
+	MLX5_IB_QUERY_DEV_RESP_FLAGS_CQE_128B_COMP = 1 << 0,
+};
+
 struct mlx5_ib_query_device_resp {
 	__u32	comp_mask;
 	__u32	response_length;
@@ -211,7 +216,7 @@ struct mlx5_ib_query_device_resp {
 	struct	mlx5_ib_cqe_comp_caps cqe_comp_caps;
 	struct	mlx5_packet_pacing_caps packet_pacing_caps;
 	__u32	mlx5_ib_support_multi_pkt_send_wqes;
-	__u32	reserved;
+	__u32	flags; /* Use enum mlx5_ib_query_dev_resp_flags */
 	struct mlx5_ib_sw_parsing_caps sw_parsing_caps;
 	struct mlx5_ib_striding_rq_caps striding_rq_caps;
 };
