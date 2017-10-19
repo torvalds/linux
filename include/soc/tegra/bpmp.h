@@ -110,6 +110,7 @@ struct tegra_bpmp_message {
 	struct {
 		void *data;
 		size_t size;
+		int ret;
 	} rx;
 };
 
