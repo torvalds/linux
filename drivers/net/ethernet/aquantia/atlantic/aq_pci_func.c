@@ -268,6 +268,9 @@ void aq_pci_func_free(struct aq_pci_func_s *self)
 		aq_nic_ndev_free(self->port[port]);
 	}
 
+	if (self->mmio)
+		iounmap(self->mmio);
+
 	kfree(self);
 
 err_exit:;
