@@ -114,10 +114,10 @@
 #define TSL2X7X_DIODE_BOTH		0x30
 
 /* LED Power */
-#define TSL2X7X_mA100			0x00
-#define TSL2X7X_mA50			0x40
-#define TSL2X7X_mA25			0x80
-#define TSL2X7X_mA13			0xD0
+#define TSL2X7X_100_mA			0x00
+#define TSL2X7X_50_mA			0x40
+#define TSL2X7X_25_mA			0x80
+#define TSL2X7X_13_mA			0xD0
 #define TSL2X7X_MAX_TIMER_CNT		0xFF
 
 #define TSL2X7X_MIN_ITIME		3
@@ -636,7 +636,7 @@ static int tsl2x7x_chip_on(struct iio_dev *indio_dev)
 	/* Set the gain based on tsl2x7x_settings struct */
 	chip->tsl2x7x_config[TSL2X7X_GAIN] =
 		chip->settings.als_gain |
-			(TSL2X7X_mA100 | TSL2X7X_DIODE1) |
+			(TSL2X7X_100_mA | TSL2X7X_DIODE1) |
 			(chip->settings.prox_gain << 2);
 
 	/* set chip struct re scaling and saturation */
