@@ -6225,6 +6225,59 @@ void megasas_free_ctrl_dma_buffers(struct megasas_instance *instance)
 				    instance->crash_dump_h);
 }
 
+/*
+ * megasas_init_ctrl_params -		Initialize controller's instance
+ *					parameters before FW init
+ * @instance -				Adapter soft instance
+ * @return -				void
+ */
+static inline void megasas_init_ctrl_params(struct megasas_instance *instance)
+{
+	instance->fw_crash_state = UNAVAILABLE;
+
+	megasas_poll_wait_aen = 0;
+	instance->issuepend_done = 1;
+	atomic_set(&instance->adprecovery, MEGASAS_HBA_OPERATIONAL);
+
+	/*
+	 * Initialize locks and queues
+	 */
+	INIT_LIST_HEAD(&instance->cmd_pool);
+	INIT_LIST_HEAD(&instance->internal_reset_pending_q);
+
+	atomic_set(&instance->fw_outstanding, 0);
+
+	init_waitqueue_head(&instance->int_cmd_wait_q);
+	init_waitqueue_head(&instance->abort_cmd_wait_q);
+
+	spin_lock_init(&instance->crashdump_lock);
+	spin_lock_init(&instance->mfi_pool_lock);
+	spin_lock_init(&instance->hba_lock);
+	spin_lock_init(&instance->stream_lock);
+	spin_lock_init(&instance->completion_lock);
+
+	mutex_init(&instance->hba_mutex);
+	mutex_init(&instance->reset_mutex);
+
+	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
+	    (instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY))
+		instance->flag_ieee = 1;
+
+	megasas_dbg_lvl = 0;
+	instance->flag = 0;
+	instance->unload = 1;
+	instance->last_time = 0;
+	instance->disableOnlineCtrlReset = 1;
+	instance->UnevenSpanSupport = 0;
+
+	if (instance->adapter_type != MFI_SERIES) {
+		INIT_WORK(&instance->work_init, megasas_fusion_ocr_wq);
+		INIT_WORK(&instance->crash_init, megasas_fusion_crash_dump_wq);
+	} else {
+		INIT_WORK(&instance->work_init, process_fw_state_change_wq);
+	}
+}
+
 /**
  * megasas_probe_one -	PCI hotplug entry point
  * @pdev:		PCI device structure
@@ -6279,74 +6332,24 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	instance = (struct megasas_instance *)host->hostdata;
 	memset(instance, 0, sizeof(*instance));
 	atomic_set(&instance->fw_reset_no_pci_access, 0);
+
+	/*
+	 * Initialize PCI related and misc parameters
+	 */
 	instance->pdev = pdev;
+	instance->host = host;
+	instance->unique_id = pdev->bus->number << 8 | pdev->devfn;
+	instance->init_id = MEGASAS_DEFAULT_INIT_ID;
 
 	megasas_set_adapter_type(instance);
+
+	megasas_init_ctrl_params(instance);
 
 	if (megasas_alloc_ctrl_mem(instance))
 		goto fail_alloc_dma_buf;
 
 	if (megasas_alloc_ctrl_dma_buffers(instance))
 		goto fail_alloc_dma_buf;
-
-	/* Crash dump feature related initialisation*/
-	instance->drv_buf_index = 0;
-	instance->drv_buf_alloc = 0;
-	instance->crash_dump_fw_support = 0;
-	instance->crash_dump_app_support = 0;
-	instance->fw_crash_state = UNAVAILABLE;
-	spin_lock_init(&instance->crashdump_lock);
-	instance->crash_dump_buf = NULL;
-
-	megasas_poll_wait_aen = 0;
-	instance->flag_ieee = 0;
-	instance->ev = NULL;
-	instance->issuepend_done = 1;
-	atomic_set(&instance->adprecovery, MEGASAS_HBA_OPERATIONAL);
-	instance->is_imr = 0;
-
-	/*
-	 * Initialize locks and queues
-	 */
-	INIT_LIST_HEAD(&instance->cmd_pool);
-	INIT_LIST_HEAD(&instance->internal_reset_pending_q);
-
-	atomic_set(&instance->fw_outstanding,0);
-
-	init_waitqueue_head(&instance->int_cmd_wait_q);
-	init_waitqueue_head(&instance->abort_cmd_wait_q);
-
-	spin_lock_init(&instance->mfi_pool_lock);
-	spin_lock_init(&instance->hba_lock);
-	spin_lock_init(&instance->stream_lock);
-	spin_lock_init(&instance->completion_lock);
-
-	mutex_init(&instance->reset_mutex);
-	mutex_init(&instance->hba_mutex);
-
-	/*
-	 * Initialize PCI related and misc parameters
-	 */
-	instance->host = host;
-	instance->unique_id = pdev->bus->number << 8 | pdev->devfn;
-	instance->init_id = MEGASAS_DEFAULT_INIT_ID;
-
-	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
-		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY))
-		instance->flag_ieee = 1;
-
-	megasas_dbg_lvl = 0;
-	instance->flag = 0;
-	instance->unload = 1;
-	instance->last_time = 0;
-	instance->disableOnlineCtrlReset = 1;
-	instance->UnevenSpanSupport = 0;
-
-	if (instance->adapter_type != MFI_SERIES) {
-		INIT_WORK(&instance->work_init, megasas_fusion_ocr_wq);
-		INIT_WORK(&instance->crash_init, megasas_fusion_crash_dump_wq);
-	} else
-		INIT_WORK(&instance->work_init, process_fw_state_change_wq);
 
 	/*
 	 * Initialize MFI Firmware
