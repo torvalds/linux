@@ -500,11 +500,6 @@ static inline void mddev_lock_nointr(struct mddev *mddev)
 	mutex_lock(&mddev->reconfig_mutex);
 }
 
-static inline int mddev_is_locked(struct mddev *mddev)
-{
-	return mutex_is_locked(&mddev->reconfig_mutex);
-}
-
 static inline int mddev_trylock(struct mddev *mddev)
 {
 	return mutex_trylock(&mddev->reconfig_mutex);
