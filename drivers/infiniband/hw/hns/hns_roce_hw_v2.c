@@ -2994,6 +2994,47 @@ static int hns_roce_v2_destroy_qp(struct ib_qp *ibqp)
 	return 0;
 }
 
+static int hns_roce_v2_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(cq->device);
+	struct hns_roce_v2_cq_context *cq_context;
+	struct hns_roce_cq *hr_cq = to_hr_cq(cq);
+	struct hns_roce_v2_cq_context *cqc_mask;
+	struct hns_roce_cmd_mailbox *mailbox;
+	int ret;
+
+	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	cq_context = mailbox->buf;
+	cqc_mask = (struct hns_roce_v2_cq_context *)mailbox->buf + 1;
+
+	memset(cqc_mask, 0xff, sizeof(*cqc_mask));
+
+	roce_set_field(cq_context->byte_56_cqe_period_maxcnt,
+		       V2_CQC_BYTE_56_CQ_MAX_CNT_M, V2_CQC_BYTE_56_CQ_MAX_CNT_S,
+		       cq_count);
+	roce_set_field(cqc_mask->byte_56_cqe_period_maxcnt,
+		       V2_CQC_BYTE_56_CQ_MAX_CNT_M, V2_CQC_BYTE_56_CQ_MAX_CNT_S,
+		       0);
+	roce_set_field(cq_context->byte_56_cqe_period_maxcnt,
+		       V2_CQC_BYTE_56_CQ_PERIOD_M, V2_CQC_BYTE_56_CQ_PERIOD_S,
+		       cq_period);
+	roce_set_field(cqc_mask->byte_56_cqe_period_maxcnt,
+		       V2_CQC_BYTE_56_CQ_PERIOD_M, V2_CQC_BYTE_56_CQ_PERIOD_S,
+		       0);
+
+	ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, hr_cq->cqn, 1,
+				HNS_ROCE_CMD_MODIFY_CQC,
+				HNS_ROCE_CMD_TIMEOUT_MSECS);
+	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
+	if (ret)
+		dev_err(hr_dev->dev, "MODIFY CQ Failed to cmd mailbox.\n");
+
+	return ret;
+}
+
 static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.cmq_init = hns_roce_v2_cmq_init,
 	.cmq_exit = hns_roce_v2_cmq_exit,
@@ -3009,6 +3050,7 @@ static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.modify_qp = hns_roce_v2_modify_qp,
 	.query_qp = hns_roce_v2_query_qp,
 	.destroy_qp = hns_roce_v2_destroy_qp,
+	.modify_cq = hns_roce_v2_modify_cq,
 	.post_send = hns_roce_v2_post_send,
 	.post_recv = hns_roce_v2_post_recv,
 	.req_notify_cq = hns_roce_v2_req_notify_cq,

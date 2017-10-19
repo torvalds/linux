@@ -609,6 +609,7 @@ struct hns_roce_hw {
 	int (*poll_cq)(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
 	int (*dereg_mr)(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr);
 	int (*destroy_cq)(struct ib_cq *ibcq);
+	int (*modify_cq)(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 };
 
 struct hns_roce_dev {

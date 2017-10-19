@@ -499,6 +499,7 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 
 	/* CQ */
 	ib_dev->create_cq		= hns_roce_ib_create_cq;
+	ib_dev->modify_cq		= hr_dev->hw->modify_cq;
 	ib_dev->destroy_cq		= hns_roce_ib_destroy_cq;
 	ib_dev->req_notify_cq		= hr_dev->hw->req_notify_cq;
 	ib_dev->poll_cq			= hr_dev->hw->poll_cq;
