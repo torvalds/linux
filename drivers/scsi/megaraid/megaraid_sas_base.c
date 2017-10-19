@@ -4545,9 +4545,9 @@ static void megasas_update_ext_vd_details(struct megasas_instance *instance)
 		return;
 
 	instance->supportmax256vd =
-		instance->ctrl_info->adapterOperations3.supportMaxExtLDs;
+		instance->ctrl_info_buf->adapterOperations3.supportMaxExtLDs;
 	/* Below is additional check to address future FW enhancement */
-	if (instance->ctrl_info->max_lds > 64)
+	if (instance->ctrl_info_buf->max_lds > 64)
 		instance->supportmax256vd = 1;
 
 	instance->drv_supported_vd_count = MEGASAS_MAX_LD_CHANNELS
@@ -4605,10 +4605,7 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 	struct megasas_cmd *cmd;
 	struct megasas_dcmd_frame *dcmd;
 	struct megasas_ctrl_info *ci;
-	struct megasas_ctrl_info *ctrl_info;
 	dma_addr_t ci_h = 0;
-
-	ctrl_info = instance->ctrl_info;
 
 	ci = instance->ctrl_info_buf;
 	ci_h = instance->ctrl_info_buf_h;
@@ -4645,14 +4642,13 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 
 	switch (ret) {
 	case DCMD_SUCCESS:
-		memcpy(ctrl_info, ci, sizeof(struct megasas_ctrl_info));
 		/* Save required controller information in
 		 * CPU endianness format.
 		 */
-		le32_to_cpus((u32 *)&ctrl_info->properties.OnOffProperties);
-		le32_to_cpus((u32 *)&ctrl_info->adapterOperations2);
-		le32_to_cpus((u32 *)&ctrl_info->adapterOperations3);
-		le16_to_cpus((u16 *)&ctrl_info->adapter_operations4);
+		le32_to_cpus((u32 *)&ci->properties.OnOffProperties);
+		le32_to_cpus((u32 *)&ci->adapterOperations2);
+		le32_to_cpus((u32 *)&ci->adapterOperations3);
+		le16_to_cpus((u16 *)&ci->adapter_operations4);
 
 		/* Update the latest Ext VD info.
 		 * From Init path, store current firmware details.
@@ -4661,21 +4657,21 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 		 */
 		megasas_update_ext_vd_details(instance);
 		instance->use_seqnum_jbod_fp =
-			ctrl_info->adapterOperations3.useSeqNumJbodFP;
+			ci->adapterOperations3.useSeqNumJbodFP;
 		instance->support_morethan256jbod =
-			ctrl_info->adapter_operations4.support_pd_map_target_id;
+			ci->adapter_operations4.support_pd_map_target_id;
 
 		/*Check whether controller is iMR or MR */
-		instance->is_imr = (ctrl_info->memory_size ? 0 : 1);
+		instance->is_imr = (ci->memory_size ? 0 : 1);
 		dev_info(&instance->pdev->dev,
 			"controller type\t: %s(%dMB)\n",
 			instance->is_imr ? "iMR" : "MR",
-			le16_to_cpu(ctrl_info->memory_size));
+			le16_to_cpu(ci->memory_size));
 
 		instance->disableOnlineCtrlReset =
-			ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
+			ci->properties.OnOffProperties.disableOnlineCtrlReset;
 		instance->secure_jbod_support =
-			ctrl_info->adapterOperations3.supportSecurityonJBOD;
+			ci->adapterOperations3.supportSecurityonJBOD;
 		dev_info(&instance->pdev->dev, "Online Controller Reset(OCR)\t: %s\n",
 			instance->disableOnlineCtrlReset ? "Disabled" : "Enabled");
 		dev_info(&instance->pdev->dev, "Secure JBOD support\t: %s\n",
@@ -5063,7 +5059,7 @@ megasas_setup_jbod_map(struct megasas_instance *instance)
 		(sizeof(struct MR_PD_CFG_SEQ) * (MAX_PHYSICAL_DEVICES - 1));
 
 	if (reset_devices || !fusion ||
-		!instance->ctrl_info->adapterOperations3.useSeqNumJbodFP) {
+		!instance->ctrl_info_buf->adapterOperations3.useSeqNumJbodFP) {
 		dev_info(&instance->pdev->dev,
 			"Jbod map is not supported %s %d\n",
 			__func__, __LINE__);
@@ -5277,11 +5273,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	tasklet_init(&instance->isr_tasklet, instance->instancet->tasklet,
 		(unsigned long)instance);
 
-	instance->ctrl_info = kzalloc(sizeof(struct megasas_ctrl_info),
-				GFP_KERNEL);
-	if (instance->ctrl_info == NULL)
-		goto fail_init_adapter;
-
 	/*
 	 * Below are default value for legacy Firmware.
 	 * non-fusion based controllers
@@ -5370,7 +5361,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	 * to calculate max_sectors_1. So the number ended up as zero always.
 	 */
 	tmp_sectors = 0;
-	ctrl_info = instance->ctrl_info;
+	ctrl_info = instance->ctrl_info_buf;
 
 	max_sectors_1 = (1 << ctrl_info->stripe_sz_ops.min) *
 		le16_to_cpu(ctrl_info->max_strips_per_io);
@@ -5485,8 +5476,6 @@ fail_setup_irqs:
 		pci_free_irq_vectors(instance->pdev);
 	instance->msix_vectors = 0;
 fail_ready_state:
-	kfree(instance->ctrl_info);
-	instance->ctrl_info = NULL;
 	iounmap(instance->reg_set);
 
 fail_ioremap:
@@ -6341,8 +6330,6 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	instance->host = host;
 	instance->unique_id = pdev->bus->number << 8 | pdev->devfn;
 	instance->init_id = MEGASAS_DEFAULT_INIT_ID;
-	instance->ctrl_info = NULL;
-
 
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
 		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY))
@@ -6847,8 +6834,6 @@ skip_firing_dcmds:
 	} else {
 		megasas_release_mfi(instance);
 	}
-
-	kfree(instance->ctrl_info);
 
 	if (instance->vf_affiliation)
 		pci_free_consistent(pdev, (MAX_LOGICAL_DRIVES + 1) *
