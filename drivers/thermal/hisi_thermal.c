@@ -85,12 +85,12 @@ static inline int hisi_thermal_step_to_temp(int step)
 	return HISI_TEMP_BASE + (step * HISI_TEMP_STEP);
 }
 
-static inline long hisi_thermal_temp_to_step(long temp)
+static inline int hisi_thermal_temp_to_step(int temp)
 {
 	return (temp - HISI_TEMP_BASE) / HISI_TEMP_STEP;
 }
 
-static inline long hisi_thermal_round_temp(int temp)
+static inline int hisi_thermal_round_temp(int temp)
 {
 	return hisi_thermal_step_to_temp(
 		hisi_thermal_temp_to_step(temp));
