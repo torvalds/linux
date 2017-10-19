@@ -1771,6 +1771,7 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 {
 	uint64_t tiling_flags;
 	uint64_t fb_location = 0;
+	uint64_t chroma_addr = 0;
 	unsigned int awidth;
 	const struct drm_framebuffer *fb = &amdgpu_fb->base;
 	int ret = 0;
@@ -1833,9 +1834,13 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 		plane_state->address.type = PLN_ADDR_TYPE_VIDEO_PROGRESSIVE;
 		plane_state->address.video_progressive.luma_addr.low_part
 						= lower_32_bits(fb_location);
+		plane_state->address.video_progressive.luma_addr.high_part
+						= upper_32_bits(fb_location);
+		chroma_addr = fb_location + (u64)(awidth * fb->height);
 		plane_state->address.video_progressive.chroma_addr.low_part
-						= lower_32_bits(fb_location) +
-							(awidth * fb->height);
+						= lower_32_bits(chroma_addr);
+		plane_state->address.video_progressive.chroma_addr.high_part
+						= upper_32_bits(chroma_addr);
 		plane_state->plane_size.video.luma_size.x = 0;
 		plane_state->plane_size.video.luma_size.y = 0;
 		plane_state->plane_size.video.luma_size.width = awidth;
