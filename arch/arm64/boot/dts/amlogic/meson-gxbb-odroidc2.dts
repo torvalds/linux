@@ -157,6 +157,8 @@
 
 		eth_phy0: ethernet-phy@0 {
 			reg = <0>;
+			interrupt-parent = <&gpio_intc>;
+			interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
 			eee-broken-1000t;
 		};
 	};
