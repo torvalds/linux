@@ -443,7 +443,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	hid = acpi_device_hid(device);
-	uid = device->pnp.unique_id;
+	uid = acpi_device_uid(device);
 
 	/* Power on the SDHCI controller and its children */
 	acpi_device_fix_up_power(device);
