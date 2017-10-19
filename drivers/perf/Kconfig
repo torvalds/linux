@@ -17,6 +17,13 @@ config ARM_PMU_ACPI
 	depends on ARM_PMU && ACPI
 	def_bool y
 
+config HISI_PMU
+       bool "HiSilicon SoC PMU"
+       depends on ARM64 && ACPI
+       help
+         Support for HiSilicon SoC uncore performance monitoring
+         unit (PMU), such as: L3C, HHA and DDRC.
+
 config QCOM_L2_PMU
 	bool "Qualcomm Technologies L2-cache PMU"
 	depends on ARCH_QCOM && ARM64 && ACPI
