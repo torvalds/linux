@@ -811,7 +811,8 @@ static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port por
  * values in advance. This function programs the correct values for
  * DP/eDP/FDI use cases.
  */
-static void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder)
+static void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder,
+					 const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 iboost_bit = 0;
@@ -819,23 +820,15 @@ static void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder)
 	enum port port = intel_ddi_get_encoder_port(encoder);
 	const struct ddi_buf_trans *ddi_translations;
 
-	switch (encoder->type) {
-	case INTEL_OUTPUT_EDP:
-		ddi_translations = intel_ddi_get_buf_trans_edp(dev_priv, port,
-							       &n_entries);
-		break;
-	case INTEL_OUTPUT_DP:
-		ddi_translations = intel_ddi_get_buf_trans_dp(dev_priv, port,
-							      &n_entries);
-		break;
-	case INTEL_OUTPUT_ANALOG:
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG))
 		ddi_translations = intel_ddi_get_buf_trans_fdi(dev_priv,
 							       &n_entries);
-		break;
-	default:
-		MISSING_CASE(encoder->type);
-		return;
-	}
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
+		ddi_translations = intel_ddi_get_buf_trans_edp(dev_priv, port,
+							       &n_entries);
+	else
+		ddi_translations = intel_ddi_get_buf_trans_dp(dev_priv, port,
+							      &n_entries);
 
 	/* If we're boosting the current, set bit 31 of trans1 */
 	if (IS_GEN9_BC(dev_priv) &&
@@ -937,7 +930,7 @@ void hsw_fdi_link_train(struct intel_crtc *crtc,
 
 	for_each_encoder_on_crtc(dev, &crtc->base, encoder) {
 		WARN_ON(encoder->type != INTEL_OUTPUT_ANALOG);
-		intel_prepare_dp_ddi_buffers(encoder);
+		intel_prepare_dp_ddi_buffers(encoder, crtc_state);
 	}
 
 	/* Set the FDI_RX_MISC pwrdn lanes and the 2 workarounds listed at the
@@ -2201,7 +2194,7 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	else if (IS_GEN9_LP(dev_priv))
 		bxt_ddi_vswing_sequence(encoder, level, encoder->type);
 	else
-		intel_prepare_dp_ddi_buffers(encoder);
+		intel_prepare_dp_ddi_buffers(encoder, crtc_state);
 
 	intel_ddi_init_dp_buf_reg(encoder);
 	if (!is_mst)
