@@ -53,7 +53,6 @@ struct hisi_thermal_sensor {
 };
 
 struct hisi_thermal_data {
-	struct mutex thermal_lock;    /* protects register data */
 	struct platform_device *pdev;
 	struct clk *clk;
 	struct hisi_thermal_sensor sensor;
@@ -200,14 +199,10 @@ static inline void hisi_thermal_hdak_set(void __iomem *addr, int value)
 
 static void hisi_thermal_disable_sensor(struct hisi_thermal_data *data)
 {
-	mutex_lock(&data->thermal_lock);
-
 	/* disable sensor module */
 	hisi_thermal_enable(data->regs, 0);
 	hisi_thermal_alarm_enable(data->regs, 0);
 	hisi_thermal_reset_enable(data->regs, 0);
-
-	mutex_unlock(&data->thermal_lock);
 }
 
 static int hisi_thermal_get_temp(void *__data, int *temp)
@@ -344,7 +339,6 @@ static int hisi_thermal_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	mutex_init(&data->thermal_lock);
 	data->pdev = pdev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
