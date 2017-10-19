@@ -6023,6 +6023,75 @@ static inline void megasas_set_adapter_type(struct megasas_instance *instance)
 	}
 }
 
+static inline int megasas_alloc_mfi_ctrl_mem(struct megasas_instance *instance)
+{
+	instance->producer = pci_alloc_consistent(instance->pdev, sizeof(u32),
+						  &instance->producer_h);
+	instance->consumer = pci_alloc_consistent(instance->pdev, sizeof(u32),
+						  &instance->consumer_h);
+
+	if (!instance->producer || !instance->consumer) {
+		dev_err(&instance->pdev->dev,
+			"Failed to allocate memory for producer, consumer\n");
+		return -1;
+	}
+
+	*instance->producer = 0;
+	*instance->consumer = 0;
+	return 0;
+}
+
+/**
+ * megasas_alloc_ctrl_mem -	Allocate per controller memory for core data
+ *				structures which are not common across MFI
+ *				adapters and fusion adapters.
+ *				For MFI based adapters, allocate producer and
+ *				consumer buffers. For fusion adapters, allocate
+ *				memory for fusion context.
+ * @instance:			Adapter soft state
+ * return:			0 for SUCCESS
+ */
+static int megasas_alloc_ctrl_mem(struct megasas_instance *instance)
+{
+	switch (instance->adapter_type) {
+	case MFI_SERIES:
+		if (megasas_alloc_mfi_ctrl_mem(instance))
+			return -ENOMEM;
+		break;
+	case VENTURA_SERIES:
+	case THUNDERBOLT_SERIES:
+	case INVADER_SERIES:
+		if (megasas_alloc_fusion_context(instance))
+			return -ENOMEM;
+		break;
+	}
+
+	return 0;
+}
+
+/*
+ * megasas_free_ctrl_mem -	Free fusion context for fusion adapters and
+ *				producer, consumer buffers for MFI adapters
+ *
+ * @instance -			Adapter soft instance
+ *
+ */
+static inline void megasas_free_ctrl_mem(struct megasas_instance *instance)
+{
+	if (instance->adapter_type == MFI_SERIES) {
+		if (instance->producer)
+			pci_free_consistent(instance->pdev, sizeof(u32),
+					    instance->producer,
+					    instance->producer_h);
+		if (instance->consumer)
+			pci_free_consistent(instance->pdev, sizeof(u32),
+					    instance->consumer,
+					    instance->consumer_h);
+	} else {
+		megasas_free_fusion_context(instance);
+	}
+}
+
 /**
  * megasas_probe_one -	PCI hotplug entry point
  * @pdev:		PCI device structure
@@ -6081,33 +6150,8 @@ static int megasas_probe_one(struct pci_dev *pdev,
 
 	megasas_set_adapter_type(instance);
 
-	switch (instance->adapter_type) {
-	case MFI_SERIES:
-		instance->producer =
-			pci_alloc_consistent(pdev, sizeof(u32),
-					     &instance->producer_h);
-		instance->consumer =
-			pci_alloc_consistent(pdev, sizeof(u32),
-					     &instance->consumer_h);
-
-		if (!instance->producer || !instance->consumer) {
-			dev_printk(KERN_DEBUG, &pdev->dev, "Failed to allocate "
-			       "memory for producer, consumer\n");
-			goto fail_alloc_dma_buf;
-		}
-
-		*instance->producer = 0;
-		*instance->consumer = 0;
-
-		break;
-	case VENTURA_SERIES:
-	case THUNDERBOLT_SERIES:
-	case INVADER_SERIES:
-		if (megasas_alloc_fusion_context(instance)) {
-			megasas_free_fusion_context(instance);
-			goto fail_alloc_dma_buf;
-		}
-	}
+	if (megasas_alloc_ctrl_mem(instance))
+		goto fail_alloc_dma_buf;
 
 	/* Crash dump feature related initialisation*/
 	instance->drv_buf_index = 0;
@@ -6303,12 +6347,7 @@ fail_alloc_dma_buf:
 		pci_free_consistent(pdev, sizeof(struct MR_TARGET_PROPERTIES),
 					instance->tgt_prop,
 					instance->tgt_prop_h);
-	if (instance->producer)
-		pci_free_consistent(pdev, sizeof(u32), instance->producer,
-				    instance->producer_h);
-	if (instance->consumer)
-		pci_free_consistent(pdev, sizeof(u32), instance->consumer,
-				    instance->consumer_h);
+	megasas_free_ctrl_mem(instance);
 	scsi_host_put(host);
 
 fail_alloc_instance:
@@ -6579,12 +6618,8 @@ fail_init_mfi:
 		pci_free_consistent(pdev, sizeof(struct MR_TARGET_PROPERTIES),
 					instance->tgt_prop,
 					instance->tgt_prop_h);
-	if (instance->producer)
-		pci_free_consistent(pdev, sizeof(u32), instance->producer,
-				instance->producer_h);
-	if (instance->consumer)
-		pci_free_consistent(pdev, sizeof(u32), instance->consumer,
-				instance->consumer_h);
+
+	megasas_free_ctrl_mem(instance);
 	scsi_host_put(host);
 
 fail_set_dma_mask:
@@ -6725,15 +6760,8 @@ skip_firing_dcmds:
 					fusion->pd_seq_sync[i],
 					fusion->pd_seq_phys[i]);
 		}
-		megasas_free_fusion_context(instance);
 	} else {
 		megasas_release_mfi(instance);
-		pci_free_consistent(pdev, sizeof(u32),
-				    instance->producer,
-				    instance->producer_h);
-		pci_free_consistent(pdev, sizeof(u32),
-				    instance->consumer,
-				    instance->consumer_h);
 	}
 
 	kfree(instance->ctrl_info);
@@ -6773,6 +6801,8 @@ skip_firing_dcmds:
 	if (instance->system_info_buf)
 		pci_free_consistent(pdev, sizeof(struct MR_DRV_SYSTEM_INFO),
 				    instance->system_info_buf, instance->system_info_h);
+
+	megasas_free_ctrl_mem(instance);
 
 	scsi_host_put(host);
 
