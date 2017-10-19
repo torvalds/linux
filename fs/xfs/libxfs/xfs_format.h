@@ -946,7 +946,7 @@ typedef enum xfs_dinode_fmt {
 	XFS_DINODE_FMT_LOCAL,		/* bulk data */
 	XFS_DINODE_FMT_EXTENTS,		/* struct xfs_bmbt_rec */
 	XFS_DINODE_FMT_BTREE,		/* struct xfs_bmdr_block */
-	XFS_DINODE_FMT_UUID		/* uuid_t */
+	XFS_DINODE_FMT_UUID		/* added long ago, but never used */
 } xfs_dinode_fmt_t;
 
 /*

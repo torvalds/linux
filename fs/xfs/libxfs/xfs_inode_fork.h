@@ -70,7 +70,6 @@ typedef struct xfs_ifork {
 		char		if_inline_data[XFS_INLINE_DATA];
 						/* very small file data */
 		xfs_dev_t	if_rdev;	/* dev number if special */
-		uuid_t		if_uuid;	/* mount point value */
 	} if_u2;
 } xfs_ifork_t;
 

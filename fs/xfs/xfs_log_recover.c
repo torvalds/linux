@@ -3163,16 +3163,8 @@ xlog_recover_inode_pass2(
 	}
 
 	fields = in_f->ilf_fields;
-	switch (fields & (XFS_ILOG_DEV | XFS_ILOG_UUID)) {
-	case XFS_ILOG_DEV:
+	if (fields & XFS_ILOG_DEV)
 		xfs_dinode_put_rdev(dip, in_f->ilf_u.ilfu_rdev);
-		break;
-	case XFS_ILOG_UUID:
-		memcpy(XFS_DFORK_DPTR(dip),
-		       &in_f->ilf_u.ilfu_uuid,
-		       sizeof(uuid_t));
-		break;
-	}
 
 	if (in_f->ilf_size == 2)
 		goto out_owner_change;
