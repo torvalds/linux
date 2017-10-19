@@ -1484,22 +1484,18 @@ out_pm_put:
 	return ret;
 }
 
-static void etnaviv_process_sync_point(struct etnaviv_gpu *gpu,
-	struct etnaviv_event *event)
-{
-	u32 addr = gpu_read(gpu, VIVS_FE_DMA_ADDRESS);
-
-	event->sync_point(gpu, event);
-	etnaviv_gpu_start_fe(gpu, addr + 2, 2);
-}
-
 static void sync_point_worker(struct work_struct *work)
 {
 	struct etnaviv_gpu *gpu = container_of(work, struct etnaviv_gpu,
 					       sync_point_work);
+	struct etnaviv_event *event = &gpu->event[gpu->sync_point_event];
+	u32 addr = gpu_read(gpu, VIVS_FE_DMA_ADDRESS);
 
-	etnaviv_process_sync_point(gpu, &gpu->event[gpu->sync_point_event]);
+	event->sync_point(gpu, event);
 	event_free(gpu, gpu->sync_point_event);
+
+	/* restart FE last to avoid GPU and IRQ racing against this worker */
+	etnaviv_gpu_start_fe(gpu, addr + 2, 2);
 }
 
 /*
