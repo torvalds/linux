@@ -197,15 +197,6 @@ enum shift_direction {
 	SHIFT_RIGHT,
 };
 
-#ifdef DEBUG
-void	xfs_bmap_trace_exlist(struct xfs_inode *ip, xfs_extnum_t cnt,
-		int whichfork, unsigned long caller_ip);
-#define	XFS_BMAP_TRACE_EXLIST(ip,c,w)	\
-	xfs_bmap_trace_exlist(ip,c,w, _THIS_IP_)
-#else
-#define	XFS_BMAP_TRACE_EXLIST(ip,c,w)
-#endif
-
 void	xfs_trim_extent(struct xfs_bmbt_irec *irec, xfs_fileoff_t bno,
 		xfs_filblks_t len);
 void	xfs_trim_extent_eof(struct xfs_bmbt_irec *, struct xfs_inode *);

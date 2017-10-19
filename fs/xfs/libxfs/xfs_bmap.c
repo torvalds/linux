@@ -488,26 +488,6 @@ error_norelse:
 }
 
 /*
- * Add bmap trace insert entries for all the contents of the extent records.
- */
-void
-xfs_bmap_trace_exlist(
-	xfs_inode_t	*ip,		/* incore inode pointer */
-	xfs_extnum_t	cnt,		/* count of entries in the list */
-	int		whichfork,	/* data or attr or cow fork */
-	unsigned long	caller_ip)
-{
-	xfs_extnum_t	idx;		/* extent record index */
-	xfs_ifork_t	*ifp;		/* inode fork pointer */
-	int		state = xfs_bmap_fork_to_state(whichfork);
-
-	ifp = XFS_IFORK_PTR(ip, whichfork);
-	ASSERT(cnt == xfs_iext_count(ifp));
-	for (idx = 0; idx < cnt; idx++)
-		trace_xfs_extlist(ip, idx, state, caller_ip);
-}
-
-/*
  * Validate that the bmbt_irecs being returned from bmapi are valid
  * given the caller's original parameters.  Specifically check the
  * ranges of the returned irecs to ensure that they only extend beyond
@@ -1210,6 +1190,7 @@ xfs_bmap_read_extents(
 	__be64			*pp;	/* pointer to block address */
 	/* REFERENCED */
 	xfs_extnum_t		room;	/* number of entries there's room for */
+	int			state = xfs_bmap_fork_to_state(whichfork);
 
 	mp = ip->i_mount;
 	ifp = XFS_IFORK_PTR(ip, whichfork);
@@ -1283,6 +1264,7 @@ xfs_bmap_read_extents(
 						 XFS_ERRLEVEL_LOW, mp);
 				goto error0;
 			}
+			trace_xfs_read_extent(ip, i, state, _THIS_IP_);
 		}
 		xfs_trans_brelse(tp, bp);
 		bno = nextbno;
@@ -1300,7 +1282,6 @@ xfs_bmap_read_extents(
 	if (i != XFS_IFORK_NEXTENTS(ip, whichfork))
 		return -EFSCORRUPTED;
 	ASSERT(i == xfs_iext_count(ifp));
-	XFS_BMAP_TRACE_EXLIST(ip, i, whichfork);
 	return 0;
 error0:
 	xfs_trans_brelse(tp, bp);
