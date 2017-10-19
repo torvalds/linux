@@ -1322,7 +1322,6 @@ xfs_collapse_file_space(
 	xfs_off_t		offset,
 	xfs_off_t		len)
 {
-	int			done = 0;
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
 	int			error;
@@ -1332,6 +1331,7 @@ xfs_collapse_file_space(
 	xfs_fileoff_t		next_fsb = XFS_B_TO_FSB(mp, offset + len);
 	xfs_fileoff_t		shift_fsb = XFS_B_TO_FSB(mp, len);
 	uint			resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
+	bool			done = false;
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
 	trace_xfs_collapse_file_space(ip);
@@ -1359,9 +1359,8 @@ xfs_collapse_file_space(
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
 		xfs_defer_init(&dfops, &first_block);
-		error = xfs_bmap_shift_extents(tp, ip, &next_fsb, shift_fsb,
-				&done, stop_fsb, &first_block, &dfops,
-				SHIFT_LEFT);
+		error = xfs_bmap_collapse_extents(tp, ip, &next_fsb, shift_fsb,
+				&done, stop_fsb, &first_block, &dfops);
 		if (error)
 			goto out_bmap_cancel;
 
@@ -1406,7 +1405,7 @@ xfs_insert_file_space(
 	xfs_fileoff_t		stop_fsb = XFS_B_TO_FSB(mp, offset);
 	xfs_fileoff_t		next_fsb = NULLFSBLOCK;
 	xfs_fileoff_t		shift_fsb = XFS_B_TO_FSB(mp, len);
-	int			done = 0;
+	bool			done = false;
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
 	trace_xfs_insert_file_space(ip);
@@ -1433,9 +1432,8 @@ xfs_insert_file_space(
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 		xfs_defer_init(&dfops, &first_block);
-		error = xfs_bmap_shift_extents(tp, ip, &next_fsb, shift_fsb,
-				&done, stop_fsb, &first_block, &dfops,
-				SHIFT_RIGHT);
+		error = xfs_bmap_insert_extents(tp, ip, &next_fsb, shift_fsb,
+				&done, stop_fsb, &first_block, &dfops);
 		if (error)
 			goto out_bmap_cancel;
 
