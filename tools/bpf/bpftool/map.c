@@ -216,12 +216,12 @@ static void print_entry(struct bpf_map_info *info, unsigned char *key,
 			!break_names;
 
 		printf("key:%c", break_names ? '\n' : ' ');
-		print_hex(key, info->key_size, " ");
+		fprint_hex(stdout, key, info->key_size, " ");
 
 		printf(single_line ? "  " : "\n");
 
 		printf("value:%c", break_names ? '\n' : ' ');
-		print_hex(value, info->value_size, " ");
+		fprint_hex(stdout, value, info->value_size, " ");
 
 		printf("\n");
 	} else {
@@ -230,13 +230,13 @@ static void print_entry(struct bpf_map_info *info, unsigned char *key,
 		n = get_possible_cpus();
 
 		printf("key:\n");
-		print_hex(key, info->key_size, " ");
+		fprint_hex(stdout, key, info->key_size, " ");
 		printf("\n");
 		for (i = 0; i < n; i++) {
 			printf("value (CPU %02d):%c",
 			       i, info->value_size > 16 ? '\n' : ' ');
-			print_hex(value + i * info->value_size,
-				  info->value_size, " ");
+			fprint_hex(stdout, value + i * info->value_size,
+				   info->value_size, " ");
 			printf("\n");
 		}
 	}
@@ -492,8 +492,8 @@ static int do_dump(int argc, char **argv)
 			print_entry(&info, key, value);
 		} else {
 			info("can't lookup element with key: ");
-			print_hex(key, info.key_size, " ");
-			printf("\n");
+			fprint_hex(stderr, key, info.key_size, " ");
+			fprintf(stderr, "\n");
 		}
 
 		prev_key = key;
@@ -587,7 +587,7 @@ static int do_lookup(int argc, char **argv)
 		print_entry(&info, key, value);
 	} else if (errno == ENOENT) {
 		printf("key:\n");
-		print_hex(key, info.key_size, " ");
+		fprint_hex(stdout, key, info.key_size, " ");
 		printf("\n\nNot found\n");
 	} else {
 		err("lookup failed: %s\n", strerror(errno));
@@ -642,14 +642,14 @@ static int do_getnext(int argc, char **argv)
 
 	if (key) {
 		printf("key:\n");
-		print_hex(key, info.key_size, " ");
+		fprint_hex(stdout, key, info.key_size, " ");
 		printf("\n");
 	} else {
 		printf("key: None\n");
 	}
 
 	printf("next key:\n");
-	print_hex(nextkey, info.key_size, " ");
+	fprint_hex(stdout, nextkey, info.key_size, " ");
 	printf("\n");
 
 exit_free:

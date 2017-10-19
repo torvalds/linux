@@ -224,7 +224,7 @@ static int show_prog(int fd)
 		printf("name %s  ", info.name);
 
 	printf("tag ");
-	print_hex(info.tag, BPF_TAG_SIZE, "");
+	fprint_hex(stdout, info.tag, BPF_TAG_SIZE, "");
 	printf("\n");
 
 	if (info.load_time) {
@@ -319,7 +319,7 @@ static void dump_xlated(void *buf, unsigned int len, bool opcodes)
 
 		if (opcodes) {
 			printf("       ");
-			print_hex(insn + i, 8, " ");
+			fprint_hex(stdout, insn + i, 8, " ");
 			printf("\n");
 		}
 

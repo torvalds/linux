@@ -100,7 +100,7 @@ bool is_prefix(const char *pfx, const char *str)
 	return !memcmp(str, pfx, strlen(pfx));
 }
 
-void print_hex(void *arg, unsigned int n, const char *sep)
+void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep)
 {
 	unsigned char *data = arg;
 	unsigned int i;
@@ -111,13 +111,13 @@ void print_hex(void *arg, unsigned int n, const char *sep)
 		if (!i)
 			/* nothing */;
 		else if (!(i % 16))
-			printf("\n");
+			fprintf(f, "\n");
 		else if (!(i % 8))
-			printf("  ");
+			fprintf(f, "  ");
 		else
 			pfx = sep;
 
-		printf("%s%02hhx", i ? pfx : "", data[i]);
+		fprintf(f, "%s%02hhx", i ? pfx : "", data[i]);
 	}
 }
 
