@@ -1916,8 +1916,17 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans,
 
 static inline int btrfs_start_delalloc_flush(struct btrfs_fs_info *fs_info)
 {
+	/*
+	 * We use writeback_inodes_sb here because if we used
+	 * btrfs_start_delalloc_roots we would deadlock with fs freeze.
+	 * Currently are holding the fs freeze lock, if we do an async flush
+	 * we'll do btrfs_join_transaction() and deadlock because we need to
+	 * wait for the fs freeze lock.  Using the direct flushing we benefit
+	 * from already being in a transaction and our join_transaction doesn't
+	 * have to re-take the fs freeze lock.
+	 */
 	if (btrfs_test_opt(fs_info, FLUSHONCOMMIT))
-		return btrfs_start_delalloc_roots(fs_info, 1, -1);
+		writeback_inodes_sb(fs_info->sb, WB_REASON_SYNC);
 	return 0;
 }
 
