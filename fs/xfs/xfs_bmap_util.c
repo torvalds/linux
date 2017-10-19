@@ -1260,53 +1260,12 @@ out:
 
 }
 
-/*
- * @next_fsb will keep track of the extent currently undergoing shift.
- * @stop_fsb will keep track of the extent at which we have to stop.
- * If we are shifting left, we will start with block (offset + len) and
- * shift each extent till last extent.
- * If we are shifting right, we will start with last extent inside file space
- * and continue until we reach the block corresponding to offset.
- */
 static int
-xfs_shift_file_space(
-	struct xfs_inode        *ip,
-	xfs_off_t               offset,
-	xfs_off_t               len,
-	enum shift_direction	direction)
+xfs_prepare_shift(
+	struct xfs_inode	*ip,
+	loff_t			offset)
 {
-	int			done = 0;
-	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_trans	*tp;
 	int			error;
-	struct xfs_defer_ops	dfops;
-	xfs_fsblock_t		first_block;
-	xfs_fileoff_t		stop_fsb;
-	xfs_fileoff_t		next_fsb;
-	xfs_fileoff_t		shift_fsb;
-	uint			resblks;
-
-	ASSERT(direction == SHIFT_LEFT || direction == SHIFT_RIGHT);
-
-	if (direction == SHIFT_LEFT) {
-		/*
-		 * Reserve blocks to cover potential extent merges after left
-		 * shift operations.
-		 */
-		resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
-		next_fsb = XFS_B_TO_FSB(mp, offset + len);
-		stop_fsb = XFS_B_TO_FSB(mp, VFS_I(ip)->i_size);
-	} else {
-		/*
-		 * If right shift, delegate the work of initialization of
-		 * next_fsb to xfs_bmap_shift_extent as it has ilock held.
-		 */
-		resblks = 0;
-		next_fsb = NULLFSBLOCK;
-		stop_fsb = XFS_B_TO_FSB(mp, offset);
-	}
-
-	shift_fsb = XFS_B_TO_FSB(mp, len);
 
 	/*
 	 * Trim eofblocks to avoid shifting uninitialized post-eof preallocation
@@ -1322,8 +1281,7 @@ xfs_shift_file_space(
 	 * Writeback and invalidate cache for the remainder of the file as we're
 	 * about to shift down every extent from offset to EOF.
 	 */
-	error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
-					     offset, -1);
+	error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping, offset, -1);
 	if (error)
 		return error;
 	error = invalidate_inode_pages2_range(VFS_I(ip)->i_mapping,
@@ -1343,58 +1301,7 @@ xfs_shift_file_space(
 			return error;
 	}
 
-	/*
-	 * The extent shifting code works on extent granularity. So, if
-	 * stop_fsb is not the starting block of extent, we need to split
-	 * the extent at stop_fsb.
-	 */
-	if (direction == SHIFT_RIGHT) {
-		error = xfs_bmap_split_extent(ip, stop_fsb);
-		if (error)
-			return error;
-	}
-
-	while (!error && !done) {
-		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, 0, 0,
-					&tp);
-		if (error)
-			break;
-
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		error = xfs_trans_reserve_quota(tp, mp, ip->i_udquot,
-				ip->i_gdquot, ip->i_pdquot, resblks, 0,
-				XFS_QMOPT_RES_REGBLKS);
-		if (error)
-			goto out_trans_cancel;
-
-		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-
-		xfs_defer_init(&dfops, &first_block);
-
-		/*
-		 * We are using the write transaction in which max 2 bmbt
-		 * updates are allowed
-		 */
-		error = xfs_bmap_shift_extents(tp, ip, &next_fsb, shift_fsb,
-				&done, stop_fsb, &first_block, &dfops,
-				direction, XFS_BMAP_MAX_SHIFT_EXTENTS);
-		if (error)
-			goto out_bmap_cancel;
-
-		error = xfs_defer_finish(&tp, &dfops);
-		if (error)
-			goto out_bmap_cancel;
-
-		error = xfs_trans_commit(tp);
-	}
-
-	return error;
-
-out_bmap_cancel:
-	xfs_defer_cancel(&dfops);
-out_trans_cancel:
-	xfs_trans_cancel(tp);
-	return error;
+	return 0;
 }
 
 /*
@@ -1415,7 +1322,16 @@ xfs_collapse_file_space(
 	xfs_off_t		offset,
 	xfs_off_t		len)
 {
-	int error;
+	int			done = 0;
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_trans	*tp;
+	int			error;
+	struct xfs_defer_ops	dfops;
+	xfs_fsblock_t		first_block;
+	xfs_fileoff_t		stop_fsb = XFS_B_TO_FSB(mp, VFS_I(ip)->i_size);
+	xfs_fileoff_t		next_fsb = XFS_B_TO_FSB(mp, offset + len);
+	xfs_fileoff_t		shift_fsb = XFS_B_TO_FSB(mp, len);
+	uint			resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
 	trace_xfs_collapse_file_space(ip);
@@ -1424,7 +1340,49 @@ xfs_collapse_file_space(
 	if (error)
 		return error;
 
-	return xfs_shift_file_space(ip, offset, len, SHIFT_LEFT);
+	error = xfs_prepare_shift(ip, offset);
+	if (error)
+		return error;
+
+	while (!error && !done) {
+		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, 0, 0,
+					&tp);
+		if (error)
+			break;
+
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+		error = xfs_trans_reserve_quota(tp, mp, ip->i_udquot,
+				ip->i_gdquot, ip->i_pdquot, resblks, 0,
+				XFS_QMOPT_RES_REGBLKS);
+		if (error)
+			goto out_trans_cancel;
+		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
+
+		xfs_defer_init(&dfops, &first_block);
+
+		/*
+		 * We are using the write transaction in which max 2 bmbt
+		 * updates are allowed
+		 */
+		error = xfs_bmap_shift_extents(tp, ip, &next_fsb, shift_fsb,
+				&done, stop_fsb, &first_block, &dfops,
+				SHIFT_LEFT, XFS_BMAP_MAX_SHIFT_EXTENTS);
+		if (error)
+			goto out_bmap_cancel;
+
+		error = xfs_defer_finish(&tp, &dfops);
+		if (error)
+			goto out_bmap_cancel;
+		error = xfs_trans_commit(tp);
+	}
+
+	return error;
+
+out_bmap_cancel:
+	xfs_defer_cancel(&dfops);
+out_trans_cancel:
+	xfs_trans_cancel(tp);
+	return error;
 }
 
 /*
@@ -1445,10 +1403,64 @@ xfs_insert_file_space(
 	loff_t			offset,
 	loff_t			len)
 {
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_trans	*tp;
+	int			error;
+	struct xfs_defer_ops	dfops;
+	xfs_fsblock_t		first_block;
+	xfs_fileoff_t		stop_fsb = XFS_B_TO_FSB(mp, offset);
+	xfs_fileoff_t		next_fsb = NULLFSBLOCK;
+	xfs_fileoff_t		shift_fsb = XFS_B_TO_FSB(mp, len);
+	int			done = 0;
+
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
 	trace_xfs_insert_file_space(ip);
 
-	return xfs_shift_file_space(ip, offset, len, SHIFT_RIGHT);
+	error = xfs_prepare_shift(ip, offset);
+	if (error)
+		return error;
+
+	/*
+	 * The extent shifting code works on extent granularity. So, if stop_fsb
+	 * is not the starting block of extent, we need to split the extent at
+	 * stop_fsb.
+	 */
+	error = xfs_bmap_split_extent(ip, stop_fsb);
+	if (error)
+		return error;
+
+	while (!error && !done) {
+		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, 0, 0, 0,
+					&tp);
+		if (error)
+			break;
+
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
+		xfs_defer_init(&dfops, &first_block);
+
+		/*
+		 * We are using the write transaction in which max 2 bmbt
+		 * updates are allowed
+		 */
+		error = xfs_bmap_shift_extents(tp, ip, &next_fsb, shift_fsb,
+				&done, stop_fsb, &first_block, &dfops,
+				SHIFT_RIGHT, XFS_BMAP_MAX_SHIFT_EXTENTS);
+		if (error)
+			goto out_bmap_cancel;
+
+		error = xfs_defer_finish(&tp, &dfops);
+		if (error)
+			goto out_bmap_cancel;
+		error = xfs_trans_commit(tp);
+	}
+
+	return error;
+
+out_bmap_cancel:
+	xfs_defer_cancel(&dfops);
+	xfs_trans_cancel(tp);
+	return error;
 }
 
 /*
