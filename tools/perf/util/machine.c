@@ -1711,11 +1711,22 @@ struct mem_info *sample__resolve_mem(struct perf_sample *sample,
 
 static char *callchain_srcline(struct map *map, struct symbol *sym, u64 ip)
 {
-	if (!map || callchain_param.key == CCKEY_FUNCTION)
-		return NULL;
+	char *srcline = NULL;
 
-	return get_srcline(map->dso, map__rip_2objdump(map, ip),
-			   sym, false, callchain_param.key == CCKEY_ADDRESS);
+	if (!map || callchain_param.key == CCKEY_FUNCTION)
+		return srcline;
+
+	srcline = srcline__tree_find(&map->dso->srclines, ip);
+	if (!srcline) {
+		bool show_sym = false;
+		bool show_addr = callchain_param.key == CCKEY_ADDRESS;
+
+		srcline = get_srcline(map->dso, map__rip_2objdump(map, ip),
+				      sym, show_sym, show_addr);
+		srcline__tree_insert(&map->dso->srclines, ip, srcline);
+	}
+
+	return srcline;
 }
 
 struct iterations {

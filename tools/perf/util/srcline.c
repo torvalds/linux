@@ -542,6 +542,72 @@ char *get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
 	return __get_srcline(dso, addr, sym, show_sym, show_addr, false);
 }
 
+struct srcline_node {
+	u64			addr;
+	char			*srcline;
+	struct rb_node		rb_node;
+};
+
+void srcline__tree_insert(struct rb_root *tree, u64 addr, char *srcline)
+{
+	struct rb_node **p = &tree->rb_node;
+	struct rb_node *parent = NULL;
+	struct srcline_node *i, *node;
+
+	node = zalloc(sizeof(struct srcline_node));
+	if (!node) {
+		perror("not enough memory for the srcline node");
+		return;
+	}
+
+	node->addr = addr;
+	node->srcline = srcline;
+
+	while (*p != NULL) {
+		parent = *p;
+		i = rb_entry(parent, struct srcline_node, rb_node);
+		if (addr < i->addr)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+	rb_link_node(&node->rb_node, parent, p);
+	rb_insert_color(&node->rb_node, tree);
+}
+
+char *srcline__tree_find(struct rb_root *tree, u64 addr)
+{
+	struct rb_node *n = tree->rb_node;
+
+	while (n) {
+		struct srcline_node *i = rb_entry(n, struct srcline_node,
+						  rb_node);
+
+		if (addr < i->addr)
+			n = n->rb_left;
+		else if (addr > i->addr)
+			n = n->rb_right;
+		else
+			return i->srcline;
+	}
+
+	return NULL;
+}
+
+void srcline__tree_delete(struct rb_root *tree)
+{
+	struct srcline_node *pos;
+	struct rb_node *next = rb_first(tree);
+
+	while (next) {
+		pos = rb_entry(next, struct srcline_node, rb_node);
+		next = rb_next(&pos->rb_node);
+		rb_erase(&pos->rb_node, tree);
+		free_srcline(pos->srcline);
+		zfree(&pos);
+	}
+}
+
 struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr,
 					    struct symbol *sym)
 {
