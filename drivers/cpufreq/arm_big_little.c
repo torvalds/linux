@@ -57,7 +57,7 @@ static bool bL_switching_enabled;
 #define VIRT_FREQ(cluster, freq)    ((cluster == A7_CLUSTER) ? freq >> 1 : freq)
 
 static struct thermal_cooling_device *cdev[MAX_CLUSTERS];
-static struct cpufreq_arm_bL_ops *arm_bL_ops;
+static const struct cpufreq_arm_bL_ops *arm_bL_ops;
 static struct clk *clk[MAX_CLUSTERS];
 static struct cpufreq_frequency_table *freq_table[MAX_CLUSTERS + 1];
 static atomic_t cluster_usage[MAX_CLUSTERS + 1];
@@ -617,7 +617,7 @@ static int __bLs_register_notifier(void) { return 0; }
 static int __bLs_unregister_notifier(void) { return 0; }
 #endif
 
-int bL_cpufreq_register(struct cpufreq_arm_bL_ops *ops)
+int bL_cpufreq_register(const struct cpufreq_arm_bL_ops *ops)
 {
 	int ret, i;
 
@@ -661,7 +661,7 @@ int bL_cpufreq_register(struct cpufreq_arm_bL_ops *ops)
 }
 EXPORT_SYMBOL_GPL(bL_cpufreq_register);
 
-void bL_cpufreq_unregister(struct cpufreq_arm_bL_ops *ops)
+void bL_cpufreq_unregister(const struct cpufreq_arm_bL_ops *ops)
 {
 	if (arm_bL_ops != ops) {
 		pr_err("%s: Registered with: %s, can't unregister, exiting\n",
