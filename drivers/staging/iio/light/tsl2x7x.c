@@ -142,11 +142,6 @@ enum {
 	TSL2X7X_CHIP_SUSPENDED = 2
 };
 
-struct tsl2x7x_parse_result {
-	int integer;
-	int fract;
-};
-
 /* Per-device data */
 struct tsl2x7x_als_info {
 	u16 als_ch0;
