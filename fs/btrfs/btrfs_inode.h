@@ -267,6 +267,23 @@ static inline bool btrfs_is_free_space_inode(struct btrfs_inode *inode)
 	return false;
 }
 
+static inline void btrfs_mod_outstanding_extents(struct btrfs_inode *inode,
+						 int mod)
+{
+	lockdep_assert_held(&inode->lock);
+	inode->outstanding_extents += mod;
+	if (btrfs_is_free_space_inode(inode))
+		return;
+}
+
+static inline void btrfs_mod_reserved_extents(struct btrfs_inode *inode, int mod)
+{
+	lockdep_assert_held(&inode->lock);
+	inode->reserved_extents += mod;
+	if (btrfs_is_free_space_inode(inode))
+		return;
+}
+
 static inline int btrfs_inode_in_log(struct btrfs_inode *inode, u64 generation)
 {
 	int ret = 0;
