@@ -203,6 +203,8 @@ static void hisi_thermal_disable_sensor(struct hisi_thermal_data *data)
 	hisi_thermal_enable(data->regs, 0);
 	hisi_thermal_alarm_enable(data->regs, 0);
 	hisi_thermal_reset_enable(data->regs, 0);
+
+	clk_disable_unprepare(data->clk);
 }
 
 static int hisi_thermal_get_temp(void *__data, int *temp)
@@ -297,9 +299,13 @@ static void hisi_thermal_toggle_sensor(struct hisi_thermal_sensor *sensor,
 
 static int hisi_thermal_setup(struct hisi_thermal_data *data)
 {
-	struct hisi_thermal_sensor *sensor;
+	struct hisi_thermal_sensor *sensor = &data->sensor;
+	int ret;
 
-	sensor = &data->sensor;
+	/* enable clock for tsensor */
+	ret = clk_prepare_enable(data->clk);
+	if (ret)
+		return ret;
 
 	/* disable module firstly */
 	hisi_thermal_reset_enable(data->regs, 0);
@@ -363,13 +369,6 @@ static int hisi_thermal_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* enable clock for thermal */
-	ret = clk_prepare_enable(data->clk);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to enable thermal clk: %d\n", ret);
-		return ret;
-	}
-
 	ret = hisi_thermal_register_sensor(pdev, data,
 					   &data->sensor,
 					   HISI_DEFAULT_SENSOR);
@@ -405,7 +404,6 @@ static int hisi_thermal_remove(struct platform_device *pdev)
 
 	hisi_thermal_toggle_sensor(sensor, false);
 	hisi_thermal_disable_sensor(data);
-	clk_disable_unprepare(data->clk);
 
 	return 0;
 }
@@ -417,23 +415,14 @@ static int hisi_thermal_suspend(struct device *dev)
 
 	hisi_thermal_disable_sensor(data);
 
-	clk_disable_unprepare(data->clk);
-
 	return 0;
 }
 
 static int hisi_thermal_resume(struct device *dev)
 {
 	struct hisi_thermal_data *data = dev_get_drvdata(dev);
-	int ret;
 
-	ret = clk_prepare_enable(data->clk);
-	if (ret)
-		return ret;
-
-	hisi_thermal_setup(data);
-
-	return 0;
+	return hisi_thermal_setup(data);
 }
 #endif
 
