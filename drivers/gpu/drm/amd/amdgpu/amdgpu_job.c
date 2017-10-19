@@ -104,7 +104,7 @@ static void amdgpu_job_free_cb(struct amd_sched_job *s_job)
 {
 	struct amdgpu_job *job = container_of(s_job, struct amdgpu_job, base);
 
-	amdgpu_ring_priority_put(job->ring, amd_sched_get_job_priority(s_job));
+	amdgpu_ring_priority_put(job->ring, s_job->s_priority);
 	dma_fence_put(job->fence);
 	amdgpu_sync_free(&job->sync);
 	amdgpu_sync_free(&job->dep_sync);
@@ -141,8 +141,7 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 	job->fence_ctx = entity->fence_context;
 	*f = dma_fence_get(&job->base.s_fence->finished);
 	amdgpu_job_free_resources(job);
-	amdgpu_ring_priority_get(job->ring,
-				 amd_sched_get_job_priority(&job->base));
+	amdgpu_ring_priority_get(job->ring, job->base.s_priority);
 	amd_sched_entity_push_job(&job->base);
 
 	return 0;

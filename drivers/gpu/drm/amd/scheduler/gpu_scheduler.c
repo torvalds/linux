@@ -529,6 +529,7 @@ int amd_sched_job_init(struct amd_sched_job *job,
 {
 	job->sched = sched;
 	job->s_entity = entity;
+	job->s_priority = entity->rq - sched->sched_rq;
 	job->s_fence = amd_sched_fence_create(entity, owner);
 	if (!job->s_fence)
 		return -ENOMEM;
