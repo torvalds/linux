@@ -1575,7 +1575,13 @@ static void rt6_age_examine_exception(struct rt6_exception_bucket *bucket,
 {
 	struct rt6_info *rt = rt6_ex->rt6i;
 
-	if (atomic_read(&rt->dst.__refcnt) == 1 &&
+	/* we are pruning and obsoleting aged-out and non gateway exceptions
+	 * even if others have still references to them, so that on next
+	 * dst_check() such references can be dropped.
+	 * EXPIRES exceptions - e.g. pmtu-generated ones are pruned when
+	 * expired, independently from their aging, as per RFC 8201 section 4
+	 */
+	if (!(rt->rt6i_flags & RTF_EXPIRES) &&
 	    time_after_eq(now, rt->dst.lastuse + gc_args->timeout)) {
 		RT6_TRACE("aging clone %p\n", rt);
 		rt6_remove_exception(bucket, rt6_ex);
@@ -1595,6 +1601,10 @@ static void rt6_age_examine_exception(struct rt6_exception_bucket *bucket,
 			rt6_remove_exception(bucket, rt6_ex);
 			return;
 		}
+	} else if (__rt6_check_expired(rt)) {
+		RT6_TRACE("purging expired route %p\n", rt);
+		rt6_remove_exception(bucket, rt6_ex);
+		return;
 	}
 	gc_args->more++;
 }
