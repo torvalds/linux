@@ -4294,9 +4294,7 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	/* TODO - remove a000 disablement when we have RXQ config API */
-	if (!iwl_mvm_has_new_rx_api(mvm) ||
-	    mvm->trans->cfg->device_family == IWL_DEVICE_FAMILY_A000)
+	if (!iwl_mvm_has_new_rx_api(mvm))
 		return;
 
 	notif->cookie = mvm->queue_sync_cookie;
@@ -4304,6 +4302,13 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 	if (notif->sync)
 		atomic_set(&mvm->queue_sync_counter,
 			   mvm->trans->num_rx_queues);
+
+	/* TODO - remove this when we have RXQ config API */
+	if (mvm->trans->cfg->device_family == IWL_DEVICE_FAMILY_A000) {
+		qmask = BIT(0);
+		if (notif->sync)
+			atomic_set(&mvm->queue_sync_counter, 1);
+	}
 
 	ret = iwl_mvm_notify_rx_queue(mvm, qmask, (u8 *)notif, size);
 	if (ret) {
