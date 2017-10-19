@@ -1039,22 +1039,23 @@ void ceph_mdsc_open_export_target_sessions(struct ceph_mds_client *mdsc,
  * session caps
  */
 
-/* caller holds s_cap_lock, we drop it */
-static void cleanup_cap_releases(struct ceph_mds_client *mdsc,
-				 struct ceph_mds_session *session)
-	__releases(session->s_cap_lock)
+static void detach_cap_releases(struct ceph_mds_session *session,
+				struct list_head *target)
 {
-	LIST_HEAD(tmp_list);
-	list_splice_init(&session->s_cap_releases, &tmp_list);
-	session->s_num_cap_releases = 0;
-	spin_unlock(&session->s_cap_lock);
+	lockdep_assert_held(&session->s_cap_lock);
 
-	dout("cleanup_cap_releases mds%d\n", session->s_mds);
-	while (!list_empty(&tmp_list)) {
+	list_splice_init(&session->s_cap_releases, target);
+	session->s_num_cap_releases = 0;
+	dout("dispose_cap_releases mds%d\n", session->s_mds);
+}
+
+static void dispose_cap_releases(struct ceph_mds_client *mdsc,
+				 struct list_head *dispose)
+{
+	while (!list_empty(dispose)) {
 		struct ceph_cap *cap;
 		/* zero out the in-progress message */
-		cap = list_first_entry(&tmp_list,
-					struct ceph_cap, session_caps);
+		cap = list_first_entry(dispose, struct ceph_cap, session_caps);
 		list_del(&cap->session_caps);
 		ceph_put_cap(mdsc, cap);
 	}
@@ -1251,6 +1252,8 @@ static void remove_session_caps(struct ceph_mds_session *session)
 {
 	struct ceph_fs_client *fsc = session->s_mdsc->fsc;
 	struct super_block *sb = fsc->sb;
+	LIST_HEAD(dispose);
+
 	dout("remove_session_caps on %p\n", session);
 	iterate_session_caps(session, remove_session_caps_cb, fsc);
 
@@ -1285,10 +1288,12 @@ static void remove_session_caps(struct ceph_mds_session *session)
 	}
 
 	// drop cap expires and unlock s_cap_lock
-	cleanup_cap_releases(session->s_mdsc, session);
+	detach_cap_releases(session, &dispose);
 
 	BUG_ON(session->s_nr_caps > 0);
 	BUG_ON(!list_empty(&session->s_cap_flushing));
+	spin_unlock(&session->s_cap_lock);
+	dispose_cap_releases(session->s_mdsc, &dispose);
 }
 
 /*
@@ -3015,6 +3020,7 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	int s_nr_caps;
 	struct ceph_pagelist *pagelist;
 	struct ceph_reconnect_state recon_state;
+	LIST_HEAD(dispose);
 
 	pr_info("mds%d reconnect start\n", mds);
 
@@ -3048,7 +3054,9 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	 */
 	session->s_cap_reconnect = 1;
 	/* drop old cap expires; we're about to reestablish that state */
-	cleanup_cap_releases(mdsc, session);
+	detach_cap_releases(session, &dispose);
+	spin_unlock(&session->s_cap_lock);
+	dispose_cap_releases(mdsc, &dispose);
 
 	/* trim unused caps to reduce MDS's cache rejoin time */
 	if (mdsc->fsc->sb->s_root)
