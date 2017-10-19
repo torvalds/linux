@@ -184,7 +184,6 @@ static const struct regmap_config stm32_sai_sub_regmap_config_h7 = {
 static irqreturn_t stm32_sai_isr(int irq, void *devid)
 {
 	struct stm32_sai_sub_data *sai = (struct stm32_sai_sub_data *)devid;
-	struct snd_pcm_substream *substream = sai->substream;
 	struct platform_device *pdev = sai->pdev;
 	unsigned int sr, imr, flags;
 	snd_pcm_state_t status = SNDRV_PCM_STATE_RUNNING;
@@ -198,6 +197,11 @@ static irqreturn_t stm32_sai_isr(int irq, void *devid)
 
 	regmap_update_bits(sai->regmap, STM_SAI_CLRFR_REGX, SAI_XCLRFR_MASK,
 			   SAI_XCLRFR_MASK);
+
+	if (!sai->substream) {
+		dev_err(&pdev->dev, "Device stopped. Spurious IRQ 0x%x\n", sr);
+		return IRQ_NONE;
+	}
 
 	if (flags & SAI_XIMR_OVRUDRIE) {
 		dev_err(&pdev->dev, "IRQ %s\n",
@@ -227,9 +231,9 @@ static irqreturn_t stm32_sai_isr(int irq, void *devid)
 	}
 
 	if (status != SNDRV_PCM_STATE_RUNNING) {
-		snd_pcm_stream_lock(substream);
-		snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
-		snd_pcm_stream_unlock(substream);
+		snd_pcm_stream_lock(sai->substream);
+		snd_pcm_stop(sai->substream, SNDRV_PCM_STATE_XRUN);
+		snd_pcm_stream_unlock(sai->substream);
 	}
 
 	return IRQ_HANDLED;
