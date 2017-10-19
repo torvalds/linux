@@ -7295,15 +7295,40 @@ int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 	return 0;
 }
 
-static int bnxt_setup_flower(struct net_device *dev,
-			     struct tc_cls_flower_offload *cls_flower)
+static int bnxt_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
+				  void *cb_priv)
 {
-	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt *bp = cb_priv;
 
 	if (BNXT_VF(bp))
 		return -EOPNOTSUPP;
 
-	return bnxt_tc_setup_flower(bp, bp->pf.fw_fid, cls_flower);
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return bnxt_tc_setup_flower(bp, bp->pf.fw_fid, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int bnxt_setup_tc_block(struct net_device *dev,
+			       struct tc_block_offload *f)
+{
+	struct bnxt *bp = netdev_priv(dev);
+
+	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+		return -EOPNOTSUPP;
+
+	switch (f->command) {
+	case TC_BLOCK_BIND:
+		return tcf_block_cb_register(f->block, bnxt_setup_tc_block_cb,
+					     bp, bp);
+	case TC_BLOCK_UNBIND:
+		tcf_block_cb_unregister(f->block, bnxt_setup_tc_block_cb, bp);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int bnxt_setup_tc(struct net_device *dev, enum tc_setup_type type,
@@ -7311,7 +7336,9 @@ static int bnxt_setup_tc(struct net_device *dev, enum tc_setup_type type,
 {
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
-		return bnxt_setup_flower(dev, type_data);
+		return 0; /* will be removed after conversion from ndo */
+	case TC_SETUP_BLOCK:
+		return bnxt_setup_tc_block(dev, type_data);
 	case TC_SETUP_MQPRIO: {
 		struct tc_mqprio_qopt *mqprio = type_data;
 
