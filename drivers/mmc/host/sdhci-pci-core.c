@@ -32,7 +32,6 @@
 
 #include "sdhci.h"
 #include "sdhci-pci.h"
-#include "sdhci-pci-o2micro.h"
 
 static int sdhci_pci_enable_dma(struct sdhci_host *host);
 static void sdhci_pci_hw_reset(struct sdhci_host *host);
@@ -797,15 +796,6 @@ static const struct sdhci_pci_fixes sdhci_intel_mrfld_mmc = {
 	.allow_runtime_pm = true,
 	.probe_slot	= intel_mrfld_mmc_probe_slot,
 };
-
-/* O2Micro extra registers */
-#define O2_SD_LOCK_WP		0xD3
-#define O2_SD_MULTI_VCC3V	0xEE
-#define O2_SD_CLKREQ		0xEC
-#define O2_SD_CAPS		0xE0
-#define O2_SD_ADMA1		0xE2
-#define O2_SD_ADMA2		0xE7
-#define O2_SD_INF_MOD		0xF1
 
 static int jmicron_pmos(struct sdhci_pci_chip *chip, int on)
 {

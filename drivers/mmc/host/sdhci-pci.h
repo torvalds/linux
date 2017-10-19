@@ -5,6 +5,12 @@
  * PCI device IDs, sub IDs
  */
 
+#define PCI_DEVICE_ID_O2_SDS0		0x8420
+#define PCI_DEVICE_ID_O2_SDS1		0x8421
+#define PCI_DEVICE_ID_O2_FUJIN2		0x8520
+#define PCI_DEVICE_ID_O2_SEABIRD0	0x8620
+#define PCI_DEVICE_ID_O2_SEABIRD1	0x8621
+
 #define PCI_DEVICE_ID_INTEL_PCH_SDIO0	0x8809
 #define PCI_DEVICE_ID_INTEL_PCH_SDIO1	0x880a
 #define PCI_DEVICE_ID_INTEL_BYT_EMMC	0x0f14
@@ -162,6 +168,12 @@ static inline void *sdhci_pci_priv(struct sdhci_pci_slot *slot)
 
 #ifdef CONFIG_PM_SLEEP
 int sdhci_pci_resume_host(struct sdhci_pci_chip *chip);
+#endif
+
+int sdhci_pci_o2_probe_slot(struct sdhci_pci_slot *slot);
+int sdhci_pci_o2_probe(struct sdhci_pci_chip *chip);
+#ifdef CONFIG_PM_SLEEP
+int sdhci_pci_o2_resume(struct sdhci_pci_chip *chip);
 #endif
 
 #endif /* __SDHCI_PCI_H */
