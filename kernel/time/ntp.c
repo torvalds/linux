@@ -713,67 +713,6 @@ static inline void process_adjtimex_modes(struct timex *txc,
 }
 
 
-
-/**
- * ntp_validate_timex - Ensures the timex is ok for use in do_adjtimex
- */
-int ntp_validate_timex(struct timex *txc)
-{
-	if (txc->modes & ADJ_ADJTIME) {
-		/* singleshot must not be used with any other mode bits */
-		if (!(txc->modes & ADJ_OFFSET_SINGLESHOT))
-			return -EINVAL;
-		if (!(txc->modes & ADJ_OFFSET_READONLY) &&
-		    !capable(CAP_SYS_TIME))
-			return -EPERM;
-	} else {
-		/* In order to modify anything, you gotta be super-user! */
-		 if (txc->modes && !capable(CAP_SYS_TIME))
-			return -EPERM;
-		/*
-		 * if the quartz is off by more than 10% then
-		 * something is VERY wrong!
-		 */
-		if (txc->modes & ADJ_TICK &&
-		    (txc->tick <  900000/USER_HZ ||
-		     txc->tick > 1100000/USER_HZ))
-			return -EINVAL;
-	}
-
-	if (txc->modes & ADJ_SETOFFSET) {
-		/* In order to inject time, you gotta be super-user! */
-		if (!capable(CAP_SYS_TIME))
-			return -EPERM;
-
-		if (txc->modes & ADJ_NANO) {
-			struct timespec ts;
-
-			ts.tv_sec = txc->time.tv_sec;
-			ts.tv_nsec = txc->time.tv_usec;
-			if (!timespec_inject_offset_valid(&ts))
-				return -EINVAL;
-
-		} else {
-			if (!timeval_inject_offset_valid(&txc->time))
-				return -EINVAL;
-		}
-	}
-
-	/*
-	 * Check for potential multiplication overflows that can
-	 * only happen on 64-bit systems:
-	 */
-	if ((txc->modes & ADJ_FREQUENCY) && (BITS_PER_LONG == 64)) {
-		if (LLONG_MIN / PPM_SCALE > txc->freq)
-			return -EINVAL;
-		if (LLONG_MAX / PPM_SCALE < txc->freq)
-			return -EINVAL;
-	}
-
-	return 0;
-}
-
-
 /*
  * adjtimex mainly allows reading (and writing, if superuser) of
  * kernel time-keeping variables. used by xntpd.

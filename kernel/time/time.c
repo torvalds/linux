@@ -158,40 +158,6 @@ SYSCALL_DEFINE2(gettimeofday, struct timeval __user *, tv,
 }
 
 /*
- * Indicates if there is an offset between the system clock and the hardware
- * clock/persistent clock/rtc.
- */
-int persistent_clock_is_local;
-
-/*
- * Adjust the time obtained from the CMOS to be UTC time instead of
- * local time.
- *
- * This is ugly, but preferable to the alternatives.  Otherwise we
- * would either need to write a program to do it in /etc/rc (and risk
- * confusion if the program gets run more than once; it would also be
- * hard to make the program warp the clock precisely n hours)  or
- * compile in the timezone information into the kernel.  Bad, bad....
- *
- *						- TYT, 1992-01-01
- *
- * The best thing to do is to keep the CMOS clock in universal time (UTC)
- * as real UNIX machines always do it. This avoids all headaches about
- * daylight saving times and warping kernel clocks.
- */
-static inline void warp_clock(void)
-{
-	if (sys_tz.tz_minuteswest != 0) {
-		struct timespec adjust;
-
-		persistent_clock_is_local = 1;
-		adjust.tv_sec = sys_tz.tz_minuteswest * 60;
-		adjust.tv_nsec = 0;
-		timekeeping_inject_offset(&adjust);
-	}
-}
-
-/*
  * In case for some reason the CMOS clock has not already been running
  * in UTC, but in some local time: The first time we set the timezone,
  * we will warp the clock so that it is ticking UTC time instead of
@@ -224,7 +190,7 @@ int do_sys_settimeofday64(const struct timespec64 *tv, const struct timezone *tz
 		if (firsttime) {
 			firsttime = 0;
 			if (!tv)
-				warp_clock();
+				timekeeping_warp_clock();
 		}
 	}
 	if (tv)
