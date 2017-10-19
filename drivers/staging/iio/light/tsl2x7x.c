@@ -466,7 +466,7 @@ static int tsl2x7x_get_prox(struct iio_dev *indio_dev)
 	case tmd2771:
 		if (!(ret & TSL2X7X_STA_ADC_VALID))
 			goto prox_poll_err;
-	break;
+		break;
 	case tsl2572:
 	case tsl2672:
 	case tmd2672:
@@ -474,7 +474,7 @@ static int tsl2x7x_get_prox(struct iio_dev *indio_dev)
 	case tmd2772:
 		if (!(ret & TSL2X7X_STA_PRX_VALID))
 			goto prox_poll_err;
-	break;
+		break;
 	}
 
 	for (i = 0; i < 2; i++) {
