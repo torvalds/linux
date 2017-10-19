@@ -960,8 +960,7 @@ static int rga_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int rga_runtime_suspend(struct device *dev)
+static int __maybe_unused rga_runtime_suspend(struct device *dev)
 {
 	struct rockchip_rga *rga = dev_get_drvdata(dev);
 
@@ -970,13 +969,12 @@ static int rga_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int rga_runtime_resume(struct device *dev)
+static int __maybe_unused rga_runtime_resume(struct device *dev)
 {
 	struct rockchip_rga *rga = dev_get_drvdata(dev);
 
 	return rga_enable_clocks(rga);
 }
-#endif
 
 static const struct dev_pm_ops rga_pm = {
 	SET_RUNTIME_PM_OPS(rga_runtime_suspend,
