@@ -410,7 +410,6 @@ struct cache {
 	spinlock_t lock;
 	struct list_head deferred_cells;
 	struct bio_list deferred_bios;
-	struct bio_list deferred_writethrough_bios;
 	sector_t migration_threshold;
 	wait_queue_head_t migration_wait;
 	atomic_t nr_allocated_migrations;
@@ -446,7 +445,6 @@ struct cache {
 	struct dm_kcopyd_client *copier;
 	struct workqueue_struct *wq;
 	struct work_struct deferred_bio_worker;
-	struct work_struct deferred_writethrough_worker;
 	struct work_struct migration_worker;
 	struct delayed_work waker;
 	struct dm_bio_prison_v2 *prison;
@@ -491,15 +489,6 @@ struct per_bio_data {
 	struct dm_bio_prison_cell_v2 *cell;
 	struct dm_hook_info hook_info;
 	sector_t len;
-
-	/*
-	 * writethrough fields.  These MUST remain at the end of this
-	 * structure and the 'cache' member must be the first as it
-	 * is used to determine the offset of the writethrough fields.
-	 */
-	struct cache *cache;
-	dm_cblock_t cblock;
-	struct dm_bio_details bio_details;
 };
 
 struct dm_cache_migration {
@@ -536,11 +525,6 @@ static inline bool passthrough_mode(struct cache *cache)
 static void wake_deferred_bio_worker(struct cache *cache)
 {
 	queue_work(cache->wq, &cache->deferred_bio_worker);
-}
-
-static void wake_deferred_writethrough_worker(struct cache *cache)
-{
-	queue_work(cache->wq, &cache->deferred_writethrough_worker);
 }
 
 static void wake_migration_worker(struct cache *cache)
@@ -619,15 +603,9 @@ static unsigned lock_level(struct bio *bio)
  * Per bio data
  *--------------------------------------------------------------*/
 
-/*
- * If using writeback, leave out struct per_bio_data's writethrough fields.
- */
-#define PB_DATA_SIZE_WB (offsetof(struct per_bio_data, cache))
-#define PB_DATA_SIZE_WT (sizeof(struct per_bio_data))
-
 static size_t get_per_bio_data_size(struct cache *cache)
 {
-	return writethrough_mode(cache) ? PB_DATA_SIZE_WT : PB_DATA_SIZE_WB;
+	return sizeof(struct per_bio_data);
 }
 
 static struct per_bio_data *get_per_bio_data(struct bio *bio, size_t data_size)
@@ -943,39 +921,6 @@ static void issue_op(struct bio *bio, void *context)
 {
 	struct cache *cache = context;
 	accounted_request(cache, bio);
-}
-
-static void defer_writethrough_bio(struct cache *cache, struct bio *bio)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&cache->lock, flags);
-	bio_list_add(&cache->deferred_writethrough_bios, bio);
-	spin_unlock_irqrestore(&cache->lock, flags);
-
-	wake_deferred_writethrough_worker(cache);
-}
-
-static void writethrough_endio(struct bio *bio)
-{
-	struct per_bio_data *pb = get_per_bio_data(bio, PB_DATA_SIZE_WT);
-
-	dm_unhook_bio(&pb->hook_info, bio);
-
-	if (bio->bi_status) {
-		bio_endio(bio);
-		return;
-	}
-
-	dm_bio_restore(&pb->bio_details, bio);
-	remap_to_cache(pb->cache, bio, pb->cblock);
-
-	/*
-	 * We can't issue this bio directly, since we're in interrupt
-	 * context.  So it gets put on a bio list for processing by the
-	 * worker thread.
-	 */
-	defer_writethrough_bio(pb->cache, bio);
 }
 
 /*
@@ -2013,28 +1958,6 @@ static void process_deferred_bios(struct work_struct *ws)
 		schedule_commit(&cache->committer);
 }
 
-static void process_deferred_writethrough_bios(struct work_struct *ws)
-{
-	struct cache *cache = container_of(ws, struct cache, deferred_writethrough_worker);
-
-	unsigned long flags;
-	struct bio_list bios;
-	struct bio *bio;
-
-	bio_list_init(&bios);
-
-	spin_lock_irqsave(&cache->lock, flags);
-	bio_list_merge(&bios, &cache->deferred_writethrough_bios);
-	bio_list_init(&cache->deferred_writethrough_bios);
-	spin_unlock_irqrestore(&cache->lock, flags);
-
-	/*
-	 * These bios have already been through accounted_begin()
-	 */
-	while ((bio = bio_list_pop(&bios)))
-		generic_make_request(bio);
-}
-
 /*----------------------------------------------------------------
  * Main worker loop
  *--------------------------------------------------------------*/
@@ -2679,7 +2602,6 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 	spin_lock_init(&cache->lock);
 	INIT_LIST_HEAD(&cache->deferred_cells);
 	bio_list_init(&cache->deferred_bios);
-	bio_list_init(&cache->deferred_writethrough_bios);
 	atomic_set(&cache->nr_allocated_migrations, 0);
 	atomic_set(&cache->nr_io_migrations, 0);
 	init_waitqueue_head(&cache->migration_wait);
@@ -2718,8 +2640,6 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 		goto bad;
 	}
 	INIT_WORK(&cache->deferred_bio_worker, process_deferred_bios);
-	INIT_WORK(&cache->deferred_writethrough_worker,
-		  process_deferred_writethrough_bios);
 	INIT_WORK(&cache->migration_worker, check_migrations);
 	INIT_DELAYED_WORK(&cache->waker, do_waker);
 
