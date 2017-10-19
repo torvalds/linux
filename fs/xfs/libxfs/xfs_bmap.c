@@ -1285,57 +1285,53 @@ error0:
 }
 
 /*
- * Returns the file-relative block number of the first unused block(s)
- * in the file with at least "len" logically contiguous blocks free.
- * This is the lowest-address hole if the file has holes, else the first block
- * past the end of file.
- * Return 0 if the file is currently local (in-inode).
+ * Returns the relative block number of the first unused block(s) in the given
+ * fork with at least "len" logically contiguous blocks free.  This is the
+ * lowest-address hole if the fork has holes, else the first block past the end
+ * of fork.  Return 0 if the fork is currently local (in-inode).
  */
 int						/* error */
 xfs_bmap_first_unused(
-	xfs_trans_t	*tp,			/* transaction pointer */
-	xfs_inode_t	*ip,			/* incore inode */
-	xfs_extlen_t	len,			/* size of hole to find */
-	xfs_fileoff_t	*first_unused,		/* unused block */
-	int		whichfork)		/* data or attr fork */
+	struct xfs_trans	*tp,		/* transaction pointer */
+	struct xfs_inode	*ip,		/* incore inode */
+	xfs_extlen_t		len,		/* size of hole to find */
+	xfs_fileoff_t		*first_unused,	/* unused block */
+	int			whichfork)	/* data or attr fork */
 {
-	int		error;			/* error return value */
-	int		idx;			/* extent record index */
-	xfs_ifork_t	*ifp;			/* inode fork pointer */
-	xfs_fileoff_t	lastaddr;		/* last block number seen */
-	xfs_fileoff_t	lowest;			/* lowest useful block */
-	xfs_fileoff_t	max;			/* starting useful block */
-	xfs_extnum_t	nextents;		/* number of extent entries */
+	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
+	struct xfs_bmbt_irec	got;
+	xfs_extnum_t		idx = 0;
+	xfs_fileoff_t		lastaddr = 0;
+	xfs_fileoff_t		lowest, max;
+	int			error;
 
 	ASSERT(XFS_IFORK_FORMAT(ip, whichfork) == XFS_DINODE_FMT_BTREE ||
 	       XFS_IFORK_FORMAT(ip, whichfork) == XFS_DINODE_FMT_EXTENTS ||
 	       XFS_IFORK_FORMAT(ip, whichfork) == XFS_DINODE_FMT_LOCAL);
+
 	if (XFS_IFORK_FORMAT(ip, whichfork) == XFS_DINODE_FMT_LOCAL) {
 		*first_unused = 0;
 		return 0;
 	}
-	ifp = XFS_IFORK_PTR(ip, whichfork);
-	if (!(ifp->if_flags & XFS_IFEXTENTS) &&
-	    (error = xfs_iread_extents(tp, ip, whichfork)))
-		return error;
-	lowest = *first_unused;
-	nextents = xfs_iext_count(ifp);
-	for (idx = 0, lastaddr = 0, max = lowest; idx < nextents; idx++) {
-		struct xfs_bmbt_irec got;
 
-		xfs_iext_get_extent(ifp, idx, &got);
+	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
+		error = xfs_iread_extents(tp, ip, whichfork);
+		if (error)
+			return error;
+	}
 
+	lowest = max = *first_unused;
+	while (xfs_iext_get_extent(ifp, idx++, &got)) {
 		/*
 		 * See if the hole before this extent will work.
 		 */
 		if (got.br_startoff >= lowest + len &&
-		    got.br_startoff - max >= len) {
-			*first_unused = max;
-			return 0;
-		}
+		    got.br_startoff - max >= len)
+			break;
 		lastaddr = got.br_startoff + got.br_blockcount;
 		max = XFS_FILEOFF_MAX(lastaddr, lowest);
 	}
+
 	*first_unused = max;
 	return 0;
 }
