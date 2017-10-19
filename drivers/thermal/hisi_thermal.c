@@ -317,15 +317,6 @@ static int hisi_thermal_probe(struct platform_device *pdev)
 	if (data->irq < 0)
 		return data->irq;
 
-	ret = devm_request_threaded_irq(&pdev->dev, data->irq,
-					hisi_thermal_alarm_irq,
-					hisi_thermal_alarm_irq_thread,
-					0, "hisi_thermal", data);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to request alarm irq: %d\n", ret);
-		return ret;
-	}
-
 	platform_set_drvdata(pdev, data);
 
 	data->clk = devm_clk_get(&pdev->dev, "thermal_clk");
@@ -355,6 +346,15 @@ static int hisi_thermal_probe(struct platform_device *pdev)
 				"failed to register thermal sensor: %d\n", ret);
 		else
 			hisi_thermal_toggle_sensor(&data->sensors[i], true);
+	}
+
+	ret = devm_request_threaded_irq(&pdev->dev, data->irq,
+					hisi_thermal_alarm_irq,
+					hisi_thermal_alarm_irq_thread,
+					0, "hisi_thermal", data);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to request alarm irq: %d\n", ret);
+		return ret;
 	}
 
 	enable_irq(data->irq);
