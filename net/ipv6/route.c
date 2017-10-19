@@ -945,7 +945,7 @@ restart:
 
 	rcu_read_unlock();
 
-	trace_fib6_table_lookup(net, rt, table->tb6_id, fl6);
+	trace_fib6_table_lookup(net, rt, table, fl6);
 
 	return rt;
 
@@ -1682,7 +1682,7 @@ redo_rt6_select:
 	if (rt == net->ipv6.ip6_null_entry) {
 		rcu_read_unlock();
 		dst_hold(&rt->dst);
-		trace_fib6_table_lookup(net, rt, table->tb6_id, fl6);
+		trace_fib6_table_lookup(net, rt, table, fl6);
 		return rt;
 	} else if (rt->rt6i_flags & RTF_CACHE) {
 		if (ip6_hold_safe(net, &rt, true)) {
@@ -1690,7 +1690,7 @@ redo_rt6_select:
 			rt6_dst_from_metrics_check(rt);
 		}
 		rcu_read_unlock();
-		trace_fib6_table_lookup(net, rt, table->tb6_id, fl6);
+		trace_fib6_table_lookup(net, rt, table, fl6);
 		return rt;
 	} else if (unlikely((fl6->flowi6_flags & FLOWI_FLAG_KNOWN_NH) &&
 			    !(rt->rt6i_flags & RTF_GATEWAY))) {
@@ -1726,7 +1726,7 @@ redo_rt6_select:
 		}
 
 uncached_rt_out:
-		trace_fib6_table_lookup(net, uncached_rt, table->tb6_id, fl6);
+		trace_fib6_table_lookup(net, uncached_rt, table, fl6);
 		return uncached_rt;
 
 	} else {
@@ -1754,7 +1754,7 @@ uncached_rt_out:
 		}
 		local_bh_enable();
 		rcu_read_unlock();
-		trace_fib6_table_lookup(net, pcpu_rt, table->tb6_id, fl6);
+		trace_fib6_table_lookup(net, pcpu_rt, table, fl6);
 		return pcpu_rt;
 	}
 }
@@ -2195,7 +2195,7 @@ out:
 
 	rcu_read_unlock();
 
-	trace_fib6_table_lookup(net, rt, table->tb6_id, fl6);
+	trace_fib6_table_lookup(net, rt, table, fl6);
 	return rt;
 };
 
