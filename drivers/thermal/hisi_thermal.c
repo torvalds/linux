@@ -345,8 +345,7 @@ static int hisi_thermal_probe(struct platform_device *pdev)
 	}
 
 	hisi_thermal_enable_bind_irq_sensor(data);
-	irq_get_irqchip_state(data->irq, IRQCHIP_STATE_MASKED,
-			      &data->irq_enabled);
+	data->irq_enabled = true;
 
 	for (i = 0; i < HISI_MAX_SENSORS; ++i) {
 		ret = hisi_thermal_register_sensor(pdev, data,
@@ -357,6 +356,8 @@ static int hisi_thermal_probe(struct platform_device *pdev)
 		else
 			hisi_thermal_toggle_sensor(&data->sensors[i], true);
 	}
+
+	enable_irq(data->irq);
 
 	return 0;
 }
