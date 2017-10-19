@@ -7,11 +7,8 @@
 typedef __s64 time64_t;
 typedef __u64 timeu64_t;
 
-/*
- * This wants to go into uapi/linux/time.h once we agreed about the
- * userspace interfaces.
- */
 #if __BITS_PER_LONG == 64
+/* this trick allows us to optimize out timespec64_to_timespec */
 # define timespec64 timespec
 #define itimerspec64 itimerspec
 #else
@@ -40,49 +37,6 @@ struct itimerspec64 {
 #define TIME64_MAX			((s64)~((u64)1 << 63))
 #define KTIME_MAX			((s64)~((u64)1 << 63))
 #define KTIME_SEC_MAX			(KTIME_MAX / NSEC_PER_SEC)
-
-#if __BITS_PER_LONG == 64
-
-static inline struct timespec timespec64_to_timespec(const struct timespec64 ts64)
-{
-	return ts64;
-}
-
-static inline struct timespec64 timespec_to_timespec64(const struct timespec ts)
-{
-	return ts;
-}
-
-# define timespec64_equal		timespec_equal
-# define timespec64_compare		timespec_compare
-# define set_normalized_timespec64	set_normalized_timespec
-# define timespec64_add			timespec_add
-# define timespec64_sub			timespec_sub
-# define timespec64_valid		timespec_valid
-# define timespec64_valid_strict	timespec_valid_strict
-# define timespec64_to_ns		timespec_to_ns
-# define ns_to_timespec64		ns_to_timespec
-# define timespec64_add_ns		timespec_add_ns
-
-#else
-
-static inline struct timespec timespec64_to_timespec(const struct timespec64 ts64)
-{
-	struct timespec ret;
-
-	ret.tv_sec = (time_t)ts64.tv_sec;
-	ret.tv_nsec = ts64.tv_nsec;
-	return ret;
-}
-
-static inline struct timespec64 timespec_to_timespec64(const struct timespec ts)
-{
-	struct timespec64 ret;
-
-	ret.tv_sec = ts.tv_sec;
-	ret.tv_nsec = ts.tv_nsec;
-	return ret;
-}
 
 static inline int timespec64_equal(const struct timespec64 *a,
 				   const struct timespec64 *b)
@@ -184,8 +138,6 @@ static __always_inline void timespec64_add_ns(struct timespec64 *a, u64 ns)
 	a->tv_sec += __iter_div_u64_rem(a->tv_nsec + ns, NSEC_PER_SEC, &ns);
 	a->tv_nsec = ns;
 }
-
-#endif
 
 /*
  * timespec64_add_safe assumes both values are positive and checks for

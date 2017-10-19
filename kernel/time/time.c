@@ -407,6 +407,7 @@ time64_t mktime64(const unsigned int year0, const unsigned int mon0,
 }
 EXPORT_SYMBOL(mktime64);
 
+#if __BITS_PER_LONG == 32
 /**
  * set_normalized_timespec - set timespec sec and nsec parts and normalize
  *
@@ -467,6 +468,7 @@ struct timespec ns_to_timespec(const s64 nsec)
 	return ts;
 }
 EXPORT_SYMBOL(ns_to_timespec);
+#endif
 
 /**
  * ns_to_timeval - Convert nanoseconds to timeval
@@ -486,7 +488,6 @@ struct timeval ns_to_timeval(const s64 nsec)
 }
 EXPORT_SYMBOL(ns_to_timeval);
 
-#if BITS_PER_LONG == 32
 /**
  * set_normalized_timespec - set timespec sec and nsec parts and normalize
  *
@@ -547,7 +548,7 @@ struct timespec64 ns_to_timespec64(const s64 nsec)
 	return ts;
 }
 EXPORT_SYMBOL(ns_to_timespec64);
-#endif
+
 /**
  * msecs_to_jiffies: - convert milliseconds to jiffies
  * @m:	time in milliseconds
