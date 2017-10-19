@@ -1125,9 +1125,9 @@ static irqreturn_t spacc_spacc_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static void spacc_packet_timeout(unsigned long data)
+static void spacc_packet_timeout(struct timer_list *t)
 {
-	struct spacc_engine *engine = (struct spacc_engine *)data;
+	struct spacc_engine *engine = from_timer(engine, t, packet_timeout);
 
 	spacc_process_done(engine);
 }
@@ -1714,8 +1714,7 @@ static int spacc_probe(struct platform_device *pdev)
 	writel(SPA_IRQ_EN_STAT_EN | SPA_IRQ_EN_GLBL_EN,
 	       engine->regs + SPA_IRQ_EN_REG_OFFSET);
 
-	setup_timer(&engine->packet_timeout, spacc_packet_timeout,
-		    (unsigned long)engine);
+	timer_setup(&engine->packet_timeout, spacc_packet_timeout, 0);
 
 	INIT_LIST_HEAD(&engine->pending);
 	INIT_LIST_HEAD(&engine->completed);
