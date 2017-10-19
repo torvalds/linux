@@ -1679,19 +1679,6 @@ static int dm_early_init(void *handle)
 	return 0;
 }
 
-struct dm_connector_state {
-	struct drm_connector_state base;
-
-	enum amdgpu_rmx_type scaling;
-	uint8_t underscan_vborder;
-	uint8_t underscan_hborder;
-	bool underscan_enable;
-	struct mod_freesync_user_enable user_enable;
-};
-
-#define to_dm_connector_state(x)\
-	container_of((x), struct dm_connector_state, base)
-
 static bool modeset_required(struct drm_crtc_state *crtc_state,
 			     struct dc_stream_state *new_stream,
 			     struct dc_stream_state *old_stream)
