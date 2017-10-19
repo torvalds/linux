@@ -35,7 +35,7 @@
 static struct platform_device *platform_device;
 static DEFINE_SPINLOCK(wdt_lock);
 static struct sched_watchdog wdt;
-static __kernel_time_t wdt_expires;
+static time64_t wdt_expires;
 static bool is_active, expect_release;
 
 #define WATCHDOG_TIMEOUT 60 /* in seconds */
@@ -49,15 +49,15 @@ module_param(nowayout, bool, S_IRUGO);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
 	"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
-static inline __kernel_time_t set_timeout(void)
+static inline time64_t set_timeout(void)
 {
 	wdt.timeout = timeout;
-	return ktime_to_timespec(ktime_get()).tv_sec + timeout;
+	return ktime_get_seconds() + timeout;
 }
 
 static int xen_wdt_start(void)
 {
-	__kernel_time_t expires;
+	time64_t expires;
 	int err;
 
 	spin_lock(&wdt_lock);
@@ -98,7 +98,7 @@ static int xen_wdt_stop(void)
 
 static int xen_wdt_kick(void)
 {
-	__kernel_time_t expires;
+	time64_t expires;
 	int err;
 
 	spin_lock(&wdt_lock);
@@ -222,7 +222,7 @@ static long xen_wdt_ioctl(struct file *file, unsigned int cmd,
 		return put_user(timeout, argp);
 
 	case WDIOC_GETTIMELEFT:
-		retval = wdt_expires - ktime_to_timespec(ktime_get()).tv_sec;
+		retval = wdt_expires - ktime_get_seconds();
 		return put_user(retval, argp);
 	}
 
