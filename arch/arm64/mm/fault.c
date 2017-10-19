@@ -109,6 +109,7 @@ static void mem_abort_decode(unsigned int esr)
 {
 	pr_alert("Mem abort info:\n");
 
+	pr_alert("  ESR = 0x%08x\n", esr);
 	pr_alert("  Exception class = %s, IL = %u bits\n",
 		 esr_get_class_string(esr),
 		 (esr & ESR_ELx_IL) ? 32 : 16);
@@ -692,10 +693,12 @@ asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
 	if (!inf->fn(addr, esr, regs))
 		return;
 
-	pr_alert("Unhandled fault: %s (0x%08x) at 0x%016lx\n",
-		 inf->name, esr, addr);
+	pr_alert("Unhandled fault: %s at 0x%016lx\n",
+		 inf->name, addr);
 
 	mem_abort_decode(esr);
+
+	show_pte(addr);
 
 	info.si_signo = inf->sig;
 	info.si_errno = 0;
