@@ -345,6 +345,7 @@ intel_uncore_fw_release_timer(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+/* Note callers must have acquired the PUNIT->PMIC bus, before calling this. */
 static void intel_uncore_forcewake_reset(struct drm_i915_private *dev_priv,
 					 bool restore)
 {
@@ -352,6 +353,8 @@ static void intel_uncore_forcewake_reset(struct drm_i915_private *dev_priv,
 	struct intel_uncore_forcewake_domain *domain;
 	int retry_count = 100;
 	enum forcewake_domains fw, active_domains;
+
+	iosf_mbi_assert_punit_acquired();
 
 	/* Hold uncore.lock across reset to prevent any register access
 	 * with forcewake not set correctly. Wait until all pending
@@ -532,14 +535,18 @@ static void __intel_uncore_early_sanitize(struct drm_i915_private *dev_priv,
 				   GT_FIFO_CTL_RC6_POLICY_STALL);
 	}
 
+	iosf_mbi_punit_acquire();
 	intel_uncore_forcewake_reset(dev_priv, restore_forcewake);
+	iosf_mbi_punit_release();
 }
 
 void intel_uncore_suspend(struct drm_i915_private *dev_priv)
 {
-	iosf_mbi_unregister_pmic_bus_access_notifier(
+	iosf_mbi_punit_acquire();
+	iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
 		&dev_priv->uncore.pmic_bus_access_nb);
 	intel_uncore_forcewake_reset(dev_priv, false);
+	iosf_mbi_punit_release();
 }
 
 void intel_uncore_resume_early(struct drm_i915_private *dev_priv)
@@ -1419,12 +1426,14 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 
 void intel_uncore_fini(struct drm_i915_private *dev_priv)
 {
-	iosf_mbi_unregister_pmic_bus_access_notifier(
-		&dev_priv->uncore.pmic_bus_access_nb);
-
 	/* Paranoia: make sure we have disabled everything before we exit. */
 	intel_uncore_sanitize(dev_priv);
+
+	iosf_mbi_punit_acquire();
+	iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
+		&dev_priv->uncore.pmic_bus_access_nb);
 	intel_uncore_forcewake_reset(dev_priv, false);
+	iosf_mbi_punit_release();
 }
 
 static const struct reg_whitelist {
