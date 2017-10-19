@@ -773,6 +773,7 @@ static int add_delayed_refs(const struct btrfs_fs_info *fs_info,
 	struct btrfs_key key;
 	struct btrfs_key tmp_op_key;
 	struct btrfs_key *op_key = NULL;
+	struct rb_node *n;
 	int count;
 	int ret = 0;
 
@@ -782,7 +783,9 @@ static int add_delayed_refs(const struct btrfs_fs_info *fs_info,
 	}
 
 	spin_lock(&head->lock);
-	list_for_each_entry(node, &head->ref_list, list) {
+	for (n = rb_first(&head->ref_tree); n; n = rb_next(n)) {
+		node = rb_entry(n, struct btrfs_delayed_ref_node,
+				ref_node);
 		if (node->seq > seq)
 			continue;
 

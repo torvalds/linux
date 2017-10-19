@@ -2519,7 +2519,7 @@ select_delayed_ref(struct btrfs_delayed_ref_head *head)
 {
 	struct btrfs_delayed_ref_node *ref;
 
-	if (list_empty(&head->ref_list))
+	if (RB_EMPTY_ROOT(&head->ref_tree))
 		return NULL;
 
 	/*
@@ -2532,8 +2532,8 @@ select_delayed_ref(struct btrfs_delayed_ref_head *head)
 		return list_first_entry(&head->ref_add_list,
 				struct btrfs_delayed_ref_node, add_list);
 
-	ref = list_first_entry(&head->ref_list, struct btrfs_delayed_ref_node,
-			       list);
+	ref = rb_entry(rb_first(&head->ref_tree),
+		       struct btrfs_delayed_ref_node, ref_node);
 	ASSERT(list_empty(&ref->add_list));
 	return ref;
 }
@@ -2593,7 +2593,7 @@ static int cleanup_ref_head(struct btrfs_trans_handle *trans,
 	spin_unlock(&head->lock);
 	spin_lock(&delayed_refs->lock);
 	spin_lock(&head->lock);
-	if (!list_empty(&head->ref_list) || head->extent_op) {
+	if (!RB_EMPTY_ROOT(&head->ref_tree) || head->extent_op) {
 		spin_unlock(&head->lock);
 		spin_unlock(&delayed_refs->lock);
 		return 1;
@@ -2740,7 +2740,8 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 
 		actual_count++;
 		ref->in_tree = 0;
-		list_del(&ref->list);
+		rb_erase(&ref->ref_node, &locked_ref->ref_tree);
+		RB_CLEAR_NODE(&ref->ref_node);
 		if (!list_empty(&ref->add_list))
 			list_del(&ref->add_list);
 		/*
@@ -3138,6 +3139,7 @@ static noinline int check_delayed_ref(struct btrfs_root *root,
 	struct btrfs_delayed_data_ref *data_ref;
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct btrfs_transaction *cur_trans;
+	struct rb_node *node;
 	int ret = 0;
 
 	cur_trans = root->fs_info->running_transaction;
@@ -3170,7 +3172,12 @@ static noinline int check_delayed_ref(struct btrfs_root *root,
 	spin_unlock(&delayed_refs->lock);
 
 	spin_lock(&head->lock);
-	list_for_each_entry(ref, &head->ref_list, list) {
+	/*
+	 * XXX: We should replace this with a proper search function in the
+	 * future.
+	 */
+	for (node = rb_first(&head->ref_tree); node; node = rb_next(node)) {
+		ref = rb_entry(node, struct btrfs_delayed_ref_node, ref_node);
 		/* If it's a shared ref we know a cross reference exists */
 		if (ref->type != BTRFS_EXTENT_DATA_REF_KEY) {
 			ret = 1;
@@ -7141,7 +7148,7 @@ static noinline int check_ref_cleanup(struct btrfs_trans_handle *trans,
 		goto out_delayed_unlock;
 
 	spin_lock(&head->lock);
-	if (!list_empty(&head->ref_list))
+	if (!RB_EMPTY_ROOT(&head->ref_tree))
 		goto out;
 
 	if (head->extent_op) {

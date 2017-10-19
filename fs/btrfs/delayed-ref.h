@@ -27,8 +27,7 @@
 #define BTRFS_UPDATE_DELAYED_HEAD 4 /* not changing ref count on head ref */
 
 struct btrfs_delayed_ref_node {
-	/*data/tree ref use list, stored in ref_head->ref_list. */
-	struct list_head list;
+	struct rb_node ref_node;
 	/*
 	 * If action is BTRFS_ADD_DELAYED_REF, also link this node to
 	 * ref_head->ref_add_list, then we do not need to iterate the
@@ -92,7 +91,7 @@ struct btrfs_delayed_ref_head {
 	struct mutex mutex;
 
 	spinlock_t lock;
-	struct list_head ref_list;
+	struct rb_root ref_tree;
 	/* accumulate add BTRFS_ADD_DELAYED_REF nodes to this ref_add_list. */
 	struct list_head ref_add_list;
 

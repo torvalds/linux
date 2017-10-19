@@ -143,6 +143,34 @@ static struct btrfs_delayed_ref_head *htree_insert(struct rb_root *root,
 	return NULL;
 }
 
+static struct btrfs_delayed_ref_node* tree_insert(struct rb_root *root,
+		struct btrfs_delayed_ref_node *ins)
+{
+	struct rb_node **p = &root->rb_node;
+	struct rb_node *node = &ins->ref_node;
+	struct rb_node *parent_node = NULL;
+	struct btrfs_delayed_ref_node *entry;
+
+	while (*p) {
+		int comp;
+
+		parent_node = *p;
+		entry = rb_entry(parent_node, struct btrfs_delayed_ref_node,
+				 ref_node);
+		comp = comp_refs(ins, entry, true);
+		if (comp < 0)
+			p = &(*p)->rb_left;
+		else if (comp > 0)
+			p = &(*p)->rb_right;
+		else
+			return entry;
+	}
+
+	rb_link_node(node, parent_node, p);
+	rb_insert_color(node, root);
+	return NULL;
+}
+
 /*
  * find an head entry based on bytenr. This returns the delayed ref
  * head if it was able to find one, or NULL if nothing was in that spot.
@@ -212,7 +240,8 @@ static inline void drop_delayed_ref(struct btrfs_trans_handle *trans,
 				    struct btrfs_delayed_ref_node *ref)
 {
 	assert_spin_locked(&head->lock);
-	list_del(&ref->list);
+	rb_erase(&ref->ref_node, &head->ref_tree);
+	RB_CLEAR_NODE(&ref->ref_node);
 	if (!list_empty(&ref->add_list))
 		list_del(&ref->add_list);
 	ref->in_tree = 0;
@@ -229,24 +258,18 @@ static bool merge_ref(struct btrfs_trans_handle *trans,
 		      u64 seq)
 {
 	struct btrfs_delayed_ref_node *next;
+	struct rb_node *node = rb_next(&ref->ref_node);
 	bool done = false;
 
-	next = list_first_entry(&head->ref_list, struct btrfs_delayed_ref_node,
-				list);
-	while (!done && &next->list != &head->ref_list) {
+	while (!done && node) {
 		int mod;
-		struct btrfs_delayed_ref_node *next2;
 
-		next2 = list_next_entry(next, list);
-
-		if (next == ref)
-			goto next;
-
+		next = rb_entry(node, struct btrfs_delayed_ref_node, ref_node);
+		node = rb_next(node);
 		if (seq && next->seq >= seq)
-			goto next;
-
+			break;
 		if (comp_refs(ref, next, false))
-			goto next;
+			break;
 
 		if (ref->action == next->action) {
 			mod = next->ref_mod;
@@ -270,8 +293,6 @@ static bool merge_ref(struct btrfs_trans_handle *trans,
 			WARN_ON(ref->type == BTRFS_TREE_BLOCK_REF_KEY ||
 				ref->type == BTRFS_SHARED_BLOCK_REF_KEY);
 		}
-next:
-		next = next2;
 	}
 
 	return done;
@@ -283,11 +304,12 @@ void btrfs_merge_delayed_refs(struct btrfs_trans_handle *trans,
 			      struct btrfs_delayed_ref_head *head)
 {
 	struct btrfs_delayed_ref_node *ref;
+	struct rb_node *node;
 	u64 seq = 0;
 
 	assert_spin_locked(&head->lock);
 
-	if (list_empty(&head->ref_list))
+	if (RB_EMPTY_ROOT(&head->ref_tree))
 		return;
 
 	/* We don't have too many refs to merge for data. */
@@ -304,22 +326,13 @@ void btrfs_merge_delayed_refs(struct btrfs_trans_handle *trans,
 	}
 	spin_unlock(&fs_info->tree_mod_seq_lock);
 
-	ref = list_first_entry(&head->ref_list, struct btrfs_delayed_ref_node,
-			       list);
-	while (&ref->list != &head->ref_list) {
+again:
+	for (node = rb_first(&head->ref_tree); node; node = rb_next(node)) {
+		ref = rb_entry(node, struct btrfs_delayed_ref_node, ref_node);
 		if (seq && ref->seq >= seq)
-			goto next;
-
-		if (merge_ref(trans, delayed_refs, head, ref, seq)) {
-			if (list_empty(&head->ref_list))
-				break;
-			ref = list_first_entry(&head->ref_list,
-					       struct btrfs_delayed_ref_node,
-					       list);
 			continue;
-		}
-next:
-		ref = list_next_entry(ref, list);
+		if (merge_ref(trans, delayed_refs, head, ref, seq))
+			goto again;
 	}
 }
 
@@ -402,25 +415,19 @@ again:
  * Return 0 for insert.
  * Return >0 for merge.
  */
-static int
-add_delayed_ref_tail_merge(struct btrfs_trans_handle *trans,
-			   struct btrfs_delayed_ref_root *root,
-			   struct btrfs_delayed_ref_head *href,
-			   struct btrfs_delayed_ref_node *ref)
+static int insert_delayed_ref(struct btrfs_trans_handle *trans,
+			      struct btrfs_delayed_ref_root *root,
+			      struct btrfs_delayed_ref_head *href,
+			      struct btrfs_delayed_ref_node *ref)
 {
 	struct btrfs_delayed_ref_node *exist;
 	int mod;
 	int ret = 0;
 
 	spin_lock(&href->lock);
-	/* Check whether we can merge the tail node with ref */
-	if (list_empty(&href->ref_list))
-		goto add_tail;
-	exist = list_entry(href->ref_list.prev, struct btrfs_delayed_ref_node,
-			   list);
-	/* No need to compare bytenr nor is_head */
-	if (comp_refs(exist, ref, true))
-		goto add_tail;
+	exist = tree_insert(&href->ref_tree, ref);
+	if (!exist)
+		goto inserted;
 
 	/* Now we are sure we can merge */
 	ret = 1;
@@ -451,9 +458,7 @@ add_delayed_ref_tail_merge(struct btrfs_trans_handle *trans,
 		drop_delayed_ref(trans, root, href, exist);
 	spin_unlock(&href->lock);
 	return ret;
-
-add_tail:
-	list_add_tail(&ref->list, &href->ref_list);
+inserted:
 	if (ref->action == BTRFS_ADD_DELAYED_REF)
 		list_add_tail(&ref->add_list, &href->ref_add_list);
 	atomic_inc(&root->num_entries);
@@ -593,7 +598,7 @@ add_delayed_ref_head(struct btrfs_fs_info *fs_info,
 	head_ref->ref_mod = count_mod;
 	head_ref->must_insert_reserved = must_insert_reserved;
 	head_ref->is_data = is_data;
-	INIT_LIST_HEAD(&head_ref->ref_list);
+	head_ref->ref_tree = RB_ROOT;
 	INIT_LIST_HEAD(&head_ref->ref_add_list);
 	RB_CLEAR_NODE(&head_ref->href_node);
 	head_ref->processing = 0;
@@ -685,7 +690,7 @@ add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 	ref->is_head = 0;
 	ref->in_tree = 1;
 	ref->seq = seq;
-	INIT_LIST_HEAD(&ref->list);
+	RB_CLEAR_NODE(&ref->ref_node);
 	INIT_LIST_HEAD(&ref->add_list);
 
 	full_ref = btrfs_delayed_node_to_tree_ref(ref);
@@ -699,7 +704,7 @@ add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 
 	trace_add_delayed_tree_ref(fs_info, ref, full_ref, action);
 
-	ret = add_delayed_ref_tail_merge(trans, delayed_refs, head_ref, ref);
+	ret = insert_delayed_ref(trans, delayed_refs, head_ref, ref);
 
 	/*
 	 * XXX: memory should be freed at the same level allocated.
@@ -742,7 +747,7 @@ add_delayed_data_ref(struct btrfs_fs_info *fs_info,
 	ref->is_head = 0;
 	ref->in_tree = 1;
 	ref->seq = seq;
-	INIT_LIST_HEAD(&ref->list);
+	RB_CLEAR_NODE(&ref->ref_node);
 	INIT_LIST_HEAD(&ref->add_list);
 
 	full_ref = btrfs_delayed_node_to_data_ref(ref);
@@ -758,8 +763,7 @@ add_delayed_data_ref(struct btrfs_fs_info *fs_info,
 
 	trace_add_delayed_data_ref(fs_info, ref, full_ref, action);
 
-	ret = add_delayed_ref_tail_merge(trans, delayed_refs, head_ref, ref);
-
+	ret = insert_delayed_ref(trans, delayed_refs, head_ref, ref);
 	if (ret > 0)
 		kmem_cache_free(btrfs_delayed_data_ref_cachep, full_ref);
 }
