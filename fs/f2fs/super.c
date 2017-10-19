@@ -1321,8 +1321,13 @@ static ssize_t f2fs_quota_read(struct super_block *sb, int type, char *data,
 		tocopy = min_t(unsigned long, sb->s_blocksize - offset, toread);
 repeat:
 		page = read_mapping_page(mapping, blkidx, NULL);
-		if (IS_ERR(page))
+		if (IS_ERR(page)) {
+			if (PTR_ERR(page) == -ENOMEM) {
+				congestion_wait(BLK_RW_ASYNC, HZ/50);
+				goto repeat;
+			}
 			return PTR_ERR(page);
+		}
 
 		lock_page(page);
 
@@ -1365,11 +1370,16 @@ static ssize_t f2fs_quota_write(struct super_block *sb, int type,
 	while (towrite > 0) {
 		tocopy = min_t(unsigned long, sb->s_blocksize - offset,
 								towrite);
-
+retry:
 		err = a_ops->write_begin(NULL, mapping, off, tocopy, 0,
 							&page, NULL);
-		if (unlikely(err))
+		if (unlikely(err)) {
+			if (err == -ENOMEM) {
+				congestion_wait(BLK_RW_ASYNC, HZ/50);
+				goto retry;
+			}
 			break;
+		}
 
 		kaddr = kmap_atomic(page);
 		memcpy(kaddr + offset, data, tocopy);
