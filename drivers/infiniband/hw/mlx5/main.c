@@ -872,6 +872,20 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		}
 	}
 
+	if (field_avail(typeof(resp), tunnel_offloads_caps,
+			uhw->outlen)) {
+		resp.response_length += sizeof(resp.tunnel_offloads_caps);
+		if (MLX5_CAP_ETH(mdev, tunnel_stateless_vxlan))
+			resp.tunnel_offloads_caps |=
+				MLX5_IB_TUNNELED_OFFLOADS_VXLAN;
+		if (MLX5_CAP_ETH(mdev, tunnel_stateless_geneve_rx))
+			resp.tunnel_offloads_caps |=
+				MLX5_IB_TUNNELED_OFFLOADS_GENEVE;
+		if (MLX5_CAP_ETH(mdev, tunnel_stateless_gre))
+			resp.tunnel_offloads_caps |=
+				MLX5_IB_TUNNELED_OFFLOADS_GRE;
+	}
+
 	if (uhw->outlen) {
 		err = ib_copy_to_udata(uhw, &resp, resp.response_length);
 

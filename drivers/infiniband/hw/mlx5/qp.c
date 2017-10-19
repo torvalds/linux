@@ -1204,8 +1204,16 @@ static void destroy_raw_packet_qp_rq(struct mlx5_ib_dev *dev,
 	mlx5_core_destroy_rq_tracked(dev->mdev, &rq->base.mqp);
 }
 
+static bool tunnel_offload_supported(struct mlx5_core_dev *dev)
+{
+	return  (MLX5_CAP_ETH(dev, tunnel_stateless_vxlan) ||
+		 MLX5_CAP_ETH(dev, tunnel_stateless_gre) ||
+		 MLX5_CAP_ETH(dev, tunnel_stateless_geneve_rx));
+}
+
 static int create_raw_packet_qp_tir(struct mlx5_ib_dev *dev,
-				    struct mlx5_ib_rq *rq, u32 tdn)
+				    struct mlx5_ib_rq *rq, u32 tdn,
+				    bool tunnel_offload_en)
 {
 	u32 *in;
 	void *tirc;
@@ -1221,6 +1229,8 @@ static int create_raw_packet_qp_tir(struct mlx5_ib_dev *dev,
 	MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_DIRECT);
 	MLX5_SET(tirc, tirc, inline_rqn, rq->base.mqp.qpn);
 	MLX5_SET(tirc, tirc, transport_domain, tdn);
+	if (tunnel_offload_en)
+		MLX5_SET(tirc, tirc, tunneled_offload_en, 1);
 
 	err = mlx5_core_create_tir(dev->mdev, in, inlen, &rq->tirn);
 
@@ -1271,7 +1281,8 @@ static int create_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 			goto err_destroy_sq;
 
 
-		err = create_raw_packet_qp_tir(dev, rq, tdn);
+		err = create_raw_packet_qp_tir(dev, rq, tdn,
+					       qp->tunnel_offload_en);
 		if (err)
 			goto err_destroy_rq;
 	}
@@ -1358,7 +1369,7 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if (udata->outlen < min_resp_len)
 		return -EINVAL;
 
-	required_cmd_sz = offsetof(typeof(ucmd), reserved1) + sizeof(ucmd.reserved1);
+	required_cmd_sz = offsetof(typeof(ucmd), flags) + sizeof(ucmd.flags);
 	if (udata->inlen < required_cmd_sz) {
 		mlx5_ib_dbg(dev, "invalid inlen\n");
 		return -EINVAL;
@@ -1381,8 +1392,14 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 		return -EOPNOTSUPP;
 	}
 
-	if (memchr_inv(ucmd.reserved, 0, sizeof(ucmd.reserved)) || ucmd.reserved1) {
-		mlx5_ib_dbg(dev, "invalid reserved\n");
+	if (ucmd.flags & ~MLX5_QP_FLAG_TUNNEL_OFFLOADS) {
+		mlx5_ib_dbg(dev, "invalid flags\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (ucmd.flags & MLX5_QP_FLAG_TUNNEL_OFFLOADS &&
+	    !tunnel_offload_supported(dev->mdev)) {
+		mlx5_ib_dbg(dev, "tunnel offloads isn't supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1405,6 +1422,10 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	MLX5_SET(tirc, tirc, transport_domain, tdn);
 
 	hfso = MLX5_ADDR_OF(tirc, tirc, rx_hash_field_selector_outer);
+
+	if (ucmd.flags & MLX5_QP_FLAG_TUNNEL_OFFLOADS)
+		MLX5_SET(tirc, tirc, tunneled_offload_en, 1);
+
 	switch (ucmd.rx_hash_function) {
 	case MLX5_RX_HASH_FUNC_TOEPLITZ:
 	{
@@ -1604,6 +1625,14 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 		qp->wq_sig = !!(ucmd.flags & MLX5_QP_FLAG_SIGNATURE);
 		qp->scat_cqe = !!(ucmd.flags & MLX5_QP_FLAG_SCATTER_CQE);
+		if (ucmd.flags & MLX5_QP_FLAG_TUNNEL_OFFLOADS) {
+			if (init_attr->qp_type != IB_QPT_RAW_PACKET ||
+			    !tunnel_offload_supported(mdev)) {
+				mlx5_ib_dbg(dev, "Tunnel offload isn't supported\n");
+				return -EOPNOTSUPP;
+			}
+			qp->tunnel_offload_en = true;
+		}
 
 		if (init_attr->create_flags & IB_QP_CREATE_SOURCE_QPN) {
 			if (init_attr->qp_type != IB_QPT_UD ||

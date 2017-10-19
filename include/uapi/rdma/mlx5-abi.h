@@ -39,6 +39,7 @@
 enum {
 	MLX5_QP_FLAG_SIGNATURE		= 1 << 0,
 	MLX5_QP_FLAG_SCATTER_CQE	= 1 << 1,
+	MLX5_QP_FLAG_TUNNEL_OFFLOADS	= 1 << 2,
 };
 
 enum {
@@ -209,6 +210,12 @@ enum mlx5_ib_query_dev_resp_flags {
 	MLX5_IB_QUERY_DEV_RESP_FLAGS_CQE_128B_PAD  = 1 << 1,
 };
 
+enum mlx5_ib_tunnel_offloads {
+	MLX5_IB_TUNNELED_OFFLOADS_VXLAN  = 1 << 0,
+	MLX5_IB_TUNNELED_OFFLOADS_GRE    = 1 << 1,
+	MLX5_IB_TUNNELED_OFFLOADS_GENEVE = 1 << 2
+};
+
 struct mlx5_ib_query_device_resp {
 	__u32	comp_mask;
 	__u32	response_length;
@@ -220,6 +227,8 @@ struct mlx5_ib_query_device_resp {
 	__u32	flags; /* Use enum mlx5_ib_query_dev_resp_flags */
 	struct mlx5_ib_sw_parsing_caps sw_parsing_caps;
 	struct mlx5_ib_striding_rq_caps striding_rq_caps;
+	__u32	tunnel_offloads_caps; /* enum mlx5_ib_tunnel_offloads */
+	__u32	reserved;
 };
 
 enum mlx5_ib_create_cq_flags {
@@ -304,7 +313,7 @@ struct mlx5_ib_create_qp_rss {
 	__u8 reserved[6];
 	__u8 rx_hash_key[128]; /* valid only for Toeplitz */
 	__u32   comp_mask;
-	__u32   reserved1;
+	__u32	flags;
 };
 
 struct mlx5_ib_create_qp_resp {
