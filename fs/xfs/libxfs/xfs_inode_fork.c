@@ -42,21 +42,27 @@ STATIC int xfs_iformat_local(xfs_inode_t *, xfs_dinode_t *, int, int);
 STATIC int xfs_iformat_extents(xfs_inode_t *, xfs_dinode_t *, int);
 STATIC int xfs_iformat_btree(xfs_inode_t *, xfs_dinode_t *, int);
 
+static inline dev_t xfs_to_linux_dev_t(xfs_dev_t dev)
+{
+	return MKDEV(sysv_major(dev) & 0x1ff, sysv_minor(dev));
+}
+
 /*
- * Move inode type and inode format specific information from the
- * on-disk inode to the in-core inode.  For fifos, devs, and sockets
- * this means set if_rdev to the proper value.  For files, directories,
- * and symlinks this means to bring in the in-line data or extent
- * pointers.  For a file in B-tree format, only the root is immediately
- * brought in-core.  The rest will be in-lined in if_extents when it
- * is first referenced (see xfs_iread_extents()).
+ * Copy inode type and data and attr format specific information from the
+ * on-disk inode to the in-core inode and fork structures.  For fifos, devices,
+ * and sockets this means set i_rdev to the proper value.  For files,
+ * directories, and symlinks this means to bring in the in-line data or extent
+ * pointers as well as the attribute fork.  For a fork in B-tree format, only
+ * the root is immediately brought in-core.  The rest will be read in later when
+ * first referenced (see xfs_iread_extents()).
  */
 int
 xfs_iformat_fork(
-	xfs_inode_t		*ip,
-	xfs_dinode_t		*dip)
+	struct xfs_inode	*ip,
+	struct xfs_dinode	*dip)
 {
-	xfs_attr_shortform_t	*atp;
+	struct inode		*inode = VFS_I(ip);
+	struct xfs_attr_shortform *atp;
 	int			size;
 	int			error = 0;
 	xfs_fsize_t             di_size;
@@ -95,8 +101,7 @@ xfs_iformat_fork(
 		return -EFSCORRUPTED;
 	}
 
-	if (unlikely(xfs_is_reflink_inode(ip) &&
-	    (VFS_I(ip)->i_mode & S_IFMT) != S_IFREG)) {
+	if (unlikely(xfs_is_reflink_inode(ip) && !S_ISREG(inode->i_mode))) {
 		xfs_warn(ip->i_mount,
 			"corrupt dinode %llu, wrong file type for reflink.",
 			ip->i_ino);
@@ -115,7 +120,7 @@ xfs_iformat_fork(
 		return -EFSCORRUPTED;
 	}
 
-	switch (VFS_I(ip)->i_mode & S_IFMT) {
+	switch (inode->i_mode & S_IFMT) {
 	case S_IFIFO:
 	case S_IFCHR:
 	case S_IFBLK:
@@ -126,7 +131,7 @@ xfs_iformat_fork(
 			return -EFSCORRUPTED;
 		}
 		ip->i_d.di_size = 0;
-		ip->i_df.if_u2.if_rdev = xfs_dinode_get_rdev(dip);
+		inode->i_rdev = xfs_to_linux_dev_t(xfs_dinode_get_rdev(dip));
 		break;
 
 	case S_IFREG:
@@ -184,8 +189,7 @@ xfs_iformat_fork(
 		return error;
 
 	/* Check inline dir contents. */
-	if (S_ISDIR(VFS_I(ip)->i_mode) &&
-	    dip->di_format == XFS_DINODE_FMT_LOCAL) {
+	if (S_ISDIR(inode->i_mode) && dip->di_format == XFS_DINODE_FMT_LOCAL) {
 		error = xfs_dir2_sf_verify(ip);
 		if (error) {
 			xfs_idestroy_fork(ip, XFS_DATA_FORK);
@@ -898,7 +902,7 @@ xfs_iflush_fork(
 	case XFS_DINODE_FMT_DEV:
 		if (iip->ili_fields & XFS_ILOG_DEV) {
 			ASSERT(whichfork == XFS_DATA_FORK);
-			xfs_dinode_put_rdev(dip, ip->i_df.if_u2.if_rdev);
+			xfs_dinode_put_rdev(dip, sysv_encode_dev(VFS_I(ip)->i_rdev));
 		}
 		break;
 

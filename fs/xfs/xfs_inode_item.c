@@ -222,7 +222,7 @@ xfs_inode_item_format_data_fork(
 		iip->ili_fields &=
 			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT | XFS_ILOG_DEXT);
 		if (iip->ili_fields & XFS_ILOG_DEV)
-			ilf->ilf_u.ilfu_rdev = ip->i_df.if_u2.if_rdev;
+			ilf->ilf_u.ilfu_rdev = sysv_encode_dev(VFS_I(ip)->i_rdev);
 		break;
 	default:
 		ASSERT(0);
