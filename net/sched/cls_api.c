@@ -278,6 +278,8 @@ int tcf_block_get_ext(struct tcf_block **p_block,
 	if (!block)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&block->chain_list);
+	INIT_LIST_HEAD(&block->cb_list);
+
 	/* Create chain 0 by default, it has to be always present. */
 	chain = tcf_chain_create(block, 0);
 	if (!chain) {
@@ -353,6 +355,109 @@ void tcf_block_put(struct tcf_block *block)
 	tcf_block_put_ext(block, NULL, block->q, &ei);
 }
 EXPORT_SYMBOL(tcf_block_put);
+
+struct tcf_block_cb {
+	struct list_head list;
+	tc_setup_cb_t *cb;
+	void *cb_ident;
+	void *cb_priv;
+	unsigned int refcnt;
+};
+
+void *tcf_block_cb_priv(struct tcf_block_cb *block_cb)
+{
+	return block_cb->cb_priv;
+}
+EXPORT_SYMBOL(tcf_block_cb_priv);
+
+struct tcf_block_cb *tcf_block_cb_lookup(struct tcf_block *block,
+					 tc_setup_cb_t *cb, void *cb_ident)
+{	struct tcf_block_cb *block_cb;
+
+	list_for_each_entry(block_cb, &block->cb_list, list)
+		if (block_cb->cb == cb && block_cb->cb_ident == cb_ident)
+			return block_cb;
+	return NULL;
+}
+EXPORT_SYMBOL(tcf_block_cb_lookup);
+
+void tcf_block_cb_incref(struct tcf_block_cb *block_cb)
+{
+	block_cb->refcnt++;
+}
+EXPORT_SYMBOL(tcf_block_cb_incref);
+
+unsigned int tcf_block_cb_decref(struct tcf_block_cb *block_cb)
+{
+	return --block_cb->refcnt;
+}
+EXPORT_SYMBOL(tcf_block_cb_decref);
+
+struct tcf_block_cb *__tcf_block_cb_register(struct tcf_block *block,
+					     tc_setup_cb_t *cb, void *cb_ident,
+					     void *cb_priv)
+{
+	struct tcf_block_cb *block_cb;
+
+	block_cb = kzalloc(sizeof(*block_cb), GFP_KERNEL);
+	if (!block_cb)
+		return NULL;
+	block_cb->cb = cb;
+	block_cb->cb_ident = cb_ident;
+	block_cb->cb_priv = cb_priv;
+	list_add(&block_cb->list, &block->cb_list);
+	return block_cb;
+}
+EXPORT_SYMBOL(__tcf_block_cb_register);
+
+int tcf_block_cb_register(struct tcf_block *block,
+			  tc_setup_cb_t *cb, void *cb_ident,
+			  void *cb_priv)
+{
+	struct tcf_block_cb *block_cb;
+
+	block_cb = __tcf_block_cb_register(block, cb, cb_ident, cb_priv);
+	return block_cb ? 0 : -ENOMEM;
+}
+EXPORT_SYMBOL(tcf_block_cb_register);
+
+void __tcf_block_cb_unregister(struct tcf_block_cb *block_cb)
+{
+	list_del(&block_cb->list);
+	kfree(block_cb);
+}
+EXPORT_SYMBOL(__tcf_block_cb_unregister);
+
+void tcf_block_cb_unregister(struct tcf_block *block,
+			     tc_setup_cb_t *cb, void *cb_ident)
+{
+	struct tcf_block_cb *block_cb;
+
+	block_cb = tcf_block_cb_lookup(block, cb, cb_ident);
+	if (!block_cb)
+		return;
+	__tcf_block_cb_unregister(block_cb);
+}
+EXPORT_SYMBOL(tcf_block_cb_unregister);
+
+static int tcf_block_cb_call(struct tcf_block *block, enum tc_setup_type type,
+			     void *type_data, bool err_stop)
+{
+	struct tcf_block_cb *block_cb;
+	int ok_count = 0;
+	int err;
+
+	list_for_each_entry(block_cb, &block->cb_list, list) {
+		err = block_cb->cb(type, type_data, block_cb->cb_priv);
+		if (err) {
+			if (err_stop)
+				return err;
+		} else {
+			ok_count++;
+		}
+	}
+	return ok_count;
+}
 
 /* Main classifier routine: scans classifier chain attached
  * to this qdisc, (optionally) tests for protocol and asks

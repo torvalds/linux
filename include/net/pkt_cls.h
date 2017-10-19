@@ -27,6 +27,8 @@ struct tcf_block_ext_info {
 	enum tcf_block_binder_type binder_type;
 };
 
+struct tcf_block_cb;
+
 #ifdef CONFIG_NET_CLS
 struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
 				bool create);
@@ -50,6 +52,21 @@ static inline struct net_device *tcf_block_dev(struct tcf_block *block)
 {
 	return tcf_block_q(block)->dev_queue->dev;
 }
+
+void *tcf_block_cb_priv(struct tcf_block_cb *block_cb);
+struct tcf_block_cb *tcf_block_cb_lookup(struct tcf_block *block,
+					 tc_setup_cb_t *cb, void *cb_ident);
+void tcf_block_cb_incref(struct tcf_block_cb *block_cb);
+unsigned int tcf_block_cb_decref(struct tcf_block_cb *block_cb);
+struct tcf_block_cb *__tcf_block_cb_register(struct tcf_block *block,
+					     tc_setup_cb_t *cb, void *cb_ident,
+					     void *cb_priv);
+int tcf_block_cb_register(struct tcf_block *block,
+			  tc_setup_cb_t *cb, void *cb_ident,
+			  void *cb_priv);
+void __tcf_block_cb_unregister(struct tcf_block_cb *block_cb);
+void tcf_block_cb_unregister(struct tcf_block *block,
+			     tc_setup_cb_t *cb, void *cb_ident);
 
 int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 		 struct tcf_result *res, bool compat_mode);
@@ -89,6 +106,70 @@ static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
 static inline struct net_device *tcf_block_dev(struct tcf_block *block)
 {
 	return NULL;
+}
+
+static inline
+int tc_setup_cb_block_register(struct tcf_block *block, tc_setup_cb_t *cb,
+			       void *cb_priv)
+{
+	return 0;
+}
+
+static inline
+void tc_setup_cb_block_unregister(struct tcf_block *block, tc_setup_cb_t *cb,
+				  void *cb_priv)
+{
+}
+
+static inline
+void *tcf_block_cb_priv(struct tcf_block_cb *block_cb)
+{
+	return NULL;
+}
+
+static inline
+struct tcf_block_cb *tcf_block_cb_lookup(struct tcf_block *block,
+					 tc_setup_cb_t *cb, void *cb_ident)
+{
+	return NULL;
+}
+
+static inline
+void tcf_block_cb_incref(struct tcf_block_cb *block_cb)
+{
+}
+
+static inline
+unsigned int tcf_block_cb_decref(struct tcf_block_cb *block_cb)
+{
+	return 0;
+}
+
+static inline
+struct tcf_block_cb *__tcf_block_cb_register(struct tcf_block *block,
+					     tc_setup_cb_t *cb, void *cb_ident,
+					     void *cb_priv)
+{
+	return NULL;
+}
+
+static inline
+int tcf_block_cb_register(struct tcf_block *block,
+			  tc_setup_cb_t *cb, void *cb_ident,
+			  void *cb_priv)
+{
+	return 0;
+}
+
+static inline
+void __tcf_block_cb_unregister(struct tcf_block_cb *block_cb)
+{
+}
+
+static inline
+void tcf_block_cb_unregister(struct tcf_block *block,
+			     tc_setup_cb_t *cb, void *cb_ident)
+{
 }
 
 static inline int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,

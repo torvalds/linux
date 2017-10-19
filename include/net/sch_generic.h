@@ -272,6 +272,7 @@ struct tcf_block {
 	struct list_head chain_list;
 	struct net *net;
 	struct Qdisc *q;
+	struct list_head cb_list;
 };
 
 static inline void qdisc_cb_private_validate(const struct sk_buff *skb, int sz)
