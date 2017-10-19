@@ -446,12 +446,16 @@ static int stm32_sai_set_config(struct snd_soc_dai *cpu_dai,
 {
 	struct stm32_sai_sub_data *sai = snd_soc_dai_get_drvdata(cpu_dai);
 	int cr1, cr1_mask, ret;
-	int fth = STM_SAI_FIFO_TH_HALF;
 
-	/* FIFO config */
+	/*
+	 * DMA bursts increment is set to 4 words.
+	 * SAI fifo threshold is set to half fifo, to keep enough space
+	 * for DMA incoming bursts.
+	 */
 	regmap_update_bits(sai->regmap, STM_SAI_CR2_REGX,
 			   SAI_XCR2_FFLUSH | SAI_XCR2_FTH_MASK,
-			   SAI_XCR2_FFLUSH | SAI_XCR2_FTH_SET(fth));
+			   SAI_XCR2_FFLUSH |
+			   SAI_XCR2_FTH_SET(STM_SAI_FIFO_TH_HALF));
 
 	/* Mode, data format and channel config */
 	cr1 = SAI_XCR1_PRTCFG_SET(SAI_FREE_PROTOCOL);
@@ -484,10 +488,6 @@ static int stm32_sai_set_config(struct snd_soc_dai *cpu_dai,
 		dev_err(cpu_dai->dev, "Failed to update CR1 register\n");
 		return ret;
 	}
-
-	/* DMA config */
-	sai->dma_params.maxburst = STM_SAI_FIFO_SIZE * fth / sizeof(u32);
-	snd_soc_dai_set_dma_data(cpu_dai, substream, (void *)&sai->dma_params);
 
 	return 0;
 }
@@ -731,7 +731,12 @@ static int stm32_sai_dai_probe(struct snd_soc_dai *cpu_dai)
 	struct stm32_sai_sub_data *sai = dev_get_drvdata(cpu_dai->dev);
 
 	sai->dma_params.addr = (dma_addr_t)(sai->phys_addr + STM_SAI_DR_REGX);
-	sai->dma_params.maxburst = 1;
+	/*
+	 * DMA supports 4, 8 or 16 burst sizes. Burst size 4 is the best choice,
+	 * as it allows bytes, half-word and words transfers. (See DMA fifos
+	 * constraints).
+	 */
+	sai->dma_params.maxburst = 4;
 	/* Buswidth will be set by framework at runtime */
 	sai->dma_params.addr_width = DMA_SLAVE_BUSWIDTH_UNDEFINED;
 
