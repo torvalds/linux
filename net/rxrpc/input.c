@@ -1125,6 +1125,7 @@ void rxrpc_data_ready(struct sock *udp_sk)
 	case RXRPC_PACKET_TYPE_BUSY:
 		if (sp->hdr.flags & RXRPC_CLIENT_INITIATED)
 			goto discard;
+		/* Fall through */
 
 	case RXRPC_PACKET_TYPE_DATA:
 		if (sp->hdr.callNumber == 0)
