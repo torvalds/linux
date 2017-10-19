@@ -264,8 +264,10 @@ static void dpp1_set_degamma_format_float(
 
 void dpp1_cnv_setup (
 		struct dpp *dpp_base,
-		enum surface_pixel_format input_format,
-		enum expansion_mode mode)
+		enum surface_pixel_format format,
+		enum expansion_mode mode,
+		struct csc_transform input_csc_color_matrix,
+		enum dc_color_space input_color_space)
 {
 	uint32_t pixel_format;
 	uint32_t alpha_en;
@@ -275,8 +277,10 @@ void dpp1_cnv_setup (
 	bool is_float;
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	bool force_disable_cursor = false;
+	struct out_csc_color_matrix tbl_entry;
+	int i = 0;
 
-	dpp1_setup_format_flags(input_format, &fmt);
+	dpp1_setup_format_flags(format, &fmt);
 	alpha_en = 1;
 	pixel_format = 0;
 	color_space = COLOR_SPACE_SRGB;
@@ -306,7 +310,7 @@ void dpp1_cnv_setup (
 
 	dpp1_set_degamma_format_float(dpp_base, is_float);
 
-	switch (input_format) {
+	switch (format) {
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB1555:
 		pixel_format = 1;
 		break;
@@ -362,7 +366,23 @@ void dpp1_cnv_setup (
 			CNVC_SURFACE_PIXEL_FORMAT, pixel_format);
 	REG_UPDATE(FORMAT_CONTROL, FORMAT_CONTROL__ALPHA_EN, alpha_en);
 
-	dpp1_program_input_csc(dpp_base, color_space, select);
+	// if input adjustments exist, program icsc with those values
+
+	if (input_csc_color_matrix.enable_adjustment
+				== true) {
+		for (i = 0; i < 12; i++)
+			tbl_entry.regval[i] = input_csc_color_matrix.matrix[i];
+
+		tbl_entry.color_space = input_color_space;
+
+		if (color_space >= COLOR_SPACE_YCBCR601)
+			select = INPUT_CSC_SELECT_ICSC;
+		else
+			select = INPUT_CSC_SELECT_BYPASS;
+
+		dpp1_program_input_csc(dpp_base, color_space, select, &tbl_entry);
+	} else
+		dpp1_program_input_csc(dpp_base, color_space, select, NULL);
 
 	if (force_disable_cursor) {
 		REG_UPDATE(CURSOR_CONTROL,
@@ -435,6 +455,7 @@ static const struct dpp_funcs dcn10_dpp_funcs = {
 		.opp_program_regamma_luta_settings = dpp1_cm_program_regamma_luta_settings,
 		.opp_program_regamma_pwl = dpp1_cm_set_regamma_pwl,
 		.opp_set_regamma_mode = dpp1_cm_set_regamma_mode,
+		.ipp_program_bias_and_scale = dpp1_program_bias_and_scale,
 		.ipp_set_degamma = dpp1_set_degamma,
 		.ipp_program_input_lut		= dpp1_program_input_lut,
 		.ipp_program_degamma_pwl	= dpp1_set_degamma_pwl,

@@ -473,7 +473,8 @@ void dpp1_cm_program_regamma_lutb_settings(
 void dpp1_program_input_csc(
 		struct dpp *dpp_base,
 		enum dc_color_space color_space,
-		enum dcn10_input_csc_select select)
+		enum dcn10_input_csc_select select,
+		const struct out_csc_color_matrix *tbl_entry)
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	int i;
@@ -487,15 +488,19 @@ void dpp1_program_input_csc(
 		return;
 	}
 
-	for (i = 0; i < arr_size; i++)
-		if (dcn10_input_csc_matrix[i].color_space == color_space) {
-			regval = dcn10_input_csc_matrix[i].regval;
-			break;
-		}
+	if (tbl_entry == NULL) {
+		for (i = 0; i < arr_size; i++)
+			if (dcn10_input_csc_matrix[i].color_space == color_space) {
+				regval = dcn10_input_csc_matrix[i].regval;
+				break;
+			}
 
-	if (regval == NULL) {
-		BREAK_TO_DEBUGGER();
-		return;
+		if (regval == NULL) {
+			BREAK_TO_DEBUGGER();
+			return;
+		}
+	} else {
+		regval = tbl_entry->regval;
 	}
 
 	if (select == INPUT_CSC_SELECT_COMA)
@@ -528,6 +533,27 @@ void dpp1_program_input_csc(
 				regval,
 				&gam_regs);
 	}
+}
+
+//keep here for now, decide multi dce support later
+void dpp1_program_bias_and_scale(
+	struct dpp *dpp_base,
+	struct dc_bias_and_scale *params)
+{
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+
+	REG_SET_2(CM_BNS_VALUES_R, 0,
+		CM_BNS_SCALE_R, params->scale_red,
+		CM_BNS_BIAS_R, params->bias_red);
+
+	REG_SET_2(CM_BNS_VALUES_G, 0,
+		CM_BNS_SCALE_G, params->scale_green,
+		CM_BNS_BIAS_G, params->bias_green);
+
+	REG_SET_2(CM_BNS_VALUES_B, 0,
+		CM_BNS_SCALE_B, params->scale_blue,
+		CM_BNS_BIAS_B, params->bias_blue);
+
 }
 
 /*program de gamma RAM B*/

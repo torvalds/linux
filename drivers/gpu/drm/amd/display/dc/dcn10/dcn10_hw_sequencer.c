@@ -1570,6 +1570,7 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 			pipe_ctx->plane_res.dpp->funcs->opp_set_csc_adjustment(pipe_ctx->plane_res.dpp, &tbl_entry);
 	}
 }
+
 static bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 {
 	if (pipe_ctx->plane_state->visible)
@@ -1654,6 +1655,69 @@ static void dcn10_get_surface_visual_confirm_color(
 		break;
 	default:
 		break;
+	}
+}
+
+static uint16_t fixed_point_to_int_frac(
+	struct fixed31_32 arg,
+	uint8_t integer_bits,
+	uint8_t fractional_bits)
+{
+	int32_t numerator;
+	int32_t divisor = 1 << fractional_bits;
+
+	uint16_t result;
+
+	uint16_t d = (uint16_t)dal_fixed31_32_floor(
+		dal_fixed31_32_abs(
+			arg));
+
+	if (d <= (uint16_t)(1 << integer_bits) - (1 / (uint16_t)divisor))
+		numerator = (uint16_t)dal_fixed31_32_floor(
+			dal_fixed31_32_mul_int(
+				arg,
+				divisor));
+	else {
+		numerator = dal_fixed31_32_floor(
+			dal_fixed31_32_sub(
+				dal_fixed31_32_from_int(
+					1LL << integer_bits),
+				dal_fixed31_32_recip(
+					dal_fixed31_32_from_int(
+						divisor))));
+	}
+
+	if (numerator >= 0)
+		result = (uint16_t)numerator;
+	else
+		result = (uint16_t)(
+		(1 << (integer_bits + fractional_bits + 1)) + numerator);
+
+	if ((result != 0) && dal_fixed31_32_lt(
+		arg, dal_fixed31_32_zero))
+		result |= 1 << (integer_bits + fractional_bits);
+
+	return result;
+}
+
+void build_prescale_params(struct  dc_bias_and_scale *bias_and_scale,
+		const struct dc_plane_state *plane_state)
+{
+	if (plane_state->format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN
+			&& plane_state->format != SURFACE_PIXEL_FORMAT_INVALID
+			&& plane_state->input_csc_color_matrix.enable_adjustment
+			&& plane_state->coeff_reduction_factor.value != 0) {
+		bias_and_scale->scale_blue = fixed_point_to_int_frac(
+			dal_fixed31_32_mul(plane_state->coeff_reduction_factor,
+					dal_fixed31_32_from_fraction(256, 255)),
+				2,
+				13);
+		bias_and_scale->scale_red = bias_and_scale->scale_blue;
+		bias_and_scale->scale_green = bias_and_scale->scale_blue;
+	} else {
+		bias_and_scale->scale_blue = 0x2000;
+		bias_and_scale->scale_red = 0x2000;
+		bias_and_scale->scale_green = 0x2000;
 	}
 }
 
@@ -1757,6 +1821,7 @@ static void update_dchubp_dpp(
 	struct mpcc_cfg mpcc_cfg = {0};
 	struct pipe_ctx *top_pipe;
 	bool per_pixel_alpha = plane_state->per_pixel_alpha && pipe_ctx->bottom_pipe;
+	struct dc_bias_and_scale bns_params = {0};
 
 	/* TODO: proper fix once fpga works */
 	/* depends on DML calculation, DPP clock value may change dynamically */
@@ -1793,9 +1858,16 @@ static void update_dchubp_dpp(
 				hws
 				);
 
+	// program the input csc
 	dpp->funcs->ipp_setup(dpp,
 			plane_state->format,
-			EXPANSION_MODE_ZERO);
+			EXPANSION_MODE_ZERO,
+			plane_state->input_csc_color_matrix,
+			COLOR_SPACE_YCBCR601_LIMITED);
+
+	//set scale and bias registers
+	build_prescale_params(&bns_params, plane_state);
+	dpp->funcs->ipp_program_bias_and_scale(dpp, &bns_params);
 
 	mpcc_cfg.dpp_id = hubp->inst;
 	mpcc_cfg.opp_id = pipe_ctx->stream_res.opp->inst;
@@ -1834,6 +1906,7 @@ static void update_dchubp_dpp(
 	program_csc_matrix(pipe_ctx,
 			pipe_ctx->stream->output_color_space,
 			pipe_ctx->stream->csc_color_matrix.matrix);
+
 
 	hubp->funcs->hubp_program_surface_config(
 		hubp,

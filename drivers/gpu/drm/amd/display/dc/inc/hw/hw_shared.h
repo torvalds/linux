@@ -138,4 +138,18 @@ enum opp_regamma {
 	OPP_REGAMMA_USER
 };
 
+struct csc_transform {
+	uint16_t matrix[12];
+	bool enable_adjustment;
+};
+
+struct dc_bias_and_scale {
+	uint16_t scale_red;
+	uint16_t bias_red;
+	uint16_t scale_green;
+	uint16_t bias_green;
+	uint16_t scale_blue;
+	uint16_t bias_blue;
+};
+
 #endif /* __DAL_HW_SHARED_H__ */

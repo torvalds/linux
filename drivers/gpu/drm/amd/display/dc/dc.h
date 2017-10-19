@@ -431,6 +431,9 @@ struct dc_plane_state {
 
 	struct dc_gamma *gamma_correction;
 	struct dc_transfer_func *in_transfer_func;
+	struct dc_bias_and_scale *bias_and_scale;
+	struct csc_transform input_csc_color_matrix;
+	struct fixed31_32 coeff_reduction_factor;
 
 	// sourceContentAttribute cache
 	bool is_source_input_valid;
@@ -468,6 +471,7 @@ struct dc_plane_info {
 	bool horizontal_mirror;
 	bool visible;
 	bool per_pixel_alpha;
+	bool input_csc_enabled;
 };
 
 struct dc_scaling_info {
@@ -491,6 +495,9 @@ struct dc_surface_update {
 	struct dc_gamma *gamma;
 	struct dc_transfer_func *in_transfer_func;
 	struct dc_hdr_static_metadata *hdr_static_metadata;
+
+	struct csc_transform *input_csc_color_matrix;
+	struct fixed31_32 *coeff_reduction_factor;
 };
 
 /*

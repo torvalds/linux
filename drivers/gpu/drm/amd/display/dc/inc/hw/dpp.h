@@ -98,6 +98,10 @@ struct dpp_funcs {
 			struct dpp *dpp_base,
 			enum opp_regamma mode);
 
+	void (*ipp_program_bias_and_scale)(
+			struct dpp *dpp,
+			struct dc_bias_and_scale *params);
+
 	void (*ipp_set_degamma)(
 			struct dpp *dpp_base,
 			enum ipp_degamma_mode mode);
@@ -111,8 +115,10 @@ struct dpp_funcs {
 
 	void (*ipp_setup)(
 			struct dpp *dpp_base,
-			enum surface_pixel_format input_format,
-			enum expansion_mode mode);
+			enum surface_pixel_format format,
+			enum expansion_mode mode,
+			struct csc_transform input_csc_color_matrix,
+			enum dc_color_space input_color_space);
 
 	void (*ipp_full_bypass)(struct dpp *dpp_base);
 

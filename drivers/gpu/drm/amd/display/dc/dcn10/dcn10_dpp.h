@@ -73,9 +73,6 @@
 	SRI(RECOUT_START, DSCL, id), \
 	SRI(RECOUT_SIZE, DSCL, id), \
 	SRI(OBUF_CONTROL, DSCL, id), \
-	SRI(CM_ICSC_CONTROL, CM, id), \
-	SRI(CM_ICSC_C11_C12, CM, id), \
-	SRI(CM_ICSC_C33_C34, CM, id), \
 	SRI(CM_DGAM_RAMB_START_CNTL_B, CM, id), \
 	SRI(CM_DGAM_RAMB_START_CNTL_G, CM, id), \
 	SRI(CM_DGAM_RAMB_START_CNTL_R, CM, id), \
@@ -127,6 +124,12 @@
 	SRI(CM_OCSC_CONTROL, CM, id), \
 	SRI(CM_OCSC_C11_C12, CM, id), \
 	SRI(CM_OCSC_C33_C34, CM, id), \
+	SRI(CM_ICSC_CONTROL, CM, id), \
+	SRI(CM_ICSC_C11_C12, CM, id), \
+	SRI(CM_ICSC_C33_C34, CM, id), \
+	SRI(CM_BNS_VALUES_R, CM, id), \
+	SRI(CM_BNS_VALUES_G, CM, id), \
+	SRI(CM_BNS_VALUES_B, CM, id), \
 	SRI(CM_MEM_PWR_CTRL, CM, id), \
 	SRI(CM_RGAM_LUT_DATA, CM, id), \
 	SRI(CM_RGAM_LUT_WRITE_EN_MASK, CM, id),\
@@ -236,11 +239,6 @@
 	TF_SF(DSCL0_SCL_MODE, SCL_CHROMA_COEF_MODE, mask_sh),\
 	TF_SF(DSCL0_SCL_MODE, SCL_COEF_RAM_SELECT_CURRENT, mask_sh), \
 	TF_SF(DSCL0_OBUF_CONTROL, OBUF_BYPASS, mask_sh), \
-	TF_SF(CM0_CM_ICSC_CONTROL, CM_ICSC_MODE, mask_sh), \
-	TF_SF(CM0_CM_ICSC_C11_C12, CM_ICSC_C11, mask_sh), \
-	TF_SF(CM0_CM_ICSC_C11_C12, CM_ICSC_C12, mask_sh), \
-	TF_SF(CM0_CM_ICSC_C33_C34, CM_ICSC_C33, mask_sh), \
-	TF_SF(CM0_CM_ICSC_C33_C34, CM_ICSC_C34, mask_sh), \
 	TF_SF(CM0_CM_DGAM_RAMB_START_CNTL_B, CM_DGAM_RAMB_EXP_REGION_START_B, mask_sh), \
 	TF_SF(CM0_CM_DGAM_RAMB_START_CNTL_B, CM_DGAM_RAMB_EXP_REGION_START_SEGMENT_B, mask_sh), \
 	TF_SF(CM0_CM_DGAM_RAMB_START_CNTL_G, CM_DGAM_RAMB_EXP_REGION_START_G, mask_sh), \
@@ -329,6 +327,17 @@
 	TF_SF(CM0_CM_OCSC_C11_C12, CM_OCSC_C12, mask_sh), \
 	TF_SF(CM0_CM_OCSC_C33_C34, CM_OCSC_C33, mask_sh), \
 	TF_SF(CM0_CM_OCSC_C33_C34, CM_OCSC_C34, mask_sh), \
+	TF_SF(CM0_CM_ICSC_CONTROL, CM_ICSC_MODE, mask_sh), \
+	TF_SF(CM0_CM_ICSC_C11_C12, CM_ICSC_C11, mask_sh), \
+	TF_SF(CM0_CM_ICSC_C11_C12, CM_ICSC_C12, mask_sh), \
+	TF_SF(CM0_CM_ICSC_C33_C34, CM_ICSC_C33, mask_sh), \
+	TF_SF(CM0_CM_ICSC_C33_C34, CM_ICSC_C34, mask_sh), \
+	TF_SF(CM0_CM_BNS_VALUES_R, CM_BNS_BIAS_R, mask_sh), \
+	TF_SF(CM0_CM_BNS_VALUES_G, CM_BNS_BIAS_G, mask_sh), \
+	TF_SF(CM0_CM_BNS_VALUES_B, CM_BNS_BIAS_B, mask_sh), \
+	TF_SF(CM0_CM_BNS_VALUES_R, CM_BNS_SCALE_R, mask_sh), \
+	TF_SF(CM0_CM_BNS_VALUES_G, CM_BNS_SCALE_G, mask_sh), \
+	TF_SF(CM0_CM_BNS_VALUES_B, CM_BNS_SCALE_B, mask_sh), \
 	TF_SF(CM0_CM_MEM_PWR_CTRL, RGAM_MEM_PWR_FORCE, mask_sh), \
 	TF_SF(CM0_CM_RGAM_LUT_DATA, CM_RGAM_LUT_DATA, mask_sh), \
 	TF_SF(CM0_CM_RGAM_LUT_WRITE_EN_MASK, CM_RGAM_LUT_WRITE_EN_MASK, mask_sh), \
@@ -913,6 +922,12 @@
 	type CM_ICSC_C12; \
 	type CM_ICSC_C33; \
 	type CM_ICSC_C34; \
+	type CM_BNS_BIAS_R; \
+	type CM_BNS_BIAS_G; \
+	type CM_BNS_BIAS_B; \
+	type CM_BNS_SCALE_R; \
+	type CM_BNS_SCALE_G; \
+	type CM_BNS_SCALE_B; \
 	type CM_DGAM_RAMB_EXP_REGION_START_B; \
 	type CM_DGAM_RAMB_EXP_REGION_START_SEGMENT_B; \
 	type CM_DGAM_RAMB_EXP_REGION_START_G; \
@@ -1206,6 +1221,9 @@ struct dcn_dpp_registers {
 	uint32_t CM_ICSC_CONTROL;
 	uint32_t CM_ICSC_C11_C12;
 	uint32_t CM_ICSC_C33_C34;
+	uint32_t CM_BNS_VALUES_R;
+	uint32_t CM_BNS_VALUES_G;
+	uint32_t CM_BNS_VALUES_B;
 	uint32_t CM_DGAM_RAMB_START_CNTL_B;
 	uint32_t CM_DGAM_RAMB_START_CNTL_G;
 	uint32_t CM_DGAM_RAMB_START_CNTL_R;
@@ -1310,7 +1328,12 @@ void dpp1_power_on_degamma_lut(
 void dpp1_program_input_csc(
 		struct dpp *dpp_base,
 		enum dc_color_space color_space,
-		enum dcn10_input_csc_select select);
+		enum dcn10_input_csc_select select,
+		const struct out_csc_color_matrix *tbl_entry);
+
+void dpp1_program_bias_and_scale(
+		struct dpp *dpp_base,
+		struct dc_bias_and_scale *params);
 
 void dpp1_program_input_lut(
 		struct dpp *dpp_base,
@@ -1372,8 +1395,10 @@ void dpp1_dscl_set_scaler_manual_scale(
 
 void dpp1_cnv_setup (
 		struct dpp *dpp_base,
-		enum surface_pixel_format input_format,
-		enum expansion_mode mode);
+		enum surface_pixel_format format,
+		enum expansion_mode mode,
+		struct csc_transform input_csc_color_matrix,
+		enum dc_color_space input_color_space);
 
 void dpp1_full_bypass(struct dpp *dpp_base);
 

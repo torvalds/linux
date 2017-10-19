@@ -638,11 +638,6 @@ struct colorspace_transform {
 	bool enable_remap;
 };
 
-struct csc_transform {
-	uint16_t matrix[12];
-	bool enable_adjustment;
-};
-
 enum i2c_mot_mode {
 	I2C_MOT_UNDEF,
 	I2C_MOT_TRUE,

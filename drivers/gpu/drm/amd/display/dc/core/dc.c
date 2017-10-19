@@ -1137,6 +1137,7 @@ static enum surface_update_type get_plane_info_update_type(
 	temp_plane_info.plane_size = u->surface->plane_size;
 	temp_plane_info.rotation = u->surface->rotation;
 	temp_plane_info.stereo_format = u->surface->stereo_format;
+	temp_plane_info.input_csc_enabled = u->surface->input_csc_color_matrix.enable_adjustment;
 
 	if (surface_index == 0)
 		temp_plane_info.visible = u->plane_info->visible;
@@ -1217,7 +1218,8 @@ static enum surface_update_type det_surface_update(
 		overall_type = type;
 
 	if (u->in_transfer_func ||
-		u->hdr_static_metadata) {
+		u->hdr_static_metadata ||
+		u->input_csc_color_matrix) {
 		if (overall_type < UPDATE_TYPE_MED)
 			overall_type = UPDATE_TYPE_MED;
 	}
