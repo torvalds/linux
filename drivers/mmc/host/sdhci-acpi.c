@@ -73,6 +73,7 @@ struct sdhci_acpi_slot {
 	unsigned int	caps2;
 	mmc_pm_flag_t	pm_caps;
 	unsigned int	flags;
+	size_t		priv_size;
 	int (*probe_slot)(struct platform_device *, const char *, const char *);
 	int (*remove_slot)(struct platform_device *);
 };
@@ -82,7 +83,13 @@ struct sdhci_acpi_host {
 	const struct sdhci_acpi_slot	*slot;
 	struct platform_device		*pdev;
 	bool				use_runtime_pm;
+	unsigned long			private[0] ____cacheline_aligned;
 };
+
+static inline void *sdhci_acpi_priv(struct sdhci_acpi_host *c)
+{
+	return (void *)c->private;
+}
 
 static inline bool sdhci_acpi_flag(struct sdhci_acpi_host *c, unsigned int flag)
 {
@@ -393,11 +400,13 @@ static const struct sdhci_acpi_slot *sdhci_acpi_get_slot(const char *hid,
 static int sdhci_acpi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	const struct sdhci_acpi_slot *slot;
 	struct acpi_device *device, *child;
 	struct sdhci_acpi_host *c;
 	struct sdhci_host *host;
 	struct resource *iomem;
 	resource_size_t len;
+	size_t priv_size;
 	const char *hid;
 	const char *uid;
 	int err;
@@ -408,6 +417,8 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 
 	hid = acpi_device_hid(device);
 	uid = acpi_device_uid(device);
+
+	slot = sdhci_acpi_get_slot(hid, uid);
 
 	/* Power on the SDHCI controller and its children */
 	acpi_device_fix_up_power(device);
@@ -431,13 +442,14 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	if (!devm_request_mem_region(dev, iomem->start, len, dev_name(dev)))
 		return -ENOMEM;
 
-	host = sdhci_alloc_host(dev, sizeof(struct sdhci_acpi_host));
+	priv_size = slot ? slot->priv_size : 0;
+	host = sdhci_alloc_host(dev, sizeof(struct sdhci_acpi_host) + priv_size);
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 
 	c = sdhci_priv(host);
 	c->host = host;
-	c->slot = sdhci_acpi_get_slot(hid, uid);
+	c->slot = slot;
 	c->pdev = pdev;
 	c->use_runtime_pm = sdhci_acpi_flag(c, SDHCI_ACPI_RUNTIME_PM);
 
