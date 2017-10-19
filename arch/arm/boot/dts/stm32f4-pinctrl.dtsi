@@ -40,7 +40,7 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <dt-bindings/pinctrl/stm32f429-pinfunc.h>
+#include <dt-bindings/pinctrl/stm32-pinfunc.h>
 #include <dt-bindings/mfd/stm32f4-rcc.h>
 
 / {
@@ -165,35 +165,35 @@
 
 			usart1_pins_a: usart1@0 {
 				pins1 {
-					pinmux = <STM32F429_PA9_FUNC_USART1_TX>;
+					pinmux = <STM32_PINMUX('A', 9, AF7)>; /* USART1_TX */
 					bias-disable;
 					drive-push-pull;
 					slew-rate = <0>;
 				};
 				pins2 {
-					pinmux = <STM32F429_PA10_FUNC_USART1_RX>;
+					pinmux = <STM32_PINMUX('A', 10, AF7)>; /* USART1_RX */
 					bias-disable;
 				};
 			};
 
 			usart3_pins_a: usart3@0 {
 				pins1 {
-					pinmux = <STM32F429_PB10_FUNC_USART3_TX>;
+					pinmux = <STM32_PINMUX('B', 10, AF7)>; /* USART3_TX */
 					bias-disable;
 					drive-push-pull;
 					slew-rate = <0>;
 				};
 				pins2 {
-					pinmux = <STM32F429_PB11_FUNC_USART3_RX>;
+					pinmux = <STM32_PINMUX('B', 11, AF7)>; /* USART3_RX */
 					bias-disable;
 				};
 			};
 
 			usbotg_fs_pins_a: usbotg_fs@0 {
 				pins {
-					pinmux = <STM32F429_PA10_FUNC_OTG_FS_ID>,
-						 <STM32F429_PA11_FUNC_OTG_FS_DM>,
-						 <STM32F429_PA12_FUNC_OTG_FS_DP>;
+					pinmux = <STM32_PINMUX('A', 10, AF10)>, /* OTG_FS_ID */
+						 <STM32_PINMUX('A', 11, AF10)>, /* OTG_FS_DM */
+						 <STM32_PINMUX('A', 12, AF10)>; /* OTG_FS_DP */
 					bias-disable;
 					drive-push-pull;
 					slew-rate = <2>;
@@ -202,9 +202,9 @@
 
 			usbotg_fs_pins_b: usbotg_fs@1 {
 				pins {
-					pinmux = <STM32F429_PB12_FUNC_OTG_HS_ID>,
-						 <STM32F429_PB14_FUNC_OTG_HS_DM>,
-						 <STM32F429_PB15_FUNC_OTG_HS_DP>;
+					pinmux = <STM32_PINMUX('B', 12, AF12)>, /* OTG_HS_ID */
+						 <STM32_PINMUX('B', 14, AF12)>, /* OTG_HS_DM */
+						 <STM32_PINMUX('B', 15, AF12)>; /* OTG_HS_DP */
 					bias-disable;
 					drive-push-pull;
 					slew-rate = <2>;
@@ -213,18 +213,18 @@
 
 			usbotg_hs_pins_a: usbotg_hs@0 {
 				pins {
-					pinmux = <STM32F429_PH4_FUNC_OTG_HS_ULPI_NXT>,
-						 <STM32F429_PI11_FUNC_OTG_HS_ULPI_DIR>,
-						 <STM32F429_PC0_FUNC_OTG_HS_ULPI_STP>,
-						 <STM32F429_PA5_FUNC_OTG_HS_ULPI_CK>,
-						 <STM32F429_PA3_FUNC_OTG_HS_ULPI_D0>,
-						 <STM32F429_PB0_FUNC_OTG_HS_ULPI_D1>,
-						 <STM32F429_PB1_FUNC_OTG_HS_ULPI_D2>,
-						 <STM32F429_PB10_FUNC_OTG_HS_ULPI_D3>,
-						 <STM32F429_PB11_FUNC_OTG_HS_ULPI_D4>,
-						 <STM32F429_PB12_FUNC_OTG_HS_ULPI_D5>,
-						 <STM32F429_PB13_FUNC_OTG_HS_ULPI_D6>,
-						 <STM32F429_PB5_FUNC_OTG_HS_ULPI_D7>;
+					pinmux = <STM32_PINMUX('H', 4, AF10)>, /* OTG_HS_ULPI_NXT*/
+						 <STM32_PINMUX('I', 11, AF10)>, /* OTG_HS_ULPI_DIR */
+						 <STM32_PINMUX('C', 0, AF10)>, /* OTG_HS_ULPI_STP */
+						 <STM32_PINMUX('A', 5, AF10)>, /* OTG_HS_ULPI_CK */
+						 <STM32_PINMUX('A', 3, AF10)>, /* OTG_HS_ULPI_D0 */
+						 <STM32_PINMUX('B', 0, AF10)>, /* OTG_HS_ULPI_D1 */
+						 <STM32_PINMUX('B', 1, AF10)>, /* OTG_HS_ULPI_D2 */
+						 <STM32_PINMUX('B', 10, AF10)>, /* OTG_HS_ULPI_D3 */
+						 <STM32_PINMUX('B', 11, AF10)>, /* OTG_HS_ULPI_D4 */
+						 <STM32_PINMUX('B', 12, AF10)>, /* OTG_HS_ULPI_D5 */
+						 <STM32_PINMUX('B', 13, AF10)>, /* OTG_HS_ULPI_D6 */
+						 <STM32_PINMUX('B', 5, AF10)>; /* OTG_HS_ULPI_D7 */
 					bias-disable;
 					drive-push-pull;
 					slew-rate = <2>;
@@ -233,49 +233,49 @@
 
 			ethernet_mii: mii@0 {
 				pins {
-					pinmux = <STM32F429_PG13_FUNC_ETH_MII_TXD0_ETH_RMII_TXD0>,
-						 <STM32F429_PG14_FUNC_ETH_MII_TXD1_ETH_RMII_TXD1>,
-						 <STM32F429_PC2_FUNC_ETH_MII_TXD2>,
-						 <STM32F429_PB8_FUNC_ETH_MII_TXD3>,
-						 <STM32F429_PC3_FUNC_ETH_MII_TX_CLK>,
-						 <STM32F429_PG11_FUNC_ETH_MII_TX_EN_ETH_RMII_TX_EN>,
-						 <STM32F429_PA2_FUNC_ETH_MDIO>,
-						 <STM32F429_PC1_FUNC_ETH_MDC>,
-						 <STM32F429_PA1_FUNC_ETH_MII_RX_CLK_ETH_RMII_REF_CLK>,
-						 <STM32F429_PA7_FUNC_ETH_MII_RX_DV_ETH_RMII_CRS_DV>,
-						 <STM32F429_PC4_FUNC_ETH_MII_RXD0_ETH_RMII_RXD0>,
-						 <STM32F429_PC5_FUNC_ETH_MII_RXD1_ETH_RMII_RXD1>,
-						 <STM32F429_PH6_FUNC_ETH_MII_RXD2>,
-						 <STM32F429_PH7_FUNC_ETH_MII_RXD3>;
+					pinmux = <STM32_PINMUX('G', 13, AF11)>, /* ETH_MII_TXD0_ETH_RMII_TXD0 */
+						 <STM32_PINMUX('G', 14, AF11)>, /* ETH_MII_TXD1_ETH_RMII_TXD1 */
+						 <STM32_PINMUX('C', 2, AF11)>, /* ETH_MII_TXD2 */
+						 <STM32_PINMUX('B', 8, AF11)>, /* ETH_MII_TXD3 */
+						 <STM32_PINMUX('C', 3, AF11)>, /* ETH_MII_TX_CLK */
+						 <STM32_PINMUX('G', 11,AF11)>, /* ETH_MII_TX_EN_ETH_RMII_TX_EN */
+						 <STM32_PINMUX('A', 2, AF11)>, /* ETH_MDIO */
+						 <STM32_PINMUX('C', 1, AF11)>, /* ETH_MDC */
+						 <STM32_PINMUX('A', 1, AF11)>, /* ETH_MII_RX_CLK_ETH_RMII_REF_CLK */
+						 <STM32_PINMUX('A', 7, AF11)>, /* ETH_MII_RX_DV_ETH_RMII_CRS_DV */
+						 <STM32_PINMUX('C', 4, AF11)>, /* ETH_MII_RXD0_ETH_RMII_RXD0 */
+						 <STM32_PINMUX('C', 5, AF11)>, /* ETH_MII_RXD1_ETH_RMII_RXD1 */
+						 <STM32_PINMUX('H', 6, AF11)>, /* ETH_MII_RXD2 */
+						 <STM32_PINMUX('H', 7, AF11)>; /* ETH_MII_RXD3 */
 					slew-rate = <2>;
 				};
 			};
 
 			adc3_in8_pin: adc@200 {
 				pins {
-					pinmux = <STM32F429_PF10_FUNC_ANALOG>;
+					pinmux = <STM32_PINMUX('F', 10, ANALOG)>;
 				};
 			};
 
 			pwm1_pins: pwm@1 {
 				pins {
-					pinmux = <STM32F429_PA8_FUNC_TIM1_CH1>,
-						 <STM32F429_PB13_FUNC_TIM1_CH1N>,
-						 <STM32F429_PB12_FUNC_TIM1_BKIN>;
+					pinmux = <STM32_PINMUX('A', 8, AF1)>, /* TIM1_CH1 */
+						 <STM32_PINMUX('B', 13, AF1)>, /* TIM1_CH1N */
+						 <STM32_PINMUX('B', 12, AF1)>; /* TIM1_BKIN */
 				};
 			};
 
 			pwm3_pins: pwm@3 {
 				pins {
-					pinmux = <STM32F429_PB4_FUNC_TIM3_CH1>,
-						 <STM32F429_PB5_FUNC_TIM3_CH2>;
+					pinmux = <STM32_PINMUX('B', 4, AF2)>, /* TIM3_CH1 */
+						 <STM32_PINMUX('B', 5, AF2)>; /* TIM3_CH2 */
 				};
 			};
 
 			i2c1_pins: i2c1@0 {
 				pins {
-					pinmux = <STM32F429_PB9_FUNC_I2C1_SDA>,
-						 <STM32F429_PB6_FUNC_I2C1_SCL>;
+					pinmux = <STM32_PINMUX('B', 9, AF4)>, /* I2C1_SDA */
+						 <STM32_PINMUX('B', 6, AF4)>; /* I2C1_SCL */
 					bias-disable;
 					drive-open-drain;
 					slew-rate = <3>;
@@ -284,55 +284,55 @@
 
 			ltdc_pins: ltdc@0 {
 				pins {
-					pinmux = <STM32F429_PI12_FUNC_LCD_HSYNC>,
-						 <STM32F429_PI13_FUNC_LCD_VSYNC>,
-						 <STM32F429_PI14_FUNC_LCD_CLK>,
-						 <STM32F429_PI15_FUNC_LCD_R0>,
-						 <STM32F429_PJ0_FUNC_LCD_R1>,
-						 <STM32F429_PJ1_FUNC_LCD_R2>,
-						 <STM32F429_PJ2_FUNC_LCD_R3>,
-						 <STM32F429_PJ3_FUNC_LCD_R4>,
-						 <STM32F429_PJ4_FUNC_LCD_R5>,
-						 <STM32F429_PJ5_FUNC_LCD_R6>,
-						 <STM32F429_PJ6_FUNC_LCD_R7>,
-						 <STM32F429_PJ7_FUNC_LCD_G0>,
-						 <STM32F429_PJ8_FUNC_LCD_G1>,
-						 <STM32F429_PJ9_FUNC_LCD_G2>,
-						 <STM32F429_PJ10_FUNC_LCD_G3>,
-						 <STM32F429_PJ11_FUNC_LCD_G4>,
-						 <STM32F429_PJ12_FUNC_LCD_B0>,
-						 <STM32F429_PJ13_FUNC_LCD_B1>,
-						 <STM32F429_PJ14_FUNC_LCD_B2>,
-						 <STM32F429_PJ15_FUNC_LCD_B3>,
-						 <STM32F429_PK0_FUNC_LCD_G5>,
-						 <STM32F429_PK1_FUNC_LCD_G6>,
-						 <STM32F429_PK2_FUNC_LCD_G7>,
-						 <STM32F429_PK3_FUNC_LCD_B4>,
-						 <STM32F429_PK4_FUNC_LCD_B5>,
-						 <STM32F429_PK5_FUNC_LCD_B6>,
-						 <STM32F429_PK6_FUNC_LCD_B7>,
-						 <STM32F429_PK7_FUNC_LCD_DE>;
+					pinmux = <STM32_PINMUX('I', 12, AF14)>, /* LCD_HSYNC */
+						 <STM32_PINMUX('I', 13, AF14)>, /* LCD_VSYNC */
+						 <STM32_PINMUX('I', 14, AF14)>, /* LCD_CLK */
+						 <STM32_PINMUX('I', 15, AF14)>, /* LCD_R0 */
+						 <STM32_PINMUX('J', 0, AF14)>, /* LCD_R1 */
+						 <STM32_PINMUX('J', 1, AF14)>, /* LCD_R2 */
+						 <STM32_PINMUX('J', 2, AF14)>, /* LCD_R3 */
+						 <STM32_PINMUX('J', 3, AF14)>, /* LCD_R4 */
+						 <STM32_PINMUX('J', 4, AF14)>, /* LCD_R5 */
+						 <STM32_PINMUX('J', 5, AF14)>, /* LCD_R6*/
+						 <STM32_PINMUX('J', 6, AF14)>, /* LCD_R7 */
+						 <STM32_PINMUX('J', 7, AF14)>, /* LCD_G0 */
+						 <STM32_PINMUX('J', 8, AF14)>, /* LCD_G1 */
+						 <STM32_PINMUX('J', 9, AF14)>, /* LCD_G2 */
+						 <STM32_PINMUX('J', 10, AF14)>, /* LCD_G3 */
+						 <STM32_PINMUX('J', 11, AF14)>, /* LCD_G4 */
+						 <STM32_PINMUX('J', 12, AF14)>, /* LCD_B0 */
+						 <STM32_PINMUX('J', 13, AF14)>, /* LCD_B1 */
+						 <STM32_PINMUX('J', 14, AF14)>, /* LCD_B2 */
+						 <STM32_PINMUX('J', 15, AF14)>, /* LCD_B3*/
+						 <STM32_PINMUX('K', 0, AF14)>, /* LCD_G5 */
+						 <STM32_PINMUX('K', 1, AF14)>, /* LCD_G6 */
+						 <STM32_PINMUX('K', 2, AF14)>, /* LCD_G7 */
+						 <STM32_PINMUX('K', 3, AF14)>, /* LCD_B4 */
+						 <STM32_PINMUX('K', 4, AF14)>, /* LCD_B5 */
+						 <STM32_PINMUX('K', 5, AF14)>, /* LCD_B6 */
+						 <STM32_PINMUX('K', 6, AF14)>, /* LCD_B7 */
+						 <STM32_PINMUX('K', 7, AF14)>; /* LCD_DE */
 					slew-rate = <2>;
 				};
 			};
 
 			dcmi_pins: dcmi@0 {
 				pins {
-					pinmux = <STM32F429_PA4_FUNC_DCMI_HSYNC>,
-						 <STM32F429_PB7_FUNC_DCMI_VSYNC>,
-						 <STM32F429_PA6_FUNC_DCMI_PIXCLK>,
-						 <STM32F429_PC6_FUNC_DCMI_D0>,
-						 <STM32F429_PC7_FUNC_DCMI_D1>,
-						 <STM32F429_PC8_FUNC_DCMI_D2>,
-						 <STM32F429_PC9_FUNC_DCMI_D3>,
-						 <STM32F429_PC11_FUNC_DCMI_D4>,
-						 <STM32F429_PD3_FUNC_DCMI_D5>,
-						 <STM32F429_PB8_FUNC_DCMI_D6>,
-						 <STM32F429_PE6_FUNC_DCMI_D7>,
-						 <STM32F429_PC10_FUNC_DCMI_D8>,
-						 <STM32F429_PC12_FUNC_DCMI_D9>,
-						 <STM32F429_PD6_FUNC_DCMI_D10>,
-						 <STM32F429_PD2_FUNC_DCMI_D11>;
+					pinmux = <STM32_PINMUX('A', 4, AF13)>, /* DCMI_HSYNC */
+						 <STM32_PINMUX('B', 7, AF13)>, /* DCMI_VSYNC */
+						 <STM32_PINMUX('A', 6, AF13)>, /* DCMI_PIXCLK */
+						 <STM32_PINMUX('C', 6, AF13)>, /* DCMI_D0 */
+						 <STM32_PINMUX('C', 7, AF13)>, /* DCMI_D1 */
+						 <STM32_PINMUX('C', 8, AF13)>, /* DCMI_D2 */
+						 <STM32_PINMUX('C', 9, AF13)>, /* DCMI_D3 */
+						 <STM32_PINMUX('C', 11, AF13)>, /*DCMI_D4 */
+						 <STM32_PINMUX('D', 3, AF13)>, /* DCMI_D5 */
+						 <STM32_PINMUX('B', 8, AF13)>, /* DCMI_D6 */
+						 <STM32_PINMUX('E', 6, AF13)>, /* DCMI_D7 */
+						 <STM32_PINMUX('C', 10, AF13)>, /* DCMI_D8 */
+						 <STM32_PINMUX('C', 12, AF13)>, /* DCMI_D9 */
+						 <STM32_PINMUX('D', 6, AF13)>, /* DCMI_D10 */
+						 <STM32_PINMUX('D', 2, AF13)>; /* DCMI_D11 */
 					bias-disable;
 					drive-push-pull;
 					slew-rate = <3>;
