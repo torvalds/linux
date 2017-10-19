@@ -744,27 +744,6 @@ bool amdgpu_need_post(struct amdgpu_device *adev)
 {
 	uint32_t reg;
 
-	if (adev->has_hw_reset) {
-		adev->has_hw_reset = false;
-		return true;
-	}
-
-	/* bios scratch used on CIK+ */
-	if (adev->asic_type >= CHIP_BONAIRE)
-		return amdgpu_atombios_scratch_need_asic_init(adev);
-
-	/* check MEM_SIZE for older asics */
-	reg = amdgpu_asic_get_config_memsize(adev);
-
-	if ((reg != 0) && (reg != 0xffffffff))
-		return false;
-
-	return true;
-
-}
-
-static bool amdgpu_vpost_needed(struct amdgpu_device *adev)
-{
 	if (amdgpu_sriov_vf(adev))
 		return false;
 
@@ -787,7 +766,23 @@ static bool amdgpu_vpost_needed(struct amdgpu_device *adev)
 				return true;
 		}
 	}
-	return amdgpu_need_post(adev);
+
+	if (adev->has_hw_reset) {
+		adev->has_hw_reset = false;
+		return true;
+	}
+
+	/* bios scratch used on CIK+ */
+	if (adev->asic_type >= CHIP_BONAIRE)
+		return amdgpu_atombios_scratch_need_asic_init(adev);
+
+	/* check MEM_SIZE for older asics */
+	reg = amdgpu_asic_get_config_memsize(adev);
+
+	if ((reg != 0) && (reg != 0xffffffff))
+		return false;
+
+	return true;
 }
 
 /**
@@ -2208,7 +2203,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	amdgpu_device_detect_sriov_bios(adev);
 
 	/* Post card if necessary */
-	if (amdgpu_vpost_needed(adev)) {
+	if (amdgpu_need_post(adev)) {
 		if (!adev->bios) {
 			dev_err(adev->dev, "no vBIOS found\n");
 			amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_NO_VBIOS, 0, 0);
