@@ -1312,7 +1312,8 @@ struct fusion_context {
 	u8 fast_path_io;
 	struct LD_LOAD_BALANCE_INFO *load_balance_info;
 	u32 load_balance_info_pages;
-	LD_SPAN_INFO log_to_span[MAX_LOGICAL_DRIVES_EXT];
+	LD_SPAN_INFO *log_to_span;
+	u32 log_to_span_pages;
 	struct LD_STREAM_DETECT **stream_detect_by_ld;
 };
 

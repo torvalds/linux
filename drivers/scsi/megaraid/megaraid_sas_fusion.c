@@ -4502,19 +4502,30 @@ megasas_alloc_fusion_context(struct megasas_instance *instance)
 {
 	struct fusion_context *fusion;
 
-	instance->ctrl_context_pages = get_order(sizeof(struct fusion_context));
-	instance->ctrl_context = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
-		instance->ctrl_context_pages);
+	instance->ctrl_context = kzalloc(sizeof(struct fusion_context),
+					 GFP_KERNEL);
 	if (!instance->ctrl_context) {
-		/* fall back to using vmalloc for fusion_context */
-		instance->ctrl_context = vzalloc(sizeof(struct fusion_context));
-		if (!instance->ctrl_context) {
-			dev_err(&instance->pdev->dev, "Failed from %s %d\n", __func__, __LINE__);
-			return -ENOMEM;
-		}
+		dev_err(&instance->pdev->dev, "Failed from %s %d\n",
+			__func__, __LINE__);
+		return -ENOMEM;
 	}
 
 	fusion = instance->ctrl_context;
+
+	fusion->log_to_span_pages = get_order(MAX_LOGICAL_DRIVES_EXT *
+					      sizeof(LD_SPAN_INFO));
+	fusion->log_to_span =
+		(PLD_SPAN_INFO)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+						fusion->log_to_span_pages);
+	if (!fusion->log_to_span) {
+		fusion->log_to_span = vzalloc(MAX_LOGICAL_DRIVES_EXT *
+					      sizeof(LD_SPAN_INFO));
+		if (!fusion->log_to_span) {
+			dev_err(&instance->pdev->dev, "Failed from %s %d\n",
+				__func__, __LINE__);
+			return -ENOMEM;
+		}
+	}
 
 	fusion->load_balance_info_pages = get_order(MAX_LOGICAL_DRIVES_EXT *
 		sizeof(struct LD_LOAD_BALANCE_INFO));
@@ -4546,11 +4557,15 @@ megasas_free_fusion_context(struct megasas_instance *instance)
 					fusion->load_balance_info_pages);
 		}
 
-		if (is_vmalloc_addr(fusion))
-			vfree(fusion);
-		else
-			free_pages((ulong)fusion,
-				instance->ctrl_context_pages);
+		if (fusion->log_to_span) {
+			if (is_vmalloc_addr(fusion->log_to_span))
+				vfree(fusion->log_to_span);
+			else
+				free_pages((ulong)fusion->log_to_span,
+					   fusion->log_to_span_pages);
+		}
+
+		kfree(fusion);
 	}
 }
 

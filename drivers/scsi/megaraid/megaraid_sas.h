@@ -2218,7 +2218,6 @@ struct megasas_instance {
 
 	/* Ptr to hba specific information */
 	void *ctrl_context;
-	u32 ctrl_context_pages;
 	struct megasas_ctrl_info *ctrl_info;
 	unsigned int msix_vectors;
 	struct megasas_irq_context irq_context[MEGASAS_MAX_MSIX_QUEUES];
