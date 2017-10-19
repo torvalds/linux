@@ -962,7 +962,8 @@ fail:
 	return err > 0 ? 0 : err;
 }
 
-int truncate_xattr_node(struct inode *inode, struct page *page)
+/* caller must lock inode page */
+int truncate_xattr_node(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	nid_t nid = F2FS_I(inode)->i_xattr_nid;
@@ -978,10 +979,7 @@ int truncate_xattr_node(struct inode *inode, struct page *page)
 
 	f2fs_i_xnid_write(inode, 0);
 
-	set_new_dnode(&dn, inode, page, npage, nid);
-
-	if (page)
-		dn.inode_page_locked = true;
+	set_new_dnode(&dn, inode, NULL, npage, nid);
 	truncate_node(&dn);
 	return 0;
 }
@@ -1000,7 +998,7 @@ int remove_inode_page(struct inode *inode)
 	if (err)
 		return err;
 
-	err = truncate_xattr_node(inode, dn.inode_page);
+	err = truncate_xattr_node(inode);
 	if (err) {
 		f2fs_put_dnode(&dn);
 		return err;
