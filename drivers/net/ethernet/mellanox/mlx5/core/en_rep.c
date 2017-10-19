@@ -691,14 +691,6 @@ static int mlx5e_rep_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	}
 }
 
-static int mlx5e_rep_setup_tc_cb(enum tc_setup_type type, void *type_data,
-				 void *cb_priv)
-{
-	struct net_device *dev = cb_priv;
-
-	return mlx5e_setup_tc(dev, type, type_data);
-}
-
 bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
@@ -987,6 +979,7 @@ mlx5e_vport_rep_load(struct mlx5_eswitch *esw, struct mlx5_eswitch_rep *rep)
 {
 	struct mlx5e_rep_priv *rpriv;
 	struct net_device *netdev;
+	struct mlx5e_priv *upriv;
 	int err;
 
 	rpriv = kzalloc(sizeof(*rpriv), GFP_KERNEL);
@@ -1018,8 +1011,9 @@ mlx5e_vport_rep_load(struct mlx5_eswitch *esw, struct mlx5_eswitch_rep *rep)
 		goto err_detach_netdev;
 	}
 
-	err = tc_setup_cb_egdev_register(netdev, mlx5e_rep_setup_tc_cb,
-					 mlx5_eswitch_get_uplink_netdev(esw));
+	upriv = netdev_priv(mlx5_eswitch_get_uplink_netdev(esw));
+	err = tc_setup_cb_egdev_register(netdev, mlx5e_setup_tc_block_cb,
+					 upriv);
 	if (err)
 		goto err_neigh_cleanup;
 
@@ -1033,8 +1027,8 @@ mlx5e_vport_rep_load(struct mlx5_eswitch *esw, struct mlx5_eswitch_rep *rep)
 	return 0;
 
 err_egdev_cleanup:
-	tc_setup_cb_egdev_unregister(netdev, mlx5e_rep_setup_tc_cb,
-				     mlx5_eswitch_get_uplink_netdev(esw));
+	tc_setup_cb_egdev_unregister(netdev, mlx5e_setup_tc_block_cb,
+				     upriv);
 
 err_neigh_cleanup:
 	mlx5e_rep_neigh_cleanup(rpriv);
@@ -1055,10 +1049,12 @@ mlx5e_vport_rep_unload(struct mlx5_eswitch *esw, struct mlx5_eswitch_rep *rep)
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	void *ppriv = priv->ppriv;
+	struct mlx5e_priv *upriv;
 
 	unregister_netdev(rep->netdev);
-	tc_setup_cb_egdev_unregister(netdev, mlx5e_rep_setup_tc_cb,
-				     mlx5_eswitch_get_uplink_netdev(esw));
+	upriv = netdev_priv(mlx5_eswitch_get_uplink_netdev(esw));
+	tc_setup_cb_egdev_unregister(netdev, mlx5e_setup_tc_block_cb,
+				     upriv);
 	mlx5e_rep_neigh_cleanup(rpriv);
 	mlx5e_detach_netdev(priv);
 	mlx5e_destroy_netdev(priv);
