@@ -1,7 +1,8 @@
 /*
- * SAMSUNG SMDK5420 board device tree source
+ * Hardkernel Odroid XU3/XU4/HC1 boards core device tree source
  *
- * Copyright (c) 2013 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2017 Marek Szyprowski
+ * Copyright (c) 2013-2017 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * This program is free software; you can redistribute it and/or modify
@@ -9,22 +10,25 @@
  * published by the Free Software Foundation.
 */
 
-/dts-v1/;
-#include "exynos5420.dtsi"
-#include "exynos5420-cpus.dtsi"
+#include <dt-bindings/clock/samsung,s2mps11.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
+#include "exynos5800.dtsi"
+#include "exynos5422-cpus.dtsi"
 
 / {
-	model = "Samsung SMDK5420 board based on EXYNOS5420";
-	compatible = "samsung,smdk5420", "samsung,exynos5420", "samsung,exynos5";
-
-	memory@20000000 {
+	memory@40000000 {
 		device_type = "memory";
-		reg = <0x20000000 0x80000000>;
+		reg = <0x40000000 0x7EA00000>;
 	};
 
 	chosen {
-		bootargs = "console=ttySAC2,115200 init=/linuxrc";
+		stdout-path = "serial2:115200n8";
+	};
+
+	firmware@02073000 {
+		compatible = "samsung,secure-firmware";
+		reg = <0x02073000 0x1000>;
 	};
 
 	fixed-rate-clocks {
@@ -33,107 +37,97 @@
 			clock-frequency = <24000000>;
 		};
 	};
+};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+&bus_wcore {
+	devfreq-events = <&nocp_mem0_0>, <&nocp_mem0_1>,
+			<&nocp_mem1_0>, <&nocp_mem1_1>;
+	vdd-supply = <&buck3_reg>;
+	exynos,saturation-ratio = <100>;
+	status = "okay";
+};
 
-		vdd: fixed-regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "vdd-supply";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			regulator-always-on;
-		};
+&bus_noc {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
 
-		dbvdd: fixed-regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "dbvdd-supply";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-always-on;
-		};
+&bus_fsys_apb {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
 
-		spkvdd: fixed-regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "spkvdd-supply";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			regulator-always-on;
-		};
-	};
+&bus_fsys {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
 
-	usb300_vbus_reg: regulator-usb300 {
-		compatible = "regulator-fixed";
-		regulator-name = "VBUS0";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		gpio = <&gpg0 5 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&usb300_vbus_en>;
-		enable-active-high;
-	};
+&bus_fsys2 {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
 
-	usb301_vbus_reg: regulator-usb301 {
-		compatible = "regulator-fixed";
-		regulator-name = "VBUS1";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		gpio = <&gpg1 4 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&usb301_vbus_en>;
-		enable-active-high;
-	};
+&bus_mfc {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
 
+&bus_gen {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_peri {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_g2d {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_g2d_acp {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_jpeg {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_jpeg_apb {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_disp1_fimd {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_disp1 {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_gscl_scaler {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_mscl {
+	devfreq = <&bus_wcore>;
+	status = "okay";
 };
 
 &cpu0 {
-	cpu-supply = <&buck2_reg>;
-};
-
-&cpu4 {
 	cpu-supply = <&buck6_reg>;
 };
 
-&dp {
-	pinctrl-names = "default";
-	pinctrl-0 = <&dp_hpd>;
-	samsung,color-space = <0>;
-	samsung,color-depth = <1>;
-	samsung,link-rate = <0x0a>;
-	samsung,lane-count = <4>;
-	status = "okay";
-
-	display-timings {
-		native-mode = <&timing0>;
-		timing0: timing {
-			clock-frequency = <50000>;
-			hactive = <2560>;
-			vactive = <1600>;
-			hfront-porch = <48>;
-			hback-porch = <80>;
-			hsync-len = <32>;
-			vback-porch = <16>;
-			vfront-porch = <8>;
-			vsync-len = <6>;
-		};
-	};
-};
-
-&fimd {
-	status = "okay";
-};
-
-&hdmi {
-	status = "okay";
-	ddc = <&i2c_2>;
-	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_HIGH>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&hdmi_hpd_irq>;
+&cpu4 {
+	cpu-supply = <&buck2_reg>;
 };
 
 &hsi2c_4 {
@@ -142,6 +136,12 @@
 	s2mps11_pmic@66 {
 		compatible = "samsung,s2mps11-pmic";
 		reg = <0x66>;
+		samsung,s2mps11-acokb-ground;
+
+		interrupt-parent = <&gpx0>;
+		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&s2mps11_irq>;
 
 		s2mps11_osc: clocks {
 			#clock-cells = <1>;
@@ -158,10 +158,15 @@
 			};
 
 			ldo3_reg: LDO3 {
-				regulator-name = "vdd_ldo3";
+				regulator-name = "vddq_mmc0";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				regulator-always-on;
+			};
+
+			ldo4_reg: LDO4 {
+				regulator-name = "vdd_adc";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
 			};
 
 			ldo5_reg: LDO5 {
@@ -221,10 +226,9 @@
 			};
 
 			ldo13_reg: LDO13 {
-				regulator-name = "vdd_ldo13";
+				regulator-name = "vddq_mmc2";
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
-				regulator-always-on;
 			};
 
 			ldo15_reg: LDO15 {
@@ -248,17 +252,29 @@
 				regulator-always-on;
 			};
 
+			ldo18_reg: LDO18 {
+				regulator-name = "vdd_emmc_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
 			ldo19_reg: LDO19 {
 				regulator-name = "vdd_sd";
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
-				regulator-always-on;
 			};
 
 			ldo24_reg: LDO24 {
 				regulator-name = "tsp_io";
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
+				regulator-always-on;
+			};
+
+			ldo26_reg: LDO26 {
+				regulator-name = "vdd_ldo26";
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3000000>;
 				regulator-always-on;
 			};
 
@@ -345,78 +361,83 @@
 	};
 };
 
-&i2c_2 {
-	samsung,i2c-sda-delay = <100>;
-	samsung,i2c-max-bus-freq = <66000>;
-	/* used by HDMI DDC */
-	status = "okay";
-};
-
-&mixer {
-	status = "okay";
-};
-
-&mmc_0 {
-	status = "okay";
-	broken-cd;
-	card-detect-delay = <200>;
-	samsung,dw-mshc-ciu-div = <3>;
-	samsung,dw-mshc-sdr-timing = <0 4>;
-	samsung,dw-mshc-ddr-timing = <0 2>;
-	samsung,dw-mshc-hs400-timing = <0 2>;
-	samsung,read-strobe-delay = <90>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus1 &sd0_bus4 &sd0_bus8
-		     &sd0_rclk>;
-	bus-width = <8>;
-	cap-mmc-highspeed;
-};
-
 &mmc_2 {
 	status = "okay";
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
-	samsung,dw-mshc-sdr-timing = <2 3>;
-	samsung,dw-mshc-ddr-timing = <1 2>;
+	samsung,dw-mshc-sdr-timing = <0 4>;
+	samsung,dw-mshc-ddr-timing = <0 2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus1 &sd2_bus4>;
 	bus-width = <4>;
 	cap-sd-highspeed;
+	vmmc-supply = <&ldo19_reg>;
+	vqmmc-supply = <&ldo13_reg>;
+};
+
+&nocp_mem0_0 {
+	status = "okay";
+};
+
+&nocp_mem0_1 {
+	status = "okay";
+};
+
+&nocp_mem1_0 {
+	status = "okay";
+};
+
+&nocp_mem1_1 {
+	status = "okay";
 };
 
 &pinctrl_0 {
-	hdmi_hpd_irq: hdmi-hpd-irq {
-		samsung,pins = "gpx3-7";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+	s2mps11_irq: s2mps11-irq {
+		samsung,pins = "gpx0-4";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
 };
 
-&pinctrl_2 {
-	usb300_vbus_en: usb300-vbus-en {
-		samsung,pins = "gpg0-5";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
-	};
+&tmu_cpu0 {
+	vtmu-supply = <&ldo7_reg>;
+};
 
-	usb301_vbus_en: usb301-vbus-en {
-		samsung,pins = "gpg1-4";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
-	};
+&tmu_cpu1 {
+	vtmu-supply = <&ldo7_reg>;
+};
+
+&tmu_cpu2 {
+	vtmu-supply = <&ldo7_reg>;
+};
+
+&tmu_cpu3 {
+	vtmu-supply = <&ldo7_reg>;
+};
+
+&tmu_gpu {
+	vtmu-supply = <&ldo7_reg>;
 };
 
 &rtc {
 	status = "okay";
+	clocks = <&clock CLK_RTC>, <&s2mps11_osc S2MPS11_CLK_AP>;
+	clock-names = "rtc", "rtc_src";
 };
 
-&usbdrd_phy0 {
-	vbus-supply = <&usb300_vbus_reg>;
+&usbdrd_dwc3_0 {
+	dr_mode = "host";
 };
 
-&usbdrd_phy1 {
-	vbus-supply = <&usb301_vbus_reg>;
+/* usbdrd_dwc3_1 mode customized in each board */
+
+&usbdrd3_0 {
+	vdd33-supply = <&ldo9_reg>;
+	vdd10-supply = <&ldo11_reg>;
+};
+
+&usbdrd3_1 {
+	vdd33-supply = <&ldo9_reg>;
+	vdd10-supply = <&ldo11_reg>;
 };
