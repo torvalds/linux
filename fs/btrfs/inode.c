@@ -4360,47 +4360,11 @@ static int truncate_space_check(struct btrfs_trans_handle *trans,
 
 }
 
-static int truncate_inline_extent(struct inode *inode,
-				  struct btrfs_path *path,
-				  struct btrfs_key *found_key,
-				  const u64 item_end,
-				  const u64 new_size)
-{
-	struct extent_buffer *leaf = path->nodes[0];
-	int slot = path->slots[0];
-	struct btrfs_file_extent_item *fi;
-	u32 size = (u32)(new_size - found_key->offset);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-
-	fi = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
-
-	if (btrfs_file_extent_compression(leaf, fi) != BTRFS_COMPRESS_NONE) {
-		loff_t offset = new_size;
-		loff_t page_end = ALIGN(offset, PAGE_SIZE);
-
-		/*
-		 * Zero out the remaining of the last page of our inline extent,
-		 * instead of directly truncating our inline extent here - that
-		 * would be much more complex (decompressing all the data, then
-		 * compressing the truncated data, which might be bigger than
-		 * the size of the inline extent, resize the extent, etc).
-		 * We release the path because to get the page we might need to
-		 * read the extent item from disk (data not in the page cache).
-		 */
-		btrfs_release_path(path);
-		return btrfs_truncate_block(inode, offset, page_end - offset,
-					0);
-	}
-
-	btrfs_set_file_extent_ram_bytes(leaf, fi, size);
-	size = btrfs_file_extent_calc_inline_size(size);
-	btrfs_truncate_item(root->fs_info, path, size, 1);
-
-	if (test_bit(BTRFS_ROOT_REF_COWS, &root->state))
-		inode_sub_bytes(inode, item_end + 1 - new_size);
-
-	return 0;
-}
+/*
+ * Return this if we need to call truncate_block for the last bit of the
+ * truncate.
+ */
+#define NEED_TRUNCATE_BLOCK 1
 
 /*
  * this can truncate away extent items, csum items and directory items.
@@ -4561,11 +4525,6 @@ search_again:
 		if (found_type != BTRFS_EXTENT_DATA_KEY)
 			goto delete;
 
-		if (del_item)
-			last_size = found_key.offset;
-		else
-			last_size = new_size;
-
 		if (extent_type != BTRFS_FILE_EXTENT_INLINE) {
 			u64 num_dec;
 			extent_start = btrfs_file_extent_disk_bytenr(leaf, fi);
@@ -4607,40 +4566,30 @@ search_again:
 			 */
 			if (!del_item &&
 			    btrfs_file_extent_encryption(leaf, fi) == 0 &&
-			    btrfs_file_extent_other_encoding(leaf, fi) == 0) {
+			    btrfs_file_extent_other_encoding(leaf, fi) == 0 &&
+			    btrfs_file_extent_compression(leaf, fi) == 0) {
+				u32 size = (u32)(new_size - found_key.offset);
 
+				btrfs_set_file_extent_ram_bytes(leaf, fi, size);
+				size = btrfs_file_extent_calc_inline_size(size);
+				btrfs_truncate_item(root->fs_info, path, size, 1);
+			} else if (!del_item) {
 				/*
-				 * Need to release path in order to truncate a
-				 * compressed extent. So delete any accumulated
-				 * extent items so far.
+				 * We have to bail so the last_size is set to
+				 * just before this extent.
 				 */
-				if (btrfs_file_extent_compression(leaf, fi) !=
-				    BTRFS_COMPRESS_NONE && pending_del_nr) {
-					err = btrfs_del_items(trans, root, path,
-							      pending_del_slot,
-							      pending_del_nr);
-					if (err) {
-						btrfs_abort_transaction(trans,
-									err);
-						goto error;
-					}
-					pending_del_nr = 0;
-				}
-
-				err = truncate_inline_extent(inode, path,
-							     &found_key,
-							     item_end,
-							     new_size);
-				if (err) {
-					btrfs_abort_transaction(trans, err);
-					goto error;
-				}
-			} else if (test_bit(BTRFS_ROOT_REF_COWS,
-					    &root->state)) {
-				inode_sub_bytes(inode, item_end + 1 - new_size);
+				err = NEED_TRUNCATE_BLOCK;
+				break;
 			}
+
+			if (test_bit(BTRFS_ROOT_REF_COWS, &root->state))
+				inode_sub_bytes(inode, item_end + 1 - new_size);
 		}
 delete:
+		if (del_item)
+			last_size = found_key.offset;
+		else
+			last_size = new_size;
 		if (del_item) {
 			if (!pending_del_nr) {
 				/* no pending yet, add ourselves */
@@ -9338,12 +9287,12 @@ static int btrfs_truncate(struct inode *inode)
 		ret = btrfs_truncate_inode_items(trans, root, inode,
 						 inode->i_size,
 						 BTRFS_EXTENT_DATA_KEY);
+		trans->block_rsv = &fs_info->trans_block_rsv;
 		if (ret != -ENOSPC && ret != -EAGAIN) {
 			err = ret;
 			break;
 		}
 
-		trans->block_rsv = &fs_info->trans_block_rsv;
 		ret = btrfs_update_inode(trans, root, inode);
 		if (ret) {
 			err = ret;
@@ -9365,6 +9314,27 @@ static int btrfs_truncate(struct inode *inode)
 					      rsv, min_size, 0);
 		BUG_ON(ret);	/* shouldn't happen */
 		trans->block_rsv = rsv;
+	}
+
+	/*
+	 * We can't call btrfs_truncate_block inside a trans handle as we could
+	 * deadlock with freeze, if we got NEED_TRUNCATE_BLOCK then we know
+	 * we've truncated everything except the last little bit, and can do
+	 * btrfs_truncate_block and then update the disk_i_size.
+	 */
+	if (ret == NEED_TRUNCATE_BLOCK) {
+		btrfs_end_transaction(trans);
+		btrfs_btree_balance_dirty(fs_info);
+
+		ret = btrfs_truncate_block(inode, inode->i_size, 0, 0);
+		if (ret)
+			goto out;
+		trans = btrfs_start_transaction(root, 1);
+		if (IS_ERR(trans)) {
+			ret = PTR_ERR(trans);
+			goto out;
+		}
+		btrfs_ordered_update_i_size(inode, inode->i_size, NULL);
 	}
 
 	if (ret == 0 && inode->i_nlink > 0) {
