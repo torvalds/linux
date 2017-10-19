@@ -243,14 +243,14 @@ static const struct tsl2x7x_settings tsl2x7x_default_settings = {
 	.prox_pulse_count = 8
 };
 
-static const s16 tsl2X7X_als_gainadj[] = {
+static const s16 tsl2x7x_als_gain[] = {
 	1,
 	8,
 	16,
 	120
 };
 
-static const s16 tsl2X7X_prx_gainadj[] = {
+static const s16 tsl2x7x_prx_gain[] = {
 	1,
 	2,
 	4,
@@ -384,11 +384,10 @@ static int tsl2x7x_get_lux(struct iio_dev *indio_dev)
 	if (p->ratio == 0) {
 		lux = 0;
 	} else {
-		ch0lux = DIV_ROUND_UP(ch0 * p->ch0,
-			tsl2X7X_als_gainadj[chip->settings.als_gain]);
-		ch1lux = DIV_ROUND_UP(ch1 * p->ch1,
-			tsl2X7X_als_gainadj[chip->settings.als_gain]);
-		lux = ch0lux - ch1lux;
+		lux = DIV_ROUND_UP(ch0 * p->ch0,
+				   tsl2x7x_als_gain[chip->settings.als_gain]) -
+		      DIV_ROUND_UP(ch1 * p->ch1,
+				   tsl2x7x_als_gain[chip->settings.als_gain]);
 	}
 
 	/* note: lux is 31 bit max at this point */
@@ -1263,9 +1262,9 @@ static int tsl2x7x_read_raw(struct iio_dev *indio_dev,
 		break;
 	case IIO_CHAN_INFO_CALIBSCALE:
 		if (chan->type == IIO_LIGHT)
-			*val = tsl2X7X_als_gainadj[chip->settings.als_gain];
+			*val = tsl2x7x_als_gain[chip->settings.als_gain];
 		else
-			*val = tsl2X7X_prx_gainadj[chip->settings.prox_gain];
+			*val = tsl2x7x_prx_gain[chip->settings.prox_gain];
 		ret = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_CALIBBIAS:
