@@ -418,8 +418,7 @@
 
 /* High-level queue structures */
 #define ARM_SMMU_POLL_TIMEOUT_US	100
-#define ARM_SMMU_CMDQ_DRAIN_TIMEOUT_US	1000000 /* 1s! */
-#define ARM_SMMU_SYNC_TIMEOUT_US	1000000 /* 1s! */
+#define ARM_SMMU_CMDQ_SYNC_TIMEOUT_US	1000000 /* 1s! */
 
 #define MSI_IOVA_BASE			0x8000000
 #define MSI_IOVA_LENGTH			0x100000
@@ -767,17 +766,17 @@ static void queue_inc_prod(struct arm_smmu_queue *q)
  * Wait for the SMMU to consume items. If drain is true, wait until the queue
  * is empty. Otherwise, wait until there is at least one free slot.
  */
-static int queue_poll_cons(struct arm_smmu_queue *q, bool drain, bool wfe)
+static int queue_poll_cons(struct arm_smmu_queue *q, bool sync, bool wfe)
 {
 	ktime_t timeout;
 	unsigned int delay = 1;
 
-	/* Wait longer if it's queue drain */
-	timeout = ktime_add_us(ktime_get(), drain ?
-					    ARM_SMMU_CMDQ_DRAIN_TIMEOUT_US :
+	/* Wait longer if it's a CMD_SYNC */
+	timeout = ktime_add_us(ktime_get(), sync ?
+					    ARM_SMMU_CMDQ_SYNC_TIMEOUT_US :
 					    ARM_SMMU_POLL_TIMEOUT_US);
 
-	while (queue_sync_cons(q), (drain ? !queue_empty(q) : queue_full(q))) {
+	while (queue_sync_cons(q), (sync ? !queue_empty(q) : queue_full(q))) {
 		if (ktime_compare(ktime_get(), timeout) > 0)
 			return -ETIMEDOUT;
 
@@ -986,10 +985,13 @@ static void arm_smmu_cmdq_issue_cmd(struct arm_smmu_device *smmu,
  */
 static int __arm_smmu_sync_poll_msi(struct arm_smmu_device *smmu, u32 sync_idx)
 {
-	ktime_t timeout = ktime_add_us(ktime_get(), ARM_SMMU_SYNC_TIMEOUT_US);
-	u32 val = smp_cond_load_acquire(&smmu->sync_count,
-					(int)(VAL - sync_idx) >= 0 ||
-					!ktime_before(ktime_get(), timeout));
+	ktime_t timeout;
+	u32 val;
+
+	timeout = ktime_add_us(ktime_get(), ARM_SMMU_CMDQ_SYNC_TIMEOUT_US);
+	val = smp_cond_load_acquire(&smmu->sync_count,
+				    (int)(VAL - sync_idx) >= 0 ||
+				    !ktime_before(ktime_get(), timeout));
 
 	return (int)(val - sync_idx) < 0 ? -ETIMEDOUT : 0;
 }
