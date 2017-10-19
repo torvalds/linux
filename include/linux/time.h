@@ -39,15 +39,6 @@ static inline int timespec_compare(const struct timespec *lhs, const struct time
 	return lhs->tv_nsec - rhs->tv_nsec;
 }
 
-static inline int timeval_compare(const struct timeval *lhs, const struct timeval *rhs)
-{
-	if (lhs->tv_sec < rhs->tv_sec)
-		return -1;
-	if (lhs->tv_sec > rhs->tv_sec)
-		return 1;
-	return lhs->tv_usec - rhs->tv_usec;
-}
-
 extern time64_t mktime64(const unsigned int year, const unsigned int mon,
 			const unsigned int day, const unsigned int hour,
 			const unsigned int min, const unsigned int sec);
@@ -64,15 +55,6 @@ static inline unsigned long mktime(const unsigned int year,
 }
 
 extern void set_normalized_timespec(struct timespec *ts, time_t sec, s64 nsec);
-
-/*
- * timespec_add_safe assumes both values are positive and checks
- * for overflow. It will return TIME_T_MAX if the reutrn would be
- * smaller then either of the arguments.
- */
-extern struct timespec timespec_add_safe(const struct timespec lhs,
-					 const struct timespec rhs);
-
 
 static inline struct timespec timespec_add(struct timespec lhs,
 						struct timespec rhs)

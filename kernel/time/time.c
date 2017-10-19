@@ -819,24 +819,6 @@ unsigned long nsecs_to_jiffies(u64 n)
 EXPORT_SYMBOL_GPL(nsecs_to_jiffies);
 
 /*
- * Add two timespec values and do a safety check for overflow.
- * It's assumed that both values are valid (>= 0)
- */
-struct timespec timespec_add_safe(const struct timespec lhs,
-				  const struct timespec rhs)
-{
-	struct timespec res;
-
-	set_normalized_timespec(&res, lhs.tv_sec + rhs.tv_sec,
-				lhs.tv_nsec + rhs.tv_nsec);
-
-	if (res.tv_sec < lhs.tv_sec || res.tv_sec < rhs.tv_sec)
-		res.tv_sec = TIME_T_MAX;
-
-	return res;
-}
-
-/*
  * Add two timespec64 values and do a safety check for overflow.
  * It's assumed that both values are valid (>= 0).
  * And, each timespec64 is in normalized form.

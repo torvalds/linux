@@ -53,16 +53,6 @@ static inline struct timespec64 timespec_to_timespec64(const struct timespec ts)
 	return ts;
 }
 
-static inline struct itimerspec itimerspec64_to_itimerspec(struct itimerspec64 *its64)
-{
-	return *its64;
-}
-
-static inline struct itimerspec64 itimerspec_to_itimerspec64(struct itimerspec *its)
-{
-	return *its;
-}
-
 # define timespec64_equal		timespec_equal
 # define timespec64_compare		timespec_compare
 # define set_normalized_timespec64	set_normalized_timespec
@@ -91,24 +81,6 @@ static inline struct timespec64 timespec_to_timespec64(const struct timespec ts)
 
 	ret.tv_sec = ts.tv_sec;
 	ret.tv_nsec = ts.tv_nsec;
-	return ret;
-}
-
-static inline struct itimerspec itimerspec64_to_itimerspec(struct itimerspec64 *its64)
-{
-	struct itimerspec ret;
-
-	ret.it_interval = timespec64_to_timespec(its64->it_interval);
-	ret.it_value = timespec64_to_timespec(its64->it_value);
-	return ret;
-}
-
-static inline struct itimerspec64 itimerspec_to_itimerspec64(struct itimerspec *its)
-{
-	struct itimerspec64 ret;
-
-	ret.it_interval = timespec_to_timespec64(its->it_interval);
-	ret.it_value = timespec_to_timespec64(its->it_value);
 	return ret;
 }
 
