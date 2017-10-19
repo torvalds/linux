@@ -59,7 +59,7 @@ static u32 tegra20_fuse_read(struct tegra_fuse *fuse, unsigned int offset)
 
 	mutex_lock(&fuse->apbdma.lock);
 
-	fuse->apbdma.config.src_addr = fuse->apbdma.phys + FUSE_BEGIN + offset;
+	fuse->apbdma.config.src_addr = fuse->phys + FUSE_BEGIN + offset;
 
 	err = dmaengine_slave_config(fuse->apbdma.chan, &fuse->apbdma.config);
 	if (err)
@@ -119,6 +119,8 @@ static int tegra20_fuse_probe(struct tegra_fuse *fuse)
 	fuse->apbdma.config.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	fuse->apbdma.config.src_maxburst = 1;
 	fuse->apbdma.config.dst_maxburst = 1;
+	fuse->apbdma.config.direction = DMA_DEV_TO_MEM;
+	fuse->apbdma.config.device_fc = false;
 
 	init_completion(&fuse->apbdma.wait);
 	mutex_init(&fuse->apbdma.lock);
