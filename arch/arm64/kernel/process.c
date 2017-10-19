@@ -170,6 +170,39 @@ void machine_restart(char *cmd)
 	while (1);
 }
 
+static void print_pstate(struct pt_regs *regs)
+{
+	u64 pstate = regs->pstate;
+
+	if (compat_user_mode(regs)) {
+		printk("pstate: %08llx (%c%c%c%c %c %s %s %c%c%c)\n",
+			pstate,
+			pstate & COMPAT_PSR_N_BIT ? 'N' : 'n',
+			pstate & COMPAT_PSR_Z_BIT ? 'Z' : 'z',
+			pstate & COMPAT_PSR_C_BIT ? 'C' : 'c',
+			pstate & COMPAT_PSR_V_BIT ? 'V' : 'v',
+			pstate & COMPAT_PSR_Q_BIT ? 'Q' : 'q',
+			pstate & COMPAT_PSR_T_BIT ? "T32" : "A32",
+			pstate & COMPAT_PSR_E_BIT ? "BE" : "LE",
+			pstate & COMPAT_PSR_A_BIT ? 'A' : 'a',
+			pstate & COMPAT_PSR_I_BIT ? 'I' : 'i',
+			pstate & COMPAT_PSR_F_BIT ? 'F' : 'f');
+	} else {
+		printk("pstate: %08llx (%c%c%c%c %c%c%c%c %cPAN %cUAO)\n",
+			pstate,
+			pstate & PSR_N_BIT ? 'N' : 'n',
+			pstate & PSR_Z_BIT ? 'Z' : 'z',
+			pstate & PSR_C_BIT ? 'C' : 'c',
+			pstate & PSR_V_BIT ? 'V' : 'v',
+			pstate & PSR_D_BIT ? 'D' : 'd',
+			pstate & PSR_A_BIT ? 'A' : 'a',
+			pstate & PSR_I_BIT ? 'I' : 'i',
+			pstate & PSR_F_BIT ? 'F' : 'f',
+			pstate & PSR_PAN_BIT ? '+' : '-',
+			pstate & PSR_UAO_BIT ? '+' : '-');
+	}
+}
+
 void __show_regs(struct pt_regs *regs)
 {
 	int i, top_reg;
@@ -186,9 +219,10 @@ void __show_regs(struct pt_regs *regs)
 	}
 
 	show_regs_print_info(KERN_DEFAULT);
+	print_pstate(regs);
 	print_symbol("pc : %s\n", regs->pc);
 	print_symbol("lr : %s\n", lr);
-	printk("sp : %016llx pstate : %08llx\n", sp, regs->pstate);
+	printk("sp : %016llx\n", sp);
 
 	i = top_reg;
 
