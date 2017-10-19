@@ -419,8 +419,6 @@ static int stm32_sai_startup(struct snd_pcm_substream *substream,
 	}
 
 	/* Enable ITs */
-	regmap_update_bits(sai->regmap, STM_SAI_SR_REGX,
-			   SAI_XSR_MASK, (unsigned int)~SAI_XSR_MASK);
 
 	regmap_update_bits(sai->regmap, STM_SAI_CLRFR_REGX,
 			   SAI_XCLRFR_MASK, SAI_XCLRFR_MASK);
@@ -692,6 +690,9 @@ static int stm32_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_STOP:
 		dev_dbg(cpu_dai->dev, "Disable DMA and SAI\n");
+
+		regmap_update_bits(sai->regmap, STM_SAI_IMR_REGX,
+				   SAI_XIMR_MASK, 0);
 
 		regmap_update_bits(sai->regmap, STM_SAI_CR1_REGX,
 				   SAI_XCR1_SAIEN,
