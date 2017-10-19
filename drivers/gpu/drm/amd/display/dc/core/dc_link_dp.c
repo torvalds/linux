@@ -2062,6 +2062,24 @@ bool is_dp_active_dongle(const struct dc_link *link)
 			(dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER);
 }
 
+static int translate_dpcd_max_bpc(enum dpcd_downstream_port_max_bpc bpc)
+{
+	switch (bpc) {
+	case DOWN_STREAM_MAX_8BPC:
+		return 8;
+	case DOWN_STREAM_MAX_10BPC:
+		return 10;
+	case DOWN_STREAM_MAX_12BPC:
+		return 12;
+	case DOWN_STREAM_MAX_16BPC:
+		return 16;
+	default:
+		break;
+	}
+
+	return -1;
+}
+
 static void get_active_converter_info(
 	uint8_t data, struct dc_link *link)
 {
@@ -2131,7 +2149,8 @@ static void get_active_converter_info(
 					hdmi_caps.bits.YCrCr420_CONVERSION;
 
 				link->dpcd_caps.dongle_caps.dp_hdmi_max_bpc =
-					hdmi_color_caps.bits.MAX_BITS_PER_COLOR_COMPONENT;
+					translate_dpcd_max_bpc(
+						hdmi_color_caps.bits.MAX_BITS_PER_COLOR_COMPONENT);
 
 				link->dpcd_caps.dongle_caps.extendedCapValid = true;
 			}

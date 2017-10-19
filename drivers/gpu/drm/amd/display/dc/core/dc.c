@@ -128,6 +128,7 @@ static bool create_links(
 		link->link_id.id = CONNECTOR_ID_VIRTUAL;
 		link->link_id.enum_id = ENUM_ID_1;
 		link->link_enc = kzalloc(sizeof(*link->link_enc), GFP_KERNEL);
+		link->link_status.dpcd_caps = &link->dpcd_caps;
 
 		enc_init.ctx = dc->ctx;
 		enc_init.channel = CHANNEL_ID_UNKNOWN;
