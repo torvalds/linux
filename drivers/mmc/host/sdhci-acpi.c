@@ -269,52 +269,16 @@ out:
 	return ret;
 }
 
-static int sdhci_acpi_emmc_probe_slot(struct platform_device *pdev,
-				      const char *hid, const char *uid)
+static int intel_probe_slot(struct platform_device *pdev, const char *hid,
+			    const char *uid)
 {
 	struct sdhci_acpi_host *c = platform_get_drvdata(pdev);
-	struct sdhci_host *host;
-
-	if (!c || !c->host)
-		return 0;
-
-	host = c->host;
-
-	/* Platform specific code during emmc probe slot goes here */
+	struct sdhci_host *host = c->host;
 
 	if (hid && uid && !strcmp(hid, "80860F14") && !strcmp(uid, "1") &&
 	    sdhci_readl(host, SDHCI_CAPABILITIES) == 0x446cc8b2 &&
 	    sdhci_readl(host, SDHCI_CAPABILITIES_1) == 0x00000807)
 		host->timeout_clk = 1000; /* 1000 kHz i.e. 1 MHz */
-
-	return 0;
-}
-
-static int sdhci_acpi_sdio_probe_slot(struct platform_device *pdev,
-				      const char *hid, const char *uid)
-{
-	struct sdhci_acpi_host *c = platform_get_drvdata(pdev);
-
-	if (!c || !c->host)
-		return 0;
-
-	/* Platform specific code during sdio probe slot goes here */
-
-	return 0;
-}
-
-static int sdhci_acpi_sd_probe_slot(struct platform_device *pdev,
-				    const char *hid, const char *uid)
-{
-	struct sdhci_acpi_host *c = platform_get_drvdata(pdev);
-	struct sdhci_host *host;
-
-	if (!c || !c->host || !c->slot)
-		return 0;
-
-	host = c->host;
-
-	/* Platform specific code during sd probe slot goes here */
 
 	if (hid && !strcmp(hid, "80865ACA"))
 		host->mmc_host_ops.get_cd = bxt_get_cd;
@@ -332,7 +296,7 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_int_emmc = {
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
 		   SDHCI_QUIRK2_STOP_WITH_TC |
 		   SDHCI_QUIRK2_CAPS_BIT63_FOR_HS400,
-	.probe_slot	= sdhci_acpi_emmc_probe_slot,
+	.probe_slot	= intel_probe_slot,
 };
 
 static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sdio = {
@@ -343,7 +307,7 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sdio = {
 		   MMC_CAP_WAIT_WHILE_BUSY,
 	.flags   = SDHCI_ACPI_RUNTIME_PM,
 	.pm_caps = MMC_PM_KEEP_POWER,
-	.probe_slot	= sdhci_acpi_sdio_probe_slot,
+	.probe_slot	= intel_probe_slot,
 };
 
 static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sd = {
@@ -353,7 +317,7 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sd = {
 	.quirks2 = SDHCI_QUIRK2_CARD_ON_NEEDS_BUS_ON |
 		   SDHCI_QUIRK2_STOP_WITH_TC,
 	.caps    = MMC_CAP_WAIT_WHILE_BUSY | MMC_CAP_AGGRESSIVE_PM,
-	.probe_slot	= sdhci_acpi_sd_probe_slot,
+	.probe_slot	= intel_probe_slot,
 };
 
 static const struct sdhci_acpi_slot sdhci_acpi_slot_qcom_sd_3v = {
