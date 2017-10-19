@@ -96,6 +96,13 @@ out:
 	return value;
 }
 
+static bool dma_filter(struct dma_chan *chan, void *filter_param)
+{
+	struct device_node *np = chan->device->dev->of_node;
+
+	return of_device_is_compatible(np, "nvidia,tegra20-apbdma");
+}
+
 static int tegra20_fuse_probe(struct tegra_fuse *fuse)
 {
 	dma_cap_mask_t mask;
@@ -103,7 +110,7 @@ static int tegra20_fuse_probe(struct tegra_fuse *fuse)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	fuse->apbdma.chan = dma_request_channel(mask, NULL, NULL);
+	fuse->apbdma.chan = __dma_request_channel(&mask, dma_filter, NULL);
 	if (!fuse->apbdma.chan)
 		return -EPROBE_DEFER;
 
