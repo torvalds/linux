@@ -9365,13 +9365,10 @@ free_jump:
 	return err;
 }
 
-static int ixgbe_setup_tc_cls_u32(struct net_device *dev,
+static int ixgbe_setup_tc_cls_u32(struct ixgbe_adapter *adapter,
 				  struct tc_cls_u32_offload *cls_u32)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(dev);
-
-	if (!is_classid_clsact_ingress(cls_u32->common.classid) ||
-	    cls_u32->common.chain_index)
+	if (cls_u32->common.chain_index)
 		return -EOPNOTSUPP;
 
 	switch (cls_u32->command) {
@@ -9390,6 +9387,40 @@ static int ixgbe_setup_tc_cls_u32(struct net_device *dev,
 	}
 }
 
+static int ixgbe_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
+				   void *cb_priv)
+{
+	struct ixgbe_adapter *adapter = cb_priv;
+
+	switch (type) {
+	case TC_SETUP_CLSU32:
+		return ixgbe_setup_tc_cls_u32(adapter, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int ixgbe_setup_tc_block(struct net_device *dev,
+				struct tc_block_offload *f)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+
+	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+		return -EOPNOTSUPP;
+
+	switch (f->command) {
+	case TC_BLOCK_BIND:
+		return tcf_block_cb_register(f->block, ixgbe_setup_tc_block_cb,
+					     adapter, adapter);
+	case TC_BLOCK_UNBIND:
+		tcf_block_cb_unregister(f->block, ixgbe_setup_tc_block_cb,
+					adapter);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int ixgbe_setup_tc_mqprio(struct net_device *dev,
 				 struct tc_mqprio_qopt *mqprio)
 {
@@ -9402,7 +9433,9 @@ static int __ixgbe_setup_tc(struct net_device *dev, enum tc_setup_type type,
 {
 	switch (type) {
 	case TC_SETUP_CLSU32:
-		return ixgbe_setup_tc_cls_u32(dev, type_data);
+		return 0; /* will be removed after conversion from ndo */
+	case TC_SETUP_BLOCK:
+		return ixgbe_setup_tc_block(dev, type_data);
 	case TC_SETUP_MQPRIO:
 		return ixgbe_setup_tc_mqprio(dev, type_data);
 	default:
