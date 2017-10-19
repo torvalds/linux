@@ -1090,6 +1090,7 @@ int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *
 {
 	al->map = node->map;
 	al->sym = node->sym;
+	al->srcline = node->srcline;
 	if (node->map)
 		al->addr = node->map->map_ip(node->map, node->ip);
 	else

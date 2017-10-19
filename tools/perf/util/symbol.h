@@ -209,6 +209,7 @@ struct addr_location {
 	struct thread *thread;
 	struct map    *map;
 	struct symbol *sym;
+	const char    *srcline;
 	u64	      addr;
 	char	      level;
 	u8	      filtered;
