@@ -275,8 +275,10 @@ static int do_show(int argc, char **argv)
 	while (true) {
 		err = bpf_prog_get_next_id(id, &id);
 		if (err) {
-			if (errno == ENOENT)
+			if (errno == ENOENT) {
+				err = 0;
 				break;
+			}
 			err("can't get next program: %s\n", strerror(errno));
 			if (errno == EINVAL)
 				err("kernel too old?\n");
