@@ -497,7 +497,7 @@ static int dmar_parse_one_rhsa(struct acpi_dmar_header *header, void *arg)
 #define	dmar_parse_one_rhsa		dmar_res_noop
 #endif
 
-static void __init
+static void
 dmar_table_print_dmar_entry(struct acpi_dmar_header *header)
 {
 	struct acpi_dmar_hardware_unit *drhd;

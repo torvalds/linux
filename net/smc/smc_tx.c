@@ -24,6 +24,8 @@
 #include "smc_cdc.h"
 #include "smc_tx.h"
 
+#define SMC_TX_WORK_DELAY	HZ
+
 /***************************** sndbuf producer *******************************/
 
 /* callback implementation for sk.sk_write_space()
@@ -406,7 +408,8 @@ int smc_tx_sndbuf_nonempty(struct smc_connection *conn)
 				goto out_unlock;
 			}
 			rc = 0;
-			schedule_work(&conn->tx_work);
+			schedule_delayed_work(&conn->tx_work,
+					      SMC_TX_WORK_DELAY);
 		}
 		goto out_unlock;
 	}
@@ -430,7 +433,7 @@ out_unlock:
  */
 static void smc_tx_work(struct work_struct *work)
 {
-	struct smc_connection *conn = container_of(work,
+	struct smc_connection *conn = container_of(to_delayed_work(work),
 						   struct smc_connection,
 						   tx_work);
 	struct smc_sock *smc = container_of(conn, struct smc_sock, conn);
@@ -468,7 +471,8 @@ void smc_tx_consumer_update(struct smc_connection *conn)
 		if (!rc)
 			rc = smc_cdc_msg_send(conn, wr_buf, pend);
 		if (rc < 0) {
-			schedule_work(&conn->tx_work);
+			schedule_delayed_work(&conn->tx_work,
+					      SMC_TX_WORK_DELAY);
 			return;
 		}
 		smc_curs_write(&conn->rx_curs_confirmed,
@@ -487,6 +491,6 @@ void smc_tx_consumer_update(struct smc_connection *conn)
 void smc_tx_init(struct smc_sock *smc)
 {
 	smc->sk.sk_write_space = smc_tx_write_space;
-	INIT_WORK(&smc->conn.tx_work, smc_tx_work);
+	INIT_DELAYED_WORK(&smc->conn.tx_work, smc_tx_work);
 	spin_lock_init(&smc->conn.send_lock);
 }

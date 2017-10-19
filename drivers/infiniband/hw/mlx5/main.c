@@ -778,13 +778,13 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	}
 
 	if (MLX5_CAP_GEN(mdev, tag_matching)) {
-		props->xrq_caps.max_rndv_hdr_size = MLX5_TM_MAX_RNDV_MSG_SIZE;
-		props->xrq_caps.max_num_tags =
+		props->tm_caps.max_rndv_hdr_size = MLX5_TM_MAX_RNDV_MSG_SIZE;
+		props->tm_caps.max_num_tags =
 			(1 << MLX5_CAP_GEN(mdev, log_tag_matching_list_sz)) - 1;
-		props->xrq_caps.flags = IB_TM_CAP_RC;
-		props->xrq_caps.max_ops =
+		props->tm_caps.flags = IB_TM_CAP_RC;
+		props->tm_caps.max_ops =
 			1 << MLX5_CAP_GEN(mdev, log_max_qp_sz);
-		props->xrq_caps.max_sge = MLX5_TM_MAX_SGE;
+		props->tm_caps.max_sge = MLX5_TM_MAX_SGE;
 	}
 
 	if (field_avail(typeof(resp), cqe_comp_caps, uhw->outlen)) {
@@ -3837,11 +3837,13 @@ static int delay_drop_debugfs_init(struct mlx5_ib_dev *dev)
 	if (!dbg)
 		return -ENOMEM;
 
+	dev->delay_drop.dbg = dbg;
+
 	dbg->dir_debugfs =
 		debugfs_create_dir("delay_drop",
 				   dev->mdev->priv.dbg_root);
 	if (!dbg->dir_debugfs)
-		return -ENOMEM;
+		goto out_debugfs;
 
 	dbg->events_cnt_debugfs =
 		debugfs_create_atomic_t("num_timeout_events", 0400,
@@ -3864,8 +3866,6 @@ static int delay_drop_debugfs_init(struct mlx5_ib_dev *dev)
 				    &fops_delay_drop_timeout);
 	if (!dbg->timeout_debugfs)
 		goto out_debugfs;
-
-	dev->delay_drop.dbg = dbg;
 
 	return 0;
 
@@ -4174,9 +4174,9 @@ err_bfreg:
 err_uar_page:
 	mlx5_put_uars_page(dev->mdev, dev->mdev->priv.uar);
 
-err_cnt:
-	mlx5_ib_cleanup_cong_debugfs(dev);
 err_cong:
+	mlx5_ib_cleanup_cong_debugfs(dev);
+err_cnt:
 	if (MLX5_CAP_GEN(dev->mdev, max_qp_cnt))
 		mlx5_ib_dealloc_counters(dev);
 

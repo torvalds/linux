@@ -845,7 +845,7 @@ struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
 		 * vm_normal_page() so that we do not have to special case all
 		 * call site of vm_normal_page().
 		 */
-		if (likely(pfn < highest_memmap_pfn)) {
+		if (likely(pfn <= highest_memmap_pfn)) {
 			struct page *page = pfn_to_page(pfn);
 
 			if (is_device_public_page(page)) {

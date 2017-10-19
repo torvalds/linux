@@ -128,9 +128,9 @@ static struct inet_peer *lookup(const struct inetpeer_addr *daddr,
 			break;
 		}
 		if (cmp == -1)
-			pp = &(*pp)->rb_left;
+			pp = &next->rb_left;
 		else
-			pp = &(*pp)->rb_right;
+			pp = &next->rb_right;
 	}
 	*parent_p = parent;
 	*pp_p = pp;

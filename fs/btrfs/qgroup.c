@@ -807,7 +807,6 @@ static int btrfs_clean_quota_tree(struct btrfs_trans_handle *trans,
 	}
 	ret = 0;
 out:
-	set_bit(BTRFS_FS_QUOTA_DISABLING, &root->fs_info->flags);
 	btrfs_free_path(path);
 	return ret;
 }
@@ -953,7 +952,6 @@ int btrfs_quota_disable(struct btrfs_trans_handle *trans,
 	if (!fs_info->quota_root)
 		goto out;
 	clear_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags);
-	set_bit(BTRFS_FS_QUOTA_DISABLING, &fs_info->flags);
 	btrfs_qgroup_wait_for_completion(fs_info, false);
 	spin_lock(&fs_info->qgroup_lock);
 	quota_root = fs_info->quota_root;
@@ -1307,6 +1305,8 @@ int btrfs_remove_qgroup(struct btrfs_trans_handle *trans,
 		}
 	}
 	ret = del_qgroup_item(trans, quota_root, qgroupid);
+	if (ret && ret != -ENOENT)
+		goto out;
 
 	while (!list_empty(&qgroup->groups)) {
 		list = list_first_entry(&qgroup->groups,
@@ -2086,8 +2086,6 @@ int btrfs_run_qgroups(struct btrfs_trans_handle *trans,
 
 	if (test_and_clear_bit(BTRFS_FS_QUOTA_ENABLING, &fs_info->flags))
 		set_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags);
-	if (test_and_clear_bit(BTRFS_FS_QUOTA_DISABLING, &fs_info->flags))
-		clear_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags);
 
 	spin_lock(&fs_info->qgroup_lock);
 	while (!list_empty(&fs_info->dirty_qgroups)) {

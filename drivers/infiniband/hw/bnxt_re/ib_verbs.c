@@ -259,14 +259,9 @@ int bnxt_re_query_port(struct ib_device *ibdev, u8 port_num,
 	port_attr->sm_sl = 0;
 	port_attr->subnet_timeout = 0;
 	port_attr->init_type_reply = 0;
-	/* call the underlying netdev's ethtool hooks to query speed settings
-	 * for which we acquire rtnl_lock _only_ if it's registered with
-	 * IB stack to avoid race in the NETDEV_UNREG path
-	 */
-	if (test_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags))
-		if (ib_get_eth_speed(ibdev, port_num, &port_attr->active_speed,
-				     &port_attr->active_width))
-			return -EINVAL;
+	port_attr->active_speed = rdev->active_speed;
+	port_attr->active_width = rdev->active_width;
+
 	return 0;
 }
 
@@ -319,6 +314,7 @@ int bnxt_re_del_gid(struct ib_device *ibdev, u8 port_num,
 	struct bnxt_re_gid_ctx *ctx, **ctx_tbl;
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
 	struct bnxt_qplib_sgid_tbl *sgid_tbl = &rdev->qplib_res.sgid_tbl;
+	struct bnxt_qplib_gid *gid_to_del;
 
 	/* Delete the entry from the hardware */
 	ctx = *context;
@@ -328,11 +324,25 @@ int bnxt_re_del_gid(struct ib_device *ibdev, u8 port_num,
 	if (sgid_tbl && sgid_tbl->active) {
 		if (ctx->idx >= sgid_tbl->max)
 			return -EINVAL;
+		gid_to_del = &sgid_tbl->tbl[ctx->idx];
+		/* DEL_GID is called in WQ context(netdevice_event_work_handler)
+		 * or via the ib_unregister_device path. In the former case QP1
+		 * may not be destroyed yet, in which case just return as FW
+		 * needs that entry to be present and will fail it's deletion.
+		 * We could get invoked again after QP1 is destroyed OR get an
+		 * ADD_GID call with a different GID value for the same index
+		 * where we issue MODIFY_GID cmd to update the GID entry -- TBD
+		 */
+		if (ctx->idx == 0 &&
+		    rdma_link_local_addr((struct in6_addr *)gid_to_del) &&
+		    ctx->refcnt == 1 && rdev->qp1_sqp) {
+			dev_dbg(rdev_to_dev(rdev),
+				"Trying to delete GID0 while QP1 is alive\n");
+			return -EFAULT;
+		}
 		ctx->refcnt--;
 		if (!ctx->refcnt) {
-			rc = bnxt_qplib_del_sgid(sgid_tbl,
-						 &sgid_tbl->tbl[ctx->idx],
-						 true);
+			rc = bnxt_qplib_del_sgid(sgid_tbl, gid_to_del, true);
 			if (rc) {
 				dev_err(rdev_to_dev(rdev),
 					"Failed to remove GID: %#x", rc);
@@ -816,6 +826,8 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp)
 
 		kfree(rdev->sqp_ah);
 		kfree(rdev->qp1_sqp);
+		rdev->qp1_sqp = NULL;
+		rdev->sqp_ah = NULL;
 	}
 
 	if (!IS_ERR_OR_NULL(qp->rumem))
@@ -1436,11 +1448,14 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 		qp->qplib_qp.modify_flags |=
 				CMDQ_MODIFY_QP_MODIFY_MASK_PATH_MTU;
 		qp->qplib_qp.path_mtu = __from_ib_mtu(qp_attr->path_mtu);
+		qp->qplib_qp.mtu = ib_mtu_enum_to_int(qp_attr->path_mtu);
 	} else if (qp_attr->qp_state == IB_QPS_RTR) {
 		qp->qplib_qp.modify_flags |=
 			CMDQ_MODIFY_QP_MODIFY_MASK_PATH_MTU;
 		qp->qplib_qp.path_mtu =
 			__from_ib_mtu(iboe_get_mtu(rdev->netdev->mtu));
+		qp->qplib_qp.mtu =
+			ib_mtu_enum_to_int(iboe_get_mtu(rdev->netdev->mtu));
 	}
 
 	if (qp_attr_mask & IB_QP_TIMEOUT) {
@@ -1551,43 +1566,46 @@ int bnxt_re_query_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 {
 	struct bnxt_re_qp *qp = container_of(ib_qp, struct bnxt_re_qp, ib_qp);
 	struct bnxt_re_dev *rdev = qp->rdev;
-	struct bnxt_qplib_qp qplib_qp;
+	struct bnxt_qplib_qp *qplib_qp;
 	int rc;
 
-	memset(&qplib_qp, 0, sizeof(struct bnxt_qplib_qp));
-	qplib_qp.id = qp->qplib_qp.id;
-	qplib_qp.ah.host_sgid_index = qp->qplib_qp.ah.host_sgid_index;
+	qplib_qp = kzalloc(sizeof(*qplib_qp), GFP_KERNEL);
+	if (!qplib_qp)
+		return -ENOMEM;
 
-	rc = bnxt_qplib_query_qp(&rdev->qplib_res, &qplib_qp);
+	qplib_qp->id = qp->qplib_qp.id;
+	qplib_qp->ah.host_sgid_index = qp->qplib_qp.ah.host_sgid_index;
+
+	rc = bnxt_qplib_query_qp(&rdev->qplib_res, qplib_qp);
 	if (rc) {
 		dev_err(rdev_to_dev(rdev), "Failed to query HW QP");
-		return rc;
+		goto out;
 	}
-	qp_attr->qp_state = __to_ib_qp_state(qplib_qp.state);
-	qp_attr->en_sqd_async_notify = qplib_qp.en_sqd_async_notify ? 1 : 0;
-	qp_attr->qp_access_flags = __to_ib_access_flags(qplib_qp.access);
-	qp_attr->pkey_index = qplib_qp.pkey_index;
-	qp_attr->qkey = qplib_qp.qkey;
+	qp_attr->qp_state = __to_ib_qp_state(qplib_qp->state);
+	qp_attr->en_sqd_async_notify = qplib_qp->en_sqd_async_notify ? 1 : 0;
+	qp_attr->qp_access_flags = __to_ib_access_flags(qplib_qp->access);
+	qp_attr->pkey_index = qplib_qp->pkey_index;
+	qp_attr->qkey = qplib_qp->qkey;
 	qp_attr->ah_attr.type = RDMA_AH_ATTR_TYPE_ROCE;
-	rdma_ah_set_grh(&qp_attr->ah_attr, NULL, qplib_qp.ah.flow_label,
-			qplib_qp.ah.host_sgid_index,
-			qplib_qp.ah.hop_limit,
-			qplib_qp.ah.traffic_class);
-	rdma_ah_set_dgid_raw(&qp_attr->ah_attr, qplib_qp.ah.dgid.data);
-	rdma_ah_set_sl(&qp_attr->ah_attr, qplib_qp.ah.sl);
-	ether_addr_copy(qp_attr->ah_attr.roce.dmac, qplib_qp.ah.dmac);
-	qp_attr->path_mtu = __to_ib_mtu(qplib_qp.path_mtu);
-	qp_attr->timeout = qplib_qp.timeout;
-	qp_attr->retry_cnt = qplib_qp.retry_cnt;
-	qp_attr->rnr_retry = qplib_qp.rnr_retry;
-	qp_attr->min_rnr_timer = qplib_qp.min_rnr_timer;
-	qp_attr->rq_psn = qplib_qp.rq.psn;
-	qp_attr->max_rd_atomic = qplib_qp.max_rd_atomic;
-	qp_attr->sq_psn = qplib_qp.sq.psn;
-	qp_attr->max_dest_rd_atomic = qplib_qp.max_dest_rd_atomic;
-	qp_init_attr->sq_sig_type = qplib_qp.sig_type ? IB_SIGNAL_ALL_WR :
-							IB_SIGNAL_REQ_WR;
-	qp_attr->dest_qp_num = qplib_qp.dest_qpn;
+	rdma_ah_set_grh(&qp_attr->ah_attr, NULL, qplib_qp->ah.flow_label,
+			qplib_qp->ah.host_sgid_index,
+			qplib_qp->ah.hop_limit,
+			qplib_qp->ah.traffic_class);
+	rdma_ah_set_dgid_raw(&qp_attr->ah_attr, qplib_qp->ah.dgid.data);
+	rdma_ah_set_sl(&qp_attr->ah_attr, qplib_qp->ah.sl);
+	ether_addr_copy(qp_attr->ah_attr.roce.dmac, qplib_qp->ah.dmac);
+	qp_attr->path_mtu = __to_ib_mtu(qplib_qp->path_mtu);
+	qp_attr->timeout = qplib_qp->timeout;
+	qp_attr->retry_cnt = qplib_qp->retry_cnt;
+	qp_attr->rnr_retry = qplib_qp->rnr_retry;
+	qp_attr->min_rnr_timer = qplib_qp->min_rnr_timer;
+	qp_attr->rq_psn = qplib_qp->rq.psn;
+	qp_attr->max_rd_atomic = qplib_qp->max_rd_atomic;
+	qp_attr->sq_psn = qplib_qp->sq.psn;
+	qp_attr->max_dest_rd_atomic = qplib_qp->max_dest_rd_atomic;
+	qp_init_attr->sq_sig_type = qplib_qp->sig_type ? IB_SIGNAL_ALL_WR :
+							 IB_SIGNAL_REQ_WR;
+	qp_attr->dest_qp_num = qplib_qp->dest_qpn;
 
 	qp_attr->cap.max_send_wr = qp->qplib_qp.sq.max_wqe;
 	qp_attr->cap.max_send_sge = qp->qplib_qp.sq.max_sge;
@@ -1596,7 +1614,9 @@ int bnxt_re_query_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 	qp_attr->cap.max_inline_data = qp->qplib_qp.max_inline_data;
 	qp_init_attr->cap = qp_attr->cap;
 
-	return 0;
+out:
+	kfree(qplib_qp);
+	return rc;
 }
 
 /* Routine for sending QP1 packets for RoCE V1 an V2
@@ -1908,6 +1928,7 @@ static int bnxt_re_build_atomic_wqe(struct ib_send_wr *wr,
 	switch (wr->opcode) {
 	case IB_WR_ATOMIC_CMP_AND_SWP:
 		wqe->type = BNXT_QPLIB_SWQE_TYPE_ATOMIC_CMP_AND_SWP;
+		wqe->atomic.cmp_data = atomic_wr(wr)->compare_add;
 		wqe->atomic.swap_data = atomic_wr(wr)->swap;
 		break;
 	case IB_WR_ATOMIC_FETCH_AND_ADD:
@@ -3062,7 +3083,7 @@ int bnxt_re_dereg_mr(struct ib_mr *ib_mr)
 		return rc;
 	}
 
-	if (mr->npages && mr->pages) {
+	if (mr->pages) {
 		rc = bnxt_qplib_free_fast_reg_page_list(&rdev->qplib_res,
 							&mr->qplib_frpl);
 		kfree(mr->pages);

@@ -1699,6 +1699,8 @@ bxt_setup_backlight(struct intel_connector *connector, enum pipe unused)
 	if (!panel->backlight.max)
 		return -ENODEV;
 
+	panel->backlight.min = get_backlight_min_vbt(connector);
+
 	val = bxt_get_backlight(connector);
 	val = intel_panel_compute_brightness(connector, val);
 	panel->backlight.level = clamp(val, panel->backlight.min,
@@ -1734,6 +1736,8 @@ cnp_setup_backlight(struct intel_connector *connector, enum pipe unused)
 
 	if (!panel->backlight.max)
 		return -ENODEV;
+
+	panel->backlight.min = get_backlight_min_vbt(connector);
 
 	val = bxt_get_backlight(connector);
 	val = intel_panel_compute_brightness(connector, val);

@@ -839,7 +839,6 @@ static bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 								pipe);
 	int position;
 	int vbl_start, vbl_end, hsync_start, htotal, vtotal;
-	bool in_vbl = true;
 	unsigned long irqflags;
 
 	if (WARN_ON(!mode->crtc_clock)) {
@@ -921,8 +920,6 @@ static bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 	/* preempt_enable_rt() should go right here in PREEMPT_RT patchset. */
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
-
-	in_vbl = position >= vbl_start && position < vbl_end;
 
 	/*
 	 * While in vblank, position will be negative

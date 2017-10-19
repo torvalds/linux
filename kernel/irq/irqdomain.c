@@ -945,7 +945,7 @@ static int virq_debug_show(struct seq_file *m, void *private)
 	struct irq_desc *desc;
 	struct irq_domain *domain;
 	struct radix_tree_iter iter;
-	void **slot;
+	void __rcu **slot;
 	int i;
 
 	seq_printf(m, " %-16s  %-6s  %-10s  %-10s  %s\n",
@@ -1453,7 +1453,7 @@ out_free_desc:
 /* The irq_data was moved, fix the revmap to refer to the new location */
 static void irq_domain_fix_revmap(struct irq_data *d)
 {
-	void **slot;
+	void __rcu **slot;
 
 	if (d->hwirq < d->domain->revmap_size)
 		return; /* Not using radix tree. */

@@ -1581,6 +1581,9 @@ static int _opp_set_availability(struct device *dev, unsigned long freq,
 
 	opp->available = availability_req;
 
+	dev_pm_opp_get(opp);
+	mutex_unlock(&opp_table->lock);
+
 	/* Notify the change of the OPP availability */
 	if (availability_req)
 		blocking_notifier_call_chain(&opp_table->head, OPP_EVENT_ENABLE,
@@ -1589,8 +1592,12 @@ static int _opp_set_availability(struct device *dev, unsigned long freq,
 		blocking_notifier_call_chain(&opp_table->head,
 					     OPP_EVENT_DISABLE, opp);
 
+	dev_pm_opp_put(opp);
+	goto put_table;
+
 unlock:
 	mutex_unlock(&opp_table->lock);
+put_table:
 	dev_pm_opp_put_opp_table(opp_table);
 	return r;
 }

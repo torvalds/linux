@@ -25,8 +25,9 @@
 #include "smc_cdc.h"
 #include "smc_close.h"
 
-#define SMC_LGR_NUM_INCR	256
-#define SMC_LGR_FREE_DELAY	(600 * HZ)
+#define SMC_LGR_NUM_INCR		256
+#define SMC_LGR_FREE_DELAY_SERV		(600 * HZ)
+#define SMC_LGR_FREE_DELAY_CLNT		(SMC_LGR_FREE_DELAY_SERV + 10)
 
 static u32 smc_lgr_num;			/* unique link group number */
 
@@ -107,8 +108,15 @@ static void smc_lgr_unregister_conn(struct smc_connection *conn)
 		__smc_lgr_unregister_conn(conn);
 	}
 	write_unlock_bh(&lgr->conns_lock);
-	if (reduced && !lgr->conns_num)
-		schedule_delayed_work(&lgr->free_work, SMC_LGR_FREE_DELAY);
+	if (!reduced || lgr->conns_num)
+		return;
+	/* client link group creation always follows the server link group
+	 * creation. For client use a somewhat higher removal delay time,
+	 * otherwise there is a risk of out-of-sync link groups.
+	 */
+	mod_delayed_work(system_wq, &lgr->free_work,
+			 lgr->role == SMC_CLNT ? SMC_LGR_FREE_DELAY_CLNT :
+						 SMC_LGR_FREE_DELAY_SERV);
 }
 
 static void smc_lgr_free_work(struct work_struct *work)

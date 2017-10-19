@@ -2270,10 +2270,13 @@ int __netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 
 	mutex_unlock(nlk->cb_mutex);
 
+	ret = 0;
 	if (cb->start)
-		cb->start(cb);
+		ret = cb->start(cb);
 
-	ret = netlink_dump(sk);
+	if (!ret)
+		ret = netlink_dump(sk);
+
 	sock_put(sk);
 
 	if (ret)

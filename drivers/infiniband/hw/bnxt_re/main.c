@@ -1161,6 +1161,8 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 		}
 	}
 	set_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags);
+	ib_get_eth_speed(&rdev->ibdev, 1, &rdev->active_speed,
+			 &rdev->active_width);
 	bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1, IB_EVENT_PORT_ACTIVE);
 	bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1, IB_EVENT_GID_CHANGE);
 
@@ -1255,10 +1257,14 @@ static void bnxt_re_task(struct work_struct *work)
 		else if (netif_carrier_ok(rdev->netdev))
 			bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1,
 					       IB_EVENT_PORT_ACTIVE);
+		ib_get_eth_speed(&rdev->ibdev, 1, &rdev->active_speed,
+				 &rdev->active_width);
 		break;
 	default:
 		break;
 	}
+	smp_mb__before_atomic();
+	clear_bit(BNXT_RE_FLAG_TASK_IN_PROG, &rdev->flags);
 	kfree(re_work);
 }
 
@@ -1317,6 +1323,11 @@ static int bnxt_re_netdev_event(struct notifier_block *notifier,
 		break;
 
 	case NETDEV_UNREGISTER:
+		/* netdev notifier will call NETDEV_UNREGISTER again later since
+		 * we are still holding the reference to the netdev
+		 */
+		if (test_bit(BNXT_RE_FLAG_TASK_IN_PROG, &rdev->flags))
+			goto exit;
 		bnxt_re_ib_unreg(rdev, false);
 		bnxt_re_remove_one(rdev);
 		bnxt_re_dev_unreg(rdev);
@@ -1335,6 +1346,7 @@ static int bnxt_re_netdev_event(struct notifier_block *notifier,
 			re_work->vlan_dev = (real_dev == netdev ?
 					     NULL : netdev);
 			INIT_WORK(&re_work->work, bnxt_re_task);
+			set_bit(BNXT_RE_FLAG_TASK_IN_PROG, &rdev->flags);
 			queue_work(bnxt_re_wq, &re_work->work);
 		}
 	}
@@ -1375,6 +1387,22 @@ err_netdev:
 
 static void __exit bnxt_re_mod_exit(void)
 {
+	struct bnxt_re_dev *rdev;
+	LIST_HEAD(to_be_deleted);
+
+	mutex_lock(&bnxt_re_dev_lock);
+	/* Free all adapter allocated resources */
+	if (!list_empty(&bnxt_re_dev_list))
+		list_splice_init(&bnxt_re_dev_list, &to_be_deleted);
+	mutex_unlock(&bnxt_re_dev_lock);
+
+	list_for_each_entry(rdev, &to_be_deleted, list) {
+		dev_info(rdev_to_dev(rdev), "Unregistering Device");
+		bnxt_re_dev_stop(rdev);
+		bnxt_re_ib_unreg(rdev, true);
+		bnxt_re_remove_one(rdev);
+		bnxt_re_dev_unreg(rdev);
+	}
 	unregister_netdevice_notifier(&bnxt_re_netdev_notifier);
 	if (bnxt_re_wq)
 		destroy_workqueue(bnxt_re_wq);
