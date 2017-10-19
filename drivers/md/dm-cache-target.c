@@ -450,6 +450,7 @@ struct cache {
 	struct work_struct migration_worker;
 	struct delayed_work waker;
 	struct dm_bio_prison_v2 *prison;
+	struct bio_set *bs;
 
 	mempool_t *migration_pool;
 
@@ -868,14 +869,21 @@ static void check_if_tick_bio_needed(struct cache *cache, struct bio *bio)
 	spin_unlock_irqrestore(&cache->lock, flags);
 }
 
-static void remap_to_origin_clear_discard(struct cache *cache, struct bio *bio,
-					  dm_oblock_t oblock)
+static void __remap_to_origin_clear_discard(struct cache *cache, struct bio *bio,
+					    dm_oblock_t oblock, bool bio_has_pbd)
 {
-	// FIXME: this is called way too much.
-	check_if_tick_bio_needed(cache, bio);
+	if (bio_has_pbd)
+		check_if_tick_bio_needed(cache, bio);
 	remap_to_origin(cache, bio);
 	if (bio_data_dir(bio) == WRITE)
 		clear_discard(cache, oblock_to_dblock(cache, oblock));
+}
+
+static void remap_to_origin_clear_discard(struct cache *cache, struct bio *bio,
+					  dm_oblock_t oblock)
+{
+	// FIXME: check_if_tick_bio_needed() is called way too much through this interface
+	__remap_to_origin_clear_discard(cache, bio, oblock, true);
 }
 
 static void remap_to_cache_dirty(struct cache *cache, struct bio *bio,
@@ -971,23 +979,25 @@ static void writethrough_endio(struct bio *bio)
 }
 
 /*
- * FIXME: send in parallel, huge latency as is.
  * When running in writethrough mode we need to send writes to clean blocks
- * to both the cache and origin devices.  In future we'd like to clone the
- * bio and send them in parallel, but for now we're doing them in
- * series as this is easier.
+ * to both the cache and origin devices.  Clone the bio and send them in parallel.
  */
-static void remap_to_origin_then_cache(struct cache *cache, struct bio *bio,
-				       dm_oblock_t oblock, dm_cblock_t cblock)
+static void remap_to_origin_and_cache(struct cache *cache, struct bio *bio,
+				      dm_oblock_t oblock, dm_cblock_t cblock)
 {
-	struct per_bio_data *pb = get_per_bio_data(bio, PB_DATA_SIZE_WT);
+	struct bio *origin_bio = bio_clone_fast(bio, GFP_NOIO, cache->bs);
 
-	pb->cache = cache;
-	pb->cblock = cblock;
-	dm_hook_bio(&pb->hook_info, bio, writethrough_endio, NULL);
-	dm_bio_record(&pb->bio_details, bio);
+	BUG_ON(!origin_bio);
 
-	remap_to_origin_clear_discard(pb->cache, bio, oblock);
+	bio_chain(origin_bio, bio);
+	/*
+	 * Passing false to __remap_to_origin_clear_discard() skips
+	 * all code that might use per_bio_data (since clone doesn't have it)
+	 */
+	__remap_to_origin_clear_discard(cache, origin_bio, oblock, false);
+	submit_bio(origin_bio);
+
+	remap_to_cache(cache, bio, cblock);
 }
 
 /*----------------------------------------------------------------
@@ -1873,7 +1883,7 @@ static int map_bio(struct cache *cache, struct bio *bio, dm_oblock_t block,
 		} else {
 			if (bio_data_dir(bio) == WRITE && writethrough_mode(cache) &&
 			    !is_dirty(cache, cblock)) {
-				remap_to_origin_then_cache(cache, bio, block, cblock);
+				remap_to_origin_and_cache(cache, bio, block, cblock);
 				accounted_begin(cache, bio);
 			} else
 				remap_to_cache_dirty(cache, bio, block, cblock);
@@ -2131,6 +2141,9 @@ static void destroy(struct cache *cache)
 	for (i = 0; i < cache->nr_ctr_args ; i++)
 		kfree(cache->ctr_args[i]);
 	kfree(cache->ctr_args);
+
+	if (cache->bs)
+		bioset_free(cache->bs);
 
 	kfree(cache);
 }
@@ -2577,6 +2590,13 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 
 	cache->features = ca->features;
 	ti->per_io_data_size = get_per_bio_data_size(cache);
+
+	if (writethrough_mode(cache)) {
+		/* Create bioset for writethrough bios issued to origin */
+		cache->bs = bioset_create(BIO_POOL_SIZE, 0, 0);
+		if (!cache->bs)
+			goto bad;
+	}
 
 	cache->callbacks.congested_fn = cache_is_congested;
 	dm_table_add_target_callbacks(ti->table, &cache->callbacks);
