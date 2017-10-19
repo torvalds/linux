@@ -421,7 +421,7 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 
 		/* no need to use xattr node block */
 		if (hsize <= inline_size) {
-			err = truncate_xattr_node(inode, ipage);
+			err = truncate_xattr_node(inode);
 			alloc_nid_failed(sbi, new_nid);
 			return err;
 		}

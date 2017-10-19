@@ -2511,7 +2511,7 @@ void get_node_info(struct f2fs_sb_info *sbi, nid_t nid, struct node_info *ni);
 pgoff_t get_next_page_offset(struct dnode_of_data *dn, pgoff_t pgofs);
 int get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode);
 int truncate_inode_blocks(struct inode *inode, pgoff_t from);
-int truncate_xattr_node(struct inode *inode, struct page *page);
+int truncate_xattr_node(struct inode *inode);
 int wait_on_node_pages_writeback(struct f2fs_sb_info *sbi, nid_t ino);
 int remove_inode_page(struct inode *inode);
 struct page *new_inode_page(struct inode *inode);
