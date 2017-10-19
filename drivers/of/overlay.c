@@ -598,7 +598,7 @@ static int init_overlay_changeset(struct overlay_changeset *ovcs,
 		fragment->target = of_find_node_by_path("/__symbols__");
 
 		if (!fragment->target) {
-			pr_err("no symbols in root of device tree.\n");
+			pr_err("symbols in overlay, but not in live tree\n");
 			ret = -EINVAL;
 			goto err_free_fragments;
 		}
