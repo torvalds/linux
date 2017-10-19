@@ -72,7 +72,7 @@ static int gsl_gesture_flag = -1;
 #define TPD_PROC_DEBUG
 #ifdef TPD_PROC_DEBUG
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #define GSL_CONFIG_PROC_FILE "gsl_config"
 #define CONFIG_LEN 31
 static char gsl_read[CONFIG_LEN];
