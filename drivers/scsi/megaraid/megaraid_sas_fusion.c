@@ -272,10 +272,6 @@ megasas_fusion_update_can_queue(struct megasas_instance *instance, int fw_boot_c
 		instance->max_fw_cmds = cur_max_fw_cmds;
 		instance->ldio_threshold = ldio_threshold;
 
-		if (!instance->is_rdpq)
-			instance->max_fw_cmds =
-				min_t(u16, instance->max_fw_cmds, 1024);
-
 		if (reset_devices)
 			instance->max_fw_cmds = min(instance->max_fw_cmds,
 						(u16)MEGASAS_KDUMP_QUEUE_DEPTH);
