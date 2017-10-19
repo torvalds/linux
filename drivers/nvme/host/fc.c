@@ -1387,7 +1387,7 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 	struct nvme_command *sqe = &op->cmd_iu.sqe;
 	__le16 status = cpu_to_le16(NVME_SC_SUCCESS << 1);
 	union nvme_result result;
-	bool complete_rq, terminate_assoc = true;
+	bool terminate_assoc = true;
 
 	/*
 	 * WARNING:
@@ -1429,8 +1429,9 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 	fc_dma_sync_single_for_cpu(ctrl->lport->dev, op->fcp_req.rspdma,
 				sizeof(op->rsp_iu), DMA_FROM_DEVICE);
 
-	if (atomic_read(&op->state) == FCPOP_STATE_ABORTED)
-		status = cpu_to_le16((NVME_SC_ABORT_REQ | NVME_SC_DNR) << 1);
+	if (atomic_read(&op->state) == FCPOP_STATE_ABORTED ||
+			op->flags & FCOP_FLAGS_TERMIO)
+		status = cpu_to_le16(NVME_SC_ABORT_REQ << 1);
 	else if (freq->status)
 		status = cpu_to_le16(NVME_SC_INTERNAL << 1);
 
@@ -1494,23 +1495,27 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 done:
 	if (op->flags & FCOP_FLAGS_AEN) {
 		nvme_complete_async_event(&queue->ctrl->ctrl, status, &result);
-		complete_rq = __nvme_fc_fcpop_chk_teardowns(ctrl, op);
+		__nvme_fc_fcpop_chk_teardowns(ctrl, op);
 		atomic_set(&op->state, FCPOP_STATE_IDLE);
 		op->flags = FCOP_FLAGS_AEN;	/* clear other flags */
 		nvme_fc_ctrl_put(ctrl);
 		goto check_error;
 	}
 
-	complete_rq = __nvme_fc_fcpop_chk_teardowns(ctrl, op);
-	if (!complete_rq) {
-		if (unlikely(op->flags & FCOP_FLAGS_TERMIO)) {
-			status = cpu_to_le16(NVME_SC_ABORT_REQ << 1);
-			if (blk_queue_dying(rq->q))
-				status |= cpu_to_le16(NVME_SC_DNR << 1);
-		}
-		nvme_end_request(rq, status, result);
-	} else
+	/*
+	 * Force failures of commands if we're killing the controller
+	 * or have an error on a command used to create an new association
+	 */
+	if (status &&
+	    (blk_queue_dying(rq->q) ||
+	     ctrl->ctrl.state == NVME_CTRL_NEW ||
+	     ctrl->ctrl.state == NVME_CTRL_RECONNECTING))
+		status |= cpu_to_le16(NVME_SC_DNR << 1);
+
+	if (__nvme_fc_fcpop_chk_teardowns(ctrl, op))
 		__nvme_fc_final_op_cleanup(rq);
+	else
+		nvme_end_request(rq, status, result);
 
 check_error:
 	if (terminate_assoc)
