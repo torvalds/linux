@@ -1508,6 +1508,8 @@ enum FW_BOOT_CONTEXT {
 
 #define MR_CAN_HANDLE_SYNC_CACHE_OFFSET		0X01000000
 
+#define MR_CAN_HANDLE_64_BIT_DMA_OFFSET		(1 << 25)
+
 enum MR_ADAPTER_TYPE {
 	MFI_SERIES = 1,
 	THUNDERBOLT_SERIES = 2,
@@ -1628,7 +1630,8 @@ union megasas_sgl_frame {
 typedef union _MFI_CAPABILITIES {
 	struct {
 #if   defined(__BIG_ENDIAN_BITFIELD)
-	u32     reserved:19;
+	u32     reserved:18;
+	u32     support_64bit_mode:1;
 	u32 support_pd_map_target_id:1;
 	u32     support_qd_throttling:1;
 	u32     support_fp_rlbypass:1;
@@ -1656,7 +1659,8 @@ typedef union _MFI_CAPABILITIES {
 	u32     support_fp_rlbypass:1;
 	u32     support_qd_throttling:1;
 	u32	support_pd_map_target_id:1;
-	u32     reserved:19;
+	u32     support_64bit_mode:1;
+	u32     reserved:18;
 #endif
 	} mfi_capabilities;
 	__le32		reg;
@@ -2264,6 +2268,7 @@ struct megasas_instance {
 	u8  r1_ldio_hint_default;
 	u32 nvme_page_size;
 	u8 adapter_type;
+	bool consistent_mask_64bit;
 };
 struct MR_LD_VF_MAP {
 	u32 size;
@@ -2510,4 +2515,7 @@ int megasas_reset_target_fusion(struct scsi_cmnd *scmd);
 u32 mega_mod64(u64 dividend, u32 divisor);
 int megasas_alloc_fusion_context(struct megasas_instance *instance);
 void megasas_free_fusion_context(struct megasas_instance *instance);
+void megasas_set_dma_settings(struct megasas_instance *instance,
+			      struct megasas_dcmd_frame *dcmd,
+			      dma_addr_t dma_addr, u32 dma_len);
 #endif				/*LSI_MEGARAID_SAS_H */

@@ -207,7 +207,7 @@ void megasas_fusion_ocr_wq(struct work_struct *work);
 static int megasas_get_ld_vf_affiliation(struct megasas_instance *instance,
 					 int initial);
 static int
-megasas_set_dma_mask(struct pci_dev *pdev);
+megasas_set_dma_mask(struct megasas_instance *instance);
 static int
 megasas_alloc_ctrl_mem(struct megasas_instance *instance);
 static inline void
@@ -218,6 +218,31 @@ static inline void
 megasas_free_ctrl_dma_buffers(struct megasas_instance *instance);
 static inline void
 megasas_init_ctrl_params(struct megasas_instance *instance);
+
+/**
+ * megasas_set_dma_settings -	Populate DMA address, length and flags for DCMDs
+ * @instance:			Adapter soft state
+ * @dcmd:			DCMD frame inside MFI command
+ * @dma_addr:			DMA address of buffer to be passed to FW
+ * @dma_len:			Length of DMA buffer to be passed to FW
+ * @return:			void
+ */
+void megasas_set_dma_settings(struct megasas_instance *instance,
+			      struct megasas_dcmd_frame *dcmd,
+			      dma_addr_t dma_addr, u32 dma_len)
+{
+	if (instance->consistent_mask_64bit) {
+		dcmd->sgl.sge64[0].phys_addr = cpu_to_le64(dma_addr);
+		dcmd->sgl.sge64[0].length = cpu_to_le32(dma_len);
+		dcmd->flags = cpu_to_le16(dcmd->flags | MFI_FRAME_SGL64);
+
+	} else {
+		dcmd->sgl.sge32[0].phys_addr =
+				cpu_to_le32(lower_32_bits(dma_addr));
+		dcmd->sgl.sge32[0].length = cpu_to_le32(dma_len);
+		dcmd->flags = cpu_to_le16(dcmd->flags);
+	}
+}
 
 void
 megasas_issue_dcmd(struct megasas_instance *instance, struct megasas_cmd *cmd)
@@ -2501,8 +2526,9 @@ int megasas_sriov_start_heartbeat(struct megasas_instance *instance,
 	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len = cpu_to_le32(sizeof(struct MR_CTRL_HB_HOST_MEM));
 	dcmd->opcode = cpu_to_le32(MR_DCMD_CTRL_SHARED_HOST_MEM_ALLOC);
-	dcmd->sgl.sge32[0].phys_addr = cpu_to_le32(instance->hb_host_mem_h);
-	dcmd->sgl.sge32[0].length = cpu_to_le32(sizeof(struct MR_CTRL_HB_HOST_MEM));
+
+	megasas_set_dma_settings(instance, dcmd, instance->hb_host_mem_h,
+				 sizeof(struct MR_CTRL_HB_HOST_MEM));
 
 	dev_warn(&instance->pdev->dev, "SR-IOV: Starting heartbeat for scsi%d\n",
 	       instance->host->host_no);
@@ -4155,13 +4181,14 @@ megasas_get_pd_info(struct megasas_instance *instance, struct scsi_device *sdev)
 	dcmd->cmd = MFI_CMD_DCMD;
 	dcmd->cmd_status = 0xFF;
 	dcmd->sge_count = 1;
-	dcmd->flags = cpu_to_le16(MFI_FRAME_DIR_READ);
+	dcmd->flags = MFI_FRAME_DIR_READ;
 	dcmd->timeout = 0;
 	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len = cpu_to_le32(sizeof(struct MR_PD_INFO));
 	dcmd->opcode = cpu_to_le32(MR_DCMD_PD_GET_INFO);
-	dcmd->sgl.sge32[0].phys_addr = cpu_to_le32(instance->pd_info_h);
-	dcmd->sgl.sge32[0].length = cpu_to_le32(sizeof(struct MR_PD_INFO));
+
+	megasas_set_dma_settings(instance, dcmd, instance->pd_info_h,
+				 sizeof(struct MR_PD_INFO));
 
 	if ((instance->adapter_type != MFI_SERIES) &&
 	    !instance->mask_interrupts)
@@ -4247,13 +4274,14 @@ megasas_get_pd_list(struct megasas_instance *instance)
 	dcmd->cmd = MFI_CMD_DCMD;
 	dcmd->cmd_status = MFI_STAT_INVALID_STATUS;
 	dcmd->sge_count = 1;
-	dcmd->flags = cpu_to_le16(MFI_FRAME_DIR_READ);
+	dcmd->flags = MFI_FRAME_DIR_READ;
 	dcmd->timeout = 0;
 	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len = cpu_to_le32(MEGASAS_MAX_PD * sizeof(struct MR_PD_LIST));
 	dcmd->opcode = cpu_to_le32(MR_DCMD_PD_LIST_QUERY);
-	dcmd->sgl.sge32[0].phys_addr = cpu_to_le32(ci_h);
-	dcmd->sgl.sge32[0].length = cpu_to_le32(MEGASAS_MAX_PD * sizeof(struct MR_PD_LIST));
+
+	megasas_set_dma_settings(instance, dcmd, instance->pd_list_buf_h,
+				 (MEGASAS_MAX_PD * sizeof(struct MR_PD_LIST)));
 
 	if ((instance->adapter_type != MFI_SERIES) &&
 	    !instance->mask_interrupts)
@@ -4369,13 +4397,14 @@ megasas_get_ld_list(struct megasas_instance *instance)
 	dcmd->cmd = MFI_CMD_DCMD;
 	dcmd->cmd_status = MFI_STAT_INVALID_STATUS;
 	dcmd->sge_count = 1;
-	dcmd->flags = cpu_to_le16(MFI_FRAME_DIR_READ);
+	dcmd->flags = MFI_FRAME_DIR_READ;
 	dcmd->timeout = 0;
 	dcmd->data_xfer_len = cpu_to_le32(sizeof(struct MR_LD_LIST));
 	dcmd->opcode = cpu_to_le32(MR_DCMD_LD_GET_LIST);
-	dcmd->sgl.sge32[0].phys_addr = cpu_to_le32(ci_h);
-	dcmd->sgl.sge32[0].length = cpu_to_le32(sizeof(struct MR_LD_LIST));
 	dcmd->pad_0  = 0;
+
+	megasas_set_dma_settings(instance, dcmd, ci_h,
+				 sizeof(struct MR_LD_LIST));
 
 	if ((instance->adapter_type != MFI_SERIES) &&
 	    !instance->mask_interrupts)
@@ -4480,13 +4509,14 @@ megasas_ld_list_query(struct megasas_instance *instance, u8 query_type)
 	dcmd->cmd = MFI_CMD_DCMD;
 	dcmd->cmd_status = MFI_STAT_INVALID_STATUS;
 	dcmd->sge_count = 1;
-	dcmd->flags = cpu_to_le16(MFI_FRAME_DIR_READ);
+	dcmd->flags = MFI_FRAME_DIR_READ;
 	dcmd->timeout = 0;
 	dcmd->data_xfer_len = cpu_to_le32(sizeof(struct MR_LD_TARGETID_LIST));
 	dcmd->opcode = cpu_to_le32(MR_DCMD_LD_LIST_QUERY);
-	dcmd->sgl.sge32[0].phys_addr = cpu_to_le32(ci_h);
-	dcmd->sgl.sge32[0].length = cpu_to_le32(sizeof(struct MR_LD_TARGETID_LIST));
 	dcmd->pad_0  = 0;
+
+	megasas_set_dma_settings(instance, dcmd, ci_h,
+				 sizeof(struct MR_LD_TARGETID_LIST));
 
 	if ((instance->adapter_type != MFI_SERIES) &&
 	    !instance->mask_interrupts)
@@ -4641,14 +4671,15 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 	dcmd->cmd = MFI_CMD_DCMD;
 	dcmd->cmd_status = MFI_STAT_INVALID_STATUS;
 	dcmd->sge_count = 1;
-	dcmd->flags = cpu_to_le16(MFI_FRAME_DIR_READ);
+	dcmd->flags = MFI_FRAME_DIR_READ;
 	dcmd->timeout = 0;
 	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len = cpu_to_le32(sizeof(struct megasas_ctrl_info));
 	dcmd->opcode = cpu_to_le32(MR_DCMD_CTRL_GET_INFO);
-	dcmd->sgl.sge32[0].phys_addr = cpu_to_le32(ci_h);
-	dcmd->sgl.sge32[0].length = cpu_to_le32(sizeof(struct megasas_ctrl_info));
 	dcmd->mbox.b[0] = 1;
+
+	megasas_set_dma_settings(instance, dcmd, ci_h,
+				 sizeof(struct megasas_ctrl_info));
 
 	if ((instance->adapter_type != MFI_SERIES) &&
 	    !instance->mask_interrupts)
@@ -4758,13 +4789,14 @@ int megasas_set_crash_dump_params(struct megasas_instance *instance,
 	dcmd->cmd = MFI_CMD_DCMD;
 	dcmd->cmd_status = MFI_STAT_INVALID_STATUS;
 	dcmd->sge_count = 1;
-	dcmd->flags = cpu_to_le16(MFI_FRAME_DIR_NONE);
+	dcmd->flags = MFI_FRAME_DIR_NONE;
 	dcmd->timeout = 0;
 	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len = cpu_to_le32(CRASH_DMA_BUF_SIZE);
 	dcmd->opcode = cpu_to_le32(MR_DCMD_CTRL_SET_CRASH_DUMP_PARAMS);
-	dcmd->sgl.sge32[0].phys_addr = cpu_to_le32(instance->crash_dump_h);
-	dcmd->sgl.sge32[0].length = cpu_to_le32(CRASH_DMA_BUF_SIZE);
+
+	megasas_set_dma_settings(instance, dcmd, instance->crash_dump_h,
+				 CRASH_DMA_BUF_SIZE);
 
 	if ((instance->adapter_type != MFI_SERIES) &&
 	    !instance->mask_interrupts)
@@ -5197,7 +5229,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 	megasas_init_ctrl_params(instance);
 
-	if (megasas_set_dma_mask(instance->pdev))
+	if (megasas_set_dma_mask(instance))
 		goto fail_ready_state;
 
 	if (megasas_alloc_ctrl_mem(instance))
@@ -5580,13 +5612,14 @@ megasas_get_seq_num(struct megasas_instance *instance,
 	dcmd->cmd = MFI_CMD_DCMD;
 	dcmd->cmd_status = 0x0;
 	dcmd->sge_count = 1;
-	dcmd->flags = cpu_to_le16(MFI_FRAME_DIR_READ);
+	dcmd->flags = MFI_FRAME_DIR_READ;
 	dcmd->timeout = 0;
 	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len = cpu_to_le32(sizeof(struct megasas_evt_log_info));
 	dcmd->opcode = cpu_to_le32(MR_DCMD_CTRL_EVENT_GET_INFO);
-	dcmd->sgl.sge32[0].phys_addr = cpu_to_le32(el_info_h);
-	dcmd->sgl.sge32[0].length = cpu_to_le32(sizeof(struct megasas_evt_log_info));
+
+	megasas_set_dma_settings(instance, dcmd, el_info_h,
+				 sizeof(struct megasas_evt_log_info));
 
 	if (megasas_issue_blocked_cmd(instance, cmd, MFI_IO_TIMEOUT_SECS) ==
 		DCMD_SUCCESS) {
@@ -5711,7 +5744,7 @@ megasas_register_aen(struct megasas_instance *instance, u32 seq_num,
 	dcmd->cmd = MFI_CMD_DCMD;
 	dcmd->cmd_status = 0x0;
 	dcmd->sge_count = 1;
-	dcmd->flags = cpu_to_le16(MFI_FRAME_DIR_READ);
+	dcmd->flags = MFI_FRAME_DIR_READ;
 	dcmd->timeout = 0;
 	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len = cpu_to_le32(sizeof(struct megasas_evt_detail));
@@ -5719,8 +5752,9 @@ megasas_register_aen(struct megasas_instance *instance, u32 seq_num,
 	dcmd->mbox.w[0] = cpu_to_le32(seq_num);
 	instance->last_seq_num = seq_num;
 	dcmd->mbox.w[1] = cpu_to_le32(curr_aen.word);
-	dcmd->sgl.sge32[0].phys_addr = cpu_to_le32(instance->evt_detail_h);
-	dcmd->sgl.sge32[0].length = cpu_to_le32(sizeof(struct megasas_evt_detail));
+
+	megasas_set_dma_settings(instance, dcmd, instance->evt_detail_h,
+				 sizeof(struct megasas_evt_detail));
 
 	if (instance->aen_cmd != NULL) {
 		megasas_return_cmd(instance, cmd);
@@ -5787,16 +5821,15 @@ megasas_get_target_prop(struct megasas_instance *instance,
 	dcmd->cmd = MFI_CMD_DCMD;
 	dcmd->cmd_status = 0xFF;
 	dcmd->sge_count = 1;
-	dcmd->flags = cpu_to_le16(MFI_FRAME_DIR_READ);
+	dcmd->flags = MFI_FRAME_DIR_READ;
 	dcmd->timeout = 0;
 	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len =
 		cpu_to_le32(sizeof(struct MR_TARGET_PROPERTIES));
 	dcmd->opcode = cpu_to_le32(MR_DCMD_DRV_GET_TARGET_PROP);
-	dcmd->sgl.sge32[0].phys_addr =
-		cpu_to_le32(instance->tgt_prop_h);
-	dcmd->sgl.sge32[0].length =
-		cpu_to_le32(sizeof(struct MR_TARGET_PROPERTIES));
+
+	megasas_set_dma_settings(instance, dcmd, instance->tgt_prop_h,
+				 sizeof(struct MR_TARGET_PROPERTIES));
 
 	if ((instance->adapter_type != MFI_SERIES) &&
 	    !instance->mask_interrupts)
@@ -5924,40 +5957,73 @@ static int megasas_io_attach(struct megasas_instance *instance)
 	return 0;
 }
 
+/**
+ * megasas_set_dma_mask -	Set DMA mask for supported controllers
+ *
+ * @instance:		Adapter soft state
+ * Description:
+ *
+ * For Ventura, driver/FW will operate in 64bit DMA addresses.
+ *
+ * For invader-
+ *	By default, driver/FW will operate in 32bit DMA addresses
+ *	for consistent DMA mapping but if 32 bit consistent
+ *	DMA mask fails, driver will try with 64 bit consistent
+ *	mask provided FW is true 64bit DMA capable
+ *
+ * For older controllers(Thunderbolt and MFI based adapters)-
+ *	driver/FW will operate in 32 bit consistent DMA addresses.
+ */
 static int
-megasas_set_dma_mask(struct pci_dev *pdev)
+megasas_set_dma_mask(struct megasas_instance *instance)
 {
-	/*
-	 * All our controllers are capable of performing 64-bit DMA
-	 */
-	if (IS_DMA64) {
-		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) != 0) {
+	u64 consistent_mask;
+	struct pci_dev *pdev;
+	u32 scratch_pad_2;
 
-			if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0)
+	pdev = instance->pdev;
+	consistent_mask = (instance->adapter_type == VENTURA_SERIES) ?
+				DMA_BIT_MASK(64) : DMA_BIT_MASK(32);
+
+	if (IS_DMA64) {
+		if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(64)) &&
+		    dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32)))
+			goto fail_set_dma_mask;
+
+		if ((*pdev->dev.dma_mask == DMA_BIT_MASK(64)) &&
+		    (dma_set_coherent_mask(&pdev->dev, consistent_mask) &&
+		     dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32)))) {
+			/*
+			 * If 32 bit DMA mask fails, then try for 64 bit mask
+			 * for FW capable of handling 64 bit DMA.
+			 */
+			scratch_pad_2 = readl
+				(&instance->reg_set->outbound_scratch_pad_2);
+
+			if (!(scratch_pad_2 & MR_CAN_HANDLE_64_BIT_DMA_OFFSET))
+				goto fail_set_dma_mask;
+			else if (dma_set_mask_and_coherent(&pdev->dev,
+							   DMA_BIT_MASK(64)))
 				goto fail_set_dma_mask;
 		}
-	} else {
-		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0)
-			goto fail_set_dma_mask;
-	}
-	/*
-	 * Ensure that all data structures are allocated in 32-bit
-	 * memory.
-	 */
-	if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)) != 0) {
-		/* Try 32bit DMA mask and 32 bit Consistent dma mask */
-		if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))
-			&& !pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)))
-			dev_info(&pdev->dev, "set 32bit DMA mask"
-				"and 32 bit consistent mask\n");
-		else
-			goto fail_set_dma_mask;
-	}
+	} else if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32)))
+		goto fail_set_dma_mask;
+
+	if (pdev->dev.coherent_dma_mask == DMA_BIT_MASK(32))
+		instance->consistent_mask_64bit = false;
+	else
+		instance->consistent_mask_64bit = true;
+
+	dev_info(&pdev->dev, "%s bit DMA mask and %s bit consistent mask\n",
+		 ((*pdev->dev.dma_mask == DMA_BIT_MASK(64)) ? "64" : "32"),
+		 (instance->consistent_mask_64bit ? "64" : "32"));
 
 	return 0;
 
 fail_set_dma_mask:
-	return 1;
+	dev_err(&pdev->dev, "Failed to set DMA mask\n");
+	return -1;
+
 }
 
 /*
@@ -6632,7 +6698,13 @@ megasas_resume(struct pci_dev *pdev)
 
 	pci_set_master(pdev);
 
-	if (megasas_set_dma_mask(pdev))
+	/*
+	 * We expect the FW state to be READY
+	 */
+	if (megasas_transition_to_ready(instance, 0))
+		goto fail_ready_state;
+
+	if (megasas_set_dma_mask(instance))
 		goto fail_set_dma_mask;
 
 	/*
@@ -6640,12 +6712,6 @@ megasas_resume(struct pci_dev *pdev)
 	 */
 
 	atomic_set(&instance->fw_outstanding, 0);
-
-	/*
-	 * We expect the FW state to be READY
-	 */
-	if (megasas_transition_to_ready(instance, 0))
-		goto fail_ready_state;
 
 	/* Now re-enable MSI-X */
 	if (instance->msix_vectors) {
@@ -6713,9 +6779,9 @@ fail_init_mfi:
 	megasas_free_ctrl_mem(instance);
 	scsi_host_put(host);
 
+fail_reenable_msix:
 fail_set_dma_mask:
 fail_ready_state:
-fail_reenable_msix:
 
 	pci_disable_device(pdev);
 
@@ -7013,7 +7079,8 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 		      struct megasas_iocpacket __user * user_ioc,
 		      struct megasas_iocpacket *ioc)
 {
-	struct megasas_sge32 *kern_sge32;
+	struct megasas_sge64 *kern_sge64 = NULL;
+	struct megasas_sge32 *kern_sge32 = NULL;
 	struct megasas_cmd *cmd;
 	void *kbuff_arr[MAX_IOCTL_SGE];
 	dma_addr_t buf_handle = 0;
@@ -7053,8 +7120,14 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 	memcpy(cmd->frame, ioc->frame.raw, 2 * MEGAMFI_FRAME_SIZE);
 	cmd->frame->hdr.context = cpu_to_le32(cmd->index);
 	cmd->frame->hdr.pad_0 = 0;
-	cmd->frame->hdr.flags &= cpu_to_le16(~(MFI_FRAME_IEEE |
-					       MFI_FRAME_SGL64 |
+
+	cmd->frame->hdr.flags &= (~MFI_FRAME_IEEE);
+
+	if (instance->consistent_mask_64bit)
+		cmd->frame->hdr.flags |= cpu_to_le16((MFI_FRAME_SGL64 |
+				       MFI_FRAME_SENSE64));
+	else
+		cmd->frame->hdr.flags &= cpu_to_le16(~(MFI_FRAME_SGL64 |
 					       MFI_FRAME_SENSE64));
 
 	if (cmd->frame->hdr.cmd == MFI_CMD_DCMD)
@@ -7081,8 +7154,12 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 	 * kernel buffers in SGLs. The location of SGL is embedded in the
 	 * struct iocpacket itself.
 	 */
-	kern_sge32 = (struct megasas_sge32 *)
-	    ((unsigned long)cmd->frame + ioc->sgl_off);
+	if (instance->consistent_mask_64bit)
+		kern_sge64 = (struct megasas_sge64 *)
+			((unsigned long)cmd->frame + ioc->sgl_off);
+	else
+		kern_sge32 = (struct megasas_sge32 *)
+			((unsigned long)cmd->frame + ioc->sgl_off);
 
 	/*
 	 * For each user buffer, create a mirror buffer and copy in
@@ -7105,8 +7182,13 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 		 * We don't change the dma_coherent_mask, so
 		 * pci_alloc_consistent only returns 32bit addresses
 		 */
-		kern_sge32[i].phys_addr = cpu_to_le32(buf_handle);
-		kern_sge32[i].length = cpu_to_le32(ioc->sgl[i].iov_len);
+		if (instance->consistent_mask_64bit) {
+			kern_sge64[i].phys_addr = cpu_to_le64(buf_handle);
+			kern_sge64[i].length = cpu_to_le32(ioc->sgl[i].iov_len);
+		} else {
+			kern_sge32[i].phys_addr = cpu_to_le32(buf_handle);
+			kern_sge32[i].length = cpu_to_le32(ioc->sgl[i].iov_len);
+		}
 
 		/*
 		 * We created a kernel buffer corresponding to the
@@ -7129,7 +7211,10 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 
 		sense_ptr =
 		(unsigned long *) ((unsigned long)cmd->frame + ioc->sense_off);
-		*sense_ptr = cpu_to_le32(sense_handle);
+		if (instance->consistent_mask_64bit)
+			*sense_ptr = cpu_to_le64(sense_handle);
+		else
+			*sense_ptr = cpu_to_le32(sense_handle);
 	}
 
 	/*
@@ -7202,10 +7287,16 @@ out:
 
 	for (i = 0; i < ioc->sge_count; i++) {
 		if (kbuff_arr[i]) {
-			dma_free_coherent(&instance->pdev->dev,
-					  le32_to_cpu(kern_sge32[i].length),
-					  kbuff_arr[i],
-					  le32_to_cpu(kern_sge32[i].phys_addr));
+			if (instance->consistent_mask_64bit)
+				dma_free_coherent(&instance->pdev->dev,
+					le32_to_cpu(kern_sge64[i].length),
+					kbuff_arr[i],
+					le64_to_cpu(kern_sge64[i].phys_addr));
+			else
+				dma_free_coherent(&instance->pdev->dev,
+					le32_to_cpu(kern_sge32[i].length),
+					kbuff_arr[i],
+					le32_to_cpu(kern_sge32[i].phys_addr));
 			kbuff_arr[i] = NULL;
 		}
 	}

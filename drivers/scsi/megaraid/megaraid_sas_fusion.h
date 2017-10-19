@@ -51,6 +51,8 @@
 #define HOST_DIAG_RESET_ADAPTER			    0x4
 #define MEGASAS_FUSION_MAX_RESET_TRIES		    3
 #define MAX_MSIX_QUEUES_FUSION			    128
+#define RDPQ_MAX_INDEX_IN_ONE_CHUNK		    16
+#define RDPQ_MAX_CHUNK_COUNT (MAX_MSIX_QUEUES_FUSION / RDPQ_MAX_INDEX_IN_ONE_CHUNK)
 
 /* Invader defines */
 #define MPI2_TYPE_CUDA				    0x2
@@ -1266,6 +1268,12 @@ struct MPI2_IOC_INIT_RDPQ_ARRAY_ENTRY {
 	u32 Reserved2;
 };
 
+struct rdpq_alloc_detail {
+	struct dma_pool *dma_pool_ptr;
+	dma_addr_t	pool_entry_phys;
+	union MPI2_REPLY_DESCRIPTORS_UNION *pool_entry_virt;
+};
+
 struct fusion_context {
 	struct megasas_cmd_fusion **cmd_list;
 	dma_addr_t req_frames_desc_phys;
@@ -1278,9 +1286,14 @@ struct fusion_context {
 	struct dma_pool *sg_dma_pool;
 	struct dma_pool *sense_dma_pool;
 
+	u8 *sense;
+	dma_addr_t sense_phys_addr;
+
 	dma_addr_t reply_frames_desc_phys[MAX_MSIX_QUEUES_FUSION];
 	union MPI2_REPLY_DESCRIPTORS_UNION *reply_frames_desc[MAX_MSIX_QUEUES_FUSION];
+	struct rdpq_alloc_detail rdpq_tracker[RDPQ_MAX_CHUNK_COUNT];
 	struct dma_pool *reply_frames_desc_pool;
+	struct dma_pool *reply_frames_desc_pool_align;
 
 	u16 last_reply_idx[MAX_MSIX_QUEUES_FUSION];
 
