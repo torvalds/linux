@@ -1340,8 +1340,10 @@ out:
 	spin_unlock_bh(&rt6_exception_lock);
 
 	/* Update fn->fn_sernum to invalidate all cached dst */
-	if (!err)
+	if (!err) {
 		fib6_update_sernum(ort);
+		fib6_force_start_gc(net);
+	}
 
 	return err;
 }
