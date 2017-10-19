@@ -12,8 +12,54 @@
 #include <linux/platform_device.h>
 #include <linux/input-polldev.h>
 #include <linux/gpio.h>
-#include <linux/gpio_mouse.h>
 
+#define GPIO_MOUSE_POLARITY_ACT_HIGH	0x00
+#define GPIO_MOUSE_POLARITY_ACT_LOW	0x01
+
+#define GPIO_MOUSE_PIN_UP	0
+#define GPIO_MOUSE_PIN_DOWN	1
+#define GPIO_MOUSE_PIN_LEFT	2
+#define GPIO_MOUSE_PIN_RIGHT	3
+#define GPIO_MOUSE_PIN_BLEFT	4
+#define GPIO_MOUSE_PIN_BMIDDLE	5
+#define GPIO_MOUSE_PIN_BRIGHT	6
+#define GPIO_MOUSE_PIN_MAX	7
+
+/**
+ * struct gpio_mouse_platform_data
+ * @scan_ms: integer in ms specifying the scan periode.
+ * @polarity: Pin polarity, active high or low.
+ * @up: GPIO line for up value.
+ * @down: GPIO line for down value.
+ * @left: GPIO line for left value.
+ * @right: GPIO line for right value.
+ * @bleft: GPIO line for left button.
+ * @bmiddle: GPIO line for middle button.
+ * @bright: GPIO line for right button.
+ * @pins: GPIO line numbers used for the mouse.
+ *
+ * This struct must be added to the platform_device in the board code.
+ * It is used by the gpio_mouse driver to setup GPIO lines and to
+ * calculate mouse movement.
+ */
+struct gpio_mouse_platform_data {
+	int scan_ms;
+	int polarity;
+
+	union {
+		struct {
+			int up;
+			int down;
+			int left;
+			int right;
+
+			int bleft;
+			int bmiddle;
+			int bright;
+		};
+		int pins[GPIO_MOUSE_PIN_MAX];
+	};
+};
 
 /*
  * Timer function which is run every scan_ms ms when the device is opened.
@@ -47,17 +93,16 @@ static void gpio_mouse_scan(struct input_polled_dev *dev)
 
 static int gpio_mouse_probe(struct platform_device *pdev)
 {
-	struct gpio_mouse_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct device *dev = &pdev->dev;
+	struct gpio_mouse_platform_data *pdata;
 	struct input_polled_dev *input_poll;
 	struct input_dev *input;
 	int pin, i;
 	int error;
 
-	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data\n");
-		error = -ENXIO;
-		goto out;
-	}
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
 
 	if (pdata->scan_ms < 0) {
 		dev_err(&pdev->dev, "invalid scan time\n");
