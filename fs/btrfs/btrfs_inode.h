@@ -274,6 +274,8 @@ static inline void btrfs_mod_outstanding_extents(struct btrfs_inode *inode,
 	inode->outstanding_extents += mod;
 	if (btrfs_is_free_space_inode(inode))
 		return;
+	trace_btrfs_inode_mod_outstanding_extents(inode->root, btrfs_ino(inode),
+						  mod);
 }
 
 static inline void btrfs_mod_reserved_extents(struct btrfs_inode *inode, int mod)
