@@ -1403,6 +1403,12 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 		return -EOPNOTSUPP;
 	}
 
+	if (ucmd.rx_hash_fields_mask & MLX5_RX_HASH_INNER &&
+	    !(ucmd.flags & MLX5_QP_FLAG_TUNNEL_OFFLOADS)) {
+		mlx5_ib_dbg(dev, "Tunnel offloads must be set for inner RSS\n");
+		return -EOPNOTSUPP;
+	}
+
 	err = ib_copy_to_udata(udata, &resp, min_resp_len);
 	if (err) {
 		mlx5_ib_dbg(dev, "copy failed\n");
@@ -1425,6 +1431,11 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 
 	if (ucmd.flags & MLX5_QP_FLAG_TUNNEL_OFFLOADS)
 		MLX5_SET(tirc, tirc, tunneled_offload_en, 1);
+
+	if (ucmd.rx_hash_fields_mask & MLX5_RX_HASH_INNER)
+		hfso = MLX5_ADDR_OF(tirc, tirc, rx_hash_field_selector_inner);
+	else
+		hfso = MLX5_ADDR_OF(tirc, tirc, rx_hash_field_selector_outer);
 
 	switch (ucmd.rx_hash_function) {
 	case MLX5_RX_HASH_FUNC_TOEPLITZ:
