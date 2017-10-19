@@ -543,8 +543,8 @@ tcf_match_indev(struct sk_buff *skb, int ifindex)
 }
 #endif /* CONFIG_NET_CLS_IND */
 
-int tc_setup_cb_call(struct tcf_exts *exts, enum tc_setup_type type,
-		     void *type_data, bool err_stop);
+int tc_setup_cb_call(struct tcf_block *block, struct tcf_exts *exts,
+		     enum tc_setup_type type, void *type_data, bool err_stop);
 
 enum tc_block_command {
 	TC_BLOCK_BIND,
