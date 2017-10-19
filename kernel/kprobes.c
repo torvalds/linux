@@ -573,13 +573,15 @@ static void kprobe_optimizer(struct work_struct *work)
 	do_unoptimize_kprobes();
 
 	/*
-	 * Step 2: Wait for quiesence period to ensure all running interrupts
-	 * are done. Because optprobe may modify multiple instructions
-	 * there is a chance that Nth instruction is interrupted. In that
-	 * case, running interrupt can return to 2nd-Nth byte of jump
-	 * instruction. This wait is for avoiding it.
+	 * Step 2: Wait for quiesence period to ensure all potentially
+	 * preempted tasks to have normally scheduled. Because optprobe
+	 * may modify multiple instructions, there is a chance that Nth
+	 * instruction is preempted. In that case, such tasks can return
+	 * to 2nd-Nth byte of jump instruction. This wait is for avoiding it.
+	 * Note that on non-preemptive kernel, this is transparently converted
+	 * to synchronoze_sched() to wait for all interrupts to have completed.
 	 */
-	synchronize_sched();
+	synchronize_rcu_tasks();
 
 	/* Step 3: Optimize kprobes after quiesence period */
 	do_optimize_kprobes();
