@@ -5311,6 +5311,10 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 	if (error)
 		return error;
 
+	error = fscrypt_prepare_setattr(dentry, attr);
+	if (error)
+		return error;
+
 	if (is_quota_modification(inode, attr)) {
 		error = dquot_initialize(inode);
 		if (error)
@@ -5355,14 +5359,6 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 		handle_t *handle;
 		loff_t oldsize = inode->i_size;
 		int shrink = (attr->ia_size <= inode->i_size);
-
-		if (ext4_encrypted_inode(inode)) {
-			error = fscrypt_get_encryption_info(inode);
-			if (error)
-				return error;
-			if (!fscrypt_has_encryption_key(inode))
-				return -ENOKEY;
-		}
 
 		if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))) {
 			struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
