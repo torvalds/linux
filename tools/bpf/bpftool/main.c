@@ -37,6 +37,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <linux/bpf.h>
+#include <linux/version.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,10 +63,20 @@ static int do_help(int argc, char **argv)
 	fprintf(stderr,
 		"Usage: %s OBJECT { COMMAND | help }\n"
 		"       %s batch file FILE\n"
+		"       %s version\n"
 		"\n"
 		"       OBJECT := { prog | map }\n",
-		bin_name, bin_name);
+		bin_name, bin_name, bin_name);
 
+	return 0;
+}
+
+static int do_version(int argc, char **argv)
+{
+	printf("%s v%d.%d.%d\n", bin_name,
+	       LINUX_VERSION_CODE >> 16,
+	       LINUX_VERSION_CODE >> 8 & 0xf,
+	       LINUX_VERSION_CODE & 0xf);
 	return 0;
 }
 
@@ -128,6 +139,7 @@ static const struct cmd cmds[] = {
 	{ "batch",	do_batch },
 	{ "prog",	do_prog },
 	{ "map",	do_map },
+	{ "version",	do_version },
 	{ 0 }
 };
 
