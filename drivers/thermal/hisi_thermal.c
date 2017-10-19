@@ -47,7 +47,6 @@
 #define HISI_DEFAULT_SENSOR		2
 
 struct hisi_thermal_sensor {
-	struct hisi_thermal_data *thermal;
 	struct thermal_zone_device *tzd;
 	uint32_t id;
 	uint32_t thres_temp;
@@ -211,10 +210,10 @@ static void hisi_thermal_disable_sensor(struct hisi_thermal_data *data)
 	mutex_unlock(&data->thermal_lock);
 }
 
-static int hisi_thermal_get_temp(void *_sensor, int *temp)
+static int hisi_thermal_get_temp(void *__data, int *temp)
 {
-	struct hisi_thermal_sensor *sensor = _sensor;
-	struct hisi_thermal_data *data = sensor->thermal;
+	struct hisi_thermal_data *data = __data;
+	struct hisi_thermal_sensor *sensor = &data->sensor;
 
 	*temp = hisi_thermal_get_temperature(data->regs);
 
@@ -262,10 +261,10 @@ static int hisi_thermal_register_sensor(struct platform_device *pdev,
 	const struct thermal_trip *trip;
 
 	sensor->id = index;
-	sensor->thermal = data;
 
 	sensor->tzd = devm_thermal_zone_of_sensor_register(&pdev->dev,
-				sensor->id, sensor, &hisi_of_thermal_ops);
+							   sensor->id, data,
+							   &hisi_of_thermal_ops);
 	if (IS_ERR(sensor->tzd)) {
 		ret = PTR_ERR(sensor->tzd);
 		sensor->tzd = NULL;
