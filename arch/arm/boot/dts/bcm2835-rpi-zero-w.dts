@@ -18,12 +18,9 @@
 	compatible = "raspberrypi,model-zero-w", "brcm,bcm2835";
 	model = "Raspberry Pi Zero W";
 
-	/* Needed by firmware to properly init UARTs */
-	aliases {
-		uart0 = "/soc/serial@7e201000";
-		uart1 = "/soc/serial@7e215040";
-		serial0 = "/soc/serial@7e201000";
-		serial1 = "/soc/serial@7e215040";
+	chosen {
+		/* 8250 auxiliary UART instead of pl011 */
+		stdout-path = "serial1:115200n8";
 	};
 
 	leds {
