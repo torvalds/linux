@@ -17,13 +17,27 @@ struct tcf_walker {
 int register_tcf_proto_ops(struct tcf_proto_ops *ops);
 int unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
 
+enum tcf_block_binder_type {
+	TCF_BLOCK_BINDER_TYPE_UNSPEC,
+};
+
+struct tcf_block_ext_info {
+	enum tcf_block_binder_type binder_type;
+};
+
 #ifdef CONFIG_NET_CLS
 struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
 				bool create);
 void tcf_chain_put(struct tcf_chain *chain);
 int tcf_block_get(struct tcf_block **p_block,
 		  struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q);
+int tcf_block_get_ext(struct tcf_block **p_block,
+		      struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q,
+		      struct tcf_block_ext_info *ei);
 void tcf_block_put(struct tcf_block *block);
+void tcf_block_put_ext(struct tcf_block *block,
+		       struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q,
+		       struct tcf_block_ext_info *ei);
 
 static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
 {
@@ -46,7 +60,22 @@ int tcf_block_get(struct tcf_block **p_block,
 	return 0;
 }
 
+static inline
+int tcf_block_get_ext(struct tcf_block **p_block,
+		      struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q,
+		      struct tcf_block_ext_info *ei)
+{
+	return 0;
+}
+
 static inline void tcf_block_put(struct tcf_block *block)
+{
+}
+
+static inline
+void tcf_block_put_ext(struct tcf_block *block,
+		       struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q,
+		       struct tcf_block_ext_info *ei)
 {
 }
 
@@ -433,6 +462,17 @@ tcf_match_indev(struct sk_buff *skb, int ifindex)
 
 int tc_setup_cb_call(struct tcf_exts *exts, enum tc_setup_type type,
 		     void *type_data, bool err_stop);
+
+enum tc_block_command {
+	TC_BLOCK_BIND,
+	TC_BLOCK_UNBIND,
+};
+
+struct tc_block_offload {
+	enum tc_block_command command;
+	enum tcf_block_binder_type binder_type;
+	struct tcf_block *block;
+};
 
 struct tc_cls_common_offload {
 	u32 chain_index;
