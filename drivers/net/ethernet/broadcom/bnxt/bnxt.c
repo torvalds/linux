@@ -61,6 +61,7 @@
 #include "bnxt_xdp.h"
 #include "bnxt_vfr.h"
 #include "bnxt_tc.h"
+#include "bnxt_devlink.h"
 
 #define BNXT_TX_TIMEOUT		(5 * HZ)
 
