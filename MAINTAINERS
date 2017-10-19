@@ -2159,7 +2159,6 @@ F:	sound/soc/zte/
 
 ARM/ZYNQ ARCHITECTURE
 M:	Michal Simek <michal.simek@xilinx.com>
-R:	Sören Brinkmann <soren.brinkmann@xilinx.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://wiki.xilinx.com
 T:	git https://github.com/Xilinx/linux-xlnx.git
