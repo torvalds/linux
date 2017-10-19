@@ -3298,6 +3298,9 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 
 	case MFI_CMD_SMP:
 	case MFI_CMD_STP:
+		megasas_complete_int_cmd(instance, cmd);
+		break;
+
 	case MFI_CMD_DCMD:
 		opcode = le32_to_cpu(cmd->frame->dcmd.opcode);
 		/* Check for LD map update */
@@ -3384,6 +3387,7 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 	default:
 		dev_info(&instance->pdev->dev, "Unknown command completed! [0x%X]\n",
 		       hdr->cmd);
+		megasas_complete_int_cmd(instance, cmd);
 		break;
 	}
 }
@@ -7017,7 +7021,7 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 	void *sense = NULL;
 	dma_addr_t sense_handle;
 	unsigned long *sense_ptr;
-	u32 opcode;
+	u32 opcode = 0;
 
 	memset(kbuff_arr, 0, sizeof(kbuff_arr));
 
@@ -7025,6 +7029,13 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 		dev_printk(KERN_DEBUG, &instance->pdev->dev, "SGE count [%d] >  max limit [%d]\n",
 		       ioc->sge_count, MAX_IOCTL_SGE);
 		return -EINVAL;
+	}
+
+	if (ioc->frame.hdr.cmd >= MFI_CMD_OP_COUNT) {
+		dev_err(&instance->pdev->dev,
+			"Received invalid ioctl command 0x%x\n",
+			ioc->frame.hdr.cmd);
+		return -ENOTSUPP;
 	}
 
 	cmd = megasas_get_cmd(instance);
@@ -7045,7 +7056,9 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 	cmd->frame->hdr.flags &= cpu_to_le16(~(MFI_FRAME_IEEE |
 					       MFI_FRAME_SGL64 |
 					       MFI_FRAME_SENSE64));
-	opcode = le32_to_cpu(cmd->frame->dcmd.opcode);
+
+	if (cmd->frame->hdr.cmd == MFI_CMD_DCMD)
+		opcode = le32_to_cpu(cmd->frame->dcmd.opcode);
 
 	if (opcode == MR_DCMD_CTRL_SHUTDOWN) {
 		if (megasas_get_ctrl_info(instance) != DCMD_SUCCESS) {
@@ -7127,8 +7140,9 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 	if (megasas_issue_blocked_cmd(instance, cmd, 0) == DCMD_NOT_FIRED) {
 		cmd->sync_cmd = 0;
 		dev_err(&instance->pdev->dev,
-			"return -EBUSY from %s %d opcode 0x%x cmd->cmd_status_drv 0x%x\n",
-			__func__, __LINE__, opcode,	cmd->cmd_status_drv);
+			"return -EBUSY from %s %d cmd 0x%x opcode 0x%x cmd->cmd_status_drv 0x%x\n",
+			__func__, __LINE__, cmd->frame->hdr.cmd, opcode,
+			cmd->cmd_status_drv);
 		return -EBUSY;
 	}
 

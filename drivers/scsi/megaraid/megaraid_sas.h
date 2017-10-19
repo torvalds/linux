@@ -187,16 +187,19 @@
 /*
  * MFI command opcodes
  */
-#define MFI_CMD_INIT				0x00
-#define MFI_CMD_LD_READ				0x01
-#define MFI_CMD_LD_WRITE			0x02
-#define MFI_CMD_LD_SCSI_IO			0x03
-#define MFI_CMD_PD_SCSI_IO			0x04
-#define MFI_CMD_DCMD				0x05
-#define MFI_CMD_ABORT				0x06
-#define MFI_CMD_SMP				0x07
-#define MFI_CMD_STP				0x08
-#define MFI_CMD_INVALID				0xff
+enum MFI_CMD_OP {
+	MFI_CMD_INIT		= 0x0,
+	MFI_CMD_LD_READ		= 0x1,
+	MFI_CMD_LD_WRITE	= 0x2,
+	MFI_CMD_LD_SCSI_IO	= 0x3,
+	MFI_CMD_PD_SCSI_IO	= 0x4,
+	MFI_CMD_DCMD		= 0x5,
+	MFI_CMD_ABORT		= 0x6,
+	MFI_CMD_SMP		= 0x7,
+	MFI_CMD_STP		= 0x8,
+	MFI_CMD_OP_COUNT,
+	MFI_CMD_INVALID		= 0xff
+};
 
 #define MR_DCMD_CTRL_GET_INFO			0x01010000
 #define MR_DCMD_LD_GET_LIST			0x03010000
