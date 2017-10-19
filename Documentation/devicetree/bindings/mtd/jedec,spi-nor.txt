@@ -13,6 +13,7 @@ Required properties:
                  at25df321a
                  at25df641
                  at26df081a
+                 mr25h128
                  mr25h256
                  mr25h10
                  mr25h40
