@@ -206,6 +206,7 @@ struct mlx5_ib_striding_rq_caps {
 enum mlx5_ib_query_dev_resp_flags {
 	/* Support 128B CQE compression */
 	MLX5_IB_QUERY_DEV_RESP_FLAGS_CQE_128B_COMP = 1 << 0,
+	MLX5_IB_QUERY_DEV_RESP_FLAGS_CQE_128B_PAD  = 1 << 1,
 };
 
 struct mlx5_ib_query_device_resp {
@@ -221,13 +222,17 @@ struct mlx5_ib_query_device_resp {
 	struct mlx5_ib_striding_rq_caps striding_rq_caps;
 };
 
+enum mlx5_ib_create_cq_flags {
+	MLX5_IB_CREATE_CQ_FLAGS_CQE_128B_PAD	= 1 << 0,
+};
+
 struct mlx5_ib_create_cq {
 	__u64	buf_addr;
 	__u64	db_addr;
 	__u32	cqe_size;
 	__u8    cqe_comp_en;
 	__u8    cqe_comp_res_format;
-	__u16	reserved; /* explicit padding (optional on i386) */
+	__u16	flags;
 };
 
 struct mlx5_ib_create_cq_resp {
