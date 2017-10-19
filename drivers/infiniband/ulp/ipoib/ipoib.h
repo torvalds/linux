@@ -381,7 +381,6 @@ struct ipoib_dev_priv {
 	unsigned	     tx_tail;
 	struct ib_sge	     tx_sge[MAX_SKB_FRAGS + 1];
 	struct ib_ud_wr      tx_wr;
-	unsigned	     tx_outstanding;
 	struct ib_wc	     send_wc[MAX_SEND_CQE];
 
 	struct ib_recv_wr    rx_wr;
