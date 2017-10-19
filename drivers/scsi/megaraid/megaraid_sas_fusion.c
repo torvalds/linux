@@ -991,7 +991,7 @@ megasas_sync_pd_seq_num(struct megasas_instance *instance, bool pend) {
 	dcmd->flags = cpu_to_le16(MFI_FRAME_DIR_READ);
 
 	/* Below code is only for non pended DCMD */
-	if (instance->ctrl_context && !instance->mask_interrupts)
+	if (!instance->mask_interrupts)
 		ret = megasas_issue_blocked_cmd(instance, cmd,
 			MFI_IO_TIMEOUT_SECS);
 	else
@@ -1004,7 +1004,7 @@ megasas_sync_pd_seq_num(struct megasas_instance *instance, bool pend) {
 		ret = -EINVAL;
 	}
 
-	if (ret == DCMD_TIMEOUT && instance->ctrl_context)
+	if (ret == DCMD_TIMEOUT)
 		megaraid_sas_kill_hba(instance);
 
 	if (ret == DCMD_SUCCESS)
@@ -1080,13 +1080,13 @@ megasas_get_ld_map_info(struct megasas_instance *instance)
 	dcmd->sgl.sge32[0].phys_addr = cpu_to_le32(ci_h);
 	dcmd->sgl.sge32[0].length = cpu_to_le32(size_map_info);
 
-	if (instance->ctrl_context && !instance->mask_interrupts)
+	if (!instance->mask_interrupts)
 		ret = megasas_issue_blocked_cmd(instance, cmd,
 			MFI_IO_TIMEOUT_SECS);
 	else
 		ret = megasas_issue_polled(instance, cmd);
 
-	if (ret == DCMD_TIMEOUT && instance->ctrl_context)
+	if (ret == DCMD_TIMEOUT)
 		megaraid_sas_kill_hba(instance);
 
 	megasas_return_cmd(instance, cmd);
