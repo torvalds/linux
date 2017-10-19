@@ -462,7 +462,7 @@ static int u32_delete_key(struct tcf_proto *tp, struct tc_u_knode *key)
 	return 0;
 }
 
-static void u32_remove_hw_knode(struct tcf_proto *tp, u32 handle)
+static void u32_clear_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h)
 {
 	struct net_device *dev = tp->q->dev_queue->dev;
 	struct tc_cls_u32_offload cls_u32 = {};
@@ -471,8 +471,10 @@ static void u32_remove_hw_knode(struct tcf_proto *tp, u32 handle)
 		return;
 
 	tc_cls_common_offload_init(&cls_u32.common, tp);
-	cls_u32.command = TC_CLSU32_DELETE_KNODE;
-	cls_u32.knode.handle = handle;
+	cls_u32.command = TC_CLSU32_DELETE_HNODE;
+	cls_u32.hnode.divisor = h->divisor;
+	cls_u32.hnode.handle = h->handle;
+	cls_u32.hnode.prio = h->prio;
 
 	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSU32, &cls_u32);
 }
@@ -500,7 +502,7 @@ static int u32_replace_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h,
 	return 0;
 }
 
-static void u32_clear_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h)
+static void u32_remove_hw_knode(struct tcf_proto *tp, u32 handle)
 {
 	struct net_device *dev = tp->q->dev_queue->dev;
 	struct tc_cls_u32_offload cls_u32 = {};
@@ -509,10 +511,8 @@ static void u32_clear_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h)
 		return;
 
 	tc_cls_common_offload_init(&cls_u32.common, tp);
-	cls_u32.command = TC_CLSU32_DELETE_HNODE;
-	cls_u32.hnode.divisor = h->divisor;
-	cls_u32.hnode.handle = h->handle;
-	cls_u32.hnode.prio = h->prio;
+	cls_u32.command = TC_CLSU32_DELETE_KNODE;
+	cls_u32.knode.handle = handle;
 
 	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSU32, &cls_u32);
 }
