@@ -1231,40 +1231,62 @@ unsigned int dcn_find_dcfclk_suits_all(
 	return dcf_clk;
 }
 
+static bool verify_clock_values(struct dm_pp_clock_levels_with_voltage *clks)
+{
+	int i;
+
+	if (clks->num_levels == 0)
+		return false;
+
+	for (i = 0; i < clks->num_levels; i++)
+		/* Ensure that the result is sane */
+		if (clks->data[i].clocks_in_khz == 0)
+			return false;
+
+	return true;
+}
+
 void dcn_bw_update_from_pplib(struct dc *dc)
 {
 	struct dc_context *ctx = dc->ctx;
-	struct dm_pp_clock_levels_with_voltage clks = {0};
+	struct dm_pp_clock_levels_with_voltage fclks = {0}, dcfclks = {0};
+	bool res;
 
 	kernel_fpu_begin();
 
 	/* TODO: This is not the proper way to obtain fabric_and_dram_bandwidth, should be min(fclk, memclk) */
+	res = dm_pp_get_clock_levels_by_type_with_voltage(
+			ctx, DM_PP_CLOCK_TYPE_FCLK, &fclks);
 
-	if (dm_pp_get_clock_levels_by_type_with_voltage(
-			ctx, DM_PP_CLOCK_TYPE_FCLK, &clks) &&
-			clks.num_levels != 0) {
-		ASSERT(clks.num_levels >= 3);
-		dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 = 32 * (clks.data[0].clocks_in_khz / 1000.0) / 1000.0;
-		if (clks.num_levels > 2) {
-			dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72 = dc->dcn_soc->number_of_channels *
-					(clks.data[clks.num_levels - 3].clocks_in_khz / 1000.0) * ddr4_dram_factor_single_Channel / 1000.0;
-		} else {
-			dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72 = dc->dcn_soc->number_of_channels *
-					(clks.data[clks.num_levels - 2].clocks_in_khz / 1000.0) * ddr4_dram_factor_single_Channel / 1000.0;
-		}
+	if (res)
+		res = verify_clock_values(&fclks);
+
+	if (res) {
+		ASSERT(fclks.num_levels >= 3);
+		dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 = 32 * (fclks.data[0].clocks_in_khz / 1000.0) / 1000.0;
+		dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72 = dc->dcn_soc->number_of_channels *
+				(fclks.data[fclks.num_levels - (fclks.num_levels > 2 ? 3 : 2)].clocks_in_khz / 1000.0)
+				* ddr4_dram_factor_single_Channel / 1000.0;
 		dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8 = dc->dcn_soc->number_of_channels *
-				(clks.data[clks.num_levels - 2].clocks_in_khz / 1000.0) * ddr4_dram_factor_single_Channel / 1000.0;
+				(fclks.data[fclks.num_levels - 2].clocks_in_khz / 1000.0)
+				* ddr4_dram_factor_single_Channel / 1000.0;
 		dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9 = dc->dcn_soc->number_of_channels *
-				(clks.data[clks.num_levels - 1].clocks_in_khz / 1000.0) * ddr4_dram_factor_single_Channel / 1000.0;
+				(fclks.data[fclks.num_levels - 1].clocks_in_khz / 1000.0)
+				* ddr4_dram_factor_single_Channel / 1000.0;
 	} else
 		BREAK_TO_DEBUGGER();
-	if (dm_pp_get_clock_levels_by_type_with_voltage(
-				ctx, DM_PP_CLOCK_TYPE_DCFCLK, &clks) &&
-				clks.num_levels >= 3) {
-		dc->dcn_soc->dcfclkv_min0p65 = clks.data[0].clocks_in_khz / 1000.0;
-		dc->dcn_soc->dcfclkv_mid0p72 = clks.data[clks.num_levels - 3].clocks_in_khz / 1000.0;
-		dc->dcn_soc->dcfclkv_nom0p8 = clks.data[clks.num_levels - 2].clocks_in_khz / 1000.0;
-		dc->dcn_soc->dcfclkv_max0p9 = clks.data[clks.num_levels - 1].clocks_in_khz / 1000.0;
+
+	res = dm_pp_get_clock_levels_by_type_with_voltage(
+			ctx, DM_PP_CLOCK_TYPE_DCFCLK, &dcfclks);
+
+	if (res)
+		res = verify_clock_values(&dcfclks);
+
+	if (res && dcfclks.num_levels >= 3) {
+		dc->dcn_soc->dcfclkv_min0p65 = dcfclks.data[0].clocks_in_khz / 1000.0;
+		dc->dcn_soc->dcfclkv_mid0p72 = dcfclks.data[dcfclks.num_levels - 3].clocks_in_khz / 1000.0;
+		dc->dcn_soc->dcfclkv_nom0p8 = dcfclks.data[dcfclks.num_levels - 2].clocks_in_khz / 1000.0;
+		dc->dcn_soc->dcfclkv_max0p9 = dcfclks.data[dcfclks.num_levels - 1].clocks_in_khz / 1000.0;
 	} else
 		BREAK_TO_DEBUGGER();
 
