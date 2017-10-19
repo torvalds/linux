@@ -747,8 +747,8 @@ static u8 mr_spanset_get_phy_params(struct megasas_instance *instance, u32 ld,
 		}
 	} else {
 		if ((raid->level >= 5) &&
-			((fusion->adapter_type == THUNDERBOLT_SERIES)  ||
-			((fusion->adapter_type == INVADER_SERIES) &&
+			((instance->adapter_type == THUNDERBOLT_SERIES)  ||
+			((instance->adapter_type == INVADER_SERIES) &&
 			(raid->regTypeReqOnRead != REGION_TYPE_UNUSED))))
 			pRAID_Context->reg_lock_flags = REGION_TYPE_EXCLUSIVE;
 		else if (raid->level == 1) {
@@ -863,8 +863,8 @@ u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 		}
 	} else {
 		if ((raid->level >= 5) &&
-			((fusion->adapter_type == THUNDERBOLT_SERIES)  ||
-			((fusion->adapter_type == INVADER_SERIES) &&
+			((instance->adapter_type == THUNDERBOLT_SERIES)  ||
+			((instance->adapter_type == INVADER_SERIES) &&
 			(raid->regTypeReqOnRead != REGION_TYPE_UNUSED))))
 			pRAID_Context->reg_lock_flags = REGION_TYPE_EXCLUSIVE;
 		else if (raid->level == 1) {
@@ -1088,7 +1088,7 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 		cpu_to_le16(raid->fpIoTimeoutForLd ?
 			    raid->fpIoTimeoutForLd :
 			    map->raidMap.fpPdIoTimeoutSec);
-	if (fusion->adapter_type == INVADER_SERIES)
+	if (instance->adapter_type == INVADER_SERIES)
 		pRAID_Context->reg_lock_flags = (isRead) ?
 			raid->regTypeReqOnRead : raid->regTypeReqOnWrite;
 	else if (!instance->is_ventura)
