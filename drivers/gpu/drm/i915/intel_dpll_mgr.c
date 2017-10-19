@@ -813,15 +813,11 @@ hsw_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
 
-	if (encoder->type == INTEL_OUTPUT_HDMI) {
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
 		pll = hsw_ddi_hdmi_get_dpll(clock, crtc, crtc_state);
-
-	} else if (encoder->type == INTEL_OUTPUT_DP ||
-		   encoder->type == INTEL_OUTPUT_DP_MST ||
-		   encoder->type == INTEL_OUTPUT_EDP) {
+	} else if (intel_crtc_has_dp_encoder(crtc_state)) {
 		pll = hsw_ddi_dp_get_dpll(encoder, clock);
-
-	} else if (encoder->type == INTEL_OUTPUT_ANALOG) {
+	} else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG)) {
 		if (WARN_ON(crtc_state->port_clock / 2 != 135000))
 			return NULL;
 
@@ -1369,15 +1365,13 @@ skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 
 	memset(&dpll_hw_state, 0, sizeof(dpll_hw_state));
 
-	if (encoder->type == INTEL_OUTPUT_HDMI) {
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
 		bret = skl_ddi_hdmi_pll_dividers(crtc, crtc_state, clock);
 		if (!bret) {
 			DRM_DEBUG_KMS("Could not get HDMI pll dividers.\n");
 			return NULL;
 		}
-	} else if (encoder->type == INTEL_OUTPUT_DP ||
-		   encoder->type == INTEL_OUTPUT_DP_MST ||
-		   encoder->type == INTEL_OUTPUT_EDP) {
+	} else if (intel_crtc_has_dp_encoder(crtc_state)) {
 		bret = skl_ddi_dp_set_dpll_hw_state(clock, &dpll_hw_state);
 		if (!bret) {
 			DRM_DEBUG_KMS("Could not set DP dpll HW state.\n");
@@ -1388,7 +1382,7 @@ skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		return NULL;
 	}
 
-	if (encoder->type == INTEL_OUTPUT_EDP)
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
 		pll = intel_find_shared_dpll(crtc, crtc_state,
 					     DPLL_ID_SKL_DPLL0,
 					     DPLL_ID_SKL_DPLL0);
@@ -1812,14 +1806,12 @@ bxt_get_dpll(struct intel_crtc *crtc,
 	struct intel_shared_dpll *pll;
 	int i, clock = crtc_state->port_clock;
 
-	if (encoder->type == INTEL_OUTPUT_HDMI &&
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI) &&
 	    !bxt_ddi_hdmi_set_dpll_hw_state(crtc, crtc_state, clock,
 					    &dpll_hw_state))
 		return NULL;
 
-	if ((encoder->type == INTEL_OUTPUT_DP ||
-	     encoder->type == INTEL_OUTPUT_EDP ||
-	     encoder->type == INTEL_OUTPUT_DP_MST) &&
+	if (intel_crtc_has_dp_encoder(crtc_state) &&
 	    !bxt_ddi_dp_set_dpll_hw_state(clock, &dpll_hw_state))
 		return NULL;
 
@@ -1828,7 +1820,7 @@ bxt_get_dpll(struct intel_crtc *crtc,
 
 	crtc_state->dpll_hw_state = dpll_hw_state;
 
-	if (encoder->type == INTEL_OUTPUT_DP_MST) {
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST)) {
 		struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
 
 		intel_dig_port = intel_mst->primary;
@@ -2345,15 +2337,13 @@ cnl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 
 	memset(&dpll_hw_state, 0, sizeof(dpll_hw_state));
 
-	if (encoder->type == INTEL_OUTPUT_HDMI) {
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
 		bret = cnl_ddi_hdmi_pll_dividers(crtc, crtc_state, clock);
 		if (!bret) {
 			DRM_DEBUG_KMS("Could not get HDMI pll dividers.\n");
 			return NULL;
 		}
-	} else if (encoder->type == INTEL_OUTPUT_DP ||
-		   encoder->type == INTEL_OUTPUT_DP_MST ||
-		   encoder->type == INTEL_OUTPUT_EDP) {
+	} else if (intel_crtc_has_dp_encoder(crtc_state)) {
 		bret = cnl_ddi_dp_set_dpll_hw_state(clock, &dpll_hw_state);
 		if (!bret) {
 			DRM_DEBUG_KMS("Could not set DP dpll HW state.\n");
@@ -2361,8 +2351,8 @@ cnl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		}
 		crtc_state->dpll_hw_state = dpll_hw_state;
 	} else {
-		DRM_DEBUG_KMS("Skip DPLL setup for encoder %d\n",
-			      encoder->type);
+		DRM_DEBUG_KMS("Skip DPLL setup for output_types 0x%x\n",
+			      crtc_state->output_types);
 		return NULL;
 	}
 
