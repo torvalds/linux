@@ -3133,7 +3133,11 @@ static int ilk_compute_intermediate_wm(struct drm_device *dev,
 				       struct intel_crtc_state *newstate)
 {
 	struct intel_pipe_wm *a = &newstate->wm.ilk.intermediate;
-	struct intel_pipe_wm *b = &intel_crtc->wm.active.ilk;
+	struct intel_atomic_state *intel_state =
+		to_intel_atomic_state(newstate->base.state);
+	const struct intel_crtc_state *oldstate =
+		intel_atomic_get_old_crtc_state(intel_state, intel_crtc);
+	const struct intel_pipe_wm *b = &oldstate->wm.ilk.optimal;
 	int level, max_level = ilk_wm_max_level(to_i915(dev));
 
 	/*
@@ -3142,6 +3146,9 @@ static int ilk_compute_intermediate_wm(struct drm_device *dev,
 	 * and after the vblank.
 	 */
 	*a = newstate->wm.ilk.optimal;
+	if (!newstate->base.active || drm_atomic_crtc_needs_modeset(&newstate->base))
+		return 0;
+
 	a->pipe_enabled |= b->pipe_enabled;
 	a->sprites_enabled |= b->sprites_enabled;
 	a->sprites_scaled |= b->sprites_scaled;
