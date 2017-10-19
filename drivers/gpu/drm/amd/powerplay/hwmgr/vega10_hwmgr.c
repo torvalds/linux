@@ -2879,6 +2879,15 @@ static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 			"DPM is already running right , skipping re-enablement!",
 			return 0);
 
+	if ((data->smu_version == 0x001c2c00) ||
+			(data->smu_version == 0x001c2d00)) {
+		tmp_result = smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_UpdatePkgPwrPidAlpha, 1);
+		PP_ASSERT_WITH_CODE(!tmp_result,
+				"Failed to set package power PID!",
+				return tmp_result);
+	}
+
 	tmp_result = vega10_construct_voltage_tables(hwmgr);
 	PP_ASSERT_WITH_CODE(!tmp_result,
 			"Failed to contruct voltage tables!",
