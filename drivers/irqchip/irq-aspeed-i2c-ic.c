@@ -76,8 +76,8 @@ static int __init aspeed_i2c_ic_of_init(struct device_node *node,
 		return -ENOMEM;
 
 	i2c_ic->base = of_iomap(node, 0);
-	if (IS_ERR(i2c_ic->base)) {
-		ret = PTR_ERR(i2c_ic->base);
+	if (!i2c_ic->base) {
+		ret = -ENOMEM;
 		goto err_free_ic;
 	}
 

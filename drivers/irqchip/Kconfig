@@ -324,4 +324,12 @@ config IRQ_UNIPHIER_AIDET
 	help
 	  Support for the UniPhier AIDET (ARM Interrupt Detector).
 
+config MESON_IRQ_GPIO
+       bool "Meson GPIO Interrupt Multiplexer"
+       depends on ARCH_MESON || COMPILE_TEST
+       select IRQ_DOMAIN
+       select IRQ_DOMAIN_HIERARCHY
+       help
+         Support Meson SoC Family GPIO Interrupt Multiplexer
+
 endmenu
