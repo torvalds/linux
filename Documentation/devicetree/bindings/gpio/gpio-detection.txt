@@ -1,0 +1,37 @@
+Required properties:
+- compatible: should be "gpio-detection"
+- status:
+- pinctrl-0 : phandle referencing pin configuration of the gpio controller
+- pinctrl-names : a pinctrl state named "default" must be defined
+- car-reverse : a describtion to show the gpio will be use to car reverse
+- car-acc : a describtion to show the gpio will be use to car accelerate
+- gpios : The GPIO to set high/low, see "gpios property" in
+  Documentation/devicetree/bindings/gpio/gpio.txt. If the pin should be
+  low to power down the board set it to "Active Low", otherwise set
+  gpio to "Active High".
+- linux,debounce-ms: interrupt debounce time. (u32)
+- label : The label / name for this partition.  If omitted, the label is taken
+- gpio,wakeup : To enable the wakeup comparator in probe
+
+Example:
+
+	gpio_det: gpio-det {
+		compatible = "gpio-detection";
+		status = "okay";
+
+		pinctrl-0 = <&gpio3_b1 &gpio3_b2>;
+		pinctrl-names = "default";
+		car-reverse {
+			car-reverse-gpios = <&gpio3 10 GPIO_ACTIVE_HIGH>;
+			linux,debounce-ms = <5>;
+			label = "car-reverse";
+			gpio,wakeup;
+		};
+
+		car-acc {
+			car-acc-gpios = <&gpio3 9 GPIO_ACTIVE_HIGH>;
+			linux,debounce-ms = <5>;
+			label = "car-acc";
+			gpio,wakeup;
+		};
+	};

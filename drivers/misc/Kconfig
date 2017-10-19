@@ -559,6 +559,11 @@ config USB_CAM_GPIO
 	help
 	  Enable this driver will support usb camera gpio control
 
+config GPIO_DET
+	bool "gpio detection driver"
+	help
+	  Enable this driver will support gpio detection.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
