@@ -1240,7 +1240,23 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	intel_runtime_pm_get(i915);
+	if (i915_gem_object_has_struct_page(obj)) {
+		/*
+		 * Avoid waking the device up if we can fallback, as
+		 * waking/resuming is very slow (worst-case 10-100 ms
+		 * depending on PCI sleeps and our own resume time).
+		 * This easily dwarfs any performance advantage from
+		 * using the cache bypass of indirect GGTT access.
+		 */
+		if (!intel_runtime_pm_get_if_in_use(i915)) {
+			ret = -EFAULT;
+			goto out_unlock;
+		}
+	} else {
+		/* No backing pages, no fallback, we must force GGTT access */
+		intel_runtime_pm_get(i915);
+	}
+
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
 				       PIN_MAPPABLE |
 				       PIN_NONFAULT |
@@ -1257,7 +1273,7 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 	if (IS_ERR(vma)) {
 		ret = insert_mappable_node(ggtt, &node, PAGE_SIZE);
 		if (ret)
-			goto out_unlock;
+			goto out_rpm;
 		GEM_BUG_ON(!node.allocated);
 	}
 
@@ -1320,8 +1336,9 @@ out_unpin:
 	} else {
 		i915_vma_unpin(vma);
 	}
-out_unlock:
+out_rpm:
 	intel_runtime_pm_put(i915);
+out_unlock:
 	mutex_unlock(&i915->drm.struct_mutex);
 	return ret;
 }
