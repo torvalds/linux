@@ -1550,7 +1550,6 @@ void intel_ddi_enable_transcoder_func(const struct intel_crtc_state *crtc_state)
 	enum pipe pipe = crtc->pipe;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	enum port port = intel_ddi_get_encoder_port(encoder);
-	int type = encoder->type;
 	uint32_t temp;
 
 	/* Enable TRANS_DDI_FUNC_CTL for the pipe to work in HDMI mode */
@@ -1605,7 +1604,7 @@ void intel_ddi_enable_transcoder_func(const struct intel_crtc_state *crtc_state)
 		}
 	}
 
-	if (type == INTEL_OUTPUT_HDMI) {
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
 		if (crtc_state->has_hdmi_sink)
 			temp |= TRANS_DDI_MODE_SELECT_HDMI;
 		else
@@ -1615,19 +1614,15 @@ void intel_ddi_enable_transcoder_func(const struct intel_crtc_state *crtc_state)
 			temp |= TRANS_DDI_HDMI_SCRAMBLING_MASK;
 		if (crtc_state->hdmi_high_tmds_clock_ratio)
 			temp |= TRANS_DDI_HIGH_TMDS_CHAR_RATE;
-	} else if (type == INTEL_OUTPUT_ANALOG) {
+	} else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG)) {
 		temp |= TRANS_DDI_MODE_SELECT_FDI;
 		temp |= (crtc_state->fdi_lanes - 1) << 1;
-	} else if (type == INTEL_OUTPUT_DP ||
-		   type == INTEL_OUTPUT_EDP) {
-		temp |= TRANS_DDI_MODE_SELECT_DP_SST;
-		temp |= DDI_PORT_WIDTH(crtc_state->lane_count);
-	} else if (type == INTEL_OUTPUT_DP_MST) {
+	} else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST)) {
 		temp |= TRANS_DDI_MODE_SELECT_DP_MST;
 		temp |= DDI_PORT_WIDTH(crtc_state->lane_count);
 	} else {
-		WARN(1, "Invalid encoder type %d for pipe %c\n",
-		     encoder->type, pipe_name(pipe));
+		temp |= TRANS_DDI_MODE_SELECT_DP_SST;
+		temp |= DDI_PORT_WIDTH(crtc_state->lane_count);
 	}
 
 	I915_WRITE(TRANS_DDI_FUNC_CTL(cpu_transcoder), temp);
