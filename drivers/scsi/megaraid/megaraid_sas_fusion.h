@@ -103,6 +103,7 @@ enum MR_RAID_FLAGS_IO_SUB_TYPE {
 #define THRESHOLD_REPLY_COUNT 50
 #define RAID_1_PEER_CMDS 2
 #define JBOD_MAPS_COUNT	2
+#define IOC_INIT_FRAME_SIZE 4096
 
 /*
  * Raid Context structure which describes MegaRAID specific IO Parameters
@@ -1317,6 +1318,7 @@ struct fusion_context {
 	struct LD_STREAM_DETECT **stream_detect_by_ld;
 	dma_addr_t ioc_init_request_phys;
 	struct MPI2_IOC_INIT_REQUEST *ioc_init_request;
+	struct megasas_cmd *ioc_init_cmd;
 
 };
 
