@@ -168,7 +168,7 @@ void __flush_tlb_power9(unsigned int action)
 
 
 /* flush SLBs and reload */
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 static void flush_and_reload_slb(void)
 {
 	struct slb_shadow *slb;
@@ -215,7 +215,7 @@ static void flush_erat(void)
 
 static int mce_flush(int what)
 {
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	if (what == MCE_FLUSH_SLB) {
 		flush_and_reload_slb();
 		return 1;

@@ -500,7 +500,7 @@ static void populate_markers(void)
 	address_markers[6].start_address = PHB_IO_END;
 	address_markers[7].start_address = IOREMAP_BASE;
 	address_markers[8].start_address = IOREMAP_END;
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	address_markers[9].start_address =  H_VMEMMAP_BASE;
 #else
 	address_markers[9].start_address =  VMEMMAP_BASE;
