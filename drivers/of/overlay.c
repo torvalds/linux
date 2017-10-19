@@ -133,7 +133,7 @@ static int overlay_notify(struct overlay_changeset *ovcs,
 
 		ret = blocking_notifier_call_chain(&overlay_notify_chain,
 						   action, &nd);
-		if (ret == NOTIFY_STOP)
+		if (ret == NOTIFY_OK || ret == NOTIFY_STOP)
 			return 0;
 		if (ret) {
 			ret = notifier_to_errno(ret);
