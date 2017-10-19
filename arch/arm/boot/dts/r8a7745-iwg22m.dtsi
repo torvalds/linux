@@ -1,5 +1,5 @@
 /*
- * Device Tree Source for the iWave-RZG1M-20M Qseven SOM
+ * Device Tree Source for the iWave-RZG1E-G22M SODIMM SOM
  *
  * Copyright (C) 2017 Renesas Electronics Corp.
  *
@@ -8,20 +8,15 @@
  * kind, whether express or implied.
  */
 
-#include "r8a7743.dtsi"
+#include "r8a7745.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	compatible = "iwave,g20m", "renesas,r8a7743";
+	compatible = "iwave,g22m", "renesas,r8a7745";
 
 	memory@40000000 {
 		device_type = "memory";
 		reg = <0 0x40000000 0 0x20000000>;
-	};
-
-	memory@200000000 {
-		device_type = "memory";
-		reg = <2 0x00000000 0 0x20000000>;
 	};
 
 	reg_3p3v: 3p3v {
@@ -40,7 +35,7 @@
 
 &pfc {
 	mmcif0_pins: mmc {
-		groups = "mmc_data8_b", "mmc_ctrl";
+		groups = "mmc_data8", "mmc_ctrl";
 		function = "mmc";
 	};
 
@@ -49,10 +44,15 @@
 		function = "qspi";
 	};
 
-	sdhi0_pins: sd0 {
-		groups = "sdhi0_data4", "sdhi0_ctrl";
-		function = "sdhi0";
+	sdhi1_pins: sd1 {
+		groups = "sdhi1_data4", "sdhi1_ctrl";
+		function = "sdhi1";
 		power-source = <3300>;
+	};
+
+	i2c3_pins: i2c3 {
+		groups = "i2c3_b";
+		function = "i2c3";
 	};
 };
 
@@ -87,12 +87,25 @@
 	};
 };
 
-&sdhi0 {
-	pinctrl-0 = <&sdhi0_pins>;
+&sdhi1 {
+	pinctrl-0 = <&sdhi1_pins>;
 	pinctrl-names = "default";
 
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_3p3v>;
-	cd-gpios = <&gpio7 11 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&gpio3 31 GPIO_ACTIVE_LOW>;
 	status = "okay";
+};
+
+&i2c3 {
+	pinctrl-0 = <&i2c3_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+	clock-frequency = <400000>;
+
+	rtc@68 {
+		compatible = "ti,bq32000";
+		reg = <0x68>;
+	};
 };
