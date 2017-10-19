@@ -14,6 +14,7 @@
 #include <linux/input-polldev.h>
 #include <linux/gpio/consumer.h>
 #include <linux/property.h>
+#include <linux/of.h>
 
 /**
  * struct gpio_mouse
@@ -156,10 +157,17 @@ static int gpio_mouse_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id gpio_mouse_of_match[] = {
+	{ .compatible = "gpio-mouse", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, gpio_mouse_of_match);
+
 static struct platform_driver gpio_mouse_device_driver = {
 	.probe		= gpio_mouse_probe,
 	.driver		= {
 		.name	= "gpio_mouse",
+		.of_match_table = gpio_mouse_of_match,
 	}
 };
 module_platform_driver(gpio_mouse_device_driver);
