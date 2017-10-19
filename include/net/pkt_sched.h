@@ -135,19 +135,6 @@ static inline unsigned int psched_mtu(const struct net_device *dev)
 	return dev->mtu + dev->hard_header_len;
 }
 
-static inline bool is_classid_clsact_ingress(u32 classid)
-{
-	/* This also returns true for ingress qdisc */
-	return TC_H_MAJ(classid) == TC_H_MAJ(TC_H_CLSACT) &&
-	       TC_H_MIN(classid) != TC_H_MIN(TC_H_MIN_EGRESS);
-}
-
-static inline bool is_classid_clsact_egress(u32 classid)
-{
-	return TC_H_MAJ(classid) == TC_H_MAJ(TC_H_CLSACT) &&
-	       TC_H_MIN(classid) == TC_H_MIN(TC_H_MIN_EGRESS);
-}
-
 static inline struct net *qdisc_net(struct Qdisc *q)
 {
 	return dev_net(q->dev_queue->dev);
