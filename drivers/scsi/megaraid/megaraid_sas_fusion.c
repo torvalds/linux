@@ -200,7 +200,7 @@ static void
 megasas_fire_cmd_fusion(struct megasas_instance *instance,
 		union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc)
 {
-	if (instance->is_ventura)
+	if (instance->adapter_type == VENTURA_SERIES)
 		writel(le32_to_cpu(req_desc->u.low),
 			&instance->reg_set->inbound_single_queue_port);
 	else {
@@ -243,7 +243,7 @@ megasas_fusion_update_can_queue(struct megasas_instance *instance, int fw_boot_c
 	reg_set = instance->reg_set;
 
 	/* ventura FW does not fill outbound_scratch_pad_3 with queue depth */
-	if (!instance->is_ventura)
+	if (instance->adapter_type < VENTURA_SERIES)
 		cur_max_fw_cmds =
 		readl(&instance->reg_set->outbound_scratch_pad_3) & 0x00FFFF;
 
@@ -291,7 +291,7 @@ megasas_fusion_update_can_queue(struct megasas_instance *instance, int fw_boot_c
 		instance->host->can_queue = instance->cur_can_queue;
 	}
 
-	if (instance->is_ventura)
+	if (instance->adapter_type == VENTURA_SERIES)
 		instance->max_mpt_cmds =
 		instance->max_fw_cmds * RAID_1_PEER_CMDS;
 	else
@@ -2363,7 +2363,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 
 	praid_context = &io_request->RaidContext;
 
-	if (instance->is_ventura) {
+	if (instance->adapter_type == VENTURA_SERIES) {
 		spin_lock_irqsave(&instance->stream_lock, spinlock_flags);
 		megasas_stream_detect(instance, cmd, &io_info);
 		spin_unlock_irqrestore(&instance->stream_lock, spinlock_flags);
@@ -2429,7 +2429,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			io_request->RaidContext.raid_context.reg_lock_flags |=
 			  (MR_RL_FLAGS_GRANT_DESTINATION_CUDA |
 			   MR_RL_FLAGS_SEQ_NUM_ENABLE);
-		} else if (instance->is_ventura) {
+		} else if (instance->adapter_type == VENTURA_SERIES) {
 			io_request->RaidContext.raid_context_g35.nseg_type |=
 						(1 << RAID_CONTEXT_NSEG_SHIFT);
 			io_request->RaidContext.raid_context_g35.nseg_type |=
@@ -2448,7 +2448,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 					&io_info, local_map_ptr);
 			scp->SCp.Status |= MEGASAS_LOAD_BALANCE_FLAG;
 			cmd->pd_r1_lb = io_info.pd_after_lb;
-			if (instance->is_ventura)
+			if (instance->adapter_type == VENTURA_SERIES)
 				io_request->RaidContext.raid_context_g35.span_arm
 					= io_info.span_arm;
 			else
@@ -2458,7 +2458,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 		} else
 			scp->SCp.Status &= ~MEGASAS_LOAD_BALANCE_FLAG;
 
-		if (instance->is_ventura)
+		if (instance->adapter_type == VENTURA_SERIES)
 			cmd->r1_alt_dev_handle = io_info.r1_alt_dev_handle;
 		else
 			cmd->r1_alt_dev_handle = MR_DEVHANDLE_INVALID;
@@ -2494,7 +2494,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 				(MR_RL_FLAGS_GRANT_DESTINATION_CPU0 |
 				 MR_RL_FLAGS_SEQ_NUM_ENABLE);
 			io_request->RaidContext.raid_context.nseg = 0x1;
-		} else if (instance->is_ventura) {
+		} else if (instance->adapter_type == VENTURA_SERIES) {
 			io_request->RaidContext.raid_context_g35.routing_flags |=
 					(1 << MR_RAID_CTX_ROUTINGFLAGS_SQN_SHIFT);
 			io_request->RaidContext.raid_context_g35.nseg_type |=
@@ -2569,7 +2569,7 @@ static void megasas_build_ld_nonrw_fusion(struct megasas_instance *instance,
 
 		/* set RAID context values */
 		pRAID_Context->config_seq_num = raid->seqNum;
-		if (!instance->is_ventura)
+		if (instance->adapter_type != VENTURA_SERIES)
 			pRAID_Context->reg_lock_flags = REGION_TYPE_SHARED_READ;
 		pRAID_Context->timeout_value =
 			cpu_to_le16(raid->fpIoTimeoutForLd);
@@ -2654,7 +2654,7 @@ megasas_build_syspd_fusion(struct megasas_instance *instance,
 				cpu_to_le16(device_id + (MAX_PHYSICAL_DEVICES - 1));
 		pRAID_Context->config_seq_num = pd_sync->seq[pd_index].seqNum;
 		io_request->DevHandle = pd_sync->seq[pd_index].devHandle;
-		if (instance->is_ventura) {
+		if (instance->adapter_type == VENTURA_SERIES) {
 			io_request->RaidContext.raid_context_g35.routing_flags |=
 				(1 << MR_RAID_CTX_ROUTINGFLAGS_SQN_SHIFT);
 			io_request->RaidContext.raid_context_g35.nseg_type |=
@@ -2785,7 +2785,7 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 		return 1;
 	}
 
-	if (instance->is_ventura) {
+	if (instance->adapter_type == VENTURA_SERIES) {
 		set_num_sge(&io_request->RaidContext.raid_context_g35, sge_count);
 		cpu_to_le16s(&io_request->RaidContext.raid_context_g35.routing_flags);
 		cpu_to_le16s(&io_request->RaidContext.raid_context_g35.nseg_type);
@@ -4247,7 +4247,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 		for (i = 0 ; i < instance->max_scsi_cmds; i++) {
 			cmd_fusion = fusion->cmd_list[i];
 			/*check for extra commands issued by driver*/
-			if (instance->is_ventura) {
+			if (instance->adapter_type == VENTURA_SERIES) {
 				r1_cmd = fusion->cmd_list[i + instance->max_fw_cmds];
 				megasas_return_cmd_fusion(instance, r1_cmd);
 			}
@@ -4348,7 +4348,7 @@ transition_to_ready:
 				megasas_set_dynamic_target_properties(sdev);
 
 			/* reset stream detection array */
-			if (instance->is_ventura) {
+			if (instance->adapter_type == VENTURA_SERIES) {
 				for (j = 0; j < MAX_LOGICAL_DRIVES_EXT; ++j) {
 					memset(fusion->stream_detect_by_ld[j],
 					0, sizeof(struct LD_STREAM_DETECT));
