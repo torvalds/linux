@@ -1396,7 +1396,7 @@ retry:
 	}
 
 	if (len == towrite)
-		return 0;
+		return err;
 	inode->i_version++;
 	inode->i_mtime = inode->i_ctime = current_time(inode);
 	f2fs_mark_inode_dirty_sync(inode, false);
