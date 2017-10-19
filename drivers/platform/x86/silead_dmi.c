@@ -83,6 +83,8 @@ static const struct silead_ts_dmi_data surftab_wintron70_st70416_6_data = {
 static const struct property_entry gp_electronic_t701_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 960),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 640),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-x"),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
 	PROPERTY_ENTRY_STRING("firmware-name",
 			      "gsl1680-gp-electronic-t701.fw"),
 	{ }
