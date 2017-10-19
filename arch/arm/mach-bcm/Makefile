@@ -43,6 +43,11 @@ endif
 
 # BCM2835
 obj-$(CONFIG_ARCH_BCM2835)	+= board_bcm2835.o
+ifeq ($(CONFIG_ARCH_BCM2835),y)
+ifeq ($(CONFIG_ARM),y)
+obj-$(CONFIG_SMP)		+= platsmp.o
+endif
+endif
 
 # BCM5301X
 obj-$(CONFIG_ARCH_BCM_5301X)	+= bcm_5301x.o
