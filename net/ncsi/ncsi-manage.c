@@ -202,11 +202,15 @@ static void ncsi_channel_monitor(unsigned long data)
 	monitor_state = nc->monitor.state;
 	spin_unlock_irqrestore(&nc->lock, flags);
 
-	if (!enabled || chained)
+	if (!enabled || chained) {
+		ncsi_stop_channel_monitor(nc);
 		return;
+	}
 	if (state != NCSI_CHANNEL_INACTIVE &&
-	    state != NCSI_CHANNEL_ACTIVE)
+	    state != NCSI_CHANNEL_ACTIVE) {
+		ncsi_stop_channel_monitor(nc);
 		return;
+	}
 
 	switch (monitor_state) {
 	case NCSI_CHANNEL_MONITOR_START:
@@ -217,12 +221,9 @@ static void ncsi_channel_monitor(unsigned long data)
 		nca.type = NCSI_PKT_CMD_GLS;
 		nca.req_flags = 0;
 		ret = ncsi_xmit_cmd(&nca);
-		if (ret) {
+		if (ret)
 			netdev_err(ndp->ndev.dev, "Error %d sending GLS\n",
 				   ret);
-			return;
-		}
-
 		break;
 	case NCSI_CHANNEL_MONITOR_WAIT ... NCSI_CHANNEL_MONITOR_WAIT_MAX:
 		break;
@@ -232,6 +233,8 @@ static void ncsi_channel_monitor(unsigned long data)
 			ncsi_report_link(ndp, true);
 			ndp->flags |= NCSI_DEV_RESHUFFLE;
 		}
+
+		ncsi_stop_channel_monitor(nc);
 
 		spin_lock_irqsave(&nc->lock, flags);
 		nc->state = NCSI_CHANNEL_INVISIBLE;
