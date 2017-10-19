@@ -90,6 +90,12 @@ static inline long hisi_thermal_temp_to_step(long temp)
 	return (temp - HISI_TEMP_BASE) / HISI_TEMP_STEP;
 }
 
+static inline long hisi_thermal_round_temp(int temp)
+{
+	return hisi_thermal_step_to_temp(
+		hisi_thermal_temp_to_step(temp));
+}
+
 static long hisi_thermal_get_sensor_temp(struct hisi_thermal_data *data,
 					 struct hisi_thermal_sensor *sensor)
 {
@@ -245,7 +251,7 @@ static irqreturn_t hisi_thermal_alarm_irq_thread(int irq, void *dev)
 	sensor = &data->sensors[data->irq_bind_sensor];
 
 	dev_crit(&data->pdev->dev, "THERMAL ALARM: T > %d\n",
-		 sensor->thres_temp / 1000);
+		 sensor->thres_temp);
 	mutex_unlock(&data->thermal_lock);
 
 	for (i = 0; i < HISI_MAX_SENSORS; i++) {
@@ -284,7 +290,7 @@ static int hisi_thermal_register_sensor(struct platform_device *pdev,
 
 	for (i = 0; i < of_thermal_get_ntrips(sensor->tzd); i++) {
 		if (trip[i].type == THERMAL_TRIP_PASSIVE) {
-			sensor->thres_temp = trip[i].temperature;
+			sensor->thres_temp = hisi_thermal_round_temp(trip[i].temperature);
 			break;
 		}
 	}
