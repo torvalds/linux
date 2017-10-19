@@ -11,8 +11,8 @@ SYNOPSIS
 ========
 
 |	**bpftool** prog show [*PROG*]
-|	**bpftool** prog dump xlated *PROG* [file *FILE*] [opcodes]
-|	**bpftool** prog dump jited  *PROG* [file *FILE*] [opcodes]
+|	**bpftool** prog dump xlated *PROG* [{file *FILE* | opcodes }]
+|	**bpftool** prog dump jited  *PROG* [{file *FILE* | opcodes }]
 |	**bpftool** prog pin *PROG* *FILE*
 |	**bpftool** prog help
 |
@@ -28,14 +28,14 @@ DESCRIPTION
 		  Output will start with program ID followed by program type and
 		  zero or more named attributes (depending on kernel version).
 
-	**bpftool prog dump xlated** *PROG* [**file** *FILE*] [**opcodes**]
+	**bpftool prog dump xlated** *PROG* [{ **file** *FILE* | **opcodes** }]
 		  Dump eBPF instructions of the program from the kernel.
 		  If *FILE* is specified image will be written to a file,
 		  otherwise it will be disassembled and printed to stdout.
 
 		  **opcodes** controls if raw opcodes will be printed.
 
-	**bpftool prog dump jited**  *PROG* [**file** *FILE*] [**opcodes**]
+	**bpftool prog dump jited**  *PROG* [{ **file** *FILE* | **opcodes** }]
 		  Dump jited image (host machine code) of the program.
 		  If *FILE* is specified image will be written to a file,
 		  otherwise it will be disassembled and printed to stdout.

@@ -469,8 +469,8 @@ static int do_help(int argc, char **argv)
 {
 	fprintf(stderr,
 		"Usage: %s %s show [PROG]\n"
-		"       %s %s dump xlated PROG [file FILE] [opcodes]\n"
-		"       %s %s dump jited  PROG [file FILE] [opcodes]\n"
+		"       %s %s dump xlated PROG [{ file FILE | opcodes }]\n"
+		"       %s %s dump jited  PROG [{ file FILE | opcodes }]\n"
 		"       %s %s pin   PROG FILE\n"
 		"       %s %s help\n"
 		"\n"
