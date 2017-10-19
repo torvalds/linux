@@ -639,6 +639,16 @@ static void tcpm_select_rp_value(struct fusb30x_chip *chip, u32 rp)
 	regmap_write(chip->regmap, FUSB_REG_CONTROL0, control0_reg);
 }
 
+static int tcpm_check_vbus(struct fusb30x_chip *chip)
+{
+	u32 val;
+
+	/* Read status register */
+	regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
+
+	return (val & STATUS0_VBUSOK) ? 1 : 0;
+}
+
 static void tcpm_init(struct fusb30x_chip *chip)
 {
 	u8 val;
@@ -693,6 +703,7 @@ static void tcpm_init(struct fusb30x_chip *chip)
 	tcpm_set_vconn(chip, 0);
 
 	regmap_write(chip->regmap, FUSB_REG_POWER, 0xf);
+	chip->vbus_begin = tcpm_check_vbus(chip);
 }
 
 static void pd_execute_hard_reset(struct fusb30x_chip *chip)
@@ -821,16 +832,6 @@ static void set_state_unattached(struct fusb30x_chip *chip)
 	msleep(100);
 	if (chip->gpio_discharge)
 		gpiod_set_value(chip->gpio_discharge, 0);
-}
-
-static int tcpm_check_vbus(struct fusb30x_chip *chip)
-{
-	u32 val;
-
-	/* Read status register */
-	regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
-
-	return (val & STATUS0_VBUSOK) ? 1 : 0;
 }
 
 static void set_mesg(struct fusb30x_chip *chip, int cmd, int is_DMT)
@@ -1905,7 +1906,12 @@ static void fusb_state_snk_wait_caps(struct fusb30x_chip *chip, int evt)
 		}
 	} else if (evt & EVENT_TIMER_STATE) {
 		if (chip->hardrst_count <= N_HARDRESET_COUNT) {
-			set_state(chip, policy_snk_send_hardrst);
+			if (chip->vbus_begin) {
+				chip->vbus_begin = false;
+				set_state(chip, policy_snk_send_softrst);
+			} else {
+				set_state(chip, policy_snk_send_hardrst);
+			}
 		} else {
 			if (chip->is_pd_support)
 				set_state(chip, error_recovery);

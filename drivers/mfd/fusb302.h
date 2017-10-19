@@ -442,6 +442,7 @@ struct fusb30x_chip {
 	int pd_output_cur;
 	int cc_meas_high;
 	int cc_meas_low;
+	bool vbus_begin;
 };
 
 #endif /* FUSB302_H */
