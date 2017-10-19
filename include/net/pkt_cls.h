@@ -19,6 +19,8 @@ int unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
 
 enum tcf_block_binder_type {
 	TCF_BLOCK_BINDER_TYPE_UNSPEC,
+	TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS,
+	TCF_BLOCK_BINDER_TYPE_CLSACT_EGRESS,
 };
 
 struct tcf_block_ext_info {
