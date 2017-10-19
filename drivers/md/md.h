@@ -546,12 +546,11 @@ struct md_personality
 	int (*check_reshape) (struct mddev *mddev);
 	int (*start_reshape) (struct mddev *mddev);
 	void (*finish_reshape) (struct mddev *mddev);
-	/* quiesce moves between quiescence states
-	 * 0 - fully active
-	 * 1 - no new requests allowed
-	 * others - reserved
+	/* quiesce suspends or resumes internal processing.
+	 * 1 - stop new actions and wait for action io to complete
+	 * 0 - return to normal behaviour
 	 */
-	void (*quiesce) (struct mddev *mddev, int state);
+	void (*quiesce) (struct mddev *mddev, int quiesce);
 	/* takeover is used to transition an array from one
 	 * personality to another.  The new personality must be able
 	 * to handle the data in the current layout.

@@ -1589,21 +1589,21 @@ void r5l_wake_reclaim(struct r5l_log *log, sector_t space)
 	md_wakeup_thread(log->reclaim_thread);
 }
 
-void r5l_quiesce(struct r5l_log *log, int state)
+void r5l_quiesce(struct r5l_log *log, int quiesce)
 {
 	struct mddev *mddev;
-	if (!log || state == 2)
+	if (!log)
 		return;
-	if (state == 0)
-		kthread_unpark(log->reclaim_thread->tsk);
-	else if (state == 1) {
+
+	if (quiesce) {
 		/* make sure r5l_write_super_and_discard_space exits */
 		mddev = log->rdev->mddev;
 		wake_up(&mddev->sb_wait);
 		kthread_park(log->reclaim_thread->tsk);
 		r5l_wake_reclaim(log, MaxSector);
 		r5l_do_reclaim(log);
-	}
+	} else
+		kthread_unpark(log->reclaim_thread->tsk);
 }
 
 bool r5l_log_disk_error(struct r5conf *conf)

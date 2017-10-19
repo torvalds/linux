@@ -3276,21 +3276,14 @@ static int raid1_reshape(struct mddev *mddev)
 	return 0;
 }
 
-static void raid1_quiesce(struct mddev *mddev, int state)
+static void raid1_quiesce(struct mddev *mddev, int quiesce)
 {
 	struct r1conf *conf = mddev->private;
 
-	switch(state) {
-	case 2: /* wake for suspend */
-		wake_up(&conf->wait_barrier);
-		break;
-	case 1:
+	if (quiesce)
 		freeze_array(conf, 0);
-		break;
-	case 0:
+	else
 		unfreeze_array(conf);
-		break;
-	}
 }
 
 static void *raid1_takeover(struct mddev *mddev)

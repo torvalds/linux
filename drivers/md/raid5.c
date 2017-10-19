@@ -8003,16 +8003,12 @@ static void raid5_finish_reshape(struct mddev *mddev)
 	}
 }
 
-static void raid5_quiesce(struct mddev *mddev, int state)
+static void raid5_quiesce(struct mddev *mddev, int quiesce)
 {
 	struct r5conf *conf = mddev->private;
 
-	switch(state) {
-	case 2: /* resume for a suspend */
-		wake_up(&conf->wait_for_overlap);
-		break;
-
-	case 1: /* stop all writes */
+	if (quiesce) {
+		/* stop all writes */
 		lock_all_device_hash_locks_irq(conf);
 		/* '2' tells resync/reshape to pause so that all
 		 * active stripes can drain
@@ -8028,17 +8024,15 @@ static void raid5_quiesce(struct mddev *mddev, int state)
 		unlock_all_device_hash_locks_irq(conf);
 		/* allow reshape to continue */
 		wake_up(&conf->wait_for_overlap);
-		break;
-
-	case 0: /* re-enable writes */
+	} else {
+		/* re-enable writes */
 		lock_all_device_hash_locks_irq(conf);
 		conf->quiesce = 0;
 		wake_up(&conf->wait_for_quiescent);
 		wake_up(&conf->wait_for_overlap);
 		unlock_all_device_hash_locks_irq(conf);
-		break;
 	}
-	r5l_quiesce(conf->log, state);
+	r5l_quiesce(conf->log, quiesce);
 }
 
 static void *raid45_takeover_raid0(struct mddev *mddev, int level)
