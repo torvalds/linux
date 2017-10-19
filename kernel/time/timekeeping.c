@@ -1258,49 +1258,21 @@ out:
 }
 EXPORT_SYMBOL(do_settimeofday64);
 
-/*
- * Validates if a timespec/timeval used to inject a time offset is valid.
- * Offsets can be postive or negative. The value of the timeval/timespec
- * is the sum of its fields, but *NOTE*: the field tv_usec/tv_nsec must
- * always be non-negative.
- */
-static inline bool timeval_inject_offset_valid(const struct timeval *tv)
-{
-	/* We don't check the tv_sec as it can be positive or negative */
-
-	/* Can't have more microseconds then a second */
-	if (tv->tv_usec < 0 || tv->tv_usec >= USEC_PER_SEC)
-		return false;
-	return true;
-}
-
-static inline bool timespec_inject_offset_valid(const struct timespec *ts)
-{
-	/* We don't check the tv_sec as it can be positive or negative */
-
-	/* Can't have more nanoseconds then a second */
-	if (ts->tv_nsec < 0 || ts->tv_nsec >= NSEC_PER_SEC)
-		return false;
-	return true;
-}
-
 /**
  * timekeeping_inject_offset - Adds or subtracts from the current time.
  * @tv:		pointer to the timespec variable containing the offset
  *
  * Adds or subtracts an offset value from the current time.
  */
-static int timekeeping_inject_offset(struct timespec *ts)
+static int timekeeping_inject_offset(struct timespec64 *ts)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
 	unsigned long flags;
-	struct timespec64 ts64, tmp;
+	struct timespec64 tmp;
 	int ret = 0;
 
-	if (!timespec_inject_offset_valid(ts))
+	if (ts->tv_nsec < 0 || ts->tv_nsec >= NSEC_PER_SEC)
 		return -EINVAL;
-
-	ts64 = timespec_to_timespec64(*ts);
 
 	raw_spin_lock_irqsave(&timekeeper_lock, flags);
 	write_seqcount_begin(&tk_core.seq);
@@ -1308,15 +1280,15 @@ static int timekeeping_inject_offset(struct timespec *ts)
 	timekeeping_forward_now(tk);
 
 	/* Make sure the proposed value is valid */
-	tmp = timespec64_add(tk_xtime(tk),  ts64);
-	if (timespec64_compare(&tk->wall_to_monotonic, &ts64) > 0 ||
+	tmp = timespec64_add(tk_xtime(tk), *ts);
+	if (timespec64_compare(&tk->wall_to_monotonic, ts) > 0 ||
 	    !timespec64_valid_strict(&tmp)) {
 		ret = -EINVAL;
 		goto error;
 	}
 
-	tk_xtime_add(tk, &ts64);
-	tk_set_wall_to_mono(tk, timespec64_sub(tk->wall_to_monotonic, ts64));
+	tk_xtime_add(tk, ts);
+	tk_set_wall_to_mono(tk, timespec64_sub(tk->wall_to_monotonic, *ts));
 
 error: /* even if we error out, we forwarded the time, so call update */
 	timekeeping_update(tk, TK_CLEAR_NTP | TK_MIRROR | TK_CLOCK_WAS_SET);
@@ -1355,7 +1327,7 @@ int persistent_clock_is_local;
 void timekeeping_warp_clock(void)
 {
 	if (sys_tz.tz_minuteswest != 0) {
-		struct timespec adjust;
+		struct timespec64 adjust;
 
 		persistent_clock_is_local = 1;
 		adjust.tv_sec = sys_tz.tz_minuteswest * 60;
@@ -2307,9 +2279,9 @@ ktime_t ktime_get_update_offsets_now(unsigned int *cwsseq, ktime_t *offs_real,
 }
 
 /**
- * ntp_validate_timex - Ensures the timex is ok for use in do_adjtimex
+ * timekeeping_validate_timex - Ensures the timex is ok for use in do_adjtimex
  */
-static int ntp_validate_timex(struct timex *txc)
+static int timekeeping_validate_timex(struct timex *txc)
 {
 	if (txc->modes & ADJ_ADJTIME) {
 		/* singleshot must not be used with any other mode bits */
@@ -2337,16 +2309,22 @@ static int ntp_validate_timex(struct timex *txc)
 		if (!capable(CAP_SYS_TIME))
 			return -EPERM;
 
+		/*
+		 * Validate if a timespec/timeval used to inject a time
+		 * offset is valid.  Offsets can be postive or negative, so
+		 * we don't check tv_sec. The value of the timeval/timespec
+		 * is the sum of its fields,but *NOTE*:
+		 * The field tv_usec/tv_nsec must always be non-negative and
+		 * we can't have more nanoseconds/microseconds than a second.
+		 */
+		if (txc->time.tv_usec < 0)
+			return -EINVAL;
+
 		if (txc->modes & ADJ_NANO) {
-			struct timespec ts;
-
-			ts.tv_sec = txc->time.tv_sec;
-			ts.tv_nsec = txc->time.tv_usec;
-			if (!timespec_inject_offset_valid(&ts))
+			if (txc->time.tv_usec >= NSEC_PER_SEC)
 				return -EINVAL;
-
 		} else {
-			if (!timeval_inject_offset_valid(&txc->time))
+			if (txc->time.tv_usec >= USEC_PER_SEC)
 				return -EINVAL;
 		}
 	}
@@ -2378,12 +2356,12 @@ int do_adjtimex(struct timex *txc)
 	int ret;
 
 	/* Validate the data before disabling interrupts */
-	ret = ntp_validate_timex(txc);
+	ret = timekeeping_validate_timex(txc);
 	if (ret)
 		return ret;
 
 	if (txc->modes & ADJ_SETOFFSET) {
-		struct timespec delta;
+		struct timespec64 delta;
 		delta.tv_sec  = txc->time.tv_sec;
 		delta.tv_nsec = txc->time.tv_usec;
 		if (!(txc->modes & ADJ_NANO))
