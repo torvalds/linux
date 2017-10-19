@@ -252,7 +252,7 @@ static char **parse_bytes(char **argv, const char *name, unsigned char *val,
 		val[i] = strtoul(argv[i], &endptr, 0);
 		if (*endptr) {
 			err("error parsing byte: %s\n", argv[i]);
-			break;
+			return NULL;
 		}
 		i++;
 	}
