@@ -12,6 +12,7 @@
 #include <linux/security.h>
 #include <linux/export.h>
 #include <linux/sysrq.h>
+#include <linux/efi.h>
 #include <asm/setup.h>
 
 #ifdef CONFIG_ALLOW_LOCKDOWN_LIFT_BY_SYSRQ
