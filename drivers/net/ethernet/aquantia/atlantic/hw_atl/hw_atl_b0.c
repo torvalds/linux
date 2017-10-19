@@ -939,6 +939,7 @@ static struct aq_hw_ops hw_atl_ops_ = {
 	.hw_rss_set                  = hw_atl_b0_hw_rss_set,
 	.hw_rss_hash_set             = hw_atl_b0_hw_rss_hash_set,
 	.hw_get_regs                 = hw_atl_utils_hw_get_regs,
+	.hw_update_stats             = hw_atl_utils_update_stats,
 	.hw_get_hw_stats             = hw_atl_utils_get_hw_stats,
 	.hw_get_fw_version           = hw_atl_utils_get_fw_version,
 };

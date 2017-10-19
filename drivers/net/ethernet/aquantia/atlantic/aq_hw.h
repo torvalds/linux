@@ -163,6 +163,8 @@ struct aq_hw_ops {
 	int (*hw_get_regs)(struct aq_hw_s *self,
 			   struct aq_hw_caps_s *aq_hw_caps, u32 *regs_buff);
 
+	int (*hw_update_stats)(struct aq_hw_s *self);
+
 	int (*hw_get_hw_stats)(struct aq_hw_s *self, u64 *data,
 			       unsigned int *p_count);
 
