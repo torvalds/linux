@@ -984,7 +984,7 @@ static void arm_smmu_cmdq_issue_cmd(struct arm_smmu_device *smmu,
  * The difference between val and sync_idx is bounded by the maximum size of
  * a queue at 2^20 entries, so 32 bits is plenty for wrap-safe arithmetic.
  */
-static int arm_smmu_sync_poll_msi(struct arm_smmu_device *smmu, u32 sync_idx)
+static int __arm_smmu_sync_poll_msi(struct arm_smmu_device *smmu, u32 sync_idx)
 {
 	ktime_t timeout = ktime_add_us(ktime_get(), ARM_SMMU_SYNC_TIMEOUT_US);
 	u32 val = smp_cond_load_acquire(&smmu->sync_count,
@@ -994,30 +994,53 @@ static int arm_smmu_sync_poll_msi(struct arm_smmu_device *smmu, u32 sync_idx)
 	return (int)(val - sync_idx) < 0 ? -ETIMEDOUT : 0;
 }
 
-static void arm_smmu_cmdq_issue_sync(struct arm_smmu_device *smmu)
+static int __arm_smmu_cmdq_issue_sync_msi(struct arm_smmu_device *smmu)
 {
 	u64 cmd[CMDQ_ENT_DWORDS];
 	unsigned long flags;
-	bool wfe = !!(smmu->features & ARM_SMMU_FEAT_SEV);
-	bool msi = (smmu->features & ARM_SMMU_FEAT_MSI) &&
-		   (smmu->features & ARM_SMMU_FEAT_COHERENCY);
-	struct arm_smmu_cmdq_ent ent = { .opcode = CMDQ_OP_CMD_SYNC };
-	int ret;
+	struct arm_smmu_cmdq_ent ent = {
+		.opcode = CMDQ_OP_CMD_SYNC,
+		.sync	= {
+			.msidata = atomic_inc_return_relaxed(&smmu->sync_nr),
+			.msiaddr = virt_to_phys(&smmu->sync_count),
+		},
+	};
 
-	if (msi) {
-		ent.sync.msidata = atomic_inc_return_relaxed(&smmu->sync_nr);
-		ent.sync.msiaddr = virt_to_phys(&smmu->sync_count);
-	}
 	arm_smmu_cmdq_build_cmd(cmd, &ent);
 
 	spin_lock_irqsave(&smmu->cmdq.lock, flags);
 	arm_smmu_cmdq_insert_cmd(smmu, cmd);
-	if (!msi)
-		ret = queue_poll_cons(&smmu->cmdq.q, true, wfe);
 	spin_unlock_irqrestore(&smmu->cmdq.lock, flags);
 
-	if (msi)
-		ret = arm_smmu_sync_poll_msi(smmu, ent.sync.msidata);
+	return __arm_smmu_sync_poll_msi(smmu, ent.sync.msidata);
+}
+
+static int __arm_smmu_cmdq_issue_sync(struct arm_smmu_device *smmu)
+{
+	u64 cmd[CMDQ_ENT_DWORDS];
+	unsigned long flags;
+	bool wfe = !!(smmu->features & ARM_SMMU_FEAT_SEV);
+	struct arm_smmu_cmdq_ent ent = { .opcode = CMDQ_OP_CMD_SYNC };
+	int ret;
+
+	arm_smmu_cmdq_build_cmd(cmd, &ent);
+
+	spin_lock_irqsave(&smmu->cmdq.lock, flags);
+	arm_smmu_cmdq_insert_cmd(smmu, cmd);
+	ret = queue_poll_cons(&smmu->cmdq.q, true, wfe);
+	spin_unlock_irqrestore(&smmu->cmdq.lock, flags);
+
+	return ret;
+}
+
+static void arm_smmu_cmdq_issue_sync(struct arm_smmu_device *smmu)
+{
+	int ret;
+	bool msi = (smmu->features & ARM_SMMU_FEAT_MSI) &&
+		   (smmu->features & ARM_SMMU_FEAT_COHERENCY);
+
+	ret = msi ? __arm_smmu_cmdq_issue_sync_msi(smmu)
+		  : __arm_smmu_cmdq_issue_sync(smmu);
 	if (ret)
 		dev_err_ratelimited(smmu->dev, "CMD_SYNC timeout\n");
 }
