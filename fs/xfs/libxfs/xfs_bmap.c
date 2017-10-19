@@ -5637,8 +5637,6 @@ xfs_bmap_collapse_extents(
 	struct xfs_btree_cur	*cur = NULL;
 	struct xfs_bmbt_irec	got, prev;
 	xfs_extnum_t		current_ext;
-	xfs_extnum_t		total_extents;
-	xfs_extnum_t		stop_extent;
 	xfs_fileoff_t		new_startoff;
 	int			error = 0;
 	int			logflags = 0;
@@ -5669,52 +5667,31 @@ xfs_bmap_collapse_extents(
 		cur->bc_private.b.flags = 0;
 	}
 
-	/*
-	 * There may be delalloc extents in the data fork before the range we
-	 * are collapsing out, so we cannot use the count of real extents here.
-	 * Instead we have to calculate it from the incore fork.
-	 */
-	total_extents = xfs_iext_count(ifp);
-	if (total_extents == 0) {
-		*done = true;
-		goto del_cursor;
-	}
-
-	/*
-	 * Look up the extent index for the fsb where we start shifting. We can
-	 * henceforth iterate with current_ext as extent list changes are locked
-	 * out via ilock.
-	 *
-	 * If next_fsb lies in a hole beyond which there are no extents we are
-	 * done.
-	 */
 	if (!xfs_iext_lookup_extent(ip, ifp, *next_fsb, &current_ext, &got)) {
 		*done = true;
 		goto del_cursor;
 	}
 	XFS_WANT_CORRUPTED_RETURN(mp, !isnullstartblock(got.br_startblock));
 
-	stop_extent = total_extents;
-	if (current_ext >= stop_extent) {
-		error = -EIO;
-		goto del_cursor;
-	}
-
 	new_startoff = got.br_startoff - offset_shift_fsb;
-	if (current_ext) {
-		xfs_iext_get_extent(ifp, current_ext - 1, &prev);
+	if (xfs_iext_get_extent(ifp, current_ext - 1, &prev)) {
 		if (new_startoff < prev.br_startoff + prev.br_blockcount) {
 			error = -EINVAL;
 			goto del_cursor;
 		}
 
-		/* check whether to merge the extent or shift it down */
 		if (xfs_bmse_can_merge(&prev, &got, offset_shift_fsb)) {
 			error = xfs_bmse_merge(ip, whichfork, offset_shift_fsb,
 					current_ext, &got, &prev, cur,
 					&logflags, dfops);
 			if (error)
 				goto del_cursor;
+
+			/* update got after merge */
+			if (!xfs_iext_get_extent(ifp, current_ext, &got)) {
+				*done = true;
+				goto del_cursor;
+			}
 			goto done;
 		}
 	} else {
@@ -5728,20 +5705,13 @@ xfs_bmap_collapse_extents(
 			cur, &logflags, dfops, new_startoff);
 	if (error)
 		goto del_cursor;
-	current_ext++;
-done:
-	/*
-	 * If there was an extent merge during the shift, the extent
-	 * count can change. Update the total and grade the next record.
-	 */
-	total_extents = xfs_iext_count(ifp);
-	stop_extent = total_extents;
-	if (current_ext == stop_extent) {
-		*done = true;
-		goto del_cursor;
-	}
-	xfs_iext_get_extent(ifp, current_ext, &got);
 
+	if (!xfs_iext_get_extent(ifp, ++current_ext, &got)) {
+		 *done = true;
+		 goto del_cursor;
+	}
+
+done:
 	*next_fsb = got.br_startoff;
 del_cursor:
 	if (cur)
