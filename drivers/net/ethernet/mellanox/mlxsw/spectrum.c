@@ -1792,9 +1792,6 @@ static int mlxsw_sp_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 
 	switch (type) {
-	case TC_SETUP_CLSMATCHALL:
-	case TC_SETUP_CLSFLOWER:
-		return 0; /* will be removed after conversion from ndo */
 	case TC_SETUP_BLOCK:
 		return mlxsw_sp_setup_tc_block(mlxsw_sp_port, type_data);
 	default:

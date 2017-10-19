@@ -3141,8 +3141,6 @@ int mlx5e_setup_tc(struct net_device *dev, enum tc_setup_type type,
 {
 	switch (type) {
 #ifdef CONFIG_MLX5_ESWITCH
-	case TC_SETUP_CLSFLOWER:
-		return 0; /* will be removed after conversion from ndo */
 	case TC_SETUP_BLOCK:
 		return mlx5e_setup_tc_block(dev, type_data);
 #endif

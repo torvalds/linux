@@ -506,8 +506,6 @@ int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
 			enum tc_setup_type type, void *type_data)
 {
 	switch (type) {
-	case TC_SETUP_CLSFLOWER:
-		return 0; /* will be removed after conversion from ndo */
 	case TC_SETUP_BLOCK:
 		return nfp_flower_setup_tc_block(netdev, type_data);
 	default:

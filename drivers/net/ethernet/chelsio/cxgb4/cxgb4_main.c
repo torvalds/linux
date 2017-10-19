@@ -2969,9 +2969,6 @@ static int cxgb_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			 void *type_data)
 {
 	switch (type) {
-	case TC_SETUP_CLSU32:
-	case TC_SETUP_CLSFLOWER:
-		return 0; /* will be removed after conversion from ndo */
 	case TC_SETUP_BLOCK:
 		return cxgb_setup_tc_block(dev, type_data);
 	default:

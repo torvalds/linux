@@ -148,7 +148,6 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 			       enum tc_clsbpf_command cmd)
 {
 	bool addorrep = cmd == TC_CLSBPF_ADD || cmd == TC_CLSBPF_REPLACE;
-	struct net_device *dev = tp->q->dev_queue->dev;
 	struct tcf_block *block = tp->chain->block;
 	bool skip_sw = tc_skip_sw(prog->gen_flags);
 	struct tc_cls_bpf_offload cls_bpf = {};
@@ -161,19 +160,6 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 	cls_bpf.name = prog->bpf_name;
 	cls_bpf.exts_integrated = prog->exts_integrated;
 	cls_bpf.gen_flags = prog->gen_flags;
-
-	if (tc_can_offload(dev)) {
-		err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSBPF,
-						    &cls_bpf);
-		if (addorrep) {
-			if (err) {
-				if (skip_sw)
-					return err;
-			} else {
-				prog->gen_flags |= TCA_CLS_FLAGS_IN_HW;
-			}
-		}
-	}
 
 	err = tc_setup_cb_call(block, NULL, TC_SETUP_CLSBPF, &cls_bpf, skip_sw);
 	if (addorrep) {
