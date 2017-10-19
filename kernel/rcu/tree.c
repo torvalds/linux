@@ -2789,6 +2789,11 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
 		rdp->n_force_qs_snap = rsp->n_force_qs;
 	} else if (count < rdp->qlen_last_fqs_check - qhimark)
 		rdp->qlen_last_fqs_check = count;
+
+	/*
+	 * The following usually indicates a double call_rcu().  To track
+	 * this down, try building with CONFIG_DEBUG_OBJECTS_RCU_HEAD=y.
+	 */
 	WARN_ON_ONCE(rcu_segcblist_empty(&rdp->cblist) != (count == 0));
 
 	local_irq_restore(flags);
