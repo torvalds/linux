@@ -183,15 +183,6 @@ static inline bool xfs_bmap_is_real_extent(struct xfs_bmbt_irec *irec)
 		!isnullstartblock(irec->br_startblock);
 }
 
-/*
- * This macro is used to determine how many extents will be shifted
- * in one write transaction. We could require two splits,
- * an extent move on the first and an extent merge on the second,
- * So it is proper that one extent is shifted inside write transaction
- * at a time.
- */
-#define XFS_BMAP_MAX_SHIFT_EXTENTS	1
-
 enum shift_direction {
 	SHIFT_LEFT = 0,
 	SHIFT_RIGHT,
@@ -240,8 +231,7 @@ uint	xfs_default_attroffset(struct xfs_inode *ip);
 int	xfs_bmap_shift_extents(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_fileoff_t *next_fsb, xfs_fileoff_t offset_shift_fsb,
 		int *done, xfs_fileoff_t stop_fsb, xfs_fsblock_t *firstblock,
-		struct xfs_defer_ops *dfops, enum shift_direction direction,
-		int num_exts);
+		struct xfs_defer_ops *dfops, enum shift_direction direction);
 int	xfs_bmap_split_extent(struct xfs_inode *ip, xfs_fileoff_t split_offset);
 int	xfs_bmapi_reserve_delalloc(struct xfs_inode *ip, int whichfork,
 		xfs_fileoff_t off, xfs_filblks_t len, xfs_filblks_t prealloc,

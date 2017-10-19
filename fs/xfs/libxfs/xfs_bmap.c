@@ -5703,8 +5703,7 @@ update_current_ext:
 /*
  * Shift extent records to the left/right to cover/create a hole.
  *
- * The maximum number of extents to be shifted in a single operation is
- * @num_exts. @stop_fsb specifies the file offset at which to stop shift and the
+ * @stop_fsb specifies the file offset at which to stop shift and the
  * file offset where we've left off is returned in @next_fsb. @offset_shift_fsb
  * is the length by which each extent is shifted. If there is no hole to shift
  * the extents into, this will be considered invalid operation and we abort
@@ -5720,14 +5719,12 @@ xfs_bmap_shift_extents(
 	xfs_fileoff_t		stop_fsb,
 	xfs_fsblock_t		*firstblock,
 	struct xfs_defer_ops	*dfops,
-	enum shift_direction	direction,
-	int			num_exts)
+	enum shift_direction	direction)
 {
 	struct xfs_btree_cur		*cur = NULL;
 	struct xfs_bmbt_irec            got;
 	struct xfs_mount		*mp = ip->i_mount;
 	struct xfs_ifork		*ifp;
-	xfs_extnum_t			nexts = 0;
 	xfs_extnum_t			current_ext;
 	xfs_extnum_t			total_extents;
 	xfs_extnum_t			stop_extent;
@@ -5825,31 +5822,27 @@ xfs_bmap_shift_extents(
 		}
 	}
 
-	while (nexts++ < num_exts) {
-		error = xfs_bmse_shift_one(ip, whichfork, offset_shift_fsb,
-					   &current_ext, &got, cur, &logflags,
-					   direction, dfops);
-		if (error)
-			goto del_cursor;
-		/*
-		 * If there was an extent merge during the shift, the extent
-		 * count can change. Update the total and grade the next record.
-		 */
-		if (direction == SHIFT_LEFT) {
-			total_extents = xfs_iext_count(ifp);
-			stop_extent = total_extents;
-		}
-
-		if (current_ext == stop_extent) {
-			*done = 1;
-			*next_fsb = NULLFSBLOCK;
-			break;
-		}
-		xfs_iext_get_extent(ifp, current_ext, &got);
+	error = xfs_bmse_shift_one(ip, whichfork, offset_shift_fsb,
+				   &current_ext, &got, cur, &logflags,
+				   direction, dfops);
+	if (error)
+		goto del_cursor;
+	/*
+	 * If there was an extent merge during the shift, the extent
+	 * count can change. Update the total and grade the next record.
+	 */
+	if (direction == SHIFT_LEFT) {
+		total_extents = xfs_iext_count(ifp);
+		stop_extent = total_extents;
 	}
 
-	if (!*done)
-		*next_fsb = got.br_startoff;
+	if (current_ext == stop_extent) {
+		*done = 1;
+		goto del_cursor;
+	}
+	xfs_iext_get_extent(ifp, current_ext, &got);
+
+	*next_fsb = got.br_startoff;
 
 del_cursor:
 	if (cur)
