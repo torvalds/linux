@@ -206,6 +206,18 @@ wait_and_poll(struct megasas_instance *instance, struct megasas_cmd *cmd,
 void megasas_fusion_ocr_wq(struct work_struct *work);
 static int megasas_get_ld_vf_affiliation(struct megasas_instance *instance,
 					 int initial);
+static int
+megasas_set_dma_mask(struct pci_dev *pdev);
+static int
+megasas_alloc_ctrl_mem(struct megasas_instance *instance);
+static inline void
+megasas_free_ctrl_mem(struct megasas_instance *instance);
+static inline int
+megasas_alloc_ctrl_dma_buffers(struct megasas_instance *instance);
+static inline void
+megasas_free_ctrl_dma_buffers(struct megasas_instance *instance);
+static inline void
+megasas_init_ctrl_params(struct megasas_instance *instance);
 
 void
 megasas_issue_dcmd(struct megasas_instance *instance, struct megasas_cmd *cmd)
@@ -5179,6 +5191,19 @@ static int megasas_init_fw(struct megasas_instance *instance)
 			goto fail_ready_state;
 	}
 
+	megasas_init_ctrl_params(instance);
+
+	if (megasas_set_dma_mask(instance->pdev))
+		goto fail_ready_state;
+
+	if (megasas_alloc_ctrl_mem(instance))
+		goto fail_alloc_dma_buf;
+
+	if (megasas_alloc_ctrl_dma_buffers(instance))
+		goto fail_alloc_dma_buf;
+
+	fusion = instance->ctrl_context;
+
 	if (instance->adapter_type == VENTURA_SERIES) {
 		scratch_pad_3 =
 			readl(&instance->reg_set->outbound_scratch_pad_3);
@@ -5475,6 +5500,9 @@ fail_setup_irqs:
 	if (instance->msix_vectors)
 		pci_free_irq_vectors(instance->pdev);
 	instance->msix_vectors = 0;
+fail_alloc_dma_buf:
+	megasas_free_ctrl_dma_buffers(instance);
+	megasas_free_ctrl_mem(instance);
 fail_ready_state:
 	iounmap(instance->reg_set);
 
@@ -6318,9 +6346,6 @@ static int megasas_probe_one(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	if (megasas_set_dma_mask(pdev))
-		goto fail_set_dma_mask;
-
 	host = scsi_host_alloc(&megasas_template,
 			       sizeof(struct megasas_instance));
 
@@ -6342,14 +6367,6 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	instance->init_id = MEGASAS_DEFAULT_INIT_ID;
 
 	megasas_set_adapter_type(instance);
-
-	megasas_init_ctrl_params(instance);
-
-	if (megasas_alloc_ctrl_mem(instance))
-		goto fail_alloc_dma_buf;
-
-	if (megasas_alloc_ctrl_dma_buffers(instance))
-		goto fail_alloc_dma_buf;
 
 	/*
 	 * Initialize MFI Firmware
@@ -6432,13 +6449,9 @@ fail_io_attach:
 	if (instance->msix_vectors)
 		pci_free_irq_vectors(instance->pdev);
 fail_init_mfi:
-fail_alloc_dma_buf:
-	megasas_free_ctrl_dma_buffers(instance);
-	megasas_free_ctrl_mem(instance);
 	scsi_host_put(host);
 
 fail_alloc_instance:
-fail_set_dma_mask:
 	pci_disable_device(pdev);
 
 	return -ENODEV;
