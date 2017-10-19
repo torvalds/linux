@@ -516,7 +516,7 @@ int nfsd_create_serv(struct net *net)
 		register_inet6addr_notifier(&nfsd_inet6addr_notifier);
 #endif
 	}
-	do_gettimeofday(&nn->nfssvc_boot);		/* record boot time */
+	ktime_get_real_ts64(&nn->nfssvc_boot); /* record boot time */
 	return 0;
 }
 
