@@ -42,6 +42,7 @@
 #include <linux/blkdev.h>
 #include <linux/posix_acl_xattr.h>
 #include <linux/uio.h>
+#include <linux/magic.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -315,7 +316,7 @@ static noinline int cow_file_range_inline(struct btrfs_root *root,
 		btrfs_free_path(path);
 		return PTR_ERR(trans);
 	}
-	trans->block_rsv = &fs_info->delalloc_block_rsv;
+	trans->block_rsv = &BTRFS_I(inode)->block_rsv;
 
 	if (compressed_size && compressed_pages)
 		extent_item_size = btrfs_file_extent_calc_inline_size(
@@ -2954,7 +2955,7 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 			trans = NULL;
 			goto out;
 		}
-		trans->block_rsv = &fs_info->delalloc_block_rsv;
+		trans->block_rsv = &BTRFS_I(inode)->block_rsv;
 		ret = btrfs_update_inode_fallback(trans, root, inode);
 		if (ret) /* -ENOMEM or corruption */
 			btrfs_abort_transaction(trans, ret);
@@ -2990,7 +2991,7 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 		goto out;
 	}
 
-	trans->block_rsv = &fs_info->delalloc_block_rsv;
+	trans->block_rsv = &BTRFS_I(inode)->block_rsv;
 
 	if (test_bit(BTRFS_ORDERED_COMPRESSED, &ordered_extent->flags))
 		compress_type = ordered_extent->compress_type;
@@ -8845,7 +8846,6 @@ static ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	if (iov_iter_rw(iter) == WRITE) {
 		up_read(&BTRFS_I(inode)->dio_sem);
 		current->journal_info = NULL;
-		btrfs_delalloc_release_extents(BTRFS_I(inode), count);
 		if (ret < 0 && ret != -EIOCBQUEUED) {
 			if (dio_data.reserve)
 				btrfs_delalloc_release_space(inode, data_reserved,
@@ -8866,6 +8866,7 @@ static ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 		} else if (ret >= 0 && (size_t)ret < count)
 			btrfs_delalloc_release_space(inode, data_reserved,
 					offset, count - (size_t)ret);
+		btrfs_delalloc_release_extents(BTRFS_I(inode), count);
 	}
 out:
 	if (wakeup)
@@ -9430,6 +9431,7 @@ int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
 
 struct inode *btrfs_alloc_inode(struct super_block *sb)
 {
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
 	struct btrfs_inode *ei;
 	struct inode *inode;
 
@@ -9456,8 +9458,9 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 
 	spin_lock_init(&ei->lock);
 	ei->outstanding_extents = 0;
-	ei->reserved_extents = 0;
-
+	if (sb->s_magic != BTRFS_TEST_MAGIC)
+		btrfs_init_metadata_block_rsv(fs_info, &ei->block_rsv,
+					      BTRFS_BLOCK_RSV_DELALLOC);
 	ei->runtime_flags = 0;
 	ei->prop_compress = BTRFS_COMPRESS_NONE;
 	ei->defrag_compress = BTRFS_COMPRESS_NONE;
@@ -9507,8 +9510,9 @@ void btrfs_destroy_inode(struct inode *inode)
 
 	WARN_ON(!hlist_empty(&inode->i_dentry));
 	WARN_ON(inode->i_data.nrpages);
+	WARN_ON(BTRFS_I(inode)->block_rsv.reserved);
+	WARN_ON(BTRFS_I(inode)->block_rsv.size);
 	WARN_ON(BTRFS_I(inode)->outstanding_extents);
-	WARN_ON(BTRFS_I(inode)->reserved_extents);
 	WARN_ON(BTRFS_I(inode)->delalloc_bytes);
 	WARN_ON(BTRFS_I(inode)->new_delalloc_bytes);
 	WARN_ON(BTRFS_I(inode)->csum_bytes);
