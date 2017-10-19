@@ -5229,7 +5229,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 			(&instance->reg_set->outbound_scratch_pad_2);
 		/* Check max MSI-X vectors */
 		if (fusion) {
-			if (fusion->adapter_type == THUNDERBOLT_SERIES) { /* Thunderbolt Series*/
+			if (instance->adapter_type == THUNDERBOLT_SERIES) {
+				/* Thunderbolt Series*/
 				instance->msix_vectors = (scratch_pad_2
 					& MR_MAX_REPLY_QUEUES_OFFSET) + 1;
 				fw_msix_count = instance->msix_vectors;
@@ -5965,6 +5966,46 @@ fail_set_dma_mask:
 	return 1;
 }
 
+/*
+ * megasas_set_adapter_type -	Set adapter type.
+ *				Supported controllers can be divided in
+ *				4 categories-  enum MR_ADAPTER_TYPE {
+ *							MFI_SERIES = 1,
+ *							THUNDERBOLT_SERIES = 2,
+ *							INVADER_SERIES = 3,
+ *							VENTURA_SERIES = 4,
+ *						};
+ * @instance:			Adapter soft state
+ * return:			void
+ */
+static inline void megasas_set_adapter_type(struct megasas_instance *instance)
+{
+	switch (instance->pdev->device) {
+	case PCI_DEVICE_ID_LSI_VENTURA:
+	case PCI_DEVICE_ID_LSI_HARPOON:
+	case PCI_DEVICE_ID_LSI_TOMCAT:
+	case PCI_DEVICE_ID_LSI_VENTURA_4PORT:
+	case PCI_DEVICE_ID_LSI_CRUSADER_4PORT:
+		instance->adapter_type = VENTURA_SERIES;
+		break;
+	case PCI_DEVICE_ID_LSI_FUSION:
+	case PCI_DEVICE_ID_LSI_PLASMA:
+		instance->adapter_type = THUNDERBOLT_SERIES;
+		break;
+	case PCI_DEVICE_ID_LSI_INVADER:
+	case PCI_DEVICE_ID_LSI_INTRUDER:
+	case PCI_DEVICE_ID_LSI_INTRUDER_24:
+	case PCI_DEVICE_ID_LSI_CUTLASS_52:
+	case PCI_DEVICE_ID_LSI_CUTLASS_53:
+	case PCI_DEVICE_ID_LSI_FURY:
+		instance->adapter_type = INVADER_SERIES;
+		break;
+	default: /* For all other supported controllers */
+		instance->adapter_type = MFI_SERIES;
+		break;
+	}
+}
+
 /**
  * megasas_probe_one -	PCI hotplug entry point
  * @pdev:		PCI device structure
@@ -5977,7 +6018,6 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	struct Scsi_Host *host;
 	struct megasas_instance *instance;
 	u16 control = 0;
-	struct fusion_context *fusion = NULL;
 
 	/* Reset MSI-X in the kdump kernel */
 	if (reset_devices) {
@@ -6022,39 +6062,10 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	atomic_set(&instance->fw_reset_no_pci_access, 0);
 	instance->pdev = pdev;
 
-	switch (instance->pdev->device) {
-	case PCI_DEVICE_ID_LSI_VENTURA:
-	case PCI_DEVICE_ID_LSI_HARPOON:
-	case PCI_DEVICE_ID_LSI_TOMCAT:
-	case PCI_DEVICE_ID_LSI_VENTURA_4PORT:
-	case PCI_DEVICE_ID_LSI_CRUSADER_4PORT:
-	     instance->is_ventura = true;
-	case PCI_DEVICE_ID_LSI_FUSION:
-	case PCI_DEVICE_ID_LSI_PLASMA:
-	case PCI_DEVICE_ID_LSI_INVADER:
-	case PCI_DEVICE_ID_LSI_FURY:
-	case PCI_DEVICE_ID_LSI_INTRUDER:
-	case PCI_DEVICE_ID_LSI_INTRUDER_24:
-	case PCI_DEVICE_ID_LSI_CUTLASS_52:
-	case PCI_DEVICE_ID_LSI_CUTLASS_53:
-	{
-		if (megasas_alloc_fusion_context(instance)) {
-			megasas_free_fusion_context(instance);
-			goto fail_alloc_dma_buf;
-		}
-		fusion = instance->ctrl_context;
+	megasas_set_adapter_type(instance);
 
-		if ((instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
-			(instance->pdev->device == PCI_DEVICE_ID_LSI_PLASMA))
-			fusion->adapter_type = THUNDERBOLT_SERIES;
-		else if (instance->is_ventura)
-			fusion->adapter_type = VENTURA_SERIES;
-		else
-			fusion->adapter_type = INVADER_SERIES;
-	}
-	break;
-	default: /* For all other supported controllers */
-
+	switch (instance->adapter_type) {
+	case MFI_SERIES:
 		instance->producer =
 			pci_alloc_consistent(pdev, sizeof(u32),
 					     &instance->producer_h);
@@ -6070,7 +6081,16 @@ static int megasas_probe_one(struct pci_dev *pdev,
 
 		*instance->producer = 0;
 		*instance->consumer = 0;
+
 		break;
+	case VENTURA_SERIES:
+		instance->is_ventura = 1;
+	case THUNDERBOLT_SERIES:
+	case INVADER_SERIES:
+		if (megasas_alloc_fusion_context(instance)) {
+			megasas_free_fusion_context(instance);
+			goto fail_alloc_dma_buf;
+		}
 	}
 
 	/* Crash dump feature related initialisation*/
