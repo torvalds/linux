@@ -143,9 +143,76 @@ static int bgpio_get_set(struct gpio_chip *gc, unsigned int gpio)
 		return !!(gc->read_reg(gc->reg_dat) & pinmask);
 }
 
+/*
+ * This assumes that the bits in the GPIO register are in native endianness.
+ * We only assign the function pointer if we have that.
+ */
+static int bgpio_get_set_multiple(struct gpio_chip *gc, unsigned long *mask,
+				  unsigned long *bits)
+{
+	unsigned long get_mask = 0;
+	unsigned long set_mask = 0;
+	int bit = 0;
+
+	while ((bit = find_next_bit(mask, gc->ngpio, bit)) != gc->ngpio) {
+		if (gc->bgpio_dir & BIT(bit))
+			set_mask |= BIT(bit);
+		else
+			get_mask |= BIT(bit);
+	}
+
+	if (set_mask)
+		*bits |= gc->read_reg(gc->reg_set) & set_mask;
+	if (get_mask)
+		*bits |= gc->read_reg(gc->reg_dat) & get_mask;
+
+	return 0;
+}
+
 static int bgpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
 	return !!(gc->read_reg(gc->reg_dat) & bgpio_line2mask(gc, gpio));
+}
+
+/*
+ * This only works if the bits in the GPIO register are in native endianness.
+ * It is dirt simple and fast in this case. (Also the most common case.)
+ */
+static int bgpio_get_multiple(struct gpio_chip *gc, unsigned long *mask,
+			      unsigned long *bits)
+{
+
+	*bits = gc->read_reg(gc->reg_dat) & *mask;
+	return 0;
+}
+
+/*
+ * With big endian mirrored bit order it becomes more tedious.
+ */
+static int bgpio_get_multiple_be(struct gpio_chip *gc, unsigned long *mask,
+				 unsigned long *bits)
+{
+	unsigned long readmask = 0;
+	unsigned long val;
+	int bit;
+
+	/* Create a mirrored mask */
+	bit = 0;
+	while ((bit = find_next_bit(mask, gc->ngpio, bit)) != gc->ngpio)
+		readmask |= bgpio_line2mask(gc, bit);
+
+	/* Read the register */
+	val = gc->read_reg(gc->reg_dat) & readmask;
+
+	/*
+	 * Mirror the result into the "bits" result, this will give line 0
+	 * in bit 0 ... line 31 in bit 31 for a 32bit register.
+	 */
+	bit = 0;
+	while ((bit = find_next_bit(&val, gc->ngpio, bit)) != gc->ngpio)
+		*bits |= bgpio_line2mask(gc, bit);
+
+	return 0;
 }
 
 static void bgpio_set_none(struct gpio_chip *gc, unsigned int gpio, int val)
@@ -455,10 +522,24 @@ static int bgpio_setup_io(struct gpio_chip *gc,
 	}
 
 	if (!(flags & BGPIOF_UNREADABLE_REG_SET) &&
-	    (flags & BGPIOF_READ_OUTPUT_REG_SET))
+	    (flags & BGPIOF_READ_OUTPUT_REG_SET)) {
 		gc->get = bgpio_get_set;
-	else
+		if (!gc->be_bits)
+			gc->get_multiple = bgpio_get_set_multiple;
+		/*
+		 * We deliberately avoid assigning the ->get_multiple() call
+		 * for big endian mirrored registers which are ALSO reflecting
+		 * their value in the set register when used as output. It is
+		 * simply too much complexity, let the GPIO core fall back to
+		 * reading each line individually in that fringe case.
+		 */
+	} else {
 		gc->get = bgpio_get;
+		if (gc->be_bits)
+			gc->get_multiple = bgpio_get_multiple_be;
+		else
+			gc->get_multiple = bgpio_get_multiple;
+	}
 
 	return 0;
 }
@@ -519,12 +600,12 @@ int bgpio_init(struct gpio_chip *gc, struct device *dev,
 	gc->base = -1;
 	gc->ngpio = gc->bgpio_bits;
 	gc->request = bgpio_request;
+	gc->be_bits = !!(flags & BGPIOF_BIG_ENDIAN);
 
 	ret = bgpio_setup_io(gc, dat, set, clr, flags);
 	if (ret)
 		return ret;
 
-	gc->be_bits = !!(flags & BGPIOF_BIG_ENDIAN);
 	ret = bgpio_setup_accessors(dev, gc, flags & BGPIOF_BIG_ENDIAN_BYTE_ORDER);
 	if (ret)
 		return ret;
