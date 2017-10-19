@@ -74,6 +74,10 @@ bool available_free_memory(struct f2fs_sb_info *sbi, int type)
 				atomic_read(&sbi->total_ext_node) *
 				sizeof(struct extent_node)) >> PAGE_SHIFT;
 		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 1);
+	} else if (type == INMEM_PAGES) {
+		/* it allows 20% / total_ram for inmemory pages */
+		mem_size = get_pages(sbi, F2FS_INMEM_PAGES);
+		res = mem_size < (val.totalram / 5);
 	} else {
 		if (!sbi->sb->s_bdi->wb.dirty_exceeded)
 			return true;

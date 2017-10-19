@@ -1944,6 +1944,12 @@ static int f2fs_write_begin(struct file *file, struct address_space *mapping,
 
 	trace_f2fs_write_begin(inode, pos, len, flags);
 
+	if (f2fs_is_atomic_file(inode) &&
+			!available_free_memory(sbi, INMEM_PAGES)) {
+		err = -ENOMEM;
+		goto fail;
+	}
+
 	/*
 	 * We should check this at this moment to avoid deadlock on inode page
 	 * and #0 page. The locking rule for inline_data conversion should be:
@@ -2021,6 +2027,8 @@ repeat:
 fail:
 	f2fs_put_page(page, 1);
 	f2fs_write_failed(mapping, pos + len);
+	if (f2fs_is_atomic_file(inode))
+		drop_inmem_pages_all(sbi);
 	return err;
 }
 
