@@ -74,6 +74,7 @@ enum connection_state {
 	policy_src_get_sink_caps,
 
 	policy_src_send_softrst,
+	policy_src_softrst,
 	policy_src_send_hardrst,
 
 	policy_snk_startup,
@@ -85,6 +86,7 @@ enum connection_state {
 	policy_snk_ready,
 
 	policy_snk_send_softrst,
+	policy_snk_softrst,
 	policy_snk_send_hardrst,
 
 	policy_snk_transition_default,
