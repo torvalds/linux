@@ -634,7 +634,7 @@ static struct dt_cpu_feature_match __initdata
 	{"no-execute", feat_enable, 0},
 	{"strong-access-ordering", feat_enable, CPU_FTR_SAO},
 	{"cache-inhibited-large-page", feat_enable_large_ci, 0},
-	{"coprocessor-icswx", feat_enable, CPU_FTR_ICSWX},
+	{"coprocessor-icswx", feat_enable, 0},
 	{"hypervisor-virtualization-interrupt", feat_enable_hvi, 0},
 	{"program-priority-register", feat_enable, CPU_FTR_HAS_PPR},
 	{"wait", feat_enable, 0},
