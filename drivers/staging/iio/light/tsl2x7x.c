@@ -886,12 +886,7 @@ static ssize_t in_illuminance0_calibscale_available_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%s\n", "1 8 16 120");
 }
 
-static ssize_t in_proximity0_calibscale_available_show(struct device *dev,
-						struct device_attribute *attr,
-						char *buf)
-{
-		return snprintf(buf, PAGE_SIZE, "%s\n", "1 2 4 8");
-}
+static IIO_CONST_ATTR(in_proximity0_calibscale_available, "1 2 4 8");
 
 static IIO_CONST_ATTR(in_illuminance0_integration_time_available,
 		".00272 - .696");
@@ -1371,8 +1366,6 @@ static int tsl2x7x_write_raw(struct iio_dev *indio_dev,
 	return tsl2x7x_invoke_change(indio_dev);
 }
 
-static DEVICE_ATTR_RO(in_proximity0_calibscale_available);
-
 static DEVICE_ATTR_RO(in_illuminance0_calibscale_available);
 
 static DEVICE_ATTR_RW(in_illuminance0_target_input);
@@ -1468,13 +1461,13 @@ static struct attribute *tsl2x7x_ALSPRX_device_attrs[] = {
 	&dev_attr_in_illuminance0_target_input.attr,
 	&dev_attr_in_illuminance0_calibrate.attr,
 	&dev_attr_in_illuminance0_lux_table.attr,
-	&dev_attr_in_proximity0_calibrate.attr,
+	&iio_const_attr_in_proximity0_calibscale_available.dev_attr.attr,
 	NULL
 };
 
 static struct attribute *tsl2x7x_PRX2_device_attrs[] = {
 	&dev_attr_in_proximity0_calibrate.attr,
-	&dev_attr_in_proximity0_calibscale_available.attr,
+	&iio_const_attr_in_proximity0_calibscale_available.dev_attr.attr,
 	NULL
 };
 
@@ -1485,7 +1478,7 @@ static struct attribute *tsl2x7x_ALSPRX2_device_attrs[] = {
 	&dev_attr_in_illuminance0_calibrate.attr,
 	&dev_attr_in_illuminance0_lux_table.attr,
 	&dev_attr_in_proximity0_calibrate.attr,
-	&dev_attr_in_proximity0_calibscale_available.attr,
+	&iio_const_attr_in_proximity0_calibscale_available.dev_attr.attr,
 	NULL
 };
 
