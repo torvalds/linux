@@ -521,8 +521,8 @@ static void tsl2x7x_defaults(struct tsl2X7X_chip *chip)
 		       sizeof(chip->pdata->platform_lux_table));
 	else
 		memcpy(chip->tsl2x7x_device_lux,
-		(struct tsl2x7x_lux *)tsl2x7x_default_lux_table_group[chip->id],
-				TSL2X7X_DEFAULT_TABLE_BYTES);
+		       tsl2x7x_default_lux_table_group[chip->id],
+		       TSL2X7X_DEFAULT_TABLE_BYTES);
 }
 
 /**
@@ -867,9 +867,10 @@ static void tsl2x7x_prox_cal(struct iio_dev *indio_dev)
 		tsl2x7x_chip_on(indio_dev);
 }
 
-static ssize_t in_illuminance0_calibscale_available_show(struct device *dev,
-					   struct device_attribute *attr,
-					   char *buf)
+static ssize_t
+in_illuminance0_calibscale_available_show(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
 {
 	struct tsl2X7X_chip *chip = iio_priv(dev_to_iio_dev(dev));
 
@@ -891,8 +892,8 @@ static IIO_CONST_ATTR(in_illuminance0_integration_time_available,
 		".00272 - .696");
 
 static ssize_t in_illuminance0_target_input_show(struct device *dev,
-					   struct device_attribute *attr,
-					   char *buf)
+						 struct device_attribute *attr,
+						 char *buf)
 {
 	struct tsl2X7X_chip *chip = iio_priv(dev_to_iio_dev(dev));
 
@@ -900,8 +901,8 @@ static ssize_t in_illuminance0_target_input_show(struct device *dev,
 }
 
 static ssize_t in_illuminance0_target_input_store(struct device *dev,
-					    struct device_attribute *attr,
-					    const char *buf, size_t len)
+						  struct device_attribute *attr,
+						  const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
@@ -922,8 +923,8 @@ static ssize_t in_illuminance0_target_input_store(struct device *dev,
 }
 
 static ssize_t in_illuminance0_calibrate_store(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t len)
+					       struct device_attribute *attr,
+					       const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	bool value;
@@ -943,8 +944,8 @@ static ssize_t in_illuminance0_calibrate_store(struct device *dev,
 }
 
 static ssize_t in_illuminance0_lux_table_show(struct device *dev,
-				     struct device_attribute *attr,
-				     char *buf)
+					      struct device_attribute *attr,
+					      char *buf)
 {
 	struct tsl2X7X_chip *chip = iio_priv(dev_to_iio_dev(dev));
 	int i = 0;
@@ -971,8 +972,8 @@ static ssize_t in_illuminance0_lux_table_show(struct device *dev,
 }
 
 static ssize_t in_illuminance0_lux_table_store(struct device *dev,
-				      struct device_attribute *attr,
-				      const char *buf, size_t len)
+					       struct device_attribute *attr,
+					       const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
@@ -1013,8 +1014,8 @@ static ssize_t in_illuminance0_lux_table_store(struct device *dev,
 }
 
 static ssize_t in_proximity0_calibrate_store(struct device *dev,
-					 struct device_attribute *attr,
-					 const char *buf, size_t len)
+					     struct device_attribute *attr,
+					     const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	bool value;
