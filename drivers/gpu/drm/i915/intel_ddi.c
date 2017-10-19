@@ -1504,33 +1504,34 @@ void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_encoder *encoder = intel_ddi_get_crtc_encoder(crtc);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-	int type = encoder->type;
-	uint32_t temp;
+	u32 temp;
 
-	if (type == INTEL_OUTPUT_DP || type == INTEL_OUTPUT_EDP || type == INTEL_OUTPUT_DP_MST) {
-		WARN_ON(transcoder_is_dsi(cpu_transcoder));
+	if (!intel_crtc_has_dp_encoder(crtc_state))
+		return;
 
-		temp = TRANS_MSA_SYNC_CLK;
-		switch (crtc_state->pipe_bpp) {
-		case 18:
-			temp |= TRANS_MSA_6_BPC;
-			break;
-		case 24:
-			temp |= TRANS_MSA_8_BPC;
-			break;
-		case 30:
-			temp |= TRANS_MSA_10_BPC;
-			break;
-		case 36:
-			temp |= TRANS_MSA_12_BPC;
-			break;
-		default:
-			BUG();
-		}
-		I915_WRITE(TRANS_MSA_MISC(cpu_transcoder), temp);
+	WARN_ON(transcoder_is_dsi(cpu_transcoder));
+
+	temp = TRANS_MSA_SYNC_CLK;
+	switch (crtc_state->pipe_bpp) {
+	case 18:
+		temp |= TRANS_MSA_6_BPC;
+		break;
+	case 24:
+		temp |= TRANS_MSA_8_BPC;
+		break;
+	case 30:
+		temp |= TRANS_MSA_10_BPC;
+		break;
+	case 36:
+		temp |= TRANS_MSA_12_BPC;
+		break;
+	default:
+		MISSING_CASE(crtc_state->pipe_bpp);
+		break;
 	}
+
+	I915_WRITE(TRANS_MSA_MISC(cpu_transcoder), temp);
 }
 
 void intel_ddi_set_vc_payload_alloc(const struct intel_crtc_state *crtc_state,
