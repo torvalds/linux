@@ -16,6 +16,7 @@
 #include "aq_pci_func.h"
 #include "aq_nic_internal.h"
 
+#include <linux/moduleparam.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/timer.h>
@@ -23,6 +24,18 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <net/ip.h>
+
+static unsigned int aq_itr = AQ_CFG_INTERRUPT_MODERATION_AUTO;
+module_param_named(aq_itr, aq_itr, uint, 0644);
+MODULE_PARM_DESC(aq_itr, "Interrupt throttling mode");
+
+static unsigned int aq_itr_tx;
+module_param_named(aq_itr_tx, aq_itr_tx, uint, 0644);
+MODULE_PARM_DESC(aq_itr_tx, "TX interrupt throttle rate");
+
+static unsigned int aq_itr_rx;
+module_param_named(aq_itr_rx, aq_itr_rx, uint, 0644);
+MODULE_PARM_DESC(aq_itr_rx, "RX interrupt throttle rate");
 
 static void aq_nic_rss_init(struct aq_nic_s *self, unsigned int num_rss_queues)
 {
@@ -61,9 +74,9 @@ static void aq_nic_cfg_init_defaults(struct aq_nic_s *self)
 
 	cfg->is_polling = AQ_CFG_IS_POLLING_DEF;
 
-	cfg->is_interrupt_moderation = AQ_CFG_IS_INTERRUPT_MODERATION_DEF;
-	cfg->itr = cfg->is_interrupt_moderation ?
-		AQ_CFG_INTERRUPT_MODERATION_RATE_DEF : 0U;
+	cfg->itr = aq_itr;
+	cfg->tx_itr = aq_itr_tx;
+	cfg->rx_itr = aq_itr_rx;
 
 	cfg->is_rss = AQ_CFG_IS_RSS_DEF;
 	cfg->num_rss_queues = AQ_CFG_NUM_RSS_QUEUES_DEF;
@@ -126,10 +139,12 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 	if (err)
 		return err;
 
-	if (self->link_status.mbps != self->aq_hw->aq_link_status.mbps)
+	if (self->link_status.mbps != self->aq_hw->aq_link_status.mbps) {
 		pr_info("%s: link change old %d new %d\n",
 			AQ_CFG_DRV_NAME, self->link_status.mbps,
 			self->aq_hw->aq_link_status.mbps);
+		aq_nic_update_interrupt_moderation_settings(self);
+	}
 
 	self->link_status = self->aq_hw->aq_link_status;
 	if (!netif_carrier_ok(self->ndev) && self->link_status.mbps) {
@@ -163,9 +178,6 @@ static void aq_nic_service_timer_cb(unsigned long param)
 	err = aq_nic_update_link_status(self);
 	if (err)
 		goto err_exit;
-
-	self->aq_hw_ops.hw_interrupt_moderation_set(self->aq_hw,
-		    self->aq_nic_cfg.is_interrupt_moderation);
 
 	if (self->aq_hw_ops.hw_update_stats)
 		self->aq_hw_ops.hw_update_stats(self->aq_hw);
@@ -425,9 +437,8 @@ int aq_nic_start(struct aq_nic_s *self)
 	if (err < 0)
 		goto err_exit;
 
-	err = self->aq_hw_ops.hw_interrupt_moderation_set(self->aq_hw,
-			    self->aq_nic_cfg.is_interrupt_moderation);
-	if (err < 0)
+	err = aq_nic_update_interrupt_moderation_settings(self);
+	if (err)
 		goto err_exit;
 	setup_timer(&self->service_timer, &aq_nic_service_timer_cb,
 		    (unsigned long)self);
@@ -647,6 +658,11 @@ int aq_nic_xmit(struct aq_nic_s *self, struct sk_buff *skb)
 
 err_exit:
 	return err;
+}
+
+int aq_nic_update_interrupt_moderation_settings(struct aq_nic_s *self)
+{
+	return self->aq_hw_ops.hw_interrupt_moderation_set(self->aq_hw);
 }
 
 int aq_nic_set_packet_filter(struct aq_nic_s *self, unsigned int flags)

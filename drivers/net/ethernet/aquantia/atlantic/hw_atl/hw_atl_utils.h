@@ -131,8 +131,6 @@ struct __packed hw_atl_s {
 	struct hw_atl_stats_s last_stats;
 	struct hw_atl_stats_s curr_stats;
 	u64 speed;
-	u32 itr_tx;
-	u32 itr_rx;
 	unsigned int chip_features;
 	u32 fw_ver_actual;
 	atomic_t dpc;

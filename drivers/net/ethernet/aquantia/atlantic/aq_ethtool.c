@@ -221,6 +221,69 @@ static int aq_ethtool_get_rxnfc(struct net_device *ndev,
 	return err;
 }
 
+int aq_ethtool_get_coalesce(struct net_device *ndev,
+			    struct ethtool_coalesce *coal)
+{
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
+
+	if (cfg->itr == AQ_CFG_INTERRUPT_MODERATION_ON ||
+	    cfg->itr == AQ_CFG_INTERRUPT_MODERATION_AUTO) {
+		coal->rx_coalesce_usecs = cfg->rx_itr;
+		coal->tx_coalesce_usecs = cfg->tx_itr;
+		coal->rx_max_coalesced_frames = 0;
+		coal->tx_max_coalesced_frames = 0;
+	} else {
+		coal->rx_coalesce_usecs = 0;
+		coal->tx_coalesce_usecs = 0;
+		coal->rx_max_coalesced_frames = 1;
+		coal->tx_max_coalesced_frames = 1;
+	}
+	return 0;
+}
+
+int aq_ethtool_set_coalesce(struct net_device *ndev,
+			    struct ethtool_coalesce *coal)
+{
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
+
+	/* This is not yet supported
+	 */
+	if (coal->use_adaptive_rx_coalesce || coal->use_adaptive_tx_coalesce)
+		return -EOPNOTSUPP;
+
+	/* Atlantic only supports timing based coalescing
+	 */
+	if (coal->rx_max_coalesced_frames > 1 ||
+	    coal->rx_coalesce_usecs_irq ||
+	    coal->rx_max_coalesced_frames_irq)
+		return -EOPNOTSUPP;
+
+	if (coal->tx_max_coalesced_frames > 1 ||
+	    coal->tx_coalesce_usecs_irq ||
+	    coal->tx_max_coalesced_frames_irq)
+		return -EOPNOTSUPP;
+
+	/* We do not support frame counting. Check this
+	 */
+	if (!(coal->rx_max_coalesced_frames == !coal->rx_coalesce_usecs))
+		return -EOPNOTSUPP;
+	if (!(coal->tx_max_coalesced_frames == !coal->tx_coalesce_usecs))
+		return -EOPNOTSUPP;
+
+	if (coal->rx_coalesce_usecs > AQ_CFG_INTERRUPT_MODERATION_USEC_MAX ||
+	    coal->tx_coalesce_usecs > AQ_CFG_INTERRUPT_MODERATION_USEC_MAX)
+		return -EINVAL;
+
+	cfg->itr = AQ_CFG_INTERRUPT_MODERATION_ON;
+
+	cfg->rx_itr = coal->rx_coalesce_usecs;
+	cfg->tx_itr = coal->tx_coalesce_usecs;
+
+	return aq_nic_update_interrupt_moderation_settings(aq_nic);
+}
+
 const struct ethtool_ops aq_ethtool_ops = {
 	.get_link            = aq_ethtool_get_link,
 	.get_regs_len        = aq_ethtool_get_regs_len,
@@ -235,4 +298,6 @@ const struct ethtool_ops aq_ethtool_ops = {
 	.get_ethtool_stats   = aq_ethtool_stats,
 	.get_link_ksettings  = aq_ethtool_get_link_ksettings,
 	.set_link_ksettings  = aq_ethtool_set_link_ksettings,
+	.get_coalesce	     = aq_ethtool_get_coalesce,
+	.set_coalesce	     = aq_ethtool_set_coalesce,
 };
