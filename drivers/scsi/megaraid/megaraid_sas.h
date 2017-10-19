@@ -2122,6 +2122,19 @@ struct megasas_instance {
 
 	u32 *crash_dump_buf;
 	dma_addr_t crash_dump_h;
+
+	struct MR_PD_LIST *pd_list_buf;
+	dma_addr_t pd_list_buf_h;
+
+	struct megasas_ctrl_info *ctrl_info_buf;
+	dma_addr_t ctrl_info_buf_h;
+
+	struct MR_LD_LIST *ld_list_buf;
+	dma_addr_t ld_list_buf_h;
+
+	struct MR_LD_TARGETID_LIST *ld_targetid_list_buf;
+	dma_addr_t ld_targetid_list_buf_h;
+
 	void *crash_buf[MAX_CRASH_DUMP_SIZE];
 	unsigned int    fw_crash_buffer_size;
 	unsigned int    fw_crash_state;

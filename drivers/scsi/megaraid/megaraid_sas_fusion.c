@@ -776,6 +776,9 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 
 	fusion = instance->ctrl_context;
 
+	ioc_init_handle = fusion->ioc_init_request_phys;
+	IOCInitMessage = fusion->ioc_init_request;
+
 	cmd = megasas_get_cmd(instance);
 
 	if (!cmd) {
@@ -800,18 +803,6 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		MR_CAN_HANDLE_SYNC_CACHE_OFFSET) ? 1 : 0;
 	dev_info(&instance->pdev->dev, "FW supports sync cache\t: %s\n",
 		 instance->fw_sync_cache_support ? "Yes" : "No");
-
-	IOCInitMessage =
-	  dma_alloc_coherent(&instance->pdev->dev,
-			     sizeof(struct MPI2_IOC_INIT_REQUEST),
-			     &ioc_init_handle, GFP_KERNEL);
-
-	if (!IOCInitMessage) {
-		dev_err(&instance->pdev->dev, "Could not allocate memory for "
-		       "IOCInitMessage\n");
-		ret = 1;
-		goto fail_fw_init;
-	}
 
 	memset(IOCInitMessage, 0, sizeof(struct MPI2_IOC_INIT_REQUEST));
 
@@ -921,10 +912,6 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 
 fail_fw_init:
 	megasas_return_cmd(instance, cmd);
-	if (IOCInitMessage)
-		dma_free_coherent(&instance->pdev->dev,
-				  sizeof(struct MPI2_IOC_INIT_REQUEST),
-				  IOCInitMessage, ioc_init_handle);
 fail_get_cmd:
 	dev_err(&instance->pdev->dev,
 		"Init cmd return status %s for SCSI host %d\n",
