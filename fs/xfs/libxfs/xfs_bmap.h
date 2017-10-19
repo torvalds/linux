@@ -278,4 +278,16 @@ int	xfs_bmap_map_extent(struct xfs_mount *mp, struct xfs_defer_ops *dfops,
 int	xfs_bmap_unmap_extent(struct xfs_mount *mp, struct xfs_defer_ops *dfops,
 		struct xfs_inode *ip, struct xfs_bmbt_irec *imap);
 
+static inline int xfs_bmap_fork_to_state(int whichfork)
+{
+	switch (whichfork) {
+	case XFS_ATTR_FORK:
+		return BMAP_ATTRFORK;
+	case XFS_COW_FORK:
+		return BMAP_COWFORK;
+	default:
+		return 0;
+	}
+}
+
 #endif	/* __XFS_BMAP_H__ */
