@@ -416,7 +416,7 @@ static int do_dump(int argc, char **argv)
 	}
 
 	if (*member_len > buf_size) {
-		info("too many instructions returned\n");
+		err("too many instructions returned\n");
 		goto err_free;
 	}
 
