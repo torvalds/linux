@@ -69,8 +69,11 @@
 		};
 
 		rmtfs@86700000 {
+			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0x86700000 0x0 0xe0000>;
 			no-map;
+
+			qcom,client-id = <1>;
 		};
 
 		rfsa@867e00000 {
@@ -257,6 +260,8 @@
 			clocks = <&gcc GCC_CRYPTO_CLK>, <&gcc GCC_CRYPTO_AXI_CLK>, <&gcc GCC_CRYPTO_AHB_CLK>;
 			clock-names = "core", "bus", "iface";
 			#reset-cells = <1>;
+
+			qcom,dload-mode = <&tcsr 0x6100>;
 		};
 	};
 
@@ -814,7 +819,7 @@
 
 			mdp: mdp@1a01000 {
 				compatible = "qcom,mdp5";
-				reg = <0x1a01000 0x90000>;
+				reg = <0x1a01000 0x89000>;
 				reg-names = "mdp_phys";
 
 				interrupt-parent = <&mdss>;
