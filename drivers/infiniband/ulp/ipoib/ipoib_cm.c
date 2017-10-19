@@ -757,30 +757,35 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 		return;
 	}
 
+	if ((priv->tx_head - priv->tx_tail) == ipoib_sendq_size - 1) {
+		ipoib_dbg(priv, "TX ring 0x%x full, stopping kernel net queue\n",
+			  tx->qp->qp_num);
+		netif_stop_queue(dev);
+	}
+
 	skb_orphan(skb);
 	skb_dst_drop(skb);
 
+	if (netif_queue_stopped(dev))
+		if (ib_req_notify_cq(priv->send_cq, IB_CQ_NEXT_COMP |
+				     IB_CQ_REPORT_MISSED_EVENTS)) {
+			ipoib_warn(priv, "IPoIB/CM:request notify on send CQ failed\n");
+			napi_schedule(&priv->send_napi);
+		}
+
 	rc = post_send(priv, tx, tx->tx_head & (ipoib_sendq_size - 1), tx_req);
 	if (unlikely(rc)) {
-		ipoib_warn(priv, "post_send failed, error %d\n", rc);
+		ipoib_warn(priv, "IPoIB/CM:post_send failed, error %d\n", rc);
 		++dev->stats.tx_errors;
 		ipoib_dma_unmap_tx(priv, tx_req);
 		dev_kfree_skb_any(skb);
+
+		if (netif_queue_stopped(dev))
+			netif_wake_queue(dev);
 	} else {
 		netif_trans_update(dev);
 		++tx->tx_head;
 		++priv->tx_head;
-		if ((priv->tx_head - priv->tx_tail) == ipoib_sendq_size) {
-			ipoib_dbg(priv, "TX ring 0x%x full, stopping kernel net queue\n",
-				  tx->qp->qp_num);
-			netif_stop_queue(dev);
-			rc = ib_req_notify_cq(priv->send_cq,
-				IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS);
-			if (rc < 0)
-				ipoib_warn(priv, "request notify on send CQ failed\n");
-			else if (rc)
-				ipoib_send_comp_handler(priv->send_cq, dev);
-		}
 	}
 }
 
@@ -815,9 +820,10 @@ void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 
 	++tx->tx_tail;
 	++priv->tx_tail;
-	if (unlikely((priv->tx_head - priv->tx_tail) == ipoib_sendq_size >> 1) &&
-	    netif_queue_stopped(dev) &&
-	    test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
+
+	if (unlikely(netif_queue_stopped(dev) &&
+		     (priv->tx_head - priv->tx_tail) <= ipoib_sendq_size >> 1 &&
+		     test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags)))
 		netif_wake_queue(dev);
 
 	if (wc->status != IB_WC_SUCCESS &&
@@ -1046,7 +1052,7 @@ static struct ib_qp *ipoib_cm_create_tx_qp(struct net_device *dev, struct ipoib_
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct ib_qp_init_attr attr = {
-		.send_cq		= priv->recv_cq,
+		.send_cq		= priv->send_cq,
 		.recv_cq		= priv->recv_cq,
 		.srq			= priv->cm.srq,
 		.cap.max_send_wr	= ipoib_sendq_size,
@@ -1220,9 +1226,9 @@ timeout:
 		tx_req = &p->tx_ring[p->tx_tail & (ipoib_sendq_size - 1)];
 		ipoib_dma_unmap_tx(priv, tx_req);
 		dev_kfree_skb_any(tx_req->skb);
+		netif_tx_lock_bh(p->dev);
 		++p->tx_tail;
 		++priv->tx_tail;
-		netif_tx_lock_bh(p->dev);
 		if (unlikely(priv->tx_head - priv->tx_tail == ipoib_sendq_size >> 1) &&
 		    netif_queue_stopped(p->dev) &&
 		    test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))

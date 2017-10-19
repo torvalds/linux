@@ -331,7 +331,8 @@ struct ipoib_dev_priv {
 
 	struct net_device *dev;
 
-	struct napi_struct napi;
+	struct napi_struct send_napi;
+	struct napi_struct recv_napi;
 
 	unsigned long flags;
 
@@ -408,7 +409,6 @@ struct ipoib_dev_priv {
 #endif
 	u64	hca_caps;
 	struct ipoib_ethtool_st ethtool;
-	struct timer_list poll_timer;
 	unsigned max_send_sge;
 	bool sm_fullmember_sendonly_support;
 	const struct net_device_ops	*rn_ops;
@@ -475,9 +475,10 @@ extern struct workqueue_struct *ipoib_workqueue;
 
 /* functions */
 
-int ipoib_poll(struct napi_struct *napi, int budget);
-void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr);
-void ipoib_send_comp_handler(struct ib_cq *cq, void *dev_ptr);
+int ipoib_rx_poll(struct napi_struct *napi, int budget);
+int ipoib_tx_poll(struct napi_struct *napi, int budget);
+void ipoib_ib_rx_completion(struct ib_cq *cq, void *ctx_ptr);
+void ipoib_ib_tx_completion(struct ib_cq *cq, void *ctx_ptr);
 
 struct ipoib_ah *ipoib_create_ah(struct net_device *dev,
 				 struct ib_pd *pd, struct rdma_ah_attr *attr);
