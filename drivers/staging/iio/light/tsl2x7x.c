@@ -752,8 +752,7 @@ static int tsl2x7x_chip_off(struct iio_dev *indio_dev)
  * put device back into proper state, and unlock
  * resource.
  */
-static
-int tsl2x7x_invoke_change(struct iio_dev *indio_dev)
+static int tsl2x7x_invoke_change(struct iio_dev *indio_dev)
 {
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
 	int device_status = chip->tsl2x7x_chip_status;
@@ -777,9 +776,8 @@ unlock:
 	return ret;
 }
 
-static
-void tsl2x7x_prox_calculate(int *data, int length,
-			    struct tsl2x7x_prox_stat *statP)
+static void tsl2x7x_prox_calculate(int *data, int length,
+				   struct tsl2x7x_prox_stat *statP)
 {
 	int i;
 	int sample_sum;
