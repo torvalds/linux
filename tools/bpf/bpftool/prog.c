@@ -313,20 +313,29 @@ static void print_insn(struct bpf_verifier_env *env, const char *fmt, ...)
 static void dump_xlated(void *buf, unsigned int len, bool opcodes)
 {
 	struct bpf_insn *insn = buf;
+	bool double_insn = false;
 	unsigned int i;
 
 	for (i = 0; i < len / sizeof(*insn); i++) {
+		if (double_insn) {
+			double_insn = false;
+			continue;
+		}
+
+		double_insn = insn[i].code == (BPF_LD | BPF_IMM | BPF_DW);
+
 		printf("% 4d: ", i);
 		print_bpf_insn(print_insn, NULL, insn + i, true);
 
 		if (opcodes) {
 			printf("       ");
 			fprint_hex(stdout, insn + i, 8, " ");
+			if (double_insn && i < len - 1) {
+				printf(" ");
+				fprint_hex(stdout, insn + i + 1, 8, " ");
+			}
 			printf("\n");
 		}
-
-		if (insn[i].code == (BPF_LD | BPF_IMM | BPF_DW))
-			i++;
 	}
 }
 
