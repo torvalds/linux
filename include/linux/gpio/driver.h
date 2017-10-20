@@ -67,9 +67,9 @@ struct module;
  *	registers.
  * @read_reg: reader function for generic GPIO
  * @write_reg: writer function for generic GPIO
- * @pin2mask: some generic GPIO controllers work with the big-endian bits
- *	notation, e.g. in a 8-bits register, GPIO7 is the least significant
- *	bit. This callback assigns the right bit mask.
+ * @be_bits: if the generic GPIO has big endian bit order (bit 31 is representing
+ *	line 0, bit 30 is line 1 ... bit 0 is line 31) this is set to true by the
+ *	generic GPIO core. It is for internal housekeeping only.
  * @reg_dat: data (in) register for generic GPIO
  * @reg_set: output set register (out=high) for generic GPIO
  * @reg_clr: output clear register (out=low) for generic GPIO
@@ -151,7 +151,7 @@ struct gpio_chip {
 #if IS_ENABLED(CONFIG_GPIO_GENERIC)
 	unsigned long (*read_reg)(void __iomem *reg);
 	void (*write_reg)(void __iomem *reg, unsigned long data);
-	unsigned long (*pin2mask)(struct gpio_chip *gc, unsigned int pin);
+	bool be_bits;
 	void __iomem *reg_dat;
 	void __iomem *reg_set;
 	void __iomem *reg_clr;
