@@ -533,7 +533,7 @@ rpcrdma_unmap_sges(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
 				  sge->addr, sge->length, DMA_TO_DEVICE);
 }
 
-/* Prepare the RPC-over-RDMA header SGE.
+/* Prepare an SGE for the RPC-over-RDMA transport header.
  */
 static bool
 rpcrdma_prepare_hdr_sge(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
@@ -542,13 +542,11 @@ rpcrdma_prepare_hdr_sge(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
 	struct rpcrdma_regbuf *rb = req->rl_rdmabuf;
 	struct ib_sge *sge = &req->rl_send_sge[0];
 
-	if (unlikely(!rpcrdma_regbuf_is_mapped(rb))) {
-		if (!__rpcrdma_dma_map_regbuf(ia, rb))
-			goto out_regbuf;
-		sge->addr = rdmab_addr(rb);
-		sge->lkey = rdmab_lkey(rb);
-	}
+	if (!rpcrdma_dma_map_regbuf(ia, rb))
+		goto out_regbuf;
+	sge->addr = rdmab_addr(rb);
 	sge->length = len;
+	sge->lkey = rdmab_lkey(rb);
 
 	ib_dma_sync_single_for_device(rdmab_device(rb), sge->addr,
 				      sge->length, DMA_TO_DEVICE);
