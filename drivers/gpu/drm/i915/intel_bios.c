@@ -1106,6 +1106,22 @@ static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 	}
 }
 
+static const u8 cnp_ddc_pin_map[] = {
+	[DDC_BUS_DDI_B] = GMBUS_PIN_1_BXT,
+	[DDC_BUS_DDI_C] = GMBUS_PIN_2_BXT,
+	[DDC_BUS_DDI_D] = GMBUS_PIN_4_CNP, /* sic */
+	[DDC_BUS_DDI_F] = GMBUS_PIN_3_BXT, /* sic */
+};
+
+static u8 map_ddc_pin(struct drm_i915_private *dev_priv, u8 vbt_pin)
+{
+	if (HAS_PCH_CNP(dev_priv) &&
+	    vbt_pin > 0 && vbt_pin < ARRAY_SIZE(cnp_ddc_pin_map))
+		return cnp_ddc_pin_map[vbt_pin];
+
+	return vbt_pin;
+}
+
 static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 			   u8 bdb_version)
 {
@@ -1191,16 +1207,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 		DRM_DEBUG_KMS("Port %c is internal DP\n", port_name(port));
 
 	if (is_dvi) {
-		info->alternate_ddc_pin = ddc_pin;
-
-		/*
-		 * All VBTs that we got so far for B Stepping has this
-		 * information wrong for Port D. So, let's just ignore for now.
-		 */
-		if (IS_CNL_REVID(dev_priv, CNL_REVID_B0, CNL_REVID_B0) &&
-		    port == PORT_D) {
-			info->alternate_ddc_pin = 0;
-		}
+		info->alternate_ddc_pin = map_ddc_pin(dev_priv, ddc_pin);
 
 		sanitize_ddc_pin(dev_priv, port);
 	}

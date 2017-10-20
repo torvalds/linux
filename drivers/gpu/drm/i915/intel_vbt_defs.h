@@ -306,6 +306,14 @@ struct bdb_general_features {
 
 #define LEGACY_CHILD_DEVICE_CONFIG_SIZE		33
 
+/* DDC Bus DDI Type 155+ */
+enum vbt_gmbus_ddi {
+	DDC_BUS_DDI_B = 0x1,
+	DDC_BUS_DDI_C,
+	DDC_BUS_DDI_D,
+	DDC_BUS_DDI_F,
+};
+
 /*
  * The child device config, aka the display device data structure, provides a
  * description of a port and its configuration on the platform.
