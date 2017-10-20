@@ -511,6 +511,28 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	return 0;
 }
 
+/**
+ * rpcrdma_unmap_sges - DMA-unmap Send buffers
+ * @ia: interface adapter (device)
+ * @req: req with possibly some SGEs to be DMA unmapped
+ *
+ */
+void
+rpcrdma_unmap_sges(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
+{
+	struct ib_sge *sge;
+	unsigned int count;
+
+	/* The first two SGEs contain the transport header and
+	 * the inline buffer. These are always left mapped so
+	 * they can be cheaply re-used.
+	 */
+	sge = &req->rl_send_sge[2];
+	for (count = req->rl_mapped_sges; count--; sge++)
+		ib_dma_unmap_page(ia->ri_device,
+				  sge->addr, sge->length, DMA_TO_DEVICE);
+}
+
 /* Prepare the RPC-over-RDMA header SGE.
  */
 static bool
@@ -641,10 +663,12 @@ out:
 	return true;
 
 out_mapping_overflow:
+	rpcrdma_unmap_sges(ia, req);
 	pr_err("rpcrdma: too many Send SGEs (%u)\n", sge_no);
 	return false;
 
 out_mapping_err:
+	rpcrdma_unmap_sges(ia, req);
 	pr_err("rpcrdma: Send mapping error\n");
 	return false;
 }
@@ -669,20 +693,6 @@ rpcrdma_prepare_send_sges(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
 out_map:
 	pr_err("rpcrdma: failed to DMA map a Send buffer\n");
 	return false;
-}
-
-void
-rpcrdma_unmap_sges(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
-{
-	struct ib_device *device = ia->ri_device;
-	struct ib_sge *sge;
-	int count;
-
-	sge = &req->rl_send_sge[2];
-	for (count = req->rl_mapped_sges; count--; sge++)
-		ib_dma_unmap_page(device, sge->addr, sge->length,
-				  DMA_TO_DEVICE);
-	req->rl_mapped_sges = 0;
 }
 
 /**
