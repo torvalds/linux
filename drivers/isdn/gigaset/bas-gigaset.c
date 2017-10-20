@@ -89,6 +89,7 @@ static int start_cbsend(struct cardstate *);
 
 struct bas_cardstate {
 	struct usb_device	*udev;		/* USB device pointer */
+	struct cardstate	*cs;
 	struct usb_interface	*interface;	/* interface for this device */
 	unsigned char		minor;		/* starting minor number */
 
@@ -436,8 +437,7 @@ static void check_pending(struct bas_cardstate *ucs)
 static void cmd_in_timeout(struct timer_list *t)
 {
 	struct bas_cardstate *ucs = from_timer(ucs, t, timer_cmd_in);
-	struct urb *urb = ucs->urb_int_in;
-	struct cardstate *cs = urb->context;
+	struct cardstate *cs = ucs->cs;
 	int rc;
 
 	if (!ucs->rcvbuf_size) {
@@ -643,8 +643,7 @@ static void int_in_work(struct work_struct *work)
 static void int_in_resubmit(struct timer_list *t)
 {
 	struct bas_cardstate *ucs = from_timer(ucs, t, timer_int_in);
-	struct urb *urb = ucs->urb_int_in;
-	struct cardstate *cs = urb->context;
+	struct cardstate *cs = ucs->cs;
 	int rc;
 
 	if (ucs->retry_int_in++ >= BAS_RETRY) {
@@ -1446,8 +1445,7 @@ error:
 static void req_timeout(struct timer_list *t)
 {
 	struct bas_cardstate *ucs = from_timer(ucs, t, timer_ctrl);
-	struct urb *urb = ucs->urb_int_in;
-	struct cardstate *cs = urb->context;
+	struct cardstate *cs = ucs->cs;
 	int pending;
 	unsigned long flags;
 
@@ -1843,8 +1841,7 @@ static void write_command_callback(struct urb *urb)
 static void atrdy_timeout(struct timer_list *t)
 {
 	struct bas_cardstate *ucs = from_timer(ucs, t, timer_atrdy);
-	struct urb *urb = ucs->urb_int_in;
-	struct cardstate *cs = urb->context;
+	struct cardstate *cs = ucs->cs;
 
 	dev_warn(cs->dev, "timeout waiting for HD_READY_SEND_ATDATA\n");
 
@@ -2217,6 +2214,7 @@ static int gigaset_initcshw(struct cardstate *cs)
 	}
 
 	spin_lock_init(&ucs->lock);
+	ucs->cs = cs;
 	timer_setup(&ucs->timer_ctrl, req_timeout, 0);
 	timer_setup(&ucs->timer_atrdy, atrdy_timeout, 0);
 	timer_setup(&ucs->timer_cmd_in, cmd_in_timeout, 0);
