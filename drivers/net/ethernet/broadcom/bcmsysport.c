@@ -2040,6 +2040,9 @@ static u16 bcm_sysport_select_queue(struct net_device *dev, struct sk_buff *skb,
 	port = BRCM_TAG_GET_PORT(queue);
 	tx_ring = priv->ring_map[q + port * priv->per_port_num_tx_queues];
 
+	if (unlikely(!tx_ring))
+		return fallback(dev, skb);
+
 	return tx_ring->index;
 }
 
