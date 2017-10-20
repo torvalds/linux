@@ -66,7 +66,7 @@ out:
  */
 void nfs_cache_defer_req_put(struct nfs_cache_defer_req *dreq)
 {
-	if (atomic_dec_and_test(&dreq->count))
+	if (refcount_dec_and_test(&dreq->count))
 		kfree(dreq);
 }
 
@@ -86,7 +86,7 @@ static struct cache_deferred_req *nfs_dns_cache_defer(struct cache_req *req)
 
 	dreq = container_of(req, struct nfs_cache_defer_req, req);
 	dreq->deferred_req.revisit = nfs_dns_cache_revisit;
-	atomic_inc(&dreq->count);
+	refcount_inc(&dreq->count);
 
 	return &dreq->deferred_req;
 }
@@ -98,7 +98,7 @@ struct nfs_cache_defer_req *nfs_cache_defer_req_alloc(void)
 	dreq = kzalloc(sizeof(*dreq), GFP_KERNEL);
 	if (dreq) {
 		init_completion(&dreq->completion);
-		atomic_set(&dreq->count, 1);
+		refcount_set(&dreq->count, 1);
 		dreq->req.defer = nfs_dns_cache_defer;
 	}
 	return dreq;

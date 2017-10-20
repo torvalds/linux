@@ -15,7 +15,7 @@ struct nfs_cache_defer_req {
 	struct cache_req req;
 	struct cache_deferred_req deferred_req;
 	struct completion completion;
-	atomic_t count;
+	refcount_t count;
 };
 
 extern int nfs_cache_upcall(struct cache_detail *cd, char *entry_name);
