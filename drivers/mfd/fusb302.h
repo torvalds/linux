@@ -311,6 +311,12 @@ enum tcpm_rp_value {
 #define GET_VDMHEAD_CMD(head)		(head & VDMHEAD_CMD_MASK)
 #define GET_VDMHEAD_STRUCT_TYPE(head)	((head & VDMHEAD_STRUCT_TYPE_MASK) >> 15)
 
+#define DP_STATUS_MASK			0x000000ff
+#define DP_STATUS_HPD_STATE		BIT(7)
+
+#define GET_DP_STATUS(status)		(status & DP_STATUS_MASK)
+#define GET_DP_STATUS_HPD(status)	((status & DP_STATUS_HPD_STATE) >> 7)
+
 #define VDM_IDHEAD_USBVID_MASK		(0xffff << 0)
 #define VDM_IDHEAD_MODALSUPPORT_MASK	BIT(26)
 #define VDM_IDHEAD_PRODUCTTYPE		(7 << 27)
@@ -342,6 +348,7 @@ struct notify_info {
 	int pin_assignment_support;
 	int pin_assignment_def;
 	bool attention;
+	u32 dp_status;
 };
 
 enum tx_state {
@@ -424,7 +431,6 @@ struct fusb30x_chip {
 	int vdm_state;
 	int vdm_substate;
 	int vdm_send_state;
-	u32 dp_status;
 	u16 vdm_svid[12];
 	int vdm_svid_num;
 	u32 vdm_id;

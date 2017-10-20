@@ -220,7 +220,8 @@ void fusb_irq_enable(struct fusb30x_chip *chip)
 
 static void platform_fusb_notify(struct fusb30x_chip *chip)
 {
-	bool plugged = 0, flip = 0, dfp = 0, ufp = 0, dp = 0, usb_ss = 0;
+	bool plugged = 0, flip = 0, dfp = 0, ufp = 0, dp = 0, usb_ss = 0,
+	     hpd = 0;
 	union extcon_property_value property;
 
 	if (chip->notify.is_cc_connected)
@@ -244,6 +245,7 @@ static void platform_fusb_notify(struct fusb30x_chip *chip)
 			dfp = 1;
 			usb_ss = (chip->notify.pin_assignment_def &
 				(PIN_MAP_B | PIN_MAP_D | PIN_MAP_F)) ? 1 : 0;
+			hpd = GET_DP_STATUS_HPD(chip->notify.dp_status);
 		} else if (chip->notify.data_role) {
 			dfp = 1;
 			usb_ss = 1;
@@ -269,7 +271,7 @@ static void platform_fusb_notify(struct fusb30x_chip *chip)
 				    EXTCON_PROP_USB_SS, property);
 		extcon_set_state(chip->extcon, EXTCON_USB, ufp);
 		extcon_set_state(chip->extcon, EXTCON_USB_HOST, dfp);
-		extcon_set_state(chip->extcon, EXTCON_DISP_DP, dp);
+		extcon_set_state(chip->extcon, EXTCON_DISP_DP, dp && hpd);
 		extcon_sync(chip->extcon, EXTCON_USB);
 		extcon_sync(chip->extcon, EXTCON_USB_HOST);
 		extcon_sync(chip->extcon, EXTCON_DISP_DP);
@@ -1020,10 +1022,12 @@ static void process_vdm_msg(struct fusb30x_chip *chip)
 	case VDM_TYPE_INIT:
 		switch (GET_VDMHEAD_CMD(vdm_header)) {
 		case VDM_ATTENTION:
+			chip->notify.dp_status = GET_DP_STATUS(chip->rec_load[1]);
 			dev_info(chip->dev, "attention, dp_status %x\n",
 				 chip->rec_load[1]);
 			chip->notify.attention = 1;
 			chip->vdm_state = 6;
+			platform_fusb_notify(chip);
 			break;
 		default:
 			dev_warn(chip->dev, "rec unknown init vdm msg\n");
@@ -1085,6 +1089,7 @@ static void process_vdm_msg(struct fusb30x_chip *chip)
 			chip->val_tmp = 1;
 			break;
 		case VDM_DP_STATUS_UPDATE:
+			chip->notify.dp_status = GET_DP_STATUS(chip->rec_load[1]);
 			dev_dbg(chip->dev, "dp_status 0x%x\n",
 				chip->rec_load[1]);
 			chip->val_tmp = 1;
