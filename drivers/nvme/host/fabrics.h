@@ -57,6 +57,7 @@ enum {
 	NVMF_OPT_HOST_TRADDR	= 1 << 10,
 	NVMF_OPT_CTRL_LOSS_TMO	= 1 << 11,
 	NVMF_OPT_HOST_ID	= 1 << 12,
+	NVMF_OPT_DUP_CONNECT	= 1 << 13,
 };
 
 /**
@@ -96,6 +97,7 @@ struct nvmf_ctrl_options {
 	unsigned int		nr_io_queues;
 	unsigned int		reconnect_delay;
 	bool			discovery_nqn;
+	bool			duplicate_connect;
 	unsigned int		kato;
 	struct nvmf_host	*host;
 	int			max_reconnects;
