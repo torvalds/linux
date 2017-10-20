@@ -117,6 +117,26 @@ static int pcie_port_enable_irq_vec(struct pci_dev *dev, int *irqs, int mask)
 		return -EIO;
 	}
 
+	/*
+	 * If we allocated more than we need, free them and reallocate fewer.
+	 *
+	 * Reallocating may change the specific vectors we get, so
+	 * pci_irq_vector() must be done *after* the reallocation.
+	 *
+	 * If we're using MSI, hardware is *allowed* to change the Interrupt
+	 * Message Numbers when we free and reallocate the vectors, but we
+	 * assume it won't because we allocate enough vectors for the
+	 * biggest Message Number we found.
+	 */
+	if (nvec != nr_entries) {
+		pci_free_irq_vectors(dev);
+
+		nr_entries = pci_alloc_irq_vectors(dev, nvec, nvec,
+				PCI_IRQ_MSIX | PCI_IRQ_MSI);
+		if (nr_entries < 0)
+			return nr_entries;
+	}
+
 	/* PME and hotplug share an MSI/MSI-X vector */
 	if (mask & (PCIE_PORT_SERVICE_PME | PCIE_PORT_SERVICE_HP)) {
 		irqs[PCIE_PORT_SERVICE_PME_SHIFT] = pci_irq_vector(dev, pme);
@@ -128,16 +148,6 @@ static int pcie_port_enable_irq_vec(struct pci_dev *dev, int *irqs, int mask)
 
 	if (mask & PCIE_PORT_SERVICE_DPC)
 		irqs[PCIE_PORT_SERVICE_DPC_SHIFT] = pci_irq_vector(dev, dpc);
-
-	/* If we allocated more than we need, free them and allocate fewer */
-	if (nvec != nr_entries) {
-		pci_free_irq_vectors(dev);
-
-		nr_entries = pci_alloc_irq_vectors(dev, nvec, nvec,
-				PCI_IRQ_MSIX | PCI_IRQ_MSI);
-		if (nr_entries < 0)
-			return nr_entries;
-	}
 
 	return 0;
 }
