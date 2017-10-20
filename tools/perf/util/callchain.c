@@ -666,83 +666,99 @@ static enum match_result match_chain_strings(const char *left,
 	return ret;
 }
 
+/*
+ * We need to always use relative addresses because we're aggregating
+ * callchains from multiple threads, i.e. different address spaces, so
+ * comparing absolute addresses make no sense as a symbol in a DSO may end up
+ * in a different address when used in a different binary or even the same
+ * binary but with some sort of address randomization technique, thus we need
+ * to compare just relative addresses. -acme
+ */
+static enum match_result match_chain_dso_addresses(struct map *left_map, u64 left_ip,
+						   struct map *right_map, u64 right_ip)
+{
+	struct dso *left_dso = left_map ? left_map->dso : NULL;
+	struct dso *right_dso = right_map ? right_map->dso : NULL;
+
+	if (left_dso != right_dso)
+		return left_dso < right_dso ? MATCH_LT : MATCH_GT;
+
+	if (left_ip != right_ip)
+ 		return left_ip < right_ip ? MATCH_LT : MATCH_GT;
+
+	return MATCH_EQ;
+}
+
 static enum match_result match_chain(struct callchain_cursor_node *node,
 				     struct callchain_list *cnode)
 {
-	struct symbol *sym = node->sym;
-	u64 left, right;
-	struct dso *left_dso = NULL;
-	struct dso *right_dso = NULL;
+	enum match_result match = MATCH_ERROR;
 
-	if (callchain_param.key == CCKEY_SRCLINE) {
-		enum match_result match = match_chain_strings(cnode->srcline,
-							      node->srcline);
-
-		/* if no srcline is available, fallback to symbol name */
-		if (match == MATCH_ERROR && cnode->ms.sym && node->sym)
-			match = match_chain_strings(cnode->ms.sym->name,
-						    node->sym->name);
-
+	switch (callchain_param.key) {
+	case CCKEY_SRCLINE:
+		match = match_chain_strings(cnode->srcline, node->srcline);
 		if (match != MATCH_ERROR)
-			return match;
-
-		/* otherwise fall-back to IP-based comparison below */
-	}
-
-	if (cnode->ms.sym && sym && callchain_param.key == CCKEY_FUNCTION) {
-		/*
-		 * Compare inlined frames based on their symbol name because
-		 * different inlined frames will have the same symbol start
-		 */
-		if (cnode->ms.sym->inlined || node->sym->inlined)
-			return match_chain_strings(cnode->ms.sym->name,
-						   node->sym->name);
-
-		left = cnode->ms.sym->start;
-		right = sym->start;
-		left_dso = cnode->ms.map->dso;
-		right_dso = node->map->dso;
-	} else {
-		left = cnode->ip;
-		right = node->ip;
-	}
-
-	if (left == right && left_dso == right_dso) {
-		if (node->branch) {
-			cnode->branch_count++;
-
-			if (node->branch_from) {
-				/*
-				 * It's "to" of a branch
-				 */
-				cnode->brtype_stat.branch_to = true;
-
-				if (node->branch_flags.predicted)
-					cnode->predicted_count++;
-
-				if (node->branch_flags.abort)
-					cnode->abort_count++;
-
-				branch_type_count(&cnode->brtype_stat,
-						  &node->branch_flags,
-						  node->branch_from,
-						  node->ip);
+			break;
+		/* otherwise fall-back to symbol-based comparison below */
+		__fallthrough;
+	case CCKEY_FUNCTION:
+		if (node->sym && cnode->ms.sym) {
+			/*
+			 * Compare inlined frames based on their symbol name
+			 * because different inlined frames will have the same
+			 * symbol start. Otherwise do a faster comparison based
+			 * on the symbol start address.
+			 */
+			if (cnode->ms.sym->inlined || node->sym->inlined) {
+				match = match_chain_strings(cnode->ms.sym->name,
+							    node->sym->name);
+				if (match != MATCH_ERROR)
+					break;
 			} else {
-				/*
-				 * It's "from" of a branch
-				 */
-				cnode->brtype_stat.branch_to = false;
-				cnode->cycles_count +=
-					node->branch_flags.cycles;
-				cnode->iter_count += node->nr_loop_iter;
-				cnode->iter_cycles += node->iter_cycles;
+				match = match_chain_dso_addresses(cnode->ms.map, cnode->ms.sym->start,
+								  node->map, node->sym->start);
+				break;
 			}
 		}
-
-		return MATCH_EQ;
+		/* otherwise fall-back to IP-based comparison below */
+		__fallthrough;
+	case CCKEY_ADDRESS:
+	default:
+		match = match_chain_dso_addresses(cnode->ms.map, cnode->ip, node->map, node->ip);
+		break;
 	}
 
-	return left > right ? MATCH_GT : MATCH_LT;
+	if (match == MATCH_EQ && node->branch) {
+		cnode->branch_count++;
+
+		if (node->branch_from) {
+			/*
+			 * It's "to" of a branch
+			 */
+			cnode->brtype_stat.branch_to = true;
+
+			if (node->branch_flags.predicted)
+				cnode->predicted_count++;
+
+			if (node->branch_flags.abort)
+				cnode->abort_count++;
+
+			branch_type_count(&cnode->brtype_stat,
+					  &node->branch_flags,
+					  node->branch_from,
+					  node->ip);
+		} else {
+			/*
+			 * It's "from" of a branch
+			 */
+			cnode->brtype_stat.branch_to = false;
+			cnode->cycles_count += node->branch_flags.cycles;
+			cnode->iter_count += node->nr_loop_iter;
+			cnode->iter_cycles += node->iter_cycles;
+		}
+	}
+
+	return match;
 }
 
 /*
