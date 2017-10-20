@@ -779,6 +779,8 @@ static void apply_config_terms(struct perf_evsel *evsel,
 		case PERF_EVSEL__CONFIG_TERM_OVERWRITE:
 			attr->write_backward = term->val.overwrite ? 1 : 0;
 			break;
+		case PERF_EVSEL__CONFIG_TERM_DRV_CFG:
+			BUG_ON(1);
 		default:
 			break;
 		}

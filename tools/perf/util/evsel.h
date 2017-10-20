@@ -38,7 +38,7 @@ struct cgroup_sel;
  * It is allocated within event parsing and attached to
  * perf_evsel::config_terms list head.
 */
-enum {
+enum term_type {
 	PERF_EVSEL__CONFIG_TERM_PERIOD,
 	PERF_EVSEL__CONFIG_TERM_FREQ,
 	PERF_EVSEL__CONFIG_TERM_TIME,
@@ -49,12 +49,11 @@ enum {
 	PERF_EVSEL__CONFIG_TERM_OVERWRITE,
 	PERF_EVSEL__CONFIG_TERM_DRV_CFG,
 	PERF_EVSEL__CONFIG_TERM_BRANCH,
-	PERF_EVSEL__CONFIG_TERM_MAX,
 };
 
 struct perf_evsel_config_term {
 	struct list_head	list;
-	int	type;
+	enum term_type	type;
 	union {
 		u64	period;
 		u64	freq;
