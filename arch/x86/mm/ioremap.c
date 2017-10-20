@@ -422,6 +422,9 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
  * areas should be mapped decrypted. And since the encryption key can
  * change across reboots, persistent memory should also be mapped
  * decrypted.
+ *
+ * If SEV is active, that implies that BIOS/UEFI also ran encrypted so
+ * only persistent memory should be mapped decrypted.
  */
 static bool memremap_should_map_decrypted(resource_size_t phys_addr,
 					  unsigned long size)
@@ -458,6 +461,11 @@ static bool memremap_should_map_decrypted(resource_size_t phys_addr,
 	case E820_TYPE_ACPI:
 	case E820_TYPE_NVS:
 	case E820_TYPE_UNUSABLE:
+		/* For SEV, these areas are encrypted */
+		if (sev_active())
+			break;
+		/* Fallthrough */
+
 	case E820_TYPE_PRAM:
 		return true;
 	default:
@@ -581,7 +589,7 @@ static bool __init early_memremap_is_setup_data(resource_size_t phys_addr,
 bool arch_memremap_can_ram_remap(resource_size_t phys_addr, unsigned long size,
 				 unsigned long flags)
 {
-	if (!sme_active())
+	if (!mem_encrypt_active())
 		return true;
 
 	if (flags & MEMREMAP_ENC)
@@ -590,12 +598,13 @@ bool arch_memremap_can_ram_remap(resource_size_t phys_addr, unsigned long size,
 	if (flags & MEMREMAP_DEC)
 		return false;
 
-	if (memremap_is_setup_data(phys_addr, size) ||
-	    memremap_is_efi_data(phys_addr, size) ||
-	    memremap_should_map_decrypted(phys_addr, size))
-		return false;
+	if (sme_active()) {
+		if (memremap_is_setup_data(phys_addr, size) ||
+		    memremap_is_efi_data(phys_addr, size))
+			return false;
+	}
 
-	return true;
+	return !memremap_should_map_decrypted(phys_addr, size);
 }
 
 /*
@@ -608,17 +617,24 @@ pgprot_t __init early_memremap_pgprot_adjust(resource_size_t phys_addr,
 					     unsigned long size,
 					     pgprot_t prot)
 {
-	if (!sme_active())
+	bool encrypted_prot;
+
+	if (!mem_encrypt_active())
 		return prot;
 
-	if (early_memremap_is_setup_data(phys_addr, size) ||
-	    memremap_is_efi_data(phys_addr, size) ||
-	    memremap_should_map_decrypted(phys_addr, size))
-		prot = pgprot_decrypted(prot);
-	else
-		prot = pgprot_encrypted(prot);
+	encrypted_prot = true;
 
-	return prot;
+	if (sme_active()) {
+		if (early_memremap_is_setup_data(phys_addr, size) ||
+		    memremap_is_efi_data(phys_addr, size))
+			encrypted_prot = false;
+	}
+
+	if (encrypted_prot && memremap_should_map_decrypted(phys_addr, size))
+		encrypted_prot = false;
+
+	return encrypted_prot ? pgprot_encrypted(prot)
+			      : pgprot_decrypted(prot);
 }
 
 bool phys_mem_access_encrypted(unsigned long phys_addr, unsigned long size)
