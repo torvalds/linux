@@ -787,7 +787,12 @@ static ssize_t host_show_hp_ssd_smart_path_enabled(struct device *dev,
 	}
 	offload_enabled = hdev->offload_enabled;
 	spin_unlock_irqrestore(&h->lock, flags);
-	return snprintf(buf, 20, "%d\n", offload_enabled);
+
+	if (hdev->devtype == TYPE_DISK || hdev->devtype == TYPE_ZBC)
+		return snprintf(buf, 20, "%d\n", offload_enabled);
+	else
+		return snprintf(buf, 40, "%s\n",
+				"Not applicable for a controller");
 }
 
 #define MAX_PATHS 8
@@ -1270,7 +1275,7 @@ static void hpsa_show_dev_msg(const char *level, struct ctlr_info *h,
 			dev->model,
 			label,
 			dev->offload_config ? '+' : '-',
-			dev->offload_enabled ? '+' : '-',
+			dev->offload_to_be_enabled ? '+' : '-',
 			dev->expose_device);
 }
 
@@ -1345,36 +1350,42 @@ lun_assigned:
 	(*nadded)++;
 	hpsa_show_dev_msg(KERN_INFO, h, device,
 		device->expose_device ? "added" : "masked");
-	device->offload_to_be_enabled = device->offload_enabled;
-	device->offload_enabled = 0;
 	return 0;
 }
 
-/* Update an entry in h->dev[] array. */
+/*
+ * Called during a scan operation.
+ *
+ * Update an entry in h->dev[] array.
+ */
 static void hpsa_scsi_update_entry(struct ctlr_info *h,
 	int entry, struct hpsa_scsi_dev_t *new_entry)
 {
-	int offload_enabled;
 	/* assumes h->devlock is held */
 	BUG_ON(entry < 0 || entry >= HPSA_MAX_DEVICES);
 
 	/* Raid level changed. */
 	h->dev[entry]->raid_level = new_entry->raid_level;
 
+	/*
+	 * ioacccel_handle may have changed for a dual domain disk
+	 */
+	h->dev[entry]->ioaccel_handle = new_entry->ioaccel_handle;
+
 	/* Raid offload parameters changed.  Careful about the ordering. */
-	if (new_entry->offload_config && new_entry->offload_enabled) {
+	if (new_entry->offload_config && new_entry->offload_to_be_enabled) {
 		/*
 		 * if drive is newly offload_enabled, we want to copy the
 		 * raid map data first.  If previously offload_enabled and
 		 * offload_config were set, raid map data had better be
-		 * the same as it was before.  if raid map data is changed
+		 * the same as it was before. If raid map data has changed
 		 * then it had better be the case that
 		 * h->dev[entry]->offload_enabled is currently 0.
 		 */
 		h->dev[entry]->raid_map = new_entry->raid_map;
 		h->dev[entry]->ioaccel_handle = new_entry->ioaccel_handle;
 	}
-	if (new_entry->hba_ioaccel_enabled) {
+	if (new_entry->offload_to_be_enabled) {
 		h->dev[entry]->ioaccel_handle = new_entry->ioaccel_handle;
 		wmb(); /* set ioaccel_handle *before* hba_ioaccel_enabled */
 	}
@@ -1385,17 +1396,18 @@ static void hpsa_scsi_update_entry(struct ctlr_info *h,
 
 	/*
 	 * We can turn off ioaccel offload now, but need to delay turning
-	 * it on until we can update h->dev[entry]->phys_disk[], but we
+	 * ioaccel on until we can update h->dev[entry]->phys_disk[], but we
 	 * can't do that until all the devices are updated.
 	 */
-	h->dev[entry]->offload_to_be_enabled = new_entry->offload_enabled;
-	if (!new_entry->offload_enabled)
+	h->dev[entry]->offload_to_be_enabled = new_entry->offload_to_be_enabled;
+
+	/*
+	 * turn ioaccel off immediately if told to do so.
+	 */
+	if (!new_entry->offload_to_be_enabled)
 		h->dev[entry]->offload_enabled = 0;
 
-	offload_enabled = h->dev[entry]->offload_enabled;
-	h->dev[entry]->offload_enabled = h->dev[entry]->offload_to_be_enabled;
 	hpsa_show_dev_msg(KERN_INFO, h, h->dev[entry], "updated");
-	h->dev[entry]->offload_enabled = offload_enabled;
 }
 
 /* Replace an entry from h->dev[] array. */
@@ -1421,9 +1433,8 @@ static void hpsa_scsi_replace_entry(struct ctlr_info *h,
 	h->dev[entry] = new_entry;
 	added[*nadded] = new_entry;
 	(*nadded)++;
+
 	hpsa_show_dev_msg(KERN_INFO, h, new_entry, "replaced");
-	new_entry->offload_to_be_enabled = new_entry->offload_enabled;
-	new_entry->offload_enabled = 0;
 }
 
 /* Remove an entry from h->dev[] array. */
@@ -1513,11 +1524,22 @@ static inline int device_updated(struct hpsa_scsi_dev_t *dev1,
 		return 1;
 	if (dev1->offload_config != dev2->offload_config)
 		return 1;
-	if (dev1->offload_enabled != dev2->offload_enabled)
+	if (dev1->offload_to_be_enabled != dev2->offload_to_be_enabled)
 		return 1;
 	if (!is_logical_dev_addr_mode(dev1->scsi3addr))
 		if (dev1->queue_depth != dev2->queue_depth)
 			return 1;
+	/*
+	 * This can happen for dual domain devices. An active
+	 * path change causes the ioaccel handle to change
+	 *
+	 * for example note the handle differences between p0 and p1
+	 * Device                    WWN               ,WWN hash,Handle
+	 * D016 p0|0x3 [02]P2E:01:01,0x5000C5005FC4DACA,0x9B5616,0x01030003
+	 *	p1                   0x5000C5005FC4DAC9,0x6798C0,0x00040004
+	 */
+	if (dev1->ioaccel_handle != dev2->ioaccel_handle)
+		return 1;
 	return 0;
 }
 
@@ -1727,6 +1749,11 @@ static void hpsa_figure_phys_disk_ptrs(struct ctlr_info *h,
 		 * be 0, but we'll turn it off here just in case
 		 */
 		if (!logical_drive->phys_disk[i]) {
+			dev_warn(&h->pdev->dev,
+				"%s: [%d:%d:%d:%d] A phys disk component of LV is missing, turning off offload_enabled for LV.\n",
+				__func__,
+				h->scsi_host->host_no, logical_drive->bus,
+				logical_drive->target, logical_drive->lun);
 			logical_drive->offload_enabled = 0;
 			logical_drive->offload_to_be_enabled = 0;
 			logical_drive->queue_depth = 8;
@@ -1759,13 +1786,24 @@ static void hpsa_update_log_drive_phys_drive_ptrs(struct ctlr_info *h,
 		/*
 		 * If offload is currently enabled, the RAID map and
 		 * phys_disk[] assignment *better* not be changing
-		 * and since it isn't changing, we do not need to
-		 * update it.
+		 * because we would be changing ioaccel phsy_disk[] pointers
+		 * on a ioaccel volume processing I/O requests.
+		 *
+		 * If an ioaccel volume status changed, initially because it was
+		 * re-configured and thus underwent a transformation, or
+		 * a drive failed, we would have received a state change
+		 * request and ioaccel should have been turned off. When the
+		 * transformation completes, we get another state change
+		 * request to turn ioaccel back on. In this case, we need
+		 * to update the ioaccel information.
+		 *
+		 * Thus: If it is not currently enabled, but will be after
+		 * the scan completes, make sure the ioaccel pointers
+		 * are up to date.
 		 */
-		if (dev[i]->offload_enabled)
-			continue;
 
-		hpsa_figure_phys_disk_ptrs(h, dev, ndevices, dev[i]);
+		if (!dev[i]->offload_enabled && dev[i]->offload_to_be_enabled)
+			hpsa_figure_phys_disk_ptrs(h, dev, ndevices, dev[i]);
 	}
 }
 
@@ -1965,8 +2003,13 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h,
 	}
 	hpsa_update_log_drive_phys_drive_ptrs(h, h->dev, h->ndevices);
 
-	/* Now that h->dev[]->phys_disk[] is coherent, we can enable
+	/*
+	 * Now that h->dev[]->phys_disk[] is coherent, we can enable
 	 * any logical drives that need it enabled.
+	 *
+	 * The raid map should be current by now.
+	 *
+	 * We are updating the device list used for I/O requests.
 	 */
 	for (i = 0; i < h->ndevices; i++) {
 		if (h->dev[i] == NULL)
@@ -2441,7 +2484,7 @@ static void process_ioaccel2_completion(struct ctlr_info *h,
 
 	/*
 	 * Any RAID offload error results in retry which will use
-	 * the normal I/O path so the controller can handle whatever's
+	 * the normal I/O path so the controller can handle whatever is
 	 * wrong.
 	 */
 	if (is_logical_device(dev) &&
@@ -3540,6 +3583,13 @@ exit_supported:
 	return true;
 }
 
+/*
+ * Called during a scan operation.
+ * Sets ioaccel status on the new device list, not the existing device list
+ *
+ * The device list used during I/O will be updated later in
+ * adjust_hpsa_scsi_table.
+ */
 static void hpsa_get_ioaccel_status(struct ctlr_info *h,
 	unsigned char *scsi3addr, struct hpsa_scsi_dev_t *this_device)
 {
@@ -3568,12 +3618,12 @@ static void hpsa_get_ioaccel_status(struct ctlr_info *h,
 	this_device->offload_config =
 		!!(ioaccel_status & OFFLOAD_CONFIGURED_BIT);
 	if (this_device->offload_config) {
-		this_device->offload_enabled =
+		this_device->offload_to_be_enabled =
 			!!(ioaccel_status & OFFLOAD_ENABLED_BIT);
 		if (hpsa_get_raid_map(h, scsi3addr, this_device))
-			this_device->offload_enabled = 0;
+			this_device->offload_to_be_enabled = 0;
 	}
-	this_device->offload_to_be_enabled = this_device->offload_enabled;
+
 out:
 	kfree(buf);
 	return;
@@ -4307,7 +4357,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 				continue;
 		}
 
-		/* Get device type, vendor, model, device id */
+		/* Get device type, vendor, model, device id, raid_map */
 		rc = hpsa_update_device_info(h, lunaddrbytes, tmpdevice,
 							&is_OBDR);
 		if (rc == -ENOMEM) {
@@ -8067,9 +8117,79 @@ static int detect_controller_lockup(struct ctlr_info *h)
 	return false;
 }
 
+/*
+ * Set ioaccel status for all ioaccel volumes.
+ *
+ * Called from monitor controller worker (hpsa_event_monitor_worker)
+ *
+ * A Volume (or Volumes that comprise an Array set may be undergoing a
+ * transformation, so we will be turning off ioaccel for all volumes that
+ * make up the Array.
+ */
+static void hpsa_set_ioaccel_status(struct ctlr_info *h)
+{
+	int rc;
+	int i;
+	u8 ioaccel_status;
+	unsigned char *buf;
+	struct hpsa_scsi_dev_t *device;
+
+	if (!h)
+		return;
+
+	buf = kmalloc(64, GFP_KERNEL);
+	if (!buf)
+		return;
+
+	/*
+	 * Run through current device list used during I/O requests.
+	 */
+	for (i = 0; i < h->ndevices; i++) {
+		device = h->dev[i];
+
+		if (!device)
+			continue;
+		if (!device->scsi3addr)
+			continue;
+		if (!hpsa_vpd_page_supported(h, device->scsi3addr,
+						HPSA_VPD_LV_IOACCEL_STATUS))
+			continue;
+
+		memset(buf, 0, 64);
+
+		rc = hpsa_scsi_do_inquiry(h, device->scsi3addr,
+					VPD_PAGE | HPSA_VPD_LV_IOACCEL_STATUS,
+					buf, 64);
+		if (rc != 0)
+			continue;
+
+		ioaccel_status = buf[IOACCEL_STATUS_BYTE];
+		device->offload_config =
+				!!(ioaccel_status & OFFLOAD_CONFIGURED_BIT);
+		if (device->offload_config)
+			device->offload_to_be_enabled =
+				!!(ioaccel_status & OFFLOAD_ENABLED_BIT);
+
+		/*
+		 * Immediately turn off ioaccel for any volume the
+		 * controller tells us to. Some of the reasons could be:
+		 *    transformation - change to the LVs of an Array.
+		 *    degraded volume - component failure
+		 *
+		 * If ioaccel is to be re-enabled, re-enable later during the
+		 * scan operation so the driver can get a fresh raidmap
+		 * before turning ioaccel back on.
+		 *
+		 */
+		if (!device->offload_to_be_enabled)
+			device->offload_enabled = 0;
+	}
+
+	kfree(buf);
+}
+
 static void hpsa_ack_ctlr_events(struct ctlr_info *h)
 {
-	int i;
 	char *event_type;
 
 	if (!(h->fw_support & MISC_FW_EVENT_NOTIFY))
@@ -8087,10 +8207,7 @@ static void hpsa_ack_ctlr_events(struct ctlr_info *h)
 			event_type = "configuration change";
 		/* Stop sending new RAID offload reqs via the IO accelerator */
 		scsi_block_requests(h->scsi_host);
-		for (i = 0; i < h->ndevices; i++) {
-			h->dev[i]->offload_enabled = 0;
-			h->dev[i]->offload_to_be_enabled = 0;
-		}
+		hpsa_set_ioaccel_status(h);
 		hpsa_drain_accel_commands(h);
 		/* Set 'accelerator path config change' bit */
 		dev_warn(&h->pdev->dev,
@@ -8107,10 +8224,6 @@ static void hpsa_ack_ctlr_events(struct ctlr_info *h)
 		writel(h->events, &(h->cfgtable->clear_event_notify));
 		writel(DOORBELL_CLEAR_EVENTS, h->vaddr + SA5_DOORBELL);
 		hpsa_wait_for_clear_event_notify_ack(h);
-#if 0
-		writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
-		hpsa_wait_for_mode_change_ack(h);
-#endif
 	}
 	return;
 }
