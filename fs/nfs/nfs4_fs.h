@@ -144,7 +144,7 @@ struct nfs4_lock_state {
 	unsigned long		ls_flags;
 	struct nfs_seqid_counter	ls_seqid;
 	nfs4_stateid		ls_stateid;
-	atomic_t		ls_count;
+	refcount_t		ls_count;
 	fl_owner_t		ls_owner;
 };
 
