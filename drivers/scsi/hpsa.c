@@ -1865,11 +1865,13 @@ static void hpsa_wait_for_outstanding_commands_for_dev(struct ctlr_info *h,
 			break;
 		if (++waits > 20)
 			break;
+		msleep(1000);
+	}
+
+	if (waits > 20)
 		dev_warn(&h->pdev->dev,
 			"%s: removing device with %d outstanding commands!\n",
 			__func__, cmds);
-		msleep(1000);
-	}
 }
 
 static void hpsa_remove_device(struct ctlr_info *h,
