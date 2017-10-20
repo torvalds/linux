@@ -3333,6 +3333,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 				 * them in stmmac_rx_refill() function so that
 				 * device can reuse it.
 				 */
+				dev_kfree_skb_any(rx_q->rx_skbuff[entry]);
 				rx_q->rx_skbuff[entry] = NULL;
 				dma_unmap_single(priv->device,
 						 rx_q->rx_skbuff_dma[entry],
