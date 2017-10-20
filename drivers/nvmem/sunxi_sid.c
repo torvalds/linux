@@ -40,7 +40,6 @@ static struct nvmem_config econfig = {
 	.read_only = true,
 	.stride = 4,
 	.word_size = 1,
-	.owner = THIS_MODULE,
 };
 
 struct sunxi_sid_cfg {

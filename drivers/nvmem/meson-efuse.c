@@ -37,7 +37,6 @@ static int meson_efuse_read(void *context, unsigned int offset,
 
 static struct nvmem_config econfig = {
 	.name = "meson-efuse",
-	.owner = THIS_MODULE,
 	.stride = 1,
 	.word_size = 1,
 	.read_only = true,

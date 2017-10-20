@@ -56,7 +56,6 @@ static int qfprom_remove(struct platform_device *pdev)
 
 static struct nvmem_config econfig = {
 	.name = "qfprom",
-	.owner = THIS_MODULE,
 	.stride = 1,
 	.word_size = 1,
 	.reg_read = qfprom_reg_read,

@@ -159,7 +159,6 @@ static struct nvmem_config lpc18xx_nvmem_config = {
 	.word_size = 4,
 	.reg_read = lpc18xx_eeprom_read,
 	.reg_write = lpc18xx_eeprom_gather_write,
-	.owner = THIS_MODULE,
 };
 
 static int lpc18xx_eeprom_probe(struct platform_device *pdev)

@@ -303,7 +303,6 @@ static struct nvmem_config imx_ocotp_nvmem_config = {
 	.read_only = false,
 	.word_size = 4,
 	.stride = 4,
-	.owner = THIS_MODULE,
 	.reg_read = imx_ocotp_read,
 	.reg_write = imx_ocotp_write,
 };

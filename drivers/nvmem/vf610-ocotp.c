@@ -206,7 +206,6 @@ static int vf610_ocotp_read(void *context, unsigned int offset,
 
 static struct nvmem_config ocotp_config = {
 	.name = "ocotp",
-	.owner = THIS_MODULE,
 	.stride = 4,
 	.word_size = 4,
 	.reg_read = vf610_ocotp_read,

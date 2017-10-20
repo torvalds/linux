@@ -133,7 +133,6 @@ static int imx_iim_probe(struct platform_device *pdev)
 	cfg.read_only = true,
 	cfg.word_size = 1,
 	cfg.stride = 1,
-	cfg.owner = THIS_MODULE,
 	cfg.reg_read = imx_iim_read,
 	cfg.dev = dev;
 	cfg.size = drvdata->nregs;
