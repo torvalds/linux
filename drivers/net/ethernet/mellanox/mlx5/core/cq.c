@@ -58,7 +58,7 @@ void mlx5_cq_tasklet_cb(unsigned long data)
 				 tasklet_ctx.list) {
 		list_del_init(&mcq->tasklet_ctx.list);
 		mcq->tasklet_ctx.comp(mcq);
-		if (atomic_dec_and_test(&mcq->refcount))
+		if (refcount_dec_and_test(&mcq->refcount))
 			complete(&mcq->free);
 		if (time_after(jiffies, end))
 			break;
@@ -80,7 +80,7 @@ static void mlx5_add_cq_to_tasklet(struct mlx5_core_cq *cq)
 	 * still arrive.
 	 */
 	if (list_empty_careful(&cq->tasklet_ctx.list)) {
-		atomic_inc(&cq->refcount);
+		refcount_inc(&cq->refcount);
 		list_add_tail(&cq->tasklet_ctx.list, &tasklet_ctx->list);
 	}
 	spin_unlock_irqrestore(&tasklet_ctx->lock, flags);
@@ -94,7 +94,7 @@ void mlx5_cq_completion(struct mlx5_core_dev *dev, u32 cqn)
 	spin_lock(&table->lock);
 	cq = radix_tree_lookup(&table->tree, cqn);
 	if (likely(cq))
-		atomic_inc(&cq->refcount);
+		refcount_inc(&cq->refcount);
 	spin_unlock(&table->lock);
 
 	if (!cq) {
@@ -106,7 +106,7 @@ void mlx5_cq_completion(struct mlx5_core_dev *dev, u32 cqn)
 
 	cq->comp(cq);
 
-	if (atomic_dec_and_test(&cq->refcount))
+	if (refcount_dec_and_test(&cq->refcount))
 		complete(&cq->free);
 }
 
@@ -119,7 +119,7 @@ void mlx5_cq_event(struct mlx5_core_dev *dev, u32 cqn, int event_type)
 
 	cq = radix_tree_lookup(&table->tree, cqn);
 	if (cq)
-		atomic_inc(&cq->refcount);
+		refcount_inc(&cq->refcount);
 
 	spin_unlock(&table->lock);
 
@@ -130,7 +130,7 @@ void mlx5_cq_event(struct mlx5_core_dev *dev, u32 cqn, int event_type)
 
 	cq->event(cq, event_type);
 
-	if (atomic_dec_and_test(&cq->refcount))
+	if (refcount_dec_and_test(&cq->refcount))
 		complete(&cq->free);
 }
 
@@ -159,7 +159,7 @@ int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 	cq->cqn = MLX5_GET(create_cq_out, out, cqn);
 	cq->cons_index = 0;
 	cq->arm_sn     = 0;
-	atomic_set(&cq->refcount, 1);
+	refcount_set(&cq->refcount, 1);
 	init_completion(&cq->free);
 	if (!cq->comp)
 		cq->comp = mlx5_add_cq_to_tasklet;
@@ -222,7 +222,7 @@ int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq)
 	synchronize_irq(cq->irqn);
 
 	mlx5_debug_cq_remove(dev, cq);
-	if (atomic_dec_and_test(&cq->refcount))
+	if (refcount_dec_and_test(&cq->refcount))
 		complete(&cq->free);
 	wait_for_completion(&cq->free);
 
