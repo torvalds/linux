@@ -688,15 +688,15 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 		goto error;
 	}
 
-	bo->pin_count = 1;
-	if (gpu_addr != NULL) {
-		r = amdgpu_ttm_bind(&bo->tbo, &bo->tbo.mem);
-		if (unlikely(r)) {
-			dev_err(adev->dev, "%p bind failed\n", bo);
-			goto error;
-		}
-		*gpu_addr = amdgpu_bo_gpu_offset(bo);
+	r = amdgpu_ttm_bind(&bo->tbo, &bo->tbo.mem);
+	if (unlikely(r)) {
+		dev_err(adev->dev, "%p bind failed\n", bo);
+		goto error;
 	}
+
+	bo->pin_count = 1;
+	if (gpu_addr != NULL)
+		*gpu_addr = amdgpu_bo_gpu_offset(bo);
 
 	domain = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
 	if (domain == AMDGPU_GEM_DOMAIN_VRAM) {
