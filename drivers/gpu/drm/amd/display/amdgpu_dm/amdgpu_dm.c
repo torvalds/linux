@@ -677,6 +677,10 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 
 		mutex_lock(&aconnector->hpd_lock);
 		dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD);
+
+		if (aconnector->fake_enable && aconnector->dc_link->local_sink)
+			aconnector->fake_enable = false;
+
 		aconnector->dc_sink = NULL;
 		amdgpu_dm_update_connector_after_detect(aconnector);
 		mutex_unlock(&aconnector->hpd_lock);
