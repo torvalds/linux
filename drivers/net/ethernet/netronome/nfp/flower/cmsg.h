@@ -86,9 +86,6 @@
 #define NFP_FL_ACTION_OPCODE_PRE_TUNNEL		17
 #define NFP_FL_ACTION_OPCODE_NUM		32
 
-#define NFP_FL_ACT_JMP_ID		GENMASK(15, 8)
-#define NFP_FL_ACT_LEN_LW		GENMASK(7, 0)
-
 #define NFP_FL_OUT_FLAGS_LAST		BIT(15)
 #define NFP_FL_OUT_FLAGS_USE_TUN	BIT(4)
 #define NFP_FL_OUT_FLAGS_TYPE_IDX	GENMASK(2, 0)
@@ -113,15 +110,20 @@ enum nfp_flower_tun_type {
 	NFP_FL_TUNNEL_VXLAN =	2,
 };
 
+struct nfp_fl_act_head {
+	u8 jump_id;
+	u8 len_lw;
+};
+
 struct nfp_fl_set_eth {
-	__be16 a_op;
+	struct nfp_fl_act_head head;
 	__be16 reserved;
 	u8 eth_addr_mask[ETH_ALEN * 2];
 	u8 eth_addr_val[ETH_ALEN * 2];
 };
 
 struct nfp_fl_set_ip4_addrs {
-	__be16 a_op;
+	struct nfp_fl_act_head head;
 	__be16 reserved;
 	__be32 ipv4_src_mask;
 	__be32 ipv4_src;
@@ -130,7 +132,7 @@ struct nfp_fl_set_ip4_addrs {
 };
 
 struct nfp_fl_set_ipv6_addr {
-	__be16 a_op;
+	struct nfp_fl_act_head head;
 	__be16 reserved;
 	struct {
 		__be32 mask;
@@ -139,27 +141,27 @@ struct nfp_fl_set_ipv6_addr {
 };
 
 struct nfp_fl_set_tport {
-	__be16 a_op;
+	struct nfp_fl_act_head head;
 	__be16 reserved;
 	u8 tp_port_mask[4];
 	u8 tp_port_val[4];
 };
 
 struct nfp_fl_output {
-	__be16 a_op;
+	struct nfp_fl_act_head head;
 	__be16 flags;
 	__be32 port;
 };
 
 struct nfp_fl_push_vlan {
-	__be16 a_op;
+	struct nfp_fl_act_head head;
 	__be16 reserved;
 	__be16 vlan_tpid;
 	__be16 vlan_tci;
 };
 
 struct nfp_fl_pop_vlan {
-	__be16 a_op;
+	struct nfp_fl_act_head head;
 	__be16 reserved;
 };
 
@@ -178,7 +180,7 @@ struct nfp_flower_meta_one {
 };
 
 struct nfp_fl_pre_tunnel {
-	__be16 a_op;
+	struct nfp_fl_act_head head;
 	__be16 reserved;
 	__be32 ipv4_dst;
 	/* reserved for use with IPv6 addresses */
@@ -186,7 +188,7 @@ struct nfp_fl_pre_tunnel {
 };
 
 struct nfp_fl_set_vxlan {
-	__be16 a_op;
+	struct nfp_fl_act_head head;
 	__be16 reserved;
 	__be64 tun_id;
 	__be32 tun_type_index;
