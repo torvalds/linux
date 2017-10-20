@@ -315,6 +315,7 @@ struct dw_mipi_dsi_plat_data {
 	unsigned int max_data_lanes;
 	u32 max_bit_rate_per_lane;
 	bool has_vop_sel;
+	bool need_h2p_clk;
 	enum drm_mode_status (*mode_valid)(struct drm_connector *connector,
 					   struct drm_display_mode *mode);
 };
@@ -342,6 +343,7 @@ struct dw_mipi_dsi {
 	struct reset_control *rst;
 	void __iomem *base;
 	struct clk *pclk;
+	struct clk *h2p_clk;
 
 	/* dual-channel */
 	struct dw_mipi_dsi *master;
@@ -1012,6 +1014,7 @@ static void rockchip_dsi_disable(struct dw_mipi_dsi *dsi)
 
 	pm_runtime_put(dsi->dev);
 	clk_disable_unprepare(dsi->pclk);
+	clk_disable_unprepare(dsi->h2p_clk);
 
 	if (dsi->slave)
 		rockchip_dsi_disable(dsi->slave);
@@ -1139,6 +1142,7 @@ static void rockchip_dsi_host_init(struct dw_mipi_dsi *dsi)
 
 static void rockchip_dsi_init(struct dw_mipi_dsi *dsi)
 {
+	clk_prepare_enable(dsi->h2p_clk);
 	rockchip_dsi_pre_init(dsi);
 	rockchip_dsi_host_init(dsi);
 	dw_mipi_dsi_phy_init(dsi);
@@ -1372,6 +1376,7 @@ static int dw_mipi_dsi_register(struct drm_device *drm,
 static struct dw_mipi_dsi_plat_data rk3128_mipi_dsi_drv_data = {
 	.max_data_lanes = 4,
 	.max_bit_rate_per_lane = 1000000000,
+	.need_h2p_clk = true,
 };
 
 static struct dw_mipi_dsi_plat_data rk3288_mipi_dsi_drv_data = {
@@ -1561,6 +1566,14 @@ static int dw_mipi_dsi_probe(struct platform_device *pdev)
 		ret = PTR_ERR(dsi->pclk);
 		dev_err(dev, "Unable to get pclk: %d\n", ret);
 		return ret;
+	}
+
+	if (dsi->pdata->need_h2p_clk) {
+		dsi->h2p_clk = devm_clk_get(dev, "h2p");
+		if (IS_ERR(dsi->h2p_clk)) {
+			dev_err(dev, "failed to get h2p bridge clock\n");
+			return PTR_ERR(dsi->h2p_clk);
+		}
 	}
 
 	dsi->grf_regmap = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");

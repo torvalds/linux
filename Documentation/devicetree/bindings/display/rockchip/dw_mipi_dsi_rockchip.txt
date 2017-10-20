@@ -25,6 +25,7 @@ Optional properties
   phandle to the SNPS-PHY config clock, name should be "phy_cfg".
   phandle to the SNPS-PHY PLL reference clock, name should be "ref".
   phandle to the Non-SNPS PHY high speed clock, name should be "hs_clk".
+  phandle to the h2p bridge clock, name should be "h2p".
 - phys: phandle to Non-SNPS PHY node
 - phy-names: the string "mipi_dphy" when is found in a node, along with "phys"
   attribute, provides phandle to MIPI PHY node
