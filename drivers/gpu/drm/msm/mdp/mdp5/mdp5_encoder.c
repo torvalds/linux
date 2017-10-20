@@ -384,7 +384,7 @@ int mdp5_vid_encoder_set_split_display(struct drm_encoder *encoder,
 
 	mdp5_ctl_pair(mdp5_encoder->ctl, mdp5_slave_enc->ctl, true);
 
-	pm_runtime_put_autosuspend(dev);
+	pm_runtime_put_sync(dev);
 
 	return 0;
 }

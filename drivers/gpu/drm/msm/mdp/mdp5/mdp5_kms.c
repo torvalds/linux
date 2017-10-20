@@ -125,7 +125,7 @@ static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *s
 	if (mdp5_kms->smp)
 		mdp5_smp_complete_commit(mdp5_kms->smp, &mdp5_kms->state->smp);
 
-	pm_runtime_put_autosuspend(dev);
+	pm_runtime_put_sync(dev);
 }
 
 static void mdp5_wait_for_crtc_commit_done(struct msm_kms *kms,
@@ -496,7 +496,7 @@ static void read_mdp_hw_revision(struct mdp5_kms *mdp5_kms,
 
 	pm_runtime_get_sync(dev);
 	version = mdp5_read(mdp5_kms, REG_MDP5_HW_VERSION);
-	pm_runtime_put_autosuspend(dev);
+	pm_runtime_put_sync(dev);
 
 	*major = FIELD(version, MDP5_HW_VERSION_MAJOR);
 	*minor = FIELD(version, MDP5_HW_VERSION_MINOR);
@@ -683,7 +683,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		aspace = NULL;;
 	}
 
-	pm_runtime_put_autosuspend(&pdev->dev);
+	pm_runtime_put_sync(&pdev->dev);
 
 	ret = modeset_init(mdp5_kms);
 	if (ret) {

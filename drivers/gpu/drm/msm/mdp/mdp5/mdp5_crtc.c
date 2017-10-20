@@ -434,7 +434,7 @@ static void mdp5_crtc_atomic_disable(struct drm_crtc *crtc,
 		mdp_irq_unregister(&mdp5_kms->base, &mdp5_crtc->pp_done);
 
 	mdp_irq_unregister(&mdp5_kms->base, &mdp5_crtc->err);
-	pm_runtime_put_autosuspend(dev);
+	pm_runtime_put_sync(dev);
 
 	mdp5_crtc->enabled = false;
 }
@@ -831,7 +831,7 @@ set_cursor:
 	crtc_flush(crtc, flush_mask);
 
 end:
-	pm_runtime_put_autosuspend(&pdev->dev);
+	pm_runtime_put_sync(&pdev->dev);
 	if (old_bo) {
 		drm_flip_work_queue(&mdp5_crtc->unref_cursor_work, old_bo);
 		/* enable vblank to complete cursor work: */
@@ -877,7 +877,7 @@ static int mdp5_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 
 	crtc_flush(crtc, flush_mask);
 
-	pm_runtime_put_autosuspend(&mdp5_kms->pdev->dev);
+	pm_runtime_put_sync(&mdp5_kms->pdev->dev);
 
 	return 0;
 }
