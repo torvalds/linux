@@ -302,9 +302,12 @@ enum bcm_sf2_reg_offs {
 /* UDF_DATA7 */
 #define L3_FRAMING_SHIFT		24
 #define L3_FRAMING_MASK			(0x3 << L3_FRAMING_SHIFT)
+#define IPTOS_SHIFT			16
+#define IPTOS_MASK			0xff
 #define IPPROTO_SHIFT			8
 #define IPPROTO_MASK			(0xff << IPPROTO_SHIFT)
-#define IP_FRAG				(1 << 7)
+#define IP_FRAG_SHIFT			7
+#define IP_FRAG				(1 << IP_FRAG_SHIFT)
 
 /* UDF_DATA0 */
 #define  SLICE_VALID			3

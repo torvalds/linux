@@ -189,7 +189,8 @@ static int bcm_sf2_cfp_rule_set(struct dsa_switch *ds, int port,
 	 * Reserved		[1]
 	 * UDF_Valid[8]		[0]
 	 */
-	core_writel(priv, v4_spec->tos << 16 | ip_proto << 8 | ip_frag << 7,
+	core_writel(priv, v4_spec->tos << IPTOS_SHIFT |
+		    ip_proto << IPPROTO_SHIFT | ip_frag << IP_FRAG_SHIFT,
 		    CORE_CFP_DATA_PORT(6));
 
 	/* UDF_Valid[7:0]	[31:24]
@@ -425,8 +426,8 @@ static int bcm_sf2_cfp_rule_get(struct bcm_sf2_priv *priv, int port,
 		return -EINVAL;
 	}
 
-	v4_spec->tos = (reg >> 16) & IPPROTO_MASK;
-	nfc->fs.m_ext.data[0] = cpu_to_be32((reg >> 7) & 1);
+	v4_spec->tos = (reg >> IPTOS_SHIFT) & IPTOS_MASK;
+	nfc->fs.m_ext.data[0] = cpu_to_be32((reg >> IP_FRAG_SHIFT) & 1);
 
 	reg = core_readl(priv, CORE_CFP_DATA_PORT(3));
 	/* src port [15:8] */
