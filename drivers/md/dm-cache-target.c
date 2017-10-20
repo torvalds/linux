@@ -603,21 +603,16 @@ static unsigned lock_level(struct bio *bio)
  * Per bio data
  *--------------------------------------------------------------*/
 
-static size_t get_per_bio_data_size(struct cache *cache)
+static struct per_bio_data *get_per_bio_data(struct bio *bio)
 {
-	return sizeof(struct per_bio_data);
-}
-
-static struct per_bio_data *get_per_bio_data(struct bio *bio, size_t data_size)
-{
-	struct per_bio_data *pb = dm_per_bio_data(bio, data_size);
+	struct per_bio_data *pb = dm_per_bio_data(bio, sizeof(struct per_bio_data));
 	BUG_ON(!pb);
 	return pb;
 }
 
-static struct per_bio_data *init_per_bio_data(struct bio *bio, size_t data_size)
+static struct per_bio_data *init_per_bio_data(struct bio *bio)
 {
-	struct per_bio_data *pb = get_per_bio_data(bio, data_size);
+	struct per_bio_data *pb = get_per_bio_data(bio);
 
 	pb->tick = false;
 	pb->req_nr = dm_bio_get_target_bio_nr(bio);
@@ -657,7 +652,6 @@ static void defer_bios(struct cache *cache, struct bio_list *bios)
 static bool bio_detain_shared(struct cache *cache, dm_oblock_t oblock, struct bio *bio)
 {
 	bool r;
-	size_t pb_size;
 	struct per_bio_data *pb;
 	struct dm_cell_key_v2 key;
 	dm_oblock_t end = to_oblock(from_oblock(oblock) + 1ULL);
@@ -682,8 +676,7 @@ static bool bio_detain_shared(struct cache *cache, dm_oblock_t oblock, struct bi
 	if (cell != cell_prealloc)
 		free_prison_cell(cache, cell_prealloc);
 
-	pb_size = get_per_bio_data_size(cache);
-	pb = get_per_bio_data(bio, pb_size);
+	pb = get_per_bio_data(bio);
 	pb->cell = cell;
 
 	return r;
@@ -835,12 +828,12 @@ static void remap_to_cache(struct cache *cache, struct bio *bio,
 static void check_if_tick_bio_needed(struct cache *cache, struct bio *bio)
 {
 	unsigned long flags;
-	size_t pb_data_size = get_per_bio_data_size(cache);
-	struct per_bio_data *pb = get_per_bio_data(bio, pb_data_size);
+	struct per_bio_data *pb;
 
 	spin_lock_irqsave(&cache->lock, flags);
 	if (cache->need_tick_bio && !op_is_flush(bio->bi_opf) &&
 	    bio_op(bio) != REQ_OP_DISCARD) {
+		pb = get_per_bio_data(bio);
 		pb->tick = true;
 		cache->need_tick_bio = false;
 	}
@@ -894,10 +887,10 @@ static bool accountable_bio(struct cache *cache, struct bio *bio)
 
 static void accounted_begin(struct cache *cache, struct bio *bio)
 {
-	size_t pb_data_size = get_per_bio_data_size(cache);
-	struct per_bio_data *pb = get_per_bio_data(bio, pb_data_size);
+	struct per_bio_data *pb;
 
 	if (accountable_bio(cache, bio)) {
+		pb = get_per_bio_data(bio);
 		pb->len = bio_sectors(bio);
 		iot_io_begin(&cache->tracker, pb->len);
 	}
@@ -905,8 +898,7 @@ static void accounted_begin(struct cache *cache, struct bio *bio)
 
 static void accounted_complete(struct cache *cache, struct bio *bio)
 {
-	size_t pb_data_size = get_per_bio_data_size(cache);
-	struct per_bio_data *pb = get_per_bio_data(bio, pb_data_size);
+	struct per_bio_data *pb = get_per_bio_data(bio);
 
 	iot_io_end(&cache->tracker, pb->len);
 }
@@ -1215,8 +1207,7 @@ static int copy(struct dm_cache_migration *mg, bool promote)
 
 static void bio_drop_shared_lock(struct cache *cache, struct bio *bio)
 {
-	size_t pb_data_size = get_per_bio_data_size(cache);
-	struct per_bio_data *pb = get_per_bio_data(bio, pb_data_size);
+	struct per_bio_data *pb = get_per_bio_data(bio);
 
 	if (pb->cell && dm_cell_put_v2(cache->prison, pb->cell))
 		free_prison_cell(cache, pb->cell);
@@ -1227,23 +1218,21 @@ static void overwrite_endio(struct bio *bio)
 {
 	struct dm_cache_migration *mg = bio->bi_private;
 	struct cache *cache = mg->cache;
-	size_t pb_data_size = get_per_bio_data_size(cache);
-	struct per_bio_data *pb = get_per_bio_data(bio, pb_data_size);
+	struct per_bio_data *pb = get_per_bio_data(bio);
 
 	dm_unhook_bio(&pb->hook_info, bio);
 
 	if (bio->bi_status)
 		mg->k.input = bio->bi_status;
 
-	queue_continuation(mg->cache->wq, &mg->k);
+	queue_continuation(cache->wq, &mg->k);
 }
 
 static void overwrite(struct dm_cache_migration *mg,
 		      void (*continuation)(struct work_struct *))
 {
 	struct bio *bio = mg->overwrite_bio;
-	size_t pb_data_size = get_per_bio_data_size(mg->cache);
-	struct per_bio_data *pb = get_per_bio_data(bio, pb_data_size);
+	struct per_bio_data *pb = get_per_bio_data(bio);
 
 	dm_hook_bio(&pb->hook_info, bio, overwrite_endio, mg);
 
@@ -1741,8 +1730,6 @@ static int map_bio(struct cache *cache, struct bio *bio, dm_oblock_t block,
 	int r, data_dir;
 	bool rb, background_queued;
 	dm_cblock_t cblock;
-	size_t pb_data_size = get_per_bio_data_size(cache);
-	struct per_bio_data *pb = get_per_bio_data(bio, pb_data_size);
 
 	*commit_needed = false;
 
@@ -1791,6 +1778,8 @@ static int map_bio(struct cache *cache, struct bio *bio, dm_oblock_t block,
 	}
 
 	if (r == -ENOENT) {
+		struct per_bio_data *pb = get_per_bio_data(bio);
+
 		/*
 		 * Miss.
 		 */
@@ -1798,7 +1787,6 @@ static int map_bio(struct cache *cache, struct bio *bio, dm_oblock_t block,
 		if (pb->req_nr == 0) {
 			accounted_begin(cache, bio);
 			remap_to_origin_clear_discard(cache, bio, block);
-
 		} else {
 			/*
 			 * This is a duplicate writethrough io that is no
@@ -1824,7 +1812,6 @@ static int map_bio(struct cache *cache, struct bio *bio, dm_oblock_t block,
 				invalidate_start(cache, cblock, block, bio);
 			} else
 				remap_to_origin_clear_discard(cache, bio, block);
-
 		} else {
 			if (bio_data_dir(bio) == WRITE && writethrough_mode(cache) &&
 			    !is_dirty(cache, cblock)) {
@@ -1897,8 +1884,7 @@ static blk_status_t commit_op(void *context)
 
 static bool process_flush_bio(struct cache *cache, struct bio *bio)
 {
-	size_t pb_data_size = get_per_bio_data_size(cache);
-	struct per_bio_data *pb = get_per_bio_data(bio, pb_data_size);
+	struct per_bio_data *pb = get_per_bio_data(bio);
 
 	if (!pb->req_nr)
 		remap_to_origin(cache, bio);
@@ -2511,9 +2497,9 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 	ti->discards_supported = true;
 	ti->split_discard_bios = false;
 
-	cache->features = ca->features;
-	ti->per_io_data_size = get_per_bio_data_size(cache);
+	ti->per_io_data_size = sizeof(struct per_bio_data);
 
+	cache->features = ca->features;
 	if (writethrough_mode(cache)) {
 		/* Create bioset for writethrough bios issued to origin */
 		cache->bs = bioset_create(BIO_POOL_SIZE, 0, 0);
@@ -2755,9 +2741,8 @@ static int cache_map(struct dm_target *ti, struct bio *bio)
 	int r;
 	bool commit_needed;
 	dm_oblock_t block = get_bio_block(cache, bio);
-	size_t pb_data_size = get_per_bio_data_size(cache);
 
-	init_per_bio_data(bio, pb_data_size);
+	init_per_bio_data(bio);
 	if (unlikely(from_oblock(block) >= from_oblock(cache->origin_blocks))) {
 		/*
 		 * This can only occur if the io goes to a partial block at
@@ -2781,13 +2766,11 @@ static int cache_map(struct dm_target *ti, struct bio *bio)
 	return r;
 }
 
-static int cache_end_io(struct dm_target *ti, struct bio *bio,
-		blk_status_t *error)
+static int cache_end_io(struct dm_target *ti, struct bio *bio, blk_status_t *error)
 {
 	struct cache *cache = ti->private;
 	unsigned long flags;
-	size_t pb_data_size = get_per_bio_data_size(cache);
-	struct per_bio_data *pb = get_per_bio_data(bio, pb_data_size);
+	struct per_bio_data *pb = get_per_bio_data(bio);
 
 	if (pb->tick) {
 		policy_tick(cache->policy, false);
