@@ -21,7 +21,6 @@
 #include "msm_gem.h"
 #include "msm_mmu.h"
 
-#define RB_BLKSIZE 32
 
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 {
@@ -195,11 +194,14 @@ int adreno_hw_init(struct msm_gpu *gpu)
 		ring->memptrs->rptr = 0;
 	}
 
-	/* Setup REG_CP_RB_CNTL: */
+	/*
+	 * Setup REG_CP_RB_CNTL.  The same value is used across targets (with
+	 * the excpetion of A430 that disables the RPTR shadow) - the cacluation
+	 * for the ringbuffer size and block size is moved to msm_gpu.h for the
+	 * pre-processor to deal with and the A430 variant is ORed in here
+	 */
 	adreno_gpu_write(adreno_gpu, REG_ADRENO_CP_RB_CNTL,
-		/* size is log2(quad-words): */
-		AXXX_CP_RB_CNTL_BUFSZ(ilog2(MSM_GPU_RINGBUFFER_SZ / 8)) |
-		AXXX_CP_RB_CNTL_BLKSZ(ilog2(RB_BLKSIZE / 8)) |
+		MSM_GPU_RB_CNTL_DEFAULT |
 		(adreno_is_a430(adreno_gpu) ? AXXX_CP_RB_CNTL_NO_UPDATE : 0));
 
 	/* Setup ringbuffer address - use ringbuffer[0] for GPU init */

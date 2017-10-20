@@ -129,6 +129,11 @@ struct msm_gpu {
 
 /* It turns out that all targets use the same ringbuffer size */
 #define MSM_GPU_RINGBUFFER_SZ SZ_32K
+#define MSM_GPU_RINGBUFFER_BLKSIZE 32
+
+#define MSM_GPU_RB_CNTL_DEFAULT \
+		(AXXX_CP_RB_CNTL_BUFSZ(ilog2(MSM_GPU_RINGBUFFER_SZ / 8)) | \
+		AXXX_CP_RB_CNTL_BLKSZ(ilog2(MSM_GPU_RINGBUFFER_BLKSIZE / 8)))
 
 static inline bool msm_gpu_active(struct msm_gpu *gpu)
 {
