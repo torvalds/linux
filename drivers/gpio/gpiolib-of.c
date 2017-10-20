@@ -153,8 +153,8 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 			*flags |= GPIO_OPEN_SOURCE;
 	}
 
-	if (of_flags & OF_GPIO_SLEEP_MAY_LOOSE_VALUE)
-		*flags |= GPIO_SLEEP_MAY_LOOSE_VALUE;
+	if (of_flags & OF_GPIO_SLEEP_MAY_LOSE_VALUE)
+		*flags |= GPIO_SLEEP_MAY_LOSE_VALUE;
 
 	return desc;
 }
