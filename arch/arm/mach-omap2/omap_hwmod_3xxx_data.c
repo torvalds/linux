@@ -3148,7 +3148,7 @@ int __init omap3xxx_hwmod_init(void)
 	int r;
 	struct omap_hwmod_ocp_if **h = NULL, **h_gp = NULL, **h_sham = NULL;
 	struct omap_hwmod_ocp_if **h_aes = NULL;
-	struct device_node *bus = NULL;
+	struct device_node *bus;
 	unsigned int rev;
 
 	omap_hwmod_init();
