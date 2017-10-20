@@ -42,7 +42,7 @@ static int rpcrdma_bc_setup_rqst(struct rpcrdma_xprt *r_xprt,
 	req = rpcrdma_create_req(r_xprt);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
-	req->rl_backchannel = true;
+	__set_bit(RPCRDMA_REQ_F_BACKCHANNEL, &req->rl_flags);
 
 	rb = rpcrdma_alloc_regbuf(RPCRDMA_HDRBUF_SIZE,
 				  DMA_TO_DEVICE, GFP_KERNEL);

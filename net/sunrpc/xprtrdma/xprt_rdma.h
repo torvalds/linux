@@ -377,10 +377,15 @@ struct rpcrdma_req {
 	struct rpcrdma_regbuf	*rl_recvbuf;	/* rq_rcv_buf */
 
 	struct list_head	rl_all;
-	bool			rl_backchannel;
+	unsigned long		rl_flags;
 
 	struct list_head	rl_registered;	/* registered segments */
 	struct rpcrdma_mr_seg	rl_segments[RPCRDMA_MAX_SEGS];
+};
+
+/* rl_flags */
+enum {
+	RPCRDMA_REQ_F_BACKCHANNEL = 0,
 };
 
 static inline void

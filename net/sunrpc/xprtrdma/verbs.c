@@ -1167,7 +1167,6 @@ rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 			rc = PTR_ERR(req);
 			goto out;
 		}
-		req->rl_backchannel = false;
 		list_add(&req->rl_list, &buf->rb_send_bufs);
 	}
 
