@@ -46,6 +46,7 @@ struct msm_ringbuffer *msm_ringbuffer_new(struct msm_gpu *gpu, int id,
 		goto fail;
 	}
 	ring->end   = ring->start + (MSM_GPU_RINGBUFFER_SZ >> 2);
+	ring->next  = ring->start;
 	ring->cur   = ring->start;
 
 	ring->memptrs = memptrs;

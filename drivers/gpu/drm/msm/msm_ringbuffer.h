@@ -32,7 +32,7 @@ struct msm_ringbuffer {
 	struct msm_gpu *gpu;
 	int id;
 	struct drm_gem_object *bo;
-	uint32_t *start, *end, *cur;
+	uint32_t *start, *end, *cur, *next;
 	struct list_head submits;
 	uint64_t iova;
 	uint32_t seqno;
@@ -51,9 +51,13 @@ void msm_ringbuffer_destroy(struct msm_ringbuffer *ring);
 static inline void
 OUT_RING(struct msm_ringbuffer *ring, uint32_t data)
 {
-	if (ring->cur == ring->end)
-		ring->cur = ring->start;
-	*(ring->cur++) = data;
+	/*
+	 * ring->next points to the current command being written - it won't be
+	 * committed as ring->cur until the flush
+	 */
+	if (ring->next == ring->end)
+		ring->next = ring->start;
+	*(ring->next++) = data;
 }
 
 #endif /* __MSM_RINGBUFFER_H__ */
