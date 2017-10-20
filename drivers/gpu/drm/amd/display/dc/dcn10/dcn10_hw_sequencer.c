@@ -414,91 +414,6 @@ static void bios_golden_init(struct dc *dc)
 	}
 }
 
-static void dcn10_init_hw(struct dc *dc)
-{
-	int i;
-	struct abm *abm = dc->res_pool->abm;
-	struct dmcu *dmcu = dc->res_pool->dmcu;
-	struct dce_hwseq *hws = dc->hwseq;
-
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		REG_WRITE(REFCLK_CNTL, 0);
-		REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
-		REG_WRITE(DIO_MEM_PWR_CTRL, 0);
-
-		if (!dc->debug.disable_clock_gate) {
-			/* enable all DCN clock gating */
-			REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
-
-			REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0);
-
-			REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
-		}
-
-		enable_power_gating_plane(dc->hwseq, true);
-		return;
-	}
-	/* end of FPGA. Below if real ASIC */
-
-	bios_golden_init(dc);
-
-	disable_vga(dc->hwseq);
-
-	for (i = 0; i < dc->link_count; i++) {
-		/* Power up AND update implementation according to the
-		 * required signal (which may be different from the
-		 * default signal on connector).
-		 */
-		struct dc_link *link = dc->links[i];
-
-		link->link_enc->funcs->hw_init(link->link_enc);
-	}
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct dpp *dpp = dc->res_pool->dpps[i];
-		struct timing_generator *tg = dc->res_pool->timing_generators[i];
-
-		dpp->funcs->dpp_reset(dpp);
-		dc->res_pool->mpc->funcs->remove(
-				dc->res_pool->mpc, &(dc->res_pool->opps[i]->mpc_tree),
-				dc->res_pool->opps[i]->inst, i);
-
-		/* Blank controller using driver code instead of
-		 * command table.
-		 */
-		tg->funcs->set_blank(tg, true);
-		hwss_wait_for_blank_complete(tg);
-	}
-
-	for (i = 0; i < dc->res_pool->audio_count; i++) {
-		struct audio *audio = dc->res_pool->audios[i];
-
-		audio->funcs->hw_init(audio);
-	}
-
-	if (abm != NULL) {
-		abm->funcs->init_backlight(abm);
-		abm->funcs->abm_init(abm);
-	}
-
-	if (dmcu != NULL)
-		dmcu->funcs->dmcu_init(dmcu);
-
-	/* power AFMT HDMI memory TODO: may move to dis/en output save power*/
-	REG_WRITE(DIO_MEM_PWR_CTRL, 0);
-
-	if (!dc->debug.disable_clock_gate) {
-		/* enable all DCN clock gating */
-		REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
-
-		REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0);
-
-		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
-	}
-
-	enable_power_gating_plane(dc->hwseq, true);
-}
-
 static enum dc_status dcn10_prog_pixclk_crtc_otg(
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context,
@@ -782,6 +697,93 @@ static void dcn10_power_down_fe(struct dc *dc, int fe_idx)
 
 	if (dc->debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
+}
+
+static void dcn10_init_hw(struct dc *dc)
+{
+	int i;
+	struct abm *abm = dc->res_pool->abm;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
+	struct dce_hwseq *hws = dc->hwseq;
+
+	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+		REG_WRITE(REFCLK_CNTL, 0);
+		REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
+		REG_WRITE(DIO_MEM_PWR_CTRL, 0);
+
+		if (!dc->debug.disable_clock_gate) {
+			/* enable all DCN clock gating */
+			REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
+
+			REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0);
+
+			REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
+		}
+
+		enable_power_gating_plane(dc->hwseq, true);
+		return;
+	}
+	/* end of FPGA. Below if real ASIC */
+
+	bios_golden_init(dc);
+
+	disable_vga(dc->hwseq);
+
+	for (i = 0; i < dc->link_count; i++) {
+		/* Power up AND update implementation according to the
+		 * required signal (which may be different from the
+		 * default signal on connector).
+		 */
+		struct dc_link *link = dc->links[i];
+
+		link->link_enc->funcs->hw_init(link->link_enc);
+	}
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct dpp *dpp = dc->res_pool->dpps[i];
+		struct timing_generator *tg = dc->res_pool->timing_generators[i];
+
+		dpp->funcs->dpp_reset(dpp);
+		dc->res_pool->mpc->funcs->remove(
+				dc->res_pool->mpc, &(dc->res_pool->opps[i]->mpc_tree),
+				dc->res_pool->opps[i]->inst, i);
+
+		/* Blank controller using driver code instead of
+		 * command table.
+		 */
+		tg->funcs->set_blank(tg, true);
+		hwss_wait_for_blank_complete(tg);
+
+		dcn10_power_down_fe(dc, i);
+	}
+
+	for (i = 0; i < dc->res_pool->audio_count; i++) {
+		struct audio *audio = dc->res_pool->audios[i];
+
+		audio->funcs->hw_init(audio);
+	}
+
+	if (abm != NULL) {
+		abm->funcs->init_backlight(abm);
+		abm->funcs->abm_init(abm);
+	}
+
+	if (dmcu != NULL)
+		dmcu->funcs->dmcu_init(dmcu);
+
+	/* power AFMT HDMI memory TODO: may move to dis/en output save power*/
+	REG_WRITE(DIO_MEM_PWR_CTRL, 0);
+
+	if (!dc->debug.disable_clock_gate) {
+		/* enable all DCN clock gating */
+		REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
+
+		REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0);
+
+		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
+	}
+
+	enable_power_gating_plane(dc->hwseq, true);
 }
 
 static void reset_hw_ctx_wrap(
