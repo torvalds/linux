@@ -501,17 +501,15 @@ static int sun4i_gpadc_probe_dt(struct platform_device *pdev,
 				struct iio_dev *indio_dev)
 {
 	struct sun4i_gpadc_iio *info = iio_priv(indio_dev);
-	const struct of_device_id *of_dev;
 	struct resource *mem;
 	void __iomem *base;
 	int ret;
 
-	of_dev = of_match_device(sun4i_gpadc_of_id, &pdev->dev);
-	if (!of_dev)
+	info->data = of_device_get_match_data(&pdev->dev);
+	if (!info->data)
 		return -ENODEV;
 
 	info->no_irq = true;
-	info->data = (struct gpadc_data *)of_dev->data;
 	indio_dev->num_channels = ARRAY_SIZE(sun8i_a33_gpadc_channels);
 	indio_dev->channels = sun8i_a33_gpadc_channels;
 
