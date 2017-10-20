@@ -59,6 +59,16 @@ static const struct hns3_stats hns3_rxq_stats[] = {
 
 #define HNS3_TQP_STATS_COUNT (HNS3_TXQ_STATS_COUNT + HNS3_RXQ_STATS_COUNT)
 
+#define HNS3_SELF_TEST_TPYE_NUM		1
+#define HNS3_NIC_LB_TEST_PKT_NUM	1
+#define HNS3_NIC_LB_TEST_RING_ID	0
+#define HNS3_NIC_LB_TEST_PACKET_SIZE	128
+
+/* Nic loopback test err  */
+#define HNS3_NIC_LB_TEST_NO_MEM_ERR	1
+#define HNS3_NIC_LB_TEST_TX_CNT_ERR	2
+#define HNS3_NIC_LB_TEST_RX_CNT_ERR	3
+
 struct hns3_link_mode_mapping {
 	u32 hns3_link_mode;
 	u32 ethtool_link_mode;
@@ -76,6 +86,268 @@ static const struct hns3_link_mode_mapping hns3_lm_map[] = {
 	{HNS3_LM_100BASET_FULL_BIT, ETHTOOL_LINK_MODE_100baseT_Full_BIT},
 	{HNS3_LM_1000BASET_FULL_BIT, ETHTOOL_LINK_MODE_1000baseT_Full_BIT},
 };
+
+static int hns3_lp_setup(struct net_device *ndev, enum hnae3_loop loop)
+{
+	struct hnae3_handle *h = hns3_get_handle(ndev);
+	int ret;
+
+	if (!h->ae_algo->ops->set_loopback ||
+	    !h->ae_algo->ops->set_promisc_mode)
+		return -EOPNOTSUPP;
+
+	switch (loop) {
+	case HNAE3_MAC_INTER_LOOP_MAC:
+		ret = h->ae_algo->ops->set_loopback(h, loop, true);
+		break;
+	case HNAE3_MAC_LOOP_NONE:
+		ret = h->ae_algo->ops->set_loopback(h,
+			HNAE3_MAC_INTER_LOOP_MAC, false);
+		break;
+	default:
+		ret = -ENOTSUPP;
+		break;
+	}
+
+	if (ret)
+		return ret;
+
+	if (loop == HNAE3_MAC_LOOP_NONE)
+		h->ae_algo->ops->set_promisc_mode(h, ndev->flags & IFF_PROMISC);
+	else
+		h->ae_algo->ops->set_promisc_mode(h, 1);
+
+	return ret;
+}
+
+static int hns3_lp_up(struct net_device *ndev, enum hnae3_loop loop_mode)
+{
+	struct hnae3_handle *h = hns3_get_handle(ndev);
+	int ret;
+
+	if (!h->ae_algo->ops->start)
+		return -EOPNOTSUPP;
+
+	ret = h->ae_algo->ops->start(h);
+	if (ret) {
+		netdev_err(ndev,
+			   "hns3_lb_up ae start return error: %d\n", ret);
+		return ret;
+	}
+
+	ret = hns3_lp_setup(ndev, loop_mode);
+	usleep_range(10000, 20000);
+
+	return ret;
+}
+
+static int hns3_lp_down(struct net_device *ndev)
+{
+	struct hnae3_handle *h = hns3_get_handle(ndev);
+	int ret;
+
+	if (!h->ae_algo->ops->stop)
+		return -EOPNOTSUPP;
+
+	ret = hns3_lp_setup(ndev, HNAE3_MAC_LOOP_NONE);
+	if (ret) {
+		netdev_err(ndev, "lb_setup return error: %d\n", ret);
+		return ret;
+	}
+
+	h->ae_algo->ops->stop(h);
+	usleep_range(10000, 20000);
+
+	return 0;
+}
+
+static void hns3_lp_setup_skb(struct sk_buff *skb)
+{
+	struct net_device *ndev = skb->dev;
+	unsigned char *packet;
+	struct ethhdr *ethh;
+	unsigned int i;
+
+	skb_reserve(skb, NET_IP_ALIGN);
+	ethh = skb_put(skb, sizeof(struct ethhdr));
+	packet = skb_put(skb, HNS3_NIC_LB_TEST_PACKET_SIZE);
+
+	memcpy(ethh->h_dest, ndev->dev_addr, ETH_ALEN);
+	eth_zero_addr(ethh->h_source);
+	ethh->h_proto = htons(ETH_P_ARP);
+	skb_reset_mac_header(skb);
+
+	for (i = 0; i < HNS3_NIC_LB_TEST_PACKET_SIZE; i++)
+		packet[i] = (unsigned char)(i & 0xff);
+}
+
+static void hns3_lb_check_skb_data(struct hns3_enet_ring *ring,
+				   struct sk_buff *skb)
+{
+	struct hns3_enet_tqp_vector *tqp_vector = ring->tqp_vector;
+	unsigned char *packet = skb->data;
+	u32 i;
+
+	for (i = 0; i < skb->len; i++)
+		if (packet[i] != (unsigned char)(i & 0xff))
+			break;
+
+	/* The packet is correctly received */
+	if (i == skb->len)
+		tqp_vector->rx_group.total_packets++;
+	else
+		print_hex_dump(KERN_ERR, "selftest:", DUMP_PREFIX_OFFSET, 16, 1,
+			       skb->data, skb->len, true);
+
+	dev_kfree_skb_any(skb);
+}
+
+static u32 hns3_lb_check_rx_ring(struct hns3_nic_priv *priv, u32 budget)
+{
+	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_knic_private_info *kinfo;
+	u32 i, rcv_good_pkt_total = 0;
+
+	kinfo = &h->kinfo;
+	for (i = kinfo->num_tqps; i < kinfo->num_tqps * 2; i++) {
+		struct hns3_enet_ring *ring = priv->ring_data[i].ring;
+		struct hns3_enet_ring_group *rx_group;
+		u64 pre_rx_pkt;
+
+		rx_group = &ring->tqp_vector->rx_group;
+		pre_rx_pkt = rx_group->total_packets;
+
+		hns3_clean_rx_ring(ring, budget, hns3_lb_check_skb_data);
+
+		rcv_good_pkt_total += (rx_group->total_packets - pre_rx_pkt);
+		rx_group->total_packets = pre_rx_pkt;
+	}
+	return rcv_good_pkt_total;
+}
+
+static void hns3_lb_clear_tx_ring(struct hns3_nic_priv *priv, u32 start_ringid,
+				  u32 end_ringid, u32 budget)
+{
+	u32 i;
+
+	for (i = start_ringid; i <= end_ringid; i++) {
+		struct hns3_enet_ring *ring = priv->ring_data[i].ring;
+
+		hns3_clean_tx_ring(ring, budget);
+	}
+}
+
+/**
+ * hns3_lp_run_test -  run loopback test
+ * @ndev: net device
+ * @mode: loopback type
+ */
+static int hns3_lp_run_test(struct net_device *ndev, enum hnae3_loop mode)
+{
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+	struct sk_buff *skb;
+	u32 i, good_cnt;
+	int ret_val = 0;
+
+	skb = alloc_skb(HNS3_NIC_LB_TEST_PACKET_SIZE + ETH_HLEN + NET_IP_ALIGN,
+			GFP_KERNEL);
+	if (!skb)
+		return HNS3_NIC_LB_TEST_NO_MEM_ERR;
+
+	skb->dev = ndev;
+	hns3_lp_setup_skb(skb);
+	skb->queue_mapping = HNS3_NIC_LB_TEST_RING_ID;
+
+	good_cnt = 0;
+	for (i = 0; i < HNS3_NIC_LB_TEST_PKT_NUM; i++) {
+		netdev_tx_t tx_ret;
+
+		skb_get(skb);
+		tx_ret = hns3_nic_net_xmit(skb, ndev);
+		if (tx_ret == NETDEV_TX_OK)
+			good_cnt++;
+		else
+			netdev_err(ndev, "hns3_lb_run_test xmit failed: %d\n",
+				   tx_ret);
+	}
+	if (good_cnt != HNS3_NIC_LB_TEST_PKT_NUM) {
+		ret_val = HNS3_NIC_LB_TEST_TX_CNT_ERR;
+		netdev_err(ndev, "mode %d sent fail, cnt=0x%x, budget=0x%x\n",
+			   mode, good_cnt, HNS3_NIC_LB_TEST_PKT_NUM);
+		goto out;
+	}
+
+	/* Allow 200 milliseconds for packets to go from Tx to Rx */
+	msleep(200);
+
+	good_cnt = hns3_lb_check_rx_ring(priv, HNS3_NIC_LB_TEST_PKT_NUM);
+	if (good_cnt != HNS3_NIC_LB_TEST_PKT_NUM) {
+		ret_val = HNS3_NIC_LB_TEST_RX_CNT_ERR;
+		netdev_err(ndev, "mode %d recv fail, cnt=0x%x, budget=0x%x\n",
+			   mode, good_cnt, HNS3_NIC_LB_TEST_PKT_NUM);
+	}
+
+out:
+	hns3_lb_clear_tx_ring(priv, HNS3_NIC_LB_TEST_RING_ID,
+			      HNS3_NIC_LB_TEST_RING_ID,
+			      HNS3_NIC_LB_TEST_PKT_NUM);
+
+	kfree_skb(skb);
+	return ret_val;
+}
+
+/**
+ * hns3_nic_self_test - self test
+ * @ndev: net device
+ * @eth_test: test cmd
+ * @data: test result
+ */
+static void hns3_self_test(struct net_device *ndev,
+			   struct ethtool_test *eth_test, u64 *data)
+{
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+	struct hnae3_handle *h = priv->ae_handle;
+	int st_param[HNS3_SELF_TEST_TPYE_NUM][2];
+	bool if_running = netif_running(ndev);
+	int test_index = 0;
+	u32 i;
+
+	/* Only do offline selftest, or pass by default */
+	if (eth_test->flags != ETH_TEST_FL_OFFLINE)
+		return;
+
+	st_param[HNAE3_MAC_INTER_LOOP_MAC][0] = HNAE3_MAC_INTER_LOOP_MAC;
+	st_param[HNAE3_MAC_INTER_LOOP_MAC][1] =
+			h->flags & HNAE3_SUPPORT_MAC_LOOPBACK;
+
+	if (if_running)
+		dev_close(ndev);
+
+	set_bit(HNS3_NIC_STATE_TESTING, &priv->state);
+
+	for (i = 0; i < HNS3_SELF_TEST_TPYE_NUM; i++) {
+		enum hnae3_loop loop_type = (enum hnae3_loop)st_param[i][0];
+
+		if (!st_param[i][1])
+			continue;
+
+		data[test_index] = hns3_lp_up(ndev, loop_type);
+		if (!data[test_index]) {
+			data[test_index] = hns3_lp_run_test(ndev, loop_type);
+			hns3_lp_down(ndev);
+		}
+
+		if (data[test_index])
+			eth_test->flags |= ETH_TEST_FL_FAILED;
+
+		test_index++;
+	}
+
+	clear_bit(HNS3_NIC_STATE_TESTING, &priv->state);
+
+	if (if_running)
+		dev_open(ndev);
+}
 
 static void hns3_driv_to_eth_caps(u32 caps, struct ethtool_link_ksettings *cmd,
 				  bool is_advertised)
@@ -553,6 +825,7 @@ static int hns3_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 }
 
 static const struct ethtool_ops hns3_ethtool_ops = {
+	.self_test = hns3_self_test,
 	.get_drvinfo = hns3_get_drvinfo,
 	.get_link = hns3_get_link,
 	.get_ringparam = hns3_get_ringparam,
