@@ -282,6 +282,9 @@ static int __klp_disable_patch(struct klp_patch *patch)
 {
 	struct klp_object *obj;
 
+	if (WARN_ON(!patch->enabled))
+		return -EINVAL;
+
 	if (klp_transition_patch)
 		return -EBUSY;
 
@@ -293,7 +296,7 @@ static int __klp_disable_patch(struct klp_patch *patch)
 	klp_init_transition(patch, KLP_UNPATCHED);
 
 	klp_for_each_object(patch, obj)
-		if (patch->enabled && obj->patched)
+		if (obj->patched)
 			klp_pre_unpatch_callback(obj);
 
 	/*
