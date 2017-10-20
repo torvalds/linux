@@ -4521,9 +4521,16 @@ static int mlxsw_sp_netdevice_event(struct notifier_block *nb,
 	return notifier_from_errno(err);
 }
 
+static struct notifier_block mlxsw_sp_inetaddr_valid_nb __read_mostly = {
+	.notifier_call = mlxsw_sp_inetaddr_valid_event,
+};
+
 static struct notifier_block mlxsw_sp_inetaddr_nb __read_mostly = {
 	.notifier_call = mlxsw_sp_inetaddr_event,
-	.priority = 10,	/* Must be called before FIB notifier block */
+};
+
+static struct notifier_block mlxsw_sp_inet6addr_valid_nb __read_mostly = {
+	.notifier_call = mlxsw_sp_inet6addr_valid_event,
 };
 
 static struct notifier_block mlxsw_sp_inet6addr_nb __read_mostly = {
@@ -4548,7 +4555,9 @@ static int __init mlxsw_sp_module_init(void)
 {
 	int err;
 
+	register_inetaddr_validator_notifier(&mlxsw_sp_inetaddr_valid_nb);
 	register_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
+	register_inet6addr_validator_notifier(&mlxsw_sp_inet6addr_valid_nb);
 	register_inet6addr_notifier(&mlxsw_sp_inet6addr_nb);
 	register_netevent_notifier(&mlxsw_sp_router_netevent_nb);
 
@@ -4567,7 +4576,9 @@ err_pci_driver_register:
 err_core_driver_register:
 	unregister_netevent_notifier(&mlxsw_sp_router_netevent_nb);
 	unregister_inet6addr_notifier(&mlxsw_sp_inet6addr_nb);
+	unregister_inet6addr_validator_notifier(&mlxsw_sp_inet6addr_valid_nb);
 	unregister_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
+	unregister_inetaddr_validator_notifier(&mlxsw_sp_inetaddr_valid_nb);
 	return err;
 }
 
@@ -4577,7 +4588,9 @@ static void __exit mlxsw_sp_module_exit(void)
 	mlxsw_core_driver_unregister(&mlxsw_sp_driver);
 	unregister_netevent_notifier(&mlxsw_sp_router_netevent_nb);
 	unregister_inet6addr_notifier(&mlxsw_sp_inet6addr_nb);
+	unregister_inet6addr_validator_notifier(&mlxsw_sp_inet6addr_valid_nb);
 	unregister_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
+	unregister_inetaddr_validator_notifier(&mlxsw_sp_inetaddr_valid_nb);
 }
 
 module_init(mlxsw_sp_module_init);

@@ -808,10 +808,6 @@ static int ipvlan_addr6_event(struct notifier_block *unused,
 	struct net_device *dev = (struct net_device *)if6->idev->dev;
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 
-	/* FIXME IPv6 autoconf calls us from bh without RTNL */
-	if (in_softirq())
-		return NOTIFY_DONE;
-
 	if (!netif_is_ipvlan(dev))
 		return NOTIFY_DONE;
 
@@ -851,8 +847,11 @@ static int ipvlan_addr6_validator_event(struct notifier_block *unused,
 
 	switch (event) {
 	case NETDEV_UP:
-		if (ipvlan_addr_busy(ipvlan->port, &i6vi->i6vi_addr, true))
+		if (ipvlan_addr_busy(ipvlan->port, &i6vi->i6vi_addr, true)) {
+			NL_SET_ERR_MSG(i6vi->extack,
+				       "Address already assigned to an ipvlan device");
 			return notifier_from_errno(-EADDRINUSE);
+		}
 		break;
 	}
 
@@ -921,8 +920,11 @@ static int ipvlan_addr4_validator_event(struct notifier_block *unused,
 
 	switch (event) {
 	case NETDEV_UP:
-		if (ipvlan_addr_busy(ipvlan->port, &ivi->ivi_addr, false))
+		if (ipvlan_addr_busy(ipvlan->port, &ivi->ivi_addr, false)) {
+			NL_SET_ERR_MSG(ivi->extack,
+				       "Address already assigned to an ipvlan device");
 			return notifier_from_errno(-EADDRINUSE);
+		}
 		break;
 	}
 
