@@ -18,15 +18,19 @@
 #include <linux/nvmem-provider.h>
 #include <linux/platform_device.h>
 
+struct mtk_efuse_priv {
+	void __iomem *base;
+};
+
 static int mtk_reg_read(void *context,
 			unsigned int reg, void *_val, size_t bytes)
 {
-	void __iomem *base = context;
+	struct mtk_efuse_priv *priv = context;
 	u32 *val = _val;
 	int i = 0, words = bytes / 4;
 
 	while (words--)
-		*val++ = readl(base + reg + (i++ * 4));
+		*val++ = readl(priv->base + reg + (i++ * 4));
 
 	return 0;
 }
@@ -34,12 +38,12 @@ static int mtk_reg_read(void *context,
 static int mtk_reg_write(void *context,
 			 unsigned int reg, void *_val, size_t bytes)
 {
-	void __iomem *base = context;
+	struct mtk_efuse_priv *priv = context;
 	u32 *val = _val;
 	int i = 0, words = bytes / 4;
 
 	while (words--)
-		writel(*val++, base + reg + (i++ * 4));
+		writel(*val++, priv->base + reg + (i++ * 4));
 
 	return 0;
 }
@@ -50,19 +54,23 @@ static int mtk_efuse_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct nvmem_device *nvmem;
 	struct nvmem_config econfig = {};
-	void __iomem *base;
+	struct mtk_efuse_priv *priv;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	priv->base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(priv->base))
+		return PTR_ERR(priv->base);
 
 	econfig.stride = 4;
 	econfig.word_size = 4;
 	econfig.reg_read = mtk_reg_read;
 	econfig.reg_write = mtk_reg_write;
 	econfig.size = resource_size(res);
-	econfig.priv = base;
+	econfig.priv = priv;
 	econfig.dev = dev;
 	econfig.owner = THIS_MODULE;
 	nvmem = nvmem_register(&econfig);
