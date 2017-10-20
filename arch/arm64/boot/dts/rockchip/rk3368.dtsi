@@ -1136,7 +1136,7 @@
 	};
 
 	cru: clock-controller@ff760000 {
-		compatible = "rockchip,rk3368-cru";
+		compatible = "rockchip,rk3368-cru", "syscon";
 		reg = <0x0 0xff760000 0x0 0x1000>;
 		rockchip,grf = <&grf>;
 		#clock-cells = <1>;
