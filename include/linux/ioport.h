@@ -271,6 +271,9 @@ extern int
 walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 		void *arg, int (*func)(unsigned long, unsigned long, void *));
 extern int
+walk_mem_res(u64 start, u64 end, void *arg,
+	     int (*func)(struct resource *, void *));
+extern int
 walk_system_ram_res(u64 start, u64 end, void *arg,
 		    int (*func)(struct resource *, void *));
 extern int
