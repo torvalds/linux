@@ -894,9 +894,7 @@ int klp_module_coming(struct module *mod)
 				pr_warn("failed to apply patch '%s' to module '%s' (%d)\n",
 					patch->mod->name, obj->mod->name, ret);
 
-				if (patch != klp_transition_patch)
-					klp_post_unpatch_callback(obj);
-
+				klp_post_unpatch_callback(obj);
 				goto err;
 			}
 
