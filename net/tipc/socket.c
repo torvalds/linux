@@ -48,7 +48,7 @@
 #include "group.h"
 
 #define CONN_TIMEOUT_DEFAULT	8000	/* default connect timeout = 8s */
-#define CONN_PROBING_INTERVAL	msecs_to_jiffies(3600000)  /* [ms] => 1 h */
+#define CONN_PROBING_INTV	msecs_to_jiffies(3600000)  /* [ms] => 1 h */
 #define TIPC_FWD_MSG		1
 #define TIPC_MAX_PORT		0xffffffff
 #define TIPC_MIN_PORT		1
@@ -1472,7 +1472,7 @@ static void tipc_sk_finish_conn(struct tipc_sock *tsk, u32 peer_port,
 	msg_set_lookup_scope(msg, 0);
 	msg_set_hdr_sz(msg, SHORT_H_SIZE);
 
-	sk_reset_timer(sk, &sk->sk_timer, jiffies + CONN_PROBING_INTERVAL);
+	sk_reset_timer(sk, &sk->sk_timer, jiffies + CONN_PROBING_INTV);
 	tipc_set_sk_state(sk, TIPC_ESTABLISHED);
 	tipc_node_add_conn(net, peer_node, tsk->portid, peer_port);
 	tsk->max_pkt = tipc_node_get_mtu(net, peer_node, tsk->portid);
@@ -2533,43 +2533,40 @@ static int tipc_shutdown(struct socket *sock, int how)
 static void tipc_sk_timeout(unsigned long data)
 {
 	struct tipc_sock *tsk = (struct tipc_sock *)data;
-	struct sock *sk = &tsk->sk;
-	struct sk_buff *skb = NULL;
-	u32 peer_port, peer_node;
+	u32 peer_port = tsk_peer_port(tsk);
+	u32 peer_node = tsk_peer_node(tsk);
 	u32 own_node = tsk_own_node(tsk);
+	u32 own_port = tsk->portid;
+	struct sock *sk = &tsk->sk;
+	struct net *net = sock_net(sk);
+	struct sk_buff *skb = NULL;
 
 	bh_lock_sock(sk);
-	if (!tipc_sk_connected(sk)) {
-		bh_unlock_sock(sk);
+	if (!tipc_sk_connected(sk))
+		goto exit;
+
+	/* Try again later if socket is busy */
+	if (sock_owned_by_user(sk)) {
+		sk_reset_timer(sk, &sk->sk_timer, jiffies + HZ / 20);
 		goto exit;
 	}
-	peer_port = tsk_peer_port(tsk);
-	peer_node = tsk_peer_node(tsk);
 
 	if (tsk->probe_unacked) {
-		if (!sock_owned_by_user(sk)) {
-			tipc_set_sk_state(sk, TIPC_DISCONNECTING);
-			tipc_node_remove_conn(sock_net(sk), tsk_peer_node(tsk),
-					      tsk_peer_port(tsk));
-			sk->sk_state_change(sk);
-		} else {
-			/* Try again later */
-			sk_reset_timer(sk, &sk->sk_timer, (HZ / 20));
-		}
-
-		bh_unlock_sock(sk);
+		tipc_set_sk_state(sk, TIPC_DISCONNECTING);
+		tipc_node_remove_conn(net, peer_node, peer_port);
+		sk->sk_state_change(sk);
 		goto exit;
 	}
-
-	skb = tipc_msg_create(CONN_MANAGER, CONN_PROBE,
-			      INT_H_SIZE, 0, peer_node, own_node,
-			      peer_port, tsk->portid, TIPC_OK);
+	/* Send new probe */
+	skb = tipc_msg_create(CONN_MANAGER, CONN_PROBE, INT_H_SIZE, 0,
+			      peer_node, own_node, peer_port, own_port,
+			      TIPC_OK);
 	tsk->probe_unacked = true;
-	sk_reset_timer(sk, &sk->sk_timer, jiffies + CONN_PROBING_INTERVAL);
+	sk_reset_timer(sk, &sk->sk_timer, jiffies + CONN_PROBING_INTV);
+exit:
 	bh_unlock_sock(sk);
 	if (skb)
-		tipc_node_xmit_skb(sock_net(sk), skb, peer_node, tsk->portid);
-exit:
+		tipc_node_xmit_skb(net, skb, peer_node, own_port);
 	sock_put(sk);
 }
 
