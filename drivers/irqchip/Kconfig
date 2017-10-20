@@ -326,7 +326,7 @@ config IRQ_UNIPHIER_AIDET
 
 config MESON_IRQ_GPIO
        bool "Meson GPIO Interrupt Multiplexer"
-       depends on ARCH_MESON || COMPILE_TEST
+       depends on ARCH_MESON
        select IRQ_DOMAIN
        select IRQ_DOMAIN_HIERARCHY
        help
