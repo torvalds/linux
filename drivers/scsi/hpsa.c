@@ -4258,6 +4258,8 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 		int phys_dev_index = i - (raid_ctlr_position == 0);
 		bool skip_device = false;
 
+		memset(tmpdevice, 0, sizeof(*tmpdevice));
+
 		physical_device = i < nphysicals + (raid_ctlr_position == 0);
 
 		/* Figure out where the LUN ID info is coming from */
