@@ -3472,6 +3472,30 @@ static void hpsa_get_sas_address(struct ctlr_info *h, unsigned char *scsi3addr,
 	dev->sas_address = sa;
 }
 
+static void hpsa_ext_ctrl_present(struct ctlr_info *h,
+	struct ReportExtendedLUNdata *physdev)
+{
+	u32 nphysicals;
+	int i;
+
+	if (h->discovery_polling)
+		return;
+
+	nphysicals = (get_unaligned_be32(physdev->LUNListLength) / 24) + 1;
+
+	for (i = 0; i < nphysicals; i++) {
+		if (physdev->LUN[i].device_type ==
+			BMIC_DEVICE_TYPE_CONTROLLER
+			&& !is_hba_lunid(physdev->LUN[i].lunid)) {
+			dev_info(&h->pdev->dev,
+				"External controller present, activate discovery polling and disable rld caching\n");
+			hpsa_disable_rld_caching(h);
+			h->discovery_polling = 1;
+			break;
+		}
+	}
+}
+
 /* Get a device id from inquiry page 0x83 */
 static bool hpsa_vpd_page_supported(struct ctlr_info *h,
 	unsigned char scsi3addr[], u8 page)
@@ -4228,6 +4252,8 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 	 */
 	ndevs_to_allocate = nphysicals + nlogicals + MAX_EXT_TARGETS + 1;
 
+	hpsa_ext_ctrl_present(h, physdev_list);
+
 	/* Allocate the per device structures */
 	for (i = 0; i < ndevs_to_allocate; i++) {
 		if (i >= HPSA_MAX_DEVICES) {
@@ -4297,18 +4323,6 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 
 		figure_bus_target_lun(h, lunaddrbytes, tmpdevice);
 		this_device = currentsd[ncurrent];
-
-		/* Turn on discovery_polling if there are ext target devices.
-		 * Event-based change notification is unreliable for those.
-		 */
-		if (!h->discovery_polling) {
-			if (tmpdevice->external) {
-				h->discovery_polling = 1;
-				dev_info(&h->pdev->dev,
-					"External target, activate discovery polling.\n");
-			}
-		}
-
 
 		*this_device = *tmpdevice;
 		this_device->physical_device = physical_device;
@@ -8247,7 +8261,6 @@ static void hpsa_rescan_ctlr_worker(struct work_struct *work)
 	if (h->drv_req_rescan || hpsa_offline_devices_ready(h)) {
 		hpsa_perform_rescan(h);
 	} else if (h->discovery_polling) {
-		hpsa_disable_rld_caching(h);
 		if (hpsa_luns_changed(h)) {
 			dev_info(&h->pdev->dev,
 				"driver discovery polling rescan.\n");
