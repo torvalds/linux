@@ -519,7 +519,13 @@ static inline int btrfs_dev_stat_read_and_reset(struct btrfs_device *dev,
 	int ret;
 
 	ret = atomic_xchg(dev->dev_stat_values + index, 0);
-	smp_mb__before_atomic();
+	/*
+	 * atomic_xchg implies a full memory barriers as per atomic_t.txt:
+	 * - RMW operations that have a return value are fully ordered;
+	 *
+	 * This implicit memory barriers is paired with the smp_rmb in
+	 * btrfs_run_dev_stats
+	 */
 	atomic_inc(&dev->dev_stats_ccnt);
 	return ret;
 }
