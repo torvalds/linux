@@ -131,10 +131,9 @@
 };
 
 &emmc {
-	max-frequency = <150000000>;
+	max-frequency = <125000000>;
 	cap-mmc-highspeed;
 	mmc-ddr-1_8v;
-	mmc-hs200-1_8v;
 	non-removable;
 	supports-emmc;
 	status = "okay";
