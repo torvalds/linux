@@ -42,7 +42,13 @@
 #include "i915_gem_request.h"
 #include "i915_selftest.h"
 
-#define I915_GTT_PAGE_SIZE 4096UL
+#define I915_GTT_PAGE_SIZE_4K BIT(12)
+#define I915_GTT_PAGE_SIZE_64K BIT(16)
+#define I915_GTT_PAGE_SIZE_2M BIT(21)
+
+#define I915_GTT_PAGE_SIZE I915_GTT_PAGE_SIZE_4K
+#define I915_GTT_MAX_PAGE_SIZE I915_GTT_PAGE_SIZE_2M
+
 #define I915_GTT_MIN_ALIGNMENT I915_GTT_PAGE_SIZE
 
 #define I915_FENCE_REG_NONE -1
@@ -148,6 +154,9 @@ typedef u64 gen8_ppgtt_pml4e_t;
 #define GEN8_PPAT_GET_AGE(x) ((x) & (3 << 4))
 #define CHV_PPAT_GET_SNOOP(x) ((x) & (1 << 6))
 
+#define GEN8_PDE_IPS_64K BIT(11)
+#define GEN8_PDE_PS_2M   BIT(7)
+
 struct sg_table;
 
 struct intel_rotation_info {
@@ -207,6 +216,7 @@ struct i915_vma;
 
 struct i915_page_dma {
 	struct page *page;
+	int order;
 	union {
 		dma_addr_t daddr;
 
@@ -329,6 +339,8 @@ struct i915_address_space {
 	int (*bind_vma)(struct i915_vma *vma,
 			enum i915_cache_level cache_level,
 			u32 flags);
+	int (*set_pages)(struct i915_vma *vma);
+	void (*clear_pages)(struct i915_vma *vma);
 
 	I915_SELFTEST_DECLARE(struct fault_attr fault_attr);
 };
@@ -339,6 +351,12 @@ static inline bool
 i915_vm_is_48bit(const struct i915_address_space *vm)
 {
 	return (vm->total - 1) >> 32;
+}
+
+static inline bool
+i915_vm_has_scratch_64K(struct i915_address_space *vm)
+{
+	return vm->scratch_page.order == get_order(I915_GTT_PAGE_SIZE_64K);
 }
 
 /* The Graphics Translation Table is the way in which GEN hardware translates a

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Intel Corporation
+ * Copyright © 2014-2017 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,18 +21,21 @@
  * IN THE SOFTWARE.
  *
  */
-#ifndef _INTEL_UC_H_
-#define _INTEL_UC_H_
 
-#include "intel_guc.h"
-#include "intel_huc.h"
+#ifndef _INTEL_HUC_H_
+#define _INTEL_HUC_H_
 
-void intel_uc_sanitize_options(struct drm_i915_private *dev_priv);
-void intel_uc_init_early(struct drm_i915_private *dev_priv);
-void intel_uc_init_mmio(struct drm_i915_private *dev_priv);
-void intel_uc_init_fw(struct drm_i915_private *dev_priv);
-void intel_uc_fini_fw(struct drm_i915_private *dev_priv);
-int intel_uc_init_hw(struct drm_i915_private *dev_priv);
-void intel_uc_fini_hw(struct drm_i915_private *dev_priv);
+#include "intel_uc_fw.h"
+
+struct intel_huc {
+	/* Generic uC firmware management */
+	struct intel_uc_fw fw;
+
+	/* HuC-specific additions */
+};
+
+void intel_huc_select_fw(struct intel_huc *huc);
+void intel_huc_init_hw(struct intel_huc *huc);
+void intel_huc_auth(struct intel_huc *huc);
 
 #endif

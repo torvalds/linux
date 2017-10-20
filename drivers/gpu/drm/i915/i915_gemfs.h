@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Intel Corporation
+ * Copyright © 2017 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,18 +21,14 @@
  * IN THE SOFTWARE.
  *
  */
-#ifndef _INTEL_UC_H_
-#define _INTEL_UC_H_
 
-#include "intel_guc.h"
-#include "intel_huc.h"
+#ifndef __I915_GEMFS_H__
+#define __I915_GEMFS_H__
 
-void intel_uc_sanitize_options(struct drm_i915_private *dev_priv);
-void intel_uc_init_early(struct drm_i915_private *dev_priv);
-void intel_uc_init_mmio(struct drm_i915_private *dev_priv);
-void intel_uc_init_fw(struct drm_i915_private *dev_priv);
-void intel_uc_fini_fw(struct drm_i915_private *dev_priv);
-int intel_uc_init_hw(struct drm_i915_private *dev_priv);
-void intel_uc_fini_hw(struct drm_i915_private *dev_priv);
+struct drm_i915_private;
+
+int i915_gemfs_init(struct drm_i915_private *i915);
+
+void i915_gemfs_fini(struct drm_i915_private *i915);
 
 #endif

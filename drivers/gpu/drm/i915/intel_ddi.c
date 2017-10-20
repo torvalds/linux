@@ -602,8 +602,10 @@ cnl_get_buf_trans_hdmi(struct drm_i915_private *dev_priv, int *n_entries)
 	} else if (voltage == VOLTAGE_INFO_1_05V) {
 		*n_entries = ARRAY_SIZE(cnl_ddi_translations_hdmi_1_05V);
 		return cnl_ddi_translations_hdmi_1_05V;
-	} else
+	} else {
+		*n_entries = 1; /* shut up gcc */
 		MISSING_CASE(voltage);
+	}
 	return NULL;
 }
 
@@ -621,8 +623,10 @@ cnl_get_buf_trans_dp(struct drm_i915_private *dev_priv, int *n_entries)
 	} else if (voltage == VOLTAGE_INFO_1_05V) {
 		*n_entries = ARRAY_SIZE(cnl_ddi_translations_dp_1_05V);
 		return cnl_ddi_translations_dp_1_05V;
-	} else
+	} else {
+		*n_entries = 1; /* shut up gcc */
 		MISSING_CASE(voltage);
+	}
 	return NULL;
 }
 
@@ -641,8 +645,10 @@ cnl_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
 		} else if (voltage == VOLTAGE_INFO_1_05V) {
 			*n_entries = ARRAY_SIZE(cnl_ddi_translations_edp_1_05V);
 			return cnl_ddi_translations_edp_1_05V;
-		} else
+		} else {
+			*n_entries = 1; /* shut up gcc */
 			MISSING_CASE(voltage);
+		}
 		return NULL;
 	} else {
 		return cnl_get_buf_trans_dp(dev_priv, n_entries);
@@ -1214,6 +1220,9 @@ static int cnl_calc_wrpll_link(struct drm_i915_private *dev_priv,
 	dco_freq += (((cfgcr0 & DPLL_CFGCR0_DCO_FRACTION_MASK) >>
 		      DPLL_CFGCR0_DCO_FRACTION_SHIFT) * ref_clock) / 0x8000;
 
+	if (WARN_ON(p0 == 0 || p1 == 0 || p2 == 0))
+		return 0;
+
 	return dco_freq / (p0 * p1 * p2 * 5);
 }
 
@@ -1713,7 +1722,8 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 out:
 	if (ret && IS_GEN9_LP(dev_priv)) {
 		tmp = I915_READ(BXT_PHY_CTL(port));
-		if ((tmp & (BXT_PHY_LANE_POWERDOWN_ACK |
+		if ((tmp & (BXT_PHY_CMNLANE_POWERDOWN_ACK |
+			    BXT_PHY_LANE_POWERDOWN_ACK |
 			    BXT_PHY_LANE_ENABLED)) != BXT_PHY_LANE_ENABLED)
 			DRM_ERROR("Port %c enabled but PHY powered down? "
 				  "(PHY_CTL %08x)\n", port_name(port), tmp);
@@ -2161,7 +2171,8 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 		intel_prepare_dp_ddi_buffers(encoder);
 
 	intel_ddi_init_dp_buf_reg(encoder);
-	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
+	if (!link_mst)
+		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 	intel_dp_start_link_train(intel_dp);
 	if (port != PORT_A || INTEL_GEN(dev_priv) >= 9)
 		intel_dp_stop_link_train(intel_dp);
@@ -2205,7 +2216,15 @@ static void intel_ddi_pre_enable(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *pipe_config,
 				 const struct drm_connector_state *conn_state)
 {
+	struct drm_crtc *crtc = pipe_config->base.crtc;
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
 	int type = encoder->type;
+
+	WARN_ON(intel_crtc->config->has_pch_encoder);
+
+	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
 	if (type == INTEL_OUTPUT_DP || type == INTEL_OUTPUT_EDP) {
 		intel_ddi_pre_enable_dp(encoder,
@@ -2235,12 +2254,21 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder,
 	uint32_t val;
 	bool wait = false;
 
-	/* old_crtc_state and old_conn_state are NULL when called from DP_MST */
-
 	if (type == INTEL_OUTPUT_DP || type == INTEL_OUTPUT_EDP) {
+		/*
+		 * old_crtc_state and old_conn_state are NULL when called from
+		 * DP_MST. The main connector associated with this port is never
+		 * bound to a crtc for MST.
+		 */
+		bool is_mst = !old_crtc_state;
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
-		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
+		/*
+		 * Power down sink before disabling the port, otherwise we end
+		 * up getting interrupts from the sink on detecting link loss.
+		 */
+		if (!is_mst)
+			intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 	}
 
 	val = I915_READ(DDI_BUF_CTL(port));

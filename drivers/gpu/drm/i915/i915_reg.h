@@ -2371,6 +2371,9 @@ enum i915_power_well_id {
 #define GEN9_GAMT_ECO_REG_RW_IA _MMIO(0x4ab0)
 #define   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS	(1<<18)
 
+#define GEN8_GAMW_ECO_DEV_RW_IA _MMIO(0x4080)
+#define   GAMW_ECO_ENABLE_64K_IPS_FIELD 0xF
+
 #define GAMT_CHKN_BIT_REG	_MMIO(0x4ab8)
 #define   GAMT_CHKN_DISABLE_DYNAMIC_CREDIT_SHARING	(1<<28)
 #define   GAMT_CHKN_DISABLE_I2M_CYCLE_ON_WR_PORT	(1<<24)
@@ -3818,6 +3821,16 @@ enum {
 #define GEN9_CLKGATE_DIS_0		_MMIO(0x46530)
 #define   PWM2_GATING_DIS		(1 << 14)
 #define   PWM1_GATING_DIS		(1 << 13)
+
+#define _CLKGATE_DIS_PSL_A		0x46520
+#define _CLKGATE_DIS_PSL_B		0x46524
+#define _CLKGATE_DIS_PSL_C		0x46528
+#define   DPF_GATING_DIS		(1 << 10)
+#define   DPF_RAM_GATING_DIS		(1 << 9)
+#define   DPFR_GATING_DIS		(1 << 8)
+
+#define CLKGATE_DIS_PSL(pipe) \
+	_MMIO_PIPE(pipe, _CLKGATE_DIS_PSL_A, _CLKGATE_DIS_PSL_B)
 
 /*
  * GEN10 clock gating regs
@@ -5671,8 +5684,7 @@ enum {
 #define  CBR_PWM_CLOCK_MUX_SELECT	(1<<30)
 
 #define CBR4_VLV			_MMIO(VLV_DISPLAY_BASE + 0x70450)
-#define  CBR_DPLLBMD_PIPE_C		(1<<29)
-#define  CBR_DPLLBMD_PIPE_B		(1<<18)
+#define  CBR_DPLLBMD_PIPE(pipe)		(1<<(7+(pipe)*11)) /* pipes B and C */
 
 /* FIFO watermark sizes etc */
 #define G4X_FIFO_LINE_SIZE	64
@@ -6993,6 +7005,12 @@ enum {
 #define GEN9_CS_DEBUG_MODE1		_MMIO(0x20ec)
 #define GEN9_CTX_PREEMPT_REG		_MMIO(0x2248)
 #define GEN8_CS_CHICKEN1		_MMIO(0x2580)
+#define GEN9_PREEMPT_3D_OBJECT_LEVEL		(1<<0)
+#define GEN9_PREEMPT_GPGPU_LEVEL(hi, lo)	(((hi) << 2) | ((lo) << 1))
+#define GEN9_PREEMPT_GPGPU_MID_THREAD_LEVEL	GEN9_PREEMPT_GPGPU_LEVEL(0, 0)
+#define GEN9_PREEMPT_GPGPU_THREAD_GROUP_LEVEL	GEN9_PREEMPT_GPGPU_LEVEL(0, 1)
+#define GEN9_PREEMPT_GPGPU_COMMAND_LEVEL	GEN9_PREEMPT_GPGPU_LEVEL(1, 0)
+#define GEN9_PREEMPT_GPGPU_LEVEL_MASK		GEN9_PREEMPT_GPGPU_LEVEL(1, 1)
 
 /* GEN7 chicken */
 #define GEN7_COMMON_SLICE_CHICKEN1		_MMIO(0x7010)
@@ -7164,9 +7182,6 @@ enum {
 
 #define SERR_INT			_MMIO(0xc4040)
 #define  SERR_INT_POISON		(1<<31)
-#define  SERR_INT_TRANS_C_FIFO_UNDERRUN	(1<<6)
-#define  SERR_INT_TRANS_B_FIFO_UNDERRUN	(1<<3)
-#define  SERR_INT_TRANS_A_FIFO_UNDERRUN	(1<<0)
 #define  SERR_INT_TRANS_FIFO_UNDERRUN(pipe)	(1<<((pipe)*3))
 
 /* digital port hotplug */

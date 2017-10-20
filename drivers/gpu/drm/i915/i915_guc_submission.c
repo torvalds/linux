@@ -21,11 +21,12 @@
  * IN THE SOFTWARE.
  *
  */
-#include <linux/circ_buf.h>
-#include "i915_drv.h"
-#include "intel_uc.h"
 
+#include <linux/circ_buf.h>
 #include <trace/events/dma_fence.h>
+
+#include "i915_guc_submission.h"
+#include "i915_drv.h"
 
 /**
  * DOC: GuC-based command submission
@@ -337,7 +338,7 @@ static void guc_stage_desc_init(struct intel_guc *guc,
 
 	for_each_engine_masked(engine, dev_priv, client->engines, tmp) {
 		struct intel_context *ce = &ctx->engine[engine->id];
-		uint32_t guc_engine_id = engine->guc_id;
+		u32 guc_engine_id = engine->guc_id;
 		struct guc_execlist_context *lrc = &desc->lrc[guc_engine_id];
 
 		/* TODO: We have a design issue to be solved here. Only when we
@@ -387,13 +388,13 @@ static void guc_stage_desc_init(struct intel_guc *guc,
 	gfx_addr = guc_ggtt_offset(client->vma);
 	desc->db_trigger_phy = sg_dma_address(client->vma->pages->sgl) +
 				client->doorbell_offset;
-	desc->db_trigger_cpu = (uintptr_t)__get_doorbell(client);
+	desc->db_trigger_cpu = ptr_to_u64(__get_doorbell(client));
 	desc->db_trigger_uk = gfx_addr + client->doorbell_offset;
 	desc->process_desc = gfx_addr + client->proc_desc_offset;
 	desc->wq_addr = gfx_addr + GUC_DB_SIZE;
 	desc->wq_size = GUC_WQ_SIZE;
 
-	desc->desc_private = (uintptr_t)client;
+	desc->desc_private = ptr_to_u64(client);
 }
 
 static void guc_stage_desc_fini(struct intel_guc *guc,
@@ -499,7 +500,7 @@ static void i915_guc_submit(struct intel_engine_cs *engine)
 	const unsigned int engine_id = engine->id;
 	unsigned int n;
 
-	for (n = 0; n < ARRAY_SIZE(execlists->port); n++) {
+	for (n = 0; n < execlists_num_ports(execlists); n++) {
 		struct drm_i915_gem_request *rq;
 		unsigned int count;
 
@@ -643,48 +644,6 @@ static void i915_guc_irq_handler(unsigned long data)
  * path of i915_guc_submit() above.
  */
 
-/**
- * intel_guc_allocate_vma() - Allocate a GGTT VMA for GuC usage
- * @guc:	the guc
- * @size:	size of area to allocate (both virtual space and memory)
- *
- * This is a wrapper to create an object for use with the GuC. In order to
- * use it inside the GuC, an object needs to be pinned lifetime, so we allocate
- * both some backing storage and a range inside the Global GTT. We must pin
- * it in the GGTT somewhere other than than [0, GUC_WOPCM_TOP) because that
- * range is reserved inside GuC.
- *
- * Return:	A i915_vma if successful, otherwise an ERR_PTR.
- */
-struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
-{
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct drm_i915_gem_object *obj;
-	struct i915_vma *vma;
-	int ret;
-
-	obj = i915_gem_object_create(dev_priv, size);
-	if (IS_ERR(obj))
-		return ERR_CAST(obj);
-
-	vma = i915_vma_instance(obj, &dev_priv->ggtt.base, NULL);
-	if (IS_ERR(vma))
-		goto err;
-
-	ret = i915_vma_pin(vma, 0, PAGE_SIZE,
-			   PIN_GLOBAL | PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
-	if (ret) {
-		vma = ERR_PTR(ret);
-		goto err;
-	}
-
-	return vma;
-
-err:
-	i915_gem_object_put(obj);
-	return vma;
-}
-
 /* Check that a doorbell register is in the expected state */
 static bool doorbell_ok(struct intel_guc *guc, u16 db_id)
 {
@@ -796,8 +755,8 @@ static int guc_init_doorbell_hw(struct intel_guc *guc)
  */
 static struct i915_guc_client *
 guc_client_alloc(struct drm_i915_private *dev_priv,
-		 uint32_t engines,
-		 uint32_t priority,
+		 u32 engines,
+		 u32 priority,
 		 struct i915_gem_context *ctx)
 {
 	struct i915_guc_client *client;
@@ -1069,6 +1028,7 @@ void i915_guc_submission_fini(struct drm_i915_private *dev_priv)
 
 static void guc_interrupts_capture(struct drm_i915_private *dev_priv)
 {
+	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int irqs;
@@ -1105,12 +1065,13 @@ static void guc_interrupts_capture(struct drm_i915_private *dev_priv)
 	 * Here we CLEAR REDIRECT_TO_GUC bit in pm_intrmsk_mbz, which will
 	 * result in the register bit being left SET!
 	 */
-	dev_priv->rps.pm_intrmsk_mbz |= ARAT_EXPIRED_INTRMSK;
-	dev_priv->rps.pm_intrmsk_mbz &= ~GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
+	rps->pm_intrmsk_mbz |= ARAT_EXPIRED_INTRMSK;
+	rps->pm_intrmsk_mbz &= ~GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
 }
 
 static void guc_interrupts_release(struct drm_i915_private *dev_priv)
 {
+	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int irqs;
@@ -1129,8 +1090,8 @@ static void guc_interrupts_release(struct drm_i915_private *dev_priv)
 	I915_WRITE(GUC_VCS2_VCS1_IER, 0);
 	I915_WRITE(GUC_WD_VECS_IER, 0);
 
-	dev_priv->rps.pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
-	dev_priv->rps.pm_intrmsk_mbz &= ~ARAT_EXPIRED_INTRMSK;
+	rps->pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
+	rps->pm_intrmsk_mbz &= ~ARAT_EXPIRED_INTRMSK;
 }
 
 int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
@@ -1211,56 +1172,4 @@ void i915_guc_submission_disable(struct drm_i915_private *dev_priv)
 
 	guc_client_free(guc->execbuf_client);
 	guc->execbuf_client = NULL;
-}
-
-/**
- * intel_guc_suspend() - notify GuC entering suspend state
- * @dev_priv:	i915 device private
- */
-int intel_guc_suspend(struct drm_i915_private *dev_priv)
-{
-	struct intel_guc *guc = &dev_priv->guc;
-	struct i915_gem_context *ctx;
-	u32 data[3];
-
-	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
-		return 0;
-
-	gen9_disable_guc_interrupts(dev_priv);
-
-	ctx = dev_priv->kernel_context;
-
-	data[0] = INTEL_GUC_ACTION_ENTER_S_STATE;
-	/* any value greater than GUC_POWER_D0 */
-	data[1] = GUC_POWER_D1;
-	/* first page is shared data with GuC */
-	data[2] = guc_ggtt_offset(ctx->engine[RCS].state) + LRC_GUCSHR_PN * PAGE_SIZE;
-
-	return intel_guc_send(guc, data, ARRAY_SIZE(data));
-}
-
-/**
- * intel_guc_resume() - notify GuC resuming from suspend state
- * @dev_priv:	i915 device private
- */
-int intel_guc_resume(struct drm_i915_private *dev_priv)
-{
-	struct intel_guc *guc = &dev_priv->guc;
-	struct i915_gem_context *ctx;
-	u32 data[3];
-
-	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
-		return 0;
-
-	if (i915_modparams.guc_log_level >= 0)
-		gen9_enable_guc_interrupts(dev_priv);
-
-	ctx = dev_priv->kernel_context;
-
-	data[0] = INTEL_GUC_ACTION_EXIT_S_STATE;
-	data[1] = GUC_POWER_D0;
-	/* first page is shared data with GuC */
-	data[2] = guc_ggtt_offset(ctx->engine[RCS].state) + LRC_GUCSHR_PN * PAGE_SIZE;
-
-	return intel_guc_send(guc, data, ARRAY_SIZE(data));
 }

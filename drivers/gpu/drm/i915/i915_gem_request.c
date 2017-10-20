@@ -186,7 +186,7 @@ i915_priotree_init(struct i915_priotree *pt)
 	INIT_LIST_HEAD(&pt->signalers_list);
 	INIT_LIST_HEAD(&pt->waiters_list);
 	INIT_LIST_HEAD(&pt->link);
-	pt->priority = INT_MIN;
+	pt->priority = I915_PRIORITY_INVALID;
 }
 
 static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
@@ -416,7 +416,7 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 
 	spin_lock_irq(&request->lock);
 	if (request->waitboost)
-		atomic_dec(&request->i915->rps.num_waiters);
+		atomic_dec(&request->i915->gt_pm.rps.num_waiters);
 	dma_fence_signal_locked(&request->fence);
 	spin_unlock_irq(&request->lock);
 
@@ -556,7 +556,16 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 	switch (state) {
 	case FENCE_COMPLETE:
 		trace_i915_gem_request_submit(request);
+		/*
+		 * We need to serialize use of the submit_request() callback with its
+		 * hotplugging performed during an emergency i915_gem_set_wedged().
+		 * We use the RCU mechanism to mark the critical section in order to
+		 * force i915_gem_set_wedged() to wait until the submit_request() is
+		 * completed before proceeding.
+		 */
+		rcu_read_lock();
 		request->engine->submit_request(request);
+		rcu_read_unlock();
 		break;
 
 	case FENCE_FREE:
@@ -586,6 +595,13 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	int ret;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+
+	/*
+	 * Preempt contexts are reserved for exclusive use to inject a
+	 * preemption context switch. They are never to be used for any trivial
+	 * request!
+	 */
+	GEM_BUG_ON(ctx == dev_priv->preempt_context);
 
 	/* ABI: Before userspace accesses the GPU (e.g. execbuffer), report
 	 * EIO if the GPU is already wedged.

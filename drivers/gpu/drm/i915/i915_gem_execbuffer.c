@@ -367,12 +367,12 @@ eb_pin_vma(struct i915_execbuffer *eb,
 		return false;
 
 	if (unlikely(exec_flags & EXEC_OBJECT_NEEDS_FENCE)) {
-		if (unlikely(i915_vma_get_fence(vma))) {
+		if (unlikely(i915_vma_pin_fence(vma))) {
 			i915_vma_unpin(vma);
 			return false;
 		}
 
-		if (i915_vma_pin_fence(vma))
+		if (vma->fence)
 			exec_flags |= __EXEC_OBJECT_HAS_FENCE;
 	}
 
@@ -385,7 +385,7 @@ static inline void __eb_unreserve_vma(struct i915_vma *vma, unsigned int flags)
 	GEM_BUG_ON(!(flags & __EXEC_OBJECT_HAS_PIN));
 
 	if (unlikely(flags & __EXEC_OBJECT_HAS_FENCE))
-		i915_vma_unpin_fence(vma);
+		__i915_vma_unpin_fence(vma);
 
 	__i915_vma_unpin(vma);
 }
@@ -563,13 +563,13 @@ static int eb_reserve_vma(const struct i915_execbuffer *eb,
 	}
 
 	if (unlikely(exec_flags & EXEC_OBJECT_NEEDS_FENCE)) {
-		err = i915_vma_get_fence(vma);
+		err = i915_vma_pin_fence(vma);
 		if (unlikely(err)) {
 			i915_vma_unpin(vma);
 			return err;
 		}
 
-		if (i915_vma_pin_fence(vma))
+		if (vma->fence)
 			exec_flags |= __EXEC_OBJECT_HAS_FENCE;
 	}
 
@@ -974,7 +974,9 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 			return ERR_PTR(err);
 
 		vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
-					       PIN_MAPPABLE | PIN_NONBLOCK);
+					       PIN_MAPPABLE |
+					       PIN_NONBLOCK |
+					       PIN_NONFAULT);
 		if (IS_ERR(vma)) {
 			memset(&cache->node, 0, sizeof(cache->node));
 			err = drm_mm_insert_node_in_range

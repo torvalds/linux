@@ -47,6 +47,7 @@ i915-y += i915_cmd_parser.o \
 	  i915_gem_tiling.o \
 	  i915_gem_timeline.o \
 	  i915_gem_userptr.o \
+	  i915_gemfs.o \
 	  i915_trace_points.o \
 	  i915_vma.o \
 	  intel_breadcrumbs.o \
@@ -59,6 +60,8 @@ i915-y += i915_cmd_parser.o \
 
 # general-purpose microcontroller (GuC) support
 i915-y += intel_uc.o \
+	  intel_uc_fw.o \
+	  intel_guc.o \
 	  intel_guc_ct.o \
 	  intel_guc_log.o \
 	  intel_guc_loader.o \

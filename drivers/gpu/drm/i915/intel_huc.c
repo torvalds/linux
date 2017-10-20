@@ -21,9 +21,11 @@
  * IN THE SOFTWARE.
  *
  */
-#include <linux/firmware.h>
+
+#include <linux/types.h>
+
+#include "intel_huc.h"
 #include "i915_drv.h"
-#include "intel_uc.h"
 
 /**
  * DOC: HuC Firmware
@@ -150,10 +152,7 @@ void intel_huc_select_fw(struct intel_huc *huc)
 {
 	struct drm_i915_private *dev_priv = huc_to_i915(huc);
 
-	huc->fw.path = NULL;
-	huc->fw.fetch_status = INTEL_UC_FIRMWARE_NONE;
-	huc->fw.load_status = INTEL_UC_FIRMWARE_NONE;
-	huc->fw.type = INTEL_UC_FW_TYPE_HUC;
+	intel_uc_fw_init(&huc->fw, INTEL_UC_FW_TYPE_HUC);
 
 	if (i915_modparams.huc_firmware_path) {
 		huc->fw.path = i915_modparams.huc_firmware_path;

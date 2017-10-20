@@ -135,11 +135,12 @@ static inline void i915_ggtt_invalidate(struct drm_i915_private *i915)
 int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 			       	int enable_ppgtt)
 {
-	bool has_aliasing_ppgtt;
 	bool has_full_ppgtt;
 	bool has_full_48bit_ppgtt;
 
-	has_aliasing_ppgtt = dev_priv->info.has_aliasing_ppgtt;
+	if (!dev_priv->info.has_aliasing_ppgtt)
+		return 0;
+
 	has_full_ppgtt = dev_priv->info.has_full_ppgtt;
 	has_full_48bit_ppgtt = dev_priv->info.has_full_48bit_ppgtt;
 
@@ -148,9 +149,6 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 		has_full_ppgtt = false;
 		has_full_48bit_ppgtt = intel_vgpu_has_full_48bit_ppgtt(dev_priv);
 	}
-
-	if (!has_aliasing_ppgtt)
-		return 0;
 
 	/*
 	 * We don't allow disabling PPGTT for gen9+ as it's a requirement for
@@ -188,7 +186,7 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 			return 2;
 	}
 
-	return has_aliasing_ppgtt ? 1 : 0;
+	return 1;
 }
 
 static int ppgtt_bind_vma(struct i915_vma *vma,
@@ -205,8 +203,6 @@ static int ppgtt_bind_vma(struct i915_vma *vma,
 			return ret;
 	}
 
-	vma->pages = vma->obj->mm.pages;
-
 	/* Currently applicable only to VLV */
 	pte_flags = 0;
 	if (vma->obj->gt_ro)
@@ -220,6 +216,30 @@ static int ppgtt_bind_vma(struct i915_vma *vma,
 static void ppgtt_unbind_vma(struct i915_vma *vma)
 {
 	vma->vm->clear_range(vma->vm, vma->node.start, vma->size);
+}
+
+static int ppgtt_set_pages(struct i915_vma *vma)
+{
+	GEM_BUG_ON(vma->pages);
+
+	vma->pages = vma->obj->mm.pages;
+
+	vma->page_sizes = vma->obj->mm.page_sizes;
+
+	return 0;
+}
+
+static void clear_pages(struct i915_vma *vma)
+{
+	GEM_BUG_ON(!vma->pages);
+
+	if (vma->pages != vma->obj->mm.pages) {
+		sg_free_table(vma->pages);
+		kfree(vma->pages);
+	}
+	vma->pages = NULL;
+
+	memset(&vma->page_sizes, 0, sizeof(vma->page_sizes));
 }
 
 static gen8_pte_t gen8_pte_encode(dma_addr_t addr,
@@ -497,22 +517,63 @@ static void fill_page_dma_32(struct i915_address_space *vm,
 static int
 setup_scratch_page(struct i915_address_space *vm, gfp_t gfp)
 {
-	struct page *page;
+	struct page *page = NULL;
 	dma_addr_t addr;
+	int order;
 
-	page = alloc_page(gfp | __GFP_ZERO);
-	if (unlikely(!page))
-		return -ENOMEM;
+	/*
+	 * In order to utilize 64K pages for an object with a size < 2M, we will
+	 * need to support a 64K scratch page, given that every 16th entry for a
+	 * page-table operating in 64K mode must point to a properly aligned 64K
+	 * region, including any PTEs which happen to point to scratch.
+	 *
+	 * This is only relevant for the 48b PPGTT where we support
+	 * huge-gtt-pages, see also i915_vma_insert().
+	 *
+	 * TODO: we should really consider write-protecting the scratch-page and
+	 * sharing between ppgtt
+	 */
+	if (i915_vm_is_48bit(vm) &&
+	    HAS_PAGE_SIZES(vm->i915, I915_GTT_PAGE_SIZE_64K)) {
+		order = get_order(I915_GTT_PAGE_SIZE_64K);
+		page = alloc_pages(gfp | __GFP_ZERO | __GFP_NOWARN, order);
+		if (page) {
+			addr = dma_map_page(vm->dma, page, 0,
+					    I915_GTT_PAGE_SIZE_64K,
+					    PCI_DMA_BIDIRECTIONAL);
+			if (unlikely(dma_mapping_error(vm->dma, addr))) {
+				__free_pages(page, order);
+				page = NULL;
+			}
 
-	addr = dma_map_page(vm->dma, page, 0, PAGE_SIZE,
-			    PCI_DMA_BIDIRECTIONAL);
-	if (unlikely(dma_mapping_error(vm->dma, addr))) {
-		__free_page(page);
-		return -ENOMEM;
+			if (!IS_ALIGNED(addr, I915_GTT_PAGE_SIZE_64K)) {
+				dma_unmap_page(vm->dma, addr,
+					       I915_GTT_PAGE_SIZE_64K,
+					       PCI_DMA_BIDIRECTIONAL);
+				__free_pages(page, order);
+				page = NULL;
+			}
+		}
+	}
+
+	if (!page) {
+		order = 0;
+		page = alloc_page(gfp | __GFP_ZERO);
+		if (unlikely(!page))
+			return -ENOMEM;
+
+		addr = dma_map_page(vm->dma, page, 0, PAGE_SIZE,
+				    PCI_DMA_BIDIRECTIONAL);
+		if (unlikely(dma_mapping_error(vm->dma, addr))) {
+			__free_page(page);
+			return -ENOMEM;
+		}
 	}
 
 	vm->scratch_page.page = page;
 	vm->scratch_page.daddr = addr;
+	vm->scratch_page.order = order;
+
 	return 0;
 }
 
@@ -520,8 +581,9 @@ static void cleanup_scratch_page(struct i915_address_space *vm)
 {
 	struct i915_page_dma *p = &vm->scratch_page;
 
-	dma_unmap_page(vm->dma, p->daddr, PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-	__free_page(p->page);
+	dma_unmap_page(vm->dma, p->daddr, BIT(p->order) << PAGE_SHIFT,
+		       PCI_DMA_BIDIRECTIONAL);
+	__free_pages(p->page, p->order);
 }
 
 static struct i915_page_table *alloc_pt(struct i915_address_space *vm)
@@ -989,6 +1051,105 @@ static void gen8_ppgtt_insert_3lvl(struct i915_address_space *vm,
 
 	gen8_ppgtt_insert_pte_entries(ppgtt, &ppgtt->pdp, &iter, &idx,
 				      cache_level);
+
+	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
+}
+
+static void gen8_ppgtt_insert_huge_entries(struct i915_vma *vma,
+					   struct i915_page_directory_pointer **pdps,
+					   struct sgt_dma *iter,
+					   enum i915_cache_level cache_level)
+{
+	const gen8_pte_t pte_encode = gen8_pte_encode(0, cache_level);
+	u64 start = vma->node.start;
+	dma_addr_t rem = iter->sg->length;
+
+	do {
+		struct gen8_insert_pte idx = gen8_insert_pte(start);
+		struct i915_page_directory_pointer *pdp = pdps[idx.pml4e];
+		struct i915_page_directory *pd = pdp->page_directory[idx.pdpe];
+		unsigned int page_size;
+		bool maybe_64K = false;
+		gen8_pte_t encode = pte_encode;
+		gen8_pte_t *vaddr;
+		u16 index, max;
+
+		if (vma->page_sizes.sg & I915_GTT_PAGE_SIZE_2M &&
+		    IS_ALIGNED(iter->dma, I915_GTT_PAGE_SIZE_2M) &&
+		    rem >= I915_GTT_PAGE_SIZE_2M && !idx.pte) {
+			index = idx.pde;
+			max = I915_PDES;
+			page_size = I915_GTT_PAGE_SIZE_2M;
+
+			encode |= GEN8_PDE_PS_2M;
+
+			vaddr = kmap_atomic_px(pd);
+		} else {
+			struct i915_page_table *pt = pd->page_table[idx.pde];
+
+			index = idx.pte;
+			max = GEN8_PTES;
+			page_size = I915_GTT_PAGE_SIZE;
+
+			if (!index &&
+			    vma->page_sizes.sg & I915_GTT_PAGE_SIZE_64K &&
+			    IS_ALIGNED(iter->dma, I915_GTT_PAGE_SIZE_64K) &&
+			    (IS_ALIGNED(rem, I915_GTT_PAGE_SIZE_64K) ||
+			     rem >= (max - index) << PAGE_SHIFT))
+				maybe_64K = true;
+
+			vaddr = kmap_atomic_px(pt);
+		}
+
+		do {
+			GEM_BUG_ON(iter->sg->length < page_size);
+			vaddr[index++] = encode | iter->dma;
+
+			start += page_size;
+			iter->dma += page_size;
+			rem -= page_size;
+			if (iter->dma >= iter->max) {
+				iter->sg = __sg_next(iter->sg);
+				if (!iter->sg)
+					break;
+
+				rem = iter->sg->length;
+				iter->dma = sg_dma_address(iter->sg);
+				iter->max = iter->dma + rem;
+
+				if (maybe_64K && index < max &&
+				    !(IS_ALIGNED(iter->dma, I915_GTT_PAGE_SIZE_64K) &&
+				      (IS_ALIGNED(rem, I915_GTT_PAGE_SIZE_64K) ||
+				       rem >= (max - index) << PAGE_SHIFT)))
+					maybe_64K = false;
+
+				if (unlikely(!IS_ALIGNED(iter->dma, page_size)))
+					break;
+			}
+		} while (rem >= page_size && index < max);
+
+		kunmap_atomic(vaddr);
+
+		/*
+		 * Is it safe to mark the 2M block as 64K? -- Either we have
+		 * filled whole page-table with 64K entries, or filled part of
+		 * it and have reached the end of the sg table and we have
+		 * enough padding.
+		 */
+		if (maybe_64K &&
+		    (index == max ||
+		     (i915_vm_has_scratch_64K(vma->vm) &&
+		      !iter->sg && IS_ALIGNED(vma->node.start +
+					      vma->node.size,
+					      I915_GTT_PAGE_SIZE_2M)))) {
+			vaddr = kmap_atomic_px(pd);
+			vaddr[idx.pde] |= GEN8_PDE_IPS_64K;
+			kunmap_atomic(vaddr);
+			page_size = I915_GTT_PAGE_SIZE_64K;
+		}
+
+		vma->page_sizes.gtt |= page_size;
+	} while (iter->sg);
 }
 
 static void gen8_ppgtt_insert_4lvl(struct i915_address_space *vm,
@@ -1003,11 +1164,18 @@ static void gen8_ppgtt_insert_4lvl(struct i915_address_space *vm,
 		.max = iter.dma + iter.sg->length,
 	};
 	struct i915_page_directory_pointer **pdps = ppgtt->pml4.pdps;
-	struct gen8_insert_pte idx = gen8_insert_pte(vma->node.start);
 
-	while (gen8_ppgtt_insert_pte_entries(ppgtt, pdps[idx.pml4e++], &iter,
-					     &idx, cache_level))
-		GEM_BUG_ON(idx.pml4e >= GEN8_PML4ES_PER_PML4);
+	if (vma->page_sizes.sg > I915_GTT_PAGE_SIZE) {
+		gen8_ppgtt_insert_huge_entries(vma, pdps, &iter, cache_level);
+	} else {
+		struct gen8_insert_pte idx = gen8_insert_pte(vma->node.start);
+
+		while (gen8_ppgtt_insert_pte_entries(ppgtt, pdps[idx.pml4e++],
+						     &iter, &idx, cache_level))
+			GEM_BUG_ON(idx.pml4e >= GEN8_PML4ES_PER_PML4);
+
+		vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
+	}
 }
 
 static void gen8_free_page_tables(struct i915_address_space *vm,
@@ -1452,6 +1620,8 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
 	ppgtt->base.unbind_vma = ppgtt_unbind_vma;
 	ppgtt->base.bind_vma = ppgtt_bind_vma;
+	ppgtt->base.set_pages = ppgtt_set_pages;
+	ppgtt->base.clear_pages = clear_pages;
 	ppgtt->debug_dump = gen8_dump_ppgtt;
 
 	return 0;
@@ -1726,6 +1896,8 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 		}
 	} while (1);
 	kunmap_atomic(vaddr);
+
+	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
 }
 
 static int gen6_alloc_va_range(struct i915_address_space *vm,
@@ -1894,6 +2066,8 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	ppgtt->base.insert_entries = gen6_ppgtt_insert_entries;
 	ppgtt->base.unbind_vma = ppgtt_unbind_vma;
 	ppgtt->base.bind_vma = ppgtt_bind_vma;
+	ppgtt->base.set_pages = ppgtt_set_pages;
+	ppgtt->base.clear_pages = clear_pages;
 	ppgtt->base.cleanup = gen6_ppgtt_cleanup;
 	ppgtt->debug_dump = gen6_dump_ppgtt;
 
@@ -1961,6 +2135,23 @@ static void gtt_write_workarounds(struct drm_i915_private *dev_priv)
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_SKL);
 	else if (IS_GEN9_LP(dev_priv))
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_BXT);
+
+	/*
+	 * To support 64K PTEs we need to first enable the use of the
+	 * Intermediate-Page-Size(IPS) bit of the PDE field via some magical
+	 * mmio, otherwise the page-walker will simply ignore the IPS bit. This
+	 * shouldn't be needed after GEN10.
+	 *
+	 * 64K pages were first introduced from BDW+, although technically they
+	 * only *work* from gen9+. For pre-BDW we instead have the option for
+	 * 32K pages, but we don't currently have any support for it in our
+	 * driver.
+	 */
+	if (HAS_PAGE_SIZES(dev_priv, I915_GTT_PAGE_SIZE_64K) &&
+	    INTEL_GEN(dev_priv) <= 10)
+		I915_WRITE(GEN8_GAMW_ECO_DEV_RW_IA,
+			   I915_READ(GEN8_GAMW_ECO_DEV_RW_IA) |
+			   GAMW_ECO_ENABLE_64K_IPS_FIELD);
 }
 
 int i915_ppgtt_init_hw(struct drm_i915_private *dev_priv)
@@ -2405,12 +2596,6 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	struct drm_i915_gem_object *obj = vma->obj;
 	u32 pte_flags;
 
-	if (unlikely(!vma->pages)) {
-		int ret = i915_get_ggtt_vma_pages(vma);
-		if (ret)
-			return ret;
-	}
-
 	/* Currently applicable only to VLV */
 	pte_flags = 0;
 	if (obj->gt_ro)
@@ -2419,6 +2604,8 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	intel_runtime_pm_get(i915);
 	vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
 	intel_runtime_pm_put(i915);
+
+	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
 
 	/*
 	 * Without aliasing PPGTT there's no difference between
@@ -2447,12 +2634,6 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 	u32 pte_flags;
 	int ret;
 
-	if (unlikely(!vma->pages)) {
-		ret = i915_get_ggtt_vma_pages(vma);
-		if (ret)
-			return ret;
-	}
-
 	/* Currently applicable only to VLV */
 	pte_flags = 0;
 	if (vma->obj->gt_ro)
@@ -2467,7 +2648,7 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 							     vma->node.start,
 							     vma->size);
 			if (ret)
-				goto err_pages;
+				return ret;
 		}
 
 		appgtt->base.insert_entries(&appgtt->base, vma, cache_level,
@@ -2481,17 +2662,6 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 	}
 
 	return 0;
-
-err_pages:
-	if (!(vma->flags & (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND))) {
-		if (vma->pages != vma->obj->mm.pages) {
-			GEM_BUG_ON(!vma->pages);
-			sg_free_table(vma->pages);
-			kfree(vma->pages);
-		}
-		vma->pages = NULL;
-	}
-	return ret;
 }
 
 static void aliasing_gtt_unbind_vma(struct i915_vma *vma)
@@ -2527,6 +2697,21 @@ void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
 	}
 
 	dma_unmap_sg(kdev, pages->sgl, pages->nents, PCI_DMA_BIDIRECTIONAL);
+}
+
+static int ggtt_set_pages(struct i915_vma *vma)
+{
+	int ret;
+
+	GEM_BUG_ON(vma->pages);
+
+	ret = i915_get_ggtt_vma_pages(vma);
+	if (ret)
+		return ret;
+
+	vma->page_sizes = vma->obj->mm.page_sizes;
+
+	return 0;
 }
 
 static void i915_gtt_color_adjust(const struct drm_mm_node *node,
@@ -3151,6 +3336,8 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->base.cleanup = gen6_gmch_remove;
 	ggtt->base.bind_vma = ggtt_bind_vma;
 	ggtt->base.unbind_vma = ggtt_unbind_vma;
+	ggtt->base.set_pages = ggtt_set_pages;
+	ggtt->base.clear_pages = clear_pages;
 	ggtt->base.insert_page = gen8_ggtt_insert_page;
 	ggtt->base.clear_range = nop_clear_range;
 	if (!USES_FULL_PPGTT(dev_priv) || intel_scanout_needs_vtd_wa(dev_priv))
@@ -3209,6 +3396,8 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->base.insert_entries = gen6_ggtt_insert_entries;
 	ggtt->base.bind_vma = ggtt_bind_vma;
 	ggtt->base.unbind_vma = ggtt_unbind_vma;
+	ggtt->base.set_pages = ggtt_set_pages;
+	ggtt->base.clear_pages = clear_pages;
 	ggtt->base.cleanup = gen6_gmch_remove;
 
 	ggtt->invalidate = gen6_ggtt_invalidate;
@@ -3254,6 +3443,8 @@ static int i915_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->base.clear_range = i915_ggtt_clear_range;
 	ggtt->base.bind_vma = ggtt_bind_vma;
 	ggtt->base.unbind_vma = ggtt_unbind_vma;
+	ggtt->base.set_pages = ggtt_set_pages;
+	ggtt->base.clear_pages = clear_pages;
 	ggtt->base.cleanup = i915_gmch_remove;
 
 	ggtt->invalidate = gmch_ggtt_invalidate;

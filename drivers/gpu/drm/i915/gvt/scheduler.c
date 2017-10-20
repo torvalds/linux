@@ -174,6 +174,7 @@ static int shadow_context_status_change(struct notifier_block *nb,
 		atomic_set(&workload->shadow_ctx_active, 1);
 		break;
 	case INTEL_CONTEXT_SCHEDULE_OUT:
+	case INTEL_CONTEXT_SCHEDULE_PREEMPTED:
 		atomic_set(&workload->shadow_ctx_active, 0);
 		break;
 	default:

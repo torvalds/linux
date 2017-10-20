@@ -431,27 +431,6 @@ parse_general_features(struct drm_i915_private *dev_priv,
 		      dev_priv->vbt.fdi_rx_polarity_inverted);
 }
 
-static void
-parse_general_definitions(struct drm_i915_private *dev_priv,
-			  const struct bdb_header *bdb)
-{
-	const struct bdb_general_definitions *general;
-
-	general = find_section(bdb, BDB_GENERAL_DEFINITIONS);
-	if (general) {
-		u16 block_size = get_blocksize(general);
-		if (block_size >= sizeof(*general)) {
-			int bus_pin = general->crt_ddc_gmbus_pin;
-			DRM_DEBUG_KMS("crt_ddc_bus_pin: %d\n", bus_pin);
-			if (intel_gmbus_is_valid_pin(dev_priv, bus_pin))
-				dev_priv->vbt.crt_ddc_pin = bus_pin;
-		} else {
-			DRM_DEBUG_KMS("BDB_GD too small (%d). Invalid.\n",
-				      block_size);
-		}
-	}
-}
-
 static const struct child_device_config *
 child_device_ptr(const struct bdb_general_definitions *defs, int i)
 {
@@ -459,41 +438,24 @@ child_device_ptr(const struct bdb_general_definitions *defs, int i)
 }
 
 static void
-parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
-			  const struct bdb_header *bdb)
+parse_sdvo_device_mapping(struct drm_i915_private *dev_priv, u8 bdb_version)
 {
 	struct sdvo_device_mapping *mapping;
-	const struct bdb_general_definitions *defs;
 	const struct child_device_config *child;
-	int i, child_device_num, count;
-	u16	block_size;
-
-	defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
-	if (!defs) {
-		DRM_DEBUG_KMS("No general definition block is found, unable to construct sdvo mapping.\n");
-		return;
-	}
+	int i, count = 0;
 
 	/*
-	 * Only parse SDVO mappings when the general definitions block child
-	 * device size matches that of the *legacy* child device config
-	 * struct. Thus, SDVO mapping will be skipped for newer VBT.
+	 * Only parse SDVO mappings on gens that could have SDVO. This isn't
+	 * accurate and doesn't have to be, as long as it's not too strict.
 	 */
-	if (defs->child_dev_size != LEGACY_CHILD_DEVICE_CONFIG_SIZE) {
-		DRM_DEBUG_KMS("Unsupported child device size for SDVO mapping.\n");
+	if (!IS_GEN(dev_priv, 3, 7)) {
+		DRM_DEBUG_KMS("Skipping SDVO device mapping\n");
 		return;
 	}
-	/* get the block size of general definitions */
-	block_size = get_blocksize(defs);
-	/* get the number of child device */
-	child_device_num = (block_size - sizeof(*defs)) / defs->child_dev_size;
-	count = 0;
-	for (i = 0; i < child_device_num; i++) {
-		child = child_device_ptr(defs, i);
-		if (!child->device_type) {
-			/* skip the device block if device type is invalid */
-			continue;
-		}
+
+	for (i = 0, count = 0; i < dev_priv->vbt.child_dev_num; i++) {
+		child = dev_priv->vbt.child_dev + i;
+
 		if (child->slave_addr != SLAVE_ADDR1 &&
 		    child->slave_addr != SLAVE_ADDR2) {
 			/*
@@ -544,7 +506,6 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 		/* No SDVO device info is found */
 		DRM_DEBUG_KMS("No SDVO device info is found in VBT\n");
 	}
-	return;
 }
 
 static void
@@ -1111,7 +1072,7 @@ static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 }
 
 static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
-			   const struct bdb_header *bdb)
+			   u8 bdb_version)
 {
 	struct child_device_config *it, *child = NULL;
 	struct ddi_vbt_port_info *info = &dev_priv->vbt.ddi_port_info[port];
@@ -1215,7 +1176,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 		sanitize_aux_ch(dev_priv, port);
 	}
 
-	if (bdb->version >= 158) {
+	if (bdb_version >= 158) {
 		/* The VBT HDMI level shift values match the table we have. */
 		hdmi_level_shift = child->hdmi_level_shifter_value;
 		DRM_DEBUG_KMS("VBT HDMI level shift for port %c: %d\n",
@@ -1225,7 +1186,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	}
 
 	/* Parse the I_boost config for SKL and above */
-	if (bdb->version >= 196 && child->iboost) {
+	if (bdb_version >= 196 && child->iboost) {
 		info->dp_boost_level = translate_iboost(child->dp_iboost_level);
 		DRM_DEBUG_KMS("VBT (e)DP boost level for port %c: %d\n",
 			      port_name(port), info->dp_boost_level);
@@ -1235,40 +1196,52 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	}
 }
 
-static void parse_ddi_ports(struct drm_i915_private *dev_priv,
-			    const struct bdb_header *bdb)
+static void parse_ddi_ports(struct drm_i915_private *dev_priv, u8 bdb_version)
 {
 	enum port port;
 
-	if (!HAS_DDI(dev_priv))
+	if (!HAS_DDI(dev_priv) && !IS_CHERRYVIEW(dev_priv))
 		return;
 
 	if (!dev_priv->vbt.child_dev_num)
 		return;
 
-	if (bdb->version < 155)
+	if (bdb_version < 155)
 		return;
 
 	for (port = PORT_A; port < I915_MAX_PORTS; port++)
-		parse_ddi_port(dev_priv, port, bdb);
+		parse_ddi_port(dev_priv, port, bdb_version);
 }
 
 static void
-parse_device_mapping(struct drm_i915_private *dev_priv,
-		     const struct bdb_header *bdb)
+parse_general_definitions(struct drm_i915_private *dev_priv,
+			  const struct bdb_header *bdb)
 {
 	const struct bdb_general_definitions *defs;
 	const struct child_device_config *child;
-	struct child_device_config *child_dev_ptr;
 	int i, child_device_num, count;
 	u8 expected_size;
 	u16 block_size;
+	int bus_pin;
 
 	defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (!defs) {
 		DRM_DEBUG_KMS("No general definition block is found, no devices defined.\n");
 		return;
 	}
+
+	block_size = get_blocksize(defs);
+	if (block_size < sizeof(*defs)) {
+		DRM_DEBUG_KMS("General definitions block too small (%u)\n",
+			      block_size);
+		return;
+	}
+
+	bus_pin = defs->crt_ddc_gmbus_pin;
+	DRM_DEBUG_KMS("crt_ddc_bus_pin: %d\n", bus_pin);
+	if (intel_gmbus_is_valid_pin(dev_priv, bus_pin))
+		dev_priv->vbt.crt_ddc_pin = bus_pin;
+
 	if (bdb->version < 106) {
 		expected_size = 22;
 	} else if (bdb->version < 111) {
@@ -1298,18 +1271,14 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	/* get the block size of general definitions */
-	block_size = get_blocksize(defs);
 	/* get the number of child device */
 	child_device_num = (block_size - sizeof(*defs)) / defs->child_dev_size;
 	count = 0;
 	/* get the number of child device that is present */
 	for (i = 0; i < child_device_num; i++) {
 		child = child_device_ptr(defs, i);
-		if (!child->device_type) {
-			/* skip the device block if device type is invalid */
+		if (!child->device_type)
 			continue;
-		}
 		count++;
 	}
 	if (!count) {
@@ -1326,36 +1295,18 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 	count = 0;
 	for (i = 0; i < child_device_num; i++) {
 		child = child_device_ptr(defs, i);
-		if (!child->device_type) {
-			/* skip the device block if device type is invalid */
+		if (!child->device_type)
 			continue;
-		}
-
-		child_dev_ptr = dev_priv->vbt.child_dev + count;
-		count++;
 
 		/*
 		 * Copy as much as we know (sizeof) and is available
 		 * (child_dev_size) of the child device. Accessing the data must
 		 * depend on VBT version.
 		 */
-		memcpy(child_dev_ptr, child,
+		memcpy(dev_priv->vbt.child_dev + count, child,
 		       min_t(size_t, defs->child_dev_size, sizeof(*child)));
-
-		/*
-		 * copied full block, now init values when they are not
-		 * available in current version
-		 */
-		if (bdb->version < 196) {
-			/* Set default values for bits added from v196 */
-			child_dev_ptr->iboost = 0;
-			child_dev_ptr->hpd_invert = 0;
-		}
-
-		if (bdb->version < 192)
-			child_dev_ptr->lspcon = 0;
+		count++;
 	}
-	return;
 }
 
 /* Common defaults which may be overridden by VBT. */
@@ -1536,14 +1487,15 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 	parse_lfp_panel_data(dev_priv, bdb);
 	parse_lfp_backlight(dev_priv, bdb);
 	parse_sdvo_panel_data(dev_priv, bdb);
-	parse_sdvo_device_mapping(dev_priv, bdb);
-	parse_device_mapping(dev_priv, bdb);
 	parse_driver_features(dev_priv, bdb);
 	parse_edp(dev_priv, bdb);
 	parse_psr(dev_priv, bdb);
 	parse_mipi_config(dev_priv, bdb);
 	parse_mipi_sequence(dev_priv, bdb);
-	parse_ddi_ports(dev_priv, bdb);
+
+	/* Further processing on pre-parsed data */
+	parse_sdvo_device_mapping(dev_priv, bdb->version);
+	parse_ddi_ports(dev_priv, bdb->version);
 
 out:
 	if (!vbt) {

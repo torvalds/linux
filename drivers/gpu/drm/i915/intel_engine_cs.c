@@ -22,6 +22,8 @@
  *
  */
 
+#include <drm/drm_print.h>
+
 #include "i915_drv.h"
 #include "intel_ringbuffer.h"
 #include "intel_lrc.h"
@@ -39,7 +41,7 @@
 
 #define GEN8_LR_CONTEXT_RENDER_SIZE	(20 * PAGE_SIZE)
 #define GEN9_LR_CONTEXT_RENDER_SIZE	(22 * PAGE_SIZE)
-#define GEN10_LR_CONTEXT_RENDER_SIZE	(19 * PAGE_SIZE)
+#define GEN10_LR_CONTEXT_RENDER_SIZE	(18 * PAGE_SIZE)
 
 #define GEN8_LR_CONTEXT_OTHER_SIZE	( 2 * PAGE_SIZE)
 
@@ -613,9 +615,22 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	if (IS_ERR(ring))
 		return PTR_ERR(ring);
 
+	/*
+	 * Similarly the preempt context must always be available so that
+	 * we can interrupt the engine at any time.
+	 */
+	if (INTEL_INFO(engine->i915)->has_logical_ring_preemption) {
+		ring = engine->context_pin(engine,
+					   engine->i915->preempt_context);
+		if (IS_ERR(ring)) {
+			ret = PTR_ERR(ring);
+			goto err_unpin_kernel;
+		}
+	}
+
 	ret = intel_engine_init_breadcrumbs(engine);
 	if (ret)
-		goto err_unpin;
+		goto err_unpin_preempt;
 
 	ret = i915_gem_render_state_init(engine);
 	if (ret)
@@ -634,7 +649,10 @@ err_rs_fini:
 	i915_gem_render_state_fini(engine);
 err_breadcrumbs:
 	intel_engine_fini_breadcrumbs(engine);
-err_unpin:
+err_unpin_preempt:
+	if (INTEL_INFO(engine->i915)->has_logical_ring_preemption)
+		engine->context_unpin(engine, engine->i915->preempt_context);
+err_unpin_kernel:
 	engine->context_unpin(engine, engine->i915->kernel_context);
 	return ret;
 }
@@ -660,6 +678,8 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	intel_engine_cleanup_cmd_parser(engine);
 	i915_gem_batch_pool_fini(&engine->batch_pool);
 
+	if (INTEL_INFO(engine->i915)->has_logical_ring_preemption)
+		engine->context_unpin(engine, engine->i915->preempt_context);
 	engine->context_unpin(engine, engine->i915->kernel_context);
 }
 
@@ -830,11 +850,6 @@ static int wa_add(struct drm_i915_private *dev_priv,
 #define WA_SET_FIELD_MASKED(addr, mask, value) \
 	WA_REG(addr, mask, _MASKED_FIELD(mask, value))
 
-#define WA_SET_BIT(addr, mask) WA_REG(addr, mask, I915_READ(addr) | (mask))
-#define WA_CLR_BIT(addr, mask) WA_REG(addr, mask, I915_READ(addr) & ~(mask))
-
-#define WA_WRITE(addr, val) WA_REG(addr, 0xffffffff, val)
-
 static int wa_ring_whitelist_reg(struct intel_engine_cs *engine,
 				 i915_reg_t reg)
 {
@@ -845,8 +860,8 @@ static int wa_ring_whitelist_reg(struct intel_engine_cs *engine,
 	if (WARN_ON(index >= RING_MAX_NONPRIV_SLOTS))
 		return -EINVAL;
 
-	WA_WRITE(RING_FORCE_TO_NONPRIV(engine->mmio_base, index),
-		 i915_mmio_reg_offset(reg));
+	I915_WRITE(RING_FORCE_TO_NONPRIV(engine->mmio_base, index),
+		   i915_mmio_reg_offset(reg));
 	wa->hw_whitelist_count[engine->id]++;
 
 	return 0;
@@ -980,7 +995,11 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 				  GEN9_PBE_COMPRESSED_HASH_SELECTION);
 		WA_SET_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN7,
 				  GEN9_SAMPLER_HASH_COMPRESSED_READ_ADDR);
-		WA_SET_BIT(MMCD_MISC_CTRL, MMCD_PCLA | MMCD_HOTSPOT_EN);
+
+		I915_WRITE(MMCD_MISC_CTRL,
+			   I915_READ(MMCD_MISC_CTRL) |
+			   MMCD_PCLA |
+			   MMCD_HOTSPOT_EN);
 	}
 
 	/* WaClearFlowControlGpgpuContextSave:skl,bxt,kbl,glk,cfl */
@@ -1071,13 +1090,33 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 	I915_WRITE(GEN8_L3SQCREG4, (I915_READ(GEN8_L3SQCREG4) |
 				    GEN8_LQSC_FLUSH_COHERENT_LINES));
 
+	/*
+	 * Supporting preemption with fine-granularity requires changes in the
+	 * batch buffer programming. Since we can't break old userspace, we
+	 * need to set our default preemption level to safe value. Userspace is
+	 * still able to use more fine-grained preemption levels, since in
+	 * WaEnablePreemptionGranularityControlByUMD we're whitelisting the
+	 * per-ctx register. As such, WaDisable{3D,GPGPU}MidCmdPreemption are
+	 * not real HW workarounds, but merely a way to start using preemption
+	 * while maintaining old contract with userspace.
+	 */
+
+	/* WaDisable3DMidCmdPreemption:skl,bxt,glk,cfl,[cnl] */
+	WA_CLR_BIT_MASKED(GEN8_CS_CHICKEN1, GEN9_PREEMPT_3D_OBJECT_LEVEL);
+
+	/* WaDisableGPGPUMidCmdPreemption:skl,bxt,blk,cfl,[cnl] */
+	WA_SET_FIELD_MASKED(GEN8_CS_CHICKEN1, GEN9_PREEMPT_GPGPU_LEVEL_MASK,
+			    GEN9_PREEMPT_GPGPU_COMMAND_LEVEL);
+
 	/* WaVFEStateAfterPipeControlwithMediaStateClear:skl,bxt,glk,cfl */
 	ret = wa_ring_whitelist_reg(engine, GEN9_CTX_PREEMPT_REG);
 	if (ret)
 		return ret;
 
-	/* WaEnablePreemptionGranularityControlByUMD:skl,bxt,kbl,cfl */
-	ret= wa_ring_whitelist_reg(engine, GEN8_CS_CHICKEN1);
+	/* WaEnablePreemptionGranularityControlByUMD:skl,bxt,kbl,cfl,[cnl] */
+	I915_WRITE(GEN7_FF_SLICE_CS_CHICKEN1,
+		   _MASKED_BIT_ENABLE(GEN9_FFSC_PERCTX_PREEMPT_CTRL));
+	ret = wa_ring_whitelist_reg(engine, GEN8_CS_CHICKEN1);
 	if (ret)
 		return ret;
 
@@ -1138,14 +1177,6 @@ static int skl_init_workarounds(struct intel_engine_cs *engine)
 	ret = gen9_init_workarounds(engine);
 	if (ret)
 		return ret;
-
-	/*
-	 * Actual WA is to disable percontext preemption granularity control
-	 * until D0 which is the default case so this is equivalent to
-	 * !WaDisablePerCtxtPreemptionGranularityControl:skl
-	 */
-	I915_WRITE(GEN7_FF_SLICE_CS_CHICKEN1,
-		   _MASKED_BIT_ENABLE(GEN9_FFSC_PERCTX_PREEMPT_CTRL));
 
 	/* WaEnableGapsTsvCreditFix:skl */
 	I915_WRITE(GEN8_GARBCNTL, (I915_READ(GEN8_GARBCNTL) |
@@ -1278,7 +1309,16 @@ static int cnl_init_workarounds(struct intel_engine_cs *engine)
 	/* FtrEnableFastAnisoL1BankingFix: cnl */
 	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3, CNL_FAST_ANISO_L1_BANKING_FIX);
 
+	/* WaDisable3DMidCmdPreemption:cnl */
+	WA_CLR_BIT_MASKED(GEN8_CS_CHICKEN1, GEN9_PREEMPT_3D_OBJECT_LEVEL);
+
+	/* WaDisableGPGPUMidCmdPreemption:cnl */
+	WA_SET_FIELD_MASKED(GEN8_CS_CHICKEN1, GEN9_PREEMPT_GPGPU_LEVEL_MASK,
+			    GEN9_PREEMPT_GPGPU_COMMAND_LEVEL);
+
 	/* WaEnablePreemptionGranularityControlByUMD:cnl */
+	I915_WRITE(GEN7_FF_SLICE_CS_CHICKEN1,
+		   _MASKED_BIT_ENABLE(GEN9_FFSC_PERCTX_PREEMPT_CTRL));
 	ret= wa_ring_whitelist_reg(engine, GEN8_CS_CHICKEN1);
 	if (ret)
 		return ret;
@@ -1576,6 +1616,164 @@ bool intel_engine_can_store_dword(struct intel_engine_cs *engine)
 	default:
 		return true;
 	}
+}
+
+static void print_request(struct drm_printer *m,
+			  struct drm_i915_gem_request *rq,
+			  const char *prefix)
+{
+	drm_printf(m, "%s%x [%x:%x] prio=%d @ %dms: %s\n", prefix,
+		   rq->global_seqno, rq->ctx->hw_id, rq->fence.seqno,
+		   rq->priotree.priority,
+		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),
+		   rq->timeline->common->name);
+}
+
+void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
+{
+	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+	struct i915_gpu_error *error = &engine->i915->gpu_error;
+	struct drm_i915_private *dev_priv = engine->i915;
+	struct drm_i915_gem_request *rq;
+	struct rb_node *rb;
+	u64 addr;
+
+	drm_printf(m, "%s\n", engine->name);
+	drm_printf(m, "\tcurrent seqno %x, last %x, hangcheck %x [%d ms], inflight %d\n",
+		   intel_engine_get_seqno(engine),
+		   intel_engine_last_submit(engine),
+		   engine->hangcheck.seqno,
+		   jiffies_to_msecs(jiffies - engine->hangcheck.action_timestamp),
+		   engine->timeline->inflight_seqnos);
+	drm_printf(m, "\tReset count: %d\n",
+		   i915_reset_engine_count(error, engine));
+
+	rcu_read_lock();
+
+	drm_printf(m, "\tRequests:\n");
+
+	rq = list_first_entry(&engine->timeline->requests,
+			      struct drm_i915_gem_request, link);
+	if (&rq->link != &engine->timeline->requests)
+		print_request(m, rq, "\t\tfirst  ");
+
+	rq = list_last_entry(&engine->timeline->requests,
+			     struct drm_i915_gem_request, link);
+	if (&rq->link != &engine->timeline->requests)
+		print_request(m, rq, "\t\tlast   ");
+
+	rq = i915_gem_find_active_request(engine);
+	if (rq) {
+		print_request(m, rq, "\t\tactive ");
+		drm_printf(m,
+			   "\t\t[head %04x, postfix %04x, tail %04x, batch 0x%08x_%08x]\n",
+			   rq->head, rq->postfix, rq->tail,
+			   rq->batch ? upper_32_bits(rq->batch->node.start) : ~0u,
+			   rq->batch ? lower_32_bits(rq->batch->node.start) : ~0u);
+	}
+
+	drm_printf(m, "\tRING_START: 0x%08x [0x%08x]\n",
+		   I915_READ(RING_START(engine->mmio_base)),
+		   rq ? i915_ggtt_offset(rq->ring->vma) : 0);
+	drm_printf(m, "\tRING_HEAD:  0x%08x [0x%08x]\n",
+		   I915_READ(RING_HEAD(engine->mmio_base)) & HEAD_ADDR,
+		   rq ? rq->ring->head : 0);
+	drm_printf(m, "\tRING_TAIL:  0x%08x [0x%08x]\n",
+		   I915_READ(RING_TAIL(engine->mmio_base)) & TAIL_ADDR,
+		   rq ? rq->ring->tail : 0);
+	drm_printf(m, "\tRING_CTL:   0x%08x [%s]\n",
+		   I915_READ(RING_CTL(engine->mmio_base)),
+		   I915_READ(RING_CTL(engine->mmio_base)) & (RING_WAIT | RING_WAIT_SEMAPHORE) ? "waiting" : "");
+
+	rcu_read_unlock();
+
+	addr = intel_engine_get_active_head(engine);
+	drm_printf(m, "\tACTHD:  0x%08x_%08x\n",
+		   upper_32_bits(addr), lower_32_bits(addr));
+	addr = intel_engine_get_last_batch_head(engine);
+	drm_printf(m, "\tBBADDR: 0x%08x_%08x\n",
+		   upper_32_bits(addr), lower_32_bits(addr));
+
+	if (i915_modparams.enable_execlists) {
+		const u32 *hws = &engine->status_page.page_addr[I915_HWS_CSB_BUF0_INDEX];
+		struct intel_engine_execlists * const execlists = &engine->execlists;
+		u32 ptr, read, write;
+		unsigned int idx;
+
+		drm_printf(m, "\tExeclist status: 0x%08x %08x\n",
+			   I915_READ(RING_EXECLIST_STATUS_LO(engine)),
+			   I915_READ(RING_EXECLIST_STATUS_HI(engine)));
+
+		ptr = I915_READ(RING_CONTEXT_STATUS_PTR(engine));
+		read = GEN8_CSB_READ_PTR(ptr);
+		write = GEN8_CSB_WRITE_PTR(ptr);
+		drm_printf(m, "\tExeclist CSB read %d [%d cached], write %d [%d from hws], interrupt posted? %s\n",
+			   read, execlists->csb_head,
+			   write,
+			   intel_read_status_page(engine, intel_hws_csb_write_index(engine->i915)),
+			   yesno(test_bit(ENGINE_IRQ_EXECLIST,
+					  &engine->irq_posted)));
+		if (read >= GEN8_CSB_ENTRIES)
+			read = 0;
+		if (write >= GEN8_CSB_ENTRIES)
+			write = 0;
+		if (read > write)
+			write += GEN8_CSB_ENTRIES;
+		while (read < write) {
+			idx = ++read % GEN8_CSB_ENTRIES;
+			drm_printf(m, "\tExeclist CSB[%d]: 0x%08x [0x%08x in hwsp], context: %d [%d in hwsp]\n",
+				   idx,
+				   I915_READ(RING_CONTEXT_STATUS_BUF_LO(engine, idx)),
+				   hws[idx * 2],
+				   I915_READ(RING_CONTEXT_STATUS_BUF_HI(engine, idx)),
+				   hws[idx * 2 + 1]);
+		}
+
+		rcu_read_lock();
+		for (idx = 0; idx < execlists_num_ports(execlists); idx++) {
+			unsigned int count;
+
+			rq = port_unpack(&execlists->port[idx], &count);
+			if (rq) {
+				drm_printf(m, "\t\tELSP[%d] count=%d, ",
+					   idx, count);
+				print_request(m, rq, "rq: ");
+			} else {
+				drm_printf(m, "\t\tELSP[%d] idle\n",
+					   idx);
+			}
+		}
+		rcu_read_unlock();
+
+		spin_lock_irq(&engine->timeline->lock);
+		for (rb = execlists->first; rb; rb = rb_next(rb)) {
+			struct i915_priolist *p =
+				rb_entry(rb, typeof(*p), node);
+
+			list_for_each_entry(rq, &p->requests,
+					    priotree.link)
+				print_request(m, rq, "\t\tQ ");
+		}
+		spin_unlock_irq(&engine->timeline->lock);
+	} else if (INTEL_GEN(dev_priv) > 6) {
+		drm_printf(m, "\tPP_DIR_BASE: 0x%08x\n",
+			   I915_READ(RING_PP_DIR_BASE(engine)));
+		drm_printf(m, "\tPP_DIR_BASE_READ: 0x%08x\n",
+			   I915_READ(RING_PP_DIR_BASE_READ(engine)));
+		drm_printf(m, "\tPP_DIR_DCLV: 0x%08x\n",
+			   I915_READ(RING_PP_DIR_DCLV(engine)));
+	}
+
+	spin_lock_irq(&b->rb_lock);
+	for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
+		struct intel_wait *w = rb_entry(rb, typeof(*w), node);
+
+		drm_printf(m, "\t%s [%d] waiting for %x\n",
+			   w->tsk->comm, w->tsk->pid, w->seqno);
+	}
+	spin_unlock_irq(&b->rb_lock);
+
+	drm_printf(m, "\n");
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

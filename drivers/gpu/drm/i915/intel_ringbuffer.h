@@ -7,6 +7,8 @@
 #include "i915_gem_timeline.h"
 #include "i915_selftest.h"
 
+struct drm_printer;
+
 #define I915_CMD_HASH_ORDER 9
 
 /* Early gen2 devices have a cacheline of just 32 bytes, using 64 is overkill,
@@ -237,6 +239,11 @@ struct intel_engine_execlists {
 
 #define EXECLIST_MAX_PORTS 2
 	} port[EXECLIST_MAX_PORTS];
+
+	/**
+	 * @preempt: are we currently handling a preempting context switch?
+	 */
+	bool preempt;
 
 	/**
 	 * @port_mask: number of execlist ports - 1
@@ -833,5 +840,7 @@ void intel_engines_mark_idle(struct drm_i915_private *i915);
 void intel_engines_reset_default_submission(struct drm_i915_private *i915);
 
 bool intel_engine_can_store_dword(struct intel_engine_cs *engine);
+
+void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *p);
 
 #endif /* _INTEL_RINGBUFFER_H_ */

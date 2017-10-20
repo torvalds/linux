@@ -69,7 +69,7 @@ struct drm_i915_gem_object_ops {
 	 * being released or under memory pressure (where we attempt to
 	 * reap pages for the shrinker).
 	 */
-	struct sg_table *(*get_pages)(struct drm_i915_gem_object *);
+	int (*get_pages)(struct drm_i915_gem_object *);
 	void (*put_pages)(struct drm_i915_gem_object *, struct sg_table *);
 
 	int (*pwrite)(struct drm_i915_gem_object *,
@@ -123,6 +123,7 @@ struct drm_i915_gem_object {
 	/**
 	 * Whether the object is currently in the GGTT mmap.
 	 */
+	unsigned int userfault_count;
 	struct list_head userfault_link;
 
 	struct list_head batch_pool_link;
@@ -168,6 +169,35 @@ struct drm_i915_gem_object {
 
 		struct sg_table *pages;
 		void *mapping;
+
+		/* TODO: whack some of this into the error state */
+		struct i915_page_sizes {
+			/**
+			 * The sg mask of the pages sg_table. i.e the mask of
+			 * of the lengths for each sg entry.
+			 */
+			unsigned int phys;
+
+			/**
+			 * The gtt page sizes we are allowed to use given the
+			 * sg mask and the supported page sizes. This will
+			 * express the smallest unit we can use for the whole
+			 * object, as well as the larger sizes we may be able
+			 * to use opportunistically.
+			 */
+			unsigned int sg;
+
+			/**
+			 * The actual gtt page size usage. Since we can have
+			 * multiple vma associated with this object we need to
+			 * prevent any trampling of state, hence a copy of this
+			 * struct also lives in each vma, therefore the gtt
+			 * value here should only be read/write through the vma.
+			 */
+			unsigned int gtt;
+		} page_sizes;
+
+		I915_SELFTEST_DECLARE(unsigned int page_mask);
 
 		struct i915_gem_object_page_iter {
 			struct scatterlist *sg_pos;

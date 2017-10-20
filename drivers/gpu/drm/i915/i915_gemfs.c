@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Intel Corporation
+ * Copyright © 2017 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,18 +21,54 @@
  * IN THE SOFTWARE.
  *
  */
-#ifndef _INTEL_UC_H_
-#define _INTEL_UC_H_
 
-#include "intel_guc.h"
-#include "intel_huc.h"
+#include <linux/fs.h>
+#include <linux/mount.h>
+#include <linux/pagemap.h>
 
-void intel_uc_sanitize_options(struct drm_i915_private *dev_priv);
-void intel_uc_init_early(struct drm_i915_private *dev_priv);
-void intel_uc_init_mmio(struct drm_i915_private *dev_priv);
-void intel_uc_init_fw(struct drm_i915_private *dev_priv);
-void intel_uc_fini_fw(struct drm_i915_private *dev_priv);
-int intel_uc_init_hw(struct drm_i915_private *dev_priv);
-void intel_uc_fini_hw(struct drm_i915_private *dev_priv);
+#include "i915_drv.h"
+#include "i915_gemfs.h"
 
-#endif
+int i915_gemfs_init(struct drm_i915_private *i915)
+{
+	struct file_system_type *type;
+	struct vfsmount *gemfs;
+
+	type = get_fs_type("tmpfs");
+	if (!type)
+		return -ENODEV;
+
+	gemfs = kern_mount(type);
+	if (IS_ERR(gemfs))
+		return PTR_ERR(gemfs);
+
+	/*
+	 * Enable huge-pages for objects that are at least HPAGE_PMD_SIZE, most
+	 * likely 2M. Note that within_size may overallocate huge-pages, if say
+	 * we allocate an object of size 2M + 4K, we may get 2M + 2M, but under
+	 * memory pressure shmem should split any huge-pages which can be
+	 * shrunk.
+	 */
+
+	if (has_transparent_hugepage()) {
+		struct super_block *sb = gemfs->mnt_sb;
+		char options[] = "huge=within_size";
+		int flags = 0;
+		int err;
+
+		err = sb->s_op->remount_fs(sb, &flags, options);
+		if (err) {
+			kern_unmount(gemfs);
+			return err;
+		}
+	}
+
+	i915->mm.gemfs = gemfs;
+
+	return 0;
+}
+
+void i915_gemfs_fini(struct drm_i915_private *i915)
+{
+	kern_unmount(i915->mm.gemfs);
+}

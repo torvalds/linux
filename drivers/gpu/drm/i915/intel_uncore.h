@@ -25,6 +25,12 @@
 #ifndef __INTEL_UNCORE_H__
 #define __INTEL_UNCORE_H__
 
+#include <linux/spinlock.h>
+#include <linux/notifier.h>
+#include <linux/hrtimer.h>
+
+#include "i915_reg.h"
+
 struct drm_i915_private;
 
 enum forcewake_domain_id {
@@ -131,6 +137,8 @@ void intel_uncore_resume_early(struct drm_i915_private *dev_priv);
 
 u64 intel_uncore_edram_size(struct drm_i915_private *dev_priv);
 void assert_forcewakes_inactive(struct drm_i915_private *dev_priv);
+void assert_forcewakes_active(struct drm_i915_private *dev_priv,
+			      enum forcewake_domains fw_domains);
 const char *intel_uncore_forcewake_domain_to_str(const enum forcewake_domain_id id);
 
 enum forcewake_domains
