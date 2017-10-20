@@ -20,6 +20,7 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/interrupt.h>
 #include <linux/reboot.h>
+#include <linux/bitops.h>
 
 #define GIO_BANK_SIZE           0x20
 #define GIO_ODEN(bank)          (((bank) * GIO_BANK_SIZE) + 0x00)
@@ -68,16 +69,15 @@ static void brcmstb_gpio_set_imask(struct brcmstb_gpio_bank *bank,
 {
 	struct gpio_chip *gc = &bank->gc;
 	struct brcmstb_gpio_priv *priv = bank->parent_priv;
-	u32 mask = gc->pin2mask(gc, offset);
 	u32 imask;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gc->bgpio_lock, flags);
 	imask = gc->read_reg(priv->reg_base + GIO_MASK(bank->id));
 	if (enable)
-		imask |= mask;
+		imask |= BIT(offset);
 	else
-		imask &= ~mask;
+		imask &= ~BIT(offset);
 	gc->write_reg(priv->reg_base + GIO_MASK(bank->id), imask);
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 }
