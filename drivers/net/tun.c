@@ -461,11 +461,14 @@ static void tun_flow_cleanup(unsigned long data)
 
 		hlist_for_each_entry_safe(e, n, &tun->flows[i], hash_link) {
 			unsigned long this_timer;
-			count++;
+
 			this_timer = e->updated + delay;
-			if (time_before_eq(this_timer, jiffies))
+			if (time_before_eq(this_timer, jiffies)) {
 				tun_flow_delete(tun, e);
-			else if (time_before(this_timer, next_timer))
+				continue;
+			}
+			count++;
+			if (time_before(this_timer, next_timer))
 				next_timer = this_timer;
 		}
 	}
