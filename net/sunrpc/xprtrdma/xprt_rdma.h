@@ -386,6 +386,7 @@ struct rpcrdma_req {
 /* rl_flags */
 enum {
 	RPCRDMA_REQ_F_BACKCHANNEL = 0,
+	RPCRDMA_REQ_F_PENDING,
 };
 
 static inline void
@@ -655,6 +656,8 @@ int rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst);
 void rpcrdma_set_max_header_sizes(struct rpcrdma_xprt *);
 void rpcrdma_complete_rqst(struct rpcrdma_rep *rep);
 void rpcrdma_reply_handler(struct rpcrdma_rep *rep);
+void rpcrdma_release_rqst(struct rpcrdma_xprt *r_xprt,
+			  struct rpcrdma_req *req);
 void rpcrdma_deferred_completion(struct work_struct *work);
 
 static inline void rpcrdma_set_xdrlen(struct xdr_buf *xdr, size_t len)

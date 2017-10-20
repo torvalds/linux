@@ -678,15 +678,14 @@ xprt_rdma_free(struct rpc_task *task)
 	struct rpc_rqst *rqst = task->tk_rqstp;
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(rqst->rq_xprt);
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 
 	if (test_bit(RPCRDMA_REQ_F_BACKCHANNEL, &req->rl_flags))
 		return;
 
 	dprintk("RPC:       %s: called on 0x%p\n", __func__, req->rl_reply);
 
-	if (!list_empty(&req->rl_registered))
-		ia->ri_ops->ro_unmap_sync(r_xprt, &req->rl_registered);
+	if (test_bit(RPCRDMA_REQ_F_PENDING, &req->rl_flags))
+		rpcrdma_release_rqst(r_xprt, req);
 	rpcrdma_buffer_put(req);
 }
 
@@ -742,6 +741,7 @@ xprt_rdma_send_request(struct rpc_task *task)
 		goto drop_connection;
 	req->rl_connect_cookie = xprt->connect_cookie;
 
+	set_bit(RPCRDMA_REQ_F_PENDING, &req->rl_flags);
 	if (rpcrdma_ep_post(&r_xprt->rx_ia, &r_xprt->rx_ep, req))
 		goto drop_connection;
 
