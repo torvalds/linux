@@ -362,11 +362,13 @@ static int panel_simple_regulator_disable(struct drm_panel *panel)
 	int err = 0;
 
 	if (p->power_invert) {
-		err = regulator_enable(p->supply);
-		if (err < 0) {
-			dev_err(panel->dev, "failed to enable supply: %d\n",
-				err);
-			return err;
+		if (!regulator_is_enabled(p->supply)) {
+			err = regulator_enable(p->supply);
+			if (err < 0) {
+				dev_err(panel->dev, "failed to enable supply: %d\n",
+					err);
+				return err;
+			}
 		}
 	} else {
 		regulator_disable(p->supply);
