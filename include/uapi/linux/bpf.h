@@ -613,12 +613,22 @@ union bpf_attr {
  * int bpf_setsockopt(bpf_socket, level, optname, optval, optlen)
  *     Calls setsockopt. Not all opts are available, only those with
  *     integer optvals plus TCP_CONGESTION.
- *     Supported levels: SOL_SOCKET and IPROTO_TCP
+ *     Supported levels: SOL_SOCKET and IPPROTO_TCP
  *     @bpf_socket: pointer to bpf_socket
- *     @level: SOL_SOCKET or IPROTO_TCP
+ *     @level: SOL_SOCKET or IPPROTO_TCP
  *     @optname: option name
  *     @optval: pointer to option value
- *     @optlen: length of optval in byes
+ *     @optlen: length of optval in bytes
+ *     Return: 0 or negative error
+ *
+ * int bpf_getsockopt(bpf_socket, level, optname, optval, optlen)
+ *     Calls getsockopt. Not all opts are available.
+ *     Supported levels: IPPROTO_TCP
+ *     @bpf_socket: pointer to bpf_socket
+ *     @level: IPPROTO_TCP
+ *     @optname: option name
+ *     @optval: pointer to option value
+ *     @optlen: length of optval in bytes
  *     Return: 0 or negative error
  *
  * int bpf_skb_adjust_room(skb, len_diff, mode, flags)
@@ -721,7 +731,8 @@ union bpf_attr {
 	FN(sock_map_update),		\
 	FN(xdp_adjust_meta),		\
 	FN(perf_event_read_value),	\
-	FN(perf_prog_read_value),
+	FN(perf_prog_read_value),	\
+	FN(getsockopt),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
