@@ -81,9 +81,9 @@ static const struct silead_ts_dmi_data surftab_wintron70_st70416_6_data = {
 };
 
 static struct property_entry good_t803i_props[] = {
- 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1280),
- 	PROPERTY_ENTRY_U32("touchscreen-size-y", 800),
- 	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+ 	PROPERTY_ENTRY_U32("touchscreen-size-x", 640),
+ 	PROPERTY_ENTRY_U32("touchscreen-size-y", 400),
+ 	PROPERTY_ENTRY_BOOL("touchscreen-swapped-y"),
  	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-4good-t803i.fw"),
  	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
  	{ }
