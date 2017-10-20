@@ -2104,6 +2104,8 @@ static void iwl_mvm_free_reorder(struct iwl_mvm *mvm,
 		int j;
 		struct iwl_mvm_reorder_buffer *reorder_buf =
 			&data->reorder_buf[i];
+		struct iwl_mvm_reorder_buf_entry *entries =
+			&data->entries[i * data->entries_per_queue];
 
 		spin_lock_bh(&reorder_buf->lock);
 		if (likely(!reorder_buf->num_stored)) {
@@ -2119,7 +2121,7 @@ static void iwl_mvm_free_reorder(struct iwl_mvm *mvm,
 		WARN_ON(1);
 
 		for (j = 0; j < reorder_buf->buf_size; j++)
-			__skb_queue_purge(&reorder_buf->entries[j]);
+			__skb_queue_purge(&entries[j].e.frames);
 		/*
 		 * Prevent timer re-arm. This prevents a very far fetched case
 		 * where we timed out on the notification. There may be prior
@@ -2135,7 +2137,6 @@ static void iwl_mvm_free_reorder(struct iwl_mvm *mvm,
 }
 
 static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
-					u32 sta_id,
 					struct iwl_mvm_baid_data *data,
 					u16 ssn, u8 buf_size)
 {
@@ -2144,6 +2145,8 @@ static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
 	for (i = 0; i < mvm->trans->num_rx_queues; i++) {
 		struct iwl_mvm_reorder_buffer *reorder_buf =
 			&data->reorder_buf[i];
+		struct iwl_mvm_reorder_buf_entry *entries =
+			&data->entries[i * data->entries_per_queue];
 		int j;
 
 		reorder_buf->num_stored = 0;
@@ -2157,11 +2160,9 @@ static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
 		spin_lock_init(&reorder_buf->lock);
 		reorder_buf->mvm = mvm;
 		reorder_buf->queue = i;
-		reorder_buf->sta_id = sta_id;
-		reorder_buf->tid = data->tid;
 		reorder_buf->valid = false;
 		for (j = 0; j < reorder_buf->buf_size; j++)
-			__skb_queue_head_init(&reorder_buf->entries[j]);
+			__skb_queue_head_init(&entries[j].e.frames);
 	}
 }
 
@@ -2182,16 +2183,44 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	}
 
 	if (iwl_mvm_has_new_rx_api(mvm) && start) {
+		u16 reorder_buf_size = buf_size * sizeof(baid_data->entries[0]);
+
+		/* sparse doesn't like the __align() so don't check */
+#ifndef __CHECKER__
+		/*
+		 * The division below will be OK if either the cache line size
+		 * can be divided by the entry size (ALIGN will round up) or if
+		 * if the entry size can be divided by the cache line size, in
+		 * which case the ALIGN() will do nothing.
+		 */
+		BUILD_BUG_ON(SMP_CACHE_BYTES % sizeof(baid_data->entries[0]) &&
+			     sizeof(baid_data->entries[0]) % SMP_CACHE_BYTES);
+#endif
+
+		/*
+		 * Upward align the reorder buffer size to fill an entire cache
+		 * line for each queue, to avoid sharing cache lines between
+		 * different queues.
+		 */
+		reorder_buf_size = ALIGN(reorder_buf_size, SMP_CACHE_BYTES);
+
 		/*
 		 * Allocate here so if allocation fails we can bail out early
 		 * before starting the BA session in the firmware
 		 */
 		baid_data = kzalloc(sizeof(*baid_data) +
 				    mvm->trans->num_rx_queues *
-				    sizeof(baid_data->reorder_buf[0]),
+				    reorder_buf_size,
 				    GFP_KERNEL);
 		if (!baid_data)
 			return -ENOMEM;
+
+		/*
+		 * This division is why we need the above BUILD_BUG_ON(),
+		 * if that doesn't hold then this will not be right.
+		 */
+		baid_data->entries_per_queue =
+			reorder_buf_size / sizeof(baid_data->entries[0]);
 	}
 
 	cmd.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color);
@@ -2262,8 +2291,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			mod_timer(&baid_data->session_timer,
 				  TU_TO_EXP_TIME(timeout * 2));
 
-		iwl_mvm_init_reorder_buffer(mvm, mvm_sta->sta_id,
-					    baid_data, ssn, buf_size);
+		iwl_mvm_init_reorder_buffer(mvm, baid_data, ssn, buf_size);
 		/*
 		 * protect the BA data with RCU to cover a case where our
 		 * internal RX sync mechanism will timeout (not that it's

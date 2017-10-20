@@ -585,13 +585,9 @@ enum iwl_mvm_tdls_cs_state {
  * @head_sn: reorder window head sn
  * @num_stored: number of mpdus stored in the buffer
  * @buf_size: the reorder buffer size as set by the last addba request
- * @sta_id: sta id of this reorder buffer
  * @queue: queue of this reorder buffer
  * @last_amsdu: track last ASMDU SN for duplication detection
  * @last_sub_index: track ASMDU sub frame index for duplication detection
- * @tid: the tid
- * @entries: list of skbs stored
- * @reorder_time: time the packet was stored in the reorder buffer
  * @reorder_timer: timer for frames are in the reorder buffer. For AMSDU
  *	it is the time of last received sub-frame
  * @removed: prevent timer re-arming
@@ -603,13 +599,9 @@ struct iwl_mvm_reorder_buffer {
 	u16 head_sn;
 	u16 num_stored;
 	u8 buf_size;
-	u8 sta_id;
 	int queue;
 	u16 last_amsdu;
 	u8 last_sub_index;
-	u8 tid;
-	struct sk_buff_head entries[IEEE80211_MAX_AMPDU_BUF];
-	unsigned long reorder_time[IEEE80211_MAX_AMPDU_BUF];
 	struct timer_list reorder_timer;
 	bool removed;
 	bool valid;
@@ -618,15 +610,38 @@ struct iwl_mvm_reorder_buffer {
 } ____cacheline_aligned_in_smp;
 
 /**
+ * struct _iwl_mvm_reorder_buf_entry - reorder buffer entry per-queue/per-seqno
+ * @frames: list of skbs stored
+ * @reorder_time: time the packet was stored in the reorder buffer
+ */
+struct _iwl_mvm_reorder_buf_entry {
+	struct sk_buff_head frames;
+	unsigned long reorder_time;
+};
+
+/* make this indirection to get the aligned thing */
+struct iwl_mvm_reorder_buf_entry {
+	struct _iwl_mvm_reorder_buf_entry e;
+}
+#ifndef __CHECKER__
+/* sparse doesn't like this construct: "bad integer constant expression" */
+__aligned(roundup_pow_of_two(sizeof(struct _iwl_mvm_reorder_buf_entry)))
+#endif
+;
+
+/**
  * struct iwl_mvm_baid_data - BA session data
  * @sta_id: station id
  * @tid: tid of the session
  * @baid baid of the session
  * @timeout: the timeout set in the addba request
+ * @entries_per_queue: # of buffers per queue, this actually gets
+ *	aligned up to avoid cache line sharing between queues
  * @last_rx: last rx jiffies, updated only if timeout passed from last update
  * @session_timer: timer to check if BA session expired, runs at 2 * timeout
  * @mvm: mvm pointer, needed for timer context
  * @reorder_buf: reorder buffer, allocated per queue
+ * @reorder_buf_data: data
  */
 struct iwl_mvm_baid_data {
 	struct rcu_head rcu_head;
@@ -634,11 +649,21 @@ struct iwl_mvm_baid_data {
 	u8 tid;
 	u8 baid;
 	u16 timeout;
+	u16 entries_per_queue;
 	unsigned long last_rx;
 	struct timer_list session_timer;
 	struct iwl_mvm *mvm;
-	struct iwl_mvm_reorder_buffer reorder_buf[];
+	struct iwl_mvm_reorder_buffer reorder_buf[IWL_MAX_RX_HW_QUEUES];
+	struct iwl_mvm_reorder_buf_entry entries[];
 };
+
+static inline struct iwl_mvm_baid_data *
+iwl_mvm_baid_data_from_reorder_buf(struct iwl_mvm_reorder_buffer *buf)
+{
+	return (void *)((u8 *)buf -
+			offsetof(struct iwl_mvm_baid_data, reorder_buf) -
+			sizeof(*buf) * buf->queue);
+}
 
 /*
  * enum iwl_mvm_queue_status - queue status

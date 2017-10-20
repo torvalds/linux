@@ -289,8 +289,7 @@ static int iwl_pcie_gen2_build_amsdu(struct iwl_trans *trans,
 		struct sk_buff *csum_skb = NULL;
 		unsigned int tb_len;
 		dma_addr_t tb_phys;
-		struct tcphdr *tcph;
-		u8 *iph, *subf_hdrs_start = hdr_page->pos;
+		u8 *subf_hdrs_start = hdr_page->pos;
 
 		total_len -= data_left;
 
@@ -312,8 +311,6 @@ static int iwl_pcie_gen2_build_amsdu(struct iwl_trans *trans,
 		 * as MAC header.
 		 */
 		tso_build_hdr(skb, hdr_page->pos, &tso, data_left, !total_len);
-		iph = hdr_page->pos + 8;
-		tcph = (void *)(iph + ip_hdrlen);
 
 		hdr_page->pos += snap_ip_tcp_hdrlen;
 
