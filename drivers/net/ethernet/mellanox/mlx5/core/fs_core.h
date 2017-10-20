@@ -33,6 +33,7 @@
 #ifndef _MLX5_FS_CORE_
 #define _MLX5_FS_CORE_
 
+#include <linux/refcount.h>
 #include <linux/mlx5/fs.h>
 #include <linux/rhashtable.h>
 
@@ -84,7 +85,7 @@ struct fs_node {
 	struct fs_node		*root;
 	/* lock the node for writing and traversing */
 	struct rw_semaphore	lock;
-	atomic_t		refcount;
+	refcount_t		refcount;
 	bool			active;
 	void			(*del_hw_func)(struct fs_node *);
 	void			(*del_sw_func)(struct fs_node *);
