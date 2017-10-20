@@ -49,7 +49,7 @@ static int mtk_efuse_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct nvmem_device *nvmem;
-	struct nvmem_config *econfig;
+	struct nvmem_config econfig = {};
 	void __iomem *base;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -57,19 +57,15 @@ static int mtk_efuse_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	econfig = devm_kzalloc(dev, sizeof(*econfig), GFP_KERNEL);
-	if (!econfig)
-		return -ENOMEM;
-
-	econfig->stride = 4;
-	econfig->word_size = 4;
-	econfig->reg_read = mtk_reg_read;
-	econfig->reg_write = mtk_reg_write;
-	econfig->size = resource_size(res);
-	econfig->priv = base;
-	econfig->dev = dev;
-	econfig->owner = THIS_MODULE;
-	nvmem = nvmem_register(econfig);
+	econfig.stride = 4;
+	econfig.word_size = 4;
+	econfig.reg_read = mtk_reg_read;
+	econfig.reg_write = mtk_reg_write;
+	econfig.size = resource_size(res);
+	econfig.priv = base;
+	econfig.dev = dev;
+	econfig.owner = THIS_MODULE;
+	nvmem = nvmem_register(&econfig);
 	if (IS_ERR(nvmem))
 		return PTR_ERR(nvmem);
 
