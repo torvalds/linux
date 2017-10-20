@@ -2,7 +2,7 @@
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
- * Copyright (c) 2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014,2017 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published by
@@ -330,6 +330,11 @@ static inline void adreno_gpu_write64(struct adreno_gpu *gpu,
 {
 	adreno_gpu_write(gpu, lo, lower_32_bits(data));
 	adreno_gpu_write(gpu, hi, upper_32_bits(data));
+}
+
+static inline uint32_t get_wptr(struct msm_ringbuffer *ring)
+{
+	return (ring->cur - ring->start) % (MSM_GPU_RINGBUFFER_SZ >> 2);
 }
 
 /*

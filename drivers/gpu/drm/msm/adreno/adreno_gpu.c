@@ -217,11 +217,6 @@ int adreno_hw_init(struct msm_gpu *gpu)
 	return 0;
 }
 
-static uint32_t get_wptr(struct msm_ringbuffer *ring)
-{
-	return ring->cur - ring->start;
-}
-
 /* Use this helper to read rptr, since a430 doesn't update rptr in memory */
 static uint32_t get_rptr(struct adreno_gpu *adreno_gpu,
 		struct msm_ringbuffer *ring)
@@ -276,7 +271,7 @@ void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		case MSM_SUBMIT_CMD_BUF:
 			OUT_PKT3(ring, adreno_is_a430(adreno_gpu) ?
 				CP_INDIRECT_BUFFER_PFE : CP_INDIRECT_BUFFER_PFD, 2);
-			OUT_RING(ring, submit->cmd[i].iova);
+			OUT_RING(ring, lower_32_bits(submit->cmd[i].iova));
 			OUT_RING(ring, submit->cmd[i].size);
 			OUT_PKT2(ring);
 			break;
@@ -343,7 +338,7 @@ void adreno_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 	 * to account for the possibility that the last command fit exactly into
 	 * the ringbuffer and rb->next hasn't wrapped to zero yet
 	 */
-	wptr = (ring->cur - ring->start) % (MSM_GPU_RINGBUFFER_SZ >> 2);
+	wptr = get_wptr(ring);
 
 	/* ensure writes to ringbuffer have hit system memory: */
 	mb();
@@ -361,8 +356,9 @@ bool adreno_idle(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 		return true;
 
 	/* TODO maybe we need to reset GPU here to recover from hang? */
-	DRM_ERROR("%s: timeout waiting to drain ringbuffer %d!\n", gpu->name,
-		ring->id);
+	DRM_ERROR("%s: timeout waiting to drain ringbuffer %d rptr/wptr = %X/%X\n",
+		gpu->name, ring->id, get_rptr(adreno_gpu, ring), wptr);
+
 	return false;
 }
 

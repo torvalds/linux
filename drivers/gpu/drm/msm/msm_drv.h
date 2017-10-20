@@ -74,7 +74,7 @@ struct msm_vblank_ctrl {
 	spinlock_t lock;
 };
 
-#define MSM_GPU_MAX_RINGS 1
+#define MSM_GPU_MAX_RINGS 4
 
 struct msm_drm_private {
 

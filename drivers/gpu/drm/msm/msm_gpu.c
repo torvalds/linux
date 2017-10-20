@@ -295,8 +295,7 @@ static void recover_worker(struct work_struct *work)
 		 * Replay all remaining submits starting with highest priority
 		 * ring
 		 */
-
-		for (i = gpu->nr_rings - 1; i >= 0; i--) {
+		for (i = 0; i < gpu->nr_rings; i++) {
 			struct msm_ringbuffer *ring = gpu->rb[i];
 
 			list_for_each_entry(submit, &ring->submits, node)
@@ -476,7 +475,7 @@ static void retire_submits(struct msm_gpu *gpu)
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
 	/* Retire the commits starting with highest priority */
-	for (i = gpu->nr_rings - 1; i >= 0; i--) {
+	for (i = 0; i < gpu->nr_rings; i++) {
 		struct msm_ringbuffer *ring = gpu->rb[i];
 
 		list_for_each_entry_safe(submit, tmp, &ring->submits, node) {

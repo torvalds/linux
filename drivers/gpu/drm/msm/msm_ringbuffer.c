@@ -53,6 +53,7 @@ struct msm_ringbuffer *msm_ringbuffer_new(struct msm_gpu *gpu, int id,
 	ring->memptrs_iova = memptrs_iova;
 
 	INIT_LIST_HEAD(&ring->submits);
+	spin_lock_init(&ring->lock);
 
 	snprintf(name, sizeof(name), "gpu-ring-%d", ring->id);
 
