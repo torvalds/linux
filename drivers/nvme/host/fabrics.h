@@ -133,6 +133,18 @@ struct nvmf_transport_ops {
 					struct nvmf_ctrl_options *opts);
 };
 
+static inline bool
+nvmf_ctlr_matches_baseopts(struct nvme_ctrl *ctrl,
+			struct nvmf_ctrl_options *opts)
+{
+	if (strcmp(opts->subsysnqn, ctrl->opts->subsysnqn) ||
+	    strcmp(opts->host->nqn, ctrl->opts->host->nqn) ||
+	    memcmp(&opts->host->id, &ctrl->opts->host->id, sizeof(uuid_t)))
+		return false;
+
+	return true;
+}
+
 int nvmf_reg_read32(struct nvme_ctrl *ctrl, u32 off, u32 *val);
 int nvmf_reg_read64(struct nvme_ctrl *ctrl, u32 off, u64 *val);
 int nvmf_reg_write32(struct nvme_ctrl *ctrl, u32 off, u32 val);
