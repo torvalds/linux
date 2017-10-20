@@ -245,7 +245,7 @@ static void __arm_v7s_free_table(void *table, int lvl,
 static void __arm_v7s_pte_sync(arm_v7s_iopte *ptep, int num_entries,
 			       struct io_pgtable_cfg *cfg)
 {
-	if (!(cfg->quirks & IO_PGTABLE_QUIRK_NO_DMA))
+	if (cfg->quirks & IO_PGTABLE_QUIRK_NO_DMA)
 		return;
 
 	dma_sync_single_for_device(cfg->iommu_dev, __arm_v7s_dma_addr(ptep),

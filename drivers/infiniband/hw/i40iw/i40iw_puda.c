@@ -123,12 +123,11 @@ static void i40iw_puda_post_recvbuf(struct i40iw_puda_rsrc *rsrc, u32 wqe_idx,
 		get_64bit_val(wqe, 24, &offset24);
 
 	offset24 = (offset24) ? 0 : LS_64(1, I40IWQPSQ_VALID);
-	set_64bit_val(wqe, 24, offset24);
 
 	set_64bit_val(wqe, 0, buf->mem.pa);
 	set_64bit_val(wqe, 8,
 		      LS_64(buf->mem.size, I40IWQPSQ_FRAG_LEN));
-	set_64bit_val(wqe, 24, offset24);
+	i40iw_insert_wqe_hdr(wqe, offset24);
 }
 
 /**
@@ -409,9 +408,7 @@ enum i40iw_status_code i40iw_puda_send(struct i40iw_sc_qp *qp,
 	set_64bit_val(wqe, 8, LS_64(info->len, I40IWQPSQ_FRAG_LEN));
 	set_64bit_val(wqe, 16, header[0]);
 
-	/* Ensure all data is written before writing valid bit */
-	wmb();
-	set_64bit_val(wqe, 24, header[1]);
+	i40iw_insert_wqe_hdr(wqe, header[1]);
 
 	i40iw_debug_buf(qp->dev, I40IW_DEBUG_PUDA, "PUDA SEND WQE", wqe, 32);
 	i40iw_qp_post_wr(&qp->qp_uk);
@@ -539,7 +536,7 @@ static enum i40iw_status_code i40iw_puda_qp_wqe(struct i40iw_sc_dev *dev, struct
 		 LS_64(2, I40IW_CQPSQ_QP_NEXTIWSTATE) |
 		 LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID);
 
-	set_64bit_val(wqe, 24, header);
+	i40iw_insert_wqe_hdr(wqe, header);
 
 	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_PUDA, "PUDA CQE", wqe, 32);
 	i40iw_sc_cqp_post_sq(cqp);
@@ -655,7 +652,7 @@ static enum i40iw_status_code i40iw_puda_cq_wqe(struct i40iw_sc_dev *dev, struct
 	    LS_64(1, I40IW_CQPSQ_CQ_ENCEQEMASK) |
 	    LS_64(1, I40IW_CQPSQ_CQ_CEQIDVALID) |
 	    LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID);
-	set_64bit_val(wqe, 24, header);
+	i40iw_insert_wqe_hdr(wqe, header);
 
 	i40iw_debug_buf(dev, I40IW_DEBUG_PUDA, "PUDA CQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);

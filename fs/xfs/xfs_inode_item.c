@@ -364,6 +364,9 @@ xfs_inode_to_log_dinode(
 	to->di_dmstate = from->di_dmstate;
 	to->di_flags = from->di_flags;
 
+	/* log a dummy value to ensure log structure is fully initialised */
+	to->di_next_unlinked = NULLAGINO;
+
 	if (from->di_version == 3) {
 		to->di_changecount = inode->i_version;
 		to->di_crtime.t_sec = from->di_crtime.t_sec;
@@ -404,6 +407,11 @@ xfs_inode_item_format_core(
  * the second with the on-disk inode structure, and a possible third and/or
  * fourth with the inode data/extents/b-tree root and inode attributes
  * data/extents/b-tree root.
+ *
+ * Note: Always use the 64 bit inode log format structure so we don't
+ * leave an uninitialised hole in the format item on 64 bit systems. Log
+ * recovery on 32 bit systems handles this just fine, so there's no reason
+ * for not using an initialising the properly padded structure all the time.
  */
 STATIC void
 xfs_inode_item_format(
@@ -412,8 +420,8 @@ xfs_inode_item_format(
 {
 	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
 	struct xfs_inode	*ip = iip->ili_inode;
-	struct xfs_inode_log_format *ilf;
 	struct xfs_log_iovec	*vecp = NULL;
+	struct xfs_inode_log_format *ilf;
 
 	ASSERT(ip->i_d.di_version > 1);
 
@@ -425,7 +433,17 @@ xfs_inode_item_format(
 	ilf->ilf_boffset = ip->i_imap.im_boffset;
 	ilf->ilf_fields = XFS_ILOG_CORE;
 	ilf->ilf_size = 2; /* format + core */
-	xlog_finish_iovec(lv, vecp, sizeof(struct xfs_inode_log_format));
+
+	/*
+	 * make sure we don't leak uninitialised data into the log in the case
+	 * when we don't log every field in the inode.
+	 */
+	ilf->ilf_dsize = 0;
+	ilf->ilf_asize = 0;
+	ilf->ilf_pad = 0;
+	uuid_copy(&ilf->ilf_u.ilfu_uuid, &uuid_null);
+
+	xlog_finish_iovec(lv, vecp, sizeof(*ilf));
 
 	xfs_inode_item_format_core(ip, lv, &vecp);
 	xfs_inode_item_format_data_fork(iip, ilf, lv, &vecp);
@@ -855,44 +873,29 @@ xfs_istale_done(
 }
 
 /*
- * convert an xfs_inode_log_format struct from either 32 or 64 bit versions
- * (which can have different field alignments) to the native version
+ * convert an xfs_inode_log_format struct from the old 32 bit version
+ * (which can have different field alignments) to the native 64 bit version
  */
 int
 xfs_inode_item_format_convert(
-	xfs_log_iovec_t		*buf,
-	xfs_inode_log_format_t	*in_f)
+	struct xfs_log_iovec		*buf,
+	struct xfs_inode_log_format	*in_f)
 {
-	if (buf->i_len == sizeof(xfs_inode_log_format_32_t)) {
-		xfs_inode_log_format_32_t *in_f32 = buf->i_addr;
+	struct xfs_inode_log_format_32	*in_f32 = buf->i_addr;
 
-		in_f->ilf_type = in_f32->ilf_type;
-		in_f->ilf_size = in_f32->ilf_size;
-		in_f->ilf_fields = in_f32->ilf_fields;
-		in_f->ilf_asize = in_f32->ilf_asize;
-		in_f->ilf_dsize = in_f32->ilf_dsize;
-		in_f->ilf_ino = in_f32->ilf_ino;
-		/* copy biggest field of ilf_u */
-		uuid_copy(&in_f->ilf_u.ilfu_uuid, &in_f32->ilf_u.ilfu_uuid);
-		in_f->ilf_blkno = in_f32->ilf_blkno;
-		in_f->ilf_len = in_f32->ilf_len;
-		in_f->ilf_boffset = in_f32->ilf_boffset;
-		return 0;
-	} else if (buf->i_len == sizeof(xfs_inode_log_format_64_t)){
-		xfs_inode_log_format_64_t *in_f64 = buf->i_addr;
+	if (buf->i_len != sizeof(*in_f32))
+		return -EFSCORRUPTED;
 
-		in_f->ilf_type = in_f64->ilf_type;
-		in_f->ilf_size = in_f64->ilf_size;
-		in_f->ilf_fields = in_f64->ilf_fields;
-		in_f->ilf_asize = in_f64->ilf_asize;
-		in_f->ilf_dsize = in_f64->ilf_dsize;
-		in_f->ilf_ino = in_f64->ilf_ino;
-		/* copy biggest field of ilf_u */
-		uuid_copy(&in_f->ilf_u.ilfu_uuid, &in_f64->ilf_u.ilfu_uuid);
-		in_f->ilf_blkno = in_f64->ilf_blkno;
-		in_f->ilf_len = in_f64->ilf_len;
-		in_f->ilf_boffset = in_f64->ilf_boffset;
-		return 0;
-	}
-	return -EFSCORRUPTED;
+	in_f->ilf_type = in_f32->ilf_type;
+	in_f->ilf_size = in_f32->ilf_size;
+	in_f->ilf_fields = in_f32->ilf_fields;
+	in_f->ilf_asize = in_f32->ilf_asize;
+	in_f->ilf_dsize = in_f32->ilf_dsize;
+	in_f->ilf_ino = in_f32->ilf_ino;
+	/* copy biggest field of ilf_u */
+	uuid_copy(&in_f->ilf_u.ilfu_uuid, &in_f32->ilf_u.ilfu_uuid);
+	in_f->ilf_blkno = in_f32->ilf_blkno;
+	in_f->ilf_len = in_f32->ilf_len;
+	in_f->ilf_boffset = in_f32->ilf_boffset;
+	return 0;
 }
