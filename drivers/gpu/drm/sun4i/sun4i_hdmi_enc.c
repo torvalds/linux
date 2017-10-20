@@ -18,19 +18,23 @@
 #include <drm/drm_panel.h>
 
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/component.h>
+#include <linux/device.h>
+#include <linux/i2c.h>
 #include <linux/iopoll.h>
 #include <linux/of_device.h>
+#include <linux/of_address.h>
 #include <linux/platform_device.h>
+#include <linux/printk.h>
 #include <linux/pm_runtime.h>
-#include <linux/regmap.h>
 #include <linux/reset.h>
 
 #include "sun4i_backend.h"
 #include "sun4i_crtc.h"
 #include "sun4i_drv.h"
 #include "sun4i_hdmi.h"
-#include "sun4i_hdmi_i2c.h"
+#include "sun4i_hdmi_i2c_drv.h"
 #include "sun4i_tcon.h"
 
 static inline struct sun4i_hdmi *
@@ -305,27 +309,6 @@ static const struct sun4i_hdmi_variant sun4i_variant = {
 				  SUN4I_HDMI_PLL_CTRL_HV_IS_33 |
 				  SUN4I_HDMI_PLL_CTRL_BWS |
 				  SUN4I_HDMI_PLL_CTRL_PLL_EN,
-
-	.ddc_clk_reg		= REG_FIELD(SUN4I_HDMI_DDC_CLK_REG, 0, 6),
-	.ddc_clk_pre_divider	= 2,
-	.ddc_clk_m_offset	= 1,
-
-	.field_ddc_en		= REG_FIELD(SUN4I_HDMI_DDC_CTRL_REG, 31, 31),
-	.field_ddc_start	= REG_FIELD(SUN4I_HDMI_DDC_CTRL_REG, 30, 30),
-	.field_ddc_reset	= REG_FIELD(SUN4I_HDMI_DDC_CTRL_REG, 0, 0),
-	.field_ddc_addr_reg	= REG_FIELD(SUN4I_HDMI_DDC_ADDR_REG, 0, 31),
-	.field_ddc_slave_addr	= REG_FIELD(SUN4I_HDMI_DDC_ADDR_REG, 0, 6),
-	.field_ddc_int_status	= REG_FIELD(SUN4I_HDMI_DDC_INT_STATUS_REG, 0, 8),
-	.field_ddc_fifo_clear	= REG_FIELD(SUN4I_HDMI_DDC_FIFO_CTRL_REG, 31, 31),
-	.field_ddc_fifo_rx_thres = REG_FIELD(SUN4I_HDMI_DDC_FIFO_CTRL_REG, 4, 7),
-	.field_ddc_fifo_tx_thres = REG_FIELD(SUN4I_HDMI_DDC_FIFO_CTRL_REG, 0, 3),
-	.field_ddc_byte_count	= REG_FIELD(SUN4I_HDMI_DDC_BYTE_COUNT_REG, 0, 9),
-	.field_ddc_cmd		= REG_FIELD(SUN4I_HDMI_DDC_CMD_REG, 0, 2),
-	.field_ddc_sda_en	= REG_FIELD(SUN4I_HDMI_DDC_LINE_CTRL_REG, 9, 9),
-	.field_ddc_sck_en	= REG_FIELD(SUN4I_HDMI_DDC_LINE_CTRL_REG, 8, 8),
-
-	.ddc_fifo_reg		= SUN4I_HDMI_DDC_FIFO_DATA_REG,
-	.ddc_fifo_has_dir	= true,
 };
 
 static const struct sun4i_hdmi_variant sun5i_variant = {
@@ -359,7 +342,6 @@ static const struct sun4i_hdmi_variant sun5i_variant = {
 };
 
 static const struct sun4i_hdmi_variant sun6i_variant = {
-	.has_ddc_parent_clk	= true,
 	.has_reset_control	= true,
 	.pad_ctrl0_init_val	= 0xff |
 				  SUN4I_HDMI_PAD_CTRL0_TXEN |
@@ -394,108 +376,26 @@ static const struct sun4i_hdmi_variant sun6i_variant = {
 	.tmds_clk_div_offset	= 1,
 };
 
-static const struct regmap_config sun4i_hdmi_regmap_config = {
-	.reg_bits	= 32,
-	.val_bits	= 32,
-	.reg_stride	= 4,
-	.max_register	= 0x580,
-};
-
 static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 			   void *data)
 {
-	struct platform_device *pdev = to_platform_device(dev);
+	struct device_node *i2c_np;
 	struct drm_device *drm = data;
 	struct sun4i_drv *drv = drm->dev_private;
 	struct sun4i_hdmi *hdmi;
-	struct resource *res;
 	u32 reg;
 	int ret;
 
-	hdmi = devm_kzalloc(dev, sizeof(*hdmi), GFP_KERNEL);
-	if (!hdmi)
-		return -ENOMEM;
-	dev_set_drvdata(dev, hdmi);
-	hdmi->dev = dev;
+	hdmi = dev_get_drvdata(dev);
+	if (!hdmi) {
+		pr_err("hdmi tmds clk not initialized\n");
+		return -ENODEV;
+	}
+
 	hdmi->drv = drv;
 
-	hdmi->variant = of_device_get_match_data(dev);
-	if (!hdmi->variant)
-		return -EINVAL;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hdmi->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(hdmi->base)) {
-		dev_err(dev, "Couldn't map the HDMI encoder registers\n");
-		return PTR_ERR(hdmi->base);
-	}
-
-	if (hdmi->variant->has_reset_control) {
-		hdmi->reset = devm_reset_control_get(dev, NULL);
-		if (IS_ERR(hdmi->reset)) {
-			dev_err(dev, "Couldn't get the HDMI reset control\n");
-			return PTR_ERR(hdmi->reset);
-		}
-
-		ret = reset_control_deassert(hdmi->reset);
-		if (ret) {
-			dev_err(dev, "Couldn't deassert HDMI reset\n");
-			return ret;
-		}
-	}
-
-	hdmi->bus_clk = devm_clk_get(dev, "ahb");
-	if (IS_ERR(hdmi->bus_clk)) {
-		dev_err(dev, "Couldn't get the HDMI bus clock\n");
-		ret = PTR_ERR(hdmi->bus_clk);
-		goto err_assert_reset;
-	}
 	clk_prepare_enable(hdmi->bus_clk);
-
-	hdmi->mod_clk = devm_clk_get(dev, "mod");
-	if (IS_ERR(hdmi->mod_clk)) {
-		dev_err(dev, "Couldn't get the HDMI mod clock\n");
-		ret = PTR_ERR(hdmi->mod_clk);
-		goto err_disable_bus_clk;
-	}
 	clk_prepare_enable(hdmi->mod_clk);
-
-	hdmi->pll0_clk = devm_clk_get(dev, "pll-0");
-	if (IS_ERR(hdmi->pll0_clk)) {
-		dev_err(dev, "Couldn't get the HDMI PLL 0 clock\n");
-		ret = PTR_ERR(hdmi->pll0_clk);
-		goto err_disable_mod_clk;
-	}
-
-	hdmi->pll1_clk = devm_clk_get(dev, "pll-1");
-	if (IS_ERR(hdmi->pll1_clk)) {
-		dev_err(dev, "Couldn't get the HDMI PLL 1 clock\n");
-		ret = PTR_ERR(hdmi->pll1_clk);
-		goto err_disable_mod_clk;
-	}
-
-	hdmi->regmap = devm_regmap_init_mmio(dev, hdmi->base,
-					     &sun4i_hdmi_regmap_config);
-	if (IS_ERR(hdmi->regmap)) {
-		dev_err(dev, "Couldn't create HDMI encoder regmap\n");
-		return PTR_ERR(hdmi->regmap);
-	}
-
-	ret = sun4i_tmds_create(hdmi);
-	if (ret) {
-		dev_err(dev, "Couldn't create the TMDS clock\n");
-		goto err_disable_mod_clk;
-	}
-
-	if (hdmi->variant->has_ddc_parent_clk) {
-		hdmi->ddc_parent_clk = devm_clk_get(dev, "ddc");
-		if (IS_ERR(hdmi->ddc_parent_clk)) {
-			dev_err(dev, "Couldn't get the HDMI DDC clock\n");
-			return PTR_ERR(hdmi->ddc_parent_clk);
-		}
-	} else {
-		hdmi->ddc_parent_clk = hdmi->tmds_clk;
-	}
 
 	writel(SUN4I_HDMI_CTRL_ENABLE, hdmi->base + SUN4I_HDMI_CTRL_REG);
 
@@ -507,10 +407,27 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 	reg |= hdmi->variant->pll_ctrl_init_val;
 	writel(reg, hdmi->base + SUN4I_HDMI_PLL_CTRL_REG);
 
-	ret = sun4i_hdmi_i2c_create(dev, hdmi);
-	if (ret) {
+	i2c_np = of_parse_phandle(dev->of_node, "ddc-i2c-bus", 0);
+	if (!i2c_np) {
+		dev_warn(dev, "Missing ddc-i2c-bus node\n");
+
+		/* legacy devicetree's do not have the hdmi-i2c node */
+		hdmi->i2c_drv = sun4i_hdmi_i2c_setup(dev, hdmi->base);
+		if (IS_ERR(hdmi->i2c_drv)) {
+			if (PTR_ERR(hdmi->i2c_drv) != -EPROBE_DEFER)
+				dev_err(dev, "Couldn't setup HDMI I2C driver\n");
+			ret = PTR_ERR(hdmi->i2c_drv);
+			goto err_disable_clks;
+		}
+
+		hdmi->i2c = &hdmi->i2c_drv->adap;
+	} else {
+		hdmi->i2c = of_find_i2c_adapter_by_node(i2c_np);
+	}
+	if (!hdmi->i2c) {
 		dev_err(dev, "Couldn't create the HDMI I2C adapter\n");
-		goto err_disable_mod_clk;
+		ret = -ENODEV;
+		goto err_i2c_adap;
 	}
 
 	drm_encoder_helper_add(&hdmi->encoder,
@@ -522,14 +439,15 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 			       NULL);
 	if (ret) {
 		dev_err(dev, "Couldn't initialise the HDMI encoder\n");
-		goto err_del_i2c_adapter;
+		ret = -ENODEV;
+		goto err_i2c_adap;
 	}
 
 	hdmi->encoder.possible_crtcs = drm_of_find_possible_crtcs(drm,
 								  dev->of_node);
 	if (!hdmi->encoder.possible_crtcs) {
 		ret = -EPROBE_DEFER;
-		goto err_del_i2c_adapter;
+		goto err_i2c_adap;
 	}
 
 #ifdef CONFIG_DRM_SUN4I_HDMI_CEC
@@ -568,14 +486,12 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 err_cleanup_connector:
 	cec_delete_adapter(hdmi->cec_adap);
 	drm_encoder_cleanup(&hdmi->encoder);
-err_del_i2c_adapter:
-	i2c_del_adapter(hdmi->i2c);
-err_disable_mod_clk:
+err_i2c_adap:
+	if (!hdmi->i2c_drv)
+		put_device(&hdmi->i2c->dev);
+err_disable_clks:
 	clk_disable_unprepare(hdmi->mod_clk);
-err_disable_bus_clk:
 	clk_disable_unprepare(hdmi->bus_clk);
-err_assert_reset:
-	reset_control_assert(hdmi->reset);
 	return ret;
 }
 
@@ -584,10 +500,12 @@ static void sun4i_hdmi_unbind(struct device *dev, struct device *master,
 {
 	struct sun4i_hdmi *hdmi = dev_get_drvdata(dev);
 
+	if (!hdmi->i2c_drv)
+		put_device(&hdmi->i2c->dev);
+	sun4i_hdmi_i2c_fini(hdmi->i2c_drv);
 	cec_unregister_adapter(hdmi->cec_adap);
 	drm_connector_cleanup(&hdmi->connector);
 	drm_encoder_cleanup(&hdmi->encoder);
-	i2c_del_adapter(hdmi->i2c);
 	clk_disable_unprepare(hdmi->mod_clk);
 	clk_disable_unprepare(hdmi->bus_clk);
 }
@@ -597,14 +515,173 @@ static const struct component_ops sun4i_hdmi_ops = {
 	.unbind	= sun4i_hdmi_unbind,
 };
 
+struct clk_core {
+	const char		*name;
+	const struct clk_ops	*ops;
+	struct clk_hw		*hw;
+	struct module		*owner;
+	struct device		*dev;
+	struct clk_core		*parent;
+	const char		**parent_names;
+	struct clk_core		**parents;
+	u8			num_parents;
+	u8			new_parent_index;
+	unsigned long		rate;
+	unsigned long		req_rate;
+	unsigned long		new_rate;
+	struct clk_core		*new_parent;
+	struct clk_core		*new_child;
+	unsigned long		flags;
+	bool			orphan;
+	unsigned int		enable_count;
+	unsigned int		prepare_count;
+	unsigned long		min_rate;
+	unsigned long		max_rate;
+	unsigned long		accuracy;
+	int			phase;
+	struct hlist_head	children;
+	struct hlist_node	child_node;
+	struct hlist_head	clks;
+	unsigned int		notifier_count;
+#ifdef CONFIG_DEBUG_FS
+	struct dentry		*dentry;
+	struct hlist_node	debug_node;
+#endif
+	struct kref		ref;
+};
+struct clk {
+	struct clk_core	*core;
+	const char *dev_id;
+	const char *con_id;
+	unsigned long min_rate;
+	unsigned long max_rate;
+	struct hlist_node clks_node;
+};
+
+static int sun4i_hdmi_tmds_clk_init(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device_node *node = dev_of_node(dev);
+	struct resource *res;
+	struct sun4i_hdmi *hdmi;
+	int ret;
+
+	hdmi = devm_kzalloc(dev, sizeof(*hdmi), GFP_KERNEL);
+	if (!hdmi)
+		return -ENOMEM;
+
+	hdmi->dev = dev;
+
+	hdmi->variant = of_device_get_match_data(dev);
+	if (!hdmi->variant) {
+		dev_err(dev, "hdmi_tmds_clk: couldn't find matching device\n");
+		return -ENODEV;
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	hdmi->base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(hdmi->base)) {
+		dev_err(dev, "couldn't map the HDMI encoder registers\n");
+		return PTR_ERR(hdmi->base);
+	}
+
+	if (hdmi->variant->has_reset_control) {
+		hdmi->reset = devm_reset_control_get(dev, NULL);
+		if (IS_ERR(hdmi->reset)) {
+			dev_err(dev, "couldn't get the HDMI reset control\n");
+			return PTR_ERR(hdmi->reset);
+		}
+
+		ret = reset_control_deassert(hdmi->reset);
+		if (ret) {
+			dev_err(dev, "couldn't deassert HDMI reset\n");
+			goto err_assert_reset;
+		}
+	}
+
+	hdmi->bus_clk = devm_clk_get(dev, "ahb");
+	if (IS_ERR(hdmi->bus_clk)) {
+		dev_err(dev, "couldn't get the HDMI bus clock\n");
+		ret = PTR_ERR(hdmi->bus_clk);
+		goto err_assert_reset;
+	}
+	clk_prepare_enable(hdmi->bus_clk);
+
+	hdmi->mod_clk = of_clk_get_by_name(node, "mod");
+	if (IS_ERR(hdmi->mod_clk)) {
+		dev_err(dev, "couldn't get the HDMI mod clock\n");
+		ret = PTR_ERR(hdmi->mod_clk);
+		goto err_disable_bus_clk;
+	}
+	clk_prepare_enable(hdmi->mod_clk);
+
+	hdmi->pll0_clk = devm_clk_get(dev, "pll-0");
+	if (IS_ERR(hdmi->pll0_clk)) {
+		pr_err("couldn't get the HDMI PLL 0 clock\n");
+		ret = PTR_ERR(hdmi->pll0_clk);
+		goto err_disable_mod_clk;
+	}
+
+	hdmi->pll1_clk = of_clk_get_by_name(node, "pll-1");
+	if (IS_ERR(hdmi->pll1_clk)) {
+		dev_err(dev, "couldn't get the HDMI PLL 1 clock\n");
+		ret = PTR_ERR(hdmi->pll1_clk);
+		goto err_disable_mod_clk;
+	}
+
+	ret = of_property_read_string(node, "clock-output-names",
+				      &hdmi->tmds_clk_name);
+	if (ret) {
+		/* Deal with old/incomplete DTs */
+		hdmi->tmds_clk_name = "hdmi-tmds";
+		dev_warn(dev, "no 'clock-output-names', falling back to: %s\n",
+			 hdmi->tmds_clk_name);
+	}
+
+	ret = sun4i_tmds_create(hdmi);
+	if (ret) {
+		dev_err(dev, "couldn't create the TMDS clock\n");
+		goto err_disable_mod_clk;
+	}
+	ret = of_clk_add_provider(node, of_clk_src_simple_get,
+				  hdmi->tmds_clk);
+	// TODO devm_of_clk_add_provider()
+	if (ret) {
+		dev_err(dev, "couldn't register the TMDS clock\n");
+		goto err_disable_mod_clk;
+	}
+
+	dev_set_drvdata(dev, hdmi);
+
+	return ret;
+
+err_disable_mod_clk:
+	clk_disable_unprepare(hdmi->mod_clk);
+err_disable_bus_clk:
+	clk_disable_unprepare(hdmi->bus_clk);
+err_assert_reset:
+	reset_control_assert(hdmi->reset);
+
+	return ret;
+}
+
 static int sun4i_hdmi_probe(struct platform_device *pdev)
 {
+	int ret;
+
+	ret = sun4i_hdmi_tmds_clk_init(pdev);
+	if (ret)
+		return ret;
+
 	return component_add(&pdev->dev, &sun4i_hdmi_ops);
 }
 
 static int sun4i_hdmi_remove(struct platform_device *pdev)
 {
+	struct device_node *node = dev_of_node(&pdev->dev);
+
 	component_del(&pdev->dev, &sun4i_hdmi_ops);
+	of_clk_del_provider(node);
 
 	return 0;
 }
@@ -613,6 +690,7 @@ static const struct of_device_id sun4i_hdmi_of_table[] = {
 	{ .compatible = "allwinner,sun4i-a10-hdmi", .data = &sun4i_variant, },
 	{ .compatible = "allwinner,sun5i-a10s-hdmi", .data = &sun5i_variant, },
 	{ .compatible = "allwinner,sun6i-a31-hdmi", .data = &sun6i_variant, },
+	{ .compatible = "allwinner,sun7i-a20-hdmi", .data = &sun5i_variant, },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_hdmi_of_table);

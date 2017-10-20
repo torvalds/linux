@@ -10,7 +10,13 @@
  * the License, or (at your option) any later version.
  */
 
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/spinlock_types.h>
+#include <linux/device.h>
+#include <linux/init.h>
+#include <linux/of.h>
+#include <linux/gfp.h>
 
 #include "sun4i_hdmi.h"
 
@@ -19,6 +25,15 @@ struct sun4i_tmds {
 	struct sun4i_hdmi	*hdmi;
 
 	u8			div_offset;
+};
+
+struct sun4i_tmds_ddc {
+	struct device 		*dev;
+	void __iomem 		*base;
+
+	struct clk_hw		hw;
+
+	spinlock_t 		lock;
 };
 
 static inline struct sun4i_tmds *hw_to_tmds(struct clk_hw *hw)
@@ -218,7 +233,10 @@ int sun4i_tmds_create(struct sun4i_hdmi *hdmi)
 	if (!tmds)
 		return -ENOMEM;
 
-	init.name = "hdmi-tmds";
+	if (!hdmi->tmds_clk_name)
+		return -ENODEV;
+
+	init.name = hdmi->tmds_clk_name;
 	init.ops = &sun4i_tmds_ops;
 	init.parent_names = parents;
 	init.num_parents = 2;

@@ -114,16 +114,11 @@ enum sun4i_hdmi_pkt_type {
 };
 
 struct sun4i_hdmi_variant {
-	bool has_ddc_parent_clk;
 	bool has_reset_control;
 
 	u32 pad_ctrl0_init_val;
 	u32 pad_ctrl1_init_val;
 	u32 pll_ctrl_init_val;
-
-	struct reg_field ddc_clk_reg;
-	u8 ddc_clk_pre_divider;
-	u8 ddc_clk_m_offset;
 
 	u8 tmds_clk_div_offset;
 };
@@ -134,7 +129,6 @@ struct sun4i_hdmi {
 	struct device		*dev;
 
 	void __iomem		*base;
-	struct regmap		*regmap;
 
 	/* Reset control */
 	struct reset_control	*reset;
@@ -142,15 +136,16 @@ struct sun4i_hdmi {
 	/* Parent clocks */
 	struct clk		*bus_clk;
 	struct clk		*mod_clk;
-	struct clk		*ddc_parent_clk;
 	struct clk		*pll0_clk;
 	struct clk		*pll1_clk;
 
 	/* And the clocks we create */
-	struct clk		*ddc_clk;
 	struct clk		*tmds_clk;
+	const char		*tmds_clk_name;
 
 	struct i2c_adapter	*i2c;
+	/* Legacy dt i2c device */
+	struct sun4i_hdmi_i2c_drv *i2c_drv;
 
 	struct sun4i_drv	*drv;
 
@@ -160,8 +155,6 @@ struct sun4i_hdmi {
 	const struct sun4i_hdmi_variant	*variant;
 };
 
-int sun4i_ddc_create(struct sun4i_hdmi *hdmi, struct clk *clk);
 int sun4i_tmds_create(struct sun4i_hdmi *hdmi);
-int sun4i_hdmi_i2c_create(struct device *dev, struct sun4i_hdmi *hdmi);
 
 #endif /* _SUN4I_HDMI_H_ */
