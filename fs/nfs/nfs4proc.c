@@ -4870,7 +4870,7 @@ static void nfs4_renew_release(void *calldata)
 	struct nfs4_renewdata *data = calldata;
 	struct nfs_client *clp = data->client;
 
-	if (atomic_read(&clp->cl_count) > 1)
+	if (refcount_read(&clp->cl_count) > 1)
 		nfs4_schedule_state_renewal(clp);
 	nfs_put_client(clp);
 	kfree(data);
@@ -4918,7 +4918,7 @@ static int nfs4_proc_async_renew(struct nfs_client *clp, struct rpc_cred *cred, 
 
 	if (renew_flags == 0)
 		return 0;
-	if (!atomic_inc_not_zero(&clp->cl_count))
+	if (!refcount_inc_not_zero(&clp->cl_count))
 		return -EIO;
 	data = kmalloc(sizeof(*data), GFP_NOFS);
 	if (data == NULL) {
@@ -7499,7 +7499,7 @@ nfs4_run_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
 	struct nfs41_exchange_id_data *calldata;
 	int status;
 
-	if (!atomic_inc_not_zero(&clp->cl_count))
+	if (!refcount_inc_not_zero(&clp->cl_count))
 		return ERR_PTR(-EIO);
 
 	status = -ENOMEM;
@@ -8099,7 +8099,7 @@ static void nfs41_sequence_release(void *data)
 	struct nfs4_sequence_data *calldata = data;
 	struct nfs_client *clp = calldata->clp;
 
-	if (atomic_read(&clp->cl_count) > 1)
+	if (refcount_read(&clp->cl_count) > 1)
 		nfs4_schedule_state_renewal(clp);
 	nfs_put_client(clp);
 	kfree(calldata);
@@ -8128,7 +8128,7 @@ static void nfs41_sequence_call_done(struct rpc_task *task, void *data)
 	trace_nfs4_sequence(clp, task->tk_status);
 	if (task->tk_status < 0) {
 		dprintk("%s ERROR %d\n", __func__, task->tk_status);
-		if (atomic_read(&clp->cl_count) == 1)
+		if (refcount_read(&clp->cl_count) == 1)
 			goto out;
 
 		if (nfs41_sequence_handle_errors(task, clp) == -EAGAIN) {
@@ -8179,7 +8179,7 @@ static struct rpc_task *_nfs41_proc_sequence(struct nfs_client *clp,
 	struct rpc_task *ret;
 
 	ret = ERR_PTR(-EIO);
-	if (!atomic_inc_not_zero(&clp->cl_count))
+	if (!refcount_inc_not_zero(&clp->cl_count))
 		goto out_err;
 
 	ret = ERR_PTR(-ENOMEM);

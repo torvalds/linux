@@ -1177,7 +1177,7 @@ void nfs4_schedule_state_manager(struct nfs_client *clp)
 	if (test_and_set_bit(NFS4CLNT_MANAGER_RUNNING, &clp->cl_state) != 0)
 		return;
 	__module_get(THIS_MODULE);
-	atomic_inc(&clp->cl_count);
+	refcount_inc(&clp->cl_count);
 
 	/* The rcu_read_lock() is not strictly necessary, as the state
 	 * manager is the only thread that ever changes the rpc_xprt
@@ -1269,7 +1269,7 @@ int nfs4_wait_clnt_recover(struct nfs_client *clp)
 
 	might_sleep();
 
-	atomic_inc(&clp->cl_count);
+	refcount_inc(&clp->cl_count);
 	res = wait_on_bit_action(&clp->cl_state, NFS4CLNT_MANAGER_RUNNING,
 				 nfs_wait_bit_killable, TASK_KILLABLE);
 	if (res)
@@ -2510,7 +2510,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			break;
 		if (test_and_set_bit(NFS4CLNT_MANAGER_RUNNING, &clp->cl_state) != 0)
 			break;
-	} while (atomic_read(&clp->cl_count) > 1);
+	} while (refcount_read(&clp->cl_count) > 1);
 	return;
 out_error:
 	if (strlen(section))
