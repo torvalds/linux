@@ -1909,7 +1909,7 @@ static struct urb *iso_alloc_urb(
 
 	if (bytes < 0 || !desc)
 		return NULL;
-	maxp = 0x7ff & usb_endpoint_maxp(desc);
+	maxp = usb_endpoint_maxp(desc);
 	maxp *= usb_endpoint_maxp_mult(desc);
 	packets = DIV_ROUND_UP(bytes, maxp);
 
