@@ -835,12 +835,6 @@ void mwifiex_update_rxreor_flags(struct mwifiex_adapter *adapter, u8 flags)
 			continue;
 
 		spin_lock_irqsave(&priv->rx_reorder_tbl_lock, lock_flags);
-		if (list_empty(&priv->rx_reorder_tbl_ptr)) {
-			spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock,
-					       lock_flags);
-			continue;
-		}
-
 		list_for_each_entry(tbl, &priv->rx_reorder_tbl_ptr, list)
 			tbl->flags = flags;
 		spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, lock_flags);

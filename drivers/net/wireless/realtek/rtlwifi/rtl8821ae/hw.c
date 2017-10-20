@@ -57,6 +57,7 @@ static void _rtl8821ae_return_beacon_queue_skb(struct ieee80211_hw *hw)
 
 		pci_unmap_single(rtlpci->pdev,
 				 rtlpriv->cfg->ops->get_desc(
+				 hw,
 				 (u8 *)entry, true, HW_DESC_TXBUFF_ADDR),
 				 skb->len, PCI_DMA_TODEVICE);
 		kfree_skb(skb);
@@ -1122,7 +1123,7 @@ static u8 _rtl8821ae_dbi_read(struct rtl_priv *rtlpriv, u16 addr)
 	}
 	if (0 == tmp) {
 		read_addr = REG_DBI_RDATA + addr % 4;
-		ret = rtl_read_byte(rtlpriv, read_addr);
+		ret = rtl_read_word(rtlpriv, read_addr);
 	}
 	return ret;
 }
@@ -3598,7 +3599,7 @@ static bool _rtl8821ae_get_ra_shortgi(struct ieee80211_hw *hw, struct ieee80211_
 }
 
 static void rtl8821ae_update_hal_rate_mask(struct ieee80211_hw *hw,
-		struct ieee80211_sta *sta, u8 rssi_level)
+		struct ieee80211_sta *sta, u8 rssi_level, bool update_bw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
@@ -3777,7 +3778,7 @@ static void rtl8821ae_update_hal_rate_mask(struct ieee80211_hw *hw,
 
 	rate_mask[0] = macid;
 	rate_mask[1] = ratr_index | (b_shortgi ? 0x80 : 0x00);
-	rate_mask[2] = rtlphy->current_chan_bw
+	rate_mask[2] = rtlphy->current_chan_bw | ((!update_bw) << 3)
 			   | _rtl8821ae_get_vht_eni(wirelessmode, ratr_bitmap)
 			   | _rtl8821ae_get_ra_ldpc(hw, macid, sta_entry, wirelessmode);
 
@@ -3798,11 +3799,11 @@ static void rtl8821ae_update_hal_rate_mask(struct ieee80211_hw *hw,
 }
 
 void rtl8821ae_update_hal_rate_tbl(struct ieee80211_hw *hw,
-		struct ieee80211_sta *sta, u8 rssi_level)
+		struct ieee80211_sta *sta, u8 rssi_level, bool update_bw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	if (rtlpriv->dm.useramask)
-		rtl8821ae_update_hal_rate_mask(hw, sta, rssi_level);
+		rtl8821ae_update_hal_rate_mask(hw, sta, rssi_level, update_bw);
 	else
 		/*RT_TRACE(rtlpriv, COMP_RATR,DBG_LOUD,
 			   "rtl8821ae_update_hal_rate_tbl() Error! 8821ae FW RA Only\n");*/
@@ -3845,7 +3846,7 @@ bool rtl8821ae_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
-	enum rf_pwrstate e_rfpowerstate_toset, cur_rfstate;
+	enum rf_pwrstate e_rfpowerstate_toset;
 	u8 u1tmp = 0;
 	bool b_actuallyset = false;
 
@@ -3863,8 +3864,6 @@ bool rtl8821ae_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 		ppsc->rfchange_inprogress = true;
 		spin_unlock(&rtlpriv->locks.rf_ps_lock);
 	}
-
-	cur_rfstate = ppsc->rfpwr_state;
 
 	rtl_write_byte(rtlpriv, REG_GPIO_IO_SEL_2,
 			rtl_read_byte(rtlpriv,

@@ -25,6 +25,7 @@
 #include "trans.h"
 #include "util.h"
 #include "event.h"
+#include "qlink_util.h"
 
 static int
 qtnf_event_handle_sta_assoc(struct qtnf_wmac *mac, struct qtnf_vif *vif,
@@ -48,12 +49,6 @@ qtnf_event_handle_sta_assoc(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 
 	if (vif->wdev.iftype != NL80211_IFTYPE_AP) {
 		pr_err("VIF%u.%u: STA_ASSOC event when not in AP mode\n",
-		       mac->macid, vif->vifid);
-		return -EPROTO;
-	}
-
-	if (!(vif->bss_status & QTNF_STATE_AP_START)) {
-		pr_err("VIF%u.%u: STA_ASSOC event when AP is not started\n",
 		       mac->macid, vif->vifid);
 		return -EPROTO;
 	}
@@ -122,12 +117,6 @@ qtnf_event_handle_sta_deauth(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 
 	if (vif->wdev.iftype != NL80211_IFTYPE_AP) {
 		pr_err("VIF%u.%u: STA_DEAUTH event when not in AP mode\n",
-		       mac->macid, vif->vifid);
-		return -EPROTO;
-	}
-
-	if (!(vif->bss_status & QTNF_STATE_AP_START)) {
-		pr_err("VIF%u.%u: STA_DEAUTH event when AP is not started\n",
 		       mac->macid, vif->vifid);
 		return -EPROTO;
 	}
@@ -357,40 +346,29 @@ qtnf_event_handle_freq_change(struct qtnf_wmac *mac,
 {
 	struct wiphy *wiphy = priv_to_wiphy(mac);
 	struct cfg80211_chan_def chandef;
-	struct ieee80211_channel *chan;
 	struct qtnf_vif *vif;
-	int freq;
 	int i;
 
 	if (len < sizeof(*data)) {
-		pr_err("payload is too short\n");
+		pr_err("MAC%u: payload is too short\n", mac->macid);
 		return -EINVAL;
 	}
 
-	freq = le32_to_cpu(data->freq);
-	chan = ieee80211_get_channel(wiphy, freq);
-	if (!chan) {
-		pr_err("channel at %d MHz not found\n", freq);
+	if (!wiphy->registered)
+		return 0;
+
+	qlink_chandef_q2cfg(wiphy, &data->chan, &chandef);
+
+	if (!cfg80211_chandef_valid(&chandef)) {
+		pr_err("MAC%u: bad channel f1=%u f2=%u bw=%u\n", mac->macid,
+		       chandef.center_freq1, chandef.center_freq2,
+		       chandef.width);
 		return -EINVAL;
 	}
 
-	pr_debug("MAC%d switch to new channel %u MHz\n", mac->macid, freq);
-
-	if (mac->status & QTNF_MAC_CSA_ACTIVE) {
-		mac->status &= ~QTNF_MAC_CSA_ACTIVE;
-		if (chan->hw_value != mac->csa_chandef.chan->hw_value)
-			pr_warn("unexpected switch to %u during CSA to %u\n",
-				chan->hw_value,
-				mac->csa_chandef.chan->hw_value);
-	}
-
-	/* FIXME: need to figure out proper nl80211_channel_type value */
-	cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_HT20);
-	/* fall-back to minimal safe chandef description */
-	if (!cfg80211_chandef_valid(&chandef))
-		cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_HT20);
-
-	memcpy(&mac->chandef, &chandef, sizeof(mac->chandef));
+	pr_debug("MAC%d: new channel ieee=%u freq1=%u freq2=%u bw=%u\n",
+		 mac->macid, chandef.chan->hw_value, chandef.center_freq1,
+		 chandef.center_freq2, chandef.width);
 
 	for (i = 0; i < QTNF_MAX_INTF; i++) {
 		vif = &mac->iflist[i];

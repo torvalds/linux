@@ -249,8 +249,6 @@ static void _rtl_init_hw_vht_capab(struct ieee80211_hw *hw,
 
 		vht_cap->vht_supported = true;
 		vht_cap->cap =
-			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895 |
-			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991 |
 			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454 |
 			IEEE80211_VHT_CAP_SHORT_GI_80 |
 			IEEE80211_VHT_CAP_TXSTBC |
@@ -283,8 +281,6 @@ static void _rtl_init_hw_vht_capab(struct ieee80211_hw *hw,
 
 		vht_cap->vht_supported = true;
 		vht_cap->cap =
-			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895 |
-			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991 |
 			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454 |
 			IEEE80211_VHT_CAP_SHORT_GI_80 |
 			IEEE80211_VHT_CAP_TXSTBC |
@@ -835,7 +831,7 @@ static u8 _rtl_get_vht_highest_n_rate(struct ieee80211_hw *hw,
 		else if ((tx_mcs_map  & 0x000c) >> 2 ==
 			IEEE80211_VHT_MCS_SUPPORT_0_8)
 			hw_rate =
-			rtlpriv->cfg->maps[RTL_RC_VHT_RATE_2SS_MCS9];
+			rtlpriv->cfg->maps[RTL_RC_VHT_RATE_2SS_MCS8];
 		else
 			hw_rate =
 			rtlpriv->cfg->maps[RTL_RC_VHT_RATE_2SS_MCS9];
@@ -847,7 +843,7 @@ static u8 _rtl_get_vht_highest_n_rate(struct ieee80211_hw *hw,
 		else if ((tx_mcs_map  & 0x0003) ==
 			IEEE80211_VHT_MCS_SUPPORT_0_8)
 			hw_rate =
-			rtlpriv->cfg->maps[RTL_RC_VHT_RATE_1SS_MCS9];
+			rtlpriv->cfg->maps[RTL_RC_VHT_RATE_1SS_MCS8];
 		else
 			hw_rate =
 			rtlpriv->cfg->maps[RTL_RC_VHT_RATE_1SS_MCS9];
@@ -1103,6 +1099,42 @@ int rtlwifi_rate_mapping(struct ieee80211_hw *hw, bool isht, bool isvht,
 }
 EXPORT_SYMBOL(rtlwifi_rate_mapping);
 
+static u8 _rtl_get_tx_hw_rate(struct ieee80211_hw *hw,
+			      struct ieee80211_tx_info *info)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct ieee80211_tx_rate *r = &info->status.rates[0];
+	struct ieee80211_rate *txrate;
+	u8 hw_value = 0x0;
+
+	if (r->flags & IEEE80211_TX_RC_MCS) {
+		/* HT MCS0-15 */
+		hw_value = rtlpriv->cfg->maps[RTL_RC_HT_RATEMCS15] - 15 +
+			   r->idx;
+	} else if (r->flags & IEEE80211_TX_RC_VHT_MCS) {
+		/* VHT MCS0-9, NSS */
+		if (ieee80211_rate_get_vht_nss(r) == 2)
+			hw_value = rtlpriv->cfg->maps[RTL_RC_VHT_RATE_2SS_MCS9];
+		else
+			hw_value = rtlpriv->cfg->maps[RTL_RC_VHT_RATE_1SS_MCS9];
+
+		hw_value = hw_value - 9 + ieee80211_rate_get_vht_mcs(r);
+	} else {
+		/* legacy */
+		txrate = ieee80211_get_tx_rate(hw, info);
+
+		if (txrate)
+			hw_value = txrate->hw_value;
+	}
+
+	/* check 5G band */
+	if (rtlpriv->rtlhal.current_bandtype == BAND_ON_5G &&
+	    hw_value < rtlpriv->cfg->maps[RTL_RC_OFDM_RATE6M])
+		hw_value = rtlpriv->cfg->maps[RTL_RC_OFDM_RATE6M];
+
+	return hw_value;
+}
+
 void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 		      struct ieee80211_tx_info *info,
 		      struct ieee80211_sta *sta,
@@ -1111,12 +1143,10 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *rtlmac = rtl_mac(rtl_priv(hw));
 	struct ieee80211_hdr *hdr = rtl_get_hdr(skb);
-	struct ieee80211_rate *txrate;
+
 	__le16 fc = rtl_get_fc(skb);
 
-	txrate = ieee80211_get_tx_rate(hw, info);
-	if (txrate)
-		tcb_desc->hw_rate = txrate->hw_value;
+	tcb_desc->hw_rate = _rtl_get_tx_hw_rate(hw, info);
 
 	if (rtl_is_tx_report_skb(hw, skb))
 		tcb_desc->use_spe_rpt = 1;
@@ -1527,6 +1557,42 @@ void rtl_wait_tx_report_acked(struct ieee80211_hw *hw, u32 wait_ms)
 			 "Wait 1ms (%d/%d) to disable key.\n", i, wait_ms);
 	}
 }
+
+u32 rtl_get_hal_edca_param(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif,
+			   enum wireless_mode wirelessmode,
+			   struct ieee80211_tx_queue_params *param)
+{
+	u32 reg = 0;
+	u8 sifstime = 10;
+	u8 slottime = 20;
+
+	/* AIFS = AIFSN * slot time + SIFS */
+	switch (wirelessmode) {
+	case WIRELESS_MODE_A:
+	case WIRELESS_MODE_N_24G:
+	case WIRELESS_MODE_N_5G:
+	case WIRELESS_MODE_AC_5G:
+	case WIRELESS_MODE_AC_24G:
+		sifstime = 16;
+		slottime = 9;
+		break;
+	case WIRELESS_MODE_G:
+		slottime = (vif->bss_conf.use_short_slot ? 9 : 20);
+		break;
+	default:
+		break;
+	}
+
+	reg |= (param->txop & 0x7FF) << 16;
+	reg |= (fls(param->cw_max) & 0xF) << 12;
+	reg |= (fls(param->cw_min) & 0xF) << 8;
+	reg |= (param->aifs & 0x0F) * slottime + sifstime;
+
+	return reg;
+}
+EXPORT_SYMBOL_GPL(rtl_get_hal_edca_param);
+
 /*********************************************************
  *
  * functions called by core.c
@@ -1932,6 +1998,22 @@ label_lps_done:
 	rtlpriv->link_info.tx_busy_traffic = tx_busy_traffic;
 	rtlpriv->link_info.higher_busyrxtraffic = higher_busyrxtraffic;
 
+	rtlpriv->stats.txbytesunicast_inperiod =
+		rtlpriv->stats.txbytesunicast -
+		rtlpriv->stats.txbytesunicast_last;
+	rtlpriv->stats.rxbytesunicast_inperiod =
+		rtlpriv->stats.rxbytesunicast -
+		rtlpriv->stats.rxbytesunicast_last;
+	rtlpriv->stats.txbytesunicast_last = rtlpriv->stats.txbytesunicast;
+	rtlpriv->stats.rxbytesunicast_last = rtlpriv->stats.rxbytesunicast;
+
+	rtlpriv->stats.txbytesunicast_inperiod_tp =
+		(u32)(rtlpriv->stats.txbytesunicast_inperiod * 8 / 2 /
+		1024 / 1024);
+	rtlpriv->stats.rxbytesunicast_inperiod_tp =
+		(u32)(rtlpriv->stats.rxbytesunicast_inperiod * 8 / 2 /
+		1024 / 1024);
+
 	/* <3> DM */
 	if (!rtlpriv->cfg->mod_params->disable_watchdog)
 		rtlpriv->cfg->ops->dm_watchdog(hw);
@@ -2204,7 +2286,7 @@ int rtl_send_smps_action(struct ieee80211_hw *hw,
 		struct rtl_sta_info *sta_entry =
 			(struct rtl_sta_info *) sta->drv_priv;
 		sta_entry->mimo_ps = smps;
-		/* rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0); */
+		/* rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0, true); */
 
 		info->control.rates[0].idx = 0;
 		info->band = hw->conf.chandef.chan->band;

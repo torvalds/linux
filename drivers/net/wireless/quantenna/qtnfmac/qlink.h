@@ -108,15 +108,47 @@ enum qlink_sta_flags {
 };
 
 enum qlink_channel_width {
-	QLINK_CHAN_WIDTH_5		= BIT(0),
-	QLINK_CHAN_WIDTH_10		= BIT(1),
-	QLINK_CHAN_WIDTH_20_NOHT	= BIT(2),
-	QLINK_CHAN_WIDTH_20		= BIT(3),
-	QLINK_CHAN_WIDTH_40		= BIT(4),
-	QLINK_CHAN_WIDTH_80		= BIT(5),
-	QLINK_CHAN_WIDTH_80P80		= BIT(6),
-	QLINK_CHAN_WIDTH_160		= BIT(7),
+	QLINK_CHAN_WIDTH_5 = 0,
+	QLINK_CHAN_WIDTH_10,
+	QLINK_CHAN_WIDTH_20_NOHT,
+	QLINK_CHAN_WIDTH_20,
+	QLINK_CHAN_WIDTH_40,
+	QLINK_CHAN_WIDTH_80,
+	QLINK_CHAN_WIDTH_80P80,
+	QLINK_CHAN_WIDTH_160,
 };
+
+/**
+ * struct qlink_chandef - qlink channel definition
+ *
+ * @center_freq1: center frequency of first segment
+ * @center_freq2: center frequency of second segment (80+80 only)
+ * @width: channel width, one of @enum qlink_channel_width
+ */
+struct qlink_chandef {
+	__le16 center_freq1;
+	__le16 center_freq2;
+	u8 width;
+	u8 rsvd[3];
+} __packed;
+
+#define QLINK_MAX_NR_CIPHER_SUITES            5
+#define QLINK_MAX_NR_AKM_SUITES               2
+
+struct qlink_auth_encr {
+	__le32 wpa_versions;
+	__le32 cipher_group;
+	__le32 n_ciphers_pairwise;
+	__le32 ciphers_pairwise[QLINK_MAX_NR_CIPHER_SUITES];
+	__le32 n_akm_suites;
+	__le32 akm_suites[QLINK_MAX_NR_AKM_SUITES];
+	__le16 control_port_ethertype;
+	u8 auth_type;
+	u8 privacy;
+	u8 mfp;
+	u8 control_port;
+	u8 control_port_no_encrypt;
+} __packed;
 
 /* QLINK Command messages related definitions
  */
@@ -155,6 +187,7 @@ enum qlink_cmd_type {
 	QLINK_CMD_REG_NOTIFY		= 0x0019,
 	QLINK_CMD_CHANS_INFO_GET	= 0x001A,
 	QLINK_CMD_CHAN_SWITCH		= 0x001B,
+	QLINK_CMD_CHAN_GET		= 0x001C,
 	QLINK_CMD_CONFIG_AP		= 0x0020,
 	QLINK_CMD_START_AP		= 0x0021,
 	QLINK_CMD_STOP_AP		= 0x0022,
@@ -384,8 +417,9 @@ enum qlink_sta_connect_flags {
  * struct qlink_cmd_connect - data for QLINK_CMD_CONNECT command
  *
  * @flags: for future use.
- * @freq: center frequence of a channel which should be used to connect.
+ * @channel: channel which should be used to connect.
  * @bg_scan_period: period of background scan.
+ * @aen: authentication information.
  * @bssid: BSSID of the BSS to connect to.
  * @payload: variable portion of connection request.
  */
@@ -394,6 +428,7 @@ struct qlink_cmd_connect {
 	__le32 flags;
 	__le16 channel;
 	__le16 bg_scan_period;
+	struct qlink_auth_encr aen;
 	u8 bssid[ETH_ALEN];
 	u8 payload[0];
 } __packed;
@@ -504,6 +539,46 @@ struct qlink_cmd_chan_switch {
 	u8 radar_required;
 	u8 block_tx;
 	u8 beacon_count;
+} __packed;
+
+/**
+ * enum qlink_hidden_ssid - values for %NL80211_ATTR_HIDDEN_SSID
+ *
+ * Refer to &enum nl80211_hidden_ssid
+ */
+enum qlink_hidden_ssid {
+	QLINK_HIDDEN_SSID_NOT_IN_USE,
+	QLINK_HIDDEN_SSID_ZERO_LEN,
+	QLINK_HIDDEN_SSID_ZERO_CONTENTS
+};
+
+/**
+ * struct qlink_cmd_config_ap - data for QLINK_CMD_CONFIG_AP command
+ *
+ * @beacon_interval: beacon interval
+ * @inactivity_timeout: station's inactivity period in seconds
+ * @dtim_period: DTIM period
+ * @hidden_ssid: whether to hide the SSID, one of &enum qlink_hidden_ssid
+ * @smps_mode: SMPS mode
+ * @ht_required: stations must support HT
+ * @vht_required: stations must support VHT
+ * @aen: encryption info
+ * @info: variable configurations
+ */
+struct qlink_cmd_config_ap {
+	struct qlink_cmd chdr;
+	__le16 beacon_interval;
+	__le16 inactivity_timeout;
+	u8 dtim_period;
+	u8 hidden_ssid;
+	u8 smps_mode;
+	u8 p2p_ctwindow;
+	u8 p2p_opp_ps;
+	u8 pbss;
+	u8 ht_required;
+	u8 vht_required;
+	struct qlink_auth_encr aen;
+	u8 info[0];
 } __packed;
 
 /* QLINK Command Responses messages related definitions
@@ -680,6 +755,16 @@ struct qlink_resp_get_chan_stats {
 	u8 info[0];
 } __packed;
 
+/**
+ * struct qlink_resp_channel_get - response for QLINK_CMD_CHAN_GET command
+ *
+ * @chan: definition of current operating channel.
+ */
+struct qlink_resp_channel_get {
+	struct qlink_resp rhdr;
+	struct qlink_chandef chan;
+} __packed;
+
 /* QLINK Events messages related definitions
  */
 
@@ -764,11 +849,11 @@ struct qlink_event_bss_leave {
 /**
  * struct qlink_event_freq_change - data for QLINK_EVENT_FREQ_CHANGE event
  *
- * @freq: new operating frequency in MHz
+ * @chan: new operating channel definition
  */
 struct qlink_event_freq_change {
 	struct qlink_event ehdr;
-	__le32 freq;
+	struct qlink_chandef chan;
 } __packed;
 
 enum qlink_rxmgmt_flags {
@@ -856,10 +941,9 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_RTS_THRESH		= 0x0202,
 	QTN_TLV_ID_SRETRY_LIMIT		= 0x0203,
 	QTN_TLV_ID_LRETRY_LIMIT		= 0x0204,
-	QTN_TLV_ID_BCN_PERIOD		= 0x0205,
-	QTN_TLV_ID_DTIM			= 0x0206,
 	QTN_TLV_ID_REG_RULE		= 0x0207,
 	QTN_TLV_ID_CHANNEL		= 0x020F,
+	QTN_TLV_ID_CHANDEF		= 0x0210,
 	QTN_TLV_ID_COVERAGE_CLASS	= 0x0213,
 	QTN_TLV_ID_IFACE_LIMIT		= 0x0214,
 	QTN_TLV_ID_NUM_IFACE_COMB	= 0x0215,
@@ -868,7 +952,6 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_STA_GENERIC_INFO	= 0x0301,
 	QTN_TLV_ID_KEY			= 0x0302,
 	QTN_TLV_ID_SEQ			= 0x0303,
-	QTN_TLV_ID_CRYPTO		= 0x0304,
 	QTN_TLV_ID_IE_SET		= 0x0305,
 };
 
@@ -1047,22 +1130,16 @@ struct qlink_tlv_channel {
 	u8 rsvd[2];
 } __packed;
 
-#define QLINK_MAX_NR_CIPHER_SUITES            5
-#define QLINK_MAX_NR_AKM_SUITES               2
-
-struct qlink_auth_encr {
-	__le32 wpa_versions;
-	__le32 cipher_group;
-	__le32 n_ciphers_pairwise;
-	__le32 ciphers_pairwise[QLINK_MAX_NR_CIPHER_SUITES];
-	__le32 n_akm_suites;
-	__le32 akm_suites[QLINK_MAX_NR_AKM_SUITES];
-	__le16 control_port_ethertype;
-	u8 auth_type;
-	u8 privacy;
-	u8 mfp;
-	u8 control_port;
-	u8 control_port_no_encrypt;
+/**
+ * struct qlink_tlv_chandef - data for QTN_TLV_ID_CHANDEF TLV
+ *
+ * Channel definition.
+ *
+ * @chan: channel definition data.
+ */
+struct qlink_tlv_chandef {
+	struct qlink_tlv_hdr hdr;
+	struct qlink_chandef chan;
 } __packed;
 
 struct qlink_chan_stats {

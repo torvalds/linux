@@ -1077,6 +1077,7 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	mvm->vif_count = 0;
 	mvm->rx_ba_sessions = 0;
 	mvm->fwrt.dump.conf = FW_DBG_INVALID;
+	mvm->monitor_on = false;
 
 	/* keep statistics ticking */
 	iwl_mvm_accu_radio_stats(mvm);
@@ -1437,6 +1438,9 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		mvm->p2p_device_vif = vif;
 	}
 
+	if (vif->type == NL80211_IFTYPE_MONITOR)
+		mvm->monitor_on = true;
+
 	iwl_mvm_vif_dbgfs_register(mvm, vif);
 	goto out_unlock;
 
@@ -1525,6 +1529,9 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 
 	iwl_mvm_power_update_mac(mvm);
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
+
+	if (vif->type == NL80211_IFTYPE_MONITOR)
+		mvm->monitor_on = false;
 
 out_release:
 	mutex_unlock(&mvm->mutex);
@@ -1891,11 +1898,6 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 	 */
 	if (changes & BSS_CHANGED_ASSOC && bss_conf->assoc)
 		iwl_mvm_mac_ctxt_recalc_tsf_id(mvm, vif);
-
-	if (changes & BSS_CHANGED_ASSOC && !bss_conf->assoc &&
-	    mvmvif->lqm_active)
-		iwl_mvm_send_lqm_cmd(vif, LQM_CMD_OPERATION_STOP_MEASUREMENT,
-				     0, 0);
 
 	/*
 	 * If we're not associated yet, take the (new) BSSID before associating
@@ -3425,10 +3427,24 @@ static void iwl_mvm_change_chanctx(struct ieee80211_hw *hw,
 		return;
 
 	mutex_lock(&mvm->mutex);
+
+	/* we are only changing the min_width, may be a noop */
+	if (changed == IEEE80211_CHANCTX_CHANGE_MIN_WIDTH) {
+		if (phy_ctxt->width == ctx->min_def.width)
+			goto out_unlock;
+
+		/* we are just toggling between 20_NOHT and 20 */
+		if (phy_ctxt->width <= NL80211_CHAN_WIDTH_20 &&
+		    ctx->min_def.width <= NL80211_CHAN_WIDTH_20)
+			goto out_unlock;
+	}
+
 	iwl_mvm_bt_coex_vif_change(mvm);
 	iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &ctx->min_def,
 				 ctx->rx_chains_static,
 				 ctx->rx_chains_dynamic);
+
+out_unlock:
 	mutex_unlock(&mvm->mutex);
 }
 
@@ -3893,11 +3909,6 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 
 		break;
 	case NL80211_IFTYPE_STATION:
-		if (mvmvif->lqm_active)
-			iwl_mvm_send_lqm_cmd(vif,
-					     LQM_CMD_OPERATION_STOP_MEASUREMENT,
-					     0, 0);
-
 		/* Schedule the time event to a bit before beacon 1,
 		 * to make sure we're in the new channel when the
 		 * GO/AP arrives. In case count <= 1 immediately schedule the
@@ -4252,31 +4263,6 @@ static void iwl_mvm_event_bar_rx_callback(struct iwl_mvm *mvm,
 				event->u.ba.ssn);
 }
 
-static void
-iwl_mvm_event_frame_timeout_callback(struct iwl_mvm *mvm,
-				     struct ieee80211_vif *vif,
-				     const struct ieee80211_event *event)
-{
-	struct iwl_fw_dbg_trigger_tlv *trig;
-	struct iwl_fw_dbg_trigger_ba *ba_trig;
-
-	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_BA))
-		return;
-
-	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_BA);
-	ba_trig = (void *)trig->data;
-	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
-					   ieee80211_vif_to_wdev(vif), trig))
-		return;
-
-	if (!(le16_to_cpu(ba_trig->frame_timeout) & BIT(event->u.ba.tid)))
-		return;
-
-	iwl_fw_dbg_collect_trig(&mvm->fwrt, trig,
-				"Frame from %pM timed out, tid %d",
-				event->u.ba.sta->addr, event->u.ba.tid);
-}
-
 static void iwl_mvm_mac_event_callback(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       const struct ieee80211_event *event)
@@ -4291,7 +4277,8 @@ static void iwl_mvm_mac_event_callback(struct ieee80211_hw *hw,
 		iwl_mvm_event_bar_rx_callback(mvm, vif, event);
 		break;
 	case BA_FRAME_TIMEOUT:
-		iwl_mvm_event_frame_timeout_callback(mvm, vif, event);
+		iwl_mvm_event_frame_timeout_callback(mvm, vif, event->u.ba.sta,
+						     event->u.ba.tid);
 		break;
 	default:
 		break;

@@ -453,7 +453,8 @@ static void _rtl_add_wowlan_patterns(struct ieee80211_hw *hw,
 	for (i = 0; i < wow->n_patterns; i++) {
 		memset(&rtl_pattern, 0, sizeof(struct rtl_wow_pattern));
 		memset(mask, 0, MAX_WOL_BIT_MASK_SIZE);
-		if (patterns[i].pattern_len > MAX_WOL_PATTERN_SIZE) {
+		if (patterns[i].pattern_len < 0 ||
+		    patterns[i].pattern_len > MAX_WOL_PATTERN_SIZE) {
 			RT_TRACE(rtlpriv, COMP_POWER, DBG_WARNING,
 				 "Pattern[%d] is too long\n", i);
 			continue;
@@ -945,7 +946,7 @@ static int rtl_op_sta_add(struct ieee80211_hw *hw,
 		memcpy(sta_entry->mac_addr, sta->addr, ETH_ALEN);
 		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_DMESG,
 			"Add sta addr is %pM\n", sta->addr);
-		rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0);
+		rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0, true);
 	}
 
 	return 0;
@@ -1151,7 +1152,8 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			}
 
 			if (vif->type == NL80211_IFTYPE_STATION)
-				rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0);
+				rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0,
+								   true);
 			rcu_read_unlock();
 
 			/* to avoid AP Disassociation caused by inactivity */

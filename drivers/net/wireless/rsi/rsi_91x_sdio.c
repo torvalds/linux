@@ -1059,16 +1059,136 @@ static void rsi_disconnect(struct sdio_func *pfunction)
 }
 
 #ifdef CONFIG_PM
+static int rsi_set_sdio_pm_caps(struct rsi_hw *adapter)
+{
+	struct rsi_91x_sdiodev *dev =
+		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	struct sdio_func *func = dev->pfunction;
+	int ret;
+
+	ret = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
+	if (ret)
+		rsi_dbg(ERR_ZONE, "Set sdio keep pwr flag failed: %d\n", ret);
+
+	return ret;
+}
+
+static int rsi_sdio_disable_interrupts(struct sdio_func *pfunc)
+{
+	struct rsi_hw *adapter = sdio_get_drvdata(pfunc);
+	u8 isr_status = 0, data = 0;
+	int ret;
+	unsigned long t1;
+
+	rsi_dbg(INFO_ZONE, "Waiting for interrupts to be cleared..");
+	t1 = jiffies;
+	do {
+		rsi_sdio_read_register(adapter, RSI_FN1_INT_REGISTER,
+				       &isr_status);
+		rsi_dbg(INFO_ZONE, ".");
+	} while ((isr_status) && (jiffies_to_msecs(jiffies - t1) < 20));
+	rsi_dbg(INFO_ZONE, "Interrupts cleared\n");
+
+	sdio_claim_host(pfunc);
+	ret = rsi_cmd52readbyte(pfunc->card, RSI_INT_ENABLE_REGISTER, &data);
+	if (ret < 0) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Failed to read int enable register\n",
+			__func__);
+		goto done;
+	}
+
+	data &= RSI_INT_ENABLE_MASK;
+	ret = rsi_cmd52writebyte(pfunc->card, RSI_INT_ENABLE_REGISTER, data);
+	if (ret < 0) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Failed to write to int enable register\n",
+			__func__);
+		goto done;
+	}
+	ret = rsi_cmd52readbyte(pfunc->card, RSI_INT_ENABLE_REGISTER, &data);
+	if (ret < 0) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Failed to read int enable register\n",
+			__func__);
+		goto done;
+	}
+	rsi_dbg(INFO_ZONE, "int enable reg content = %x\n", data);
+
+done:
+	sdio_release_host(pfunc);
+	return ret;
+}
+
+static int rsi_sdio_enable_interrupts(struct sdio_func *pfunc)
+{
+	u8 data;
+	int ret;
+
+	sdio_claim_host(pfunc);
+	ret = rsi_cmd52readbyte(pfunc->card, RSI_INT_ENABLE_REGISTER, &data);
+	if (ret < 0) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Failed to read int enable register\n", __func__);
+		goto done;
+	}
+
+	data |= ~RSI_INT_ENABLE_MASK & 0xff;
+
+	ret = rsi_cmd52writebyte(pfunc->card, RSI_INT_ENABLE_REGISTER, data);
+	if (ret < 0) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Failed to write to int enable register\n",
+			__func__);
+		goto done;
+	}
+
+	ret = rsi_cmd52readbyte(pfunc->card, RSI_INT_ENABLE_REGISTER, &data);
+	if (ret < 0) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Failed to read int enable register\n", __func__);
+		goto done;
+	}
+	rsi_dbg(INFO_ZONE, "int enable reg content = %x\n", data);
+
+done:
+	sdio_release_host(pfunc);
+	return ret;
+}
+
 static int rsi_suspend(struct device *dev)
 {
-	/* Not yet implemented */
-	return -ENOSYS;
+	int ret;
+	struct sdio_func *pfunction = dev_to_sdio_func(dev);
+	struct rsi_hw *adapter = sdio_get_drvdata(pfunction);
+	struct rsi_common *common;
+
+	if (!adapter) {
+		rsi_dbg(ERR_ZONE, "Device is not ready\n");
+		return -ENODEV;
+	}
+	common = adapter->priv;
+	rsi_sdio_disable_interrupts(pfunction);
+
+	ret = rsi_set_sdio_pm_caps(adapter);
+	if (ret)
+		rsi_dbg(INFO_ZONE,
+			"Setting power management caps failed\n");
+	common->fsm_state = FSM_CARD_NOT_READY;
+
+	return 0;
 }
 
 static int rsi_resume(struct device *dev)
 {
-	/* Not yet implemented */
-	return -ENOSYS;
+	struct sdio_func *pfunction = dev_to_sdio_func(dev);
+	struct rsi_hw *adapter = sdio_get_drvdata(pfunction);
+	struct rsi_common *common = adapter->priv;
+
+	common->fsm_state = FSM_MAC_INIT_DONE;
+	rsi_sdio_enable_interrupts(pfunction);
+
+	return 0;
 }
 
 static const struct dev_pm_ops rsi_pm_ops = {

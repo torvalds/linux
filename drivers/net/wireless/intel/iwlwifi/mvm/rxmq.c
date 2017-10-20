@@ -277,7 +277,9 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 		stats->flag |= RX_FLAG_DECRYPTED;
 		return 0;
 	default:
-		IWL_ERR(mvm, "Unhandled alg: 0x%x\n", status);
+		/* Expected in monitor (not having the keys) */
+		if (!mvm->monitor_on)
+			IWL_ERR(mvm, "Unhandled alg: 0x%x\n", status);
 	}
 
 	return 0;
@@ -492,13 +494,18 @@ void iwl_mvm_reorder_timer_expired(unsigned long data)
 
 	if (expired) {
 		struct ieee80211_sta *sta;
+		struct iwl_mvm_sta *mvmsta;
 
 		rcu_read_lock();
 		sta = rcu_dereference(buf->mvm->fw_id_to_mac_id[buf->sta_id]);
+		mvmsta = iwl_mvm_sta_from_mac80211(sta);
+
 		/* SN is set to the last expired frame + 1 */
 		IWL_DEBUG_HT(buf->mvm,
 			     "Releasing expired frames for sta %u, sn %d\n",
 			     buf->sta_id, sn);
+		iwl_mvm_event_frame_timeout_callback(buf->mvm, mvmsta->vif,
+						     sta, buf->tid);
 		iwl_mvm_release_frames(buf->mvm, sta, NULL, buf, sn);
 		rcu_read_unlock();
 	} else {
@@ -619,7 +626,8 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 		return false;
 
 	/* no sta yet */
-	if (WARN_ON(IS_ERR_OR_NULL(sta)))
+	if (WARN_ONCE(IS_ERR_OR_NULL(sta),
+		      "Got valid BAID without a valid station assigned\n"))
 		return false;
 
 	mvm_sta = iwl_mvm_sta_from_mac80211(sta);

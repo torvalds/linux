@@ -89,6 +89,7 @@
 #include "tof.h"
 #include "fw/runtime.h"
 #include "fw/dbg.h"
+#include "fw/acpi.h"
 
 #define IWL_MVM_MAX_ADDRESSES		5
 /* RSSI offset for WkP */
@@ -146,6 +147,8 @@ struct iwl_mvm_phy_ctxt {
 	u16 id;
 	u16 color;
 	u32 ref;
+
+	enum nl80211_chan_width width;
 
 	/*
 	 * TODO: This should probably be removed. Currently here only for rate
@@ -436,12 +439,6 @@ struct iwl_mvm_vif {
 
 	/* TCP Checksum Offload */
 	netdev_features_t features;
-
-	/*
-	 * link quality measurement - used to check whether this interface
-	 * is in the middle of a link quality measurement
-	 */
-	bool lqm_active;
 };
 
 static inline struct iwl_mvm_vif *
@@ -592,6 +589,7 @@ enum iwl_mvm_tdls_cs_state {
  * @queue: queue of this reorder buffer
  * @last_amsdu: track last ASMDU SN for duplication detection
  * @last_sub_index: track ASMDU sub frame index for duplication detection
+ * @tid: the tid
  * @entries: list of skbs stored
  * @reorder_time: time the packet was stored in the reorder buffer
  * @reorder_timer: timer for frames are in the reorder buffer. For AMSDU
@@ -609,6 +607,7 @@ struct iwl_mvm_reorder_buffer {
 	int queue;
 	u16 last_amsdu;
 	u8 last_sub_index;
+	u8 tid;
 	struct sk_buff_head entries[IEEE80211_MAX_AMPDU_BUF];
 	unsigned long reorder_time[IEEE80211_MAX_AMPDU_BUF];
 	struct timer_list reorder_timer;
@@ -685,20 +684,14 @@ enum iwl_mvm_queue_status {
 
 #define IWL_MVM_NUM_CIPHERS             10
 
-#ifdef CONFIG_ACPI
-#define IWL_MVM_SAR_TABLE_SIZE		10
-#define IWL_MVM_SAR_PROFILE_NUM		4
-#define IWL_MVM_GEO_TABLE_SIZE		6
-
 struct iwl_mvm_sar_profile {
 	bool enabled;
-	u8 table[IWL_MVM_SAR_TABLE_SIZE];
+	u8 table[ACPI_SAR_TABLE_SIZE];
 };
 
 struct iwl_mvm_geo_profile {
-	u8 values[IWL_MVM_GEO_TABLE_SIZE];
+	u8 values[ACPI_GEO_TABLE_SIZE];
 };
-#endif
 
 struct iwl_mvm {
 	/* for logger access */
@@ -1015,9 +1008,12 @@ struct iwl_mvm {
 	bool drop_bcn_ap_mode;
 
 	struct delayed_work cs_tx_unblock_dwork;
+
+	/* does a monitor vif exist (only one can exist hence bool) */
+	bool monitor_on;
 #ifdef CONFIG_ACPI
-	struct iwl_mvm_sar_profile sar_profiles[IWL_MVM_SAR_PROFILE_NUM];
-	struct iwl_mvm_geo_profile geo_profiles[IWL_NUM_GEO_PROFILES];
+	struct iwl_mvm_sar_profile sar_profiles[ACPI_SAR_PROFILE_NUM];
+	struct iwl_mvm_geo_profile geo_profiles[ACPI_NUM_GEO_PROFILES];
 #endif
 };
 
@@ -1159,7 +1155,7 @@ static inline bool iwl_mvm_is_lar_supported(struct iwl_mvm *mvm)
 	 * Enable LAR only if it is supported by the FW (TLV) &&
 	 * enabled in the NVM
 	 */
-	if (mvm->cfg->ext_nvm)
+	if (mvm->cfg->nvm_type == IWL_NVM_EXT)
 		return nvm_lar && tlv_lar;
 	else
 		return tlv_lar;
@@ -1246,6 +1242,12 @@ static inline bool iwl_mvm_has_new_ats_coex_api(struct iwl_mvm *mvm)
 {
 	return fw_has_api(&mvm->fw->ucode_capa,
 			  IWL_UCODE_TLV_API_COEX_ATS_EXTERNAL);
+}
+
+static inline bool iwl_mvm_has_quota_low_latency(struct iwl_mvm *mvm)
+{
+	return fw_has_api(&mvm->fw->ucode_capa,
+			  IWL_UCODE_TLV_API_QUOTA_LOW_LATENCY);
 }
 
 static inline struct agg_tx_status *
@@ -1486,6 +1488,27 @@ int iwl_mvm_binding_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_binding_remove_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 
 /* Quota management */
+static inline size_t iwl_mvm_quota_cmd_size(struct iwl_mvm *mvm)
+{
+	return iwl_mvm_has_quota_low_latency(mvm) ?
+		sizeof(struct iwl_time_quota_cmd) :
+		sizeof(struct iwl_time_quota_cmd_v1);
+}
+
+static inline struct iwl_time_quota_data
+*iwl_mvm_quota_cmd_get_quota(struct iwl_mvm *mvm,
+			     struct iwl_time_quota_cmd *cmd,
+			     int i)
+{
+	struct iwl_time_quota_data_v1 *quotas;
+
+	if (iwl_mvm_has_quota_low_latency(mvm))
+		return &cmd->quotas[i];
+
+	quotas = (struct iwl_time_quota_data_v1 *)cmd->quotas;
+	return (struct iwl_time_quota_data *)&quotas[i];
+}
+
 int iwl_mvm_update_quotas(struct iwl_mvm *mvm, bool force_upload,
 			  struct ieee80211_vif *disabled_vif);
 
@@ -1818,12 +1841,10 @@ unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 				    bool tdls, bool cmd_q);
 void iwl_mvm_connection_loss(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     const char *errmsg);
-
-/* Link Quality Measurement */
-int iwl_mvm_send_lqm_cmd(struct ieee80211_vif *vif,
-			 enum iwl_lqm_cmd_operatrions operation,
-			 u32 duration, u32 timeout);
-bool iwl_mvm_lqm_active(struct iwl_mvm *mvm);
+void iwl_mvm_event_frame_timeout_callback(struct iwl_mvm *mvm,
+					  struct ieee80211_vif *vif,
+					  const struct ieee80211_sta *sta,
+					  u16 tid);
 
 int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b);
 int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm);
