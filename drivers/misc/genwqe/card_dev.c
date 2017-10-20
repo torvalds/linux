@@ -942,6 +942,10 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 
 				genwqe_mapping_init(m,
 						    GENWQE_MAPPING_SGL_TEMP);
+
+				if (ats_flags == ATS_TYPE_SGL_RD)
+					m->write = 0;
+
 				rc = genwqe_user_vmap(cd, m, (void *)u_addr,
 						      u_size, req);
 				if (rc != 0)
@@ -954,7 +958,7 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 			/* create genwqe style scatter gather list */
 			rc = genwqe_alloc_sync_sgl(cd, &req->sgls[i],
 						   (void __user *)u_addr,
-						   u_size);
+						   u_size, m->write);
 			if (rc != 0)
 				goto err_out;
 
