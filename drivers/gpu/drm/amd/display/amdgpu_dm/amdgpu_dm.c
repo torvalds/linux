@@ -1328,13 +1328,16 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	}
 
 	for (i = 0; i < dm->dc->caps.max_planes; i++) {
-		mode_info->planes[i] = kzalloc(sizeof(struct amdgpu_plane),
-								 GFP_KERNEL);
-		if (!mode_info->planes[i]) {
+		struct amdgpu_plane *plane;
+
+		plane = kzalloc(sizeof(struct amdgpu_plane), GFP_KERNEL);
+		mode_info->planes[i] = plane;
+
+		if (!plane) {
 			DRM_ERROR("KMS: Failed to allocate plane\n");
 			goto fail_free_planes;
 		}
-		mode_info->planes[i]->base.type = mode_info->plane_type[i];
+		plane->base.type = mode_info->plane_type[i];
 
 		/*
 		 * HACK: IGT tests expect that each plane can only have one
