@@ -1469,13 +1469,13 @@ static unsigned int uvc_endpoint_max_bpi(struct usb_device *dev,
 	case USB_SPEED_HIGH:
 		psize = usb_endpoint_maxp(&ep->desc);
 		mult = usb_endpoint_maxp_mult(&ep->desc);
-		return (psize & 0x07ff) * mult;
+		return psize * mult;
 	case USB_SPEED_WIRELESS:
 		psize = usb_endpoint_maxp(&ep->desc);
 		return psize;
 	default:
 		psize = usb_endpoint_maxp(&ep->desc);
-		return psize & 0x07ff;
+		return psize;
 	}
 }
 
