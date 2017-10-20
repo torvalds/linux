@@ -9019,7 +9019,7 @@ F:	drivers/*/*loongson1*
 F:	drivers/*/*/*loongson1*
 
 MIPS RINT INSTRUCTION EMULATION
-M:	Aleksandar Markovic <aleksandar.markovic@imgtec.com>
+M:	Aleksandar Markovic <aleksandar.markovic@mips.com>
 L:	linux-mips@linux-mips.org
 S:	Supported
 F:	arch/mips/math-emu/sp_rint.c
