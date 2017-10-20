@@ -34,7 +34,6 @@ struct imx_iim_drvdata {
 struct iim_priv {
 	void __iomem *base;
 	struct clk *clk;
-	struct nvmem_config nvmem;
 };
 
 static int imx_iim_read(void *context, unsigned int offset,
@@ -108,7 +107,7 @@ static int imx_iim_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct iim_priv *iim;
 	struct nvmem_device *nvmem;
-	struct nvmem_config *cfg;
+	struct nvmem_config cfg = {};
 	const struct imx_iim_drvdata *drvdata = NULL;
 
 	iim = devm_kzalloc(dev, sizeof(*iim), GFP_KERNEL);
@@ -130,19 +129,17 @@ static int imx_iim_probe(struct platform_device *pdev)
 	if (IS_ERR(iim->clk))
 		return PTR_ERR(iim->clk);
 
-	cfg = &iim->nvmem;
+	cfg.name = "imx-iim",
+	cfg.read_only = true,
+	cfg.word_size = 1,
+	cfg.stride = 1,
+	cfg.owner = THIS_MODULE,
+	cfg.reg_read = imx_iim_read,
+	cfg.dev = dev;
+	cfg.size = drvdata->nregs;
+	cfg.priv = iim;
 
-	cfg->name = "imx-iim",
-	cfg->read_only = true,
-	cfg->word_size = 1,
-	cfg->stride = 1,
-	cfg->owner = THIS_MODULE,
-	cfg->reg_read = imx_iim_read,
-	cfg->dev = dev;
-	cfg->size = drvdata->nregs;
-	cfg->priv = iim;
-
-	nvmem = nvmem_register(cfg);
+	nvmem = nvmem_register(&cfg);
 	if (IS_ERR(nvmem))
 		return PTR_ERR(nvmem);
 
