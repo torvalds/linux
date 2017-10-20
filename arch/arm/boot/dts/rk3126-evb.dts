@@ -188,6 +188,7 @@
 		#gpio-cells = <2>;
 		#clock-cells = <1>;
 		clock-output-names = "xin32k", "rk816-clkout2";
+		extcon = <&u2phy>;
 
 		vcc1-supply = <&vcc_sys>;
 		vcc2-supply = <&vcc_sys>;
@@ -206,6 +207,31 @@
 
 		rtc {
 			status = "okay";
+		};
+
+		battery {
+			compatible = "rk816-battery";
+			ocv_table = <3400 3654 3686 3710 3744 3775 3803
+				     3825 3843 3858 3870 3886 3916 3955
+				     3988 4010 4023 4032 4049 4080 4151>;
+			design_capacity = <2000>;
+			design_qmax = <2200>;
+			bat_res = <120>;
+			max_input_current = <2000>;
+			max_chrg_current = <1000>;
+			max_chrg_voltage = <4200>;
+			sleep_enter_current = <300>;
+			sleep_exit_current = <300>;
+			sleep_filter_current = <100>;
+			power_off_thresd = <3500>;
+			zero_algorithm_vol = <3800>;
+			fb_temperature = <105>;
+			max_soc_offset = <60>;
+			monitor_sec = <5>;
+			virtual_power = <0>;
+			energy_mode = <0>;
+			power_dc2otg = <0>;
+			dc_det_adc = <0>;
 		};
 
 		regulators {
