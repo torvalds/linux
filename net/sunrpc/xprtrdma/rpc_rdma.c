@@ -637,7 +637,7 @@ map_tail:
 	}
 
 out:
-	req->rl_send_wr.num_sge = sge_no + 1;
+	req->rl_send_wr.num_sge += sge_no;
 	return true;
 
 out_mapping_overflow:
