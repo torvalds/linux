@@ -8009,6 +8009,10 @@ static void controller_lockup_detected(struct ctlr_info *h)
 	spin_unlock_irqrestore(&h->lock, flags);
 	dev_warn(&h->pdev->dev, "Controller lockup detected: 0x%08x after %d\n",
 			lockup_detected, h->heartbeat_sample_interval / HZ);
+	if (lockup_detected == 0xffff0000) {
+		dev_warn(&h->pdev->dev, "Telling controller to do a CHKPT\n");
+		writel(DOORBELL_GENERATE_CHKPT, h->vaddr + SA5_DOORBELL);
+	}
 	pci_disable_device(h->pdev);
 	fail_all_outstanding_cmds(h);
 }
