@@ -277,8 +277,7 @@ static struct rockchip_clk_branch common_clk_branches[] __initdata = {
 	COMPOSITE(ACLK_VIO1, "aclk_vio1", mux_pll_src_5plls_p, 0,
 			RK2928_CLKSEL_CON(31), 13, 3, MFLAGS, 8, 5, DFLAGS,
 			RK2928_CLKGATE_CON(1), 4, GFLAGS),
-	COMPOSITE(HCLK_VIO, "hclk_vio", mux_pll_src_4plls_p, 0,
-			RK2928_CLKSEL_CON(30), 14, 2, MFLAGS, 8, 5, DFLAGS,
+	FACTOR_GATE(HCLK_VIO, "hclk_vio", "aclk_vio0", 0, 1, 4,
 			RK2928_CLKGATE_CON(0), 11, GFLAGS),
 
 	/* PD_PERI */
@@ -579,6 +578,7 @@ static const char *const rk3128_critical_clocks[] __initconst = {
 	"pclk_peri",
 	"pclk_pmu",
 	"sclk_timer5",
+	"hclk_vio_niu",
 };
 
 static struct rockchip_clk_provider *__init rk3128_common_clk_init(struct device_node *np)
