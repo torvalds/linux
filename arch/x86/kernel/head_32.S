@@ -401,7 +401,7 @@ ENTRY(early_idt_handler_array)
 	# 24(%rsp) error code
 	i = 0
 	.rept NUM_EXCEPTION_VECTORS
-	.ifeq (EXCEPTION_ERRCODE_MASK >> i) & 1
+	.if ((EXCEPTION_ERRCODE_MASK >> i) & 1) == 0
 	pushl $0		# Dummy error code, to make stack frame uniform
 	.endif
 	pushl $i		# 20(%esp) Vector number

@@ -817,7 +817,7 @@ ENTRY(\sym)
 
 	ASM_CLAC
 
-	.ifeq \has_error_code
+	.if \has_error_code == 0
 	pushq	$-1				/* ORIG_RAX: no syscall to restart */
 	.endif
 

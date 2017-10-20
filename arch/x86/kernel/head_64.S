@@ -273,7 +273,7 @@ ENDPROC(start_cpu0)
 ENTRY(early_idt_handler_array)
 	i = 0
 	.rept NUM_EXCEPTION_VECTORS
-	.ifeq (EXCEPTION_ERRCODE_MASK >> i) & 1
+	.if ((EXCEPTION_ERRCODE_MASK >> i) & 1) == 0
 		UNWIND_HINT_IRET_REGS
 		pushq $0	# Dummy error code, to make stack frame uniform
 	.else
