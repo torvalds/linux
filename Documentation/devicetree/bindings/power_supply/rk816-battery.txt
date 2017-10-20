@@ -1,0 +1,65 @@
+rk816-battery
+~~~~~~~~~~
+
+Required properties :
+ - compatible: "rk816-battery"
+ - ocv_table: ocv voltage and soc relation table
+ - design_capacity: real capacity tested by tool
+ - design_qmax: nominal capacity * 1.1
+ - max_input_current: maximum current from adapter
+ - max_chrg_current: maximum current for battery charge
+ - max_chrg_voltage: maximum charge voltage for battery
+
+Optional properties :
+ - sleep_enter_current: current threshold of enter relax mode
+ - sleep_exit_current: current threshold of exit relax mode
+ - sleep_filter_current: current threshold of valid relax mode
+ - power_off_thresd: vsys voltage threshold of power off
+ - zero_algorithm_vol: voltage threshold of discharge zero algorithm
+ - fb_temperature: feed back temperature of PMIC
+ - max_soc_offset: soc threshold of correct dsoc as rsoc
+ - monitor_sec: poll seconds for battery delay work
+ - virtual_power: test mode for none battery
+ - energy_mode: try to use all power of battery
+ - power_dc2otg: dc can provide supply for otg 5v
+ - dc_det_adc: dc detect by saradc
+
+Example:
+
+rk816: pmic@1a {
+	compatible = "rockchip,rk816";
+	reg = <0x1a>;
+	interrupt-parent = <&gpio0>;
+	interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pmic_int_l>;
+
+	......
+
+	battery {
+		compatible = "rk816-battery";
+		ocv_table = <3400 3654 3686 3710 3744 3775 3803
+			     3825 3843 3858 3870 3886 3955 3988
+			     4010 4023 4032 4049 4080 4151>;
+		design_capacity = <2000>;
+		design_qmax = <2200>;
+		bat_res = <120>;
+		max_input_current = <2000>;
+		max_chrg_current = <1000>;
+		max_chrg_voltage = <4200>;
+		sleep_enter_current = <300>;
+		sleep_exit_current = <300>;
+		sleep_filter_current = <100>;
+		power_off_thresd = <3500>;
+		zero_algorithm_vol = <3800>;
+		fb_temperature = <105>;
+		max_soc_offset = <60>;
+		monitor_sec = <5>;
+		virtual_power = <0>;
+		energy_mode = <0>;
+		power_dc2otg = <0>;
+		dc_det_adc = <0>;
+	};
+
+	......
+};

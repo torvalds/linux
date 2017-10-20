@@ -519,6 +519,13 @@ config BATTERY_RT5033
 	  The fuelgauge calculates and determines the battery state of charge
 	  according to battery open circuit voltage.
 
+config BATTERY_RK816
+	bool "RK816 Battery driver"
+	depends on MFD_RK808
+	help
+	  If you say yes here you will get support for the battery of RK816 PMIC.
+	  This driver can give support for Rk816 Battery Charge Interface.
+
 config BATTERY_RK818
 	bool "RK818 Battery driver"
 	depends on MFD_RK808
