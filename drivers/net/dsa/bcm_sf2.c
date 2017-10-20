@@ -1067,6 +1067,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	 * permanently used
 	 */
 	set_bit(0, priv->cfp.used);
+	set_bit(0, priv->cfp.unique);
 
 	bcm_sf2_identify_ports(priv, dn->child);
 
