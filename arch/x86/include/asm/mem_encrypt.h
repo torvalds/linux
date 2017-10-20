@@ -47,6 +47,9 @@ void __init mem_encrypt_init(void);
 
 void swiotlb_set_mem_attributes(void *vaddr, unsigned long size);
 
+bool sme_active(void);
+bool sev_active(void);
+
 #else	/* !CONFIG_AMD_MEM_ENCRYPT */
 
 #define sme_me_mask	0ULL
@@ -63,6 +66,9 @@ static inline void __init sme_early_init(void) { }
 
 static inline void __init sme_encrypt_kernel(void) { }
 static inline void __init sme_enable(struct boot_params *bp) { }
+
+static inline bool sme_active(void) { return false; }
+static inline bool sev_active(void) { return false; }
 
 #endif	/* CONFIG_AMD_MEM_ENCRYPT */
 

@@ -42,6 +42,8 @@ static char sme_cmdline_off[] __initdata = "off";
 u64 sme_me_mask __section(.data) = 0;
 EXPORT_SYMBOL_GPL(sme_me_mask);
 
+static bool sev_enabled __section(.data);
+
 /* Buffer used for early in-place encryption by BSP, no locking needed */
 static char sme_early_buffer[PAGE_SIZE] __aligned(PAGE_SIZE);
 
@@ -191,6 +193,30 @@ void __init sme_early_init(void)
 	for (i = 0; i < ARRAY_SIZE(protection_map); i++)
 		protection_map[i] = pgprot_encrypted(protection_map[i]);
 }
+
+/*
+ * SME and SEV are very similar but they are not the same, so there are
+ * times that the kernel will need to distinguish between SME and SEV. The
+ * sme_active() and sev_active() functions are used for this.  When a
+ * distinction isn't needed, the mem_encrypt_active() function can be used.
+ *
+ * The trampoline code is a good example for this requirement.  Before
+ * paging is activated, SME will access all memory as decrypted, but SEV
+ * will access all memory as encrypted.  So, when APs are being brought
+ * up under SME the trampoline area cannot be encrypted, whereas under SEV
+ * the trampoline area must be encrypted.
+ */
+bool sme_active(void)
+{
+	return sme_me_mask && !sev_enabled;
+}
+EXPORT_SYMBOL_GPL(sme_active);
+
+bool sev_active(void)
+{
+	return sme_me_mask && sev_enabled;
+}
+EXPORT_SYMBOL_GPL(sev_active);
 
 /* Architecture __weak replacement functions */
 void __init mem_encrypt_init(void)
