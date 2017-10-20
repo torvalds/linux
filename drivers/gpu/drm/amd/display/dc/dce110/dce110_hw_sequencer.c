@@ -1369,13 +1369,6 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	}
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
-	/* program_scaler and allocate_mem_input are not new asic */
-	if ((!pipe_ctx_old ||
-	     memcmp(&pipe_ctx_old->plane_res.scl_data, &pipe_ctx->plane_res.scl_data,
-		    sizeof(struct scaler_data)) != 0) &&
-	     pipe_ctx->plane_state) {
-		program_scaler(dc, pipe_ctx);
-	}
 
 	/* mst support - use total stream count */
 	if (pipe_ctx->plane_res.mi != NULL) {
