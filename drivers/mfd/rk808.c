@@ -288,6 +288,7 @@ static const struct mfd_cell rk816s[] = {
 	{ .name = "rk808-clkout", },
 	{ .name = "rk808-regulator", },
 	{ .name = "rk8xx-gpio", },
+	{ .name = "rk816-battery", .of_compatible = "rk816-battery", },
 	{
 		.name = "rk8xx-pwrkey",
 		.num_resources = ARRAY_SIZE(rk816_pwrkey_resources),
