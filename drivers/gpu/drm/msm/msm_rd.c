@@ -268,10 +268,6 @@ static void snapshot_buf(struct msm_rd_state *rd,
 	struct msm_gem_object *obj = submit->bos[idx].obj;
 	const char *buf;
 
-	buf = msm_gem_get_vaddr(&obj->base);
-	if (IS_ERR(buf))
-		return;
-
 	if (iova) {
 		buf += iova - submit->bos[idx].iova;
 	} else {
@@ -279,8 +275,21 @@ static void snapshot_buf(struct msm_rd_state *rd,
 		size = obj->base.size;
 	}
 
+	/*
+	 * Always write the GPUADDR header so can get a complete list of all the
+	 * buffers in the cmd
+	 */
 	rd_write_section(rd, RD_GPUADDR,
 			(uint32_t[3]){ iova, size, iova >> 32 }, 12);
+
+	/* But only dump the contents of buffers marked READ */
+	if (!(submit->bos[idx].flags & MSM_SUBMIT_BO_READ))
+		return;
+
+	buf = msm_gem_get_vaddr(&obj->base);
+	if (IS_ERR(buf))
+		return;
+
 	rd_write_section(rd, RD_BUFFER_CONTENTS, buf, size);
 
 	msm_gem_put_vaddr(&obj->base);
@@ -309,17 +318,8 @@ void msm_rd_dump_submit(struct msm_gem_submit *submit)
 
 	rd_write_section(rd, RD_CMD, msg, ALIGN(n, 4));
 
-	if (rd_full) {
-		for (i = 0; i < submit->nr_bos; i++) {
-			/* buffers that are written to probably don't start out
-			 * with anything interesting:
-			 */
-			if (submit->bos[i].flags & MSM_SUBMIT_BO_WRITE)
-				continue;
-
-			snapshot_buf(rd, submit, i, 0, 0);
-		}
-	}
+	for (i = 0; rd_full && i < submit->nr_bos; i++)
+		snapshot_buf(rd, submit, i, 0, 0);
 
 	for (i = 0; i < submit->nr_cmds; i++) {
 		uint64_t iova = submit->cmd[i].iova;
