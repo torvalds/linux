@@ -1,7 +1,7 @@
 /*
  * HND generic pktq operation primitives
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: hnd_pktq.h 591283 2015-10-07 11:52:00Z $
+ * $Id: hnd_pktq.h 641285 2016-06-02 02:33:55Z $
  */
 
 #ifndef _hnd_pktq_h_
@@ -97,17 +97,25 @@ typedef struct {
 	uint32  _logtime;      /**< timestamp of last counter clear  */
 } pktq_counters_t;
 
-typedef struct {
+#define PKTQ_LOG_COMMON \
+	uint32			pps_time;	/**< time spent in ps pretend state */ \
 	uint32                  _prec_log;
+
+typedef struct {
+	PKTQ_LOG_COMMON
 	pktq_counters_t*        _prec_cnt[PKTQ_MAX_PREC];     /**< Counters per queue  */
 } pktq_log_t;
+#else
+typedef struct pktq_log pktq_log_t;
 #endif /* PKTQ_LOG */
 
 
 #define PKTQ_COMMON	\
+	HND_PKTQ_MUTEX_DECL(mutex)							\
+	pktq_log_t *pktqlog;								\
 	uint16 num_prec;        /**< number of precedences in use */			\
 	uint16 hi_prec;         /**< rapid dequeue hint (>= highest non-empty prec) */	\
-	uint16 max;             /**< total max packets */					\
+	uint16 max;             /**< total max packets */				\
 	uint16 len;             /**< total number of packets */
 
 /* multi-priority pkt queue */
@@ -115,10 +123,6 @@ struct pktq {
 	PKTQ_COMMON
 	/* q array must be last since # of elements can be either PKTQ_MAX_PREC or 1 */
 	struct pktq_prec q[PKTQ_MAX_PREC];
-	HND_PKTQ_MUTEX_DECL(mutex)
-#ifdef PKTQ_LOG
-	pktq_log_t*      pktqlog;
-#endif
 };
 
 /* simple, non-priority pkt queue */
@@ -126,13 +130,71 @@ struct spktq {
 	PKTQ_COMMON
 	/* q array must be last since # of elements can be either PKTQ_MAX_PREC or 1 */
 	struct pktq_prec q[1];
-	HND_PKTQ_MUTEX_DECL(mutex)
 };
 
 #define PKTQ_PREC_ITER(pq, prec)        for (prec = (pq)->num_prec - 1; prec >= 0; prec--)
 
-/* fn(pkt, arg).  return true if pkt belongs to if */
+/* fn(pkt, arg).  return true if pkt belongs to bsscfg */
 typedef bool (*ifpkt_cb_t)(void*, int);
+
+/*
+ * pktq filter support
+ */
+
+/* filter function return values */
+typedef enum {
+	PKT_FILTER_NOACTION = 0,    /**< restore the pkt to its position in the queue */
+	PKT_FILTER_DELETE = 1,      /**< delete the pkt */
+	PKT_FILTER_REMOVE = 2,      /**< do not restore the pkt to the queue,
+	                             *   filter fn has taken ownership of the pkt
+	                             */
+} pktq_filter_result_t;
+
+/**
+ * Caller supplied filter function to pktq_pfilter(), pktq_filter().
+ * Function filter(ctx, pkt) is called with its ctx pointer on each pkt in the
+ * pktq.  When the filter function is called, the supplied pkt will have been
+ * unlinked from the pktq.  The filter function returns a pktq_filter_result_t
+ * result specifying the action pktq_filter()/pktq_pfilter() should take for
+ * the pkt.
+ * Here are the actions taken by pktq_filter/pfilter() based on the supplied
+ * filter function's return value:
+ *
+ * PKT_FILTER_NOACTION - The filter will re-link the pkt at its
+ *     previous location.
+ *
+ * PKT_FILTER_DELETE - The filter will not relink the pkt and will
+ *     call the user supplied defer_free_pkt fn on the packet.
+ *
+ * PKT_FILTER_REMOVE - The filter will not relink the pkt. The supplied
+ *     filter fn took ownership (or deleted) the pkt.
+ *
+ * WARNING: pkts inserted by the user (in pkt_filter and/or flush callbacks
+ * and chains) in the prec queue will not be seen by the filter, and the prec
+ * queue will be temporarily be removed from the queue hence there're side
+ * effects including pktq_len() on the queue won't reflect the correct number
+ * of packets in the queue.
+ */
+typedef pktq_filter_result_t (*pktq_filter_t)(void* ctx, void* pkt);
+
+/* The defer_free_pkt callback is invoked when the the pktq_filter callback
+ * returns PKT_FILTER_DELETE decision, which allows the user to deposite
+ * the packet appropriately based on the situation (free the packet or
+ * save it in a temporary queue etc.).
+ */
+typedef void (*defer_free_pkt_fn_t)(void *ctx, void *pkt);
+
+/* The flush_free_pkt callback is invoked when all packets in the pktq
+ * are processed.
+ */
+typedef void (*flush_free_pkt_fn_t)(void *ctx);
+
+/* filter a pktq, using the caller supplied filter/deposition/flush functions */
+extern void  pktq_filter(struct pktq *pq, pktq_filter_t fn, void* arg,
+	defer_free_pkt_fn_t defer, void *defer_ctx, flush_free_pkt_fn_t flush, void *flush_ctx);
+/* filter a particular precedence in pktq, using the caller supplied filter function */
+extern void  pktq_pfilter(struct pktq *pq, int prec, pktq_filter_t fn, void* arg,
+	defer_free_pkt_fn_t defer, void *defer_ctx, flush_free_pkt_fn_t flush, void *flush_ctx);
 
 /* operations on a specific precedence in packet queue */
 
@@ -159,9 +221,6 @@ extern void *pktq_pdeq(struct pktq *pq, int prec);
 extern void *pktq_pdeq_prev(struct pktq *pq, int prec, void *prev_p);
 extern void *pktq_pdeq_with_fn(struct pktq *pq, int prec, ifpkt_cb_t fn, int arg);
 extern void *pktq_pdeq_tail(struct pktq *pq, int prec);
-/* Empty the queue at particular precedence level */
-extern void pktq_pflush(osl_t *osh, struct pktq *pq, int prec, bool dir,
-	ifpkt_cb_t fn, int arg);
 /* Remove a specified packet from its queue */
 extern bool pktq_pdel(struct pktq *pq, void *p, int prec);
 
@@ -189,11 +248,18 @@ extern bool pktq_full(struct pktq *pq);
 #define pktenq_head(pq, p)	pktq_penq_head(((struct pktq *)(void *)pq), 0, (p))
 #define pktdeq(pq)		pktq_pdeq(((struct pktq *)(void *)pq), 0)
 #define pktdeq_tail(pq)		pktq_pdeq_tail(((struct pktq *)(void *)pq), 0)
-#define pktqflush(osh, pq)	pktq_flush(osh, ((struct pktq *)(void *)pq), TRUE, NULL, 0)
+#define pktqflush(osh, pq, dir)	pktq_pflush(osh, ((struct pktq *)(void *)pq), 0, dir)
 #define pktqinit(pq, len)	pktq_init(((struct pktq *)(void *)pq), 1, len)
 #define pktqdeinit(pq)		pktq_deinit((struct pktq *)(void *)pq)
 #define pktqavail(pq)		pktq_avail((struct pktq *)(void *)pq)
 #define pktqfull(pq)		pktq_full((struct pktq *)(void *)pq)
+#define pktqfilter(pq, fltr, fltr_ctx, defer, defer_ctx, flush, flush_ctx) \
+	pktq_pfilter((struct pktq *)pq, 0, fltr, fltr_ctx, defer, defer_ctx, flush, flush_ctx)
+
+/* wrap macros for modules in components use */
+#define spktqinit(pq, max_pkts) pktqinit(pq, max_pkts)
+#define spktenq(pq, p)          pktenq(pq, p)
+#define spktdeq(pq)             pktdeq(pq)
 
 extern bool pktq_init(struct pktq *pq, int num_prec, int max_len);
 extern bool pktq_deinit(struct pktq *pq);
@@ -205,10 +271,14 @@ extern void *pktq_deq(struct pktq *pq, int *prec_out);
 extern void *pktq_deq_tail(struct pktq *pq, int *prec_out);
 extern void *pktq_peek(struct pktq *pq, int *prec_out);
 extern void *pktq_peek_tail(struct pktq *pq, int *prec_out);
-extern void pktq_flush(osl_t *osh, struct pktq *pq, bool dir, ifpkt_cb_t fn, int arg);
+
+/* flush pktq */
+extern void pktq_flush(osl_t *osh, struct pktq *pq, bool dir);
+/* Empty the queue at particular precedence level */
+extern void pktq_pflush(osl_t *osh, struct pktq *pq, int prec, bool dir);
 
 #ifdef __cplusplus
-	}
+}
 #endif
 
 #endif /* _hnd_pktq_h_ */

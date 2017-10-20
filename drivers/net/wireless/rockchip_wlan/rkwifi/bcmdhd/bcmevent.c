@@ -1,7 +1,7 @@
 /*
  * bcmevent read-only data shared by kernel or app layers
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,16 +24,16 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmevent.c 530174 2015-01-29 09:47:55Z $
+ * $Id: bcmevent.c 707287 2017-06-27 06:44:29Z $
  */
 
 #include <typedefs.h>
 #include <bcmutils.h>
 #include <bcmendian.h>
-#include <proto/ethernet.h>
-#include <proto/bcmeth.h>
-#include <proto/bcmevent.h>
-
+#include <ethernet.h>
+#include <bcmeth.h>
+#include <bcmevent.h>
+#include <802.11.h>
 
 /* Table of event name strings for UIs and debugging dumps */
 typedef struct {
@@ -81,6 +81,9 @@ static const bcmevent_name_str_t bcmevent_names[] = {
 	BCMEVENT_NAME(WLC_E_PFN_NET_FOUND),
 	BCMEVENT_NAME(WLC_E_PFN_SCAN_ALLGONE),
 	BCMEVENT_NAME(WLC_E_PFN_NET_LOST),
+	BCMEVENT_NAME(WLC_E_JOIN_START),
+	BCMEVENT_NAME(WLC_E_ROAM_START),
+	BCMEVENT_NAME(WLC_E_ASSOC_START),
 #if defined(IBSS_PEER_DISCOVERY_EVENT)
 	BCMEVENT_NAME(WLC_E_IBSS_ASSOC),
 #endif /* defined(IBSS_PEER_DISCOVERY_EVENT) */
@@ -100,6 +103,7 @@ static const bcmevent_name_str_t bcmevent_names[] = {
 	BCMEVENT_NAME(WLC_E_P2P_DISC_LISTEN_COMPLETE),
 #endif
 	BCMEVENT_NAME(WLC_E_RSSI),
+	BCMEVENT_NAME(WLC_E_PFN_SCAN_COMPLETE),
 	BCMEVENT_NAME(WLC_E_EXTLOG_MSG),
 	BCMEVENT_NAME(WLC_E_ACTION_FRAME),
 	BCMEVENT_NAME(WLC_E_ACTION_FRAME_RX),
@@ -157,7 +161,7 @@ static const bcmevent_name_str_t bcmevent_names[] = {
 	BCMEVENT_NAME(WLC_E_TXFAIL_THRESH),
 #ifdef GSCAN_SUPPORT
 	BCMEVENT_NAME(WLC_E_PFN_GSCAN_FULL_RESULT),
-	BCMEVENT_NAME(WLC_E_PFN_SWC),
+	BCMEVENT_NAME(WLC_E_PFN_SSID_EXT),
 #endif /* GSCAN_SUPPORT */
 #ifdef WLBSSLOAD_REPORT
 	BCMEVENT_NAME(WLC_E_BSS_LOAD),
@@ -172,6 +176,11 @@ static const bcmevent_name_str_t bcmevent_names[] = {
 	BCMEVENT_NAME(WLC_E_CSA_FAILURE_IND),
 	BCMEVENT_NAME(WLC_E_RMC_EVENT),
 	BCMEVENT_NAME(WLC_E_DPSTA_INTF_IND),
+	BCMEVENT_NAME(WLC_E_ALLOW_CREDIT_BORROW),
+	BCMEVENT_NAME(WLC_E_MSCH),
+	BCMEVENT_NAME(WLC_E_ULP),
+	BCMEVENT_NAME(WLC_E_PSK_AUTH),
+	BCMEVENT_NAME(WLC_E_SDB_TRANSITION),
 };
 
 
@@ -227,4 +236,143 @@ wl_event_to_network_order(wl_event_msg_t * evt)
 	evt->auth_type = hton32(evt->auth_type);
 	evt->datalen = hton32(evt->datalen);
 	evt->version = hton16(evt->version);
+}
+
+/*
+ * Validate if the event is proper and if valid copy event header to event.
+ * If proper event pointer is passed, to just validate, pass NULL to event.
+ *
+ * Return values are
+ *	BCME_OK - It is a BRCM event or BRCM dongle event
+ *	BCME_NOTFOUND - Not BRCM, not an event, may be okay
+ *	BCME_BADLEN - Bad length, should not process, just drop
+ */
+int
+is_wlc_event_frame(void *pktdata, uint pktlen, uint16 exp_usr_subtype,
+	bcm_event_msg_u_t *out_event)
+{
+	uint16 evlen = 0;	/* length in bcmeth_hdr */
+	uint16 subtype;
+	uint16 usr_subtype;
+	bcm_event_t *bcm_event;
+	uint8 *pktend;
+	uint8 *evend;
+	int err = BCME_OK;
+	uint32 data_len = 0; /* data length in bcm_event */
+
+	pktend = (uint8 *)pktdata + pktlen;
+	bcm_event = (bcm_event_t *)pktdata;
+
+	/* only care about 16-bit subtype / length versions */
+	if ((uint8 *)&bcm_event->bcm_hdr < pktend) {
+		uint8 short_subtype = *(uint8 *)&bcm_event->bcm_hdr;
+		if (!(short_subtype & 0x80)) {
+			err = BCME_NOTFOUND;
+			goto done;
+		}
+	}
+
+	/* must have both ether_header and bcmeth_hdr */
+	if (pktlen < OFFSETOF(bcm_event_t, event)) {
+		err = BCME_BADLEN;
+		goto done;
+	}
+
+	/* check length in bcmeth_hdr */
+
+	/* temporary - header length not always set properly. When the below
+	 * !BCMDONGLEHOST is in all branches that use trunk DHD, the code
+	 * under BCMDONGLEHOST can be removed.
+	 */
+	evlen = (uint16)(pktend - (uint8 *)&bcm_event->bcm_hdr.version);
+	evend = (uint8 *)&bcm_event->bcm_hdr.version + evlen;
+	if (evend != pktend) {
+		err = BCME_BADLEN;
+		goto done;
+	}
+
+	/* match on subtype, oui and usr subtype for BRCM events */
+	subtype = ntoh16_ua((void *)&bcm_event->bcm_hdr.subtype);
+	if (subtype != BCMILCP_SUBTYPE_VENDOR_LONG) {
+		err = BCME_NOTFOUND;
+		goto done;
+	}
+
+	if (bcmp(BRCM_OUI, &bcm_event->bcm_hdr.oui[0], DOT11_OUI_LEN)) {
+		err = BCME_NOTFOUND;
+		goto done;
+	}
+
+	/* if it is a bcm_event or bcm_dngl_event_t, validate it */
+	usr_subtype = ntoh16_ua((void *)&bcm_event->bcm_hdr.usr_subtype);
+	switch (usr_subtype) {
+	case BCMILCP_BCM_SUBTYPE_EVENT:
+		/* check that header length and pkt length are sufficient */
+		if ((pktlen < sizeof(bcm_event_t)) ||
+			(evend < ((uint8 *)bcm_event + sizeof(bcm_event_t)))) {
+			err = BCME_BADLEN;
+			goto done;
+		}
+
+		/* ensure data length in event is not beyond the packet. */
+		data_len = ntoh32_ua((void *)&bcm_event->event.datalen);
+		if ((sizeof(bcm_event_t) + data_len +
+			BCMILCP_BCM_SUBTYPE_EVENT_DATA_PAD) != pktlen) {
+			err = BCME_BADLEN;
+			goto done;
+		}
+
+		if (exp_usr_subtype && (exp_usr_subtype != usr_subtype)) {
+			err = BCME_NOTFOUND;
+			goto done;
+		}
+
+		if (out_event) {
+			/* ensure BRCM event pkt aligned */
+			memcpy(&out_event->event, &bcm_event->event, sizeof(wl_event_msg_t));
+		}
+
+		break;
+
+	case BCMILCP_BCM_SUBTYPE_DNGLEVENT:
+#if defined(DNGL_EVENT_SUPPORT)
+		if ((pktlen < sizeof(bcm_dngl_event_t)) ||
+			(evend < ((uint8 *)bcm_event + sizeof(bcm_dngl_event_t)))) {
+			err = BCME_BADLEN;
+			goto done;
+		}
+
+		/* ensure data length in event is not beyond the packet. */
+		data_len = ntoh16_ua((void *)&((bcm_dngl_event_t *)pktdata)->dngl_event.datalen);
+		if ((sizeof(bcm_dngl_event_t) + data_len +
+			BCMILCP_BCM_SUBTYPE_EVENT_DATA_PAD) != pktlen) {
+			err = BCME_BADLEN;
+			goto done;
+		}
+
+		if (exp_usr_subtype && (exp_usr_subtype != usr_subtype)) {
+			err = BCME_NOTFOUND;
+			goto done;
+		}
+
+		if (out_event) {
+			/* ensure BRCM dngl event pkt aligned */
+			memcpy(&out_event->dngl_event, &((bcm_dngl_event_t *)pktdata)->dngl_event,
+				sizeof(bcm_dngl_event_msg_t));
+		}
+
+		break;
+#else
+		err = BCME_UNSUPPORTED;
+		break;
+#endif 
+
+	default:
+		err = BCME_NOTFOUND;
+		goto done;
+	}
+
+	BCM_REFERENCE(data_len);
+done:
+	return err;
 }

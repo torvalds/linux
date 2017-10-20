@@ -1,7 +1,7 @@
 /*
  * osl forward declarations
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: osl_decl.h 591283 2015-10-07 11:52:00Z $
+ * $Id: osl_decl.h 596126 2015-10-29 19:53:48Z $
  */
 
 #ifndef _osl_decl_h_

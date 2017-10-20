@@ -1,7 +1,7 @@
 /*
  * Linux cfg80211 Vendor Extension Code
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,12 +24,17 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wl_cfgvendor.h 605796 2015-12-11 13:45:36Z $
+ * $Id: wl_cfgvendor.h 698895 2017-05-11 02:55:17Z $
  */
 
 
 #ifndef _wl_cfgvendor_h_
 #define _wl_cfgvendor_h_
+#if ((LINUX_VERSION_CODE > KERNEL_VERSION(3, 14, 0)) || \
+	defined(CONFIG_BCMDHD_VENDOR_EXT)) && !defined(WL_VENDOR_EXT_SUPPORT)
+/* defined CONFIG_BCMDHD_VENDOR_EXT in brix kernel to enable GSCAN testing */
+#define WL_VENDOR_EXT_SUPPORT
+#endif /* LINUX_VERSION_CODE > KERNEL_VERSION(3, 14, 0) && CONFIG_BCMDHD_VENDOR_EXT */
 
 #define OUI_BRCM    0x001018
 #define OUI_GOOGLE  0x001A11
@@ -39,15 +44,22 @@
 #define VENDOR_SUBCMD_OVERHEAD             ATTRIBUTE_U32_LEN
 #define VENDOR_DATA_OVERHEAD               (NLA_HDRLEN)
 
+enum brcm_vendor_attr {
+	BRCM_ATTR_DRIVER_CMD,
+	BRCM_ATTR_DRIVER_MAX
+};
+
 #define SCAN_RESULTS_COMPLETE_FLAG_LEN       ATTRIBUTE_U32_LEN
 #define SCAN_INDEX_HDR_LEN                   (NLA_HDRLEN)
 #define SCAN_ID_HDR_LEN                      ATTRIBUTE_U32_LEN
 #define SCAN_FLAGS_HDR_LEN                   ATTRIBUTE_U32_LEN
 #define GSCAN_NUM_RESULTS_HDR_LEN            ATTRIBUTE_U32_LEN
+#define GSCAN_CH_BUCKET_MASK_HDR_LEN         ATTRIBUTE_U32_LEN
 #define GSCAN_RESULTS_HDR_LEN                (NLA_HDRLEN)
 #define GSCAN_BATCH_RESULT_HDR_LEN  (SCAN_INDEX_HDR_LEN + SCAN_ID_HDR_LEN + \
 									SCAN_FLAGS_HDR_LEN + \
 							        GSCAN_NUM_RESULTS_HDR_LEN + \
+								GSCAN_CH_BUCKET_MASK_HDR_LEN + \
 									GSCAN_RESULTS_HDR_LEN)
 
 #define VENDOR_REPLY_OVERHEAD       (VENDOR_ID_OVERHEAD + \
@@ -60,6 +72,14 @@
 #define GSCAN_ATTR_SET4				40
 #define GSCAN_ATTR_SET5				50
 #define GSCAN_ATTR_SET6				60
+#define GSCAN_ATTR_SET7				70
+#define GSCAN_ATTR_SET8				80
+#define GSCAN_ATTR_SET9				90
+#define GSCAN_ATTR_SET10			100
+#define GSCAN_ATTR_SET11			110
+#define GSCAN_ATTR_SET12			120
+#define GSCAN_ATTR_SET13			130
+
 
 typedef enum {
 	/* don't use 0 as a valid subcommand */
@@ -73,10 +93,6 @@ typedef enum {
 	ANDROID_NL80211_SUBCMD_GSCAN_RANGE_START = 0x1000,
 	ANDROID_NL80211_SUBCMD_GSCAN_RANGE_END   = 0x10FF,
 
-	/* define all NearbyDiscovery related commands between 0x1100 and 0x11FF */
-	ANDROID_NL80211_SUBCMD_NBD_RANGE_START = 0x1100,
-	ANDROID_NL80211_SUBCMD_NBD_RANGE_END   = 0x11FF,
-
 	/* define all RTT related commands between 0x1100 and 0x11FF */
 	ANDROID_NL80211_SUBCMD_RTT_RANGE_START = 0x1100,
 	ANDROID_NL80211_SUBCMD_RTT_RANGE_END   = 0x11FF,
@@ -86,6 +102,26 @@ typedef enum {
 
 	ANDROID_NL80211_SUBCMD_TDLS_RANGE_START = 0x1300,
 	ANDROID_NL80211_SUBCMD_TDLS_RANGE_END	= 0x13FF,
+
+	ANDROID_NL80211_SUBCMD_DEBUG_RANGE_START = 0x1400,
+	ANDROID_NL80211_SUBCMD_DEBUG_RANGE_END	= 0x14FF,
+
+	/* define all NearbyDiscovery related commands between 0x1500 and 0x15FF */
+	ANDROID_NL80211_SUBCMD_NBD_RANGE_START = 0x1500,
+	ANDROID_NL80211_SUBCMD_NBD_RANGE_END   = 0x15FF,
+
+	/* define all wifi calling related commands between 0x1600 and 0x16FF */
+	ANDROID_NL80211_SUBCMD_WIFI_OFFLOAD_RANGE_START = 0x1600,
+	ANDROID_NL80211_SUBCMD_WIFI_OFFLOAD_RANGE_END   = 0x16FF,
+
+	/* define all NAN related commands between 0x1700 and 0x17FF */
+	ANDROID_NL80211_SUBCMD_NAN_RANGE_START = 0x1700,
+	ANDROID_NL80211_SUBCMD_NAN_RANGE_END   = 0x17FF,
+
+	/* define all packet filter related commands between 0x1800 and 0x18FF */
+	ANDROID_NL80211_SUBCMD_PKT_FILTER_RANGE_START = 0x1800,
+	ANDROID_NL80211_SUBCMD_PKT_FILTER_RANGE_END   = 0x18FF,
+
 	/* This is reserved for future usage */
 
 } ANDROID_VENDOR_SUB_COMMAND;
@@ -104,14 +140,60 @@ enum andr_vendor_subcmd {
 	/* ANDR_WIFI_XXX although not related to gscan are defined here */
 	ANDR_WIFI_SUBCMD_GET_FEATURE_SET,
 	ANDR_WIFI_SUBCMD_GET_FEATURE_SET_MATRIX,
-	ANDR_WIFI_PNO_RANDOM_MAC_OUI,
+	ANDR_WIFI_RANDOM_MAC_OUI,
 	ANDR_WIFI_NODFS_CHANNELS,
+	ANDR_WIFI_SET_COUNTRY,
+	GSCAN_SUBCMD_SET_EPNO_SSID,
+	WIFI_SUBCMD_SET_SSID_WHITELIST,
+	WIFI_SUBCMD_SET_LAZY_ROAM_PARAMS,
+	WIFI_SUBCMD_ENABLE_LAZY_ROAM,
+	WIFI_SUBCMD_SET_BSSID_PREF,
+	WIFI_SUBCMD_SET_BSSID_BLACKLIST,
+	GSCAN_SUBCMD_ANQPO_CONFIG,
+	WIFI_SUBCMD_SET_RSSI_MONITOR,
+	WIFI_SUBCMD_CONFIG_ND_OFFLOAD,
+	WIFI_SUBCMD_CONFIG_TCPACK_SUP,
 	RTT_SUBCMD_SET_CONFIG = ANDROID_NL80211_SUBCMD_RTT_RANGE_START,
 	RTT_SUBCMD_CANCEL_CONFIG,
 	RTT_SUBCMD_GETCAPABILITY,
-
+	RTT_SUBCMD_GETAVAILCHANNEL,
+	RTT_SUBCMD_SET_RESPONDER,
+	RTT_SUBCMD_CANCEL_RESPONDER,
 	LSTATS_SUBCMD_GET_INFO = ANDROID_NL80211_SUBCMD_LSTATS_RANGE_START,
-    /* Add more sub commands here */
+
+	DEBUG_START_LOGGING = ANDROID_NL80211_SUBCMD_DEBUG_RANGE_START,
+	DEBUG_TRIGGER_MEM_DUMP,
+	DEBUG_GET_MEM_DUMP,
+	DEBUG_GET_VER,
+	DEBUG_GET_RING_STATUS,
+	DEBUG_GET_RING_DATA,
+	DEBUG_GET_FEATURE,
+	DEBUG_RESET_LOGGING,
+
+	DEBUG_TRIGGER_DRIVER_MEM_DUMP,
+	DEBUG_GET_DRIVER_MEM_DUMP,
+	DEBUG_START_PKT_FATE_MONITORING,
+	DEBUG_GET_TX_PKT_FATES,
+	DEBUG_GET_RX_PKT_FATES,
+	DEBUG_GET_WAKE_REASON_STATS,
+
+	WIFI_OFFLOAD_SUBCMD_START_MKEEP_ALIVE = ANDROID_NL80211_SUBCMD_WIFI_OFFLOAD_RANGE_START,
+	WIFI_OFFLOAD_SUBCMD_STOP_MKEEP_ALIVE,
+
+	NAN_WIFI_SUBCMD_ENABLE = ANDROID_NL80211_SUBCMD_NAN_RANGE_START,
+	NAN_WIFI_SUBCMD_DISABLE,
+	NAN_WIFI_SUBCMD_REQUEST_PUBLISH,
+	NAN_WIFI_SUBCMD_REQUEST_SUBSCRIBE,
+	NAN_WIFI_SUBCMD_CANCEL_PUBLISH,
+	NAN_WIFI_SUBCMD_CANCEL_SUBSCRIBE,
+	NAN_WIFI_SUBCMD_TRANSMIT,
+#ifdef NAN_DP
+	NAN_WIFI_SUBCMD_DATA_PATH_OPEN,
+	NAN_WIFI_SUBCMD_DATA_PATH_CLOSE,
+#endif /* NAN_DP */
+	APF_SUBCMD_GET_CAPABILITIES = ANDROID_NL80211_SUBCMD_PKT_FILTER_RANGE_START,
+	APF_SUBCMD_SET_FILTER,
+	/* Add more sub commands here */
 	VENDOR_SUBCMD_MAX
 };
 
@@ -142,6 +224,7 @@ enum gscan_attributes {
     GSCAN_ATTRIBUTE_AP_FLAGS,                           /* flags on significant change event */
     GSCAN_ATTRIBUTE_NUM_CHANNELS,
     GSCAN_ATTRIBUTE_CHANNEL_LIST,
+    GSCAN_ATTRIBUTE_CH_BUCKET_BITMASK,
 
 	/* remaining reserved for additional attributes */
 
@@ -167,6 +250,63 @@ enum gscan_attributes {
     GSCAN_ATTRIBUTE_MIN_BREACHING,
     GSCAN_ATTRIBUTE_SIGNIFICANT_CHANGE_BSSIDS,
     GSCAN_ATTRIBUTE_SIGNIFICANT_CHANGE_FLUSH,
+
+    /* EPNO */
+    GSCAN_ATTRIBUTE_EPNO_SSID_LIST = GSCAN_ATTR_SET7,
+    GSCAN_ATTRIBUTE_EPNO_SSID,
+    GSCAN_ATTRIBUTE_EPNO_SSID_LEN,
+    GSCAN_ATTRIBUTE_EPNO_RSSI,
+    GSCAN_ATTRIBUTE_EPNO_FLAGS,
+    GSCAN_ATTRIBUTE_EPNO_AUTH,
+    GSCAN_ATTRIBUTE_EPNO_SSID_NUM,
+    GSCAN_ATTRIBUTE_EPNO_FLUSH,
+
+    /* Roam SSID Whitelist and BSSID pref */
+    GSCAN_ATTRIBUTE_WHITELIST_SSID = GSCAN_ATTR_SET8,
+    GSCAN_ATTRIBUTE_NUM_WL_SSID,
+    GSCAN_ATTRIBUTE_WL_SSID_LEN,
+    GSCAN_ATTRIBUTE_WL_SSID_FLUSH,
+    GSCAN_ATTRIBUTE_WHITELIST_SSID_ELEM,
+    GSCAN_ATTRIBUTE_NUM_BSSID,
+    GSCAN_ATTRIBUTE_BSSID_PREF_LIST,
+    GSCAN_ATTRIBUTE_BSSID_PREF_FLUSH,
+    GSCAN_ATTRIBUTE_BSSID_PREF,
+    GSCAN_ATTRIBUTE_RSSI_MODIFIER,
+
+
+    /* Roam cfg */
+    GSCAN_ATTRIBUTE_A_BAND_BOOST_THRESHOLD = GSCAN_ATTR_SET9,
+    GSCAN_ATTRIBUTE_A_BAND_PENALTY_THRESHOLD,
+    GSCAN_ATTRIBUTE_A_BAND_BOOST_FACTOR,
+    GSCAN_ATTRIBUTE_A_BAND_PENALTY_FACTOR,
+    GSCAN_ATTRIBUTE_A_BAND_MAX_BOOST,
+    GSCAN_ATTRIBUTE_LAZY_ROAM_HYSTERESIS,
+    GSCAN_ATTRIBUTE_ALERT_ROAM_RSSI_TRIGGER,
+    GSCAN_ATTRIBUTE_LAZY_ROAM_ENABLE,
+
+    /* BSSID blacklist */
+    GSCAN_ATTRIBUTE_BSSID_BLACKLIST_FLUSH = GSCAN_ATTR_SET10,
+    GSCAN_ATTRIBUTE_BLACKLIST_BSSID,
+
+    GSCAN_ATTRIBUTE_ANQPO_HS_LIST = GSCAN_ATTR_SET11,
+    GSCAN_ATTRIBUTE_ANQPO_HS_LIST_SIZE,
+    GSCAN_ATTRIBUTE_ANQPO_HS_NETWORK_ID,
+    GSCAN_ATTRIBUTE_ANQPO_HS_NAI_REALM,
+    GSCAN_ATTRIBUTE_ANQPO_HS_ROAM_CONSORTIUM_ID,
+    GSCAN_ATTRIBUTE_ANQPO_HS_PLMN,
+
+    /* Adaptive scan attributes */
+    GSCAN_ATTRIBUTE_BUCKET_STEP_COUNT = GSCAN_ATTR_SET12,
+    GSCAN_ATTRIBUTE_BUCKET_MAX_PERIOD,
+
+    /* ePNO cfg */
+    GSCAN_ATTRIBUTE_EPNO_5G_RSSI_THR = GSCAN_ATTR_SET13,
+    GSCAN_ATTRIBUTE_EPNO_2G_RSSI_THR,
+    GSCAN_ATTRIBUTE_EPNO_INIT_SCORE_MAX,
+    GSCAN_ATTRIBUTE_EPNO_CUR_CONN_BONUS,
+    GSCAN_ATTRIBUTE_EPNO_SAME_NETWORK_BONUS,
+    GSCAN_ATTRIBUTE_EPNO_SECURE_BONUS,
+    GSCAN_ATTRIBUTE_EPNO_5G_BONUS,
     GSCAN_ATTRIBUTE_MAX
 };
 
@@ -197,11 +337,61 @@ enum rtt_attributes {
 	RTT_ATTRIBUTE_TARGET_TYPE,
 	RTT_ATTRIBUTE_TARGET_PEER,
 	RTT_ATTRIBUTE_TARGET_CHAN,
-	RTT_ATTRIBUTE_TARGET_MODE,
-	RTT_ATTRIBUTE_TARGET_INTERVAL,
-	RTT_ATTRIBUTE_TARGET_NUM_MEASUREMENT,
-	RTT_ATTRIBUTE_TARGET_NUM_PKT,
-	RTT_ATTRIBUTE_TARGET_NUM_RETRY
+	RTT_ATTRIBUTE_TARGET_PERIOD,
+	RTT_ATTRIBUTE_TARGET_NUM_BURST,
+	RTT_ATTRIBUTE_TARGET_NUM_FTM_BURST,
+	RTT_ATTRIBUTE_TARGET_NUM_RETRY_FTM,
+	RTT_ATTRIBUTE_TARGET_NUM_RETRY_FTMR,
+	RTT_ATTRIBUTE_TARGET_LCI,
+	RTT_ATTRIBUTE_TARGET_LCR,
+	RTT_ATTRIBUTE_TARGET_BURST_DURATION,
+	RTT_ATTRIBUTE_TARGET_PREAMBLE,
+	RTT_ATTRIBUTE_TARGET_BW,
+	RTT_ATTRIBUTE_RESULTS_COMPLETE = 30,
+	RTT_ATTRIBUTE_RESULTS_PER_TARGET,
+	RTT_ATTRIBUTE_RESULT_CNT,
+	RTT_ATTRIBUTE_RESULT
+};
+
+enum wifi_rssi_monitor_attr {
+	RSSI_MONITOR_ATTRIBUTE_MAX_RSSI,
+	RSSI_MONITOR_ATTRIBUTE_MIN_RSSI,
+	RSSI_MONITOR_ATTRIBUTE_START
+};
+
+enum debug_attributes {
+	DEBUG_ATTRIBUTE_GET_DRIVER,
+	DEBUG_ATTRIBUTE_GET_FW,
+	DEBUG_ATTRIBUTE_RING_ID,
+	DEBUG_ATTRIBUTE_RING_NAME,
+	DEBUG_ATTRIBUTE_RING_FLAGS,
+	DEBUG_ATTRIBUTE_LOG_LEVEL,
+	DEBUG_ATTRIBUTE_LOG_TIME_INTVAL,
+	DEBUG_ATTRIBUTE_LOG_MIN_DATA_SIZE,
+	DEBUG_ATTRIBUTE_FW_DUMP_LEN,
+	DEBUG_ATTRIBUTE_FW_DUMP_DATA,
+	DEBUG_ATTRIBUTE_RING_DATA,
+	DEBUG_ATTRIBUTE_RING_STATUS,
+	DEBUG_ATTRIBUTE_RING_NUM,
+	DEBUG_ATTRIBUTE_DRIVER_DUMP_LEN,
+	DEBUG_ATTRIBUTE_DRIVER_DUMP_DATA,
+	DEBUG_ATTRIBUTE_PKT_FATE_NUM,
+	DEBUG_ATTRIBUTE_PKT_FATE_DATA
+};
+
+enum mkeep_alive_attributes {
+	MKEEP_ALIVE_ATTRIBUTE_ID,
+	MKEEP_ALIVE_ATTRIBUTE_IP_PKT,
+	MKEEP_ALIVE_ATTRIBUTE_IP_PKT_LEN,
+	MKEEP_ALIVE_ATTRIBUTE_SRC_MAC_ADDR,
+	MKEEP_ALIVE_ATTRIBUTE_DST_MAC_ADDR,
+	MKEEP_ALIVE_ATTRIBUTE_PERIOD_MSEC
+};
+enum apf_attributes {
+	APF_ATTRIBUTE_VERSION,
+	APF_ATTRIBUTE_MAX_LEN,
+	APF_ATTRIBUTE_PROGRAM,
+	APF_ATTRIBUTE_PROGRAM_LEN
 };
 
 typedef enum wl_vendor_event {
@@ -214,14 +404,39 @@ typedef enum wl_vendor_event {
 	GOOGLE_RTT_COMPLETE_EVENT,
 	GOOGLE_SCAN_COMPLETE_EVENT,
 	GOOGLE_GSCAN_GEOFENCE_LOST_EVENT,
-	BRCM_VENDOR_EVENT_IDSUP_STATUS
+	GOOGLE_SCAN_EPNO_EVENT,
+	GOOGLE_DEBUG_RING_EVENT,
+	GOOGLE_FW_DUMP_EVENT,
+	GOOGLE_PNO_HOTSPOT_FOUND_EVENT,
+	GOOGLE_RSSI_MONITOR_EVENT,
+	GOOGLE_MKEEP_ALIVE_EVENT,
+	/*
+	 * BRCM specific events should be placed after
+	 * the Generic events so that enums don't mismatch
+	 * between the DHD and HAL
+	 */
+	GOOGLE_NAN_EVENT_ENABLED = 150,
+	GOOGLE_NAN_EVENT_DISABLED,
+	GOOGLE_NAN_EVENT_PUBLISH_TERMINATED,
+	GOOGLE_NAN_EVENT_SUBSCRIBE_MATCH,
+	GOOGLE_NAN_EVENT_SUBSCRIBE_UNMATCH,
+	GOOGLE_NAN_EVENT_SUBSCRIBE_TERMINATED,
+	GOOGLE_NAN_EVENT_DE_EVENT,
+	GOOGLE_NAN_EVENT_FOLLOWUP,
+	GOOGLE_NAN_EVENT_TCA,
+	GOOGLE_NAN_EVENT_DATA_IF_ADD,
+	GOOGLE_NAN_EVENT_DATA_PATH_OPEN,
+	GOOGLE_NAN_EVENT_UNKNOWN
 } wl_vendor_event_t;
 
 enum andr_wifi_attr {
 	ANDR_WIFI_ATTRIBUTE_NUM_FEATURE_SET,
 	ANDR_WIFI_ATTRIBUTE_FEATURE_SET,
-	ANDR_WIFI_ATTRIBUTE_PNO_RANDOM_MAC_OUI,
-	ANDR_WIFI_ATTRIBUTE_NODFS_SET
+	ANDR_WIFI_ATTRIBUTE_RANDOM_MAC_OUI,
+	ANDR_WIFI_ATTRIBUTE_NODFS_SET,
+	ANDR_WIFI_ATTRIBUTE_COUNTRY,
+	ANDR_WIFI_ATTRIBUTE_ND_OFFLOAD_VALUE,
+	ANDR_WIFI_ATTRIBUTE_TCPACK_SUP_VALUE
 };
 
 typedef enum wl_vendor_gscan_attribute {
@@ -248,23 +463,100 @@ typedef enum gscan_geofence_attribute {
 } gscan_geofence_attribute_t;
 
 typedef enum gscan_complete_event {
-	WIFI_SCAN_BUFFER_FULL,
-	WIFI_SCAN_COMPLETE
+	WIFI_SCAN_COMPLETE,
+	WIFI_SCAN_THRESHOLD_NUM_SCANS,
+	WIFI_SCAN_BUFFER_THR_BREACHED
 } gscan_complete_event_t;
+
+#ifdef DHD_WAKE_STATUS
+enum wake_stat_attributes {
+	WAKE_STAT_ATTRIBUTE_TOTAL_CMD_EVENT,
+	WAKE_STAT_ATTRIBUTE_CMD_EVENT_WAKE,
+	WAKE_STAT_ATTRIBUTE_CMD_EVENT_COUNT,
+	WAKE_STAT_ATTRIBUTE_CMD_EVENT_COUNT_USED,
+	WAKE_STAT_ATTRIBUTE_TOTAL_DRIVER_FW,
+	WAKE_STAT_ATTRIBUTE_DRIVER_FW_WAKE,
+	WAKE_STAT_ATTRIBUTE_DRIVER_FW_COUNT,
+	WAKE_STAT_ATTRIBUTE_DRIVER_FW_COUNT_USED,
+	WAKE_STAT_ATTRIBUTE_TOTAL_RX_DATA_WAKE,
+	WAKE_STAT_ATTRIBUTE_RX_UNICAST_COUNT,
+	WAKE_STAT_ATTRIBUTE_RX_MULTICAST_COUNT,
+	WAKE_STAT_ATTRIBUTE_RX_BROADCAST_COUNT,
+	WAKE_STAT_ATTRIBUTE_RX_ICMP_PKT,
+	WAKE_STAT_ATTRIBUTE_RX_ICMP6_PKT,
+	WAKE_STAT_ATTRIBUTE_RX_ICMP6_RA,
+	WAKE_STAT_ATTRIBUTE_RX_ICMP6_NA,
+	WAKE_STAT_ATTRIBUTE_RX_ICMP6_NS,
+	WAKE_STAT_ATTRIBUTE_IPV4_RX_MULTICAST_ADD_CNT,
+	WAKE_STAT_ATTRIBUTE_IPV6_RX_MULTICAST_ADD_CNT,
+	WAKE_STAT_ATTRIBUTE_OTHER_RX_MULTICAST_ADD_CNT
+};
+
+typedef struct rx_data_cnt_details_t {
+	int rx_unicast_cnt;		/* Total rx unicast packet which woke up host */
+	int rx_multicast_cnt;   /* Total rx multicast packet which woke up host */
+	int rx_broadcast_cnt;   /* Total rx broadcast packet which woke up host */
+} RX_DATA_WAKE_CNT_DETAILS;
+
+typedef struct rx_wake_pkt_type_classification_t {
+	int icmp_pkt;   /* wake icmp packet count */
+	int icmp6_pkt;  /* wake icmp6 packet count */
+	int icmp6_ra;   /* wake icmp6 RA packet count */
+	int icmp6_na;   /* wake icmp6 NA packet count */
+	int icmp6_ns;   /* wake icmp6 NS packet count */
+} RX_WAKE_PKT_TYPE_CLASSFICATION;
+
+typedef struct rx_multicast_cnt_t {
+	int ipv4_rx_multicast_addr_cnt; /* Rx wake packet was ipv4 multicast */
+	int ipv6_rx_multicast_addr_cnt; /* Rx wake packet was ipv6 multicast */
+	int other_rx_multicast_addr_cnt; /* Rx wake packet was non-ipv4 and non-ipv6 */
+} RX_MULTICAST_WAKE_DATA_CNT;
+
+typedef struct wlan_driver_wake_reason_cnt_t {
+	int total_cmd_event_wake;    /* Total count of cmd event wakes */
+	int *cmd_event_wake_cnt;     /* Individual wake count array, each index a reason */
+	int cmd_event_wake_cnt_sz;   /* Max number of cmd event wake reasons */
+	int cmd_event_wake_cnt_used; /* Number of cmd event wake reasons specific to the driver */
+	int total_driver_fw_local_wake;    /* Total count of drive/fw wakes, for local reasons */
+	int *driver_fw_local_wake_cnt;     /* Individual wake count array, each index a reason */
+	int driver_fw_local_wake_cnt_sz;   /* Max number of local driver/fw wake reasons */
+	/* Number of local driver/fw wake reasons specific to the driver */
+	int driver_fw_local_wake_cnt_used;
+	int total_rx_data_wake;     /* total data rx packets, that woke up host */
+	RX_DATA_WAKE_CNT_DETAILS rx_wake_details;
+	RX_WAKE_PKT_TYPE_CLASSFICATION rx_wake_pkt_classification_info;
+	RX_MULTICAST_WAKE_DATA_CNT rx_multicast_wake_pkt_info;
+} WLAN_DRIVER_WAKE_REASON_CNT;
+#endif /* DHD_WAKE_STATUS */
 
 /* Capture the BRCM_VENDOR_SUBCMD_PRIV_STRINGS* here */
 #define BRCM_VENDOR_SCMD_CAPA	"cap"
 
-#if defined(WL_VENDOR_EXT_SUPPORT) || defined(CONFIG_BCMDHD_VENDOR_EXT)
-extern int wl_cfgvendor_attach(struct wiphy *wiphy);
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 13, 0)) || defined(WL_VENDOR_EXT_SUPPORT)
+extern int wl_cfgvendor_attach(struct wiphy *wiphy, dhd_pub_t *dhd);
 extern int wl_cfgvendor_detach(struct wiphy *wiphy);
 extern int wl_cfgvendor_send_async_event(struct wiphy *wiphy,
                   struct net_device *dev, int event_id, const void  *data, int len);
 extern int wl_cfgvendor_send_hotlist_event(struct wiphy *wiphy,
                 struct net_device *dev, void  *data, int len, wl_vendor_event_t event);
 #else
-static INLINE int cfgvendor_attach(struct wiphy *wiphy) { return 0; }
-static INLINE int cfgvendor_detach(struct wiphy *wiphy) { return 0; }
-#endif /* defined(WL_VENDOR_EXT_SUPPORT) */
+static INLINE int wl_cfgvendor_attach(struct wiphy *wiphy,
+		dhd_pub_t *dhd) { UNUSED_PARAMETER(wiphy); UNUSED_PARAMETER(dhd); return 0; }
+static INLINE int wl_cfgvendor_detach(struct wiphy *wiphy) { UNUSED_PARAMETER(wiphy); return 0; }
+#endif /*  (LINUX_VERSION_CODE > KERNEL_VERSION(3, 13, 0)) || defined(WL_VENDOR_EXT_SUPPORT) */
+
+#ifdef CONFIG_COMPAT
+#define COMPAT_ASSIGN_VALUE(normal_structure, member, value)	\
+	do { \
+		if (compat_task_state) {	\
+			compat_ ## normal_structure.member = value; \
+		} else { \
+			normal_structure.member = value; \
+		} \
+	} while (0)
+#else
+#define COMPAT_ASSIGN_VALUE(normal_structure, member, value) \
+	normal_structure.member = value;
+#endif /* CONFIG_COMPAT */
 
 #endif /* _wl_cfgvendor_h_ */

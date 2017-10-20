@@ -1,7 +1,7 @@
 /*
  * DHD Linux header file (dhd_linux exports for cfg80211 and other components)
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_linux.h 591285 2015-10-07 11:56:29Z $
+ * $Id: dhd_linux.h 699532 2017-05-15 11:00:39Z $
  */
 
 /* wifi platform functions for power, interrupt and pre-alloc, either
@@ -65,6 +65,9 @@ typedef struct wifi_adapter_info {
 	uint		bus_type;
 	uint		bus_num;
 	uint		slot_num;
+#if defined(BT_OVER_SDIO)
+	const char	*btfw_path;
+#endif /* defined (BT_OVER_SDIO) */
 #ifdef BUS_POWER_RESTORE
 #if defined(BCMSDIO)
 	struct sdio_func *sdio_func;
@@ -76,16 +79,16 @@ typedef struct wifi_adapter_info {
 #endif
 } wifi_adapter_info_t;
 
-#define WLAN_PLAT_NODFS_FLAG    0x01
+#define WLAN_PLAT_NODFS_FLAG	0x01
 #define WLAN_PLAT_AP_FLAG	0x02
 struct wifi_platform_data {
 #ifdef BUS_POWER_RESTORE
-	int (*set_power)(bool val, wifi_adapter_info_t *adapter);
+	int (*set_power)(int val, wifi_adapter_info_t *adapter);
 #else
-	int (*set_power)(bool val);
+	int (*set_power)(int val);
 #endif
 	int (*set_reset)(int val);
-	int (*set_carddetect)(bool val);
+	int (*set_carddetect)(int val);
 	void *(*mem_prealloc)(int section, unsigned long size);
 	int (*get_mac_addr)(unsigned char *buf);
 #if defined(CUSTOM_COUNTRY_CODE)
@@ -109,6 +112,9 @@ typedef struct dhd_sta {
 	struct list_head list;  /* link into dhd_if::sta_list */
 	int idx;                /* index of self in dhd_pub::sta_pool[] */
 	int ifidx;              /* index of interface in dhd */
+#ifdef DHD_WMF
+	struct dhd_sta *psta_prim; /* primary index of psta interface */
+#endif /* DHD_WMF */
 } dhd_sta_t;
 typedef dhd_sta_t dhd_sta_pool_t;
 
@@ -122,7 +128,7 @@ int wifi_platform_get_irq_number(wifi_adapter_info_t *adapter, unsigned long *ir
 int wifi_platform_get_mac_addr(wifi_adapter_info_t *adapter, unsigned char *buf);
 #ifdef CUSTOM_COUNTRY_CODE
 void *wifi_platform_get_country_code(wifi_adapter_info_t *adapter, char *ccode,
-   u32 flags);
+	u32 flags);
 #else
 void *wifi_platform_get_country_code(wifi_adapter_info_t *adapter, char *ccode);
 #endif /* CUSTOM_COUNTRY_CODE */
@@ -134,5 +140,30 @@ bool dhd_update_fw_nv_path(struct dhd_info *dhdinfo);
 
 #ifdef DHD_WMF
 dhd_wmf_t* dhd_wmf_conf(dhd_pub_t *dhdp, uint32 idx);
+int dhd_get_wmf_psta_disable(dhd_pub_t *dhdp, uint32 idx);
+int dhd_set_wmf_psta_disable(dhd_pub_t *dhdp, uint32 idx, int val);
+void dhd_update_psta_interface_for_sta(dhd_pub_t *dhdp, char* ifname,
+		void* mac_addr, void* event_data);
 #endif /* DHD_WMF */
+#if defined(BT_OVER_SDIO)
+int dhd_net_bus_get(struct net_device *dev);
+int dhd_net_bus_put(struct net_device *dev);
+#endif /* BT_OVER_SDIO */
+#ifdef HOFFLOAD_MODULES
+extern void dhd_free_module_memory(struct dhd_bus *bus, struct module_metadata *hmem);
+extern void* dhd_alloc_module_memory(struct dhd_bus *bus, uint32_t size,
+	struct module_metadata *hmem);
+#endif /* HOFFLOAD_MODULES */
+#if defined(WLADPS) || defined(WLADPS_PRIVATE_CMD)
+#define ADPS_ENABLE	1
+#define ADPS_DISABLE	0
+typedef struct bcm_iov_buf {
+	uint16 version;
+	uint16 len;
+	uint16 id;
+	uint16 data[1];
+} bcm_iov_buf_t;
+
+int dhd_enable_adps(dhd_pub_t *dhd, uint8 on);
+#endif /* WLADPS || WLADPS_PRIVATE_CMD */
 #endif /* __DHD_LINUX_H__ */

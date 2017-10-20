@@ -4,7 +4,7 @@
  *
  * Definitions subject to change without notice.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -27,12 +27,12 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmmsgbuf.h 541060 2015-03-13 23:28:01Z $
+ * $Id: bcmmsgbuf.h 676811 2016-12-24 20:48:46Z $
  */
 #ifndef _bcmmsgbuf_h_
 #define	_bcmmsgbuf_h_
 
-#include <proto/ethernet.h>
+#include <ethernet.h>
 #include <wlioctl.h>
 #include <bcmpcie.h>
 
@@ -47,15 +47,25 @@
 #define H2DRING_TXPOST_ITEMSIZE		48
 #define H2DRING_RXPOST_ITEMSIZE		32
 #define H2DRING_CTRL_SUB_ITEMSIZE	40
-#define D2HRING_TXCMPLT_ITEMSIZE	16
-#define D2HRING_RXCMPLT_ITEMSIZE	32
+
+#define D2HRING_TXCMPLT_ITEMSIZE	24
+#define D2HRING_RXCMPLT_ITEMSIZE	40
+
+#define D2HRING_TXCMPLT_ITEMSIZE_PREREV7	16
+#define D2HRING_RXCMPLT_ITEMSIZE_PREREV7	32
+
 #define D2HRING_CTRL_CMPLT_ITEMSIZE	24
+#define H2DRING_INFO_BUFPOST_ITEMSIZE	H2DRING_CTRL_SUB_ITEMSIZE
+#define D2HRING_INFO_BUFCMPLT_ITEMSIZE	D2HRING_CTRL_CMPLT_ITEMSIZE
 
 #define H2DRING_TXPOST_MAX_ITEM			512
 #define H2DRING_RXPOST_MAX_ITEM			512
 #define H2DRING_CTRL_SUB_MAX_ITEM		64
 #define D2HRING_TXCMPLT_MAX_ITEM		1024
 #define D2HRING_RXCMPLT_MAX_ITEM		512
+
+#define H2DRING_DYNAMIC_INFO_MAX_ITEM          32
+#define D2HRING_DYNAMIC_INFO_MAX_ITEM          32
 
 #define D2HRING_CTRL_CMPLT_MAX_ITEM		64
 
@@ -73,6 +83,7 @@ enum {
 };
 
 #define MESSAGE_PAYLOAD(a) (a & MSG_TYPE_INTERNAL_USE_START) ? TRUE : FALSE
+#define PCIEDEV_FIRMWARE_TSINFO 0x1
 
 #ifdef PCIE_API_REV1
 
@@ -135,12 +146,16 @@ typedef struct cmn_msg_hdr {
 
 /** message type */
 typedef enum bcmpcie_msgtype {
-	MSG_TYPE_GEN_STATUS 		= 0x1,
+	MSG_TYPE_GEN_STATUS		= 0x1,
 	MSG_TYPE_RING_STATUS		= 0x2,
 	MSG_TYPE_FLOW_RING_CREATE	= 0x3,
 	MSG_TYPE_FLOW_RING_CREATE_CMPLT	= 0x4,
+	/* Enum value as copied from BISON 7.15: new generic message */
+	MSG_TYPE_RING_CREATE_CMPLT	= 0x4,
 	MSG_TYPE_FLOW_RING_DELETE	= 0x5,
 	MSG_TYPE_FLOW_RING_DELETE_CMPLT	= 0x6,
+	/* Enum value as copied from BISON 7.15: new generic message */
+	MSG_TYPE_RING_DELETE_CMPLT	= 0x6,
 	MSG_TYPE_FLOW_RING_FLUSH	= 0x7,
 	MSG_TYPE_FLOW_RING_FLUSH_CMPLT	= 0x8,
 	MSG_TYPE_IOCTLPTR_REQ		= 0x9,
@@ -171,7 +186,10 @@ typedef enum bcmpcie_msgtype {
 	MSG_TYPE_D2H_RING_CONFIG_CMPLT	= 0x22,
 	MSG_TYPE_H2D_MAILBOX_DATA	= 0x23,
 	MSG_TYPE_D2H_MAILBOX_DATA	= 0x24,
-
+	MSG_TYPE_TIMSTAMP_BUFPOST	= 0x25,
+	MSG_TYPE_HOSTTIMSTAMP		= 0x26,
+	MSG_TYPE_HOSTTIMSTAMP_CMPLT	= 0x27,
+	MSG_TYPE_FIRMWARE_TIMESTAMP	= 0x28,
 	MSG_TYPE_API_MAX_RSVD		= 0x3F
 } bcmpcie_msg_type_t;
 
@@ -183,7 +201,9 @@ typedef enum bcmpcie_msgtype_int {
 	MSG_TYPE_HOST_FETCH		= 0x44,
 	MSG_TYPE_LPBK_DMAXFER_PYLD	= 0x45,
 	MSG_TYPE_TXMETADATA_PYLD	= 0x46,
-	MSG_TYPE_INDX_UPDATE		= 0x47
+	MSG_TYPE_INDX_UPDATE		= 0x47,
+	MSG_TYPE_INFO_PYLD		= 0x48,
+	MSG_TYPE_TS_EVENT_PYLD		= 0x49
 } bcmpcie_msgtype_int_t;
 
 typedef enum bcmpcie_msgtype_u {
@@ -211,6 +231,40 @@ typedef struct bcmpcie_soft_doorbell {
 	uint16	msecs;  /* interrupt coalescing: timeout in millisecs */
 } bcmpcie_soft_doorbell_t;
 
+/**
+ * D2H interrupt using MSI instead of INTX
+ * Host configures MSI vector offset for each D2H interrupt
+ *
+ * D2H_RING_CONFIG_SUBTYPE_MSI_DOORBELL
+ */
+typedef enum bcmpcie_msi_intr_idx {
+	MSI_INTR_IDX_CTRL_CMPL_RING,
+	MSI_INTR_IDX_TXP_CMPL_RING,
+	MSI_INTR_IDX_RXP_CMPL_RING,
+	MSI_INTR_IDX_MAILBOX,
+	MSI_INTR_IDX_MAX
+} bcmpcie_msi_intr_idx_t;
+
+typedef enum bcmpcie_msi_offset_type {
+	BCMPCIE_D2H_MSI_OFFSET_MB0 = 2,
+	BCMPCIE_D2H_MSI_OFFSET_MB1,
+	BCMPCIE_D2H_MSI_OFFSET_DB0,
+	BCMPCIE_D2H_MSI_OFFSET_DB1,
+	BCMPCIE_D2H_MSI_OFFSET_MAX
+} bcmpcie_msi_offset_type_t;
+
+typedef struct bcmpcie_msi_offset {
+	uint16	intr_idx;    /* interrupt index */
+	uint16	msi_offset;  /* msi vector offset */
+} bcmpcie_msi_offset_t;
+
+typedef struct bcmpcie_msi_offset_config {
+	uint32	len;
+	bcmpcie_msi_offset_t	bcmpcie_msi_offset[MSI_INTR_IDX_MAX];
+} bcmpcie_msi_offset_config_t;
+
+#define BCMPCIE_D2H_MSI_OFFSET_DEFAULT	BCMPCIE_D2H_MSI_OFFSET_DB1
+
 
 /* if_id */
 #define BCMPCIE_CMNHDR_IFIDX_PHYINTF_SHFT	5
@@ -226,7 +280,7 @@ typedef struct bcmpcie_soft_doorbell {
 #define BCMPCIE_CMNHDR_FLAGS_DMA_R_IDX		0x1
 #define BCMPCIE_CMNHDR_FLAGS_DMA_R_IDX_INTR	0x2
 #define BCMPCIE_CMNHDR_FLAGS_PHASE_BIT		0x80
-
+#define BCMPCIE_CMNHDR_PHASE_BIT_INIT		0x80
 
 /* IOCTL request message */
 typedef struct ioctl_req_msg {
@@ -261,6 +315,35 @@ typedef struct ioctl_resp_evt_buf_post_msg {
 	uint32		rsvd[4];
 } ioctl_resp_evt_buf_post_msg_t;
 
+/* buffer post messages for device to use to return dbg buffers */
+typedef ioctl_resp_evt_buf_post_msg_t info_buf_post_msg_t;
+
+
+/* An infobuf host buffer starts with a 32 bit (LE) version. */
+#define PCIE_INFOBUF_V1                1
+/* Infobuf v1 type MSGTRACE's data is exactly the same as the MSGTRACE data that
+ * is wrapped previously/also in a WLC_E_TRACE event.  See structure
+ * msgrace_hdr_t in msgtrace.h.
+*/
+#define PCIE_INFOBUF_V1_TYPE_MSGTRACE  1
+
+/* Infobuf v1 type LOGTRACE data is exactly the same as the LOGTRACE data that
+ * is wrapped previously/also in a WLC_E_TRACE event.  See structure
+ * msgrace_hdr_t in msgtrace.h.  (The only difference between a MSGTRACE
+ * and a LOGTRACE is the "trace type" field.)
+*/
+#define PCIE_INFOBUF_V1_TYPE_LOGTRACE  2
+
+/* An infobuf version 1 host buffer has a single TLV.  The information on the
+ * version 1 types follow this structure definition. (int's LE)
+*/
+typedef struct info_buf_payload_hdr_s {
+	uint16 type;
+	uint16 length;
+} info_buf_payload_hdr_t;
+
+#define PCIE_DMA_XFER_FLG_D11_LPBK_MASK	0x00000001
+#define PCIE_DMA_XFER_FLG_D11_LPBK_SHIFT	0
 
 typedef struct pcie_dma_xfer_params {
 	/** common message header */
@@ -278,7 +361,8 @@ typedef struct pcie_dma_xfer_params {
 	uint32		srcdelay;
 	/** delay before doing the dest txfer */
 	uint32		destdelay;
-	uint32		rsvd;
+	uint8		rsvd[3];
+	uint8		flags;
 } pcie_dma_xfer_params_t;
 
 /** Complete msgbuf hdr for flow ring update from host to dongle */
@@ -290,7 +374,10 @@ typedef struct tx_flowring_create_request {
 	uint8 	if_flags;
 	uint16	flow_ring_id;
 	uint8 	tc;
-	uint8	priority;
+	/* priority_ifrmmask is to define core mask in ifrm mode.
+	 * currently it is not used for priority. so uses solely for ifrm mask
+	 */
+	uint8	priority_ifrmmask;
 	uint16 	int_vector;
 	uint16	max_items;
 	uint16	len_item;
@@ -327,8 +414,73 @@ typedef struct ring_config_req {
 		uint32  data[6];
 		/** D2H_RING_CONFIG_SUBTYPE_SOFT_DOORBELL */
 		bcmpcie_soft_doorbell_t soft_doorbell;
+		/** D2H_RING_CONFIG_SUBTYPE_MSI_DOORBELL */
+		bcmpcie_msi_offset_config_t msi_offset;
 	};
 } ring_config_req_t;
+
+/* data structure to use to create on the fly d2h rings */
+typedef struct d2h_ring_create_req {
+	cmn_msg_hdr_t	msg;
+	uint16	ring_id;
+	uint16	ring_type;
+	uint32	flags;
+	bcm_addr64_t	ring_ptr;
+	uint16	max_items;
+	uint16	len_item;
+	uint32	rsvd[3];
+} d2h_ring_create_req_t;
+
+/* data structure to use to create on the fly h2d rings */
+#define MAX_COMPLETION_RING_IDS_ASSOCIATED	4
+typedef struct h2d_ring_create_req {
+	cmn_msg_hdr_t	msg;
+	uint16	ring_id;
+	uint8	ring_type;
+	uint8	n_completion_ids;
+	uint32	flags;
+	bcm_addr64_t	ring_ptr;
+	uint16	max_items;
+	uint16	len_item;
+	uint16	completion_ring_ids[MAX_COMPLETION_RING_IDS_ASSOCIATED];
+	uint32	rsvd;
+} h2d_ring_create_req_t;
+
+typedef struct d2h_ring_config_req {
+	cmn_msg_hdr_t   msg;
+	uint16	d2h_ring_config_subtype;
+	uint16	d2h_ring_id;
+	uint32  d2h_ring_config_data[4];
+	uint32  rsvd[3];
+} d2h_ring_config_req_t;
+
+typedef struct h2d_ring_config_req {
+	cmn_msg_hdr_t   msg;
+	uint16	h2d_ring_config_subtype;
+	uint16	h2d_ring_id;
+	uint32  h2d_ring_config_data;
+	uint32  rsvd[6];
+} h2d_ring_config_req_t;
+
+typedef struct h2d_mailbox_data {
+	cmn_msg_hdr_t   msg;
+	uint32	mail_box_data;
+	uint32  rsvd[7];
+} h2d_mailbox_data_t;
+typedef struct host_timestamp_msg {
+	cmn_msg_hdr_t	msg;
+	uint16		xt_id; /* transaction ID */
+	uint16		input_data_len; /* data len at the host_buf_addr, data in TLVs */
+	uint16		seqnum; /* number of times host captured the timestamp */
+	uint16		rsvd;
+	/* always align on 8 byte boundary */
+	bcm_addr64_t	host_buf_addr;
+	/* rsvd */
+	uint32      rsvd1[4];
+} host_timestamp_msg_t;
+
+/* buffer post message for timestamp events MSG_TYPE_TIMSTAMP_BUFPOST */
+typedef ioctl_resp_evt_buf_post_msg_t ts_buf_post_msg_t;
 
 typedef union ctrl_submit_item {
 	ioctl_req_msg_t			ioctl_req;
@@ -338,19 +490,64 @@ typedef union ctrl_submit_item {
 	tx_flowring_delete_request_t	flow_delete;
 	tx_flowring_flush_request_t	flow_flush;
 	ring_config_req_t		ring_config_req;
+	d2h_ring_create_req_t		d2h_create;
+	h2d_ring_create_req_t		h2d_create;
+	d2h_ring_config_req_t		d2h_config;
+	h2d_ring_config_req_t		h2d_config;
+	h2d_mailbox_data_t		h2d_mailbox_data;
+	host_timestamp_msg_t		host_ts;
+	ts_buf_post_msg_t		ts_buf_post;
 	unsigned char			check[H2DRING_CTRL_SUB_ITEMSIZE];
 } ctrl_submit_item_t;
+
+typedef struct info_ring_submit_item {
+	info_buf_post_msg_t		info_buf_post;
+	unsigned char			check[H2DRING_INFO_BUFPOST_ITEMSIZE];
+} info_sumbit_item_t;
 
 /** Control Completion messages (20 bytes) */
 typedef struct compl_msg_hdr {
 	/** status for the completion */
 	int16	status;
 	/** submisison flow ring id which generated this status */
-	uint16	flow_ring_id;
+	union {
+	    uint16	ring_id;
+	    uint16	flow_ring_id;
+	};
 } compl_msg_hdr_t;
 
 /** XOR checksum or a magic number to audit DMA done */
 typedef uint32 dma_done_t;
+
+#define MAX_CLKSRC_ID	0xF
+
+typedef struct ts_timestamp_srcid {
+	union {
+		uint32	ts_low; /* time stamp low 32 bits */
+		uint32	reserved; /* If timestamp not used */
+	};
+	union {
+		uint32  ts_high; /* time stamp high 28 bits */
+		union {
+			uint32  ts_high_ext :28; /* time stamp high 28 bits */
+			uint32  clk_id_ext :3; /* clock ID source  */
+			uint32  phase :1; /* Phase bit */
+			dma_done_t	marker_ext;
+		};
+	};
+} ts_timestamp_srcid_t;
+
+typedef ts_timestamp_srcid_t ipc_timestamp_t;
+
+typedef struct ts_timestamp {
+	uint32	low;
+	uint32	high;
+} ts_timestamp_t;
+
+typedef ts_timestamp_t tick_count_64_t;
+typedef ts_timestamp_t ts_timestamp_ns_64_t;
+typedef ts_timestamp_t ts_correction_m_t;
+typedef ts_timestamp_t ts_correction_b_t;
 
 /* completion header status codes */
 #define	BCMPCIE_SUCCESS			0
@@ -365,6 +562,11 @@ typedef uint32 dma_done_t;
 #define BCMPCIE_NO_IOCTLRESP_BUF	9
 #define BCMPCIE_MAX_IOCTLRESP_BUF	10
 #define BCMPCIE_MAX_EVENT_BUF		11
+#define BCMPCIE_BAD_PHASE		12
+#define BCMPCIE_INVALID_CPL_RINGID	13
+#define BCMPCIE_RING_TYPE_INVALID	14
+#define BCMPCIE_NO_TS_EVENT_BUF		15
+#define BCMPCIE_MAX_TS_EVENT_BUF	16
 
 /** IOCTL completion response */
 typedef struct ioctl_compl_resp_msg {
@@ -446,13 +648,17 @@ typedef struct pcie_ring_status {
 	dma_done_t		marker;
 } pcie_ring_status_t;
 
-typedef struct tx_flowring_create_response {
-	cmn_msg_hdr_t		msg;
+typedef struct ring_create_response {
+	cmn_msg_hdr_t		cmn_hdr;
 	compl_msg_hdr_t 	cmplt;
 	uint32			rsvd[2];
 	/** XOR checksum or a magic number to audit DMA done */
 	dma_done_t		marker;
-} tx_flowring_create_response_t;
+} ring_create_response_t;
+
+typedef ring_create_response_t tx_flowring_create_response_t;
+typedef ring_create_response_t h2d_ring_create_response_t;
+typedef ring_create_response_t d2h_ring_create_response_t;
 
 typedef struct tx_flowring_delete_response {
 	cmn_msg_hdr_t		msg;
@@ -491,6 +697,57 @@ typedef struct ring_config_resp {
 	dma_done_t      marker;
 } ring_config_resp_t;
 
+typedef struct d2h_mailbox_data {
+	cmn_msg_hdr_t		msg;
+	compl_msg_hdr_t		cmplt;
+	uint32			d2h_mailbox_data;
+	uint32			rsvd[1];
+	/* XOR checksum or a magic number to audit DMA done */
+	dma_done_t		marker;
+} d2h_mailbox_data_t;
+
+/* dbg buf completion msg: send from device to host */
+typedef struct info_buf_resp {
+	/* common message header */
+	cmn_msg_hdr_t		cmn_hdr;
+	/* completion message header */
+	compl_msg_hdr_t		compl_hdr;
+	/* event data len valid with the event buffer */
+	uint16			info_data_len;
+	/* sequence number */
+	uint16			seqnum;
+	/* rsvd	*/
+	uint32			rsvd;
+	/* XOR checksum or a magic number to audit DMA done */
+	dma_done_t		marker;
+} info_buf_resp_t;
+
+typedef struct info_ring_cpl_item {
+	info_buf_resp_t		info_buf_post;
+	unsigned char		check[D2HRING_INFO_BUFCMPLT_ITEMSIZE];
+} info_cpl_item_t;
+
+typedef struct host_timestamp_msg_cpl {
+	cmn_msg_hdr_t		msg;
+	compl_msg_hdr_t cmplt;
+	uint16			xt_id; /* transaction ID */
+	uint16			rsvd;
+	uint32			rsvd1;
+	/* XOR checksum or a magic number to audit DMA done */
+	dma_done_t      marker;
+} host_timestamp_msg_cpl_t;
+
+typedef struct fw_timestamp_event_msg {
+	cmn_msg_hdr_t		msg;
+	compl_msg_hdr_t cmplt;
+	/* fw captures time stamp info and passed that to host in TLVs */
+	uint16			buf_len; /* length of the time stamp data copied in host buf */
+	uint16			seqnum; /* number of times fw captured time stamp */
+	uint32			rsvd;
+	/* XOR checksum or a magic number to audit DMA done */
+	dma_done_t		marker;
+} fw_timestamp_event_msg_t;
+
 typedef union ctrl_completion_item {
 	ioctl_comp_resp_msg_t		ioctl_resp;
 	wlevent_req_msg_t		event;
@@ -503,7 +760,13 @@ typedef union ctrl_completion_item {
 	tx_flowring_flush_response_t	txfl_flush_resp;
 	ctrl_compl_msg_t		ctrl_compl;
 	ring_config_resp_t		ring_config_resp;
-	unsigned char		check[D2HRING_CTRL_CMPLT_ITEMSIZE];
+	d2h_mailbox_data_t		d2h_mailbox_data;
+	info_buf_resp_t			dbg_resp;
+	h2d_ring_create_response_t	h2d_ring_create_resp;
+	d2h_ring_create_response_t	d2h_ring_create_resp;
+	host_timestamp_msg_cpl_t	host_ts_cpl;
+	fw_timestamp_event_msg_t	fw_ts_event;
+	unsigned char			ctrl_response[D2HRING_CTRL_CMPLT_ITEMSIZE];
 } ctrl_completion_item_t;
 
 /** H2D Rxpost ring work items */
@@ -527,8 +790,7 @@ typedef union rxbuf_submit_item {
 	unsigned char		check[H2DRING_RXPOST_ITEMSIZE];
 } rxbuf_submit_item_t;
 
-
-/** D2H Rxcompletion ring work items */
+/* D2H Rxcompletion ring work items for IPC rev7 */
 typedef struct host_rxbuf_cmpl {
 	/** common message header */
 	cmn_msg_hdr_t	cmn_hdr;
@@ -546,7 +808,10 @@ typedef struct host_rxbuf_cmpl {
 	uint32		rx_status_0;
 	uint32		rx_status_1;
 	/** XOR checksum or a magic number to audit DMA done */
+	/* This is for rev6 only. For IPC rev7, this is a reserved field */
 	dma_done_t	marker;
+	/* timestamp */
+	ipc_timestamp_t ts;
 } host_rxbuf_cmpl_t;
 
 typedef union rxbuf_complete_item {
@@ -586,6 +851,12 @@ typedef struct host_txbuf_post {
 
 #define BCMPCIE_PKT_FLAGS_PRIO_SHIFT		5
 #define BCMPCIE_PKT_FLAGS_PRIO_MASK		(7 << BCMPCIE_PKT_FLAGS_PRIO_SHIFT)
+#define BCMPCIE_PKT_FLAGS_MONITOR_NO_AMSDU	0x00
+#define BCMPCIE_PKT_FLAGS_MONITOR_FIRST_PKT	0x01
+#define BCMPCIE_PKT_FLAGS_MONITOR_INTER_PKT	0x02
+#define BCMPCIE_PKT_FLAGS_MONITOR_LAST_PKT	0x03
+#define BCMPCIE_PKT_FLAGS_MONITOR_SHIFT		8
+#define BCMPCIE_PKT_FLAGS_MONITOR_MASK		(3 << BCMPCIE_PKT_FLAGS_MONITOR_SHIFT)
 
 /* These are added to fix up compile issues */
 #define BCMPCIE_TXPOST_FLAGS_FRAME_802_3	BCMPCIE_PKT_FLAGS_FRAME_802_3
@@ -593,13 +864,14 @@ typedef struct host_txbuf_post {
 #define BCMPCIE_TXPOST_FLAGS_PRIO_SHIFT		BCMPCIE_PKT_FLAGS_PRIO_SHIFT
 #define BCMPCIE_TXPOST_FLAGS_PRIO_MASK		BCMPCIE_PKT_FLAGS_PRIO_MASK
 
-/** H2D Txpost ring work items */
+
+/* H2D Txpost ring work items */
 typedef union txbuf_submit_item {
 	host_txbuf_post_t	txpost;
 	unsigned char		check[H2DRING_TXPOST_ITEMSIZE];
 } txbuf_submit_item_t;
 
-/** D2H Txcompletion ring work items */
+/* D2H Txcompletion ring work items - extended for IOC rev7 */
 typedef struct host_txbuf_cmpl {
 	/** common message header */
 	cmn_msg_hdr_t	cmn_hdr;
@@ -613,8 +885,12 @@ typedef struct host_txbuf_cmpl {
 			uint16	tx_status;
 		};
 		/** XOR checksum or a magic number to audit DMA done */
+		/* This is for rev6 only. For IPC rev7, this is not used */
 		dma_done_t	marker;
 	};
+	/* timestamp */
+	ipc_timestamp_t ts;
+
 } host_txbuf_cmpl_t;
 
 typedef union txbuf_complete_item {
@@ -834,30 +1110,93 @@ enum {
 #define MAX_SUSPEND_REQ 15
 
 typedef struct tx_idle_flowring_suspend_request {
-	cmn_msg_hdr_t	msg;
-	uint16	ring_id[MAX_SUSPEND_REQ];      /**< ring Id's */
-	uint16	num;    /**< number of flowid's to suspend */
+	cmn_msg_hdr_t   msg;
+	uint16	ring_id[MAX_SUSPEND_REQ];      /* ring Id's */
+	uint16	num;	/* number of flowid's to suspend */
 } tx_idle_flowring_suspend_request_t;
 
 typedef struct tx_idle_flowring_suspend_response {
-	cmn_msg_hdr_t	msg;
-	compl_msg_hdr_t	cmplt;
+	cmn_msg_hdr_t		msg;
+	compl_msg_hdr_t		cmplt;
 	uint32			rsvd[2];
 	dma_done_t		marker;
 } tx_idle_flowring_suspend_response_t;
 
 typedef struct tx_idle_flowring_resume_request {
-	cmn_msg_hdr_t	msg;
+	cmn_msg_hdr_t   msg;
 	uint16	flow_ring_id;
 	uint16	reason;
 	uint32	rsvd[7];
 } tx_idle_flowring_resume_request_t;
 
 typedef struct tx_idle_flowring_resume_response {
-	cmn_msg_hdr_t	msg;
-	compl_msg_hdr_t	cmplt;
+	cmn_msg_hdr_t		msg;
+	compl_msg_hdr_t		cmplt;
 	uint32			rsvd[2];
 	dma_done_t		marker;
 } tx_idle_flowring_resume_response_t;
+
+/* timesync related additions */
+
+typedef struct _bcm_xtlv {
+	uint16		id; /* TLV idenitifier */
+	uint16		len; /* TLV length in bytes */
+} _bcm_xtlv_t;
+
+#define BCMMSGBUF_FW_CLOCK_INFO_TAG		0
+#define BCMMSGBUF_HOST_CLOCK_INFO_TAG		1
+#define BCMMSGBUF_HOST_CLOCK_SELECT_TAG		2
+#define BCMMSGBUF_D2H_CLOCK_CORRECTION_TAG	3
+#define BCMMSGBUF_HOST_TIMESTAMPING_CONFIG_TAG	4
+#define BCMMSGBUF_MAX_TSYNC_TAG			5
+
+/* Flags in fw clock info TLV */
+#define CAP_DEVICE_TS		(1 << 0)
+#define CAP_CORRECTED_TS	(1 << 1)
+#define TS_CLK_ACTIVE		(1 << 2)
+
+typedef struct ts_fw_clock_info {
+	_bcm_xtlv_t  xtlv; /* BCMMSGBUF_FW_CLOCK_INFO_TAG */
+	ts_timestamp_srcid_t  ts; /* tick count */
+	uchar		clk_src[4]; /* clock source acronym ILP/AVB/TSF */
+	uint32		nominal_clock_freq;
+	uint32		reset_cnt;
+	uint8		flags;
+	uint8		rsvd[3];
+} ts_fw_clock_info_t;
+
+typedef struct ts_host_clock_info {
+	_bcm_xtlv_t  xtlv; /* BCMMSGBUF_HOST_CLOCK_INFO_TAG */
+	tick_count_64_t ticks; /* 64 bit host tick counter */
+	ts_timestamp_ns_64_t ns; /* 64 bit host time in nano seconds */
+} ts_host_clock_info_t;
+
+typedef struct ts_host_clock_sel {
+	_bcm_xtlv_t	xtlv; /* BCMMSGBUF_HOST_CLOCK_SELECT_TAG */
+	uint32		seqnum; /* number of times GPIO time sync toggled */
+	uint8		min_clk_idx; /* clock idenitifer configured for packet tiem stamping */
+	uint8		max_clk_idx; /* clock idenitifer configured for packet tiem stamping */
+	uint16		rsvd[1];
+} ts_host_clock_sel_t;
+
+typedef struct ts_d2h_clock_correction {
+	_bcm_xtlv_t		xtlv; /* BCMMSGBUF_HOST_CLOCK_INFO_TAG */
+	uint8			clk_id; /* clock source in the device */
+	uint8			rsvd[3];
+	ts_correction_m_t	m;	/* y  = 'm' x + b */
+	ts_correction_b_t	b;	/* y  = 'm' x + 'c' */
+} ts_d2h_clock_correction_t;
+
+typedef struct ts_host_timestamping_config {
+	_bcm_xtlv_t		xtlv; /* BCMMSGBUF_HOST_TIMESTAMPING_CONFIG_TAG */
+	/* time period to capture the device time stamp and toggle WLAN_TIME_SYNC_GPIO */
+	uint16			period_ms;
+	uint8			flags;
+	uint8			rsvd;
+	uint32			reset_cnt;
+} ts_host_timestamping_config_t;
+
+/* Flags in host timestamping config TLV */
+#define FLAG_HOST_RESET		(1 << 0)
 
 #endif /* _bcmmsgbuf_h_ */

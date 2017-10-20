@@ -3,7 +3,7 @@
  * This header file housing the define and function prototype use by
  * both the wl driver, tools & Apps.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmwifi_channels.h 591285 2015-10-07 11:56:29Z $
+ * $Id: bcmwifi_channels.h 612483 2016-01-14 03:44:27Z $
  */
 
 #ifndef	_bcmwifi_channels_h_
@@ -116,6 +116,9 @@ typedef struct {
 #define INVCHANSPEC			255
 #define MAX_CHANSPEC				0xFFFF
 
+#define WL_CHANNEL_BAND(ch) (((ch) <= CH_MAX_2G_CHANNEL) ? \
+	WL_CHANSPEC_BAND_2G : WL_CHANSPEC_BAND_5G)
+
 /* channel defines */
 #define LOWER_20_SB(channel)		(((channel) > CH_10MHZ_APART) ? \
 					((channel) - CH_10MHZ_APART) : 0)
@@ -172,11 +175,18 @@ typedef struct {
 #define CHSPEC_BW(chspec)		((chspec) & WL_CHANSPEC_BW_MASK)
 
 #ifdef WL11N_20MHZONLY
-
+#ifdef WL11ULB
+#define CHSPEC_IS2P5(chspec)	(((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_2P5)
+#define CHSPEC_IS5(chspec)	(((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_5)
+#define CHSPEC_IS10(chspec)	(((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_10)
+#else
 #define CHSPEC_IS2P5(chspec)	0
 #define CHSPEC_IS5(chspec)	0
 #define CHSPEC_IS10(chspec)	0
+#endif
 #define CHSPEC_IS20(chspec)	1
+#define CHSPEC_IS20_2G(chspec)	((((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_20) && \
+								CHSPEC_IS2G(chspec))
 #ifndef CHSPEC_IS40
 #define CHSPEC_IS40(chspec)	0
 #endif
@@ -197,6 +207,8 @@ typedef struct {
 #define CHSPEC_IS5(chspec)	(((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_5)
 #define CHSPEC_IS10(chspec)	(((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_10)
 #define CHSPEC_IS20(chspec)	(((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_20)
+#define CHSPEC_IS20_5G(chspec)	((((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_20) && \
+								CHSPEC_IS5G(chspec))
 #ifndef CHSPEC_IS40
 #define CHSPEC_IS40(chspec)	(((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_40)
 #endif
@@ -472,7 +484,7 @@ extern uint8 wf_chspec_ctlchan(chanspec_t chspec);
  *
  * @return Returns the bandwidth string
  */
-extern char * wf_chspec_to_bw_str(chanspec_t chspec);
+extern const char *wf_chspec_to_bw_str(chanspec_t chspec);
 
 /**
  * Return the primary (control) chanspec.
@@ -628,4 +640,6 @@ extern chanspec_t wf_chspec_primary80_chspec(chanspec_t chspec);
  */
 extern uint8 wf_chspec_channel(chanspec_t chspec);
 #endif
+extern chanspec_t wf_channel_create_chspec_frm_opclass(uint8 opclass, uint8 channel);
+extern int wf_channel_create_opclass_frm_chspec(chanspec_t chspec);
 #endif	/* _bcmwifi_channels_h_ */

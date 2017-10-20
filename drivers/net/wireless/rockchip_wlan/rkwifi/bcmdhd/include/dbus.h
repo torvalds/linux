@@ -2,7 +2,7 @@
  * Dongle BUS interface Abstraction layer
  *   target serial buses like USB, SDIO, SPI, etc.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -25,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dbus.h 553311 2015-04-29 10:23:08Z $
+ * $Id: dbus.h 596371 2015-10-30 22:43:47Z $
  */
 
 #ifndef __DBUS_H__
@@ -150,12 +150,14 @@ typedef struct {
  */
 enum {
 	DBUS_CONFIG_ID_RXCTL_DEFERRES = 1,
-	DBUS_CONFIG_ID_AGGR_LIMIT
+	DBUS_CONFIG_ID_AGGR_LIMIT,
+	DBUS_CONFIG_ID_KEEPIF_ON_DEVRESET
 };
 
 typedef struct {
 	uint32 config_id;
 	union {
+		uint32 general_param;
 		bool rxctl_deferrespok;
 		struct {
 			int maxrxsf;

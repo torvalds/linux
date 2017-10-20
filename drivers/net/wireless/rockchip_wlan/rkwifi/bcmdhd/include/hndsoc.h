@@ -1,7 +1,7 @@
 /*
  * Broadcom HND chip & on-chip-interconnect-related definitions.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: hndsoc.h 517544 2014-11-26 00:40:42Z $
+ * $Id: hndsoc.h 613129 2016-01-17 09:25:52Z $
  */
 
 #ifndef	_HNDSOC_H
@@ -45,10 +45,9 @@
 #define	SI_SDRAM_SWAPPED	0x10000000	/* Byteswapped Physical SDRAM */
 #define SI_SDRAM_R2		0x80000000	/* Region 2 for sdram (512 MB) */
 
-#define SI_ENUM_BASE    	0x18000000	/* Enumeration space base */
-
-#define SI_WRAP_BASE    	0x18100000	/* Wrapper space base */
-#define SI_CORE_SIZE    	0x1000		/* each core gets 4Kbytes for registers */
+#define SI_ENUM_BASE		0x18000000	/* Enumeration space base */
+#define SI_WRAP_BASE		0x18100000	/* Wrapper space base */
+#define SI_CORE_SIZE		0x1000		/* each core gets 4Kbytes for registers */
 
 #ifndef SI_MAXCORES
 #define	SI_MAXCORES		32		/* NorthStar has more cores */
@@ -96,6 +95,7 @@
 
 #define SI_BCM53573_NANDFLASH	0x30000000	/* 53573 NAND flash base */
 #define SI_BCM53573_NORFLASH	0x1c000000	/* 53573 NOR flash base */
+#define SI_BCM53573_FLASH2_SZ	0x04000000	/* 53573 NOR flash2 size */
 
 #define	SI_BCM53573_NORFLASH_WINDOW	0x01000000	/* only support 16M direct access for
 							 * 3-byte address modes in spi flash
@@ -103,8 +103,18 @@
 #define	SI_BCM53573_BOOTDEV_MASK	0x3
 #define	SI_BCM53573_BOOTDEV_NOR		0x0
 
+#define SI_BCM53573_NAND_PRE_MASK	0x100	/* 53573 NAND present mask */
+
 #define	SI_BCM53573_DDRTYPE_MASK	0x10
 #define	SI_BCM53573_DDRTYPE_DDR3	0x10
+
+#define	SI_BCM47189_RGMII_VDD_MASK	0x3
+#define	SI_BCM47189_RGMII_VDD_SHIFT	21
+#define	SI_BCM47189_RGMII_VDD_3_3V	0
+#define	SI_BCM47189_RGMII_VDD_2_5V	1
+#define	SI_BCM47189_RGMII_VDD_1_5V	1
+
+#define	SI_BCM53573_LOCKED_CPUPLL	0x1
 
 /* APB bridge code */
 #define	APB_BRIDGE_ID		0x135		/* APB Bridge 0, 1, etc. */
@@ -275,6 +285,7 @@
 #define CCS_ARMFASTCLOCKSTATUS	0x01000000	/* Fast CPU clock is running */
 #define CCS_ERSRC_STS_MASK	0x07000000	/* external resource status */
 #define CCS_ERSRC_STS_SHIFT	24
+#define CCS_SECI_AVAIL		0x01000000	/* RO: SECI is available  */
 
 #define	CCS0_HTAVAIL		0x00010000	/* HT avail in chipc and pcmcia on 4328a0 */
 #define	CCS0_ALPAVAIL		0x00020000	/* ALP avail in chipc and pcmcia on 4328a0 */
@@ -312,4 +323,5 @@ int soc_boot_dev(void *sih);
 int soc_knl_dev(void *sih);
 #endif	/* !defined(_LANGUAGE_ASSEMBLY) && !defined(__ASSEMBLY__) */
 
+#define PMU_BASE_OFFSET	0x00012000	/* PMU offset is changed for ccrev >= 56 */
 #endif /* _HNDSOC_H */

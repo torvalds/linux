@@ -1,7 +1,7 @@
 /*
  * HND Run Time Environment ioctl.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: rte_ioctl.h 514727 2014-11-12 03:02:48Z $
+ * $Id: rte_ioctl.h 615249 2016-01-27 02:04:07Z $
  */
 
 #ifndef _rte_ioctl_h_
@@ -61,7 +61,9 @@ enum hnd_ioctl_cmd {
 	BUS_FLUSH_RXREORDER_Q = 4,
 	BUS_SET_LTR_STATE = 5,
 	BUS_FLUSH_CHAINED_PKTS = 6,
-	BUS_SET_COPY_COUNT = 7
+	BUS_SET_COPY_COUNT = 7,
+	BUS_UPDATE_FLOW_PKTS_MAX = 8,
+	BUS_UPDATE_EXTRA_TXLFRAGS = 9
 };
 
 #define SDPCMDEV_SET_MAXTXPKTGLOM	1

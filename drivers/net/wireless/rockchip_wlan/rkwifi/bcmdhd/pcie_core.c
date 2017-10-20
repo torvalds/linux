@@ -3,7 +3,7 @@
  * Contains PCIe related functions that are shared between different driver models (e.g. firmware
  * builds, DHD builds, BMAC builds), in order to avoid code duplication.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: pcie_core.c 591285 2015-10-07 11:56:29Z $
+ * $Id: pcie_core.c 658668 2016-09-09 00:42:11Z $
  */
 
 #include <bcm_cfg.h>
@@ -37,6 +37,7 @@
 #include <siutils.h>
 #include <hndsoc.h>
 #include <sbchipc.h>
+#include <pcicfg.h>
 
 #include "pcie_core.h"
 
@@ -111,5 +112,24 @@ void  pcie_serdes_iddqdisable(osl_t *osh, si_t *sih, sbpcieregs_t *sbpcieregs)
 		crwlpciegen2_117_disable);
 
 	si_setcoreidx(sih, origidx);
+}
+
+#define PCIE_PMCR_REFUP_MASK 0x3f0001e0
+#define PCIE_PMCR_REFEXT_MASK 0x400000
+#define PCIE_PMCR_REFUP_100US 0x38000080
+#define PCIE_PMCR_REFEXT_100US 0x400000
+
+/* Set PCIE TRefUp time to 100us */
+void pcie_set_trefup_time_100us(si_t *sih)
+{
+	si_corereg(sih, sih->buscoreidx,
+		OFFSETOF(sbpcieregs_t, configaddr), ~0, PCI_PMCR_REFUP);
+	si_corereg(sih, sih->buscoreidx,
+		OFFSETOF(sbpcieregs_t, configdata), PCIE_PMCR_REFUP_MASK, PCIE_PMCR_REFUP_100US);
+
+	si_corereg(sih, sih->buscoreidx,
+		OFFSETOF(sbpcieregs_t, configaddr), ~0, PCI_PMCR_REFUP_EXT);
+	si_corereg(sih, sih->buscoreidx,
+		OFFSETOF(sbpcieregs_t, configdata), PCIE_PMCR_REFEXT_MASK, PCIE_PMCR_REFEXT_100US);
 }
 #endif /* BCMDRIVER */

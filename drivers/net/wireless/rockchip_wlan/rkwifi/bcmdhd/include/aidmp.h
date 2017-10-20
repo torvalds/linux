@@ -1,7 +1,7 @@
 /*
  * Broadcom AMBA Interconnect definitions.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: aidmp.h 514727 2014-11-12 03:02:48Z $
+ * $Id: aidmp.h 614820 2016-01-23 17:16:17Z $
  */
 
 #ifndef	_AIDMP_H
@@ -373,7 +373,22 @@ typedef volatile struct _aidmp {
 #define AIELD_ERRDONE_MASK	0x3
 
 /* errlogstatus */
-#define AIELS_TIMEOUT_MASK	0x3
+#define AIELS_SLAVE_ERR         0x1
+#define AIELS_TIMEOUT           0x2
+#define AIELS_DECODE            0x3
+#define AIELS_TIMEOUT_MASK      0x3
+
+/* errorlog status bit map, for SW use */
+#define AXI_WRAP_STS_NONE		(0)
+#define AXI_WRAP_STS_TIMEOUT		(1<<0)
+#define AXI_WRAP_STS_SLAVE_ERR		(1<<1)
+#define AXI_WRAP_STS_DECODE_ERR		(1<<2)
+#define AXI_WRAP_STS_PCI_RD_ERR		(1<<3)
+#define AXI_WRAP_STS_WRAP_RD_ERR	(1<<4)
+#define AXI_WRAP_STS_SET_CORE_FAIL	(1<<5)
+
+/* errlogFrags */
+#define AXI_ERRLOG_FLAGS_WRITE_REQ	(1<<24)
 
 /* config */
 #define	AICFG_OOB		0x00000020
@@ -398,5 +413,12 @@ typedef volatile struct _aidmp {
 #define AI_OOBSEL_6_SHIFT	16
 #define AI_OOBSEL_7_SHIFT	24
 #define AI_IOCTRL_ENABLE_D11_PME	(1 << 14)
+
+/* mask for interrupts from each core to wrapper */
+#define AI_OOBSELINA74_CORE_MASK       0x80808080
+#define AI_OOBSELINA30_CORE_MASK       0x80808080
+
+/* axi id mask in the error log id */
+#define AI_ERRLOGID_AXI_ID_MASK 0x07
 
 #endif	/* _AIDMP_H */

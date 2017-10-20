@@ -1,7 +1,7 @@
 /*
  * Console support for RTE - for host use only.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: hnd_cons.h 514727 2014-11-12 03:02:48Z $
+ * $Id: hnd_cons.h 568961 2015-07-06 18:14:49Z $
  */
 #ifndef	_hnd_cons_h_
 #define	_hnd_cons_h_
@@ -34,7 +34,11 @@
 
 #define CBUF_LEN	(128)
 
+#if defined(BCM_BIG_LOG)
+#define LOG_BUF_LEN	(16 * 1024)
+#else
 #define LOG_BUF_LEN	1024
+#endif
 
 #ifdef BOOTLOADER_CONSOLE_OUTPUT
 #undef RWL_MAX_DATA_LEN

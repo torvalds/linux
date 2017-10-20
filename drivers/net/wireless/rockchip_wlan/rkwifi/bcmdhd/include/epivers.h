@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -22,7 +22,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: epivers.h.in,v 13.33 2010-09-08 22:08:53 $
+ * $Id: epivers.h.in 596126 2015-10-29 19:53:48Z $
  *
 */
 
@@ -31,21 +31,21 @@
 
 #define	EPI_MAJOR_VERSION	1
 
-#define	EPI_MINOR_VERSION	363
+#define	EPI_MINOR_VERSION	579
 
-#define	EPI_RC_NUMBER		59
+#define	EPI_RC_NUMBER		77
 
-#define	EPI_INCREMENTAL_NUMBER	144
+#define	EPI_INCREMENTAL_NUMBER	41
 
 #define	EPI_BUILD_NUMBER	0
 
-#define	EPI_VERSION		1, 363, 59, 144
+#define	EPI_VERSION		1, 579, 77, 41
 
-#define	EPI_VERSION_NUM		0x0116b3b9
+#define	EPI_VERSION_NUM		0x012434d29
 
-#define EPI_VERSION_DEV		1.363.59
+#define EPI_VERSION_DEV		1.579.77.41
 
 /* Driver Version String, ASCII, 32 chars max */
-#define	EPI_VERSION_STR		"1.363.59.144.10 (r)"
+#define	EPI_VERSION_STR		"1.579.77.41.2 (r)"
 
 #endif /* _epivers_h_ */

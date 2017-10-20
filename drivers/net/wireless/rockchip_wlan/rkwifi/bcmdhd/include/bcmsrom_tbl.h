@@ -1,7 +1,7 @@
 /*
  * Table that encodes the srom formats for PCI/PCIe NICs.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmsrom_tbl.h 553564 2015-04-30 06:19:30Z $
+ * $Id: bcmsrom_tbl.h 616054 2016-01-29 13:22:24Z $
  */
 
 #ifndef	_bcmsrom_tbl_h_
@@ -108,9 +108,9 @@ static const sromvar_t pci_sromvars[] = {
 	{"boardnum",	0x00000700,	0,		SROM8_MACLO,		0xffff},
 	{"cc",		0x00000002,	0,		SROM_AABREV,		SROM_CC_MASK},
 	{"regrev",	0x00000008,	0,		SROM_OPO,		0xff00},
-	{"regrev",	0x00000010,	0,		SROM4_REGREV,		0x00ff},
-	{"regrev",	0x000000e0,	0,		SROM5_REGREV,		0x00ff},
-	{"regrev",	0x00000700,	0,		SROM8_REGREV,		0x00ff},
+	{"regrev",	0x00000010,	0,		SROM4_REGREV,		0xffff},
+	{"regrev",	0x000000e0,	0,		SROM5_REGREV,		0xffff},
+	{"regrev",	0x00000700,	0,		SROM8_REGREV,		0xffff},
 	{"ledbh0",	0x0000000e,	SRFL_NOFFS,	SROM_LEDBH10,		0x00ff},
 	{"ledbh1",	0x0000000e,	SRFL_NOFFS,	SROM_LEDBH10,		0xff00},
 	{"ledbh2",	0x0000000e,	SRFL_NOFFS,	SROM_LEDBH32,		0x00ff},
@@ -473,7 +473,7 @@ static const sromvar_t pci_sromvars[] = {
 	{"boardnum",	0xfffff800,	0,			SROM11_MACLO,	0xffff},
 	{"macaddr",	0xfffff800,	SRFL_ETHADDR,		SROM11_MACHI,	0xffff},
 	{"ccode",	0xfffff800,	SRFL_CCODE,		SROM11_CCODE,	0xffff},
-	{"regrev",	0xfffff800,	0,			SROM11_REGREV,	0x00ff},
+	{"regrev",	0xfffff800,	0,			SROM11_REGREV,	0xffff},
 	{"ledbh0",	0xfffff800,	SRFL_NOFFS,		SROM11_LEDBH10,	0x00ff},
 	{"ledbh1",	0xfffff800,	SRFL_NOFFS,		SROM11_LEDBH10,	0xff00},
 	{"ledbh2",	0xfffff800,	SRFL_NOFFS,		SROM11_LEDBH32,	0x00ff},
@@ -513,6 +513,7 @@ static const sromvar_t pci_sromvars[] = {
 	{"tempcorrx",		0xfffff800,	SRFL_PRHEX, 	SROM11_TS_SLP_OPT_CORRX, 0xfc00},
 	{"tempsense_option",	0xfffff800,	SRFL_PRHEX,	SROM11_TS_SLP_OPT_CORRX, 0x0300},
 	{"xtalfreq",		0xfffff800,	0,		SROM11_XTAL_FREQ, 	0xffff},
+	{"txpwrbckof",	0x00000800,	SRFL_PRHEX,	SROM11_PATH0 + SROM11_2G_MAXP,	0xff00},
 	/* Special PA Params for 4350 5G Band, 40/80 MHz BW Ant #1 */
 	{"pa5gbw4080a1", 0xfffff800,	SRFL_PRHEX | SRFL_ARRAY, SROM11_5GB0_4080_W0_A1, 0xffff},
 	{"", 0xfffff800, SRFL_PRHEX | SRFL_ARRAY, SROM11_5GB0_4080_W1_A1,                 0xffff},
@@ -765,6 +766,12 @@ static const sromvar_t pci_sromvars[] = {
 
 	{"gpdn",		0xfffff000,	SRFL_PRHEX|SRFL_MORE,	SROM12_GPDN_L,	0xffff},
 	{"",			0,		0,			SROM12_GPDN_H,	0xffff},
+
+	{"rpcal2gcore3",        0xffffe000, 	0,	SROM13_RPCAL2GCORE3,            0x00ff},
+	{"rpcal5gb0core3",      0xffffe000, 	0,	SROM13_RPCAL5GB01CORE3,         0x00ff},
+	{"rpcal5gb1core3",      0xffffe000, 	0,	SROM13_RPCAL5GB01CORE3,         0xff00},
+	{"rpcal5gb2core3",      0xffffe000, 	0,	SROM13_RPCAL5GB23CORE3,         0x00ff},
+	{"rpcal5gb3core3",      0xffffe000, 	0,	SROM13_RPCAL5GB23CORE3,         0xff00},
 
 	{"eu_edthresh2g",       0x00002000,     0,       SROM13_EU_EDCRSTH,     0x00ff},
 	{"eu_edthresh5g",       0x00002000,     0,       SROM13_EU_EDCRSTH,     0xff00},
@@ -1284,7 +1291,7 @@ static const cis_tuple_t cis_hnbuvars[] = {
 	{HNBU_LEDDC,		0xffffffff, 3, "2leddc"},
 	{HNBU_RDLRNDIS,		0xffffffff, 2, "1rdlndis"},
 	{HNBU_CHAINSWITCH,	0xffffffff, 5, "1txchain 1rxchain 2antswitch"},
-	{HNBU_REGREV,		0xffffffff, 2, "1regrev"},
+	{HNBU_REGREV,		0xffffffff, 3, "2regrev"},
 	{HNBU_FEM,		0x000007fe, 5, "0antswctl2g 0triso2g 0pdetrange2g 0extpagain2g "
 	"0tssipos2g 0antswctl5g 0triso5g 0pdetrange5g 0extpagain5g 0tssipos5g"}, /* special case */
 	{HNBU_PAPARMS_C0,	0x000007fe, 31, "1maxp2ga0 1itt2ga0 2pa2gw0a0 2pa2gw1a0 "
@@ -1394,6 +1401,7 @@ static const cis_tuple_t cis_hnbuvars[] = {
 	{HNBU_TXBFRPCALS,  0xfffff800, 11,
 	"2rpcal2g 2rpcal5gb0 2rpcal5gb1 2rpcal5gb2 2rpcal5gb3"}, /* txbf rpcalvars */
 	{HNBU_GPIO_PULL_DOWN,	0xffffffff, 5, "4gpdn"},
+	{HNBU_MACADDR2,		0xffffffff, 7, "6macaddr2"},	/* special case */
 	{0xFF,			0xffffffff, 0, ""}
 };
 

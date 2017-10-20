@@ -2,7 +2,7 @@
  * Generic Broadcom Home Networking Division (HND) DMA engine HW interface
  * This supports the following chips: BCM42xx, 44xx, 47xx .
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -25,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: sbhnddma.h 530150 2015-01-29 08:43:40Z $
+ * $Id: sbhnddma.h 615537 2016-01-28 00:46:34Z $
  */
 
 #ifndef	_sbhnddma_h_
@@ -125,6 +125,10 @@ typedef volatile struct {
 #define DMA_PT_4	2
 #define DMA_PT_8	3
 
+/** Channel Switch */
+#define DMA_CS_OFF	0
+#define DMA_CS_ON	1
+
 /* transmit descriptor table pointer */
 #define	XP_LD_MASK	0xfff			/**< last valid descriptor */
 
@@ -163,7 +167,8 @@ typedef volatile struct {
 #define RC_PC_SHIFT	21
 #define RC_PT_MASK	0x03000000		/**< Prefetch threshold */
 #define RC_PT_SHIFT	24
-
+#define RC_WAITCMP_MASK 0x00001000
+#define RC_WAITCMP_SHIFT 12
 /* receive descriptor table pointer */
 #define	RP_LD_MASK	0xfff			/**< last valid descriptor */
 
@@ -288,6 +293,8 @@ typedef volatile struct {
 #define	D64_XC_FL		0x00000010	/**< flush request */
 #define D64_XC_MR_MASK		0x000001C0	/**< Multiple outstanding reads */
 #define D64_XC_MR_SHIFT		6
+#define D64_XC_CS_SHIFT		9		/**< channel switch enable */
+#define D64_XC_CS_MASK		0x00000200      /**< channel switch enable */
 #define	D64_XC_PD		0x00000800	/**< parity check disable */
 #define	D64_XC_AE		0x00030000	/**< address extension bits */
 #define	D64_XC_AE_SHIFT		16
@@ -340,6 +347,8 @@ typedef volatile struct {
 #define D64_RC_PC_SHIFT		21
 #define D64_RC_PT_MASK		0x03000000	/**< Prefetch threshold */
 #define D64_RC_PT_SHIFT		24
+#define D64_RC_WAITCMP_MASK	0x00001000
+#define D64_RC_WAITCMP_SHIFT	12
 
 /* flags for dma controller */
 #define DMA_CTRL_PEN		(1 << 0)	/**< partity enable */
@@ -364,8 +373,8 @@ typedef volatile struct {
 #define	D64_RS0_RS_STOPPED	0x30000000	/**< stopped */
 #define	D64_RS0_RS_SUSP		0x40000000	/**< suspend pending */
 
-#define	D64_RS1_AD_MASK		0x0001ffff	/**< active descriptor */
-#define	D64_RS1_RE_MASK		0xf0000000     	/**< receive errors */
+#define	D64_RS1_AD_MASK		(di->d64_rs1_ad_mask)	/* active descriptor pointer */
+#define	D64_RS1_RE_MASK		0xf0000000	/* receive errors */
 #define	D64_RS1_RE_SHIFT		28
 #define	D64_RS1_RE_NOERR	0x00000000	/**< no error */
 #define	D64_RS1_RE_DPO		0x10000000	/**< descriptor protocol error */

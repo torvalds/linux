@@ -3,7 +3,7 @@
  * Contents are wifi-specific, used by any kernel or app-level
  * software that might want wifi things as it grows.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmwifi_channels.c 591285 2015-10-07 11:56:29Z $
+ * $Id: bcmwifi_channels.c 612483 2016-01-14 03:44:27Z $
  */
 
 #include <bcm_cfg.h>
@@ -160,6 +160,42 @@ static const uint8 wf_5g_160m_chans[] =
 #define WF_NUM_5G_160M_CHANS \
 	(sizeof(wf_5g_160m_chans)/sizeof(uint8))
 
+/* opclass and channel information for US. Table E-1 */
+static const uint16 opclass_data[] = {
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_20)&WL_CHANSPEC_BW_MASK)),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_20)&WL_CHANSPEC_BW_MASK)),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_20)&WL_CHANSPEC_BW_MASK)),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_20)&WL_CHANSPEC_BW_MASK)),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_20)&WL_CHANSPEC_BW_MASK)),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_5)&WL_CHANSPEC_BW_MASK)),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_5)&WL_CHANSPEC_BW_MASK)),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_10)&WL_CHANSPEC_BW_MASK)),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_10)&WL_CHANSPEC_BW_MASK)),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_20)&WL_CHANSPEC_BW_MASK)),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_20)&WL_CHANSPEC_BW_MASK)),
+	(WL_CHANSPEC_BAND_2G |((WL_CHANSPEC_BW_20)&WL_CHANSPEC_BW_MASK)),
+	(WL_CHANSPEC_BAND_3G |((WL_CHANSPEC_BW_20)&WL_CHANSPEC_BW_MASK)),
+	(WL_CHANSPEC_BAND_3G |((WL_CHANSPEC_BW_10)&WL_CHANSPEC_BW_MASK)),
+	(WL_CHANSPEC_BAND_3G |((WL_CHANSPEC_BW_5)&WL_CHANSPEC_BW_MASK)),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_5)&WL_CHANSPEC_BW_MASK)),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_10)&WL_CHANSPEC_BW_MASK)),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_20)&WL_CHANSPEC_BW_MASK)),
+	0,
+	0,
+	0,
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_40)&WL_CHANSPEC_BW_MASK)|WL_CHANSPEC_CTL_SB_LOWER),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_40)&WL_CHANSPEC_BW_MASK)|WL_CHANSPEC_CTL_SB_LOWER),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_40)&WL_CHANSPEC_BW_MASK)|WL_CHANSPEC_CTL_SB_LOWER),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_40)&WL_CHANSPEC_BW_MASK)|WL_CHANSPEC_CTL_SB_LOWER),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_40)&WL_CHANSPEC_BW_MASK)|WL_CHANSPEC_CTL_SB_LOWER),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_40)&WL_CHANSPEC_BW_MASK)|WL_CHANSPEC_CTL_SB_UPPER),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_40)&WL_CHANSPEC_BW_MASK)|WL_CHANSPEC_CTL_SB_UPPER),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_40)&WL_CHANSPEC_BW_MASK)|WL_CHANSPEC_CTL_SB_UPPER),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_40)&WL_CHANSPEC_BW_MASK)|WL_CHANSPEC_CTL_SB_UPPER),
+	(WL_CHANSPEC_BAND_5G |((WL_CHANSPEC_BW_40)&WL_CHANSPEC_BW_MASK)|WL_CHANSPEC_CTL_SB_UPPER),
+	(WL_CHANSPEC_BAND_2G |((WL_CHANSPEC_BW_40)&WL_CHANSPEC_BW_MASK)|WL_CHANSPEC_CTL_SB_LOWER),
+	(WL_CHANSPEC_BAND_2G |((WL_CHANSPEC_BW_40)&WL_CHANSPEC_BW_MASK)|WL_CHANSPEC_CTL_SB_UPPER),
+};
 
 /* convert bandwidth from chanspec to MHz */
 static uint
@@ -788,10 +824,10 @@ wf_chspec_ctlchan(chanspec_t chspec)
 }
 
 /* given a chanspec, return the bandwidth string */
-char *
+const char *
 wf_chspec_to_bw_str(chanspec_t chspec)
 {
-		return (char *)wf_chspec_bw_str[(CHSPEC_BW(chspec) >> WL_CHANSPEC_BW_SHIFT)];
+	return wf_chspec_bw_str[(CHSPEC_BW(chspec) >> WL_CHANSPEC_BW_SHIFT)];
 }
 
 /*
@@ -1251,3 +1287,63 @@ wf_chspec_channel(chanspec_t chspec)
 	}
 }
 #endif /* WL11AC_80P80 */
+
+/* This routine returns the chanspec for a given operating class and
+ * channel number
+ */
+chanspec_t
+wf_channel_create_chspec_frm_opclass(uint8 opclass, uint8 channel)
+{
+	chanspec_t chanspec = 0;
+	uint16 opclass_info = 0;
+	uint16 lookupindex = 0;
+	switch (opclass) {
+		case 115:
+			lookupindex = 1;
+			break;
+		case 124:
+			lookupindex = 3;
+			break;
+		case 125:
+			lookupindex = 5;
+			break;
+		case 81:
+			lookupindex = 12;
+			break;
+		case 116:
+			lookupindex = 22;
+			break;
+		case 119:
+			lookupindex = 23;
+			break;
+		case 126:
+			lookupindex = 25;
+			break;
+		case 83:
+			lookupindex = 32;
+			break;
+		case 84:
+			lookupindex = 33;
+			break;
+		default:
+			lookupindex = 12;
+	}
+
+	if (lookupindex < 33) {
+		opclass_info = opclass_data[lookupindex-1];
+	}
+	else {
+		opclass_info = opclass_data[11];
+	}
+	chanspec = opclass_info | (uint16)channel;
+	return chanspec;
+}
+
+/* This routine returns the opclass for a given chanspec */
+int
+wf_channel_create_opclass_frm_chspec(chanspec_t chspec)
+{
+	BCM_REFERENCE(chspec);
+	/* TODO: Implement this function ! */
+	return 12; /* opclass 12 for basic 2G channels */
+}

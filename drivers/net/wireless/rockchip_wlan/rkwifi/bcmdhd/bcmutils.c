@@ -1,7 +1,7 @@
 /*
  * Driver O/S-independent utility routines
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmutils.c 591286 2015-10-07 11:59:26Z $
+ * $Id: bcmutils.c 699163 2017-05-12 05:18:23Z $
  */
 
 #include <bcm_cfg.h>
@@ -54,12 +54,50 @@
 
 #include <bcmendian.h>
 #include <bcmdevs.h>
-#include <proto/ethernet.h>
-#include <proto/vlan.h>
-#include <proto/bcmip.h>
-#include <proto/802.1d.h>
-#include <proto/802.11.h>
+#include <ethernet.h>
+#include <vlan.h>
+#include <bcmip.h>
+#include <802.1d.h>
+#include <802.11.h>
+#include <bcmip.h>
+#include <bcmipv6.h>
+#include <bcmtcp.h>
 
+/* Look-up table to calculate head room present in a number */
+static const uint8 msb_table[] = {
+	0, 1, 2, 2, 3, 3, 3, 3,
+	4, 4, 4, 4, 4, 4, 4, 4,
+	5, 5, 5, 5, 5, 5, 5, 5,
+	5, 5, 5, 5, 5, 5, 5, 5,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	8, 8, 8, 8, 8, 8, 8, 8,
+	8, 8, 8, 8, 8, 8, 8, 8,
+	8, 8, 8, 8, 8, 8, 8, 8,
+	8, 8, 8, 8, 8, 8, 8, 8,
+	8, 8, 8, 8, 8, 8, 8, 8,
+	8, 8, 8, 8, 8, 8, 8, 8,
+	8, 8, 8, 8, 8, 8, 8, 8,
+	8, 8, 8, 8, 8, 8, 8, 8,
+	8, 8, 8, 8, 8, 8, 8, 8,
+	8, 8, 8, 8, 8, 8, 8, 8,
+	8, 8, 8, 8, 8, 8, 8, 8,
+	8, 8, 8, 8, 8, 8, 8, 8,
+	8, 8, 8, 8, 8, 8, 8, 8,
+	8, 8, 8, 8, 8, 8, 8, 8,
+	8, 8, 8, 8, 8, 8, 8, 8,
+	8, 8, 8, 8, 8, 8, 8, 8,
+};
 
 void *_bcmutils_dummy_fn = NULL;
 
@@ -67,7 +105,6 @@ void *_bcmutils_dummy_fn = NULL;
 
 
 #ifdef BCMDRIVER
-
 
 
 /* copy a pkt buffer chain into a buffer */
@@ -336,8 +373,16 @@ bcm_strtoul(const char *cp, char **endp, uint base)
 	       (value = bcm_isdigit(*cp) ? *cp-'0' : bcm_toupper(*cp)-'A'+10) < base) {
 		result = result*base + value;
 		/* Detected overflow */
-		if (result < last_result && !minus)
+		if (result < last_result && !minus) {
+			if (endp) {
+				/* Go to the end of current number */
+				while (bcm_isxdigit(*cp)) {
+					cp++;
+				}
+				*endp = DISCARD_QUAL(cp, char);
+			}
 			return (ulong)-1;
+		}
 		last_result = result;
 		cp++;
 	}
@@ -798,11 +843,11 @@ pktsetprio(void *pkt, bool update_vtag)
 			evh->vlan_tag = hton16(vlan_tag);
 			rc |= PKTPRIO_UPD;
 		}
-#ifdef DHD_LOSSLESS_ROAMING
+#if defined(EAPOL_PKT_PRIO) || defined(DHD_LOSSLESS_ROAMING)
 	} else if (eh->ether_type == hton16(ETHER_TYPE_802_1X)) {
 		priority = PRIO_8021D_NC;
 		rc = PKTPRIO_DSCP;
-#endif /* DHD_LOSSLESS_ROAMING */
+#endif /* EAPOL_PKT_PRIO || DHD_LOSSLESS_ROAMING */
 	} else if ((eh->ether_type == hton16(ETHER_TYPE_IP)) ||
 		(eh->ether_type == hton16(ETHER_TYPE_IPV6))) {
 		uint8 *ip_body = pktdata + sizeof(struct ether_header);
@@ -936,6 +981,73 @@ pktset8021xprio(void *pkt, int prio)
 	}
 }
 
+/* usr_prio range from low to high with usr_prio value */
+static bool
+up_table_set(uint8 *up_table, uint8 usr_prio, uint8 low, uint8 high)
+{
+	int i;
+
+	if (usr_prio > 7 || low > high || low >= UP_TABLE_MAX || high >= UP_TABLE_MAX) {
+		return FALSE;
+	}
+
+	for (i = low; i <= high; i++) {
+		up_table[i] = usr_prio;
+	}
+
+	return TRUE;
+}
+
+/* set user priority table */
+int BCMFASTPATH
+wl_set_up_table(uint8 *up_table, bcm_tlv_t *qos_map_ie)
+{
+	uint8 len;
+
+	if (up_table == NULL || qos_map_ie == NULL) {
+		return BCME_ERROR;
+	}
+
+	/* clear table to check table was set or not */
+	memset(up_table, 0xff, UP_TABLE_MAX);
+
+	/* length of QoS Map IE must be 16+n*2, n is number of exceptions */
+	if (qos_map_ie != NULL && qos_map_ie->id == DOT11_MNG_QOS_MAP_ID &&
+			(len = qos_map_ie->len) >= QOS_MAP_FIXED_LENGTH &&
+			(len % 2) == 0) {
+		uint8 *except_ptr = (uint8 *)qos_map_ie->data;
+		uint8 except_len = len - QOS_MAP_FIXED_LENGTH;
+		uint8 *range_ptr = except_ptr + except_len;
+		int i;
+
+		/* fill in ranges */
+		for (i = 0; i < QOS_MAP_FIXED_LENGTH; i += 2) {
+			uint8 low = range_ptr[i];
+			uint8 high = range_ptr[i + 1];
+			if (low == 255 && high == 255) {
+				continue;
+			}
+
+			if (!up_table_set(up_table, i / 2, low, high)) {
+				/* clear the table on failure */
+				memset(up_table, 0xff, UP_TABLE_MAX);
+				return BCME_ERROR;
+			}
+		}
+
+		/* update exceptions */
+		for (i = 0; i < except_len; i += 2) {
+			uint8 dscp = except_ptr[i];
+			uint8 usr_prio = except_ptr[i+1];
+
+			/* exceptions with invalid dscp/usr_prio are ignored */
+			up_table_set(up_table, usr_prio, dscp, dscp);
+		}
+	}
+
+	return BCME_OK;
+}
+
 /* The 0.5KB string table is not removed by compiler even though it's unused */
 
 static char bcm_undeferrstr[32];
@@ -957,7 +1069,6 @@ bcmerrorstr(int bcmerror)
 
 	return bcmerrorstrtable[-bcmerror];
 }
-
 
 
 /* iovar table lookup */
@@ -990,6 +1101,7 @@ int
 bcm_iovar_lencheck(const bcm_iovar_t *vi, void *arg, int len, bool set)
 {
 	int bcmerror = 0;
+	BCM_REFERENCE(arg);
 
 	/* length check on io buf */
 	switch (vi->type) {
@@ -1874,6 +1986,41 @@ bcm_parse_tlvs(void *buf, int buflen, uint key)
 	return NULL;
 }
 
+bcm_tlv_t *
+bcm_parse_tlvs_dot11(void *buf, int buflen, uint key, bool id_ext)
+{
+	bcm_tlv_t *elt;
+	int totlen;
+
+	elt = (bcm_tlv_t*)buf;
+	totlen = buflen;
+
+	/* find tagged parameter */
+	while (totlen >= TLV_HDR_LEN) {
+		int len = elt->len;
+
+		do {
+			/* validate remaining totlen */
+			if (totlen <  (int)(len + TLV_HDR_LEN))
+				break;
+
+			if (id_ext) {
+				if (!DOT11_MNG_IE_ID_EXT_MATCH(elt, key))
+					break;
+			} else if (elt->id != key) {
+				break;
+			}
+
+			return (elt);
+		} while (0);
+
+		elt = (bcm_tlv_t*)((uint8*)elt + (len + TLV_HDR_LEN));
+		totlen -= (len + TLV_HDR_LEN);
+	}
+
+	return NULL;
+}
+
 /*
  * Traverse a string of 1-byte tag/1-byte length/variable-length value
  * triples, returning a pointer to the substring whose first element
@@ -1883,7 +2030,8 @@ bcm_parse_tlvs(void *buf, int buflen, uint key)
 bcm_tlv_t *
 bcm_parse_tlvs_min_bodylen(void *buf, int buflen, uint key, int min_bodylen)
 {
-	bcm_tlv_t * ret = bcm_parse_tlvs(buf, buflen, key);
+	bcm_tlv_t * ret;
+	ret = bcm_parse_tlvs(buf, buflen, key);
 	if (ret == NULL || ret->len < min_bodylen) {
 		return NULL;
 	}
@@ -2022,7 +2170,7 @@ bcm_format_hex(char *str, const void *bytes, int len)
 
 /* pretty hex print a contiguous buffer */
 void
-prhex(const char *msg, uchar *buf, uint nbytes)
+prhex(const char *msg, volatile uchar *buf, uint nbytes)
 {
 	char line[128], *p;
 	int len = sizeof(line);
@@ -2166,7 +2314,7 @@ bcmdumpfields(bcmutl_rdreg_rtn read_rtn, void *arg0, uint arg1, struct fielddesc
 }
 
 uint
-bcm_mkiovar(const char *name, char *data, uint datalen, char *buf, uint buflen)
+bcm_mkiovar(const char *name, const char *data, uint datalen, char *buf, uint buflen)
 {
 	uint len;
 
@@ -2178,8 +2326,10 @@ bcm_mkiovar(const char *name, char *data, uint datalen, char *buf, uint buflen)
 	strncpy(buf, name, buflen);
 
 	/* append data onto the end of the name string */
-	memcpy(&buf[len], data, datalen);
-	len += datalen;
+	if (data && datalen != 0) {
+		memcpy(&buf[len], data, datalen);
+		len += datalen;
+	}
 
 	return len;
 }
@@ -2645,7 +2795,12 @@ bcm_bitprint32(const uint32 u32arg)
 {
 	int i;
 	for (i = NBITS(uint32) - 1; i >= 0; i--) {
-		isbitset(u32arg, i) ? printf("1") : printf("0");
+		if (isbitset(u32arg, i)) {
+			printf("1");
+		} else {
+			printf("0");
+		}
+
 		if ((i % NBBY) == 0) printf(" ");
 	}
 	printf("\n");
@@ -3464,6 +3619,230 @@ bcm_sub_64(uint32* r_hi, uint32* r_lo, uint32 offset)
 		(*r_hi) --;
 }
 
+/* Does unsigned 64 bit fixed point multiplication */
+uint64
+fp_mult_64(uint64 val1, uint64 val2, uint8 nf1, uint8 nf2, uint8 nf_res)
+{
+	uint64 mult_out_tmp, mult_out, rnd_val;
+	uint8 shift_amt;
+
+	shift_amt = nf1 + nf2 - nf_res;
+	/* 0.5 in 1.0.shift_amt */
+	rnd_val = bcm_shl_64(1, (shift_amt - 1));
+	rnd_val = (shift_amt == 0) ? 0 : rnd_val;
+	mult_out_tmp = (uint64)((uint64)val1 * (uint64)val2) + (uint64)rnd_val;
+	mult_out = bcm_shr_64(mult_out_tmp, shift_amt);
+
+	return mult_out;
+}
+
+
+/* Does unsigned 64 bit by 32 bit fixed point division */
+uint8
+fp_div_64(uint64 num, uint32 den, uint8 nf_num, uint8 nf_den, uint32 *div_out)
+{
+	uint8 shift_amt1, shift_amt2, shift_amt, nf_res, hd_rm_nr, hd_rm_dr;
+	uint32 num_hi, num_lo;
+	uint64 num_scale;
+
+	/* Worst case shift possible */
+	hd_rm_nr = fp_calc_head_room_64(num);
+	hd_rm_dr = fp_calc_head_room_32(den);
+
+	/* (Nr / Dr) <= 2^32 */
+	shift_amt1 = hd_rm_nr - hd_rm_dr - 1;
+	/* Shift <= 32 + N2 - N1 */
+	shift_amt2 = 31 + nf_den - nf_num;
+	shift_amt = MINIMUM(shift_amt1, shift_amt2);
+
+	/* Scale numerator */
+	num_scale = bcm_shl_64(num, shift_amt);
+
+	/* Do division */
+	num_hi = (uint32)((uint64)num_scale >> 32) & MASK_32_BITS;
+	num_lo = (uint32)(num_scale & MASK_32_BITS);
+	bcm_uint64_divide(div_out, num_hi, num_lo, den);
+
+	/* Result format */
+	nf_res = nf_num - nf_den + shift_amt;
+	return nf_res;
+}
+
+/* Finds the number of bits available for shifting in unsigned 64 bit number */
+uint8
+fp_calc_head_room_64(uint64 num)
+{
+	uint8 n_room_bits = 0, msb_pos;
+	uint32 num_hi, num_lo, x;
+
+	num_hi = (uint32)((uint64)num >> 32) & MASK_32_BITS;
+	num_lo = (uint32)(num & MASK_32_BITS);
+
+	if (num_hi > 0) {
+		x = num_hi;
+		n_room_bits = 0;
+	} else {
+		x = num_lo;
+		n_room_bits = 32;
+	}
+
+	msb_pos = (x >> 16) ? ((x >> 24) ? (24 + msb_table[(x >> 24) & MASK_8_BITS])
+			: (16 + msb_table[(x >> 16) & MASK_8_BITS]))
+			: ((x >> 8) ? (8 + msb_table[(x >> 8) & MASK_8_BITS])
+			: msb_table[x & MASK_8_BITS]);
+
+	return (n_room_bits + 32 - msb_pos);
+}
+
+/* Finds the number of bits available for shifting in unsigned 32 bit number */
+uint8
+fp_calc_head_room_32(uint32 x)
+{
+	uint8 msb_pos;
+
+	msb_pos = (x >> 16) ? ((x >> 24) ? (24 + msb_table[(x >> 24) & MASK_8_BITS])
+			: (16 + msb_table[(x >> 16) & MASK_8_BITS]))
+			: ((x >> 8) ? (8 + msb_table[(x >> 8) & MASK_8_BITS])
+			: msb_table[x & MASK_8_BITS]);
+
+	return (32 - msb_pos);
+}
+
+/* Does unsigned 64 bit fixed point floor */
+uint32
+fp_floor_64(uint64 num, uint8 floor_pos)
+{
+	uint32 floor_out;
+
+	floor_out = (uint32)bcm_shr_64(num, floor_pos);
+
+	return floor_out;
+}
+
+/* Does unsigned 32 bit fixed point floor */
+uint32
+fp_floor_32(uint32 num, uint8 floor_pos)
+{
+	return num >> floor_pos;
+}
+
+/* Does unsigned 64 bit fixed point rounding */
+uint32
+fp_round_64(uint64 num, uint8 rnd_pos)
+{
+	uint64 rnd_val, rnd_out_tmp;
+	uint32 rnd_out;
+
+	/* 0.5 in 1.0.rnd_pos */
+	rnd_val = bcm_shl_64(1, (rnd_pos - 1));
+	rnd_val = (rnd_pos == 0) ? 0 : rnd_val;
+	rnd_out_tmp = num + rnd_val;
+	rnd_out = (uint32)bcm_shr_64(rnd_out_tmp, rnd_pos);
+
+	return rnd_out;
+}
+
+/* Does unsigned 32 bit fixed point rounding */
+uint32
+fp_round_32(uint32 num, uint8 rnd_pos)
+{
+	uint32 rnd_val, rnd_out_tmp;
+
+	/* 0.5 in 1.0.rnd_pos */
+	rnd_val = 1 << (rnd_pos - 1);
+	rnd_val = (rnd_pos == 0) ? 0 : rnd_val;
+	rnd_out_tmp = num + rnd_val;
+	return (rnd_out_tmp >> rnd_pos);
+}
+
+/* Does unsigned fixed point ceiling */
+uint32
+fp_ceil_64(uint64 num, uint8 ceil_pos)
+{
+	uint64 ceil_val, ceil_out_tmp;
+	uint32 ceil_out;
+
+	/* 0.999 in 1.0.rnd_pos */
+	ceil_val = bcm_shl_64(1, ceil_pos) - 1;
+	ceil_out_tmp = num + ceil_val;
+	ceil_out = (uint32)bcm_shr_64(ceil_out_tmp, ceil_pos);
+
+	return ceil_out;
+}
+
+/* Does left shift of unsigned 64 bit number */
+uint64
+bcm_shl_64(uint64 input, uint8 shift_amt)
+{
+	uint32 in_hi, in_lo;
+	uint32 masked_lo = 0;
+	uint32 mask;
+	uint64 shl_out;
+
+	if (shift_amt == 0) {
+		return input;
+	}
+
+	/* Get hi and lo part */
+	in_hi = (uint32)((uint64)input >> 32) & MASK_32_BITS;
+	in_lo = (uint32)(input & MASK_32_BITS);
+
+	if (shift_amt < 32) {
+		/* Extract bit which belongs to hi part after shifting */
+		mask = ((uint32)~0) << (32 - shift_amt);
+		masked_lo = (in_lo & mask) >> (32 - shift_amt);
+
+		/* Shift hi and lo and prepare output */
+		in_hi = (in_hi << shift_amt) | masked_lo;
+		in_lo = in_lo << shift_amt;
+	} else {
+		/* Extract bit which belongs to hi part after shifting */
+		shift_amt = shift_amt - 32;
+
+		/* Shift hi and lo and prepare output */
+		in_hi = in_lo << shift_amt;
+		in_lo = 0;
+	}
+
+	shl_out = (((uint64)in_hi << 32) | in_lo);
+	return shl_out;
+}
+
+/* Does right shift of unsigned 64 bit number */
+uint64
+bcm_shr_64(uint64 input, uint8 shift_amt)
+{
+	uint32 in_hi, in_lo;
+	uint32 masked_hi = 0;
+	uint32 mask;
+	uint64 shr_out;
+
+	if (shift_amt == 0) {
+		return input;
+	}
+
+	/* Get hi and lo part */
+	in_hi = (uint32)((uint64)input >> 32) & MASK_32_BITS;
+	in_lo = (uint32)(input & MASK_32_BITS);
+
+	if (shift_amt < 32) {
+		/* Extract bit which belongs to lo part after shifting */
+		mask = (1 << shift_amt) - 1;
+		masked_hi = in_hi & mask;
+
+		/* Shift hi and lo and prepare output */
+		in_hi = (uint32)in_hi >> shift_amt;
+		in_lo = ((uint32)in_lo >> shift_amt) | (masked_hi << (32 - shift_amt));
+	} else {
+		shift_amt = shift_amt - 32;
+		in_lo = in_hi >> shift_amt;
+		in_hi = 0;
+	}
+
+	shr_out = (((uint64)in_hi << 32) | in_lo);
+	return shr_out;
+}
+
 #ifdef DEBUG_COUNTER
 #if (OSL_SYSUPTIME_SUPPORT == TRUE)
 void counter_printlog(counter_tbl_t *ctr_tbl)
@@ -3572,3 +3951,156 @@ dll_pool_free_tail(dll_pool_t * dll_pool_p, void * elem_p)
 }
 
 #endif 
+
+/* calculate partial checksum */
+static uint32
+ip_cksum_partial(uint32 sum, uint8 *val8, uint32 count)
+{
+	uint32 i;
+	uint16 *val16 = (uint16 *)val8;
+
+	ASSERT(val8 != NULL);
+	/* partial chksum calculated on 16-bit values */
+	ASSERT((count % 2) == 0);
+
+	count /= 2;
+
+	for (i = 0; i < count; i++) {
+		sum += *val16++;
+	}
+	return sum;
+}
+
+/* calculate IP checksum */
+static uint16
+ip_cksum(uint32 sum, uint8 *val8, uint32 count)
+{
+	uint16 *val16 = (uint16 *)val8;
+
+	ASSERT(val8 != NULL);
+
+	while (count > 1) {
+		sum += *val16++;
+		count -= 2;
+	}
+	/*  add left-over byte, if any */
+	if (count > 0) {
+		sum += (*(uint8 *)val16);
+	}
+
+	/*  fold 32-bit sum to 16 bits */
+	sum = (sum >> 16) + (sum & 0xffff);
+	sum += (sum >> 16);
+	return ((uint16)~sum);
+}
+
+/* calculate IPv4 header checksum
+ * - input ip points to IP header in network order
+ * - output cksum is in network order
+ */
+uint16
+ipv4_hdr_cksum(uint8 *ip, int ip_len)
+{
+	uint32 sum = 0;
+	uint8 *ptr = ip;
+
+	ASSERT(ip != NULL);
+	ASSERT(ip_len >= IPV4_MIN_HEADER_LEN);
+
+	/* partial cksum skipping the hdr_chksum field */
+	sum = ip_cksum_partial(sum, ptr, OFFSETOF(struct ipv4_hdr, hdr_chksum));
+	ptr += OFFSETOF(struct ipv4_hdr, hdr_chksum) + 2;
+
+	/* return calculated chksum */
+	return ip_cksum(sum, ptr, ip_len - OFFSETOF(struct ipv4_hdr, src_ip));
+}
+
+/* calculate TCP header checksum using partial sum */
+static uint16
+tcp_hdr_chksum(uint32 sum, uint8 *tcp_hdr, uint16 tcp_len)
+{
+	uint8 *ptr = tcp_hdr;
+
+	ASSERT(tcp_hdr != NULL);
+	ASSERT(tcp_len >= TCP_MIN_HEADER_LEN);
+
+	/* partial TCP cksum skipping the chksum field */
+	sum = ip_cksum_partial(sum, ptr, OFFSETOF(struct bcmtcp_hdr, chksum));
+	ptr += OFFSETOF(struct bcmtcp_hdr, chksum) + 2;
+
+	/* return calculated chksum */
+	return ip_cksum(sum, ptr, tcp_len - OFFSETOF(struct bcmtcp_hdr, urg_ptr));
+}
+
+struct tcp_pseudo_hdr {
+	uint8   src_ip[IPV4_ADDR_LEN];  /* Source IP Address */
+	uint8   dst_ip[IPV4_ADDR_LEN];  /* Destination IP Address */
+	uint8	zero;
+	uint8	prot;
+	uint16	tcp_size;
+};
+
+/* calculate IPv4 TCP header checksum
+ * - input ip and tcp points to IP and TCP header in network order
+ * - output cksum is in network order
+ */
+uint16
+ipv4_tcp_hdr_cksum(uint8 *ip, uint8 *tcp, uint16 tcp_len)
+{
+	struct ipv4_hdr *ip_hdr = (struct ipv4_hdr *)ip;
+	struct tcp_pseudo_hdr tcp_ps;
+	uint32 sum = 0;
+
+	ASSERT(ip != NULL);
+	ASSERT(tcp != NULL);
+	ASSERT(tcp_len >= TCP_MIN_HEADER_LEN);
+
+	/* pseudo header cksum */
+	memset(&tcp_ps, 0, sizeof(tcp_ps));
+	memcpy(&tcp_ps.dst_ip, ip_hdr->dst_ip, IPV4_ADDR_LEN);
+	memcpy(&tcp_ps.src_ip, ip_hdr->src_ip, IPV4_ADDR_LEN);
+	tcp_ps.zero = 0;
+	tcp_ps.prot = ip_hdr->prot;
+	tcp_ps.tcp_size = hton16(tcp_len);
+	sum = ip_cksum_partial(sum, (uint8 *)&tcp_ps, sizeof(tcp_ps));
+
+	/* return calculated TCP header chksum */
+	return tcp_hdr_chksum(sum, tcp, tcp_len);
+}
+
+struct ipv6_pseudo_hdr {
+	uint8  saddr[IPV6_ADDR_LEN];
+	uint8  daddr[IPV6_ADDR_LEN];
+	uint16 payload_len;
+	uint8  zero;
+	uint8  next_hdr;
+};
+
+/* calculate IPv6 TCP header checksum
+ * - input ipv6 and tcp points to IPv6 and TCP header in network order
+ * - output cksum is in network order
+ */
+uint16
+ipv6_tcp_hdr_cksum(uint8 *ipv6, uint8 *tcp, uint16 tcp_len)
+{
+	struct ipv6_hdr *ipv6_hdr = (struct ipv6_hdr *)ipv6;
+	struct ipv6_pseudo_hdr ipv6_pseudo;
+	uint32 sum = 0;
+
+	ASSERT(ipv6 != NULL);
+	ASSERT(tcp != NULL);
+	ASSERT(tcp_len >= TCP_MIN_HEADER_LEN);
+
+	/* pseudo header cksum */
+	memset((char *)&ipv6_pseudo, 0, sizeof(ipv6_pseudo));
+	memcpy((char *)ipv6_pseudo.saddr, (char *)ipv6_hdr->saddr.addr,
+		sizeof(ipv6_pseudo.saddr));
+	memcpy((char *)ipv6_pseudo.daddr, (char *)ipv6_hdr->daddr.addr,
+		sizeof(ipv6_pseudo.daddr));
+	ipv6_pseudo.payload_len = ipv6_hdr->payload_len;
+	ipv6_pseudo.next_hdr = ipv6_hdr->nexthdr;
+	sum = ip_cksum_partial(sum, (uint8 *)&ipv6_pseudo, sizeof(ipv6_pseudo));
+
+	/* return calculated TCP header chksum */
+	return tcp_hdr_chksum(sum, tcp, tcp_len);
+}

@@ -6,7 +6,7 @@
  * Provides type definitions and function prototypes used to create, delete and manage flow rings at
  * high level.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -29,7 +29,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_flowring.h 591285 2015-10-07 11:56:29Z $
+ * $Id: dhd_flowring.h 672438 2016-11-28 12:35:24Z $
  */
 
 
@@ -50,39 +50,27 @@
 #define FLOWID_RESERVED                 (FLOW_RING_COMMON)
 
 #define FLOW_RING_STATUS_OPEN           0
-#define FLOW_RING_STATUS_PENDING        1
+#define FLOW_RING_STATUS_CREATE_PENDING	1
 #define FLOW_RING_STATUS_CLOSED         2
 #define FLOW_RING_STATUS_DELETE_PENDING 3
 #define FLOW_RING_STATUS_FLUSH_PENDING  4
-#define FLOW_RING_STATUS_STA_FREEING    5
 
+#ifdef IDLE_TX_FLOW_MGMT
+#define FLOW_RING_STATUS_SUSPENDED	5
+#define FLOW_RING_STATUS_RESUME_PENDING	6
+#endif /* IDLE_TX_FLOW_MGMT */
+#define FLOW_RING_STATUS_STA_FREEING    7
+
+#ifdef DHD_EFI
+#define DHD_FLOWRING_RX_BUFPOST_PKTSZ	1600
+#else
 #define DHD_FLOWRING_RX_BUFPOST_PKTSZ	2048
+#endif
 
 #define DHD_FLOW_PRIO_AC_MAP		0
 #define DHD_FLOW_PRIO_TID_MAP		1
+/* Flow ring prority map for lossless roaming */
 #define DHD_FLOW_PRIO_LLR_MAP		2
-
-/* Pkttag not compatible with PROP_TXSTATUS or WLFC */
-typedef struct dhd_pkttag_fr {
-	uint16  flowid;
-	uint16  ifid;
-	int     dataoff;
-	dmaaddr_t physaddr;
-	uint32 pa_len;
-
-} dhd_pkttag_fr_t;
-
-#define DHD_PKTTAG_SET_FLOWID(tag, flow)    ((tag)->flowid = (uint16)(flow))
-#define DHD_PKTTAG_SET_IFID(tag, idx)       ((tag)->ifid = (uint16)(idx))
-#define DHD_PKTTAG_SET_DATAOFF(tag, offset) ((tag)->dataoff = (int)(offset))
-#define DHD_PKTTAG_SET_PA(tag, pa)          ((tag)->physaddr = (pa))
-#define DHD_PKTTAG_SET_PA_LEN(tag, palen)   ((tag)->pa_len = (palen))
-
-#define DHD_PKTTAG_FLOWID(tag)              ((tag)->flowid)
-#define DHD_PKTTAG_IFID(tag)                ((tag)->ifid)
-#define DHD_PKTTAG_DATAOFF(tag)             ((tag)->dataoff)
-#define DHD_PKTTAG_PA(tag)                  ((tag)->physaddr)
-#define DHD_PKTTAG_PA_LEN(tag)              ((tag)->pa_len)
 
 /* Hashing a MacAddress for lkup into a per interface flow hash table */
 #define DHD_FLOWRING_HASH_SIZE    256
@@ -94,6 +82,7 @@ typedef struct dhd_pkttag_fr {
 #define DHD_IF_ROLE_AP(pub, idx)	(DHD_IF_ROLE(pub, idx) == WLC_E_IF_ROLE_AP)
 #define DHD_IF_ROLE_STA(pub, idx)	(DHD_IF_ROLE(pub, idx) == WLC_E_IF_ROLE_STA)
 #define DHD_IF_ROLE_P2PGO(pub, idx)	(DHD_IF_ROLE(pub, idx) == WLC_E_IF_ROLE_P2P_GO)
+#define DHD_IF_ROLE_WDS(pub, idx)	(DHD_IF_ROLE(pub, idx) == WLC_E_IF_ROLE_WDS)
 #define DHD_FLOW_RING(dhdp, flowid) \
 	(flow_ring_node_t *)&(((flow_ring_node_t *)((dhdp)->flow_ring_table))[flowid])
 
@@ -118,11 +107,14 @@ typedef struct flow_queue {
 	void * clen_ptr;            /* parent's cummulative length counter */
 	uint32 failures;            /* enqueue failures due to queue overflow */
 	flow_queue_cb_t cb;         /* callback invoked on threshold crossing */
+	uint32 l2threshold;         /* grandparent's (level 2) cummulative length threshold */
+	void * l2clen_ptr;          /* grandparent's (level 2) cummulative length counter */
 } flow_queue_t;
 
 #define DHD_FLOW_QUEUE_LEN(queue)       ((int)(queue)->len)
 #define DHD_FLOW_QUEUE_MAX(queue)       ((int)(queue)->max)
 #define DHD_FLOW_QUEUE_THRESHOLD(queue) ((int)(queue)->threshold)
+#define DHD_FLOW_QUEUE_L2THRESHOLD(queue) ((int)(queue)->l2threshold)
 #define DHD_FLOW_QUEUE_EMPTY(queue)     ((queue)->len == 0)
 #define DHD_FLOW_QUEUE_FAILURES(queue)  ((queue)->failures)
 
@@ -146,9 +138,38 @@ typedef struct flow_queue {
 #define DHD_FLOW_QUEUE_SET_CLEN(queue, parent_clen_ptr)  \
 	((queue)->clen_ptr) = (void *)(parent_clen_ptr)
 
+/* Queue's level 2 cummulative threshold. */
+#define DHD_FLOW_QUEUE_SET_L2THRESHOLD(queue, l2cumm_threshold) \
+	((queue)->l2threshold) = ((l2cumm_threshold) - 1)
+
+/* Queue's level 2 cummulative length object accessor. */
+#define DHD_FLOW_QUEUE_L2CLEN_PTR(queue)  ((queue)->l2clen_ptr)
+
+/* Set a queue's level 2 cumm_len point to a grandparent's cumm_ctr_t cummulative length */
+#define DHD_FLOW_QUEUE_SET_L2CLEN(queue, grandparent_clen_ptr)  \
+	((queue)->l2clen_ptr) = (void *)(grandparent_clen_ptr)
+
 /*  see wlfc_proto.h for tx status details */
 #define DHD_FLOWRING_MAXSTATUS_MSGS	5
 #define DHD_FLOWRING_TXSTATUS_CNT_UPDATE(bus, flowid, txstatus)
+
+/* Pkttag not compatible with PROP_TXSTATUS or WLFC */
+typedef struct dhd_pkttag_fr {
+	uint16  flowid;
+	uint16  ifid;
+	int     dataoff;
+	dmaaddr_t physaddr;
+	uint32 pa_len;
+} dhd_pkttag_fr_t;
+
+#define DHD_PKTTAG_SET_IFID(tag, idx)       ((tag)->ifid = (uint16)(idx))
+#define DHD_PKTTAG_SET_PA(tag, pa)          ((tag)->physaddr = (pa))
+#define DHD_PKTTAG_SET_PA_LEN(tag, palen)   ((tag)->pa_len = (palen))
+#define DHD_PKTTAG_IFID(tag)                ((tag)->ifid)
+#define DHD_PKTTAG_PA(tag)                  ((tag)->physaddr)
+#define DHD_PKTTAG_PA_LEN(tag)              ((tag)->pa_len)
+
+
 /** each flow ring is dedicated to a tid/sa/da combination */
 typedef struct flow_info {
 	uint8		tid;
@@ -171,6 +192,22 @@ typedef struct flow_ring_node {
 	flow_info_t	flow_info;
 	void		*prot_info;
 	void		*lock; /* lock for flowring access protection */
+
+#ifdef IDLE_TX_FLOW_MGMT
+	uint64		last_active_ts; /* contains last active timestamp */
+#endif /* IDLE_TX_FLOW_MGMT */
+#ifdef DEVICE_TX_STUCK_DETECT
+	/* Time stamp(msec) when last time a Tx packet completion is received on this flow ring */
+	uint32		tx_cmpl;
+	/*
+	 * Holds the tx_cmpl which was read during the previous
+	 * iteration of the stuck detection algo
+	 */
+	uint32		tx_cmpl_prev;
+	/* counter to decide if this particlur flow is stuck or not */
+	uint32		stuck_count;
+#endif /* DEVICE_TX_STUCK_DETECT */
+
 } flow_ring_node_t;
 
 typedef flow_ring_node_t flow_ring_table_t;
@@ -200,13 +237,15 @@ extern flow_ring_node_t * dhd_flow_ring_node(dhd_pub_t *dhdp, uint16 flowid);
 extern flow_queue_t * dhd_flow_queue(dhd_pub_t *dhdp, uint16 flowid);
 
 extern void dhd_flow_queue_init(dhd_pub_t *dhdp, flow_queue_t *queue, int max);
+extern void dhd_flow_queue_reinit(dhd_pub_t *dhdp, flow_queue_t *queue, int max);
 extern void dhd_flow_queue_register(flow_queue_t *queue, flow_queue_cb_t cb);
 extern int  dhd_flow_queue_enqueue(dhd_pub_t *dhdp, flow_queue_t *queue, void *pkt);
 extern void * dhd_flow_queue_dequeue(dhd_pub_t *dhdp, flow_queue_t *queue);
 extern void dhd_flow_queue_reinsert(dhd_pub_t *dhdp, flow_queue_t *queue, void *pkt);
 
 extern void dhd_flow_ring_config_thresholds(dhd_pub_t *dhdp, uint16 flowid,
-                          int queue_budget, int cumm_threshold, void *cumm_ctr);
+                          int queue_budget, int cumm_threshold, void *cumm_ctr,
+                          int l2cumm_threshold, void *l2cumm_ctr);
 extern int  dhd_flow_rings_init(dhd_pub_t *dhdp, uint32 num_flow_rings);
 
 extern void dhd_flow_rings_deinit(dhd_pub_t *dhdp);
@@ -217,6 +256,7 @@ extern int dhd_flowid_update(dhd_pub_t *dhdp, uint8 ifindex, uint8 prio,
 extern void dhd_flowid_free(dhd_pub_t *dhdp, uint8 ifindex, uint16 flowid);
 
 extern void dhd_flow_rings_delete(dhd_pub_t *dhdp, uint8 ifindex);
+extern void dhd_flow_rings_flush(dhd_pub_t *dhdp, uint8 ifindex);
 
 extern void dhd_flow_rings_delete_for_peer(dhd_pub_t *dhdp, uint8 ifindex,
                 char *addr);

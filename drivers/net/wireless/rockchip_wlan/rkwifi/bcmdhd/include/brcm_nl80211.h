@@ -1,7 +1,7 @@
 /*
  * Definitions for nl80211 vendor command/event access to host driver
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: brcm_nl80211.h 556083 2015-05-12 14:03:00Z $
+ * $Id: brcm_nl80211.h 601873 2015-11-24 11:04:28Z $
  *
  */
 
@@ -32,6 +32,7 @@
 #define _brcm_nl80211_h_
 
 #define OUI_BRCM  0x001018
+#define OUI_GOOGLE  0x001A11
 
 enum wl_vendor_subcmd {
 	BRCM_VENDOR_SCMD_UNSPEC,

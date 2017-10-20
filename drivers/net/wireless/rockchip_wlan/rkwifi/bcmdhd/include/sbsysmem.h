@@ -1,7 +1,7 @@
 /*
  * SiliconBackplane System Memory core
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: sbsysmem.h 514727 2014-11-12 03:02:48Z $
+ * $Id: sbsysmem.h 563229 2015-06-12 04:50:06Z $
  */
 
 #ifndef	_SBSYSMEM_H
@@ -113,16 +113,10 @@ typedef volatile struct sysmemregs {
  * the memory size is number of banks times bank size.
  * The same applies to rom size.
  */
-#define	SRCI_ROMNB_MASK		0xf000
-#define	SRCI_ROMNB_SHIFT	12
-#define	SRCI_ROMBSZ_MASK	0xf00
-#define	SRCI_ROMBSZ_SHIFT	8
-#define	SRCI_SRNB_MASK		0xf0
-#define	SRCI_SRNB_SHIFT		4
-#define	SRCI_SRBSZ_MASK		0xf
-#define	SRCI_SRBSZ_SHIFT	0
-
-#define SR_BSZ_BASE		14
+#define	SYSMEM_SRCI_ROMNB_MASK	0x3e0
+#define	SYSMEM_SRCI_ROMNB_SHIFT	5
+#define	SYSMEM_SRCI_SRNB_MASK	0x1f
+#define	SYSMEM_SRCI_SRNB_SHIFT	0
 
 /* Standby control register */
 #define	SRSC_SBYOVR_MASK	0x80000000
@@ -163,31 +157,17 @@ typedef volatile struct sysmemregs {
 
 /* bankidx and bankinfo reg defines */
 #define SYSMEM_BANKINFO_SZMASK		0x7f
-#define SYSMEM_BANKIDX_ROM_MASK		0x100
-
-#define SYSMEM_BANKIDX_MEMTYPE_SHIFT	8
-/* sysmem bankinfo memtype */
-#define SYSMEM_MEMTYPE_RAM		0
-#define SYSMEM_MEMTYPE_R0M		1
-#define SYSMEM_MEMTYPE_DEVRAM		2
+#define SYSMEM_BANKIDX_ROM_MASK		0x80
 
 #define	SYSMEM_BANKINFO_REG		0x40
 #define	SYSMEM_BANKIDX_REG		0x10
-#define	SYSMEM_BANKINFO_STDBY_MASK	0x400
-#define	SYSMEM_BANKINFO_STDBY_TIMER	0x800
+#define	SYSMEM_BANKINFO_STDBY_MASK	0x200
+#define	SYSMEM_BANKINFO_STDBY_TIMER	0x400
 
-#define SYSMEM_BANKINFO_DEVRAMSEL_SHIFT		13
-#define SYSMEM_BANKINFO_DEVRAMSEL_MASK		0x2000
-#define SYSMEM_BANKINFO_DEVRAMPRO_SHIFT		14
-#define SYSMEM_BANKINFO_DEVRAMPRO_MASK		0x4000
-#define SYSMEM_BANKINFO_SLPSUPP_SHIFT		15
-#define SYSMEM_BANKINFO_SLPSUPP_MASK		0x8000
-#define SYSMEM_BANKINFO_RETNTRAM_SHIFT		16
-#define SYSMEM_BANKINFO_RETNTRAM_MASK		0x00010000
-#define SYSMEM_BANKINFO_PDASZ_SHIFT		17
-#define SYSMEM_BANKINFO_PDASZ_MASK		0x003E0000
-#define SYSMEM_BANKINFO_DEVRAMREMAP_SHIFT	24
-#define SYSMEM_BANKINFO_DEVRAMREMAP_MASK	0x01000000
+#define SYSMEM_BANKINFO_SLPSUPP_SHIFT		14
+#define SYSMEM_BANKINFO_SLPSUPP_MASK		0x4000
+#define SYSMEM_BANKINFO_PDASZ_SHIFT		16
+#define SYSMEM_BANKINFO_PDASZ_MASK		0x001F0000
 
 /* extracoreinfo register */
 #define SYSMEM_DEVRAMBANK_MASK		0xF000

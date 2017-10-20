@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -22,7 +22,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wlfc_proto.h 542895 2015-03-22 14:13:12Z $
+ * $Id: wlfc_proto.h 675983 2016-12-19 23:18:49Z $
  *
  */
 
@@ -205,44 +205,59 @@
 	((ctr) & WL_TXSTATUS_FREERUNCTR_MASK))
 #define WL_TXSTATUS_GET_FREERUNCTR(x)		((x)& WL_TXSTATUS_FREERUNCTR_MASK)
 
-/* Seq number part of AMSDU */
+/* AMSDU part of d11 seq number */
 #define WL_SEQ_AMSDU_MASK             0x1 /* allow 1 bit */
 #define WL_SEQ_AMSDU_SHIFT            14
 #define WL_SEQ_SET_AMSDU(x, val)      ((x) = \
 	((x) & ~(WL_SEQ_AMSDU_MASK << WL_SEQ_AMSDU_SHIFT)) | \
-	(((val) & WL_SEQ_AMSDU_MASK) << WL_SEQ_AMSDU_SHIFT))
-#define WL_SEQ_GET_AMSDU(x)   (((x) >> WL_SEQ_AMSDU_SHIFT) & \
-					WL_SEQ_AMSDU_MASK)
+	(((val) & WL_SEQ_AMSDU_MASK) << WL_SEQ_AMSDU_SHIFT)) /**< sets a single AMSDU bit */
+/** returns TRUE if ring item is AMSDU (seq = d11 seq nr) */
+#define WL_SEQ_IS_AMSDU(x)   (((x) >> WL_SEQ_AMSDU_SHIFT) & \
+	WL_SEQ_AMSDU_MASK)
 
-/* Seq number is valid coming from FW */
 #define WL_SEQ_FROMFW_MASK		0x1 /* allow 1 bit */
 #define WL_SEQ_FROMFW_SHIFT		13
 #define WL_SEQ_SET_FROMFW(x, val)	((x) = \
 	((x) & ~(WL_SEQ_FROMFW_MASK << WL_SEQ_FROMFW_SHIFT)) | \
 	(((val) & WL_SEQ_FROMFW_MASK) << WL_SEQ_FROMFW_SHIFT))
-#define WL_SEQ_GET_FROMFW(x)	(((x) >> WL_SEQ_FROMFW_SHIFT) & \
-	WL_SEQ_FROMFW_MASK)
+/** Set when firmware assigns D11 sequence number to packet */
+#define SET_WL_HAS_ASSIGNED_SEQ(x)	WL_SEQ_SET_FROMFW((x), 1)
+
+/** returns TRUE if packet has been assigned a d11 seq number by the WL firmware layer */
+#define GET_WL_HAS_ASSIGNED_SEQ(x)	(((x) >> WL_SEQ_FROMFW_SHIFT) & WL_SEQ_FROMFW_MASK)
 
 /**
  * Proptxstatus related.
  *
- * Pkt from bus layer (DHD for SDIO and pciedev for PCIE)
- * is re-using seq number previously suppressed
- * so FW should not assign new one
+ * When a packet is suppressed by WL or the D11 core, the packet has to be retried. Assigning
+ * a new d11 sequence number for the packet when retrying would cause the peer to be unable to
+ * reorder the packets within an AMPDU. So, suppressed packet from bus layer (DHD for SDIO and
+ * pciedev for PCIE) is re-using d11 seq number, so FW should not assign a new one.
  */
 #define WL_SEQ_FROMDRV_MASK		0x1 /* allow 1 bit */
 #define WL_SEQ_FROMDRV_SHIFT		12
-#define WL_SEQ_SET_FROMDRV(x, val)	((x) = \
+
+/**
+ * Proptxstatus, host or fw PCIe layer requests WL layer to reuse d11 seq no. Bit is reset by WL
+ * subsystem when it reuses the seq number.
+ */
+#define WL_SEQ_SET_REUSE(x, val)	((x) = \
 	((x) & ~(WL_SEQ_FROMDRV_MASK << WL_SEQ_FROMDRV_SHIFT)) | \
 	(((val) & WL_SEQ_FROMDRV_MASK) << WL_SEQ_FROMDRV_SHIFT))
-#define WL_SEQ_GET_FROMDRV(x)	(((x) >> WL_SEQ_FROMDRV_SHIFT) & \
+#define SET_WL_TO_REUSE_SEQ(x)   WL_SEQ_SET_REUSE((x), 1)
+#define RESET_WL_TO_REUSE_SEQ(x) WL_SEQ_SET_REUSE((x), 0)
+
+/** Proptxstatus, related to reuse of d11 seq numbers when retransmitting */
+#define IS_WL_TO_REUSE_SEQ(x)	(((x) >> WL_SEQ_FROMDRV_SHIFT) & \
 	WL_SEQ_FROMDRV_MASK)
 
 #define WL_SEQ_NUM_MASK			0xfff /* allow 12 bit */
 #define WL_SEQ_NUM_SHIFT		0
+/** Proptxstatus, sets d11seq no in pkt tag, related to reuse of d11seq no when retransmitting */
 #define WL_SEQ_SET_NUM(x, val)	((x) = \
 	((x) & ~(WL_SEQ_NUM_MASK << WL_SEQ_NUM_SHIFT)) | \
 	(((val) & WL_SEQ_NUM_MASK) << WL_SEQ_NUM_SHIFT))
+/** Proptxstatus, gets d11seq no from pkt tag, related to reuse of d11seq no when retransmitting */
 #define WL_SEQ_GET_NUM(x)	(((x) >> WL_SEQ_NUM_SHIFT) & \
 	WL_SEQ_NUM_MASK)
 
@@ -281,19 +296,14 @@
 #define WLFC_CTL_PKTFLAG_DISCARD_NOACK	4
 /* Firmware wrongly reported suppressed previously,now fixing to acked */
 #define WLFC_CTL_PKTFLAG_SUPPRESS_ACKED	5
-
-#define WLFC_D11_STATUS_INTERPRET(txs)	\
-	((txs)->status.was_acked ? WLFC_CTL_PKTFLAG_DISCARD : \
-	(TXS_SUPR_MAGG_DONE((txs)->status.suppr_ind) ? \
-	WLFC_CTL_PKTFLAG_DISCARD_NOACK : WLFC_CTL_PKTFLAG_D11SUPPRESS))
-
+#define WLFC_CTL_PKTFLAG_MASK		(0x0f)	/* For 4-bit mask with one extra bit */
 
 #ifdef PROP_TXSTATUS_DEBUG
 #define WLFC_DBGMESG(x) printf x
 /* wlfc-breadcrumb */
 #define WLFC_BREADCRUMB(x) do {if ((x) == NULL) \
 	{printf("WLFC: %s():%d:caller:%p\n", \
-	__FUNCTION__, __LINE__, __builtin_return_address(0));}} while (0)
+	__FUNCTION__, __LINE__, CALL_SITE);}} while (0)
 #define WLFC_PRINTMAC(banner, ea) do {printf("%s MAC: [%02x:%02x:%02x:%02x:%02x:%02x]\n", \
 	banner, ea[0], 	ea[1], 	ea[2], 	ea[3], 	ea[4], 	ea[5]); } while (0)
 #define WLFC_WHEREIS(s) printf("WLFC: at %s():%d, %s\n", __FUNCTION__, __LINE__, (s))
@@ -333,18 +343,34 @@
 #define WLFC_SET_AFQ(x, val)	((x) = \
 	((x) & ~(1 << WLFC_MODE_AFQ_SHIFT)) | \
 	(((val) & 1) << WLFC_MODE_AFQ_SHIFT))
+/** returns TRUE if firmware supports 'at firmware queue' feature */
 #define WLFC_GET_AFQ(x)	(((x) >> WLFC_MODE_AFQ_SHIFT) & 1)
 
 #define WLFC_MODE_REUSESEQ_SHIFT	3	/* seq reuse bit */
 #define WLFC_SET_REUSESEQ(x, val)	((x) = \
 	((x) & ~(1 << WLFC_MODE_REUSESEQ_SHIFT)) | \
 	(((val) & 1) << WLFC_MODE_REUSESEQ_SHIFT))
+/** returns TRUE if 'd11 sequence reuse' has been agreed upon between host and dongle */
 #define WLFC_GET_REUSESEQ(x)	(((x) >> WLFC_MODE_REUSESEQ_SHIFT) & 1)
 
 #define WLFC_MODE_REORDERSUPP_SHIFT	4	/* host reorder suppress pkt bit */
 #define WLFC_SET_REORDERSUPP(x, val)	((x) = \
 	((x) & ~(1 << WLFC_MODE_REORDERSUPP_SHIFT)) | \
 	(((val) & 1) << WLFC_MODE_REORDERSUPP_SHIFT))
+/** returns TRUE if 'reorder suppress' has been agreed upon between host and dongle */
 #define WLFC_GET_REORDERSUPP(x)	(((x) >> WLFC_MODE_REORDERSUPP_SHIFT) & 1)
+
+#define FLOW_RING_CREATE	1
+#define FLOW_RING_DELETE	2
+#define FLOW_RING_FLUSH		3
+#define FLOW_RING_OPEN		4
+#define FLOW_RING_CLOSED	5
+#define FLOW_RING_FLUSHED	6
+#define FLOW_RING_TIM_SET	7
+#define FLOW_RING_TIM_RESET	8
+#define FLOW_RING_FLUSH_TXFIFO	9
+
+/* bit 7, indicating if is TID(1) or AC(0) mapped info in tid field) */
+#define PCIEDEV_IS_AC_TID_MAP_MASK	0x80
 
 #endif /* __wlfc_proto_definitions_h__ */

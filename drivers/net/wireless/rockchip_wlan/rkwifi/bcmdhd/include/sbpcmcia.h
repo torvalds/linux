@@ -1,7 +1,7 @@
 /*
  * BCM43XX Sonics SiliconBackplane PCMCIA core hardware definitions.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: sbpcmcia.h 521344 2014-12-17 10:03:55Z $
+ * $Id: sbpcmcia.h 616054 2016-01-29 13:22:24Z $
  */
 
 #ifndef	_SBPCMCIA_H
@@ -106,11 +106,34 @@
 #define	SRI_OTP			0x80
 
 
+#define SROM16K_BANK_SEL_MASK		(3 << 11)
+#define SROM16K_BANK_SHFT_MASK		11
+#define SROM16K_ADDR_SEL_MASK	((1 << SROM16K_BANK_SHFT_MASK) - 1)
+
+
+
+/* Standard tuples we know about */
+
+#define CISTPL_NULL		0x00
+#define	CISTPL_END		0xff		/* End of the CIS tuple chain */
+
+
+#define	CISTPL_BRCM_HNBU	0x80
+
+
+#define HNBU_BOARDREV		0x02	/* One byte board revision */
+
+
+#define HNBU_BOARDTYPE		0x1b	/* 2 bytes; boardtype */
+
+
+#define HNBU_HNBUCIS		0x1d	/* what follows is proprietary HNBU CIS format */
+
+
 /* sbtmstatelow */
 #define SBTML_INT_ACK		0x40000		/* ack the sb interrupt */
 #define SBTML_INT_EN		0x20000		/* enable sb interrupt */
 
 /* sbtmstatehigh */
 #define SBTMH_INT_STATUS	0x40000		/* sb interrupt status */
-
 #endif	/* _SBPCMCIA_H */

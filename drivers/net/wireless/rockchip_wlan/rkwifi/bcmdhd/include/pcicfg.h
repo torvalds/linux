@@ -1,7 +1,7 @@
 /*
  * pcicfg.h: PCI configuration constants and structures.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: pcicfg.h 514727 2014-11-12 03:02:48Z $
+ * $Id: pcicfg.h 621340 2016-02-25 12:26:40Z $
  */
 
 #ifndef	_h_pcicfg_
@@ -52,7 +52,16 @@
 #define	PCI_CFG_HDR		0xe
 #define	PCI_CFG_BIST		0xf
 #define	PCI_CFG_BAR0		0x10
+/*
+* TODO: PCI_CFG_BAR1 is wrongly defined to be 0x14 whereas it should be
+* 0x18 as per the PCIe full dongle spec. Need to modify the values below
+* correctly at a later point of time
+*/
+#ifdef DHD_EFI
+#define	PCI_CFG_BAR1		0x18
+#else
 #define	PCI_CFG_BAR1		0x14
+#endif /* DHD_EFI */
 #define	PCI_CFG_BAR2		0x18
 #define	PCI_CFG_BAR3		0x1c
 #define	PCI_CFG_BAR4		0x20
@@ -67,6 +76,7 @@
 #define	PCI_CFG_MINGNT		0x3e
 #define	PCI_CFG_MAXLAT		0x3f
 #define	PCI_CFG_DEVCTRL		0xd8
+#define PCI_CFG_TLCNTRL_5	0x814
 
 
 /* PCI CAPABILITY DEFINES */
@@ -170,6 +180,15 @@ typedef struct _pcie_enhanced_caphdr {
 #define	PCI_BAR0_WIN2		0xac	/* backplane addres space accessed by second 4KB of BAR0 */
 #define	PCI_GPIO_IN		0xb0	/* pci config space gpio input (>=rev3) */
 #define	PCI_GPIO_OUT		0xb4	/* pci config space gpio output (>=rev3) */
+#define PCIE_CFG_DEVICE_CONTROL 0xb4    /* 0xb4 is used as device control in PCIE devices */
+#define PCIE_DC_AER_CORR_EN		(1u << 0u)
+#define PCIE_DC_AER_NON_FATAL_EN	(1u << 1u)
+#define PCIE_DC_AER_FATAL_EN		(1u << 2u)
+#define PCIE_DC_AER_UNSUP_EN		(1u << 3u)
+
+#define PCI_BAR0_WIN2_OFFSET		0x1000u
+#define PCIE2_BAR0_CORE2_WIN2_OFFSET	0x5000u
+
 #define	PCI_GPIO_OUTEN		0xb8	/* pci config space gpio output enable (>=rev3) */
 #define	PCI_L1SS_CTRL2		0x24c	/* The L1 PM Substates Control register */
 
@@ -185,6 +204,17 @@ typedef struct _pcie_enhanced_caphdr {
 #define	PCI_L1_2_STATETMR	0xaa0
 #define	PCI_L2_EVENTCNT		0xaa4
 #define	PCI_L2_STATETMR		0xaa8
+
+#define	PCI_LINK_STATUS		0x4dc
+#define	PCI_LINK_SPEED_MASK	(15u << 0u)
+#define	PCI_LINK_SPEED_SHIFT	(0)
+#define PCIE_LNK_SPEED_GEN1		0x1
+#define PCIE_LNK_SPEED_GEN2		0x2
+#define PCIE_LNK_SPEED_GEN3		0x3
+
+#define	PCI_PL_SPARE	0x1808	/* Config to Increase external clkreq deasserted minimum time */
+#define	PCI_CONFIG_EXT_CLK_MIN_TIME_MASK	(1u << 31u)
+#define	PCI_CONFIG_EXT_CLK_MIN_TIME_SHIFT	(31)
 
 #define	PCI_PMCR_REFUP		0x1814	/* Trefup time */
 #define	PCI_PMCR_REFUP_EXT	0x1818	/* Trefup extend Max */
@@ -208,6 +238,15 @@ typedef struct _pcie_enhanced_caphdr {
 #define PCIE2_BAR0_CORE2_WIN	0x74 /* backplane addres space accessed by second 4KB of BAR0 */
 #define PCIE2_BAR0_CORE2_WIN2	0x78 /* backplane addres space accessed by second 4KB of BAR0 */
 
+#define PCI_BAR0_WIN2_OFFSET		0x1000u
+#define PCI_CORE_ENUM_OFFSET		0x2000u
+#define PCI_CC_CORE_ENUM_OFFSET		0x3000u
+#define PCI_SEC_BAR0_WIN_OFFSET		0x4000u
+#define PCI_SEC_BAR0_WRAP_OFFSET	0x5000u
+#define PCI_CORE_ENUM2_OFFSET		0x6000u
+#define PCI_CC_CORE_ENUM2_OFFSET	0x7000u
+#define PCI_LAST_OFFSET			0x8000u
+
 #define PCI_BAR0_WINSZ		(16 * 1024)	/* bar0 window size Match with corerev 13 */
 /* On pci corerev >= 13 and all pcie, the bar0 is now 16KB and it maps: */
 #define	PCI_16KB0_PCIREGS_OFFSET (8 * 1024)	/* bar0 + 8K accesses pci/pcie core registers */
@@ -215,6 +254,37 @@ typedef struct _pcie_enhanced_caphdr {
 #define PCI_16KBB0_WINSZ	(16 * 1024)	/* bar0 window size */
 #define PCI_SECOND_BAR0_OFFSET	(16 * 1024)	/* secondary  bar 0 window */
 
+/* On AI chips we have a second window to map DMP regs are mapped: */
+#define	PCI_16KB0_WIN2_OFFSET	(4 * 1024)	/* bar0 + 4K is "Window 2" */
+
+/* PCI_INT_STATUS */
+#define	PCI_SBIM_STATUS_SERR	0x4	/* backplane SBErr interrupt status */
+
+/* PCI_INT_MASK */
+#define	PCI_SBIM_SHIFT		8	/* backplane core interrupt mask bits offset */
+#define	PCI_SBIM_MASK		0xff00	/* backplane core interrupt mask */
+#define	PCI_SBIM_MASK_SERR	0x4	/* backplane SBErr interrupt mask */
+#define	PCI_CTO_INT_SHIFT	16	/* backplane SBErr interrupt mask */
+#define	PCI_CTO_INT_MASK	(1 << PCI_CTO_INT_SHIFT)	/* backplane SBErr interrupt mask */
+
+/* PCI_SPROM_CONTROL */
+#define SPROM_SZ_MSK		0x02	/* SPROM Size Mask */
+#define SPROM_LOCKED		0x08	/* SPROM Locked */
+#define	SPROM_BLANK		0x04	/* indicating a blank SPROM */
+#define SPROM_WRITEEN		0x10	/* SPROM write enable */
+#define SPROM_BOOTROM_WE	0x20	/* external bootrom write enable */
+#define SPROM_BACKPLANE_EN	0x40	/* Enable indirect backplane access */
+#define SPROM_OTPIN_USE		0x80	/* device OTP In use */
+#define SPROM_CFG_TO_SB_RST	0x400	/* backplane reset */
+
+/* Bits in PCI command and status regs */
+#define PCI_CMD_IO		0x00000001	/* I/O enable */
+#define PCI_CMD_MEMORY		0x00000002	/* Memory enable */
+#define PCI_CMD_MASTER		0x00000004	/* Master enable */
+#define PCI_CMD_SPECIAL		0x00000008	/* Special cycles enable */
+#define PCI_CMD_INVALIDATE	0x00000010	/* Invalidate? */
+#define PCI_CMD_VGA_PAL		0x00000040	/* VGA Palate */
+#define PCI_STAT_TA		0x08000000	/* target abort status */
 
 /* Header types */
 #define	PCI_HEADER_MULTI	0x80

@@ -1,7 +1,7 @@
 /*
  * BCM47XX Sonics SiliconBackplane embedded ram core
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: sbsocram.h 514727 2014-11-12 03:02:48Z $
+ * $Id: sbsocram.h 604712 2015-12-08 08:05:42Z $
  */
 
 #ifndef	_SBSOCRAM_H

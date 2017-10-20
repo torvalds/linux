@@ -1,7 +1,7 @@
 /*
  * HND arm trap handling.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: hnd_armtrap.h 514727 2014-11-12 03:02:48Z $
+ * $Id: hnd_armtrap.h 545867 2015-04-01 22:45:19Z $
  */
 
 #ifndef	_hnd_armtrap_h_
@@ -40,9 +40,7 @@
 #define FIRST_TRAP	TR_RST
 #define LAST_TRAP	(TR_FIQ * TRAP_STRIDE)
 
-#if defined(__ARM_ARCH_4T__)
-#define	MAX_TRAP_TYPE	(TR_FIQ + 1)
-#elif defined(__ARM_ARCH_7M__)
+#if defined(__ARM_ARCH_7M__)
 #define	MAX_TRAP_TYPE	(TR_ISR + ARMCM3_NUMINTS)
 #endif	/* __ARM_ARCH_7M__ */
 

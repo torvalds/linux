@@ -2,7 +2,7 @@
  * Broadcom SiliconBackplane SDIO/PCMCIA hardware-specific
  * device core support
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -25,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: sbsdpcmdev.h 514727 2014-11-12 03:02:48Z $
+ * $Id: sbsdpcmdev.h 610395 2016-01-06 22:52:57Z $
  */
 
 #ifndef	_sbsdpcmdev_h_
@@ -126,7 +126,9 @@ typedef volatile struct {
 	uint32 writeterm;		/* WriteTermCount, 0x13c, rev8, SDIO: wr frm terminates */
 	uint32 PAD[40];
 	uint32 clockctlstatus;		/* ClockCtlStatus, 0x1e0, rev8 */
-	uint32 PAD[7];
+	uint32 PAD[1];
+	uint32 powerctl;		/* 0x1e8 */
+	uint32 PAD[5];
 
 	/* DMA engines */
 	volatile union {

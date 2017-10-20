@@ -1,7 +1,7 @@
 /*
  * Linux cfgp2p driver
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,12 +24,12 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wl_cfgp2p.h 608203 2015-12-24 05:30:44Z $
+ * $Id: wl_cfgp2p.h 676811 2016-12-24 20:48:46Z $
  */
 #ifndef _wl_cfgp2p_h_
 #define _wl_cfgp2p_h_
-#include <proto/802.11.h>
-#include <proto/p2p.h>
+#include <802.11.h>
+#include <p2p.h>
 
 struct bcm_cfg80211;
 extern u32 wl_dbg_level;
@@ -40,27 +40,27 @@ typedef struct wifi_p2p_ie wifi_wfd_ie_t;
  * saved_ie[] array of structures which in turn contains a bsscfg index field.
  */
 typedef enum {
-	P2PAPI_BSSCFG_PRIMARY, /* maps to driver's primary bsscfg */
-	P2PAPI_BSSCFG_DEVICE, /* maps to driver's P2P device discovery bsscfg */
-	P2PAPI_BSSCFG_CONNECTION1, /* maps to driver's P2P connection bsscfg */
+	P2PAPI_BSSCFG_PRIMARY, /**< maps to driver's primary bsscfg */
+	P2PAPI_BSSCFG_DEVICE, /**< maps to driver's P2P device discovery bsscfg */
+	P2PAPI_BSSCFG_CONNECTION1, /**< maps to driver's P2P connection bsscfg */
 	P2PAPI_BSSCFG_CONNECTION2,
 	P2PAPI_BSSCFG_MAX
 } p2p_bsscfg_type_t;
 
 typedef enum {
 	P2P_SCAN_PURPOSE_MIN,
-	P2P_SCAN_SOCIAL_CHANNEL, /* scan for social channel */
-	P2P_SCAN_AFX_PEER_NORMAL, /* scan for action frame search */
-	P2P_SCAN_AFX_PEER_REDUCED, /* scan for action frame search with short time */
-	P2P_SCAN_DURING_CONNECTED, /* scan during connected status */
-	P2P_SCAN_CONNECT_TRY, /* scan for connecting */
-	P2P_SCAN_NORMAL, /* scan during not-connected status */
+	P2P_SCAN_SOCIAL_CHANNEL, /**< scan for social channel */
+	P2P_SCAN_AFX_PEER_NORMAL, /**< scan for action frame search */
+	P2P_SCAN_AFX_PEER_REDUCED, /**< scan for action frame search with short time */
+	P2P_SCAN_DURING_CONNECTED, /**< scan during connected status */
+	P2P_SCAN_CONNECT_TRY, /**< scan for connecting */
+	P2P_SCAN_NORMAL, /**< scan during not-connected status */
 	P2P_SCAN_PURPOSE_MAX
 } p2p_scan_purpose_t;
 
-/* vendor ies max buffer length for probe response or beacon */
+/** vendor ies max buffer length for probe response or beacon */
 #define VNDR_IES_MAX_BUF_LEN	1400
-/* normal vendor ies buffer length */
+/** normal vendor ies buffer length */
 #define VNDR_IES_BUF_LEN 		512
 
 struct p2p_bss {
@@ -71,7 +71,7 @@ struct p2p_bss {
 };
 
 struct p2p_info {
-	bool on;    /* p2p on/off switch */
+	bool on;    /**< p2p on/off switch */
 	bool scan;
 	int16 search_state;
 	s8 vir_ifname[IFNAMSIZ];
@@ -88,7 +88,7 @@ struct p2p_info {
 
 struct parsed_vndr_ie_info {
 	char *ie_ptr;
-	u32 ie_len;	/* total length including id & length field */
+	u32 ie_len;	/**< total length including id & length field */
 	vndr_ie_t vndrie;
 };
 
@@ -147,9 +147,9 @@ enum wl_cfgp2p_status {
 		if (wl_dbg_level & WL_DBG_ERR) {				\
 			printk(KERN_INFO CFGP2P_ERROR_TEXT "%s : ", __func__);	\
 			printk args;						\
-			dhd_log_dump_print("[%s] %s: ",	\
+			DHD_LOG_DUMP_WRITE("[%s] %s: ",	\
 			dhd_log_dump_get_timestamp(), __func__);	\
-			dhd_log_dump_print args;	\
+			DHD_LOG_DUMP_WRITE args;	\
 		}									\
 	} while (0)
 #else
@@ -343,12 +343,6 @@ wl_cfgp2p_generate_bss_mac(struct bcm_cfg80211 *cfg, struct ether_addr *primary_
 
 extern void
 wl_cfg80211_change_ifaddr(u8* buf, struct ether_addr *p2p_int_addr, u8 element_id);
-extern bool
-wl_cfgp2p_bss_isup(struct net_device *ndev, int bsscfg_idx);
-
-extern s32
-wl_cfgp2p_bss(struct bcm_cfg80211 *cfg, struct net_device *ndev, s32 bsscfg_idx, s32 up);
-
 
 extern s32
 wl_cfgp2p_supported(struct bcm_cfg80211 *cfg, struct net_device *ndev);
@@ -367,6 +361,9 @@ wl_cfgp2p_set_p2p_ps(struct bcm_cfg80211 *cfg, struct net_device *ndev, char* bu
 
 extern s32
 wl_cfgp2p_set_p2p_ecsa(struct bcm_cfg80211 *cfg, struct net_device *ndev, char* buf, int len);
+
+extern s32
+wl_cfgp2p_increase_p2p_bw(struct bcm_cfg80211 *cfg, struct net_device *ndev, char* buf, int len);
 
 extern u8 *
 wl_cfgp2p_retreive_p2pattrib(void *buf, u8 element_id);
@@ -432,6 +429,7 @@ wl_cfgp2p_is_p2p_specific_scan(struct cfg80211_scan_request *request);
 #define WL_P2P_WILDCARD_SSID_LEN 7
 #define WL_P2P_INTERFACE_PREFIX "p2p"
 #define WL_P2P_TEMP_CHAN 11
+#define WL_P2P_TEMP_CHAN_5G 36
 #define WL_P2P_AF_STATUS_OFFSET 9
 
 /* If the provision discovery is for JOIN operations,

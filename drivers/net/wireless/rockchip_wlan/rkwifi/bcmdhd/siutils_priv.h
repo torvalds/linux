@@ -1,7 +1,7 @@
 /*
  * Include file private to the SOC Interconnect support files.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,13 +24,28 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: siutils_priv.h 520760 2014-12-15 00:54:16Z $
+ * $Id: siutils_priv.h 625739 2016-03-17 12:28:03Z $
  */
 
 #ifndef	_siutils_priv_h_
 #define	_siutils_priv_h_
 
+#if defined(SI_ERROR_ENFORCE)
+#define	SI_ERROR(args)	printf args
+#else
 #define	SI_ERROR(args) printf args
+#endif	
+
+#if defined(ENABLE_CORECAPTURE)
+
+#define	SI_PRINT(args)	osl_wificc_logDebug args
+
+#else
+
+#define	SI_PRINT(args)	printf args
+
+#endif /* ENABLE_CORECAPTURE */
+
 
 #define	SI_MSG(args)
 
@@ -57,63 +72,91 @@ typedef struct gci_gpio_item {
 	struct gci_gpio_item	*next;
 } gci_gpio_item_t;
 
+#define AI_SLAVE_WRAPPER        0
+#define AI_MASTER_WRAPPER       1
+
+typedef struct axi_wrapper {
+	uint32  mfg;
+	uint32  cid;
+	uint32  rev;
+	uint32  wrapper_type;
+	uint32  wrapper_addr;
+	uint32  wrapper_size;
+} axi_wrapper_t;
+
+#define SI_MAX_AXI_WRAPPERS		32
+#define AI_REG_READ_TIMEOUT		300 /* in msec */
+
+/* for some combo chips, BT side accesses chipcommon->0x190, as a 16 byte addr */
+/* register at 0x19C doesn't exist, so error is logged at the slave wrapper */
+#define BT_CC_SPROM_BADREG_LO   0x18000190
+#define BT_CC_SPROM_BADREG_HI   0
+#define BCM4350_BT_AXI_ID       6
+#define BCM4345_BT_AXI_ID       6
 
 typedef struct si_cores_info {
-	void	*regs[SI_MAXCORES];	/* other regs va */
+	volatile void	*regs[SI_MAXCORES];	/* other regs va */
 
-	uint	coreid[SI_MAXCORES];	/* id of each core */
-	uint32	coresba[SI_MAXCORES];	/* backplane address of each core */
-	void	*regs2[SI_MAXCORES];	/* va of each core second register set (usbh20) */
-	uint32	coresba2[SI_MAXCORES];	/* address of each core second register set (usbh20) */
-	uint32	coresba_size[SI_MAXCORES]; /* backplane address space size */
-	uint32	coresba2_size[SI_MAXCORES]; /* second address space size */
+	uint	coreid[SI_MAXCORES];	/**< id of each core */
+	uint32	coresba[SI_MAXCORES];	/**< backplane address of each core */
+	void	*regs2[SI_MAXCORES];	/**< va of each core second register set (usbh20) */
+	uint32	coresba2[SI_MAXCORES];	/**< address of each core second register set (usbh20) */
+	uint32	coresba_size[SI_MAXCORES]; /**< backplane address space size */
+	uint32	coresba2_size[SI_MAXCORES]; /**< second address space size */
 
-	void	*wrappers[SI_MAXCORES];	/* other cores wrapper va */
-	uint32	wrapba[SI_MAXCORES];	/* address of controlling wrapper */
+	void	*wrappers[SI_MAXCORES];	/**< other cores wrapper va */
+	uint32	wrapba[SI_MAXCORES];	/**< address of controlling wrapper */
 
-	void	*wrappers2[SI_MAXCORES];	/* other cores wrapper va */
-	uint32	wrapba2[SI_MAXCORES];	/* address of controlling wrapper */
+	void	*wrappers2[SI_MAXCORES];	/**< other cores wrapper va */
+	uint32	wrapba2[SI_MAXCORES];	/**< address of controlling wrapper */
 
-	uint32	cia[SI_MAXCORES];	/* erom cia entry for each core */
-	uint32	cib[SI_MAXCORES];	/* erom cia entry for each core */
+	uint32	cia[SI_MAXCORES];	/**< erom cia entry for each core */
+	uint32	cib[SI_MAXCORES];	/**< erom cia entry for each core */
 } si_cores_info_t;
 
-/* misc si info needed by some of the routines */
+/** misc si info needed by some of the routines */
 typedef struct si_info {
-	struct si_pub pub;		/* back plane public state (must be first field) */
+	struct si_pub pub;		/**< back plane public state (must be first field) */
 
-	void	*osh;			/* osl os handle */
-	void	*sdh;			/* bcmsdh handle */
+	void	*osh;			/**< osl os handle */
+	void	*sdh;			/**< bcmsdh handle */
 
-	uint	dev_coreid;		/* the core provides driver functions */
-	void	*intr_arg;		/* interrupt callback function arg */
-	si_intrsoff_t intrsoff_fn;	/* turns chip interrupts off */
-	si_intrsrestore_t intrsrestore_fn; /* restore chip interrupts */
-	si_intrsenabled_t intrsenabled_fn; /* check if interrupts are enabled */
+	uint	dev_coreid;		/**< the core provides driver functions */
+	void	*intr_arg;		/**< interrupt callback function arg */
+	si_intrsoff_t intrsoff_fn;	/**< turns chip interrupts off */
+	si_intrsrestore_t intrsrestore_fn; /**< restore chip interrupts */
+	si_intrsenabled_t intrsenabled_fn; /**< check if interrupts are enabled */
 
-	void *pch;			/* PCI/E core handle */
+	void *pch;			/**< PCI/E core handle */
 
-	bool	memseg;			/* flag to toggle MEM_SEG register */
+	bool	memseg;			/**< flag to toggle MEM_SEG register */
 
 	char *vars;
 	uint varsz;
 
-	void	*curmap;		/* current regs va */
+	volatile void	*curmap;		/* current regs va */
 
-	uint	curidx;			/* current core index */
-	uint	numcores;		/* # discovered cores */
+	uint	curidx;			/**< current core index */
+	uint	numcores;		/**< # discovered cores */
 
-	void	*curwrap;		/* current wrapper va */
+	void	*curwrap;		/**< current wrapper va */
 
-	uint32	oob_router;		/* oob router registers for axi */
+	uint32	oob_router;		/**< oob router registers for axi */
 
-	void *cores_info;
-	gci_gpio_item_t	*gci_gpio_head;	/* gci gpio interrupts head */
-	uint	chipnew;		/* new chip number */
-	uint second_bar0win;		/* Backplane region */
-	uint	num_br;		/* # discovered bridges */
-	uint32	br_wrapba[SI_MAXBR];	/* address of bridge controlling wrapper */
+	si_cores_info_t *cores_info;
+	gci_gpio_item_t	*gci_gpio_head;	/**< gci gpio interrupts head */
+	uint	chipnew;		/**< new chip number */
+	uint second_bar0win;		/**< Backplane region */
+	uint	num_br;		/**< # discovered bridges */
+	uint32	br_wrapba[SI_MAXBR];	/**< address of bridge controlling wrapper */
 	uint32	xtalfreq;
+	uint32	macclk_mul_fact;	/* Multiplication factor necessary to adjust MAC Clock
+	* during ULB Mode operation. One instance where this is used is configuring TSF L-frac
+	* register
+	*/
+	bool	device_removed;
+	uint	axi_num_wrappers;
+	axi_wrapper_t   * axi_wrapper;
 } si_info_t;
 
 
@@ -124,7 +167,7 @@ typedef struct si_info {
 #define	GOODREGS(regs)	((regs) != NULL && ISALIGNED((uintptr)(regs), SI_CORE_SIZE))
 #define BADCOREADDR	0
 #define	GOODIDX(idx)	(((uint)idx) < SI_MAXCORES)
-#define	NOREV		-1		/* Invalid rev */
+#define	NOREV		-1		/**< Invalid rev */
 
 #define PCI(si)		((BUSTYPE((si)->pub.bustype) == PCI_BUS) &&	\
 			 ((si)->pub.buscoretype == PCI_CORE_ID))
@@ -139,54 +182,46 @@ typedef struct si_info {
 
 #define PCMCIA(si)	((BUSTYPE((si)->pub.bustype) == PCMCIA_BUS) && ((si)->memseg == TRUE))
 
-/* Newer chips can access PCI/PCIE and CC core without requiring to change
- * PCI BAR0 WIN
- */
+/** Newer chips can access PCI/PCIE and CC core without requiring to change PCI BAR0 WIN */
 #define SI_FAST(si) (PCIE(si) || (PCI(si) && ((si)->pub.buscorerev >= 13)))
 
-#define PCIEREGS(si) (((char *)((si)->curmap) + PCI_16KB0_PCIREGS_OFFSET))
-#define CCREGS_FAST(si) (((char *)((si)->curmap) + PCI_16KB0_CCREGS_OFFSET))
+#define CCREGS_FAST(si) \
+	(((si)->curmap == NULL) ? NULL : \
+	    ((volatile char *)((si)->curmap) + PCI_16KB0_CCREGS_OFFSET))
+#define PCIEREGS(si) (((volatile char *)((si)->curmap) + PCI_16KB0_PCIREGS_OFFSET))
 
 /*
  * Macros to disable/restore function core(D11, ENET, ILINE20, etc) interrupts before/
  * after core switching to avoid invalid register accesss inside ISR.
  */
 #define INTR_OFF(si, intr_val) \
-	if ((si)->intrsoff_fn && (cores_info)->coreid[(si)->curidx] == (si)->dev_coreid) {	\
+	if ((si)->intrsoff_fn && (si)->cores_info->coreid[(si)->curidx] == (si)->dev_coreid) { \
 		intr_val = (*(si)->intrsoff_fn)((si)->intr_arg); }
 #define INTR_RESTORE(si, intr_val) \
-	if ((si)->intrsrestore_fn && (cores_info)->coreid[(si)->curidx] == (si)->dev_coreid) {	\
+	if ((si)->intrsrestore_fn && (si)->cores_info->coreid[(si)->curidx] == (si)->dev_coreid) { \
 		(*(si)->intrsrestore_fn)((si)->intr_arg, intr_val); }
 
 /* dynamic clock control defines */
-#define	LPOMINFREQ		25000		/* low power oscillator min */
-#define	LPOMAXFREQ		43000		/* low power oscillator max */
-#define	XTALMINFREQ		19800000	/* 20 MHz - 1% */
-#define	XTALMAXFREQ		20200000	/* 20 MHz + 1% */
-#define	PCIMINFREQ		25000000	/* 25 MHz */
-#define	PCIMAXFREQ		34000000	/* 33 MHz + fudge */
+#define	LPOMINFREQ		25000		/**< low power oscillator min */
+#define	LPOMAXFREQ		43000		/**< low power oscillator max */
+#define	XTALMINFREQ		19800000	/**< 20 MHz - 1% */
+#define	XTALMAXFREQ		20200000	/**< 20 MHz + 1% */
+#define	PCIMINFREQ		25000000	/**< 25 MHz */
+#define	PCIMAXFREQ		34000000	/**< 33 MHz + fudge */
 
-#define	ILP_DIV_5MHZ		0		/* ILP = 5 MHz */
-#define	ILP_DIV_1MHZ		4		/* ILP = 1 MHz */
-
-/* Force fast clock for 4360b0 */
-#define PCI_FORCEHT(si)	\
-	(((PCIE_GEN1(si)) && (CHIPID(si->pub.chip) == BCM4311_CHIP_ID) && \
-	((CHIPREV(si->pub.chiprev) <= 1))) || \
-	((PCI(si) || PCIE_GEN1(si)) && (CHIPID(si->pub.chip) == BCM4321_CHIP_ID)) || \
-	(PCIE_GEN1(si) && (CHIPID(si->pub.chip) == BCM4716_CHIP_ID)) || \
-	(PCIE_GEN1(si) && (CHIPID(si->pub.chip) == BCM4748_CHIP_ID)))
+#define	ILP_DIV_5MHZ		0		/**< ILP = 5 MHz */
+#define	ILP_DIV_1MHZ		4		/**< ILP = 1 MHz */
 
 /* GPIO Based LED powersave defines */
-#define DEFAULT_GPIO_ONTIME	10		/* Default: 10% on */
-#define DEFAULT_GPIO_OFFTIME	90		/* Default: 10% on */
+#define DEFAULT_GPIO_ONTIME	10		/**< Default: 10% on */
+#define DEFAULT_GPIO_OFFTIME	90		/**< Default: 10% on */
 
 #ifndef DEFAULT_GPIOTIMERVAL
 #define DEFAULT_GPIOTIMERVAL  ((DEFAULT_GPIO_ONTIME << GPIO_ONTIME_SHIFT) | DEFAULT_GPIO_OFFTIME)
 #endif
 
 /* Silicon Backplane externs */
-extern void sb_scan(si_t *sih, void *regs, uint devid);
+extern void sb_scan(si_t *sih, volatile void *regs, uint devid);
 extern uint sb_coreid(si_t *sih);
 extern uint sb_intflag(si_t *sih);
 extern uint sb_flag(si_t *sih);
@@ -194,9 +229,9 @@ extern void sb_setint(si_t *sih, int siflag);
 extern uint sb_corevendor(si_t *sih);
 extern uint sb_corerev(si_t *sih);
 extern uint sb_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val);
-extern uint32 *sb_corereg_addr(si_t *sih, uint coreidx, uint regoff);
+extern volatile uint32 *sb_corereg_addr(si_t *sih, uint coreidx, uint regoff);
 extern bool sb_iscoreup(si_t *sih);
-extern void *sb_setcoreidx(si_t *sih, uint coreidx);
+extern volatile void *sb_setcoreidx(si_t *sih, uint coreidx);
 extern uint32 sb_core_cflags(si_t *sih, uint32 mask, uint32 val);
 extern void sb_core_cflags_wo(si_t *sih, uint32 mask, uint32 val);
 extern uint32 sb_core_sflags(si_t *sih, uint32 mask, uint32 val);
@@ -237,10 +272,10 @@ extern void ai_setint(si_t *sih, int siflag);
 extern uint ai_coreidx(si_t *sih);
 extern uint ai_corevendor(si_t *sih);
 extern uint ai_corerev(si_t *sih);
-extern uint32 *ai_corereg_addr(si_t *sih, uint coreidx, uint regoff);
+extern volatile uint32 *ai_corereg_addr(si_t *sih, uint coreidx, uint regoff);
 extern bool ai_iscoreup(si_t *sih);
-extern void *ai_setcoreidx(si_t *sih, uint coreidx);
-extern void *ai_setcoreidx_2ndwrap(si_t *sih, uint coreidx);
+extern volatile void *ai_setcoreidx(si_t *sih, uint coreidx);
+extern volatile void *ai_setcoreidx_2ndwrap(si_t *sih, uint coreidx);
 extern uint32 ai_core_cflags(si_t *sih, uint32 mask, uint32 val);
 extern void ai_core_cflags_wo(si_t *sih, uint32 mask, uint32 val);
 extern uint32 ai_core_sflags(si_t *sih, uint32 mask, uint32 val);
@@ -248,9 +283,6 @@ extern uint ai_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val
 extern void ai_core_reset(si_t *sih, uint32 bits, uint32 resetbits);
 extern void ai_d11rsdb_core_reset(si_t *sih, uint32 bits,
 	uint32 resetbits, void *p, void *s);
-extern void ai_d11rsdb_core1_alt_reg_clk_en(si_t *sih);
-extern void ai_d11rsdb_core1_alt_reg_clk_dis(si_t *sih);
-
 extern void ai_core_disable(si_t *sih, uint32 bits);
 extern void ai_d11rsdb_core_disable(const si_info_t *sii, uint32 bits,
 	aidmp_t *pmacai, aidmp_t *smacai);
@@ -260,12 +292,23 @@ extern uint32 ai_addrspacesize(si_t *sih, uint asidx);
 extern void ai_coreaddrspaceX(si_t *sih, uint asidx, uint32 *addr, uint32 *size);
 extern uint ai_wrap_reg(si_t *sih, uint32 offset, uint32 mask, uint32 val);
 extern void ai_enable_backplane_timeouts(si_t *sih);
-extern void ai_clear_backplane_to(si_t *sih);
+extern uint32 ai_clear_backplane_to(si_t *sih);
+extern uint ai_num_slaveports(si_t *sih, uint coreidx);
+
+#ifdef BCM_BACKPLANE_TIMEOUT
+uint32 ai_clear_backplane_to_fast(si_t *sih, void * addr);
+#endif /* BCM_BACKPLANE_TIMEOUT */
+
+#if defined(AXI_TIMEOUTS) || defined(BCM_BACKPLANE_TIMEOUT)
+extern uint32 ai_clear_backplane_to_per_core(si_t *sih, uint coreid, uint coreunit, void * wrap);
+#endif /* AXI_TIMEOUTS || BCM_BACKPLANE_TIMEOUT */
 
 #if defined(BCMDBG_PHYDUMP)
 extern void ai_dumpregs(si_t *sih, struct bcmstrbuf *b);
 #endif 
 
+extern uint32 ai_wrapper_dump_buf_size(si_t *sih);
+extern uint32 ai_wrapper_dump_binary(si_t *sih, uchar *p);
 
 #define ub_scan(a, b, c) do {} while (0)
 #define ub_flag(a) (0)

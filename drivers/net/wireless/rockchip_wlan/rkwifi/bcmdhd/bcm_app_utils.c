@@ -3,7 +3,7 @@
  * Contents are wifi-specific, used by any kernel or app-level
  * software that might want wifi things as it grows.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcm_app_utils.c 547371 2015-04-08 12:51:39Z $
+ * $Id: bcm_app_utils.c 623866 2016-03-09 11:58:34Z $
  */
 
 #include <typedefs.h>
@@ -119,7 +119,7 @@ spec_to_chan(chanspec_t chspec)
 
 	center_ch = CHSPEC_CHANNEL(chspec);
 
-	if (CHSPEC_IS20(chspec)) {
+	if (CHSPEC_BW_LE20(chspec)) {
 		return center_ch;
 	} else {
 		/* the lower edge of the wide channel is half the bw from
@@ -590,7 +590,11 @@ static const uint8 wlcntver11t_to_wlcntwlct[NUM_OF_WLCCNT_IN_WL_CNT_VER_11_T] = 
 	IDX_IN_WL_CNT_VER_11_T(txprobersp),
 	IDX_IN_WL_CNT_VER_11_T(rxprobersp),
 	IDX_IN_WL_CNT_VER_11_T(txaction),
-	IDX_IN_WL_CNT_VER_11_T(rxaction)
+	IDX_IN_WL_CNT_VER_11_T(rxaction),
+	IDX_IN_WL_CNT_VER_11_T(ampdu_wds),
+	IDX_IN_WL_CNT_VER_11_T(txlost),
+	IDX_IN_WL_CNT_VER_11_T(txdatamcast),
+	IDX_IN_WL_CNT_VER_11_T(txdatabcast)
 };
 
 /* Index conversion table from wl_cnt_ver_11_t to
@@ -819,7 +823,7 @@ wl_copy_wlccnt(uint16 cntver, uint32 *dst, uint32 *src, uint8 src_max_idx)
 	if (cntver == WL_CNT_VERSION_6) {
 		for (i = 0; i < NUM_OF_WLCCNT_IN_WL_CNT_VER_6_T; i++) {
 			if (wlcntver6t_to_wlcntwlct[i] >= src_max_idx) {
-			/* src buffer does not have counters from here */
+				/* src buffer does not have counters from here */
 				break;
 			}
 			dst[i] = src[wlcntver6t_to_wlcntwlct[i]];
@@ -827,7 +831,7 @@ wl_copy_wlccnt(uint16 cntver, uint32 *dst, uint32 *src, uint8 src_max_idx)
 	} else {
 		for (i = 0; i < NUM_OF_WLCCNT_IN_WL_CNT_VER_11_T; i++) {
 			if (wlcntver11t_to_wlcntwlct[i] >= src_max_idx) {
-			/* src buffer does not have counters from here */
+				/* src buffer does not have counters from here */
 				break;
 			}
 			dst[i] = src[wlcntver11t_to_wlcntwlct[i]];
@@ -910,7 +914,7 @@ wl_cntbuf_to_xtlv_format(void *ctx, void *cntbuf, int buflen, uint32 corerev)
 	BCM_REFERENCE(ctx);
 #endif
 
-	if (ver == WL_CNT_T_VERSION) {
+	if (ver >= WL_CNT_VERSION_XTLV) {
 		/* Already in xtlv format. */
 		goto exit;
 	}
@@ -922,8 +926,8 @@ wl_cntbuf_to_xtlv_format(void *ctx, void *cntbuf, int buflen, uint32 corerev)
 	wlccnt = (wl_cnt_wlc_t *)malloc(sizeof(*wlccnt));
 	macstat = (uint32 *)malloc(WL_CNT_MCST_STRUCT_SZ);
 #endif
-	if (!wlccnt) {
-		printf("wl_cntbuf_to_xtlv_format malloc fail!\n");
+	if (!wlccnt || !macstat) {
+		printf("%s: malloc fail!\n", __FUNCTION__);
 		res = BCME_NOMEM;
 		goto exit;
 	}
@@ -939,12 +943,11 @@ wl_cntbuf_to_xtlv_format(void *ctx, void *cntbuf, int buflen, uint32 corerev)
 
 	/* Exclude version and length fields in either wlc_cnt_ver_6_t or wlc_cnt_ver_11_t */
 	src_max_idx = (cntinfo->datalen - OFFSETOF(wl_cnt_info_t, data)) / sizeof(uint32);
-
 	if (src_max_idx > (uint8)(-1)) {
 		printf("wlcntverXXt_to_wlcntwlct and src_max_idx need"
 			" to be of uint16 instead of uint8\n"
 			"Try updating wl utility to the latest.\n");
-		res = BCME_ERROR;
+		src_max_idx = (uint8)(-1);
 	}
 
 	/* Copy wlc layer counters to wl_cnt_wlc_t */
@@ -987,7 +990,7 @@ wl_cntbuf_to_xtlv_format(void *ctx, void *cntbuf, int buflen, uint32 corerev)
 	xtlv_desc[2].len = 0;
 	xtlv_desc[2].ptr = NULL;
 
-	memset(cntbuf, 0, WL_CNTBUF_MAX_SIZE);
+	memset(cntbuf, 0, buflen);
 
 	res = bcm_pack_xtlv_buf_from_mem(&xtlvbuf_p, &xtlvbuflen,
 		xtlv_desc, BCM_XTLV_OPTION_ALIGN32);

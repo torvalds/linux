@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -22,11 +22,14 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: typedefs.h 514727 2014-11-12 03:02:48Z $
+ * $Id: typedefs.h 639587 2016-05-24 06:44:44Z $
  */
 
 #ifndef _TYPEDEFS_H_
 #define _TYPEDEFS_H_
+
+#if (!defined(EDK_RELEASE_VERSION) || (EDK_RELEASE_VERSION < 0x00020000)) || \
+	!defined(BWL_NO_INTERNAL_STDLIB_SUPPORT)
 
 #ifdef SITE_TYPEDEFS
 
@@ -77,6 +80,9 @@ typedef unsigned long long int uintptr;
 
 
 
+/* float_t types conflict with the same typedefs from the standard ANSI-C
+** math.h header file. Don't re-typedef them here.
+*/
 
 #if defined(_NEED_SIZE_T_)
 typedef long unsigned int size_t;
@@ -330,6 +336,47 @@ typedef float64 float_t;
 
 /* Avoid warning for discarded const or volatile qualifier in special cases (-Wcast-qual) */
 #define DISCARD_QUAL(ptr, type) ((type *)(uintptr)(ptr))
+
+#else
+
+#include <sys/types.h>
+#include <strings.h>
+#include <stdlib.h>
+
+#ifdef stderr
+#undef stderr
+#define stderr stdout
+#endif
+
+typedef UINT32  uint;
+typedef UINT64  ulong;
+typedef UINT16  ushort;
+typedef UINT8   uint8;
+typedef UINT16  uint16;
+typedef UINT32  uint32;
+typedef UINT64  uint64;
+typedef INT8    int8;
+typedef INT16   int16;
+typedef INT32   int32;
+typedef INT64   int64;
+
+typedef BOOLEAN       bool;
+typedef unsigned char uchar;
+typedef UINTN         uintptr;
+
+typedef UINT8   u_char;
+typedef UINT16  u_short;
+typedef UINTN   u_int;
+typedef ULONGN  u_long;
+
+#define UNUSED_PARAMETER(x) (void)(x)
+#define DISCARD_QUAL(ptr, type) ((type *)(uintptr)(ptr))
+#define INLINE
+#define	AUTO	(-1) /* Auto = -1 */
+#define	ON	1  /* ON = 1 */
+#define	OFF	0
+
+#endif /* !EDK_RELEASE_VERSION || (EDK_RELEASE_VERSION < 0x00020000) */
 
 /*
  * Including the bcmdefs.h here, to make sure everyone including typedefs.h

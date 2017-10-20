@@ -4,7 +4,7 @@
  * Provides type definitions and function prototypes used to link the
  * DHD OS, bus, and protocol modules.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -27,7 +27,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_proto.h 604483 2015-12-07 14:47:36Z $
+ * $Id: dhd_proto.h 678890 2017-01-11 11:48:36Z $
  */
 
 #ifndef _dhd_proto_h_
@@ -39,7 +39,7 @@
 #include <dhd_flowring.h>
 #endif
 
-#define DEFAULT_IOCTL_RESP_TIMEOUT	2000
+#define DEFAULT_IOCTL_RESP_TIMEOUT	4000
 #ifndef IOCTL_RESP_TIMEOUT
 /* In milli second default value for Production FW */
 #define IOCTL_RESP_TIMEOUT  DEFAULT_IOCTL_RESP_TIMEOUT
@@ -49,7 +49,7 @@
 #define MFG_IOCTL_RESP_TIMEOUT  20000  /* In milli second default value for MFG FW */
 #endif /* MFG_IOCTL_RESP_TIMEOUT */
 
-#define DEFAULT_D3_ACK_RESP_TIMEOUT	4000
+#define DEFAULT_D3_ACK_RESP_TIMEOUT	1000
 #ifndef D3_ACK_RESP_TIMEOUT
 #define D3_ACK_RESP_TIMEOUT		DEFAULT_D3_ACK_RESP_TIMEOUT
 #endif /* D3_ACK_RESP_TIMEOUT */
@@ -59,7 +59,11 @@
 #define DHD_BUS_BUSY_TIMEOUT	DEFAULT_DHD_BUS_BUSY_TIMEOUT
 #endif /* DEFAULT_DHD_BUS_BUSY_TIMEOUT */
 
+#define DS_EXIT_TIMEOUT	1000 /* In ms */
+#define DS_ENTER_TIMEOUT 1000 /* In ms */
+
 #define IOCTL_DISABLE_TIMEOUT 0
+
 /*
  * Exported from the dhd protocol module (dhd_cdc, dhd_rndis)
  */
@@ -107,6 +111,9 @@ extern int dhd_prot_iovar_op(dhd_pub_t *dhdp, const char *name,
 /* Add prot dump output to a buffer */
 extern void dhd_prot_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf);
 
+/* Dump extended trap data */
+extern int dhd_prot_dump_extended_trap(dhd_pub_t *dhdp, struct bcmstrbuf *b, bool raw);
+
 /* Update local copy of dongle statistics */
 extern void dhd_prot_dstats(dhd_pub_t *dhdp);
 
@@ -120,13 +127,16 @@ extern int dhd_process_pkt_reorder_info(dhd_pub_t *dhd, uchar *reorder_info_buf,
 #ifdef BCMPCIE
 extern bool dhd_prot_process_msgbuf_txcpl(dhd_pub_t *dhd, uint bound);
 extern bool dhd_prot_process_msgbuf_rxcpl(dhd_pub_t *dhd, uint bound);
+extern bool dhd_prot_process_msgbuf_infocpl(dhd_pub_t *dhd, uint bound);
 extern int dhd_prot_process_ctrlbuf(dhd_pub_t * dhd);
+extern int dhd_prot_process_trapbuf(dhd_pub_t * dhd);
 extern bool dhd_prot_dtohsplit(dhd_pub_t * dhd);
 extern int dhd_post_dummy_msg(dhd_pub_t *dhd);
 extern int dhdmsgbuf_lpbk_req(dhd_pub_t *dhd, uint len);
 extern void dhd_prot_rx_dataoffset(dhd_pub_t *dhd, uint32 offset);
 extern int dhd_prot_txdata(dhd_pub_t *dhd, void *p, uint8 ifidx);
-extern int dhdmsgbuf_dmaxfer_req(dhd_pub_t *dhd, uint len, uint srcdelay, uint destdelay);
+extern int dhdmsgbuf_dmaxfer_req(dhd_pub_t *dhd,
+	uint len, uint srcdelay, uint destdelay, uint d11_lpbk);
 
 extern void dhd_dma_buf_init(dhd_pub_t *dhd, void *dma_buf,
 	void *va, uint32 len, dmaaddr_t pa, void *dmah, void *secdma);
@@ -148,13 +158,35 @@ extern void dhd_prot_update_txflowring(dhd_pub_t *dhdp, uint16 flow_id, void *ms
 extern void dhd_prot_txdata_write_flush(dhd_pub_t *dhd, uint16 flow_id, bool in_lock);
 extern uint32 dhd_prot_txp_threshold(dhd_pub_t *dhd, bool set, uint32 val);
 extern void dhd_prot_reset(dhd_pub_t *dhd);
+
+#ifdef IDLE_TX_FLOW_MGMT
+extern int dhd_prot_flow_ring_batch_suspend_request(dhd_pub_t *dhd, uint16 *ringid, uint16 count);
+extern int dhd_prot_flow_ring_resume(dhd_pub_t *dhd, flow_ring_node_t *flow_ring_node);
+#endif /* IDLE_TX_FLOW_MGMT */
+extern int dhd_prot_init_info_rings(dhd_pub_t *dhd);
+
+#endif /* BCMPCIE */
+
 #ifdef DHD_LB
 extern void dhd_lb_tx_compl_handler(unsigned long data);
 extern void dhd_lb_rx_compl_handler(unsigned long data);
 extern void dhd_lb_rx_process_handler(unsigned long data);
 #endif /* DHD_LB */
-void dhd_prot_collect_memdump(dhd_pub_t *dhd);
+extern int dhd_prot_h2d_mbdata_send_ctrlmsg(dhd_pub_t *dhd, uint32 mb_data);
+
+#ifdef BCMPCIE
+extern int dhd_prot_send_host_timestamp(dhd_pub_t *dhdp, uchar *tlv, uint16 tlv_len,
+	uint16 seq, uint16 xt_id);
+extern bool dhd_prot_data_path_tx_timestamp_logging(dhd_pub_t *dhd,  bool enable, bool set);
+extern bool dhd_prot_data_path_rx_timestamp_logging(dhd_pub_t *dhd,  bool enable, bool set);
+#else /* BCMPCIE */
+#define dhd_prot_send_host_timestamp(a, b, c, d, e)		0
+#define dhd_prot_data_path_tx_timestamp_logging(a, b, c)	0
+#define dhd_prot_data_path_rx_timestamp_logging(a, b, c)	0
 #endif /* BCMPCIE */
+
+extern void dhd_prot_dma_indx_free(dhd_pub_t *dhd);
+
 /********************************
  * For version-string expansion *
  */

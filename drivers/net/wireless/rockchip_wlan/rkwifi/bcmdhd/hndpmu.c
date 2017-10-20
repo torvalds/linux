@@ -2,7 +2,7 @@
  * Misc utility routines for accessing PMU corerev specific features
  * of the SiliconBackplane-based Broadcom chips.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -25,7 +25,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: hndpmu.c 530092 2015-01-29 04:44:58Z $
+ * $Id: hndpmu.c 657872 2016-09-02 22:17:34Z $
  */
 
 
@@ -49,6 +49,14 @@
 #include <hndsoc.h>
 #include <sbchipc.h>
 #include <hndpmu.h>
+#if defined(BCMULP)
+#include <ulp.h>
+#endif /* defined(BCMULP) */
+#include <sbgci.h>
+#ifdef EVENT_LOG_COMPILE
+#include <event_log.h>
+#endif
+#include <sbgci.h>
 
 #define	PMU_ERROR(args)
 
@@ -94,6 +102,7 @@ static const sdiod_drive_str_t sdiod_drive_strength_tab2[] = {
 	{4, 0x2},
 	{2, 0x1},
 	{0, 0x0} };
+
 
 /* SDIO Drive Strength to sel value table for PMU Rev 8 (1.8V) */
 static const sdiod_drive_str_t sdiod_drive_strength_tab3[] = {
@@ -192,7 +201,8 @@ si_sdiod_drive_strength_init(si_t *sih, osl_t *osh, uint32 drivestrength)
 	if (!(sih->cccaps & CC_CAP_PMU)) {
 		return;
 	}
-
+	BCM_REFERENCE(sdiod_drive_strength_tab1);
+	BCM_REFERENCE(sdiod_drive_strength_tab2);
 	/* Remember original core before switch to chipc/pmu */
 	origidx = si_coreidx(sih);
 	if (AOB_ENAB(sih)) {
@@ -202,25 +212,12 @@ si_sdiod_drive_strength_init(si_t *sih, osl_t *osh, uint32 drivestrength)
 	}
 	ASSERT(pmu != NULL);
 
-	switch (SDIOD_DRVSTR_KEY(CHIPID(sih->chip), sih->pmurev)) {
-	case SDIOD_DRVSTR_KEY(BCM4325_CHIP_ID, 1):
-		str_tab = (sdiod_drive_str_t *)&sdiod_drive_strength_tab1;
-		str_mask = 0x30000000;
-		str_shift = 28;
-		break;
-	case SDIOD_DRVSTR_KEY(BCM4325_CHIP_ID, 2):
-	case SDIOD_DRVSTR_KEY(BCM4325_CHIP_ID, 3):
-	case SDIOD_DRVSTR_KEY(BCM4315_CHIP_ID, 4):
-		str_tab = (sdiod_drive_str_t *)&sdiod_drive_strength_tab2;
-		str_mask = 0x00003800;
-		str_shift = 11;
-		break;
+	switch (SDIOD_DRVSTR_KEY(CHIPID(sih->chip), PMUREV(sih->pmurev))) {
 	case SDIOD_DRVSTR_KEY(BCM4336_CHIP_ID, 8):
 	case SDIOD_DRVSTR_KEY(BCM4336_CHIP_ID, 11):
-		if (sih->pmurev == 8) {
+		if (PMUREV(sih->pmurev) == 8) {
 			str_tab = (sdiod_drive_str_t *)&sdiod_drive_strength_tab3;
-		}
-		else if (sih->pmurev == 11) {
+		} else if (PMUREV(sih->pmurev) == 11) {
 			str_tab = (sdiod_drive_str_t *)&sdiod_drive_strength_tab4_1v8;
 		}
 		str_mask = 0x00003800;
@@ -257,7 +254,7 @@ si_sdiod_drive_strength_init(si_t *sih, osl_t *osh, uint32 drivestrength)
 	default:
 		PMU_MSG(("No SDIO Drive strength init done for chip %s rev %d pmurev %d\n",
 		         bcm_chipname(
-			 CHIPID(sih->chip), chn, 8), CHIPREV(sih->chiprev), sih->pmurev));
+			 CHIPID(sih->chip), chn, 8), CHIPREV(sih->chiprev), PMUREV(sih->pmurev)));
 		break;
 	}
 
@@ -290,3 +287,96 @@ si_sdiod_drive_strength_init(si_t *sih, osl_t *osh, uint32 drivestrength)
 	/* Return to original core */
 	si_setcoreidx(sih, origidx);
 } /* si_sdiod_drive_strength_init */
+
+
+#if defined(BCMULP)
+int
+si_pmu_ulp_register(si_t *sih)
+{
+	return ulp_p1_module_register(ULP_MODULE_ID_PMU, &ulp_pmu_ctx, (void *)sih);
+}
+
+static uint
+si_pmu_ulp_get_retention_size_cb(void *handle, ulp_ext_info_t *einfo)
+{
+	ULP_DBG(("%s: sz: %d\n", __FUNCTION__, sizeof(si_pmu_ulp_cr_dat_t)));
+	return sizeof(si_pmu_ulp_cr_dat_t);
+}
+
+static int
+si_pmu_ulp_enter_cb(void *handle, ulp_ext_info_t *einfo, uint8 *cache_data)
+{
+	si_pmu_ulp_cr_dat_t crinfo = {0};
+	crinfo.ilpcycles_per_sec = ilpcycles_per_sec;
+	ULP_DBG(("%s: ilpcycles_per_sec: %x\n", __FUNCTION__, ilpcycles_per_sec));
+	memcpy(cache_data, (void*)&crinfo, sizeof(crinfo));
+	return BCME_OK;
+}
+
+static int
+si_pmu_ulp_exit_cb(void *handle, uint8 *cache_data,
+	uint8 *p2_cache_data)
+{
+	si_pmu_ulp_cr_dat_t *crinfo = (si_pmu_ulp_cr_dat_t *)cache_data;
+
+	ilpcycles_per_sec = crinfo->ilpcycles_per_sec;
+	ULP_DBG(("%s: ilpcycles_per_sec: %x, cache_data: %p\n", __FUNCTION__,
+		ilpcycles_per_sec, cache_data));
+	return BCME_OK;
+}
+
+void
+si_pmu_ulp_ilp_config(si_t *sih, osl_t *osh, uint32 ilp_period)
+{
+	pmuregs_t *pmu;
+	pmu = si_setcoreidx(sih, si_findcoreidx(sih, PMU_CORE_ID, 0));
+	W_REG(osh, &pmu->ILPPeriod, ilp_period);
+}
+#endif /* defined(BCMULP) */
+
+
+
+void si_pmu_set_min_res_mask(si_t *sih, osl_t *osh, uint min_res_mask)
+{
+	pmuregs_t *pmu;
+	uint origidx;
+
+	/* Remember original core before switch to chipc/pmu */
+	origidx = si_coreidx(sih);
+	if (AOB_ENAB(sih)) {
+		pmu = si_setcore(sih, PMU_CORE_ID, 0);
+	}
+	else {
+		pmu = si_setcoreidx(sih, SI_CC_IDX);
+	}
+	ASSERT(pmu != NULL);
+
+	W_REG(osh, &pmu->min_res_mask, min_res_mask);
+	OSL_DELAY(100);
+
+	/* Return to original core */
+	si_setcoreidx(sih, origidx);
+}
+
+bool
+si_pmu_cap_fast_lpo(si_t *sih)
+{
+	return (PMU_REG(sih, core_cap_ext, 0, 0) & PCAP_EXT_USE_MUXED_ILP_CLK_MASK) ? TRUE : FALSE;
+}
+
+int
+si_pmu_fast_lpo_disable(si_t *sih)
+{
+	if (!si_pmu_cap_fast_lpo(sih)) {
+		PMU_ERROR(("%s: No Fast LPO capability\n", __FUNCTION__));
+		return BCME_ERROR;
+	}
+
+	PMU_REG(sih, pmucontrol_ext,
+		PCTL_EXT_FASTLPO_ENAB |
+		PCTL_EXT_FASTLPO_SWENAB |
+		PCTL_EXT_FASTLPO_PCIE_SWENAB,
+		0);
+	OSL_DELAY(1000);
+	return BCME_OK;
+}

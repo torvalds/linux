@@ -3,7 +3,7 @@
  *
  * Provides type definitions and function prototypes used to parse ip packet.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_ip.h 537119 2015-02-25 04:24:14Z $
+ * $Id: dhd_ip.h 536854 2015-02-24 13:17:29Z $
  */
 
 #ifndef _dhd_ip_h_

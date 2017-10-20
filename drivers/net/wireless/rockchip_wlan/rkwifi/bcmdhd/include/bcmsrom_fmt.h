@@ -1,7 +1,7 @@
 /*
  * SROM format definition.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmsrom_fmt.h 553280 2015-04-29 07:55:29Z $
+ * $Id: bcmsrom_fmt.h 646789 2016-06-30 19:43:02Z $
  */
 
 #ifndef	_bcmsrom_fmt_h_
@@ -924,6 +924,9 @@
 #define SROM13_ULBPDOFFS2GA3		166
 
 #define SROM13_RPCAL5GB4                199
+#define SROM13_RPCAL2GCORE3             101
+#define SROM13_RPCAL5GB01CORE3          102
+#define SROM13_RPCAL5GB23CORE3          103
 
 #define SROM13_EU_EDCRSTH               232
 
@@ -953,6 +956,11 @@
 #define SROM13_RXGAINERRCORE3           586
 #define SROM13_RXGAINERRCORE3_1         587
 
+
+#define SROM16_SIGN                     104
+#define SROM16_WORDS                    512
+#define SROM16_SIGNATURE                0x4347
+#define SROM16_CRCREV                   511
 
 typedef struct {
 	uint8 tssipos;		/* TSSI positive slope, 1: positive, 0: negative */

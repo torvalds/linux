@@ -1,7 +1,7 @@
 /*
  * EVENT_LOG system definitions
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,15 +24,17 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: event_log.h 591285 2015-10-07 11:56:29Z $
+ * $Id: event_log.h 711908 2017-07-20 10:37:34Z $
  */
 
 #ifndef _EVENT_LOG_H_
 #define _EVENT_LOG_H_
 
 #include <typedefs.h>
-#include <proto/event_log_set.h>
-#include <proto/event_log_tag.h>
+#include <event_log_set.h>
+#include <event_log_tag.h>
+#include <event_log_payload.h>
+#include <osl_decl.h>
 
 /* logstrs header */
 #define LOGSTRS_MAGIC   0x4C4F4753
@@ -46,6 +48,8 @@
 #define EVENT_LOG_PSM_BLOCK_SIZE	0x200
 #define EVENT_LOG_BUS_BLOCK_SIZE	0x200
 #define EVENT_LOG_ERROR_BLOCK_SIZE	0x200
+/* Maximum event log record payload size = 1024 bytes or 256 words. */
+#define EVENT_LOG_MAX_RECORD_PAYLOAD_SIZE	256
 
 /*
  * There are multiple levels of objects define here:
@@ -90,9 +94,18 @@ typedef struct event_log_block {
 	/* Start of packet sent for log tracing */
 	uint16 pktlen;			/* Size of rest of block */
 	uint16 count;			/* Logtrace counter */
-	uint32 timestamp;		/* Timestamp at start of use */
+	uint32 extra_hdr_info;		/* LSB: 6 bits set id. MSB 24 bits reserved */
 	uint32 event_logs;
 } event_log_block_t;
+#define EVENT_LOG_BLOCK_HDRLEN		8 /* pktlen 2 + count 2 + extra_hdr_info 4 */
+#define NAN_EVENT_LOG_MIN_LENGTH	2 /* Minimum length of Nan event */
+
+typedef enum {
+	SET_DESTINATION_INVALID = -1,
+	SET_DESTINATION_HOST = 0,
+	SET_DESTINATION_NONE = 1,
+	SET_DESTINATION_MAX
+} event_log_set_destination_t;
 
 /* There can be multiple event_sets with each logging a set of
  * associated events (i.e, "fast" and "slow" events).
@@ -108,6 +121,8 @@ typedef struct event_log_set {
 	uint16 blockfill_count;		/* Fill count for logtrace */
 	uint32 timestamp;		/* Last timestamp event */
 	uint32 cyclecount;		/* Cycles at last timestamp event */
+	event_log_set_destination_t destination;
+	uint16 size;			/* same size for all buffers in one  set */
 } event_log_set_t;
 
 /* Top data structure for access to everything else */
@@ -165,7 +180,7 @@ typedef struct {
  *
  */
 
-#ifndef EVENT_LOG_DUMPER
+#if !defined(EVENT_LOG_DUMPER) && !defined(DHD_EFI)
 
 #ifndef EVENT_LOG_COMPILE
 
@@ -182,7 +197,10 @@ typedef struct {
 #define EVENT_LOG_FAST_CAST_PAREN_ARGS(tag, pargs)
 #define EVENT_LOG_COMPACT_CAST_PAREN_ARGS(tag, pargs)
 
+#define EVENT_LOG_IS_ON(tag)		0
 #define EVENT_LOG_IS_LOG_ON(tag)	0
+
+#define EVENT_LOG_BUFFER(tag, buf, size)
 
 #else  /* EVENT_LOG_COMPILE */
 
@@ -268,7 +286,7 @@ typedef struct {
 	do {								\
 		if (event_log_tag_sets != NULL) {			\
 			uint8 tag_flag = *(event_log_tag_sets + tag);	\
-			if (tag_flag != 0) {				\
+			if ((tag_flag & ~EVENT_LOG_TAG_FLAG_SET_MASK) != 0) {		\
 				_EVENT_LOG(_EVENT_LOG, tag, fmt , ## __VA_ARGS__);	\
 			}						\
 		}							\
@@ -284,7 +302,7 @@ typedef struct {
 	do {								\
 		if (event_log_tag_sets != NULL) {			\
 			uint8 tag_flag = *(event_log_tag_sets + tag);	\
-			if (tag_flag != 0) {				\
+			if ((tag_flag & ~EVENT_LOG_TAG_FLAG_SET_MASK) != 0) {		\
 				_EVENT_LOG(_EVENT_LOG_CAST, tag, fmt , ## __VA_ARGS__);	\
 			}						\
 		}							\
@@ -312,6 +330,18 @@ typedef struct {
 #define EVENT_LOG_COMPACT_CAST_PAREN_ARGS(tag, pargs)			\
 		EVENT_LOG_COMPACT_CAST(tag, EVENT_LOG_REMOVE_PAREN(pargs))
 
+/* Minimal event logging. Event log internally calls event_logx()
+ * log return address in caller.
+ * Note that the if(0){..} below is to avoid compiler warnings
+ * due to unused variables caused by this macro
+ */
+#define EVENT_LOG_RA(tag, args)						\
+	do {								\
+		if (0) {						\
+			EVENT_LOG_COMPACT_CAST_PAREN_ARGS(tag, args);	\
+		}							\
+		event_log_caller_return_address(tag);			\
+	} while (0)
 
 #define EVENT_LOG_IS_LOG_ON(tag) (*(event_log_tag_sets + (tag)) & EVENT_LOG_TAG_FLAG_LOG)
 
@@ -319,16 +349,22 @@ typedef struct {
 
 extern uint8 *event_log_tag_sets;
 
-#include <siutils.h>
+extern int event_log_init(osl_t *osh);
+extern int event_log_set_init(osl_t *osh, int set_num, int size);
+extern int event_log_set_expand(osl_t *osh, int set_num, int size);
+extern int event_log_set_shrink(osl_t *osh, int set_num, int size);
 
-extern int event_log_init(si_t *sih);
-extern int event_log_set_init(si_t *sih, int set_num, int size);
-extern int event_log_set_expand(si_t *sih, int set_num, int size);
-extern int event_log_set_shrink(si_t *sih, int set_num, int size);
 extern int event_log_tag_start(int tag, int set_num, int flags);
 extern int event_log_tag_stop(int tag);
+
+typedef void (*event_log_logtrace_trigger_fn_t)(void *ctx);
+void event_log_set_logtrace_trigger_fn(event_log_logtrace_trigger_fn_t fn, void *ctx);
+
+event_log_top_t *event_log_get_top(void);
+
 extern int event_log_get(int set_num, int buflen, void *buf);
-extern uint8 * event_log_next_logtrace(int set_num);
+
+extern uint8 *event_log_next_logtrace(int set_num);
 
 extern void event_log0(int tag, int fmtNum);
 extern void event_log1(int tag, int fmtNum, uint32 t1);
@@ -339,6 +375,9 @@ extern void event_logn(int num_args, int tag, int fmtNum, ...);
 
 extern void event_log_time_sync(uint32 ms);
 extern void event_log_buffer(int tag, uint8 *buf, int size);
+extern void event_log_caller_return_address(int tag);
+extern int event_log_set_destination_set(int set, event_log_set_destination_t dest);
+extern event_log_set_destination_t event_log_set_destination_get(int set);
 
 #endif /* EVENT_LOG_DUMPER */
 
@@ -346,4 +385,4 @@ extern void event_log_buffer(int tag, uint8 *buf, int size);
 
 #endif /* __ASSEMBLER__ */
 
-#endif /* _EVENT_LOG_H */
+#endif /* _EVENT_LOG_H_ */

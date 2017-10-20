@@ -1,7 +1,7 @@
 /*
  * SDIO access interface for drivers - linux specific (pci only)
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmsdh_linux.c 514727 2014-11-12 03:02:48Z $
+ * $Id: bcmsdh_linux.c 672609 2016-11-29 07:00:46Z $
  */
 
 /**
@@ -217,6 +217,29 @@ int bcmsdh_remove(bcmsdh_info_t *bcmsdh)
 	return 0;
 }
 
+#ifdef DHD_WAKE_STATUS
+int bcmsdh_get_total_wake(bcmsdh_info_t *bcmsdh)
+{
+	return bcmsdh->total_wake_count;
+}
+
+int bcmsdh_set_get_wake(bcmsdh_info_t *bcmsdh, int flag)
+{
+	bcmsdh_os_info_t *bcmsdh_osinfo = bcmsdh->os_cxt;
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&bcmsdh_osinfo->oob_irq_spinlock, flags);
+
+	ret = bcmsdh->pkt_wake;
+	bcmsdh->total_wake_count += flag;
+	bcmsdh->pkt_wake = flag;
+
+	spin_unlock_irqrestore(&bcmsdh_osinfo->oob_irq_spinlock, flags);
+	return ret;
+}
+#endif /* DHD_WAKE_STATUS */
+
 int bcmsdh_suspend(bcmsdh_info_t *bcmsdh)
 {
 	bcmsdh_os_info_t *bcmsdh_osinfo = bcmsdh->os_cxt;
@@ -339,17 +362,16 @@ int bcmsdh_oob_intr_register(bcmsdh_info_t *bcmsdh, bcmsdh_cb_fn_t oob_irq_handl
 	int type;
 	bcmsdh_os_info_t *bcmsdh_osinfo = bcmsdh->os_cxt;
 
-	SDLX_MSG(("%s: Enter\n", __FUNCTION__));
 	if (bcmsdh_osinfo->oob_irq_registered) {
 		SDLX_MSG(("%s: irq is already registered\n", __FUNCTION__));
 		return -EBUSY;
 	}
+	SDLX_MSG(("%s %s irq=%d flags=0x%X\n", __FUNCTION__,
 #ifdef HW_OOB
-	printf("%s: HW_OOB enabled\n", __FUNCTION__);
+		"HW_OOB",
 #else
-	printf("%s: SW_OOB enabled\n", __FUNCTION__);
+		"SW_OOB",
 #endif
-	SDLX_MSG(("%s OOB irq=%d flags=0x%X\n", __FUNCTION__,
 		(int)bcmsdh_osinfo->oob_irq_num, (int)bcmsdh_osinfo->oob_irq_flags));
 	bcmsdh_osinfo->oob_irq_handler = oob_irq_handler;
 	bcmsdh_osinfo->oob_irq_handler_context = oob_irq_handler_context;
@@ -363,9 +385,9 @@ int bcmsdh_oob_intr_register(bcmsdh_info_t *bcmsdh, bcmsdh_cb_fn_t oob_irq_handl
 		bcmsdh_osinfo->oob_irq_flags, "bcmsdh_sdmmc", bcmsdh);
 #endif /* defined(CONFIG_ARCH_ODIN) */
 	if (err) {
+		SDLX_MSG(("%s: request_irq failed with %d\n", __FUNCTION__, err));
 		bcmsdh_osinfo->oob_irq_enabled = FALSE;
 		bcmsdh_osinfo->oob_irq_registered = FALSE;
-		SDLX_MSG(("%s: request_irq failed with %d\n", __FUNCTION__, err));
 		return err;
 	}
 
@@ -376,14 +398,12 @@ int bcmsdh_oob_intr_register(bcmsdh_info_t *bcmsdh, bcmsdh_cb_fn_t oob_irq_handl
 	SDLX_MSG(("%s: disable_irq_wake\n", __FUNCTION__));
 	bcmsdh_osinfo->oob_irq_wake_enabled = FALSE;
 #else
-	SDLX_MSG(("%s: enable_irq_wake\n", __FUNCTION__));
 	err = enable_irq_wake(bcmsdh_osinfo->oob_irq_num);
 	if (err)
 		SDLX_MSG(("%s: enable_irq_wake failed with %d\n", __FUNCTION__, err));
 	else
 		bcmsdh_osinfo->oob_irq_wake_enabled = TRUE;
 #endif
-
 	return 0;
 }
 
@@ -434,6 +454,9 @@ module_param(sd_hiok, uint, 0);
 extern uint sd_f2_blocksize;
 module_param(sd_f2_blocksize, int, 0);
 
+extern uint sd_f1_blocksize;
+module_param(sd_f1_blocksize, int, 0);
+
 #ifdef BCMSDIOH_STD
 extern int sd_uhsimode;
 module_param(sd_uhsimode, int, 0);
@@ -460,6 +483,10 @@ EXPORT_SYMBOL(bcmsdh_intr_dereg);
 #if defined(DHD_DEBUG)
 EXPORT_SYMBOL(bcmsdh_intr_pending);
 #endif
+
+#if defined(BT_OVER_SDIO)
+EXPORT_SYMBOL(bcmsdh_btsdio_interface_init);
+#endif /* defined (BT_OVER_SDIO) */
 
 EXPORT_SYMBOL(bcmsdh_devremove_reg);
 EXPORT_SYMBOL(bcmsdh_cfg_read);

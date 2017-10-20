@@ -1,7 +1,7 @@
 /*
  * Driver O/S-independent utility routines
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmxtlv.c 527361 2015-01-17 01:48:34Z $
+ * $Id: bcmxtlv.c 628611 2016-03-31 17:53:25Z $
  */
 
 #include <bcm_cfg.h>
@@ -215,7 +215,7 @@ bcm_unpack_xtlv_entry(uint8 **tlv_buf, uint16 xpct_type, uint16 xpct_len, void *
 		/* copy tlv record to caller's buffer */
 		memcpy(dst, ptlv->data, ptlv->len);
 	}
-	*tlv_buf += BCM_XTLV_SIZE(ptlv, opts);
+	*tlv_buf = (uint8*)(*tlv_buf) + BCM_XTLV_SIZE(ptlv, opts);
 	return BCME_OK;
 }
 
@@ -249,7 +249,7 @@ bcm_pack_xtlv_entry(uint8 **tlv_buf, uint16 *buflen, uint16 type, uint16 len, vo
 	memcpy(ptlv->data, src, len);
 
 	/* advance callers pointer to tlv buff */
-	*tlv_buf += size;
+	*tlv_buf = (uint8*)(*tlv_buf) + size;
 	/* decrement the len */
 	*buflen -= (uint16)size;
 	return BCME_OK;
@@ -289,7 +289,7 @@ bcm_unpack_xtlv_buf(void *ctx, uint8 *tlv_buf, uint16 buflen, bcm_xtlv_opts_t op
 
 		if ((res = cbfn(ctx, ptlv->data, type, len)) != BCME_OK)
 			break;
-		tlv_buf += size;
+		tlv_buf = (uint8*)tlv_buf + size;
 	}
 	return res;
 }
@@ -317,7 +317,7 @@ bcm_pack_xtlv_buf(void *ctx, void *tlv_buf, uint16 buflen, bcm_xtlv_opts_t opts,
 	while (more && (buf < endp)) {
 		more = get_next(ctx, &tlv_id, &tlv_len);
 		size = bcm_xtlv_size_for_data(tlv_len, opts);
-		if ((buf + size) >= endp) {
+		if ((buf + size) > endp) {
 			res = BCME_BUFTOOSHORT;
 			goto done;
 		}
@@ -349,7 +349,7 @@ bcm_pack_xtlv_buf_from_mem(void **tlv_buf, uint16 *buflen, xtlv_desc_t *items,
 	uint8 *ptlv = (uint8 *)*tlv_buf;
 
 	while (items->type != 0) {
-		if ((res = bcm_pack_xtlv_entry(&ptlv,
+		if ((items->len > 0) && (res = bcm_pack_xtlv_entry(&ptlv,
 			buflen, items->type,
 			items->len, items->ptr, opts) != BCME_OK)) {
 			break;

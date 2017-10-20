@@ -2,7 +2,7 @@
  * Definitions for API from sdio common code (bcmsdh) to individual
  * host controller drivers.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -25,11 +25,15 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmsdbus.h 514727 2014-11-12 03:02:48Z $
+ * $Id: bcmsdbus.h 644725 2016-06-21 12:26:04Z $
  */
 
 #ifndef	_sdio_api_h_
 #define	_sdio_api_h_
+
+#if defined(BT_OVER_SDIO)
+#include <linux/mmc/sdio_func.h>
+#endif /* defined (BT_OVER_SDIO) */
 
 
 #define SDIOH_API_RC_SUCCESS                          (0x00)
@@ -95,6 +99,10 @@ typedef struct sdioh_info sdioh_info_t;
 
 /* callback function, taking one arg */
 typedef void (*sdioh_cb_fn_t)(void *);
+#if defined(BT_OVER_SDIO)
+extern
+void sdioh_sdmmc_card_enable_func_f3(sdioh_info_t *sd, struct sdio_func *func);
+#endif /* defined (BT_OVER_SDIO) */
 
 extern SDIOH_API_RC sdioh_interrupt_register(sdioh_info_t *si, sdioh_cb_fn_t fn, void *argh);
 extern SDIOH_API_RC sdioh_interrupt_deregister(sdioh_info_t *si);
@@ -123,6 +131,7 @@ extern SDIOH_API_RC sdioh_request_buffer(sdioh_info_t *si, uint pio_dma, uint fi
 
 /* get cis data */
 extern SDIOH_API_RC sdioh_cis_read(sdioh_info_t *si, uint fuc, uint8 *cis, uint32 length);
+extern SDIOH_API_RC sdioh_cisaddr_read(sdioh_info_t *sd, uint func, uint8 *cisd, uint32 offset);
 
 extern SDIOH_API_RC sdioh_cfg_read(sdioh_info_t *si, uint fuc, uint32 addr, uint8 *data);
 extern SDIOH_API_RC sdioh_cfg_write(sdioh_info_t *si, uint fuc, uint32 addr, uint8 *data);
@@ -159,15 +168,6 @@ extern SDIOH_API_RC sdioh_gpio_init(sdioh_info_t *sd);
 extern bool sdioh_gpioin(sdioh_info_t *sd, uint32 gpio);
 extern SDIOH_API_RC sdioh_gpioouten(sdioh_info_t *sd, uint32 gpio);
 extern SDIOH_API_RC sdioh_gpioout(sdioh_info_t *sd, uint32 gpio, bool enab);
-
 extern uint sdioh_set_mode(sdioh_info_t *sd, uint mode);
-#if defined(SWTXGLOM)
-/* read or write any buffer using cmd53 */
-extern SDIOH_API_RC sdioh_request_swtxglom_buffer(sdioh_info_t *si, uint pio_dma, uint fix_inc,
-	uint rw, uint fnc_num, uint32 addr, uint regwidth, uint32 buflen, uint8 *buffer,
-	void *pkt);
-extern void sdioh_glom_post(sdioh_info_t *sd, uint8 *frame, void *pkt, uint len);
-extern void sdioh_glom_clear(sdioh_info_t *sd);
-#endif
 
 #endif /* _sdio_api_h_ */

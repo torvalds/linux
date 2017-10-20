@@ -1,7 +1,7 @@
 /*
  * NVRAM variable manipulation
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmnvram.h 514727 2014-11-12 03:02:48Z $
+ * $Id: bcmnvram.h 613043 2016-01-16 00:24:13Z $
  */
 
 #ifndef _bcmnvram_h_
@@ -136,6 +136,15 @@ static INLINE int
 nvram_match(const char *name, const char *match)
 {
 	const char *value = nvram_get(name);
+
+	/* In nvramstubs.c builds, nvram_get() is defined as returning zero,
+	* so the return line below never executes the strcmp(),
+	* resulting in 'match' being an unused parameter.
+	* Make a ref to 'match' to quiet the compiler warning.
+	*/
+
+	BCM_REFERENCE(match);
+
 	return (value && !strcmp(value, match));
 }
 
@@ -151,6 +160,7 @@ static INLINE int
 nvram_match_bitflag(const char *name, const int bit, const char *match)
 {
 	const char *value = nvram_get_bitflag(name, bit);
+	BCM_REFERENCE(match);
 	return (value && !strcmp(value, match));
 }
 
@@ -165,6 +175,15 @@ static INLINE int
 nvram_invmatch(const char *name, const char *invmatch)
 {
 	const char *value = nvram_get(name);
+
+	/* In nvramstubs.c builds, nvram_get() is defined as returning zero,
+	* so the return line below never executes the strcmp(),
+	* resulting in 'invmatch' being an unused parameter.
+	* Make a ref to 'invmatch' to quiet the compiler warning.
+	*/
+
+	BCM_REFERENCE(invmatch);
+
 	return (value && strcmp(value, invmatch));
 }
 

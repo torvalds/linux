@@ -1,7 +1,7 @@
 /*
  * HND SiliconBackplane PMU support.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: hndpmu.h 530150 2015-01-29 08:43:40Z $
+ * $Id: hndpmu.h 657872 2016-09-02 22:17:34Z $
  */
 
 #ifndef _hndpmu_h_
@@ -33,6 +33,7 @@
 #include <typedefs.h>
 #include <osl_decl.h>
 #include <siutils.h>
+#include <sbchipc.h>
 
 
 extern void si_pmu_otp_power(si_t *sih, osl_t *osh, bool on, uint32* min_res_mask);
@@ -41,5 +42,15 @@ extern void si_sdiod_drive_strength_init(si_t *sih, osl_t *osh, uint32 drivestre
 extern void si_pmu_minresmask_htavail_set(si_t *sih, osl_t *osh, bool set_clear);
 extern void si_pmu_slow_clk_reinit(si_t *sih, osl_t *osh);
 extern void si_pmu_avbtimer_enable(si_t *sih, osl_t *osh, bool set_flag);
-
+extern uint32 si_pmu_dump_pmucap_binary(si_t *sih, uchar *p);
+extern uint32 si_pmu_dump_buf_size_pmucap(si_t *sih);
+extern int si_pmu_wait_for_steady_state(si_t *sih, osl_t *osh, pmuregs_t *pmu);
+#if defined(BCMULP)
+int si_pmu_ulp_register(si_t *sih);
+extern void si_pmu_ulp_ilp_config(si_t *sih, osl_t *osh, uint32 ilp_period);
+#endif /* BCMULP */
+extern uint32 si_pmu_get_pmutimer(si_t *sih);
+extern void si_pmu_set_min_res_mask(si_t *sih, osl_t *osh, uint min_res_mask);
+extern bool si_pmu_cap_fast_lpo(si_t *sih);
+extern int si_pmu_fast_lpo_disable(si_t *sih);
 #endif /* _hndpmu_h_ */

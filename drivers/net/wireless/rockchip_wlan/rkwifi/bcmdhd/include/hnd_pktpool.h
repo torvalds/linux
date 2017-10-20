@@ -1,7 +1,7 @@
 /*
  * HND generic packet pool operation primitives
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: hnd_pktpool.h 591285 2015-10-07 11:56:29Z $
+ * $Id: hnd_pktpool.h 613891 2016-01-20 10:05:44Z $
  */
 
 #ifndef _hnd_pktpool_h_
@@ -112,7 +112,7 @@ typedef struct pktpool {
 	uint16 avail;           /**< number of packets in pool's free list */
 	uint16 len;             /**< number of packets managed by pool */
 	uint16 maxlen;          /**< maximum size of pool <= PKTPOOL_LEN_MAX */
-	uint16 plen;            /**< size of pkt buffer, excluding lbuf|lbuf_frag */
+	uint16 plen;            /**< size of pkt buffer in [bytes], excluding lbuf|lbuf_frag */
 
 	bool empty;
 	uint8 cbtoggle;
@@ -164,7 +164,7 @@ extern int pkpool_haddr_avail_register_cb(pktpool_t *pktp, pktpool_cb_t cb, void
 
 #define POOLSETID(pp, ppid) (POOLPTR(pp)->id = (ppid))
 
-#define pktpool_len(pp)     (POOLPTR(pp)->len)
+#define pktpool_len(pp)     (POOLPTR(pp)->len)   /**< returns packet length in [bytes] */
 #define pktpool_avail(pp)   (POOLPTR(pp)->avail)
 #define pktpool_plen(pp)    (POOLPTR(pp)->plen)
 #define pktpool_maxlen(pp)  (POOLPTR(pp)->maxlen)
@@ -211,8 +211,8 @@ extern pktpool_t *pktpool_shared_lfrag;
 #define SHARED_RXFRAG_POOL	(pktpool_shared_rxlfrag)
 extern pktpool_t *pktpool_shared_rxlfrag;
 
-void hnd_pktpool_init(osl_t *osh);
-void hnd_pktpool_fill(pktpool_t *pktpool, bool minimal);
+int hnd_pktpool_init(osl_t *osh);
+int hnd_pktpool_fill(pktpool_t *pktpool, bool minimal);
 void hnd_pktpool_refill(bool minimal);
 #else /* BCMPKTPOOL */
 #define SHARED_POOL		((struct pktpool *)NULL)

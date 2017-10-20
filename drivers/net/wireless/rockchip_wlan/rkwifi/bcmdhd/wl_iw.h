@@ -1,7 +1,7 @@
 /*
  * Linux Wireless Extensions support
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -33,7 +33,7 @@
 #include <linux/wireless.h>
 
 #include <typedefs.h>
-#include <proto/ethernet.h>
+#include <ethernet.h>
 #include <wlioctl.h>
 
 #define WL_SCAN_PARAMS_SSID_MAX 	10
@@ -65,11 +65,6 @@ typedef struct wl_iw_extra_params {
 	int 	target_channel; /* target channel */
 } wl_iw_extra_params_t;
 
-struct cntry_locales_custom {
-	char iso_abbrev[WLC_CNTRY_BUF_SZ];	/* ISO 3166-1 country abbreviation */
-	char custom_locale[WLC_CNTRY_BUF_SZ];	/* Custom firmware locale */
-	int32 custom_locale_rev;		/* Custom local revisin default -1 */
-};
 /* ============================================== */
 /* Defines from wlc_pub.h */
 #define	WL_IW_RSSI_MINVAL		-200	/* Low value, e.g. for forcing roam */

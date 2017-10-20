@@ -2,7 +2,7 @@
  * Minimal debug/trace/assert driver definitions for
  * Broadcom 802.11 Networking Adapter.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -25,18 +25,34 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wl_dbg.h 519338 2014-12-05 21:23:30Z $
+ * $Id: wl_dbg.h 664795 2016-10-13 20:13:32Z $
  */
 
 
 #ifndef _wl_dbg_h_
 #define _wl_dbg_h_
 
+#if defined(EVENT_LOG_COMPILE)
+#include <event_log.h>
+#endif
+
 /* wl_msg_level is a bit vector with defs in wlioctl.h */
 extern uint32 wl_msg_level;
 extern uint32 wl_msg_level2;
 
 #define WL_TIMESTAMP()
+
+#ifdef ENABLE_CORECAPTURE
+#define MAX_BACKTRACE_DEPTH 32
+extern int wl_print_backtrace(const char * prefix, void * i_backtrace, int i_backtrace_depth);
+#else
+#define wl_print_backtrace(a, b, c)
+#endif /* ENABLE_CORECAPTURE */
+
+
+#define WIFICC_CAPTURE(_reason)
+#define WIFICC_LOGDEBUGIF(_flags, _args)
+#define WIFICC_LOGDEBUG(_args)
 
 #define WL_PRINT(args)		do { WL_TIMESTAMP(); printf args; } while (0)
 
@@ -54,11 +70,12 @@ extern uint32 wl_msg_level2;
 /* DBGONLY() macro to reduce ifdefs in code for statements that are only needed when
  * BCMDBG is defined.
  */
-#define DBGONLY(x)
+#define DBGONLY(x) x
 
 /* To disable a message completely ... until you need it again */
 #define WL_NONE(args)
-#define WL_ERROR(args)		do {if (wl_msg_level & WL_ERROR_VAL) WL_PRINT(args);} while (0)
+#define WL_ERROR(args)		do {if (wl_msg_level & WL_ERROR_VAL) WL_PRINT(args); \
+					else WIFICC_LOGDEBUG(args); } while (0)
 #define WL_TRACE(args)
 #define WL_PRHDRS_MSG(args)
 #define WL_PRHDRS(i, p, f, t, r, l)
@@ -67,13 +84,15 @@ extern uint32 wl_msg_level2;
 #define WL_TMP(args)
 #define WL_OID(args)
 #define WL_RATE(args)		do {if (wl_msg_level & WL_RATE_VAL) WL_PRINT(args);} while (0)
-#define WL_ASSOC(args)		do {if (wl_msg_level & WL_ASSOC_VAL) WL_PRINT(args);} while (0)
+#define WL_ASSOC(args)		do {if (wl_msg_level & WL_ASSOC_VAL) WL_PRINT(args); \
+					else WIFICC_LOGDEBUG(args);} while (0)
 #define WL_PRUSR(m, b, n)
 #define WL_PS(args)		do {if (wl_msg_level & WL_PS_VAL) WL_PRINT(args);} while (0)
 
 #define WL_PORT(args)
 #define WL_DUAL(args)
-#define WL_REGULATORY(args)	do {if (wl_msg_level & WL_REGULATORY_VAL) WL_PRINT(args);} while (0)
+#define WL_REGULATORY(args)	do {if (wl_msg_level & WL_REGULATORY_VAL) WL_PRINT(args); \
+					else WIFICC_LOGDEBUG(args);} while (0)
 
 #define WL_MPC(args)
 #define WL_APSTA(args)
@@ -100,7 +119,6 @@ extern uint32 wl_msg_level2;
 #define WL_RTDC(w, s, i, j)
 #define WL_RTDC2(w, s, i, j)
 #define WL_CHANINT(args)
-#define WL_BTA(args)
 #define WL_P2P(args)
 #define WL_ITFR(args)
 #define WL_TDLS(args)
@@ -112,9 +130,22 @@ extern uint32 wl_msg_level2;
 #define WL_L2FILTER(args)
 #define WL_MQ(args)
 #define WL_TXBF(args)
+#define WL_MUMIMO(args)
 #define WL_P2PO(args)
 #define WL_ROAM(args)
 #define WL_WNM(args)
+
+#ifdef WLMSG_MESH
+#define WL_MESH(args)       WL_PRINT(args)
+#define WL_MESH_AMPE(args)  WL_PRINT(args)
+#define WL_MESH_ROUTE(args) WL_PRINT(args)
+#define WL_MESH_BCN(args)
+#else
+#define WL_MESH(args)
+#define WL_MESH_AMPE(args)
+#define WL_MESH_ROUTE(args)
+#define WL_MESH_BCN(args)
+#endif
 
 
 #define WL_AMPDU_UPDN(args)
@@ -162,7 +193,6 @@ extern uint32 wl_msg_level2;
 #define WL_DPT_ON()		0
 #define WL_WOWL_ON()		0
 #define WL_SCAN_ON()		(wl_msg_level2 & WL_SCAN_VAL)
-#define WL_BTA_ON()		0
 #define WL_P2P_ON()		0
 #define WL_ITFR_ON()		0
 #define WL_MCHAN_ON()		0
@@ -178,6 +208,8 @@ extern uint32 wl_msg_level2;
 #define WL_TSLOG_ON()		0
 #define WL_WNM_ON()		0
 #define WL_PCIE_ON()		0
+#define WL_MUMIMO_ON()		0
+#define WL_MESH_ON()		0
 
 #else /* !BCMDBG */
 
@@ -190,6 +222,7 @@ extern uint32 wl_msg_level2;
 #define WL_NONE(args)
 
 #define	WL_ERROR(args)
+
 #define	WL_TRACE(args)
 #define WL_APSTA_UPDN(args)
 #define WL_APSTA_RX(args)
@@ -205,6 +238,8 @@ extern uint32 wl_msg_level2;
 #define WL_PFN(args)      do {if (wl_msg_level & WL_PFN_VAL) WL_PRINT(args);} while (0)
 #define WL_PFN_ON()		(wl_msg_level & WL_PFN_VAL)
 #endif 
+
+#define DBGERRONLY(x)
 
 extern uint32 wl_msg_level;
 extern uint32 wl_msg_level2;

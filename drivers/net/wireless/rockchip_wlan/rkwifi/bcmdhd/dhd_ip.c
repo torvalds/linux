@@ -1,7 +1,7 @@
 /*
  * IP Packet Parser Module.
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,15 +24,15 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_ip.c 569132 2015-07-07 09:09:33Z $
+ * $Id: dhd_ip.c 700317 2017-05-18 15:13:29Z $
  */
 #include <typedefs.h>
 #include <osl.h>
 
-#include <proto/ethernet.h>
-#include <proto/vlan.h>
-#include <proto/802.3.h>
-#include <proto/bcmip.h>
+#include <ethernet.h>
+#include <vlan.h>
+#include <802.3.h>
+#include <bcmip.h>
 #include <bcmendian.h>
 
 #include <dhd_dbg.h>
@@ -42,7 +42,7 @@
 #ifdef DHDTCPACK_SUPPRESS
 #include <dhd_bus.h>
 #include <dhd_proto.h>
-#include <proto/bcmtcp.h>
+#include <bcmtcp.h>
 #endif /* DHDTCPACK_SUPPRESS */
 
 /* special values */
@@ -209,7 +209,6 @@ _tdata_psh_info_pool_deq(tcpack_sup_module_t *tcpack_sup_mod)
 	return tdata_psh_info;
 }
 
-#ifdef BCMSDIO
 static int _tdata_psh_info_pool_init(dhd_pub_t *dhdp,
 	tcpack_sup_module_t *tcpack_sup_mod)
 {
@@ -287,7 +286,6 @@ static void _tdata_psh_info_pool_deinit(dhd_pub_t *dhdp,
 
 	return;
 }
-#endif /* BCMSDIO */
 
 static void dhd_tcpack_send(ulong data)
 {
@@ -340,89 +338,137 @@ int dhd_tcpack_suppress_set(dhd_pub_t *dhdp, uint8 mode)
 {
 	int ret = BCME_OK;
 	unsigned long flags;
+	tcpack_sup_module_t *tcpack_sup_module;
+	uint8 invalid_mode = FALSE;
+	int prev_mode;
+	int i = 0;
 
 	flags = dhd_os_tcpacklock(dhdp);
+	tcpack_sup_module = dhdp->tcpack_sup_module;
+	prev_mode = dhdp->tcpack_sup_mode;
 
-	if (dhdp->tcpack_sup_mode == mode) {
+	/* Check a new mode */
+	if (prev_mode == mode) {
 		DHD_ERROR(("%s %d: already set to %d\n", __FUNCTION__, __LINE__, mode));
 		goto exit;
 	}
 
-	if (mode >= TCPACK_SUP_LAST_MODE ||
-#ifndef BCMSDIO
-		mode == TCPACK_SUP_DELAYTX ||
-#endif /* !BCMSDIO */
-		FALSE) {
-		DHD_ERROR(("%s %d: Invalid mode %d\n", __FUNCTION__, __LINE__, mode));
+	invalid_mode |= (mode >= TCPACK_SUP_LAST_MODE);
+#ifdef BCMSDIO
+	invalid_mode |= (mode == TCPACK_SUP_HOLD);
+#endif /* BCMSDIO */
+#ifdef BCMPCIE
+	invalid_mode |= ((mode == TCPACK_SUP_REPLACE) || (mode == TCPACK_SUP_DELAYTX));
+#endif /* BCMPCIE */
+
+	if (invalid_mode) {
+		DHD_ERROR(("%s %d: Invalid TCP ACK Suppress mode %d\n",
+			__FUNCTION__, __LINE__, mode));
 		ret = BCME_BADARG;
 		goto exit;
 	}
 
-	DHD_TRACE(("%s: %d -> %d\n",
+	DHD_TRACE(("%s: TCP ACK Suppress mode %d -> mode %d\n",
 		__FUNCTION__, dhdp->tcpack_sup_mode, mode));
 
-#ifdef BCMSDIO
-	/* Old tcpack_sup_mode is TCPACK_SUP_DELAYTX */
-	if (dhdp->tcpack_sup_mode == TCPACK_SUP_DELAYTX) {
-		tcpack_sup_module_t *tcpack_sup_mod = dhdp->tcpack_sup_module;
-		/* We won't need tdata_psh_info pool and tcpddata_info_tbl anymore */
-		_tdata_psh_info_pool_deinit(dhdp, tcpack_sup_mod);
-		tcpack_sup_mod->tcpdata_info_cnt = 0;
-		bzero(tcpack_sup_mod->tcpdata_info_tbl,
-			sizeof(tcpdata_info_t) * TCPDATA_INFO_MAXNUM);
-		/* For half duplex bus interface, tx precedes rx by default */
-		if (dhdp->bus)
-			dhd_bus_set_dotxinrx(dhdp->bus, TRUE);
+	/* Pre-process routines to change a new mode as per previous mode */
+	switch (prev_mode) {
+		case TCPACK_SUP_OFF:
+			if (tcpack_sup_module == NULL) {
+				tcpack_sup_module = MALLOC(dhdp->osh, sizeof(tcpack_sup_module_t));
+				if (tcpack_sup_module == NULL) {
+					DHD_ERROR(("%s[%d]: Failed to allocate the new memory for "
+						"tcpack_sup_module\n", __FUNCTION__, __LINE__));
+					dhdp->tcpack_sup_mode = TCPACK_SUP_OFF;
+					ret = BCME_NOMEM;
+					goto exit;
+				}
+				dhdp->tcpack_sup_module = tcpack_sup_module;
+			}
+			bzero(tcpack_sup_module, sizeof(tcpack_sup_module_t));
+			break;
+		case TCPACK_SUP_DELAYTX:
+			if (tcpack_sup_module) {
+				/* We won't need tdata_psh_info pool and
+				 * tcpddata_info_tbl anymore
+				 */
+				_tdata_psh_info_pool_deinit(dhdp, tcpack_sup_module);
+				tcpack_sup_module->tcpdata_info_cnt = 0;
+				bzero(tcpack_sup_module->tcpdata_info_tbl,
+					sizeof(tcpdata_info_t) * TCPDATA_INFO_MAXNUM);
+			}
+
+			/* For half duplex bus interface, tx precedes rx by default */
+			if (dhdp->bus) {
+				dhd_bus_set_dotxinrx(dhdp->bus, TRUE);
+			}
+
+			if (tcpack_sup_module == NULL) {
+				DHD_ERROR(("%s[%d]: tcpack_sup_module should not be NULL\n",
+					__FUNCTION__, __LINE__));
+				dhdp->tcpack_sup_mode = TCPACK_SUP_OFF;
+				goto exit;
+			}
+			break;
 	}
-#endif /* BCMSDIO */
+
+	/* Update a new mode */
 	dhdp->tcpack_sup_mode = mode;
 
-	if (mode == TCPACK_SUP_OFF) {
-		ASSERT(dhdp->tcpack_sup_module != NULL);
-		/* Clean up timer/data structure for any remaining/pending packet or timer. */
-		dhd_tcpack_info_tbl_clean(dhdp);
-		MFREE(dhdp->osh, dhdp->tcpack_sup_module, sizeof(tcpack_sup_module_t));
-		dhdp->tcpack_sup_module = NULL;
-		goto exit;
-	}
-
-	if (dhdp->tcpack_sup_module == NULL) {
-		tcpack_sup_module_t *tcpack_sup_mod =
-			MALLOC(dhdp->osh, sizeof(tcpack_sup_module_t));
-		if (tcpack_sup_mod == NULL) {
-			DHD_ERROR(("%s %d: No MEM\n", __FUNCTION__, __LINE__));
-			dhdp->tcpack_sup_mode = TCPACK_SUP_OFF;
-			ret = BCME_NOMEM;
-			goto exit;
-		}
-		bzero(tcpack_sup_mod, sizeof(tcpack_sup_module_t));
-		dhdp->tcpack_sup_module = tcpack_sup_mod;
-	}
-
-#ifdef BCMSDIO
-	if (mode == TCPACK_SUP_DELAYTX) {
-		ret = _tdata_psh_info_pool_init(dhdp, dhdp->tcpack_sup_module);
-		if (ret != BCME_OK)
-			DHD_ERROR(("%s %d: pool init fail with %d\n", __FUNCTION__, __LINE__, ret));
-		else if (dhdp->bus)
-			dhd_bus_set_dotxinrx(dhdp->bus, FALSE);
-	}
-#endif /* BCMSDIO */
-
-	if (mode == TCPACK_SUP_HOLD) {
-		int i;
-		tcpack_sup_module_t *tcpack_sup_mod =
-			(tcpack_sup_module_t *)dhdp->tcpack_sup_module;
-		dhdp->tcpack_sup_ratio = CUSTOM_TCPACK_SUPP_RATIO;
-		dhdp->tcpack_sup_delay = CUSTOM_TCPACK_DELAY_TIME;
-		for (i = 0; i < TCPACK_INFO_MAXNUM; i++)
-		{
-			tcpack_sup_mod->tcpack_info_tbl[i].dhdp = dhdp;
-			init_timer(&tcpack_sup_mod->tcpack_info_tbl[i].timer);
-			tcpack_sup_mod->tcpack_info_tbl[i].timer.data =
-				(ulong)&tcpack_sup_mod->tcpack_info_tbl[i];
-			tcpack_sup_mod->tcpack_info_tbl[i].timer.function = dhd_tcpack_send;
-		}
+	/* Process for a new mode */
+	switch (mode) {
+		case TCPACK_SUP_OFF:
+			ASSERT(tcpack_sup_module != NULL);
+			/* Clean up timer/data structure for
+			 * any remaining/pending packet or timer.
+			 */
+			if (tcpack_sup_module) {
+				/* Check if previous mode is TCAPACK_SUP_HOLD */
+				if (prev_mode == TCPACK_SUP_HOLD) {
+					for (i = 0; i < TCPACK_INFO_MAXNUM; i++) {
+						tcpack_info_t *tcpack_info_tbl =
+							&tcpack_sup_module->tcpack_info_tbl[i];
+						del_timer(&tcpack_info_tbl->timer);
+						if (tcpack_info_tbl->pkt_in_q) {
+							PKTFREE(dhdp->osh,
+								tcpack_info_tbl->pkt_in_q, TRUE);
+							tcpack_info_tbl->pkt_in_q = NULL;
+						}
+					}
+				}
+				MFREE(dhdp->osh, tcpack_sup_module, sizeof(tcpack_sup_module_t));
+				dhdp->tcpack_sup_module = NULL;
+			} else {
+				DHD_ERROR(("%s[%d]: tcpack_sup_module should not be NULL\n",
+					__FUNCTION__, __LINE__));
+			}
+			break;
+		case TCPACK_SUP_REPLACE:
+			/* There is nothing to configure for this mode */
+			break;
+		case TCPACK_SUP_DELAYTX:
+			ret = _tdata_psh_info_pool_init(dhdp, tcpack_sup_module);
+			if (ret != BCME_OK) {
+				DHD_ERROR(("%s %d: pool init fail with %d\n",
+					__FUNCTION__, __LINE__, ret));
+				break;
+			}
+			if (dhdp->bus) {
+				dhd_bus_set_dotxinrx(dhdp->bus, FALSE);
+			}
+			break;
+		case TCPACK_SUP_HOLD:
+			dhdp->tcpack_sup_ratio = CUSTOM_TCPACK_SUPP_RATIO;
+			dhdp->tcpack_sup_delay = CUSTOM_TCPACK_DELAY_TIME;
+			for (i = 0; i < TCPACK_INFO_MAXNUM; i++) {
+				tcpack_info_t *tcpack_info_tbl =
+					&tcpack_sup_module->tcpack_info_tbl[i];
+				tcpack_info_tbl->dhdp = dhdp;
+				init_timer(&tcpack_info_tbl->timer);
+				tcpack_info_tbl->timer.data = (ulong)tcpack_info_tbl;
+				tcpack_info_tbl->timer.function = dhd_tcpack_send;
+			}
+			break;
 	}
 
 exit:
@@ -1182,7 +1228,7 @@ dhd_tcpack_hold(dhd_pub_t *dhdp, void *pkt, int ifidx)
 	for (i = 0; i < TCPACK_INFO_MAXNUM; i++) {
 		void *oldpkt;	/* TCPACK packet that is already in txq or DelayQ */
 		uint8 *old_ether_hdr, *old_ip_hdr, *old_tcp_hdr;
-		uint32 old_ip_hdr_len, old_tcp_hdr_len;
+		uint32 old_ip_hdr_len;
 		uint32 old_tcpack_num;	/* TCP ACK number of old TCPACK packet in Q */
 
 		if ((oldpkt = tcpack_info_tbl[i].pkt_in_q) == NULL) {
@@ -1204,7 +1250,6 @@ dhd_tcpack_hold(dhd_pub_t *dhdp, void *pkt, int ifidx)
 		old_ip_hdr = old_ether_hdr + ETHER_HDR_LEN;
 		old_ip_hdr_len = IPV4_HLEN(old_ip_hdr);
 		old_tcp_hdr = old_ip_hdr + old_ip_hdr_len;
-		old_tcp_hdr_len = 4 * TCP_HDRLEN(old_tcp_hdr[TCP_HLEN_OFFSET]);
 
 		DHD_TRACE(("%s %d: oldpkt %p[%d], IP addr "IPV4_ADDR_STR" "IPV4_ADDR_STR
 			" TCP port %d %d\n", __FUNCTION__, __LINE__, oldpkt, i,

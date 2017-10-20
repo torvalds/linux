@@ -1,7 +1,7 @@
 /*
  * Broadcom BCMSDH to gSPI Protocol Conversion Layer
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmspibrcm.c 591086 2015-10-07 02:51:01Z $
+ * $Id: bcmspibrcm.c 611787 2016-01-12 06:07:27Z $
  */
 
 #define HSMODE
@@ -63,8 +63,6 @@
 #define GSPI_F3_RESP_DELAY		0
 
 #define CMDLEN		4
-
-#define DWORDMODE_ON (sd->chip == BCM4329_CHIP_ID) && (sd->chiprev == 2) && (sd->dwordmode == TRUE)
 
 /* Globals */
 #if defined(DHD_DEBUG)
@@ -237,13 +235,6 @@ sdioh_interrupt_pending(sdioh_info_t *sd)
 	return 0;
 }
 #endif
-
-extern SDIOH_API_RC
-sdioh_query_device(sdioh_info_t *sd)
-{
-	/* Return a BRCM ID appropriate to the dongle class */
-	return (sd->num_funcs > 1) ? BCM4329_D11N_ID : BCM4318_D11G_ID;
-}
 
 /* Provide dstatus bits of spi-transaction for dhd layers. */
 extern uint32
@@ -1529,22 +1520,6 @@ bcmspi_cmd_issue(sdioh_info_t *sd, bool use_dma, uint32 cmd_arg,
 
 	sd_trace(("spi cmd = 0x%x\n", cmd_arg));
 
-	if (DWORDMODE_ON) {
-		spilen = GFIELD(cmd_arg, SPI_LEN);
-		if ((GFIELD(cmd_arg, SPI_FUNCTION) == SPI_FUNC_0) ||
-		    (GFIELD(cmd_arg, SPI_FUNCTION) == SPI_FUNC_1))
-			dstatus_idx = spilen * 3;
-
-		if ((GFIELD(cmd_arg, SPI_FUNCTION) == SPI_FUNC_2) &&
-		    (GFIELD(cmd_arg, SPI_RW_FLAG) == 1)) {
-			spilen = spilen << 2;
-			dstatus_idx = (spilen % 16) ? (16 - (spilen % 16)) : 0;
-			/* convert len to mod16 size */
-			spilen = ROUNDUP(spilen, 16);
-			cmd_arg = SFIELD(cmd_arg, SPI_LEN, (spilen >> 2));
-		}
-	}
-
 	/* Set up and issue the SPI command.  MSByte goes out on bus first.  Increase datalen
 	 * according to the wordlen mode(16/32bit) the device is in.
 	 */
@@ -1567,17 +1542,6 @@ bcmspi_cmd_issue(sdioh_info_t *sd, bool use_dma, uint32 cmd_arg,
 	/* for Write, put the data into the output buffer */
 	if (GFIELD(cmd_arg, SPI_RW_FLAG) == 1) {
 		/* We send len field of hw-header always a mod16 size, both from host and dongle */
-		if (DWORDMODE_ON) {
-			if (GFIELD(cmd_arg, SPI_FUNCTION) == SPI_FUNC_2) {
-				ptr = (uint16 *)&data[0];
-				templen = *ptr;
-				/* ASSERT(*ptr == ~*(ptr + 1)); */
-				templen = ROUNDUP(templen, 16);
-				*ptr = templen;
-				sd_trace(("actual tx len = %d\n", (uint16)(~*(ptr+1))));
-			}
-		}
-
 		if (datalen != 0) {
 			for (i = 0; i < datalen/4; i++) {
 				if (sd->wordlen == 4) { /* 32bit spid */
@@ -1640,25 +1604,6 @@ bcmspi_cmd_issue(sdioh_info_t *sd, bool use_dma, uint32 cmd_arg,
 					            CMDLEN + resp_delay]);
 				}
 			}
-
-			if ((DWORDMODE_ON) && (GFIELD(cmd_arg, SPI_FUNCTION) == SPI_FUNC_2)) {
-				ptr = (uint16 *)&data[0];
-				templen = *ptr;
-				buslen = len = ~(*(ptr + 1));
-				buslen = ROUNDUP(buslen, 16);
-				/* populate actual len in hw-header */
-				if (templen == buslen)
-					*ptr = len;
-			}
-		}
-	}
-
-	/* Restore back the len field of the hw header */
-	if (DWORDMODE_ON) {
-		if ((GFIELD(cmd_arg, SPI_FUNCTION) == SPI_FUNC_2) &&
-		    (GFIELD(cmd_arg, SPI_RW_FLAG) == 1)) {
-			ptr = (uint16 *)&data[0];
-			*ptr = (uint16)(~*(ptr+1));
 		}
 	}
 

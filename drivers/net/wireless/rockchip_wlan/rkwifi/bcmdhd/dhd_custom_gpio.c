@@ -1,7 +1,7 @@
 /*
  * Customer code to add GPIO control during WLAN start/stop
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_custom_gpio.c 591129 2015-10-07 05:22:14Z $
+ * $Id: dhd_custom_gpio.c 664997 2016-10-14 11:56:35Z $
  */
 
 #include <typedefs.h>
@@ -36,9 +36,6 @@
 #include <dhd_linux.h>
 
 #include <wlioctl.h>
-#if defined(WL_WIRELESS_EXT)
-#include <wl_iw.h>
-#endif
 
 #define WL_ERROR(x) printf x
 #define WL_TRACE(x)
@@ -131,14 +128,6 @@ dhd_custom_get_mac_address(void *adapter, unsigned char *buf)
 	return ret;
 }
 #endif /* GET_CUSTOM_MAC_ENABLE */
-
-#if !defined(WL_WIRELESS_EXT)
-struct cntry_locales_custom {
-	char iso_abbrev[WLC_CNTRY_BUF_SZ];	/* ISO 3166-1 country abbreviation */
-	char custom_locale[WLC_CNTRY_BUF_SZ];	/* Custom firmware locale */
-	int32 custom_locale_rev;		/* Custom local revisin default -1 */
-};
-#endif /* WL_WIRELESS_EXT */
 
 /* Customized Locale table : OPTIONAL feature */
 const struct cntry_locales_custom translate_custom_table[] = {
@@ -259,7 +248,7 @@ const struct cntry_locales_custom translate_custom_table[] = {
 void
 #ifdef CUSTOM_COUNTRY_CODE
 get_customized_country_code(void *adapter, char *country_iso_code,
- wl_country_t *cspec, u32 flags)
+	wl_country_t *cspec, u32 flags)
 #else
 get_customized_country_code(void *adapter, char *country_iso_code, wl_country_t *cspec)
 #endif /* CUSTOM_COUNTRY_CODE */
@@ -271,11 +260,11 @@ get_customized_country_code(void *adapter, char *country_iso_code, wl_country_t 
 	if (!cspec)
 		return;
 #ifdef CUSTOM_COUNTRY_CODE
-	cloc_ptr = wifi_platform_get_country_code(adapter, country_iso_code,
-	           flags);
+	cloc_ptr = wifi_platform_get_country_code(adapter, country_iso_code, flags);
 #else
 	cloc_ptr = wifi_platform_get_country_code(adapter, country_iso_code);
 #endif /* CUSTOM_COUNTRY_CODE */
+
 	if (cloc_ptr) {
 		strlcpy(cspec->ccode, cloc_ptr->custom_locale, WLC_CNTRY_BUF_SZ);
 		cspec->rev = cloc_ptr->custom_locale_rev;

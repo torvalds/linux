@@ -1,7 +1,7 @@
 /*
  * Linux roam cache
  *
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,5 +24,5 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wl_roam.c 599089 2015-11-12 10:41:33Z $
+ * $Id: wl_roam.c 662434 2016-09-29 12:21:46Z $
  */

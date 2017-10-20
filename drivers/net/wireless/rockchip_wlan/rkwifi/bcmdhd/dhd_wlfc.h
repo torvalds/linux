@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -22,7 +22,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_wlfc.h 557035 2015-05-15 18:48:57Z $
+ * $Id: dhd_wlfc.h 671530 2016-11-22 08:43:33Z $
  *
  */
 #ifndef __wlfc_host_driver_definitions_h__
@@ -109,9 +109,9 @@ typedef struct wlfc_hanger {
 #define WLFC_PSQ_PREC_COUNT		((AC_COUNT + 1) * 2) /**< 2 for each AC traffic and bc/mc */
 #define WLFC_AFQ_PREC_COUNT		(AC_COUNT + 1)
 
-#define WLFC_PSQ_LEN			2048
+#define WLFC_PSQ_LEN			(4096 * 8)
 
-#define WLFC_FLOWCONTROL_HIWATER	(2048 - 256)
+#define WLFC_FLOWCONTROL_HIWATER	((4096 * 8) - 256)
 #define WLFC_FLOWCONTROL_LOWATER	256
 
 #if (WLFC_FLOWCONTROL_HIWATER >= (WLFC_PSQ_LEN - 256))
@@ -247,7 +247,7 @@ typedef struct athost_wl_stat_counters {
 #define WLFC_HOST_FIFO_CREDIT_INC_BACKCTRS(ctx, ac) do {} while (0)
 #define WLFC_HOST_FIFO_DROPPEDCTR_INC(ctx, ac) do {} while (0)
 #endif
-
+#define WLFC_PACKET_BOUND              10
 #define WLFC_FCMODE_NONE				0
 #define WLFC_FCMODE_IMPLIED_CREDIT		1
 #define WLFC_FCMODE_EXPLICIT_CREDIT		2
@@ -373,7 +373,7 @@ typedef struct dhd_pkttag {
 	/** This 32-bit goes from host to device for every packet. */
 	uint32	htod_tag;
 
-	/** This 16-bit is original seq number for every suppress packet. */
+	/** This 16-bit is original d11seq number for every suppressed packet. */
 	uint16	htod_seq;
 
 	/** This address is mac entry for every packet. */
@@ -529,6 +529,9 @@ int dhd_wlfc_cleanup(dhd_pub_t *dhd, f_processpkt_t fn, void* arg);
 int dhd_wlfc_deinit(dhd_pub_t *dhd);
 int dhd_wlfc_interface_event(dhd_pub_t *dhdp, uint8 action, uint8 ifid, uint8 iftype, uint8* ea);
 int dhd_wlfc_FIFOcreditmap_event(dhd_pub_t *dhdp, uint8* event_data);
+#ifdef LIMIT_BORROW
+int dhd_wlfc_disable_credit_borrow_event(dhd_pub_t *dhdp, uint8* event_data);
+#endif /* LIMIT_BORROW */
 int dhd_wlfc_BCMCCredit_support_event(dhd_pub_t *dhdp);
 int dhd_wlfc_enable(dhd_pub_t *dhdp);
 int dhd_wlfc_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf);

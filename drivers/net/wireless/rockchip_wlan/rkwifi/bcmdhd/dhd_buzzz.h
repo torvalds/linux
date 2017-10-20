@@ -3,7 +3,7 @@
 
 /*
  * Broadcom logging system - Empty implementaiton
- * Copyright (C) 1999-2016, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_buzzz.h 591283 2015-10-07 11:52:00Z $
+ * $Id$
  */
 
 #define dhd_buzzz_attach()              do { /* noop */ } while (0)
