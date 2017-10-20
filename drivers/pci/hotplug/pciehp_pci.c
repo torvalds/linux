@@ -60,9 +60,8 @@ int pciehp_configure_device(struct slot *p_slot)
 		goto out;
 	}
 
-	list_for_each_entry(dev, &parent->devices, bus_list)
-		if (pci_is_bridge(dev))
-			pci_hp_add_bridge(dev);
+	for_each_pci_bridge(dev, parent)
+		pci_hp_add_bridge(dev);
 
 	pci_assign_unassigned_bridge_resources(bridge);
 	pcie_bus_configure_settings(parent);

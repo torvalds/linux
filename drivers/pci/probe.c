@@ -2421,10 +2421,8 @@ unsigned int pci_scan_child_bus(struct pci_bus *bus)
 	}
 
 	for (pass = 0; pass < 2; pass++)
-		list_for_each_entry(dev, &bus->devices, bus_list) {
-			if (pci_is_bridge(dev))
-				max = pci_scan_bridge(bus, dev, max, pass);
-		}
+		for_each_pci_bridge(dev, bus)
+			max = pci_scan_bridge(bus, dev, max, pass);
 
 	/*
 	 * Make sure a hotplug bridge has at least the minimum requested

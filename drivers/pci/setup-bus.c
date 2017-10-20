@@ -1921,10 +1921,9 @@ void pci_assign_unassigned_bus_resources(struct pci_bus *bus)
 					want additional resources */
 
 	down_read(&pci_bus_sem);
-	list_for_each_entry(dev, &bus->devices, bus_list)
-		if (pci_is_bridge(dev) && pci_has_subordinate(dev))
-				__pci_bus_size_bridges(dev->subordinate,
-							 &add_list);
+	for_each_pci_bridge(dev, bus)
+		if (pci_has_subordinate(dev))
+			__pci_bus_size_bridges(dev->subordinate, &add_list);
 	up_read(&pci_bus_sem);
 	__pci_bus_assign_resources(bus, &add_list, NULL);
 	BUG_ON(!list_empty(&add_list));
