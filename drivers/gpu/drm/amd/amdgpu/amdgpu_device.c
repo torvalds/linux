@@ -109,10 +109,8 @@ uint32_t amdgpu_mm_rreg(struct amdgpu_device *adev, uint32_t reg,
 {
 	uint32_t ret;
 
-	if (!(acc_flags & AMDGPU_REGS_NO_KIQ) && amdgpu_sriov_runtime(adev)) {
-		BUG_ON(in_interrupt());
+	if (!(acc_flags & AMDGPU_REGS_NO_KIQ) && amdgpu_sriov_runtime(adev))
 		return amdgpu_virt_kiq_rreg(adev, reg);
-	}
 
 	if ((reg * 4) < adev->rmmio_size && !(acc_flags & AMDGPU_REGS_IDX))
 		ret = readl(((void __iomem *)adev->rmmio) + (reg * 4));
@@ -137,10 +135,8 @@ void amdgpu_mm_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v,
 		adev->last_mm_index = v;
 	}
 
-	if (!(acc_flags & AMDGPU_REGS_NO_KIQ) && amdgpu_sriov_runtime(adev)) {
-		BUG_ON(in_interrupt());
+	if (!(acc_flags & AMDGPU_REGS_NO_KIQ) && amdgpu_sriov_runtime(adev))
 		return amdgpu_virt_kiq_wreg(adev, reg, v);
-	}
 
 	if ((reg * 4) < adev->rmmio_size && !(acc_flags & AMDGPU_REGS_IDX))
 		writel(v, ((void __iomem *)adev->rmmio) + (reg * 4));
@@ -656,6 +652,81 @@ void amdgpu_gart_location(struct amdgpu_device *adev, struct amdgpu_mc *mc)
 	dev_info(adev->dev, "GTT: %lluM 0x%016llX - 0x%016llX\n",
 			mc->gart_size >> 20, mc->gart_start, mc->gart_end);
 }
+
+/*
+ * Firmware Reservation functions
+ */
+/**
+ * amdgpu_fw_reserve_vram_fini - free fw reserved vram
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * free fw reserved vram if it has been reserved.
+ */
+void amdgpu_fw_reserve_vram_fini(struct amdgpu_device *adev)
+{
+	amdgpu_bo_free_kernel(&adev->fw_vram_usage.reserved_bo,
+		NULL, &adev->fw_vram_usage.va);
+}
+
+/**
+ * amdgpu_fw_reserve_vram_init - create bo vram reservation from fw
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * create bo vram reservation from fw.
+ */
+int amdgpu_fw_reserve_vram_init(struct amdgpu_device *adev)
+{
+	int r = 0;
+	u64 gpu_addr;
+	u64 vram_size = adev->mc.visible_vram_size;
+
+	adev->fw_vram_usage.va = NULL;
+	adev->fw_vram_usage.reserved_bo = NULL;
+
+	if (adev->fw_vram_usage.size > 0 &&
+		adev->fw_vram_usage.size <= vram_size) {
+
+		r = amdgpu_bo_create(adev, adev->fw_vram_usage.size,
+			PAGE_SIZE, true, 0,
+			AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS, NULL, NULL, 0,
+			&adev->fw_vram_usage.reserved_bo);
+		if (r)
+			goto error_create;
+
+		r = amdgpu_bo_reserve(adev->fw_vram_usage.reserved_bo, false);
+		if (r)
+			goto error_reserve;
+		r = amdgpu_bo_pin_restricted(adev->fw_vram_usage.reserved_bo,
+			AMDGPU_GEM_DOMAIN_VRAM,
+			adev->fw_vram_usage.start_offset,
+			(adev->fw_vram_usage.start_offset +
+			adev->fw_vram_usage.size), &gpu_addr);
+		if (r)
+			goto error_pin;
+		r = amdgpu_bo_kmap(adev->fw_vram_usage.reserved_bo,
+			&adev->fw_vram_usage.va);
+		if (r)
+			goto error_kmap;
+
+		amdgpu_bo_unreserve(adev->fw_vram_usage.reserved_bo);
+	}
+	return r;
+
+error_kmap:
+	amdgpu_bo_unpin(adev->fw_vram_usage.reserved_bo);
+error_pin:
+	amdgpu_bo_unreserve(adev->fw_vram_usage.reserved_bo);
+error_reserve:
+	amdgpu_bo_unref(&adev->fw_vram_usage.reserved_bo);
+error_create:
+	adev->fw_vram_usage.va = NULL;
+	adev->fw_vram_usage.reserved_bo = NULL;
+	return r;
+}
+
 
 /*
  * GPU helpers function.
@@ -1604,7 +1675,6 @@ static int amdgpu_init(struct amdgpu_device *adev)
 			return r;
 		}
 		adev->ip_blocks[i].status.sw = true;
-
 		/* need to do gmc hw init early so we can allocate gpu mem */
 		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC) {
 			r = amdgpu_vram_scratch_init(adev);
@@ -1634,11 +1704,6 @@ static int amdgpu_init(struct amdgpu_device *adev)
 			}
 		}
 	}
-
-	mutex_lock(&adev->firmware.mutex);
-	if (amdgpu_ucode_init_bo(adev))
-		adev->firmware.load_type = AMDGPU_FW_LOAD_DIRECT;
-	mutex_unlock(&adev->firmware.mutex);
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.sw)
@@ -1775,8 +1840,6 @@ static int amdgpu_fini(struct amdgpu_device *adev)
 
 		adev->ip_blocks[i].status.hw = false;
 	}
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_DIRECT)
-		amdgpu_ucode_fini_bo(adev);
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.sw)
@@ -2019,6 +2082,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	adev->vm_manager.vm_pte_num_rings = 0;
 	adev->gart.gart_funcs = NULL;
 	adev->fence_context = dma_fence_context_alloc(AMDGPU_MAX_RINGS);
+	bitmap_zero(adev->gfx.pipe_reserve_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
 
 	adev->smc_rreg = &amdgpu_invalid_rreg;
 	adev->smc_wreg = &amdgpu_invalid_wreg;
@@ -2047,6 +2111,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	mutex_init(&adev->pm.mutex);
 	mutex_init(&adev->gfx.gpu_clock_mutex);
 	mutex_init(&adev->srbm_mutex);
+	mutex_init(&adev->gfx.pipe_reserve_mutex);
 	mutex_init(&adev->grbm_idx_mutex);
 	mutex_init(&adev->mn_lock);
 	mutex_init(&adev->virt.vf_errors.lock);
@@ -2223,6 +2288,9 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	if (r)
 		DRM_ERROR("ib ring test failed (%d).\n", r);
 
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_init_data_exchange(adev);
+
 	amdgpu_fbdev_init(adev);
 
 	r = amdgpu_pm_sysfs_init(adev);
@@ -2300,6 +2368,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	/* evict vram memory */
 	amdgpu_bo_evict_vram(adev);
 	amdgpu_ib_pool_fini(adev);
+	amdgpu_fw_reserve_vram_fini(adev);
 	amdgpu_fence_driver_fini(adev);
 	amdgpu_fbdev_fini(adev);
 	r = amdgpu_fini(adev);
@@ -2551,6 +2620,9 @@ static bool amdgpu_check_soft_reset(struct amdgpu_device *adev)
 {
 	int i;
 	bool asic_hang = false;
+
+	if (amdgpu_sriov_vf(adev))
+		return true;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.valid)

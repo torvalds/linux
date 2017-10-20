@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include <linux/kernel.h>
 #include <linux/firmware.h>
 #include <drm/drmP.h>
 #include "amdgpu.h"
@@ -1730,10 +1731,10 @@ static int gfx_v9_0_init_rlc_save_restore_list(struct amdgpu_device *adev)
 				adev->gfx.rlc.reg_list_format_size_bytes >> 2,
 				unique_indirect_regs,
 				&unique_indirect_reg_count,
-				sizeof(unique_indirect_regs)/sizeof(int),
+				ARRAY_SIZE(unique_indirect_regs),
 				indirect_start_offsets,
 				&indirect_start_offsets_count,
-				sizeof(indirect_start_offsets)/sizeof(int));
+				ARRAY_SIZE(indirect_start_offsets));
 
 	/* enable auto inc in case it is disabled */
 	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_CNTL));
@@ -1770,12 +1771,12 @@ static int gfx_v9_0_init_rlc_save_restore_list(struct amdgpu_device *adev)
 	/* write the starting offsets to RLC scratch ram */
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_SCRATCH_ADDR),
 		adev->gfx.rlc.starting_offsets_start);
-	for (i = 0; i < sizeof(indirect_start_offsets)/sizeof(int); i++)
+	for (i = 0; i < ARRAY_SIZE(indirect_start_offsets); i++)
 		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_SCRATCH_DATA),
 			indirect_start_offsets[i]);
 
 	/* load unique indirect regs*/
-	for (i = 0; i < sizeof(unique_indirect_regs)/sizeof(int); i++) {
+	for (i = 0; i < ARRAY_SIZE(unique_indirect_regs); i++) {
 		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_INDEX_CNTL_ADDR_0) + i,
 			unique_indirect_regs[i] & 0x3FFFF);
 		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_INDEX_CNTL_DATA_0) + i,

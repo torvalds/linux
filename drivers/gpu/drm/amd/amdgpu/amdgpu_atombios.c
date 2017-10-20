@@ -1807,6 +1807,8 @@ int amdgpu_atombios_allocate_fb_scratch(struct amdgpu_device *adev)
 	uint16_t data_offset;
 	int usage_bytes = 0;
 	struct _ATOM_VRAM_USAGE_BY_FIRMWARE *firmware_usage;
+	u64 start_addr;
+	u64 size;
 
 	if (amdgpu_atom_parse_data_header(ctx, index, NULL, NULL, NULL, &data_offset)) {
 		firmware_usage = (struct _ATOM_VRAM_USAGE_BY_FIRMWARE *)(ctx->bios + data_offset);
@@ -1815,7 +1817,21 @@ int amdgpu_atombios_allocate_fb_scratch(struct amdgpu_device *adev)
 			  le32_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].ulStartAddrUsedByFirmware),
 			  le16_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb));
 
-		usage_bytes = le16_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb) * 1024;
+		start_addr = firmware_usage->asFirmwareVramReserveInfo[0].ulStartAddrUsedByFirmware;
+		size = firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb;
+
+		if ((uint32_t)(start_addr & ATOM_VRAM_OPERATION_FLAGS_MASK) ==
+			(uint32_t)(ATOM_VRAM_BLOCK_SRIOV_MSG_SHARE_RESERVATION <<
+			ATOM_VRAM_OPERATION_FLAGS_SHIFT)) {
+			/* Firmware request VRAM reservation for SR-IOV */
+			adev->fw_vram_usage.start_offset = (start_addr &
+				(~ATOM_VRAM_OPERATION_FLAGS_MASK)) << 10;
+			adev->fw_vram_usage.size = size << 10;
+			/* Use the default scratch size */
+			usage_bytes = 0;
+		} else {
+			usage_bytes = le16_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb) * 1024;
+		}
 	}
 	ctx->scratch_size_bytes = 0;
 	if (usage_bytes == 0)

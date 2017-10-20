@@ -94,6 +94,11 @@ struct amdgpu_bo {
 	};
 };
 
+static inline struct amdgpu_bo *ttm_to_amdgpu_bo(struct ttm_buffer_object *tbo)
+{
+	return container_of(tbo, struct amdgpu_bo, tbo);
+}
+
 /**
  * amdgpu_mem_type_to_domain - return domain corresponding to mem_type
  * @mem_type:	ttm memory type
@@ -186,6 +191,14 @@ static inline bool amdgpu_bo_gpu_accessible(struct amdgpu_bo *bo)
 	case TTM_PL_VRAM: return true;
 	default: return false;
 	}
+}
+
+/**
+ * amdgpu_bo_explicit_sync - return whether the bo is explicitly synced
+ */
+static inline bool amdgpu_bo_explicit_sync(struct amdgpu_bo *bo)
+{
+	return bo->flags & AMDGPU_GEM_CREATE_EXPLICIT_SYNC;
 }
 
 int amdgpu_bo_create(struct amdgpu_device *adev,

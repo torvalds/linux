@@ -88,4 +88,6 @@ int smu7_upload_smu_firmware_image(struct pp_hwmgr *hwmgr);
 int smu7_init(struct pp_hwmgr *hwmgr);
 int smu7_smu_fini(struct pp_hwmgr *hwmgr);
 
+int smu7_setup_pwr_virus(struct pp_hwmgr *hwmgr);
+
 #endif
