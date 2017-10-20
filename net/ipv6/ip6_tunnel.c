@@ -770,7 +770,8 @@ int ip6_tnl_rcv_ctl(struct ip6_tnl *t,
 
 		if ((ipv6_addr_is_multicast(laddr) ||
 		     likely(ipv6_chk_addr(net, laddr, ldev, 0))) &&
-		    likely(!ipv6_chk_addr(net, raddr, NULL, 0)))
+		    ((p->flags & IP6_TNL_F_ALLOW_LOCAL_REMOTE) ||
+		     likely(!ipv6_chk_addr(net, raddr, NULL, 0))))
 			ret = 1;
 	}
 	return ret;
@@ -1000,7 +1001,8 @@ int ip6_tnl_xmit_ctl(struct ip6_tnl *t,
 		if (unlikely(!ipv6_chk_addr(net, laddr, ldev, 0)))
 			pr_warn("%s xmit: Local address not yet configured!\n",
 				p->name);
-		else if (!ipv6_addr_is_multicast(raddr) &&
+		else if (!(p->flags & IP6_TNL_F_ALLOW_LOCAL_REMOTE) &&
+			 !ipv6_addr_is_multicast(raddr) &&
 			 unlikely(ipv6_chk_addr(net, raddr, NULL, 0)))
 			pr_warn("%s xmit: Routing loop! Remote address found on this node!\n",
 				p->name);
