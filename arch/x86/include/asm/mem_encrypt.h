@@ -42,6 +42,9 @@ void __init sme_early_init(void);
 void __init sme_encrypt_kernel(void);
 void __init sme_enable(struct boot_params *bp);
 
+int __init early_set_memory_decrypted(unsigned long vaddr, unsigned long size);
+int __init early_set_memory_encrypted(unsigned long vaddr, unsigned long size);
+
 /* Architecture __weak replacement functions */
 void __init mem_encrypt_init(void);
 
@@ -69,6 +72,11 @@ static inline void __init sme_enable(struct boot_params *bp) { }
 
 static inline bool sme_active(void) { return false; }
 static inline bool sev_active(void) { return false; }
+
+static inline int __init
+early_set_memory_decrypted(unsigned long vaddr, unsigned long size) { return 0; }
+static inline int __init
+early_set_memory_encrypted(unsigned long vaddr, unsigned long size) { return 0; }
 
 #endif	/* CONFIG_AMD_MEM_ENCRYPT */
 
