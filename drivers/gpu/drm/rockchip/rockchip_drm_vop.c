@@ -1038,6 +1038,14 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 	mutex_unlock(&vop->vop_lock);
 
 	rockchip_clear_system_status(sys_status);
+
+	if (crtc->state->event && !crtc->state->active) {
+		spin_lock_irq(&crtc->dev->event_lock);
+		drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		spin_unlock_irq(&crtc->dev->event_lock);
+
+		crtc->state->event = NULL;
+	}
 }
 
 static void vop_plane_destroy(struct drm_plane *plane)
@@ -2859,15 +2867,13 @@ static void vop_handle_vblank(struct vop *vop)
 	struct drm_crtc *crtc = &vop->crtc;
 	unsigned long flags;
 
+	spin_lock_irqsave(&drm->event_lock, flags);
 	if (vop->event) {
-		spin_lock_irqsave(&drm->event_lock, flags);
-
 		drm_crtc_send_vblank_event(crtc, vop->event);
 		drm_crtc_vblank_put(crtc);
 		vop->event = NULL;
-
-		spin_unlock_irqrestore(&drm->event_lock, flags);
 	}
+	spin_unlock_irqrestore(&drm->event_lock, flags);
 
 	if (test_and_clear_bit(VOP_PENDING_FB_UNREF, &vop->pending))
 		drm_flip_work_commit(&vop->fb_unref_work, system_unbound_wq);

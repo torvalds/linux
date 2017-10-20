@@ -264,6 +264,8 @@ rockchip_atomic_commit_complete(struct rockchip_atomic_commit *commit)
 	 *
 	 * See the kerneldoc entries for these three functions for more details.
 	 */
+	drm_atomic_helper_wait_for_dependencies(state);
+
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
 	drm_atomic_helper_commit_modeset_enables(dev, state);
@@ -274,19 +276,26 @@ rockchip_atomic_commit_complete(struct rockchip_atomic_commit *commit)
 
 	drm_atomic_helper_commit_planes(dev, state, true);
 
+	drm_atomic_helper_commit_hw_done(state);
+
 	drm_atomic_helper_wait_for_vblanks(dev, state);
 
 	drm_atomic_helper_cleanup_planes(dev, state);
 
+	drm_atomic_helper_commit_cleanup_done(state);
+
 	drm_atomic_state_free(state);
+
+	kfree(commit);
 }
 
 void rockchip_drm_atomic_work(struct work_struct *work)
 {
-	struct rockchip_atomic_commit *commit = container_of(work,
-					struct rockchip_atomic_commit, work);
+	struct rockchip_drm_private *private = container_of(work,
+				struct rockchip_drm_private, commit_work);
 
-	rockchip_atomic_commit_complete(commit);
+	rockchip_atomic_commit_complete(private->commit);
+	private->commit = NULL;
 }
 
 int rockchip_drm_atomic_commit(struct drm_device *dev,
@@ -294,9 +303,13 @@ int rockchip_drm_atomic_commit(struct drm_device *dev,
 			       bool async)
 {
 	struct rockchip_drm_private *private = dev->dev_private;
-	struct rockchip_atomic_commit *commit = &private->commit;
+	struct rockchip_atomic_commit *commit;
 	size_t bandwidth;
 	int ret;
+
+	ret = drm_atomic_helper_setup_commit(state, false);
+	if (ret)
+		return ret;
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);
 	if (ret)
@@ -311,22 +324,28 @@ int rockchip_drm_atomic_commit(struct drm_device *dev,
 		DRM_ERROR("vop bandwidth too large %zd\n", bandwidth);
 	}
 
-	/* serialize outstanding asynchronous commits */
-	mutex_lock(&commit->lock);
-	flush_work(&commit->work);
-
 	drm_atomic_helper_swap_state(dev, state);
+
+	commit = kmalloc(sizeof(*commit), GFP_KERNEL);
+	if (!commit)
+		return -ENOMEM;
 
 	commit->dev = dev;
 	commit->state = state;
 	commit->bandwidth = bandwidth;
 
-	if (async)
-		schedule_work(&commit->work);
-	else
-		rockchip_atomic_commit_complete(commit);
+	if (async) {
+		mutex_lock(&private->commit_lock);
 
-	mutex_unlock(&commit->lock);
+		flush_work(&private->commit_work);
+		WARN_ON(private->commit);
+		private->commit = commit;
+		schedule_work(&private->commit_work);
+
+		mutex_unlock(&private->commit_lock);
+	} else {
+		rockchip_atomic_commit_complete(commit);
+	}
 
 	return 0;
 }

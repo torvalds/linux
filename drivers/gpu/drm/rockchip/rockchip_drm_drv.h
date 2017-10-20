@@ -66,10 +66,8 @@ struct drm_rockchip_subdrv {
 };
 
 struct rockchip_atomic_commit {
-	struct work_struct	work;
 	struct drm_atomic_state *state;
 	struct drm_device *dev;
-	struct mutex lock;
 	size_t bandwidth;
 };
 
@@ -150,7 +148,10 @@ struct rockchip_drm_private {
 	const struct rockchip_crtc_funcs *crtc_funcs[ROCKCHIP_MAX_CRTC];
 	struct drm_atomic_state *state;
 
-	struct rockchip_atomic_commit commit;
+	struct rockchip_atomic_commit *commit;
+	/* protect async commit */
+	struct mutex commit_lock;
+	struct work_struct commit_work;
 	struct iommu_domain *domain;
 	struct gen_pool *secure_buffer_pool;
 #ifdef CONFIG_DRM_DMA_SYNC
