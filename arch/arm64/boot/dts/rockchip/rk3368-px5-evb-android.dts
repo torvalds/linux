@@ -702,8 +702,8 @@
 	fm1288: fm1288@60{
 		compatible = "fm1288";
 		reg = <0x60>;
-		pwd-con-gpio = <&gpio0 RK_PD1 GPIO_ACTIVE_HIGH>;
-		bypass-con-gpio = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
+		pwd-gpios = <&gpio0 RK_PD1 GPIO_ACTIVE_HIGH>;
+		bypass-gpios = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -716,6 +716,8 @@
 		clock-names = "mclk";
 		spk-con-gpio = <&gpio2 RK_PC7 GPIO_ACTIVE_HIGH>;
 		lineout-con-gpio = <&gpio0 RK_PD7 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_8ch_mclk>;
 	};
 };
 
