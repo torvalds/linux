@@ -60,9 +60,10 @@ void msm_submitqueue_close(struct msm_file_private *ctx)
 		msm_submitqueue_put(entry);
 }
 
-int msm_submitqueue_create(struct msm_file_private *ctx, u32 prio, u32 flags,
-		u32 *id)
+int msm_submitqueue_create(struct drm_device *drm, struct msm_file_private *ctx,
+		u32 prio, u32 flags, u32 *id)
 {
+	struct msm_drm_private *priv = drm->dev_private;
 	struct msm_gpu_submitqueue *queue;
 
 	if (!ctx)
@@ -75,7 +76,13 @@ int msm_submitqueue_create(struct msm_file_private *ctx, u32 prio, u32 flags,
 
 	kref_init(&queue->ref);
 	queue->flags = flags;
-	queue->prio = prio;
+
+	if (priv->gpu) {
+		if (prio >= priv->gpu->nr_rings)
+			return -EINVAL;
+
+		queue->prio = prio;
+	}
 
 	write_lock(&ctx->queuelock);
 
@@ -91,16 +98,26 @@ int msm_submitqueue_create(struct msm_file_private *ctx, u32 prio, u32 flags,
 	return 0;
 }
 
-int msm_submitqueue_init(struct msm_file_private *ctx)
+int msm_submitqueue_init(struct drm_device *drm, struct msm_file_private *ctx)
 {
+	struct msm_drm_private *priv = drm->dev_private;
+	int default_prio;
+
 	if (!ctx)
 		return 0;
+
+	/*
+	 * Select priority 2 as the "default priority" unless nr_rings is less
+	 * than 2 and then pick the lowest pirority
+	 */
+	default_prio = priv->gpu ?
+		clamp_t(uint32_t, 2, 0, priv->gpu->nr_rings - 1) : 0;
 
 	INIT_LIST_HEAD(&ctx->submitqueues);
 
 	rwlock_init(&ctx->queuelock);
 
-	return msm_submitqueue_create(ctx, 2, 0, NULL);
+	return msm_submitqueue_create(drm, ctx, default_prio, 0, NULL);
 }
 
 int msm_submitqueue_remove(struct msm_file_private *ctx, u32 id)

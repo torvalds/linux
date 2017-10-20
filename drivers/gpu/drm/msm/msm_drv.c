@@ -507,7 +507,7 @@ static void load_gpu(struct drm_device *dev)
 	mutex_unlock(&init_lock);
 }
 
-static int context_init(struct drm_file *file)
+static int context_init(struct drm_device *dev, struct drm_file *file)
 {
 	struct msm_file_private *ctx;
 
@@ -515,7 +515,7 @@ static int context_init(struct drm_file *file)
 	if (!ctx)
 		return -ENOMEM;
 
-	msm_submitqueue_init(ctx);
+	msm_submitqueue_init(dev, ctx);
 
 	file->driver_priv = ctx;
 
@@ -529,7 +529,7 @@ static int msm_open(struct drm_device *dev, struct drm_file *file)
 	 */
 	load_gpu(dev);
 
-	return context_init(file);
+	return context_init(dev, file);
 }
 
 static void context_close(struct msm_file_private *ctx)
@@ -743,16 +743,27 @@ static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_msm_wait_fence *args = data;
 	ktime_t timeout = to_ktime(args->timeout);
+	struct msm_gpu_submitqueue *queue;
+	struct msm_gpu *gpu = priv->gpu;
+	int ret;
 
 	if (args->pad) {
 		DRM_ERROR("invalid pad: %08x\n", args->pad);
 		return -EINVAL;
 	}
 
-	if (!priv->gpu)
+	if (!gpu)
 		return 0;
 
-	return msm_wait_fence(priv->gpu->fctx, args->fence, &timeout, true);
+	queue = msm_submitqueue_get(file->driver_priv, args->queueid);
+	if (!queue)
+		return -ENOENT;
+
+	ret = msm_wait_fence(gpu->rb[queue->prio]->fctx, args->fence, &timeout,
+		true);
+
+	msm_submitqueue_put(queue);
+	return ret;
 }
 
 static int msm_ioctl_gem_madvise(struct drm_device *dev, void *data,
@@ -802,7 +813,7 @@ static int msm_ioctl_submitqueue_new(struct drm_device *dev, void *data,
 	if (args->flags & ~MSM_SUBMITQUEUE_FLAGS)
 		return -EINVAL;
 
-	return msm_submitqueue_create(file->driver_priv, args->prio,
+	return msm_submitqueue_create(dev, file->driver_priv, args->prio,
 		args->flags, &args->id);
 }
 

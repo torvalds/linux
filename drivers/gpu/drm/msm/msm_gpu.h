@@ -33,7 +33,7 @@ struct msm_gpu_config {
 	const char *irqname;
 	uint64_t va_start;
 	uint64_t va_end;
-	unsigned int ringsz;
+	unsigned int nr_rings;
 };
 
 /* So far, with hardware that I've seen to date, we can have:
@@ -57,22 +57,15 @@ struct msm_gpu_funcs {
 	int (*pm_resume)(struct msm_gpu *gpu);
 	void (*submit)(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 			struct msm_file_private *ctx);
-	void (*flush)(struct msm_gpu *gpu);
+	void (*flush)(struct msm_gpu *gpu, struct msm_ringbuffer *ring);
 	irqreturn_t (*irq)(struct msm_gpu *irq);
+	struct msm_ringbuffer *(*active_ring)(struct msm_gpu *gpu);
 	void (*recover)(struct msm_gpu *gpu);
 	void (*destroy)(struct msm_gpu *gpu);
 #ifdef CONFIG_DEBUG_FS
 	/* show GPU status in debugfs: */
 	void (*show)(struct msm_gpu *gpu, struct seq_file *m);
 #endif
-};
-
-#define rbmemptr(gpu, member)  \
-	((gpu)->memptrs_iova + offsetof(struct msm_rbmemptrs, member))
-
-struct msm_rbmemptrs {
-	volatile uint32_t rptr;
-	volatile uint32_t fence;
 };
 
 struct msm_gpu {
@@ -93,15 +86,11 @@ struct msm_gpu {
 	const struct msm_gpu_perfcntr *perfcntrs;
 	uint32_t num_perfcntrs;
 
-	/* ringbuffer: */
-	struct msm_ringbuffer *rb;
-	uint64_t rb_iova;
+	struct msm_ringbuffer *rb[MSM_GPU_MAX_RINGS];
+	int nr_rings;
 
 	/* list of GEM active objects: */
 	struct list_head active_list;
-
-	/* fencing: */
-	struct msm_fence_context *fctx;
 
 	/* does gpu need hw_init? */
 	bool needs_hw_init;
@@ -133,21 +122,26 @@ struct msm_gpu {
 #define DRM_MSM_HANGCHECK_PERIOD 500 /* in ms */
 #define DRM_MSM_HANGCHECK_JIFFIES msecs_to_jiffies(DRM_MSM_HANGCHECK_PERIOD)
 	struct timer_list hangcheck_timer;
-	uint32_t hangcheck_fence;
 	struct work_struct recover_work;
 
-	struct list_head submit_list;
-
-	struct msm_rbmemptrs *memptrs;
 	struct drm_gem_object *memptrs_bo;
-	uint64_t memptrs_iova;
-
-
 };
+
+/* It turns out that all targets use the same ringbuffer size */
+#define MSM_GPU_RINGBUFFER_SZ SZ_32K
 
 static inline bool msm_gpu_active(struct msm_gpu *gpu)
 {
-	return gpu->fctx->last_fence > gpu->memptrs->fence;
+	int i;
+
+	for (i = 0; i < gpu->nr_rings; i++) {
+		struct msm_ringbuffer *ring = gpu->rb[i];
+
+		if (ring->seqno > ring->memptrs->fence)
+			return true;
+	}
+
+	return false;
 }
 
 /* Perf-Counters:

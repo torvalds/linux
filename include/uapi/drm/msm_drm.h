@@ -232,6 +232,7 @@ struct drm_msm_wait_fence {
 	__u32 fence;          /* in */
 	__u32 pad;
 	struct drm_msm_timespec timeout;   /* in */
+	__u32 queueid;         /* in, submitqueue id */
 };
 
 /* madvise provides a way to tell the kernel in case a buffers contents
