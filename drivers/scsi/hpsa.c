@@ -1882,6 +1882,12 @@ static void hpsa_remove_device(struct ctlr_info *h,
 	if (!h->scsi_host)
 		return;
 
+	/*
+	 * Allow for commands to drain
+	 */
+	device->removed = 1;
+	hpsa_wait_for_outstanding_commands_for_dev(h, device);
+
 	if (is_logical_device(device)) { /* RAID */
 		sdev = scsi_device_lookup(h->scsi_host, device->bus,
 						device->target, device->lun);
@@ -1898,9 +1904,6 @@ static void hpsa_remove_device(struct ctlr_info *h,
 					"didn't find device for removal.");
 		}
 	} else { /* HBA */
-
-		device->removed = 1;
-		hpsa_wait_for_outstanding_commands_for_dev(h, device);
 
 		hpsa_remove_sas_device(device);
 	}
