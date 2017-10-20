@@ -189,6 +189,7 @@ struct intel_vgpu {
 	struct intel_vgpu_opregion opregion;
 	struct intel_vgpu_display display;
 	struct intel_vgpu_submission submission;
+	u32 hws_pga[I915_NUM_ENGINES];
 
 	struct dentry *debugfs;
 

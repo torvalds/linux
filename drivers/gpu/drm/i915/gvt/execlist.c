@@ -133,6 +133,8 @@ static void emulate_csb_update(struct intel_vgpu_execlist *execlist,
 	struct execlist_context_status_pointer_format ctx_status_ptr;
 	u32 write_pointer;
 	u32 ctx_status_ptr_reg, ctx_status_buf_reg, offset;
+	unsigned long hwsp_gpa;
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 
 	ctx_status_ptr_reg = execlist_ring_mmio(vgpu->gvt, ring_id,
 			_EL_OFFSET_STATUS_PTR);
@@ -157,6 +159,20 @@ static void emulate_csb_update(struct intel_vgpu_execlist *execlist,
 
 	ctx_status_ptr.write_ptr = write_pointer;
 	vgpu_vreg(vgpu, ctx_status_ptr_reg) = ctx_status_ptr.dw;
+
+	/* Update the CSB and CSB write pointer in HWSP */
+	hwsp_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm,
+					 vgpu->hws_pga[ring_id]);
+	if (hwsp_gpa != INTEL_GVT_INVALID_ADDR) {
+		intel_gvt_hypervisor_write_gpa(vgpu,
+			hwsp_gpa + I915_HWS_CSB_BUF0_INDEX * 4 +
+			write_pointer * 8,
+			status, 8);
+		intel_gvt_hypervisor_write_gpa(vgpu,
+			hwsp_gpa +
+			intel_hws_csb_write_index(dev_priv) * 4,
+			&write_pointer, 4);
+	}
 
 	gvt_dbg_el("vgpu%d: w pointer %u reg %x csb l %x csb h %x\n",
 		vgpu->id, write_pointer, offset, status->ldw, status->udw);

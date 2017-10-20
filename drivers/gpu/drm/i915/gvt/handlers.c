@@ -1380,6 +1380,34 @@ static int mailbox_write(struct intel_vgpu *vgpu, unsigned int offset,
 	return intel_vgpu_default_mmio_write(vgpu, offset, &value, bytes);
 }
 
+static int hws_pga_write(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	u32 value = *(u32 *)p_data;
+	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
+
+	if (!intel_gvt_ggtt_validate_range(vgpu, value, I915_GTT_PAGE_SIZE)) {
+		gvt_vgpu_err("VM(%d) write invalid HWSP address, reg:0x%x, value:0x%x\n",
+			      vgpu->id, offset, value);
+		return -EINVAL;
+	}
+	/*
+	 * Need to emulate all the HWSP register write to ensure host can
+	 * update the VM CSB status correctly. Here listed registers can
+	 * support BDW, SKL or other platforms with same HWSP registers.
+	 */
+	if (unlikely(ring_id < 0 || ring_id > I915_NUM_ENGINES)) {
+		gvt_vgpu_err("VM(%d) access unknown hardware status page register:0x%x\n",
+			     vgpu->id, offset);
+		return -EINVAL;
+	}
+	vgpu->hws_pga[ring_id] = value;
+	gvt_dbg_mmio("VM(%d) write: 0x%x to HWSP: 0x%x\n",
+		     vgpu->id, value, offset);
+
+	return intel_vgpu_default_mmio_write(vgpu, offset, &value, bytes);
+}
+
 static int skl_power_well_ctl_write(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
@@ -2535,7 +2563,7 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	MMIO_RING_F(RING_REG, 32, 0, 0, 0, D_BDW_PLUS, NULL, NULL);
 #undef RING_REG
 
-	MMIO_RING_GM_RDR(RING_HWS_PGA, D_BDW_PLUS, NULL, NULL);
+	MMIO_RING_GM_RDR(RING_HWS_PGA, D_BDW_PLUS, NULL, hws_pga_write);
 
 	MMIO_DFH(HDC_CHICKEN0, D_BDW_PLUS, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
 
