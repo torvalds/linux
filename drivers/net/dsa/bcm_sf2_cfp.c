@@ -491,28 +491,24 @@ static int bcm_sf2_cfp_ipv4_rule_get(struct bcm_sf2_priv *priv, int port,
 }
 
 static int bcm_sf2_cfp_rule_get(struct bcm_sf2_priv *priv, int port,
-				struct ethtool_rxnfc *nfc, bool search)
+				struct ethtool_rxnfc *nfc)
 {
 	struct ethtool_tcpip4_spec *v4_spec = NULL, *v4_m_spec;
 	unsigned int queue_num;
 	u32 reg;
 	int ret;
 
-	if (!search) {
-		bcm_sf2_cfp_rule_addr_set(priv, nfc->fs.location);
+	bcm_sf2_cfp_rule_addr_set(priv, nfc->fs.location);
 
-		ret = bcm_sf2_cfp_op(priv, OP_SEL_READ | ACT_POL_RAM);
-		if (ret)
-			return ret;
+	ret = bcm_sf2_cfp_op(priv, OP_SEL_READ | ACT_POL_RAM);
+	if (ret)
+		return ret;
 
-		reg = core_readl(priv, CORE_ACT_POL_DATA0);
+	reg = core_readl(priv, CORE_ACT_POL_DATA0);
 
-		ret = bcm_sf2_cfp_op(priv, OP_SEL_READ | TCAM_SEL);
-		if (ret)
-			return ret;
-	} else {
-		reg = core_readl(priv, CORE_ACT_POL_DATA0);
-	}
+	ret = bcm_sf2_cfp_op(priv, OP_SEL_READ | TCAM_SEL);
+	if (ret)
+		return ret;
 
 	/* Extract the destination port */
 	nfc->fs.ring_cookie = fls((reg >> DST_MAP_IB_SHIFT) &
@@ -541,9 +537,6 @@ static int bcm_sf2_cfp_rule_get(struct bcm_sf2_priv *priv, int port,
 		v4_m_spec = &nfc->fs.m_u.udp_ip4_spec;
 		break;
 	default:
-		/* Clear to exit the search process */
-		if (search)
-			core_readl(priv, CORE_CFP_DATA_PORT(7));
 		return -EINVAL;
 	}
 
@@ -577,44 +570,11 @@ static int bcm_sf2_cfp_rule_get_all(struct bcm_sf2_priv *priv,
 				    u32 *rule_locs)
 {
 	unsigned int index = 1, rules_cnt = 0;
-	int ret;
-	u32 reg;
 
-	/* Do not poll on OP_STR_DONE to be self-clearing for search
-	 * operations, we cannot use bcm_sf2_cfp_op here because it completes
-	 * on clearing OP_STR_DONE which won't clear until the entire search
-	 * operation is over.
-	 */
-	reg = core_readl(priv, CORE_CFP_ACC);
-	reg &= ~(XCESS_ADDR_MASK << XCESS_ADDR_SHIFT);
-	reg |= index << XCESS_ADDR_SHIFT;
-	reg &= ~(OP_SEL_MASK | RAM_SEL_MASK);
-	reg |= OP_SEL_SEARCH | TCAM_SEL | OP_STR_DONE;
-	core_writel(priv, reg, CORE_CFP_ACC);
-
-	do {
-		/* Wait for results to be ready */
-		reg = core_readl(priv, CORE_CFP_ACC);
-
-		/* Extract the address we are searching */
-		index = reg >> XCESS_ADDR_SHIFT;
-		index &= XCESS_ADDR_MASK;
-
-		/* We have a valid search result, so flag it accordingly */
-		if (reg & SEARCH_STS) {
-			ret = bcm_sf2_cfp_rule_get(priv, port, nfc, true);
-			if (ret)
-				continue;
-
-			rule_locs[rules_cnt] = index;
-			rules_cnt++;
-		}
-
-		/* Search is over break out */
-		if (!(reg & OP_STR_DONE))
-			break;
-
-	} while (index < priv->num_cfp_rules);
+	for_each_set_bit_from(index, priv->cfp.used, priv->num_cfp_rules) {
+		rule_locs[rules_cnt] = index;
+		rules_cnt++;
+	}
 
 	/* Put the TCAM size here */
 	nfc->data = bcm_sf2_cfp_rule_size(priv);
@@ -640,7 +600,7 @@ int bcm_sf2_get_rxnfc(struct dsa_switch *ds, int port,
 		nfc->data |= RX_CLS_LOC_SPECIAL;
 		break;
 	case ETHTOOL_GRXCLSRULE:
-		ret = bcm_sf2_cfp_rule_get(priv, port, nfc, false);
+		ret = bcm_sf2_cfp_rule_get(priv, port, nfc);
 		break;
 	case ETHTOOL_GRXCLSRLALL:
 		ret = bcm_sf2_cfp_rule_get_all(priv, port, nfc, rule_locs);
