@@ -454,7 +454,7 @@ static void tun_flow_cleanup(unsigned long data)
 
 	tun_debug(KERN_INFO, tun, "tun_flow_cleanup\n");
 
-	spin_lock_bh(&tun->lock);
+	spin_lock(&tun->lock);
 	for (i = 0; i < TUN_NUM_FLOW_ENTRIES; i++) {
 		struct tun_flow_entry *e;
 		struct hlist_node *n;
@@ -472,7 +472,7 @@ static void tun_flow_cleanup(unsigned long data)
 
 	if (count)
 		mod_timer(&tun->flow_gc_timer, round_jiffies_up(next_timer));
-	spin_unlock_bh(&tun->lock);
+	spin_unlock(&tun->lock);
 }
 
 static void tun_flow_update(struct tun_struct *tun, u32 rxhash,
