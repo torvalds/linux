@@ -613,8 +613,10 @@ enum rpcrdma_chunktype {
 	rpcrdma_replych
 };
 
-bool rpcrdma_prepare_send_sges(struct rpcrdma_ia *, struct rpcrdma_req *,
-			       u32, struct xdr_buf *, enum rpcrdma_chunktype);
+int rpcrdma_prepare_send_sges(struct rpcrdma_xprt *r_xprt,
+			      struct rpcrdma_req *req, u32 hdrlen,
+			      struct xdr_buf *xdr,
+			      enum rpcrdma_chunktype rtype);
 void rpcrdma_unmap_sges(struct rpcrdma_ia *, struct rpcrdma_req *);
 int rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst);
 void rpcrdma_set_max_header_sizes(struct rpcrdma_xprt *);

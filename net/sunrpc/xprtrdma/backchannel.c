@@ -222,8 +222,8 @@ int rpcrdma_bc_marshal_reply(struct rpc_rqst *rqst)
 	*p++ = xdr_zero;
 	*p = xdr_zero;
 
-	if (!rpcrdma_prepare_send_sges(&r_xprt->rx_ia, req, RPCRDMA_HDRLEN_MIN,
-				       &rqst->rq_snd_buf, rpcrdma_noch))
+	if (rpcrdma_prepare_send_sges(r_xprt, req, RPCRDMA_HDRLEN_MIN,
+				      &rqst->rq_snd_buf, rpcrdma_noch))
 		return -EIO;
 	return 0;
 }

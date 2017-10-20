@@ -544,7 +544,7 @@ rpcrdma_prepare_hdr_sge(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
 
 	if (unlikely(!rpcrdma_regbuf_is_mapped(rb))) {
 		if (!__rpcrdma_dma_map_regbuf(ia, rb))
-			return false;
+			goto out_regbuf;
 		sge->addr = rdmab_addr(rb);
 		sge->lkey = rdmab_lkey(rb);
 	}
@@ -554,6 +554,10 @@ rpcrdma_prepare_hdr_sge(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
 				      sge->length, DMA_TO_DEVICE);
 	req->rl_send_wr.num_sge++;
 	return true;
+
+out_regbuf:
+	pr_err("rpcrdma: failed to DMA map a Send buffer\n");
+	return false;
 }
 
 /* Prepare the Send SGEs. The head and tail iovec, and each entry
@@ -574,7 +578,7 @@ rpcrdma_prepare_msg_sges(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
 	 * DMA-mapped. Sync the content that has changed.
 	 */
 	if (!rpcrdma_dma_map_regbuf(ia, rb))
-		return false;
+		goto out_regbuf;
 	sge_no = 1;
 	sge[sge_no].addr = rdmab_addr(rb);
 	sge[sge_no].length = xdr->head[0].iov_len;
@@ -662,6 +666,10 @@ out:
 	req->rl_send_wr.num_sge += sge_no;
 	return true;
 
+out_regbuf:
+	pr_err("rpcrdma: failed to DMA map a Send buffer\n");
+	return false;
+
 out_mapping_overflow:
 	rpcrdma_unmap_sges(ia, req);
 	pr_err("rpcrdma: too many Send SGEs (%u)\n", sge_no);
@@ -673,26 +681,32 @@ out_mapping_err:
 	return false;
 }
 
-bool
-rpcrdma_prepare_send_sges(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
-			  u32 hdrlen, struct xdr_buf *xdr,
-			  enum rpcrdma_chunktype rtype)
+/**
+ * rpcrdma_prepare_send_sges - Construct SGEs for a Send WR
+ * @r_xprt: controlling transport
+ * @req: context of RPC Call being marshalled
+ * @hdrlen: size of transport header, in bytes
+ * @xdr: xdr_buf containing RPC Call
+ * @rtype: chunk type being encoded
+ *
+ * Returns 0 on success; otherwise a negative errno is returned.
+ */
+int
+rpcrdma_prepare_send_sges(struct rpcrdma_xprt *r_xprt,
+			  struct rpcrdma_req *req, u32 hdrlen,
+			  struct xdr_buf *xdr, enum rpcrdma_chunktype rtype)
 {
 	req->rl_send_wr.num_sge = 0;
 	req->rl_mapped_sges = 0;
 
-	if (!rpcrdma_prepare_hdr_sge(ia, req, hdrlen))
-		goto out_map;
+	if (!rpcrdma_prepare_hdr_sge(&r_xprt->rx_ia, req, hdrlen))
+		return -EIO;
 
 	if (rtype != rpcrdma_areadch)
-		if (!rpcrdma_prepare_msg_sges(ia, req, xdr, rtype))
-			goto out_map;
+		if (!rpcrdma_prepare_msg_sges(&r_xprt->rx_ia, req, xdr, rtype))
+			return -EIO;
 
-	return true;
-
-out_map:
-	pr_err("rpcrdma: failed to DMA map a Send buffer\n");
-	return false;
+	return 0;
 }
 
 /**
@@ -843,12 +857,10 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 		transfertypes[rtype], transfertypes[wtype],
 		xdr_stream_pos(xdr));
 
-	if (!rpcrdma_prepare_send_sges(&r_xprt->rx_ia, req,
-				       xdr_stream_pos(xdr),
-				       &rqst->rq_snd_buf, rtype)) {
-		ret = -EIO;
+	ret = rpcrdma_prepare_send_sges(r_xprt, req, xdr_stream_pos(xdr),
+					&rqst->rq_snd_buf, rtype);
+	if (ret)
 		goto out_err;
-	}
 	return 0;
 
 out_err:
