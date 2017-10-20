@@ -271,6 +271,7 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 			return AMDGPU_FW_LOAD_SMU;
 	case CHIP_VEGA10:
 	case CHIP_RAVEN:
+	case CHIP_VEGA12:
 		if (!load_type)
 			return AMDGPU_FW_LOAD_DIRECT;
 		else
