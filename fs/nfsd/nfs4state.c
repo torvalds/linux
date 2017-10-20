@@ -568,7 +568,7 @@ alloc_clnt_odstate(struct nfs4_client *clp)
 	co = kmem_cache_zalloc(odstate_slab, GFP_KERNEL);
 	if (co) {
 		co->co_client = clp;
-		atomic_set(&co->co_odcount, 1);
+		refcount_set(&co->co_odcount, 1);
 	}
 	return co;
 }
@@ -586,7 +586,7 @@ static inline void
 get_clnt_odstate(struct nfs4_clnt_odstate *co)
 {
 	if (co)
-		atomic_inc(&co->co_odcount);
+		refcount_inc(&co->co_odcount);
 }
 
 static void
@@ -598,7 +598,7 @@ put_clnt_odstate(struct nfs4_clnt_odstate *co)
 		return;
 
 	fp = co->co_file;
-	if (atomic_dec_and_lock(&co->co_odcount, &fp->fi_lock)) {
+	if (refcount_dec_and_lock(&co->co_odcount, &fp->fi_lock)) {
 		list_del(&co->co_perfile);
 		spin_unlock(&fp->fi_lock);
 

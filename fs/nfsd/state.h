@@ -468,7 +468,7 @@ struct nfs4_clnt_odstate {
 	struct nfs4_client	*co_client;
 	struct nfs4_file	*co_file;
 	struct list_head	co_perfile;
-	atomic_t		co_odcount;
+	refcount_t		co_odcount;
 };
 
 /*
