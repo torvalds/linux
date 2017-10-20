@@ -484,7 +484,7 @@ struct nfs4_clnt_odstate {
  * the global state_lock spinlock.
  */
 struct nfs4_file {
-	atomic_t		fi_ref;
+	refcount_t		fi_ref;
 	spinlock_t		fi_lock;
 	struct hlist_node       fi_hash;	/* hash on fi_fhandle */
 	struct list_head        fi_stateids;
@@ -637,7 +637,7 @@ struct nfs4_file *find_file(struct knfsd_fh *fh);
 void put_nfs4_file(struct nfs4_file *fi);
 static inline void get_nfs4_file(struct nfs4_file *fi)
 {
-	atomic_inc(&fi->fi_ref);
+	refcount_inc(&fi->fi_ref);
 }
 struct file *find_any_file(struct nfs4_file *f);
 

@@ -359,7 +359,7 @@ put_nfs4_file(struct nfs4_file *fi)
 {
 	might_lock(&state_lock);
 
-	if (atomic_dec_and_lock(&fi->fi_ref, &state_lock)) {
+	if (refcount_dec_and_lock(&fi->fi_ref, &state_lock)) {
 		hlist_del_rcu(&fi->fi_hash);
 		spin_unlock(&state_lock);
 		WARN_ON_ONCE(!list_empty(&fi->fi_clnt_odstate));
@@ -3401,7 +3401,7 @@ static void nfsd4_init_file(struct knfsd_fh *fh, unsigned int hashval,
 {
 	lockdep_assert_held(&state_lock);
 
-	atomic_set(&fp->fi_ref, 1);
+	refcount_set(&fp->fi_ref, 1);
 	spin_lock_init(&fp->fi_lock);
 	INIT_LIST_HEAD(&fp->fi_stateids);
 	INIT_LIST_HEAD(&fp->fi_delegations);
@@ -3697,7 +3697,7 @@ find_file_locked(struct knfsd_fh *fh, unsigned int hashval)
 
 	hlist_for_each_entry_rcu(fp, &file_hashtbl[hashval], fi_hash) {
 		if (fh_match(&fp->fi_fhandle, fh)) {
-			if (atomic_inc_not_zero(&fp->fi_ref))
+			if (refcount_inc_not_zero(&fp->fi_ref))
 				return fp;
 		}
 	}
