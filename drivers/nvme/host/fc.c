@@ -2792,6 +2792,33 @@ static const struct blk_mq_ops nvme_fc_admin_mq_ops = {
 };
 
 
+/*
+ * Fails a controller request if it matches an existing controller
+ * (association) with the same tuple:
+ * <Host NQN, Host ID, local FC port, remote FC port, SUBSYS NQN>
+ *
+ * The ports don't need to be compared as they are intrinsically
+ * already matched by the port pointers supplied.
+ */
+static bool
+nvme_fc_existing_controller(struct nvme_fc_rport *rport,
+		struct nvmf_ctrl_options *opts)
+{
+	struct nvme_fc_ctrl *ctrl;
+	unsigned long flags;
+	bool found = false;
+
+	spin_lock_irqsave(&rport->lock, flags);
+	list_for_each_entry(ctrl, &rport->ctrl_list, ctrl_list) {
+		found = nvmf_ctlr_matches_baseopts(&ctrl->ctrl, opts);
+		if (found)
+			break;
+	}
+	spin_unlock_irqrestore(&rport->lock, flags);
+
+	return found;
+}
+
 static struct nvme_ctrl *
 nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	struct nvme_fc_lport *lport, struct nvme_fc_rport *rport)
@@ -2803,6 +2830,12 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	if (!(rport->remoteport.port_role &
 	    (FC_PORT_ROLE_NVME_DISCOVERY | FC_PORT_ROLE_NVME_TARGET))) {
 		ret = -EBADR;
+		goto out_fail;
+	}
+
+	if (!opts->duplicate_connect &&
+	    nvme_fc_existing_controller(rport, opts)) {
+		ret = -EALREADY;
 		goto out_fail;
 	}
 
