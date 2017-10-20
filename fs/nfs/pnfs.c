@@ -450,7 +450,7 @@ pnfs_init_lseg(struct pnfs_layout_hdr *lo, struct pnfs_layout_segment *lseg,
 {
 	INIT_LIST_HEAD(&lseg->pls_list);
 	INIT_LIST_HEAD(&lseg->pls_lc_list);
-	atomic_set(&lseg->pls_refcount, 1);
+	refcount_set(&lseg->pls_refcount, 1);
 	set_bit(NFS_LSEG_VALID, &lseg->pls_flags);
 	lseg->pls_layout = lo;
 	lseg->pls_range = *range;
@@ -507,13 +507,13 @@ pnfs_put_lseg(struct pnfs_layout_segment *lseg)
 		return;
 
 	dprintk("%s: lseg %p ref %d valid %d\n", __func__, lseg,
-		atomic_read(&lseg->pls_refcount),
+		refcount_read(&lseg->pls_refcount),
 		test_bit(NFS_LSEG_VALID, &lseg->pls_flags));
 
 	lo = lseg->pls_layout;
 	inode = lo->plh_inode;
 
-	if (atomic_dec_and_lock(&lseg->pls_refcount, &inode->i_lock)) {
+	if (refcount_dec_and_lock(&lseg->pls_refcount, &inode->i_lock)) {
 		if (test_bit(NFS_LSEG_VALID, &lseg->pls_flags)) {
 			spin_unlock(&inode->i_lock);
 			return;
@@ -551,7 +551,7 @@ pnfs_lseg_range_contained(const struct pnfs_layout_range *l1,
 static bool pnfs_lseg_dec_and_remove_zero(struct pnfs_layout_segment *lseg,
 		struct list_head *tmp_list)
 {
-	if (!atomic_dec_and_test(&lseg->pls_refcount))
+	if (!refcount_dec_and_test(&lseg->pls_refcount))
 		return false;
 	pnfs_layout_remove_lseg(lseg->pls_layout, lseg);
 	list_add(&lseg->pls_list, tmp_list);
@@ -570,7 +570,7 @@ static int mark_lseg_invalid(struct pnfs_layout_segment *lseg,
 		 * outstanding io is finished.
 		 */
 		dprintk("%s: lseg %p ref %d\n", __func__, lseg,
-			atomic_read(&lseg->pls_refcount));
+			refcount_read(&lseg->pls_refcount));
 		if (pnfs_lseg_dec_and_remove_zero(lseg, tmp_list))
 			rv = 1;
 	}
@@ -1546,7 +1546,7 @@ pnfs_find_lseg(struct pnfs_layout_hdr *lo,
 	}
 
 	dprintk("%s:Return lseg %p ref %d\n",
-		__func__, ret, ret ? atomic_read(&ret->pls_refcount) : 0);
+		__func__, ret, ret ? refcount_read(&ret->pls_refcount) : 0);
 	return ret;
 }
 
