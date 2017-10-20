@@ -44,7 +44,6 @@ extern unsigned char IPA_PDU_HEADER[];
 #define IPA_CMD_PRIM_VERSION_NO 0x01
 
 enum qeth_card_types {
-	QETH_CARD_TYPE_UNKNOWN = 0,
 	QETH_CARD_TYPE_OSD     = 1,
 	QETH_CARD_TYPE_IQD     = 5,
 	QETH_CARD_TYPE_OSN     = 6,

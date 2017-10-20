@@ -146,18 +146,15 @@ static ssize_t qeth_bridgeport_hostnotification_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
-	int rc = 0;
-	int enable;
+	bool enable;
+	int rc;
 
 	if (!card)
 		return -EINVAL;
 
-	if (sysfs_streq(buf, "0"))
-		enable = 0;
-	else if (sysfs_streq(buf, "1"))
-		enable = 1;
-	else
-		return -EINVAL;
+	rc = kstrtobool(buf, &enable);
+	if (rc)
+		return rc;
 
 	mutex_lock(&card->conf_mutex);
 
