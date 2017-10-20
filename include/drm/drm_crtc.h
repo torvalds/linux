@@ -1383,6 +1383,7 @@ struct drm_atomic_state {
 	struct drm_plane **planes;
 	struct drm_plane_state **plane_states;
 	struct drm_crtc **crtcs;
+	struct drm_crtc_commit **crtc_commits;
 	struct drm_crtc_state **crtc_states;
 	int num_connector;
 	struct drm_connector **connectors;

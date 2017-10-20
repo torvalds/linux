@@ -664,6 +664,11 @@ void drm_send_event_locked(struct drm_device *dev, struct drm_pending_event *e)
 		e->completion = NULL;
 	}
 
+	if (!e->file_priv) {
+		kfree(e);
+		return;
+	}
+
 	list_add_tail(&e->link,
 		      &e->file_priv->event_list);
 	wake_up_interruptible(&e->file_priv->event_wait);

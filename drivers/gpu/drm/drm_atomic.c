@@ -59,6 +59,7 @@ void drm_atomic_state_default_release(struct drm_atomic_state *state)
 	kfree(state->connector_states);
 	kfree(state->crtcs);
 	kfree(state->crtc_states);
+	kfree(state->crtc_commits);
 	kfree(state->planes);
 	kfree(state->plane_states);
 }
@@ -89,6 +90,10 @@ drm_atomic_state_init(struct drm_device *dev, struct drm_atomic_state *state)
 	state->crtc_states = kcalloc(dev->mode_config.num_crtc,
 				     sizeof(*state->crtc_states), GFP_KERNEL);
 	if (!state->crtc_states)
+		goto fail;
+	state->crtc_commits = kcalloc(dev->mode_config.num_crtc,
+				     sizeof(*state->crtc_commits), GFP_KERNEL);
+	if (!state->crtc_commits)
 		goto fail;
 	state->planes = kcalloc(dev->mode_config.num_total_plane,
 				sizeof(*state->planes), GFP_KERNEL);
@@ -191,13 +196,13 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 		crtc->funcs->atomic_destroy_state(crtc,
 						  state->crtc_states[i]);
 
-		if (state->crtcs[i].commit) {
-			kfree(state->crtcs[i].commit->event);
-			state->crtcs[i].commit->event = NULL;
-			drm_crtc_commit_put(state->crtcs[i].commit);
+		if (state->crtc_commits[i]) {
+			kfree(state->crtc_commits[i]->event);
+			state->crtc_commits[i]->event = NULL;
+			drm_crtc_commit_put(state->crtc_commits[i]);
 		}
 
-		state->crtcs[i].commit = NULL;
+		state->crtc_commits[i] = NULL;
 		state->crtcs[i] = NULL;
 		state->crtc_states[i] = NULL;
 	}
