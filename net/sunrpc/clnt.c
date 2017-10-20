@@ -1586,6 +1586,7 @@ call_reserveresult(struct rpc_task *task)
 	switch (status) {
 	case -ENOMEM:
 		rpc_delay(task, HZ >> 2);
+		/* fall through */
 	case -EAGAIN:	/* woken up; retry */
 		task->tk_action = call_retry_reserve;
 		return;
@@ -1647,10 +1648,13 @@ call_refreshresult(struct rpc_task *task)
 		/* Use rate-limiting and a max number of retries if refresh
 		 * had status 0 but failed to update the cred.
 		 */
+		/* fall through */
 	case -ETIMEDOUT:
 		rpc_delay(task, 3*HZ);
+		/* fall through */
 	case -EAGAIN:
 		status = -EACCES;
+		/* fall through */
 	case -EKEYEXPIRED:
 		if (!task->tk_cred_retry)
 			break;
@@ -1911,6 +1915,7 @@ call_connect_status(struct rpc_task *task)
 			task->tk_action = call_bind;
 			return;
 		}
+		/* fall through */
 	case -ECONNRESET:
 	case -ECONNABORTED:
 	case -ENETUNREACH:
@@ -1924,6 +1929,7 @@ call_connect_status(struct rpc_task *task)
 			break;
 		/* retry with existing socket, after a delay */
 		rpc_delay(task, 3*HZ);
+		/* fall through */
 	case -EAGAIN:
 		/* Check for timeouts before looping back to call_bind */
 	case -ETIMEDOUT:
@@ -2025,6 +2031,7 @@ call_transmit_status(struct rpc_task *task)
 			rpc_exit(task, task->tk_status);
 			break;
 		}
+		/* fall through */
 	case -ECONNRESET:
 	case -ECONNABORTED:
 	case -EADDRINUSE:
@@ -2145,6 +2152,7 @@ call_status(struct rpc_task *task)
 		 * were a timeout.
 		 */
 		rpc_delay(task, 3*HZ);
+		/* fall through */
 	case -ETIMEDOUT:
 		task->tk_action = call_timeout;
 		break;
@@ -2152,14 +2160,17 @@ call_status(struct rpc_task *task)
 	case -ECONNRESET:
 	case -ECONNABORTED:
 		rpc_force_rebind(clnt);
+		/* fall through */
 	case -EADDRINUSE:
 		rpc_delay(task, 3*HZ);
+		/* fall through */
 	case -EPIPE:
 	case -ENOTCONN:
 		task->tk_action = call_bind;
 		break;
 	case -ENOBUFS:
 		rpc_delay(task, HZ>>2);
+		/* fall through */
 	case -EAGAIN:
 		task->tk_action = call_transmit;
 		break;
