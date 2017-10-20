@@ -3208,18 +3208,14 @@ int __init omap3xxx_hwmod_init(void)
 
 	if (h_sham && omap3xxx_hwmod_is_hs_ip_block_usable(bus, "sham")) {
 		r = omap_hwmod_register_links(h_sham);
-		if (r < 0) {
-			of_node_put(bus);
-			return r;
-		}
+		if (r < 0)
+			goto put_node;
 	}
 
 	if (h_aes && omap3xxx_hwmod_is_hs_ip_block_usable(bus, "aes")) {
 		r = omap_hwmod_register_links(h_aes);
-		if (r < 0) {
-			of_node_put(bus);
-			return r;
-		}
+		if (r < 0)
+			goto put_node;
 	}
 	of_node_put(bus);
 
@@ -3269,5 +3265,9 @@ int __init omap3xxx_hwmod_init(void)
 	 */
 	r = omap_hwmod_register_links(omap3xxx_dss_hwmod_ocp_ifs);
 
+	return r;
+
+put_node:
+	of_node_put(bus);
 	return r;
 }
