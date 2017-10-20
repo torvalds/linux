@@ -33,6 +33,8 @@
 #include <linux/kfd_ioctl.h>
 #include <kgd_kfd_interface.h>
 
+#include "amd_shared.h"
+
 #define KFD_SYSFS_FILE_MODE 0444
 
 #define KFD_MMAP_DOORBELL_MASK 0x8000000000000
@@ -112,11 +114,6 @@ enum cache_policy {
 	cache_policy_noncoherent
 };
 
-enum asic_family_type {
-	CHIP_KAVERI = 0,
-	CHIP_CARRIZO
-};
-
 struct kfd_event_interrupt_class {
 	bool (*interrupt_isr)(struct kfd_dev *dev,
 				const uint32_t *ih_ring_entry);
@@ -125,7 +122,7 @@ struct kfd_event_interrupt_class {
 };
 
 struct kfd_device_info {
-	unsigned int asic_family;
+	enum amd_asic_type asic_family;
 	const struct kfd_event_interrupt_class *event_interrupt_class;
 	unsigned int max_pasid_bits;
 	unsigned int max_no_of_hqd;
@@ -139,6 +136,12 @@ struct kfd_mem_obj {
 	uint32_t range_end;
 	uint64_t gpu_addr;
 	uint32_t *cpu_ptr;
+};
+
+struct kfd_vmid_info {
+	uint32_t first_vmid_kfd;
+	uint32_t last_vmid_kfd;
+	uint32_t vmid_num_kfd;
 };
 
 struct kfd_dev {
@@ -162,6 +165,7 @@ struct kfd_dev {
 					   */
 
 	struct kgd2kfd_shared_resources shared_resources;
+	struct kfd_vmid_info vm_info;
 
 	const struct kfd2kgd_calls *kfd2kgd;
 	struct mutex doorbell_mutex;
@@ -218,22 +222,22 @@ void kfd_chardev_exit(void);
 struct device *kfd_chardev(void);
 
 /**
- * enum kfd_preempt_type_filter
+ * enum kfd_unmap_queues_filter
  *
- * @KFD_PREEMPT_TYPE_FILTER_SINGLE_QUEUE: Preempts single queue.
+ * @KFD_UNMAP_QUEUES_FILTER_SINGLE_QUEUE: Preempts single queue.
  *
- * @KFD_PRERMPT_TYPE_FILTER_ALL_QUEUES: Preempts all queues in the
+ * @KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES: Preempts all queues in the
  *						running queues list.
  *
- * @KFD_PRERMPT_TYPE_FILTER_BY_PASID: Preempts queues that belongs to
+ * @KFD_UNMAP_QUEUES_FILTER_BY_PASID: Preempts queues that belongs to
  *						specific process.
  *
  */
-enum kfd_preempt_type_filter {
-	KFD_PREEMPT_TYPE_FILTER_SINGLE_QUEUE,
-	KFD_PREEMPT_TYPE_FILTER_ALL_QUEUES,
-	KFD_PREEMPT_TYPE_FILTER_DYNAMIC_QUEUES,
-	KFD_PREEMPT_TYPE_FILTER_BY_PASID
+enum kfd_unmap_queues_filter {
+	KFD_UNMAP_QUEUES_FILTER_SINGLE_QUEUE,
+	KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES,
+	KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES,
+	KFD_UNMAP_QUEUES_FILTER_BY_PASID
 };
 
 /**
@@ -401,7 +405,6 @@ struct scheduling_resources {
 struct process_queue_manager {
 	/* data */
 	struct kfd_process	*process;
-	unsigned int		num_concurrent_processes;
 	struct list_head	queues;
 	unsigned long		*queue_slot_bitmap;
 };
@@ -417,6 +420,12 @@ struct qcm_process_device {
 	unsigned int queue_count;
 	unsigned int vmid;
 	bool is_debug;
+
+	/* This flag tells if we should reset all wavefronts on
+	 * process termination
+	 */
+	bool reset_wavefronts;
+
 	/*
 	 * All the memory management data should be here too
 	 */
@@ -432,6 +441,13 @@ struct qcm_process_device {
 	uint32_t sh_hidden_private_base;
 };
 
+
+enum kfd_pdd_bound {
+	PDD_UNBOUND = 0,
+	PDD_BOUND,
+	PDD_BOUND_SUSPENDED,
+};
+
 /* Data that is per-process-per device. */
 struct kfd_process_device {
 	/*
@@ -443,6 +459,8 @@ struct kfd_process_device {
 	/* The device that owns this data. */
 	struct kfd_dev *dev;
 
+	/* The process that owns this kfd_process_device. */
+	struct kfd_process *process;
 
 	/* per-process-per device QCM data structure */
 	struct qcm_process_device qpd;
@@ -456,12 +474,14 @@ struct kfd_process_device {
 	uint64_t scratch_limit;
 
 	/* Is this process/pasid bound to this device? (amd_iommu_bind_pasid) */
-	bool bound;
+	enum kfd_pdd_bound bound;
 
-	/* This flag tells if we should reset all
-	 * wavefronts on process termination
+	/* Flag used to tell the pdd has dequeued from the dqm.
+	 * This is used to prevent dev->dqm->ops.process_termination() from
+	 * being called twice when it is already called in IOMMU callback
+	 * function.
 	 */
-	bool reset_wavefronts;
+	bool already_dequeued;
 };
 
 #define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)
@@ -547,8 +567,10 @@ struct kfd_process *kfd_get_process(const struct task_struct *);
 struct kfd_process *kfd_lookup_process_by_pasid(unsigned int pasid);
 
 struct kfd_process_device *kfd_bind_process_to_device(struct kfd_dev *dev,
-							struct kfd_process *p);
-void kfd_unbind_process_from_device(struct kfd_dev *dev, unsigned int pasid);
+						struct kfd_process *p);
+int kfd_bind_processes_to_device(struct kfd_dev *dev);
+void kfd_unbind_processes_from_device(struct kfd_dev *dev);
+void kfd_process_iommu_unbind_callback(struct kfd_dev *dev, unsigned int pasid);
 struct kfd_process_device *kfd_get_process_device_data(struct kfd_dev *dev,
 							struct kfd_process *p);
 struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
@@ -646,14 +668,14 @@ struct process_queue_node {
 	struct list_head process_queue_list;
 };
 
+void kfd_process_dequeue_from_device(struct kfd_process_device *pdd);
+void kfd_process_dequeue_from_all_devices(struct kfd_process *p);
 int pqm_init(struct process_queue_manager *pqm, struct kfd_process *p);
 void pqm_uninit(struct process_queue_manager *pqm);
 int pqm_create_queue(struct process_queue_manager *pqm,
 			    struct kfd_dev *dev,
 			    struct file *f,
 			    struct queue_properties *properties,
-			    unsigned int flags,
-			    enum kfd_queue_type type,
 			    unsigned int *qid);
 int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid);
 int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
@@ -663,15 +685,12 @@ struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
 
 int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
 				unsigned int fence_value,
-				unsigned long timeout);
+				unsigned int timeout_ms);
 
 /* Packet Manager */
 
-#define KFD_HIQ_TIMEOUT (500)
-
 #define KFD_FENCE_COMPLETED (100)
 #define KFD_FENCE_INIT   (10)
-#define KFD_UNMAP_LATENCY (150)
 
 struct packet_manager {
 	struct device_queue_manager *dqm;
@@ -690,7 +709,7 @@ int pm_send_query_status(struct packet_manager *pm, uint64_t fence_address,
 				uint32_t fence_value);
 
 int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
-			enum kfd_preempt_type_filter mode,
+			enum kfd_unmap_queues_filter mode,
 			uint32_t filter_param, bool reset,
 			unsigned int sdma_engine);
 
