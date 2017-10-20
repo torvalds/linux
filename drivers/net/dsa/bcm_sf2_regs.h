@@ -409,7 +409,8 @@ enum bcm_sf2_reg_offs {
 #define  CFG_UDF_EOL3			(3 << CFG_UDF_OFFSET_BASE_SHIFT)
 
 /* Number of slices for IPv4, IPv6 and non-IP */
-#define UDF_NUM_SLICES			9
+#define UDF_NUM_SLICES			4
+#define UDFS_PER_SLICE			9
 
 /* Spacing between different slices */
 #define UDF_SLICE_OFFSET		0x40
