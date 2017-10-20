@@ -236,11 +236,13 @@ struct rpcrdma_rep {
 
 /* struct rpcrdma_sendctx - DMA mapped SGEs to unmap after Send completes
  */
+struct rpcrdma_req;
 struct rpcrdma_xprt;
 struct rpcrdma_sendctx {
 	struct ib_send_wr	sc_wr;
 	struct ib_cqe		sc_cqe;
 	struct rpcrdma_xprt	*sc_xprt;
+	struct rpcrdma_req	*sc_req;
 	unsigned int		sc_unmap_count;
 	struct ib_sge		sc_sges[];
 };
@@ -387,6 +389,7 @@ struct rpcrdma_req {
 enum {
 	RPCRDMA_REQ_F_BACKCHANNEL = 0,
 	RPCRDMA_REQ_F_PENDING,
+	RPCRDMA_REQ_F_TX_RESOURCES,
 };
 
 static inline void
@@ -492,6 +495,7 @@ struct rpcrdma_stats {
 	/* accessed when receiving a reply */
 	unsigned long long	total_rdma_reply;
 	unsigned long long	fixup_copy_count;
+	unsigned long		reply_waits_for_send;
 	unsigned long		local_inv_needed;
 	unsigned long		nomsg_call_count;
 	unsigned long		bcall_count;

@@ -534,6 +534,11 @@ rpcrdma_unmap_sendctx(struct rpcrdma_sendctx *sc)
 	for (count = sc->sc_unmap_count; count; ++sge, --count)
 		ib_dma_unmap_page(ia->ri_device,
 				  sge->addr, sge->length, DMA_TO_DEVICE);
+
+	if (test_and_clear_bit(RPCRDMA_REQ_F_TX_RESOURCES, &sc->sc_req->rl_flags)) {
+		smp_mb__after_atomic();
+		wake_up_bit(&sc->sc_req->rl_flags, RPCRDMA_REQ_F_TX_RESOURCES);
+	}
 }
 
 /* Prepare an SGE for the RPC-over-RDMA transport header.
@@ -667,6 +672,8 @@ map_tail:
 
 out:
 	sc->sc_wr.num_sge += sge_no;
+	if (sc->sc_unmap_count)
+		__set_bit(RPCRDMA_REQ_F_TX_RESOURCES, &req->rl_flags);
 	return true;
 
 out_regbuf:
@@ -704,6 +711,8 @@ rpcrdma_prepare_send_sges(struct rpcrdma_xprt *r_xprt,
 		return -ENOBUFS;
 	req->rl_sendctx->sc_wr.num_sge = 0;
 	req->rl_sendctx->sc_unmap_count = 0;
+	req->rl_sendctx->sc_req = req;
+	__clear_bit(RPCRDMA_REQ_F_TX_RESOURCES, &req->rl_flags);
 
 	if (!rpcrdma_prepare_hdr_sge(&r_xprt->rx_ia, req, hdrlen))
 		return -EIO;
@@ -1305,6 +1314,20 @@ void rpcrdma_release_rqst(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	if (!list_empty(&req->rl_registered))
 		r_xprt->rx_ia.ri_ops->ro_unmap_sync(r_xprt,
 						    &req->rl_registered);
+
+	/* Ensure that any DMA mapped pages associated with
+	 * the Send of the RPC Call have been unmapped before
+	 * allowing the RPC to complete. This protects argument
+	 * memory not controlled by the RPC client from being
+	 * re-used before we're done with it.
+	 */
+	if (test_bit(RPCRDMA_REQ_F_TX_RESOURCES, &req->rl_flags)) {
+		r_xprt->rx_stats.reply_waits_for_send++;
+		out_of_line_wait_on_bit(&req->rl_flags,
+					RPCRDMA_REQ_F_TX_RESOURCES,
+					bit_wait,
+					TASK_UNINTERRUPTIBLE);
+	}
 }
 
 /* Reply handling runs in the poll worker thread. Anything that
@@ -1384,7 +1407,8 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	dprintk("RPC:       %s: reply %p completes request %p (xid 0x%08x)\n",
 		__func__, rep, req, be32_to_cpu(rep->rr_xid));
 
-	if (list_empty(&req->rl_registered))
+	if (list_empty(&req->rl_registered) &&
+	    !test_bit(RPCRDMA_REQ_F_TX_RESOURCES, &req->rl_flags))
 		rpcrdma_complete_rqst(rep);
 	else
 		queue_work(rpcrdma_receive_wq, &rep->rr_work);
