@@ -404,6 +404,11 @@ static int pmu_alias_terms(struct perf_pmu_alias *alias,
 			parse_events_terms__purge(&list);
 			return ret;
 		}
+		/*
+		 * Weak terms don't override command line options,
+		 * which we don't want for implicit terms in aliases.
+		 */
+		cloned->weak = true;
 		list_add_tail(&cloned->list, &list);
 	}
 	list_splice(&list, terms);

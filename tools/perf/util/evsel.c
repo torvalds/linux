@@ -733,12 +733,16 @@ static void apply_config_terms(struct perf_evsel *evsel,
 	list_for_each_entry(term, config_terms, list) {
 		switch (term->type) {
 		case PERF_EVSEL__CONFIG_TERM_PERIOD:
-			attr->sample_period = term->val.period;
-			attr->freq = 0;
+			if (!(term->weak && opts->user_interval != ULLONG_MAX)) {
+				attr->sample_period = term->val.period;
+				attr->freq = 0;
+			}
 			break;
 		case PERF_EVSEL__CONFIG_TERM_FREQ:
-			attr->sample_freq = term->val.freq;
-			attr->freq = 1;
+			if (!(term->weak && opts->user_freq != UINT_MAX)) {
+				attr->sample_freq = term->val.freq;
+				attr->freq = 1;
+			}
 			break;
 		case PERF_EVSEL__CONFIG_TERM_TIME:
 			if (term->val.time)
