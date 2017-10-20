@@ -1335,7 +1335,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 
 		if (!plane) {
 			DRM_ERROR("KMS: Failed to allocate plane\n");
-			goto fail_free_planes;
+			goto fail;
 		}
 		plane->base.type = mode_info->plane_type[i];
 
@@ -1351,14 +1351,14 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 
 		if (amdgpu_dm_plane_init(dm, mode_info->planes[i], possible_crtcs)) {
 			DRM_ERROR("KMS: Failed to initialize plane\n");
-			goto fail_free_planes;
+			goto fail;
 		}
 	}
 
 	for (i = 0; i < dm->dc->caps.max_streams; i++)
 		if (amdgpu_dm_crtc_init(dm, &mode_info->planes[i]->base, i)) {
 			DRM_ERROR("KMS: Failed to initialize crtc\n");
-			goto fail_free_planes;
+			goto fail;
 		}
 
 	dm->display_indexes_num = dm->dc->caps.max_streams;
@@ -1375,20 +1375,20 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 
 		aconnector = kzalloc(sizeof(*aconnector), GFP_KERNEL);
 		if (!aconnector)
-			goto fail_free_planes;
+			goto fail;
 
 		aencoder = kzalloc(sizeof(*aencoder), GFP_KERNEL);
 		if (!aencoder)
-			goto fail_free_connector;
+			goto fail;
 
 		if (amdgpu_dm_encoder_init(dm->ddev, aencoder, i)) {
 			DRM_ERROR("KMS: Failed to initialize encoder\n");
-			goto fail_free_encoder;
+			goto fail;
 		}
 
 		if (amdgpu_dm_connector_init(dm, aconnector, i, aencoder)) {
 			DRM_ERROR("KMS: Failed to initialize connector\n");
-			goto fail_free_encoder;
+			goto fail;
 		}
 
 		if (dc_link_detect(dc_get_link_at_index(dm->dc, i),
@@ -1413,14 +1413,14 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	case CHIP_VEGA10:
 		if (dce110_register_irq_handlers(dm->adev)) {
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
-			goto fail_free_encoder;
+			goto fail;
 		}
 		break;
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case CHIP_RAVEN:
 		if (dcn10_register_irq_handlers(dm->adev)) {
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
-			goto fail_free_encoder;
+			goto fail;
 		}
 		/*
 		 * Temporary disable until pplib/smu interaction is implemented
@@ -1430,17 +1430,15 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 #endif
 	default:
 		DRM_ERROR("Usupported ASIC type: 0x%X\n", adev->asic_type);
-		goto fail_free_encoder;
+		goto fail;
 	}
 
 	drm_mode_config_reset(dm->ddev);
 
 	return 0;
-fail_free_encoder:
+fail:
 	kfree(aencoder);
-fail_free_connector:
 	kfree(aconnector);
-fail_free_planes:
 	for (i = 0; i < dm->dc->caps.max_planes; i++)
 		kfree(mode_info->planes[i]);
 	return -1;
