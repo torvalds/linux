@@ -34,7 +34,9 @@
 
 #include "cxgb4.h"
 #include "t4_regs.h"
+#include "t4_tcb.h"
 #include "l2t.h"
+#include "smt.h"
 #include "t4fw_api.h"
 #include "cxgb4_filter.h"
 
@@ -311,7 +313,7 @@ static int del_filter_wr(struct adapter *adapter, int fidx)
 int set_filter_wr(struct adapter *adapter, int fidx)
 {
 	struct filter_entry *f = &adapter->tids.ftid_tab[fidx];
-	struct fw_filter_wr *fwr;
+	struct fw_filter2_wr *fwr;
 	struct sk_buff *skb;
 
 	skb = alloc_skb(sizeof(*fwr), GFP_KERNEL);
@@ -332,6 +334,21 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 		}
 	}
 
+	/* If the new filter requires loopback Source MAC rewriting then
+	 * we need to allocate a SMT entry for the filter.
+	 */
+	if (f->fs.newsmac) {
+		f->smt = cxgb4_smt_alloc_switching(f->dev, f->fs.smac);
+		if (!f->smt) {
+			if (f->l2t) {
+				cxgb4_l2t_release(f->l2t);
+				f->l2t = NULL;
+			}
+			kfree_skb(skb);
+			return -ENOMEM;
+		}
+	}
+
 	fwr = __skb_put_zero(skb, sizeof(*fwr));
 
 	/* It would be nice to put most of the following in t4_hw.c but most
@@ -342,7 +359,10 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 	 * filter specification structure but for now it's easiest to simply
 	 * put this fairly direct code in line ...
 	 */
-	fwr->op_pkd = htonl(FW_WR_OP_V(FW_FILTER_WR));
+	if (adapter->params.filter2_wr_support)
+		fwr->op_pkd = htonl(FW_WR_OP_V(FW_FILTER2_WR));
+	else
+		fwr->op_pkd = htonl(FW_WR_OP_V(FW_FILTER_WR));
 	fwr->len16_pkd = htonl(FW_WR_LEN16_V(sizeof(*fwr) / 16));
 	fwr->tid_to_iq =
 		htonl(FW_FILTER_WR_TID_V(f->tid) |
@@ -357,7 +377,6 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 		      FW_FILTER_WR_DIRSTEERHASH_V(f->fs.dirsteerhash) |
 		      FW_FILTER_WR_LPBK_V(f->fs.action == FILTER_SWITCH) |
 		      FW_FILTER_WR_DMAC_V(f->fs.newdmac) |
-		      FW_FILTER_WR_SMAC_V(f->fs.newsmac) |
 		      FW_FILTER_WR_INSVLAN_V(f->fs.newvlan == VLAN_INSERT ||
 					     f->fs.newvlan == VLAN_REWRITE) |
 		      FW_FILTER_WR_RMVLAN_V(f->fs.newvlan == VLAN_REMOVE ||
@@ -404,8 +423,18 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 	fwr->lpm = htons(f->fs.mask.lport);
 	fwr->fp = htons(f->fs.val.fport);
 	fwr->fpm = htons(f->fs.mask.fport);
-	if (f->fs.newsmac)
-		memcpy(fwr->sma, f->fs.smac, sizeof(fwr->sma));
+
+	if (adapter->params.filter2_wr_support) {
+		fwr->natmode_to_ulp_type =
+			FW_FILTER2_WR_ULP_TYPE_V(f->fs.nat_mode ?
+						 ULP_MODE_TCPDDP :
+						 ULP_MODE_NONE) |
+			FW_FILTER2_WR_NATMODE_V(f->fs.nat_mode);
+		memcpy(fwr->newlip, f->fs.nat_lip, sizeof(fwr->newlip));
+		memcpy(fwr->newfip, f->fs.nat_fip, sizeof(fwr->newfip));
+		fwr->newlport = htons(f->fs.nat_lport);
+		fwr->newfport = htons(f->fs.nat_fport);
+	}
 
 	/* Mark the filter as "pending" and ship off the Filter Work Request.
 	 * When we get the Work Request Reply we'll clear the pending status.
@@ -462,6 +491,9 @@ void clear_filter(struct adapter *adap, struct filter_entry *f)
 	 */
 	if (f->l2t)
 		cxgb4_l2t_release(f->l2t);
+
+	if (f->smt)
+		cxgb4_smt_release(f->smt);
 
 	/* The zeroing of the filter rule below clears the filter valid,
 	 * pending, locked flags, l2t pointer, etc. so it's all we need for
@@ -757,6 +789,62 @@ out:
 	return ret;
 }
 
+static int set_tcb_field(struct adapter *adap, struct filter_entry *f,
+			 unsigned int ftid,  u16 word, u64 mask, u64 val,
+			 int no_reply)
+{
+	struct cpl_set_tcb_field *req;
+	struct sk_buff *skb;
+
+	skb = alloc_skb(sizeof(struct cpl_set_tcb_field), GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	req = (struct cpl_set_tcb_field *)__skb_put(skb, sizeof(*req));
+	memset(req, 0, sizeof(*req));
+	INIT_TP_WR_CPL(req, CPL_SET_TCB_FIELD, ftid);
+	req->reply_ctrl = htons(REPLY_CHAN_V(0) |
+				QUEUENO_V(adap->sge.fw_evtq.abs_id) |
+				NO_REPLY_V(no_reply));
+	req->word_cookie = htons(TCB_WORD_V(word) | TCB_COOKIE_V(ftid));
+	req->mask = cpu_to_be64(mask);
+	req->val = cpu_to_be64(val);
+	set_wr_txq(skb, CPL_PRIORITY_CONTROL, f->fs.val.iport & 0x3);
+	t4_ofld_send(adap, skb);
+	return 0;
+}
+
+/* Set one of the t_flags bits in the TCB.
+ */
+static int set_tcb_tflag(struct adapter *adap, struct filter_entry *f,
+			 unsigned int ftid, unsigned int bit_pos,
+			 unsigned int val, int no_reply)
+{
+	return set_tcb_field(adap, f, ftid,  TCB_T_FLAGS_W, 1ULL << bit_pos,
+			     (unsigned long long)val << bit_pos, no_reply);
+}
+
+static int configure_filter_smac(struct adapter *adap, struct filter_entry *f)
+{
+	int err;
+
+	/* do a set-tcb for smac-sel and CWR bit.. */
+	err = set_tcb_tflag(adap, f, f->tid, TF_CCTRL_CWR_S, 1, 1);
+	if (err)
+		goto smac_err;
+
+	err = set_tcb_field(adap, f, f->tid, TCB_SMAC_SEL_W,
+			    TCB_SMAC_SEL_V(TCB_SMAC_SEL_M),
+			    TCB_SMAC_SEL_V(f->smt->idx), 1);
+	if (!err)
+		return 0;
+
+smac_err:
+	dev_err(adap->pdev_dev, "filter %u smac config failed with error %u\n",
+		f->tid, err);
+	return err;
+}
+
 /* Handle a filter write/deletion reply. */
 void filter_rpl(struct adapter *adap, const struct cpl_set_tcb_rpl *rpl)
 {
@@ -795,19 +883,23 @@ void filter_rpl(struct adapter *adap, const struct cpl_set_tcb_rpl *rpl)
 			clear_filter(adap, f);
 			if (ctx)
 				ctx->result = 0;
-		} else if (ret == FW_FILTER_WR_SMT_TBL_FULL) {
-			dev_err(adap->pdev_dev, "filter %u setup failed due to full SMT\n",
-				idx);
-			clear_filter(adap, f);
-			if (ctx)
-				ctx->result = -ENOMEM;
 		} else if (ret == FW_FILTER_WR_FLT_ADDED) {
-			f->smtidx = (be64_to_cpu(rpl->oldval) >> 24) & 0xff;
-			f->pending = 0;  /* asynchronous setup completed */
-			f->valid = 1;
-			if (ctx) {
-				ctx->result = 0;
-				ctx->tid = idx;
+			int err = 0;
+
+			if (f->fs.newsmac)
+				err = configure_filter_smac(adap, f);
+
+			if (!err) {
+				f->pending = 0;  /* async setup completed */
+				f->valid = 1;
+				if (ctx) {
+					ctx->result = 0;
+					ctx->tid = idx;
+				}
+			} else {
+				clear_filter(adap, f);
+				if (ctx)
+					ctx->result = err;
 			}
 		} else {
 			/* Something went wrong.  Issue a warning about the

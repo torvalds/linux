@@ -54,6 +54,60 @@ struct ch_tc_flower_entry {
 	u32 filter_id;
 };
 
+enum {
+	ETH_DMAC_31_0,	/* dmac bits 0.. 31 */
+	ETH_DMAC_47_32,	/* dmac bits 32..47 */
+	ETH_SMAC_15_0,	/* smac bits 0.. 15 */
+	ETH_SMAC_47_16,	/* smac bits 16..47 */
+
+	IP4_SRC,	/* 32-bit IPv4 src  */
+	IP4_DST,	/* 32-bit IPv4 dst  */
+
+	IP6_SRC_31_0,	/* src bits 0..  31 */
+	IP6_SRC_63_32,	/* src bits 63.. 32 */
+	IP6_SRC_95_64,	/* src bits 95.. 64 */
+	IP6_SRC_127_96,	/* src bits 127..96 */
+
+	IP6_DST_31_0,	/* dst bits 0..  31 */
+	IP6_DST_63_32,	/* dst bits 63.. 32 */
+	IP6_DST_95_64,	/* dst bits 95.. 64 */
+	IP6_DST_127_96,	/* dst bits 127..96 */
+
+	TCP_SPORT,	/* 16-bit TCP sport */
+	TCP_DPORT,	/* 16-bit TCP dport */
+
+	UDP_SPORT,	/* 16-bit UDP sport */
+	UDP_DPORT,	/* 16-bit UDP dport */
+};
+
+struct ch_tc_pedit_fields {
+	u8 field;
+	u8 size;
+	u32 offset;
+};
+
+#define PEDIT_FIELDS(type, field, size, fs_field, offset) \
+	{ type## field, size, \
+		offsetof(struct ch_filter_specification, fs_field) + (offset) }
+
+#define PEDIT_ETH_DMAC_MASK		0xffff
+#define PEDIT_TCP_UDP_SPORT_MASK	0xffff
+#define PEDIT_ETH_DMAC_31_0		0x0
+#define PEDIT_ETH_DMAC_47_32_SMAC_15_0	0x4
+#define PEDIT_ETH_SMAC_47_16		0x8
+#define PEDIT_IP4_SRC			0xC
+#define PEDIT_IP4_DST			0x10
+#define PEDIT_IP6_SRC_31_0		0x8
+#define PEDIT_IP6_SRC_63_32		0xC
+#define PEDIT_IP6_SRC_95_64		0x10
+#define PEDIT_IP6_SRC_127_96		0x14
+#define PEDIT_IP6_DST_31_0		0x18
+#define PEDIT_IP6_DST_63_32		0x1C
+#define PEDIT_IP6_DST_95_64		0x20
+#define PEDIT_IP6_DST_127_96		0x24
+#define PEDIT_TCP_SPORT_DPORT		0x0
+#define PEDIT_UDP_SPORT_DPORT		0x0
+
 int cxgb4_tc_flower_replace(struct net_device *dev,
 			    struct tc_cls_flower_offload *cls);
 int cxgb4_tc_flower_destroy(struct net_device *dev,
