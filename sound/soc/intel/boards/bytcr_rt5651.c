@@ -47,6 +47,7 @@ enum {
 
 struct byt_rt5651_private {
 	struct clk *mclk;
+	struct snd_soc_jack jack;
 };
 
 static unsigned long byt_rt5651_quirk = BYT_RT5651_DMIC_MAP |
@@ -177,6 +178,17 @@ static const struct snd_kcontrol_new byt_rt5651_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Speaker"),
 };
 
+static struct snd_soc_jack_pin bytcr_jack_pins[] = {
+	{
+		.pin	= "Headphone",
+		.mask	= SND_JACK_HEADPHONE,
+	},
+	{
+		.pin	= "Headset Mic",
+		.mask	= SND_JACK_MICROPHONE,
+	},
+};
+
 static int byt_rt5651_aif1_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
 {
@@ -244,6 +256,7 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
 {
 	struct snd_soc_card *card = runtime->card;
+	struct snd_soc_codec *codec = runtime->codec;
 	struct byt_rt5651_private *priv = snd_soc_card_get_drvdata(card);
 	const struct snd_soc_dapm_route *custom_map;
 	int num_routes;
@@ -300,6 +313,16 @@ static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
 		if (ret)
 			dev_err(card->dev, "unable to set MCLK rate\n");
 	}
+
+	ret = snd_soc_card_jack_new(runtime->card, "Headset",
+				    SND_JACK_HEADSET, &priv->jack,
+				    bytcr_jack_pins, ARRAY_SIZE(bytcr_jack_pins));
+	if (ret) {
+		dev_err(runtime->dev, "Headset jack creation failed %d\n", ret);
+		return ret;
+	}
+
+	rt5651_set_jack_detect(codec, &priv->jack);
 
 	return ret;
 }
