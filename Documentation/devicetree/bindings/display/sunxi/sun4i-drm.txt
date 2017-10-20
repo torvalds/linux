@@ -50,9 +50,8 @@ Required properties:
     * pll-0: the first video PLL
     * pll-1: the second video PLL
   - clock-names: the clock names mentioned above
+  - clock-output-names: the name of the output clock by the HDMI/TMDS encoder
   - dmas: phandles to the DMA channels used by the HDMI encoder
-    * ddc-tx: The channel for DDC transmission
-    * ddc-rx: The channel for DDC reception
     * audio-tx: The channel used for audio transmission
   - dma-names: the channel names mentioned above
 
@@ -60,6 +59,32 @@ Required properties:
     Documentation/devicetree/bindings/media/video-interfaces.txt. The
     first port should be the input endpoint. The second should be the
     output, usually to an HDMI connector.
+
+Optional properties:
+  - ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
+
+HDMI-I2C bus driver
+-------------------
+
+The HDMI-I2C bus controller is implemented using a reasonably common I2C block
+and can be used as a regular I2C device in a board layout. The only caveat
+however is that the bus timing is dependent on the TMDS clock and thus the
+exact I2C bus frequency may not be achieved.
+
+Required properties:
+  - compatible: value must be one of:
+    * allwinner,sun4i-a10-hdmi-i2c
+    * allwinner,sun6i-a31-hdmi-i2c
+  - reg: base address and size of the memory-mapped region
+  - clocks: phandle to the clock feeding the HDMI-I2C bus controller
+    * hdmi: the HDMI/TMDS peripheral is the input clock, common on sun4i
+    * ddc: a dedicated DDC clock is the input clock, common on sun6i
+  - dmas: phandles to the DMA channels used by the HDMI-I2C bus controller
+    * ddc-tx: The channel for DDC transmission
+    * ddc-rx: The channel for DDC reception
+
+Optional properties:
+  - clock-frequency: see the common i2c binding document
 
 TV Encoder
 ----------
@@ -277,16 +302,16 @@ connector {
 
 hdmi: hdmi@01c16000 {
 	compatible = "allwinner,sun5i-a10s-hdmi";
-	reg = <0x01c16000 0x1000>;
+	reg = <0x01c16000 0x500>;
 	interrupts = <58>;
 	clocks = <&ccu CLK_AHB_HDMI>, <&ccu CLK_HDMI>,
 		 <&ccu CLK_PLL_VIDEO0_2X>,
 		 <&ccu CLK_PLL_VIDEO1_2X>;
 	clock-names = "ahb", "mod", "pll-0", "pll-1";
-	dmas = <&dma SUN4I_DMA_NORMAL 16>,
-	       <&dma SUN4I_DMA_NORMAL 16>,
-	       <&dma SUN4I_DMA_DEDICATED 24>;
-	dma-names = "ddc-tx", "ddc-rx", "audio-tx";
+	clock-output-names = "hdmi-tmds";
+	ddc-i2c-bus = <&hdmi_i2c>;
+	dmas = <&dma SUN4I_DMA_DEDICATED 24>;
+	dma-names = "audio-tx";
 
 	ports {
 		#address-cells = <1>;
@@ -312,6 +337,19 @@ hdmi: hdmi@01c16000 {
 			};
 		};
 	};
+};
+
+hdmi_i2c: i2c@16500 {
+	compatible = "allwinner,sun7i-a20-hdmi-i2c",
+		     "allwinner,sun4i-a10-hdmi-i2c";
+	reg = <0x01c16500 0x40>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	clocks = <&hdmi>;
+	dmas = <&dma SUN4I_DMA_NORMAL 16>,
+	       <&dma SUN4I_DMA_NORMAL 16>,
+	dma-names = "ddc-tx", "ddc-rx";
+	status = "disabled";
 };
 
 tve0: tv-encoder@01c0a000 {

@@ -22,6 +22,14 @@ config DRM_SUN4I_HDMI
 	  Choose this option if you have an Allwinner SoC with an HDMI
 	  controller.
 
+config I2C_SUN4I_HDMI
+	tristate "Allwinner A10 HDMI I2C Support"
+	depends on DRM_SUN4I_HDMI
+	select I2C
+	help
+	  Choose this option if you have an Allwinner SoC with an I2C
+	  enabled HDMI controller and want to enable the I2C channel.
+
 config DRM_SUN4I_HDMI_CEC
 	bool "Allwinner A10 HDMI CEC Support"
 	depends on DRM_SUN4I_HDMI

@@ -4,9 +4,11 @@ sun4i-backend-y			+= sun4i_backend.o sun4i_layer.o
 sun4i-drm-y			+= sun4i_drv.o
 sun4i-drm-y			+= sun4i_framebuffer.o
 
-sun4i-drm-hdmi-y		+= sun4i_hdmi_ddc_clk.o
+sun4i-hdmi-i2c-y		+= sun4i_hdmi_i2c_drv.o sun4i_hdmi_ddc_clk.o
+sun4i-hdmi-i2c-y		+= sun4i_hdmi_i2c.o
+
+sun4i-drm-hdmi-y		+= sun4i_hdmi_i2c_drv.o sun4i_hdmi_ddc_clk.o
 sun4i-drm-hdmi-y		+= sun4i_hdmi_enc.o
-sun4i-drm-hdmi-y		+= sun4i_hdmi_i2c.o
 sun4i-drm-hdmi-y		+= sun4i_hdmi_tmds_clk.o
 
 sun8i-mixer-y			+= sun8i_mixer.o sun8i_layer.o
@@ -24,3 +26,5 @@ obj-$(CONFIG_DRM_SUN4I)		+= sun6i_drc.o
 obj-$(CONFIG_DRM_SUN4I_BACKEND)	+= sun4i-backend.o
 obj-$(CONFIG_DRM_SUN4I_HDMI)	+= sun4i-drm-hdmi.o
 obj-$(CONFIG_DRM_SUN8I_MIXER)	+= sun8i-mixer.o
+
+obj-$(CONFIG_I2C_SUN4I_HDMI)	+= sun4i-hdmi-i2c.o
