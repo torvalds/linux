@@ -1753,6 +1753,14 @@ static int rt5651_quirk_cb(const struct dmi_system_id *id)
 }
 
 static const struct dmi_system_id rt5651_quirk_table[] = {
+	{
+		.callback = rt5651_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "KIANO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "KIANO SlimNote 14.2"),
+		},
+		.driver_data = (unsigned long *) RT5651_JD1_1,
+	},
 	{}
 };
 
