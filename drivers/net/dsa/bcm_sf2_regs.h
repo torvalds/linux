@@ -313,7 +313,7 @@ enum bcm_sf2_reg_offs {
 #define  SLICE_VALID			3
 #define  SLICE_NUM_SHIFT		2
 #define  SLICE_NUM(x)			((x) << SLICE_NUM_SHIFT)
-#define  SLICE_NUM_MASK			0xff
+#define  SLICE_NUM_MASK			0x3
 
 #define CORE_CFP_MASK_PORT_0		0x280c0
 
