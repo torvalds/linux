@@ -228,7 +228,7 @@ static void recover_worker(struct work_struct *work)
 	struct msm_gpu *gpu = container_of(work, struct msm_gpu, recover_work);
 	struct drm_device *dev = gpu->dev;
 	struct msm_gem_submit *submit;
-	uint32_t fence = gpu->funcs->last_fence(gpu);
+	uint32_t fence = gpu->memptrs->fence;
 
 	msm_update_fence(gpu->fctx, fence + 1);
 
@@ -281,7 +281,7 @@ static void hangcheck_handler(unsigned long data)
 	struct msm_gpu *gpu = (struct msm_gpu *)data;
 	struct drm_device *dev = gpu->dev;
 	struct msm_drm_private *priv = dev->dev_private;
-	uint32_t fence = gpu->funcs->last_fence(gpu);
+	uint32_t fence = gpu->memptrs->fence;
 
 	if (fence != gpu->hangcheck_fence) {
 		/* some progress has been made.. ya! */
@@ -449,7 +449,7 @@ static void retire_worker(struct work_struct *work)
 {
 	struct msm_gpu *gpu = container_of(work, struct msm_gpu, retire_work);
 	struct drm_device *dev = gpu->dev;
-	uint32_t fence = gpu->funcs->last_fence(gpu);
+	uint32_t fence = gpu->memptrs->fence;
 
 	msm_update_fence(gpu->fctx, fence);
 
@@ -689,6 +689,17 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		goto fail;
 	}
 
+	gpu->memptrs = msm_gem_kernel_new(drm, sizeof(*gpu->memptrs_bo),
+		MSM_BO_UNCACHED, gpu->aspace, &gpu->memptrs_bo,
+		&gpu->memptrs_iova);
+
+	if (IS_ERR(gpu->memptrs)) {
+		ret = PTR_ERR(gpu->memptrs);
+		gpu->memptrs = NULL;
+		dev_err(drm->dev, "could not allocate memptrs: %d\n", ret);
+		goto fail;
+	}
+
 	/* Create ringbuffer: */
 	gpu->rb = msm_ringbuffer_new(gpu, config->ringsz);
 	if (IS_ERR(gpu->rb)) {
@@ -701,6 +712,12 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	return 0;
 
 fail:
+	if (gpu->memptrs_bo) {
+		msm_gem_put_vaddr(gpu->memptrs_bo);
+		msm_gem_put_iova(gpu->memptrs_bo, gpu->aspace);
+		drm_gem_object_unreference_unlocked(gpu->memptrs_bo);
+	}
+
 	platform_set_drvdata(pdev, NULL);
 	return ret;
 }
@@ -718,7 +735,14 @@ void msm_gpu_cleanup(struct msm_gpu *gpu)
 			msm_gem_put_iova(gpu->rb->bo, gpu->aspace);
 		msm_ringbuffer_destroy(gpu->rb);
 	}
-	if (gpu->aspace) {
+
+	if (gpu->memptrs_bo) {
+		msm_gem_put_vaddr(gpu->memptrs_bo);
+		msm_gem_put_iova(gpu->memptrs_bo, gpu->aspace);
+		drm_gem_object_unreference_unlocked(gpu->memptrs_bo);
+	}
+
+	if (!IS_ERR_OR_NULL(gpu->aspace)) {
 		gpu->aspace->mmu->funcs->detach(gpu->aspace->mmu,
 			NULL, 0);
 		msm_gem_address_space_put(gpu->aspace);

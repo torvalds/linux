@@ -59,13 +59,20 @@ struct msm_gpu_funcs {
 			struct msm_file_private *ctx);
 	void (*flush)(struct msm_gpu *gpu);
 	irqreturn_t (*irq)(struct msm_gpu *irq);
-	uint32_t (*last_fence)(struct msm_gpu *gpu);
 	void (*recover)(struct msm_gpu *gpu);
 	void (*destroy)(struct msm_gpu *gpu);
 #ifdef CONFIG_DEBUG_FS
 	/* show GPU status in debugfs: */
 	void (*show)(struct msm_gpu *gpu, struct seq_file *m);
 #endif
+};
+
+#define rbmemptr(gpu, member)  \
+	((gpu)->memptrs_iova + offsetof(struct msm_rbmemptrs, member))
+
+struct msm_rbmemptrs {
+	volatile uint32_t rptr;
+	volatile uint32_t fence;
 };
 
 struct msm_gpu {
@@ -130,11 +137,17 @@ struct msm_gpu {
 	struct work_struct recover_work;
 
 	struct list_head submit_list;
+
+	struct msm_rbmemptrs *memptrs;
+	struct drm_gem_object *memptrs_bo;
+	uint64_t memptrs_iova;
+
+
 };
 
 static inline bool msm_gpu_active(struct msm_gpu *gpu)
 {
-	return gpu->fctx->last_fence > gpu->funcs->last_fence(gpu);
+	return gpu->fctx->last_fence > gpu->memptrs->fence;
 }
 
 /* Perf-Counters:

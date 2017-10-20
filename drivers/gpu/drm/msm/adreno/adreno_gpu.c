@@ -182,8 +182,8 @@ int adreno_hw_init(struct msm_gpu *gpu)
 	gpu->rb->cur = gpu->rb->start;
 
 	/* reset completed fence seqno: */
-	adreno_gpu->memptrs->fence = gpu->fctx->completed_fence;
-	adreno_gpu->memptrs->rptr  = 0;
+	gpu->memptrs->fence = gpu->fctx->completed_fence;
+	gpu->memptrs->rptr  = 0;
 
 	/* Setup REG_CP_RB_CNTL: */
 	adreno_gpu_write(adreno_gpu, REG_ADRENO_CP_RB_CNTL,
@@ -198,8 +198,7 @@ int adreno_hw_init(struct msm_gpu *gpu)
 
 	if (!adreno_is_a430(adreno_gpu)) {
 		adreno_gpu_write64(adreno_gpu, REG_ADRENO_CP_RB_RPTR_ADDR,
-			REG_ADRENO_CP_RB_RPTR_ADDR_HI,
-			rbmemptr(adreno_gpu, rptr));
+			REG_ADRENO_CP_RB_RPTR_ADDR_HI, rbmemptr(gpu, rptr));
 	}
 
 	return 0;
@@ -213,17 +212,13 @@ static uint32_t get_wptr(struct msm_ringbuffer *ring)
 /* Use this helper to read rptr, since a430 doesn't update rptr in memory */
 static uint32_t get_rptr(struct adreno_gpu *adreno_gpu)
 {
+	struct msm_gpu *gpu = &adreno_gpu->base;
+
 	if (adreno_is_a430(adreno_gpu))
-		return adreno_gpu->memptrs->rptr = adreno_gpu_read(
+		return gpu->memptrs->rptr = adreno_gpu_read(
 			adreno_gpu, REG_ADRENO_CP_RB_RPTR);
 	else
-		return adreno_gpu->memptrs->rptr;
-}
-
-uint32_t adreno_last_fence(struct msm_gpu *gpu)
-{
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	return adreno_gpu->memptrs->fence;
+		return gpu->memptrs->rptr;
 }
 
 void adreno_recover(struct msm_gpu *gpu)
@@ -288,7 +283,7 @@ void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 
 	OUT_PKT3(ring, CP_EVENT_WRITE, 3);
 	OUT_RING(ring, CACHE_FLUSH_TS);
-	OUT_RING(ring, rbmemptr(adreno_gpu, fence));
+	OUT_RING(ring, rbmemptr(gpu, fence));
 	OUT_RING(ring, submit->fence->seqno);
 
 	/* we could maybe be clever and only CP_COND_EXEC the interrupt: */
@@ -361,7 +356,7 @@ void adreno_show(struct msm_gpu *gpu, struct seq_file *m)
 			adreno_gpu->rev.major, adreno_gpu->rev.minor,
 			adreno_gpu->rev.patchid);
 
-	seq_printf(m, "fence:    %d/%d\n", adreno_gpu->memptrs->fence,
+	seq_printf(m, "fence:    %d/%d\n", gpu->memptrs->fence,
 			gpu->fctx->last_fence);
 	seq_printf(m, "rptr:     %d\n", get_rptr(adreno_gpu));
 	seq_printf(m, "rb wptr:  %d\n", get_wptr(gpu->rb));
@@ -396,7 +391,7 @@ void adreno_dump_info(struct msm_gpu *gpu)
 			adreno_gpu->rev.major, adreno_gpu->rev.minor,
 			adreno_gpu->rev.patchid);
 
-	printk("fence:    %d/%d\n", adreno_gpu->memptrs->fence,
+	printk("fence:    %d/%d\n", gpu->memptrs->fence,
 			gpu->fctx->last_fence);
 	printk("rptr:     %d\n", get_rptr(adreno_gpu));
 	printk("rb wptr:  %d\n", get_wptr(gpu->rb));
@@ -443,7 +438,6 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	struct adreno_platform_config *config = pdev->dev.platform_data;
 	struct msm_gpu_config adreno_gpu_config  = { 0 };
 	struct msm_gpu *gpu = &adreno_gpu->base;
-	int ret;
 
 	adreno_gpu->funcs = funcs;
 	adreno_gpu->info = adreno_info(config->rev);
@@ -472,39 +466,14 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	ret = msm_gpu_init(drm, pdev, &adreno_gpu->base, &funcs->base,
+	return msm_gpu_init(drm, pdev, &adreno_gpu->base, &funcs->base,
 			adreno_gpu->info->name, &adreno_gpu_config);
-	if (ret)
-		return ret;
-
-	adreno_gpu->memptrs = msm_gem_kernel_new(drm,
-		sizeof(*adreno_gpu->memptrs), MSM_BO_UNCACHED, gpu->aspace,
-		&adreno_gpu->memptrs_bo, &adreno_gpu->memptrs_iova);
-
-	if (IS_ERR(adreno_gpu->memptrs)) {
-		ret = PTR_ERR(adreno_gpu->memptrs);
-		adreno_gpu->memptrs = NULL;
-		dev_err(drm->dev, "could not allocate memptrs: %d\n", ret);
-	}
-
-	return ret;
 }
 
 void adreno_gpu_cleanup(struct adreno_gpu *adreno_gpu)
 {
-	struct msm_gpu *gpu = &adreno_gpu->base;
-
-	if (adreno_gpu->memptrs_bo) {
-		if (adreno_gpu->memptrs)
-			msm_gem_put_vaddr(adreno_gpu->memptrs_bo);
-
-		if (adreno_gpu->memptrs_iova)
-			msm_gem_put_iova(adreno_gpu->memptrs_bo, gpu->aspace);
-
-		drm_gem_object_unreference_unlocked(adreno_gpu->memptrs_bo);
-	}
 	release_firmware(adreno_gpu->pm4);
 	release_firmware(adreno_gpu->pfp);
 
-	msm_gpu_cleanup(gpu);
+	msm_gpu_cleanup(&adreno_gpu->base);
 }

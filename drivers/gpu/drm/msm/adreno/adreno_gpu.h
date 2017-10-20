@@ -82,14 +82,6 @@ struct adreno_info {
 
 const struct adreno_info *adreno_info(struct adreno_rev rev);
 
-#define rbmemptr(adreno_gpu, member)  \
-	((adreno_gpu)->memptrs_iova + offsetof(struct adreno_rbmemptrs, member))
-
-struct adreno_rbmemptrs {
-	volatile uint32_t rptr;
-	volatile uint32_t fence;
-};
-
 struct adreno_gpu {
 	struct msm_gpu base;
 	struct adreno_rev rev;
@@ -124,13 +116,6 @@ struct adreno_gpu {
 
 	/* firmware: */
 	const struct firmware *pm4, *pfp;
-
-	/* ringbuffer rptr/wptr: */
-	// TODO should this be in msm_ringbuffer?  I think it would be
-	// different for z180..
-	struct adreno_rbmemptrs *memptrs;
-	struct drm_gem_object *memptrs_bo;
-	uint64_t memptrs_iova;
 
 	/*
 	 * Register offsets are different between some GPUs.
@@ -220,7 +205,6 @@ int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value);
 const struct firmware *adreno_request_fw(struct adreno_gpu *adreno_gpu,
 		const char *fwname);
 int adreno_hw_init(struct msm_gpu *gpu);
-uint32_t adreno_last_fence(struct msm_gpu *gpu);
 void adreno_recover(struct msm_gpu *gpu);
 void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		struct msm_file_private *ctx);
