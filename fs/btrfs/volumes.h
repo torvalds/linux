@@ -488,11 +488,6 @@ int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
 int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 		       struct btrfs_fs_info *fs_info, u64 chunk_offset);
 
-static inline int btrfs_dev_stats_dirty(struct btrfs_device *dev)
-{
-	return atomic_read(&dev->dev_stats_ccnt);
-}
-
 static inline void btrfs_dev_stat_inc(struct btrfs_device *dev,
 				      int index)
 {
