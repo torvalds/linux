@@ -113,6 +113,7 @@ we might work for today, have in the past, or will in the future.
   - Shaohua Li
   - Xin Long
   - Tony Luck
+  - Catalin Marinas (Arm Ltd)
   - Mike Marshall
   - Chris Mason
   - Paul E. McKenney
@@ -150,3 +151,4 @@ we might work for today, have in the past, or will in the future.
   - Wei Yongjun
   - Lv Zheng
   - Eduardo Valentin <Amazon.com>
+  - Marc Zyngier (Arm Ltd)
