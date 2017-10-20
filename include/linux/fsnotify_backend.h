@@ -242,7 +242,7 @@ struct fsnotify_mark {
 	__u32 mask;
 	/* We hold one for presence in g_list. Also one ref for each 'thing'
 	 * in kernel that found and may be using this mark. */
-	atomic_t refcnt;
+	refcount_t refcnt;
 	/* Group this mark is for. Set on mark creation, stable until last ref
 	 * is dropped */
 	struct fsnotify_group *group;

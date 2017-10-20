@@ -105,8 +105,8 @@ static DECLARE_WORK(connector_reaper_work, fsnotify_connector_destroy_workfn);
 
 void fsnotify_get_mark(struct fsnotify_mark *mark)
 {
-	WARN_ON_ONCE(!atomic_read(&mark->refcnt));
-	atomic_inc(&mark->refcnt);
+	WARN_ON_ONCE(!refcount_read(&mark->refcnt));
+	refcount_inc(&mark->refcnt);
 }
 
 static void __fsnotify_recalc_mask(struct fsnotify_mark_connector *conn)
@@ -201,7 +201,7 @@ void fsnotify_put_mark(struct fsnotify_mark *mark)
 
 	/* Catch marks that were actually never attached to object */
 	if (!mark->connector) {
-		if (atomic_dec_and_test(&mark->refcnt))
+		if (refcount_dec_and_test(&mark->refcnt))
 			fsnotify_final_mark_destroy(mark);
 		return;
 	}
@@ -210,7 +210,7 @@ void fsnotify_put_mark(struct fsnotify_mark *mark)
 	 * We have to be careful so that traversals of obj_list under lock can
 	 * safely grab mark reference.
 	 */
-	if (!atomic_dec_and_lock(&mark->refcnt, &mark->connector->lock))
+	if (!refcount_dec_and_lock(&mark->refcnt, &mark->connector->lock))
 		return;
 
 	conn = mark->connector;
@@ -258,7 +258,7 @@ static bool fsnotify_get_mark_safe(struct fsnotify_mark *mark)
 	if (!mark)
 		return true;
 
-	if (atomic_inc_not_zero(&mark->refcnt)) {
+	if (refcount_inc_not_zero(&mark->refcnt)) {
 		spin_lock(&mark->lock);
 		if (mark->flags & FSNOTIFY_MARK_FLAG_ATTACHED) {
 			/* mark is attached, group is still alive then */
@@ -335,7 +335,7 @@ void fsnotify_detach_mark(struct fsnotify_mark *mark)
 
 	WARN_ON_ONCE(!mutex_is_locked(&group->mark_mutex));
 	WARN_ON_ONCE(!srcu_read_lock_held(&fsnotify_mark_srcu) &&
-		     atomic_read(&mark->refcnt) < 1 +
+		     refcount_read(&mark->refcnt) < 1 +
 			!!(mark->flags & FSNOTIFY_MARK_FLAG_ATTACHED));
 
 	spin_lock(&mark->lock);
@@ -737,7 +737,7 @@ void fsnotify_init_mark(struct fsnotify_mark *mark,
 {
 	memset(mark, 0, sizeof(*mark));
 	spin_lock_init(&mark->lock);
-	atomic_set(&mark->refcnt, 1);
+	refcount_set(&mark->refcnt, 1);
 	fsnotify_get_group(group);
 	mark->group = group;
 }
