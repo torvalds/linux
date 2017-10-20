@@ -313,7 +313,9 @@ void __init mem_encrypt_init(void)
 	if (sev_active())
 		dma_ops = &sev_dma_ops;
 
-	pr_info("AMD Secure Memory Encryption (SME) active\n");
+	pr_info("AMD %s active\n",
+		sev_active() ? "Secure Encrypted Virtualization (SEV)"
+			     : "Secure Memory Encryption (SME)");
 }
 
 void swiotlb_set_mem_attributes(void *vaddr, unsigned long size)
@@ -641,37 +643,63 @@ void __init __nostackprotector sme_enable(struct boot_params *bp)
 {
 	const char *cmdline_ptr, *cmdline_arg, *cmdline_on, *cmdline_off;
 	unsigned int eax, ebx, ecx, edx;
+	unsigned long feature_mask;
 	bool active_by_default;
 	unsigned long me_mask;
 	char buffer[16];
 	u64 msr;
 
-	/* Check for the SME support leaf */
+	/* Check for the SME/SEV support leaf */
 	eax = 0x80000000;
 	ecx = 0;
 	native_cpuid(&eax, &ebx, &ecx, &edx);
 	if (eax < 0x8000001f)
 		return;
 
+#define AMD_SME_BIT	BIT(0)
+#define AMD_SEV_BIT	BIT(1)
 	/*
-	 * Check for the SME feature:
-	 *   CPUID Fn8000_001F[EAX] - Bit 0
-	 *     Secure Memory Encryption support
-	 *   CPUID Fn8000_001F[EBX] - Bits 5:0
-	 *     Pagetable bit position used to indicate encryption
+	 * Set the feature mask (SME or SEV) based on whether we are
+	 * running under a hypervisor.
+	 */
+	eax = 1;
+	ecx = 0;
+	native_cpuid(&eax, &ebx, &ecx, &edx);
+	feature_mask = (ecx & BIT(31)) ? AMD_SEV_BIT : AMD_SME_BIT;
+
+	/*
+	 * Check for the SME/SEV feature:
+	 *   CPUID Fn8000_001F[EAX]
+	 *   - Bit 0 - Secure Memory Encryption support
+	 *   - Bit 1 - Secure Encrypted Virtualization support
+	 *   CPUID Fn8000_001F[EBX]
+	 *   - Bits 5:0 - Pagetable bit position used to indicate encryption
 	 */
 	eax = 0x8000001f;
 	ecx = 0;
 	native_cpuid(&eax, &ebx, &ecx, &edx);
-	if (!(eax & 1))
+	if (!(eax & feature_mask))
 		return;
 
 	me_mask = 1UL << (ebx & 0x3f);
 
-	/* Check if SME is enabled */
-	msr = __rdmsr(MSR_K8_SYSCFG);
-	if (!(msr & MSR_K8_SYSCFG_MEM_ENCRYPT))
+	/* Check if memory encryption is enabled */
+	if (feature_mask == AMD_SME_BIT) {
+		/* For SME, check the SYSCFG MSR */
+		msr = __rdmsr(MSR_K8_SYSCFG);
+		if (!(msr & MSR_K8_SYSCFG_MEM_ENCRYPT))
+			return;
+	} else {
+		/* For SEV, check the SEV MSR */
+		msr = __rdmsr(MSR_AMD64_SEV);
+		if (!(msr & MSR_AMD64_SEV_ENABLED))
+			return;
+
+		/* SEV state cannot be controlled by a command line option */
+		sme_me_mask = me_mask;
+		sev_enabled = true;
 		return;
+	}
 
 	/*
 	 * Fixups have not been applied to phys_base yet and we're running
