@@ -463,7 +463,6 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 			goto out_unlock;
 		}
 	}
-	priv->struct_mutex_task = current;
 
 	submit = submit_create(dev, gpu, queue, args->nr_bos, args->nr_cmds);
 	if (!submit) {
@@ -581,7 +580,6 @@ out:
 out_unlock:
 	if (ret && (out_fence_fd >= 0))
 		put_unused_fd(out_fence_fd);
-	priv->struct_mutex_task = NULL;
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
