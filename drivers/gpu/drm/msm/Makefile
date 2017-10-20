@@ -57,7 +57,8 @@ msm-y := \
 	msm_iommu.o \
 	msm_perf.o \
 	msm_rd.o \
-	msm_ringbuffer.o
+	msm_ringbuffer.o \
+	msm_submitqueue.o
 
 msm-$(CONFIG_DRM_FBDEV_EMULATION) += msm_fbdev.o
 msm-$(CONFIG_COMMON_CLK) += mdp/mdp4/mdp4_lvds_pll.o

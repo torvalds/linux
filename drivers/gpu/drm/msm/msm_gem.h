@@ -142,6 +142,7 @@ struct msm_gem_submit {
 	struct list_head bo_list;
 	struct ww_acquire_ctx ticket;
 	struct dma_fence *fence;
+	struct msm_gpu_submitqueue *queue;
 	struct pid *pid;    /* submitting process */
 	bool valid;         /* true if no cmdstream patching needed */
 	unsigned int nr_cmds;

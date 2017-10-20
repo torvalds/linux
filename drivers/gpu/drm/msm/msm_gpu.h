@@ -150,6 +150,15 @@ struct msm_gpu_perfcntr {
 	const char *name;
 };
 
+struct msm_gpu_submitqueue {
+	int id;
+	u32 flags;
+	u32 prio;
+	int faults;
+	struct list_head node;
+	struct kref ref;
+};
+
 static inline void gpu_write(struct msm_gpu *gpu, u32 reg, u32 data)
 {
 	msm_writel(data, gpu->mmio + (reg << 2));
@@ -222,5 +231,11 @@ void msm_gpu_cleanup(struct msm_gpu *gpu);
 struct msm_gpu *adreno_load_gpu(struct drm_device *dev);
 void __init adreno_register(void);
 void __exit adreno_unregister(void);
+
+static inline void msm_submitqueue_put(struct msm_gpu_submitqueue *queue)
+{
+	if (queue)
+		kref_put(&queue->ref, msm_submitqueue_destroy);
+}
 
 #endif /* __MSM_GPU_H__ */
