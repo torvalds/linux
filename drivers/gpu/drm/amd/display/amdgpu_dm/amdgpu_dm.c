@@ -1433,8 +1433,6 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		goto fail;
 	}
 
-	drm_mode_config_reset(dm->ddev);
-
 	return 0;
 fail:
 	kfree(aencoder);
@@ -3081,6 +3079,11 @@ static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 
 	drm_plane_helper_add(&aplane->base, &dm_plane_helper_funcs);
 
+	/* Create (reset) the plane state */
+	if (aplane->base.funcs->reset)
+		aplane->base.funcs->reset(&aplane->base);
+
+
 	return res;
 }
 
@@ -3115,6 +3118,10 @@ static int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 		goto fail;
 
 	drm_crtc_helper_add(&acrtc->base, &amdgpu_dm_crtc_helper_funcs);
+
+	/* Create (reset) the plane state */
+	if (acrtc->base.funcs->reset)
+		acrtc->base.funcs->reset(&acrtc->base);
 
 	acrtc->max_cursor_width = dm->adev->dm.dc->caps.max_cursor_size;
 	acrtc->max_cursor_height = dm->adev->dm.dc->caps.max_cursor_size;
@@ -3467,6 +3474,9 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 	drm_connector_helper_add(
 			&aconnector->base,
 			&amdgpu_dm_connector_helper_funcs);
+
+	if (aconnector->base.funcs->reset)
+		aconnector->base.funcs->reset(&aconnector->base);
 
 	amdgpu_dm_connector_init_helper(
 		dm,
