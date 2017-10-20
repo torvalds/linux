@@ -2965,6 +2965,57 @@ static void hpsa_scsi_interpret_error(struct ctlr_info *h,
 	}
 }
 
+static int hpsa_do_receive_diagnostic(struct ctlr_info *h, u8 *scsi3addr,
+					u8 page, u8 *buf, size_t bufsize)
+{
+	int rc = IO_OK;
+	struct CommandList *c;
+	struct ErrorInfo *ei;
+
+	c = cmd_alloc(h);
+	if (fill_cmd(c, RECEIVE_DIAGNOSTIC, h, buf, bufsize,
+			page, scsi3addr, TYPE_CMD)) {
+		rc = -1;
+		goto out;
+	}
+	rc = hpsa_scsi_do_simple_cmd_with_retry(h, c,
+		PCI_DMA_FROMDEVICE, NO_TIMEOUT);
+	if (rc)
+		goto out;
+	ei = c->err_info;
+	if (ei->CommandStatus != 0 && ei->CommandStatus != CMD_DATA_UNDERRUN) {
+		hpsa_scsi_interpret_error(h, c);
+		rc = -1;
+	}
+out:
+	cmd_free(h, c);
+	return rc;
+}
+
+static u64 hpsa_get_enclosure_logical_identifier(struct ctlr_info *h,
+						u8 *scsi3addr)
+{
+	u8 *buf;
+	u64 sa = 0;
+	int rc = 0;
+
+	buf = kzalloc(1024, GFP_KERNEL);
+	if (!buf)
+		return 0;
+
+	rc = hpsa_do_receive_diagnostic(h, scsi3addr, RECEIVE_DIAGNOSTIC,
+					buf, 1024);
+
+	if (rc)
+		goto out;
+
+	sa = get_unaligned_be64(buf+12);
+
+out:
+	kfree(buf);
+	return sa;
+}
+
 static int hpsa_scsi_do_inquiry(struct ctlr_info *h, unsigned char *scsi3addr,
 			u16 page, unsigned char *buf,
 			unsigned char bufsize)
@@ -3399,6 +3450,9 @@ static void hpsa_get_enclosure_info(struct ctlr_info *h,
 	u16 bmic_device_index = 0;
 
 	bmic_device_index = GET_BMIC_DRIVE_NUMBER(&rle->lunid[0]);
+
+	encl_dev->sas_address =
+		hpsa_get_enclosure_logical_identifier(h, scsi3addr);
 
 	if (encl_dev->target == -1 || encl_dev->lun == -1) {
 		rc = IO_OK;
@@ -6571,6 +6625,17 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 			c->Request.CDB[0] = HPSA_INQUIRY;
 			c->Request.CDB[4] = size & 0xFF;
 			break;
+		case RECEIVE_DIAGNOSTIC:
+			c->Request.CDBLen = 6;
+			c->Request.type_attr_dir =
+				TYPE_ATTR_DIR(cmd_type, ATTR_SIMPLE, XFER_READ);
+			c->Request.Timeout = 0;
+			c->Request.CDB[0] = cmd;
+			c->Request.CDB[1] = 1;
+			c->Request.CDB[2] = 1;
+			c->Request.CDB[3] = (size >> 8) & 0xFF;
+			c->Request.CDB[4] = size & 0xFF;
+			break;
 		case HPSA_REPORT_LOG:
 		case HPSA_REPORT_PHYS:
 			/* Talking to controller so It's a physical command
@@ -9508,7 +9573,7 @@ static int hpsa_add_sas_host(struct ctlr_info *h)
 	struct hpsa_sas_port *hpsa_sas_port;
 	struct hpsa_sas_phy *hpsa_sas_phy;
 
-	parent_dev = &h->scsi_host->shost_gendev;
+	parent_dev = &h->scsi_host->shost_dev;
 
 	hpsa_sas_node = hpsa_alloc_sas_node(parent_dev);
 	if (!hpsa_sas_node)
@@ -9599,7 +9664,7 @@ hpsa_sas_get_linkerrors(struct sas_phy *phy)
 static int
 hpsa_sas_get_enclosure_identifier(struct sas_rphy *rphy, u64 *identifier)
 {
-	*identifier = 0;
+	*identifier = rphy->identify.sas_address;
 	return 0;
 }
 
