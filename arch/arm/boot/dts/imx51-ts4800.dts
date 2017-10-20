@@ -71,7 +71,7 @@
 			};
 		};
 
-		port@0 {
+		port {
 			display0_in: endpoint {
 				remote-endpoint = <&ipu_di0_disp1>;
 			};
