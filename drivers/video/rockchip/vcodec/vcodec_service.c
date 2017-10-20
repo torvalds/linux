@@ -504,7 +504,7 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 	if (pservice->curr_mode == data->mode)
 		return;
 
-	vpu_debug(DEBUG_IOMMU, "vcodec enter mode %d\n", data->mode);
+	vpu_debug(DEBUG_REGISTER, "vcodec enter mode %d\n", data->mode);
 	list_for_each_entry_safe(subdata, n,
 				 &pservice->subdev_list, lnk_service) {
 		if (data != subdata && subdata->mmu_dev &&
@@ -1361,22 +1361,22 @@ static void vpu_service_set_freq(struct vpu_service_info *pservice,
 	atomic_set(&pservice->freq_status, reg->freq);
 	switch (reg->freq) {
 	case VPU_FREQ_200M: {
-		clk_set_rate(pservice->aclk_vcodec, 200*MHZ);
+		clk_set_rate(pservice->aclk_vcodec, 200 * MHZ);
 	} break;
 	case VPU_FREQ_266M: {
-		clk_set_rate(pservice->aclk_vcodec, 266*MHZ);
+		clk_set_rate(pservice->aclk_vcodec, 266 * MHZ);
 	} break;
 	case VPU_FREQ_300M: {
-		clk_set_rate(pservice->aclk_vcodec, 300*MHZ);
+		clk_set_rate(pservice->aclk_vcodec, 300 * MHZ);
 	} break;
 	case VPU_FREQ_400M: {
-		clk_set_rate(pservice->aclk_vcodec, 400*MHZ);
+		clk_set_rate(pservice->aclk_vcodec, 400 * MHZ);
 	} break;
 	case VPU_FREQ_500M: {
-		clk_set_rate(pservice->aclk_vcodec, 500*MHZ);
+		clk_set_rate(pservice->aclk_vcodec, 500 * MHZ);
 	} break;
 	case VPU_FREQ_600M: {
-		clk_set_rate(pservice->aclk_vcodec, 600*MHZ);
+		clk_set_rate(pservice->aclk_vcodec, 600 * MHZ);
 	} break;
 	default: {
 		unsigned long rate = 300*MHZ;
@@ -2324,7 +2324,6 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 	atomic_set(&data->enc_dev.irq_count_pp, 0);
 
 	get_hw_info(data);
-	pservice->auto_freq = true;
 
 	/* create device node */
 	ret = alloc_chrdev_region(&data->dev_t, 0, 1, name);
@@ -2704,16 +2703,8 @@ static void get_hw_info(struct vpu_subdev_data *data)
 	struct vpu_dec_config *dec = &pservice->dec_config;
 	struct vpu_enc_config *enc = &pservice->enc_config;
 
-	if (of_machine_is_compatible("rockchip,rk2928") ||
-			of_machine_is_compatible("rockchip,rk3036") ||
-			of_machine_is_compatible("rockchip,rk3066") ||
-			of_machine_is_compatible("rockchip,rk3126") ||
-			of_machine_is_compatible("rockchip,rk3188"))
-		dec->max_dec_pic_width = 1920;
-	else
-		dec->max_dec_pic_width = 4096;
-
-	if (data->mode == VCODEC_RUNNING_MODE_VPU) {
+	switch (data->mode) {
+	case VCODEC_RUNNING_MODE_VPU:
 		dec->h264_support = 3;
 		dec->jpeg_support = 1;
 		dec->mpeg4_support = 2;
@@ -2752,12 +2743,25 @@ static void get_hw_info(struct vpu_subdev_data *data)
 
 		pservice->bug_dec_addr = of_machine_is_compatible
 			("rockchip,rk30xx");
-	} else if (data->mode == VCODEC_RUNNING_MODE_RKVDEC) {
+		break;
+	case VCODEC_RUNNING_MODE_RKVDEC:
 		pservice->auto_freq = true;
 		atomic_set(&pservice->freq_status, VPU_FREQ_BUT);
-	} else {
+		break;
+	default:
 		/* disable frequency switch in hevc.*/
 		pservice->auto_freq = false;
+	}
+
+	if (of_machine_is_compatible("rockchip,rk2928") ||
+			of_machine_is_compatible("rockchip,rk3036") ||
+			of_machine_is_compatible("rockchip,rk3066") ||
+			of_machine_is_compatible("rockchip,rk3126") ||
+			of_machine_is_compatible("rockchip,rk3188")) {
+		dec->max_dec_pic_width = 1920;
+		pservice->auto_freq = false;
+	} else {
+		dec->max_dec_pic_width = 4096;
 	}
 }
 
