@@ -187,7 +187,7 @@ ff_layout_add_mirror(struct pnfs_layout_hdr *lo,
 			continue;
 		if (!ff_mirror_match_fh(mirror, pos))
 			continue;
-		if (atomic_inc_not_zero(&pos->ref)) {
+		if (refcount_inc_not_zero(&pos->ref)) {
 			spin_unlock(&inode->i_lock);
 			return pos;
 		}
@@ -218,7 +218,7 @@ static struct nfs4_ff_layout_mirror *ff_layout_alloc_mirror(gfp_t gfp_flags)
 	mirror = kzalloc(sizeof(*mirror), gfp_flags);
 	if (mirror != NULL) {
 		spin_lock_init(&mirror->lock);
-		atomic_set(&mirror->ref, 1);
+		refcount_set(&mirror->ref, 1);
 		INIT_LIST_HEAD(&mirror->mirrors);
 	}
 	return mirror;
@@ -242,7 +242,7 @@ static void ff_layout_free_mirror(struct nfs4_ff_layout_mirror *mirror)
 
 static void ff_layout_put_mirror(struct nfs4_ff_layout_mirror *mirror)
 {
-	if (mirror != NULL && atomic_dec_and_test(&mirror->ref))
+	if (mirror != NULL && refcount_dec_and_test(&mirror->ref))
 		ff_layout_free_mirror(mirror);
 }
 
@@ -2286,7 +2286,7 @@ ff_layout_mirror_prepare_stats(struct pnfs_layout_hdr *lo,
 		if (!test_and_clear_bit(NFS4_FF_MIRROR_STAT_AVAIL, &mirror->flags))
 			continue;
 		/* mirror refcount put in cleanup_layoutstats */
-		if (!atomic_inc_not_zero(&mirror->ref))
+		if (!refcount_inc_not_zero(&mirror->ref))
 			continue;
 		dev = &mirror->mirror_ds->id_node; 
 		memcpy(&devinfo->dev_id, &dev->deviceid, NFS4_DEVICEID4_SIZE);
