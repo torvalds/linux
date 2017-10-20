@@ -2136,7 +2136,6 @@ F:	drivers/gpio/gpio-zx.c
 F:	drivers/i2c/busses/i2c-zx2967.c
 F:	drivers/mmc/host/dw_mmc-zx.*
 F:	drivers/pinctrl/zte/
-F:	drivers/reset/reset-zx2967.c
 F:	drivers/soc/zte/
 F:	drivers/thermal/zx2967_thermal.c
 F:	drivers/watchdog/zx2967_wdt.c
@@ -12913,6 +12912,12 @@ S:	Supported
 F:	arch/arc/plat-axs10x
 F:	arch/arc/boot/dts/ax*
 F:	Documentation/devicetree/bindings/arc/axs10*
+
+SYNOPSYS AXS10x RESET CONTROLLER DRIVER
+M:	Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
+S:	Supported
+F:	drivers/reset/reset-axs10x.c
+F:	Documentation/devicetree/bindings/reset/snps,axs10x-reset.txt
 
 SYNOPSYS DESIGNWARE DMAC DRIVER
 M:	Viresh Kumar <vireshk@kernel.org>
