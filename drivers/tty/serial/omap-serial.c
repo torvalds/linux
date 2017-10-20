@@ -610,7 +610,7 @@ static irqreturn_t serial_omap_irq(int irq, void *dev_id)
 		default:
 			break;
 		}
-	} while (!(iir & UART_IIR_NO_INT) && max_count--);
+	} while (max_count--);
 
 	spin_unlock(&up->port.lock);
 
