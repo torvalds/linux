@@ -52,6 +52,8 @@
 #include <linux/prefetch.h>
 #include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/svc_rdma.h>
+
+#include <asm-generic/barrier.h>
 #include <asm/bitops.h>
 
 #include <rdma/ib_cm.h>
@@ -126,11 +128,17 @@ rpcrdma_qp_async_error_upcall(struct ib_event *event, void *context)
 static void
 rpcrdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 {
+	struct ib_cqe *cqe = wc->wr_cqe;
+	struct rpcrdma_sendctx *sc =
+		container_of(cqe, struct rpcrdma_sendctx, sc_cqe);
+
 	/* WARNING: Only wr_cqe and status are reliable at this point */
 	if (wc->status != IB_WC_SUCCESS && wc->status != IB_WC_WR_FLUSH_ERR)
 		pr_err("rpcrdma: Send: %s (%u/0x%x)\n",
 		       ib_wc_status_msg(wc->status),
 		       wc->status, wc->vendor_err);
+
+	rpcrdma_sendctx_put_locked(sc);
 }
 
 /**
@@ -542,6 +550,9 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 		ep->rep_attr.cap.max_recv_sge);
 
 	/* set trigger for requesting send completion */
+	ep->rep_send_batch = min_t(unsigned int, RPCRDMA_MAX_SEND_BATCH,
+				   cdata->max_requests >> 2);
+	ep->rep_send_count = ep->rep_send_batch;
 	ep->rep_cqinit = ep->rep_attr.cap.max_send_wr/2 - 1;
 	if (ep->rep_cqinit <= 2)
 		ep->rep_cqinit = 0;	/* always signal? */
@@ -824,6 +835,168 @@ rpcrdma_ep_disconnect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 	ib_drain_qp(ia->ri_id->qp);
 }
 
+/* Fixed-size circular FIFO queue. This implementation is wait-free and
+ * lock-free.
+ *
+ * Consumer is the code path that posts Sends. This path dequeues a
+ * sendctx for use by a Send operation. Multiple consumer threads
+ * are serialized by the RPC transport lock, which allows only one
+ * ->send_request call at a time.
+ *
+ * Producer is the code path that handles Send completions. This path
+ * enqueues a sendctx that has been completed. Multiple producer
+ * threads are serialized by the ib_poll_cq() function.
+ */
+
+/* rpcrdma_sendctxs_destroy() assumes caller has already quiesced
+ * queue activity, and ib_drain_qp has flushed all remaining Send
+ * requests.
+ */
+static void rpcrdma_sendctxs_destroy(struct rpcrdma_buffer *buf)
+{
+	unsigned long i;
+
+	for (i = 0; i <= buf->rb_sc_last; i++)
+		kfree(buf->rb_sc_ctxs[i]);
+	kfree(buf->rb_sc_ctxs);
+}
+
+static struct rpcrdma_sendctx *rpcrdma_sendctx_create(struct rpcrdma_ia *ia)
+{
+	struct rpcrdma_sendctx *sc;
+
+	sc = kzalloc(sizeof(*sc) +
+		     ia->ri_max_send_sges * sizeof(struct ib_sge),
+		     GFP_KERNEL);
+	if (!sc)
+		return NULL;
+
+	sc->sc_wr.wr_cqe = &sc->sc_cqe;
+	sc->sc_wr.sg_list = sc->sc_sges;
+	sc->sc_wr.opcode = IB_WR_SEND;
+	sc->sc_cqe.done = rpcrdma_wc_send;
+	return sc;
+}
+
+static int rpcrdma_sendctxs_create(struct rpcrdma_xprt *r_xprt)
+{
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
+	struct rpcrdma_sendctx *sc;
+	unsigned long i;
+
+	/* Maximum number of concurrent outstanding Send WRs. Capping
+	 * the circular queue size stops Send Queue overflow by causing
+	 * the ->send_request call to fail temporarily before too many
+	 * Sends are posted.
+	 */
+	i = buf->rb_max_requests + RPCRDMA_MAX_BC_REQUESTS;
+	dprintk("RPC:       %s: allocating %lu send_ctxs\n", __func__, i);
+	buf->rb_sc_ctxs = kcalloc(i, sizeof(sc), GFP_KERNEL);
+	if (!buf->rb_sc_ctxs)
+		return -ENOMEM;
+
+	buf->rb_sc_last = i - 1;
+	for (i = 0; i <= buf->rb_sc_last; i++) {
+		sc = rpcrdma_sendctx_create(&r_xprt->rx_ia);
+		if (!sc)
+			goto out_destroy;
+
+		sc->sc_xprt = r_xprt;
+		buf->rb_sc_ctxs[i] = sc;
+	}
+
+	return 0;
+
+out_destroy:
+	rpcrdma_sendctxs_destroy(buf);
+	return -ENOMEM;
+}
+
+/* The sendctx queue is not guaranteed to have a size that is a
+ * power of two, thus the helpers in circ_buf.h cannot be used.
+ * The other option is to use modulus (%), which can be expensive.
+ */
+static unsigned long rpcrdma_sendctx_next(struct rpcrdma_buffer *buf,
+					  unsigned long item)
+{
+	return likely(item < buf->rb_sc_last) ? item + 1 : 0;
+}
+
+/**
+ * rpcrdma_sendctx_get_locked - Acquire a send context
+ * @buf: transport buffers from which to acquire an unused context
+ *
+ * Returns pointer to a free send completion context; or NULL if
+ * the queue is empty.
+ *
+ * Usage: Called to acquire an SGE array before preparing a Send WR.
+ *
+ * The caller serializes calls to this function (per rpcrdma_buffer),
+ * and provides an effective memory barrier that flushes the new value
+ * of rb_sc_head.
+ */
+struct rpcrdma_sendctx *rpcrdma_sendctx_get_locked(struct rpcrdma_buffer *buf)
+{
+	struct rpcrdma_xprt *r_xprt;
+	struct rpcrdma_sendctx *sc;
+	unsigned long next_head;
+
+	next_head = rpcrdma_sendctx_next(buf, buf->rb_sc_head);
+
+	if (next_head == READ_ONCE(buf->rb_sc_tail))
+		goto out_emptyq;
+
+	/* ORDER: item must be accessed _before_ head is updated */
+	sc = buf->rb_sc_ctxs[next_head];
+
+	/* Releasing the lock in the caller acts as a memory
+	 * barrier that flushes rb_sc_head.
+	 */
+	buf->rb_sc_head = next_head;
+
+	return sc;
+
+out_emptyq:
+	/* The queue is "empty" if there have not been enough Send
+	 * completions recently. This is a sign the Send Queue is
+	 * backing up. Cause the caller to pause and try again.
+	 */
+	dprintk("RPC:       %s: empty sendctx queue\n", __func__);
+	r_xprt = container_of(buf, struct rpcrdma_xprt, rx_buf);
+	r_xprt->rx_stats.empty_sendctx_q++;
+	return NULL;
+}
+
+/**
+ * rpcrdma_sendctx_put_locked - Release a send context
+ * @sc: send context to release
+ *
+ * Usage: Called from Send completion to return a sendctxt
+ * to the queue.
+ *
+ * The caller serializes calls to this function (per rpcrdma_buffer).
+ */
+void rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc)
+{
+	struct rpcrdma_buffer *buf = &sc->sc_xprt->rx_buf;
+	unsigned long next_tail;
+
+	/* Unmap SGEs of previously completed by unsignaled
+	 * Sends by walking up the queue until @sc is found.
+	 */
+	next_tail = buf->rb_sc_tail;
+	do {
+		next_tail = rpcrdma_sendctx_next(buf, next_tail);
+
+		/* ORDER: item must be accessed _before_ tail is updated */
+		rpcrdma_unmap_sendctx(buf->rb_sc_ctxs[next_tail]);
+
+	} while (buf->rb_sc_ctxs[next_tail] != sc);
+
+	/* Paired with READ_ONCE */
+	smp_store_release(&buf->rb_sc_tail, next_tail);
+}
+
 static void
 rpcrdma_mr_recovery_worker(struct work_struct *work)
 {
@@ -919,13 +1092,8 @@ rpcrdma_create_req(struct rpcrdma_xprt *r_xprt)
 	spin_lock(&buffer->rb_reqslock);
 	list_add(&req->rl_all, &buffer->rb_allreqs);
 	spin_unlock(&buffer->rb_reqslock);
-	req->rl_cqe.done = rpcrdma_wc_send;
 	req->rl_buffer = &r_xprt->rx_buf;
 	INIT_LIST_HEAD(&req->rl_registered);
-	req->rl_send_wr.next = NULL;
-	req->rl_send_wr.wr_cqe = &req->rl_cqe;
-	req->rl_send_wr.sg_list = req->rl_send_sge;
-	req->rl_send_wr.opcode = IB_WR_SEND;
 	return req;
 }
 
@@ -1017,6 +1185,10 @@ rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 		list_add(&rep->rr_list, &buf->rb_recv_bufs);
 	}
 
+	rc = rpcrdma_sendctxs_create(r_xprt);
+	if (rc)
+		goto out;
+
 	return 0;
 out:
 	rpcrdma_buffer_destroy(buf);
@@ -1092,6 +1264,8 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 {
 	cancel_delayed_work_sync(&buf->rb_recovery_worker);
 	cancel_delayed_work_sync(&buf->rb_refresh_worker);
+
+	rpcrdma_sendctxs_destroy(buf);
 
 	while (!list_empty(&buf->rb_recv_bufs)) {
 		struct rpcrdma_rep *rep;
@@ -1208,7 +1382,6 @@ rpcrdma_buffer_put(struct rpcrdma_req *req)
 	struct rpcrdma_buffer *buffers = req->rl_buffer;
 	struct rpcrdma_rep *rep = req->rl_reply;
 
-	req->rl_send_wr.num_sge = 0;
 	req->rl_reply = NULL;
 
 	spin_lock(&buffers->rb_lock);
@@ -1340,7 +1513,7 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 		struct rpcrdma_ep *ep,
 		struct rpcrdma_req *req)
 {
-	struct ib_send_wr *send_wr = &req->rl_send_wr;
+	struct ib_send_wr *send_wr = &req->rl_sendctx->sc_wr;
 	struct ib_send_wr *send_wr_fail;
 	int rc;
 
@@ -1354,7 +1527,13 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 	dprintk("RPC:       %s: posting %d s/g entries\n",
 		__func__, send_wr->num_sge);
 
-	rpcrdma_set_signaled(ep, send_wr);
+	if (!ep->rep_send_count) {
+		send_wr->send_flags |= IB_SEND_SIGNALED;
+		ep->rep_send_count = ep->rep_send_batch;
+	} else {
+		send_wr->send_flags &= ~IB_SEND_SIGNALED;
+		--ep->rep_send_count;
+	}
 	rc = ib_post_send(ia->ri_id->qp, send_wr, &send_wr_fail);
 	if (rc)
 		goto out_postsend_err;

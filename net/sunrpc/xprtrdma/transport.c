@@ -687,7 +687,6 @@ xprt_rdma_free(struct rpc_task *task)
 
 	if (!list_empty(&req->rl_registered))
 		ia->ri_ops->ro_unmap_sync(r_xprt, &req->rl_registered);
-	rpcrdma_unmap_sges(ia, req);
 	rpcrdma_buffer_put(req);
 }
 
@@ -790,11 +789,12 @@ void xprt_rdma_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 		   r_xprt->rx_stats.failed_marshal_count,
 		   r_xprt->rx_stats.bad_reply_count,
 		   r_xprt->rx_stats.nomsg_call_count);
-	seq_printf(seq, "%lu %lu %lu %lu\n",
+	seq_printf(seq, "%lu %lu %lu %lu %lu\n",
 		   r_xprt->rx_stats.mrs_recovered,
 		   r_xprt->rx_stats.mrs_orphaned,
 		   r_xprt->rx_stats.mrs_allocated,
-		   r_xprt->rx_stats.local_inv_needed);
+		   r_xprt->rx_stats.local_inv_needed,
+		   r_xprt->rx_stats.empty_sendctx_q);
 }
 
 static int

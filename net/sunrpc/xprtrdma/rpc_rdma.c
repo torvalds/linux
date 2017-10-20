@@ -512,23 +512,26 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 }
 
 /**
- * rpcrdma_unmap_sges - DMA-unmap Send buffers
- * @ia: interface adapter (device)
- * @req: req with possibly some SGEs to be DMA unmapped
+ * rpcrdma_unmap_sendctx - DMA-unmap Send buffers
+ * @sc: sendctx containing SGEs to unmap
  *
  */
 void
-rpcrdma_unmap_sges(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
+rpcrdma_unmap_sendctx(struct rpcrdma_sendctx *sc)
 {
+	struct rpcrdma_ia *ia = &sc->sc_xprt->rx_ia;
 	struct ib_sge *sge;
 	unsigned int count;
+
+	dprintk("RPC:       %s: unmapping %u sges for sc=%p\n",
+		__func__, sc->sc_unmap_count, sc);
 
 	/* The first two SGEs contain the transport header and
 	 * the inline buffer. These are always left mapped so
 	 * they can be cheaply re-used.
 	 */
-	sge = &req->rl_send_sge[2];
-	for (count = req->rl_mapped_sges; count--; sge++)
+	sge = &sc->sc_sges[2];
+	for (count = sc->sc_unmap_count; count; ++sge, --count)
 		ib_dma_unmap_page(ia->ri_device,
 				  sge->addr, sge->length, DMA_TO_DEVICE);
 }
@@ -539,8 +542,9 @@ static bool
 rpcrdma_prepare_hdr_sge(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
 			u32 len)
 {
+	struct rpcrdma_sendctx *sc = req->rl_sendctx;
 	struct rpcrdma_regbuf *rb = req->rl_rdmabuf;
-	struct ib_sge *sge = &req->rl_send_sge[0];
+	struct ib_sge *sge = sc->sc_sges;
 
 	if (!rpcrdma_dma_map_regbuf(ia, rb))
 		goto out_regbuf;
@@ -550,7 +554,7 @@ rpcrdma_prepare_hdr_sge(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
 
 	ib_dma_sync_single_for_device(rdmab_device(rb), sge->addr,
 				      sge->length, DMA_TO_DEVICE);
-	req->rl_send_wr.num_sge++;
+	sc->sc_wr.num_sge++;
 	return true;
 
 out_regbuf:
@@ -565,10 +569,11 @@ static bool
 rpcrdma_prepare_msg_sges(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
 			 struct xdr_buf *xdr, enum rpcrdma_chunktype rtype)
 {
+	struct rpcrdma_sendctx *sc = req->rl_sendctx;
 	unsigned int sge_no, page_base, len, remaining;
 	struct rpcrdma_regbuf *rb = req->rl_sendbuf;
 	struct ib_device *device = ia->ri_device;
-	struct ib_sge *sge = req->rl_send_sge;
+	struct ib_sge *sge = sc->sc_sges;
 	u32 lkey = ia->ri_pd->local_dma_lkey;
 	struct page *page, **ppages;
 
@@ -631,7 +636,7 @@ rpcrdma_prepare_msg_sges(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
 			sge[sge_no].length = len;
 			sge[sge_no].lkey = lkey;
 
-			req->rl_mapped_sges++;
+			sc->sc_unmap_count++;
 			ppages++;
 			remaining -= len;
 			page_base = 0;
@@ -657,11 +662,11 @@ map_tail:
 			goto out_mapping_err;
 		sge[sge_no].length = len;
 		sge[sge_no].lkey = lkey;
-		req->rl_mapped_sges++;
+		sc->sc_unmap_count++;
 	}
 
 out:
-	req->rl_send_wr.num_sge += sge_no;
+	sc->sc_wr.num_sge += sge_no;
 	return true;
 
 out_regbuf:
@@ -669,12 +674,12 @@ out_regbuf:
 	return false;
 
 out_mapping_overflow:
-	rpcrdma_unmap_sges(ia, req);
+	rpcrdma_unmap_sendctx(sc);
 	pr_err("rpcrdma: too many Send SGEs (%u)\n", sge_no);
 	return false;
 
 out_mapping_err:
-	rpcrdma_unmap_sges(ia, req);
+	rpcrdma_unmap_sendctx(sc);
 	pr_err("rpcrdma: Send mapping error\n");
 	return false;
 }
@@ -694,8 +699,11 @@ rpcrdma_prepare_send_sges(struct rpcrdma_xprt *r_xprt,
 			  struct rpcrdma_req *req, u32 hdrlen,
 			  struct xdr_buf *xdr, enum rpcrdma_chunktype rtype)
 {
-	req->rl_send_wr.num_sge = 0;
-	req->rl_mapped_sges = 0;
+	req->rl_sendctx = rpcrdma_sendctx_get_locked(&r_xprt->rx_buf);
+	if (!req->rl_sendctx)
+		return -ENOBUFS;
+	req->rl_sendctx->sc_wr.num_sge = 0;
+	req->rl_sendctx->sc_unmap_count = 0;
 
 	if (!rpcrdma_prepare_hdr_sge(&r_xprt->rx_ia, req, hdrlen))
 		return -EIO;
