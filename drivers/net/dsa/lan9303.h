@@ -11,6 +11,8 @@ struct lan9303_phy_ops {
 			     int regnum, u16 val);
 };
 
+#define LAN9303_NUM_ALR_RECORDS 512
+
 struct lan9303 {
 	struct device *dev;
 	struct regmap *regmap;
