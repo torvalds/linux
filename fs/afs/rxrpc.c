@@ -387,7 +387,8 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 					 tx_total_len, gfp,
 					 (async ?
 					  afs_wake_up_async_call :
-					  afs_wake_up_call_waiter));
+					  afs_wake_up_call_waiter),
+					 call->upgrade);
 	call->key = NULL;
 	if (IS_ERR(rxcall)) {
 		ret = PTR_ERR(rxcall);
@@ -406,7 +407,7 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 		      call->request_size);
 	msg.msg_control		= NULL;
 	msg.msg_controllen	= 0;
-	msg.msg_flags		= (call->send_pages ? MSG_MORE : 0);
+	msg.msg_flags		= MSG_WAITALL | (call->send_pages ? MSG_MORE : 0);
 
 	/* We have to change the state *before* sending the last packet as
 	 * rxrpc might give us the reply before it returns from sending the
@@ -443,7 +444,7 @@ error_do_abort:
 		abort_code = 0;
 		offset = 0;
 		rxrpc_kernel_recv_data(afs_socket, rxcall, NULL, 0, &offset,
-				       false, &abort_code);
+				       false, &abort_code, &call->service_id);
 		ret = call->type->abort_to_error(abort_code);
 	}
 error_kill_call:
@@ -471,7 +472,8 @@ static void afs_deliver_to_call(struct afs_call *call)
 			size_t offset = 0;
 			ret = rxrpc_kernel_recv_data(afs_socket, call->rxcall,
 						     NULL, 0, &offset, false,
-						     &call->abort_code);
+						     &call->abort_code,
+						     &call->service_id);
 			trace_afs_recv_data(call, 0, offset, false, ret);
 
 			if (ret == -EINPROGRESS || ret == -EAGAIN)
@@ -536,15 +538,26 @@ call_complete:
  */
 static int afs_wait_for_call_to_complete(struct afs_call *call)
 {
+	signed long rtt2, timeout;
 	int ret;
+	u64 rtt;
+	u32 life, last_life;
 
 	DECLARE_WAITQUEUE(myself, current);
 
 	_enter("");
 
+	rtt = rxrpc_kernel_get_rtt(afs_socket, call->rxcall);
+	rtt2 = nsecs_to_jiffies64(rtt) * 2;
+	if (rtt2 < 2)
+		rtt2 = 2;
+
+	timeout = rtt2;
+	last_life = rxrpc_kernel_check_life(afs_socket, call->rxcall);
+
 	add_wait_queue(&call->waitq, &myself);
 	for (;;) {
-		set_current_state(TASK_INTERRUPTIBLE);
+		set_current_state(TASK_UNINTERRUPTIBLE);
 
 		/* deliver any messages that are in the queue */
 		if (call->state < AFS_CALL_COMPLETE && call->need_attention) {
@@ -554,10 +567,20 @@ static int afs_wait_for_call_to_complete(struct afs_call *call)
 			continue;
 		}
 
-		if (call->state == AFS_CALL_COMPLETE ||
-		    signal_pending(current))
+		if (call->state == AFS_CALL_COMPLETE)
 			break;
-		schedule();
+
+		life = rxrpc_kernel_check_life(afs_socket, call->rxcall);
+		if (timeout == 0 &&
+		    life == last_life && signal_pending(current))
+				break;
+
+		if (life != last_life) {
+			timeout = rtt2;
+			last_life = life;
+		}
+
+		timeout = schedule_timeout(timeout);
 	}
 
 	remove_wait_queue(&call->waitq, &myself);
@@ -851,7 +874,8 @@ int afs_extract_data(struct afs_call *call, void *buf, size_t count,
 
 	ret = rxrpc_kernel_recv_data(afs_socket, call->rxcall,
 				     buf, count, &call->offset,
-				     want_more, &call->abort_code);
+				     want_more, &call->abort_code,
+				     &call->service_id);
 	trace_afs_recv_data(call, count, call->offset, want_more, ret);
 	if (ret == 0 || ret == -EAGAIN)
 		return ret;
