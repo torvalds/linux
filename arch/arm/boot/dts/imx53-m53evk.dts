@@ -183,7 +183,7 @@
 			>;
 		};
 
-		led_pin_gpio: led_gpio@0 {
+		led_pin_gpio: led_gpio {
 			fsl,pins = <
 				MX53_PAD_PATA_DATA8__GPIO2_8		0x80000000
 				MX53_PAD_PATA_DATA9__GPIO2_9		0x80000000
