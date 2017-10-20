@@ -246,27 +246,108 @@ error:
 	return -1;
 }
 
+static int write_inline_data(struct log_writes_c *lc, void *entry,
+			     size_t entrylen, void *data, size_t datalen,
+			     sector_t sector)
+{
+	int num_pages, bio_pages, pg_datalen, pg_sectorlen, i;
+	struct page *page;
+	struct bio *bio;
+	size_t ret;
+	void *ptr;
+
+	while (datalen) {
+		num_pages = ALIGN(datalen, PAGE_SIZE) >> PAGE_SHIFT;
+		bio_pages = min(num_pages, BIO_MAX_PAGES);
+
+		atomic_inc(&lc->io_blocks);
+
+		bio = bio_alloc(GFP_KERNEL, bio_pages);
+		if (!bio) {
+			DMERR("Couldn't alloc inline data bio");
+			goto error;
+		}
+
+		bio->bi_iter.bi_size = 0;
+		bio->bi_iter.bi_sector = sector;
+		bio_set_dev(bio, lc->logdev->bdev);
+		bio->bi_end_io = log_end_io;
+		bio->bi_private = lc;
+		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+
+		for (i = 0; i < bio_pages; i++) {
+			pg_datalen = min_t(int, datalen, PAGE_SIZE);
+			pg_sectorlen = ALIGN(pg_datalen, lc->sectorsize);
+
+			page = alloc_page(GFP_KERNEL);
+			if (!page) {
+				DMERR("Couldn't alloc inline data page");
+				goto error_bio;
+			}
+
+			ptr = kmap_atomic(page);
+			memcpy(ptr, data, pg_datalen);
+			if (pg_sectorlen > pg_datalen)
+				memset(ptr + pg_datalen, 0, pg_sectorlen - pg_datalen);
+			kunmap_atomic(ptr);
+
+			ret = bio_add_page(bio, page, pg_sectorlen, 0);
+			if (ret != pg_sectorlen) {
+				DMERR("Couldn't add page of inline data");
+				__free_page(page);
+				goto error_bio;
+			}
+
+			datalen -= pg_datalen;
+			data	+= pg_datalen;
+		}
+		submit_bio(bio);
+
+		sector += bio_pages * PAGE_SECTORS;
+	}
+	return 0;
+error_bio:
+	bio_free_pages(bio);
+	bio_put(bio);
+error:
+	put_io_block(lc);
+	return -1;
+}
+
 static int log_one_block(struct log_writes_c *lc,
 			 struct pending_block *block, sector_t sector)
 {
 	struct bio *bio;
 	struct log_write_entry entry;
-	size_t ret;
+	size_t metadatalen, ret;
 	int i;
 
 	entry.sector = cpu_to_le64(block->sector);
 	entry.nr_sectors = cpu_to_le64(block->nr_sectors);
 	entry.flags = cpu_to_le64(block->flags);
 	entry.data_len = cpu_to_le64(block->datalen);
+
+	metadatalen = (block->flags & LOG_MARK_FLAG) ? block->datalen : 0;
 	if (write_metadata(lc, &entry, sizeof(entry), block->data,
-			   block->datalen, sector)) {
+			   metadatalen, sector)) {
 		free_pending_block(lc, block);
 		return -1;
 	}
 
+	sector += dev_to_bio_sectors(lc, 1);
+
+	if (block->datalen && metadatalen == 0) {
+		if (write_inline_data(lc, &entry, sizeof(entry), block->data,
+				      block->datalen, sector)) {
+			free_pending_block(lc, block);
+			return -1;
+		}
+		/* we don't support both inline data & bio data */
+		goto out;
+	}
+
 	if (!block->vec_cnt)
 		goto out;
-	sector += dev_to_bio_sectors(lc, 1);
 
 	atomic_inc(&lc->io_blocks);
 	bio = bio_alloc(GFP_KERNEL, min(block->vec_cnt, BIO_MAX_PAGES));
