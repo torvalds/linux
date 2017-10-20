@@ -172,7 +172,7 @@
 			>;
 		};
 
-		led_pin_gpio7_7: led_gpio7_7@0 {
+		led_pin_gpio7_7: led_gpio7_7 {
 			fsl,pins = <
 				MX53_PAD_PATA_DA_1__GPIO7_7 0x80000000
 			>;
