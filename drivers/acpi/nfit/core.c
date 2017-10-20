@@ -370,6 +370,32 @@ static union acpi_object *acpi_label_info(acpi_handle handle)
 	return pkg_to_buf(buf.pointer);
 }
 
+static u8 nfit_dsm_revid(unsigned family, unsigned func)
+{
+	static const u8 revid_table[NVDIMM_FAMILY_MAX+1][32] = {
+		[NVDIMM_FAMILY_INTEL] = {
+			[NVDIMM_INTEL_GET_MODES] = 2,
+			[NVDIMM_INTEL_GET_FWINFO] = 2,
+			[NVDIMM_INTEL_START_FWUPDATE] = 2,
+			[NVDIMM_INTEL_SEND_FWUPDATE] = 2,
+			[NVDIMM_INTEL_FINISH_FWUPDATE] = 2,
+			[NVDIMM_INTEL_QUERY_FWUPDATE] = 2,
+			[NVDIMM_INTEL_SET_THRESHOLD] = 2,
+			[NVDIMM_INTEL_INJECT_ERROR] = 2,
+		},
+	};
+	u8 id;
+
+	if (family > NVDIMM_FAMILY_MAX)
+		return 0;
+	if (func > 31)
+		return 0;
+	id = revid_table[family][func];
+	if (id == 0)
+		return 1; /* default */
+	return id;
+}
+
 int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 		unsigned int cmd, void *buf, unsigned int buf_len, int *cmd_rc)
 {
@@ -468,8 +494,15 @@ int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 
 		out_obj = acpi_label_write(handle, p->in_offset, p->in_length,
 				p->in_buf);
-	} else
-		out_obj = acpi_evaluate_dsm(handle, guid, 1, func, &in_obj);
+	} else {
+		u8 revid;
+
+		if (nfit_mem)
+			revid = nfit_dsm_revid(nfit_mem->family, func);
+		else
+			revid = 1;
+		out_obj = acpi_evaluate_dsm(handle, guid, revid, func, &in_obj);
+	}
 
 	if (!out_obj) {
 		dev_dbg(dev, "%s:%s _DSM failed cmd: %s\n", __func__, dimm_name,
@@ -1640,7 +1673,7 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 	 * different command sets.  Note, that checking for function0 (bit0)
 	 * tells us if any commands are reachable through this GUID.
 	 */
-	for (i = NVDIMM_FAMILY_INTEL; i <= NVDIMM_FAMILY_MSFT; i++)
+	for (i = 0; i <= NVDIMM_FAMILY_MAX; i++)
 		if (acpi_check_dsm(adev_dimm->handle, to_nfit_uuid(i), 1, 1))
 			if (family < 0 || i == default_dsm_family)
 				family = i;
@@ -1650,7 +1683,7 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 	if (override_dsm_mask && !disable_vendor_specific)
 		dsm_mask = override_dsm_mask;
 	else if (nfit_mem->family == NVDIMM_FAMILY_INTEL) {
-		dsm_mask = 0x3fe;
+		dsm_mask = NVDIMM_INTEL_CMDMASK;
 		if (disable_vendor_specific)
 			dsm_mask &= ~(1 << ND_CMD_VENDOR);
 	} else if (nfit_mem->family == NVDIMM_FAMILY_HPE1) {
@@ -1670,7 +1703,9 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 
 	guid = to_nfit_uuid(nfit_mem->family);
 	for_each_set_bit(i, &dsm_mask, BITS_PER_LONG)
-		if (acpi_check_dsm(adev_dimm->handle, guid, 1, 1ULL << i))
+		if (acpi_check_dsm(adev_dimm->handle, guid,
+					nfit_dsm_revid(nfit_mem->family, i),
+					1ULL << i))
 			set_bit(i, &nfit_mem->dsm_mask);
 
 	obj = acpi_label_info(adev_dimm->handle);
