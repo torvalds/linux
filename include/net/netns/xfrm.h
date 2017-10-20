@@ -6,7 +6,6 @@
 #include <linux/workqueue.h>
 #include <linux/xfrm.h>
 #include <net/dst_ops.h>
-#include <net/flowcache.h>
 
 struct ctl_table_header;
 
@@ -73,16 +72,6 @@ struct netns_xfrm {
 	spinlock_t xfrm_state_lock;
 	spinlock_t xfrm_policy_lock;
 	struct mutex xfrm_cfg_mutex;
-
-	/* flow cache part */
-	struct flow_cache	flow_cache_global;
-	atomic_t		flow_cache_genid;
-	struct list_head	flow_cache_gc_list;
-	atomic_t		flow_cache_gc_count;
-	spinlock_t		flow_cache_gc_lock;
-	struct work_struct	flow_cache_gc_work;
-	struct work_struct	flow_cache_flush_work;
-	struct mutex		flow_flush_sem;
 };
 
 #endif

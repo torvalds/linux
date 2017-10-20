@@ -44,7 +44,7 @@ static struct daisydev {
 } *topology = NULL;
 static DEFINE_SPINLOCK(topology_lock);
 
-static int numdevs = 0;
+static int numdevs;
 
 /* Forward-declaration of lower-level functions. */
 static int mux_present(struct parport *port);

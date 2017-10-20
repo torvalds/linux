@@ -11,6 +11,7 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
+#include <linux/cpu.h>
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/irqflags.h>

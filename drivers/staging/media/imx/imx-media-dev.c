@@ -87,11 +87,11 @@ imx_media_add_async_subdev(struct imx_media_dev *imxmd,
 	if (pdev)
 		devname = dev_name(&pdev->dev);
 
-	/* return NULL if this subdev already added */
+	/* return -EEXIST if this subdev already added */
 	if (imx_media_find_async_subdev(imxmd, np, devname)) {
 		dev_dbg(imxmd->md.dev, "%s: already added %s\n",
 			__func__, np ? np->name : devname);
-		imxsd = NULL;
+		imxsd = ERR_PTR(-EEXIST);
 		goto out;
 	}
 

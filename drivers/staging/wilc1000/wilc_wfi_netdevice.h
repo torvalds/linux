@@ -227,8 +227,8 @@ int wilc1000_wlan_init(struct net_device *dev, struct wilc_vif *vif);
 void wilc_frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset);
 void wilc_mac_indicate(struct wilc *wilc, int flag);
 void wilc_netdev_cleanup(struct wilc *wilc);
-int wilc_netdev_init(struct wilc **wilc, struct device *, int io_type, int gpio,
-		     const struct wilc_hif_func *ops);
+int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
+		     int gpio, const struct wilc_hif_func *ops);
 void wilc1000_wlan_deinit(struct net_device *dev);
 void WILC_WFI_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size);
 int wilc_wlan_get_firmware(struct net_device *dev);

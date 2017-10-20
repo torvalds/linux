@@ -638,8 +638,10 @@ static int SetCfgIfAgc(struct drxd_state *state, struct SCfgAgc *cfg)
 			/* == Speed == */
 			{
 				const u16 maxRur = 8;
-				const u16 slowIncrDecLUT[] = { 3, 4, 4, 5, 6 };
-				const u16 fastIncrDecLUT[] = { 14, 15, 15, 16,
+				static const u16 slowIncrDecLUT[] = {
+					3, 4, 4, 5, 6 };
+				const u16 fastIncrDecLUT[] = {
+					14, 15, 15, 16,
 					17, 18, 18, 19,
 					20, 21, 22, 23,
 					24, 26, 27, 28,

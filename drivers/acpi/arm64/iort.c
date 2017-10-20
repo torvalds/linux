@@ -588,7 +588,8 @@ void acpi_configure_pmsi_domain(struct device *dev)
 		dev_set_msi_domain(dev, msi_domain);
 }
 
-static int __get_pci_rid(struct pci_dev *pdev, u16 alias, void *data)
+static int __maybe_unused __get_pci_rid(struct pci_dev *pdev, u16 alias,
+					void *data)
 {
 	u32 *rid = data;
 
@@ -633,8 +634,7 @@ int iort_add_device_replay(const struct iommu_ops *ops, struct device *dev)
 {
 	int err = 0;
 
-	if (!IS_ERR_OR_NULL(ops) && ops->add_device && dev->bus &&
-	    !dev->iommu_group)
+	if (ops->add_device && dev->bus && !dev->iommu_group)
 		err = ops->add_device(dev);
 
 	return err;
@@ -648,45 +648,81 @@ int iort_add_device_replay(const struct iommu_ops *ops, struct device *dev)
 { return 0; }
 #endif
 
-static const struct iommu_ops *iort_iommu_xlate(struct device *dev,
-					struct acpi_iort_node *node,
-					u32 streamid)
+static int iort_iommu_xlate(struct device *dev, struct acpi_iort_node *node,
+			    u32 streamid)
 {
-	const struct iommu_ops *ops = NULL;
-	int ret = -ENODEV;
+	const struct iommu_ops *ops;
 	struct fwnode_handle *iort_fwnode;
 
-	if (node) {
-		iort_fwnode = iort_get_fwnode(node);
-		if (!iort_fwnode)
-			return NULL;
+	if (!node)
+		return -ENODEV;
 
-		ops = iommu_ops_from_fwnode(iort_fwnode);
-		/*
-		 * If the ops look-up fails, this means that either
-		 * the SMMU drivers have not been probed yet or that
-		 * the SMMU drivers are not built in the kernel;
-		 * Depending on whether the SMMU drivers are built-in
-		 * in the kernel or not, defer the IOMMU configuration
-		 * or just abort it.
-		 */
-		if (!ops)
-			return iort_iommu_driver_enabled(node->type) ?
-			       ERR_PTR(-EPROBE_DEFER) : NULL;
+	iort_fwnode = iort_get_fwnode(node);
+	if (!iort_fwnode)
+		return -ENODEV;
 
-		ret = arm_smmu_iort_xlate(dev, streamid, iort_fwnode, ops);
-	}
+	/*
+	 * If the ops look-up fails, this means that either
+	 * the SMMU drivers have not been probed yet or that
+	 * the SMMU drivers are not built in the kernel;
+	 * Depending on whether the SMMU drivers are built-in
+	 * in the kernel or not, defer the IOMMU configuration
+	 * or just abort it.
+	 */
+	ops = iommu_ops_from_fwnode(iort_fwnode);
+	if (!ops)
+		return iort_iommu_driver_enabled(node->type) ?
+		       -EPROBE_DEFER : -ENODEV;
 
-	return ret ? NULL : ops;
+	return arm_smmu_iort_xlate(dev, streamid, iort_fwnode, ops);
+}
+
+struct iort_pci_alias_info {
+	struct device *dev;
+	struct acpi_iort_node *node;
+};
+
+static int iort_pci_iommu_init(struct pci_dev *pdev, u16 alias, void *data)
+{
+	struct iort_pci_alias_info *info = data;
+	struct acpi_iort_node *parent;
+	u32 streamid;
+
+	parent = iort_node_map_id(info->node, alias, &streamid,
+				  IORT_IOMMU_TYPE);
+	return iort_iommu_xlate(info->dev, parent, streamid);
+}
+
+static int nc_dma_get_range(struct device *dev, u64 *size)
+{
+	struct acpi_iort_node *node;
+	struct acpi_iort_named_component *ncomp;
+
+	node = iort_scan_node(ACPI_IORT_NODE_NAMED_COMPONENT,
+			      iort_match_node_callback, dev);
+	if (!node)
+		return -ENODEV;
+
+	ncomp = (struct acpi_iort_named_component *)node->node_data;
+
+	*size = ncomp->memory_address_limit >= 64 ? U64_MAX :
+			1ULL<<ncomp->memory_address_limit;
+
+	return 0;
 }
 
 /**
- * iort_set_dma_mask - Set-up dma mask for a device.
+ * iort_dma_setup() - Set-up device DMA parameters.
  *
  * @dev: device to configure
+ * @dma_addr: device DMA address result pointer
+ * @size: DMA range size result pointer
  */
-void iort_set_dma_mask(struct device *dev)
+void iort_dma_setup(struct device *dev, u64 *dma_addr, u64 *dma_size)
 {
+	u64 mask, dmaaddr = 0, size = 0, offset = 0;
+	int ret, msb;
+
 	/*
 	 * Set default coherent_dma_mask to 32 bit.  Drivers are expected to
 	 * setup the correct supported mask.
@@ -700,6 +736,36 @@ void iort_set_dma_mask(struct device *dev)
 	 */
 	if (!dev->dma_mask)
 		dev->dma_mask = &dev->coherent_dma_mask;
+
+	size = max(dev->coherent_dma_mask, dev->coherent_dma_mask + 1);
+
+	if (dev_is_pci(dev))
+		ret = acpi_dma_get_range(dev, &dmaaddr, &offset, &size);
+	else
+		ret = nc_dma_get_range(dev, &size);
+
+	if (!ret) {
+		msb = fls64(dmaaddr + size - 1);
+		/*
+		 * Round-up to the power-of-two mask or set
+		 * the mask to the whole 64-bit address space
+		 * in case the DMA region covers the full
+		 * memory window.
+		 */
+		mask = msb == 64 ? U64_MAX : (1ULL << msb) - 1;
+		/*
+		 * Limit coherent and dma mask based on size
+		 * retrieved from firmware.
+		 */
+		dev->coherent_dma_mask = mask;
+		*dev->dma_mask = mask;
+	}
+
+	*dma_addr = dmaaddr;
+	*dma_size = size;
+
+	dev->dma_pfn_offset = PFN_DOWN(offset);
+	dev_dbg(dev, "dma_pfn_offset(%#08llx)\n", offset);
 }
 
 /**
@@ -713,9 +779,9 @@ void iort_set_dma_mask(struct device *dev)
 const struct iommu_ops *iort_iommu_configure(struct device *dev)
 {
 	struct acpi_iort_node *node, *parent;
-	const struct iommu_ops *ops = NULL;
+	const struct iommu_ops *ops;
 	u32 streamid = 0;
-	int err;
+	int err = -ENODEV;
 
 	/*
 	 * If we already translated the fwspec there
@@ -727,21 +793,16 @@ const struct iommu_ops *iort_iommu_configure(struct device *dev)
 
 	if (dev_is_pci(dev)) {
 		struct pci_bus *bus = to_pci_dev(dev)->bus;
-		u32 rid;
-
-		pci_for_each_dma_alias(to_pci_dev(dev), __get_pci_rid,
-				       &rid);
+		struct iort_pci_alias_info info = { .dev = dev };
 
 		node = iort_scan_node(ACPI_IORT_NODE_PCI_ROOT_COMPLEX,
 				      iort_match_node_callback, &bus->dev);
 		if (!node)
 			return NULL;
 
-		parent = iort_node_map_id(node, rid, &streamid,
-					  IORT_IOMMU_TYPE);
-
-		ops = iort_iommu_xlate(dev, parent, streamid);
-
+		info.node = node;
+		err = pci_for_each_dma_alias(to_pci_dev(dev),
+					     iort_pci_iommu_init, &info);
 	} else {
 		int i = 0;
 
@@ -750,31 +811,30 @@ const struct iommu_ops *iort_iommu_configure(struct device *dev)
 		if (!node)
 			return NULL;
 
-		parent = iort_node_map_platform_id(node, &streamid,
-						   IORT_IOMMU_TYPE, i++);
-
-		while (parent) {
-			ops = iort_iommu_xlate(dev, parent, streamid);
-			if (IS_ERR_OR_NULL(ops))
-				return ops;
-
+		do {
 			parent = iort_node_map_platform_id(node, &streamid,
 							   IORT_IOMMU_TYPE,
 							   i++);
-		}
+
+			if (parent)
+				err = iort_iommu_xlate(dev, parent, streamid);
+		} while (parent && !err);
 	}
 
 	/*
 	 * If we have reason to believe the IOMMU driver missed the initial
 	 * add_device callback for dev, replay it to get things in order.
 	 */
-	err = iort_add_device_replay(ops, dev);
-	if (err)
-		ops = ERR_PTR(err);
+	if (!err) {
+		ops = iort_fwspec_iommu_ops(dev->iommu_fwspec);
+		err = iort_add_device_replay(ops, dev);
+	}
 
 	/* Ignore all other errors apart from EPROBE_DEFER */
-	if (IS_ERR(ops) && (PTR_ERR(ops) != -EPROBE_DEFER)) {
-		dev_dbg(dev, "Adding to IOMMU failed: %ld\n", PTR_ERR(ops));
+	if (err == -EPROBE_DEFER) {
+		ops = ERR_PTR(err);
+	} else if (err) {
+		dev_dbg(dev, "Adding to IOMMU failed: %d\n", err);
 		ops = NULL;
 	}
 
@@ -908,6 +968,27 @@ static bool __init arm_smmu_v3_is_coherent(struct acpi_iort_node *node)
 	return smmu->flags & ACPI_IORT_SMMU_V3_COHACC_OVERRIDE;
 }
 
+#if defined(CONFIG_ACPI_NUMA) && defined(ACPI_IORT_SMMU_V3_PXM_VALID)
+/*
+ * set numa proximity domain for smmuv3 device
+ */
+static void  __init arm_smmu_v3_set_proximity(struct device *dev,
+					      struct acpi_iort_node *node)
+{
+	struct acpi_iort_smmu_v3 *smmu;
+
+	smmu = (struct acpi_iort_smmu_v3 *)node->node_data;
+	if (smmu->flags & ACPI_IORT_SMMU_V3_PXM_VALID) {
+		set_dev_node(dev, acpi_map_pxm_to_node(smmu->pxm));
+		pr_info("SMMU-v3[%llx] Mapped to Proximity domain %d\n",
+			smmu->base_address,
+			smmu->pxm);
+	}
+}
+#else
+#define arm_smmu_v3_set_proximity NULL
+#endif
+
 static int __init arm_smmu_count_resources(struct acpi_iort_node *node)
 {
 	struct acpi_iort_smmu *smmu;
@@ -977,13 +1058,16 @@ struct iort_iommu_config {
 	int (*iommu_count_resources)(struct acpi_iort_node *node);
 	void (*iommu_init_resources)(struct resource *res,
 				     struct acpi_iort_node *node);
+	void (*iommu_set_proximity)(struct device *dev,
+				    struct acpi_iort_node *node);
 };
 
 static const struct iort_iommu_config iort_arm_smmu_v3_cfg __initconst = {
 	.name = "arm-smmu-v3",
 	.iommu_is_coherent = arm_smmu_v3_is_coherent,
 	.iommu_count_resources = arm_smmu_v3_count_resources,
-	.iommu_init_resources = arm_smmu_v3_init_resources
+	.iommu_init_resources = arm_smmu_v3_init_resources,
+	.iommu_set_proximity = arm_smmu_v3_set_proximity,
 };
 
 static const struct iort_iommu_config iort_arm_smmu_cfg __initconst = {
@@ -1027,6 +1111,9 @@ static int __init iort_add_smmu_platform_device(struct acpi_iort_node *node)
 	pdev = platform_device_alloc(ops->name, PLATFORM_DEVID_AUTO);
 	if (!pdev)
 		return -ENOMEM;
+
+	if (ops->iommu_set_proximity)
+		ops->iommu_set_proximity(&pdev->dev, node);
 
 	count = ops->iommu_count_resources(node);
 
@@ -1091,12 +1178,44 @@ dev_put:
 	return ret;
 }
 
+static bool __init iort_enable_acs(struct acpi_iort_node *iort_node)
+{
+	if (iort_node->type == ACPI_IORT_NODE_PCI_ROOT_COMPLEX) {
+		struct acpi_iort_node *parent;
+		struct acpi_iort_id_mapping *map;
+		int i;
+
+		map = ACPI_ADD_PTR(struct acpi_iort_id_mapping, iort_node,
+				   iort_node->mapping_offset);
+
+		for (i = 0; i < iort_node->mapping_count; i++, map++) {
+			if (!map->output_reference)
+				continue;
+
+			parent = ACPI_ADD_PTR(struct acpi_iort_node,
+					iort_table,  map->output_reference);
+			/*
+			 * If we detect a RC->SMMU mapping, make sure
+			 * we enable ACS on the system.
+			 */
+			if ((parent->type == ACPI_IORT_NODE_SMMU) ||
+				(parent->type == ACPI_IORT_NODE_SMMU_V3)) {
+				pci_request_acs();
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 static void __init iort_init_platform_devices(void)
 {
 	struct acpi_iort_node *iort_node, *iort_end;
 	struct acpi_table_iort *iort;
 	struct fwnode_handle *fwnode;
 	int i, ret;
+	bool acs_enabled = false;
 
 	/*
 	 * iort_table and iort both point to the start of IORT table, but
@@ -1115,6 +1234,9 @@ static void __init iort_init_platform_devices(void)
 			pr_err("iort node pointer overflows, bad table\n");
 			return;
 		}
+
+		if (!acs_enabled)
+			acs_enabled = iort_enable_acs(iort_node);
 
 		if ((iort_node->type == ACPI_IORT_NODE_SMMU) ||
 			(iort_node->type == ACPI_IORT_NODE_SMMU_V3)) {

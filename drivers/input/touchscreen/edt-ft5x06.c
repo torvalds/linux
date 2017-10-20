@@ -593,7 +593,7 @@ static int edt_ft5x06_work_mode(struct edt_ft5x06_ts_data *tsdata)
 				  tsdata->gain);
 	edt_ft5x06_register_write(tsdata, reg_addr->reg_offset,
 				  tsdata->offset);
-	if (reg_addr->reg_report_rate)
+	if (reg_addr->reg_report_rate != NO_REGISTER)
 		edt_ft5x06_register_write(tsdata, reg_addr->reg_report_rate,
 				  tsdata->report_rate);
 
@@ -874,6 +874,7 @@ edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 
 	case M09:
 		reg_addr->reg_threshold = M09_REGISTER_THRESHOLD;
+		reg_addr->reg_report_rate = NO_REGISTER;
 		reg_addr->reg_gain = M09_REGISTER_GAIN;
 		reg_addr->reg_offset = M09_REGISTER_OFFSET;
 		reg_addr->reg_num_x = M09_REGISTER_NUM_X;

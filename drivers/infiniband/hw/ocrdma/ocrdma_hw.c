@@ -252,7 +252,10 @@ static int ocrdma_get_mbx_errno(u32 status)
 		case OCRDMA_MBX_ADDI_STATUS_INSUFFICIENT_RESOURCES:
 			err_num = -EAGAIN;
 			break;
+		default:
+			err_num = -EFAULT;
 		}
+		break;
 	default:
 		err_num = -EFAULT;
 	}

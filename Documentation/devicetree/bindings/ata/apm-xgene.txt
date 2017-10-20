@@ -57,7 +57,6 @@ Example:
 			      <0x0 0x1f227000 0x0 0x1000>;
 			interrupts = <0x0 0x87 0x4>;
 			dma-coherent;
-			status = "ok";
 			clocks = <&sataclk 0>;
 			phys = <&phy2 0>;
 			phy-names = "sata-phy";
@@ -72,7 +71,6 @@ Example:
 			      <0x0 0x1f237000 0x0 0x1000>;
 			interrupts = <0x0 0x88 0x4>;
 			dma-coherent;
-			status = "ok";
 			clocks = <&sataclk 0>;
 			phys = <&phy3 0>;
 			phy-names = "sata-phy";

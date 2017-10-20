@@ -95,7 +95,7 @@ static void asoc_graph_card_shutdown(struct snd_pcm_substream *substream)
 	asoc_simple_card_clk_disable(&dai_props->codec_dai);
 }
 
-static struct snd_soc_ops asoc_graph_card_ops = {
+static const struct snd_soc_ops asoc_graph_card_ops = {
 	.startup = asoc_graph_card_startup,
 	.shutdown = asoc_graph_card_shutdown,
 };
@@ -325,6 +325,7 @@ MODULE_DEVICE_TABLE(of, asoc_graph_of_match);
 static struct platform_driver asoc_graph_card = {
 	.driver = {
 		.name = "asoc-audio-graph-card",
+		.pm = &snd_soc_pm_ops,
 		.of_match_table = asoc_graph_of_match,
 	},
 	.probe = asoc_graph_card_probe,

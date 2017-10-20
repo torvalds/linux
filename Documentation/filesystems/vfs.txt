@@ -829,9 +829,7 @@ struct address_space_operations {
   swap_activate: Called when swapon is used on a file to allocate
 	space if necessary and pin the block lookup information in
 	memory. A return value of zero indicates success,
-	in which case this file can be used to back swapspace. The
-	swapspace operations will be proxied to this address space's
-	->swap_{out,in} methods.
+	in which case this file can be used to back swapspace.
 
   swap_deactivate: Called during swapoff on files where swap_activate
 	was successful.
@@ -990,7 +988,7 @@ struct dentry_operations {
 	struct vfsmount *(*d_automount)(struct path *);
 	int (*d_manage)(const struct path *, bool);
 	struct dentry *(*d_real)(struct dentry *, const struct inode *,
-				 unsigned int);
+				 unsigned int, unsigned int);
 };
 
   d_revalidate: called when the VFS needs to revalidate a dentry. This

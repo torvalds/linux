@@ -41,23 +41,20 @@
 #define ERRSEQ_CTR_INC		(1 << (ERRSEQ_SHIFT + 1))
 
 /**
- * __errseq_set - set a errseq_t for later reporting
+ * errseq_set - set a errseq_t for later reporting
  * @eseq: errseq_t field that should be set
- * @err: error to set
+ * @err: error to set (must be between -1 and -MAX_ERRNO)
  *
  * This function sets the error in *eseq, and increments the sequence counter
  * if the last sequence was sampled at some point in the past.
  *
  * Any error set will always overwrite an existing error.
  *
- * Most callers will want to use the errseq_set inline wrapper to efficiently
- * handle the common case where err is 0.
- *
- * We do return an errseq_t here, primarily for debugging purposes. The return
- * value should not be used as a previously sampled value in later calls as it
- * will not have the SEEN flag set.
+ * We do return the latest value here, primarily for debugging purposes. The
+ * return value should not be used as a previously sampled value in later calls
+ * as it will not have the SEEN flag set.
  */
-errseq_t __errseq_set(errseq_t *eseq, int err)
+errseq_t errseq_set(errseq_t *eseq, int err)
 {
 	errseq_t cur, old;
 
@@ -107,7 +104,7 @@ errseq_t __errseq_set(errseq_t *eseq, int err)
 	}
 	return cur;
 }
-EXPORT_SYMBOL(__errseq_set);
+EXPORT_SYMBOL(errseq_set);
 
 /**
  * errseq_sample - grab current errseq_t value

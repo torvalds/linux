@@ -49,30 +49,44 @@
 
 #include "hfi.h"
 
-#define EXP_TID_TIDLEN_MASK   0x7FFULL
-#define EXP_TID_TIDLEN_SHIFT  0
-#define EXP_TID_TIDCTRL_MASK  0x3ULL
-#define EXP_TID_TIDCTRL_SHIFT 20
-#define EXP_TID_TIDIDX_MASK   0x3FFULL
-#define EXP_TID_TIDIDX_SHIFT  22
-#define EXP_TID_GET(tid, field)	\
-	(((tid) >> EXP_TID_TID##field##_SHIFT) & EXP_TID_TID##field##_MASK)
+#include "exp_rcv.h"
 
-#define EXP_TID_SET(field, value)			\
-	(((value) & EXP_TID_TID##field##_MASK) <<	\
-	 EXP_TID_TID##field##_SHIFT)
-#define EXP_TID_CLEAR(tid, field) ({					\
-		(tid) &= ~(EXP_TID_TID##field##_MASK <<			\
-			   EXP_TID_TID##field##_SHIFT);			\
-		})
-#define EXP_TID_RESET(tid, field, value) do {				\
-		EXP_TID_CLEAR(tid, field);				\
-		(tid) |= EXP_TID_SET(field, (value));			\
-	} while (0)
+struct tid_pageset {
+	u16 idx;
+	u16 count;
+};
 
-void hfi1_user_exp_rcv_grp_free(struct hfi1_ctxtdata *uctxt);
-int hfi1_user_exp_rcv_grp_init(struct hfi1_filedata *fd);
-int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd);
+struct tid_user_buf {
+	unsigned long vaddr;
+	unsigned long length;
+	unsigned int npages;
+	struct page **pages;
+	struct tid_pageset *psets;
+	unsigned int n_psets;
+};
+
+struct tid_rb_node {
+	struct mmu_rb_node mmu;
+	unsigned long phys;
+	struct tid_group *grp;
+	u32 rcventry;
+	dma_addr_t dma_addr;
+	bool freed;
+	unsigned int npages;
+	struct page *pages[0];
+};
+
+static inline int num_user_pages(unsigned long addr,
+				 unsigned long len)
+{
+	const unsigned long spage = addr & PAGE_MASK;
+	const unsigned long epage = (addr + len - 1) & PAGE_MASK;
+
+	return 1 + ((epage - spage) >> PAGE_SHIFT);
+}
+
+int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd,
+			   struct hfi1_ctxtdata *uctxt);
 void hfi1_user_exp_rcv_free(struct hfi1_filedata *fd);
 int hfi1_user_exp_rcv_setup(struct hfi1_filedata *fd,
 			    struct hfi1_tid_info *tinfo);

@@ -89,7 +89,6 @@
 	cap-mmc-highspeed;
 	disable-wp;
 	non-removable;
-	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk>, <&emmc_cmd>, <&emmc_rst>;
 	status = "okay";
@@ -256,7 +255,6 @@
 };
 
 &mmc0 {
-	num-slots = <1>;
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd0_clk>, <&sd0_cmd>, <&sd0_cd>, <&sd0_bus4>;

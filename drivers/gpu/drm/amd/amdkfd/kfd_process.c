@@ -79,9 +79,7 @@ struct kfd_process *kfd_create_process(const struct task_struct *thread)
 {
 	struct kfd_process *process;
 
-	BUG_ON(!kfd_process_wq);
-
-	if (thread->mm == NULL)
+	if (!thread->mm)
 		return ERR_PTR(-EINVAL);
 
 	/* Only the pthreads threading model is supported. */
@@ -101,7 +99,7 @@ struct kfd_process *kfd_create_process(const struct task_struct *thread)
 	/* A prior open of /dev/kfd could have already created the process. */
 	process = find_process(thread);
 	if (process)
-		pr_debug("kfd: process already found\n");
+		pr_debug("Process already found\n");
 
 	if (!process)
 		process = create_process(thread);
@@ -117,7 +115,7 @@ struct kfd_process *kfd_get_process(const struct task_struct *thread)
 {
 	struct kfd_process *process;
 
-	if (thread->mm == NULL)
+	if (!thread->mm)
 		return ERR_PTR(-EINVAL);
 
 	/* Only the pthreads threading model is supported. */
@@ -202,10 +200,8 @@ static void kfd_process_destroy_delayed(struct rcu_head *rcu)
 	struct kfd_process_release_work *work;
 	struct kfd_process *p;
 
-	BUG_ON(!kfd_process_wq);
-
 	p = container_of(rcu, struct kfd_process, rcu);
-	BUG_ON(atomic_read(&p->mm->mm_count) <= 0);
+	WARN_ON(atomic_read(&p->mm->mm_count) <= 0);
 
 	mmdrop(p->mm);
 
@@ -229,7 +225,8 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 	 * mmu_notifier srcu is read locked
 	 */
 	p = container_of(mn, struct kfd_process, mmu_notifier);
-	BUG_ON(p->mm != mm);
+	if (WARN_ON(p->mm != mm))
+		return;
 
 	mutex_lock(&kfd_processes_mutex);
 	hash_del_rcu(&p->kfd_processes);
@@ -250,7 +247,7 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 			kfd_dbgmgr_destroy(pdd->dev->dbgmgr);
 
 		if (pdd->reset_wavefronts) {
-			pr_warn("amdkfd: Resetting all wave fronts\n");
+			pr_warn("Resetting all wave fronts\n");
 			dbgdev_wave_reset_wavefronts(pdd->dev, p);
 			pdd->reset_wavefronts = false;
 		}
@@ -407,8 +404,6 @@ void kfd_unbind_process_from_device(struct kfd_dev *dev, unsigned int pasid)
 	struct kfd_process *p;
 	struct kfd_process_device *pdd;
 
-	BUG_ON(dev == NULL);
-
 	/*
 	 * Look for the process that matches the pasid. If there is no such
 	 * process, we either released it in amdkfd's own notifier, or there
@@ -449,14 +444,16 @@ void kfd_unbind_process_from_device(struct kfd_dev *dev, unsigned int pasid)
 	mutex_unlock(&p->mutex);
 }
 
-struct kfd_process_device *kfd_get_first_process_device_data(struct kfd_process *p)
+struct kfd_process_device *kfd_get_first_process_device_data(
+						struct kfd_process *p)
 {
 	return list_first_entry(&p->per_device_data,
 				struct kfd_process_device,
 				per_device_list);
 }
 
-struct kfd_process_device *kfd_get_next_process_device_data(struct kfd_process *p,
+struct kfd_process_device *kfd_get_next_process_device_data(
+						struct kfd_process *p,
 						struct kfd_process_device *pdd)
 {
 	if (list_is_last(&pdd->per_device_list, &p->per_device_data))

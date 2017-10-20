@@ -2,10 +2,6 @@
 #include <linux/kernel.h>
 #include <hwregs/intr_vect.h>
 
-void pcibios_fixup_bus(struct pci_bus *b)
-{
-}
-
 void pcibios_set_master(struct pci_dev *dev)
 {
 	u8 lat;

@@ -48,7 +48,6 @@
 #define __x_tima		xive_tima
 #define __x_eoi_page(xd)	((void __iomem *)((xd)->eoi_mmio))
 #define __x_trig_page(xd)	((void __iomem *)((xd)->trig_mmio))
-#define __x_readb	__raw_readb
 #define __x_writeb	__raw_writeb
 #define __x_readw	__raw_readw
 #define __x_readq	__raw_readq
@@ -623,7 +622,7 @@ int kvmppc_xive_get_xive(struct kvm *kvm, u32 irq, u32 *server,
 		return -EINVAL;
 	state = &sb->irq_state[idx];
 	arch_spin_lock(&sb->lock);
-	*server = state->guest_server;
+	*server = state->act_server;
 	*priority = state->guest_priority;
 	arch_spin_unlock(&sb->lock);
 
@@ -1332,7 +1331,7 @@ static int xive_get_source(struct kvmppc_xive *xive, long irq, u64 addr)
 	xive->saved_src_count++;
 
 	/* Convert saved state into something compatible with xics */
-	val = state->guest_server;
+	val = state->act_server;
 	prio = state->saved_scan_prio;
 
 	if (prio == MASKED) {
@@ -1508,7 +1507,6 @@ static int xive_set_source(struct kvmppc_xive *xive, long irq, u64 addr)
 	/* First convert prio and mark interrupt as untargetted */
 	act_prio = xive_prio_from_guest(guest_prio);
 	state->act_priority = MASKED;
-	state->guest_server = server;
 
 	/*
 	 * We need to drop the lock due to the mutex below. Hopefully

@@ -1215,14 +1215,24 @@ static int alps_decode_ss4_v2(struct alps_fields *f,
 
 	case SS4_PACKET_ID_TWO:
 		if (priv->flags & ALPS_BUTTONPAD) {
-			f->mt[0].x = SS4_BTL_MF_X_V2(p, 0);
+			if (IS_SS4PLUS_DEV(priv->dev_id)) {
+				f->mt[0].x = SS4_PLUS_BTL_MF_X_V2(p, 0);
+				f->mt[1].x = SS4_PLUS_BTL_MF_X_V2(p, 1);
+			} else {
+				f->mt[0].x = SS4_BTL_MF_X_V2(p, 0);
+				f->mt[1].x = SS4_BTL_MF_X_V2(p, 1);
+			}
 			f->mt[0].y = SS4_BTL_MF_Y_V2(p, 0);
-			f->mt[1].x = SS4_BTL_MF_X_V2(p, 1);
 			f->mt[1].y = SS4_BTL_MF_Y_V2(p, 1);
 		} else {
-			f->mt[0].x = SS4_STD_MF_X_V2(p, 0);
+			if (IS_SS4PLUS_DEV(priv->dev_id)) {
+				f->mt[0].x = SS4_PLUS_STD_MF_X_V2(p, 0);
+				f->mt[1].x = SS4_PLUS_STD_MF_X_V2(p, 1);
+			} else {
+				f->mt[0].x = SS4_STD_MF_X_V2(p, 0);
+				f->mt[1].x = SS4_STD_MF_X_V2(p, 1);
+			}
 			f->mt[0].y = SS4_STD_MF_Y_V2(p, 0);
-			f->mt[1].x = SS4_STD_MF_X_V2(p, 1);
 			f->mt[1].y = SS4_STD_MF_Y_V2(p, 1);
 		}
 		f->pressure = SS4_MF_Z_V2(p, 0) ? 0x30 : 0;
@@ -1239,16 +1249,27 @@ static int alps_decode_ss4_v2(struct alps_fields *f,
 
 	case SS4_PACKET_ID_MULTI:
 		if (priv->flags & ALPS_BUTTONPAD) {
-			f->mt[2].x = SS4_BTL_MF_X_V2(p, 0);
+			if (IS_SS4PLUS_DEV(priv->dev_id)) {
+				f->mt[0].x = SS4_PLUS_BTL_MF_X_V2(p, 0);
+				f->mt[1].x = SS4_PLUS_BTL_MF_X_V2(p, 1);
+			} else {
+				f->mt[2].x = SS4_BTL_MF_X_V2(p, 0);
+				f->mt[3].x = SS4_BTL_MF_X_V2(p, 1);
+			}
+
 			f->mt[2].y = SS4_BTL_MF_Y_V2(p, 0);
-			f->mt[3].x = SS4_BTL_MF_X_V2(p, 1);
 			f->mt[3].y = SS4_BTL_MF_Y_V2(p, 1);
 			no_data_x = SS4_MFPACKET_NO_AX_BL;
 			no_data_y = SS4_MFPACKET_NO_AY_BL;
 		} else {
-			f->mt[2].x = SS4_STD_MF_X_V2(p, 0);
+			if (IS_SS4PLUS_DEV(priv->dev_id)) {
+				f->mt[0].x = SS4_PLUS_STD_MF_X_V2(p, 0);
+				f->mt[1].x = SS4_PLUS_STD_MF_X_V2(p, 1);
+			} else {
+				f->mt[0].x = SS4_STD_MF_X_V2(p, 0);
+				f->mt[1].x = SS4_STD_MF_X_V2(p, 1);
+			}
 			f->mt[2].y = SS4_STD_MF_Y_V2(p, 0);
-			f->mt[3].x = SS4_STD_MF_X_V2(p, 1);
 			f->mt[3].y = SS4_STD_MF_Y_V2(p, 1);
 			no_data_x = SS4_MFPACKET_NO_AX;
 			no_data_y = SS4_MFPACKET_NO_AY;
@@ -2541,8 +2562,8 @@ static int alps_set_defaults_ss4_v2(struct psmouse *psmouse,
 
 	memset(otp, 0, sizeof(otp));
 
-	if (alps_get_otp_values_ss4_v2(psmouse, 0, &otp[0][0]) ||
-	    alps_get_otp_values_ss4_v2(psmouse, 1, &otp[1][0]))
+	if (alps_get_otp_values_ss4_v2(psmouse, 1, &otp[1][0]) ||
+	    alps_get_otp_values_ss4_v2(psmouse, 0, &otp[0][0]))
 		return -1;
 
 	alps_update_device_area_ss4_v2(otp, priv);

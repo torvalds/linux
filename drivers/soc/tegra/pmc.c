@@ -918,10 +918,8 @@ static void tegra_powergate_init(struct tegra_pmc *pmc,
 	if (!np)
 		return;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_node(np, child)
 		tegra_powergate_add(pmc, child);
-		of_node_put(child);
-	}
 
 	of_node_put(np);
 }

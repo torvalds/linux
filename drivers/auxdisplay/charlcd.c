@@ -647,18 +647,25 @@ static ssize_t charlcd_write(struct file *file, const char __user *buf,
 static int charlcd_open(struct inode *inode, struct file *file)
 {
 	struct charlcd_priv *priv = to_priv(the_charlcd);
+	int ret;
 
+	ret = -EBUSY;
 	if (!atomic_dec_and_test(&charlcd_available))
-		return -EBUSY;	/* open only once at a time */
+		goto fail;	/* open only once at a time */
 
+	ret = -EPERM;
 	if (file->f_mode & FMODE_READ)	/* device is write-only */
-		return -EPERM;
+		goto fail;
 
 	if (priv->must_clear) {
 		charlcd_clear_display(&priv->lcd);
 		priv->must_clear = false;
 	}
 	return nonseekable_open(inode, file);
+
+ fail:
+	atomic_inc(&charlcd_available);
+	return ret;
 }
 
 static int charlcd_release(struct inode *inode, struct file *file)

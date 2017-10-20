@@ -933,10 +933,10 @@ static int netem_init(struct Qdisc *sch, struct nlattr *opt)
 	struct netem_sched_data *q = qdisc_priv(sch);
 	int ret;
 
+	qdisc_watchdog_init(&q->watchdog, sch);
+
 	if (!opt)
 		return -EINVAL;
-
-	qdisc_watchdog_init(&q->watchdog, sch);
 
 	q->loss_model = CLG_RANDOM;
 	ret = netem_change(sch, opt);
@@ -1096,13 +1096,9 @@ static struct Qdisc *netem_leaf(struct Qdisc *sch, unsigned long arg)
 	return q->qdisc;
 }
 
-static unsigned long netem_get(struct Qdisc *sch, u32 classid)
+static unsigned long netem_find(struct Qdisc *sch, u32 classid)
 {
 	return 1;
-}
-
-static void netem_put(struct Qdisc *sch, unsigned long arg)
-{
 }
 
 static void netem_walk(struct Qdisc *sch, struct qdisc_walker *walker)
@@ -1120,8 +1116,7 @@ static void netem_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 static const struct Qdisc_class_ops netem_class_ops = {
 	.graft		=	netem_graft,
 	.leaf		=	netem_leaf,
-	.get		=	netem_get,
-	.put		=	netem_put,
+	.find		=	netem_find,
 	.walk		=	netem_walk,
 	.dump		=	netem_dump_class,
 };

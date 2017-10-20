@@ -243,4 +243,6 @@ int bpf_map__pin(struct bpf_map *map, const char *path);
 
 long libbpf_get_error(const void *ptr);
 
+int bpf_prog_load(const char *file, enum bpf_prog_type type,
+		  struct bpf_object **pobj, int *prog_fd);
 #endif

@@ -63,15 +63,6 @@ static bool udp_invert_tuple(struct nf_conntrack_tuple *tuple,
 	return true;
 }
 
-/* Print out the per-protocol part of the tuple. */
-static void udp_print_tuple(struct seq_file *s,
-			    const struct nf_conntrack_tuple *tuple)
-{
-	seq_printf(s, "sport=%hu dport=%hu ",
-		   ntohs(tuple->src.u.udp.port),
-		   ntohs(tuple->dst.u.udp.port));
-}
-
 static unsigned int *udp_get_timeouts(struct net *net)
 {
 	return udp_pernet(net)->timeouts;
@@ -83,7 +74,6 @@ static int udp_packet(struct nf_conn *ct,
 		      unsigned int dataoff,
 		      enum ip_conntrack_info ctinfo,
 		      u_int8_t pf,
-		      unsigned int hooknum,
 		      unsigned int *timeouts)
 {
 	/* If we've seen traffic both ways, this is some kind of UDP
@@ -313,11 +303,9 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 __read_mostly =
 {
 	.l3proto		= PF_INET,
 	.l4proto		= IPPROTO_UDP,
-	.name			= "udp",
 	.allow_clash		= true,
 	.pkt_to_tuple		= udp_pkt_to_tuple,
 	.invert_tuple		= udp_invert_tuple,
-	.print_tuple		= udp_print_tuple,
 	.packet			= udp_packet,
 	.get_timeouts		= udp_get_timeouts,
 	.new			= udp_new,
@@ -347,11 +335,9 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 __read_mostly =
 {
 	.l3proto		= PF_INET,
 	.l4proto		= IPPROTO_UDPLITE,
-	.name			= "udplite",
 	.allow_clash		= true,
 	.pkt_to_tuple		= udp_pkt_to_tuple,
 	.invert_tuple		= udp_invert_tuple,
-	.print_tuple		= udp_print_tuple,
 	.packet			= udp_packet,
 	.get_timeouts		= udp_get_timeouts,
 	.new			= udp_new,
@@ -381,11 +367,9 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 __read_mostly =
 {
 	.l3proto		= PF_INET6,
 	.l4proto		= IPPROTO_UDP,
-	.name			= "udp",
 	.allow_clash		= true,
 	.pkt_to_tuple		= udp_pkt_to_tuple,
 	.invert_tuple		= udp_invert_tuple,
-	.print_tuple		= udp_print_tuple,
 	.packet			= udp_packet,
 	.get_timeouts		= udp_get_timeouts,
 	.new			= udp_new,
@@ -415,11 +399,9 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite6 __read_mostly =
 {
 	.l3proto		= PF_INET6,
 	.l4proto		= IPPROTO_UDPLITE,
-	.name			= "udplite",
 	.allow_clash		= true,
 	.pkt_to_tuple		= udp_pkt_to_tuple,
 	.invert_tuple		= udp_invert_tuple,
-	.print_tuple		= udp_print_tuple,
 	.packet			= udp_packet,
 	.get_timeouts		= udp_get_timeouts,
 	.new			= udp_new,

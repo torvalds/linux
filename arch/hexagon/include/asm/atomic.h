@@ -42,6 +42,8 @@ static inline void atomic_set(atomic_t *v, int new)
 	);
 }
 
+#define atomic_set_release(v, i)	atomic_set((v), (i))
+
 /**
  * atomic_read - reads a word, atomically
  * @v: pointer to atomic value

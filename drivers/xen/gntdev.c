@@ -484,13 +484,6 @@ static void mn_invl_range_start(struct mmu_notifier *mn,
 	mutex_unlock(&priv->lock);
 }
 
-static void mn_invl_page(struct mmu_notifier *mn,
-			 struct mm_struct *mm,
-			 unsigned long address)
-{
-	mn_invl_range_start(mn, mm, address, address + PAGE_SIZE);
-}
-
 static void mn_release(struct mmu_notifier *mn,
 		       struct mm_struct *mm)
 {
@@ -522,7 +515,6 @@ static void mn_release(struct mmu_notifier *mn,
 
 static const struct mmu_notifier_ops gntdev_mmu_ops = {
 	.release                = mn_release,
-	.invalidate_page        = mn_invl_page,
 	.invalidate_range_start = mn_invl_range_start,
 };
 

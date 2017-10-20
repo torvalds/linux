@@ -35,9 +35,56 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/uverbs_types.h>
 #include <linux/rcupdate.h>
+#include <rdma/uverbs_ioctl.h>
+#include <rdma/rdma_user_ioctl.h>
 #include "uverbs.h"
 #include "core_priv.h"
 #include "rdma_core.h"
+
+int uverbs_ns_idx(u16 *id, unsigned int ns_count)
+{
+	int ret = (*id & UVERBS_ID_NS_MASK) >> UVERBS_ID_NS_SHIFT;
+
+	if (ret >= ns_count)
+		return -EINVAL;
+
+	*id &= ~UVERBS_ID_NS_MASK;
+	return ret;
+}
+
+const struct uverbs_object_spec *uverbs_get_object(const struct ib_device *ibdev,
+						   uint16_t object)
+{
+	const struct uverbs_root_spec *object_hash = ibdev->specs_root;
+	const struct uverbs_object_spec_hash *objects;
+	int ret = uverbs_ns_idx(&object, object_hash->num_buckets);
+
+	if (ret < 0)
+		return NULL;
+
+	objects = object_hash->object_buckets[ret];
+
+	if (object >= objects->num_objects)
+		return NULL;
+
+	return objects->objects[object];
+}
+
+const struct uverbs_method_spec *uverbs_get_method(const struct uverbs_object_spec *object,
+						   uint16_t method)
+{
+	const struct uverbs_method_spec_hash *methods;
+	int ret = uverbs_ns_idx(&method, object->num_buckets);
+
+	if (ret < 0)
+		return NULL;
+
+	methods = object->method_buckets[ret];
+	if (method >= methods->num_methods)
+		return NULL;
+
+	return methods->methods[method];
+}
 
 void uverbs_uobject_get(struct ib_uobject *uobject)
 {
@@ -404,6 +451,41 @@ int __must_check rdma_remove_commit_uobject(struct ib_uobject *uobj)
 	return ret;
 }
 
+static int null_obj_type_class_remove_commit(struct ib_uobject *uobj,
+					     enum rdma_remove_reason why)
+{
+	return 0;
+}
+
+static const struct uverbs_obj_type null_obj_type = {
+	.type_class = &((const struct uverbs_obj_type_class){
+			.remove_commit = null_obj_type_class_remove_commit,
+			/* be cautious */
+			.needs_kfree_rcu = true}),
+};
+
+int rdma_explicit_destroy(struct ib_uobject *uobject)
+{
+	int ret;
+	struct ib_ucontext *ucontext = uobject->context;
+
+	/* Cleanup is running. Calling this should have been impossible */
+	if (!down_read_trylock(&ucontext->cleanup_rwsem)) {
+		WARN(true, "ib_uverbs: Cleanup is running while removing an uobject\n");
+		return 0;
+	}
+	lockdep_check(uobject, true);
+	ret = uobject->type->type_class->remove_commit(uobject,
+						       RDMA_REMOVE_DESTROY);
+	if (ret)
+		return ret;
+
+	uobject->type = &null_obj_type;
+
+	up_read(&ucontext->cleanup_rwsem);
+	return 0;
+}
+
 static void alloc_commit_idr_uobject(struct ib_uobject *uobj)
 {
 	uverbs_uobject_add(uobj);
@@ -625,3 +707,100 @@ const struct uverbs_obj_type_class uverbs_fd_class = {
 	.needs_kfree_rcu = false,
 };
 
+struct ib_uobject *uverbs_get_uobject_from_context(const struct uverbs_obj_type *type_attrs,
+						   struct ib_ucontext *ucontext,
+						   enum uverbs_obj_access access,
+						   int id)
+{
+	switch (access) {
+	case UVERBS_ACCESS_READ:
+		return rdma_lookup_get_uobject(type_attrs, ucontext, id, false);
+	case UVERBS_ACCESS_DESTROY:
+	case UVERBS_ACCESS_WRITE:
+		return rdma_lookup_get_uobject(type_attrs, ucontext, id, true);
+	case UVERBS_ACCESS_NEW:
+		return rdma_alloc_begin_uobject(type_attrs, ucontext);
+	default:
+		WARN_ON(true);
+		return ERR_PTR(-EOPNOTSUPP);
+	}
+}
+
+int uverbs_finalize_object(struct ib_uobject *uobj,
+			   enum uverbs_obj_access access,
+			   bool commit)
+{
+	int ret = 0;
+
+	/*
+	 * refcounts should be handled at the object level and not at the
+	 * uobject level. Refcounts of the objects themselves are done in
+	 * handlers.
+	 */
+
+	switch (access) {
+	case UVERBS_ACCESS_READ:
+		rdma_lookup_put_uobject(uobj, false);
+		break;
+	case UVERBS_ACCESS_WRITE:
+		rdma_lookup_put_uobject(uobj, true);
+		break;
+	case UVERBS_ACCESS_DESTROY:
+		if (commit)
+			ret = rdma_remove_commit_uobject(uobj);
+		else
+			rdma_lookup_put_uobject(uobj, true);
+		break;
+	case UVERBS_ACCESS_NEW:
+		if (commit)
+			ret = rdma_alloc_commit_uobject(uobj);
+		else
+			rdma_alloc_abort_uobject(uobj);
+		break;
+	default:
+		WARN_ON(true);
+		ret = -EOPNOTSUPP;
+	}
+
+	return ret;
+}
+
+int uverbs_finalize_objects(struct uverbs_attr_bundle *attrs_bundle,
+			    struct uverbs_attr_spec_hash * const *spec_hash,
+			    size_t num,
+			    bool commit)
+{
+	unsigned int i;
+	int ret = 0;
+
+	for (i = 0; i < num; i++) {
+		struct uverbs_attr_bundle_hash *curr_bundle =
+			&attrs_bundle->hash[i];
+		const struct uverbs_attr_spec_hash *curr_spec_bucket =
+			spec_hash[i];
+		unsigned int j;
+
+		for (j = 0; j < curr_bundle->num_attrs; j++) {
+			struct uverbs_attr *attr;
+			const struct uverbs_attr_spec *spec;
+
+			if (!uverbs_attr_is_valid_in_hash(curr_bundle, j))
+				continue;
+
+			attr = &curr_bundle->attrs[j];
+			spec = &curr_spec_bucket->attrs[j];
+
+			if (spec->type == UVERBS_ATTR_TYPE_IDR ||
+			    spec->type == UVERBS_ATTR_TYPE_FD) {
+				int current_ret;
+
+				current_ret = uverbs_finalize_object(attr->obj_attr.uobject,
+								     spec->obj.access,
+								     commit);
+				if (!ret)
+					ret = current_ret;
+			}
+		}
+	}
+	return ret;
+}

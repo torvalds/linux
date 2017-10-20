@@ -88,7 +88,7 @@ extern void mmput(struct mm_struct *);
 /* same as above but performs the slow path from the async context. Can
  * be called from the atomic context as well
  */
-extern void mmput_async(struct mm_struct *);
+void mmput_async(struct mm_struct *);
 #endif
 
 /* Grab a reference to a task's mm, if it is not already going away */
@@ -166,6 +166,14 @@ static inline gfp_t current_gfp_context(gfp_t flags)
 		flags &= ~__GFP_FS;
 	return flags;
 }
+
+#ifdef CONFIG_LOCKDEP
+extern void fs_reclaim_acquire(gfp_t gfp_mask);
+extern void fs_reclaim_release(gfp_t gfp_mask);
+#else
+static inline void fs_reclaim_acquire(gfp_t gfp_mask) { }
+static inline void fs_reclaim_release(gfp_t gfp_mask) { }
+#endif
 
 static inline unsigned int memalloc_noio_save(void)
 {

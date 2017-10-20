@@ -3035,7 +3035,7 @@ static int da7218_resume(struct snd_soc_codec *codec)
 #define da7218_resume NULL
 #endif
 
-static struct snd_soc_codec_driver soc_codec_dev_da7218 = {
+static const struct snd_soc_codec_driver soc_codec_dev_da7218 = {
 	.probe			= da7218_probe,
 	.remove			= da7218_remove,
 	.suspend		= da7218_suspend,

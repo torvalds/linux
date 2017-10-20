@@ -294,19 +294,9 @@ static int ashmem_release(struct inode *ignored, struct file *file)
 	return 0;
 }
 
-/**
- * ashmem_read() - Reads a set of bytes from an Ashmem-enabled file
- * @file:	   The associated backing file.
- * @buf:	   The buffer of data being written to
- * @len:	   The number of bytes being read
- * @pos:	   The position of the first byte to read.
- *
- * Return: 0 if successful, or another return code if not.
- */
-static ssize_t ashmem_read(struct file *file, char __user *buf,
-			   size_t len, loff_t *pos)
+static ssize_t ashmem_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
-	struct ashmem_area *asma = file->private_data;
+	struct ashmem_area *asma = iocb->ki_filp->private_data;
 	int ret = 0;
 
 	mutex_lock(&ashmem_mutex);
@@ -320,20 +310,17 @@ static ssize_t ashmem_read(struct file *file, char __user *buf,
 		goto out_unlock;
 	}
 
-	mutex_unlock(&ashmem_mutex);
-
 	/*
 	 * asma and asma->file are used outside the lock here.  We assume
 	 * once asma->file is set it will never be changed, and will not
 	 * be destroyed until all references to the file are dropped and
 	 * ashmem_release is called.
 	 */
-	ret = __vfs_read(asma->file, buf, len, pos);
-	if (ret >= 0)
-		/** Update backing file pos, since f_ops->read() doesn't */
-		asma->file->f_pos = *pos;
-	return ret;
-
+	mutex_unlock(&ashmem_mutex);
+	ret = vfs_iter_read(asma->file, iter, &iocb->ki_pos, 0);
+	mutex_lock(&ashmem_mutex);
+	if (ret > 0)
+		asma->file->f_pos = iocb->ki_pos;
 out_unlock:
 	mutex_unlock(&ashmem_mutex);
 	return ret;
@@ -834,7 +821,7 @@ static const struct file_operations ashmem_fops = {
 	.owner = THIS_MODULE,
 	.open = ashmem_open,
 	.release = ashmem_release,
-	.read = ashmem_read,
+	.read_iter = ashmem_read_iter,
 	.llseek = ashmem_llseek,
 	.mmap = ashmem_mmap,
 	.unlocked_ioctl = ashmem_ioctl,

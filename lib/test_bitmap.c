@@ -165,6 +165,96 @@ static void __init test_zero_fill_copy(void)
 	expect_eq_pbl("128-1023", bmap2, 1024);
 }
 
+#define PARSE_TIME 0x1
+
+struct test_bitmap_parselist{
+	const int errno;
+	const char *in;
+	const unsigned long *expected;
+	const int nbits;
+	const int flags;
+};
+
+static const unsigned long exp[] __initconst = {
+	BITMAP_FROM_U64(1),
+	BITMAP_FROM_U64(2),
+	BITMAP_FROM_U64(0x0000ffff),
+	BITMAP_FROM_U64(0xffff0000),
+	BITMAP_FROM_U64(0x55555555),
+	BITMAP_FROM_U64(0xaaaaaaaa),
+	BITMAP_FROM_U64(0x11111111),
+	BITMAP_FROM_U64(0x22222222),
+	BITMAP_FROM_U64(0xffffffff),
+	BITMAP_FROM_U64(0xfffffffe),
+	BITMAP_FROM_U64(0x3333333311111111ULL),
+	BITMAP_FROM_U64(0xffffffff77777777ULL)
+};
+
+static const unsigned long exp2[] __initconst = {
+	BITMAP_FROM_U64(0x3333333311111111ULL),
+	BITMAP_FROM_U64(0xffffffff77777777ULL)
+};
+
+static const struct test_bitmap_parselist parselist_tests[] __initconst = {
+#define step (sizeof(u64) / sizeof(unsigned long))
+
+	{0, "0",			&exp[0], 8, 0},
+	{0, "1",			&exp[1 * step], 8, 0},
+	{0, "0-15",			&exp[2 * step], 32, 0},
+	{0, "16-31",			&exp[3 * step], 32, 0},
+	{0, "0-31:1/2",			&exp[4 * step], 32, 0},
+	{0, "1-31:1/2",			&exp[5 * step], 32, 0},
+	{0, "0-31:1/4",			&exp[6 * step], 32, 0},
+	{0, "1-31:1/4",			&exp[7 * step], 32, 0},
+	{0, "0-31:4/4",			&exp[8 * step], 32, 0},
+	{0, "1-31:4/4",			&exp[9 * step], 32, 0},
+	{0, "0-31:1/4,32-63:2/4",	&exp[10 * step], 64, 0},
+	{0, "0-31:3/4,32-63:4/4",	&exp[11 * step], 64, 0},
+
+	{0, "0-31:1/4,32-63:2/4,64-95:3/4,96-127:4/4",	exp2, 128, 0},
+
+	{0, "0-2047:128/256", NULL, 2048, PARSE_TIME},
+
+	{-EINVAL, "-1",	NULL, 8, 0},
+	{-EINVAL, "-0",	NULL, 8, 0},
+	{-EINVAL, "10-1", NULL, 8, 0},
+	{-EINVAL, "0-31:10/1", NULL, 8, 0},
+};
+
+static void __init test_bitmap_parselist(void)
+{
+	int i;
+	int err;
+	cycles_t cycles;
+	DECLARE_BITMAP(bmap, 2048);
+
+	for (i = 0; i < ARRAY_SIZE(parselist_tests); i++) {
+#define ptest parselist_tests[i]
+
+		cycles = get_cycles();
+		err = bitmap_parselist(ptest.in, bmap, ptest.nbits);
+		cycles = get_cycles() - cycles;
+
+		if (err != ptest.errno) {
+			pr_err("test %d: input is %s, errno is %d, expected %d\n",
+					i, ptest.in, err, ptest.errno);
+			continue;
+		}
+
+		if (!err && ptest.expected
+			 && !__bitmap_equal(bmap, ptest.expected, ptest.nbits)) {
+			pr_err("test %d: input is %s, result is 0x%lx, expected 0x%lx\n",
+					i, ptest.in, bmap[0], *ptest.expected);
+			continue;
+		}
+
+		if (ptest.flags & PARSE_TIME)
+			pr_err("test %d: input is '%s' OK, Time: %llu\n",
+					i, ptest.in,
+					(unsigned long long)cycles);
+	}
+}
+
 static void __init test_bitmap_u32_array_conversions(void)
 {
 	DECLARE_BITMAP(bmap1, 1024);
@@ -365,6 +455,7 @@ static int __init test_bitmap_init(void)
 {
 	test_zero_fill_copy();
 	test_bitmap_u32_array_conversions();
+	test_bitmap_parselist();
 	test_mem_optimisations();
 
 	if (failed_tests == 0)

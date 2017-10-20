@@ -147,7 +147,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
 
     gdth_cmd_str *gdtcmd;
     gdth_evt_str *estr;
-    char hrec[161];
+    char hrec[277];
 
     char *buf;
     gdth_dskstat_str *pds;

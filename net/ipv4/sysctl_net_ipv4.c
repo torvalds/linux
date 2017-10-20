@@ -45,6 +45,9 @@ static int tcp_syn_retries_max = MAX_TCP_SYNCNT;
 static int ip_ping_group_range_min[] = { 0, 0 };
 static int ip_ping_group_range_max[] = { GID_T_MAX, GID_T_MAX };
 
+/* obsolete */
+static int sysctl_tcp_low_latency __read_mostly;
+
 /* Update system visible IP port range */
 static void set_local_port_range(struct net *net, int range[2])
 {

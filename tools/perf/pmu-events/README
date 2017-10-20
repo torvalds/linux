@@ -85,10 +85,6 @@ users to specify events by their name:
 
 where 'pm_1plus_ppc_cmpl' is a Power8 PMU event.
 
-In case of errors when processing files in the tools/perf/pmu-events/arch
-directory, 'jevents' tries to create an empty mapping file to allow the perf
-build to succeed even if the PMU event aliases cannot be used.
-
 However some errors in processing may cause the perf build to fail.
 
 Mapfile format

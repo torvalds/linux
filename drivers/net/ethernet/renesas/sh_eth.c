@@ -3402,7 +3402,7 @@ static const struct dev_pm_ops sh_eth_dev_pm_ops = {
 #define SH_ETH_PM_OPS NULL
 #endif
 
-static struct platform_device_id sh_eth_id_table[] = {
+static const struct platform_device_id sh_eth_id_table[] = {
 	{ "sh7619-ether", (kernel_ulong_t)&sh7619_data },
 	{ "sh771x-ether", (kernel_ulong_t)&sh771x_data },
 	{ "sh7724-ether", (kernel_ulong_t)&sh7724_data },

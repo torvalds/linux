@@ -53,7 +53,6 @@ struct dib8000_ops {
 	enum frontend_tune_state (*get_tune_state)(struct dvb_frontend *fe);
 	int (*set_tune_state)(struct dvb_frontend *fe, enum frontend_tune_state tune_state);
 	int (*set_slave_frontend)(struct dvb_frontend *fe, struct dvb_frontend *fe_slave);
-	int (*remove_slave_frontend)(struct dvb_frontend *fe);
 	struct dvb_frontend *(*get_slave_frontend)(struct dvb_frontend *fe, int slave_index);
 	int (*i2c_enumeration)(struct i2c_adapter *host, int no_of_demods,
 		u8 default_addr, u8 first_addr, u8 is_dib8096p);

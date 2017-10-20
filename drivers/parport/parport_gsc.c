@@ -346,7 +346,7 @@ struct parport *parport_gsc_probe_port(unsigned long base,
 
 static int parport_count;
 
-static int parport_init_chip(struct parisc_device *dev)
+static int __init parport_init_chip(struct parisc_device *dev)
 {
 	struct parport *p;
 	unsigned long port;
@@ -381,7 +381,7 @@ static int parport_init_chip(struct parisc_device *dev)
 	return 0;
 }
 
-static int parport_remove_chip(struct parisc_device *dev)
+static int __exit parport_remove_chip(struct parisc_device *dev)
 {
 	struct parport *p = dev_get_drvdata(&dev->dev);
 	if (p) {
@@ -403,18 +403,18 @@ static int parport_remove_chip(struct parisc_device *dev)
 	return 0;
 }
 
-static struct parisc_device_id parport_tbl[] = {
+static const struct parisc_device_id parport_tbl[] __initconst = {
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x74 },
 	{ 0, }
 };
 
 MODULE_DEVICE_TABLE(parisc, parport_tbl);
 
-static struct parisc_driver parport_driver = {
+static struct parisc_driver parport_driver __refdata = {
 	.name		= "Parallel",
 	.id_table	= parport_tbl,
 	.probe		= parport_init_chip,
-	.remove		= parport_remove_chip,
+	.remove		= __exit_p(parport_remove_chip),
 };
 
 int parport_gsc_init(void)

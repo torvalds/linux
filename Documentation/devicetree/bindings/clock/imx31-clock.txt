@@ -87,5 +87,4 @@ uart1: serial@43f90000 {
 	interrupts = <45>;
 	clocks = <&clks 10>, <&clks 30>;
 	clock-names = "ipg", "per";
-	status = "disabled";
 };

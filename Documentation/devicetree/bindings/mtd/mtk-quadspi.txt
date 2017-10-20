@@ -37,7 +37,6 @@ nor_flash: spi@1100d000 {
 	clock-names = "spi", "sf";
 	#address-cells = <1>;
 	#size-cells = <0>;
-	status = "disabled";
 
 	flash@0 {
 		compatible = "jedec,spi-nor";

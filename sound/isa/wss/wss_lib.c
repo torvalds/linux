@@ -1452,7 +1452,7 @@ static int snd_wss_probe(struct snd_wss *chip)
 
  */
 
-static struct snd_pcm_hardware snd_wss_playback =
+static const struct snd_pcm_hardware snd_wss_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID |
@@ -1472,7 +1472,7 @@ static struct snd_pcm_hardware snd_wss_playback =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_wss_capture =
+static const struct snd_pcm_hardware snd_wss_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID |
@@ -1901,7 +1901,7 @@ int snd_wss_create(struct snd_card *card,
 }
 EXPORT_SYMBOL(snd_wss_create);
 
-static struct snd_pcm_ops snd_wss_playback_ops = {
+static const struct snd_pcm_ops snd_wss_playback_ops = {
 	.open =		snd_wss_playback_open,
 	.close =	snd_wss_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1912,7 +1912,7 @@ static struct snd_pcm_ops snd_wss_playback_ops = {
 	.pointer =	snd_wss_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_wss_capture_ops = {
+static const struct snd_pcm_ops snd_wss_capture_ops = {
 	.open =		snd_wss_capture_open,
 	.close =	snd_wss_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,

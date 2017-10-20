@@ -602,7 +602,7 @@ static const struct v4l2_ioctl_ops g2d_ioctl_ops = {
 	.vidioc_cropcap			= vidioc_cropcap,
 };
 
-static struct video_device g2d_videodev = {
+static const struct video_device g2d_videodev = {
 	.name		= G2D_NAME,
 	.fops		= &g2d_fops,
 	.ioctl_ops	= &g2d_ioctl_ops,
@@ -611,7 +611,7 @@ static struct video_device g2d_videodev = {
 	.vfl_dir	= VFL_DIR_M2M,
 };
 
-static struct v4l2_m2m_ops g2d_m2m_ops = {
+static const struct v4l2_m2m_ops g2d_m2m_ops = {
 	.device_run	= device_run,
 	.job_abort	= job_abort,
 };

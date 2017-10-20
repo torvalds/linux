@@ -340,17 +340,17 @@ struct v4l2_ctrl_config {
  * v4l2_ctrl_fill - Fill in the control fields based on the control ID.
  *
  * @id: ID of the control
- * @name: name of the control
- * @type: type of the control
- * @min: minimum value for the control
- * @max: maximum value for the control
- * @step: control step
- * @def: default value for the control
- * @flags: flags to be used on the control
+ * @name: pointer to be filled with a string with the name of the control
+ * @type: pointer for storing the type of the control
+ * @min: pointer for storing the minimum value for the control
+ * @max: pointer for storing the maximum value for the control
+ * @step: pointer for storing the control step
+ * @def: pointer for storing the default value for the control
+ * @flags: pointer for storing the flags to be used on the control
  *
  * This works for all standard V4L2 controls.
  * For non-standard controls it will only fill in the given arguments
- * and @name will be %NULL.
+ * and @name content will be set to %NULL.
  *
  * This function will overwrite the contents of @name, @type and @flags.
  * The contents of @min, @max, @step and @def may be modified depending on

@@ -88,8 +88,6 @@
 #include <linux/poll.h>
 
 
-/* Version Information */
-#define DRIVER_VERSION "v0.96"
 #define DRIVER_AUTHOR "Juergen Stuber <starblue@sourceforge.net>"
 #define DRIVER_DESC "LEGO USB Tower Driver"
 

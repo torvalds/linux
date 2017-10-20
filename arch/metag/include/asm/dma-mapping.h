@@ -9,7 +9,7 @@ static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 }
 
 /*
- * dma_alloc_noncoherent() returns non-cacheable memory, so there's no need to
+ * dma_alloc_attrs() always returns non-cacheable memory, so there's no need to
  * do any flushing here.
  */
 static inline void

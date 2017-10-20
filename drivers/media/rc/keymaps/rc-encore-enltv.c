@@ -89,10 +89,10 @@ static struct rc_map_table encore_enltv[] = {
 
 static struct rc_map_list encore_enltv_map = {
 	.map = {
-		.scan    = encore_enltv,
-		.size    = ARRAY_SIZE(encore_enltv),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_ENCORE_ENLTV,
+		.scan     = encore_enltv,
+		.size     = ARRAY_SIZE(encore_enltv),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_ENCORE_ENLTV,
 	}
 };
 

@@ -83,10 +83,10 @@ static void est_timer(unsigned long arg)
 	u64 rate, brate;
 
 	est_fetch_counters(est, &b);
-	brate = (b.bytes - est->last_bytes) << (8 - est->ewma_log);
+	brate = (b.bytes - est->last_bytes) << (10 - est->ewma_log - est->intvl_log);
 	brate -= (est->avbps >> est->ewma_log);
 
-	rate = (u64)(b.packets - est->last_packets) << (8 - est->ewma_log);
+	rate = (u64)(b.packets - est->last_packets) << (10 - est->ewma_log - est->intvl_log);
 	rate -= (est->avpps >> est->ewma_log);
 
 	write_seqcount_begin(&est->seq);

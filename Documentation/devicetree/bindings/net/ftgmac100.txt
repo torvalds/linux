@@ -30,6 +30,5 @@ Example:
 		compatible = "aspeed,ast2500-mac", "faraday,ftgmac100";
 		reg = <0x1e660000 0x180>;
 		interrupts = <2>;
-		status = "okay";
 		use-ncsi;
 	};

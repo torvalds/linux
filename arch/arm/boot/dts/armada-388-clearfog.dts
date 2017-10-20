@@ -62,7 +62,7 @@
 			};
 		};
 
-		pcie-controller {
+		pcie {
 			pcie@3,0 {
 				/* Port 2, Lane 0. CON2, nearest CPU. */
 				reset-gpios = <&expander0 2 GPIO_ACTIVE_LOW>;

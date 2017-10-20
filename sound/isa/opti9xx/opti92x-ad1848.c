@@ -151,7 +151,7 @@ static int snd_opti9xx_pnp_is_probed;
 
 #ifdef CONFIG_PNP
 
-static struct pnp_card_device_id snd_opti9xx_pnpids[] = {
+static const struct pnp_card_device_id snd_opti9xx_pnpids[] = {
 #ifndef OPTi93X
 	/* OPTi 82C924 */
 	{ .id = "OPT0924",
@@ -879,13 +879,15 @@ static int snd_opti9xx_probe(struct snd_card *card)
 	strcpy(card->driver, chip->name);
 	sprintf(card->shortname, "OPTi %s", card->driver);
 #if defined(CS4231) || defined(OPTi93X)
-	sprintf(card->longname, "%s, %s at 0x%lx, irq %d, dma %d&%d",
-		card->shortname, codec->pcm->name,
-		chip->wss_base + 4, irq, dma1, xdma2);
+	snprintf(card->longname, sizeof(card->longname),
+		 "%s, %s at 0x%lx, irq %d, dma %d&%d",
+		 card->shortname, codec->pcm->name,
+		 chip->wss_base + 4, irq, dma1, xdma2);
 #else
-	sprintf(card->longname, "%s, %s at 0x%lx, irq %d, dma %d",
-		card->shortname, codec->pcm->name, chip->wss_base + 4, irq,
-		dma1);
+	snprintf(card->longname, sizeof(card->longname),
+		 "%s, %s at 0x%lx, irq %d, dma %d",
+		 card->shortname, codec->pcm->name, chip->wss_base + 4, irq,
+		 dma1);
 #endif	/* CS4231 || OPTi93X */
 
 	if (mpu_port <= 0 || mpu_port == SNDRV_AUTO_PORT)

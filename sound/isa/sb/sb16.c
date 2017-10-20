@@ -145,7 +145,7 @@ struct snd_card_sb16 {
 
 #ifdef CONFIG_PNP
 
-static struct pnp_card_device_id snd_sb16_pnpids[] = {
+static const struct pnp_card_device_id snd_sb16_pnpids[] = {
 #ifndef SNDRV_SBAWE
 	/* Sound Blaster 16 PnP */
 	{ .id = "CTL0024", .devs = { { "CTL0031" } } },

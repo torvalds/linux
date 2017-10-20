@@ -16,7 +16,7 @@
 
 #include "../aq_common.h"
 
-#define HW_ATL_B0_MTU_JUMBO (16000U)
+#define HW_ATL_B0_MTU_JUMBO  16352U
 #define HW_ATL_B0_MTU        1514U
 
 #define HW_ATL_B0_TX_RINGS 4U

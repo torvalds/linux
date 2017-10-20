@@ -109,20 +109,25 @@ ENTRY(__clean_dcache_area_pou)
 ENDPROC(__clean_dcache_area_pou)
 
 /*
+ *	__inval_dcache_area(kaddr, size)
+ *
+ * 	Ensure that any D-cache lines for the interval [kaddr, kaddr+size)
+ * 	are invalidated. Any partial lines at the ends of the interval are
+ *	also cleaned to PoC to prevent data loss.
+ *
+ *	- kaddr   - kernel address
+ *	- size    - size in question
+ */
+ENTRY(__inval_dcache_area)
+	/* FALLTHROUGH */
+
+/*
  *	__dma_inv_area(start, size)
  *	- start   - virtual start address of region
  *	- size    - size in question
  */
 __dma_inv_area:
 	add	x1, x1, x0
-	/* FALLTHROUGH */
-
-/*
- *	__inval_cache_range(start, end)
- *	- start   - start address of region
- *	- end     - end address of region
- */
-ENTRY(__inval_cache_range)
 	dcache_line_size x2, x3
 	sub	x3, x2, #1
 	tst	x1, x3				// end cache line aligned?
@@ -140,7 +145,7 @@ ENTRY(__inval_cache_range)
 	b.lo	2b
 	dsb	sy
 	ret
-ENDPIPROC(__inval_cache_range)
+ENDPIPROC(__inval_dcache_area)
 ENDPROC(__dma_inv_area)
 
 /*
@@ -165,6 +170,20 @@ __dma_clean_area:
 	ret
 ENDPIPROC(__clean_dcache_area_poc)
 ENDPROC(__dma_clean_area)
+
+/*
+ *	__clean_dcache_area_pop(kaddr, size)
+ *
+ * 	Ensure that any D-cache lines for the interval [kaddr, kaddr+size)
+ * 	are cleaned to the PoP.
+ *
+ *	- kaddr   - kernel address
+ *	- size    - size in question
+ */
+ENTRY(__clean_dcache_area_pop)
+	dcache_by_line_op cvap, sy, x0, x1, x2, x3
+	ret
+ENDPIPROC(__clean_dcache_area_pop)
 
 /*
  *	__dma_flush_area(start, size)

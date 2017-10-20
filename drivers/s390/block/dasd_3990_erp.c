@@ -2231,7 +2231,7 @@ static void dasd_3990_erp_account_error(struct dasd_ccw_req *erp)
 	struct dasd_device *device = erp->startdev;
 	__u8 lpum = erp->refers->irb.esw.esw1.lpum;
 	int pos = pathmask_to_pos(lpum);
-	unsigned long long clk;
+	unsigned long clk;
 
 	if (!device->path_thrhld)
 		return;

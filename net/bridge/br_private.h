@@ -1091,6 +1091,11 @@ int br_switchdev_set_port_flag(struct net_bridge_port *p,
 			       unsigned long mask);
 void br_switchdev_fdb_notify(const struct net_bridge_fdb_entry *fdb,
 			     int type);
+
+static inline void br_switchdev_frame_unmark(struct sk_buff *skb)
+{
+	skb->offload_fwd_mark = 0;
+}
 #else
 static inline int nbp_switchdev_mark_set(struct net_bridge_port *p)
 {
@@ -1117,6 +1122,10 @@ static inline int br_switchdev_set_port_flag(struct net_bridge_port *p,
 
 static inline void
 br_switchdev_fdb_notify(const struct net_bridge_fdb_entry *fdb, int type)
+{
+}
+
+static inline void br_switchdev_frame_unmark(struct sk_buff *skb)
 {
 }
 #endif /* CONFIG_NET_SWITCHDEV */

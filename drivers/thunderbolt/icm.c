@@ -13,9 +13,9 @@
  */
 
 #include <linux/delay.h>
-#include <linux/dmi.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
+#include <linux/platform_data/x86/apple.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
@@ -102,11 +102,6 @@ static inline u64 get_route(u32 route_hi, u32 route_lo)
 	return (u64)route_hi << 32 | route_lo;
 }
 
-static inline bool is_apple(void)
-{
-	return dmi_match(DMI_BOARD_VENDOR, "Apple Inc.");
-}
-
 static bool icm_match(const struct tb_cfg_request *req,
 		      const struct ctl_pkg *pkg)
 {
@@ -176,7 +171,7 @@ static int icm_request(struct tb *tb, const void *request, size_t request_size,
 
 static bool icm_fr_is_supported(struct tb *tb)
 {
-	return !is_apple();
+	return !x86_apple_machine;
 }
 
 static inline int icm_fr_get_switch_index(u32 port)
@@ -517,7 +512,7 @@ static bool icm_ar_is_supported(struct tb *tb)
 	 * Starting from Alpine Ridge we can use ICM on Apple machines
 	 * as well. We just need to reset and re-enable it first.
 	 */
-	if (!is_apple())
+	if (!x86_apple_machine)
 		return true;
 
 	/*
@@ -1011,7 +1006,7 @@ static int icm_start(struct tb *tb)
 	 * don't provide images publicly either. To be on the safe side
 	 * prevent root switch NVM upgrade on Macs for now.
 	 */
-	tb->root_switch->no_nvm_upgrade = is_apple();
+	tb->root_switch->no_nvm_upgrade = x86_apple_machine;
 
 	ret = tb_switch_add(tb->root_switch);
 	if (ret)

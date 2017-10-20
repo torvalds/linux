@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Intel Corporation. All rights reserved.
+ * Copyright (c) 2013 - 2017 Intel Corporation. All rights reserved.
  * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
  * All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
@@ -1742,38 +1742,32 @@ static void qib_setup_6120_interrupt(struct qib_devdata *dd)
  */
 static void pe_boardname(struct qib_devdata *dd)
 {
-	char *n;
-	u32 boardid, namelen;
+	u32 boardid;
 
 	boardid = SYM_FIELD(dd->revision, Revision,
 			    BoardID);
 
 	switch (boardid) {
 	case 2:
-		n = "InfiniPath_QLE7140";
+		dd->boardname = "InfiniPath_QLE7140";
 		break;
 	default:
 		qib_dev_err(dd, "Unknown 6120 board with ID %u\n", boardid);
-		n = "Unknown_InfiniPath_6120";
+		dd->boardname = "Unknown_InfiniPath_6120";
 		break;
 	}
-	namelen = strlen(n) + 1;
-	dd->boardname = kmalloc(namelen, GFP_KERNEL);
-	if (dd->boardname)
-		snprintf(dd->boardname, namelen, "%s", n);
 
 	if (dd->majrev != 4 || !dd->minrev || dd->minrev > 2)
 		qib_dev_err(dd,
-			"Unsupported InfiniPath hardware revision %u.%u!\n",
-			dd->majrev, dd->minrev);
+			    "Unsupported InfiniPath hardware revision %u.%u!\n",
+			    dd->majrev, dd->minrev);
 
 	snprintf(dd->boardversion, sizeof(dd->boardversion),
 		 "ChipABI %u.%u, %s, InfiniPath%u %u.%u, SW Compat %u\n",
 		 QIB_CHIP_VERS_MAJ, QIB_CHIP_VERS_MIN, dd->boardname,
-		 (unsigned)SYM_FIELD(dd->revision, Revision_R, Arch),
+		 (unsigned int)SYM_FIELD(dd->revision, Revision_R, Arch),
 		 dd->majrev, dd->minrev,
-		 (unsigned)SYM_FIELD(dd->revision, Revision_R, SW));
-
+		 (unsigned int)SYM_FIELD(dd->revision, Revision_R, SW));
 }
 
 /*
@@ -1838,7 +1832,7 @@ static int qib_6120_setup_reset(struct qib_devdata *dd)
 
 bail:
 	if (ret) {
-		if (qib_pcie_params(dd, dd->lbus_width, NULL, NULL))
+		if (qib_pcie_params(dd, dd->lbus_width, NULL))
 			qib_dev_err(dd,
 				"Reset failed to setup PCIe or interrupts; continuing anyway\n");
 		/* clear the reset error, init error/hwerror mask */
@@ -3562,7 +3556,7 @@ struct qib_devdata *qib_init_iba6120_funcs(struct pci_dev *pdev,
 	if (qib_mini_init)
 		goto bail;
 
-	if (qib_pcie_params(dd, 8, NULL, NULL))
+	if (qib_pcie_params(dd, 8, NULL))
 		qib_dev_err(dd,
 			"Failed to setup PCIe or interrupts; continuing anyway\n");
 	dd->cspec->irq = pdev->irq; /* save IRQ */

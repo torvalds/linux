@@ -610,17 +610,6 @@ int msm_gem_sync_object(struct drm_gem_object *obj,
 	struct dma_fence *fence;
 	int i, ret;
 
-	if (!exclusive) {
-		/* NOTE: _reserve_shared() must happen before _add_shared_fence(),
-		 * which makes this a slightly strange place to call it.  OTOH this
-		 * is a convenient can-fail point to hook it in.  (And similar to
-		 * how etnaviv and nouveau handle this.)
-		 */
-		ret = reservation_object_reserve_shared(msm_obj->resv);
-		if (ret)
-			return ret;
-	}
-
 	fobj = reservation_object_get_list(msm_obj->resv);
 	if (!fobj || (fobj->shared_count == 0)) {
 		fence = reservation_object_get_excl(msm_obj->resv);
@@ -1023,4 +1012,50 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 fail:
 	drm_gem_object_unreference_unlocked(obj);
 	return ERR_PTR(ret);
+}
+
+static void *_msm_gem_kernel_new(struct drm_device *dev, uint32_t size,
+		uint32_t flags, struct msm_gem_address_space *aspace,
+		struct drm_gem_object **bo, uint64_t *iova, bool locked)
+{
+	void *vaddr;
+	struct drm_gem_object *obj = _msm_gem_new(dev, size, flags, locked);
+	int ret;
+
+	if (IS_ERR(obj))
+		return ERR_CAST(obj);
+
+	if (iova) {
+		ret = msm_gem_get_iova(obj, aspace, iova);
+		if (ret) {
+			drm_gem_object_unreference(obj);
+			return ERR_PTR(ret);
+		}
+	}
+
+	vaddr = msm_gem_get_vaddr(obj);
+	if (IS_ERR(vaddr)) {
+		msm_gem_put_iova(obj, aspace);
+		drm_gem_object_unreference(obj);
+		return ERR_CAST(vaddr);
+	}
+
+	if (bo)
+		*bo = obj;
+
+	return vaddr;
+}
+
+void *msm_gem_kernel_new(struct drm_device *dev, uint32_t size,
+		uint32_t flags, struct msm_gem_address_space *aspace,
+		struct drm_gem_object **bo, uint64_t *iova)
+{
+	return _msm_gem_kernel_new(dev, size, flags, aspace, bo, iova, false);
+}
+
+void *msm_gem_kernel_new_locked(struct drm_device *dev, uint32_t size,
+		uint32_t flags, struct msm_gem_address_space *aspace,
+		struct drm_gem_object **bo, uint64_t *iova)
+{
+	return _msm_gem_kernel_new(dev, size, flags, aspace, bo, iova, true);
 }

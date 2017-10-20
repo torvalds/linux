@@ -80,7 +80,7 @@ static int tee_shm_op_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 			       size, vma->vm_page_prot);
 }
 
-static struct dma_buf_ops tee_shm_dma_buf_ops = {
+static const struct dma_buf_ops tee_shm_dma_buf_ops = {
 	.map_dma_buf = tee_shm_op_map_dma_buf,
 	.unmap_dma_buf = tee_shm_op_unmap_dma_buf,
 	.release = tee_shm_op_release,

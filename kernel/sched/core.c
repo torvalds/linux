@@ -951,8 +951,13 @@ struct migration_arg {
 static struct rq *__migrate_task(struct rq *rq, struct rq_flags *rf,
 				 struct task_struct *p, int dest_cpu)
 {
-	if (unlikely(!cpu_active(dest_cpu)))
-		return rq;
+	if (p->flags & PF_KTHREAD) {
+		if (unlikely(!cpu_online(dest_cpu)))
+			return rq;
+	} else {
+		if (unlikely(!cpu_active(dest_cpu)))
+			return rq;
+	}
 
 	/* Affinity changed (again). */
 	if (!cpumask_test_cpu(dest_cpu, &p->cpus_allowed))
@@ -1168,6 +1173,10 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 	WARN_ON_ONCE(debug_locks && !(lockdep_is_held(&p->pi_lock) ||
 				      lockdep_is_held(&task_rq(p)->lock)));
 #endif
+	/*
+	 * Clearly, migrating tasks to offline CPUs is a fairly daft thing.
+	 */
+	WARN_ON_ONCE(!cpu_online(new_cpu));
 #endif
 
 	trace_sched_migrate_task(p, new_cpu);
@@ -1967,8 +1976,8 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 	 * reordered with p->state check below. This pairs with mb() in
 	 * set_current_state() the waiting thread does.
 	 */
-	smp_mb__before_spinlock();
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
+	smp_mb__after_spinlock();
 	if (!(p->state & state))
 		goto out;
 
@@ -2635,6 +2644,16 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 	prev_state = prev->state;
 	vtime_task_switch(prev);
 	perf_event_task_sched_in(prev, current);
+	/*
+	 * The membarrier system call requires a full memory barrier
+	 * after storing to rq->curr, before going back to user-space.
+	 *
+	 * TODO: This smp_mb__after_unlock_lock can go away if PPC end
+	 * up adding a full barrier to switch_mm(), or we should figure
+	 * out if a smp_mb__after_unlock_lock is really the proper API
+	 * to use.
+	 */
+	smp_mb__after_unlock_lock();
 	finish_lock_switch(rq, prev);
 	finish_arch_post_lock_switch();
 
@@ -3281,8 +3300,8 @@ static void __sched notrace __schedule(bool preempt)
 	 * can't be reordered with __set_current_state(TASK_INTERRUPTIBLE)
 	 * done by the caller to avoid the race with signal_wake_up().
 	 */
-	smp_mb__before_spinlock();
 	rq_lock(rq, &rf);
+	smp_mb__after_spinlock();
 
 	/* Promote REQ to ACT */
 	rq->clock_update_flags <<= 1;
@@ -3324,6 +3343,21 @@ static void __sched notrace __schedule(bool preempt)
 	if (likely(prev != next)) {
 		rq->nr_switches++;
 		rq->curr = next;
+		/*
+		 * The membarrier system call requires each architecture
+		 * to have a full memory barrier after updating
+		 * rq->curr, before returning to user-space. For TSO
+		 * (e.g. x86), the architecture must provide its own
+		 * barrier in switch_mm(). For weakly ordered machines
+		 * for which spin_unlock() acts as a full memory
+		 * barrier, finish_lock_switch() in common code takes
+		 * care of this barrier. For weakly ordered machines for
+		 * which spin_unlock() acts as a RELEASE barrier (only
+		 * arm64 and PowerPC), arm64 has a full barrier in
+		 * switch_to(), and PowerPC has
+		 * smp_mb__after_unlock_lock() before
+		 * finish_lock_switch().
+		 */
 		++*switch_count;
 
 		trace_sched_switch(preempt, prev, next);
@@ -3352,8 +3386,8 @@ void __noreturn do_task_dead(void)
 	 * To avoid it, we have to wait for releasing tsk->pi_lock which
 	 * is held by try_to_wake_up()
 	 */
-	smp_mb();
-	raw_spin_unlock_wait(&current->pi_lock);
+	raw_spin_lock_irq(&current->pi_lock);
+	raw_spin_unlock_irq(&current->pi_lock);
 
 	/* Causes final put_task_struct in finish_task_switch(): */
 	__set_current_state(TASK_DEAD);
@@ -5103,24 +5137,17 @@ out_unlock:
 	return retval;
 }
 
-static const char stat_nam[] = TASK_STATE_TO_CHAR_STR;
-
 void sched_show_task(struct task_struct *p)
 {
 	unsigned long free = 0;
 	int ppid;
-	unsigned long state = p->state;
-
-	/* Make sure the string lines up properly with the number of task states: */
-	BUILD_BUG_ON(sizeof(TASK_STATE_TO_CHAR_STR)-1 != ilog2(TASK_STATE_MAX)+1);
 
 	if (!try_get_task_stack(p))
 		return;
-	if (state)
-		state = __ffs(state) + 1;
-	printk(KERN_INFO "%-15.15s %c", p->comm,
-		state < sizeof(stat_nam) - 1 ? stat_nam[state] : '?');
-	if (state == TASK_RUNNING)
+
+	printk(KERN_INFO "%-15.15s %c", p->comm, task_state_to_char(p));
+
+	if (p->state == TASK_RUNNING)
 		printk(KERN_CONT "  running task    ");
 #ifdef CONFIG_DEBUG_STACK_USAGE
 	free = stack_not_used(p);
@@ -5138,6 +5165,28 @@ void sched_show_task(struct task_struct *p)
 	show_stack(p, NULL);
 	put_task_stack(p);
 }
+
+static inline bool
+state_filter_match(unsigned long state_filter, struct task_struct *p)
+{
+	/* no filter, everything matches */
+	if (!state_filter)
+		return true;
+
+	/* filter, but doesn't match */
+	if (!(p->state & state_filter))
+		return false;
+
+	/*
+	 * When looking for TASK_UNINTERRUPTIBLE skip TASK_IDLE (allows
+	 * TASK_KILLABLE).
+	 */
+	if (state_filter == TASK_UNINTERRUPTIBLE && p->state == TASK_IDLE)
+		return false;
+
+	return true;
+}
+
 
 void show_state_filter(unsigned long state_filter)
 {
@@ -5161,7 +5210,7 @@ void show_state_filter(unsigned long state_filter)
 		 */
 		touch_nmi_watchdog();
 		touch_all_softlockup_watchdogs();
-		if (!state_filter || (p->state & state_filter))
+		if (state_filter_match(state_filter, p))
 			sched_show_task(p);
 	}
 
@@ -5175,11 +5224,6 @@ void show_state_filter(unsigned long state_filter)
 	 */
 	if (!state_filter)
 		debug_show_all_locks();
-}
-
-void init_idle_bootup_task(struct task_struct *idle)
-{
-	idle->sched_class = &idle_sched_class;
 }
 
 /**
@@ -5438,7 +5482,7 @@ static void migrate_tasks(struct rq *dead_rq, struct rq_flags *rf)
 		 */
 		next = pick_next_task(rq, &fake_task, rf);
 		BUG_ON(!next);
-		next->sched_class->put_prev_task(rq, next);
+		put_prev_task(rq, next);
 
 		/*
 		 * Rules for changing task_struct::cpus_allowed are holding
@@ -5538,16 +5582,15 @@ static void cpuset_cpu_active(void)
 		 * operation in the resume sequence, just build a single sched
 		 * domain, ignoring cpusets.
 		 */
-		num_cpus_frozen--;
-		if (likely(num_cpus_frozen)) {
-			partition_sched_domains(1, NULL, NULL);
+		partition_sched_domains(1, NULL, NULL);
+		if (--num_cpus_frozen)
 			return;
-		}
 		/*
 		 * This is the last CPU online operation. So fall through and
 		 * restore the original sched domains by considering the
 		 * cpuset configurations.
 		 */
+		cpuset_force_rebuild();
 	}
 	cpuset_update_active_cpus();
 }

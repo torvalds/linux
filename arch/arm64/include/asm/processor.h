@@ -112,7 +112,7 @@ void tls_preserve_current_state(void);
 static inline void start_thread_common(struct pt_regs *regs, unsigned long pc)
 {
 	memset(regs, 0, sizeof(*regs));
-	regs->syscallno = ~0UL;
+	forget_syscall(regs);
 	regs->pc = pc;
 }
 
@@ -159,7 +159,7 @@ extern struct task_struct *cpu_switch_to(struct task_struct *prev,
 					 struct task_struct *next);
 
 #define task_pt_regs(p) \
-	((struct pt_regs *)(THREAD_START_SP + task_stack_page(p)) - 1)
+	((struct pt_regs *)(THREAD_SIZE + task_stack_page(p)) - 1)
 
 #define KSTK_EIP(tsk)	((unsigned long)task_pt_regs(tsk)->pc)
 #define KSTK_ESP(tsk)	user_stack_pointer(task_pt_regs(tsk))

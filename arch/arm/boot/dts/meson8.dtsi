@@ -168,8 +168,16 @@
 &cbus {
 	clkc: clock-controller@4000 {
 		#clock-cells = <1>;
+		#reset-cells = <1>;
 		compatible = "amlogic,meson8-clkc";
 		reg = <0x8000 0x4>, <0x4000 0x460>;
+	};
+
+	pwm_ef: pwm@86c0 {
+		compatible = "amlogic,meson8-pwm", "amlogic,meson8b-pwm";
+		reg = <0x86c0 0x10>;
+		#pwm-cells = <3>;
+		status = "disabled";
 	};
 
 	pinctrl_cbus: pinctrl@9880 {
@@ -268,6 +276,14 @@
 	arm,data-latency = <3 3 3>;
 	arm,tag-latency = <2 2 2>;
 	arm,filter-ranges = <0x100000 0xc0000000>;
+};
+
+&pwm_ab {
+	compatible = "amlogic,meson8-pwm", "amlogic,meson8b-pwm";
+};
+
+&pwm_cd {
+	compatible = "amlogic,meson8-pwm", "amlogic,meson8b-pwm";
 };
 
 &saradc {

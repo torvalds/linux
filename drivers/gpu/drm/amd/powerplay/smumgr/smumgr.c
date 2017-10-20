@@ -43,7 +43,8 @@ MODULE_FIRMWARE("amdgpu/polaris11_smc.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_smc_sk.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_k_smc.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_smc.bin");
-
+MODULE_FIRMWARE("amdgpu/vega10_smc.bin");
+MODULE_FIRMWARE("amdgpu/vega10_acg_smc.bin");
 
 int smum_early_init(struct pp_instance *handle)
 {
@@ -402,4 +403,12 @@ int smum_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
 				hwmgr, request);
 
 	return 0;
+}
+
+bool smum_is_hw_avfs_present(struct pp_smumgr *smumgr)
+{
+	if (smumgr->smumgr_funcs->is_hw_avfs_present)
+		return smumgr->smumgr_funcs->is_hw_avfs_present(smumgr);
+
+	return false;
 }

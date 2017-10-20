@@ -243,8 +243,8 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 	union sctp_addr *daddr = &t->ipaddr;
 	union sctp_addr dst_saddr;
 	struct in6_addr *final_p, final;
+	enum sctp_scope scope;
 	__u8 matchlen = 0;
-	sctp_scope_t scope;
 
 	memset(fl6, 0, sizeof(struct flowi6));
 	fl6->daddr = daddr->v6.sin6_addr;
@@ -497,7 +497,7 @@ static void sctp_v6_from_addr_param(union sctp_addr *addr,
 static int sctp_v6_to_addr_param(const union sctp_addr *addr,
 				 union sctp_addr_param *param)
 {
-	int length = sizeof(sctp_ipv6addr_param_t);
+	int length = sizeof(struct sctp_ipv6addr_param);
 
 	param->v6.param_hdr.type = SCTP_PARAM_IPV6_ADDRESS;
 	param->v6.param_hdr.length = htons(length);
@@ -626,10 +626,10 @@ static int sctp_v6_addr_valid(union sctp_addr *addr,
 }
 
 /* What is the scope of 'addr'?  */
-static sctp_scope_t sctp_v6_scope(union sctp_addr *addr)
+static enum sctp_scope sctp_v6_scope(union sctp_addr *addr)
 {
+	enum sctp_scope retval;
 	int v6scope;
-	sctp_scope_t retval;
 
 	/* The IPv6 scope is really a set of bit fields.
 	 * See IFA_* in <net/if_inet6.h>.  Map to a generic SCTP scope.

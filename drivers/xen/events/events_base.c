@@ -1653,10 +1653,8 @@ void xen_callback_vector(void)
 			return;
 		}
 		pr_info("Xen HVM callback vector for event delivery is enabled\n");
-		/* in the restore case the vector has already been allocated */
-		if (!test_bit(HYPERVISOR_CALLBACK_VECTOR, used_vectors))
-			alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR,
-					xen_hvm_callback_vector);
+		alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR,
+				xen_hvm_callback_vector);
 	}
 }
 #else

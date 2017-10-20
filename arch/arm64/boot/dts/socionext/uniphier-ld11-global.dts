@@ -9,7 +9,7 @@
  */
 
 /dts-v1/;
-/include/ "uniphier-ld11.dtsi"
+#include "uniphier-ld11.dtsi"
 
 / {
 	model = "UniPhier LD11 Global Board (REF_LD11_GP)";
@@ -66,5 +66,9 @@
 };
 
 &usb2 {
+	status = "okay";
+};
+
+&nand {
 	status = "okay";
 };

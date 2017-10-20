@@ -498,11 +498,11 @@ And a couple of implicit varieties:
      This means that ACQUIRE acts as a minimal "acquire" operation and
      RELEASE acts as a minimal "release" operation.
 
-A subset of the atomic operations described in core-api/atomic_ops.rst have
-ACQUIRE and RELEASE variants in addition to fully-ordered and relaxed (no
-barrier semantics) definitions.  For compound atomics performing both a load
-and a store, ACQUIRE semantics apply only to the load and RELEASE semantics
-apply only to the store portion of the operation.
+A subset of the atomic operations described in atomic_t.txt have ACQUIRE and
+RELEASE variants in addition to fully-ordered and relaxed (no barrier
+semantics) definitions.  For compound atomics performing both a load and a
+store, ACQUIRE semantics apply only to the load and RELEASE semantics apply
+only to the store portion of the operation.
 
 Memory barriers are only required where there's a possibility of interaction
 between two CPUs or between a CPU and a device.  If it can be guaranteed that
@@ -594,29 +594,6 @@ between the address load and the data load:
 This enforces the occurrence of one of the two implications, and prevents the
 third possibility from arising.
 
-A data-dependency barrier must also order against dependent writes:
-
-	CPU 1		      CPU 2
-	===============	      ===============
-	{ A == 1, B == 2, C = 3, P == &A, Q == &C }
-	B = 4;
-	<write barrier>
-	WRITE_ONCE(P, &B);
-			      Q = READ_ONCE(P);
-			      <data dependency barrier>
-			      *Q = 5;
-
-The data-dependency barrier must order the read into Q with the store
-into *Q.  This prohibits this outcome:
-
-	(Q == &B) && (B == 4)
-
-Please note that this pattern should be rare.  After all, the whole point
-of dependency ordering is to -prevent- writes to the data structure, along
-with the expensive cache misses associated with those writes.  This pattern
-can be used to record rare error conditions and the like, and the ordering
-prevents such records from being lost.
-
 
 [!] Note that this extremely counterintuitive situation arises most easily on
 machines with split caches, so that, for example, one cache bank processes
@@ -626,6 +603,36 @@ variable B might be stored in an even-numbered cache line.  Then, if the
 even-numbered bank of the reading CPU's cache is extremely busy while the
 odd-numbered bank is idle, one can see the new value of the pointer P (&B),
 but the old value of the variable B (2).
+
+
+A data-dependency barrier is not required to order dependent writes
+because the CPUs that the Linux kernel supports don't do writes
+until they are certain (1) that the write will actually happen, (2)
+of the location of the write, and (3) of the value to be written.
+But please carefully read the "CONTROL DEPENDENCIES" section and the
+Documentation/RCU/rcu_dereference.txt file:  The compiler can and does
+break dependencies in a great many highly creative ways.
+
+	CPU 1		      CPU 2
+	===============	      ===============
+	{ A == 1, B == 2, C = 3, P == &A, Q == &C }
+	B = 4;
+	<write barrier>
+	WRITE_ONCE(P, &B);
+			      Q = READ_ONCE(P);
+			      WRITE_ONCE(*Q, 5);
+
+Therefore, no data-dependency barrier is required to order the read into
+Q with the store into *Q.  In other words, this outcome is prohibited,
+even without a data-dependency barrier:
+
+	(Q == &B) && (B == 4)
+
+Please note that this pattern should be rare.  After all, the whole point
+of dependency ordering is to -prevent- writes to the data structure, along
+with the expensive cache misses associated with those writes.  This pattern
+can be used to record rare error conditions and the like, and the CPUs'
+naturally occurring ordering prevents such records from being lost.
 
 
 The data dependency barrier is very important to the RCU system,
@@ -1876,8 +1883,7 @@ There are some more advanced barrier functions:
      This makes sure that the death mark on the object is perceived to be set
      *before* the reference counter is decremented.
 
-     See Documentation/core-api/atomic_ops.rst for more information.  See the
-     "Atomic operations" subsection for information on where to use these.
+     See Documentation/atomic_{t,bitops}.txt for more information.
 
 
  (*) lockless_dereference();
@@ -1982,10 +1988,7 @@ for each construct.  These operations all imply certain barriers:
      ACQUIRE operation has completed.
 
      Memory operations issued before the ACQUIRE may be completed after
-     the ACQUIRE operation has completed.  An smp_mb__before_spinlock(),
-     combined with a following ACQUIRE, orders prior stores against
-     subsequent loads and stores.  Note that this is weaker than smp_mb()!
-     The smp_mb__before_spinlock() primitive is free on many architectures.
+     the ACQUIRE operation has completed.
 
  (2) RELEASE operation implication:
 
@@ -2503,88 +2506,7 @@ operations are noted specially as some of them imply full memory barriers and
 some don't, but they're very heavily relied on as a group throughout the
 kernel.
 
-Any atomic operation that modifies some state in memory and returns information
-about the state (old or new) implies an SMP-conditional general memory barrier
-(smp_mb()) on each side of the actual operation (with the exception of
-explicit lock operations, described later).  These include:
-
-	xchg();
-	atomic_xchg();			atomic_long_xchg();
-	atomic_inc_return();		atomic_long_inc_return();
-	atomic_dec_return();		atomic_long_dec_return();
-	atomic_add_return();		atomic_long_add_return();
-	atomic_sub_return();		atomic_long_sub_return();
-	atomic_inc_and_test();		atomic_long_inc_and_test();
-	atomic_dec_and_test();		atomic_long_dec_and_test();
-	atomic_sub_and_test();		atomic_long_sub_and_test();
-	atomic_add_negative();		atomic_long_add_negative();
-	test_and_set_bit();
-	test_and_clear_bit();
-	test_and_change_bit();
-
-	/* when succeeds */
-	cmpxchg();
-	atomic_cmpxchg();		atomic_long_cmpxchg();
-	atomic_add_unless();		atomic_long_add_unless();
-
-These are used for such things as implementing ACQUIRE-class and RELEASE-class
-operations and adjusting reference counters towards object destruction, and as
-such the implicit memory barrier effects are necessary.
-
-
-The following operations are potential problems as they do _not_ imply memory
-barriers, but might be used for implementing such things as RELEASE-class
-operations:
-
-	atomic_set();
-	set_bit();
-	clear_bit();
-	change_bit();
-
-With these the appropriate explicit memory barrier should be used if necessary
-(smp_mb__before_atomic() for instance).
-
-
-The following also do _not_ imply memory barriers, and so may require explicit
-memory barriers under some circumstances (smp_mb__before_atomic() for
-instance):
-
-	atomic_add();
-	atomic_sub();
-	atomic_inc();
-	atomic_dec();
-
-If they're used for statistics generation, then they probably don't need memory
-barriers, unless there's a coupling between statistical data.
-
-If they're used for reference counting on an object to control its lifetime,
-they probably don't need memory barriers because either the reference count
-will be adjusted inside a locked section, or the caller will already hold
-sufficient references to make the lock, and thus a memory barrier unnecessary.
-
-If they're used for constructing a lock of some description, then they probably
-do need memory barriers as a lock primitive generally has to do things in a
-specific order.
-
-Basically, each usage case has to be carefully considered as to whether memory
-barriers are needed or not.
-
-The following operations are special locking primitives:
-
-	test_and_set_bit_lock();
-	clear_bit_unlock();
-	__clear_bit_unlock();
-
-These implement ACQUIRE-class and RELEASE-class operations.  These should be
-used in preference to other operations when implementing locking primitives,
-because their implementations can be optimised on many architectures.
-
-[!] Note that special memory barrier primitives are available for these
-situations because on some CPUs the atomic instructions used imply full memory
-barriers, and so barrier instructions are superfluous in conjunction with them,
-and in such cases the special barrier primitives will be no-ops.
-
-See Documentation/core-api/atomic_ops.rst for more information.
+See Documentation/atomic_t.txt for more information.
 
 
 ACCESSING DEVICES

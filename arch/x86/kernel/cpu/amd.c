@@ -297,13 +297,29 @@ static int nearby_node(int apicid)
 }
 #endif
 
+#ifdef CONFIG_SMP
+/*
+ * Fix up cpu_core_id for pre-F17h systems to be in the
+ * [0 .. cores_per_node - 1] range. Not really needed but
+ * kept so as not to break existing setups.
+ */
+static void legacy_fixup_core_id(struct cpuinfo_x86 *c)
+{
+	u32 cus_per_node;
+
+	if (c->x86 >= 0x17)
+		return;
+
+	cus_per_node = c->x86_max_cores / nodes_per_socket;
+	c->cpu_core_id %= cus_per_node;
+}
+
 /*
  * Fixup core topology information for
  * (1) AMD multi-node processors
  *     Assumption: Number of cores in each internal node is the same.
  * (2) AMD processors supporting compute units
  */
-#ifdef CONFIG_SMP
 static void amd_get_topology(struct cpuinfo_x86 *c)
 {
 	u8 node_id;
@@ -354,15 +370,9 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
 	} else
 		return;
 
-	/* fixup multi-node processor information */
 	if (nodes_per_socket > 1) {
-		u32 cus_per_node;
-
 		set_cpu_cap(c, X86_FEATURE_AMD_DCM);
-		cus_per_node = c->x86_max_cores / nodes_per_socket;
-
-		/* core id has to be in the [0 .. cores_per_node - 1] range */
-		c->cpu_core_id %= cus_per_node;
+		legacy_fixup_core_id(c);
 	}
 }
 #endif
@@ -753,6 +763,16 @@ static void init_amd_bd(struct cpuinfo_x86 *c)
 	}
 }
 
+static void init_amd_zn(struct cpuinfo_x86 *c)
+{
+	/*
+	 * Fix erratum 1076: CPB feature bit not being set in CPUID. It affects
+	 * all up to and including B1.
+	 */
+	if (c->x86_model <= 1 && c->x86_mask <= 1)
+		set_cpu_cap(c, X86_FEATURE_CPB);
+}
+
 static void init_amd(struct cpuinfo_x86 *c)
 {
 	early_init_amd(c);
@@ -781,6 +801,7 @@ static void init_amd(struct cpuinfo_x86 *c)
 	case 0x10: init_amd_gh(c); break;
 	case 0x12: init_amd_ln(c); break;
 	case 0x15: init_amd_bd(c); break;
+	case 0x17: init_amd_zn(c); break;
 	}
 
 	/* Enable workaround for FXSAVE leak */

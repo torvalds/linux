@@ -96,7 +96,7 @@ int ti_cm_get_macid(struct device *dev, int slave, u8 *mac_addr)
 	if (of_machine_is_compatible("ti,dra7"))
 		return davinci_emac_3517_get_macid(dev, 0x514, slave, mac_addr);
 
-	dev_err(dev, "incompatible machine/device type for reading mac address\n");
+	dev_info(dev, "incompatible machine/device type for reading mac address\n");
 	return -ENOENT;
 }
 EXPORT_SYMBOL_GPL(ti_cm_get_macid);

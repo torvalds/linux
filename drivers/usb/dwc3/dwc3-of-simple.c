@@ -25,7 +25,6 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
-#include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
@@ -96,7 +95,8 @@ static int dwc3_of_simple_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, simple);
 	simple->dev = dev;
 
-	ret = dwc3_of_simple_clk_init(simple, of_clk_get_parent_count(np));
+	ret = dwc3_of_simple_clk_init(simple, of_count_phandle_with_args(np,
+						"clocks", "#clock-cells"));
 	if (ret)
 		return ret;
 
@@ -177,6 +177,7 @@ static const struct of_device_id of_dwc3_simple_match[] = {
 	{ .compatible = "rockchip,rk3399-dwc3" },
 	{ .compatible = "xlnx,zynqmp-dwc3" },
 	{ .compatible = "cavium,octeon-7130-usb-uctl" },
+	{ .compatible = "sprd,sc9860-dwc3" },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, of_dwc3_simple_match);

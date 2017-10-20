@@ -1,7 +1,7 @@
 /*
  * Implementation of the extensible bitmap type.
  *
- * Author : Stephen Smalley, <sds@epoch.ncsc.mil>
+ * Author : Stephen Smalley, <sds@tycho.nsa.gov>
  */
 /*
  * Updated: Hewlett-Packard <paul@paul-moore.com>

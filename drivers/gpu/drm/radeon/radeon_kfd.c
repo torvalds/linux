@@ -75,12 +75,14 @@ static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
 				uint32_t hpd_size, uint64_t hpd_gpu_addr);
 static int kgd_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id);
 static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
-			uint32_t queue_id, uint32_t __user *wptr);
+			uint32_t queue_id, uint32_t __user *wptr,
+			uint32_t wptr_shift, uint32_t wptr_mask,
+			struct mm_struct *mm);
 static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd);
 static bool kgd_hqd_is_occupied(struct kgd_dev *kgd, uint64_t queue_address,
 				uint32_t pipe_id, uint32_t queue_id);
 
-static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
+static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd, uint32_t reset_type,
 				unsigned int timeout, uint32_t pipe_id,
 				uint32_t queue_id);
 static bool kgd_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd);
@@ -482,7 +484,9 @@ static inline struct cik_sdma_rlc_registers *get_sdma_mqd(void *mqd)
 }
 
 static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
-			uint32_t queue_id, uint32_t __user *wptr)
+			uint32_t queue_id, uint32_t __user *wptr,
+			uint32_t wptr_shift, uint32_t wptr_mask,
+			struct mm_struct *mm)
 {
 	uint32_t wptr_shadow, is_wptr_shadow_valid;
 	struct cik_mqd *m;
@@ -636,7 +640,7 @@ static bool kgd_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd)
 	return false;
 }
 
-static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
+static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd, uint32_t reset_type,
 				unsigned int timeout, uint32_t pipe_id,
 				uint32_t queue_id)
 {
@@ -785,7 +789,8 @@ static uint32_t kgd_address_watch_get_offset(struct kgd_dev *kgd,
 					unsigned int watch_point_id,
 					unsigned int reg_offset)
 {
-	return watchRegs[watch_point_id * ADDRESS_WATCH_REG_MAX + reg_offset];
+	return watchRegs[watch_point_id * ADDRESS_WATCH_REG_MAX + reg_offset]
+		/ 4;
 }
 
 static bool get_atc_vmid_pasid_mapping_valid(struct kgd_dev *kgd, uint8_t vmid)

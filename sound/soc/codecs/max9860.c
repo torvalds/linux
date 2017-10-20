@@ -534,7 +534,7 @@ static int max9860_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static struct snd_soc_codec_driver max9860_codec_driver = {
+static const struct snd_soc_codec_driver max9860_codec_driver = {
 	.set_bias_level = max9860_set_bias_level,
 	.idle_bias_off = true,
 

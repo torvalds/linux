@@ -68,7 +68,6 @@ enum dma_transaction_type {
 	DMA_MEMSET,
 	DMA_MEMSET_SG,
 	DMA_INTERRUPT,
-	DMA_SG,
 	DMA_PRIVATE,
 	DMA_ASYNC_TX,
 	DMA_SLAVE,
@@ -186,6 +185,9 @@ struct dma_interleaved_template {
  *  on the result of this operation
  * @DMA_CTRL_REUSE: client can reuse the descriptor and submit again till
  *  cleared or freed
+ * @DMA_PREP_CMD: tell the driver that the data passed to DMA API is command
+ *  data and the descriptor should be in different format from normal
+ *  data descriptors.
  */
 enum dma_ctrl_flags {
 	DMA_PREP_INTERRUPT = (1 << 0),
@@ -195,6 +197,7 @@ enum dma_ctrl_flags {
 	DMA_PREP_CONTINUE = (1 << 4),
 	DMA_PREP_FENCE = (1 << 5),
 	DMA_CTRL_REUSE = (1 << 6),
+	DMA_PREP_CMD = (1 << 7),
 };
 
 /**
@@ -771,11 +774,6 @@ struct dma_device {
 		unsigned int nents, int value, unsigned long flags);
 	struct dma_async_tx_descriptor *(*device_prep_dma_interrupt)(
 		struct dma_chan *chan, unsigned long flags);
-	struct dma_async_tx_descriptor *(*device_prep_dma_sg)(
-		struct dma_chan *chan,
-		struct scatterlist *dst_sg, unsigned int dst_nents,
-		struct scatterlist *src_sg, unsigned int src_nents,
-		unsigned long flags);
 
 	struct dma_async_tx_descriptor *(*device_prep_slave_sg)(
 		struct dma_chan *chan, struct scatterlist *sgl,
@@ -903,19 +901,6 @@ static inline struct dma_async_tx_descriptor *dmaengine_prep_dma_memcpy(
 
 	return chan->device->device_prep_dma_memcpy(chan, dest, src,
 						    len, flags);
-}
-
-static inline struct dma_async_tx_descriptor *dmaengine_prep_dma_sg(
-		struct dma_chan *chan,
-		struct scatterlist *dst_sg, unsigned int dst_nents,
-		struct scatterlist *src_sg, unsigned int src_nents,
-		unsigned long flags)
-{
-	if (!chan || !chan->device || !chan->device->device_prep_dma_sg)
-		return NULL;
-
-	return chan->device->device_prep_dma_sg(chan, dst_sg, dst_nents,
-			src_sg, src_nents, flags);
 }
 
 /**

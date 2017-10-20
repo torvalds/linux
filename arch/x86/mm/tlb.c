@@ -30,6 +30,7 @@
 
 atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
 
+
 static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
 			    u16 *new_asid, bool *need_flush)
 {
@@ -80,7 +81,7 @@ void leave_mm(int cpu)
 		return;
 
 	/* Warn if we're not lazy. */
-	WARN_ON(cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm)));
+	WARN_ON(!this_cpu_read(cpu_tlbstate.is_lazy));
 
 	switch_mm(NULL, &init_mm, NULL);
 }
@@ -121,47 +122,45 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 	 * hypothetical buggy code that directly switches to swapper_pg_dir
 	 * without going through leave_mm() / switch_mm_irqs_off() or that
 	 * does something like write_cr3(read_cr3_pa()).
+	 *
+	 * Only do this check if CONFIG_DEBUG_VM=y because __read_cr3()
+	 * isn't free.
 	 */
-	VM_BUG_ON(__read_cr3() != (__sme_pa(real_prev->pgd) | prev_asid));
+#ifdef CONFIG_DEBUG_VM
+	if (WARN_ON_ONCE(__read_cr3() != build_cr3(real_prev, prev_asid))) {
+		/*
+		 * If we were to BUG here, we'd be very likely to kill
+		 * the system so hard that we don't see the call trace.
+		 * Try to recover instead by ignoring the error and doing
+		 * a global flush to minimize the chance of corruption.
+		 *
+		 * (This is far from being a fully correct recovery.
+		 *  Architecturally, the CPU could prefetch something
+		 *  back into an incorrect ASID slot and leave it there
+		 *  to cause trouble down the road.  It's better than
+		 *  nothing, though.)
+		 */
+		__flush_tlb_all();
+	}
+#endif
+	this_cpu_write(cpu_tlbstate.is_lazy, false);
 
 	if (real_prev == next) {
-		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[prev_asid].ctx_id) !=
-			  next->context.ctx_id);
-
-		if (cpumask_test_cpu(cpu, mm_cpumask(next))) {
-			/*
-			 * There's nothing to do: we weren't lazy, and we
-			 * aren't changing our mm.  We don't need to flush
-			 * anything, nor do we need to update CR3, CR4, or
-			 * LDTR.
-			 */
-			return;
-		}
-
-		/* Resume remote flushes and then read tlb_gen. */
-		cpumask_set_cpu(cpu, mm_cpumask(next));
-		next_tlb_gen = atomic64_read(&next->context.tlb_gen);
-
-		if (this_cpu_read(cpu_tlbstate.ctxs[prev_asid].tlb_gen) <
-		    next_tlb_gen) {
-			/*
-			 * Ideally, we'd have a flush_tlb() variant that
-			 * takes the known CR3 value as input.  This would
-			 * be faster on Xen PV and on hypothetical CPUs
-			 * on which INVPCID is fast.
-			 */
-			this_cpu_write(cpu_tlbstate.ctxs[prev_asid].tlb_gen,
-				       next_tlb_gen);
-			write_cr3(__sme_pa(next->pgd) | prev_asid);
-			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,
-					TLB_FLUSH_ALL);
-		}
+		VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[prev_asid].ctx_id) !=
+			   next->context.ctx_id);
 
 		/*
-		 * We just exited lazy mode, which means that CR4 and/or LDTR
-		 * may be stale.  (Changes to the required CR4 and LDTR states
-		 * are not reflected in tlb_gen.)
+		 * We don't currently support having a real mm loaded without
+		 * our cpu set in mm_cpumask().  We have all the bookkeeping
+		 * in place to figure out whether we would need to flush
+		 * if our cpu were cleared in mm_cpumask(), but we don't
+		 * currently use it.
 		 */
+		if (WARN_ON_ONCE(real_prev != &init_mm &&
+				 !cpumask_test_cpu(cpu, mm_cpumask(next))))
+			cpumask_set_cpu(cpu, mm_cpumask(next));
+
+		return;
 	} else {
 		u16 new_asid;
 		bool need_flush;
@@ -172,7 +171,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 			 * mapped in the new pgd, we'll double-fault.  Forcibly
 			 * map it.
 			 */
-			unsigned int index = pgd_index(current_stack_pointer());
+			unsigned int index = pgd_index(current_stack_pointer);
 			pgd_t *pgd = next->pgd + index;
 
 			if (unlikely(pgd_none(*pgd)))
@@ -180,10 +179,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		}
 
 		/* Stop remote flushes for the previous mm */
-		if (cpumask_test_cpu(cpu, mm_cpumask(real_prev)))
-			cpumask_clear_cpu(cpu, mm_cpumask(real_prev));
-
-		VM_WARN_ON_ONCE(cpumask_test_cpu(cpu, mm_cpumask(next)));
+		VM_WARN_ON_ONCE(!cpumask_test_cpu(cpu, mm_cpumask(real_prev)) &&
+				real_prev != &init_mm);
+		cpumask_clear_cpu(cpu, mm_cpumask(real_prev));
 
 		/*
 		 * Start remote flushes and then read tlb_gen.
@@ -196,12 +194,12 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		if (need_flush) {
 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].ctx_id, next->context.ctx_id);
 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].tlb_gen, next_tlb_gen);
-			write_cr3(__sme_pa(next->pgd) | new_asid);
+			write_cr3(build_cr3(next, new_asid));
 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,
 					TLB_FLUSH_ALL);
 		} else {
 			/* The new ASID is already up to date. */
-			write_cr3(__sme_pa(next->pgd) | new_asid | CR3_NOFLUSH);
+			write_cr3(build_cr3_noflush(next, new_asid));
 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, 0);
 		}
 
@@ -211,6 +209,84 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 
 	load_mm_cr4(next);
 	switch_ldt(real_prev, next);
+}
+
+/*
+ * Please ignore the name of this function.  It should be called
+ * switch_to_kernel_thread().
+ *
+ * enter_lazy_tlb() is a hint from the scheduler that we are entering a
+ * kernel thread or other context without an mm.  Acceptable implementations
+ * include doing nothing whatsoever, switching to init_mm, or various clever
+ * lazy tricks to try to minimize TLB flushes.
+ *
+ * The scheduler reserves the right to call enter_lazy_tlb() several times
+ * in a row.  It will notify us that we're going back to a real mm by
+ * calling switch_mm_irqs_off().
+ */
+void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
+{
+	if (this_cpu_read(cpu_tlbstate.loaded_mm) == &init_mm)
+		return;
+
+	if (tlb_defer_switch_to_init_mm()) {
+		/*
+		 * There's a significant optimization that may be possible
+		 * here.  We have accurate enough TLB flush tracking that we
+		 * don't need to maintain coherence of TLB per se when we're
+		 * lazy.  We do, however, need to maintain coherence of
+		 * paging-structure caches.  We could, in principle, leave our
+		 * old mm loaded and only switch to init_mm when
+		 * tlb_remove_page() happens.
+		 */
+		this_cpu_write(cpu_tlbstate.is_lazy, true);
+	} else {
+		switch_mm(NULL, &init_mm, NULL);
+	}
+}
+
+/*
+ * Call this when reinitializing a CPU.  It fixes the following potential
+ * problems:
+ *
+ * - The ASID changed from what cpu_tlbstate thinks it is (most likely
+ *   because the CPU was taken down and came back up with CR3's PCID
+ *   bits clear.  CPU hotplug can do this.
+ *
+ * - The TLB contains junk in slots corresponding to inactive ASIDs.
+ *
+ * - The CPU went so far out to lunch that it may have missed a TLB
+ *   flush.
+ */
+void initialize_tlbstate_and_flush(void)
+{
+	int i;
+	struct mm_struct *mm = this_cpu_read(cpu_tlbstate.loaded_mm);
+	u64 tlb_gen = atomic64_read(&init_mm.context.tlb_gen);
+	unsigned long cr3 = __read_cr3();
+
+	/* Assert that CR3 already references the right mm. */
+	WARN_ON((cr3 & CR3_ADDR_MASK) != __pa(mm->pgd));
+
+	/*
+	 * Assert that CR4.PCIDE is set if needed.  (CR4.PCIDE initialization
+	 * doesn't work like other CR4 bits because it can only be set from
+	 * long mode.)
+	 */
+	WARN_ON(boot_cpu_has(X86_FEATURE_PCID) &&
+		!(cr4_read_shadow() & X86_CR4_PCIDE));
+
+	/* Force ASID 0 and force a TLB flush. */
+	write_cr3(build_cr3(mm, 0));
+
+	/* Reinitialize tlbstate. */
+	this_cpu_write(cpu_tlbstate.loaded_mm_asid, 0);
+	this_cpu_write(cpu_tlbstate.next_asid, 1);
+	this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id, mm->context.ctx_id);
+	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, tlb_gen);
+
+	for (i = 1; i < TLB_NR_DYN_ASIDS; i++)
+		this_cpu_write(cpu_tlbstate.ctxs[i].ctx_id, 0);
 }
 
 /*
@@ -240,16 +316,20 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
 	/* This code cannot presently handle being reentered. */
 	VM_WARN_ON(!irqs_disabled());
 
+	if (unlikely(loaded_mm == &init_mm))
+		return;
+
 	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[loaded_mm_asid].ctx_id) !=
 		   loaded_mm->context.ctx_id);
 
-	if (!cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm))) {
+	if (this_cpu_read(cpu_tlbstate.is_lazy)) {
 		/*
-		 * We're in lazy mode -- don't flush.  We can get here on
-		 * remote flushes due to races and on local flushes if a
-		 * kernel thread coincidentally flushes the mm it's lazily
-		 * still using.
+		 * We're in lazy mode.  We need to at least flush our
+		 * paging-structure cache to avoid speculatively reading
+		 * garbage into our TLB.  Since switching to init_mm is barely
+		 * slower than a minimal flush, just switch to init_mm.
 		 */
+		switch_mm_irqs_off(NULL, &init_mm, NULL);
 		return;
 	}
 

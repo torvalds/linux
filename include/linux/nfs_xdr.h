@@ -1476,7 +1476,7 @@ struct nfs_pgio_header {
 
 struct nfs_mds_commit_info {
 	atomic_t rpcs_out;
-	unsigned long		ncommit;
+	atomic_long_t		ncommit;
 	struct list_head	list;
 };
 

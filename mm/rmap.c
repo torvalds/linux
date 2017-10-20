@@ -63,6 +63,7 @@
 #include <linux/hugetlb.h>
 #include <linux/backing-dev.h>
 #include <linux/page_idle.h>
+#include <linux/memremap.h>
 
 #include <asm/tlbflush.h>
 
@@ -390,7 +391,7 @@ void unlink_anon_vmas(struct vm_area_struct *vma)
 		 * Leave empty anon_vmas on the list - we'll need
 		 * to free them outside the lock.
 		 */
-		if (RB_EMPTY_ROOT(&anon_vma->rb_root)) {
+		if (RB_EMPTY_ROOT(&anon_vma->rb_root.rb_root)) {
 			anon_vma->parent->degree--;
 			continue;
 		}
@@ -424,7 +425,7 @@ static void anon_vma_ctor(void *data)
 
 	init_rwsem(&anon_vma->rwsem);
 	atomic_set(&anon_vma->refcount, 0);
-	anon_vma->rb_root = RB_ROOT;
+	anon_vma->rb_root = RB_ROOT_CACHED;
 }
 
 void __init anon_vma_init(void)
@@ -887,11 +888,21 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
 		.address = address,
 		.flags = PVMW_SYNC,
 	};
+	unsigned long start = address, end;
 	int *cleaned = arg;
-	bool invalidation_needed = false;
+
+	/*
+	 * We have to assume the worse case ie pmd for invalidation. Note that
+	 * the page can not be free from this function.
+	 */
+	end = min(vma->vm_end, start + (PAGE_SIZE << compound_order(page)));
+	mmu_notifier_invalidate_range_start(vma->vm_mm, start, end);
 
 	while (page_vma_mapped_walk(&pvmw)) {
+		unsigned long cstart, cend;
 		int ret = 0;
+
+		cstart = address = pvmw.address;
 		if (pvmw.pte) {
 			pte_t entry;
 			pte_t *pte = pvmw.pte;
@@ -899,11 +910,12 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
 			if (!pte_dirty(*pte) && !pte_write(*pte))
 				continue;
 
-			flush_cache_page(vma, pvmw.address, pte_pfn(*pte));
-			entry = ptep_clear_flush(vma, pvmw.address, pte);
+			flush_cache_page(vma, address, pte_pfn(*pte));
+			entry = ptep_clear_flush(vma, address, pte);
 			entry = pte_wrprotect(entry);
 			entry = pte_mkclean(entry);
-			set_pte_at(vma->vm_mm, pvmw.address, pte, entry);
+			set_pte_at(vma->vm_mm, address, pte, entry);
+			cend = cstart + PAGE_SIZE;
 			ret = 1;
 		} else {
 #ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
@@ -913,11 +925,13 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
 			if (!pmd_dirty(*pmd) && !pmd_write(*pmd))
 				continue;
 
-			flush_cache_page(vma, pvmw.address, page_to_pfn(page));
-			entry = pmdp_huge_clear_flush(vma, pvmw.address, pmd);
+			flush_cache_page(vma, address, page_to_pfn(page));
+			entry = pmdp_huge_clear_flush(vma, address, pmd);
 			entry = pmd_wrprotect(entry);
 			entry = pmd_mkclean(entry);
-			set_pmd_at(vma->vm_mm, pvmw.address, pmd, entry);
+			set_pmd_at(vma->vm_mm, address, pmd, entry);
+			cstart &= PMD_MASK;
+			cend = cstart + PMD_SIZE;
 			ret = 1;
 #else
 			/* unexpected pmd-mapped page? */
@@ -926,15 +940,12 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
 		}
 
 		if (ret) {
+			mmu_notifier_invalidate_range(vma->vm_mm, cstart, cend);
 			(*cleaned)++;
-			invalidation_needed = true;
 		}
 	}
 
-	if (invalidation_needed) {
-		mmu_notifier_invalidate_range(vma->vm_mm, address,
-				address + (1UL << compound_order(page)));
-	}
+	mmu_notifier_invalidate_range_end(vma->vm_mm, start, end);
 
 	return true;
 }
@@ -1328,19 +1339,45 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 	};
 	pte_t pteval;
 	struct page *subpage;
-	bool ret = true, invalidation_needed = false;
+	bool ret = true;
+	unsigned long start = address, end;
 	enum ttu_flags flags = (enum ttu_flags)arg;
 
 	/* munlock has nothing to gain from examining un-locked vmas */
 	if ((flags & TTU_MUNLOCK) && !(vma->vm_flags & VM_LOCKED))
 		return true;
 
+	if (IS_ENABLED(CONFIG_MIGRATION) && (flags & TTU_MIGRATION) &&
+	    is_zone_device_page(page) && !is_device_private_page(page))
+		return true;
+
 	if (flags & TTU_SPLIT_HUGE_PMD) {
 		split_huge_pmd_address(vma, address,
-				flags & TTU_MIGRATION, page);
+				flags & TTU_SPLIT_FREEZE, page);
 	}
 
+	/*
+	 * We have to assume the worse case ie pmd for invalidation. Note that
+	 * the page can not be free in this function as call of try_to_unmap()
+	 * must hold a reference on the page.
+	 */
+	end = min(vma->vm_end, start + (PAGE_SIZE << compound_order(page)));
+	mmu_notifier_invalidate_range_start(vma->vm_mm, start, end);
+
 	while (page_vma_mapped_walk(&pvmw)) {
+#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+		/* PMD-mapped THP migration entry */
+		if (!pvmw.pte && (flags & TTU_MIGRATION)) {
+			VM_BUG_ON_PAGE(PageHuge(page) || !PageTransCompound(page), page);
+
+			if (!PageAnon(page))
+				continue;
+
+			set_pmd_migration_entry(&pvmw, page);
+			continue;
+		}
+#endif
+
 		/*
 		 * If the page is mlock()d, we cannot swap it out.
 		 * If it's recently referenced (perhaps page_referenced
@@ -1368,9 +1405,32 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 		VM_BUG_ON_PAGE(!pvmw.pte, page);
 
 		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
+		address = pvmw.address;
+
+
+		if (IS_ENABLED(CONFIG_MIGRATION) &&
+		    (flags & TTU_MIGRATION) &&
+		    is_zone_device_page(page)) {
+			swp_entry_t entry;
+			pte_t swp_pte;
+
+			pteval = ptep_get_and_clear(mm, pvmw.address, pvmw.pte);
+
+			/*
+			 * Store the pfn of the page in a special migration
+			 * pte. do_swap_page() will wait until the migration
+			 * pte is removed and then restart fault handling.
+			 */
+			entry = make_migration_entry(page, 0);
+			swp_pte = swp_entry_to_pte(entry);
+			if (pte_soft_dirty(pteval))
+				swp_pte = pte_swp_mksoft_dirty(swp_pte);
+			set_pte_at(mm, pvmw.address, pvmw.pte, swp_pte);
+			goto discard;
+		}
 
 		if (!(flags & TTU_IGNORE_ACCESS)) {
-			if (ptep_clear_flush_young_notify(vma, pvmw.address,
+			if (ptep_clear_flush_young_notify(vma, address,
 						pvmw.pte)) {
 				ret = false;
 				page_vma_mapped_walk_done(&pvmw);
@@ -1379,7 +1439,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 		}
 
 		/* Nuke the page table entry. */
-		flush_cache_page(vma, pvmw.address, pte_pfn(*pvmw.pte));
+		flush_cache_page(vma, address, pte_pfn(*pvmw.pte));
 		if (should_defer_flush(mm, flags)) {
 			/*
 			 * We clear the PTE but do not flush so potentially
@@ -1389,12 +1449,11 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 			 * transition on a cached TLB entry is written through
 			 * and traps if the PTE is unmapped.
 			 */
-			pteval = ptep_get_and_clear(mm, pvmw.address,
-						    pvmw.pte);
+			pteval = ptep_get_and_clear(mm, address, pvmw.pte);
 
 			set_tlb_ubc_flush_pending(mm, pte_dirty(pteval));
 		} else {
-			pteval = ptep_clear_flush(vma, pvmw.address, pvmw.pte);
+			pteval = ptep_clear_flush(vma, address, pvmw.pte);
 		}
 
 		/* Move the dirty bit to the page. Now the pte is gone. */
@@ -1409,12 +1468,12 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 			if (PageHuge(page)) {
 				int nr = 1 << compound_order(page);
 				hugetlb_count_sub(nr, mm);
-				set_huge_swap_pte_at(mm, pvmw.address,
+				set_huge_swap_pte_at(mm, address,
 						     pvmw.pte, pteval,
 						     vma_mmu_pagesize(vma));
 			} else {
 				dec_mm_counter(mm, mm_counter(page));
-				set_pte_at(mm, pvmw.address, pvmw.pte, pteval);
+				set_pte_at(mm, address, pvmw.pte, pteval);
 			}
 
 		} else if (pte_unused(pteval)) {
@@ -1425,7 +1484,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 			 */
 			dec_mm_counter(mm, mm_counter(page));
 		} else if (IS_ENABLED(CONFIG_MIGRATION) &&
-				(flags & TTU_MIGRATION)) {
+				(flags & (TTU_MIGRATION|TTU_SPLIT_FREEZE))) {
 			swp_entry_t entry;
 			pte_t swp_pte;
 			/*
@@ -1438,7 +1497,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 			swp_pte = swp_entry_to_pte(entry);
 			if (pte_soft_dirty(pteval))
 				swp_pte = pte_swp_mksoft_dirty(swp_pte);
-			set_pte_at(mm, pvmw.address, pvmw.pte, swp_pte);
+			set_pte_at(mm, address, pvmw.pte, swp_pte);
 		} else if (PageAnon(page)) {
 			swp_entry_t entry = { .val = page_private(subpage) };
 			pte_t swp_pte;
@@ -1449,6 +1508,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 			if (unlikely(PageSwapBacked(page) != PageSwapCache(page))) {
 				WARN_ON_ONCE(1);
 				ret = false;
+				/* We have to invalidate as we cleared the pte */
 				page_vma_mapped_walk_done(&pvmw);
 				break;
 			}
@@ -1464,7 +1524,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 				 * If the page was redirtied, it cannot be
 				 * discarded. Remap the page to page table.
 				 */
-				set_pte_at(mm, pvmw.address, pvmw.pte, pteval);
+				set_pte_at(mm, address, pvmw.pte, pteval);
 				SetPageSwapBacked(page);
 				ret = false;
 				page_vma_mapped_walk_done(&pvmw);
@@ -1472,7 +1532,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 			}
 
 			if (swap_duplicate(entry) < 0) {
-				set_pte_at(mm, pvmw.address, pvmw.pte, pteval);
+				set_pte_at(mm, address, pvmw.pte, pteval);
 				ret = false;
 				page_vma_mapped_walk_done(&pvmw);
 				break;
@@ -1488,18 +1548,18 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 			swp_pte = swp_entry_to_pte(entry);
 			if (pte_soft_dirty(pteval))
 				swp_pte = pte_swp_mksoft_dirty(swp_pte);
-			set_pte_at(mm, pvmw.address, pvmw.pte, swp_pte);
+			set_pte_at(mm, address, pvmw.pte, swp_pte);
 		} else
 			dec_mm_counter(mm, mm_counter_file(page));
 discard:
 		page_remove_rmap(subpage, PageHuge(page));
 		put_page(page);
-		invalidation_needed = true;
+		mmu_notifier_invalidate_range(mm, address,
+					      address + PAGE_SIZE);
 	}
 
-	if (invalidation_needed)
-		mmu_notifier_invalidate_range(mm, address,
-				address + (1UL << compound_order(page)));
+	mmu_notifier_invalidate_range_end(vma->vm_mm, start, end);
+
 	return ret;
 }
 
@@ -1554,7 +1614,8 @@ bool try_to_unmap(struct page *page, enum ttu_flags flags)
 	 * locking requirements of exec(), migration skips
 	 * temporary VMAs until after exec() completes.
 	 */
-	if ((flags & TTU_MIGRATION) && !PageKsm(page) && PageAnon(page))
+	if ((flags & (TTU_MIGRATION|TTU_SPLIT_FREEZE))
+	    && !PageKsm(page) && PageAnon(page))
 		rwc.invalid_vma = invalid_migration_vma;
 
 	if (flags & TTU_RMAP_LOCKED)

@@ -10,20 +10,22 @@
 
 #define FRAME_HEADER_SIZE (sizeof(long) * 2)
 
-/*
- * This disables KASAN checking when reading a value from another task's stack,
- * since the other task could be running on another CPU and could have poisoned
- * the stack in the meantime.
- */
-#define READ_ONCE_TASK_STACK(task, x)			\
-({							\
-	unsigned long val;				\
-	if (task == current)				\
-		val = READ_ONCE(x);			\
-	else						\
-		val = READ_ONCE_NOCHECK(x);		\
-	val;						\
-})
+unsigned long unwind_get_return_address(struct unwind_state *state)
+{
+	if (unwind_done(state))
+		return 0;
+
+	return __kernel_text_address(state->ip) ? state->ip : 0;
+}
+EXPORT_SYMBOL_GPL(unwind_get_return_address);
+
+unsigned long *unwind_get_return_address_ptr(struct unwind_state *state)
+{
+	if (unwind_done(state))
+		return NULL;
+
+	return state->regs ? &state->regs->ip : state->bp + 1;
+}
 
 static void unwind_dump(struct unwind_state *state)
 {
@@ -42,7 +44,8 @@ static void unwind_dump(struct unwind_state *state)
 			state->stack_info.type, state->stack_info.next_sp,
 			state->stack_mask, state->graph_idx);
 
-	for (sp = state->orig_sp; sp; sp = PTR_ALIGN(stack_info.next_sp, sizeof(long))) {
+	for (sp = PTR_ALIGN(state->orig_sp, sizeof(long)); sp;
+	     sp = PTR_ALIGN(stack_info.next_sp, sizeof(long))) {
 		if (get_stack_info(sp, state->task, &stack_info, &visit_mask))
 			break;
 
@@ -66,15 +69,6 @@ static void unwind_dump(struct unwind_state *state)
 	}
 }
 
-unsigned long unwind_get_return_address(struct unwind_state *state)
-{
-	if (unwind_done(state))
-		return 0;
-
-	return __kernel_text_address(state->ip) ? state->ip : 0;
-}
-EXPORT_SYMBOL_GPL(unwind_get_return_address);
-
 static size_t regs_size(struct pt_regs *regs)
 {
 	/* x86_32 regs from kernel mode are two words shorter: */
@@ -91,10 +85,8 @@ static bool in_entry_code(unsigned long ip)
 	if (addr >= __entry_text_start && addr < __entry_text_end)
 		return true;
 
-#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
 	if (addr >= __irqentry_text_start && addr < __irqentry_text_end)
 		return true;
-#endif
 
 	return false;
 }
@@ -183,6 +175,7 @@ static bool is_last_task_frame(struct unwind_state *state)
  * This determines if the frame pointer actually contains an encoded pointer to
  * pt_regs on the stack.  See ENCODE_FRAME_POINTER.
  */
+#ifdef CONFIG_X86_64
 static struct pt_regs *decode_frame_pointer(unsigned long *bp)
 {
 	unsigned long regs = (unsigned long)bp;
@@ -192,6 +185,23 @@ static struct pt_regs *decode_frame_pointer(unsigned long *bp)
 
 	return (struct pt_regs *)(regs & ~0x1);
 }
+#else
+static struct pt_regs *decode_frame_pointer(unsigned long *bp)
+{
+	unsigned long regs = (unsigned long)bp;
+
+	if (regs & 0x80000000)
+		return NULL;
+
+	return (struct pt_regs *)(regs | 0x80000000);
+}
+#endif
+
+#ifdef CONFIG_X86_32
+#define KERNEL_REGS_SIZE (sizeof(struct pt_regs) - 2*sizeof(long))
+#else
+#define KERNEL_REGS_SIZE (sizeof(struct pt_regs))
+#endif
 
 static bool update_stack_state(struct unwind_state *state,
 			       unsigned long *next_bp)
@@ -211,7 +221,7 @@ static bool update_stack_state(struct unwind_state *state,
 	regs = decode_frame_pointer(next_bp);
 	if (regs) {
 		frame = (unsigned long *)regs;
-		len = regs_size(regs);
+		len = KERNEL_REGS_SIZE;
 		state->got_irq = true;
 	} else {
 		frame = next_bp;
@@ -233,6 +243,14 @@ static bool update_stack_state(struct unwind_state *state,
 	/* Make sure it only unwinds up and doesn't overlap the prev frame: */
 	if (state->orig_sp && state->stack_info.type == prev_type &&
 	    frame < prev_frame_end)
+		return false;
+
+	/*
+	 * On 32-bit with user mode regs, make sure the last two regs are safe
+	 * to access:
+	 */
+	if (IS_ENABLED(CONFIG_X86_32) && regs && user_mode(regs) &&
+	    !on_stack(info, frame, len + 2*sizeof(long)))
 		return false;
 
 	/* Move state to the next frame: */
@@ -335,6 +353,13 @@ bad_address:
 	if (state->regs &&
 	    state->regs->sp >= (unsigned long)last_aligned_frame(state) &&
 	    state->regs->sp < (unsigned long)task_pt_regs(state->task))
+		goto the_end;
+
+	/*
+	 * There are some known frame pointer issues on 32-bit.  Disable
+	 * unwinder warnings on 32-bit until it gets objtool support.
+	 */
+	if (IS_ENABLED(CONFIG_X86_32))
 		goto the_end;
 
 	if (state->regs) {

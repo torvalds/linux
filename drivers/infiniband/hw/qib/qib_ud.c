@@ -66,8 +66,7 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	qp = rvt_lookup_qpn(rdi, &ibp->rvp, swqe->ud_wr.remote_qpn);
 	if (!qp) {
 		ibp->rvp.n_pkt_drops++;
-		rcu_read_unlock();
-		return;
+		goto drop;
 	}
 
 	sqptype = sqp->ibqp.qp_type == IB_QPT_GSI ?
@@ -94,11 +93,11 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 		if (unlikely(!qib_pkey_ok(pkey1, pkey2))) {
 			lid = ppd->lid | (rdma_ah_get_path_bits(ah_attr) &
 					  ((1 << ppd->lmc) - 1));
-			qib_bad_pqkey(ibp, IB_NOTICE_TRAP_BAD_PKEY, pkey1,
-				      rdma_ah_get_sl(ah_attr),
-				      sqp->ibqp.qp_num, qp->ibqp.qp_num,
-				      cpu_to_be16(lid),
-				      cpu_to_be16(rdma_ah_get_dlid(ah_attr)));
+			qib_bad_pkey(ibp, pkey1,
+				     rdma_ah_get_sl(ah_attr),
+				     sqp->ibqp.qp_num, qp->ibqp.qp_num,
+				     cpu_to_be16(lid),
+				     cpu_to_be16(rdma_ah_get_dlid(ah_attr)));
 			goto drop;
 		}
 	}
@@ -113,18 +112,8 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 
 		qkey = (int)swqe->ud_wr.remote_qkey < 0 ?
 			sqp->qkey : swqe->ud_wr.remote_qkey;
-		if (unlikely(qkey != qp->qkey)) {
-			u16 lid;
-
-			lid = ppd->lid | (rdma_ah_get_path_bits(ah_attr) &
-					  ((1 << ppd->lmc) - 1));
-			qib_bad_pqkey(ibp, IB_NOTICE_TRAP_BAD_QKEY, qkey,
-				      rdma_ah_get_sl(ah_attr),
-				      sqp->ibqp.qp_num, qp->ibqp.qp_num,
-				      cpu_to_be16(lid),
-				      cpu_to_be16(rdma_ah_get_dlid(ah_attr)));
+		if (unlikely(qkey != qp->qkey))
 			goto drop;
-		}
 	}
 
 	/*
@@ -487,22 +476,18 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 			pkey1 = be32_to_cpu(ohdr->bth[0]);
 			pkey2 = qib_get_pkey(ibp, qp->s_pkey_index);
 			if (unlikely(!qib_pkey_ok(pkey1, pkey2))) {
-				qib_bad_pqkey(ibp, IB_NOTICE_TRAP_BAD_PKEY,
-					      pkey1,
-					      (be16_to_cpu(hdr->lrh[0]) >> 4) &
+				qib_bad_pkey(ibp,
+					     pkey1,
+					     (be16_to_cpu(hdr->lrh[0]) >> 4) &
 						0xF,
-					      src_qp, qp->ibqp.qp_num,
-					      hdr->lrh[3], hdr->lrh[1]);
+					     src_qp, qp->ibqp.qp_num,
+					     hdr->lrh[3], hdr->lrh[1]);
 				return;
 			}
 		}
-		if (unlikely(qkey != qp->qkey)) {
-			qib_bad_pqkey(ibp, IB_NOTICE_TRAP_BAD_QKEY, qkey,
-				      (be16_to_cpu(hdr->lrh[0]) >> 4) & 0xF,
-				      src_qp, qp->ibqp.qp_num,
-				      hdr->lrh[3], hdr->lrh[1]);
+		if (unlikely(qkey != qp->qkey))
 			return;
-		}
+
 		/* Drop invalid MAD packets (see 13.5.3.1). */
 		if (unlikely(qp->ibqp.qp_num == 1 &&
 			     (tlen != 256 ||

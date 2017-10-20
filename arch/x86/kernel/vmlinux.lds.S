@@ -24,6 +24,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/page_types.h>
+#include <asm/orc_lookup.h>
 #include <asm/cache.h>
 #include <asm/boot.h>
 
@@ -147,6 +148,8 @@ SECTIONS
 	} :data
 
 	BUG_TABLE
+
+	ORC_UNWIND_TABLE
 
 	. = ALIGN(PAGE_SIZE);
 	__vvar_page = .;

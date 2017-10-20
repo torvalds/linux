@@ -40,7 +40,7 @@ static int amdgpu_benchmark_do_move(struct amdgpu_device *adev, unsigned size,
 	for (i = 0; i < n; i++) {
 		struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
 		r = amdgpu_copy_buffer(ring, saddr, daddr, size, NULL, &fence,
-				       false);
+				       false, false);
 		if (r)
 			goto exit_do_move;
 		r = dma_fence_wait(fence, false);
@@ -81,7 +81,7 @@ static void amdgpu_benchmark_move(struct amdgpu_device *adev, unsigned size,
 
 	n = AMDGPU_BENCHMARK_ITERATIONS;
 	r = amdgpu_bo_create(adev, size, PAGE_SIZE, true, sdomain, 0, NULL,
-			     NULL, &sobj);
+			     NULL, 0, &sobj);
 	if (r) {
 		goto out_cleanup;
 	}
@@ -94,7 +94,7 @@ static void amdgpu_benchmark_move(struct amdgpu_device *adev, unsigned size,
 		goto out_cleanup;
 	}
 	r = amdgpu_bo_create(adev, size, PAGE_SIZE, true, ddomain, 0, NULL,
-			     NULL, &dobj);
+			     NULL, 0, &dobj);
 	if (r) {
 		goto out_cleanup;
 	}

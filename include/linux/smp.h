@@ -14,12 +14,16 @@
 #include <linux/llist.h>
 
 typedef void (*smp_call_func_t)(void *info);
-struct call_single_data {
+struct __call_single_data {
 	struct llist_node llist;
 	smp_call_func_t func;
 	void *info;
 	unsigned int flags;
 };
+
+/* Use __aligned() to avoid to use 2 cache lines for 1 csd */
+typedef struct __call_single_data call_single_data_t
+	__aligned(sizeof(struct __call_single_data));
 
 /* total number of cpus in this system (may exceed NR_CPUS) */
 extern unsigned int total_cpus;
@@ -48,7 +52,7 @@ void on_each_cpu_cond(bool (*cond_func)(int cpu, void *info),
 		smp_call_func_t func, void *info, bool wait,
 		gfp_t gfp_flags);
 
-int smp_call_function_single_async(int cpu, struct call_single_data *csd);
+int smp_call_function_single_async(int cpu, call_single_data_t *csd);
 
 #ifdef CONFIG_SMP
 

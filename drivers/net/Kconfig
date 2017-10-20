@@ -333,7 +333,7 @@ config VIRTIO_NET
 	depends on VIRTIO
 	---help---
 	  This is the virtual network driver for virtio.  It can be used with
-	  lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
+	  QEMU based VMMs (like KVM or Xen).  Say Y or M.
 
 config NLMON
 	tristate "Virtual netlink monitoring device"

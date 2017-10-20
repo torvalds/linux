@@ -300,7 +300,7 @@ static const struct i2c_algorithm netup_i2c_algorithm = {
 	.functionality	= netup_i2c_func,
 };
 
-static struct i2c_adapter netup_i2c_adapter = {
+static const struct i2c_adapter netup_i2c_adapter = {
 	.owner		= THIS_MODULE,
 	.name		= NETUP_UNIDVB_NAME,
 	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,

@@ -49,7 +49,7 @@
 #define WPT_TSGPEN	0x84	/* General Purpose Event Enables */
 
 /*  Wildcat Point-LP  PCH Thermal Register bit definitions */
-#define WPT_TEMP_TSR	0x00ff	/* Temp TS Reading */
+#define WPT_TEMP_TSR	0x01ff	/* Temp TS Reading */
 #define WPT_TSC_CPDE	0x01	/* Catastrophic Power-Down Enable */
 #define WPT_TSS_TSDSS	0x10	/* Thermal Sensor Dynamic Shutdown Status */
 #define WPT_TSS_GPES	0x08	/* GPE status */
@@ -125,7 +125,7 @@ static int pch_wpt_init(struct pch_thermal_device *ptd, int *nr_trips)
 	*nr_trips = 0;
 
 	/* Check if BIOS has already enabled thermal sensor */
-	if (WPT_TSS_TSDSS & readb(ptd->hw_base + WPT_TSS)) {
+	if (WPT_TSEL_ETS & readb(ptd->hw_base + WPT_TSEL)) {
 		ptd->bios_enabled = true;
 		goto read_trips;
 	}
@@ -141,7 +141,7 @@ static int pch_wpt_init(struct pch_thermal_device *ptd, int *nr_trips)
 	}
 
 	writeb(tsel|WPT_TSEL_ETS, ptd->hw_base + WPT_TSEL);
-	if (!(WPT_TSS_TSDSS & readb(ptd->hw_base + WPT_TSS))) {
+	if (!(WPT_TSEL_ETS & readb(ptd->hw_base + WPT_TSEL))) {
 		dev_err(&ptd->pdev->dev, "Sensor can't be enabled\n");
 		return -ENODEV;
 	}
@@ -174,9 +174,9 @@ read_trips:
 
 static int pch_wpt_get_temp(struct pch_thermal_device *ptd, int *temp)
 {
-	u8 wpt_temp;
+	u16 wpt_temp;
 
-	wpt_temp = WPT_TEMP_TSR & readl(ptd->hw_base + WPT_TEMP);
+	wpt_temp = WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP);
 
 	/* Resolution of 1/2 degree C and an offset of -50C */
 	*temp = (wpt_temp * 1000 / 2 - 50000);
@@ -387,7 +387,7 @@ static int intel_pch_thermal_resume(struct device *device)
 	return ptd->ops->resume(ptd);
 }
 
-static struct pci_device_id intel_pch_thermal_id[] = {
+static const struct pci_device_id intel_pch_thermal_id[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_HSW_1),
 		.driver_data = board_hsw, },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_HSW_2),

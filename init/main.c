@@ -430,7 +430,6 @@ static noinline void __ref rest_init(void)
 	 * The boot idle thread must execute schedule()
 	 * at least once to get things moving:
 	 */
-	init_idle_bootup_task(current);
 	schedule_preempt_disabled();
 	/* Call into cpu_idle with preempt disabled */
 	cpu_startup_entry(CPUHP_ONLINE);
@@ -502,7 +501,6 @@ static void __init mm_init(void)
 	page_ext_init_flatmem();
 	mem_init();
 	kmem_cache_init();
-	percpu_init_late();
 	pgtable_init();
 	vmalloc_init();
 	ioremap_huge_init();
@@ -517,12 +515,6 @@ asmlinkage __visible void __init start_kernel(void)
 	smp_setup_processor_id();
 	debug_objects_early_init();
 
-	/*
-	 * Set up the initial canary ASAP:
-	 */
-	add_latent_entropy();
-	boot_init_stack_canary();
-
 	cgroup_init_early();
 
 	local_irq_disable();
@@ -536,6 +528,13 @@ asmlinkage __visible void __init start_kernel(void)
 	page_address_init();
 	pr_notice("%s", linux_banner);
 	setup_arch(&command_line);
+	/*
+	 * Set up the the initial canary and entropy after arch
+	 * and after adding latent and command line entropy.
+	 */
+	add_latent_entropy();
+	add_device_randomness(command_line, strlen(command_line));
+	boot_init_stack_canary();
 	mm_init_cpumask(&init_mm);
 	setup_command_line(command_line);
 	setup_nr_cpu_ids();
@@ -543,7 +542,7 @@ asmlinkage __visible void __init start_kernel(void)
 	boot_cpu_state_init();
 	smp_prepare_boot_cpu();	/* arch-specific boot-cpu hooks */
 
-	build_all_zonelists(NULL, NULL);
+	build_all_zonelists(NULL);
 	page_alloc_init();
 
 	pr_notice("Kernel command line: %s\n", boot_command_line);
@@ -661,8 +660,8 @@ asmlinkage __visible void __init start_kernel(void)
 	}
 #endif
 	page_ext_init();
-	debug_objects_mem_init();
 	kmemleak_init();
+	debug_objects_mem_init();
 	setup_per_cpu_pageset();
 	numa_policy_init();
 	if (late_time_init)

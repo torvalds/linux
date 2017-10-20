@@ -19,6 +19,14 @@ struct flow_dissector_key_control {
 #define FLOW_DIS_FIRST_FRAG	BIT(1)
 #define FLOW_DIS_ENCAPSULATION	BIT(2)
 
+enum flow_dissect_ret {
+	FLOW_DISSECT_RET_OUT_GOOD,
+	FLOW_DISSECT_RET_OUT_BAD,
+	FLOW_DISSECT_RET_PROTO_AGAIN,
+	FLOW_DISSECT_RET_IPPROTO_AGAIN,
+	FLOW_DISSECT_RET_CONTINUE,
+};
+
 /**
  * struct flow_dissector_key_basic:
  * @thoff: Transport header offset

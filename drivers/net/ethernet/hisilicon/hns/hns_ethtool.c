@@ -595,7 +595,7 @@ static void hns_nic_self_test(struct net_device *ndev,
 		set_bit(NIC_STATE_TESTING, &priv->state);
 
 		if (if_running)
-			(void)dev_close(ndev);
+			dev_close(ndev);
 
 		for (i = 0; i < SELF_TEST_TPYE_NUM; i++) {
 			if (!st_param[i][1])
@@ -735,8 +735,8 @@ static int hns_get_coalesce(struct net_device *net_dev,
 
 	ops = priv->ae_handle->dev->ops;
 
-	ec->use_adaptive_rx_coalesce = 1;
-	ec->use_adaptive_tx_coalesce = 1;
+	ec->use_adaptive_rx_coalesce = priv->ae_handle->coal_adapt_en;
+	ec->use_adaptive_tx_coalesce = priv->ae_handle->coal_adapt_en;
 
 	if ((!ops->get_coalesce_usecs) ||
 	    (!ops->get_max_coalesced_frames))
@@ -786,6 +786,9 @@ static int hns_set_coalesce(struct net_device *net_dev,
 	if ((!ops->set_coalesce_usecs) ||
 	    (!ops->set_coalesce_frames))
 		return -ESRCH;
+
+	if (ec->use_adaptive_rx_coalesce != priv->ae_handle->coal_adapt_en)
+		priv->ae_handle->coal_adapt_en = ec->use_adaptive_rx_coalesce;
 
 	rc1 = ops->set_coalesce_usecs(priv->ae_handle,
 				      ec->rx_coalesce_usecs);

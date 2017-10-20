@@ -691,6 +691,9 @@ static void deferred_put_nlk_sk(struct rcu_head *head)
 	struct netlink_sock *nlk = container_of(head, struct netlink_sock, rcu);
 	struct sock *sk = &nlk->sk;
 
+	kfree(nlk->groups);
+	nlk->groups = NULL;
+
 	if (!refcount_dec_and_test(&sk->sk_refcnt))
 		return;
 
@@ -768,9 +771,6 @@ static int netlink_release(struct socket *sock)
 		}
 		netlink_table_ungrab();
 	}
-
-	kfree(nlk->groups);
-	nlk->groups = NULL;
 
 	local_bh_disable();
 	sock_prot_inuse_add(sock_net(sk), &netlink_proto, -1);
@@ -955,7 +955,7 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 	struct net *net = sock_net(sk);
 	struct netlink_sock *nlk = nlk_sk(sk);
 	struct sockaddr_nl *nladdr = (struct sockaddr_nl *)addr;
-	int err;
+	int err = 0;
 	long unsigned int groups = nladdr->nl_groups;
 	bool bound;
 
@@ -983,6 +983,7 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 			return -EINVAL;
 	}
 
+	netlink_lock_table();
 	if (nlk->netlink_bind && groups) {
 		int group;
 
@@ -993,7 +994,7 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 			if (!err)
 				continue;
 			netlink_undo_bind(group, groups, sk);
-			return err;
+			goto unlock;
 		}
 	}
 
@@ -1006,12 +1007,13 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 			netlink_autobind(sock);
 		if (err) {
 			netlink_undo_bind(nlk->ngroups, groups, sk);
-			return err;
+			goto unlock;
 		}
 	}
 
 	if (!groups && (nlk->groups == NULL || !(u32)nlk->groups[0]))
-		return 0;
+		goto unlock;
+	netlink_unlock_table();
 
 	netlink_table_grab();
 	netlink_update_subscriptions(sk, nlk->subscriptions +
@@ -1022,6 +1024,10 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 	netlink_table_ungrab();
 
 	return 0;
+
+unlock:
+	netlink_unlock_table();
+	return err;
 }
 
 static int netlink_connect(struct socket *sock, struct sockaddr *addr,
@@ -1079,7 +1085,9 @@ static int netlink_getname(struct socket *sock, struct sockaddr *addr,
 		nladdr->nl_groups = netlink_group_mask(nlk->dst_group);
 	} else {
 		nladdr->nl_pid = nlk->portid;
+		netlink_lock_table();
 		nladdr->nl_groups = nlk->groups ? nlk->groups[0] : 0;
+		netlink_unlock_table();
 	}
 	return 0;
 }
@@ -2258,14 +2266,18 @@ int __netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 	cb->min_dump_alloc = control->min_dump_alloc;
 	cb->skb = skb;
 
+	if (cb->start) {
+		ret = cb->start(cb);
+		if (ret)
+			goto error_unlock;
+	}
+
 	nlk->cb_running = true;
 
 	mutex_unlock(nlk->cb_mutex);
 
-	if (cb->start)
-		cb->start(cb);
-
 	ret = netlink_dump(sk);
+
 	sock_put(sk);
 
 	if (ret)

@@ -146,6 +146,7 @@ static const struct xgbe_stats xgbe_gstring_stats[] = {
 	XGMAC_MMC_STAT("tx_broadcast_packets", txbroadcastframes_gb),
 	XGMAC_MMC_STAT("tx_multicast_packets", txmulticastframes_gb),
 	XGMAC_MMC_STAT("tx_vlan_packets", txvlanframes_g),
+	XGMAC_EXT_STAT("tx_vxlan_packets", tx_vxlan_packets),
 	XGMAC_EXT_STAT("tx_tso_packets", tx_tso_packets),
 	XGMAC_MMC_STAT("tx_64_byte_packets", tx64octets_gb),
 	XGMAC_MMC_STAT("tx_65_to_127_byte_packets", tx65to127octets_gb),
@@ -162,6 +163,7 @@ static const struct xgbe_stats xgbe_gstring_stats[] = {
 	XGMAC_MMC_STAT("rx_broadcast_packets", rxbroadcastframes_g),
 	XGMAC_MMC_STAT("rx_multicast_packets", rxmulticastframes_g),
 	XGMAC_MMC_STAT("rx_vlan_packets", rxvlanframes_gb),
+	XGMAC_EXT_STAT("rx_vxlan_packets", rx_vxlan_packets),
 	XGMAC_MMC_STAT("rx_64_byte_packets", rx64octets_gb),
 	XGMAC_MMC_STAT("rx_65_to_127_byte_packets", rx65to127octets_gb),
 	XGMAC_MMC_STAT("rx_128_to_255_byte_packets", rx128to255octets_gb),
@@ -177,6 +179,8 @@ static const struct xgbe_stats xgbe_gstring_stats[] = {
 	XGMAC_MMC_STAT("rx_out_of_range_errors", rxoutofrangetype),
 	XGMAC_MMC_STAT("rx_fifo_overflow_errors", rxfifooverflow),
 	XGMAC_MMC_STAT("rx_watchdog_errors", rxwatchdogerror),
+	XGMAC_EXT_STAT("rx_csum_errors", rx_csum_errors),
+	XGMAC_EXT_STAT("rx_vxlan_csum_errors", rx_vxlan_csum_errors),
 	XGMAC_MMC_STAT("rx_pause_frames", rxpauseframes),
 	XGMAC_EXT_STAT("rx_split_header_packets", rx_split_header_packets),
 	XGMAC_EXT_STAT("rx_buffer_unavailable", rx_buffer_unavailable),
@@ -186,6 +190,7 @@ static const struct xgbe_stats xgbe_gstring_stats[] = {
 
 static void xgbe_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	int i;
 
 	switch (stringset) {
@@ -193,6 +198,18 @@ static void xgbe_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 		for (i = 0; i < XGBE_STATS_COUNT; i++) {
 			memcpy(data, xgbe_gstring_stats[i].stat_string,
 			       ETH_GSTRING_LEN);
+			data += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < pdata->tx_ring_count; i++) {
+			sprintf(data, "txq_%u_packets", i);
+			data += ETH_GSTRING_LEN;
+			sprintf(data, "txq_%u_bytes", i);
+			data += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < pdata->rx_ring_count; i++) {
+			sprintf(data, "rxq_%u_packets", i);
+			data += ETH_GSTRING_LEN;
+			sprintf(data, "rxq_%u_bytes", i);
 			data += ETH_GSTRING_LEN;
 		}
 		break;
@@ -211,15 +228,26 @@ static void xgbe_get_ethtool_stats(struct net_device *netdev,
 		stat = (u8 *)pdata + xgbe_gstring_stats[i].stat_offset;
 		*data++ = *(u64 *)stat;
 	}
+	for (i = 0; i < pdata->tx_ring_count; i++) {
+		*data++ = pdata->ext_stats.txq_packets[i];
+		*data++ = pdata->ext_stats.txq_bytes[i];
+	}
+	for (i = 0; i < pdata->rx_ring_count; i++) {
+		*data++ = pdata->ext_stats.rxq_packets[i];
+		*data++ = pdata->ext_stats.rxq_bytes[i];
+	}
 }
 
 static int xgbe_get_sset_count(struct net_device *netdev, int stringset)
 {
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	int ret;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		ret = XGBE_STATS_COUNT;
+		ret = XGBE_STATS_COUNT +
+		      (pdata->tx_ring_count * 2) +
+		      (pdata->rx_ring_count * 2);
 		break;
 
 	default:
@@ -243,6 +271,7 @@ static int xgbe_set_pauseparam(struct net_device *netdev,
 			       struct ethtool_pauseparam *pause)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	struct ethtool_link_ksettings *lks = &pdata->phy.lks;
 	int ret = 0;
 
 	if (pause->autoneg && (pdata->phy.autoneg != AUTONEG_ENABLE)) {
@@ -255,16 +284,21 @@ static int xgbe_set_pauseparam(struct net_device *netdev,
 	pdata->phy.tx_pause = pause->tx_pause;
 	pdata->phy.rx_pause = pause->rx_pause;
 
-	pdata->phy.advertising &= ~ADVERTISED_Pause;
-	pdata->phy.advertising &= ~ADVERTISED_Asym_Pause;
+	XGBE_CLR_ADV(lks, Pause);
+	XGBE_CLR_ADV(lks, Asym_Pause);
 
 	if (pause->rx_pause) {
-		pdata->phy.advertising |= ADVERTISED_Pause;
-		pdata->phy.advertising |= ADVERTISED_Asym_Pause;
+		XGBE_SET_ADV(lks, Pause);
+		XGBE_SET_ADV(lks, Asym_Pause);
 	}
 
-	if (pause->tx_pause)
-		pdata->phy.advertising ^= ADVERTISED_Asym_Pause;
+	if (pause->tx_pause) {
+		/* Equivalent to XOR of Asym_Pause */
+		if (XGBE_ADV(lks, Asym_Pause))
+			XGBE_CLR_ADV(lks, Asym_Pause);
+		else
+			XGBE_SET_ADV(lks, Asym_Pause);
+	}
 
 	if (netif_running(netdev))
 		ret = pdata->phy_if.phy_config_aneg(pdata);
@@ -276,21 +310,19 @@ static int xgbe_get_link_ksettings(struct net_device *netdev,
 				   struct ethtool_link_ksettings *cmd)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	struct ethtool_link_ksettings *lks = &pdata->phy.lks;
 
 	cmd->base.phy_address = pdata->phy.address;
-
-	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
-						pdata->phy.supported);
-	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
-						pdata->phy.advertising);
-	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.lp_advertising,
-						pdata->phy.lp_advertising);
 
 	cmd->base.autoneg = pdata->phy.autoneg;
 	cmd->base.speed = pdata->phy.speed;
 	cmd->base.duplex = pdata->phy.duplex;
 
 	cmd->base.port = PORT_NONE;
+
+	XGBE_LM_COPY(cmd, supported, lks, supported);
+	XGBE_LM_COPY(cmd, advertising, lks, advertising);
+	XGBE_LM_COPY(cmd, lp_advertising, lks, lp_advertising);
 
 	return 0;
 }
@@ -299,7 +331,8 @@ static int xgbe_set_link_ksettings(struct net_device *netdev,
 				   const struct ethtool_link_ksettings *cmd)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
-	u32 advertising;
+	struct ethtool_link_ksettings *lks = &pdata->phy.lks;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
 	u32 speed;
 	int ret;
 
@@ -331,15 +364,17 @@ static int xgbe_set_link_ksettings(struct net_device *netdev,
 		}
 	}
 
-	ethtool_convert_link_mode_to_legacy_u32(&advertising,
-						cmd->link_modes.advertising);
-
 	netif_dbg(pdata, link, netdev,
-		  "requested advertisement %#x, phy supported %#x\n",
-		  advertising, pdata->phy.supported);
+		  "requested advertisement 0x%*pb, phy supported 0x%*pb\n",
+		  __ETHTOOL_LINK_MODE_MASK_NBITS, cmd->link_modes.advertising,
+		  __ETHTOOL_LINK_MODE_MASK_NBITS, lks->link_modes.supported);
 
-	advertising &= pdata->phy.supported;
-	if ((cmd->base.autoneg == AUTONEG_ENABLE) && !advertising) {
+	bitmap_and(advertising,
+		   cmd->link_modes.advertising, lks->link_modes.supported,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+
+	if ((cmd->base.autoneg == AUTONEG_ENABLE) &&
+	    bitmap_empty(advertising, __ETHTOOL_LINK_MODE_MASK_NBITS)) {
 		netdev_err(netdev,
 			   "unsupported requested advertisement\n");
 		return -EINVAL;
@@ -349,12 +384,13 @@ static int xgbe_set_link_ksettings(struct net_device *netdev,
 	pdata->phy.autoneg = cmd->base.autoneg;
 	pdata->phy.speed = speed;
 	pdata->phy.duplex = cmd->base.duplex;
-	pdata->phy.advertising = advertising;
+	bitmap_copy(lks->link_modes.advertising, advertising,
+		    __ETHTOOL_LINK_MODE_MASK_NBITS);
 
 	if (cmd->base.autoneg == AUTONEG_ENABLE)
-		pdata->phy.advertising |= ADVERTISED_Autoneg;
+		XGBE_SET_ADV(lks, Autoneg);
 	else
-		pdata->phy.advertising &= ~ADVERTISED_Autoneg;
+		XGBE_CLR_ADV(lks, Autoneg);
 
 	if (netif_running(netdev))
 		ret = pdata->phy_if.phy_config_aneg(pdata);

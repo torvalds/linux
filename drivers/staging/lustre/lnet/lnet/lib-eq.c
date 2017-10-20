@@ -35,7 +35,8 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LNET
-#include "../../include/linux/lnet/lib-lnet.h"
+
+#include <linux/lnet/lib-lnet.h>
 
 /**
  * Create an event queue that has room for \a count number of events.

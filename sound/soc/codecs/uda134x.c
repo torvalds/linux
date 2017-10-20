@@ -518,7 +518,7 @@ static int uda134x_soc_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_uda134x = {
+static const struct snd_soc_codec_driver soc_codec_dev_uda134x = {
 	.probe =        uda134x_soc_probe,
 	.set_bias_level = uda134x_set_bias_level,
 	.suspend_bias_off = true,

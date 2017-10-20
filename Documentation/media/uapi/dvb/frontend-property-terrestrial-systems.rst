@@ -100,7 +100,7 @@ to tune any ISDB-T/ISDB-Tsb hardware. Of course it is possible that some
 very sophisticated devices won't need certain parameters to tune.
 
 The information given here should help application writers to know how
-to handle ISDB-T and ISDB-Tsb hardware using the Linux DVB-API.
+to handle ISDB-T and ISDB-Tsb hardware using the Linux Digital TV API.
 
 The details given here about ISDB-T and ISDB-Tsb are just enough to
 basically show the dependencies between the needed parameter values, but

@@ -216,7 +216,7 @@ static int snd_pcm_alloc_vmalloc_buffer(struct snd_pcm_substream *subs,
 	return 0;
 }
 
-static struct snd_pcm_hardware snd_em28xx_hw_capture = {
+static const struct snd_pcm_hardware snd_em28xx_hw_capture = {
 	.info = SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_MMAP           |
 		SNDRV_PCM_INFO_INTERLEAVED    |
@@ -564,7 +564,7 @@ static int em28xx_vol_get(struct snd_kcontrol *kcontrol,
 		val, (int)kcontrol->private_value);
 
 	value->value.integer.value[0] = 0x1f - (val & 0x1f);
-	value->value.integer.value[1] = 0x1f - ((val << 8) & 0x1f);
+	value->value.integer.value[1] = 0x1f - ((val >> 8) & 0x1f);
 
 	return 0;
 }

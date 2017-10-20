@@ -8,6 +8,12 @@ Required properties:
                    the firmware event log
 - linux,sml-size : size of the memory allocated for the firmware event log
 
+Optional properties:
+
+- powered-while-suspended: present when the TPM is left powered on between
+                           suspend and resume (makes the suspend/resume
+                           callbacks do nothing).
+
 Example (for OpenPower Systems with Nuvoton TPM 2.0 on I2C)
 ----------------------------------------------------------
 
@@ -17,5 +23,4 @@ tpm@57 {
 	compatible = "nuvoton,npct650", "nuvoton,npct601";
 	linux,sml-base = <0x7f 0xfd450000>;
 	linux,sml-size = <0x10000>;
-	status = "okay";
 };

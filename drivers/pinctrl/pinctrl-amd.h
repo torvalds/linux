@@ -97,6 +97,7 @@ struct amd_gpio {
 	unsigned int            hwbank_num;
 	struct resource         *res;
 	struct platform_device  *pdev;
+	u32			*saved_regs;
 };
 
 /*  KERNCZ configuration*/

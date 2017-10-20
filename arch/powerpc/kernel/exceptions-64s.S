@@ -541,7 +541,7 @@ EXC_COMMON_BEGIN(instruction_access_common)
 	RECONCILE_IRQ_STATE(r10, r11)
 	ld	r12,_MSR(r1)
 	ld	r3,_NIP(r1)
-	andis.	r4,r12,0x5820
+	andis.	r4,r12,DSISR_BAD_FAULT_64S@h
 	li	r5,0x400
 	std	r3,_DAR(r1)
 	std	r4,_DSISR(r1)
@@ -734,7 +734,29 @@ EXC_REAL(program_check, 0x700, 0x100)
 EXC_VIRT(program_check, 0x4700, 0x100, 0x700)
 TRAMP_KVM(PACA_EXGEN, 0x700)
 EXC_COMMON_BEGIN(program_check_common)
-	EXCEPTION_PROLOG_COMMON(0x700, PACA_EXGEN)
+	/*
+	 * It's possible to receive a TM Bad Thing type program check with
+	 * userspace register values (in particular r1), but with SRR1 reporting
+	 * that we came from the kernel. Normally that would confuse the bad
+	 * stack logic, and we would report a bad kernel stack pointer. Instead
+	 * we switch to the emergency stack if we're taking a TM Bad Thing from
+	 * the kernel.
+	 */
+	li	r10,MSR_PR		/* Build a mask of MSR_PR ..	*/
+	oris	r10,r10,0x200000@h	/* .. and SRR1_PROGTM		*/
+	and	r10,r10,r12		/* Mask SRR1 with that.		*/
+	srdi	r10,r10,8		/* Shift it so we can compare	*/
+	cmpldi	r10,(0x200000 >> 8)	/* .. with an immediate.	*/
+	bne 1f				/* If != go to normal path.	*/
+
+	/* SRR1 had PR=0 and SRR1_PROGTM=1, so use the emergency stack	*/
+	andi.	r10,r12,MSR_PR;		/* Set CR0 correctly for label	*/
+					/* 3 in EXCEPTION_PROLOG_COMMON	*/
+	mr	r10,r1			/* Save r1			*/
+	ld	r1,PACAEMERGSP(r13)	/* Use emergency stack		*/
+	subi	r1,r1,INT_FRAME_SIZE	/* alloc stack frame		*/
+	b 3f				/* Jump into the macro !!	*/
+1:	EXCEPTION_PROLOG_COMMON(0x700, PACA_EXGEN)
 	bl	save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
@@ -1314,7 +1336,7 @@ EXC_REAL_NONE(0x1800, 0x100)
 EXC_VIRT_NONE(0x5800, 0x100)
 #endif
 
-#if defined(CONFIG_HARDLOCKUP_DETECTOR) && defined(CONFIG_HAVE_HARDLOCKUP_DETECTOR_ARCH)
+#ifdef CONFIG_PPC_WATCHDOG
 
 #define MASKED_DEC_HANDLER_LABEL 3f
 
@@ -1343,10 +1365,10 @@ EXC_COMMON_BEGIN(soft_nmi_common)
 			ADD_NVGPRS;ADD_RECONCILE)
 	b	ret_from_except
 
-#else
+#else /* CONFIG_PPC_WATCHDOG */
 #define MASKED_DEC_HANDLER_LABEL 2f /* normal return */
 #define MASKED_DEC_HANDLER(_H)
-#endif
+#endif /* CONFIG_PPC_WATCHDOG */
 
 /*
  * An interrupt came in while soft-disabled. We set paca->irq_happened, then:
@@ -1370,19 +1392,16 @@ masked_##_H##interrupt:					\
 	ori	r10,r10,0xffff;				\
 	mtspr	SPRN_DEC,r10;				\
 	b	MASKED_DEC_HANDLER_LABEL;		\
-1:	cmpwi	r10,PACA_IRQ_DBELL;			\
-	beq	2f;					\
-	cmpwi	r10,PACA_IRQ_HMI;			\
-	beq	2f;					\
+1:	andi.	r10,r10,(PACA_IRQ_DBELL|PACA_IRQ_HMI);	\
+	bne	2f;					\
 	mfspr	r10,SPRN_##_H##SRR1;			\
-	rldicl	r10,r10,48,1; /* clear MSR_EE */	\
-	rotldi	r10,r10,16;				\
+	xori	r10,r10,MSR_EE; /* clear MSR_EE */	\
 	mtspr	SPRN_##_H##SRR1,r10;			\
 2:	mtcrf	0x80,r9;				\
 	ld	r9,PACA_EXGEN+EX_R9(r13);		\
 	ld	r10,PACA_EXGEN+EX_R10(r13);		\
 	ld	r11,PACA_EXGEN+EX_R11(r13);		\
-	GET_SCRATCH0(r13);				\
+	/* returns to kernel where r13 must be set up, so don't restore it */ \
 	##_H##rfid;					\
 	b	.;					\
 	MASKED_DEC_HANDLER(_H)
@@ -1485,8 +1504,10 @@ USE_TEXT_SECTION()
  */
 	.balign	IFETCH_ALIGN_BYTES
 do_hash_page:
-#ifdef CONFIG_PPC_STD_MMU_64
-	andis.	r0,r4,0xa450		/* weird error? */
+	#ifdef CONFIG_PPC_STD_MMU_64
+	lis	r0,DSISR_BAD_FAULT_64S@h
+	ori	r0,r0,DSISR_BAD_FAULT_64S@l
+	and.	r0,r4,r0		/* weird error? */
 	bne-	handle_page_fault	/* if not, try to insert a HPTE */
 	CURRENT_THREAD_INFO(r11, r1)
 	lwz	r0,TI_PREEMPT(r11)	/* If we're in an "NMI" */
@@ -1669,25 +1690,27 @@ _GLOBAL(__replay_interrupt)
 	 * we don't give a damn about, so we don't bother storing them.
 	 */
 	mfmsr	r12
-	LOAD_REG_ADDR(r11, 1f)
+	LOAD_REG_ADDR(r11, replay_interrupt_return)
 	mfcr	r9
 	ori	r12,r12,MSR_EE
 	cmpwi	r3,0x900
 	beq	decrementer_common
 	cmpwi	r3,0x500
-	beq	hardware_interrupt_common
 BEGIN_FTR_SECTION
-	cmpwi	r3,0xe80
-	beq	h_doorbell_common_msgclr
-	cmpwi	r3,0xea0
 	beq	h_virt_irq_common
+FTR_SECTION_ELSE
+	beq	hardware_interrupt_common
+ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_300)
+BEGIN_FTR_SECTION
+	cmpwi	r3,0xa00
+	beq	h_doorbell_common_msgclr
 	cmpwi	r3,0xe60
 	beq	hmi_exception_common
 FTR_SECTION_ELSE
 	cmpwi	r3,0xa00
 	beq	doorbell_super_common_msgclr
 ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
-1:
+replay_interrupt_return:
 	blr
 
 _ASM_NOKPROBE_SYMBOL(__replay_interrupt)

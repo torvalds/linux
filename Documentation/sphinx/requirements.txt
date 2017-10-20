@@ -1,0 +1,3 @@
+docutils==0.12
+Sphinx==1.4.9
+sphinx_rtd_theme

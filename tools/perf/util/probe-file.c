@@ -412,13 +412,15 @@ int probe_cache_entry__get_event(struct probe_cache_entry *entry,
 }
 
 /* For the kernel probe caches, pass target = NULL or DSO__NAME_KALLSYMS */
-static int probe_cache__open(struct probe_cache *pcache, const char *target)
+static int probe_cache__open(struct probe_cache *pcache, const char *target,
+			     struct nsinfo *nsi)
 {
 	char cpath[PATH_MAX];
 	char sbuildid[SBUILD_ID_SIZE];
 	char *dir_name = NULL;
 	bool is_kallsyms = false;
 	int ret, fd;
+	struct nscookie nsc;
 
 	if (target && build_id_cache__cached(target)) {
 		/* This is a cached buildid */
@@ -431,8 +433,11 @@ static int probe_cache__open(struct probe_cache *pcache, const char *target)
 		target = DSO__NAME_KALLSYMS;
 		is_kallsyms = true;
 		ret = sysfs__sprintf_build_id("/", sbuildid);
-	} else
+	} else {
+		nsinfo__mountns_enter(nsi, &nsc);
 		ret = filename__sprintf_build_id(target, sbuildid);
+		nsinfo__mountns_exit(&nsc);
+	}
 
 	if (ret < 0) {
 		pr_debug("Failed to get build-id from %s.\n", target);
@@ -441,7 +446,7 @@ static int probe_cache__open(struct probe_cache *pcache, const char *target)
 
 	/* If we have no buildid cache, make it */
 	if (!build_id_cache__cached(sbuildid)) {
-		ret = build_id_cache__add_s(sbuildid, target,
+		ret = build_id_cache__add_s(sbuildid, target, nsi,
 					    is_kallsyms, NULL);
 		if (ret < 0) {
 			pr_debug("Failed to add build-id cache: %s\n", target);
@@ -449,7 +454,7 @@ static int probe_cache__open(struct probe_cache *pcache, const char *target)
 		}
 	}
 
-	dir_name = build_id_cache__cachedir(sbuildid, target, is_kallsyms,
+	dir_name = build_id_cache__cachedir(sbuildid, target, nsi, is_kallsyms,
 					    false);
 found:
 	if (!dir_name) {
@@ -554,7 +559,7 @@ void probe_cache__delete(struct probe_cache *pcache)
 	free(pcache);
 }
 
-struct probe_cache *probe_cache__new(const char *target)
+struct probe_cache *probe_cache__new(const char *target, struct nsinfo *nsi)
 {
 	struct probe_cache *pcache = probe_cache__alloc();
 	int ret;
@@ -562,7 +567,7 @@ struct probe_cache *probe_cache__new(const char *target)
 	if (!pcache)
 		return NULL;
 
-	ret = probe_cache__open(pcache, target);
+	ret = probe_cache__open(pcache, target, nsi);
 	if (ret < 0) {
 		pr_debug("Cache open error: %d\n", ret);
 		goto out_err;
@@ -974,7 +979,7 @@ int probe_cache__show_all_caches(struct strfilter *filter)
 		return -EINVAL;
 	}
 	strlist__for_each_entry(nd, bidlist) {
-		pcache = probe_cache__new(nd->s);
+		pcache = probe_cache__new(nd->s, NULL);
 		if (!pcache)
 			continue;
 		if (!list_empty(&pcache->entries)) {

@@ -140,13 +140,10 @@ config EXTRA_FIRMWARE
 config EXTRA_FIRMWARE_DIR
 	string "Firmware blobs root directory"
 	depends on EXTRA_FIRMWARE != ""
-	default "firmware"
+	default "/lib/firmware"
 	help
 	  This option controls the directory in which the kernel build system
 	  looks for the firmware files listed in the EXTRA_FIRMWARE option.
-	  The default is firmware/ in the kernel source tree, but by changing
-	  this option you can point it elsewhere, such as /lib/firmware/ or
-	  some other directory containing the firmware files.
 
 config FW_LOADER_USER_HELPER
 	bool

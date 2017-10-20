@@ -19,8 +19,22 @@ struct sock;
 struct socket;
 struct rxrpc_call;
 
+/*
+ * Call completion condition (state == RXRPC_CALL_COMPLETE).
+ */
+enum rxrpc_call_completion {
+	RXRPC_CALL_SUCCEEDED,		/* - Normal termination */
+	RXRPC_CALL_REMOTELY_ABORTED,	/* - call aborted by peer */
+	RXRPC_CALL_LOCALLY_ABORTED,	/* - call aborted locally on error or close */
+	RXRPC_CALL_LOCAL_ERROR,		/* - call failed due to local error */
+	RXRPC_CALL_NETWORK_ERROR,	/* - call terminated by network error */
+	NR__RXRPC_CALL_COMPLETIONS
+};
+
 typedef void (*rxrpc_notify_rx_t)(struct sock *, struct rxrpc_call *,
 				  unsigned long);
+typedef void (*rxrpc_notify_end_tx_t)(struct sock *, struct rxrpc_call *,
+				      unsigned long);
 typedef void (*rxrpc_notify_new_call_t)(struct sock *, struct rxrpc_call *,
 					unsigned long);
 typedef void (*rxrpc_discard_new_call_t)(struct rxrpc_call *, unsigned long);
@@ -37,7 +51,8 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *,
 					   gfp_t,
 					   rxrpc_notify_rx_t);
 int rxrpc_kernel_send_data(struct socket *, struct rxrpc_call *,
-			   struct msghdr *, size_t);
+			   struct msghdr *, size_t,
+			   rxrpc_notify_end_tx_t);
 int rxrpc_kernel_recv_data(struct socket *, struct rxrpc_call *,
 			   void *, size_t, size_t *, bool, u32 *);
 bool rxrpc_kernel_abort_call(struct socket *, struct rxrpc_call *,
@@ -48,5 +63,9 @@ void rxrpc_kernel_get_peer(struct socket *, struct rxrpc_call *,
 int rxrpc_kernel_charge_accept(struct socket *, rxrpc_notify_rx_t,
 			       rxrpc_user_attach_call_t, unsigned long, gfp_t);
 void rxrpc_kernel_set_tx_length(struct socket *, struct rxrpc_call *, s64);
+int rxrpc_kernel_retry_call(struct socket *, struct rxrpc_call *,
+			    struct sockaddr_rxrpc *, struct key *);
+int rxrpc_kernel_check_call(struct socket *, struct rxrpc_call *,
+			    enum rxrpc_call_completion *, u32 *);
 
 #endif /* _NET_RXRPC_H */

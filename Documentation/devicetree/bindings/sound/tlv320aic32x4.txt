@@ -3,7 +3,9 @@ Texas Instruments - tlv320aic32x4 Codec module
 The tlv320aic32x4 serial control bus communicates through I2C protocols
 
 Required properties:
- - compatible: Should be "ti,tlv320aic32x4"
+ - compatible - "string" - One of:
+	"ti,tlv320aic32x4" TLV320AIC3204
+	"ti,tlv320aic32x6" TLV320AIC3206, TLV320AIC3256
  - reg: I2C slave address
  - supply-*: Required supply regulators are:
     "iov" - digital IO power supply
@@ -18,6 +20,8 @@ Optional properties:
  - reset-gpios: Reset-GPIO phandle with args as described in gpio/gpio.txt
  - clocks/clock-names: Clock named 'mclk' for the master clock of the codec.
    See clock/clock-bindings.txt for information about the detailed format.
+ - aic32x4-gpio-func - <array of 5 int>
+	- Types are defined in include/sound/tlv320aic32x4.h
 
 
 Example:
@@ -27,4 +31,11 @@ codec: tlv320aic32x4@18 {
 	reg = <0x18>;
 	clocks = <&clks 201>;
 	clock-names = "mclk";
+	aic32x4-gpio-func= <
+			0xff /* AIC32X4_MFPX_DEFAULT_VALUE */
+			0xff /* AIC32X4_MFPX_DEFAULT_VALUE */
+			0x04 /* MFP3 AIC32X4_MFP3_GPIO_ENABLED */
+			0xff /* AIC32X4_MFPX_DEFAULT_VALUE */
+			0x08 /* MFP5 AIC32X4_MFP5_GPIO_INPUT */
+		>;
 };

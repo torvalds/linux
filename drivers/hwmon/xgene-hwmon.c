@@ -630,7 +630,7 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 			 sizeof(struct slimpro_resp_msg) * ASYNC_MSG_FIFO_SIZE,
 			 GFP_KERNEL);
 	if (rc)
-		goto out_mbox_free;
+		return -ENOMEM;
 
 	INIT_WORK(&ctx->workq, xgene_hwmon_evt_work);
 
@@ -646,7 +646,8 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 		if (IS_ERR(ctx->mbox_chan)) {
 			dev_err(&pdev->dev,
 				"SLIMpro mailbox channel request failed\n");
-			return -ENODEV;
+			rc = -ENODEV;
+			goto out_mbox_free;
 		}
 	} else {
 		struct acpi_pcct_hw_reduced *cppc_ss;
@@ -654,7 +655,8 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 		if (device_property_read_u32(&pdev->dev, "pcc-channel",
 					     &ctx->mbox_idx)) {
 			dev_err(&pdev->dev, "no pcc-channel property\n");
-			return -ENODEV;
+			rc = -ENODEV;
+			goto out_mbox_free;
 		}
 
 		cl->rx_callback = xgene_hwmon_pcc_rx_cb;
@@ -662,7 +664,8 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 		if (IS_ERR(ctx->mbox_chan)) {
 			dev_err(&pdev->dev,
 				"PPC channel request failed\n");
-			return -ENODEV;
+			rc = -ENODEV;
+			goto out_mbox_free;
 		}
 
 		/*
@@ -675,13 +678,13 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 		if (!cppc_ss) {
 			dev_err(&pdev->dev, "PPC subspace not found\n");
 			rc = -ENODEV;
-			goto out_mbox_free;
+			goto out;
 		}
 
 		if (!ctx->mbox_chan->mbox->txdone_irq) {
 			dev_err(&pdev->dev, "PCC IRQ not supported\n");
 			rc = -ENODEV;
-			goto out_mbox_free;
+			goto out;
 		}
 
 		/*
@@ -696,14 +699,14 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 		} else {
 			dev_err(&pdev->dev, "Failed to get PCC comm region\n");
 			rc = -ENODEV;
-			goto out_mbox_free;
+			goto out;
 		}
 
 		if (!ctx->pcc_comm_addr) {
 			dev_err(&pdev->dev,
 				"Failed to ioremap PCC comm region\n");
 			rc = -ENOMEM;
-			goto out_mbox_free;
+			goto out;
 		}
 
 		/*

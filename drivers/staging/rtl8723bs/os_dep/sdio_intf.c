@@ -138,7 +138,7 @@ static void sdio_free_irq(struct dvobj_priv *dvobj)
 extern unsigned int oob_irq;
 static irqreturn_t gpio_hostwakeup_irq_thread(int irq, void *data)
 {
-	struct adapter *padapter = (struct adapter *)data;
+	struct adapter *padapter = data;
 	DBG_871X_LEVEL(_drv_always_, "gpio_hostwakeup_irq_thread\n");
 	/* Disable interrupt before calling handler */
 	/* disable_irq_nosync(oob_irq); */
