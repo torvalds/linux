@@ -320,7 +320,7 @@ static int dwapb_gpio_set_debounce(struct gpio_chip *gc,
 	struct dwapb_gpio_port *port = gpiochip_get_data(gc);
 	struct dwapb_gpio *gpio = port->gpio;
 	unsigned long flags, val_deb;
-	unsigned long mask = gc->pin2mask(gc, offset);
+	unsigned long mask = BIT(offset);
 
 	spin_lock_irqsave(&gc->bgpio_lock, flags);
 
@@ -482,7 +482,7 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 		(pp->idx * GPIO_SWPORT_DDR_SIZE);
 
 	err = bgpio_init(&port->gc, gpio->dev, 4, dat, set, NULL, dirout,
-			 NULL, false);
+			 NULL, 0);
 	if (err) {
 		dev_err(gpio->dev, "failed to init gpio chip for port%d\n",
 			port->idx);
