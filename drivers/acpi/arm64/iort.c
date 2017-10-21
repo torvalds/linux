@@ -1178,12 +1178,44 @@ dev_put:
 	return ret;
 }
 
+static bool __init iort_enable_acs(struct acpi_iort_node *iort_node)
+{
+	if (iort_node->type == ACPI_IORT_NODE_PCI_ROOT_COMPLEX) {
+		struct acpi_iort_node *parent;
+		struct acpi_iort_id_mapping *map;
+		int i;
+
+		map = ACPI_ADD_PTR(struct acpi_iort_id_mapping, iort_node,
+				   iort_node->mapping_offset);
+
+		for (i = 0; i < iort_node->mapping_count; i++, map++) {
+			if (!map->output_reference)
+				continue;
+
+			parent = ACPI_ADD_PTR(struct acpi_iort_node,
+					iort_table,  map->output_reference);
+			/*
+			 * If we detect a RC->SMMU mapping, make sure
+			 * we enable ACS on the system.
+			 */
+			if ((parent->type == ACPI_IORT_NODE_SMMU) ||
+				(parent->type == ACPI_IORT_NODE_SMMU_V3)) {
+				pci_request_acs();
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 static void __init iort_init_platform_devices(void)
 {
 	struct acpi_iort_node *iort_node, *iort_end;
 	struct acpi_table_iort *iort;
 	struct fwnode_handle *fwnode;
 	int i, ret;
+	bool acs_enabled = false;
 
 	/*
 	 * iort_table and iort both point to the start of IORT table, but
@@ -1202,6 +1234,9 @@ static void __init iort_init_platform_devices(void)
 			pr_err("iort node pointer overflows, bad table\n");
 			return;
 		}
+
+		if (!acs_enabled)
+			acs_enabled = iort_enable_acs(iort_node);
 
 		if ((iort_node->type == ACPI_IORT_NODE_SMMU) ||
 			(iort_node->type == ACPI_IORT_NODE_SMMU_V3)) {

@@ -693,7 +693,7 @@ static int acpi_lpss_activate(struct device *dev)
 	struct lpss_private_data *pdata = acpi_driver_data(ACPI_COMPANION(dev));
 	int ret;
 
-	ret = acpi_dev_runtime_resume(dev);
+	ret = acpi_dev_resume(dev);
 	if (ret)
 		return ret;
 
@@ -737,7 +737,7 @@ static int acpi_lpss_resume_early(struct device *dev)
 	struct lpss_private_data *pdata = acpi_driver_data(ACPI_COMPANION(dev));
 	int ret;
 
-	ret = acpi_dev_resume_early(dev);
+	ret = acpi_dev_resume(dev);
 	if (ret)
 		return ret;
 
@@ -872,7 +872,7 @@ static int acpi_lpss_runtime_resume(struct device *dev)
 	if (lpss_quirks & LPSS_QUIRK_ALWAYS_POWER_ON && iosf_mbi_available())
 		lpss_iosf_exit_d3_state();
 
-	ret = acpi_dev_runtime_resume(dev);
+	ret = acpi_dev_resume(dev);
 	if (ret)
 		return ret;
 
@@ -894,7 +894,7 @@ static struct dev_pm_domain acpi_lpss_pm_domain = {
 #ifdef CONFIG_PM
 #ifdef CONFIG_PM_SLEEP
 		.prepare = acpi_subsys_prepare,
-		.complete = pm_complete_with_resume_check,
+		.complete = acpi_subsys_complete,
 		.suspend = acpi_subsys_suspend,
 		.suspend_late = acpi_lpss_suspend_late,
 		.resume_early = acpi_lpss_resume_early,

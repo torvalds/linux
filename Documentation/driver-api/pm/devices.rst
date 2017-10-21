@@ -328,7 +328,10 @@ the phases are: ``prepare``, ``suspend``, ``suspend_late``, ``suspend_noirq``.
 	After the ``->prepare`` callback method returns, no new children may be
 	registered below the device.  The method may also prepare the device or
 	driver in some way for the upcoming system power transition, but it
-	should not put the device into a low-power state.
+	should not put the device into a low-power state.  Moreover, if the
+	device supports runtime power management, the ``->prepare`` callback
+	method must not update its state in case it is necessary to resume it
+	from runtime suspend later on.
 
 	For devices supporting runtime power management, the return value of the
 	prepare callback can be used to indicate to the PM core that it may
@@ -355,6 +358,16 @@ the phases are: ``prepare``, ``suspend``, ``suspend_late``, ``suspend_noirq``.
 	performing I/O.  They also may save the device registers and put it into
 	the appropriate low-power state, depending on the bus type the device is
 	on, and they may enable wakeup events.
+
+	However, for devices supporting runtime power management, the
+	``->suspend`` methods provided by subsystems (bus types and PM domains
+	in particular) must follow an additional rule regarding what can be done
+	to the devices before their drivers' ``->suspend`` methods are called.
+	Namely, they can only resume the devices from runtime suspend by
+	calling :c:func:`pm_runtime_resume` for them, if that is necessary, and
+	they must not update the state of the devices in any other way at that
+	time (in case the drivers need to resume the devices from runtime
+	suspend in their ``->suspend`` methods).
 
     3.	For a number of devices it is convenient to split suspend into the
 	"quiesce device" and "save device state" phases, in which cases
@@ -728,6 +741,16 @@ transition, but in other cases the device must be put back into the full-power
 state temporarily, for example so that its system wakeup capability can be
 disabled.  This all depends on the hardware and the design of the subsystem and
 device driver in question.
+
+If it is necessary to resume a device from runtime suspend during a system-wide
+transition into a sleep state, that can be done by calling
+:c:func:`pm_runtime_resume` for it from the ``->suspend`` callback (or its
+couterpart for transitions related to hibernation) of either the device's driver
+or a subsystem responsible for it (for example, a bus type or a PM domain).
+That is guaranteed to work by the requirement that subsystems must not change
+the state of devices (possibly except for resuming them from runtime suspend)
+from their ``->prepare`` and ``->suspend`` callbacks (or equivalent) *before*
+invoking device drivers' ``->suspend`` callbacks (or equivalent).
 
 During system-wide resume from a sleep state it's easiest to put devices into
 the full-power state, as explained in :file:`Documentation/power/runtime_pm.txt`.

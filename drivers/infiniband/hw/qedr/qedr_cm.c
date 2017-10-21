@@ -105,7 +105,7 @@ void qedr_ll2_complete_rx_packet(void *cxt,
 
 	qp->rqe_wr_id[qp->rq.gsi_cons].rc = data->u.data_length_error ?
 		-EINVAL : 0;
-	qp->rqe_wr_id[qp->rq.gsi_cons].vlan_id = data->vlan;
+	qp->rqe_wr_id[qp->rq.gsi_cons].vlan = data->vlan;
 	/* note: length stands for data length i.e. GRH is excluded */
 	qp->rqe_wr_id[qp->rq.gsi_cons].sg_list[0].length =
 		data->length.data_length;
@@ -694,6 +694,7 @@ int qedr_gsi_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	struct qedr_cq *cq = get_qedr_cq(ibcq);
 	struct qedr_qp *qp = dev->gsi_qp;
 	unsigned long flags;
+	u16 vlan_id;
 	int i = 0;
 
 	spin_lock_irqsave(&cq->cq_lock, flags);
@@ -712,9 +713,14 @@ int qedr_gsi_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 		wc[i].wc_flags |= IB_WC_GRH | IB_WC_IP_CSUM_OK;
 		ether_addr_copy(wc[i].smac, qp->rqe_wr_id[qp->rq.cons].smac);
 		wc[i].wc_flags |= IB_WC_WITH_SMAC;
-		if (qp->rqe_wr_id[qp->rq.cons].vlan_id) {
+
+		vlan_id = qp->rqe_wr_id[qp->rq.cons].vlan &
+			  VLAN_VID_MASK;
+		if (vlan_id) {
 			wc[i].wc_flags |= IB_WC_WITH_VLAN;
-			wc[i].vlan_id = qp->rqe_wr_id[qp->rq.cons].vlan_id;
+			wc[i].vlan_id = vlan_id;
+			wc[i].sl = (qp->rqe_wr_id[qp->rq.cons].vlan &
+				    VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
 		}
 
 		qedr_inc_sw_cons(&qp->rq);

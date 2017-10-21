@@ -223,11 +223,9 @@ static int ad7192_setup(struct ad7192_state *st,
 	struct iio_dev *indio_dev = spi_get_drvdata(st->sd.spi);
 	unsigned long long scale_uv;
 	int i, ret, id;
-	u8 ones[6];
 
 	/* reset the serial interface */
-	memset(&ones, 0xFF, 6);
-	ret = spi_write(st->sd.spi, &ones, 6);
+	ret = ad_sd_reset(&st->sd, 48);
 	if (ret < 0)
 		goto out;
 	usleep_range(500, 1000); /* Wait for at least 500us */

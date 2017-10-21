@@ -4,6 +4,7 @@ The device node has following properties.
 
 Required properties:
  - compatible: should be "rockchip,<name>-gamc"
+   "rockchip,rk3128-gmac": found on RK312x SoCs
    "rockchip,rk3228-gmac": found on RK322x SoCs
    "rockchip,rk3288-gmac": found on RK3288 SoCs
    "rockchip,rk3328-gmac": found on RK3328 SoCs

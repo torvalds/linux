@@ -1980,7 +1980,9 @@ int __dquot_transfer(struct inode *inode, struct dquot **transfer_to)
 		ret = dquot_add_space(transfer_to[cnt], cur_space, rsv_space, 0,
 				      &warn_to[cnt]);
 		if (ret) {
+			spin_lock(&transfer_to[cnt]->dq_dqb_lock);
 			dquot_decr_inodes(transfer_to[cnt], inode_usage);
+			spin_unlock(&transfer_to[cnt]->dq_dqb_lock);
 			goto over_quota;
 		}
 	}

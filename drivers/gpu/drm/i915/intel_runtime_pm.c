@@ -2782,6 +2782,9 @@ static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume
 
 	/* 6. Enable DBUF */
 	gen9_dbuf_enable(dev_priv);
+
+	if (resume && dev_priv->csr.dmc_payload)
+		intel_csr_load_program(dev_priv);
 }
 
 #undef CNL_PROCMON_IDX
