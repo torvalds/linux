@@ -45,8 +45,6 @@
 #define ATUSB_ALLOC_DELAY_MS	100	/* delay after failed allocation */
 #define ATUSB_TX_TIMEOUT_MS	200	/* on the air timeout */
 
-struct atusb_chip_data;
-
 struct atusb {
 	struct ieee802154_hw *hw;
 	struct usb_device *usb_dev;
@@ -767,14 +765,14 @@ atusb_set_promiscuous_mode(struct ieee802154_hw *hw, const bool on)
 	return 0;
 }
 
-struct atusb_chip_data atusb_chip_data = {
+static struct atusb_chip_data atusb_chip_data = {
 	.t_channel_switch = 1,
 	.rssi_base_val = -91,
 	.set_txpower = atusb_set_txpower,
 	.set_channel = atusb_set_channel,
 };
 
-struct atusb_chip_data hulusb_chip_data = {
+static struct atusb_chip_data hulusb_chip_data = {
 	.t_channel_switch = 11,
 	.rssi_base_val = -100,
 	.set_txpower = hulusb_set_txpower,
@@ -1060,7 +1058,7 @@ static int atusb_probe(struct usb_interface *interface,
 	atusb_get_and_show_build(atusb);
 	atusb_set_extended_addr(atusb);
 
-	if (atusb->fw_ver_maj >= 0 && atusb->fw_ver_min >= 3)
+	if ((atusb->fw_ver_maj == 0 && atusb->fw_ver_min >= 3) || atusb->fw_ver_maj > 0)
 		hw->flags |= IEEE802154_HW_FRAME_RETRIES;
 
 	ret = atusb_get_and_clear_error(atusb);
