@@ -130,7 +130,6 @@ we might work for today, have in the past, or will in the future.
   - Leon Romanovsky
   - Steven Rostedt (VMware)
   - Ivan Safonov
-  - Ivan Safonov
   - Anna Schumaker
   - Jes Sorensen
   - K.Y. Srinivasan
@@ -141,6 +140,7 @@ we might work for today, have in the past, or will in the future.
   - Thierry Reding
   - Rik van Riel
   - Geert Uytterhoeven (Glider bvba)
+  - Eduardo Valentin (Amazon.com)
   - Daniel Vetter
   - Linus Walleij
   - Richard Weinberger
@@ -150,5 +150,4 @@ we might work for today, have in the past, or will in the future.
   - Masahiro Yamada
   - Wei Yongjun
   - Lv Zheng
-  - Eduardo Valentin <Amazon.com>
   - Marc Zyngier (Arm Ltd)
