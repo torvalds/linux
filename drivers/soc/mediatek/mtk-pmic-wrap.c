@@ -1380,6 +1380,7 @@ static const struct of_device_id of_slave_match_tbl[] = {
 	}, {
 		.compatible = "mediatek,mt6397",
 		.data = &pmic_mt6397,
+	}, {
 		/* sentinel */
 	}
 };
