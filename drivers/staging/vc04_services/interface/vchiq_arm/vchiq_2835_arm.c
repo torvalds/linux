@@ -204,25 +204,31 @@ VCHIQ_STATUS_T
 vchiq_platform_init_state(VCHIQ_STATE_T *state)
 {
 	VCHIQ_STATUS_T status = VCHIQ_SUCCESS;
+	struct vchiq_2835_state *platform_state;
 
-	state->platform_state = kzalloc(sizeof(struct vchiq_2835_state), GFP_KERNEL);
-	((struct vchiq_2835_state *)state->platform_state)->inited = 1;
-	status = vchiq_arm_init_state(state, &((struct vchiq_2835_state *)state->platform_state)->arm_state);
+	state->platform_state = kzalloc(sizeof(*platform_state), GFP_KERNEL);
+	platform_state = (struct vchiq_2835_state *)state->platform_state;
+
+	platform_state->inited = 1;
+	status = vchiq_arm_init_state(state, &platform_state->arm_state);
+
 	if (status != VCHIQ_SUCCESS)
-	{
-		((struct vchiq_2835_state *)state->platform_state)->inited = 0;
-	}
+		platform_state->inited = 0;
+
 	return status;
 }
 
 VCHIQ_ARM_STATE_T*
 vchiq_platform_get_arm_state(VCHIQ_STATE_T *state)
 {
-	if (!((struct vchiq_2835_state *)state->platform_state)->inited)
-	{
+	struct vchiq_2835_state *platform_state;
+
+	platform_state   = (struct vchiq_2835_state *)state->platform_state;
+
+	if (!platform_state->inited)
 		BUG();
-	}
-	return &((struct vchiq_2835_state *)state->platform_state)->arm_state;
+
+	return &platform_state->arm_state;
 }
 
 void
