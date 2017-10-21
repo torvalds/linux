@@ -23,6 +23,11 @@ struct IR_i2c {
 	int                    (*get_key)(struct IR_i2c *ir,
 					  enum rc_proto *protocol,
 					  u32 *scancode, u8 *toggle);
+	/* tx */
+	struct i2c_client      *tx_c;
+	struct mutex	       lock;	/* do not poll Rx during Tx */
+	unsigned int	       carrier;
+	unsigned int	       duty_cycle;
 };
 
 enum ir_kbd_get_key_fn {
