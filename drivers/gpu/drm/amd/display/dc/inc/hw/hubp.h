@@ -100,6 +100,8 @@ struct hubp_funcs {
 			const struct dc_cursor_position *pos,
 			const struct dc_cursor_mi_param *param);
 
+	void (*hubp_disconnect)(struct hubp *hubp);
+
 };
 
 #endif

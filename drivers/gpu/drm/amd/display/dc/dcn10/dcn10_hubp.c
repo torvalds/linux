@@ -56,6 +56,14 @@ void hubp1_set_blank(struct hubp *hubp, bool blank)
 	}
 }
 
+static void hubp1_disconnect(struct hubp *hubp)
+{
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
+
+	REG_UPDATE(DCHUBP_CNTL,
+			HUBP_TTU_DISABLE, 1);
+}
+
 static void hubp1_set_hubp_blank_en(struct hubp *hubp, bool blank)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
@@ -933,6 +941,7 @@ static struct hubp_funcs dcn10_hubp_funcs = {
 	.set_hubp_blank_en = hubp1_set_hubp_blank_en,
 	.set_cursor_attributes	= hubp1_cursor_set_attributes,
 	.set_cursor_position	= hubp1_cursor_set_position,
+	.hubp_disconnect = hubp1_disconnect,
 };
 
 /*****************************************/

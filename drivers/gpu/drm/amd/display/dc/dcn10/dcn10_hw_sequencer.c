@@ -2019,6 +2019,7 @@ static void dcn10_apply_ctx_for_surface(
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *old_pipe_ctx =
 				&dc->current_state->res_ctx.pipe_ctx[i];
+		struct hubp *hubp = dc->res_pool->hubps[i];
 
 		if (!pipe_ctx->plane_state && !old_pipe_ctx->plane_state)
 			continue;
@@ -2066,6 +2067,9 @@ static void dcn10_apply_ctx_for_surface(
 			/*dm_logger_write(dc->ctx->logger, LOG_ERROR,
 					"[debug_mpo: apply_ctx disconnect pending on mpcc %d]\n",
 					old_pipe_ctx->mpcc->inst);*/
+
+			if (hubp->funcs->hubp_disconnect)
+				hubp->funcs->hubp_disconnect(hubp);
 
 			if (dc->debug.sanity_checks)
 				verify_allow_pstate_change_high(dc->hwseq);
