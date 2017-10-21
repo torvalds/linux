@@ -2274,8 +2274,7 @@ static int do_setlink(const struct sk_buff *skb,
 
 			rcu_read_lock();
 
-			if (!(af_ops = rtnl_af_lookup(nla_type(af))))
-				BUG();
+			BUG_ON(!(af_ops = rtnl_af_lookup(nla_type(af))));
 
 			err = af_ops->set_link_af(dev, af);
 			if (err < 0) {
