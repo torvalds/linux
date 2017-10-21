@@ -147,7 +147,9 @@ static bool cls_bpf_is_ebpf(const struct cls_bpf_prog *prog)
 static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 			       enum tc_clsbpf_command cmd)
 {
-	struct net_device *dev = tp->q->dev_queue->dev;
+	bool addorrep = cmd == TC_CLSBPF_ADD || cmd == TC_CLSBPF_REPLACE;
+	struct tcf_block *block = tp->chain->block;
+	bool skip_sw = tc_skip_sw(prog->gen_flags);
 	struct tc_cls_bpf_offload cls_bpf = {};
 	int err;
 
@@ -159,17 +161,25 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 	cls_bpf.exts_integrated = prog->exts_integrated;
 	cls_bpf.gen_flags = prog->gen_flags;
 
-	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSBPF, &cls_bpf);
-	if (!err && (cmd == TC_CLSBPF_ADD || cmd == TC_CLSBPF_REPLACE))
-		prog->gen_flags |= TCA_CLS_FLAGS_IN_HW;
+	err = tc_setup_cb_call(block, NULL, TC_SETUP_CLSBPF, &cls_bpf, skip_sw);
+	if (addorrep) {
+		if (err < 0) {
+			cls_bpf_offload_cmd(tp, prog, TC_CLSBPF_DESTROY);
+			return err;
+		} else if (err > 0) {
+			prog->gen_flags |= TCA_CLS_FLAGS_IN_HW;
+		}
+	}
 
-	return err;
+	if (addorrep && skip_sw && !(prog->gen_flags && TCA_CLS_FLAGS_IN_HW))
+		return -EINVAL;
+
+	return 0;
 }
 
 static int cls_bpf_offload(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 			   struct cls_bpf_prog *oldprog)
 {
-	struct net_device *dev = tp->q->dev_queue->dev;
 	struct cls_bpf_prog *obj = prog;
 	enum tc_clsbpf_command cmd;
 	bool skip_sw;
@@ -179,7 +189,7 @@ static int cls_bpf_offload(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 		(oldprog && tc_skip_sw(oldprog->gen_flags));
 
 	if (oldprog && oldprog->offloaded) {
-		if (tc_should_offload(dev, prog->gen_flags)) {
+		if (!tc_skip_hw(prog->gen_flags)) {
 			cmd = TC_CLSBPF_REPLACE;
 		} else if (!tc_skip_sw(prog->gen_flags)) {
 			obj = oldprog;
@@ -188,14 +198,14 @@ static int cls_bpf_offload(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 			return -EINVAL;
 		}
 	} else {
-		if (!tc_should_offload(dev, prog->gen_flags))
+		if (tc_skip_hw(prog->gen_flags))
 			return skip_sw ? -EINVAL : 0;
 		cmd = TC_CLSBPF_ADD;
 	}
 
 	ret = cls_bpf_offload_cmd(tp, obj, cmd);
 	if (ret)
-		return skip_sw ? ret : 0;
+		return ret;
 
 	obj->offloaded = true;
 	if (oldprog)

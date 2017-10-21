@@ -449,6 +449,10 @@ static int
 nfp_flower_repr_offload(struct nfp_app *app, struct net_device *netdev,
 			struct tc_cls_flower_offload *flower)
 {
+	if (!eth_proto_is_802_3(flower->common.protocol) ||
+	    flower->common.chain_index)
+		return -EOPNOTSUPP;
+
 	switch (flower->command) {
 	case TC_CLSFLOWER_REPLACE:
 		return nfp_flower_add_offload(app, netdev, flower);
@@ -461,16 +465,50 @@ nfp_flower_repr_offload(struct nfp_app *app, struct net_device *netdev,
 	return -EOPNOTSUPP;
 }
 
+static int nfp_flower_setup_tc_block_cb(enum tc_setup_type type,
+					void *type_data, void *cb_priv)
+{
+	struct nfp_net *nn = cb_priv;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return nfp_flower_repr_offload(nn->app, nn->port->netdev,
+					       type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int nfp_flower_setup_tc_block(struct net_device *netdev,
+				     struct tc_block_offload *f)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+
+	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+		return -EOPNOTSUPP;
+
+	switch (f->command) {
+	case TC_BLOCK_BIND:
+		return tcf_block_cb_register(f->block,
+					     nfp_flower_setup_tc_block_cb,
+					     nn, nn);
+	case TC_BLOCK_UNBIND:
+		tcf_block_cb_unregister(f->block,
+					nfp_flower_setup_tc_block_cb,
+					nn);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
 			enum tc_setup_type type, void *type_data)
 {
-	struct tc_cls_flower_offload *cls_flower = type_data;
-
-	if (type != TC_SETUP_CLSFLOWER ||
-	    !is_classid_clsact_ingress(cls_flower->common.classid) ||
-	    !eth_proto_is_802_3(cls_flower->common.protocol) ||
-	    cls_flower->common.chain_index)
+	switch (type) {
+	case TC_SETUP_BLOCK:
+		return nfp_flower_setup_tc_block(netdev, type_data);
+	default:
 		return -EOPNOTSUPP;
-
-	return nfp_flower_repr_offload(app, netdev, cls_flower);
+	}
 }

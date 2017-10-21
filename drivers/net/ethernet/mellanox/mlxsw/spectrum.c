@@ -1697,17 +1697,9 @@ static void mlxsw_sp_port_del_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 }
 
 static int mlxsw_sp_setup_tc_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
-					  struct tc_cls_matchall_offload *f)
+					  struct tc_cls_matchall_offload *f,
+					  bool ingress)
 {
-	bool ingress;
-
-	if (is_classid_clsact_ingress(f->common.classid))
-		ingress = true;
-	else if (is_classid_clsact_egress(f->common.classid))
-		ingress = false;
-	else
-		return -EOPNOTSUPP;
-
 	if (f->common.chain_index)
 		return -EOPNOTSUPP;
 
@@ -1725,17 +1717,9 @@ static int mlxsw_sp_setup_tc_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 
 static int
 mlxsw_sp_setup_tc_cls_flower(struct mlxsw_sp_port *mlxsw_sp_port,
-			     struct tc_cls_flower_offload *f)
+			     struct tc_cls_flower_offload *f,
+			     bool ingress)
 {
-	bool ingress;
-
-	if (is_classid_clsact_ingress(f->common.classid))
-		ingress = true;
-	else if (is_classid_clsact_egress(f->common.classid))
-		ingress = false;
-	else
-		return -EOPNOTSUPP;
-
 	switch (f->command) {
 	case TC_CLSFLOWER_REPLACE:
 		return mlxsw_sp_flower_replace(mlxsw_sp_port, ingress, f);
@@ -1749,16 +1733,67 @@ mlxsw_sp_setup_tc_cls_flower(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 }
 
+static int mlxsw_sp_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
+				      void *cb_priv, bool ingress)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port = cb_priv;
+
+	switch (type) {
+	case TC_SETUP_CLSMATCHALL:
+		return mlxsw_sp_setup_tc_cls_matchall(mlxsw_sp_port, type_data,
+						      ingress);
+	case TC_SETUP_CLSFLOWER:
+		return mlxsw_sp_setup_tc_cls_flower(mlxsw_sp_port, type_data,
+						    ingress);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int mlxsw_sp_setup_tc_block_cb_ig(enum tc_setup_type type,
+					 void *type_data, void *cb_priv)
+{
+	return mlxsw_sp_setup_tc_block_cb(type, type_data, cb_priv, true);
+}
+
+static int mlxsw_sp_setup_tc_block_cb_eg(enum tc_setup_type type,
+					 void *type_data, void *cb_priv)
+{
+	return mlxsw_sp_setup_tc_block_cb(type, type_data, cb_priv, false);
+}
+
+static int mlxsw_sp_setup_tc_block(struct mlxsw_sp_port *mlxsw_sp_port,
+				   struct tc_block_offload *f)
+{
+	tc_setup_cb_t *cb;
+
+	if (f->binder_type == TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+		cb = mlxsw_sp_setup_tc_block_cb_ig;
+	else if (f->binder_type == TCF_BLOCK_BINDER_TYPE_CLSACT_EGRESS)
+		cb = mlxsw_sp_setup_tc_block_cb_eg;
+	else
+		return -EOPNOTSUPP;
+
+	switch (f->command) {
+	case TC_BLOCK_BIND:
+		return tcf_block_cb_register(f->block, cb, mlxsw_sp_port,
+					     mlxsw_sp_port);
+	case TC_BLOCK_UNBIND:
+		tcf_block_cb_unregister(f->block, cb, mlxsw_sp_port);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int mlxsw_sp_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			     void *type_data)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 
 	switch (type) {
-	case TC_SETUP_CLSMATCHALL:
-		return mlxsw_sp_setup_tc_cls_matchall(mlxsw_sp_port, type_data);
-	case TC_SETUP_CLSFLOWER:
-		return mlxsw_sp_setup_tc_cls_flower(mlxsw_sp_port, type_data);
+	case TC_SETUP_BLOCK:
+		return mlxsw_sp_setup_tc_block(mlxsw_sp_port, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
