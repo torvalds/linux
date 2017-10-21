@@ -344,7 +344,7 @@ msgdma_prep_memcpy(struct dma_chan *dchan, dma_addr_t dma_dst,
 
 	spin_lock_irqsave(&mdev->lock, irqflags);
 	if (desc_cnt > mdev->desc_free_cnt) {
-		spin_unlock_bh(&mdev->lock);
+		spin_unlock_irqrestore(&mdev->lock, irqflags);
 		dev_dbg(mdev->dev, "mdev %p descs are not available\n", mdev);
 		return NULL;
 	}
@@ -407,7 +407,7 @@ msgdma_prep_slave_sg(struct dma_chan *dchan, struct scatterlist *sgl,
 
 	spin_lock_irqsave(&mdev->lock, irqflags);
 	if (desc_cnt > mdev->desc_free_cnt) {
-		spin_unlock_bh(&mdev->lock);
+		spin_unlock_irqrestore(&mdev->lock, irqflags);
 		dev_dbg(mdev->dev, "mdev %p descs are not available\n", mdev);
 		return NULL;
 	}
