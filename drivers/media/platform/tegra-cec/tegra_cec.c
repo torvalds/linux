@@ -356,40 +356,34 @@ static int tegra_cec_probe(struct platform_device *pdev)
 	if (!res) {
 		dev_err(&pdev->dev,
 			"Unable to allocate resources for device\n");
-		ret = -EBUSY;
-		goto cec_error;
+		return -EBUSY;
 	}
 
 	if (!devm_request_mem_region(&pdev->dev, res->start, resource_size(res),
 		pdev->name)) {
 		dev_err(&pdev->dev,
 			"Unable to request mem region for device\n");
-		ret = -EBUSY;
-		goto cec_error;
+		return -EBUSY;
 	}
 
 	cec->tegra_cec_irq = platform_get_irq(pdev, 0);
 
-	if (cec->tegra_cec_irq <= 0) {
-		ret = -EBUSY;
-		goto cec_error;
-	}
+	if (cec->tegra_cec_irq <= 0)
+		return -EBUSY;
 
 	cec->cec_base = devm_ioremap_nocache(&pdev->dev, res->start,
-		resource_size(res));
+					     resource_size(res));
 
 	if (!cec->cec_base) {
 		dev_err(&pdev->dev, "Unable to grab IOs for device\n");
-		ret = -EBUSY;
-		goto cec_error;
+		return -EBUSY;
 	}
 
 	cec->clk = devm_clk_get(&pdev->dev, "cec");
 
 	if (IS_ERR_OR_NULL(cec->clk)) {
 		dev_err(&pdev->dev, "Can't get clock for CEC\n");
-		ret = -ENOENT;
-		goto clk_error;
+		return -ENOENT;
 	}
 
 	clk_prepare_enable(cec->clk);
@@ -406,13 +400,13 @@ static int tegra_cec_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev,
 			"Unable to request interrupt for device\n");
-		goto cec_error;
+		goto clk_error;
 	}
 
 	cec->notifier = cec_notifier_get(&hdmi_dev->dev);
 	if (!cec->notifier) {
 		ret = -ENOMEM;
-		goto cec_error;
+		goto clk_error;
 	}
 
 	cec->adap = cec_allocate_adapter(&tegra_cec_ops, cec, TEGRA_CEC_NAME,
@@ -437,8 +431,8 @@ cec_error:
 	if (cec->notifier)
 		cec_notifier_put(cec->notifier);
 	cec_delete_adapter(cec->adap);
-	clk_disable_unprepare(cec->clk);
 clk_error:
+	clk_disable_unprepare(cec->clk);
 	return ret;
 }
 
