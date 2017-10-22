@@ -153,46 +153,55 @@ struct usb251xb {
 
 struct usb251xb_data {
 	u16 product_id;
+	u8 port_cnt;
 	char product_str[USB251XB_STRING_BUFSIZE / 2]; /* ASCII string */
 };
 
 static const struct usb251xb_data usb2512b_data = {
 	.product_id = 0x2512,
+	.port_cnt = 2,
 	.product_str = "USB2512B",
 };
 
 static const struct usb251xb_data usb2512bi_data = {
 	.product_id = 0x2512,
+	.port_cnt = 2,
 	.product_str = "USB2512Bi",
 };
 
 static const struct usb251xb_data usb2513b_data = {
 	.product_id = 0x2513,
+	.port_cnt = 3,
 	.product_str = "USB2513B",
 };
 
 static const struct usb251xb_data usb2513bi_data = {
 	.product_id = 0x2513,
+	.port_cnt = 3,
 	.product_str = "USB2513Bi",
 };
 
 static const struct usb251xb_data usb2514b_data = {
 	.product_id = 0x2514,
+	.port_cnt = 4,
 	.product_str = "USB2514B",
 };
 
 static const struct usb251xb_data usb2514bi_data = {
 	.product_id = 0x2514,
+	.port_cnt = 4,
 	.product_str = "USB2514Bi",
 };
 
 static const struct usb251xb_data usb2517_data = {
 	.product_id = 0x2517,
+	.port_cnt = 7,
 	.product_str = "USB2517",
 };
 
 static const struct usb251xb_data usb2517i_data = {
 	.product_id = 0x2517,
+	.port_cnt = 7,
 	.product_str = "USB2517i",
 };
 
@@ -421,8 +430,11 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 		for (i = 0; i < len / sizeof(u32); i++) {
 			u32 port = be32_to_cpu(cproperty_u32[i]);
 
-			if ((port >= 1) && (port <= 4))
+			if ((port >= 1) && (port <= data->port_cnt))
 				hub->non_rem_dev |= BIT(port);
+			else
+				dev_warn(dev, "NRD port %u doesn't exist\n",
+					port);
 		}
 	}
 
@@ -432,8 +444,11 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 		for (i = 0; i < len / sizeof(u32); i++) {
 			u32 port = be32_to_cpu(cproperty_u32[i]);
 
-			if ((port >= 1) && (port <= 4))
+			if ((port >= 1) && (port <= data->port_cnt))
 				hub->port_disable_sp |= BIT(port);
+			else
+				dev_warn(dev, "PDS port %u doesn't exist\n",
+					port);
 		}
 	}
 
@@ -443,8 +458,11 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 		for (i = 0; i < len / sizeof(u32); i++) {
 			u32 port = be32_to_cpu(cproperty_u32[i]);
 
-			if ((port >= 1) && (port <= 4))
+			if ((port >= 1) && (port <= data->port_cnt))
 				hub->port_disable_bp |= BIT(port);
+			else
+				dev_warn(dev, "PDB port %u doesn't exist\n",
+					port);
 		}
 	}
 
