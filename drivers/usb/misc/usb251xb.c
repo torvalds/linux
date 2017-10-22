@@ -38,6 +38,7 @@
 #define USB251XB_DEF_PRODUCT_ID_12	0x2512 /* USB2512B/12Bi */
 #define USB251XB_DEF_PRODUCT_ID_13	0x2513 /* USB2513B/13Bi */
 #define USB251XB_DEF_PRODUCT_ID_14	0x2514 /* USB2514B/14Bi */
+#define USB251XB_DEF_PRODUCT_ID_17	0x2517 /* USB2517/17i */
 
 #define USB251XB_ADDR_DEVICE_ID_LSB	0x04
 #define USB251XB_ADDR_DEVICE_ID_MSB	0x05
@@ -82,7 +83,7 @@
 
 #define USB251XB_ADDR_PRODUCT_STRING_LEN	0x14
 #define USB251XB_ADDR_PRODUCT_STRING		0x54
-#define USB251XB_DEF_PRODUCT_STRING		"USB251xB/xBi"
+#define USB251XB_DEF_PRODUCT_STRING		"USB251xB/xBi/7i"
 
 #define USB251XB_ADDR_SERIAL_STRING_LEN		0x15
 #define USB251XB_ADDR_SERIAL_STRING		0x92
@@ -183,6 +184,16 @@ static const struct usb251xb_data usb2514b_data = {
 static const struct usb251xb_data usb2514bi_data = {
 	.product_id = 0x2514,
 	.product_str = "USB2514Bi",
+};
+
+static const struct usb251xb_data usb2517_data = {
+	.product_id = 0x2517,
+	.product_str = "USB2517",
+};
+
+static const struct usb251xb_data usb2517i_data = {
+	.product_id = 0x2517,
+	.product_str = "USB2517i",
 };
 
 static void usb251xb_reset(struct usb251xb *hub, int state)
@@ -510,6 +521,12 @@ static const struct of_device_id usb251xb_of_match[] = {
 		.compatible = "microchip,usb2514bi",
 		.data = &usb2514bi_data,
 	}, {
+		.compatible = "microchip,usb2517",
+		.data = &usb2517_data,
+	}, {
+		.compatible = "microchip,usb2517i",
+		.data = &usb2517i_data,
+	}, {
 		/* sentinel */
 	}
 };
@@ -573,6 +590,8 @@ static const struct i2c_device_id usb251xb_id[] = {
 	{ "usb2513bi", 0 },
 	{ "usb2514b", 0 },
 	{ "usb2514bi", 0 },
+	{ "usb2517", 0 },
+	{ "usb2517i", 0 },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, usb251xb_id);
@@ -589,5 +608,5 @@ static struct i2c_driver usb251xb_i2c_driver = {
 module_i2c_driver(usb251xb_i2c_driver);
 
 MODULE_AUTHOR("Richard Leitner <richard.leitner@skidata.com>");
-MODULE_DESCRIPTION("USB251xB/xBi USB 2.0 Hub Controller Driver");
+MODULE_DESCRIPTION("USB251x/xBi USB 2.0 Hub Controller Driver");
 MODULE_LICENSE("GPL");
