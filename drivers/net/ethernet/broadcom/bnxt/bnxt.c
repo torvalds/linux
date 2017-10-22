@@ -215,6 +215,8 @@ static const u16 bnxt_async_events_arr[] = {
 	ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE,
 };
 
+static struct workqueue_struct *bnxt_pf_wq;
+
 static bool bnxt_vf_pciid(enum board_idx idx)
 {
 	return (idx == NETXTREME_C_VF || idx == NETXTREME_E_VF);
@@ -1025,12 +1027,28 @@ static int bnxt_discard_rx(struct bnxt *bp, struct bnxt_napi *bnapi,
 	return 0;
 }
 
+static void bnxt_queue_sp_work(struct bnxt *bp)
+{
+	if (BNXT_PF(bp))
+		queue_work(bnxt_pf_wq, &bp->sp_task);
+	else
+		schedule_work(&bp->sp_task);
+}
+
+static void bnxt_cancel_sp_work(struct bnxt *bp)
+{
+	if (BNXT_PF(bp))
+		flush_workqueue(bnxt_pf_wq);
+	else
+		cancel_work_sync(&bp->sp_task);
+}
+
 static void bnxt_sched_reset(struct bnxt *bp, struct bnxt_rx_ring_info *rxr)
 {
 	if (!rxr->bnapi->in_reset) {
 		rxr->bnapi->in_reset = true;
 		set_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event);
-		schedule_work(&bp->sp_task);
+		bnxt_queue_sp_work(bp);
 	}
 	rxr->rx_next_cons = 0xffff;
 }
@@ -1718,7 +1736,7 @@ static int bnxt_async_event_process(struct bnxt *bp,
 	default:
 		goto async_event_process_exit;
 	}
-	schedule_work(&bp->sp_task);
+	bnxt_queue_sp_work(bp);
 async_event_process_exit:
 	bnxt_ulp_async_events(bp, cmpl);
 	return 0;
@@ -1752,7 +1770,7 @@ static int bnxt_hwrm_handler(struct bnxt *bp, struct tx_cmp *txcmp)
 
 		set_bit(vf_id - bp->pf.first_vf_id, bp->pf.vf_event_bmap);
 		set_bit(BNXT_HWRM_EXEC_FWD_REQ_SP_EVENT, &bp->sp_event);
-		schedule_work(&bp->sp_task);
+		bnxt_queue_sp_work(bp);
 		break;
 
 	case CMPL_BASE_TYPE_HWRM_ASYNC_EVENT:
@@ -3447,6 +3465,12 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 int _hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
 {
 	return bnxt_hwrm_do_send_msg(bp, msg, msg_len, timeout, false);
+}
+
+int _hwrm_send_message_silent(struct bnxt *bp, void *msg, u32 msg_len,
+			      int timeout)
+{
+	return bnxt_hwrm_do_send_msg(bp, msg, msg_len, timeout, true);
 }
 
 int hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
@@ -6328,7 +6352,9 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	}
 
 	if (link_re_init) {
+		mutex_lock(&bp->link_lock);
 		rc = bnxt_update_phy_setting(bp);
+		mutex_unlock(&bp->link_lock);
 		if (rc)
 			netdev_warn(bp->dev, "failed to update phy settings\n");
 	}
@@ -6648,7 +6674,7 @@ static void bnxt_set_rx_mode(struct net_device *dev)
 		vnic->rx_mask = mask;
 
 		set_bit(BNXT_RX_MASK_SP_EVENT, &bp->sp_event);
-		schedule_work(&bp->sp_task);
+		bnxt_queue_sp_work(bp);
 	}
 }
 
@@ -6921,7 +6947,7 @@ static void bnxt_tx_timeout(struct net_device *dev)
 
 	netdev_err(bp->dev,  "TX timeout detected, starting reset task!\n");
 	set_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event);
-	schedule_work(&bp->sp_task);
+	bnxt_queue_sp_work(bp);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -6953,7 +6979,7 @@ static void bnxt_timer(unsigned long data)
 	if (bp->link_info.link_up && (bp->flags & BNXT_FLAG_PORT_STATS) &&
 	    bp->stats_coal_ticks) {
 		set_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event);
-		schedule_work(&bp->sp_task);
+		bnxt_queue_sp_work(bp);
 	}
 bnxt_restart_timer:
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
@@ -7026,30 +7052,28 @@ static void bnxt_sp_task(struct work_struct *work)
 	if (test_and_clear_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event))
 		bnxt_hwrm_port_qstats(bp);
 
-	/* These functions below will clear BNXT_STATE_IN_SP_TASK.  They
-	 * must be the last functions to be called before exiting.
-	 */
 	if (test_and_clear_bit(BNXT_LINK_CHNG_SP_EVENT, &bp->sp_event)) {
-		int rc = 0;
+		int rc;
 
+		mutex_lock(&bp->link_lock);
 		if (test_and_clear_bit(BNXT_LINK_SPEED_CHNG_SP_EVENT,
 				       &bp->sp_event))
 			bnxt_hwrm_phy_qcaps(bp);
 
-		bnxt_rtnl_lock_sp(bp);
-		if (test_bit(BNXT_STATE_OPEN, &bp->state))
-			rc = bnxt_update_link(bp, true);
-		bnxt_rtnl_unlock_sp(bp);
+		rc = bnxt_update_link(bp, true);
+		mutex_unlock(&bp->link_lock);
 		if (rc)
 			netdev_err(bp->dev, "SP task can't update link (rc: %x)\n",
 				   rc);
 	}
 	if (test_and_clear_bit(BNXT_HWRM_PORT_MODULE_SP_EVENT, &bp->sp_event)) {
-		bnxt_rtnl_lock_sp(bp);
-		if (test_bit(BNXT_STATE_OPEN, &bp->state))
-			bnxt_get_port_module_status(bp);
-		bnxt_rtnl_unlock_sp(bp);
+		mutex_lock(&bp->link_lock);
+		bnxt_get_port_module_status(bp);
+		mutex_unlock(&bp->link_lock);
 	}
+	/* These functions below will clear BNXT_STATE_IN_SP_TASK.  They
+	 * must be the last functions to be called before exiting.
+	 */
 	if (test_and_clear_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event))
 		bnxt_reset(bp, false);
 
@@ -7457,7 +7481,7 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	spin_unlock_bh(&bp->ntp_fltr_lock);
 
 	set_bit(BNXT_RX_NTP_FLTR_SP_EVENT, &bp->sp_event);
-	schedule_work(&bp->sp_task);
+	bnxt_queue_sp_work(bp);
 
 	return new_fltr->sw_id;
 
@@ -7540,7 +7564,7 @@ static void bnxt_udp_tunnel_add(struct net_device *dev,
 		if (bp->vxlan_port_cnt == 1) {
 			bp->vxlan_port = ti->port;
 			set_bit(BNXT_VXLAN_ADD_PORT_SP_EVENT, &bp->sp_event);
-			schedule_work(&bp->sp_task);
+			bnxt_queue_sp_work(bp);
 		}
 		break;
 	case UDP_TUNNEL_TYPE_GENEVE:
@@ -7557,7 +7581,7 @@ static void bnxt_udp_tunnel_add(struct net_device *dev,
 		return;
 	}
 
-	schedule_work(&bp->sp_task);
+	bnxt_queue_sp_work(bp);
 }
 
 static void bnxt_udp_tunnel_del(struct net_device *dev,
@@ -7596,7 +7620,7 @@ static void bnxt_udp_tunnel_del(struct net_device *dev,
 		return;
 	}
 
-	schedule_work(&bp->sp_task);
+	bnxt_queue_sp_work(bp);
 }
 
 static int bnxt_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
@@ -7744,7 +7768,7 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	pci_disable_pcie_error_reporting(pdev);
 	unregister_netdev(dev);
 	bnxt_shutdown_tc(bp);
-	cancel_work_sync(&bp->sp_task);
+	bnxt_cancel_sp_work(bp);
 	bp->sp_event = 0;
 
 	bnxt_clear_int_mode(bp);
@@ -7772,6 +7796,7 @@ static int bnxt_probe_phy(struct bnxt *bp)
 			   rc);
 		return rc;
 	}
+	mutex_init(&bp->link_lock);
 
 	rc = bnxt_update_link(bp, false);
 	if (rc) {
@@ -7970,7 +7995,7 @@ static void bnxt_parse_log_pcie_link(struct bnxt *bp)
 	enum pcie_link_width width = PCIE_LNK_WIDTH_UNKNOWN;
 	enum pci_bus_speed speed = PCI_SPEED_UNKNOWN;
 
-	if (pcie_get_minimum_link(bp->pdev, &speed, &width) ||
+	if (pcie_get_minimum_link(pci_physfn(bp->pdev), &speed, &width) ||
 	    speed == PCI_SPEED_UNKNOWN || width == PCIE_LNK_WIDTH_UNKNOWN)
 		netdev_info(bp->dev, "Failed to determine PCIe Link Info\n");
 	else
@@ -8162,8 +8187,17 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	else
 		device_set_wakeup_capable(&pdev->dev, false);
 
-	if (BNXT_PF(bp))
+	if (BNXT_PF(bp)) {
+		if (!bnxt_pf_wq) {
+			bnxt_pf_wq =
+				create_singlethread_workqueue("bnxt_pf_wq");
+			if (!bnxt_pf_wq) {
+				dev_err(&pdev->dev, "Unable to create workqueue.\n");
+				goto init_err_pci_clean;
+			}
+		}
 		bnxt_init_tc(bp);
+	}
 
 	rc = register_netdev(dev);
 	if (rc)
@@ -8399,4 +8433,17 @@ static struct pci_driver bnxt_pci_driver = {
 #endif
 };
 
-module_pci_driver(bnxt_pci_driver);
+static int __init bnxt_init(void)
+{
+	return pci_register_driver(&bnxt_pci_driver);
+}
+
+static void __exit bnxt_exit(void)
+{
+	pci_unregister_driver(&bnxt_pci_driver);
+	if (bnxt_pf_wq)
+		destroy_workqueue(bnxt_pf_wq);
+}
+
+module_init(bnxt_init);
+module_exit(bnxt_exit);

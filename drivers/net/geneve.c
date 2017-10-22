@@ -113,13 +113,7 @@ static void tunnel_id_to_vni(__be64 tun_id, __u8 *vni)
 
 static bool eq_tun_id_and_vni(u8 *tun_id, u8 *vni)
 {
-#ifdef __BIG_ENDIAN
-	return (vni[0] == tun_id[2]) &&
-	       (vni[1] == tun_id[1]) &&
-	       (vni[2] == tun_id[0]);
-#else
 	return !memcmp(vni, &tun_id[5], 3);
-#endif
 }
 
 static sa_family_t geneve_get_sk_family(struct geneve_sock *gs)

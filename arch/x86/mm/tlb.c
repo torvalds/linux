@@ -30,6 +30,8 @@
 
 atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
 
+DEFINE_STATIC_KEY_TRUE(tlb_use_lazy_mode);
+
 static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
 			    u16 *new_asid, bool *need_flush)
 {
@@ -80,7 +82,7 @@ void leave_mm(int cpu)
 		return;
 
 	/* Warn if we're not lazy. */
-	WARN_ON(cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm)));
+	WARN_ON(!this_cpu_read(cpu_tlbstate.is_lazy));
 
 	switch_mm(NULL, &init_mm, NULL);
 }
@@ -142,45 +144,24 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		__flush_tlb_all();
 	}
 #endif
+	this_cpu_write(cpu_tlbstate.is_lazy, false);
 
 	if (real_prev == next) {
 		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[prev_asid].ctx_id) !=
 			  next->context.ctx_id);
 
-		if (cpumask_test_cpu(cpu, mm_cpumask(next))) {
-			/*
-			 * There's nothing to do: we weren't lazy, and we
-			 * aren't changing our mm.  We don't need to flush
-			 * anything, nor do we need to update CR3, CR4, or
-			 * LDTR.
-			 */
-			return;
-		}
-
-		/* Resume remote flushes and then read tlb_gen. */
-		cpumask_set_cpu(cpu, mm_cpumask(next));
-		next_tlb_gen = atomic64_read(&next->context.tlb_gen);
-
-		if (this_cpu_read(cpu_tlbstate.ctxs[prev_asid].tlb_gen) <
-		    next_tlb_gen) {
-			/*
-			 * Ideally, we'd have a flush_tlb() variant that
-			 * takes the known CR3 value as input.  This would
-			 * be faster on Xen PV and on hypothetical CPUs
-			 * on which INVPCID is fast.
-			 */
-			this_cpu_write(cpu_tlbstate.ctxs[prev_asid].tlb_gen,
-				       next_tlb_gen);
-			write_cr3(build_cr3(next, prev_asid));
-			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,
-					TLB_FLUSH_ALL);
-		}
-
 		/*
-		 * We just exited lazy mode, which means that CR4 and/or LDTR
-		 * may be stale.  (Changes to the required CR4 and LDTR states
-		 * are not reflected in tlb_gen.)
+		 * We don't currently support having a real mm loaded without
+		 * our cpu set in mm_cpumask().  We have all the bookkeeping
+		 * in place to figure out whether we would need to flush
+		 * if our cpu were cleared in mm_cpumask(), but we don't
+		 * currently use it.
 		 */
+		if (WARN_ON_ONCE(real_prev != &init_mm &&
+				 !cpumask_test_cpu(cpu, mm_cpumask(next))))
+			cpumask_set_cpu(cpu, mm_cpumask(next));
+
+		return;
 	} else {
 		u16 new_asid;
 		bool need_flush;
@@ -199,10 +180,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		}
 
 		/* Stop remote flushes for the previous mm */
-		if (cpumask_test_cpu(cpu, mm_cpumask(real_prev)))
-			cpumask_clear_cpu(cpu, mm_cpumask(real_prev));
-
-		VM_WARN_ON_ONCE(cpumask_test_cpu(cpu, mm_cpumask(next)));
+		VM_WARN_ON_ONCE(!cpumask_test_cpu(cpu, mm_cpumask(real_prev)) &&
+				real_prev != &init_mm);
+		cpumask_clear_cpu(cpu, mm_cpumask(real_prev));
 
 		/*
 		 * Start remote flushes and then read tlb_gen.
@@ -230,6 +210,37 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 
 	load_mm_cr4(next);
 	switch_ldt(real_prev, next);
+}
+
+/*
+ * enter_lazy_tlb() is a hint from the scheduler that we are entering a
+ * kernel thread or other context without an mm.  Acceptable implementations
+ * include doing nothing whatsoever, switching to init_mm, or various clever
+ * lazy tricks to try to minimize TLB flushes.
+ *
+ * The scheduler reserves the right to call enter_lazy_tlb() several times
+ * in a row.  It will notify us that we're going back to a real mm by
+ * calling switch_mm_irqs_off().
+ */
+void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
+{
+	if (this_cpu_read(cpu_tlbstate.loaded_mm) == &init_mm)
+		return;
+
+	if (static_branch_unlikely(&tlb_use_lazy_mode)) {
+		/*
+		 * There's a significant optimization that may be possible
+		 * here.  We have accurate enough TLB flush tracking that we
+		 * don't need to maintain coherence of TLB per se when we're
+		 * lazy.  We do, however, need to maintain coherence of
+		 * paging-structure caches.  We could, in principle, leave our
+		 * old mm loaded and only switch to init_mm when
+		 * tlb_remove_page() happens.
+		 */
+		this_cpu_write(cpu_tlbstate.is_lazy, true);
+	} else {
+		switch_mm(NULL, &init_mm, NULL);
+	}
 }
 
 /*
@@ -303,16 +314,20 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
 	/* This code cannot presently handle being reentered. */
 	VM_WARN_ON(!irqs_disabled());
 
+	if (unlikely(loaded_mm == &init_mm))
+		return;
+
 	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[loaded_mm_asid].ctx_id) !=
 		   loaded_mm->context.ctx_id);
 
-	if (!cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm))) {
+	if (this_cpu_read(cpu_tlbstate.is_lazy)) {
 		/*
-		 * We're in lazy mode -- don't flush.  We can get here on
-		 * remote flushes due to races and on local flushes if a
-		 * kernel thread coincidentally flushes the mm it's lazily
-		 * still using.
+		 * We're in lazy mode.  We need to at least flush our
+		 * paging-structure cache to avoid speculatively reading
+		 * garbage into our TLB.  Since switching to init_mm is barely
+		 * slower than a minimal flush, just switch to init_mm.
 		 */
+		switch_mm_irqs_off(NULL, &init_mm, NULL);
 		return;
 	}
 
@@ -611,3 +626,57 @@ static int __init create_tlb_single_page_flush_ceiling(void)
 	return 0;
 }
 late_initcall(create_tlb_single_page_flush_ceiling);
+
+static ssize_t tlblazy_read_file(struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+	char buf[2];
+
+	buf[0] = static_branch_likely(&tlb_use_lazy_mode) ? '1' : '0';
+	buf[1] = '\n';
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static ssize_t tlblazy_write_file(struct file *file,
+		 const char __user *user_buf, size_t count, loff_t *ppos)
+{
+	bool val;
+
+	if (kstrtobool_from_user(user_buf, count, &val))
+		return -EINVAL;
+
+	if (val)
+		static_branch_enable(&tlb_use_lazy_mode);
+	else
+		static_branch_disable(&tlb_use_lazy_mode);
+
+	return count;
+}
+
+static const struct file_operations fops_tlblazy = {
+	.read = tlblazy_read_file,
+	.write = tlblazy_write_file,
+	.llseek = default_llseek,
+};
+
+static int __init init_tlb_use_lazy_mode(void)
+{
+	if (boot_cpu_has(X86_FEATURE_PCID)) {
+		/*
+		 * Heuristic: with PCID on, switching to and from
+		 * init_mm is reasonably fast, but remote flush IPIs
+		 * as expensive as ever, so turn off lazy TLB mode.
+		 *
+		 * We can't do this in setup_pcid() because static keys
+		 * haven't been initialized yet, and it would blow up
+		 * badly.
+		 */
+		static_branch_disable(&tlb_use_lazy_mode);
+	}
+
+	debugfs_create_file("tlb_use_lazy_mode", S_IRUSR | S_IWUSR,
+			    arch_debugfs_dir, NULL, &fops_tlblazy);
+	return 0;
+}
+late_initcall(init_tlb_use_lazy_mode);

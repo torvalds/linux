@@ -70,7 +70,7 @@ static int (*bpf_setsockopt)(void *ctx, int level, int optname, void *optval,
 static int (*bpf_getsockopt)(void *ctx, int level, int optname, void *optval,
 			     int optlen) =
 	(void *) BPF_FUNC_getsockopt;
-static int (*bpf_sk_redirect_map)(void *map, int key, int flags) =
+static int (*bpf_sk_redirect_map)(void *ctx, void *map, int key, int flags) =
 	(void *) BPF_FUNC_sk_redirect_map;
 static int (*bpf_sock_map_update)(void *map, void *key, void *value,
 				  unsigned long long flags) =

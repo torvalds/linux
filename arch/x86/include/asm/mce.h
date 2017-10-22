@@ -187,7 +187,6 @@ struct mca_msr_regs {
 
 extern struct mce_vendor_flags mce_flags;
 
-extern struct mca_config mca_cfg;
 extern struct mca_msr_regs msr_ops;
 
 enum mce_notifier_prios {

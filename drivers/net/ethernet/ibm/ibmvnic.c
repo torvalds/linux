@@ -1110,11 +1110,12 @@ static int build_hdr_data(u8 hdr_field, struct sk_buff *skb,
  * places them in a descriptor array, scrq_arr
  */
 
-static void create_hdr_descs(u8 hdr_field, u8 *hdr_data, int len, int *hdr_len,
-			     union sub_crq *scrq_arr)
+static int create_hdr_descs(u8 hdr_field, u8 *hdr_data, int len, int *hdr_len,
+			    union sub_crq *scrq_arr)
 {
 	union sub_crq hdr_desc;
 	int tmp_len = len;
+	int num_descs = 0;
 	u8 *data, *cur;
 	int tmp;
 
@@ -1143,7 +1144,10 @@ static void create_hdr_descs(u8 hdr_field, u8 *hdr_data, int len, int *hdr_len,
 		tmp_len -= tmp;
 		*scrq_arr = hdr_desc;
 		scrq_arr++;
+		num_descs++;
 	}
+
+	return num_descs;
 }
 
 /**
@@ -1161,16 +1165,12 @@ static void build_hdr_descs_arr(struct ibmvnic_tx_buff *txbuff,
 				int *num_entries, u8 hdr_field)
 {
 	int hdr_len[3] = {0, 0, 0};
-	int tot_len, len;
+	int tot_len;
 	u8 *hdr_data = txbuff->hdr_data;
 
 	tot_len = build_hdr_data(hdr_field, txbuff->skb, hdr_len,
 				 txbuff->hdr_data);
-	len = tot_len;
-	len -= 24;
-	if (len > 0)
-		num_entries += len % 29 ? len / 29 + 1 : len / 29;
-	create_hdr_descs(hdr_field, hdr_data, tot_len, hdr_len,
+	*num_entries += create_hdr_descs(hdr_field, hdr_data, tot_len, hdr_len,
 			 txbuff->indir_arr + 1);
 }
 
