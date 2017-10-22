@@ -14,6 +14,8 @@ SYNOPSIS
 
 	**bpftool** batch file *FILE*
 
+	**bpftool** version
+
 	*OBJECT* := { **map** | **program** }
 
 	*MAP-COMMANDS* :=

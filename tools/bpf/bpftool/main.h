@@ -67,7 +67,7 @@ enum bpf_obj_type {
 extern const char *bin_name;
 
 bool is_prefix(const char *pfx, const char *str);
-void print_hex(void *arg, unsigned int n, const char *sep);
+void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep);
 void usage(void) __attribute__((noreturn));
 
 struct cmd {

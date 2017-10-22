@@ -224,7 +224,7 @@ static int show_prog(int fd)
 		printf("name %s  ", info.name);
 
 	printf("tag ");
-	print_hex(info.tag, BPF_TAG_SIZE, "");
+	fprint_hex(stdout, info.tag, BPF_TAG_SIZE, "");
 	printf("\n");
 
 	if (info.load_time) {
@@ -275,8 +275,10 @@ static int do_show(int argc, char **argv)
 	while (true) {
 		err = bpf_prog_get_next_id(id, &id);
 		if (err) {
-			if (errno == ENOENT)
+			if (errno == ENOENT) {
+				err = 0;
 				break;
+			}
 			err("can't get next program: %s\n", strerror(errno));
 			if (errno == EINVAL)
 				err("kernel too old?\n");
@@ -311,20 +313,29 @@ static void print_insn(struct bpf_verifier_env *env, const char *fmt, ...)
 static void dump_xlated(void *buf, unsigned int len, bool opcodes)
 {
 	struct bpf_insn *insn = buf;
+	bool double_insn = false;
 	unsigned int i;
 
 	for (i = 0; i < len / sizeof(*insn); i++) {
+		if (double_insn) {
+			double_insn = false;
+			continue;
+		}
+
+		double_insn = insn[i].code == (BPF_LD | BPF_IMM | BPF_DW);
+
 		printf("% 4d: ", i);
 		print_bpf_insn(print_insn, NULL, insn + i, true);
 
 		if (opcodes) {
 			printf("       ");
-			print_hex(insn + i, 8, " ");
+			fprint_hex(stdout, insn + i, 8, " ");
+			if (double_insn && i < len - 1) {
+				printf(" ");
+				fprint_hex(stdout, insn + i + 1, 8, " ");
+			}
 			printf("\n");
 		}
-
-		if (insn[i].code == (BPF_LD | BPF_IMM | BPF_DW))
-			i++;
 	}
 }
 
@@ -414,7 +425,7 @@ static int do_dump(int argc, char **argv)
 	}
 
 	if (*member_len > buf_size) {
-		info("too many instructions returned\n");
+		err("too many instructions returned\n");
 		goto err_free;
 	}
 
@@ -458,8 +469,8 @@ static int do_help(int argc, char **argv)
 {
 	fprintf(stderr,
 		"Usage: %s %s show [PROG]\n"
-		"       %s %s dump xlated PROG [file FILE] [opcodes]\n"
-		"       %s %s dump jited  PROG [file FILE] [opcodes]\n"
+		"       %s %s dump xlated PROG [{ file FILE | opcodes }]\n"
+		"       %s %s dump jited  PROG [{ file FILE | opcodes }]\n"
 		"       %s %s pin   PROG FILE\n"
 		"       %s %s help\n"
 		"\n"
@@ -473,6 +484,7 @@ static int do_help(int argc, char **argv)
 
 static const struct cmd cmds[] = {
 	{ "show",	do_show },
+	{ "help",	do_help },
 	{ "dump",	do_dump },
 	{ "pin",	do_pin },
 	{ 0 }
