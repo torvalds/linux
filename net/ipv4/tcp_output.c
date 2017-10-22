@@ -2172,6 +2172,10 @@ static bool tcp_small_queue_check(struct sock *sk, const struct sk_buff *skb,
 {
 	unsigned int limit;
 
+	if (sysctl_tcp_limit_output_bytes < 0 ||
+	    test_bit(TSQ_DISABLED, &sk->sk_tsq_flags))
+		return false;
+
 	limit = max(2 * skb->truesize, sk->sk_pacing_rate >> 10);
 	limit = min_t(u32, limit, sysctl_tcp_limit_output_bytes);
 	limit <<= factor;
