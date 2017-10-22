@@ -181,6 +181,7 @@ void tcp_init_congestion_control(struct sock *sk)
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 
 	tcp_sk(sk)->prior_ssthresh = 0;
+	clear_bit(TSQ_DISABLED, &sk->sk_tsq_flags);
 	if (icsk->icsk_ca_ops->init)
 		icsk->icsk_ca_ops->init(sk);
 	if (tcp_ca_needs_ecn(sk))

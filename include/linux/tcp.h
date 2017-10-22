@@ -374,6 +374,7 @@ enum tsq_enum {
 	TCP_MTU_REDUCED_DEFERRED,  /* tcp_v{4|6}_err() could not call
 				    * tcp_v{4|6}_mtu_reduced()
 				    */
+	TSQ_DISABLED,		   /* TSQ disabled */
 };
 
 enum tsq_flags {
@@ -383,6 +384,7 @@ enum tsq_flags {
 	TCPF_WRITE_TIMER_DEFERRED	= (1UL << TCP_WRITE_TIMER_DEFERRED),
 	TCPF_DELACK_TIMER_DEFERRED	= (1UL << TCP_DELACK_TIMER_DEFERRED),
 	TCPF_MTU_REDUCED_DEFERRED	= (1UL << TCP_MTU_REDUCED_DEFERRED),
+	TSQF_DISABLED			= (1UL << TSQ_DISABLED),
 };
 
 static inline struct tcp_sock *tcp_sk(const struct sock *sk)
