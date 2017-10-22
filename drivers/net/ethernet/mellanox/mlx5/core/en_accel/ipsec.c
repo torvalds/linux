@@ -378,6 +378,8 @@ int mlx5e_ipsec_init(struct mlx5e_priv *priv)
 	ida_init(&ipsec->halloc);
 	ipsec->en_priv = priv;
 	ipsec->en_priv->ipsec = ipsec;
+	ipsec->no_trailer = !!(mlx5_accel_ipsec_device_caps(priv->mdev) &
+			       MLX5_ACCEL_IPSEC_NO_TRAILER);
 	netdev_dbg(priv->netdev, "IPSec attached to netdevice\n");
 	return 0;
 }

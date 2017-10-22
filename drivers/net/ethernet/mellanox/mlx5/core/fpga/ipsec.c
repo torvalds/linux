@@ -273,6 +273,9 @@ u32 mlx5_fpga_ipsec_device_caps(struct mlx5_core_dev *mdev)
 	if (MLX5_GET(ipsec_extended_cap, fdev->ipsec->caps, lso))
 		ret |= MLX5_ACCEL_IPSEC_LSO;
 
+	if (MLX5_GET(ipsec_extended_cap, fdev->ipsec->caps, rx_no_trailer))
+		ret |= MLX5_ACCEL_IPSEC_NO_TRAILER;
+
 	return ret;
 }
 
@@ -335,6 +338,46 @@ out:
 	return ret;
 }
 
+static int mlx5_fpga_ipsec_set_caps(struct mlx5_core_dev *mdev, u32 flags)
+{
+	struct mlx5_ipsec_command_context *context;
+	struct mlx5_ifc_fpga_ipsec_cmd_cap cmd = {0};
+	int err;
+
+	cmd.cmd = htonl(MLX5_IPSEC_CMD_SET_CAP);
+	cmd.flags = htonl(flags);
+	context = mlx5_fpga_ipsec_cmd_exec(mdev, &cmd, sizeof(cmd));
+	if (IS_ERR(context)) {
+		err = PTR_ERR(context);
+		goto out;
+	}
+
+	err = mlx5_fpga_ipsec_cmd_wait(context);
+	if (err)
+		goto out;
+
+	if ((context->resp.flags & cmd.flags) != cmd.flags) {
+		mlx5_fpga_err(context->dev, "Failed to set capabilities. cmd 0x%08x vs resp 0x%08x\n",
+			      cmd.flags,
+			      context->resp.flags);
+		err = -EIO;
+	}
+
+out:
+	return err;
+}
+
+static int mlx5_fpga_ipsec_enable_supported_caps(struct mlx5_core_dev *mdev)
+{
+	u32 dev_caps = mlx5_fpga_ipsec_device_caps(mdev);
+	u32 flags = 0;
+
+	if (dev_caps & MLX5_ACCEL_IPSEC_NO_TRAILER)
+		flags |= MLX5_FPGA_IPSEC_CAP_NO_TRAILER;
+
+	return mlx5_fpga_ipsec_set_caps(mdev, flags);
+}
+
 int mlx5_fpga_ipsec_init(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_fpga_conn_attr init_attr = {0};
@@ -372,7 +415,18 @@ int mlx5_fpga_ipsec_init(struct mlx5_core_dev *mdev)
 		goto error;
 	}
 	fdev->ipsec->conn = conn;
+
+	err = mlx5_fpga_ipsec_enable_supported_caps(mdev);
+	if (err) {
+		mlx5_fpga_err(fdev, "Failed to enable IPSec extended capabilities: %d\n",
+			      err);
+		goto err_destroy_conn;
+	}
+
 	return 0;
+
+err_destroy_conn:
+	mlx5_fpga_sbu_conn_destroy(conn);
 
 error:
 	kfree(fdev->ipsec);

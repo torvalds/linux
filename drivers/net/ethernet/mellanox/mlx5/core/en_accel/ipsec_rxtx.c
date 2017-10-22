@@ -42,10 +42,11 @@
 enum {
 	MLX5E_IPSEC_RX_SYNDROME_DECRYPTED = 0x11,
 	MLX5E_IPSEC_RX_SYNDROME_AUTH_FAILED = 0x12,
+	MLX5E_IPSEC_RX_SYNDROME_BAD_PROTO = 0x17,
 };
 
 struct mlx5e_ipsec_rx_metadata {
-	unsigned char   reserved;
+	unsigned char   nexthdr;
 	__be32		sa_handle;
 } __packed;
 
@@ -301,9 +302,16 @@ mlx5e_ipsec_build_sp(struct net_device *netdev, struct sk_buff *skb,
 	switch (mdata->syndrome) {
 	case MLX5E_IPSEC_RX_SYNDROME_DECRYPTED:
 		xo->status = CRYPTO_SUCCESS;
+		if (likely(priv->ipsec->no_trailer)) {
+			xo->flags |= XFRM_ESP_NO_TRAILER;
+			xo->proto = mdata->content.rx.nexthdr;
+		}
 		break;
 	case MLX5E_IPSEC_RX_SYNDROME_AUTH_FAILED:
 		xo->status = CRYPTO_TUNNEL_ESP_AUTH_FAILED;
+		break;
+	case MLX5E_IPSEC_RX_SYNDROME_BAD_PROTO:
+		xo->status = CRYPTO_INVALID_PROTOCOL;
 		break;
 	default:
 		atomic64_inc(&priv->ipsec->sw_stats.ipsec_rx_drop_syndrome);

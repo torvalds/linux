@@ -43,6 +43,7 @@ enum {
 	MLX5_ACCEL_IPSEC_IPV6 = BIT(2),
 	MLX5_ACCEL_IPSEC_ESP = BIT(3),
 	MLX5_ACCEL_IPSEC_LSO = BIT(4),
+	MLX5_ACCEL_IPSEC_NO_TRAILER = BIT(5),
 };
 
 #define MLX5_IPSEC_SADB_IP_AH       BIT(7)
@@ -55,6 +56,7 @@ enum {
 enum {
 	MLX5_IPSEC_CMD_ADD_SA = 0,
 	MLX5_IPSEC_CMD_DEL_SA = 1,
+	MLX5_IPSEC_CMD_SET_CAP = 5,
 };
 
 enum mlx5_accel_ipsec_enc_mode {

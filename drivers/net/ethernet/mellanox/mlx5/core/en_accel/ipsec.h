@@ -77,6 +77,7 @@ struct mlx5e_ipsec_stats {
 struct mlx5e_ipsec {
 	struct mlx5e_priv *en_priv;
 	DECLARE_HASHTABLE(sadb_rx, MLX5E_IPSEC_SADB_RX_BITS);
+	bool no_trailer;
 	spinlock_t sadb_rx_lock; /* Protects sadb_rx and halloc */
 	struct ida halloc;
 	struct mlx5e_ipsec_sw_stats sw_stats;
