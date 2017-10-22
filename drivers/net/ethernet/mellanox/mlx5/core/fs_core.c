@@ -188,7 +188,7 @@ static void tree_init_node(struct fs_node *node,
 			   void (*del_hw_func)(struct fs_node *),
 			   void (*del_sw_func)(struct fs_node *))
 {
-	atomic_set(&node->refcount, 1);
+	refcount_set(&node->refcount, 1);
 	INIT_LIST_HEAD(&node->list);
 	INIT_LIST_HEAD(&node->children);
 	init_rwsem(&node->lock);
@@ -200,7 +200,7 @@ static void tree_init_node(struct fs_node *node,
 static void tree_add_node(struct fs_node *node, struct fs_node *parent)
 {
 	if (parent)
-		atomic_inc(&parent->refcount);
+		refcount_inc(&parent->refcount);
 	node->parent = parent;
 
 	/* Parent is the root */
@@ -212,7 +212,7 @@ static void tree_add_node(struct fs_node *node, struct fs_node *parent)
 
 static int tree_get_node(struct fs_node *node)
 {
-	return atomic_add_unless(&node->refcount, 1, 0);
+	return refcount_inc_not_zero(&node->refcount);
 }
 
 static void nested_down_read_ref_node(struct fs_node *node,
@@ -220,7 +220,7 @@ static void nested_down_read_ref_node(struct fs_node *node,
 {
 	if (node) {
 		down_read_nested(&node->lock, class);
-		atomic_inc(&node->refcount);
+		refcount_inc(&node->refcount);
 	}
 }
 
@@ -229,7 +229,7 @@ static void nested_down_write_ref_node(struct fs_node *node,
 {
 	if (node) {
 		down_write_nested(&node->lock, class);
-		atomic_inc(&node->refcount);
+		refcount_inc(&node->refcount);
 	}
 }
 
@@ -237,19 +237,19 @@ static void down_write_ref_node(struct fs_node *node)
 {
 	if (node) {
 		down_write(&node->lock);
-		atomic_inc(&node->refcount);
+		refcount_inc(&node->refcount);
 	}
 }
 
 static void up_read_ref_node(struct fs_node *node)
 {
-	atomic_dec(&node->refcount);
+	refcount_dec(&node->refcount);
 	up_read(&node->lock);
 }
 
 static void up_write_ref_node(struct fs_node *node)
 {
-	atomic_dec(&node->refcount);
+	refcount_dec(&node->refcount);
 	up_write(&node->lock);
 }
 
@@ -257,7 +257,7 @@ static void tree_put_node(struct fs_node *node)
 {
 	struct fs_node *parent_node = node->parent;
 
-	if (atomic_dec_and_test(&node->refcount)) {
+	if (refcount_dec_and_test(&node->refcount)) {
 		if (node->del_hw_func)
 			node->del_hw_func(node);
 		if (parent_node) {
@@ -280,8 +280,8 @@ static void tree_put_node(struct fs_node *node)
 
 static int tree_remove_node(struct fs_node *node)
 {
-	if (atomic_read(&node->refcount) > 1) {
-		atomic_dec(&node->refcount);
+	if (refcount_read(&node->refcount) > 1) {
+		refcount_dec(&node->refcount);
 		return -EEXIST;
 	}
 	tree_put_node(node);
@@ -1184,7 +1184,7 @@ static void destroy_flow_handle(struct fs_fte *fte,
 				int i)
 {
 	for (; --i >= 0;) {
-		if (atomic_dec_and_test(&handle->rule[i]->node.refcount)) {
+		if (refcount_dec_and_test(&handle->rule[i]->node.refcount)) {
 			fte->dests_size--;
 			list_del(&handle->rule[i]->node.list);
 			kfree(handle->rule[i]);
@@ -1215,7 +1215,7 @@ create_flow_handle(struct fs_fte *fte,
 		if (dest) {
 			rule = find_flow_rule(fte, dest + i);
 			if (rule) {
-				atomic_inc(&rule->node.refcount);
+				refcount_inc(&rule->node.refcount);
 				goto rule_found;
 			}
 		}
@@ -1466,7 +1466,7 @@ static struct mlx5_flow_handle *add_rule_fg(struct mlx5_flow_group *fg,
 	trace_mlx5_fs_set_fte(fte, false);
 
 	for (i = 0; i < handle->num_rules; i++) {
-		if (atomic_read(&handle->rule[i]->node.refcount) == 1) {
+		if (refcount_read(&handle->rule[i]->node.refcount) == 1) {
 			tree_add_node(&handle->rule[i]->node, &fte->node);
 			trace_mlx5_fs_add_rule(handle->rule[i]);
 		}
