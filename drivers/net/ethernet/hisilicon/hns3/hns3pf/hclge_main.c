@@ -3149,6 +3149,59 @@ static void hclge_cfg_mac_mode(struct hclge_dev *hdev, bool enable)
 			"mac enable fail, ret =%d.\n", ret);
 }
 
+static int hclge_set_loopback(struct hnae3_handle *handle,
+			      enum hnae3_loop loop_mode, bool en)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_config_mac_mode_cmd *req;
+	struct hclge_dev *hdev = vport->back;
+	struct hclge_desc desc;
+	u32 loop_en;
+	int ret;
+
+	switch (loop_mode) {
+	case HNAE3_MAC_INTER_LOOP_MAC:
+		req = (struct hclge_config_mac_mode_cmd *)&desc.data[0];
+		/* 1 Read out the MAC mode config at first */
+		hclge_cmd_setup_basic_desc(&desc,
+					   HCLGE_OPC_CONFIG_MAC_MODE,
+					   true);
+		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"mac loopback get fail, ret =%d.\n",
+				ret);
+			return ret;
+		}
+
+		/* 2 Then setup the loopback flag */
+		loop_en = le32_to_cpu(req->txrx_pad_fcs_loop_en);
+		if (en)
+			hnae_set_bit(loop_en, HCLGE_MAC_APP_LP_B, 1);
+		else
+			hnae_set_bit(loop_en, HCLGE_MAC_APP_LP_B, 0);
+
+		req->txrx_pad_fcs_loop_en = cpu_to_le32(loop_en);
+
+		/* 3 Config mac work mode with loopback flag
+		 * and its original configure parameters
+		 */
+		hclge_cmd_reuse_desc(&desc, false);
+		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+		if (ret)
+			dev_err(&hdev->pdev->dev,
+				"mac loopback set fail, ret =%d.\n", ret);
+		break;
+	default:
+		ret = -ENOTSUPP;
+		dev_err(&hdev->pdev->dev,
+			"loop_mode %d is not supported\n", loop_mode);
+		break;
+	}
+
+	return ret;
+}
+
 static int hclge_tqp_enable(struct hclge_dev *hdev, int tqp_id,
 			    int stream_id, bool enable)
 {
@@ -4485,6 +4538,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.unmap_ring_from_vector = hclge_unmap_ring_from_vector,
 	.get_vector = hclge_get_vector,
 	.set_promisc_mode = hclge_set_promisc_mode,
+	.set_loopback = hclge_set_loopback,
 	.start = hclge_ae_start,
 	.stop = hclge_ae_stop,
 	.get_status = hclge_get_status,

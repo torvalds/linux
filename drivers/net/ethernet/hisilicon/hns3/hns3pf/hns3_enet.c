@@ -900,8 +900,7 @@ static void hns_nic_dma_unmap(struct hns3_enet_ring *ring, int next_to_use_orig)
 	}
 }
 
-static netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb,
-				     struct net_device *netdev)
+netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hns3_nic_ring_data *ring_data =
@@ -1943,6 +1942,11 @@ static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 	}
 }
 
+static void hns3_rx_skb(struct hns3_enet_ring *ring, struct sk_buff *skb)
+{
+	napi_gro_receive(&ring->tqp_vector->napi, skb);
+}
+
 static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 			     struct sk_buff **out_skb, int *out_bnum)
 {
@@ -2077,7 +2081,9 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 	return 0;
 }
 
-static int hns3_clean_rx_ring(struct hns3_enet_ring *ring, int budget)
+int hns3_clean_rx_ring(
+		struct hns3_enet_ring *ring, int budget,
+		void (*rx_fn)(struct hns3_enet_ring *, struct sk_buff *))
 {
 #define RCB_NOF_ALLOC_RX_BUFF_ONCE 16
 	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
@@ -2115,7 +2121,7 @@ static int hns3_clean_rx_ring(struct hns3_enet_ring *ring, int budget)
 
 		/* Do update ip stack process */
 		skb->protocol = eth_type_trans(skb, netdev);
-		(void)napi_gro_receive(&ring->tqp_vector->napi, skb);
+		rx_fn(ring, skb);
 
 		recv_pkts++;
 	}
@@ -2258,7 +2264,8 @@ static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
 	rx_budget = max(budget / tqp_vector->num_tqps, 1);
 
 	hns3_for_each_ring(ring, tqp_vector->rx_group) {
-		int rx_cleaned = hns3_clean_rx_ring(ring, rx_budget);
+		int rx_cleaned = hns3_clean_rx_ring(ring, rx_budget,
+						    hns3_rx_skb);
 
 		if (rx_cleaned >= rx_budget)
 			clean_complete = false;
