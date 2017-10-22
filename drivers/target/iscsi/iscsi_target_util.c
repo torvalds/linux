@@ -176,8 +176,7 @@ struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, int state)
 	spin_lock_init(&cmd->istate_lock);
 	spin_lock_init(&cmd->error_lock);
 	spin_lock_init(&cmd->r2t_lock);
-	setup_timer(&cmd->dataout_timer, iscsit_handle_dataout_timeout,
-		    (unsigned long)cmd);
+	timer_setup(&cmd->dataout_timer, iscsit_handle_dataout_timeout, 0);
 
 	return cmd;
 }
@@ -882,9 +881,9 @@ static int iscsit_add_nopin(struct iscsi_conn *conn, int want_response)
 	return 0;
 }
 
-void iscsit_handle_nopin_response_timeout(unsigned long data)
+void iscsit_handle_nopin_response_timeout(struct timer_list *t)
 {
-	struct iscsi_conn *conn = (struct iscsi_conn *) data;
+	struct iscsi_conn *conn = from_timer(conn, t, nopin_response_timer);
 
 	iscsit_inc_conn_usage_count(conn);
 
@@ -978,9 +977,9 @@ void iscsit_stop_nopin_response_timer(struct iscsi_conn *conn)
 	spin_unlock_bh(&conn->nopin_timer_lock);
 }
 
-void iscsit_handle_nopin_timeout(unsigned long data)
+void iscsit_handle_nopin_timeout(struct timer_list *t)
 {
-	struct iscsi_conn *conn = (struct iscsi_conn *) data;
+	struct iscsi_conn *conn = from_timer(conn, t, nopin_timer);
 
 	iscsit_inc_conn_usage_count(conn);
 
