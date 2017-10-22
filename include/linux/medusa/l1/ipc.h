@@ -10,7 +10,6 @@
 #ifndef _MEDUSA_L1_IPC_H
 #define _MEDUSA_L1_IPC_H
 
-//#include <linux/config.h>
 #include <linux/medusa/l3/model.h>
 
 struct medusa_l1_ipc_s {

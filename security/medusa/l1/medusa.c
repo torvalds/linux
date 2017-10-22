@@ -19,6 +19,7 @@
 #include <linux/syscalls.h>
 #include <linux/file.h>
 #include <linux/fdtable.h>
+#include <linux/msg.h>
 #include <linux/namei.h>
 #include <linux/mount.h>
 #include <linux/proc_fs.h>
@@ -56,6 +57,7 @@
 #include <linux/cred.h>
 #include <linux/medusa/l3/registry.h>
 #include <linux/medusa/l1/inode.h> 
+#include <linux/medusa/l1/ipc.h> 
 #include <linux/medusa/l4/comm.h>
 #include <linux/medusa/l1/file_handlers.h>
 #include <linux/medusa/l1/task.h>
@@ -647,6 +649,37 @@ static void medusa_l1_task_to_inode(struct task_struct *p, struct inode *inode)
 {
 }
 
+//IPC hooks
+
+/*
+ * helper function not LSM hook
+ */
+int medusa_l1_ipc_alloc_security(struct kern_ipc_perm *ipcp)
+{
+	struct medusa_l1_ipc_s *med;
+
+	med = (struct medusa_l1_ipc_s*) kmalloc(sizeof(struct medusa_l1_ipc_s), GFP_KERNEL);
+	if (med == NULL)
+		return -ENOMEM;
+
+	ipcp->security = med;
+	return 0;
+}
+
+/*
+ * helper function not LSM hook
+ */
+void medusa_l1_ipc_free_security(struct kern_ipc_perm *ipcp)
+{
+	struct medusa_l1_ipc_s *med;
+	
+	if(ipcp->security != NULL) {
+		med = ipcp->security;
+		ipcp->security = NULL;
+		kfree(med);
+	}
+}
+
 static int medusa_l1_ipc_permission(struct kern_ipc_perm *ipcp, short flag)
 {
 	return 0;
@@ -657,22 +690,37 @@ static void medusa_l1_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid)
 	*secid = 0;
 }
 
+//Message queue IPC
 static int medusa_l1_msg_msg_alloc_security(struct msg_msg *msg)
 {
+	struct medusa_l1_ipc_s *med;
+
+	med = (struct medusa_l1_ipc_s*) kmalloc(sizeof(struct medusa_l1_ipc_s), GFP_KERNEL);
+	if (med == NULL)
+		return -ENOMEM;
+	msg->security = med;
 	return 0;
 }
 
 static void medusa_l1_msg_msg_free_security(struct msg_msg *msg)
 {
+	struct medusa_l1_ipc_s *med;
+	
+	if(msg->security != NULL) {
+		med = ipcp->security;
+		msg->security = NULL;
+		kfree(med);
+	}
 }
 
 static int medusa_l1_msg_queue_alloc_security(struct msg_queue *msq)
 {
-	return 0;
+	return medusa_l1_ipc_alloc_security(&msq->q_perm);
 }
 
 static void medusa_l1_msg_queue_free_security(struct msg_queue *msq)
 {
+	medusa_l1_ipc_free_security(&msq->q_perm);
 }
 
 static int medusa_l1_msg_queue_associate(struct msg_queue *msq, int msqflg)
@@ -697,13 +745,15 @@ static int medusa_l1_msg_queue_msgrcv(struct msg_queue *msq, struct msg_msg *msg
 	return 0;
 }
 
+//Semaphores
 static int medusa_l1_shm_alloc_security(struct shmid_kernel *shp)
 {
-	return 0;
+	return medusa_l1_ipc_alloc_security(&shp->shm_perm);
 }
 
 static void medusa_l1_shm_free_security(struct shmid_kernel *shp)
 {
+	return medusa_l1_ipc_free_security(&shp->shm_perm);	
 }
 
 static int medusa_l1_shm_associate(struct shmid_kernel *shp, int shmflg)
@@ -724,11 +774,12 @@ static int medusa_l1_shm_shmat(struct shmid_kernel *shp, char __user *shmaddr,
 
 static int medusa_l1_sem_alloc_security(struct sem_array *sma)
 {
-	return 0;
+	return medusa_l1_ipc_alloc_security(&sma->sem_perm);
 }
 
 static void medusa_l1_sem_free_security(struct sem_array *sma)
 {
+	return medusa_l1_ipc_free_security(&sma->sem_perm);
 }
 
 static int medusa_l1_sem_associate(struct sem_array *sma, int semflg)
