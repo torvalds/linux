@@ -70,11 +70,9 @@ config IP_MULTIPLE_TABLES
 	  address into account. Furthermore, the TOS (Type-Of-Service) field
 	  of the packet can be used for routing decisions as well.
 
-	  If you are interested in this, please see the preliminary
-	  documentation at <http://www.compendium.com.ar/policy-routing.txt>
-	  and <ftp://post.tepkom.ru/pub/vol2/Linux/docs/advanced-routing.tex>.
-	  You will need supporting software from
-	  <ftp://ftp.tux.org/pub/net/ip-routing/>.
+	  If you need more information, see the Linux Advanced
+	  Routing and Traffic Control documentation at
+	  <http://lartc.org/howto/lartc.rpdb.html>
 
 	  If unsure, say N.
 
