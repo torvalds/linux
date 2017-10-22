@@ -191,6 +191,7 @@ const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_a0_f0 = {
 	.name = "Intel(R) Dual Band Wireless AX 22000",
 	.fw_name_pre = IWL_22000_HR_A_F0_FW_PRE,
 	IWL_DEVICE_22000,
+	.csr = &iwl_csr_v1,
 	.ht_params = &iwl_22000_ht_params,
 	.nvm_ver = IWL_22000_NVM_VERSION,
 	.nvm_calib_ver = IWL_22000_TX_POWER_VERSION,
@@ -236,10 +237,11 @@ const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_a0 = {
 	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
 };
 
-const struct iwl_cfg iwl22000_2ax_cfg_hr_cdb = {
+const struct iwl_cfg iwl22560_2ax_cfg_su_cdb = {
 	.name = "Intel(R) Dual Band Wireless AX 22560",
 	.fw_name_pre = IWL_22000_SU_Z0_FW_PRE,
 	IWL_DEVICE_22000,
+	.csr = &iwl_csr_v2,
 	.ht_params = &iwl_22000_ht_params,
 	.nvm_ver = IWL_22000_NVM_VERSION,
 	.nvm_calib_ver = IWL_22000_TX_POWER_VERSION,
