@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  * Copyright (C) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright (C) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,6 +71,7 @@
 #include <linux/netdevice.h>
 #include <linux/ieee80211.h>
 #include <linux/nl80211.h>
+#include "iwl-csr.h"
 
 enum iwl_device_family {
 	IWL_DEVICE_FAMILY_UNDEFINED,
@@ -285,6 +288,44 @@ struct iwl_pwr_tx_backoff {
 };
 
 /**
+ * struct iwl_csr_params
+ *
+ * @flag_sw_reset: reset the device
+ * @flag_mac_clock_ready:
+ *	Indicates MAC (ucode processor, etc.) is powered up and can run.
+ *	Internal resources are accessible.
+ *	NOTE:  This does not indicate that the processor is actually running.
+ *	NOTE:  This does not indicate that device has completed
+ *	       init or post-power-down restore of internal SRAM memory.
+ *	       Use CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP as indication that
+ *	       SRAM is restored and uCode is in normal operation mode.
+ *	       This note is relevant only for pre 5xxx devices.
+ *	NOTE:  After device reset, this bit remains "0" until host sets
+ *	       INIT_DONE
+ * @flag_init_done: Host sets this to put device into fully operational
+ *	D0 power mode. Host resets this after SW_RESET to put device into
+ *	low power mode.
+ * @flag_mac_access_req: Host sets this to request and maintain MAC wakeup,
+ *	to allow host access to device-internal resources. Host must wait for
+ *	mac_clock_ready (and !GOING_TO_SLEEP) before accessing non-CSR device
+ *	registers.
+ * @flag_val_mac_access_en: mac access is enabled
+ * @flag_master_dis: disable master
+ * @flag_stop_master: stop master
+ * @addr_sw_reset: address for resetting the device
+ */
+struct iwl_csr_params {
+	u8 flag_sw_reset;
+	u8 flag_mac_clock_ready;
+	u8 flag_init_done;
+	u8 flag_mac_access_req;
+	u8 flag_val_mac_access_en;
+	u8 flag_master_dis;
+	u8 flag_stop_master;
+	u8 addr_sw_reset;
+};
+
+/**
  * struct iwl_cfg
  * @name: Official name of the device
  * @fw_name_pre: Firmware filename prefix. The api version and extension
@@ -316,6 +357,7 @@ struct iwl_pwr_tx_backoff {
  * @mac_addr_from_csr: read HW address from CSR registers
  * @features: hw features, any combination of feature_whitelist
  * @pwr_tx_backoffs: translation table between power limits and backoffs
+ * @csr: csr flags and addresses that are different across devices
  * @max_rx_agg_size: max RX aggregation size of the ADDBA request/response
  * @max_tx_agg_size: max TX aggregation size of the ADDBA request/response
  * @max_ht_ampdu_factor: the exponent of the max length of A-MPDU that the
@@ -354,6 +396,7 @@ struct iwl_cfg {
 	const struct iwl_pwr_tx_backoff *pwr_tx_backoffs;
 	const char *default_nvm_file_C_step;
 	const struct iwl_tt_params *thermal_params;
+	const struct iwl_csr_params *csr;
 	enum iwl_device_family device_family;
 	enum iwl_led_mode led_mode;
 	enum iwl_nvm_type nvm_type;
@@ -398,6 +441,28 @@ struct iwl_cfg {
 	u8 ucode_api_min;
 	u32 min_umac_error_event_table;
 	u32 extra_phy_cfg_flags;
+};
+
+static const struct iwl_csr_params iwl_csr_v1 = {
+	.flag_mac_clock_ready = 0,
+	.flag_val_mac_access_en = 0,
+	.flag_init_done = 2,
+	.flag_mac_access_req = 3,
+	.flag_sw_reset = 7,
+	.flag_master_dis = 8,
+	.flag_stop_master = 9,
+	.addr_sw_reset = (CSR_BASE + 0x020)
+};
+
+static const struct iwl_csr_params iwl_csr_v2 = {
+	.flag_init_done = 6,
+	.flag_mac_clock_ready = 20,
+	.flag_val_mac_access_en = 20,
+	.flag_mac_access_req = 21,
+	.flag_master_dis = 28,
+	.flag_stop_master = 29,
+	.flag_sw_reset = 31,
+	.addr_sw_reset = (CSR_BASE + 0x024)
 };
 
 /*

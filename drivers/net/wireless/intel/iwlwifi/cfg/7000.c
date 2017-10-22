@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -35,6 +36,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -167,7 +169,8 @@ static const struct iwl_ht_params iwl7000_ht_params = {
 	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_7000,	\
 	.non_shared_ant = ANT_A,				\
 	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,	\
-	.dccm_offset = IWL7000_DCCM_OFFSET
+	.dccm_offset = IWL7000_DCCM_OFFSET,			\
+	.csr = &iwl_csr_v1
 
 #define IWL_DEVICE_7000						\
 	IWL_DEVICE_7000_COMMON,					\

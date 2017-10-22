@@ -8,6 +8,7 @@
  * Copyright(c) 2007 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -35,6 +36,7 @@
  * Copyright(c) 2005 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -179,7 +181,8 @@ out:
 static void iwl_trans_pcie_sw_reset(struct iwl_trans *trans)
 {
 	/* Reset entire device - do controller reset (results in SHRD_HW_RST) */
-	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
+	iwl_set_bit(trans, trans->cfg->csr->addr_sw_reset,
+		    BIT(trans->cfg->csr->flag_sw_reset));
 	usleep_range(5000, 6000);
 }
 
@@ -372,7 +375,8 @@ static int iwl_pcie_apm_init(struct iwl_trans *trans)
 	 * Set "initialization complete" bit to move adapter from
 	 * D0U* --> D0A* (powered-up active) state.
 	 */
-	iwl_set_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+	iwl_set_bit(trans, CSR_GP_CNTRL,
+		    BIT(trans->cfg->csr->flag_init_done));
 
 	/*
 	 * Wait for clock stabilization; once stabilized, access to
@@ -380,8 +384,9 @@ static int iwl_pcie_apm_init(struct iwl_trans *trans)
 	 * and accesses to uCode SRAM.
 	 */
 	ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
-			   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-			   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
+			   BIT(trans->cfg->csr->flag_mac_clock_ready),
+			   BIT(trans->cfg->csr->flag_mac_clock_ready),
+			   25000);
 	if (ret < 0) {
 		IWL_ERR(trans, "Failed to init the card\n");
 		return ret;
@@ -459,15 +464,16 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 	 * Set "initialization complete" bit to move adapter from
 	 * D0U* --> D0A* (powered-up active) state.
 	 */
-	iwl_set_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+	iwl_set_bit(trans, CSR_GP_CNTRL,
+		    BIT(trans->cfg->csr->flag_init_done));
 
 	/*
 	 * Wait for clock stabilization; once stabilized, access to
 	 * device-internal resources is possible.
 	 */
 	ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
-			   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-			   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+			   BIT(trans->cfg->csr->flag_mac_clock_ready),
+			   BIT(trans->cfg->csr->flag_mac_clock_ready),
 			   25000);
 	if (WARN_ON(ret < 0)) {
 		IWL_ERR(trans, "Access time out - failed to enable LP XTAL\n");
@@ -519,7 +525,7 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 	 * D0A* (powered-up Active) --> D0U* (Uninitialized) state.
 	 */
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
-		      CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+		      BIT(trans->cfg->csr->flag_init_done));
 
 	/* Activates XTAL resources monitor */
 	__iwl_trans_pcie_set_bit(trans, CSR_MONITOR_CFG_REG,
@@ -541,11 +547,12 @@ void iwl_pcie_apm_stop_master(struct iwl_trans *trans)
 	int ret;
 
 	/* stop device's busmaster DMA activity */
-	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
+	iwl_set_bit(trans, trans->cfg->csr->addr_sw_reset,
+		    BIT(trans->cfg->csr->flag_stop_master));
 
-	ret = iwl_poll_bit(trans, CSR_RESET,
-			   CSR_RESET_REG_FLAG_MASTER_DISABLED,
-			   CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
+	ret = iwl_poll_bit(trans, trans->cfg->csr->addr_sw_reset,
+			   BIT(trans->cfg->csr->flag_master_dis),
+			   BIT(trans->cfg->csr->flag_master_dis), 100);
 	if (ret < 0)
 		IWL_WARN(trans, "Master Disable Timed Out, 100 usec\n");
 
@@ -594,7 +601,7 @@ static void iwl_pcie_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 	 * D0A* (powered-up Active) --> D0U* (Uninitialized) state.
 	 */
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
-		      CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+		      BIT(trans->cfg->csr->flag_init_done));
 }
 
 static int iwl_pcie_nic_init(struct iwl_trans *trans)
@@ -1267,7 +1274,7 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 
 	/* Make sure (redundant) we've released our request to stay awake */
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
-		      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+		      BIT(trans->cfg->csr->flag_mac_access_req));
 
 	/* Stop the device, and put it in low power state */
 	iwl_pcie_apm_stop(trans, false);
@@ -1497,9 +1504,9 @@ static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test,
 	iwl_pcie_synchronize_irqs(trans);
 
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
-		      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+		      BIT(trans->cfg->csr->flag_mac_access_req));
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
-		      CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+		      BIT(trans->cfg->csr->flag_init_done));
 
 	iwl_pcie_enable_rx_wake(trans, false);
 
@@ -1543,15 +1550,17 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 		iwl_pcie_reset_ict(trans);
 	iwl_enable_interrupts(trans);
 
-	iwl_set_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-	iwl_set_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+	iwl_set_bit(trans, CSR_GP_CNTRL,
+		    BIT(trans->cfg->csr->flag_mac_access_req));
+	iwl_set_bit(trans, CSR_GP_CNTRL,
+		    BIT(trans->cfg->csr->flag_init_done));
 
 	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_8000)
 		udelay(2);
 
 	ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
-			   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-			   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+			   BIT(trans->cfg->csr->flag_mac_clock_ready),
+			   BIT(trans->cfg->csr->flag_mac_clock_ready),
 			   25000);
 	if (ret < 0) {
 		IWL_ERR(trans, "Failed to resume the device (mac ready)\n");
@@ -1562,7 +1571,7 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 
 	if (!reset) {
 		iwl_clear_bit(trans, CSR_GP_CNTRL,
-			      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+			      BIT(trans->cfg->csr->flag_mac_access_req));
 	} else {
 		iwl_trans_pcie_tx_reset(trans);
 
@@ -1939,7 +1948,7 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans,
 
 	/* this bit wakes up the NIC */
 	__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
-				 CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+				 BIT(trans->cfg->csr->flag_mac_access_req));
 	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_8000)
 		udelay(2);
 
@@ -1964,8 +1973,8 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans,
 	 * and do not save/restore SRAM when power cycling.
 	 */
 	ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
-			   CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN,
-			   (CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
+			   BIT(trans->cfg->csr->flag_val_mac_access_en),
+			   (BIT(trans->cfg->csr->flag_mac_clock_ready) |
 			    CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP), 15000);
 	if (unlikely(ret < 0)) {
 		iwl_trans_pcie_dump_regs(trans);
@@ -2003,7 +2012,7 @@ static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans,
 		goto out;
 
 	__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-				   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+				   BIT(trans->cfg->csr->flag_mac_access_req));
 	/*
 	 * Above we read the CSR_GP_CNTRL register, which will flush
 	 * any previous writes, but we need the write that clears the
@@ -3232,12 +3241,12 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		 * id located at the AUX bus MISC address space.
 		 */
 		iwl_set_bit(trans, CSR_GP_CNTRL,
-			    CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+			    BIT(trans->cfg->csr->flag_init_done));
 		udelay(2);
 
 		ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
-				   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-				   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+				   BIT(trans->cfg->csr->flag_mac_clock_ready),
+				   BIT(trans->cfg->csr->flag_mac_clock_ready),
 				   25000);
 		if (ret < 0) {
 			IWL_DEBUG_INFO(trans, "Failed to wake up the nic\n");
