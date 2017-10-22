@@ -761,7 +761,7 @@ static void do_input(char *alias,
 			sprintf(alias + strlen(alias), "%X,*", i);
 }
 
-/* input:b0v0p0e0-eXkXrXaXmXlXsXfXwXprX where X is comma-separated %02X. */
+/* input:b0v0p0e0-eXkXrXaXmXlXsXfXwX where X is comma-separated %02X. */
 static int do_input_entry(const char *filename, void *symval,
 			  char *alias)
 {
@@ -779,7 +779,6 @@ static int do_input_entry(const char *filename, void *symval,
 	DEF_FIELD_ADDR(symval, input_device_id, sndbit);
 	DEF_FIELD_ADDR(symval, input_device_id, ffbit);
 	DEF_FIELD_ADDR(symval, input_device_id, swbit);
-	DEF_FIELD_ADDR(symval, input_device_id, propbit);
 
 	sprintf(alias, "input:");
 
@@ -817,9 +816,6 @@ static int do_input_entry(const char *filename, void *symval,
 	sprintf(alias + strlen(alias), "w*");
 	if (flags & INPUT_DEVICE_ID_MATCH_SWBIT)
 		do_input(alias, *swbit, 0, INPUT_DEVICE_ID_SW_MAX);
-	sprintf(alias + strlen(alias), "pr*");
-	if (flags & INPUT_DEVICE_ID_MATCH_PROPBIT)
-		do_input(alias, *propbit, 0, INPUT_DEVICE_ID_PROP_MAX);
 	return 1;
 }
 ADD_TO_DEVTABLE("input", input_device_id, do_input_entry);
