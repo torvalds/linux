@@ -2708,6 +2708,59 @@ mlxsw_sp_nexthop_fib_entries_refresh(struct mlxsw_sp_nexthop_group *nh_grp)
 	}
 }
 
+static void mlxsw_sp_adj_grp_size_round_up(u16 *p_adj_grp_size)
+{
+	/* Valid sizes for an adjacency group are:
+	 * 1-64, 512, 1024, 2048 and 4096.
+	 */
+	if (*p_adj_grp_size <= 64)
+		return;
+	else if (*p_adj_grp_size <= 512)
+		*p_adj_grp_size = 512;
+	else if (*p_adj_grp_size <= 1024)
+		*p_adj_grp_size = 1024;
+	else if (*p_adj_grp_size <= 2048)
+		*p_adj_grp_size = 2048;
+	else
+		*p_adj_grp_size = 4096;
+}
+
+static void mlxsw_sp_adj_grp_size_round_down(u16 *p_adj_grp_size,
+					     unsigned int alloc_size)
+{
+	if (alloc_size >= 4096)
+		*p_adj_grp_size = 4096;
+	else if (alloc_size >= 2048)
+		*p_adj_grp_size = 2048;
+	else if (alloc_size >= 1024)
+		*p_adj_grp_size = 1024;
+	else if (alloc_size >= 512)
+		*p_adj_grp_size = 512;
+}
+
+static int mlxsw_sp_fix_adj_grp_size(struct mlxsw_sp *mlxsw_sp,
+				     u16 *p_adj_grp_size)
+{
+	unsigned int alloc_size;
+	int err;
+
+	/* Round up the requested group size to the next size supported
+	 * by the device and make sure the request can be satisfied.
+	 */
+	mlxsw_sp_adj_grp_size_round_up(p_adj_grp_size);
+	err = mlxsw_sp_kvdl_alloc_size_query(mlxsw_sp, *p_adj_grp_size,
+					     &alloc_size);
+	if (err)
+		return err;
+	/* It is possible the allocation results in more allocated
+	 * entries than requested. Try to use as much of them as
+	 * possible.
+	 */
+	mlxsw_sp_adj_grp_size_round_down(p_adj_grp_size, alloc_size);
+
+	return 0;
+}
+
 static void
 mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_nexthop_group *nh_grp)
@@ -2753,6 +2806,11 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 		/* No neigh of this group is connected so we just set
 		 * the trap and let everthing flow through kernel.
 		 */
+		goto set_trap;
+
+	err = mlxsw_sp_fix_adj_grp_size(mlxsw_sp, &ecmp_size);
+	if (err)
+		/* No valid allocation size available. */
 		goto set_trap;
 
 	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, ecmp_size, &adj_index);
