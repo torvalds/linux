@@ -19,6 +19,7 @@
 #include <linux/mii.h>
 #include <linux/phy.h>
 #include <linux/if_bridge.h>
+#include <linux/etherdevice.h>
 
 #include "lan9303.h"
 
@@ -124,6 +125,21 @@
 #define LAN9303_MAC_RX_CFG_2 0x0c01
 #define LAN9303_MAC_TX_CFG_2 0x0c40
 #define LAN9303_SWE_ALR_CMD 0x1800
+# define LAN9303_ALR_CMD_MAKE_ENTRY    BIT(2)
+# define LAN9303_ALR_CMD_GET_FIRST     BIT(1)
+# define LAN9303_ALR_CMD_GET_NEXT      BIT(0)
+#define LAN9303_SWE_ALR_WR_DAT_0 0x1801
+#define LAN9303_SWE_ALR_WR_DAT_1 0x1802
+# define LAN9303_ALR_DAT1_VALID        BIT(26)
+# define LAN9303_ALR_DAT1_END_OF_TABL  BIT(25)
+# define LAN9303_ALR_DAT1_AGE_OVERRID  BIT(25)
+# define LAN9303_ALR_DAT1_STATIC       BIT(24)
+# define LAN9303_ALR_DAT1_PORT_BITOFFS  16
+# define LAN9303_ALR_DAT1_PORT_MASK    (7 << LAN9303_ALR_DAT1_PORT_BITOFFS)
+#define LAN9303_SWE_ALR_RD_DAT_0 0x1805
+#define LAN9303_SWE_ALR_RD_DAT_1 0x1806
+#define LAN9303_SWE_ALR_CMD_STS 0x1808
+# define ALR_STS_MAKE_PEND     BIT(0)
 #define LAN9303_SWE_VLAN_CMD 0x180b
 # define LAN9303_SWE_VLAN_CMD_RNW BIT(5)
 # define LAN9303_SWE_VLAN_CMD_PVIDNVLAN BIT(4)
@@ -474,6 +490,220 @@ static int lan9303_detect_phy_setup(struct lan9303 *chip)
 
 	dev_dbg(chip->dev, "Phy setup '%s' detected\n",
 		chip->phy_addr_sel_strap ? "1-2-3" : "0-1-2");
+
+	return 0;
+}
+
+/* Map ALR-port bits to port bitmap, and back */
+static const int alrport_2_portmap[] = {1, 2, 4, 0, 3, 5, 6, 7 };
+static const int portmap_2_alrport[] = {3, 0, 1, 4, 2, 5, 6, 7 };
+
+/* Return pointer to first free ALR cache entry, return NULL if none */
+static struct lan9303_alr_cache_entry *
+lan9303_alr_cache_find_free(struct lan9303 *chip)
+{
+	int i;
+	struct lan9303_alr_cache_entry *entr = chip->alr_cache;
+
+	for (i = 0; i < LAN9303_NUM_ALR_RECORDS; i++, entr++)
+		if (entr->port_map == 0)
+			return entr;
+
+	return NULL;
+}
+
+/* Return pointer to ALR cache entry matching MAC address */
+static struct lan9303_alr_cache_entry *
+lan9303_alr_cache_find_mac(struct lan9303 *chip, const u8 *mac_addr)
+{
+	int i;
+	struct lan9303_alr_cache_entry *entr = chip->alr_cache;
+
+	BUILD_BUG_ON_MSG(sizeof(struct lan9303_alr_cache_entry) & 1,
+			 "ether_addr_equal require u16 alignment");
+
+	for (i = 0; i < LAN9303_NUM_ALR_RECORDS; i++, entr++)
+		if (ether_addr_equal(entr->mac_addr, mac_addr))
+			return entr;
+
+	return NULL;
+}
+
+/* Wait a while until mask & reg == value. Otherwise return timeout. */
+static int lan9303_csr_reg_wait(struct lan9303 *chip, int regno,
+				int mask, char value)
+{
+	int i;
+
+	for (i = 0; i < 0x1000; i++) {
+		u32 reg;
+
+		lan9303_read_switch_reg(chip, regno, &reg);
+		if ((reg & mask) == value)
+			return 0;
+		usleep_range(1000, 2000);
+	}
+	return -ETIMEDOUT;
+}
+
+static int lan9303_alr_make_entry_raw(struct lan9303 *chip, u32 dat0, u32 dat1)
+{
+	lan9303_write_switch_reg(chip, LAN9303_SWE_ALR_WR_DAT_0, dat0);
+	lan9303_write_switch_reg(chip, LAN9303_SWE_ALR_WR_DAT_1, dat1);
+	lan9303_write_switch_reg(chip, LAN9303_SWE_ALR_CMD,
+				 LAN9303_ALR_CMD_MAKE_ENTRY);
+	lan9303_csr_reg_wait(chip, LAN9303_SWE_ALR_CMD_STS, ALR_STS_MAKE_PEND,
+			     0);
+	lan9303_write_switch_reg(chip, LAN9303_SWE_ALR_CMD, 0);
+
+	return 0;
+}
+
+typedef void alr_loop_cb_t(struct lan9303 *chip, u32 dat0, u32 dat1,
+			   int portmap, void *ctx);
+
+static void lan9303_alr_loop(struct lan9303 *chip, alr_loop_cb_t *cb, void *ctx)
+{
+	int i;
+
+	lan9303_write_switch_reg(chip, LAN9303_SWE_ALR_CMD,
+				 LAN9303_ALR_CMD_GET_FIRST);
+	lan9303_write_switch_reg(chip, LAN9303_SWE_ALR_CMD, 0);
+
+	for (i = 1; i < LAN9303_NUM_ALR_RECORDS; i++) {
+		u32 dat0, dat1;
+		int alrport, portmap;
+
+		lan9303_read_switch_reg(chip, LAN9303_SWE_ALR_RD_DAT_0, &dat0);
+		lan9303_read_switch_reg(chip, LAN9303_SWE_ALR_RD_DAT_1, &dat1);
+		if (dat1 & LAN9303_ALR_DAT1_END_OF_TABL)
+			break;
+
+		alrport = (dat1 & LAN9303_ALR_DAT1_PORT_MASK) >>
+						LAN9303_ALR_DAT1_PORT_BITOFFS;
+		portmap = alrport_2_portmap[alrport];
+
+		cb(chip, dat0, dat1, portmap, ctx);
+
+		lan9303_write_switch_reg(chip, LAN9303_SWE_ALR_CMD,
+					 LAN9303_ALR_CMD_GET_NEXT);
+		lan9303_write_switch_reg(chip, LAN9303_SWE_ALR_CMD, 0);
+	}
+}
+
+static void alr_reg_to_mac(u32 dat0, u32 dat1, u8 mac[6])
+{
+	mac[0] = (dat0 >>  0) & 0xff;
+	mac[1] = (dat0 >>  8) & 0xff;
+	mac[2] = (dat0 >> 16) & 0xff;
+	mac[3] = (dat0 >> 24) & 0xff;
+	mac[4] = (dat1 >>  0) & 0xff;
+	mac[5] = (dat1 >>  8) & 0xff;
+}
+
+struct del_port_learned_ctx {
+	int port;
+};
+
+/* Clear learned (non-static) entry on given port */
+static void alr_loop_cb_del_port_learned(struct lan9303 *chip, u32 dat0,
+					 u32 dat1, int portmap, void *ctx)
+{
+	struct del_port_learned_ctx *del_ctx = ctx;
+	int port = del_ctx->port;
+
+	if (((BIT(port) & portmap) == 0) || (dat1 & LAN9303_ALR_DAT1_STATIC))
+		return;
+
+	/* learned entries has only one port, we can just delete */
+	dat1 &= ~LAN9303_ALR_DAT1_VALID; /* delete entry */
+	lan9303_alr_make_entry_raw(chip, dat0, dat1);
+}
+
+struct port_fdb_dump_ctx {
+	int port;
+	void *data;
+	dsa_fdb_dump_cb_t *cb;
+};
+
+static void alr_loop_cb_fdb_port_dump(struct lan9303 *chip, u32 dat0,
+				      u32 dat1, int portmap, void *ctx)
+{
+	struct port_fdb_dump_ctx *dump_ctx = ctx;
+	u8 mac[ETH_ALEN];
+	bool is_static;
+
+	if ((BIT(dump_ctx->port) & portmap) == 0)
+		return;
+
+	alr_reg_to_mac(dat0, dat1, mac);
+	is_static = !!(dat1 & LAN9303_ALR_DAT1_STATIC);
+	dump_ctx->cb(mac, 0, is_static, dump_ctx->data);
+}
+
+/* Set a static ALR entry. Delete entry if port_map is zero */
+static void lan9303_alr_set_entry(struct lan9303 *chip, const u8 *mac,
+				  u8 port_map, bool stp_override)
+{
+	u32 dat0, dat1, alr_port;
+
+	dev_dbg(chip->dev, "%s(%pM, %d)\n", __func__, mac, port_map);
+	dat1 = LAN9303_ALR_DAT1_STATIC;
+	if (port_map)
+		dat1 |= LAN9303_ALR_DAT1_VALID;
+	/* otherwise no ports: delete entry */
+	if (stp_override)
+		dat1 |= LAN9303_ALR_DAT1_AGE_OVERRID;
+
+	alr_port = portmap_2_alrport[port_map & 7];
+	dat1 &= ~LAN9303_ALR_DAT1_PORT_MASK;
+	dat1 |= alr_port << LAN9303_ALR_DAT1_PORT_BITOFFS;
+
+	dat0 = 0;
+	dat0 |= (mac[0] << 0);
+	dat0 |= (mac[1] << 8);
+	dat0 |= (mac[2] << 16);
+	dat0 |= (mac[3] << 24);
+
+	dat1 |= (mac[4] << 0);
+	dat1 |= (mac[5] << 8);
+
+	lan9303_alr_make_entry_raw(chip, dat0, dat1);
+}
+
+/* Add port to static ALR entry, create new static entry if needed */
+static int lan9303_alr_add_port(struct lan9303 *chip, const u8 *mac, int port,
+				bool stp_override)
+{
+	struct lan9303_alr_cache_entry *entr;
+
+	entr = lan9303_alr_cache_find_mac(chip, mac);
+	if (!entr) { /*New entry */
+		entr = lan9303_alr_cache_find_free(chip);
+		if (!entr)
+			return -ENOSPC;
+		ether_addr_copy(entr->mac_addr, mac);
+	}
+	entr->port_map |= BIT(port);
+	entr->stp_override = stp_override;
+	lan9303_alr_set_entry(chip, mac, entr->port_map, stp_override);
+
+	return 0;
+}
+
+/* Delete static port from ALR entry, delete entry if last port */
+static int lan9303_alr_del_port(struct lan9303 *chip, const u8 *mac, int port)
+{
+	struct lan9303_alr_cache_entry *entr;
+
+	entr = lan9303_alr_cache_find_mac(chip, mac);
+	if (!entr)
+		return 0;  /* no static entry found */
+
+	entr->port_map &= ~BIT(port);
+	if (entr->port_map == 0) /* zero means its free again */
+		eth_zero_addr(&entr->port_map);
+	lan9303_alr_set_entry(chip, mac, entr->port_map, entr->stp_override);
 
 	return 0;
 }
@@ -923,6 +1153,102 @@ static void lan9303_port_stp_state_set(struct dsa_switch *ds, int port,
 	/* else: touching SWE_PORT_STATE would break port separation */
 }
 
+static void lan9303_port_fast_age(struct dsa_switch *ds, int port)
+{
+	struct lan9303 *chip = ds->priv;
+	struct del_port_learned_ctx del_ctx = {
+		.port = port,
+	};
+
+	dev_dbg(chip->dev, "%s(%d)\n", __func__, port);
+	lan9303_alr_loop(chip, alr_loop_cb_del_port_learned, &del_ctx);
+}
+
+static int lan9303_port_fdb_add(struct dsa_switch *ds, int port,
+				const unsigned char *addr, u16 vid)
+{
+	struct lan9303 *chip = ds->priv;
+
+	dev_dbg(chip->dev, "%s(%d, %pM, %d)\n", __func__, port, addr, vid);
+	if (vid)
+		return -EOPNOTSUPP;
+
+	return lan9303_alr_add_port(chip, addr, port, false);
+}
+
+static int lan9303_port_fdb_del(struct dsa_switch *ds, int port,
+				const unsigned char *addr, u16 vid)
+
+{
+	struct lan9303 *chip = ds->priv;
+
+	dev_dbg(chip->dev, "%s(%d, %pM, %d)\n", __func__, port, addr, vid);
+	if (vid)
+		return -EOPNOTSUPP;
+	lan9303_alr_del_port(chip, addr, port);
+
+	return 0;
+}
+
+static int lan9303_port_fdb_dump(struct dsa_switch *ds, int port,
+				 dsa_fdb_dump_cb_t *cb, void *data)
+{
+	struct lan9303 *chip = ds->priv;
+	struct port_fdb_dump_ctx dump_ctx = {
+		.port = port,
+		.data = data,
+		.cb   = cb,
+	};
+
+	dev_dbg(chip->dev, "%s(%d)\n", __func__, port);
+	lan9303_alr_loop(chip, alr_loop_cb_fdb_port_dump, &dump_ctx);
+
+	return 0;
+}
+
+static int lan9303_port_mdb_prepare(struct dsa_switch *ds, int port,
+				    const struct switchdev_obj_port_mdb *mdb,
+				    struct switchdev_trans *trans)
+{
+	struct lan9303 *chip = ds->priv;
+
+	dev_dbg(chip->dev, "%s(%d, %pM, %d)\n", __func__, port, mdb->addr,
+		mdb->vid);
+	if (mdb->vid)
+		return -EOPNOTSUPP;
+	if (lan9303_alr_cache_find_mac(chip, mdb->addr))
+		return 0;
+	if (!lan9303_alr_cache_find_free(chip))
+		return -ENOSPC;
+
+	return 0;
+}
+
+static void lan9303_port_mdb_add(struct dsa_switch *ds, int port,
+				 const struct switchdev_obj_port_mdb *mdb,
+				 struct switchdev_trans *trans)
+{
+	struct lan9303 *chip = ds->priv;
+
+	dev_dbg(chip->dev, "%s(%d, %pM, %d)\n", __func__, port, mdb->addr,
+		mdb->vid);
+	lan9303_alr_add_port(chip, mdb->addr, port, false);
+}
+
+static int lan9303_port_mdb_del(struct dsa_switch *ds, int port,
+				const struct switchdev_obj_port_mdb *mdb)
+{
+	struct lan9303 *chip = ds->priv;
+
+	dev_dbg(chip->dev, "%s(%d, %pM, %d)\n", __func__, port, mdb->addr,
+		mdb->vid);
+	if (mdb->vid)
+		return -EOPNOTSUPP;
+	lan9303_alr_del_port(chip, mdb->addr, port);
+
+	return 0;
+}
+
 static const struct dsa_switch_ops lan9303_switch_ops = {
 	.get_tag_protocol = lan9303_get_tag_protocol,
 	.setup = lan9303_setup,
@@ -937,6 +1263,13 @@ static const struct dsa_switch_ops lan9303_switch_ops = {
 	.port_bridge_join       = lan9303_port_bridge_join,
 	.port_bridge_leave      = lan9303_port_bridge_leave,
 	.port_stp_state_set     = lan9303_port_stp_state_set,
+	.port_fast_age          = lan9303_port_fast_age,
+	.port_fdb_add           = lan9303_port_fdb_add,
+	.port_fdb_del           = lan9303_port_fdb_del,
+	.port_fdb_dump          = lan9303_port_fdb_dump,
+	.port_mdb_prepare       = lan9303_port_mdb_prepare,
+	.port_mdb_add           = lan9303_port_mdb_add,
+	.port_mdb_del           = lan9303_port_mdb_del,
 };
 
 static int lan9303_register_switch(struct lan9303 *chip)
