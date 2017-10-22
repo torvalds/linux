@@ -57,7 +57,6 @@ audio-subsystem {
 		clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_bus>;
-		status = "disabled";
 	};
 
 	serial_3: serial@11460000 {
@@ -69,6 +68,5 @@ audio-subsystem {
 		clock-names = "uart", "clk_uart_baud0";
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart_aud_bus>;
-		status = "disabled";
 	};
  };

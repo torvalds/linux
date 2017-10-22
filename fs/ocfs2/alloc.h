@@ -144,8 +144,7 @@ int ocfs2_remove_btree_range(struct inode *inode,
 			     struct ocfs2_cached_dealloc_ctxt *dealloc,
 			     u64 refcount_loc, bool refcount_tree_locked);
 
-int ocfs2_num_free_extents(struct ocfs2_super *osb,
-			   struct ocfs2_extent_tree *et);
+int ocfs2_num_free_extents(struct ocfs2_extent_tree *et);
 
 /*
  * how many new metadata chunks would an allocation need at maximum?

@@ -642,7 +642,7 @@ static int ehci_start_port_reset(struct usb_hcd *hcd, unsigned port)
 #define ehci_start_port_reset	NULL
 #endif /* CONFIG_USB_OTG */
 
-static struct ehci_driver_overrides ehci_fsl_overrides __initdata = {
+static const struct ehci_driver_overrides ehci_fsl_overrides __initconst = {
 	.extra_priv_size = sizeof(struct ehci_fsl),
 	.reset = ehci_fsl_setup,
 };

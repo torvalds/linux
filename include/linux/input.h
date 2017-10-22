@@ -234,6 +234,10 @@ struct input_dev {
 #error "SW_MAX and INPUT_DEVICE_ID_SW_MAX do not match"
 #endif
 
+#if INPUT_PROP_MAX != INPUT_DEVICE_ID_PROP_MAX
+#error "INPUT_PROP_MAX and INPUT_DEVICE_ID_PROP_MAX do not match"
+#endif
+
 #define INPUT_DEVICE_ID_MATCH_DEVICE \
 	(INPUT_DEVICE_ID_MATCH_BUS | INPUT_DEVICE_ID_MATCH_VENDOR | INPUT_DEVICE_ID_MATCH_PRODUCT)
 #define INPUT_DEVICE_ID_MATCH_DEVICE_AND_VERSION \
@@ -469,6 +473,9 @@ int input_get_keycode(struct input_dev *dev, struct input_keymap_entry *ke);
 int input_set_keycode(struct input_dev *dev,
 		      const struct input_keymap_entry *ke);
 
+bool input_match_device_id(const struct input_dev *dev,
+			   const struct input_device_id *id);
+
 void input_enable_softrepeat(struct input_dev *dev, int delay, int period);
 
 extern struct class input_class;
@@ -529,6 +536,7 @@ int input_ff_event(struct input_dev *dev, unsigned int type, unsigned int code, 
 
 int input_ff_upload(struct input_dev *dev, struct ff_effect *effect, struct file *file);
 int input_ff_erase(struct input_dev *dev, int effect_id, struct file *file);
+int input_ff_flush(struct input_dev *dev, struct file *file);
 
 int input_ff_create_memless(struct input_dev *dev, void *data,
 		int (*play_effect)(struct input_dev *, void *, struct ff_effect *));

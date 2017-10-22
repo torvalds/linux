@@ -342,7 +342,7 @@ static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)
 		c = &omap443x_cfg;
 	else if (soc_is_omap446x())
 		c = &omap446x_cfg;
-	else if (soc_is_dra74x() || soc_is_omap54xx())
+	else if (soc_is_dra74x() || soc_is_omap54xx() || soc_is_dra76x())
 		c = &omap5_cfg;
 
 	if (!c) {
@@ -355,7 +355,7 @@ static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)
 	cfg.startup_addr = c->startup_addr;
 	cfg.wakeupgen_base = omap_get_wakeupgen_base();
 
-	if (soc_is_dra74x() || soc_is_omap54xx()) {
+	if (soc_is_dra74x() || soc_is_omap54xx() || soc_is_dra76x()) {
 		if ((__boot_cpu_mode & MODE_MASK) == HYP_MODE)
 			cfg.startup_addr = omap5_secondary_hyp_startup;
 		omap5_erratum_workaround_801819();

@@ -164,7 +164,7 @@ static int __init test_ecdh_sample(const u8 priv_a[32], const u8 priv_b[32],
 		ret = -EINVAL;
 
 out:
-	kfree(dhkey_a);
+	kfree(tmp);
 	return ret;
 }
 

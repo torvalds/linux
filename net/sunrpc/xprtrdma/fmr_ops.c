@@ -177,7 +177,7 @@ fmr_op_maxpages(struct rpcrdma_xprt *r_xprt)
 /* Use the ib_map_phys_fmr() verb to register a memory region
  * for remote access via RDMA READ or RDMA WRITE.
  */
-static int
+static struct rpcrdma_mr_seg *
 fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	   int nsegs, bool writing, struct rpcrdma_mw **out)
 {
@@ -188,7 +188,7 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 
 	mw = rpcrdma_get_mw(r_xprt);
 	if (!mw)
-		return -ENOBUFS;
+		return ERR_PTR(-ENOBUFS);
 
 	pageoff = offset_in_page(seg1->mr_offset);
 	seg1->mr_offset -= pageoff;	/* start of page */
@@ -232,13 +232,13 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	mw->mw_offset = dma_pages[0] + pageoff;
 
 	*out = mw;
-	return mw->mw_nents;
+	return seg;
 
 out_dmamap_err:
 	pr_err("rpcrdma: failed to DMA map sg %p sg_nents %d\n",
 	       mw->mw_sg, i);
 	rpcrdma_put_mw(r_xprt, mw);
-	return -EIO;
+	return ERR_PTR(-EIO);
 
 out_maperr:
 	pr_err("rpcrdma: ib_map_phys_fmr %u@0x%llx+%i (%d) status %i\n",
@@ -247,7 +247,7 @@ out_maperr:
 	ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
 			mw->mw_sg, mw->mw_nents, mw->mw_dir);
 	rpcrdma_put_mw(r_xprt, mw);
-	return -EIO;
+	return ERR_PTR(-EIO);
 }
 
 /* Invalidate all memory regions that were registered for "req".

@@ -162,6 +162,27 @@ static int nf_trace_fill_rule_info(struct sk_buff *nlskb,
 			    NFTA_TRACE_PAD);
 }
 
+static bool nft_trace_have_verdict_chain(struct nft_traceinfo *info)
+{
+	switch (info->type) {
+	case NFT_TRACETYPE_RETURN:
+	case NFT_TRACETYPE_RULE:
+		break;
+	default:
+		return false;
+	}
+
+	switch (info->verdict->code) {
+	case NFT_JUMP:
+	case NFT_GOTO:
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
 void nft_trace_notify(struct nft_traceinfo *info)
 {
 	const struct nft_pktinfo *pkt = info->pkt;
@@ -175,13 +196,12 @@ void nft_trace_notify(struct nft_traceinfo *info)
 		return;
 
 	size = nlmsg_total_size(sizeof(struct nfgenmsg)) +
-		nla_total_size(NFT_TABLE_MAXNAMELEN) +
-		nla_total_size(NFT_CHAIN_MAXNAMELEN) +
+		nla_total_size(strlen(info->chain->table->name)) +
+		nla_total_size(strlen(info->chain->name)) +
 		nla_total_size_64bit(sizeof(__be64)) +	/* rule handle */
 		nla_total_size(sizeof(__be32)) +	/* trace type */
 		nla_total_size(0) +			/* VERDICT, nested */
 			nla_total_size(sizeof(u32)) +	/* verdict code */
-			nla_total_size(NFT_CHAIN_MAXNAMELEN) + /* jump target */
 		nla_total_size(sizeof(u32)) +		/* id */
 		nla_total_size(NFT_TRACETYPE_LL_HSIZE) +
 		nla_total_size(NFT_TRACETYPE_NETWORK_HSIZE) +
@@ -193,6 +213,9 @@ void nft_trace_notify(struct nft_traceinfo *info)
 		nla_total_size(sizeof(u32)) +		/* mark */
 		nla_total_size(sizeof(u32)) +		/* nfproto */
 		nla_total_size(sizeof(u32));		/* policy */
+
+	if (nft_trace_have_verdict_chain(info))
+		size += nla_total_size(strlen(info->verdict->chain->name)); /* jump target */
 
 	skb = nlmsg_new(size, GFP_ATOMIC);
 	if (!skb)
@@ -217,14 +240,11 @@ void nft_trace_notify(struct nft_traceinfo *info)
 	if (trace_fill_id(skb, pkt->skb))
 		goto nla_put_failure;
 
-	if (info->chain) {
-		if (nla_put_string(skb, NFTA_TRACE_CHAIN,
-				   info->chain->name))
-			goto nla_put_failure;
-		if (nla_put_string(skb, NFTA_TRACE_TABLE,
-				   info->chain->table->name))
-			goto nla_put_failure;
-	}
+	if (nla_put_string(skb, NFTA_TRACE_CHAIN, info->chain->name))
+		goto nla_put_failure;
+
+	if (nla_put_string(skb, NFTA_TRACE_TABLE, info->chain->table->name))
+		goto nla_put_failure;
 
 	if (nf_trace_fill_rule_info(skb, info))
 		goto nla_put_failure;

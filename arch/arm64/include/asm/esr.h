@@ -77,16 +77,23 @@
 #define ESR_ELx_EC_MASK		(UL(0x3F) << ESR_ELx_EC_SHIFT)
 #define ESR_ELx_EC(esr)		(((esr) & ESR_ELx_EC_MASK) >> ESR_ELx_EC_SHIFT)
 
-#define ESR_ELx_IL		(UL(1) << 25)
+#define ESR_ELx_IL_SHIFT	(25)
+#define ESR_ELx_IL		(UL(1) << ESR_ELx_IL_SHIFT)
 #define ESR_ELx_ISS_MASK	(ESR_ELx_IL - 1)
 
 /* ISS field definitions shared by different classes */
-#define ESR_ELx_WNR		(UL(1) << 6)
+#define ESR_ELx_WNR_SHIFT	(6)
+#define ESR_ELx_WNR		(UL(1) << ESR_ELx_WNR_SHIFT)
 
 /* Shared ISS field definitions for Data/Instruction aborts */
-#define ESR_ELx_FnV		(UL(1) << 10)
-#define ESR_ELx_EA		(UL(1) << 9)
-#define ESR_ELx_S1PTW		(UL(1) << 7)
+#define ESR_ELx_SET_SHIFT	(11)
+#define ESR_ELx_SET_MASK	(UL(3) << ESR_ELx_SET_SHIFT)
+#define ESR_ELx_FnV_SHIFT	(10)
+#define ESR_ELx_FnV		(UL(1) << ESR_ELx_FnV_SHIFT)
+#define ESR_ELx_EA_SHIFT	(9)
+#define ESR_ELx_EA		(UL(1) << ESR_ELx_EA_SHIFT)
+#define ESR_ELx_S1PTW_SHIFT	(7)
+#define ESR_ELx_S1PTW		(UL(1) << ESR_ELx_S1PTW_SHIFT)
 
 /* Shared ISS fault status code(IFSC/DFSC) for Data/Instruction aborts */
 #define ESR_ELx_FSC		(0x3F)
@@ -97,15 +104,20 @@
 #define ESR_ELx_FSC_PERM	(0x0C)
 
 /* ISS field definitions for Data Aborts */
-#define ESR_ELx_ISV		(UL(1) << 24)
+#define ESR_ELx_ISV_SHIFT	(24)
+#define ESR_ELx_ISV		(UL(1) << ESR_ELx_ISV_SHIFT)
 #define ESR_ELx_SAS_SHIFT	(22)
 #define ESR_ELx_SAS		(UL(3) << ESR_ELx_SAS_SHIFT)
-#define ESR_ELx_SSE		(UL(1) << 21)
+#define ESR_ELx_SSE_SHIFT	(21)
+#define ESR_ELx_SSE		(UL(1) << ESR_ELx_SSE_SHIFT)
 #define ESR_ELx_SRT_SHIFT	(16)
 #define ESR_ELx_SRT_MASK	(UL(0x1F) << ESR_ELx_SRT_SHIFT)
-#define ESR_ELx_SF 		(UL(1) << 15)
-#define ESR_ELx_AR 		(UL(1) << 14)
-#define ESR_ELx_CM 		(UL(1) << 8)
+#define ESR_ELx_SF_SHIFT	(15)
+#define ESR_ELx_SF 		(UL(1) << ESR_ELx_SF_SHIFT)
+#define ESR_ELx_AR_SHIFT	(14)
+#define ESR_ELx_AR 		(UL(1) << ESR_ELx_AR_SHIFT)
+#define ESR_ELx_CM_SHIFT	(8)
+#define ESR_ELx_CM 		(UL(1) << ESR_ELx_CM_SHIFT)
 
 /* ISS field definitions for exceptions taken in to Hyp */
 #define ESR_ELx_CV		(UL(1) << 24)
@@ -157,9 +169,10 @@
 /*
  * User space cache operations have the following sysreg encoding
  * in System instructions.
- * op0=1, op1=3, op2=1, crn=7, crm={ 5, 10, 11, 14 }, WRITE (L=0)
+ * op0=1, op1=3, op2=1, crn=7, crm={ 5, 10, 11, 12, 14 }, WRITE (L=0)
  */
 #define ESR_ELx_SYS64_ISS_CRM_DC_CIVAC	14
+#define ESR_ELx_SYS64_ISS_CRM_DC_CVAP	12
 #define ESR_ELx_SYS64_ISS_CRM_DC_CVAU	11
 #define ESR_ELx_SYS64_ISS_CRM_DC_CVAC	10
 #define ESR_ELx_SYS64_ISS_CRM_IC_IVAU	5
@@ -208,6 +221,13 @@
 
 #ifndef __ASSEMBLY__
 #include <asm/types.h>
+
+static inline bool esr_is_data_abort(u32 esr)
+{
+	const u32 ec = ESR_ELx_EC(esr);
+
+	return ec == ESR_ELx_EC_DABT_LOW || ec == ESR_ELx_EC_DABT_CUR;
+}
 
 const char *esr_get_class_string(u32 esr);
 #endif /* __ASSEMBLY */

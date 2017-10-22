@@ -63,6 +63,15 @@ module_param_named(debug, drm_debug, int, 0600);
 static DEFINE_SPINLOCK(drm_minor_lock);
 static struct idr drm_minors_idr;
 
+/*
+ * If the drm core fails to init for whatever reason,
+ * we should prevent any drivers from registering with it.
+ * It's best to check this at drm_dev_init(), as some drivers
+ * prefer to embed struct drm_device into their own device
+ * structure and call drm_dev_init() themselves.
+ */
+static bool drm_core_init_complete = false;
+
 static struct dentry *drm_debugfs_root;
 
 #define DRM_PRINTK_FMT "[" DRM_NAME ":%s]%s %pV"
@@ -282,7 +291,7 @@ struct drm_minor *drm_minor_acquire(unsigned int minor_id)
 
 	if (!minor) {
 		return ERR_PTR(-ENODEV);
-	} else if (drm_device_is_unplugged(minor->dev)) {
+	} else if (drm_dev_is_unplugged(minor->dev)) {
 		drm_dev_unref(minor->dev);
 		return ERR_PTR(-ENODEV);
 	}
@@ -355,26 +364,32 @@ void drm_put_dev(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_put_dev);
 
-void drm_unplug_dev(struct drm_device *dev)
+static void drm_device_set_unplugged(struct drm_device *dev)
 {
-	/* for a USB device */
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_modeset_unregister_all(dev);
+	smp_wmb();
+	atomic_set(&dev->unplugged, 1);
+}
 
-	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
-	drm_minor_unregister(dev, DRM_MINOR_RENDER);
-	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
+/**
+ * drm_dev_unplug - unplug a DRM device
+ * @dev: DRM device
+ *
+ * This unplugs a hotpluggable DRM device, which makes it inaccessible to
+ * userspace operations. Entry-points can use drm_dev_is_unplugged(). This
+ * essentially unregisters the device like drm_dev_unregister(), but can be
+ * called while there are still open users of @dev.
+ */
+void drm_dev_unplug(struct drm_device *dev)
+{
+	drm_dev_unregister(dev);
 
 	mutex_lock(&drm_global_mutex);
-
 	drm_device_set_unplugged(dev);
-
-	if (dev->open_count == 0) {
-		drm_put_dev(dev);
-	}
+	if (dev->open_count == 0)
+		drm_dev_unref(dev);
 	mutex_unlock(&drm_global_mutex);
 }
-EXPORT_SYMBOL(drm_unplug_dev);
+EXPORT_SYMBOL(drm_dev_unplug);
 
 /*
  * DRM internal mount
@@ -483,6 +498,11 @@ int drm_dev_init(struct drm_device *dev,
 		 struct device *parent)
 {
 	int ret;
+
+	if (!drm_core_init_complete) {
+		DRM_ERROR("DRM core is not initialized\n");
+		return -ENODEV;
+	}
 
 	kref_init(&dev->ref);
 	dev->dev = parent;
@@ -821,6 +841,9 @@ EXPORT_SYMBOL(drm_dev_register);
  * drm_dev_register() but does not deallocate the device. The caller must call
  * drm_dev_unref() to drop their final reference.
  *
+ * A special form of unregistering for hotpluggable devices is drm_dev_unplug(),
+ * which can be called while there are still open users of @dev.
+ *
  * This should be called first in the device teardown code to make sure
  * userspace can't access the device instance any more.
  */
@@ -828,7 +851,8 @@ void drm_dev_unregister(struct drm_device *dev)
 {
 	struct drm_map_list *r_list, *list_temp;
 
-	drm_lastclose(dev);
+	if (drm_core_check_feature(dev, DRIVER_LEGACY))
+		drm_lastclose(dev);
 
 	dev->registered = false;
 
@@ -965,6 +989,8 @@ static int __init drm_core_init(void)
 	ret = register_chrdev(DRM_MAJOR, "drm", &drm_stub_fops);
 	if (ret < 0)
 		goto error;
+
+	drm_core_init_complete = true;
 
 	DRM_DEBUG("Initialized\n");
 	return 0;

@@ -126,7 +126,7 @@ struct fb_var_screeninfo dnfb_var = {
 	.vmode		= FB_VMODE_NONINTERLACED,
 };
 
-static struct fb_fix_screeninfo dnfb_fix = {
+static const struct fb_fix_screeninfo dnfb_fix = {
 	.id		= "Apollo Mono",
 	.smem_start	= (FRAME_BUFFER_START + IO_BASE),
 	.smem_len	= FRAME_BUFFER_LEN,

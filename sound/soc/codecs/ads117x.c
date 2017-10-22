@@ -58,7 +58,7 @@ static struct snd_soc_dai_driver ads117x_dai = {
 		.formats = ADS117X_FORMATS,},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_ads117x = {
+static const struct snd_soc_codec_driver soc_codec_dev_ads117x = {
 	.component_driver = {
 		.dapm_widgets		= ads117x_dapm_widgets,
 		.num_dapm_widgets	= ARRAY_SIZE(ads117x_dapm_widgets),

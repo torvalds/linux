@@ -291,8 +291,9 @@ static void gfs2_metapath_ra(struct gfs2_glock *gl,
 		if (trylock_buffer(rabh)) {
 			if (!buffer_uptodate(rabh)) {
 				rabh->b_end_io = end_buffer_read_sync;
-				submit_bh(REQ_OP_READ, REQ_RAHEAD | REQ_META,
-						rabh);
+				submit_bh(REQ_OP_READ,
+					  REQ_RAHEAD | REQ_META | REQ_PRIO,
+					  rabh);
 				continue;
 			}
 			unlock_buffer(rabh);
@@ -1103,8 +1104,15 @@ static bool find_nonnull_ptr(struct gfs2_sbd *sdp, struct metapath *mp,
 
 	while (true) {
 		ptr = metapointer(h, mp);
-		if (*ptr) /* if we have a non-null pointer */
+		if (*ptr) { /* if we have a non-null pointer */
+			/* Now zero the metapath after the current height. */
+			h++;
+			if (h < GFS2_MAX_META_HEIGHT)
+				memset(&mp->mp_list[h], 0,
+				       (GFS2_MAX_META_HEIGHT - h) *
+				       sizeof(mp->mp_list[0]));
 			return true;
+		}
 
 		if (mp->mp_list[h] < ptrs)
 			mp->mp_list[h]++;
@@ -1119,6 +1127,13 @@ enum dealloc_states {
 	DEALLOC_FILL_MP = 2,  /* Fill in the metapath to the given height. */
 	DEALLOC_DONE = 3,       /* process complete */
 };
+
+static bool mp_eq_to_hgt(struct metapath *mp, __u16 *nbof, unsigned int h)
+{
+	if (memcmp(mp->mp_list, nbof, h * sizeof(mp->mp_list[0])))
+		return false;
+	return true;
+}
 
 /**
  * trunc_dealloc - truncate a file down to a desired size
@@ -1197,8 +1212,7 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 			/* If we're truncating to a non-zero size and the mp is
 			   at the beginning of file for the strip height, we
 			   need to preserve the first metadata pointer. */
-			preserve1 = (newsize &&
-				     (mp.mp_list[mp_h] == nbof[mp_h]));
+			preserve1 = (newsize && mp_eq_to_hgt(&mp, nbof, mp_h));
 			bh = mp.mp_bh[mp_h];
 			gfs2_assert_withdraw(sdp, bh);
 			if (gfs2_assert_withdraw(sdp,

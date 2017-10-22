@@ -39,6 +39,7 @@ static inline void vsmp_init(void) { }
 #endif
 
 void setup_bios_corruption_check(void);
+void early_platform_quirks(void);
 
 extern unsigned long saved_video_mode;
 

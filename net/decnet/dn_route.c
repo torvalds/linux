@@ -1922,10 +1922,10 @@ void __init dn_route_init(void)
 
 #ifdef CONFIG_DECNET_ROUTER
 	rtnl_register(PF_DECnet, RTM_GETROUTE, dn_cache_getroute,
-		      dn_fib_dump, NULL);
+		      dn_fib_dump, 0);
 #else
 	rtnl_register(PF_DECnet, RTM_GETROUTE, dn_cache_getroute,
-		      dn_cache_dump, NULL);
+		      dn_cache_dump, 0);
 #endif
 }
 

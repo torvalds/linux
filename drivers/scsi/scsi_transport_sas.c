@@ -169,39 +169,22 @@ static struct sas_end_device *sas_sdev_to_rdev(struct scsi_device *sdev)
 	return rdev;
 }
 
-static void sas_smp_request(struct request_queue *q, struct Scsi_Host *shost,
-			    struct sas_rphy *rphy)
+static int sas_smp_dispatch(struct bsg_job *job)
 {
-	struct request *req;
-	blk_status_t ret;
-	int (*handler)(struct Scsi_Host *, struct sas_rphy *, struct request *);
+	struct Scsi_Host *shost = dev_to_shost(job->dev);
+	struct sas_rphy *rphy = NULL;
 
-	while ((req = blk_fetch_request(q)) != NULL) {
-		spin_unlock_irq(q->queue_lock);
+	if (!scsi_is_host_device(job->dev))
+		rphy = dev_to_rphy(job->dev);
 
-		scsi_req(req)->resid_len = blk_rq_bytes(req);
-		if (req->next_rq)
-			scsi_req(req->next_rq)->resid_len =
-				blk_rq_bytes(req->next_rq);
-		handler = to_sas_internal(shost->transportt)->f->smp_handler;
-		ret = handler(shost, rphy, req);
-		scsi_req(req)->result = ret;
-
-		blk_end_request_all(req, 0);
-
-		spin_lock_irq(q->queue_lock);
+	if (!job->req->next_rq) {
+		dev_warn(job->dev, "space for a smp response is missing\n");
+		bsg_job_done(job, -EINVAL, 0);
+		return 0;
 	}
-}
 
-static void sas_host_smp_request(struct request_queue *q)
-{
-	sas_smp_request(q, (struct Scsi_Host *)q->queuedata, NULL);
-}
-
-static void sas_non_host_smp_request(struct request_queue *q)
-{
-	struct sas_rphy *rphy = q->queuedata;
-	sas_smp_request(q, rphy_to_shost(rphy), rphy);
+	to_sas_internal(shost->transportt)->f->smp_handler(job, shost, rphy);
+	return 0;
 }
 
 static void sas_host_release(struct device *dev)
@@ -217,81 +200,36 @@ static void sas_host_release(struct device *dev)
 static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 {
 	struct request_queue *q;
-	int error;
-	struct device *dev;
-	char namebuf[20];
-	const char *name;
-	void (*release)(struct device *);
 
 	if (!to_sas_internal(shost->transportt)->f->smp_handler) {
 		printk("%s can't handle SMP requests\n", shost->hostt->name);
 		return 0;
 	}
 
-	q = blk_alloc_queue(GFP_KERNEL);
-	if (!q)
-		return -ENOMEM;
-	q->initialize_rq_fn = scsi_initialize_rq;
-	q->cmd_size = sizeof(struct scsi_request);
-
 	if (rphy) {
-		q->request_fn = sas_non_host_smp_request;
-		dev = &rphy->dev;
-		name = dev_name(dev);
-		release = NULL;
+		q = bsg_setup_queue(&rphy->dev, dev_name(&rphy->dev),
+				sas_smp_dispatch, 0, NULL);
+		if (IS_ERR(q))
+			return PTR_ERR(q);
+		rphy->q = q;
 	} else {
-		q->request_fn = sas_host_smp_request;
-		dev = &shost->shost_gendev;
-		snprintf(namebuf, sizeof(namebuf),
-			 "sas_host%d", shost->host_no);
-		name = namebuf;
-		release = sas_host_release;
+		char name[20];
+
+		snprintf(name, sizeof(name), "sas_host%d", shost->host_no);
+		q = bsg_setup_queue(&shost->shost_gendev, name,
+				sas_smp_dispatch, 0, sas_host_release);
+		if (IS_ERR(q))
+			return PTR_ERR(q);
+		to_sas_host_attrs(shost)->q = q;
 	}
-	error = blk_init_allocated_queue(q);
-	if (error)
-		goto out_cleanup_queue;
 
 	/*
 	 * by default assume old behaviour and bounce for any highmem page
 	 */
 	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
-
-	error = bsg_register_queue(q, dev, name, release);
-	if (error)
-		goto out_cleanup_queue;
-
-	if (rphy)
-		rphy->q = q;
-	else
-		to_sas_host_attrs(shost)->q = q;
-
-	if (rphy)
-		q->queuedata = rphy;
-	else
-		q->queuedata = shost;
-
 	queue_flag_set_unlocked(QUEUE_FLAG_BIDI, q);
 	queue_flag_set_unlocked(QUEUE_FLAG_SCSI_PASSTHROUGH, q);
 	return 0;
-
-out_cleanup_queue:
-	blk_cleanup_queue(q);
-	return error;
-}
-
-static void sas_bsg_remove(struct Scsi_Host *shost, struct sas_rphy *rphy)
-{
-	struct request_queue *q;
-
-	if (rphy)
-		q = rphy->q;
-	else
-		q = to_sas_host_attrs(shost)->q;
-
-	if (!q)
-		return;
-
-	bsg_unregister_queue(q);
 }
 
 /*
@@ -321,9 +259,10 @@ static int sas_host_remove(struct transport_container *tc, struct device *dev,
 			   struct device *cdev)
 {
 	struct Scsi_Host *shost = dev_to_shost(dev);
+	struct request_queue *q = to_sas_host_attrs(shost)->q;
 
-	sas_bsg_remove(shost, NULL);
-
+	if (q)
+		bsg_unregister_queue(q);
 	return 0;
 }
 
@@ -420,6 +359,9 @@ sas_tlr_supported(struct scsi_device *sdev)
 	struct sas_end_device *rdev = sas_sdev_to_rdev(sdev);
 	char *buffer = kzalloc(vpd_len, GFP_KERNEL);
 	int ret = 0;
+
+	if (!buffer)
+		goto out;
 
 	if (scsi_get_vpd_page(sdev, 0x90, buffer, vpd_len))
 		goto out;
@@ -1710,7 +1652,8 @@ sas_rphy_remove(struct sas_rphy *rphy)
 	}
 
 	sas_rphy_unlink(rphy);
-	sas_bsg_remove(NULL, rphy);
+	if (rphy->q)
+		bsg_unregister_queue(rphy->q);
 	transport_remove_device(dev);
 	device_del(dev);
 }

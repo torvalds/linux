@@ -454,7 +454,7 @@ ioc4_remove(struct pci_dev *pdev)
 	kfree(idd);
 }
 
-static struct pci_device_id ioc4_id_table[] = {
+static const struct pci_device_id ioc4_id_table[] = {
 	{PCI_VENDOR_ID_SGI, PCI_DEVICE_ID_SGI_IOC4, PCI_ANY_ID,
 	 PCI_ANY_ID, 0x0b4000, 0xFFFFFF},
 	{0}

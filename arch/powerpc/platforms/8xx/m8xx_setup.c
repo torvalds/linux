@@ -23,7 +23,7 @@
 #include <asm/fs_pd.h>
 #include <mm/mmu_decl.h>
 
-#include <sysdev/mpc8xx_pic.h>
+#include "pic.h"
 
 #include "mpc8xx.h"
 

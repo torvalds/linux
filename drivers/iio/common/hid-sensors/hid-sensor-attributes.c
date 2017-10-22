@@ -473,6 +473,9 @@ int hid_sensor_parse_common_attributes(struct hid_sensor_hub_device *hsdev,
 					HID_USAGE_SENSOR_PROY_POWER_STATE,
 					&st->power_state);
 
+	st->power_state.logical_minimum = 1;
+	st->report_state.logical_minimum = 1;
+
 	sensor_hub_input_get_attribute_info(hsdev,
 			HID_FEATURE_REPORT, usage_id,
 			HID_USAGE_SENSOR_PROP_SENSITIVITY_ABS,

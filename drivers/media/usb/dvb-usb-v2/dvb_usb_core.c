@@ -154,13 +154,12 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 	}
 
 	dev->dev.parent = &d->udev->dev;
-	dev->input_name = d->name;
+	dev->device_name = d->name;
 	usb_make_path(d->udev, d->rc_phys, sizeof(d->rc_phys));
 	strlcat(d->rc_phys, "/ir0", sizeof(d->rc_phys));
 	dev->input_phys = d->rc_phys;
 	usb_to_input_id(d->udev, &dev->input_id);
-	/* TODO: likely RC-core should took const char * */
-	dev->driver_name = (char *) d->props->driver_name;
+	dev->driver_name = d->props->driver_name;
 	dev->map_name = d->rc.map_name;
 	dev->allowed_protocols = d->rc.allowed_protos;
 	dev->change_protocol = d->rc.change_protocol;

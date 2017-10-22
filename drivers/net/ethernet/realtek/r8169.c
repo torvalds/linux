@@ -6863,8 +6863,7 @@ static void rtl8169_tx_clear_range(struct rtl8169_private *tp, u32 start,
 			rtl8169_unmap_tx_skb(&tp->pci_dev->dev, tx_skb,
 					     tp->TxDescArray + entry);
 			if (skb) {
-				tp->dev->stats.tx_dropped++;
-				dev_kfree_skb_any(skb);
+				dev_consume_skb_any(skb);
 				tx_skb->skb = NULL;
 			}
 		}
@@ -7319,7 +7318,7 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp)
 			tp->tx_stats.packets++;
 			tp->tx_stats.bytes += tx_skb->skb->len;
 			u64_stats_update_end(&tp->tx_stats.syncp);
-			dev_kfree_skb_any(tx_skb->skb);
+			dev_consume_skb_any(tx_skb->skb);
 			tx_skb->skb = NULL;
 		}
 		dirty_tx++;
@@ -8491,8 +8490,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	    r8168_check_dash(tp)) {
 		rtl8168_driver_start(tp);
 	}
-
-	device_set_wakeup_enable(&pdev->dev, tp->features & RTL_FEATURE_WOL);
 
 	if (pci_dev_run_wake(pdev))
 		pm_runtime_put_noidle(&pdev->dev);

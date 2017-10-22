@@ -117,7 +117,6 @@
 	clock-frequency = <150000000>;
 	disable-wp;
 	non-removable;
-	num-slots = <1>;
 	vmmc-supply = <&vcc_io>;
 	vqmmc-supply = <&vcc18_flash>;
 	pinctrl-names = "default";

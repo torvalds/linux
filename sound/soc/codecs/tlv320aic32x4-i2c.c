@@ -47,12 +47,14 @@ static int aic32x4_i2c_remove(struct i2c_client *i2c)
 
 static const struct i2c_device_id aic32x4_i2c_id[] = {
 	{ "tlv320aic32x4", 0 },
+	{ "tlv320aic32x6", 1 },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, aic32x4_i2c_id);
 
 static const struct of_device_id aic32x4_of_id[] = {
 	{ .compatible = "ti,tlv320aic32x4", },
+	{ .compatible = "ti,tlv320aic32x6", },
 	{ /* senitel */ }
 };
 MODULE_DEVICE_TABLE(of, aic32x4_of_id);

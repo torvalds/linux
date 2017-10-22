@@ -39,7 +39,7 @@
 			clock-names = "apb_pclk";
 		};
 
-		pci-controller@10001000 {
+		pci@10001000 {
 			compatible = "arm,versatile-pci";
 			device_type = "pci";
 			reg = <0x10001000 0x1000

@@ -20,6 +20,8 @@
 #define DSS_SUBSYS_NAME "DSI"
 
 #include <linux/kernel.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -42,12 +44,12 @@
 #include <linux/of_graph.h>
 #include <linux/of_platform.h>
 #include <linux/component.h>
+#include <linux/sys_soc.h>
 
 #include <video/mipi_display.h>
 
 #include "omapdss.h"
 #include "dss.h"
-#include "dss_features.h"
 
 #define DSI_CATCH_MISSING_TE
 
@@ -228,6 +230,12 @@ static int dsi_vc_send_null(struct omap_dss_device *dssdev, int channel);
 #define DSI_MAX_NR_ISRS                2
 #define DSI_MAX_NR_LANES	5
 
+enum dsi_model {
+	DSI_MODEL_OMAP3,
+	DSI_MODEL_OMAP4,
+	DSI_MODEL_OMAP5,
+};
+
 enum dsi_lane_function {
 	DSI_LANE_UNUSED	= 0,
 	DSI_LANE_CLK,
@@ -299,12 +307,36 @@ struct dsi_lp_clock_info {
 	u16 lp_clk_div;
 };
 
+struct dsi_module_id_data {
+	u32 address;
+	int id;
+};
+
+enum dsi_quirks {
+	DSI_QUIRK_PLL_PWR_BUG = (1 << 0),	/* DSI-PLL power command 0x3 is not working */
+	DSI_QUIRK_DCS_CMD_CONFIG_VC = (1 << 1),
+	DSI_QUIRK_VC_OCP_WIDTH = (1 << 2),
+	DSI_QUIRK_REVERSE_TXCLKESC = (1 << 3),
+	DSI_QUIRK_GNQ = (1 << 4),
+	DSI_QUIRK_PHY_DCC = (1 << 5),
+};
+
+struct dsi_of_data {
+	enum dsi_model model;
+	const struct dss_pll_hw *pll_hw;
+	const struct dsi_module_id_data *modules;
+	unsigned int max_fck_freq;
+	unsigned int max_pll_lpdiv;
+	enum dsi_quirks quirks;
+};
+
 struct dsi_data {
 	struct platform_device *pdev;
 	void __iomem *proto_base;
 	void __iomem *phy_base;
 	void __iomem *pll_base;
 
+	const struct dsi_of_data *data;
 	int module_id;
 
 	int irq;
@@ -312,6 +344,7 @@ struct dsi_data {
 	bool is_enabled;
 
 	struct clk *dss_clk;
+	struct regmap *syscon;
 
 	struct dispc_clock_info user_dispc_cinfo;
 	struct dss_pll_clock_info user_dsi_cinfo;
@@ -396,13 +429,6 @@ struct dsi_packet_sent_handler_data {
 	struct platform_device *dsidev;
 	struct completion *completion;
 };
-
-struct dsi_module_id_data {
-	u32 address;
-	int id;
-};
-
-static const struct of_device_id dsi_of_match[];
 
 #ifdef DSI_PERF_MEASURE
 static bool dsi_perf;
@@ -1186,6 +1212,7 @@ static int dsi_regulator_init(struct platform_device *dsidev)
 
 static void _dsi_print_reset_status(struct platform_device *dsidev)
 {
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	u32 l;
 	int b0, b1, b2;
 
@@ -1194,7 +1221,7 @@ static void _dsi_print_reset_status(struct platform_device *dsidev)
 	 * I/O. */
 	l = dsi_read_reg(dsidev, DSI_DSIPHY_CFG5);
 
-	if (dss_has_feature(FEAT_DSI_REVERSE_TXCLKESC)) {
+	if (dsi->data->quirks & DSI_QUIRK_REVERSE_TXCLKESC) {
 		b0 = 28;
 		b1 = 27;
 		b2 = 26;
@@ -1297,7 +1324,7 @@ static int dsi_set_lp_clk_divisor(struct platform_device *dsidev)
 	unsigned long dsi_fclk;
 	unsigned lp_clk_div;
 	unsigned long lp_clk;
-	unsigned lpdiv_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_LPDIV);
+	unsigned lpdiv_max = dsi->data->max_pll_lpdiv;
 
 
 	lp_clk_div = dsi->user_lp_cinfo.lp_clk_div;
@@ -1349,11 +1376,12 @@ enum dsi_pll_power_state {
 static int dsi_pll_power(struct platform_device *dsidev,
 		enum dsi_pll_power_state state)
 {
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int t = 0;
 
 	/* DSI-PLL power command 0x3 is not working */
-	if (dss_has_feature(FEAT_DSI_PLL_PWR_BUG) &&
-			state == DSI_PLL_POWER_ON_DIV)
+	if ((dsi->data->quirks & DSI_QUIRK_PLL_PWR_BUG) &&
+	    state == DSI_PLL_POWER_ON_DIV)
 		state = DSI_PLL_POWER_ON_ALL;
 
 	/* PLL_PWR_CMD */
@@ -1373,11 +1401,12 @@ static int dsi_pll_power(struct platform_device *dsidev,
 }
 
 
-static void dsi_pll_calc_dsi_fck(struct dss_pll_clock_info *cinfo)
+static void dsi_pll_calc_dsi_fck(struct dsi_data *dsi,
+				 struct dss_pll_clock_info *cinfo)
 {
 	unsigned long max_dsi_fck;
 
-	max_dsi_fck = dss_feat_get_param_max(FEAT_PARAM_DSI_FCK);
+	max_dsi_fck = dsi->data->max_fck_freq;
 
 	cinfo->mX[HSDIV_DSI] = DIV_ROUND_UP(cinfo->clkdco, max_dsi_fck);
 	cinfo->clkout[HSDIV_DSI] = cinfo->clkdco / cinfo->mX[HSDIV_DSI];
@@ -1773,13 +1802,14 @@ static int dsi_cio_power(struct platform_device *dsidev,
 
 static unsigned dsi_get_line_buf_size(struct platform_device *dsidev)
 {
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int val;
 
 	/* line buffer on OMAP3 is 1024 x 24bits */
 	/* XXX: for some reason using full buffer size causes
 	 * considerable TX slowdown with update sizes that fill the
 	 * whole buffer */
-	if (!dss_has_feature(FEAT_DSI_GNQ))
+	if (!(dsi->data->quirks & DSI_QUIRK_GNQ))
 		return 1023 * 3;
 
 	val = REG_GET(dsidev, DSI_GNQ, 14, 12); /* VP1_LINE_BUFFER_SIZE */
@@ -1872,6 +1902,7 @@ static inline unsigned ddr2ns(struct platform_device *dsidev, unsigned ddr)
 
 static void dsi_cio_timings(struct platform_device *dsidev)
 {
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	u32 r;
 	u32 ths_prepare, ths_prepare_ths_zero, ths_trail, ths_exit;
 	u32 tlpx_half, tclk_trail, tclk_zero;
@@ -1934,7 +1965,7 @@ static void dsi_cio_timings(struct platform_device *dsidev)
 	r = FLD_MOD(r, tclk_trail, 15, 8);
 	r = FLD_MOD(r, tclk_zero, 7, 0);
 
-	if (dss_has_feature(FEAT_DSI_PHY_DCC)) {
+	if (dsi->data->quirks & DSI_QUIRK_PHY_DCC) {
 		r = FLD_MOD(r, 0, 21, 21);	/* DCCEN = disable */
 		r = FLD_MOD(r, 1, 22, 22);	/* CLKINP_DIVBY2EN = enable */
 		r = FLD_MOD(r, 1, 23, 23);	/* CLKINP_SEL = enable */
@@ -2006,7 +2037,7 @@ static int dsi_cio_wait_tx_clk_esc_reset(struct platform_device *dsidev)
 	static const u8 offsets_new[] = { 24, 25, 26, 27, 28 };
 	const u8 *offsets;
 
-	if (dss_has_feature(FEAT_DSI_REVERSE_TXCLKESC))
+	if (dsi->data->quirks & DSI_QUIRK_REVERSE_TXCLKESC)
 		offsets = offsets_old;
 	else
 		offsets = offsets_new;
@@ -2060,6 +2091,83 @@ static unsigned dsi_get_lane_mask(struct platform_device *dsidev)
 	return mask;
 }
 
+/* OMAP4 CONTROL_DSIPHY */
+#define OMAP4_DSIPHY_SYSCON_OFFSET			0x78
+
+#define OMAP4_DSI2_LANEENABLE_SHIFT			29
+#define OMAP4_DSI2_LANEENABLE_MASK			(0x7 << 29)
+#define OMAP4_DSI1_LANEENABLE_SHIFT			24
+#define OMAP4_DSI1_LANEENABLE_MASK			(0x1f << 24)
+#define OMAP4_DSI1_PIPD_SHIFT				19
+#define OMAP4_DSI1_PIPD_MASK				(0x1f << 19)
+#define OMAP4_DSI2_PIPD_SHIFT				14
+#define OMAP4_DSI2_PIPD_MASK				(0x1f << 14)
+
+static int dsi_omap4_mux_pads(struct dsi_data *dsi, unsigned int lanes)
+{
+	u32 enable_mask, enable_shift;
+	u32 pipd_mask, pipd_shift;
+
+	if (dsi->module_id == 0) {
+		enable_mask = OMAP4_DSI1_LANEENABLE_MASK;
+		enable_shift = OMAP4_DSI1_LANEENABLE_SHIFT;
+		pipd_mask = OMAP4_DSI1_PIPD_MASK;
+		pipd_shift = OMAP4_DSI1_PIPD_SHIFT;
+	} else if (dsi->module_id == 1) {
+		enable_mask = OMAP4_DSI2_LANEENABLE_MASK;
+		enable_shift = OMAP4_DSI2_LANEENABLE_SHIFT;
+		pipd_mask = OMAP4_DSI2_PIPD_MASK;
+		pipd_shift = OMAP4_DSI2_PIPD_SHIFT;
+	} else {
+		return -ENODEV;
+	}
+
+	return regmap_update_bits(dsi->syscon, OMAP4_DSIPHY_SYSCON_OFFSET,
+		enable_mask | pipd_mask,
+		(lanes << enable_shift) | (lanes << pipd_shift));
+}
+
+/* OMAP5 CONTROL_DSIPHY */
+
+#define OMAP5_DSIPHY_SYSCON_OFFSET	0x74
+
+#define OMAP5_DSI1_LANEENABLE_SHIFT	24
+#define OMAP5_DSI2_LANEENABLE_SHIFT	19
+#define OMAP5_DSI_LANEENABLE_MASK	0x1f
+
+static int dsi_omap5_mux_pads(struct dsi_data *dsi, unsigned int lanes)
+{
+	u32 enable_shift;
+
+	if (dsi->module_id == 0)
+		enable_shift = OMAP5_DSI1_LANEENABLE_SHIFT;
+	else if (dsi->module_id == 1)
+		enable_shift = OMAP5_DSI2_LANEENABLE_SHIFT;
+	else
+		return -ENODEV;
+
+	return regmap_update_bits(dsi->syscon, OMAP5_DSIPHY_SYSCON_OFFSET,
+		OMAP5_DSI_LANEENABLE_MASK << enable_shift,
+		lanes << enable_shift);
+}
+
+static int dsi_enable_pads(struct dsi_data *dsi, unsigned int lane_mask)
+{
+	if (dsi->data->model == DSI_MODEL_OMAP4)
+		return dsi_omap4_mux_pads(dsi, lane_mask);
+	if (dsi->data->model == DSI_MODEL_OMAP5)
+		return dsi_omap5_mux_pads(dsi, lane_mask);
+	return 0;
+}
+
+static void dsi_disable_pads(struct dsi_data *dsi)
+{
+	if (dsi->data->model == DSI_MODEL_OMAP4)
+		dsi_omap4_mux_pads(dsi, 0);
+	else if (dsi->data->model == DSI_MODEL_OMAP5)
+		dsi_omap5_mux_pads(dsi, 0);
+}
+
 static int dsi_cio_init(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
@@ -2068,7 +2176,7 @@ static int dsi_cio_init(struct platform_device *dsidev)
 
 	DSSDBG("DSI CIO init starts");
 
-	r = dss_dsi_enable_pads(dsi->module_id, dsi_get_lane_mask(dsidev));
+	r = dsi_enable_pads(dsi, dsi_get_lane_mask(dsidev));
 	if (r)
 		return r;
 
@@ -2178,7 +2286,7 @@ err_cio_pwr:
 		dsi_cio_disable_lane_override(dsidev);
 err_scp_clk_dom:
 	dsi_disable_scp_clk(dsidev);
-	dss_dsi_disable_pads(dsi->module_id, dsi_get_lane_mask(dsidev));
+	dsi_disable_pads(dsi);
 	return r;
 }
 
@@ -2191,7 +2299,7 @@ static void dsi_cio_uninit(struct platform_device *dsidev)
 
 	dsi_cio_power(dsidev, DSI_COMPLEXIO_POWER_OFF);
 	dsi_disable_scp_clk(dsidev);
-	dss_dsi_disable_pads(dsi->module_id, dsi_get_lane_mask(dsidev));
+	dsi_disable_pads(dsi);
 }
 
 static void dsi_config_tx_fifo(struct platform_device *dsidev,
@@ -2439,7 +2547,7 @@ static void dsi_vc_initial_config(struct platform_device *dsidev, int channel)
 	r = FLD_MOD(r, 1, 7, 7); /* CS_TX_EN */
 	r = FLD_MOD(r, 1, 8, 8); /* ECC_TX_EN */
 	r = FLD_MOD(r, 0, 9, 9); /* MODE_SPEED, high speed on/off */
-	if (dss_has_feature(FEAT_DSI_VC_OCP_WIDTH))
+	if (dsi->data->quirks & DSI_QUIRK_VC_OCP_WIDTH)
 		r = FLD_MOD(r, 3, 11, 10);	/* OCP_WIDTH = 32 bit */
 
 	r = FLD_MOD(r, 4, 29, 27); /* DMA_RX_REQ_NB = no dma */
@@ -2474,7 +2582,7 @@ static int dsi_vc_config_source(struct platform_device *dsidev, int channel,
 	REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), source, 1, 1);
 
 	/* DCS_CMD_ENABLE */
-	if (dss_has_feature(FEAT_DSI_DCS_CMD_CONFIG_VC)) {
+	if (dsi->data->quirks & DSI_QUIRK_DCS_CMD_CONFIG_VC) {
 		bool enable = source == DSI_VC_SOURCE_VP;
 		REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), enable, 30, 30);
 	}
@@ -3607,7 +3715,7 @@ static int dsi_proto_config(struct platform_device *dsidev)
 	r = FLD_MOD(r, 0, 8, 8);	/* VP_CLK_POL */
 	r = FLD_MOD(r, 1, 14, 14);	/* TRIGGER_RESET_MODE */
 	r = FLD_MOD(r, 1, 19, 19);	/* EOT_ENABLE */
-	if (!dss_has_feature(FEAT_DSI_DCS_CMD_CONFIG_VC)) {
+	if (!(dsi->data->quirks & DSI_QUIRK_DCS_CMD_CONFIG_VC)) {
 		r = FLD_MOD(r, 1, 24, 24);	/* DCS_CMD_ENABLE */
 		/* DCS_CMD_CODE, 1=start, 0=continue */
 		r = FLD_MOD(r, 0, 25, 25);
@@ -4450,6 +4558,7 @@ static bool dsi_cm_calc_pll_cb(int n, int m, unsigned long fint,
 		unsigned long clkdco, void *data)
 {
 	struct dsi_clk_calc_ctx *ctx = data;
+	struct dsi_data *dsi = dsi_get_dsidrv_data(ctx->dsidev);
 
 	ctx->dsi_cinfo.n = n;
 	ctx->dsi_cinfo.m = m;
@@ -4457,7 +4566,7 @@ static bool dsi_cm_calc_pll_cb(int n, int m, unsigned long fint,
 	ctx->dsi_cinfo.clkdco = clkdco;
 
 	return dss_pll_hsdiv_calc_a(ctx->pll, clkdco, ctx->req_pck_min,
-			dss_feat_get_param_max(FEAT_PARAM_DSS_FCK),
+			dsi->data->max_fck_freq,
 			dsi_cm_calc_hsdiv_cb, ctx);
 }
 
@@ -4749,6 +4858,7 @@ static bool dsi_vm_calc_pll_cb(int n, int m, unsigned long fint,
 		unsigned long clkdco, void *data)
 {
 	struct dsi_clk_calc_ctx *ctx = data;
+	struct dsi_data *dsi = dsi_get_dsidrv_data(ctx->dsidev);
 
 	ctx->dsi_cinfo.n = n;
 	ctx->dsi_cinfo.m = m;
@@ -4756,7 +4866,7 @@ static bool dsi_vm_calc_pll_cb(int n, int m, unsigned long fint,
 	ctx->dsi_cinfo.clkdco = clkdco;
 
 	return dss_pll_hsdiv_calc_a(ctx->pll, clkdco, ctx->req_pck_min,
-			dss_feat_get_param_max(FEAT_PARAM_DSS_FCK),
+			dsi->data->max_fck_freq,
 			dsi_vm_calc_hsdiv_cb, ctx);
 }
 
@@ -4827,7 +4937,7 @@ static int dsi_set_config(struct omap_dss_device *dssdev,
 		goto err;
 	}
 
-	dsi_pll_calc_dsi_fck(&ctx.dsi_cinfo);
+	dsi_pll_calc_dsi_fck(dsi, &ctx.dsi_cinfo);
 
 	r = dsi_lp_clock_calc(ctx.dsi_cinfo.clkout[HSDIV_DSI],
 		config->lp_clk_min, config->lp_clk_max, &dsi->user_lp_cinfo);
@@ -4857,24 +4967,14 @@ err:
  * the channel in some more dynamic manner, or get the channel as a user
  * parameter.
  */
-static enum omap_channel dsi_get_channel(int module_id)
+static enum omap_channel dsi_get_channel(struct dsi_data *dsi)
 {
-	switch (omapdss_get_version()) {
-	case OMAPDSS_VER_OMAP24xx:
-	case OMAPDSS_VER_AM43xx:
-		DSSWARN("DSI not supported\n");
+	switch (dsi->data->model) {
+	case DSI_MODEL_OMAP3:
 		return OMAP_DSS_CHANNEL_LCD;
 
-	case OMAPDSS_VER_OMAP34xx_ES1:
-	case OMAPDSS_VER_OMAP34xx_ES3:
-	case OMAPDSS_VER_OMAP3630:
-	case OMAPDSS_VER_AM35xx:
-		return OMAP_DSS_CHANNEL_LCD;
-
-	case OMAPDSS_VER_OMAP4430_ES1:
-	case OMAPDSS_VER_OMAP4430_ES2:
-	case OMAPDSS_VER_OMAP4:
-		switch (module_id) {
+	case DSI_MODEL_OMAP4:
+		switch (dsi->module_id) {
 		case 0:
 			return OMAP_DSS_CHANNEL_LCD;
 		case 1:
@@ -4884,8 +4984,8 @@ static enum omap_channel dsi_get_channel(int module_id)
 			return OMAP_DSS_CHANNEL_LCD;
 		}
 
-	case OMAPDSS_VER_OMAP5:
-		switch (module_id) {
+	case DSI_MODEL_OMAP5:
+		switch (dsi->module_id) {
 		case 0:
 			return OMAP_DSS_CHANNEL_LCD;
 		case 1:
@@ -5065,7 +5165,7 @@ static void dsi_init_output(struct platform_device *dsidev)
 
 	out->output_type = OMAP_DISPLAY_TYPE_DSI;
 	out->name = dsi->module_id == 0 ? "dsi.0" : "dsi.1";
-	out->dispc_channel = dsi_get_channel(dsi->module_id);
+	out->dispc_channel = dsi_get_channel(dsi);
 	out->ops.dsi = &dsi_ops;
 	out->owner = THIS_MODULE;
 
@@ -5240,29 +5340,7 @@ static int dsi_init_pll_data(struct platform_device *dsidev)
 	pll->id = dsi->module_id == 0 ? DSS_PLL_DSI1 : DSS_PLL_DSI2;
 	pll->clkin = clk;
 	pll->base = dsi->pll_base;
-
-	switch (omapdss_get_version()) {
-	case OMAPDSS_VER_OMAP34xx_ES1:
-	case OMAPDSS_VER_OMAP34xx_ES3:
-	case OMAPDSS_VER_OMAP3630:
-	case OMAPDSS_VER_AM35xx:
-		pll->hw = &dss_omap3_dsi_pll_hw;
-		break;
-
-	case OMAPDSS_VER_OMAP4430_ES1:
-	case OMAPDSS_VER_OMAP4430_ES2:
-	case OMAPDSS_VER_OMAP4:
-		pll->hw = &dss_omap4_dsi_pll_hw;
-		break;
-
-	case OMAPDSS_VER_OMAP5:
-		pll->hw = &dss_omap5_dsi_pll_hw;
-		break;
-
-	default:
-		return -ENODEV;
-	}
-
+	pll->hw = dsi->data->pll_hw;
 	pll->ops = &dsi_pll_ops;
 
 	r = dss_pll_register(pll);
@@ -5273,9 +5351,74 @@ static int dsi_init_pll_data(struct platform_device *dsidev)
 }
 
 /* DSI1 HW IP initialisation */
+static const struct dsi_of_data dsi_of_data_omap34xx = {
+	.model = DSI_MODEL_OMAP3,
+	.pll_hw = &dss_omap3_dsi_pll_hw,
+	.modules = (const struct dsi_module_id_data[]) {
+		{ .address = 0x4804fc00, .id = 0, },
+		{ },
+	},
+	.max_fck_freq = 173000000,
+	.max_pll_lpdiv = (1 << 13) - 1,
+	.quirks = DSI_QUIRK_REVERSE_TXCLKESC,
+};
+
+static const struct dsi_of_data dsi_of_data_omap36xx = {
+	.model = DSI_MODEL_OMAP3,
+	.pll_hw = &dss_omap3_dsi_pll_hw,
+	.modules = (const struct dsi_module_id_data[]) {
+		{ .address = 0x4804fc00, .id = 0, },
+		{ },
+	},
+	.max_fck_freq = 173000000,
+	.max_pll_lpdiv = (1 << 13) - 1,
+	.quirks = DSI_QUIRK_PLL_PWR_BUG,
+};
+
+static const struct dsi_of_data dsi_of_data_omap4 = {
+	.model = DSI_MODEL_OMAP4,
+	.pll_hw = &dss_omap4_dsi_pll_hw,
+	.modules = (const struct dsi_module_id_data[]) {
+		{ .address = 0x58004000, .id = 0, },
+		{ .address = 0x58005000, .id = 1, },
+		{ },
+	},
+	.max_fck_freq = 170000000,
+	.max_pll_lpdiv = (1 << 13) - 1,
+	.quirks = DSI_QUIRK_DCS_CMD_CONFIG_VC | DSI_QUIRK_VC_OCP_WIDTH
+		| DSI_QUIRK_GNQ,
+};
+
+static const struct dsi_of_data dsi_of_data_omap5 = {
+	.model = DSI_MODEL_OMAP5,
+	.pll_hw = &dss_omap5_dsi_pll_hw,
+	.modules = (const struct dsi_module_id_data[]) {
+		{ .address = 0x58004000, .id = 0, },
+		{ .address = 0x58009000, .id = 1, },
+		{ },
+	},
+	.max_fck_freq = 209250000,
+	.max_pll_lpdiv = (1 << 13) - 1,
+	.quirks = DSI_QUIRK_DCS_CMD_CONFIG_VC | DSI_QUIRK_VC_OCP_WIDTH
+		| DSI_QUIRK_GNQ | DSI_QUIRK_PHY_DCC,
+};
+
+static const struct of_device_id dsi_of_match[] = {
+	{ .compatible = "ti,omap3-dsi", .data = &dsi_of_data_omap36xx, },
+	{ .compatible = "ti,omap4-dsi", .data = &dsi_of_data_omap4, },
+	{ .compatible = "ti,omap5-dsi", .data = &dsi_of_data_omap5, },
+	{},
+};
+
+static const struct soc_device_attribute dsi_soc_devices[] = {
+	{ .machine = "OMAP3[45]*",	.data = &dsi_of_data_omap34xx },
+	{ .machine = "AM35*",		.data = &dsi_of_data_omap34xx },
+	{ /* sentinel */ }
+};
 static int dsi_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *dsidev = to_platform_device(dev);
+	const struct soc_device_attribute *soc;
 	const struct dsi_module_id_data *d;
 	u32 rev;
 	int r, i;
@@ -5339,7 +5482,13 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 		return r;
 	}
 
-	d = of_match_node(dsi_of_match, dsidev->dev.of_node)->data;
+	soc = soc_device_match(dsi_soc_devices);
+	if (soc)
+		dsi->data = soc->data;
+	else
+		dsi->data = of_match_node(dsi_of_match, dev->of_node)->data;
+
+	d = dsi->data->modules;
 	while (d->address != 0 && d->address != dsi_mem->start)
 		d++;
 
@@ -5349,6 +5498,24 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	dsi->module_id = d->id;
+
+	if (dsi->data->model == DSI_MODEL_OMAP4 ||
+	    dsi->data->model == DSI_MODEL_OMAP5) {
+		struct device_node *np;
+
+		/*
+		 * The OMAP4/5 display DT bindings don't reference the padconf
+		 * syscon. Our only option to retrieve it is to find it by name.
+		 */
+		np = of_find_node_by_name(NULL,
+			dsi->data->model == DSI_MODEL_OMAP4 ?
+			"omap4_padconf_global" : "omap5_padconf_global");
+		if (!np)
+			return -ENODEV;
+
+		dsi->syscon = syscon_node_to_regmap(np);
+		of_node_put(np);
+	}
 
 	/* DSI VCs initialization */
 	for (i = 0; i < ARRAY_SIZE(dsi->vc); i++) {
@@ -5375,7 +5542,7 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 
 	/* DSI on OMAP3 doesn't have register DSI_GNQ, set number
 	 * of data to 3 by default */
-	if (dss_has_feature(FEAT_DSI_GNQ))
+	if (dsi->data->quirks & DSI_QUIRK_GNQ)
 		/* NB_DATA_LANES */
 		dsi->num_lanes_supported = 1 + REG_GET(dsidev, DSI_GNQ, 11, 9);
 	else
@@ -5493,30 +5660,6 @@ static int dsi_runtime_resume(struct device *dev)
 static const struct dev_pm_ops dsi_pm_ops = {
 	.runtime_suspend = dsi_runtime_suspend,
 	.runtime_resume = dsi_runtime_resume,
-};
-
-static const struct dsi_module_id_data dsi_of_data_omap3[] = {
-	{ .address = 0x4804fc00, .id = 0, },
-	{ },
-};
-
-static const struct dsi_module_id_data dsi_of_data_omap4[] = {
-	{ .address = 0x58004000, .id = 0, },
-	{ .address = 0x58005000, .id = 1, },
-	{ },
-};
-
-static const struct dsi_module_id_data dsi_of_data_omap5[] = {
-	{ .address = 0x58004000, .id = 0, },
-	{ .address = 0x58009000, .id = 1, },
-	{ },
-};
-
-static const struct of_device_id dsi_of_match[] = {
-	{ .compatible = "ti,omap3-dsi", .data = dsi_of_data_omap3, },
-	{ .compatible = "ti,omap4-dsi", .data = dsi_of_data_omap4, },
-	{ .compatible = "ti,omap5-dsi", .data = dsi_of_data_omap5, },
-	{},
 };
 
 static struct platform_driver omap_dsihw_driver = {

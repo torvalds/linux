@@ -435,7 +435,7 @@ static enum i40iw_status_code i40iw_inline_rdma_write(struct i40iw_qp_uk *qp,
 
 	op_info = &info->op.inline_rdma_write;
 	if (op_info->len > I40IW_MAX_INLINE_DATA_SIZE)
-		return I40IW_ERR_INVALID_IMM_DATA_SIZE;
+		return I40IW_ERR_INVALID_INLINE_DATA_SIZE;
 
 	ret_code = i40iw_inline_data_size_to_wqesize(op_info->len, &wqe_size);
 	if (ret_code)
@@ -511,7 +511,7 @@ static enum i40iw_status_code i40iw_inline_send(struct i40iw_qp_uk *qp,
 
 	op_info = &info->op.inline_send;
 	if (op_info->len > I40IW_MAX_INLINE_DATA_SIZE)
-		return I40IW_ERR_INVALID_IMM_DATA_SIZE;
+		return I40IW_ERR_INVALID_INLINE_DATA_SIZE;
 
 	ret_code = i40iw_inline_data_size_to_wqesize(op_info->len, &wqe_size);
 	if (ret_code)
@@ -784,7 +784,7 @@ static enum i40iw_status_code i40iw_cq_poll_completion(struct i40iw_cq_uk *cq,
 	get_64bit_val(cqe, 0, &qword0);
 	get_64bit_val(cqe, 16, &qword2);
 
-	info->tcp_seq_num = (u8)RS_64(qword0, I40IWCQ_TCPSEQNUM);
+	info->tcp_seq_num = (u32)RS_64(qword0, I40IWCQ_TCPSEQNUM);
 
 	info->qp_id = (u32)RS_64(qword2, I40IWCQ_QPID);
 
@@ -912,7 +912,7 @@ enum i40iw_status_code i40iw_get_wqe_shift(u32 wqdepth, u32 sge, u32 inline_data
 	return 0;
 }
 
-static struct i40iw_qp_uk_ops iw_qp_uk_ops = {
+static const struct i40iw_qp_uk_ops iw_qp_uk_ops = {
 	.iw_qp_post_wr = i40iw_qp_post_wr,
 	.iw_qp_ring_push_db = i40iw_qp_ring_push_db,
 	.iw_rdma_write = i40iw_rdma_write,
@@ -926,14 +926,14 @@ static struct i40iw_qp_uk_ops iw_qp_uk_ops = {
 	.iw_post_nop = i40iw_nop
 };
 
-static struct i40iw_cq_ops iw_cq_ops = {
+static const struct i40iw_cq_ops iw_cq_ops = {
 	.iw_cq_request_notification = i40iw_cq_request_notification,
 	.iw_cq_poll_completion = i40iw_cq_poll_completion,
 	.iw_cq_post_entries = i40iw_cq_post_entries,
 	.iw_cq_clean = i40iw_clean_cq
 };
 
-static struct i40iw_device_uk_ops iw_device_uk_ops = {
+static const struct i40iw_device_uk_ops iw_device_uk_ops = {
 	.iwarp_cq_uk_init = i40iw_cq_uk_init,
 	.iwarp_qp_uk_init = i40iw_qp_uk_init,
 };
@@ -1187,7 +1187,7 @@ enum i40iw_status_code i40iw_inline_data_size_to_wqesize(u32 data_size,
 							 u8 *wqe_size)
 {
 	if (data_size > I40IW_MAX_INLINE_DATA_SIZE)
-		return I40IW_ERR_INVALID_IMM_DATA_SIZE;
+		return I40IW_ERR_INVALID_INLINE_DATA_SIZE;
 
 	if (data_size <= 16)
 		*wqe_size = I40IW_QP_WQE_MIN_SIZE;

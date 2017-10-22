@@ -44,6 +44,8 @@
 
 static struct workqueue_struct *gid_cache_wq;
 
+static struct workqueue_struct *gid_cache_wq;
+
 enum gid_op_type {
 	GID_DEL = 0,
 	GID_ADD

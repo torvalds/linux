@@ -745,7 +745,7 @@ static void do_become_nonbusy(struct comedi_device *dev,
 		wake_up_interruptible_all(&async->wait_head);
 	} else {
 		dev_err(dev->class_dev,
-			"BUG: (?) do_become_nonbusy called with async=NULL\n");
+			"BUG: (?) %s called with async=NULL\n", __func__);
 		s->busy = NULL;
 	}
 }
@@ -2396,6 +2396,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 			continue;
 		}
 
+		set_current_state(TASK_RUNNING);
 		wp = async->buf_write_ptr;
 		n1 = min(n, async->prealloc_bufsz - wp);
 		n2 = n - n1;
@@ -2528,6 +2529,8 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 			}
 			continue;
 		}
+
+		set_current_state(TASK_RUNNING);
 		rp = async->buf_read_ptr;
 		n1 = min(n, async->prealloc_bufsz - rp);
 		n2 = n - n1;

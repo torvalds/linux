@@ -1548,6 +1548,13 @@ static const struct dmi_system_id chv_no_valid_mask[] = {
 		},
 	},
 	{
+		.ident = "HP Chromebook 11 G5 (Setzer)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Setzer"),
+		},
+	},
+	{
 		.ident = "Acer Chromebook R11 (Cyan)",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
@@ -1570,6 +1577,7 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 	struct gpio_chip *chip = &pctrl->chip;
 	bool need_valid_mask = !dmi_check_system(chv_no_valid_mask);
 	int ret, i, offset;
+	int irq_base;
 
 	*chip = chv_gpio_chip;
 
@@ -1615,7 +1623,18 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 	/* Clear all interrupts */
 	chv_writel(0xffff, pctrl->regs + CHV_INTSTAT);
 
-	ret = gpiochip_irqchip_add(chip, &chv_gpio_irqchip, 0,
+	if (!need_valid_mask) {
+		irq_base = devm_irq_alloc_descs(pctrl->dev, -1, 0,
+						chip->ngpio, NUMA_NO_NODE);
+		if (irq_base < 0) {
+			dev_err(pctrl->dev, "Failed to allocate IRQ numbers\n");
+			return irq_base;
+		}
+	} else {
+		irq_base = 0;
+	}
+
+	ret = gpiochip_irqchip_add(chip, &chv_gpio_irqchip, irq_base,
 				   handle_bad_irq, IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(pctrl->dev, "failed to add IRQ chip\n");

@@ -2828,7 +2828,7 @@ netxen_show_bridged_mode(struct device *dev,
 	return sprintf(buf, "%d\n", bridged_mode);
 }
 
-static struct device_attribute dev_attr_bridged_mode = {
+static const struct device_attribute dev_attr_bridged_mode = {
        .attr = {.name = "bridged_mode", .mode = (S_IRUGO | S_IWUSR)},
        .show = netxen_show_bridged_mode,
        .store = netxen_store_bridged_mode,
@@ -2860,7 +2860,7 @@ netxen_show_diag_mode(struct device *dev,
 			!!(adapter->flags & NETXEN_NIC_DIAG_ENABLED));
 }
 
-static struct device_attribute dev_attr_diag_mode = {
+static const struct device_attribute dev_attr_diag_mode = {
 	.attr = {.name = "diag_mode", .mode = (S_IRUGO | S_IWUSR)},
 	.show = netxen_show_diag_mode,
 	.store = netxen_store_diag_mode,

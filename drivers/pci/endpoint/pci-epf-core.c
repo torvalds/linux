@@ -27,7 +27,7 @@
 #include <linux/pci-ep-cfs.h>
 
 static struct bus_type pci_epf_bus_type;
-static struct device_type pci_epf_type;
+static const struct device_type pci_epf_type;
 
 /**
  * pci_epf_linkup() - Notify the function driver that EPC device has
@@ -267,6 +267,22 @@ err_ret:
 }
 EXPORT_SYMBOL_GPL(pci_epf_create);
 
+const struct pci_epf_device_id *
+pci_epf_match_device(const struct pci_epf_device_id *id, struct pci_epf *epf)
+{
+	if (!id || !epf)
+		return NULL;
+
+	while (*id->name) {
+		if (strcmp(epf->name, id->name) == 0)
+			return id;
+		id++;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(pci_epf_match_device);
+
 static void pci_epf_dev_release(struct device *dev)
 {
 	struct pci_epf *epf = to_pci_epf(dev);
@@ -275,7 +291,7 @@ static void pci_epf_dev_release(struct device *dev)
 	kfree(epf);
 }
 
-static struct device_type pci_epf_type = {
+static const struct device_type pci_epf_type = {
 	.release	= pci_epf_dev_release,
 };
 
@@ -317,11 +333,12 @@ static int pci_epf_device_probe(struct device *dev)
 
 static int pci_epf_device_remove(struct device *dev)
 {
-	int ret;
+	int ret = 0;
 	struct pci_epf *epf = to_pci_epf(dev);
 	struct pci_epf_driver *driver = to_pci_epf_driver(dev->driver);
 
-	ret = driver->remove(epf);
+	if (driver->remove)
+		ret = driver->remove(epf);
 	epf->driver = NULL;
 
 	return ret;

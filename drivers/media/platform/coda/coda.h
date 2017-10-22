@@ -183,7 +183,7 @@ struct coda_context_ops {
 	int (*start_streaming)(struct coda_ctx *ctx);
 	int (*prepare_run)(struct coda_ctx *ctx);
 	void (*finish_run)(struct coda_ctx *ctx);
-	void (*error_run)(struct coda_ctx *ctx);
+	void (*run_timeout)(struct coda_ctx *ctx);
 	void (*seq_end_work)(struct work_struct *work);
 	void (*release)(struct coda_ctx *ctx);
 };

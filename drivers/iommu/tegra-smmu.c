@@ -36,6 +36,8 @@ struct tegra_smmu {
 	struct list_head list;
 
 	struct dentry *debugfs;
+
+	struct iommu_device iommu;	/* IOMMU Core code handle */
 };
 
 struct tegra_smmu_as {
@@ -704,6 +706,7 @@ static struct tegra_smmu *tegra_smmu_find(struct device_node *np)
 static int tegra_smmu_add_device(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
+	struct iommu_group *group;
 	struct of_phandle_args args;
 	unsigned int index = 0;
 
@@ -719,18 +722,33 @@ static int tegra_smmu_add_device(struct device *dev)
 			 * first match.
 			 */
 			dev->archdata.iommu = smmu;
+
+			iommu_device_link(&smmu->iommu, dev);
+
 			break;
 		}
 
 		index++;
 	}
 
+	group = iommu_group_get_for_dev(dev);
+	if (IS_ERR(group))
+		return PTR_ERR(group);
+
+	iommu_group_put(group);
+
 	return 0;
 }
 
 static void tegra_smmu_remove_device(struct device *dev)
 {
+	struct tegra_smmu *smmu = dev->archdata.iommu;
+
+	if (smmu)
+		iommu_device_unlink(&smmu->iommu, dev);
+
 	dev->archdata.iommu = NULL;
+	iommu_group_remove_device(dev);
 }
 
 static const struct iommu_ops tegra_smmu_ops = {
@@ -741,6 +759,7 @@ static const struct iommu_ops tegra_smmu_ops = {
 	.detach_dev = tegra_smmu_detach_dev,
 	.add_device = tegra_smmu_add_device,
 	.remove_device = tegra_smmu_remove_device,
+	.device_group = generic_device_group,
 	.map = tegra_smmu_map,
 	.unmap = tegra_smmu_unmap,
 	.map_sg = default_iommu_map_sg,
@@ -930,9 +949,24 @@ struct tegra_smmu *tegra_smmu_probe(struct device *dev,
 
 	tegra_smmu_ahb_enable();
 
-	err = bus_set_iommu(&platform_bus_type, &tegra_smmu_ops);
-	if (err < 0)
+	err = iommu_device_sysfs_add(&smmu->iommu, dev, NULL, dev_name(dev));
+	if (err)
 		return ERR_PTR(err);
+
+	iommu_device_set_ops(&smmu->iommu, &tegra_smmu_ops);
+
+	err = iommu_device_register(&smmu->iommu);
+	if (err) {
+		iommu_device_sysfs_remove(&smmu->iommu);
+		return ERR_PTR(err);
+	}
+
+	err = bus_set_iommu(&platform_bus_type, &tegra_smmu_ops);
+	if (err < 0) {
+		iommu_device_unregister(&smmu->iommu);
+		iommu_device_sysfs_remove(&smmu->iommu);
+		return ERR_PTR(err);
+	}
 
 	if (IS_ENABLED(CONFIG_DEBUG_FS))
 		tegra_smmu_debugfs_init(smmu);
@@ -942,6 +976,9 @@ struct tegra_smmu *tegra_smmu_probe(struct device *dev,
 
 void tegra_smmu_remove(struct tegra_smmu *smmu)
 {
+	iommu_device_unregister(&smmu->iommu);
+	iommu_device_sysfs_remove(&smmu->iommu);
+
 	if (IS_ENABLED(CONFIG_DEBUG_FS))
 		tegra_smmu_debugfs_exit(smmu);
 }

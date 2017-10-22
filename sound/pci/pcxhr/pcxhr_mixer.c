@@ -185,7 +185,7 @@ static int pcxhr_analog_vol_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new pcxhr_control_analog_level = {
+static const struct snd_kcontrol_new pcxhr_control_analog_level = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access =	(SNDRV_CTL_ELEM_ACCESS_READWRITE |
 			 SNDRV_CTL_ELEM_ACCESS_TLV_READ),
@@ -409,7 +409,7 @@ static int pcxhr_pcm_vol_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new snd_pcxhr_pcm_vol =
+static const struct snd_kcontrol_new snd_pcxhr_pcm_vol =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access =	(SNDRV_CTL_ELEM_ACCESS_READWRITE |

@@ -35,7 +35,7 @@
 #include <linux/of.h>
 #include <linux/irqdomain.h>
 
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 
 /*
  * The GPIO "subchip" supports 18 GPIOs which can be configured as

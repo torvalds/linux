@@ -108,6 +108,18 @@ enum iwl_led_mode {
 	IWL_LED_DISABLE,
 };
 
+/**
+ * enum iwl_nvm_type - nvm formats
+ * @IWL_NVM: the regular format
+ * @IWL_NVM_EXT: extended NVM format
+ * @IWL_NVM_SDP: NVM format used by 3168 series
+ */
+enum iwl_nvm_type {
+	IWL_NVM,
+	IWL_NVM_EXT,
+	IWL_NVM_SDP,
+};
+
 /*
  * This is the threshold value of plcp error rate per 100mSecs.  It is
  * used to set and check for the validity of plcp_delta.
@@ -276,10 +288,10 @@ struct iwl_pwr_tx_backoff {
  * @fw_name_pre: Firmware filename prefix. The api version and extension
  *	(.ucode) will be added to filename before loading from disk. The
  *	filename is constructed as fw_name_pre<api>.ucode.
- * @fw_name_pre_next_step: same as @fw_name_pre, only for next step
+ * @fw_name_pre_b_or_c_step: same as @fw_name_pre, only for b or c steps
  *	(if supported)
- * @fw_name_pre_rf_next_step: same as @fw_name_pre_next_step, only for rf next
- *	step. Supported only in integrated solutions.
+ * @fw_name_pre_rf_next_step: same as @fw_name_pre_b_or_c_step, only for rf
+ *	next step. Supported only in integrated solutions.
  * @ucode_api_max: Highest version of uCode API supported by driver.
  * @ucode_api_min: Lowest version of uCode API supported by driver.
  * @max_inst_size: The maximal length of the fw inst section
@@ -320,7 +332,7 @@ struct iwl_pwr_tx_backoff {
  * @integrated: discrete or integrated
  * @gen2: a000 and on transport operation
  * @cdb: CDB support
- * @ext_nvm: extended NVM format
+ * @nvm_type: see &enum iwl_nvm_type
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -330,7 +342,7 @@ struct iwl_cfg {
 	/* params specific to an individual device within a device family */
 	const char *name;
 	const char *fw_name_pre;
-	const char *fw_name_pre_next_step;
+	const char *fw_name_pre_b_or_c_step;
 	const char *fw_name_pre_rf_next_step;
 	/* params not likely to change within a device family */
 	const struct iwl_base_params *base_params;
@@ -342,6 +354,7 @@ struct iwl_cfg {
 	const struct iwl_tt_params *thermal_params;
 	enum iwl_device_family device_family;
 	enum iwl_led_mode led_mode;
+	enum iwl_nvm_type nvm_type;
 	u32 max_data_size;
 	u32 max_inst_size;
 	netdev_features_t features;
@@ -369,7 +382,6 @@ struct iwl_cfg {
 	    use_tfh:1,
 	    gen2:1,
 	    cdb:1,
-	    ext_nvm:1,
 	    dbgc_supported:1;
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;
@@ -463,6 +475,9 @@ extern const struct iwl_cfg iwla000_2ac_cfg_hr;
 extern const struct iwl_cfg iwla000_2ac_cfg_hr_cdb;
 extern const struct iwl_cfg iwla000_2ac_cfg_jf;
 extern const struct iwl_cfg iwla000_2ax_cfg_hr;
+extern const struct iwl_cfg iwla000_2ax_cfg_qnj_hr_f0;
+extern const struct iwl_cfg iwla000_2ax_cfg_qnj_jf_b0;
+extern const struct iwl_cfg iwla000_2ax_cfg_qnj_hr_a0;
 #endif /* CONFIG_IWLMVM */
 
 #endif /* __IWL_CONFIG_H__ */

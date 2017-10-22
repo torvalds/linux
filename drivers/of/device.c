@@ -9,6 +9,9 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/slab.h>
+#include <linux/pci.h>
+#include <linux/platform_device.h>
+#include <linux/amba/bus.h>
 
 #include <asm/errno.h>
 #include "of_private.h"
@@ -58,7 +61,7 @@ int of_device_add(struct platform_device *ofdev)
 	/* name and id have to be set so that the platform bus doesn't get
 	 * confused on matching */
 	ofdev->name = dev_name(&ofdev->dev);
-	ofdev->id = -1;
+	ofdev->id = PLATFORM_DEVID_NONE;
 
 	/*
 	 * If this device has not binding numa node in devicetree, that is
@@ -84,30 +87,28 @@ int of_device_add(struct platform_device *ofdev)
  */
 int of_dma_configure(struct device *dev, struct device_node *np)
 {
-	u64 dma_addr, paddr, size;
+	u64 dma_addr, paddr, size = 0;
 	int ret;
 	bool coherent;
 	unsigned long offset;
 	const struct iommu_ops *iommu;
-
-	/*
-	 * Set default coherent_dma_mask to 32 bit.  Drivers are expected to
-	 * setup the correct supported mask.
-	 */
-	if (!dev->coherent_dma_mask)
-		dev->coherent_dma_mask = DMA_BIT_MASK(32);
-
-	/*
-	 * Set it to coherent_dma_mask by default if the architecture
-	 * code has not set it.
-	 */
-	if (!dev->dma_mask)
-		dev->dma_mask = &dev->coherent_dma_mask;
+	u64 mask;
 
 	ret = of_dma_get_range(np, &dma_addr, &paddr, &size);
 	if (ret < 0) {
+		/*
+		 * For legacy reasons, we have to assume some devices need
+		 * DMA configuration regardless of whether "dma-ranges" is
+		 * correctly specified or not.
+		 */
+		if (!dev_is_pci(dev) &&
+#ifdef CONFIG_ARM_AMBA
+		    dev->bus != &amba_bustype &&
+#endif
+		    dev->bus != &platform_bus_type)
+			return ret == -ENODEV ? 0 : ret;
+
 		dma_addr = offset = 0;
-		size = max(dev->coherent_dma_mask, dev->coherent_dma_mask + 1);
 	} else {
 		offset = PFN_DOWN(paddr - dma_addr);
 
@@ -128,16 +129,31 @@ int of_dma_configure(struct device *dev, struct device_node *np)
 		dev_dbg(dev, "dma_pfn_offset(%#08lx)\n", offset);
 	}
 
+	/*
+	 * Set default coherent_dma_mask to 32 bit.  Drivers are expected to
+	 * setup the correct supported mask.
+	 */
+	if (!dev->coherent_dma_mask)
+		dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	/*
+	 * Set it to coherent_dma_mask by default if the architecture
+	 * code has not set it.
+	 */
+	if (!dev->dma_mask)
+		dev->dma_mask = &dev->coherent_dma_mask;
+
+	if (!size)
+		size = max(dev->coherent_dma_mask, dev->coherent_dma_mask + 1);
+
 	dev->dma_pfn_offset = offset;
 
 	/*
 	 * Limit coherent and dma mask based on size and default mask
 	 * set by the driver.
 	 */
-	dev->coherent_dma_mask = min(dev->coherent_dma_mask,
-				     DMA_BIT_MASK(ilog2(dma_addr + size)));
-	*dev->dma_mask = min((*dev->dma_mask),
-			     DMA_BIT_MASK(ilog2(dma_addr + size)));
+	mask = DMA_BIT_MASK(ilog2(dma_addr + size - 1) + 1);
+	dev->coherent_dma_mask &= mask;
+	*dev->dma_mask &= mask;
 
 	coherent = of_dma_is_coherent(np);
 	dev_dbg(dev, "device is%sdma coherent\n",
@@ -196,8 +212,10 @@ EXPORT_SYMBOL(of_device_get_match_data);
 static ssize_t of_device_get_modalias(struct device *dev, char *str, ssize_t len)
 {
 	const char *compat;
-	int cplen, i;
-	ssize_t tsize, csize, repend;
+	char *c;
+	struct property *p;
+	ssize_t csize;
+	ssize_t tsize;
 
 	if ((!dev) || (!dev->of_node))
 		return -ENODEV;
@@ -205,42 +223,28 @@ static ssize_t of_device_get_modalias(struct device *dev, char *str, ssize_t len
 	/* Name & Type */
 	csize = snprintf(str, len, "of:N%sT%s", dev->of_node->name,
 			 dev->of_node->type);
+	tsize = csize;
+	len -= csize;
+	if (str)
+		str += csize;
 
-	/* Get compatible property if any */
-	compat = of_get_property(dev->of_node, "compatible", &cplen);
-	if (!compat)
-		return csize;
+	of_property_for_each_string(dev->of_node, "compatible", p, compat) {
+		csize = strlen(compat) + 1;
+		tsize += csize;
+		if (csize > len)
+			continue;
 
-	/* Find true end (we tolerate multiple \0 at the end */
-	for (i = (cplen - 1); i >= 0 && !compat[i]; i--)
-		cplen--;
-	if (!cplen)
-		return csize;
-	cplen++;
-
-	/* Check space (need cplen+1 chars including final \0) */
-	tsize = csize + cplen;
-	repend = tsize;
-
-	if (csize >= len)		/* @ the limit, all is already filled */
-		return tsize;
-
-	if (tsize >= len) {		/* limit compat list */
-		cplen = len - csize - 1;
-		repend = len;
+		csize = snprintf(str, len, "C%s", compat);
+		for (c = str; c; ) {
+			c = strchr(c, ' ');
+			if (c)
+				*c++ = '_';
+		}
+		len -= csize;
+		str += csize;
 	}
 
-	/* Copy and do char replacement */
-	memcpy(&str[csize + 1], compat, cplen);
-	for (i = csize; i < repend; i++) {
-		char c = str[i];
-		if (c == '\0')
-			str[i] = 'C';
-		else if (c == ' ')
-			str[i] = '_';
-	}
-
-	return repend;
+	return tsize;
 }
 
 int of_device_request_module(struct device *dev)
@@ -274,6 +278,8 @@ ssize_t of_device_modalias(struct device *dev, char *str, ssize_t len)
 	ssize_t sl = of_device_get_modalias(dev, str, len - 2);
 	if (sl < 0)
 		return sl;
+	if (sl > len - 2)
+		return -ENOMEM;
 
 	str[sl++] = '\n';
 	str[sl] = 0;
@@ -288,25 +294,22 @@ void of_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	const char *compat;
 	struct alias_prop *app;
-	int seen = 0, cplen, sl;
+	struct property *p;
+	int seen = 0;
 
 	if ((!dev) || (!dev->of_node))
 		return;
 
 	add_uevent_var(env, "OF_NAME=%s", dev->of_node->name);
-	add_uevent_var(env, "OF_FULLNAME=%s", dev->of_node->full_name);
+	add_uevent_var(env, "OF_FULLNAME=%pOF", dev->of_node);
 	if (dev->of_node->type && strcmp("<NULL>", dev->of_node->type) != 0)
 		add_uevent_var(env, "OF_TYPE=%s", dev->of_node->type);
 
 	/* Since the compatible field can contain pretty much anything
 	 * it's not really legal to split it out with commas. We split it
 	 * up using a number of environment variables instead. */
-	compat = of_get_property(dev->of_node, "compatible", &cplen);
-	while (compat && *compat && cplen > 0) {
+	of_property_for_each_string(dev->of_node, "compatible", p, compat) {
 		add_uevent_var(env, "OF_COMPATIBLE_%d=%s", seen, compat);
-		sl = strlen(compat) + 1;
-		compat += sl;
-		cplen -= sl;
 		seen++;
 	}
 	add_uevent_var(env, "OF_COMPATIBLE_N=%d", seen);

@@ -119,29 +119,29 @@ static inline int cpudl_maximum(struct cpudl *cp)
  * @p: the task
  * @later_mask: a mask to fill in with the selected CPUs (or NULL)
  *
- * Returns: int - best CPU (heap maximum if suitable)
+ * Returns: int - CPUs were found
  */
 int cpudl_find(struct cpudl *cp, struct task_struct *p,
 	       struct cpumask *later_mask)
 {
-	int best_cpu = -1;
 	const struct sched_dl_entity *dl_se = &p->dl;
 
 	if (later_mask &&
 	    cpumask_and(later_mask, cp->free_cpus, &p->cpus_allowed)) {
-		best_cpu = cpumask_any(later_mask);
-		goto out;
-	} else if (cpumask_test_cpu(cpudl_maximum(cp), &p->cpus_allowed) &&
-			dl_time_before(dl_se->deadline, cp->elements[0].dl)) {
-		best_cpu = cpudl_maximum(cp);
-		if (later_mask)
-			cpumask_set_cpu(best_cpu, later_mask);
+		return 1;
+	} else {
+		int best_cpu = cpudl_maximum(cp);
+		WARN_ON(best_cpu != -1 && !cpu_present(best_cpu));
+
+		if (cpumask_test_cpu(best_cpu, &p->cpus_allowed) &&
+		    dl_time_before(dl_se->deadline, cp->elements[0].dl)) {
+			if (later_mask)
+				cpumask_set_cpu(best_cpu, later_mask);
+
+			return 1;
+		}
 	}
-
-out:
-	WARN_ON(best_cpu != -1 && !cpu_present(best_cpu));
-
-	return best_cpu;
+	return 0;
 }
 
 /*
@@ -246,7 +246,6 @@ int cpudl_init(struct cpudl *cp)
 {
 	int i;
 
-	memset(cp, 0, sizeof(*cp));
 	raw_spin_lock_init(&cp->lock);
 	cp->size = 0;
 

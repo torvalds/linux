@@ -2166,8 +2166,6 @@ static int set_group_key(struct adapter *padapter, u8 *key, u8 alg, int keyid)
 		goto exit;
 	}
 
-	memset(psetkeyparm, 0, sizeof(struct setkey_parm));
-
 	psetkeyparm->keyid = (u8)keyid;
 
 	psetkeyparm->algorithm = alg;

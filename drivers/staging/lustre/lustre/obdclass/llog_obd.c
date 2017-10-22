@@ -32,8 +32,8 @@
 
 #define DEBUG_SUBSYSTEM S_LOG
 
-#include "../include/obd_class.h"
-#include "../include/lustre_log.h"
+#include <obd_class.h>
+#include <lustre_log.h>
 #include "llog_internal.h"
 
 /* helper functions for calling the llog obd methods */

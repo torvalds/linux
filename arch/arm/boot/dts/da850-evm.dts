@@ -15,6 +15,13 @@
 	compatible = "ti,da850-evm", "ti,da850";
 	model = "DA850/AM1808/OMAP-L138 EVM";
 
+	aliases {
+		serial0 = &serial0;
+		serial1 = &serial1;
+		serial2 = &serial2;
+		ethernet0 = &eth0;
+	};
+
 	soc@1c00000 {
 		pmx_core: pinmux@14120 {
 			status = "okay";
@@ -301,25 +308,4 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&vpif_capture_pins>, <&vpif_display_pins>;
 	status = "okay";
-
-	/* VPIF capture port */
-	port@0 {
-		vpif_input_ch0: endpoint@0 {
-			reg = <0>;
-			bus-width = <8>;
-		};
-
-		vpif_input_ch1: endpoint@1 {
-			reg = <1>;
-			bus-width = <8>;
-			data-shift = <8>;
-		};
-	};
-
-	/* VPIF display port */
-	port@1 {
-		vpif_output_ch0: endpoint {
-			bus-width = <8>;
-		};
-	};
 };

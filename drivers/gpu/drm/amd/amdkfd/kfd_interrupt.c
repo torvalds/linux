@@ -179,7 +179,7 @@ static void interrupt_wq(struct work_struct *work)
 bool interrupt_is_wanted(struct kfd_dev *dev, const uint32_t *ih_ring_entry)
 {
 	/* integer and bitwise OR so there is no boolean short-circuiting */
-	unsigned wanted = 0;
+	unsigned int wanted = 0;
 
 	wanted |= dev->device_info->event_interrupt_class->interrupt_isr(dev,
 								ih_ring_entry);

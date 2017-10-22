@@ -29,6 +29,9 @@
  * @hw: handle between common and hardware-specific interfaces
  * @reg: IO-remapped register
  * @div: divisor value (1-64)
+ * @src_shift: Shift to access the register bits to select the parent clock
+ * @src_width: Number of register bits to select the parent clock (may be 0)
+ * @parents: Array to map from valid parent clocks indices to hardware indices
  */
 struct div6_clock {
 	struct clk_hw hw;

@@ -1,0 +1,21 @@
+Freescale RNGC (Random Number Generator Version C)
+
+The driver also supports version B, which is mostly compatible
+to version C.
+
+Required properties:
+- compatible : should be one of
+               "fsl,imx25-rngb"
+               "fsl,imx35-rngc"
+- reg : offset and length of the register set of this block
+- interrupts : the interrupt number for the RNGC block
+- clocks : the RNGC clk source
+
+Example:
+
+rng@53fb0000 {
+	compatible = "fsl,imx25-rngb";
+	reg = <0x53fb0000 0x4000>;
+	interrupts = <22>;
+	clocks = <&trng_clk>;
+};

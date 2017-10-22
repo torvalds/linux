@@ -17,45 +17,33 @@
 #ifndef __SSI_FIPS_H__
 #define __SSI_FIPS_H__
 
-/*!
- * @file
- * @brief This file contains FIPS related defintions and APIs.
- */
+#ifdef CONFIG_CRYPTO_FIPS
 
-enum cc_fips_state {
-	CC_FIPS_STATE_NOT_SUPPORTED = 0,
-	CC_FIPS_STATE_SUPPORTED,
-	CC_FIPS_STATE_ERROR,
-	CC_FIPS_STATE_RESERVE32B = S32_MAX
+enum cc_fips_status {
+	CC_FIPS_SYNC_MODULE_OK = 0x0,
+	CC_FIPS_SYNC_MODULE_ERROR = 0x1,
+	CC_FIPS_SYNC_REE_STATUS = 0x4,
+	CC_FIPS_SYNC_TEE_STATUS = 0x8,
+	CC_FIPS_SYNC_STATUS_RESERVE32B = S32_MAX
 };
 
-enum cc_fips_error {
-	CC_REE_FIPS_ERROR_OK = 0,
-	CC_REE_FIPS_ERROR_GENERAL,
-	CC_REE_FIPS_ERROR_FROM_TEE,
-	CC_REE_FIPS_ERROR_AES_ECB_PUT,
-	CC_REE_FIPS_ERROR_AES_CBC_PUT,
-	CC_REE_FIPS_ERROR_AES_OFB_PUT,
-	CC_REE_FIPS_ERROR_AES_CTR_PUT,
-	CC_REE_FIPS_ERROR_AES_CBC_CTS_PUT,
-	CC_REE_FIPS_ERROR_AES_XTS_PUT,
-	CC_REE_FIPS_ERROR_AES_CMAC_PUT,
-	CC_REE_FIPS_ERROR_AESCCM_PUT,
-	CC_REE_FIPS_ERROR_AESGCM_PUT,
-	CC_REE_FIPS_ERROR_DES_ECB_PUT,
-	CC_REE_FIPS_ERROR_DES_CBC_PUT,
-	CC_REE_FIPS_ERROR_SHA1_PUT,
-	CC_REE_FIPS_ERROR_SHA256_PUT,
-	CC_REE_FIPS_ERROR_SHA512_PUT,
-	CC_REE_FIPS_ERROR_HMAC_SHA1_PUT,
-	CC_REE_FIPS_ERROR_HMAC_SHA256_PUT,
-	CC_REE_FIPS_ERROR_HMAC_SHA512_PUT,
-	CC_REE_FIPS_ERROR_ROM_CHECKSUM,
-	CC_REE_FIPS_ERROR_RESERVE32B = S32_MAX
-};
+int ssi_fips_init(struct ssi_drvdata *p_drvdata);
+void ssi_fips_fini(struct ssi_drvdata *drvdata);
+void fips_handler(struct ssi_drvdata *drvdata);
+void cc_set_ree_fips_status(struct ssi_drvdata *drvdata, bool ok);
 
-int ssi_fips_get_state(enum cc_fips_state *p_state);
-int ssi_fips_get_error(enum cc_fips_error *p_err);
+#else  /* CONFIG_CRYPTO_FIPS */
+
+static inline int ssi_fips_init(struct ssi_drvdata *p_drvdata)
+{
+	return 0;
+}
+
+static inline void ssi_fips_fini(struct ssi_drvdata *drvdata) {}
+void cc_set_ree_fips_status(struct ssi_drvdata *drvdata, bool ok) {}
+void fips_handler(struct ssi_drvdata *drvdata) {}
+
+#endif /* CONFIG_CRYPTO_FIPS */
 
 #endif  /*__SSI_FIPS_H__*/
 

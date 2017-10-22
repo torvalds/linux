@@ -173,7 +173,7 @@ static void surface3_spi_process_pen(struct surface3_ts_data *ts_data, u8 *data)
 
 static void surface3_spi_process(struct surface3_ts_data *ts_data)
 {
-	const char header[] = {
+	static const char header[] = {
 		0xff, 0xff, 0xff, 0xff, 0xa5, 0x5a, 0xe7, 0x7e, 0x01
 	};
 	u8 *data = ts_data->rd_buf;

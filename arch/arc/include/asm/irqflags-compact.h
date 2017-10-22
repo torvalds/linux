@@ -43,8 +43,6 @@
 
 #define ISA_INIT_STATUS_BITS	STATUS_IE_MASK
 
-#define ISA_SLEEP_ARG		0x3
-
 #ifndef __ASSEMBLY__
 
 /******************************************************************

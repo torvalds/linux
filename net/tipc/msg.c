@@ -479,13 +479,14 @@ bool tipc_msg_make_bundle(struct sk_buff **skb,  struct tipc_msg *msg,
 bool tipc_msg_reverse(u32 own_node,  struct sk_buff **skb, int err)
 {
 	struct sk_buff *_skb = *skb;
-	struct tipc_msg *hdr = buf_msg(_skb);
+	struct tipc_msg *hdr;
 	struct tipc_msg ohdr;
-	int dlen = min_t(uint, msg_data_sz(hdr), MAX_FORWARD_SIZE);
+	int dlen;
 
 	if (skb_linearize(_skb))
 		goto exit;
 	hdr = buf_msg(_skb);
+	dlen = min_t(uint, msg_data_sz(hdr), MAX_FORWARD_SIZE);
 	if (msg_dest_droppable(hdr))
 		goto exit;
 	if (msg_errcode(hdr))
@@ -511,8 +512,11 @@ bool tipc_msg_reverse(u32 own_node,  struct sk_buff **skb, int err)
 	    pskb_expand_head(_skb, BUF_HEADROOM, BUF_TAILROOM, GFP_ATOMIC))
 		goto exit;
 
+	/* reassign after skb header modifications */
+	hdr = buf_msg(_skb);
 	/* Now reverse the concerned fields */
 	msg_set_errcode(hdr, err);
+	msg_set_non_seq(hdr, 0);
 	msg_set_origport(hdr, msg_destport(&ohdr));
 	msg_set_destport(hdr, msg_origport(&ohdr));
 	msg_set_destnode(hdr, msg_prevnode(&ohdr));
@@ -547,7 +551,7 @@ bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 		return false;
 	if (msg_errcode(msg))
 		return false;
-	*err = -TIPC_ERR_NO_NAME;
+	*err = TIPC_ERR_NO_NAME;
 	if (skb_linearize(skb))
 		return false;
 	msg = buf_msg(skb);
@@ -564,6 +568,14 @@ bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 	msg_set_destnode(msg, dnode);
 	msg_set_destport(msg, dport);
 	*err = TIPC_OK;
+
+	if (!skb_cloned(skb))
+		return true;
+
+	/* Unclone buffer in case it was bundled */
+	if (pskb_expand_head(skb, BUF_HEADROOM, BUF_TAILROOM, GFP_ATOMIC))
+		return false;
+
 	return true;
 }
 

@@ -51,7 +51,6 @@ static ssize_t eeh_show_##_name(struct device *dev,      \
 static DEVICE_ATTR(_name, S_IRUGO, eeh_show_##_name, NULL);
 
 EEH_SHOW_ATTR(eeh_mode,            mode,            "0x%x");
-EEH_SHOW_ATTR(eeh_config_addr,     config_addr,     "0x%x");
 EEH_SHOW_ATTR(eeh_pe_config_addr,  pe_config_addr,  "0x%x");
 
 static ssize_t eeh_pe_state_show(struct device *dev,
@@ -103,7 +102,6 @@ void eeh_sysfs_add_device(struct pci_dev *pdev)
 		return;
 
 	rc += device_create_file(&pdev->dev, &dev_attr_eeh_mode);
-	rc += device_create_file(&pdev->dev, &dev_attr_eeh_config_addr);
 	rc += device_create_file(&pdev->dev, &dev_attr_eeh_pe_config_addr);
 	rc += device_create_file(&pdev->dev, &dev_attr_eeh_pe_state);
 
@@ -128,7 +126,6 @@ void eeh_sysfs_remove_device(struct pci_dev *pdev)
 	}
 
 	device_remove_file(&pdev->dev, &dev_attr_eeh_mode);
-	device_remove_file(&pdev->dev, &dev_attr_eeh_config_addr);
 	device_remove_file(&pdev->dev, &dev_attr_eeh_pe_config_addr);
 	device_remove_file(&pdev->dev, &dev_attr_eeh_pe_state);
 

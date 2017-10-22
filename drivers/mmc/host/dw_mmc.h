@@ -126,6 +126,7 @@ struct dw_mci_dma_slave {
  * @irq: The irq value to be passed to request_irq.
  * @sdio_id0: Number of slot0 in the SDIO interrupt registers.
  * @cmd11_timer: Timer for SD3.0 voltage switch over scheme.
+ * @cto_timer: Timer for broken command transfer over scheme.
  * @dto_timer: Timer for broken data transfer over scheme.
  *
  * Locking
@@ -232,6 +233,7 @@ struct dw_mci {
 	int			sdio_id0;
 
 	struct timer_list       cmd11_timer;
+	struct timer_list       cto_timer;
 	struct timer_list       dto_timer;
 };
 
@@ -314,6 +316,8 @@ struct dw_mci_board {
 #define SDMMC_DSCADDR		0x094
 #define SDMMC_BUFADDR		0x098
 #define SDMMC_CDTHRCTL		0x100
+#define SDMMC_UHS_REG_EXT	0x108
+#define SDMMC_ENABLE_SHIFT	0x110
 #define SDMMC_DATA(x)		(x)
 /*
 * Registers to support idmac 64-bit address mode

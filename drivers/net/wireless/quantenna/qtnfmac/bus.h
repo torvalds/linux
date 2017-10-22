@@ -130,7 +130,6 @@ static __always_inline void qtnf_bus_unlock(struct qtnf_bus *bus)
 
 /* interface functions from common layer */
 
-void qtnf_rx_frame(struct device *dev, struct sk_buff *rxp);
 int qtnf_core_attach(struct qtnf_bus *bus);
 void qtnf_core_detach(struct qtnf_bus *bus);
 void qtnf_txflowblock(struct device *dev, bool state);

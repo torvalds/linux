@@ -58,6 +58,46 @@ check_pos(struct bpf_insn_pos *pos)
 	return 0;
 }
 
+/*
+ * Convert type string (u8/u16/u32/u64/s8/s16/s32/s64 ..., see
+ * Documentation/trace/kprobetrace.txt) to size field of BPF_LDX_MEM
+ * instruction (BPF_{B,H,W,DW}).
+ */
+static int
+argtype_to_ldx_size(const char *type)
+{
+	int arg_size = type ? atoi(&type[1]) : 64;
+
+	switch (arg_size) {
+	case 8:
+		return BPF_B;
+	case 16:
+		return BPF_H;
+	case 32:
+		return BPF_W;
+	case 64:
+	default:
+		return BPF_DW;
+	}
+}
+
+static const char *
+insn_sz_to_str(int insn_sz)
+{
+	switch (insn_sz) {
+	case BPF_B:
+		return "BPF_B";
+	case BPF_H:
+		return "BPF_H";
+	case BPF_W:
+		return "BPF_W";
+	case BPF_DW:
+		return "BPF_DW";
+	default:
+		return "UNKNOWN";
+	}
+}
+
 /* Give it a shorter name */
 #define ins(i, p) append_insn((i), (p))
 
@@ -258,9 +298,14 @@ gen_prologue_slowpath(struct bpf_insn_pos *pos,
 	}
 
 	/* Final pass: read to registers */
-	for (i = 0; i < nargs; i++)
-		ins(BPF_LDX_MEM(BPF_DW, BPF_PROLOGUE_START_ARG_REG + i,
+	for (i = 0; i < nargs; i++) {
+		int insn_sz = (args[i].ref) ? argtype_to_ldx_size(args[i].type) : BPF_DW;
+
+		pr_debug("prologue: load arg %d, insn_sz is %s\n",
+			 i, insn_sz_to_str(insn_sz));
+		ins(BPF_LDX_MEM(insn_sz, BPF_PROLOGUE_START_ARG_REG + i,
 				BPF_REG_FP, -BPF_REG_SIZE * (i + 1)), pos);
+	}
 
 	ins(BPF_JMP_IMM(BPF_JA, BPF_REG_0, 0, JMP_TO_SUCCESS_CODE), pos);
 

@@ -27,7 +27,7 @@ static u32 share_count_sai2;
 static u32 share_count_sai3;
 static u32 share_count_nand;
 
-static struct clk_div_table test_div_table[] = {
+static const struct clk_div_table test_div_table[] = {
 	{ .val = 3, .div = 1, },
 	{ .val = 2, .div = 1, },
 	{ .val = 1, .div = 2, },
@@ -35,7 +35,7 @@ static struct clk_div_table test_div_table[] = {
 	{ }
 };
 
-static struct clk_div_table post_div_table[] = {
+static const struct clk_div_table post_div_table[] = {
 	{ .val = 3, .div = 4, },
 	{ .val = 2, .div = 1, },
 	{ .val = 1, .div = 2, },

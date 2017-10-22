@@ -779,7 +779,7 @@ static void mpc_push(struct atm_vcc *vcc, struct sk_buff *skb)
 	netif_rx(new_skb);
 }
 
-static struct atmdev_ops mpc_ops = { /* only send is required */
+static const struct atmdev_ops mpc_ops = { /* only send is required */
 	.close	= mpoad_close,
 	.send	= msg_from_mpoad
 };

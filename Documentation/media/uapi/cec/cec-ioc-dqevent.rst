@@ -22,7 +22,7 @@ Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <cec-func-open>`.
+    File descriptor returned by :c:func:`open() <cec-open>`.
 
 ``argp``
 
@@ -87,7 +87,7 @@ it is guaranteed that the state did change in between the two events.
 	this is more than enough.
 
 
-.. tabularcolumns:: |p{1.0cm}|p{4.2cm}|p{2.5cm}|p{8.8cm}|
+.. tabularcolumns:: |p{1.0cm}|p{4.4cm}|p{2.5cm}|p{9.6cm}|
 
 .. c:type:: cec_event
 
@@ -98,10 +98,11 @@ it is guaranteed that the state did change in between the two events.
 
     * - __u64
       - ``ts``
-      - :cspan:`1` Timestamp of the event in ns.
+      - :cspan:`1`\ Timestamp of the event in ns.
 
-	The timestamp has been taken from the ``CLOCK_MONOTONIC`` clock. To access
-	the same clock from userspace use :c:func:`clock_gettime`.
+	The timestamp has been taken from the ``CLOCK_MONOTONIC`` clock.
+
+	To access the same clock from userspace use :c:func:`clock_gettime`.
     * - __u32
       - ``event``
       - :cspan:`1` The CEC event type, see :ref:`cec-events`.
@@ -146,6 +147,20 @@ it is guaranteed that the state did change in between the two events.
       - 2
       - Generated if one or more CEC messages were lost because the
 	application didn't dequeue CEC messages fast enough.
+    * .. _`CEC-EVENT-PIN-CEC-LOW`:
+
+      - ``CEC_EVENT_PIN_CEC_LOW``
+      - 3
+      - Generated if the CEC pin goes from a high voltage to a low voltage.
+        Only applies to adapters that have the ``CEC_CAP_MONITOR_PIN``
+	capability set.
+    * .. _`CEC-EVENT-PIN-CEC-HIGH`:
+
+      - ``CEC_EVENT_PIN_CEC_HIGH``
+      - 4
+      - Generated if the CEC pin goes from a low voltage to a high voltage.
+        Only applies to adapters that have the ``CEC_CAP_MONITOR_PIN``
+	capability set.
 
 
 .. tabularcolumns:: |p{6.0cm}|p{0.6cm}|p{10.9cm}|
@@ -165,6 +180,12 @@ it is guaranteed that the state did change in between the two events.
 	opened. See the table above for which events do this. This allows
 	applications to learn the initial state of the CEC adapter at
 	open() time.
+    * .. _`CEC-EVENT-FL-DROPPED-EVENTS`:
+
+      - ``CEC_EVENT_FL_DROPPED_EVENTS``
+      - 2
+      - Set if one or more events of the given event type have been dropped.
+        This is an indication that the application cannot keep up.
 
 
 

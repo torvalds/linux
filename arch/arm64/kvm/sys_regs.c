@@ -764,7 +764,7 @@ static bool access_pmovs(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	if (p->is_write) {
 		if (r->CRm & 0x2)
 			/* accessing PMOVSSET_EL0 */
-			kvm_pmu_overflow_set(vcpu, p->regval & mask);
+			vcpu_sys_reg(vcpu, PMOVSSET_EL0) |= (p->regval & mask);
 		else
 			/* accessing PMOVSCLR_EL0 */
 			vcpu_sys_reg(vcpu, PMOVSSET_EL0) &= ~(p->regval & mask);

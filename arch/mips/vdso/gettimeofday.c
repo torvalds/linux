@@ -11,12 +11,10 @@
 #include "vdso.h"
 
 #include <linux/compiler.h>
-#include <linux/irqchip/mips-gic.h>
 #include <linux/time.h>
 
 #include <asm/clocksource.h>
 #include <asm/io.h>
-#include <asm/mips-cm.h>
 #include <asm/unistd.h>
 #include <asm/vdso.h>
 
@@ -35,7 +33,8 @@ static __always_inline long gettimeofday_fallback(struct timeval *_tv,
 	"       syscall\n"
 	: "=r" (ret), "=r" (error)
 	: "r" (tv), "r" (tz), "r" (nr)
-	: "memory");
+	: "$1", "$3", "$8", "$9", "$10", "$11", "$12", "$13",
+	  "$14", "$15", "$24", "$25", "hi", "lo", "memory");
 
 	return error ? -ret : ret;
 }
@@ -55,7 +54,8 @@ static __always_inline long clock_gettime_fallback(clockid_t _clkid,
 	"       syscall\n"
 	: "=r" (ret), "=r" (error)
 	: "r" (clkid), "r" (ts), "r" (nr)
-	: "memory");
+	: "$1", "$3", "$8", "$9", "$10", "$11", "$12", "$13",
+	  "$14", "$15", "$24", "$25", "hi", "lo", "memory");
 
 	return error ? -ret : ret;
 }
@@ -124,9 +124,9 @@ static __always_inline u64 read_gic_count(const union mips_vdso_data *data)
 	u32 hi, hi2, lo;
 
 	do {
-		hi = __raw_readl(gic + GIC_UMV_SH_COUNTER_63_32_OFS);
-		lo = __raw_readl(gic + GIC_UMV_SH_COUNTER_31_00_OFS);
-		hi2 = __raw_readl(gic + GIC_UMV_SH_COUNTER_63_32_OFS);
+		hi = __raw_readl(gic + sizeof(lo));
+		lo = __raw_readl(gic);
+		hi2 = __raw_readl(gic + sizeof(lo));
 	} while (hi2 != hi);
 
 	return (((u64)hi) << 32) + lo;

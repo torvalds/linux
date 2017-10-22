@@ -414,7 +414,7 @@ void set_sense_data(struct rtsx_chip *chip, unsigned int lun, u8 err_code,
 	sense->ascq = ascq;
 	if (sns_key_info0 != 0) {
 		sense->sns_key_info[0] = SKSV | sns_key_info0;
-		sense->sns_key_info[1] = (sns_key_info1 & 0xf0) >> 8;
+		sense->sns_key_info[1] = (sns_key_info1 & 0xf0) >> 4;
 		sense->sns_key_info[2] = sns_key_info1 & 0x0f;
 	}
 }

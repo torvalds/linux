@@ -830,6 +830,41 @@ int klp_register_patch(struct klp_patch *patch)
 }
 EXPORT_SYMBOL_GPL(klp_register_patch);
 
+/*
+ * Remove parts of patches that touch a given kernel module. The list of
+ * patches processed might be limited. When limit is NULL, all patches
+ * will be handled.
+ */
+static void klp_cleanup_module_patches_limited(struct module *mod,
+					       struct klp_patch *limit)
+{
+	struct klp_patch *patch;
+	struct klp_object *obj;
+
+	list_for_each_entry(patch, &klp_patches, list) {
+		if (patch == limit)
+			break;
+
+		klp_for_each_object(patch, obj) {
+			if (!klp_is_module(obj) || strcmp(obj->name, mod->name))
+				continue;
+
+			/*
+			 * Only unpatch the module if the patch is enabled or
+			 * is in transition.
+			 */
+			if (patch->enabled || patch == klp_transition_patch) {
+				pr_notice("reverting patch '%s' on unloading module '%s'\n",
+					  patch->mod->name, obj->mod->name);
+				klp_unpatch_object(obj);
+			}
+
+			klp_free_object_loaded(obj);
+			break;
+		}
+	}
+}
+
 int klp_module_coming(struct module *mod)
 {
 	int ret;
@@ -894,7 +929,7 @@ err:
 	pr_warn("patch '%s' failed for module '%s', refusing to load module '%s'\n",
 		patch->mod->name, obj->mod->name, obj->mod->name);
 	mod->klp_alive = false;
-	klp_free_object_loaded(obj);
+	klp_cleanup_module_patches_limited(mod, patch);
 	mutex_unlock(&klp_mutex);
 
 	return ret;
@@ -902,9 +937,6 @@ err:
 
 void klp_module_going(struct module *mod)
 {
-	struct klp_patch *patch;
-	struct klp_object *obj;
-
 	if (WARN_ON(mod->state != MODULE_STATE_GOING &&
 		    mod->state != MODULE_STATE_COMING))
 		return;
@@ -917,25 +949,7 @@ void klp_module_going(struct module *mod)
 	 */
 	mod->klp_alive = false;
 
-	list_for_each_entry(patch, &klp_patches, list) {
-		klp_for_each_object(patch, obj) {
-			if (!klp_is_module(obj) || strcmp(obj->name, mod->name))
-				continue;
-
-			/*
-			 * Only unpatch the module if the patch is enabled or
-			 * is in transition.
-			 */
-			if (patch->enabled || patch == klp_transition_patch) {
-				pr_notice("reverting patch '%s' on unloading module '%s'\n",
-					  patch->mod->name, obj->mod->name);
-				klp_unpatch_object(obj);
-			}
-
-			klp_free_object_loaded(obj);
-			break;
-		}
-	}
+	klp_cleanup_module_patches_limited(mod, NULL);
 
 	mutex_unlock(&klp_mutex);
 }

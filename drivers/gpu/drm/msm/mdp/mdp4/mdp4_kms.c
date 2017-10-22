@@ -114,7 +114,7 @@ static void mdp4_prepare_commit(struct msm_kms *kms, struct drm_atomic_state *st
 	mdp4_enable(mdp4_kms);
 
 	/* see 119ecb7fd */
-	for_each_crtc_in_state(state, crtc, crtc_state, i)
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i)
 		drm_crtc_vblank_get(crtc);
 }
 
@@ -126,7 +126,7 @@ static void mdp4_complete_commit(struct msm_kms *kms, struct drm_atomic_state *s
 	struct drm_crtc_state *crtc_state;
 
 	/* see 119ecb7fd */
-	for_each_crtc_in_state(state, crtc, crtc_state, i)
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i)
 		drm_crtc_vblank_put(crtc);
 
 	mdp4_disable(mdp4_kms);

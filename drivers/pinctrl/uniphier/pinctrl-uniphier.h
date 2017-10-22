@@ -17,7 +17,7 @@
 #define __PINCTRL_UNIPHIER_H__
 
 #include <linux/bitops.h>
-#include <linux/bug.h>
+#include <linux/build_bug.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 
@@ -25,7 +25,7 @@ struct platform_device;
 
 /* input enable control register bit */
 #define UNIPHIER_PIN_IECTRL_SHIFT	0
-#define UNIPHIER_PIN_IECTRL_BITS	8
+#define UNIPHIER_PIN_IECTRL_BITS	3
 #define UNIPHIER_PIN_IECTRL_MASK	((1UL << (UNIPHIER_PIN_IECTRL_BITS)) \
 					 - 1)
 
@@ -62,6 +62,7 @@ struct platform_device;
 #endif
 
 #define UNIPHIER_PIN_IECTRL_NONE	(UNIPHIER_PIN_IECTRL_MASK)
+#define UNIPHIER_PIN_IECTRL_EXIST	0
 
 /* drive control type */
 enum uniphier_pin_drv_type {
@@ -131,18 +132,11 @@ static inline unsigned int uniphier_pin_get_pull_dir(void *drv_data)
 						UNIPHIER_PIN_PULL_DIR_MASK;
 }
 
-enum uniphier_pinmux_gpio_range_type {
-	UNIPHIER_PINMUX_GPIO_RANGE_PORT,
-	UNIPHIER_PINMUX_GPIO_RANGE_IRQ,
-	UNIPHIER_PINMUX_GPIO_RANGE_NONE,
-};
-
 struct uniphier_pinctrl_group {
 	const char *name;
 	const unsigned *pins;
 	unsigned num_pins;
 	const int *muxvals;
-	enum uniphier_pinmux_gpio_range_type range_type;
 };
 
 struct uniphier_pinmux_function {
@@ -158,6 +152,7 @@ struct uniphier_pinctrl_socdata {
 	int groups_count;
 	const struct uniphier_pinmux_function *functions;
 	int functions_count;
+	int (*get_gpio_muxval)(unsigned int pin, unsigned int gpio_offset);
 	unsigned int caps;
 #define UNIPHIER_PINCTRL_CAPS_PERPIN_IECTRL	BIT(1)
 #define UNIPHIER_PINCTRL_CAPS_DBGMUX_SEPARATE	BIT(0)
@@ -170,33 +165,22 @@ struct uniphier_pinctrl_socdata {
 	.drv_data = (void *)UNIPHIER_PIN_ATTR_PACKED(c, d, e, f, g),	\
 }
 
-#define __UNIPHIER_PINCTRL_GROUP(grp, type)				\
+#define __UNIPHIER_PINCTRL_GROUP(grp, mux)				\
 	{								\
 		.name = #grp,						\
 		.pins = grp##_pins,					\
 		.num_pins = ARRAY_SIZE(grp##_pins),			\
-		.muxvals = grp##_muxvals +				\
-			BUILD_BUG_ON_ZERO(ARRAY_SIZE(grp##_pins) !=	\
-					  ARRAY_SIZE(grp##_muxvals)),	\
-		.range_type = type,					\
+		.muxvals = mux,						\
 	}
 
 #define UNIPHIER_PINCTRL_GROUP(grp)					\
-	__UNIPHIER_PINCTRL_GROUP(grp, UNIPHIER_PINMUX_GPIO_RANGE_NONE)
+	__UNIPHIER_PINCTRL_GROUP(grp,					\
+			grp##_muxvals +					\
+			BUILD_BUG_ON_ZERO(ARRAY_SIZE(grp##_pins) !=	\
+					  ARRAY_SIZE(grp##_muxvals)))
 
-#define UNIPHIER_PINCTRL_GROUP_GPIO_RANGE_PORT(grp)			\
-	__UNIPHIER_PINCTRL_GROUP(grp, UNIPHIER_PINMUX_GPIO_RANGE_PORT)
-
-#define UNIPHIER_PINCTRL_GROUP_GPIO_RANGE_IRQ(grp)			\
-	__UNIPHIER_PINCTRL_GROUP(grp, UNIPHIER_PINMUX_GPIO_RANGE_IRQ)
-
-#define UNIPHIER_PINCTRL_GROUP_SINGLE(grp, array, ofst)			\
-	{								\
-		.name = #grp,						\
-		.pins = array##_pins + ofst,				\
-		.num_pins = 1,						\
-		.muxvals = array##_muxvals + ofst,			\
-	}
+#define UNIPHIER_PINCTRL_GROUP_GPIO(grp)				\
+	__UNIPHIER_PINCTRL_GROUP(grp, NULL)
 
 #define UNIPHIER_PINMUX_FUNCTION(func)					\
 	{								\
@@ -207,5 +191,7 @@ struct uniphier_pinctrl_socdata {
 
 int uniphier_pinctrl_probe(struct platform_device *pdev,
 			   struct uniphier_pinctrl_socdata *socdata);
+
+extern const struct dev_pm_ops uniphier_pinctrl_pm_ops;
 
 #endif /* __PINCTRL_UNIPHIER_H__ */

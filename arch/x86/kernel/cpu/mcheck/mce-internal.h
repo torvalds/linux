@@ -1,3 +1,6 @@
+#ifndef __X86_MCE_INTERNAL_H__
+#define __X86_MCE_INTERNAL_H__
+
 #include <linux/device.h>
 #include <asm/mce.h>
 
@@ -108,3 +111,7 @@ static inline void mce_work_trigger(void)	{ }
 static inline void mce_register_injector_chain(struct notifier_block *nb)	{ }
 static inline void mce_unregister_injector_chain(struct notifier_block *nb)	{ }
 #endif
+
+extern struct mca_config mca_cfg;
+
+#endif /* __X86_MCE_INTERNAL_H__ */

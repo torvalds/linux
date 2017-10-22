@@ -224,15 +224,7 @@ static bool gre_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
 	return true;
 }
 
-/* print gre part of tuple */
-static void gre_print_tuple(struct seq_file *s,
-			    const struct nf_conntrack_tuple *tuple)
-{
-	seq_printf(s, "srckey=0x%x dstkey=0x%x ",
-		   ntohs(tuple->src.u.gre.key),
-		   ntohs(tuple->dst.u.gre.key));
-}
-
+#ifdef CONFIG_NF_CONNTRACK_PROCFS
 /* print private data for conntrack */
 static void gre_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 {
@@ -240,6 +232,7 @@ static void gre_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 		   (ct->proto.gre.timeout / HZ),
 		   (ct->proto.gre.stream_timeout / HZ));
 }
+#endif
 
 static unsigned int *gre_get_timeouts(struct net *net)
 {
@@ -252,7 +245,6 @@ static int gre_packet(struct nf_conn *ct,
 		      unsigned int dataoff,
 		      enum ip_conntrack_info ctinfo,
 		      u_int8_t pf,
-		      unsigned int hooknum,
 		      unsigned int *timeouts)
 {
 	/* If we've seen traffic both ways, this is a GRE connection.
@@ -364,11 +356,11 @@ static int gre_init_net(struct net *net, u_int16_t proto)
 static struct nf_conntrack_l4proto nf_conntrack_l4proto_gre4 __read_mostly = {
 	.l3proto	 = AF_INET,
 	.l4proto	 = IPPROTO_GRE,
-	.name		 = "gre",
 	.pkt_to_tuple	 = gre_pkt_to_tuple,
 	.invert_tuple	 = gre_invert_tuple,
-	.print_tuple	 = gre_print_tuple,
+#ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack = gre_print_conntrack,
+#endif
 	.get_timeouts    = gre_get_timeouts,
 	.packet		 = gre_packet,
 	.new		 = gre_new,

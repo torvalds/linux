@@ -101,7 +101,7 @@ void qeth_close_dev(struct qeth_card *card)
 }
 EXPORT_SYMBOL_GPL(qeth_close_dev);
 
-static inline const char *qeth_get_cardname(struct qeth_card *card)
+static const char *qeth_get_cardname(struct qeth_card *card)
 {
 	if (card->info.guestlan) {
 		switch (card->info.type) {
@@ -330,7 +330,7 @@ static struct qeth_qdio_q *qeth_alloc_qdio_queue(void)
 	return q;
 }
 
-static inline int qeth_cq_init(struct qeth_card *card)
+static int qeth_cq_init(struct qeth_card *card)
 {
 	int rc;
 
@@ -352,7 +352,7 @@ out:
 	return rc;
 }
 
-static inline int qeth_alloc_cq(struct qeth_card *card)
+static int qeth_alloc_cq(struct qeth_card *card)
 {
 	int rc;
 
@@ -397,7 +397,7 @@ kmsg_out:
 	goto out;
 }
 
-static inline void qeth_free_cq(struct qeth_card *card)
+static void qeth_free_cq(struct qeth_card *card)
 {
 	if (card->qdio.c_q) {
 		--card->qdio.no_in_queues;
@@ -408,8 +408,9 @@ static inline void qeth_free_cq(struct qeth_card *card)
 	card->qdio.out_bufstates = NULL;
 }
 
-static inline enum iucv_tx_notify qeth_compute_cq_notification(int sbalf15,
-	int delayed) {
+static enum iucv_tx_notify qeth_compute_cq_notification(int sbalf15,
+							int delayed)
+{
 	enum iucv_tx_notify n;
 
 	switch (sbalf15) {
@@ -432,8 +433,8 @@ static inline enum iucv_tx_notify qeth_compute_cq_notification(int sbalf15,
 	return n;
 }
 
-static inline void qeth_cleanup_handled_pending(struct qeth_qdio_out_q *q,
-	int bidx, int forced_cleanup)
+static void qeth_cleanup_handled_pending(struct qeth_qdio_out_q *q, int bidx,
+					 int forced_cleanup)
 {
 	if (q->card->options.cq != QETH_CQ_ENABLED)
 		return;
@@ -475,8 +476,9 @@ static inline void qeth_cleanup_handled_pending(struct qeth_qdio_out_q *q,
 }
 
 
-static inline void qeth_qdio_handle_aob(struct qeth_card *card,
-		unsigned long phys_aob_addr) {
+static void qeth_qdio_handle_aob(struct qeth_card *card,
+				 unsigned long phys_aob_addr)
+{
 	struct qaob *aob;
 	struct qeth_qdio_out_buffer *buffer;
 	enum iucv_tx_notify notification;
@@ -2228,7 +2230,7 @@ static int qeth_cm_setup(struct qeth_card *card)
 
 }
 
-static inline int qeth_get_initial_mtu_for_card(struct qeth_card *card)
+static int qeth_get_initial_mtu_for_card(struct qeth_card *card)
 {
 	switch (card->info.type) {
 	case QETH_CARD_TYPE_UNKNOWN:
@@ -2251,7 +2253,7 @@ static inline int qeth_get_initial_mtu_for_card(struct qeth_card *card)
 	}
 }
 
-static inline int qeth_get_mtu_outof_framesize(int framesize)
+static int qeth_get_mtu_outof_framesize(int framesize)
 {
 	switch (framesize) {
 	case 0x4000:
@@ -2267,7 +2269,7 @@ static inline int qeth_get_mtu_outof_framesize(int framesize)
 	}
 }
 
-static inline int qeth_mtu_is_valid(struct qeth_card *card, int mtu)
+static int qeth_mtu_is_valid(struct qeth_card *card, int mtu)
 {
 	switch (card->info.type) {
 	case QETH_CARD_TYPE_OSD:
@@ -2738,8 +2740,8 @@ static void qeth_initialize_working_pool_list(struct qeth_card *card)
 	}
 }
 
-static inline struct qeth_buffer_pool_entry *qeth_find_free_buffer_pool_entry(
-		struct qeth_card *card)
+static struct qeth_buffer_pool_entry *qeth_find_free_buffer_pool_entry(
+					struct qeth_card *card)
 {
 	struct list_head *plh;
 	struct qeth_buffer_pool_entry *entry;
@@ -2870,7 +2872,7 @@ int qeth_init_qdio_queues(struct qeth_card *card)
 }
 EXPORT_SYMBOL_GPL(qeth_init_qdio_queues);
 
-static inline __u8 qeth_get_ipa_adp_type(enum qeth_link_types link_type)
+static __u8 qeth_get_ipa_adp_type(enum qeth_link_types link_type)
 {
 	switch (link_type) {
 	case QETH_LINK_TYPE_HSTR:
@@ -3888,27 +3890,45 @@ int qeth_hdr_chk_and_bounce(struct sk_buff *skb, struct qeth_hdr **hdr, int len)
 }
 EXPORT_SYMBOL_GPL(qeth_hdr_chk_and_bounce);
 
-static inline void __qeth_fill_buffer(struct sk_buff *skb,
-	struct qdio_buffer *buffer, int is_tso, int *next_element_to_fill,
-	int offset)
+/**
+ * qeth_push_hdr() - push a qeth_hdr onto an skb.
+ * @skb: skb that the qeth_hdr should be pushed onto.
+ * @hdr: double pointer to a qeth_hdr. When returning with >= 0,
+ *	 it contains a valid pointer to a qeth_hdr.
+ * @len: length of the hdr that needs to be pushed on.
+ *
+ * Returns the pushed length. If the header can't be pushed on
+ * (eg. because it would cross a page boundary), it is allocated from
+ * the cache instead and 0 is returned.
+ * Error to create the hdr is indicated by returning with < 0.
+ */
+int qeth_push_hdr(struct sk_buff *skb, struct qeth_hdr **hdr, unsigned int len)
 {
-	int length = skb_headlen(skb);
-	int length_here;
-	int element;
-	char *data;
-	int first_lap, cnt;
-	struct skb_frag_struct *frag;
-
-	element = *next_element_to_fill;
-	data = skb->data;
-	first_lap = (is_tso == 0 ? 1 : 0);
-
-	if (offset >= 0) {
-		data = skb->data + offset;
-		length -= offset;
-		first_lap = 0;
+	if (skb_headroom(skb) >= len &&
+	    qeth_get_elements_for_range((addr_t)skb->data - len,
+					(addr_t)skb->data) == 1) {
+		*hdr = skb_push(skb, len);
+		return len;
 	}
+	/* fall back */
+	*hdr = kmem_cache_alloc(qeth_core_header_cache, GFP_ATOMIC);
+	if (!*hdr)
+		return -ENOMEM;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qeth_push_hdr);
 
+static void __qeth_fill_buffer(struct sk_buff *skb,
+			       struct qeth_qdio_out_buffer *buf,
+			       bool is_first_elem, unsigned int offset)
+{
+	struct qdio_buffer *buffer = buf->buffer;
+	int element = buf->next_element_to_fill;
+	int length = skb_headlen(skb) - offset;
+	char *data = skb->data + offset;
+	int length_here, cnt;
+
+	/* map linear part into buffer element(s) */
 	while (length > 0) {
 		/* length_here is the remaining amount of data in this page */
 		length_here = PAGE_SIZE - ((unsigned long) data % PAGE_SIZE);
@@ -3918,34 +3938,28 @@ static inline void __qeth_fill_buffer(struct sk_buff *skb,
 		buffer->element[element].addr = data;
 		buffer->element[element].length = length_here;
 		length -= length_here;
-		if (!length) {
-			if (first_lap)
-				if (skb_shinfo(skb)->nr_frags)
-					buffer->element[element].eflags =
-						SBAL_EFLAGS_FIRST_FRAG;
-				else
-					buffer->element[element].eflags = 0;
-			else
+		if (is_first_elem) {
+			is_first_elem = false;
+			if (length || skb_is_nonlinear(skb))
+				/* skb needs additional elements */
 				buffer->element[element].eflags =
-				    SBAL_EFLAGS_MIDDLE_FRAG;
+					SBAL_EFLAGS_FIRST_FRAG;
+			else
+				buffer->element[element].eflags = 0;
 		} else {
-			if (first_lap)
-				buffer->element[element].eflags =
-				    SBAL_EFLAGS_FIRST_FRAG;
-			else
-				buffer->element[element].eflags =
-				    SBAL_EFLAGS_MIDDLE_FRAG;
+			buffer->element[element].eflags =
+				SBAL_EFLAGS_MIDDLE_FRAG;
 		}
 		data += length_here;
 		element++;
-		first_lap = 0;
 	}
 
+	/* map page frags into buffer element(s) */
 	for (cnt = 0; cnt < skb_shinfo(skb)->nr_frags; cnt++) {
-		frag = &skb_shinfo(skb)->frags[cnt];
-		data = (char *)page_to_phys(skb_frag_page(frag)) +
-			frag->page_offset;
-		length = frag->size;
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[cnt];
+
+		data = skb_frag_address(frag);
+		length = skb_frag_size(frag);
 		while (length > 0) {
 			length_here = PAGE_SIZE -
 				((unsigned long) data % PAGE_SIZE);
@@ -3964,48 +3978,45 @@ static inline void __qeth_fill_buffer(struct sk_buff *skb,
 
 	if (buffer->element[element - 1].eflags)
 		buffer->element[element - 1].eflags = SBAL_EFLAGS_LAST_FRAG;
-	*next_element_to_fill = element;
+	buf->next_element_to_fill = element;
 }
 
-static inline int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
-		struct qeth_qdio_out_buffer *buf, struct sk_buff *skb,
-		struct qeth_hdr *hdr, int offset, int hd_len)
+/**
+ * qeth_fill_buffer() - map skb into an output buffer
+ * @queue:	QDIO queue to submit the buffer on
+ * @buf:	buffer to transport the skb
+ * @skb:	skb to map into the buffer
+ * @hdr:	qeth_hdr for this skb. Either at skb->data, or allocated
+ *		from qeth_core_header_cache.
+ * @offset:	when mapping the skb, start at skb->data + offset
+ * @hd_len:	if > 0, build a dedicated header element of this size
+ */
+static int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
+			    struct qeth_qdio_out_buffer *buf,
+			    struct sk_buff *skb, struct qeth_hdr *hdr,
+			    unsigned int offset, unsigned int hd_len)
 {
-	struct qdio_buffer *buffer;
-	int flush_cnt = 0, hdr_len, large_send = 0;
+	struct qdio_buffer *buffer = buf->buffer;
+	bool is_first_elem = true;
+	int flush_cnt = 0;
 
-	buffer = buf->buffer;
 	refcount_inc(&skb->users);
 	skb_queue_tail(&buf->skb_list, skb);
 
-	/*check first on TSO ....*/
-	if (hdr->hdr.l3.id == QETH_HEADER_TYPE_TSO) {
+	/* build dedicated header element */
+	if (hd_len) {
 		int element = buf->next_element_to_fill;
+		is_first_elem = false;
 
-		hdr_len = sizeof(struct qeth_hdr_tso) +
-			((struct qeth_hdr_tso *)hdr)->ext.dg_hdr_len;
-		/*fill first buffer entry only with header information */
-		buffer->element[element].addr = skb->data;
-		buffer->element[element].length = hdr_len;
-		buffer->element[element].eflags = SBAL_EFLAGS_FIRST_FRAG;
-		buf->next_element_to_fill++;
-		skb->data += hdr_len;
-		skb->len  -= hdr_len;
-		large_send = 1;
-	}
-
-	if (offset >= 0) {
-		int element = buf->next_element_to_fill;
 		buffer->element[element].addr = hdr;
-		buffer->element[element].length = sizeof(struct qeth_hdr) +
-							hd_len;
+		buffer->element[element].length = hd_len;
 		buffer->element[element].eflags = SBAL_EFLAGS_FIRST_FRAG;
-		buf->is_header[element] = 1;
+		/* remember to free cache-allocated qeth_hdr: */
+		buf->is_header[element] = ((void *)hdr != skb->data);
 		buf->next_element_to_fill++;
 	}
 
-	__qeth_fill_buffer(skb, buffer, large_send,
-		(int *)&buf->next_element_to_fill, offset);
+	__qeth_fill_buffer(skb, buf, is_first_elem, offset);
 
 	if (!queue->do_pack) {
 		QETH_CARD_TEXT(queue->card, 6, "fillbfnp");
@@ -4030,8 +4041,9 @@ static inline int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 }
 
 int qeth_do_send_packet_fast(struct qeth_card *card,
-		struct qeth_qdio_out_q *queue, struct sk_buff *skb,
-		struct qeth_hdr *hdr, int offset, int hd_len)
+			     struct qeth_qdio_out_q *queue, struct sk_buff *skb,
+			     struct qeth_hdr *hdr, unsigned int offset,
+			     unsigned int hd_len)
 {
 	struct qeth_qdio_out_buffer *buffer;
 	int index;
@@ -4061,8 +4073,9 @@ out:
 EXPORT_SYMBOL_GPL(qeth_do_send_packet_fast);
 
 int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
-		struct sk_buff *skb, struct qeth_hdr *hdr,
-		int elements_needed)
+			struct sk_buff *skb, struct qeth_hdr *hdr,
+			unsigned int offset, unsigned int hd_len,
+			int elements_needed)
 {
 	struct qeth_qdio_out_buffer *buffer;
 	int start_index;
@@ -4111,7 +4124,7 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 			}
 		}
 	}
-	tmp = qeth_fill_buffer(queue, buffer, skb, hdr, -1, 0);
+	tmp = qeth_fill_buffer(queue, buffer, skb, hdr, offset, hd_len);
 	queue->next_buf_to_fill = (queue->next_buf_to_fill + tmp) %
 				  QDIO_MAX_BUFFERS_PER_Q;
 	flush_count += tmp;
@@ -4834,7 +4847,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(qeth_vm_request_mac);
 
-static inline int qeth_get_qdio_q_format(struct qeth_card *card)
+static int qeth_get_qdio_q_format(struct qeth_card *card)
 {
 	if (card->info.type == QETH_CARD_TYPE_IQD)
 		return QDIO_IQDIO_QFMT;
@@ -4899,9 +4912,12 @@ out:
 	return;
 }
 
-static inline void qeth_qdio_establish_cq(struct qeth_card *card,
-	struct qdio_buffer **in_sbal_ptrs,
-	void (**queue_start_poll) (struct ccw_device *, int, unsigned long)) {
+static void qeth_qdio_establish_cq(struct qeth_card *card,
+				   struct qdio_buffer **in_sbal_ptrs,
+				   void (**queue_start_poll)
+					(struct ccw_device *, int,
+					 unsigned long))
+{
 	int i;
 
 	if (card->options.cq == QETH_CQ_ENABLED) {
@@ -5193,9 +5209,10 @@ out:
 }
 EXPORT_SYMBOL_GPL(qeth_core_hardsetup_card);
 
-static inline int qeth_create_skb_frag(struct qeth_qdio_buffer *qethbuffer,
-		struct qdio_buffer_element *element,
-		struct sk_buff **pskb, int offset, int *pfrag, int data_len)
+static int qeth_create_skb_frag(struct qeth_qdio_buffer *qethbuffer,
+				struct qdio_buffer_element *element,
+				struct sk_buff **pskb, int offset, int *pfrag,
+				int data_len)
 {
 	struct page *page = virt_to_page(element->addr);
 	if (*pskb == NULL) {

@@ -3132,7 +3132,7 @@ int of_clk_add_provider(struct device_node *np,
 	mutex_lock(&of_clk_mutex);
 	list_add(&cp->link, &of_clk_providers);
 	mutex_unlock(&of_clk_mutex);
-	pr_debug("Added clock from %s\n", np->full_name);
+	pr_debug("Added clock from %pOF\n", np);
 
 	ret = of_clk_set_defaults(np, true);
 	if (ret < 0)
@@ -3167,7 +3167,7 @@ int of_clk_add_hw_provider(struct device_node *np,
 	mutex_lock(&of_clk_mutex);
 	list_add(&cp->link, &of_clk_providers);
 	mutex_unlock(&of_clk_mutex);
-	pr_debug("Added clk_hw provider from %s\n", np->full_name);
+	pr_debug("Added clk_hw provider from %pOF\n", np);
 
 	ret = of_clk_set_defaults(np, true);
 	if (ret < 0)

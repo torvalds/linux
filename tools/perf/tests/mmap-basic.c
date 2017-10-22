@@ -22,7 +22,7 @@
  * Then it checks if the number of syscalls reported as perf events by
  * the kernel corresponds to the number of syscalls made.
  */
-int test__basic_mmap(int subtest __maybe_unused)
+int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = -1;
 	union perf_event *event;

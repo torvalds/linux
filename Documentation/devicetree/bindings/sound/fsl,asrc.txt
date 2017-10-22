@@ -61,5 +61,4 @@ asrc: asrc@02034000 {
 		"txa", "txb", "txc";
 	fsl,asrc-rate  = <48000>;
 	fsl,asrc-width = <16>;
-	status = "okay";
 };

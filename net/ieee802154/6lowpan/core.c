@@ -54,7 +54,7 @@
 
 static int open_count;
 
-static struct header_ops lowpan_header_ops = {
+static const struct header_ops lowpan_header_ops = {
 	.create	= lowpan_header_create,
 };
 

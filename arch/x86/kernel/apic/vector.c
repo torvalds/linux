@@ -166,7 +166,7 @@ static int __assign_irq_vector(int irq, struct apic_chip_data *d,
 		offset = current_offset;
 next:
 		vector += 16;
-		if (vector >= first_system_vector) {
+		if (vector >= FIRST_SYSTEM_VECTOR) {
 			offset = (offset + 1) % 16;
 			vector = FIRST_EXTERNAL_VECTOR + offset;
 		}

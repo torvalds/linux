@@ -21,7 +21,6 @@
 #include <linux/tc_act/tc_bpf.h>
 #include <net/tc_act/tc_bpf.h>
 
-#define BPF_TAB_MASK		15
 #define ACT_BPF_NAME_LEN	256
 
 struct tcf_bpf_cfg {
@@ -295,9 +294,9 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 
 	parm = nla_data(tb[TCA_ACT_BPF_PARMS]);
 
-	if (!tcf_hash_check(tn, parm->index, act, bind)) {
-		ret = tcf_hash_create(tn, parm->index, est, act,
-				      &act_bpf_ops, bind, true);
+	if (!tcf_idr_check(tn, parm->index, act, bind)) {
+		ret = tcf_idr_create(tn, parm->index, est, act,
+				     &act_bpf_ops, bind, true);
 		if (ret < 0)
 			return ret;
 
@@ -307,7 +306,7 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 		if (bind)
 			return 0;
 
-		tcf_hash_release(*act, bind);
+		tcf_idr_release(*act, bind);
 		if (!replace)
 			return -EEXIST;
 	}
@@ -343,7 +342,7 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 	rcu_assign_pointer(prog->filter, cfg.filter);
 
 	if (res == ACT_P_CREATED) {
-		tcf_hash_insert(tn, *act);
+		tcf_idr_insert(tn, *act);
 	} else {
 		/* make sure the program being replaced is no longer executing */
 		synchronize_rcu();
@@ -353,7 +352,7 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 	return res;
 out:
 	if (res == ACT_P_CREATED)
-		tcf_hash_cleanup(*act, est);
+		tcf_idr_cleanup(*act, est);
 
 	return ret;
 }
@@ -379,7 +378,7 @@ static int tcf_bpf_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, bpf_net_id);
 
-	return tcf_hash_search(tn, a, index);
+	return tcf_idr_search(tn, a, index);
 }
 
 static struct tc_action_ops act_bpf_ops __read_mostly = {
@@ -399,7 +398,7 @@ static __net_init int bpf_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, bpf_net_id);
 
-	return tc_action_net_init(tn, &act_bpf_ops, BPF_TAB_MASK);
+	return tc_action_net_init(tn, &act_bpf_ops);
 }
 
 static void __net_exit bpf_exit_net(struct net *net)

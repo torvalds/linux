@@ -25,7 +25,7 @@
 #include "../pinctrl-utils.h"
 #include "pinctrl-aspeed.h"
 
-#define ASPEED_G5_NR_PINS 232
+#define ASPEED_G5_NR_PINS 236
 
 #define COND1		{ ASPEED_IP_SCU, SCU90, BIT(6), 0, 0 }
 #define COND2		{ ASPEED_IP_SCU, SCU94, GENMASK(1, 0), 0, 0 }
@@ -1724,6 +1724,48 @@ FUNC_GROUP_DECL(LPCRST, G22);
 
 FUNC_GROUP_DECL(ESPI, G21, G20, D22, E22, C22, F21, F22, G22);
 
+#define A7 232
+SIG_EXPR_LIST_DECL_SINGLE(USB2AHDP, USB2AH, SIG_DESC_SET(SCU90, 29));
+SIG_EXPR_LIST_DECL_SINGLE(USB2ADDP, USB2AD, SIG_DESC_BIT(SCU90, 29, 0));
+MS_PIN_DECL_(A7, SIG_EXPR_LIST_PTR(USB2AHDP), SIG_EXPR_LIST_PTR(USB2ADDP));
+
+#define A8 233
+SIG_EXPR_LIST_DECL_SINGLE(USB2AHDN, USB2AH, SIG_DESC_SET(SCU90, 29));
+SIG_EXPR_LIST_DECL_SINGLE(USB2ADDN, USB2AD, SIG_DESC_BIT(SCU90, 29, 0));
+MS_PIN_DECL_(A8, SIG_EXPR_LIST_PTR(USB2AHDN), SIG_EXPR_LIST_PTR(USB2ADDN));
+
+FUNC_GROUP_DECL(USB2AH, A7, A8);
+FUNC_GROUP_DECL(USB2AD, A7, A8);
+
+#define USB11BHID_DESC  { ASPEED_IP_SCU, SCU94, GENMASK(14, 13), 0, 0 }
+#define USB2BD_DESC   { ASPEED_IP_SCU, SCU94, GENMASK(14, 13), 1, 0 }
+#define USB2BH1_DESC { ASPEED_IP_SCU, SCU94, GENMASK(14, 13), 2, 0 }
+#define USB2BH2_DESC { ASPEED_IP_SCU, SCU94, GENMASK(14, 13), 3, 0 }
+
+#define B6 234
+SIG_EXPR_LIST_DECL_SINGLE(USB11BDP, USB11BHID, USB11BHID_DESC);
+SIG_EXPR_LIST_DECL_SINGLE(USB2BDDP, USB2BD, USB2BD_DESC);
+SIG_EXPR_DECL(USB2BHDP1, USB2BH, USB2BH1_DESC);
+SIG_EXPR_DECL(USB2BHDP2, USB2BH, USB2BH2_DESC);
+SIG_EXPR_LIST_DECL(USB2BHDP, SIG_EXPR_PTR(USB2BHDP1, USB2BH),
+		SIG_EXPR_PTR(USB2BHDP2, USB2BH));
+MS_PIN_DECL_(B6, SIG_EXPR_LIST_PTR(USB11BDP), SIG_EXPR_LIST_PTR(USB2BDDP),
+		SIG_EXPR_LIST_PTR(USB2BHDP));
+
+#define A6 235
+SIG_EXPR_LIST_DECL_SINGLE(USB11BDN, USB11BHID, USB11BHID_DESC);
+SIG_EXPR_LIST_DECL_SINGLE(USB2BDN, USB2BD, USB2BD_DESC);
+SIG_EXPR_DECL(USB2BHDN1, USB2BH, USB2BH1_DESC);
+SIG_EXPR_DECL(USB2BHDN2, USB2BH, USB2BH2_DESC);
+SIG_EXPR_LIST_DECL(USB2BHDN, SIG_EXPR_PTR(USB2BHDN1, USB2BH),
+		SIG_EXPR_PTR(USB2BHDN2, USB2BH));
+MS_PIN_DECL_(A6, SIG_EXPR_LIST_PTR(USB11BDN), SIG_EXPR_LIST_PTR(USB2BDN),
+		SIG_EXPR_LIST_PTR(USB2BHDN));
+
+FUNC_GROUP_DECL(USB11BHID, B6, A6);
+FUNC_GROUP_DECL(USB2BD, B6, A6);
+FUNC_GROUP_DECL(USB2BH, B6, A6);
+
 /* Pins, groups and functions are sort(1):ed alphabetically for sanity */
 
 static struct pinctrl_pin_desc aspeed_g5_pins[ASPEED_G5_NR_PINS] = {
@@ -1743,6 +1785,9 @@ static struct pinctrl_pin_desc aspeed_g5_pins[ASPEED_G5_NR_PINS] = {
 	ASPEED_PINCTRL_PIN(A3),
 	ASPEED_PINCTRL_PIN(A4),
 	ASPEED_PINCTRL_PIN(A5),
+	ASPEED_PINCTRL_PIN(A6),
+	ASPEED_PINCTRL_PIN(A7),
+	ASPEED_PINCTRL_PIN(A8),
 	ASPEED_PINCTRL_PIN(A9),
 	ASPEED_PINCTRL_PIN(AA1),
 	ASPEED_PINCTRL_PIN(AA19),
@@ -1777,6 +1822,7 @@ static struct pinctrl_pin_desc aspeed_g5_pins[ASPEED_G5_NR_PINS] = {
 	ASPEED_PINCTRL_PIN(B3),
 	ASPEED_PINCTRL_PIN(B4),
 	ASPEED_PINCTRL_PIN(B5),
+	ASPEED_PINCTRL_PIN(B6),
 	ASPEED_PINCTRL_PIN(B9),
 	ASPEED_PINCTRL_PIN(C1),
 	ASPEED_PINCTRL_PIN(C11),
@@ -2111,6 +2157,11 @@ static const struct aspeed_pin_group aspeed_g5_groups[] = {
 	ASPEED_PINCTRL_GROUP(TXD3),
 	ASPEED_PINCTRL_GROUP(TXD4),
 	ASPEED_PINCTRL_GROUP(UART6),
+	ASPEED_PINCTRL_GROUP(USB11BHID),
+	ASPEED_PINCTRL_GROUP(USB2AD),
+	ASPEED_PINCTRL_GROUP(USB2AH),
+	ASPEED_PINCTRL_GROUP(USB2BD),
+	ASPEED_PINCTRL_GROUP(USB2BH),
 	ASPEED_PINCTRL_GROUP(USBCKI),
 	ASPEED_PINCTRL_GROUP(VGABIOSROM),
 	ASPEED_PINCTRL_GROUP(VGAHS),
@@ -2275,6 +2326,11 @@ static const struct aspeed_pin_function aspeed_g5_functions[] = {
 	ASPEED_PINCTRL_FUNC(TXD3),
 	ASPEED_PINCTRL_FUNC(TXD4),
 	ASPEED_PINCTRL_FUNC(UART6),
+	ASPEED_PINCTRL_FUNC(USB11BHID),
+	ASPEED_PINCTRL_FUNC(USB2AD),
+	ASPEED_PINCTRL_FUNC(USB2AH),
+	ASPEED_PINCTRL_FUNC(USB2BD),
+	ASPEED_PINCTRL_FUNC(USB2BH),
 	ASPEED_PINCTRL_FUNC(USBCKI),
 	ASPEED_PINCTRL_FUNC(VGABIOSROM),
 	ASPEED_PINCTRL_FUNC(VGAHS),
@@ -2436,7 +2492,7 @@ static struct aspeed_pinctrl_data aspeed_g5_pinctrl_data = {
 	.nconfigs = ARRAY_SIZE(aspeed_g5_configs),
 };
 
-static struct pinmux_ops aspeed_g5_pinmux_ops = {
+static const struct pinmux_ops aspeed_g5_pinmux_ops = {
 	.get_functions_count = aspeed_pinmux_get_fn_count,
 	.get_function_name = aspeed_pinmux_get_fn_name,
 	.get_function_groups = aspeed_pinmux_get_fn_groups,
@@ -2445,7 +2501,7 @@ static struct pinmux_ops aspeed_g5_pinmux_ops = {
 	.strict = true,
 };
 
-static struct pinctrl_ops aspeed_g5_pinctrl_ops = {
+static const struct pinctrl_ops aspeed_g5_pinctrl_ops = {
 	.get_groups_count = aspeed_pinctrl_get_groups_count,
 	.get_group_name = aspeed_pinctrl_get_group_name,
 	.get_group_pins = aspeed_pinctrl_get_group_pins,
@@ -2454,7 +2510,7 @@ static struct pinctrl_ops aspeed_g5_pinctrl_ops = {
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
-static struct pinconf_ops aspeed_g5_conf_ops = {
+static const struct pinconf_ops aspeed_g5_conf_ops = {
 	.is_generic = true,
 	.pin_config_get = aspeed_pin_config_get,
 	.pin_config_set = aspeed_pin_config_set,

@@ -173,7 +173,7 @@ static int __init set_no_mwait(const struct dmi_system_id *id)
 	return 0;
 }
 
-static struct dmi_system_id processor_idle_dmi_table[] __initdata = {
+static const struct dmi_system_id processor_idle_dmi_table[] __initconst = {
 	{
 	set_no_mwait, "Extensa 5220", {
 	DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies LTD"),

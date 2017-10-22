@@ -1387,23 +1387,37 @@ create_teimanager(struct mISDNdevice *dev)
 
 int TEIInit(u_int *deb)
 {
+	int res;
 	debug = deb;
 	teifsmu.state_count = TEI_STATE_COUNT;
 	teifsmu.event_count = TEI_EVENT_COUNT;
 	teifsmu.strEvent = strTeiEvent;
 	teifsmu.strState = strTeiState;
-	mISDN_FsmNew(&teifsmu, TeiFnListUser, ARRAY_SIZE(TeiFnListUser));
+	res = mISDN_FsmNew(&teifsmu, TeiFnListUser, ARRAY_SIZE(TeiFnListUser));
+	if (res)
+		goto error;
 	teifsmn.state_count = TEI_STATE_COUNT;
 	teifsmn.event_count = TEI_EVENT_COUNT;
 	teifsmn.strEvent = strTeiEvent;
 	teifsmn.strState = strTeiState;
-	mISDN_FsmNew(&teifsmn, TeiFnListNet, ARRAY_SIZE(TeiFnListNet));
+	res = mISDN_FsmNew(&teifsmn, TeiFnListNet, ARRAY_SIZE(TeiFnListNet));
+	if (res)
+		goto error_smn;
 	deactfsm.state_count =  DEACT_STATE_COUNT;
 	deactfsm.event_count = DEACT_EVENT_COUNT;
 	deactfsm.strEvent = strDeactEvent;
 	deactfsm.strState = strDeactState;
-	mISDN_FsmNew(&deactfsm, DeactFnList, ARRAY_SIZE(DeactFnList));
+	res = mISDN_FsmNew(&deactfsm, DeactFnList, ARRAY_SIZE(DeactFnList));
+	if (res)
+		goto error_deact;
 	return 0;
+
+error_deact:
+	mISDN_FsmFree(&teifsmn);
+error_smn:
+	mISDN_FsmFree(&teifsmu);
+error:
+	return res;
 }
 
 void TEIFree(void)

@@ -32,6 +32,7 @@
 #include <asm/mach/arch.h>
 
 #include "db8500-regs.h"
+#include "pm_domains.h"
 
 static int __init ux500_l2x0_unlock(void)
 {
@@ -157,6 +158,9 @@ static const struct of_device_id u8500_local_bus_nodes[] = {
 
 static void __init u8500_init_machine(void)
 {
+	/* Initialize ux500 power domains */
+	ux500_pm_domains_init();
+
 	/* automatically probe child nodes of dbx5x0 devices */
 	if (of_machine_is_compatible("st-ericsson,u8540"))
 		of_platform_populate(NULL, u8500_local_bus_nodes,

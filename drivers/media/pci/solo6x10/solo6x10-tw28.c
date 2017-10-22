@@ -532,7 +532,7 @@ static void saa712x_write_regs(struct solo_dev *dev, const u8 *vals,
 static void saa712x_setup(struct solo_dev *dev)
 {
 	const int reg_start = 0x26;
-	const u8 saa7128_regs_ntsc[] = {
+	static const u8 saa7128_regs_ntsc[] = {
 	/* :0x26 */
 		0x0d, 0x00,
 	/* :0x28 */
@@ -606,6 +606,7 @@ int solo_tw28_init(struct solo_dev *solo_dev)
 			solo_dev->tw28_cnt++;
 			break;
 		case 0x0c:
+		case 0x0d:
 			solo_dev->tw2864 |= 1 << i;
 			solo_dev->tw28_cnt++;
 			break;

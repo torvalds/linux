@@ -108,13 +108,6 @@
 		clock-output-names = "clk26m";
 	};
 
-	clk32k: oscillator@1 {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <32000>;
-		clock-output-names = "clk32k";
-	};
-
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupt-parent = <&gic>;
@@ -145,6 +138,11 @@
 			 <&topckgen CLK_TOP_MUX_VDEC>;
 		clock-names = "mfg", "mm", "vdec";
 		infracfg = <&infrasys>;
+	};
+
+	watchdog: watchdog@10007000 {
+		compatible = "mediatek,mt6797-wdt", "mediatek,mt6589-wdt";
+		reg = <0 0x10007000 0 0x100>;
 	};
 
 	apmixedsys: apmixed@1000c000 {

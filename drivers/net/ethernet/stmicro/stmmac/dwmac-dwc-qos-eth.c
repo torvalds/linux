@@ -511,6 +511,7 @@ static struct platform_driver dwc_eth_dwmac_driver = {
 	.remove = dwc_eth_dwmac_remove,
 	.driver = {
 		.name           = "dwc-eth-dwmac",
+		.pm             = &stmmac_pltfr_pm_ops,
 		.of_match_table = dwc_eth_dwmac_match,
 	},
 };

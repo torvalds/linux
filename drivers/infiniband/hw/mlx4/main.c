@@ -70,7 +70,6 @@
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("Mellanox ConnectX HCA InfiniBand driver");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRV_VERSION);
 
 int mlx4_ib_sm_guid_assign = 0;
 module_param_named(sm_guid_assign, mlx4_ib_sm_guid_assign, int, 0444);
@@ -81,6 +80,8 @@ static const char mlx4_ib_version[] =
 	DRV_VERSION "\n";
 
 static void do_slave_init(struct mlx4_ib_dev *ibdev, int slave, int do_init);
+static enum rdma_link_layer mlx4_ib_port_link_layer(struct ib_device *device,
+						    u8 port_num);
 
 static struct workqueue_struct *wq;
 
@@ -552,6 +553,16 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	props->timestamp_mask = 0xFFFFFFFFFFFFULL;
 	props->max_ah = INT_MAX;
 
+	if ((dev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_RSS) &&
+	    (mlx4_ib_port_link_layer(ibdev, 1) == IB_LINK_LAYER_ETHERNET ||
+	     mlx4_ib_port_link_layer(ibdev, 2) == IB_LINK_LAYER_ETHERNET)) {
+		props->rss_caps.max_rwq_indirection_tables = props->max_qp;
+		props->rss_caps.max_rwq_indirection_table_size =
+			dev->dev->caps.max_rss_tbl_sz;
+		props->rss_caps.supported_qpts = 1 << IB_QPT_RAW_PACKET;
+		props->max_wq_type_rq = props->max_qp;
+	}
+
 	if (!mlx4_is_slave(dev->dev))
 		err = mlx4_get_internal_clock_params(dev->dev, &clock_params);
 
@@ -561,6 +572,13 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 			resp.comp_mask |= QUERY_DEVICE_RESP_MASK_TIMESTAMP;
 			resp.hca_core_clock_offset = clock_params.offset % PAGE_SIZE;
 		}
+	}
+
+	if (uhw->outlen >= resp.response_length +
+	    sizeof(resp.max_inl_recv_sz)) {
+		resp.response_length += sizeof(resp.max_inl_recv_sz);
+		resp.max_inl_recv_sz  = dev->dev->caps.max_rq_sg *
+			sizeof(struct mlx4_wqe_data_seg);
 	}
 
 	if (uhw->outlen) {
@@ -1068,6 +1086,9 @@ static struct ib_ucontext *mlx4_ib_alloc_ucontext(struct ib_device *ibdev,
 
 	INIT_LIST_HEAD(&context->db_page_list);
 	mutex_init(&context->db_page_mutex);
+
+	INIT_LIST_HEAD(&context->wqn_ranges_list);
+	mutex_init(&context->wqn_ranges_mutex);
 
 	if (ibdev->uverbs_abi_ver == MLX4_IB_UVERBS_NO_DEV_CAPS_ABI_VERSION)
 		err = ib_copy_to_udata(udata, &resp_v3, sizeof(resp_v3));
@@ -2566,12 +2587,11 @@ static int mlx4_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
-static void get_fw_ver_str(struct ib_device *device, char *str,
-			   size_t str_len)
+static void get_fw_ver_str(struct ib_device *device, char *str)
 {
 	struct mlx4_ib_dev *dev =
 		container_of(device, struct mlx4_ib_dev, ib_dev);
-	snprintf(str, str_len, "%d.%d.%d",
+	snprintf(str, IB_FW_VERSION_NAME_MAX, "%d.%d.%d",
 		 (int) (dev->dev->caps.fw_ver >> 32),
 		 (int) (dev->dev->caps.fw_ver >> 16) & 0xffff,
 		 (int) dev->dev->caps.fw_ver & 0xffff);
@@ -2713,6 +2733,26 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.get_dev_fw_str    = get_fw_ver_str;
 	ibdev->ib_dev.disassociate_ucontext = mlx4_ib_disassociate_ucontext;
 
+	if ((dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_RSS) &&
+	    ((mlx4_ib_port_link_layer(&ibdev->ib_dev, 1) ==
+	    IB_LINK_LAYER_ETHERNET) ||
+	    (mlx4_ib_port_link_layer(&ibdev->ib_dev, 2) ==
+	    IB_LINK_LAYER_ETHERNET))) {
+		ibdev->ib_dev.create_wq		= mlx4_ib_create_wq;
+		ibdev->ib_dev.modify_wq		= mlx4_ib_modify_wq;
+		ibdev->ib_dev.destroy_wq	= mlx4_ib_destroy_wq;
+		ibdev->ib_dev.create_rwq_ind_table  =
+			mlx4_ib_create_rwq_ind_table;
+		ibdev->ib_dev.destroy_rwq_ind_table =
+			mlx4_ib_destroy_rwq_ind_table;
+		ibdev->ib_dev.uverbs_ex_cmd_mask |=
+			(1ull << IB_USER_VERBS_EX_CMD_CREATE_WQ)	  |
+			(1ull << IB_USER_VERBS_EX_CMD_MODIFY_WQ)	  |
+			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_WQ)	  |
+			(1ull << IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL) |
+			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL);
+	}
+
 	if (!mlx4_is_slave(ibdev->dev)) {
 		ibdev->ib_dev.alloc_fmr		= mlx4_ib_fmr_alloc;
 		ibdev->ib_dev.map_phys_fmr	= mlx4_ib_map_phys_fmr;
@@ -2772,7 +2812,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		allocated = 0;
 		if (mlx4_ib_port_link_layer(&ibdev->ib_dev, i + 1) ==
 						IB_LINK_LAYER_ETHERNET) {
-			err = mlx4_counter_alloc(ibdev->dev, &counter_index);
+			err = mlx4_counter_alloc(ibdev->dev, &counter_index,
+						 MLX4_RES_USAGE_DRIVER);
 			/* if failed to allocate a new counter, use default */
 			if (err)
 				counter_index =
@@ -2827,7 +2868,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		ibdev->steer_qpn_count = MLX4_IB_UC_MAX_NUM_QPS;
 		err = mlx4_qp_reserve_range(dev, ibdev->steer_qpn_count,
 					    MLX4_IB_UC_STEER_QPN_ALIGN,
-					    &ibdev->steer_qpn_base, 0);
+					    &ibdev->steer_qpn_base, 0,
+					    MLX4_RES_USAGE_DRIVER);
 		if (err)
 			goto err_counter;
 

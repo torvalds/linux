@@ -490,7 +490,7 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
  * detected.
  */
 void sctp_transport_lower_cwnd(struct sctp_transport *transport,
-			       sctp_lower_cwnd_t reason)
+			       enum sctp_lower_cwnd reason)
 {
 	struct sctp_association *asoc = transport->asoc;
 

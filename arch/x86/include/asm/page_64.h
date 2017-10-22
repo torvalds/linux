@@ -51,6 +51,10 @@ static inline void clear_page(void *page)
 
 void copy_page(void *to, void *from);
 
+#ifdef CONFIG_X86_MCE
+#define arch_unmap_kpfn arch_unmap_kpfn
+#endif
+
 #endif	/* !__ASSEMBLY__ */
 
 #ifdef CONFIG_X86_VSYSCALL_EMULATION

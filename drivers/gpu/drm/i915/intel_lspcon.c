@@ -210,8 +210,8 @@ bool lspcon_init(struct intel_digital_port *intel_dig_port)
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	if (!IS_GEN9(dev_priv)) {
-		DRM_ERROR("LSPCON is supported on GEN9 only\n");
+	if (!HAS_LSPCON(dev_priv)) {
+		DRM_ERROR("LSPCON is not supported on this platform\n");
 		return false;
 	}
 

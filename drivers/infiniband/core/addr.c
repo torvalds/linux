@@ -61,6 +61,7 @@ struct addr_req {
 	void (*callback)(int status, struct sockaddr *src_addr,
 			 struct rdma_dev_addr *addr, void *context);
 	unsigned long timeout;
+	struct delayed_work work;
 	int status;
 	u32 seq;
 };
@@ -129,13 +130,11 @@ static void ib_nl_process_good_ip_rsep(const struct nlmsghdr *nlh)
 }
 
 int ib_nl_handle_ip_res_resp(struct sk_buff *skb,
-			     struct netlink_callback *cb)
+			     struct nlmsghdr *nlh,
+			     struct netlink_ext_ack *extack)
 {
-	const struct nlmsghdr *nlh = (struct nlmsghdr *)cb->nlh;
-
 	if ((nlh->nlmsg_flags & NLM_F_REQUEST) ||
-	    !(NETLINK_CB(skb).sk) ||
-	    !netlink_capable(skb, CAP_NET_ADMIN))
+	    !(NETLINK_CB(skb).sk))
 		return -EPERM;
 
 	if (ib_nl_is_good_ip_resp(nlh))
@@ -185,7 +184,7 @@ static int ib_nl_ip_send_msg(struct rdma_dev_addr *dev_addr,
 
 	/* Repair the nlmsg header length */
 	nlmsg_end(skb, nlh);
-	ibnl_multicast(skb, nlh, RDMA_NL_GROUP_LS, GFP_KERNEL);
+	rdma_nl_multicast(skb, RDMA_NL_GROUP_LS, GFP_KERNEL);
 
 	/* Make the request retry, so when we get the response from userspace
 	 * we will have something.
@@ -295,7 +294,7 @@ int rdma_translate_ip(const struct sockaddr *addr,
 }
 EXPORT_SYMBOL(rdma_translate_ip);
 
-static void set_timeout(unsigned long time)
+static void set_timeout(struct delayed_work *delayed_work, unsigned long time)
 {
 	unsigned long delay;
 
@@ -303,7 +302,7 @@ static void set_timeout(unsigned long time)
 	if ((long)delay < 0)
 		delay = 0;
 
-	mod_delayed_work(addr_wq, &work, delay);
+	mod_delayed_work(addr_wq, delayed_work, delay);
 }
 
 static void queue_req(struct addr_req *req)
@@ -318,15 +317,14 @@ static void queue_req(struct addr_req *req)
 
 	list_add(&req->list, &temp_req->list);
 
-	if (req_list.next == &req->list)
-		set_timeout(req->timeout);
+	set_timeout(&req->work, req->timeout);
 	mutex_unlock(&lock);
 }
 
 static int ib_nl_fetch_ha(struct dst_entry *dst, struct rdma_dev_addr *dev_addr,
 			  const void *daddr, u32 seq, u16 family)
 {
-	if (ibnl_chk_listeners(RDMA_NL_GROUP_LS))
+	if (rdma_nl_chk_listeners(RDMA_NL_GROUP_LS))
 		return -EADDRNOTAVAIL;
 
 	/* We fill in what we can, the response will fill the rest */
@@ -574,6 +572,37 @@ static int addr_resolve(struct sockaddr *src_in,
 	return ret;
 }
 
+static void process_one_req(struct work_struct *_work)
+{
+	struct addr_req *req;
+	struct sockaddr *src_in, *dst_in;
+
+	mutex_lock(&lock);
+	req = container_of(_work, struct addr_req, work.work);
+
+	if (req->status == -ENODATA) {
+		src_in = (struct sockaddr *)&req->src_addr;
+		dst_in = (struct sockaddr *)&req->dst_addr;
+		req->status = addr_resolve(src_in, dst_in, req->addr,
+					   true, req->seq);
+		if (req->status && time_after_eq(jiffies, req->timeout)) {
+			req->status = -ETIMEDOUT;
+		} else if (req->status == -ENODATA) {
+			/* requeue the work for retrying again */
+			set_timeout(&req->work, req->timeout);
+			mutex_unlock(&lock);
+			return;
+		}
+	}
+	list_del(&req->list);
+	mutex_unlock(&lock);
+
+	req->callback(req->status, (struct sockaddr *)&req->src_addr,
+		req->addr, req->context);
+	put_client(req->client);
+	kfree(req);
+}
+
 static void process_req(struct work_struct *work)
 {
 	struct addr_req *req, *temp_req;
@@ -591,20 +620,23 @@ static void process_req(struct work_struct *work)
 						   true, req->seq);
 			if (req->status && time_after_eq(jiffies, req->timeout))
 				req->status = -ETIMEDOUT;
-			else if (req->status == -ENODATA)
+			else if (req->status == -ENODATA) {
+				set_timeout(&req->work, req->timeout);
 				continue;
+			}
 		}
 		list_move_tail(&req->list, &done_list);
 	}
 
-	if (!list_empty(&req_list)) {
-		req = list_entry(req_list.next, struct addr_req, list);
-		set_timeout(req->timeout);
-	}
 	mutex_unlock(&lock);
 
 	list_for_each_entry_safe(req, temp_req, &done_list, list) {
 		list_del(&req->list);
+		/* It is safe to cancel other work items from this work item
+		 * because at a time there can be only one work item running
+		 * with this single threaded work queue.
+		 */
+		cancel_delayed_work(&req->work);
 		req->callback(req->status, (struct sockaddr *) &req->src_addr,
 			req->addr, req->context);
 		put_client(req->client);
@@ -647,6 +679,7 @@ int rdma_resolve_ip(struct rdma_addr_client *client,
 	req->context = context;
 	req->client = client;
 	atomic_inc(&client->refcount);
+	INIT_DELAYED_WORK(&req->work, process_one_req);
 	req->seq = (u32)atomic_inc_return(&ib_nl_addr_request_seq);
 
 	req->status = addr_resolve(src_in, dst_in, addr, true, req->seq);
@@ -701,7 +734,7 @@ void rdma_addr_cancel(struct rdma_dev_addr *addr)
 			req->status = -ECANCELED;
 			req->timeout = jiffies;
 			list_move(&req->list, &req_list);
-			set_timeout(req->timeout);
+			set_timeout(&req->work, req->timeout);
 			break;
 		}
 	}
@@ -807,9 +840,8 @@ static int netevent_callback(struct notifier_block *self, unsigned long event,
 	if (event == NETEVENT_NEIGH_UPDATE) {
 		struct neighbour *neigh = ctx;
 
-		if (neigh->nud_state & NUD_VALID) {
-			set_timeout(jiffies);
-		}
+		if (neigh->nud_state & NUD_VALID)
+			set_timeout(&work, jiffies);
 	}
 	return 0;
 }
@@ -820,7 +852,7 @@ static struct notifier_block nb = {
 
 int addr_init(void)
 {
-	addr_wq = alloc_workqueue("ib_addr", WQ_MEM_RECLAIM, 0);
+	addr_wq = alloc_ordered_workqueue("ib_addr", WQ_MEM_RECLAIM);
 	if (!addr_wq)
 		return -ENOMEM;
 

@@ -791,8 +791,8 @@ static int ahash_update_ctx(struct ahash_request *req)
 							 to_hash - *buflen,
 							 *next_buflen, 0);
 		} else {
-			(edesc->sec4_sg + sec4_sg_src_index - 1)->len |=
-				cpu_to_caam32(SEC4_SG_LEN_FIN);
+			sg_to_sec4_set_last(edesc->sec4_sg + sec4_sg_src_index -
+					    1);
 		}
 
 		desc = edesc->hw_desc;
@@ -882,8 +882,7 @@ static int ahash_final_ctx(struct ahash_request *req)
 	if (ret)
 		goto unmap_ctx;
 
-	(edesc->sec4_sg + sec4_sg_src_index - 1)->len |=
-		cpu_to_caam32(SEC4_SG_LEN_FIN);
+	sg_to_sec4_set_last(edesc->sec4_sg + sec4_sg_src_index - 1);
 
 	edesc->sec4_sg_dma = dma_map_single(jrdev, edesc->sec4_sg,
 					    sec4_sg_bytes, DMA_TO_DEVICE);

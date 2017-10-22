@@ -34,7 +34,6 @@ Example:
 
 ethernet0: dwmac@9630000 {
 	device_type = "network";
-	status = "disabled";
 	compatible = "st,stih407-dwmac", "snps,dwmac", "snps,dwmac-3.710";
 	reg = <0x9630000 0x8000>;
 	reg-names = "stmmaceth";

@@ -1285,7 +1285,7 @@ static int usbhsh_bus_nop(struct usb_hcd *hcd)
 	return 0;
 }
 
-static struct hc_driver usbhsh_driver = {
+static const struct hc_driver usbhsh_driver = {
 	.description =		usbhsh_hcd_name,
 	.hcd_priv_size =	sizeof(struct usbhsh_hpriv),
 

@@ -412,8 +412,6 @@ static const struct clk_ops clk_smd_rpm_ops = {
 static const struct clk_ops clk_smd_rpm_branch_ops = {
 	.prepare	= clk_smd_rpm_prepare,
 	.unprepare	= clk_smd_rpm_unprepare,
-	.round_rate	= clk_smd_rpm_round_rate,
-	.recalc_rate	= clk_smd_rpm_recalc_rate,
 };
 
 /* msm8916 */

@@ -113,6 +113,7 @@ static blk_status_t do_blktrans_request(struct mtd_blktrans_ops *tr,
 		for (; nsect > 0; nsect--, block++, buf += tr->blksize)
 			if (tr->writesect(dev, block, buf))
 				return BLK_STS_IOERR;
+		return BLK_STS_OK;
 	default:
 		return BLK_STS_IOERR;
 	}

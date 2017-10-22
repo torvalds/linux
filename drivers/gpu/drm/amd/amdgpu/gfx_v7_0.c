@@ -1823,7 +1823,7 @@ static void gfx_v7_0_setup_rb(struct amdgpu_device *adev)
 }
 
 /**
- * gmc_v7_0_init_compute_vmid - gart enable
+ * gfx_v7_0_init_compute_vmid - gart enable
  *
  * @adev: amdgpu_device pointer
  *
@@ -1833,7 +1833,7 @@ static void gfx_v7_0_setup_rb(struct amdgpu_device *adev)
 #define DEFAULT_SH_MEM_BASES	(0x6000)
 #define FIRST_COMPUTE_VMID	(8)
 #define LAST_COMPUTE_VMID	(16)
-static void gmc_v7_0_init_compute_vmid(struct amdgpu_device *adev)
+static void gfx_v7_0_init_compute_vmid(struct amdgpu_device *adev)
 {
 	int i;
 	uint32_t sh_mem_config;
@@ -1921,6 +1921,7 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 				   ELEMENT_SIZE, 1);
 	sh_static_mem_cfg = REG_SET_FIELD(sh_static_mem_cfg, SH_STATIC_MEM_CONFIG,
 				   INDEX_STRIDE, 3);
+	WREG32(mmSH_STATIC_MEM_CONFIG, sh_static_mem_cfg);
 
 	mutex_lock(&adev->srbm_mutex);
 	for (i = 0; i < adev->vm_manager.id_mgr[0].num_ids; i++) {
@@ -1934,12 +1935,11 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 		WREG32(mmSH_MEM_APE1_BASE, 1);
 		WREG32(mmSH_MEM_APE1_LIMIT, 0);
 		WREG32(mmSH_MEM_BASES, sh_mem_base);
-		WREG32(mmSH_STATIC_MEM_CONFIG, sh_static_mem_cfg);
 	}
 	cik_srbm_select(adev, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
 
-	gmc_v7_0_init_compute_vmid(adev);
+	gfx_v7_0_init_compute_vmid(adev);
 
 	WREG32(mmSX_DEBUG_1, 0x20);
 
@@ -2021,7 +2021,7 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
  */
 static void gfx_v7_0_scratch_init(struct amdgpu_device *adev)
 {
-	adev->gfx.scratch.num_reg = 7;
+	adev->gfx.scratch.num_reg = 8;
 	adev->gfx.scratch.reg_base = mmSCRATCH_REG0;
 	adev->gfx.scratch.free_mask = (1u << adev->gfx.scratch.num_reg) - 1;
 }
@@ -2774,39 +2774,18 @@ static int gfx_v7_0_cp_compute_load_microcode(struct amdgpu_device *adev)
  */
 static void gfx_v7_0_cp_compute_fini(struct amdgpu_device *adev)
 {
-	int i, r;
+	int i;
 
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		struct amdgpu_ring *ring = &adev->gfx.compute_ring[i];
 
-		if (ring->mqd_obj) {
-			r = amdgpu_bo_reserve(ring->mqd_obj, true);
-			if (unlikely(r != 0))
-				dev_warn(adev->dev, "(%d) reserve MQD bo failed\n", r);
-
-			amdgpu_bo_unpin(ring->mqd_obj);
-			amdgpu_bo_unreserve(ring->mqd_obj);
-
-			amdgpu_bo_unref(&ring->mqd_obj);
-			ring->mqd_obj = NULL;
-		}
+		amdgpu_bo_free_kernel(&ring->mqd_obj, NULL, NULL);
 	}
 }
 
 static void gfx_v7_0_mec_fini(struct amdgpu_device *adev)
 {
-	int r;
-
-	if (adev->gfx.mec.hpd_eop_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.mec.hpd_eop_obj, true);
-		if (unlikely(r != 0))
-			dev_warn(adev->dev, "(%d) reserve HPD EOP bo failed\n", r);
-		amdgpu_bo_unpin(adev->gfx.mec.hpd_eop_obj);
-		amdgpu_bo_unreserve(adev->gfx.mec.hpd_eop_obj);
-
-		amdgpu_bo_unref(&adev->gfx.mec.hpd_eop_obj);
-		adev->gfx.mec.hpd_eop_obj = NULL;
-	}
+	amdgpu_bo_free_kernel(&adev->gfx.mec.hpd_eop_obj, NULL, NULL);
 }
 
 static int gfx_v7_0_mec_init(struct amdgpu_device *adev)
@@ -2823,33 +2802,14 @@ static int gfx_v7_0_mec_init(struct amdgpu_device *adev)
 	/* allocate space for ALL pipes (even the ones we don't own) */
 	mec_hpd_size = adev->gfx.mec.num_mec * adev->gfx.mec.num_pipe_per_mec
 		* GFX7_MEC_HPD_SIZE * 2;
-	if (adev->gfx.mec.hpd_eop_obj == NULL) {
-		r = amdgpu_bo_create(adev,
-				     mec_hpd_size,
-				     PAGE_SIZE, true,
-				     AMDGPU_GEM_DOMAIN_GTT, 0, NULL, NULL,
-				     &adev->gfx.mec.hpd_eop_obj);
-		if (r) {
-			dev_warn(adev->dev, "(%d) create HDP EOP bo failed\n", r);
-			return r;
-		}
-	}
 
-	r = amdgpu_bo_reserve(adev->gfx.mec.hpd_eop_obj, false);
-	if (unlikely(r != 0)) {
-		gfx_v7_0_mec_fini(adev);
-		return r;
-	}
-	r = amdgpu_bo_pin(adev->gfx.mec.hpd_eop_obj, AMDGPU_GEM_DOMAIN_GTT,
-			  &adev->gfx.mec.hpd_eop_gpu_addr);
+	r = amdgpu_bo_create_reserved(adev, mec_hpd_size, PAGE_SIZE,
+				      AMDGPU_GEM_DOMAIN_GTT,
+				      &adev->gfx.mec.hpd_eop_obj,
+				      &adev->gfx.mec.hpd_eop_gpu_addr,
+				      (void **)&hpd);
 	if (r) {
-		dev_warn(adev->dev, "(%d) pin HDP EOP bo failed\n", r);
-		gfx_v7_0_mec_fini(adev);
-		return r;
-	}
-	r = amdgpu_bo_kmap(adev->gfx.mec.hpd_eop_obj, (void **)&hpd);
-	if (r) {
-		dev_warn(adev->dev, "(%d) map HDP EOP bo failed\n", r);
+		dev_warn(adev->dev, "(%d) create, pin or map of HDP EOP bo failed\n", r);
 		gfx_v7_0_mec_fini(adev);
 		return r;
 	}
@@ -3108,32 +3068,12 @@ static int gfx_v7_0_compute_queue_init(struct amdgpu_device *adev, int ring_id)
 	struct cik_mqd *mqd;
 	struct amdgpu_ring *ring = &adev->gfx.compute_ring[ring_id];
 
-	if (ring->mqd_obj == NULL) {
-		r = amdgpu_bo_create(adev,
-				sizeof(struct cik_mqd),
-				PAGE_SIZE, true,
-				AMDGPU_GEM_DOMAIN_GTT, 0, NULL, NULL,
-				&ring->mqd_obj);
-		if (r) {
-			dev_warn(adev->dev, "(%d) create MQD bo failed\n", r);
-			return r;
-		}
-	}
-
-	r = amdgpu_bo_reserve(ring->mqd_obj, false);
-	if (unlikely(r != 0))
-		goto out;
-
-	r = amdgpu_bo_pin(ring->mqd_obj, AMDGPU_GEM_DOMAIN_GTT,
-			&mqd_gpu_addr);
+	r = amdgpu_bo_create_reserved(adev, sizeof(struct cik_mqd), PAGE_SIZE,
+				      AMDGPU_GEM_DOMAIN_GTT, &ring->mqd_obj,
+				      &mqd_gpu_addr, (void **)&mqd);
 	if (r) {
-		dev_warn(adev->dev, "(%d) pin MQD bo failed\n", r);
-		goto out_unreserve;
-	}
-	r = amdgpu_bo_kmap(ring->mqd_obj, (void **)&mqd);
-	if (r) {
-		dev_warn(adev->dev, "(%d) map MQD bo failed\n", r);
-		goto out_unreserve;
+		dev_warn(adev->dev, "(%d) create MQD bo failed\n", r);
+		return r;
 	}
 
 	mutex_lock(&adev->srbm_mutex);
@@ -3147,9 +3087,7 @@ static int gfx_v7_0_compute_queue_init(struct amdgpu_device *adev, int ring_id)
 	mutex_unlock(&adev->srbm_mutex);
 
 	amdgpu_bo_kunmap(ring->mqd_obj);
-out_unreserve:
 	amdgpu_bo_unreserve(ring->mqd_obj);
-out:
 	return 0;
 }
 
@@ -3361,43 +3299,9 @@ static void gfx_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
  */
 static void gfx_v7_0_rlc_fini(struct amdgpu_device *adev)
 {
-	int r;
-
-	/* save restore block */
-	if (adev->gfx.rlc.save_restore_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.rlc.save_restore_obj, true);
-		if (unlikely(r != 0))
-			dev_warn(adev->dev, "(%d) reserve RLC sr bo failed\n", r);
-		amdgpu_bo_unpin(adev->gfx.rlc.save_restore_obj);
-		amdgpu_bo_unreserve(adev->gfx.rlc.save_restore_obj);
-
-		amdgpu_bo_unref(&adev->gfx.rlc.save_restore_obj);
-		adev->gfx.rlc.save_restore_obj = NULL;
-	}
-
-	/* clear state block */
-	if (adev->gfx.rlc.clear_state_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.rlc.clear_state_obj, true);
-		if (unlikely(r != 0))
-			dev_warn(adev->dev, "(%d) reserve RLC c bo failed\n", r);
-		amdgpu_bo_unpin(adev->gfx.rlc.clear_state_obj);
-		amdgpu_bo_unreserve(adev->gfx.rlc.clear_state_obj);
-
-		amdgpu_bo_unref(&adev->gfx.rlc.clear_state_obj);
-		adev->gfx.rlc.clear_state_obj = NULL;
-	}
-
-	/* clear state block */
-	if (adev->gfx.rlc.cp_table_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.rlc.cp_table_obj, true);
-		if (unlikely(r != 0))
-			dev_warn(adev->dev, "(%d) reserve RLC cp table bo failed\n", r);
-		amdgpu_bo_unpin(adev->gfx.rlc.cp_table_obj);
-		amdgpu_bo_unreserve(adev->gfx.rlc.cp_table_obj);
-
-		amdgpu_bo_unref(&adev->gfx.rlc.cp_table_obj);
-		adev->gfx.rlc.cp_table_obj = NULL;
-	}
+	amdgpu_bo_free_kernel(&adev->gfx.rlc.save_restore_obj, NULL, NULL);
+	amdgpu_bo_free_kernel(&adev->gfx.rlc.clear_state_obj, NULL, NULL);
+	amdgpu_bo_free_kernel(&adev->gfx.rlc.cp_table_obj, NULL, NULL);
 }
 
 static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
@@ -3432,39 +3336,17 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 
 	if (src_ptr) {
 		/* save restore block */
-		if (adev->gfx.rlc.save_restore_obj == NULL) {
-			r = amdgpu_bo_create(adev, dws * 4, PAGE_SIZE, true,
-					     AMDGPU_GEM_DOMAIN_VRAM,
-					     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-					     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-					     NULL, NULL,
-					     &adev->gfx.rlc.save_restore_obj);
-			if (r) {
-				dev_warn(adev->dev, "(%d) create RLC sr bo failed\n", r);
-				return r;
-			}
-		}
-
-		r = amdgpu_bo_reserve(adev->gfx.rlc.save_restore_obj, false);
-		if (unlikely(r != 0)) {
-			gfx_v7_0_rlc_fini(adev);
-			return r;
-		}
-		r = amdgpu_bo_pin(adev->gfx.rlc.save_restore_obj, AMDGPU_GEM_DOMAIN_VRAM,
-				  &adev->gfx.rlc.save_restore_gpu_addr);
+		r = amdgpu_bo_create_reserved(adev, dws * 4, PAGE_SIZE,
+					      AMDGPU_GEM_DOMAIN_VRAM,
+					      &adev->gfx.rlc.save_restore_obj,
+					      &adev->gfx.rlc.save_restore_gpu_addr,
+					      (void **)&adev->gfx.rlc.sr_ptr);
 		if (r) {
-			amdgpu_bo_unreserve(adev->gfx.rlc.save_restore_obj);
-			dev_warn(adev->dev, "(%d) pin RLC sr bo failed\n", r);
+			dev_warn(adev->dev, "(%d) create, pin or map of RLC sr bo failed\n", r);
 			gfx_v7_0_rlc_fini(adev);
 			return r;
 		}
 
-		r = amdgpu_bo_kmap(adev->gfx.rlc.save_restore_obj, (void **)&adev->gfx.rlc.sr_ptr);
-		if (r) {
-			dev_warn(adev->dev, "(%d) map RLC sr bo failed\n", r);
-			gfx_v7_0_rlc_fini(adev);
-			return r;
-		}
 		/* write the sr buffer */
 		dst_ptr = adev->gfx.rlc.sr_ptr;
 		for (i = 0; i < adev->gfx.rlc.reg_list_size; i++)
@@ -3477,39 +3359,17 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 		/* clear state block */
 		adev->gfx.rlc.clear_state_size = dws = gfx_v7_0_get_csb_size(adev);
 
-		if (adev->gfx.rlc.clear_state_obj == NULL) {
-			r = amdgpu_bo_create(adev, dws * 4, PAGE_SIZE, true,
-					     AMDGPU_GEM_DOMAIN_VRAM,
-					     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-					     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-					     NULL, NULL,
-					     &adev->gfx.rlc.clear_state_obj);
-			if (r) {
-				dev_warn(adev->dev, "(%d) create RLC c bo failed\n", r);
-				gfx_v7_0_rlc_fini(adev);
-				return r;
-			}
-		}
-		r = amdgpu_bo_reserve(adev->gfx.rlc.clear_state_obj, false);
-		if (unlikely(r != 0)) {
-			gfx_v7_0_rlc_fini(adev);
-			return r;
-		}
-		r = amdgpu_bo_pin(adev->gfx.rlc.clear_state_obj, AMDGPU_GEM_DOMAIN_VRAM,
-				  &adev->gfx.rlc.clear_state_gpu_addr);
+		r = amdgpu_bo_create_reserved(adev, dws * 4, PAGE_SIZE,
+					      AMDGPU_GEM_DOMAIN_VRAM,
+					      &adev->gfx.rlc.clear_state_obj,
+					      &adev->gfx.rlc.clear_state_gpu_addr,
+					      (void **)&adev->gfx.rlc.cs_ptr);
 		if (r) {
-			amdgpu_bo_unreserve(adev->gfx.rlc.clear_state_obj);
-			dev_warn(adev->dev, "(%d) pin RLC c bo failed\n", r);
+			dev_warn(adev->dev, "(%d) create RLC c bo failed\n", r);
 			gfx_v7_0_rlc_fini(adev);
 			return r;
 		}
 
-		r = amdgpu_bo_kmap(adev->gfx.rlc.clear_state_obj, (void **)&adev->gfx.rlc.cs_ptr);
-		if (r) {
-			dev_warn(adev->dev, "(%d) map RLC c bo failed\n", r);
-			gfx_v7_0_rlc_fini(adev);
-			return r;
-		}
 		/* set up the cs buffer */
 		dst_ptr = adev->gfx.rlc.cs_ptr;
 		gfx_v7_0_get_csb_buffer(adev, dst_ptr);
@@ -3518,37 +3378,14 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 	}
 
 	if (adev->gfx.rlc.cp_table_size) {
-		if (adev->gfx.rlc.cp_table_obj == NULL) {
-			r = amdgpu_bo_create(adev, adev->gfx.rlc.cp_table_size, PAGE_SIZE, true,
-					     AMDGPU_GEM_DOMAIN_VRAM,
-					     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-					     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-					     NULL, NULL,
-					     &adev->gfx.rlc.cp_table_obj);
-			if (r) {
-				dev_warn(adev->dev, "(%d) create RLC cp table bo failed\n", r);
-				gfx_v7_0_rlc_fini(adev);
-				return r;
-			}
-		}
 
-		r = amdgpu_bo_reserve(adev->gfx.rlc.cp_table_obj, false);
-		if (unlikely(r != 0)) {
-			dev_warn(adev->dev, "(%d) reserve RLC cp table bo failed\n", r);
-			gfx_v7_0_rlc_fini(adev);
-			return r;
-		}
-		r = amdgpu_bo_pin(adev->gfx.rlc.cp_table_obj, AMDGPU_GEM_DOMAIN_VRAM,
-				  &adev->gfx.rlc.cp_table_gpu_addr);
+		r = amdgpu_bo_create_reserved(adev, adev->gfx.rlc.cp_table_size,
+					      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
+					      &adev->gfx.rlc.cp_table_obj,
+					      &adev->gfx.rlc.cp_table_gpu_addr,
+					      (void **)&adev->gfx.rlc.cp_table_ptr);
 		if (r) {
-			amdgpu_bo_unreserve(adev->gfx.rlc.cp_table_obj);
-			dev_warn(adev->dev, "(%d) pin RLC cp_table bo failed\n", r);
-			gfx_v7_0_rlc_fini(adev);
-			return r;
-		}
-		r = amdgpu_bo_kmap(adev->gfx.rlc.cp_table_obj, (void **)&adev->gfx.rlc.cp_table_ptr);
-		if (r) {
-			dev_warn(adev->dev, "(%d) map RLC cp table bo failed\n", r);
+			dev_warn(adev->dev, "(%d) create RLC cp table bo failed\n", r);
 			gfx_v7_0_rlc_fini(adev);
 			return r;
 		}

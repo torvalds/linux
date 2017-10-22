@@ -146,10 +146,9 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 	unsigned *rate_table = NULL;
 
 	fp = kmemdup(quirk->data, sizeof(*fp), GFP_KERNEL);
-	if (!fp) {
-		usb_audio_err(chip, "cannot memdup\n");
+	if (!fp)
 		return -ENOMEM;
-	}
+
 	INIT_LIST_HEAD(&fp->list);
 	if (fp->nr_rates > MAX_NR_RATES) {
 		kfree(fp);
@@ -1138,10 +1137,14 @@ bool snd_usb_get_sample_rate_quirk(struct snd_usb_audio *chip)
 	case USB_ID(0x047F, 0x02F7): /* Plantronics BT-600 */
 	case USB_ID(0x047F, 0x0415): /* Plantronics BT-300 */
 	case USB_ID(0x047F, 0xAA05): /* Plantronics DA45 */
+	case USB_ID(0x047F, 0xC022): /* Plantronics C310 */
+	case USB_ID(0x047F, 0xC02F): /* Plantronics P610 */
+	case USB_ID(0x047F, 0xC036): /* Plantronics C520-M */
 	case USB_ID(0x04D8, 0xFEEA): /* Benchmark DAC1 Pre */
 	case USB_ID(0x0556, 0x0014): /* Phoenix Audio TMX320VC */
 	case USB_ID(0x05A3, 0x9420): /* ELP HD USB Camera */
 	case USB_ID(0x074D, 0x3553): /* Outlaw RR2150 (Micronas UAC3553B) */
+	case USB_ID(0x1395, 0x740a): /* Sennheiser DECT */
 	case USB_ID(0x1901, 0x0191): /* GE B850V3 CP2114 audio interface */
 	case USB_ID(0x1de7, 0x0013): /* Phoenix Audio MT202exe */
 	case USB_ID(0x1de7, 0x0014): /* Phoenix Audio TMX320 */
@@ -1308,10 +1311,13 @@ void snd_usb_ctl_msg_quirk(struct usb_device *dev, unsigned int pipe,
 	    && (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
 		mdelay(20);
 
-	/* Zoom R16/24 needs a tiny delay here, otherwise requests like
-	 * get/set frequency return as failed despite actually succeeding.
+	/* Zoom R16/24, Logitech H650e, Jabra 550a needs a tiny delay here,
+	 * otherwise requests like get/set frequency return as failed despite
+	 * actually succeeding.
 	 */
-	if (chip->usb_id == USB_ID(0x1686, 0x00dd) &&
+	if ((chip->usb_id == USB_ID(0x1686, 0x00dd) ||
+	     chip->usb_id == USB_ID(0x046d, 0x0a46) ||
+	     chip->usb_id == USB_ID(0x0b0e, 0x0349)) &&
 	    (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
 		mdelay(1);
 }
@@ -1348,6 +1354,7 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	case USB_ID(0x20b1, 0x2008): /* Matrix Audio X-Sabre */
 	case USB_ID(0x20b1, 0x300a): /* Matrix Audio Mini-i Pro */
 	case USB_ID(0x22d9, 0x0416): /* OPPO HA-1 */
+	case USB_ID(0x2772, 0x0230): /* Pro-Ject Pre Box S2 Digital */
 		if (fp->altsetting == 2)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 		break;
@@ -1373,6 +1380,10 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 				break;
 			}
 		}
+		break;
+	case USB_ID(0x16d0, 0x0a23):
+		if (fp->altsetting == 2)
+			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 		break;
 
 	default:

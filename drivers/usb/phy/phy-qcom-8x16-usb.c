@@ -270,12 +270,9 @@ static int phy_8x16_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, qphy);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-
-	qphy->regs = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!qphy->regs)
-		return -ENOMEM;
+	qphy->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(qphy->regs))
+		return PTR_ERR(qphy->regs);
 
 	phy			= &qphy->phy;
 	phy->dev		= &pdev->dev;

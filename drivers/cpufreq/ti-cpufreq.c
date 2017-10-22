@@ -190,7 +190,7 @@ static int ti_cpufreq_setup_syscon_register(struct ti_cpufreq_data *opp_data)
 
 static const struct of_device_id ti_cpufreq_of_match[] = {
 	{ .compatible = "ti,am33xx", .data = &am3x_soc_data, },
-	{ .compatible = "ti,am4372", .data = &am4x_soc_data, },
+	{ .compatible = "ti,am43", .data = &am4x_soc_data, },
 	{ .compatible = "ti,dra7", .data = &dra7_soc_data },
 	{},
 };
@@ -245,8 +245,6 @@ static int ti_cpufreq_init(void)
 	if (ret)
 		goto fail_put_node;
 
-	of_node_put(opp_data->opp_node);
-
 	ret = PTR_ERR_OR_ZERO(dev_pm_opp_set_supported_hw(opp_data->cpu_dev,
 							  version, VERSION_COUNT));
 	if (ret) {
@@ -254,6 +252,8 @@ static int ti_cpufreq_init(void)
 			"Failed to set supported hardware\n");
 		goto fail_put_node;
 	}
+
+	of_node_put(opp_data->opp_node);
 
 register_cpufreq_dt:
 	platform_device_register_simple("cpufreq-dt", -1, NULL, 0);

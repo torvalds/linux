@@ -790,7 +790,7 @@ static int mvs_task_prep(struct sas_task *task, struct mvs_info *mvi, int is_tmf
 	slot->n_elem = n_elem;
 	slot->slot_tag = tag;
 
-	slot->buf = pci_pool_alloc(mvi->dma_pool, GFP_ATOMIC, &slot->buf_dma);
+	slot->buf = dma_pool_alloc(mvi->dma_pool, GFP_ATOMIC, &slot->buf_dma);
 	if (!slot->buf) {
 		rc = -ENOMEM;
 		goto err_out_tag;
@@ -840,7 +840,7 @@ static int mvs_task_prep(struct sas_task *task, struct mvs_info *mvi, int is_tmf
 	return rc;
 
 err_out_slot_buf:
-	pci_pool_free(mvi->dma_pool, slot->buf, slot->buf_dma);
+	dma_pool_free(mvi->dma_pool, slot->buf, slot->buf_dma);
 err_out_tag:
 	mvs_tag_free(mvi, tag);
 err_out:
@@ -918,7 +918,7 @@ static void mvs_slot_task_free(struct mvs_info *mvi, struct sas_task *task,
 	}
 
 	if (slot->buf) {
-		pci_pool_free(mvi->dma_pool, slot->buf, slot->buf_dma);
+		dma_pool_free(mvi->dma_pool, slot->buf, slot->buf_dma);
 		slot->buf = NULL;
 	}
 	list_del_init(&slot->entry);

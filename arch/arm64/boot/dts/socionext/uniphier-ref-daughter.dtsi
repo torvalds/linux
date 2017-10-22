@@ -1,1 +1,1 @@
-../../../../arm/boot/dts/uniphier-ref-daughter.dtsi
+#include <arm/uniphier-ref-daughter.dtsi>

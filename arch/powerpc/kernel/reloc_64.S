@@ -82,7 +82,7 @@ _GLOBAL(relocate)
 6:	blr
 
 .balign 8
-p_dyn:	.llong	__dynamic_start - 0b
-p_rela:	.llong	__rela_dyn_start - 0b
-p_st:	.llong	_stext - 0b
+p_dyn:	.8byte	__dynamic_start - 0b
+p_rela:	.8byte	__rela_dyn_start - 0b
+p_st:	.8byte	_stext - 0b
 

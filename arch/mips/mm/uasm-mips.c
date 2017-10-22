@@ -48,7 +48,7 @@
 
 #include "uasm.c"
 
-static const struct insn const insn_table[insn_invalid] = {
+static const struct insn insn_table[insn_invalid] = {
 	[insn_addiu]	= {M(addiu_op, 0, 0, 0, 0, 0), RS | RT | SIMM},
 	[insn_addu]	= {M(spec_op, 0, 0, 0, 0, addu_op), RS | RT | RD},
 	[insn_and]	= {M(spec_op, 0, 0, 0, 0, and_op), RS | RT | RD},

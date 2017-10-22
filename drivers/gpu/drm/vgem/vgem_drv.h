@@ -43,7 +43,11 @@ struct vgem_file {
 #define to_vgem_bo(x) container_of(x, struct drm_vgem_gem_object, base)
 struct drm_vgem_gem_object {
 	struct drm_gem_object base;
+
 	struct page **pages;
+	unsigned int pages_pin_count;
+	struct mutex pages_lock;
+
 	struct sg_table *table;
 };
 

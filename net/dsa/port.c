@@ -146,41 +146,31 @@ int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock,
 	return dsa_port_notify(dp, DSA_NOTIFIER_AGEING_TIME, &info);
 }
 
-int dsa_port_fdb_add(struct dsa_port *dp,
-		     const struct switchdev_obj_port_fdb *fdb,
-		     struct switchdev_trans *trans)
+int dsa_port_fdb_add(struct dsa_port *dp, const unsigned char *addr,
+		     u16 vid)
 {
 	struct dsa_notifier_fdb_info info = {
 		.sw_index = dp->ds->index,
 		.port = dp->index,
-		.trans = trans,
-		.fdb = fdb,
+		.addr = addr,
+		.vid = vid,
 	};
 
 	return dsa_port_notify(dp, DSA_NOTIFIER_FDB_ADD, &info);
 }
 
-int dsa_port_fdb_del(struct dsa_port *dp,
-		     const struct switchdev_obj_port_fdb *fdb)
+int dsa_port_fdb_del(struct dsa_port *dp, const unsigned char *addr,
+		     u16 vid)
 {
 	struct dsa_notifier_fdb_info info = {
 		.sw_index = dp->ds->index,
 		.port = dp->index,
-		.fdb = fdb,
+		.addr = addr,
+		.vid = vid,
+
 	};
 
 	return dsa_port_notify(dp, DSA_NOTIFIER_FDB_DEL, &info);
-}
-
-int dsa_port_fdb_dump(struct dsa_port *dp, struct switchdev_obj_port_fdb *fdb,
-		      switchdev_obj_dump_cb_t *cb)
-{
-	struct dsa_switch *ds = dp->ds;
-
-	if (ds->ops->port_fdb_dump)
-		return ds->ops->port_fdb_dump(ds, dp->index, fdb, cb);
-
-	return -EOPNOTSUPP;
 }
 
 int dsa_port_mdb_add(struct dsa_port *dp,
@@ -209,17 +199,6 @@ int dsa_port_mdb_del(struct dsa_port *dp,
 	return dsa_port_notify(dp, DSA_NOTIFIER_MDB_DEL, &info);
 }
 
-int dsa_port_mdb_dump(struct dsa_port *dp, struct switchdev_obj_port_mdb *mdb,
-		      switchdev_obj_dump_cb_t *cb)
-{
-	struct dsa_switch *ds = dp->ds;
-
-	if (ds->ops->port_mdb_dump)
-		return ds->ops->port_mdb_dump(ds, dp->index, mdb, cb);
-
-	return -EOPNOTSUPP;
-}
-
 int dsa_port_vlan_add(struct dsa_port *dp,
 		      const struct switchdev_obj_port_vlan *vlan,
 		      struct switchdev_trans *trans)
@@ -244,16 +223,4 @@ int dsa_port_vlan_del(struct dsa_port *dp,
 	};
 
 	return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_DEL, &info);
-}
-
-int dsa_port_vlan_dump(struct dsa_port *dp,
-		       struct switchdev_obj_port_vlan *vlan,
-		       switchdev_obj_dump_cb_t *cb)
-{
-	struct dsa_switch *ds = dp->ds;
-
-	if (ds->ops->port_vlan_dump)
-		return ds->ops->port_vlan_dump(ds, dp->index, vlan, cb);
-
-	return -EOPNOTSUPP;
 }

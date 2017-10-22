@@ -36,9 +36,7 @@
 #define PROT_READ	0x1
 #define PROT_SEM	0x8
 #define PROT_WRITE	0x2
-/* MADV_HWPOISON is undefined on parisc, fix it for perf */
 #define MADV_HWPOISON	100
-/* MADV_SOFT_OFFLINE is undefined on parisc, fix it for perf */
 #define MADV_SOFT_OFFLINE 101
 /* MAP_32BIT is undefined on parisc, fix it for perf */
 #define MAP_32BIT	0

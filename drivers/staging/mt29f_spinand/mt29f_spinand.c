@@ -18,7 +18,7 @@
 #include <linux/delay.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/spi/spi.h>
 
 #include "mt29f_spinand.h"
@@ -496,8 +496,12 @@ static int spinand_program_page(struct spi_device *spi_nand,
 	if (!wbuf)
 		return -ENOMEM;
 
-	enable_read_hw_ecc = 0;
-	spinand_read_page(spi_nand, page_id, 0, CACHE_BUF, wbuf);
+	enable_read_hw_ecc = 1;
+	retval = spinand_read_page(spi_nand, page_id, 0, CACHE_BUF, wbuf);
+	if (retval < 0) {
+		dev_err(&spi_nand->dev, "ecc error on read page!!!\n");
+		return retval;
+	}
 
 	for (i = offset, j = 0; i < len; i++, j++)
 		wbuf[i] &= buf[j];

@@ -145,7 +145,7 @@ static s32 smu_fan_max(struct wf_control *ct)
 	return fct->max;
 }
 
-static struct wf_control_ops smu_fan_ops = {
+static const struct wf_control_ops smu_fan_ops = {
 	.set_value	= smu_fan_set,
 	.get_value	= smu_fan_get,
 	.get_min	= smu_fan_min,

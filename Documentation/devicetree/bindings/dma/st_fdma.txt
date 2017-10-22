@@ -69,7 +69,6 @@ Example:
 
 	sti_uni_player2: sti-uni-player@2 {
 		compatible = "st,sti-uni-player";
-		status = "disabled";
 		#sound-dai-cells = <0>;
 		st,syscfg = <&syscfg_core>;
 		clocks = <&clk_s_d0_flexgen CLK_PCM_2>;

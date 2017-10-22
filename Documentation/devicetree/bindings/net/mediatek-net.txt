@@ -7,24 +7,32 @@ have dual GMAC each represented by a child node..
 * Ethernet controller node
 
 Required properties:
-- compatible: Should be "mediatek,mt2701-eth"
+- compatible: Should be
+		"mediatek,mt2701-eth": for MT2701 SoC
+		"mediatek,mt7623-eth", "mediatek,mt2701-eth": for MT7623 SoC
+		"mediatek,mt7622-eth": for MT7622 SoC
 - reg: Address and length of the register set for the device
 - interrupts: Should contain the three frame engines interrupts in numeric
 	order. These are fe_int0, fe_int1 and fe_int2.
 - clocks: the clock used by the core
 - clock-names: the names of the clock listed in the clocks property. These are
-	"ethif", "esw", "gp2", "gp1"
+	"ethif", "esw", "gp2", "gp1" : For MT2701 and MT7623 SoC
+        "ethif", "esw", "gp0", "gp1", "gp2", "sgmii_tx250m", "sgmii_rx250m",
+	"sgmii_cdr_ref", "sgmii_cdr_fb", "sgmii_ck", "eth2pll" : For MT7622 SoC
 - power-domains: phandle to the power domain that the ethernet is part of
-- resets: Should contain a phandle to the ethsys reset signal
-- reset-names: Should contain the reset signal name "eth"
+- resets: Should contain phandles to the ethsys reset signals
+- reset-names: Should contain the names of reset signal listed in the resets
+		property
+		These are "fe", "gmac" and "ppe"
 - mediatek,ethsys: phandle to the syscon node that handles the port setup
+- mediatek,sgmiisys: phandle to the syscon node that handles the SGMII setup
+	which is required for those SoCs equipped with SGMII such as MT7622 SoC.
 - mediatek,pctl: phandle to the syscon node that handles the ports slew rate
 	and driver current
 
 Optional properties:
 - interrupt-parent: Should be the phandle for the interrupt controller
   that services interrupts for this device
-
 * Ethernet MAC node
 
 Required properties:

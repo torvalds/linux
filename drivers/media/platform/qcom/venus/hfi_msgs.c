@@ -239,11 +239,12 @@ static void hfi_sys_init_done(struct venus_core *core, struct venus_inst *inst,
 			break;
 		}
 
-		if (!error) {
-			rem_bytes -= read_bytes;
-			data += read_bytes;
-			num_properties--;
-		}
+		if (error)
+			break;
+
+		rem_bytes -= read_bytes;
+		data += read_bytes;
+		num_properties--;
 	}
 
 err_no_prop:
