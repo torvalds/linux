@@ -115,7 +115,7 @@ struct mlxsw_sp_nexthop *mlxsw_sp_nexthop_next(struct mlxsw_sp_router *router,
 bool mlxsw_sp_nexthop_offload(struct mlxsw_sp_nexthop *nh);
 unsigned char *mlxsw_sp_nexthop_ha(struct mlxsw_sp_nexthop *nh);
 int mlxsw_sp_nexthop_indexes(struct mlxsw_sp_nexthop *nh, u32 *p_adj_index,
-			     u32 *p_adj_hash_index);
+			     u32 *p_adj_size, u32 *p_adj_hash_index);
 struct mlxsw_sp_rif *mlxsw_sp_nexthop_rif(struct mlxsw_sp_nexthop *nh);
 bool mlxsw_sp_nexthop_group_has_ipip(struct mlxsw_sp_nexthop *nh);
 #define mlxsw_sp_nexthop_for_each(nh, router)				\

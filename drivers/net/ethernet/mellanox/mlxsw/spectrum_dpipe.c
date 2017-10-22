@@ -44,6 +44,7 @@ enum mlxsw_sp_field_metadata_id {
 	MLXSW_SP_DPIPE_FIELD_METADATA_L3_FORWARD,
 	MLXSW_SP_DPIPE_FIELD_METADATA_L3_DROP,
 	MLXSW_SP_DPIPE_FIELD_METADATA_ADJ_INDEX,
+	MLXSW_SP_DPIPE_FIELD_METADATA_ADJ_SIZE,
 	MLXSW_SP_DPIPE_FIELD_METADATA_ADJ_HASH_INDEX,
 };
 
@@ -67,6 +68,11 @@ static struct devlink_dpipe_field mlxsw_sp_dpipe_fields_metadata[] = {
 	{
 		.name = "adj_index",
 		.id = MLXSW_SP_DPIPE_FIELD_METADATA_ADJ_INDEX,
+		.bitwidth = 32,
+	},
+	{
+		.name = "adj_size",
+		.id = MLXSW_SP_DPIPE_FIELD_METADATA_ADJ_SIZE,
 		.bitwidth = 32,
 	},
 	{
@@ -857,6 +863,14 @@ static int mlxsw_sp_dpipe_table_adj_matches_dump(void *priv,
 
 	match.type = DEVLINK_DPIPE_MATCH_TYPE_FIELD_EXACT;
 	match.header = &mlxsw_sp_dpipe_header_metadata;
+	match.field_id = MLXSW_SP_DPIPE_FIELD_METADATA_ADJ_SIZE;
+
+	err = devlink_dpipe_match_put(skb, &match);
+	if (err)
+		return err;
+
+	match.type = DEVLINK_DPIPE_MATCH_TYPE_FIELD_EXACT;
+	match.header = &mlxsw_sp_dpipe_header_metadata;
 	match.field_id = MLXSW_SP_DPIPE_FIELD_METADATA_ADJ_HASH_INDEX;
 
 	return devlink_dpipe_match_put(skb, &match);
@@ -897,6 +911,7 @@ static u64 mlxsw_sp_dpipe_table_adj_size(struct mlxsw_sp *mlxsw_sp)
 
 enum mlxsw_sp_dpipe_table_adj_match {
 	MLXSW_SP_DPIPE_TABLE_ADJ_MATCH_INDEX,
+	MLXSW_SP_DPIPE_TABLE_ADJ_MATCH_SIZE,
 	MLXSW_SP_DPIPE_TABLE_ADJ_MATCH_HASH_INDEX,
 	MLXSW_SP_DPIPE_TABLE_ADJ_MATCH_COUNT,
 };
@@ -918,6 +933,11 @@ mlxsw_sp_dpipe_table_adj_match_action_prepare(struct devlink_dpipe_match *matche
 	match->type = DEVLINK_DPIPE_MATCH_TYPE_FIELD_EXACT;
 	match->header = &mlxsw_sp_dpipe_header_metadata;
 	match->field_id = MLXSW_SP_DPIPE_FIELD_METADATA_ADJ_INDEX;
+
+	match = &matches[MLXSW_SP_DPIPE_TABLE_ADJ_MATCH_SIZE];
+	match->type = DEVLINK_DPIPE_MATCH_TYPE_FIELD_EXACT;
+	match->header = &mlxsw_sp_dpipe_header_metadata;
+	match->field_id = MLXSW_SP_DPIPE_FIELD_METADATA_ADJ_SIZE;
 
 	match = &matches[MLXSW_SP_DPIPE_TABLE_ADJ_MATCH_HASH_INDEX];
 	match->type = DEVLINK_DPIPE_MATCH_TYPE_FIELD_EXACT;
@@ -961,6 +981,15 @@ mlxsw_sp_dpipe_table_adj_entry_prepare(struct devlink_dpipe_entry *entry,
 	if (!match_value->value)
 		return -ENOMEM;
 
+	match = &matches[MLXSW_SP_DPIPE_TABLE_ADJ_MATCH_SIZE];
+	match_value = &match_values[MLXSW_SP_DPIPE_TABLE_ADJ_MATCH_SIZE];
+
+	match_value->match = match;
+	match_value->value_size = sizeof(u32);
+	match_value->value = kmalloc(match_value->value_size, GFP_KERNEL);
+	if (!match_value->value)
+		return -ENOMEM;
+
 	match = &matches[MLXSW_SP_DPIPE_TABLE_ADJ_MATCH_HASH_INDEX];
 	match_value = &match_values[MLXSW_SP_DPIPE_TABLE_ADJ_MATCH_HASH_INDEX];
 
@@ -993,8 +1022,8 @@ mlxsw_sp_dpipe_table_adj_entry_prepare(struct devlink_dpipe_entry *entry,
 
 static void
 __mlxsw_sp_dpipe_table_adj_entry_fill(struct devlink_dpipe_entry *entry,
-				      u32 adj_index, u32 adj_hash_index,
-				      unsigned char *ha,
+				      u32 adj_index, u32 adj_size,
+				      u32 adj_hash_index, unsigned char *ha,
 				      struct mlxsw_sp_rif *rif)
 {
 	struct devlink_dpipe_value *value;
@@ -1004,6 +1033,10 @@ __mlxsw_sp_dpipe_table_adj_entry_fill(struct devlink_dpipe_entry *entry,
 	value = &entry->match_values[MLXSW_SP_DPIPE_TABLE_ADJ_MATCH_INDEX];
 	p_index = value->value;
 	*p_index = adj_index;
+
+	value = &entry->match_values[MLXSW_SP_DPIPE_TABLE_ADJ_MATCH_SIZE];
+	p_index = value->value;
+	*p_index = adj_size;
 
 	value = &entry->match_values[MLXSW_SP_DPIPE_TABLE_ADJ_MATCH_HASH_INDEX];
 	p_index = value->value;
@@ -1027,10 +1060,11 @@ static void mlxsw_sp_dpipe_table_adj_entry_fill(struct mlxsw_sp *mlxsw_sp,
 	unsigned char *ha = mlxsw_sp_nexthop_ha(nh);
 	u32 adj_hash_index = 0;
 	u32 adj_index = 0;
+	u32 adj_size = 0;
 	int err;
 
-	mlxsw_sp_nexthop_indexes(nh, &adj_index, &adj_hash_index);
-	__mlxsw_sp_dpipe_table_adj_entry_fill(entry, adj_index,
+	mlxsw_sp_nexthop_indexes(nh, &adj_index, &adj_size, &adj_hash_index);
+	__mlxsw_sp_dpipe_table_adj_entry_fill(entry, adj_index, adj_size,
 					      adj_hash_index, ha, rif);
 	err = mlxsw_sp_nexthop_counter_get(mlxsw_sp, nh, &entry->counter);
 	if (!err)
@@ -1138,13 +1172,15 @@ static int mlxsw_sp_dpipe_table_adj_counters_update(void *priv, bool enable)
 	struct mlxsw_sp_nexthop *nh;
 	u32 adj_hash_index = 0;
 	u32 adj_index = 0;
+	u32 adj_size = 0;
 
 	mlxsw_sp_nexthop_for_each(nh, mlxsw_sp->router) {
 		if (!mlxsw_sp_nexthop_offload(nh) ||
 		    mlxsw_sp_nexthop_group_has_ipip(nh))
 			continue;
 
-		mlxsw_sp_nexthop_indexes(nh, &adj_index, &adj_hash_index);
+		mlxsw_sp_nexthop_indexes(nh, &adj_index, &adj_size,
+					 &adj_hash_index);
 		if (enable)
 			mlxsw_sp_nexthop_counter_alloc(mlxsw_sp, nh);
 		else
