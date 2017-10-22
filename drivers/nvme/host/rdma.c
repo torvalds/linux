@@ -1578,6 +1578,10 @@ nvme_rdma_timeout(struct request *rq, bool reserved)
 {
 	struct nvme_rdma_request *req = blk_mq_rq_to_pdu(rq);
 
+	dev_warn(req->queue->ctrl->ctrl.device,
+		 "I/O %d QID %d timeout, reset controller\n",
+		 rq->tag, nvme_rdma_queue_idx(req->queue));
+
 	/* queue error recovery */
 	nvme_rdma_error_recovery(req->queue->ctrl);
 
