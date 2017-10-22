@@ -1045,7 +1045,7 @@ static void test_map_parallel(void)
 
 static void test_map_rdonly(void)
 {
-	int i, fd, key = 0, value = 0;
+	int fd, key = 0, value = 0;
 
 	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
 			    MAP_SIZE, map_flags | BPF_F_RDONLY);
@@ -1068,7 +1068,7 @@ static void test_map_rdonly(void)
 
 static void test_map_wronly(void)
 {
-	int i, fd, key = 0, value = 0;
+	int fd, key = 0, value = 0;
 
 	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
 			    MAP_SIZE, map_flags | BPF_F_WRONLY);
@@ -1081,7 +1081,7 @@ static void test_map_wronly(void)
 	key = 1;
 	value = 1234;
 	/* Insert key=1 element. */
-	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == 0)
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == 0);
 
 	/* Check that key=2 is not found. */
 	assert(bpf_map_lookup_elem(fd, &key, &value) == -1 && errno == EPERM);
