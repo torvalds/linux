@@ -429,4 +429,20 @@ struct mlx5_ifc_ipsec_counters_bits {
 	u8         dropped_cmd[0x40];
 };
 
+enum mlx5_ifc_fpga_ipsec_response_syndrome {
+	MLX5_FPGA_IPSEC_RESPONSE_SUCCESS = 0,
+	MLX5_FPGA_IPSEC_RESPONSE_ILLEGAL_REQUEST = 1,
+	MLX5_FPGA_IPSEC_RESPONSE_SADB_ISSUE = 2,
+	MLX5_FPGA_IPSEC_RESPONSE_WRITE_RESPONSE_ISSUE = 3,
+};
+
+struct mlx5_ifc_fpga_ipsec_cmd_resp {
+	__be32 syndrome;
+	union {
+		__be32 sw_sa_handle;
+		__be32 flags;
+	};
+	u8 reserved[24];
+} __packed;
+
 #endif /* MLX5_IFC_FPGA_H */

@@ -41,34 +41,22 @@
 #define SBU_QP_QUEUE_SIZE 8
 #define MLX5_FPGA_IPSEC_CMD_TIMEOUT_MSEC	(60 * 1000)
 
-enum mlx5_ipsec_response_syndrome {
-	MLX5_IPSEC_RESPONSE_SUCCESS = 0,
-	MLX5_IPSEC_RESPONSE_ILLEGAL_REQUEST = 1,
-	MLX5_IPSEC_RESPONSE_SADB_ISSUE = 2,
-	MLX5_IPSEC_RESPONSE_WRITE_RESPONSE_ISSUE = 3,
-};
-
-enum mlx5_fpga_ipsec_sacmd_status {
-	MLX5_FPGA_IPSEC_SACMD_PENDING,
-	MLX5_FPGA_IPSEC_SACMD_SEND_FAIL,
-	MLX5_FPGA_IPSEC_SACMD_COMPLETE,
+enum mlx5_fpga_ipsec_cmd_status {
+	MLX5_FPGA_IPSEC_CMD_PENDING,
+	MLX5_FPGA_IPSEC_CMD_SEND_FAIL,
+	MLX5_FPGA_IPSEC_CMD_COMPLETE,
 };
 
 struct mlx5_ipsec_command_context {
 	struct mlx5_fpga_dma_buf buf;
-	struct mlx5_accel_ipsec_sa sa;
-	enum mlx5_fpga_ipsec_sacmd_status status;
+	enum mlx5_fpga_ipsec_cmd_status status;
+	struct mlx5_ifc_fpga_ipsec_cmd_resp resp;
 	int status_code;
 	struct completion complete;
 	struct mlx5_fpga_device *dev;
 	struct list_head list; /* Item in pending_cmds */
+	u8 command[0];
 };
-
-struct mlx5_ipsec_sadb_resp {
-	__be32 syndrome;
-	__be32 sw_sa_handle;
-	u8 reserved[24];
-} __packed;
 
 struct mlx5_fpga_ipsec {
 	struct list_head pending_cmds;
@@ -105,21 +93,22 @@ static void mlx5_fpga_ipsec_send_complete(struct mlx5_fpga_conn *conn,
 				       buf);
 		mlx5_fpga_warn(fdev, "IPSec command send failed with status %u\n",
 			       status);
-		context->status = MLX5_FPGA_IPSEC_SACMD_SEND_FAIL;
+		context->status = MLX5_FPGA_IPSEC_CMD_SEND_FAIL;
 		complete(&context->complete);
 	}
 }
 
-static inline int syndrome_to_errno(enum mlx5_ipsec_response_syndrome syndrome)
+static inline
+int syndrome_to_errno(enum mlx5_ifc_fpga_ipsec_response_syndrome syndrome)
 {
 	switch (syndrome) {
-	case MLX5_IPSEC_RESPONSE_SUCCESS:
+	case MLX5_FPGA_IPSEC_RESPONSE_SUCCESS:
 		return 0;
-	case MLX5_IPSEC_RESPONSE_SADB_ISSUE:
+	case MLX5_FPGA_IPSEC_RESPONSE_SADB_ISSUE:
 		return -EEXIST;
-	case MLX5_IPSEC_RESPONSE_ILLEGAL_REQUEST:
+	case MLX5_FPGA_IPSEC_RESPONSE_ILLEGAL_REQUEST:
 		return -EINVAL;
-	case MLX5_IPSEC_RESPONSE_WRITE_RESPONSE_ISSUE:
+	case MLX5_FPGA_IPSEC_RESPONSE_WRITE_RESPONSE_ISSUE:
 		return -EIO;
 	}
 	return -EIO;
@@ -127,9 +116,9 @@ static inline int syndrome_to_errno(enum mlx5_ipsec_response_syndrome syndrome)
 
 static void mlx5_fpga_ipsec_recv(void *cb_arg, struct mlx5_fpga_dma_buf *buf)
 {
-	struct mlx5_ipsec_sadb_resp *resp = buf->sg[0].data;
+	struct mlx5_ifc_fpga_ipsec_cmd_resp *resp = buf->sg[0].data;
 	struct mlx5_ipsec_command_context *context;
-	enum mlx5_ipsec_response_syndrome syndrome;
+	enum mlx5_ifc_fpga_ipsec_response_syndrome syndrome;
 	struct mlx5_fpga_device *fdev = cb_arg;
 	unsigned long flags;
 
@@ -139,8 +128,8 @@ static void mlx5_fpga_ipsec_recv(void *cb_arg, struct mlx5_fpga_dma_buf *buf)
 		return;
 	}
 
-	mlx5_fpga_dbg(fdev, "mlx5_ipsec recv_cb syndrome %08x sa_id %x\n",
-		      ntohl(resp->syndrome), ntohl(resp->sw_sa_handle));
+	mlx5_fpga_dbg(fdev, "mlx5_ipsec recv_cb syndrome %08x\n",
+		      ntohl(resp->syndrome));
 
 	spin_lock_irqsave(&fdev->ipsec->pending_cmds_lock, flags);
 	context = list_first_entry_or_null(&fdev->ipsec->pending_cmds,
@@ -156,50 +145,47 @@ static void mlx5_fpga_ipsec_recv(void *cb_arg, struct mlx5_fpga_dma_buf *buf)
 	}
 	mlx5_fpga_dbg(fdev, "Handling response for %p\n", context);
 
-	if (context->sa.sw_sa_handle != resp->sw_sa_handle) {
-		mlx5_fpga_err(fdev, "mismatch SA handle. cmd 0x%08x vs resp 0x%08x\n",
-			      ntohl(context->sa.sw_sa_handle),
-			      ntohl(resp->sw_sa_handle));
-		return;
-	}
-
 	syndrome = ntohl(resp->syndrome);
 	context->status_code = syndrome_to_errno(syndrome);
-	context->status = MLX5_FPGA_IPSEC_SACMD_COMPLETE;
+	context->status = MLX5_FPGA_IPSEC_CMD_COMPLETE;
+	memcpy(&context->resp, resp, sizeof(*resp));
 
 	if (context->status_code)
-		mlx5_fpga_warn(fdev, "IPSec SADB command failed with syndrome %08x\n",
+		mlx5_fpga_warn(fdev, "IPSec command failed with syndrome %08x\n",
 			       syndrome);
+
 	complete(&context->complete);
 }
 
-void *mlx5_fpga_ipsec_sa_cmd_exec(struct mlx5_core_dev *mdev,
-				  struct mlx5_accel_ipsec_sa *cmd)
+static void *mlx5_fpga_ipsec_cmd_exec(struct mlx5_core_dev *mdev,
+				      const void *cmd, int cmd_size)
 {
 	struct mlx5_ipsec_command_context *context;
 	struct mlx5_fpga_device *fdev = mdev->fpga;
 	unsigned long flags;
-	int res = 0;
+	int res;
 
-	BUILD_BUG_ON((sizeof(struct mlx5_accel_ipsec_sa) & 3) != 0);
 	if (!fdev || !fdev->ipsec)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	context = kzalloc(sizeof(*context), GFP_ATOMIC);
+	if (cmd_size & 3)
+		return ERR_PTR(-EINVAL);
+
+	context = kzalloc(sizeof(*context) + cmd_size, GFP_ATOMIC);
 	if (!context)
 		return ERR_PTR(-ENOMEM);
 
-	memcpy(&context->sa, cmd, sizeof(*cmd));
-	context->buf.complete = mlx5_fpga_ipsec_send_complete;
-	context->buf.sg[0].size = sizeof(context->sa);
-	context->buf.sg[0].data = &context->sa;
-	init_completion(&context->complete);
+	context->status = MLX5_FPGA_IPSEC_CMD_PENDING;
 	context->dev = fdev;
+	context->buf.complete = mlx5_fpga_ipsec_send_complete;
+	init_completion(&context->complete);
+	memcpy(&context->command, cmd, cmd_size);
+	context->buf.sg[0].size = cmd_size;
+	context->buf.sg[0].data = &context->command;
+
 	spin_lock_irqsave(&fdev->ipsec->pending_cmds_lock, flags);
 	list_add_tail(&context->list, &fdev->ipsec->pending_cmds);
 	spin_unlock_irqrestore(&fdev->ipsec->pending_cmds_lock, flags);
-
-	context->status = MLX5_FPGA_IPSEC_SACMD_PENDING;
 
 	res = mlx5_fpga_sbu_conn_sendmsg(fdev->ipsec->conn, &context->buf);
 	if (res) {
@@ -215,7 +201,7 @@ void *mlx5_fpga_ipsec_sa_cmd_exec(struct mlx5_core_dev *mdev,
 	return context;
 }
 
-int mlx5_fpga_ipsec_sa_cmd_wait(void *ctx)
+static int mlx5_fpga_ipsec_cmd_wait(void *ctx)
 {
 	struct mlx5_ipsec_command_context *context = ctx;
 	unsigned long timeout =
@@ -228,11 +214,39 @@ int mlx5_fpga_ipsec_sa_cmd_wait(void *ctx)
 		return -ETIMEDOUT;
 	}
 
-	if (context->status == MLX5_FPGA_IPSEC_SACMD_COMPLETE)
+	if (context->status == MLX5_FPGA_IPSEC_CMD_COMPLETE)
 		res = context->status_code;
 	else
 		res = -EIO;
 
+	return res;
+}
+
+void *mlx5_fpga_ipsec_sa_cmd_exec(struct mlx5_core_dev *mdev,
+				  struct mlx5_accel_ipsec_sa *cmd)
+{
+	return mlx5_fpga_ipsec_cmd_exec(mdev, cmd, sizeof(*cmd));
+}
+
+int mlx5_fpga_ipsec_sa_cmd_wait(void *ctx)
+{
+	struct mlx5_ipsec_command_context *context = ctx;
+	struct mlx5_accel_ipsec_sa *sa;
+	int res;
+
+	res = mlx5_fpga_ipsec_cmd_wait(ctx);
+	if (res)
+		goto out;
+
+	sa = (struct mlx5_accel_ipsec_sa *)&context->command;
+	if (sa->sw_sa_handle != context->resp.sw_sa_handle) {
+		mlx5_fpga_err(context->dev, "mismatch SA handle. cmd 0x%08x vs resp 0x%08x\n",
+			      ntohl(sa->sw_sa_handle),
+			      ntohl(context->resp.sw_sa_handle));
+		res = -EIO;
+	}
+
+out:
 	kfree(context);
 	return res;
 }
