@@ -164,6 +164,21 @@ void mlxsw_sp_kvdl_free(struct mlxsw_sp *mlxsw_sp, int entry_index)
 	mlxsw_sp_kvdl_part_free(part, entry_index);
 }
 
+int mlxsw_sp_kvdl_alloc_size_query(struct mlxsw_sp *mlxsw_sp,
+				   unsigned int entry_count,
+				   unsigned int *p_alloc_size)
+{
+	struct mlxsw_sp_kvdl_part *part;
+
+	part = mlxsw_sp_kvdl_alloc_size_part(mlxsw_sp->kvdl, entry_count);
+	if (IS_ERR(part))
+		return PTR_ERR(part);
+
+	*p_alloc_size = part->info->alloc_size;
+
+	return 0;
+}
+
 static const struct mlxsw_sp_kvdl_part_info kvdl_parts_info[] = {
 	{
 		.part_index	= 0,
