@@ -12935,6 +12935,32 @@ int hfi1_tempsense_rd(struct hfi1_devdata *dd, struct hfi1_temp *temp)
 	return ret;
 }
 
+/**
+ * get_int_mask - get 64 bit int mask
+ * @dd - the devdata
+ * @i - the csr (relative to CCE_INT_MASK)
+ *
+ * Returns the mask with the urgent interrupt mask
+ * bit clear for kernel receive contexts.
+ */
+static u64 get_int_mask(struct hfi1_devdata *dd, u32 i)
+{
+	u64 mask = U64_MAX; /* default to no change */
+
+	if (i >= (IS_RCVURGENT_START / 64) && i < (IS_RCVURGENT_END / 64)) {
+		int j = (i - (IS_RCVURGENT_START / 64)) * 64;
+		int k = !j ? IS_RCVURGENT_START % 64 : 0;
+
+		if (j)
+			j -= IS_RCVURGENT_START % 64;
+		/* j = 0..dd->first_dyn_alloc_ctxt - 1,k = 0..63 */
+		for (; j < dd->first_dyn_alloc_ctxt && k < 64; j++, k++)
+			/* convert to bit in mask and clear */
+			mask &= ~BIT_ULL(k);
+	}
+	return mask;
+}
+
 /* ========================================================================= */
 
 /*
@@ -12948,9 +12974,12 @@ void set_intr_state(struct hfi1_devdata *dd, u32 enable)
 	 * In HFI, the mask needs to be 1 to allow interrupts.
 	 */
 	if (enable) {
-		/* enable all interrupts */
-		for (i = 0; i < CCE_NUM_INT_CSRS; i++)
-			write_csr(dd, CCE_INT_MASK + (8 * i), ~(u64)0);
+		/* enable all interrupts but urgent on kernel contexts */
+		for (i = 0; i < CCE_NUM_INT_CSRS; i++) {
+			u64 mask = get_int_mask(dd, i);
+
+			write_csr(dd, CCE_INT_MASK + (8 * i), mask);
+		}
 
 		init_qsfp_int(dd);
 	} else {
