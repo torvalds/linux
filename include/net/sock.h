@@ -737,10 +737,10 @@ static inline void sk_add_bind_node(struct sock *sk,
  *
  */
 #define sk_for_each_entry_offset_rcu(tpos, pos, head, offset)		       \
-	for (pos = rcu_dereference((head)->first);			       \
+	for (pos = rcu_dereference(hlist_first_rcu(head));		       \
 	     pos != NULL &&						       \
 		({ tpos = (typeof(*tpos) *)((void *)pos - offset); 1;});       \
-	     pos = rcu_dereference(pos->next))
+	     pos = rcu_dereference(hlist_next_rcu(pos)))
 
 static inline struct user_namespace *sk_user_ns(struct sock *sk)
 {
