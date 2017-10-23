@@ -17,13 +17,13 @@
  */
 DECLARE_EVENT_CLASS(tcp_event_sk_skb,
 
-	TP_PROTO(struct sock *sk, struct sk_buff *skb),
+	TP_PROTO(const struct sock *sk, const struct sk_buff *skb),
 
 	TP_ARGS(sk, skb),
 
 	TP_STRUCT__entry(
-		__field(void *, skbaddr)
-		__field(void *, skaddr)
+		__field(const void *, skbaddr)
+		__field(const void *, skaddr)
 		__field(__u16, sport)
 		__field(__u16, dport)
 		__array(__u8, saddr, 4)
@@ -72,7 +72,7 @@ DECLARE_EVENT_CLASS(tcp_event_sk_skb,
 
 DEFINE_EVENT(tcp_event_sk_skb, tcp_retransmit_skb,
 
-	TP_PROTO(struct sock *sk, struct sk_buff *skb),
+	TP_PROTO(const struct sock *sk, const struct sk_buff *skb),
 
 	TP_ARGS(sk, skb)
 );
