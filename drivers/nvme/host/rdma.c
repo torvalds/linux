@@ -50,8 +50,8 @@
 	(NVME_AQ_DEPTH - NVME_RDMA_NR_AEN_COMMANDS)
 
 struct nvme_rdma_device {
-	struct ib_device       *dev;
-	struct ib_pd	       *pd;
+	struct ib_device	*dev;
+	struct ib_pd		*pd;
 	struct kref		ref;
 	struct list_head	entry;
 };
