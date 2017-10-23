@@ -104,21 +104,21 @@ static int prog_fd_by_tag(unsigned char *tag)
 	while (true) {
 		err = bpf_prog_get_next_id(id, &id);
 		if (err) {
-			err("%s\n", strerror(errno));
+			p_err("%s", strerror(errno));
 			return -1;
 		}
 
 		fd = bpf_prog_get_fd_by_id(id);
 		if (fd < 0) {
-			err("can't get prog by id (%u): %s\n",
-			    id, strerror(errno));
+			p_err("can't get prog by id (%u): %s",
+			      id, strerror(errno));
 			return -1;
 		}
 
 		err = bpf_obj_get_info_by_fd(fd, &info, &len);
 		if (err) {
-			err("can't get prog info (%u): %s\n",
-			    id, strerror(errno));
+			p_err("can't get prog info (%u): %s",
+			      id, strerror(errno));
 			close(fd);
 			return -1;
 		}
@@ -142,14 +142,14 @@ int prog_parse_fd(int *argc, char ***argv)
 
 		id = strtoul(**argv, &endptr, 0);
 		if (*endptr) {
-			err("can't parse %s as ID\n", **argv);
+			p_err("can't parse %s as ID", **argv);
 			return -1;
 		}
 		NEXT_ARGP();
 
 		fd = bpf_prog_get_fd_by_id(id);
 		if (fd < 0)
-			err("get by id (%u): %s\n", id, strerror(errno));
+			p_err("get by id (%u): %s", id, strerror(errno));
 		return fd;
 	} else if (is_prefix(**argv, "tag")) {
 		unsigned char tag[BPF_TAG_SIZE];
@@ -159,7 +159,7 @@ int prog_parse_fd(int *argc, char ***argv)
 		if (sscanf(**argv, BPF_TAG_FMT, tag, tag + 1, tag + 2,
 			   tag + 3, tag + 4, tag + 5, tag + 6, tag + 7)
 		    != BPF_TAG_SIZE) {
-			err("can't parse tag\n");
+			p_err("can't parse tag");
 			return -1;
 		}
 		NEXT_ARGP();
@@ -176,7 +176,7 @@ int prog_parse_fd(int *argc, char ***argv)
 		return open_obj_pinned_any(path, BPF_OBJ_PROG);
 	}
 
-	err("expected 'id', 'tag' or 'pinned', got: '%s'?\n", **argv);
+	p_err("expected 'id', 'tag' or 'pinned', got: '%s'?", **argv);
 	return -1;
 }
 
@@ -311,7 +311,7 @@ static int show_prog(int fd)
 
 	err = bpf_obj_get_info_by_fd(fd, &info, &len);
 	if (err) {
-		err("can't get prog info: %s\n", strerror(errno));
+		p_err("can't get prog info: %s", strerror(errno));
 		return -1;
 	}
 
@@ -349,17 +349,16 @@ static int do_show(int argc, char **argv)
 				err = 0;
 				break;
 			}
-			err("can't get next program: %s\n", strerror(errno));
-			if (errno == EINVAL)
-				err("kernel too old?\n");
+			p_err("can't get next program: %s%s", strerror(errno),
+			      errno == EINVAL ? " -- kernel too old?" : "");
 			err = -1;
 			break;
 		}
 
 		fd = bpf_prog_get_fd_by_id(id);
 		if (fd < 0) {
-			err("can't get prog by id (%u): %s\n",
-			    id, strerror(errno));
+			p_err("can't get prog by id (%u): %s",
+			      id, strerror(errno));
 			err = -1;
 			break;
 		}
@@ -498,7 +497,7 @@ static int do_dump(int argc, char **argv)
 		member_len = &info.xlated_prog_len;
 		member_ptr = &info.xlated_prog_insns;
 	} else {
-		err("expected 'xlated' or 'jited', got: %s\n", *argv);
+		p_err("expected 'xlated' or 'jited', got: %s", *argv);
 		return -1;
 	}
 	NEXT_ARG();
@@ -513,7 +512,7 @@ static int do_dump(int argc, char **argv)
 	if (is_prefix(*argv, "file")) {
 		NEXT_ARG();
 		if (!argc) {
-			err("expected file path\n");
+			p_err("expected file path");
 			return -1;
 		}
 
@@ -531,12 +530,12 @@ static int do_dump(int argc, char **argv)
 
 	err = bpf_obj_get_info_by_fd(fd, &info, &len);
 	if (err) {
-		err("can't get prog info: %s\n", strerror(errno));
+		p_err("can't get prog info: %s", strerror(errno));
 		return -1;
 	}
 
 	if (!*member_len) {
-		info("no instructions returned\n");
+		p_info("no instructions returned");
 		close(fd);
 		return 0;
 	}
@@ -545,7 +544,7 @@ static int do_dump(int argc, char **argv)
 
 	buf = malloc(buf_size);
 	if (!buf) {
-		err("mem alloc failed\n");
+		p_err("mem alloc failed");
 		close(fd);
 		return -1;
 	}
@@ -558,28 +557,28 @@ static int do_dump(int argc, char **argv)
 	err = bpf_obj_get_info_by_fd(fd, &info, &len);
 	close(fd);
 	if (err) {
-		err("can't get prog info: %s\n", strerror(errno));
+		p_err("can't get prog info: %s", strerror(errno));
 		goto err_free;
 	}
 
 	if (*member_len > buf_size) {
-		err("too many instructions returned\n");
+		p_err("too many instructions returned");
 		goto err_free;
 	}
 
 	if (filepath) {
 		fd = open(filepath, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 		if (fd < 0) {
-			err("can't open file %s: %s\n", filepath,
-			    strerror(errno));
+			p_err("can't open file %s: %s", filepath,
+			      strerror(errno));
 			goto err_free;
 		}
 
 		n = write(fd, buf, *member_len);
 		close(fd);
 		if (n != *member_len) {
-			err("error writing output file: %s\n",
-			    n < 0 ? strerror(errno) : "short write");
+			p_err("error writing output file: %s",
+			      n < 0 ? strerror(errno) : "short write");
 			goto err_free;
 		}
 	} else {

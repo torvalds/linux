@@ -158,20 +158,20 @@ static int do_batch(int argc, char **argv)
 	int i;
 
 	if (argc < 2) {
-		err("too few parameters for batch\n");
+		p_err("too few parameters for batch");
 		return -1;
 	} else if (!is_prefix(*argv, "file")) {
-		err("expected 'file', got: %s\n", *argv);
+		p_err("expected 'file', got: %s", *argv);
 		return -1;
 	} else if (argc > 2) {
-		err("too many parameters for batch\n");
+		p_err("too many parameters for batch");
 		return -1;
 	}
 	NEXT_ARG();
 
 	fp = fopen(*argv, "r");
 	if (!fp) {
-		err("Can't open file (%s): %s\n", *argv, strerror(errno));
+		p_err("Can't open file (%s): %s", *argv, strerror(errno));
 		return -1;
 	}
 
@@ -189,8 +189,8 @@ static int do_batch(int argc, char **argv)
 		while (n_argv[n_argc]) {
 			n_argc++;
 			if (n_argc == ARRAY_SIZE(n_argv)) {
-				err("line %d has too many arguments, skip\n",
-				    lines);
+				p_err("line %d has too many arguments, skip",
+				      lines);
 				n_argc = 0;
 				break;
 			}
@@ -225,7 +225,7 @@ static int do_batch(int argc, char **argv)
 		perror("reading batch file failed");
 		err = -1;
 	} else {
-		info("processed %d lines\n", lines);
+		p_info("processed %d lines", lines);
 		err = 0;
 	}
 err_close:
@@ -279,7 +279,7 @@ int main(int argc, char **argv)
 	if (json_output) {
 		json_wtr = jsonw_new(stdout);
 		if (!json_wtr) {
-			err("failed to create JSON writer\n");
+			p_err("failed to create JSON writer");
 			return -1;
 		}
 		jsonw_pretty(json_wtr, pretty_output);
