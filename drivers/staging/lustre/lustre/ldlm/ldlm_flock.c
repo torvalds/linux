@@ -133,7 +133,6 @@ static int ldlm_process_flock_lock(struct ldlm_lock *req)
 	struct ldlm_lock *new2 = NULL;
 	enum ldlm_mode mode = req->l_req_mode;
 	int added = (mode == LCK_NL);
-	int overlaps = 0;
 	int splitted = 0;
 	const struct ldlm_callback_suite null_cbs = { };
 
@@ -225,8 +224,6 @@ reprocess:
 		if (new->l_policy_data.l_flock.end <
 		    lock->l_policy_data.l_flock.start)
 			break;
-
-		++overlaps;
 
 		if (new->l_policy_data.l_flock.start <=
 		    lock->l_policy_data.l_flock.start) {
