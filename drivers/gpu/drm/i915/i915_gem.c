@@ -3276,13 +3276,20 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	}
 }
 
+static inline bool
+new_requests_since_last_retire(const struct drm_i915_private *i915)
+{
+	return (READ_ONCE(i915->gt.active_requests) ||
+		work_pending(&i915->gt.idle_work.work));
+}
+
 static void
 i915_gem_idle_work_handler(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv), gt.idle_work.work);
-	struct drm_device *dev = &dev_priv->drm;
 	bool rearm_hangcheck;
+	ktime_t end;
 
 	if (!READ_ONCE(dev_priv->gt.awake))
 		return;
@@ -3291,14 +3298,21 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	 * Wait for last execlists context complete, but bail out in case a
 	 * new request is submitted.
 	 */
-	wait_for(intel_engines_are_idle(dev_priv), 10);
-	if (READ_ONCE(dev_priv->gt.active_requests))
-		return;
+	end = ktime_add_ms(ktime_get(), 200);
+	do {
+		if (new_requests_since_last_retire(dev_priv))
+			return;
+
+		if (intel_engines_are_idle(dev_priv))
+			break;
+
+		usleep_range(100, 500);
+	} while (ktime_before(ktime_get(), end));
 
 	rearm_hangcheck =
 		cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
 
-	if (!mutex_trylock(&dev->struct_mutex)) {
+	if (!mutex_trylock(&dev_priv->drm.struct_mutex)) {
 		/* Currently busy, come back later */
 		mod_delayed_work(dev_priv->wq,
 				 &dev_priv->gt.idle_work,
@@ -3310,13 +3324,14 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	 * New request retired after this work handler started, extend active
 	 * period until next instance of the work.
 	 */
-	if (work_pending(work))
+	if (new_requests_since_last_retire(dev_priv))
 		goto out_unlock;
 
-	if (dev_priv->gt.active_requests)
-		goto out_unlock;
-
-	if (wait_for(intel_engines_are_idle(dev_priv), 10))
+	/*
+	 * We are committed now to parking the engines, make sure there
+	 * will be no more interrupts arriving later.
+	 */
+	if (!intel_engines_are_idle(dev_priv))
 		DRM_ERROR("Timeout waiting for engines to idle\n");
 
 	intel_engines_mark_idle(dev_priv);
@@ -3330,7 +3345,7 @@ i915_gem_idle_work_handler(struct work_struct *work)
 		gen6_rps_idle(dev_priv);
 	intel_runtime_pm_put(dev_priv);
 out_unlock:
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 out_rearm:
 	if (rearm_hangcheck) {
