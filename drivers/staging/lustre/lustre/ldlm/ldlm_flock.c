@@ -123,8 +123,7 @@ ldlm_flock_destroy(struct ldlm_lock *lock, enum ldlm_mode mode, __u64 flags)
  *
  */
 static int ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags,
-				   enum ldlm_error *err,
-				   struct list_head *work_list)
+				   enum ldlm_error *err)
 {
 	struct ldlm_resource *res = req->l_resource;
 	struct ldlm_namespace *ns = ldlm_res_to_ns(res);
@@ -596,7 +595,7 @@ granted:
 		/* We need to reprocess the lock to do merges or splits
 		 * with existing locks owned by this process.
 		 */
-		ldlm_process_flock_lock(lock, &noreproc, &err, NULL);
+		ldlm_process_flock_lock(lock, &noreproc, &err);
 	}
 	unlock_res_and_lock(lock);
 	return rc;
