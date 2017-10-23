@@ -580,14 +580,12 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 	if (pipe_ctx->top_pipe && pipe_ctx->top_pipe->plane_state ==
 		pipe_ctx->plane_state) {
 		if (stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM) {
-			pipe_ctx->plane_res.scl_data.recout.height /= 2;
-			pipe_ctx->plane_res.scl_data.recout.y += pipe_ctx->plane_res.scl_data.recout.height;
 			/* Floor primary pipe, ceil 2ndary pipe */
-			pipe_ctx->plane_res.scl_data.recout.height += pipe_ctx->plane_res.scl_data.recout.height % 2;
+			pipe_ctx->plane_res.scl_data.recout.height = (pipe_ctx->plane_res.scl_data.recout.height + 1) / 2;
+			pipe_ctx->plane_res.scl_data.recout.y += pipe_ctx->plane_res.scl_data.recout.height;
 		} else {
-			pipe_ctx->plane_res.scl_data.recout.width /= 2;
+			pipe_ctx->plane_res.scl_data.recout.width = (pipe_ctx->plane_res.scl_data.recout.width + 1) / 2;
 			pipe_ctx->plane_res.scl_data.recout.x += pipe_ctx->plane_res.scl_data.recout.width;
-			pipe_ctx->plane_res.scl_data.recout.width += pipe_ctx->plane_res.scl_data.recout.width % 2;
 		}
 	} else if (pipe_ctx->bottom_pipe &&
 			pipe_ctx->bottom_pipe->plane_state == pipe_ctx->plane_state) {
