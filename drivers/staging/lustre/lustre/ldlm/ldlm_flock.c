@@ -122,8 +122,7 @@ ldlm_flock_destroy(struct ldlm_lock *lock, enum ldlm_mode mode, __u64 flags)
  * is released.
  *
  */
-static int ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags,
-				   enum ldlm_error *err)
+static int ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags)
 {
 	struct ldlm_resource *res = req->l_resource;
 	struct ldlm_namespace *ns = ldlm_res_to_ns(res);
@@ -144,8 +143,6 @@ static int ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags,
 	       new->l_policy_data.l_flock.pid, mode,
 	       req->l_policy_data.l_flock.start,
 	       req->l_policy_data.l_flock.end);
-
-	*err = ELDLM_OK;
 
 	/* No blocking ASTs are sent to the clients for
 	 * Posix file & record locks
@@ -192,7 +189,6 @@ reprocess:
 
 			if (*flags & LDLM_FL_BLOCK_NOWAIT) {
 				ldlm_flock_destroy(req, mode, *flags);
-				*err = -EAGAIN;
 				return LDLM_ITER_STOP;
 			}
 
@@ -330,7 +326,6 @@ reprocess:
 			if (IS_ERR(new2)) {
 				ldlm_flock_destroy(req, lock->l_granted_mode,
 						   *flags);
-				*err = PTR_ERR(new2);
 				return LDLM_ITER_STOP;
 			}
 			goto reprocess;
@@ -440,7 +435,6 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 	struct obd_import	      *imp = NULL;
 	struct ldlm_flock_wait_data     fwd;
 	struct l_wait_info	      lwi;
-	enum ldlm_error		    err;
 	int			     rc = 0;
 
 	OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_CP_CB_WAIT2, 4);
@@ -595,7 +589,7 @@ granted:
 		/* We need to reprocess the lock to do merges or splits
 		 * with existing locks owned by this process.
 		 */
-		ldlm_process_flock_lock(lock, &noreproc, &err);
+		ldlm_process_flock_lock(lock, &noreproc);
 	}
 	unlock_res_and_lock(lock);
 	return rc;
