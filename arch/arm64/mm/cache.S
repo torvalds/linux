@@ -60,16 +60,7 @@ user_alt 9f, "dc cvau, x4",  "dc civac, x4",  ARM64_WORKAROUND_CLEAN_CACHE
 	b.lo	1b
 	dsb	ish
 
-	icache_line_size x2, x3
-	sub	x3, x2, #1
-	bic	x4, x0, x3
-1:
-USER(9f, ic	ivau, x4	)		// invalidate I line PoU
-	add	x4, x4, x2
-	cmp	x4, x1
-	b.lo	1b
-	dsb	ish
-	isb
+	invalidate_icache_by_line x0, x1, x2, x3, 9f
 	mov	x0, #0
 1:
 	uaccess_ttbr0_disable x1
@@ -79,6 +70,27 @@ USER(9f, ic	ivau, x4	)		// invalidate I line PoU
 	b	1b
 ENDPROC(flush_icache_range)
 ENDPROC(__flush_cache_user_range)
+
+/*
+ *	invalidate_icache_range(start,end)
+ *
+ *	Ensure that the I cache is invalid within specified region.
+ *
+ *	- start   - virtual start address of region
+ *	- end     - virtual end address of region
+ */
+ENTRY(invalidate_icache_range)
+	uaccess_ttbr0_enable x2, x3
+
+	invalidate_icache_by_line x0, x1, x2, x3, 2f
+	mov	x0, xzr
+1:
+	uaccess_ttbr0_disable x1
+	ret
+2:
+	mov	x0, #-EFAULT
+	b	1b
+ENDPROC(invalidate_icache_range)
 
 /*
  *	__flush_dcache_area(kaddr, size)

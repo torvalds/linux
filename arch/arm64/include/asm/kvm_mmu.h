@@ -250,8 +250,8 @@ static inline void __invalidate_icache_guest_page(struct kvm_vcpu *vcpu,
 		/* PIPT or VPIPT at EL2 (see comment in __kvm_tlb_flush_vmid_ipa) */
 		void *va = page_address(pfn_to_page(pfn));
 
-		flush_icache_range((unsigned long)va,
-				   (unsigned long)va + size);
+		invalidate_icache_range((unsigned long)va,
+					(unsigned long)va + size);
 	}
 }
 
