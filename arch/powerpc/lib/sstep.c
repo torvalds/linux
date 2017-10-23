@@ -2717,6 +2717,7 @@ void emulate_update_regs(struct pt_regs *regs, struct instruction_op *op)
 	}
 	regs->nip = next_pc;
 }
+NOKPROBE_SYMBOL(emulate_update_regs);
 
 /*
  * Emulate a previously-analysed load or store instruction.
