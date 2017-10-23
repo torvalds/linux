@@ -720,7 +720,6 @@ static bool atmel_tdes_filter(struct dma_chan *chan, void *slave)
 static int atmel_tdes_dma_init(struct atmel_tdes_dev *dd,
 			struct crypto_platform_data *pdata)
 {
-	int err = -ENOMEM;
 	dma_cap_mask_t mask;
 
 	dma_cap_zero(mask);
@@ -765,7 +764,7 @@ err_dma_out:
 	dma_release_channel(dd->dma_lch_in.chan);
 err_dma_in:
 	dev_warn(dd->dev, "no DMA channel available\n");
-	return err;
+	return -ENODEV;
 }
 
 static void atmel_tdes_dma_cleanup(struct atmel_tdes_dev *dd)

@@ -2628,7 +2628,6 @@ static bool atmel_sha_filter(struct dma_chan *chan, void *slave)
 static int atmel_sha_dma_init(struct atmel_sha_dev *dd,
 				struct crypto_platform_data *pdata)
 {
-	int err = -ENOMEM;
 	dma_cap_mask_t mask_in;
 
 	/* Try to grab DMA channel */
@@ -2639,7 +2638,7 @@ static int atmel_sha_dma_init(struct atmel_sha_dev *dd,
 			atmel_sha_filter, &pdata->dma_slave->rxdata, dd->dev, "tx");
 	if (!dd->dma_lch_in.chan) {
 		dev_warn(dd->dev, "no DMA channel available\n");
-		return err;
+		return -ENODEV;
 	}
 
 	dd->dma_lch_in.dma_conf.direction = DMA_MEM_TO_DEV;

@@ -2383,7 +2383,6 @@ static int atmel_aes_dma_init(struct atmel_aes_dev *dd,
 			      struct crypto_platform_data *pdata)
 {
 	struct at_dma_slave *slave;
-	int err = -ENOMEM;
 	dma_cap_mask_t mask;
 
 	dma_cap_zero(mask);
@@ -2408,7 +2407,7 @@ err_dma_out:
 	dma_release_channel(dd->src.chan);
 err_dma_in:
 	dev_warn(dd->dev, "no DMA channel available\n");
-	return err;
+	return -ENODEV;
 }
 
 static void atmel_aes_dma_cleanup(struct atmel_aes_dev *dd)
