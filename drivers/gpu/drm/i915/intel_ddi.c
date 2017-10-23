@@ -2711,6 +2711,34 @@ intel_ddi_init_hdmi_connector(struct intel_digital_port *intel_dig_port)
 	return connector;
 }
 
+static bool intel_ddi_a_force_4_lanes(struct intel_digital_port *dport)
+{
+	struct drm_i915_private *dev_priv = to_i915(dport->base.base.dev);
+
+	if (dport->port != PORT_A)
+		return false;
+
+	if (dport->saved_port_bits & DDI_A_4_LANES)
+		return false;
+
+	/* Broxton/Geminilake: Bspec says that DDI_A_4_LANES is the only
+	 *                     supported configuration
+	 */
+	if (IS_GEN9_LP(dev_priv))
+		return true;
+
+	/* Cannonlake: Most of SKUs don't support DDI_E, and the only
+	 *             one who does also have a full A/E split called
+	 *             DDI_F what makes DDI_E useless. However for this
+	 *             case let's trust VBT info.
+	 */
+	if (IS_CANNONLAKE(dev_priv) &&
+	    !intel_bios_is_port_present(dev_priv, PORT_E))
+		return true;
+
+	return false;
+}
+
 void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 {
 	struct intel_digital_port *intel_dig_port;
@@ -2820,18 +2848,14 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	}
 
 	/*
-	 * Bspec says that DDI_A_4_LANES is the only supported configuration
-	 * for Broxton.  Yet some BIOS fail to set this bit on port A if eDP
-	 * wasn't lit up at boot.  Force this bit on in our internal
-	 * configuration so that we use the proper lane count for our
-	 * calculations.
+	 * Some BIOS might fail to set this bit on port A if eDP
+	 * wasn't lit up at boot.  Force this bit set when needed
+	 * so we use the proper lane count for our calculations.
 	 */
-	if (IS_GEN9_LP(dev_priv) && port == PORT_A) {
-		if (!(intel_dig_port->saved_port_bits & DDI_A_4_LANES)) {
-			DRM_DEBUG_KMS("BXT BIOS forgot to set DDI_A_4_LANES for port A; fixing\n");
-			intel_dig_port->saved_port_bits |= DDI_A_4_LANES;
-			max_lanes = 4;
-		}
+	if (intel_ddi_a_force_4_lanes(intel_dig_port)) {
+		DRM_DEBUG_KMS("Forcing DDI_A_4_LANES for port A\n");
+		intel_dig_port->saved_port_bits |= DDI_A_4_LANES;
+		max_lanes = 4;
 	}
 
 	intel_dig_port->max_lanes = max_lanes;
