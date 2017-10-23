@@ -115,8 +115,7 @@ static int ldlm_process_flock_lock(struct ldlm_lock *req)
 	struct ldlm_resource *res = req->l_resource;
 	struct ldlm_namespace *ns = ldlm_res_to_ns(res);
 	struct ldlm_lock *tmp;
-	struct ldlm_lock *ownlocks = NULL;
-	struct ldlm_lock *lock = NULL;
+	struct ldlm_lock *lock;
 	struct ldlm_lock *new = req;
 	struct ldlm_lock *new2 = NULL;
 	enum ldlm_mode mode = req->l_req_mode;
@@ -140,22 +139,14 @@ reprocess:
 	/* This loop determines where this processes locks start
 	 * in the resource lr_granted list.
 	 */
-	list_for_each_entry(lock, &res->lr_granted, l_res_link) {
-		if (ldlm_same_flock_owner(lock, req)) {
-			ownlocks = lock;
+	list_for_each_entry(lock, &res->lr_granted, l_res_link)
+		if (ldlm_same_flock_owner(lock, req))
 			break;
-		}
-	}
 
 	/* Scan the locks owned by this process to find the insertion point
 	 * (as locks are ordered), and to handle overlaps.
 	 * We may have to merge or split existing locks.
 	 */
-	if (ownlocks)
-		lock = ownlocks;
-	else
-		lock = list_entry(&res->lr_granted,
-				  struct ldlm_lock, l_res_link);
 	list_for_each_entry_safe_from(lock, tmp, &res->lr_granted, l_res_link) {
 
 		if (!ldlm_same_flock_owner(lock, new))
