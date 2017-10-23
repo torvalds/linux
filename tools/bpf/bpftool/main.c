@@ -70,11 +70,13 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s OBJECT { COMMAND | help }\n"
+		"Usage: %s [OPTIONS] OBJECT { COMMAND | help }\n"
 		"       %s batch file FILE\n"
 		"       %s version\n"
 		"\n"
-		"       OBJECT := { prog | map }\n",
+		"       OBJECT := { prog | map }\n"
+		"       " HELP_SPEC_OPTIONS "\n"
+		"",
 		bin_name, bin_name, bin_name);
 
 	return 0;

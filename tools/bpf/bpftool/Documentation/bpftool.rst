@@ -10,13 +10,16 @@ tool for inspection and simple manipulation of eBPF programs and maps
 SYNOPSIS
 ========
 
-	**bpftool** *OBJECT* { *COMMAND* | **help** }
+	**bpftool** [*OPTIONS*] *OBJECT* { *COMMAND* | **help** }
 
 	**bpftool** **batch file** *FILE*
 
 	**bpftool** **version**
 
 	*OBJECT* := { **map** | **program** }
+
+	*OPTIONS* := { { **-V** | **--version** } | { **-h** | **--help** }
+	| { **-j** | **--json** } [{ **-p** | **--pretty** }] }
 
 	*MAP-COMMANDS* :=
 	{ **show** | **dump** | **update** | **lookup** | **getnext** | **delete**
@@ -40,6 +43,13 @@ OPTIONS
 
 	-v, --version
 		  Print version number (similar to **bpftool version**).
+
+	-j, --json
+		  Generate JSON output. For commands that cannot produce JSON, this
+		  option has no effect.
+
+	-p, --pretty
+		  Generate human-readable JSON output. Implies **-j**.
 
 SEE ALSO
 ========

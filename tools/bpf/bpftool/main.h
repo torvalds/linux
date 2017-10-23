@@ -55,6 +55,8 @@
 
 #define HELP_SPEC_PROGRAM						\
 	"PROG := { id PROG_ID | pinned FILE | tag PROG_TAG }"
+#define HELP_SPEC_OPTIONS						\
+	"OPTIONS := { {-j|--json} [{-p|--pretty}] }"
 
 enum bpf_obj_type {
 	BPF_OBJ_UNKNOWN,

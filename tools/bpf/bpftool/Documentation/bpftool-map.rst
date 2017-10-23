@@ -10,7 +10,9 @@ tool for inspection and simple manipulation of eBPF maps
 SYNOPSIS
 ========
 
-	**bpftool** **map** *COMMAND*
+	**bpftool** [*OPTIONS*] **map** *COMMAND*
+
+	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] }
 
 	*COMMANDS* :=
 	{ **show** | **dump** | **update** | **lookup** | **getnext** | **delete**
@@ -76,6 +78,13 @@ OPTIONS
 
 	-v, --version
 		  Print version number (similar to **bpftool version**).
+
+	-j, --json
+		  Generate JSON output. For commands that cannot produce JSON, this
+		  option has no effect.
+
+	-p, --pretty
+		  Generate human-readable JSON output. Implies **-j**.
 
 EXAMPLES
 ========
