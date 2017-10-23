@@ -1465,13 +1465,8 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 		if (!sde->descq)
 			goto bail;
 		sde->tx_ring =
-			kcalloc(descq_cnt, sizeof(struct sdma_txreq *),
-				GFP_KERNEL);
-		if (!sde->tx_ring)
-			sde->tx_ring =
-				vzalloc(
-					sizeof(struct sdma_txreq *) *
-					descq_cnt);
+			kvzalloc_node(sizeof(struct sdma_txreq *) * descq_cnt,
+				      GFP_KERNEL, dd->node);
 		if (!sde->tx_ring)
 			goto bail;
 	}
