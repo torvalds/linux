@@ -419,7 +419,7 @@ static bool _rtl8822be_send_bcn_or_cmd_packet(struct ieee80211_hw *hw,
 		dma_addr = rtlpriv->cfg->ops->get_desc(
 				hw, (u8 *)pbd_desc, true, HW_DESC_TXBUFF_ADDR);
 
-		pci_unmap_single(rtlpci->pdev, dma_addr, skb->len,
+		pci_unmap_single(rtlpci->pdev, dma_addr, pskb->len,
 				 PCI_DMA_TODEVICE);
 		kfree_skb(pskb);
 
