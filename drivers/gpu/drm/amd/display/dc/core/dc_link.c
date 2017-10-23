@@ -480,22 +480,6 @@ static void detect_dp(
 		sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT;
 		detect_dp_sink_caps(link);
 
-		/* DP active dongles */
-		if (is_dp_active_dongle(link)) {
-			link->type = dc_connection_active_dongle;
-			if (!link->dpcd_caps.sink_count.bits.SINK_COUNT) {
-				/*
-				 * active dongle unplug processing for short irq
-				 */
-				link_disconnect_sink(link);
-				return;
-			}
-
-			if (link->dpcd_caps.dongle_type !=
-			DISPLAY_DONGLE_DP_HDMI_CONVERTER) {
-				*converter_disable_audio = true;
-			}
-		}
 		if (is_mst_supported(link)) {
 			sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT_MST;
 			link->type = dc_connection_mst_branch;
@@ -534,6 +518,22 @@ static void detect_dp(
 				link->type = dc_connection_single;
 				sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT;
 			}
+		}
+
+		if (link->type != dc_connection_mst_branch &&
+			is_dp_active_dongle(link)) {
+			/* DP active dongles */
+			link->type = dc_connection_active_dongle;
+			if (!link->dpcd_caps.sink_count.bits.SINK_COUNT) {
+				/*
+				 * active dongle unplug processing for short irq
+				 */
+				link_disconnect_sink(link);
+				return;
+			}
+
+			if (link->dpcd_caps.dongle_type != DISPLAY_DONGLE_DP_HDMI_CONVERTER)
+				*converter_disable_audio = true;
 		}
 	} else {
 		/* DP passive dongles */
