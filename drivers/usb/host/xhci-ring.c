@@ -1309,6 +1309,7 @@ static void xhci_complete_del_and_free_cmd(struct xhci_command *cmd, u32 status)
 void xhci_cleanup_command_queue(struct xhci_hcd *xhci)
 {
 	struct xhci_command *cur_cmd, *tmp_cmd;
+	xhci->current_cmd = NULL;
 	list_for_each_entry_safe(cur_cmd, tmp_cmd, &xhci->cmd_list, cmd_list)
 		xhci_complete_del_and_free_cmd(cur_cmd, COMP_COMMAND_ABORTED);
 }
@@ -2579,15 +2580,21 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 				(struct xhci_generic_trb *) ep_trb);
 
 		/*
-		 * No-op TRB should not trigger interrupts.
-		 * If ep_trb is a no-op TRB, it means the
-		 * corresponding TD has been cancelled. Just ignore
-		 * the TD.
+		 * No-op TRB could trigger interrupts in a case where
+		 * a URB was killed and a STALL_ERROR happens right
+		 * after the endpoint ring stopped. Reset the halted
+		 * endpoint. Otherwise, the endpoint remains stalled
+		 * indefinitely.
 		 */
 		if (trb_is_noop(ep_trb)) {
-			xhci_dbg(xhci,
-				 "ep_trb is a no-op TRB. Skip it for slot %u ep %u\n",
-				 slot_id, ep_index);
+			if (trb_comp_code == COMP_STALL_ERROR ||
+			    xhci_requires_manual_halt_cleanup(xhci, ep_ctx,
+							      trb_comp_code))
+				xhci_cleanup_halted_endpoint(xhci, slot_id,
+							     ep_index,
+							     ep_ring->stream_id,
+							     td, ep_trb,
+							     EP_HARD_RESET);
 			goto cleanup;
 		}
 
