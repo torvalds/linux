@@ -19,7 +19,7 @@
 #undef DEBUG
 
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/smp.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
