@@ -431,8 +431,8 @@ static void process_buffer_error(struct qdio_q *q, int count)
 	q->qdio_error = QDIO_ERROR_SLSB_STATE;
 
 	/* special handling for no target buffer empty */
-	if ((!q->is_input_q &&
-	    (q->sbal[q->first_to_check]->element[15].sflags) == 0x10)) {
+	if (queue_type(q) == QDIO_IQDIO_QFMT && !q->is_input_q &&
+	    q->sbal[q->first_to_check]->element[15].sflags == 0x10) {
 		qperf_inc(q, target_full);
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "OUTFULL FTC:%02x",
 			      q->first_to_check);
