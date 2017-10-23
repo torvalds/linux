@@ -1292,7 +1292,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 			  unsigned long fault_status)
 {
 	int ret;
-	bool write_fault, writable, hugetlb = false, force_pte = false;
+	bool write_fault, exec_fault, writable, hugetlb = false, force_pte = false;
 	unsigned long mmu_seq;
 	gfn_t gfn = fault_ipa >> PAGE_SHIFT;
 	struct kvm *kvm = vcpu->kvm;
@@ -1304,7 +1304,10 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	unsigned long flags = 0;
 
 	write_fault = kvm_is_write_fault(vcpu);
-	if (fault_status == FSC_PERM && !write_fault) {
+	exec_fault = kvm_vcpu_trap_is_iabt(vcpu);
+	VM_BUG_ON(write_fault && exec_fault);
+
+	if (fault_status == FSC_PERM && !write_fault && !exec_fault) {
 		kvm_err("Unexpected L2 read permission error\n");
 		return -EFAULT;
 	}
@@ -1398,7 +1401,11 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 			kvm_set_pfn_dirty(pfn);
 		}
 		clean_dcache_guest_page(vcpu, pfn, PMD_SIZE);
-		invalidate_icache_guest_page(vcpu, pfn, PMD_SIZE);
+
+		if (exec_fault) {
+			new_pmd = kvm_s2pmd_mkexec(new_pmd);
+			invalidate_icache_guest_page(vcpu, pfn, PMD_SIZE);
+		}
 
 		ret = stage2_set_pmd_huge(kvm, memcache, fault_ipa, &new_pmd);
 	} else {
@@ -1410,7 +1417,11 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 			mark_page_dirty(kvm, gfn);
 		}
 		clean_dcache_guest_page(vcpu, pfn, PAGE_SIZE);
-		invalidate_icache_guest_page(vcpu, pfn, PAGE_SIZE);
+
+		if (exec_fault) {
+			new_pte = kvm_s2pte_mkexec(new_pte);
+			invalidate_icache_guest_page(vcpu, pfn, PAGE_SIZE);
+		}
 
 		ret = stage2_set_pte(kvm, memcache, fault_ipa, &new_pte, flags);
 	}

@@ -85,6 +85,18 @@ static inline pmd_t kvm_s2pmd_mkwrite(pmd_t pmd)
 	return pmd;
 }
 
+static inline pte_t kvm_s2pte_mkexec(pte_t pte)
+{
+	pte_val(pte) &= ~L_PTE_XN;
+	return pte;
+}
+
+static inline pmd_t kvm_s2pmd_mkexec(pmd_t pmd)
+{
+	pmd_val(pmd) &= ~PMD_SECT_XN;
+	return pmd;
+}
+
 static inline void kvm_set_s2pte_readonly(pte_t *pte)
 {
 	pte_val(*pte) = (pte_val(*pte) & ~L_PTE_S2_RDWR) | L_PTE_S2_RDONLY;
