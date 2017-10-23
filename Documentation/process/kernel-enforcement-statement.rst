@@ -121,6 +121,7 @@ we might work for today, have in the past, or will in the future.
   - Ingo Molnar
   - Kuninori Morimoto
   - Trond Myklebust
+  - Martin K. Petersen (Oracle)
   - Borislav Petkov
   - Jiri Pirko
   - Josh Poimboeuf
