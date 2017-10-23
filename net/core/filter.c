@@ -1839,31 +1839,31 @@ static const struct bpf_func_proto bpf_redirect_proto = {
 	.arg2_type      = ARG_ANYTHING,
 };
 
-BPF_CALL_3(bpf_sk_redirect_map, struct bpf_map *, map, u32, key, u64, flags)
+BPF_CALL_4(bpf_sk_redirect_map, struct sk_buff *, skb,
+	   struct bpf_map *, map, u32, key, u64, flags)
 {
-	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
+	struct tcp_skb_cb *tcb = TCP_SKB_CB(skb);
 
 	if (unlikely(flags))
 		return SK_ABORTED;
 
-	ri->ifindex = key;
-	ri->flags = flags;
-	ri->map = map;
+	tcb->bpf.key = key;
+	tcb->bpf.flags = flags;
+	tcb->bpf.map = map;
 
 	return SK_REDIRECT;
 }
 
-struct sock *do_sk_redirect_map(void)
+struct sock *do_sk_redirect_map(struct sk_buff *skb)
 {
-	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
+	struct tcp_skb_cb *tcb = TCP_SKB_CB(skb);
 	struct sock *sk = NULL;
 
-	if (ri->map) {
-		sk = __sock_map_lookup_elem(ri->map, ri->ifindex);
+	if (tcb->bpf.map) {
+		sk = __sock_map_lookup_elem(tcb->bpf.map, tcb->bpf.key);
 
-		ri->ifindex = 0;
-		ri->map = NULL;
-		/* we do not clear flags for future lookup */
+		tcb->bpf.key = 0;
+		tcb->bpf.map = NULL;
 	}
 
 	return sk;
@@ -1873,9 +1873,10 @@ static const struct bpf_func_proto bpf_sk_redirect_map_proto = {
 	.func           = bpf_sk_redirect_map,
 	.gpl_only       = false,
 	.ret_type       = RET_INTEGER,
-	.arg1_type      = ARG_CONST_MAP_PTR,
-	.arg2_type      = ARG_ANYTHING,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type      = ARG_CONST_MAP_PTR,
 	.arg3_type      = ARG_ANYTHING,
+	.arg4_type      = ARG_ANYTHING,
 };
 
 BPF_CALL_1(bpf_get_cgroup_classid, const struct sk_buff *, skb)
@@ -3683,7 +3684,6 @@ static bool sk_skb_is_valid_access(int off, int size,
 {
 	if (type == BPF_WRITE) {
 		switch (off) {
-		case bpf_ctx_range(struct __sk_buff, mark):
 		case bpf_ctx_range(struct __sk_buff, tc_index):
 		case bpf_ctx_range(struct __sk_buff, priority):
 			break;
@@ -3693,6 +3693,7 @@ static bool sk_skb_is_valid_access(int off, int size,
 	}
 
 	switch (off) {
+	case bpf_ctx_range(struct __sk_buff, mark):
 	case bpf_ctx_range(struct __sk_buff, tc_classid):
 		return false;
 	case bpf_ctx_range(struct __sk_buff, data):

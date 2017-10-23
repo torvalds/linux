@@ -275,7 +275,7 @@ static int dwmac4_wrback_get_rx_timestamp_status(void *desc, u32 ats)
 					goto exit;
 				i++;
 
-			} while ((ret == 1) || (i < 10));
+			} while ((ret == 1) && (i < 10));
 
 			if (i == 10)
 				ret = -EBUSY;

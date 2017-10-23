@@ -30,9 +30,10 @@ static void __init i386_default_early_setup(void)
 
 asmlinkage __visible void __init i386_start_kernel(void)
 {
-	cr4_init_shadow();
-
+	/* Make sure IDT is set up before any exception happens */
 	idt_setup_early_handler();
+
+	cr4_init_shadow();
 
 	sanitize_boot_params(&boot_params);
 

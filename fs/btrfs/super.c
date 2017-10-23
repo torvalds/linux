@@ -1135,7 +1135,7 @@ static int btrfs_fill_super(struct super_block *sb,
 #ifdef CONFIG_BTRFS_FS_POSIX_ACL
 	sb->s_flags |= MS_POSIXACL;
 #endif
-	sb->s_flags |= MS_I_VERSION;
+	sb->s_flags |= SB_I_VERSION;
 	sb->s_iflags |= SB_I_CGROUPWB;
 
 	err = super_setup_bdi(sb);

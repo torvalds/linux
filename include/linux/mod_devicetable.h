@@ -293,6 +293,7 @@ struct pcmcia_device_id {
 #define INPUT_DEVICE_ID_SND_MAX		0x07
 #define INPUT_DEVICE_ID_FF_MAX		0x7f
 #define INPUT_DEVICE_ID_SW_MAX		0x0f
+#define INPUT_DEVICE_ID_PROP_MAX	0x1f
 
 #define INPUT_DEVICE_ID_MATCH_BUS	1
 #define INPUT_DEVICE_ID_MATCH_VENDOR	2
@@ -308,6 +309,7 @@ struct pcmcia_device_id {
 #define INPUT_DEVICE_ID_MATCH_SNDBIT	0x0400
 #define INPUT_DEVICE_ID_MATCH_FFBIT	0x0800
 #define INPUT_DEVICE_ID_MATCH_SWBIT	0x1000
+#define INPUT_DEVICE_ID_MATCH_PROPBIT	0x2000
 
 struct input_device_id {
 
@@ -327,6 +329,7 @@ struct input_device_id {
 	kernel_ulong_t sndbit[INPUT_DEVICE_ID_SND_MAX / BITS_PER_LONG + 1];
 	kernel_ulong_t ffbit[INPUT_DEVICE_ID_FF_MAX / BITS_PER_LONG + 1];
 	kernel_ulong_t swbit[INPUT_DEVICE_ID_SW_MAX / BITS_PER_LONG + 1];
+	kernel_ulong_t propbit[INPUT_DEVICE_ID_PROP_MAX / BITS_PER_LONG + 1];
 
 	kernel_ulong_t driver_info;
 };

@@ -8399,8 +8399,7 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 		lo = NFS_I(inode)->layout;
 		/* If the open stateid was bad, then recover it. */
 		if (!lo || test_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags) ||
-		    nfs4_stateid_match_other(&lgp->args.stateid,
-					&lgp->args.ctx->state->stateid)) {
+		    !nfs4_stateid_match_other(&lgp->args.stateid, &lo->plh_stateid)) {
 			spin_unlock(&inode->i_lock);
 			exception->state = lgp->args.ctx->state;
 			exception->stateid = &lgp->args.stateid;
