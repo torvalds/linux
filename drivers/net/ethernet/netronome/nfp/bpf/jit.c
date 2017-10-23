@@ -494,6 +494,12 @@ static swreg re_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, swreg tmp_reg)
 	return tmp_reg;
 }
 
+static void wrp_nops(struct nfp_prog *nfp_prog, unsigned int count)
+{
+	while (count--)
+		emit_nop(nfp_prog);
+}
+
 static void
 wrp_br_special(struct nfp_prog *nfp_prog, enum br_mask mask,
 	       enum br_special special)
@@ -1799,7 +1805,7 @@ static void nfp_outro(struct nfp_prog *nfp_prog)
 static int nfp_translate(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta;
-	int i, err;
+	int err;
 
 	nfp_intro(nfp_prog);
 	if (nfp_prog->error)
@@ -1831,8 +1837,7 @@ static int nfp_translate(struct nfp_prog *nfp_prog)
 	if (nfp_prog->error)
 		return nfp_prog->error;
 
-	for (i = 0; i < NFP_USTORE_PREFETCH_WINDOW; i++)
-		emit_nop(nfp_prog);
+	wrp_nops(nfp_prog, NFP_USTORE_PREFETCH_WINDOW);
 	if (nfp_prog->error)
 		return nfp_prog->error;
 
