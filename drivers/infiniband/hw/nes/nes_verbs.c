@@ -3819,7 +3819,7 @@ void  nes_port_ibevent(struct nes_vnic *nesvnic)
 	if (!nesvnic->event_timer.function) {
 		ib_dispatch_event(&event);
 		nesvnic->last_dispatched_event = event.event;
-		nesvnic->event_timer.function = (TIMER_FUNC_TYPE)nes_handle_delayed_event;
+		nesvnic->event_timer.function = nes_handle_delayed_event;
 		nesvnic->event_timer.expires = jiffies + NES_EVENT_DELAY;
 		add_timer(&nesvnic->event_timer);
 	} else {

@@ -554,7 +554,7 @@ qtnf_scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 		return -EFAULT;
 	}
 
-	mac->scan_timeout.function = (TIMER_FUNC_TYPE)qtnf_scan_timeout;
+	mac->scan_timeout.function = qtnf_scan_timeout;
 	mod_timer(&mac->scan_timeout,
 		  jiffies + QTNF_SCAN_TIMEOUT_SEC * HZ);
 

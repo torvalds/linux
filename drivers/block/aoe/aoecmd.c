@@ -1429,7 +1429,7 @@ aoecmd_ata_id(struct aoedev *d)
 
 	d->rttavg = RTTAVG_INIT;
 	d->rttdev = RTTDEV_INIT;
-	d->timer.function = (TIMER_FUNC_TYPE)rexmit_timer;
+	d->timer.function = rexmit_timer;
 
 	skb = skb_clone(skb, GFP_ATOMIC);
 	if (skb) {

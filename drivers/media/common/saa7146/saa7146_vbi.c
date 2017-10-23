@@ -402,7 +402,7 @@ static int vbi_open(struct saa7146_dev *dev, struct file *file)
 			    sizeof(struct saa7146_buf),
 			    file, &dev->v4l2_lock);
 
-	vv->vbi_read_timeout.function = (TIMER_FUNC_TYPE)vbi_read_timeout;
+	vv->vbi_read_timeout.function = vbi_read_timeout;
 	vv->vbi_read_timeout_file = file;
 
 	/* initialize the brs */

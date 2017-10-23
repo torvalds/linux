@@ -118,7 +118,7 @@ struct kthread_delayed_work {
 
 #define KTHREAD_DELAYED_WORK_INIT(dwork, fn) {				\
 	.work = KTHREAD_WORK_INIT((dwork).work, (fn)),			\
-	.timer = __TIMER_INITIALIZER((TIMER_FUNC_TYPE)kthread_delayed_work_timer_fn,\
+	.timer = __TIMER_INITIALIZER(kthread_delayed_work_timer_fn,\
 				     TIMER_IRQSAFE),			\
 	}
 

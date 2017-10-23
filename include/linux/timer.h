@@ -63,9 +63,6 @@ struct timer_list {
 
 #define TIMER_TRACE_FLAGMASK	(TIMER_MIGRATING | TIMER_DEFERRABLE | TIMER_PINNED | TIMER_IRQSAFE)
 
-#define TIMER_DATA_TYPE		struct timer_list *
-#define TIMER_FUNC_TYPE		void (*)(TIMER_DATA_TYPE)
-
 #define __TIMER_INITIALIZER(_function, _flags) {		\
 		.entry = { .next = TIMER_ENTRY_STATIC },	\
 		.function = (_function),			\
@@ -76,7 +73,7 @@ struct timer_list {
 
 #define DEFINE_TIMER(_name, _function)				\
 	struct timer_list _name =				\
-		__TIMER_INITIALIZER((TIMER_FUNC_TYPE)_function, 0)
+		__TIMER_INITIALIZER(_function, 0)
 
 /*
  * LOCKDEP and DEBUG timer interfaces.

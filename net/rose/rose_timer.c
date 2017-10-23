@@ -36,7 +36,7 @@ void rose_start_heartbeat(struct sock *sk)
 {
 	del_timer(&sk->sk_timer);
 
-	sk->sk_timer.function = (TIMER_FUNC_TYPE)rose_heartbeat_expiry;
+	sk->sk_timer.function = rose_heartbeat_expiry;
 	sk->sk_timer.expires  = jiffies + 5 * HZ;
 
 	add_timer(&sk->sk_timer);
@@ -48,7 +48,7 @@ void rose_start_t1timer(struct sock *sk)
 
 	del_timer(&rose->timer);
 
-	rose->timer.function = (TIMER_FUNC_TYPE)rose_timer_expiry;
+	rose->timer.function = rose_timer_expiry;
 	rose->timer.expires  = jiffies + rose->t1;
 
 	add_timer(&rose->timer);
@@ -60,7 +60,7 @@ void rose_start_t2timer(struct sock *sk)
 
 	del_timer(&rose->timer);
 
-	rose->timer.function = (TIMER_FUNC_TYPE)rose_timer_expiry;
+	rose->timer.function = rose_timer_expiry;
 	rose->timer.expires  = jiffies + rose->t2;
 
 	add_timer(&rose->timer);
@@ -72,7 +72,7 @@ void rose_start_t3timer(struct sock *sk)
 
 	del_timer(&rose->timer);
 
-	rose->timer.function = (TIMER_FUNC_TYPE)rose_timer_expiry;
+	rose->timer.function = rose_timer_expiry;
 	rose->timer.expires  = jiffies + rose->t3;
 
 	add_timer(&rose->timer);
@@ -84,7 +84,7 @@ void rose_start_hbtimer(struct sock *sk)
 
 	del_timer(&rose->timer);
 
-	rose->timer.function = (TIMER_FUNC_TYPE)rose_timer_expiry;
+	rose->timer.function = rose_timer_expiry;
 	rose->timer.expires  = jiffies + rose->hb;
 
 	add_timer(&rose->timer);
@@ -97,7 +97,7 @@ void rose_start_idletimer(struct sock *sk)
 	del_timer(&rose->idletimer);
 
 	if (rose->idle > 0) {
-		rose->idletimer.function = (TIMER_FUNC_TYPE)rose_idletimer_expiry;
+		rose->idletimer.function = rose_idletimer_expiry;
 		rose->idletimer.expires  = jiffies + rose->idle;
 
 		add_timer(&rose->idletimer);
