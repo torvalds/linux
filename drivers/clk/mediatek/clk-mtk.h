@@ -207,6 +207,8 @@ struct mtk_pll_data {
 	uint32_t en_mask;
 	uint32_t pd_reg;
 	uint32_t tuner_reg;
+	uint32_t tuner_en_reg;
+	uint8_t tuner_en_bit;
 	int pd_shift;
 	unsigned int flags;
 	const struct clk_ops *ops;
