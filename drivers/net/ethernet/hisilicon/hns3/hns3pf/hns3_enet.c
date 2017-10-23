@@ -1629,7 +1629,7 @@ static int is_valid_clean_head(struct hns3_enet_ring *ring, int h)
 	return u > c ? (h > c && h <= u) : (h > c || h <= u);
 }
 
-int hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget)
+bool hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget)
 {
 	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
 	struct netdev_queue *dev_queue;
@@ -1640,7 +1640,7 @@ int hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget)
 	rmb(); /* Make sure head is ready before touch any data */
 
 	if (is_ring_empty(ring) || head == ring->next_to_clean)
-		return 0; /* no data to poll */
+		return true; /* no data to poll */
 
 	if (!is_valid_clean_head(ring, head)) {
 		netdev_err(netdev, "wrong head (%d, %d-%d)\n", head,
@@ -1649,7 +1649,7 @@ int hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget)
 		u64_stats_update_begin(&ring->syncp);
 		ring->stats.io_err_cnt++;
 		u64_stats_update_end(&ring->syncp);
-		return -EIO;
+		return true;
 	}
 
 	bytes = 0;
