@@ -288,13 +288,17 @@ static int cpu_map_kthread_run(void *data)
 
 		/* Release CPU reschedule checks */
 		if (__ptr_ring_empty(rcpu->queue)) {
-			__set_current_state(TASK_INTERRUPTIBLE);
-			schedule();
-			sched = 1;
+			set_current_state(TASK_INTERRUPTIBLE);
+			/* Recheck to avoid lost wake-up */
+			if (__ptr_ring_empty(rcpu->queue)) {
+				schedule();
+				sched = 1;
+			} else {
+				__set_current_state(TASK_RUNNING);
+			}
 		} else {
 			sched = cond_resched();
 		}
-		__set_current_state(TASK_RUNNING);
 
 		/* Process packets in rcpu->queue */
 		local_bh_disable();
