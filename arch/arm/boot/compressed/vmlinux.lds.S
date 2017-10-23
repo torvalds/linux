@@ -56,6 +56,7 @@ SECTIONS
   .rodata : {
     *(.rodata)
     *(.rodata.*)
+    *(.data.rel.ro)
   }
   .piggydata : {
     *(.piggydata)
@@ -101,6 +102,12 @@ SECTIONS
    * this symbol allows further debug in the near future.
    */
   .image_end (NOLOAD) : {
+    /*
+     * EFI requires that the image is aligned to 512 bytes, and appended
+     * DTB requires that we know where the end of the image is.  Ensure
+     * that both are satisfied by ensuring that there are no additional
+     * sections emitted into the decompressor image.
+     */
     _edata_real = .;
   }
 
@@ -128,3 +135,4 @@ SECTIONS
   .stab.indexstr 0	: { *(.stab.indexstr) }
   .comment 0		: { *(.comment) }
 }
+ASSERT(_edata_real == _edata, "error: zImage file size is incorrect");
