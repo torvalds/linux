@@ -1869,7 +1869,7 @@ enum dc_status dc_link_validate_mode_timing(
 		const struct dc_crtc_timing *timing)
 {
 	uint32_t max_pix_clk = stream->sink->dongle_max_pix_clk;
-	struct dc_dongle_caps *dongle_caps = &link->link_status.dpcd_caps->dongle_caps;
+	struct dc_dongle_caps *dongle_caps = &link->dpcd_caps.dongle_caps;
 
 	/* A hack to avoid failing any modes for EDID override feature on
 	 * topology change such as lower quality cable for DP or different dongle

@@ -2127,7 +2127,7 @@ static void get_active_converter_info(
 
 				union dwnstream_port_caps_byte3_hdmi
 					hdmi_caps = {.raw = det_caps[3] };
-				union dwnstream_port_caps_byte1
+				union dwnstream_port_caps_byte2
 					hdmi_color_caps = {.raw = det_caps[2] };
 				link->dpcd_caps.dongle_caps.dp_hdmi_max_pixel_clk =
 					det_caps[1] * 25000;
