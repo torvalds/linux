@@ -2604,7 +2604,7 @@ static void *skd_alloc_dma(struct skd_device *skdev, struct kmem_cache *s,
 		return NULL;
 	*dma_handle = dma_map_single(dev, buf, s->size, dir);
 	if (dma_mapping_error(dev, *dma_handle)) {
-		kfree(buf);
+		kmem_cache_free(s, buf);
 		buf = NULL;
 	}
 	return buf;
