@@ -1444,8 +1444,6 @@ static int hns3_alloc_buffer(struct hns3_enet_ring *ring,
 	cb->length = hnae_page_size(ring);
 	cb->type = DESC_TYPE_PAGE;
 
-	memset(cb->buf, 0, cb->length);
-
 	return 0;
 }
 
