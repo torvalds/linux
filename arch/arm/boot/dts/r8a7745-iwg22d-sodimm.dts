@@ -67,6 +67,12 @@
 	status = "okay";
 };
 
+&hsusb {
+	status = "okay";
+	pinctrl-0 = <&usb0_pins>;
+	pinctrl-names = "default";
+};
+
 &pci1 {
 	status = "okay";
 	pinctrl-0 = <&usb1_pins>;
@@ -93,6 +99,11 @@
 		groups = "sdhi0_data4", "sdhi0_ctrl";
 		function = "sdhi0";
 		power-source = <3300>;
+	};
+
+	usb0_pins: usb0 {
+		groups = "usb0";
+		function = "usb0";
 	};
 
 	usb1_pins: usb1 {
