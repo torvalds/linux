@@ -432,6 +432,9 @@ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 	err = dquot_initialize(dir);
 	if (err)
 		return err;
+	err = dquot_initialize(inode);
+	if (err)
+		return err;
 
 	de = f2fs_find_entry(dir, &dentry->d_name, &page);
 	if (!de) {
@@ -808,6 +811,12 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	err = dquot_initialize(new_dir);
 	if (err)
 		goto out;
+
+	if (new_inode) {
+		err = dquot_initialize(new_inode);
+		if (err)
+			goto out;
+	}
 
 	old_entry = f2fs_find_entry(old_dir, &old_dentry->d_name, &old_page);
 	if (!old_entry) {
