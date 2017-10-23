@@ -771,9 +771,10 @@ wrp_lmem_store(struct nfp_prog *nfp_prog, u8 src, u8 src_byte, s32 off,
 
 static int
 mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
-	     unsigned int size, u8 gpr, bool clr_gpr, lmem_step step)
+	     unsigned int size, unsigned int ptr_off, u8 gpr, bool clr_gpr,
+	     lmem_step step)
 {
-	s32 off = nfp_prog->stack_depth + meta->insn.off;
+	s32 off = nfp_prog->stack_depth + meta->insn.off + ptr_off;
 	bool first = true, last;
 	u8 prev_gpr = 255;
 	u32 gpr_byte = 0;
@@ -1311,10 +1312,10 @@ static int data_ind_ld4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int
 mem_ldx_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
-	      unsigned int size)
+	      unsigned int size, unsigned int ptr_off)
 {
-	return mem_op_stack(nfp_prog, meta, size, meta->insn.dst_reg * 2, true,
-			    wrp_lmem_load);
+	return mem_op_stack(nfp_prog, meta, size, ptr_off,
+			    meta->insn.dst_reg * 2, true, wrp_lmem_load);
 }
 
 static int mem_ldx_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
@@ -1401,7 +1402,8 @@ mem_ldx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		return mem_ldx_data(nfp_prog, meta, size);
 
 	if (meta->ptr.type == PTR_TO_STACK)
-		return mem_ldx_stack(nfp_prog, meta, size);
+		return mem_ldx_stack(nfp_prog, meta, size,
+				     meta->ptr.off + meta->ptr.var_off.value);
 
 	return -EOPNOTSUPP;
 }
@@ -1482,10 +1484,10 @@ mem_stx_data(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 static int
 mem_stx_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
-	      unsigned int size)
+	      unsigned int size, unsigned int ptr_off)
 {
-	return mem_op_stack(nfp_prog, meta, size, meta->insn.src_reg * 2, false,
-			    wrp_lmem_store);
+	return mem_op_stack(nfp_prog, meta, size, ptr_off,
+			    meta->insn.src_reg * 2, false, wrp_lmem_store);
 }
 
 static int
@@ -1496,7 +1498,8 @@ mem_stx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		return mem_stx_data(nfp_prog, meta, size);
 
 	if (meta->ptr.type == PTR_TO_STACK)
-		return mem_stx_stack(nfp_prog, meta, size);
+		return mem_stx_stack(nfp_prog, meta, size,
+				     meta->ptr.off + meta->ptr.var_off.value);
 
 	return -EOPNOTSUPP;
 }

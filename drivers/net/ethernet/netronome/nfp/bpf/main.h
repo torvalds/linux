@@ -56,6 +56,7 @@ enum br_special {
 
 enum static_regs {
 	STATIC_REG_IMM		= 21, /* Bank AB */
+	STATIC_REG_STACK	= 22, /* Bank A */
 	STATIC_REG_PKT_LEN	= 22, /* Bank B */
 };
 
@@ -74,6 +75,8 @@ enum nfp_bpf_action_type {
 #define pv_len(np)	reg_lm(1, PKT_VEC_PKT_LEN)
 #define pv_ctm_ptr(np)	reg_lm(1, PKT_VEC_PKT_PTR)
 
+#define stack_reg(np)	reg_a(STATIC_REG_STACK)
+#define stack_imm(np)	imm_b(np)
 #define plen_reg(np)	reg_b(STATIC_REG_PKT_LEN)
 #define pptr_reg(np)	pv_ctm_ptr(np)
 #define imm_a(np)	reg_a(STATIC_REG_IMM)

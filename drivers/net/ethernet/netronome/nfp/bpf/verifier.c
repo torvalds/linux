@@ -111,19 +111,29 @@ nfp_bpf_check_exit(struct nfp_prog *nfp_prog,
 	return 0;
 }
 
-static int nfp_bpf_check_stack_access(const struct bpf_reg_state *reg)
+static int
+nfp_bpf_check_stack_access(struct nfp_insn_meta *meta,
+			   const struct bpf_reg_state *reg)
 {
+	s32 old_off, new_off;
+
 	if (!tnum_is_const(reg->var_off)) {
 		pr_info("variable ptr stack access\n");
 		return -EINVAL;
 	}
 
-	if (reg->var_off.value || reg->off) {
-		pr_info("stack access via modified register\n");
-		return -EINVAL;
-	}
+	if (meta->ptr.type == NOT_INIT)
+		return 0;
 
-	return 0;
+	old_off = meta->ptr.off + meta->ptr.var_off.value;
+	new_off = reg->off + reg->var_off.value;
+
+	if (old_off == new_off)
+		return 0;
+
+	pr_info("stack access changed location was:%d is:%d\n",
+		old_off, new_off);
+	return -EINVAL;
 }
 
 static int
@@ -141,7 +151,7 @@ nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	}
 
 	if (reg->type == PTR_TO_STACK) {
-		err = nfp_bpf_check_stack_access(reg);
+		err = nfp_bpf_check_stack_access(meta, reg);
 		if (err)
 			return err;
 	}
