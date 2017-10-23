@@ -2777,8 +2777,6 @@ static int atmel_sha_probe(struct platform_device *pdev)
 
 	crypto_init_queue(&sha_dd->queue, ATMEL_SHA_QUEUE_LENGTH);
 
-	sha_dd->irq = -1;
-
 	/* Get the base address */
 	sha_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!sha_res) {

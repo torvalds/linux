@@ -2658,8 +2658,6 @@ static int atmel_aes_probe(struct platform_device *pdev)
 
 	crypto_init_queue(&aes_dd->queue, ATMEL_AES_QUEUE_LENGTH);
 
-	aes_dd->irq = -1;
-
 	/* Get the base address */
 	aes_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!aes_res) {

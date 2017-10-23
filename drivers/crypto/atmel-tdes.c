@@ -1381,8 +1381,6 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 
 	crypto_init_queue(&tdes_dd->queue, ATMEL_TDES_QUEUE_LENGTH);
 
-	tdes_dd->irq = -1;
-
 	/* Get the base address */
 	tdes_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!tdes_res) {
