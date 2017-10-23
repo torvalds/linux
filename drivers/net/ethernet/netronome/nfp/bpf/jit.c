@@ -1384,19 +1384,28 @@ static int end_reg32(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int imm_ld8_part2(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	wrp_immed(nfp_prog, reg_both(nfp_meta_prev(meta)->insn.dst_reg * 2 + 1),
-		  meta->insn.imm);
+	struct nfp_insn_meta *prev = nfp_meta_prev(meta);
+	u32 imm_lo, imm_hi;
+	u8 dst;
+
+	dst = prev->insn.dst_reg * 2;
+	imm_lo = prev->insn.imm;
+	imm_hi = meta->insn.imm;
+
+	wrp_immed(nfp_prog, reg_both(dst), imm_lo);
+
+	/* mov is always 1 insn, load imm may be two, so try to use mov */
+	if (imm_hi == imm_lo)
+		wrp_mov(nfp_prog, reg_both(dst + 1), reg_a(dst));
+	else
+		wrp_immed(nfp_prog, reg_both(dst + 1), imm_hi);
 
 	return 0;
 }
 
 static int imm_ld8(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	const struct bpf_insn *insn = &meta->insn;
-
 	meta->double_cb = imm_ld8_part2;
-	wrp_immed(nfp_prog, reg_both(insn->dst_reg * 2), insn->imm);
-
 	return 0;
 }
 
