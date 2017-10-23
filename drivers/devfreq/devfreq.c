@@ -69,6 +69,34 @@ static struct devfreq *find_device_devfreq(struct device *dev)
 	return ERR_PTR(-ENODEV);
 }
 
+static unsigned long find_available_min_freq(struct devfreq *devfreq)
+{
+	struct dev_pm_opp *opp;
+	unsigned long min_freq = 0;
+
+	opp = dev_pm_opp_find_freq_ceil(devfreq->dev.parent, &min_freq);
+	if (IS_ERR(opp))
+		min_freq = 0;
+	else
+		dev_pm_opp_put(opp);
+
+	return min_freq;
+}
+
+static unsigned long find_available_max_freq(struct devfreq *devfreq)
+{
+	struct dev_pm_opp *opp;
+	unsigned long max_freq = ULONG_MAX;
+
+	opp = dev_pm_opp_find_freq_floor(devfreq->dev.parent, &max_freq);
+	if (IS_ERR(opp))
+		max_freq = 0;
+	else
+		dev_pm_opp_put(opp);
+
+	return max_freq;
+}
+
 /**
  * devfreq_get_freq_level() - Lookup freq_table for the frequency
  * @devfreq:	the devfreq instance
@@ -557,6 +585,20 @@ struct devfreq *devfreq_add_device(struct device *dev,
 		mutex_unlock(&devfreq->lock);
 		devfreq_set_freq_table(devfreq);
 		mutex_lock(&devfreq->lock);
+	}
+
+	devfreq->min_freq = find_available_min_freq(devfreq);
+	if (!devfreq->min_freq) {
+		mutex_unlock(&devfreq->lock);
+		err = -EINVAL;
+		goto err_dev;
+	}
+
+	devfreq->max_freq = find_available_max_freq(devfreq);
+	if (!devfreq->max_freq) {
+		mutex_unlock(&devfreq->lock);
+		err = -EINVAL;
+		goto err_dev;
 	}
 
 	dev_set_name(&devfreq->dev, "devfreq%d",
