@@ -644,11 +644,65 @@ data_st_host_order(struct nfp_prog *nfp_prog, u8 dst_gpr, swreg offset,
 
 typedef int
 (*lmem_step)(struct nfp_prog *nfp_prog, u8 gpr, u8 gpr_byte, s32 off,
-	     unsigned int size);
+	     unsigned int size, bool new_gpr);
+
+static int
+wrp_lmem_load(struct nfp_prog *nfp_prog, u8 dst, u8 dst_byte, s32 off,
+	      unsigned int size, bool new_gpr)
+{
+	u32 idx, src_byte;
+	enum shf_sc sc;
+	swreg reg;
+	int shf;
+	u8 mask;
+
+	if (WARN_ON_ONCE(dst_byte + size > 4 || off % 4 + size > 4))
+		return -EOPNOTSUPP;
+
+	idx = off / 4;
+
+	/* Move the entire word */
+	if (size == 4) {
+		wrp_mov(nfp_prog, reg_both(dst), reg_lm(0, idx));
+		return 0;
+	}
+
+	src_byte = off % 4;
+
+	mask = (1 << size) - 1;
+	mask <<= dst_byte;
+
+	if (WARN_ON_ONCE(mask > 0xf))
+		return -EOPNOTSUPP;
+
+	shf = abs(src_byte - dst_byte) * 8;
+	if (src_byte == dst_byte) {
+		sc = SHF_SC_NONE;
+	} else if (src_byte < dst_byte) {
+		shf = 32 - shf;
+		sc = SHF_SC_L_SHF;
+	} else {
+		sc = SHF_SC_R_SHF;
+	}
+
+	/* ld_field can address fewer indexes, if offset too large do RMW.
+	 * Because we RMV twice we waste 2 cycles on unaligned 8 byte writes.
+	 */
+	if (idx <= RE_REG_LM_IDX_MAX) {
+		reg = reg_lm(0, idx);
+	} else {
+		reg = imm_a(nfp_prog);
+		wrp_mov(nfp_prog, reg, reg_lm(0, idx));
+	}
+
+	emit_ld_field_any(nfp_prog, reg_both(dst), mask, reg, sc, shf, new_gpr);
+
+	return 0;
+}
 
 static int
 wrp_lmem_store(struct nfp_prog *nfp_prog, u8 src, u8 src_byte, s32 off,
-	       unsigned int size)
+	       unsigned int size, bool new_gpr)
 {
 	u32 idx, dst_byte;
 	enum shf_sc sc;
@@ -705,11 +759,15 @@ wrp_lmem_store(struct nfp_prog *nfp_prog, u8 src, u8 src_byte, s32 off,
 
 static int
 mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
-	     unsigned int size, u8 gpr, lmem_step step)
+	     unsigned int size, u8 gpr, bool clr_gpr, lmem_step step)
 {
 	s32 off = nfp_prog->stack_depth + meta->insn.off;
+	u8 prev_gpr = 255;
 	u32 gpr_byte = 0;
 	int ret;
+
+	if (clr_gpr && size < 8)
+		wrp_immed(nfp_prog, reg_both(gpr + 1), 0);
 
 	while (size) {
 		u32 slice_end;
@@ -719,10 +777,12 @@ mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		slice_end = min(off + slice_size, round_up(off + 1, 4));
 		slice_size = slice_end - off;
 
-		ret = step(nfp_prog, gpr, gpr_byte, off, slice_size);
+		ret = step(nfp_prog, gpr, gpr_byte, off, slice_size,
+			   gpr != prev_gpr);
 		if (ret)
 			return ret;
 
+		prev_gpr = gpr;
 		gpr_byte += slice_size;
 		if (gpr_byte >= 4) {
 			gpr_byte -= 4;
@@ -1232,6 +1292,14 @@ static int data_ind_ld4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 				     meta->insn.src_reg * 2, 4);
 }
 
+static int
+mem_ldx_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+	      unsigned int size)
+{
+	return mem_op_stack(nfp_prog, meta, size, meta->insn.dst_reg * 2, true,
+			    wrp_lmem_load);
+}
+
 static int mem_ldx_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		       u8 size)
 {
@@ -1315,6 +1383,9 @@ mem_ldx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	if (meta->ptr.type == PTR_TO_PACKET)
 		return mem_ldx_data(nfp_prog, meta, size);
 
+	if (meta->ptr.type == PTR_TO_STACK)
+		return mem_ldx_stack(nfp_prog, meta, size);
+
 	return -EOPNOTSUPP;
 }
 
@@ -1396,7 +1467,7 @@ static int
 mem_stx_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	      unsigned int size)
 {
-	return mem_op_stack(nfp_prog, meta, size, meta->insn.src_reg * 2,
+	return mem_op_stack(nfp_prog, meta, size, meta->insn.src_reg * 2, false,
 			    wrp_lmem_store);
 }
 
