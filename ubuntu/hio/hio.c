@@ -4135,7 +4135,10 @@ static void ssd_end_io_acct(struct ssd_cmd *cmd)
 	unsigned long flag;
 #endif
 	
-#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)) || (defined RHEL_MAJOR && RHEL_MAJOR == 6 && RHEL_MINOR >= 7))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
+	struct hd_struct *part = disk_map_sector_rcu(dev->gd, bio_start(bio));
+	generic_end_io_acct(dev->rq, rw, part, cmd->start_time);
+#elif ((LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)) || (defined RHEL_MAJOR && RHEL_MAJOR == 6 && RHEL_MINOR >= 7))
 	int cpu = part_stat_lock();
 	struct hd_struct *part = disk_map_sector_rcu(dev->gd, bio_start(bio));
 	part_round_stats(cpu, part);
@@ -4192,7 +4195,10 @@ static void ssd_start_io_acct(struct ssd_cmd *cmd)
 	unsigned long flag;
 #endif
 
-#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)) || (defined RHEL_MAJOR && RHEL_MAJOR == 6 && RHEL_MINOR >= 7))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
+	struct hd_struct *part = disk_map_sector_rcu(dev->gd, bio_start(bio));
+	generic_start_io_acct(dev->rq, rw, bio_sectors(bio), part);
+#elif ((LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)) || (defined RHEL_MAJOR && RHEL_MAJOR == 6 && RHEL_MINOR >= 7))
 	int cpu = part_stat_lock();
 	struct hd_struct *part = disk_map_sector_rcu(dev->gd, bio_start(bio));
 	part_round_stats(cpu, part);
@@ -6088,7 +6094,11 @@ static int ssd_update_smart(struct ssd_device *dev, struct ssd_smart *smart)
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,27))
 	cpu = part_stat_lock();
 	part = &dev->gd->part0;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
+	part_round_stats(dev->rq, cpu, part);
+#else
 	part_round_stats(cpu, part);
+#endif
 	part_stat_unlock();
 
 	smart->io_stat.nr_read += part_stat_read(part, ios[READ]);
