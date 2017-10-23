@@ -4004,6 +4004,11 @@ static int dwc2_hsotg_ep_disable(struct usb_ep *ep)
 		return -EINVAL;
 	}
 
+	if (hsotg->op_state != OTG_STATE_B_PERIPHERAL) {
+		dev_err(hsotg->dev, "%s: called in host mode?\n", __func__);
+		return -EINVAL;
+	}
+
 	epctrl_reg = dir_in ? DIEPCTL(index) : DOEPCTL(index);
 
 	spin_lock_irqsave(&hsotg->lock, flags);
