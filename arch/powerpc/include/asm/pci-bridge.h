@@ -197,8 +197,6 @@ struct pci_dn {
 	struct	iommu_table_group *table_group;	/* for phb's or bridges */
 
 	int	pci_ext_config_space;	/* for pci devices */
-
-	struct	pci_dev *pcidev;	/* back-pointer to the pci device */
 #ifdef CONFIG_EEH
 	struct eeh_dev *edev;		/* eeh device */
 #endif
