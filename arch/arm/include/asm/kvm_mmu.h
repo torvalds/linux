@@ -150,9 +150,7 @@ static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
 	return (vcpu_cp15(vcpu, c1_SCTLR) & 0b101) == 0b101;
 }
 
-static inline void __clean_dcache_guest_page(struct kvm_vcpu *vcpu,
-					     kvm_pfn_t pfn,
-					     unsigned long size)
+static inline void __clean_dcache_guest_page(kvm_pfn_t pfn, unsigned long size)
 {
 	/*
 	 * Clean the dcache to the Point of Coherency.
@@ -177,8 +175,7 @@ static inline void __clean_dcache_guest_page(struct kvm_vcpu *vcpu,
 	}
 }
 
-static inline void __invalidate_icache_guest_page(struct kvm_vcpu *vcpu,
-						  kvm_pfn_t pfn,
+static inline void __invalidate_icache_guest_page(kvm_pfn_t pfn,
 						  unsigned long size)
 {
 	u32 iclsz;

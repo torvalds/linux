@@ -1276,16 +1276,14 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 	kvm_mmu_write_protect_pt_masked(kvm, slot, gfn_offset, mask);
 }
 
-static void clean_dcache_guest_page(struct kvm_vcpu *vcpu, kvm_pfn_t pfn,
-				    unsigned long size)
+static void clean_dcache_guest_page(kvm_pfn_t pfn, unsigned long size)
 {
-	__clean_dcache_guest_page(vcpu, pfn, size);
+	__clean_dcache_guest_page(pfn, size);
 }
 
-static void invalidate_icache_guest_page(struct kvm_vcpu *vcpu, kvm_pfn_t pfn,
-					 unsigned long size)
+static void invalidate_icache_guest_page(kvm_pfn_t pfn, unsigned long size)
 {
-	__invalidate_icache_guest_page(vcpu, pfn, size);
+	__invalidate_icache_guest_page(pfn, size);
 }
 
 static void kvm_send_hwpoison_signal(unsigned long address,
@@ -1421,11 +1419,11 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		}
 
 		if (fault_status != FSC_PERM)
-			clean_dcache_guest_page(vcpu, pfn, PMD_SIZE);
+			clean_dcache_guest_page(pfn, PMD_SIZE);
 
 		if (exec_fault) {
 			new_pmd = kvm_s2pmd_mkexec(new_pmd);
-			invalidate_icache_guest_page(vcpu, pfn, PMD_SIZE);
+			invalidate_icache_guest_page(pfn, PMD_SIZE);
 		} else if (fault_status == FSC_PERM) {
 			/* Preserve execute if XN was already cleared */
 			if (stage2_is_exec(kvm, fault_ipa))
@@ -1443,11 +1441,11 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		}
 
 		if (fault_status != FSC_PERM)
-			clean_dcache_guest_page(vcpu, pfn, PAGE_SIZE);
+			clean_dcache_guest_page(pfn, PAGE_SIZE);
 
 		if (exec_fault) {
 			new_pte = kvm_s2pte_mkexec(new_pte);
-			invalidate_icache_guest_page(vcpu, pfn, PAGE_SIZE);
+			invalidate_icache_guest_page(pfn, PAGE_SIZE);
 		} else if (fault_status == FSC_PERM) {
 			/* Preserve execute if XN was already cleared */
 			if (stage2_is_exec(kvm, fault_ipa))
