@@ -156,6 +156,14 @@ void jsonw_name(json_writer_t *self, const char *name)
 		putc(' ', self->out);
 }
 
+void jsonw_vprintf_enquote(json_writer_t *self, const char *fmt, va_list ap)
+{
+	jsonw_eor(self);
+	putc('"', self->out);
+	vfprintf(self->out, fmt, ap);
+	putc('"', self->out);
+}
+
 void jsonw_printf(json_writer_t *self, const char *fmt, ...)
 {
 	va_list ap;

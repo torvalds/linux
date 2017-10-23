@@ -95,5 +95,6 @@ int do_map(int argc, char **arg);
 int prog_parse_fd(int *argc, char ***argv);
 
 void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes);
+void print_hex_data_json(uint8_t *data, size_t len);
 
 #endif

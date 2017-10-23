@@ -385,7 +385,7 @@ static void print_insn(struct bpf_verifier_env *env, const char *fmt, ...)
 	va_end(args);
 }
 
-static void dump_xlated(void *buf, unsigned int len, bool opcodes)
+static void dump_xlated_plain(void *buf, unsigned int len, bool opcodes)
 {
 	struct bpf_insn *insn = buf;
 	bool double_insn = false;
@@ -412,6 +412,69 @@ static void dump_xlated(void *buf, unsigned int len, bool opcodes)
 			printf("\n");
 		}
 	}
+}
+
+static void print_insn_json(struct bpf_verifier_env *env, const char *fmt, ...)
+{
+	unsigned int l = strlen(fmt);
+	char chomped_fmt[l];
+	va_list args;
+
+	va_start(args, fmt);
+	if (l > 0) {
+		strncpy(chomped_fmt, fmt, l - 1);
+		chomped_fmt[l - 1] = '\0';
+	}
+	jsonw_vprintf_enquote(json_wtr, chomped_fmt, args);
+	va_end(args);
+}
+
+static void dump_xlated_json(void *buf, unsigned int len, bool opcodes)
+{
+	struct bpf_insn *insn = buf;
+	bool double_insn = false;
+	unsigned int i;
+
+	jsonw_start_array(json_wtr);
+	for (i = 0; i < len / sizeof(*insn); i++) {
+		if (double_insn) {
+			double_insn = false;
+			continue;
+		}
+		double_insn = insn[i].code == (BPF_LD | BPF_IMM | BPF_DW);
+
+		jsonw_start_object(json_wtr);
+		jsonw_name(json_wtr, "disasm");
+		print_bpf_insn(print_insn_json, NULL, insn + i, true);
+
+		if (opcodes) {
+			jsonw_name(json_wtr, "opcodes");
+			jsonw_start_object(json_wtr);
+
+			jsonw_name(json_wtr, "code");
+			jsonw_printf(json_wtr, "\"0x%02hhx\"", insn[i].code);
+
+			jsonw_name(json_wtr, "src_reg");
+			jsonw_printf(json_wtr, "\"0x%hhx\"", insn[i].src_reg);
+
+			jsonw_name(json_wtr, "dst_reg");
+			jsonw_printf(json_wtr, "\"0x%hhx\"", insn[i].dst_reg);
+
+			jsonw_name(json_wtr, "off");
+			print_hex_data_json((uint8_t *)(&insn[i].off), 2);
+
+			jsonw_name(json_wtr, "imm");
+			if (double_insn && i < len - 1)
+				print_hex_data_json((uint8_t *)(&insn[i].imm),
+						    12);
+			else
+				print_hex_data_json((uint8_t *)(&insn[i].imm),
+						    4);
+			jsonw_end_object(json_wtr);
+		}
+		jsonw_end_object(json_wtr);
+	}
+	jsonw_end_array(json_wtr);
 }
 
 static int do_dump(int argc, char **argv)
@@ -523,7 +586,10 @@ static int do_dump(int argc, char **argv)
 		if (member_len == &info.jited_prog_len)
 			disasm_print_insn(buf, *member_len, opcodes);
 		else
-			dump_xlated(buf, *member_len, opcodes);
+			if (json_output)
+				dump_xlated_json(buf, *member_len, opcodes);
+			else
+				dump_xlated_plain(buf, *member_len, opcodes);
 	}
 
 	free(buf);

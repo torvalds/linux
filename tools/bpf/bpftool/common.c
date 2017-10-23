@@ -214,3 +214,13 @@ char *get_fdinfo(int fd, const char *key)
 	fclose(fdi);
 	return NULL;
 }
+
+void print_hex_data_json(uint8_t *data, size_t len)
+{
+	unsigned int i;
+
+	jsonw_start_array(json_wtr);
+	for (i = 0; i < len; i++)
+		jsonw_printf(json_wtr, "\"0x%02hhx\"", data[i]);
+	jsonw_end_array(json_wtr);
+}
