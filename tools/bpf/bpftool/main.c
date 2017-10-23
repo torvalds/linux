@@ -36,6 +36,7 @@
 #include <bfd.h>
 #include <ctype.h>
 #include <errno.h>
+#include <getopt.h>
 #include <linux/bpf.h>
 #include <linux/version.h>
 #include <stdio.h>
@@ -215,8 +216,32 @@ err_close:
 
 int main(int argc, char **argv)
 {
+	static const struct option options[] = {
+		{ "help",	no_argument,	NULL,	'h' },
+		{ "version",	no_argument,	NULL,	'V' },
+		{ 0 }
+	};
+	int opt;
+
+	last_do_help = do_help;
 	bin_name = argv[0];
-	NEXT_ARG();
+
+	while ((opt = getopt_long(argc, argv, "Vh",
+				  options, NULL)) >= 0) {
+		switch (opt) {
+		case 'V':
+			return do_version(argc, argv);
+		case 'h':
+			return do_help(argc, argv);
+		default:
+			usage();
+		}
+	}
+
+	argc -= optind;
+	argv += optind;
+	if (argc < 0)
+		usage();
 
 	bfd_init();
 

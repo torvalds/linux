@@ -31,6 +31,14 @@ DESCRIPTION
 	Note that format of the output of all tools is not guaranteed to be
 	stable and should not be depended upon.
 
+OPTIONS
+=======
+	-h, --help
+		  Print short help message (similar to **bpftool help**).
+
+	-v, --version
+		  Print version number (similar to **bpftool version**).
+
 SEE ALSO
 ========
 	**bpftool-map**\ (8), **bpftool-prog**\ (8)

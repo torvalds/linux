@@ -68,6 +68,14 @@ DESCRIPTION
 	**bpftool map help**
 		  Print short help message.
 
+OPTIONS
+=======
+	-h, --help
+		  Print short generic help message (similar to **bpftool help**).
+
+	-v, --version
+		  Print version number (similar to **bpftool version**).
+
 EXAMPLES
 ========
 **# bpftool map show**
