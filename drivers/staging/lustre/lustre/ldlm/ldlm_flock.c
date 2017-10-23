@@ -311,7 +311,6 @@ reprocess:
 
 struct ldlm_flock_wait_data {
 	struct ldlm_lock *fwd_lock;
-	int	       fwd_generation;
 };
 
 static void
@@ -342,11 +341,9 @@ int
 ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 {
 	struct file_lock		*getlk = lock->l_ast_data;
-	struct obd_device	      *obd;
-	struct obd_import	      *imp = NULL;
-	struct ldlm_flock_wait_data     fwd;
-	struct l_wait_info	      lwi;
-	int			     rc = 0;
+	struct ldlm_flock_wait_data	fwd;
+	struct l_wait_info		lwi;
+	int				rc = 0;
 
 	OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_CP_CB_WAIT2, 4);
 	if (OBD_FAIL_PRECHECK(OBD_FAIL_LDLM_CP_CB_WAIT3)) {
@@ -375,18 +372,6 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 	LDLM_DEBUG(lock,
 		   "client-side enqueue returned a blocked lock, sleeping");
 	fwd.fwd_lock = lock;
-	obd = class_exp2obd(lock->l_conn_export);
-
-	/* if this is a local lock, there is no import */
-	if (obd)
-		imp = obd->u.cli.cl_import;
-
-	if (imp) {
-		spin_lock(&imp->imp_lock);
-		fwd.fwd_generation = imp->imp_generation;
-		spin_unlock(&imp->imp_lock);
-	}
-
 	lwi = LWI_TIMEOUT_INTR(0, NULL, ldlm_flock_interrupted_wait, &fwd);
 
 	/* Go to sleep until the lock is granted. */
