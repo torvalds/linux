@@ -86,7 +86,7 @@ done_free:
 int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 {
 	struct amdgpu_device *adev;
-	int r, acpi_status;
+	int r, acpi_status, retry = 0;
 
 #ifdef CONFIG_DRM_AMDGPU_SI
 	if (!amdgpu_si_support) {
@@ -122,6 +122,7 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		}
 	}
 #endif
+retry_init:
 
 	adev = kzalloc(sizeof(struct amdgpu_device), GFP_KERNEL);
 	if (adev == NULL) {
@@ -144,7 +145,17 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	 * VRAM allocation
 	 */
 	r = amdgpu_device_init(adev, dev, dev->pdev, flags);
-	if (r) {
+	if (r == -EAGAIN && ++retry <= 3) {
+		adev->virt.caps &= ~AMDGPU_SRIOV_CAPS_RUNTIME;
+		adev->virt.ops = NULL;
+		amdgpu_device_fini(adev);
+		kfree(adev);
+		dev->dev_private = NULL;
+		/* Don't request EX mode too frequently which is attacking */
+		msleep(5000);
+		dev_err(&dev->pdev->dev, "retry init %d\n", retry);
+		goto retry_init;
+	} else if (r) {
 		dev_err(&dev->pdev->dev, "Fatal error during GPU init\n");
 		goto out;
 	}
