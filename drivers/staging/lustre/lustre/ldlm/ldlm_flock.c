@@ -88,24 +88,23 @@ ldlm_flocks_overlap(struct ldlm_lock *lock, struct ldlm_lock *new)
 }
 
 static inline void
-ldlm_flock_destroy(struct ldlm_lock *lock, enum ldlm_mode mode, __u64 flags)
+ldlm_flock_destroy(struct ldlm_lock *lock, enum ldlm_mode mode)
 {
-	LDLM_DEBUG(lock, "%s(mode: %d, flags: 0x%llx)",
-		   __func__, mode, flags);
+	LDLM_DEBUG(lock, "%s(mode: %d)",
+		   __func__, mode);
 
 	/* Safe to not lock here, since it should be empty anyway */
 	LASSERT(hlist_unhashed(&lock->l_exp_flock_hash));
 
 	list_del_init(&lock->l_res_link);
-	if (flags == LDLM_FL_WAIT_NOREPROC) {
-		/* client side - set a flag to prevent sending a CANCEL */
-		lock->l_flags |= LDLM_FL_LOCAL_ONLY | LDLM_FL_CBPENDING;
 
-		/* when reaching here, it is under lock_res_and_lock(). Thus,
-		 * need call the nolock version of ldlm_lock_decref_internal
-		 */
-		ldlm_lock_decref_internal_nolock(lock, mode);
-	}
+	/* client side - set a flag to prevent sending a CANCEL */
+	lock->l_flags |= LDLM_FL_LOCAL_ONLY | LDLM_FL_CBPENDING;
+
+	/* when reaching here, it is under lock_res_and_lock(). Thus,
+	 * need call the nolock version of ldlm_lock_decref_internal
+	 */
+	ldlm_lock_decref_internal_nolock(lock, mode);
 
 	ldlm_lock_destroy_nolock(lock);
 }
@@ -208,8 +207,7 @@ reprocess:
 			}
 
 			if (added) {
-				ldlm_flock_destroy(lock, mode,
-						   LDLM_FL_WAIT_NOREPROC);
+				ldlm_flock_destroy(lock, mode);
 			} else {
 				new = lock;
 				added = 1;
@@ -233,8 +231,7 @@ reprocess:
 					new->l_policy_data.l_flock.end + 1;
 				break;
 			}
-			ldlm_flock_destroy(lock, lock->l_req_mode,
-					   LDLM_FL_WAIT_NOREPROC);
+			ldlm_flock_destroy(lock, lock->l_req_mode);
 			continue;
 		}
 		if (new->l_policy_data.l_flock.end >=
@@ -265,8 +262,7 @@ reprocess:
 						NULL, 0, LVB_T_NONE);
 			lock_res_and_lock(req);
 			if (IS_ERR(new2)) {
-				ldlm_flock_destroy(req, lock->l_granted_mode,
-						   LDLM_FL_WAIT_NOREPROC);
+				ldlm_flock_destroy(req, lock->l_granted_mode);
 				return LDLM_ITER_STOP;
 			}
 			goto reprocess;
@@ -323,7 +319,7 @@ reprocess:
 	 * could be freed before the completion AST can be sent.
 	 */
 	if (added)
-		ldlm_flock_destroy(req, mode, LDLM_FL_WAIT_NOREPROC);
+		ldlm_flock_destroy(req, mode);
 
 	ldlm_resource_dump(D_INFO, res);
 	return LDLM_ITER_CONTINUE;
@@ -479,7 +475,7 @@ granted:
 				   "client-side enqueue deadlock received");
 			rc = -EDEADLK;
 		}
-		ldlm_flock_destroy(lock, mode, LDLM_FL_WAIT_NOREPROC);
+		ldlm_flock_destroy(lock, mode);
 		unlock_res_and_lock(lock);
 
 		/* Need to wake up the waiter if we were evicted */
@@ -500,7 +496,7 @@ granted:
 		 * in the lock changes we can decref the appropriate refcount.
 		 */
 		LASSERT(ldlm_is_test_lock(lock));
-		ldlm_flock_destroy(lock, getlk->fl_type, LDLM_FL_WAIT_NOREPROC);
+		ldlm_flock_destroy(lock, getlk->fl_type);
 		switch (lock->l_granted_mode) {
 		case LCK_PR:
 			getlk->fl_type = F_RDLCK;
