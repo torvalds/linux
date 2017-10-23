@@ -776,7 +776,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #else
 #define FIXUP_ENDIAN						   \
 	tdi   0,0,0x48;	  /* Reverse endian of b . + 8		*/ \
-	b     $+44;	  /* Skip trampoline if endian is good	*/ \
+	b     191f;	  /* Skip trampoline if endian is good	*/ \
 	.long 0xa600607d; /* mfmsr r11				*/ \
 	.long 0x01006b69; /* xori r11,r11,1			*/ \
 	.long 0x00004039; /* li r10,0				*/ \
@@ -786,7 +786,8 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 	.long 0x14004a39; /* addi r10,r10,20			*/ \
 	.long 0xa6035a7d; /* mtsrr0 r10				*/ \
 	.long 0xa6037b7d; /* mtsrr1 r11				*/ \
-	.long 0x2400004c  /* rfid				*/
+	.long 0x2400004c; /* rfid				*/ \
+191:
 
 #endif /* !CONFIG_PPC_BOOK3E */
 
