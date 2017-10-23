@@ -427,6 +427,48 @@ emit_ld_field(struct nfp_prog *nfp_prog, swreg dst, u8 bmask, swreg src,
 	emit_ld_field_any(nfp_prog, dst, bmask, src, sc, shift, false);
 }
 
+static void
+__emit_lcsr(struct nfp_prog *nfp_prog, u16 areg, u16 breg, bool wr, u16 addr,
+	    bool dst_lmextn, bool src_lmextn)
+{
+	u64 insn;
+
+	insn = OP_LCSR_BASE |
+		FIELD_PREP(OP_LCSR_A_SRC, areg) |
+		FIELD_PREP(OP_LCSR_B_SRC, breg) |
+		FIELD_PREP(OP_LCSR_WRITE, wr) |
+		FIELD_PREP(OP_LCSR_ADDR, addr) |
+		FIELD_PREP(OP_LCSR_SRC_LMEXTN, src_lmextn) |
+		FIELD_PREP(OP_LCSR_DST_LMEXTN, dst_lmextn);
+
+	nfp_prog_push(nfp_prog, insn);
+}
+
+static void emit_csr_wr(struct nfp_prog *nfp_prog, swreg src, u16 addr)
+{
+	struct nfp_insn_ur_regs reg;
+	int err;
+
+	/* This instruction takes immeds instead of reg_none() for the ignored
+	 * operand, but we can't encode 2 immeds in one instr with our normal
+	 * swreg infra so if param is an immed, we encode as reg_none() and
+	 * copy the immed to both operands.
+	 */
+	if (swreg_type(src) == NN_REG_IMM) {
+		err = swreg_to_unrestricted(reg_none(), src, reg_none(), &reg);
+		reg.breg = reg.areg;
+	} else {
+		err = swreg_to_unrestricted(reg_none(), src, reg_imm(0), &reg);
+	}
+	if (err) {
+		nfp_prog->error = err;
+		return;
+	}
+
+	__emit_lcsr(nfp_prog, reg.areg, reg.breg, true, addr / 4,
+		    false, reg.src_lmextn);
+}
+
 static void emit_nop(struct nfp_prog *nfp_prog)
 {
 	__emit_immed(nfp_prog, UR_REG_IMM, UR_REG_IMM, 0, 0, 0, 0, 0, 0, 0);
@@ -644,12 +686,15 @@ data_st_host_order(struct nfp_prog *nfp_prog, u8 dst_gpr, swreg offset,
 
 typedef int
 (*lmem_step)(struct nfp_prog *nfp_prog, u8 gpr, u8 gpr_byte, s32 off,
-	     unsigned int size, bool first, bool new_gpr, bool last);
+	     unsigned int size, bool first, bool new_gpr, bool last, bool lm3,
+	     bool needs_inc);
 
 static int
 wrp_lmem_load(struct nfp_prog *nfp_prog, u8 dst, u8 dst_byte, s32 off,
-	      unsigned int size, bool first, bool new_gpr, bool last)
+	      unsigned int size, bool first, bool new_gpr, bool last, bool lm3,
+	      bool needs_inc)
 {
+	bool should_inc = needs_inc && new_gpr && !last;
 	u32 idx, src_byte;
 	enum shf_sc sc;
 	swreg reg;
@@ -663,9 +708,13 @@ wrp_lmem_load(struct nfp_prog *nfp_prog, u8 dst, u8 dst_byte, s32 off,
 
 	/* Move the entire word */
 	if (size == 4) {
-		wrp_mov(nfp_prog, reg_both(dst), reg_lm(0, idx));
+		wrp_mov(nfp_prog, reg_both(dst),
+			should_inc ? reg_lm_inc(3) : reg_lm(lm3 ? 3 : 0, idx));
 		return 0;
 	}
+
+	if (WARN_ON_ONCE(lm3 && idx > RE_REG_LM_IDX_MAX))
+		return -EOPNOTSUPP;
 
 	src_byte = off % 4;
 
@@ -689,7 +738,7 @@ wrp_lmem_load(struct nfp_prog *nfp_prog, u8 dst, u8 dst_byte, s32 off,
 	 * Because we RMV twice we waste 2 cycles on unaligned 8 byte writes.
 	 */
 	if (idx <= RE_REG_LM_IDX_MAX) {
-		reg = reg_lm(0, idx);
+		reg = reg_lm(lm3 ? 3 : 0, idx);
 	} else {
 		reg = imm_a(nfp_prog);
 		/* If it's not the first part of the load and we start a new GPR
@@ -703,13 +752,18 @@ wrp_lmem_load(struct nfp_prog *nfp_prog, u8 dst, u8 dst_byte, s32 off,
 
 	emit_ld_field_any(nfp_prog, reg_both(dst), mask, reg, sc, shf, new_gpr);
 
+	if (should_inc)
+		wrp_mov(nfp_prog, reg_none(), reg_lm_inc(3));
+
 	return 0;
 }
 
 static int
 wrp_lmem_store(struct nfp_prog *nfp_prog, u8 src, u8 src_byte, s32 off,
-	       unsigned int size, bool first, bool new_gpr, bool last)
+	       unsigned int size, bool first, bool new_gpr, bool last, bool lm3,
+	       bool needs_inc)
 {
+	bool should_inc = needs_inc && new_gpr && !last;
 	u32 idx, dst_byte;
 	enum shf_sc sc;
 	swreg reg;
@@ -723,9 +777,14 @@ wrp_lmem_store(struct nfp_prog *nfp_prog, u8 src, u8 src_byte, s32 off,
 
 	/* Move the entire word */
 	if (size == 4) {
-		wrp_mov(nfp_prog, reg_lm(0, idx), reg_b(src));
+		wrp_mov(nfp_prog,
+			should_inc ? reg_lm_inc(3) : reg_lm(lm3 ? 3 : 0, idx),
+			reg_b(src));
 		return 0;
 	}
+
+	if (WARN_ON_ONCE(lm3 && idx > RE_REG_LM_IDX_MAX))
+		return -EOPNOTSUPP;
 
 	dst_byte = off % 4;
 
@@ -749,7 +808,7 @@ wrp_lmem_store(struct nfp_prog *nfp_prog, u8 src, u8 src_byte, s32 off,
 	 * Because we RMV twice we waste 2 cycles on unaligned 8 byte writes.
 	 */
 	if (idx <= RE_REG_LM_IDX_MAX) {
-		reg = reg_lm(0, idx);
+		reg = reg_lm(lm3 ? 3 : 0, idx);
 	} else {
 		reg = imm_a(nfp_prog);
 		/* Only first and last LMEM locations are going to need RMW,
@@ -764,6 +823,8 @@ wrp_lmem_store(struct nfp_prog *nfp_prog, u8 src, u8 src_byte, s32 off,
 	if (new_gpr || last) {
 		if (idx > RE_REG_LM_IDX_MAX)
 			wrp_mov(nfp_prog, reg_lm(0, idx), reg);
+		if (should_inc)
+			wrp_mov(nfp_prog, reg_none(), reg_lm_inc(3));
 	}
 
 	return 0;
@@ -776,9 +837,43 @@ mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 {
 	s32 off = nfp_prog->stack_depth + meta->insn.off + ptr_off;
 	bool first = true, last;
+	bool needs_inc = false;
+	swreg stack_off_reg;
 	u8 prev_gpr = 255;
 	u32 gpr_byte = 0;
+	bool lm3 = true;
 	int ret;
+
+	if (off + size <= 64) {
+		/* We can reach bottom 64B with LMaddr0 */
+		lm3 = false;
+	} else if (round_down(off, 32) == round_down(off + size - 1, 32)) {
+		/* We have to set up a new pointer.  If we know the offset
+		 * and the entire access falls into a single 32 byte aligned
+		 * window we won't have to increment the LM pointer.
+		 * The 32 byte alignment is imporant because offset is ORed in
+		 * not added when doing *l$indexN[off].
+		 */
+		stack_off_reg = ur_load_imm_any(nfp_prog, round_down(off, 32),
+						stack_imm(nfp_prog));
+		emit_alu(nfp_prog, imm_b(nfp_prog),
+			 stack_reg(nfp_prog), ALU_OP_ADD, stack_off_reg);
+
+		off %= 32;
+	} else {
+		stack_off_reg = ur_load_imm_any(nfp_prog, round_down(off, 4),
+						stack_imm(nfp_prog));
+
+		emit_alu(nfp_prog, imm_b(nfp_prog),
+			 stack_reg(nfp_prog), ALU_OP_ADD, stack_off_reg);
+
+		needs_inc = true;
+	}
+	if (lm3) {
+		emit_csr_wr(nfp_prog, imm_b(nfp_prog), NFP_CSR_ACT_LM_ADDR3);
+		/* For size < 4 one slot will be filled by zeroing of upper. */
+		wrp_nops(nfp_prog, clr_gpr && size < 8 ? 2 : 3);
+	}
 
 	if (clr_gpr && size < 8)
 		wrp_immed(nfp_prog, reg_both(gpr + 1), 0);
@@ -793,8 +888,11 @@ mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 		last = slice_size == size;
 
+		if (needs_inc)
+			off %= 4;
+
 		ret = step(nfp_prog, gpr, gpr_byte, off, slice_size,
-			   first, gpr != prev_gpr, last);
+			   first, gpr != prev_gpr, last, lm3, needs_inc);
 		if (ret)
 			return ret;
 

@@ -168,12 +168,6 @@ nfp_net_bpf_offload_prepare(struct nfp_net *nn,
 	start_off = nn_readw(nn, NFP_NET_CFG_BPF_START);
 	done_off = nn_readw(nn, NFP_NET_CFG_BPF_DONE);
 
-	if (cls_bpf->prog->aux->stack_depth > 64) {
-		nn_info(nn, "large stack not supported: program %dB > 64B\n",
-			cls_bpf->prog->aux->stack_depth);
-		return -EOPNOTSUPP;
-	}
-
 	stack_size = nn_readb(nn, NFP_NET_CFG_BPF_STACK_SZ) * 64;
 	if (cls_bpf->prog->aux->stack_depth > stack_size) {
 		nn_info(nn, "stack too large: program %dB > FW stack %dB\n",
