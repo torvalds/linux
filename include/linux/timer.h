@@ -66,7 +66,7 @@ struct timer_list {
 #define TIMER_DATA_TYPE		struct timer_list *
 #define TIMER_FUNC_TYPE		void (*)(TIMER_DATA_TYPE)
 
-#define __TIMER_INITIALIZER(_function, _data, _flags) {		\
+#define __TIMER_INITIALIZER(_function, _flags) {		\
 		.entry = { .next = TIMER_ENTRY_STATIC },	\
 		.function = (_function),			\
 		.flags = (_flags),				\
@@ -76,7 +76,7 @@ struct timer_list {
 
 #define DEFINE_TIMER(_name, _function)				\
 	struct timer_list _name =				\
-		__TIMER_INITIALIZER((TIMER_FUNC_TYPE)_function, 0, 0)
+		__TIMER_INITIALIZER((TIMER_FUNC_TYPE)_function, 0)
 
 void init_timer_key(struct timer_list *timer, unsigned int flags,
 		    const char *name, struct lock_class_key *key);
@@ -115,13 +115,13 @@ static inline void init_timer_on_stack_key(struct timer_list *timer,
 	init_timer_on_stack_key((_timer), (_flags), NULL, NULL)
 #endif
 
-#define __setup_timer(_timer, _fn, _data, _flags)			\
+#define __setup_timer(_timer, _fn, _flags)				\
 	do {								\
 		__init_timer((_timer), (_flags));			\
 		(_timer)->function = (_fn);				\
 	} while (0)
 
-#define __setup_timer_on_stack(_timer, _fn, _data, _flags)		\
+#define __setup_timer_on_stack(_timer, _fn, _flags)			\
 	do {								\
 		__init_timer_on_stack((_timer), (_flags));		\
 		(_timer)->function = (_fn);				\
@@ -132,16 +132,14 @@ static inline void timer_setup(struct timer_list *timer,
 			       void (*callback)(struct timer_list *),
 			       unsigned int flags)
 {
-	__setup_timer(timer, (TIMER_FUNC_TYPE)callback,
-		      (TIMER_DATA_TYPE)timer, flags);
+	__setup_timer(timer, (TIMER_FUNC_TYPE)callback, flags);
 }
 
 static inline void timer_setup_on_stack(struct timer_list *timer,
 			       void (*callback)(struct timer_list *),
 			       unsigned int flags)
 {
-	__setup_timer_on_stack(timer, (TIMER_FUNC_TYPE)callback,
-			       (TIMER_DATA_TYPE)timer, flags);
+	__setup_timer_on_stack(timer, (TIMER_FUNC_TYPE)callback, flags);
 }
 #else
 /*
@@ -151,11 +149,11 @@ static inline void timer_setup_on_stack(struct timer_list *timer,
  */
 # define timer_setup(timer, callback, flags)				\
 		__setup_timer((timer), (TIMER_FUNC_TYPE)(callback),	\
-			      (TIMER_DATA_TYPE)(timer), (flags))
+			      (flags))
 # define timer_setup_on_stack(timer, callback, flags)			\
 		__setup_timer_on_stack((timer),				\
 				       (TIMER_FUNC_TYPE)(callback),	\
-				       (TIMER_DATA_TYPE)(timer), (flags))
+				       (flags))
 #endif
 
 #define from_timer(var, callback_timer, timer_fieldname) \

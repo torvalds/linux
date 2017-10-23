@@ -177,7 +177,6 @@ struct execute_work {
 #define __DELAYED_WORK_INITIALIZER(n, f, tflags) {			\
 	.work = __WORK_INITIALIZER((n).work, (f)),			\
 	.timer = __TIMER_INITIALIZER((TIMER_FUNC_TYPE)delayed_work_timer_fn,\
-				     (TIMER_DATA_TYPE)&(n.timer),	\
 				     (tflags) | TIMER_IRQSAFE),		\
 	}
 
@@ -244,7 +243,6 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 		INIT_WORK(&(_work)->work, (_func));			\
 		__setup_timer(&(_work)->timer,				\
 			      (TIMER_FUNC_TYPE)delayed_work_timer_fn,	\
-			      (TIMER_DATA_TYPE)&(_work)->timer,		\
 			      (_tflags) | TIMER_IRQSAFE);		\
 	} while (0)
 
@@ -253,7 +251,6 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 		INIT_WORK_ONSTACK(&(_work)->work, (_func));		\
 		__setup_timer_on_stack(&(_work)->timer,			\
 				       (TIMER_FUNC_TYPE)delayed_work_timer_fn,\
-				       (TIMER_DATA_TYPE)&(_work)->timer,\
 				       (_tflags) | TIMER_IRQSAFE);	\
 	} while (0)
 
