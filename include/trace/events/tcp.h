@@ -9,7 +9,13 @@
 #include <linux/tracepoint.h>
 #include <net/ipv6.h>
 
-TRACE_EVENT(tcp_retransmit_skb,
+/*
+ * tcp event with arguments sk and skb
+ *
+ * Note: this class requires a valid sk pointer; while skb pointer could
+ *       be NULL.
+ */
+DECLARE_EVENT_CLASS(tcp_event_sk_skb,
 
 	TP_PROTO(struct sock *sk, struct sk_buff *skb),
 
@@ -62,6 +68,13 @@ TRACE_EVENT(tcp_retransmit_skb,
 	TP_printk("sport=%hu dport=%hu saddr=%pI4 daddr=%pI4 saddrv6=%pI6c daddrv6=%pI6c",
 		  __entry->sport, __entry->dport, __entry->saddr, __entry->daddr,
 		  __entry->saddr_v6, __entry->daddr_v6)
+);
+
+DEFINE_EVENT(tcp_event_sk_skb, tcp_retransmit_skb,
+
+	TP_PROTO(struct sock *sk, struct sk_buff *skb),
+
+	TP_ARGS(sk, skb)
 );
 
 #endif /* _TRACE_TCP_H */
