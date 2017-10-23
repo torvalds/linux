@@ -2971,6 +2971,40 @@ err:
 	return ret;
 }
 
+/**
+ * intel_gvt_for_each_tracked_mmio - iterate each tracked mmio
+ * @gvt: a GVT device
+ * @handler: the handler
+ * @data: private data given to handler
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+int intel_gvt_for_each_tracked_mmio(struct intel_gvt *gvt,
+	int (*handler)(struct intel_gvt *gvt, u32 offset, void *data),
+	void *data)
+{
+	struct gvt_mmio_block *block = gvt->mmio.mmio_block;
+	struct intel_gvt_mmio_info *e;
+	int i, j, ret;
+
+	hash_for_each(gvt->mmio.mmio_info_table, i, e, node) {
+		ret = handler(gvt, e->offset, data);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; i < gvt->mmio.num_mmio_block; i++, block++) {
+		for (j = 0; j < block->size; j += 4) {
+			ret = handler(gvt,
+				INTEL_GVT_MMIO_OFFSET(block->offset) + j,
+				data);
+			if (ret)
+				return ret;
+		}
+	}
+	return 0;
+}
 
 /**
  * intel_vgpu_default_mmio_read - default MMIO read handler
