@@ -743,6 +743,7 @@ struct amdgpu_ctx {
 	enum amd_sched_priority init_priority;
 	enum amd_sched_priority override_priority;
 	struct mutex            lock;
+	atomic_t	guilty;
 };
 
 struct amdgpu_ctx_mgr {
