@@ -3726,10 +3726,16 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		return err;
 	}
 
+	err = mlxsw_sp_kvdl_init(mlxsw_sp);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize KVDL\n");
+		return err;
+	}
+
 	err = mlxsw_sp_fids_init(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize FIDs\n");
-		return err;
+		goto err_fids_init;
 	}
 
 	err = mlxsw_sp_traps_init(mlxsw_sp);
@@ -3834,6 +3840,8 @@ err_buffers_init:
 	mlxsw_sp_traps_fini(mlxsw_sp);
 err_traps_init:
 	mlxsw_sp_fids_fini(mlxsw_sp);
+err_fids_init:
+	mlxsw_sp_kvdl_fini(mlxsw_sp);
 	return err;
 }
 
@@ -3854,6 +3862,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	mlxsw_sp_buffers_fini(mlxsw_sp);
 	mlxsw_sp_traps_fini(mlxsw_sp);
 	mlxsw_sp_fids_fini(mlxsw_sp);
+	mlxsw_sp_kvdl_fini(mlxsw_sp);
 }
 
 static const struct mlxsw_config_profile mlxsw_sp_config_profile = {
@@ -3876,8 +3885,8 @@ static const struct mlxsw_config_profile mlxsw_sp_config_profile = {
 	.max_pkey			= 0,
 	.used_kvd_split_data		= 1,
 	.kvd_hash_granularity		= MLXSW_SP_KVD_GRANULARITY,
-	.kvd_hash_single_parts		= 2,
-	.kvd_hash_double_parts		= 1,
+	.kvd_hash_single_parts		= 59,
+	.kvd_hash_double_parts		= 41,
 	.kvd_linear_size		= MLXSW_SP_KVD_LINEAR_SIZE,
 	.swid_config			= {
 		{

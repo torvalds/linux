@@ -62,7 +62,7 @@
 
 #define MLXSW_SP_PORT_BASE_SPEED 25000	/* Mb/s */
 
-#define MLXSW_SP_KVD_LINEAR_SIZE 65536 /* entries */
+#define MLXSW_SP_KVD_LINEAR_SIZE 98304 /* entries */
 #define MLXSW_SP_KVD_GRANULARITY 128
 
 struct mlxsw_sp_port;
@@ -143,6 +143,7 @@ struct mlxsw_sp_mr;
 struct mlxsw_sp_acl;
 struct mlxsw_sp_counter_pool;
 struct mlxsw_sp_fid_core;
+struct mlxsw_sp_kvdl;
 
 struct mlxsw_sp {
 	struct mlxsw_sp_port **ports;
@@ -158,9 +159,7 @@ struct mlxsw_sp {
 	struct mlxsw_afa *afa;
 	struct mlxsw_sp_acl *acl;
 	struct mlxsw_sp_fid_core *fid_core;
-	struct {
-		DECLARE_BITMAP(usage, MLXSW_SP_KVD_LINEAR_SIZE);
-	} kvdl;
+	struct mlxsw_sp_kvdl *kvdl;
 	struct notifier_block netdevice_nb;
 
 	struct mlxsw_sp_counter_pool *counter_pool;
@@ -411,9 +410,14 @@ mlxsw_sp_port_vlan_router_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan);
 void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif);
 
 /* spectrum_kvdl.c */
+int mlxsw_sp_kvdl_init(struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_kvdl_fini(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, unsigned int entry_count,
 			u32 *p_entry_index);
 void mlxsw_sp_kvdl_free(struct mlxsw_sp *mlxsw_sp, int entry_index);
+int mlxsw_sp_kvdl_alloc_size_query(struct mlxsw_sp *mlxsw_sp,
+				   unsigned int entry_count,
+				   unsigned int *p_alloc_size);
 
 struct mlxsw_sp_acl_rule_info {
 	unsigned int priority;
