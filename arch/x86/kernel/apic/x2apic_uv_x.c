@@ -154,7 +154,7 @@ static int __init early_get_pnodeid(void)
 	return pnode;
 }
 
-static void uv_tsc_check_sync(void)
+static void __init uv_tsc_check_sync(void)
 {
 	u64 mmr;
 	int sync_state;
