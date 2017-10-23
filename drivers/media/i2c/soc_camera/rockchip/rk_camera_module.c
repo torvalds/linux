@@ -994,9 +994,74 @@ int pltfrm_camera_module_read_reg(
 	}
 	pltfrm_camera_module_pr_err(sd,
 		"i2c read from offset 0x%08x failed with error %d\n", reg, ret);
+
 	return ret;
 }
 
+int pltfrm_camera_module_read_reg_ex(
+	struct v4l2_subdev *sd,
+	u16 data_length,
+	u32 flag,
+	u16 reg,
+	u32 *val)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int ret = 0;
+	struct i2c_msg msg[2];
+	unsigned char data[4] = { 0, 0, 0, 0 };
+
+	if (!client->adapter) {
+		pltfrm_camera_module_pr_err(sd, "client->adapter NULL\n");
+		return -ENODEV;
+	}
+
+	msg->addr = client->addr;
+	msg->flags = I2C_M_WR;
+	msg->buf = data;
+
+	if (PLTFRM_CAMERA_MODULE_REG_LEN(flag) == 1) {
+		data[0] = (u8)(reg & 0xff);
+		msg->len = 1;
+	} else {
+		/* High byte goes out first */
+		data[0] = (u8)(reg >> 8);
+		data[1] = (u8)(reg & 0xff);
+		msg->len = 2;
+	}
+
+	if ((flag & PLTFRM_CAMERA_MODULE_RD_CONTINUE_MASK) ==
+		PLTFRM_CAMERA_MODULE_RD_CONTINUE) {
+		msg[1].addr = client->addr;
+		msg[1].flags = I2C_M_RD;
+		msg[1].len = data_length;
+		msg[1].buf = data;
+
+		ret = i2c_transfer(client->adapter, msg, 2);
+	} else {
+		ret = i2c_transfer(client->adapter, msg, 1);
+		if (ret >= 0) {
+			mdelay(3);
+			msg->flags = I2C_M_RD;
+			msg->len = data_length;
+			i2c_transfer(client->adapter, msg, 1);
+		}
+	}
+	if (ret >= 0) {
+		*val = 0;
+		/* High byte comes first */
+		if (data_length == 1)
+			*val = data[0];
+		else if (data_length == 2)
+			*val = data[1] + (data[0] << 8);
+		else
+			*val = data[3] + (data[2] << 8) +
+			    (data[1] << 16) + (data[0] << 24);
+		return 0;
+	}
+	pltfrm_camera_module_pr_err(sd,
+		"i2c read from offset 0x%08x failed with error %d\n", reg, ret);
+	return ret;
+}
 /* ======================================================================== */
 
 int pltfrm_camera_module_write_reg(
@@ -1042,6 +1107,73 @@ int pltfrm_camera_module_write_reg(
 	return ret;
 }
 
+int pltfrm_camera_module_write_reg_ex(
+	struct v4l2_subdev *sd,
+	u32 flag, u16 reg, u16 val)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int ret = 0;
+	struct i2c_msg msg[1];
+	unsigned char data[4];
+	int retries;
+
+	if (!client->adapter) {
+		pltfrm_camera_module_pr_err(sd, "client->adapter NULL\n");
+		return -ENODEV;
+	}
+
+	for (retries = 0; retries < 5; retries++) {
+		msg->addr = client->addr;
+		msg->flags = I2C_M_WR;
+		msg->buf = data;
+
+		if (PLTFRM_CAMERA_MODULE_REG_LEN(flag) == 1 &&
+			PLTFRM_CAMERA_MODULE_DATA_LEN(flag) == 1) {
+			data[0] = (u8)(reg & 0xff);
+			data[1] = val;
+			msg->len = 2;
+		} else if (PLTFRM_CAMERA_MODULE_REG_LEN(flag) == 2 &&
+			PLTFRM_CAMERA_MODULE_DATA_LEN(flag) == 1) {
+			data[0] = (u8)(reg >> 8);
+			data[1] = (u8)(reg & 0xff);
+			data[2] = val;
+			msg->len = 3;
+		} else if (PLTFRM_CAMERA_MODULE_REG_LEN(flag) == 1 &&
+			PLTFRM_CAMERA_MODULE_DATA_LEN(flag) == 2) {
+			data[0] = (u8)(reg & 0xff);
+			data[1] = (u8)(val >> 8);
+			data[2] = (u8)(val & 0xff);
+			msg->len = 3;
+		} else if (PLTFRM_CAMERA_MODULE_REG_LEN(flag) == 2 &&
+			PLTFRM_CAMERA_MODULE_DATA_LEN(flag) == 2) {
+			data[0] = (u8)(reg >> 8);
+			data[1] = (u8)(reg & 0xff);
+			data[2] = (u8)(val >> 8);
+			data[3] = (u8)(val & 0xff);
+			msg->len = 4;
+		} else {
+			pltfrm_camera_module_pr_err(sd,
+				"i2c write flag 0x%x error\n", flag);
+			return -EINVAL;
+		}
+
+		ret = i2c_transfer(client->adapter, msg, 1);
+		if (ret == 1) {
+			pltfrm_camera_module_pr_debug(sd,
+				"i2c write to offset 0x%08x success\n", reg);
+			return 0;
+		}
+
+		pltfrm_camera_module_pr_debug(sd,
+			"retrying I2C... %d\n", retries);
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(msecs_to_jiffies(20));
+	}
+	pltfrm_camera_module_pr_err(sd,
+		"i2c write to offset 0x%08x failed with error %d\n", reg, ret);
+	return ret;
+}
+
 /* ======================================================================== */
 int pltfrm_camera_module_write_reglist(
 	struct v4l2_subdev *sd,
@@ -1057,28 +1189,53 @@ int pltfrm_camera_module_write_reglist(
 	unsigned int max_entries = len;
 
 	msg = kmalloc((sizeof(struct i2c_msg) * I2C_MSG_MAX),
-				      GFP_KERNEL);
-	if (!msg)
+			GFP_KERNEL);
+	if (NULL == msg)
 		return -ENOMEM;
 	data = kmalloc((sizeof(unsigned char) * I2C_DATA_MAX),
-				     GFP_KERNEL);
-	if (!data) {
+			GFP_KERNEL);
+	if (NULL == data) {
 		kfree(msg);
 		return -ENOMEM;
 	}
 
 	for (i = 0; i < max_entries; i++) {
-		switch (reglist[i].flag) {
-		case PLTFRM_CAMERA_MODULE_REG_TYPE_DATA:
+		switch (reglist[i].flag & PLTFRM_CAMERA_MODULE_WR_CONTINUE_MASK) {
+		case PLTFRM_CAMERA_MODULE_WR_CONTINUE:
 			(msg + j)->addr = client->addr;
 			(msg + j)->flags = I2C_M_WR;
-			(msg + j)->len = 3;
 			(msg + j)->buf = (data + k);
 
-			data[k + 0] = (u8)((reglist[i].reg & 0xFF00) >> 8);
-			data[k + 1] = (u8)(reglist[i].reg & 0xFF);
-			data[k + 2] = (u8)(reglist[i].val & 0xFF);
-			k = k + 3;
+			if (PLTFRM_CAMERA_MODULE_REG_LEN(reglist[i].flag) == 1 &&
+				PLTFRM_CAMERA_MODULE_DATA_LEN(reglist[i].flag) == 1) {
+				data[k + 0] = (u8)(reglist[i].reg & 0xFF);
+				data[k + 1] = (u8)(reglist[i].val & 0xFF);
+				k = k + 2;
+				(msg + j)->len = 2;
+			} else if (PLTFRM_CAMERA_MODULE_REG_LEN(reglist[i].flag) == 2 &&
+				PLTFRM_CAMERA_MODULE_DATA_LEN(reglist[i].flag) == 1) {
+				data[k + 0] = (u8)((reglist[i].reg & 0xFF00) >> 8);
+				data[k + 1] = (u8)(reglist[i].reg & 0xFF);
+				data[k + 2] = (u8)(reglist[i].val & 0xFF);
+				k = k + 3;
+				(msg + j)->len = 3;
+			} else if (PLTFRM_CAMERA_MODULE_REG_LEN(reglist[i].flag) == 1 &&
+				PLTFRM_CAMERA_MODULE_DATA_LEN(reglist[i].flag) == 2) {
+				data[k + 0] = (u8)(reglist[i].reg & 0xFF);
+				data[k + 1] = (u8)((reglist[i].val & 0xFF00) >> 8);
+				data[k + 2] = (u8)(reglist[i].val & 0xFF);
+				k = k + 3;
+				(msg + j)->len = 3;
+			} else if (PLTFRM_CAMERA_MODULE_REG_LEN(reglist[i].flag) == 2 &&
+				PLTFRM_CAMERA_MODULE_DATA_LEN(reglist[i].flag) == 2) {
+				data[k + 0] = (u8)((reglist[i].reg & 0xFF00) >> 8);
+				data[k + 1] = (u8)(reglist[i].reg & 0xFF);
+				data[k + 2] = (u8)((reglist[i].val & 0xFF00) >> 8);
+				data[k + 3] = (u8)(reglist[i].val & 0xFF);
+				k = k + 4;
+				(msg + j)->len = 4;
+			}
+
 			j++;
 			if (j == (I2C_MSG_MAX - 1)) {
 				/* Bulk I2C transfer */
@@ -1098,6 +1255,49 @@ int pltfrm_camera_module_write_reglist(
 				k = 0;
 				pltfrm_camera_module_pr_debug(sd,
 					"i2c_transfer return %d\n", ret);
+			}
+			break;
+		case PLTFRM_CAMERA_MODULE_WR_SINGLE:
+			msg->addr = client->addr;
+			msg->flags = I2C_M_WR;
+			msg->buf = data;
+
+			if (PLTFRM_CAMERA_MODULE_REG_LEN(reglist[i].flag) == 1 &&
+				PLTFRM_CAMERA_MODULE_DATA_LEN(reglist[i].flag) == 1) {
+				data[0] = (u8)(reglist[i].reg & 0xFF);
+				data[1] = (u8)(reglist[i].val & 0xFF);
+				msg->len = 2;
+			} else if (PLTFRM_CAMERA_MODULE_REG_LEN(reglist[i].flag) == 2 &&
+				PLTFRM_CAMERA_MODULE_DATA_LEN(reglist[i].flag) == 1) {
+				data[0] = (u8)((reglist[i].reg & 0xFF00) >> 8);
+				data[1] = (u8)(reglist[i].reg & 0xFF);
+				data[2] = (u8)(reglist[i].val & 0xFF);
+				msg->len = 3;
+			} else if (PLTFRM_CAMERA_MODULE_REG_LEN(reglist[i].flag) == 1 &&
+				PLTFRM_CAMERA_MODULE_DATA_LEN(reglist[i].flag) == 2) {
+				data[0] = (u8)(reglist[i].reg & 0xFF);
+				data[1] = (u8)((reglist[i].val & 0xFF00) >> 8);
+				data[2] = (u8)(reglist[i].val & 0xFF);
+				msg->len = 3;
+			} else if (PLTFRM_CAMERA_MODULE_REG_LEN(reglist[i].flag) == 2 &&
+				PLTFRM_CAMERA_MODULE_DATA_LEN(reglist[i].flag) == 2) {
+				data[0] = (u8)((reglist[i].reg & 0xFF00) >> 8);
+				data[1] = (u8)(reglist[i].reg & 0xFF);
+				data[2] = (u8)((reglist[i].val & 0xFF00) >> 8);
+				data[3] = (u8)(reglist[i].val & 0xFF);
+				msg->len = 4;
+			}
+
+			pltfrm_camera_module_pr_debug(sd,
+				"messages transfers 1 0x%p msg\n", msg);
+			ret = i2c_transfer(client->adapter, msg, 1);
+			if (ret < 0) {
+				pltfrm_camera_module_pr_err(sd,
+					"i2c transfer returned with err %d\n",
+					ret);
+				kfree(msg);
+				kfree(data);
+				return ret;
 			}
 			break;
 		case PLTFRM_CAMERA_MODULE_REG_TYPE_TIMEOUT:
@@ -1130,7 +1330,7 @@ int pltfrm_camera_module_write_reglist(
 		}
 	}
 
-	if (j != 0) {	/* Remaining I2C message */
+	if (j != 0) {	   /*Remaining I2C message*/
 		pltfrm_camera_module_pr_debug(sd,
 			"messages transfers 1 0x%p msg %d bytes %d\n",
 			msg, j, k);
