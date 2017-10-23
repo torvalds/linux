@@ -1257,10 +1257,16 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 	kvm_mmu_write_protect_pt_masked(kvm, slot, gfn_offset, mask);
 }
 
-static void coherent_cache_guest_page(struct kvm_vcpu *vcpu, kvm_pfn_t pfn,
-				      unsigned long size)
+static void clean_dcache_guest_page(struct kvm_vcpu *vcpu, kvm_pfn_t pfn,
+				    unsigned long size)
 {
-	__coherent_cache_guest_page(vcpu, pfn, size);
+	__clean_dcache_guest_page(vcpu, pfn, size);
+}
+
+static void invalidate_icache_guest_page(struct kvm_vcpu *vcpu, kvm_pfn_t pfn,
+					 unsigned long size)
+{
+	__invalidate_icache_guest_page(vcpu, pfn, size);
 }
 
 static void kvm_send_hwpoison_signal(unsigned long address,
@@ -1391,7 +1397,9 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 			new_pmd = kvm_s2pmd_mkwrite(new_pmd);
 			kvm_set_pfn_dirty(pfn);
 		}
-		coherent_cache_guest_page(vcpu, pfn, PMD_SIZE);
+		clean_dcache_guest_page(vcpu, pfn, PMD_SIZE);
+		invalidate_icache_guest_page(vcpu, pfn, PMD_SIZE);
+
 		ret = stage2_set_pmd_huge(kvm, memcache, fault_ipa, &new_pmd);
 	} else {
 		pte_t new_pte = pfn_pte(pfn, mem_type);
@@ -1401,7 +1409,9 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 			kvm_set_pfn_dirty(pfn);
 			mark_page_dirty(kvm, gfn);
 		}
-		coherent_cache_guest_page(vcpu, pfn, PAGE_SIZE);
+		clean_dcache_guest_page(vcpu, pfn, PAGE_SIZE);
+		invalidate_icache_guest_page(vcpu, pfn, PAGE_SIZE);
+
 		ret = stage2_set_pte(kvm, memcache, fault_ipa, &new_pte, flags);
 	}
 

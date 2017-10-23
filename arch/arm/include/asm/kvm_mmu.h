@@ -126,21 +126,12 @@ static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
 	return (vcpu_cp15(vcpu, c1_SCTLR) & 0b101) == 0b101;
 }
 
-static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu,
-					       kvm_pfn_t pfn,
-					       unsigned long size)
+static inline void __clean_dcache_guest_page(struct kvm_vcpu *vcpu,
+					     kvm_pfn_t pfn,
+					     unsigned long size)
 {
 	/*
-	 * If we are going to insert an instruction page and the icache is
-	 * either VIPT or PIPT, there is a potential problem where the host
-	 * (or another VM) may have used the same page as this guest, and we
-	 * read incorrect data from the icache.  If we're using a PIPT cache,
-	 * we can invalidate just that page, but if we are using a VIPT cache
-	 * we need to invalidate the entire icache - damn shame - as written
-	 * in the ARM ARM (DDI 0406C.b - Page B3-1393).
-	 *
-	 * VIVT caches are tagged using both the ASID and the VMID and doesn't
-	 * need any kind of flushing (DDI 0406C.b - Page B3-1392).
+	 * Clean the dcache to the Point of Coherency.
 	 *
 	 * We need to do this through a kernel mapping (using the
 	 * user-space mapping has proved to be the wrong
@@ -155,19 +146,52 @@ static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu,
 
 		kvm_flush_dcache_to_poc(va, PAGE_SIZE);
 
-		if (icache_is_pipt())
-			__cpuc_coherent_user_range((unsigned long)va,
-						   (unsigned long)va + PAGE_SIZE);
-
 		size -= PAGE_SIZE;
 		pfn++;
 
 		kunmap_atomic(va);
 	}
+}
 
-	if (!icache_is_pipt() && !icache_is_vivt_asid_tagged()) {
+static inline void __invalidate_icache_guest_page(struct kvm_vcpu *vcpu,
+						  kvm_pfn_t pfn,
+						  unsigned long size)
+{
+	/*
+	 * If we are going to insert an instruction page and the icache is
+	 * either VIPT or PIPT, there is a potential problem where the host
+	 * (or another VM) may have used the same page as this guest, and we
+	 * read incorrect data from the icache.  If we're using a PIPT cache,
+	 * we can invalidate just that page, but if we are using a VIPT cache
+	 * we need to invalidate the entire icache - damn shame - as written
+	 * in the ARM ARM (DDI 0406C.b - Page B3-1393).
+	 *
+	 * VIVT caches are tagged using both the ASID and the VMID and doesn't
+	 * need any kind of flushing (DDI 0406C.b - Page B3-1392).
+	 */
+
+	VM_BUG_ON(size & ~PAGE_MASK);
+
+	if (icache_is_vivt_asid_tagged())
+		return;
+
+	if (!icache_is_pipt()) {
 		/* any kind of VIPT cache */
 		__flush_icache_all();
+		return;
+	}
+
+	/* PIPT cache. As for the d-side, use a temporary kernel mapping. */
+	while (size) {
+		void *va = kmap_atomic_pfn(pfn);
+
+		__cpuc_coherent_user_range((unsigned long)va,
+					   (unsigned long)va + PAGE_SIZE);
+
+		size -= PAGE_SIZE;
+		pfn++;
+
+		kunmap_atomic(va);
 	}
 }
 
