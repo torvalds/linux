@@ -3328,6 +3328,19 @@ i915_gem_idle_work_handler(struct work_struct *work)
 		goto out_unlock;
 
 	/*
+	 * Be paranoid and flush a concurrent interrupt to make sure
+	 * we don't reactivate any irq tasklets after parking.
+	 *
+	 * FIXME: Note that even though we have waited for execlists to be idle,
+	 * there may still be an in-flight interrupt even though the CSB
+	 * is now empty. synchronize_irq() makes sure that a residual interrupt
+	 * is completed before we continue, but it doesn't prevent the HW from
+	 * raising a spurious interrupt later. To complete the shield we should
+	 * coordinate disabling the CS irq with flushing the interrupts.
+	 */
+	synchronize_irq(dev_priv->drm.irq);
+
+	/*
 	 * We are committed now to parking the engines, make sure there
 	 * will be no more interrupts arriving later.
 	 */
