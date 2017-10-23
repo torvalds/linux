@@ -51,6 +51,9 @@ const char *bin_name;
 static int last_argc;
 static char **last_argv;
 static int (*last_do_help)(int argc, char **argv);
+json_writer_t *json_wtr;
+bool pretty_output;
+bool json_output;
 
 void usage(void)
 {
@@ -217,22 +220,32 @@ err_close:
 int main(int argc, char **argv)
 {
 	static const struct option options[] = {
+		{ "json",	no_argument,	NULL,	'j' },
 		{ "help",	no_argument,	NULL,	'h' },
+		{ "pretty",	no_argument,	NULL,	'p' },
 		{ "version",	no_argument,	NULL,	'V' },
 		{ 0 }
 	};
-	int opt;
+	int opt, ret;
 
 	last_do_help = do_help;
+	pretty_output = false;
+	json_output = false;
 	bin_name = argv[0];
 
-	while ((opt = getopt_long(argc, argv, "Vh",
+	while ((opt = getopt_long(argc, argv, "Vhpj",
 				  options, NULL)) >= 0) {
 		switch (opt) {
 		case 'V':
 			return do_version(argc, argv);
 		case 'h':
 			return do_help(argc, argv);
+		case 'p':
+			pretty_output = true;
+			/* fall through */
+		case 'j':
+			json_output = true;
+			break;
 		default:
 			usage();
 		}
@@ -243,7 +256,21 @@ int main(int argc, char **argv)
 	if (argc < 0)
 		usage();
 
+	if (json_output) {
+		json_wtr = jsonw_new(stdout);
+		if (!json_wtr) {
+			err("failed to create JSON writer\n");
+			return -1;
+		}
+		jsonw_pretty(json_wtr, pretty_output);
+	}
+
 	bfd_init();
 
-	return cmd_select(cmds, argc, argv, do_help);
+	ret = cmd_select(cmds, argc, argv, do_help);
+
+	if (json_output)
+		jsonw_destroy(&json_wtr);
+
+	return ret;
 }

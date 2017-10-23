@@ -43,6 +43,8 @@
 #include <linux/bpf.h>
 #include <linux/kernel.h>
 
+#include "json_writer.h"
+
 #define err(msg...)	fprintf(stderr, "Error: " msg)
 #define warn(msg...)	fprintf(stderr, "Warning: " msg)
 #define info(msg...)	fprintf(stderr, msg)
@@ -65,6 +67,9 @@ enum bpf_obj_type {
 };
 
 extern const char *bin_name;
+
+extern json_writer_t *json_wtr;
+extern bool json_output;
 
 bool is_prefix(const char *pfx, const char *str);
 void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep);
