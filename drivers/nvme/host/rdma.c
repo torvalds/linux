@@ -1614,12 +1614,15 @@ nvme_rdma_queue_is_ready(struct nvme_rdma_queue *queue, struct request *rq)
 			/*
 			 * reconnecting state means transport disruption, which
 			 * can take a long time and even might fail permanently,
-			 * so we can't let incoming I/O be requeued forever.
-			 * fail it fast to allow upper layers a chance to
-			 * failover.
+			 * fail fast to give upper layers a chance to failover.
+			 * deleting state means that the ctrl will never accept
+			 * commands again, fail it permanently.
 			 */
-			if (queue->ctrl->ctrl.state == NVME_CTRL_RECONNECTING)
+			if (queue->ctrl->ctrl.state == NVME_CTRL_RECONNECTING ||
+			    queue->ctrl->ctrl.state == NVME_CTRL_DELETING) {
+				nvme_req(rq)->status = NVME_SC_ABORT_REQ;
 				return BLK_STS_IOERR;
+			}
 			return BLK_STS_RESOURCE; /* try again later */
 		}
 	}
