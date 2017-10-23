@@ -10,18 +10,20 @@ tool for inspection and simple manipulation of eBPF programs and maps
 SYNOPSIS
 ========
 
-	**bpftool** *OBJECT* { *COMMAND* | help }
+	**bpftool** *OBJECT* { *COMMAND* | **help** }
 
-	**bpftool** batch file *FILE*
+	**bpftool** **batch file** *FILE*
 
-	**bpftool** version
+	**bpftool** **version**
 
 	*OBJECT* := { **map** | **program** }
 
 	*MAP-COMMANDS* :=
-	{ show | dump | update | lookup | getnext | delete | pin | help }
+	{ **show** | **dump** | **update** | **lookup** | **getnext** | **delete**
+	| **pin** | **help** }
 
-	*PROG-COMMANDS* := { show | dump jited | dump xlated | pin | help }
+	*PROG-COMMANDS* := { **show** | **dump jited** | **dump xlated** | **pin**
+	| **help** }
 
 DESCRIPTION
 ===========

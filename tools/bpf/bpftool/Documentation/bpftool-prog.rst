@@ -10,13 +10,13 @@ tool for inspection and simple manipulation of eBPF progs
 SYNOPSIS
 ========
 
-|	**bpftool** prog show [*PROG*]
-|	**bpftool** prog dump xlated *PROG* [{file *FILE* | opcodes }]
-|	**bpftool** prog dump jited  *PROG* [{file *FILE* | opcodes }]
-|	**bpftool** prog pin *PROG* *FILE*
-|	**bpftool** prog help
+|	**bpftool** **prog show** [*PROG*]
+|	**bpftool** **prog dump xlated** *PROG* [{**file** *FILE* | **opcodes**}]
+|	**bpftool** **prog dump jited**  *PROG* [{**file** *FILE* | **opcodes**}]
+|	**bpftool** **prog pin** *PROG* *FILE*
+|	**bpftool** **prog help**
 |
-|	*PROG* := { id *PROG_ID* | pinned *FILE* | tag *PROG_TAG* }
+|	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
 
 DESCRIPTION
 ===========
