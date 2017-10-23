@@ -644,11 +644,11 @@ data_st_host_order(struct nfp_prog *nfp_prog, u8 dst_gpr, swreg offset,
 
 typedef int
 (*lmem_step)(struct nfp_prog *nfp_prog, u8 gpr, u8 gpr_byte, s32 off,
-	     unsigned int size, bool new_gpr);
+	     unsigned int size, bool first, bool new_gpr, bool last);
 
 static int
 wrp_lmem_load(struct nfp_prog *nfp_prog, u8 dst, u8 dst_byte, s32 off,
-	      unsigned int size, bool new_gpr)
+	      unsigned int size, bool first, bool new_gpr, bool last)
 {
 	u32 idx, src_byte;
 	enum shf_sc sc;
@@ -692,7 +692,13 @@ wrp_lmem_load(struct nfp_prog *nfp_prog, u8 dst, u8 dst_byte, s32 off,
 		reg = reg_lm(0, idx);
 	} else {
 		reg = imm_a(nfp_prog);
-		wrp_mov(nfp_prog, reg, reg_lm(0, idx));
+		/* If it's not the first part of the load and we start a new GPR
+		 * that means we are loading a second part of the LMEM word into
+		 * a new GPR.  IOW we've already looked that LMEM word and
+		 * therefore it has been loaded into imm_a().
+		 */
+		if (first || !new_gpr)
+			wrp_mov(nfp_prog, reg, reg_lm(0, idx));
 	}
 
 	emit_ld_field_any(nfp_prog, reg_both(dst), mask, reg, sc, shf, new_gpr);
@@ -702,7 +708,7 @@ wrp_lmem_load(struct nfp_prog *nfp_prog, u8 dst, u8 dst_byte, s32 off,
 
 static int
 wrp_lmem_store(struct nfp_prog *nfp_prog, u8 src, u8 src_byte, s32 off,
-	       unsigned int size, bool new_gpr)
+	       unsigned int size, bool first, bool new_gpr, bool last)
 {
 	u32 idx, dst_byte;
 	enum shf_sc sc;
@@ -746,13 +752,19 @@ wrp_lmem_store(struct nfp_prog *nfp_prog, u8 src, u8 src_byte, s32 off,
 		reg = reg_lm(0, idx);
 	} else {
 		reg = imm_a(nfp_prog);
-		wrp_mov(nfp_prog, reg, reg_lm(0, idx));
+		/* Only first and last LMEM locations are going to need RMW,
+		 * the middle location will be overwritten fully.
+		 */
+		if (first || last)
+			wrp_mov(nfp_prog, reg, reg_lm(0, idx));
 	}
 
 	emit_ld_field(nfp_prog, reg, mask, reg_b(src), sc, shf);
 
-	if (idx > RE_REG_LM_IDX_MAX)
-		wrp_mov(nfp_prog, reg_lm(0, idx), reg);
+	if (new_gpr || last) {
+		if (idx > RE_REG_LM_IDX_MAX)
+			wrp_mov(nfp_prog, reg_lm(0, idx), reg);
+	}
 
 	return 0;
 }
@@ -762,6 +774,7 @@ mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	     unsigned int size, u8 gpr, bool clr_gpr, lmem_step step)
 {
 	s32 off = nfp_prog->stack_depth + meta->insn.off;
+	bool first = true, last;
 	u8 prev_gpr = 255;
 	u32 gpr_byte = 0;
 	int ret;
@@ -777,12 +790,16 @@ mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		slice_end = min(off + slice_size, round_up(off + 1, 4));
 		slice_size = slice_end - off;
 
+		last = slice_size == size;
+
 		ret = step(nfp_prog, gpr, gpr_byte, off, slice_size,
-			   gpr != prev_gpr);
+			   first, gpr != prev_gpr, last);
 		if (ret)
 			return ret;
 
 		prev_gpr = gpr;
+		first = false;
+
 		gpr_byte += slice_size;
 		if (gpr_byte >= 4) {
 			gpr_byte -= 4;
