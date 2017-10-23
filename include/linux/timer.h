@@ -17,7 +17,7 @@ struct timer_list {
 	 */
 	struct hlist_node	entry;
 	unsigned long		expires;
-	void			(*function)(unsigned long);
+	void			(*function)(struct timer_list *);
 	u32			flags;
 
 #ifdef CONFIG_LOCKDEP
@@ -63,7 +63,7 @@ struct timer_list {
 
 #define TIMER_TRACE_FLAGMASK	(TIMER_MIGRATING | TIMER_DEFERRABLE | TIMER_PINNED | TIMER_IRQSAFE)
 
-#define TIMER_DATA_TYPE		unsigned long
+#define TIMER_DATA_TYPE		struct timer_list *
 #define TIMER_FUNC_TYPE		void (*)(TIMER_DATA_TYPE)
 
 #define __TIMER_INITIALIZER(_function, _data, _flags) {		\

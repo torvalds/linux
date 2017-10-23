@@ -1284,7 +1284,7 @@ int del_timer_sync(struct timer_list *timer)
 EXPORT_SYMBOL(del_timer_sync);
 #endif
 
-static void call_timer_fn(struct timer_list *timer, void (*fn)(unsigned long))
+static void call_timer_fn(struct timer_list *timer, void (*fn)(struct timer_list *))
 {
 	int count = preempt_count();
 
@@ -1308,7 +1308,7 @@ static void call_timer_fn(struct timer_list *timer, void (*fn)(unsigned long))
 	lock_map_acquire(&lockdep_map);
 
 	trace_timer_expire_entry(timer);
-	fn((TIMER_DATA_TYPE)timer);
+	fn(timer);
 	trace_timer_expire_exit(timer);
 
 	lock_map_release(&lockdep_map);
@@ -1330,7 +1330,7 @@ static void expire_timers(struct timer_base *base, struct hlist_head *head)
 {
 	while (!hlist_empty(head)) {
 		struct timer_list *timer;
-		void (*fn)(unsigned long);
+		void (*fn)(struct timer_list *);
 
 		timer = hlist_entry(head->first, struct timer_list, entry);
 
