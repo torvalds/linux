@@ -113,17 +113,23 @@ nfp_bpf_check_exit(struct nfp_prog *nfp_prog,
 
 static int
 nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
-		  const struct bpf_verifier_env *env, u8 reg)
+		  const struct bpf_verifier_env *env, u8 reg_no)
 {
-	if (env->cur_state.regs[reg].type != PTR_TO_CTX &&
-	    env->cur_state.regs[reg].type != PTR_TO_PACKET)
-		return -EINVAL;
+	const struct bpf_reg_state *reg = &env->cur_state.regs[reg_no];
 
-	if (meta->ptr.type != NOT_INIT &&
-	    meta->ptr.type != env->cur_state.regs[reg].type)
+	if (reg->type != PTR_TO_CTX &&
+	    reg->type != PTR_TO_PACKET) {
+		pr_info("unsupported ptr type: %d\n", reg->type);
 		return -EINVAL;
+	}
 
-	meta->ptr = env->cur_state.regs[reg];
+	if (meta->ptr.type != NOT_INIT && meta->ptr.type != reg->type) {
+		pr_info("ptr type changed for instruction %d -> %d\n",
+			meta->ptr.type, reg->type);
+		return -EINVAL;
+	}
+
+	meta->ptr = *reg;
 
 	return 0;
 }
