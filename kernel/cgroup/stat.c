@@ -256,7 +256,7 @@ void __cgroup_account_cputime_field(struct cgroup *cgrp,
 	cgroup_cpu_stat_account_end(cgrp, cstat);
 }
 
-void cgroup_stat_show_cputime(struct seq_file *seq, const char *prefix)
+void cgroup_stat_show_cputime(struct seq_file *seq)
 {
 	struct cgroup *cgrp = seq_css(seq)->cgroup;
 	u64 usage, utime, stime;
@@ -278,10 +278,10 @@ void cgroup_stat_show_cputime(struct seq_file *seq, const char *prefix)
 	do_div(utime, NSEC_PER_USEC);
 	do_div(stime, NSEC_PER_USEC);
 
-	seq_printf(seq, "%susage_usec %llu\n"
-		   "%suser_usec %llu\n"
-		   "%ssystem_usec %llu\n",
-		   prefix, usage, prefix, utime, prefix, stime);
+	seq_printf(seq, "usage_usec %llu\n"
+		   "user_usec %llu\n"
+		   "system_usec %llu\n",
+		   usage, utime, stime);
 }
 
 int cgroup_stat_init(struct cgroup *cgrp)

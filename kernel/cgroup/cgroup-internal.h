@@ -205,6 +205,7 @@ int cgroup_task_count(const struct cgroup *cgrp);
 void cgroup_stat_flush(struct cgroup *cgrp);
 int cgroup_stat_init(struct cgroup *cgrp);
 void cgroup_stat_exit(struct cgroup *cgrp);
+void cgroup_stat_show_cputime(struct seq_file *seq);
 void cgroup_stat_boot(void);
 
 /*

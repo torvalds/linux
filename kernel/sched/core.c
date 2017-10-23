@@ -6678,13 +6678,12 @@ static struct cftype cpu_legacy_files[] = {
 	{ }	/* Terminate */
 };
 
-static int cpu_stat_show(struct seq_file *sf, void *v)
+static int cpu_extra_stat_show(struct seq_file *sf,
+			       struct cgroup_subsys_state *css)
 {
-	cgroup_stat_show_cputime(sf, "");
-
 #ifdef CONFIG_CFS_BANDWIDTH
 	{
-		struct task_group *tg = css_tg(seq_css(sf));
+		struct task_group *tg = css_tg(css);
 		struct cfs_bandwidth *cfs_b = &tg->cfs_bandwidth;
 		u64 throttled_usec;
 
@@ -6817,11 +6816,6 @@ static ssize_t cpu_max_write(struct kernfs_open_file *of,
 #endif
 
 static struct cftype cpu_files[] = {
-	{
-		.name = "stat",
-		.flags = CFTYPE_NOT_ON_ROOT,
-		.seq_show = cpu_stat_show,
-	},
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	{
 		.name = "weight",
@@ -6852,6 +6846,7 @@ struct cgroup_subsys cpu_cgrp_subsys = {
 	.css_online	= cpu_cgroup_css_online,
 	.css_released	= cpu_cgroup_css_released,
 	.css_free	= cpu_cgroup_css_free,
+	.css_extra_stat_show = cpu_extra_stat_show,
 	.fork		= cpu_cgroup_fork,
 	.can_attach	= cpu_cgroup_can_attach,
 	.attach		= cpu_cgroup_attach,

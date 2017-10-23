@@ -703,8 +703,6 @@ static inline void cpuacct_account_field(struct task_struct *tsk, int index,
 					 u64 val) {}
 #endif
 
-void cgroup_stat_show_cputime(struct seq_file *seq, const char *prefix);
-
 void __cgroup_account_cputime(struct cgroup *cgrp, u64 delta_exec);
 void __cgroup_account_cputime_field(struct cgroup *cgrp,
 				    enum cpu_usage_stat index, u64 delta_exec);

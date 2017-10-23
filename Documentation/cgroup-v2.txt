@@ -886,15 +886,6 @@ All cgroup core files are prefixed with "cgroup."
 		A dying cgroup can consume system resources not exceeding
 		limits, which were active at the moment of cgroup deletion.
 
-	  cpu.usage_usec
-		CPU time consumed in the subtree.
-
-	  cpu.user_usec
-		User CPU time consumed in the subtree.
-
-	  cpu.system_usec
-		System CPU time consumed in the subtree.
-
 
 Controllers
 ===========
@@ -915,12 +906,16 @@ All time durations are in microseconds.
 
   cpu.stat
 	A read-only flat-keyed file which exists on non-root cgroups.
+	This file exists whether the controller is enabled or not.
 
-	It reports the following six stats:
+	It always reports the following three stats:
 
 	- usage_usec
 	- user_usec
 	- system_usec
+
+	and the following three when the controller is enabled:
+
 	- nr_periods
 	- nr_throttled
 	- throttled_usec
