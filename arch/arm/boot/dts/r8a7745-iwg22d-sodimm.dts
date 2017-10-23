@@ -16,9 +16,9 @@
 	compatible = "iwave,g22d", "iwave,g22m", "renesas,r8a7745";
 
 	aliases {
+		ethernet0 = &avb;
 		serial3 = &scif4;
 		serial5 = &hscif1;
-		ethernet0 = &avb;
 	};
 
 	chosen {
@@ -40,6 +40,25 @@
 	};
 };
 
+&avb {
+	pinctrl-0 = <&avb_pins>;
+	pinctrl-names = "default";
+
+	phy-handle = <&phy3>;
+	phy-mode = "gmii";
+	renesas,no-ether-link;
+	status = "okay";
+
+	phy3: ethernet-phy@3 {
+	/*
+	 * On some older versions of the platform (before R4.0) the phy address
+	 * may be 1 or 3. The address is fixed to 3 for R4.0 onwards.
+	 */
+		reg = <3>;
+		micrel,led-mode = <1>;
+	};
+};
+
 &hscif1 {
 	pinctrl-0 = <&hscif1_pins>;
 	pinctrl-names = "default";
@@ -48,7 +67,18 @@
 	status = "okay";
 };
 
+&pci1 {
+	status = "okay";
+	pinctrl-0 = <&usb1_pins>;
+	pinctrl-names = "default";
+};
+
 &pfc {
+	avb_pins: avb {
+		groups = "avb_mdio", "avb_gmii";
+		function = "avb";
+	};
+
 	hscif1_pins: hscif1 {
 		groups = "hscif1_data", "hscif1_ctrl";
 		function = "hscif1";
@@ -57,11 +87,6 @@
 	scif4_pins: scif4 {
 		groups = "scif4_data_b";
 		function = "scif4";
-	};
-
-	avb_pins: avb {
-		groups = "avb_mdio", "avb_gmii";
-		function = "avb";
 	};
 
 	sdhi0_pins: sd0 {
@@ -83,25 +108,6 @@
 	status = "okay";
 };
 
-&avb {
-	pinctrl-0 = <&avb_pins>;
-	pinctrl-names = "default";
-
-	phy-handle = <&phy3>;
-	phy-mode = "gmii";
-	renesas,no-ether-link;
-	status = "okay";
-
-	phy3: ethernet-phy@3 {
-	/*
-	 * On some older versions of the platform (before R4.0) the phy address
-	 * may be 1 or 3. The address is fixed to 3 for R4.0 onwards.
-	 */
-		reg = <3>;
-		micrel,led-mode = <1>;
-	};
-};
-
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_pins>;
 	pinctrl-names = "default";
@@ -110,12 +116,6 @@
 	vqmmc-supply = <&vccq_sdhi0>;
 	cd-gpios = <&gpio6 6 GPIO_ACTIVE_LOW>;
 	status = "okay";
-};
-
-&pci1 {
-	status = "okay";
-	pinctrl-0 = <&usb1_pins>;
-	pinctrl-names = "default";
 };
 
 &usbphy {
