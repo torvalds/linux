@@ -53,7 +53,7 @@ bool arch_within_kprobe_blacklist(unsigned long addr)
 
 kprobe_opcode_t *kprobe_lookup_name(const char *name, unsigned int offset)
 {
-	kprobe_opcode_t *addr;
+	kprobe_opcode_t *addr = NULL;
 
 #ifdef PPC64_ELF_ABI_v2
 	/* PPC64 ABIv2 needs local entry point */
@@ -85,36 +85,29 @@ kprobe_opcode_t *kprobe_lookup_name(const char *name, unsigned int offset)
 	 * Also handle <module:symbol> format.
 	 */
 	char dot_name[MODULE_NAME_LEN + 1 + KSYM_NAME_LEN];
-	const char *modsym;
 	bool dot_appended = false;
-	if ((modsym = strchr(name, ':')) != NULL) {
-		modsym++;
-		if (*modsym != '\0' && *modsym != '.') {
-			/* Convert to <module:.symbol> */
-			strncpy(dot_name, name, modsym - name);
-			dot_name[modsym - name] = '.';
-			dot_name[modsym - name + 1] = '\0';
-			strncat(dot_name, modsym,
-				sizeof(dot_name) - (modsym - name) - 2);
-			dot_appended = true;
-		} else {
-			dot_name[0] = '\0';
-			strncat(dot_name, name, sizeof(dot_name) - 1);
-		}
-	} else if (name[0] != '.') {
-		dot_name[0] = '.';
-		dot_name[1] = '\0';
-		strncat(dot_name, name, KSYM_NAME_LEN - 2);
+	const char *c;
+	ssize_t ret = 0;
+	int len = 0;
+
+	if ((c = strnchr(name, MODULE_NAME_LEN, ':')) != NULL) {
+		c++;
+		len = c - name;
+		memcpy(dot_name, name, len);
+	} else
+		c = name;
+
+	if (*c != '\0' && *c != '.') {
+		dot_name[len++] = '.';
 		dot_appended = true;
-	} else {
-		dot_name[0] = '\0';
-		strncat(dot_name, name, KSYM_NAME_LEN - 1);
 	}
-	addr = (kprobe_opcode_t *)kallsyms_lookup_name(dot_name);
-	if (!addr && dot_appended) {
-		/* Let's try the original non-dot symbol lookup	*/
+	ret = strscpy(dot_name + len, c, KSYM_NAME_LEN);
+	if (ret > 0)
+		addr = (kprobe_opcode_t *)kallsyms_lookup_name(dot_name);
+
+	/* Fallback to the original non-dot symbol lookup */
+	if (!addr && dot_appended)
 		addr = (kprobe_opcode_t *)kallsyms_lookup_name(name);
-	}
 #else
 	addr = (kprobe_opcode_t *)kallsyms_lookup_name(name);
 #endif
