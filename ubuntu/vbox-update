@@ -37,6 +37,10 @@ do
 	sed -i -e '1iKBUILD_EXTMOD=${srctree}/ubuntu/vbox' $make
 done
 
+# We're now using the vboxvideo module in drivers/staging, so disable
+# the version that was imported.
+sed -i -e 's: vboxvideo/::' vbox/Makefile
+
 # Record the version number and nominal source.
 {
 	echo "Source: http://ports.ubuntu.com/pool/multiverse/v/virtualbox/virtualbox-guest-dkms_${ver}_all.deb"
