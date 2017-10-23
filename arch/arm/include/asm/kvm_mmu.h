@@ -37,6 +37,8 @@
 
 #include <linux/highmem.h>
 #include <asm/cacheflush.h>
+#include <asm/cputype.h>
+#include <asm/kvm_hyp.h>
 #include <asm/pgalloc.h>
 #include <asm/stage2_pgtable.h>
 
@@ -157,6 +159,8 @@ static inline void __invalidate_icache_guest_page(struct kvm_vcpu *vcpu,
 						  kvm_pfn_t pfn,
 						  unsigned long size)
 {
+	u32 iclsz;
+
 	/*
 	 * If we are going to insert an instruction page and the icache is
 	 * either VIPT or PIPT, there is a potential problem where the host
@@ -181,17 +185,39 @@ static inline void __invalidate_icache_guest_page(struct kvm_vcpu *vcpu,
 		return;
 	}
 
-	/* PIPT cache. As for the d-side, use a temporary kernel mapping. */
+	/*
+	 * CTR IminLine contains Log2 of the number of words in the
+	 * cache line, so we can get the number of words as
+	 * 2 << (IminLine - 1).  To get the number of bytes, we
+	 * multiply by 4 (the number of bytes in a 32-bit word), and
+	 * get 4 << (IminLine).
+	 */
+	iclsz = 4 << (read_cpuid(CPUID_CACHETYPE) & 0xf);
+
 	while (size) {
 		void *va = kmap_atomic_pfn(pfn);
+		void *end = va + PAGE_SIZE;
+		void *addr = va;
 
-		__cpuc_coherent_user_range((unsigned long)va,
-					   (unsigned long)va + PAGE_SIZE);
+		do {
+			write_sysreg(addr, ICIMVAU);
+			addr += iclsz;
+		} while (addr < end);
+
+		dsb(ishst);
+		isb();
 
 		size -= PAGE_SIZE;
 		pfn++;
 
 		kunmap_atomic(va);
+	}
+
+	/* Check if we need to invalidate the BTB */
+	if ((read_cpuid_ext(CPUID_EXT_MMFR1) >> 28) != 4) {
+		write_sysreg(0, BPIALLIS);
+		dsb(ishst);
+		isb();
 	}
 }
 
