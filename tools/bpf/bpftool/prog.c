@@ -195,51 +195,100 @@ static void show_prog_maps(int fd, u32 num_maps)
 	if (err || !info.nr_map_ids)
 		return;
 
-	printf("  map_ids ");
-	for (i = 0; i < info.nr_map_ids; i++)
-		printf("%u%s", map_ids[i],
-		       i == info.nr_map_ids - 1 ? "" : ",");
+	if (json_output) {
+		jsonw_name(json_wtr, "map_ids");
+		jsonw_start_array(json_wtr);
+		for (i = 0; i < info.nr_map_ids; i++)
+			jsonw_uint(json_wtr, map_ids[i]);
+		jsonw_end_array(json_wtr);
+	} else {
+		printf("  map_ids ");
+		for (i = 0; i < info.nr_map_ids; i++)
+			printf("%u%s", map_ids[i],
+			       i == info.nr_map_ids - 1 ? "" : ",");
+	}
 }
 
-static int show_prog(int fd)
+static void print_prog_json(struct bpf_prog_info *info, int fd)
 {
-	struct bpf_prog_info info = {};
-	__u32 len = sizeof(info);
 	char *memlock;
-	int err;
 
-	err = bpf_obj_get_info_by_fd(fd, &info, &len);
-	if (err) {
-		err("can't get prog info: %s\n", strerror(errno));
-		return -1;
-	}
-
-	printf("%u: ", info.id);
-	if (info.type < ARRAY_SIZE(prog_type_name))
-		printf("%s  ", prog_type_name[info.type]);
+	jsonw_start_object(json_wtr);
+	jsonw_uint_field(json_wtr, "id", info->id);
+	if (info->type < ARRAY_SIZE(prog_type_name))
+		jsonw_string_field(json_wtr, "type",
+				   prog_type_name[info->type]);
 	else
-		printf("type %u  ", info.type);
+		jsonw_uint_field(json_wtr, "type", info->type);
 
-	if (*info.name)
-		printf("name %s  ", info.name);
+	if (*info->name)
+		jsonw_string_field(json_wtr, "name", info->name);
 
-	printf("tag ");
-	fprint_hex(stdout, info.tag, BPF_TAG_SIZE, "");
-	printf("\n");
+	jsonw_name(json_wtr, "tag");
+	jsonw_printf(json_wtr, "\"" BPF_TAG_FMT "\"",
+		     info->tag[0], info->tag[1], info->tag[2], info->tag[3],
+		     info->tag[4], info->tag[5], info->tag[6], info->tag[7]);
 
-	if (info.load_time) {
+	if (info->load_time) {
 		char buf[32];
 
-		print_boot_time(info.load_time, buf, sizeof(buf));
+		print_boot_time(info->load_time, buf, sizeof(buf));
 
 		/* Piggy back on load_time, since 0 uid is a valid one */
-		printf("\tloaded_at %s  uid %u\n", buf, info.created_by_uid);
+		jsonw_string_field(json_wtr, "loaded_at", buf);
+		jsonw_uint_field(json_wtr, "uid", info->created_by_uid);
 	}
 
-	printf("\txlated %uB", info.xlated_prog_len);
+	jsonw_uint_field(json_wtr, "bytes_xlated", info->xlated_prog_len);
 
-	if (info.jited_prog_len)
-		printf("  jited %uB", info.jited_prog_len);
+	if (info->jited_prog_len) {
+		jsonw_bool_field(json_wtr, "jited", true);
+		jsonw_uint_field(json_wtr, "bytes_jited", info->jited_prog_len);
+	} else {
+		jsonw_bool_field(json_wtr, "jited", false);
+	}
+
+	memlock = get_fdinfo(fd, "memlock");
+	if (memlock)
+		jsonw_int_field(json_wtr, "bytes_memlock", atoi(memlock));
+	free(memlock);
+
+	if (info->nr_map_ids)
+		show_prog_maps(fd, info->nr_map_ids);
+
+	jsonw_end_object(json_wtr);
+}
+
+static void print_prog_plain(struct bpf_prog_info *info, int fd)
+{
+	char *memlock;
+
+	printf("%u: ", info->id);
+	if (info->type < ARRAY_SIZE(prog_type_name))
+		printf("%s  ", prog_type_name[info->type]);
+	else
+		printf("type %u  ", info->type);
+
+	if (*info->name)
+		printf("name %s  ", info->name);
+
+	printf("tag ");
+	fprint_hex(stdout, info->tag, BPF_TAG_SIZE, "");
+	printf("\n");
+
+	if (info->load_time) {
+		char buf[32];
+
+		print_boot_time(info->load_time, buf, sizeof(buf));
+
+		/* Piggy back on load_time, since 0 uid is a valid one */
+		printf("\tloaded_at %s  uid %u\n", buf, info->created_by_uid);
+	}
+
+	printf("\txlated %uB", info->xlated_prog_len);
+
+	if (info->jited_prog_len)
+		printf("  jited %uB", info->jited_prog_len);
 	else
 		printf("  not jited");
 
@@ -248,16 +297,35 @@ static int show_prog(int fd)
 		printf("  memlock %sB", memlock);
 	free(memlock);
 
-	if (info.nr_map_ids)
-		show_prog_maps(fd, info.nr_map_ids);
+	if (info->nr_map_ids)
+		show_prog_maps(fd, info->nr_map_ids);
 
 	printf("\n");
+}
+
+static int show_prog(int fd)
+{
+	struct bpf_prog_info info = {};
+	__u32 len = sizeof(info);
+	int err;
+
+	err = bpf_obj_get_info_by_fd(fd, &info, &len);
+	if (err) {
+		err("can't get prog info: %s\n", strerror(errno));
+		return -1;
+	}
+
+	if (json_output)
+		print_prog_json(&info, fd);
+	else
+		print_prog_plain(&info, fd);
 
 	return 0;
 }
 
 static int do_show(int argc, char **argv)
-{	__u32 id = 0;
+{
+	__u32 id = 0;
 	int err;
 	int fd;
 
@@ -272,6 +340,8 @@ static int do_show(int argc, char **argv)
 	if (argc)
 		return BAD_ARG();
 
+	if (json_output)
+		jsonw_start_array(json_wtr);
 	while (true) {
 		err = bpf_prog_get_next_id(id, &id);
 		if (err) {
@@ -282,23 +352,28 @@ static int do_show(int argc, char **argv)
 			err("can't get next program: %s\n", strerror(errno));
 			if (errno == EINVAL)
 				err("kernel too old?\n");
-			return -1;
+			err = -1;
+			break;
 		}
 
 		fd = bpf_prog_get_fd_by_id(id);
 		if (fd < 0) {
 			err("can't get prog by id (%u): %s\n",
 			    id, strerror(errno));
-			return -1;
+			err = -1;
+			break;
 		}
 
 		err = show_prog(fd);
 		close(fd);
 		if (err)
-			return err;
+			break;
 	}
 
-	return 0;
+	if (json_output)
+		jsonw_end_array(json_wtr);
+
+	return err;
 }
 
 static void print_insn(struct bpf_verifier_env *env, const char *fmt, ...)
