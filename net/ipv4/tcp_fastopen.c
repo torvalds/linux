@@ -310,13 +310,23 @@ static bool tcp_fastopen_queue_check(struct sock *sk)
 	return true;
 }
 
+static bool tcp_fastopen_no_cookie(const struct sock *sk,
+				   const struct dst_entry *dst,
+				   int flag)
+{
+	return (sock_net(sk)->ipv4.sysctl_tcp_fastopen & flag) ||
+	       tcp_sk(sk)->fastopen_no_cookie ||
+	       (dst && dst_metric(dst, RTAX_FASTOPEN_NO_COOKIE));
+}
+
 /* Returns true if we should perform Fast Open on the SYN. The cookie (foc)
  * may be updated and return the client in the SYN-ACK later. E.g., Fast Open
  * cookie request (foc->len == 0).
  */
 struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 			      struct request_sock *req,
-			      struct tcp_fastopen_cookie *foc)
+			      struct tcp_fastopen_cookie *foc,
+			      const struct dst_entry *dst)
 {
 	bool syn_data = TCP_SKB_CB(skb)->end_seq != TCP_SKB_CB(skb)->seq + 1;
 	int tcp_fastopen = sock_net(sk)->ipv4.sysctl_tcp_fastopen;
@@ -333,7 +343,8 @@ struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 		return NULL;
 	}
 
-	if (syn_data && (tcp_fastopen & TFO_SERVER_COOKIE_NOT_REQD))
+	if (syn_data &&
+	    tcp_fastopen_no_cookie(sk, dst, TFO_SERVER_COOKIE_NOT_REQD))
 		goto fastopen;
 
 	if (foc->len >= 0 &&  /* Client presents or requests a cookie */
@@ -370,6 +381,7 @@ bool tcp_fastopen_cookie_check(struct sock *sk, u16 *mss,
 			       struct tcp_fastopen_cookie *cookie)
 {
 	unsigned long last_syn_loss = 0;
+	const struct dst_entry *dst;
 	int syn_loss = 0;
 
 	tcp_fastopen_cache_get(sk, mss, cookie, &syn_loss, &last_syn_loss);
@@ -387,7 +399,9 @@ bool tcp_fastopen_cookie_check(struct sock *sk, u16 *mss,
 		return false;
 	}
 
-	if (sock_net(sk)->ipv4.sysctl_tcp_fastopen & TFO_CLIENT_NO_COOKIE) {
+	dst = __sk_dst_get(sk);
+
+	if (tcp_fastopen_no_cookie(sk, dst, TFO_CLIENT_NO_COOKIE)) {
 		cookie->len = -1;
 		return true;
 	}

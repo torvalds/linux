@@ -1567,7 +1567,8 @@ int tcp_fastopen_reset_cipher(struct net *net, struct sock *sk,
 void tcp_fastopen_add_skb(struct sock *sk, struct sk_buff *skb);
 struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 			      struct request_sock *req,
-			      struct tcp_fastopen_cookie *foc);
+			      struct tcp_fastopen_cookie *foc,
+			      const struct dst_entry *dst);
 void tcp_fastopen_init_key_once(struct net *net);
 bool tcp_fastopen_cookie_check(struct sock *sk, u16 *mss,
 			     struct tcp_fastopen_cookie *cookie);
