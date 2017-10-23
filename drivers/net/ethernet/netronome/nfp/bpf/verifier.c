@@ -112,7 +112,8 @@ nfp_bpf_check_exit(struct nfp_prog *nfp_prog,
 }
 
 static int
-nfp_bpf_check_stack_access(struct nfp_insn_meta *meta,
+nfp_bpf_check_stack_access(struct nfp_prog *nfp_prog,
+			   struct nfp_insn_meta *meta,
 			   const struct bpf_reg_state *reg)
 {
 	s32 old_off, new_off;
@@ -128,7 +129,12 @@ nfp_bpf_check_stack_access(struct nfp_insn_meta *meta,
 	old_off = meta->ptr.off + meta->ptr.var_off.value;
 	new_off = reg->off + reg->var_off.value;
 
-	if (old_off == new_off)
+	meta->ptr_not_const |= old_off != new_off;
+
+	if (!meta->ptr_not_const)
+		return 0;
+
+	if (old_off % 4 == new_off % 4)
 		return 0;
 
 	pr_info("stack access changed location was:%d is:%d\n",
@@ -151,7 +157,7 @@ nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	}
 
 	if (reg->type == PTR_TO_STACK) {
-		err = nfp_bpf_check_stack_access(meta, reg);
+		err = nfp_bpf_check_stack_access(nfp_prog, meta, reg);
 		if (err)
 			return err;
 	}

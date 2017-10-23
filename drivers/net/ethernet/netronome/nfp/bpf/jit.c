@@ -832,8 +832,8 @@ wrp_lmem_store(struct nfp_prog *nfp_prog, u8 src, u8 src_byte, s32 off,
 
 static int
 mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
-	     unsigned int size, unsigned int ptr_off, u8 gpr, bool clr_gpr,
-	     lmem_step step)
+	     unsigned int size, unsigned int ptr_off, u8 gpr, u8 ptr_gpr,
+	     bool clr_gpr, lmem_step step)
 {
 	s32 off = nfp_prog->stack_depth + meta->insn.off + ptr_off;
 	bool first = true, last;
@@ -844,7 +844,19 @@ mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	bool lm3 = true;
 	int ret;
 
-	if (off + size <= 64) {
+	if (meta->ptr_not_const) {
+		/* Use of the last encountered ptr_off is OK, they all have
+		 * the same alignment.  Depend on low bits of value being
+		 * discarded when written to LMaddr register.
+		 */
+		stack_off_reg = ur_load_imm_any(nfp_prog, meta->insn.off,
+						stack_imm(nfp_prog));
+
+		emit_alu(nfp_prog, imm_b(nfp_prog),
+			 reg_a(ptr_gpr), ALU_OP_ADD, stack_off_reg);
+
+		needs_inc = true;
+	} else if (off + size <= 64) {
 		/* We can reach bottom 64B with LMaddr0 */
 		lm3 = false;
 	} else if (round_down(off, 32) == round_down(off + size - 1, 32)) {
@@ -1096,9 +1108,22 @@ static void wrp_end32(struct nfp_prog *nfp_prog, swreg reg_in, u8 gpr_out)
 static int mov_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
+	u8 dst = insn->dst_reg * 2;
+	u8 src = insn->src_reg * 2;
 
-	wrp_reg_mov(nfp_prog, insn->dst_reg * 2, insn->src_reg * 2);
-	wrp_reg_mov(nfp_prog, insn->dst_reg * 2 + 1, insn->src_reg * 2 + 1);
+	if (insn->src_reg == BPF_REG_10) {
+		swreg stack_depth_reg;
+
+		stack_depth_reg = ur_load_imm_any(nfp_prog,
+						  nfp_prog->stack_depth,
+						  stack_imm(nfp_prog));
+		emit_alu(nfp_prog, reg_both(dst),
+			 stack_reg(nfp_prog), ALU_OP_ADD, stack_depth_reg);
+		wrp_immed(nfp_prog, reg_both(dst + 1), 0);
+	} else {
+		wrp_reg_mov(nfp_prog, dst, src);
+		wrp_reg_mov(nfp_prog, dst + 1, src + 1);
+	}
 
 	return 0;
 }
@@ -1413,7 +1438,8 @@ mem_ldx_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	      unsigned int size, unsigned int ptr_off)
 {
 	return mem_op_stack(nfp_prog, meta, size, ptr_off,
-			    meta->insn.dst_reg * 2, true, wrp_lmem_load);
+			    meta->insn.dst_reg * 2, meta->insn.src_reg * 2,
+			    true, wrp_lmem_load);
 }
 
 static int mem_ldx_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
@@ -1585,7 +1611,8 @@ mem_stx_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	      unsigned int size, unsigned int ptr_off)
 {
 	return mem_op_stack(nfp_prog, meta, size, ptr_off,
-			    meta->insn.src_reg * 2, false, wrp_lmem_store);
+			    meta->insn.src_reg * 2, meta->insn.dst_reg * 2,
+			    false, wrp_lmem_store);
 }
 
 static int
