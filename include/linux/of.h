@@ -734,6 +734,16 @@ static inline struct device_node *of_get_cpu_node(int cpu,
 	return NULL;
 }
 
+static inline int of_n_addr_cells(struct device_node *np)
+{
+	return 0;
+
+}
+static inline int of_n_size_cells(struct device_node *np)
+{
+	return 0;
+}
+
 static inline int of_property_read_u64(const struct device_node *np,
 				       const char *propname, u64 *out_value)
 {

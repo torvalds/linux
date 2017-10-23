@@ -368,6 +368,11 @@ static inline void __bpf_prog_uncharge(struct user_struct *user, u32 pages)
 {
 }
 
+static inline int bpf_obj_get_user(const char __user *pathname)
+{
+	return -EOPNOTSUPP;
+}
+
 static inline struct net_device  *__dev_map_lookup_elem(struct bpf_map *map,
 						       u32 key)
 {

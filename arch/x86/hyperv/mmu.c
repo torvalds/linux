@@ -36,9 +36,9 @@ struct hv_flush_pcpu_ex {
 /* Each gva in gva_list encodes up to 4096 pages to flush */
 #define HV_TLB_FLUSH_UNIT (4096 * PAGE_SIZE)
 
-static struct hv_flush_pcpu __percpu *pcpu_flush;
+static struct hv_flush_pcpu __percpu **pcpu_flush;
 
-static struct hv_flush_pcpu_ex __percpu *pcpu_flush_ex;
+static struct hv_flush_pcpu_ex __percpu **pcpu_flush_ex;
 
 /*
  * Fills in gva_list starting from offset. Returns the number of items added.
@@ -76,6 +76,18 @@ static inline int cpumask_to_vp_set(struct hv_flush_pcpu_ex *flush,
 {
 	int cpu, vcpu, vcpu_bank, vcpu_offset, nr_bank = 1;
 
+	/* valid_bank_mask can represent up to 64 banks */
+	if (hv_max_vp_index / 64 >= 64)
+		return 0;
+
+	/*
+	 * Clear all banks up to the maximum possible bank as hv_flush_pcpu_ex
+	 * structs are not cleared between calls, we risk flushing unneeded
+	 * vCPUs otherwise.
+	 */
+	for (vcpu_bank = 0; vcpu_bank <= hv_max_vp_index / 64; vcpu_bank++)
+		flush->hv_vp_set.bank_contents[vcpu_bank] = 0;
+
 	/*
 	 * Some banks may end up being empty but this is acceptable.
 	 */
@@ -83,11 +95,6 @@ static inline int cpumask_to_vp_set(struct hv_flush_pcpu_ex *flush,
 		vcpu = hv_cpu_number_to_vp_number(cpu);
 		vcpu_bank = vcpu / 64;
 		vcpu_offset = vcpu % 64;
-
-		/* valid_bank_mask can represent up to 64 banks */
-		if (vcpu_bank >= 64)
-			return 0;
-
 		__set_bit(vcpu_offset, (unsigned long *)
 			  &flush->hv_vp_set.bank_contents[vcpu_bank]);
 		if (vcpu_bank >= nr_bank)
@@ -102,6 +109,7 @@ static void hyperv_flush_tlb_others(const struct cpumask *cpus,
 				    const struct flush_tlb_info *info)
 {
 	int cpu, vcpu, gva_n, max_gvas;
+	struct hv_flush_pcpu **flush_pcpu;
 	struct hv_flush_pcpu *flush;
 	u64 status = U64_MAX;
 	unsigned long flags;
@@ -116,7 +124,17 @@ static void hyperv_flush_tlb_others(const struct cpumask *cpus,
 
 	local_irq_save(flags);
 
-	flush = this_cpu_ptr(pcpu_flush);
+	flush_pcpu = this_cpu_ptr(pcpu_flush);
+
+	if (unlikely(!*flush_pcpu))
+		*flush_pcpu = page_address(alloc_page(GFP_ATOMIC));
+
+	flush = *flush_pcpu;
+
+	if (unlikely(!flush)) {
+		local_irq_restore(flags);
+		goto do_native;
+	}
 
 	if (info->mm) {
 		flush->address_space = virt_to_phys(info->mm->pgd);
@@ -173,6 +191,7 @@ static void hyperv_flush_tlb_others_ex(const struct cpumask *cpus,
 				       const struct flush_tlb_info *info)
 {
 	int nr_bank = 0, max_gvas, gva_n;
+	struct hv_flush_pcpu_ex **flush_pcpu;
 	struct hv_flush_pcpu_ex *flush;
 	u64 status = U64_MAX;
 	unsigned long flags;
@@ -187,7 +206,17 @@ static void hyperv_flush_tlb_others_ex(const struct cpumask *cpus,
 
 	local_irq_save(flags);
 
-	flush = this_cpu_ptr(pcpu_flush_ex);
+	flush_pcpu = this_cpu_ptr(pcpu_flush_ex);
+
+	if (unlikely(!*flush_pcpu))
+		*flush_pcpu = page_address(alloc_page(GFP_ATOMIC));
+
+	flush = *flush_pcpu;
+
+	if (unlikely(!flush)) {
+		local_irq_restore(flags);
+		goto do_native;
+	}
 
 	if (info->mm) {
 		flush->address_space = virt_to_phys(info->mm->pgd);
@@ -222,18 +251,18 @@ static void hyperv_flush_tlb_others_ex(const struct cpumask *cpus,
 		flush->flags |= HV_FLUSH_NON_GLOBAL_MAPPINGS_ONLY;
 		status = hv_do_rep_hypercall(
 			HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE_EX,
-			0, nr_bank + 2, flush, NULL);
+			0, nr_bank, flush, NULL);
 	} else if (info->end &&
 		   ((info->end - info->start)/HV_TLB_FLUSH_UNIT) > max_gvas) {
 		status = hv_do_rep_hypercall(
 			HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE_EX,
-			0, nr_bank + 2, flush, NULL);
+			0, nr_bank, flush, NULL);
 	} else {
 		gva_n = fill_gva_list(flush->gva_list, nr_bank,
 				      info->start, info->end);
 		status = hv_do_rep_hypercall(
 			HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST_EX,
-			gva_n, nr_bank + 2, flush, NULL);
+			gva_n, nr_bank, flush, NULL);
 	}
 
 	local_irq_restore(flags);
@@ -266,7 +295,7 @@ void hyper_alloc_mmu(void)
 		return;
 
 	if (!(ms_hyperv.hints & HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED))
-		pcpu_flush = __alloc_percpu(PAGE_SIZE, PAGE_SIZE);
+		pcpu_flush = alloc_percpu(struct hv_flush_pcpu *);
 	else
-		pcpu_flush_ex = __alloc_percpu(PAGE_SIZE, PAGE_SIZE);
+		pcpu_flush_ex = alloc_percpu(struct hv_flush_pcpu_ex *);
 }

@@ -184,7 +184,6 @@ static void mlx5e_update_sw_counters(struct mlx5e_priv *priv)
 	struct mlx5e_sw_stats temp, *s = &temp;
 	struct mlx5e_rq_stats *rq_stats;
 	struct mlx5e_sq_stats *sq_stats;
-	u64 tx_offload_none = 0;
 	int i, j;
 
 	memset(s, 0, sizeof(*s));
@@ -199,6 +198,7 @@ static void mlx5e_update_sw_counters(struct mlx5e_priv *priv)
 		s->rx_lro_bytes	+= rq_stats->lro_bytes;
 		s->rx_csum_none	+= rq_stats->csum_none;
 		s->rx_csum_complete += rq_stats->csum_complete;
+		s->rx_csum_unnecessary += rq_stats->csum_unnecessary;
 		s->rx_csum_unnecessary_inner += rq_stats->csum_unnecessary_inner;
 		s->rx_xdp_drop += rq_stats->xdp_drop;
 		s->rx_xdp_tx += rq_stats->xdp_tx;
@@ -229,13 +229,10 @@ static void mlx5e_update_sw_counters(struct mlx5e_priv *priv)
 			s->tx_queue_dropped	+= sq_stats->dropped;
 			s->tx_xmit_more		+= sq_stats->xmit_more;
 			s->tx_csum_partial_inner += sq_stats->csum_partial_inner;
-			tx_offload_none		+= sq_stats->csum_none;
+			s->tx_csum_none		+= sq_stats->csum_none;
+			s->tx_csum_partial	+= sq_stats->csum_partial;
 		}
 	}
-
-	/* Update calculated offload counters */
-	s->tx_csum_partial = s->tx_packets - tx_offload_none - s->tx_csum_partial_inner;
-	s->rx_csum_unnecessary = s->rx_packets - s->rx_csum_none - s->rx_csum_complete;
 
 	s->link_down_events_phy = MLX5_GET(ppcnt_reg,
 				priv->stats.pport.phy_counters,
@@ -3333,8 +3330,8 @@ static int mlx5e_handle_feature(struct net_device *netdev,
 
 	err = feature_handler(netdev, enable);
 	if (err) {
-		netdev_err(netdev, "%s feature 0x%llx failed err %d\n",
-			   enable ? "Enable" : "Disable", feature, err);
+		netdev_err(netdev, "%s feature %pNF failed, err %d\n",
+			   enable ? "Enable" : "Disable", &feature, err);
 		return err;
 	}
 

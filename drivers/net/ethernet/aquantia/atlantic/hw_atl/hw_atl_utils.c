@@ -351,8 +351,7 @@ int hw_atl_utils_mpi_get_link_status(struct aq_hw_s *self)
 			break;
 
 		default:
-			link_status->mbps = 0U;
-			break;
+			return -EBUSY;
 		}
 	}
 

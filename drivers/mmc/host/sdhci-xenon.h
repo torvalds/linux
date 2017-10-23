@@ -83,6 +83,7 @@ struct xenon_priv {
 	unsigned char	bus_width;
 	unsigned char	timing;
 	unsigned int	clock;
+	struct clk      *axi_clk;
 
 	int		phy_type;
 	/*
