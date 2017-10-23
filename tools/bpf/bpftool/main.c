@@ -155,6 +155,7 @@ static int do_batch(int argc, char **argv)
 	int n_argc;
 	FILE *fp;
 	int err;
+	int i;
 
 	if (argc < 2) {
 		err("too few parameters for batch\n");
@@ -174,6 +175,8 @@ static int do_batch(int argc, char **argv)
 		return -1;
 	}
 
+	if (json_output)
+		jsonw_start_array(json_wtr);
 	while (fgets(buf, sizeof(buf), fp)) {
 		if (strlen(buf) == sizeof(buf) - 1) {
 			errno = E2BIG;
@@ -197,7 +200,21 @@ static int do_batch(int argc, char **argv)
 		if (!n_argc)
 			continue;
 
+		if (json_output) {
+			jsonw_start_object(json_wtr);
+			jsonw_name(json_wtr, "command");
+			jsonw_start_array(json_wtr);
+			for (i = 0; i < n_argc; i++)
+				jsonw_string(json_wtr, n_argv[i]);
+			jsonw_end_array(json_wtr);
+			jsonw_name(json_wtr, "output");
+		}
+
 		err = cmd_select(cmds, n_argc, n_argv, do_help);
+
+		if (json_output)
+			jsonw_end_object(json_wtr);
+
 		if (err)
 			goto err_close;
 
@@ -213,6 +230,9 @@ static int do_batch(int argc, char **argv)
 	}
 err_close:
 	fclose(fp);
+
+	if (json_output)
+		jsonw_end_array(json_wtr);
 
 	return err;
 }
