@@ -647,7 +647,7 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 	if (bo->pin_count) {
 		uint32_t mem_type = bo->tbo.mem.mem_type;
 
-		if (domain != amdgpu_mem_type_to_domain(mem_type))
+		if (!(domain & amdgpu_mem_type_to_domain(mem_type)))
 			return -EINVAL;
 
 		bo->pin_count++;
