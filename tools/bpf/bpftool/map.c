@@ -205,8 +205,45 @@ map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len)
 	return fd;
 }
 
-static void print_entry(struct bpf_map_info *info, unsigned char *key,
-			unsigned char *value)
+static void print_entry_json(struct bpf_map_info *info, unsigned char *key,
+			     unsigned char *value)
+{
+	jsonw_start_object(json_wtr);
+
+	if (!map_is_per_cpu(info->type)) {
+		jsonw_name(json_wtr, "key");
+		print_hex_data_json(key, info->key_size);
+		jsonw_name(json_wtr, "value");
+		print_hex_data_json(value, info->value_size);
+	} else {
+		unsigned int i, n;
+
+		n = get_possible_cpus();
+
+		jsonw_name(json_wtr, "key");
+		print_hex_data_json(key, info->key_size);
+
+		jsonw_name(json_wtr, "values");
+		jsonw_start_array(json_wtr);
+		for (i = 0; i < n; i++) {
+			jsonw_start_object(json_wtr);
+
+			jsonw_int_field(json_wtr, "cpu", i);
+
+			jsonw_name(json_wtr, "value");
+			print_hex_data_json(value + i * info->value_size,
+					    info->value_size);
+
+			jsonw_end_object(json_wtr);
+		}
+		jsonw_end_array(json_wtr);
+	}
+
+	jsonw_end_object(json_wtr);
+}
+
+static void print_entry_plain(struct bpf_map_info *info, unsigned char *key,
+			      unsigned char *value)
 {
 	if (!map_is_per_cpu(info->type)) {
 		bool single_line, break_names;
@@ -370,7 +407,41 @@ static int parse_elem(char **argv, struct bpf_map_info *info,
 	return -1;
 }
 
-static int show_map_close(int fd, struct bpf_map_info *info)
+static int show_map_close_json(int fd, struct bpf_map_info *info)
+{
+	char *memlock;
+
+	memlock = get_fdinfo(fd, "memlock");
+	close(fd);
+
+	jsonw_start_object(json_wtr);
+
+	jsonw_uint_field(json_wtr, "id", info->id);
+	if (info->type < ARRAY_SIZE(map_type_name))
+		jsonw_string_field(json_wtr, "type",
+				   map_type_name[info->type]);
+	else
+		jsonw_uint_field(json_wtr, "type", info->type);
+
+	if (*info->name)
+		jsonw_string_field(json_wtr, "name", info->name);
+
+	jsonw_name(json_wtr, "flags");
+	jsonw_printf(json_wtr, "%#x", info->map_flags);
+	jsonw_uint_field(json_wtr, "bytes_key", info->key_size);
+	jsonw_uint_field(json_wtr, "bytes_value", info->value_size);
+	jsonw_uint_field(json_wtr, "max_entries", info->max_entries);
+
+	if (memlock)
+		jsonw_int_field(json_wtr, "bytes_memlock", atoi(memlock));
+	free(memlock);
+
+	jsonw_end_object(json_wtr);
+
+	return 0;
+}
+
+static int show_map_close_plain(int fd, struct bpf_map_info *info)
 {
 	char *memlock;
 
@@ -412,12 +483,17 @@ static int do_show(int argc, char **argv)
 		if (fd < 0)
 			return -1;
 
-		return show_map_close(fd, &info);
+		if (json_output)
+			return show_map_close_json(fd, &info);
+		else
+			return show_map_close_plain(fd, &info);
 	}
 
 	if (argc)
 		return BAD_ARG();
 
+	if (json_output)
+		jsonw_start_array(json_wtr);
 	while (true) {
 		err = bpf_map_get_next_id(id, &id);
 		if (err) {
@@ -443,8 +519,13 @@ static int do_show(int argc, char **argv)
 			return -1;
 		}
 
-		show_map_close(fd, &info);
+		if (json_output)
+			show_map_close_json(fd, &info);
+		else
+			show_map_close_plain(fd, &info);
 	}
+	if (json_output)
+		jsonw_end_array(json_wtr);
 
 	return errno == ENOENT ? 0 : -1;
 }
@@ -480,6 +561,8 @@ static int do_dump(int argc, char **argv)
 	}
 
 	prev_key = NULL;
+	if (json_output)
+		jsonw_start_array(json_wtr);
 	while (true) {
 		err = bpf_map_get_next_key(fd, prev_key, key);
 		if (err) {
@@ -489,7 +572,10 @@ static int do_dump(int argc, char **argv)
 		}
 
 		if (!bpf_map_lookup_elem(fd, key, value)) {
-			print_entry(&info, key, value);
+			if (json_output)
+				print_entry_json(&info, key, value);
+			else
+				print_entry_plain(&info, key, value);
 		} else {
 			info("can't lookup element with key: ");
 			fprint_hex(stderr, key, info.key_size, " ");
@@ -500,7 +586,11 @@ static int do_dump(int argc, char **argv)
 		num_elems++;
 	}
 
-	printf("Found %u element%s\n", num_elems, num_elems != 1 ? "s" : "");
+	if (json_output)
+		jsonw_end_array(json_wtr);
+	else
+		printf("Found %u element%s\n", num_elems,
+		       num_elems != 1 ? "s" : "");
 
 exit_free:
 	free(key);
@@ -584,11 +674,18 @@ static int do_lookup(int argc, char **argv)
 
 	err = bpf_map_lookup_elem(fd, key, value);
 	if (!err) {
-		print_entry(&info, key, value);
+		if (json_output)
+			print_entry_json(&info, key, value);
+		else
+			print_entry_plain(&info, key, value);
 	} else if (errno == ENOENT) {
-		printf("key:\n");
-		fprint_hex(stdout, key, info.key_size, " ");
-		printf("\n\nNot found\n");
+		if (json_output) {
+			jsonw_null(json_wtr);
+		} else {
+			printf("key:\n");
+			fprint_hex(stdout, key, info.key_size, " ");
+			printf("\n\nNot found\n");
+		}
 	} else {
 		err("lookup failed: %s\n", strerror(errno));
 	}
@@ -640,17 +737,29 @@ static int do_getnext(int argc, char **argv)
 		goto exit_free;
 	}
 
-	if (key) {
-		printf("key:\n");
-		fprint_hex(stdout, key, info.key_size, " ");
-		printf("\n");
+	if (json_output) {
+		jsonw_start_object(json_wtr);
+		if (key) {
+			jsonw_name(json_wtr, "key");
+			print_hex_data_json(key, info.key_size);
+		} else {
+			jsonw_null_field(json_wtr, "key");
+		}
+		jsonw_name(json_wtr, "next_key");
+		print_hex_data_json(nextkey, info.key_size);
+		jsonw_end_object(json_wtr);
 	} else {
-		printf("key: None\n");
+		if (key) {
+			printf("key:\n");
+			fprint_hex(stdout, key, info.key_size, " ");
+			printf("\n");
+		} else {
+			printf("key: None\n");
+		}
+		printf("next key:\n");
+		fprint_hex(stdout, nextkey, info.key_size, " ");
+		printf("\n");
 	}
-
-	printf("next key:\n");
-	fprint_hex(stdout, nextkey, info.key_size, " ");
-	printf("\n");
 
 exit_free:
 	free(nextkey);
