@@ -602,11 +602,21 @@ err_free:
 
 static int do_pin(int argc, char **argv)
 {
-	return do_pin_any(argc, argv, bpf_prog_get_fd_by_id);
+	int err;
+
+	err = do_pin_any(argc, argv, bpf_prog_get_fd_by_id);
+	if (!err && json_output)
+		jsonw_null(json_wtr);
+	return err;
 }
 
 static int do_help(int argc, char **argv)
 {
+	if (json_output) {
+		jsonw_null(json_wtr);
+		return 0;
+	}
+
 	fprintf(stderr,
 		"Usage: %s %s show [PROG]\n"
 		"       %s %s dump xlated PROG [{ file FILE | opcodes }]\n"

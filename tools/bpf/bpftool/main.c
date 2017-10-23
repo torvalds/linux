@@ -64,6 +64,11 @@ void usage(void)
 
 static int do_help(int argc, char **argv)
 {
+	if (json_output) {
+		jsonw_null(json_wtr);
+		return 0;
+	}
+
 	fprintf(stderr,
 		"Usage: %s OBJECT { COMMAND | help }\n"
 		"       %s batch file FILE\n"
@@ -77,10 +82,22 @@ static int do_help(int argc, char **argv)
 
 static int do_version(int argc, char **argv)
 {
-	printf("%s v%d.%d.%d\n", bin_name,
-	       LINUX_VERSION_CODE >> 16,
-	       LINUX_VERSION_CODE >> 8 & 0xf,
-	       LINUX_VERSION_CODE & 0xf);
+	unsigned int version[3];
+
+	version[0] = LINUX_VERSION_CODE >> 16;
+	version[1] = LINUX_VERSION_CODE >> 8 & 0xf;
+	version[2] = LINUX_VERSION_CODE & 0xf;
+
+	if (json_output) {
+		jsonw_start_object(json_wtr);
+		jsonw_name(json_wtr, "version");
+		jsonw_printf(json_wtr, "\"%u.%u.%u\"",
+			     version[0], version[1], version[2]);
+		jsonw_end_object(json_wtr);
+	} else {
+		printf("%s v%u.%u.%u\n", bin_name,
+		       version[0], version[1], version[2]);
+	}
 	return 0;
 }
 

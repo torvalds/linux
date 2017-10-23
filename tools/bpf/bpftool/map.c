@@ -651,6 +651,8 @@ exit_free:
 	free(value);
 	close(fd);
 
+	if (!err && json_output)
+		jsonw_null(json_wtr);
 	return err;
 }
 
@@ -812,16 +814,28 @@ exit_free:
 	free(key);
 	close(fd);
 
+	if (!err && json_output)
+		jsonw_null(json_wtr);
 	return err;
 }
 
 static int do_pin(int argc, char **argv)
 {
-	return do_pin_any(argc, argv, bpf_map_get_fd_by_id);
+	int err;
+
+	err = do_pin_any(argc, argv, bpf_map_get_fd_by_id);
+	if (!err && json_output)
+		jsonw_null(json_wtr);
+	return err;
 }
 
 static int do_help(int argc, char **argv)
 {
+	if (json_output) {
+		jsonw_null(json_wtr);
+		return 0;
+	}
+
 	fprintf(stderr,
 		"Usage: %s %s show   [MAP]\n"
 		"       %s %s dump    MAP\n"
