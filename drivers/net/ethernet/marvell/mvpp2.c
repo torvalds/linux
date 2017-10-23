@@ -6499,7 +6499,7 @@ out:
 	}
 
 	/* Finalize TX processing */
-	if (txq_pcpu->count >= txq->done_pkts_coal)
+	if (!port->has_tx_irqs && txq_pcpu->count >= txq->done_pkts_coal)
 		mvpp2_txq_done(port, txq, txq_pcpu);
 
 	/* Set the timer in case not all frags were processed */
