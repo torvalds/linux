@@ -385,9 +385,9 @@ static inline void ad7877_ts_event_release(struct ad7877 *ts)
 	input_sync(input_dev);
 }
 
-static void ad7877_timer(unsigned long handle)
+static void ad7877_timer(struct timer_list *t)
 {
-	struct ad7877 *ts = (void *)handle;
+	struct ad7877 *ts = from_timer(ts, t, timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ts->lock, flags);
@@ -718,7 +718,7 @@ static int ad7877_probe(struct spi_device *spi)
 	ts->spi = spi;
 	ts->input = input_dev;
 
-	setup_timer(&ts->timer, ad7877_timer, (unsigned long) ts);
+	timer_setup(&ts->timer, ad7877_timer, 0);
 	mutex_init(&ts->mutex);
 	spin_lock_init(&ts->lock);
 
