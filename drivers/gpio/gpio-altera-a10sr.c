@@ -71,7 +71,7 @@ static int altr_a10sr_gpio_direction_output(struct gpio_chip *gc,
 	return -EINVAL;
 }
 
-static struct gpio_chip altr_a10sr_gc = {
+static const struct gpio_chip altr_a10sr_gc = {
 	.label = "altr_a10sr_gpio",
 	.owner = THIS_MODULE,
 	.get = altr_a10sr_gpio_get,

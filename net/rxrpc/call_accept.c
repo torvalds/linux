@@ -277,7 +277,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 		 * anticipation - and to save on stack space.
 		 */
 		xpeer = b->peer_backlog[peer_tail];
-		if (rxrpc_extract_addr_from_skb(&xpeer->srx, skb) < 0)
+		if (rxrpc_extract_addr_from_skb(local, &xpeer->srx, skb) < 0)
 			return NULL;
 
 		peer = rxrpc_lookup_incoming_peer(local, xpeer);

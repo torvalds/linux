@@ -100,7 +100,7 @@ static const struct snd_soc_dapm_route lm4857_routes[] = {
 	{ "EP", "Earpiece", "Mode" },
 };
 
-static struct snd_soc_component_driver lm4857_component_driver = {
+static const struct snd_soc_component_driver lm4857_component_driver = {
 	.controls = lm4857_controls,
 	.num_controls = ARRAY_SIZE(lm4857_controls),
 	.dapm_widgets = lm4857_dapm_widgets,

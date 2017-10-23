@@ -65,7 +65,7 @@ struct mlx4_set_port_scheduler_context {
 
 /* Granular Qos (per VF) section */
 struct mlx4_alloc_vpp_param {
-	__be32 availible_vpp;
+	__be32 available_vpp;
 	__be32 vpp_p_up[MLX4_NUM_UP];
 };
 
@@ -157,7 +157,7 @@ int mlx4_SET_PORT_SCHEDULER(struct mlx4_dev *dev, u8 port, u8 *tc_tx_bw,
 EXPORT_SYMBOL(mlx4_SET_PORT_SCHEDULER);
 
 int mlx4_ALLOCATE_VPP_get(struct mlx4_dev *dev, u8 port,
-			  u16 *availible_vpp, u8 *vpp_p_up)
+			  u16 *available_vpp, u8 *vpp_p_up)
 {
 	int i;
 	int err;
@@ -179,7 +179,7 @@ int mlx4_ALLOCATE_VPP_get(struct mlx4_dev *dev, u8 port,
 		goto out;
 
 	/* Total number of supported VPPs */
-	*availible_vpp = (u16)be32_to_cpu(out_param->availible_vpp);
+	*available_vpp = (u16)be32_to_cpu(out_param->available_vpp);
 
 	for (i = 0; i < MLX4_NUM_UP; i++)
 		vpp_p_up[i] = (u8)be32_to_cpu(out_param->vpp_p_up[i]);

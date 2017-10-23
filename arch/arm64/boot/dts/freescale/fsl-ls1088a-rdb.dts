@@ -49,7 +49,7 @@
 #include "fsl-ls1088a.dtsi"
 
 / {
-	model = "L1088A RDB Board";
+	model = "LS1088A RDB Board";
 	compatible = "fsl,ls1088a-rdb", "fsl,ls1088a";
 };
 

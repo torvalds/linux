@@ -354,8 +354,10 @@ free_bhs:
 	return ret;
 }
 
+#define EXT4_XATTR_INODE_GET_PARENT(inode) ((__u32)(inode)->i_mtime.tv_sec)
+
 static int ext4_xattr_inode_iget(struct inode *parent, unsigned long ea_ino,
-				 struct inode **ea_inode)
+				 u32 ea_inode_hash, struct inode **ea_inode)
 {
 	struct inode *inode;
 	int err;
@@ -383,6 +385,24 @@ static int ext4_xattr_inode_iget(struct inode *parent, unsigned long ea_ino,
 			    ea_ino);
 		err = -EINVAL;
 		goto error;
+	}
+
+	ext4_xattr_inode_set_class(inode);
+
+	/*
+	 * Check whether this is an old Lustre-style xattr inode. Lustre
+	 * implementation does not have hash validation, rather it has a
+	 * backpointer from ea_inode to the parent inode.
+	 */
+	if (ea_inode_hash != ext4_xattr_inode_get_hash(inode) &&
+	    EXT4_XATTR_INODE_GET_PARENT(inode) == parent->i_ino &&
+	    inode->i_generation == parent->i_generation) {
+		ext4_set_inode_state(inode, EXT4_STATE_LUSTRE_EA_INODE);
+		ext4_xattr_inode_set_ref(inode, 1);
+	} else {
+		inode_lock(inode);
+		inode->i_flags |= S_NOQUOTA;
+		inode_unlock(inode);
 	}
 
 	*ea_inode = inode;
@@ -417,8 +437,6 @@ ext4_xattr_inode_verify_hashes(struct inode *ea_inode,
 	return 0;
 }
 
-#define EXT4_XATTR_INODE_GET_PARENT(inode) ((__u32)(inode)->i_mtime.tv_sec)
-
 /*
  * Read xattr value from the EA inode.
  */
@@ -431,7 +449,7 @@ ext4_xattr_inode_get(struct inode *inode, struct ext4_xattr_entry *entry,
 	int err;
 
 	err = ext4_xattr_inode_iget(inode, le32_to_cpu(entry->e_value_inum),
-				    &ea_inode);
+				    le32_to_cpu(entry->e_hash), &ea_inode);
 	if (err) {
 		ea_inode = NULL;
 		goto out;
@@ -449,29 +467,20 @@ ext4_xattr_inode_get(struct inode *inode, struct ext4_xattr_entry *entry,
 	if (err)
 		goto out;
 
-	err = ext4_xattr_inode_verify_hashes(ea_inode, entry, buffer, size);
-	/*
-	 * Compatibility check for old Lustre ea_inode implementation. Old
-	 * version does not have hash validation, but it has a backpointer
-	 * from ea_inode to the parent inode.
-	 */
-	if (err == -EFSCORRUPTED) {
-		if (EXT4_XATTR_INODE_GET_PARENT(ea_inode) != inode->i_ino ||
-		    ea_inode->i_generation != inode->i_generation) {
+	if (!ext4_test_inode_state(ea_inode, EXT4_STATE_LUSTRE_EA_INODE)) {
+		err = ext4_xattr_inode_verify_hashes(ea_inode, entry, buffer,
+						     size);
+		if (err) {
 			ext4_warning_inode(ea_inode,
 					   "EA inode hash validation failed");
 			goto out;
 		}
-		/* Do not add ea_inode to the cache. */
-		ea_inode_cache = NULL;
-		err = 0;
-	} else if (err)
-		goto out;
 
-	if (ea_inode_cache)
-		mb_cache_entry_create(ea_inode_cache, GFP_NOFS,
-				      ext4_xattr_inode_get_hash(ea_inode),
-				      ea_inode->i_ino, true /* reusable */);
+		if (ea_inode_cache)
+			mb_cache_entry_create(ea_inode_cache, GFP_NOFS,
+					ext4_xattr_inode_get_hash(ea_inode),
+					ea_inode->i_ino, true /* reusable */);
+	}
 out:
 	iput(ea_inode);
 	return err;
@@ -838,10 +847,15 @@ static int ext4_xattr_inode_alloc_quota(struct inode *inode, size_t len)
 	return err;
 }
 
-static void ext4_xattr_inode_free_quota(struct inode *inode, size_t len)
+static void ext4_xattr_inode_free_quota(struct inode *parent,
+					struct inode *ea_inode,
+					size_t len)
 {
-	dquot_free_space_nodirty(inode, round_up_cluster(inode, len));
-	dquot_free_inode(inode);
+	if (ea_inode &&
+	    ext4_test_inode_state(ea_inode, EXT4_STATE_LUSTRE_EA_INODE))
+		return;
+	dquot_free_space_nodirty(parent, round_up_cluster(parent, len));
+	dquot_free_inode(parent);
 }
 
 int __ext4_xattr_set_credits(struct super_block *sb, struct inode *inode,
@@ -1071,7 +1085,9 @@ static int ext4_xattr_inode_inc_ref_all(handle_t *handle, struct inode *parent,
 		if (!entry->e_value_inum)
 			continue;
 		ea_ino = le32_to_cpu(entry->e_value_inum);
-		err = ext4_xattr_inode_iget(parent, ea_ino, &ea_inode);
+		err = ext4_xattr_inode_iget(parent, ea_ino,
+					    le32_to_cpu(entry->e_hash),
+					    &ea_inode);
 		if (err)
 			goto cleanup;
 		err = ext4_xattr_inode_inc_ref(handle, ea_inode);
@@ -1093,7 +1109,9 @@ cleanup:
 		if (!entry->e_value_inum)
 			continue;
 		ea_ino = le32_to_cpu(entry->e_value_inum);
-		err = ext4_xattr_inode_iget(parent, ea_ino, &ea_inode);
+		err = ext4_xattr_inode_iget(parent, ea_ino,
+					    le32_to_cpu(entry->e_hash),
+					    &ea_inode);
 		if (err) {
 			ext4_warning(parent->i_sb,
 				     "cleanup ea_ino %u iget error %d", ea_ino,
@@ -1131,7 +1149,9 @@ ext4_xattr_inode_dec_ref_all(handle_t *handle, struct inode *parent,
 		if (!entry->e_value_inum)
 			continue;
 		ea_ino = le32_to_cpu(entry->e_value_inum);
-		err = ext4_xattr_inode_iget(parent, ea_ino, &ea_inode);
+		err = ext4_xattr_inode_iget(parent, ea_ino,
+					    le32_to_cpu(entry->e_hash),
+					    &ea_inode);
 		if (err)
 			continue;
 
@@ -1159,7 +1179,7 @@ ext4_xattr_inode_dec_ref_all(handle_t *handle, struct inode *parent,
 		}
 
 		if (!skip_quota)
-			ext4_xattr_inode_free_quota(parent,
+			ext4_xattr_inode_free_quota(parent, ea_inode,
 					      le32_to_cpu(entry->e_value_size));
 
 		/*
@@ -1591,6 +1611,7 @@ static int ext4_xattr_set_entry(struct ext4_xattr_info *i,
 	if (!s->not_found && here->e_value_inum) {
 		ret = ext4_xattr_inode_iget(inode,
 					    le32_to_cpu(here->e_value_inum),
+					    le32_to_cpu(here->e_hash),
 					    &old_ea_inode);
 		if (ret) {
 			old_ea_inode = NULL;
@@ -1609,7 +1630,7 @@ static int ext4_xattr_set_entry(struct ext4_xattr_info *i,
 						     &new_ea_inode);
 		if (ret) {
 			new_ea_inode = NULL;
-			ext4_xattr_inode_free_quota(inode, i->value_len);
+			ext4_xattr_inode_free_quota(inode, NULL, i->value_len);
 			goto out;
 		}
 	}
@@ -1628,13 +1649,13 @@ static int ext4_xattr_set_entry(struct ext4_xattr_info *i,
 					ext4_warning_inode(new_ea_inode,
 						  "dec ref new_ea_inode err=%d",
 						  err);
-				ext4_xattr_inode_free_quota(inode,
+				ext4_xattr_inode_free_quota(inode, new_ea_inode,
 							    i->value_len);
 			}
 			goto out;
 		}
 
-		ext4_xattr_inode_free_quota(inode,
+		ext4_xattr_inode_free_quota(inode, old_ea_inode,
 					    le32_to_cpu(here->e_value_size));
 	}
 
@@ -1805,8 +1826,10 @@ ext4_xattr_block_set(handle_t *handle, struct inode *inode,
 	struct mb_cache_entry *ce = NULL;
 	int error = 0;
 	struct mb_cache *ea_block_cache = EA_BLOCK_CACHE(inode);
-	struct inode *ea_inode = NULL;
-	size_t old_ea_inode_size = 0;
+	struct inode *ea_inode = NULL, *tmp_inode;
+	size_t old_ea_inode_quota = 0;
+	unsigned int ea_ino;
+
 
 #define header(x) ((struct ext4_xattr_header *)(x))
 
@@ -1865,12 +1888,24 @@ ext4_xattr_block_set(handle_t *handle, struct inode *inode,
 			 * like it has an empty value.
 			 */
 			if (!s->not_found && s->here->e_value_inum) {
-				/*
-				 * Defer quota free call for previous inode
-				 * until success is guaranteed.
-				 */
-				old_ea_inode_size = le32_to_cpu(
+				ea_ino = le32_to_cpu(s->here->e_value_inum);
+				error = ext4_xattr_inode_iget(inode, ea_ino,
+					      le32_to_cpu(s->here->e_hash),
+					      &tmp_inode);
+				if (error)
+					goto cleanup;
+
+				if (!ext4_test_inode_state(tmp_inode,
+						EXT4_STATE_LUSTRE_EA_INODE)) {
+					/*
+					 * Defer quota free call for previous
+					 * inode until success is guaranteed.
+					 */
+					old_ea_inode_quota = le32_to_cpu(
 							s->here->e_value_size);
+				}
+				iput(tmp_inode);
+
 				s->here->e_value_inum = 0;
 				s->here->e_value_size = 0;
 			}
@@ -1897,8 +1932,6 @@ ext4_xattr_block_set(handle_t *handle, struct inode *inode,
 		goto cleanup;
 
 	if (i->value && s->here->e_value_inum) {
-		unsigned int ea_ino;
-
 		/*
 		 * A ref count on ea_inode has been taken as part of the call to
 		 * ext4_xattr_set_entry() above. We would like to drop this
@@ -1906,7 +1939,9 @@ ext4_xattr_block_set(handle_t *handle, struct inode *inode,
 		 * initialized and has its own ref count on the ea_inode.
 		 */
 		ea_ino = le32_to_cpu(s->here->e_value_inum);
-		error = ext4_xattr_inode_iget(inode, ea_ino, &ea_inode);
+		error = ext4_xattr_inode_iget(inode, ea_ino,
+					      le32_to_cpu(s->here->e_hash),
+					      &ea_inode);
 		if (error) {
 			ea_inode = NULL;
 			goto cleanup;
@@ -2056,8 +2091,8 @@ getblk_failed:
 		}
 	}
 
-	if (old_ea_inode_size)
-		ext4_xattr_inode_free_quota(inode, old_ea_inode_size);
+	if (old_ea_inode_quota)
+		ext4_xattr_inode_free_quota(inode, NULL, old_ea_inode_quota);
 
 	/* Update the inode. */
 	EXT4_I(inode)->i_file_acl = new_bh ? new_bh->b_blocknr : 0;
@@ -2084,7 +2119,7 @@ cleanup:
 
 		/* If there was an error, revert the quota charge. */
 		if (error)
-			ext4_xattr_inode_free_quota(inode,
+			ext4_xattr_inode_free_quota(inode, ea_inode,
 						    i_size_read(ea_inode));
 		iput(ea_inode);
 	}
@@ -2800,6 +2835,7 @@ int ext4_xattr_delete_inode(handle_t *handle, struct inode *inode,
 	struct ext4_xattr_ibody_header *header;
 	struct ext4_iloc iloc = { .bh = NULL };
 	struct ext4_xattr_entry *entry;
+	struct inode *ea_inode;
 	int error;
 
 	error = ext4_xattr_ensure_credits(handle, inode, extra_credits,
@@ -2854,10 +2890,19 @@ int ext4_xattr_delete_inode(handle_t *handle, struct inode *inode,
 
 		if (ext4_has_feature_ea_inode(inode->i_sb)) {
 			for (entry = BFIRST(bh); !IS_LAST_ENTRY(entry);
-			     entry = EXT4_XATTR_NEXT(entry))
-				if (entry->e_value_inum)
-					ext4_xattr_inode_free_quota(inode,
+			     entry = EXT4_XATTR_NEXT(entry)) {
+				if (!entry->e_value_inum)
+					continue;
+				error = ext4_xattr_inode_iget(inode,
+					      le32_to_cpu(entry->e_value_inum),
+					      le32_to_cpu(entry->e_hash),
+					      &ea_inode);
+				if (error)
+					continue;
+				ext4_xattr_inode_free_quota(inode, ea_inode,
 					      le32_to_cpu(entry->e_value_size));
+				iput(ea_inode);
+			}
 
 		}
 

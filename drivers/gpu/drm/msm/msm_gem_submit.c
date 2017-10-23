@@ -40,7 +40,7 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 	if (sz > SIZE_MAX)
 		return NULL;
 
-	submit = kmalloc(sz, GFP_TEMPORARY | __GFP_NOWARN | __GFP_NORETRY);
+	submit = kmalloc(sz, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
 	if (!submit)
 		return NULL;
 
@@ -221,13 +221,27 @@ fail:
 	return ret;
 }
 
-static int submit_fence_sync(struct msm_gem_submit *submit)
+static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 {
 	int i, ret = 0;
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct msm_gem_object *msm_obj = submit->bos[i].obj;
 		bool write = submit->bos[i].flags & MSM_SUBMIT_BO_WRITE;
+
+		if (!write) {
+			/* NOTE: _reserve_shared() must happen before
+			 * _add_shared_fence(), which makes this a slightly
+			 * strange place to call it.  OTOH this is a
+			 * convenient can-fail point to hook it in.
+			 */
+			ret = reservation_object_reserve_shared(msm_obj->resv);
+			if (ret)
+				return ret;
+		}
+
+		if (no_implicit)
+			continue;
 
 		ret = msm_gem_sync_object(&msm_obj->base, submit->gpu->fctx, write);
 		if (ret)
@@ -451,11 +465,9 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (ret)
 		goto out;
 
-	if (!(args->flags & MSM_SUBMIT_NO_IMPLICIT)) {
-		ret = submit_fence_sync(submit);
-		if (ret)
-			goto out;
-	}
+	ret = submit_fence_sync(submit, !!(args->flags & MSM_SUBMIT_NO_IMPLICIT));
+	if (ret)
+		goto out;
 
 	ret = submit_pin_objects(submit);
 	if (ret)

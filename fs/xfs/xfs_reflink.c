@@ -464,7 +464,7 @@ retry:
 		goto out_bmap_cancel;
 
 	/* Finish up. */
-	error = xfs_defer_finish(&tp, &dfops, NULL);
+	error = xfs_defer_finish(&tp, &dfops);
 	if (error)
 		goto out_bmap_cancel;
 
@@ -602,7 +602,8 @@ xfs_reflink_cancel_cow_blocks(
 					-(long)del.br_blockcount);
 
 			/* Roll the transaction */
-			error = xfs_defer_finish(tpp, &dfops, ip);
+			xfs_defer_ijoin(&dfops, ip);
+			error = xfs_defer_finish(tpp, &dfops);
 			if (error) {
 				xfs_defer_cancel(&dfops);
 				break;
@@ -735,7 +736,13 @@ xfs_reflink_end_cow(
 	/* If there is a hole at end_fsb - 1 go to the previous extent */
 	if (!xfs_iext_lookup_extent(ip, ifp, end_fsb - 1, &idx, &got) ||
 	    got.br_startoff > end_fsb) {
-		ASSERT(idx > 0);
+		/*
+		 * In case of racing, overlapping AIO writes no COW extents
+		 * might be left by the time I/O completes for the loser of
+		 * the race.  In that case we are done.
+		 */
+		if (idx <= 0)
+			goto out_cancel;
 		xfs_iext_get_extent(ifp, --idx, &got);
 	}
 
@@ -791,7 +798,8 @@ xfs_reflink_end_cow(
 		/* Remove the mapping from the CoW fork. */
 		xfs_bmap_del_extent_cow(ip, &idx, &got, &del);
 
-		error = xfs_defer_finish(&tp, &dfops, ip);
+		xfs_defer_ijoin(&dfops, ip);
+		error = xfs_defer_finish(&tp, &dfops);
 		if (error)
 			goto out_defer;
 next_extent:
@@ -807,6 +815,7 @@ next_extent:
 
 out_defer:
 	xfs_defer_cancel(&dfops);
+out_cancel:
 	xfs_trans_cancel(tp);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 out:
@@ -1152,7 +1161,8 @@ xfs_reflink_remap_extent(
 
 next_extent:
 		/* Process all the deferred stuff. */
-		error = xfs_defer_finish(&tp, &dfops, ip);
+		xfs_defer_ijoin(&dfops, ip);
+		error = xfs_defer_finish(&tp, &dfops);
 		if (error)
 			goto out_defer;
 	}

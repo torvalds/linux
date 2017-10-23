@@ -16,8 +16,6 @@ struct device_node;
 
 #include <asm/mmzone.h>
 
-#define parent_node(node)	(node)
-
 #define cpumask_of_node(node) ((node) == -1 ?				\
 			       cpu_all_mask :				\
 			       node_to_cpumask_map[node])

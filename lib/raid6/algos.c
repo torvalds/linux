@@ -113,6 +113,9 @@ const struct raid6_recov_calls *const raid6_recov_algos[] = {
 #ifdef CONFIG_S390
 	&raid6_recov_s390xc,
 #endif
+#if defined(CONFIG_KERNEL_MODE_NEON)
+	&raid6_recov_neon,
+#endif
 	&raid6_recov_intx1,
 	NULL
 };

@@ -50,5 +50,6 @@ void nbio_v6_1_update_medium_grain_clock_gating(struct amdgpu_device *adev, bool
 void nbio_v6_1_update_medium_grain_light_sleep(struct amdgpu_device *adev, bool enable);
 void nbio_v6_1_get_clockgating_state(struct amdgpu_device *adev, u32 *flags);
 void nbio_v6_1_detect_hw_virt(struct amdgpu_device *adev);
+void nbio_v6_1_init_registers(struct amdgpu_device *adev);
 
 #endif

@@ -108,16 +108,13 @@ struct parse_events_error {
 	char *help;	/* optional help string */
 };
 
-struct parse_events_evlist {
+struct parse_events_state {
 	struct list_head	   list;
 	int			   idx;
 	int			   nr_groups;
 	struct parse_events_error *error;
 	struct perf_evlist	  *evlist;
-};
-
-struct parse_events_terms {
-	struct list_head *terms;
+	struct list_head	  *terms;
 };
 
 void parse_events__shrink_config_terms(void);
@@ -143,18 +140,18 @@ int parse_events_add_tracepoint(struct list_head *list, int *idx,
 				const char *sys, const char *event,
 				struct parse_events_error *error,
 				struct list_head *head_config);
-int parse_events_load_bpf(struct parse_events_evlist *data,
+int parse_events_load_bpf(struct parse_events_state *parse_state,
 			  struct list_head *list,
 			  char *bpf_file_name,
 			  bool source,
 			  struct list_head *head_config);
 /* Provide this function for perf test */
 struct bpf_object;
-int parse_events_load_bpf_obj(struct parse_events_evlist *data,
+int parse_events_load_bpf_obj(struct parse_events_state *parse_state,
 			      struct list_head *list,
 			      struct bpf_object *obj,
 			      struct list_head *head_config);
-int parse_events_add_numeric(struct parse_events_evlist *data,
+int parse_events_add_numeric(struct parse_events_state *parse_state,
 			     struct list_head *list,
 			     u32 type, u64 config,
 			     struct list_head *head_config);
@@ -164,11 +161,11 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 			   struct list_head *head_config);
 int parse_events_add_breakpoint(struct list_head *list, int *idx,
 				void *ptr, char *type, u64 len);
-int parse_events_add_pmu(struct parse_events_evlist *data,
+int parse_events_add_pmu(struct parse_events_state *parse_state,
 			 struct list_head *list, char *name,
 			 struct list_head *head_config);
 
-int parse_events_multi_pmu_add(struct parse_events_evlist *data,
+int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 			       char *str,
 			       struct list_head **listp);
 
@@ -180,7 +177,7 @@ perf_pmu__parse_check(const char *name);
 void parse_events__set_leader(char *name, struct list_head *list);
 void parse_events_update_lists(struct list_head *list_event,
 			       struct list_head *list_all);
-void parse_events_evlist_error(struct parse_events_evlist *data,
+void parse_events_evlist_error(struct parse_events_state *parse_state,
 			       int idx, const char *str);
 
 void print_events(const char *event_glob, bool name_only, bool quiet,

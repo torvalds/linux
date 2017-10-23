@@ -83,7 +83,7 @@ by writing the name of the desired stm device there, for example:
 $ echo dummy_stm.0 > /sys/class/stm_source/console/stm_source_link
 
 For examples on how to use stm_source interface in the kernel, refer
-to stm_console or stm_heartbeat drivers.
+to stm_console, stm_heartbeat or stm_ftrace drivers.
 
 Each stm_source device will need to assume a master and a range of
 channels, depending on how many channels it requires. These are
@@ -106,6 +106,17 @@ To configure the master/channel pair that will be assigned to this
 console in the STP stream, create a "console" policy entry (see the
 beginning of this text on how to do that). When initialized, it will
 consume one channel.
+
+stm_ftrace
+==========
+
+This is another "stm_source" device, once the stm_ftrace has been
+linked with an stm device, and if "function" tracer is enabled,
+function address and parent function address which Ftrace subsystem
+would store into ring buffer will be exported via the stm device at
+the same time.
+
+Currently only Ftrace "function" tracer is supported.
 
 [1] https://software.intel.com/sites/default/files/managed/d3/3c/intel-th-developer-manual.pdf
 [2] http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0444b/index.html

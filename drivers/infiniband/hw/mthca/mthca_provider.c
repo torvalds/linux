@@ -914,7 +914,7 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	int err = 0;
 	int write_mtt_size;
 
-	if (udata->inlen - sizeof (struct ib_uverbs_cmd_hdr) < sizeof ucmd) {
+	if (udata->inlen < sizeof ucmd) {
 		if (!to_mucontext(pd->uobject->context)->reg_mr_warned) {
 			mthca_warn(dev, "Process '%s' did not pass in MR attrs.\n",
 				   current->comm);
@@ -1178,12 +1178,11 @@ static int mthca_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
-static void get_dev_fw_str(struct ib_device *device, char *str,
-			   size_t str_len)
+static void get_dev_fw_str(struct ib_device *device, char *str)
 {
 	struct mthca_dev *dev =
 		container_of(device, struct mthca_dev, ib_dev);
-	snprintf(str, str_len, "%d.%d.%d",
+	snprintf(str, IB_FW_VERSION_NAME_MAX, "%d.%d.%d",
 		 (int) (dev->fw_ver >> 32),
 		 (int) (dev->fw_ver >> 16) & 0xffff,
 		 (int) dev->fw_ver & 0xffff);

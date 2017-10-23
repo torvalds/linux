@@ -108,6 +108,8 @@ Available follower modes are:
 
 .. _cec-mode-follower_e:
 
+.. cssclass:: longtable
+
 .. flat-table:: Follower Modes
     :header-rows:  0
     :stub-columns: 0
@@ -149,13 +151,28 @@ Available follower modes are:
 	code. You cannot become a follower if :ref:`CEC_CAP_TRANSMIT <CEC-CAP-TRANSMIT>`
 	is not set or if :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>` was specified,
 	the ``EINVAL`` error code is returned in that case.
+    * .. _`CEC-MODE-MONITOR-PIN`:
+
+      - ``CEC_MODE_MONITOR_PIN``
+      - 0xd0
+      - Put the file descriptor into pin monitoring mode. Can only be used in
+	combination with :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>`,
+	otherwise the ``EINVAL`` error code will be returned.
+	This mode requires that the :ref:`CEC_CAP_MONITOR_PIN <CEC-CAP-MONITOR-PIN>`
+	capability is set, otherwise the ``EINVAL`` error code is returned.
+	While in pin monitoring mode this file descriptor can receive the
+	``CEC_EVENT_PIN_CEC_LOW`` and ``CEC_EVENT_PIN_CEC_HIGH`` events to see the
+	low-level CEC pin transitions. This is very useful for debugging.
+	This mode is only allowed if the process has the ``CAP_NET_ADMIN``
+	capability. If that is not set, then the ``EPERM`` error code is returned.
     * .. _`CEC-MODE-MONITOR`:
 
       - ``CEC_MODE_MONITOR``
       - 0xe0
       - Put the file descriptor into monitor mode. Can only be used in
-	combination with :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>`, otherwise EINVAL error
-	code will be returned. In monitor mode all messages this CEC
+	combination with :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>`,i
+	otherwise the ``EINVAL`` error code will be returned.
+	In monitor mode all messages this CEC
 	device transmits and all messages it receives (both broadcast
 	messages and directed messages for one its logical addresses) will
 	be reported. This is very useful for debugging. This is only
@@ -191,55 +208,68 @@ Core message processing details:
     * .. _`CEC-MSG-GET-CEC-VERSION`:
 
       - ``CEC_MSG_GET_CEC_VERSION``
-      - When in passthrough mode this message has to be handled by
-	userspace, otherwise the core will return the CEC version that was
-	set with :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`.
+      - The core will return the CEC version that was set with
+	:ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`,
+	except when in passthrough mode. In passthrough mode the core
+	does nothing and this message has to be handled by a follower
+	instead.
     * .. _`CEC-MSG-GIVE-DEVICE-VENDOR-ID`:
 
       - ``CEC_MSG_GIVE_DEVICE_VENDOR_ID``
-      - When in passthrough mode this message has to be handled by
-	userspace, otherwise the core will return the vendor ID that was
-	set with :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`.
+      - The core will return the vendor ID that was set with
+	:ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`,
+	except when in passthrough mode. In passthrough mode the core
+	does nothing and this message has to be handled by a follower
+	instead.
     * .. _`CEC-MSG-ABORT`:
 
       - ``CEC_MSG_ABORT``
-      - When in passthrough mode this message has to be handled by
-	userspace, otherwise the core will return a feature refused
-	message as per the specification.
+      - The core will return a Feature Abort message with reason
+        'Feature Refused' as per the specification, except when in
+	passthrough mode. In passthrough mode the core does nothing
+	and this message has to be handled by a follower instead.
     * .. _`CEC-MSG-GIVE-PHYSICAL-ADDR`:
 
       - ``CEC_MSG_GIVE_PHYSICAL_ADDR``
-      - When in passthrough mode this message has to be handled by
-	userspace, otherwise the core will report the current physical
-	address.
+      - The core will report the current physical address, except when
+        in passthrough mode. In passthrough mode the core does nothing
+	and this message has to be handled by a follower instead.
     * .. _`CEC-MSG-GIVE-OSD-NAME`:
 
       - ``CEC_MSG_GIVE_OSD_NAME``
-      - When in passthrough mode this message has to be handled by
-	userspace, otherwise the core will report the current OSD name as
-	was set with :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`.
+      - The core will report the current OSD name that was set with
+	:ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`,
+	except when in passthrough mode. In passthrough mode the core
+	does nothing and this message has to be handled by a follower
+	instead.
     * .. _`CEC-MSG-GIVE-FEATURES`:
 
       - ``CEC_MSG_GIVE_FEATURES``
-      - When in passthrough mode this message has to be handled by
-	userspace, otherwise the core will report the current features as
-	was set with :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
-	or the message is ignored if the CEC version was older than 2.0.
+      - The core will do nothing if the CEC version is older than 2.0,
+        otherwise it will report the current features that were set with
+	:ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`,
+	except when in passthrough mode. In passthrough mode the core
+	does nothing (for any CEC version) and this message has to be handled
+	by a follower instead.
     * .. _`CEC-MSG-USER-CONTROL-PRESSED`:
 
       - ``CEC_MSG_USER_CONTROL_PRESSED``
-      - If :ref:`CEC_CAP_RC <CEC-CAP-RC>` is set, then generate a remote control key
-	press. This message is always passed on to userspace.
+      - If :ref:`CEC_CAP_RC <CEC-CAP-RC>` is set and if
+        :ref:`CEC_LOG_ADDRS_FL_ALLOW_RC_PASSTHRU <CEC-LOG-ADDRS-FL-ALLOW-RC-PASSTHRU>`
+	is set, then generate a remote control key
+	press. This message is always passed on to the follower(s).
     * .. _`CEC-MSG-USER-CONTROL-RELEASED`:
 
       - ``CEC_MSG_USER_CONTROL_RELEASED``
-      - If :ref:`CEC_CAP_RC <CEC-CAP-RC>` is set, then generate a remote control key
-	release. This message is always passed on to userspace.
+      - If :ref:`CEC_CAP_RC <CEC-CAP-RC>` is set and if
+        :ref:`CEC_LOG_ADDRS_FL_ALLOW_RC_PASSTHRU <CEC-LOG-ADDRS-FL-ALLOW-RC-PASSTHRU>`
+        is set, then generate a remote control key
+	release. This message is always passed on to the follower(s).
     * .. _`CEC-MSG-REPORT-PHYSICAL-ADDR`:
 
       - ``CEC_MSG_REPORT_PHYSICAL_ADDR``
       - The CEC framework will make note of the reported physical address
-	and then just pass the message on to userspace.
+	and then just pass the message on to the follower(s).
 
 
 

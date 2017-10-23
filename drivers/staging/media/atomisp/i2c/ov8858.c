@@ -2189,7 +2189,7 @@ static const struct i2c_device_id ov8858_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, ov8858_id);
 
-static struct acpi_device_id ov8858_acpi_match[] = {
+static const struct acpi_device_id ov8858_acpi_match[] = {
 	{"INT3477"},
 	{},
 };

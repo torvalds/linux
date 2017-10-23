@@ -81,6 +81,11 @@
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	pmu {
+		compatible = "arm,armv8-pmuv3";
+		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
@@ -322,7 +327,11 @@
 				#interrupt-cells = <3>;
 				interrupt-controller;
 				reg = <0x1d00000 0x10000>, /* GICD */
-				      <0x1d40000 0x40000>; /* GICR */
+				      <0x1d40000 0x40000>, /* GICR */
+				      <0x1d80000 0x2000>,  /* GICC */
+				      <0x1d90000 0x2000>,  /* GICH */
+				      <0x1da0000 0x20000>; /* GICV */
+				interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 

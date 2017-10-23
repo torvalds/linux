@@ -885,7 +885,7 @@ static int xd_init_l2p_tbl(struct rtsx_chip *chip)
 	struct xd_info *xd_card = &chip->xd_card;
 	int size, i;
 
-	dev_dbg(rtsx_dev(chip), "xd_init_l2p_tbl: zone_cnt = %d\n",
+	dev_dbg(rtsx_dev(chip), "%s: zone_cnt = %d\n", __func__,
 		xd_card->zone_cnt);
 
 	if (xd_card->zone_cnt < 1) {
@@ -1026,7 +1026,8 @@ static u32 xd_get_l2p_tbl(struct rtsx_chip *chip, int zone_no, u16 log_off)
 #ifdef XD_DELAY_WRITE
 		retval = xd_delay_write(chip);
 		if (retval != STATUS_SUCCESS) {
-			dev_dbg(rtsx_dev(chip), "In xd_get_l2p_tbl, delay write fail!\n");
+			dev_dbg(rtsx_dev(chip), "In %s, delay write fail!\n",
+				__func__);
 			return BLK_NOT_FOUND;
 		}
 #endif
@@ -1434,7 +1435,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 	u16 cur_lst_page_logoff, ent_lst_page_logoff;
 	u8 redunt[11];
 
-	dev_dbg(rtsx_dev(chip), "xd_build_l2p_tbl: %d\n", zone_no);
+	dev_dbg(rtsx_dev(chip), "%s: %d\n", __func__, zone_no);
 
 	if (!xd_card->zone) {
 		retval = xd_init_l2p_tbl(chip);
@@ -1774,8 +1775,10 @@ static int xd_finish_write(struct rtsx_chip *chip,
 	int retval, zone_no;
 	u16 log_off;
 
-	dev_dbg(rtsx_dev(chip), "xd_finish_write, old_blk = 0x%x, new_blk = 0x%x, log_blk = 0x%x\n",
-		old_blk, new_blk, log_blk);
+	dev_dbg(rtsx_dev(chip), "%s ", __func__);
+	dev_dbg(rtsx_dev(chip), "old_blk = 0x%x, ", old_blk);
+	dev_dbg(rtsx_dev(chip),	"new_blk = 0x%x, ", new_blk);
+	dev_dbg(rtsx_dev(chip), "log_blk = 0x%x\n", log_blk);
 
 	if (page_off > xd_card->page_off) {
 		rtsx_trace(chip);
@@ -1960,7 +1963,7 @@ int xd_delay_write(struct rtsx_chip *chip)
 	int retval;
 
 	if (delay_write->delay_write_flag) {
-		dev_dbg(rtsx_dev(chip), "xd_delay_write\n");
+		dev_dbg(rtsx_dev(chip), "%s\n", __func__);
 		retval = xd_switch_clock(chip);
 		if (retval != STATUS_SUCCESS) {
 			rtsx_trace(chip);
@@ -2002,7 +2005,7 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 
 	xd_card->cleanup_counter = 0;
 
-	dev_dbg(rtsx_dev(chip), "xd_rw: scsi_sg_count = %d\n",
+	dev_dbg(rtsx_dev(chip), "%s: scsi_sg_count = %d\n", __func__,
 		scsi_sg_count(srb));
 
 	ptr = (u8 *)scsi_sglist(srb);

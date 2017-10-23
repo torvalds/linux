@@ -84,7 +84,6 @@ gmi@70090000 {
 	reset-names = "gmi";
 	ranges = <4 0 0xd0000000 0xfffffff>;
 
-	status = "okay";
 
 	bus@4,0 {
 		compatible = "simple-bus";
@@ -121,7 +120,6 @@ gmi@70090000 {
 	reset-names = "gmi";
 	ranges = <4 0 0xd0000000 0xfffffff>;
 
-	status = "okay";
 
 	can@4,0 {
 		reg = <4 0 0x100>;

@@ -1284,7 +1284,7 @@ static void tipc_node_bc_sync_rcv(struct tipc_node *n, struct tipc_msg *hdr,
 	rc = tipc_bcast_sync_rcv(n->net, n->bc_entry.link, hdr);
 
 	if (rc & TIPC_LINK_DOWN_EVT) {
-		tipc_bearer_reset_all(n->net);
+		tipc_node_reset_links(n);
 		return;
 	}
 
@@ -1351,15 +1351,9 @@ static void tipc_node_bc_rcv(struct net *net, struct sk_buff *skb, int bearer_id
 	if (!skb_queue_empty(&be->inputq1))
 		tipc_node_mcast_rcv(n);
 
-	if (rc & TIPC_LINK_DOWN_EVT) {
-		/* Reception reassembly failure => reset all links to peer */
-		if (!tipc_link_is_up(be->link))
-			tipc_node_reset_links(n);
-
-		/* Retransmission failure => reset all links to all peers */
-		if (!tipc_link_is_up(tipc_bc_sndlink(net)))
-			tipc_bearer_reset_all(net);
-	}
+	/* If reassembly or retransmission failure => reset all links to peer */
+	if (rc & TIPC_LINK_DOWN_EVT)
+		tipc_node_reset_links(n);
 
 	tipc_node_put(n);
 }

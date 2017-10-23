@@ -1,0 +1,172 @@
+[
+    {
+        "BriefDescription": "read requests to memory controller. Derived from unc_m_cas_count.rd",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "LLC_MISSES.MEM_READ",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "write requests to memory controller. Derived from unc_m_cas_count.wr",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "LLC_MISSES.MEM_WRITE",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Memory controller clock ticks",
+        "Counter": "0,1,2,3",
+        "EventName": "UNC_M_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Cycles where DRAM ranks are in power down (CKE) mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x85",
+        "EventName": "UNC_M_POWER_CHANNEL_PPD",
+        "MetricExpr": "(UNC_M_POWER_CHANNEL_PPD / UNC_M_CLOCKTICKS) * 100.",
+        "MetricName": "power_channel_ppd %",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Cycles Memory is in self refresh power mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x43",
+        "EventName": "UNC_M_POWER_SELF_REFRESH",
+        "MetricExpr": "(UNC_M_POWER_SELF_REFRESH / UNC_M_CLOCKTICKS) * 100.",
+        "MetricName": "power_self_refresh %",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Pre-charges due to page misses",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_M_PRE_COUNT.PAGE_MISS",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Pre-charge for reads",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_M_PRE_COUNT.RD",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Pre-charge for writes",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_M_PRE_COUNT.WR",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Page Activate commands sent due to a write request",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_M_ACT_COUNT.WR",
+        "PerPkg": "1",
+        "PublicDescription": "Counts DRAM Page Activate commands sent on this channel due to a write request to the iMC (Memory Controller).  Activate commands are issued to open up a page on the DRAM devices so that it can be read or written to with a CAS (Column Access Select) command.",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "All DRAM CAS Commands issued",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_M_CAS_COUNT.ALL",
+        "PerPkg": "1",
+        "PublicDescription": "Counts all CAS (Column Address Select) commands issued to DRAM per memory channel.  CAS commands are issued to specify the address to read or write on DRAM, so this event increments for every read and write. This event counts whether AutoPrecharge (which closes the DRAM Page automatically after a read/write) is enabled or not.",
+        "UMask": "0xF",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "read requests to memory controller. Derived from unc_m_cas_count.rd",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "LLC_MISSES.MEM_READ",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "All DRAM Read CAS Commands issued (does not include underfills) ",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_M_CAS_COUNT.RD_REG",
+        "PerPkg": "1",
+        "PublicDescription": "Counts CAS (Column Access Select) regular read commands issued to DRAM on a per channel basis.  CAS commands are issued to specify the address to read or write on DRAM, and this event increments for every regular read.  This event only counts regular reads and does not includes underfill reads due to partial write requests.  This event counts whether AutoPrecharge (which closes the DRAM Page automatically after a read/write)  is enabled or not.",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Underfill Read CAS Commands issued",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_M_CAS_COUNT.RD_UNDERFILL",
+        "PerPkg": "1",
+        "PublicDescription": "Counts CAS (Column Access Select) underfill read commands issued to DRAM due to a partial write, on a per channel basis.  CAS commands are issued to specify the address to read or write on DRAM, and this command counts underfill reads.  Partial writes must be completed by first reading in the underfill from DRAM and then merging in the partial write data before writing the full line back to DRAM. This event will generally count about the same as the number of partial writes, but may be slightly less because of partials hitting in the WPQ (due to a previous write request). ",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "write requests to memory controller. Derived from unc_m_cas_count.wr",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "LLC_MISSES.MEM_WRITE",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Pending Queue Allocations",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x10",
+        "EventName": "UNC_M_RPQ_INSERTS",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of read requests allocated into the Read Pending Queue (RPQ).  This queue is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC.  The requests deallocate after the read CAS command has been issued to DRAM.  This event counts both Isochronous and non-Isochronous requests which were issued to the RPQ.    ",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Pending Queue Occupancy",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x80",
+        "EventName": "UNC_M_RPQ_OCCUPANCY",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of entries in the Read Pending Queue (RPQ) at each cycle.  This can then be used to calculate both the average occupancy of the queue (in conjunction with the number of cycles not empty) and the average latency in the queue (in conjunction with the number of allocations).  The RPQ is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC. They deallocate from the RPQ after the CAS command has been issued to memory.",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue Allocations",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x20",
+        "EventName": "UNC_M_WPQ_INSERTS",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of writes requests allocated into the Write Pending Queue (WPQ).  The WPQ is used to schedule writes out to the memory controller and to track the requests.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC (Memory Controller).  The write requests deallocate after being issued to DRAM.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have 'posted' to the iMC.",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue Occupancy",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x81",
+        "EventName": "UNC_M_WPQ_OCCUPANCY",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of entries in the Write Pending Queue (WPQ) at each cycle.  This can then be used to calculate both the average queue occupancy (in conjunction with the number of cycles not empty) and the average latency (in conjunction with the number of allocations).  The WPQ is used to schedule writes out to the memory controller and to track the requests.",
+        "Unit": "iMC"
+    }
+]

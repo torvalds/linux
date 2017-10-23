@@ -75,12 +75,6 @@ static inline const struct cpumask *cpumask_of_node(int node)
 
 extern void setup_node_to_cpumask_map(void);
 
-/*
- * Returns the number of the node containing Node 'node'. This
- * architecture is flat, so it is a pretty simple function!
- */
-#define parent_node(node) (node)
-
 #define pcibus_to_node(bus) __pcibus_to_node(bus)
 
 extern int __node_distance(int, int);

@@ -254,22 +254,18 @@ cc_error:
 	return first_dn;
 }
 
-int dlpar_attach_node(struct device_node *dn)
+int dlpar_attach_node(struct device_node *dn, struct device_node *parent)
 {
 	int rc;
 
-	dn->parent = pseries_of_derive_parent(dn->full_name);
-	if (IS_ERR(dn->parent))
-		return PTR_ERR(dn->parent);
+	dn->parent = parent;
 
 	rc = of_attach_node(dn);
 	if (rc) {
-		printk(KERN_ERR "Failed to add device node %s\n",
-		       dn->full_name);
+		printk(KERN_ERR "Failed to add device node %pOF\n", dn);
 		return rc;
 	}
 
-	of_node_put(dn->parent);
 	return 0;
 }
 

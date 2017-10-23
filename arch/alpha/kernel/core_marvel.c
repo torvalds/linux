@@ -118,7 +118,7 @@ alloc_io7(unsigned int pe)
 
 	io7 = alloc_bootmem(sizeof(*io7));
 	io7->pe = pe;
-	spin_lock_init(&io7->irq_lock);
+	raw_spin_lock_init(&io7->irq_lock);
 
 	for (h = 0; h < 4; h++) {
 		io7->ports[h].io7 = io7;

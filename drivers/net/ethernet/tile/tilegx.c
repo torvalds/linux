@@ -873,7 +873,7 @@ static int ptp_mpipe_enable(struct ptp_clock_info *ptp,
 	return -EOPNOTSUPP;
 }
 
-static struct ptp_clock_info ptp_mpipe_caps = {
+static const struct ptp_clock_info ptp_mpipe_caps = {
 	.owner		= THIS_MODULE,
 	.name		= "mPIPE clock",
 	.max_adj	= 999999999,

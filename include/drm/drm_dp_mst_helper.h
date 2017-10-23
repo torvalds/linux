@@ -404,11 +404,16 @@ struct drm_dp_payload {
 	int vcpi;
 };
 
+#define to_dp_mst_topology_state(x) container_of(x, struct drm_dp_mst_topology_state, base)
+
 struct drm_dp_mst_topology_state {
+	struct drm_private_state base;
 	int avail_slots;
 	struct drm_atomic_state *state;
 	struct drm_dp_mst_topology_mgr *mgr;
 };
+
+#define to_dp_mst_topology_mgr(x) container_of(x, struct drm_dp_mst_topology_mgr, base)
 
 /**
  * struct drm_dp_mst_topology_mgr - DisplayPort MST manager
@@ -418,6 +423,11 @@ struct drm_dp_mst_topology_state {
  * on the GPU.
  */
 struct drm_dp_mst_topology_mgr {
+	/**
+	 * @base: Base private object for atomic
+	 */
+	struct drm_private_obj base;
+
 	/**
 	 * @dev: device pointer for adding i2c devices etc.
 	 */

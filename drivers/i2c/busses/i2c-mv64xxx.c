@@ -820,7 +820,7 @@ mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 		goto out;
 	}
 
-	drv_data->rstc = devm_reset_control_get_optional(dev, NULL);
+	drv_data->rstc = devm_reset_control_get_optional_exclusive(dev, NULL);
 	if (IS_ERR(drv_data->rstc)) {
 		rc = PTR_ERR(drv_data->rstc);
 		goto out;
@@ -975,8 +975,7 @@ mv64xxx_i2c_remove(struct platform_device *dev)
 #ifdef CONFIG_PM
 static int mv64xxx_i2c_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct mv64xxx_i2c_data *drv_data = platform_get_drvdata(pdev);
+	struct mv64xxx_i2c_data *drv_data = dev_get_drvdata(dev);
 
 	mv64xxx_i2c_hw_init(drv_data);
 

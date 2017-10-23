@@ -51,8 +51,8 @@ void nf_ct_unlink_expect_report(struct nf_conntrack_expect *exp,
 	struct nf_conn_help *master_help = nfct_help(exp->master);
 	struct net *net = nf_ct_exp_net(exp);
 
-	NF_CT_ASSERT(master_help);
-	NF_CT_ASSERT(!timer_pending(&exp->timeout));
+	WARN_ON(!master_help);
+	WARN_ON(timer_pending(&exp->timeout));
 
 	hlist_del_rcu(&exp->hnode);
 	net->ct.expect_count--;
@@ -368,12 +368,6 @@ static void nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 	/* two references : one for hash insert, one for the timer */
 	refcount_add(2, &exp->use);
 
-	hlist_add_head_rcu(&exp->lnode, &master_help->expectations);
-	master_help->expecting[exp->class]++;
-
-	hlist_add_head_rcu(&exp->hnode, &nf_ct_expect_hash[h]);
-	net->ct.expect_count++;
-
 	setup_timer(&exp->timeout, nf_ct_expectation_timed_out,
 		    (unsigned long)exp);
 	helper = rcu_dereference_protected(master_help->helper,
@@ -383,6 +377,12 @@ static void nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 			helper->expect_policy[exp->class].timeout * HZ;
 	}
 	add_timer(&exp->timeout);
+
+	hlist_add_head_rcu(&exp->lnode, &master_help->expectations);
+	master_help->expecting[exp->class]++;
+
+	hlist_add_head_rcu(&exp->hnode, &nf_ct_expect_hash[h]);
+	net->ct.expect_count++;
 
 	NF_CT_STAT_INC(net, expect_create);
 }
@@ -473,6 +473,60 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_related_report);
+
+void nf_ct_expect_iterate_destroy(bool (*iter)(struct nf_conntrack_expect *e, void *data),
+				  void *data)
+{
+	struct nf_conntrack_expect *exp;
+	const struct hlist_node *next;
+	unsigned int i;
+
+	spin_lock_bh(&nf_conntrack_expect_lock);
+
+	for (i = 0; i < nf_ct_expect_hsize; i++) {
+		hlist_for_each_entry_safe(exp, next,
+					  &nf_ct_expect_hash[i],
+					  hnode) {
+			if (iter(exp, data) && del_timer(&exp->timeout)) {
+				nf_ct_unlink_expect(exp);
+				nf_ct_expect_put(exp);
+			}
+		}
+	}
+
+	spin_unlock_bh(&nf_conntrack_expect_lock);
+}
+EXPORT_SYMBOL_GPL(nf_ct_expect_iterate_destroy);
+
+void nf_ct_expect_iterate_net(struct net *net,
+			      bool (*iter)(struct nf_conntrack_expect *e, void *data),
+			      void *data,
+			      u32 portid, int report)
+{
+	struct nf_conntrack_expect *exp;
+	const struct hlist_node *next;
+	unsigned int i;
+
+	spin_lock_bh(&nf_conntrack_expect_lock);
+
+	for (i = 0; i < nf_ct_expect_hsize; i++) {
+		hlist_for_each_entry_safe(exp, next,
+					  &nf_ct_expect_hash[i],
+					  hnode) {
+
+			if (!net_eq(nf_ct_exp_net(exp), net))
+				continue;
+
+			if (iter(exp, data) && del_timer(&exp->timeout)) {
+				nf_ct_unlink_expect_report(exp, portid, report);
+				nf_ct_expect_put(exp);
+			}
+		}
+	}
+
+	spin_unlock_bh(&nf_conntrack_expect_lock);
+}
+EXPORT_SYMBOL_GPL(nf_ct_expect_iterate_net);
 
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 struct ct_expect_iter_state {

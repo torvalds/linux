@@ -85,7 +85,7 @@ static umode_t hwmon_dev_name_is_visible(struct kobject *kobj,
 	return attr->mode;
 }
 
-static struct attribute_group hwmon_dev_attr_group = {
+static const struct attribute_group hwmon_dev_attr_group = {
 	.attrs		= hwmon_dev_attrs,
 	.is_visible	= hwmon_dev_name_is_visible,
 };
@@ -135,7 +135,7 @@ static int hwmon_thermal_get_temp(void *data, int *temp)
 	return 0;
 }
 
-static struct thermal_zone_of_device_ops hwmon_thermal_ops = {
+static const struct thermal_zone_of_device_ops hwmon_thermal_ops = {
 	.get_temp = hwmon_thermal_get_temp,
 };
 

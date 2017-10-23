@@ -34,7 +34,6 @@ Example:
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_fb>;
 		display = <&display0>;
-		status = "okay";
 		#address-cells = <1>;
 		#size-cells = <1>;
 

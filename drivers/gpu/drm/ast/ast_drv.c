@@ -197,7 +197,6 @@ static struct drm_driver driver = {
 
 	.load = ast_driver_load,
 	.unload = ast_driver_unload,
-	.set_busid = drm_pci_set_busid,
 
 	.fops = &ast_fops,
 	.name = DRIVER_NAME,
@@ -210,7 +209,6 @@ static struct drm_driver driver = {
 	.gem_free_object_unlocked = ast_gem_free_object,
 	.dumb_create = ast_dumb_create,
 	.dumb_map_offset = ast_dumb_mmap_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 
 };
 
@@ -221,11 +219,11 @@ static int __init ast_init(void)
 
 	if (ast_modeset == 0)
 		return -EINVAL;
-	return drm_pci_init(&driver, &ast_pci_driver);
+	return pci_register_driver(&ast_pci_driver);
 }
 static void __exit ast_exit(void)
 {
-	drm_pci_exit(&driver, &ast_pci_driver);
+	pci_unregister_driver(&ast_pci_driver);
 }
 
 module_init(ast_init);

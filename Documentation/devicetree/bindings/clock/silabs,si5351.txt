@@ -12,7 +12,11 @@ generators can be found in [1].
 ==I2C device node==
 
 Required properties:
-- compatible: shall be one of "silabs,si5351{a,a-msop,b,c}".
+- compatible: shall be one of the following:
+	"silabs,si5351a" - Si5351a, QFN20 package
+	"silabs,si5351a-msop" - Si5351a, MSOP10 package
+	"silabs,si5351b" - Si5351b, QFN20 package
+	"silabs,si5351c" - Si5351c, QFN20 package
 - reg: i2c device address, shall be 0x60 or 0x61.
 - #clock-cells: from common clock binding; shall be set to 1.
 - clocks: from common clock binding; list of parent clock

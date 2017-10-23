@@ -525,7 +525,7 @@ xfs_cui_recover(
 	}
 
 	xfs_refcount_finish_one_cleanup(tp, rcur, error);
-	error = xfs_defer_finish(&tp, &dfops, NULL);
+	error = xfs_defer_finish(&tp, &dfops);
 	if (error)
 		goto abort_defer;
 	set_bit(XFS_CUI_RECOVERED, &cuip->cui_flags);

@@ -533,10 +533,10 @@ struct sched_table *t4_init_sched(unsigned int sched_size)
 void t4_cleanup_sched(struct adapter *adap)
 {
 	struct sched_table *s;
-	unsigned int i;
+	unsigned int j, i;
 
-	for_each_port(adap, i) {
-		struct port_info *pi = netdev2pinfo(adap->port[i]);
+	for_each_port(adap, j) {
+		struct port_info *pi = netdev2pinfo(adap->port[j]);
 
 		s = pi->sched_tbl;
 		for (i = 0; i < s->sched_size; i++) {

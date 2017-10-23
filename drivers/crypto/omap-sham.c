@@ -2133,7 +2133,7 @@ data_err:
 
 static int omap_sham_remove(struct platform_device *pdev)
 {
-	static struct omap_sham_dev *dd;
+	struct omap_sham_dev *dd;
 	int i, j;
 
 	dd = platform_get_drvdata(pdev);

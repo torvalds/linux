@@ -59,7 +59,8 @@ static void rcar_du_lvdsenc_start_gen2(struct rcar_du_lvdsenc *lvds,
 
 	rcar_lvds_write(lvds, LVDPLLCR, pllcr);
 
-	/* Select the input, hardcode mode 0, enable LVDS operation and turn
+	/*
+	 * Select the input, hardcode mode 0, enable LVDS operation and turn
 	 * bias circuitry on.
 	 */
 	lvdcr0 = (lvds->mode << LVDCR0_LVMD_SHIFT) | LVDCR0_BEN | LVDCR0_LVEN;
@@ -73,7 +74,8 @@ static void rcar_du_lvdsenc_start_gen2(struct rcar_du_lvdsenc *lvds,
 			LVDCR1_CHSTBY_GEN2(1) | LVDCR1_CHSTBY_GEN2(0) |
 			LVDCR1_CLKSTBY_GEN2);
 
-	/* Turn the PLL on, wait for the startup delay, and turn the output
+	/*
+	 * Turn the PLL on, wait for the startup delay, and turn the output
 	 * on.
 	 */
 	lvdcr0 |= LVDCR0_PLLON;
@@ -140,7 +142,8 @@ static int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
 	if (ret < 0)
 		return ret;
 
-	/* Hardcode the channels and control signals routing for now.
+	/*
+	 * Hardcode the channels and control signals routing for now.
 	 *
 	 * HSYNC -> CTRL0
 	 * VSYNC -> CTRL1
@@ -202,7 +205,8 @@ void rcar_du_lvdsenc_atomic_check(struct rcar_du_lvdsenc *lvds,
 {
 	struct rcar_du_device *rcdu = lvds->dev;
 
-	/* The internal LVDS encoder has a restricted clock frequency operating
+	/*
+	 * The internal LVDS encoder has a restricted clock frequency operating
 	 * range (30MHz to 150MHz on Gen2, 25.175MHz to 148.5MHz on Gen3). Clamp
 	 * the clock accordingly.
 	 */

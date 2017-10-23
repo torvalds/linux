@@ -346,7 +346,7 @@ static enum drbd_role min_role(enum drbd_role role1, enum drbd_role role2)
 
 enum drbd_role conn_highest_role(struct drbd_connection *connection)
 {
-	enum drbd_role role = R_UNKNOWN;
+	enum drbd_role role = R_SECONDARY;
 	struct drbd_peer_device *peer_device;
 	int vnr;
 
@@ -579,11 +579,14 @@ drbd_req_state(struct drbd_device *device, union drbd_state mask,
 	unsigned long flags;
 	union drbd_state os, ns;
 	enum drbd_state_rv rv;
+	void *buffer = NULL;
 
 	init_completion(&done);
 
 	if (f & CS_SERIALIZE)
 		mutex_lock(device->state_mutex);
+	if (f & CS_INHIBIT_MD_IO)
+		buffer = drbd_md_get_buffer(device, __func__);
 
 	spin_lock_irqsave(&device->resource->req_lock, flags);
 	os = drbd_read_state(device);
@@ -636,6 +639,8 @@ drbd_req_state(struct drbd_device *device, union drbd_state mask,
 	}
 
 abort:
+	if (buffer)
+		drbd_md_put_buffer(device);
 	if (f & CS_SERIALIZE)
 		mutex_unlock(device->state_mutex);
 
@@ -660,6 +665,47 @@ _drbd_request_state(struct drbd_device *device, union drbd_state mask,
 
 	wait_event(device->state_wait,
 		   (rv = drbd_req_state(device, mask, val, f)) != SS_IN_TRANSIENT_STATE);
+
+	return rv;
+}
+
+/*
+ * We grab drbd_md_get_buffer(), because we don't want to "fail" the disk while
+ * there is IO in-flight: the transition into D_FAILED for detach purposes
+ * may get misinterpreted as actual IO error in a confused endio function.
+ *
+ * We wrap it all into wait_event(), to retry in case the drbd_req_state()
+ * returns SS_IN_TRANSIENT_STATE.
+ *
+ * To avoid potential deadlock with e.g. the receiver thread trying to grab
+ * drbd_md_get_buffer() while trying to get out of the "transient state", we
+ * need to grab and release the meta data buffer inside of that wait_event loop.
+ */
+static enum drbd_state_rv
+request_detach(struct drbd_device *device)
+{
+	return drbd_req_state(device, NS(disk, D_FAILED),
+			CS_VERBOSE | CS_ORDERED | CS_INHIBIT_MD_IO);
+}
+
+enum drbd_state_rv
+drbd_request_detach_interruptible(struct drbd_device *device)
+{
+	enum drbd_state_rv rv;
+	int ret;
+
+	drbd_suspend_io(device); /* so no-one is stuck in drbd_al_begin_io */
+	wait_event_interruptible(device->state_wait,
+		(rv = request_detach(device)) != SS_IN_TRANSIENT_STATE);
+	drbd_resume_io(device);
+
+	ret = wait_event_interruptible(device->misc_wait,
+			device->state.disk != D_FAILED);
+
+	if (rv == SS_IS_DISKLESS)
+		rv = SS_NOTHING_TO_DO;
+	if (ret)
+		rv = ERR_INTR;
 
 	return rv;
 }

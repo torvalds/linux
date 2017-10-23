@@ -6800,7 +6800,7 @@ static int ocfs2_lock_reflink_xattr_rec_allocators(
 		*credits += 1;
 
 	/* count in the xattr tree change. */
-	num_free_extents = ocfs2_num_free_extents(osb, xt_et);
+	num_free_extents = ocfs2_num_free_extents(xt_et);
 	if (num_free_extents < 0) {
 		ret = num_free_extents;
 		mlog_errno(ret);

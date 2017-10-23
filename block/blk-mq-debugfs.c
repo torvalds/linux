@@ -48,8 +48,6 @@ static int blk_flags_show(struct seq_file *m, const unsigned long flags,
 static const char *const blk_queue_flag_name[] = {
 	QUEUE_FLAG_NAME(QUEUED),
 	QUEUE_FLAG_NAME(STOPPED),
-	QUEUE_FLAG_NAME(SYNCFULL),
-	QUEUE_FLAG_NAME(ASYNCFULL),
 	QUEUE_FLAG_NAME(DYING),
 	QUEUE_FLAG_NAME(BYPASS),
 	QUEUE_FLAG_NAME(BIDI),
@@ -744,7 +742,7 @@ static int blk_mq_debugfs_release(struct inode *inode, struct file *file)
 		return seq_release(inode, file);
 }
 
-const struct file_operations blk_mq_debugfs_fops = {
+static const struct file_operations blk_mq_debugfs_fops = {
 	.open		= blk_mq_debugfs_open,
 	.read		= seq_read,
 	.write		= blk_mq_debugfs_write,
@@ -817,10 +815,14 @@ int blk_mq_debugfs_register(struct request_queue *q)
 		goto err;
 
 	/*
-	 * blk_mq_init_hctx() attempted to do this already, but q->debugfs_dir
+	 * blk_mq_init_sched() attempted to do this already, but q->debugfs_dir
 	 * didn't exist yet (because we don't know what to name the directory
 	 * until the queue is registered to a gendisk).
 	 */
+	if (q->elevator && !q->sched_debugfs_dir)
+		blk_mq_debugfs_register_sched(q);
+
+	/* Similarly, blk_mq_init_hctx() couldn't do this previously. */
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (!hctx->debugfs_dir && blk_mq_debugfs_register_hctx(q, hctx))
 			goto err;

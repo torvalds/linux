@@ -39,7 +39,6 @@ spi0: spi@01c68000 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi0_pins>;
 	resets = <&ccu RST_BUS_SPI0>;
-	status = "disabled";
 	#address-cells = <1>;
 	#size-cells = <0>;
 };

@@ -13,5 +13,4 @@ Example:
 		reg = <0x83fe0000 0x4000>;
 		interrupts = <70>;
 		clocks = <&clks 161>;
-		status = "disabled";
 	};

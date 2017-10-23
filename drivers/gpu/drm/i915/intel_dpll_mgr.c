@@ -1996,7 +1996,7 @@ static void cnl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 
 	/* 3. Configure DPLL_CFGCR0 */
 	/* Avoid touch CFGCR1 if HDMI mode is not enabled */
-	if (pll->state.hw_state.cfgcr0 & DPLL_CTRL1_HDMI_MODE(pll->id)) {
+	if (pll->state.hw_state.cfgcr0 & DPLL_CFGCR0_HDMI_MODE) {
 		val = pll->state.hw_state.cfgcr1;
 		I915_WRITE(CNL_DPLL_CFGCR1(pll->id), val);
 		/* 4. Reab back to ensure writes completed */
@@ -2379,6 +2379,15 @@ cnl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	return pll;
 }
 
+static void cnl_dump_hw_state(struct drm_i915_private *dev_priv,
+			      struct intel_dpll_hw_state *hw_state)
+{
+	DRM_DEBUG_KMS("dpll_hw_state: "
+		      "cfgcr0: 0x%x, cfgcr1: 0x%x\n",
+		      hw_state->cfgcr0,
+		      hw_state->cfgcr1);
+}
+
 static const struct intel_shared_dpll_funcs cnl_ddi_pll_funcs = {
 	.enable = cnl_ddi_pll_enable,
 	.disable = cnl_ddi_pll_disable,
@@ -2395,7 +2404,7 @@ static const struct dpll_info cnl_plls[] = {
 static const struct intel_dpll_mgr cnl_pll_mgr = {
 	.dpll_info = cnl_plls,
 	.get_dpll = cnl_get_dpll,
-	.dump_hw_state = skl_dump_hw_state,
+	.dump_hw_state = cnl_dump_hw_state,
 };
 
 /**

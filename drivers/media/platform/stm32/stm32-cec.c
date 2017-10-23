@@ -246,9 +246,7 @@ static const struct regmap_config stm32_cec_regmap_cfg = {
 
 static int stm32_cec_probe(struct platform_device *pdev)
 {
-	u32 caps = CEC_CAP_LOG_ADDRS | CEC_CAP_PASSTHROUGH |
-		   CEC_CAP_TRANSMIT | CEC_CAP_RC | CEC_CAP_PHYS_ADDR |
-		   CEC_MODE_MONITOR_ALL;
+	u32 caps = CEC_CAP_DEFAULTS | CEC_CAP_PHYS_ADDR | CEC_MODE_MONITOR_ALL;
 	struct resource *res;
 	struct stm32_cec *cec;
 	void __iomem *mmio;

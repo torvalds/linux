@@ -185,8 +185,34 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 #endif
 
 /* Unreachable code */
+#ifdef CONFIG_STACK_VALIDATION
+#define annotate_reachable() ({						\
+	asm("%c0:\n\t"							\
+	    ".pushsection .discard.reachable\n\t"			\
+	    ".long %c0b - .\n\t"					\
+	    ".popsection\n\t" : : "i" (__LINE__));			\
+})
+#define annotate_unreachable() ({					\
+	asm("%c0:\n\t"							\
+	    ".pushsection .discard.unreachable\n\t"			\
+	    ".long %c0b - .\n\t"					\
+	    ".popsection\n\t" : : "i" (__LINE__));			\
+})
+#define ASM_UNREACHABLE							\
+	"999:\n\t"							\
+	".pushsection .discard.unreachable\n\t"				\
+	".long 999b - .\n\t"						\
+	".popsection\n\t"
+#else
+#define annotate_reachable()
+#define annotate_unreachable()
+#endif
+
+#ifndef ASM_UNREACHABLE
+# define ASM_UNREACHABLE
+#endif
 #ifndef unreachable
-# define unreachable() do { } while (1)
+# define unreachable() do { annotate_reachable(); do { } while (1); } while (0)
 #endif
 
 /*
@@ -473,6 +499,10 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 
 #ifndef __visible
 #define __visible
+#endif
+
+#ifndef __nostackprotector
+# define __nostackprotector
 #endif
 
 /*

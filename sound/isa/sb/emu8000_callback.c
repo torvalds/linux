@@ -62,7 +62,7 @@ static void snd_emu8000_tweak_voice(struct snd_emu8000 *emu, int ch);
 /*
  * set up operators
  */
-static struct snd_emux_operators emu8000_ops = {
+static const struct snd_emux_operators emu8000_ops = {
 	.owner =	THIS_MODULE,
 	.get_voice =	get_voice,
 	.prepare =	start_voice,

@@ -40,7 +40,7 @@
 
 static struct rhashtable bind_hash_table;
 
-static struct rhashtable_params ht_parms = {
+static const struct rhashtable_params ht_parms = {
 	.nelem_hint = 768,
 	.key_len = sizeof(u64),
 	.key_offset = offsetof(struct rds_sock, rs_bound_key),

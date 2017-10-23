@@ -4774,13 +4774,17 @@ static int patch_ca0132(struct hda_codec *codec)
 
 	err = ca0132_prepare_verbs(codec);
 	if (err < 0)
-		return err;
+		goto error;
 
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
 	if (err < 0)
-		return err;
+		goto error;
 
 	return 0;
+
+ error:
+	ca0132_free(codec);
+	return err;
 }
 
 /*

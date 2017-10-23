@@ -177,6 +177,11 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 		      &vmbus_connection.chn_msg_list);
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
+	if (newchannel->rescind) {
+		err = -ENODEV;
+		goto error_free_gpadl;
+	}
+
 	ret = vmbus_post_msg(open_msg,
 			     sizeof(struct vmbus_channel_open_channel), true);
 
@@ -421,6 +426,11 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
+	if (channel->rescind) {
+		ret = -ENODEV;
+		goto cleanup;
+	}
+
 	ret = vmbus_post_msg(gpadlmsg, msginfo->msgsize -
 			     sizeof(*msginfo), true);
 	if (ret != 0)
@@ -494,6 +504,10 @@ int vmbus_teardown_gpadl(struct vmbus_channel *channel, u32 gpadl_handle)
 	list_add_tail(&info->msglistentry,
 		      &vmbus_connection.chn_msg_list);
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
+
+	if (channel->rescind)
+		goto post_msg_err;
+
 	ret = vmbus_post_msg(msg, sizeof(struct vmbus_channel_gpadl_teardown),
 			     true);
 
@@ -626,6 +640,7 @@ void vmbus_close(struct vmbus_channel *channel)
 		 */
 		return;
 	}
+	mutex_lock(&vmbus_connection.channel_mutex);
 	/*
 	 * Close all the sub-channels first and then close the
 	 * primary channel.
@@ -634,22 +649,35 @@ void vmbus_close(struct vmbus_channel *channel)
 		cur_channel = list_entry(cur, struct vmbus_channel, sc_list);
 		vmbus_close_internal(cur_channel);
 		if (cur_channel->rescind) {
-			mutex_lock(&vmbus_connection.channel_mutex);
-			hv_process_channel_removal(cur_channel,
+			hv_process_channel_removal(
 					   cur_channel->offermsg.child_relid);
-			mutex_unlock(&vmbus_connection.channel_mutex);
 		}
 	}
 	/*
 	 * Now close the primary.
 	 */
 	vmbus_close_internal(channel);
+	mutex_unlock(&vmbus_connection.channel_mutex);
 }
 EXPORT_SYMBOL_GPL(vmbus_close);
 
-int vmbus_sendpacket_ctl(struct vmbus_channel *channel, void *buffer,
-			 u32 bufferlen, u64 requestid,
-			 enum vmbus_packet_type type, u32 flags)
+/**
+ * vmbus_sendpacket() - Send the specified buffer on the given channel
+ * @channel: Pointer to vmbus_channel structure.
+ * @buffer: Pointer to the buffer you want to receive the data into.
+ * @bufferlen: Maximum size of what the the buffer will hold
+ * @requestid: Identifier of the request
+ * @type: Type of packet that is being send e.g. negotiate, time
+ * packet etc.
+ *
+ * Sends data in @buffer directly to hyper-v via the vmbus
+ * This will send the data unparsed to hyper-v.
+ *
+ * Mainly used by Hyper-V drivers.
+ */
+int vmbus_sendpacket(struct vmbus_channel *channel, void *buffer,
+			   u32 bufferlen, u64 requestid,
+			   enum vmbus_packet_type type, u32 flags)
 {
 	struct vmpacket_descriptor desc;
 	u32 packetlen = sizeof(struct vmpacket_descriptor) + bufferlen;
@@ -676,42 +704,19 @@ int vmbus_sendpacket_ctl(struct vmbus_channel *channel, void *buffer,
 
 	return hv_ringbuffer_write(channel, bufferlist, num_vecs);
 }
-EXPORT_SYMBOL(vmbus_sendpacket_ctl);
-
-/**
- * vmbus_sendpacket() - Send the specified buffer on the given channel
- * @channel: Pointer to vmbus_channel structure.
- * @buffer: Pointer to the buffer you want to receive the data into.
- * @bufferlen: Maximum size of what the the buffer will hold
- * @requestid: Identifier of the request
- * @type: Type of packet that is being send e.g. negotiate, time
- * packet etc.
- *
- * Sends data in @buffer directly to hyper-v via the vmbus
- * This will send the data unparsed to hyper-v.
- *
- * Mainly used by Hyper-V drivers.
- */
-int vmbus_sendpacket(struct vmbus_channel *channel, void *buffer,
-			   u32 bufferlen, u64 requestid,
-			   enum vmbus_packet_type type, u32 flags)
-{
-	return vmbus_sendpacket_ctl(channel, buffer, bufferlen, requestid,
-				    type, flags);
-}
 EXPORT_SYMBOL(vmbus_sendpacket);
 
 /*
- * vmbus_sendpacket_pagebuffer_ctl - Send a range of single-page buffer
+ * vmbus_sendpacket_pagebuffer - Send a range of single-page buffer
  * packets using a GPADL Direct packet type. This interface allows you
  * to control notifying the host. This will be useful for sending
  * batched data. Also the sender can control the send flags
  * explicitly.
  */
-int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
-				    struct hv_page_buffer pagebuffers[],
-				    u32 pagecount, void *buffer, u32 bufferlen,
-				    u64 requestid, u32 flags)
+int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
+				struct hv_page_buffer pagebuffers[],
+				u32 pagecount, void *buffer, u32 bufferlen,
+				u64 requestid)
 {
 	int i;
 	struct vmbus_channel_packet_page_buffer desc;
@@ -736,7 +741,7 @@ int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
 
 	/* Setup the descriptor */
 	desc.type = VM_PKT_DATA_USING_GPA_DIRECT;
-	desc.flags = flags;
+	desc.flags = VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
 	desc.dataoffset8 = descsize >> 3; /* in 8-bytes granularity */
 	desc.length8 = (u16)(packetlen_aligned >> 3);
 	desc.transactionid = requestid;
@@ -756,24 +761,6 @@ int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
 	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
 
 	return hv_ringbuffer_write(channel, bufferlist, 3);
-}
-EXPORT_SYMBOL_GPL(vmbus_sendpacket_pagebuffer_ctl);
-
-/*
- * vmbus_sendpacket_pagebuffer - Send a range of single-page buffer
- * packets using a GPADL Direct packet type.
- */
-int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
-				     struct hv_page_buffer pagebuffers[],
-				     u32 pagecount, void *buffer, u32 bufferlen,
-				     u64 requestid)
-{
-	u32 flags = VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
-
-	return vmbus_sendpacket_pagebuffer_ctl(channel, pagebuffers, pagecount,
-					       buffer, bufferlen,
-					       requestid, flags);
-
 }
 EXPORT_SYMBOL_GPL(vmbus_sendpacket_pagebuffer);
 
@@ -813,62 +800,6 @@ int vmbus_sendpacket_mpb_desc(struct vmbus_channel *channel,
 	return hv_ringbuffer_write(channel, bufferlist, 3);
 }
 EXPORT_SYMBOL_GPL(vmbus_sendpacket_mpb_desc);
-
-/*
- * vmbus_sendpacket_multipagebuffer - Send a multi-page buffer packet
- * using a GPADL Direct packet type.
- */
-int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
-				struct hv_multipage_buffer *multi_pagebuffer,
-				void *buffer, u32 bufferlen, u64 requestid)
-{
-	struct vmbus_channel_packet_multipage_buffer desc;
-	u32 descsize;
-	u32 packetlen;
-	u32 packetlen_aligned;
-	struct kvec bufferlist[3];
-	u64 aligned_data = 0;
-	u32 pfncount = NUM_PAGES_SPANNED(multi_pagebuffer->offset,
-					 multi_pagebuffer->len);
-
-	if (pfncount > MAX_MULTIPAGE_BUFFER_COUNT)
-		return -EINVAL;
-
-	/*
-	 * Adjust the size down since vmbus_channel_packet_multipage_buffer is
-	 * the largest size we support
-	 */
-	descsize = sizeof(struct vmbus_channel_packet_multipage_buffer) -
-			  ((MAX_MULTIPAGE_BUFFER_COUNT - pfncount) *
-			  sizeof(u64));
-	packetlen = descsize + bufferlen;
-	packetlen_aligned = ALIGN(packetlen, sizeof(u64));
-
-
-	/* Setup the descriptor */
-	desc.type = VM_PKT_DATA_USING_GPA_DIRECT;
-	desc.flags = VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
-	desc.dataoffset8 = descsize >> 3; /* in 8-bytes granularity */
-	desc.length8 = (u16)(packetlen_aligned >> 3);
-	desc.transactionid = requestid;
-	desc.rangecount = 1;
-
-	desc.range.len = multi_pagebuffer->len;
-	desc.range.offset = multi_pagebuffer->offset;
-
-	memcpy(desc.range.pfn_array, multi_pagebuffer->pfn_array,
-	       pfncount * sizeof(u64));
-
-	bufferlist[0].iov_base = &desc;
-	bufferlist[0].iov_len = descsize;
-	bufferlist[1].iov_base = buffer;
-	bufferlist[1].iov_len = bufferlen;
-	bufferlist[2].iov_base = &aligned_data;
-	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
-
-	return hv_ringbuffer_write(channel, bufferlist, 3);
-}
-EXPORT_SYMBOL_GPL(vmbus_sendpacket_multipagebuffer);
 
 /**
  * vmbus_recvpacket() - Retrieve the user packet on the specified channel

@@ -99,7 +99,6 @@ static int storm_platform_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	card->dev = &pdev->dev;
-	platform_set_drvdata(pdev, card);
 
 	ret = snd_soc_of_parse_card_name(card, "qcom,model");
 	if (ret) {

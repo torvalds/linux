@@ -896,13 +896,14 @@ static int core_alua_write_tpg_metadata(
 	u32 md_buf_len)
 {
 	struct file *file = filp_open(path, O_RDWR | O_CREAT | O_TRUNC, 0600);
+	loff_t pos = 0;
 	int ret;
 
 	if (IS_ERR(file)) {
 		pr_err("filp_open(%s) for ALUA metadata failed\n", path);
 		return -ENODEV;
 	}
-	ret = kernel_write(file, md_buf, md_buf_len, 0);
+	ret = kernel_write(file, md_buf, md_buf_len, &pos);
 	if (ret < 0)
 		pr_err("Error writing ALUA metadata file: %s\n", path);
 	fput(file);

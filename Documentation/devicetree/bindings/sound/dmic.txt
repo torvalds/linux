@@ -1,0 +1,16 @@
+Device-Tree bindings for Digital microphone (DMIC) codec
+
+This device support generic PDM digital microphone.
+
+Required properties:
+	- compatible: should be "dmic-codec".
+
+Optional properties:
+	- dmicen-gpios: GPIO specifier for dmic to control start and stop
+
+Example node:
+
+	dmic_codec: dmic@0 {
+		compatible = "dmic-codec";
+		dmicen-gpios = <&gpio4 3 GPIO_ACTIVE_HIGH>;
+	};

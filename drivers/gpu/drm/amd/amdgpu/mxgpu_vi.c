@@ -613,4 +613,5 @@ const struct amdgpu_virt_ops xgpu_vi_virt_ops = {
 	.req_full_gpu		= xgpu_vi_request_full_gpu_access,
 	.rel_full_gpu		= xgpu_vi_release_full_gpu_access,
 	.reset_gpu		= xgpu_vi_request_reset,
+	.trans_msg		= NULL, /* Does not need to trans VF errors to host. */
 };

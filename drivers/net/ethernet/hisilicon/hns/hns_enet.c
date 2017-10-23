@@ -812,6 +812,113 @@ static int hns_desc_unused(struct hnae_ring *ring)
 	return ((ntc >= ntu) ? 0 : ring->desc_num) + ntc - ntu;
 }
 
+#define HNS_LOWEST_LATENCY_RATE		27	/* 27 MB/s */
+#define HNS_LOW_LATENCY_RATE			80	/* 80 MB/s */
+
+#define HNS_COAL_BDNUM			3
+
+static u32 hns_coal_rx_bdnum(struct hnae_ring *ring)
+{
+	bool coal_enable = ring->q->handle->coal_adapt_en;
+
+	if (coal_enable &&
+	    ring->coal_last_rx_bytes > HNS_LOWEST_LATENCY_RATE)
+		return HNS_COAL_BDNUM;
+	else
+		return 0;
+}
+
+static void hns_update_rx_rate(struct hnae_ring *ring)
+{
+	bool coal_enable = ring->q->handle->coal_adapt_en;
+	u32 time_passed_ms;
+	u64 total_bytes;
+
+	if (!coal_enable ||
+	    time_before(jiffies, ring->coal_last_jiffies + (HZ >> 4)))
+		return;
+
+	/* ring->stats.rx_bytes overflowed */
+	if (ring->coal_last_rx_bytes > ring->stats.rx_bytes) {
+		ring->coal_last_rx_bytes = ring->stats.rx_bytes;
+		ring->coal_last_jiffies = jiffies;
+		return;
+	}
+
+	total_bytes = ring->stats.rx_bytes - ring->coal_last_rx_bytes;
+	time_passed_ms = jiffies_to_msecs(jiffies - ring->coal_last_jiffies);
+	do_div(total_bytes, time_passed_ms);
+	ring->coal_rx_rate = total_bytes >> 10;
+
+	ring->coal_last_rx_bytes = ring->stats.rx_bytes;
+	ring->coal_last_jiffies = jiffies;
+}
+
+/**
+ * smooth_alg - smoothing algrithm for adjusting coalesce parameter
+ **/
+static u32 smooth_alg(u32 new_param, u32 old_param)
+{
+	u32 gap = (new_param > old_param) ? new_param - old_param
+					  : old_param - new_param;
+
+	if (gap > 8)
+		gap >>= 3;
+
+	if (new_param > old_param)
+		return old_param + gap;
+	else
+		return old_param - gap;
+}
+
+/**
+ * hns_nic_adp_coalesce - self adapte coalesce according to rx rate
+ * @ring_data: pointer to hns_nic_ring_data
+ **/
+static void hns_nic_adpt_coalesce(struct hns_nic_ring_data *ring_data)
+{
+	struct hnae_ring *ring = ring_data->ring;
+	struct hnae_handle *handle = ring->q->handle;
+	u32 new_coal_param, old_coal_param = ring->coal_param;
+
+	if (ring->coal_rx_rate < HNS_LOWEST_LATENCY_RATE)
+		new_coal_param = HNAE_LOWEST_LATENCY_COAL_PARAM;
+	else if (ring->coal_rx_rate < HNS_LOW_LATENCY_RATE)
+		new_coal_param = HNAE_LOW_LATENCY_COAL_PARAM;
+	else
+		new_coal_param = HNAE_BULK_LATENCY_COAL_PARAM;
+
+	if (new_coal_param == old_coal_param &&
+	    new_coal_param == handle->coal_param)
+		return;
+
+	new_coal_param = smooth_alg(new_coal_param, old_coal_param);
+	ring->coal_param = new_coal_param;
+
+	/**
+	 * Because all ring in one port has one coalesce param, when one ring
+	 * calculate its own coalesce param, it cannot write to hardware at
+	 * once. There are three conditions as follows:
+	 *       1. current ring's coalesce param is larger than the hardware.
+	 *       2. or ring which adapt last time can change again.
+	 *       3. timeout.
+	 */
+	if (new_coal_param == handle->coal_param) {
+		handle->coal_last_jiffies = jiffies;
+		handle->coal_ring_idx = ring_data->queue_index;
+	} else if (new_coal_param > handle->coal_param ||
+		   handle->coal_ring_idx == ring_data->queue_index ||
+		   time_after(jiffies, handle->coal_last_jiffies + (HZ >> 4))) {
+		handle->dev->ops->set_coalesce_usecs(handle,
+					new_coal_param);
+		handle->dev->ops->set_coalesce_frames(handle,
+					1, new_coal_param);
+		handle->coal_param = new_coal_param;
+		handle->coal_ring_idx = ring_data->queue_index;
+		handle->coal_last_jiffies = jiffies;
+	}
+}
+
 static int hns_nic_rx_poll_one(struct hns_nic_ring_data *ring_data,
 			       int budget, void *v)
 {
@@ -868,20 +975,27 @@ static bool hns_nic_rx_fini_pro(struct hns_nic_ring_data *ring_data)
 {
 	struct hnae_ring *ring = ring_data->ring;
 	int num = 0;
+	bool rx_stopped;
 
-	ring_data->ring->q->handle->dev->ops->toggle_ring_irq(ring, 0);
+	hns_update_rx_rate(ring);
 
 	/* for hardware bug fixed */
+	ring_data->ring->q->handle->dev->ops->toggle_ring_irq(ring, 0);
 	num = readl_relaxed(ring->io_base + RCB_REG_FBDNUM);
 
-	if (num > 0) {
+	if (num <= hns_coal_rx_bdnum(ring)) {
+		if (ring->q->handle->coal_adapt_en)
+			hns_nic_adpt_coalesce(ring_data);
+
+		rx_stopped = true;
+	} else {
 		ring_data->ring->q->handle->dev->ops->toggle_ring_irq(
 			ring_data->ring, 1);
 
-		return false;
-	} else {
-		return true;
+		rx_stopped = false;
 	}
+
+	return rx_stopped;
 }
 
 static bool hns_nic_rx_fini_pro_v2(struct hns_nic_ring_data *ring_data)
@@ -889,12 +1003,17 @@ static bool hns_nic_rx_fini_pro_v2(struct hns_nic_ring_data *ring_data)
 	struct hnae_ring *ring = ring_data->ring;
 	int num;
 
+	hns_update_rx_rate(ring);
 	num = readl_relaxed(ring->io_base + RCB_REG_FBDNUM);
 
-	if (!num)
+	if (num <= hns_coal_rx_bdnum(ring)) {
+		if (ring->q->handle->coal_adapt_en)
+			hns_nic_adpt_coalesce(ring_data);
+
 		return true;
-	else
-		return false;
+	}
+
+	return false;
 }
 
 static inline void hns_nic_reclaim_one_desc(struct hnae_ring *ring,

@@ -48,7 +48,6 @@
 #include "cc_crypto_ctx.h"
 #include "ssi_sysfs.h"
 #include "hash_defs.h"
-#include "ssi_fips_local.h"
 #include "cc_hw_queue_defs.h"
 #include "ssi_sram_mgr.h"
 

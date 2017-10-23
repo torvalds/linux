@@ -28,8 +28,16 @@
 
 #include <media/v4l2-fwnode.h>
 
-static int v4l2_fwnode_endpoint_parse_csi_bus(struct fwnode_handle *fwnode,
-					      struct v4l2_fwnode_endpoint *vep)
+enum v4l2_fwnode_bus_type {
+	V4L2_FWNODE_BUS_TYPE_GUESS = 0,
+	V4L2_FWNODE_BUS_TYPE_CSI2_CPHY,
+	V4L2_FWNODE_BUS_TYPE_CSI1,
+	V4L2_FWNODE_BUS_TYPE_CCP2,
+	NR_OF_V4L2_FWNODE_BUS_TYPE,
+};
+
+static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
+					       struct v4l2_fwnode_endpoint *vep)
 {
 	struct v4l2_fwnode_bus_mipi_csi2 *bus = &vep->bus.mipi_csi2;
 	bool have_clk_lane = false;
@@ -40,10 +48,10 @@ static int v4l2_fwnode_endpoint_parse_csi_bus(struct fwnode_handle *fwnode,
 
 	rval = fwnode_property_read_u32_array(fwnode, "data-lanes", NULL, 0);
 	if (rval > 0) {
-		u32 array[ARRAY_SIZE(bus->data_lanes)];
+		u32 array[1 + V4L2_FWNODE_CSI2_MAX_DATA_LANES];
 
 		bus->num_data_lanes =
-			min_t(int, ARRAY_SIZE(bus->data_lanes), rval);
+			min_t(int, V4L2_FWNODE_CSI2_MAX_DATA_LANES, rval);
 
 		fwnode_property_read_u32_array(fwnode, "data-lanes", array,
 					       bus->num_data_lanes);
@@ -56,24 +64,25 @@ static int v4l2_fwnode_endpoint_parse_csi_bus(struct fwnode_handle *fwnode,
 
 			bus->data_lanes[i] = array[i];
 		}
-	}
 
-	rval = fwnode_property_read_u32_array(fwnode, "lane-polarities", NULL,
-					      0);
-	if (rval > 0) {
-		u32 array[ARRAY_SIZE(bus->lane_polarities)];
+		rval = fwnode_property_read_u32_array(fwnode,
+						      "lane-polarities", NULL,
+						      0);
+		if (rval > 0) {
+			if (rval != 1 + bus->num_data_lanes /* clock+data */) {
+				pr_warn("invalid number of lane-polarities entries (need %u, got %u)\n",
+					1 + bus->num_data_lanes, rval);
+				return -EINVAL;
+			}
 
-		if (rval < 1 + bus->num_data_lanes /* clock + data */) {
-			pr_warn("too few lane-polarities entries (need %u, got %u)\n",
-				1 + bus->num_data_lanes, rval);
-			return -EINVAL;
+			fwnode_property_read_u32_array(fwnode,
+						       "lane-polarities", array,
+						       1 + bus->num_data_lanes);
+
+			for (i = 0; i < 1 + bus->num_data_lanes; i++)
+				bus->lane_polarities[i] = array[i];
 		}
 
-		fwnode_property_read_u32_array(fwnode, "lane-polarities", array,
-					       1 + bus->num_data_lanes);
-
-		for (i = 0; i < 1 + bus->num_data_lanes; i++)
-			bus->lane_polarities[i] = array[i];
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "clock-lanes", &v)) {
@@ -146,6 +155,32 @@ static void v4l2_fwnode_endpoint_parse_parallel_bus(
 
 }
 
+static void
+v4l2_fwnode_endpoint_parse_csi1_bus(struct fwnode_handle *fwnode,
+				    struct v4l2_fwnode_endpoint *vep,
+				    u32 bus_type)
+{
+	struct v4l2_fwnode_bus_mipi_csi1 *bus = &vep->bus.mipi_csi1;
+	u32 v;
+
+	if (!fwnode_property_read_u32(fwnode, "clock-inv", &v))
+		bus->clock_inv = v;
+
+	if (!fwnode_property_read_u32(fwnode, "strobe", &v))
+		bus->strobe = v;
+
+	if (!fwnode_property_read_u32(fwnode, "data-lanes", &v))
+		bus->data_lane = v;
+
+	if (!fwnode_property_read_u32(fwnode, "clock-lanes", &v))
+		bus->clock_lane = v;
+
+	if (bus_type == V4L2_FWNODE_BUS_TYPE_CCP2)
+		vep->bus_type = V4L2_MBUS_CCP2;
+	else
+		vep->bus_type = V4L2_MBUS_CSI1;
+}
+
 /**
  * v4l2_fwnode_endpoint_parse() - parse all fwnode node properties
  * @fwnode: pointer to the endpoint's fwnode handle
@@ -168,6 +203,7 @@ static void v4l2_fwnode_endpoint_parse_parallel_bus(
 int v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 			       struct v4l2_fwnode_endpoint *vep)
 {
+	u32 bus_type = 0;
 	int rval;
 
 	fwnode_graph_parse_endpoint(fwnode, &vep->base);
@@ -176,17 +212,30 @@ int v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 	memset(&vep->bus_type, 0, sizeof(*vep) -
 	       offsetof(typeof(*vep), bus_type));
 
-	rval = v4l2_fwnode_endpoint_parse_csi_bus(fwnode, vep);
-	if (rval)
-		return rval;
-	/*
-	 * Parse the parallel video bus properties only if none
-	 * of the MIPI CSI-2 specific properties were found.
-	 */
-	if (vep->bus.mipi_csi2.flags == 0)
-		v4l2_fwnode_endpoint_parse_parallel_bus(fwnode, vep);
+	fwnode_property_read_u32(fwnode, "bus-type", &bus_type);
 
-	return 0;
+	switch (bus_type) {
+	case V4L2_FWNODE_BUS_TYPE_GUESS:
+		rval = v4l2_fwnode_endpoint_parse_csi2_bus(fwnode, vep);
+		if (rval)
+			return rval;
+		/*
+		 * Parse the parallel video bus properties only if none
+		 * of the MIPI CSI-2 specific properties were found.
+		 */
+		if (vep->bus.mipi_csi2.flags == 0)
+			v4l2_fwnode_endpoint_parse_parallel_bus(fwnode, vep);
+
+		return 0;
+	case V4L2_FWNODE_BUS_TYPE_CCP2:
+	case V4L2_FWNODE_BUS_TYPE_CSI1:
+		v4l2_fwnode_endpoint_parse_csi1_bus(fwnode, vep, bus_type);
+
+		return 0;
+	default:
+		pr_warn("unsupported bus type %u\n", bus_type);
+		return -EINVAL;
+	}
 }
 EXPORT_SYMBOL_GPL(v4l2_fwnode_endpoint_parse);
 
@@ -247,23 +296,23 @@ struct v4l2_fwnode_endpoint *v4l2_fwnode_endpoint_alloc_parse(
 
 	rval = fwnode_property_read_u64_array(fwnode, "link-frequencies",
 					      NULL, 0);
-	if (rval < 0)
-		goto out_err;
+	if (rval > 0) {
+		vep->link_frequencies =
+			kmalloc_array(rval, sizeof(*vep->link_frequencies),
+				      GFP_KERNEL);
+		if (!vep->link_frequencies) {
+			rval = -ENOMEM;
+			goto out_err;
+		}
 
-	vep->link_frequencies =
-		kmalloc_array(rval, sizeof(*vep->link_frequencies), GFP_KERNEL);
-	if (!vep->link_frequencies) {
-		rval = -ENOMEM;
-		goto out_err;
+		vep->nr_of_link_frequencies = rval;
+
+		rval = fwnode_property_read_u64_array(
+			fwnode, "link-frequencies", vep->link_frequencies,
+			vep->nr_of_link_frequencies);
+		if (rval < 0)
+			goto out_err;
 	}
-
-	vep->nr_of_link_frequencies = rval;
-
-	rval = fwnode_property_read_u64_array(fwnode, "link-frequencies",
-					      vep->link_frequencies,
-					      vep->nr_of_link_frequencies);
-	if (rval < 0)
-		goto out_err;
 
 	return vep;
 

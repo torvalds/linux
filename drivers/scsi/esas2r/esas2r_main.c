@@ -309,7 +309,7 @@ MODULE_PARM_DESC(interrupt_mode,
 		 "Defines the interrupt mode to use.  0 for legacy"
 		 ", 1 for MSI.  Default is MSI (1).");
 
-static struct pci_device_id
+static const struct pci_device_id
 	esas2r_pci_table[] = {
 	{ ATTO_VENDOR_ID, 0x0049,	  ATTO_VENDOR_ID, 0x0049,
 	  0,

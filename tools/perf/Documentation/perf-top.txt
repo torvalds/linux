@@ -237,6 +237,10 @@ Default is to monitor all CPUS.
 --hierarchy::
 	Enable hierarchy output.
 
+--force::
+	Don't do ownership validation.
+
+
 INTERACTIVE PROMPTING KEYS
 --------------------------
 

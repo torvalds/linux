@@ -245,10 +245,10 @@ static void ieee80211_send_addba_resp(struct ieee80211_sub_if_data *sdata, u8 *d
 	ieee80211_tx_skb(sdata, skb);
 }
 
-void __ieee80211_start_rx_ba_session(struct sta_info *sta,
-				     u8 dialog_token, u16 timeout,
-				     u16 start_seq_num, u16 ba_policy, u16 tid,
-				     u16 buf_size, bool tx, bool auto_seq)
+void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
+				      u8 dialog_token, u16 timeout,
+				      u16 start_seq_num, u16 ba_policy, u16 tid,
+				      u16 buf_size, bool tx, bool auto_seq)
 {
 	struct ieee80211_local *local = sta->sdata->local;
 	struct tid_ampdu_rx *tid_agg_rx;
@@ -267,7 +267,7 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 		ht_dbg(sta->sdata,
 		       "STA %pM requests BA session on unsupported tid %d\n",
 		       sta->sta.addr, tid);
-		goto end_no_lock;
+		goto end;
 	}
 
 	if (!sta->sta.ht_cap.ht_supported) {
@@ -275,14 +275,14 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 		       "STA %pM erroneously requests BA session on tid %d w/o QoS\n",
 		       sta->sta.addr, tid);
 		/* send a response anyway, it's an error case if we get here */
-		goto end_no_lock;
+		goto end;
 	}
 
 	if (test_sta_flag(sta, WLAN_STA_BLOCK_BA)) {
 		ht_dbg(sta->sdata,
 		       "Suspend in progress - Denying ADDBA request (%pM tid %d)\n",
 		       sta->sta.addr, tid);
-		goto end_no_lock;
+		goto end;
 	}
 
 	/* sanity check for incoming parameters:
@@ -296,7 +296,7 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 		ht_dbg_ratelimited(sta->sdata,
 				   "AddBA Req with bad params from %pM on tid %u. policy %d, buffer size %d\n",
 				   sta->sta.addr, tid, ba_policy, buf_size);
-		goto end_no_lock;
+		goto end;
 	}
 	/* determine default buffer size */
 	if (buf_size == 0)
@@ -311,7 +311,7 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 	       buf_size, sta->sta.addr);
 
 	/* examine state machine */
-	mutex_lock(&sta->ampdu_mlme.mtx);
+	lockdep_assert_held(&sta->ampdu_mlme.mtx);
 
 	if (test_bit(tid, sta->ampdu_mlme.agg_session_valid)) {
 		if (sta->ampdu_mlme.tid_rx_token[tid] == dialog_token) {
@@ -415,13 +415,23 @@ end:
 		__clear_bit(tid, sta->ampdu_mlme.unexpected_agg);
 		sta->ampdu_mlme.tid_rx_token[tid] = dialog_token;
 	}
-	mutex_unlock(&sta->ampdu_mlme.mtx);
 
-end_no_lock:
 	if (tx)
 		ieee80211_send_addba_resp(sta->sdata, sta->sta.addr, tid,
 					  dialog_token, status, 1, buf_size,
 					  timeout);
+}
+
+void __ieee80211_start_rx_ba_session(struct sta_info *sta,
+				     u8 dialog_token, u16 timeout,
+				     u16 start_seq_num, u16 ba_policy, u16 tid,
+				     u16 buf_size, bool tx, bool auto_seq)
+{
+	mutex_lock(&sta->ampdu_mlme.mtx);
+	___ieee80211_start_rx_ba_session(sta, dialog_token, timeout,
+					 start_seq_num, ba_policy, tid,
+					 buf_size, tx, auto_seq);
+	mutex_unlock(&sta->ampdu_mlme.mtx);
 }
 
 void ieee80211_process_addba_request(struct ieee80211_local *local,

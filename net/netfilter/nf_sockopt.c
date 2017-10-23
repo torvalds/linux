@@ -33,7 +33,7 @@ int nf_register_sockopt(struct nf_sockopt_ops *reg)
 				reg->set_optmin, reg->set_optmax)
 			|| overlap(ops->get_optmin, ops->get_optmax,
 				   reg->get_optmin, reg->get_optmax))) {
-			NFDEBUG("nf_sock overlap: %u-%u/%u-%u v %u-%u/%u-%u\n",
+			pr_debug("nf_sock overlap: %u-%u/%u-%u v %u-%u/%u-%u\n",
 				ops->set_optmin, ops->set_optmax,
 				ops->get_optmin, ops->get_optmax,
 				reg->set_optmin, reg->set_optmax,

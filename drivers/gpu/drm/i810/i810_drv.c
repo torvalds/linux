@@ -59,7 +59,6 @@ static struct drm_driver driver = {
 	.load = i810_driver_load,
 	.lastclose = i810_driver_lastclose,
 	.preclose = i810_driver_preclose,
-	.set_busid = drm_pci_set_busid,
 	.dma_quiescent = i810_driver_dma_quiescent,
 	.ioctls = i810_ioctls,
 	.fops = &i810_driver_fops,
@@ -83,12 +82,12 @@ static int __init i810_init(void)
 		return -EINVAL;
 	}
 	driver.num_ioctls = i810_max_ioctl;
-	return drm_pci_init(&driver, &i810_pci_driver);
+	return drm_legacy_pci_init(&driver, &i810_pci_driver);
 }
 
 static void __exit i810_exit(void)
 {
-	drm_pci_exit(&driver, &i810_pci_driver);
+	drm_legacy_pci_exit(&driver, &i810_pci_driver);
 }
 
 module_init(i810_init);

@@ -618,7 +618,7 @@ static int adv76xx_read_reg(struct v4l2_subdev *sd, unsigned int reg)
 	unsigned int val;
 	int err;
 
-	if (!(BIT(page) & state->info->page_mask))
+	if (page >= ADV76XX_PAGE_MAX || !(BIT(page) & state->info->page_mask))
 		return -EINVAL;
 
 	reg &= 0xff;
@@ -633,7 +633,7 @@ static int adv76xx_write_reg(struct v4l2_subdev *sd, unsigned int reg, u8 val)
 	struct adv76xx_state *state = to_state(sd);
 	unsigned int page = reg >> 8;
 
-	if (!(BIT(page) & state->info->page_mask))
+	if (page >= ADV76XX_PAGE_MAX || !(BIT(page) & state->info->page_mask))
 		return -EINVAL;
 
 	reg &= 0xff;
@@ -3515,8 +3515,7 @@ static int adv76xx_probe(struct i2c_client *client,
 #if IS_ENABLED(CONFIG_VIDEO_ADV7604_CEC)
 	state->cec_adap = cec_allocate_adapter(&adv76xx_cec_adap_ops,
 		state, dev_name(&client->dev),
-		CEC_CAP_TRANSMIT | CEC_CAP_LOG_ADDRS |
-		CEC_CAP_PASSTHROUGH | CEC_CAP_RC, ADV76XX_MAX_ADDRS);
+		CEC_CAP_DEFAULTS, ADV76XX_MAX_ADDRS);
 	err = PTR_ERR_OR_ZERO(state->cec_adap);
 	if (err)
 		goto err_entity;

@@ -625,7 +625,7 @@ re_read:
 		err = read_sb_page(bitmap->mddev,
 				   offset,
 				   sb_page,
-				   0, sizeof(bitmap_super_t));
+				   0, PAGE_SIZE);
 	}
 	if (err)
 		return err;
@@ -2058,6 +2058,11 @@ int bitmap_resize(struct bitmap *bitmap, sector_t blocks,
 	long pages;
 	struct bitmap_page *new_bp;
 
+	if (bitmap->storage.file && !init) {
+		pr_info("md: cannot resize file-based bitmap\n");
+		return -EINVAL;
+	}
+
 	if (chunksize == 0) {
 		/* If there is enough space, leave the chunk size unchanged,
 		 * else increase by factor of two until there is enough space.
@@ -2118,7 +2123,7 @@ int bitmap_resize(struct bitmap *bitmap, sector_t blocks,
 	if (store.sb_page && bitmap->storage.sb_page)
 		memcpy(page_address(store.sb_page),
 		       page_address(bitmap->storage.sb_page),
-		       sizeof(bitmap_super_t));
+		       PAGE_SIZE);
 	bitmap_file_unmap(&bitmap->storage);
 	bitmap->storage = store;
 

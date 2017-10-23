@@ -388,6 +388,19 @@ static ssize_t show_phys_device(struct device *dev,
 }
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
+static void print_allowed_zone(char *buf, int nid, unsigned long start_pfn,
+		unsigned long nr_pages, int online_type,
+		struct zone *default_zone)
+{
+	struct zone *zone;
+
+	zone = zone_for_pfn_range(online_type, nid, start_pfn, nr_pages);
+	if (zone != default_zone) {
+		strcat(buf, " ");
+		strcat(buf, zone->name);
+	}
+}
+
 static ssize_t show_valid_zones(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -395,7 +408,7 @@ static ssize_t show_valid_zones(struct device *dev,
 	unsigned long start_pfn = section_nr_to_pfn(mem->start_section_nr);
 	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
 	unsigned long valid_start_pfn, valid_end_pfn;
-	bool append = false;
+	struct zone *default_zone;
 	int nid;
 
 	/*
@@ -418,16 +431,13 @@ static ssize_t show_valid_zones(struct device *dev,
 	}
 
 	nid = pfn_to_nid(start_pfn);
-	if (allow_online_pfn_range(nid, start_pfn, nr_pages, MMOP_ONLINE_KERNEL)) {
-		strcat(buf, default_zone_for_pfn(nid, start_pfn, nr_pages)->name);
-		append = true;
-	}
+	default_zone = zone_for_pfn_range(MMOP_ONLINE_KEEP, nid, start_pfn, nr_pages);
+	strcat(buf, default_zone->name);
 
-	if (allow_online_pfn_range(nid, start_pfn, nr_pages, MMOP_ONLINE_MOVABLE)) {
-		if (append)
-			strcat(buf, " ");
-		strcat(buf, NODE_DATA(nid)->node_zones[ZONE_MOVABLE].name);
-	}
+	print_allowed_zone(buf, nid, start_pfn, nr_pages, MMOP_ONLINE_KERNEL,
+			default_zone);
+	print_allowed_zone(buf, nid, start_pfn, nr_pages, MMOP_ONLINE_MOVABLE,
+			default_zone);
 out:
 	strcat(buf, "\n");
 

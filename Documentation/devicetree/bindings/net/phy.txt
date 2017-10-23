@@ -2,11 +2,7 @@ PHY nodes
 
 Required properties:
 
- - interrupts : <a b> where a is the interrupt number and b is a
-   field that represents an encoding of the sense and level
-   information for the interrupt.  This should be encoded based on
-   the information in section 2) depending on the type of interrupt
-   controller you have.
+ - interrupts : interrupt specifier for the sole interrupt.
  - interrupt-parent : the phandle for the interrupt controller that
    services interrupts for this device.
  - reg : The ID number for the phy, usually a small integer
@@ -52,11 +48,16 @@ Optional Properties:
   Mark the corresponding energy efficient ethernet mode as broken and
   request the ethernet to stop advertising it.
 
+- phy-is-integrated: If set, indicates that the PHY is integrated into the same
+  physical package as the Ethernet MAC. If needed, muxers should be configured
+  to ensure the integrated PHY is used. The absence of this property indicates
+  the muxers should be configured so that the external PHY is used.
+
 Example:
 
 ethernet-phy@0 {
 	compatible = "ethernet-phy-id0141.0e90", "ethernet-phy-ieee802.3-c22";
-	interrupt-parent = <40000>;
-	interrupts = <35 1>;
+	interrupt-parent = <&PIC>;
+	interrupts = <35 IRQ_TYPE_EDGE_RISING>;
 	reg = <0>;
 };

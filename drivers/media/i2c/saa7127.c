@@ -806,7 +806,7 @@ static int saa7127_remove(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_device_id saa7127_id[] = {
+static const struct i2c_device_id saa7127_id[] = {
 	{ "saa7127_auto", 0 },	/* auto-detection */
 	{ "saa7126", SAA7127 },
 	{ "saa7127", SAA7127 },

@@ -322,7 +322,7 @@ snd_at73c213_pcm_pointer(struct snd_pcm_substream *substream)
 	return pos;
 }
 
-static struct snd_pcm_ops at73c213_playback_ops = {
+static const struct snd_pcm_ops at73c213_playback_ops = {
 	.open		= snd_at73c213_pcm_open,
 	.close		= snd_at73c213_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,

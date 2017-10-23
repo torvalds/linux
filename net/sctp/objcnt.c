@@ -57,7 +57,7 @@ SCTP_DBG_OBJCNT(keys);
 /* An array to make it easy to pretty print the debug information
  * to the proc fs.
  */
-static sctp_dbg_objcnt_entry_t sctp_dbg_objcnt[] = {
+static struct sctp_dbg_objcnt_entry sctp_dbg_objcnt[] = {
 	SCTP_DBG_OBJCNT_ENTRY(sock),
 	SCTP_DBG_OBJCNT_ENTRY(ep),
 	SCTP_DBG_OBJCNT_ENTRY(assoc),

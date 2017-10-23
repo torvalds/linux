@@ -89,7 +89,7 @@ static int meson8b_init_clk(struct meson8b_dwmac *dwmac)
 	char clk_name[32];
 	const char *clk_div_parents[1];
 	const char *mux_parent_names[MUX_CLK_NUM_PARENTS];
-	static struct clk_div_table clk_25m_div_table[] = {
+	static const struct clk_div_table clk_25m_div_table[] = {
 		{ .val = 0, .div = 5 },
 		{ .val = 1, .div = 10 },
 		{ /* sentinel */ },

@@ -562,11 +562,49 @@ static int get_clocks(struct platform_device *pdev, struct msm_gpu *gpu)
 	return 0;
 }
 
+static struct msm_gem_address_space *
+msm_gpu_create_address_space(struct msm_gpu *gpu, struct platform_device *pdev,
+		uint64_t va_start, uint64_t va_end)
+{
+	struct iommu_domain *iommu;
+	struct msm_gem_address_space *aspace;
+	int ret;
+
+	/*
+	 * Setup IOMMU.. eventually we will (I think) do this once per context
+	 * and have separate page tables per context.  For now, to keep things
+	 * simple and to get something working, just use a single address space:
+	 */
+	iommu = iommu_domain_alloc(&platform_bus_type);
+	if (!iommu)
+		return NULL;
+
+	iommu->geometry.aperture_start = va_start;
+	iommu->geometry.aperture_end = va_end;
+
+	dev_info(gpu->dev->dev, "%s: using IOMMU\n", gpu->name);
+
+	aspace = msm_gem_address_space_create(&pdev->dev, iommu, "gpu");
+	if (IS_ERR(aspace)) {
+		dev_err(gpu->dev->dev, "failed to init iommu: %ld\n",
+			PTR_ERR(aspace));
+		iommu_domain_free(iommu);
+		return ERR_CAST(aspace);
+	}
+
+	ret = aspace->mmu->funcs->attach(aspace->mmu, NULL, 0);
+	if (ret) {
+		msm_gem_address_space_put(aspace);
+		return ERR_PTR(ret);
+	}
+
+	return aspace;
+}
+
 int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		struct msm_gpu *gpu, const struct msm_gpu_funcs *funcs,
 		const char *name, struct msm_gpu_config *config)
 {
-	struct iommu_domain *iommu;
 	int ret;
 
 	if (WARN_ON(gpu->num_perfcntrs > ARRAY_SIZE(gpu->last_cntrs)))
@@ -636,28 +674,19 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	if (IS_ERR(gpu->gpu_cx))
 		gpu->gpu_cx = NULL;
 
-	/* Setup IOMMU.. eventually we will (I think) do this once per context
-	 * and have separate page tables per context.  For now, to keep things
-	 * simple and to get something working, just use a single address space:
-	 */
-	iommu = iommu_domain_alloc(&platform_bus_type);
-	if (iommu) {
-		iommu->geometry.aperture_start = config->va_start;
-		iommu->geometry.aperture_end = config->va_end;
+	gpu->pdev = pdev;
+	platform_set_drvdata(pdev, gpu);
 
-		dev_info(drm->dev, "%s: using IOMMU\n", name);
-		gpu->aspace = msm_gem_address_space_create(&pdev->dev,
-				iommu, "gpu");
-		if (IS_ERR(gpu->aspace)) {
-			ret = PTR_ERR(gpu->aspace);
-			dev_err(drm->dev, "failed to init iommu: %d\n", ret);
-			gpu->aspace = NULL;
-			iommu_domain_free(iommu);
-			goto fail;
-		}
+	bs_init(gpu);
 
-	} else {
+	gpu->aspace = msm_gpu_create_address_space(gpu, pdev,
+		config->va_start, config->va_end);
+
+	if (gpu->aspace == NULL)
 		dev_info(drm->dev, "%s: no IOMMU, fallback to VRAM carveout!\n", name);
+	else if (IS_ERR(gpu->aspace)) {
+		ret = PTR_ERR(gpu->aspace);
+		goto fail;
 	}
 
 	/* Create ringbuffer: */
@@ -669,14 +698,10 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		goto fail;
 	}
 
-	gpu->pdev = pdev;
-	platform_set_drvdata(pdev, gpu);
-
-	bs_init(gpu);
-
 	return 0;
 
 fail:
+	platform_set_drvdata(pdev, NULL);
 	return ret;
 }
 
@@ -694,6 +719,9 @@ void msm_gpu_cleanup(struct msm_gpu *gpu)
 		msm_ringbuffer_destroy(gpu->rb);
 	}
 
-	if (gpu->fctx)
-		msm_fence_context_free(gpu->fctx);
+	if (!IS_ERR_OR_NULL(gpu->aspace)) {
+		gpu->aspace->mmu->funcs->detach(gpu->aspace->mmu,
+			NULL, 0);
+		msm_gem_address_space_put(gpu->aspace);
+	}
 }

@@ -18,6 +18,7 @@
 #include "bnxt.h"
 #include "bnxt_ulp.h"
 #include "bnxt_sriov.h"
+#include "bnxt_vfr.h"
 #include "bnxt_ethtool.h"
 
 #ifdef CONFIG_BNXT_SRIOV
@@ -501,12 +502,17 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 	int rc = 0, vfs_supported;
 	int min_rx_rings, min_tx_rings, min_rss_ctxs;
 	int tx_ok = 0, rx_ok = 0, rss_ok = 0;
+	int avail_cp, avail_stat;
 
 	/* Check if we can enable requested num of vf's. At a mininum
 	 * we require 1 RX 1 TX rings for each VF. In this minimum conf
 	 * features like TPA will not be available.
 	 */
 	vfs_supported = *num_vfs;
+
+	avail_cp = bp->pf.max_cp_rings - bp->cp_nr_rings;
+	avail_stat = bp->pf.max_stat_ctxs - bp->num_stat_ctxs;
+	avail_cp = min_t(int, avail_cp, avail_stat);
 
 	while (vfs_supported) {
 		min_rx_rings = vfs_supported;
@@ -522,10 +528,12 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 			    min_rx_rings)
 				rx_ok = 1;
 		}
-		if (bp->pf.max_vnics - bp->nr_vnics < min_rx_rings)
+		if (bp->pf.max_vnics - bp->nr_vnics < min_rx_rings ||
+		    avail_cp < min_rx_rings)
 			rx_ok = 0;
 
-		if (bp->pf.max_tx_rings - bp->tx_nr_rings >= min_tx_rings)
+		if (bp->pf.max_tx_rings - bp->tx_nr_rings >= min_tx_rings &&
+		    avail_cp >= min_tx_rings)
 			tx_ok = 1;
 
 		if (bp->pf.max_rsscos_ctxs - bp->rsscos_nr_ctxs >= min_rss_ctxs)
@@ -587,6 +595,10 @@ void bnxt_sriov_disable(struct bnxt *bp)
 	if (!num_vfs)
 		return;
 
+	/* synchronize VF and VF-rep create and destroy */
+	mutex_lock(&bp->sriov_lock);
+	bnxt_vf_reps_destroy(bp);
+
 	if (pci_vfs_assigned(bp->pdev)) {
 		bnxt_hwrm_fwd_async_event_cmpl(
 			bp, NULL, ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD);
@@ -597,6 +609,7 @@ void bnxt_sriov_disable(struct bnxt *bp)
 		/* Free the HW resources reserved for various VF's */
 		bnxt_hwrm_func_vf_resource_free(bp, num_vfs);
 	}
+	mutex_unlock(&bp->sriov_lock);
 
 	bnxt_free_vf_resources(bp);
 
@@ -794,8 +807,10 @@ static int bnxt_vf_set_link(struct bnxt *bp, struct bnxt_vf_info *vf)
 					PORT_PHY_QCFG_RESP_LINK_LINK;
 				phy_qcfg_resp.link_speed = cpu_to_le16(
 					PORT_PHY_QCFG_RESP_LINK_SPEED_10GB);
-				phy_qcfg_resp.duplex =
-					PORT_PHY_QCFG_RESP_DUPLEX_FULL;
+				phy_qcfg_resp.duplex_cfg =
+					PORT_PHY_QCFG_RESP_DUPLEX_CFG_FULL;
+				phy_qcfg_resp.duplex_state =
+					PORT_PHY_QCFG_RESP_DUPLEX_STATE_FULL;
 				phy_qcfg_resp.pause =
 					(PORT_PHY_QCFG_RESP_PAUSE_TX |
 					 PORT_PHY_QCFG_RESP_PAUSE_RX);
@@ -804,7 +819,8 @@ static int bnxt_vf_set_link(struct bnxt *bp, struct bnxt_vf_info *vf)
 			/* force link down */
 			phy_qcfg_resp.link = PORT_PHY_QCFG_RESP_LINK_NO_LINK;
 			phy_qcfg_resp.link_speed = 0;
-			phy_qcfg_resp.duplex = PORT_PHY_QCFG_RESP_DUPLEX_HALF;
+			phy_qcfg_resp.duplex_state =
+				PORT_PHY_QCFG_RESP_DUPLEX_STATE_HALF;
 			phy_qcfg_resp.pause = 0;
 		}
 		rc = bnxt_hwrm_fwd_resp(bp, vf, &phy_qcfg_resp,

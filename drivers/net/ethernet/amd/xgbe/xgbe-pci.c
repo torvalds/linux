@@ -292,6 +292,10 @@ static int xgbe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pdata->xpcs_window_size = 1 << (pdata->xpcs_window_size + 7);
 	pdata->xpcs_window_mask = pdata->xpcs_window_size - 1;
 	if (netif_msg_probe(pdata)) {
+		dev_dbg(dev, "xpcs window def  = %#010x\n",
+			pdata->xpcs_window_def_reg);
+		dev_dbg(dev, "xpcs window sel  = %#010x\n",
+			pdata->xpcs_window_sel_reg);
 		dev_dbg(dev, "xpcs window      = %#010x\n",
 			pdata->xpcs_window);
 		dev_dbg(dev, "xpcs window size = %#010x\n",

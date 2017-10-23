@@ -29,9 +29,6 @@ EXPORT_PER_CPU_SYMBOL(irq_regs);
 
 atomic_t irq_err_count;
 
-/* Function pointer for generic interrupt vector handling */
-void (*x86_platform_ipi_callback)(void) = NULL;
-
 /*
  * 'what should we do if we get a hw irq event on an illegal vector'.
  * each architecture has to answer this themselves.
@@ -87,13 +84,13 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->icr_read_retry_count);
 	seq_puts(p, "  APIC ICR read retries\n");
-#endif
 	if (x86_platform_ipi_callback) {
 		seq_printf(p, "%*s: ", prec, "PLT");
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", irq_stats(j)->x86_platform_ipis);
 		seq_puts(p, "  Platform interrupts\n");
 	}
+#endif
 #ifdef CONFIG_SMP
 	seq_printf(p, "%*s: ", prec, "RES");
 	for_each_online_cpu(j)
@@ -183,9 +180,9 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 	sum += irq_stats(cpu)->apic_perf_irqs;
 	sum += irq_stats(cpu)->apic_irq_work_irqs;
 	sum += irq_stats(cpu)->icr_read_retry_count;
-#endif
 	if (x86_platform_ipi_callback)
 		sum += irq_stats(cpu)->x86_platform_ipis;
+#endif
 #ifdef CONFIG_SMP
 	sum += irq_stats(cpu)->irq_resched_count;
 	sum += irq_stats(cpu)->irq_call_count;
@@ -259,26 +256,26 @@ __visible unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 	return 1;
 }
 
+#ifdef CONFIG_X86_LOCAL_APIC
+/* Function pointer for generic interrupt vector handling */
+void (*x86_platform_ipi_callback)(void) = NULL;
 /*
  * Handler for X86_PLATFORM_IPI_VECTOR.
  */
-void __smp_x86_platform_ipi(void)
-{
-	inc_irq_stat(x86_platform_ipis);
-
-	if (x86_platform_ipi_callback)
-		x86_platform_ipi_callback();
-}
-
 __visible void __irq_entry smp_x86_platform_ipi(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	entering_ack_irq();
-	__smp_x86_platform_ipi();
+	trace_x86_platform_ipi_entry(X86_PLATFORM_IPI_VECTOR);
+	inc_irq_stat(x86_platform_ipis);
+	if (x86_platform_ipi_callback)
+		x86_platform_ipi_callback();
+	trace_x86_platform_ipi_exit(X86_PLATFORM_IPI_VECTOR);
 	exiting_irq();
 	set_irq_regs(old_regs);
 }
+#endif
 
 #ifdef CONFIG_HAVE_KVM
 static void dummy_handler(void) {}
@@ -334,19 +331,6 @@ __visible void smp_kvm_posted_intr_nested_ipi(struct pt_regs *regs)
 }
 #endif
 
-__visible void __irq_entry smp_trace_x86_platform_ipi(struct pt_regs *regs)
-{
-	struct pt_regs *old_regs = set_irq_regs(regs);
-
-	entering_ack_irq();
-	trace_x86_platform_ipi_entry(X86_PLATFORM_IPI_VECTOR);
-	__smp_x86_platform_ipi();
-	trace_x86_platform_ipi_exit(X86_PLATFORM_IPI_VECTOR);
-	exiting_irq();
-	set_irq_regs(old_regs);
-}
-
-EXPORT_SYMBOL_GPL(vector_used_by_percpu_irq);
 
 #ifdef CONFIG_HOTPLUG_CPU
 
@@ -431,7 +415,7 @@ int check_irq_vectors_for_cpu_disable(void)
 		 * this w/o holding vector_lock.
 		 */
 		for (vector = FIRST_EXTERNAL_VECTOR;
-		     vector < first_system_vector; vector++) {
+		     vector < FIRST_SYSTEM_VECTOR; vector++) {
 			if (!test_bit(vector, used_vectors) &&
 			    IS_ERR_OR_NULL(per_cpu(vector_irq, cpu)[vector])) {
 				if (++count == this_count)

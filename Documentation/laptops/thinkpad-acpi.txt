@@ -121,8 +121,9 @@ space, for 2.6.23+ this is /sys/devices/platform/thinkpad_acpi/.
 Sysfs device attributes for the sensors and fan are on the
 thinkpad_hwmon device's sysfs attribute space, but you should locate it
 looking for a hwmon device with the name attribute of "thinkpad", or
-better yet, through libsensors.
-
+better yet, through libsensors. For 4.14+ sysfs attributes were moved to the
+hwmon device (/sys/bus/platform/devices/thinkpad_hwmon/hwmon/hwmon? or
+/sys/class/hwmon/hwmon?).
 
 Driver version
 --------------
@@ -1478,3 +1479,7 @@ Sysfs interface changelog:
 0x020700:	Support for mute-only mixers.
 		Volume control in read-only mode by default.
 		Marker for ALSA mixer support.
+
+0x030000:	Thermal and fan sysfs attributes were moved to the hwmon
+		device instead of being attached to the backing platform
+		device.

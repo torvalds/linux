@@ -297,9 +297,9 @@ more details, with real examples.
 	ccflags-y specifies options for compiling with $(CC).
 
 	Example:
-		# drivers/acpi/Makefile
-		ccflags-y := -Os
-		ccflags-$(CONFIG_ACPI_DEBUG) += -DACPI_DEBUG_OUTPUT
+		# drivers/acpi/acpica/Makefile
+		ccflags-y			:= -Os -D_LINUX -DBUILDING_ACPICA
+		ccflags-$(CONFIG_ACPI_DEBUG)	+= -DACPI_DEBUG_OUTPUT
 
 	This variable is necessary because the top Makefile owns the
 	variable $(KBUILD_CFLAGS) and uses it for compilation flags for the

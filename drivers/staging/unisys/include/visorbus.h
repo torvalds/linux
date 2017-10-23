@@ -1,5 +1,4 @@
-/* visorbus.h
- *
+/*
  * Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
@@ -23,7 +22,6 @@
  *
  *  There should be nothing in this file that is private to the visorbus
  *  bus implementation itself.
- *
  */
 
 #ifndef __VISORBUS_H__
@@ -31,20 +29,16 @@
 
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/poll.h>
-#include <linux/kernel.h>
-#include <linux/uuid.h>
-#include <linux/seq_file.h>
 #include <linux/slab.h>
 
 #include "channel.h"
 
-struct visor_driver;
 struct visor_device;
 extern struct bus_type visorbus_type;
 
 typedef void (*visorbus_state_complete_func) (struct visor_device *dev,
 					      int status);
+
 struct visorchipset_state {
 	u32 created:1;
 	u32 attached:1;
@@ -54,11 +48,12 @@ struct visorchipset_state {
 	/* Remaining bits in this 32-bit word are unused. */
 };
 
-/** This struct describes a specific Supervisor channel, by providing its
- *  GUID, name, and sizes.
+/*
+ * This struct describes a specific Supervisor channel, by providing its
+ * GUID, name, and sizes.
  */
 struct visor_channeltype_descriptor {
-	const uuid_le guid;
+	const guid_t guid;
 	const char *name;
 };
 
@@ -109,8 +104,7 @@ struct visor_driver {
 	struct device_driver driver;
 };
 
-#define to_visor_driver(x) ((x) ? \
-	(container_of(x, struct visor_driver, driver)) : (NULL))
+#define to_visor_driver(x) (container_of(x, struct visor_driver, driver))
 
 /**
  * struct visor_device - A device type for things "plugged" into the visorbus
@@ -125,8 +119,8 @@ struct visor_driver {
  *				activity.
  * @being_removed:		Indicates that the device is being removed from
  *				the bus. Private bus driver use only.
- * @visordriver_callback_lock:	Used by the bus driver to lock when handling
- *				channel events.
+ * @visordriver_callback_lock:	Used by the bus driver to lock when adding and
+ *				removing devices.
  * @pausing:			Indicates that a change towards a paused state.
  *				is in progress. Only modified by the bus driver.
  * @resuming:			Indicates that a change towards a running state
@@ -141,36 +135,41 @@ struct visor_driver {
  *				hypervisor requests.
  * @vbus_hdr_info:		A pointer to header info. Private use by bus
  *				driver.
- * @partition_uuid:		Indicates client partion id. This should be the
+ * @partition_guid:		Indicates client partion id. This should be the
  *				same across all visor_devices in the current
  *				guest. Private use by bus driver only.
  */
 
 struct visor_device {
 	struct visorchannel *visorchannel;
-	uuid_le channel_type_guid;
+	guid_t channel_type_guid;
 	/* These fields are for private use by the bus driver only. */
 	struct device device;
 	struct list_head list_all;
 	struct timer_list timer;
 	bool timer_active;
 	bool being_removed;
-	struct mutex visordriver_callback_lock;
+	struct mutex visordriver_callback_lock; /* synchronize probe/remove */
 	bool pausing;
 	bool resuming;
 	u32 chipset_bus_no;
 	u32 chipset_dev_no;
 	struct visorchipset_state state;
-	uuid_le inst;
+	guid_t inst;
 	u8 *name;
 	struct controlvm_message_header *pending_msg_hdr;
 	void *vbus_hdr_info;
-	uuid_le partition_uuid;
+	guid_t partition_guid;
 	struct dentry *debugfs_dir;
 	struct dentry *debugfs_client_bus_info;
 };
 
 #define to_visor_device(x) container_of(x, struct visor_device, device)
+
+int visor_check_channel(struct channel_header *ch, struct device *dev,
+			const guid_t *expected_uuid, char *chname,
+			u64 expected_min_bytes,	u32 expected_version,
+			u64 expected_signature);
 
 int visorbus_register_visor_driver(struct visor_driver *drv);
 void visorbus_unregister_visor_driver(struct visor_driver *drv);
@@ -183,7 +182,8 @@ int visorbus_write_channel(struct visor_device *dev,
 int visorbus_enable_channel_interrupts(struct visor_device *dev);
 void visorbus_disable_channel_interrupts(struct visor_device *dev);
 
-/* Levels of severity for diagnostic events, in order from lowest severity to
+/*
+ * Levels of severity for diagnostic events, in order from lowest severity to
  * highest (i.e. fatal errors are the most severe, and should always be logged,
  * but info events rarely need to be logged except during debugging). The
  * values DIAG_SEVERITY_ENUM_BEGIN and DIAG_SEVERITY_ENUM_END are not valid
@@ -207,7 +207,7 @@ int visorchannel_signalremove(struct visorchannel *channel, u32 queue,
 int visorchannel_signalinsert(struct visorchannel *channel, u32 queue,
 			      void *msg);
 bool visorchannel_signalempty(struct visorchannel *channel, u32 queue);
-uuid_le visorchannel_get_uuid(struct visorchannel *channel);
+const guid_t *visorchannel_get_guid(struct visorchannel *channel);
 
 #define BUS_ROOT_DEVICE UINT_MAX
 struct visor_device *visorbus_get_device_by_id(u32 bus_no, u32 dev_no,

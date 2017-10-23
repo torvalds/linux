@@ -63,7 +63,7 @@
 #ifndef __tof_h__
 #define __tof_h__
 
-#include "fw-api-tof.h"
+#include "fw/api/tof.h"
 
 struct iwl_mvm_tof_data {
 	struct iwl_tof_config_cmd tof_cfg;

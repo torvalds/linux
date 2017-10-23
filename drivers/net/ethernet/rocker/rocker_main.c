@@ -34,6 +34,7 @@
 #include <net/netevent.h>
 #include <net/arp.h>
 #include <net/fib_rules.h>
+#include <net/fib_notifier.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <generated/utsrelease.h>
 
@@ -2191,6 +2192,10 @@ static int rocker_router_fib_event(struct notifier_block *nb,
 {
 	struct rocker *rocker = container_of(nb, struct rocker, fib_nb);
 	struct rocker_fib_event_work *fib_work;
+	struct fib_notifier_info *info = ptr;
+
+	if (info->family != AF_INET)
+		return NOTIFY_DONE;
 
 	fib_work = kzalloc(sizeof(*fib_work), GFP_ATOMIC);
 	if (WARN_ON(!fib_work))

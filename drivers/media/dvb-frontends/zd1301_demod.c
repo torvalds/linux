@@ -445,7 +445,7 @@ static u32 zd1301_demod_i2c_functionality(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm zd1301_demod_i2c_algorithm = {
+static const struct i2c_algorithm zd1301_demod_i2c_algorithm = {
 	.master_xfer   = zd1301_demod_i2c_master_xfer,
 	.functionality = zd1301_demod_i2c_functionality,
 };

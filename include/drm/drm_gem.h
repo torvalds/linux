@@ -131,21 +131,6 @@ struct drm_gem_object {
 	uint32_t write_domain;
 
 	/**
-	 * @pending_read_domains:
-	 *
-	 * While validating an exec operation, the
-	 * new read/write domain values are computed here.
-	 * They will be transferred to the above values
-	 * at the point that any cache flushing occurs
-	 */
-	uint32_t pending_read_domains;
-
-	/**
-	 * @pending_write_domain: Write domain similar to @pending_read_domains.
-	 */
-	uint32_t pending_write_domain;
-
-	/**
 	 * @dma_buf:
 	 *
 	 * dma-buf associated with this GEM object.
@@ -317,6 +302,8 @@ void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 		bool dirty, bool accessed);
 
 struct drm_gem_object *drm_gem_object_lookup(struct drm_file *filp, u32 handle);
+int drm_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
+			    u32 handle, u64 *offset);
 int drm_gem_dumb_destroy(struct drm_file *file,
 			 struct drm_device *dev,
 			 uint32_t handle);

@@ -104,7 +104,7 @@ static void ath9k_op_ps_restore(struct ath_common *common)
 	ath9k_ps_restore((struct ath_softc *) common->priv);
 }
 
-static struct ath_ps_ops ath9k_ps_ops = {
+static const struct ath_ps_ops ath9k_ps_ops = {
 	.wakeup = ath9k_op_ps_wakeup,
 	.restore = ath9k_op_ps_restore,
 };

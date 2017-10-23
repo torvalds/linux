@@ -1674,7 +1674,7 @@ static void mlxsw_sx_fini(struct mlxsw_core *mlxsw_core)
 	mlxsw_sx_ports_remove(mlxsw_sx);
 }
 
-static struct mlxsw_config_profile mlxsw_sx_config_profile = {
+static const struct mlxsw_config_profile mlxsw_sx_config_profile = {
 	.used_max_vepa_channels		= 1,
 	.max_vepa_channels		= 0,
 	.used_max_mid			= 1,

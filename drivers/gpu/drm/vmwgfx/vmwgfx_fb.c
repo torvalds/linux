@@ -779,7 +779,6 @@ int vmw_fb_init(struct vmw_private *vmw_priv)
 	info->screen_base = (char __iomem *)par->vmalloc;
 	info->screen_size = fb_size;
 
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &vmw_fb_ops;
 
 	/* 24 depth per default */

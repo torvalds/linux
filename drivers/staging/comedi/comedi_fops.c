@@ -745,7 +745,7 @@ static void do_become_nonbusy(struct comedi_device *dev,
 		wake_up_interruptible_all(&async->wait_head);
 	} else {
 		dev_err(dev->class_dev,
-			"BUG: (?) do_become_nonbusy called with async=NULL\n");
+			"BUG: (?) %s called with async=NULL\n", __func__);
 		s->busy = NULL;
 	}
 }

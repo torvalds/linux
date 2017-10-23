@@ -55,7 +55,7 @@
 /* HW cursor parameters */
 #define MAX_CURS		32
 
-static struct pci_device_id nvidiafb_pci_tbl[] = {
+static const struct pci_device_id nvidiafb_pci_tbl[] = {
 	{PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID,
 	 PCI_BASE_CLASS_DISPLAY << 16, 0xff0000, 0},
 	{ 0, }

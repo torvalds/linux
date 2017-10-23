@@ -43,7 +43,7 @@
 
 #include "usbtv.h"
 
-static struct snd_pcm_hardware snd_usbtv_digital_hw = {
+static const struct snd_pcm_hardware snd_usbtv_digital_hw = {
 	.info = SNDRV_PCM_INFO_BATCH |
 		SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_INTERLEAVED |

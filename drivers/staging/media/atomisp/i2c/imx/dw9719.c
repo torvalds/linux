@@ -161,11 +161,6 @@ int dw9719_q_focus_status(struct v4l2_subdev *sd, s32 *value)
 	return 0;
 }
 
-int dw9719_t_focus_vcm(struct v4l2_subdev *sd, u16 val)
-{
-	return -EINVAL;
-}
-
 int dw9719_t_focus_abs(struct v4l2_subdev *sd, s32 value)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -200,10 +195,4 @@ int dw9719_t_vcm_slew(struct v4l2_subdev *sd, s32 value)
 int dw9719_t_vcm_timing(struct v4l2_subdev *sd, s32 value)
 {
 	return 0;
-}
-
-int dw9719_vcm_init(struct v4l2_subdev *sd)
-{
-	dw9719_dev.platform_data = camera_get_af_platform_data();
-	return (NULL == dw9719_dev.platform_data) ? -ENODEV : 0;
 }

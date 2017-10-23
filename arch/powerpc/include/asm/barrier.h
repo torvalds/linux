@@ -74,13 +74,6 @@ do {									\
 	___p1;								\
 })
 
-/*
- * This must resolve to hwsync on SMP for the context switch path.
- * See _switch, and core scheduler context switch memory ordering
- * comments.
- */
-#define smp_mb__before_spinlock()   smp_mb()
-
 #include <asm-generic/barrier.h>
 
 #endif /* _ASM_POWERPC_BARRIER_H */

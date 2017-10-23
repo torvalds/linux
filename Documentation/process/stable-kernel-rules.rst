@@ -166,12 +166,12 @@ Trees
  - The queues of patches, for both completed versions and in progress
    versions can be found at:
 
-	http://git.kernel.org/?p=linux/kernel/git/stable/stable-queue.git
+	https://git.kernel.org/pub/scm/linux/kernel/git/stable/stable-queue.git
 
  - The finalized and tagged releases of all stable kernels can be found
    in separate branches per version at:
 
-	http://git.kernel.org/?p=linux/kernel/git/stable/linux-stable.git
+	https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
 
 
 Review committee

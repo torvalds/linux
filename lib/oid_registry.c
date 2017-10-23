@@ -142,9 +142,9 @@ int sprint_oid(const void *data, size_t datasize, char *buffer, size_t bufsize)
 		}
 		ret += count = snprintf(buffer, bufsize, ".%lu", num);
 		buffer += count;
-		bufsize -= count;
-		if (bufsize == 0)
+		if (bufsize <= count)
 			return -ENOBUFS;
+		bufsize -= count;
 	}
 
 	return ret;

@@ -24,7 +24,6 @@ Ethernet switch connected via SPI to the host, CPU port wired to eth0:
                                              pinctrl-0 = <&pinctrl_spi_ksz>;
                                              cs-gpios = <&pioC 25 0>;
                                              id = <1>;
-                                             status = "okay";
 
                                              ksz9477: ksz9477@0 {
                                                              compatible = "microchip,ksz9477";
@@ -34,7 +33,6 @@ Ethernet switch connected via SPI to the host, CPU port wired to eth0:
                                                              spi-cpha;
                                                              spi-cpol;
 
-                                                             status = "okay";
                                                              ports {
                                                                              #address-cells = <1>;
                                                                              #size-cells = <0>;

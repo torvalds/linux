@@ -107,14 +107,6 @@ static const struct xhci_plat_priv xhci_plat_renesas_rcar_gen2 = {
 };
 
 static const struct xhci_plat_priv xhci_plat_renesas_rcar_gen3 = {
-	.firmware_name = XHCI_RCAR_FIRMWARE_NAME_V2,
-	.init_quirk = xhci_rcar_init_quirk,
-	.plat_start = xhci_rcar_start,
-	.resume_quirk = xhci_rcar_resume_quirk,
-};
-
-static const struct xhci_plat_priv xhci_plat_renesas_rcar_r8a7796 = {
-	.firmware_name = XHCI_RCAR_FIRMWARE_NAME_V3,
 	.init_quirk = xhci_rcar_init_quirk,
 	.plat_start = xhci_rcar_start,
 	.resume_quirk = xhci_rcar_resume_quirk,
@@ -145,7 +137,7 @@ static const struct of_device_id usb_xhci_of_match[] = {
 		.data = &xhci_plat_renesas_rcar_gen3,
 	}, {
 		.compatible = "renesas,xhci-r8a7796",
-		.data = &xhci_plat_renesas_rcar_r8a7796,
+		.data = &xhci_plat_renesas_rcar_gen3,
 	}, {
 		.compatible = "renesas,rcar-gen2-xhci",
 		.data = &xhci_plat_renesas_rcar_gen2,
@@ -186,14 +178,18 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	 * 2. xhci_plat is child of a device from firmware (dwc3-plat)
 	 * 3. xhci_plat is grandchild of a pci device (dwc3-pci)
 	 */
-	sysdev = &pdev->dev;
-	if (sysdev->parent && !sysdev->of_node && sysdev->parent->of_node)
-		sysdev = sysdev->parent;
+	for (sysdev = &pdev->dev; sysdev; sysdev = sysdev->parent) {
+		if (is_of_node(sysdev->fwnode) ||
+			is_acpi_device_node(sysdev->fwnode))
+			break;
 #ifdef CONFIG_PCI
-	else if (sysdev->parent && sysdev->parent->parent &&
-		 sysdev->parent->parent->bus == &pci_bus_type)
-		sysdev = sysdev->parent->parent;
+		else if (sysdev->bus == &pci_bus_type)
+			break;
 #endif
+	}
+
+	if (!sysdev)
+		sysdev = &pdev->dev;
 
 	/* Try to set 64-bit DMA first */
 	if (WARN_ON(!sysdev->dma_mask))

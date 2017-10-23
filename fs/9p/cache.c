@@ -151,34 +151,6 @@ fscache_checkaux v9fs_cache_inode_check_aux(void *cookie_netfs_data,
 	return FSCACHE_CHECKAUX_OKAY;
 }
 
-static void v9fs_cache_inode_now_uncached(void *cookie_netfs_data)
-{
-	struct v9fs_inode *v9inode = cookie_netfs_data;
-	struct pagevec pvec;
-	pgoff_t first;
-	int loop, nr_pages;
-
-	pagevec_init(&pvec, 0);
-	first = 0;
-
-	for (;;) {
-		nr_pages = pagevec_lookup(&pvec, v9inode->vfs_inode.i_mapping,
-					  first,
-					  PAGEVEC_SIZE - pagevec_count(&pvec));
-		if (!nr_pages)
-			break;
-
-		for (loop = 0; loop < nr_pages; loop++)
-			ClearPageFsCache(pvec.pages[loop]);
-
-		first = pvec.pages[nr_pages - 1]->index + 1;
-
-		pvec.nr = nr_pages;
-		pagevec_release(&pvec);
-		cond_resched();
-	}
-}
-
 const struct fscache_cookie_def v9fs_cache_inode_index_def = {
 	.name		= "9p.inode",
 	.type		= FSCACHE_COOKIE_TYPE_DATAFILE,
@@ -186,7 +158,6 @@ const struct fscache_cookie_def v9fs_cache_inode_index_def = {
 	.get_attr	= v9fs_cache_inode_get_attr,
 	.get_aux	= v9fs_cache_inode_get_aux,
 	.check_aux	= v9fs_cache_inode_check_aux,
-	.now_uncached	= v9fs_cache_inode_now_uncached,
 };
 
 void v9fs_cache_inode_get_cookie(struct inode *inode)

@@ -74,10 +74,6 @@ struct mixart_mgr {
 	/* memory-maps */
 	struct mem_area mem[2];
 
-	/* share the name */
-	char shortname[32];         /* short name of this soundcard */
-	char longname[80];          /* name of this soundcard */
-
 	/* one and only blocking message or notification may be pending  */
 	u32 pending_event;
 	wait_queue_head_t msg_sleep;

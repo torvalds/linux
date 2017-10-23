@@ -452,8 +452,8 @@ static int __init mv64x60_device_setup(void)
 		err = mv64x60_mpsc_device_setup(np, id++);
 		if (err)
 			printk(KERN_ERR "Failed to initialize MV64x60 "
-					"serial device %s: error %d.\n",
-					np->full_name, err);
+					"serial device %pOF: error %d.\n",
+					np, err);
 	}
 
 	id = 0;
@@ -463,8 +463,8 @@ static int __init mv64x60_device_setup(void)
 		if (IS_ERR(pdev)) {
 			err = PTR_ERR(pdev);
 			printk(KERN_ERR "Failed to initialize MV64x60 "
-					"network block %s: error %d.\n",
-					np->full_name, err);
+					"network block %pOF: error %d.\n",
+					np, err);
 			continue;
 		}
 		for_each_child_of_node(np, np2) {
@@ -474,9 +474,9 @@ static int __init mv64x60_device_setup(void)
 			err = mv64x60_eth_device_setup(np2, id2++, pdev);
 			if (err)
 				printk(KERN_ERR "Failed to initialize "
-						"MV64x60 network device %s: "
+						"MV64x60 network device %pOF: "
 						"error %d.\n",
-						np2->full_name, err);
+						np2, err);
 		}
 	}
 
@@ -485,8 +485,8 @@ static int __init mv64x60_device_setup(void)
 		err = mv64x60_i2c_device_setup(np, id++);
 		if (err)
 			printk(KERN_ERR "Failed to initialize MV64x60 I2C "
-					"bus %s: error %d.\n",
-					np->full_name, err);
+					"bus %pOF: error %d.\n",
+					np, err);
 	}
 
 	/* support up to one watchdog timer */
@@ -494,8 +494,8 @@ static int __init mv64x60_device_setup(void)
 	if (np) {
 		if ((err = mv64x60_wdt_device_setup(np, id)))
 			printk(KERN_ERR "Failed to initialize MV64x60 "
-					"Watchdog %s: error %d.\n",
-					np->full_name, err);
+					"Watchdog %pOF: error %d.\n",
+					np, err);
 		of_node_put(np);
 	}
 

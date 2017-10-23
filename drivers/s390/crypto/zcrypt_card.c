@@ -98,7 +98,7 @@ static struct attribute *zcrypt_card_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group zcrypt_card_attr_group = {
+static const struct attribute_group zcrypt_card_attr_group = {
 	.attrs = zcrypt_card_attrs,
 };
 

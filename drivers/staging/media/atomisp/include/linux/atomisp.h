@@ -28,12 +28,6 @@
 #include <linux/types.h>
 #include <linux/version.h>
 
-/* struct media_device_info.driver_version */
-#define ATOMISP_CSS_VERSION_MASK	0x00ffffff
-#define ATOMISP_CSS_VERSION_15		KERNEL_VERSION(1, 5, 0)
-#define ATOMISP_CSS_VERSION_20		KERNEL_VERSION(2, 0, 0)
-#define ATOMISP_CSS_VERSION_21		KERNEL_VERSION(2, 1, 0)
-
 /* struct media_device_info.hw_revision */
 #define ATOMISP_HW_REVISION_MASK	0x0000ff00
 #define ATOMISP_HW_REVISION_SHIFT	8

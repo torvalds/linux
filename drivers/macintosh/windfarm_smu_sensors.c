@@ -172,22 +172,22 @@ static int smu_slotspow_get(struct wf_sensor *sr, s32 *value)
 }
 
 
-static struct wf_sensor_ops smu_cputemp_ops = {
+static const struct wf_sensor_ops smu_cputemp_ops = {
 	.get_value	= smu_cputemp_get,
 	.release	= smu_ads_release,
 	.owner		= THIS_MODULE,
 };
-static struct wf_sensor_ops smu_cpuamp_ops = {
+static const struct wf_sensor_ops smu_cpuamp_ops = {
 	.get_value	= smu_cpuamp_get,
 	.release	= smu_ads_release,
 	.owner		= THIS_MODULE,
 };
-static struct wf_sensor_ops smu_cpuvolt_ops = {
+static const struct wf_sensor_ops smu_cpuvolt_ops = {
 	.get_value	= smu_cpuvolt_get,
 	.release	= smu_ads_release,
 	.owner		= THIS_MODULE,
 };
-static struct wf_sensor_ops smu_slotspow_ops = {
+static const struct wf_sensor_ops smu_slotspow_ops = {
 	.get_value	= smu_slotspow_get,
 	.release	= smu_ads_release,
 	.owner		= THIS_MODULE,
@@ -327,7 +327,7 @@ static int smu_cpu_power_get(struct wf_sensor *sr, s32 *value)
 	return 0;
 }
 
-static struct wf_sensor_ops smu_cpu_power_ops = {
+static const struct wf_sensor_ops smu_cpu_power_ops = {
 	.get_value	= smu_cpu_power_get,
 	.release	= smu_cpu_power_release,
 	.owner		= THIS_MODULE,

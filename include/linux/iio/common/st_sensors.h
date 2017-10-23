@@ -332,4 +332,16 @@ ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 				struct device_attribute *attr, char *buf);
 
+#ifdef CONFIG_OF
+void st_sensors_of_name_probe(struct device *dev,
+			      const struct of_device_id *match,
+			      char *name, int len);
+#else
+static inline void st_sensors_of_name_probe(struct device *dev,
+					    const struct of_device_id *match,
+					    char *name, int len)
+{
+}
+#endif
+
 #endif /* ST_SENSORS_H */

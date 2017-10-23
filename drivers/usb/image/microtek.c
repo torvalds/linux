@@ -137,10 +137,6 @@
 
 #include "microtek.h"
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v0.4.3"
 #define DRIVER_AUTHOR "John Fremlin <vii@penguinpowered.com>, Oliver Neukum <Oliver.Neukum@lrz.uni-muenchen.de>"
 #define DRIVER_DESC "Microtek Scanmaker X6 USB scanner driver"
 

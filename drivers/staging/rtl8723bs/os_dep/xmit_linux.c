@@ -37,7 +37,7 @@ uint _rtw_pktfile_read (struct pkt_file *pfile, u8 *rmem, uint rlen)
 	uint	len = 0;
 
 	len =  rtw_remainder_len(pfile);
-	len = (rlen > len)? len: rlen;
+	len = (rlen > len) ? len : rlen;
 
 	if (rmem)
 		skb_copy_bits(pfile->pkt, pfile->buf_len-pfile->pkt_len, rmem, len);
@@ -134,7 +134,7 @@ static void rtw_check_xmit_resource(struct adapter *padapter, _pkt *pkt)
 			netif_stop_subqueue(padapter->pnetdev, queue);
 		}
 	} else {
-		if (pxmitpriv->free_xmitframe_cnt<=4) {
+		if (pxmitpriv->free_xmitframe_cnt <= 4) {
 			if (!netif_tx_queue_stopped(netdev_get_tx_queue(padapter->pnetdev, queue)))
 				netif_stop_subqueue(padapter->pnetdev, queue);
 		}
@@ -150,8 +150,8 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 	struct sta_info *psta = NULL;
 	u8 chk_alive_num = 0;
 	char chk_alive_list[NUM_STA];
-	u8 bc_addr[6]={0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	u8 null_addr[6]={0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	u8 bc_addr[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	u8 null_addr[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 	int i;
 	s32	res;
@@ -177,7 +177,7 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 
 	for (i = 0; i < chk_alive_num; i++) {
 		psta = rtw_get_stainfo_by_offset(pstapriv, chk_alive_list[i]);
-		if (!(psta->state &_FW_LINKED))
+		if (!(psta->state & _FW_LINKED))
 		{
 			DBG_COUNTER(padapter->tx_logs.os_tx_m2u_ignore_fw_linked);
 			continue;

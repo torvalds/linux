@@ -663,12 +663,10 @@ static int stmfts_probe(struct i2c_client *client,
 	sdata->input->open = stmfts_input_open;
 	sdata->input->close = stmfts_input_close;
 
+	input_set_capability(sdata->input, EV_ABS, ABS_MT_POSITION_X);
+	input_set_capability(sdata->input, EV_ABS, ABS_MT_POSITION_Y);
 	touchscreen_parse_properties(sdata->input, true, &sdata->prop);
 
-	input_set_abs_params(sdata->input, ABS_MT_POSITION_X, 0,
-						sdata->prop.max_x, 0, 0);
-	input_set_abs_params(sdata->input, ABS_MT_POSITION_Y, 0,
-						sdata->prop.max_y, 0, 0);
 	input_set_abs_params(sdata->input, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(sdata->input, ABS_MT_TOUCH_MINOR, 0, 255, 0, 0);
 	input_set_abs_params(sdata->input, ABS_MT_ORIENTATION, 0, 255, 0, 0);
