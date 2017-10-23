@@ -44,6 +44,8 @@ struct dal_logger *dal_logger_create(struct dc_context *ctx, uint32_t log_mask);
 
 uint32_t dal_logger_destroy(struct dal_logger **logger);
 
+void dm_logger_flush_buffer(struct dal_logger *logger, bool should_warn);
+
 void dm_logger_write(
 		struct dal_logger *logger,
 		enum dc_log_type log_type,
@@ -156,5 +158,31 @@ void context_clock_trace(
 
 #define DTN_INFO_END() \
 	dm_dtn_log_end(dc_ctx)
+
+#define PERFORMANCE_TRACE_START() \
+	unsigned long long perf_trc_start_stmp = dm_get_timestamp(dc->ctx); \
+	unsigned long long perf_trc_start_log_msk = dc->ctx->logger->mask; \
+	unsigned int perf_trc_start_log_flags = dc->ctx->logger->flags.value; \
+	if (dc->debug.performance_trace) {\
+		dm_logger_flush_buffer(dc->ctx->logger, false);\
+		dc->ctx->logger->mask = 1<<LOG_PERF_TRACE;\
+		dc->ctx->logger->flags.bits.ENABLE_CONSOLE = 0;\
+		dc->ctx->logger->flags.bits.ENABLE_BUFFER = 1;\
+	}
+
+#define PERFORMANCE_TRACE_END() do {\
+	unsigned long long perf_trc_end_stmp = dm_get_timestamp(dc->ctx);\
+	if (dc->debug.performance_trace) {\
+		dm_logger_write(dc->ctx->logger, \
+				LOG_PERF_TRACE, \
+				"%s duration: %d ticks\n", __func__,\
+				perf_trc_end_stmp - perf_trc_start_stmp); \
+		if (perf_trc_start_log_msk != 1<<LOG_PERF_TRACE) {\
+			dc->ctx->logger->mask = perf_trc_start_log_msk;\
+			dc->ctx->logger->flags.value = perf_trc_start_log_flags;\
+			dm_logger_flush_buffer(dc->ctx->logger, false);\
+		} \
+	} \
+} while (0)
 
 #endif /* __DAL_LOGGER_INTERFACE_H__ */

@@ -44,8 +44,6 @@
 	SRI(DC_HPD_CONTROL, HPD, id)
 
 #define LE_COMMON_REG_LIST_BASE(id) \
-	SR(LVTMA_PWRSEQ_CNTL), \
-	SR(LVTMA_PWRSEQ_STATE), \
 	SR(DMCU_RAM_ACCESS_CTRL), \
 	SR(DMCU_IRAM_RD_CTRL), \
 	SR(DMCU_IRAM_RD_DATA), \
@@ -104,8 +102,7 @@
 	LE_COMMON_REG_LIST_BASE(id), \
 	SRI(DP_DPHY_BS_SR_SWAP_CNTL, DP, id), \
 	SRI(DP_DPHY_INTERNAL_CTRL, DP, id), \
-	SRI(DP_DPHY_HBR2_PATTERN_CONTROL, DP, id), \
-	SR(DMU_MEM_PWR_CNTL)
+	SRI(DP_DPHY_HBR2_PATTERN_CONTROL, DP, id)
 
 struct dce110_link_enc_aux_registers {
 	uint32_t AUX_CONTROL;
@@ -117,10 +114,6 @@ struct dce110_link_enc_hpd_registers {
 };
 
 struct dce110_link_enc_registers {
-	/* Backlight registers */
-	uint32_t LVTMA_PWRSEQ_CNTL;
-	uint32_t LVTMA_PWRSEQ_STATE;
-
 	/* DMCU registers */
 	uint32_t MASTER_COMM_DATA_REG1;
 	uint32_t MASTER_COMM_DATA_REG2;
@@ -236,7 +229,8 @@ void dce110_link_encoder_enable_dp_mst_output(
 /* disable PHY output */
 void dce110_link_encoder_disable_output(
 	struct link_encoder *link_enc,
-	enum signal_type signal);
+	enum signal_type signal,
+	struct dc_link *link);
 
 /* set DP lane settings */
 void dce110_link_encoder_dp_set_lane_settings(
@@ -251,14 +245,6 @@ void dce110_link_encoder_dp_set_phy_pattern(
 void dce110_link_encoder_update_mst_stream_allocation_table(
 	struct link_encoder *enc,
 	const struct link_mst_stream_allocation_table *table);
-
-void dce110_link_encoder_edp_backlight_control(
-	struct link_encoder *enc,
-	bool enable);
-
-void dce110_link_encoder_edp_power_control(
-	struct link_encoder *enc,
-	bool power_up);
 
 void dce110_link_encoder_connect_dig_be_to_fe(
 	struct link_encoder *enc,

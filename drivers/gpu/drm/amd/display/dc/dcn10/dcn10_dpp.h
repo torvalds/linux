@@ -25,10 +25,10 @@
 #ifndef __DAL_DPP_DCN10_H__
 #define __DAL_DPP_DCN10_H__
 
-#include "transform.h"
+#include "dpp.h"
 
-#define TO_DCN10_DPP(transform)\
-	container_of(transform, struct dcn10_dpp, base)
+#define TO_DCN10_DPP(dpp)\
+	container_of(dpp, struct dcn10_dpp, base)
 
 /* TODO: Use correct number of taps. Using polaris values for now */
 #define LB_TOTAL_NUMBER_OF_ENTRIES 5124
@@ -112,7 +112,9 @@
 	SRI(CM_DGAM_CONTROL, CM, id), \
 	SRI(FORMAT_CONTROL, CNVC_CFG, id), \
 	SRI(CNVC_SURFACE_PIXEL_FORMAT, CNVC_CFG, id), \
-	SRI(CURSOR0_CONTROL, CNVC_CUR, id)
+	SRI(CURSOR0_CONTROL, CNVC_CUR, id), \
+	SRI(CURSOR0_COLOR0, CNVC_CUR, id), \
+	SRI(CURSOR0_COLOR1, CNVC_CUR, id)
 
 
 
@@ -162,7 +164,8 @@
 	SRI(CM_IGAM_LUT_RW_CONTROL, CM, id), \
 	SRI(CM_IGAM_LUT_RW_INDEX, CM, id), \
 	SRI(CM_IGAM_LUT_SEQ_COLOR, CM, id), \
-	SRI(CURSOR_CONTROL, CURSOR, id)
+	SRI(CURSOR_CONTROL, CURSOR, id), \
+	SRI(CM_CMOUT_CONTROL, CM, id)
 
 
 #define TF_REG_LIST_SH_MASK_DCN(mask_sh)\
@@ -302,7 +305,9 @@
 	TF_SF(CNVC_CFG0_CNVC_SURFACE_PIXEL_FORMAT, CNVC_SURFACE_PIXEL_FORMAT, mask_sh), \
 	TF_SF(CNVC_CUR0_CURSOR0_CONTROL, CUR0_MODE, mask_sh), \
 	TF_SF(CNVC_CUR0_CURSOR0_CONTROL, CUR0_EXPANSION_MODE, mask_sh), \
-	TF_SF(CNVC_CUR0_CURSOR0_CONTROL, CUR0_ENABLE, mask_sh)
+	TF_SF(CNVC_CUR0_CURSOR0_CONTROL, CUR0_ENABLE, mask_sh), \
+	TF_SF(CNVC_CUR0_CURSOR0_COLOR0, CUR0_COLOR0, mask_sh), \
+	TF_SF(CNVC_CUR0_CURSOR0_COLOR1, CUR0_COLOR1, mask_sh)
 
 #define TF_REG_LIST_SH_MASK_DCN10(mask_sh)\
 	TF_REG_LIST_SH_MASK_DCN(mask_sh),\
@@ -397,6 +402,7 @@
 	TF_SF(CM0_CM_CONTROL, CM_BYPASS_EN, mask_sh), \
 	TF_SF(CM0_CM_IGAM_LUT_SEQ_COLOR, CM_IGAM_LUT_SEQ_COLOR, mask_sh), \
 	TF_SF(CNVC_CFG0_FORMAT_CONTROL, OUTPUT_FP, mask_sh), \
+	TF_SF(CM0_CM_CMOUT_CONTROL, CM_CMOUT_ROUND_TRUNC_MODE, mask_sh), \
 	TF_SF(CURSOR0_CURSOR_CONTROL, CURSOR_MODE, mask_sh), \
 	TF_SF(CURSOR0_CURSOR_CONTROL, CURSOR_PITCH, mask_sh), \
 	TF_SF(CURSOR0_CURSOR_CONTROL, CURSOR_LINES_PER_CHUNK, mask_sh), \
@@ -545,6 +551,7 @@
 	type CM_RGAM_RAMA_EXP_REGION33_LUT_OFFSET; \
 	type CM_RGAM_RAMA_EXP_REGION33_NUM_SEGMENTS; \
 	type CM_RGAM_LUT_MODE; \
+	type CM_CMOUT_ROUND_TRUNC_MODE; \
 	type OBUF_BYPASS; \
 	type OBUF_H_2X_UPSCALE_EN; \
 	type CM_BLNDGAM_LUT_MODE; \
@@ -989,7 +996,9 @@
 	type CUR0_EXPANSION_MODE; \
 	type CUR0_ENABLE; \
 	type CM_BYPASS; \
-	type FORMAT_CONTROL__ALPHA_EN
+	type FORMAT_CONTROL__ALPHA_EN; \
+	type CUR0_COLOR0; \
+	type CUR0_COLOR1
 
 
 
@@ -1075,6 +1084,7 @@ struct dcn_dpp_registers {
 	uint32_t CM_RGAM_RAMA_REGION_0_1;
 	uint32_t CM_RGAM_RAMA_REGION_32_33;
 	uint32_t CM_RGAM_CONTROL;
+	uint32_t CM_CMOUT_CONTROL;
 	uint32_t OBUF_CONTROL;
 	uint32_t CM_BLNDGAM_LUT_WRITE_EN_MASK;
 	uint32_t CM_BLNDGAM_CONTROL;
@@ -1237,10 +1247,12 @@ struct dcn_dpp_registers {
 	uint32_t CNVC_SURFACE_PIXEL_FORMAT;
 	uint32_t CURSOR_CONTROL;
 	uint32_t CURSOR0_CONTROL;
+	uint32_t CURSOR0_COLOR0;
+	uint32_t CURSOR0_COLOR1;
 };
 
 struct dcn10_dpp {
-	struct transform base;
+	struct dpp base;
 
 	const struct dcn_dpp_registers *tf_regs;
 	const struct dcn_dpp_shift *tf_shift;
@@ -1256,107 +1268,116 @@ struct dcn10_dpp {
 	bool is_write_to_ram_a_safe;
 };
 
-
-
 enum dcn10_input_csc_select {
 	INPUT_CSC_SELECT_BYPASS = 0,
 	INPUT_CSC_SELECT_ICSC,
 	INPUT_CSC_SELECT_COMA
 };
 
-void ippn10_degamma_ram_select(
-		struct transform *xfm_base,
+bool dpp1_dscl_is_lb_conf_valid(
+		int ceil_vratio,
+		int num_partitions,
+		int vtaps);
+
+void dpp1_dscl_calc_lb_num_partitions(
+		const struct scaler_data *scl_data,
+		enum lb_memory_config lb_config,
+		int *num_part_y,
+		int *num_part_c);
+
+void dpp1_degamma_ram_select(
+		struct dpp *dpp_base,
 							bool use_ram_a);
 
-void ippn10_program_degamma_luta_settings(
-		struct transform *xfm_base,
+void dpp1_program_degamma_luta_settings(
+		struct dpp *dpp_base,
 		const struct pwl_params *params);
 
-void ippn10_program_degamma_lutb_settings(
-		struct transform *xfm_base,
+void dpp1_program_degamma_lutb_settings(
+		struct dpp *dpp_base,
 		const struct pwl_params *params);
 
-void ippn10_program_degamma_lut(
-		struct transform *xfm_base,
+void dpp1_program_degamma_lut(
+		struct dpp *dpp_base,
 		const struct pwl_result_data *rgb,
 		uint32_t num,
 		bool is_ram_a);
 
-void ippn10_power_on_degamma_lut(
-		struct transform *xfm_base,
+void dpp1_power_on_degamma_lut(
+		struct dpp *dpp_base,
 	bool power_on);
 
-void ippn10_program_input_csc(
-		struct transform *xfm_base,
+void dpp1_program_input_csc(
+		struct dpp *dpp_base,
 		enum dc_color_space color_space,
 		enum dcn10_input_csc_select select);
 
-void ippn10_program_input_lut(
-		struct transform *xfm_base,
+void dpp1_program_input_lut(
+		struct dpp *dpp_base,
 		const struct dc_gamma *gamma);
 
-void ippn10_full_bypass(struct transform *xfm_base);
+void dpp1_full_bypass(struct dpp *dpp_base);
 
-void ippn10_set_degamma(
-		struct transform *xfm_base,
+void dpp1_set_degamma(
+		struct dpp *dpp_base,
 		enum ipp_degamma_mode mode);
 
-void ippn10_set_degamma_pwl(struct transform *xfm_base,
+void dpp1_set_degamma_pwl(struct dpp *dpp_base,
 								 const struct pwl_params *params);
 
 bool dpp_get_optimal_number_of_taps(
-		struct transform *xfm,
+		struct dpp *dpp,
 		struct scaler_data *scl_data,
 		const struct scaling_taps *in_taps);
 
-void dpp_reset(struct transform *xfm_base);
+void dpp_reset(struct dpp *dpp_base);
 
-void dcn10_dpp_cm_program_regamma_lut(
-		struct transform *xfm_base,
+void dpp1_cm_program_regamma_lut(
+		struct dpp *dpp_base,
 		const struct pwl_result_data *rgb,
 		uint32_t num);
 
-void dcn10_dpp_cm_power_on_regamma_lut(
-	struct transform *xfm_base,
+void dpp1_cm_power_on_regamma_lut(
+	struct dpp *dpp_base,
 	bool power_on);
 
-void dcn10_dpp_cm_configure_regamma_lut(
-		struct transform *xfm_base,
+void dpp1_cm_configure_regamma_lut(
+		struct dpp *dpp_base,
 		bool is_ram_a);
 
 /*program re gamma RAM A*/
-void dcn10_dpp_cm_program_regamma_luta_settings(
-		struct transform *xfm_base,
+void dpp1_cm_program_regamma_luta_settings(
+		struct dpp *dpp_base,
 		const struct pwl_params *params);
 
 /*program re gamma RAM B*/
-void dcn10_dpp_cm_program_regamma_lutb_settings(
-		struct transform *xfm_base,
+void dpp1_cm_program_regamma_lutb_settings(
+		struct dpp *dpp_base,
 		const struct pwl_params *params);
-void dcn10_dpp_cm_set_output_csc_adjustment(
-		struct transform *xfm_base,
+void dpp1_cm_set_output_csc_adjustment(
+		struct dpp *dpp_base,
 		const struct out_csc_color_matrix *tbl_entry);
 
-void dcn10_dpp_cm_set_output_csc_default(
-		struct transform *xfm_base,
+void dpp1_cm_set_output_csc_default(
+		struct dpp *dpp_base,
 		const struct default_adjustment *default_adjust);
 
-void dcn10_dpp_cm_set_gamut_remap(
-	struct transform *xfm,
-	const struct xfm_grph_csc_adjustment *adjust);
+void dpp1_cm_set_gamut_remap(
+	struct dpp *dpp,
+	const struct dpp_grph_csc_adjustment *adjust);
 
-void dcn10_dpp_dscl_set_scaler_manual_scale(
-	struct transform *xfm_base,
+void dpp1_dscl_set_scaler_manual_scale(
+	struct dpp *dpp_base,
 	const struct scaler_data *scl_data);
 
-void ippn10_cnv_setup (
-		struct transform *xfm_base,
+void dpp1_cnv_setup (
+		struct dpp *dpp_base,
 		enum surface_pixel_format input_format,
 		enum expansion_mode mode);
 
-void ippn10_full_bypass(struct transform *xfm_base);
+void dpp1_full_bypass(struct dpp *dpp_base);
 
-void dcn10_dpp_construct(struct dcn10_dpp *xfm110,
+void dpp1_construct(struct dcn10_dpp *dpp1,
 	struct dc_context *ctx,
 	uint32_t inst,
 	const struct dcn_dpp_registers *tf_regs,

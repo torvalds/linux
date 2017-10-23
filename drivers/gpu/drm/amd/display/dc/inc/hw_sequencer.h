@@ -28,6 +28,7 @@
 #include "dc_types.h"
 #include "clock_source.h"
 #include "inc/hw/timing_generator.h"
+#include "inc/hw/link_encoder.h"
 #include "core_status.h"
 
 enum pipe_gating_control {
@@ -133,7 +134,8 @@ struct hw_sequencer_funcs {
 
 	void (*enable_stream)(struct pipe_ctx *pipe_ctx);
 
-	void (*disable_stream)(struct pipe_ctx *pipe_ctx);
+	void (*disable_stream)(struct pipe_ctx *pipe_ctx,
+			int option);
 
 	void (*unblank_stream)(struct pipe_ctx *pipe_ctx,
 			struct dc_link_settings *link_settings);
@@ -174,8 +176,14 @@ struct hw_sequencer_funcs {
 			struct resource_pool *res_pool,
 			struct pipe_ctx *pipe_ctx);
 
-	void (*ready_shared_resources)(struct dc *dc);
+	void (*ready_shared_resources)(struct dc *dc, struct dc_state *context);
 	void (*optimize_shared_resources)(struct dc *dc);
+	void (*edp_power_control)(
+			struct link_encoder *enc,
+			bool enable);
+	void (*edp_backlight_control)(
+			struct dc_link *link,
+			bool enable);
 };
 
 void color_space_to_black_color(

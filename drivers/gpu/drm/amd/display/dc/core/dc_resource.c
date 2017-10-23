@@ -31,6 +31,7 @@
 #include "opp.h"
 #include "timing_generator.h"
 #include "transform.h"
+#include "dpp.h"
 #include "core_types.h"
 #include "set_mode_types.h"
 #include "virtual/virtual_stream_encoder.h"
@@ -242,7 +243,10 @@ bool resource_construct(
 			pool->stream_enc_count++;
 		}
 	}
-
+	dc->caps.dynamic_audio = false;
+	if (pool->audio_count < pool->stream_enc_count) {
+		dc->caps.dynamic_audio = true;
+	}
 	for (i = 0; i < num_virtual_links; i++) {
 		pool->stream_enc[pool->stream_enc_count] =
 			virtual_stream_encoder_create(
@@ -846,12 +850,20 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	 */
 	pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
 
-	pipe_ctx->plane_res.scl_data.h_active = timing->h_addressable;
-	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable;
+	pipe_ctx->plane_res.scl_data.recout.x += timing->h_border_left;
+	pipe_ctx->plane_res.scl_data.recout.y += timing->v_border_top;
+
+	pipe_ctx->plane_res.scl_data.h_active = timing->h_addressable + timing->h_border_left + timing->h_border_right;
+	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable + timing->v_border_top + timing->v_border_bottom;
 
 	/* Taps calculations */
-	res = pipe_ctx->plane_res.xfm->funcs->transform_get_optimal_number_of_taps(
-		pipe_ctx->plane_res.xfm, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
+	if (pipe_ctx->plane_res.xfm != NULL)
+		res = pipe_ctx->plane_res.xfm->funcs->transform_get_optimal_number_of_taps(
+				pipe_ctx->plane_res.xfm, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
+
+	if (pipe_ctx->plane_res.dpp != NULL)
+		res = pipe_ctx->plane_res.dpp->funcs->dpp_get_optimal_number_of_taps(
+				pipe_ctx->plane_res.dpp, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
 
 	if (!res) {
 		/* Try 24 bpp linebuffer */
@@ -859,6 +871,9 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 
 		res = pipe_ctx->plane_res.xfm->funcs->transform_get_optimal_number_of_taps(
 			pipe_ctx->plane_res.xfm, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
+
+		res = pipe_ctx->plane_res.dpp->funcs->dpp_get_optimal_number_of_taps(
+			pipe_ctx->plane_res.dpp, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
 	}
 
 	if (res)
@@ -1021,9 +1036,9 @@ static int acquire_first_split_pipe(
 
 			memset(pipe_ctx, 0, sizeof(*pipe_ctx));
 			pipe_ctx->stream_res.tg = pool->timing_generators[i];
-			pipe_ctx->plane_res.mi = pool->mis[i];
+			pipe_ctx->plane_res.hubp = pool->hubps[i];
 			pipe_ctx->plane_res.ipp = pool->ipps[i];
-			pipe_ctx->plane_res.xfm = pool->transforms[i];
+			pipe_ctx->plane_res.dpp = pool->dpps[i];
 			pipe_ctx->stream_res.opp = pool->opps[i];
 			pipe_ctx->pipe_idx = i;
 
@@ -1070,9 +1085,6 @@ bool dc_add_plane_to_context(
 		return false;
 	}
 
-	/* retain new surfaces */
-	dc_plane_state_retain(plane_state);
-
 	free_pipe = acquire_free_pipe_for_stream(context, pool, stream);
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
@@ -1082,11 +1094,11 @@ bool dc_add_plane_to_context(
 			free_pipe = &context->res_ctx.pipe_ctx[pipe_idx];
 	}
 #endif
-	if (!free_pipe) {
-		stream_status->plane_states[i] = NULL;
+	if (!free_pipe)
 		return false;
-	}
 
+	/* retain new surfaces */
+	dc_plane_state_retain(plane_state);
 	free_pipe->plane_state = plane_state;
 
 	if (head_pipe != free_pipe) {
@@ -1178,8 +1190,8 @@ bool dc_remove_plane_from_context(
 
 	stream_status->plane_count--;
 
-	/* Trim back arrays */
-	for (i = 0; i < stream_status->plane_count; i++)
+	/* Start at the plane we've just released, and move all the planes one index forward to "trim" the array */
+	for (; i < stream_status->plane_count; i++)
 		stream_status->plane_states[i] = stream_status->plane_states[i + 1];
 
 	stream_status->plane_states[stream_status->plane_count] = NULL;
@@ -1312,6 +1324,28 @@ bool dc_is_stream_unchanged(
 	return true;
 }
 
+bool dc_is_stream_scaling_unchanged(
+	struct dc_stream_state *old_stream, struct dc_stream_state *stream)
+{
+	if (old_stream == stream)
+		return true;
+
+	if (old_stream == NULL || stream == NULL)
+		return false;
+
+	if (memcmp(&old_stream->src,
+			&stream->src,
+			sizeof(struct rect)) != 0)
+		return false;
+
+	if (memcmp(&old_stream->dst,
+			&stream->dst,
+			sizeof(struct rect)) != 0)
+		return false;
+
+	return true;
+}
+
 /* Maximum TMDS single link pixel clock 165MHz */
 #define TMDS_MAX_PIXEL_CLOCK_IN_KHZ 165000
 
@@ -1330,7 +1364,7 @@ static void update_stream_engine_usage(
 }
 
 /* TODO: release audio object */
-static void update_audio_usage(
+void update_audio_usage(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		struct audio *audio,
@@ -1356,8 +1390,10 @@ static int acquire_first_free_pipe(
 
 			pipe_ctx->stream_res.tg = pool->timing_generators[i];
 			pipe_ctx->plane_res.mi = pool->mis[i];
+			pipe_ctx->plane_res.hubp = pool->hubps[i];
 			pipe_ctx->plane_res.ipp = pool->ipps[i];
 			pipe_ctx->plane_res.xfm = pool->transforms[i];
+			pipe_ctx->plane_res.dpp = pool->dpps[i];
 			pipe_ctx->stream_res.opp = pool->opps[i];
 			pipe_ctx->pipe_idx = i;
 
@@ -1415,11 +1451,16 @@ static struct audio *find_first_free_audio(
 {
 	int i;
 	for (i = 0; i < pool->audio_count; i++) {
+		if ((res_ctx->is_audio_acquired[i] == false) && (res_ctx->is_stream_enc_acquired[i] == true)) {
+			return pool->audios[i];
+		}
+	}
+	/*not found the matching one, first come first serve*/
+	for (i = 0; i < pool->audio_count; i++) {
 		if (res_ctx->is_audio_acquired[i] == false) {
 			return pool->audios[i];
 		}
 	}
-
 	return 0;
 }
 
@@ -1438,7 +1479,7 @@ bool resource_is_stream_unchanged(
 	return false;
 }
 
-bool dc_add_stream_to_ctx(
+enum dc_status dc_add_stream_to_ctx(
 		struct dc *dc,
 		struct dc_state *new_ctx,
 		struct dc_stream_state *stream)
@@ -1459,10 +1500,10 @@ bool dc_add_stream_to_ctx(
 	if (res != DC_OK)
 		DC_ERROR("Adding stream %p to context failed with err %d!\n", stream, res);
 
-	return res == DC_OK;
+	return res;
 }
 
-bool dc_remove_stream_from_ctx(
+enum dc_status dc_remove_stream_from_ctx(
 			struct dc *dc,
 			struct dc_state *new_ctx,
 			struct dc_stream_state *stream)
@@ -1632,10 +1673,11 @@ enum dc_status resource_map_pool_resources(
 	/* acquire new resources */
 	pipe_idx = acquire_first_free_pipe(&context->res_ctx, pool, stream);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 	if (pipe_idx < 0)
-		acquire_first_split_pipe(&context->res_ctx, pool, stream);
+		pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
 #endif
+
 	if (pipe_idx < 0)
 		return DC_NO_CONTROLLER_RESOURCE;
 
@@ -1716,17 +1758,18 @@ void dc_resource_state_construct(
 	dst_ctx->dis_clk = dc->res_pool->display_clock;
 }
 
-bool dc_validate_global_state(
+enum dc_status dc_validate_global_state(
 		struct dc *dc,
 		struct dc_state *new_ctx)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	int i, j;
 
-	if (dc->res_pool->funcs->validate_global &&
-			dc->res_pool->funcs->validate_global(
-			dc, new_ctx) != DC_OK)
-		return false;
+	if (dc->res_pool->funcs->validate_global) {
+			result = dc->res_pool->funcs->validate_global(dc, new_ctx);
+			if (result != DC_OK)
+				return result;
+	}
 
 	for (i = 0; new_ctx && i < new_ctx->stream_count; i++) {
 		struct dc_stream_state *stream = new_ctx->streams[i];
@@ -2713,7 +2756,7 @@ void resource_build_bit_depth_reduction_params(struct dc_stream_state *stream,
 	fmt_bit_depth->pixel_encoding = pixel_encoding;
 }
 
-bool dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
+enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 {
 	struct dc  *core_dc = dc;
 	struct dc_link *link = stream->sink->link;
@@ -2737,16 +2780,16 @@ bool dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 		      link,
 		      &stream->timing);
 
-	return res == DC_OK;
+	return res;
 }
 
-bool dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state)
+enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state)
 {
-	struct dc *core_dc = dc;
+	enum dc_status res = DC_OK;
 
 	/* TODO For now validates pixel format only */
-	if (core_dc->res_pool->funcs->validate_plane)
-		return core_dc->res_pool->funcs->validate_plane(plane_state) == DC_OK;
+	if (dc->res_pool->funcs->validate_plane)
+		return dc->res_pool->funcs->validate_plane(plane_state, &dc->caps);
 
-	return true;
+	return res;
 }

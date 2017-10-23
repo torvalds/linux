@@ -130,9 +130,8 @@ failure_2:
 
 		slot = service->busyness[index_of_id];
 
-		if (slot)
-			kfree(slot);
-	};
+		kfree(slot);
+	}
 
 failure_1:
 	kfree(service);
@@ -171,8 +170,7 @@ void dal_gpio_service_destroy(
 		do {
 			uint32_t *slot = (*ptr)->busyness[index_of_id];
 
-			if (slot)
-				kfree(slot);
+			kfree(slot);
 
 			++index_of_id;
 		} while (index_of_id < GPIO_ID_COUNT);

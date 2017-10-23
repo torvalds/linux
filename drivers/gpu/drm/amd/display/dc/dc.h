@@ -38,7 +38,7 @@
 #include "inc/compressor.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.1.01"
+#define DC_VER "3.1.07"
 
 #define MAX_SURFACES 3
 #define MAX_STREAMS 6
@@ -56,10 +56,11 @@ struct dc_caps {
 	uint32_t max_planes;
 	uint32_t max_downscale_ratio;
 	uint32_t i2c_speed_in_khz;
-
 	unsigned int max_cursor_size;
+	unsigned int max_video_width;
+	bool dcc_const_color;
+	bool dynamic_audio;
 };
-
 
 struct dc_dcc_surface_param {
 	struct dc_size surface_size;
@@ -132,6 +133,10 @@ struct dc_stream_state_funcs {
 
 	void (*set_dither_option)(struct dc_stream_state *stream,
 			enum dc_dither_option option);
+
+	void (*set_dpms)(struct dc *dc,
+			struct dc_stream_state *stream,
+			bool dpms_off);
 };
 
 struct link_training_settings;
@@ -162,6 +167,23 @@ struct dc_config {
 	bool disable_disp_pll_sharing;
 };
 
+enum dcc_option {
+	DCC_ENABLE = 0,
+	DCC_DISABLE = 1,
+	DCC_HALF_REQ_DISALBE = 2,
+};
+
+enum pipe_split_policy {
+	MPC_SPLIT_DYNAMIC = 0,
+	MPC_SPLIT_AVOID = 1,
+	MPC_SPLIT_AVOID_MULT_DISP = 2,
+};
+
+enum wm_report_mode {
+	WM_REPORT_DEFAULT = 0,
+	WM_REPORT_OVERRIDE = 1,
+};
+
 struct dc_debug {
 	bool surface_visual_confirm;
 	bool sanity_checks;
@@ -170,14 +192,21 @@ struct dc_debug {
 	bool timing_trace;
 	bool clock_trace;
 	bool validation_trace;
+
+	/* stutter efficiency related */
 	bool disable_stutter;
-	bool disable_dcc;
+	bool use_max_lb;
+	enum dcc_option disable_dcc;
+	enum pipe_split_policy pipe_split_policy;
+	bool force_single_disp_pipe_split;
+	bool voltage_align_fclk;
+
 	bool disable_dfs_bypass;
 	bool disable_dpp_power_gate;
 	bool disable_hubp_power_gate;
 	bool disable_pplib_wm_range;
-	bool use_dml_wm;
-	bool disable_pipe_split;
+	enum wm_report_mode pplib_wm_report_mode;
+	unsigned int min_disp_clk_khz;
 	int sr_exit_time_dpm0_ns;
 	int sr_enter_plus_exit_time_dpm0_ns;
 	int sr_exit_time_ns;
@@ -191,6 +220,11 @@ struct dc_debug {
 	bool disable_dmcu;
 	bool disable_psr;
 	bool force_abm_enable;
+	bool disable_hbup_pg;
+	bool disable_dpp_pg;
+	bool disable_stereo_support;
+	bool vsr_support;
+	bool performance_trace;
 };
 struct dc_state;
 struct resource_pool;
@@ -233,7 +267,7 @@ struct dc {
 	struct dm_pp_display_configuration prev_display_config;
 
 	/* FBC compressor */
-#ifdef ENABLE_FBC
+#if defined(CONFIG_DRM_AMD_DC_FBC)
 	struct compressor *fbc_compressor;
 #endif
 };
@@ -268,7 +302,7 @@ struct dc_init_data {
 
 	struct dc_config flags;
 	uint32_t log_mask;
-#ifdef ENABLE_FBC
+#if defined(CONFIG_DRM_AMD_DC_FBC)
 	uint64_t fbc_gpu_addr;
 #endif
 };
@@ -283,6 +317,38 @@ void dc_destroy(struct dc **dc);
 
 enum {
 	TRANSFER_FUNC_POINTS = 1025
+};
+
+// Moved here from color module for linux
+enum color_transfer_func {
+	transfer_func_unknown,
+	transfer_func_srgb,
+	transfer_func_bt709,
+	transfer_func_pq2084,
+	transfer_func_pq2084_interim,
+	transfer_func_linear_0_1,
+	transfer_func_linear_0_125,
+	transfer_func_dolbyvision,
+	transfer_func_gamma_22,
+	transfer_func_gamma_26
+};
+
+enum color_color_space {
+	color_space_unsupported,
+	color_space_srgb,
+	color_space_bt601,
+	color_space_bt709,
+	color_space_xv_ycc_bt601,
+	color_space_xv_ycc_bt709,
+	color_space_xr_rgb,
+	color_space_bt2020,
+	color_space_adobe,
+	color_space_dci_p3,
+	color_space_sc_rgb_ms_ref,
+	color_space_display_native,
+	color_space_app_ctrl,
+	color_space_dolby_vision,
+	color_space_custom_coordinates
 };
 
 struct dc_hdr_static_metadata {
@@ -364,6 +430,12 @@ struct dc_plane_state {
 
 	struct dc_gamma *gamma_correction;
 	struct dc_transfer_func *in_transfer_func;
+
+	// sourceContentAttribute cache
+	bool is_source_input_valid;
+	struct dc_hdr_static_metadata source_input_mastering_info;
+	enum color_color_space source_input_color_space;
+	enum color_transfer_func source_input_tf;
 
 	enum dc_color_space color_space;
 	enum surface_pixel_format format;
@@ -448,23 +520,6 @@ struct dc_flip_addrs {
 	bool flip_immediate;
 	/* TODO: add flip duration for FreeSync */
 };
-
-/*
- * Set up surface attributes and associate to a stream
- * The surfaces parameter is an absolute set of all surface active for the stream.
- * If no surfaces are provided, the stream will be blanked; no memory read.
- * Any flip related attribute changes must be done through this interface.
- *
- * After this call:
- *   Surfaces attributes are programmed and configured to be composed into stream.
- *   This does not trigger a flip.  No surface address is programmed.
- */
-
-bool dc_commit_planes_to_stream(
-		struct dc *dc,
-		struct dc_plane_state **plane_states,
-		uint8_t new_plane_count,
-		struct dc_stream_state *stream);
 
 bool dc_post_update_surfaces_to_stream(
 		struct dc *dc);
@@ -554,8 +609,11 @@ struct dc_stream_state {
 
 	int phy_pix_clk;
 	enum signal_type signal;
+	bool dpms_off;
 
 	struct dc_stream_status status;
+
+	struct dc_cursor_attributes cursor_attributes;
 
 	/* from stream struct */
 	struct kref refcount;
@@ -569,11 +627,10 @@ struct dc_stream_update {
 
 bool dc_is_stream_unchanged(
 	struct dc_stream_state *old_stream, struct dc_stream_state *stream);
+bool dc_is_stream_scaling_unchanged(
+	struct dc_stream_state *old_stream, struct dc_stream_state *stream);
 
 /*
- * Setup stream attributes if no stream updates are provided
- * there will be no impact on the stream parameters
- *
  * Set up surface attributes and associate to a stream
  * The surfaces parameter is an absolute set of all surface active for the stream.
  * If no surfaces are provided, the stream will be blanked; no memory read.
@@ -582,14 +639,22 @@ bool dc_is_stream_unchanged(
  * After this call:
  *   Surfaces attributes are programmed and configured to be composed into stream.
  *   This does not trigger a flip.  No surface address is programmed.
- *
  */
 
-void dc_update_planes_and_stream(struct dc *dc,
-		struct dc_surface_update *surface_updates, int surface_count,
+bool dc_commit_planes_to_stream(
+		struct dc *dc,
+		struct dc_plane_state **plane_states,
+		uint8_t new_plane_count,
 		struct dc_stream_state *dc_stream,
-		struct dc_stream_update *stream_update);
+		struct dc_state *state);
 
+void dc_commit_updates_for_stream(struct dc *dc,
+		struct dc_surface_update *srf_updates,
+		int surface_count,
+		struct dc_stream_state *stream,
+		struct dc_stream_update *stream_update,
+		struct dc_plane_state **plane_states,
+		struct dc_state *state);
 /*
  * Log the current stream state.
  */
@@ -616,12 +681,12 @@ bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
 				  uint32_t *h_position,
 				  uint32_t *v_position);
 
-bool dc_add_stream_to_ctx(
+enum dc_status dc_add_stream_to_ctx(
 			struct dc *dc,
 		struct dc_state *new_ctx,
 		struct dc_stream_state *stream);
 
-bool dc_remove_stream_from_ctx(
+enum dc_status dc_remove_stream_from_ctx(
 		struct dc *dc,
 			struct dc_state *new_ctx,
 			struct dc_stream_state *stream);
@@ -660,11 +725,11 @@ struct dc_validation_set {
 	uint8_t plane_count;
 };
 
-bool dc_validate_stream(struct dc *dc, struct dc_stream_state *stream);
+enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream);
 
-bool dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
+enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
 
-bool dc_validate_global_state(
+enum dc_status dc_validate_global_state(
 		struct dc *dc,
 		struct dc_state *new_ctx);
 
@@ -991,7 +1056,7 @@ struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params);
  ******************************************************************************/
 /* TODO: Deprecated once we switch to dc_set_cursor_position */
 bool dc_stream_set_cursor_attributes(
-	const struct dc_stream_state *stream,
+	struct dc_stream_state *stream,
 	const struct dc_cursor_attributes *attributes);
 
 bool dc_stream_set_cursor_position(

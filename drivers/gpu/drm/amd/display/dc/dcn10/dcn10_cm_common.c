@@ -26,7 +26,7 @@
 #include "reg_helper.h"
 #include "dcn10_dpp.h"
 
-#include "dcn10_dpp_cm_helper.h"
+#include "dcn10_cm_common.h"
 
 #define REG(reg) reg
 

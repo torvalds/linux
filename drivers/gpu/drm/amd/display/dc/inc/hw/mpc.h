@@ -29,8 +29,9 @@
 #include "opp.h"
 
 struct mpcc_cfg {
-	struct mem_input *mi;
-	struct output_pixel_processor *opp;
+	int dpp_id;
+	int opp_id;
+	struct mpc_tree_cfg *tree_cfg;
 	unsigned int z_index;
 
 	struct tg_color black_color;
@@ -44,11 +45,17 @@ struct mpc {
 };
 
 struct mpc_funcs {
-	void (*add)(struct mpc *mpc, struct mpcc_cfg *cfg);
+	int (*add)(struct mpc *mpc, struct mpcc_cfg *cfg);
+
 	void (*remove)(struct mpc *mpc,
-			struct output_pixel_processor *opp,
+			struct mpc_tree_cfg *tree_cfg,
+			int opp_id,
 			int mpcc_inst);
+
 	void (*wait_for_idle)(struct mpc *mpc, int id);
+
+	void (*update_blend_mode)(struct mpc *mpc, struct mpcc_cfg *cfg);
+
 };
 
 #endif

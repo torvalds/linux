@@ -47,7 +47,7 @@ void dce110_set_displaymarks(
 
 void dce110_enable_stream(struct pipe_ctx *pipe_ctx);
 
-void dce110_disable_stream(struct pipe_ctx *pipe_ctx);
+void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option);
 
 void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 		struct dc_link_settings *link_settings);
@@ -68,5 +68,14 @@ void dce110_fill_display_configs(
 uint32_t dce110_get_min_vblank_time_us(const struct dc_state *context);
 
 void dp_receiver_power_ctrl(struct dc_link *link, bool on);
+
+void hwss_edp_power_control(
+	struct link_encoder *enc,
+	bool power_up);
+
+void hwss_edp_backlight_control(
+	struct dc_link *link,
+	bool enable);
+
 #endif /* __DC_HWSS_DCE110_H__ */
 

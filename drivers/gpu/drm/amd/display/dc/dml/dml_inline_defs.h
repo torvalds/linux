@@ -1,5 +1,31 @@
+/*
+ * Copyright 2017 Advanced Micro Devices, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: AMD
+ *
+ */
+
 #ifndef __DML_INLINE_DEFS_H__
 #define __DML_INLINE_DEFS_H__
+
 #include "dml_common_defs.h"
 #include "../calcs/dcn_calc_math.h"
 
@@ -13,14 +39,29 @@ static inline double dml_max(double a, double b)
 	return (double) dcn_bw_max2(a, b);
 }
 
-static inline double dml_ceil(double a)
+static inline double dml_max3(double a, double b, double c)
 {
-	return (double) dcn_bw_ceil2(a, 1);
+	return dml_max(dml_max(a, b), c);
 }
 
-static inline double dml_floor(double a)
+static inline double dml_max4(double a, double b, double c, double d)
 {
-	return (double) dcn_bw_floor2(a, 1);
+	return dml_max(dml_max(a, b), dml_max(c, d));
+}
+
+static inline double dml_max5(double a, double b, double c, double d, double e)
+{
+	return dml_max(dml_max4(a, b, c, d), e);
+}
+
+static inline double dml_ceil(double a, double granularity)
+{
+	return (double) dcn_bw_ceil2(a, granularity);
+}
+
+static inline double dml_floor(double a, double granularity)
+{
+	return (double) dcn_bw_floor2(a, granularity);
 }
 
 static inline int dml_log2(double x)

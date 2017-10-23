@@ -92,7 +92,7 @@ struct dc_context {
 	bool created_bios;
 	struct gpio_service *gpio_service;
 	struct i2caux *i2caux;
-#ifdef ENABLE_FBC
+#if defined(CONFIG_DRM_AMD_DC_FBC)
 	uint64_t fbc_gpu_addr;
 #endif
 };
@@ -151,6 +151,7 @@ enum dc_edid_status {
 	EDID_BAD_INPUT,
 	EDID_NO_RESPONSE,
 	EDID_BAD_CHECKSUM,
+	EDID_THE_SAME,
 };
 
 /* audio capability from EDID*/

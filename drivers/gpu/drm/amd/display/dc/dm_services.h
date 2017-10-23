@@ -38,51 +38,6 @@
 
 #undef DEPRECATED
 
-/*
- *
- * general debug capabilities
- *
- */
-#if defined(CONFIG_DEBUG_KERNEL) || defined(CONFIG_DEBUG_DRIVER)
-
-#if defined(CONFIG_HAVE_KGDB) || defined(CONFIG_KGDB)
-#define ASSERT_CRITICAL(expr) do {	\
-	if (WARN_ON(!(expr))) { \
-		kgdb_breakpoint(); \
-	} \
-} while (0)
-#else
-#define ASSERT_CRITICAL(expr) do {	\
-	if (WARN_ON(!(expr))) { \
-		; \
-	} \
-} while (0)
-#endif
-
-#if defined(CONFIG_DEBUG_KERNEL_DC)
-#define ASSERT(expr) ASSERT_CRITICAL(expr)
-
-#else
-#define ASSERT(expr) WARN_ON(!(expr))
-#endif
-
-#define BREAK_TO_DEBUGGER() ASSERT(0)
-
-#endif /* CONFIG_DEBUG_KERNEL || CONFIG_DEBUG_DRIVER */
-
-#define DC_ERR(...)  do { \
-	dm_error(__VA_ARGS__); \
-	BREAK_TO_DEBUGGER(); \
-} while (0)
-
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-#include <asm/fpu/api.h>
-#endif
-
-#define dm_alloc(size) kzalloc(size, GFP_KERNEL)
-#define dm_realloc(ptr, size) krealloc(ptr, size, GFP_KERNEL)
-#define dm_free(ptr) kfree(ptr)
-
 irq_handler_idx dm_register_interrupt(
 	struct dc_context *ctx,
 	struct dc_interrupt_params *int_params,
@@ -417,6 +372,8 @@ bool dm_dmcu_set_pipe(struct dc_context *ctx, unsigned int controller_id);
  */
 #define dm_log_to_buffer(buffer, size, fmt, args)\
 	vsnprintf(buffer, size, fmt, args)
+
+unsigned long long dm_get_timestamp(struct dc_context *ctx);
 
 /*
  * Debug and verification hooks

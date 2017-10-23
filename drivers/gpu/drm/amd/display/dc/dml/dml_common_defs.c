@@ -27,11 +27,12 @@
 #include "../calcs/dcn_calc_math.h"
 
 #include "dml_inline_defs.h"
+
 double dml_round(double a)
 {
 	double round_pt = 0.5;
-	double ceil = dml_ceil(a);
-	double floor = dml_floor(a);
+	double ceil = dml_ceil(a, 1);
+	double floor = dml_floor(a, 1);
 
 	if (a - floor >= round_pt)
 		return ceil;

@@ -22,6 +22,7 @@
  * Authors: AMD
  *
  */
+
 #ifndef __DC_COMMON_DEFS_H__
 #define __DC_COMMON_DEFS_H__
 
@@ -30,7 +31,8 @@
 #include "display_mode_structs.h"
 #include "display_mode_enums.h"
 
-#define DTRACE(str, ...) dm_logger_write(mode_lib->logger, LOG_DML, str, ##__VA_ARGS__);
+#define dml_print(str, ...) {dm_logger_write(mode_lib->logger, LOG_DML, str, ##__VA_ARGS__); }
+#define DTRACE(str, ...) {dm_logger_write(mode_lib->logger, LOG_DML, str, ##__VA_ARGS__); }
 
 double dml_round(double a);
 

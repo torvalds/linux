@@ -52,7 +52,7 @@
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"
 
-#ifdef ENABLE_FBC
+#if defined(CONFIG_DRM_AMD_DC_FBC)
 #include "dce110/dce110_compressor.h"
 #endif
 
@@ -849,7 +849,7 @@ static bool dce110_validate_bandwidth(
 static bool dce110_validate_surface_sets(
 		struct dc_state *context)
 {
-	int i;
+	int i, j;
 
 	for (i = 0; i < context->stream_count; i++) {
 		if (context->stream_status[i].plane_count == 0)
@@ -858,14 +858,27 @@ static bool dce110_validate_surface_sets(
 		if (context->stream_status[i].plane_count > 2)
 			return false;
 
-		if ((context->stream_status[i].plane_states[i]->format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) &&
-		    (context->stream_status[i].plane_states[i]->src_rect.width > 1920 ||
-		     context->stream_status[i].plane_states[i]->src_rect.height > 1080))
-			return false;
+		for (j = 0; j < context->stream_status[i].plane_count; j++) {
+			struct dc_plane_state *plane =
+				context->stream_status[i].plane_states[j];
 
-		/* irrespective of plane format, stream should be RGB encoded */
-		if (context->streams[i]->timing.pixel_encoding != PIXEL_ENCODING_RGB)
-			return false;
+			/* underlay validation */
+			if (plane->format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
+
+				if ((plane->src_rect.width > 1920 ||
+					plane->src_rect.height > 1080))
+					return false;
+
+				/* irrespective of plane format,
+				 * stream should be RGB encoded
+				 */
+				if (context->streams[i]->timing.pixel_encoding
+						!= PIXEL_ENCODING_RGB)
+					return false;
+
+			}
+
+		}
 	}
 
 	return true;
@@ -1266,7 +1279,7 @@ static bool construct(
 		}
 	}
 
-#ifdef ENABLE_FBC
+#if defined(CONFIG_DRM_AMD_DC_FBC)
 	dc->fbc_compressor = dce110_compressor_create(ctx);
 
 

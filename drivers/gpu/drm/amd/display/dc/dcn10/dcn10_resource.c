@@ -42,12 +42,12 @@
 #include "dce/dce_stream_encoder.h"
 #include "dce/dce_clocks.h"
 #include "dce/dce_clock_source.h"
-#include "dcn10/dcn10_mem_input.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
 #include "../virtual/virtual_stream_encoder.h"
 #include "dce110/dce110_resource.h"
 #include "dce112/dce112_resource.h"
+#include "dcn10_hubp.h"
 
 #include "vega10/soc15ip.h"
 
@@ -329,7 +329,11 @@ static const struct dcn_mpc_registers mpc_regs = {
 		MPC_COMMON_REG_LIST_DCN1_0(0),
 		MPC_COMMON_REG_LIST_DCN1_0(1),
 		MPC_COMMON_REG_LIST_DCN1_0(2),
-		MPC_COMMON_REG_LIST_DCN1_0(3)
+		MPC_COMMON_REG_LIST_DCN1_0(3),
+		MPC_OUT_MUX_COMMON_REG_LIST_DCN1_0(0),
+		MPC_OUT_MUX_COMMON_REG_LIST_DCN1_0(1),
+		MPC_OUT_MUX_COMMON_REG_LIST_DCN1_0(2),
+		MPC_OUT_MUX_COMMON_REG_LIST_DCN1_0(3)
 };
 
 static const struct dcn_mpc_shift mpc_shift = {
@@ -414,22 +418,24 @@ static const struct resource_caps res_cap = {
 };
 
 static const struct dc_debug debug_defaults_drv = {
-		.disable_dcc = false,
 		.sanity_checks = true,
 		.disable_dmcu = true,
 		.force_abm_enable = false,
 		.timing_trace = false,
 		.clock_trace = true,
-		/* spread sheet doesn't handle taps_c is one properly,
-		 * need to enable scaler for video surface to pass
-		 * bandwidth validation.*/
-		.always_scale = true,
+
+		.min_disp_clk_khz = 300000,
+
 		.disable_pplib_clock_request = true,
 		.disable_pplib_wm_range = false,
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-		.use_dml_wm = false,
-		.disable_pipe_split = true
-#endif
+		.pplib_wm_report_mode = WM_REPORT_DEFAULT,
+		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
+		.force_single_disp_pipe_split = true,
+		.disable_dcc = DCC_ENABLE,
+		.voltage_align_fclk = true,
+		.disable_stereo_support = true,
+		.vsr_support = true,
+		.performance_trace = false,
 };
 
 static const struct dc_debug debug_defaults_diags = {
@@ -438,21 +444,17 @@ static const struct dc_debug debug_defaults_diags = {
 		.timing_trace = true,
 		.clock_trace = true,
 		.disable_stutter = true,
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 		.disable_pplib_clock_request = true,
-		.disable_pplib_wm_range = true,
-		.use_dml_wm = false,
-		.disable_pipe_split = false
-#endif
+		.disable_pplib_wm_range = true
 };
 
-static void dcn10_dpp_destroy(struct transform **xfm)
+static void dcn10_dpp_destroy(struct dpp **dpp)
 {
-	kfree(TO_DCN10_DPP(*xfm));
-	*xfm = NULL;
+	kfree(TO_DCN10_DPP(*dpp));
+	*dpp = NULL;
 }
 
-static struct transform *dcn10_dpp_create(
+static struct dpp *dcn10_dpp_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -462,8 +464,8 @@ static struct transform *dcn10_dpp_create(
 	if (!dpp)
 		return NULL;
 
-	dcn10_dpp_construct(dpp, ctx, inst,
-			    &tf_regs[inst], &tf_shift, &tf_mask);
+	dpp1_construct(dpp, ctx, inst,
+		       &tf_regs[inst], &tf_shift, &tf_mask);
 	return &dpp->base;
 }
 
@@ -702,15 +704,15 @@ static void destruct(struct dcn10_resource_pool *pool)
 		if (pool->base.opps[i] != NULL)
 			pool->base.opps[i]->funcs->opp_destroy(&pool->base.opps[i]);
 
-		if (pool->base.transforms[i] != NULL)
-			dcn10_dpp_destroy(&pool->base.transforms[i]);
+		if (pool->base.dpps[i] != NULL)
+			dcn10_dpp_destroy(&pool->base.dpps[i]);
 
 		if (pool->base.ipps[i] != NULL)
 			pool->base.ipps[i]->funcs->ipp_destroy(&pool->base.ipps[i]);
 
-		if (pool->base.mis[i] != NULL) {
-			kfree(TO_DCN10_MEM_INPUT(pool->base.mis[i]));
-			pool->base.mis[i] = NULL;
+		if (pool->base.hubps[i] != NULL) {
+			kfree(TO_DCN10_HUBP(pool->base.hubps[i]));
+			pool->base.hubps[i] = NULL;
 		}
 
 		if (pool->base.irqs != NULL) {
@@ -757,19 +759,19 @@ static void destruct(struct dcn10_resource_pool *pool)
 	kfree(pool->base.pp_smu);
 }
 
-static struct mem_input *dcn10_mem_input_create(
+static struct hubp *dcn10_hubp_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
-	struct dcn10_mem_input *mem_inputn10 =
-		kzalloc(sizeof(struct dcn10_mem_input), GFP_KERNEL);
+	struct dcn10_hubp *hubp1 =
+		kzalloc(sizeof(struct dcn10_hubp), GFP_KERNEL);
 
-	if (!mem_inputn10)
+	if (!hubp1)
 		return NULL;
 
-	dcn10_mem_input_construct(mem_inputn10, ctx, inst,
-				  &mi_regs[inst], &mi_shift, &mi_mask);
-	return &mem_inputn10->base;
+	dcn10_hubp_construct(hubp1, ctx, inst,
+			     &mi_regs[inst], &mi_shift, &mi_mask);
+	return &hubp1->base;
 }
 
 static void get_pixel_clock_parameters(
@@ -922,9 +924,9 @@ static struct pipe_ctx *dcn10_acquire_idle_pipe_for_layer(
 	idle_pipe->stream_res.tg = head_pipe->stream_res.tg;
 	idle_pipe->stream_res.opp = head_pipe->stream_res.opp;
 
-	idle_pipe->plane_res.mi = pool->mis[idle_pipe->pipe_idx];
+	idle_pipe->plane_res.hubp = pool->hubps[idle_pipe->pipe_idx];
 	idle_pipe->plane_res.ipp = pool->ipps[idle_pipe->pipe_idx];
-	idle_pipe->plane_res.xfm = pool->transforms[idle_pipe->pipe_idx];
+	idle_pipe->plane_res.dpp = pool->dpps[idle_pipe->pipe_idx];
 
 	return idle_pipe;
 }
@@ -1085,7 +1087,7 @@ static bool get_dcc_compression_cap(const struct dc *dc,
 
 	memset(output, 0, sizeof(*output));
 
-	if (dc->debug.disable_dcc)
+	if (dc->debug.disable_dcc == DCC_DISABLE)
 		return false;
 
 	if (!dcc_support_pixel_format(input->format,
@@ -1129,6 +1131,10 @@ static bool get_dcc_compression_cap(const struct dc *dc,
 			dcc_control = dcc_control__128_128_xxx;
 	}
 
+	if (dc->debug.disable_dcc == DCC_HALF_REQ_DISALBE &&
+		dcc_control != dcc_control__256_256_xxx)
+		return false;
+
 	switch (dcc_control) {
 	case dcc_control__256_256_xxx:
 		output->grph.rgb.max_uncompressed_blk_size = 256;
@@ -1146,6 +1152,7 @@ static bool get_dcc_compression_cap(const struct dc *dc,
 		output->grph.rgb.independent_64b_blks = true;
 		break;
 	}
+
 	output->capable = true;
 	output->const_color_support = false;
 
@@ -1162,6 +1169,15 @@ static void dcn10_destroy_resource_pool(struct resource_pool **pool)
 	*pool = NULL;
 }
 
+static enum dc_status dcn10_validate_plane(const struct dc_plane_state *plane_state, struct dc_caps *caps)
+{
+	if (plane_state->format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN
+			&& caps->max_video_width != 0
+			&& plane_state->src_rect.width > caps->max_video_width)
+		return DC_FAIL_SURFACE_VALIDATE;
+
+	return DC_OK;
+}
 
 static struct dc_cap_funcs cap_funcs = {
 	.get_dcc_compression_cap = get_dcc_compression_cap
@@ -1173,6 +1189,7 @@ static struct resource_funcs dcn10_res_pool_funcs = {
 	.validate_guaranteed = dcn10_validate_guaranteed,
 	.validate_bandwidth = dcn_validate_bandwidth,
 	.acquire_idle_pipe_for_layer = dcn10_acquire_idle_pipe_for_layer,
+	.validate_plane = dcn10_validate_plane,
 	.add_stream_to_ctx = dcn10_add_stream_to_ctx
 };
 
@@ -1212,6 +1229,7 @@ static bool construct(
 	/* max pipe num for ASIC before check pipe fuses */
 	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;
 
+	dc->caps.max_video_width = 3840;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.max_cursor_size = 256;
@@ -1345,8 +1363,8 @@ static bool construct(
 		if ((pipe_fuses & (1 << i)) != 0)
 			continue;
 
-		pool->base.mis[j] = dcn10_mem_input_create(ctx, i);
-		if (pool->base.mis[j] == NULL) {
+		pool->base.hubps[j] = dcn10_hubp_create(ctx, i);
+		if (pool->base.hubps[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create memory input!\n");
@@ -1361,8 +1379,8 @@ static bool construct(
 			goto ipp_create_fail;
 		}
 
-		pool->base.transforms[j] = dcn10_dpp_create(ctx, i);
-		if (pool->base.transforms[j] == NULL) {
+		pool->base.dpps[j] = dcn10_dpp_create(ctx, i);
+		if (pool->base.dpps[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create dpp!\n");

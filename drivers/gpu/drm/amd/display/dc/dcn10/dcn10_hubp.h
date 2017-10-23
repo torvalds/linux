@@ -25,11 +25,10 @@
 #ifndef __DC_MEM_INPUT_DCN10_H__
 #define __DC_MEM_INPUT_DCN10_H__
 
-#include "mem_input.h"
+#include "hubp.h"
 
-#define TO_DCN10_MEM_INPUT(mi)\
-	container_of(mi, struct dcn10_mem_input, base)
-
+#define TO_DCN10_HUBP(hubp)\
+	container_of(hubp, struct dcn10_hubp, base)
 
 #define MI_REG_LIST_DCN(id)\
 	SRI(DCHUBP_CNTL, HUBP, id),\
@@ -118,7 +117,17 @@
 	SRI(DCN_VM_SYSTEM_APERTURE_HIGH_ADDR_MSB, HUBPREQ, id),\
 	SRI(DCN_VM_SYSTEM_APERTURE_HIGH_ADDR_LSB, HUBPREQ, id),\
 	SR(DCHUBBUB_SDPIF_FB_BASE),\
-	SR(DCHUBBUB_SDPIF_FB_OFFSET)
+	SR(DCHUBBUB_SDPIF_FB_OFFSET),\
+	SRI(CURSOR_SETTINS, HUBPREQ, id), \
+	SRI(CURSOR_SURFACE_ADDRESS_HIGH, CURSOR, id), \
+	SRI(CURSOR_SURFACE_ADDRESS, CURSOR, id), \
+	SRI(CURSOR_SIZE, CURSOR, id), \
+	SRI(CURSOR_CONTROL, CURSOR, id), \
+	SRI(CURSOR_POSITION, CURSOR, id), \
+	SRI(CURSOR_HOT_SPOT, CURSOR, id), \
+	SRI(CURSOR_DST_OFFSET, CURSOR, id)
+
+
 
 struct dcn_mi_registers {
 	uint32_t DCHUBP_CNTL;
@@ -215,6 +224,15 @@ struct dcn_mi_registers {
 	uint32_t DCN_VM_AGP_BASE;
 	uint32_t DCN_VM_AGP_BOT;
 	uint32_t DCN_VM_AGP_TOP;
+	uint32_t CURSOR_SETTINS;
+	uint32_t CURSOR_SETTINGS;
+	uint32_t CURSOR_SURFACE_ADDRESS_HIGH;
+	uint32_t CURSOR_SURFACE_ADDRESS;
+	uint32_t CURSOR_SIZE;
+	uint32_t CURSOR_CONTROL;
+	uint32_t CURSOR_POSITION;
+	uint32_t CURSOR_HOT_SPOT;
+	uint32_t CURSOR_DST_OFFSET;
 };
 
 #define MI_SF(reg_name, field_name, post_fix)\
@@ -351,6 +369,7 @@ struct dcn_mi_registers {
 	MI_SF(HUBPREQ0_DCN_VM_CONTEXT0_PAGE_TABLE_END_ADDR_MSB, VM_CONTEXT0_PAGE_TABLE_END_ADDR_MSB, mask_sh),\
 	MI_SF(HUBPREQ0_DCN_VM_CONTEXT0_PAGE_TABLE_END_ADDR_LSB, VM_CONTEXT0_PAGE_TABLE_END_ADDR_LSB, mask_sh),\
 	MI_SF(HUBPREQ0_DCN_VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_MSB, VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_MSB, mask_sh),\
+	MI_SF(HUBPREQ0_DCN_VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_MSB, VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_SYSTEM, mask_sh),\
 	MI_SF(HUBPREQ0_DCN_VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_LSB, VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_LSB, mask_sh),\
 	MI_SF(HUBPREQ0_DCN_VM_SYSTEM_APERTURE_LOW_ADDR_MSB, MC_VM_SYSTEM_APERTURE_LOW_ADDR_MSB, mask_sh),\
 	MI_SF(HUBPREQ0_DCN_VM_SYSTEM_APERTURE_LOW_ADDR_LSB, MC_VM_SYSTEM_APERTURE_LOW_ADDR_LSB, mask_sh),\
@@ -360,7 +379,23 @@ struct dcn_mi_registers {
 	MI_SF(DCHUBBUB_SDPIF_FB_OFFSET, SDPIF_FB_OFFSET, mask_sh),\
 	MI_SF(HUBPREQ0_DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, MC_VM_SYSTEM_APERTURE_DEFAULT_SYSTEM, mask_sh),\
 	MI_SF(HUBPREQ0_DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, mask_sh),\
-	MI_SF(HUBPREQ0_DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB, MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB, mask_sh)
+	MI_SF(HUBPREQ0_DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB, MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB, mask_sh),\
+	MI_SF(HUBPREQ0_CURSOR_SETTINS, CURSOR0_DST_Y_OFFSET, mask_sh), \
+	MI_SF(HUBPREQ0_CURSOR_SETTINS, CURSOR0_CHUNK_HDL_ADJUST, mask_sh), \
+	MI_SF(CURSOR0_CURSOR_SURFACE_ADDRESS_HIGH, CURSOR_SURFACE_ADDRESS_HIGH, mask_sh), \
+	MI_SF(CURSOR0_CURSOR_SURFACE_ADDRESS, CURSOR_SURFACE_ADDRESS, mask_sh), \
+	MI_SF(CURSOR0_CURSOR_SIZE, CURSOR_WIDTH, mask_sh), \
+	MI_SF(CURSOR0_CURSOR_SIZE, CURSOR_HEIGHT, mask_sh), \
+	MI_SF(CURSOR0_CURSOR_CONTROL, CURSOR_MODE, mask_sh), \
+	MI_SF(CURSOR0_CURSOR_CONTROL, CURSOR_2X_MAGNIFY, mask_sh), \
+	MI_SF(CURSOR0_CURSOR_CONTROL, CURSOR_PITCH, mask_sh), \
+	MI_SF(CURSOR0_CURSOR_CONTROL, CURSOR_LINES_PER_CHUNK, mask_sh), \
+	MI_SF(CURSOR0_CURSOR_CONTROL, CURSOR_ENABLE, mask_sh), \
+	MI_SF(CURSOR0_CURSOR_POSITION, CURSOR_X_POSITION, mask_sh), \
+	MI_SF(CURSOR0_CURSOR_POSITION, CURSOR_Y_POSITION, mask_sh), \
+	MI_SF(CURSOR0_CURSOR_HOT_SPOT, CURSOR_HOT_SPOT_X, mask_sh), \
+	MI_SF(CURSOR0_CURSOR_HOT_SPOT, CURSOR_HOT_SPOT_Y, mask_sh), \
+	MI_SF(CURSOR0_CURSOR_DST_OFFSET, CURSOR_DST_X_OFFSET, mask_sh)
 
 #define DCN_MI_REG_FIELD_LIST(type) \
 	type HUBP_BLANK_EN;\
@@ -488,6 +523,7 @@ struct dcn_mi_registers {
 	type VM_CONTEXT0_PAGE_TABLE_END_ADDR_MSB;\
 	type VM_CONTEXT0_PAGE_TABLE_END_ADDR_LSB;\
 	type VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_MSB;\
+	type VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_SYSTEM;\
 	type VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_LSB;\
 	type ENABLE_L1_TLB;\
 	type SYSTEM_ACCESS_MODE;\
@@ -521,7 +557,24 @@ struct dcn_mi_registers {
 	type PHYSICAL_PAGE_ADDR_LO32;\
 	type PHYSICAL_PAGE_NUMBER_MSB;\
 	type PHYSICAL_PAGE_NUMBER_LSB;\
-	type LOGICAL_ADDR
+	type LOGICAL_ADDR;\
+	type CURSOR0_DST_Y_OFFSET; \
+	type CURSOR0_CHUNK_HDL_ADJUST; \
+	type CURSOR_SURFACE_ADDRESS_HIGH; \
+	type CURSOR_SURFACE_ADDRESS; \
+	type CURSOR_WIDTH; \
+	type CURSOR_HEIGHT; \
+	type CURSOR_MODE; \
+	type CURSOR_2X_MAGNIFY; \
+	type CURSOR_PITCH; \
+	type CURSOR_LINES_PER_CHUNK; \
+	type CURSOR_ENABLE; \
+	type CURSOR_X_POSITION; \
+	type CURSOR_Y_POSITION; \
+	type CURSOR_HOT_SPOT_X; \
+	type CURSOR_HOT_SPOT_Y; \
+	type CURSOR_DST_X_OFFSET; \
+	type OUTPUT_FP
 
 struct dcn_mi_shift {
 	DCN_MI_REG_FIELD_LIST(uint8_t);
@@ -531,20 +584,82 @@ struct dcn_mi_mask {
 	DCN_MI_REG_FIELD_LIST(uint32_t);
 };
 
-struct dcn10_mem_input {
-	struct mem_input base;
+struct dcn10_hubp {
+	struct hubp base;
 	const struct dcn_mi_registers *mi_regs;
 	const struct dcn_mi_shift *mi_shift;
 	const struct dcn_mi_mask *mi_mask;
 };
 
-void dcn10_mem_input_construct(
-	struct dcn10_mem_input *mi,
+void hubp1_program_surface_config(
+	struct hubp *hubp,
+	enum surface_pixel_format format,
+	union dc_tiling_info *tiling_info,
+	union plane_size *plane_size,
+	enum dc_rotation_angle rotation,
+	struct dc_plane_dcc_param *dcc,
+	bool horizontal_mirror);
+
+void hubp1_program_deadline(
+		struct hubp *hubp,
+		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
+		struct _vcs_dpi_display_ttu_regs_st *ttu_attr);
+
+void hubp1_program_requestor(
+		struct hubp *hubp,
+		struct _vcs_dpi_display_rq_regs_st *rq_regs);
+
+void hubp1_program_pixel_format(
+	struct dcn10_hubp *hubp,
+	enum surface_pixel_format format);
+
+void hubp1_program_size_and_rotation(
+	struct dcn10_hubp *hubp,
+	enum dc_rotation_angle rotation,
+	enum surface_pixel_format format,
+	const union plane_size *plane_size,
+	struct dc_plane_dcc_param *dcc,
+	bool horizontal_mirror);
+
+void hubp1_program_tiling(
+	struct dcn10_hubp *hubp,
+	const union dc_tiling_info *info,
+	const enum surface_pixel_format pixel_format);
+
+void hubp1_dcc_control(struct hubp *hubp,
+		bool enable,
+		bool independent_64b_blks);
+
+bool hubp1_program_surface_flip_and_addr(
+	struct hubp *hubp,
+	const struct dc_plane_address *address,
+	bool flip_immediate);
+
+bool hubp1_is_flip_pending(struct hubp *hubp);
+
+void hubp1_cursor_set_attributes(
+		struct hubp *hubp,
+		const struct dc_cursor_attributes *attr);
+
+void hubp1_cursor_set_position(
+		struct hubp *hubp,
+		const struct dc_cursor_position *pos,
+		const struct dc_cursor_mi_param *param);
+
+void hubp1_set_blank(struct hubp *hubp, bool blank);
+
+void min_set_viewport(struct hubp *hubp,
+		const struct rect *viewport,
+		const struct rect *viewport_c);
+
+void dcn10_hubp_construct(
+	struct dcn10_hubp *hubp1,
 	struct dc_context *ctx,
 	uint32_t inst,
 	const struct dcn_mi_registers *mi_regs,
 	const struct dcn_mi_shift *mi_shift,
 	const struct dcn_mi_mask *mi_mask);
+
 
 struct dcn_hubp_state {
 	uint32_t pixel_format;
@@ -562,7 +677,7 @@ struct dcn_hubp_state {
 	uint32_t qos_level_low_wm;
 	uint32_t qos_level_high_wm;
 };
-void dcn10_mem_input_read_state(struct dcn10_mem_input *mi,
+void hubp1_read_state(struct dcn10_hubp *hubp1,
 		struct dcn_hubp_state *s);
 
 #endif

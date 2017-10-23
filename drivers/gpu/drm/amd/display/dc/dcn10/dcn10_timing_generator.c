@@ -25,6 +25,7 @@
 
 #include "reg_helper.h"
 #include "dcn10_timing_generator.h"
+#include "dc.h"
 
 #define REG(reg)\
 	tgn10->tg_regs->reg
@@ -299,6 +300,17 @@ static void tgn10_program_timing(
 static void tgn10_unblank_crtc(struct timing_generator *tg)
 {
 	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
+	uint32_t vertical_interrupt_enable = 0;
+
+	REG_GET(OTG_VERTICAL_INTERRUPT2_CONTROL,
+			OTG_VERTICAL_INTERRUPT2_INT_ENABLE, &vertical_interrupt_enable);
+
+	/* temporary work around for vertical interrupt, once vertical interrupt enabled,
+	 * this check will be removed.
+	 */
+	if (vertical_interrupt_enable)
+		REG_UPDATE(OTG_DOUBLE_BUFFER_CONTROL,
+				OTG_BLANK_DATA_DOUBLE_BUFFER_EN, 1);
 
 	REG_UPDATE_2(OTG_BLANK_CONTROL,
 			OTG_BLANK_DATA_EN, 0,
@@ -487,6 +499,9 @@ static bool tgn10_validate_timing(
 		timing->timing_3d_format != TIMING_3D_FORMAT_INBAND_FA)
 		return false;
 
+	if (timing->timing_3d_format != TIMING_3D_FORMAT_NONE &&
+		tg->ctx->dc->debug.disable_stereo_support)
+		return false;
 	/* Temporarily blocking interlacing mode until it's supported */
 	if (timing->flags.INTERLACE == 1)
 		return false;

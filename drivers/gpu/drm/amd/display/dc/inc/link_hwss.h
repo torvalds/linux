@@ -40,6 +40,10 @@ enum dc_status core_link_write_dpcd(
 	const uint8_t *data,
 	uint32_t size);
 
+struct gpio *get_hpd_gpio(struct dc_bios *dcb,
+		struct graphics_object_id link_id,
+		struct gpio_service *gpio_service);
+
 void dp_enable_link_phy(
 	struct dc_link *link,
 	enum signal_type signal,

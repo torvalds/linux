@@ -64,8 +64,7 @@ enum dc_log_type {
 	LOG_EVENT_LINK_LOSS,
 	LOG_EVENT_UNDERFLOW,
 	LOG_IF_TRACE,
-	LOG_HW_MARKS,
-	LOG_PPLIB,
+	LOG_PERF_TRACE,
 
 	LOG_SECTION_TOTAL_COUNT
 };
@@ -129,6 +128,39 @@ struct log_entry {
 struct dc_log_type_info {
 	enum dc_log_type type;
 	char name[MAX_NAME_LEN];
+};
+
+/* Structure for keeping track of offsets, buffer, etc */
+
+#define DAL_LOGGER_BUFFER_MAX_SIZE 2048
+
+/*Connectivity log needs to output EDID, which needs at lease 256x3 bytes,
+ * change log line size to 896 to meet the request.
+ */
+#define LOG_MAX_LINE_SIZE 896
+
+struct dal_logger {
+
+	/* How far into the circular buffer has been read by dsat
+	 * Read offset should never cross write offset. Write \0's to
+	 * read data just to be sure?
+	 */
+	uint32_t buffer_read_offset;
+
+	/* How far into the circular buffer we have written
+	 * Write offset should never cross read offset
+	 */
+	uint32_t buffer_write_offset;
+
+	uint32_t open_count;
+
+	char *log_buffer;	/* Pointer to malloc'ed buffer */
+	uint32_t log_buffer_size; /* Size of circular buffer */
+
+	uint32_t mask; /*array of masks for major elements*/
+
+	union logger_flags flags;
+	struct dc_context *ctx;
 };
 
 #endif /* __DAL_LOGGER_TYPES_H__ */

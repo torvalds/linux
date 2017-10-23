@@ -39,14 +39,14 @@
 #define BLACK_OFFSET_CBCR  0x8000
 
 #define REG(reg)\
-	xfm->tf_regs->reg
+	dpp->tf_regs->reg
 
 #define CTX \
-	xfm->base.ctx
+	dpp->base.ctx
 
 #undef FN
 #define FN(reg_name, field_name) \
-	xfm->tf_shift->field_name, xfm->tf_mask->field_name
+	dpp->tf_shift->field_name, dpp->tf_mask->field_name
 
 enum pixel_format_description {
 	PIXEL_FORMAT_FIXED = 0,
@@ -99,7 +99,7 @@ enum gamut_remap_select {
 };
 
 /* Program gamut remap in bypass mode */
-void dpp_set_gamut_remap_bypass(struct dcn10_dpp *xfm)
+void dpp_set_gamut_remap_bypass(struct dcn10_dpp *dpp)
 {
 	REG_SET(CM_GAMUT_REMAP_CONTROL, 0,
 			CM_GAMUT_REMAP_MODE, 0);
@@ -110,7 +110,7 @@ void dpp_set_gamut_remap_bypass(struct dcn10_dpp *xfm)
 
 
 bool dpp_get_optimal_number_of_taps(
-		struct transform *xfm,
+		struct dpp *dpp,
 		struct scaler_data *scl_data,
 		const struct scaling_taps *in_taps)
 {
@@ -154,28 +154,29 @@ bool dpp_get_optimal_number_of_taps(
 	else
 		scl_data->taps.h_taps_c = in_taps->h_taps_c;
 
-	if (!xfm->ctx->dc->debug.always_scale) {
+	if (!dpp->ctx->dc->debug.always_scale) {
 		if (IDENTITY_RATIO(scl_data->ratios.horz))
 			scl_data->taps.h_taps = 1;
 		if (IDENTITY_RATIO(scl_data->ratios.vert))
 			scl_data->taps.v_taps = 1;
-		if (IDENTITY_RATIO(scl_data->ratios.horz_c))
-			scl_data->taps.h_taps_c = 1;
-		if (IDENTITY_RATIO(scl_data->ratios.vert_c))
-			scl_data->taps.v_taps_c = 1;
+		/*
+		 * Spreadsheet doesn't handle taps_c is one properly,
+		 * need to force Chroma to always be scaled to pass
+		 * bandwidth validation.
+		 */
 	}
 
 	return true;
 }
 
-void dpp_reset(struct transform *xfm_base)
+void dpp_reset(struct dpp *dpp_base)
 {
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
-	xfm->filter_h_c = NULL;
-	xfm->filter_v_c = NULL;
-	xfm->filter_h = NULL;
-	xfm->filter_v = NULL;
+	dpp->filter_h_c = NULL;
+	dpp->filter_v_c = NULL;
+	dpp->filter_h = NULL;
+	dpp->filter_v = NULL;
 
 	/* set boundary mode to 0 */
 	REG_SET(DSCL_CONTROL, 0, SCL_BOUNDARY_MODE, 0);
@@ -183,28 +184,28 @@ void dpp_reset(struct transform *xfm_base)
 
 
 
-static void dcn10_dpp_cm_set_regamma_pwl(
-	struct transform *xfm_base, const struct pwl_params *params)
+static void dpp1_cm_set_regamma_pwl(
+	struct dpp *dpp_base, const struct pwl_params *params)
 {
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
-	dcn10_dpp_cm_power_on_regamma_lut(xfm_base, true);
-	dcn10_dpp_cm_configure_regamma_lut(xfm_base, xfm->is_write_to_ram_a_safe);
+	dpp1_cm_power_on_regamma_lut(dpp_base, true);
+	dpp1_cm_configure_regamma_lut(dpp_base, dpp->is_write_to_ram_a_safe);
 
-	if (xfm->is_write_to_ram_a_safe)
-		dcn10_dpp_cm_program_regamma_luta_settings(xfm_base, params);
+	if (dpp->is_write_to_ram_a_safe)
+		dpp1_cm_program_regamma_luta_settings(dpp_base, params);
 	else
-		dcn10_dpp_cm_program_regamma_lutb_settings(xfm_base, params);
+		dpp1_cm_program_regamma_lutb_settings(dpp_base, params);
 
-	dcn10_dpp_cm_program_regamma_lut(
-			xfm_base, params->rgb_resulted, params->hw_points_num);
+	dpp1_cm_program_regamma_lut(
+			dpp_base, params->rgb_resulted, params->hw_points_num);
 }
 
-static void dcn10_dpp_cm_set_regamma_mode(
-	struct transform *xfm_base,
+static void dpp1_cm_set_regamma_mode(
+	struct dpp *dpp_base,
 	enum opp_regamma mode)
 {
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	uint32_t re_mode = 0;
 	uint32_t obuf_bypass = 0; /* need for pipe split */
 	uint32_t obuf_hupscale = 0;
@@ -220,8 +221,8 @@ static void dcn10_dpp_cm_set_regamma_mode(
 		re_mode = 2;
 		break;
 	case OPP_REGAMMA_USER:
-		re_mode = xfm->is_write_to_ram_a_safe ? 3 : 4;
-		xfm->is_write_to_ram_a_safe = !xfm->is_write_to_ram_a_safe;
+		re_mode = dpp->is_write_to_ram_a_safe ? 3 : 4;
+		dpp->is_write_to_ram_a_safe = !dpp->is_write_to_ram_a_safe;
 		break;
 	default:
 		break;
@@ -233,7 +234,7 @@ static void dcn10_dpp_cm_set_regamma_mode(
 			OBUF_H_2X_UPSCALE_EN, obuf_hupscale);
 }
 
-static void ippn10_setup_format_flags(enum surface_pixel_format input_format,\
+static void dpp1_setup_format_flags(enum surface_pixel_format input_format,\
 						enum pixel_format_description *fmt)
 {
 
@@ -246,11 +247,11 @@ static void ippn10_setup_format_flags(enum surface_pixel_format input_format,\
 		*fmt = PIXEL_FORMAT_FIXED;
 }
 
-static void ippn10_set_degamma_format_float(
-		struct transform *xfm_base,
+static void dpp1_set_degamma_format_float(
+		struct dpp *dpp_base,
 		bool is_float)
 {
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
 	if (is_float) {
 		REG_UPDATE(CM_IGAM_CONTROL, CM_IGAM_INPUT_FORMAT, 3);
@@ -261,8 +262,8 @@ static void ippn10_set_degamma_format_float(
 	}
 }
 
-void ippn10_cnv_setup (
-		struct transform *xfm_base,
+void dpp1_cnv_setup (
+		struct dpp *dpp_base,
 		enum surface_pixel_format input_format,
 		enum expansion_mode mode)
 {
@@ -272,10 +273,10 @@ void ippn10_cnv_setup (
 	enum dc_color_space color_space;
 	enum dcn10_input_csc_select select;
 	bool is_float;
-	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	bool force_disable_cursor = false;
 
-	ippn10_setup_format_flags(input_format, &fmt);
+	dpp1_setup_format_flags(input_format, &fmt);
 	alpha_en = 1;
 	pixel_format = 0;
 	color_space = COLOR_SPACE_SRGB;
@@ -303,7 +304,7 @@ void ippn10_cnv_setup (
 		break;
 	}
 
-	ippn10_set_degamma_format_float(xfm_base, is_float);
+	dpp1_set_degamma_format_float(dpp_base, is_float);
 
 	switch (input_format) {
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB1555:
@@ -361,7 +362,7 @@ void ippn10_cnv_setup (
 			CNVC_SURFACE_PIXEL_FORMAT, pixel_format);
 	REG_UPDATE(FORMAT_CONTROL, FORMAT_CONTROL__ALPHA_EN, alpha_en);
 
-	ippn10_program_input_csc(xfm_base, color_space, select);
+	dpp1_program_input_csc(dpp_base, color_space, select);
 
 	if (force_disable_cursor) {
 		REG_UPDATE(CURSOR_CONTROL,
@@ -371,54 +372,110 @@ void ippn10_cnv_setup (
 	}
 }
 
-static const struct transform_funcs dcn10_dpp_funcs = {
-		.transform_reset = dpp_reset,
-		.transform_set_scaler = dcn10_dpp_dscl_set_scaler_manual_scale,
-		.transform_get_optimal_number_of_taps = dpp_get_optimal_number_of_taps,
-		.transform_set_gamut_remap = dcn10_dpp_cm_set_gamut_remap,
-		.opp_set_csc_adjustment = dcn10_dpp_cm_set_output_csc_adjustment,
-		.opp_set_csc_default = dcn10_dpp_cm_set_output_csc_default,
-		.opp_power_on_regamma_lut = dcn10_dpp_cm_power_on_regamma_lut,
-		.opp_program_regamma_lut = dcn10_dpp_cm_program_regamma_lut,
-		.opp_configure_regamma_lut = dcn10_dpp_cm_configure_regamma_lut,
-		.opp_program_regamma_lutb_settings = dcn10_dpp_cm_program_regamma_lutb_settings,
-		.opp_program_regamma_luta_settings = dcn10_dpp_cm_program_regamma_luta_settings,
-		.opp_program_regamma_pwl = dcn10_dpp_cm_set_regamma_pwl,
-		.opp_set_regamma_mode = dcn10_dpp_cm_set_regamma_mode,
-		.ipp_set_degamma = ippn10_set_degamma,
-		.ipp_program_input_lut		= ippn10_program_input_lut,
-		.ipp_program_degamma_pwl	= ippn10_set_degamma_pwl,
-		.ipp_setup			= ippn10_cnv_setup,
-		.ipp_full_bypass		= ippn10_full_bypass,
+void dpp1_set_cursor_attributes(
+		struct dpp *dpp_base,
+		const struct dc_cursor_attributes *attr)
+{
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+	enum dc_cursor_color_format color_format = attr->color_format;
+
+	REG_UPDATE_2(CURSOR0_CONTROL,
+			CUR0_MODE, color_format,
+			CUR0_EXPANSION_MODE, 0);
+
+	if (color_format == CURSOR_MODE_MONO) {
+		/* todo: clarify what to program these to */
+		REG_UPDATE(CURSOR0_COLOR0,
+				CUR0_COLOR0, 0x00000000);
+		REG_UPDATE(CURSOR0_COLOR1,
+				CUR0_COLOR1, 0xFFFFFFFF);
+	}
+
+	/* TODO: Fixed vs float */
+
+	REG_UPDATE_3(FORMAT_CONTROL,
+				CNVC_BYPASS, 0,
+				FORMAT_CONTROL__ALPHA_EN, 1,
+				FORMAT_EXPANSION_MODE, 0);
+}
+
+
+void dpp1_set_cursor_position(
+		struct dpp *dpp_base,
+		const struct dc_cursor_position *pos,
+		const struct dc_cursor_mi_param *param,
+		uint32_t width)
+{
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+	int src_x_offset = pos->x - pos->x_hotspot - param->viewport_x_start;
+	uint32_t cur_en = pos->enable ? 1 : 0;
+
+	if (src_x_offset >= (int)param->viewport_width)
+		cur_en = 0;  /* not visible beyond right edge*/
+
+	if (src_x_offset + (int)width < 0)
+		cur_en = 0;  /* not visible beyond left edge*/
+
+	REG_UPDATE(CURSOR0_CONTROL,
+			CUR0_ENABLE, cur_en);
+
+}
+
+static const struct dpp_funcs dcn10_dpp_funcs = {
+		.dpp_reset = dpp_reset,
+		.dpp_set_scaler = dpp1_dscl_set_scaler_manual_scale,
+		.dpp_get_optimal_number_of_taps = dpp_get_optimal_number_of_taps,
+		.dpp_set_gamut_remap = dpp1_cm_set_gamut_remap,
+		.opp_set_csc_adjustment = dpp1_cm_set_output_csc_adjustment,
+		.opp_set_csc_default = dpp1_cm_set_output_csc_default,
+		.opp_power_on_regamma_lut = dpp1_cm_power_on_regamma_lut,
+		.opp_program_regamma_lut = dpp1_cm_program_regamma_lut,
+		.opp_configure_regamma_lut = dpp1_cm_configure_regamma_lut,
+		.opp_program_regamma_lutb_settings = dpp1_cm_program_regamma_lutb_settings,
+		.opp_program_regamma_luta_settings = dpp1_cm_program_regamma_luta_settings,
+		.opp_program_regamma_pwl = dpp1_cm_set_regamma_pwl,
+		.opp_set_regamma_mode = dpp1_cm_set_regamma_mode,
+		.ipp_set_degamma = dpp1_set_degamma,
+		.ipp_program_input_lut		= dpp1_program_input_lut,
+		.ipp_program_degamma_pwl	= dpp1_set_degamma_pwl,
+		.ipp_setup			= dpp1_cnv_setup,
+		.ipp_full_bypass		= dpp1_full_bypass,
+		.set_cursor_attributes = dpp1_set_cursor_attributes,
+		.set_cursor_position = dpp1_set_cursor_position,
 };
 
+static struct dpp_caps dcn10_dpp_cap = {
+	.dscl_data_proc_format = DSCL_DATA_PRCESSING_FIXED_FORMAT,
+	.dscl_calc_lb_num_partitions = dpp1_dscl_calc_lb_num_partitions,
+};
 
 /*****************************************/
 /* Constructor, Destructor               */
 /*****************************************/
 
-void dcn10_dpp_construct(
-	struct dcn10_dpp *xfm,
+void dpp1_construct(
+	struct dcn10_dpp *dpp,
 	struct dc_context *ctx,
 	uint32_t inst,
 	const struct dcn_dpp_registers *tf_regs,
 	const struct dcn_dpp_shift *tf_shift,
 	const struct dcn_dpp_mask *tf_mask)
 {
-	xfm->base.ctx = ctx;
+	dpp->base.ctx = ctx;
 
-	xfm->base.inst = inst;
-	xfm->base.funcs = &dcn10_dpp_funcs;
+	dpp->base.inst = inst;
+	dpp->base.funcs = &dcn10_dpp_funcs;
+	dpp->base.caps = &dcn10_dpp_cap;
 
-	xfm->tf_regs = tf_regs;
-	xfm->tf_shift = tf_shift;
-	xfm->tf_mask = tf_mask;
+	dpp->tf_regs = tf_regs;
+	dpp->tf_shift = tf_shift;
+	dpp->tf_mask = tf_mask;
 
-	xfm->lb_pixel_depth_supported =
+	dpp->lb_pixel_depth_supported =
 		LB_PIXEL_DEPTH_18BPP |
 		LB_PIXEL_DEPTH_24BPP |
 		LB_PIXEL_DEPTH_30BPP;
 
-	xfm->lb_bits_per_entry = LB_BITS_PER_ENTRY;
-	xfm->lb_memory_size = LB_TOTAL_NUMBER_OF_ENTRIES; /*0x1404*/
+	dpp->lb_bits_per_entry = LB_BITS_PER_ENTRY;
+	dpp->lb_memory_size = LB_TOTAL_NUMBER_OF_ENTRIES; /*0x1404*/
 }

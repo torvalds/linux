@@ -364,7 +364,8 @@ static void pipe_ctx_to_e2e_pipe_params (
 	}
 
 
-	input->dest.vactive        = pipe->stream->timing.v_addressable;
+	input->dest.vactive        = pipe->stream->timing.v_addressable + pipe->stream->timing.v_border_top
+			+ pipe->stream->timing.v_border_bottom;
 
 	input->dest.recout_width   = pipe->plane_res.scl_data.recout.width;
 	input->dest.recout_height  = pipe->plane_res.scl_data.recout.height;
@@ -385,10 +386,6 @@ static void pipe_ctx_to_e2e_pipe_params (
 			- pipe->stream->timing.v_addressable
 			- pipe->stream->timing.v_border_bottom
 			- pipe->stream->timing.v_border_top;
-
-	input->dest.vsync_plus_back_porch = pipe->stream->timing.v_total
-			- pipe->stream->timing.v_addressable
-			- pipe->stream->timing.v_front_porch;
 	input->dest.pixel_rate_mhz = pipe->stream->timing.pix_clk_khz/1000.0;
 	input->dest.vstartup_start = pipe->pipe_dlg_param.vstartup_start;
 	input->dest.vupdate_offset = pipe->pipe_dlg_param.vupdate_offset;
@@ -458,9 +455,9 @@ static void dcn_bw_calc_rq_dlg_ttu(
 	/*todo: soc->sr_enter_plus_exit_time??*/
 	dlg_sys_param.t_srx_delay_us = dc->dcn_ip->dcfclk_cstate_latency / v->dcf_clk_deep_sleep;
 
-	dml_rq_dlg_get_rq_params(dml, &rq_param, input.pipe.src);
-	extract_rq_regs(dml, rq_regs, rq_param);
-	dml_rq_dlg_get_dlg_params(
+	dml1_rq_dlg_get_rq_params(dml, &rq_param, input.pipe.src);
+	dml1_extract_rq_regs(dml, rq_regs, rq_param);
+	dml1_rq_dlg_get_dlg_params(
 			dml,
 			dlg_regs,
 			ttu_regs,
@@ -471,96 +468,6 @@ static void dcn_bw_calc_rq_dlg_ttu(
 			true,
 			v->pte_enable == dcn_bw_yes,
 			pipe->plane_state->flip_immediate);
-}
-
-static void dcn_dml_wm_override(
-		const struct dcn_bw_internal_vars *v,
-		struct display_mode_lib *dml,
-		struct dc_state *context,
-		const struct resource_pool *pool)
-{
-	int i, in_idx, active_count;
-
-	struct _vcs_dpi_display_e2e_pipe_params_st *input = kzalloc(pool->pipe_count * sizeof(struct _vcs_dpi_display_e2e_pipe_params_st),
-								    GFP_KERNEL);
-	struct wm {
-		double urgent;
-		struct _vcs_dpi_cstate_pstate_watermarks_st cpstate;
-		double pte_meta_urgent;
-	} a;
-
-
-	for (i = 0, in_idx = 0; i < pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-
-		if (!pipe->stream || !pipe->plane_state)
-			continue;
-
-		input[in_idx].clks_cfg.dcfclk_mhz = v->dcfclk;
-		input[in_idx].clks_cfg.dispclk_mhz = v->dispclk;
-		input[in_idx].clks_cfg.dppclk_mhz = v->dppclk;
-		input[in_idx].clks_cfg.refclk_mhz = pool->ref_clock_inKhz / 1000;
-		input[in_idx].clks_cfg.socclk_mhz = v->socclk;
-		input[in_idx].clks_cfg.voltage = v->voltage_level;
-		input[in_idx].dout.output_format = (v->output_format[in_idx] == dcn_bw_420) ? dm_420 : dm_444;
-		input[in_idx].dout.output_type  = (v->output[in_idx] == dcn_bw_hdmi) ? dm_hdmi : dm_dp;
-		//input[in_idx].dout.output_standard;
-		switch (v->output_deep_color[in_idx]) {
-		case dcn_bw_encoder_12bpc:
-			input[in_idx].dout.output_bpc = dm_out_12;
-		break;
-		case dcn_bw_encoder_10bpc:
-			input[in_idx].dout.output_bpc = dm_out_10;
-		break;
-		case dcn_bw_encoder_8bpc:
-		default:
-			input[in_idx].dout.output_bpc = dm_out_8;
-		break;
-		}
-		pipe_ctx_to_e2e_pipe_params(pipe, &input[in_idx].pipe);
-		dml_rq_dlg_get_rq_reg(
-			dml,
-			&pipe->rq_regs,
-			input[in_idx].pipe.src);
-		in_idx++;
-	}
-	active_count = in_idx;
-
-	a.urgent = dml_wm_urgent_e2e(dml, input, active_count);
-	a.cpstate = dml_wm_cstate_pstate_e2e(dml, input, active_count);
-	a.pte_meta_urgent = dml_wm_pte_meta_urgent(dml, a.urgent);
-
-	context->bw.dcn.watermarks.a.cstate_pstate.cstate_exit_ns =
-			a.cpstate.cstate_exit_us * 1000;
-	context->bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns =
-			a.cpstate.cstate_enter_plus_exit_us * 1000;
-	context->bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns =
-			a.cpstate.pstate_change_us * 1000;
-	context->bw.dcn.watermarks.a.pte_meta_urgent_ns = a.pte_meta_urgent * 1000;
-	context->bw.dcn.watermarks.a.urgent_ns = a.urgent * 1000;
-	context->bw.dcn.watermarks.b = context->bw.dcn.watermarks.a;
-	context->bw.dcn.watermarks.c = context->bw.dcn.watermarks.a;
-	context->bw.dcn.watermarks.d = context->bw.dcn.watermarks.a;
-
-
-	for (i = 0, in_idx = 0; i < pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-
-		if (!pipe->stream || !pipe->plane_state)
-			continue;
-
-		dml_rq_dlg_get_dlg_reg(dml,
-			&pipe->dlg_regs,
-			&pipe->ttu_regs,
-			input, active_count,
-			in_idx,
-			true,
-			true,
-			v->pte_enable == dcn_bw_yes,
-			pipe->plane_state->flip_immediate);
-		in_idx++;
-	}
-	kfree(input);
 }
 
 static void split_stream_across_pipes(
@@ -578,8 +485,10 @@ static void split_stream_across_pipes(
 
 	secondary_pipe->pipe_idx = pipe_idx;
 	secondary_pipe->plane_res.mi = pool->mis[secondary_pipe->pipe_idx];
+	secondary_pipe->plane_res.hubp = pool->hubps[secondary_pipe->pipe_idx];
 	secondary_pipe->plane_res.ipp = pool->ipps[secondary_pipe->pipe_idx];
 	secondary_pipe->plane_res.xfm = pool->transforms[secondary_pipe->pipe_idx];
+	secondary_pipe->plane_res.dpp = pool->dpps[secondary_pipe->pipe_idx];
 	if (primary_pipe->bottom_pipe) {
 		ASSERT(primary_pipe->bottom_pipe != secondary_pipe);
 		secondary_pipe->bottom_pipe = primary_pipe->bottom_pipe;
@@ -719,6 +628,49 @@ static bool dcn_bw_apply_registry_override(struct dc *dc)
 	return updated;
 }
 
+void hack_disable_optional_pipe_split(struct dcn_bw_internal_vars *v)
+{
+	/*
+	 * disable optional pipe split by lower dispclk bounding box
+	 * at DPM0
+	 */
+	v->max_dispclk[0] = v->max_dppclk_vmin0p65;
+}
+
+void hack_force_pipe_split(struct dcn_bw_internal_vars *v,
+		unsigned int pixel_rate_khz)
+{
+	float pixel_rate_mhz = pixel_rate_khz / 1000;
+
+	/*
+	 * force enabling pipe split by lower dpp clock for DPM0 to just
+	 * below the specify pixel_rate, so bw calc would split pipe.
+	 */
+	if (pixel_rate_mhz < v->max_dppclk[0])
+		v->max_dppclk[0] = pixel_rate_mhz;
+}
+
+void hack_bounding_box(struct dcn_bw_internal_vars *v,
+		struct dc_debug *dbg,
+		struct dc_state *context)
+{
+	if (dbg->pipe_split_policy == MPC_SPLIT_AVOID) {
+		hack_disable_optional_pipe_split(v);
+	}
+
+	if (dbg->pipe_split_policy == MPC_SPLIT_AVOID_MULT_DISP &&
+		context->stream_count >= 2) {
+		hack_disable_optional_pipe_split(v);
+	}
+
+	if (context->stream_count == 1 &&
+			dbg->force_single_disp_pipe_split) {
+		struct dc_stream_state *stream0 = context->streams[0];
+
+		hack_force_pipe_split(v, stream0->timing.pix_clk_khz);
+	}
+}
+
 bool dcn_validate_bandwidth(
 		struct dc *dc,
 		struct dc_state *context)
@@ -730,6 +682,7 @@ bool dcn_validate_bandwidth(
 	bool bw_limit_pass;
 	float bw_limit;
 
+	PERFORMANCE_TRACE_START();
 	if (dcn_bw_apply_registry_override(dc))
 		dcn_bw_sync_calcs_and_dml(dc);
 
@@ -850,9 +803,7 @@ bool dcn_validate_bandwidth(
 	v->phyclk_per_state[1] = v->phyclkv_mid0p72;
 	v->phyclk_per_state[0] = v->phyclkv_min0p65;
 
-	if (dc->debug.disable_pipe_split) {
-		v->max_dispclk[0] = v->max_dppclk_vmin0p65;
-	}
+	hack_bounding_box(v, &dc->debug, context);
 
 	if (v->voltage_override == dcn_bw_v_max0p9) {
 		v->voltage_override_level = number_of_states - 1;
@@ -882,10 +833,11 @@ bool dcn_validate_bandwidth(
 
 		v->htotal[input_idx] = pipe->stream->timing.h_total;
 		v->vtotal[input_idx] = pipe->stream->timing.v_total;
+		v->vactive[input_idx] = pipe->stream->timing.v_addressable +
+				pipe->stream->timing.v_border_top + pipe->stream->timing.v_border_bottom;
 		v->v_sync_plus_back_porch[input_idx] = pipe->stream->timing.v_total
-				- pipe->stream->timing.v_addressable
+				- v->vactive[input_idx]
 				- pipe->stream->timing.v_front_porch;
-		v->vactive[input_idx] = pipe->stream->timing.v_addressable;
 		v->pixel_clock[input_idx] = pipe->stream->timing.pix_clk_khz / 1000.0f;
 
 		if (!pipe->plane_state) {
@@ -1006,6 +958,10 @@ bool dcn_validate_bandwidth(
 		else
 			bw_consumed = v->fabric_and_dram_bandwidth_vmax0p9;
 
+		if (bw_consumed < v->fabric_and_dram_bandwidth)
+			if (dc->debug.voltage_align_fclk)
+				bw_consumed = v->fabric_and_dram_bandwidth;
+
 		display_pipe_configuration(v);
 		calc_wm_sets_and_perf_params(context, v);
 		context->bw.dcn.calc_clk.fclk_khz = (int)(bw_consumed * 1000000 /
@@ -1018,9 +974,17 @@ bool dcn_validate_bandwidth(
 		context->bw.dcn.calc_clk.min_active_dram_ccm_us = (int)(v->min_active_dram_clock_change_margin);
 		context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz = (int)(v->dcf_clk_deep_sleep * 1000);
 		context->bw.dcn.calc_clk.dcfclk_khz = (int)(v->dcfclk * 1000);
+
 		context->bw.dcn.calc_clk.dispclk_khz = (int)(v->dispclk * 1000);
 		if (dc->debug.max_disp_clk == true)
 			context->bw.dcn.calc_clk.dispclk_khz = (int)(dc->dcn_soc->max_dispclk_vmax0p9 * 1000);
+
+		if (context->bw.dcn.calc_clk.dispclk_khz <
+				dc->debug.min_disp_clk_khz) {
+			context->bw.dcn.calc_clk.dispclk_khz =
+					dc->debug.min_disp_clk_khz;
+		}
+
 		context->bw.dcn.calc_clk.dppclk_div = (int)(v->dispclk_dppclk_ratio) == 2;
 
 		for (i = 0, input_idx = 0; i < pool->pipe_count; i++) {
@@ -1108,9 +1072,6 @@ bool dcn_validate_bandwidth(
 
 			input_idx++;
 		}
-		if (dc->debug.use_dml_wm)
-			dcn_dml_wm_override(v, (struct display_mode_lib *)
-					&dc->dml, context, pool);
 	}
 
 	if (v->voltage_level == 0) {
@@ -1128,6 +1089,8 @@ bool dcn_validate_bandwidth(
 	bw_limit_pass = (v->total_data_read_bandwidth / 1000.0) < bw_limit;
 
 	kernel_fpu_end();
+
+	PERFORMANCE_TRACE_END();
 
 	if (bw_limit_pass && v->voltage_level != 5)
 		return true;
@@ -1263,7 +1226,7 @@ unsigned int dcn_find_dcfclk_suits_all(
 	else
 		dcf_clk =  dc->dcn_soc->dcfclkv_min0p65*1000;
 
-	dm_logger_write(dc->ctx->logger, LOG_HW_MARKS,
+	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"\tdcf_clk for voltage = %d\n", dcf_clk);
 	return dcf_clk;
 }
@@ -1385,6 +1348,53 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 	ranges.writer_wm_sets[3].max_fill_clk_khz = overdrive;
 	ranges.writer_wm_sets[3].min_drain_clk_khz = max_fclk_khz;
 	ranges.writer_wm_sets[3].max_drain_clk_khz = max_fclk_khz;
+
+	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE) {
+		ranges.reader_wm_sets[0].wm_inst = WM_A;
+		ranges.reader_wm_sets[0].min_drain_clk_khz = 300000;
+		ranges.reader_wm_sets[0].max_drain_clk_khz = 654000;
+		ranges.reader_wm_sets[0].min_fill_clk_khz = 800000;
+		ranges.reader_wm_sets[0].max_fill_clk_khz = 800000;
+		ranges.writer_wm_sets[0].wm_inst = WM_A;
+		ranges.writer_wm_sets[0].min_fill_clk_khz = 200000;
+		ranges.writer_wm_sets[0].max_fill_clk_khz = 757000;
+		ranges.writer_wm_sets[0].min_drain_clk_khz = 800000;
+		ranges.writer_wm_sets[0].max_drain_clk_khz = 800000;
+
+		ranges.reader_wm_sets[1].wm_inst = WM_B;
+		ranges.reader_wm_sets[1].min_drain_clk_khz = 300000;
+		ranges.reader_wm_sets[1].max_drain_clk_khz = 654000;
+		ranges.reader_wm_sets[1].min_fill_clk_khz = 933000;
+		ranges.reader_wm_sets[1].max_fill_clk_khz = 933000;
+		ranges.writer_wm_sets[1].wm_inst = WM_B;
+		ranges.writer_wm_sets[1].min_fill_clk_khz = 200000;
+		ranges.writer_wm_sets[1].max_fill_clk_khz = 757000;
+		ranges.writer_wm_sets[1].min_drain_clk_khz = 933000;
+		ranges.writer_wm_sets[1].max_drain_clk_khz = 933000;
+
+
+		ranges.reader_wm_sets[2].wm_inst = WM_C;
+		ranges.reader_wm_sets[2].min_drain_clk_khz = 300000;
+		ranges.reader_wm_sets[2].max_drain_clk_khz = 654000;
+		ranges.reader_wm_sets[2].min_fill_clk_khz = 1067000;
+		ranges.reader_wm_sets[2].max_fill_clk_khz = 1067000;
+		ranges.writer_wm_sets[2].wm_inst = WM_C;
+		ranges.writer_wm_sets[2].min_fill_clk_khz = 200000;
+		ranges.writer_wm_sets[2].max_fill_clk_khz = 757000;
+		ranges.writer_wm_sets[2].min_drain_clk_khz = 1067000;
+		ranges.writer_wm_sets[2].max_drain_clk_khz = 1067000;
+
+		ranges.reader_wm_sets[3].wm_inst = WM_D;
+		ranges.reader_wm_sets[3].min_drain_clk_khz = 300000;
+		ranges.reader_wm_sets[3].max_drain_clk_khz = 654000;
+		ranges.reader_wm_sets[3].min_fill_clk_khz = 1200000;
+		ranges.reader_wm_sets[3].max_fill_clk_khz = 1200000;
+		ranges.writer_wm_sets[3].wm_inst = WM_D;
+		ranges.writer_wm_sets[3].min_fill_clk_khz = 200000;
+		ranges.writer_wm_sets[3].max_fill_clk_khz = 757000;
+		ranges.writer_wm_sets[3].min_drain_clk_khz = 1200000;
+		ranges.writer_wm_sets[3].max_drain_clk_khz = 1200000;
+	}
 
 	/* Notify PP Lib/SMU which Watermarks to use for which clock ranges */
 	pp->set_wm_ranges(&pp->pp_smu, &ranges);

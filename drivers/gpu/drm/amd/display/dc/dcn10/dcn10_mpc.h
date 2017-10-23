@@ -34,7 +34,6 @@
 #define MAX_OPP 6
 
 #define MPC_COMMON_REG_LIST_DCN1_0(inst) \
-	SRII(MUX, MPC_OUT, inst),\
 	SRII(MPCC_TOP_SEL, MPCC, inst),\
 	SRII(MPCC_BOT_SEL, MPCC, inst),\
 	SRII(MPCC_CONTROL, MPCC, inst),\
@@ -45,17 +44,19 @@
 	SRII(MPCC_BG_B_CB, MPCC, inst),\
 	SRII(MPCC_BG_B_CB, MPCC, inst)
 
-struct dcn_mpc_registers {
-	uint32_t MPCC_TOP_SEL[MAX_MPCC];
-	uint32_t MPCC_BOT_SEL[MAX_MPCC];
-	uint32_t MPCC_CONTROL[MAX_MPCC];
-	uint32_t MPCC_STATUS[MAX_MPCC];
-	uint32_t MPCC_OPP_ID[MAX_MPCC];
-	uint32_t MPCC_BG_G_Y[MAX_MPCC];
-	uint32_t MPCC_BG_R_CR[MAX_MPCC];
-	uint32_t MPCC_BG_B_CB[MAX_MPCC];
+#define MPC_OUT_MUX_COMMON_REG_LIST_DCN1_0(inst) \
+	SRII(MUX, MPC_OUT, inst)
+
+#define MPC_COMMON_REG_VARIABLE_LIST \
+	uint32_t MPCC_TOP_SEL[MAX_MPCC]; \
+	uint32_t MPCC_BOT_SEL[MAX_MPCC]; \
+	uint32_t MPCC_CONTROL[MAX_MPCC]; \
+	uint32_t MPCC_STATUS[MAX_MPCC]; \
+	uint32_t MPCC_OPP_ID[MAX_MPCC]; \
+	uint32_t MPCC_BG_G_Y[MAX_MPCC]; \
+	uint32_t MPCC_BG_R_CR[MAX_MPCC]; \
+	uint32_t MPCC_BG_B_CB[MAX_MPCC]; \
 	uint32_t MUX[MAX_OPP];
-};
 
 #define MPC_COMMON_MASK_SH_LIST_DCN1_0(mask_sh)\
 	SF(MPCC0_MPCC_TOP_SEL, MPCC_TOP_SEL, mask_sh),\
@@ -87,6 +88,10 @@ struct dcn_mpc_registers {
 	type MPCC_BG_B_CB;\
 	type MPC_OUT_MUX;
 
+struct dcn_mpc_registers {
+	MPC_COMMON_REG_VARIABLE_LIST
+};
+
 struct dcn_mpc_shift {
 	MPC_REG_FIELD_LIST(uint8_t)
 };
@@ -111,5 +116,23 @@ void dcn10_mpc_construct(struct dcn10_mpc *mpcc10,
 	const struct dcn_mpc_shift *mpc_shift,
 	const struct dcn_mpc_mask *mpc_mask,
 	int num_mpcc);
+
+int mpc10_mpcc_add(
+		struct mpc *mpc,
+		struct mpcc_cfg *cfg);
+
+void mpc10_mpcc_remove(
+		struct mpc *mpc,
+		struct mpc_tree_cfg *tree_cfg,
+		int opp_id,
+		int dpp_id);
+
+void mpc10_assert_idle_mpcc(
+		struct mpc *mpc,
+		int id);
+
+void mpc10_update_blend_mode(
+		struct mpc *mpc,
+		struct mpcc_cfg *cfg);
 
 #endif

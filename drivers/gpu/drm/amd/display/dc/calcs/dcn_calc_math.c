@@ -25,6 +25,41 @@
 
 #include "dcn_calc_math.h"
 
+float dcn_bw_mod(const float arg1, const float arg2)
+{
+	if (arg1 != arg1)
+		return arg2;
+	if (arg2 != arg2)
+		return arg1;
+	return arg1 - arg1 * ((int) (arg1 / arg2));
+}
+
+float dcn_bw_min2(const float arg1, const float arg2)
+{
+	if (arg1 != arg1)
+		return arg2;
+	if (arg2 != arg2)
+		return arg1;
+	return arg1 < arg2 ? arg1 : arg2;
+}
+
+unsigned int dcn_bw_max(const unsigned int arg1, const unsigned int arg2)
+{
+	if (arg1 != arg1)
+		return arg2;
+	if (arg2 != arg2)
+		return arg1;
+	return arg1 > arg2 ? arg1 : arg2;
+}
+float dcn_bw_max2(const float arg1, const float arg2)
+{
+	if (arg1 != arg1)
+		return arg2;
+	if (arg2 != arg2)
+		return arg1;
+	return arg1 > arg2 ? arg1 : arg2;
+}
+
 float dcn_bw_floor2(const float arg, const float significance)
 {
 	if (significance == 0)
@@ -38,6 +73,16 @@ float dcn_bw_ceil2(const float arg, const float significance)
 	if (significance == 0)
 		return 0;
 	return flr + 0.00001 >= arg ? arg : flr + significance;
+}
+
+float dcn_bw_max3(float v1, float v2, float v3)
+{
+	return v3 > dcn_bw_max2(v1, v2) ? v3 : dcn_bw_max2(v1, v2);
+}
+
+float dcn_bw_max5(float v1, float v2, float v3, float v4, float v5)
+{
+	return dcn_bw_max3(v1, v2, v3) > dcn_bw_max2(v4, v5) ? dcn_bw_max3(v1, v2, v3) : dcn_bw_max2(v4, v5);
 }
 
 float dcn_bw_pow(float a, float exp)

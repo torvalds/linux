@@ -24,23 +24,23 @@
  */
 #include "dm_services.h"
 #include "dce_calcs.h"
-#include "dcn10_mem_input.h"
 #include "reg_helper.h"
 #include "basics/conversion.h"
+#include "dcn10_hubp.h"
 
 #define REG(reg)\
-	mi->mi_regs->reg
+	hubp1->mi_regs->reg
 
 #define CTX \
-	mi->base.ctx
+	hubp1->base.ctx
 
 #undef FN
 #define FN(reg_name, field_name) \
-	mi->mi_shift->field_name, mi->mi_mask->field_name
+	hubp1->mi_shift->field_name, hubp1->mi_mask->field_name
 
-static void min10_set_blank(struct mem_input *mem_input, bool blank)
+void hubp1_set_blank(struct hubp *hubp, bool blank)
 {
-	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 	uint32_t blank_en = blank ? 1 : 0;
 
 	REG_UPDATE_2(DCHUBP_CNTL,
@@ -51,24 +51,24 @@ static void min10_set_blank(struct mem_input *mem_input, bool blank)
 		REG_WAIT(DCHUBP_CNTL,
 				HUBP_NO_OUTSTANDING_REQ, 1,
 				1, 200);
-		mem_input->mpcc_id = 0xf;
-		mem_input->opp_id = 0xf;
+		hubp->mpcc_id = 0xf;
+		hubp->opp_id = 0xf;
 	}
 }
 
-static void min10_set_hubp_blank_en(struct mem_input *mem_input, bool blank)
+static void hubp1_set_hubp_blank_en(struct hubp *hubp, bool blank)
 {
-	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 	uint32_t blank_en = blank ? 1 : 0;
 
 	REG_UPDATE(DCHUBP_CNTL, HUBP_BLANK_EN, blank_en);
 }
 
-static void min10_vready_workaround(struct mem_input *mem_input,
+static void hubp1_vready_workaround(struct hubp *hubp,
 		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest)
 {
 	uint32_t value = 0;
-	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 
 	/* set HBUBREQ_DEBUG_DB[12] = 1 */
 	value = REG_READ(HUBPREQ_DEBUG_DB);
@@ -87,8 +87,8 @@ static void min10_vready_workaround(struct mem_input *mem_input,
 	REG_WRITE(HUBPREQ_DEBUG_DB, value);
 }
 
-static void min10_program_tiling(
-	struct dcn10_mem_input *mi,
+void hubp1_program_tiling(
+	struct dcn10_hubp *hubp1,
 	const union dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format)
 {
@@ -107,8 +107,8 @@ static void min10_program_tiling(
 			PIPE_ALIGNED, info->gfx9.pipe_aligned);
 }
 
-static void min10_program_size_and_rotation(
-	struct dcn10_mem_input *mi,
+void hubp1_program_size_and_rotation(
+	struct dcn10_hubp *hubp1,
 	enum dc_rotation_angle rotation,
 	enum surface_pixel_format format,
 	const union plane_size *plane_size,
@@ -169,8 +169,8 @@ static void min10_program_size_and_rotation(
 				H_MIRROR_EN, mirror);
 }
 
-static void min10_program_pixel_format(
-	struct dcn10_mem_input *mi,
+void hubp1_program_pixel_format(
+	struct dcn10_hubp *hubp1,
 	enum surface_pixel_format format)
 {
 	uint32_t red_bar = 3;
@@ -245,12 +245,12 @@ static void min10_program_pixel_format(
 	/* don't see the need of program the xbar in DCN 1.0 */
 }
 
-static bool min10_program_surface_flip_and_addr(
-	struct mem_input *mem_input,
+bool hubp1_program_surface_flip_and_addr(
+	struct hubp *hubp,
 	const struct dc_plane_address *address,
 	bool flip_immediate)
 {
-	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 
 	/* program flip type */
 	REG_SET(DCSURF_FLIP_CONTROL, 0,
@@ -387,28 +387,28 @@ static bool min10_program_surface_flip_and_addr(
 		break;
 	}
 
-	mem_input->request_address = *address;
+	hubp->request_address = *address;
 
 	if (flip_immediate)
-		mem_input->current_address = *address;
+		hubp->current_address = *address;
 
 	return true;
 }
 
-static void min10_dcc_control(struct mem_input *mem_input, bool enable,
+void hubp1_dcc_control(struct hubp *hubp, bool enable,
 		bool independent_64b_blks)
 {
 	uint32_t dcc_en = enable ? 1 : 0;
 	uint32_t dcc_ind_64b_blk = independent_64b_blks ? 1 : 0;
-	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 
 	REG_UPDATE_2(DCSURF_SURFACE_CONTROL,
 			PRIMARY_SURFACE_DCC_EN, dcc_en,
 			PRIMARY_SURFACE_DCC_IND_64B_BLK, dcc_ind_64b_blk);
 }
 
-static void min10_program_surface_config(
-	struct mem_input *mem_input,
+void hubp1_program_surface_config(
+	struct hubp *hubp,
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
 	union plane_size *plane_size,
@@ -416,20 +416,20 @@ static void min10_program_surface_config(
 	struct dc_plane_dcc_param *dcc,
 	bool horizontal_mirror)
 {
-	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 
-	min10_dcc_control(mem_input, dcc->enable, dcc->grph.independent_64b_blks);
-	min10_program_tiling(mi, tiling_info, format);
-	min10_program_size_and_rotation(
-		mi, rotation, format, plane_size, dcc, horizontal_mirror);
-	min10_program_pixel_format(mi, format);
+	hubp1_dcc_control(hubp, dcc->enable, dcc->grph.independent_64b_blks);
+	hubp1_program_tiling(hubp1, tiling_info, format);
+	hubp1_program_size_and_rotation(
+			hubp1, rotation, format, plane_size, dcc, horizontal_mirror);
+	hubp1_program_pixel_format(hubp1, format);
 }
 
-static void min10_program_requestor(
-		struct mem_input *mem_input,
+void hubp1_program_requestor(
+		struct hubp *hubp,
 		struct _vcs_dpi_display_rq_regs_st *rq_regs)
 {
-	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 
 	REG_UPDATE(HUBPRET_CONTROL,
 			DET_BUF_PLANE1_BASE_ADDRESS, rq_regs->plane1_base_address);
@@ -459,12 +459,12 @@ static void min10_program_requestor(
 }
 
 
-static void min10_program_deadline(
-		struct mem_input *mem_input,
+void hubp1_program_deadline(
+		struct hubp *hubp,
 		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
 		struct _vcs_dpi_display_ttu_regs_st *ttu_attr)
 {
-	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 
 	/* DLG - Per hubp */
 	REG_SET_2(BLANK_OFFSET_0, 0,
@@ -580,8 +580,8 @@ static void min10_program_deadline(
 		ttu_attr->refcyc_per_req_delivery_pre_c);
 }
 
-static void min10_setup(
-		struct mem_input *mem_input,
+static void hubp1_setup(
+		struct hubp *hubp,
 		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
 		struct _vcs_dpi_display_ttu_regs_st *ttu_attr,
 		struct _vcs_dpi_display_rq_regs_st *rq_regs,
@@ -590,27 +590,15 @@ static void min10_setup(
 	/* otg is locked when this func is called. Register are double buffered.
 	 * disable the requestors is not needed
 	 */
-	min10_program_requestor(mem_input, rq_regs);
-	min10_program_deadline(mem_input, dlg_attr, ttu_attr);
-	min10_vready_workaround(mem_input, pipe_dest);
+	hubp1_program_requestor(hubp, rq_regs);
+	hubp1_program_deadline(hubp, dlg_attr, ttu_attr);
+	hubp1_vready_workaround(hubp, pipe_dest);
 }
 
-static void min10_program_display_marks(
-	struct mem_input *mem_input,
-	struct dce_watermarks nbp,
-	struct dce_watermarks stutter,
-	struct dce_watermarks urgent,
-	uint32_t total_dest_line_time_ns)
-{
-	/* only for dce
-	 * dcn use only program_watermarks
-	 */
-}
-
-static bool min10_is_flip_pending(struct mem_input *mem_input)
+bool hubp1_is_flip_pending(struct hubp *hubp)
 {
 	uint32_t flip_pending = 0;
-	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 	struct dc_plane_address earliest_inuse_address;
 
 	REG_GET(DCSURF_FLIP_CONTROL,
@@ -625,17 +613,20 @@ static bool min10_is_flip_pending(struct mem_input *mem_input)
 	if (flip_pending)
 		return true;
 
-	if (earliest_inuse_address.grph.addr.quad_part != mem_input->request_address.grph.addr.quad_part)
+	if (earliest_inuse_address.grph.addr.quad_part != hubp->request_address.grph.addr.quad_part)
 		return true;
 
-	mem_input->current_address = mem_input->request_address;
+	hubp->current_address = hubp->request_address;
 	return false;
 }
 
-static void min10_set_vm_system_aperture_settings(struct mem_input *mem_input,
+uint32_t aperture_default_system = 1;
+uint32_t context0_default_system; /* = 0;*/
+
+static void hubp1_set_vm_system_aperture_settings(struct hubp *hubp,
 		struct vm_system_aperture_param *apt)
 {
-	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 	PHYSICAL_ADDRESS_LOC mc_vm_apt_default;
 	PHYSICAL_ADDRESS_LOC mc_vm_apt_low;
 	PHYSICAL_ADDRESS_LOC mc_vm_apt_high;
@@ -645,7 +636,7 @@ static void min10_set_vm_system_aperture_settings(struct mem_input *mem_input,
 	mc_vm_apt_high.quad_part = apt->sys_high.quad_part >> 12;
 
 	REG_SET_2(DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, 0,
-		MC_VM_SYSTEM_APERTURE_DEFAULT_SYSTEM, 1, /* 1 = system physical memory */
+		MC_VM_SYSTEM_APERTURE_DEFAULT_SYSTEM, aperture_default_system, /* 1 = system physical memory */
 		MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, mc_vm_apt_default.high_part);
 	REG_SET(DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB, 0,
 		MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB, mc_vm_apt_default.low_part);
@@ -661,10 +652,10 @@ static void min10_set_vm_system_aperture_settings(struct mem_input *mem_input,
 			MC_VM_SYSTEM_APERTURE_HIGH_ADDR_LSB, mc_vm_apt_high.low_part);
 }
 
-static void min10_set_vm_context0_settings(struct mem_input *mem_input,
+static void hubp1_set_vm_context0_settings(struct hubp *hubp,
 		const struct vm_context0_param *vm0)
 {
-	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 	/* pte base */
 	REG_SET(DCN_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_MSB, 0,
 			VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_MSB, vm0->pte_base.high_part);
@@ -684,9 +675,9 @@ static void min10_set_vm_context0_settings(struct mem_input *mem_input,
 			VM_CONTEXT0_PAGE_TABLE_END_ADDR_LSB, vm0->pte_end.low_part);
 
 	/* fault handling */
-	REG_SET(DCN_VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_MSB, 0,
-			VM_CONTEXT0_PAGE_TABLE_END_ADDR_MSB, vm0->fault_default.high_part);
-	/* VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_SYSTEM, 0 */
+	REG_SET_2(DCN_VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_MSB, 0,
+			VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_MSB, vm0->fault_default.high_part,
+			VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_SYSTEM, context0_default_system);
 	REG_SET(DCN_VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_LSB, 0,
 			VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_LSB, vm0->fault_default.low_part);
 
@@ -696,12 +687,12 @@ static void min10_set_vm_context0_settings(struct mem_input *mem_input,
 			SYSTEM_ACCESS_MODE, 3);
 }
 
-static void min_set_viewport(
-	struct mem_input *mem_input,
+void min_set_viewport(
+	struct hubp *hubp,
 	const struct rect *viewport,
 	const struct rect *viewport_c)
 {
-	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 
 	REG_SET_2(DCSURF_PRI_VIEWPORT_DIMENSION, 0,
 		  PRI_VIEWPORT_WIDTH, viewport->width,
@@ -730,7 +721,7 @@ static void min_set_viewport(
 		  PRI_VIEWPORT_Y_START_C, viewport_c->y);
 }
 
-void dcn10_mem_input_read_state(struct dcn10_mem_input *mi,
+void hubp1_read_state(struct dcn10_hubp *hubp1,
 		struct dcn_hubp_state *s)
 {
 	REG_GET(DCSURF_SURFACE_CONFIG,
@@ -766,41 +757,204 @@ void dcn10_mem_input_read_state(struct dcn10_mem_input *mi,
 			QoS_LEVEL_HIGH_WM, &s->qos_level_high_wm);
 }
 
-static struct mem_input_funcs dcn10_mem_input_funcs = {
-	.mem_input_program_display_marks = min10_program_display_marks,
-	.mem_input_program_surface_flip_and_addr =
-			min10_program_surface_flip_and_addr,
-	.mem_input_program_surface_config =
-			min10_program_surface_config,
-	.mem_input_is_flip_pending = min10_is_flip_pending,
-	.mem_input_setup = min10_setup,
-	.mem_input_set_vm_system_aperture_settings = min10_set_vm_system_aperture_settings,
-	.mem_input_set_vm_context0_settings = min10_set_vm_context0_settings,
-	.set_blank = min10_set_blank,
-	.dcc_control = min10_dcc_control,
+enum cursor_pitch {
+	CURSOR_PITCH_64_PIXELS = 0,
+	CURSOR_PITCH_128_PIXELS,
+	CURSOR_PITCH_256_PIXELS
+};
+
+enum cursor_lines_per_chunk {
+	CURSOR_LINE_PER_CHUNK_2 = 1,
+	CURSOR_LINE_PER_CHUNK_4,
+	CURSOR_LINE_PER_CHUNK_8,
+	CURSOR_LINE_PER_CHUNK_16
+};
+
+static bool ippn10_cursor_program_control(
+		struct dcn10_hubp *hubp1,
+		bool pixel_data_invert,
+		enum dc_cursor_color_format color_format)
+{
+	if (REG(CURSOR_SETTINS))
+		REG_SET_2(CURSOR_SETTINS, 0,
+				/* no shift of the cursor HDL schedule */
+				CURSOR0_DST_Y_OFFSET, 0,
+				 /* used to shift the cursor chunk request deadline */
+				CURSOR0_CHUNK_HDL_ADJUST, 3);
+	else
+		REG_SET_2(CURSOR_SETTINGS, 0,
+				/* no shift of the cursor HDL schedule */
+				CURSOR0_DST_Y_OFFSET, 0,
+				 /* used to shift the cursor chunk request deadline */
+				CURSOR0_CHUNK_HDL_ADJUST, 3);
+
+	return true;
+}
+
+static enum cursor_pitch ippn10_get_cursor_pitch(
+		unsigned int pitch)
+{
+	enum cursor_pitch hw_pitch;
+
+	switch (pitch) {
+	case 64:
+		hw_pitch = CURSOR_PITCH_64_PIXELS;
+		break;
+	case 128:
+		hw_pitch = CURSOR_PITCH_128_PIXELS;
+		break;
+	case 256:
+		hw_pitch = CURSOR_PITCH_256_PIXELS;
+		break;
+	default:
+		DC_ERR("Invalid cursor pitch of %d. "
+				"Only 64/128/256 is supported on DCN.\n", pitch);
+		hw_pitch = CURSOR_PITCH_64_PIXELS;
+		break;
+	}
+	return hw_pitch;
+}
+
+static enum cursor_lines_per_chunk ippn10_get_lines_per_chunk(
+		unsigned int cur_width,
+		enum dc_cursor_color_format format)
+{
+	enum cursor_lines_per_chunk line_per_chunk;
+
+	if (format == CURSOR_MODE_MONO)
+		/* impl B. expansion in CUR Buffer reader */
+		line_per_chunk = CURSOR_LINE_PER_CHUNK_16;
+	else if (cur_width <= 32)
+		line_per_chunk = CURSOR_LINE_PER_CHUNK_16;
+	else if (cur_width <= 64)
+		line_per_chunk = CURSOR_LINE_PER_CHUNK_8;
+	else if (cur_width <= 128)
+		line_per_chunk = CURSOR_LINE_PER_CHUNK_4;
+	else
+		line_per_chunk = CURSOR_LINE_PER_CHUNK_2;
+
+	return line_per_chunk;
+}
+
+void hubp1_cursor_set_attributes(
+		struct hubp *hubp,
+		const struct dc_cursor_attributes *attr)
+{
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
+	enum cursor_pitch hw_pitch = ippn10_get_cursor_pitch(attr->pitch);
+	enum cursor_lines_per_chunk lpc = ippn10_get_lines_per_chunk(
+			attr->width, attr->color_format);
+
+	hubp->curs_attr = *attr;
+
+	REG_UPDATE(CURSOR_SURFACE_ADDRESS_HIGH,
+			CURSOR_SURFACE_ADDRESS_HIGH, attr->address.high_part);
+	REG_UPDATE(CURSOR_SURFACE_ADDRESS,
+			CURSOR_SURFACE_ADDRESS, attr->address.low_part);
+
+	REG_UPDATE_2(CURSOR_SIZE,
+			CURSOR_WIDTH, attr->width,
+			CURSOR_HEIGHT, attr->height);
+	REG_UPDATE_3(CURSOR_CONTROL,
+			CURSOR_MODE, attr->color_format,
+			CURSOR_PITCH, hw_pitch,
+			CURSOR_LINES_PER_CHUNK, lpc);
+	ippn10_cursor_program_control(hubp1,
+			attr->attribute_flags.bits.INVERT_PIXEL_DATA,
+			attr->color_format);
+}
+
+void hubp1_cursor_set_position(
+		struct hubp *hubp,
+		const struct dc_cursor_position *pos,
+		const struct dc_cursor_mi_param *param)
+{
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
+	int src_x_offset = pos->x - pos->x_hotspot - param->viewport_x_start;
+	uint32_t cur_en = pos->enable ? 1 : 0;
+	uint32_t dst_x_offset = (src_x_offset >= 0) ? src_x_offset : 0;
+
+	/*
+	 * Guard aganst cursor_set_position() from being called with invalid
+	 * attributes
+	 *
+	 * TODO: Look at combining cursor_set_position() and
+	 * cursor_set_attributes() into cursor_update()
+	 */
+	if (hubp->curs_attr.address.quad_part == 0)
+		return;
+
+	dst_x_offset *= param->ref_clk_khz;
+	dst_x_offset /= param->pixel_clk_khz;
+
+	ASSERT(param->h_scale_ratio.value);
+
+	if (param->h_scale_ratio.value)
+		dst_x_offset = dal_fixed31_32_floor(dal_fixed31_32_div(
+				dal_fixed31_32_from_int(dst_x_offset),
+				param->h_scale_ratio));
+
+	if (src_x_offset >= (int)param->viewport_width)
+		cur_en = 0;  /* not visible beyond right edge*/
+
+	if (src_x_offset + (int)hubp->curs_attr.width < 0)
+		cur_en = 0;  /* not visible beyond left edge*/
+
+	if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)
+		hubp1_cursor_set_attributes(hubp, &hubp->curs_attr);
+	REG_UPDATE(CURSOR_CONTROL,
+			CURSOR_ENABLE, cur_en);
+
+	REG_SET_2(CURSOR_POSITION, 0,
+			CURSOR_X_POSITION, pos->x,
+			CURSOR_Y_POSITION, pos->y);
+
+	REG_SET_2(CURSOR_HOT_SPOT, 0,
+			CURSOR_HOT_SPOT_X, pos->x_hotspot,
+			CURSOR_HOT_SPOT_Y, pos->y_hotspot);
+
+	REG_SET(CURSOR_DST_OFFSET, 0,
+			CURSOR_DST_X_OFFSET, dst_x_offset);
+	/* TODO Handle surface pixel formats other than 4:4:4 */
+}
+
+static struct hubp_funcs dcn10_hubp_funcs = {
+	.hubp_program_surface_flip_and_addr =
+			hubp1_program_surface_flip_and_addr,
+	.hubp_program_surface_config =
+			hubp1_program_surface_config,
+	.hubp_is_flip_pending = hubp1_is_flip_pending,
+	.hubp_setup = hubp1_setup,
+	.hubp_set_vm_system_aperture_settings = hubp1_set_vm_system_aperture_settings,
+	.hubp_set_vm_context0_settings = hubp1_set_vm_context0_settings,
+	.set_blank = hubp1_set_blank,
+	.dcc_control = hubp1_dcc_control,
 	.mem_program_viewport = min_set_viewport,
-	.set_hubp_blank_en = min10_set_hubp_blank_en,
+	.set_hubp_blank_en = hubp1_set_hubp_blank_en,
+	.set_cursor_attributes	= hubp1_cursor_set_attributes,
+	.set_cursor_position	= hubp1_cursor_set_position,
 };
 
 /*****************************************/
 /* Constructor, Destructor               */
 /*****************************************/
 
-void dcn10_mem_input_construct(
-	struct dcn10_mem_input *mi,
+void dcn10_hubp_construct(
+	struct dcn10_hubp *hubp1,
 	struct dc_context *ctx,
 	uint32_t inst,
 	const struct dcn_mi_registers *mi_regs,
 	const struct dcn_mi_shift *mi_shift,
 	const struct dcn_mi_mask *mi_mask)
 {
-	mi->base.funcs = &dcn10_mem_input_funcs;
-	mi->base.ctx = ctx;
-	mi->mi_regs = mi_regs;
-	mi->mi_shift = mi_shift;
-	mi->mi_mask = mi_mask;
-	mi->base.inst = inst;
-	mi->base.opp_id = 0xf;
-	mi->base.mpcc_id = 0xf;
+	hubp1->base.funcs = &dcn10_hubp_funcs;
+	hubp1->base.ctx = ctx;
+	hubp1->mi_regs = mi_regs;
+	hubp1->mi_shift = mi_shift;
+	hubp1->mi_mask = mi_mask;
+	hubp1->base.inst = inst;
+	hubp1->base.opp_id = 0xf;
+	hubp1->base.mpcc_id = 0xf;
 }
+
 

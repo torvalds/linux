@@ -31,7 +31,6 @@
 #include "dce110/dce110_hw_sequencer.h"
 #include "dce/dce_hwseq.h"
 #include "abm.h"
-#include "dcn10/dcn10_mem_input.h"
 #include "dcn10/dcn10_timing_generator.h"
 #include "dcn10/dcn10_dpp.h"
 #include "dcn10/dcn10_mpc.h"
@@ -41,6 +40,7 @@
 #include "mpc.h"
 #include "reg_helper.h"
 #include "custom_float.h"
+#include "dcn10_hubp.h"
 
 #define CTX \
 	hws->ctx
@@ -172,10 +172,10 @@ static void dcn10_log_hw_state(struct dc *dc)
 			"min_ttu_vblank \t qos_low_wm \t qos_high_wm \n");
 
 	for (i = 0; i < pool->pipe_count; i++) {
-		struct mem_input *mi = pool->mis[i];
+		struct hubp *hubp = pool->hubps[i];
 		struct dcn_hubp_state s;
 
-		dcn10_mem_input_read_state(TO_DCN10_MEM_INPUT(mi), &s);
+		hubp1_read_state(TO_DCN10_HUBP(hubp), &s);
 
 		DTN_INFO("[%d]:\t %xh \t %xh \t %d \t %d \t "
 				"%xh \t %xh \t %xh \t "
@@ -245,15 +245,19 @@ static void verify_allow_pstate_change_high(
 {
 	/* pstate latency is ~20us so if we wait over 40us and pstate allow
 	 * still not asserted, we are probably stuck and going to hang
+	 *
+	 * TODO: Figure out why it takes ~100us on linux
+	 * pstate takes around ~100us on linux. Unknown currently as to
+	 * why it takes that long on linux
 	 */
-	static unsigned int pstate_wait_timeout_us = 40;
+	static unsigned int pstate_wait_timeout_us = 200;
+	static unsigned int pstate_wait_expected_timeout_us = 40;
 	static unsigned int max_sampled_pstate_wait_us; /* data collection */
 	static bool forced_pstate_allow; /* help with revert wa */
 	static bool should_log_hw_state; /* prevent hw state log by default */
 
 	unsigned int debug_index = 0x7;
 	unsigned int debug_data;
-	unsigned int force_allow_pstate = 0x30;
 	unsigned int i;
 
 	if (forced_pstate_allow) {
@@ -261,7 +265,9 @@ static void verify_allow_pstate_change_high(
 		 * we verify_allow_pstate_change_high.  so disable force
 		 * here so we can check status
 		 */
-		REG_WRITE(DCHUBBUB_ARB_DRAM_STATE_CNTL, 0);
+		REG_UPDATE_2(DCHUBBUB_ARB_DRAM_STATE_CNTL,
+			     DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_VALUE, 0,
+			     DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_ENABLE, 0);
 		forced_pstate_allow = false;
 	}
 
@@ -292,9 +298,15 @@ static void verify_allow_pstate_change_high(
 	for (i = 0; i < pstate_wait_timeout_us; i++) {
 		debug_data = REG_READ(DCHUBBUB_TEST_DEBUG_DATA);
 
-		if (debug_data & (1 << 30))
-			return;
+		if (debug_data & (1 << 30)) {
 
+			if (i > pstate_wait_expected_timeout_us)
+				dm_logger_write(hws->ctx->logger, LOG_WARNING,
+						"pstate took longer than expected ~%dus\n",
+						i);
+
+			return;
+		}
 		if (max_sampled_pstate_wait_us < i)
 			max_sampled_pstate_wait_us = i;
 
@@ -304,13 +316,18 @@ static void verify_allow_pstate_change_high(
 	/* force pstate allow to prevent system hang
 	 * and break to debugger to investigate
 	 */
-	REG_WRITE(DCHUBBUB_ARB_DRAM_STATE_CNTL, force_allow_pstate);
+	REG_UPDATE_2(DCHUBBUB_ARB_DRAM_STATE_CNTL,
+		     DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_VALUE, 1,
+		     DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_ENABLE, 1);
 	forced_pstate_allow = true;
 
 	if (should_log_hw_state) {
 		dcn10_log_hw_state(hws->ctx->dc);
 	}
 
+	dm_logger_write(hws->ctx->logger, LOG_WARNING,
+			"pstate TEST_DEBUG_DATA: 0x%X\n",
+			debug_data);
 	BREAK_TO_DEBUGGER();
 }
 
@@ -451,7 +468,7 @@ static void program_watermarks(
 			refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A, prog_wm_value);
 
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"URGENCY_WATERMARK_A calculated =%d\n"
 		"HW register value = 0x%x\n",
 		watermarks->a.urgent_ns, prog_wm_value);
@@ -459,38 +476,37 @@ static void program_watermarks(
 	prog_wm_value = convert_and_clamp(watermarks->a.pte_meta_urgent_ns,
 			refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_A, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"PTE_META_URGENCY_WATERMARK_A calculated =%d\n"
 		"HW register value = 0x%x\n",
 		watermarks->a.pte_meta_urgent_ns, prog_wm_value);
 
+	if (REG(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_A)) {
+		prog_wm_value = convert_and_clamp(
+				watermarks->a.cstate_pstate.cstate_enter_plus_exit_ns,
+				refclk_mhz, 0x1fffff);
+		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_A, prog_wm_value);
+		dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+			"SR_ENTER_EXIT_WATERMARK_A calculated =%d\n"
+			"HW register value = 0x%x\n",
+			watermarks->a.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
 
-	prog_wm_value = convert_and_clamp(
-			watermarks->a.cstate_pstate.cstate_enter_plus_exit_ns,
-			refclk_mhz, 0x1fffff);
 
-	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_A, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
-		"SR_ENTER_EXIT_WATERMARK_A calculated =%d\n"
-		"HW register value = 0x%x\n",
-		watermarks->a.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
-
-
-	prog_wm_value = convert_and_clamp(
-			watermarks->a.cstate_pstate.cstate_exit_ns,
-			refclk_mhz, 0x1fffff);
-	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_A, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
-		"SR_EXIT_WATERMARK_A calculated =%d\n"
-		"HW register value = 0x%x\n",
-		watermarks->a.cstate_pstate.cstate_exit_ns, prog_wm_value);
-
+		prog_wm_value = convert_and_clamp(
+				watermarks->a.cstate_pstate.cstate_exit_ns,
+				refclk_mhz, 0x1fffff);
+		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_A, prog_wm_value);
+		dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+			"SR_EXIT_WATERMARK_A calculated =%d\n"
+			"HW register value = 0x%x\n",
+			watermarks->a.cstate_pstate.cstate_exit_ns, prog_wm_value);
+	}
 
 	prog_wm_value = convert_and_clamp(
 			watermarks->a.cstate_pstate.pstate_change_ns,
 			refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_A, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"DRAM_CLK_CHANGE_WATERMARK_A calculated =%d\n"
 		"HW register value = 0x%x\n\n",
 		watermarks->a.cstate_pstate.pstate_change_ns, prog_wm_value);
@@ -500,7 +516,7 @@ static void program_watermarks(
 	prog_wm_value = convert_and_clamp(
 			watermarks->b.urgent_ns, refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_B, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"URGENCY_WATERMARK_B calculated =%d\n"
 		"HW register value = 0x%x\n",
 		watermarks->b.urgent_ns, prog_wm_value);
@@ -510,36 +526,38 @@ static void program_watermarks(
 			watermarks->b.pte_meta_urgent_ns,
 			refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_B, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"PTE_META_URGENCY_WATERMARK_B calculated =%d\n"
 		"HW register value = 0x%x\n",
 		watermarks->b.pte_meta_urgent_ns, prog_wm_value);
 
 
-	prog_wm_value = convert_and_clamp(
-			watermarks->b.cstate_pstate.cstate_enter_plus_exit_ns,
-			refclk_mhz, 0x1fffff);
-	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_B, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
-		"SR_ENTER_WATERMARK_B calculated =%d\n"
-		"HW register value = 0x%x\n",
-		watermarks->b.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
+	if (REG(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_B)) {
+		prog_wm_value = convert_and_clamp(
+				watermarks->b.cstate_pstate.cstate_enter_plus_exit_ns,
+				refclk_mhz, 0x1fffff);
+		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_B, prog_wm_value);
+		dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+			"SR_ENTER_WATERMARK_B calculated =%d\n"
+			"HW register value = 0x%x\n",
+			watermarks->b.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
 
 
-	prog_wm_value = convert_and_clamp(
-			watermarks->b.cstate_pstate.cstate_exit_ns,
-			refclk_mhz, 0x1fffff);
-	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_B, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
-		"SR_EXIT_WATERMARK_B calculated =%d\n"
-		"HW register value = 0x%x\n",
-		watermarks->b.cstate_pstate.cstate_exit_ns, prog_wm_value);
+		prog_wm_value = convert_and_clamp(
+				watermarks->b.cstate_pstate.cstate_exit_ns,
+				refclk_mhz, 0x1fffff);
+		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_B, prog_wm_value);
+		dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+			"SR_EXIT_WATERMARK_B calculated =%d\n"
+			"HW register value = 0x%x\n",
+			watermarks->b.cstate_pstate.cstate_exit_ns, prog_wm_value);
+	}
 
 	prog_wm_value = convert_and_clamp(
 			watermarks->b.cstate_pstate.pstate_change_ns,
 			refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_B, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"DRAM_CLK_CHANGE_WATERMARK_B calculated =%d\n\n"
 		"HW register value = 0x%x\n",
 		watermarks->b.cstate_pstate.pstate_change_ns, prog_wm_value);
@@ -548,7 +566,7 @@ static void program_watermarks(
 	prog_wm_value = convert_and_clamp(
 			watermarks->c.urgent_ns, refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_C, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"URGENCY_WATERMARK_C calculated =%d\n"
 		"HW register value = 0x%x\n",
 		watermarks->c.urgent_ns, prog_wm_value);
@@ -558,37 +576,38 @@ static void program_watermarks(
 			watermarks->c.pte_meta_urgent_ns,
 			refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_C, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"PTE_META_URGENCY_WATERMARK_C calculated =%d\n"
 		"HW register value = 0x%x\n",
 		watermarks->c.pte_meta_urgent_ns, prog_wm_value);
 
 
-	prog_wm_value = convert_and_clamp(
-			watermarks->c.cstate_pstate.cstate_enter_plus_exit_ns,
-			refclk_mhz, 0x1fffff);
-	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_C, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
-		"SR_ENTER_WATERMARK_C calculated =%d\n"
-		"HW register value = 0x%x\n",
-		watermarks->c.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
+	if (REG(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_C)) {
+		prog_wm_value = convert_and_clamp(
+				watermarks->c.cstate_pstate.cstate_enter_plus_exit_ns,
+				refclk_mhz, 0x1fffff);
+		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_C, prog_wm_value);
+		dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+			"SR_ENTER_WATERMARK_C calculated =%d\n"
+			"HW register value = 0x%x\n",
+			watermarks->c.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
 
 
-	prog_wm_value = convert_and_clamp(
-			watermarks->c.cstate_pstate.cstate_exit_ns,
-			refclk_mhz, 0x1fffff);
-	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_C, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
-		"SR_EXIT_WATERMARK_C calculated =%d\n"
-		"HW register value = 0x%x\n",
-		watermarks->c.cstate_pstate.cstate_exit_ns, prog_wm_value);
-
+		prog_wm_value = convert_and_clamp(
+				watermarks->c.cstate_pstate.cstate_exit_ns,
+				refclk_mhz, 0x1fffff);
+		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_C, prog_wm_value);
+		dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+			"SR_EXIT_WATERMARK_C calculated =%d\n"
+			"HW register value = 0x%x\n",
+			watermarks->c.cstate_pstate.cstate_exit_ns, prog_wm_value);
+	}
 
 	prog_wm_value = convert_and_clamp(
 			watermarks->c.cstate_pstate.pstate_change_ns,
 			refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_C, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"DRAM_CLK_CHANGE_WATERMARK_C calculated =%d\n\n"
 		"HW register value = 0x%x\n",
 		watermarks->c.cstate_pstate.pstate_change_ns, prog_wm_value);
@@ -597,7 +616,7 @@ static void program_watermarks(
 	prog_wm_value = convert_and_clamp(
 			watermarks->d.urgent_ns, refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_D, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"URGENCY_WATERMARK_D calculated =%d\n"
 		"HW register value = 0x%x\n",
 		watermarks->d.urgent_ns, prog_wm_value);
@@ -606,37 +625,39 @@ static void program_watermarks(
 			watermarks->d.pte_meta_urgent_ns,
 			refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_D, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"PTE_META_URGENCY_WATERMARK_D calculated =%d\n"
 		"HW register value = 0x%x\n",
 		watermarks->d.pte_meta_urgent_ns, prog_wm_value);
 
 
-	prog_wm_value = convert_and_clamp(
-			watermarks->d.cstate_pstate.cstate_enter_plus_exit_ns,
-			refclk_mhz, 0x1fffff);
-	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_D, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
-		"SR_ENTER_WATERMARK_D calculated =%d\n"
-		"HW register value = 0x%x\n",
-		watermarks->d.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
+	if (REG(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_D)) {
+		prog_wm_value = convert_and_clamp(
+				watermarks->d.cstate_pstate.cstate_enter_plus_exit_ns,
+				refclk_mhz, 0x1fffff);
+		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_D, prog_wm_value);
+		dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+			"SR_ENTER_WATERMARK_D calculated =%d\n"
+			"HW register value = 0x%x\n",
+			watermarks->d.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
 
 
-	prog_wm_value = convert_and_clamp(
-			watermarks->d.cstate_pstate.cstate_exit_ns,
-			refclk_mhz, 0x1fffff);
-	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_D, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
-		"SR_EXIT_WATERMARK_D calculated =%d\n"
-		"HW register value = 0x%x\n",
-		watermarks->d.cstate_pstate.cstate_exit_ns, prog_wm_value);
+		prog_wm_value = convert_and_clamp(
+				watermarks->d.cstate_pstate.cstate_exit_ns,
+				refclk_mhz, 0x1fffff);
+		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_D, prog_wm_value);
+		dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+			"SR_EXIT_WATERMARK_D calculated =%d\n"
+			"HW register value = 0x%x\n",
+			watermarks->d.cstate_pstate.cstate_exit_ns, prog_wm_value);
+	}
 
 
 	prog_wm_value = convert_and_clamp(
 			watermarks->d.cstate_pstate.pstate_change_ns,
 			refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_D, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"DRAM_CLK_CHANGE_WATERMARK_D calculated =%d\n"
 		"HW register value = 0x%x\n\n",
 		watermarks->d.cstate_pstate.pstate_change_ns, prog_wm_value);
@@ -771,20 +792,22 @@ static void power_on_plane(
 	struct dce_hwseq *hws,
 	int plane_id)
 {
-	REG_SET(DC_IP_REQUEST_CNTL, 0,
-			IP_REQUEST_EN, 1);
-	dpp_pg_control(hws, plane_id, true);
-	hubp_pg_control(hws, plane_id, true);
-	REG_SET(DC_IP_REQUEST_CNTL, 0,
-			IP_REQUEST_EN, 0);
-	dm_logger_write(hws->ctx->logger, LOG_DEBUG,
-			"Un-gated front end for pipe %d\n", plane_id);
+	if (REG(DC_IP_REQUEST_CNTL)) {
+		REG_SET(DC_IP_REQUEST_CNTL, 0,
+				IP_REQUEST_EN, 1);
+		dpp_pg_control(hws, plane_id, true);
+		hubp_pg_control(hws, plane_id, true);
+		REG_SET(DC_IP_REQUEST_CNTL, 0,
+				IP_REQUEST_EN, 0);
+		dm_logger_write(hws->ctx->logger, LOG_DEBUG,
+				"Un-gated front end for pipe %d\n", plane_id);
+	}
 }
 
 static void undo_DEGVIDCN10_253_wa(struct dc *dc)
 {
 	struct dce_hwseq *hws = dc->hwseq;
-	struct mem_input *mi = dc->res_pool->mis[0];
+	struct hubp *hubp = dc->res_pool->hubps[0];
 	int pwr_status = 0;
 
 	REG_GET(DOMAIN0_PG_STATUS, DOMAIN0_PGFSM_PWR_STATUS, &pwr_status);
@@ -792,7 +815,7 @@ static void undo_DEGVIDCN10_253_wa(struct dc *dc)
 	if (pwr_status == 2)
 		return;
 
-	mi->funcs->set_blank(mi, true);
+	hubp->funcs->set_blank(hubp, true);
 
 	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 1);
@@ -802,17 +825,13 @@ static void undo_DEGVIDCN10_253_wa(struct dc *dc)
 			IP_REQUEST_EN, 0);
 }
 
-static void ready_shared_resources(struct dc *dc)
-{
-	if (dc->current_state->stream_count == 0 &&
-			!dc->debug.disable_stutter)
-		undo_DEGVIDCN10_253_wa(dc);
-}
-
 static void apply_DEGVIDCN10_253_wa(struct dc *dc)
 {
 	struct dce_hwseq *hws = dc->hwseq;
-	struct mem_input *mi = dc->res_pool->mis[0];
+	struct hubp *hubp = dc->res_pool->hubps[0];
+
+	if (dc->debug.disable_stutter)
+		return;
 
 	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 1);
@@ -821,14 +840,7 @@ static void apply_DEGVIDCN10_253_wa(struct dc *dc)
 	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 0);
 
-	mi->funcs->set_hubp_blank_en(mi, false);
-}
-
-static void optimize_shared_resources(struct dc *dc)
-{
-	if (dc->current_state->stream_count == 0 &&
-			!dc->debug.disable_stutter)
-		apply_DEGVIDCN10_253_wa(dc);
+	hubp->funcs->set_hubp_blank_en(hubp, false);
 }
 
 static void bios_golden_init(struct dc *dc)
@@ -887,12 +899,13 @@ static void dcn10_init_hw(struct dc *dc)
 	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct transform *xfm = dc->res_pool->transforms[i];
+		struct dpp *dpp = dc->res_pool->dpps[i];
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
 
-		xfm->funcs->transform_reset(xfm);
+		dpp->funcs->dpp_reset(dpp);
 		dc->res_pool->mpc->funcs->remove(
-				dc->res_pool->mpc, dc->res_pool->opps[i], i);
+				dc->res_pool->mpc, &(dc->res_pool->opps[i]->mpc_tree),
+				dc->res_pool->opps[i]->inst, i);
 
 		/* Blank controller using driver code instead of
 		 * command table.
@@ -1028,12 +1041,11 @@ static void reset_back_end_for_pipe(
 		return;
 	}
 
-	/* TODOFPGA break core_link_disable_stream into 2 functions:
-	 * disable_stream and disable_link. disable_link will disable PHYPLL
-	 * which is used by otg. Move disable_link after disable_crtc
-	 */
-	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
-		core_link_disable_stream(pipe_ctx);
+	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+		/* DPMS may already disable */
+		if (!pipe_ctx->stream->dpms_off)
+			core_link_disable_stream(pipe_ctx, FREE_ACQUIRED_RESOURCE);
+	}
 
 	/* by upper caller loop, parent pipe: pipe0, will be reset last.
 	 * back end share by all pipes and will be disable only when disable
@@ -1062,7 +1074,7 @@ static void reset_back_end_for_pipe(
 static void plane_atomic_disconnect(struct dc *dc,
 		int fe_idx)
 {
-	struct mem_input *mi = dc->res_pool->mis[fe_idx];
+	struct hubp *hubp = dc->res_pool->hubps[fe_idx];
 	struct mpc *mpc = dc->res_pool->mpc;
 	int opp_id, z_idx;
 	int mpcc_id = -1;
@@ -1086,11 +1098,12 @@ static void plane_atomic_disconnect(struct dc *dc,
 
 	if (dc->debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
-	mi->funcs->dcc_control(mi, false, false);
+	hubp->funcs->dcc_control(hubp, false, false);
 	if (dc->debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
 
-	mpc->funcs->remove(mpc, dc->res_pool->opps[opp_id], fe_idx);
+	mpc->funcs->remove(mpc, &(dc->res_pool->opps[opp_id]->mpc_tree),
+			dc->res_pool->opps[opp_id]->inst, fe_idx);
 }
 
 /* disable HW used by plane.
@@ -1099,20 +1112,20 @@ static void plane_atomic_disable(struct dc *dc,
 		int fe_idx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
-	struct mem_input *mi = dc->res_pool->mis[fe_idx];
+	struct hubp *hubp = dc->res_pool->hubps[fe_idx];
 	struct mpc *mpc = dc->res_pool->mpc;
-	int opp_id = mi->opp_id;
+	int opp_id = hubp->opp_id;
 
 	if (opp_id == 0xf)
 		return;
 
-	mpc->funcs->wait_for_idle(mpc, mi->mpcc_id);
-	dc->res_pool->opps[mi->opp_id]->mpcc_disconnect_pending[mi->mpcc_id] = false;
+	mpc->funcs->wait_for_idle(mpc, hubp->mpcc_id);
+	dc->res_pool->opps[hubp->opp_id]->mpcc_disconnect_pending[hubp->mpcc_id] = false;
 	/*dm_logger_write(dc->ctx->logger, LOG_ERROR,
 			"[debug_mpo: atomic disable finished on mpcc %d]\n",
 			fe_idx);*/
 
-	mi->funcs->set_blank(mi, true);
+	hubp->funcs->set_blank(hubp, true);
 
 	if (dc->debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
@@ -1137,20 +1150,22 @@ static void plane_atomic_disable(struct dc *dc,
 static void plane_atomic_power_down(struct dc *dc, int fe_idx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
-	struct transform *xfm = dc->res_pool->transforms[fe_idx];
+	struct dpp *dpp = dc->res_pool->dpps[fe_idx];
 
-	REG_SET(DC_IP_REQUEST_CNTL, 0,
-			IP_REQUEST_EN, 1);
-	dpp_pg_control(hws, fe_idx, false);
-	hubp_pg_control(hws, fe_idx, false);
-	xfm->funcs->transform_reset(xfm);
-	REG_SET(DC_IP_REQUEST_CNTL, 0,
-			IP_REQUEST_EN, 0);
-	dm_logger_write(dc->ctx->logger, LOG_DEBUG,
-			"Power gated front end %d\n", fe_idx);
+	if (REG(DC_IP_REQUEST_CNTL)) {
+		REG_SET(DC_IP_REQUEST_CNTL, 0,
+				IP_REQUEST_EN, 1);
+		dpp_pg_control(hws, fe_idx, false);
+		hubp_pg_control(hws, fe_idx, false);
+		dpp->funcs->dpp_reset(dpp);
+		REG_SET(DC_IP_REQUEST_CNTL, 0,
+				IP_REQUEST_EN, 0);
+		dm_logger_write(dc->ctx->logger, LOG_DEBUG,
+				"Power gated front end %d\n", fe_idx);
 
-	if (dc->debug.sanity_checks)
-		verify_allow_pstate_change_high(dc->hwseq);
+		if (dc->debug.sanity_checks)
+			verify_allow_pstate_change_high(dc->hwseq);
+	}
 }
 
 
@@ -1160,7 +1175,7 @@ static void reset_front_end(
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct timing_generator *tg;
-	int opp_id = dc->res_pool->mis[fe_idx]->opp_id;
+	int opp_id = dc->res_pool->hubps[fe_idx]->opp_id;
 
 	/*Already reset*/
 	if (opp_id == 0xf)
@@ -1192,7 +1207,7 @@ static void reset_front_end(
 static void dcn10_power_down_fe(struct dc *dc, int fe_idx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
-	struct transform *xfm = dc->res_pool->transforms[fe_idx];
+	struct dpp *dpp = dc->res_pool->dpps[fe_idx];
 
 	reset_front_end(dc, fe_idx);
 
@@ -1200,7 +1215,7 @@ static void dcn10_power_down_fe(struct dc *dc, int fe_idx)
 			IP_REQUEST_EN, 1);
 	dpp_pg_control(hws, fe_idx, false);
 	hubp_pg_control(hws, fe_idx, false);
-	xfm->funcs->transform_reset(xfm);
+	dpp->funcs->dpp_reset(dpp);
 	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 0);
 	dm_logger_write(dc->ctx->logger, LOG_DEBUG,
@@ -1275,6 +1290,9 @@ static void reset_hw_ctx_wrap(
 		if (!pipe_ctx_old->stream)
 			continue;
 
+		if (pipe_ctx_old->top_pipe)
+			continue;
+
 		if (!pipe_ctx->stream ||
 				pipe_need_reprogram(pipe_ctx_old, pipe_ctx)) {
 			struct clock_source *old_clk = pipe_ctx_old->clock_source;
@@ -1339,8 +1357,8 @@ static void dcn10_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_c
 	if (plane_state == NULL)
 		return;
 	addr_patched = patch_address_for_sbs_tb_stereo(pipe_ctx, &addr);
-	pipe_ctx->plane_res.mi->funcs->mem_input_program_surface_flip_and_addr(
-			pipe_ctx->plane_res.mi,
+	pipe_ctx->plane_res.hubp->funcs->hubp_program_surface_flip_and_addr(
+			pipe_ctx->plane_res.hubp,
 			&plane_state->address,
 			plane_state->flip_immediate);
 	plane_state->status.requested_address = plane_state->address;
@@ -1351,34 +1369,34 @@ static void dcn10_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_c
 static bool dcn10_set_input_transfer_func(
 	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state)
 {
-	struct transform *xfm_base = pipe_ctx->plane_res.xfm;
+	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	const struct dc_transfer_func *tf = NULL;
 	bool result = true;
 
-	if (xfm_base == NULL)
+	if (dpp_base == NULL)
 		return false;
 
 	if (plane_state->in_transfer_func)
 		tf = plane_state->in_transfer_func;
 
 	if (plane_state->gamma_correction && dce_use_lut(plane_state))
-		xfm_base->funcs->ipp_program_input_lut(xfm_base,
+		dpp_base->funcs->ipp_program_input_lut(dpp_base,
 				plane_state->gamma_correction);
 
 	if (tf == NULL)
-		xfm_base->funcs->ipp_set_degamma(xfm_base, IPP_DEGAMMA_MODE_BYPASS);
+		dpp_base->funcs->ipp_set_degamma(dpp_base, IPP_DEGAMMA_MODE_BYPASS);
 	else if (tf->type == TF_TYPE_PREDEFINED) {
 		switch (tf->tf) {
 		case TRANSFER_FUNCTION_SRGB:
-			xfm_base->funcs->ipp_set_degamma(xfm_base,
+			dpp_base->funcs->ipp_set_degamma(dpp_base,
 					IPP_DEGAMMA_MODE_HW_sRGB);
 			break;
 		case TRANSFER_FUNCTION_BT709:
-			xfm_base->funcs->ipp_set_degamma(xfm_base,
+			dpp_base->funcs->ipp_set_degamma(dpp_base,
 					IPP_DEGAMMA_MODE_HW_xvYCC);
 			break;
 		case TRANSFER_FUNCTION_LINEAR:
-			xfm_base->funcs->ipp_set_degamma(xfm_base,
+			dpp_base->funcs->ipp_set_degamma(dpp_base,
 					IPP_DEGAMMA_MODE_BYPASS);
 			break;
 		case TRANSFER_FUNCTION_PQ:
@@ -1389,7 +1407,7 @@ static bool dcn10_set_input_transfer_func(
 			break;
 		}
 	} else if (tf->type == TF_TYPE_BYPASS) {
-		xfm_base->funcs->ipp_set_degamma(xfm_base, IPP_DEGAMMA_MODE_BYPASS);
+		dpp_base->funcs->ipp_set_degamma(dpp_base, IPP_DEGAMMA_MODE_BYPASS);
 	} else {
 		/*TF_TYPE_DISTRIBUTED_POINTS*/
 		result = false;
@@ -1716,25 +1734,25 @@ static bool dcn10_set_output_transfer_func(
 	struct pipe_ctx *pipe_ctx,
 	const struct dc_stream_state *stream)
 {
-	struct transform *xfm = pipe_ctx->plane_res.xfm;
+	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 
-	if (xfm == NULL)
+	if (dpp == NULL)
 		return false;
 
-	xfm->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
+	dpp->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
 
 	if (stream->out_transfer_func &&
 		stream->out_transfer_func->type ==
 			TF_TYPE_PREDEFINED &&
 		stream->out_transfer_func->tf ==
 			TRANSFER_FUNCTION_SRGB) {
-		xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_SRGB);
+		dpp->funcs->opp_set_regamma_mode(dpp, OPP_REGAMMA_SRGB);
 	} else if (dcn10_translate_regamma_to_hw_format(
-				stream->out_transfer_func, &xfm->regamma_params)) {
-			xfm->funcs->opp_program_regamma_pwl(xfm, &xfm->regamma_params);
-			xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_USER);
+				stream->out_transfer_func, &dpp->regamma_params)) {
+			dpp->funcs->opp_program_regamma_pwl(dpp, &dpp->regamma_params);
+			dpp->funcs->opp_set_regamma_mode(dpp, OPP_REGAMMA_USER);
 	} else {
-		xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_BYPASS);
+		dpp->funcs->opp_set_regamma_mode(dpp, OPP_REGAMMA_BYPASS);
 	}
 
 	return true;
@@ -1745,8 +1763,8 @@ static void dcn10_pipe_control_lock(
 	struct pipe_ctx *pipe,
 	bool lock)
 {
-	struct mem_input *mi = NULL;
-	mi = dc->res_pool->mis[pipe->pipe_idx];
+	struct hubp *hubp = NULL;
+	hubp = dc->res_pool->hubps[pipe->pipe_idx];
 	/* use TG master update lock to lock everything on the TG
 	 * therefore only top pipe need to lock
 	 */
@@ -1997,10 +2015,11 @@ static void dcn10_power_on_fe(
 				plane_state->dst_rect.height);
 
 		dm_logger_write(dc->ctx->logger, LOG_DC,
-				"Pipe %d: width, height, x, y\n"
+				"Pipe %d: width, height, x, y         format:%d\n"
 				"viewport:%d, %d, %d, %d\n"
 				"recout:  %d, %d, %d, %d\n",
 				pipe_ctx->pipe_idx,
+				plane_state->format,
 				pipe_ctx->plane_res.scl_data.viewport.width,
 				pipe_ctx->plane_res.scl_data.viewport.height,
 				pipe_ctx->plane_res.scl_data.viewport.x,
@@ -2019,7 +2038,7 @@ static void dcn10_power_on_fe(
 
 static void program_gamut_remap(struct pipe_ctx *pipe_ctx)
 {
-	struct xfm_grph_csc_adjustment adjust;
+	struct dpp_grph_csc_adjustment adjust;
 	memset(&adjust, 0, sizeof(adjust));
 	adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
 
@@ -2055,7 +2074,7 @@ static void program_gamut_remap(struct pipe_ctx *pipe_ctx)
 				gamut_remap_matrix.matrix[10];
 	}
 
-	pipe_ctx->plane_res.xfm->funcs->transform_set_gamut_remap(pipe_ctx->plane_res.xfm, &adjust);
+	pipe_ctx->plane_res.dpp->funcs->dpp_set_gamut_remap(pipe_ctx->plane_res.dpp, &adjust);
 }
 
 
@@ -2077,7 +2096,7 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 
 			tbl_entry.color_space = color_space;
 			//tbl_entry.regval = matrix;
-			pipe_ctx->plane_res.xfm->funcs->opp_set_csc_adjustment(pipe_ctx->plane_res.xfm, &tbl_entry);
+			pipe_ctx->plane_res.dpp->funcs->opp_set_csc_adjustment(pipe_ctx->plane_res.dpp, &tbl_entry);
 	}
 }
 static bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
@@ -2167,7 +2186,7 @@ static void dcn10_get_surface_visual_confirm_color(
 	}
 }
 
-static void mmhub_read_vm_system_aperture_settings(struct dcn10_mem_input *mi,
+static void mmhub_read_vm_system_aperture_settings(struct dcn10_hubp *hubp1,
 		struct vm_system_aperture_param *apt,
 		struct dce_hwseq *hws)
 {
@@ -2192,7 +2211,7 @@ static void mmhub_read_vm_system_aperture_settings(struct dcn10_mem_input *mi,
 }
 
 /* Temporary read settings, future will get values from kmd directly */
-static void mmhub_read_vm_context0_settings(struct dcn10_mem_input *mi,
+static void mmhub_read_vm_context0_settings(struct dcn10_hubp *hubp1,
 		struct vm_context0_param *vm0,
 		struct dce_hwseq *hws)
 {
@@ -2236,22 +2255,22 @@ static void mmhub_read_vm_context0_settings(struct dcn10_mem_input *mi,
 	vm0->pte_base.quad_part -= fb_offset.quad_part;
 }
 
-static void dcn10_program_pte_vm(struct mem_input *mem_input,
+static void dcn10_program_pte_vm(struct hubp *hubp,
 		enum surface_pixel_format format,
 		union dc_tiling_info *tiling_info,
 		enum dc_rotation_angle rotation,
 		struct dce_hwseq *hws)
 {
-	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 	struct vm_system_aperture_param apt = { {{ 0 } } };
 	struct vm_context0_param vm0 = { { { 0 } } };
 
 
-	mmhub_read_vm_system_aperture_settings(mi, &apt, hws);
-	mmhub_read_vm_context0_settings(mi, &vm0, hws);
+	mmhub_read_vm_system_aperture_settings(hubp1, &apt, hws);
+	mmhub_read_vm_context0_settings(hubp1, &vm0, hws);
 
-	mem_input->funcs->mem_input_set_vm_system_aperture_settings(mem_input, &apt);
-	mem_input->funcs->mem_input_set_vm_context0_settings(mem_input, &vm0);
+	hubp->funcs->hubp_set_vm_system_aperture_settings(hubp, &apt);
+	hubp->funcs->hubp_set_vm_context0_settings(hubp, &vm0);
 }
 
 static void update_dchubp_dpp(
@@ -2260,11 +2279,10 @@ static void update_dchubp_dpp(
 	struct dc_state *context)
 {
 	struct dce_hwseq *hws = dc->hwseq;
-	struct mem_input *mi = pipe_ctx->plane_res.mi;
-	struct transform *xfm = pipe_ctx->plane_res.xfm;
+	struct hubp *hubp = pipe_ctx->plane_res.hubp;
+	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	union plane_size size = plane_state->plane_size;
-	struct default_adjustment ocsc = {0};
 	struct mpcc_cfg mpcc_cfg = {0};
 	struct pipe_ctx *top_pipe;
 	bool per_pixel_alpha = plane_state->per_pixel_alpha && pipe_ctx->bottom_pipe;
@@ -2286,10 +2304,8 @@ static void update_dchubp_dpp(
 	 */
 	REG_UPDATE(DCHUBP_CNTL[pipe_ctx->pipe_idx], HUBP_VTG_SEL, pipe_ctx->stream_res.tg->inst);
 
-	dc->hwss.update_plane_addr(dc, pipe_ctx);
-
-	mi->funcs->mem_input_setup(
-		mi,
+	hubp->funcs->hubp_setup(
+		hubp,
 		&pipe_ctx->dlg_regs,
 		&pipe_ctx->ttu_regs,
 		&pipe_ctx->rq_regs,
@@ -2299,19 +2315,20 @@ static void update_dchubp_dpp(
 
 	if (dc->config.gpu_vm_support)
 		dcn10_program_pte_vm(
-				pipe_ctx->plane_res.mi,
+				pipe_ctx->plane_res.hubp,
 				plane_state->format,
 				&plane_state->tiling_info,
 				plane_state->rotation,
 				hws
 				);
 
-	xfm->funcs->ipp_setup(xfm,
+	dpp->funcs->ipp_setup(dpp,
 			plane_state->format,
 			EXPANSION_MODE_ZERO);
 
-	mpcc_cfg.mi = mi;
-	mpcc_cfg.opp = pipe_ctx->stream_res.opp;
+	mpcc_cfg.dpp_id = hubp->inst;
+	mpcc_cfg.opp_id = pipe_ctx->stream_res.opp->inst;
+	mpcc_cfg.tree_cfg = &(pipe_ctx->stream_res.opp->mpc_tree);
 	for (top_pipe = pipe_ctx->top_pipe; top_pipe; top_pipe = top_pipe->top_pipe)
 		mpcc_cfg.z_index++;
 	if (dc->debug.surface_visual_confirm)
@@ -2328,25 +2345,27 @@ static void update_dchubp_dpp(
 	mpcc_cfg.pre_multiplied_alpha = is_rgb_cspace(
 			pipe_ctx->stream->output_color_space)
 					&& per_pixel_alpha;
-	dc->res_pool->mpc->funcs->add(dc->res_pool->mpc, &mpcc_cfg);
+	hubp->mpcc_id = dc->res_pool->mpc->funcs->add(dc->res_pool->mpc, &mpcc_cfg);
+	hubp->opp_id = mpcc_cfg.opp_id;
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = per_pixel_alpha;
 	pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
 	/* scaler configuration */
-	pipe_ctx->plane_res.xfm->funcs->transform_set_scaler(
-			pipe_ctx->plane_res.xfm, &pipe_ctx->plane_res.scl_data);
-	mi->funcs->mem_program_viewport(mi,
+	pipe_ctx->plane_res.dpp->funcs->dpp_set_scaler(
+			pipe_ctx->plane_res.dpp, &pipe_ctx->plane_res.scl_data);
+
+	hubp->funcs->mem_program_viewport(hubp,
 			&pipe_ctx->plane_res.scl_data.viewport, &pipe_ctx->plane_res.scl_data.viewport_c);
 
 	/*gamut remap*/
 	program_gamut_remap(pipe_ctx);
 
-	/*TODO add adjustments parameters*/
-	ocsc.out_color_space = pipe_ctx->stream->output_color_space;
-	pipe_ctx->plane_res.xfm->funcs->opp_set_csc_default(pipe_ctx->plane_res.xfm, &ocsc);
+	program_csc_matrix(pipe_ctx,
+			pipe_ctx->stream->output_color_space,
+			pipe_ctx->stream->csc_color_matrix.matrix);
 
-	mi->funcs->mem_input_program_surface_config(
-		mi,
+	hubp->funcs->hubp_program_surface_config(
+		hubp,
 		plane_state->format,
 		&plane_state->tiling_info,
 		&size,
@@ -2354,8 +2373,10 @@ static void update_dchubp_dpp(
 		&plane_state->dcc,
 		plane_state->horizontal_mirror);
 
+	dc->hwss.update_plane_addr(dc, pipe_ctx);
+
 	if (is_pipe_tree_visible(pipe_ctx))
-		mi->funcs->set_blank(mi, false);
+		hubp->funcs->set_blank(hubp, false);
 }
 
 
@@ -2393,6 +2414,10 @@ static void program_all_pipe_in_tree(
 	}
 
 	if (pipe_ctx->plane_state != NULL) {
+		struct dc_cursor_position position = { 0 };
+		struct pipe_ctx *cur_pipe_ctx =
+				&dc->current_state->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
+
 		dcn10_power_on_fe(dc, pipe_ctx, context);
 
 		/* temporary dcn1 wa:
@@ -2407,6 +2432,19 @@ static void program_all_pipe_in_tree(
 		toggle_watermark_change_req(dc->hwseq);
 
 		update_dchubp_dpp(dc, pipe_ctx, context);
+
+		/* TODO: this is a hack w/a for switching from mpo to pipe split */
+		dc_stream_set_cursor_position(pipe_ctx->stream, &position);
+
+		dc_stream_set_cursor_attributes(pipe_ctx->stream,
+				&pipe_ctx->stream->cursor_attributes);
+
+		if (cur_pipe_ctx->plane_state != pipe_ctx->plane_state) {
+			dc->hwss.set_input_transfer_func(
+					pipe_ctx, pipe_ctx->plane_state);
+			dc->hwss.set_output_transfer_func(
+					pipe_ctx, pipe_ctx->stream);
+		}
 	}
 
 	if (dc->debug.sanity_checks) {
@@ -2443,6 +2481,30 @@ static void dcn10_pplib_apply_display_requirements(
 		dm_pp_apply_display_requirements(dc->ctx, pp_display_cfg);
 
 	dc->prev_display_config = *pp_display_cfg;
+}
+
+static void optimize_shared_resources(struct dc *dc)
+{
+	if (dc->current_state->stream_count == 0) {
+		apply_DEGVIDCN10_253_wa(dc);
+		/* S0i2 message */
+		dcn10_pplib_apply_display_requirements(dc, dc->current_state);
+	}
+
+	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE)
+		dcn_bw_notify_pplib_of_wm_ranges(dc);
+}
+
+static void ready_shared_resources(struct dc *dc, struct dc_state *context)
+{
+	if (dc->current_state->stream_count == 0 &&
+			!dc->debug.disable_stutter)
+		undo_DEGVIDCN10_253_wa(dc);
+
+	/* S0i2 message */
+	if (dc->current_state->stream_count == 0 &&
+			context->stream_count != 0)
+		dcn10_pplib_apply_display_requirements(dc, context);
 }
 
 static void dcn10_apply_ctx_for_surface(
@@ -2494,7 +2556,7 @@ static void dcn10_apply_ctx_for_surface(
 		 */
 
 		if (pipe_ctx->plane_state && !old_pipe_ctx->plane_state) {
-			if (pipe_ctx->plane_res.mi->opp_id != 0xf && pipe_ctx->stream_res.tg->inst == be_idx) {
+			if (pipe_ctx->plane_res.hubp->opp_id != 0xf && pipe_ctx->stream_res.tg->inst == be_idx) {
 				dcn10_power_down_fe(dc, pipe_ctx->pipe_idx);
 				/*
 				 * power down fe will unlock when calling reset, need
@@ -2518,9 +2580,10 @@ static void dcn10_apply_ctx_for_surface(
 			/* reset mpc */
 			dc->res_pool->mpc->funcs->remove(
 					dc->res_pool->mpc,
-					old_pipe_ctx->stream_res.opp,
+					&(old_pipe_ctx->stream_res.opp->mpc_tree),
+					old_pipe_ctx->stream_res.opp->inst,
 					old_pipe_ctx->pipe_idx);
-			old_pipe_ctx->stream_res.opp->mpcc_disconnect_pending[old_pipe_ctx->plane_res.mi->mpcc_id] = true;
+			old_pipe_ctx->stream_res.opp->mpcc_disconnect_pending[old_pipe_ctx->plane_res.hubp->mpcc_id] = true;
 
 			/*dm_logger_write(dc->ctx->logger, LOG_ERROR,
 					"[debug_mpo: apply_ctx disconnect pending on mpcc %d]\n",
@@ -2532,6 +2595,7 @@ static void dcn10_apply_ctx_for_surface(
 			old_pipe_ctx->top_pipe = NULL;
 			old_pipe_ctx->bottom_pipe = NULL;
 			old_pipe_ctx->plane_state = NULL;
+			old_pipe_ctx->stream = NULL;
 
 			dm_logger_write(dc->ctx->logger, LOG_DC,
 					"Reset mpcc for pipe %d\n",
@@ -2803,7 +2867,7 @@ static void dcn10_wait_for_mpcc_disconnect(
 		if (pipe_ctx->stream_res.opp->mpcc_disconnect_pending[i]) {
 			res_pool->mpc->funcs->wait_for_idle(res_pool->mpc, i);
 			pipe_ctx->stream_res.opp->mpcc_disconnect_pending[i] = false;
-			res_pool->mis[i]->funcs->set_blank(res_pool->mis[i], true);
+			res_pool->hubps[i]->funcs->set_blank(res_pool->hubps[i], true);
 			/*dm_logger_write(dc->ctx->logger, LOG_ERROR,
 					"[debug_mpo: wait_for_mpcc finished waiting on mpcc %d]\n",
 					i);*/
@@ -2834,11 +2898,11 @@ void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 		return;
 
 	plane_state->status.is_flip_pending =
-			pipe_ctx->plane_res.mi->funcs->mem_input_is_flip_pending(
-					pipe_ctx->plane_res.mi);
+			pipe_ctx->plane_res.hubp->funcs->hubp_is_flip_pending(
+					pipe_ctx->plane_res.hubp);
 
-	plane_state->status.current_address = pipe_ctx->plane_res.mi->current_address;
-	if (pipe_ctx->plane_res.mi->current_address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
+	plane_state->status.current_address = pipe_ctx->plane_res.hubp->current_address;
+	if (pipe_ctx->plane_res.hubp->current_address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
 			tg->funcs->is_stereo_left_eye) {
 		plane_state->status.is_right_eye =
 				!tg->funcs->is_stereo_left_eye(pipe_ctx->stream_res.tg);
@@ -2882,6 +2946,8 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.wait_for_mpcc_disconnect = dcn10_wait_for_mpcc_disconnect,
 	.ready_shared_resources = ready_shared_resources,
 	.optimize_shared_resources = optimize_shared_resources,
+	.edp_backlight_control = hwss_edp_backlight_control,
+	.edp_power_control = hwss_edp_power_control
 };
 
 

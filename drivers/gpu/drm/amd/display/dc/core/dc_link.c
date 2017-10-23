@@ -45,6 +45,7 @@
 #include "dce/dce_11_0_enum.h"
 #include "dce/dce_11_0_sh_mask.h"
 
+#define EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK	0x007C /* Copied from atombios.h */
 #define LINK_INFO(...) \
 	dm_logger_write(dc_ctx->logger, LOG_HW_HOTPLUG, \
 		__VA_ARGS__)
@@ -78,14 +79,15 @@ static void destruct(struct dc_link *link)
 		dc_sink_release(link->remote_sinks[i]);
 }
 
-static struct gpio *get_hpd_gpio(const struct dc_link *link)
+struct gpio *get_hpd_gpio(struct dc_bios *dcb,
+		struct graphics_object_id link_id,
+		struct gpio_service *gpio_service)
 {
 	enum bp_result bp_result;
-	struct dc_bios *dcb = link->ctx->dc_bios;
 	struct graphics_object_hpd_info hpd_info;
 	struct gpio_pin_info pin_info;
 
-	if (dcb->funcs->get_hpd_info(dcb, link->link_id, &hpd_info) != BP_RESULT_OK)
+	if (dcb->funcs->get_hpd_info(dcb, link_id, &hpd_info) != BP_RESULT_OK)
 		return NULL;
 
 	bp_result = dcb->funcs->get_gpio_pin_info(dcb,
@@ -97,7 +99,7 @@ static struct gpio *get_hpd_gpio(const struct dc_link *link)
 	}
 
 	return dal_gpio_service_create_irq(
-		link->ctx->gpio_service,
+		gpio_service,
 		pin_info.offset,
 		pin_info.mask);
 }
@@ -153,7 +155,7 @@ static bool program_hpd_filter(
 	}
 
 	/* Obtain HPD handle */
-	hpd = get_hpd_gpio(link);
+	hpd = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
 
 	if (!hpd)
 		return result;
@@ -186,7 +188,7 @@ static bool detect_sink(struct dc_link *link, enum dc_connection_type *type)
 	struct gpio *hpd_pin;
 
 	/* todo: may need to lock gpio access */
-	hpd_pin = get_hpd_gpio(link);
+	hpd_pin = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
 	if (hpd_pin == NULL)
 		goto hpd_gpio_failure;
 
@@ -496,6 +498,7 @@ static void detect_dp(
 		}
 		if (is_mst_supported(link)) {
 			sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT_MST;
+			link->type = dc_connection_mst_branch;
 
 			/*
 			 * This call will initiate MST topology discovery. Which
@@ -524,12 +527,11 @@ static void detect_dp(
 			if (reason == DETECT_REASON_BOOT)
 				boot = true;
 
-			if (dm_helpers_dp_mst_start_top_mgr(
+			if (!dm_helpers_dp_mst_start_top_mgr(
 				link->ctx,
 				link, boot)) {
-				link->type = dc_connection_mst_branch;
-			} else {
 				/* MST not supported */
+				link->type = dc_connection_single;
 				sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT;
 			}
 		}
@@ -638,8 +640,8 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		if (link->dpcd_caps.sink_count.bits.SINK_COUNT)
 			link->dpcd_sink_count = link->dpcd_caps.sink_count.
 					bits.SINK_COUNT;
-			else
-				link->dpcd_sink_count = 1;
+		else
+			link->dpcd_sink_count = 1;
 
 		dal_ddc_service_set_transaction_type(
 						link->ddc,
@@ -746,6 +748,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		if (link->type == dc_connection_mst_branch) {
 			LINK_INFO("link=%d, mst branch is now Disconnected\n",
 				link->link_index);
+
 			dm_helpers_dp_mst_stop_top_mgr(link->ctx, link);
 
 			link->mst_stream_alloc_table.stream_count = 0;
@@ -770,7 +773,7 @@ static enum hpd_source_id get_hpd_line(
 	struct gpio *hpd;
 	enum hpd_source_id hpd_id = HPD_SOURCEID_UNKNOWN;
 
-	hpd = get_hpd_gpio(link);
+	hpd = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
 
 	if (hpd) {
 		switch (dal_irq_get_source(hpd)) {
@@ -940,7 +943,7 @@ static bool construct(
 		goto create_fail;
 	}
 
-	hpd_gpio = get_hpd_gpio(link);
+	hpd_gpio = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
 
 	if (hpd_gpio != NULL)
 		link->irq_source_hpd = dal_irq_get_source(hpd_gpio);
@@ -1343,7 +1346,18 @@ static bool get_ext_hdmi_settings(struct pipe_ctx *pipe_ctx,
 					sizeof(integrated_info->dp2_ext_hdmi_6g_reg_settings));
 			result = true;
 			break;
-
+		case ENGINE_ID_DIGD:
+			settings->slv_addr = integrated_info->dp3_ext_hdmi_slv_addr;
+			settings->reg_num = integrated_info->dp3_ext_hdmi_6g_reg_num;
+			settings->reg_num_6g = integrated_info->dp3_ext_hdmi_6g_reg_num;
+			memmove(settings->reg_settings,
+					integrated_info->dp3_ext_hdmi_reg_settings,
+					sizeof(integrated_info->dp3_ext_hdmi_reg_settings));
+			memmove(settings->reg_settings_6g,
+					integrated_info->dp3_ext_hdmi_6g_reg_settings,
+					sizeof(integrated_info->dp3_ext_hdmi_6g_reg_settings));
+			result = true;
+			break;
 		default:
 			break;
 		}
@@ -1680,7 +1694,9 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 		is_over_340mhz = true;
 
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal)) {
-		if ((pipe_ctx->stream->sink->link->chip_caps >> 2) == 0x2) {
+		unsigned short masked_chip_caps = pipe_ctx->stream->sink->link->chip_caps &
+				EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK;
+		if (masked_chip_caps == (0x2 << 2)) {
 			/* DP159, Retimer settings */
 			eng_id = pipe_ctx->stream_res.stream_enc->id;
 
@@ -1691,7 +1707,7 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 				write_i2c_default_retimer_setting(pipe_ctx,
 						is_vga_mode, is_over_340mhz);
 			}
-		} else if ((pipe_ctx->stream->sink->link->chip_caps >> 2) == 0x1) {
+		} else if (masked_chip_caps == (0x1 << 2)) {
 			/* PI3EQX1204, Redriver settings */
 			write_i2c_redriver_setting(pipe_ctx, is_over_340mhz);
 		}
@@ -1782,7 +1798,7 @@ static void disable_link(struct dc_link *link, enum signal_type signal)
 		else
 			dp_disable_link_phy_mst(link, signal);
 	} else
-		link->link_enc->funcs->disable_output(link->link_enc, signal);
+		link->link_enc->funcs->disable_output(link->link_enc, signal, link);
 }
 
 enum dc_status dc_link_validate_mode_timing(
@@ -2319,16 +2335,20 @@ void core_link_enable_stream(
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		allocate_mst_payload(pipe_ctx);
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		core_dc->hwss.unblank_stream(pipe_ctx,
+			&pipe_ctx->stream->sink->link->cur_link_settings);
 }
 
-void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
+void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 {
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		deallocate_mst_payload(pipe_ctx);
 
-	core_dc->hwss.disable_stream(pipe_ctx);
+	core_dc->hwss.disable_stream(pipe_ctx, option);
 
 	disable_link(pipe_ctx->stream->sink->link, pipe_ctx->stream->signal);
 }

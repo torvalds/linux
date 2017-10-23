@@ -361,7 +361,7 @@ static void program_grph_pixel_format(
 	enum surface_pixel_format format)
 {
 	uint32_t red_xbar = 0, blue_xbar = 0; /* no swap */
-	uint32_t grph_depth, grph_format;
+	uint32_t grph_depth = 0, grph_format = 0;
 	uint32_t sign = 0, floating = 0;
 
 	if (format == SURFACE_PIXEL_FORMAT_GRPH_ABGR8888 ||
@@ -685,9 +685,6 @@ void dce_mem_input_construct(
 	dce_mi->regs = regs;
 	dce_mi->shifts = mi_shift;
 	dce_mi->masks = mi_mask;
-
-	dce_mi->base.mpcc_id = 0xf;
-	dce_mi->base.opp_id = 0xf;
 }
 
 void dce112_mem_input_construct(

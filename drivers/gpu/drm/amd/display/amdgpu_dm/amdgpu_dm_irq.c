@@ -208,24 +208,21 @@ static void remove_timer_handler(struct amdgpu_device *adev,
 			DM_IRQ_TABLE_LOCK(adev, irq_table_flags);
 		}
 
-		if (handler_in == NULL) {
-			/* Remove ALL handlers. */
+		/* Remove ALL handlers. */
+		if (handler_in == NULL)
 			continue;
-		}
 
-		if (handler_in == handler_temp) {
-			/* Remove a SPECIFIC handler.
-			 * Found our handler - we can stop here. */
+		/* Remove a SPECIFIC handler.
+		 * Found our handler - we can stop here. */
+		if (handler_in == handler_temp)
 			break;
-		}
 	}
 
 	DM_IRQ_TABLE_UNLOCK(adev, irq_table_flags);
 
-	if (handler_in != NULL && handler_removed == false) {
+	if (handler_in != NULL && handler_removed == false)
 		DRM_ERROR("DM_IRQ: handler: %p is not in the list!\n",
 				handler_in);
-	}
 }
 
 static bool
@@ -435,7 +432,7 @@ int amdgpu_dm_irq_suspend(struct amdgpu_device *adev)
 	 * Disable HW interrupt  for HPD and HPDRX only since FLIP and VBLANK
 	 * will be disabled from manage_dm_interrupts on disable CRTC.
 	 */
-	for (src = DC_IRQ_SOURCE_HPD1; src < DC_IRQ_SOURCE_HPD6RX; src++) {
+	for (src = DC_IRQ_SOURCE_HPD1; src <= DC_IRQ_SOURCE_HPD6RX; src++) {
 		hnd_list_l = &adev->dm.irq_handler_list_low_tab[src].head;
 		hnd_list_h = &adev->dm.irq_handler_list_high_tab[src];
 		if (!list_empty(hnd_list_l) || !list_empty(hnd_list_h))
@@ -462,7 +459,7 @@ int amdgpu_dm_irq_resume_early(struct amdgpu_device *adev)
 	DRM_DEBUG_KMS("DM_IRQ: early resume\n");
 
 	/* re-enable short pulse interrupts HW interrupt */
-	for (src = DC_IRQ_SOURCE_HPD1RX; src < DC_IRQ_SOURCE_HPD6RX + 1; src++) {
+	for (src = DC_IRQ_SOURCE_HPD1RX; src <= DC_IRQ_SOURCE_HPD6RX; src++) {
 		hnd_list_l = &adev->dm.irq_handler_list_low_tab[src].head;
 		hnd_list_h = &adev->dm.irq_handler_list_high_tab[src];
 		if (!list_empty(hnd_list_l) || !list_empty(hnd_list_h))
@@ -488,7 +485,7 @@ int amdgpu_dm_irq_resume_late(struct amdgpu_device *adev)
 	 * Renable HW interrupt  for HPD and only since FLIP and VBLANK
 	 * will be enabled from manage_dm_interrupts on enable CRTC.
 	 */
-	for (src = DC_IRQ_SOURCE_HPD1; src < DC_IRQ_SOURCE_HPD6; src++) {
+	for (src = DC_IRQ_SOURCE_HPD1; src <= DC_IRQ_SOURCE_HPD6; src++) {
 		hnd_list_l = &adev->dm.irq_handler_list_low_tab[src].head;
 		hnd_list_h = &adev->dm.irq_handler_list_high_tab[src];
 		if (!list_empty(hnd_list_l) || !list_empty(hnd_list_h))
