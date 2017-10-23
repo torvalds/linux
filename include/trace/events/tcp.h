@@ -154,6 +154,13 @@ DEFINE_EVENT(tcp_event_sk, tcp_receive_reset,
 	TP_ARGS(sk)
 );
 
+DEFINE_EVENT(tcp_event_sk, tcp_destroy_sock,
+
+	TP_PROTO(const struct sock *sk),
+
+	TP_ARGS(sk)
+);
+
 #endif /* _TRACE_TCP_H */
 
 /* This part must be outside protection */
