@@ -1167,6 +1167,11 @@ struct mvpp2_bm_pool {
 	u32 port_map;
 };
 
+#define IS_TSO_HEADER(txq_pcpu, addr) \
+	((addr) >= (txq_pcpu)->tso_headers_dma && \
+	 (addr) < (txq_pcpu)->tso_headers_dma + \
+	 (txq_pcpu)->size * TSO_HEADER_SIZE)
+
 /* Queue modes */
 #define MVPP2_QDIST_SINGLE_MODE	0
 #define MVPP2_QDIST_MULTI_MODE	1
@@ -5321,8 +5326,9 @@ static void mvpp2_txq_bufs_free(struct mvpp2_port *port,
 		struct mvpp2_txq_pcpu_buf *tx_buf =
 			txq_pcpu->buffs + txq_pcpu->txq_get_index;
 
-		dma_unmap_single(port->dev->dev.parent, tx_buf->dma,
-				 tx_buf->size, DMA_TO_DEVICE);
+		if (!IS_TSO_HEADER(txq_pcpu, tx_buf->dma))
+			dma_unmap_single(port->dev->dev.parent, tx_buf->dma,
+					 tx_buf->size, DMA_TO_DEVICE);
 		if (tx_buf->skb)
 			dev_kfree_skb_any(tx_buf->skb);
 
@@ -6212,12 +6218,15 @@ static inline void
 tx_desc_unmap_put(struct mvpp2_port *port, struct mvpp2_tx_queue *txq,
 		  struct mvpp2_tx_desc *desc)
 {
+	struct mvpp2_txq_pcpu *txq_pcpu = this_cpu_ptr(txq->pcpu);
+
 	dma_addr_t buf_dma_addr =
 		mvpp2_txdesc_dma_addr_get(port, desc);
 	size_t buf_sz =
 		mvpp2_txdesc_size_get(port, desc);
-	dma_unmap_single(port->dev->dev.parent, buf_dma_addr,
-			 buf_sz, DMA_TO_DEVICE);
+	if (!IS_TSO_HEADER(txq_pcpu, buf_dma_addr))
+		dma_unmap_single(port->dev->dev.parent, buf_dma_addr,
+				 buf_sz, DMA_TO_DEVICE);
 	mvpp2_txq_desc_put(txq);
 }
 
