@@ -102,8 +102,6 @@ enum nvmefc_fcp_datadir {
 };
 
 
-#define NVME_FC_MAX_SEGMENTS		256
-
 /**
  * struct nvmefc_fcp_req - Request structure passed from NVME-FC transport
  *                         to LLDD in order to perform a NVME FCP IO operation.
