@@ -5609,7 +5609,7 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 
 		txq_pcpu->tso_headers =
 			dma_alloc_coherent(port->dev->dev.parent,
-					   MVPP2_AGGR_TXQ_SIZE * TSO_HEADER_SIZE,
+					   txq_pcpu->size * TSO_HEADER_SIZE,
 					   &txq_pcpu->tso_headers_dma,
 					   GFP_KERNEL);
 		if (!txq_pcpu->tso_headers)
@@ -5623,7 +5623,7 @@ cleanup:
 		kfree(txq_pcpu->buffs);
 
 		dma_free_coherent(port->dev->dev.parent,
-				  MVPP2_AGGR_TXQ_SIZE * MVPP2_DESC_ALIGNED_SIZE,
+				  txq_pcpu->size * TSO_HEADER_SIZE,
 				  txq_pcpu->tso_headers,
 				  txq_pcpu->tso_headers_dma);
 	}
@@ -5647,7 +5647,7 @@ static void mvpp2_txq_deinit(struct mvpp2_port *port,
 		kfree(txq_pcpu->buffs);
 
 		dma_free_coherent(port->dev->dev.parent,
-				  MVPP2_AGGR_TXQ_SIZE * MVPP2_DESC_ALIGNED_SIZE,
+				  txq_pcpu->size * TSO_HEADER_SIZE,
 				  txq_pcpu->tso_headers,
 				  txq_pcpu->tso_headers_dma);
 	}
