@@ -176,7 +176,7 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 	ring = &adev->vce.ring[0];
 	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_NORMAL];
 	r = amd_sched_entity_init(&ring->sched, &adev->vce.entity,
-				  rq, amdgpu_sched_jobs);
+				  rq, amdgpu_sched_jobs, NULL);
 	if (r != 0) {
 		DRM_ERROR("Failed setting up VCE run queue.\n");
 		return r;

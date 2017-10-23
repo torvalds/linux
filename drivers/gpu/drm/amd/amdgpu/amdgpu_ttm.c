@@ -110,7 +110,7 @@ static int amdgpu_ttm_global_init(struct amdgpu_device *adev)
 	ring = adev->mman.buffer_funcs_ring;
 	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_KERNEL];
 	r = amd_sched_entity_init(&ring->sched, &adev->mman.entity,
-				  rq, amdgpu_sched_jobs);
+				  rq, amdgpu_sched_jobs, NULL);
 	if (r) {
 		DRM_ERROR("Failed setting up TTM BO move run queue.\n");
 		goto error_entity;

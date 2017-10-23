@@ -63,6 +63,7 @@ struct amd_sched_entity {
 
 	struct dma_fence		*dependency;
 	struct dma_fence_cb		cb;
+	atomic_t	*guilty; /* points to ctx's guilty */
 };
 
 /**
@@ -155,7 +156,7 @@ void amd_sched_fini(struct amd_gpu_scheduler *sched);
 int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 			  struct amd_sched_entity *entity,
 			  struct amd_sched_rq *rq,
-			  uint32_t jobs);
+			  uint32_t jobs, atomic_t* guilty);
 void amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 			   struct amd_sched_entity *entity);
 void amd_sched_entity_push_job(struct amd_sched_job *sched_job);
