@@ -298,8 +298,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 			key = tp->af_specific->md5_lookup(sk, sk);
 			if (key) {
 				tcptw->tw_md5_key = kmemdup(key, sizeof(*key), GFP_ATOMIC);
-				if (tcptw->tw_md5_key && !tcp_alloc_md5sig_pool())
-					BUG();
+				BUG_ON(tcptw->tw_md5_key && !tcp_alloc_md5sig_pool());
 			}
 		} while (0);
 #endif
