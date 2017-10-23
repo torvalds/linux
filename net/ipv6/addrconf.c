@@ -956,9 +956,8 @@ static u32 inet6_addr_hash(const struct in6_addr *addr)
 }
 
 static bool ipv6_chk_same_addr(struct net *net, const struct in6_addr *addr,
-			       struct net_device *dev)
+			       struct net_device *dev, unsigned int hash)
 {
-	unsigned int hash = inet6_addr_hash(addr);
 	struct inet6_ifaddr *ifp;
 
 	hlist_for_each_entry(ifp, &inet6_addr_lst[hash], addr_lst) {
@@ -974,23 +973,19 @@ static bool ipv6_chk_same_addr(struct net *net, const struct in6_addr *addr,
 
 static int ipv6_add_addr_hash(struct net_device *dev, struct inet6_ifaddr *ifa)
 {
-	unsigned int hash;
+	unsigned int hash = inet6_addr_hash(&ifa->addr);
 	int err = 0;
 
 	spin_lock(&addrconf_hash_lock);
 
 	/* Ignore adding duplicate addresses on an interface */
-	if (ipv6_chk_same_addr(dev_net(dev), &ifa->addr, dev)) {
+	if (ipv6_chk_same_addr(dev_net(dev), &ifa->addr, dev, hash)) {
 		ADBG("ipv6_add_addr: already assigned\n");
 		err = -EEXIST;
-		goto out;
+	} else {
+		hlist_add_head_rcu(&ifa->addr_lst, &inet6_addr_lst[hash]);
 	}
 
-	/* Add to big hash table */
-	hash = inet6_addr_hash(&ifa->addr);
-	hlist_add_head_rcu(&ifa->addr_lst, &inet6_addr_lst[hash]);
-
-out:
 	spin_unlock(&addrconf_hash_lock);
 
 	return err;
