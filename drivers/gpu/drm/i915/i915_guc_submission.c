@@ -610,6 +610,7 @@ done:
 	execlists->first = rb;
 	if (submit) {
 		port_assign(port, last);
+		execlists_set_active(execlists, EXECLISTS_ACTIVE_USER);
 		i915_guc_submit(engine);
 	}
 	spin_unlock_irq(&engine->timeline->lock);
@@ -633,6 +634,8 @@ static void i915_guc_irq_handler(unsigned long data)
 
 		rq = port_request(&port[0]);
 	}
+	if (!rq)
+		execlists_clear_active(execlists, EXECLISTS_ACTIVE_USER);
 
 	if (!port_isset(last_port))
 		i915_guc_dequeue(engine);

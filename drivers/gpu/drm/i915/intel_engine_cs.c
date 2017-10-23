@@ -1548,8 +1548,8 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 	if (test_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted))
 		return false;
 
-	/* Both ports drained, no more ELSP submission? */
-	if (port_request(&engine->execlists.port[0]))
+	/* Waiting to drain ELSP? */
+	if (READ_ONCE(engine->execlists.active))
 		return false;
 
 	/* ELSP is empty, but there are ready requests? */
@@ -1749,6 +1749,7 @@ void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
 					   idx);
 			}
 		}
+		drm_printf(m, "\t\tHW active? 0x%x\n", execlists->active);
 		rcu_read_unlock();
 	} else if (INTEL_GEN(dev_priv) > 6) {
 		drm_printf(m, "\tPP_DIR_BASE: 0x%08x\n",
