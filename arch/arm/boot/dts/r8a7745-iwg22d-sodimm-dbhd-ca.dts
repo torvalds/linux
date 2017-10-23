@@ -1,0 +1,61 @@
+/*
+ * Device Tree Source for the iWave-RZG1E SODIMM carrier board + HDMI daughter
+ * board
+ *
+ * Copyright (C) 2017 Renesas Electronics Corp.
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+#include "r8a7745-iwg22d-sodimm.dts"
+
+/ {
+	model = "iWave RainboW-G22D-SODIMM RZ/G1E based board with HDMI add-on";
+	compatible = "iwave,g22d", "iwave,g22m", "renesas,r8a7745";
+
+	aliases {
+		serial0 = &scif1;
+		serial4 = &scif5;
+		serial6 = &hscif2;
+	};
+};
+
+&hscif2 {
+	pinctrl-0 = <&hscif2_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&pfc {
+	hscif2_pins: hscif2 {
+		groups = "hscif2_data";
+		function = "hscif2";
+	};
+
+	scif1_pins: scif1 {
+		groups = "scif1_data";
+		function = "scif1";
+	};
+
+	scif5_pins: scif5 {
+		groups = "scif5_data_d";
+		function = "scif5";
+	};
+};
+
+&scif1 {
+	pinctrl-0 = <&scif1_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&scif5 {
+	pinctrl-0 = <&scif5_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
