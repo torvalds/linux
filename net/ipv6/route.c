@@ -752,7 +752,7 @@ static struct rt6_info *rt6_select(struct net *net, struct fib6_node *fn,
 	bool do_rr = false;
 	int key_plen;
 
-	if (!leaf)
+	if (!leaf || leaf == net->ipv6.ip6_null_entry)
 		return net->ipv6.ip6_null_entry;
 
 	rt0 = rcu_dereference(fn->rr_ptr);
