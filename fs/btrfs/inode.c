@@ -536,9 +536,14 @@ again:
 		 *
 		 * If the compression fails for any reason, we set the pages
 		 * dirty again later on.
+		 *
+		 * Note that the remaining part is redirtied, the start pointer
+		 * has moved, the end is the original one.
 		 */
-		extent_range_clear_dirty_for_io(inode, start, end);
-		redirty = 1;
+		if (!redirty) {
+			extent_range_clear_dirty_for_io(inode, start, end);
+			redirty = 1;
+		}
 
 		/* Compression level is applied here and only here */
 		ret = btrfs_compress_pages(
