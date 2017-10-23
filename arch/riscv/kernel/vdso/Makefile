@@ -1,7 +1,11 @@
 # Copied from arch/tile/kernel/vdso/Makefile
 
 # Symbols present in the vdso
-vdso-syms = rt_sigreturn
+vdso-syms  = rt_sigreturn
+vdso-syms += gettimeofday
+vdso-syms += clock_gettime
+vdso-syms += clock_getres
+vdso-syms += getcpu
 
 # Files to link into the vdso
 obj-vdso = $(patsubst %, %.o, $(vdso-syms))
