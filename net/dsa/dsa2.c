@@ -260,8 +260,6 @@ static void dsa_cpu_port_unapply(struct dsa_port *port)
 {
 	devlink_port_unregister(&port->devlink_port);
 	dsa_cpu_dsa_destroy(port);
-	port->ds->cpu_port_mask &= ~BIT(port->index);
-
 }
 
 static int dsa_user_port_apply(struct dsa_port *port)
@@ -300,7 +298,6 @@ static void dsa_user_port_unapply(struct dsa_port *port)
 	if (port->slave) {
 		dsa_slave_destroy(port->slave);
 		port->slave = NULL;
-		port->ds->enabled_port_mask &= ~(1 << port->index);
 	}
 }
 
@@ -512,7 +509,6 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 	tag_ops = dsa_resolve_tag_protocol(tag_protocol);
 	if (IS_ERR(tag_ops)) {
 		dev_warn(ds->dev, "No tagger for this switch\n");
-		ds->cpu_port_mask &= ~BIT(index);
 		return PTR_ERR(tag_ops);
 	}
 
