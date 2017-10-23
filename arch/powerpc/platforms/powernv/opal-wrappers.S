@@ -94,7 +94,7 @@ opal_return:
 	 * bytes (always BE) since MSR:LE will end up fixed up as a side
 	 * effect of the rfid.
 	 */
-	FIXUP_ENDIAN
+	FIXUP_ENDIAN_HV
 	ld	r2,PACATOC(r13);
 	lwz	r4,8(r1);
 	ld	r5,PPC_LR_STKOFF(r1);
@@ -120,7 +120,7 @@ opal_real_call:
 	hrfid
 
 opal_return_realmode:
-	FIXUP_ENDIAN
+	FIXUP_ENDIAN_HV
 	ld	r2,PACATOC(r13);
 	lwz	r11,8(r1);
 	ld	r12,PPC_LR_STKOFF(r1)
