@@ -1715,6 +1715,16 @@ config RTC_DRV_MT6397
 
 	  If you want to use Mediatek(R) RTC interface, select Y or M here.
 
+config RTC_DRV_MT7622
+	tristate "MediaTek SoC based RTC"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	help
+	  This enables support for the real time clock built in the MediaTek
+	  SoCs.
+
+	  This drive can also be built as a module. If so, the module
+	  will be called rtc-mt7622.
+
 config RTC_DRV_XGENE
 	tristate "APM X-Gene RTC"
 	depends on HAS_IOMEM
