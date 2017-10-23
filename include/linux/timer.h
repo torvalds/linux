@@ -18,7 +18,6 @@ struct timer_list {
 	struct hlist_node	entry;
 	unsigned long		expires;
 	void			(*function)(unsigned long);
-	unsigned long		data;
 	u32			flags;
 
 #ifdef CONFIG_LOCKDEP
@@ -70,7 +69,6 @@ struct timer_list {
 #define __TIMER_INITIALIZER(_function, _data, _flags) {		\
 		.entry = { .next = TIMER_ENTRY_STATIC },	\
 		.function = (_function),			\
-		.data = (_data),				\
 		.flags = (_flags),				\
 		__TIMER_LOCKDEP_MAP_INITIALIZER(		\
 			__FILE__ ":" __stringify(__LINE__))	\
@@ -121,14 +119,12 @@ static inline void init_timer_on_stack_key(struct timer_list *timer,
 	do {								\
 		__init_timer((_timer), (_flags));			\
 		(_timer)->function = (_fn);				\
-		(_timer)->data = (_data);				\
 	} while (0)
 
 #define __setup_timer_on_stack(_timer, _fn, _data, _flags)		\
 	do {								\
 		__init_timer_on_stack((_timer), (_flags));		\
 		(_timer)->function = (_fn);				\
-		(_timer)->data = (_data);				\
 	} while (0)
 
 #ifndef CONFIG_LOCKDEP
