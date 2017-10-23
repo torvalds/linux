@@ -2451,8 +2451,8 @@ static int ssd_init_index(void)
 {
 	INIT_LIST_HEAD(&ssd_list);
 	atomic_set(&ssd_nr, 0);
-	memset(ssd_index_bits, 0, (SSD_MAX_DEV / BITS_PER_LONG + 1));
-	memset(ssd_index_bits_sl, 0, (SSD_MAX_DEV / BITS_PER_LONG + 1));
+	memset(ssd_index_bits, 0, sizeof(ssd_index_bits));
+	memset(ssd_index_bits_sl, 0, sizeof(ssd_index_bits_sl));
 
 	return 0;
 }
