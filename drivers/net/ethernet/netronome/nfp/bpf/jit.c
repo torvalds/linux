@@ -642,6 +642,100 @@ data_st_host_order(struct nfp_prog *nfp_prog, u8 dst_gpr, swreg offset,
 	return 0;
 }
 
+typedef int
+(*lmem_step)(struct nfp_prog *nfp_prog, u8 gpr, u8 gpr_byte, s32 off,
+	     unsigned int size);
+
+static int
+wrp_lmem_store(struct nfp_prog *nfp_prog, u8 src, u8 src_byte, s32 off,
+	       unsigned int size)
+{
+	u32 idx, dst_byte;
+	enum shf_sc sc;
+	swreg reg;
+	int shf;
+	u8 mask;
+
+	if (WARN_ON_ONCE(src_byte + size > 4 || off % 4 + size > 4))
+		return -EOPNOTSUPP;
+
+	idx = off / 4;
+
+	/* Move the entire word */
+	if (size == 4) {
+		wrp_mov(nfp_prog, reg_lm(0, idx), reg_b(src));
+		return 0;
+	}
+
+	dst_byte = off % 4;
+
+	mask = (1 << size) - 1;
+	mask <<= dst_byte;
+
+	if (WARN_ON_ONCE(mask > 0xf))
+		return -EOPNOTSUPP;
+
+	shf = abs(src_byte - dst_byte) * 8;
+	if (src_byte == dst_byte) {
+		sc = SHF_SC_NONE;
+	} else if (src_byte < dst_byte) {
+		shf = 32 - shf;
+		sc = SHF_SC_L_SHF;
+	} else {
+		sc = SHF_SC_R_SHF;
+	}
+
+	/* ld_field can address fewer indexes, if offset too large do RMW.
+	 * Because we RMV twice we waste 2 cycles on unaligned 8 byte writes.
+	 */
+	if (idx <= RE_REG_LM_IDX_MAX) {
+		reg = reg_lm(0, idx);
+	} else {
+		reg = imm_a(nfp_prog);
+		wrp_mov(nfp_prog, reg, reg_lm(0, idx));
+	}
+
+	emit_ld_field(nfp_prog, reg, mask, reg_b(src), sc, shf);
+
+	if (idx > RE_REG_LM_IDX_MAX)
+		wrp_mov(nfp_prog, reg_lm(0, idx), reg);
+
+	return 0;
+}
+
+static int
+mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+	     unsigned int size, u8 gpr, lmem_step step)
+{
+	s32 off = nfp_prog->stack_depth + meta->insn.off;
+	u32 gpr_byte = 0;
+	int ret;
+
+	while (size) {
+		u32 slice_end;
+		u8 slice_size;
+
+		slice_size = min(size, 4 - gpr_byte);
+		slice_end = min(off + slice_size, round_up(off + 1, 4));
+		slice_size = slice_end - off;
+
+		ret = step(nfp_prog, gpr, gpr_byte, off, slice_size);
+		if (ret)
+			return ret;
+
+		gpr_byte += slice_size;
+		if (gpr_byte >= 4) {
+			gpr_byte -= 4;
+			gpr++;
+		}
+
+		size -= slice_size;
+		off += slice_size;
+	}
+
+	return 0;
+}
+
 static void
 wrp_alu_imm(struct nfp_prog *nfp_prog, u8 dst, enum alu_op alu_op, u32 imm)
 {
@@ -1299,11 +1393,22 @@ mem_stx_data(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 }
 
 static int
+mem_stx_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+	      unsigned int size)
+{
+	return mem_op_stack(nfp_prog, meta, size, meta->insn.src_reg * 2,
+			    wrp_lmem_store);
+}
+
+static int
 mem_stx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	unsigned int size)
 {
 	if (meta->ptr.type == PTR_TO_PACKET)
 		return mem_stx_data(nfp_prog, meta, size);
+
+	if (meta->ptr.type == PTR_TO_STACK)
+		return mem_stx_stack(nfp_prog, meta, size);
 
 	return -EOPNOTSUPP;
 }

@@ -151,6 +151,7 @@ static inline u8 mbpf_mode(const struct nfp_insn_meta *meta)
  * @tgt_done: jump target to get the next packet
  * @n_translated: number of successfully translated instructions (for errors)
  * @error: error code if something went wrong
+ * @stack_depth: max stack depth from the verifier
  * @insns: list of BPF instruction wrappers (struct nfp_insn_meta)
  */
 struct nfp_prog {
@@ -170,6 +171,8 @@ struct nfp_prog {
 
 	unsigned int n_translated;
 	int error;
+
+	unsigned int stack_depth;
 
 	struct list_head insns;
 };
