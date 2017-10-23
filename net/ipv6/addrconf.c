@@ -1844,7 +1844,7 @@ int ipv6_chk_addr_and_flags(struct net *net, const struct in6_addr *addr,
 	struct inet6_ifaddr *ifp;
 	u32 ifp_flags;
 
-	rcu_read_lock_bh();
+	rcu_read_lock();
 	hlist_for_each_entry_rcu(ifp, &inet6_addr_lst[hash], addr_lst) {
 		if (!net_eq(dev_net(ifp->idev->dev), net))
 			continue;
@@ -1858,12 +1858,12 @@ int ipv6_chk_addr_and_flags(struct net *net, const struct in6_addr *addr,
 		    !(ifp_flags&banned_flags) &&
 		    (!dev || ifp->idev->dev == dev ||
 		     !(ifp->scope&(IFA_LINK|IFA_HOST) || strict))) {
-			rcu_read_unlock_bh();
+			rcu_read_unlock();
 			return 1;
 		}
 	}
 
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 	return 0;
 }
 EXPORT_SYMBOL(ipv6_chk_addr_and_flags);
