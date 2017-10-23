@@ -740,7 +740,7 @@
 	iep_mmu: iommu@ff900800 {
 		compatible = "rockchip,iommu";
 		reg = <0x0 0xff900800 0x0 0x100>;
-		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "iep_mmu";
 		#iommu-cells = <0>;
 		status = "disabled";

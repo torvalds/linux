@@ -107,6 +107,10 @@ struct its_node {
 
 #define ITS_ITT_ALIGN		SZ_256
 
+/* The maximum number of VPEID bits supported by VLPI commands */
+#define ITS_MAX_VPEID_BITS	(16)
+#define ITS_MAX_VPEID		(1 << (ITS_MAX_VPEID_BITS))
+
 /* Convert page order to size in bytes */
 #define PAGE_ORDER_TO_SIZE(o)	(PAGE_SIZE << (o))
 
@@ -308,7 +312,7 @@ static void its_encode_size(struct its_cmd_block *cmd, u8 size)
 
 static void its_encode_itt(struct its_cmd_block *cmd, u64 itt_addr)
 {
-	its_mask_encode(&cmd->raw_cmd[2], itt_addr >> 8, 50, 8);
+	its_mask_encode(&cmd->raw_cmd[2], itt_addr >> 8, 51, 8);
 }
 
 static void its_encode_valid(struct its_cmd_block *cmd, int valid)
@@ -318,7 +322,7 @@ static void its_encode_valid(struct its_cmd_block *cmd, int valid)
 
 static void its_encode_target(struct its_cmd_block *cmd, u64 target_addr)
 {
-	its_mask_encode(&cmd->raw_cmd[2], target_addr >> 16, 50, 16);
+	its_mask_encode(&cmd->raw_cmd[2], target_addr >> 16, 51, 16);
 }
 
 static void its_encode_collection(struct its_cmd_block *cmd, u16 col)
@@ -358,7 +362,7 @@ static void its_encode_its_list(struct its_cmd_block *cmd, u16 its_list)
 
 static void its_encode_vpt_addr(struct its_cmd_block *cmd, u64 vpt_pa)
 {
-	its_mask_encode(&cmd->raw_cmd[3], vpt_pa >> 16, 50, 16);
+	its_mask_encode(&cmd->raw_cmd[3], vpt_pa >> 16, 51, 16);
 }
 
 static void its_encode_vpt_size(struct its_cmd_block *cmd, u8 vpt_size)
@@ -1478,9 +1482,9 @@ static int its_setup_baser(struct its_node *its, struct its_baser *baser,
 	u64 val = its_read_baser(its, baser);
 	u64 esz = GITS_BASER_ENTRY_SIZE(val);
 	u64 type = GITS_BASER_TYPE(val);
+	u64 baser_phys, tmp;
 	u32 alloc_pages;
 	void *base;
-	u64 tmp;
 
 retry_alloc_baser:
 	alloc_pages = (PAGE_ORDER_TO_SIZE(order) / psz);
@@ -1496,8 +1500,24 @@ retry_alloc_baser:
 	if (!base)
 		return -ENOMEM;
 
+	baser_phys = virt_to_phys(base);
+
+	/* Check if the physical address of the memory is above 48bits */
+	if (IS_ENABLED(CONFIG_ARM64_64K_PAGES) && (baser_phys >> 48)) {
+
+		/* 52bit PA is supported only when PageSize=64K */
+		if (psz != SZ_64K) {
+			pr_err("ITS: no 52bit PA support when psz=%d\n", psz);
+			free_pages((unsigned long)base, order);
+			return -ENXIO;
+		}
+
+		/* Convert 52bit PA to 48bit field */
+		baser_phys = GITS_BASER_PHYS_52_to_48(baser_phys);
+	}
+
 retry_baser:
-	val = (virt_to_phys(base)				 |
+	val = (baser_phys					 |
 		(type << GITS_BASER_TYPE_SHIFT)			 |
 		((esz - 1) << GITS_BASER_ENTRY_SIZE_SHIFT)	 |
 		((alloc_pages - 1) << GITS_BASER_PAGES_SHIFT)	 |
@@ -1582,13 +1602,12 @@ retry_baser:
 
 static bool its_parse_indirect_baser(struct its_node *its,
 				     struct its_baser *baser,
-				     u32 psz, u32 *order)
+				     u32 psz, u32 *order, u32 ids)
 {
 	u64 tmp = its_read_baser(its, baser);
 	u64 type = GITS_BASER_TYPE(tmp);
 	u64 esz = GITS_BASER_ENTRY_SIZE(tmp);
 	u64 val = GITS_BASER_InnerShareable | GITS_BASER_RaWaWb;
-	u32 ids = its->device_ids;
 	u32 new_order = *order;
 	bool indirect = false;
 
@@ -1680,9 +1699,13 @@ static int its_alloc_tables(struct its_node *its)
 			continue;
 
 		case GITS_BASER_TYPE_DEVICE:
+			indirect = its_parse_indirect_baser(its, baser,
+							    psz, &order,
+							    its->device_ids);
 		case GITS_BASER_TYPE_VCPU:
 			indirect = its_parse_indirect_baser(its, baser,
-							    psz, &order);
+							    psz, &order,
+							    ITS_MAX_VPEID_BITS);
 			break;
 		}
 
@@ -2551,7 +2574,7 @@ static struct irq_chip its_vpe_irq_chip = {
 
 static int its_vpe_id_alloc(void)
 {
-	return ida_simple_get(&its_vpeid_ida, 0, 1 << 16, GFP_KERNEL);
+	return ida_simple_get(&its_vpeid_ida, 0, ITS_MAX_VPEID, GFP_KERNEL);
 }
 
 static void its_vpe_id_free(u16 id)
@@ -2851,7 +2874,7 @@ static int its_init_vpe_domain(void)
 		return -ENOMEM;
 	}
 
-	BUG_ON(entries != vpe_proxy.dev->nr_ites);
+	BUG_ON(entries > vpe_proxy.dev->nr_ites);
 
 	raw_spin_lock_init(&vpe_proxy.lock);
 	vpe_proxy.next_victim = 0;

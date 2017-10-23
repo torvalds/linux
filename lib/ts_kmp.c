@@ -27,7 +27,7 @@
  *
  *   [1] Cormen, Leiserson, Rivest, Stein
  *       Introdcution to Algorithms, 2nd Edition, MIT Press
- *   [2] See finite automation theory
+ *   [2] See finite automaton theory
  */
 
 #include <linux/module.h>

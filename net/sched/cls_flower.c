@@ -234,6 +234,7 @@ static void fl_hw_destroy_filter(struct tcf_proto *tp, struct cls_fl_filter *f)
 	tc_cls_common_offload_init(&cls_flower.common, tp);
 	cls_flower.command = TC_CLSFLOWER_DESTROY;
 	cls_flower.cookie = (unsigned long) f;
+	cls_flower.egress_dev = f->hw_dev != tp->q->dev_queue->dev;
 
 	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSFLOWER, &cls_flower);
 }
@@ -289,6 +290,7 @@ static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f)
 	cls_flower.command = TC_CLSFLOWER_STATS;
 	cls_flower.cookie = (unsigned long) f;
 	cls_flower.exts = &f->exts;
+	cls_flower.egress_dev = f->hw_dev != tp->q->dev_queue->dev;
 
 	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSFLOWER,
 				      &cls_flower);
