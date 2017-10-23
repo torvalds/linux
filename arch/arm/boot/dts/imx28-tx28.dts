@@ -329,7 +329,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&tx28_pca9554_pins>;
 		interrupt-parent = <&gpio3>;
-		interrupts = <28 0>;
+		interrupts = <28 IRQ_TYPE_NONE>;
 		gpio-controller;
 		#gpio-cells = <2>;
 		interrupt-controller;
@@ -353,7 +353,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&tx28_tsc2007_pins>;
 		interrupt-parent = <&gpio3>;
-		interrupts = <20 0>;
+		interrupts = <20 IRQ_TYPE_EDGE_FALLING>;
 		pendown-gpio = <&gpio3 20 GPIO_ACTIVE_LOW>;
 		ti,x-plate-ohms = /bits/ 16 <660>;
 	};
