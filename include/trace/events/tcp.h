@@ -77,6 +77,17 @@ DEFINE_EVENT(tcp_event_sk_skb, tcp_retransmit_skb,
 	TP_ARGS(sk, skb)
 );
 
+/*
+ * skb of trace_tcp_send_reset is the skb that caused RST. In case of
+ * active reset, skb should be NULL
+ */
+DEFINE_EVENT(tcp_event_sk_skb, tcp_send_reset,
+
+	TP_PROTO(const struct sock *sk, const struct sk_buff *skb),
+
+	TP_ARGS(sk, skb)
+);
+
 #endif /* _TRACE_TCP_H */
 
 /* This part must be outside protection */
