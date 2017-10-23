@@ -13406,6 +13406,7 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	unsigned ngroups;
 	int qos_rmt_count;
 	int user_rmt_reduced;
+	u32 n_usr_ctxts;
 
 	/*
 	 * Kernel receive contexts:
@@ -13448,42 +13449,42 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	 *	  num_user_contexts is negative
 	 */
 	if (num_user_contexts < 0)
-		num_user_contexts =
-			cpumask_weight(&node_affinity.real_cpu_mask);
-
+		n_usr_ctxts = cpumask_weight(&node_affinity.real_cpu_mask);
+	else
+		n_usr_ctxts = num_user_contexts;
 	/*
 	 * Adjust the counts given a global max.
 	 */
-	if (total_contexts + num_user_contexts > dd->chip_rcv_contexts) {
+	if (total_contexts + n_usr_ctxts > dd->chip_rcv_contexts) {
 		dd_dev_err(dd,
-			   "Reducing # user receive contexts to: %d, from %d\n",
+			   "Reducing # user receive contexts to: %d, from %u\n",
 			   (int)(dd->chip_rcv_contexts - total_contexts),
-			   (int)num_user_contexts);
+			   n_usr_ctxts);
 		/* recalculate */
-		num_user_contexts = dd->chip_rcv_contexts - total_contexts;
+		n_usr_ctxts = dd->chip_rcv_contexts - total_contexts;
 	}
 
 	/* each user context requires an entry in the RMT */
 	qos_rmt_count = qos_rmt_entries(dd, NULL, NULL);
-	if (qos_rmt_count + num_user_contexts > NUM_MAP_ENTRIES) {
+	if (qos_rmt_count + n_usr_ctxts > NUM_MAP_ENTRIES) {
 		user_rmt_reduced = NUM_MAP_ENTRIES - qos_rmt_count;
 		dd_dev_err(dd,
-			   "RMT size is reducing the number of user receive contexts from %d to %d\n",
-			   (int)num_user_contexts,
+			   "RMT size is reducing the number of user receive contexts from %u to %d\n",
+			   n_usr_ctxts,
 			   user_rmt_reduced);
 		/* recalculate */
-		num_user_contexts = user_rmt_reduced;
+		n_usr_ctxts = user_rmt_reduced;
 	}
 
-	total_contexts += num_user_contexts;
+	total_contexts += n_usr_ctxts;
 
 	/* the first N are kernel contexts, the rest are user/vnic contexts */
 	dd->num_rcv_contexts = total_contexts;
 	dd->n_krcv_queues = num_kernel_contexts;
 	dd->first_dyn_alloc_ctxt = num_kernel_contexts;
 	dd->num_vnic_contexts = num_vnic_contexts;
-	dd->num_user_contexts = num_user_contexts;
-	dd->freectxts = num_user_contexts;
+	dd->num_user_contexts = n_usr_ctxts;
+	dd->freectxts = n_usr_ctxts;
 	dd_dev_info(dd,
 		    "rcv contexts: chip %d, used %d (kernel %d, vnic %u, user %u)\n",
 		    (int)dd->chip_rcv_contexts,
