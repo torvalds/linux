@@ -360,8 +360,16 @@ void early_setup_secondary(void)
 #if defined(CONFIG_SMP) || defined(CONFIG_KEXEC_CORE)
 static bool use_spinloop(void)
 {
-	if (!IS_ENABLED(CONFIG_PPC_BOOK3E))
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S)) {
+		/*
+		 * See comments in head_64.S -- not all platforms insert
+		 * secondaries at __secondary_hold and wait at the spin
+		 * loop.
+		 */
+		if (firmware_has_feature(FW_FEATURE_OPAL))
+			return false;
 		return true;
+	}
 
 	/*
 	 * When book3e boots from kexec, the ePAPR spin table does
