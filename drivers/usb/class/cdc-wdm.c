@@ -483,7 +483,7 @@ static ssize_t wdm_read
 	if (rv < 0)
 		return -ERESTARTSYS;
 
-	cntr = ACCESS_ONCE(desc->length);
+	cntr = READ_ONCE(desc->length);
 	if (cntr == 0) {
 		desc->read = 0;
 retry:

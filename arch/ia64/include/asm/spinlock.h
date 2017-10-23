@@ -61,7 +61,7 @@ static __always_inline void __ticket_spin_lock(arch_spinlock_t *lock)
 
 static __always_inline int __ticket_spin_trylock(arch_spinlock_t *lock)
 {
-	int tmp = ACCESS_ONCE(lock->lock);
+	int tmp = READ_ONCE(lock->lock);
 
 	if (!(((tmp >> TICKET_SHIFT) ^ tmp) & TICKET_MASK))
 		return ia64_cmpxchg(acq, &lock->lock, tmp, tmp + 1, sizeof (tmp)) == tmp;
@@ -73,19 +73,19 @@ static __always_inline void __ticket_spin_unlock(arch_spinlock_t *lock)
 	unsigned short	*p = (unsigned short *)&lock->lock + 1, tmp;
 
 	asm volatile ("ld2.bias %0=[%1]" : "=r"(tmp) : "r"(p));
-	ACCESS_ONCE(*p) = (tmp + 2) & ~1;
+	WRITE_ONCE(*p, (tmp + 2) & ~1);
 }
 
 static inline int __ticket_spin_is_locked(arch_spinlock_t *lock)
 {
-	long tmp = ACCESS_ONCE(lock->lock);
+	long tmp = READ_ONCE(lock->lock);
 
 	return !!(((tmp >> TICKET_SHIFT) ^ tmp) & TICKET_MASK);
 }
 
 static inline int __ticket_spin_is_contended(arch_spinlock_t *lock)
 {
-	long tmp = ACCESS_ONCE(lock->lock);
+	long tmp = READ_ONCE(lock->lock);
 
 	return ((tmp - (tmp >> TICKET_SHIFT)) & TICKET_MASK) > 1;
 }

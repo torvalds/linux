@@ -105,7 +105,7 @@ static void nmi_max_handler(struct irq_work *w)
 {
 	struct nmiaction *a = container_of(w, struct nmiaction, irq_work);
 	int remainder_ns, decimal_msecs;
-	u64 whole_msecs = ACCESS_ONCE(a->max_duration);
+	u64 whole_msecs = READ_ONCE(a->max_duration);
 
 	remainder_ns = do_div(whole_msecs, (1000 * 1000));
 	decimal_msecs = remainder_ns / 1000;

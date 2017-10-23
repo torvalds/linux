@@ -3628,7 +3628,7 @@ static void brcmf_sdio_dataworker(struct work_struct *work)
 
 	bus->dpc_running = true;
 	wmb();
-	while (ACCESS_ONCE(bus->dpc_triggered)) {
+	while (READ_ONCE(bus->dpc_triggered)) {
 		bus->dpc_triggered = false;
 		brcmf_sdio_dpc(bus);
 		bus->idlecount = 0;

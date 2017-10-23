@@ -1692,7 +1692,8 @@ static struct buffer_head *create_page_buffers(struct page *page, struct inode *
 	BUG_ON(!PageLocked(page));
 
 	if (!page_has_buffers(page))
-		create_empty_buffers(page, 1 << ACCESS_ONCE(inode->i_blkbits), b_state);
+		create_empty_buffers(page, 1 << READ_ONCE(inode->i_blkbits),
+				     b_state);
 	return page_buffers(page);
 }
 

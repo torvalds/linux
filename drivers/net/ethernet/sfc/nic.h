@@ -81,7 +81,7 @@ static struct efx_tx_queue *efx_tx_queue_partner(struct efx_tx_queue *tx_queue)
 static inline bool __efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue,
 					 unsigned int write_count)
 {
-	unsigned int empty_read_count = ACCESS_ONCE(tx_queue->empty_read_count);
+	unsigned int empty_read_count = READ_ONCE(tx_queue->empty_read_count);
 
 	if (empty_read_count == 0)
 		return false;
@@ -617,11 +617,11 @@ irqreturn_t efx_farch_fatal_interrupt(struct efx_nic *efx);
 
 static inline int efx_nic_event_test_irq_cpu(struct efx_channel *channel)
 {
-	return ACCESS_ONCE(channel->event_test_cpu);
+	return READ_ONCE(channel->event_test_cpu);
 }
 static inline int efx_nic_irq_test_irq_cpu(struct efx_nic *efx)
 {
-	return ACCESS_ONCE(efx->last_irq_cpu);
+	return READ_ONCE(efx->last_irq_cpu);
 }
 
 /* Global Resources */

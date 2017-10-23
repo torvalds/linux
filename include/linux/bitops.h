@@ -236,7 +236,7 @@ static inline unsigned long __ffs64(u64 word)
 	typeof(*ptr) old, new;					\
 								\
 	do {							\
-		old = ACCESS_ONCE(*ptr);			\
+		old = READ_ONCE(*ptr);			\
 		new = (old & ~mask) | bits;			\
 	} while (cmpxchg(ptr, old, new) != old);		\
 								\
@@ -251,7 +251,7 @@ static inline unsigned long __ffs64(u64 word)
 	typeof(*ptr) old, new;					\
 								\
 	do {							\
-		old = ACCESS_ONCE(*ptr);			\
+		old = READ_ONCE(*ptr);			\
 		new = old & ~clear;				\
 	} while (!(old & test) &&				\
 		 cmpxchg(ptr, old, new) != old);		\

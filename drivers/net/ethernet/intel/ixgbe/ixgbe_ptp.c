@@ -378,7 +378,7 @@ static int ixgbe_ptp_adjfreq_82599(struct ptp_clock_info *ptp, s32 ppb)
 	}
 
 	smp_mb();
-	incval = ACCESS_ONCE(adapter->base_incval);
+	incval = READ_ONCE(adapter->base_incval);
 
 	freq = incval;
 	freq *= ppb;
@@ -1159,7 +1159,7 @@ void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter)
 	}
 
 	/* update the base incval used to calculate frequency adjustment */
-	ACCESS_ONCE(adapter->base_incval) = incval;
+	WRITE_ONCE(adapter->base_incval, incval);
 	smp_mb();
 
 	/* need lock to prevent incorrect read while modifying cyclecounter */

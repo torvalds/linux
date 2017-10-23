@@ -1200,7 +1200,7 @@ perf_event_ctx_lock_nested(struct perf_event *event, int nesting)
 
 again:
 	rcu_read_lock();
-	ctx = ACCESS_ONCE(event->ctx);
+	ctx = READ_ONCE(event->ctx);
 	if (!atomic_inc_not_zero(&ctx->refcount)) {
 		rcu_read_unlock();
 		goto again;
@@ -5302,8 +5302,8 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 		if (!rb)
 			goto aux_unlock;
 
-		aux_offset = ACCESS_ONCE(rb->user_page->aux_offset);
-		aux_size = ACCESS_ONCE(rb->user_page->aux_size);
+		aux_offset = READ_ONCE(rb->user_page->aux_offset);
+		aux_size = READ_ONCE(rb->user_page->aux_size);
 
 		if (aux_offset < perf_data_size(rb) + PAGE_SIZE)
 			goto aux_unlock;

@@ -164,7 +164,7 @@ static void ixgbevf_check_remove(struct ixgbe_hw *hw, u32 reg)
 
 u32 ixgbevf_read_reg(struct ixgbe_hw *hw, u32 reg)
 {
-	u8 __iomem *reg_addr = ACCESS_ONCE(hw->hw_addr);
+	u8 __iomem *reg_addr = READ_ONCE(hw->hw_addr);
 	u32 value;
 
 	if (IXGBE_REMOVED(reg_addr))

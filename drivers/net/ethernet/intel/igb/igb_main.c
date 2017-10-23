@@ -750,7 +750,7 @@ static void igb_cache_ring_register(struct igb_adapter *adapter)
 u32 igb_rd32(struct e1000_hw *hw, u32 reg)
 {
 	struct igb_adapter *igb = container_of(hw, struct igb_adapter, hw);
-	u8 __iomem *hw_addr = ACCESS_ONCE(hw->hw_addr);
+	u8 __iomem *hw_addr = READ_ONCE(hw->hw_addr);
 	u32 value = 0;
 
 	if (E1000_REMOVED(hw_addr))

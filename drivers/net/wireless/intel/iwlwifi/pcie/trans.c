@@ -2076,12 +2076,12 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, int txq_idx)
 
 	IWL_DEBUG_TX_QUEUES(trans, "Emptying queue %d...\n", txq_idx);
 	txq = trans_pcie->txq[txq_idx];
-	wr_ptr = ACCESS_ONCE(txq->write_ptr);
+	wr_ptr = READ_ONCE(txq->write_ptr);
 
-	while (txq->read_ptr != ACCESS_ONCE(txq->write_ptr) &&
+	while (txq->read_ptr != READ_ONCE(txq->write_ptr) &&
 	       !time_after(jiffies,
 			   now + msecs_to_jiffies(IWL_FLUSH_WAIT_MS))) {
-		u8 write_ptr = ACCESS_ONCE(txq->write_ptr);
+		u8 write_ptr = READ_ONCE(txq->write_ptr);
 
 		if (WARN_ONCE(wr_ptr != write_ptr,
 			      "WR pointer moved while flushing %d -> %d\n",
@@ -2553,7 +2553,7 @@ static u32 iwl_trans_pcie_dump_rbs(struct iwl_trans *trans,
 
 	spin_lock(&rxq->lock);
 
-	r = le16_to_cpu(ACCESS_ONCE(rxq->rb_stts->closed_rb_num)) & 0x0FFF;
+	r = le16_to_cpu(READ_ONCE(rxq->rb_stts->closed_rb_num)) & 0x0FFF;
 
 	for (i = rxq->read, j = 0;
 	     i != r && j < allocated_rb_nums;
@@ -2814,7 +2814,7 @@ static struct iwl_trans_dump_data
 		/* Dump RBs is supported only for pre-9000 devices (1 queue) */
 		struct iwl_rxq *rxq = &trans_pcie->rxq[0];
 		/* RBs */
-		num_rbs = le16_to_cpu(ACCESS_ONCE(rxq->rb_stts->closed_rb_num))
+		num_rbs = le16_to_cpu(READ_ONCE(rxq->rb_stts->closed_rb_num))
 				      & 0x0FFF;
 		num_rbs = (num_rbs - rxq->read) & RX_QUEUE_MASK;
 		len += num_rbs * (sizeof(*data) +

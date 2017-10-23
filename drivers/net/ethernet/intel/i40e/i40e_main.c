@@ -455,7 +455,7 @@ static void i40e_get_netdev_stats_struct(struct net_device *netdev,
 		u64 bytes, packets;
 		unsigned int start;
 
-		tx_ring = ACCESS_ONCE(vsi->tx_rings[i]);
+		tx_ring = READ_ONCE(vsi->tx_rings[i]);
 		if (!tx_ring)
 			continue;
 		i40e_get_netdev_stats_struct_tx(tx_ring, stats);
@@ -791,7 +791,7 @@ static void i40e_update_vsi_stats(struct i40e_vsi *vsi)
 	rcu_read_lock();
 	for (q = 0; q < vsi->num_queue_pairs; q++) {
 		/* locate Tx ring */
-		p = ACCESS_ONCE(vsi->tx_rings[q]);
+		p = READ_ONCE(vsi->tx_rings[q]);
 
 		do {
 			start = u64_stats_fetch_begin_irq(&p->syncp);

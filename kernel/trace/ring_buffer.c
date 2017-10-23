@@ -2724,7 +2724,7 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 	 * if it happened, we have to fail the write.
 	 */
 	barrier();
-	if (unlikely(ACCESS_ONCE(cpu_buffer->buffer) != buffer)) {
+	if (unlikely(READ_ONCE(cpu_buffer->buffer) != buffer)) {
 		local_dec(&cpu_buffer->committing);
 		local_dec(&cpu_buffer->commits);
 		return NULL;

@@ -1073,7 +1073,7 @@ int rvt_error_qp(struct rvt_qp *qp, enum ib_wc_status err)
 	rdi->driver_f.notify_error_qp(qp);
 
 	/* Schedule the sending tasklet to drain the send work queue. */
-	if (ACCESS_ONCE(qp->s_last) != qp->s_head)
+	if (READ_ONCE(qp->s_last) != qp->s_head)
 		rdi->driver_f.schedule_send(qp);
 
 	rvt_clear_mr_refs(qp, 0);
@@ -1686,7 +1686,7 @@ static inline int rvt_qp_is_avail(
 	if (likely(qp->s_avail))
 		return 0;
 	smp_read_barrier_depends(); /* see rc.c */
-	slast = ACCESS_ONCE(qp->s_last);
+	slast = READ_ONCE(qp->s_last);
 	if (qp->s_head >= slast)
 		avail = qp->s_size - (qp->s_head - slast);
 	else
@@ -1917,7 +1917,7 @@ int rvt_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	 * ahead and kick the send engine into gear. Otherwise we will always
 	 * just schedule the send to happen later.
 	 */
-	call_send = qp->s_head == ACCESS_ONCE(qp->s_last) && !wr->next;
+	call_send = qp->s_head == READ_ONCE(qp->s_last) && !wr->next;
 
 	for (; wr; wr = wr->next) {
 		err = rvt_post_one_wr(qp, wr, &call_send);

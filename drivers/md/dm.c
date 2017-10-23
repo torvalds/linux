@@ -114,7 +114,7 @@ static unsigned reserved_bio_based_ios = RESERVED_BIO_BASED_IOS;
 
 static int __dm_get_module_param_int(int *module_param, int min, int max)
 {
-	int param = ACCESS_ONCE(*module_param);
+	int param = READ_ONCE(*module_param);
 	int modified_param = 0;
 	bool modified = true;
 
@@ -136,7 +136,7 @@ static int __dm_get_module_param_int(int *module_param, int min, int max)
 unsigned __dm_get_module_param(unsigned *module_param,
 			       unsigned def, unsigned max)
 {
-	unsigned param = ACCESS_ONCE(*module_param);
+	unsigned param = READ_ONCE(*module_param);
 	unsigned modified_param = 0;
 
 	if (!param)

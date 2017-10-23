@@ -33,7 +33,7 @@ static struct fuse_dev *fuse_get_dev(struct file *file)
 	 * Lockless access is OK, because file->private data is set
 	 * once during mount and is valid until the file is released.
 	 */
-	return ACCESS_ONCE(file->private_data);
+	return READ_ONCE(file->private_data);
 }
 
 static void fuse_request_init(struct fuse_req *req, struct page **pages,

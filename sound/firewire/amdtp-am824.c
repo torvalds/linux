@@ -247,7 +247,7 @@ void amdtp_am824_midi_trigger(struct amdtp_stream *s, unsigned int port,
 	struct amdtp_am824 *p = s->protocol;
 
 	if (port < p->midi_ports)
-		ACCESS_ONCE(p->midi[port]) = midi;
+		WRITE_ONCE(p->midi[port], midi);
 }
 EXPORT_SYMBOL_GPL(amdtp_am824_midi_trigger);
 
@@ -336,7 +336,7 @@ static unsigned int process_rx_data_blocks(struct amdtp_stream *s, __be32 *buffe
 					   unsigned int data_blocks, unsigned int *syt)
 {
 	struct amdtp_am824 *p = s->protocol;
-	struct snd_pcm_substream *pcm = ACCESS_ONCE(s->pcm);
+	struct snd_pcm_substream *pcm = READ_ONCE(s->pcm);
 	unsigned int pcm_frames;
 
 	if (pcm) {
@@ -357,7 +357,7 @@ static unsigned int process_tx_data_blocks(struct amdtp_stream *s, __be32 *buffe
 					   unsigned int data_blocks, unsigned int *syt)
 {
 	struct amdtp_am824 *p = s->protocol;
-	struct snd_pcm_substream *pcm = ACCESS_ONCE(s->pcm);
+	struct snd_pcm_substream *pcm = READ_ONCE(s->pcm);
 	unsigned int pcm_frames;
 
 	if (pcm) {

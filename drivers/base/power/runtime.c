@@ -134,11 +134,11 @@ unsigned long pm_runtime_autosuspend_expiration(struct device *dev)
 	if (!dev->power.use_autosuspend)
 		goto out;
 
-	autosuspend_delay = ACCESS_ONCE(dev->power.autosuspend_delay);
+	autosuspend_delay = READ_ONCE(dev->power.autosuspend_delay);
 	if (autosuspend_delay < 0)
 		goto out;
 
-	last_busy = ACCESS_ONCE(dev->power.last_busy);
+	last_busy = READ_ONCE(dev->power.last_busy);
 	elapsed = jiffies - last_busy;
 	if (elapsed < 0)
 		goto out;	/* jiffies has wrapped around. */
