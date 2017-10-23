@@ -1556,8 +1556,7 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 	int i;
 	struct out_csc_color_matrix tbl_entry;
 
-	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment
-				== true) {
+	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment == true) {
 			enum dc_color_space color_space =
 				pipe_ctx->stream->output_color_space;
 

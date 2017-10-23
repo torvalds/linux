@@ -2319,20 +2319,13 @@ static void set_spd_info_packet(
 
 static void set_hdr_static_info_packet(
 		struct encoder_info_packet *info_packet,
-		struct dc_plane_state *plane_state,
 		struct dc_stream_state *stream)
 {
 	uint16_t i = 0;
 	enum signal_type signal = stream->signal;
-	struct dc_hdr_static_metadata hdr_metadata;
 	uint32_t data;
 
-	if (!plane_state)
-		return;
-
-	hdr_metadata = plane_state->hdr_static_ctx;
-
-	if (!hdr_metadata.hdr_supported)
+	if (!stream->hdr_static_metadata.hdr_supported)
 		return;
 
 	if (dc_is_hdmi_signal(signal)) {
@@ -2352,55 +2345,55 @@ static void set_hdr_static_info_packet(
 		i = 2;
 	}
 
-	data = hdr_metadata.is_hdr;
+	data = stream->hdr_static_metadata.is_hdr;
 	info_packet->sb[i++] = data ? 0x02 : 0x00;
 	info_packet->sb[i++] = 0x00;
 
-	data = hdr_metadata.chromaticity_green_x / 2;
+	data = stream->hdr_static_metadata.chromaticity_green_x / 2;
 	info_packet->sb[i++] = data & 0xFF;
 	info_packet->sb[i++] = (data & 0xFF00) >> 8;
 
-	data = hdr_metadata.chromaticity_green_y / 2;
+	data = stream->hdr_static_metadata.chromaticity_green_y / 2;
 	info_packet->sb[i++] = data & 0xFF;
 	info_packet->sb[i++] = (data & 0xFF00) >> 8;
 
-	data = hdr_metadata.chromaticity_blue_x / 2;
+	data = stream->hdr_static_metadata.chromaticity_blue_x / 2;
 	info_packet->sb[i++] = data & 0xFF;
 	info_packet->sb[i++] = (data & 0xFF00) >> 8;
 
-	data = hdr_metadata.chromaticity_blue_y / 2;
+	data = stream->hdr_static_metadata.chromaticity_blue_y / 2;
 	info_packet->sb[i++] = data & 0xFF;
 	info_packet->sb[i++] = (data & 0xFF00) >> 8;
 
-	data = hdr_metadata.chromaticity_red_x / 2;
+	data = stream->hdr_static_metadata.chromaticity_red_x / 2;
 	info_packet->sb[i++] = data & 0xFF;
 	info_packet->sb[i++] = (data & 0xFF00) >> 8;
 
-	data = hdr_metadata.chromaticity_red_y / 2;
+	data = stream->hdr_static_metadata.chromaticity_red_y / 2;
 	info_packet->sb[i++] = data & 0xFF;
 	info_packet->sb[i++] = (data & 0xFF00) >> 8;
 
-	data = hdr_metadata.chromaticity_white_point_x / 2;
+	data = stream->hdr_static_metadata.chromaticity_white_point_x / 2;
 	info_packet->sb[i++] = data & 0xFF;
 	info_packet->sb[i++] = (data & 0xFF00) >> 8;
 
-	data = hdr_metadata.chromaticity_white_point_y / 2;
+	data = stream->hdr_static_metadata.chromaticity_white_point_y / 2;
 	info_packet->sb[i++] = data & 0xFF;
 	info_packet->sb[i++] = (data & 0xFF00) >> 8;
 
-	data = hdr_metadata.max_luminance;
+	data = stream->hdr_static_metadata.max_luminance;
 	info_packet->sb[i++] = data & 0xFF;
 	info_packet->sb[i++] = (data & 0xFF00) >> 8;
 
-	data = hdr_metadata.min_luminance;
+	data = stream->hdr_static_metadata.min_luminance;
 	info_packet->sb[i++] = data & 0xFF;
 	info_packet->sb[i++] = (data & 0xFF00) >> 8;
 
-	data = hdr_metadata.maximum_content_light_level;
+	data = stream->hdr_static_metadata.maximum_content_light_level;
 	info_packet->sb[i++] = data & 0xFF;
 	info_packet->sb[i++] = (data & 0xFF00) >> 8;
 
-	data = hdr_metadata.maximum_frame_average_light_level;
+	data = stream->hdr_static_metadata.maximum_frame_average_light_level;
 	info_packet->sb[i++] = data & 0xFF;
 	info_packet->sb[i++] = (data & 0xFF00) >> 8;
 
@@ -2551,16 +2544,14 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 
 		set_spd_info_packet(&info->spd, pipe_ctx->stream);
 
-		set_hdr_static_info_packet(&info->hdrsmd,
-				pipe_ctx->plane_state, pipe_ctx->stream);
+		set_hdr_static_info_packet(&info->hdrsmd, pipe_ctx->stream);
 
 	} else if (dc_is_dp_signal(signal)) {
 		set_vsc_info_packet(&info->vsc, pipe_ctx->stream);
 
 		set_spd_info_packet(&info->spd, pipe_ctx->stream);
 
-		set_hdr_static_info_packet(&info->hdrsmd,
-				pipe_ctx->plane_state, pipe_ctx->stream);
+		set_hdr_static_info_packet(&info->hdrsmd, pipe_ctx->stream);
 	}
 
 	patch_gamut_packet_checksum(&info->gamut);

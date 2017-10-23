@@ -334,24 +334,6 @@ enum color_transfer_func {
 	transfer_func_gamma_26
 };
 
-enum color_color_space {
-	color_space_unsupported,
-	color_space_srgb,
-	color_space_bt601,
-	color_space_bt709,
-	color_space_xv_ycc_bt601,
-	color_space_xv_ycc_bt709,
-	color_space_xr_rgb,
-	color_space_bt2020,
-	color_space_adobe,
-	color_space_dci_p3,
-	color_space_sc_rgb_ms_ref,
-	color_space_display_native,
-	color_space_app_ctrl,
-	color_space_dolby_vision,
-	color_space_custom_coordinates
-};
-
 struct dc_hdr_static_metadata {
 	/* display chromaticities and white point in units of 0.00001 */
 	unsigned int chromaticity_green_x;
@@ -427,7 +409,6 @@ struct dc_plane_state {
 	union dc_tiling_info tiling_info;
 
 	struct dc_plane_dcc_param dcc;
-	struct dc_hdr_static_metadata hdr_static_ctx;
 
 	struct dc_gamma *gamma_correction;
 	struct dc_transfer_func *in_transfer_func;
@@ -435,13 +416,12 @@ struct dc_plane_state {
 	struct csc_transform input_csc_color_matrix;
 	struct fixed31_32 coeff_reduction_factor;
 
-	// sourceContentAttribute cache
-	bool is_source_input_valid;
-	struct dc_hdr_static_metadata source_input_mastering_info;
-	enum color_color_space source_input_color_space;
-	enum color_transfer_func source_input_tf;
+	// TODO: No longer used, remove
+	struct dc_hdr_static_metadata hdr_static_ctx;
 
 	enum dc_color_space color_space;
+	enum color_transfer_func input_tf;
+
 	enum surface_pixel_format format;
 	enum dc_rotation_angle rotation;
 	enum plane_stereo_format stereo_format;
@@ -467,7 +447,8 @@ struct dc_plane_info {
 	enum surface_pixel_format format;
 	enum dc_rotation_angle rotation;
 	enum plane_stereo_format stereo_format;
-	enum dc_color_space color_space; /*todo: wrong place, fits in scaling info*/
+	enum dc_color_space color_space;
+	enum color_transfer_func input_tf;
 	bool horizontal_mirror;
 	bool visible;
 	bool per_pixel_alpha;
@@ -488,13 +469,13 @@ struct dc_surface_update {
 	struct dc_flip_addrs *flip_addr;
 	struct dc_plane_info *plane_info;
 	struct dc_scaling_info *scaling_info;
+
 	/* following updates require alloc/sleep/spin that is not isr safe,
 	 * null means no updates
 	 */
 	/* gamma TO BE REMOVED */
 	struct dc_gamma *gamma;
 	struct dc_transfer_func *in_transfer_func;
-	struct dc_hdr_static_metadata *hdr_static_metadata;
 
 	struct csc_transform *input_csc_color_matrix;
 	struct fixed31_32 *coeff_reduction_factor;
@@ -591,6 +572,7 @@ struct dc_stream_state {
 
 	struct freesync_context freesync_ctx;
 
+	struct dc_hdr_static_metadata hdr_static_metadata;
 	struct dc_transfer_func *out_transfer_func;
 	struct colorspace_transform gamut_remap_matrix;
 	struct csc_transform csc_color_matrix;
@@ -631,6 +613,7 @@ struct dc_stream_update {
 	struct rect src;
 	struct rect dst;
 	struct dc_transfer_func *out_transfer_func;
+	struct dc_hdr_static_metadata *hdr_static_metadata;
 };
 
 bool dc_is_stream_unchanged(
