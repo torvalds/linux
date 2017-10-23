@@ -370,7 +370,7 @@ static int rk816_set_suspend_enable(struct regulator_dev *rdev)
 
 	return regmap_update_bits(rdev->regmap, reg,
 				  val,
-				  0);
+				  val);
 }
 
 static int rk816_set_suspend_disable(struct regulator_dev *rdev)
@@ -400,7 +400,7 @@ static int rk816_set_suspend_disable(struct regulator_dev *rdev)
 
 	return regmap_update_bits(rdev->regmap, reg,
 				  val,
-				  val);
+				  0);
 }
 
 static int rk808_set_suspend_enable(struct regulator_dev *rdev)
