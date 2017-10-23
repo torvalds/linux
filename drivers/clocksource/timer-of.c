@@ -176,3 +176,15 @@ out_fail:
 		timer_base_exit(&to->of_base);
 	return ret;
 }
+
+void timer_of_exit(struct timer_of *to)
+{
+	if (to->flags & TIMER_OF_IRQ)
+		timer_irq_exit(&to->of_irq);
+
+	if (to->flags & TIMER_OF_CLOCK)
+		timer_clk_exit(&to->of_clk);
+
+	if (to->flags & TIMER_OF_BASE)
+		timer_base_exit(&to->of_base);
+}
