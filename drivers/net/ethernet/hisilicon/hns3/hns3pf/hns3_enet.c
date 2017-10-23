@@ -2506,15 +2506,15 @@ static int hns3_ring_get_cfg(struct hnae3_queue *q, struct hns3_nic_priv *priv,
 
 	if (ring_type == HNAE3_RING_TYPE_TX) {
 		ring_data[q->tqp_index].ring = ring;
+		ring_data[q->tqp_index].queue_index = q->tqp_index;
 		ring->io_base = (u8 __iomem *)q->io_base + HNS3_TX_REG_OFFSET;
 	} else {
 		ring_data[q->tqp_index + queue_num].ring = ring;
+		ring_data[q->tqp_index + queue_num].queue_index = q->tqp_index;
 		ring->io_base = q->io_base;
 	}
 
 	hnae_set_bit(ring->flag, HNAE3_RING_TYPE_B, ring_type);
-
-	ring_data[q->tqp_index].queue_index = q->tqp_index;
 
 	ring->tqp = q;
 	ring->desc = NULL;
