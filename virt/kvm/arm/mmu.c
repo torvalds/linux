@@ -926,6 +926,25 @@ static int stage2_set_pmd_huge(struct kvm *kvm, struct kvm_mmu_memory_cache
 	return 0;
 }
 
+static bool stage2_is_exec(struct kvm *kvm, phys_addr_t addr)
+{
+	pmd_t *pmdp;
+	pte_t *ptep;
+
+	pmdp = stage2_get_pmd(kvm, NULL, addr);
+	if (!pmdp || pmd_none(*pmdp) || !pmd_present(*pmdp))
+		return false;
+
+	if (pmd_thp_or_huge(*pmdp))
+		return kvm_s2pmd_exec(pmdp);
+
+	ptep = pte_offset_kernel(pmdp, addr);
+	if (!ptep || pte_none(*ptep) || !pte_present(*ptep))
+		return false;
+
+	return kvm_s2pte_exec(ptep);
+}
+
 static int stage2_set_pte(struct kvm *kvm, struct kvm_mmu_memory_cache *cache,
 			  phys_addr_t addr, const pte_t *new_pte,
 			  unsigned long flags)
@@ -1407,6 +1426,10 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		if (exec_fault) {
 			new_pmd = kvm_s2pmd_mkexec(new_pmd);
 			invalidate_icache_guest_page(vcpu, pfn, PMD_SIZE);
+		} else if (fault_status == FSC_PERM) {
+			/* Preserve execute if XN was already cleared */
+			if (stage2_is_exec(kvm, fault_ipa))
+				new_pmd = kvm_s2pmd_mkexec(new_pmd);
 		}
 
 		ret = stage2_set_pmd_huge(kvm, memcache, fault_ipa, &new_pmd);
@@ -1425,6 +1448,10 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		if (exec_fault) {
 			new_pte = kvm_s2pte_mkexec(new_pte);
 			invalidate_icache_guest_page(vcpu, pfn, PAGE_SIZE);
+		} else if (fault_status == FSC_PERM) {
+			/* Preserve execute if XN was already cleared */
+			if (stage2_is_exec(kvm, fault_ipa))
+				new_pte = kvm_s2pte_mkexec(new_pte);
 		}
 
 		ret = stage2_set_pte(kvm, memcache, fault_ipa, &new_pte, flags);

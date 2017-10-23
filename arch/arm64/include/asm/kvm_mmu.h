@@ -203,6 +203,11 @@ static inline bool kvm_s2pte_readonly(pte_t *pte)
 	return (pte_val(*pte) & PTE_S2_RDWR) == PTE_S2_RDONLY;
 }
 
+static inline bool kvm_s2pte_exec(pte_t *pte)
+{
+	return !(pte_val(*pte) & PTE_S2_XN);
+}
+
 static inline void kvm_set_s2pmd_readonly(pmd_t *pmd)
 {
 	kvm_set_s2pte_readonly((pte_t *)pmd);
@@ -211,6 +216,11 @@ static inline void kvm_set_s2pmd_readonly(pmd_t *pmd)
 static inline bool kvm_s2pmd_readonly(pmd_t *pmd)
 {
 	return kvm_s2pte_readonly((pte_t *)pmd);
+}
+
+static inline bool kvm_s2pmd_exec(pmd_t *pmd)
+{
+	return !(pmd_val(*pmd) & PMD_S2_XN);
 }
 
 static inline bool kvm_page_empty(void *ptr)
