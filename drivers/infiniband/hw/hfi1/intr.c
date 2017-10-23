@@ -53,6 +53,8 @@
 #include "common.h"
 #include "sdma.h"
 
+#define LINK_UP_DELAY  500  /* in microseconds */
+
 /**
  * format_hwmsg - format a single hwerror message
  * @msg message buffer
@@ -102,9 +104,16 @@ static void signal_ib_event(struct hfi1_pportdata *ppd, enum ib_event_type ev)
 	ib_dispatch_event(&event);
 }
 
-/*
+/**
+ * handle_linkup_change - finish linkup/down state changes
+ * @dd: valid device
+ * @linkup: link state information
+ *
  * Handle a linkup or link down notification.
+ * The HW needs time to finish its link up state change. Give it that chance.
+ *
  * This is called outside an interrupt.
+ *
  */
 void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 {
@@ -150,6 +159,9 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 			    "Neighbor Guid %llx, Type %d, Port Num %d\n",
 			    ppd->neighbor_guid, ppd->neighbor_type,
 			    ppd->neighbor_port_number);
+
+		/* HW needs LINK_UP_DELAY to settle, give it that chance */
+		udelay(LINK_UP_DELAY);
 
 		/* physical link went up */
 		ppd->linkup = 1;
