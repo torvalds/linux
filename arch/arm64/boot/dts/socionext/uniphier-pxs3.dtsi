@@ -7,6 +7,8 @@
  * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
 
+#include <dt-bindings/gpio/gpio.h>
+
 /memreserve/ 0x80000000 0x02000000;
 
 / {
@@ -122,6 +124,11 @@
 			#clock-cells = <0>;
 			clock-frequency = <25000000>;
 		};
+	};
+
+	emmc_pwrseq: emmc-pwrseq {
+		compatible = "mmc-pwrseq-emmc";
+		reset-gpios = <&gpio 47 GPIO_ACTIVE_LOW>;
 	};
 
 	timer {
@@ -317,6 +324,7 @@
 			bus-width = <8>;
 			mmc-ddr-1_8v;
 			mmc-hs200-1_8v;
+			mmc-pwrseq = <&emmc_pwrseq>;
 			cdns,phy-input-delay-legacy = <4>;
 			cdns,phy-input-delay-mmc-highspeed = <2>;
 			cdns,phy-input-delay-mmc-ddr = <3>;
