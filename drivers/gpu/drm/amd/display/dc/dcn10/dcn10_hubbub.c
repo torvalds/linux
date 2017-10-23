@@ -26,21 +26,18 @@
 #include "dm_services.h"
 #include "dcn10_hubp.h"
 #include "dcn10_hubbub.h"
-#include "dcn10_hw_sequencer.h"
-#include "dce110/dce110_hw_sequencer.h"
-#include "dce/dce_hwseq.h"
 #include "reg_helper.h"
 
 #define CTX \
-	hws->ctx
+	hubbub->ctx
 #define REG(reg)\
-	hws->regs->reg
+	hubbub->regs->reg
 
 #undef FN
 #define FN(reg_name, field_name) \
-	hws->shifts->field_name, hws->masks->field_name
+	hubbub->shifts->field_name, hubbub->masks->field_name
 
-void dcn10_hubbub_wm_read_state(struct dce_hwseq *hws,
+void hubbub1_wm_read_state(struct hubbub *hubbub,
 		struct dcn_hubbub_wm *wm)
 {
 	struct dcn_hubbub_wm_set *s;
@@ -79,7 +76,7 @@ void dcn10_hubbub_wm_read_state(struct dce_hwseq *hws,
 }
 
 void verify_allow_pstate_change_high(
-	struct dce_hwseq *hws)
+	struct hubbub *hubbub)
 {
 	/* pstate latency is ~20us so if we wait over 40us and pstate allow
 	 * still not asserted, we are probably stuck and going to hang
@@ -139,7 +136,7 @@ void verify_allow_pstate_change_high(
 		if (debug_data & (1 << 30)) {
 
 			if (i > pstate_wait_expected_timeout_us)
-				dm_logger_write(hws->ctx->logger, LOG_WARNING,
+				dm_logger_write(hubbub->ctx->logger, LOG_WARNING,
 						"pstate took longer than expected ~%dus\n",
 						i);
 
@@ -160,10 +157,10 @@ void verify_allow_pstate_change_high(
 	forced_pstate_allow = true;
 
 	if (should_log_hw_state) {
-		dcn10_log_hw_state(hws->ctx->dc);
+		dcn10_log_hw_state(hubbub->ctx->dc);
 	}
 
-	dm_logger_write(hws->ctx->logger, LOG_WARNING,
+	dm_logger_write(hubbub->ctx->logger, LOG_WARNING,
 			"pstate TEST_DEBUG_DATA: 0x%X\n",
 			debug_data);
 	BREAK_TO_DEBUGGER();
@@ -186,11 +183,11 @@ static uint32_t convert_and_clamp(
 
 
 void program_watermarks(
-		struct dce_hwseq *hws,
+		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz)
 {
-	uint32_t force_en = hws->ctx->dc->debug.disable_stutter ? 1 : 0;
+	uint32_t force_en = hubbub->ctx->dc->debug.disable_stutter ? 1 : 0;
 	/*
 	 * Need to clamp to max of the register values (i.e. no wrap)
 	 * for dcn1, all wm registers are 21-bit wide
@@ -206,7 +203,7 @@ void program_watermarks(
 			refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A, prog_wm_value);
 
-	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+	dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"URGENCY_WATERMARK_A calculated =%d\n"
 		"HW register value = 0x%x\n",
 		watermarks->a.urgent_ns, prog_wm_value);
@@ -214,7 +211,7 @@ void program_watermarks(
 	prog_wm_value = convert_and_clamp(watermarks->a.pte_meta_urgent_ns,
 			refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_A, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+	dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"PTE_META_URGENCY_WATERMARK_A calculated =%d\n"
 		"HW register value = 0x%x\n",
 		watermarks->a.pte_meta_urgent_ns, prog_wm_value);
@@ -224,7 +221,7 @@ void program_watermarks(
 				watermarks->a.cstate_pstate.cstate_enter_plus_exit_ns,
 				refclk_mhz, 0x1fffff);
 		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_A, prog_wm_value);
-		dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+		dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 			"SR_ENTER_EXIT_WATERMARK_A calculated =%d\n"
 			"HW register value = 0x%x\n",
 			watermarks->a.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
@@ -234,7 +231,7 @@ void program_watermarks(
 				watermarks->a.cstate_pstate.cstate_exit_ns,
 				refclk_mhz, 0x1fffff);
 		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_A, prog_wm_value);
-		dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+		dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 			"SR_EXIT_WATERMARK_A calculated =%d\n"
 			"HW register value = 0x%x\n",
 			watermarks->a.cstate_pstate.cstate_exit_ns, prog_wm_value);
@@ -244,7 +241,7 @@ void program_watermarks(
 			watermarks->a.cstate_pstate.pstate_change_ns,
 			refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_A, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+	dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"DRAM_CLK_CHANGE_WATERMARK_A calculated =%d\n"
 		"HW register value = 0x%x\n\n",
 		watermarks->a.cstate_pstate.pstate_change_ns, prog_wm_value);
@@ -254,7 +251,7 @@ void program_watermarks(
 	prog_wm_value = convert_and_clamp(
 			watermarks->b.urgent_ns, refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_B, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+	dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"URGENCY_WATERMARK_B calculated =%d\n"
 		"HW register value = 0x%x\n",
 		watermarks->b.urgent_ns, prog_wm_value);
@@ -264,7 +261,7 @@ void program_watermarks(
 			watermarks->b.pte_meta_urgent_ns,
 			refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_B, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+	dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"PTE_META_URGENCY_WATERMARK_B calculated =%d\n"
 		"HW register value = 0x%x\n",
 		watermarks->b.pte_meta_urgent_ns, prog_wm_value);
@@ -275,7 +272,7 @@ void program_watermarks(
 				watermarks->b.cstate_pstate.cstate_enter_plus_exit_ns,
 				refclk_mhz, 0x1fffff);
 		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_B, prog_wm_value);
-		dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+		dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 			"SR_ENTER_WATERMARK_B calculated =%d\n"
 			"HW register value = 0x%x\n",
 			watermarks->b.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
@@ -285,7 +282,7 @@ void program_watermarks(
 				watermarks->b.cstate_pstate.cstate_exit_ns,
 				refclk_mhz, 0x1fffff);
 		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_B, prog_wm_value);
-		dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+		dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 			"SR_EXIT_WATERMARK_B calculated =%d\n"
 			"HW register value = 0x%x\n",
 			watermarks->b.cstate_pstate.cstate_exit_ns, prog_wm_value);
@@ -295,7 +292,7 @@ void program_watermarks(
 			watermarks->b.cstate_pstate.pstate_change_ns,
 			refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_B, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+	dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"DRAM_CLK_CHANGE_WATERMARK_B calculated =%d\n\n"
 		"HW register value = 0x%x\n",
 		watermarks->b.cstate_pstate.pstate_change_ns, prog_wm_value);
@@ -304,7 +301,7 @@ void program_watermarks(
 	prog_wm_value = convert_and_clamp(
 			watermarks->c.urgent_ns, refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_C, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+	dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"URGENCY_WATERMARK_C calculated =%d\n"
 		"HW register value = 0x%x\n",
 		watermarks->c.urgent_ns, prog_wm_value);
@@ -314,7 +311,7 @@ void program_watermarks(
 			watermarks->c.pte_meta_urgent_ns,
 			refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_C, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+	dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"PTE_META_URGENCY_WATERMARK_C calculated =%d\n"
 		"HW register value = 0x%x\n",
 		watermarks->c.pte_meta_urgent_ns, prog_wm_value);
@@ -325,7 +322,7 @@ void program_watermarks(
 				watermarks->c.cstate_pstate.cstate_enter_plus_exit_ns,
 				refclk_mhz, 0x1fffff);
 		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_C, prog_wm_value);
-		dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+		dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 			"SR_ENTER_WATERMARK_C calculated =%d\n"
 			"HW register value = 0x%x\n",
 			watermarks->c.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
@@ -335,7 +332,7 @@ void program_watermarks(
 				watermarks->c.cstate_pstate.cstate_exit_ns,
 				refclk_mhz, 0x1fffff);
 		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_C, prog_wm_value);
-		dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+		dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 			"SR_EXIT_WATERMARK_C calculated =%d\n"
 			"HW register value = 0x%x\n",
 			watermarks->c.cstate_pstate.cstate_exit_ns, prog_wm_value);
@@ -345,7 +342,7 @@ void program_watermarks(
 			watermarks->c.cstate_pstate.pstate_change_ns,
 			refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_C, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+	dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"DRAM_CLK_CHANGE_WATERMARK_C calculated =%d\n\n"
 		"HW register value = 0x%x\n",
 		watermarks->c.cstate_pstate.pstate_change_ns, prog_wm_value);
@@ -354,7 +351,7 @@ void program_watermarks(
 	prog_wm_value = convert_and_clamp(
 			watermarks->d.urgent_ns, refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_D, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+	dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"URGENCY_WATERMARK_D calculated =%d\n"
 		"HW register value = 0x%x\n",
 		watermarks->d.urgent_ns, prog_wm_value);
@@ -363,7 +360,7 @@ void program_watermarks(
 			watermarks->d.pte_meta_urgent_ns,
 			refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_D, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+	dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"PTE_META_URGENCY_WATERMARK_D calculated =%d\n"
 		"HW register value = 0x%x\n",
 		watermarks->d.pte_meta_urgent_ns, prog_wm_value);
@@ -374,7 +371,7 @@ void program_watermarks(
 				watermarks->d.cstate_pstate.cstate_enter_plus_exit_ns,
 				refclk_mhz, 0x1fffff);
 		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_D, prog_wm_value);
-		dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+		dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 			"SR_ENTER_WATERMARK_D calculated =%d\n"
 			"HW register value = 0x%x\n",
 			watermarks->d.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
@@ -384,7 +381,7 @@ void program_watermarks(
 				watermarks->d.cstate_pstate.cstate_exit_ns,
 				refclk_mhz, 0x1fffff);
 		REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_D, prog_wm_value);
-		dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+		dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 			"SR_EXIT_WATERMARK_D calculated =%d\n"
 			"HW register value = 0x%x\n",
 			watermarks->d.cstate_pstate.cstate_exit_ns, prog_wm_value);
@@ -395,7 +392,7 @@ void program_watermarks(
 			watermarks->d.cstate_pstate.pstate_change_ns,
 			refclk_mhz, 0x1fffff);
 	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_D, prog_wm_value);
-	dm_logger_write(hws->ctx->logger, LOG_BANDWIDTH_CALCS,
+	dm_logger_write(hubbub->ctx->logger, LOG_BANDWIDTH_CALCS,
 		"DRAM_CLK_CHANGE_WATERMARK_D calculated =%d\n"
 		"HW register value = 0x%x\n\n",
 		watermarks->d.cstate_pstate.pstate_change_ns, prog_wm_value);
@@ -419,8 +416,8 @@ void program_watermarks(
 #endif
 }
 
-void dcn10_update_dchub(
-	struct dce_hwseq *hws,
+void hubbub1_update_dchub(
+	struct hubbub *hubbub,
 	struct dchub_init_data *dh_data)
 {
 	/* TODO: port code from dal2 */
@@ -475,7 +472,7 @@ void dcn10_update_dchub(
 	dh_data->dchub_info_valid = false;
 }
 
-void toggle_watermark_change_req(struct dce_hwseq *hws)
+void toggle_watermark_change_req(struct hubbub *hubbub)
 {
 	uint32_t watermark_change_req;
 
@@ -491,4 +488,23 @@ void toggle_watermark_change_req(struct dce_hwseq *hws)
 			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, watermark_change_req);
 }
 
+static const struct hubbub_funcs hubbub1_funcs = {
+	.update_dchub = hubbub1_update_dchub
+};
+
+void hubbub1_construct(struct hubbub *hubbub,
+	struct dc_context *ctx,
+	const struct dcn_hubbub_registers *hubbub_regs,
+	const struct dcn_hubbub_shift *hubbub_shift,
+	const struct dcn_hubbub_mask *hubbub_mask)
+{
+	hubbub->ctx = ctx;
+
+	hubbub->funcs = &hubbub1_funcs;
+
+	hubbub->regs = hubbub_regs;
+	hubbub->shifts = hubbub_shift;
+	hubbub->masks = hubbub_mask;
+
+}
 

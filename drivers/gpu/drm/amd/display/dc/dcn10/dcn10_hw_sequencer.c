@@ -87,7 +87,7 @@ void dcn10_log_hubbub_state(struct dc *dc)
 	struct dcn_hubbub_wm wm;
 	int i;
 
-	dcn10_hubbub_wm_read_state(dc->hwseq, &wm);
+	hubbub1_wm_read_state(dc->res_pool->hubbub, &wm);
 
 	DTN_INFO("HUBBUB WM: \t data_urgent \t pte_meta_urgent \t "
 			"sr_enter \t sr_exit \t dram_clk_change \n");
@@ -571,10 +571,10 @@ static void plane_atomic_disconnect(struct dc *dc,
 		return;
 
 	if (dc->debug.sanity_checks)
-		verify_allow_pstate_change_high(dc->hwseq);
+		verify_allow_pstate_change_high(dc->res_pool->hubbub);
 	hubp->funcs->dcc_control(hubp, false, false);
 	if (dc->debug.sanity_checks)
-		verify_allow_pstate_change_high(dc->hwseq);
+		verify_allow_pstate_change_high(dc->res_pool->hubbub);
 
 	mpc->funcs->remove(mpc, &(dc->res_pool->opps[opp_id]->mpc_tree),
 			dc->res_pool->opps[opp_id]->inst, fe_idx);
@@ -602,7 +602,7 @@ static void plane_atomic_disable(struct dc *dc,
 	hubp->funcs->set_blank(hubp, true);
 
 	if (dc->debug.sanity_checks)
-		verify_allow_pstate_change_high(dc->hwseq);
+		verify_allow_pstate_change_high(dc->res_pool->hubbub);
 
 	REG_UPDATE(HUBP_CLK_CNTL[fe_idx],
 			HUBP_CLOCK_ENABLE, 0);
@@ -614,7 +614,7 @@ static void plane_atomic_disable(struct dc *dc,
 				OPP_PIPE_CLOCK_EN, 0);
 
 	if (dc->debug.sanity_checks)
-		verify_allow_pstate_change_high(dc->hwseq);
+		verify_allow_pstate_change_high(dc->res_pool->hubbub);
 }
 
 static void reset_front_end(
@@ -638,7 +638,7 @@ static void reset_front_end(
 	tg->funcs->unlock(tg);
 
 	if (dc->debug.sanity_checks)
-		verify_allow_pstate_change_high(hws);
+		verify_allow_pstate_change_high(dc->res_pool->hubbub);
 
 	if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
 		REG_WAIT(OTG_GLOBAL_SYNC_STATUS[tg->inst],
@@ -670,7 +670,7 @@ static void dcn10_power_down_fe(struct dc *dc, int fe_idx)
 			"Power gated front end %d\n", fe_idx);
 
 	if (dc->debug.sanity_checks)
-		verify_allow_pstate_change_high(dc->hwseq);
+		verify_allow_pstate_change_high(dc->res_pool->hubbub);
 }
 
 static void dcn10_init_hw(struct dc *dc)
@@ -1243,7 +1243,7 @@ static void dcn10_pipe_control_lock(
 		return;
 
 	if (dc->debug.sanity_checks)
-		verify_allow_pstate_change_high(dc->hwseq);
+		verify_allow_pstate_change_high(dc->res_pool->hubbub);
 
 	if (lock)
 		pipe->stream_res.tg->funcs->lock(pipe->stream_res.tg);
@@ -1251,7 +1251,7 @@ static void dcn10_pipe_control_lock(
 		pipe->stream_res.tg->funcs->unlock(pipe->stream_res.tg);
 
 	if (dc->debug.sanity_checks)
-		verify_allow_pstate_change_high(dc->hwseq);
+		verify_allow_pstate_change_high(dc->res_pool->hubbub);
 }
 
 static bool wait_for_reset_trigger_to_occur(
@@ -1451,7 +1451,7 @@ static void dcn10_power_on_fe(
 	struct dce_hwseq *hws = dc->hwseq;
 
 	if (dc->debug.sanity_checks) {
-		verify_allow_pstate_change_high(dc->hwseq);
+		verify_allow_pstate_change_high(dc->res_pool->hubbub);
 	}
 
 	power_on_plane(dc->hwseq,
@@ -1503,7 +1503,7 @@ static void dcn10_power_on_fe(
 	}
 
 	if (dc->debug.sanity_checks) {
-		verify_allow_pstate_change_high(dc->hwseq);
+		verify_allow_pstate_change_high(dc->res_pool->hubbub);
 	}
 }
 
@@ -1864,11 +1864,11 @@ static void program_all_pipe_in_tree(
 		 * this OTG. this is done only one time.
 		 */
 		/* watermark is for all pipes */
-		program_watermarks(dc->hwseq, &context->bw.dcn.watermarks, ref_clk_mhz);
+		program_watermarks(dc->res_pool->hubbub, &context->bw.dcn.watermarks, ref_clk_mhz);
 
 		if (dc->debug.sanity_checks) {
 			/* pstate stuck check after watermark update */
-			verify_allow_pstate_change_high(dc->hwseq);
+			verify_allow_pstate_change_high(dc->res_pool->hubbub);
 		}
 
 		pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
@@ -1899,7 +1899,7 @@ static void program_all_pipe_in_tree(
 		 * DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST is owned by SMU we should have
 		 * both driver and fw accessing same register
 		 */
-		toggle_watermark_change_req(dc->hwseq);
+		toggle_watermark_change_req(dc->res_pool->hubbub);
 
 		update_dchubp_dpp(dc, pipe_ctx, context);
 
@@ -1922,7 +1922,7 @@ static void program_all_pipe_in_tree(
 
 	if (dc->debug.sanity_checks) {
 		/* pstate stuck check after each pipe is programmed */
-		verify_allow_pstate_change_high(dc->hwseq);
+		verify_allow_pstate_change_high(dc->res_pool->hubbub);
 	}
 
 	if (pipe_ctx->bottom_pipe != NULL && pipe_ctx->bottom_pipe != pipe_ctx)
@@ -1989,7 +1989,7 @@ static void dcn10_apply_ctx_for_surface(
 	int i, be_idx;
 
 	if (dc->debug.sanity_checks)
-		verify_allow_pstate_change_high(dc->hwseq);
+		verify_allow_pstate_change_high(dc->res_pool->hubbub);
 
 	be_idx = -1;
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -2072,7 +2072,7 @@ static void dcn10_apply_ctx_for_surface(
 				hubp->funcs->hubp_disconnect(hubp);
 
 			if (dc->debug.sanity_checks)
-				verify_allow_pstate_change_high(dc->hwseq);
+				verify_allow_pstate_change_high(dc->res_pool->hubbub);
 
 			old_pipe_ctx->top_pipe = NULL;
 			old_pipe_ctx->bottom_pipe = NULL;
@@ -2150,7 +2150,7 @@ static void dcn10_apply_ctx_for_surface(
 			);
 
 	if (dc->debug.sanity_checks)
-		verify_allow_pstate_change_high(dc->hwseq);
+		verify_allow_pstate_change_high(dc->res_pool->hubbub);
 }
 
 static void dcn10_set_bandwidth(
@@ -2164,7 +2164,7 @@ static void dcn10_set_bandwidth(
 	struct pp_smu_funcs_rv *pp_smu = dc->res_pool->pp_smu;
 
 	if (dc->debug.sanity_checks) {
-		verify_allow_pstate_change_high(dc->hwseq);
+		verify_allow_pstate_change_high(dc->res_pool->hubbub);
 	}
 
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
@@ -2220,7 +2220,7 @@ static void dcn10_set_bandwidth(
 	dcn10_pplib_apply_display_requirements(dc, context);
 
 	if (dc->debug.sanity_checks) {
-		verify_allow_pstate_change_high(dc->hwseq);
+		verify_allow_pstate_change_high(dc->res_pool->hubbub);
 	}
 
 	/* need to fix this function.  not doing the right thing here */
@@ -2345,7 +2345,7 @@ static void dcn10_wait_for_mpcc_disconnect(
 	int i;
 
 	if (dc->debug.sanity_checks) {
-		verify_allow_pstate_change_high(dc->hwseq);
+		verify_allow_pstate_change_high(dc->res_pool->hubbub);
 	}
 
 	if (!pipe_ctx->stream_res.opp)
@@ -2363,7 +2363,7 @@ static void dcn10_wait_for_mpcc_disconnect(
 	}
 
 	if (dc->debug.sanity_checks) {
-		verify_allow_pstate_change_high(dc->hwseq);
+		verify_allow_pstate_change_high(dc->res_pool->hubbub);
 	}
 
 }
@@ -2407,7 +2407,6 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.apply_ctx_for_surface = dcn10_apply_ctx_for_surface,
 	.set_plane_config = set_plane_config,
 	.update_plane_addr = dcn10_update_plane_addr,
-	.update_dchub = dcn10_update_dchub,
 	.update_pending_status = dcn10_update_pending_status,
 	.set_input_transfer_func = dcn10_set_input_transfer_func,
 	.set_output_transfer_func = dcn10_set_output_transfer_func,

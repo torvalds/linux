@@ -48,6 +48,7 @@
 #include "dce110/dce110_resource.h"
 #include "dce112/dce112_resource.h"
 #include "dcn10_hubp.h"
+#include "dcn10_hubbub.h"
 
 #include "vega10/soc15ip.h"
 
@@ -388,6 +389,19 @@ static const struct dcn_mi_mask hubp_mask = {
 		HUBP_MASK_SH_LIST_DCN10(_MASK)
 };
 
+
+static const struct dcn_hubbub_registers hubbub_reg = {
+		HUBBUB_REG_LIST_DCN10(0)
+};
+
+static const struct dcn_hubbub_shift hubbub_shift = {
+		HUBBUB_MASK_SH_LIST_DCN10(__SHIFT)
+};
+
+static const struct dcn_hubbub_mask hubbub_mask = {
+		HUBBUB_MASK_SH_LIST_DCN10(_MASK)
+};
+
 #define clk_src_regs(index, pllid)\
 [index] = {\
 	CS_COMMON_REG_LIST_DCN1_0(index, pllid),\
@@ -517,6 +531,22 @@ static struct mpc *dcn10_mpc_create(struct dc_context *ctx)
 			4);
 
 	return &mpc10->base;
+}
+
+static struct hubbub *dcn10_hubbub_create(struct dc_context *ctx)
+{
+	struct hubbub *hubbub = kzalloc(sizeof(struct hubbub),
+					  GFP_KERNEL);
+
+	if (!hubbub)
+		return NULL;
+
+	hubbub1_construct(hubbub, ctx,
+			&hubbub_reg,
+			&hubbub_shift,
+			&hubbub_mask);
+
+	return hubbub;
 }
 
 static struct timing_generator *dcn10_timing_generator_create(
@@ -1401,6 +1431,7 @@ static bool construct(
 			dm_error("DC: failed to create tg!\n");
 			goto fail;
 		}
+
 		/* check next valid pipe */
 		j++;
 	}
@@ -1415,6 +1446,13 @@ static bool construct(
 	dc->dcn_ip->max_num_dpp = pool->base.pipe_count;
 
 	pool->base.mpc = dcn10_mpc_create(ctx);
+	if (pool->base.mpc == NULL) {
+		BREAK_TO_DEBUGGER();
+		dm_error("DC: failed to create mpc!\n");
+		goto fail;
+	}
+
+	pool->base.hubbub = dcn10_hubbub_create(ctx);
 	if (pool->base.mpc == NULL) {
 		BREAK_TO_DEBUGGER();
 		dm_error("DC: failed to create mpc!\n");
