@@ -968,8 +968,9 @@ static bool icmp_timestamp(struct sk_buff *skb)
 	 */
 	icmp_param.data.times[1] = inet_current_timestamp();
 	icmp_param.data.times[2] = icmp_param.data.times[1];
-	if (skb_copy_bits(skb, 0, &icmp_param.data.times[0], 4))
-		BUG();
+
+	BUG_ON(skb_copy_bits(skb, 0, &icmp_param.data.times[0], 4));
+
 	icmp_param.data.icmph	   = *icmp_hdr(skb);
 	icmp_param.data.icmph.type = ICMP_TIMESTAMPREPLY;
 	icmp_param.data.icmph.code = 0;
