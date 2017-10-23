@@ -4097,9 +4097,9 @@ struct if6_iter_state {
 
 static struct inet6_ifaddr *if6_get_first(struct seq_file *seq, loff_t pos)
 {
-	struct inet6_ifaddr *ifa = NULL;
 	struct if6_iter_state *state = seq->private;
 	struct net *net = seq_file_net(seq);
+	struct inet6_ifaddr *ifa = NULL;
 	int p = 0;
 
 	/* initial bucket if pos is 0 */
@@ -4109,7 +4109,7 @@ static struct inet6_ifaddr *if6_get_first(struct seq_file *seq, loff_t pos)
 	}
 
 	for (; state->bucket < IN6_ADDR_HSIZE; ++state->bucket) {
-		hlist_for_each_entry_rcu_bh(ifa, &inet6_addr_lst[state->bucket],
+		hlist_for_each_entry_rcu(ifa, &inet6_addr_lst[state->bucket],
 					 addr_lst) {
 			if (!net_eq(dev_net(ifa->idev->dev), net))
 				continue;
@@ -4135,7 +4135,7 @@ static struct inet6_ifaddr *if6_get_next(struct seq_file *seq,
 	struct if6_iter_state *state = seq->private;
 	struct net *net = seq_file_net(seq);
 
-	hlist_for_each_entry_continue_rcu_bh(ifa, addr_lst) {
+	hlist_for_each_entry_continue_rcu(ifa, addr_lst) {
 		if (!net_eq(dev_net(ifa->idev->dev), net))
 			continue;
 		state->offset++;
@@ -4144,7 +4144,7 @@ static struct inet6_ifaddr *if6_get_next(struct seq_file *seq,
 
 	while (++state->bucket < IN6_ADDR_HSIZE) {
 		state->offset = 0;
-		hlist_for_each_entry_rcu_bh(ifa,
+		hlist_for_each_entry_rcu(ifa,
 				     &inet6_addr_lst[state->bucket], addr_lst) {
 			if (!net_eq(dev_net(ifa->idev->dev), net))
 				continue;
@@ -4157,9 +4157,9 @@ static struct inet6_ifaddr *if6_get_next(struct seq_file *seq,
 }
 
 static void *if6_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(rcu_bh)
+	__acquires(rcu)
 {
-	rcu_read_lock_bh();
+	rcu_read_lock();
 	return if6_get_first(seq, *pos);
 }
 
@@ -4173,9 +4173,9 @@ static void *if6_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void if6_seq_stop(struct seq_file *seq, void *v)
-	__releases(rcu_bh)
+	__releases(rcu)
 {
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 }
 
 static int if6_seq_show(struct seq_file *seq, void *v)
