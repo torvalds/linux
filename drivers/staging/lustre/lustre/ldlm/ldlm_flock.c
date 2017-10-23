@@ -121,15 +121,9 @@ ldlm_flock_destroy(struct ldlm_lock *lock, enum ldlm_mode mode, __u64 flags)
  * It is also responsible for splitting a lock if a portion of the lock
  * is released.
  *
- * If \a first_enq is 0 (ie, called from ldlm_reprocess_queue):
- *   - blocking ASTs have already been sent
- *
- * If \a first_enq is 1 (ie, called from ldlm_lock_enqueue):
- *   - blocking ASTs have not been sent yet, so list of conflicting locks
- *     would be collected and ASTs sent.
  */
 static int ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags,
-				   int first_enq, enum ldlm_error *err,
+				   enum ldlm_error *err,
 				   struct list_head *work_list)
 {
 	struct ldlm_resource *res = req->l_resource;
@@ -196,11 +190,6 @@ reprocess:
 
 			if (!ldlm_flocks_overlap(lock, req))
 				continue;
-
-			if (!first_enq) {
-				reprocess_failed = 1;
-				continue;
-			}
 
 			if (*flags & LDLM_FL_BLOCK_NOWAIT) {
 				ldlm_flock_destroy(req, mode, *flags);
@@ -607,7 +596,7 @@ granted:
 		/* We need to reprocess the lock to do merges or splits
 		 * with existing locks owned by this process.
 		 */
-		ldlm_process_flock_lock(lock, &noreproc, 1, &err, NULL);
+		ldlm_process_flock_lock(lock, &noreproc, &err, NULL);
 	}
 	unlock_res_and_lock(lock);
 	return rc;
