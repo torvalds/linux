@@ -733,18 +733,13 @@ xfs_reflink_end_cow(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
-	/* If there is a hole at end_fsb - 1 go to the previous extent */
-	if (!xfs_iext_lookup_extent(ip, ifp, end_fsb - 1, &idx, &got) ||
-	    got.br_startoff > end_fsb) {
-		/*
-		 * In case of racing, overlapping AIO writes no COW extents
-		 * might be left by the time I/O completes for the loser of
-		 * the race.  In that case we are done.
-		 */
-		if (idx <= 0)
-			goto out_cancel;
-		xfs_iext_get_extent(ifp, --idx, &got);
-	}
+	/*
+	 * In case of racing, overlapping AIO writes no COW extents might be
+	 * left by the time I/O completes for the loser of the race.  In that
+	 * case we are done.
+	 */
+	if (!xfs_iext_lookup_extent_before(ip, ifp, &end_fsb, &idx, &got))
+		goto out_cancel;
 
 	/* Walk backwards until we're out of the I/O range... */
 	while (got.br_startoff + got.br_blockcount > offset_fsb) {

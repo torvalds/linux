@@ -1968,6 +1968,27 @@ xfs_iext_lookup_extent(
 }
 
 /*
+ * Returns the last extent before end, and if this extent doesn't cover
+ * end, update end to the end of the extent.
+ */
+bool
+xfs_iext_lookup_extent_before(
+	struct xfs_inode	*ip,
+	struct xfs_ifork	*ifp,
+	xfs_fileoff_t		*end,
+	xfs_extnum_t		*idxp,
+	struct xfs_bmbt_irec	*gotp)
+{
+	if (xfs_iext_lookup_extent(ip, ifp, *end - 1, idxp, gotp) &&
+	    gotp->br_startoff <= *end - 1)
+		return true;
+	if (!xfs_iext_get_extent(ifp, --*idxp, gotp))
+		return false;
+	*end = gotp->br_startoff + gotp->br_blockcount;
+	return true;
+}
+
+/*
  * Return true if there is an extent at index idx, and return the expanded
  * extent structure at idx in that case.  Else return false.
  */

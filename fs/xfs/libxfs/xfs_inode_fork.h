@@ -183,6 +183,10 @@ void		xfs_iext_irec_update_extoffs(struct xfs_ifork *, int, int);
 bool		xfs_iext_lookup_extent(struct xfs_inode *ip,
 			struct xfs_ifork *ifp, xfs_fileoff_t bno,
 			xfs_extnum_t *idxp, struct xfs_bmbt_irec *gotp);
+bool		xfs_iext_lookup_extent_before(struct xfs_inode *ip,
+			struct xfs_ifork *ifp, xfs_fileoff_t *end,
+			xfs_extnum_t *idxp, struct xfs_bmbt_irec *gotp);
+
 bool		xfs_iext_get_extent(struct xfs_ifork *ifp, xfs_extnum_t idx,
 			struct xfs_bmbt_irec *gotp);
 void		xfs_iext_update_extent(struct xfs_inode *ip, int state,

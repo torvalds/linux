@@ -1386,17 +1386,8 @@ xfs_bmap_last_before(
 			return error;
 	}
 
-	if (xfs_iext_lookup_extent(ip, ifp, *last_block - 1, &idx, &got)) {
-		if (got.br_startoff <= *last_block - 1)
-			return 0;
-	}
-
-	if (xfs_iext_get_extent(ifp, idx - 1, &got)) {
-		*last_block = got.br_startoff + got.br_blockcount;
-		return 0;
-	}
-
-	*last_block = 0;
+	if (!xfs_iext_lookup_extent_before(ip, ifp, last_block, &idx, &got))
+		*last_block = 0;
 	return 0;
 }
 
@@ -5171,17 +5162,13 @@ __xfs_bunmapi(
 	}
 	XFS_STATS_INC(mp, xs_blk_unmap);
 	isrt = (whichfork == XFS_DATA_FORK) && XFS_IS_REALTIME_INODE(ip);
-	end = start + len - 1;
+	end = start + len;
 
-	/*
-	 * Check to see if the given block number is past the end of the
-	 * file, back up to the last block if so...
-	 */
-	if (!xfs_iext_lookup_extent(ip, ifp, end, &lastx, &got)) {
-		ASSERT(lastx > 0);
-		xfs_iext_get_extent(ifp, --lastx, &got);
-		end = got.br_startoff + got.br_blockcount - 1;
+	if (!xfs_iext_lookup_extent_before(ip, ifp, &end, &lastx, &got)) {
+		*rlen = 0;
+		return 0;
 	}
+	end--;
 
 	logflags = 0;
 	if (ifp->if_flags & XFS_IFBROOT) {
