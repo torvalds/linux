@@ -39,7 +39,7 @@
 #define rmb()  asm volatile("lwsync":::"memory")
 #define wmb()  asm volatile("lwsync":::"memory")
 
-#define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
+#define READ_ONCE(x) (*(volatile typeof(x) *)&(x))
 
 /* Prilvilege state DSCR access */
 inline unsigned long get_dscr(void)
