@@ -1217,6 +1217,7 @@ static void __hfi1_free_devdata(struct kobject *kobj)
 	free_percpu(dd->int_counter);
 	free_percpu(dd->rcv_limit);
 	free_percpu(dd->send_schedule);
+	free_percpu(dd->tx_opstats);
 	rvt_dealloc_device(&dd->verbs_dev.rdi);
 }
 
@@ -1302,6 +1303,12 @@ struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra)
 
 	dd->send_schedule = alloc_percpu(u64);
 	if (!dd->send_schedule) {
+		ret = -ENOMEM;
+		goto bail;
+	}
+
+	dd->tx_opstats = alloc_percpu(struct hfi1_opcode_stats_perctx);
+	if (!dd->tx_opstats) {
 		ret = -ENOMEM;
 		goto bail;
 	}

@@ -796,6 +796,27 @@ bail_txadd:
 	return ret;
 }
 
+/**
+ * update_tx_opstats - record stats by opcode
+ * @qp; the qp
+ * @ps: transmit packet state
+ * @plen: the plen in dwords
+ *
+ * This is a routine to record the tx opstats after a
+ * packet has been presented to the egress mechanism.
+ */
+static void update_tx_opstats(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
+			      u32 plen)
+{
+#ifdef CONFIG_DEBUG_FS
+	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
+	struct hfi1_opcode_stats_perctx *s = get_cpu_ptr(dd->tx_opstats);
+
+	inc_opstats(plen * 4, &s->stats[ps->opcode]);
+	put_cpu_ptr(s);
+#endif
+}
+
 /*
  * Build the number of DMA descriptors needed to send length bytes of data.
  *
@@ -934,6 +955,8 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			goto bail_ecomm;
 		return ret;
 	}
+
+	update_tx_opstats(qp, ps, plen);
 	trace_sdma_output_ibhdr(dd_from_ibdev(qp->ibqp.device),
 				&ps->s_txreq->phdr.hdr, ib_is_sc5(sc5));
 	return ret;
@@ -1127,6 +1150,7 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		seg_pio_copy_end(pbuf);
 	}
 
+	update_tx_opstats(qp, ps, plen);
 	trace_pio_output_ibhdr(dd_from_ibdev(qp->ibqp.device),
 			       &ps->s_txreq->phdr.hdr, ib_is_sc5(sc5));
 
