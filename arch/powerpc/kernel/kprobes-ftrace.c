@@ -75,11 +75,7 @@ void kprobe_ftrace_handler(unsigned long nip, unsigned long parent_nip,
 {
 	struct kprobe *p;
 	struct kprobe_ctlblk *kcb;
-	unsigned long flags;
 
-	/* Disable irq for emulating a breakpoint and avoiding preempt */
-	local_irq_save(flags);
-	hard_irq_disable();
 	preempt_disable();
 
 	p = get_kprobe((kprobe_opcode_t *)nip);
@@ -105,16 +101,14 @@ void kprobe_ftrace_handler(unsigned long nip, unsigned long parent_nip,
 		else {
 			/*
 			 * If pre_handler returns !0, it sets regs->nip and
-			 * resets current kprobe. In this case, we still need
-			 * to restore irq, but not preemption.
+			 * resets current kprobe. In this case, we should not
+			 * re-enable preemption.
 			 */
-			local_irq_restore(flags);
 			return;
 		}
 	}
 end:
 	preempt_enable_no_resched();
-	local_irq_restore(flags);
 }
 NOKPROBE_SYMBOL(kprobe_ftrace_handler);
 
