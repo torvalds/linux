@@ -261,7 +261,7 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 		ret = virtio_gpu_object_attach(vgdev, qobj, res_id, NULL);
 	} else {
 		/* use a gem reference since unref list undoes them */
-		drm_gem_object_reference(&qobj->gem_base);
+		drm_gem_object_get(&qobj->gem_base);
 		mainbuf.bo = &qobj->tbo;
 		list_add(&mainbuf.head, &validate_list);
 
