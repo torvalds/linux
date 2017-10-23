@@ -182,6 +182,8 @@ struct timing_generator_funcs {
 	void (*program_stereo)(struct timing_generator *tg,
 		const struct dc_crtc_timing *timing, struct crtc_stereo_flags *flags);
 	bool (*is_stereo_left_eye)(struct timing_generator *tg);
+
+	void (*set_blank_data_double_buffer)(struct timing_generator *tg, bool enable);
 };
 
 #endif

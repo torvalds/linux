@@ -290,6 +290,16 @@ static void tgn10_program_timing(
 
 }
 
+static void tgn10_set_blank_data_double_buffer(struct timing_generator *tg, bool enable)
+{
+	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
+
+	uint32_t blank_data_double_buffer_enable = enable ? 1 : 0;
+
+	REG_UPDATE(OTG_DOUBLE_BUFFER_CONTROL,
+			OTG_BLANK_DATA_DOUBLE_BUFFER_EN, blank_data_double_buffer_enable);
+}
+
 /**
  * unblank_crtc
  * Call ASIC Control Object to UnBlank CRTC.
@@ -306,8 +316,7 @@ static void tgn10_unblank_crtc(struct timing_generator *tg)
 	 * this check will be removed.
 	 */
 	if (vertical_interrupt_enable)
-		REG_UPDATE(OTG_DOUBLE_BUFFER_CONTROL,
-				OTG_BLANK_DATA_DOUBLE_BUFFER_EN, 1);
+		tgn10_set_blank_data_double_buffer(tg, true);
 
 	REG_UPDATE_2(OTG_BLANK_CONTROL,
 			OTG_BLANK_DATA_EN, 0,
@@ -334,8 +343,7 @@ static void tgn10_blank_crtc(struct timing_generator *tg)
 			OTG_BLANK_DATA_EN, 1,
 			1, 100000);
 
-	REG_UPDATE(OTG_DOUBLE_BUFFER_CONTROL,
-			OTG_BLANK_DATA_DOUBLE_BUFFER_EN, 0);
+	tgn10_set_blank_data_double_buffer(tg, false);
 }
 
 static void tgn10_set_blank(struct timing_generator *tg,
@@ -1234,7 +1242,8 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.set_static_screen_control = tgn10_set_static_screen_control,
 		.set_test_pattern = tgn10_set_test_pattern,
 		.program_stereo = tgn10_program_stereo,
-		.is_stereo_left_eye = tgn10_is_stereo_left_eye
+		.is_stereo_left_eye = tgn10_is_stereo_left_eye,
+		.set_blank_data_double_buffer = tgn10_set_blank_data_double_buffer
 };
 
 void dcn10_timing_generator_init(struct dcn10_timing_generator *tgn10)
