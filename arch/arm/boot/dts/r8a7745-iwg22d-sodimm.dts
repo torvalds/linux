@@ -17,6 +17,7 @@
 
 	aliases {
 		serial3 = &scif4;
+		serial5 = &hscif1;
 		ethernet0 = &avb;
 	};
 
@@ -39,7 +40,20 @@
 	};
 };
 
+&hscif1 {
+	pinctrl-0 = <&hscif1_pins>;
+	pinctrl-names = "default";
+
+	uart-has-rtscts;
+	status = "okay";
+};
+
 &pfc {
+	hscif1_pins: hscif1 {
+		groups = "hscif1_data", "hscif1_ctrl";
+		function = "hscif1";
+	};
+
 	scif4_pins: scif4 {
 		groups = "scif4_data_b";
 		function = "scif4";
