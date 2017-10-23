@@ -457,8 +457,11 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 		if (reservation_object_test_signaled_rcu(&bo->ttm_resv, true)) {
 			ttm_bo_del_from_lru(bo);
 			spin_unlock(&glob->lru_lock);
-			if (bo->resv != &bo->ttm_resv)
+			if (bo->resv != &bo->ttm_resv) {
 				reservation_object_unlock(&bo->ttm_resv);
+				reservation_object_fini(&bo->ttm_resv);
+			}
+
 			ttm_bo_cleanup_memtype_use(bo);
 			return;
 		}
