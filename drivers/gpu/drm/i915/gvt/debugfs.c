@@ -21,9 +21,119 @@
  * SOFTWARE.
  */
 #include <linux/debugfs.h>
+#include <linux/list_sort.h>
 #include "i915_drv.h"
 #include "gvt.h"
 
+struct mmio_diff_param {
+	struct intel_vgpu *vgpu;
+	int total;
+	int diff;
+	struct list_head diff_mmio_list;
+};
+
+struct diff_mmio {
+	struct list_head node;
+	u32 offset;
+	u32 preg;
+	u32 vreg;
+};
+
+/* Compare two diff_mmio items. */
+static int mmio_offset_compare(void *priv,
+	struct list_head *a, struct list_head *b)
+{
+	struct diff_mmio *ma;
+	struct diff_mmio *mb;
+
+	ma = container_of(a, struct diff_mmio, node);
+	mb = container_of(b, struct diff_mmio, node);
+	if (ma->offset < mb->offset)
+		return -1;
+	else if (ma->offset > mb->offset)
+		return 1;
+	return 0;
+}
+
+static inline int mmio_diff_handler(struct intel_gvt *gvt,
+				    u32 offset, void *data)
+{
+	struct drm_i915_private *dev_priv = gvt->dev_priv;
+	struct mmio_diff_param *param = data;
+	struct diff_mmio *node;
+	u32 preg, vreg;
+
+	preg = I915_READ_NOTRACE(_MMIO(offset));
+	vreg = vgpu_vreg(param->vgpu, offset);
+
+	if (preg != vreg) {
+		node = kmalloc(sizeof(*node), GFP_KERNEL);
+		if (!node)
+			return -ENOMEM;
+
+		node->offset = offset;
+		node->preg = preg;
+		node->vreg = vreg;
+		list_add(&node->node, &param->diff_mmio_list);
+		param->diff++;
+	}
+	param->total++;
+	return 0;
+}
+
+/* Show the all the different values of tracked mmio. */
+static int vgpu_mmio_diff_show(struct seq_file *s, void *unused)
+{
+	struct intel_vgpu *vgpu = s->private;
+	struct intel_gvt *gvt = vgpu->gvt;
+	struct mmio_diff_param param = {
+		.vgpu = vgpu,
+		.total = 0,
+		.diff = 0,
+	};
+	struct diff_mmio *node, *next;
+
+	INIT_LIST_HEAD(&param.diff_mmio_list);
+
+	mutex_lock(&gvt->lock);
+	spin_lock_bh(&gvt->scheduler.mmio_context_lock);
+
+	mmio_hw_access_pre(gvt->dev_priv);
+	/* Recognize all the diff mmios to list. */
+	intel_gvt_for_each_tracked_mmio(gvt, mmio_diff_handler, &param);
+	mmio_hw_access_post(gvt->dev_priv);
+
+	spin_unlock_bh(&gvt->scheduler.mmio_context_lock);
+	mutex_unlock(&gvt->lock);
+
+	/* In an ascending order by mmio offset. */
+	list_sort(NULL, &param.diff_mmio_list, mmio_offset_compare);
+
+	seq_printf(s, "%-8s %-8s %-8s %-8s\n", "Offset", "HW", "vGPU", "Diff");
+	list_for_each_entry_safe(node, next, &param.diff_mmio_list, node) {
+		u32 diff = node->preg ^ node->vreg;
+
+		seq_printf(s, "%08x %08x %08x %*pbl\n",
+			   node->offset, node->preg, node->vreg,
+			   32, &diff);
+		list_del(&node->node);
+		kfree(node);
+	}
+	seq_printf(s, "Total: %d, Diff: %d\n", param.total, param.diff);
+	return 0;
+}
+
+static int vgpu_mmio_diff_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, vgpu_mmio_diff_show, inode->i_private);
+}
+
+static const struct file_operations vgpu_mmio_diff_fops = {
+	.open		= vgpu_mmio_diff_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 /**
  * intel_gvt_debugfs_add_vgpu - register debugfs entries for a vGPU
@@ -44,6 +154,11 @@ int intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu)
 
 	ent = debugfs_create_bool("active", 0444, vgpu->debugfs,
 				  &vgpu->active);
+	if (!ent)
+		return -ENOMEM;
+
+	ent = debugfs_create_file("mmio_diff", 0444, vgpu->debugfs,
+				  vgpu, &vgpu_mmio_diff_fops);
 	if (!ent)
 		return -ENOMEM;
 
