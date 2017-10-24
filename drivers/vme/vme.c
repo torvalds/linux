@@ -1194,7 +1194,7 @@ int vme_dma_list_free(struct vme_dma_list *list)
 
 	if (!mutex_trylock(&list->mtx)) {
 		printk(KERN_ERR "Link List in use\n");
-		return -EINVAL;
+		return -EBUSY;
 	}
 
 	/*
