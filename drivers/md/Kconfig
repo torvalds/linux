@@ -178,7 +178,7 @@ config MD_FAULTY
 
 
 config MD_CLUSTER
-	tristate "Cluster Support for MD (EXPERIMENTAL)"
+	tristate "Cluster Support for MD"
 	depends on BLK_DEV_MD
 	depends on DLM
 	default n
@@ -188,7 +188,8 @@ config MD_CLUSTER
 	nodes in the cluster can access the MD devices simultaneously.
 
 	This brings the redundancy (and uptime) of RAID levels across the
-	nodes of the cluster.
+	nodes of the cluster. Currently, it can work with raid1 and raid10
+	(limited support).
 
 	If unsure, say N.
 
