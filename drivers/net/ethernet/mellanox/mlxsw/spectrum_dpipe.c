@@ -1093,6 +1093,7 @@ start_again:
 		goto err_ctx_prepare;
 	j = 0;
 	nh_skip = nh_count;
+	nh_count = 0;
 	mlxsw_sp_nexthop_for_each(nh, mlxsw_sp->router) {
 		if (!mlxsw_sp_nexthop_offload(nh) ||
 		    mlxsw_sp_nexthop_group_has_ipip(nh))
