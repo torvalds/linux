@@ -1072,6 +1072,14 @@ return ret;
 }
 
 static const struct of_device_id sun8i_dwmac_match[] = {
+	{ .compatible = "allwinner,sun8i-h3-emac",
+		.data = &emac_variant_h3 },
+	{ .compatible = "allwinner,sun8i-v3s-emac",
+		.data = &emac_variant_v3s },
+	{ .compatible = "allwinner,sun8i-a83t-emac",
+		.data = &emac_variant_a83t },
+	{ .compatible = "allwinner,sun50i-a64-emac",
+		.data = &emac_variant_a64 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun8i_dwmac_match);
