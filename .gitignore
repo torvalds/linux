@@ -41,6 +41,8 @@ Module.symvers
 #
 # Top-level generic files
 #
+/kernel.img
+/resource.img
 /tags
 /TAGS
 /linux
