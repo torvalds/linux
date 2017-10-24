@@ -1203,7 +1203,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	amdgpu_ring_priority_get(job->ring, job->base.s_priority);
 
 	trace_amdgpu_cs_ioctl(job);
-	amd_sched_entity_push_job(&job->base);
+	amd_sched_entity_push_job(&job->base, entity);
 
 	ttm_eu_fence_buffer_objects(&p->ticket, &p->validated, p->fence);
 	amdgpu_mn_unlock(p->mn);

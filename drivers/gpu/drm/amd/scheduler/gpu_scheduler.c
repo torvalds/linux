@@ -341,11 +341,10 @@ amd_sched_entity_pop_job(struct amd_sched_entity *entity)
 	if (!sched_job)
 		return NULL;
 
-	while ((entity->dependency = sched->ops->dependency(sched_job)))
+	while ((entity->dependency = sched->ops->dependency(sched_job, entity)))
 		if (amd_sched_entity_add_dependency_cb(entity))
 			return NULL;
 
-	sched_job->s_entity = NULL;
 	spsc_queue_pop(&entity->job_queue);
 	return sched_job;
 }
@@ -357,13 +356,13 @@ amd_sched_entity_pop_job(struct amd_sched_entity *entity)
  *
  * Returns 0 for success, negative error code otherwise.
  */
-void amd_sched_entity_push_job(struct amd_sched_job *sched_job)
+void amd_sched_entity_push_job(struct amd_sched_job *sched_job,
+			       struct amd_sched_entity *entity)
 {
 	struct amd_gpu_scheduler *sched = sched_job->sched;
-	struct amd_sched_entity *entity = sched_job->s_entity;
 	bool first = false;
 
-	trace_amd_sched_job(sched_job);
+	trace_amd_sched_job(sched_job, entity);
 
 	spin_lock(&entity->queue_lock);
 	first = spsc_queue_push(&entity->job_queue, &sched_job->queue_node);
@@ -442,11 +441,12 @@ static void amd_sched_job_timedout(struct work_struct *work)
 	job->sched->ops->timedout_job(job);
 }
 
-static void amd_sched_set_guilty(struct amd_sched_job *s_job)
+static void amd_sched_set_guilty(struct amd_sched_job *s_job,
+				 struct amd_sched_entity *s_entity)
 {
 	if (atomic_inc_return(&s_job->karma) > s_job->sched->hang_limit)
-		if (s_job->s_entity->guilty)
-			atomic_set(s_job->s_entity->guilty, 1);
+		if (s_entity->guilty)
+			atomic_set(s_entity->guilty, 1);
 }
 
 void amd_sched_hw_job_reset(struct amd_gpu_scheduler *sched, struct amd_sched_job *bad)
@@ -477,7 +477,7 @@ void amd_sched_hw_job_reset(struct amd_gpu_scheduler *sched, struct amd_sched_jo
 			list_for_each_entry_safe(entity, tmp, &rq->entities, list) {
 				if (bad->s_fence->scheduled.context == entity->fence_context) {
 					found = true;
-					amd_sched_set_guilty(bad);
+					amd_sched_set_guilty(bad, entity);
 					break;
 				}
 			}
@@ -541,7 +541,6 @@ int amd_sched_job_init(struct amd_sched_job *job,
 		       void *owner)
 {
 	job->sched = sched;
-	job->s_entity = entity;
 	job->s_priority = entity->rq - sched->sched_rq;
 	job->s_fence = amd_sched_fence_create(entity, owner);
 	if (!job->s_fence)

@@ -13,8 +13,8 @@
 #define TRACE_INCLUDE_FILE gpu_sched_trace
 
 TRACE_EVENT(amd_sched_job,
-	    TP_PROTO(struct amd_sched_job *sched_job),
-	    TP_ARGS(sched_job),
+	    TP_PROTO(struct amd_sched_job *sched_job, struct amd_sched_entity *entity),
+	    TP_ARGS(sched_job, entity),
 	    TP_STRUCT__entry(
 			     __field(struct amd_sched_entity *, entity)
 			     __field(struct dma_fence *, fence)
@@ -25,12 +25,11 @@ TRACE_EVENT(amd_sched_job,
 			     ),
 
 	    TP_fast_assign(
-			   __entry->entity = sched_job->s_entity;
+			   __entry->entity = entity;
 			   __entry->id = sched_job->id;
 			   __entry->fence = &sched_job->s_fence->finished;
 			   __entry->name = sched_job->sched->name;
-			   __entry->job_count = spsc_queue_count(
-				   &sched_job->s_entity->job_queue);
+			   __entry->job_count = spsc_queue_count(&entity->job_queue);
 			   __entry->hw_job_count = atomic_read(
 				   &sched_job->sched->hw_rq_count);
 			   ),
