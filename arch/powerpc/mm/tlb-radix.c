@@ -298,10 +298,14 @@ void radix__tlb_flush(struct mmu_gather *tlb)
 	psize = radix_get_mmu_psize(page_size);
 	/*
 	 * if page size is not something we understand, do a full mm flush
+	 *
+	 * A "fullmm" flush must always do a flush_all_mm (RIC=2) flush
+	 * that flushes the process table entry cache upon process teardown.
+	 * See the comment for radix in arch_exit_mmap().
 	 */
 	if (psize != -1 && !tlb->fullmm && !tlb->need_flush_all)
 		radix__flush_tlb_range_psize(mm, tlb->start, tlb->end, psize);
-	else if (tlb->need_flush_all) {
+	else if (tlb->fullmm || tlb->need_flush_all) {
 		tlb->need_flush_all = 0;
 		radix__flush_all_mm(mm);
 	} else
