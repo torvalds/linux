@@ -198,7 +198,7 @@ struct hisi_sas_hw {
 	int (*slot_complete)(struct hisi_hba *hisi_hba,
 			     struct hisi_sas_slot *slot);
 	void (*phys_init)(struct hisi_hba *hisi_hba);
-	void (*phy_enable)(struct hisi_hba *hisi_hba, int phy_no);
+	void (*phy_start)(struct hisi_hba *hisi_hba, int phy_no);
 	void (*phy_disable)(struct hisi_hba *hisi_hba, int phy_no);
 	void (*phy_hard_reset)(struct hisi_hba *hisi_hba, int phy_no);
 	void (*get_events)(struct hisi_hba *hisi_hba, int phy_no);
