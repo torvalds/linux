@@ -213,6 +213,11 @@ static int dwc2_hs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 		usbcfg &= ~(GUSBCFG_PHYIF16 | GUSBCFG_DDRSEL);
 		if (hsotg->params.phy_ulpi_ddr)
 			usbcfg |= GUSBCFG_DDRSEL;
+
+		/* Set external VBUS indicator as needed. */
+		if (hsotg->params.oc_disable)
+			usbcfg |= (GUSBCFG_ULPI_INT_VBUS_IND |
+				   GUSBCFG_INDICATORPASSTHROUGH);
 		break;
 	case DWC2_PHY_TYPE_PARAM_UTMI:
 		/* UTMI+ interface */
@@ -3277,7 +3282,6 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 		dwc2_core_init(hsotg, false);
 		dwc2_enable_global_interrupts(hsotg);
 		spin_lock_irqsave(&hsotg->lock, flags);
-		dwc2_hsotg_disconnect(hsotg);
 		dwc2_hsotg_core_init_disconnected(hsotg, false);
 		spin_unlock_irqrestore(&hsotg->lock, flags);
 		dwc2_hsotg_core_connect(hsotg);
@@ -3296,8 +3300,12 @@ host:
 		if (count > 250)
 			dev_err(hsotg->dev,
 				"Connection id status change timed out\n");
-		hsotg->op_state = OTG_STATE_A_HOST;
 
+		spin_lock_irqsave(&hsotg->lock, flags);
+		dwc2_hsotg_disconnect(hsotg);
+		spin_unlock_irqrestore(&hsotg->lock, flags);
+
+		hsotg->op_state = OTG_STATE_A_HOST;
 		/* Initialize the Core for Host mode */
 		dwc2_core_init(hsotg, false);
 		dwc2_enable_global_interrupts(hsotg);

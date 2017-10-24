@@ -14,9 +14,9 @@ Required properties:
  - vusb33-supply : regulator of USB avdd3.3v
  - clocks : a list of phandle + clock-specifier pairs, one for each
 	entry in clock-names
- - clock-names : must contain "sys_ck" and "ref_ck" for clock of controller;
-	"wakeup_deb_p0" and "wakeup_deb_p1" are optional, they are
-	depends on "mediatek,enable-wakeup"
+ - clock-names : must contain "sys_ck" for clock of controller,
+	the following clocks are optional:
+	"ref_ck", "mcu_ck" and "dam_ck";
  - phys : a list of phandle + phy specifier pairs
  - dr_mode : should be one of "host", "peripheral" or "otg",
 	refer to usb/generic.txt
@@ -30,9 +30,10 @@ Optional properties:
 	when supports dual-role mode.
  - vbus-supply : reference to the VBUS regulator, needed when supports
 	dual-role mode.
- - pinctl-names : a pinctrl state named "default" must be defined,
-	"id_float" and "id_ground" are optinal which depends on
-	"mediatek,enable-manual-drd"
+ - pinctrl-names : a pinctrl state named "default" is optional, and need be
+	defined if auto drd switch is enabled, that means the property dr_mode
+	is set as "otg", and meanwhile the property "mediatek,enable-manual-drd"
+	is not set.
  - pinctrl-0 : pin control group
 	See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
@@ -44,6 +45,8 @@ Optional properties:
  - mediatek,enable-wakeup : supports ip sleep wakeup used by host mode
  - mediatek,syscon-wakeup : phandle to syscon used to access USB wakeup
 	control register, it depends on "mediatek,enable-wakeup".
+ - mediatek,u3p-dis-msk : mask to disable u3ports, bit0 for u3port0,
+	bit1 for u3port1, ... etc;
 
 Sub-nodes:
 The xhci should be added as subnode to mtu3 as shown in the following example
@@ -63,9 +66,7 @@ ssusb: usb@11271000 {
 	clocks = <&topckgen CLK_TOP_USB30_SEL>, <&clk26m>,
 		 <&pericfg CLK_PERI_USB0>,
 		 <&pericfg CLK_PERI_USB1>;
-	clock-names = "sys_ck", "ref_ck",
-		      "wakeup_deb_p0",
-		      "wakeup_deb_p1";
+	clock-names = "sys_ck", "ref_ck";
 	vusb33-supply = <&mt6397_vusb_reg>;
 	vbus-supply = <&usb_p0_vbus>;
 	extcon = <&extcon_usb>;

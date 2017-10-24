@@ -17,6 +17,6 @@
 #define __UVC_V4L2_H__
 
 extern const struct v4l2_ioctl_ops uvc_v4l2_ioctl_ops;
-extern struct v4l2_file_operations uvc_v4l2_fops;
+extern const struct v4l2_file_operations uvc_v4l2_fops;
 
 #endif /* __UVC_V4L2_H__ */

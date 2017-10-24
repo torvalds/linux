@@ -395,6 +395,9 @@ enum dwc2_ep0_state {
  *                           (default when phy_type is UTMI+ or ULPI)
  *                       1 - 6 MHz
  *                           (default when phy_type is Full Speed)
+ * @oc_disable:		Flag to disable overcurrent condition.
+ *			0 - Allow overcurrent condition to get detected
+ *			1 - Disable overcurrent condtion to get detected
  * @ts_dline:           Enable Term Select Dline pulsing
  *                       0 - No (default)
  *                       1 - Yes
@@ -492,6 +495,7 @@ struct dwc2_core_params {
 	bool dma_desc_fs_enable;
 	bool host_support_fs_ls_low_power;
 	bool host_ls_low_power_phy_clk;
+	bool oc_disable;
 
 	u8 host_channels;
 	u16 host_rx_fifo_size;

@@ -354,7 +354,7 @@ static unsigned long uvcg_v4l2_get_unmapped_area(struct file *file,
 }
 #endif
 
-struct v4l2_file_operations uvc_v4l2_fops = {
+const struct v4l2_file_operations uvc_v4l2_fops = {
 	.owner		= THIS_MODULE,
 	.open		= uvc_v4l2_open,
 	.release	= uvc_v4l2_release,
