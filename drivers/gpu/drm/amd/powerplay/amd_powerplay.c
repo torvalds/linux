@@ -1184,7 +1184,7 @@ int amd_powerplay_reset(void *handle)
 	int ret;
 
 	ret = pp_check(instance);
-	if (!ret)
+	if (ret)
 		return ret;
 
 	ret = pp_hw_fini(instance);
