@@ -136,9 +136,9 @@ static enum ib_wc_opcode wr_to_wc_opcode(enum ib_wr_opcode opcode)
 	}
 }
 
-void retransmit_timer(unsigned long data)
+void retransmit_timer(struct timer_list *t)
 {
-	struct rxe_qp *qp = (struct rxe_qp *)data;
+	struct rxe_qp *qp = from_timer(qp, t, retrans_timer);
 
 	if (qp->valid) {
 		qp->comp.timeout = 1;
