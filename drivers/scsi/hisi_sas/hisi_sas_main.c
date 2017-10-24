@@ -1469,6 +1469,7 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			if (slot)
 				slot->task = NULL;
 			dev_err(dev, "internal task abort: timeout.\n");
+			goto exit;
 		}
 	}
 
