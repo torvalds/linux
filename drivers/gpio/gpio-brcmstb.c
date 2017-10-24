@@ -137,13 +137,13 @@ static int brcmstb_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 
 	switch (type) {
 	case IRQ_TYPE_LEVEL_LOW:
-		level = 0;
+		level = mask;
 		edge_config = 0;
 		edge_insensitive = 0;
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
 		level = mask;
-		edge_config = 0;
+		edge_config = mask;
 		edge_insensitive = 0;
 		break;
 	case IRQ_TYPE_EDGE_FALLING:
