@@ -311,9 +311,9 @@ top:
 	return sent;
 }
 
-static void v_timer(unsigned long _vudc)
+static void v_timer(struct timer_list *t)
 {
-	struct vudc *udc = (struct vudc *) _vudc;
+	struct vudc *udc = from_timer(udc, t, tr_timer.timer);
 	struct transfer_timer *timer = &udc->tr_timer;
 	struct urbp *urb_p, *tmp;
 	unsigned long flags;
@@ -459,7 +459,7 @@ void v_init_timer(struct vudc *udc)
 {
 	struct transfer_timer *t = &udc->tr_timer;
 
-	setup_timer(&t->timer, v_timer, (unsigned long) udc);
+	timer_setup(&t->timer, v_timer, 0);
 	t->state = VUDC_TR_STOPPED;
 }
 
