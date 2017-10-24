@@ -123,6 +123,17 @@ config NVMEM_SUNXI_SID
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_sunxi_sid.
 
+config UNIPHIER_EFUSE
+	tristate "UniPhier SoCs eFuse support"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This is a simple driver to dump specified values of UniPhier SoC
+	  from eFuse.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-uniphier-efuse.
+
 config NVMEM_VF610_OCOTP
 	tristate "VF610 SoC OCOTP support"
 	depends on SOC_VF610 || COMPILE_TEST
