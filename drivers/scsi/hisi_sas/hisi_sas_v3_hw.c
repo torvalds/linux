@@ -1840,6 +1840,7 @@ hisi_sas_shost_alloc_pci(struct pci_dev *pdev)
 	}
 	hisi_hba = shost_priv(shost);
 
+	INIT_WORK(&hisi_hba->rst_work, hisi_sas_rst_work_handler);
 	hisi_hba->hw = &hisi_sas_v3_hw;
 	hisi_hba->pci_dev = pdev;
 	hisi_hba->dev = dev;

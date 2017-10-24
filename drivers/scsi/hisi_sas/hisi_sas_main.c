@@ -1785,13 +1785,14 @@ void hisi_sas_free(struct hisi_hba *hisi_hba)
 }
 EXPORT_SYMBOL_GPL(hisi_sas_free);
 
-static void hisi_sas_rst_work_handler(struct work_struct *work)
+void hisi_sas_rst_work_handler(struct work_struct *work)
 {
 	struct hisi_hba *hisi_hba =
 		container_of(work, struct hisi_hba, rst_work);
 
 	hisi_sas_controller_reset(hisi_hba);
 }
+EXPORT_SYMBOL_GPL(hisi_sas_rst_work_handler);
 
 int hisi_sas_get_fw_info(struct hisi_hba *hisi_hba)
 {

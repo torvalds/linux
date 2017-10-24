@@ -425,4 +425,5 @@ extern void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba,
 				    struct sas_task *task,
 				    struct hisi_sas_slot *slot);
 extern void hisi_sas_init_mem(struct hisi_hba *hisi_hba);
+extern void hisi_sas_rst_work_handler(struct work_struct *work);
 #endif
