@@ -437,13 +437,45 @@ static int vlv_calc_cdclk(struct drm_i915_private *dev_priv, int min_cdclk)
 		return 200000;
 }
 
+static u8 vlv_calc_voltage_level(struct drm_i915_private *dev_priv, int cdclk)
+{
+	if (IS_VALLEYVIEW(dev_priv)) {
+		if (cdclk >= 320000) /* jump to highest voltage for 400MHz too */
+			return 2;
+		else if (cdclk >= 266667)
+			return 1;
+		else
+			return 0;
+	} else {
+		/*
+		 * Specs are full of misinformation, but testing on actual
+		 * hardware has shown that we just need to write the desired
+		 * CCK divider into the Punit register.
+		 */
+		return DIV_ROUND_CLOSEST(dev_priv->hpll_freq << 1, cdclk) - 1;
+	}
+}
+
 static void vlv_get_cdclk(struct drm_i915_private *dev_priv,
 			  struct intel_cdclk_state *cdclk_state)
 {
+	u32 val;
+
 	cdclk_state->vco = vlv_get_hpll_vco(dev_priv);
 	cdclk_state->cdclk = vlv_get_cck_clock(dev_priv, "cdclk",
 					       CCK_DISPLAY_CLOCK_CONTROL,
 					       cdclk_state->vco);
+
+	mutex_lock(&dev_priv->pcu_lock);
+	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+	mutex_unlock(&dev_priv->pcu_lock);
+
+	if (IS_VALLEYVIEW(dev_priv))
+		cdclk_state->voltage_level = (val & DSPFREQGUAR_MASK) >>
+			DSPFREQGUAR_SHIFT;
+	else
+		cdclk_state->voltage_level = (val & DSPFREQGUAR_MASK_CHV) >>
+			DSPFREQGUAR_SHIFT_CHV;
 }
 
 static void vlv_program_pfi_credits(struct drm_i915_private *dev_priv)
@@ -486,7 +518,7 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 			  const struct intel_cdclk_state *cdclk_state)
 {
 	int cdclk = cdclk_state->cdclk;
-	u32 val, cmd;
+	u32 val, cmd = cdclk_state->voltage_level;
 
 	/* There are cases where we can end up here with power domains
 	 * off and a CDCLK frequency other than the minimum, like when
@@ -495,13 +527,6 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 	 * the HW blocks needed for the following programming.
 	 */
 	intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
-
-	if (cdclk >= 320000) /* jump to highest voltage for 400MHz too */
-		cmd = 2;
-	else if (cdclk == 266667)
-		cmd = 1;
-	else
-		cmd = 0;
 
 	mutex_lock(&dev_priv->pcu_lock);
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
@@ -562,7 +587,7 @@ static void chv_set_cdclk(struct drm_i915_private *dev_priv,
 			  const struct intel_cdclk_state *cdclk_state)
 {
 	int cdclk = cdclk_state->cdclk;
-	u32 val, cmd;
+	u32 val, cmd = cdclk_state->voltage_level;
 
 	switch (cdclk) {
 	case 333333:
@@ -582,13 +607,6 @@ static void chv_set_cdclk(struct drm_i915_private *dev_priv,
 	 * the HW blocks needed for the following programming.
 	 */
 	intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
-
-	/*
-	 * Specs are full of misinformation, but testing on actual
-	 * hardware has shown that we just need to write the desired
-	 * CCK divider into the Punit register.
-	 */
-	cmd = DIV_ROUND_CLOSEST(dev_priv->hpll_freq << 1, cdclk) - 1;
 
 	mutex_lock(&dev_priv->pcu_lock);
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
@@ -1859,11 +1877,15 @@ static int vlv_modeset_calc_cdclk(struct drm_atomic_state *state)
 	cdclk = vlv_calc_cdclk(dev_priv, min_cdclk);
 
 	intel_state->cdclk.logical.cdclk = cdclk;
+	intel_state->cdclk.logical.voltage_level =
+		vlv_calc_voltage_level(dev_priv, cdclk);
 
 	if (!intel_state->active_crtcs) {
 		cdclk = vlv_calc_cdclk(dev_priv, 0);
 
 		intel_state->cdclk.actual.cdclk = cdclk;
+		intel_state->cdclk.actual.voltage_level =
+			vlv_calc_voltage_level(dev_priv, cdclk);
 	} else {
 		intel_state->cdclk.actual =
 			intel_state->cdclk.logical;
