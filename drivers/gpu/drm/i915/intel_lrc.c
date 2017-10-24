@@ -734,7 +734,6 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 
 		list_for_each_entry_safe(rq, rn, &p->requests, priotree.link) {
 			INIT_LIST_HEAD(&rq->priotree.link);
-			rq->priotree.priority = INT_MAX;
 
 			dma_fence_set_error(&rq->fence, -EIO);
 			__i915_gem_request_submit(rq);
@@ -891,7 +890,6 @@ static void intel_lrc_irq_handler(unsigned long data)
 				execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_OUT);
 
 				trace_i915_gem_request_out(rq);
-				rq->priotree.priority = INT_MAX;
 				i915_gem_request_put(rq);
 
 				execlists_port_complete(execlists, port);
