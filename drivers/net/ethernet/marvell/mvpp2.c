@@ -3396,7 +3396,7 @@ mvpp2_prs_mac_da_range_find(struct mvpp2 *priv, int pmap, const u8 *da,
 	struct mvpp2_prs_entry *pe;
 	int tid;
 
-	pe = kzalloc(sizeof(*pe), GFP_KERNEL);
+	pe = kzalloc(sizeof(*pe), GFP_ATOMIC);
 	if (!pe)
 		return NULL;
 	mvpp2_prs_tcam_lu_set(pe, MVPP2_PRS_LU_MAC);
@@ -3458,7 +3458,7 @@ static int mvpp2_prs_mac_da_accept(struct mvpp2 *priv, int port,
 		if (tid < 0)
 			return tid;
 
-		pe = kzalloc(sizeof(*pe), GFP_KERNEL);
+		pe = kzalloc(sizeof(*pe), GFP_ATOMIC);
 		if (!pe)
 			return -ENOMEM;
 		mvpp2_prs_tcam_lu_set(pe, MVPP2_PRS_LU_MAC);
