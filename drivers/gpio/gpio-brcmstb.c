@@ -63,6 +63,21 @@ brcmstb_gpio_gc_to_priv(struct gpio_chip *gc)
 	return bank->parent_priv;
 }
 
+static unsigned long
+brcmstb_gpio_get_active_irqs(struct brcmstb_gpio_bank *bank)
+{
+	void __iomem *reg_base = bank->parent_priv->reg_base;
+	unsigned long status;
+	unsigned long flags;
+
+	spin_lock_irqsave(&bank->gc.bgpio_lock, flags);
+	status = bank->gc.read_reg(reg_base + GIO_STAT(bank->id)) &
+		 bank->gc.read_reg(reg_base + GIO_MASK(bank->id));
+	spin_unlock_irqrestore(&bank->gc.bgpio_lock, flags);
+
+	return status;
+}
+
 static void brcmstb_gpio_set_imask(struct brcmstb_gpio_bank *bank,
 		unsigned int offset, bool enable)
 {
@@ -204,11 +219,8 @@ static void brcmstb_gpio_irq_bank_handler(struct brcmstb_gpio_bank *bank)
 	struct irq_domain *irq_domain = bank->gc.irqdomain;
 	void __iomem *reg_base = priv->reg_base;
 	unsigned long status;
-	unsigned long flags;
 
-	spin_lock_irqsave(&bank->gc.bgpio_lock, flags);
-	while ((status = bank->gc.read_reg(reg_base + GIO_STAT(bank->id)) &
-			 bank->gc.read_reg(reg_base + GIO_MASK(bank->id)))) {
+	while ((status = brcmstb_gpio_get_active_irqs(bank))) {
 		int bit;
 
 		for_each_set_bit(bit, &status, 32) {
@@ -223,7 +235,6 @@ static void brcmstb_gpio_irq_bank_handler(struct brcmstb_gpio_bank *bank)
 			generic_handle_irq(irq_find_mapping(irq_domain, bit));
 		}
 	}
-	spin_unlock_irqrestore(&bank->gc.bgpio_lock, flags);
 }
 
 /* Each UPG GIO block has one IRQ for all banks */
