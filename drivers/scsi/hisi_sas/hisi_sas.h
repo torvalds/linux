@@ -96,6 +96,7 @@ struct hisi_sas_hw_error {
 	int shift;
 	const char *msg;
 	int reg;
+	const struct hisi_sas_hw_error *sub;
 };
 
 struct hisi_sas_phy {
