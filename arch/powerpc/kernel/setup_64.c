@@ -69,6 +69,8 @@
 #include <asm/opal.h>
 #include <asm/cputhreads.h>
 
+#include "setup.h"
+
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
 #else
@@ -315,6 +317,13 @@ void __init early_setup(unsigned long dt_ptr)
 
 	/* Initialize the hash table or TLB handling */
 	early_init_mmu();
+
+	/*
+	 * After firmware and early platform setup code has set things up,
+	 * we note the SPR values for configurable control/performance
+	 * registers, and use those as initial defaults.
+	 */
+	record_spr_defaults();
 
 	/*
 	 * At this point, we can let interrupts switch to virtual mode

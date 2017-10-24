@@ -45,6 +45,12 @@ void emergency_stack_init(void);
 static inline void emergency_stack_init(void) { };
 #endif
 
+#ifdef CONFIG_PPC64
+void record_spr_defaults(void);
+#else
+static inline void record_spr_defaults(void) { };
+#endif
+
 /*
  * Having this in kvm_ppc.h makes include dependencies too
  * tricky to solve for setup-common.c so have it here.
