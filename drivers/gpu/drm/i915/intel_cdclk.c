@@ -520,6 +520,18 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 	int cdclk = cdclk_state->cdclk;
 	u32 val, cmd = cdclk_state->voltage_level;
 
+	switch (cdclk) {
+	case 400000:
+	case 333333:
+	case 320000:
+	case 266667:
+	case 200000:
+		break;
+	default:
+		MISSING_CASE(cdclk);
+		return;
+	}
+
 	/* There are cases where we can end up here with power domains
 	 * off and a CDCLK frequency other than the minimum, like when
 	 * issuing a modeset without actually changing any display after
