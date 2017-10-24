@@ -262,17 +262,17 @@ static void serial_unlink_irq_chain(struct uart_8250_port *up)
  * barely passable results for a 16550A.  (Although at the expense
  * of much CPU overhead).
  */
-static void serial8250_timeout(unsigned long data)
+static void serial8250_timeout(struct timer_list *t)
 {
-	struct uart_8250_port *up = (struct uart_8250_port *)data;
+	struct uart_8250_port *up = from_timer(up, t, timer);
 
 	up->port.handle_irq(&up->port);
 	mod_timer(&up->timer, jiffies + uart_poll_timeout(&up->port));
 }
 
-static void serial8250_backup_timeout(unsigned long data)
+static void serial8250_backup_timeout(struct timer_list *t)
 {
-	struct uart_8250_port *up = (struct uart_8250_port *)data;
+	struct uart_8250_port *up = from_timer(up, t, timer);
 	unsigned int iir, ier = 0, lsr;
 	unsigned long flags;
 
@@ -329,8 +329,7 @@ static int univ8250_setup_irq(struct uart_8250_port *up)
 	if (up->bugs & UART_BUG_THRE) {
 		pr_debug("ttyS%d - using backup timer\n", serial_index(port));
 
-		up->timer.function = serial8250_backup_timeout;
-		up->timer.data = (unsigned long)up;
+		up->timer.function = (TIMER_FUNC_TYPE)serial8250_backup_timeout;
 		mod_timer(&up->timer, jiffies +
 			  uart_poll_timeout(port) + HZ / 5);
 	}
@@ -341,7 +340,6 @@ static int univ8250_setup_irq(struct uart_8250_port *up)
 	 * driver used to do this with IRQ0.
 	 */
 	if (!port->irq) {
-		up->timer.data = (unsigned long)up;
 		mod_timer(&up->timer, jiffies + uart_poll_timeout(port));
 	} else
 		retval = serial_link_irq_chain(up);
@@ -354,7 +352,7 @@ static void univ8250_release_irq(struct uart_8250_port *up)
 	struct uart_port *port = &up->port;
 
 	del_timer_sync(&up->timer);
-	up->timer.function = serial8250_timeout;
+	up->timer.function = (TIMER_FUNC_TYPE)serial8250_timeout;
 	if (port->irq)
 		serial_unlink_irq_chain(up);
 }
@@ -525,7 +523,7 @@ static void __init serial8250_isa_init_ports(void)
 			base_ops = port->ops;
 		port->ops = &univ8250_port_ops;
 
-		setup_timer(&up->timer, serial8250_timeout, 0UL);
+		timer_setup(&up->timer, serial8250_timeout, 0);
 
 		up->ops = &univ8250_driver_ops;
 
