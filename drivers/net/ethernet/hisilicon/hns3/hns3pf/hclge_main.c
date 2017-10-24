@@ -3600,11 +3600,11 @@ static int hclge_add_mac_vlan_tbl(struct hclge_vport *vport,
 							   resp_code,
 							   HCLGE_MAC_VLAN_ADD);
 	} else {
-		mc_desc[0].flag &= cpu_to_le16(~HCLGE_CMD_FLAG_WR);
+		hclge_cmd_reuse_desc(&mc_desc[0], false);
 		mc_desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-		mc_desc[1].flag &= cpu_to_le16(~HCLGE_CMD_FLAG_WR);
+		hclge_cmd_reuse_desc(&mc_desc[1], false);
 		mc_desc[1].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-		mc_desc[2].flag &= cpu_to_le16(~HCLGE_CMD_FLAG_WR);
+		hclge_cmd_reuse_desc(&mc_desc[2], false);
 		mc_desc[2].flag &= cpu_to_le16(~HCLGE_CMD_FLAG_NEXT);
 		memcpy(mc_desc[0].data, req,
 		       sizeof(struct hclge_mac_vlan_tbl_entry_cmd));
