@@ -58,7 +58,7 @@ struct in6_validator_info {
 	struct netlink_ext_ack	*extack;
 };
 
-#define IN6_ADDR_HSIZE_SHIFT	4
+#define IN6_ADDR_HSIZE_SHIFT	8
 #define IN6_ADDR_HSIZE		(1 << IN6_ADDR_HSIZE_SHIFT)
 
 int addrconf_init(void);
