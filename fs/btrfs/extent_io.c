@@ -3094,7 +3094,7 @@ static inline void __do_contiguous_readpages(struct extent_io_tree *tree,
 					     u64 start, u64 end,
 					     get_extent_t *get_extent,
 					     struct extent_map **em_cached,
-					     struct bio **bio, int mirror_num,
+					     struct bio **bio,
 					     unsigned long *bio_flags,
 					     u64 *prev_em_start)
 {
@@ -3116,7 +3116,7 @@ static inline void __do_contiguous_readpages(struct extent_io_tree *tree,
 
 	for (index = 0; index < nr_pages; index++) {
 		__do_readpage(tree, pages[index], get_extent, em_cached, bio,
-			      mirror_num, bio_flags, 0, prev_em_start);
+			      0, bio_flags, 0, prev_em_start);
 		put_page(pages[index]);
 	}
 }
@@ -3125,8 +3125,7 @@ static void __extent_readpages(struct extent_io_tree *tree,
 			       struct page *pages[],
 			       int nr_pages, get_extent_t *get_extent,
 			       struct extent_map **em_cached,
-			       struct bio **bio, int mirror_num,
-			       unsigned long *bio_flags,
+			       struct bio **bio, unsigned long *bio_flags,
 			       u64 *prev_em_start)
 {
 	u64 start = 0;
@@ -3147,7 +3146,7 @@ static void __extent_readpages(struct extent_io_tree *tree,
 			__do_contiguous_readpages(tree, &pages[first_index],
 						  index - first_index, start,
 						  end, get_extent, em_cached,
-						  bio, mirror_num, bio_flags,
+						  bio, bio_flags,
 						  prev_em_start);
 			start = page_start;
 			end = start + PAGE_SIZE - 1;
@@ -3159,8 +3158,7 @@ static void __extent_readpages(struct extent_io_tree *tree,
 		__do_contiguous_readpages(tree, &pages[first_index],
 					  index - first_index, start,
 					  end, get_extent, em_cached, bio,
-					  mirror_num, bio_flags,
-					  prev_em_start);
+					  bio_flags, prev_em_start);
 }
 
 static int __extent_read_full_page(struct extent_io_tree *tree,
@@ -4171,12 +4169,12 @@ int extent_readpages(struct extent_io_tree *tree,
 		if (nr < ARRAY_SIZE(pagepool))
 			continue;
 		__extent_readpages(tree, pagepool, nr, get_extent, &em_cached,
-				   &bio, 0, &bio_flags, &prev_em_start);
+				   &bio, &bio_flags, &prev_em_start);
 		nr = 0;
 	}
 	if (nr)
 		__extent_readpages(tree, pagepool, nr, get_extent, &em_cached,
-				   &bio, 0, &bio_flags, &prev_em_start);
+				   &bio, &bio_flags, &prev_em_start);
 
 	if (em_cached)
 		free_extent_map(em_cached);
