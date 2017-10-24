@@ -255,6 +255,7 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 #ifdef CONFIG_PM
 	init_waitqueue_head(&card->power_sleep);
 #endif
+	init_waitqueue_head(&card->remove_sleep);
 
 	device_initialize(&card->card_dev);
 	card->card_dev.parent = parent;
@@ -451,6 +452,35 @@ int snd_card_disconnect(struct snd_card *card)
 	return 0;	
 }
 EXPORT_SYMBOL(snd_card_disconnect);
+
+/**
+ * snd_card_disconnect_sync - disconnect card and wait until files get closed
+ * @card: card object to disconnect
+ *
+ * This calls snd_card_disconnect() for disconnecting all belonging components
+ * and waits until all pending files get closed.
+ * It assures that all accesses from user-space finished so that the driver
+ * can release its resources gracefully.
+ */
+void snd_card_disconnect_sync(struct snd_card *card)
+{
+	int err;
+
+	err = snd_card_disconnect(card);
+	if (err < 0) {
+		dev_err(card->dev,
+			"snd_card_disconnect error (%d), skipping sync\n",
+			err);
+		return;
+	}
+
+	spin_lock_irq(&card->files_lock);
+	wait_event_lock_irq(card->remove_sleep,
+			    list_empty(&card->files_list),
+			    card->files_lock);
+	spin_unlock_irq(&card->files_lock);
+}
+EXPORT_SYMBOL_GPL(snd_card_disconnect_sync);
 
 static int snd_card_do_free(struct snd_card *card)
 {
@@ -957,6 +987,8 @@ int snd_card_file_remove(struct snd_card *card, struct file *file)
 			break;
 		}
 	}
+	if (list_empty(&card->files_list))
+		wake_up_all(&card->remove_sleep);
 	spin_unlock(&card->files_lock);
 	if (!found) {
 		dev_err(card->dev, "card file remove problem (%p)\n", file);
