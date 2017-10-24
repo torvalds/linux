@@ -3252,7 +3252,7 @@ static noinline_for_stack int writepage_delalloc(struct inode *inode,
 					       delalloc_start,
 					       delalloc_end,
 					       &page_started,
-					       nr_written);
+					       nr_written, wbc);
 		/* File system has been set read-only */
 		if (ret) {
 			SetPageError(page);

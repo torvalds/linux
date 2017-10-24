@@ -378,6 +378,7 @@ struct async_cow {
 	struct page *locked_page;
 	u64 start;
 	u64 end;
+	unsigned int write_flags;
 	struct list_head extents;
 	struct btrfs_work work;
 };
@@ -857,7 +858,8 @@ retry:
 				    async_extent->ram_size,
 				    ins.objectid,
 				    ins.offset, async_extent->pages,
-				    async_extent->nr_pages)) {
+				    async_extent->nr_pages,
+				    async_cow->write_flags)) {
 			struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 			struct page *p = async_extent->pages[0];
 			const u64 start = async_extent->start;
@@ -1191,7 +1193,8 @@ static noinline void async_cow_free(struct btrfs_work *work)
 
 static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 				u64 start, u64 end, int *page_started,
-				unsigned long *nr_written)
+				unsigned long *nr_written,
+				unsigned int write_flags)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct async_cow *async_cow;
@@ -1208,6 +1211,7 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 		async_cow->root = root;
 		async_cow->locked_page = locked_page;
 		async_cow->start = start;
+		async_cow->write_flags = write_flags;
 
 		if (BTRFS_I(inode)->flags & BTRFS_INODE_NOCOMPRESS &&
 		    !btrfs_test_opt(fs_info, FORCE_COMPRESS))
@@ -1577,11 +1581,13 @@ static inline int need_force_cow(struct inode *inode, u64 start, u64 end)
  */
 static int run_delalloc_range(void *private_data, struct page *locked_page,
 			      u64 start, u64 end, int *page_started,
-			      unsigned long *nr_written)
+			      unsigned long *nr_written,
+			      struct writeback_control *wbc)
 {
 	struct inode *inode = private_data;
 	int ret;
 	int force_cow = need_force_cow(inode, start, end);
+	unsigned int write_flags = wbc_to_write_flags(wbc);
 
 	if (BTRFS_I(inode)->flags & BTRFS_INODE_NODATACOW && !force_cow) {
 		ret = run_delalloc_nocow(inode, locked_page, start, end,
@@ -1596,7 +1602,8 @@ static int run_delalloc_range(void *private_data, struct page *locked_page,
 		set_bit(BTRFS_INODE_HAS_ASYNC_EXTENT,
 			&BTRFS_I(inode)->runtime_flags);
 		ret = cow_file_range_async(inode, locked_page, start, end,
-					   page_started, nr_written);
+					   page_started, nr_written,
+					   write_flags);
 	}
 	if (ret)
 		btrfs_cleanup_ordered_extents(inode, start, end - start + 1);
