@@ -1184,14 +1184,13 @@ static int tc_exts_setup_cb_egdev_call(struct tcf_exts *exts,
 #ifdef CONFIG_NET_CLS_ACT
 	const struct tc_action *a;
 	struct net_device *dev;
-	LIST_HEAD(actions);
-	int ret;
+	int i, ret;
 
 	if (!tcf_exts_has_actions(exts))
 		return 0;
 
-	tcf_exts_to_list(exts, &actions);
-	list_for_each_entry(a, &actions, list) {
+	for (i = 0; i < exts->nr_actions; i++) {
+		a = exts->actions[i];
 		if (!a->ops->get_dev)
 			continue;
 		dev = a->ops->get_dev(a);
