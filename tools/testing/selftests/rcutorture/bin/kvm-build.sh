@@ -35,7 +35,7 @@ then
 	exit 1
 fi
 
-T=/tmp/test-linux.sh.$$
+T=${TMPDIR-/tmp}/test-linux.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
 

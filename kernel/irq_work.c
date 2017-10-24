@@ -56,7 +56,6 @@ void __weak arch_irq_work_raise(void)
 	 */
 }
 
-#ifdef CONFIG_SMP
 /*
  * Enqueue the irq_work @work on @cpu unless it's already pending
  * somewhere.
@@ -68,6 +67,8 @@ bool irq_work_queue_on(struct irq_work *work, int cpu)
 	/* All work should have been flushed before going offline */
 	WARN_ON_ONCE(cpu_is_offline(cpu));
 
+#ifdef CONFIG_SMP
+
 	/* Arch remote IPI send/receive backend aren't NMI safe */
 	WARN_ON_ONCE(in_nmi());
 
@@ -78,10 +79,12 @@ bool irq_work_queue_on(struct irq_work *work, int cpu)
 	if (llist_add(&work->llnode, &per_cpu(raised_list, cpu)))
 		arch_send_call_function_single_ipi(cpu);
 
+#else /* #ifdef CONFIG_SMP */
+	irq_work_queue(work);
+#endif /* #else #ifdef CONFIG_SMP */
+
 	return true;
 }
-EXPORT_SYMBOL_GPL(irq_work_queue_on);
-#endif
 
 /* Enqueue the irq work @work on the current CPU */
 bool irq_work_queue(struct irq_work *work)
