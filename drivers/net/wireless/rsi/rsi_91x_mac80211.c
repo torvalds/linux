@@ -1663,9 +1663,9 @@ static void rsi_resume_conn_channel(struct rsi_common *common)
 	}
 }
 
-void rsi_roc_timeout(unsigned long data)
+void rsi_roc_timeout(struct timer_list *t)
 {
-	struct rsi_common *common = (struct rsi_common *)data;
+	struct rsi_common *common = from_timer(common, t, roc_timer);
 
 	rsi_dbg(INFO_ZONE, "Remain on channel expired\n");
 

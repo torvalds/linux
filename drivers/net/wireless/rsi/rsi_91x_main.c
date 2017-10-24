@@ -262,9 +262,7 @@ struct rsi_hw *rsi_91x_init(void)
 
 	rsi_default_ps_params(adapter);
 	spin_lock_init(&adapter->ps_lock);
-	common->roc_timer.data = (unsigned long)common;
-	common->roc_timer.function = (void *)&rsi_roc_timeout;
-	init_timer(&common->roc_timer);
+	timer_setup(&common->roc_timer, rsi_roc_timeout, 0);
 	common->init_done = true;
 	return adapter;
 

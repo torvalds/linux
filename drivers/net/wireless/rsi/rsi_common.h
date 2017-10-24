@@ -85,5 +85,5 @@ void rsi_91x_deinit(struct rsi_hw *adapter);
 int rsi_read_pkt(struct rsi_common *common, s32 rcv_pkt_len);
 struct rsi_sta *rsi_find_sta(struct rsi_common *common, u8 *mac_addr);
 struct ieee80211_vif *rsi_get_vif(struct rsi_hw *adapter, u8 *mac);
-void rsi_roc_timeout(unsigned long data);
+void rsi_roc_timeout(struct timer_list *t);
 #endif
