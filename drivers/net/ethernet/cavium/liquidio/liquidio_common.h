@@ -84,6 +84,7 @@ enum octeon_tag_type {
 #define OPCODE_NIC_IF_CFG              0x09
 #define OPCODE_NIC_VF_DRV_NOTICE       0x0A
 #define OPCODE_NIC_INTRMOD_PARAMS      0x0B
+#define OPCODE_NIC_SYNC_OCTEON_TIME	0x14
 #define VF_DRV_LOADED                  1
 #define VF_DRV_REMOVED                -1
 #define VF_DRV_MACADDR_CHANGED         2
@@ -107,6 +108,9 @@ enum octeon_tag_type {
 #define MAX_IOQ_INTERRUPTS_PER_VF   (8 * 2)
 
 #define SCR2_BIT_FW_LOADED	    63
+
+/* App specific capabilities from firmware to pf driver */
+#define LIQUIDIO_TIME_SYNC_CAP 0x1
 
 static inline u32 incr_index(u32 index, u32 count, u32 max)
 {
@@ -901,4 +905,8 @@ union oct_nic_if_cfg {
 	} s;
 };
 
+struct lio_time {
+	s64 sec;   /* seconds */
+	s64 nsec;  /* nanoseconds */
+};
 #endif

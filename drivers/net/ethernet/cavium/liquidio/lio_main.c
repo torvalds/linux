@@ -83,6 +83,11 @@ static int octeon_console_debug_enabled(u32 console)
 
 /* runtime link query interval */
 #define LIQUIDIO_LINK_QUERY_INTERVAL_MS         1000
+/* update localtime to octeon firmware every 60 seconds.
+ * make firmware to use same time reference, so that it will be easy to
+ * correlate firmware logged events/errors with host events, for debugging.
+ */
+#define LIO_SYNC_OCTEON_TIME_INTERVAL_MS 60000
 
 struct liquidio_if_cfg_context {
 	int octeon_id;
@@ -901,6 +906,121 @@ static inline void update_link_status(struct net_device *netdev,
 	}
 }
 
+/**
+ * lio_sync_octeon_time_cb - callback that is invoked when soft command
+ * sent by lio_sync_octeon_time() has completed successfully or failed
+ *
+ * @oct - octeon device structure
+ * @status - indicates success or failure
+ * @buf - pointer to the command that was sent to firmware
+ **/
+static void lio_sync_octeon_time_cb(struct octeon_device *oct,
+				    u32 status, void *buf)
+{
+	struct octeon_soft_command *sc = (struct octeon_soft_command *)buf;
+
+	if (status)
+		dev_err(&oct->pci_dev->dev,
+			"Failed to sync time to octeon; error=%d\n", status);
+
+	octeon_free_soft_command(oct, sc);
+}
+
+/**
+ * lio_sync_octeon_time - send latest localtime to octeon firmware so that
+ * firmware will correct it's time, in case there is a time skew
+ *
+ * @work: work scheduled to send time update to octeon firmware
+ **/
+static void lio_sync_octeon_time(struct work_struct *work)
+{
+	struct cavium_wk *wk = (struct cavium_wk *)work;
+	struct lio *lio = (struct lio *)wk->ctxptr;
+	struct octeon_device *oct = lio->oct_dev;
+	struct octeon_soft_command *sc;
+	struct timespec64 ts;
+	struct lio_time *lt;
+	int ret;
+
+	sc = octeon_alloc_soft_command(oct, sizeof(struct lio_time), 0, 0);
+	if (!sc) {
+		dev_err(&oct->pci_dev->dev,
+			"Failed to sync time to octeon: soft command allocation failed\n");
+		return;
+	}
+
+	lt = (struct lio_time *)sc->virtdptr;
+
+	/* Get time of the day */
+	getnstimeofday64(&ts);
+	lt->sec = ts.tv_sec;
+	lt->nsec = ts.tv_nsec;
+	octeon_swap_8B_data((u64 *)lt, (sizeof(struct lio_time)) / 8);
+
+	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
+				    OPCODE_NIC_SYNC_OCTEON_TIME, 0, 0, 0);
+
+	sc->callback = lio_sync_octeon_time_cb;
+	sc->callback_arg = sc;
+	sc->wait_time = 1000;
+
+	ret = octeon_send_soft_command(oct, sc);
+	if (ret == IQ_SEND_FAILED) {
+		dev_err(&oct->pci_dev->dev,
+			"Failed to sync time to octeon: failed to send soft command\n");
+		octeon_free_soft_command(oct, sc);
+	}
+
+	queue_delayed_work(lio->sync_octeon_time_wq.wq,
+			   &lio->sync_octeon_time_wq.wk.work,
+			   msecs_to_jiffies(LIO_SYNC_OCTEON_TIME_INTERVAL_MS));
+}
+
+/**
+ * setup_sync_octeon_time_wq - Sets up the work to periodically update
+ * local time to octeon firmware
+ *
+ * @netdev - network device which should send time update to firmware
+ **/
+static inline int setup_sync_octeon_time_wq(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+
+	lio->sync_octeon_time_wq.wq =
+		alloc_workqueue("update-octeon-time", WQ_MEM_RECLAIM, 0);
+	if (!lio->sync_octeon_time_wq.wq) {
+		dev_err(&oct->pci_dev->dev, "Unable to create wq to update octeon time\n");
+		return -1;
+	}
+	INIT_DELAYED_WORK(&lio->sync_octeon_time_wq.wk.work,
+			  lio_sync_octeon_time);
+	lio->sync_octeon_time_wq.wk.ctxptr = lio;
+	queue_delayed_work(lio->sync_octeon_time_wq.wq,
+			   &lio->sync_octeon_time_wq.wk.work,
+			   msecs_to_jiffies(LIO_SYNC_OCTEON_TIME_INTERVAL_MS));
+
+	return 0;
+}
+
+/**
+ * cleanup_sync_octeon_time_wq - stop scheduling and destroy the work created
+ * to periodically update local time to octeon firmware
+ *
+ * @netdev - network device which should send time update to firmware
+ **/
+static inline void cleanup_sync_octeon_time_wq(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct cavium_wq *time_wq = &lio->sync_octeon_time_wq;
+
+	if (time_wq->wq) {
+		cancel_delayed_work_sync(&time_wq->wk.work);
+		destroy_workqueue(time_wq->wq);
+	}
+}
+
 static struct octeon_device *get_other_octeon_device(struct octeon_device *oct)
 {
 	struct octeon_device *other_oct;
@@ -1455,6 +1575,7 @@ static void liquidio_destroy_nic_device(struct octeon_device *oct, int ifidx)
 	if (atomic_read(&lio->ifstate) & LIO_IFSTATE_REGISTERED)
 		unregister_netdev(netdev);
 
+	cleanup_sync_octeon_time_wq(netdev);
 	cleanup_link_status_change_wq(netdev);
 
 	cleanup_rx_oom_poll_fn(netdev);
@@ -3609,6 +3730,11 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 					     OCTNET_CMD_VERBOSE_ENABLE, 0);
 
 		if (setup_link_status_change_wq(netdev))
+			goto setup_nic_dev_fail;
+
+		if ((octeon_dev->fw_info.app_cap_flags &
+		     LIQUIDIO_TIME_SYNC_CAP) &&
+		    setup_sync_octeon_time_wq(netdev))
 			goto setup_nic_dev_fail;
 
 		if (setup_rx_oom_poll_fn(netdev))

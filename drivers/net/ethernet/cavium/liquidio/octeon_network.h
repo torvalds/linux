@@ -136,6 +136,9 @@ struct lio {
 	/* work queue for  link status */
 	struct cavium_wq	link_status_wq;
 
+	/* work queue to regularly send local time to octeon firmware */
+	struct cavium_wq	sync_octeon_time_wq;
+
 	int netdev_uc_count;
 };
 
