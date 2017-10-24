@@ -1237,9 +1237,9 @@ static void cyttsp4_stop_wd_timer(struct cyttsp4 *cd)
 	del_timer_sync(&cd->watchdog_timer);
 }
 
-static void cyttsp4_watchdog_timer(unsigned long handle)
+static void cyttsp4_watchdog_timer(struct timer_list *t)
 {
-	struct cyttsp4 *cd = (struct cyttsp4 *)handle;
+	struct cyttsp4 *cd = from_timer(cd, t, watchdog_timer);
 
 	dev_vdbg(cd->dev, "%s: Watchdog timer triggered\n", __func__);
 
@@ -2074,8 +2074,7 @@ struct cyttsp4 *cyttsp4_probe(const struct cyttsp4_bus_ops *ops,
 	}
 
 	/* Setup watchdog timer */
-	setup_timer(&cd->watchdog_timer, cyttsp4_watchdog_timer,
-		(unsigned long)cd);
+	timer_setup(&cd->watchdog_timer, cyttsp4_watchdog_timer, 0);
 
 	/*
 	 * call startup directly to ensure that the device

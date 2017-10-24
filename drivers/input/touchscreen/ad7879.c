@@ -237,9 +237,9 @@ static void ad7879_ts_event_release(struct ad7879 *ts)
 	input_sync(input_dev);
 }
 
-static void ad7879_timer(unsigned long handle)
+static void ad7879_timer(struct timer_list *t)
 {
-	struct ad7879 *ts = (void *)handle;
+	struct ad7879 *ts = from_timer(ts, t, timer);
 
 	ad7879_ts_event_release(ts);
 }
@@ -570,7 +570,7 @@ int ad7879_probe(struct device *dev, struct regmap *regmap,
 	ts->irq = irq;
 	ts->regmap = regmap;
 
-	setup_timer(&ts->timer, ad7879_timer, (unsigned long) ts);
+	timer_setup(&ts->timer, ad7879_timer, 0);
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", dev_name(dev));
 
 	input_dev->name = "AD7879 Touchscreen";
