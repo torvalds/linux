@@ -2076,7 +2076,6 @@ make_dummy_bundle:
 	xdst->num_xfrms = num_xfrms;
 	memcpy(xdst->pols, pols, sizeof(struct xfrm_policy *) * num_pols);
 
-	dst_hold(&xdst->u.dst);
 	return xdst;
 
 inc_error:
