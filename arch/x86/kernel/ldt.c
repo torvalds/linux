@@ -103,7 +103,7 @@ static void finalize_ldt_struct(struct ldt_struct *ldt)
 static void install_ldt(struct mm_struct *current_mm,
 			struct ldt_struct *ldt)
 {
-	/* Synchronizes with lockless_dereference in load_mm_ldt. */
+	/* Synchronizes with READ_ONCE in load_mm_ldt. */
 	smp_store_release(&current_mm->context.ldt, ldt);
 
 	/* Activate the LDT for all CPUs using current_mm. */
