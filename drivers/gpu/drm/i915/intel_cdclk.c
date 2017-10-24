@@ -768,10 +768,6 @@ static void bdw_set_cdclk(struct drm_i915_private *dev_priv,
 	I915_WRITE(CDCLK_FREQ, DIV_ROUND_CLOSEST(cdclk, 1000) - 1);
 
 	intel_update_cdclk(dev_priv);
-
-	WARN(cdclk != dev_priv->cdclk.hw.cdclk,
-	     "cdclk requested %d kHz but got %d kHz\n",
-	     cdclk, dev_priv->cdclk.hw.cdclk);
 }
 
 static int skl_calc_cdclk(int min_cdclk, int vco)
@@ -1068,6 +1064,8 @@ static void skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 		goto sanitize;
 
 	intel_update_cdclk(dev_priv);
+	intel_dump_cdclk_state(&dev_priv->cdclk.hw, "Current CDCLK");
+
 	/* Is PLL enabled and locked ? */
 	if (dev_priv->cdclk.hw.vco == 0 ||
 	    dev_priv->cdclk.hw.cdclk == dev_priv->cdclk.hw.ref)
@@ -1407,6 +1405,7 @@ static void bxt_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	u32 cdctl, expected;
 
 	intel_update_cdclk(dev_priv);
+	intel_dump_cdclk_state(&dev_priv->cdclk.hw, "Current CDCLK");
 
 	if (dev_priv->cdclk.hw.vco == 0 ||
 	    dev_priv->cdclk.hw.cdclk == dev_priv->cdclk.hw.ref)
@@ -1713,6 +1712,7 @@ static void cnl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	u32 cdctl, expected;
 
 	intel_update_cdclk(dev_priv);
+	intel_dump_cdclk_state(&dev_priv->cdclk.hw, "Current CDCLK");
 
 	if (dev_priv->cdclk.hw.vco == 0 ||
 	    dev_priv->cdclk.hw.cdclk == dev_priv->cdclk.hw.ref)
@@ -1826,6 +1826,14 @@ bool intel_cdclk_changed(const struct intel_cdclk_state *a,
 		a->voltage_level != b->voltage_level;
 }
 
+void intel_dump_cdclk_state(const struct intel_cdclk_state *cdclk_state,
+			    const char *context)
+{
+	DRM_DEBUG_DRIVER("%s %d kHz, VCO %d kHz, ref %d kHz, voltage level %d\n",
+			 context, cdclk_state->cdclk, cdclk_state->vco,
+			 cdclk_state->ref, cdclk_state->voltage_level);
+}
+
 /**
  * intel_set_cdclk - Push the CDCLK state to the hardware
  * @dev_priv: i915 device
@@ -1843,11 +1851,15 @@ void intel_set_cdclk(struct drm_i915_private *dev_priv,
 	if (WARN_ON_ONCE(!dev_priv->display.set_cdclk))
 		return;
 
-	DRM_DEBUG_DRIVER("Changing CDCLK to %d kHz, VCO %d kHz, ref %d kHz, voltage_level %d\n",
-			 cdclk_state->cdclk, cdclk_state->vco,
-			 cdclk_state->ref, cdclk_state->voltage_level);
+	intel_dump_cdclk_state(cdclk_state, "Changing CDCLK to");
 
 	dev_priv->display.set_cdclk(dev_priv, cdclk_state);
+
+	if (WARN(intel_cdclk_changed(&dev_priv->cdclk.hw, cdclk_state),
+		 "cdclk state doesn't match!\n")) {
+		intel_dump_cdclk_state(&dev_priv->cdclk.hw, "[hw state]");
+		intel_dump_cdclk_state(cdclk_state, "[sw state]");
+	}
 }
 
 static int intel_pixel_rate_to_cdclk(struct drm_i915_private *dev_priv,
@@ -2279,10 +2291,6 @@ void intel_update_max_cdclk(struct drm_i915_private *dev_priv)
 void intel_update_cdclk(struct drm_i915_private *dev_priv)
 {
 	dev_priv->display.get_cdclk(dev_priv, &dev_priv->cdclk.hw);
-
-	DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz, VCO: %d kHz, ref: %d kHz\n",
-			 dev_priv->cdclk.hw.cdclk, dev_priv->cdclk.hw.vco,
-			 dev_priv->cdclk.hw.ref);
 
 	/*
 	 * 9:0 CMBUS [sic] CDCLK frequency (cdfreq):

@@ -1336,6 +1336,8 @@ bool intel_cdclk_changed(const struct intel_cdclk_state *a,
 			 const struct intel_cdclk_state *b);
 void intel_set_cdclk(struct drm_i915_private *dev_priv,
 		     const struct intel_cdclk_state *cdclk_state);
+void intel_dump_cdclk_state(const struct intel_cdclk_state *cdclk_state,
+			    const char *context);
 
 /* intel_display.c */
 void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);

@@ -8857,7 +8857,9 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 	}
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+
 	intel_update_cdclk(dev_priv);
+	intel_dump_cdclk_state(&dev_priv->cdclk.hw, "Current CDCLK");
 }
 
 /*
@@ -14358,6 +14360,7 @@ void intel_modeset_init_hw(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	intel_update_cdclk(dev_priv);
+	intel_dump_cdclk_state(&dev_priv->cdclk.hw, "Current CDCLK");
 	dev_priv->cdclk.logical = dev_priv->cdclk.actual = dev_priv->cdclk.hw;
 
 	intel_init_clock_gating(dev_priv);
