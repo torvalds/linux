@@ -397,6 +397,7 @@ struct btusb_data {
 	struct usb_interface *intf;
 	struct usb_interface *isoc;
 	struct usb_interface *diag;
+	unsigned isoc_ifnum;
 
 	unsigned long flags;
 
@@ -1360,7 +1361,7 @@ static inline int __set_isoc_interface(struct hci_dev *hdev, int altsetting)
 	if (!data->isoc)
 		return -ENODEV;
 
-	err = usb_set_interface(data->udev, 1, altsetting);
+	err = usb_set_interface(data->udev, data->isoc_ifnum, altsetting);
 	if (err < 0) {
 		bt_dev_err(hdev, "setting interface failed (%d)", -err);
 		return err;
@@ -3142,6 +3143,7 @@ static int btusb_probe(struct usb_interface *intf,
 	} else {
 		/* Interface orders are hardcoded in the specification */
 		data->isoc = usb_ifnum_to_if(data->udev, ifnum_base + 1);
+		data->isoc_ifnum = ifnum_base + 1;
 	}
 
 	if (!reset)
