@@ -154,10 +154,11 @@ static struct usb_gadget_strings *dev_strings[] = {
 /*-------------------------------------------------------------------------*/
 
 static struct timer_list	autoresume_timer;
+static struct usb_composite_dev *autoresume_cdev;
 
-static void zero_autoresume(unsigned long _c)
+static void zero_autoresume(struct timer_list *unused)
 {
-	struct usb_composite_dev	*cdev = (void *)_c;
+	struct usb_composite_dev	*cdev = autoresume_cdev;
 	struct usb_gadget		*g = cdev->gadget;
 
 	/* unconfigured devices can't issue wakeups */
@@ -282,7 +283,8 @@ static int zero_bind(struct usb_composite_dev *cdev)
 	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
 	device_desc.iSerialNumber = strings_dev[USB_GADGET_SERIAL_IDX].id;
 
-	setup_timer(&autoresume_timer, zero_autoresume, (unsigned long) cdev);
+	autoresume_cdev = cdev;
+	timer_setup(&autoresume_timer, zero_autoresume, 0);
 
 	func_inst_ss = usb_get_function_instance("SourceSink");
 	if (IS_ERR(func_inst_ss))
