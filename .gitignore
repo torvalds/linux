@@ -48,6 +48,10 @@ modules.builtin
 #
 # Top-level generic files
 #
+/boot.img
+/kernel.img
+/resource.img
+/zboot.img
 /tags
 /TAGS
 /linux
