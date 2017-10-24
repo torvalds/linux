@@ -172,7 +172,6 @@
 #define DMA_RX_STATUS_BUSY_OFF		0
 #define DMA_RX_STATUS_BUSY_MSK		(0x1 << DMA_RX_STATUS_BUSY_OFF)
 
-#define MAX_ITCT_HW			4096 /* max the hw can support */
 #define DEFAULT_ITCT_HW		2048 /* reset value, not reprogrammed */
 #if (HISI_SAS_MAX_DEVICES > DEFAULT_ITCT_HW)
 #error Max ITCT exceeded
@@ -377,6 +376,7 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 	/* Global registers init */
 	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE,
 			 (u32)((1ULL << hisi_hba->queue_count) - 1));
+	hisi_sas_write32(hisi_hba, CFG_MAX_TAG, 0xfff0400);
 	hisi_sas_write32(hisi_hba, HGC_SAS_TXFAIL_RETRY_CTRL, 0x108);
 	hisi_sas_write32(hisi_hba, CFG_1US_TIMER_TRSH, 0xd);
 	hisi_sas_write32(hisi_hba, INT_COAL_EN, 0x1);

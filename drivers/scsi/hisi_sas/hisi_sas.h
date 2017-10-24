@@ -29,7 +29,7 @@
 #define HISI_SAS_MAX_PHYS	9
 #define HISI_SAS_MAX_QUEUES	32
 #define HISI_SAS_QUEUE_SLOTS 512
-#define HISI_SAS_MAX_ITCT_ENTRIES 2048
+#define HISI_SAS_MAX_ITCT_ENTRIES 1024
 #define HISI_SAS_MAX_DEVICES HISI_SAS_MAX_ITCT_ENTRIES
 #define HISI_SAS_RESET_BIT	0
 #define HISI_SAS_REJECT_CMD_BIT	1
@@ -342,7 +342,11 @@ struct hisi_sas_initial_fis {
 };
 
 struct hisi_sas_breakpoint {
-	u8	data[128];	/*io128 byte*/
+	u8	data[128];
+};
+
+struct hisi_sas_sata_breakpoint {
+	struct hisi_sas_breakpoint tag[32];
 };
 
 struct hisi_sas_sge {

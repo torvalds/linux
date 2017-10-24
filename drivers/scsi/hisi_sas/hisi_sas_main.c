@@ -1613,7 +1613,7 @@ void hisi_sas_init_mem(struct hisi_hba *hisi_hba)
 	s = max_command_entries * sizeof(struct hisi_sas_breakpoint);
 	memset(hisi_hba->breakpoint, 0, s);
 
-	s = max_command_entries * sizeof(struct hisi_sas_breakpoint) * 2;
+	s = HISI_SAS_MAX_ITCT_ENTRIES * sizeof(struct hisi_sas_sata_breakpoint);
 	memset(hisi_hba->sata_breakpoint, 0, s);
 }
 EXPORT_SYMBOL_GPL(hisi_sas_init_mem);
@@ -1706,7 +1706,7 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 	if (!hisi_hba->initial_fis)
 		goto err_out;
 
-	s = max_command_entries * sizeof(struct hisi_sas_breakpoint) * 2;
+	s = HISI_SAS_MAX_ITCT_ENTRIES * sizeof(struct hisi_sas_sata_breakpoint);
 	hisi_hba->sata_breakpoint = dma_alloc_coherent(dev, s,
 				&hisi_hba->sata_breakpoint_dma, GFP_KERNEL);
 	if (!hisi_hba->sata_breakpoint)
@@ -1771,7 +1771,7 @@ void hisi_sas_free(struct hisi_hba *hisi_hba)
 				  hisi_hba->initial_fis,
 				  hisi_hba->initial_fis_dma);
 
-	s = max_command_entries * sizeof(struct hisi_sas_breakpoint) * 2;
+	s = HISI_SAS_MAX_ITCT_ENTRIES * sizeof(struct hisi_sas_sata_breakpoint);
 	if (hisi_hba->sata_breakpoint)
 		dma_free_coherent(dev, s,
 				  hisi_hba->sata_breakpoint,
