@@ -199,11 +199,9 @@ static void davinci_musb_set_vbus(struct musb *musb, int is_on)
 
 #define	POLL_SECONDS	2
 
-static struct timer_list otg_workaround;
-
-static void otg_timer(unsigned long _musb)
+static void otg_timer(struct timer_list *t)
 {
-	struct musb		*musb = (void *)_musb;
+	struct musb		*musb = from_timer(musb, t, dev_timer);
 	void __iomem		*mregs = musb->mregs;
 	u8			devctl;
 	unsigned long		flags;
@@ -224,7 +222,7 @@ static void otg_timer(unsigned long _musb)
 		 * VBUSERR got reported during enumeration" cases.
 		 */
 		if (devctl & MUSB_DEVCTL_VBUS) {
-			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
+			mod_timer(&musb->dev_timer, jiffies + POLL_SECONDS * HZ);
 			break;
 		}
 		musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
@@ -248,7 +246,7 @@ static void otg_timer(unsigned long _musb)
 				devctl | MUSB_DEVCTL_SESSION);
 		devctl = musb_readb(mregs, MUSB_DEVCTL);
 		if (devctl & MUSB_DEVCTL_BDEVICE)
-			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
+			mod_timer(&musb->dev_timer, jiffies + POLL_SECONDS * HZ);
 		else
 			musb->xceiv->otg->state = OTG_STATE_A_IDLE;
 		break;
@@ -325,14 +323,14 @@ static irqreturn_t davinci_musb_interrupt(int irq, void *__hci)
 			 */
 			musb->int_usb &= ~MUSB_INTR_VBUSERROR;
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VFALL;
-			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
+			mod_timer(&musb->dev_timer, jiffies + POLL_SECONDS * HZ);
 			WARNING("VBUS error workaround (delay coming)\n");
 		} else if (drvvbus) {
 			MUSB_HST_MODE(musb);
 			otg->default_a = 1;
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			portstate(musb->port1_status |= USB_PORT_STAT_POWER);
-			del_timer(&otg_workaround);
+			del_timer(&musb->dev_timer);
 		} else {
 			musb->is_active = 0;
 			MUSB_DEV_MODE(musb);
@@ -361,7 +359,7 @@ static irqreturn_t davinci_musb_interrupt(int irq, void *__hci)
 
 	/* poll for ID change */
 	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE)
-		mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
+		mod_timer(&musb->dev_timer, jiffies + POLL_SECONDS * HZ);
 
 	spin_unlock_irqrestore(&musb->lock, flags);
 
@@ -393,7 +391,7 @@ static int davinci_musb_init(struct musb *musb)
 	if (revision == 0)
 		goto fail;
 
-	setup_timer(&otg_workaround, otg_timer, (unsigned long) musb);
+	timer_setup(&musb->dev_timer, otg_timer, 0);
 
 	davinci_musb_source_power(musb, 0, 1);
 
@@ -443,7 +441,7 @@ unregister:
 
 static int davinci_musb_exit(struct musb *musb)
 {
-	del_timer_sync(&otg_workaround);
+	del_timer_sync(&musb->dev_timer);
 
 	/* force VBUS off */
 	if (cpu_is_davinci_dm355()) {

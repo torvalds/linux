@@ -282,9 +282,10 @@ static int dsps_check_status(struct musb *musb, void *unused)
 	return 0;
 }
 
-static void otg_timer(unsigned long _musb)
+static void otg_timer(struct timer_list *t)
 {
-	struct musb *musb = (void *)_musb;
+	struct dsps_glue *glue = from_timer(glue, t, timer);
+	struct musb *musb = platform_get_drvdata(glue->musb);
 	struct device *dev = musb->controller;
 	unsigned long flags;
 	int err;
@@ -480,7 +481,7 @@ static int dsps_musb_init(struct musb *musb)
 		}
 	}
 
-	setup_timer(&glue->timer, otg_timer, (unsigned long) musb);
+	timer_setup(&glue->timer, otg_timer, 0);
 
 	/* Reset the musb */
 	musb_writel(reg_base, wrp->control, (1 << wrp->reset));

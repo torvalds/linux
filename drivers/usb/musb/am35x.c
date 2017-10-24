@@ -133,11 +133,9 @@ static void am35x_musb_set_vbus(struct musb *musb, int is_on)
 
 #define	POLL_SECONDS	2
 
-static struct timer_list otg_workaround;
-
-static void otg_timer(unsigned long _musb)
+static void otg_timer(struct timer_list *t)
 {
-	struct musb		*musb = (void *)_musb;
+	struct musb		*musb = from_timer(musb, t, dev_timer);
 	void __iomem		*mregs = musb->mregs;
 	u8			devctl;
 	unsigned long		flags;
@@ -173,7 +171,7 @@ static void otg_timer(unsigned long _musb)
 	case OTG_STATE_B_IDLE:
 		devctl = musb_readb(mregs, MUSB_DEVCTL);
 		if (devctl & MUSB_DEVCTL_BDEVICE)
-			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
+			mod_timer(&musb->dev_timer, jiffies + POLL_SECONDS * HZ);
 		else
 			musb->xceiv->otg->state = OTG_STATE_A_IDLE;
 		break;
@@ -195,12 +193,12 @@ static void am35x_musb_try_idle(struct musb *musb, unsigned long timeout)
 				musb->xceiv->otg->state == OTG_STATE_A_WAIT_BCON)) {
 		dev_dbg(musb->controller, "%s active, deleting timer\n",
 			usb_otg_state_string(musb->xceiv->otg->state));
-		del_timer(&otg_workaround);
+		del_timer(&musb->dev_timer);
 		last_timer = jiffies;
 		return;
 	}
 
-	if (time_after(last_timer, timeout) && timer_pending(&otg_workaround)) {
+	if (time_after(last_timer, timeout) && timer_pending(&musb->dev_timer)) {
 		dev_dbg(musb->controller, "Longer idle timer already pending, ignoring...\n");
 		return;
 	}
@@ -209,7 +207,7 @@ static void am35x_musb_try_idle(struct musb *musb, unsigned long timeout)
 	dev_dbg(musb->controller, "%s inactive, starting idle timer for %u ms\n",
 		usb_otg_state_string(musb->xceiv->otg->state),
 		jiffies_to_msecs(timeout - jiffies));
-	mod_timer(&otg_workaround, timeout);
+	mod_timer(&musb->dev_timer, timeout);
 }
 
 static irqreturn_t am35x_musb_interrupt(int irq, void *hci)
@@ -278,14 +276,14 @@ static irqreturn_t am35x_musb_interrupt(int irq, void *hci)
 			 */
 			musb->int_usb &= ~MUSB_INTR_VBUSERROR;
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VFALL;
-			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
+			mod_timer(&musb->dev_timer, jiffies + POLL_SECONDS * HZ);
 			WARNING("VBUS error workaround (delay coming)\n");
 		} else if (drvvbus) {
 			MUSB_HST_MODE(musb);
 			otg->default_a = 1;
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			portstate(musb->port1_status |= USB_PORT_STAT_POWER);
-			del_timer(&otg_workaround);
+			del_timer(&musb->dev_timer);
 		} else {
 			musb->is_active = 0;
 			MUSB_DEV_MODE(musb);
@@ -324,7 +322,7 @@ eoi:
 
 	/* Poll for ID change */
 	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE)
-		mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
+		mod_timer(&musb->dev_timer, jiffies + POLL_SECONDS * HZ);
 
 	spin_unlock_irqrestore(&musb->lock, flags);
 
@@ -365,7 +363,7 @@ static int am35x_musb_init(struct musb *musb)
 	if (IS_ERR_OR_NULL(musb->xceiv))
 		return -EPROBE_DEFER;
 
-	setup_timer(&otg_workaround, otg_timer, (unsigned long) musb);
+	timer_setup(&musb->dev_timer, otg_timer, 0);
 
 	/* Reset the musb */
 	if (data->reset)
@@ -395,7 +393,7 @@ static int am35x_musb_exit(struct musb *musb)
 	struct musb_hdrc_platform_data *plat = dev_get_platdata(dev);
 	struct omap_musb_board_data *data = plat->board_data;
 
-	del_timer_sync(&otg_workaround);
+	del_timer_sync(&musb->dev_timer);
 
 	/* Shutdown the on-chip PHY and its PLL. */
 	if (data->set_phy_power)

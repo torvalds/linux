@@ -223,7 +223,7 @@ static irqreturn_t blackfin_interrupt(int irq, void *__hci)
 	if ((musb->xceiv->otg->state == OTG_STATE_B_IDLE
 		|| musb->xceiv->otg->state == OTG_STATE_A_WAIT_BCON) ||
 		(musb->int_usb & MUSB_INTR_DISCONNECT && is_host_active(musb))) {
-		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
+		mod_timer(&musb->dev_timer, jiffies + TIMER_DELAY);
 		musb->a_wait_bcon = TIMER_DELAY;
 	}
 
@@ -232,9 +232,9 @@ static irqreturn_t blackfin_interrupt(int irq, void *__hci)
 	return retval;
 }
 
-static void musb_conn_timer_handler(unsigned long _musb)
+static void musb_conn_timer_handler(struct timer_list *t)
 {
-	struct musb *musb = (void *)_musb;
+	struct musb *musb = from_timer(musb, t, dev_timer);
 	unsigned long flags;
 	u16 val;
 	static u8 toggle;
@@ -266,7 +266,7 @@ static void musb_conn_timer_handler(unsigned long _musb)
 			musb_writeb(musb->mregs, MUSB_INTRUSB, val);
 			musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 		}
-		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
+		mod_timer(&musb->dev_timer, jiffies + TIMER_DELAY);
 		break;
 	case OTG_STATE_B_IDLE:
 		/*
@@ -310,7 +310,7 @@ static void musb_conn_timer_handler(unsigned long _musb)
 			 * shortening it, if accelerating A-plug detection
 			 * is needed in OTG mode.
 			 */
-			mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY / 4);
+			mod_timer(&musb->dev_timer, jiffies + TIMER_DELAY / 4);
 		}
 		break;
 	default:
@@ -445,8 +445,7 @@ static int bfin_musb_init(struct musb *musb)
 
 	bfin_musb_reg_init(musb);
 
-	setup_timer(&musb_conn_timer, musb_conn_timer_handler,
-			(unsigned long) musb);
+	timer_setup(&musb->dev_timer, musb_conn_timer_handler, 0);
 
 	musb->xceiv->set_power = bfin_musb_set_power;
 

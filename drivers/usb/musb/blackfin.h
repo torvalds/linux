@@ -82,6 +82,4 @@ static void dump_fifo_data(u8 *buf, u16 len)
 /* Almost 1 second */
 #define TIMER_DELAY	(1 * HZ)
 
-static struct timer_list musb_conn_timer;
-
 #endif	/* __MUSB_BLACKFIN_H__ */
