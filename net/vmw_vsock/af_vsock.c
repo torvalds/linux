@@ -195,7 +195,7 @@ static int vsock_auto_bind(struct vsock_sock *vsk)
 	return __vsock_bind(sk, &local_addr);
 }
 
-static void vsock_init_tables(void)
+static int __init vsock_init_tables(void)
 {
 	int i;
 
@@ -204,6 +204,7 @@ static void vsock_init_tables(void)
 
 	for (i = 0; i < ARRAY_SIZE(vsock_connected_table); i++)
 		INIT_LIST_HEAD(&vsock_connected_table[i]);
+	return 0;
 }
 
 static void __vsock_insert_bound(struct list_head *list,
@@ -1957,8 +1958,6 @@ int __vsock_core_init(const struct vsock_transport *t, struct module *owner)
 	vsock_proto.owner = owner;
 	transport = t;
 
-	vsock_init_tables();
-
 	vsock_device.minor = MISC_DYNAMIC_MINOR;
 	err = misc_register(&vsock_device);
 	if (err) {
@@ -2018,6 +2017,8 @@ const struct vsock_transport *vsock_core_get_transport(void)
 	return transport;
 }
 EXPORT_SYMBOL_GPL(vsock_core_get_transport);
+
+module_init(vsock_init_tables);
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Virtual Socket Family");
