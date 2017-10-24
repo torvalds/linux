@@ -1161,7 +1161,7 @@ static int hisi_sas_abort_task(struct sas_task *task)
 
 		rc = hisi_sas_internal_task_abort(hisi_hba, device,
 			     HISI_SAS_INT_ABT_CMD, tag);
-		if (rc == TMF_RESP_FUNC_FAILED) {
+		if (rc == TMF_RESP_FUNC_FAILED && task->lldd_task) {
 			spin_lock_irqsave(&hisi_hba->lock, flags);
 			hisi_sas_do_release_task(hisi_hba, task, slot);
 			spin_unlock_irqrestore(&hisi_hba->lock, flags);
