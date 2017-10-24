@@ -273,17 +273,37 @@ int bpf_prog_array_length(struct bpf_prog_array __rcu *progs);
 int bpf_prog_array_copy_to_user(struct bpf_prog_array __rcu *progs,
 				__u32 __user *prog_ids, u32 cnt);
 
-#define BPF_PROG_RUN_ARRAY(array, ctx, func)		\
+void bpf_prog_array_delete_safe(struct bpf_prog_array __rcu *progs,
+				struct bpf_prog *old_prog);
+int bpf_prog_array_copy(struct bpf_prog_array __rcu *old_array,
+			struct bpf_prog *exclude_prog,
+			struct bpf_prog *include_prog,
+			struct bpf_prog_array **new_array);
+
+#define __BPF_PROG_RUN_ARRAY(array, ctx, func, check_non_null)	\
 	({						\
-		struct bpf_prog **_prog;		\
+		struct bpf_prog **_prog, *__prog;	\
+		struct bpf_prog_array *_array;		\
 		u32 _ret = 1;				\
 		rcu_read_lock();			\
-		_prog = rcu_dereference(array)->progs;	\
-		for (; *_prog; _prog++)			\
-			_ret &= func(*_prog, ctx);	\
+		_array = rcu_dereference(array);	\
+		if (unlikely(check_non_null && !_array))\
+			goto _out;			\
+		_prog = _array->progs;			\
+		while ((__prog = READ_ONCE(*_prog))) {	\
+			_ret &= func(__prog, ctx);	\
+			_prog++;			\
+		}					\
+_out:							\
 		rcu_read_unlock();			\
 		_ret;					\
 	 })
+
+#define BPF_PROG_RUN_ARRAY(array, ctx, func)		\
+	__BPF_PROG_RUN_ARRAY(array, ctx, func, false)
+
+#define BPF_PROG_RUN_ARRAY_CHECK(array, ctx, func)	\
+	__BPF_PROG_RUN_ARRAY(array, ctx, func, true)
 
 #ifdef CONFIG_BPF_SYSCALL
 DECLARE_PER_CPU(int, bpf_prog_active);
