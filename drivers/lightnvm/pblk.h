@@ -860,11 +860,6 @@ int pblk_rl_is_limit(struct pblk_rl *rl);
 int pblk_sysfs_init(struct gendisk *tdisk);
 void pblk_sysfs_exit(struct gendisk *tdisk);
 
-static inline void test(size_t a)
-{
-	a += 1;
-}
-
 static inline void *pblk_malloc(size_t size, int type, gfp_t flags)
 {
 	if (type == PBLK_KMALLOC_META)
