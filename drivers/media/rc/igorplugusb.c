@@ -137,9 +137,9 @@ static void igorplugusb_cmd(struct igorplugusb *ir, int cmd)
 		dev_err(ir->dev, "submit urb failed: %d", ret);
 }
 
-static void igorplugusb_timer(unsigned long data)
+static void igorplugusb_timer(struct timer_list *t)
 {
-	struct igorplugusb *ir = (struct igorplugusb *)data;
+	struct igorplugusb *ir = from_timer(ir, t, timer);
 
 	igorplugusb_cmd(ir, GET_INFRACODE);
 }
@@ -174,7 +174,7 @@ static int igorplugusb_probe(struct usb_interface *intf,
 
 	ir->dev = &intf->dev;
 
-	setup_timer(&ir->timer, igorplugusb_timer, (unsigned long)ir);
+	timer_setup(&ir->timer, igorplugusb_timer, 0);
 
 	ir->request.bRequest = GET_INFRACODE;
 	ir->request.bRequestType = USB_TYPE_VENDOR | USB_DIR_IN;
