@@ -37,6 +37,7 @@
 #include <linux/netdevice.h>
 #include <linux/parman.h>
 
+#include "spectrum_mr_tcam.h"
 #include "reg.h"
 #include "spectrum.h"
 #include "core_acl_flex_actions.h"
