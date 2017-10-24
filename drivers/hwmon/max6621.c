@@ -296,7 +296,7 @@ max6621_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 			if (regval) {
 				ret = i2c_smbus_write_byte(data->client,
 						MAX6621_CLEAR_ALERT_REG);
-				if (!ret)
+				if (ret)
 					return ret;
 			}
 
