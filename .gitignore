@@ -53,6 +53,8 @@ modules.order
 #
 # Top-level generic files
 #
+/*.img
+/out/
 /tags
 /TAGS
 /linux
