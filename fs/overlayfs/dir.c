@@ -63,8 +63,7 @@ struct dentry *ovl_lookup_temp(struct dentry *workdir)
 }
 
 /* caller holds i_mutex on workdir */
-static struct dentry *ovl_whiteout(struct dentry *workdir,
-				   struct dentry *dentry)
+static struct dentry *ovl_whiteout(struct dentry *workdir)
 {
 	int err;
 	struct dentry *whiteout;
@@ -81,6 +80,38 @@ static struct dentry *ovl_whiteout(struct dentry *workdir,
 	}
 
 	return whiteout;
+}
+
+/* Caller must hold i_mutex on both workdir and dir */
+int ovl_cleanup_and_whiteout(struct dentry *workdir, struct inode *dir,
+			     struct dentry *dentry)
+{
+	struct inode *wdir = workdir->d_inode;
+	struct dentry *whiteout;
+	int err;
+	int flags = 0;
+
+	whiteout = ovl_whiteout(workdir);
+	err = PTR_ERR(whiteout);
+	if (IS_ERR(whiteout))
+		return err;
+
+	if (d_is_dir(dentry))
+		flags = RENAME_EXCHANGE;
+
+	err = ovl_do_rename(wdir, whiteout, dir, dentry, flags);
+	if (err)
+		goto kill_whiteout;
+	if (flags)
+		ovl_cleanup(wdir, dentry);
+
+out:
+	dput(whiteout);
+	return err;
+
+kill_whiteout:
+	ovl_cleanup(wdir, whiteout);
+	goto out;
 }
 
 int ovl_create_real(struct inode *dir, struct dentry *newdentry,
@@ -591,14 +622,10 @@ static int ovl_remove_and_whiteout(struct dentry *dentry,
 				   struct list_head *list)
 {
 	struct dentry *workdir = ovl_workdir(dentry);
-	struct inode *wdir = workdir->d_inode;
 	struct dentry *upperdir = ovl_dentry_upper(dentry->d_parent);
-	struct inode *udir = upperdir->d_inode;
-	struct dentry *whiteout;
 	struct dentry *upper;
 	struct dentry *opaquedir = NULL;
 	int err;
-	int flags = 0;
 
 	if (WARN_ON(!workdir))
 		return -EROFS;
@@ -627,24 +654,13 @@ static int ovl_remove_and_whiteout(struct dentry *dentry,
 		goto out_dput_upper;
 	}
 
-	whiteout = ovl_whiteout(workdir, dentry);
-	err = PTR_ERR(whiteout);
-	if (IS_ERR(whiteout))
-		goto out_dput_upper;
-
-	if (d_is_dir(upper))
-		flags = RENAME_EXCHANGE;
-
-	err = ovl_do_rename(wdir, whiteout, udir, upper, flags);
+	err = ovl_cleanup_and_whiteout(workdir, d_inode(upperdir), upper);
 	if (err)
-		goto kill_whiteout;
-	if (flags)
-		ovl_cleanup(wdir, upper);
+		goto out_d_drop;
 
 	ovl_dentry_version_inc(dentry->d_parent, true);
 out_d_drop:
 	d_drop(dentry);
-	dput(whiteout);
 out_dput_upper:
 	dput(upper);
 out_unlock:
@@ -653,10 +669,6 @@ out_dput:
 	dput(opaquedir);
 out:
 	return err;
-
-kill_whiteout:
-	ovl_cleanup(wdir, whiteout);
-	goto out_d_drop;
 }
 
 static int ovl_remove_upper(struct dentry *dentry, bool is_dir,

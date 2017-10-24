@@ -487,7 +487,8 @@ bool ovl_need_index(struct dentry *dentry)
 /* Caller must hold OVL_I(inode)->lock */
 static void ovl_cleanup_index(struct dentry *dentry)
 {
-	struct inode *dir = ovl_indexdir(dentry->d_sb)->d_inode;
+	struct dentry *indexdir = ovl_indexdir(dentry->d_sb);
+	struct inode *dir = indexdir->d_inode;
 	struct dentry *lowerdentry = ovl_dentry_lower(dentry);
 	struct dentry *upperdentry = ovl_dentry_upper(dentry);
 	struct dentry *index = NULL;
@@ -518,13 +519,17 @@ static void ovl_cleanup_index(struct dentry *dentry)
 	}
 
 	inode_lock_nested(dir, I_MUTEX_PARENT);
-	/* TODO: whiteout instead of cleanup to block future open by handle */
-	index = lookup_one_len(name.name, ovl_indexdir(dentry->d_sb), name.len);
+	index = lookup_one_len(name.name, indexdir, name.len);
 	err = PTR_ERR(index);
-	if (!IS_ERR(index))
-		err = ovl_cleanup(dir, index);
-	else
+	if (IS_ERR(index)) {
 		index = NULL;
+	} else if (ovl_index_all(dentry->d_sb)) {
+		/* Whiteout orphan index to block future open by handle */
+		err = ovl_cleanup_and_whiteout(indexdir, dir, index);
+	} else {
+		/* Cleanup orphan index entries */
+		err = ovl_cleanup(dir, index);
+	}
 
 	inode_unlock(dir);
 	if (err)
