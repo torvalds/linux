@@ -988,20 +988,6 @@ err_out_req:
 	return rc;
 }
 
-static int get_ncq_tag_v3_hw(struct sas_task *task, u32 *tag)
-{
-	struct ata_queued_cmd *qc = task->uldd_task;
-
-	if (qc) {
-		if (qc->tf.command == ATA_CMD_FPDMA_WRITE ||
-			qc->tf.command == ATA_CMD_FPDMA_READ) {
-			*tag = qc->tag;
-			return 1;
-		}
-	}
-	return 0;
-}
-
 static int prep_ata_v3_hw(struct hisi_hba *hisi_hba,
 			  struct hisi_sas_slot *slot)
 {
@@ -1050,7 +1036,7 @@ static int prep_ata_v3_hw(struct hisi_hba *hisi_hba,
 	hdr->dw1 = cpu_to_le32(dw1);
 
 	/* dw2 */
-	if (task->ata_task.use_ncq && get_ncq_tag_v3_hw(task, &hdr_tag)) {
+	if (task->ata_task.use_ncq && hisi_sas_get_ncq_tag(task, &hdr_tag)) {
 		task->ata_task.fis.sector_count |= (u8) (hdr_tag << 3);
 		dw2 |= hdr_tag << CMD_HDR_NCQ_TAG_OFF;
 	}
