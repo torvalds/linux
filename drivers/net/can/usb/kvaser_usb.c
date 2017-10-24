@@ -134,6 +134,7 @@ static inline bool kvaser_is_usbcan(const struct usb_device_id *id)
 #define CMD_RESET_ERROR_COUNTER		49
 #define CMD_TX_ACKNOWLEDGE		50
 #define CMD_CAN_ERROR_EVENT		51
+#define CMD_FLUSH_QUEUE_REPLY		68
 
 #define CMD_LEAF_USB_THROTTLE		77
 #define CMD_LEAF_LOG_MESSAGE		106
@@ -1294,6 +1295,11 @@ static void kvaser_usb_handle_message(const struct kvaser_usb *dev,
 	/* Ignored messages */
 	case CMD_USBCAN_CLOCK_OVERFLOW_EVENT:
 		if (dev->family != KVASER_USBCAN)
+			goto warn;
+		break;
+
+	case CMD_FLUSH_QUEUE_REPLY:
+		if (dev->family != KVASER_LEAF)
 			goto warn;
 		break;
 
