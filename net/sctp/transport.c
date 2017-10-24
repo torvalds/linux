@@ -87,14 +87,11 @@ static struct sctp_transport *sctp_transport_init(struct net *net,
 	INIT_LIST_HEAD(&peer->send_ready);
 	INIT_LIST_HEAD(&peer->transports);
 
-	setup_timer(&peer->T3_rtx_timer, sctp_generate_t3_rtx_event,
-		    (unsigned long)peer);
-	setup_timer(&peer->hb_timer, sctp_generate_heartbeat_event,
-		    (unsigned long)peer);
-	setup_timer(&peer->reconf_timer, sctp_generate_reconf_event,
-		    (unsigned long)peer);
-	setup_timer(&peer->proto_unreach_timer,
-		    sctp_generate_proto_unreach_event, (unsigned long)peer);
+	timer_setup(&peer->T3_rtx_timer, sctp_generate_t3_rtx_event, 0);
+	timer_setup(&peer->hb_timer, sctp_generate_heartbeat_event, 0);
+	timer_setup(&peer->reconf_timer, sctp_generate_reconf_event, 0);
+	timer_setup(&peer->proto_unreach_timer,
+		    sctp_generate_proto_unreach_event, 0);
 
 	/* Initialize the 64-bit random nonce sent with heartbeat. */
 	get_random_bytes(&peer->hb_nonce, sizeof(peer->hb_nonce));
