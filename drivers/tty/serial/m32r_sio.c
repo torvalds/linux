@@ -576,7 +576,6 @@ static int m32r_sio_startup(struct uart_port *port)
 
 		timeout = timeout > 6 ? (timeout / 2 - 2) : 1;
 
-		up->timer.data = (unsigned long)up;
 		mod_timer(&up->timer, jiffies + timeout);
 	} else {
 		retval = serial_link_irq_chain(up);
