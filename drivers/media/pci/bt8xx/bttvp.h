@@ -122,6 +122,7 @@ struct bttv_format {
 
 struct bttv_ir {
 	struct rc_dev           *dev;
+	struct bttv		*btv;
 	struct timer_list       timer;
 
 	char                    name[32];
