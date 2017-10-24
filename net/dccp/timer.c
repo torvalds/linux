@@ -234,10 +234,13 @@ static void dccp_write_xmitlet(unsigned long data)
 	bh_unlock_sock(sk);
 }
 
-static void dccp_write_xmit_timer(unsigned long data)
+static void dccp_write_xmit_timer(struct timer_list *t)
 {
-	dccp_write_xmitlet(data);
-	sock_put((struct sock *)data);
+	struct dccp_sock *dp = from_timer(dp, t, dccps_xmit_timer);
+	struct sock *sk = &dp->dccps_inet_connection.icsk_inet.sk;
+
+	dccp_write_xmitlet((unsigned long)sk);
+	sock_put(sk);
 }
 
 void dccp_init_xmit_timers(struct sock *sk)
@@ -245,8 +248,7 @@ void dccp_init_xmit_timers(struct sock *sk)
 	struct dccp_sock *dp = dccp_sk(sk);
 
 	tasklet_init(&dp->dccps_xmitlet, dccp_write_xmitlet, (unsigned long)sk);
-	setup_timer(&dp->dccps_xmit_timer, dccp_write_xmit_timer,
-							     (unsigned long)sk);
+	timer_setup(&dp->dccps_xmit_timer, dccp_write_xmit_timer, 0);
 	inet_csk_init_xmit_timers(sk, &dccp_write_timer, &dccp_delack_timer,
 				  &dccp_keepalive_timer);
 }
