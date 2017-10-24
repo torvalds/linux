@@ -460,9 +460,9 @@ set_timer:
 	}
 }
 
-void iwl_mvm_reorder_timer_expired(unsigned long data)
+void iwl_mvm_reorder_timer_expired(struct timer_list *t)
 {
-	struct iwl_mvm_reorder_buffer *buf = (void *)data;
+	struct iwl_mvm_reorder_buffer *buf = from_timer(buf, t, reorder_timer);
 	struct iwl_mvm_baid_data *baid_data =
 		iwl_mvm_baid_data_from_reorder_buf(buf);
 	struct iwl_mvm_reorder_buf_entry *entries =
