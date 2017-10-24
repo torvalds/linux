@@ -1665,6 +1665,12 @@ static void cnl_set_cdclk(struct drm_i915_private *dev_priv,
 	mutex_unlock(&dev_priv->pcu_lock);
 
 	intel_update_cdclk(dev_priv);
+
+	/*
+	 * Can't read out the voltage level :(
+	 * Let's just assume everything is as expected.
+	 */
+	dev_priv->cdclk.hw.voltage_level = cdclk_state->voltage_level;
 }
 
 static int cnl_cdclk_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
@@ -1934,6 +1940,43 @@ static int intel_compute_min_cdclk(struct drm_atomic_state *state)
 	return min_cdclk;
 }
 
+/*
+ * Note that this functions assumes that 0 is
+ * the lowest voltage value, and higher values
+ * correspond to increasingly higher voltages.
+ *
+ * Should that relationship no longer hold on
+ * future platforms this code will need to be
+ * adjusted.
+ */
+static u8 cnl_compute_min_voltage_level(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc *crtc;
+	struct intel_crtc_state *crtc_state;
+	u8 min_voltage_level;
+	int i;
+	enum pipe pipe;
+
+	memcpy(state->min_voltage_level, dev_priv->min_voltage_level,
+	       sizeof(state->min_voltage_level));
+
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+		if (crtc_state->base.enable)
+			state->min_voltage_level[i] =
+				crtc_state->min_voltage_level;
+		else
+			state->min_voltage_level[i] = 0;
+	}
+
+	min_voltage_level = 0;
+	for_each_pipe(dev_priv, pipe)
+		min_voltage_level = max(state->min_voltage_level[pipe],
+					min_voltage_level);
+
+	return min_voltage_level;
+}
+
 static int vlv_modeset_calc_cdclk(struct drm_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
@@ -2097,7 +2140,8 @@ static int cnl_modeset_calc_cdclk(struct drm_atomic_state *state)
 	intel_state->cdclk.logical.vco = vco;
 	intel_state->cdclk.logical.cdclk = cdclk;
 	intel_state->cdclk.logical.voltage_level =
-		cnl_calc_voltage_level(cdclk);
+		max(cnl_calc_voltage_level(cdclk),
+		    cnl_compute_min_voltage_level(intel_state));
 
 	if (!intel_state->active_crtcs) {
 		cdclk = cnl_calc_cdclk(0);

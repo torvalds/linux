@@ -34,6 +34,7 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 					struct intel_crtc_state *pipe_config,
 					struct drm_connector_state *conn_state)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
@@ -86,6 +87,8 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 			       reduce_m_n);
 
 	pipe_config->dp_m_n.tu = slots;
+
+	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
 
 	return true;
 }
@@ -307,6 +310,8 @@ static void intel_dp_mst_enc_get_config(struct intel_encoder *encoder,
 	intel_dp_get_m_n(crtc, pipe_config);
 
 	intel_ddi_clock_get(&intel_dig_port->base, pipe_config);
+
+	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
 }
 
 static int intel_dp_mst_get_ddc_modes(struct drm_connector *connector)

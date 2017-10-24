@@ -386,6 +386,8 @@ struct intel_atomic_state {
 	unsigned int active_crtcs;
 	/* minimum acceptable cdclk for each pipe */
 	int min_cdclk[I915_MAX_PIPES];
+	/* minimum acceptable voltage level for each pipe */
+	u8 min_voltage_level[I915_MAX_PIPES];
 
 	struct intel_shared_dpll_state shared_dpll[I915_NUM_PLLS];
 
@@ -738,6 +740,9 @@ struct intel_crtc_state {
 	 * latency optimization.
 	 */
 	uint8_t lane_lat_optim_mask;
+
+	/* minimum acceptable voltage level */
+	u8 min_voltage_level;
 
 	/* Panel fitter controls for gen2-gen4 + VLV */
 	struct {
@@ -1293,6 +1298,8 @@ void intel_ddi_clock_get(struct intel_encoder *encoder,
 			 struct intel_crtc_state *pipe_config);
 void intel_ddi_set_vc_payload_alloc(const struct intel_crtc_state *crtc_state,
 				    bool state);
+void intel_ddi_compute_min_voltage_level(struct drm_i915_private *dev_priv,
+					 struct intel_crtc_state *crtc_state);
 u32 bxt_signal_levels(struct intel_dp *intel_dp);
 uint32_t ddi_signal_levels(struct intel_dp *intel_dp);
 u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder);

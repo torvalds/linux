@@ -2008,8 +2008,8 @@ static void cnl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	 * requirement, follow the Display Voltage Frequency Switching
 	 * Sequence Before Frequency Change
 	 *
-	 * FIXME: (DVFS) is used to adjust the display voltage to match the
-	 * display clock frequencies
+	 * Note: DVFS is actually handled via the cdclk code paths,
+	 * hence we do nothing here.
 	 */
 
 	/* 6. Enable DPLL in DPLL_ENABLE. */
@@ -2030,8 +2030,8 @@ static void cnl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	 * requirement, follow the Display Voltage Frequency Switching
 	 * Sequence After Frequency Change
 	 *
-	 * FIXME: (DVFS) is used to adjust the display voltage to match the
-	 * display clock frequencies
+	 * Note: DVFS is actually handled via the cdclk code paths,
+	 * hence we do nothing here.
 	 */
 
 	/*
@@ -2055,8 +2055,8 @@ static void cnl_ddi_pll_disable(struct drm_i915_private *dev_priv,
 	 * requirement, follow the Display Voltage Frequency Switching
 	 * Sequence Before Frequency Change
 	 *
-	 * FIXME: (DVFS) is used to adjust the display voltage to match the
-	 * display clock frequencies
+	 * Note: DVFS is actually handled via the cdclk code paths,
+	 * hence we do nothing here.
 	 */
 
 	/* 3. Disable DPLL through DPLL_ENABLE. */
@@ -2077,8 +2077,8 @@ static void cnl_ddi_pll_disable(struct drm_i915_private *dev_priv,
 	 * requirement, follow the Display Voltage Frequency Switching
 	 * Sequence After Frequency Change
 	 *
-	 * FIXME: (DVFS) is used to adjust the display voltage to match the
-	 * display clock frequencies
+	 * Note: DVFS is actually handled via the cdclk code paths,
+	 * hence we do nothing here.
 	 */
 
 	/* 6. Disable DPLL power in DPLL_ENABLE. */
