@@ -465,9 +465,9 @@ static void sccnxp_handle_events(struct sccnxp_port *s)
 	} while (1);
 }
 
-static void sccnxp_timer(unsigned long data)
+static void sccnxp_timer(struct timer_list *t)
 {
-	struct sccnxp_port *s = (struct sccnxp_port *)data;
+	struct sccnxp_port *s = from_timer(s, t, timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&s->lock, flags);
@@ -987,8 +987,7 @@ static int sccnxp_probe(struct platform_device *pdev)
 
 		dev_err(&pdev->dev, "Unable to reguest IRQ %i\n", s->irq);
 	} else {
-		init_timer(&s->timer);
-		setup_timer(&s->timer, sccnxp_timer, (unsigned long)s);
+		timer_setup(&s->timer, sccnxp_timer, 0);
 		mod_timer(&s->timer, jiffies +
 			  usecs_to_jiffies(s->pdata.poll_time_us));
 		return 0;
