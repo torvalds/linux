@@ -920,10 +920,9 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
  * It will re-send the same command again.
  */
 void
-mwifiex_cmd_timeout_func(unsigned long function_context)
+mwifiex_cmd_timeout_func(struct timer_list *t)
 {
-	struct mwifiex_adapter *adapter =
-		(struct mwifiex_adapter *) function_context;
+	struct mwifiex_adapter *adapter = from_timer(adapter, t, cmd_timer);
 	struct cmd_ctrl_node *cmd_node;
 
 	adapter->is_cmd_timedout = 1;
