@@ -730,6 +730,12 @@ static void destruct(struct dcn10_resource_pool *pool)
 		kfree(TO_DCN10_MPC(pool->base.mpc));
 		pool->base.mpc = NULL;
 	}
+
+	if (pool->base.hubbub != NULL) {
+		kfree(pool->base.hubbub);
+		pool->base.hubbub = NULL;
+	}
+
 	for (i = 0; i < pool->base.pipe_count; i++) {
 		if (pool->base.opps[i] != NULL)
 			pool->base.opps[i]->funcs->opp_destroy(&pool->base.opps[i]);
@@ -1453,7 +1459,7 @@ static bool construct(
 	}
 
 	pool->base.hubbub = dcn10_hubbub_create(ctx);
-	if (pool->base.mpc == NULL) {
+	if (pool->base.hubbub == NULL) {
 		BREAK_TO_DEBUGGER();
 		dm_error("DC: failed to create mpc!\n");
 		goto fail;
