@@ -368,10 +368,19 @@ EXPORT_SYMBOL_GPL(realmode_pfn_to_page);
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
 #ifdef CONFIG_PPC_BOOK3S_64
-static bool disable_radix;
+static bool disable_radix = !IS_ENABLED(CONFIG_PPC_RADIX_MMU_DEFAULT);
+
 static int __init parse_disable_radix(char *p)
 {
-	disable_radix = true;
+	bool val;
+
+	if (strlen(p) == 0)
+		val = true;
+	else if (kstrtobool(p, &val))
+		return -EINVAL;
+
+	disable_radix = val;
+
 	return 0;
 }
 early_param("disable_radix", parse_disable_radix);
