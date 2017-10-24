@@ -538,9 +538,9 @@ qtnf_del_station(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
-static void qtnf_scan_timeout(unsigned long data)
+static void qtnf_scan_timeout(struct timer_list *t)
 {
-	struct qtnf_wmac *mac = (struct qtnf_wmac *)data;
+	struct qtnf_wmac *mac = from_timer(mac, t, scan_timeout);
 
 	pr_warn("mac%d scan timed out\n", mac->macid);
 	qtnf_scan_done(mac, true);
@@ -559,8 +559,7 @@ qtnf_scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 		return -EFAULT;
 	}
 
-	mac->scan_timeout.data = (unsigned long)mac;
-	mac->scan_timeout.function = qtnf_scan_timeout;
+	mac->scan_timeout.function = (TIMER_FUNC_TYPE)qtnf_scan_timeout;
 	mod_timer(&mac->scan_timeout,
 		  jiffies + QTNF_SCAN_TIMEOUT_SEC * HZ);
 
