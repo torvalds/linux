@@ -236,6 +236,22 @@ int amdgpu_virt_reset_gpu(struct amdgpu_device *adev)
 }
 
 /**
+ * amdgpu_virt_wait_reset() - wait for reset gpu completed
+ * @amdgpu:	amdgpu device.
+ * Wait for GPU reset completed.
+ * Return: Zero if reset success, otherwise will return error.
+ */
+int amdgpu_virt_wait_reset(struct amdgpu_device *adev)
+{
+	struct amdgpu_virt *virt = &adev->virt;
+
+	if (!virt->ops || !virt->ops->wait_reset)
+		return -EINVAL;
+
+	return virt->ops->wait_reset(adev);
+}
+
+/**
  * amdgpu_virt_alloc_mm_table() - alloc memory for mm table
  * @amdgpu:	amdgpu device.
  * MM table is used by UVD and VCE for its initialization
