@@ -281,6 +281,7 @@ config HID_ELECOM
 	Support for ELECOM devices:
 	  - BM084 Bluetooth Mouse
 	  - DEFT Trackball (Wired and wireless)
+	  - HUGE Trackball (Wired and wireless)
 
 config HID_ELO
 	tristate "ELO USB 4000/4500 touchscreen"
