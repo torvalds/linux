@@ -63,6 +63,9 @@
 #define FLAG_TX		1
 #define FLAG_HDPVR	2
 
+static bool enable_hdpvr;
+module_param(enable_hdpvr, bool, 0644);
+
 static int get_key_haup_common(struct IR_i2c *ir, enum rc_proto *protocol,
 			       u32 *scancode, u8 *ptoggle, int size)
 {
@@ -726,6 +729,11 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	unsigned short addr = client->addr;
 	int err;
 
+	if ((id->driver_data & FLAG_HDPVR) && !enable_hdpvr) {
+		dev_err(&client->dev, "IR for HDPVR is known to cause problems during recording, use enable_hdpvr modparam to enable\n");
+		return -ENODEV;
+	}
+
 	ir = devm_kzalloc(&client->dev, sizeof(*ir), GFP_KERNEL);
 	if (!ir)
 		return -ENOMEM;
@@ -925,6 +933,7 @@ static const struct i2c_device_id ir_kbd_id[] = {
 	{ "ir_z8f0811_hdpvr", FLAG_TX | FLAG_HDPVR },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, ir_kbd_id);
 
 static struct i2c_driver ir_kbd_driver = {
 	.driver = {
