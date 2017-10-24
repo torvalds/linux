@@ -9081,20 +9081,6 @@ F:	drivers/media/platform/meson/ao-cec.c
 F:	Documentation/devicetree/bindings/media/meson-ao-cec.txt
 T:	git git://linuxtv.org/media_tree.git
 
-METAG ARCHITECTURE
-M:	James Hogan <jhogan@kernel.org>
-L:	linux-metag@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jhogan/metag.git
-S:	Odd Fixes
-F:	arch/metag/
-F:	Documentation/metag/
-F:	Documentation/devicetree/bindings/metag/
-F:	Documentation/devicetree/bindings/interrupt-controller/img,*
-F:	drivers/clocksource/metag_generic.c
-F:	drivers/irqchip/irq-metag.c
-F:	drivers/irqchip/irq-metag-ext.c
-F:	drivers/tty/metag_da.c
-
 MICROBLAZE ARCHITECTURE
 M:	Michal Simek <monstr@monstr.eu>
 W:	http://www.monstr.eu/fdt/
