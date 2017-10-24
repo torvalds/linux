@@ -741,9 +741,10 @@ static void vub300_deadwork_thread(struct work_struct *work)
 	kref_put(&vub300->kref, vub300_delete);
 }
 
-static void vub300_inactivity_timer_expired(unsigned long data)
+static void vub300_inactivity_timer_expired(struct timer_list *t)
 {				/* softirq */
-	struct vub300_mmc_host *vub300 = (struct vub300_mmc_host *)data;
+	struct vub300_mmc_host *vub300 = from_timer(vub300, t,
+						    inactivity_timer);
 	if (!vub300->interface) {
 		kref_put(&vub300->kref, vub300_delete);
 	} else if (vub300->cmd) {
@@ -1180,9 +1181,10 @@ static void send_command(struct vub300_mmc_host *vub300)
  * timer callback runs in atomic mode
  *       so it cannot call usb_kill_urb()
  */
-static void vub300_sg_timed_out(unsigned long data)
+static void vub300_sg_timed_out(struct timer_list *t)
 {
-	struct vub300_mmc_host *vub300 = (struct vub300_mmc_host *)data;
+	struct vub300_mmc_host *vub300 = from_timer(vub300, t,
+						    sg_transfer_timer);
 	vub300->usb_timed_out = 1;
 	usb_sg_cancel(&vub300->sg_request);
 	usb_unlink_urb(vub300->command_out_urb);
@@ -2323,11 +2325,10 @@ static int vub300_probe(struct usb_interface *interface,
 	INIT_WORK(&vub300->cmndwork, vub300_cmndwork_thread);
 	INIT_WORK(&vub300->deadwork, vub300_deadwork_thread);
 	kref_init(&vub300->kref);
-	setup_timer(&vub300->sg_transfer_timer, vub300_sg_timed_out,
-		    (unsigned long)vub300);
+	timer_setup(&vub300->sg_transfer_timer, vub300_sg_timed_out, 0);
 	kref_get(&vub300->kref);
-	setup_timer(&vub300->inactivity_timer,
-		    vub300_inactivity_timer_expired, (unsigned long)vub300);
+	timer_setup(&vub300->inactivity_timer,
+		    vub300_inactivity_timer_expired, 0);
 	vub300->inactivity_timer.expires = jiffies + HZ;
 	add_timer(&vub300->inactivity_timer);
 	if (vub300->card_present)

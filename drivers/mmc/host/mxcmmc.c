@@ -963,10 +963,9 @@ static bool filter(struct dma_chan *chan, void *param)
 	return true;
 }
 
-static void mxcmci_watchdog(unsigned long data)
+static void mxcmci_watchdog(struct timer_list *t)
 {
-	struct mmc_host *mmc = (struct mmc_host *)data;
-	struct mxcmci_host *host = mmc_priv(mmc);
+	struct mxcmci_host *host = from_timer(host, t, watchdog);
 	struct mmc_request *req = host->req;
 	unsigned int stat = mxcmci_readl(host, MMC_REG_STATUS);
 
@@ -1165,7 +1164,7 @@ static int mxcmci_probe(struct platform_device *pdev)
 			goto out_free_dma;
 	}
 
-	setup_timer(&host->watchdog, &mxcmci_watchdog, (unsigned long)mmc);
+	timer_setup(&host->watchdog, mxcmci_watchdog, 0);
 
 	mmc_add_host(mmc);
 
