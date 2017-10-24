@@ -4005,11 +4005,14 @@ static void iwl_mvm_flush_no_vif(struct iwl_mvm *mvm, u32 queues, bool drop)
 	int i;
 
 	if (!iwl_mvm_has_new_tx_api(mvm)) {
-		if (drop)
+		if (drop) {
+			mutex_lock(&mvm->mutex);
 			iwl_mvm_flush_tx_path(mvm,
 				iwl_mvm_flushable_queues(mvm) & queues, 0);
-		else
+			mutex_unlock(&mvm->mutex);
+		} else {
 			iwl_trans_wait_tx_queues_empty(mvm->trans, queues);
+		}
 		return;
 	}
 
