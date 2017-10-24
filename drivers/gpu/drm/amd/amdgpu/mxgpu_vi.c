@@ -458,6 +458,11 @@ static int xgpu_vi_request_reset(struct amdgpu_device *adev)
 	return xgpu_vi_send_access_requests(adev, IDH_REQ_GPU_RESET_ACCESS);
 }
 
+static int xgpu_vi_wait_reset_cmpl(struct amdgpu_device *adev)
+{
+	return xgpu_vi_poll_msg(adev, IDH_FLR_NOTIFICATION_CMPL);
+}
+
 static int xgpu_vi_request_full_gpu_access(struct amdgpu_device *adev,
 					   bool init)
 {
@@ -613,5 +618,6 @@ const struct amdgpu_virt_ops xgpu_vi_virt_ops = {
 	.req_full_gpu		= xgpu_vi_request_full_gpu_access,
 	.rel_full_gpu		= xgpu_vi_release_full_gpu_access,
 	.reset_gpu		= xgpu_vi_request_reset,
+	.wait_reset             = xgpu_vi_wait_reset_cmpl,
 	.trans_msg		= NULL, /* Does not need to trans VF errors to host. */
 };

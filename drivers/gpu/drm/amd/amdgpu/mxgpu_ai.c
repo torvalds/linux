@@ -353,5 +353,6 @@ const struct amdgpu_virt_ops xgpu_ai_virt_ops = {
 	.req_full_gpu	= xgpu_ai_request_full_gpu_access,
 	.rel_full_gpu	= xgpu_ai_release_full_gpu_access,
 	.reset_gpu = xgpu_ai_request_reset,
+	.wait_reset = NULL,
 	.trans_msg = xgpu_ai_mailbox_trans_msg,
 };
