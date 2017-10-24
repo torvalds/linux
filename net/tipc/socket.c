@@ -2756,8 +2756,10 @@ static int tipc_sk_join(struct tipc_sock *tsk, struct tipc_group_req *mreq)
 	seq.upper = seq.lower;
 	tipc_nametbl_build_group(net, grp, mreq->type, domain);
 	rc = tipc_sk_publish(tsk, mreq->scope, &seq);
-	if (rc)
+	if (rc) {
 		tipc_group_delete(net, grp);
+		tsk->group = NULL;
+	}
 
 	/* Eliminate any risk that a broadcast overtakes the sent JOIN */
 	tsk->mc_method.rcast = true;
