@@ -1261,6 +1261,7 @@ static void msm_chg_detect_work(struct work_struct *w)
 		/* fall through */
 	case USB_CHG_STATE_SECONDARY_DONE:
 		motg->chg_state = USB_CHG_STATE_DETECTED;
+		/* fall through */
 	case USB_CHG_STATE_DETECTED:
 		msm_chg_block_off(motg);
 		dev_dbg(phy->dev, "charger = %d\n", motg->chg_type);
