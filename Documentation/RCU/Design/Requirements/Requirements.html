@@ -2797,7 +2797,7 @@ RCU must avoid degrading real-time response for CPU-bound threads, whether
 executing in usermode (which is one use case for
 <tt>CONFIG_NO_HZ_FULL=y</tt>) or in the kernel.
 That said, CPU-bound loops in the kernel must execute
-<tt>cond_resched_rcu_qs()</tt> at least once per few tens of milliseconds
+<tt>cond_resched()</tt> at least once per few tens of milliseconds
 in order to avoid receiving an IPI from RCU.
 
 <p>
@@ -3128,7 +3128,7 @@ The solution, in the form of
 is to have implicit
 read-side critical sections that are delimited by voluntary context
 switches, that is, calls to <tt>schedule()</tt>,
-<tt>cond_resched_rcu_qs()</tt>, and
+<tt>cond_resched()</tt>, and
 <tt>synchronize_rcu_tasks()</tt>.
 In addition, transitions to and from userspace execution also delimit
 tasks-RCU read-side critical sections.
