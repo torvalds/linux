@@ -1185,10 +1185,11 @@ chan_err:
 	return -EINVAL;
 }
 
-static void atmel_uart_timer_callback(unsigned long data)
+static void atmel_uart_timer_callback(struct timer_list *t)
 {
-	struct uart_port *port = (void *)data;
-	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+	struct atmel_uart_port *atmel_port = from_timer(atmel_port, t,
+							uart_timer);
+	struct uart_port *port = &atmel_port->uart;
 
 	if (!atomic_read(&atmel_port->tasklet_shutdown)) {
 		tasklet_schedule(&atmel_port->tasklet_rx);
@@ -1852,9 +1853,7 @@ static int atmel_startup(struct uart_port *port)
 	atmel_uart_writel(port, ATMEL_US_CR, ATMEL_US_TXEN | ATMEL_US_RXEN);
 	atmel_port->tx_stopped = false;
 
-	setup_timer(&atmel_port->uart_timer,
-			atmel_uart_timer_callback,
-			(unsigned long)port);
+	timer_setup(&atmel_port->uart_timer, atmel_uart_timer_callback, 0);
 
 	if (atmel_use_pdc_rx(port)) {
 		/* set UART timeout */
