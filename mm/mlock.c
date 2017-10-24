@@ -779,7 +779,7 @@ static int apply_mlockall_flags(int flags)
 
 		/* Ignore errors */
 		mlock_fixup(vma, &prev, vma->vm_start, vma->vm_end, newflags);
-		cond_resched_rcu_qs();
+		cond_resched();
 	}
 out:
 	return 0;
