@@ -1324,7 +1324,6 @@ struct rssi_sta {
 };
 
 struct rtl_tid_data {
-	u16 seq_number;
 	struct rtl_ht_agg agg;
 };
 
