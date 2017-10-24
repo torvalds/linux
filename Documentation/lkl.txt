@@ -134,128 +134,308 @@ LKL hijack library
 
 LKL hijack library (liblkl-hijack.so) is used to replace system calls used by an
 application on the fly so that the application can use LKL instead of the kernel
-of host operating system. LD_PRELOAD is used to dynamically override system calls
-with this library when you execute a program.
+of host operating system. LD_PRELOAD is used to dynamically override system
+calls with this library when you execute a program.
 
 You can usually use this library via a wrapper script.
 
     $ cd tools/lkl
     $ ./bin/lkl-hijack.sh ip address show
 
-There are environmental variables to configure the behavior of LKL. The followings
-are the list of those variable for your environment.
+In order to configure the behavior of LKL, a json file can be used. You can
+specify json file with environmental variables (LKL_HIJACK_CONFIG_FILE). If
+there is nothing specified, LKL tries to find with the name 'lkl-hijack.json'
+for the configuration file.  You can also use the old-style configuration with
+environmental variables (e.g., LKL_HIJACK_NET_IFTYPE) but those are overridden
+if a json file is specified.
 
-* LKL_HIJACK_NET_IFTYPE
+```
+     $ cat conf.json
+     {
+       "gateway":"192.168.0.1",
+       "gateway6":"2001:db8:0:f101::1",
+       "debug":"1",
+       "singlecpu":"1",
+       "sysctl":"net.ipv4.tcp_wmem=4096 87380 2147483647",
+       "boot_cmdline":"ip=dhcp",
+       "interfaces":[
+               {
+                       "mac":"12:34:56:78:9a:bc",
+                       "type":"tap",
+                       "param":"tap7",
+                       "ip":"192.168.0.2",
+                       "masklen":"24",
+                       "ifgateway":"192.168.0.1",
+                       "ipv6":"2001:db8:0:f101::2",
+                       "masklen6":"64",
+                       "ifgateway6":"2001:db8:0:f101::1",
+                       "offload":"0xc803"
+               },
+               {
+                       "mac":"12:34:56:78:9a:bd",
+                       "type":"tap",
+                       "param":"tap77",
+                       "ip":"192.168.1.2",
+                       "masklen":"24",
+                       "ifgateway":"192.168.1.1",
+                       "ipv6":"2001:db8:0:f102::2",
+                       "masklen6":"64",
+                       "ifgateway6":"2001:db8:0:f102::1",
+                       "offload":"0xc803"
+               }
+       ]
+     }
+     $ LKL_HIJACK_CONFIG_FILE="conf.json" lkl-hijack.sh ip addr s
+```
 
-  The interface type in host operating system to connect to LKL.
-  The following example specifies a tap interface.
-```
-    $ LKL_HIJACK_NET_IFTYPE=tap LKL_HIJACK_NET_IFPARAMS=tap0 lkl-hijack.sh ip address show
-```
-* LKL_HIJACK_NET_IFPARAMS
+The following are the list of keys to describe a JSON file.
 
-  Additional configuration parameters for the interface specified by LKL_HIJACK_NET_IFTYPE.
-  The parameters depend on the interface type (LKL_HIJACK_NET_IFTYPE).
-```
-    $ LKL_HIJACK_NET_IFTYPE=tap LKL_HIJACK_NET_IFPARAMS=tap0 lkl-hijack.sh ip address show
-```
-* LKL_HIJACK_NET_IP
+* IPv4 gateway address
 
-  the IP address of the interface specified by LKL_HIJACK_NET_TAP.
+  key: "gateway"
+  value type: string
+
+  the gateway IPv4 address of LKL network stack.
 ```
-    $ LKL_HIJACK_NET_IP=198.51.100.5 lkl-hijack.sh ip address show
+     "gateway":"192.168.0.1"
 ```
 
-  If you want to use DHCP for the IP address assignment, use
-  LKL_HIJACK_BOOT_CMDLINE with "ip=dhcp" option.
+* IPv6 gateway address
+
+  key: "gateway6"
+  value type: string
+
+  the gateway IPv6 address of LKL network stack.
 ```
-     $ LKL_HIJACK_BOOT_CMDLINE="ip=dhcp"  LKL_HIJACK_NET_IFTYPE=tap \
-     LKL_HIJACK_NET_IFPARAMS=tap0 lkl-hijack.sh ip address
+     "gateway6":"2001:db8:0:f101::1"
 ```
 
-* LKL_HIJACK_NET_NETMASK_LEN
+* Debug
 
-  the network mask length of the interface specified by LKL_HIJACK_NET_TAP.
-```
-    $ LKL_HIJACK_NET_IP=198.51.100.5 LKL_HIJACK_NET_NETMASK_LEN=24 lkl-hijack.sh ip address show
-```
-* LKL_HIJACK_NET_MAC
-
-  the MAC address of the interface specified by LKL_HIJACK_NET_TAP.
-```
-    $ LKL_HIJACK_NET_MAC="aa:bb:cc:dd:ee:ff" lkl-hijack.sh ip address show
-```
-* LKL_HIJACK_NET_GATEWAY
-
-  the gateway IP address of LKL network stack.
-```
-     $ LKL_HIJACK_NET_GATEWAY=198.51.100.5 lkl-hijack.sh ip address show
-```
-* LKL_HIJACK_NET_MTU
-
-  the MTU size of the interface specified by LKL_HIJACK_NET_TAP.
-```
-     $ LKL_HIJACK_NET_MTU=1280 lkl-hijack.sh ip address show
-```
-* LKL_HIJACK_NET_NEIGHBOR
-
-  Add a list of permanent neighbor entries in the form of "ip|mac;ip|mac;...". ipv6 are supported
-```
-     $ LKL_HIJACK_NET_NEIGHBOR="192.168.13.100|12:34:56:78:9a:bc;2001:db8:0:f101::3|12:34:56:78:9a:be"
-     lkl-hijack.sh ip neighbor show
-```
-* LKL_HIJACK_NET_QDISC
-
-  Add a qdisc entry in the form of "root|type;root|type;...".
-```
-     $ LKL_HIJACK_NET_QDISC="root|fq" lkl-hijack.sh tc qdisc
-```
-* LKL_HIJACK_DEBUG
+  key: "debug"
+  value type: string
 
   Setting it causes some debug information (both from the kernel and the
   LKL library) to be enabled.
   It is also used as a bit mask to turn on specific debugging facilities.
-  E.g., setting it to 0x100 ("export LKL_HIJACK_DEBUG=0x100") will cause
-  the LKL kernel to pause after the hijack'ed app exits. This allows one
-  to debug or collect info from the LKL kernel before it quits.
+  E.g., setting it to "0x100" will cause the LKL kernel to pause after
+  the hijack'ed app exits. This allows one to debug or collect info from
+  the LKL kernel before it quits.
 ```
-     $ LKL_HIJACK_DEBUG=1 lkl-hijack.sh ip address show
+     "debug":"1"
 ```
-* LKL_HIJACK_SINGLE_CPU
 
-  Pin LKL kernel threads on to a single host cpu. LKL_HIJACK_SINGLE_CPU=1 pins
-  only LKL kernel threads while LKL_HIJACK_SINGLE_CPU=2 also pins polling
+* Single CPU pinning
+
+  key: "singlecpu"
+  value type: string
+
+  Pin LKL kernel threads on to a single host cpu. value "1" pins
+  only LKL kernel threads while value "2" also pins polling
   threads.
 ```
-     $ LKL_HIJACK_SINGLE_CPU=1 lkl-hijack.sh ip address show
+     "singlecpu":"1"
 ```
-* LKL_HIJACK_OFFLOAD
 
-  Work as a bit mask to enable selective device offload features. E.g.,
-  to enable "mergeable RX buffer" (LKL_VIRTIO_NET_F_MRG_RXBUF) +
-  "guest csum" (LKL_VIRTIO_NET_F_GUEST_CSUM) device features, simply set
-  it to 0x8002.
+* SYSCTL
 
-  See virtio_net.h for a list of offload features and their bit masks.
-```
-     $ LKL_HIJACK_OFFLOAD=0x8002 lkl-hijack.sh ./netserver -D -f
-```
-* LKL_HIJACK_SYSCTL
+  key: "sysctl"
+  value type: string
 
   Configure sysctl values of the booted kernel via the hijack library. Multiple
   entries can be specified.
 ```
-     $ LKL_HIJACK_SYSCTL="net.ipv4.tcp_wmem=4096 87380 2147483647"
-     ./bin/lkl-hijack.sh ip address show
+     "sysctl":"net.ipv4.tcp_wmem=4096 87380 2147483647"
 ```
-* LKL_HIJACK_BOOT_CMDLINE
+
+* Boot command line
+
+  key: "boot_cmdline"
+  value type: string
 
   Specify the command line to the kernel boot so that change the configuration
   on a kernel instance.  For instance, you can change the memory size with
   below.
 ```
-     $ LKL_HIJACK_BOOT_CMDLINE="mem=1G" LKL_HIJACK_DEBUG=1 lkl-hijack.sh ip add
+     "boot_cmdline": "mem=1G"
 ```
+
+* Mount
+
+  key: "mount"
+  value type: string
+
+```
+     "mount": "proc,sysfs"
+```
+
+* Network Interface Configuration
+
+  key: "interfaces"
+  value type: array of objects
+
+  This key takes a set of sub-keys to configure a single interface. Each key is defined as follows.
+  ```
+       "interfaces":[{....},{....}]
+  ```
+
+
+	* Interface type
+
+	  key: "type"
+	  value type: string
+
+	  The interface type in host operating system to connect to LKL.
+	  The following example specifies a tap interface.
+	```
+	     "type":"tap"
+	```
+
+	* Interface parameter
+
+	  key: "param"
+	  value type: string
+
+	  Additional configuration parameters for the interface specified by Interface type (type).
+	  The parameters depend on the interface type.
+	```
+	     "type":"tap",
+	     "param":"tap0"
+	```
+
+	* Interface MTU size
+
+	  key: "mtu"
+	  value type: string
+
+	  the MTU size of the interface.
+	```
+	     "mtu":"1280"
+	```
+
+	* Interface IPv4 address
+
+	  key: "ip"
+	  value type: string
+
+	  the IPv4 address of the interface.
+	  If you want to use DHCP for the IP address assignment,
+	  use "boot_cmdline" with "ip=dhcp" option.
+	```
+	     "ip":"192.168.0.2"
+	```
+	```
+	     "boot_cmdline":"ip=dhcp"
+	```
+
+	* Interface IPv4 netmask length
+
+	  key: "masklen"
+	  value type: string
+
+	  the network mask length of the interface.
+	```
+	     "ip":"192.168.0.2",
+	     "masklen":"24"
+	```
+
+	* Interface IPv4 gateway on routing policy table
+
+	  key: "ifgateway"
+	  value type: string
+
+	  If you specify this parameter, LKL adds routing policy table.
+	  And then LKL creates link local and gateway route on this table.
+	  Table SELECTOR is "from" and PREFIX is address you assigned to this interface.
+	  Table id is 2 * (interface index).
+	  This parameter could be used to configure LKL for mptcp, for example.
+
+	```
+	     "ip":"192.168.0.2",
+	     "masklen":"24",
+	     "ifgateway":"192.168.0.1"
+	```
+
+	* Interface IPv6 address
+
+	  key: "ipv6"
+	  value type: string
+
+	  the IPv6 address of the interface.
+	```
+	     "ipv6":"2001:db8:0:f101::2"
+	```
+
+	* Interface IPv6 netmask length
+
+	  key: "masklen6"
+	  value type: string
+
+	  the network mask length of the interface.
+	```
+	     "ipv6":"2001:db8:0:f101::2",
+	     "masklen":"64"
+	```
+
+	* Interface IPv6 gateway on routing policy table
+
+	  key: "ifgateway6"
+	  value type: string
+
+	  If you specify this parameter, LKL adds routing policy table.
+	  And then LKL creates link local and gateway route on this table.
+	  Table SELECTOR is "from" and PREFIX is address you assigned to this interface.
+	  Table id is 2 * (interface index) + 1.
+	  This parameter could be used to configure LKL for mptcp, for example.
+	```
+	     "ipv6":"2001:db8:0:f101::2",
+	     "masklen":"64"
+	     "ifgateway6":"2001:db8:0:f101::1",
+	```
+
+	* Interface MAC address
+
+	  key: "mac"
+	  value type: string
+
+	  the MAC address of the interface.
+	```
+	     "mac":"12:34:56:78:9a:bc"
+	```
+
+	* Interfac neighbor entries
+
+	  key: "neigh"
+	  value type: string
+
+	  Add a list of permanent neighbor entries in the form of "ip|mac;ip|mac;...". ipv6 are supported
+	```
+	     "neigh":"192.168.0.1|12:34:56:78:9a:bc;2001:db8:0:f101::1|12:34:56:78:9a:be"
+	```
+
+	* Interface qdisc entries
+
+	  key: "qdisc"
+	  value type: string
+
+	  Add a qdisc entry in the form of "root|type;root|type;...".
+	```
+	     "qdisc":"root|fq"
+	```
+
+	* Interface offload
+
+	  key: "offload"
+	  value type: string
+
+	  Work as a bit mask to enable selective device offload features. E.g.,
+	  to enable "mergeable RX buffer" (LKL_VIRTIO_NET_F_MRG_RXBUF) +
+	  "guest csum" (LKL_VIRTIO_NET_F_GUEST_CSUM) device features, simply set
+	  it to 0x8002.
+	  See virtio_net.h for a list of offload features and their bit masks.
+	```
+	     "offload":"0x8002"
+	```
 
 FAQ
 ===
@@ -276,5 +456,3 @@ A: LibOS re-implements high-level kernel APIs for timers, softirqs, scheduling,
 sysctl, SLAB/SLUB, etc. LKL behaves like any arch port, implementing the arch
 level operations requested by the Linux kernel. LKL also offers a host interface
 so that support for multiple hosts can be implemented.
-
-
