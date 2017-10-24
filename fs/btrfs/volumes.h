@@ -133,7 +133,6 @@ struct btrfs_device {
 
 	struct btrfs_work work;
 	struct rcu_head rcu;
-	struct work_struct rcu_work;
 
 	/* readahead state */
 	spinlock_t reada_lock;

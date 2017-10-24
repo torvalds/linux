@@ -824,24 +824,14 @@ again:
 	mutex_unlock(&uuid_mutex);
 }
 
-static void __free_device(struct work_struct *work)
-{
-	struct btrfs_device *device;
-
-	device = container_of(work, struct btrfs_device, rcu_work);
-	rcu_string_free(device->name);
-	bio_put(device->flush_bio);
-	kfree(device);
-}
-
 static void free_device(struct rcu_head *head)
 {
 	struct btrfs_device *device;
 
 	device = container_of(head, struct btrfs_device, rcu);
-
-	INIT_WORK(&device->rcu_work, __free_device);
-	schedule_work(&device->rcu_work);
+	rcu_string_free(device->name);
+	bio_put(device->flush_bio);
+	kfree(device);
 }
 
 static void btrfs_close_bdev(struct btrfs_device *device)
