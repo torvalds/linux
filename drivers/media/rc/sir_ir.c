@@ -120,7 +120,7 @@ static void add_read_queue(int flag, unsigned long val)
 }
 
 /* SECTION: Hardware */
-static void sir_timeout(unsigned long data)
+static void sir_timeout(struct timer_list *unused)
 {
 	/*
 	 * if last received signal was a pulse, but receiving stopped
@@ -321,7 +321,7 @@ static int sir_ir_probe(struct platform_device *dev)
 	rcdev->timeout = IR_DEFAULT_TIMEOUT;
 	rcdev->dev.parent = &sir_ir_dev->dev;
 
-	setup_timer(&timerlist, sir_timeout, 0);
+	timer_setup(&timerlist, sir_timeout, 0);
 
 	/* get I/O port access and IRQ line */
 	if (!devm_request_region(&sir_ir_dev->dev, io, 8, KBUILD_MODNAME)) {

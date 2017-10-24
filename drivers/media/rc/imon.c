@@ -1090,9 +1090,9 @@ static void usb_tx_callback(struct urb *urb)
 /**
  * report touchscreen input
  */
-static void imon_touch_display_timeout(unsigned long data)
+static void imon_touch_display_timeout(struct timer_list *t)
 {
-	struct imon_context *ictx = (struct imon_context *)data;
+	struct imon_context *ictx = from_timer(ictx, t, ttimer);
 
 	if (ictx->display_type != IMON_DISPLAY_TYPE_VGA)
 		return;
@@ -2411,8 +2411,7 @@ static struct imon_context *imon_init_intf1(struct usb_interface *intf,
 	mutex_lock(&ictx->lock);
 
 	if (ictx->display_type == IMON_DISPLAY_TYPE_VGA) {
-		setup_timer(&ictx->ttimer, imon_touch_display_timeout,
-			    (unsigned long)ictx);
+		timer_setup(&ictx->ttimer, imon_touch_display_timeout, 0);
 	}
 
 	ictx->usbdev_intf1 = usb_get_dev(interface_to_usbdev(intf));

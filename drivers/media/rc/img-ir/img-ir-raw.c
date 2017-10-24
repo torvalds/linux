@@ -67,9 +67,9 @@ void img_ir_isr_raw(struct img_ir_priv *priv, u32 irq_status)
  * order to be assured of the final space. If there are no edges for a certain
  * time we use this timer to emit a final sample to satisfy them.
  */
-static void img_ir_echo_timer(unsigned long arg)
+static void img_ir_echo_timer(struct timer_list *t)
 {
-	struct img_ir_priv *priv = (struct img_ir_priv *)arg;
+	struct img_ir_priv *priv = from_timer(priv, t, raw.timer);
 
 	spin_lock_irq(&priv->lock);
 
@@ -107,7 +107,7 @@ int img_ir_probe_raw(struct img_ir_priv *priv)
 	int error;
 
 	/* Set up the echo timer */
-	setup_timer(&raw->timer, img_ir_echo_timer, (unsigned long)priv);
+	timer_setup(&raw->timer, img_ir_echo_timer, 0);
 
 	/* Allocate raw decoder */
 	raw->rdev = rdev = rc_allocate_device(RC_DRIVER_IR_RAW);
