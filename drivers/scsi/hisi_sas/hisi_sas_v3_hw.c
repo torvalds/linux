@@ -172,6 +172,10 @@
 #define DMA_RX_STATUS			(PORT_BASE + 0x2e8)
 #define DMA_RX_STATUS_BUSY_OFF		0
 #define DMA_RX_STATUS_BUSY_MSK		(0x1 << DMA_RX_STATUS_BUSY_OFF)
+#define ERR_CNT_DWS_LOST		(PORT_BASE + 0x380)
+#define ERR_CNT_RESET_PROB		(PORT_BASE + 0x384)
+#define ERR_CNT_INVLD_DW		(PORT_BASE + 0x390)
+#define ERR_CNT_DISP_ERR		(PORT_BASE + 0x398)
 
 #define DEFAULT_ITCT_HW		2048 /* reset value, not reprogrammed */
 #if (HISI_SAS_MAX_DEVICES > DEFAULT_ITCT_HW)
@@ -1742,6 +1746,31 @@ static u32 get_phys_state_v3_hw(struct hisi_hba *hisi_hba)
 	return hisi_sas_read32(hisi_hba, PHY_STATE);
 }
 
+static void phy_get_events_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
+{
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	struct sas_phy *sphy = sas_phy->phy;
+	u32 reg_value;
+
+	/* loss dword sync */
+	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_DWS_LOST);
+	sphy->loss_of_dword_sync_count += reg_value;
+
+	/* phy reset problem */
+	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_RESET_PROB);
+	sphy->phy_reset_problem_count += reg_value;
+
+	/* invalid dword */
+	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_INVLD_DW);
+	sphy->invalid_dword_count += reg_value;
+
+	/* disparity err */
+	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_DISP_ERR);
+	sphy->running_disparity_error_count += reg_value;
+
+}
+
 static int soft_reset_v3_hw(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
@@ -1794,6 +1823,7 @@ static const struct hisi_sas_hw hisi_sas_v3_hw = {
 	.dereg_device = dereg_device_v3_hw,
 	.soft_reset = soft_reset_v3_hw,
 	.get_phys_state = get_phys_state_v3_hw,
+	.get_events = phy_get_events_v3_hw,
 };
 
 static struct Scsi_Host *
