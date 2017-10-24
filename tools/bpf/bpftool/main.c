@@ -36,6 +36,7 @@
 #include <bfd.h>
 #include <ctype.h>
 #include <errno.h>
+#include <getopt.h>
 #include <linux/bpf.h>
 #include <linux/version.h>
 #include <stdio.h>
@@ -50,6 +51,9 @@ const char *bin_name;
 static int last_argc;
 static char **last_argv;
 static int (*last_do_help)(int argc, char **argv);
+json_writer_t *json_wtr;
+bool pretty_output;
+bool json_output;
 
 void usage(void)
 {
@@ -60,12 +64,19 @@ void usage(void)
 
 static int do_help(int argc, char **argv)
 {
+	if (json_output) {
+		jsonw_null(json_wtr);
+		return 0;
+	}
+
 	fprintf(stderr,
-		"Usage: %s OBJECT { COMMAND | help }\n"
+		"Usage: %s [OPTIONS] OBJECT { COMMAND | help }\n"
 		"       %s batch file FILE\n"
 		"       %s version\n"
 		"\n"
-		"       OBJECT := { prog | map }\n",
+		"       OBJECT := { prog | map }\n"
+		"       " HELP_SPEC_OPTIONS "\n"
+		"",
 		bin_name, bin_name, bin_name);
 
 	return 0;
@@ -73,10 +84,22 @@ static int do_help(int argc, char **argv)
 
 static int do_version(int argc, char **argv)
 {
-	printf("%s v%d.%d.%d\n", bin_name,
-	       LINUX_VERSION_CODE >> 16,
-	       LINUX_VERSION_CODE >> 8 & 0xf,
-	       LINUX_VERSION_CODE & 0xf);
+	unsigned int version[3];
+
+	version[0] = LINUX_VERSION_CODE >> 16;
+	version[1] = LINUX_VERSION_CODE >> 8 & 0xf;
+	version[2] = LINUX_VERSION_CODE & 0xf;
+
+	if (json_output) {
+		jsonw_start_object(json_wtr);
+		jsonw_name(json_wtr, "version");
+		jsonw_printf(json_wtr, "\"%u.%u.%u\"",
+			     version[0], version[1], version[2]);
+		jsonw_end_object(json_wtr);
+	} else {
+		printf("%s v%u.%u.%u\n", bin_name,
+		       version[0], version[1], version[2]);
+	}
 	return 0;
 }
 
@@ -151,25 +174,28 @@ static int do_batch(int argc, char **argv)
 	int n_argc;
 	FILE *fp;
 	int err;
+	int i;
 
 	if (argc < 2) {
-		err("too few parameters for batch\n");
+		p_err("too few parameters for batch");
 		return -1;
 	} else if (!is_prefix(*argv, "file")) {
-		err("expected 'file', got: %s\n", *argv);
+		p_err("expected 'file', got: %s", *argv);
 		return -1;
 	} else if (argc > 2) {
-		err("too many parameters for batch\n");
+		p_err("too many parameters for batch");
 		return -1;
 	}
 	NEXT_ARG();
 
 	fp = fopen(*argv, "r");
 	if (!fp) {
-		err("Can't open file (%s): %s\n", *argv, strerror(errno));
+		p_err("Can't open file (%s): %s", *argv, strerror(errno));
 		return -1;
 	}
 
+	if (json_output)
+		jsonw_start_array(json_wtr);
 	while (fgets(buf, sizeof(buf), fp)) {
 		if (strlen(buf) == sizeof(buf) - 1) {
 			errno = E2BIG;
@@ -182,8 +208,8 @@ static int do_batch(int argc, char **argv)
 		while (n_argv[n_argc]) {
 			n_argc++;
 			if (n_argc == ARRAY_SIZE(n_argv)) {
-				err("line %d has too many arguments, skip\n",
-				    lines);
+				p_err("line %d has too many arguments, skip",
+				      lines);
 				n_argc = 0;
 				break;
 			}
@@ -193,7 +219,21 @@ static int do_batch(int argc, char **argv)
 		if (!n_argc)
 			continue;
 
+		if (json_output) {
+			jsonw_start_object(json_wtr);
+			jsonw_name(json_wtr, "command");
+			jsonw_start_array(json_wtr);
+			for (i = 0; i < n_argc; i++)
+				jsonw_string(json_wtr, n_argv[i]);
+			jsonw_end_array(json_wtr);
+			jsonw_name(json_wtr, "output");
+		}
+
 		err = cmd_select(cmds, n_argc, n_argv, do_help);
+
+		if (json_output)
+			jsonw_end_object(json_wtr);
+
 		if (err)
 			goto err_close;
 
@@ -204,21 +244,72 @@ static int do_batch(int argc, char **argv)
 		perror("reading batch file failed");
 		err = -1;
 	} else {
-		info("processed %d lines\n", lines);
+		p_info("processed %d lines", lines);
 		err = 0;
 	}
 err_close:
 	fclose(fp);
+
+	if (json_output)
+		jsonw_end_array(json_wtr);
 
 	return err;
 }
 
 int main(int argc, char **argv)
 {
+	static const struct option options[] = {
+		{ "json",	no_argument,	NULL,	'j' },
+		{ "help",	no_argument,	NULL,	'h' },
+		{ "pretty",	no_argument,	NULL,	'p' },
+		{ "version",	no_argument,	NULL,	'V' },
+		{ 0 }
+	};
+	int opt, ret;
+
+	last_do_help = do_help;
+	pretty_output = false;
+	json_output = false;
 	bin_name = argv[0];
-	NEXT_ARG();
+
+	while ((opt = getopt_long(argc, argv, "Vhpj",
+				  options, NULL)) >= 0) {
+		switch (opt) {
+		case 'V':
+			return do_version(argc, argv);
+		case 'h':
+			return do_help(argc, argv);
+		case 'p':
+			pretty_output = true;
+			/* fall through */
+		case 'j':
+			json_output = true;
+			break;
+		default:
+			usage();
+		}
+	}
+
+	argc -= optind;
+	argv += optind;
+	if (argc < 0)
+		usage();
+
+	if (json_output) {
+		json_wtr = jsonw_new(stdout);
+		if (!json_wtr) {
+			p_err("failed to create JSON writer");
+			return -1;
+		}
+		jsonw_pretty(json_wtr, pretty_output);
+	}
 
 	bfd_init();
 
-	return cmd_select(cmds, argc, argv, do_help);
+	ret = cmd_select(cmds, argc, argv, do_help);
+
+	if (json_output)
+		jsonw_destroy(&json_wtr);
+
+	return ret;
 }

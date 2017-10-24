@@ -10,13 +10,23 @@ tool for inspection and simple manipulation of eBPF progs
 SYNOPSIS
 ========
 
-|	**bpftool** prog show [*PROG*]
-|	**bpftool** prog dump xlated *PROG* [{file *FILE* | opcodes }]
-|	**bpftool** prog dump jited  *PROG* [{file *FILE* | opcodes }]
-|	**bpftool** prog pin *PROG* *FILE*
-|	**bpftool** prog help
+	**bpftool** [*OPTIONS*] **prog** *COMMAND*
+
+	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] }
+
+	*COMMANDS* :=
+	{ **show** | **dump xlated** | **dump jited** | **pin** | **help** }
+
+MAP COMMANDS
+=============
+
+|	**bpftool** **prog show** [*PROG*]
+|	**bpftool** **prog dump xlated** *PROG* [{**file** *FILE* | **opcodes**}]
+|	**bpftool** **prog dump jited**  *PROG* [{**file** *FILE* | **opcodes**}]
+|	**bpftool** **prog pin** *PROG* *FILE*
+|	**bpftool** **prog help**
 |
-|	*PROG* := { id *PROG_ID* | pinned *FILE* | tag *PROG_TAG* }
+|	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
 
 DESCRIPTION
 ===========
@@ -50,6 +60,21 @@ DESCRIPTION
 	**bpftool prog help**
 		  Print short help message.
 
+OPTIONS
+=======
+	-h, --help
+		  Print short generic help message (similar to **bpftool help**).
+
+	-v, --version
+		  Print version number (similar to **bpftool version**).
+
+	-j, --json
+		  Generate JSON output. For commands that cannot produce JSON, this
+		  option has no effect.
+
+	-p, --pretty
+		  Generate human-readable JSON output. Implies **-j**.
+
 EXAMPLES
 ========
 **# bpftool prog show**
@@ -59,13 +84,33 @@ EXAMPLES
 	loaded_at Sep 29/20:11  uid 0
 	xlated 528B  jited 370B  memlock 4096B  map_ids 10
 
+**# bpftool --json --pretty prog show**
+
+::
+
+    {
+        "programs": [{
+                "id": 10,
+                "type": "xdp",
+                "tag": "005a3d2123620c8b",
+                "loaded_at": "Sep 29/20:11",
+                "uid": 0,
+                "bytes_xlated": 528,
+                "jited": true,
+                "bytes_jited": 370,
+                "bytes_memlock": 4096,
+                "map_ids": [10
+                ]
+            }
+        ]
+    }
+
 |
 | **# bpftool prog dump xlated id 10 file /tmp/t**
 | **# ls -l /tmp/t**
 |   -rw------- 1 root root 560 Jul 22 01:42 /tmp/t
 
-|
-| **# bpftool prog dum jited pinned /sys/fs/bpf/prog**
+**# bpftool prog dum jited tag 005a3d2123620c8b**
 
 ::
 
@@ -75,6 +120,26 @@ EXAMPLES
     sub    $0x28,%rbp
     mov    %rbx,0x0(%rbp)
 
+|
+| **# mount -t bpf none /sys/fs/bpf/**
+| **# bpftool prog pin id 10 /sys/fs/bpf/prog**
+| **# ls -l /sys/fs/bpf/**
+|   -rw------- 1 root root 0 Jul 22 01:43 prog
+
+**# bpftool prog dum jited pinned /sys/fs/bpf/prog opcodes**
+
+::
+
+    push   %rbp
+    55
+    mov    %rsp,%rbp
+    48 89 e5
+    sub    $0x228,%rsp
+    48 81 ec 28 02 00 00
+    sub    $0x28,%rbp
+    48 83 ed 28
+    mov    %rbx,0x0(%rbp)
+    48 89 5d 00
 
 
 SEE ALSO

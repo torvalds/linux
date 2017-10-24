@@ -66,8 +66,8 @@ int open_obj_pinned_any(char *path, enum bpf_obj_type exp_type)
 
 	fd = bpf_obj_get(path);
 	if (fd < 0) {
-		err("bpf obj get (%s): %s\n", path,
-		    errno == EACCES && !is_bpffs(dirname(path)) ?
+		p_err("bpf obj get (%s): %s", path,
+		      errno == EACCES && !is_bpffs(dirname(path)) ?
 		    "directory not in bpf file system (bpffs)" :
 		    strerror(errno));
 		return -1;
@@ -79,7 +79,7 @@ int open_obj_pinned_any(char *path, enum bpf_obj_type exp_type)
 		return type;
 	}
 	if (type != exp_type) {
-		err("incorrect object type: %s\n", get_fd_type_name(type));
+		p_err("incorrect object type: %s", get_fd_type_name(type));
 		close(fd);
 		return -1;
 	}
@@ -95,14 +95,14 @@ int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
 	int fd;
 
 	if (!is_prefix(*argv, "id")) {
-		err("expected 'id' got %s\n", *argv);
+		p_err("expected 'id' got %s", *argv);
 		return -1;
 	}
 	NEXT_ARG();
 
 	id = strtoul(*argv, &endptr, 0);
 	if (*endptr) {
-		err("can't parse %s as ID\n", *argv);
+		p_err("can't parse %s as ID", *argv);
 		return -1;
 	}
 	NEXT_ARG();
@@ -112,15 +112,15 @@ int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
 
 	fd = get_fd_by_id(id);
 	if (fd < 0) {
-		err("can't get prog by id (%u): %s\n", id, strerror(errno));
+		p_err("can't get prog by id (%u): %s", id, strerror(errno));
 		return -1;
 	}
 
 	err = bpf_obj_pin(fd, *argv);
 	close(fd);
 	if (err) {
-		err("can't pin the object (%s): %s\n", *argv,
-		    errno == EACCES && !is_bpffs(dirname(*argv)) ?
+		p_err("can't pin the object (%s): %s", *argv,
+		      errno == EACCES && !is_bpffs(dirname(*argv)) ?
 		    "directory not in bpf file system (bpffs)" :
 		    strerror(errno));
 		return -1;
@@ -153,11 +153,11 @@ int get_fd_type(int fd)
 
 	n = readlink(path, buf, sizeof(buf));
 	if (n < 0) {
-		err("can't read link type: %s\n", strerror(errno));
+		p_err("can't read link type: %s", strerror(errno));
 		return -1;
 	}
 	if (n == sizeof(path)) {
-		err("can't read link type: path too long!\n");
+		p_err("can't read link type: path too long!");
 		return -1;
 	}
 
@@ -181,7 +181,7 @@ char *get_fdinfo(int fd, const char *key)
 
 	fdi = fopen(path, "r");
 	if (!fdi) {
-		err("can't open fdinfo: %s\n", strerror(errno));
+		p_err("can't open fdinfo: %s", strerror(errno));
 		return NULL;
 	}
 
@@ -196,7 +196,7 @@ char *get_fdinfo(int fd, const char *key)
 
 		value = strchr(line, '\t');
 		if (!value || !value[1]) {
-			err("malformed fdinfo!?\n");
+			p_err("malformed fdinfo!?");
 			free(line);
 			return NULL;
 		}
@@ -209,8 +209,18 @@ char *get_fdinfo(int fd, const char *key)
 		return line;
 	}
 
-	err("key '%s' not found in fdinfo\n", key);
+	p_err("key '%s' not found in fdinfo", key);
 	free(line);
 	fclose(fdi);
 	return NULL;
+}
+
+void print_hex_data_json(uint8_t *data, size_t len)
+{
+	unsigned int i;
+
+	jsonw_start_array(json_wtr);
+	for (i = 0; i < len; i++)
+		jsonw_printf(json_wtr, "\"0x%02hhx\"", data[i]);
+	jsonw_end_array(json_wtr);
 }

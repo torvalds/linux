@@ -10,26 +10,29 @@ tool for inspection and simple manipulation of eBPF maps
 SYNOPSIS
 ========
 
-	**bpftool** **map** *COMMAND*
+	**bpftool** [*OPTIONS*] **map** *COMMAND*
+
+	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] }
 
 	*COMMANDS* :=
-	{ show | dump | update | lookup | getnext | delete | pin | help }
+	{ **show** | **dump** | **update** | **lookup** | **getnext** | **delete**
+	| **pin** | **help** }
 
 MAP COMMANDS
 =============
 
-|	**bpftool** map show   [*MAP*]
-|	**bpftool** map dump    *MAP*
-|	**bpftool** map update  *MAP*  key *BYTES*   value *VALUE* [*UPDATE_FLAGS*]
-|	**bpftool** map lookup  *MAP*  key *BYTES*
-|	**bpftool** map getnext *MAP* [key *BYTES*]
-|	**bpftool** map delete  *MAP*  key *BYTES*
-|	**bpftool** map pin     *MAP*  *FILE*
-|	**bpftool** map help
+|	**bpftool** **map show**   [*MAP*]
+|	**bpftool** **map dump**    *MAP*
+|	**bpftool** **map update**  *MAP*  **key** *BYTES*   **value** *VALUE* [*UPDATE_FLAGS*]
+|	**bpftool** **map lookup**  *MAP*  **key** *BYTES*
+|	**bpftool** **map getnext** *MAP* [**key** *BYTES*]
+|	**bpftool** **map delete**  *MAP*  **key** *BYTES*
+|	**bpftool** **map pin**     *MAP*  *FILE*
+|	**bpftool** **map help**
 |
-|	*MAP* := { id MAP_ID | pinned FILE }
-|	*VALUE* := { BYTES | MAP | PROGRAM }
-|	*UPDATE_FLAGS* := { any | exist | noexist }
+|	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
+|	*VALUE* := { *BYTES* | *MAP* | *PROGRAM* }
+|	*UPDATE_FLAGS* := { **any** | **exist** | **noexist** }
 
 DESCRIPTION
 ===========
@@ -67,6 +70,21 @@ DESCRIPTION
 
 	**bpftool map help**
 		  Print short help message.
+
+OPTIONS
+=======
+	-h, --help
+		  Print short generic help message (similar to **bpftool help**).
+
+	-v, --version
+		  Print version number (similar to **bpftool version**).
+
+	-j, --json
+		  Generate JSON output. For commands that cannot produce JSON, this
+		  option has no effect.
+
+	-p, --pretty
+		  Generate human-readable JSON output. Implies **-j**.
 
 EXAMPLES
 ========

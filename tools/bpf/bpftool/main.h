@@ -43,20 +43,20 @@
 #include <linux/bpf.h>
 #include <linux/kernel.h>
 
-#define err(msg...)	fprintf(stderr, "Error: " msg)
-#define warn(msg...)	fprintf(stderr, "Warning: " msg)
-#define info(msg...)	fprintf(stderr, msg)
+#include "json_writer.h"
 
 #define ptr_to_u64(ptr)	((__u64)(unsigned long)(ptr))
 
 #define NEXT_ARG()	({ argc--; argv++; if (argc < 0) usage(); })
 #define NEXT_ARGP()	({ (*argc)--; (*argv)++; if (*argc < 0) usage(); })
-#define BAD_ARG()	({ err("what is '%s'?\n", *argv); -1; })
+#define BAD_ARG()	({ p_err("what is '%s'?\n", *argv); -1; })
 
 #define BPF_TAG_FMT	"%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx"
 
 #define HELP_SPEC_PROGRAM						\
 	"PROG := { id PROG_ID | pinned FILE | tag PROG_TAG }"
+#define HELP_SPEC_OPTIONS						\
+	"OPTIONS := { {-j|--json} [{-p|--pretty}] }"
 
 enum bpf_obj_type {
 	BPF_OBJ_UNKNOWN,
@@ -65,6 +65,9 @@ enum bpf_obj_type {
 };
 
 extern const char *bin_name;
+
+extern json_writer_t *json_wtr;
+extern bool json_output;
 
 bool is_prefix(const char *pfx, const char *str);
 void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep);
@@ -90,5 +93,37 @@ int do_map(int argc, char **arg);
 int prog_parse_fd(int *argc, char ***argv);
 
 void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes);
+void print_hex_data_json(uint8_t *data, size_t len);
+
+static inline void p_err(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	if (json_output) {
+		jsonw_start_object(json_wtr);
+		jsonw_name(json_wtr, "error");
+		jsonw_vprintf_enquote(json_wtr, fmt, ap);
+		jsonw_end_object(json_wtr);
+	} else {
+		fprintf(stderr, "Error: ");
+		vfprintf(stderr, fmt, ap);
+		fprintf(stderr, "\n");
+	}
+	va_end(ap);
+}
+
+static inline void p_info(const char *fmt, ...)
+{
+	va_list ap;
+
+	if (json_output)
+		return;
+
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	fprintf(stderr, "\n");
+	va_end(ap);
+}
 
 #endif

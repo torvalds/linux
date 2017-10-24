@@ -10,18 +10,23 @@ tool for inspection and simple manipulation of eBPF programs and maps
 SYNOPSIS
 ========
 
-	**bpftool** *OBJECT* { *COMMAND* | help }
+	**bpftool** [*OPTIONS*] *OBJECT* { *COMMAND* | **help** }
 
-	**bpftool** batch file *FILE*
+	**bpftool** **batch file** *FILE*
 
-	**bpftool** version
+	**bpftool** **version**
 
 	*OBJECT* := { **map** | **program** }
 
-	*MAP-COMMANDS* :=
-	{ show | dump | update | lookup | getnext | delete | pin | help }
+	*OPTIONS* := { { **-V** | **--version** } | { **-h** | **--help** }
+	| { **-j** | **--json** } [{ **-p** | **--pretty** }] }
 
-	*PROG-COMMANDS* := { show | dump jited | dump xlated | pin | help }
+	*MAP-COMMANDS* :=
+	{ **show** | **dump** | **update** | **lookup** | **getnext** | **delete**
+	| **pin** | **help** }
+
+	*PROG-COMMANDS* := { **show** | **dump jited** | **dump xlated** | **pin**
+	| **help** }
 
 DESCRIPTION
 ===========
@@ -30,6 +35,21 @@ DESCRIPTION
 
 	Note that format of the output of all tools is not guaranteed to be
 	stable and should not be depended upon.
+
+OPTIONS
+=======
+	-h, --help
+		  Print short help message (similar to **bpftool help**).
+
+	-v, --version
+		  Print version number (similar to **bpftool version**).
+
+	-j, --json
+		  Generate JSON output. For commands that cannot produce JSON, this
+		  option has no effect.
+
+	-p, --pretty
+		  Generate human-readable JSON output. Implies **-j**.
 
 SEE ALSO
 ========
