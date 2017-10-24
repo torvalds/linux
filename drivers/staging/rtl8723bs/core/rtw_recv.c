@@ -26,7 +26,7 @@ u8 rtw_rfc1042_header[] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
 /* Bridge-Tunnel header (for EtherTypes ETH_P_AARP and ETH_P_IPX) */
 u8 rtw_bridge_tunnel_header[] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
 
-void rtw_signal_stat_timer_hdl(RTW_TIMER_HDL_ARGS);
+static void rtw_signal_stat_timer_hdl(struct timer_list *t);
 
 void _rtw_init_sta_recv_priv(struct sta_recv_priv *psta_recvpriv)
 {
@@ -86,7 +86,8 @@ sint _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
 
 	res = rtw_hal_init_recv_priv(padapter);
 
-	rtw_init_timer(&precvpriv->signal_stat_timer, padapter, rtw_signal_stat_timer_hdl);
+	timer_setup(&precvpriv->signal_stat_timer, rtw_signal_stat_timer_hdl,
+		    0);
 
 	precvpriv->signal_stat_sampling_interval = 2000; /* ms */
 
@@ -2354,9 +2355,10 @@ _err_exit:
 }
 
 
-void rtw_reordering_ctrl_timeout_handler(void *pcontext)
+void rtw_reordering_ctrl_timeout_handler(struct timer_list *t)
 {
-	struct recv_reorder_ctrl *preorder_ctrl = pcontext;
+	struct recv_reorder_ctrl *preorder_ctrl =
+		from_timer(preorder_ctrl, t, reordering_ctrl_timer);
 	struct adapter *padapter = preorder_ctrl->padapter;
 	struct __queue *ppending_recvframe_queue = &preorder_ctrl->pending_recvframe_queue;
 
@@ -2597,9 +2599,10 @@ _recv_entry_drop:
 	return ret;
 }
 
-void rtw_signal_stat_timer_hdl(RTW_TIMER_HDL_ARGS)
+static void rtw_signal_stat_timer_hdl(struct timer_list *t)
 {
-	struct adapter *adapter = (struct adapter *)FunctionContext;
+	struct adapter *adapter =
+		from_timer(adapter, t, recvpriv.signal_stat_timer);
 	struct recv_priv *recvpriv = &adapter->recvpriv;
 
 	u32 tmp_s, tmp_q;

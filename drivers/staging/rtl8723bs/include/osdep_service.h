@@ -118,8 +118,6 @@ int _rtw_netif_rx(_nic_hdl ndev, struct sk_buff *skb);
 
 extern void _rtw_init_queue(struct __queue	*pqueue);
 
-extern void rtw_init_timer(_timer *ptimer, void *padapter, void *pfunc);
-
 static __inline void thread_enter(char *name)
 {
 	allow_signal(SIGTERM);

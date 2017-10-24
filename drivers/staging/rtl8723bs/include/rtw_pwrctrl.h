@@ -300,6 +300,7 @@ struct pwrctrl_priv
 	u64		wowlan_fw_iv;
 #endif /*  CONFIG_WOWLAN */
 	_timer	pwr_state_check_timer;
+	struct adapter *adapter;
 	int		pwr_state_check_interval;
 	u8 pwr_state_check_cnts;
 

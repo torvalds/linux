@@ -1814,8 +1814,10 @@ void rtw_wmm_event_callback(struct adapter *padapter, u8 *pbuf)
 * _rtw_join_timeout_handler - Timeout/failure handler for CMD JoinBss
 * @adapter: pointer to struct adapter structure
 */
-void _rtw_join_timeout_handler (struct adapter *adapter)
+void _rtw_join_timeout_handler(struct timer_list *t)
 {
+	struct adapter *adapter = from_timer(adapter, t,
+						  mlmepriv.assoc_timer);
 	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
 	DBG_871X("%s, fw_state =%x\n", __func__, get_fwstate(pmlmepriv));
@@ -1867,8 +1869,10 @@ void _rtw_join_timeout_handler (struct adapter *adapter)
 * rtw_scan_timeout_handler - Timeout/Failure handler for CMD SiteSurvey
 * @adapter: pointer to struct adapter structure
 */
-void rtw_scan_timeout_handler (struct adapter *adapter)
+void rtw_scan_timeout_handler(struct timer_list *t)
 {
+	struct adapter *adapter = from_timer(adapter, t,
+						  mlmepriv.scan_to_timer);
 	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
 	DBG_871X(FUNC_ADPT_FMT" fw_state =%x\n", FUNC_ADPT_ARG(adapter), get_fwstate(pmlmepriv));
@@ -1931,7 +1935,7 @@ exit:
 	return;
 }
 
-void rtw_dynamic_check_timer_handlder(struct adapter *adapter)
+void rtw_dynamic_check_timer_handler(struct adapter *adapter)
 {
 	if (!adapter)
 		return;

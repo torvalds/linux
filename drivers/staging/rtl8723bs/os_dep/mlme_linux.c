@@ -19,18 +19,21 @@
 #include <drv_types.h>
 #include <rtw_debug.h>
 
-static void _dynamic_check_timer_handlder(void *FunctionContext)
+static void _dynamic_check_timer_handler(struct timer_list *t)
 {
-	struct adapter *adapter = FunctionContext;
+	struct adapter *adapter =
+		from_timer(adapter, t, mlmepriv.dynamic_chk_timer);
 
-	rtw_dynamic_check_timer_handlder(adapter);
+	rtw_dynamic_check_timer_handler(adapter);
 
 	_set_timer(&adapter->mlmepriv.dynamic_chk_timer, 2000);
 }
 
-static void _rtw_set_scan_deny_timer_hdl(void *FunctionContext)
+static void _rtw_set_scan_deny_timer_hdl(struct timer_list *t)
 {
-	struct adapter *adapter = FunctionContext;
+	struct adapter *adapter =
+		from_timer(adapter, t, mlmepriv.set_scan_deny_timer);
+
 	rtw_set_scan_deny_timer_hdl(adapter);
 }
 
@@ -38,13 +41,12 @@ void rtw_init_mlme_timer(struct adapter *padapter)
 {
 	struct	mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	_init_timer(&(pmlmepriv->assoc_timer), padapter->pnetdev, _rtw_join_timeout_handler, padapter);
-	/* _init_timer(&(pmlmepriv->sitesurveyctrl.sitesurvey_ctrl_timer), padapter->pnetdev, sitesurvey_ctrl_handler, padapter); */
-	_init_timer(&(pmlmepriv->scan_to_timer), padapter->pnetdev, rtw_scan_timeout_handler, padapter);
-
-	_init_timer(&(pmlmepriv->dynamic_chk_timer), padapter->pnetdev, _dynamic_check_timer_handlder, padapter);
-
-	_init_timer(&(pmlmepriv->set_scan_deny_timer), padapter->pnetdev, _rtw_set_scan_deny_timer_hdl, padapter);
+	timer_setup(&pmlmepriv->assoc_timer, _rtw_join_timeout_handler, 0);
+	timer_setup(&pmlmepriv->scan_to_timer, rtw_scan_timeout_handler, 0);
+	timer_setup(&pmlmepriv->dynamic_chk_timer,
+		    _dynamic_check_timer_handler, 0);
+	timer_setup(&pmlmepriv->set_scan_deny_timer,
+		    _rtw_set_scan_deny_timer_hdl, 0);
 }
 
 void rtw_os_indicate_connect(struct adapter *adapter)
@@ -191,14 +193,14 @@ void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
 
 void init_addba_retry_timer(struct adapter *padapter, struct sta_info *psta)
 {
-	_init_timer(&psta->addba_retry_timer, padapter->pnetdev, addba_timer_hdl, psta);
+	timer_setup(&psta->addba_retry_timer, addba_timer_hdl, 0);
 }
 
 void init_mlme_ext_timer(struct adapter *padapter)
 {
 	struct	mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 
-	_init_timer(&pmlmeext->survey_timer, padapter->pnetdev, survey_timer_hdl, padapter);
-	_init_timer(&pmlmeext->link_timer, padapter->pnetdev, link_timer_hdl, padapter);
-	_init_timer(&pmlmeext->sa_query_timer, padapter->pnetdev, sa_query_timer_hdl, padapter);
+	timer_setup(&pmlmeext->survey_timer, survey_timer_hdl, 0);
+	timer_setup(&pmlmeext->link_timer, link_timer_hdl, 0);
+	timer_setup(&pmlmeext->sa_query_timer, sa_query_timer_hdl, 0);
 }

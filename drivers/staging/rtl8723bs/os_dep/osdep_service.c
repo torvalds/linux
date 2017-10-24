@@ -66,13 +66,6 @@ inline int _rtw_netif_rx(_nic_hdl ndev, struct sk_buff *skb)
 	return netif_rx(skb);
 }
 
-void rtw_init_timer(_timer *ptimer, void *padapter, void *pfunc)
-{
-	struct adapter *adapter = padapter;
-
-	_init_timer(ptimer, adapter->pnetdev, pfunc, adapter);
-}
-
 void _rtw_init_queue(struct __queue *pqueue)
 {
 	INIT_LIST_HEAD(&(pqueue->queue));
