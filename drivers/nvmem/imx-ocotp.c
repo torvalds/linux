@@ -466,8 +466,6 @@ static int imx_ocotp_probe(struct platform_device *pdev)
 	imx_ocotp_nvmem_config.dev = dev;
 	imx_ocotp_nvmem_config.priv = priv;
 	priv->config = &imx_ocotp_nvmem_config;
-	if (of_device_is_compatible(pdev->dev.of_node, "fsl,imx7d-ocotp"))
-		imx_ocotp_nvmem_config.read_only = true;
 	nvmem = nvmem_register(&imx_ocotp_nvmem_config);
 
 	if (IS_ERR(nvmem))
