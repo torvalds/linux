@@ -12,13 +12,21 @@
 
 #define UID_GID_MAP_MAX_EXTENTS 5
 
+struct uid_gid_extent {
+	u32 first;
+	u32 lower_first;
+	u32 count;
+};
+
 struct uid_gid_map {	/* 64 bytes -- 1 cache line */
 	u32 nr_extents;
-	struct uid_gid_extent {
-		u32 first;
-		u32 lower_first;
-		u32 count;
-	} extent[UID_GID_MAP_MAX_EXTENTS];
+	union {
+		struct uid_gid_extent extent[UID_GID_MAP_MAX_EXTENTS];
+		struct {
+			struct uid_gid_extent *forward;
+			struct uid_gid_extent *reverse;
+		};
+	};
 };
 
 #define USERNS_SETGROUPS_ALLOWED 1UL
