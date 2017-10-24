@@ -160,6 +160,10 @@
 #define CHL_INT1_DMAC_TX_ECC_ERR_MSK	(0x1 << CHL_INT1_DMAC_TX_ECC_ERR_OFF)
 #define CHL_INT1_DMAC_RX_ECC_ERR_OFF	17
 #define CHL_INT1_DMAC_RX_ECC_ERR_MSK	(0x1 << CHL_INT1_DMAC_RX_ECC_ERR_OFF)
+#define CHL_INT1_DMAC_TX_AXI_WR_ERR_OFF	19
+#define CHL_INT1_DMAC_TX_AXI_RD_ERR_OFF	20
+#define CHL_INT1_DMAC_RX_AXI_WR_ERR_OFF	21
+#define CHL_INT1_DMAC_RX_AXI_RD_ERR_OFF	22
 #define CHL_INT2			(PORT_BASE + 0x1bc)
 #define CHL_INT0_MSK			(PORT_BASE + 0x1c0)
 #define CHL_INT1_MSK			(PORT_BASE + 0x1c4)
@@ -417,7 +421,7 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1, 0xffffffff);
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2, 0xffffffff);
 		hisi_sas_phy_write32(hisi_hba, i, RXOP_CHECK_CFG_H, 0x1000);
-		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_MSK, 0xffffffff);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_MSK, 0xff87ffff);
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK, 0x8ffffbff);
 		hisi_sas_phy_write32(hisi_hba, i, PHY_CTRL_RDY_MSK, 0x0);
 		hisi_sas_phy_write32(hisi_hba, i, PHYCTRL_NOT_RDY_MSK, 0x0);
@@ -1265,6 +1269,25 @@ static irqreturn_t int_phy_up_down_bcast_v3_hw(int irq_no, void *p)
 	return res;
 }
 
+static const struct hisi_sas_hw_error port_axi_error[] = {
+	{
+		.irq_msk = BIT(CHL_INT1_DMAC_TX_AXI_WR_ERR_OFF),
+		.msg = "dma_tx_axi_wr_err",
+	},
+	{
+		.irq_msk = BIT(CHL_INT1_DMAC_TX_AXI_RD_ERR_OFF),
+		.msg = "dma_tx_axi_rd_err",
+	},
+	{
+		.irq_msk = BIT(CHL_INT1_DMAC_RX_AXI_WR_ERR_OFF),
+		.msg = "dma_rx_axi_wr_err",
+	},
+	{
+		.irq_msk = BIT(CHL_INT1_DMAC_RX_AXI_RD_ERR_OFF),
+		.msg = "dma_rx_axi_rd_err",
+	},
+};
+
 static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
@@ -1290,10 +1313,19 @@ static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 
 		if ((irq_msk & (4 << (phy_no * 4))) &&
 						irq_value1) {
-			if (irq_value1 & (CHL_INT1_DMAC_RX_ECC_ERR_MSK |
-					  CHL_INT1_DMAC_TX_ECC_ERR_MSK))
-				panic("%s: DMAC RX/TX ecc bad error! (0x%x)",
-					dev_name(dev), irq_value1);
+			int i;
+
+			for (i = 0; i < ARRAY_SIZE(port_axi_error); i++) {
+				const struct hisi_sas_hw_error *error =
+						&port_axi_error[i];
+
+				if (!(irq_value1 & error->irq_msk))
+					continue;
+
+				dev_warn(dev, "%s error (phy%d 0x%x) found!\n",
+					error->msg, phy_no, irq_value1);
+				queue_work(hisi_hba->wq, &hisi_hba->rst_work);
+			}
 
 			hisi_sas_phy_write32(hisi_hba, phy_no,
 					     CHL_INT1, irq_value1);
