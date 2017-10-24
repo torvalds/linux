@@ -1273,7 +1273,7 @@ static void set_td_timer(struct r8a66597 *r8a66597, struct r8a66597_td *td)
 			break;
 		}
 
-		mod_timer(&r8a66597->td_timer[td->pipenum],
+		mod_timer(&r8a66597->timers[td->pipenum].td,
 			  jiffies + msecs_to_jiffies(time));
 	}
 }
@@ -1733,9 +1733,10 @@ static void r8a66597_root_hub_control(struct r8a66597 *r8a66597, int port)
 	}
 }
 
-static void r8a66597_interval_timer(unsigned long _r8a66597)
+static void r8a66597_interval_timer(struct timer_list *t)
 {
-	struct r8a66597 *r8a66597 = (struct r8a66597 *)_r8a66597;
+	struct r8a66597_timers *timers = from_timer(timers, t, interval);
+	struct r8a66597 *r8a66597 = timers->r8a66597;
 	unsigned long flags;
 	u16 pipenum;
 	struct r8a66597_td *td;
@@ -1745,7 +1746,7 @@ static void r8a66597_interval_timer(unsigned long _r8a66597)
 	for (pipenum = 0; pipenum < R8A66597_MAX_NUM_PIPE; pipenum++) {
 		if (!(r8a66597->interval_map & (1 << pipenum)))
 			continue;
-		if (timer_pending(&r8a66597->interval_timer[pipenum]))
+		if (timer_pending(&r8a66597->timers[pipenum].interval))
 			continue;
 
 		td = r8a66597_get_td(r8a66597, pipenum);
@@ -1756,9 +1757,10 @@ static void r8a66597_interval_timer(unsigned long _r8a66597)
 	spin_unlock_irqrestore(&r8a66597->lock, flags);
 }
 
-static void r8a66597_td_timer(unsigned long _r8a66597)
+static void r8a66597_td_timer(struct timer_list *t)
 {
-	struct r8a66597 *r8a66597 = (struct r8a66597 *)_r8a66597;
+	struct r8a66597_timers *timers = from_timer(timers, t, td);
+	struct r8a66597 *r8a66597 = timers->r8a66597;
 	unsigned long flags;
 	u16 pipenum;
 	struct r8a66597_td *td, *new_td = NULL;
@@ -1768,7 +1770,7 @@ static void r8a66597_td_timer(unsigned long _r8a66597)
 	for (pipenum = 0; pipenum < R8A66597_MAX_NUM_PIPE; pipenum++) {
 		if (!(r8a66597->timeout_map & (1 << pipenum)))
 			continue;
-		if (timer_pending(&r8a66597->td_timer[pipenum]))
+		if (timer_pending(&r8a66597->timers[pipenum].td))
 			continue;
 
 		td = r8a66597_get_td(r8a66597, pipenum);
@@ -1942,7 +1944,7 @@ static int r8a66597_urb_enqueue(struct usb_hcd *hcd,
 	if (request) {
 		if (td->pipe->info.timer_interval) {
 			r8a66597->interval_map |= 1 << td->pipenum;
-			mod_timer(&r8a66597->interval_timer[td->pipenum],
+			mod_timer(&r8a66597->timers[td->pipenum].interval,
 				  jiffies + msecs_to_jiffies(
 					td->pipe->info.timer_interval));
 		} else {
@@ -2495,11 +2497,10 @@ static int r8a66597_probe(struct platform_device *pdev)
 
 	for (i = 0; i < R8A66597_MAX_NUM_PIPE; i++) {
 		INIT_LIST_HEAD(&r8a66597->pipe_queue[i]);
-		setup_timer(&r8a66597->td_timer[i], r8a66597_td_timer,
-			    (unsigned long)r8a66597);
-		setup_timer(&r8a66597->interval_timer[i],
-				r8a66597_interval_timer,
-				(unsigned long)r8a66597);
+		r8a66597->timers[i].r8a66597 = r8a66597;
+		timer_setup(&r8a66597->timers[i].td, r8a66597_td_timer, 0);
+		timer_setup(&r8a66597->timers[i].interval,
+			    r8a66597_interval_timer, 0);
 	}
 	INIT_LIST_HEAD(&r8a66597->child_device);
 

@@ -107,6 +107,14 @@ struct r8a66597_root_hub {
 	struct r8a66597_device	*dev;
 };
 
+struct r8a66597;
+
+struct r8a66597_timers {
+	struct timer_list td;
+	struct timer_list interval;
+	struct r8a66597 *r8a66597;
+};
+
 struct r8a66597 {
 	spinlock_t lock;
 	void __iomem *reg;
@@ -117,8 +125,7 @@ struct r8a66597 {
 	struct list_head		pipe_queue[R8A66597_MAX_NUM_PIPE];
 
 	struct timer_list rh_timer;
-	struct timer_list td_timer[R8A66597_MAX_NUM_PIPE];
-	struct timer_list interval_timer[R8A66597_MAX_NUM_PIPE];
+	struct r8a66597_timers timers[R8A66597_MAX_NUM_PIPE];
 
 	unsigned short address_map;
 	unsigned short timeout_map;
