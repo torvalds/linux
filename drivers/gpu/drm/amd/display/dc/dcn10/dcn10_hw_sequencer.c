@@ -2493,7 +2493,10 @@ void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 	}
 }
 
-
+void dcn10_update_dchub(struct dce_hwseq *hws, struct dchub_init_data *dh_data)
+{
+	hubbub1_update_dchub(hws->ctx->dc->res_pool->hubbub, dh_data);
+}
 
 static const struct hw_sequencer_funcs dcn10_funcs = {
 	.program_gamut_remap = program_gamut_remap,
@@ -2503,6 +2506,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.apply_ctx_for_surface = dcn10_apply_ctx_for_surface,
 	.set_plane_config = set_plane_config,
 	.update_plane_addr = dcn10_update_plane_addr,
+	.update_dchub = dcn10_update_dchub,
 	.update_pending_status = dcn10_update_pending_status,
 	.set_input_transfer_func = dcn10_set_input_transfer_func,
 	.set_output_transfer_func = dcn10_set_output_transfer_func,

@@ -1461,7 +1461,7 @@ static bool construct(
 	pool->base.hubbub = dcn10_hubbub_create(ctx);
 	if (pool->base.hubbub == NULL) {
 		BREAK_TO_DEBUGGER();
-		dm_error("DC: failed to create mpc!\n");
+		dm_error("DC: failed to create hubbub!\n");
 		goto fail;
 	}
 
