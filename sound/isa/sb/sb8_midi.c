@@ -209,10 +209,10 @@ static void snd_sb8dsp_midi_output_write(struct snd_rawmidi_substream *substream
 	}
 }
 
-static void snd_sb8dsp_midi_output_timer(unsigned long data)
+static void snd_sb8dsp_midi_output_timer(struct timer_list *t)
 {
-	struct snd_rawmidi_substream *substream = (struct snd_rawmidi_substream *) data;
-	struct snd_sb * chip = substream->rmidi->private_data;
+	struct snd_sb *chip = from_timer(chip, t, midi_timer);
+	struct snd_rawmidi_substream *substream = chip->midi_substream_output;
 	unsigned long flags;
 
 	spin_lock_irqsave(&chip->open_lock, flags);
@@ -230,9 +230,8 @@ static void snd_sb8dsp_midi_output_trigger(struct snd_rawmidi_substream *substre
 	spin_lock_irqsave(&chip->open_lock, flags);
 	if (up) {
 		if (!(chip->open & SB_OPEN_MIDI_OUTPUT_TRIGGER)) {
-			setup_timer(&chip->midi_timer,
-				    snd_sb8dsp_midi_output_timer,
-				    (unsigned long) substream);
+			timer_setup(&chip->midi_timer,
+				    snd_sb8dsp_midi_output_timer, 0);
 			mod_timer(&chip->midi_timer, 1 + jiffies);
 			chip->open |= SB_OPEN_MIDI_OUTPUT_TRIGGER;
 		}
