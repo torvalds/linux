@@ -405,14 +405,13 @@ int ovl_verify_index(struct dentry *index, struct path *lowerstack,
 	 * be treated as stale (i.e. after unlink of the overlay inode).
 	 * We don't know the verification rules for directory and whiteout
 	 * index entries, because they have not been implemented yet, so return
-	 * EROFS if those entries are found to avoid corrupting an index that
-	 * was created by a newer kernel.
+	 * EINVAL if those entries are found to abort the mount to avoid
+	 * corrupting an index that was created by a newer kernel.
 	 */
-	err = -EROFS;
+	err = -EINVAL;
 	if (d_is_dir(index) || ovl_is_whiteout(index))
 		goto fail;
 
-	err = -EINVAL;
 	if (index->d_name.len < sizeof(struct ovl_fh)*2)
 		goto fail;
 
