@@ -114,7 +114,7 @@ int ks_wlan_update_phy_information(struct ks_wlan_private *priv)
 }
 
 static
-void ks_wlan_update_phyinfo_timeout(unsigned long ptr)
+void ks_wlan_update_phyinfo_timeout(struct timer_list *unused)
 {
 	DPRINTK(4, "in_interrupt = %ld\n", in_interrupt());
 	atomic_set(&update_phyinfo, 0);
@@ -2951,8 +2951,7 @@ int ks_wlan_net_start(struct net_device *dev)
 
 	/* phy information update timer */
 	atomic_set(&update_phyinfo, 0);
-	setup_timer(&update_phyinfo_timer, ks_wlan_update_phyinfo_timeout,
-		    (unsigned long)priv);
+	timer_setup(&update_phyinfo_timer, ks_wlan_update_phyinfo_timeout, 0);
 
 	/* dummy address set */
 	memcpy(priv->eth_addr, dummy_addr, ETH_ALEN);
