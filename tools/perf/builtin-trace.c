@@ -1828,16 +1828,14 @@ out_dump:
 	goto out_put;
 }
 
-static void bpf_output__printer(enum binary_printer_ops op,
-				unsigned int val, void *extra)
+static int bpf_output__printer(enum binary_printer_ops op,
+			       unsigned int val, void *extra __maybe_unused, FILE *fp)
 {
-	FILE *output = extra;
 	unsigned char ch = (unsigned char)val;
 
 	switch (op) {
 	case BINARY_PRINT_CHAR_DATA:
-		fprintf(output, "%c", isprint(ch) ? ch : '.');
-		break;
+		return fprintf(fp, "%c", isprint(ch) ? ch : '.');
 	case BINARY_PRINT_DATA_BEGIN:
 	case BINARY_PRINT_LINE_BEGIN:
 	case BINARY_PRINT_ADDR:
@@ -1850,13 +1848,15 @@ static void bpf_output__printer(enum binary_printer_ops op,
 	default:
 		break;
 	}
+
+	return 0;
 }
 
 static void bpf_output__fprintf(struct trace *trace,
 				struct perf_sample *sample)
 {
-	print_binary(sample->raw_data, sample->raw_size, 8,
-		     bpf_output__printer, trace->output);
+	binary__fprintf(sample->raw_data, sample->raw_size, 8,
+			bpf_output__printer, NULL, trace->output);
 }
 
 static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,

@@ -204,7 +204,7 @@ For example Intel Core CPUs typically have four generic performance counters
 for the core, plus three fixed counters for instructions, cycles and
 ref-cycles. Some special events have restrictions on which counter they
 can schedule, and may not support multiple instances in a single group.
-When too many events are specified in the group none of them will not
+When too many events are specified in the group some of them will not
 be measured.
 
 Globally pinned events can limit the number of counters available for

@@ -57,6 +57,11 @@ check () {
 }
 
 
+# Check if we have the kernel headers (tools/perf/../../include), else
+# we're probably on a detached tarball, so no point in trying to check
+# differences.
+test -d ../../include || exit 0
+
 # simple diff check
 for i in $HEADERS; do
   check $i -B
