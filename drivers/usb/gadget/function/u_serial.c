@@ -1078,6 +1078,7 @@ static void gs_complete_out(struct usb_ep *ep, struct usb_request *req)
 	default:
 		pr_warn("%s: unexpected %s status %d\n",
 			__func__, ep->name, req->status);
+		/* fall through */
 	case 0:
 		/* normal completion */
 		spin_lock(&info->con_lock);
