@@ -41,7 +41,7 @@
 #undef NEW_BOARD_LEARNING_MODE
 
 static void omap_kp_tasklet(unsigned long);
-static void omap_kp_timer(unsigned long);
+static void omap_kp_timer(struct timer_list *);
 
 static unsigned char keypad_state[8];
 static DEFINE_MUTEX(kp_enable_mutex);
@@ -74,7 +74,7 @@ static irqreturn_t omap_kp_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void omap_kp_timer(unsigned long data)
+static void omap_kp_timer(struct timer_list *unused)
 {
 	tasklet_schedule(&kp_tasklet);
 }
@@ -233,7 +233,7 @@ static int omap_kp_probe(struct platform_device *pdev)
 	col_idx = 0;
 	row_idx = 0;
 
-	setup_timer(&omap_kp->timer, omap_kp_timer, (unsigned long)omap_kp);
+	timer_setup(&omap_kp->timer, omap_kp_timer, 0);
 
 	/* get the irq and init timer*/
 	kp_tasklet.data = (unsigned long) omap_kp;

@@ -251,9 +251,9 @@ static void tegra_kbc_set_fifo_interrupt(struct tegra_kbc *kbc, bool enable)
 	writel(val, kbc->mmio + KBC_CONTROL_0);
 }
 
-static void tegra_kbc_keypress_timer(unsigned long data)
+static void tegra_kbc_keypress_timer(struct timer_list *t)
 {
-	struct tegra_kbc *kbc = (struct tegra_kbc *)data;
+	struct tegra_kbc *kbc = from_timer(kbc, t, timer);
 	unsigned long flags;
 	u32 val;
 	unsigned int i;
@@ -655,7 +655,7 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	setup_timer(&kbc->timer, tegra_kbc_keypress_timer, (unsigned long)kbc);
+	timer_setup(&kbc->timer, tegra_kbc_keypress_timer, 0);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	kbc->mmio = devm_ioremap_resource(&pdev->dev, res);
