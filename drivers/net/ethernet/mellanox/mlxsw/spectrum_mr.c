@@ -768,7 +768,7 @@ void mlxsw_sp_mr_vif_del(struct mlxsw_sp_mr_table *mr_table, vifi_t vif_index)
 	mlxsw_sp_mr_vif_unresolve(mr_table, NULL, mr_vif);
 }
 
-struct mlxsw_sp_mr_vif *
+static struct mlxsw_sp_mr_vif *
 mlxsw_sp_mr_dev_vif_lookup(struct mlxsw_sp_mr_table *mr_table,
 			   const struct net_device *dev)
 {
