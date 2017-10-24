@@ -151,7 +151,7 @@ static int huc_ucode_xfer(struct intel_uc_fw *huc_fw, struct i915_vma *vma)
 	I915_WRITE(DMA_CTRL, _MASKED_BIT_ENABLE(HUC_UKERNEL | START_DMA));
 
 	/* Wait for DMA to finish */
-	ret = wait_for((I915_READ(DMA_CTRL) & START_DMA) == 0, 100);
+	ret = intel_wait_for_register_fw(dev_priv, DMA_CTRL, START_DMA, 0, 100);
 
 	DRM_DEBUG_DRIVER("HuC DMA transfer wait over with ret %d\n", ret);
 
