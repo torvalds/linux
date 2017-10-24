@@ -607,9 +607,9 @@ static int adv7511_get_modes(struct adv7511 *adv7511,
 	adv7511_set_config_csc(adv7511, connector, adv7511->rgb,
 			       drm_detect_hdmi_monitor(edid));
 
-	kfree(edid);
-
 	cec_s_phys_addr_from_edid(adv7511->cec_adap, edid);
+
+	kfree(edid);
 
 	return count;
 }
