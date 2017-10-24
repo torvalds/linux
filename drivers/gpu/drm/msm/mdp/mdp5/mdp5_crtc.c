@@ -114,6 +114,8 @@ static u32 crtc_flush_all(struct drm_crtc *crtc)
 		return 0;
 
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
+		if (!plane->state->visible)
+			continue;
 		flush_mask |= mdp5_plane_get_flush(plane);
 	}
 
@@ -241,6 +243,9 @@ static void blend_setup(struct drm_crtc *crtc)
 	/* Collect all plane information */
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		enum mdp5_pipe right_pipe;
+
+		if (!plane->state->visible)
+			continue;
 
 		pstate = to_mdp5_plane_state(plane->state);
 		pstates[pstate->stage] = pstate;
@@ -586,6 +591,9 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	DBG("%s: check", crtc->name);
 
 	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, state) {
+		if (!pstate->visible)
+			continue;
+
 		pstates[cnt].plane = plane;
 		pstates[cnt].state = to_mdp5_plane_state(pstate);
 
