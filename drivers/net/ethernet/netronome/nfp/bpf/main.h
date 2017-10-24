@@ -56,6 +56,7 @@ enum br_special {
 
 enum static_regs {
 	STATIC_REG_IMM		= 21, /* Bank AB */
+	STATIC_REG_STACK	= 22, /* Bank A */
 	STATIC_REG_PKT_LEN	= 22, /* Bank B */
 };
 
@@ -74,6 +75,8 @@ enum nfp_bpf_action_type {
 #define pv_len(np)	reg_lm(1, PKT_VEC_PKT_LEN)
 #define pv_ctm_ptr(np)	reg_lm(1, PKT_VEC_PKT_PTR)
 
+#define stack_reg(np)	reg_a(STATIC_REG_STACK)
+#define stack_imm(np)	imm_b(np)
 #define plen_reg(np)	reg_b(STATIC_REG_PKT_LEN)
 #define pptr_reg(np)	pv_ctm_ptr(np)
 #define imm_a(np)	reg_a(STATIC_REG_IMM)
@@ -98,6 +101,7 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
  * struct nfp_insn_meta - BPF instruction wrapper
  * @insn: BPF instruction
  * @ptr: pointer type for memory operations
+ * @ptr_not_const: pointer is not always constant
  * @off: index of first generated machine instruction (in nfp_prog.prog)
  * @n: eBPF instruction number
  * @skip: skip this instruction (optimized out)
@@ -107,6 +111,7 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
 struct nfp_insn_meta {
 	struct bpf_insn insn;
 	struct bpf_reg_state ptr;
+	bool ptr_not_const;
 	unsigned int off;
 	unsigned short n;
 	bool skip;
@@ -151,6 +156,7 @@ static inline u8 mbpf_mode(const struct nfp_insn_meta *meta)
  * @tgt_done: jump target to get the next packet
  * @n_translated: number of successfully translated instructions (for errors)
  * @error: error code if something went wrong
+ * @stack_depth: max stack depth from the verifier
  * @insns: list of BPF instruction wrappers (struct nfp_insn_meta)
  */
 struct nfp_prog {
@@ -170,6 +176,8 @@ struct nfp_prog {
 
 	unsigned int n_translated;
 	int error;
+
+	unsigned int stack_depth;
 
 	struct list_head insns;
 };

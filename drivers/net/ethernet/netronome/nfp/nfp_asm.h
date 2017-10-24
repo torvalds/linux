@@ -257,6 +257,11 @@ enum lcsr_wr_src {
 #define OP_CARB_BASE		0x0e000000000ULL
 #define OP_CARB_OR		0x00000010000ULL
 
+#define NFP_CSR_ACT_LM_ADDR0	0x64
+#define NFP_CSR_ACT_LM_ADDR1	0x6c
+#define NFP_CSR_ACT_LM_ADDR2	0x94
+#define NFP_CSR_ACT_LM_ADDR3	0x9c
+
 /* Software register representation, independent of operand type */
 #define NN_REG_TYPE	GENMASK(31, 24)
 #define NN_REG_LM_IDX	GENMASK(23, 22)

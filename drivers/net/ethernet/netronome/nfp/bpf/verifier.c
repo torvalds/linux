@@ -112,18 +112,63 @@ nfp_bpf_check_exit(struct nfp_prog *nfp_prog,
 }
 
 static int
-nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
-		  const struct bpf_verifier_env *env, u8 reg)
+nfp_bpf_check_stack_access(struct nfp_prog *nfp_prog,
+			   struct nfp_insn_meta *meta,
+			   const struct bpf_reg_state *reg)
 {
-	if (env->cur_state.regs[reg].type != PTR_TO_CTX &&
-	    env->cur_state.regs[reg].type != PTR_TO_PACKET)
-		return -EINVAL;
+	s32 old_off, new_off;
 
-	if (meta->ptr.type != NOT_INIT &&
-	    meta->ptr.type != env->cur_state.regs[reg].type)
+	if (!tnum_is_const(reg->var_off)) {
+		pr_info("variable ptr stack access\n");
 		return -EINVAL;
+	}
 
-	meta->ptr = env->cur_state.regs[reg];
+	if (meta->ptr.type == NOT_INIT)
+		return 0;
+
+	old_off = meta->ptr.off + meta->ptr.var_off.value;
+	new_off = reg->off + reg->var_off.value;
+
+	meta->ptr_not_const |= old_off != new_off;
+
+	if (!meta->ptr_not_const)
+		return 0;
+
+	if (old_off % 4 == new_off % 4)
+		return 0;
+
+	pr_info("stack access changed location was:%d is:%d\n",
+		old_off, new_off);
+	return -EINVAL;
+}
+
+static int
+nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+		  const struct bpf_verifier_env *env, u8 reg_no)
+{
+	const struct bpf_reg_state *reg = &env->cur_state.regs[reg_no];
+	int err;
+
+	if (reg->type != PTR_TO_CTX &&
+	    reg->type != PTR_TO_STACK &&
+	    reg->type != PTR_TO_PACKET) {
+		pr_info("unsupported ptr type: %d\n", reg->type);
+		return -EINVAL;
+	}
+
+	if (reg->type == PTR_TO_STACK) {
+		err = nfp_bpf_check_stack_access(nfp_prog, meta, reg);
+		if (err)
+			return err;
+	}
+
+	if (meta->ptr.type != NOT_INIT && meta->ptr.type != reg->type) {
+		pr_info("ptr type changed for instruction %d -> %d\n",
+			meta->ptr.type, reg->type);
+		return -EINVAL;
+	}
+
+	meta->ptr = *reg;
 
 	return 0;
 }
@@ -137,11 +182,6 @@ nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
 	meta = nfp_bpf_goto_meta(priv->prog, meta, insn_idx, env->prog->len);
 	priv->meta = meta;
 
-	if (meta->insn.src_reg == BPF_REG_10 ||
-	    meta->insn.dst_reg == BPF_REG_10) {
-		pr_err("stack not yet supported\n");
-		return -EINVAL;
-	}
 	if (meta->insn.src_reg >= MAX_BPF_REG ||
 	    meta->insn.dst_reg >= MAX_BPF_REG) {
 		pr_err("program uses extended registers - jit hardening?\n");
@@ -169,6 +209,8 @@ int nfp_prog_verify(struct nfp_prog *nfp_prog, struct bpf_prog *prog)
 {
 	struct nfp_bpf_analyzer_priv *priv;
 	int ret;
+
+	nfp_prog->stack_depth = prog->aux->stack_depth;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)

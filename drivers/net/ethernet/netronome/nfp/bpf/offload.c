@@ -146,6 +146,7 @@ nfp_net_bpf_offload_prepare(struct nfp_net *nn,
 {
 	unsigned int code_sz = max_instr * sizeof(u64);
 	enum nfp_bpf_action_type act;
+	unsigned int stack_size;
 	u16 start_off, done_off;
 	unsigned int max_mtu;
 	int ret;
@@ -166,6 +167,13 @@ nfp_net_bpf_offload_prepare(struct nfp_net *nn,
 
 	start_off = nn_readw(nn, NFP_NET_CFG_BPF_START);
 	done_off = nn_readw(nn, NFP_NET_CFG_BPF_DONE);
+
+	stack_size = nn_readb(nn, NFP_NET_CFG_BPF_STACK_SZ) * 64;
+	if (cls_bpf->prog->aux->stack_depth > stack_size) {
+		nn_info(nn, "stack too large: program %dB > FW stack %dB\n",
+			cls_bpf->prog->aux->stack_depth, stack_size);
+		return -EOPNOTSUPP;
+	}
 
 	*code = dma_zalloc_coherent(nn->dp.dev, code_sz, dma_addr, GFP_KERNEL);
 	if (!*code)

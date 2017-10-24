@@ -427,6 +427,48 @@ emit_ld_field(struct nfp_prog *nfp_prog, swreg dst, u8 bmask, swreg src,
 	emit_ld_field_any(nfp_prog, dst, bmask, src, sc, shift, false);
 }
 
+static void
+__emit_lcsr(struct nfp_prog *nfp_prog, u16 areg, u16 breg, bool wr, u16 addr,
+	    bool dst_lmextn, bool src_lmextn)
+{
+	u64 insn;
+
+	insn = OP_LCSR_BASE |
+		FIELD_PREP(OP_LCSR_A_SRC, areg) |
+		FIELD_PREP(OP_LCSR_B_SRC, breg) |
+		FIELD_PREP(OP_LCSR_WRITE, wr) |
+		FIELD_PREP(OP_LCSR_ADDR, addr) |
+		FIELD_PREP(OP_LCSR_SRC_LMEXTN, src_lmextn) |
+		FIELD_PREP(OP_LCSR_DST_LMEXTN, dst_lmextn);
+
+	nfp_prog_push(nfp_prog, insn);
+}
+
+static void emit_csr_wr(struct nfp_prog *nfp_prog, swreg src, u16 addr)
+{
+	struct nfp_insn_ur_regs reg;
+	int err;
+
+	/* This instruction takes immeds instead of reg_none() for the ignored
+	 * operand, but we can't encode 2 immeds in one instr with our normal
+	 * swreg infra so if param is an immed, we encode as reg_none() and
+	 * copy the immed to both operands.
+	 */
+	if (swreg_type(src) == NN_REG_IMM) {
+		err = swreg_to_unrestricted(reg_none(), src, reg_none(), &reg);
+		reg.breg = reg.areg;
+	} else {
+		err = swreg_to_unrestricted(reg_none(), src, reg_imm(0), &reg);
+	}
+	if (err) {
+		nfp_prog->error = err;
+		return;
+	}
+
+	__emit_lcsr(nfp_prog, reg.areg, reg.breg, true, addr / 4,
+		    false, reg.src_lmextn);
+}
+
 static void emit_nop(struct nfp_prog *nfp_prog)
 {
 	__emit_immed(nfp_prog, UR_REG_IMM, UR_REG_IMM, 0, 0, 0, 0, 0, 0, 0);
@@ -492,6 +534,12 @@ static swreg re_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, swreg tmp_reg)
 
 	wrp_immed(nfp_prog, tmp_reg, imm);
 	return tmp_reg;
+}
+
+static void wrp_nops(struct nfp_prog *nfp_prog, unsigned int count)
+{
+	while (count--)
+		emit_nop(nfp_prog);
 }
 
 static void
@@ -632,6 +680,246 @@ data_st_host_order(struct nfp_prog *nfp_prog, u8 dst_gpr, swreg offset,
 
 	emit_cmd(nfp_prog, CMD_TGT_WRITE8_SWAP, CMD_MODE_32b, 0,
 		 reg_a(dst_gpr), offset, size - 1, true);
+
+	return 0;
+}
+
+typedef int
+(*lmem_step)(struct nfp_prog *nfp_prog, u8 gpr, u8 gpr_byte, s32 off,
+	     unsigned int size, bool first, bool new_gpr, bool last, bool lm3,
+	     bool needs_inc);
+
+static int
+wrp_lmem_load(struct nfp_prog *nfp_prog, u8 dst, u8 dst_byte, s32 off,
+	      unsigned int size, bool first, bool new_gpr, bool last, bool lm3,
+	      bool needs_inc)
+{
+	bool should_inc = needs_inc && new_gpr && !last;
+	u32 idx, src_byte;
+	enum shf_sc sc;
+	swreg reg;
+	int shf;
+	u8 mask;
+
+	if (WARN_ON_ONCE(dst_byte + size > 4 || off % 4 + size > 4))
+		return -EOPNOTSUPP;
+
+	idx = off / 4;
+
+	/* Move the entire word */
+	if (size == 4) {
+		wrp_mov(nfp_prog, reg_both(dst),
+			should_inc ? reg_lm_inc(3) : reg_lm(lm3 ? 3 : 0, idx));
+		return 0;
+	}
+
+	if (WARN_ON_ONCE(lm3 && idx > RE_REG_LM_IDX_MAX))
+		return -EOPNOTSUPP;
+
+	src_byte = off % 4;
+
+	mask = (1 << size) - 1;
+	mask <<= dst_byte;
+
+	if (WARN_ON_ONCE(mask > 0xf))
+		return -EOPNOTSUPP;
+
+	shf = abs(src_byte - dst_byte) * 8;
+	if (src_byte == dst_byte) {
+		sc = SHF_SC_NONE;
+	} else if (src_byte < dst_byte) {
+		shf = 32 - shf;
+		sc = SHF_SC_L_SHF;
+	} else {
+		sc = SHF_SC_R_SHF;
+	}
+
+	/* ld_field can address fewer indexes, if offset too large do RMW.
+	 * Because we RMV twice we waste 2 cycles on unaligned 8 byte writes.
+	 */
+	if (idx <= RE_REG_LM_IDX_MAX) {
+		reg = reg_lm(lm3 ? 3 : 0, idx);
+	} else {
+		reg = imm_a(nfp_prog);
+		/* If it's not the first part of the load and we start a new GPR
+		 * that means we are loading a second part of the LMEM word into
+		 * a new GPR.  IOW we've already looked that LMEM word and
+		 * therefore it has been loaded into imm_a().
+		 */
+		if (first || !new_gpr)
+			wrp_mov(nfp_prog, reg, reg_lm(0, idx));
+	}
+
+	emit_ld_field_any(nfp_prog, reg_both(dst), mask, reg, sc, shf, new_gpr);
+
+	if (should_inc)
+		wrp_mov(nfp_prog, reg_none(), reg_lm_inc(3));
+
+	return 0;
+}
+
+static int
+wrp_lmem_store(struct nfp_prog *nfp_prog, u8 src, u8 src_byte, s32 off,
+	       unsigned int size, bool first, bool new_gpr, bool last, bool lm3,
+	       bool needs_inc)
+{
+	bool should_inc = needs_inc && new_gpr && !last;
+	u32 idx, dst_byte;
+	enum shf_sc sc;
+	swreg reg;
+	int shf;
+	u8 mask;
+
+	if (WARN_ON_ONCE(src_byte + size > 4 || off % 4 + size > 4))
+		return -EOPNOTSUPP;
+
+	idx = off / 4;
+
+	/* Move the entire word */
+	if (size == 4) {
+		wrp_mov(nfp_prog,
+			should_inc ? reg_lm_inc(3) : reg_lm(lm3 ? 3 : 0, idx),
+			reg_b(src));
+		return 0;
+	}
+
+	if (WARN_ON_ONCE(lm3 && idx > RE_REG_LM_IDX_MAX))
+		return -EOPNOTSUPP;
+
+	dst_byte = off % 4;
+
+	mask = (1 << size) - 1;
+	mask <<= dst_byte;
+
+	if (WARN_ON_ONCE(mask > 0xf))
+		return -EOPNOTSUPP;
+
+	shf = abs(src_byte - dst_byte) * 8;
+	if (src_byte == dst_byte) {
+		sc = SHF_SC_NONE;
+	} else if (src_byte < dst_byte) {
+		shf = 32 - shf;
+		sc = SHF_SC_L_SHF;
+	} else {
+		sc = SHF_SC_R_SHF;
+	}
+
+	/* ld_field can address fewer indexes, if offset too large do RMW.
+	 * Because we RMV twice we waste 2 cycles on unaligned 8 byte writes.
+	 */
+	if (idx <= RE_REG_LM_IDX_MAX) {
+		reg = reg_lm(lm3 ? 3 : 0, idx);
+	} else {
+		reg = imm_a(nfp_prog);
+		/* Only first and last LMEM locations are going to need RMW,
+		 * the middle location will be overwritten fully.
+		 */
+		if (first || last)
+			wrp_mov(nfp_prog, reg, reg_lm(0, idx));
+	}
+
+	emit_ld_field(nfp_prog, reg, mask, reg_b(src), sc, shf);
+
+	if (new_gpr || last) {
+		if (idx > RE_REG_LM_IDX_MAX)
+			wrp_mov(nfp_prog, reg_lm(0, idx), reg);
+		if (should_inc)
+			wrp_mov(nfp_prog, reg_none(), reg_lm_inc(3));
+	}
+
+	return 0;
+}
+
+static int
+mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+	     unsigned int size, unsigned int ptr_off, u8 gpr, u8 ptr_gpr,
+	     bool clr_gpr, lmem_step step)
+{
+	s32 off = nfp_prog->stack_depth + meta->insn.off + ptr_off;
+	bool first = true, last;
+	bool needs_inc = false;
+	swreg stack_off_reg;
+	u8 prev_gpr = 255;
+	u32 gpr_byte = 0;
+	bool lm3 = true;
+	int ret;
+
+	if (meta->ptr_not_const) {
+		/* Use of the last encountered ptr_off is OK, they all have
+		 * the same alignment.  Depend on low bits of value being
+		 * discarded when written to LMaddr register.
+		 */
+		stack_off_reg = ur_load_imm_any(nfp_prog, meta->insn.off,
+						stack_imm(nfp_prog));
+
+		emit_alu(nfp_prog, imm_b(nfp_prog),
+			 reg_a(ptr_gpr), ALU_OP_ADD, stack_off_reg);
+
+		needs_inc = true;
+	} else if (off + size <= 64) {
+		/* We can reach bottom 64B with LMaddr0 */
+		lm3 = false;
+	} else if (round_down(off, 32) == round_down(off + size - 1, 32)) {
+		/* We have to set up a new pointer.  If we know the offset
+		 * and the entire access falls into a single 32 byte aligned
+		 * window we won't have to increment the LM pointer.
+		 * The 32 byte alignment is imporant because offset is ORed in
+		 * not added when doing *l$indexN[off].
+		 */
+		stack_off_reg = ur_load_imm_any(nfp_prog, round_down(off, 32),
+						stack_imm(nfp_prog));
+		emit_alu(nfp_prog, imm_b(nfp_prog),
+			 stack_reg(nfp_prog), ALU_OP_ADD, stack_off_reg);
+
+		off %= 32;
+	} else {
+		stack_off_reg = ur_load_imm_any(nfp_prog, round_down(off, 4),
+						stack_imm(nfp_prog));
+
+		emit_alu(nfp_prog, imm_b(nfp_prog),
+			 stack_reg(nfp_prog), ALU_OP_ADD, stack_off_reg);
+
+		needs_inc = true;
+	}
+	if (lm3) {
+		emit_csr_wr(nfp_prog, imm_b(nfp_prog), NFP_CSR_ACT_LM_ADDR3);
+		/* For size < 4 one slot will be filled by zeroing of upper. */
+		wrp_nops(nfp_prog, clr_gpr && size < 8 ? 2 : 3);
+	}
+
+	if (clr_gpr && size < 8)
+		wrp_immed(nfp_prog, reg_both(gpr + 1), 0);
+
+	while (size) {
+		u32 slice_end;
+		u8 slice_size;
+
+		slice_size = min(size, 4 - gpr_byte);
+		slice_end = min(off + slice_size, round_up(off + 1, 4));
+		slice_size = slice_end - off;
+
+		last = slice_size == size;
+
+		if (needs_inc)
+			off %= 4;
+
+		ret = step(nfp_prog, gpr, gpr_byte, off, slice_size,
+			   first, gpr != prev_gpr, last, lm3, needs_inc);
+		if (ret)
+			return ret;
+
+		prev_gpr = gpr;
+		first = false;
+
+		gpr_byte += slice_size;
+		if (gpr_byte >= 4) {
+			gpr_byte -= 4;
+			gpr++;
+		}
+
+		size -= slice_size;
+		off += slice_size;
+	}
 
 	return 0;
 }
@@ -820,9 +1108,22 @@ static void wrp_end32(struct nfp_prog *nfp_prog, swreg reg_in, u8 gpr_out)
 static int mov_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
+	u8 dst = insn->dst_reg * 2;
+	u8 src = insn->src_reg * 2;
 
-	wrp_reg_mov(nfp_prog, insn->dst_reg * 2, insn->src_reg * 2);
-	wrp_reg_mov(nfp_prog, insn->dst_reg * 2 + 1, insn->src_reg * 2 + 1);
+	if (insn->src_reg == BPF_REG_10) {
+		swreg stack_depth_reg;
+
+		stack_depth_reg = ur_load_imm_any(nfp_prog,
+						  nfp_prog->stack_depth,
+						  stack_imm(nfp_prog));
+		emit_alu(nfp_prog, reg_both(dst),
+			 stack_reg(nfp_prog), ALU_OP_ADD, stack_depth_reg);
+		wrp_immed(nfp_prog, reg_both(dst + 1), 0);
+	} else {
+		wrp_reg_mov(nfp_prog, dst, src);
+		wrp_reg_mov(nfp_prog, dst + 1, src + 1);
+	}
 
 	return 0;
 }
@@ -1083,19 +1384,28 @@ static int end_reg32(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int imm_ld8_part2(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	wrp_immed(nfp_prog, reg_both(nfp_meta_prev(meta)->insn.dst_reg * 2 + 1),
-		  meta->insn.imm);
+	struct nfp_insn_meta *prev = nfp_meta_prev(meta);
+	u32 imm_lo, imm_hi;
+	u8 dst;
+
+	dst = prev->insn.dst_reg * 2;
+	imm_lo = prev->insn.imm;
+	imm_hi = meta->insn.imm;
+
+	wrp_immed(nfp_prog, reg_both(dst), imm_lo);
+
+	/* mov is always 1 insn, load imm may be two, so try to use mov */
+	if (imm_hi == imm_lo)
+		wrp_mov(nfp_prog, reg_both(dst + 1), reg_a(dst));
+	else
+		wrp_immed(nfp_prog, reg_both(dst + 1), imm_hi);
 
 	return 0;
 }
 
 static int imm_ld8(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	const struct bpf_insn *insn = &meta->insn;
-
 	meta->double_cb = imm_ld8_part2;
-	wrp_immed(nfp_prog, reg_both(insn->dst_reg * 2), insn->imm);
-
 	return 0;
 }
 
@@ -1130,6 +1440,15 @@ static int data_ind_ld4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	return construct_data_ind_ld(nfp_prog, meta->insn.imm,
 				     meta->insn.src_reg * 2, 4);
+}
+
+static int
+mem_ldx_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+	      unsigned int size, unsigned int ptr_off)
+{
+	return mem_op_stack(nfp_prog, meta, size, ptr_off,
+			    meta->insn.dst_reg * 2, meta->insn.src_reg * 2,
+			    true, wrp_lmem_load);
 }
 
 static int mem_ldx_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
@@ -1215,6 +1534,10 @@ mem_ldx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	if (meta->ptr.type == PTR_TO_PACKET)
 		return mem_ldx_data(nfp_prog, meta, size);
 
+	if (meta->ptr.type == PTR_TO_STACK)
+		return mem_ldx_stack(nfp_prog, meta, size,
+				     meta->ptr.off + meta->ptr.var_off.value);
+
 	return -EOPNOTSUPP;
 }
 
@@ -1293,11 +1616,24 @@ mem_stx_data(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 }
 
 static int
+mem_stx_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+	      unsigned int size, unsigned int ptr_off)
+{
+	return mem_op_stack(nfp_prog, meta, size, ptr_off,
+			    meta->insn.src_reg * 2, meta->insn.dst_reg * 2,
+			    false, wrp_lmem_store);
+}
+
+static int
 mem_stx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	unsigned int size)
 {
 	if (meta->ptr.type == PTR_TO_PACKET)
 		return mem_stx_data(nfp_prog, meta, size);
+
+	if (meta->ptr.type == PTR_TO_STACK)
+		return mem_stx_stack(nfp_prog, meta, size,
+				     meta->ptr.off + meta->ptr.var_off.value);
 
 	return -EOPNOTSUPP;
 }
@@ -1799,7 +2135,7 @@ static void nfp_outro(struct nfp_prog *nfp_prog)
 static int nfp_translate(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta;
-	int i, err;
+	int err;
 
 	nfp_intro(nfp_prog);
 	if (nfp_prog->error)
@@ -1831,8 +2167,7 @@ static int nfp_translate(struct nfp_prog *nfp_prog)
 	if (nfp_prog->error)
 		return nfp_prog->error;
 
-	for (i = 0; i < NFP_USTORE_PREFETCH_WINDOW; i++)
-		emit_nop(nfp_prog);
+	wrp_nops(nfp_prog, NFP_USTORE_PREFETCH_WINDOW);
 	if (nfp_prog->error)
 		return nfp_prog->error;
 
