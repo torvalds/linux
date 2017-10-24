@@ -153,7 +153,7 @@ static bool mlxsw_sp_mr_route_starg(const struct mlxsw_sp_mr_route *mr_route)
 {
 	switch (mr_route->mr_table->proto) {
 	case MLXSW_SP_L3_PROTO_IPV4:
-		return mr_route->key.source_mask.addr4 == INADDR_ANY;
+		return mr_route->key.source_mask.addr4 == htonl(INADDR_ANY);
 	case MLXSW_SP_L3_PROTO_IPV6:
 		/* fall through */
 	default:
@@ -203,15 +203,15 @@ static void mlxsw_sp_mr_route4_key(struct mlxsw_sp_mr_table *mr_table,
 				   struct mlxsw_sp_mr_route_key *key,
 				   const struct mfc_cache *mfc)
 {
-	bool starg = (mfc->mfc_origin == INADDR_ANY);
+	bool starg = (mfc->mfc_origin == htonl(INADDR_ANY));
 
 	memset(key, 0, sizeof(*key));
 	key->vrid = mr_table->vr_id;
 	key->proto = mr_table->proto;
 	key->group.addr4 = mfc->mfc_mcastgrp;
-	key->group_mask.addr4 = 0xffffffff;
+	key->group_mask.addr4 = htonl(0xffffffff);
 	key->source.addr4 = mfc->mfc_origin;
-	key->source_mask.addr4 = starg ? 0 : 0xffffffff;
+	key->source_mask.addr4 = htonl(starg ? 0 : 0xffffffff);
 }
 
 static int mlxsw_sp_mr_route_evif_link(struct mlxsw_sp_mr_route *mr_route,
@@ -458,7 +458,8 @@ int mlxsw_sp_mr_route4_add(struct mlxsw_sp_mr_table *mr_table,
 	/* If the route is a (*,*) route, abort, as these kind of routes are
 	 * used for proxy routes.
 	 */
-	if (mfc->mfc_origin == INADDR_ANY && mfc->mfc_mcastgrp == INADDR_ANY) {
+	if (mfc->mfc_origin == htonl(INADDR_ANY) &&
+	    mfc->mfc_mcastgrp == htonl(INADDR_ANY)) {
 		dev_warn(mr_table->mlxsw_sp->bus_info->dev,
 			 "Offloading proxy routes is not supported.\n");
 		return -EINVAL;
