@@ -191,18 +191,15 @@ void hubbub1_update_dchub(
 	struct hubbub *hubbub,
 	struct dchub_init_data *dh_data);
 
-void dcn10_log_hw_state(
-		struct dc *dc);
-
-void verify_allow_pstate_change_high(
+bool hubbub1_verify_allow_pstate_change_high(
 	struct hubbub *hubbub);
 
-void program_watermarks(
+void hubbub1_program_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz);
 
-void toggle_watermark_change_req(
+void hubbub1_toggle_watermark_change_req(
 		struct hubbub *hubbub);
 
 void hubbub1_wm_read_state(struct hubbub *hubbub,

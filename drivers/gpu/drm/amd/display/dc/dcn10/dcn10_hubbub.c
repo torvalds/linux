@@ -75,7 +75,7 @@ void hubbub1_wm_read_state(struct hubbub *hubbub,
 	s->dram_clk_chanage = REG_READ(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_D);
 }
 
-void verify_allow_pstate_change_high(
+bool hubbub1_verify_allow_pstate_change_high(
 	struct hubbub *hubbub)
 {
 	/* pstate latency is ~20us so if we wait over 40us and pstate allow
@@ -89,7 +89,6 @@ void verify_allow_pstate_change_high(
 	static unsigned int pstate_wait_expected_timeout_us = 40;
 	static unsigned int max_sampled_pstate_wait_us; /* data collection */
 	static bool forced_pstate_allow; /* help with revert wa */
-	static bool should_log_hw_state; /* prevent hw state log by default */
 
 	unsigned int debug_index = 0x7;
 	unsigned int debug_data;
@@ -140,7 +139,7 @@ void verify_allow_pstate_change_high(
 						"pstate took longer than expected ~%dus\n",
 						i);
 
-			return;
+			return false;
 		}
 		if (max_sampled_pstate_wait_us < i)
 			max_sampled_pstate_wait_us = i;
@@ -156,14 +155,11 @@ void verify_allow_pstate_change_high(
 		     DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_ENABLE, 1);
 	forced_pstate_allow = true;
 
-	if (should_log_hw_state) {
-		dcn10_log_hw_state(hubbub->ctx->dc);
-	}
-
 	dm_logger_write(hubbub->ctx->logger, LOG_WARNING,
 			"pstate TEST_DEBUG_DATA: 0x%X\n",
 			debug_data);
-	BREAK_TO_DEBUGGER();
+
+	return true;
 }
 
 static uint32_t convert_and_clamp(
@@ -182,7 +178,7 @@ static uint32_t convert_and_clamp(
 }
 
 
-void program_watermarks(
+void hubbub1_program_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz)
@@ -472,7 +468,7 @@ void hubbub1_update_dchub(
 	dh_data->dchub_info_valid = false;
 }
 
-void toggle_watermark_change_req(struct hubbub *hubbub)
+void hubbub1_toggle_watermark_change_req(struct hubbub *hubbub)
 {
 	uint32_t watermark_change_req;
 
