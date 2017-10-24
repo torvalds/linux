@@ -585,10 +585,10 @@ skip:
 	spin_unlock_irqrestore(&ar_pci->ps_lock, flags);
 }
 
-static void ath10k_pci_ps_timer(unsigned long ptr)
+static void ath10k_pci_ps_timer(struct timer_list *t)
 {
-	struct ath10k *ar = (void *)ptr;
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	struct ath10k_pci *ar_pci = from_timer(ar_pci, t, ps_timer);
+	struct ath10k *ar = ar_pci->ar;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ar_pci->ps_lock, flags);
@@ -838,9 +838,10 @@ void ath10k_pci_rx_post(struct ath10k *ar)
 		ath10k_pci_rx_post_pipe(&ar_pci->pipe_info[i]);
 }
 
-void ath10k_pci_rx_replenish_retry(unsigned long ptr)
+void ath10k_pci_rx_replenish_retry(struct timer_list *t)
 {
-	struct ath10k *ar = (void *)ptr;
+	struct ath10k_pci *ar_pci = from_timer(ar_pci, t, rx_post_retry);
+	struct ath10k *ar = ar_pci->ar;
 
 	ath10k_pci_rx_post(ar);
 }
@@ -3164,8 +3165,7 @@ int ath10k_pci_setup_resource(struct ath10k *ar)
 	spin_lock_init(&ce->ce_lock);
 	spin_lock_init(&ar_pci->ps_lock);
 
-	setup_timer(&ar_pci->rx_post_retry, ath10k_pci_rx_replenish_retry,
-		    (unsigned long)ar);
+	timer_setup(&ar_pci->rx_post_retry, ath10k_pci_rx_replenish_retry, 0);
 
 	if (QCA_REV_6174(ar) || QCA_REV_9377(ar))
 		ath10k_pci_override_ce_config(ar);
@@ -3291,8 +3291,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	ar->id.subsystem_vendor = pdev->subsystem_vendor;
 	ar->id.subsystem_device = pdev->subsystem_device;
 
-	setup_timer(&ar_pci->ps_timer, ath10k_pci_ps_timer,
-		    (unsigned long)ar);
+	timer_setup(&ar_pci->ps_timer, ath10k_pci_ps_timer, 0);
 
 	ret = ath10k_pci_setup_resource(ar);
 	if (ret) {

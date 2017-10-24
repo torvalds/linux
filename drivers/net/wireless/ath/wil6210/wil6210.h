@@ -918,7 +918,7 @@ void wil6210_mask_halp(struct wil6210_priv *wil);
 
 /* P2P */
 bool wil_p2p_is_social_scan(struct cfg80211_scan_request *request);
-void wil_p2p_discovery_timer_fn(ulong x);
+void wil_p2p_discovery_timer_fn(struct timer_list *t);
 int wil_p2p_search(struct wil6210_priv *wil,
 		   struct cfg80211_scan_request *request);
 int wil_p2p_listen(struct wil6210_priv *wil, struct wireless_dev *wdev,

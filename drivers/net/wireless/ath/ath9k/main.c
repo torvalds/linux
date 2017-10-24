@@ -93,9 +93,9 @@ static bool ath9k_setpower(struct ath_softc *sc, enum ath9k_power_mode mode)
 	return ret;
 }
 
-void ath_ps_full_sleep(unsigned long data)
+void ath_ps_full_sleep(struct timer_list *t)
 {
-	struct ath_softc *sc = (struct ath_softc *) data;
+	struct ath_softc *sc = from_timer(sc, t, sleep_timer);
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	unsigned long flags;
 	bool reset;
