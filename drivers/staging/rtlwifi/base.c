@@ -2164,7 +2164,6 @@ label_lps_done:
 void rtl_watch_dog_timer_callback(struct timer_list *t)
 {
 	struct rtl_priv *rtlpriv = from_timer(rtlpriv, t, works.watchdog_timer);
-	struct ieee80211_hw *hw = rtlpriv->hw;
 
 	queue_delayed_work(rtlpriv->works.rtl_wq,
 			   &rtlpriv->works.watchdog_wq, 0);
