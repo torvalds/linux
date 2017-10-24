@@ -167,10 +167,9 @@ static int lm3554_set_config1(struct lm3554 *flash)
 /* -----------------------------------------------------------------------------
  * Hardware trigger
  */
-static void lm3554_flash_off_delay(long unsigned int arg)
+static void lm3554_flash_off_delay(struct timer_list *t)
 {
-	struct v4l2_subdev *sd = i2c_get_clientdata((struct i2c_client *)arg);
-	struct lm3554 *flash = to_lm3554(sd);
+	struct lm3554 *flash = from_timer(flash, t, flash_off_delay);
 	struct lm3554_platform_data *pdata = flash->pdata;
 
 	gpio_set_value(pdata->gpio_strobe, 0);
@@ -908,8 +907,7 @@ static int lm3554_probe(struct i2c_client *client)
 
 	mutex_init(&flash->power_lock);
 
-	setup_timer(&flash->flash_off_delay, lm3554_flash_off_delay,
-		    (unsigned long)client);
+	timer_setup(&flash->flash_off_delay, lm3554_flash_off_delay, 0);
 
 	err = lm3554_gpio_init(client);
 	if (err) {
