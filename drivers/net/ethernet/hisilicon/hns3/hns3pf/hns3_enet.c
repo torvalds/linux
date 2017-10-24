@@ -1444,8 +1444,6 @@ static int hns3_alloc_buffer(struct hns3_enet_ring *ring,
 	cb->length = hnae_page_size(ring);
 	cb->type = DESC_TYPE_PAGE;
 
-	memset(cb->buf, 0, cb->length);
-
 	return 0;
 }
 
@@ -1555,7 +1553,7 @@ static int hns3_reserve_buffer_map(struct hns3_enet_ring *ring,
 	return 0;
 
 out_with_buf:
-	hns3_free_buffers(ring);
+	hns3_free_buffer(ring, cb);
 out:
 	return ret;
 }
@@ -1595,7 +1593,7 @@ out_buffer_fail:
 static void hns3_replace_buffer(struct hns3_enet_ring *ring, int i,
 				struct hns3_desc_cb *res_cb)
 {
-	hns3_map_buffer(ring, &ring->desc_cb[i]);
+	hns3_unmap_buffer(ring, &ring->desc_cb[i]);
 	ring->desc_cb[i] = *res_cb;
 	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma);
 }
@@ -1631,7 +1629,7 @@ static int is_valid_clean_head(struct hns3_enet_ring *ring, int h)
 	return u > c ? (h > c && h <= u) : (h > c || h <= u);
 }
 
-int hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget)
+bool hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget)
 {
 	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
 	struct netdev_queue *dev_queue;
@@ -1642,7 +1640,7 @@ int hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget)
 	rmb(); /* Make sure head is ready before touch any data */
 
 	if (is_ring_empty(ring) || head == ring->next_to_clean)
-		return 0; /* no data to poll */
+		return true; /* no data to poll */
 
 	if (!is_valid_clean_head(ring, head)) {
 		netdev_err(netdev, "wrong head (%d, %d-%d)\n", head,
@@ -1651,7 +1649,7 @@ int hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget)
 		u64_stats_update_begin(&ring->syncp);
 		ring->stats.io_err_cnt++;
 		u64_stats_update_end(&ring->syncp);
-		return -EIO;
+		return true;
 	}
 
 	bytes = 0;
@@ -2506,15 +2504,15 @@ static int hns3_ring_get_cfg(struct hnae3_queue *q, struct hns3_nic_priv *priv,
 
 	if (ring_type == HNAE3_RING_TYPE_TX) {
 		ring_data[q->tqp_index].ring = ring;
+		ring_data[q->tqp_index].queue_index = q->tqp_index;
 		ring->io_base = (u8 __iomem *)q->io_base + HNS3_TX_REG_OFFSET;
 	} else {
 		ring_data[q->tqp_index + queue_num].ring = ring;
+		ring_data[q->tqp_index + queue_num].queue_index = q->tqp_index;
 		ring->io_base = q->io_base;
 	}
 
 	hnae_set_bit(ring->flag, HNAE3_RING_TYPE_B, ring_type);
-
-	ring_data[q->tqp_index].queue_index = q->tqp_index;
 
 	ring->tqp = q;
 	ring->desc = NULL;

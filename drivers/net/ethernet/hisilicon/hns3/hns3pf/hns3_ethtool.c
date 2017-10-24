@@ -717,7 +717,7 @@ static int hns3_get_rxnfc(struct net_device *netdev,
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 
-	if (!h->ae_algo || !h->ae_algo->ops || !h->ae_algo->ops->get_tc_size)
+	if (!h->ae_algo || !h->ae_algo->ops || !h->ae_algo->ops->get_rss_tuple)
 		return -EOPNOTSUPP;
 
 	switch (cmd->cmd) {

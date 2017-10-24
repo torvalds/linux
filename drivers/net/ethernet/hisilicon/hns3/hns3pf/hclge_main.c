@@ -837,7 +837,6 @@ static int hclge_parse_func_status(struct hclge_dev *hdev,
 	else
 		hdev->flag &= ~HCLGE_FLAG_MAIN;
 
-	hdev->num_req_vfs = status->vf_num / status->pf_num;
 	return 0;
 }
 
@@ -4360,6 +4359,8 @@ static int hclge_pci_init(struct hclge_dev *hdev)
 		ret = -ENOMEM;
 		goto err_clr_master;
 	}
+
+	hdev->num_req_vfs = pci_sriov_get_totalvfs(pdev);
 
 	return 0;
 err_clr_master:
