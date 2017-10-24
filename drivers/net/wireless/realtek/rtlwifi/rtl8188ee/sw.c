@@ -190,16 +190,12 @@ int rtl88e_init_sw_vars(struct ieee80211_hw *hw)
 	/*low power */
 	rtlpriv->psc.low_power_enable = false;
 	if (rtlpriv->psc.low_power_enable) {
-		init_timer(&rtlpriv->works.fw_clockoff_timer);
-		setup_timer(&rtlpriv->works.fw_clockoff_timer,
-			    rtl88ee_fw_clk_off_timer_callback,
-			    (unsigned long)hw);
+		timer_setup(&rtlpriv->works.fw_clockoff_timer,
+			    rtl88ee_fw_clk_off_timer_callback, 0);
 	}
 
-	init_timer(&rtlpriv->works.fast_antenna_training_timer);
-	setup_timer(&rtlpriv->works.fast_antenna_training_timer,
-		    rtl88e_dm_fast_antenna_training_callback,
-			(unsigned long)hw);
+	timer_setup(&rtlpriv->works.fast_antenna_training_timer,
+		    rtl88e_dm_fast_antenna_training_callback, 0);
 	return err;
 }
 
