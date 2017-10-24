@@ -529,9 +529,9 @@ static unsigned int loopback_pos_update(struct loopback_cable *cable)
 	return running;
 }
 
-static void loopback_timer_function(unsigned long data)
+static void loopback_timer_function(struct timer_list *t)
 {
-	struct loopback_pcm *dpcm = (struct loopback_pcm *)data;
+	struct loopback_pcm *dpcm = from_timer(dpcm, t, timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&dpcm->cable->lock, flags);
@@ -675,8 +675,7 @@ static int loopback_open(struct snd_pcm_substream *substream)
 	}
 	dpcm->loopback = loopback;
 	dpcm->substream = substream;
-	setup_timer(&dpcm->timer, loopback_timer_function,
-		    (unsigned long)dpcm);
+	timer_setup(&dpcm->timer, loopback_timer_function, 0);
 
 	cable = loopback->cables[substream->number][dev];
 	if (!cable) {
