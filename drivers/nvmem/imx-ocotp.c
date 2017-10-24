@@ -168,33 +168,11 @@ read_end:
 	return ret;
 }
 
-static int imx_ocotp_write(void *context, unsigned int offset, void *val,
-			   size_t bytes)
+static void imx_ocotp_set_imx6_timing(struct ocotp_priv *priv)
 {
-	struct ocotp_priv *priv = context;
-	u32 *buf = val;
-	int ret;
-
 	unsigned long clk_rate = 0;
 	unsigned long strobe_read, relax, strobe_prog;
 	u32 timing = 0;
-	u32 ctrl;
-	u8 waddr;
-	u8 word = 0;
-
-	/* allow only writing one complete OTP word at a time */
-	if ((bytes != priv->config->word_size) ||
-	    (offset % priv->config->word_size))
-		return -EINVAL;
-
-	mutex_lock(&ocotp_mutex);
-
-	ret = clk_prepare_enable(priv->clk);
-	if (ret < 0) {
-		mutex_unlock(&ocotp_mutex);
-		dev_err(priv->dev, "failed to prepare/enable ocotp clk\n");
-		return ret;
-	}
 
 	/* 47.3.1.3.1
 	 * Program HW_OCOTP_TIMING[STROBE_PROG] and HW_OCOTP_TIMING[RELAX]
@@ -213,6 +191,35 @@ static int imx_ocotp_write(void *context, unsigned int offset, void *val,
 	timing |= (strobe_read << 16) & 0x003F0000;
 
 	writel(timing, priv->base + IMX_OCOTP_ADDR_TIMING);
+}
+
+static int imx_ocotp_write(void *context, unsigned int offset, void *val,
+			   size_t bytes)
+{
+	struct ocotp_priv *priv = context;
+	u32 *buf = val;
+	int ret;
+
+	u32 ctrl;
+	u8 waddr;
+	u8 word = 0;
+
+	/* allow only writing one complete OTP word at a time */
+	if ((bytes != priv->config->word_size) ||
+	    (offset % priv->config->word_size))
+		return -EINVAL;
+
+	mutex_lock(&ocotp_mutex);
+
+	ret = clk_prepare_enable(priv->clk);
+	if (ret < 0) {
+		mutex_unlock(&ocotp_mutex);
+		dev_err(priv->dev, "failed to prepare/enable ocotp clk\n");
+		return ret;
+	}
+
+	/* Setup the write timing values */
+	imx_ocotp_set_imx6_timing(priv);
 
 	/* 47.3.1.3.2
 	 * Check that HW_OCOTP_CTRL[BUSY] and HW_OCOTP_CTRL[ERROR] are clear.
