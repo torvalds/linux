@@ -50,16 +50,13 @@
 #define IMX_OCOTP_BM_CTRL_ERROR		0x00000200
 #define IMX_OCOTP_BM_CTRL_REL_SHADOWS	0x00000400
 
-#define DEF_RELAX			20 /* > 16.5ns */
+#define DEF_RELAX			20	/* > 16.5ns */
+#define DEF_FSOURCE			1001	/* > 1000 ns */
+#define DEF_STROBE_PROG			10000	/* IPG clocks */
 #define IMX_OCOTP_WR_UNLOCK		0x3E770000
 #define IMX_OCOTP_READ_LOCKED_VAL	0xBADABADA
 
 static DEFINE_MUTEX(ocotp_mutex);
-
-struct ocotp_params {
-	unsigned int nregs;
-	unsigned int bank_address_words;
-};
 
 struct ocotp_priv {
 	struct device *dev;
@@ -67,6 +64,12 @@ struct ocotp_priv {
 	void __iomem *base;
 	const struct ocotp_params *params;
 	struct nvmem_config *config;
+};
+
+struct ocotp_params {
+	unsigned int nregs;
+	unsigned int bank_address_words;
+	void (*set_timing)(struct ocotp_priv *priv);
 };
 
 static int imx_ocotp_wait_for_busy(void __iomem *base, u32 flags)
@@ -193,6 +196,27 @@ static void imx_ocotp_set_imx6_timing(struct ocotp_priv *priv)
 	writel(timing, priv->base + IMX_OCOTP_ADDR_TIMING);
 }
 
+static void imx_ocotp_set_imx7_timing(struct ocotp_priv *priv)
+{
+	unsigned long clk_rate = 0;
+	u64 fsource, strobe_prog;
+	u32 timing = 0;
+
+	/* i.MX 7Solo Applications Processor Reference Manual, Rev. 0.1
+	 * 6.4.3.3
+	 */
+	clk_rate = clk_get_rate(priv->clk);
+	fsource = DIV_ROUND_UP_ULL((u64)clk_rate * DEF_FSOURCE,
+				   NSEC_PER_SEC) + 1;
+	strobe_prog = DIV_ROUND_CLOSEST_ULL((u64)clk_rate * DEF_STROBE_PROG,
+					    NSEC_PER_SEC) + 1;
+
+	timing = strobe_prog & 0x00000FFF;
+	timing |= (fsource << 12) & 0x000FF000;
+
+	writel(timing, priv->base + IMX_OCOTP_ADDR_TIMING);
+}
+
 static int imx_ocotp_write(void *context, unsigned int offset, void *val,
 			   size_t bytes)
 {
@@ -219,7 +243,7 @@ static int imx_ocotp_write(void *context, unsigned int offset, void *val,
 	}
 
 	/* Setup the write timing values */
-	imx_ocotp_set_imx6_timing(priv);
+	priv->params->set_timing(priv);
 
 	/* 47.3.1.3.2
 	 * Check that HW_OCOTP_CTRL[BUSY] and HW_OCOTP_CTRL[ERROR] are clear.
@@ -376,26 +400,31 @@ static struct nvmem_config imx_ocotp_nvmem_config = {
 static const struct ocotp_params imx6q_params = {
 	.nregs = 128,
 	.bank_address_words = 0,
+	.set_timing = imx_ocotp_set_imx6_timing,
 };
 
 static const struct ocotp_params imx6sl_params = {
 	.nregs = 64,
 	.bank_address_words = 0,
+	.set_timing = imx_ocotp_set_imx6_timing,
 };
 
 static const struct ocotp_params imx6sx_params = {
 	.nregs = 128,
 	.bank_address_words = 0,
+	.set_timing = imx_ocotp_set_imx6_timing,
 };
 
 static const struct ocotp_params imx6ul_params = {
 	.nregs = 128,
 	.bank_address_words = 0,
+	.set_timing = imx_ocotp_set_imx6_timing,
 };
 
 static const struct ocotp_params imx7d_params = {
 	.nregs = 64,
 	.bank_address_words = 4,
+	.set_timing = imx_ocotp_set_imx7_timing,
 };
 
 static const struct of_device_id imx_ocotp_dt_ids[] = {
