@@ -681,6 +681,13 @@ static void bdw_set_cdclk(struct drm_i915_private *dev_priv,
 	val &= ~LCPLL_CLK_FREQ_MASK;
 
 	switch (cdclk) {
+	default:
+		MISSING_CASE(cdclk);
+		/* fall through */
+	case 337500:
+		val |= LCPLL_CLK_FREQ_337_5_BDW;
+		data = 2;
+		break;
 	case 450000:
 		val |= LCPLL_CLK_FREQ_450;
 		data = 0;
@@ -689,17 +696,10 @@ static void bdw_set_cdclk(struct drm_i915_private *dev_priv,
 		val |= LCPLL_CLK_FREQ_54O_BDW;
 		data = 1;
 		break;
-	case 337500:
-		val |= LCPLL_CLK_FREQ_337_5_BDW;
-		data = 2;
-		break;
 	case 675000:
 		val |= LCPLL_CLK_FREQ_675_BDW;
 		data = 3;
 		break;
-	default:
-		WARN(1, "invalid cdclk frequency\n");
-		return;
 	}
 
 	I915_WRITE(LCPLL_CTL, val);
@@ -926,8 +926,6 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv,
 	u32 freq_select, pcu_ack;
 	int ret;
 
-	WARN_ON((cdclk == 24000) != (vco == 0));
-
 	mutex_lock(&dev_priv->pcu_lock);
 	ret = skl_pcode_request(dev_priv, SKL_PCODE_CDCLK_CONTROL,
 				SKL_CDCLK_PREPARE_FOR_CHANGE,
@@ -942,6 +940,15 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv,
 
 	/* set CDCLK_CTL */
 	switch (cdclk) {
+	default:
+		WARN_ON(cdclk != dev_priv->cdclk.hw.ref);
+		WARN_ON(vco != 0);
+		/* fall through */
+	case 308571:
+	case 337500:
+		freq_select = CDCLK_FREQ_337_308;
+		pcu_ack = 0;
+		break;
 	case 450000:
 	case 432000:
 		freq_select = CDCLK_FREQ_450_432;
@@ -950,12 +957,6 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv,
 	case 540000:
 		freq_select = CDCLK_FREQ_540;
 		pcu_ack = 2;
-		break;
-	case 308571:
-	case 337500:
-	default:
-		freq_select = CDCLK_FREQ_337_308;
-		pcu_ack = 0;
 		break;
 	case 617143:
 	case 675000:
@@ -1110,6 +1111,7 @@ static int bxt_de_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 	switch (cdclk) {
 	default:
 		MISSING_CASE(cdclk);
+		/* fall through */
 	case 144000:
 	case 288000:
 	case 384000:
@@ -1134,6 +1136,7 @@ static int glk_de_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 	switch (cdclk) {
 	default:
 		MISSING_CASE(cdclk);
+		/* fall through */
 	case  79200:
 	case 158400:
 	case 316800:
@@ -1246,24 +1249,22 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 
 	/* cdclk = vco / 2 / div{1,1.5,2,4} */
 	switch (DIV_ROUND_CLOSEST(vco, cdclk)) {
-	case 8:
-		divider = BXT_CDCLK_CD2X_DIV_SEL_4;
-		break;
-	case 4:
-		divider = BXT_CDCLK_CD2X_DIV_SEL_2;
+	default:
+		WARN_ON(cdclk != dev_priv->cdclk.hw.ref);
+		WARN_ON(vco != 0);
+		/* fall through */
+	case 2:
+		divider = BXT_CDCLK_CD2X_DIV_SEL_1;
 		break;
 	case 3:
 		WARN(IS_GEMINILAKE(dev_priv), "Unsupported divider\n");
 		divider = BXT_CDCLK_CD2X_DIV_SEL_1_5;
 		break;
-	case 2:
-		divider = BXT_CDCLK_CD2X_DIV_SEL_1;
+	case 4:
+		divider = BXT_CDCLK_CD2X_DIV_SEL_2;
 		break;
-	default:
-		WARN_ON(cdclk != dev_priv->cdclk.hw.ref);
-		WARN_ON(vco != 0);
-
-		divider = BXT_CDCLK_CD2X_DIV_SEL_1;
+	case 8:
+		divider = BXT_CDCLK_CD2X_DIV_SEL_4;
 		break;
 	}
 
@@ -1532,17 +1533,15 @@ static void cnl_set_cdclk(struct drm_i915_private *dev_priv,
 
 	/* cdclk = vco / 2 / div{1,2} */
 	switch (DIV_ROUND_CLOSEST(vco, cdclk)) {
-	case 4:
-		divider = BXT_CDCLK_CD2X_DIV_SEL_2;
-		break;
-	case 2:
-		divider = BXT_CDCLK_CD2X_DIV_SEL_1;
-		break;
 	default:
 		WARN_ON(cdclk != dev_priv->cdclk.hw.ref);
 		WARN_ON(vco != 0);
-
+		/* fall through */
+	case 2:
 		divider = BXT_CDCLK_CD2X_DIV_SEL_1;
+		break;
+	case 4:
+		divider = BXT_CDCLK_CD2X_DIV_SEL_2;
 		break;
 	}
 
@@ -1592,6 +1591,7 @@ static int cnl_cdclk_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 	switch (cdclk) {
 	default:
 		MISSING_CASE(cdclk);
+		/* fall through */
 	case 168000:
 	case 336000:
 		ratio = dev_priv->cdclk.hw.ref == 19200 ? 35 : 28;
