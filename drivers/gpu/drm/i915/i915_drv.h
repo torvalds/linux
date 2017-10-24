@@ -2228,6 +2228,7 @@ struct i915_oa_ops {
 
 struct intel_cdclk_state {
 	unsigned int cdclk, vco, ref;
+	u8 voltage_level;
 };
 
 struct drm_i915_private {

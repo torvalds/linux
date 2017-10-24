@@ -1690,17 +1690,34 @@ void cnl_uninit_cdclk(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_cdclk_state_compare - Determine if two CDCLK states differ
+ * intel_cdclk_needs_modeset - Determine if two CDCLK states require a modeset on all pipes
  * @a: first CDCLK state
  * @b: second CDCLK state
  *
  * Returns:
- * True if the CDCLK states are identical, false if they differ.
+ * True if the CDCLK states require pipes to be off during reprogramming, false if not.
  */
-bool intel_cdclk_state_compare(const struct intel_cdclk_state *a,
+bool intel_cdclk_needs_modeset(const struct intel_cdclk_state *a,
 			       const struct intel_cdclk_state *b)
 {
-	return memcmp(a, b, sizeof(*a)) == 0;
+	return a->cdclk != b->cdclk ||
+		a->vco != b->vco ||
+		a->ref != b->ref;
+}
+
+/**
+ * intel_cdclk_changed - Determine if two CDCLK states are different
+ * @a: first CDCLK state
+ * @b: second CDCLK state
+ *
+ * Returns:
+ * True if the CDCLK states don't match, false if they do.
+ */
+bool intel_cdclk_changed(const struct intel_cdclk_state *a,
+			 const struct intel_cdclk_state *b)
+{
+	return intel_cdclk_needs_modeset(a, b) ||
+		a->voltage_level != b->voltage_level;
 }
 
 /**
@@ -1714,15 +1731,15 @@ bool intel_cdclk_state_compare(const struct intel_cdclk_state *a,
 void intel_set_cdclk(struct drm_i915_private *dev_priv,
 		     const struct intel_cdclk_state *cdclk_state)
 {
-	if (intel_cdclk_state_compare(&dev_priv->cdclk.hw, cdclk_state))
+	if (!intel_cdclk_changed(&dev_priv->cdclk.hw, cdclk_state))
 		return;
 
 	if (WARN_ON_ONCE(!dev_priv->display.set_cdclk))
 		return;
 
-	DRM_DEBUG_DRIVER("Changing CDCLK to %d kHz, VCO %d kHz, ref %d kHz\n",
+	DRM_DEBUG_DRIVER("Changing CDCLK to %d kHz, VCO %d kHz, ref %d kHz, voltage_level %d\n",
 			 cdclk_state->cdclk, cdclk_state->vco,
-			 cdclk_state->ref);
+			 cdclk_state->ref, cdclk_state->voltage_level);
 
 	dev_priv->display.set_cdclk(dev_priv, cdclk_state);
 }

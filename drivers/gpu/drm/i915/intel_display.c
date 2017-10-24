@@ -11931,16 +11931,16 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 		 * holding all the crtc locks, even if we don't end up
 		 * touching the hardware
 		 */
-		if (!intel_cdclk_state_compare(&dev_priv->cdclk.logical,
-					       &intel_state->cdclk.logical)) {
+		if (intel_cdclk_changed(&dev_priv->cdclk.logical,
+					&intel_state->cdclk.logical)) {
 			ret = intel_lock_all_pipes(state);
 			if (ret < 0)
 				return ret;
 		}
 
 		/* All pipes must be switched off while we change the cdclk. */
-		if (!intel_cdclk_state_compare(&dev_priv->cdclk.actual,
-					       &intel_state->cdclk.actual)) {
+		if (intel_cdclk_needs_modeset(&dev_priv->cdclk.actual,
+					      &intel_state->cdclk.actual)) {
 			ret = intel_modeset_all_pipes(state);
 			if (ret < 0)
 				return ret;
