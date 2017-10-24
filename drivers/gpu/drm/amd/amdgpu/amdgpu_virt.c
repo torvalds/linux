@@ -24,6 +24,14 @@
 #include "amdgpu.h"
 #define MAX_KIQ_REG_WAIT	100000000 /* in usecs */
 
+bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev)
+{
+	/* By now all MMIO pages except mailbox are blocked */
+	/* if blocking is enabled in hypervisor. Choose the */
+	/* SCRATCH_REG0 to test. */
+	return RREG32_NO_KIQ(0xc040) == 0xffffffff;
+}
+
 int amdgpu_allocate_static_csa(struct amdgpu_device *adev)
 {
 	int r;

@@ -276,6 +276,7 @@ static inline bool is_virtual_machine(void)
 }
 
 struct amdgpu_vm;
+bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev);
 int amdgpu_allocate_static_csa(struct amdgpu_device *adev);
 int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			  struct amdgpu_bo_va **bo_va);
