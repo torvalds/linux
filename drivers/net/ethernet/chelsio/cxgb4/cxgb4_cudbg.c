@@ -82,14 +82,28 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		len = CIM_IBQ_SIZE * 4 * sizeof(u32);
 		break;
 	case CUDBG_CIM_OBQ_ULP0:
+		len = cudbg_cim_obq_size(adap, 0);
+		break;
 	case CUDBG_CIM_OBQ_ULP1:
+		len = cudbg_cim_obq_size(adap, 1);
+		break;
 	case CUDBG_CIM_OBQ_ULP2:
+		len = cudbg_cim_obq_size(adap, 2);
+		break;
 	case CUDBG_CIM_OBQ_ULP3:
+		len = cudbg_cim_obq_size(adap, 3);
+		break;
 	case CUDBG_CIM_OBQ_SGE:
+		len = cudbg_cim_obq_size(adap, 4);
+		break;
 	case CUDBG_CIM_OBQ_NCSI:
+		len = cudbg_cim_obq_size(adap, 5);
+		break;
 	case CUDBG_CIM_OBQ_RXQ0:
+		len = cudbg_cim_obq_size(adap, 6);
+		break;
 	case CUDBG_CIM_OBQ_RXQ1:
-		len = 6 * CIM_OBQ_SIZE * 4 * sizeof(u32);
+		len = cudbg_cim_obq_size(adap, 7);
 		break;
 	case CUDBG_EDC0:
 		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);

@@ -146,8 +146,7 @@ static int cudbg_read_cim_ibq(struct cudbg_init *pdbg_init,
 
 	/* t4_read_cim_ibq will return no. of read words or error */
 	no_of_read_words = t4_read_cim_ibq(padap, qid,
-					   (u32 *)((u32 *)temp_buff.data +
-					   temp_buff.offset), qsize);
+					   (u32 *)temp_buff.data, qsize);
 	/* no_of_read_words is less than or equal to 0 means error */
 	if (no_of_read_words <= 0) {
 		if (!no_of_read_words)
@@ -204,6 +203,17 @@ int cudbg_collect_cim_ibq_ncsi(struct cudbg_init *pdbg_init,
 	return cudbg_read_cim_ibq(pdbg_init, dbg_buff, cudbg_err, 5);
 }
 
+u32 cudbg_cim_obq_size(struct adapter *padap, int qid)
+{
+	u32 value;
+
+	t4_write_reg(padap, CIM_QUEUE_CONFIG_REF_A, OBQSELECT_F |
+		     QUENUMSELECT_V(qid));
+	value = t4_read_reg(padap, CIM_QUEUE_CONFIG_CTRL_A);
+	value = CIMQSIZE_G(value) * 64; /* size in number of words */
+	return value * sizeof(u32);
+}
+
 static int cudbg_read_cim_obq(struct cudbg_init *pdbg_init,
 			      struct cudbg_buffer *dbg_buff,
 			      struct cudbg_error *cudbg_err, int qid)
@@ -214,15 +224,14 @@ static int cudbg_read_cim_obq(struct cudbg_init *pdbg_init,
 	u32 qsize;
 
 	/* collect CIM OBQ */
-	qsize =  6 * CIM_OBQ_SIZE * 4 *  sizeof(u32);
+	qsize =  cudbg_cim_obq_size(padap, qid);
 	rc = cudbg_get_buff(dbg_buff, qsize, &temp_buff);
 	if (rc)
 		return rc;
 
 	/* t4_read_cim_obq will return no. of read words or error */
 	no_of_read_words = t4_read_cim_obq(padap, qid,
-					   (u32 *)((u32 *)temp_buff.data +
-					   temp_buff.offset), qsize);
+					   (u32 *)temp_buff.data, qsize);
 	/* no_of_read_words is less than or equal to 0 means error */
 	if (no_of_read_words <= 0) {
 		if (!no_of_read_words)
@@ -233,7 +242,6 @@ static int cudbg_read_cim_obq(struct cudbg_init *pdbg_init,
 		cudbg_put_buff(&temp_buff, dbg_buff);
 		return rc;
 	}
-	temp_buff.size = no_of_read_words * 4;
 	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
 	return rc;
 }
