@@ -1913,6 +1913,104 @@ enable_all:
 }
 EXPORT_SYMBOL_GPL(pci_assign_unassigned_bridge_resources);
 
+int pci_reassign_bridge_resources(struct pci_dev *bridge, unsigned long type)
+{
+	struct pci_dev_resource *dev_res;
+	struct pci_dev *next;
+	LIST_HEAD(saved);
+	LIST_HEAD(added);
+	LIST_HEAD(failed);
+	unsigned int i;
+	int ret;
+
+	/* Walk to the root hub, releasing bridge BARs when possible */
+	next = bridge;
+	do {
+		bridge = next;
+		for (i = PCI_BRIDGE_RESOURCES; i < PCI_BRIDGE_RESOURCE_END;
+		     i++) {
+			struct resource *res = &bridge->resource[i];
+
+			if ((res->flags ^ type) & PCI_RES_TYPE_MASK)
+				continue;
+
+			/* Ignore BARs which are still in use */
+			if (res->child)
+				continue;
+
+			ret = add_to_list(&saved, bridge, res, 0, 0);
+			if (ret)
+				goto cleanup;
+
+			dev_info(&bridge->dev, "BAR %d: releasing %pR\n",
+				 i, res);
+
+			if (res->parent)
+				release_resource(res);
+			res->start = 0;
+			res->end = 0;
+			break;
+		}
+		if (i == PCI_BRIDGE_RESOURCE_END)
+			break;
+
+		next = bridge->bus ? bridge->bus->self : NULL;
+	} while (next);
+
+	if (list_empty(&saved))
+		return -ENOENT;
+
+	__pci_bus_size_bridges(bridge->subordinate, &added);
+	__pci_bridge_assign_resources(bridge, &added, &failed);
+	BUG_ON(!list_empty(&added));
+
+	if (!list_empty(&failed)) {
+		ret = -ENOSPC;
+		goto cleanup;
+	}
+
+	list_for_each_entry(dev_res, &saved, list) {
+		/* Skip the bridge we just assigned resources for. */
+		if (bridge == dev_res->dev)
+			continue;
+
+		bridge = dev_res->dev;
+		pci_setup_bridge(bridge->subordinate);
+	}
+
+	free_list(&saved);
+	return 0;
+
+cleanup:
+	/* restore size and flags */
+	list_for_each_entry(dev_res, &failed, list) {
+		struct resource *res = dev_res->res;
+
+		res->start = dev_res->start;
+		res->end = dev_res->end;
+		res->flags = dev_res->flags;
+	}
+	free_list(&failed);
+
+	/* Revert to the old configuration */
+	list_for_each_entry(dev_res, &saved, list) {
+		struct resource *res = dev_res->res;
+
+		bridge = dev_res->dev;
+		i = res - bridge->resource;
+
+		res->start = dev_res->start;
+		res->end = dev_res->end;
+		res->flags = dev_res->flags;
+
+		pci_claim_resource(bridge, i);
+		pci_setup_bridge(bridge->subordinate);
+	}
+	free_list(&saved);
+
+	return ret;
+}
+
 void pci_assign_unassigned_bus_resources(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
