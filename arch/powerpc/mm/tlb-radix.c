@@ -360,12 +360,14 @@ void radix__flush_tlb_collapsed_pmd(struct mm_struct *mm, unsigned long addr)
 
 
 	pid = mm ? mm->context.id : 0;
+	preempt_disable();
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		goto no_context;
 
 	/* 4k page size, just blow the world */
 	if (PAGE_SIZE == 0x1000) {
 		radix__flush_all_mm(mm);
+		preempt_enable();
 		return;
 	}
 
