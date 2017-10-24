@@ -136,10 +136,13 @@ static void r10bio_pool_free(void *r10_bio, void *data)
 	kfree(r10_bio);
 }
 
+#define RESYNC_SECTORS (RESYNC_BLOCK_SIZE >> 9)
 /* amount of memory to reserve for resync requests */
 #define RESYNC_WINDOW (1024*1024)
 /* maximum number of concurrent requests, memory permitting */
 #define RESYNC_DEPTH (32*1024*1024/RESYNC_BLOCK_SIZE)
+#define CLUSTER_RESYNC_WINDOW (16 * RESYNC_WINDOW)
+#define CLUSTER_RESYNC_WINDOW_SECTORS (CLUSTER_RESYNC_WINDOW >> 9)
 
 /*
  * When performing a resync, we need to read and compare, so
@@ -2841,6 +2844,43 @@ static struct r10bio *raid10_alloc_init_r10buf(struct r10conf *conf)
 }
 
 /*
+ * Set cluster_sync_high since we need other nodes to add the
+ * range [cluster_sync_low, cluster_sync_high] to suspend list.
+ */
+static void raid10_set_cluster_sync_high(struct r10conf *conf)
+{
+	sector_t window_size;
+	int extra_chunk, chunks;
+
+	/*
+	 * First, here we define "stripe" as a unit which across
+	 * all member devices one time, so we get chunks by use
+	 * raid_disks / near_copies. Otherwise, if near_copies is
+	 * close to raid_disks, then resync window could increases
+	 * linearly with the increase of raid_disks, which means
+	 * we will suspend a really large IO window while it is not
+	 * necessary. If raid_disks is not divisible by near_copies,
+	 * an extra chunk is needed to ensure the whole "stripe" is
+	 * covered.
+	 */
+
+	chunks = conf->geo.raid_disks / conf->geo.near_copies;
+	if (conf->geo.raid_disks % conf->geo.near_copies == 0)
+		extra_chunk = 0;
+	else
+		extra_chunk = 1;
+	window_size = (chunks + extra_chunk) * conf->mddev->chunk_sectors;
+
+	/*
+	 * At least use a 32M window to align with raid1's resync window
+	 */
+	window_size = (CLUSTER_RESYNC_WINDOW_SECTORS > window_size) ?
+			CLUSTER_RESYNC_WINDOW_SECTORS : window_size;
+
+	conf->cluster_sync_high = conf->cluster_sync_low + window_size;
+}
+
+/*
  * perform a "sync" on one "block"
  *
  * We need to make sure that no normal I/O request - particularly write
@@ -2912,6 +2952,9 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 	    test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery))
 		max_sector = mddev->resync_max_sectors;
 	if (sector_nr >= max_sector) {
+		conf->cluster_sync_low = 0;
+		conf->cluster_sync_high = 0;
+
 		/* If we aborted, we need to abort the
 		 * sync on the 'current' bitmap chucks (there can
 		 * be several when recovering multiple devices).
@@ -3266,7 +3309,17 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 		/* resync. Schedule a read for every block at this virt offset */
 		int count = 0;
 
-		bitmap_cond_end_sync(mddev->bitmap, sector_nr, 0);
+		/*
+		 * Since curr_resync_completed could probably not update in
+		 * time, and we will set cluster_sync_low based on it.
+		 * Let's check against "sector_nr + 2 * RESYNC_SECTORS" for
+		 * safety reason, which ensures curr_resync_completed is
+		 * updated in bitmap_cond_end_sync.
+		 */
+		bitmap_cond_end_sync(mddev->bitmap, sector_nr,
+				     mddev_is_clustered(mddev) &&
+				     (sector_nr + 2 * RESYNC_SECTORS >
+				      conf->cluster_sync_high));
 
 		if (!bitmap_start_sync(mddev->bitmap, sector_nr,
 				       &sync_blocks, mddev->degraded) &&
@@ -3399,6 +3452,52 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 		sector_nr += len>>9;
 	} while (++page_idx < RESYNC_PAGES);
 	r10_bio->sectors = nr_sectors;
+
+	if (mddev_is_clustered(mddev) &&
+	    test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
+		/* It is resync not recovery */
+		if (conf->cluster_sync_high < sector_nr + nr_sectors) {
+			conf->cluster_sync_low = mddev->curr_resync_completed;
+			raid10_set_cluster_sync_high(conf);
+			/* Send resync message */
+			md_cluster_ops->resync_info_update(mddev,
+						conf->cluster_sync_low,
+						conf->cluster_sync_high);
+		}
+	} else if (mddev_is_clustered(mddev)) {
+		/* This is recovery not resync */
+		sector_t sect_va1, sect_va2;
+		bool broadcast_msg = false;
+
+		for (i = 0; i < conf->geo.raid_disks; i++) {
+			/*
+			 * sector_nr is a device address for recovery, so we
+			 * need translate it to array address before compare
+			 * with cluster_sync_high.
+			 */
+			sect_va1 = raid10_find_virt(conf, sector_nr, i);
+
+			if (conf->cluster_sync_high < sect_va1 + nr_sectors) {
+				broadcast_msg = true;
+				/*
+				 * curr_resync_completed is similar as
+				 * sector_nr, so make the translation too.
+				 */
+				sect_va2 = raid10_find_virt(conf,
+					mddev->curr_resync_completed, i);
+
+				if (conf->cluster_sync_low == 0 ||
+				    conf->cluster_sync_low > sect_va2)
+					conf->cluster_sync_low = sect_va2;
+			}
+		}
+		if (broadcast_msg) {
+			raid10_set_cluster_sync_high(conf);
+			md_cluster_ops->resync_info_update(mddev,
+						conf->cluster_sync_low,
+						conf->cluster_sync_high);
+		}
+	}
 
 	while (biolist) {
 		bio = biolist;
@@ -3658,6 +3757,18 @@ static int raid10_run(struct mddev *mddev)
 	conf = mddev->private;
 	if (!conf)
 		goto out;
+
+	if (mddev_is_clustered(conf->mddev)) {
+		int fc, fo;
+
+		fc = (mddev->layout >> 8) & 255;
+		fo = mddev->layout & (1<<16);
+		if (fc > 1 || fo > 0) {
+			pr_err("only near layout is supported by clustered"
+				" raid10\n");
+			goto out;
+		}
+	}
 
 	mddev->thread = conf->thread;
 	conf->thread = NULL;
