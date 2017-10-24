@@ -362,12 +362,12 @@ void ima_post_path_mknod(struct dentry *dentry)
  */
 int ima_read_file(struct file *file, enum kernel_read_file_id read_id)
 {
+	bool sig_enforce = is_module_sig_enforced();
+
 	if (!file && read_id == READING_MODULE) {
-#ifndef CONFIG_MODULE_SIG_FORCE
-		if ((ima_appraise & IMA_APPRAISE_MODULES) &&
+		if (!sig_enforce && (ima_appraise & IMA_APPRAISE_MODULES) &&
 		    (ima_appraise & IMA_APPRAISE_ENFORCE))
 			return -EACCES;	/* INTEGRITY_UNKNOWN */
-#endif
 		return 0;	/* We rely on module signature checking */
 	}
 	return 0;
