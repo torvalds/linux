@@ -503,6 +503,41 @@
 		status = "disabled";
 	};
 
+	i2s_8ch: i2s-8ch@10200000 {
+		compatible = "rockchip,rk3128-i2s", "rockchip,rk3066-i2s";
+		reg = <0x10200000 0x1000>;
+		clocks = <&cru SCLK_I2S0>, <&cru HCLK_I2S_8CH>;
+		clock-names = "i2s_clk", "i2s_hclk";
+		interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+		dmas = <&pdma 14>, <&pdma 15>;
+		dma-names = "tx", "rx";
+		status = "disabled";
+	};
+
+	spdif: spdif@10204000 {
+		compatible = "rockchip,rk3128-spdif";
+		reg = <0x10204000 0x1000>;
+		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_SPDIF>, <&cru HCLK_SPDIF>;
+		clock-names = "mclk", "hclk";
+		dmas = <&pdma 13>;
+		dma-names = "tx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spdif_tx>;
+		status = "disabled";
+	};
+
+	i2s_2ch: i2s-2ch@10220000 {
+		compatible = "rockchip,rk3128-i2s", "rockchip,rk3066-i2s";
+		reg = <0x10220000 0x1000>;
+		clocks = <&cru SCLK_I2S1>, <&cru HCLK_I2S_2CH>;
+		clock-names = "i2s_clk", "i2s_hclk";
+		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+		dmas = <&pdma 0>, <&pdma 1>;
+		dma-names = "tx", "rx";
+		status = "disabled";
+	};
+
 	sdmmc: dwmmc@10214000 {
 		compatible = "rockchip,rk312x-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x10214000 0x4000>;
@@ -1160,6 +1195,12 @@
 						<2 RK_PC3 3 &pcfg_pull_default>,
 						<2 RK_PC4 3 &pcfg_pull_default>,
 						<2 RK_PD1 3 &pcfg_pull_default>;
+			};
+		};
+
+		spdif {
+			spdif_tx: spdif-tx {
+				rockchip,pins = <3 RK_PD3 1 &pcfg_pull_none>;
 			};
 		};
 
