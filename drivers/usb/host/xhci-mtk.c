@@ -253,10 +253,7 @@ static int xhci_mtk_clks_get(struct xhci_hcd_mtk *mtk)
 		return PTR_ERR(mtk->mcu_clk);
 
 	mtk->dma_clk = optional_clk_get(dev, "dma_ck");
-	if (IS_ERR(mtk->dma_clk))
-		return PTR_ERR(mtk->dma_clk);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(mtk->dma_clk);
 }
 
 static int xhci_mtk_clks_enable(struct xhci_hcd_mtk *mtk)
