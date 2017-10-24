@@ -754,7 +754,7 @@ static int ovl_dir_fsync(struct file *file, loff_t start, loff_t end,
 	if (!od->is_upper && OVL_TYPE_UPPER(ovl_path_type(dentry))) {
 		struct inode *inode = file_inode(file);
 
-		realfile = lockless_dereference(od->upperfile);
+		realfile = READ_ONCE(od->upperfile);
 		if (!realfile) {
 			struct path upperpath;
 
