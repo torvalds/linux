@@ -282,6 +282,8 @@
 #include <asm/ioctls.h>
 #include <net/busy_poll.h>
 
+#include <trace/events/tcp.h>
+
 int sysctl_tcp_min_tso_segs __read_mostly = 2;
 
 int sysctl_tcp_autocorking __read_mostly = 1;
@@ -2039,6 +2041,8 @@ EXPORT_SYMBOL(tcp_recvmsg);
 void tcp_set_state(struct sock *sk, int state)
 {
 	int oldstate = sk->sk_state;
+
+	trace_tcp_set_state(sk, oldstate, state);
 
 	switch (state) {
 	case TCP_ESTABLISHED:

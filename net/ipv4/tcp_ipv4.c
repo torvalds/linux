@@ -85,6 +85,8 @@
 #include <crypto/hash.h>
 #include <linux/scatterlist.h>
 
+#include <trace/events/tcp.h>
+
 #ifdef CONFIG_TCP_MD5SIG
 static int tcp_v4_md5_hash_hdr(char *md5_hash, const struct tcp_md5sig_key *key,
 			       __be32 daddr, __be32 saddr, const struct tcphdr *th);
@@ -701,8 +703,10 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 	 * routing might fail in this case. No choice here, if we choose to force
 	 * input interface, we will misroute in case of asymmetric route.
 	 */
-	if (sk)
+	if (sk) {
 		arg.bound_dev_if = sk->sk_bound_dev_if;
+		trace_tcp_send_reset(sk, skb);
+	}
 
 	BUILD_BUG_ON(offsetof(struct sock, sk_bound_dev_if) !=
 		     offsetof(struct inet_timewait_sock, tw_bound_dev_if));
@@ -1864,6 +1868,8 @@ static int tcp_v4_init_sock(struct sock *sk)
 void tcp_v4_destroy_sock(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+
+	trace_tcp_destroy_sock(sk);
 
 	tcp_clear_xmit_timers(sk);
 
