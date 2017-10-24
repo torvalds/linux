@@ -2,7 +2,26 @@
 # Makefile for the drm device driver.  This driver provides support for the
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
-subdir-ccflags-$(CONFIG_DRM_I915_WERROR) := -Werror
+# Add a set of useful warning flags and enable -Werror for CI to prevent
+# trivial mistakes from creeping in. We have to do this piecemeal as we reject
+# any patch that isn't warning clean, so turning on -Wall -Wextra (or W=1) we
+# need to filter out dubious warnings.  Still it is our interest
+# to keep running locally with W=1 C=1 until we are completely clean.
+#
+# Note the danger in using -Wall -Wextra is that when CI updates gcc we
+# will most likely get a sudden build breakage... Hopefully we will fix
+# new warnings before CI updates!
+subdir-ccflags-y := -Wall -Wextra
+subdir-ccflags-y += $(call cc-option,-Wno-unused-parameter,)
+subdir-ccflags-y += $(call cc-option,-Wno-type-limits,)
+subdir-ccflags-y += $(call cc-option,-Wno-missing-field-initializers,)
+subdir-ccflags-y += $(call cc-option,-Wno-implicit-fallthrough,)
+subdir-ccflags-$(CONFIG_DRM_I915_WERROR) += -Werror
+
+# Fine grained warnings disable
+CFLAGS_i915_pci.o = $(call cc-option,-Wno-override-init,)
+CFLAGS_intel_fbdev.o = $(call cc-option,-Wno-override-init,)
+
 subdir-ccflags-y += \
 	$(call as-instr,movntdqa (%eax)$(comma)%xmm0,-DCONFIG_AS_MOVNTDQA)
 
