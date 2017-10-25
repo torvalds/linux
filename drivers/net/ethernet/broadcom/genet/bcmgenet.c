@@ -2505,9 +2505,6 @@ static void bcmgenet_fini_dma(struct bcmgenet_priv *priv)
 	bcmgenet_fini_rx_napi(priv);
 	bcmgenet_fini_tx_napi(priv);
 
-	/* disable DMA */
-	bcmgenet_dma_teardown(priv);
-
 	for (i = 0; i < priv->num_tx_bds; i++) {
 		cb = priv->tx_cbs + i;
 		skb = bcmgenet_free_tx_cb(&priv->pdev->dev, cb);
@@ -2930,6 +2927,7 @@ err_irq1:
 err_irq0:
 	free_irq(priv->irq0, priv);
 err_fini_dma:
+	bcmgenet_dma_teardown(priv);
 	bcmgenet_fini_dma(priv);
 err_clk_disable:
 	if (priv->internal_phy)
