@@ -311,6 +311,37 @@ static void guc_proc_desc_init(struct intel_guc *guc,
 	desc->priority = client->priority;
 }
 
+static int guc_stage_desc_pool_create(struct intel_guc *guc)
+{
+	struct i915_vma *vma;
+	void *vaddr;
+
+	vma = intel_guc_allocate_vma(guc,
+				     PAGE_ALIGN(sizeof(struct guc_stage_desc) *
+				     GUC_MAX_STAGE_DESCRIPTORS));
+	if (IS_ERR(vma))
+		return PTR_ERR(vma);
+
+	vaddr = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
+	if (IS_ERR(vaddr)) {
+		i915_vma_unpin_and_release(&vma);
+		return PTR_ERR(vaddr);
+	}
+
+	guc->stage_desc_pool = vma;
+	guc->stage_desc_pool_vaddr = vaddr;
+	ida_init(&guc->stage_ids);
+
+	return 0;
+}
+
+static void guc_stage_desc_pool_destroy(struct intel_guc *guc)
+{
+	ida_destroy(&guc->stage_ids);
+	i915_gem_object_unpin_map(guc->stage_desc_pool->obj);
+	i915_vma_unpin_and_release(&guc->stage_desc_pool);
+}
+
 /*
  * Initialise/clear the stage descriptor shared with the GuC firmware.
  *
@@ -953,47 +984,29 @@ static void guc_ads_destroy(struct intel_guc *guc)
 int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
-	struct i915_vma *vma;
-	void *vaddr;
 	int ret;
 
 	if (guc->stage_desc_pool)
 		return 0;
 
-	vma = intel_guc_allocate_vma(guc,
-				PAGE_ALIGN(sizeof(struct guc_stage_desc) *
-					GUC_MAX_STAGE_DESCRIPTORS));
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
-
-	guc->stage_desc_pool = vma;
-
-	vaddr = i915_gem_object_pin_map(guc->stage_desc_pool->obj, I915_MAP_WB);
-	if (IS_ERR(vaddr)) {
-		ret = PTR_ERR(vaddr);
-		goto err_vma;
-	}
-
-	guc->stage_desc_pool_vaddr = vaddr;
+	ret = guc_stage_desc_pool_create(guc);
+	if (ret)
+		return ret;
 
 	ret = intel_guc_log_create(guc);
 	if (ret < 0)
-		goto err_vaddr;
+		goto err_stage_desc_pool;
 
 	ret = guc_ads_create(guc);
 	if (ret < 0)
 		goto err_log;
 
-	ida_init(&guc->stage_ids);
-
 	return 0;
 
 err_log:
 	intel_guc_log_destroy(guc);
-err_vaddr:
-	i915_gem_object_unpin_map(guc->stage_desc_pool->obj);
-err_vma:
-	i915_vma_unpin_and_release(&guc->stage_desc_pool);
+err_stage_desc_pool:
+	guc_stage_desc_pool_destroy(guc);
 	return ret;
 }
 
@@ -1001,11 +1014,9 @@ void i915_guc_submission_fini(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
 
-	ida_destroy(&guc->stage_ids);
 	guc_ads_destroy(guc);
 	intel_guc_log_destroy(guc);
-	i915_gem_object_unpin_map(guc->stage_desc_pool->obj);
-	i915_vma_unpin_and_release(&guc->stage_desc_pool);
+	guc_stage_desc_pool_destroy(guc);
 }
 
 static void guc_interrupts_capture(struct drm_i915_private *dev_priv)
