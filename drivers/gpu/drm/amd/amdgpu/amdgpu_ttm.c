@@ -912,7 +912,7 @@ int amdgpu_ttm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *bo_mem)
 	placements.flags = (bo->mem.placement & ~TTM_PL_MASK_MEM) |
 		TTM_PL_FLAG_TT;
 
-	r = ttm_bo_mem_space(bo, &placement, &tmp, true, false);
+	r = ttm_bo_mem_space(bo, &placement, &tmp, false, false);
 	if (unlikely(r))
 		return r;
 
