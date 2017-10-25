@@ -2763,11 +2763,11 @@ static void bcmgenet_netif_start(struct net_device *dev)
 
 	/* Start the network engine */
 	bcmgenet_enable_rx_napi(priv);
-	bcmgenet_enable_tx_napi(priv);
 
 	umac_enable_set(priv, CMD_TX_EN | CMD_RX_EN, true);
 
 	netif_tx_start_all_queues(dev);
+	bcmgenet_enable_tx_napi(priv);
 
 	/* Monitor link interrupts now */
 	bcmgenet_link_intr_enable(priv);
@@ -2868,10 +2868,19 @@ static void bcmgenet_netif_stop(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 
+	bcmgenet_disable_tx_napi(priv);
 	netif_tx_stop_all_queues(dev);
+
+	/* Disable MAC receive */
+	umac_enable_set(priv, CMD_RX_EN, false);
+
+	bcmgenet_dma_teardown(priv);
+
+	/* Disable MAC transmit. TX DMA disabled must be done before this */
+	umac_enable_set(priv, CMD_TX_EN, false);
+
 	phy_stop(priv->phydev);
 	bcmgenet_disable_rx_napi(priv);
-	bcmgenet_disable_tx_napi(priv);
 	bcmgenet_intr_disable(priv);
 
 	/* Wait for pending work items to complete. Since interrupts are
@@ -2883,12 +2892,16 @@ static void bcmgenet_netif_stop(struct net_device *dev)
 	priv->old_speed = -1;
 	priv->old_duplex = -1;
 	priv->old_pause = -1;
+
+	/* tx reclaim */
+	bcmgenet_tx_reclaim_all(dev);
+	bcmgenet_fini_dma(priv);
 }
 
 static int bcmgenet_close(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
-	int ret;
+	int ret = 0;
 
 	netif_dbg(priv, ifdown, dev, "bcmgenet_close\n");
 
@@ -2896,20 +2909,6 @@ static int bcmgenet_close(struct net_device *dev)
 
 	/* Really kill the PHY state machine and disconnect from it */
 	phy_disconnect(priv->phydev);
-
-	/* Disable MAC receive */
-	umac_enable_set(priv, CMD_RX_EN, false);
-
-	ret = bcmgenet_dma_teardown(priv);
-	if (ret)
-		return ret;
-
-	/* Disable MAC transmit. TX DMA disabled must be done before this */
-	umac_enable_set(priv, CMD_TX_EN, false);
-
-	/* tx reclaim */
-	bcmgenet_tx_reclaim_all(dev);
-	bcmgenet_fini_dma(priv);
 
 	free_irq(priv->irq0, priv);
 	free_irq(priv->irq1, priv);
@@ -3522,7 +3521,7 @@ static int bcmgenet_suspend(struct device *d)
 {
 	struct net_device *dev = dev_get_drvdata(d);
 	struct bcmgenet_priv *priv = netdev_priv(dev);
-	int ret;
+	int ret = 0;
 
 	if (!netif_running(dev))
 		return 0;
@@ -3533,20 +3532,6 @@ static int bcmgenet_suspend(struct device *d)
 		phy_suspend(priv->phydev);
 
 	netif_device_detach(dev);
-
-	/* Disable MAC receive */
-	umac_enable_set(priv, CMD_RX_EN, false);
-
-	ret = bcmgenet_dma_teardown(priv);
-	if (ret)
-		return ret;
-
-	/* Disable MAC transmit. TX DMA disabled must be done before this */
-	umac_enable_set(priv, CMD_TX_EN, false);
-
-	/* tx reclaim */
-	bcmgenet_tx_reclaim_all(dev);
-	bcmgenet_fini_dma(priv);
 
 	/* Prepare the device for Wake-on-LAN and switch to the slow clock */
 	if (device_may_wakeup(d) && priv->wolopts) {
