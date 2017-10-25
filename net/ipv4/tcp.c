@@ -270,6 +270,7 @@
 #include <linux/time.h>
 #include <linux/slab.h>
 #include <linux/errqueue.h>
+#include <linux/static_key.h>
 
 #include <net/icmp.h>
 #include <net/inet_common.h>
@@ -301,6 +302,11 @@ EXPORT_SYMBOL(sysctl_tcp_wmem);
 
 atomic_long_t tcp_memory_allocated;	/* Current allocated memory. */
 EXPORT_SYMBOL(tcp_memory_allocated);
+
+#if IS_ENABLED(CONFIG_SMC)
+DEFINE_STATIC_KEY_FALSE(tcp_have_smc);
+EXPORT_SYMBOL(tcp_have_smc);
+#endif
 
 /*
  * Current number of TCP sockets.
