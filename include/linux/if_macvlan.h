@@ -10,13 +10,6 @@
 #include <linux/u64_stats_sync.h>
 
 struct macvlan_port;
-struct macvtap_queue;
-
-/*
- * Maximum times a macvtap device can be opened. This can be used to
- * configure the number of receive queue, e.g. for multiqueue virtio.
- */
-#define MAX_TAP_QUEUES	256
 
 #define MACVLAN_MC_FILTER_BITS	8
 #define MACVLAN_MC_FILTER_SZ	(1 << MACVLAN_MC_FILTER_BITS)
@@ -35,14 +28,6 @@ struct macvlan_dev {
 	netdev_features_t	set_features;
 	enum macvlan_mode	mode;
 	u16			flags;
-	/* This array tracks active taps. */
-	struct tap_queue	__rcu *taps[MAX_TAP_QUEUES];
-	/* This list tracks all taps (both enabled and disabled) */
-	struct list_head	queue_list;
-	int			numvtaps;
-	int			numqueues;
-	netdev_features_t	tap_features;
-	int			minor;
 	int			nest_level;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct netpoll		*netpoll;
