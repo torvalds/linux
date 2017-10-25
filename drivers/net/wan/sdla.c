@@ -927,13 +927,10 @@ static irqreturn_t sdla_isr(int dummy, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void sdla_poll(unsigned long device)
+static void sdla_poll(struct timer_list *t)
 {
-	struct net_device	  *dev;
-	struct frad_local *flp;
-
-	dev = (struct net_device *) device;
-	flp = netdev_priv(dev);
+	struct frad_local *flp = from_timer(flp, t, timer);
+	struct net_device *dev = flp->dev;
 
 	if (sdla_byte(dev, SDLA_502_RCV_BUF))
 		sdla_receive(dev);
@@ -1616,8 +1613,9 @@ static void setup_sdla(struct net_device *dev)
 	flp->assoc		= sdla_assoc;
 	flp->deassoc		= sdla_deassoc;
 	flp->dlci_conf		= sdla_dlci_conf;
+	flp->dev		= dev;
 
-	setup_timer(&flp->timer, sdla_poll, (unsigned long)dev);
+	timer_setup(&flp->timer, sdla_poll, 0);
 	flp->timer.expires	= 1;
 }
 
