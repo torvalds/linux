@@ -71,7 +71,7 @@
  * WQ_TYPE_INORDER is needed to support legacy submission via GuC, which
  * represents in-order queue. The kernel driver packs ring tail pointer and an
  * ELSP context descriptor dword into Work Item.
- * See guc_wq_item_append()
+ * See guc_add_request()
  *
  * ADS:
  * The Additional Data Struct (ADS) has pointers for different buffers used by
@@ -394,7 +394,7 @@ static void guc_stage_desc_init(struct intel_guc *guc,
 		 * submission or, in other words, not using a direct submission
 		 * model) the KMD's LRCA is not used for any work submission.
 		 * Instead, the GuC uses the LRCA of the user mode context (see
-		 * guc_wq_item_append below).
+		 * guc_add_request below).
 		 */
 		lrc->context_desc = lower_32_bits(ce->lrc_desc);
 
@@ -473,21 +473,17 @@ static void guc_shared_data_destroy(struct intel_guc *guc)
 
 /* Construct a Work Item and append it to the GuC's Work Queue */
 static void guc_wq_item_append(struct i915_guc_client *client,
-			       struct drm_i915_gem_request *rq)
+			       u32 target_engine, u32 context_desc,
+			       u32 ring_tail, u32 fence_id)
 {
 	/* wqi_len is in DWords, and does not include the one-word header */
 	const size_t wqi_size = sizeof(struct guc_wq_item);
 	const u32 wqi_len = wqi_size / sizeof(u32) - 1;
-	struct intel_engine_cs *engine = rq->engine;
-	struct i915_gem_context *ctx = rq->ctx;
 	struct guc_process_desc *desc = __get_process_desc(client);
 	struct guc_wq_item *wqi;
-	u32 ring_tail, wq_off;
+	u32 wq_off;
 
 	lockdep_assert_held(&client->wq_lock);
-
-	ring_tail = intel_ring_set_tail(rq->ring, rq->tail) / sizeof(u64);
-	GEM_BUG_ON(ring_tail > WQ_RING_TAIL_MAX);
 
 	/* For now workqueue item is 4 DWs; workqueue buffer is 2 pages. So we
 	 * should not have the case where structure wqi is across page, neither
@@ -510,15 +506,14 @@ static void guc_wq_item_append(struct i915_guc_client *client,
 	/* Now fill in the 4-word work queue item */
 	wqi->header = WQ_TYPE_INORDER |
 		      (wqi_len << WQ_LEN_SHIFT) |
-		      (engine->guc_id << WQ_TARGET_SHIFT) |
+		      (target_engine << WQ_TARGET_SHIFT) |
 		      WQ_NO_WCFLUSH_WAIT;
-
-	wqi->context_desc = lower_32_bits(intel_lr_context_descriptor(ctx, engine));
-
+	wqi->context_desc = context_desc;
 	wqi->submit_element_info = ring_tail << WQ_RING_TAIL_SHIFT;
-	wqi->fence_id = rq->global_seqno;
+	GEM_BUG_ON(ring_tail > WQ_RING_TAIL_MAX);
+	wqi->fence_id = fence_id;
 
-	/* Postincrement WQ tail for next time. */
+	/* Make the update visible to GuC */
 	WRITE_ONCE(desc->tail, (wq_off + wqi_size) & (GUC_WQ_SIZE - 1));
 }
 
@@ -551,6 +546,25 @@ static void guc_ring_doorbell(struct i915_guc_client *client)
 	GEM_BUG_ON(db->db_status != GUC_DOORBELL_ENABLED);
 }
 
+static void guc_add_request(struct intel_guc *guc,
+			    struct drm_i915_gem_request *rq)
+{
+	struct i915_guc_client *client = guc->execbuf_client;
+	struct intel_engine_cs *engine = rq->engine;
+	u32 ctx_desc = lower_32_bits(intel_lr_context_descriptor(rq->ctx, engine));
+	u32 ring_tail = intel_ring_set_tail(rq->ring, rq->tail) / sizeof(u64);
+
+	spin_lock(&client->wq_lock);
+
+	guc_wq_item_append(client, engine->guc_id, ctx_desc,
+			   ring_tail, rq->global_seqno);
+	guc_ring_doorbell(client);
+
+	client->submissions[engine->id] += 1;
+
+	spin_unlock(&client->wq_lock);
+}
+
 /**
  * i915_guc_submit() - Submit commands through GuC
  * @engine: engine associated with the commands
@@ -562,10 +576,8 @@ static void i915_guc_submit(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	struct intel_guc *guc = &dev_priv->guc;
-	struct i915_guc_client *client = guc->execbuf_client;
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct execlist_port *port = execlists->port;
-	const unsigned int engine_id = engine->id;
 	unsigned int n;
 
 	for (n = 0; n < execlists_num_ports(execlists); n++) {
@@ -579,14 +591,7 @@ static void i915_guc_submit(struct intel_engine_cs *engine)
 			if (i915_vma_is_map_and_fenceable(rq->ring->vma))
 				POSTING_READ_FW(GUC_STATUS);
 
-			spin_lock(&client->wq_lock);
-
-			guc_wq_item_append(client, rq);
-			guc_ring_doorbell(client);
-
-			client->submissions[engine_id] += 1;
-
-			spin_unlock(&client->wq_lock);
+			guc_add_request(guc, rq);
 		}
 	}
 }
