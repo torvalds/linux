@@ -1,0 +1,103 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+
+config NDS32
+        def_bool y
+	select ARCH_WANT_FRAME_POINTERS if FTRACE
+	select CLKSRC_MMIO
+	select CLONE_BACKWARDS
+	select COMMON_CLK
+	select GENERIC_ATOMIC64
+	select GENERIC_CPU_DEVICES
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_CHIP
+	select GENERIC_IRQ_SHOW
+	select GENERIC_STRNCPY_FROM_USER
+	select GENERIC_STRNLEN_USER
+	select GENERIC_TIME_VSYSCALL
+	select HANDLE_DOMAIN_IRQ
+	select HAVE_ARCH_TRACEHOOK
+	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_MEMBLOCK
+	select HAVE_REGS_AND_STACK_ACCESS_API
+	select IRQ_DOMAIN
+	select LOCKDEP_SUPPORT
+	select MODULES_USE_ELF_RELA
+	select OF
+	select OF_EARLY_FLATTREE
+	select NO_BOOTMEM
+	select NO_IOPORT_MAP
+	select RTC_LIB
+	select THREAD_INFO_IN_TASK
+	help
+	  Andes(nds32) Linux support.
+
+config GENERIC_CALIBRATE_DELAY
+	def_bool y
+
+config GENERIC_CSUM
+        def_bool y
+
+config GENERIC_HWEIGHT
+        def_bool y
+
+config GENERIC_LOCKBREAK
+        def_bool y
+	depends on PREEMPT
+
+config RWSEM_GENERIC_SPINLOCK
+	def_bool y
+
+config TRACE_IRQFLAGS_SUPPORT
+	def_bool y
+
+config STACKTRACE_SUPPORT
+        def_bool y
+
+config FIX_EARLYCON_MEM
+	def_bool y
+
+config PGTABLE_LEVELS
+	default 2
+
+source "init/Kconfig"
+
+menu "System Type"
+source "arch/nds32/Kconfig.cpu"
+config NR_CPUS
+	int
+	default 1
+
+config MMU
+        def_bool y
+
+config NDS32_BUILTIN_DTB
+        string "Builtin DTB"
+        default ""
+	help
+	  User can use it to specify the dts of the SoC
+endmenu
+
+menu "Kernel Features"
+source "kernel/Kconfig.preempt"
+source "mm/Kconfig"
+source "kernel/Kconfig.hz"
+endmenu
+
+menu "Executable file formats"
+source "fs/Kconfig.binfmt"
+endmenu
+
+source "net/Kconfig"
+source "drivers/Kconfig"
+source "fs/Kconfig"
+
+menu "Kernel hacking"
+source "lib/Kconfig.debug"
+endmenu
+
+source "security/Kconfig"
+source "crypto/Kconfig"
+source "lib/Kconfig"
