@@ -98,6 +98,16 @@ static inline void clear_opa_smp_data(struct opa_smp *smp)
 	memset(data, 0, size);
 }
 
+static u16 hfi1_lookup_pkey_value(struct hfi1_ibport *ibp, int pkey_idx)
+{
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+
+	if (pkey_idx < ARRAY_SIZE(ppd->pkeys))
+		return ppd->pkeys[pkey_idx];
+
+	return 0;
+}
+
 void hfi1_event_pkey_change(struct hfi1_devdata *dd, u8 port)
 {
 	struct ib_event event;
@@ -4259,6 +4269,18 @@ void clear_linkup_counters(struct hfi1_devdata *dd)
 	dd->err_info_xmit_constraint.status &= ~OPA_EI_STATUS_SMASK;
 }
 
+static int is_full_mgmt_pkey_in_table(struct hfi1_ibport *ibp)
+{
+	unsigned int i;
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+
+	for (i = 0; i < ARRAY_SIZE(ppd->pkeys); ++i)
+		if (ppd->pkeys[i] == FULL_MGMT_P_KEY)
+			return 1;
+
+	return 0;
+}
+
 /*
  * is_local_mad() returns 1 if 'mad' is sent from, and destined to the
  * local node, 0 otherwise.
@@ -4324,6 +4346,63 @@ static int opa_local_smp_check(struct hfi1_ibport *ibp,
 	 */
 	ingress_pkey_table_fail(ppd, pkey, ib_lid_cpu16(0xFFFF & in_wc->slid));
 	return 1;
+}
+
+/**
+ * hfi1_pkey_validation_pma - It validates PKEYs for incoming PMA MAD packets.
+ * @ibp: IB port data
+ * @in_mad: MAD packet with header and data
+ * @in_wc: Work completion data such as source LID, port number, etc.
+ *
+ * These are all the possible logic rules for validating a pkey:
+ *
+ * a) If pkey neither FULL_MGMT_P_KEY nor LIM_MGMT_P_KEY,
+ *    and NOT self-originated packet:
+ *     Drop MAD packet as it should always be part of the
+ *     management partition unless it's a self-originated packet.
+ *
+ * b) If pkey_index -> FULL_MGMT_P_KEY, and LIM_MGMT_P_KEY in pkey table:
+ *     The packet is coming from a management node and the receiving node
+ *     is also a management node, so it is safe for the packet to go through.
+ *
+ * c) If pkey_index -> FULL_MGMT_P_KEY, and LIM_MGMT_P_KEY is NOT in pkey table:
+ *     Drop the packet as LIM_MGMT_P_KEY should always be in the pkey table.
+ *     It could be an FM misconfiguration.
+ *
+ * d) If pkey_index -> LIM_MGMT_P_KEY and FULL_MGMT_P_KEY is NOT in pkey table:
+ *     It is safe for the packet to go through since a non-management node is
+ *     talking to another non-management node.
+ *
+ * e) If pkey_index -> LIM_MGMT_P_KEY and FULL_MGMT_P_KEY in pkey table:
+ *     Drop the packet because a non-management node is talking to a
+ *     management node, and it could be an attack.
+ *
+ * For the implementation, these rules can be simplied to only checking
+ * for (a) and (e). There's no need to check for rule (b) as
+ * the packet doesn't need to be dropped. Rule (c) is not possible in
+ * the driver as LIM_MGMT_P_KEY is always in the pkey table.
+ *
+ * Return:
+ * 0 - pkey is okay, -EINVAL it's a bad pkey
+ */
+static int hfi1_pkey_validation_pma(struct hfi1_ibport *ibp,
+				    const struct opa_mad *in_mad,
+				    const struct ib_wc *in_wc)
+{
+	u16 pkey_value = hfi1_lookup_pkey_value(ibp, in_wc->pkey_index);
+
+	/* Rule (a) from above */
+	if (!is_local_mad(ibp, in_mad, in_wc) &&
+	    pkey_value != LIM_MGMT_P_KEY &&
+	    pkey_value != FULL_MGMT_P_KEY)
+		return -EINVAL;
+
+	/* Rule (e) from above */
+	if (pkey_value == LIM_MGMT_P_KEY &&
+	    is_full_mgmt_pkey_in_table(ibp))
+		return -EINVAL;
+
+	return 0;
 }
 
 static int process_subn_opa(struct ib_device *ibdev, int mad_flags,
@@ -4665,8 +4744,11 @@ static int hfi1_process_opa_mad(struct ib_device *ibdev, int mad_flags,
 				       out_mad, &resp_len);
 		goto bail;
 	case IB_MGMT_CLASS_PERF_MGMT:
-		ret = process_perf_opa(ibdev, port, in_mad, out_mad,
-				       &resp_len);
+		ret = hfi1_pkey_validation_pma(ibp, in_mad, in_wc);
+		if (ret)
+			return IB_MAD_RESULT_FAILURE;
+
+		ret = process_perf_opa(ibdev, port, in_mad, out_mad, &resp_len);
 		goto bail;
 
 	default:
