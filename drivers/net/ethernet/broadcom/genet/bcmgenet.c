@@ -2081,6 +2081,10 @@ static void bcmgenet_init_tx_ring(struct bcmgenet_priv *priv,
 				  TDMA_WRITE_PTR);
 	bcmgenet_tdma_ring_writel(priv, index, end_ptr * words_per_bd - 1,
 				  DMA_END_ADDR);
+
+	/* Initialize Tx NAPI */
+	netif_napi_add(priv->dev, &ring->napi, bcmgenet_tx_poll,
+		       NAPI_POLL_WEIGHT);
 }
 
 /* Initialize a RDMA ring */
@@ -2112,6 +2116,10 @@ static int bcmgenet_init_rx_ring(struct bcmgenet_priv *priv,
 	if (ret)
 		return ret;
 
+	/* Initialize Rx NAPI */
+	netif_napi_add(priv->dev, &ring->napi, bcmgenet_rx_poll,
+		       NAPI_POLL_WEIGHT);
+
 	bcmgenet_rdma_ring_writel(priv, index, 0, RDMA_PROD_INDEX);
 	bcmgenet_rdma_ring_writel(priv, index, 0, RDMA_CONS_INDEX);
 	bcmgenet_rdma_ring_writel(priv, index, 1, DMA_MBUF_DONE_THRESH);
@@ -2134,20 +2142,6 @@ static int bcmgenet_init_rx_ring(struct bcmgenet_priv *priv,
 				  DMA_END_ADDR);
 
 	return ret;
-}
-
-static void bcmgenet_init_tx_napi(struct bcmgenet_priv *priv)
-{
-	unsigned int i;
-	struct bcmgenet_tx_ring *ring;
-
-	for (i = 0; i < priv->hw_params->tx_queues; ++i) {
-		ring = &priv->tx_rings[i];
-		netif_tx_napi_add(priv->dev, &ring->napi, bcmgenet_tx_poll, 64);
-	}
-
-	ring = &priv->tx_rings[DESC_INDEX];
-	netif_tx_napi_add(priv->dev, &ring->napi, bcmgenet_tx_poll, 64);
 }
 
 static void bcmgenet_enable_tx_napi(struct bcmgenet_priv *priv)
@@ -2263,9 +2257,6 @@ static void bcmgenet_init_tx_queues(struct net_device *dev)
 	bcmgenet_tdma_writel(priv, dma_priority[1], DMA_PRIORITY_1);
 	bcmgenet_tdma_writel(priv, dma_priority[2], DMA_PRIORITY_2);
 
-	/* Initialize Tx NAPI */
-	bcmgenet_init_tx_napi(priv);
-
 	/* Enable Tx queues */
 	bcmgenet_tdma_writel(priv, ring_cfg, DMA_RING_CFG);
 
@@ -2273,20 +2264,6 @@ static void bcmgenet_init_tx_queues(struct net_device *dev)
 	if (dma_enable)
 		dma_ctrl |= DMA_EN;
 	bcmgenet_tdma_writel(priv, dma_ctrl, DMA_CTRL);
-}
-
-static void bcmgenet_init_rx_napi(struct bcmgenet_priv *priv)
-{
-	unsigned int i;
-	struct bcmgenet_rx_ring *ring;
-
-	for (i = 0; i < priv->hw_params->rx_queues; ++i) {
-		ring = &priv->rx_rings[i];
-		netif_napi_add(priv->dev, &ring->napi, bcmgenet_rx_poll, 64);
-	}
-
-	ring = &priv->rx_rings[DESC_INDEX];
-	netif_napi_add(priv->dev, &ring->napi, bcmgenet_rx_poll, 64);
 }
 
 static void bcmgenet_enable_rx_napi(struct bcmgenet_priv *priv)
@@ -2390,9 +2367,6 @@ static int bcmgenet_init_rx_queues(struct net_device *dev)
 
 	ring_cfg |= (1 << DESC_INDEX);
 	dma_ctrl |= (1 << (DESC_INDEX + DMA_RING_BUF_EN_SHIFT));
-
-	/* Initialize Rx NAPI */
-	bcmgenet_init_rx_napi(priv);
 
 	/* Enable rings */
 	bcmgenet_rdma_writel(priv, ring_cfg, DMA_RING_CFG);
