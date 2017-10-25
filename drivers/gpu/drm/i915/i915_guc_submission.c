@@ -475,9 +475,12 @@ static void guc_ring_doorbell(struct i915_guc_client *client)
 	/* pointer of current doorbell cacheline */
 	db = __get_doorbell(client);
 
-	/* we're not expecting the doorbell cookie to change behind our back */
+	/*
+	 * We're not expecting the doorbell cookie to change behind our back,
+	 * we also need to treat 0 as a reserved value.
+	 */
 	cookie = READ_ONCE(db->cookie);
-	WARN_ON_ONCE(xchg(&db->cookie, cookie + 1) != cookie);
+	WARN_ON_ONCE(xchg(&db->cookie, cookie + 1 ?: cookie + 2) != cookie);
 
 	/* XXX: doorbell was lost and need to acquire it again */
 	GEM_BUG_ON(db->db_status != GUC_DOORBELL_ENABLED);
