@@ -223,6 +223,7 @@ xfs_attr_node_list_lookup(
 	struct xfs_buf			*bp;
 	int				i;
 	int				error = 0;
+	unsigned int			expected_level = 0;
 	uint16_t			magic;
 
 	ASSERT(*pbp == NULL);
@@ -246,6 +247,18 @@ xfs_attr_node_list_lookup(
 
 		dp->d_ops->node_hdr_from_disk(&nodehdr, node);
 
+		/* Tree taller than we can handle; bail out! */
+		if (nodehdr.level >= XFS_DA_NODE_MAXDEPTH)
+			goto out_corruptbuf;
+
+		/* Check the level from the root node. */
+		if (cursor->blkno == 0)
+			expected_level = nodehdr.level - 1;
+		else if (expected_level != nodehdr.level)
+			goto out_corruptbuf;
+		else
+			expected_level--;
+
 		btree = dp->d_ops->node_tree_p(node);
 		for (i = 0; i < nodehdr.count; btree++, i++) {
 			if (cursor->hashval <= be32_to_cpu(btree->hashval)) {
@@ -259,7 +272,14 @@ xfs_attr_node_list_lookup(
 
 		if (i == nodehdr.count)
 			return 0;
+
+		/* We can't point back to the root. */
+		if (cursor->blkno == 0)
+			return -EFSCORRUPTED;
 	}
+
+	if (expected_level != 0)
+		goto out_corruptbuf;
 
 	*pbp = bp;
 	return 0;
