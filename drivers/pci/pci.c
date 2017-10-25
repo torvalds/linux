@@ -4170,6 +4170,14 @@ int __pci_reset_function_locked(struct pci_dev *dev)
 
 	might_sleep();
 
+	/*
+	 * A reset method returns -ENOTTY if it doesn't support this device
+	 * and we should try the next method.
+	 *
+	 * If it returns 0 (success), we're finished.  If it returns any
+	 * other error, we're also finished: this indicates that further
+	 * reset mechanisms might be broken on the device.
+	 */
 	rc = pci_dev_specific_reset(dev, 0);
 	if (rc != -ENOTTY)
 		return rc;
