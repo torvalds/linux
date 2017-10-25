@@ -390,6 +390,12 @@ static int smc_connect_rdma(struct smc_sock *smc)
 	int rc = 0;
 	u8 ibport;
 
+	if (!tcp_sk(smc->clcsock->sk)->syn_smc) {
+		/* peer has not signalled SMC-capability */
+		smc->use_fallback = true;
+		goto out_connected;
+	}
+
 	/* IPSec connections opt out of SMC-R optimizations */
 	if (using_ipsec(smc)) {
 		reason_code = SMC_CLC_DECL_IPSEC;
@@ -555,6 +561,7 @@ static int smc_connect(struct socket *sock, struct sockaddr *addr,
 	}
 
 	smc_copy_sock_settings_to_clc(smc);
+	tcp_sk(smc->clcsock->sk)->syn_smc = 1;
 	rc = kernel_connect(smc->clcsock, addr, alen, flags);
 	if (rc)
 		goto out;
@@ -758,6 +765,12 @@ static void smc_listen_work(struct work_struct *work)
 	__be32 subnet;
 	u8 prefix_len;
 	u8 ibport;
+
+	/* check if peer is smc capable */
+	if (!tcp_sk(newclcsock->sk)->syn_smc) {
+		new_smc->use_fallback = true;
+		goto out_connected;
+	}
 
 	/* do inband token exchange -
 	 *wait for and receive SMC Proposal CLC message
@@ -967,6 +980,7 @@ static int smc_listen(struct socket *sock, int backlog)
 	 * them to the clc socket -- copy smc socket options to clc socket
 	 */
 	smc_copy_sock_settings_to_clc(smc);
+	tcp_sk(smc->clcsock->sk)->syn_smc = 1;
 
 	rc = kernel_listen(smc->clcsock, backlog);
 	if (rc)
@@ -1409,6 +1423,7 @@ static int __init smc_init(void)
 		goto out_sock;
 	}
 
+	static_branch_enable(&tcp_have_smc);
 	return 0;
 
 out_sock:
@@ -1433,6 +1448,7 @@ static void __exit smc_exit(void)
 		list_del_init(&lgr->list);
 		smc_lgr_free(lgr); /* free link group */
 	}
+	static_branch_disable(&tcp_have_smc);
 	smc_ib_unregister_client();
 	sock_unregister(PF_SMC);
 	proto_unregister(&smc_proto);
