@@ -697,7 +697,7 @@ void tipc_nametbl_lookup_dst_nodes(struct net *net, u32 type, u32 lower,
 	spin_lock_bh(&seq->lock);
 	sseq = seq->sseqs + nameseq_locate_subseq(seq, lower);
 	stop = seq->sseqs + seq->first_free;
-	for (; sseq->lower <= upper && sseq != stop; sseq++) {
+	for (; sseq != stop && sseq->lower <= upper; sseq++) {
 		info = sseq->info;
 		list_for_each_entry(publ, &info->zone_list, zone_list) {
 			if (tipc_in_scope(domain, publ->node))
