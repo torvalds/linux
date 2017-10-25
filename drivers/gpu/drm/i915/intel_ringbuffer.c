@@ -2028,12 +2028,15 @@ static void i9xx_set_default_submission(struct intel_engine_cs *engine)
 {
 	engine->submit_request = i9xx_submit_request;
 	engine->cancel_requests = cancel_requests;
+
+	engine->park = NULL;
+	engine->unpark = NULL;
 }
 
 static void gen6_bsd_set_default_submission(struct intel_engine_cs *engine)
 {
+	i9xx_set_default_submission(engine);
 	engine->submit_request = gen6_bsd_submit_request;
-	engine->cancel_requests = cancel_requests;
 }
 
 static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,

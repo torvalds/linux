@@ -1891,6 +1891,9 @@ static void execlists_set_default_submission(struct intel_engine_cs *engine)
 	engine->cancel_requests = execlists_cancel_requests;
 	engine->schedule = execlists_schedule;
 	engine->execlists.irq_tasklet.func = intel_lrc_irq_handler;
+
+	engine->park = NULL;
+	engine->unpark = NULL;
 }
 
 static void

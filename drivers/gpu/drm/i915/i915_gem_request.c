@@ -259,6 +259,8 @@ static void mark_busy(struct drm_i915_private *i915)
 	if (INTEL_GEN(i915) >= 6)
 		gen6_rps_busy(i915);
 
+	intel_engines_unpark(i915);
+
 	queue_delayed_work(i915->wq,
 			   &i915->gt.retire_work,
 			   round_jiffies_up_relative(HZ));

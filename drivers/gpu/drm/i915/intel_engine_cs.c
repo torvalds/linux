@@ -1600,16 +1600,45 @@ void intel_engines_reset_default_submission(struct drm_i915_private *i915)
 		engine->set_default_submission(engine);
 }
 
-void intel_engines_mark_idle(struct drm_i915_private *i915)
+/**
+ * intel_engines_park: called when the GT is transitioning from busy->idle
+ * @i915: the i915 device
+ *
+ * The GT is now idle and about to go to sleep (maybe never to wake again?).
+ * Time for us to tidy and put away our toys (release resources back to the
+ * system).
+ */
+void intel_engines_park(struct drm_i915_private *i915)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
 	for_each_engine(engine, i915, id) {
+		if (engine->park)
+			engine->park(engine);
+
 		intel_engine_disarm_breadcrumbs(engine);
-		i915_gem_batch_pool_fini(&engine->batch_pool);
 		tasklet_kill(&engine->execlists.irq_tasklet);
+
+		i915_gem_batch_pool_fini(&engine->batch_pool);
 		engine->execlists.no_priolist = false;
+	}
+}
+
+/**
+ * intel_engines_unpark: called when the GT is transitioning from idle->busy
+ * @i915: the i915 device
+ *
+ * The GT was idle and now about to fire up with some new user requests.
+ */
+void intel_engines_unpark(struct drm_i915_private *i915)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	for_each_engine(engine, i915, id) {
+		if (engine->unpark)
+			engine->unpark(engine);
 	}
 }
 
