@@ -1012,7 +1012,7 @@ idle_timeout:
 			qh_destroy(ehci, qh);
 			break;
 		}
-		/* else FALL THROUGH */
+		/* fall through */
 	default:
 		/* caller was supposed to have unlinked any requests;
 		 * that's not our job.  just leak this memory.
