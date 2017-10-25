@@ -51,13 +51,12 @@
 #include "../nfp_net_ctrl.h"
 #include "../nfp_net.h"
 
-void nfp_net_filter_stats_timer(unsigned long data)
+void nfp_net_filter_stats_timer(struct timer_list *t)
 {
-	struct nfp_net *nn = (void *)data;
-	struct nfp_net_bpf_priv *priv;
+	struct nfp_net_bpf_priv *priv = from_timer(priv, t,
+						   rx_filter_stats_timer);
+	struct nfp_net *nn = priv->nn;
 	struct nfp_stat_pair latest;
-
-	priv = nn->app_priv;
 
 	spin_lock_bh(&priv->rx_filter_lock);
 

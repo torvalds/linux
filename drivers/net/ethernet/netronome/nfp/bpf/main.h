@@ -209,10 +209,11 @@ struct nfp_net_bpf_priv {
 	struct nfp_stat_pair rx_filter, rx_filter_prev;
 	unsigned long rx_filter_change;
 	struct timer_list rx_filter_stats_timer;
+	struct nfp_net *nn;
 	spinlock_t rx_filter_lock;
 };
 
 int nfp_net_bpf_offload(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf);
-void nfp_net_filter_stats_timer(unsigned long data);
+void nfp_net_filter_stats_timer(struct timer_list *t);
 
 #endif

@@ -177,9 +177,9 @@ static int nfp_net_reconfig_wait(struct nfp_net *nn, unsigned long deadline)
 	return timed_out ? -EIO : 0;
 }
 
-static void nfp_net_reconfig_timer(unsigned long data)
+static void nfp_net_reconfig_timer(struct timer_list *t)
 {
-	struct nfp_net *nn = (void *)data;
+	struct nfp_net *nn = from_timer(nn, t, reconfig_timer);
 
 	spin_lock_bh(&nn->reconfig_lock);
 
@@ -3537,8 +3537,7 @@ struct nfp_net *nfp_net_alloc(struct pci_dev *pdev, bool needs_netdev,
 	spin_lock_init(&nn->reconfig_lock);
 	spin_lock_init(&nn->link_status_lock);
 
-	setup_timer(&nn->reconfig_timer,
-		    nfp_net_reconfig_timer, (unsigned long)nn);
+	timer_setup(&nn->reconfig_timer, nfp_net_reconfig_timer, 0);
 
 	return nn;
 }

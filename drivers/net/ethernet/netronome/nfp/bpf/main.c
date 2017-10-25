@@ -97,8 +97,9 @@ nfp_bpf_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 
 	nn->app_priv = priv;
 	spin_lock_init(&priv->rx_filter_lock);
-	setup_timer(&priv->rx_filter_stats_timer,
-		    nfp_net_filter_stats_timer, (unsigned long)nn);
+	priv->nn = nn;
+	timer_setup(&priv->rx_filter_stats_timer,
+		    nfp_net_filter_stats_timer, 0);
 
 	ret = nfp_app_nic_vnic_alloc(app, nn, id);
 	if (ret)
