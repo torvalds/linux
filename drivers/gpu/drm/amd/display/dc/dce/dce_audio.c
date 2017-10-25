@@ -348,29 +348,44 @@ static void set_audio_latency(
 
 void dce_aud_az_enable(struct audio *audio)
 {
+	struct dce_audio *aud = DCE_AUD(audio);
 	uint32_t value = AZ_REG_READ(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL);
 
-	if (get_reg_field_value(value,
+	set_reg_field_value(value, 1,
 			AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
-			AUDIO_ENABLED) != 1)
+			CLOCK_GATING_DISABLE);
 		set_reg_field_value(value, 1,
 			AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
 			AUDIO_ENABLED);
 
 	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL, value);
+	value = AZ_REG_READ(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL);
+
+	dm_logger_write(CTX->logger, LOG_HW_AUDIO,
+			"\n\t========= AUDIO:dce_aud_az_enable: index: %u  data: 0x%x\n",
+			audio->inst, value);
 }
 
 void dce_aud_az_disable(struct audio *audio)
 {
 	uint32_t value;
+	struct dce_audio *aud = DCE_AUD(audio);
 
 	value = AZ_REG_READ(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL);
 
 	set_reg_field_value(value, 0,
 		AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
 		AUDIO_ENABLED);
-
 	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL, value);
+
+	set_reg_field_value(value, 0,
+			AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
+			CLOCK_GATING_DISABLE);
+	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL, value);
+	value = AZ_REG_READ(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL);
+	dm_logger_write(CTX->logger, LOG_HW_AUDIO,
+			"\n\t========= AUDIO:dce_aud_az_disable: index: %u  data: 0x%x\n",
+			audio->inst, value);
 }
 
 void dce_aud_az_configure(
@@ -390,6 +405,11 @@ void dce_aud_az_configure(
 	bool is_ac3_supported = false;
 	union audio_sample_rates sample_rate;
 	uint32_t strlen = 0;
+	value = AZ_REG_READ(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL);
+	set_reg_field_value(value, 1,
+			AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
+			CLOCK_GATING_DISABLE);
+	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL, value);
 
 	/* Speaker Allocation */
 	/*
@@ -852,6 +872,7 @@ static bool dce_aud_endpoint_valid(struct audio *audio)
 void dce_aud_hw_init(
 		struct audio *audio)
 {
+	uint32_t value;
 	struct dce_audio *aud = DCE_AUD(audio);
 
 	/* we only need to program the following registers once, so we only do
@@ -863,6 +884,12 @@ void dce_aud_hw_init(
 	 * Suport R6 - 44.1khz
 	 * Suport R7 - 48khz
 	 */
+	/*disable clock gating before write to endpoint register*/
+	value = AZ_REG_READ(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL);
+	set_reg_field_value(value, 1,
+			AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
+			CLOCK_GATING_DISABLE);
+	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL, value);
 	REG_UPDATE(AZALIA_F0_CODEC_FUNCTION_PARAMETER_SUPPORTED_SIZE_RATES,
 			AUDIO_RATE_CAPABILITIES, 0x70);
 
