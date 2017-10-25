@@ -3040,7 +3040,7 @@ idle_timeout:
 			qh_put(qh);
 			break;
 		}
-		/* else FALL THROUGH */
+		/* fall through */
 	default:
 nogood:
 		/* caller was supposed to have unlinked any requests;
