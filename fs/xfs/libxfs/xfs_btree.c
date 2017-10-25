@@ -2027,7 +2027,7 @@ error0:
 }
 
 /* Find the high key storage area from a regular key. */
-STATIC union xfs_btree_key *
+union xfs_btree_key *
 xfs_btree_high_key_from_key(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_key	*key)
@@ -2101,7 +2101,7 @@ xfs_btree_get_node_keys(
 }
 
 /* Derive the keys for any btree block. */
-STATIC void
+void
 xfs_btree_get_keys(
 	struct xfs_btree_cur	*cur,
 	struct xfs_btree_block	*block,

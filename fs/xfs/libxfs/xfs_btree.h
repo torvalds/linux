@@ -541,5 +541,9 @@ int64_t xfs_btree_diff_two_ptrs(struct xfs_btree_cur *cur,
 void xfs_btree_get_sibling(struct xfs_btree_cur *cur,
 			   struct xfs_btree_block *block,
 			   union xfs_btree_ptr *ptr, int lr);
+void xfs_btree_get_keys(struct xfs_btree_cur *cur,
+		struct xfs_btree_block *block, union xfs_btree_key *key);
+union xfs_btree_key *xfs_btree_high_key_from_key(struct xfs_btree_cur *cur,
+		union xfs_btree_key *key);
 
 #endif	/* __XFS_BTREE_H__ */

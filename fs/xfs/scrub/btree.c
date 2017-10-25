@@ -358,6 +358,50 @@ xfs_scrub_btree_get_block(
 }
 
 /*
+ * Check that the low and high keys of this block match the keys stored
+ * in the parent block.
+ */
+STATIC void
+xfs_scrub_btree_block_keys(
+	struct xfs_scrub_btree		*bs,
+	int				level,
+	struct xfs_btree_block		*block)
+{
+	union xfs_btree_key		block_keys;
+	struct xfs_btree_cur		*cur = bs->cur;
+	union xfs_btree_key		*high_bk;
+	union xfs_btree_key		*parent_keys;
+	union xfs_btree_key		*high_pk;
+	struct xfs_btree_block		*parent_block;
+	struct xfs_buf			*bp;
+
+	if (level >= cur->bc_nlevels - 1)
+		return;
+
+	/* Calculate the keys for this block. */
+	xfs_btree_get_keys(cur, block, &block_keys);
+
+	/* Obtain the parent's copy of the keys for this block. */
+	parent_block = xfs_btree_get_block(cur, level + 1, &bp);
+	parent_keys = xfs_btree_key_addr(cur, cur->bc_ptrs[level + 1],
+			parent_block);
+
+	if (cur->bc_ops->diff_two_keys(cur, &block_keys, parent_keys) != 0)
+		xfs_scrub_btree_set_corrupt(bs->sc, cur, 1);
+
+	if (!(cur->bc_flags & XFS_BTREE_OVERLAPPING))
+		return;
+
+	/* Get high keys */
+	high_bk = xfs_btree_high_key_from_key(cur, &block_keys);
+	high_pk = xfs_btree_high_key_addr(cur, cur->bc_ptrs[level + 1],
+			parent_block);
+
+	if (cur->bc_ops->diff_two_keys(cur, high_bk, high_pk) != 0)
+		xfs_scrub_btree_set_corrupt(bs->sc, cur, 1);
+}
+
+/*
  * Visit all nodes and leaves of a btree.  Check that all pointers and
  * records are in order, that the keys reflect the records, and use a callback
  * so that the caller can verify individual records.
@@ -418,6 +462,7 @@ xfs_scrub_btree(
 			/* End of leaf, pop back towards the root. */
 			if (cur->bc_ptrs[level] >
 			    be16_to_cpu(block->bb_numrecs)) {
+				xfs_scrub_btree_block_keys(&bs, level, block);
 				if (level < cur->bc_nlevels - 1)
 					cur->bc_ptrs[level + 1]++;
 				level++;
@@ -442,6 +487,7 @@ xfs_scrub_btree(
 
 		/* End of node, pop back towards the root. */
 		if (cur->bc_ptrs[level] > be16_to_cpu(block->bb_numrecs)) {
+			xfs_scrub_btree_block_keys(&bs, level, block);
 			if (level < cur->bc_nlevels - 1)
 				cur->bc_ptrs[level + 1]++;
 			level++;
