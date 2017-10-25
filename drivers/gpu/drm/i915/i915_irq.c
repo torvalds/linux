@@ -1068,6 +1068,9 @@ static void notify_ring(struct intel_engine_cs *engine)
 	struct drm_i915_gem_request *rq = NULL;
 	struct intel_wait *wait;
 
+	if (!engine->breadcrumbs.irq_armed)
+		return;
+
 	atomic_inc(&engine->irq_count);
 	set_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted);
 
@@ -1101,7 +1104,8 @@ static void notify_ring(struct intel_engine_cs *engine)
 		if (wakeup)
 			wake_up_process(wait->tsk);
 	} else {
-		__intel_engine_disarm_breadcrumbs(engine);
+		if (engine->breadcrumbs.irq_armed)
+			__intel_engine_disarm_breadcrumbs(engine);
 	}
 	spin_unlock(&engine->breadcrumbs.irq_lock);
 

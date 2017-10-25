@@ -339,9 +339,9 @@ struct intel_engine_cs {
 		struct timer_list hangcheck; /* detect missed interrupts */
 
 		unsigned int hangcheck_interrupts;
+		unsigned int irq_enabled;
 
 		bool irq_armed : 1;
-		bool irq_enabled : 1;
 		I915_SELFTEST_DECLARE(bool mock : 1);
 	} breadcrumbs;
 
@@ -847,6 +847,9 @@ static inline bool intel_engine_has_waiter(const struct intel_engine_cs *engine)
 unsigned int intel_engine_wakeup(struct intel_engine_cs *engine);
 #define ENGINE_WAKEUP_WAITER BIT(0)
 #define ENGINE_WAKEUP_ASLEEP BIT(1)
+
+void intel_engine_pin_breadcrumbs_irq(struct intel_engine_cs *engine);
+void intel_engine_unpin_breadcrumbs_irq(struct intel_engine_cs *engine);
 
 void __intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine);

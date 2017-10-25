@@ -523,29 +523,6 @@ static void i915_guc_submit(struct intel_engine_cs *engine)
 	}
 }
 
-static void nested_enable_signaling(struct drm_i915_gem_request *rq)
-{
-	/* If we use dma_fence_enable_sw_signaling() directly, lockdep
-	 * detects an ordering issue between the fence lockclass and the
-	 * global_timeline. This circular dependency can only occur via 2
-	 * different fences (but same fence lockclass), so we use the nesting
-	 * annotation here to prevent the warn, equivalent to the nesting
-	 * inside i915_gem_request_submit() for when we also enable the
-	 * signaler.
-	 */
-
-	if (test_and_set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
-			     &rq->fence.flags))
-		return;
-
-	GEM_BUG_ON(test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &rq->fence.flags));
-	trace_dma_fence_enable_signal(&rq->fence);
-
-	spin_lock_nested(&rq->lock, SINGLE_DEPTH_NESTING);
-	intel_engine_enable_signaling(rq, true);
-	spin_unlock(&rq->lock);
-}
-
 static void port_assign(struct execlist_port *port,
 			struct drm_i915_gem_request *rq)
 {
@@ -555,7 +532,6 @@ static void port_assign(struct execlist_port *port,
 		i915_gem_request_put(port_request(port));
 
 	port_set(port, port_pack(i915_gem_request_get(rq), port_count(port)));
-	nested_enable_signaling(rq);
 }
 
 static void i915_guc_dequeue(struct intel_engine_cs *engine)
@@ -1097,6 +1073,16 @@ static void guc_interrupts_release(struct drm_i915_private *dev_priv)
 	rps->pm_intrmsk_mbz &= ~ARAT_EXPIRED_INTRMSK;
 }
 
+static void i915_guc_submission_park(struct intel_engine_cs *engine)
+{
+	intel_engine_unpin_breadcrumbs_irq(engine);
+}
+
+static void i915_guc_submission_unpark(struct intel_engine_cs *engine)
+{
+	intel_engine_pin_breadcrumbs_irq(engine);
+}
+
 int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
@@ -1154,6 +1140,9 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 		execlists->irq_tasklet.func = i915_guc_irq_handler;
 		clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
 		tasklet_schedule(&execlists->irq_tasklet);
+
+		engine->park = i915_guc_submission_park;
+		engine->unpark = i915_guc_submission_unpark;
 	}
 
 	return 0;
@@ -1167,6 +1156,8 @@ err_execbuf_client:
 void i915_guc_submission_disable(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
+
+	GEM_BUG_ON(dev_priv->gt.awake); /* GT should be parked first */
 
 	guc_interrupts_release(dev_priv);
 
