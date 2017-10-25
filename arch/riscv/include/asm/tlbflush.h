@@ -17,6 +17,8 @@
 
 #ifdef CONFIG_MMU
 
+#include <linux/mm_types.h>
+
 /* Flush entire local TLB */
 static inline void local_flush_tlb_all(void)
 {
