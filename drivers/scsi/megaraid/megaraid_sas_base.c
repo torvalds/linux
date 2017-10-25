@@ -4079,9 +4079,7 @@ int megasas_alloc_cmds(struct megasas_instance *instance)
 	int j;
 	u16 max_cmd;
 	struct megasas_cmd *cmd;
-	struct fusion_context *fusion;
 
-	fusion = instance->ctrl_context;
 	max_cmd = instance->max_mfi_cmds;
 
 	/*
