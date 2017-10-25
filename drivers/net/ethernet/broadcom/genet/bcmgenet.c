@@ -2147,32 +2147,23 @@ static int bcmgenet_init_rx_ring(struct bcmgenet_priv *priv,
 static void bcmgenet_enable_tx_napi(struct bcmgenet_priv *priv)
 {
 	unsigned int i;
-	u32 int0_enable = UMAC_IRQ_TXDMA_DONE;
-	u32 int1_enable = 0;
 	struct bcmgenet_tx_ring *ring;
 
 	for (i = 0; i < priv->hw_params->tx_queues; ++i) {
 		ring = &priv->tx_rings[i];
 		napi_enable(&ring->napi);
-		int1_enable |= (1 << i);
+		ring->int_enable(ring);
 	}
 
 	ring = &priv->tx_rings[DESC_INDEX];
 	napi_enable(&ring->napi);
-
-	bcmgenet_intrl2_0_writel(priv, int0_enable, INTRL2_CPU_MASK_CLEAR);
-	bcmgenet_intrl2_1_writel(priv, int1_enable, INTRL2_CPU_MASK_CLEAR);
+	ring->int_enable(ring);
 }
 
 static void bcmgenet_disable_tx_napi(struct bcmgenet_priv *priv)
 {
 	unsigned int i;
-	u32 int0_disable = UMAC_IRQ_TXDMA_DONE;
-	u32 int1_disable = 0xffff;
 	struct bcmgenet_tx_ring *ring;
-
-	bcmgenet_intrl2_0_writel(priv, int0_disable, INTRL2_CPU_MASK_SET);
-	bcmgenet_intrl2_1_writel(priv, int1_disable, INTRL2_CPU_MASK_SET);
 
 	for (i = 0; i < priv->hw_params->tx_queues; ++i) {
 		ring = &priv->tx_rings[i];
@@ -2269,32 +2260,23 @@ static void bcmgenet_init_tx_queues(struct net_device *dev)
 static void bcmgenet_enable_rx_napi(struct bcmgenet_priv *priv)
 {
 	unsigned int i;
-	u32 int0_enable = UMAC_IRQ_RXDMA_DONE;
-	u32 int1_enable = 0;
 	struct bcmgenet_rx_ring *ring;
 
 	for (i = 0; i < priv->hw_params->rx_queues; ++i) {
 		ring = &priv->rx_rings[i];
 		napi_enable(&ring->napi);
-		int1_enable |= (1 << (UMAC_IRQ1_RX_INTR_SHIFT + i));
+		ring->int_enable(ring);
 	}
 
 	ring = &priv->rx_rings[DESC_INDEX];
 	napi_enable(&ring->napi);
-
-	bcmgenet_intrl2_0_writel(priv, int0_enable, INTRL2_CPU_MASK_CLEAR);
-	bcmgenet_intrl2_1_writel(priv, int1_enable, INTRL2_CPU_MASK_CLEAR);
+	ring->int_enable(ring);
 }
 
 static void bcmgenet_disable_rx_napi(struct bcmgenet_priv *priv)
 {
 	unsigned int i;
-	u32 int0_disable = UMAC_IRQ_RXDMA_DONE;
-	u32 int1_disable = 0xffff << UMAC_IRQ1_RX_INTR_SHIFT;
 	struct bcmgenet_rx_ring *ring;
-
-	bcmgenet_intrl2_0_writel(priv, int0_disable, INTRL2_CPU_MASK_SET);
-	bcmgenet_intrl2_1_writel(priv, int1_disable, INTRL2_CPU_MASK_SET);
 
 	for (i = 0; i < priv->hw_params->rx_queues; ++i) {
 		ring = &priv->rx_rings[i];
@@ -2888,9 +2870,9 @@ static void bcmgenet_netif_stop(struct net_device *dev)
 
 	netif_tx_stop_all_queues(dev);
 	phy_stop(priv->phydev);
-	bcmgenet_intr_disable(priv);
 	bcmgenet_disable_rx_napi(priv);
 	bcmgenet_disable_tx_napi(priv);
+	bcmgenet_intr_disable(priv);
 
 	/* Wait for pending work items to complete. Since interrupts are
 	 * disabled no new work will be scheduled.
