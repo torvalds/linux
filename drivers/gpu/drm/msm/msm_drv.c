@@ -47,7 +47,7 @@ static void msm_fb_output_poll_changed(struct drm_device *dev)
 static const struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = msm_framebuffer_create,
 	.output_poll_changed = msm_fb_output_poll_changed,
-	.atomic_check = msm_atomic_check,
+	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = msm_atomic_commit,
 	.atomic_state_alloc = msm_atomic_state_alloc,
 	.atomic_state_clear = msm_atomic_state_clear,
