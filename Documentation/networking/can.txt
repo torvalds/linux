@@ -100,7 +100,7 @@ controller can be passed up to the network layer and on to the CAN
 protocol family module and also vice-versa.  Also, the protocol family
 module provides an API for transport protocol modules to register, so
 that any number of transport protocols can be loaded or unloaded
-dynamically.  In fact, the can core module alone does not provide any
+dynamically.  In fact, the CAN core module alone does not provide any
 protocol and cannot be used without loading at least one additional
 protocol module.  Multiple sockets can be opened at the same time,
 on different or the same protocol module and they can listen/send
@@ -819,7 +819,7 @@ solution for a couple of reasons:
 
   ival2: Throttle the received message rate down to the value of ival2. This
     is useful to reduce messages for the application when the signal inside the
-    CAN frame is stateless as state changes within the ival2 periode may get
+    CAN frame is stateless as state changes within the ival2 period may get
     lost.
 
   4.2.6 Broadcast Manager multiplex message receive filter
