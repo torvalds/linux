@@ -569,10 +569,12 @@ static int dummy_enable(struct usb_ep *_ep,
 			if (max <= 1024)
 				break;
 			/* save a return statement */
+			/* fall through */
 		case USB_SPEED_FULL:
 			if (max <= 64)
 				break;
 			/* save a return statement */
+			/* fall through */
 		default:
 			if (max <= 8)
 				break;
@@ -590,6 +592,7 @@ static int dummy_enable(struct usb_ep *_ep,
 			if (max <= 1024)
 				break;
 			/* save a return statement */
+			/* fall through */
 		case USB_SPEED_FULL:
 			if (max <= 1023)
 				break;
