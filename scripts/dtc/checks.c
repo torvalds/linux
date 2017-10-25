@@ -988,6 +988,10 @@ static void check_property_phandle_args(struct check *c,
 		 * entries when each index position has a specific definition.
 		 */
 		if (phandle == 0 || phandle == -1) {
+			/* Give up if this is an overlay with external references */
+			if (dti->dtsflags & DTSF_PLUGIN)
+				break;
+
 			cellsize = 0;
 			continue;
 		}
@@ -1176,6 +1180,11 @@ static void check_interrupts_property(struct check *c,
 		prop = get_property(parent, "interrupt-parent");
 		if (prop) {
 			phandle = propval_cell(prop);
+			/* Give up if this is an overlay with external references */
+			if ((phandle == 0 || phandle == -1) &&
+			    (dti->dtsflags & DTSF_PLUGIN))
+					return;
+
 			irq_node = get_node_by_phandle(root, phandle);
 			if (!irq_node) {
 				FAIL(c, dti, "Bad interrupt-parent phandle for %s",
