@@ -1884,13 +1884,6 @@ nvme_fc_error_recovery(struct nvme_fc_ctrl *ctrl, char *errmsg)
 	dev_warn(ctrl->ctrl.device,
 		"NVME-FC{%d}: resetting controller\n", ctrl->cnum);
 
-	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_RECONNECTING)) {
-		dev_err(ctrl->ctrl.device,
-			"NVME-FC{%d}: error_recovery: Couldn't change state "
-			"to RECONNECTING\n", ctrl->cnum);
-		return;
-	}
-
 	nvme_reset_ctrl(&ctrl->ctrl);
 }
 
@@ -2528,11 +2521,11 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 	}
 
 	changed = nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_LIVE);
-	WARN_ON_ONCE(!changed);
 
 	ctrl->ctrl.nr_reconnects = 0;
 
-	nvme_start_ctrl(&ctrl->ctrl);
+	if (changed)
+		nvme_start_ctrl(&ctrl->ctrl);
 
 	return 0;	/* Success */
 
@@ -2600,7 +2593,8 @@ nvme_fc_delete_association(struct nvme_fc_ctrl *ctrl)
 	 * use blk_mq_tagset_busy_itr() and the transport routine to
 	 * terminate the exchanges.
 	 */
-	blk_mq_quiesce_queue(ctrl->ctrl.admin_q);
+	if (ctrl->ctrl.state != NVME_CTRL_NEW)
+		blk_mq_quiesce_queue(ctrl->ctrl.admin_q);
 	blk_mq_tagset_busy_iter(&ctrl->admin_tag_set,
 				nvme_fc_terminate_exchange, &ctrl->ctrl);
 
@@ -2649,12 +2643,8 @@ nvme_fc_delete_ctrl(struct nvme_ctrl *nctrl)
 static void
 nvme_fc_reconnect_or_delete(struct nvme_fc_ctrl *ctrl, int status)
 {
-	/* If we are resetting/deleting then do nothing */
-	if (ctrl->ctrl.state != NVME_CTRL_RECONNECTING) {
-		WARN_ON_ONCE(ctrl->ctrl.state == NVME_CTRL_NEW ||
-			ctrl->ctrl.state == NVME_CTRL_LIVE);
+	if (ctrl->ctrl.state != NVME_CTRL_RECONNECTING)
 		return;
-	}
 
 	dev_info(ctrl->ctrl.device,
 		"NVME-FC{%d}: reset: Reconnect attempt failed (%d)\n",
@@ -2683,8 +2673,16 @@ nvme_fc_reset_ctrl_work(struct work_struct *work)
 	int ret;
 
 	nvme_stop_ctrl(&ctrl->ctrl);
+
 	/* will block will waiting for io to terminate */
 	nvme_fc_delete_association(ctrl);
+
+	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_RECONNECTING)) {
+		dev_err(ctrl->ctrl.device,
+			"NVME-FC{%d}: error_recovery: Couldn't change state "
+			"to RECONNECTING\n", ctrl->cnum);
+		return;
+	}
 
 	ret = nvme_fc_create_association(ctrl);
 	if (ret)
