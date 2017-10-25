@@ -382,7 +382,7 @@ sanitize:
 			ed_free (ohci, ed);
 			break;
 		}
-		/* else FALL THROUGH */
+		/* fall through */
 	default:
 		/* caller was supposed to have unlinked any requests;
 		 * that's not our job.  can't recover; must leak ed.
