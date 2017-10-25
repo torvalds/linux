@@ -1343,6 +1343,7 @@ static void usbtmc_interrupt(struct urb *urb)
 	case -EOVERFLOW:
 		dev_err(dev, "overflow with length %d, actual length is %d\n",
 			data->iin_wMaxPacketSize, urb->actual_length);
+		/* fall through */
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
