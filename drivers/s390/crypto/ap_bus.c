@@ -374,13 +374,13 @@ void ap_wait(enum ap_wait wait)
 
 /**
  * ap_request_timeout(): Handling of request timeouts
- * @data: Holds the AP device.
+ * @t: timer making this callback
  *
  * Handles request timeouts.
  */
-void ap_request_timeout(unsigned long data)
+void ap_request_timeout(struct timer_list *t)
 {
-	struct ap_queue *aq = (struct ap_queue *) data;
+	struct ap_queue *aq = from_timer(aq, t, timeout);
 
 	if (ap_suspend_flag)
 		return;
@@ -1203,7 +1203,7 @@ out:
 	mod_timer(&ap_config_timer, jiffies + ap_config_time * HZ);
 }
 
-static void ap_config_timeout(unsigned long ptr)
+static void ap_config_timeout(struct timer_list *unused)
 {
 	if (ap_suspend_flag)
 		return;
@@ -1306,7 +1306,7 @@ int __init ap_module_init(void)
 		goto out_bus;
 
 	/* Setup the AP bus rescan timer. */
-	setup_timer(&ap_config_timer, ap_config_timeout, 0);
+	timer_setup(&ap_config_timer, ap_config_timeout, 0);
 
 	/*
 	 * Setup the high resultion poll timer.
