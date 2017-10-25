@@ -83,12 +83,15 @@ bool elv_bio_merge_ok(struct request *rq, struct bio *bio)
 }
 EXPORT_SYMBOL(elv_bio_merge_ok);
 
-static struct elevator_type *elevator_find(const char *name)
+/*
+ * Return scheduler with name 'name' and with matching 'mq capability
+ */
+static struct elevator_type *elevator_find(const char *name, bool mq)
 {
 	struct elevator_type *e;
 
 	list_for_each_entry(e, &elv_list, list) {
-		if (!strcmp(e->elevator_name, name))
+		if (!strcmp(e->elevator_name, name) && (mq == e->uses_mq))
 			return e;
 	}
 
@@ -100,25 +103,25 @@ static void elevator_put(struct elevator_type *e)
 	module_put(e->elevator_owner);
 }
 
-static struct elevator_type *elevator_get(const char *name, bool try_loading)
+static struct elevator_type *elevator_get(struct request_queue *q,
+					  const char *name, bool try_loading)
 {
 	struct elevator_type *e;
 
 	spin_lock(&elv_list_lock);
 
-	e = elevator_find(name);
+	e = elevator_find(name, q->mq_ops != NULL);
 	if (!e && try_loading) {
 		spin_unlock(&elv_list_lock);
 		request_module("%s-iosched", name);
 		spin_lock(&elv_list_lock);
-		e = elevator_find(name);
+		e = elevator_find(name, q->mq_ops != NULL);
 	}
 
 	if (e && !try_module_get(e->elevator_owner))
 		e = NULL;
 
 	spin_unlock(&elv_list_lock);
-
 	return e;
 }
 
@@ -144,8 +147,12 @@ void __init load_default_elevator_module(void)
 	if (!chosen_elevator[0])
 		return;
 
+	/*
+	 * Boot parameter is deprecated, we haven't supported that for MQ.
+	 * Only look for non-mq schedulers from here.
+	 */
 	spin_lock(&elv_list_lock);
-	e = elevator_find(chosen_elevator);
+	e = elevator_find(chosen_elevator, false);
 	spin_unlock(&elv_list_lock);
 
 	if (!e)
@@ -202,7 +209,7 @@ int elevator_init(struct request_queue *q, char *name)
 	q->boundary_rq = NULL;
 
 	if (name) {
-		e = elevator_get(name, true);
+		e = elevator_get(q, name, true);
 		if (!e)
 			return -EINVAL;
 	}
@@ -214,7 +221,7 @@ int elevator_init(struct request_queue *q, char *name)
 	 * allowed from async.
 	 */
 	if (!e && !q->mq_ops && *chosen_elevator) {
-		e = elevator_get(chosen_elevator, false);
+		e = elevator_get(q, chosen_elevator, false);
 		if (!e)
 			printk(KERN_ERR "I/O scheduler %s not found\n",
 							chosen_elevator);
@@ -229,17 +236,17 @@ int elevator_init(struct request_queue *q, char *name)
 		 */
 		if (q->mq_ops) {
 			if (q->nr_hw_queues == 1)
-				e = elevator_get("mq-deadline", false);
+				e = elevator_get(q, "mq-deadline", false);
 			if (!e)
 				return 0;
 		} else
-			e = elevator_get(CONFIG_DEFAULT_IOSCHED, false);
+			e = elevator_get(q, CONFIG_DEFAULT_IOSCHED, false);
 
 		if (!e) {
 			printk(KERN_ERR
 				"Default I/O scheduler not found. " \
 				"Using noop.\n");
-			e = elevator_get("noop", false);
+			e = elevator_get(q, "noop", false);
 		}
 	}
 
@@ -905,7 +912,7 @@ int elv_register(struct elevator_type *e)
 
 	/* register, don't allow duplicate names */
 	spin_lock(&elv_list_lock);
-	if (elevator_find(e->elevator_name)) {
+	if (elevator_find(e->elevator_name, e->uses_mq)) {
 		spin_unlock(&elv_list_lock);
 		if (e->icq_cache)
 			kmem_cache_destroy(e->icq_cache);
@@ -1066,7 +1073,7 @@ static int __elevator_change(struct request_queue *q, const char *name)
 		return elevator_switch(q, NULL);
 
 	strlcpy(elevator_name, name, sizeof(elevator_name));
-	e = elevator_get(strstrip(elevator_name), true);
+	e = elevator_get(q, strstrip(elevator_name), true);
 	if (!e)
 		return -EINVAL;
 
@@ -1074,15 +1081,6 @@ static int __elevator_change(struct request_queue *q, const char *name)
 	    !strcmp(elevator_name, q->elevator->type->elevator_name)) {
 		elevator_put(e);
 		return 0;
-	}
-
-	if (!e->uses_mq && q->mq_ops) {
-		elevator_put(e);
-		return -EINVAL;
-	}
-	if (e->uses_mq && !q->mq_ops) {
-		elevator_put(e);
-		return -EINVAL;
 	}
 
 	return elevator_switch(q, e);
