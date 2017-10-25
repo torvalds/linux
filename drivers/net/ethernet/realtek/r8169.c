@@ -4401,10 +4401,9 @@ static void rtl_schedule_task(struct rtl8169_private *tp, enum rtl_flag flag)
 		schedule_work(&tp->wk.work);
 }
 
-static void rtl8169_phy_timer(unsigned long __opaque)
+static void rtl8169_phy_timer(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)__opaque;
-	struct rtl8169_private *tp = netdev_priv(dev);
+	struct rtl8169_private *tp = from_timer(tp, t, timer);
 
 	rtl_schedule_task(tp, RTL_FLAG_TASK_PHY_PENDING);
 }
@@ -8454,7 +8453,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->opts1_mask = (tp->mac_version != RTL_GIGA_MAC_VER_01) ?
 		~(RxBOVF | RxFOVF) : ~0;
 
-	setup_timer(&tp->timer, rtl8169_phy_timer, (unsigned long)dev);
+	timer_setup(&tp->timer, rtl8169_phy_timer, 0);
 
 	tp->rtl_fw = RTL_FIRMWARE_UNKNOWN;
 
