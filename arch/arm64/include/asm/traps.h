@@ -37,6 +37,12 @@ void unregister_undef_hook(struct undef_hook *hook);
 
 void arm64_notify_segfault(struct pt_regs *regs, unsigned long addr);
 
+/*
+ * Move regs->pc to next instruction and do necessary setup before it
+ * is executed.
+ */
+void arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size);
+
 static inline int __in_irqentry_text(unsigned long ptr)
 {
 	return ptr >= (unsigned long)&__irqentry_text_start &&
