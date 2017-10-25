@@ -43,6 +43,16 @@ static const struct resource mt6397_rtc_resources[] = {
 	},
 };
 
+static const struct resource mt6323_keys_resources[] = {
+	DEFINE_RES_IRQ(MT6323_IRQ_STATUS_PWRKEY),
+	DEFINE_RES_IRQ(MT6323_IRQ_STATUS_FCHRKEY),
+};
+
+static const struct resource mt6397_keys_resources[] = {
+	DEFINE_RES_IRQ(MT6397_IRQ_PWRKEY),
+	DEFINE_RES_IRQ(MT6397_IRQ_HOMEKEY),
+};
+
 static const struct mfd_cell mt6323_devs[] = {
 	{
 		.name = "mt6323-regulator",
@@ -50,6 +60,11 @@ static const struct mfd_cell mt6323_devs[] = {
 	}, {
 		.name = "mt6323-led",
 		.of_compatible = "mediatek,mt6323-led"
+	}, {
+		.name = "mtk-pmic-keys",
+		.num_resources = ARRAY_SIZE(mt6323_keys_resources),
+		.resources = mt6323_keys_resources,
+		.of_compatible = "mediatek,mt6323-keys"
 	},
 };
 
@@ -71,7 +86,12 @@ static const struct mfd_cell mt6397_devs[] = {
 	}, {
 		.name = "mt6397-pinctrl",
 		.of_compatible = "mediatek,mt6397-pinctrl",
-	},
+	}, {
+		.name = "mtk-pmic-keys",
+		.num_resources = ARRAY_SIZE(mt6397_keys_resources),
+		.resources = mt6397_keys_resources,
+		.of_compatible = "mediatek,mt6397-keys"
+	}
 };
 
 static void mt6397_irq_lock(struct irq_data *data)
