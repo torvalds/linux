@@ -178,6 +178,10 @@ extern int amdgpu_cik_support;
 #define CIK_CURSOR_WIDTH 128
 #define CIK_CURSOR_HEIGHT 128
 
+/* GPU RESET flags */
+#define AMDGPU_RESET_INFO_VRAM_LOST  (1 << 0)
+#define AMDGPU_RESET_INFO_FULLRESET  (1 << 1)
+
 struct amdgpu_device;
 struct amdgpu_ib;
 struct amdgpu_cs_parser;
@@ -1833,7 +1837,7 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_psp_check_fw_loading_status(adev, i) (adev)->firmware.funcs->check_fw_loading_status((adev), (i))
 
 /* Common functions */
-int amdgpu_gpu_reset(struct amdgpu_device *adev);
+int amdgpu_gpu_recover(struct amdgpu_device *adev, struct amdgpu_job* job);
 bool amdgpu_need_backup(struct amdgpu_device *adev);
 void amdgpu_pci_config_reset(struct amdgpu_device *adev);
 bool amdgpu_need_post(struct amdgpu_device *adev);

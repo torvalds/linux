@@ -694,25 +694,25 @@ static int amdgpu_debugfs_fence_info(struct seq_file *m, void *data)
 }
 
 /**
- * amdgpu_debugfs_gpu_reset - manually trigger a gpu reset
+ * amdgpu_debugfs_gpu_recover - manually trigger a gpu reset & recover
  *
  * Manually trigger a gpu reset at the next fence wait.
  */
-static int amdgpu_debugfs_gpu_reset(struct seq_file *m, void *data)
+static int amdgpu_debugfs_gpu_recover(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 
-	seq_printf(m, "gpu reset\n");
-	amdgpu_gpu_reset(adev);
+	seq_printf(m, "gpu recover\n");
+	amdgpu_gpu_recover(adev, NULL);
 
 	return 0;
 }
 
 static const struct drm_info_list amdgpu_debugfs_fence_list[] = {
 	{"amdgpu_fence_info", &amdgpu_debugfs_fence_info, 0, NULL},
-	{"amdgpu_gpu_reset", &amdgpu_debugfs_gpu_reset, 0, NULL}
+	{"amdgpu_gpu_recover", &amdgpu_debugfs_gpu_recover, 0, NULL}
 };
 
 static const struct drm_info_list amdgpu_debugfs_fence_list_sriov[] = {

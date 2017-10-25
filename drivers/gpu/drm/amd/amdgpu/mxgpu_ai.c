@@ -254,7 +254,7 @@ static void xgpu_ai_mailbox_flr_work(struct work_struct *work)
 	}
 
 	/* Trigger recovery due to world switch failure */
-	amdgpu_sriov_gpu_reset(adev, NULL);
+	amdgpu_gpu_recover(adev, NULL);
 }
 
 static int xgpu_ai_set_mailbox_rcv_irq(struct amdgpu_device *adev,
