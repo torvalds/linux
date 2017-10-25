@@ -5619,8 +5619,10 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 
 	kvm_make_request(KVM_REQ_APIC_PAGE_RELOAD, vcpu);
 
-	if (kvm_vcpu_apicv_active(vcpu))
-		memset(&vmx->pi_desc, 0, sizeof(struct pi_desc));
+	if (kvm_vcpu_apicv_active(vcpu)) {
+		pi_clear_on(&vmx->pi_desc);
+		memset(vmx->pi_desc.pir, 0, sizeof(vmx->pi_desc.pir));
+	}
 
 	if (vmx->vpid != 0)
 		vmcs_write16(VIRTUAL_PROCESSOR_ID, vmx->vpid);
