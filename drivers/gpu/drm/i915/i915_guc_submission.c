@@ -641,7 +641,6 @@ static void i915_guc_dequeue(struct intel_engine_cs *engine)
 			}
 
 			INIT_LIST_HEAD(&rq->priotree.link);
-			rq->priotree.priority = INT_MAX;
 
 			__i915_gem_request_submit(rq);
 			trace_i915_gem_request_in(rq, port_index(port, execlists));
