@@ -644,12 +644,18 @@ enum query_device_resp_mask {
 	QUERY_DEVICE_RESP_MASK_TIMESTAMP = 1UL << 0,
 };
 
+struct mlx4_ib_rss_caps {
+	__u64 rx_hash_fields_mask; /* enum mlx4_rx_hash_fields */
+	__u8 rx_hash_function; /* enum mlx4_rx_hash_function_flags */
+	__u8 reserved[7];
+};
+
 struct mlx4_uverbs_ex_query_device_resp {
-	__u32 comp_mask;
-	__u32 response_length;
-	__u64 hca_core_clock_offset;
-	__u32 max_inl_recv_sz;
-	__u32 reserved;
+	__u32			comp_mask;
+	__u32			response_length;
+	__u64			hca_core_clock_offset;
+	__u32			max_inl_recv_sz;
+	struct mlx4_ib_rss_caps	rss_caps;
 };
 
 static inline struct mlx4_ib_dev *to_mdev(struct ib_device *ibdev)

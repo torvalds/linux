@@ -581,6 +581,23 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 			sizeof(struct mlx4_wqe_data_seg);
 	}
 
+	if (uhw->outlen >= resp.response_length + sizeof(resp.rss_caps)) {
+		resp.response_length += sizeof(resp.rss_caps);
+		if (props->rss_caps.supported_qpts) {
+			resp.rss_caps.rx_hash_function =
+				MLX4_IB_RX_HASH_FUNC_TOEPLITZ;
+			resp.rss_caps.rx_hash_fields_mask =
+				MLX4_IB_RX_HASH_SRC_IPV4 |
+				MLX4_IB_RX_HASH_DST_IPV4 |
+				MLX4_IB_RX_HASH_SRC_IPV6 |
+				MLX4_IB_RX_HASH_DST_IPV6 |
+				MLX4_IB_RX_HASH_SRC_PORT_TCP |
+				MLX4_IB_RX_HASH_DST_PORT_TCP |
+				MLX4_IB_RX_HASH_SRC_PORT_UDP |
+				MLX4_IB_RX_HASH_DST_PORT_UDP;
+		}
+	}
+
 	if (uhw->outlen) {
 		err = ib_copy_to_udata(uhw, &resp, resp.response_length);
 		if (err)
