@@ -1132,15 +1132,7 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 
 	for_each_engine(engine, dev_priv, id) {
 		struct intel_engine_execlists * const execlists = &engine->execlists;
-		/* The tasklet was initialised by execlists, and may be in
-		 * a state of flux (across a reset) and so we just want to
-		 * take over the callback without changing any other state
-		 * in the tasklet.
-		 */
 		execlists->irq_tasklet.func = i915_guc_irq_handler;
-		clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
-		tasklet_schedule(&execlists->irq_tasklet);
-
 		engine->park = i915_guc_submission_park;
 		engine->unpark = i915_guc_submission_unpark;
 	}

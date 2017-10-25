@@ -1474,7 +1474,7 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 	execlists->active = 0;
 
 	/* After a GPU reset, we may have requests to replay */
-	if (!i915_modparams.enable_guc_submission && execlists->first)
+	if (execlists->first)
 		tasklet_schedule(&execlists->irq_tasklet);
 
 	return 0;
