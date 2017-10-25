@@ -74,6 +74,7 @@ VERSION
 		__vdso_clock_gettime;
 		__vdso_clock_getres;
 		__vdso_getcpu;
+		__vdso_flush_icache;
 	local: *;
 	};
 }

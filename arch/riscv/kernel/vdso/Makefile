@@ -6,6 +6,7 @@ vdso-syms += gettimeofday
 vdso-syms += clock_gettime
 vdso-syms += clock_getres
 vdso-syms += getcpu
+vdso-syms += flush_icache
 
 # Files to link into the vdso
 obj-vdso = $(patsubst %, %.o, $(vdso-syms))

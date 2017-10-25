@@ -52,4 +52,10 @@ void flush_icache_mm(struct mm_struct *mm, bool local);
 
 #endif /* CONFIG_SMP */
 
+/*
+ * Bits in sys_riscv_flush_icache()'s flags argument.
+ */
+#define SYS_RISCV_FLUSH_ICACHE_LOCAL 1UL
+#define SYS_RISCV_FLUSH_ICACHE_ALL   (SYS_RISCV_FLUSH_ICACHE_LOCAL)
+
 #endif /* _ASM_RISCV_CACHEFLUSH_H */
