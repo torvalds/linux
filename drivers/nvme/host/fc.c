@@ -45,6 +45,8 @@ enum nvme_fc_queue_flags {
 
 #define NVMEFC_QUEUE_DELAY	3		/* ms units */
 
+#define NVME_FC_DEFAULT_DEV_LOSS_TMO	60	/* seconds */
+
 struct nvme_fc_queue {
 	struct nvme_fc_ctrl	*ctrl;
 	struct device		*dev;
@@ -585,6 +587,11 @@ nvme_fc_register_remoteport(struct nvme_fc_local_port *localport,
 	newrec->remoteport.port_id = pinfo->port_id;
 	newrec->remoteport.port_state = FC_OBJSTATE_ONLINE;
 	newrec->remoteport.port_num = idx;
+	/* a registration value of dev_loss_tmo=0 results in the default */
+	if (pinfo->dev_loss_tmo)
+		newrec->remoteport.dev_loss_tmo = pinfo->dev_loss_tmo;
+	else
+		newrec->remoteport.dev_loss_tmo = NVME_FC_DEFAULT_DEV_LOSS_TMO;
 
 	spin_lock_irqsave(&nvme_fc_lock, flags);
 	list_add_tail(&newrec->endp_list, &lport->endp_list);
@@ -687,6 +694,30 @@ nvme_fc_rescan_remoteport(struct nvme_fc_remote_port *remoteport)
 	nvme_fc_signal_discovery_scan(rport->lport, rport);
 }
 EXPORT_SYMBOL_GPL(nvme_fc_rescan_remoteport);
+
+int
+nvme_fc_set_remoteport_devloss(struct nvme_fc_remote_port *portptr,
+			u32 dev_loss_tmo)
+{
+	struct nvme_fc_rport *rport = remoteport_to_rport(portptr);
+	struct nvme_fc_ctrl *ctrl;
+	unsigned long flags;
+
+	spin_lock_irqsave(&rport->lock, flags);
+
+	if (portptr->port_state != FC_OBJSTATE_ONLINE) {
+		spin_unlock_irqrestore(&rport->lock, flags);
+		return -EINVAL;
+	}
+
+	/* a dev_loss_tmo of 0 (immediate) is allowed to be set */
+	rport->remoteport.dev_loss_tmo = dev_loss_tmo;
+
+	spin_unlock_irqrestore(&rport->lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nvme_fc_set_remoteport_devloss);
 
 
 /* *********************** FC-NVME DMA Handling **************************** */
