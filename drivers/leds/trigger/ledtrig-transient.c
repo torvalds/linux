@@ -33,12 +33,14 @@ struct transient_trig_data {
 	int restore_state;
 	unsigned long duration;
 	struct timer_list timer;
+	struct led_classdev *led_cdev;
 };
 
-static void transient_timer_function(unsigned long data)
+static void transient_timer_function(struct timer_list *t)
 {
-	struct led_classdev *led_cdev = (struct led_classdev *) data;
-	struct transient_trig_data *transient_data = led_cdev->trigger_data;
+	struct transient_trig_data *transient_data =
+		from_timer(transient_data, t, timer);
+	struct led_classdev *led_cdev = transient_data->led_cdev;
 
 	transient_data->activate = 0;
 	led_set_brightness_nosleep(led_cdev, transient_data->restore_state);
@@ -169,6 +171,7 @@ static void transient_trig_activate(struct led_classdev *led_cdev)
 		return;
 	}
 	led_cdev->trigger_data = tdata;
+	tdata->led_cdev = led_cdev;
 
 	rc = device_create_file(led_cdev->dev, &dev_attr_activate);
 	if (rc)
@@ -182,8 +185,7 @@ static void transient_trig_activate(struct led_classdev *led_cdev)
 	if (rc)
 		goto err_out_state;
 
-	setup_timer(&tdata->timer, transient_timer_function,
-		    (unsigned long) led_cdev);
+	timer_setup(&tdata->timer, transient_timer_function, 0);
 	led_cdev->activated = true;
 
 	return;

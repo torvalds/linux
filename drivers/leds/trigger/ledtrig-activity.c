@@ -24,6 +24,7 @@ static int panic_detected;
 
 struct activity_data {
 	struct timer_list timer;
+	struct led_classdev *led_cdev;
 	u64 last_used;
 	u64 last_boot;
 	int time_left;
@@ -31,10 +32,11 @@ struct activity_data {
 	int invert;
 };
 
-static void led_activity_function(unsigned long data)
+static void led_activity_function(struct timer_list *t)
 {
-	struct led_classdev *led_cdev = (struct led_classdev *)data;
-	struct activity_data *activity_data = led_cdev->trigger_data;
+	struct activity_data *activity_data = from_timer(activity_data, t,
+							 timer);
+	struct led_classdev *led_cdev = activity_data->led_cdev;
 	struct timespec boot_time;
 	unsigned int target;
 	unsigned int usage;
@@ -195,11 +197,11 @@ static void activity_activate(struct led_classdev *led_cdev)
 		return;
 	}
 
-	setup_timer(&activity_data->timer,
-		    led_activity_function, (unsigned long)led_cdev);
+	activity_data->led_cdev = led_cdev;
+	timer_setup(&activity_data->timer, led_activity_function, 0);
 	if (!led_cdev->blink_brightness)
 		led_cdev->blink_brightness = led_cdev->max_brightness;
-	led_activity_function(activity_data->timer.data);
+	led_activity_function(&activity_data->timer);
 	set_bit(LED_BLINK_SW, &led_cdev->work_flags);
 	led_cdev->activated = true;
 }
