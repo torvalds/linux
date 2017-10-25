@@ -268,7 +268,6 @@ int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset)
 int intel_guc_suspend(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
-	struct i915_gem_context *ctx;
 	u32 data[3];
 
 	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
@@ -276,14 +275,10 @@ int intel_guc_suspend(struct drm_i915_private *dev_priv)
 
 	gen9_disable_guc_interrupts(dev_priv);
 
-	ctx = dev_priv->kernel_context;
-
 	data[0] = INTEL_GUC_ACTION_ENTER_S_STATE;
 	/* any value greater than GUC_POWER_D0 */
 	data[1] = GUC_POWER_D1;
-	/* first page is shared data with GuC */
-	data[2] = guc_ggtt_offset(ctx->engine[RCS].state) +
-		  LRC_GUCSHR_PN * PAGE_SIZE;
+	data[2] = guc_ggtt_offset(guc->shared_data);
 
 	return intel_guc_send(guc, data, ARRAY_SIZE(data));
 }
@@ -295,7 +290,6 @@ int intel_guc_suspend(struct drm_i915_private *dev_priv)
 int intel_guc_resume(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
-	struct i915_gem_context *ctx;
 	u32 data[3];
 
 	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
@@ -304,13 +298,9 @@ int intel_guc_resume(struct drm_i915_private *dev_priv)
 	if (i915_modparams.guc_log_level >= 0)
 		gen9_enable_guc_interrupts(dev_priv);
 
-	ctx = dev_priv->kernel_context;
-
 	data[0] = INTEL_GUC_ACTION_EXIT_S_STATE;
 	data[1] = GUC_POWER_D0;
-	/* first page is shared data with GuC */
-	data[2] = guc_ggtt_offset(ctx->engine[RCS].state) +
-		  LRC_GUCSHR_PN * PAGE_SIZE;
+	data[2] = guc_ggtt_offset(guc->shared_data);
 
 	return intel_guc_send(guc, data, ARRAY_SIZE(data));
 }
