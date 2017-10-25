@@ -42,6 +42,7 @@
 #include <unistd.h>
 #include <linux/limits.h>
 #include <linux/magic.h>
+#include <sys/mount.h>
 #include <sys/types.h>
 #include <sys/vfs.h>
 
@@ -57,6 +58,37 @@ static bool is_bpffs(char *path)
 		return false;
 
 	return (unsigned long)st_fs.f_type == BPF_FS_MAGIC;
+}
+
+static int mnt_bpffs(const char *target, char *buff, size_t bufflen)
+{
+	bool bind_done = false;
+
+	while (mount("", target, "none", MS_PRIVATE | MS_REC, NULL)) {
+		if (errno != EINVAL || bind_done) {
+			snprintf(buff, bufflen,
+				 "mount --make-private %s failed: %s",
+				 target, strerror(errno));
+			return -1;
+		}
+
+		if (mount(target, target, "none", MS_BIND, NULL)) {
+			snprintf(buff, bufflen,
+				 "mount --bind %s %s failed: %s",
+				 target, target, strerror(errno));
+			return -1;
+		}
+
+		bind_done = true;
+	}
+
+	if (mount("bpf", target, "bpf", 0, "mode=0700")) {
+		snprintf(buff, bufflen, "mount -t bpf bpf %s failed: %s",
+			 target, strerror(errno));
+		return -1;
+	}
+
+	return 0;
 }
 
 int open_obj_pinned_any(char *path, enum bpf_obj_type exp_type)
@@ -89,8 +121,11 @@ int open_obj_pinned_any(char *path, enum bpf_obj_type exp_type)
 
 int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
 {
+	char err_str[ERR_MAX_LEN];
 	unsigned int id;
 	char *endptr;
+	char *file;
+	char *dir;
 	int err;
 	int fd;
 
@@ -117,16 +152,36 @@ int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
 	}
 
 	err = bpf_obj_pin(fd, *argv);
-	close(fd);
-	if (err) {
-		p_err("can't pin the object (%s): %s", *argv,
-		      errno == EACCES && !is_bpffs(dirname(*argv)) ?
-		    "directory not in bpf file system (bpffs)" :
-		    strerror(errno));
-		return -1;
+	if (!err)
+		goto out_close;
+
+	file = malloc(strlen(*argv) + 1);
+	strcpy(file, *argv);
+	dir = dirname(file);
+
+	if (errno != EPERM || is_bpffs(dir)) {
+		p_err("can't pin the object (%s): %s", *argv, strerror(errno));
+		goto out_free;
 	}
 
-	return 0;
+	/* Attempt to mount bpffs, then retry pinning. */
+	err = mnt_bpffs(dir, err_str, ERR_MAX_LEN);
+	if (!err) {
+		err = bpf_obj_pin(fd, *argv);
+		if (err)
+			p_err("can't pin the object (%s): %s", *argv,
+			      strerror(errno));
+	} else {
+		err_str[ERR_MAX_LEN - 1] = '\0';
+		p_err("can't mount BPF file system to pin the object (%s): %s",
+		      *argv, err_str);
+	}
+
+out_free:
+	free(file);
+out_close:
+	close(fd);
+	return err;
 }
 
 const char *get_fd_type_name(enum bpf_obj_type type)
