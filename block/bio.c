@@ -935,7 +935,7 @@ static void submit_bio_wait_endio(struct bio *bio)
  */
 int submit_bio_wait(struct bio *bio)
 {
-	DECLARE_COMPLETION_ONSTACK(done);
+	DECLARE_COMPLETION_ONSTACK_MAP(done, bio->bi_disk->lockdep_map);
 
 	bio->bi_private = &done;
 	bio->bi_end_io = submit_bio_wait_endio;
