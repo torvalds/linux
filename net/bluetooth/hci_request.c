@@ -41,6 +41,11 @@ void hci_req_init(struct hci_request *req, struct hci_dev *hdev)
 	req->err = 0;
 }
 
+void hci_req_purge(struct hci_request *req)
+{
+	skb_queue_purge(&req->cmd_q);
+}
+
 static int req_run(struct hci_request *req, hci_req_complete_t complete,
 		   hci_req_complete_skb_t complete_skb)
 {

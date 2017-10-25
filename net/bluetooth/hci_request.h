@@ -36,6 +36,7 @@ struct hci_request {
 };
 
 void hci_req_init(struct hci_request *req, struct hci_dev *hdev);
+void hci_req_purge(struct hci_request *req);
 int hci_req_run(struct hci_request *req, hci_req_complete_t complete);
 int hci_req_run_skb(struct hci_request *req, hci_req_complete_skb_t complete);
 void hci_req_add(struct hci_request *req, u16 opcode, u32 plen,
