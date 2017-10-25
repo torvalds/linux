@@ -1070,6 +1070,16 @@ static inline void dev_pm_syscore_device(struct device *dev, bool val)
 #endif
 }
 
+static inline void dev_pm_set_driver_flags(struct device *dev, u32 flags)
+{
+	dev->power.driver_flags = flags;
+}
+
+static inline bool dev_pm_test_driver_flags(struct device *dev, u32 flags)
+{
+	return !!(dev->power.driver_flags & flags);
+}
+
 static inline void device_lock(struct device *dev)
 {
 	mutex_lock(&dev->mutex);

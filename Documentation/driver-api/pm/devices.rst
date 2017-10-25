@@ -354,6 +354,20 @@ the phases are: ``prepare``, ``suspend``, ``suspend_late``, ``suspend_noirq``.
 	is because all such devices are initially set to runtime-suspended with
 	runtime PM disabled.
 
+	This feature also can be controlled by device drivers by using the
+	``DPM_FLAG_NEVER_SKIP`` and ``DPM_FLAG_SMART_PREPARE`` driver power
+	management flags.  [Typically, they are set at the time the driver is
+	probed against the device in question by passing them to the
+	:c:func:`dev_pm_set_driver_flags` helper function.]  If the first of
+	these flags is set, the PM core will not apply the direct-complete
+	procedure described above to the given device and, consequenty, to any
+	of its ancestors.  The second flag, when set, informs the middle layer
+	code (bus types, device types, PM domains, classes) that it should take
+	the return value of the ``->prepare`` callback provided by the driver
+	into account and it may only return a positive value from its own
+	``->prepare`` callback if the driver's one also has returned a positive
+	value.
+
     2.	The ``->suspend`` methods should quiesce the device to stop it from
 	performing I/O.  They also may save the device registers and put it into
 	the appropriate low-power state, depending on the bus type the device is

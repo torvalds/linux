@@ -550,6 +550,25 @@ struct pm_subsys_data {
 #endif
 };
 
+/*
+ * Driver flags to control system suspend/resume behavior.
+ *
+ * These flags can be set by device drivers at the probe time.  They need not be
+ * cleared by the drivers as the driver core will take care of that.
+ *
+ * NEVER_SKIP: Do not skip system suspend/resume callbacks for the device.
+ * SMART_PREPARE: Check the return value of the driver's ->prepare callback.
+ *
+ * Setting SMART_PREPARE instructs bus types and PM domains which may want
+ * system suspend/resume callbacks to be skipped for the device to return 0 from
+ * their ->prepare callbacks if the driver's ->prepare callback returns 0 (in
+ * other words, the system suspend/resume callbacks can only be skipped for the
+ * device if its driver doesn't object against that).  This flag has no effect
+ * if NEVER_SKIP is set.
+ */
+#define DPM_FLAG_NEVER_SKIP	BIT(0)
+#define DPM_FLAG_SMART_PREPARE	BIT(1)
+
 struct dev_pm_info {
 	pm_message_t		power_state;
 	unsigned int		can_wakeup:1;
@@ -561,6 +580,7 @@ struct dev_pm_info {
 	bool			is_late_suspended:1;
 	bool			early_init:1;	/* Owned by the PM core */
 	bool			direct_complete:1;	/* Owned by the PM core */
+	u32			driver_flags;
 	spinlock_t		lock;
 #ifdef CONFIG_PM_SLEEP
 	struct list_head	entry;

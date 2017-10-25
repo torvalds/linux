@@ -689,8 +689,11 @@ static int pci_pm_prepare(struct device *dev)
 
 	if (drv && drv->pm && drv->pm->prepare) {
 		int error = drv->pm->prepare(dev);
-		if (error)
+		if (error < 0)
 			return error;
+
+		if (!error && dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_PREPARE))
+			return 0;
 	}
 	return pci_dev_keep_suspended(to_pci_dev(dev));
 }
