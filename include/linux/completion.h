@@ -53,7 +53,7 @@ static inline void complete_release_commit(struct completion *x)
 do {									\
 	static struct lock_class_key __key;				\
 	lockdep_init_map_crosslock((struct lockdep_map *)&(x)->map,	\
-			"(complete)" #x,				\
+			"(completion)" #x,				\
 			&__key, 0);					\
 	__init_completion(x);						\
 } while (0)
@@ -67,7 +67,7 @@ static inline void complete_release_commit(struct completion *x) {}
 #ifdef CONFIG_LOCKDEP_COMPLETIONS
 #define COMPLETION_INITIALIZER(work) \
 	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait), \
-	STATIC_CROSS_LOCKDEP_MAP_INIT("(complete)" #work, &(work)) }
+	STATIC_CROSS_LOCKDEP_MAP_INIT("(completion)" #work, &(work)) }
 #else
 #define COMPLETION_INITIALIZER(work) \
 	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait) }
