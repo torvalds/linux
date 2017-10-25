@@ -626,6 +626,8 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
  */
 #define I915_GEM_HWS_INDEX		0x30
 #define I915_GEM_HWS_INDEX_ADDR (I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
+#define I915_GEM_HWS_PREEMPT_INDEX	0x32
+#define I915_GEM_HWS_PREEMPT_ADDR (I915_GEM_HWS_PREEMPT_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 #define I915_GEM_HWS_SCRATCH_INDEX	0x40
 #define I915_GEM_HWS_SCRATCH_ADDR (I915_GEM_HWS_SCRATCH_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 
@@ -776,6 +778,11 @@ void intel_engine_get_instdone(struct intel_engine_cs *engine,
 static inline u32 intel_hws_seqno_address(struct intel_engine_cs *engine)
 {
 	return engine->status_page.ggtt_offset + I915_GEM_HWS_INDEX_ADDR;
+}
+
+static inline u32 intel_hws_preempt_done_address(struct intel_engine_cs *engine)
+{
+	return engine->status_page.ggtt_offset + I915_GEM_HWS_PREEMPT_ADDR;
 }
 
 /* intel_breadcrumbs.c -- user interrupt bottom-half for waiters */
