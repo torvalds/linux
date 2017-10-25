@@ -303,7 +303,7 @@ static void sprd_adi_hw_init(struct sprd_adi *sadi)
 		writel_relaxed(chn_config, sadi->base +
 			       REG_ADI_CHN_ADDR(chn_id));
 
-		if (chn_id < 31) {
+		if (chn_id < 32) {
 			value = readl_relaxed(sadi->base + REG_ADI_CHN_EN);
 			value |= BIT(chn_id);
 			writel_relaxed(value, sadi->base + REG_ADI_CHN_EN);
