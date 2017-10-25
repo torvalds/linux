@@ -138,6 +138,7 @@ struct nvme_fc_rport {
 	struct nvme_fc_lport		*lport;
 	spinlock_t			lock;
 	struct kref			ref;
+	unsigned long			dev_loss_end;
 } __aligned(sizeof(u64));	/* alignment for other things alloc'd with */
 
 enum nvme_fcctrl_flags {
@@ -528,6 +529,102 @@ nvme_fc_rport_get(struct nvme_fc_rport *rport)
 	return kref_get_unless_zero(&rport->ref);
 }
 
+static void
+nvme_fc_resume_controller(struct nvme_fc_ctrl *ctrl)
+{
+	switch (ctrl->ctrl.state) {
+	case NVME_CTRL_NEW:
+	case NVME_CTRL_RECONNECTING:
+		/*
+		 * As all reconnects were suppressed, schedule a
+		 * connect.
+		 */
+		dev_info(ctrl->ctrl.device,
+			"NVME-FC{%d}: connectivity re-established. "
+			"Attempting reconnect\n", ctrl->cnum);
+
+		queue_delayed_work(nvme_wq, &ctrl->connect_work, 0);
+		break;
+
+	case NVME_CTRL_RESETTING:
+		/*
+		 * Controller is already in the process of terminating the
+		 * association. No need to do anything further. The reconnect
+		 * step will naturally occur after the reset completes.
+		 */
+		break;
+
+	default:
+		/* no action to take - let it delete */
+		break;
+	}
+}
+
+static struct nvme_fc_rport *
+nvme_fc_attach_to_suspended_rport(struct nvme_fc_lport *lport,
+				struct nvme_fc_port_info *pinfo)
+{
+	struct nvme_fc_rport *rport;
+	struct nvme_fc_ctrl *ctrl;
+	unsigned long flags;
+
+	spin_lock_irqsave(&nvme_fc_lock, flags);
+
+	list_for_each_entry(rport, &lport->endp_list, endp_list) {
+		if (rport->remoteport.node_name != pinfo->node_name ||
+		    rport->remoteport.port_name != pinfo->port_name)
+			continue;
+
+		if (!nvme_fc_rport_get(rport)) {
+			rport = ERR_PTR(-ENOLCK);
+			goto out_done;
+		}
+
+		spin_unlock_irqrestore(&nvme_fc_lock, flags);
+
+		spin_lock_irqsave(&rport->lock, flags);
+
+		/* has it been unregistered */
+		if (rport->remoteport.port_state != FC_OBJSTATE_DELETED) {
+			/* means lldd called us twice */
+			spin_unlock_irqrestore(&rport->lock, flags);
+			nvme_fc_rport_put(rport);
+			return ERR_PTR(-ESTALE);
+		}
+
+		rport->remoteport.port_state = FC_OBJSTATE_ONLINE;
+		rport->dev_loss_end = 0;
+
+		/*
+		 * kick off a reconnect attempt on all associations to the
+		 * remote port. A successful reconnects will resume i/o.
+		 */
+		list_for_each_entry(ctrl, &rport->ctrl_list, ctrl_list)
+			nvme_fc_resume_controller(ctrl);
+
+		spin_unlock_irqrestore(&rport->lock, flags);
+
+		return rport;
+	}
+
+	rport = NULL;
+
+out_done:
+	spin_unlock_irqrestore(&nvme_fc_lock, flags);
+
+	return rport;
+}
+
+static inline void
+__nvme_fc_set_dev_loss_tmo(struct nvme_fc_rport *rport,
+			struct nvme_fc_port_info *pinfo)
+{
+	if (pinfo->dev_loss_tmo)
+		rport->remoteport.dev_loss_tmo = pinfo->dev_loss_tmo;
+	else
+		rport->remoteport.dev_loss_tmo = NVME_FC_DEFAULT_DEV_LOSS_TMO;
+}
+
 /**
  * nvme_fc_register_remoteport - transport entry point called by an
  *                              LLDD to register the existence of a NVME
@@ -554,22 +651,45 @@ nvme_fc_register_remoteport(struct nvme_fc_local_port *localport,
 	unsigned long flags;
 	int ret, idx;
 
+	if (!nvme_fc_lport_get(lport)) {
+		ret = -ESHUTDOWN;
+		goto out_reghost_failed;
+	}
+
+	/*
+	 * look to see if there is already a remoteport that is waiting
+	 * for a reconnect (within dev_loss_tmo) with the same WWN's.
+	 * If so, transition to it and reconnect.
+	 */
+	newrec = nvme_fc_attach_to_suspended_rport(lport, pinfo);
+
+	/* found an rport, but something about its state is bad */
+	if (IS_ERR(newrec)) {
+		ret = PTR_ERR(newrec);
+		goto out_lport_put;
+
+	/* found existing rport, which was resumed */
+	} else if (newrec) {
+		nvme_fc_lport_put(lport);
+		__nvme_fc_set_dev_loss_tmo(newrec, pinfo);
+		nvme_fc_signal_discovery_scan(lport, newrec);
+		*portptr = &newrec->remoteport;
+		return 0;
+	}
+
+	/* nothing found - allocate a new remoteport struct */
+
 	newrec = kmalloc((sizeof(*newrec) + lport->ops->remote_priv_sz),
 			 GFP_KERNEL);
 	if (!newrec) {
 		ret = -ENOMEM;
-		goto out_reghost_failed;
-	}
-
-	if (!nvme_fc_lport_get(lport)) {
-		ret = -ESHUTDOWN;
-		goto out_kfree_rport;
+		goto out_lport_put;
 	}
 
 	idx = ida_simple_get(&lport->endp_cnt, 0, 0, GFP_KERNEL);
 	if (idx < 0) {
 		ret = -ENOSPC;
-		goto out_lport_put;
+		goto out_kfree_rport;
 	}
 
 	INIT_LIST_HEAD(&newrec->endp_list);
@@ -587,11 +707,7 @@ nvme_fc_register_remoteport(struct nvme_fc_local_port *localport,
 	newrec->remoteport.port_id = pinfo->port_id;
 	newrec->remoteport.port_state = FC_OBJSTATE_ONLINE;
 	newrec->remoteport.port_num = idx;
-	/* a registration value of dev_loss_tmo=0 results in the default */
-	if (pinfo->dev_loss_tmo)
-		newrec->remoteport.dev_loss_tmo = pinfo->dev_loss_tmo;
-	else
-		newrec->remoteport.dev_loss_tmo = NVME_FC_DEFAULT_DEV_LOSS_TMO;
+	__nvme_fc_set_dev_loss_tmo(newrec, pinfo);
 
 	spin_lock_irqsave(&nvme_fc_lock, flags);
 	list_add_tail(&newrec->endp_list, &lport->endp_list);
@@ -602,10 +718,10 @@ nvme_fc_register_remoteport(struct nvme_fc_local_port *localport,
 	*portptr = &newrec->remoteport;
 	return 0;
 
-out_lport_put:
-	nvme_fc_lport_put(lport);
 out_kfree_rport:
 	kfree(newrec);
+out_lport_put:
+	nvme_fc_lport_put(lport);
 out_reghost_failed:
 	*portptr = NULL;
 	return ret;
@@ -634,6 +750,58 @@ restart:
 	spin_unlock_irqrestore(&rport->lock, flags);
 
 	return 0;
+}
+
+static void
+nvme_fc_ctrl_connectivity_loss(struct nvme_fc_ctrl *ctrl)
+{
+	dev_info(ctrl->ctrl.device,
+		"NVME-FC{%d}: controller connectivity lost. Awaiting "
+		"Reconnect", ctrl->cnum);
+
+	switch (ctrl->ctrl.state) {
+	case NVME_CTRL_NEW:
+	case NVME_CTRL_LIVE:
+		/*
+		 * Schedule a controller reset. The reset will terminate the
+		 * association and schedule the reconnect timer.  Reconnects
+		 * will be attempted until either the ctlr_loss_tmo
+		 * (max_retries * connect_delay) expires or the remoteport's
+		 * dev_loss_tmo expires.
+		 */
+		if (nvme_reset_ctrl(&ctrl->ctrl)) {
+			dev_warn(ctrl->ctrl.device,
+				"NVME-FC{%d}: Couldn't schedule reset. "
+				"Deleting controller.\n",
+				ctrl->cnum);
+			nvme_delete_ctrl(&ctrl->ctrl);
+		}
+		break;
+
+	case NVME_CTRL_RECONNECTING:
+		/*
+		 * The association has already been terminated and the
+		 * controller is attempting reconnects.  No need to do anything
+		 * futher.  Reconnects will be attempted until either the
+		 * ctlr_loss_tmo (max_retries * connect_delay) expires or the
+		 * remoteport's dev_loss_tmo expires.
+		 */
+		break;
+
+	case NVME_CTRL_RESETTING:
+		/*
+		 * Controller is already in the process of terminating the
+		 * association.  No need to do anything further. The reconnect
+		 * step will kick in naturally after the association is
+		 * terminated.
+		 */
+		break;
+
+	case NVME_CTRL_DELETING:
+	default:
+		/* no action to take - let it delete */
+		break;
+	}
 }
 
 /**
@@ -665,15 +833,31 @@ nvme_fc_unregister_remoteport(struct nvme_fc_remote_port *portptr)
 	}
 	portptr->port_state = FC_OBJSTATE_DELETED;
 
-	/* tear down all associations to the remote port */
-	list_for_each_entry(ctrl, &rport->ctrl_list, ctrl_list)
-		nvme_delete_ctrl(&ctrl->ctrl);
+	rport->dev_loss_end = jiffies + (portptr->dev_loss_tmo * HZ);
+
+	list_for_each_entry(ctrl, &rport->ctrl_list, ctrl_list) {
+		/* if dev_loss_tmo==0, dev loss is immediate */
+		if (!portptr->dev_loss_tmo) {
+			dev_warn(ctrl->ctrl.device,
+				"NVME-FC{%d}: controller connectivity lost. "
+				"Deleting controller.\n",
+				ctrl->cnum);
+			nvme_delete_ctrl(&ctrl->ctrl);
+		} else
+			nvme_fc_ctrl_connectivity_loss(ctrl);
+	}
 
 	spin_unlock_irqrestore(&rport->lock, flags);
 
 	nvme_fc_abort_lsops(rport);
 
+	/*
+	 * release the reference, which will allow, if all controllers
+	 * go away, which should only occur after dev_loss_tmo occurs,
+	 * for the rport to be torn down.
+	 */
 	nvme_fc_rport_put(rport);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nvme_fc_unregister_remoteport);
@@ -700,7 +884,6 @@ nvme_fc_set_remoteport_devloss(struct nvme_fc_remote_port *portptr,
 			u32 dev_loss_tmo)
 {
 	struct nvme_fc_rport *rport = remoteport_to_rport(portptr);
-	struct nvme_fc_ctrl *ctrl;
 	unsigned long flags;
 
 	spin_lock_irqsave(&rport->lock, flags);
@@ -2676,28 +2859,43 @@ nvme_fc_delete_ctrl(struct nvme_ctrl *nctrl)
 static void
 nvme_fc_reconnect_or_delete(struct nvme_fc_ctrl *ctrl, int status)
 {
+	struct nvme_fc_rport *rport = ctrl->rport;
+	struct nvme_fc_remote_port *portptr = &rport->remoteport;
+	unsigned long recon_delay = ctrl->ctrl.opts->reconnect_delay * HZ;
+	bool recon = true;
+
 	if (ctrl->ctrl.state != NVME_CTRL_RECONNECTING)
 		return;
 
-	dev_info(ctrl->ctrl.device,
-		"NVME-FC{%d}: reset: Reconnect attempt failed (%d)\n",
-		ctrl->cnum, status);
-
-	if (nvmf_should_reconnect(&ctrl->ctrl)) {
-		/* Only schedule the reconnect if the remote port is online */
-		if (ctrl->rport->remoteport.port_state != FC_OBJSTATE_ONLINE)
-			return;
-
+	if (portptr->port_state == FC_OBJSTATE_ONLINE)
 		dev_info(ctrl->ctrl.device,
-			"NVME-FC{%d}: Reconnect attempt in %d seconds.\n",
-			ctrl->cnum, ctrl->ctrl.opts->reconnect_delay);
-		queue_delayed_work(nvme_wq, &ctrl->connect_work,
-				ctrl->ctrl.opts->reconnect_delay * HZ);
+			"NVME-FC{%d}: reset: Reconnect attempt failed (%d)\n",
+			ctrl->cnum, status);
+	else if (time_after_eq(jiffies, rport->dev_loss_end))
+		recon = false;
+
+	if (recon && nvmf_should_reconnect(&ctrl->ctrl)) {
+		if (portptr->port_state == FC_OBJSTATE_ONLINE)
+			dev_info(ctrl->ctrl.device,
+				"NVME-FC{%d}: Reconnect attempt in %ld "
+				"seconds\n",
+				ctrl->cnum, recon_delay / HZ);
+		else if (time_after(jiffies + recon_delay, rport->dev_loss_end))
+			recon_delay = rport->dev_loss_end - jiffies;
+
+		queue_delayed_work(nvme_wq, &ctrl->connect_work, recon_delay);
 	} else {
-		dev_warn(ctrl->ctrl.device,
+		if (portptr->port_state == FC_OBJSTATE_ONLINE)
+			dev_warn(ctrl->ctrl.device,
 				"NVME-FC{%d}: Max reconnect attempts (%d) "
 				"reached. Removing controller\n",
 				ctrl->cnum, ctrl->ctrl.nr_reconnects);
+		else
+			dev_warn(ctrl->ctrl.device,
+				"NVME-FC{%d}: dev_loss_tmo (%d) expired "
+				"while waiting for remoteport connectivity. "
+				"Removing controller\n", ctrl->cnum,
+				portptr->dev_loss_tmo);
 		WARN_ON(nvme_delete_ctrl(&ctrl->ctrl));
 	}
 }
@@ -2721,15 +2919,17 @@ nvme_fc_reset_ctrl_work(struct work_struct *work)
 		return;
 	}
 
-	if (ctrl->rport->remoteport.port_state == FC_OBJSTATE_ONLINE) {
+	if (ctrl->rport->remoteport.port_state == FC_OBJSTATE_ONLINE)
 		ret = nvme_fc_create_association(ctrl);
-		if (ret)
-			nvme_fc_reconnect_or_delete(ctrl, ret);
-		else
-			dev_info(ctrl->ctrl.device,
-				"NVME-FC{%d}: controller reset complete\n",
-				ctrl->cnum);
-	}
+	else
+		ret = -ENOTCONN;
+
+	if (ret)
+		nvme_fc_reconnect_or_delete(ctrl, ret);
+	else
+		dev_info(ctrl->ctrl.device,
+			"NVME-FC{%d}: controller reset complete\n",
+			ctrl->cnum);
 }
 
 static const struct nvme_ctrl_ops nvme_fc_ctrl_ops = {
