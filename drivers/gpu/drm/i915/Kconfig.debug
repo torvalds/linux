@@ -90,6 +90,20 @@ config DRM_I915_SELFTEST
 
 	  If in doubt, say "N".
 
+config DRM_I915_SELFTEST_BROKEN
+	bool "Enable broken and dangerous selftests"
+	depends on DRM_I915_SELFTEST
+	depends on BROKEN
+	default n
+	help
+	  This option enables the execution of selftests that are "dangerous"
+	  and may trigger unintended HW side-effects as they break strict
+	  rules given in the HW specification. For science.
+
+	  Recommended for masochistic driver developers only.
+
+	  If in doubt, say "N".
+
 config DRM_I915_LOW_LEVEL_TRACEPOINTS
         bool "Enable low level request tracing events"
         depends on DRM_I915
