@@ -427,6 +427,20 @@ config CRYPTO_DEV_S5P
 	  Select this to offload Samsung S5PV210 or S5PC110, Exynos from AES
 	  algorithms execution.
 
+config CRYPTO_DEV_EXYNOS_HASH
+	bool "Support for Samsung Exynos HASH accelerator"
+	depends on CRYPTO_DEV_S5P
+	depends on !CRYPTO_DEV_EXYNOS_RNG && CRYPTO_DEV_EXYNOS_RNG!=m
+	select CRYPTO_SHA1
+	select CRYPTO_MD5
+	select CRYPTO_SHA256
+	help
+	  Select this to offload Exynos from HASH MD5/SHA1/SHA256.
+	  This will select software SHA1, MD5 and SHA256 as they are
+	  needed for small and zero-size messages.
+	  HASH algorithms will be disabled if EXYNOS_RNG
+	  is enabled due to hw conflict.
+
 config CRYPTO_DEV_NX
 	bool "Support for IBM PowerPC Nest (NX) cryptographic acceleration"
 	depends on PPC64
