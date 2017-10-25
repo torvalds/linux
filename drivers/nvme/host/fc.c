@@ -808,7 +808,6 @@ fc_dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
 		dma_unmap_sg(dev, sg, nents, dir);
 }
 
-
 /* *********************** FC-NVME LS Handling **************************** */
 
 static void nvme_fc_ctrl_put(struct nvme_fc_ctrl *);
@@ -2462,6 +2461,9 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 
 	++ctrl->ctrl.nr_reconnects;
 
+	if (ctrl->rport->remoteport.port_state != FC_OBJSTATE_ONLINE)
+		return -ENODEV;
+
 	/*
 	 * Create the admin queue
 	 */
@@ -2682,6 +2684,10 @@ nvme_fc_reconnect_or_delete(struct nvme_fc_ctrl *ctrl, int status)
 		ctrl->cnum, status);
 
 	if (nvmf_should_reconnect(&ctrl->ctrl)) {
+		/* Only schedule the reconnect if the remote port is online */
+		if (ctrl->rport->remoteport.port_state != FC_OBJSTATE_ONLINE)
+			return;
+
 		dev_info(ctrl->ctrl.device,
 			"NVME-FC{%d}: Reconnect attempt in %d seconds.\n",
 			ctrl->cnum, ctrl->ctrl.opts->reconnect_delay);
@@ -2715,12 +2721,15 @@ nvme_fc_reset_ctrl_work(struct work_struct *work)
 		return;
 	}
 
-	ret = nvme_fc_create_association(ctrl);
-	if (ret)
-		nvme_fc_reconnect_or_delete(ctrl, ret);
-	else
-		dev_info(ctrl->ctrl.device,
-			"NVME-FC{%d}: controller reset complete\n", ctrl->cnum);
+	if (ctrl->rport->remoteport.port_state == FC_OBJSTATE_ONLINE) {
+		ret = nvme_fc_create_association(ctrl);
+		if (ret)
+			nvme_fc_reconnect_or_delete(ctrl, ret);
+		else
+			dev_info(ctrl->ctrl.device,
+				"NVME-FC{%d}: controller reset complete\n",
+				ctrl->cnum);
+	}
 }
 
 static const struct nvme_ctrl_ops nvme_fc_ctrl_ops = {
