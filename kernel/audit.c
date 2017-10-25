@@ -2345,32 +2345,6 @@ void audit_log(struct audit_context *ctx, gfp_t gfp_mask, int type,
 	}
 }
 
-#ifdef CONFIG_SECURITY
-/**
- * audit_log_secctx - Converts and logs SELinux context
- * @ab: audit_buffer
- * @secid: security number
- *
- * This is a helper function that calls security_secid_to_secctx to convert
- * secid to secctx and then adds the (converted) SELinux context to the audit
- * log by calling audit_log_format, thus also preventing leak of internal secid
- * to userspace. If secid cannot be converted audit_panic is called.
- */
-void audit_log_secctx(struct audit_buffer *ab, u32 secid)
-{
-	u32 len;
-	char *secctx;
-
-	if (security_secid_to_secctx(secid, &secctx, &len)) {
-		audit_panic("Cannot convert secid to context");
-	} else {
-		audit_log_format(ab, " obj=%s", secctx);
-		security_release_secctx(secctx, len);
-	}
-}
-EXPORT_SYMBOL(audit_log_secctx);
-#endif
-
 EXPORT_SYMBOL(audit_log_start);
 EXPORT_SYMBOL(audit_log_end);
 EXPORT_SYMBOL(audit_log_format);
