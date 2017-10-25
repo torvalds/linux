@@ -432,7 +432,6 @@ static struct tcmu_cmd *tcmu_alloc_cmd(struct se_cmd *se_cmd)
 	struct se_device *se_dev = se_cmd->se_dev;
 	struct tcmu_dev *udev = TCMU_DEV(se_dev);
 	struct tcmu_cmd *tcmu_cmd;
-	int cmd_id;
 
 	tcmu_cmd = kmem_cache_zalloc(tcmu_cmd_cache, GFP_KERNEL);
 	if (!tcmu_cmd)
@@ -440,9 +439,6 @@ static struct tcmu_cmd *tcmu_alloc_cmd(struct se_cmd *se_cmd)
 
 	tcmu_cmd->se_cmd = se_cmd;
 	tcmu_cmd->tcmu_dev = udev;
-	if (udev->cmd_time_out)
-		tcmu_cmd->deadline = jiffies +
-					msecs_to_jiffies(udev->cmd_time_out);
 
 	tcmu_cmd_reset_dbi_cur(tcmu_cmd);
 	tcmu_cmd->dbi_cnt = tcmu_cmd_get_block_cnt(tcmu_cmd);
@@ -452,19 +448,6 @@ static struct tcmu_cmd *tcmu_alloc_cmd(struct se_cmd *se_cmd)
 		kmem_cache_free(tcmu_cmd_cache, tcmu_cmd);
 		return NULL;
 	}
-
-	idr_preload(GFP_KERNEL);
-	spin_lock_irq(&udev->commands_lock);
-	cmd_id = idr_alloc(&udev->commands, tcmu_cmd, 0,
-		USHRT_MAX, GFP_NOWAIT);
-	spin_unlock_irq(&udev->commands_lock);
-	idr_preload_end();
-
-	if (cmd_id < 0) {
-		tcmu_free_cmd(tcmu_cmd);
-		return NULL;
-	}
-	tcmu_cmd->cmd_id = cmd_id;
 
 	return tcmu_cmd;
 }
@@ -748,6 +731,30 @@ static inline size_t tcmu_cmd_get_cmd_size(struct tcmu_cmd *tcmu_cmd,
 	return command_size;
 }
 
+static int tcmu_setup_cmd_timer(struct tcmu_cmd *tcmu_cmd)
+{
+	struct tcmu_dev *udev = tcmu_cmd->tcmu_dev;
+	unsigned long tmo = udev->cmd_time_out;
+	int cmd_id;
+
+	if (tcmu_cmd->cmd_id)
+		return 0;
+
+	cmd_id = idr_alloc(&udev->commands, tcmu_cmd, 1, USHRT_MAX, GFP_NOWAIT);
+	if (cmd_id < 0) {
+		pr_err("tcmu: Could not allocate cmd id.\n");
+		return cmd_id;
+	}
+	tcmu_cmd->cmd_id = cmd_id;
+
+	if (!tmo)
+		return 0;
+
+	tcmu_cmd->deadline = round_jiffies_up(jiffies + msecs_to_jiffies(tmo));
+	mod_timer(&udev->timeout, tcmu_cmd->deadline);
+	return 0;
+}
+
 static sense_reason_t
 tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 {
@@ -841,7 +848,6 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	entry = (void *) mb + CMDR_OFF + cmd_head;
 	memset(entry, 0, command_size);
 	tcmu_hdr_set_op(&entry->hdr.len_op, TCMU_OP_CMD);
-	entry->hdr.cmd_id = tcmu_cmd->cmd_id;
 
 	/* Handle allocating space from the data area */
 	tcmu_cmd_reset_dbi_cur(tcmu_cmd);
@@ -879,6 +885,13 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	}
 	entry->req.iov_bidi_cnt = iov_cnt;
 
+	ret = tcmu_setup_cmd_timer(tcmu_cmd);
+	if (ret) {
+		tcmu_cmd_free_data(tcmu_cmd, tcmu_cmd->dbi_cnt);
+		return TCM_OUT_OF_RESOURCES;
+	}
+	entry->hdr.cmd_id = tcmu_cmd->cmd_id;
+
 	/*
 	 * Recalaulate the command's base size and size according
 	 * to the actual needs
@@ -912,8 +925,6 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 static sense_reason_t
 tcmu_queue_cmd(struct se_cmd *se_cmd)
 {
-	struct se_device *se_dev = se_cmd->se_dev;
-	struct tcmu_dev *udev = TCMU_DEV(se_dev);
 	struct tcmu_cmd *tcmu_cmd;
 	sense_reason_t ret;
 
@@ -924,9 +935,6 @@ tcmu_queue_cmd(struct se_cmd *se_cmd)
 	ret = tcmu_queue_cmd_ring(tcmu_cmd);
 	if (ret != TCM_NO_SENSE) {
 		pr_err("TCMU: Could not queue command\n");
-		spin_lock_irq(&udev->commands_lock);
-		idr_remove(&udev->commands, tcmu_cmd->cmd_id);
-		spin_unlock_irq(&udev->commands_lock);
 
 		tcmu_free_cmd(tcmu_cmd);
 	}
