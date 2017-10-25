@@ -1935,12 +1935,8 @@ static void umac_enable_set(struct bcmgenet_priv *priv, u32 mask, bool enable)
 		usleep_range(1000, 2000);
 }
 
-static int reset_umac(struct bcmgenet_priv *priv)
+static void reset_umac(struct bcmgenet_priv *priv)
 {
-	struct device *kdev = &priv->pdev->dev;
-	unsigned int timeout = 0;
-	u32 reg;
-
 	/* 7358a0/7552a0: bad default in RBUF_FLUSH_CTRL.umac_sw_rst */
 	bcmgenet_rbuf_ctrl_set(priv, 0);
 	udelay(10);
@@ -1948,23 +1944,10 @@ static int reset_umac(struct bcmgenet_priv *priv)
 	/* disable MAC while updating its registers */
 	bcmgenet_umac_writel(priv, 0, UMAC_CMD);
 
-	/* issue soft reset, wait for it to complete */
-	bcmgenet_umac_writel(priv, CMD_SW_RESET, UMAC_CMD);
-	while (timeout++ < 1000) {
-		reg = bcmgenet_umac_readl(priv, UMAC_CMD);
-		if (!(reg & CMD_SW_RESET))
-			return 0;
-
-		udelay(1);
-	}
-
-	if (timeout == 1000) {
-		dev_err(kdev,
-			"timeout waiting for MAC to come out of reset\n");
-		return -ETIMEDOUT;
-	}
-
-	return 0;
+	/* issue soft reset with (rg)mii loopback to ensure a stable rxclk */
+	bcmgenet_umac_writel(priv, CMD_SW_RESET | CMD_LCL_LOOP_EN, UMAC_CMD);
+	udelay(2);
+	bcmgenet_umac_writel(priv, 0, UMAC_CMD);
 }
 
 static void bcmgenet_intr_disable(struct bcmgenet_priv *priv)
@@ -1994,20 +1977,16 @@ static void bcmgenet_link_intr_enable(struct bcmgenet_priv *priv)
 	bcmgenet_intrl2_0_writel(priv, int0_enable, INTRL2_CPU_MASK_CLEAR);
 }
 
-static int init_umac(struct bcmgenet_priv *priv)
+static void init_umac(struct bcmgenet_priv *priv)
 {
 	struct device *kdev = &priv->pdev->dev;
-	int ret;
 	u32 reg;
 	u32 int0_enable = 0;
 
 	dev_dbg(&priv->pdev->dev, "bcmgenet: init_umac\n");
 
-	ret = reset_umac(priv);
-	if (ret)
-		return ret;
+	reset_umac(priv);
 
-	bcmgenet_umac_writel(priv, 0, UMAC_CMD);
 	/* clear tx/rx counter */
 	bcmgenet_umac_writel(priv,
 			     MIB_RESET_RX | MIB_RESET_TX | MIB_RESET_RUNT,
@@ -2046,8 +2025,6 @@ static int init_umac(struct bcmgenet_priv *priv)
 	bcmgenet_intrl2_0_writel(priv, int0_enable, INTRL2_CPU_MASK_CLEAR);
 
 	dev_dbg(kdev, "done init umac\n");
-
-	return 0;
 }
 
 /* Initialize a Tx ring along with corresponding hardware registers */
@@ -2863,12 +2840,7 @@ static int bcmgenet_open(struct net_device *dev)
 	/* take MAC out of reset */
 	bcmgenet_umac_reset(priv);
 
-	ret = init_umac(priv);
-	if (ret)
-		goto err_clk_disable;
-
-	/* disable ethernet MAC while updating its registers */
-	umac_enable_set(priv, CMD_TX_EN | CMD_RX_EN, false);
+	init_umac(priv);
 
 	/* Make sure we reflect the value of CRC_CMD_FWD */
 	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
@@ -3546,9 +3518,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	    !strcasecmp(phy_mode_str, "internal"))
 		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
 
-	err = reset_umac(priv);
-	if (err)
-		goto err_clk_disable;
+	reset_umac(priv);
 
 	err = bcmgenet_mii_init(dev);
 	if (err)
@@ -3660,9 +3630,7 @@ static int bcmgenet_resume(struct device *d)
 
 	bcmgenet_umac_reset(priv);
 
-	ret = init_umac(priv);
-	if (ret)
-		goto out_clk_disable;
+	init_umac(priv);
 
 	/* From WOL-enabled suspend, switch to regular clock */
 	if (priv->wolopts)
@@ -3671,9 +3639,6 @@ static int bcmgenet_resume(struct device *d)
 	phy_init_hw(priv->phydev);
 	/* Speed settings must be restored */
 	bcmgenet_mii_config(priv->dev, false);
-
-	/* disable ethernet MAC while updating its registers */
-	umac_enable_set(priv, CMD_TX_EN | CMD_RX_EN, false);
 
 	bcmgenet_set_hw_addr(priv, dev->dev_addr);
 
