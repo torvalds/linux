@@ -1172,7 +1172,6 @@ static void bcmgenet_power_up(struct bcmgenet_priv *priv,
 		}
 		bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
 		bcmgenet_phy_power_set(priv->dev, true);
-		bcmgenet_mii_reset(priv->dev);
 		break;
 
 	case GENET_POWER_CABLE_SENSE:
