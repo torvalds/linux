@@ -76,7 +76,11 @@ module_param(lock_stat, int, 0644);
 #define lock_stat 0
 #endif
 
+#ifdef CONFIG_BOOTPARAM_LOCKDEP_CROSSRELEASE_FULLSTACK
+static int crossrelease_fullstack = 1;
+#else
 static int crossrelease_fullstack;
+#endif
 static int __init allow_crossrelease_fullstack(char *str)
 {
 	crossrelease_fullstack = 1;

@@ -1179,6 +1179,21 @@ config LOCKDEP_COMPLETIONS
 	 A deadlock caused by wait_for_completion() and complete() can be
 	 detected by lockdep using crossrelease feature.
 
+config BOOTPARAM_LOCKDEP_CROSSRELEASE_FULLSTACK
+	bool "Enable the boot parameter, crossrelease_fullstack"
+	depends on LOCKDEP_CROSSRELEASE
+	default n
+	help
+	 The lockdep "cross-release" feature needs to record stack traces
+	 (of calling functions) for all acquisitions, for eventual later
+	 use during analysis. By default only a single caller is recorded,
+	 because the unwind operation can be very expensive with deeper
+	 stack chains.
+
+	 However a boot parameter, crossrelease_fullstack, was
+	 introduced since sometimes deeper traces are required for full
+	 analysis. This option turns on the boot parameter.
+
 config DEBUG_LOCKDEP
 	bool "Lock dependency engine debugging"
 	depends on DEBUG_KERNEL && LOCKDEP
