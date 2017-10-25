@@ -1709,6 +1709,26 @@ struct mem_info *sample__resolve_mem(struct perf_sample *sample,
 	return mi;
 }
 
+static char *callchain_srcline(struct map *map, struct symbol *sym, u64 ip)
+{
+	char *srcline = NULL;
+
+	if (!map || callchain_param.key == CCKEY_FUNCTION)
+		return srcline;
+
+	srcline = srcline__tree_find(&map->dso->srclines, ip);
+	if (!srcline) {
+		bool show_sym = false;
+		bool show_addr = callchain_param.key == CCKEY_ADDRESS;
+
+		srcline = get_srcline(map->dso, map__rip_2objdump(map, ip),
+				      sym, show_sym, show_addr);
+		srcline__tree_insert(&map->dso->srclines, ip, srcline);
+	}
+
+	return srcline;
+}
+
 struct iterations {
 	int nr_loop_iter;
 	u64 cycles;
@@ -1728,6 +1748,7 @@ static int add_callchain_ip(struct thread *thread,
 	struct addr_location al;
 	int nr_loop_iter = 0;
 	u64 iter_cycles = 0;
+	const char *srcline = NULL;
 
 	al.filtered = 0;
 	al.sym = NULL;
@@ -1783,9 +1804,10 @@ static int add_callchain_ip(struct thread *thread,
 		iter_cycles = iter->cycles;
 	}
 
+	srcline = callchain_srcline(al.map, al.sym, al.addr);
 	return callchain_cursor_append(cursor, al.addr, al.map, al.sym,
 				       branch, flags, nr_loop_iter,
-				       iter_cycles, branch_from);
+				       iter_cycles, branch_from, srcline);
 }
 
 struct branch_info *sample__resolve_bstack(struct perf_sample *sample,
@@ -2098,15 +2120,54 @@ check_calls:
 	return 0;
 }
 
+static int append_inlines(struct callchain_cursor *cursor,
+			  struct map *map, struct symbol *sym, u64 ip)
+{
+	struct inline_node *inline_node;
+	struct inline_list *ilist;
+	u64 addr;
+	int ret = 1;
+
+	if (!symbol_conf.inline_name || !map || !sym)
+		return ret;
+
+	addr = map__rip_2objdump(map, ip);
+
+	inline_node = inlines__tree_find(&map->dso->inlined_nodes, addr);
+	if (!inline_node) {
+		inline_node = dso__parse_addr_inlines(map->dso, addr, sym);
+		if (!inline_node)
+			return ret;
+		inlines__tree_insert(&map->dso->inlined_nodes, inline_node);
+	}
+
+	list_for_each_entry(ilist, &inline_node->val, list) {
+		ret = callchain_cursor_append(cursor, ip, map,
+					      ilist->symbol, false,
+					      NULL, 0, 0, 0, ilist->srcline);
+
+		if (ret != 0)
+			return ret;
+	}
+
+	return ret;
+}
+
 static int unwind_entry(struct unwind_entry *entry, void *arg)
 {
 	struct callchain_cursor *cursor = arg;
+	const char *srcline = NULL;
 
 	if (symbol_conf.hide_unresolved && entry->sym == NULL)
 		return 0;
+
+	if (append_inlines(cursor, entry->map, entry->sym, entry->ip) == 0)
+		return 0;
+
+	srcline = callchain_srcline(entry->map, entry->sym, entry->ip);
 	return callchain_cursor_append(cursor, entry->ip,
 				       entry->map, entry->sym,
-				       false, NULL, 0, 0, 0);
+				       false, NULL, 0, 0, 0, srcline);
 }
 
 static int thread__resolve_callchain_unwind(struct thread *thread,
