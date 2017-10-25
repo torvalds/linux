@@ -1,0 +1,29 @@
+Rockchip RK618 Clock and Reset Unit
+
+This binding uses the common clock binding:
+Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+Required properties :
+- compatible : Should be "rockchip,rk618-cru"
+- clocks : Should contain phandle and clock specifiers for the input clock:
+  the AP I2S master clock output(mclk) "clkin", and the AP LCDC master
+  dclk output(dclk) "lcdc0_dclkp".
+- #clock-cells : Should be 1.
+
+Example:
+
+&rk618 {
+	CRU: cru {
+		compatible = "rockchip,rk618-cru";
+		clocks = <&cru SCLK_I2S_8CH_OUT>, <&cru DCLK_VOP>;
+		clock-names = "clkin", "lcdc0_dclkp";
+		assigned-clocks = <&CRU SCALER_PLLIN_CLK>, <&CRU VIF_PLLIN_CLK>,
+				  <&CRU HDMI_CLK>, <&CRU SCALER_CLK>,
+				  <&CRU CODEC_CLK>;
+		assigned-clock-parents = <&CRU LCDC0_CLK>, <&CRU LCDC0_CLK>,
+					 <&CRU VIF0_CLK>, <&CRU SCALER_PLL_CLK>,
+					 <&cru SCLK_I2S_8CH_OUT>;
+		#clock-cells = <1>;
+		status = "okay";
+	};
+};
