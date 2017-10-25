@@ -117,8 +117,8 @@ struct samsung_mux_clock s3c2443_common_muxes[] __initdata = {
 	MUX(0, "epllref", epllref_p, CLKSRC, 7, 2),
 	MUX(ESYSCLK, "esysclk", esysclk_p, CLKSRC, 6, 1),
 	MUX(0, "mpllref", mpllref_p, CLKSRC, 3, 1),
-	MUX_A(MSYSCLK, "msysclk", msysclk_p, CLKSRC, 4, 1, "msysclk"),
-	MUX_A(ARMCLK, "armclk", armclk_p, CLKDIV0, 13, 1, "armclk"),
+	MUX(MSYSCLK, "msysclk", msysclk_p, CLKSRC, 4, 1),
+	MUX(ARMCLK, "armclk", armclk_p, CLKDIV0, 13, 1),
 	MUX(0, "mux_i2s0", i2s0_p, CLKSRC, 14, 2),
 };
 
@@ -189,6 +189,10 @@ struct samsung_gate_clock s3c2443_common_gates[] __initdata = {
 };
 
 struct samsung_clock_alias s3c2443_common_aliases[] __initdata = {
+	ALIAS(MSYSCLK, NULL, "msysclk"),
+	ALIAS(ARMCLK, NULL, "armclk"),
+	ALIAS(MPLL, NULL, "mpll"),
+	ALIAS(EPLL, NULL, "epll"),
 	ALIAS(HCLK, NULL, "hclk"),
 	ALIAS(HCLK_SSMC, NULL, "nand"),
 	ALIAS(PCLK_UART0, "s3c2440-uart.0", "uart"),
@@ -221,9 +225,9 @@ struct samsung_clock_alias s3c2443_common_aliases[] __initdata = {
 /* S3C2416 specific clocks */
 
 static struct samsung_pll_clock s3c2416_pll_clks[] __initdata = {
-	[mpll] = PLL(pll_6552_s3c2416, 0, "mpll", "mpllref",
+	[mpll] = PLL(pll_6552_s3c2416, MPLL, "mpll", "mpllref",
 						LOCKCON0, MPLLCON, NULL),
-	[epll] = PLL(pll_6553, 0, "epll", "epllref",
+	[epll] = PLL(pll_6553, EPLL, "epll", "epllref",
 						LOCKCON1, EPLLCON, NULL),
 };
 
@@ -275,9 +279,9 @@ struct samsung_clock_alias s3c2416_aliases[] __initdata = {
 /* S3C2443 specific clocks */
 
 static struct samsung_pll_clock s3c2443_pll_clks[] __initdata = {
-	[mpll] = PLL(pll_3000, 0, "mpll", "mpllref",
+	[mpll] = PLL(pll_3000, MPLL, "mpll", "mpllref",
 						LOCKCON0, MPLLCON, NULL),
-	[epll] = PLL(pll_2126, 0, "epll", "epllref",
+	[epll] = PLL(pll_2126, EPLL, "epll", "epllref",
 						LOCKCON1, EPLLCON, NULL),
 };
 

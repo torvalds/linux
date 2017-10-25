@@ -181,7 +181,7 @@ void __init samsung_clk_register_mux(struct samsung_clk_provider *ctx,
 				unsigned int nr_clk)
 {
 	struct clk_hw *clk_hw;
-	unsigned int idx, ret;
+	unsigned int idx;
 
 	for (idx = 0; idx < nr_clk; idx++, list++) {
 		clk_hw = clk_hw_register_mux(ctx->dev, list->name,
@@ -195,15 +195,6 @@ void __init samsung_clk_register_mux(struct samsung_clk_provider *ctx,
 		}
 
 		samsung_clk_add_lookup(ctx, clk_hw, list->id);
-
-		/* register a clock lookup only if a clock alias is specified */
-		if (list->alias) {
-			ret = clk_hw_register_clkdev(clk_hw, list->alias,
-						list->dev_name);
-			if (ret)
-				pr_err("%s: failed to register lookup %s\n",
-						__func__, list->alias);
-		}
 	}
 }
 
@@ -213,7 +204,7 @@ void __init samsung_clk_register_div(struct samsung_clk_provider *ctx,
 				unsigned int nr_clk)
 {
 	struct clk_hw *clk_hw;
-	unsigned int idx, ret;
+	unsigned int idx;
 
 	for (idx = 0; idx < nr_clk; idx++, list++) {
 		if (list->table)
@@ -234,15 +225,6 @@ void __init samsung_clk_register_div(struct samsung_clk_provider *ctx,
 		}
 
 		samsung_clk_add_lookup(ctx, clk_hw, list->id);
-
-		/* register a clock lookup only if a clock alias is specified */
-		if (list->alias) {
-			ret = clk_hw_register_clkdev(clk_hw, list->alias,
-						list->dev_name);
-			if (ret)
-				pr_err("%s: failed to register lookup %s\n",
-						__func__, list->alias);
-		}
 	}
 }
 
@@ -252,7 +234,7 @@ void __init samsung_clk_register_gate(struct samsung_clk_provider *ctx,
 				unsigned int nr_clk)
 {
 	struct clk_hw *clk_hw;
-	unsigned int idx, ret;
+	unsigned int idx;
 
 	for (idx = 0; idx < nr_clk; idx++, list++) {
 		clk_hw = clk_hw_register_gate(ctx->dev, list->name, list->parent_name,
@@ -262,15 +244,6 @@ void __init samsung_clk_register_gate(struct samsung_clk_provider *ctx,
 			pr_err("%s: failed to register clock %s\n", __func__,
 				list->name);
 			continue;
-		}
-
-		/* register a clock lookup only if a clock alias is specified */
-		if (list->alias) {
-			ret = clk_hw_register_clkdev(clk_hw, list->alias,
-							list->dev_name);
-			if (ret)
-				pr_err("%s: failed to register lookup %s\n",
-					__func__, list->alias);
 		}
 
 		samsung_clk_add_lookup(ctx, clk_hw, list->id);
