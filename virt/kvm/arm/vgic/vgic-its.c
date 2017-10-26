@@ -1936,6 +1936,14 @@ static int vgic_its_save_itt(struct vgic_its *its, struct its_device *device)
 	return 0;
 }
 
+/**
+ * vgic_its_restore_itt - restore the ITT of a device
+ *
+ * @its: its handle
+ * @dev: device handle
+ *
+ * Return 0 on success, < 0 on error
+ */
 static int vgic_its_restore_itt(struct vgic_its *its, struct its_device *dev)
 {
 	const struct vgic_its_abi *abi = vgic_its_get_abi(its);
@@ -1946,6 +1954,10 @@ static int vgic_its_restore_itt(struct vgic_its *its, struct its_device *dev)
 
 	ret = scan_its_table(its, base, max_size, ite_esz, 0,
 			     vgic_its_restore_ite, dev);
+
+	/* scan_its_table returns +1 if all ITEs are invalid */
+	if (ret > 0)
+		ret = 0;
 
 	return ret;
 }
@@ -2103,10 +2115,7 @@ static int handle_l1_dte(struct vgic_its *its, u32 id, void *addr,
 	ret = scan_its_table(its, gpa, SZ_64K, dte_esz,
 			     l2_start_id, vgic_its_restore_dte, NULL);
 
-	if (ret <= 0)
-		return ret;
-
-	return 1;
+	return ret;
 }
 
 /**
@@ -2136,8 +2145,9 @@ static int vgic_its_restore_device_tables(struct vgic_its *its)
 				     vgic_its_restore_dte, NULL);
 	}
 
+	/* scan_its_table returns +1 if all entries are invalid */
 	if (ret > 0)
-		ret = -EINVAL;
+		ret = 0;
 
 	return ret;
 }
