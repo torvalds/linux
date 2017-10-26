@@ -2597,18 +2597,19 @@ static int dispc_ovl_setup_common(struct dispc_device *dispc,
 	out_width = out_width == 0 ? width : out_width;
 	out_height = out_height == 0 ? height : out_height;
 
-	if (ilace && height == out_height)
-		fieldmode = true;
+	if (plane != OMAP_DSS_WB) {
+		if (ilace && height == out_height)
+			fieldmode = true;
 
-	if (ilace) {
-		if (fieldmode)
-			in_height /= 2;
-		pos_y /= 2;
-		out_height /= 2;
+		if (ilace) {
+			if (fieldmode)
+				in_height /= 2;
+			pos_y /= 2;
+			out_height /= 2;
 
-		DSSDBG("adjusting for ilace: height %d, pos_y %d, "
-			"out_height %d\n", in_height, pos_y,
-			out_height);
+			DSSDBG("adjusting for ilace: height %d, pos_y %d, out_height %d\n",
+				in_height, pos_y, out_height);
+		}
 	}
 
 	if (!dispc_ovl_color_mode_supported(dispc, plane, fourcc))
@@ -2770,6 +2771,9 @@ int dispc_wb_setup(struct dispc_device *dispc,
 	int in_height = vm->vactive;
 	enum omap_overlay_caps caps =
 		OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA;
+
+	if (vm->flags & DISPLAY_FLAGS_INTERLACED)
+		in_height /= 2;
 
 	DSSDBG("dispc_wb_setup, pa %x, pa_uv %x, %d,%d -> %dx%d, cmode %x, "
 		"rot %d\n", wi->paddr, wi->p_uv_addr, in_width,
