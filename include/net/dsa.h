@@ -273,7 +273,7 @@ static inline bool dsa_is_dsa_port(struct dsa_switch *ds, int p)
 
 static inline bool dsa_is_normal_port(struct dsa_switch *ds, int p)
 {
-	return !dsa_is_cpu_port(ds, p) && !dsa_is_dsa_port(ds, p);
+	return !!(ds->enabled_port_mask & BIT(p));
 }
 
 static inline const struct dsa_port *dsa_to_port(struct dsa_switch *ds, int p)
