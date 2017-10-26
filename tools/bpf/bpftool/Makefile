@@ -46,6 +46,7 @@ $(LIBBPF)-clean:
 	$(Q)$(MAKE) -C $(BPF_DIR) OUTPUT=$(OUTPUT) clean >/dev/null
 
 prefix = /usr
+bash_compdir ?= $(prefix)/share/bash-completion/completions
 
 CC = gcc
 
@@ -76,6 +77,8 @@ clean: $(LIBBPF)-clean
 
 install:
 	install $(OUTPUT)bpftool $(prefix)/sbin/bpftool
+	install -m 0755 -d $(bash_compdir)
+	install -m 0644 bash-completion/bpftool $(bash_compdir)
 
 doc:
 	$(Q)$(MAKE) -C Documentation/
