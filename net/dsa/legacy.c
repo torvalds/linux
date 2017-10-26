@@ -124,13 +124,10 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 			}
 			dst->cpu_dp = &ds->ports[i];
 			dst->cpu_dp->master = master;
-			ds->cpu_port_mask |= 1 << i;
 			dp->type = DSA_PORT_TYPE_CPU;
 		} else if (!strcmp(name, "dsa")) {
-			ds->dsa_port_mask |= 1 << i;
 			dp->type = DSA_PORT_TYPE_DSA;
 		} else {
-			ds->enabled_port_mask |= 1 << i;
 			dp->type = DSA_PORT_TYPE_USER;
 		}
 		valid_name_found = true;
