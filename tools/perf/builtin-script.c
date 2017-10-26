@@ -1447,7 +1447,7 @@ static void process_event(struct perf_script *script,
 	perf_sample__fprintf_start(sample, thread, evsel, fp);
 
 	if (PRINT_FIELD(PERIOD))
-		printf("%10" PRIu64 " ", sample->period);
+		fprintf(fp, "%10" PRIu64 " ", sample->period);
 
 	if (PRINT_FIELD(EVNAME)) {
 		const char *evname = perf_evsel__name(evsel);
@@ -1455,8 +1455,7 @@ static void process_event(struct perf_script *script,
 		if (!script->name_width)
 			script->name_width = perf_evlist__max_name_len(script->session->evlist);
 
-		printf("%*s: ", script->name_width,
-		       evname ? evname : "[unknown]");
+		fprintf(fp, "%*s: ", script->name_width, evname ?: "[unknown]");
 	}
 
 	if (print_flags)
@@ -1513,8 +1512,8 @@ static void process_event(struct perf_script *script,
 	perf_sample__fprintf_insn(sample, attr, thread, machine, fp);
 
 	if (PRINT_FIELD(PHYS_ADDR))
-		printf("%16" PRIx64, sample->phys_addr);
-	printf("\n");
+		fprintf(fp, "%16" PRIx64, sample->phys_addr);
+	fprintf(fp, "\n");
 }
 
 static struct scripting_ops	*scripting_ops;
