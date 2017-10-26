@@ -3376,7 +3376,7 @@ static int kvm_vm_ioctl_get_dirty_log_hv(struct kvm *kvm,
 	struct kvm_memory_slot *memslot;
 	int i, r;
 	unsigned long n;
-	unsigned long *buf;
+	unsigned long *buf, *p;
 	struct kvm_vcpu *vcpu;
 
 	mutex_lock(&kvm->slots_lock);
@@ -3392,8 +3392,8 @@ static int kvm_vm_ioctl_get_dirty_log_hv(struct kvm *kvm,
 		goto out;
 
 	/*
-	 * Use second half of bitmap area because radix accumulates
-	 * bits in the first half.
+	 * Use second half of bitmap area because both HPT and radix
+	 * accumulate bits in the first half.
 	 */
 	n = kvm_dirty_bitmap_bytes(memslot);
 	buf = memslot->dirty_bitmap + n / sizeof(long);
@@ -3405,6 +3405,16 @@ static int kvm_vm_ioctl_get_dirty_log_hv(struct kvm *kvm,
 		r = kvmppc_hv_get_dirty_log_hpt(kvm, memslot, buf);
 	if (r)
 		goto out;
+
+	/*
+	 * We accumulate dirty bits in the first half of the
+	 * memslot's dirty_bitmap area, for when pages are paged
+	 * out or modified by the host directly.  Pick up these
+	 * bits and add them to the map.
+	 */
+	p = memslot->dirty_bitmap;
+	for (i = 0; i < n / sizeof(long); ++i)
+		buf[i] |= xchg(&p[i], 0);
 
 	/* Harvest dirty bits from VPA and DTL updates */
 	/* Note: we never modify the SLB shadow buffer areas */
@@ -3466,8 +3476,6 @@ static void kvmppc_core_commit_memory_region_hv(struct kvm *kvm,
 				const struct kvm_memory_slot *new)
 {
 	unsigned long npages = mem->memory_size >> PAGE_SHIFT;
-	struct kvm_memslots *slots;
-	struct kvm_memory_slot *memslot;
 
 	/*
 	 * If we are making a new memslot, it might make
@@ -3477,18 +3485,6 @@ static void kvmppc_core_commit_memory_region_hv(struct kvm *kvm,
 	 */
 	if (npages)
 		atomic64_inc(&kvm->arch.mmio_update);
-
-	if (npages && old->npages && !kvm_is_radix(kvm)) {
-		/*
-		 * If modifying a memslot, reset all the rmap dirty bits.
-		 * If this is a new memslot, we don't need to do anything
-		 * since the rmap array starts out as all zeroes,
-		 * i.e. no pages are dirty.
-		 */
-		slots = kvm_memslots(kvm);
-		memslot = id_to_memslot(slots, mem->slot);
-		kvmppc_hv_get_dirty_log_hpt(kvm, memslot, NULL);
-	}
 }
 
 /*

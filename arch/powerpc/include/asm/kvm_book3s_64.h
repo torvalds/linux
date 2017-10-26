@@ -20,6 +20,8 @@
 #ifndef __ASM_KVM_BOOK3S_64_H__
 #define __ASM_KVM_BOOK3S_64_H__
 
+#include <linux/string.h>
+#include <asm/bitops.h>
 #include <asm/book3s/64/mmu-hash.h>
 
 /* Power architecture requires HPT is at least 256kiB, at most 64TiB */
@@ -442,6 +444,28 @@ static inline unsigned long kvmppc_hpt_mask(struct kvm_hpt_info *hpt)
 {
 	/* 128 (2**7) bytes in each HPTEG */
 	return (1UL << (hpt->order - 7)) - 1;
+}
+
+/* Set bits in a dirty bitmap, which is in LE format */
+static inline void set_dirty_bits(unsigned long *map, unsigned long i,
+				  unsigned long npages)
+{
+
+	if (npages >= 8)
+		memset((char *)map + i / 8, 0xff, npages / 8);
+	else
+		for (; npages; ++i, --npages)
+			__set_bit_le(i, map);
+}
+
+static inline void set_dirty_bits_atomic(unsigned long *map, unsigned long i,
+					 unsigned long npages)
+{
+	if (npages >= 8)
+		memset((char *)map + i / 8, 0xff, npages / 8);
+	else
+		for (; npages; ++i, --npages)
+			set_bit_le(i, map);
 }
 
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
