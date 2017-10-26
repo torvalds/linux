@@ -3600,11 +3600,11 @@ static int hclge_add_mac_vlan_tbl(struct hclge_vport *vport,
 							   resp_code,
 							   HCLGE_MAC_VLAN_ADD);
 	} else {
-		mc_desc[0].flag &= cpu_to_le16(~HCLGE_CMD_FLAG_WR);
+		hclge_cmd_reuse_desc(&mc_desc[0], false);
 		mc_desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-		mc_desc[1].flag &= cpu_to_le16(~HCLGE_CMD_FLAG_WR);
+		hclge_cmd_reuse_desc(&mc_desc[1], false);
 		mc_desc[1].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-		mc_desc[2].flag &= cpu_to_le16(~HCLGE_CMD_FLAG_WR);
+		hclge_cmd_reuse_desc(&mc_desc[2], false);
 		mc_desc[2].flag &= cpu_to_le16(~HCLGE_CMD_FLAG_NEXT);
 		memcpy(mc_desc[0].data, req,
 		       sizeof(struct hclge_mac_vlan_tbl_entry_cmd));
@@ -4285,7 +4285,7 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 				vport->roce.client = client;
 			}
 
-			if (hdev->roce_client) {
+			if (hdev->roce_client && hdev->nic_client) {
 				ret = hclge_init_roce_base_info(vport);
 				if (ret)
 					goto err;
@@ -4311,13 +4311,19 @@ static void hclge_uninit_client_instance(struct hnae3_client *client,
 
 	for (i = 0; i < hdev->num_vmdq_vport + 1; i++) {
 		vport = &hdev->vport[i];
-		if (hdev->roce_client)
+		if (hdev->roce_client) {
 			hdev->roce_client->ops->uninit_instance(&vport->roce,
 								0);
+			hdev->roce_client = NULL;
+			vport->roce.client = NULL;
+		}
 		if (client->type == HNAE3_CLIENT_ROCE)
 			return;
-		if (client->ops->uninit_instance)
+		if (client->ops->uninit_instance) {
 			client->ops->uninit_instance(&vport->nic, 0);
+			hdev->nic_client = NULL;
+			vport->nic.client = NULL;
+		}
 	}
 }
 
