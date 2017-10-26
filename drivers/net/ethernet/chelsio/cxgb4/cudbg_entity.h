@@ -145,6 +145,21 @@ struct cudbg_ulptx_la {
 	u32 rd_data[CUDBG_NUM_ULPTX][CUDBG_NUM_ULPTX_READ];
 };
 
+#define CUDBG_CHAC_PBT_ADDR 0x2800
+#define CUDBG_CHAC_PBT_LRF  0x3000
+#define CUDBG_CHAC_PBT_DATA 0x3800
+#define CUDBG_PBT_DYNAMIC_ENTRIES 8
+#define CUDBG_PBT_STATIC_ENTRIES 16
+#define CUDBG_LRF_ENTRIES 8
+#define CUDBG_PBT_DATA_ENTRIES 512
+
+struct cudbg_pbt_tables {
+	u32 pbt_dynamic[CUDBG_PBT_DYNAMIC_ENTRIES];
+	u32 pbt_static[CUDBG_PBT_STATIC_ENTRIES];
+	u32 lrf_table[CUDBG_LRF_ENTRIES];
+	u32 pbt_data[CUDBG_PBT_DATA_ENTRIES];
+};
+
 #define IREG_NUM_ELEM 4
 
 static const u32 t6_tp_pio_array[][IREG_NUM_ELEM] = {

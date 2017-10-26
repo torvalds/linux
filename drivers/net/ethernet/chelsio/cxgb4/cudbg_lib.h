@@ -123,6 +123,9 @@ int cudbg_collect_ulptx_la(struct cudbg_init *pdbg_init,
 int cudbg_collect_up_cim_indirect(struct cudbg_init *pdbg_init,
 				  struct cudbg_buffer *dbg_buff,
 				  struct cudbg_error *cudbg_err);
+int cudbg_collect_pbt_tables(struct cudbg_init *pdbg_init,
+			     struct cudbg_buffer *dbg_buff,
+			     struct cudbg_error *cudbg_err);
 int cudbg_collect_mbox_log(struct cudbg_init *pdbg_init,
 			   struct cudbg_buffer *dbg_buff,
 			   struct cudbg_error *cudbg_err);

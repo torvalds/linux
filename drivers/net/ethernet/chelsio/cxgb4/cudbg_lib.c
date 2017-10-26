@@ -1310,6 +1310,74 @@ int cudbg_collect_up_cim_indirect(struct cudbg_init *pdbg_init,
 	return rc;
 }
 
+int cudbg_collect_pbt_tables(struct cudbg_init *pdbg_init,
+			     struct cudbg_buffer *dbg_buff,
+			     struct cudbg_error *cudbg_err)
+{
+	struct adapter *padap = pdbg_init->adap;
+	struct cudbg_buffer temp_buff = { 0 };
+	struct cudbg_pbt_tables *pbt;
+	int i, rc;
+	u32 addr;
+
+	rc = cudbg_get_buff(dbg_buff, sizeof(struct cudbg_pbt_tables),
+			    &temp_buff);
+	if (rc)
+		return rc;
+
+	pbt = (struct cudbg_pbt_tables *)temp_buff.data;
+	/* PBT dynamic entries */
+	addr = CUDBG_CHAC_PBT_ADDR;
+	for (i = 0; i < CUDBG_PBT_DYNAMIC_ENTRIES; i++) {
+		rc = t4_cim_read(padap, addr + (i * 4), 1,
+				 &pbt->pbt_dynamic[i]);
+		if (rc) {
+			cudbg_err->sys_err = rc;
+			cudbg_put_buff(&temp_buff, dbg_buff);
+			return rc;
+		}
+	}
+
+	/* PBT static entries */
+	/* static entries start when bit 6 is set */
+	addr = CUDBG_CHAC_PBT_ADDR + (1 << 6);
+	for (i = 0; i < CUDBG_PBT_STATIC_ENTRIES; i++) {
+		rc = t4_cim_read(padap, addr + (i * 4), 1,
+				 &pbt->pbt_static[i]);
+		if (rc) {
+			cudbg_err->sys_err = rc;
+			cudbg_put_buff(&temp_buff, dbg_buff);
+			return rc;
+		}
+	}
+
+	/* LRF entries */
+	addr = CUDBG_CHAC_PBT_LRF;
+	for (i = 0; i < CUDBG_LRF_ENTRIES; i++) {
+		rc = t4_cim_read(padap, addr + (i * 4), 1,
+				 &pbt->lrf_table[i]);
+		if (rc) {
+			cudbg_err->sys_err = rc;
+			cudbg_put_buff(&temp_buff, dbg_buff);
+			return rc;
+		}
+	}
+
+	/* PBT data entries */
+	addr = CUDBG_CHAC_PBT_DATA;
+	for (i = 0; i < CUDBG_PBT_DATA_ENTRIES; i++) {
+		rc = t4_cim_read(padap, addr + (i * 4), 1,
+				 &pbt->pbt_data[i]);
+		if (rc) {
+			cudbg_err->sys_err = rc;
+			cudbg_put_buff(&temp_buff, dbg_buff);
+			return rc;
+		}
+	}
+	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
+	return rc;
+}
+
 int cudbg_collect_mbox_log(struct cudbg_init *pdbg_init,
 			   struct cudbg_buffer *dbg_buff,
 			   struct cudbg_error *cudbg_err)

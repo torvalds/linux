@@ -60,6 +60,7 @@ static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
 	{ CUDBG_MA_INDIRECT, cudbg_collect_ma_indirect },
 	{ CUDBG_ULPTX_LA, cudbg_collect_ulptx_la },
 	{ CUDBG_UP_CIM_INDIRECT, cudbg_collect_up_cim_indirect },
+	{ CUDBG_PBT_TABLE, cudbg_collect_pbt_tables },
 	{ CUDBG_HMA_INDIRECT, cudbg_collect_hma_indirect },
 };
 
@@ -214,6 +215,9 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 	case CUDBG_UP_CIM_INDIRECT:
 		n = sizeof(t5_up_cim_reg_array) / (IREG_NUM_ELEM * sizeof(u32));
 		len = sizeof(struct ireg_buf) * n;
+		break;
+	case CUDBG_PBT_TABLE:
+		len = sizeof(struct cudbg_pbt_tables);
 		break;
 	case CUDBG_MBOX_LOG:
 		len = sizeof(struct cudbg_mbox_log) * adap->mbox_log->size;
