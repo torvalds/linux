@@ -4537,19 +4537,42 @@ static int bnxt_hwrm_check_tx_rings(struct bnxt *bp, int tx_rings)
 	return 0;
 }
 
-static void bnxt_hwrm_set_coal_params(struct bnxt *bp, u32 max_bufs,
-	u32 buf_tmrs, u16 flags,
+static void bnxt_hwrm_set_coal_params(struct bnxt_coal *hw_coal,
 	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input *req)
 {
+	u16 val, tmr, max, flags;
+
+	max = hw_coal->bufs_per_record * 128;
+	if (hw_coal->budget)
+		max = hw_coal->bufs_per_record * hw_coal->budget;
+
+	val = clamp_t(u16, hw_coal->coal_bufs, 1, max);
+	req->num_cmpl_aggr_int = cpu_to_le16(val);
+	req->num_cmpl_dma_aggr = cpu_to_le16(val);
+
+	val = clamp_t(u16, hw_coal->coal_bufs_irq, 1, max);
+	req->num_cmpl_dma_aggr_during_int = cpu_to_le16(val);
+
+	tmr = BNXT_USEC_TO_COAL_TIMER(hw_coal->coal_ticks);
+	tmr = max_t(u16, tmr, 1);
+	req->int_lat_tmr_max = cpu_to_le16(tmr);
+
+	/* min timer set to 1/2 of interrupt timer */
+	val = tmr / 2;
+	req->int_lat_tmr_min = cpu_to_le16(val);
+
+	/* buf timer set to 1/4 of interrupt timer */
+	val = max_t(u16, tmr / 4, 1);
+	req->cmpl_aggr_dma_tmr = cpu_to_le16(val);
+
+	tmr = BNXT_USEC_TO_COAL_TIMER(hw_coal->coal_ticks_irq);
+	tmr = max_t(u16, tmr, 1);
+	req->cmpl_aggr_dma_tmr_during_int = cpu_to_le16(tmr);
+
+	flags = RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_TIMER_RESET;
+	if (hw_coal->idle_thresh && hw_coal->coal_ticks < hw_coal->idle_thresh)
+		flags |= RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_RING_IDLE;
 	req->flags = cpu_to_le16(flags);
-	req->num_cmpl_dma_aggr = cpu_to_le16((u16)max_bufs);
-	req->num_cmpl_dma_aggr_during_int = cpu_to_le16(max_bufs >> 16);
-	req->cmpl_aggr_dma_tmr = cpu_to_le16((u16)buf_tmrs);
-	req->cmpl_aggr_dma_tmr_during_int = cpu_to_le16(buf_tmrs >> 16);
-	/* Minimum time between 2 interrupts set to buf_tmr x 2 */
-	req->int_lat_tmr_min = cpu_to_le16((u16)buf_tmrs * 2);
-	req->int_lat_tmr_max = cpu_to_le16((u16)buf_tmrs * 4);
-	req->num_cmpl_aggr_int = cpu_to_le16((u16)max_bufs * 4);
 }
 
 int bnxt_hwrm_set_coal(struct bnxt *bp)
@@ -4557,48 +4580,14 @@ int bnxt_hwrm_set_coal(struct bnxt *bp)
 	int i, rc = 0;
 	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input req_rx = {0},
 							   req_tx = {0}, *req;
-	u16 max_buf, max_buf_irq;
-	u16 buf_tmr, buf_tmr_irq;
-	u32 flags;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req_rx,
 			       HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS, -1, -1);
 	bnxt_hwrm_cmd_hdr_init(bp, &req_tx,
 			       HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS, -1, -1);
 
-	/* Each rx completion (2 records) should be DMAed immediately.
-	 * DMA 1/4 of the completion buffers at a time.
-	 */
-	max_buf = min_t(u16, bp->rx_coal.coal_bufs / 4, 2);
-	/* max_buf must not be zero */
-	max_buf = clamp_t(u16, max_buf, 1, 63);
-	max_buf_irq = clamp_t(u16, bp->rx_coal.coal_bufs_irq, 1, 63);
-	buf_tmr = BNXT_USEC_TO_COAL_TIMER(bp->rx_coal.coal_ticks);
-	/* buf timer set to 1/4 of interrupt timer */
-	buf_tmr = max_t(u16, buf_tmr / 4, 1);
-	buf_tmr_irq = BNXT_USEC_TO_COAL_TIMER(bp->rx_coal.coal_ticks_irq);
-	buf_tmr_irq = max_t(u16, buf_tmr_irq, 1);
-
-	flags = RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_TIMER_RESET;
-
-	if (bp->rx_coal.coal_ticks < bp->rx_coal.idle_thresh)
-		flags |= RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_RING_IDLE;
-
-	bnxt_hwrm_set_coal_params(bp, max_buf_irq << 16 | max_buf,
-				  buf_tmr_irq << 16 | buf_tmr, flags, &req_rx);
-
-	/* max_buf must not be zero */
-	max_buf = clamp_t(u16, bp->tx_coal.coal_bufs, 1, 63);
-	max_buf_irq = clamp_t(u16, bp->tx_coal.coal_bufs_irq, 1, 63);
-	buf_tmr = BNXT_USEC_TO_COAL_TIMER(bp->tx_coal.coal_ticks);
-	/* buf timer set to 1/4 of interrupt timer */
-	buf_tmr = max_t(u16, buf_tmr / 4, 1);
-	buf_tmr_irq = BNXT_USEC_TO_COAL_TIMER(bp->tx_coal.coal_ticks_irq);
-	buf_tmr_irq = max_t(u16, buf_tmr_irq, 1);
-
-	flags = RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_TIMER_RESET;
-	bnxt_hwrm_set_coal_params(bp, max_buf_irq << 16 | max_buf,
-				  buf_tmr_irq << 16 | buf_tmr, flags, &req_tx);
+	bnxt_hwrm_set_coal_params(&bp->rx_coal, &req_rx);
+	bnxt_hwrm_set_coal_params(&bp->tx_coal, &req_tx);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
 	for (i = 0; i < bp->cp_nr_rings; i++) {
