@@ -578,7 +578,6 @@ static struct syscall_fmt {
 } syscall_fmts[] = {
 	{ .name	    = "access",
 	  .arg = { [1] = { .scnprintf = SCA_ACCMODE,  /* mode */ }, }, },
-	{ .name	    = "arch_prctl", .alias = "prctl", },
 	{ .name	    = "bpf",
 	  .arg = { [0] = STRARRAY(cmd, bpf_cmd), }, },
 	{ .name	    = "brk",	    .hexret = true,
@@ -703,6 +702,10 @@ static struct syscall_fmt {
 		   [3] = { .scnprintf = SCA_INT,	/* pkey */ }, }, },
 	{ .name	    = "poll", .timeout = true, },
 	{ .name	    = "ppoll", .timeout = true, },
+	{ .name	    = "prctl", .alias = "arch_prctl",
+	  .arg = { [0] = { .scnprintf = SCA_PRCTL_OPTION, /* option */ },
+		   [1] = { .scnprintf = SCA_PRCTL_ARG2, /* arg2 */ },
+		   [2] = { .scnprintf = SCA_PRCTL_ARG3, /* arg3 */ }, }, },
 	{ .name	    = "pread", .alias = "pread64", },
 	{ .name	    = "preadv", .alias = "pread", },
 	{ .name	    = "prlimit64",
