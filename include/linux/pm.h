@@ -558,6 +558,7 @@ struct pm_subsys_data {
  *
  * NEVER_SKIP: Do not skip system suspend/resume callbacks for the device.
  * SMART_PREPARE: Check the return value of the driver's ->prepare callback.
+ * SMART_SUSPEND: No need to resume the device from runtime suspend.
  *
  * Setting SMART_PREPARE instructs bus types and PM domains which may want
  * system suspend/resume callbacks to be skipped for the device to return 0 from
@@ -565,9 +566,16 @@ struct pm_subsys_data {
  * other words, the system suspend/resume callbacks can only be skipped for the
  * device if its driver doesn't object against that).  This flag has no effect
  * if NEVER_SKIP is set.
+ *
+ * Setting SMART_SUSPEND instructs bus types and PM domains which may want to
+ * runtime resume the device upfront during system suspend that doing so is not
+ * necessary from the driver's perspective.  It also may cause them to skip
+ * invocations of the ->suspend_late and ->suspend_noirq callbacks provided by
+ * the driver if they decide to leave the device in runtime suspend.
  */
 #define DPM_FLAG_NEVER_SKIP	BIT(0)
 #define DPM_FLAG_SMART_PREPARE	BIT(1)
+#define DPM_FLAG_SMART_SUSPEND	BIT(2)
 
 struct dev_pm_info {
 	pm_message_t		power_state;

@@ -766,6 +766,26 @@ the state of devices (possibly except for resuming them from runtime suspend)
 from their ``->prepare`` and ``->suspend`` callbacks (or equivalent) *before*
 invoking device drivers' ``->suspend`` callbacks (or equivalent).
 
+Some bus types and PM domains have a policy to resume all devices from runtime
+suspend upfront in their ``->suspend`` callbacks, but that may not be really
+necessary if the driver of the device can cope with runtime-suspended devices.
+The driver can indicate that by setting ``DPM_FLAG_SMART_SUSPEND`` in
+:c:member:`power.driver_flags` at the probe time, by passing it to the
+:c:func:`dev_pm_set_driver_flags` helper.  That also may cause middle-layer code
+(bus types, PM domains etc.) to skip the ``->suspend_late`` and
+``->suspend_noirq`` callbacks provided by the driver if the device remains in
+runtime suspend at the beginning of the ``suspend_late`` phase of system-wide
+suspend (or in the ``poweroff_late`` phase of hibernation), when runtime PM
+has been disabled for it, under the assumption that its state should not change
+after that point until the system-wide transition is over.  If that happens, the
+driver's system-wide resume callbacks, if present, may still be invoked during
+the subsequent system-wide resume transition and the device's runtime power
+management status may be set to "active" before enabling runtime PM for it,
+so the driver must be prepared to cope with the invocation of its system-wide
+resume callbacks back-to-back with its ``->runtime_suspend`` one (without the
+intervening ``->runtime_resume`` and so on) and the final state of the device
+must reflect the "active" status for runtime PM in that case.
+
 During system-wide resume from a sleep state it's easiest to put devices into
 the full-power state, as explained in :file:`Documentation/power/runtime_pm.txt`.
 Refer to that document for more information regarding this particular issue as
