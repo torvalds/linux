@@ -1196,19 +1196,13 @@ liquidio_probe(struct pci_dev *pdev,
 	}
 
 	if (OCTEON_CN23XX_PF(oct_dev)) {
-		u64 scratch1;
 		u8 bus, device, function;
 
-		scratch1 = octeon_read_csr64(oct_dev, CN23XX_SLI_SCRATCH1);
-		if (!(scratch1 & 4ULL)) {
-			/* Bit 2 of SLI_SCRATCH_1 is a flag that indicates that
-			 * the lio watchdog kernel thread is running for this
-			 * NIC.  Each NIC gets one watchdog kernel thread.
+		if (atomic_read(oct_dev->adapter_refcount) == 1) {
+			/* Each NIC gets one watchdog kernel thread.  The first
+			 * PF (of each NIC) that gets pci_driver->probe()'d
+			 * creates that thread.
 			 */
-			scratch1 |= 4ULL;
-			octeon_write_csr64(oct_dev, CN23XX_SLI_SCRATCH1,
-					   scratch1);
-
 			bus = pdev->bus->number;
 			device = PCI_SLOT(pdev->devfn);
 			function = PCI_FUNC(pdev->devfn);
