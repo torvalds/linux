@@ -483,8 +483,8 @@ static inline int esp_remove_trailer(struct sk_buff *skb)
 		goto out;
 	}
 
-	if (skb_copy_bits(skb, skb->len - alen - 2, nexthdr, 2))
-		BUG();
+	ret = skb_copy_bits(skb, skb->len - alen - 2, nexthdr, 2);
+	BUG_ON(ret);
 
 	ret = -EINVAL;
 	padlen = nexthdr[0];
