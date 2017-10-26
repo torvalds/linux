@@ -515,9 +515,13 @@ static int ipvlan_xmit_mode_l3(struct sk_buff *skb, struct net_device *dev)
 		goto out;
 
 	addr = ipvlan_addr_lookup(ipvlan->port, lyr3h, addr_type, true);
-	if (addr)
+	if (addr) {
+		if (ipvlan_is_private(ipvlan->port)) {
+			consume_skb(skb);
+			return NET_XMIT_DROP;
+		}
 		return ipvlan_rcv_frame(addr, &skb, true);
-
+	}
 out:
 	ipvlan_skb_crossing_ns(skb, ipvlan->phy_dev);
 	return ipvlan_process_outbound(skb);
@@ -535,8 +539,13 @@ static int ipvlan_xmit_mode_l2(struct sk_buff *skb, struct net_device *dev)
 		lyr3h = ipvlan_get_L3_hdr(skb, &addr_type);
 		if (lyr3h) {
 			addr = ipvlan_addr_lookup(ipvlan->port, lyr3h, addr_type, true);
-			if (addr)
+			if (addr) {
+				if (ipvlan_is_private(ipvlan->port)) {
+					consume_skb(skb);
+					return NET_XMIT_DROP;
+				}
 				return ipvlan_rcv_frame(addr, &skb, true);
+			}
 		}
 		skb = skb_share_check(skb, GFP_ATOMIC);
 		if (!skb)

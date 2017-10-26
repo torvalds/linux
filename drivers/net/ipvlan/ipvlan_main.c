@@ -462,11 +462,24 @@ static int ipvlan_nl_changelink(struct net_device *dev,
 	struct ipvl_port *port = ipvlan_port_get_rtnl(ipvlan->phy_dev);
 	int err = 0;
 
-	if (data && data[IFLA_IPVLAN_MODE]) {
+	if (!data)
+		return 0;
+
+	if (data[IFLA_IPVLAN_MODE]) {
 		u16 nmode = nla_get_u16(data[IFLA_IPVLAN_MODE]);
 
 		err = ipvlan_set_port_mode(port, nmode);
 	}
+
+	if (!err && data[IFLA_IPVLAN_FLAGS]) {
+		u16 flags = nla_get_u16(data[IFLA_IPVLAN_FLAGS]);
+
+		if (flags & IPVLAN_F_PRIVATE)
+			ipvlan_mark_private(port);
+		else
+			ipvlan_clear_private(port);
+	}
+
 	return err;
 }
 
@@ -474,18 +487,30 @@ static size_t ipvlan_nl_getsize(const struct net_device *dev)
 {
 	return (0
 		+ nla_total_size(2) /* IFLA_IPVLAN_MODE */
+		+ nla_total_size(2) /* IFLA_IPVLAN_FLAGS */
 		);
 }
 
 static int ipvlan_nl_validate(struct nlattr *tb[], struct nlattr *data[],
 			      struct netlink_ext_ack *extack)
 {
-	if (data && data[IFLA_IPVLAN_MODE]) {
+	if (!data)
+		return 0;
+
+	if (data[IFLA_IPVLAN_MODE]) {
 		u16 mode = nla_get_u16(data[IFLA_IPVLAN_MODE]);
 
 		if (mode < IPVLAN_MODE_L2 || mode >= IPVLAN_MODE_MAX)
 			return -EINVAL;
 	}
+	if (data[IFLA_IPVLAN_FLAGS]) {
+		u16 flags = nla_get_u16(data[IFLA_IPVLAN_FLAGS]);
+
+		/* Only one bit is used at this moment. */
+		if (flags & ~IPVLAN_F_PRIVATE)
+			return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -501,6 +526,8 @@ static int ipvlan_nl_fillinfo(struct sk_buff *skb,
 
 	ret = -EMSGSIZE;
 	if (nla_put_u16(skb, IFLA_IPVLAN_MODE, port->mode))
+		goto err;
+	if (nla_put_u16(skb, IFLA_IPVLAN_FLAGS, port->flags))
 		goto err;
 
 	return 0;
@@ -548,6 +575,12 @@ int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	ipvlan->sfeatures = IPVLAN_FEATURES;
 	ipvlan_adjust_mtu(ipvlan, phy_dev);
 	INIT_LIST_HEAD(&ipvlan->addrs);
+
+	/* Flags are per port and latest update overrides. User has
+	 * to be consistent in setting it just like the mode attribute.
+	 */
+	if (data && data[IFLA_IPVLAN_FLAGS])
+		ipvlan->port->flags = nla_get_u16(data[IFLA_IPVLAN_FLAGS]);
 
 	/* If the port-id base is at the MAX value, then wrap it around and
 	 * begin from 0x1 again. This may be due to a busy system where lots
@@ -644,6 +677,7 @@ EXPORT_SYMBOL_GPL(ipvlan_link_setup);
 static const struct nla_policy ipvlan_nl_policy[IFLA_IPVLAN_MAX + 1] =
 {
 	[IFLA_IPVLAN_MODE] = { .type = NLA_U16 },
+	[IFLA_IPVLAN_FLAGS] = { .type = NLA_U16 },
 };
 
 static struct rtnl_link_ops ipvlan_link_ops = {
