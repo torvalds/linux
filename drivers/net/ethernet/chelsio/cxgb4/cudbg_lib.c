@@ -987,6 +987,190 @@ int cudbg_collect_tid(struct cudbg_init *pdbg_init,
 	return rc;
 }
 
+static inline void cudbg_tcamxy2valmask(u64 x, u64 y, u8 *addr, u64 *mask)
+{
+	*mask = x | y;
+	y = (__force u64)cpu_to_be64(y);
+	memcpy(addr, (char *)&y + 2, ETH_ALEN);
+}
+
+static void cudbg_mps_rpl_backdoor(struct adapter *padap,
+				   struct fw_ldst_mps_rplc *mps_rplc)
+{
+	if (is_t5(padap->params.chip)) {
+		mps_rplc->rplc255_224 = htonl(t4_read_reg(padap,
+							  MPS_VF_RPLCT_MAP3_A));
+		mps_rplc->rplc223_192 = htonl(t4_read_reg(padap,
+							  MPS_VF_RPLCT_MAP2_A));
+		mps_rplc->rplc191_160 = htonl(t4_read_reg(padap,
+							  MPS_VF_RPLCT_MAP1_A));
+		mps_rplc->rplc159_128 = htonl(t4_read_reg(padap,
+							  MPS_VF_RPLCT_MAP0_A));
+	} else {
+		mps_rplc->rplc255_224 = htonl(t4_read_reg(padap,
+							  MPS_VF_RPLCT_MAP7_A));
+		mps_rplc->rplc223_192 = htonl(t4_read_reg(padap,
+							  MPS_VF_RPLCT_MAP6_A));
+		mps_rplc->rplc191_160 = htonl(t4_read_reg(padap,
+							  MPS_VF_RPLCT_MAP5_A));
+		mps_rplc->rplc159_128 = htonl(t4_read_reg(padap,
+							  MPS_VF_RPLCT_MAP4_A));
+	}
+	mps_rplc->rplc127_96 = htonl(t4_read_reg(padap, MPS_VF_RPLCT_MAP3_A));
+	mps_rplc->rplc95_64 = htonl(t4_read_reg(padap, MPS_VF_RPLCT_MAP2_A));
+	mps_rplc->rplc63_32 = htonl(t4_read_reg(padap, MPS_VF_RPLCT_MAP1_A));
+	mps_rplc->rplc31_0 = htonl(t4_read_reg(padap, MPS_VF_RPLCT_MAP0_A));
+}
+
+static int cudbg_collect_tcam_index(struct adapter *padap,
+				    struct cudbg_mps_tcam *tcam, u32 idx)
+{
+	u64 tcamy, tcamx, val;
+	u32 ctl, data2;
+	int rc = 0;
+
+	if (CHELSIO_CHIP_VERSION(padap->params.chip) >= CHELSIO_T6) {
+		/* CtlReqID   - 1: use Host Driver Requester ID
+		 * CtlCmdType - 0: Read, 1: Write
+		 * CtlTcamSel - 0: TCAM0, 1: TCAM1
+		 * CtlXYBitSel- 0: Y bit, 1: X bit
+		 */
+
+		/* Read tcamy */
+		ctl = CTLREQID_V(1) | CTLCMDTYPE_V(0) | CTLXYBITSEL_V(0);
+		if (idx < 256)
+			ctl |= CTLTCAMINDEX_V(idx) | CTLTCAMSEL_V(0);
+		else
+			ctl |= CTLTCAMINDEX_V(idx - 256) | CTLTCAMSEL_V(1);
+
+		t4_write_reg(padap, MPS_CLS_TCAM_DATA2_CTL_A, ctl);
+		val = t4_read_reg(padap, MPS_CLS_TCAM_RDATA1_REQ_ID1_A);
+		tcamy = DMACH_G(val) << 32;
+		tcamy |= t4_read_reg(padap, MPS_CLS_TCAM_RDATA0_REQ_ID1_A);
+		data2 = t4_read_reg(padap, MPS_CLS_TCAM_RDATA2_REQ_ID1_A);
+		tcam->lookup_type = DATALKPTYPE_G(data2);
+
+		/* 0 - Outer header, 1 - Inner header
+		 * [71:48] bit locations are overloaded for
+		 * outer vs. inner lookup types.
+		 */
+		if (tcam->lookup_type && tcam->lookup_type != DATALKPTYPE_M) {
+			/* Inner header VNI */
+			tcam->vniy = (data2 & DATAVIDH2_F) | DATAVIDH1_G(data2);
+			tcam->vniy = (tcam->vniy << 16) | VIDL_G(val);
+			tcam->dip_hit = data2 & DATADIPHIT_F;
+		} else {
+			tcam->vlan_vld = data2 & DATAVIDH2_F;
+			tcam->ivlan = VIDL_G(val);
+		}
+
+		tcam->port_num = DATAPORTNUM_G(data2);
+
+		/* Read tcamx. Change the control param */
+		ctl |= CTLXYBITSEL_V(1);
+		t4_write_reg(padap, MPS_CLS_TCAM_DATA2_CTL_A, ctl);
+		val = t4_read_reg(padap, MPS_CLS_TCAM_RDATA1_REQ_ID1_A);
+		tcamx = DMACH_G(val) << 32;
+		tcamx |= t4_read_reg(padap, MPS_CLS_TCAM_RDATA0_REQ_ID1_A);
+		data2 = t4_read_reg(padap, MPS_CLS_TCAM_RDATA2_REQ_ID1_A);
+		if (tcam->lookup_type && tcam->lookup_type != DATALKPTYPE_M) {
+			/* Inner header VNI mask */
+			tcam->vnix = (data2 & DATAVIDH2_F) | DATAVIDH1_G(data2);
+			tcam->vnix = (tcam->vnix << 16) | VIDL_G(val);
+		}
+	} else {
+		tcamy = t4_read_reg64(padap, MPS_CLS_TCAM_Y_L(idx));
+		tcamx = t4_read_reg64(padap, MPS_CLS_TCAM_X_L(idx));
+	}
+
+	/* If no entry, return */
+	if (tcamx & tcamy)
+		return rc;
+
+	tcam->cls_lo = t4_read_reg(padap, MPS_CLS_SRAM_L(idx));
+	tcam->cls_hi = t4_read_reg(padap, MPS_CLS_SRAM_H(idx));
+
+	if (is_t5(padap->params.chip))
+		tcam->repli = (tcam->cls_lo & REPLICATE_F);
+	else if (is_t6(padap->params.chip))
+		tcam->repli = (tcam->cls_lo & T6_REPLICATE_F);
+
+	if (tcam->repli) {
+		struct fw_ldst_cmd ldst_cmd;
+		struct fw_ldst_mps_rplc mps_rplc;
+
+		memset(&ldst_cmd, 0, sizeof(ldst_cmd));
+		ldst_cmd.op_to_addrspace =
+			htonl(FW_CMD_OP_V(FW_LDST_CMD) |
+			      FW_CMD_REQUEST_F | FW_CMD_READ_F |
+			      FW_LDST_CMD_ADDRSPACE_V(FW_LDST_ADDRSPC_MPS));
+		ldst_cmd.cycles_to_len16 = htonl(FW_LEN16(ldst_cmd));
+		ldst_cmd.u.mps.rplc.fid_idx =
+			htons(FW_LDST_CMD_FID_V(FW_LDST_MPS_RPLC) |
+			      FW_LDST_CMD_IDX_V(idx));
+
+		rc = t4_wr_mbox(padap, padap->mbox, &ldst_cmd, sizeof(ldst_cmd),
+				&ldst_cmd);
+		if (rc)
+			cudbg_mps_rpl_backdoor(padap, &mps_rplc);
+		else
+			mps_rplc = ldst_cmd.u.mps.rplc;
+
+		tcam->rplc[0] = ntohl(mps_rplc.rplc31_0);
+		tcam->rplc[1] = ntohl(mps_rplc.rplc63_32);
+		tcam->rplc[2] = ntohl(mps_rplc.rplc95_64);
+		tcam->rplc[3] = ntohl(mps_rplc.rplc127_96);
+		if (padap->params.arch.mps_rplc_size > CUDBG_MAX_RPLC_SIZE) {
+			tcam->rplc[4] = ntohl(mps_rplc.rplc159_128);
+			tcam->rplc[5] = ntohl(mps_rplc.rplc191_160);
+			tcam->rplc[6] = ntohl(mps_rplc.rplc223_192);
+			tcam->rplc[7] = ntohl(mps_rplc.rplc255_224);
+		}
+	}
+	cudbg_tcamxy2valmask(tcamx, tcamy, tcam->addr, &tcam->mask);
+	tcam->idx = idx;
+	tcam->rplc_size = padap->params.arch.mps_rplc_size;
+	return rc;
+}
+
+int cudbg_collect_mps_tcam(struct cudbg_init *pdbg_init,
+			   struct cudbg_buffer *dbg_buff,
+			   struct cudbg_error *cudbg_err)
+{
+	struct adapter *padap = pdbg_init->adap;
+	struct cudbg_buffer temp_buff = { 0 };
+	u32 size = 0, i, n, total_size = 0;
+	struct cudbg_mps_tcam *tcam;
+	int rc;
+
+	n = padap->params.arch.mps_tcam_size;
+	size = sizeof(struct cudbg_mps_tcam) * n;
+	rc = cudbg_get_buff(dbg_buff, size, &temp_buff);
+	if (rc)
+		return rc;
+
+	tcam = (struct cudbg_mps_tcam *)temp_buff.data;
+	for (i = 0; i < n; i++) {
+		rc = cudbg_collect_tcam_index(padap, tcam, i);
+		if (rc) {
+			cudbg_err->sys_err = rc;
+			cudbg_put_buff(&temp_buff, dbg_buff);
+			return rc;
+		}
+		total_size += sizeof(struct cudbg_mps_tcam);
+		tcam++;
+	}
+
+	if (!total_size) {
+		rc = CUDBG_SYSTEM_ERROR;
+		cudbg_err->sys_err = rc;
+		cudbg_put_buff(&temp_buff, dbg_buff);
+		return rc;
+	}
+	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
+	return rc;
+}
+
 int cudbg_collect_ma_indirect(struct cudbg_init *pdbg_init,
 			      struct cudbg_buffer *dbg_buff,
 			      struct cudbg_error *cudbg_err)

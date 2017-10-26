@@ -2439,6 +2439,18 @@
 #define MPS_CLS_TCAM_DATA0_A 0xf000
 #define MPS_CLS_TCAM_DATA1_A 0xf004
 
+#define CTLREQID_S    30
+#define CTLREQID_V(x) ((x) << CTLREQID_S)
+
+#define MPS_VF_RPLCT_MAP0_A 0x1111c
+#define MPS_VF_RPLCT_MAP1_A 0x11120
+#define MPS_VF_RPLCT_MAP2_A 0x11124
+#define MPS_VF_RPLCT_MAP3_A 0x11128
+#define MPS_VF_RPLCT_MAP4_A 0x11300
+#define MPS_VF_RPLCT_MAP5_A 0x11304
+#define MPS_VF_RPLCT_MAP6_A 0x11308
+#define MPS_VF_RPLCT_MAP7_A 0x1130c
+
 #define VIDL_S    16
 #define VIDL_M    0xffffU
 #define VIDL_G(x) (((x) >> VIDL_S) & VIDL_M)
@@ -2462,6 +2474,10 @@
 #define DATAVIDH1_S    0
 #define DATAVIDH1_M    0x7fU
 #define DATAVIDH1_G(x) (((x) >> DATAVIDH1_S) & DATAVIDH1_M)
+
+#define MPS_CLS_TCAM_RDATA0_REQ_ID1_A 0xf020
+#define MPS_CLS_TCAM_RDATA1_REQ_ID1_A 0xf024
+#define MPS_CLS_TCAM_RDATA2_REQ_ID1_A 0xf028
 
 #define USED_S    16
 #define USED_M    0x7ffU

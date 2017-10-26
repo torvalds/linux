@@ -114,6 +114,27 @@ struct cudbg_tid_info_region_rev1 {
 	u32 reserved[16];
 };
 
+#define CUDBG_MAX_RPLC_SIZE 128
+
+struct cudbg_mps_tcam {
+	u64 mask;
+	u32 rplc[8];
+	u32 idx;
+	u32 cls_lo;
+	u32 cls_hi;
+	u32 rplc_size;
+	u32 vniy;
+	u32 vnix;
+	u32 dip_hit;
+	u32 vlan_vld;
+	u32 repli;
+	u16 ivlan;
+	u8 addr[ETH_ALEN];
+	u8 lookup_type;
+	u8 port_num;
+	u8 reserved[2];
+};
+
 #define CUDBG_NUM_ULPTX 11
 #define CUDBG_NUM_ULPTX_READ 512
 

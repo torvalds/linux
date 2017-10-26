@@ -111,6 +111,9 @@ int cudbg_collect_pm_indirect(struct cudbg_init *pdbg_init,
 int cudbg_collect_tid(struct cudbg_init *pdbg_init,
 		      struct cudbg_buffer *dbg_buff,
 		      struct cudbg_error *cudbg_err);
+int cudbg_collect_mps_tcam(struct cudbg_init *pdbg_init,
+			   struct cudbg_buffer *dbg_buff,
+			   struct cudbg_error *cudbg_err);
 int cudbg_collect_ma_indirect(struct cudbg_init *pdbg_init,
 			      struct cudbg_buffer *dbg_buff,
 			      struct cudbg_error *cudbg_err);
