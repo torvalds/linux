@@ -1903,7 +1903,8 @@ static void update_dchubp_dpp(
 
 	//set scale and bias registers
 	build_prescale_params(&bns_params, plane_state);
-	dpp->funcs->ipp_program_bias_and_scale(dpp, &bns_params);
+	if (dpp->funcs->ipp_program_bias_and_scale)
+		dpp->funcs->ipp_program_bias_and_scale(dpp, &bns_params);
 
 	mpcc_cfg.dpp_id = hubp->inst;
 	mpcc_cfg.opp_id = pipe_ctx->stream_res.opp->inst;
