@@ -261,36 +261,41 @@ struct dsa_switch {
 	struct dsa_port ports[];
 };
 
+static inline const struct dsa_port *dsa_to_port(struct dsa_switch *ds, int p)
+{
+	return &ds->ports[p];
+}
+
 static inline bool dsa_is_unused_port(struct dsa_switch *ds, int p)
 {
-	u32 m = ds->enabled_port_mask | ds->dsa_port_mask | ds->cpu_port_mask;
-
-	return !(m & BIT(p));
+	return dsa_to_port(ds, p)->type == DSA_PORT_TYPE_UNUSED;
 }
 
 static inline bool dsa_is_cpu_port(struct dsa_switch *ds, int p)
 {
-	return !!(ds->cpu_port_mask & (1 << p));
+	return dsa_to_port(ds, p)->type == DSA_PORT_TYPE_CPU;
 }
 
 static inline bool dsa_is_dsa_port(struct dsa_switch *ds, int p)
 {
-	return !!((ds->dsa_port_mask) & (1 << p));
+	return dsa_to_port(ds, p)->type == DSA_PORT_TYPE_DSA;
 }
 
 static inline bool dsa_is_user_port(struct dsa_switch *ds, int p)
 {
-	return !!(ds->enabled_port_mask & BIT(p));
+	return dsa_to_port(ds, p)->type == DSA_PORT_TYPE_USER;
 }
 
 static inline u32 dsa_user_ports(struct dsa_switch *ds)
 {
-	return ds->enabled_port_mask;
-}
+	u32 mask = 0;
+	int p;
 
-static inline const struct dsa_port *dsa_to_port(struct dsa_switch *ds, int p)
-{
-	return &ds->ports[p];
+	for (p = 0; p < ds->num_ports; p++)
+		if (dsa_is_user_port(ds, p))
+			mask |= BIT(p);
+
+	return mask;
 }
 
 static inline u8 dsa_upstream_port(struct dsa_switch *ds)
