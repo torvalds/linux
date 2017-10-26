@@ -945,6 +945,7 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	caps->cqe_hop_num	= HNS_ROCE_CQE_HOP_NUM;
 	caps->chunk_sz		= HNS_ROCE_V2_TABLE_CHUNK_SIZE;
 
+	caps->flags		= HNS_ROCE_CAP_FLAG_REREG_MR;
 	caps->pkey_table_len[0] = 1;
 	caps->gid_table_len[0] = 2;
 	caps->local_ca_ack_delay = 0;
@@ -1179,6 +1180,57 @@ static int hns_roce_v2_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
 		       V2_MPT_BYTE_64_PBL_BUF_PG_SZ_M,
 		       V2_MPT_BYTE_64_PBL_BUF_PG_SZ_S, mr->pbl_buf_pg_sz);
 	mpt_entry->byte_64_buf_pa1 = cpu_to_le32(mpt_entry->byte_64_buf_pa1);
+
+	return 0;
+}
+
+static int hns_roce_v2_rereg_write_mtpt(struct hns_roce_dev *hr_dev,
+					struct hns_roce_mr *mr, int flags,
+					u32 pdn, int mr_access_flags, u64 iova,
+					u64 size, void *mb_buf)
+{
+	struct hns_roce_v2_mpt_entry *mpt_entry = mb_buf;
+
+	if (flags & IB_MR_REREG_PD) {
+		roce_set_field(mpt_entry->byte_4_pd_hop_st, V2_MPT_BYTE_4_PD_M,
+			       V2_MPT_BYTE_4_PD_S, pdn);
+		mr->pd = pdn;
+	}
+
+	if (flags & IB_MR_REREG_ACCESS) {
+		roce_set_bit(mpt_entry->byte_8_mw_cnt_en,
+			     V2_MPT_BYTE_8_BIND_EN_S,
+			     (mr_access_flags & IB_ACCESS_MW_BIND ? 1 : 0));
+		roce_set_bit(mpt_entry->byte_8_mw_cnt_en,
+			   V2_MPT_BYTE_8_ATOMIC_EN_S,
+			   (mr_access_flags & IB_ACCESS_REMOTE_ATOMIC ? 1 : 0));
+		roce_set_bit(mpt_entry->byte_8_mw_cnt_en, V2_MPT_BYTE_8_RR_EN_S,
+			     (mr_access_flags & IB_ACCESS_REMOTE_READ ? 1 : 0));
+		roce_set_bit(mpt_entry->byte_8_mw_cnt_en, V2_MPT_BYTE_8_RW_EN_S,
+			    (mr_access_flags & IB_ACCESS_REMOTE_WRITE ? 1 : 0));
+		roce_set_bit(mpt_entry->byte_8_mw_cnt_en, V2_MPT_BYTE_8_LW_EN_S,
+			     (mr_access_flags & IB_ACCESS_LOCAL_WRITE ? 1 : 0));
+	}
+
+	if (flags & IB_MR_REREG_TRANS) {
+		mpt_entry->va_l = cpu_to_le32(lower_32_bits(iova));
+		mpt_entry->va_h = cpu_to_le32(upper_32_bits(iova));
+		mpt_entry->len_l = cpu_to_le32(lower_32_bits(size));
+		mpt_entry->len_h = cpu_to_le32(upper_32_bits(size));
+
+		mpt_entry->pbl_size = cpu_to_le32(mr->pbl_size);
+		mpt_entry->pbl_ba_l =
+				cpu_to_le32(lower_32_bits(mr->pbl_ba >> 3));
+		roce_set_field(mpt_entry->byte_48_mode_ba,
+			       V2_MPT_BYTE_48_PBL_BA_H_M,
+			       V2_MPT_BYTE_48_PBL_BA_H_S,
+			       upper_32_bits(mr->pbl_ba >> 3));
+		mpt_entry->byte_48_mode_ba =
+				cpu_to_le32(mpt_entry->byte_48_mode_ba);
+
+		mr->iova = iova;
+		mr->size = size;
+	}
 
 	return 0;
 }
@@ -3044,6 +3096,7 @@ static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.set_gid = hns_roce_v2_set_gid,
 	.set_mac = hns_roce_v2_set_mac,
 	.write_mtpt = hns_roce_v2_write_mtpt,
+	.rereg_write_mtpt = hns_roce_v2_rereg_write_mtpt,
 	.write_cqc = hns_roce_v2_write_cqc,
 	.set_hem = hns_roce_v2_set_hem,
 	.clear_hem = hns_roce_v2_clear_hem,

@@ -170,6 +170,10 @@ enum {
 	HNS_ROCE_OPCODE_RDMA_WITH_IMM_RECEIVE	= 0x07,
 };
 
+enum {
+	HNS_ROCE_CAP_FLAG_REREG_MR		= BIT(0),
+};
+
 enum hns_roce_mtt_type {
 	MTT_TYPE_WQE,
 	MTT_TYPE_CQE,
@@ -567,6 +571,7 @@ struct hns_roce_caps {
 	u32		cqe_buf_pg_sz;
 	u32		cqe_hop_num;
 	u32		chunk_sz;	/* chunk size in non multihop mode*/
+	u64		flags;
 };
 
 struct hns_roce_hw {
@@ -587,6 +592,10 @@ struct hns_roce_hw {
 			enum ib_mtu mtu);
 	int (*write_mtpt)(void *mb_buf, struct hns_roce_mr *mr,
 			  unsigned long mtpt_idx);
+	int (*rereg_write_mtpt)(struct hns_roce_dev *hr_dev,
+				struct hns_roce_mr *mr, int flags, u32 pdn,
+				int mr_access_flags, u64 iova, u64 size,
+				void *mb_buf);
 	void (*write_cqc)(struct hns_roce_dev *hr_dev,
 			  struct hns_roce_cq *hr_cq, void *mb_buf, u64 *mtts,
 			  dma_addr_t dma_handle, int nent, u32 vector);
@@ -783,6 +792,9 @@ struct ib_mr *hns_roce_get_dma_mr(struct ib_pd *pd, int acc);
 struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				   u64 virt_addr, int access_flags,
 				   struct ib_udata *udata);
+int hns_roce_rereg_user_mr(struct ib_mr *mr, int flags, u64 start, u64 length,
+			   u64 virt_addr, int mr_access_flags, struct ib_pd *pd,
+			   struct ib_udata *udata);
 int hns_roce_dereg_mr(struct ib_mr *ibmr);
 int hns_roce_hw2sw_mpt(struct hns_roce_dev *hr_dev,
 		       struct hns_roce_cmd_mailbox *mailbox,

@@ -508,6 +508,10 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	ib_dev->get_dma_mr		= hns_roce_get_dma_mr;
 	ib_dev->reg_user_mr		= hns_roce_reg_user_mr;
 	ib_dev->dereg_mr		= hns_roce_dereg_mr;
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_REREG_MR) {
+		ib_dev->rereg_user_mr	= hns_roce_rereg_user_mr;
+		ib_dev->uverbs_cmd_mask |= (1ULL << IB_USER_VERBS_CMD_REREG_MR);
+	}
 
 	/* OTHERS */
 	ib_dev->get_port_immutable	= hns_roce_port_immutable;
