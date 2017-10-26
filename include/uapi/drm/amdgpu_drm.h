@@ -553,6 +553,7 @@ union drm_amdgpu_fence_to_handle {
 	struct {
 		struct drm_amdgpu_fence fence;
 		__u32 what;
+		__u32 pad;
 	} in;
 	struct {
 		__u32 handle;
