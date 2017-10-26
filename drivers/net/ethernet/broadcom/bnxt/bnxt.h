@@ -1346,7 +1346,7 @@ struct bnxt {
 	enum devlink_eswitch_mode eswitch_mode;
 	struct bnxt_vf_rep	**vf_reps; /* array of vf-rep ptrs */
 	u16			*cfa_code_map; /* cfa_code -> vf_idx map */
-	struct bnxt_tc_info	tc_info;
+	struct bnxt_tc_info	*tc_info;
 };
 
 #define BNXT_RX_STATS_OFFSET(counter)			\

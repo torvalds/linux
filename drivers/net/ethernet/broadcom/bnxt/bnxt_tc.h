@@ -198,7 +198,7 @@ void bnxt_tc_flow_stats_work(struct bnxt *bp);
 
 static inline bool bnxt_tc_flower_enabled(struct bnxt *bp)
 {
-	return bp->tc_info.enabled;
+	return bp->tc_info && bp->tc_info->enabled;
 }
 
 #else /* CONFIG_BNXT_FLOWER_OFFLOAD */
