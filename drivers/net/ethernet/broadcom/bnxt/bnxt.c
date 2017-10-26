@@ -7249,12 +7249,12 @@ static int bnxt_change_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
+	if (ether_addr_equal(addr->sa_data, dev->dev_addr))
+		return 0;
+
 	rc = bnxt_approve_mac(bp, addr->sa_data);
 	if (rc)
 		return rc;
-
-	if (ether_addr_equal(addr->sa_data, dev->dev_addr))
-		return 0;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	if (netif_running(dev)) {
