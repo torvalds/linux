@@ -271,7 +271,7 @@ static inline bool dsa_is_dsa_port(struct dsa_switch *ds, int p)
 	return !!((ds->dsa_port_mask) & (1 << p));
 }
 
-static inline bool dsa_is_normal_port(struct dsa_switch *ds, int p)
+static inline bool dsa_is_user_port(struct dsa_switch *ds, int p)
 {
 	return !!(ds->enabled_port_mask & BIT(p));
 }

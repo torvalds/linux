@@ -1676,7 +1676,7 @@ static int mv88e6xxx_setup_port_mode(struct mv88e6xxx_chip *chip, int port)
 	if (dsa_is_dsa_port(chip->ds, port))
 		return mv88e6xxx_set_port_mode_dsa(chip, port);
 
-	if (dsa_is_normal_port(chip->ds, port))
+	if (dsa_is_user_port(chip->ds, port))
 		return mv88e6xxx_set_port_mode_normal(chip, port);
 
 	/* Setup CPU port mode depending on its supported tag format */
