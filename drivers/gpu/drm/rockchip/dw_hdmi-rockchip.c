@@ -34,6 +34,9 @@
 
 #define RK3288_GRF_SOC_CON6		0x025C
 #define RK3288_HDMI_LCDC_SEL		BIT(4)
+#define RK3288_GRF_SOC_CON16		0x03a8
+#define RK3288_HDMI_LCDC0_YUV420	BIT(2)
+#define RK3288_HDMI_LCDC1_YUV420	BIT(3)
 #define RK3366_GRF_SOC_CON0		0x0400
 #define RK3366_HDMI_LCDC_SEL		BIT(1)
 #define RK3399_GRF_SOC_CON20		0x6250
@@ -514,6 +517,20 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 	regmap_write(hdmi->regmap, lcdsel_grf_reg, val);
 	dev_dbg(hdmi->dev, "vop %s output to hdmi\n",
 		(mux) ? "LIT" : "BIG");
+
+	if (hdmi->dev_type == RK3288_HDMI) {
+		struct rockchip_crtc_state *s =
+				to_rockchip_crtc_state(crtc->state);
+		u32 mode_mask = mux ? RK3288_HDMI_LCDC1_YUV420 :
+					RK3288_HDMI_LCDC0_YUV420;
+
+		if (s->output_mode == ROCKCHIP_OUT_MODE_YUV420)
+			val = HIWORD_UPDATE(mode_mask, mode_mask);
+		else
+			val = HIWORD_UPDATE(0, mode_mask);
+
+		regmap_write(hdmi->regmap, RK3288_GRF_SOC_CON16, val);
+	}
 
 	clk_disable_unprepare(hdmi->grf_clk);
 }
