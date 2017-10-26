@@ -344,7 +344,7 @@ static void hotplug_notify_work_func(struct work_struct *work)
 	drm_kms_helper_hotplug_event(dev);
 }
 
-#ifdef ENABLE_FBC
+#if defined(CONFIG_DRM_AMD_DC_FBC)
 #include "dal_asic_id.h"
 /* Allocate memory for FBC compressed data  */
 /* TODO: Dynamic allocation */
@@ -422,7 +422,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	else
 		init_data.log_mask = DC_MIN_LOG_MASK;
 
-#ifdef ENABLE_FBC
+#if defined(CONFIG_DRM_AMD_DC_FBC)
 	if (adev->family == FAMILY_CZ)
 		amdgpu_dm_initialize_fbc(adev);
 	init_data.fbc_gpu_addr = adev->dm.compressor.gpu_addr;
