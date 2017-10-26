@@ -131,11 +131,12 @@ bool dm_pp_apply_display_requirements(
 		adev->pm.pm_display_cfg.min_bus_bandwidth = 0;
 
 		/* TODO: complete implementation of
-		 * amd_powerplay_display_configuration_change().
+		 * pp_display_configuration_change().
 		 * Follow example of:
 		 * PHM_StoreDALConfigurationData - powerplay\hwmgr\hardwaremanager.c
 		 * PP_IRI_DisplayConfigurationChange - powerplay\eventmgr\iri.c */
-		amd_powerplay_display_configuration_change(
+		if (adev->powerplay.pp_funcs->display_configuration_change)
+			adev->powerplay.pp_funcs->display_configuration_change(
 				adev->powerplay.pp_handle,
 				&adev->pm.pm_display_cfg);
 
@@ -264,22 +265,26 @@ bool dm_pp_get_clock_levels_by_type(
 	struct amd_pp_simple_clock_info validation_clks = { 0 };
 	uint32_t i;
 
-	if (amd_powerplay_get_clock_by_type(pp_handle,
+	if (adev->powerplay.pp_funcs->get_clock_by_type) {
+		if (adev->powerplay.pp_funcs->get_clock_by_type(pp_handle,
 			dc_to_pp_clock_type(clk_type), &pp_clks)) {
 		/* Error in pplib. Provide default values. */
-		get_default_clock_levels(clk_type, dc_clks);
-		return true;
+			get_default_clock_levels(clk_type, dc_clks);
+			return true;
+		}
 	}
 
 	pp_to_dc_clock_levels(&pp_clks, dc_clks, clk_type);
 
-	if (amd_powerplay_get_display_mode_validation_clocks(pp_handle,
-			&validation_clks)) {
-		/* Error in pplib. Provide default values. */
-		DRM_INFO("DM_PPLIB: Warning: using default validation clocks!\n");
-		validation_clks.engine_max_clock = 72000;
-		validation_clks.memory_max_clock = 80000;
-		validation_clks.level = 0;
+	if (adev->powerplay.pp_funcs->get_display_mode_validation_clocks) {
+		if (adev->powerplay.pp_funcs->get_display_mode_validation_clocks(
+						pp_handle, &validation_clks)) {
+			/* Error in pplib. Provide default values. */
+			DRM_INFO("DM_PPLIB: Warning: using default validation clocks!\n");
+			validation_clks.engine_max_clock = 72000;
+			validation_clks.memory_max_clock = 80000;
+			validation_clks.level = 0;
+		}
 	}
 
 	DRM_INFO("DM_PPLIB: Validation clocks:\n");
