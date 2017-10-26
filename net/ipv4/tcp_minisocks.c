@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/sysctl.h>
 #include <linux/workqueue.h>
+#include <linux/static_key.h>
 #include <net/tcp.h>
 #include <net/inet_common.h>
 #include <net/xfrm.h>
@@ -416,6 +417,21 @@ void tcp_ca_openreq_child(struct sock *sk, const struct dst_entry *dst)
 }
 EXPORT_SYMBOL_GPL(tcp_ca_openreq_child);
 
+static void smc_check_reset_syn_req(struct tcp_sock *oldtp,
+				    struct request_sock *req,
+				    struct tcp_sock *newtp)
+{
+#if IS_ENABLED(CONFIG_SMC)
+	struct inet_request_sock *ireq;
+
+	if (static_branch_unlikely(&tcp_have_smc)) {
+		ireq = inet_rsk(req);
+		if (oldtp->syn_smc && !ireq->smc_ok)
+			newtp->syn_smc = 0;
+	}
+#endif
+}
+
 /* This is not only more efficient than what we used to do, it eliminates
  * a lot of code duplication between IPv4/IPv6 SYN recv processing. -DaveM
  *
@@ -433,6 +449,9 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 		struct tcp_request_sock *treq = tcp_rsk(req);
 		struct inet_connection_sock *newicsk = inet_csk(newsk);
 		struct tcp_sock *newtp = tcp_sk(newsk);
+		struct tcp_sock *oldtp = tcp_sk(sk);
+
+		smc_check_reset_syn_req(oldtp, req, newtp);
 
 		/* Now setup tcp_sock */
 		newtp->pred_flags = 0;

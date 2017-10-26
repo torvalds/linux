@@ -76,6 +76,8 @@
 #include <asm/unaligned.h>
 #include <linux/errqueue.h>
 #include <trace/events/tcp.h>
+#include <linux/unaligned/access_ok.h>
+#include <linux/static_key.h>
 
 int sysctl_tcp_fack __read_mostly;
 int sysctl_tcp_max_reordering __read_mostly = 300;
@@ -3737,6 +3739,21 @@ static void tcp_parse_fastopen_option(int len, const unsigned char *cookie,
 	foc->exp = exp_opt;
 }
 
+static void smc_parse_options(const struct tcphdr *th,
+			      struct tcp_options_received *opt_rx,
+			      const unsigned char *ptr,
+			      int opsize)
+{
+#if IS_ENABLED(CONFIG_SMC)
+	if (static_branch_unlikely(&tcp_have_smc)) {
+		if (th->syn && !(opsize & 1) &&
+		    opsize >= TCPOLEN_EXP_SMC_BASE &&
+		    get_unaligned_be32(ptr) == TCPOPT_SMC_MAGIC)
+			opt_rx->smc_ok = 1;
+	}
+#endif
+}
+
 /* Look for tcp options. Normally only called on SYN and SYNACK packets.
  * But, this can also be called on packets in the established flow when
  * the fast version below fails.
@@ -3844,6 +3861,9 @@ void tcp_parse_options(const struct net *net,
 					tcp_parse_fastopen_option(opsize -
 						TCPOLEN_EXP_FASTOPEN_BASE,
 						ptr + 2, th->syn, foc, true);
+				else
+					smc_parse_options(th, opt_rx, ptr,
+							  opsize);
 				break;
 
 			}
@@ -5598,6 +5618,16 @@ static bool tcp_rcv_fastopen_synack(struct sock *sk, struct sk_buff *synack,
 	return false;
 }
 
+static void smc_check_reset_syn(struct tcp_sock *tp)
+{
+#if IS_ENABLED(CONFIG_SMC)
+	if (static_branch_unlikely(&tcp_have_smc)) {
+		if (tp->syn_smc && !tp->rx_opt.smc_ok)
+			tp->syn_smc = 0;
+	}
+#endif
+}
+
 static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 					 const struct tcphdr *th)
 {
@@ -5703,6 +5733,8 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 		 * Change state from SYN-SENT only after copied_seq
 		 * is initialized. */
 		tp->copied_seq = tp->rcv_nxt;
+
+		smc_check_reset_syn(tp);
 
 		smp_mb();
 
@@ -6157,6 +6189,9 @@ static void tcp_openreq_init(struct request_sock *req,
 	ireq->ir_rmt_port = tcp_hdr(skb)->source;
 	ireq->ir_num = ntohs(tcp_hdr(skb)->dest);
 	ireq->ir_mark = inet_request_mark(sk, skb);
+#if IS_ENABLED(CONFIG_SMC)
+	ireq->smc_ok = rx_opt->smc_ok;
+#endif
 }
 
 struct request_sock *inet_reqsk_alloc(const struct request_sock_ops *ops,

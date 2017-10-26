@@ -41,6 +41,7 @@
 #include <linux/compiler.h>
 #include <linux/gfp.h>
 #include <linux/module.h>
+#include <linux/static_key.h>
 
 #include <trace/events/tcp.h>
 
@@ -422,6 +423,22 @@ static inline bool tcp_urg_mode(const struct tcp_sock *tp)
 #define OPTION_MD5		(1 << 2)
 #define OPTION_WSCALE		(1 << 3)
 #define OPTION_FAST_OPEN_COOKIE	(1 << 8)
+#define OPTION_SMC		(1 << 9)
+
+static void smc_options_write(__be32 *ptr, u16 *options)
+{
+#if IS_ENABLED(CONFIG_SMC)
+	if (static_branch_unlikely(&tcp_have_smc)) {
+		if (unlikely(OPTION_SMC & *options)) {
+			*ptr++ = htonl((TCPOPT_NOP  << 24) |
+				       (TCPOPT_NOP  << 16) |
+				       (TCPOPT_EXP <<  8) |
+				       (TCPOLEN_EXP_SMC_BASE));
+			*ptr++ = htonl(TCPOPT_SMC_MAGIC);
+		}
+	}
+#endif
+}
 
 struct tcp_out_options {
 	u16 options;		/* bit field of OPTION_* */
@@ -540,6 +557,41 @@ static void tcp_options_write(__be32 *ptr, struct tcp_sock *tp,
 		}
 		ptr += (len + 3) >> 2;
 	}
+
+	smc_options_write(ptr, &options);
+}
+
+static void smc_set_option(const struct tcp_sock *tp,
+			   struct tcp_out_options *opts,
+			   unsigned int *remaining)
+{
+#if IS_ENABLED(CONFIG_SMC)
+	if (static_branch_unlikely(&tcp_have_smc)) {
+		if (tp->syn_smc) {
+			if (*remaining >= TCPOLEN_EXP_SMC_BASE_ALIGNED) {
+				opts->options |= OPTION_SMC;
+				*remaining -= TCPOLEN_EXP_SMC_BASE_ALIGNED;
+			}
+		}
+	}
+#endif
+}
+
+static void smc_set_option_cond(const struct tcp_sock *tp,
+				const struct inet_request_sock *ireq,
+				struct tcp_out_options *opts,
+				unsigned int *remaining)
+{
+#if IS_ENABLED(CONFIG_SMC)
+	if (static_branch_unlikely(&tcp_have_smc)) {
+		if (tp->syn_smc && ireq->smc_ok) {
+			if (*remaining >= TCPOLEN_EXP_SMC_BASE_ALIGNED) {
+				opts->options |= OPTION_SMC;
+				*remaining -= TCPOLEN_EXP_SMC_BASE_ALIGNED;
+			}
+		}
+	}
+#endif
 }
 
 /* Compute TCP options for SYN packets. This is not the final
@@ -607,11 +659,14 @@ static unsigned int tcp_syn_options(struct sock *sk, struct sk_buff *skb,
 		}
 	}
 
+	smc_set_option(tp, opts, &remaining);
+
 	return MAX_TCP_OPTION_SPACE - remaining;
 }
 
 /* Set up TCP options for SYN-ACKs. */
-static unsigned int tcp_synack_options(struct request_sock *req,
+static unsigned int tcp_synack_options(const struct sock *sk,
+				       struct request_sock *req,
 				       unsigned int mss, struct sk_buff *skb,
 				       struct tcp_out_options *opts,
 				       const struct tcp_md5sig_key *md5,
@@ -666,6 +721,8 @@ static unsigned int tcp_synack_options(struct request_sock *req,
 			remaining -= need;
 		}
 	}
+
+	smc_set_option_cond(tcp_sk(sk), ireq, opts, &remaining);
 
 	return MAX_TCP_OPTION_SPACE - remaining;
 }
@@ -3195,8 +3252,8 @@ struct sk_buff *tcp_make_synack(const struct sock *sk, struct dst_entry *dst,
 	md5 = tcp_rsk(req)->af_specific->req_md5_lookup(sk, req_to_sk(req));
 #endif
 	skb_set_hash(skb, tcp_rsk(req)->txhash, PKT_HASH_TYPE_L4);
-	tcp_header_size = tcp_synack_options(req, mss, skb, &opts, md5, foc) +
-			  sizeof(*th);
+	tcp_header_size = tcp_synack_options(sk, req, mss, skb, &opts, md5,
+					     foc) + sizeof(*th);
 
 	skb_push(skb, tcp_header_size);
 	skb_reset_transport_header(skb);
