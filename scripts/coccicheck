@@ -168,8 +168,8 @@ OPTIONS="$OPTIONS $SPFLAGS"
 coccinelle () {
     COCCI="$1"
 
-    OPT=`grep "Option" $COCCI | cut -d':' -f2`
-    REQ=`grep "Requires" $COCCI | cut -d':' -f2 | sed "s| ||"`
+    OPT=`grep "Options:" $COCCI | cut -d':' -f2`
+    REQ=`grep "Requires:" $COCCI | cut -d':' -f2 | sed "s| ||"`
     REQ_NUM=$(echo $REQ | ${DIR}/scripts/ld-version.sh)
     if [ "$REQ_NUM" != "0" ] ; then
 	    if [ "$SPATCH_VERSION_NUM" -lt "$REQ_NUM" ] ; then
