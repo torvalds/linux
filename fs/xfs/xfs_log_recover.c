@@ -85,17 +85,21 @@ struct xfs_buf_cancel {
  */
 
 /*
- * Verify the given count of basic blocks is valid number of blocks
- * to specify for an operation involving the given XFS log buffer.
- * Returns nonzero if the count is valid, 0 otherwise.
+ * Verify the log-relative block number and length in basic blocks are valid for
+ * an operation involving the given XFS log buffer. Returns true if the fields
+ * are valid, false otherwise.
  */
-
-static inline int
-xlog_buf_bbcount_valid(
+static inline bool
+xlog_verify_bp(
 	struct xlog	*log,
+	xfs_daddr_t	blk_no,
 	int		bbcount)
 {
-	return bbcount > 0 && bbcount <= log->l_logBBsize;
+	if (blk_no < 0 || blk_no >= log->l_logBBsize)
+		return false;
+	if (bbcount <= 0 || (blk_no + bbcount) > log->l_logBBsize)
+		return false;
+	return true;
 }
 
 /*
@@ -110,7 +114,11 @@ xlog_get_bp(
 {
 	struct xfs_buf	*bp;
 
-	if (!xlog_buf_bbcount_valid(log, nbblks)) {
+	/*
+	 * Pass log block 0 since we don't have an addr yet, buffer will be
+	 * verified on read.
+	 */
+	if (!xlog_verify_bp(log, 0, nbblks)) {
 		xfs_warn(log->l_mp, "Invalid block length (0x%x) for buffer",
 			nbblks);
 		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_HIGH, log->l_mp);
@@ -180,9 +188,10 @@ xlog_bread_noalign(
 {
 	int		error;
 
-	if (!xlog_buf_bbcount_valid(log, nbblks)) {
-		xfs_warn(log->l_mp, "Invalid block length (0x%x) for buffer",
-			nbblks);
+	if (!xlog_verify_bp(log, blk_no, nbblks)) {
+		xfs_warn(log->l_mp,
+			 "Invalid log block/length (0x%llx, 0x%x) for buffer",
+			 blk_no, nbblks);
 		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_HIGH, log->l_mp);
 		return -EFSCORRUPTED;
 	}
@@ -265,9 +274,10 @@ xlog_bwrite(
 {
 	int		error;
 
-	if (!xlog_buf_bbcount_valid(log, nbblks)) {
-		xfs_warn(log->l_mp, "Invalid block length (0x%x) for buffer",
-			nbblks);
+	if (!xlog_verify_bp(log, blk_no, nbblks)) {
+		xfs_warn(log->l_mp,
+			 "Invalid log block/length (0x%llx, 0x%x) for buffer",
+			 blk_no, nbblks);
 		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_HIGH, log->l_mp);
 		return -EFSCORRUPTED;
 	}
