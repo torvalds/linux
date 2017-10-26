@@ -2923,7 +2923,8 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 	amdgpu_bo_unreserve(rbo);
 
 	if (unlikely(r != 0)) {
-		DRM_ERROR("Failed to pin framebuffer\n");
+		if (r != -ERESTARTSYS)
+			DRM_ERROR("Failed to pin framebuffer with error %d\n", r);
 		return r;
 	}
 
