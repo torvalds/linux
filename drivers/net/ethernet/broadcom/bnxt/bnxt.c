@@ -4892,9 +4892,9 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 			    resp->hwrm_intf_upd);
 		netdev_warn(bp->dev, "Please update firmware with HWRM interface 1.0.0 or newer.\n");
 	}
-	snprintf(bp->fw_ver_str, BC_HWRM_STR_LEN, "%d.%d.%d/%d.%d.%d",
+	snprintf(bp->fw_ver_str, BC_HWRM_STR_LEN, "%d.%d.%d.%d",
 		 resp->hwrm_fw_maj, resp->hwrm_fw_min, resp->hwrm_fw_bld,
-		 resp->hwrm_intf_maj, resp->hwrm_intf_min, resp->hwrm_intf_upd);
+		 resp->hwrm_fw_rsvd);
 
 	bp->hwrm_cmd_timeout = le16_to_cpu(resp->def_req_timeout);
 	if (!bp->hwrm_cmd_timeout)

@@ -26,8 +26,6 @@
 #define FLASH_PACKAGE_TIMEOUT	((HWRM_CMD_TIMEOUT) * 200)
 #define INSTALL_PACKAGE_TIMEOUT	((HWRM_CMD_TIMEOUT) * 200)
 
-static char *bnxt_get_pkgver(struct net_device *dev, char *buf, size_t buflen);
-
 static u32 bnxt_get_msglevel(struct net_device *dev)
 {
 	struct bnxt *bp = netdev_priv(dev);
@@ -822,20 +820,10 @@ static void bnxt_get_drvinfo(struct net_device *dev,
 			     struct ethtool_drvinfo *info)
 {
 	struct bnxt *bp = netdev_priv(dev);
-	char *pkglog;
-	char *pkgver = NULL;
 
-	pkglog = kmalloc(BNX_PKG_LOG_MAX_LENGTH, GFP_KERNEL);
-	if (pkglog)
-		pkgver = bnxt_get_pkgver(dev, pkglog, BNX_PKG_LOG_MAX_LENGTH);
 	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
 	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
-	if (pkgver && *pkgver != 0 && isdigit(*pkgver))
-		snprintf(info->fw_version, sizeof(info->fw_version) - 1,
-			 "%s pkg %s", bp->fw_ver_str, pkgver);
-	else
-		strlcpy(info->fw_version, bp->fw_ver_str,
-			sizeof(info->fw_version));
+	strlcpy(info->fw_version, bp->fw_ver_str, sizeof(info->fw_version));
 	strlcpy(info->bus_info, pci_name(bp->pdev), sizeof(info->bus_info));
 	info->n_stats = bnxt_get_num_stats(bp);
 	info->testinfo_len = bp->num_tests;
@@ -843,7 +831,6 @@ static void bnxt_get_drvinfo(struct net_device *dev,
 	info->eedump_len = 0;
 	/* TODO CHIMP FW: reg dump details */
 	info->regdump_len = 0;
-	kfree(pkglog);
 }
 
 static void bnxt_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
@@ -2503,8 +2490,23 @@ void bnxt_ethtool_init(struct bnxt *bp)
 	struct hwrm_selftest_qlist_output *resp = bp->hwrm_cmd_resp_addr;
 	struct hwrm_selftest_qlist_input req = {0};
 	struct bnxt_test_info *test_info;
+	struct net_device *dev = bp->dev;
+	char *pkglog;
 	int i, rc;
 
+	pkglog = kzalloc(BNX_PKG_LOG_MAX_LENGTH, GFP_KERNEL);
+	if (pkglog) {
+		char *pkgver;
+		int len;
+
+		pkgver = bnxt_get_pkgver(dev, pkglog, BNX_PKG_LOG_MAX_LENGTH);
+		if (pkgver && *pkgver != 0 && isdigit(*pkgver)) {
+			len = strlen(bp->fw_ver_str);
+			snprintf(bp->fw_ver_str + len, FW_VER_STR_LEN - len - 1,
+				 "/pkg %s", pkgver);
+		}
+		kfree(pkglog);
+	}
 	if (bp->hwrm_spec_code < 0x10704 || !BNXT_SINGLE_PF(bp))
 		return;
 
