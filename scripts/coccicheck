@@ -186,7 +186,7 @@ coccinelle () {
 
     if [ $VERBOSE -ne 0 -a $ONLINE -eq 0 ] ; then
 
-	FILE=`echo $COCCI | sed "s|$srctree/||"`
+	FILE=${COCCI#$srctree/}
 
 	echo "Processing `basename $COCCI`"
 	echo "with option(s) \"$OPT\""
