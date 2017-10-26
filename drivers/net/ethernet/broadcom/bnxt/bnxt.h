@@ -955,6 +955,11 @@ struct bnxt_coal {
 	u8			budget;
 };
 
+struct bnxt_tc_flow_stats {
+	u64		packets;
+	u64		bytes;
+};
+
 struct bnxt_tc_info {
 	bool				enabled;
 
@@ -979,6 +984,14 @@ struct bnxt_tc_info {
 	 * added or deleted.
 	 */
 	struct mutex			lock;
+
+	/* Fields used for batching stats query */
+	struct rhashtable_iter		iter;
+#define BNXT_FLOW_STATS_BATCH_MAX	10
+	struct bnxt_tc_stats_batch {
+		void			  *flow_node;
+		struct bnxt_tc_flow_stats hw_stats;
+	} stats_batch[BNXT_FLOW_STATS_BATCH_MAX];
 
 	/* Stat counter mask (width) */
 	u64				bytes_mask;
@@ -1282,6 +1295,7 @@ struct bnxt {
 #define BNXT_GENEVE_ADD_PORT_SP_EVENT	12
 #define BNXT_GENEVE_DEL_PORT_SP_EVENT	13
 #define BNXT_LINK_SPEED_CHNG_SP_EVENT	14
+#define BNXT_FLOW_STATS_SP_EVENT	15
 
 	struct bnxt_pf_info	pf;
 #ifdef CONFIG_BNXT_SRIOV

@@ -78,11 +78,6 @@ struct bnxt_tc_actions {
 	struct ip_tunnel_key		tun_encap_key;
 };
 
-struct bnxt_tc_flow_stats {
-	u64		packets;
-	u64		bytes;
-};
-
 struct bnxt_tc_flow {
 	u32				flags;
 #define BNXT_TC_FLOW_FLAGS_ETH_ADDRS		BIT(1)
@@ -119,6 +114,10 @@ struct bnxt_tc_flow {
 	/* previous snap-shot of stats */
 	struct bnxt_tc_flow_stats	prev_stats;
 	unsigned long			lastused; /* jiffies */
+	/* for calculating delta from prev_stats and
+	 * updating prev_stats atomically.
+	 */
+	spinlock_t			stats_lock;
 };
 
 /* Tunnel encap/decap hash table
@@ -195,6 +194,12 @@ int bnxt_tc_setup_flower(struct bnxt *bp, u16 src_fid,
 			 struct tc_cls_flower_offload *cls_flower);
 int bnxt_init_tc(struct bnxt *bp);
 void bnxt_shutdown_tc(struct bnxt *bp);
+void bnxt_tc_flow_stats_work(struct bnxt *bp);
+
+static inline bool bnxt_tc_flower_enabled(struct bnxt *bp)
+{
+	return bp->tc_info.enabled;
+}
 
 #else /* CONFIG_BNXT_FLOWER_OFFLOAD */
 
@@ -211,6 +216,15 @@ static inline int bnxt_init_tc(struct bnxt *bp)
 
 static inline void bnxt_shutdown_tc(struct bnxt *bp)
 {
+}
+
+static inline void bnxt_tc_flow_stats_work(struct bnxt *bp)
+{
+}
+
+static inline bool bnxt_tc_flower_enabled(struct bnxt *bp)
+{
+	return false;
 }
 #endif /* CONFIG_BNXT_FLOWER_OFFLOAD */
 #endif /* BNXT_TC_H */
