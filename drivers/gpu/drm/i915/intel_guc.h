@@ -58,6 +58,7 @@ struct intel_guc {
 	void *shared_data_vaddr;
 
 	struct i915_guc_client *execbuf_client;
+	struct i915_guc_client *preempt_client;
 
 	DECLARE_BITMAP(doorbell_bitmap, GUC_NUM_DOORBELLS);
 	/* Cyclic counter mod pagesize	*/

@@ -33,10 +33,11 @@
  *
  * GuC client:
  * A i915_guc_client refers to a submission path through GuC. Currently, there
- * is only one of these (the execbuf_client) and this one is charged with all
- * submissions to the GuC. This struct is the owner of a doorbell, a process
- * descriptor and a workqueue (all of them inside a single gem object that
- * contains all required pages for these elements).
+ * are two clients. One of them (the execbuf_client) is charged with all
+ * submissions to the GuC, the other one (preempt_client) is responsible for
+ * preempting the execbuf_client. This struct is the owner of a doorbell, a
+ * process descriptor and a workqueue (all of them inside a single gem object
+ * that contains all required pages for these elements).
  *
  * GuC stage descriptor:
  * During initialization, the driver allocates a static pool of 1024 such
@@ -83,7 +84,8 @@
 
 static inline bool is_high_priority(struct i915_guc_client* client)
 {
-	return client->priority <= GUC_CLIENT_PRIORITY_HIGH;
+	return (client->priority == GUC_CLIENT_PRIORITY_KMD_HIGH ||
+		client->priority == GUC_CLIENT_PRIORITY_HIGH);
 }
 
 static int __reserve_doorbell(struct i915_guc_client *client)
@@ -196,8 +198,11 @@ static int __create_doorbell(struct i915_guc_client *client)
 	doorbell->cookie = 0;
 
 	err = __guc_allocate_doorbell(client->guc, client->stage_id);
-	if (err)
+	if (err) {
 		doorbell->db_status = GUC_DOORBELL_DISABLED;
+		DRM_ERROR("Couldn't create client %u doorbell: %d\n",
+			  client->stage_id, err);
+	}
 
 	return err;
 }
@@ -363,6 +368,8 @@ static void guc_stage_desc_init(struct intel_guc *guc,
 	memset(desc, 0, sizeof(*desc));
 
 	desc->attribute = GUC_STAGE_DESC_ATTR_ACTIVE | GUC_STAGE_DESC_ATTR_KERNEL;
+	if (is_high_priority(client))
+		desc->attribute |= GUC_STAGE_DESC_ATTR_PREEMPT;
 	desc->stage_id = client->stage_id;
 	desc->priority = client->priority;
 	desc->db_id = client->doorbell_id;
@@ -763,14 +770,14 @@ static int guc_init_doorbell_hw(struct intel_guc *guc)
 
 	/* Now for every client (and not only execbuf_client) make sure their
 	 * doorbells are known by the GuC */
-	//for (client = client_list; client != NULL; client = client->next)
-	{
-		ret = __create_doorbell(client);
-		if (ret) {
-			DRM_ERROR("Couldn't recreate client %u doorbell: %d\n",
-				client->stage_id, ret);
-			return ret;
-		}
+	ret = __create_doorbell(guc->execbuf_client);
+	if (ret)
+		return ret;
+
+	ret = __create_doorbell(guc->preempt_client);
+	if (ret) {
+		__destroy_doorbell(guc->execbuf_client);
+		return ret;
 	}
 
 	/* Read back & verify all (used & unused) doorbell registers */
@@ -893,6 +900,50 @@ static void guc_client_free(struct i915_guc_client *client)
 	i915_vma_unpin_and_release(&client->vma);
 	ida_simple_remove(&client->guc->stage_ids, client->stage_id);
 	kfree(client);
+}
+
+static int guc_clients_create(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct i915_guc_client *client;
+
+	GEM_BUG_ON(guc->execbuf_client);
+	GEM_BUG_ON(guc->preempt_client);
+
+	client = guc_client_alloc(dev_priv,
+				  INTEL_INFO(dev_priv)->ring_mask,
+				  GUC_CLIENT_PRIORITY_KMD_NORMAL,
+				  dev_priv->kernel_context);
+	if (IS_ERR(client)) {
+		DRM_ERROR("Failed to create GuC client for submission!\n");
+		return PTR_ERR(client);
+	}
+	guc->execbuf_client = client;
+
+	client = guc_client_alloc(dev_priv,
+				  INTEL_INFO(dev_priv)->ring_mask,
+				  GUC_CLIENT_PRIORITY_KMD_HIGH,
+				  dev_priv->preempt_context);
+	if (IS_ERR(client)) {
+		DRM_ERROR("Failed to create GuC client for preemption!\n");
+		guc_client_free(guc->execbuf_client);
+		guc->execbuf_client = NULL;
+		return PTR_ERR(client);
+	}
+	guc->preempt_client = client;
+
+	return 0;
+}
+
+static void guc_clients_destroy(struct intel_guc *guc)
+{
+	struct i915_guc_client *client;
+
+	client = fetch_and_zero(&guc->execbuf_client);
+	guc_client_free(client);
+
+	client = fetch_and_zero(&guc->preempt_client);
+	guc_client_free(client);
 }
 
 static void guc_policy_init(struct guc_policy *policy)
@@ -1134,7 +1185,6 @@ static void i915_guc_submission_unpark(struct intel_engine_cs *engine)
 int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
-	struct i915_guc_client *client = guc->execbuf_client;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int err;
@@ -1152,28 +1202,28 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 		     sizeof(struct guc_wq_item) *
 		     I915_NUM_ENGINES > GUC_WQ_SIZE);
 
-	if (!client) {
-		client = guc_client_alloc(dev_priv,
-					  INTEL_INFO(dev_priv)->ring_mask,
-					  GUC_CLIENT_PRIORITY_KMD_NORMAL,
-					  dev_priv->kernel_context);
-		if (IS_ERR(client)) {
-			DRM_ERROR("Failed to create GuC client for execbuf!\n");
-			return PTR_ERR(client);
-		}
-
-		guc->execbuf_client = client;
+	/*
+	 * We're being called on both module initialization and on reset,
+	 * until this flow is changed, we're using regular client presence to
+	 * determine which case are we in, and whether we should allocate new
+	 * clients or just reset their workqueues.
+	 */
+	if (!guc->execbuf_client) {
+		err = guc_clients_create(guc);
+		if (err)
+			return err;
+	} else {
+		guc_reset_wq(guc->execbuf_client);
+		guc_reset_wq(guc->preempt_client);
 	}
 
 	err = intel_guc_sample_forcewake(guc);
 	if (err)
-		goto err_execbuf_client;
-
-	guc_reset_wq(client);
+		goto err_free_clients;
 
 	err = guc_init_doorbell_hw(guc);
 	if (err)
-		goto err_execbuf_client;
+		goto err_free_clients;
 
 	/* Take over from manual control of ELSP (execlists) */
 	guc_interrupts_capture(dev_priv);
@@ -1187,9 +1237,8 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 
 	return 0;
 
-err_execbuf_client:
-	guc_client_free(guc->execbuf_client);
-	guc->execbuf_client = NULL;
+err_free_clients:
+	guc_clients_destroy(guc);
 	return err;
 }
 
@@ -1204,6 +1253,5 @@ void i915_guc_submission_disable(struct drm_i915_private *dev_priv)
 	/* Revert back to manual ELSP submission */
 	intel_engines_reset_default_submission(dev_priv);
 
-	guc_client_free(guc->execbuf_client);
-	guc->execbuf_client = NULL;
+	guc_clients_destroy(guc);
 }
