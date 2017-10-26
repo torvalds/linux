@@ -9415,6 +9415,7 @@ M:	Florian Fainelli <f.fainelli@gmail.com>
 S:	Maintained
 F:	net/dsa/
 F:	include/net/dsa.h
+F:	include/linux/dsa/
 F:	drivers/net/dsa/
 
 NETWORKING [GENERAL]
