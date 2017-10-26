@@ -1008,9 +1008,15 @@ static void lpi_write_config(struct irq_data *d, u8 clr, u8 set)
 	if (irqd_is_forwarded_to_vcpu(d)) {
 		struct its_device *its_dev = irq_data_get_irq_chip_data(d);
 		u32 event = its_get_event_id(d);
+		struct its_vlpi_map *map;
 
 		prop_page = its_dev->event_map.vm->vprop_page;
-		hwirq = its_dev->event_map.vlpi_maps[event].vintid;
+		map = &its_dev->event_map.vlpi_maps[event];
+		hwirq = map->vintid;
+
+		/* Remember the updated property */
+		map->properties &= ~clr;
+		map->properties |= set | LPI_PROP_GROUP1;
 	} else {
 		prop_page = gic_rdists->prop_page;
 		hwirq = d->hwirq;
@@ -1249,12 +1255,20 @@ static int its_vlpi_map(struct irq_data *d, struct its_cmd_info *info)
 		/* Ensure all the VPEs are mapped on this ITS */
 		its_map_vm(its_dev->its, info->map->vm);
 
+		/*
+		 * Flag the interrupt as forwarded so that we can
+		 * start poking the virtual property table.
+		 */
+		irqd_set_forwarded_to_vcpu(d);
+
+		/* Write out the property to the prop table */
+		lpi_write_config(d, 0xff, info->map->properties);
+
 		/* Drop the physical mapping */
 		its_send_discard(its_dev, event);
 
 		/* and install the virtual one */
 		its_send_vmapti(its_dev, event);
-		irqd_set_forwarded_to_vcpu(d);
 
 		/* Increment the number of VLPIs */
 		its_dev->event_map.nr_vlpis++;
