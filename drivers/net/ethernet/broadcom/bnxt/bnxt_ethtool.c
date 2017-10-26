@@ -1337,7 +1337,6 @@ static int bnxt_firmware_reset(struct net_device *dev,
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FW_RESET, -1, -1);
 
-	/* TODO: Support ASAP ChiMP self-reset (e.g. upon PF driver unload) */
 	/* TODO: Address self-reset of APE/KONG/BONO/TANG or ungraceful reset */
 	/*       (e.g. when firmware isn't already running) */
 	switch (dir_type) {
@@ -1362,6 +1361,10 @@ static int bnxt_firmware_reset(struct net_device *dev,
 	case BNX_DIR_TYPE_BONO_FW:
 	case BNX_DIR_TYPE_BONO_PATCH:
 		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_ROCE;
+		break;
+	case BNXT_FW_RESET_CHIP:
+		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_CHIP;
+		req.selfrst_status = FW_RESET_REQ_SELFRST_STATUS_SELFRSTASAP;
 		break;
 	default:
 		return -EINVAL;
@@ -2485,6 +2488,37 @@ static void bnxt_self_test(struct net_device *dev, struct ethtool_test *etest,
 	}
 }
 
+static int bnxt_reset(struct net_device *dev, u32 *flags)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	int rc = 0;
+
+	if (!BNXT_PF(bp)) {
+		netdev_err(dev, "Reset is not supported from a VF\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (pci_vfs_assigned(bp->pdev)) {
+		netdev_err(dev,
+			   "Reset not allowed when VFs are assigned to VMs\n");
+		return -EBUSY;
+	}
+
+	if (*flags == ETH_RESET_ALL) {
+		/* This feature is not supported in older firmware versions */
+		if (bp->hwrm_spec_code < 0x10803)
+			return -EOPNOTSUPP;
+
+		rc = bnxt_firmware_reset(dev, BNXT_FW_RESET_CHIP);
+		if (!rc)
+			netdev_info(dev, "Reset request successful. Reload driver to complete reset\n");
+	} else {
+		rc = -EINVAL;
+	}
+
+	return rc;
+}
+
 void bnxt_ethtool_init(struct bnxt *bp)
 {
 	struct hwrm_selftest_qlist_output *resp = bp->hwrm_cmd_resp_addr;
@@ -2597,4 +2631,5 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.nway_reset		= bnxt_nway_reset,
 	.set_phys_id		= bnxt_set_phys_id,
 	.self_test		= bnxt_self_test,
+	.reset			= bnxt_reset,
 };
