@@ -965,6 +965,15 @@ struct bnxt_tc_info {
 	/* hash table to store L2 keys of TC flows */
 	struct rhashtable		l2_table;
 	struct rhashtable_params	l2_ht_params;
+	/* hash table to store L2 keys for TC tunnel decap */
+	struct rhashtable		decap_l2_table;
+	struct rhashtable_params	decap_l2_ht_params;
+	/* hash table to store tunnel decap entries */
+	struct rhashtable		decap_table;
+	struct rhashtable_params	decap_ht_params;
+	/* hash table to store tunnel encap entries */
+	struct rhashtable		encap_table;
+	struct rhashtable_params	encap_ht_params;
 
 	/* lock to atomically add/del an l2 node when a flow is
 	 * added or deleted.
