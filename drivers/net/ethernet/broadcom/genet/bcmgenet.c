@@ -1580,8 +1580,7 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 	for (i = 0; i <= nr_frags; i++) {
 		tx_cb_ptr = bcmgenet_get_txcb(priv, ring);
 
-		if (unlikely(!tx_cb_ptr))
-			BUG();
+		BUG_ON(!tx_cb_ptr);
 
 		if (!i) {
 			/* Transmit single SKB or head of fragment list */
