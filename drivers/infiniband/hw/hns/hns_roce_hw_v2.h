@@ -77,6 +77,7 @@
 #define HNS_ROCE_MTT_HOP_NUM			1
 #define HNS_ROCE_CQE_HOP_NUM			1
 #define HNS_ROCE_PBL_HOP_NUM			2
+#define HNS_ROCE_V2_GID_INDEX_NUM		256
 
 #define HNS_ROCE_V2_TABLE_CHUNK_SIZE		(1 << 18)
 
@@ -201,6 +202,12 @@ enum hns_roce_cmd_return_status {
 	CMD_NO_AUTH		= 1,
 	CMD_NOT_EXEC		= 2,
 	CMD_QUEUE_FULL		= 3,
+};
+
+enum hns_roce_sgid_type {
+	GID_TYPE_FLAG_ROCE_V1 = 0,
+	GID_TYPE_FLAG_ROCE_V2_IPV4,
+	GID_TYPE_FLAG_ROCE_V2_IPV6,
 };
 
 struct hns_roce_v2_cq_context {

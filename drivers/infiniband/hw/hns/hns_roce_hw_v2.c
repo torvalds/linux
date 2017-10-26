@@ -948,7 +948,7 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	caps->flags		= HNS_ROCE_CAP_FLAG_REREG_MR |
 				  HNS_ROCE_CAP_FLAG_ROCE_V1_V2;
 	caps->pkey_table_len[0] = 1;
-	caps->gid_table_len[0] = 2;
+	caps->gid_table_len[0] = HNS_ROCE_V2_GID_INDEX_NUM;
 	caps->local_ca_ack_delay = 0;
 	caps->max_mtu = IB_MTU_4096;
 
@@ -1043,11 +1043,26 @@ static int hns_roce_v2_chk_mbox(struct hns_roce_dev *hr_dev,
 	return 0;
 }
 
-static void hns_roce_v2_set_gid(struct hns_roce_dev *hr_dev, u8 port,
-				int gid_index, union ib_gid *gid)
+static int hns_roce_v2_set_gid(struct hns_roce_dev *hr_dev, u8 port,
+			       int gid_index, union ib_gid *gid,
+			       const struct ib_gid_attr *attr)
 {
+	enum hns_roce_sgid_type sgid_type = GID_TYPE_FLAG_ROCE_V1;
 	u32 *p;
 	u32 val;
+
+	if (!gid || !attr)
+		return -EINVAL;
+
+	if (attr->gid_type == IB_GID_TYPE_ROCE)
+		sgid_type = GID_TYPE_FLAG_ROCE_V1;
+
+	if (attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP) {
+		if (ipv6_addr_v4mapped((void *)gid))
+			sgid_type = GID_TYPE_FLAG_ROCE_V2_IPV4;
+		else
+			sgid_type = GID_TYPE_FLAG_ROCE_V2_IPV6;
+	}
 
 	p = (u32 *)&gid->raw[0];
 	roce_raw_write(*p, hr_dev->reg_base + ROCEE_VF_SGID_CFG0_REG +
@@ -1067,9 +1082,11 @@ static void hns_roce_v2_set_gid(struct hns_roce_dev *hr_dev, u8 port,
 
 	val = roce_read(hr_dev, ROCEE_VF_SGID_CFG4_REG + 0x20 * gid_index);
 	roce_set_field(val, ROCEE_VF_SGID_CFG4_SGID_TYPE_M,
-		       ROCEE_VF_SGID_CFG4_SGID_TYPE_S, 0);
+		       ROCEE_VF_SGID_CFG4_SGID_TYPE_S, sgid_type);
 
 	roce_write(hr_dev, ROCEE_VF_SGID_CFG4_REG + 0x20 * gid_index, val);
+
+	return 0;
 }
 
 static int hns_roce_v2_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port,

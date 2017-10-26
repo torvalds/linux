@@ -1703,8 +1703,9 @@ static int hns_roce_v1_chk_mbox(struct hns_roce_dev *hr_dev,
 	return 0;
 }
 
-static void hns_roce_v1_set_gid(struct hns_roce_dev *hr_dev, u8 port,
-				int gid_index, union ib_gid *gid)
+static int hns_roce_v1_set_gid(struct hns_roce_dev *hr_dev, u8 port,
+			       int gid_index, union ib_gid *gid,
+			       const struct ib_gid_attr *attr)
 {
 	u32 *p = NULL;
 	u8 gid_idx = 0;
@@ -1726,6 +1727,8 @@ static void hns_roce_v1_set_gid(struct hns_roce_dev *hr_dev, u8 port,
 	p = (u32 *)&gid->raw[0xc];
 	roce_raw_write(*p, hr_dev->reg_base + ROCEE_PORT_GID_H_0_REG +
 		       (HNS_ROCE_V1_GID_NUM * gid_idx));
+
+	return 0;
 }
 
 static int hns_roce_v1_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port,

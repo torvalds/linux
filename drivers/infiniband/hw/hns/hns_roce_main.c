@@ -81,17 +81,19 @@ static int hns_roce_add_gid(struct ib_device *device, u8 port_num,
 	struct hns_roce_dev *hr_dev = to_hr_dev(device);
 	u8 port = port_num - 1;
 	unsigned long flags;
+	int ret;
 
 	if (port >= hr_dev->caps.num_ports)
 		return -EINVAL;
 
 	spin_lock_irqsave(&hr_dev->iboe.lock, flags);
 
-	hr_dev->hw->set_gid(hr_dev, port, index, (union ib_gid *)gid);
+	ret = hr_dev->hw->set_gid(hr_dev, port, index, (union ib_gid *)gid,
+				   attr);
 
 	spin_unlock_irqrestore(&hr_dev->iboe.lock, flags);
 
-	return 0;
+	return ret;
 }
 
 static int hns_roce_del_gid(struct ib_device *device, u8 port_num,
@@ -101,17 +103,18 @@ static int hns_roce_del_gid(struct ib_device *device, u8 port_num,
 	union ib_gid zgid = { {0} };
 	u8 port = port_num - 1;
 	unsigned long flags;
+	int ret;
 
 	if (port >= hr_dev->caps.num_ports)
 		return -EINVAL;
 
 	spin_lock_irqsave(&hr_dev->iboe.lock, flags);
 
-	hr_dev->hw->set_gid(hr_dev, port, index, &zgid);
+	ret = hr_dev->hw->set_gid(hr_dev, port, index, &zgid, NULL);
 
 	spin_unlock_irqrestore(&hr_dev->iboe.lock, flags);
 
-	return 0;
+	return ret;
 }
 
 static int handle_en_event(struct hns_roce_dev *hr_dev, u8 port,
