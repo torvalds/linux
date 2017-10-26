@@ -2005,6 +2005,9 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 
 	/* Setup Switch Port Registers */
 	for (i = 0; i < mv88e6xxx_num_ports(chip); i++) {
+		if (dsa_is_unused_port(ds, i))
+			continue;
+
 		err = mv88e6xxx_setup_port(chip, i);
 		if (err)
 			goto unlock;
