@@ -610,17 +610,6 @@ int msm_gem_sync_object(struct drm_gem_object *obj,
 	struct dma_fence *fence;
 	int i, ret;
 
-	if (!exclusive) {
-		/* NOTE: _reserve_shared() must happen before _add_shared_fence(),
-		 * which makes this a slightly strange place to call it.  OTOH this
-		 * is a convenient can-fail point to hook it in.  (And similar to
-		 * how etnaviv and nouveau handle this.)
-		 */
-		ret = reservation_object_reserve_shared(msm_obj->resv);
-		if (ret)
-			return ret;
-	}
-
 	fobj = reservation_object_get_list(msm_obj->resv);
 	if (!fobj || (fobj->shared_count == 0)) {
 		fence = reservation_object_get_excl(msm_obj->resv);
@@ -1045,10 +1034,10 @@ static void *_msm_gem_kernel_new(struct drm_device *dev, uint32_t size,
 	}
 
 	vaddr = msm_gem_get_vaddr(obj);
-	if (!vaddr) {
+	if (IS_ERR(vaddr)) {
 		msm_gem_put_iova(obj, aspace);
 		drm_gem_object_unreference(obj);
-		return ERR_PTR(-ENOMEM);
+		return ERR_CAST(vaddr);
 	}
 
 	if (bo)

@@ -34,11 +34,12 @@ config RESET_BERLIN
 	help
 	  This enables the reset controller driver for Marvell Berlin SoCs.
 
-config RESET_HSDK_V1
-	bool "HSDK v1 Reset Driver"
-	default n
+config RESET_HSDK
+	bool "Synopsys HSDK Reset Driver"
+	depends on HAS_IOMEM
+	depends on ARC_SOC_HSDK || COMPILE_TEST
 	help
-	  This enables the reset controller driver for HSDK v1.
+	  This enables the reset controller driver for HSDK board.
 
 config RESET_IMX7
 	bool "i.MX7 Reset Driver" if COMPILE_TEST
