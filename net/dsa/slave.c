@@ -1060,28 +1060,10 @@ static int dsa_slave_phy_setup(struct net_device *slave_dev)
 		phy_flags = ds->ops->get_phy_flags(ds, dp->index);
 
 	if (phy_dn) {
-		int phy_id = of_mdio_parse_addr(&slave_dev->dev, phy_dn);
-
-		/* If this PHY address is part of phys_mii_mask, which means
-		 * that we need to divert reads and writes to/from it, then we
-		 * want to bind this device using the slave MII bus created by
-		 * DSA to make that happen.
-		 */
-		if (!phy_is_fixed && phy_id >= 0 &&
-		    (ds->phys_mii_mask & (1 << phy_id))) {
-			ret = dsa_slave_phy_connect(slave_dev, phy_id);
-			if (ret) {
-				netdev_err(slave_dev, "failed to connect to phy%d: %d\n", phy_id, ret);
-				of_node_put(phy_dn);
-				return ret;
-			}
-		} else {
-			slave_dev->phydev = of_phy_connect(slave_dev, phy_dn,
-							   dsa_slave_adjust_link,
-							   phy_flags,
-							   p->phy_interface);
-		}
-
+		slave_dev->phydev = of_phy_connect(slave_dev, phy_dn,
+						   dsa_slave_adjust_link,
+						   phy_flags,
+						   p->phy_interface);
 		of_node_put(phy_dn);
 	}
 
