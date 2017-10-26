@@ -42,6 +42,11 @@ struct cudbg_cim_qcfg {
 	u32 stat[4 * (CIM_NUM_IBQ + CIM_NUM_OBQ_T5)];
 };
 
+struct cudbg_rss_vf_conf {
+	u32 rss_vf_vfl;
+	u32 rss_vf_vfh;
+};
+
 struct ireg_field {
 	u32 ireg_addr;
 	u32 ireg_data;

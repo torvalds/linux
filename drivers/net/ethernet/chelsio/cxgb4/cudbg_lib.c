@@ -528,6 +528,52 @@ int cudbg_collect_edc1_meminfo(struct cudbg_init *pdbg_init,
 					MEM_EDC1);
 }
 
+int cudbg_collect_rss(struct cudbg_init *pdbg_init,
+		      struct cudbg_buffer *dbg_buff,
+		      struct cudbg_error *cudbg_err)
+{
+	struct adapter *padap = pdbg_init->adap;
+	struct cudbg_buffer temp_buff = { 0 };
+	int rc;
+
+	rc = cudbg_get_buff(dbg_buff, RSS_NENTRIES * sizeof(u16), &temp_buff);
+	if (rc)
+		return rc;
+
+	rc = t4_read_rss(padap, (u16 *)temp_buff.data);
+	if (rc) {
+		cudbg_err->sys_err = rc;
+		cudbg_put_buff(&temp_buff, dbg_buff);
+		return rc;
+	}
+	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
+	return rc;
+}
+
+int cudbg_collect_rss_vf_config(struct cudbg_init *pdbg_init,
+				struct cudbg_buffer *dbg_buff,
+				struct cudbg_error *cudbg_err)
+{
+	struct adapter *padap = pdbg_init->adap;
+	struct cudbg_buffer temp_buff = { 0 };
+	struct cudbg_rss_vf_conf *vfconf;
+	int vf, rc, vf_count;
+
+	vf_count = padap->params.arch.vfcount;
+	rc = cudbg_get_buff(dbg_buff,
+			    vf_count * sizeof(struct cudbg_rss_vf_conf),
+			    &temp_buff);
+	if (rc)
+		return rc;
+
+	vfconf = (struct cudbg_rss_vf_conf *)temp_buff.data;
+	for (vf = 0; vf < vf_count; vf++)
+		t4_read_rss_vf_config(padap, vf, &vfconf[vf].rss_vf_vfl,
+				      &vfconf[vf].rss_vf_vfh, true);
+	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
+	return rc;
+}
+
 int cudbg_collect_tp_indirect(struct cudbg_init *pdbg_init,
 			      struct cudbg_buffer *dbg_buff,
 			      struct cudbg_error *cudbg_err)

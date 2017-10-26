@@ -44,6 +44,8 @@ static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
 	{ CUDBG_CIM_OBQ_ULP3, cudbg_collect_cim_obq_ulp3 },
 	{ CUDBG_CIM_OBQ_SGE, cudbg_collect_cim_obq_sge },
 	{ CUDBG_CIM_OBQ_NCSI, cudbg_collect_cim_obq_ncsi },
+	{ CUDBG_RSS, cudbg_collect_rss },
+	{ CUDBG_RSS_VF_CONF, cudbg_collect_rss_vf_config },
 	{ CUDBG_TP_INDIRECT, cudbg_collect_tp_indirect },
 	{ CUDBG_SGE_INDIRECT, cudbg_collect_sge_indirect },
 	{ CUDBG_ULPRX_LA, cudbg_collect_ulprx_la },
@@ -143,6 +145,13 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 			len = EDRAM1_SIZE_G(value);
 		}
 		len = cudbg_mbytes_to_bytes(len);
+		break;
+	case CUDBG_RSS:
+		len = RSS_NENTRIES * sizeof(u16);
+		break;
+	case CUDBG_RSS_VF_CONF:
+		len = adap->params.arch.vfcount *
+		      sizeof(struct cudbg_rss_vf_conf);
 		break;
 	case CUDBG_TP_INDIRECT:
 		switch (CHELSIO_CHIP_VERSION(adap->params.chip)) {
