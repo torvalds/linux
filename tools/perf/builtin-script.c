@@ -769,27 +769,26 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 	 * but the exit is not. Let the caller patch it up.
 	 */
 	if (kernel != machine__kernel_ip(machine, end)) {
-		printf("\tblock %" PRIx64 "-%" PRIx64 " transfers between kernel and user\n",
-				start, end);
+		pr_debug("\tblock %" PRIx64 "-%" PRIx64 " transfers between kernel and user\n", start, end);
 		return -ENXIO;
 	}
 
 	memset(&al, 0, sizeof(al));
 	if (end - start > MAXBB - MAXINSN) {
 		if (last)
-			printf("\tbrstack does not reach to final jump (%" PRIx64 "-%" PRIx64 ")\n", start, end);
+			pr_debug("\tbrstack does not reach to final jump (%" PRIx64 "-%" PRIx64 ")\n", start, end);
 		else
-			printf("\tblock %" PRIx64 "-%" PRIx64 " (%" PRIu64 ") too long to dump\n", start, end, end - start);
+			pr_debug("\tblock %" PRIx64 "-%" PRIx64 " (%" PRIu64 ") too long to dump\n", start, end, end - start);
 		return 0;
 	}
 
 	thread__find_addr_map(thread, *cpumode, MAP__FUNCTION, start, &al);
 	if (!al.map || !al.map->dso) {
-		printf("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
+		pr_debug("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
 		return 0;
 	}
 	if (al.map->dso->data.status == DSO_DATA_STATUS_ERROR) {
-		printf("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
+		pr_debug("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
 		return 0;
 	}
 
@@ -802,7 +801,7 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 
 	*is64bit = al.map->dso->is_64_bit;
 	if (len <= 0)
-		printf("\tcannot fetch code for block at %" PRIx64 "-%" PRIx64 "\n",
+		pr_debug("\tcannot fetch code for block at %" PRIx64 "-%" PRIx64 "\n",
 			start, end);
 	return len;
 }
