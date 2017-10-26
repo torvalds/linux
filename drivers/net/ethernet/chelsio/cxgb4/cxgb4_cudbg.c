@@ -55,6 +55,7 @@ static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
 	{ CUDBG_CIM_OBQ_RXQ1, cudbg_collect_obq_sge_rx_q1 },
 	{ CUDBG_PCIE_INDIRECT, cudbg_collect_pcie_indirect },
 	{ CUDBG_PM_INDIRECT, cudbg_collect_pm_indirect },
+	{ CUDBG_TID_INFO, cudbg_collect_tid },
 	{ CUDBG_MA_INDIRECT, cudbg_collect_ma_indirect },
 	{ CUDBG_ULPTX_LA, cudbg_collect_ulptx_la },
 	{ CUDBG_UP_CIM_INDIRECT, cudbg_collect_up_cim_indirect },
@@ -191,6 +192,9 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 	case CUDBG_PM_INDIRECT:
 		n = sizeof(t5_pm_rx_array) / (IREG_NUM_ELEM * sizeof(u32));
 		len = sizeof(struct ireg_buf) * n * 2;
+		break;
+	case CUDBG_TID_INFO:
+		len = sizeof(struct cudbg_tid_info_region_rev1);
 		break;
 	case CUDBG_MA_INDIRECT:
 		if (CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5) {

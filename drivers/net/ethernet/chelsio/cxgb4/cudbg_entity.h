@@ -21,6 +21,8 @@
 #define EDC0_FLAG 3
 #define EDC1_FLAG 4
 
+#define CUDBG_ENTITY_SIGNATURE 0xCCEDB001
+
 struct card_mem {
 	u16 size_edc0;
 	u16 size_edc1;
@@ -73,6 +75,43 @@ struct cudbg_tp_la {
 struct cudbg_cim_pif_la {
 	int size;
 	u8 data[0];
+};
+
+struct cudbg_tid_info_region {
+	u32 ntids;
+	u32 nstids;
+	u32 stid_base;
+	u32 hash_base;
+
+	u32 natids;
+	u32 nftids;
+	u32 ftid_base;
+	u32 aftid_base;
+	u32 aftid_end;
+
+	u32 sftid_base;
+	u32 nsftids;
+
+	u32 uotid_base;
+	u32 nuotids;
+
+	u32 sb;
+	u32 flags;
+	u32 le_db_conf;
+	u32 ip_users;
+	u32 ipv6_users;
+
+	u32 hpftid_base;
+	u32 nhpftids;
+};
+
+#define CUDBG_TID_INFO_REV 1
+
+struct cudbg_tid_info_region_rev1 {
+	struct cudbg_ver_hdr ver_hdr;
+	struct cudbg_tid_info_region tid;
+	u32 tid_start;
+	u32 reserved[16];
 };
 
 #define CUDBG_NUM_ULPTX 11

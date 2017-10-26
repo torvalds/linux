@@ -902,6 +902,91 @@ int cudbg_collect_pm_indirect(struct cudbg_init *pdbg_init,
 	return rc;
 }
 
+int cudbg_collect_tid(struct cudbg_init *pdbg_init,
+		      struct cudbg_buffer *dbg_buff,
+		      struct cudbg_error *cudbg_err)
+{
+	struct adapter *padap = pdbg_init->adap;
+	struct cudbg_tid_info_region_rev1 *tid1;
+	struct cudbg_buffer temp_buff = { 0 };
+	struct cudbg_tid_info_region *tid;
+	u32 para[2], val[2];
+	int rc;
+
+	rc = cudbg_get_buff(dbg_buff, sizeof(struct cudbg_tid_info_region_rev1),
+			    &temp_buff);
+	if (rc)
+		return rc;
+
+	tid1 = (struct cudbg_tid_info_region_rev1 *)temp_buff.data;
+	tid = &tid1->tid;
+	tid1->ver_hdr.signature = CUDBG_ENTITY_SIGNATURE;
+	tid1->ver_hdr.revision = CUDBG_TID_INFO_REV;
+	tid1->ver_hdr.size = sizeof(struct cudbg_tid_info_region_rev1) -
+			     sizeof(struct cudbg_ver_hdr);
+
+#define FW_PARAM_PFVF_A(param) \
+	(FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_PFVF) | \
+	 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_PFVF_##param) | \
+	 FW_PARAMS_PARAM_Y_V(0) | \
+	 FW_PARAMS_PARAM_Z_V(0))
+
+	para[0] = FW_PARAM_PFVF_A(ETHOFLD_START);
+	para[1] = FW_PARAM_PFVF_A(ETHOFLD_END);
+	rc = t4_query_params(padap, padap->mbox, padap->pf, 0, 2, para, val);
+	if (rc <  0) {
+		cudbg_err->sys_err = rc;
+		cudbg_put_buff(&temp_buff, dbg_buff);
+		return rc;
+	}
+	tid->uotid_base = val[0];
+	tid->nuotids = val[1] - val[0] + 1;
+
+	if (is_t5(padap->params.chip)) {
+		tid->sb = t4_read_reg(padap, LE_DB_SERVER_INDEX_A) / 4;
+	} else if (is_t6(padap->params.chip)) {
+		tid1->tid_start =
+			t4_read_reg(padap, LE_DB_ACTIVE_TABLE_START_INDEX_A);
+		tid->sb = t4_read_reg(padap, LE_DB_SRVR_START_INDEX_A);
+
+		para[0] = FW_PARAM_PFVF_A(HPFILTER_START);
+		para[1] = FW_PARAM_PFVF_A(HPFILTER_END);
+		rc = t4_query_params(padap, padap->mbox, padap->pf, 0, 2,
+				     para, val);
+		if (rc < 0) {
+			cudbg_err->sys_err = rc;
+			cudbg_put_buff(&temp_buff, dbg_buff);
+			return rc;
+		}
+		tid->hpftid_base = val[0];
+		tid->nhpftids = val[1] - val[0] + 1;
+	}
+
+	tid->ntids = padap->tids.ntids;
+	tid->nstids = padap->tids.nstids;
+	tid->stid_base = padap->tids.stid_base;
+	tid->hash_base = padap->tids.hash_base;
+
+	tid->natids = padap->tids.natids;
+	tid->nftids = padap->tids.nftids;
+	tid->ftid_base = padap->tids.ftid_base;
+	tid->aftid_base = padap->tids.aftid_base;
+	tid->aftid_end = padap->tids.aftid_end;
+
+	tid->sftid_base = padap->tids.sftid_base;
+	tid->nsftids = padap->tids.nsftids;
+
+	tid->flags = padap->flags;
+	tid->le_db_conf = t4_read_reg(padap, LE_DB_CONFIG_A);
+	tid->ip_users = t4_read_reg(padap, LE_DB_ACT_CNT_IPV4_A);
+	tid->ipv6_users = t4_read_reg(padap, LE_DB_ACT_CNT_IPV6_A);
+
+#undef FW_PARAM_PFVF_A
+
+	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
+	return rc;
+}
+
 int cudbg_collect_ma_indirect(struct cudbg_init *pdbg_init,
 			      struct cudbg_buffer *dbg_buff,
 			      struct cudbg_error *cudbg_err)
