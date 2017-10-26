@@ -913,6 +913,11 @@ struct i915_gpu_state {
 	struct intel_device_info device_info;
 	struct i915_params params;
 
+	struct i915_error_uc {
+		struct intel_uc_fw guc_fw;
+		struct intel_uc_fw huc_fw;
+	} uc;
+
 	/* Generic register state */
 	u32 eir;
 	u32 pgtbl_er;
