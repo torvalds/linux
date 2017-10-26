@@ -114,29 +114,6 @@ static const struct ieee80211_iface_combination iwl_mvm_iface_combinations[] = {
 	},
 };
 
-#ifdef CONFIG_PM_SLEEP
-static const struct nl80211_wowlan_tcp_data_token_feature
-iwl_mvm_wowlan_tcp_token_feature = {
-	.min_len = 0,
-	.max_len = 255,
-	.bufsize = IWL_WOWLAN_REMOTE_WAKE_MAX_TOKENS,
-};
-
-static const struct wiphy_wowlan_tcp_support iwl_mvm_wowlan_tcp_support = {
-	.tok = &iwl_mvm_wowlan_tcp_token_feature,
-	.data_payload_max = IWL_WOWLAN_TCP_MAX_PACKET_LEN -
-			    sizeof(struct ethhdr) -
-			    sizeof(struct iphdr) -
-			    sizeof(struct tcphdr),
-	.data_interval_max = 65535, /* __le16 in API */
-	.wake_payload_max = IWL_WOWLAN_REMOTE_WAKE_MAX_PACKET_LEN -
-			    sizeof(struct ethhdr) -
-			    sizeof(struct iphdr) -
-			    sizeof(struct tcphdr),
-	.seq = true,
-};
-#endif
-
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 /*
  * Use the reserved field to indicate magic values.
@@ -702,7 +679,6 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		mvm->wowlan.pattern_min_len = IWL_WOWLAN_MIN_PATTERN_LEN;
 		mvm->wowlan.pattern_max_len = IWL_WOWLAN_MAX_PATTERN_LEN;
 		mvm->wowlan.max_nd_match_sets = IWL_SCAN_MAX_PROFILES;
-		mvm->wowlan.tcp = &iwl_mvm_wowlan_tcp_support;
 		hw->wiphy->wowlan = &mvm->wowlan;
 	}
 #endif
