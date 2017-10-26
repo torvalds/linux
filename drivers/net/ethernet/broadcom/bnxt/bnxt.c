@@ -2835,7 +2835,8 @@ int bnxt_set_rx_skb_mode(struct bnxt *bp, bool page_mode)
 	if (page_mode) {
 		if (bp->dev->mtu > BNXT_MAX_PAGE_MODE_MTU)
 			return -EOPNOTSUPP;
-		bp->dev->max_mtu = BNXT_MAX_PAGE_MODE_MTU;
+		bp->dev->max_mtu =
+			min_t(u16, bp->max_mtu, BNXT_MAX_PAGE_MODE_MTU);
 		bp->flags &= ~BNXT_FLAG_AGG_RINGS;
 		bp->flags |= BNXT_FLAG_NO_AGG_RINGS | BNXT_FLAG_RX_PAGE_MODE;
 		bp->dev->hw_features &= ~NETIF_F_LRO;
@@ -2843,7 +2844,7 @@ int bnxt_set_rx_skb_mode(struct bnxt *bp, bool page_mode)
 		bp->rx_dir = DMA_BIDIRECTIONAL;
 		bp->rx_skb_func = bnxt_rx_page_skb;
 	} else {
-		bp->dev->max_mtu = BNXT_MAX_MTU;
+		bp->dev->max_mtu = bp->max_mtu;
 		bp->flags &= ~BNXT_FLAG_RX_PAGE_MODE;
 		bp->rx_dir = DMA_FROM_DEVICE;
 		bp->rx_skb_func = bnxt_rx_skb;
@@ -4731,6 +4732,10 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 		bp->br_mode = BRIDGE_MODE_VEPA;
 	else
 		bp->br_mode = BRIDGE_MODE_UNDEF;
+
+	bp->max_mtu = le16_to_cpu(resp->max_mtu_configured);
+	if (!bp->max_mtu)
+		bp->max_mtu = BNXT_MAX_MTU;
 
 func_qcfg_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -8095,10 +8100,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->features |= dev->hw_features | NETIF_F_HIGHDMA;
 	dev->priv_flags |= IFF_UNICAST_FLT;
 
-	/* MTU range: 60 - 9500 */
-	dev->min_mtu = ETH_ZLEN;
-	dev->max_mtu = BNXT_MAX_MTU;
-
 #ifdef CONFIG_BNXT_SRIOV
 	init_waitqueue_head(&bp->sriov_cfg_wait);
 	mutex_init(&bp->sriov_lock);
@@ -8145,6 +8146,10 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bnxt_hwrm_port_led_qcaps(bp);
 	bnxt_ethtool_init(bp);
 	bnxt_dcb_init(bp);
+
+	/* MTU range: 60 - FW defined max */
+	dev->min_mtu = ETH_ZLEN;
+	dev->max_mtu = bp->max_mtu;
 
 	rc = bnxt_probe_phy(bp);
 	if (rc)

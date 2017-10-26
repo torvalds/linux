@@ -1172,6 +1172,7 @@ struct bnxt {
 	int			nr_vnics;
 	u32			rss_hash_cfg;
 
+	u16			max_mtu;
 	u8			max_tc;
 	u8			max_lltc;	/* lossless TCs */
 	struct bnxt_queue_info	q_info[BNXT_MAX_QUEUE];
