@@ -1762,8 +1762,7 @@ static bool fill_rects_from_plane_state(const struct drm_plane_state *state,
 	return true;
 }
 static int get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb,
-		       uint64_t *tiling_flags,
-		       uint64_t *fb_location)
+		       uint64_t *tiling_flags)
 {
 	struct amdgpu_bo *rbo = gem_to_amdgpu_bo(amdgpu_fb->obj);
 	int r = amdgpu_bo_reserve(rbo, false);
@@ -1775,9 +1774,6 @@ static int get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb,
 		return r;
 	}
 
-	if (fb_location)
-		*fb_location = amdgpu_bo_gpu_offset(rbo);
-
 	if (tiling_flags)
 		amdgpu_bo_get_tiling_flags(rbo, tiling_flags);
 
@@ -1788,8 +1784,7 @@ static int get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb,
 
 static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 					 struct dc_plane_state *plane_state,
-					 const struct amdgpu_framebuffer *amdgpu_fb,
-					 bool addReq)
+					 const struct amdgpu_framebuffer *amdgpu_fb)
 {
 	uint64_t tiling_flags;
 	uint64_t fb_location = 0;
@@ -1801,8 +1796,7 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 
 	ret = get_fb_info(
 		amdgpu_fb,
-		&tiling_flags,
-		addReq == true ? &fb_location:NULL);
+		&tiling_flags);
 
 	if (ret)
 		return ret;
@@ -1972,8 +1966,7 @@ static void fill_gamma_from_crtc_state(const struct drm_crtc_state *crtc_state,
 static int fill_plane_attributes(struct amdgpu_device *adev,
 				 struct dc_plane_state *dc_plane_state,
 				 struct drm_plane_state *plane_state,
-				 struct drm_crtc_state *crtc_state,
-				 bool addrReq)
+				 struct drm_crtc_state *crtc_state)
 {
 	const struct amdgpu_framebuffer *amdgpu_fb =
 		to_amdgpu_framebuffer(plane_state->fb);
@@ -1987,8 +1980,7 @@ static int fill_plane_attributes(struct amdgpu_device *adev,
 	ret = fill_plane_attributes_from_fb(
 		crtc->dev->dev_private,
 		dc_plane_state,
-		amdgpu_fb,
-		addrReq);
+		amdgpu_fb);
 
 	if (ret)
 		return ret;
@@ -4660,8 +4652,7 @@ static int dm_update_planes_state(struct dc *dc,
 				new_plane_crtc->dev->dev_private,
 				dm_new_plane_state->dc_state,
 				new_plane_state,
-				new_crtc_state,
-				false);
+				new_crtc_state);
 			if (ret)
 				return ret;
 
