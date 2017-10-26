@@ -31,6 +31,7 @@ enum cudbg_dbg_entity_type {
 	CUDBG_DEV_LOG = 2,
 	CUDBG_CIM_LA = 3,
 	CUDBG_CIM_MA_LA = 4,
+	CUDBG_CIM_QCFG = 5,
 	CUDBG_CIM_IBQ_TP0 = 6,
 	CUDBG_CIM_IBQ_TP1 = 7,
 	CUDBG_CIM_IBQ_ULP = 8,

@@ -192,6 +192,45 @@ int cudbg_collect_cim_ma_la(struct cudbg_init *pdbg_init,
 	return rc;
 }
 
+int cudbg_collect_cim_qcfg(struct cudbg_init *pdbg_init,
+			   struct cudbg_buffer *dbg_buff,
+			   struct cudbg_error *cudbg_err)
+{
+	struct adapter *padap = pdbg_init->adap;
+	struct cudbg_buffer temp_buff = { 0 };
+	struct cudbg_cim_qcfg *cim_qcfg_data;
+	int rc;
+
+	rc = cudbg_get_buff(dbg_buff, sizeof(struct cudbg_cim_qcfg),
+			    &temp_buff);
+	if (rc)
+		return rc;
+
+	cim_qcfg_data = (struct cudbg_cim_qcfg *)temp_buff.data;
+	cim_qcfg_data->chip = padap->params.chip;
+	rc = t4_cim_read(padap, UP_IBQ_0_RDADDR_A,
+			 ARRAY_SIZE(cim_qcfg_data->stat), cim_qcfg_data->stat);
+	if (rc) {
+		cudbg_err->sys_err = rc;
+		cudbg_put_buff(&temp_buff, dbg_buff);
+		return rc;
+	}
+
+	rc = t4_cim_read(padap, UP_OBQ_0_REALADDR_A,
+			 ARRAY_SIZE(cim_qcfg_data->obq_wr),
+			 cim_qcfg_data->obq_wr);
+	if (rc) {
+		cudbg_err->sys_err = rc;
+		cudbg_put_buff(&temp_buff, dbg_buff);
+		return rc;
+	}
+
+	t4_read_cimq_cfg(padap, cim_qcfg_data->base, cim_qcfg_data->size,
+			 cim_qcfg_data->thres);
+	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
+	return rc;
+}
+
 static int cudbg_read_cim_ibq(struct cudbg_init *pdbg_init,
 			      struct cudbg_buffer *dbg_buff,
 			      struct cudbg_error *cudbg_err, int qid)

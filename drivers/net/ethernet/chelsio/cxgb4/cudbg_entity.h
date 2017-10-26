@@ -33,6 +33,15 @@ struct cudbg_mbox_log {
 	u32 lo[MBOX_LEN / 8];
 };
 
+struct cudbg_cim_qcfg {
+	u8 chip;
+	u16 base[CIM_NUM_IBQ + CIM_NUM_OBQ_T5];
+	u16 size[CIM_NUM_IBQ + CIM_NUM_OBQ_T5];
+	u16 thres[CIM_NUM_IBQ];
+	u32 obq_wr[2 * CIM_NUM_OBQ_T5];
+	u32 stat[4 * (CIM_NUM_IBQ + CIM_NUM_OBQ_T5)];
+};
+
 struct ireg_field {
 	u32 ireg_addr;
 	u32 ireg_data;

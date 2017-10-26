@@ -30,6 +30,9 @@ int cudbg_collect_cim_la(struct cudbg_init *pdbg_init,
 int cudbg_collect_cim_ma_la(struct cudbg_init *pdbg_init,
 			    struct cudbg_buffer *dbg_buff,
 			    struct cudbg_error *cudbg_err);
+int cudbg_collect_cim_qcfg(struct cudbg_init *pdbg_init,
+			   struct cudbg_buffer *dbg_buff,
+			   struct cudbg_error *cudbg_err);
 int cudbg_collect_cim_ibq_tp0(struct cudbg_init *pdbg_init,
 			      struct cudbg_buffer *dbg_buff,
 			      struct cudbg_error *cudbg_err);

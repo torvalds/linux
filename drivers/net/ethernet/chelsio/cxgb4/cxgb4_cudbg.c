@@ -31,6 +31,7 @@ static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
 	{ CUDBG_REG_DUMP, cudbg_collect_reg_dump },
 	{ CUDBG_CIM_LA, cudbg_collect_cim_la },
 	{ CUDBG_CIM_MA_LA, cudbg_collect_cim_ma_la },
+	{ CUDBG_CIM_QCFG, cudbg_collect_cim_qcfg },
 	{ CUDBG_CIM_IBQ_TP0, cudbg_collect_cim_ibq_tp0 },
 	{ CUDBG_CIM_IBQ_TP1, cudbg_collect_cim_ibq_tp1 },
 	{ CUDBG_CIM_IBQ_ULP, cudbg_collect_cim_ibq_ulp },
@@ -91,6 +92,9 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		break;
 	case CUDBG_CIM_MA_LA:
 		len = 2 * CIM_MALA_SIZE * 5 * sizeof(u32);
+		break;
+	case CUDBG_CIM_QCFG:
+		len = sizeof(struct cudbg_cim_qcfg);
 		break;
 	case CUDBG_CIM_IBQ_TP0:
 	case CUDBG_CIM_IBQ_TP1:
