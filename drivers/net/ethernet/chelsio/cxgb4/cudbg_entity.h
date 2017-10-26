@@ -45,6 +45,32 @@ struct ireg_buf {
 	u32 outbuf[32];
 };
 
+struct cudbg_ulprx_la {
+	u32 data[ULPRX_LA_SIZE * 8];
+	u32 size;
+};
+
+struct cudbg_tp_la {
+	u32 size;
+	u32 mode;
+	u8 data[0];
+};
+
+struct cudbg_cim_pif_la {
+	int size;
+	u8 data[0];
+};
+
+#define CUDBG_NUM_ULPTX 11
+#define CUDBG_NUM_ULPTX_READ 512
+
+struct cudbg_ulptx_la {
+	u32 rdptr[CUDBG_NUM_ULPTX];
+	u32 wrptr[CUDBG_NUM_ULPTX];
+	u32 rddata[CUDBG_NUM_ULPTX];
+	u32 rd_data[CUDBG_NUM_ULPTX][CUDBG_NUM_ULPTX_READ];
+};
+
 #define IREG_NUM_ELEM 4
 
 static const u32 t6_tp_pio_array[][IREG_NUM_ELEM] = {

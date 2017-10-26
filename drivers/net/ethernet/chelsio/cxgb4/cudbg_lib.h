@@ -24,6 +24,12 @@ int cudbg_collect_reg_dump(struct cudbg_init *pdbg_init,
 int cudbg_collect_fw_devlog(struct cudbg_init *pdbg_init,
 			    struct cudbg_buffer *dbg_buff,
 			    struct cudbg_error *cudbg_err);
+int cudbg_collect_cim_la(struct cudbg_init *pdbg_init,
+			 struct cudbg_buffer *dbg_buff,
+			 struct cudbg_error *cudbg_err);
+int cudbg_collect_cim_ma_la(struct cudbg_init *pdbg_init,
+			    struct cudbg_buffer *dbg_buff,
+			    struct cudbg_error *cudbg_err);
 int cudbg_collect_cim_ibq_tp0(struct cudbg_init *pdbg_init,
 			      struct cudbg_buffer *dbg_buff,
 			      struct cudbg_error *cudbg_err);
@@ -72,6 +78,15 @@ int cudbg_collect_tp_indirect(struct cudbg_init *pdbg_init,
 int cudbg_collect_sge_indirect(struct cudbg_init *pdbg_init,
 			       struct cudbg_buffer *dbg_buff,
 			       struct cudbg_error *cudbg_err);
+int cudbg_collect_ulprx_la(struct cudbg_init *pdbg_init,
+			   struct cudbg_buffer *dbg_buff,
+			   struct cudbg_error *cudbg_err);
+int cudbg_collect_tp_la(struct cudbg_init *pdbg_init,
+			struct cudbg_buffer *dbg_buff,
+			struct cudbg_error *cudbg_err);
+int cudbg_collect_cim_pif_la(struct cudbg_init *pdbg_init,
+			     struct cudbg_buffer *dbg_buff,
+			     struct cudbg_error *cudbg_err);
 int cudbg_collect_obq_sge_rx_q0(struct cudbg_init *pdbg_init,
 				struct cudbg_buffer *dbg_buff,
 				struct cudbg_error *cudbg_err);
@@ -87,6 +102,9 @@ int cudbg_collect_pm_indirect(struct cudbg_init *pdbg_init,
 int cudbg_collect_ma_indirect(struct cudbg_init *pdbg_init,
 			      struct cudbg_buffer *dbg_buff,
 			      struct cudbg_error *cudbg_err);
+int cudbg_collect_ulptx_la(struct cudbg_init *pdbg_init,
+			   struct cudbg_buffer *dbg_buff,
+			   struct cudbg_error *cudbg_err);
 int cudbg_collect_up_cim_indirect(struct cudbg_init *pdbg_init,
 				  struct cudbg_buffer *dbg_buff,
 				  struct cudbg_error *cudbg_err);

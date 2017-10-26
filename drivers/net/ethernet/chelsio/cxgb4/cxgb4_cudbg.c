@@ -29,6 +29,8 @@ static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
 	{ CUDBG_MBOX_LOG, cudbg_collect_mbox_log },
 	{ CUDBG_DEV_LOG, cudbg_collect_fw_devlog },
 	{ CUDBG_REG_DUMP, cudbg_collect_reg_dump },
+	{ CUDBG_CIM_LA, cudbg_collect_cim_la },
+	{ CUDBG_CIM_MA_LA, cudbg_collect_cim_ma_la },
 	{ CUDBG_CIM_IBQ_TP0, cudbg_collect_cim_ibq_tp0 },
 	{ CUDBG_CIM_IBQ_TP1, cudbg_collect_cim_ibq_tp1 },
 	{ CUDBG_CIM_IBQ_ULP, cudbg_collect_cim_ibq_ulp },
@@ -43,11 +45,15 @@ static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
 	{ CUDBG_CIM_OBQ_NCSI, cudbg_collect_cim_obq_ncsi },
 	{ CUDBG_TP_INDIRECT, cudbg_collect_tp_indirect },
 	{ CUDBG_SGE_INDIRECT, cudbg_collect_sge_indirect },
+	{ CUDBG_ULPRX_LA, cudbg_collect_ulprx_la },
+	{ CUDBG_TP_LA, cudbg_collect_tp_la },
+	{ CUDBG_CIM_PIF_LA, cudbg_collect_cim_pif_la },
 	{ CUDBG_CIM_OBQ_RXQ0, cudbg_collect_obq_sge_rx_q0 },
 	{ CUDBG_CIM_OBQ_RXQ1, cudbg_collect_obq_sge_rx_q1 },
 	{ CUDBG_PCIE_INDIRECT, cudbg_collect_pcie_indirect },
 	{ CUDBG_PM_INDIRECT, cudbg_collect_pm_indirect },
 	{ CUDBG_MA_INDIRECT, cudbg_collect_ma_indirect },
+	{ CUDBG_ULPTX_LA, cudbg_collect_ulptx_la },
 	{ CUDBG_UP_CIM_INDIRECT, cudbg_collect_up_cim_indirect },
 	{ CUDBG_HMA_INDIRECT, cudbg_collect_hma_indirect },
 };
@@ -72,6 +78,19 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		break;
 	case CUDBG_DEV_LOG:
 		len = adap->params.devlog.size;
+		break;
+	case CUDBG_CIM_LA:
+		if (is_t6(adap->params.chip)) {
+			len = adap->params.cim_la_size / 10 + 1;
+			len *= 11 * sizeof(u32);
+		} else {
+			len = adap->params.cim_la_size / 8;
+			len *= 8 * sizeof(u32);
+		}
+		len += sizeof(u32); /* for reading CIM LA configuration */
+		break;
+	case CUDBG_CIM_MA_LA:
+		len = 2 * CIM_MALA_SIZE * 5 * sizeof(u32);
 		break;
 	case CUDBG_CIM_IBQ_TP0:
 	case CUDBG_CIM_IBQ_TP1:
@@ -142,6 +161,16 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 	case CUDBG_SGE_INDIRECT:
 		len = sizeof(struct ireg_buf) * 2;
 		break;
+	case CUDBG_ULPRX_LA:
+		len = sizeof(struct cudbg_ulprx_la);
+		break;
+	case CUDBG_TP_LA:
+		len = sizeof(struct cudbg_tp_la) + TPLA_SIZE * sizeof(u64);
+		break;
+	case CUDBG_CIM_PIF_LA:
+		len = sizeof(struct cudbg_cim_pif_la);
+		len += 2 * CIM_PIFLA_SIZE * 6 * sizeof(u32);
+		break;
 	case CUDBG_PCIE_INDIRECT:
 		n = sizeof(t5_pcie_pdbg_array) / (IREG_NUM_ELEM * sizeof(u32));
 		len = sizeof(struct ireg_buf) * n * 2;
@@ -156,6 +185,9 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 			    (IREG_NUM_ELEM * sizeof(u32));
 			len = sizeof(struct ireg_buf) * n * 2;
 		}
+		break;
+	case CUDBG_ULPTX_LA:
+		len = sizeof(struct cudbg_ulptx_la);
 		break;
 	case CUDBG_UP_CIM_INDIRECT:
 		n = sizeof(t5_up_cim_reg_array) / (IREG_NUM_ELEM * sizeof(u32));
