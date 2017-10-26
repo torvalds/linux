@@ -1289,6 +1289,9 @@ static int liquidio_stop(struct net_device *netdev)
 	struct octeon_device *oct = lio->oct_dev;
 	struct napi_struct *napi, *n;
 
+	/* tell Octeon to stop forwarding packets to host */
+	send_rx_ctrl_cmd(lio, 0);
+
 	if (oct->props[lio->ifidx].napi_enabled) {
 		list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
 			napi_disable(napi);
@@ -1305,9 +1308,6 @@ static int liquidio_stop(struct net_device *netdev)
 
 	netif_carrier_off(netdev);
 	lio->link_changes++;
-
-	/* tell Octeon to stop forwarding packets to host */
-	send_rx_ctrl_cmd(lio, 0);
 
 	ifstate_reset(lio, LIO_IFSTATE_RUNNING);
 
