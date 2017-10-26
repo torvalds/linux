@@ -41,9 +41,23 @@ struct rmnet_port {
 
 extern struct rtnl_link_ops rmnet_link_ops;
 
+struct rmnet_vnd_stats {
+	u64 rx_pkts;
+	u64 rx_bytes;
+	u64 tx_pkts;
+	u64 tx_bytes;
+	u32 tx_drops;
+};
+
+struct rmnet_pcpu_stats {
+	struct rmnet_vnd_stats stats;
+	struct u64_stats_sync syncp;
+};
+
 struct rmnet_priv {
 	u8 mux_id;
 	struct net_device *real_dev;
+	struct rmnet_pcpu_stats __percpu *pcpu_stats;
 };
 
 struct rmnet_port *rmnet_get_port(struct net_device *real_dev);
