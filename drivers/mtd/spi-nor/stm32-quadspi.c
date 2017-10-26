@@ -240,12 +240,12 @@ static int stm32_qspi_tx_poll(struct stm32_qspi *qspi,
 						 STM32_QSPI_FIFO_TIMEOUT_US);
 		if (ret) {
 			dev_err(qspi->dev, "fifo timeout (stat:%#x)\n", sr);
-			break;
+			return ret;
 		}
 		tx_fifo(buf++, qspi->io_base + QUADSPI_DR);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int stm32_qspi_tx_mm(struct stm32_qspi *qspi,
