@@ -1861,3 +1861,9 @@ void device_pm_check_callbacks(struct device *dev)
 		 !dev->driver->suspend && !dev->driver->resume));
 	spin_unlock_irq(&dev->power.lock);
 }
+
+bool dev_pm_smart_suspend_and_suspended(struct device *dev)
+{
+	return dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND) &&
+		pm_runtime_status_suspended(dev);
+}
