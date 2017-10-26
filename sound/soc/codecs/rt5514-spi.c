@@ -145,9 +145,8 @@ done:
 	mutex_unlock(&rt5514_dsp->dma_lock);
 }
 
-static irqreturn_t rt5514_spi_irq(int irq, void *data)
+static void rt5514_schedule_copy(struct rt5514_dsp *rt5514_dsp)
 {
-	struct rt5514_dsp *rt5514_dsp = data;
 	u8 buf[8];
 
 	rt5514_dsp->get_size = 0;
@@ -180,6 +179,13 @@ static irqreturn_t rt5514_spi_irq(int irq, void *data)
 	if (rt5514_dsp->buf_base && rt5514_dsp->buf_limit &&
 		rt5514_dsp->buf_rp && rt5514_dsp->buf_size)
 		schedule_delayed_work(&rt5514_dsp->copy_work, 0);
+}
+
+static irqreturn_t rt5514_spi_irq(int irq, void *data)
+{
+	struct rt5514_dsp *rt5514_dsp = data;
+
+	rt5514_schedule_copy(rt5514_dsp);
 
 	return IRQ_HANDLED;
 }
@@ -199,12 +205,19 @@ static int rt5514_spi_hw_params(struct snd_pcm_substream *substream,
 	struct rt5514_dsp *rt5514_dsp =
 			snd_soc_platform_get_drvdata(rtd->platform);
 	int ret;
+	u8 buf[8];
 
 	mutex_lock(&rt5514_dsp->dma_lock);
 	ret = snd_pcm_lib_alloc_vmalloc_buffer(substream,
 			params_buffer_bytes(hw_params));
 	rt5514_dsp->substream = substream;
 	rt5514_dsp->dma_offset = 0;
+
+	/* Read IRQ status and schedule copy accordingly. */
+	rt5514_spi_burst_read(RT5514_IRQ_CTRL, (u8 *)&buf, sizeof(buf));
+	if (buf[0] & RT5514_IRQ_STATUS_BIT)
+		rt5514_schedule_copy(rt5514_dsp);
+
 	mutex_unlock(&rt5514_dsp->dma_lock);
 
 	return ret;

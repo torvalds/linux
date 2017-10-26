@@ -1639,7 +1639,8 @@ static irqreturn_t rt5663_irq(int irq, void *data)
 {
 	struct rt5663_priv *rt5663 = data;
 
-	dev_dbg(rt5663->codec->dev, "%s IRQ queue work\n", __func__);
+	dev_dbg(regmap_get_device(rt5663->regmap), "%s IRQ queue work\n",
+		__func__);
 
 	queue_delayed_work(system_wq, &rt5663->jack_detect_work,
 		msecs_to_jiffies(250));
