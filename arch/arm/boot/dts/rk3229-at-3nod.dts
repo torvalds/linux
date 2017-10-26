@@ -1,0 +1,266 @@
+/*
+ * Copyright (c) 2017 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *  Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/dts-v1/;
+
+#include "rk3229-at-som.dtsi"
+
+/ {
+	model = "RK3229 ANDROID THINGS 3NOD Board";
+	compatible = "rockchip,rk3229-at-3nod", "rockchip,rk3229";
+
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		clocks = <&rk805 1>;
+		clock-names = "ext_clock";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_enable_h>;
+
+		/*
+		 * On the module itself this is one of these (depending
+		 * on the actual card populated):
+		 * - SDIO_RESET_L_WL_REG_ON
+		 * - PDN (power down when low)
+		 */
+		reset-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>; /* GPIO3_B7 */
+	};
+
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		clocks = <&rk805 1>;
+		clock-names = "ext_clock";
+		uart_rts_gpios = <&gpio3 6 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart11_rts>;
+		pinctrl-1 = <&uart11_rts_gpio>;
+		BT,reset_gpio    = <&gpio2 29 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio     = <&gpio3 27 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio3 26 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		wifi_chip_type = "ap6255";
+		WIFI,host_wake_irq = <&gpio0 28 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		autorepeat;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwr_key>;
+
+		power_key {
+			label = "GPIO Key Power";
+			gpios = <&gpio3 23 GPIO_ACTIVE_HIGH>;
+			linux,code = <116>;
+			debounce-interval = <100>;
+			wakeup-source;
+		};
+
+	};
+};
+
+&emmc {
+	/*
+	 * enable emmc ddr mode, choose the
+	 * according parameter base on the emmc
+	 * io voltage.
+	 */
+	mmc-ddr-1_8v;
+	//mmc-ddr-1_2v;
+	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+};
+
+&nandc {
+	status = "disabled";
+};
+
+&pinctrl {
+	pinctrl-names = "default", "gpio_pwm0", "gpio_pwm1", "gpio_spdif", "gpio_irrx";
+	/*
+	 * sdmmc pins are defaultly set as gpio, if you want to enable
+	 * it, please remove below line.
+	 */
+	pinctrl-0 = <&gpio1b6_gpio &gpio1b7_gpio &gpio1c0_gpio
+			&gpio1c1_gpio &gpio1c2_gpio &gpio1c3_gpio
+			&gpio1c4_gpio &gpio1c5_gpio>;
+	/*
+	 * pwm0 pins are defaultly set as gpio, if you want to enable
+	 * it, please remove below line.
+	 */
+	pinctrl-1 = <&gpio3c5_gpio>;
+	/*
+	 * pwm1 pins are defaultly set as gpio, if you want to enable
+	 * it, please remove below line.
+	 */
+	pinctrl-2 = <&gpio1b4_gpio>;
+	/*
+	 * spdif pins are defaultly set as gpio, if you want to enable
+	 * it, please remove below line.
+	 */
+	pinctrl-3 = <&gpio3d7_gpio>;
+	/*
+	 * ir_rx pins are defaultly set as gpio, if you want to enable
+	 * it, please remove below line.
+	 */
+	pinctrl-4 = <&gpio1b3_gpio>;
+
+	ir-rx-gpio {
+		gpio1b3_gpio: gpio1b3-gpio {
+			rockchip,pins =
+					<1 11 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	keys {
+		pwr_key: pwr-key {
+			rockchip,pins = <3 23 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	pwm0-gpio {
+		gpio3c5_gpio: gpio3c5-gpio {
+			rockchip,pins =
+					<3 21 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	pwm2-gpio {
+		gpio1b4_gpio: gpio1b4-gpio {
+			rockchip,pins =
+					<1 12 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	sdio-pwrseq {
+		wifi_enable_h: wifi-enable-h {
+			rockchip,pins = <3 15 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	sdmmc-gpio {
+		gpio1b6_gpio: gpio1b6-gpio {
+			rockchip,pins =
+					<1 14 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		gpio1b7_gpio: gpio1b7-gpio {
+			rockchip,pins =
+					<1 15 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		gpio1c0_gpio: gpio1c0-gpio {
+			rockchip,pins =
+					<1 16 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		gpio1c1_gpio: gpio1c1-gpio {
+			rockchip,pins =
+					<1 17 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		gpio1c2_gpio: gpio1c2-gpio {
+			rockchip,pins =
+					<1 18 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		gpio1c3_gpio: gpio1c3-gpio {
+			rockchip,pins =
+					<1 19 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		gpio1c4_gpio: gpio1c4-gpio {
+			rockchip,pins =
+					<1 20 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		gpio1c5_gpio: gpio1c5-gpio {
+			rockchip,pins =
+					<1 21 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	spdif-out-gpio {
+		gpio3d7_gpio: gpio3d7-gpio {
+			rockchip,pins =
+					<3 31 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+};
+
+&sdio {
+	max-frequency = <150000000>;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	num-slots = <1>;
+	sd-uhs-sdr104;
+	status = "okay";
+};
+
+/*
+ * If sdmmc is enabled on hardware, set status to okay.
+ * and remove the according pinctrl nodes above.
+ */
+&sdmmc {
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	card-detect-delay = <200>;
+	disable-wp;
+	max-frequency = <50000000>;
+	num-slots = <1>;
+	supports-sd;
+	status = "disabled";
+};
+
+&vop {
+	assigned-clocks = <&cru DCLK_VOP>;
+	assigned-clock-parents = <&cru HDMIPHY>;
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
+};

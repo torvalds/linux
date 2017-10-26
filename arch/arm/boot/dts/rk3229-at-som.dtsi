@@ -1,0 +1,342 @@
+/*
+ * Copyright (c) 2017 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *  Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/input/input.h>
+
+#include "rk3229-at-common.dtsi"
+
+/ {
+
+	hdmi_sound: hdmi-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,hdmi";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s0>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&hdmi>;
+		};
+	};
+
+	rk3229_codec: rk3229_codec{
+		compatible = "rk3229_codec";
+		#sound-dai-cells = <0>;
+		clocks = <&cru SCLK_I2S_OUT>;
+		clock-names = "mclk";
+		status = "okay";
+	};
+
+	rk3229_sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&dailink0_master>;
+		simple-audio-card,frame-master = <&dailink0_master>;
+		simple-audio-card,name = "rockchip,rk3229-dummy";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,cpu {
+			sound-dai = <&i2s1>;
+		};
+		dailink0_master:simple-audio-card,codec {
+			sound-dai = <&rk3229_codec>;
+		};
+	};
+};
+
+&hdmi {
+	status = "okay";
+	#sound-dai-cells = <0>;
+	ddc-i2c-scl-high-time-ns = <9625>;
+	ddc-i2c-scl-low-time-ns = <10000>;
+	rockchip,phy_table =
+		<165000000 0 0 4 4 4 4>,
+		<225000000 0 0 6 6 6 6>,
+		<340000000 1 0 6 10 10 10>,
+		<594000000 1 0 7 10 10 10>;
+};
+
+&hdmi_phy {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+
+	cw2015@62 {
+		status = "okay";
+		compatible = "cw201x";
+		reg = <0x62>;
+		bat_config_info = <0x15 0x42 0x60 0x59 0x52 0x58
+		0x4D 0x48 0x48 0x44 0x44 0x46 0x49 0x48 0x32
+		0x24 0x20 0x17 0x13 0x0F 0x19 0x3E 0x51 0x45
+		0x08 0x76 0x0B 0x85 0x0E 0x1C 0x2E 0x3E 0x4D
+		0x52 0x52 0x57 0x3D 0x1B 0x6A 0x2D 0x25 0x43
+		0x52 0x87 0x8F 0x91 0x94 0x52 0x82 0x8C 0x92
+		0x96 0xFF 0x7B 0xBB 0xCB 0x2F 0x7D 0x72 0xA5
+		0xB5 0xC1 0x46 0xAE>;
+		monitor_sec = <5>;
+		virtual_power = <0>;
+		divider_res1 = <200>;
+		divider_res2 = <200>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+};
+
+&i2c2 {
+	status = "okay";
+};
+
+&i2s1 {
+	status = "okay";
+	rockchip,i2s-broken-burst-len;
+	rockchip,playback-channels = <8>;
+	rockchip,capture-channels = <8>;
+	rockchip,bclk-fs = <64>;
+	#sound-dai-cells = <0>;
+};
+
+&pinctrl {
+	pinctrl-names = "default";
+
+	pinctrl-0 = <&fixed0_gpio &fixed1_gpio &fixed2_gpio
+			&fixed3_gpio &fixed4_gpio &fixed5_gpio
+			&fixed6_gpio &fixed7_gpio &fixed8_gpio
+			&fixed9_gpio &fixed10_gpio &fixed11_gpio
+			&fixed12_gpio &fixed13_gpio &fixed14_gpio
+			&fixed15_gpio &fixed16_gpio &fixed17_gpio
+			&fixed18_gpio &fixed19_gpio &fixed20_gpio
+			&fixed21_gpio &fixed22_gpio>;
+
+	fixed_gpio {
+		fixed0_gpio: gpio2c3-gpio {
+			rockchip,pins =
+					<2 19 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+		fixed1_gpio: gpio2c2-gpio {
+			rockchip,pins =
+					<2 18 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+		fixed2_gpio: gpio2c1-gpio {
+			rockchip,pins =
+					<2 17 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+		fixed3_gpio: gpio2c0-gpio {
+			rockchip,pins =
+					<2 16 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+		fixed4_gpio: gpio2b7-gpio {
+			rockchip,pins =
+					<2 15 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+		fixed5_gpio: gpio2b6-gpio {
+			rockchip,pins =
+					<2 14 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+		fixed6_gpio: gpio2b5-gpio {
+			rockchip,pins =
+					<2 13 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+		fixed7_gpio: gpio2b4-gpio {
+			rockchip,pins =
+					<2 12 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+		fixed8_gpio: gpio2b3-gpio {
+			rockchip,pins =
+					<2 11 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+		fixed9_gpio: gpio2b2-gpio {
+			rockchip,pins =
+					<2 10 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+		fixed10_gpio: gpio2b1-gpio {
+			rockchip,pins =
+					<2 9 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+		fixed11_gpio: gpio2b0-gpio {
+			rockchip,pins =
+					<2 8 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+		fixed12_gpio: gpio1a7-gpio {
+			rockchip,pins =
+					<1 7 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+		fixed13_gpio: gpio1a3-gpio {
+			rockchip,pins =
+					<1 3 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+		fixed14_gpio: gpio1a0-gpio {
+			rockchip,pins =
+					<1 0 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+		fixed15_gpio: gpio1b0-gpio {
+			rockchip,pins =
+					<1 8 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		fixed16_gpio: gpio0c1-gpio {
+			rockchip,pins =
+					<0 17 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		fixed17_gpio: gpio0d0-gpio {
+			rockchip,pins =
+					<0 24 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		fixed18_gpio: gpio3c4-gpio {
+			rockchip,pins =
+					<3 20 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+		fixed19_gpio: gpio2d1-gpio {
+			rockchip,pins =
+					<2 25 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		fixed20_gpio: gpio2d0-gpio {
+			rockchip,pins =
+					<2 24 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		fixed21_gpio: gpio2c6-gpio {
+			rockchip,pins =
+					<2 22 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		fixed22_gpio: gpio2c7-gpio {
+			rockchip,pins =
+					<2 23 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+	};
+
+};
+
+&rockchip_suspend {
+	status = "okay";
+	rockchip,sleep-mode-config = <
+		(0
+		|RKPM_CTR_GTCLKS
+		|RKPM_CTR_IDLESRAM_MD
+		|RKPM_CTR_PMIC
+		)
+	>;
+};
+
+&sdio {
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	non-removable;
+	ignore-pm-notify;
+	keep-power-in-suspend;
+	max-frequency = <150000000>;
+	supports-sdio;
+};
+
+&spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi1_clk &spi1_tx &spi1_rx &spi1_cs0 &spi1_cs1>;
+	status = "okay";
+};
+
+&u2phy0 {
+	otg-vbus-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+
+	u2phy0_otg: otg-port {
+		status = "okay";
+	};
+
+	u2phy0_host: host-port {
+		status = "okay";
+	};
+};
+
+&u2phy1 {
+	status = "okay";
+
+	u2phy1_otg: otg-port {
+		status = "okay";
+	};
+
+	u2phy1_host: host-port {
+		status = "okay";
+	};
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host0_ohci {
+	status = "okay";
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_xfer>;
+	status = "okay";
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart11_xfer &uart11_cts>;
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&usb_otg {
+	status = "okay";
+};
+
+&gmac {
+	assigned-clocks = <&cru SCLK_MAC_SRC>;
+	assigned-clock-rates = <50000000>;
+	clock_in_out = "output";
+	phy-supply = <&vcc_18>;
+	phy-mode = "rmii";
+	phy-is-integrated;
+	status = "okay";
+};
