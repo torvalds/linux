@@ -169,6 +169,7 @@ static const struct vop_win_phy *rk3288_area_data[] = {
 };
 
 static const struct vop_ctrl rk3288_ctrl_data = {
+	.version = VOP_REG(RK3288_VERSION_INFO, 0xffff, 16),
 	.standby = VOP_REG(RK3288_SYS_CTRL, 0x1, 22),
 	.htotal_pw = VOP_REG(RK3288_DSP_HTOTAL_HS_END, 0x1fff1fff, 0),
 	.hact_st_end = VOP_REG(RK3288_DSP_HACT_ST_END, 0x1fff1fff, 0),
@@ -190,8 +191,9 @@ static const struct vop_ctrl rk3288_ctrl_data = {
 	.overlay_mode = VOP_REG_VER(RK3288_SYS_CTRL, 0x1, 16, 3, 2, -1),
 	.core_dclk_div = VOP_REG_VER(RK3366_DSP_CTRL0, 0x1, 4, 3, 4, -1),
 	.p2i_en = VOP_REG_VER(RK3366_DSP_CTRL0, 0x1, 5, 3, 4, -1),
-	.dclk_ddr = VOP_REG_VER(RK3368_DSP_CTRL0, 0x1, 8, 3, 2, -1),
+	.dclk_ddr = VOP_REG_VER(RK3288_DSP_CTRL0, 0x1, 8, 3, 1, -1),
 	.dp_en = VOP_REG_VER(RK3399_SYS_CTRL, 0x1, 11, 3, 5, -1),
+	.hdmi_dclk_out_en = VOP_REG_VER(RK3288_SYS_CTRL, 0x1, 11, 3, 1, 1),
 	.rgb_en = VOP_REG(RK3288_SYS_CTRL, 0x1, 12),
 	.hdmi_en = VOP_REG(RK3288_SYS_CTRL, 0x1, 13),
 	.edp_en = VOP_REG(RK3288_SYS_CTRL, 0x1, 14),
@@ -253,10 +255,10 @@ static const struct vop_ctrl rk3288_ctrl_data = {
 	.bcsh_out_mode = VOP_REG(RK3288_BCSH_BCS, 0x3, 0),
 	.bcsh_sin_hue = VOP_REG(RK3288_BCSH_H, 0x1ff, 0),
 	.bcsh_cos_hue = VOP_REG(RK3288_BCSH_H, 0x1ff, 16),
-	.bcsh_r2y_csc_mode = VOP_REG_VER(RK3368_BCSH_CTRL, 0x1, 6, 3, 2, -1),
-	.bcsh_r2y_en = VOP_REG_VER(RK3368_BCSH_CTRL, 0x1, 4, 3, 2, -1),
-	.bcsh_y2r_csc_mode = VOP_REG_VER(RK3368_BCSH_CTRL, 0x3, 2, 3, 2, -1),
-	.bcsh_y2r_en = VOP_REG_VER(RK3368_BCSH_CTRL, 0x1, 0, 3, 2, -1),
+	.bcsh_r2y_csc_mode = VOP_REG_VER(RK3368_BCSH_CTRL, 0x1, 6, 3, 1, -1),
+	.bcsh_r2y_en = VOP_REG_VER(RK3368_BCSH_CTRL, 0x1, 4, 3, 1, -1),
+	.bcsh_y2r_csc_mode = VOP_REG_VER(RK3368_BCSH_CTRL, 0x3, 2, 3, 1, -1),
+	.bcsh_y2r_en = VOP_REG_VER(RK3368_BCSH_CTRL, 0x1, 0, 3, 1, -1),
 	.bcsh_color_bar = VOP_REG(RK3288_BCSH_COLOR_BAR, 0xffffff, 8),
 	.bcsh_en = VOP_REG(RK3288_BCSH_COLOR_BAR, 0x1, 0),
 

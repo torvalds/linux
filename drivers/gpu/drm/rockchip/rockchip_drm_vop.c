@@ -50,9 +50,9 @@
 #define MAX_VOPS	2
 
 #define VOP_REG_SUPPORT(vop, reg) \
-		(!reg.major || (reg.major == VOP_MAJOR(vop->data->version) && \
-		reg.begin_minor <= VOP_MINOR(vop->data->version) && \
-		reg.end_minor >= VOP_MINOR(vop->data->version) && \
+		(!reg.major || (reg.major == VOP_MAJOR(vop->version) && \
+		reg.begin_minor <= VOP_MINOR(vop->version) && \
+		reg.end_minor >= VOP_MINOR(vop->version) && \
 		reg.mask))
 
 #define VOP_WIN_SUPPORT(vop, win, name) \
@@ -190,6 +190,8 @@ struct vop {
 	bool is_iommu_enabled;
 	bool is_iommu_needed;
 	bool is_enabled;
+
+	u32 version;
 
 	/* mutex vsync_ work */
 	struct mutex vsync_mutex;
@@ -934,6 +936,16 @@ static void vop_power_enable(struct drm_crtc *crtc)
 	}
 
 	memcpy(vop->regsbak, vop->regs, vop->len);
+
+	if (VOP_CTRL_SUPPORT(vop, version)) {
+		uint32_t version = VOP_CTRL_GET(vop, version);
+
+		/*
+		 * Fixup rk3288w version.
+		 */
+		if (version && version == 0x0a05)
+			vop->version = VOP_VERSION(3, 1);
+	}
 
 	vop->is_enabled = true;
 
@@ -1716,8 +1728,8 @@ vop_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode,
 		return MODE_BAD_HVALUE;
 
 	if ((mode->flags & DRM_MODE_FLAG_INTERLACE) &&
-	    VOP_MAJOR(vop->data->version) == 3 &&
-	    VOP_MINOR(vop->data->version) <= 2)
+	    VOP_MAJOR(vop->version) == 3 &&
+	    VOP_MINOR(vop->version) <= 2)
 		return MODE_BAD;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
@@ -2011,18 +2023,24 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, dither_down, val);
 	VOP_CTRL_SET(vop, dclk_ddr,
 		     s->output_mode == ROCKCHIP_OUT_MODE_YUV420 ? 1 : 0);
-	VOP_CTRL_SET(vop, overlay_mode, is_yuv_output(s->bus_format));
+	VOP_CTRL_SET(vop, hdmi_dclk_out_en,
+		     s->output_mode == ROCKCHIP_OUT_MODE_YUV420 ? 1 : 0);
+	if (VOP_CTRL_SUPPORT(vop, overlay_mode)) {
+		VOP_CTRL_SET(vop, overlay_mode, is_yuv_output(s->bus_format));
+		VOP_CTRL_SET(vop, bcsh_r2y_en, !is_yuv_output(s->bus_format));
+		VOP_CTRL_SET(vop, bcsh_y2r_en, !is_yuv_output(s->bus_format));
+	} else {
+		VOP_CTRL_SET(vop, bcsh_r2y_en, is_yuv_output(s->bus_format));
+	}
 	VOP_CTRL_SET(vop, dsp_out_yuv, is_yuv_output(s->bus_format));
-	VOP_CTRL_SET(vop, bcsh_r2y_en, !is_yuv_output(s->bus_format));
-	VOP_CTRL_SET(vop, bcsh_y2r_en, !is_yuv_output(s->bus_format));
 
 	/*
 	 * Background color is 10bit depth if vop version >= 3.5
 	 */
 	if (!is_yuv_output(s->bus_format))
 		val = 0;
-	else if (VOP_MAJOR(vop->data->version) == 3 &&
-		 VOP_MINOR(vop->data->version) >= 5)
+	else if (VOP_MAJOR(vop->version) == 3 &&
+		 VOP_MINOR(vop->version) >= 5)
 		val = 0x20010200;
 	else
 		val = 0x801080;
@@ -3465,6 +3483,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	vop->data = vop_data;
 	vop->drm_dev = drm_dev;
 	vop->num_wins = num_wins;
+	vop->version = vop_data->version;
 	dev_set_drvdata(dev, vop);
 
 	ret = vop_win_init(vop);

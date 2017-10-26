@@ -87,6 +87,7 @@ struct vop_csc {
 };
 
 struct vop_ctrl {
+	struct vop_reg version;
 	struct vop_reg standby;
 	struct vop_reg htotal_pw;
 	struct vop_reg hact_st_end;
@@ -108,6 +109,7 @@ struct vop_ctrl {
 	struct vop_reg core_dclk_div;
 	struct vop_reg dclk_ddr;
 	struct vop_reg p2i_en;
+	struct vop_reg hdmi_dclk_out_en;
 	struct vop_reg rgb_en;
 	struct vop_reg lvds_en;
 	struct vop_reg edp_en;
