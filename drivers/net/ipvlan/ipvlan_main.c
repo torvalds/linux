@@ -478,6 +478,11 @@ static int ipvlan_nl_changelink(struct net_device *dev,
 			ipvlan_mark_private(port);
 		else
 			ipvlan_clear_private(port);
+
+		if (flags & IPVLAN_F_VEPA)
+			ipvlan_mark_vepa(port);
+		else
+			ipvlan_clear_vepa(port);
 	}
 
 	return err;
@@ -506,8 +511,12 @@ static int ipvlan_nl_validate(struct nlattr *tb[], struct nlattr *data[],
 	if (data[IFLA_IPVLAN_FLAGS]) {
 		u16 flags = nla_get_u16(data[IFLA_IPVLAN_FLAGS]);
 
-		/* Only one bit is used at this moment. */
-		if (flags & ~IPVLAN_F_PRIVATE)
+		/* Only two bits are used at this moment. */
+		if (flags & ~(IPVLAN_F_PRIVATE | IPVLAN_F_VEPA))
+			return -EINVAL;
+		/* Also both flags can't be active at the same time. */
+		if ((flags & (IPVLAN_F_PRIVATE | IPVLAN_F_VEPA)) ==
+		    (IPVLAN_F_PRIVATE | IPVLAN_F_VEPA))
 			return -EINVAL;
 	}
 

@@ -139,6 +139,21 @@ static inline void ipvlan_clear_private(struct ipvl_port *port)
 	port->flags &= ~IPVLAN_F_PRIVATE;
 }
 
+static inline bool ipvlan_is_vepa(const struct ipvl_port *port)
+{
+	return !!(port->flags & IPVLAN_F_VEPA);
+}
+
+static inline void ipvlan_mark_vepa(struct ipvl_port *port)
+{
+	port->flags |= IPVLAN_F_VEPA;
+}
+
+static inline void ipvlan_clear_vepa(struct ipvl_port *port)
+{
+	port->flags &= ~IPVLAN_F_VEPA;
+}
+
 void ipvlan_init_secret(void);
 unsigned int ipvlan_mac_hash(const unsigned char *addr);
 rx_handler_result_t ipvlan_handle_frame(struct sk_buff **pskb);

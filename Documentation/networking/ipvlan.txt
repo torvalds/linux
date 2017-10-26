@@ -25,7 +25,7 @@ using IProute2/ip utility.
     ip link add link <master> name <slave> type ipvlan [ mode MODE ] [ FLAGS ]
        where
          MODE: l3 (default) | l3s | l2
-         FLAGS: bridge (default) | private
+         FLAGS: bridge (default) | private | vepa
 
     e.g.
     (a) Following will create IPvlan link with eth0 as master in
@@ -35,6 +35,8 @@ using IProute2/ip utility.
           bash# ip link add link eth0 name ipvl0 type ipvlan mode l2 bridge
     (c) This command will create an IPvlan device in L2 private mode.
           bash# ip link add link eth0 name ipvlan type ipvlan mode l2 private
+    (d) This command will create an IPvlan device in L2 vepa mode.
+          bash# ip link add link eth0 name ipvlan type ipvlan mode l2 vepa
 
 
 4. Operating modes:
@@ -77,6 +79,14 @@ themseleves apart from talking through the master device.
 	If this option is added to the command-line, the port is set in private
 mode. i.e. port wont allow cross communication between slaves.
 
+5.3 vepa:
+	If this is added to the command-line, the port is set in VEPA mode.
+i.e. port will offload switching functionality to the external entity as
+described in 802.1Qbg
+Note: VEPA mode in IPvlan has limitations. IPvlan uses the mac-address of the
+master-device, so the packets which are emitted in this mode for the adjacent
+neighbor will have source and destination mac same. This will make the switch /
+router send the redirect message.
 
 6. What to choose (macvlan vs. ipvlan)?
 	These two devices are very similar in many regards and the specific use

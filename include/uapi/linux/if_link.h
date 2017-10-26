@@ -479,6 +479,7 @@ enum ipvlan_mode {
 };
 
 #define IPVLAN_F_PRIVATE	0x01
+#define IPVLAN_F_VEPA		0x02
 
 /* VXLAN section */
 enum {
