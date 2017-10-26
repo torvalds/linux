@@ -878,9 +878,11 @@ static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
+	struct amdgpu_ttm_tt *gtt = (void*)bo->ttm;
 	struct ttm_mem_reg tmp;
 	struct ttm_placement placement;
 	struct ttm_place placements;
+	uint64_t flags;
 	int r;
 
 	if (bo->mem.mem_type != TTM_PL_TT ||
@@ -902,14 +904,21 @@ int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 	if (unlikely(r))
 		return r;
 
-	r = ttm_bo_move_ttm(bo, true, false, &tmp);
-	if (unlikely(r))
+	flags = amdgpu_ttm_tt_pte_flags(adev, bo->ttm, &tmp);
+	gtt->offset = (u64)tmp.start << PAGE_SHIFT;
+	r = amdgpu_gart_bind(adev, gtt->offset, bo->ttm->num_pages,
+			     bo->ttm->pages, gtt->ttm.dma_address, flags);
+	if (unlikely(r)) {
 		ttm_bo_mem_put(bo, &tmp);
-	else
-		bo->offset = (bo->mem.start << PAGE_SHIFT) +
-			bo->bdev->man[bo->mem.mem_type].gpu_offset;
+		return r;
+	}
 
-	return r;
+	ttm_bo_mem_put(bo, &bo->mem);
+	bo->mem = tmp;
+	bo->offset = (bo->mem.start << PAGE_SHIFT) +
+		bo->bdev->man[bo->mem.mem_type].gpu_offset;
+
+	return 0;
 }
 
 int amdgpu_ttm_recover_gart(struct ttm_buffer_object *tbo)
