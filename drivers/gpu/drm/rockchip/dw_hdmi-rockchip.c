@@ -31,8 +31,11 @@
 
 #define RK3288_GRF_SOC_CON6		0x025C
 #define RK3288_HDMI_LCDC_SEL		BIT(4)
-#define RK3328_GRF_SOC_CON2		0x0408
+#define RK3288_GRF_SOC_CON16		0x03a8
+#define RK3288_HDMI_LCDC0_YUV420	BIT(2)
+#define RK3288_HDMI_LCDC1_YUV420	BIT(3)
 
+#define RK3328_GRF_SOC_CON2		0x0408
 #define RK3328_HDMI_SDAIN_MSK		BIT(11)
 #define RK3328_HDMI_SCLIN_MSK		BIT(10)
 #define RK3328_HDMI_HPD_IOE		BIT(2)
@@ -362,6 +365,7 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
 	struct drm_crtc *crtc = encoder->crtc;
 	u32 val;
+	int mux;
 	int ret;
 
 	if (WARN_ON(!crtc || !crtc->state))
@@ -373,8 +377,8 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 	if (hdmi->chip_data->lcdsel_grf_reg < 0)
 		return;
 
-	ret = drm_of_encoder_active_endpoint_id(hdmi->dev->of_node, encoder);
-	if (ret)
+	mux = drm_of_encoder_active_endpoint_id(hdmi->dev->of_node, encoder);
+	if (mux)
 		val = hdmi->chip_data->lcdsel_lit;
 	else
 		val = hdmi->chip_data->lcdsel_big;
@@ -388,6 +392,20 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 	ret = regmap_write(hdmi->regmap, hdmi->chip_data->lcdsel_grf_reg, val);
 	if (ret != 0)
 		DRM_DEV_ERROR(hdmi->dev, "Could not write to GRF: %d\n", ret);
+
+	if (hdmi->chip_data->lcdsel_grf_reg == RK3288_GRF_SOC_CON6) {
+		struct rockchip_crtc_state *s =
+				to_rockchip_crtc_state(crtc->state);
+		u32 mode_mask = mux ? RK3288_HDMI_LCDC1_YUV420 :
+					RK3288_HDMI_LCDC0_YUV420;
+
+		if (s->output_mode == ROCKCHIP_OUT_MODE_YUV420)
+			val = HIWORD_UPDATE(mode_mask, mode_mask);
+		else
+			val = HIWORD_UPDATE(0, mode_mask);
+
+		regmap_write(hdmi->regmap, RK3288_GRF_SOC_CON16, val);
+	}
 
 	clk_disable_unprepare(hdmi->grf_clk);
 	DRM_DEV_DEBUG(hdmi->dev, "vop %s output to hdmi\n",
