@@ -66,13 +66,11 @@ static u32 *get_indicator(void)
 
 static void put_indicator(u32 *addr)
 {
-	int i;
+	struct indicator_t *ind = container_of(addr, struct indicator_t, ind);
 
 	if (!addr)
 		return;
-	i = ((unsigned long)addr - (unsigned long)q_indicators) /
-		sizeof(struct indicator_t);
-	atomic_dec(&q_indicators[i].count);
+	atomic_dec(&ind->count);
 }
 
 void tiqdio_add_input_queues(struct qdio_irq *irq_ptr)
