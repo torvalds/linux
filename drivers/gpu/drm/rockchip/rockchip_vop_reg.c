@@ -306,7 +306,7 @@ static const struct vop_intr rk3288_vop_intr = {
 };
 
 static const struct vop_data rk3288_vop = {
-	.version = VOP_VERSION(3, 1),
+	.version = VOP_VERSION(3, 0),
 	.feature = VOP_FEATURE_OUTPUT_10BIT,
 	.max_input = {4096, 8192},
 	/*
