@@ -574,6 +574,31 @@ int cudbg_collect_rss_vf_config(struct cudbg_init *pdbg_init,
 	return rc;
 }
 
+int cudbg_collect_hw_sched(struct cudbg_init *pdbg_init,
+			   struct cudbg_buffer *dbg_buff,
+			   struct cudbg_error *cudbg_err)
+{
+	struct adapter *padap = pdbg_init->adap;
+	struct cudbg_buffer temp_buff = { 0 };
+	struct cudbg_hw_sched *hw_sched_buff;
+	int i, rc = 0;
+
+	if (!padap->params.vpd.cclk)
+		return CUDBG_STATUS_CCLK_NOT_DEFINED;
+
+	rc = cudbg_get_buff(dbg_buff, sizeof(struct cudbg_hw_sched),
+			    &temp_buff);
+	hw_sched_buff = (struct cudbg_hw_sched *)temp_buff.data;
+	hw_sched_buff->map = t4_read_reg(padap, TP_TX_MOD_QUEUE_REQ_MAP_A);
+	hw_sched_buff->mode = TIMERMODE_G(t4_read_reg(padap, TP_MOD_CONFIG_A));
+	t4_read_pace_tbl(padap, hw_sched_buff->pace_tab);
+	for (i = 0; i < NTX_SCHED; ++i)
+		t4_get_tx_sched(padap, i, &hw_sched_buff->kbps[i],
+				&hw_sched_buff->ipg[i], true);
+	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
+	return rc;
+}
+
 int cudbg_collect_tp_indirect(struct cudbg_init *pdbg_init,
 			      struct cudbg_buffer *dbg_buff,
 			      struct cudbg_error *cudbg_err)

@@ -49,6 +49,14 @@ struct cudbg_rss_vf_conf {
 	u32 rss_vf_vfh;
 };
 
+struct cudbg_hw_sched {
+	u32 kbps[NTX_SCHED];
+	u32 ipg[NTX_SCHED];
+	u32 pace_tab[NTX_SCHED];
+	u32 mode;
+	u32 map;
+};
+
 struct ireg_field {
 	u32 ireg_addr;
 	u32 ireg_data;

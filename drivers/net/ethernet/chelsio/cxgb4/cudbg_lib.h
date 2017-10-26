@@ -84,6 +84,9 @@ int cudbg_collect_rss_vf_config(struct cudbg_init *pdbg_init,
 int cudbg_collect_tp_indirect(struct cudbg_init *pdbg_init,
 			      struct cudbg_buffer *dbg_buff,
 			      struct cudbg_error *cudbg_err);
+int cudbg_collect_hw_sched(struct cudbg_init *pdbg_init,
+			   struct cudbg_buffer *dbg_buff,
+			   struct cudbg_error *cudbg_err);
 int cudbg_collect_sge_indirect(struct cudbg_init *pdbg_init,
 			       struct cudbg_buffer *dbg_buff,
 			       struct cudbg_error *cudbg_err);

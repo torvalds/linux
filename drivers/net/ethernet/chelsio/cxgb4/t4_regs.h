@@ -1415,6 +1415,7 @@
 #define ROWINDEX_V(x) ((x) << ROWINDEX_S)
 
 #define TP_CCTRL_TABLE_A	0x7ddc
+#define TP_PACE_TABLE_A 0x7dd8
 #define TP_MTU_TABLE_A		0x7de4
 
 #define MTUINDEX_S    24
@@ -1449,6 +1450,15 @@
 
 #define TP_TM_PIO_ADDR_A 0x7e18
 #define TP_TM_PIO_DATA_A 0x7e1c
+#define TP_MOD_CONFIG_A 0x7e24
+
+#define TIMERMODE_S    8
+#define TIMERMODE_M    0xffU
+#define TIMERMODE_G(x) (((x) >> TIMERMODE_S) & TIMERMODE_M)
+
+#define TP_TX_MOD_Q1_Q0_TIMER_SEPARATOR_A 0x3
+#define TP_TX_MOD_Q1_Q0_RATE_LIMIT_A 0x8
+
 #define TP_PIO_ADDR_A	0x7e40
 #define TP_PIO_DATA_A	0x7e44
 #define TP_MIB_INDEX_A	0x7e50
