@@ -190,7 +190,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 		ds->ports[i].dn = cd->port_dn[i];
 		ds->ports[i].cpu_dp = dst->cpu_dp;
 
-		if (!(ds->enabled_port_mask & (1 << i)))
+		if (dsa_is_user_port(ds, i))
 			continue;
 
 		ret = dsa_slave_create(&ds->ports[i], cd->port_names[i]);
@@ -258,7 +258,7 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 
 	/* Destroy network devices for physical switch ports. */
 	for (port = 0; port < ds->num_ports; port++) {
-		if (!(ds->enabled_port_mask & (1 << port)))
+		if (!dsa_is_user_port(ds, port))
 			continue;
 
 		if (!ds->ports[port].slave)

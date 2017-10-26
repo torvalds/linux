@@ -536,7 +536,7 @@ qca8k_setup(struct dsa_switch *ds)
 
 	/* Disable MAC by default on all user ports */
 	for (i = 1; i < QCA8K_NUM_PORTS; i++)
-		if (ds->enabled_port_mask & BIT(i))
+		if (dsa_is_user_port(ds, i))
 			qca8k_port_set_status(priv, i, 0);
 
 	/* Forward all unknown frames to CPU port for Linux processing */
@@ -556,7 +556,7 @@ qca8k_setup(struct dsa_switch *ds)
 		}
 
 		/* Invividual user ports get connected to CPU port only */
-		if (ds->enabled_port_mask & BIT(i)) {
+		if (dsa_is_user_port(ds, i)) {
 			int shift = 16 * (i % 2);
 
 			qca8k_rmw(priv, QCA8K_PORT_LOOKUP_CTRL(i),

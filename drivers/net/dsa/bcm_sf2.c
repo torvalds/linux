@@ -652,8 +652,7 @@ static int bcm_sf2_sw_suspend(struct dsa_switch *ds)
 	 * bcm_sf2_sw_setup
 	 */
 	for (port = 0; port < DSA_MAX_PORTS; port++) {
-		if ((1 << port) & ds->enabled_port_mask ||
-		    dsa_is_cpu_port(ds, port))
+		if (dsa_is_user_port(ds, port) || dsa_is_cpu_port(ds, port))
 			bcm_sf2_port_disable(ds, port, NULL);
 	}
 
@@ -676,7 +675,7 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 		bcm_sf2_gphy_enable_set(ds, true);
 
 	for (port = 0; port < DSA_MAX_PORTS; port++) {
-		if ((1 << port) & ds->enabled_port_mask)
+		if (dsa_is_user_port(ds, port))
 			bcm_sf2_port_setup(ds, port, NULL);
 		else if (dsa_is_cpu_port(ds, port))
 			bcm_sf2_imp_setup(ds, port);
@@ -771,7 +770,7 @@ static void bcm_sf2_sw_configure_vlan(struct dsa_switch *ds)
 	bcm_sf2_vlan_op(priv, ARLA_VTBL_CMD_CLEAR);
 
 	for (port = 0; port < priv->hw_params.num_ports; port++) {
-		if (!((1 << port) & ds->enabled_port_mask))
+		if (!dsa_is_user_port(ds, port))
 			continue;
 
 		core_writel(priv, 1, CORE_DEFAULT_1Q_TAG_P(port));
@@ -786,7 +785,7 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 	/* Enable all valid ports and disable those unused */
 	for (port = 0; port < priv->hw_params.num_ports; port++) {
 		/* IMP port receives special treatment */
-		if ((1 << port) & ds->enabled_port_mask)
+		if (dsa_is_user_port(ds, port))
 			bcm_sf2_port_setup(ds, port, NULL);
 		else if (dsa_is_cpu_port(ds, port))
 			bcm_sf2_imp_setup(ds, port);
