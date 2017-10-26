@@ -4654,9 +4654,9 @@ static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 
 		for (i = 0; i < pcie_table->count; i++)
 			size += sprintf(buf + size, "%d: %s %s\n", i,
-					(pcie_table->pcie_gen[i] == 0) ? "2.5GB, x1" :
-					(pcie_table->pcie_gen[i] == 1) ? "5.0GB, x16" :
-					(pcie_table->pcie_gen[i] == 2) ? "8.0GB, x16" : "",
+					(pcie_table->pcie_gen[i] == 0) ? "2.5GT/s, x1" :
+					(pcie_table->pcie_gen[i] == 1) ? "5.0GT/s, x16" :
+					(pcie_table->pcie_gen[i] == 2) ? "8.0GT/s, x16" : "",
 					(i == now) ? "*" : "");
 		break;
 	default:
