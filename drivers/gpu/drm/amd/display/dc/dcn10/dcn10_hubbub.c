@@ -139,7 +139,7 @@ bool hubbub1_verify_allow_pstate_change_high(
 						"pstate took longer than expected ~%dus\n",
 						i);
 
-			return false;
+			return true;
 		}
 		if (max_sampled_pstate_wait_us < i)
 			max_sampled_pstate_wait_us = i;
@@ -159,7 +159,7 @@ bool hubbub1_verify_allow_pstate_change_high(
 			"pstate TEST_DEBUG_DATA: 0x%X\n",
 			debug_data);
 
-	return true;
+	return false;
 }
 
 static uint32_t convert_and_clamp(

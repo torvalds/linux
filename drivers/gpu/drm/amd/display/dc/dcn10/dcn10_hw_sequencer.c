@@ -548,7 +548,7 @@ void dcn10_verify_allow_pstate_change_high(struct dc *dc)
 {
 	static bool should_log_hw_state; /* prevent hw state log by default */
 
-	if (hubbub1_verify_allow_pstate_change_high(dc->res_pool->hubbub)) {
+	if (!hubbub1_verify_allow_pstate_change_high(dc->res_pool->hubbub)) {
 		if (should_log_hw_state) {
 			dcn10_log_hw_state(dc);
 		}
