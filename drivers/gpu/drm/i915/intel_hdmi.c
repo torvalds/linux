@@ -1336,6 +1336,12 @@ static bool hdmi_12bpc_possible(const struct intel_crtc_state *crtc_state)
 	if (HAS_GMCH_DISPLAY(dev_priv))
 		return false;
 
+	if (crtc_state->pipe_bpp <= 8*3)
+		return false;
+
+	if (!crtc_state->has_hdmi_sink)
+		return false;
+
 	/*
 	 * HDMI 12bpc affects the clocks, so it's only possible
 	 * when not cloning with other encoder types.
@@ -1461,9 +1467,8 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	 * outputs. We also need to check that the higher clock still fits
 	 * within limits.
 	 */
-	if (pipe_config->pipe_bpp > 8*3 && pipe_config->has_hdmi_sink && !force_dvi &&
-	    hdmi_port_clock_valid(intel_hdmi, clock_12bpc, true, force_dvi) == MODE_OK &&
-	    hdmi_12bpc_possible(pipe_config)) {
+	if (hdmi_12bpc_possible(pipe_config) &&
+	    hdmi_port_clock_valid(intel_hdmi, clock_12bpc, true, force_dvi) == MODE_OK) {
 		DRM_DEBUG_KMS("picking bpc to 12 for HDMI output\n");
 		desired_bpp = 12*3;
 
