@@ -385,7 +385,7 @@ static void __unwind_incomplete_requests(struct intel_engine_cs *engine)
 	}
 }
 
-static void
+void
 execlists_unwind_incomplete_requests(struct intel_engine_execlists *execlists)
 {
 	struct intel_engine_cs *engine =
@@ -696,7 +696,7 @@ unlock:
 	}
 }
 
-static void
+void
 execlists_cancel_port_requests(struct intel_engine_execlists * const execlists)
 {
 	struct execlist_port *port = execlists->port;

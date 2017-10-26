@@ -2921,6 +2921,16 @@ i915_gem_reset_prepare_engine(struct intel_engine_cs *engine)
 	tasklet_kill(&engine->execlists.irq_tasklet);
 	tasklet_disable(&engine->execlists.irq_tasklet);
 
+	/*
+	 * We're using worker to queue preemption requests from the tasklet in
+	 * GuC submission mode.
+	 * Even though tasklet was disabled, we may still have a worker queued.
+	 * Let's make sure that all workers scheduled before disabling the
+	 * tasklet are completed before continuing with the reset.
+	 */
+	if (engine->i915->guc.preempt_wq)
+		flush_workqueue(engine->i915->guc.preempt_wq);
+
 	if (engine->irq_seqno_barrier)
 		engine->irq_seqno_barrier(engine);
 

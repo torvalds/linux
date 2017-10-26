@@ -557,6 +557,12 @@ execlists_is_active(const struct intel_engine_execlists *execlists,
 	return test_bit(bit, (unsigned long *)&execlists->active);
 }
 
+void
+execlists_cancel_port_requests(struct intel_engine_execlists * const execlists);
+
+void
+execlists_unwind_incomplete_requests(struct intel_engine_execlists *execlists);
+
 static inline unsigned int
 execlists_num_ports(const struct intel_engine_execlists * const execlists)
 {

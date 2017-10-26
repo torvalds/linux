@@ -34,6 +34,11 @@
 #include "i915_guc_reg.h"
 #include "i915_vma.h"
 
+struct guc_preempt_work {
+	struct work_struct work;
+	struct intel_engine_cs *engine;
+};
+
 /*
  * Top level structure of GuC. It handles firmware loading and manages client
  * pool and doorbells. intel_guc owns a i915_guc_client to replace the legacy
@@ -59,6 +64,9 @@ struct intel_guc {
 
 	struct i915_guc_client *execbuf_client;
 	struct i915_guc_client *preempt_client;
+
+	struct guc_preempt_work preempt_work[I915_NUM_ENGINES];
+	struct workqueue_struct *preempt_wq;
 
 	DECLARE_BITMAP(doorbell_bitmap, GUC_NUM_DOORBELLS);
 	/* Cyclic counter mod pagesize	*/
