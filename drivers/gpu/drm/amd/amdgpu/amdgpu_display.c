@@ -29,6 +29,7 @@
 #include "amdgpu_i2c.h"
 #include "atom.h"
 #include "amdgpu_connectors.h"
+#include "amdgpu_display.h"
 #include <asm/div64.h>
 
 #include <linux/pm_runtime.h>
@@ -189,7 +190,7 @@ int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
 		goto cleanup;
 	}
 
-	r = amdgpu_bo_pin(new_abo, AMDGPU_GEM_DOMAIN_VRAM, &base);
+	r = amdgpu_bo_pin(new_abo, amdgpu_display_framebuffer_domains(adev), &base);
 	if (unlikely(r != 0)) {
 		DRM_ERROR("failed to pin new abo buffer before flip\n");
 		goto unreserve;
@@ -501,6 +502,17 @@ static const struct drm_framebuffer_funcs amdgpu_fb_funcs = {
 	.destroy = amdgpu_user_framebuffer_destroy,
 	.create_handle = amdgpu_user_framebuffer_create_handle,
 };
+
+uint32_t amdgpu_display_framebuffer_domains(struct amdgpu_device *adev)
+{
+	uint32_t domain = AMDGPU_GEM_DOMAIN_VRAM;
+
+	if (adev->asic_type >= CHIP_CARRIZO && adev->asic_type < CHIP_RAVEN &&
+	    adev->flags & AMD_IS_APU)
+		domain |= AMDGPU_GEM_DOMAIN_GTT;
+
+	return domain;
+}
 
 int
 amdgpu_framebuffer_init(struct drm_device *dev,
