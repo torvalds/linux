@@ -180,6 +180,13 @@ struct dsa_port {
 	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev,
 			       struct packet_type *pt);
 
+	enum {
+		DSA_PORT_TYPE_UNUSED = 0,
+		DSA_PORT_TYPE_CPU,
+		DSA_PORT_TYPE_DSA,
+		DSA_PORT_TYPE_USER,
+	} type;
+
 	struct dsa_switch	*ds;
 	unsigned int		index;
 	const char		*name;

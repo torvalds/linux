@@ -185,6 +185,7 @@ static int dsa_ds_complete(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 			return err;
 
 		ds->dsa_port_mask |= BIT(index);
+		port->type = DSA_PORT_TYPE_DSA;
 	}
 
 	return 0;
@@ -504,6 +505,7 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 	 * net/dsa/dsa.c::dsa_switch_setup_one does.
 	 */
 	ds->cpu_port_mask |= BIT(index);
+	port->type = DSA_PORT_TYPE_CPU;
 
 	tag_protocol = ds->ops->get_tag_protocol(ds);
 	tag_ops = dsa_resolve_tag_protocol(tag_protocol);
@@ -543,6 +545,7 @@ static int dsa_ds_parse(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 			 * net/dsa/dsa.c::dsa_switch_setup_one does.
 			 */
 			ds->enabled_port_mask |= BIT(index);
+			port->type = DSA_PORT_TYPE_USER;
 		}
 
 	}

@@ -101,6 +101,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 	struct dsa_chip_data *cd = ds->cd;
 	bool valid_name_found = false;
 	int index = ds->index;
+	struct dsa_port *dp;
 	int i, ret;
 
 	/*
@@ -108,6 +109,8 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 	 */
 	for (i = 0; i < ds->num_ports; i++) {
 		char *name;
+
+		dp = &ds->ports[i];
 
 		name = cd->port_names[i];
 		if (name == NULL)
@@ -122,10 +125,13 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 			dst->cpu_dp = &ds->ports[i];
 			dst->cpu_dp->master = master;
 			ds->cpu_port_mask |= 1 << i;
+			dp->type = DSA_PORT_TYPE_CPU;
 		} else if (!strcmp(name, "dsa")) {
 			ds->dsa_port_mask |= 1 << i;
+			dp->type = DSA_PORT_TYPE_DSA;
 		} else {
 			ds->enabled_port_mask |= 1 << i;
+			dp->type = DSA_PORT_TYPE_USER;
 		}
 		valid_name_found = true;
 	}
