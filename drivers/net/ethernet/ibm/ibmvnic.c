@@ -1507,7 +1507,7 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 
 		rc = ibmvnic_init(adapter);
 		if (rc)
-			return 0;
+			return IBMVNIC_INIT_FAILED;
 
 		/* If the adapter was in PROBE state prior to the reset,
 		 * exit here.
@@ -1610,7 +1610,7 @@ static void __ibmvnic_reset(struct work_struct *work)
 	while (rwi) {
 		rc = do_reset(adapter, rwi, reset_state);
 		kfree(rwi);
-		if (rc)
+		if (rc && rc != IBMVNIC_INIT_FAILED)
 			break;
 
 		rwi = get_next_rwi(adapter);
