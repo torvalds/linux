@@ -1773,6 +1773,9 @@ static int bnxt_get_nvram_item(struct net_device *dev, u32 index, u32 offset,
 	dma_addr_t dma_handle;
 	struct hwrm_nvm_read_input req = {0};
 
+	if (!length)
+		return -EINVAL;
+
 	buf = dma_alloc_coherent(&bp->pdev->dev, length, &dma_handle,
 				 GFP_KERNEL);
 	if (!buf) {
