@@ -91,7 +91,7 @@ void octeon_update_tx_completion_counters(void *buf, int reqtype,
 	*bytes_compl += skb->len;
 }
 
-void octeon_report_sent_bytes_to_bql(void *buf, int reqtype)
+int octeon_report_sent_bytes_to_bql(void *buf, int reqtype)
 {
 	struct octnet_buf_free_info *finfo;
 	struct sk_buff *skb;
@@ -112,11 +112,13 @@ void octeon_report_sent_bytes_to_bql(void *buf, int reqtype)
 		break;
 
 	default:
-		return;
+		return 0;
 	}
 
 	txq = netdev_get_tx_queue(skb->dev, skb_get_queue_mapping(skb));
 	netdev_tx_sent_queue(txq, skb->len);
+
+	return netif_xmit_stopped(txq);
 }
 
 void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
