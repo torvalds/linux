@@ -744,6 +744,7 @@ xfs_log_mount_finish(
 {
 	int	error = 0;
 	bool	readonly = (mp->m_flags & XFS_MOUNT_RDONLY);
+	bool	recovered = mp->m_log->l_flags & XLOG_RECOVERY_NEEDED;
 
 	if (mp->m_flags & XFS_MOUNT_NORECOVERY) {
 		ASSERT(mp->m_flags & XFS_MOUNT_RDONLY);
@@ -779,6 +780,21 @@ xfs_log_mount_finish(
 		xfs_log_work_queue(mp);
 	mp->m_super->s_flags &= ~MS_ACTIVE;
 	evict_inodes(mp->m_super);
+
+	/*
+	 * Drain the buffer LRU after log recovery. This is required for v4
+	 * filesystems to avoid leaving around buffers with NULL verifier ops,
+	 * but we do it unconditionally to make sure we're always in a clean
+	 * cache state after mount.
+	 *
+	 * Don't push in the error case because the AIL may have pending intents
+	 * that aren't removed until recovery is cancelled.
+	 */
+	if (!error && recovered) {
+		xfs_log_force(mp, XFS_LOG_SYNC);
+		xfs_ail_push_all_sync(mp->m_ail);
+	}
+	xfs_wait_buftarg(mp->m_ddev_targp);
 
 	if (readonly)
 		mp->m_flags |= XFS_MOUNT_RDONLY;
