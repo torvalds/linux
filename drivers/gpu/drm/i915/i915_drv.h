@@ -916,6 +916,7 @@ struct i915_gpu_state {
 	struct i915_error_uc {
 		struct intel_uc_fw guc_fw;
 		struct intel_uc_fw huc_fw;
+		struct drm_i915_error_object *guc_log;
 	} uc;
 
 	/* Generic register state */
@@ -941,7 +942,6 @@ struct i915_gpu_state {
 	struct intel_overlay_error_state *overlay;
 	struct intel_display_error_state *display;
 	struct drm_i915_error_object *semaphore;
-	struct drm_i915_error_object *guc_log;
 
 	struct drm_i915_error_engine {
 		int engine_id;
