@@ -83,8 +83,7 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 	if (!ep)
 		goto free_skb;
 
-	if (port->ingress_data_format & RMNET_INGRESS_FORMAT_DEMUXING)
-		skb->dev = ep->egress_dev;
+	skb->dev = ep->egress_dev;
 
 	/* Subtract MAP header */
 	skb_pull(skb, sizeof(struct rmnet_map_header));
