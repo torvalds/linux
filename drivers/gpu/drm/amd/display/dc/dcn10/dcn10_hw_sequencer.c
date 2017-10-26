@@ -2509,7 +2509,8 @@ void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 
 void dcn10_update_dchub(struct dce_hwseq *hws, struct dchub_init_data *dh_data)
 {
-	hubbub1_update_dchub(hws->ctx->dc->res_pool->hubbub, dh_data);
+	if (hws->ctx->dc->res_pool->hubbub != NULL)
+		hubbub1_update_dchub(hws->ctx->dc->res_pool->hubbub, dh_data);
 }
 
 static const struct hw_sequencer_funcs dcn10_funcs = {
