@@ -15,6 +15,8 @@
 #include <linux/ctype.h>
 #include "trace.h"
 
+u64 bpf_get_stackid(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
+
 /**
  * trace_call_bpf - invoke BPF program
  * @call: tracepoint event

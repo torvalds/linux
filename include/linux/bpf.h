@@ -231,9 +231,6 @@ struct bpf_event_entry {
 	struct rcu_head rcu;
 };
 
-u64 bpf_tail_call(u64 ctx, u64 r2, u64 index, u64 r4, u64 r5);
-u64 bpf_get_stackid(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
-
 bool bpf_prog_array_compatible(struct bpf_array *array, const struct bpf_prog *fp);
 int bpf_prog_calc_tag(struct bpf_prog *fp);
 
