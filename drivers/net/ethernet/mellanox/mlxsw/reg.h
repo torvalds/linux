@@ -3123,6 +3123,7 @@ static inline void mlxsw_reg_pfcc_pack(char *payload, u8 local_port)
  */
 #define MLXSW_REG_PPCNT_ID 0x5008
 #define MLXSW_REG_PPCNT_LEN 0x100
+#define MLXSW_REG_PPCNT_COUNTERS_OFFSET 0x08
 
 MLXSW_REG_DEFINE(ppcnt, MLXSW_REG_PPCNT_ID, MLXSW_REG_PPCNT_LEN);
 
@@ -3200,162 +3201,171 @@ MLXSW_ITEM32(reg, ppcnt, prio_tc, 0x04, 0, 5);
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, a_frames_transmitted_ok,
-	     0x08 + 0x00, 0, 64);
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x00, 0, 64);
 
 /* reg_ppcnt_a_frames_received_ok
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, a_frames_received_ok,
-	     0x08 + 0x08, 0, 64);
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x08, 0, 64);
 
 /* reg_ppcnt_a_frame_check_sequence_errors
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, a_frame_check_sequence_errors,
-	     0x08 + 0x10, 0, 64);
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x10, 0, 64);
 
 /* reg_ppcnt_a_alignment_errors
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, a_alignment_errors,
-	     0x08 + 0x18, 0, 64);
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x18, 0, 64);
 
 /* reg_ppcnt_a_octets_transmitted_ok
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, a_octets_transmitted_ok,
-	     0x08 + 0x20, 0, 64);
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x20, 0, 64);
 
 /* reg_ppcnt_a_octets_received_ok
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, a_octets_received_ok,
-	     0x08 + 0x28, 0, 64);
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x28, 0, 64);
 
 /* reg_ppcnt_a_multicast_frames_xmitted_ok
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, a_multicast_frames_xmitted_ok,
-	     0x08 + 0x30, 0, 64);
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x30, 0, 64);
 
 /* reg_ppcnt_a_broadcast_frames_xmitted_ok
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, a_broadcast_frames_xmitted_ok,
-	     0x08 + 0x38, 0, 64);
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x38, 0, 64);
 
 /* reg_ppcnt_a_multicast_frames_received_ok
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, a_multicast_frames_received_ok,
-	     0x08 + 0x40, 0, 64);
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x40, 0, 64);
 
 /* reg_ppcnt_a_broadcast_frames_received_ok
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, a_broadcast_frames_received_ok,
-	     0x08 + 0x48, 0, 64);
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x48, 0, 64);
 
 /* reg_ppcnt_a_in_range_length_errors
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, a_in_range_length_errors,
-	     0x08 + 0x50, 0, 64);
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x50, 0, 64);
 
 /* reg_ppcnt_a_out_of_range_length_field
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, a_out_of_range_length_field,
-	     0x08 + 0x58, 0, 64);
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x58, 0, 64);
 
 /* reg_ppcnt_a_frame_too_long_errors
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, a_frame_too_long_errors,
-	     0x08 + 0x60, 0, 64);
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x60, 0, 64);
 
 /* reg_ppcnt_a_symbol_error_during_carrier
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, a_symbol_error_during_carrier,
-	     0x08 + 0x68, 0, 64);
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x68, 0, 64);
 
 /* reg_ppcnt_a_mac_control_frames_transmitted
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, a_mac_control_frames_transmitted,
-	     0x08 + 0x70, 0, 64);
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x70, 0, 64);
 
 /* reg_ppcnt_a_mac_control_frames_received
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, a_mac_control_frames_received,
-	     0x08 + 0x78, 0, 64);
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x78, 0, 64);
 
 /* reg_ppcnt_a_unsupported_opcodes_received
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, a_unsupported_opcodes_received,
-	     0x08 + 0x80, 0, 64);
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x80, 0, 64);
 
 /* reg_ppcnt_a_pause_mac_ctrl_frames_received
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, a_pause_mac_ctrl_frames_received,
-	     0x08 + 0x88, 0, 64);
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x88, 0, 64);
 
 /* reg_ppcnt_a_pause_mac_ctrl_frames_transmitted
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, a_pause_mac_ctrl_frames_transmitted,
-	     0x08 + 0x90, 0, 64);
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x90, 0, 64);
 
 /* Ethernet Per Priority Group Counters */
 
 /* reg_ppcnt_rx_octets
  * Access: RO
  */
-MLXSW_ITEM64(reg, ppcnt, rx_octets, 0x08 + 0x00, 0, 64);
+MLXSW_ITEM64(reg, ppcnt, rx_octets,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x00, 0, 64);
 
 /* reg_ppcnt_rx_frames
  * Access: RO
  */
-MLXSW_ITEM64(reg, ppcnt, rx_frames, 0x08 + 0x20, 0, 64);
+MLXSW_ITEM64(reg, ppcnt, rx_frames,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x20, 0, 64);
 
 /* reg_ppcnt_tx_octets
  * Access: RO
  */
-MLXSW_ITEM64(reg, ppcnt, tx_octets, 0x08 + 0x28, 0, 64);
+MLXSW_ITEM64(reg, ppcnt, tx_octets,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x28, 0, 64);
 
 /* reg_ppcnt_tx_frames
  * Access: RO
  */
-MLXSW_ITEM64(reg, ppcnt, tx_frames, 0x08 + 0x48, 0, 64);
+MLXSW_ITEM64(reg, ppcnt, tx_frames,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x48, 0, 64);
 
 /* reg_ppcnt_rx_pause
  * Access: RO
  */
-MLXSW_ITEM64(reg, ppcnt, rx_pause, 0x08 + 0x50, 0, 64);
+MLXSW_ITEM64(reg, ppcnt, rx_pause,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x50, 0, 64);
 
 /* reg_ppcnt_rx_pause_duration
  * Access: RO
  */
-MLXSW_ITEM64(reg, ppcnt, rx_pause_duration, 0x08 + 0x58, 0, 64);
+MLXSW_ITEM64(reg, ppcnt, rx_pause_duration,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x58, 0, 64);
 
 /* reg_ppcnt_tx_pause
  * Access: RO
  */
-MLXSW_ITEM64(reg, ppcnt, tx_pause, 0x08 + 0x60, 0, 64);
+MLXSW_ITEM64(reg, ppcnt, tx_pause,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x60, 0, 64);
 
 /* reg_ppcnt_tx_pause_duration
  * Access: RO
  */
-MLXSW_ITEM64(reg, ppcnt, tx_pause_duration, 0x08 + 0x68, 0, 64);
+MLXSW_ITEM64(reg, ppcnt, tx_pause_duration,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x68, 0, 64);
 
 /* reg_ppcnt_rx_pause_transition
  * Access: RO
  */
-MLXSW_ITEM64(reg, ppcnt, tx_pause_transition, 0x08 + 0x70, 0, 64);
+MLXSW_ITEM64(reg, ppcnt, tx_pause_transition,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x70, 0, 64);
 
 /* Ethernet Per Traffic Group Counters */
 
@@ -3365,14 +3375,16 @@ MLXSW_ITEM64(reg, ppcnt, tx_pause_transition, 0x08 + 0x70, 0, 64);
  * The field cannot be cleared.
  * Access: RO
  */
-MLXSW_ITEM64(reg, ppcnt, tc_transmit_queue, 0x08 + 0x00, 0, 64);
+MLXSW_ITEM64(reg, ppcnt, tc_transmit_queue,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x00, 0, 64);
 
 /* reg_ppcnt_tc_no_buffer_discard_uc
  * The number of unicast packets dropped due to lack of shared
  * buffer resources.
  * Access: RO
  */
-MLXSW_ITEM64(reg, ppcnt, tc_no_buffer_discard_uc, 0x08 + 0x08, 0, 64);
+MLXSW_ITEM64(reg, ppcnt, tc_no_buffer_discard_uc,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x08, 0, 64);
 
 static inline void mlxsw_reg_ppcnt_pack(char *payload, u8 local_port,
 					enum mlxsw_reg_ppcnt_grp grp,
