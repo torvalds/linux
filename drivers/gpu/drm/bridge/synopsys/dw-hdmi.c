@@ -2733,6 +2733,14 @@ static void dw_hdmi_connector_force(struct drm_connector *connector)
 					     connector);
 
 	mutex_lock(&hdmi->mutex);
+#ifdef CONFIG_SWITCH
+	if (!hdmi->disabled && hdmi->force != connector->force) {
+		if (connector->force == DRM_FORCE_OFF)
+			switch_set_state(&hdmi->switchdev, 0);
+		else if (connector->force == DRM_FORCE_ON)
+			switch_set_state(&hdmi->switchdev, 1);
+	}
+#endif
 	hdmi->force = connector->force;
 	dw_hdmi_update_power(hdmi);
 	dw_hdmi_update_phy_mask(hdmi);
