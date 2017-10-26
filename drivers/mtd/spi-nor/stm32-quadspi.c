@@ -1,9 +1,22 @@
 /*
- * stm32_quadspi.c
+ * Driver for stm32 quadspi controller
  *
- * Copyright (C) 2017, Ludovic Barre
+ * Copyright (C) 2017, STMicroelectronics - All Rights Reserved
+ * Author(s): Ludovic Barre author <ludovic.barre@st.com>.
  *
- * License terms: GNU General Public License (GPL), version 2
+ * License terms: GPL V2.0.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 as published by
+ * the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * This program. If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/clk.h>
 #include <linux/errno.h>
