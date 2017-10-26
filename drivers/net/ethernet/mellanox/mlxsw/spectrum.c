@@ -1328,16 +1328,16 @@ static void update_stats_cache(struct work_struct *work)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port =
 		container_of(work, struct mlxsw_sp_port,
-			     hw_stats.update_dw.work);
+			     periodic_hw_stats.update_dw.work);
 
 	if (!netif_carrier_ok(mlxsw_sp_port->dev))
 		goto out;
 
 	mlxsw_sp_port_get_hw_stats(mlxsw_sp_port->dev,
-				   mlxsw_sp_port->hw_stats.cache);
+				   &mlxsw_sp_port->periodic_hw_stats.stats);
 
 out:
-	mlxsw_core_schedule_dw(&mlxsw_sp_port->hw_stats.update_dw,
+	mlxsw_core_schedule_dw(&mlxsw_sp_port->periodic_hw_stats.update_dw,
 			       MLXSW_HW_STATS_UPDATE_TIME);
 }
 
@@ -1350,7 +1350,7 @@ mlxsw_sp_port_get_stats64(struct net_device *dev,
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 
-	memcpy(stats, mlxsw_sp_port->hw_stats.cache, sizeof(*stats));
+	memcpy(stats, &mlxsw_sp_port->periodic_hw_stats.stats, sizeof(*stats));
 }
 
 static int __mlxsw_sp_port_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -2905,14 +2905,7 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_alloc_sample;
 	}
 
-	mlxsw_sp_port->hw_stats.cache =
-		kzalloc(sizeof(*mlxsw_sp_port->hw_stats.cache), GFP_KERNEL);
-
-	if (!mlxsw_sp_port->hw_stats.cache) {
-		err = -ENOMEM;
-		goto err_alloc_hw_stats;
-	}
-	INIT_DELAYED_WORK(&mlxsw_sp_port->hw_stats.update_dw,
+	INIT_DELAYED_WORK(&mlxsw_sp_port->periodic_hw_stats.update_dw,
 			  &update_stats_cache);
 
 	dev->netdev_ops = &mlxsw_sp_port_netdev_ops;
@@ -3026,7 +3019,7 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	mlxsw_core_port_eth_set(mlxsw_sp->core, mlxsw_sp_port->local_port,
 				mlxsw_sp_port, dev, mlxsw_sp_port->split,
 				module);
-	mlxsw_core_schedule_dw(&mlxsw_sp_port->hw_stats.update_dw, 0);
+	mlxsw_core_schedule_dw(&mlxsw_sp_port->periodic_hw_stats.update_dw, 0);
 	return 0;
 
 err_register_netdev:
@@ -3049,8 +3042,6 @@ err_dev_addr_init:
 err_port_swid_set:
 	mlxsw_sp_port_module_unmap(mlxsw_sp_port);
 err_port_module_map:
-	kfree(mlxsw_sp_port->hw_stats.cache);
-err_alloc_hw_stats:
 	kfree(mlxsw_sp_port->sample);
 err_alloc_sample:
 	free_percpu(mlxsw_sp_port->pcpu_stats);
@@ -3065,7 +3056,7 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp->ports[local_port];
 
-	cancel_delayed_work_sync(&mlxsw_sp_port->hw_stats.update_dw);
+	cancel_delayed_work_sync(&mlxsw_sp_port->periodic_hw_stats.update_dw);
 	mlxsw_core_port_clear(mlxsw_sp->core, local_port, mlxsw_sp);
 	unregister_netdev(mlxsw_sp_port->dev); /* This calls ndo_stop */
 	mlxsw_sp->ports[local_port] = NULL;
@@ -3075,7 +3066,6 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
 	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
 	mlxsw_sp_port_module_unmap(mlxsw_sp_port);
-	kfree(mlxsw_sp_port->hw_stats.cache);
 	kfree(mlxsw_sp_port->sample);
 	free_percpu(mlxsw_sp_port->pcpu_stats);
 	WARN_ON_ONCE(!list_empty(&mlxsw_sp_port->vlans_list));
