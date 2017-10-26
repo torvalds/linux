@@ -12,6 +12,8 @@
 
 #include <linux/if_bridge.h>
 #include <linux/notifier.h>
+#include <linux/of_mdio.h>
+#include <linux/of_net.h>
 
 #include "dsa_priv.h"
 
@@ -263,4 +265,49 @@ int dsa_port_vlan_del(struct dsa_port *dp,
 	};
 
 	return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_DEL, &info);
+}
+
+int dsa_port_fixed_link_register_of(struct dsa_port *dp)
+{
+	struct device_node *dn = dp->dn;
+	struct dsa_switch *ds = dp->ds;
+	struct phy_device *phydev;
+	int port = dp->index;
+	int mode;
+	int err;
+
+	if (of_phy_is_fixed_link(dn)) {
+		err = of_phy_register_fixed_link(dn);
+		if (err) {
+			dev_err(ds->dev,
+				"failed to register the fixed PHY of port %d\n",
+				port);
+			return err;
+		}
+
+		phydev = of_phy_find_device(dn);
+
+		mode = of_get_phy_mode(dn);
+		if (mode < 0)
+			mode = PHY_INTERFACE_MODE_NA;
+		phydev->interface = mode;
+
+		genphy_config_init(phydev);
+		genphy_read_status(phydev);
+
+		if (ds->ops->adjust_link)
+			ds->ops->adjust_link(ds, port, phydev);
+
+		put_device(&phydev->mdio.dev);
+	}
+
+	return 0;
+}
+
+void dsa_port_fixed_link_unregister_of(struct dsa_port *dp)
+{
+	struct device_node *dn = dp->dn;
+
+	if (of_phy_is_fixed_link(dn))
+		of_phy_deregister_fixed_link(dn);
 }

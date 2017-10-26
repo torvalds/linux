@@ -68,37 +68,6 @@ const struct dsa_device_ops *dsa_device_ops[DSA_TAG_LAST] = {
 	[DSA_TAG_PROTO_NONE] = &none_ops,
 };
 
-int dsa_cpu_dsa_setup(struct dsa_port *port)
-{
-	struct device_node *port_dn = port->dn;
-	struct dsa_switch *ds = port->ds;
-	struct phy_device *phydev;
-	int ret, mode;
-
-	if (of_phy_is_fixed_link(port_dn)) {
-		ret = of_phy_register_fixed_link(port_dn);
-		if (ret) {
-			dev_err(ds->dev, "failed to register fixed PHY\n");
-			return ret;
-		}
-		phydev = of_phy_find_device(port_dn);
-
-		mode = of_get_phy_mode(port_dn);
-		if (mode < 0)
-			mode = PHY_INTERFACE_MODE_NA;
-		phydev->interface = mode;
-
-		genphy_config_init(phydev);
-		genphy_read_status(phydev);
-		if (ds->ops->adjust_link)
-			ds->ops->adjust_link(ds, port->index, phydev);
-
-		put_device(&phydev->mdio.dev);
-	}
-
-	return 0;
-}
-
 const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol)
 {
 	const struct dsa_device_ops *ops;
@@ -111,14 +80,6 @@ const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol)
 		return ERR_PTR(-ENOPROTOOPT);
 
 	return ops;
-}
-
-void dsa_cpu_dsa_destroy(struct dsa_port *port)
-{
-	struct device_node *port_dn = port->dn;
-
-	if (of_phy_is_fixed_link(port_dn))
-		of_phy_deregister_fixed_link(port_dn);
 }
 
 static int dev_is_class(struct device *dev, void *class)

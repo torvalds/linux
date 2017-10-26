@@ -93,8 +93,6 @@ struct dsa_slave_priv {
 };
 
 /* dsa.c */
-int dsa_cpu_dsa_setup(struct dsa_port *port);
-void dsa_cpu_dsa_destroy(struct dsa_port *dport);
 const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol);
 bool dsa_schedule_work(struct work_struct *work);
 
@@ -159,6 +157,9 @@ int dsa_port_vlan_add(struct dsa_port *dp,
 		      struct switchdev_trans *trans);
 int dsa_port_vlan_del(struct dsa_port *dp,
 		      const struct switchdev_obj_port_vlan *vlan);
+int dsa_port_fixed_link_register_of(struct dsa_port *dp);
+void dsa_port_fixed_link_unregister_of(struct dsa_port *dp);
+
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;
 void dsa_slave_mii_bus_init(struct dsa_switch *ds);

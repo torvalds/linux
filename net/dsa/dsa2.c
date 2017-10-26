@@ -219,7 +219,7 @@ static int dsa_dsa_port_apply(struct dsa_port *port)
 	struct dsa_switch *ds = port->ds;
 	int err;
 
-	err = dsa_cpu_dsa_setup(port);
+	err = dsa_port_fixed_link_register_of(port);
 	if (err) {
 		dev_warn(ds->dev, "Failed to setup dsa port %d: %d\n",
 			 port->index, err);
@@ -235,7 +235,7 @@ static int dsa_dsa_port_apply(struct dsa_port *port)
 static void dsa_dsa_port_unapply(struct dsa_port *port)
 {
 	devlink_port_unregister(&port->devlink_port);
-	dsa_cpu_dsa_destroy(port);
+	dsa_port_fixed_link_unregister_of(port);
 }
 
 static int dsa_cpu_port_apply(struct dsa_port *port)
@@ -243,7 +243,7 @@ static int dsa_cpu_port_apply(struct dsa_port *port)
 	struct dsa_switch *ds = port->ds;
 	int err;
 
-	err = dsa_cpu_dsa_setup(port);
+	err = dsa_port_fixed_link_register_of(port);
 	if (err) {
 		dev_warn(ds->dev, "Failed to setup cpu port %d: %d\n",
 			 port->index, err);
@@ -259,7 +259,7 @@ static int dsa_cpu_port_apply(struct dsa_port *port)
 static void dsa_cpu_port_unapply(struct dsa_port *port)
 {
 	devlink_port_unregister(&port->devlink_port);
-	dsa_cpu_dsa_destroy(port);
+	dsa_port_fixed_link_unregister_of(port);
 }
 
 static int dsa_user_port_apply(struct dsa_port *port)
