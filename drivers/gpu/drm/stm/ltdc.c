@@ -175,6 +175,8 @@
 
 #define LXCFBLNR_CFBLN	GENMASK(10, 0)	/* Color Frame Buffer Line Number */
 
+#define CLUT_SIZE	256
+
 #define CONSTA_MAX	0xFF		/* CONSTant Alpha MAX= 1.0 */
 #define BF1_PAXCA	0x600		/* Pixel Alpha x Constant Alpha */
 #define BF1_CA		0x400		/* Constant Alpha */
@@ -363,6 +365,28 @@ static irqreturn_t ltdc_irq(int irq, void *arg)
  * DRM_CRTC
  */
 
+static void ltdc_crtc_update_clut(struct drm_crtc *crtc)
+{
+	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
+	struct drm_color_lut *lut;
+	u32 val;
+	int i;
+
+	if (!crtc || !crtc->state)
+		return;
+
+	if (!crtc->state->color_mgmt_changed || !crtc->state->gamma_lut)
+		return;
+
+	lut = (struct drm_color_lut *)crtc->state->gamma_lut->data;
+
+	for (i = 0; i < CLUT_SIZE; i++, lut++) {
+		val = ((lut->red << 8) & 0xff0000) | (lut->green & 0xff00) |
+			(lut->blue >> 8) | (i << 24);
+		reg_write(ldev->regs, LTDC_L1CLUTWR, val);
+	}
+}
+
 static void ltdc_crtc_atomic_enable(struct drm_crtc *crtc,
 				    struct drm_crtc_state *old_state)
 {
@@ -486,6 +510,8 @@ static void ltdc_crtc_atomic_flush(struct drm_crtc *crtc,
 
 	DRM_DEBUG_ATOMIC("\n");
 
+	ltdc_crtc_update_clut(crtc);
+
 	/* Commit shadow registers = update planes at next vblank */
 	reg_set(ldev->regs, LTDC_SRCR, SRCR_VBR);
 
@@ -533,6 +559,7 @@ static const struct drm_crtc_funcs ltdc_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 };
 
 /*
@@ -764,6 +791,9 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
 	}
 
 	drm_crtc_helper_add(crtc, &ltdc_crtc_helper_funcs);
+
+	drm_mode_crtc_set_gamma_size(crtc, CLUT_SIZE);
+	drm_crtc_enable_color_mgmt(crtc, 0, false, CLUT_SIZE);
 
 	DRM_DEBUG_DRIVER("CRTC:%d created\n", crtc->base.id);
 
