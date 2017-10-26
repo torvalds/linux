@@ -2814,14 +2814,18 @@ int dispc_wb_setup(struct dispc_device *dispc,
 		/* WBDELAYCOUNT */
 		REG_FLD_MOD(dispc, DISPC_OVL_ATTRIBUTES2(plane), 0, 7, 0);
 	} else {
-		int wbdelay;
+		u32 wbdelay;
 
 		if (channel_in == DSS_WB_TV_MGR)
-			wbdelay = min(vm->vsync_len + vm->vback_porch,
-				(u32)255);
+			wbdelay = vm->vsync_len + vm->vback_porch;
 		else
-			wbdelay = min(vm->vfront_porch +
-				vm->vsync_len + vm->vback_porch, (u32)255);
+			wbdelay = vm->vfront_porch + vm->vsync_len +
+				vm->vback_porch;
+
+		if (vm->flags & DISPLAY_FLAGS_INTERLACED)
+			wbdelay /= 2;
+
+		wbdelay = min(wbdelay, 255u);
 
 		/* WBDELAYCOUNT */
 		REG_FLD_MOD(dispc, DISPC_OVL_ATTRIBUTES2(plane), wbdelay, 7, 0);
