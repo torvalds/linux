@@ -342,7 +342,7 @@ static struct platform_driver dw_mipi_dsi_stm_driver = {
 	.remove		= dw_mipi_dsi_stm_remove,
 	.driver		= {
 		.of_match_table = dw_mipi_dsi_stm_dt_ids,
-		.name	= "dw_mipi_dsi-stm",
+		.name	= "stm32-display-dsi",
 	},
 };
 
