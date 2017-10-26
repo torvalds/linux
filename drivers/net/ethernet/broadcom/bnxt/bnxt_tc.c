@@ -585,13 +585,85 @@ static int hwrm_cfa_decap_filter_alloc(struct bnxt *bp,
 				       __le32 ref_decap_handle,
 				       __le32 *decap_filter_handle)
 {
-	return 0;
+	struct hwrm_cfa_decap_filter_alloc_output *resp =
+						bp->hwrm_cmd_resp_addr;
+	struct hwrm_cfa_decap_filter_alloc_input req = { 0 };
+	struct ip_tunnel_key *tun_key = &flow->tun_key;
+	u32 enables = 0;
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_CFA_DECAP_FILTER_ALLOC, -1, -1);
+
+	req.flags = cpu_to_le32(CFA_DECAP_FILTER_ALLOC_REQ_FLAGS_OVS_TUNNEL);
+	enables |= CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_TUNNEL_TYPE |
+		   CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_IP_PROTOCOL;
+	req.tunnel_type = CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_VXLAN;
+	req.ip_protocol = CFA_DECAP_FILTER_ALLOC_REQ_IP_PROTOCOL_UDP;
+
+	if (flow->flags & BNXT_TC_FLOW_FLAGS_TUNL_ID) {
+		enables |= CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_TUNNEL_ID;
+		/* tunnel_id is wrongly defined in hsi defn. as __le32 */
+		req.tunnel_id = tunnel_id_to_key32(tun_key->tun_id);
+	}
+
+	if (flow->flags & BNXT_TC_FLOW_FLAGS_TUNL_ETH_ADDRS) {
+		enables |= CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_DST_MACADDR |
+			   CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_SRC_MACADDR;
+		ether_addr_copy(req.dst_macaddr, l2_info->dmac);
+		ether_addr_copy(req.src_macaddr, l2_info->smac);
+	}
+	if (l2_info->num_vlans) {
+		enables |= CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_T_IVLAN_VID;
+		req.t_ivlan_vid = l2_info->inner_vlan_tci;
+	}
+
+	enables |= CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_ETHERTYPE;
+	req.ethertype = htons(ETH_P_IP);
+
+	if (flow->flags & BNXT_TC_FLOW_FLAGS_TUNL_IPV4_ADDRS) {
+		enables |= CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_SRC_IPADDR |
+			   CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_DST_IPADDR |
+			   CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_IPADDR_TYPE;
+		req.ip_addr_type = CFA_DECAP_FILTER_ALLOC_REQ_IP_ADDR_TYPE_IPV4;
+		req.dst_ipaddr[0] = tun_key->u.ipv4.dst;
+		req.src_ipaddr[0] = tun_key->u.ipv4.src;
+	}
+
+	if (flow->flags & BNXT_TC_FLOW_FLAGS_TUNL_PORTS) {
+		enables |= CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_DST_PORT;
+		req.dst_port = tun_key->tp_dst;
+	}
+
+	/* Eventhough the decap_handle returned by hwrm_cfa_decap_filter_alloc
+	 * is defined as __le32, l2_ctxt_ref_id is defined in HSI as __le16.
+	 */
+	req.l2_ctxt_ref_id = (__force __le16)ref_decap_handle;
+	req.enables = cpu_to_le32(enables);
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc)
+		*decap_filter_handle = resp->decap_filter_id;
+	else
+		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
+	mutex_unlock(&bp->hwrm_cmd_lock);
+
+	return rc;
 }
 
 static int hwrm_cfa_decap_filter_free(struct bnxt *bp,
 				      __le32 decap_filter_handle)
 {
-	return 0;
+	struct hwrm_cfa_decap_filter_free_input req = { 0 };
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_CFA_DECAP_FILTER_FREE, -1, -1);
+	req.decap_filter_id = decap_filter_handle;
+
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
+	return rc;
 }
 
 static int hwrm_cfa_encap_record_alloc(struct bnxt *bp,
@@ -599,13 +671,62 @@ static int hwrm_cfa_encap_record_alloc(struct bnxt *bp,
 				       struct bnxt_tc_l2_key *l2_info,
 				       __le32 *encap_record_handle)
 {
-	return 0;
+	struct hwrm_cfa_encap_record_alloc_output *resp =
+						bp->hwrm_cmd_resp_addr;
+	struct hwrm_cfa_encap_record_alloc_input req = { 0 };
+	struct hwrm_cfa_encap_data_vxlan *encap =
+			(struct hwrm_cfa_encap_data_vxlan *)&req.encap_data;
+	struct hwrm_vxlan_ipv4_hdr *encap_ipv4 =
+				(struct hwrm_vxlan_ipv4_hdr *)encap->l3;
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_CFA_ENCAP_RECORD_ALLOC, -1, -1);
+
+	req.encap_type = CFA_ENCAP_RECORD_ALLOC_REQ_ENCAP_TYPE_VXLAN;
+
+	ether_addr_copy(encap->dst_mac_addr, l2_info->dmac);
+	ether_addr_copy(encap->src_mac_addr, l2_info->smac);
+	if (l2_info->num_vlans) {
+		encap->num_vlan_tags = l2_info->num_vlans;
+		encap->ovlan_tci = l2_info->inner_vlan_tci;
+		encap->ovlan_tpid = l2_info->inner_vlan_tpid;
+	}
+
+	encap_ipv4->ver_hlen = 4 << VXLAN_IPV4_HDR_VER_HLEN_VERSION_SFT;
+	encap_ipv4->ver_hlen |= 5 << VXLAN_IPV4_HDR_VER_HLEN_HEADER_LENGTH_SFT;
+	encap_ipv4->ttl = encap_key->ttl;
+
+	encap_ipv4->dest_ip_addr = encap_key->u.ipv4.dst;
+	encap_ipv4->src_ip_addr = encap_key->u.ipv4.src;
+	encap_ipv4->protocol = IPPROTO_UDP;
+
+	encap->dst_port = encap_key->tp_dst;
+	encap->vni = tunnel_id_to_key32(encap_key->tun_id);
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc)
+		*encap_record_handle = resp->encap_record_id;
+	else
+		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
+	mutex_unlock(&bp->hwrm_cmd_lock);
+
+	return rc;
 }
 
 static int hwrm_cfa_encap_record_free(struct bnxt *bp,
 				      __le32 encap_record_handle)
 {
-	return 0;
+	struct hwrm_cfa_encap_record_free_input req = { 0 };
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_CFA_ENCAP_RECORD_FREE, -1, -1);
+	req.encap_record_id = encap_record_handle;
+
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
+	return rc;
 }
 
 static int bnxt_tc_put_l2_node(struct bnxt *bp,
