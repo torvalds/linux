@@ -87,10 +87,17 @@ static int rmnet_vnd_get_iflink(const struct net_device *dev)
 static int rmnet_vnd_init(struct net_device *dev)
 {
 	struct rmnet_priv *priv = netdev_priv(dev);
+	int err;
 
 	priv->pcpu_stats = alloc_percpu(struct rmnet_pcpu_stats);
 	if (!priv->pcpu_stats)
 		return -ENOMEM;
+
+	err = gro_cells_init(&priv->gro_cells, dev);
+	if (err) {
+		free_percpu(priv->pcpu_stats);
+		return err;
+	}
 
 	return 0;
 }
@@ -99,6 +106,7 @@ static void rmnet_vnd_uninit(struct net_device *dev)
 {
 	struct rmnet_priv *priv = netdev_priv(dev);
 
+	gro_cells_destroy(&priv->gro_cells);
 	free_percpu(priv->pcpu_stats);
 }
 

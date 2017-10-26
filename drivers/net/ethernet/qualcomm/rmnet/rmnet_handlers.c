@@ -46,13 +46,15 @@ static void rmnet_set_skb_proto(struct sk_buff *skb)
 static void
 rmnet_deliver_skb(struct sk_buff *skb)
 {
+	struct rmnet_priv *priv = netdev_priv(skb->dev);
+
 	skb_reset_transport_header(skb);
 	skb_reset_network_header(skb);
 	rmnet_vnd_rx_fixup(skb, skb->dev);
 
 	skb->pkt_type = PACKET_HOST;
 	skb_set_mac_header(skb, 0);
-	netif_receive_skb(skb);
+	gro_cells_receive(&priv->gro_cells, skb);
 }
 
 /* MAP handler */

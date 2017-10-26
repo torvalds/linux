@@ -14,6 +14,7 @@
  */
 
 #include <linux/skbuff.h>
+#include <net/gro_cells.h>
 
 #ifndef _RMNET_CONFIG_H_
 #define _RMNET_CONFIG_H_
@@ -58,6 +59,7 @@ struct rmnet_priv {
 	u8 mux_id;
 	struct net_device *real_dev;
 	struct rmnet_pcpu_stats __percpu *pcpu_stats;
+	struct gro_cells gro_cells;
 };
 
 struct rmnet_port *rmnet_get_port(struct net_device *real_dev);
