@@ -2046,6 +2046,21 @@ static u16 bcm_sysport_select_queue(struct net_device *dev, struct sk_buff *skb,
 	return tx_ring->index;
 }
 
+static const struct net_device_ops bcm_sysport_netdev_ops = {
+	.ndo_start_xmit		= bcm_sysport_xmit,
+	.ndo_tx_timeout		= bcm_sysport_tx_timeout,
+	.ndo_open		= bcm_sysport_open,
+	.ndo_stop		= bcm_sysport_stop,
+	.ndo_set_features	= bcm_sysport_set_features,
+	.ndo_set_rx_mode	= bcm_sysport_set_rx_mode,
+	.ndo_set_mac_address	= bcm_sysport_change_mac,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= bcm_sysport_poll_controller,
+#endif
+	.ndo_get_stats64	= bcm_sysport_get_stats64,
+	.ndo_select_queue	= bcm_sysport_select_queue,
+};
+
 static int bcm_sysport_map_queues(struct net_device *dev,
 				  struct dsa_notifier_register_info *info)
 {
@@ -2059,6 +2074,9 @@ static int bcm_sysport_map_queues(struct net_device *dev,
 	 * switches
 	 */
 	if (info->switch_number)
+		return 0;
+
+	if (dev->netdev_ops != &bcm_sysport_netdev_ops)
 		return 0;
 
 	port = info->port_number;
@@ -2111,21 +2129,6 @@ static int bcm_sysport_dsa_notifier(struct notifier_block *unused,
 
 	return notifier_from_errno(bcm_sysport_map_queues(info->master, info));
 }
-
-static const struct net_device_ops bcm_sysport_netdev_ops = {
-	.ndo_start_xmit		= bcm_sysport_xmit,
-	.ndo_tx_timeout		= bcm_sysport_tx_timeout,
-	.ndo_open		= bcm_sysport_open,
-	.ndo_stop		= bcm_sysport_stop,
-	.ndo_set_features	= bcm_sysport_set_features,
-	.ndo_set_rx_mode	= bcm_sysport_set_rx_mode,
-	.ndo_set_mac_address	= bcm_sysport_change_mac,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= bcm_sysport_poll_controller,
-#endif
-	.ndo_get_stats64	= bcm_sysport_get_stats64,
-	.ndo_select_queue	= bcm_sysport_select_queue,
-};
 
 #define REV_FMT	"v%2x.%02x"
 
