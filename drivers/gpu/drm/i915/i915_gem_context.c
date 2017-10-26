@@ -104,6 +104,7 @@ static void lut_close(struct i915_gem_context *ctx)
 		kmem_cache_free(ctx->i915->luts, lut);
 	}
 
+	rcu_read_lock();
 	radix_tree_for_each_slot(slot, &ctx->handles_vma, &iter, 0) {
 		struct i915_vma *vma = rcu_dereference_raw(*slot);
 		struct drm_i915_gem_object *obj = vma->obj;
@@ -115,6 +116,7 @@ static void lut_close(struct i915_gem_context *ctx)
 
 		__i915_gem_object_release_unless_active(obj);
 	}
+	rcu_read_unlock();
 }
 
 static void i915_gem_context_free(struct i915_gem_context *ctx)
