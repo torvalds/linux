@@ -49,6 +49,13 @@ struct cudbg_rss_vf_conf {
 	u32 rss_vf_vfh;
 };
 
+struct cudbg_pm_stats {
+	u32 tx_cnt[T6_PM_NSTATS];
+	u32 rx_cnt[T6_PM_NSTATS];
+	u64 tx_cyc[T6_PM_NSTATS];
+	u64 rx_cyc[T6_PM_NSTATS];
+};
+
 struct cudbg_hw_sched {
 	u32 kbps[NTX_SCHED];
 	u32 ipg[NTX_SCHED];
@@ -83,6 +90,22 @@ struct cudbg_tp_la {
 struct cudbg_cim_pif_la {
 	int size;
 	u8 data[0];
+};
+
+struct cudbg_clk_info {
+	u64 retransmit_min;
+	u64 retransmit_max;
+	u64 persist_timer_min;
+	u64 persist_timer_max;
+	u64 keepalive_idle_timer;
+	u64 keepalive_interval;
+	u64 initial_srtt;
+	u64 finwait2_timer;
+	u32 dack_timer;
+	u32 res;
+	u32 cclk_ps;
+	u32 tre;
+	u32 dack_re;
 };
 
 struct cudbg_tid_info_region {
@@ -141,6 +164,19 @@ struct cudbg_mps_tcam {
 	u8 lookup_type;
 	u8 port_num;
 	u8 reserved[2];
+};
+
+struct cudbg_vpd_data {
+	u8 sn[SERNUM_LEN + 1];
+	u8 bn[PN_LEN + 1];
+	u8 na[MACADDR_LEN + 1];
+	u8 mn[ID_LEN + 1];
+	u16 fw_major;
+	u16 fw_minor;
+	u16 fw_micro;
+	u16 fw_build;
+	u32 scfg_vers;
+	u32 vpd_vers;
 };
 
 #define CUDBG_NUM_ULPTX 11
