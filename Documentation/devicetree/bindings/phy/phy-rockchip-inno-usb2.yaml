@@ -115,6 +115,11 @@ properties:
           Phandle to a regulator that provides power to VBUS.
           See ./phy-bindings.txt for details.
 
+      rockchip,utmi-bypass-uart:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description: when set, indicates that support usb to bypass uart
+          feature. This property can only be added in debug stage.
+
       rockchip,utmi-avalid:
         $ref: /schemas/types.yaml#/definitions/flag
         description: when set, the usb2 phy will use avalid status bit to

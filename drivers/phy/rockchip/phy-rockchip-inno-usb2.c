@@ -31,6 +31,7 @@
 #define BIT_WRITEABLE_SHIFT	16
 #define SCHEDULE_DELAY		(60 * HZ)
 #define OTG_SCHEDULE_DELAY	(2 * HZ)
+#define BYPASS_SCHEDULE_DELAY	(2 * HZ)
 
 struct rockchip_usb2phy;
 
@@ -119,6 +120,9 @@ struct rockchip_chg_det_reg {
  * @bvalid_det_en: vbus valid rise detection enable register.
  * @bvalid_det_st: vbus valid rise detection status register.
  * @bvalid_det_clr: vbus valid rise detection clear register.
+ * @bypass_dm_en: usb bypass uart DM enable register.
+ * @bypass_sel: usb bypass uart select register.
+ * @bypass_iomux: usb bypass uart GRF iomux register.
  * @ls_det_en: linestate detection enable register.
  * @ls_det_st: linestate detection state register.
  * @ls_det_clr: linestate detection clear register.
@@ -143,6 +147,9 @@ struct rockchip_usb2phy_port_cfg {
 	struct usb2phy_reg	bvalid_det_en;
 	struct usb2phy_reg	bvalid_det_st;
 	struct usb2phy_reg	bvalid_det_clr;
+	struct usb2phy_reg	bypass_dm_en;
+	struct usb2phy_reg	bypass_sel;
+	struct usb2phy_reg	bypass_iomux;
 	struct usb2phy_reg	ls_det_en;
 	struct usb2phy_reg	ls_det_st;
 	struct usb2phy_reg	ls_det_clr;
@@ -191,6 +198,7 @@ struct rockchip_usb2phy_cfg {
  *	false	- use bvalid to get vbus status
  * @vbus_attached: otg device vbus status.
  * @vbus_always_on: otg vbus is always powered on.
+ * @bypass_uart_en: usb bypass uart enable, passed from DT.
  * @bvalid_irq: IRQ number assigned for vbus valid rise detection.
  * @ls_irq: IRQ number assigned for linestate detection.
  * @id_irq: IRQ number assigned for id fall or rise detection.
@@ -198,6 +206,7 @@ struct rockchip_usb2phy_cfg {
  *		 irqs to one irq in otg-port.
  * @mutex: for register updating in sm_work.
  * @chg_work: charge detect work.
+ * @bypass_uart_work: usb bypass uart work.
  * @otg_sm_work: OTG state machine work.
  * @sm_work: HOST state machine work.
  * @port_cfg: port register configuration, assigned by driver data.
@@ -213,11 +222,13 @@ struct rockchip_usb2phy_port {
 	bool		utmi_avalid;
 	bool		vbus_attached;
 	bool		vbus_always_on;
+	bool		bypass_uart_en;
 	int		bvalid_irq;
 	int		ls_irq;
 	int             id_irq;
 	int		otg_mux_irq;
 	struct mutex	mutex;
+	struct		delayed_work bypass_uart_work;
 	struct		delayed_work chg_work;
 	struct		delayed_work otg_sm_work;
 	struct		delayed_work sm_work;
@@ -496,6 +507,99 @@ out:
 	return ret;
 }
 
+static int rockchip_usb_bypass_uart(struct rockchip_usb2phy_port *rport,
+				    bool en)
+{
+	struct rockchip_usb2phy *rphy = dev_get_drvdata(rport->phy->dev.parent);
+	const struct usb2phy_reg *iomux = &rport->port_cfg->bypass_iomux;
+	struct regmap *base = get_reg_base(rphy);
+	int ret = 0;
+
+	mutex_lock(&rport->mutex);
+
+	if (en == property_enabled(base, &rport->port_cfg->bypass_sel)) {
+		dev_info(&rport->phy->dev,
+			 "bypass uart %s is already set\n", en ? "on" : "off");
+		goto unlock;
+	}
+
+	dev_info(&rport->phy->dev, "bypass uart %s\n", en ? "on" : "off");
+
+	if (en) {
+		/*
+		 * To use UART function:
+		 * 1. Put the USB PHY in suspend mode and opmode is normal;
+		 * 2. Set bypasssel to 1'b1 and bypassdmen to 1'b1;
+		 *
+		 * Note: Although the datasheet requires that put USB PHY
+		 * in non-driving mode to disable resistance when use USB
+		 * bypass UART function, but actually we find that if we
+		 * set phy in non-driving mode, it will cause UART to print
+		 * random codes. So just put USB PHY in normal mode.
+		 */
+		ret |= property_enable(base, &rport->port_cfg->bypass_sel,
+				       true);
+		ret |= property_enable(base, &rport->port_cfg->bypass_dm_en,
+				       true);
+
+		/* Some platforms required to set iomux of bypass uart */
+		if (iomux->offset)
+			ret |= property_enable(rphy->grf, iomux, true);
+	} else {
+		/* just disable bypass, and resume phy in phy power_on later */
+		ret |= property_enable(base, &rport->port_cfg->bypass_sel,
+				       false);
+		ret |= property_enable(base, &rport->port_cfg->bypass_dm_en,
+				       false);
+
+		/* Some platforms required to set iomux of bypass uart */
+		if (iomux->offset)
+			ret |= property_enable(rphy->grf, iomux, false);
+	}
+
+unlock:
+	mutex_unlock(&rport->mutex);
+
+	return ret;
+}
+
+static void rockchip_usb_bypass_uart_work(struct work_struct *work)
+{
+	struct rockchip_usb2phy_port *rport =
+		container_of(work, struct rockchip_usb2phy_port,
+			     bypass_uart_work.work);
+	struct rockchip_usb2phy *rphy = dev_get_drvdata(rport->phy->dev.parent);
+	bool vbus, iddig;
+	int ret;
+
+	mutex_lock(&rport->mutex);
+
+	iddig = property_enabled(rphy->grf, &rport->port_cfg->utmi_iddig);
+
+	if (rport->utmi_avalid)
+		vbus = property_enabled(rphy->grf, &rport->port_cfg->utmi_avalid);
+	else
+		vbus = property_enabled(rphy->grf, &rport->port_cfg->utmi_bvalid);
+
+	mutex_unlock(&rport->mutex);
+
+	/*
+	 * If the vbus is low and iddig is high, it indicates that usb
+	 * otg is not working, then we can enable usb to bypass uart,
+	 * otherwise schedule the work until the conditions (vbus is low
+	 * and iddig is high) are matched.
+	 */
+	if (!vbus && iddig) {
+		ret = rockchip_usb_bypass_uart(rport, true);
+		if (ret)
+			dev_warn(&rport->phy->dev,
+				 "failed to enable bypass uart\n");
+	} else {
+		schedule_delayed_work(&rport->bypass_uart_work,
+				      BYPASS_SCHEDULE_DELAY);
+	}
+}
+
 static int rockchip_usb2phy_init(struct phy *phy)
 {
 	struct rockchip_usb2phy_port *rport = phy_get_drvdata(phy);
@@ -552,6 +656,15 @@ static int rockchip_usb2phy_power_on(struct phy *phy)
 
 	dev_dbg(&rport->phy->dev, "port power on\n");
 
+	if (rport->bypass_uart_en) {
+		ret = rockchip_usb_bypass_uart(rport, false);
+		if (ret) {
+			dev_warn(&rport->phy->dev,
+				 "failed to disable bypass uart\n");
+			goto exit;
+		}
+	}
+
 	mutex_lock(&rport->mutex);
 
 	if (!rport->suspended) {
@@ -575,6 +688,11 @@ static int rockchip_usb2phy_power_on(struct phy *phy)
 unlock:
 	mutex_unlock(&rport->mutex);
 
+	/* Enable bypass uart in the bypass_uart_work. */
+	if (rport->bypass_uart_en)
+		schedule_delayed_work(&rport->bypass_uart_work, 0);
+
+exit:
 	return ret;
 }
 
@@ -603,6 +721,10 @@ static int rockchip_usb2phy_power_off(struct phy *phy)
 
 unlock:
 	mutex_unlock(&rport->mutex);
+
+	/* Enable bypass uart in the bypass_uart_work. */
+	if (rport->bypass_uart_en)
+		schedule_delayed_work(&rport->bypass_uart_work, 0);
 
 	return ret;
 }
@@ -1273,6 +1395,9 @@ static irqreturn_t rockchip_usb2phy_bvalid_irq(int irq, void *data)
 
 	mutex_unlock(&rport->mutex);
 
+	if (rport->bypass_uart_en)
+		rockchip_usb_bypass_uart(rport, false);
+
 	cancel_delayed_work_sync(&rport->otg_sm_work);
 	rockchip_usb2phy_otg_sm_work(&rport->otg_sm_work.work);
 
@@ -1390,8 +1515,13 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 
 	mutex_init(&rport->mutex);
 
+	/* bypass uart function is only used in debug stage. */
+	rport->bypass_uart_en =
+		of_property_read_bool(child_np, "rockchip,bypass-uart");
 	rport->vbus_always_on =
 		of_property_read_bool(child_np, "rockchip,vbus-always-on");
+	rport->utmi_avalid =
+		of_property_read_bool(child_np, "rockchip,utmi-avalid");
 
 	rport->mode = of_usb_get_dr_mode_by_phy(child_np, -1);
 	if (rport->mode == USB_DR_MODE_HOST ||
@@ -1401,11 +1531,10 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		goto out;
 	}
 
+	INIT_DELAYED_WORK(&rport->bypass_uart_work,
+			  rockchip_usb_bypass_uart_work);
 	INIT_DELAYED_WORK(&rport->chg_work, rockchip_chg_detect_work);
 	INIT_DELAYED_WORK(&rport->otg_sm_work, rockchip_usb2phy_otg_sm_work);
-
-	rport->utmi_avalid =
-		of_property_read_bool(child_np, "rockchip,utmi-avalid");
 
 	/*
 	 * Some SoCs use one interrupt with otg-id/otg-bvalid/linestate
@@ -1866,6 +1995,8 @@ static const struct rockchip_usb2phy_cfg rk312x_phy_cfgs[] = {
 				.bvalid_det_en	= { 0x017c, 14, 14, 0, 1 },
 				.bvalid_det_st	= { 0x017c, 15, 15, 0, 1 },
 				.bvalid_det_clr	= { 0x017c, 15, 15, 0, 1 },
+				.bypass_dm_en	= { 0x0190, 12, 12, 0, 1},
+				.bypass_sel	= { 0x0190, 13, 13, 0, 1},
 				.iddig_output	= { 0x017c, 10, 10, 0, 1 },
 				.iddig_en	= { 0x017c, 9, 9, 0, 1 },
 				.idfall_det_en  = { 0x01a0, 2, 2, 0, 1 },
@@ -2108,6 +2239,8 @@ static const struct rockchip_usb2phy_cfg rk3399_phy_cfgs[] = {
 				.bvalid_det_en	= { 0xe3c0, 3, 3, 0, 1 },
 				.bvalid_det_st	= { 0xe3e0, 3, 3, 0, 1 },
 				.bvalid_det_clr	= { 0xe3d0, 3, 3, 0, 1 },
+				.bypass_dm_en   = { 0xe450, 2, 2, 0, 1 },
+				.bypass_sel     = { 0xe450, 3, 3, 0, 1 },
 				.idfall_det_en	= { 0xe3c0, 5, 5, 0, 1 },
 				.idfall_det_st	= { 0xe3e0, 5, 5, 0, 1 },
 				.idfall_det_clr	= { 0xe3d0, 5, 5, 0, 1 },
