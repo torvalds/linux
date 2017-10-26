@@ -81,12 +81,16 @@ static int cards_found;
 
 /* module parameters */
 /* 30 sec default heartbeat (1 < heartbeat < 2*1023) */
-#define WATCHDOG_HEARTBEAT 30
+#define ESB_HEARTBEAT_MIN	1
+#define ESB_HEARTBEAT_MAX	2046
+#define ESB_HEARTBEAT_DEFAULT	30
+#define ESB_HEARTBEAT_RANGE __MODULE_STRING(ESB_HEARTBEAT_MIN) \
+	"<heartbeat<" __MODULE_STRING(ESB_HEARTBEAT_MAX)
 static int heartbeat; /* in seconds */
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat,
-		"Watchdog heartbeat in seconds. (1<heartbeat<2046, default="
-				__MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
+	"Watchdog heartbeat in seconds. (" ESB_HEARTBEAT_RANGE
+	", default=" __MODULE_STRING(ESB_HEARTBEAT_DEFAULT) ")");
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
@@ -315,13 +319,13 @@ static int esb_probe(struct pci_dev *pdev,
 	/* Initialize the watchdog and make sure it does not run */
 	edev->wdd.info = &esb_info;
 	edev->wdd.ops = &esb_ops;
-	edev->wdd.min_timeout = 1;
-	edev->wdd.max_timeout = 2 * 0x03ff;
-	edev->wdd.timeout = WATCHDOG_HEARTBEAT;
+	edev->wdd.min_timeout = ESB_HEARTBEAT_MIN;
+	edev->wdd.max_timeout = ESB_HEARTBEAT_MAX;
+	edev->wdd.timeout = ESB_HEARTBEAT_DEFAULT;
 	if (watchdog_init_timeout(&edev->wdd, heartbeat, NULL))
 		dev_info(&pdev->dev,
-			"heartbeat value must be 1<heartbeat<2046, using %u\n",
-			edev->wdd.timeout);
+			"heartbeat value must be " ESB_HEARTBEAT_RANGE
+			", using %u\n", edev->wdd.timeout);
 	watchdog_set_nowayout(&edev->wdd, nowayout);
 	watchdog_stop_on_reboot(&edev->wdd);
 	watchdog_stop_on_unregister(&edev->wdd);
