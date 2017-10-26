@@ -39,6 +39,14 @@ of these nodes are defined by the individual bindings for the specific function
 	Definition: a list of channels tied to this function, used for matching
 		    the function to a set of virtual channels
 
+- qcom,intents:
+	Usage: optional
+	Value type: <prop-encoded-array>
+	Definition: a list of size,amount pairs describing what intents should
+		    be preallocated for this virtual channel. This can be used
+		    to tweak the default intents available for the channel to
+		    meet expectations of the remote.
+
 = EXAMPLE
 The following example represents the GLINK RPM node on a MSM8996 device, with
 the function for the "rpm_request" channel defined, which is used for
@@ -69,6 +77,8 @@ regualtors and root clocks.
 			compatible = "qcom,rpm-msm8996";
 			qcom,glink-channels = "rpm_requests";
 
+			qcom,intents = <0x400 5
+					0x800 1>;
 			...
 		};
 	};
