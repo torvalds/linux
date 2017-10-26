@@ -30,8 +30,6 @@
  *      Includes, defines, variables, module parameters, ...
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -45,7 +43,6 @@
 #include <linux/io.h>
 
 /* Module and version information */
-#define ESB_VERSION "0.05"
 #define ESB_MODULE_NAME "i6300ESB timer"
 
 /* PCI configuration registers */
@@ -75,9 +72,6 @@
 /* Magic constants */
 #define ESB_UNLOCK1     0x80            /* Step 1 to unlock reset registers  */
 #define ESB_UNLOCK2     0x86            /* Step 2 to unlock reset registers  */
-
-/* Probed devices counter; used only for printing the initial info message */
-static int cards_found;
 
 /* module parameters */
 /* 30 sec default heartbeat (1 < heartbeat < 2*1023) */
@@ -301,11 +295,6 @@ static int esb_probe(struct pci_dev *pdev,
 {
 	struct esb_dev *edev;
 	int ret;
-
-	cards_found++;
-	if (cards_found == 1)
-		pr_info("Intel 6300ESB WatchDog Timer Driver v%s\n",
-			ESB_VERSION);
 
 	edev = devm_kzalloc(&pdev->dev, sizeof(*edev), GFP_KERNEL);
 	if (!edev)
