@@ -44,19 +44,24 @@ static int bnxt_get_coalesce(struct net_device *dev,
 			     struct ethtool_coalesce *coal)
 {
 	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_coal *hw_coal;
+	u16 mult;
 
 	memset(coal, 0, sizeof(*coal));
 
-	coal->rx_coalesce_usecs = bp->rx_coal_ticks;
-	/* 2 completion records per rx packet */
-	coal->rx_max_coalesced_frames = bp->rx_coal_bufs / 2;
-	coal->rx_coalesce_usecs_irq = bp->rx_coal_ticks_irq;
-	coal->rx_max_coalesced_frames_irq = bp->rx_coal_bufs_irq / 2;
+	hw_coal = &bp->rx_coal;
+	mult = hw_coal->bufs_per_record;
+	coal->rx_coalesce_usecs = hw_coal->coal_ticks;
+	coal->rx_max_coalesced_frames = hw_coal->coal_bufs / mult;
+	coal->rx_coalesce_usecs_irq = hw_coal->coal_ticks_irq;
+	coal->rx_max_coalesced_frames_irq = hw_coal->coal_bufs_irq / mult;
 
-	coal->tx_coalesce_usecs = bp->tx_coal_ticks;
-	coal->tx_max_coalesced_frames = bp->tx_coal_bufs;
-	coal->tx_coalesce_usecs_irq = bp->tx_coal_ticks_irq;
-	coal->tx_max_coalesced_frames_irq = bp->tx_coal_bufs_irq;
+	hw_coal = &bp->tx_coal;
+	mult = hw_coal->bufs_per_record;
+	coal->tx_coalesce_usecs = hw_coal->coal_ticks;
+	coal->tx_max_coalesced_frames = hw_coal->coal_bufs / mult;
+	coal->tx_coalesce_usecs_irq = hw_coal->coal_ticks_irq;
+	coal->tx_max_coalesced_frames_irq = hw_coal->coal_bufs_irq / mult;
 
 	coal->stats_block_coalesce_usecs = bp->stats_coal_ticks;
 
@@ -68,18 +73,23 @@ static int bnxt_set_coalesce(struct net_device *dev,
 {
 	struct bnxt *bp = netdev_priv(dev);
 	bool update_stats = false;
+	struct bnxt_coal *hw_coal;
 	int rc = 0;
+	u16 mult;
 
-	bp->rx_coal_ticks = coal->rx_coalesce_usecs;
-	/* 2 completion records per rx packet */
-	bp->rx_coal_bufs = coal->rx_max_coalesced_frames * 2;
-	bp->rx_coal_ticks_irq = coal->rx_coalesce_usecs_irq;
-	bp->rx_coal_bufs_irq = coal->rx_max_coalesced_frames_irq * 2;
+	hw_coal = &bp->rx_coal;
+	mult = hw_coal->bufs_per_record;
+	hw_coal->coal_ticks = coal->rx_coalesce_usecs;
+	hw_coal->coal_bufs = coal->rx_max_coalesced_frames * mult;
+	hw_coal->coal_ticks_irq = coal->rx_coalesce_usecs_irq;
+	hw_coal->coal_bufs_irq = coal->rx_max_coalesced_frames_irq * mult;
 
-	bp->tx_coal_ticks = coal->tx_coalesce_usecs;
-	bp->tx_coal_bufs = coal->tx_max_coalesced_frames;
-	bp->tx_coal_ticks_irq = coal->tx_coalesce_usecs_irq;
-	bp->tx_coal_bufs_irq = coal->tx_max_coalesced_frames_irq;
+	hw_coal = &bp->rx_coal;
+	mult = hw_coal->bufs_per_record;
+	hw_coal->coal_ticks = coal->tx_coalesce_usecs;
+	hw_coal->coal_bufs = coal->tx_max_coalesced_frames * mult;
+	hw_coal->coal_ticks_irq = coal->tx_coalesce_usecs_irq;
+	hw_coal->coal_bufs_irq = coal->tx_max_coalesced_frames_irq * mult;
 
 	if (bp->stats_coal_ticks != coal->stats_block_coalesce_usecs) {
 		u32 stats_ticks = coal->stats_block_coalesce_usecs;

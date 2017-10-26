@@ -944,6 +944,17 @@ struct bnxt_test_info {
 #define BNXT_CAG_REG_LEGACY_INT_STATUS	0x4014
 #define BNXT_CAG_REG_BASE		0x300000
 
+struct bnxt_coal {
+	u16			coal_ticks;
+	u16			coal_ticks_irq;
+	u16			coal_bufs;
+	u16			coal_bufs_irq;
+			/* RING_IDLE enabled when coal ticks < idle_thresh  */
+	u16			idle_thresh;
+	u8			bufs_per_record;
+	u8			budget;
+};
+
 struct bnxt_tc_info {
 	bool				enabled;
 
@@ -1235,14 +1246,8 @@ struct bnxt {
 	u8			port_count;
 	u16			br_mode;
 
-	u16			rx_coal_ticks;
-	u16			rx_coal_ticks_irq;
-	u16			rx_coal_bufs;
-	u16			rx_coal_bufs_irq;
-	u16			tx_coal_ticks;
-	u16			tx_coal_ticks_irq;
-	u16			tx_coal_bufs;
-	u16			tx_coal_bufs_irq;
+	struct bnxt_coal	rx_coal;
+	struct bnxt_coal	tx_coal;
 
 #define BNXT_USEC_TO_COAL_TIMER(x)	((x) * 25 / 2)
 

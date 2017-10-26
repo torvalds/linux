@@ -4569,34 +4569,31 @@ int bnxt_hwrm_set_coal(struct bnxt *bp)
 	/* Each rx completion (2 records) should be DMAed immediately.
 	 * DMA 1/4 of the completion buffers at a time.
 	 */
-	max_buf = min_t(u16, bp->rx_coal_bufs / 4, 2);
+	max_buf = min_t(u16, bp->rx_coal.coal_bufs / 4, 2);
 	/* max_buf must not be zero */
 	max_buf = clamp_t(u16, max_buf, 1, 63);
-	max_buf_irq = clamp_t(u16, bp->rx_coal_bufs_irq, 1, 63);
-	buf_tmr = BNXT_USEC_TO_COAL_TIMER(bp->rx_coal_ticks);
+	max_buf_irq = clamp_t(u16, bp->rx_coal.coal_bufs_irq, 1, 63);
+	buf_tmr = BNXT_USEC_TO_COAL_TIMER(bp->rx_coal.coal_ticks);
 	/* buf timer set to 1/4 of interrupt timer */
 	buf_tmr = max_t(u16, buf_tmr / 4, 1);
-	buf_tmr_irq = BNXT_USEC_TO_COAL_TIMER(bp->rx_coal_ticks_irq);
+	buf_tmr_irq = BNXT_USEC_TO_COAL_TIMER(bp->rx_coal.coal_ticks_irq);
 	buf_tmr_irq = max_t(u16, buf_tmr_irq, 1);
 
 	flags = RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_TIMER_RESET;
 
-	/* RING_IDLE generates more IRQs for lower latency.  Enable it only
-	 * if coal_ticks is less than 25 us.
-	 */
-	if (bp->rx_coal_ticks < 25)
+	if (bp->rx_coal.coal_ticks < bp->rx_coal.idle_thresh)
 		flags |= RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_RING_IDLE;
 
 	bnxt_hwrm_set_coal_params(bp, max_buf_irq << 16 | max_buf,
 				  buf_tmr_irq << 16 | buf_tmr, flags, &req_rx);
 
 	/* max_buf must not be zero */
-	max_buf = clamp_t(u16, bp->tx_coal_bufs, 1, 63);
-	max_buf_irq = clamp_t(u16, bp->tx_coal_bufs_irq, 1, 63);
-	buf_tmr = BNXT_USEC_TO_COAL_TIMER(bp->tx_coal_ticks);
+	max_buf = clamp_t(u16, bp->tx_coal.coal_bufs, 1, 63);
+	max_buf_irq = clamp_t(u16, bp->tx_coal.coal_bufs_irq, 1, 63);
+	buf_tmr = BNXT_USEC_TO_COAL_TIMER(bp->tx_coal.coal_ticks);
 	/* buf timer set to 1/4 of interrupt timer */
 	buf_tmr = max_t(u16, buf_tmr / 4, 1);
-	buf_tmr_irq = BNXT_USEC_TO_COAL_TIMER(bp->tx_coal_ticks_irq);
+	buf_tmr_irq = BNXT_USEC_TO_COAL_TIMER(bp->tx_coal.coal_ticks_irq);
 	buf_tmr_irq = max_t(u16, buf_tmr_irq, 1);
 
 	flags = RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_TIMER_RESET;
@@ -7146,6 +7143,32 @@ static void bnxt_cleanup_pci(struct bnxt *bp)
 	pci_disable_device(bp->pdev);
 }
 
+static void bnxt_init_dflt_coal(struct bnxt *bp)
+{
+	struct bnxt_coal *coal;
+
+	/* Tick values in micro seconds.
+	 * 1 coal_buf x bufs_per_record = 1 completion record.
+	 */
+	coal = &bp->rx_coal;
+	coal->coal_ticks = 14;
+	coal->coal_bufs = 30;
+	coal->coal_ticks_irq = 1;
+	coal->coal_bufs_irq = 2;
+	coal->idle_thresh = 25;
+	coal->bufs_per_record = 2;
+	coal->budget = 64;		/* NAPI budget */
+
+	coal = &bp->tx_coal;
+	coal->coal_ticks = 28;
+	coal->coal_bufs = 30;
+	coal->coal_ticks_irq = 2;
+	coal->coal_bufs_irq = 2;
+	coal->bufs_per_record = 1;
+
+	bp->stats_coal_ticks = BNXT_DEF_STATS_COAL_TICKS;
+}
+
 static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 {
 	int rc;
@@ -7214,18 +7237,7 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->rx_ring_size = BNXT_DEFAULT_RX_RING_SIZE;
 	bp->tx_ring_size = BNXT_DEFAULT_TX_RING_SIZE;
 
-	/* tick values in micro seconds */
-	bp->rx_coal_ticks = 12;
-	bp->rx_coal_bufs = 30;
-	bp->rx_coal_ticks_irq = 1;
-	bp->rx_coal_bufs_irq = 2;
-
-	bp->tx_coal_ticks = 25;
-	bp->tx_coal_bufs = 30;
-	bp->tx_coal_ticks_irq = 2;
-	bp->tx_coal_bufs_irq = 2;
-
-	bp->stats_coal_ticks = BNXT_DEF_STATS_COAL_TICKS;
+	bnxt_init_dflt_coal(bp);
 
 	setup_timer(&bp->timer, bnxt_timer, (unsigned long)bp);
 	bp->current_interval = BNXT_TIMER_INTERVAL;
