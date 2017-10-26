@@ -6928,7 +6928,7 @@ M:	Zhi Wang <zhi.a.wang@intel.com>
 L:	intel-gvt-dev@lists.freedesktop.org
 L:	intel-gfx@lists.freedesktop.org
 W:	https://01.org/igvt-g
-T:	git https://github.com/01org/gvt-linux.git
+T:	git https://github.com/intel/gvt-linux.git
 S:	Supported
 F:	drivers/gpu/drm/i915/gvt/
 
