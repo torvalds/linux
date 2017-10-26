@@ -945,7 +945,8 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	caps->cqe_hop_num	= HNS_ROCE_CQE_HOP_NUM;
 	caps->chunk_sz		= HNS_ROCE_V2_TABLE_CHUNK_SIZE;
 
-	caps->flags		= HNS_ROCE_CAP_FLAG_REREG_MR;
+	caps->flags		= HNS_ROCE_CAP_FLAG_REREG_MR |
+				  HNS_ROCE_CAP_FLAG_ROCE_V1_V2;
 	caps->pkey_table_len[0] = 1;
 	caps->gid_table_len[0] = 2;
 	caps->local_ca_ack_delay = 0;

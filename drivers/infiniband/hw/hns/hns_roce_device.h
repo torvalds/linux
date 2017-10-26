@@ -172,6 +172,7 @@ enum {
 
 enum {
 	HNS_ROCE_CAP_FLAG_REREG_MR		= BIT(0),
+	HNS_ROCE_CAP_FLAG_ROCE_V1_V2		= BIT(1),
 };
 
 enum hns_roce_mtt_type {
