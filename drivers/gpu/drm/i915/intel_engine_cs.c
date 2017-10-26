@@ -1723,9 +1723,14 @@ void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
 	drm_printf(m, "\tRING_TAIL:  0x%08x [0x%08x]\n",
 		   I915_READ(RING_TAIL(engine->mmio_base)) & TAIL_ADDR,
 		   rq ? rq->ring->tail : 0);
-	drm_printf(m, "\tRING_CTL:   0x%08x [%s]\n",
+	drm_printf(m, "\tRING_CTL:   0x%08x%s\n",
 		   I915_READ(RING_CTL(engine->mmio_base)),
-		   I915_READ(RING_CTL(engine->mmio_base)) & (RING_WAIT | RING_WAIT_SEMAPHORE) ? "waiting" : "");
+		   I915_READ(RING_CTL(engine->mmio_base)) & (RING_WAIT | RING_WAIT_SEMAPHORE) ? " [waiting]" : "");
+	if (INTEL_GEN(engine->i915) > 2) {
+		drm_printf(m, "\tRING_MODE:  0x%08x%s\n",
+			   I915_READ(RING_MI_MODE(engine->mmio_base)),
+			   I915_READ(RING_MI_MODE(engine->mmio_base)) & (MODE_IDLE) ? " [idle]" : "");
+	}
 
 	rcu_read_unlock();
 
