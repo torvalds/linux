@@ -2896,6 +2896,7 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 	struct amdgpu_framebuffer *afb;
 	struct drm_gem_object *obj;
 	struct amdgpu_bo *rbo;
+	uint64_t chroma_addr = 0;
 	int r;
 	struct dm_plane_state *dm_plane_state_new, *dm_plane_state_old;
 	unsigned int awidth;
@@ -2937,11 +2938,16 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 			plane_state->address.grph.addr.high_part = upper_32_bits(afb->address);
 		} else {
 			awidth = ALIGN(new_state->fb->width, 64);
+			plane_state->address.type = PLN_ADDR_TYPE_VIDEO_PROGRESSIVE;
 			plane_state->address.video_progressive.luma_addr.low_part
 							= lower_32_bits(afb->address);
+			plane_state->address.video_progressive.luma_addr.high_part
+							= upper_32_bits(afb->address);
+			chroma_addr = afb->address + (u64)(awidth * new_state->fb->height);
 			plane_state->address.video_progressive.chroma_addr.low_part
-							= lower_32_bits(afb->address) +
-								(awidth * new_state->fb->height);
+							= lower_32_bits(chroma_addr);
+			plane_state->address.video_progressive.chroma_addr.high_part
+							= upper_32_bits(chroma_addr);
 		}
 	}
 
