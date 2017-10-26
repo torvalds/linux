@@ -254,6 +254,13 @@ struct dsa_switch {
 	struct dsa_port ports[];
 };
 
+static inline bool dsa_is_unused_port(struct dsa_switch *ds, int p)
+{
+	u32 m = ds->enabled_port_mask | ds->dsa_port_mask | ds->cpu_port_mask;
+
+	return !(m & BIT(p));
+}
+
 static inline bool dsa_is_cpu_port(struct dsa_switch *ds, int p)
 {
 	return !!(ds->cpu_port_mask & (1 << p));
