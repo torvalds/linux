@@ -845,7 +845,7 @@ static void print_noise(struct perf_evsel *evsel, double avg)
 	if (run_count == 1)
 		return;
 
-	ps = evsel->priv;
+	ps = evsel->stats;
 	print_noise_pct(stddev_stats(&ps->res_stats[0]), avg);
 }
 
@@ -1432,7 +1432,7 @@ static void counter_aggr_cb(struct perf_evsel *counter, void *data,
 			    bool first __maybe_unused)
 {
 	struct caggr_data *cd = data;
-	struct perf_stat_evsel *ps = counter->priv;
+	struct perf_stat_evsel *ps = counter->stats;
 
 	cd->avg += avg_stats(&ps->res_stats[0]);
 	cd->avg_enabled += avg_stats(&ps->res_stats[1]);

@@ -68,6 +68,8 @@ struct perf_evsel_config_term {
 	} val;
 };
 
+struct perf_stat_evsel;
+
 /** struct perf_evsel - event selector
  *
  * @evlist - evlist this evsel is in, if it is in one.
@@ -101,6 +103,7 @@ struct perf_evsel {
 	const char		*unit;
 	struct event_format	*tp_format;
 	off_t			id_offset;
+	struct perf_stat_evsel  *stats;
 	void			*priv;
 	u64			db_id;
 	struct cgroup_sel	*cgrp;
