@@ -136,7 +136,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 	/* Make the built-in MII bus mask match the number of ports,
 	 * switch drivers can override this later
 	 */
-	ds->phys_mii_mask = ds->enabled_port_mask;
+	ds->phys_mii_mask |= dsa_user_ports(ds);
 
 	/*
 	 * If the CPU connects to this switch, set the switch tree

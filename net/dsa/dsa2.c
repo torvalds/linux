@@ -312,7 +312,7 @@ static int dsa_ds_apply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 	 * the slave MDIO bus driver rely on these values for probing PHY
 	 * devices or not
 	 */
-	ds->phys_mii_mask = ds->enabled_port_mask;
+	ds->phys_mii_mask |= dsa_user_ports(ds);
 
 	/* Add the switch to devlink before calling setup, so that setup can
 	 * add dpipe tables

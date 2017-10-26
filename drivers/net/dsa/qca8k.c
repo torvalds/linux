@@ -551,8 +551,7 @@ qca8k_setup(struct dsa_switch *ds)
 		/* CPU port gets connected to all user ports of the switch */
 		if (dsa_is_cpu_port(ds, i)) {
 			qca8k_rmw(priv, QCA8K_PORT_LOOKUP_CTRL(QCA8K_CPU_PORT),
-				  QCA8K_PORT_LOOKUP_MEMBER,
-				  ds->enabled_port_mask);
+				  QCA8K_PORT_LOOKUP_MEMBER, dsa_user_ports(ds));
 		}
 
 		/* Invividual user ports get connected to CPU port only */

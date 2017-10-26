@@ -175,9 +175,8 @@ static int mv88e6060_setup_port(struct dsa_switch *ds, int p)
 	 */
 	REG_WRITE(addr, PORT_VLAN_MAP,
 		  ((p & 0xf) << PORT_VLAN_MAP_DBNUM_SHIFT) |
-		   (dsa_is_cpu_port(ds, p) ?
-			ds->enabled_port_mask :
-			BIT(dsa_to_port(ds, p)->cpu_dp->index)));
+		   (dsa_is_cpu_port(ds, p) ? dsa_user_ports(ds) :
+		    BIT(dsa_to_port(ds, p)->cpu_dp->index)));
 
 	/* Port Association Vector: when learning source addresses
 	 * of packets, add the address to the address database using

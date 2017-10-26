@@ -688,7 +688,7 @@ mt7530_cpu_port_enable(struct mt7530_priv *priv,
 	 * the switch
 	 */
 	mt7530_write(priv, MT7530_PCR_P(port),
-		     PCR_MATRIX(priv->ds->enabled_port_mask));
+		     PCR_MATRIX(dsa_user_ports(priv->ds)));
 
 	return 0;
 }

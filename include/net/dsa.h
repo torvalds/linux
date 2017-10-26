@@ -276,6 +276,11 @@ static inline bool dsa_is_user_port(struct dsa_switch *ds, int p)
 	return !!(ds->enabled_port_mask & BIT(p));
 }
 
+static inline u32 dsa_user_ports(struct dsa_switch *ds)
+{
+	return ds->enabled_port_mask;
+}
+
 static inline const struct dsa_port *dsa_to_port(struct dsa_switch *ds, int p)
 {
 	return &ds->ports[p];
