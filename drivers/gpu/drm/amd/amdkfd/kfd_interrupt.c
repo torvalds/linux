@@ -61,6 +61,7 @@ int kfd_interrupt_init(struct kfd_dev *kfd)
 		return r;
 	}
 
+	kfd->ih_wq = alloc_workqueue("KFD IH", WQ_HIGHPRI, 1);
 	spin_lock_init(&kfd->interrupt_lock);
 
 	INIT_WORK(&kfd->interrupt_work, interrupt_wq);
@@ -95,7 +96,7 @@ void kfd_interrupt_exit(struct kfd_dev *kfd)
 	 * work-queue items that will access interrupt_ring. New work items
 	 * can't be created because we stopped interrupt handling above.
 	 */
-	flush_work(&kfd->interrupt_work);
+	flush_workqueue(kfd->ih_wq);
 
 	kfifo_free(&kfd->ih_fifo);
 }
