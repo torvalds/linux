@@ -265,6 +265,7 @@ static int __must_check nr_add_node(ax25_address *nr, const char *mnemonic,
 	case 3:
 		re_sort_routes(nr_node, 0, 1);
 		re_sort_routes(nr_node, 1, 2);
+		/* fall through */
 	case 2:
 		re_sort_routes(nr_node, 0, 1);
 	case 1:
@@ -357,6 +358,7 @@ static int nr_del_node(ax25_address *callsign, ax25_address *neighbour, struct n
 				switch (i) {
 				case 0:
 					nr_node->routes[0] = nr_node->routes[1];
+					/* fall through */
 				case 1:
 					nr_node->routes[1] = nr_node->routes[2];
 				case 2:
@@ -526,6 +528,7 @@ void nr_rt_device_down(struct net_device *dev)
 						switch (i) {
 						case 0:
 							t->routes[0] = t->routes[1];
+							/* fall through */
 						case 1:
 							t->routes[1] = t->routes[2];
 						case 2:
