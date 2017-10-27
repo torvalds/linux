@@ -257,10 +257,9 @@ static void dsa_cpu_port_unapply(struct dsa_port *port)
 static int dsa_user_port_apply(struct dsa_port *port)
 {
 	struct dsa_switch *ds = port->ds;
-	const char *name = port->name;
 	int err;
 
-	err = dsa_slave_create(port, name);
+	err = dsa_slave_create(port);
 	if (err) {
 		dev_warn(ds->dev, "Failed to create slave %d: %d\n",
 			 port->index, err);

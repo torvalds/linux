@@ -1142,11 +1142,12 @@ static void dsa_slave_notify(struct net_device *dev, unsigned long val)
 	call_dsa_notifiers(val, dev, &rinfo.info);
 }
 
-int dsa_slave_create(struct dsa_port *port, const char *name)
+int dsa_slave_create(struct dsa_port *port)
 {
 	struct dsa_port *cpu_dp = port->cpu_dp;
 	struct net_device *master = cpu_dp->master;
 	struct dsa_switch *ds = port->ds;
+	const char *name = port->name;
 	struct net_device *slave_dev;
 	struct dsa_slave_priv *p;
 	int ret;
