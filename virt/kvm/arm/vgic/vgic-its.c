@@ -505,19 +505,11 @@ static unsigned long vgic_mmio_read_its_idregs(struct kvm *kvm,
 	return 0;
 }
 
-/*
- * Find the target VCPU and the LPI number for a given devid/eventid pair
- * and make this IRQ pending, possibly injecting it.
- * Must be called with the its_lock mutex held.
- * Returns 0 on success, a positive error value for any ITS mapping
- * related errors and negative error values for generic errors.
- */
-static int vgic_its_trigger_msi(struct kvm *kvm, struct vgic_its *its,
-				u32 devid, u32 eventid)
+int vgic_its_resolve_lpi(struct kvm *kvm, struct vgic_its *its,
+			 u32 devid, u32 eventid, struct vgic_irq **irq)
 {
 	struct kvm_vcpu *vcpu;
 	struct its_ite *ite;
-	unsigned long flags;
 
 	if (!its->enabled)
 		return -EBUSY;
@@ -533,26 +525,61 @@ static int vgic_its_trigger_msi(struct kvm *kvm, struct vgic_its *its,
 	if (!vcpu->arch.vgic_cpu.lpis_enabled)
 		return -EBUSY;
 
-	spin_lock_irqsave(&ite->irq->irq_lock, flags);
-	ite->irq->pending_latch = true;
-	vgic_queue_irq_unlock(kvm, ite->irq, flags);
-
+	*irq = ite->irq;
 	return 0;
 }
 
-static struct vgic_io_device *vgic_get_its_iodev(struct kvm_io_device *dev)
+struct vgic_its *vgic_msi_to_its(struct kvm *kvm, struct kvm_msi *msi)
 {
+	u64 address;
+	struct kvm_io_device *kvm_io_dev;
 	struct vgic_io_device *iodev;
 
-	if (dev->ops != &kvm_io_gic_ops)
-		return NULL;
+	if (!vgic_has_its(kvm))
+		return ERR_PTR(-ENODEV);
 
-	iodev = container_of(dev, struct vgic_io_device, dev);
+	if (!(msi->flags & KVM_MSI_VALID_DEVID))
+		return ERR_PTR(-EINVAL);
 
+	address = (u64)msi->address_hi << 32 | msi->address_lo;
+
+	kvm_io_dev = kvm_io_bus_get_dev(kvm, KVM_MMIO_BUS, address);
+	if (!kvm_io_dev)
+		return ERR_PTR(-EINVAL);
+
+	if (kvm_io_dev->ops != &kvm_io_gic_ops)
+		return ERR_PTR(-EINVAL);
+
+	iodev = container_of(kvm_io_dev, struct vgic_io_device, dev);
 	if (iodev->iodev_type != IODEV_ITS)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
-	return iodev;
+	return iodev->its;
+}
+
+/*
+ * Find the target VCPU and the LPI number for a given devid/eventid pair
+ * and make this IRQ pending, possibly injecting it.
+ * Must be called with the its_lock mutex held.
+ * Returns 0 on success, a positive error value for any ITS mapping
+ * related errors and negative error values for generic errors.
+ */
+static int vgic_its_trigger_msi(struct kvm *kvm, struct vgic_its *its,
+				u32 devid, u32 eventid)
+{
+	struct vgic_irq *irq = NULL;
+	unsigned long flags;
+	int err;
+
+	err = vgic_its_resolve_lpi(kvm, its, devid, eventid, &irq);
+	if (err)
+		return err;
+
+	spin_lock_irqsave(&irq->irq_lock, flags);
+	irq->pending_latch = true;
+	vgic_queue_irq_unlock(kvm, irq, flags);
+
+	return 0;
 }
 
 /*
@@ -563,30 +590,16 @@ static struct vgic_io_device *vgic_get_its_iodev(struct kvm_io_device *dev)
  */
 int vgic_its_inject_msi(struct kvm *kvm, struct kvm_msi *msi)
 {
-	u64 address;
-	struct kvm_io_device *kvm_io_dev;
-	struct vgic_io_device *iodev;
+	struct vgic_its *its;
 	int ret;
 
-	if (!vgic_has_its(kvm))
-		return -ENODEV;
+	its = vgic_msi_to_its(kvm, msi);
+	if (IS_ERR(its))
+		return PTR_ERR(its);
 
-	if (!(msi->flags & KVM_MSI_VALID_DEVID))
-		return -EINVAL;
-
-	address = (u64)msi->address_hi << 32 | msi->address_lo;
-
-	kvm_io_dev = kvm_io_bus_get_dev(kvm, KVM_MMIO_BUS, address);
-	if (!kvm_io_dev)
-		return -EINVAL;
-
-	iodev = vgic_get_its_iodev(kvm_io_dev);
-	if (!iodev)
-		return -EINVAL;
-
-	mutex_lock(&iodev->its->its_lock);
-	ret = vgic_its_trigger_msi(kvm, iodev->its, msi->devid, msi->data);
-	mutex_unlock(&iodev->its->its_lock);
+	mutex_lock(&its->its_lock);
+	ret = vgic_its_trigger_msi(kvm, its, msi->devid, msi->data);
+	mutex_unlock(&its->its_lock);
 
 	if (ret < 0)
 		return ret;
