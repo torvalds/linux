@@ -24,6 +24,7 @@
 static bool group0_trap;
 static bool group1_trap;
 static bool common_trap;
+static bool gicv4_enable;
 
 void vgic_v3_set_underflow(struct kvm_vcpu *vcpu)
 {
@@ -461,6 +462,12 @@ static int __init early_common_trap_cfg(char *buf)
 }
 early_param("kvm-arm.vgic_v3_common_trap", early_common_trap_cfg);
 
+static int __init early_gicv4_enable(char *buf)
+{
+	return strtobool(buf, &gicv4_enable);
+}
+early_param("kvm-arm.vgic_v4_enable", early_gicv4_enable);
+
 /**
  * vgic_v3_probe - probe for a GICv3 compatible interrupt controller in DT
  * @node:	pointer to the DT node
@@ -479,6 +486,13 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 	kvm_vgic_global_state.nr_lr = (ich_vtr_el2 & 0xf) + 1;
 	kvm_vgic_global_state.can_emulate_gicv2 = false;
 	kvm_vgic_global_state.ich_vtr_el2 = ich_vtr_el2;
+
+	/* GICv4 support? */
+	if (info->has_v4) {
+		kvm_vgic_global_state.has_gicv4 = gicv4_enable;
+		kvm_info("GICv4 support %sabled\n",
+			 gicv4_enable ? "en" : "dis");
+	}
 
 	if (!info->vcpu.start) {
 		kvm_info("GICv3: no GICV resource entry\n");
