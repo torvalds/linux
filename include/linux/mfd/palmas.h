@@ -20,7 +20,7 @@
 #include <linux/leds.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/of_gpio.h>
 #include <linux/usb/phy_companion.h>
 
