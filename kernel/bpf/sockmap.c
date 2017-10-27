@@ -122,7 +122,8 @@ static int smap_verdict_func(struct smap_psock *psock, struct sk_buff *skb)
 	preempt_enable();
 	skb->sk = NULL;
 
-	return rc;
+	return rc == SK_PASS ?
+		(TCP_SKB_CB(skb)->bpf.map ? SK_REDIRECT : SK_PASS) : SK_DROP;
 }
 
 static void smap_do_verdict(struct smap_psock *psock, struct sk_buff *skb)
