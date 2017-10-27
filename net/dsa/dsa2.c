@@ -590,9 +590,17 @@ static int dsa_dst_parse(struct dsa_switch_tree *dst)
 	return 0;
 }
 
+static int dsa_port_parse_of(struct dsa_port *dp, struct device_node *dn)
+{
+	dp->dn = dn;
+
+	return 0;
+}
+
 static int dsa_parse_ports_of(struct device_node *dn, struct dsa_switch *ds)
 {
 	struct device_node *ports, *port;
+	struct dsa_port *dp;
 	u32 reg;
 	int err;
 
@@ -610,8 +618,20 @@ static int dsa_parse_ports_of(struct device_node *dn, struct dsa_switch *ds)
 		if (reg >= ds->num_ports)
 			return -EINVAL;
 
-		ds->ports[reg].dn = port;
+		dp = &ds->ports[reg];
+
+		err = dsa_port_parse_of(dp, port);
+		if (err)
+			return err;
 	}
+
+	return 0;
+}
+
+static int dsa_port_parse(struct dsa_port *dp, const char *name,
+			  struct device *dev)
+{
+	dp->name = name;
 
 	return 0;
 }
@@ -619,13 +639,24 @@ static int dsa_parse_ports_of(struct device_node *dn, struct dsa_switch *ds)
 static int dsa_parse_ports(struct dsa_chip_data *cd, struct dsa_switch *ds)
 {
 	bool valid_name_found = false;
+	struct dsa_port *dp;
+	struct device *dev;
+	const char *name;
 	unsigned int i;
+	int err;
 
 	for (i = 0; i < DSA_MAX_PORTS; i++) {
-		if (!cd->port_names[i])
+		name = cd->port_names[i];
+		dev = cd->netdev[i];
+		dp = &ds->ports[i];
+
+		if (!name)
 			continue;
 
-		ds->ports[i].name = cd->port_names[i];
+		err = dsa_port_parse(dp, name, dev);
+		if (err)
+			return err;
+
 		valid_name_found = true;
 	}
 
