@@ -767,6 +767,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 		case OTG_STATE_B_IDLE:
 			if (!musb->is_active)
 				break;
+			/* fall through */
 		case OTG_STATE_B_PERIPHERAL:
 			musb_g_suspend(musb);
 			musb->is_active = musb->g.b_hnp_enable;
