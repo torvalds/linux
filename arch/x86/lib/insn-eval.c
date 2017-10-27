@@ -5,9 +5,13 @@
  */
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/ratelimit.h>
 #include <asm/inat.h>
 #include <asm/insn.h>
 #include <asm/insn-eval.h>
+
+#undef pr_fmt
+#define pr_fmt(fmt) "insn: " fmt
 
 enum reg_type {
 	REG_TYPE_RM = 0,
@@ -85,9 +89,8 @@ static int get_reg_offset(struct insn *insn, struct pt_regs *regs,
 		break;
 
 	default:
-		pr_err("invalid register type");
-		BUG();
-		break;
+		pr_err_ratelimited("invalid register type: %d\n", type);
+		return -EINVAL;
 	}
 
 	if (regno >= nr_registers) {
