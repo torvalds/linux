@@ -6,9 +6,13 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ratelimit.h>
+#include <linux/mmu_context.h>
+#include <asm/desc_defs.h>
+#include <asm/desc.h>
 #include <asm/inat.h>
 #include <asm/insn.h>
 #include <asm/insn-eval.h>
+#include <asm/ldt.h>
 #include <asm/vm86.h>
 
 #undef pr_fmt
@@ -466,6 +470,59 @@ static int get_reg_offset(struct insn *insn, struct pt_regs *regs,
 		return -EINVAL;
 	}
 	return regoff[regno];
+}
+
+/**
+ * get_desc() - Obtain pointer to a segment descriptor
+ * @sel:	Segment selector
+ *
+ * Given a segment selector, obtain a pointer to the segment descriptor.
+ * Both global and local descriptor tables are supported.
+ *
+ * Returns:
+ *
+ * Pointer to segment descriptor on success.
+ *
+ * NULL on error.
+ */
+static struct desc_struct *get_desc(unsigned short sel)
+{
+	struct desc_ptr gdt_desc = {0, 0};
+	unsigned long desc_base;
+
+#ifdef CONFIG_MODIFY_LDT_SYSCALL
+	if ((sel & SEGMENT_TI_MASK) == SEGMENT_LDT) {
+		struct desc_struct *desc = NULL;
+		struct ldt_struct *ldt;
+
+		/* Bits [15:3] contain the index of the desired entry. */
+		sel >>= 3;
+
+		mutex_lock(&current->active_mm->context.lock);
+		ldt = current->active_mm->context.ldt;
+		if (ldt && sel < ldt->nr_entries)
+			desc = &ldt->entries[sel];
+
+		mutex_unlock(&current->active_mm->context.lock);
+
+		return desc;
+	}
+#endif
+	native_store_gdt(&gdt_desc);
+
+	/*
+	 * Segment descriptors have a size of 8 bytes. Thus, the index is
+	 * multiplied by 8 to obtain the memory offset of the desired descriptor
+	 * from the base of the GDT. As bits [15:3] of the segment selector
+	 * contain the index, it can be regarded as multiplied by 8 already.
+	 * All that remains is to clear bits [2:0].
+	 */
+	desc_base = sel & ~(SEGMENT_RPL_MASK | SEGMENT_TI_MASK);
+
+	if (desc_base > gdt_desc.size)
+		return NULL;
+
+	return (struct desc_struct *)(gdt_desc.address + desc_base);
 }
 
 /**
