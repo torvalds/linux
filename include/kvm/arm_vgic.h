@@ -373,4 +373,12 @@ int kvm_vgic_setup_default_irq_routing(struct kvm *kvm);
 
 int kvm_vgic_set_owner(struct kvm_vcpu *vcpu, unsigned int intid, void *owner);
 
+struct kvm_kernel_irq_routing_entry;
+
+int kvm_vgic_v4_set_forwarding(struct kvm *kvm, int irq,
+			       struct kvm_kernel_irq_routing_entry *irq_entry);
+
+int kvm_vgic_v4_unset_forwarding(struct kvm *kvm, int irq,
+				 struct kvm_kernel_irq_routing_entry *irq_entry);
+
 #endif /* __KVM_ARM_VGIC_H */
