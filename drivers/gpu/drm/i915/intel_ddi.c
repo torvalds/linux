@@ -2214,6 +2214,19 @@ static void intel_ddi_pre_enable(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
+	/*
+	 * When called from DP MST code:
+	 * - conn_state will be NULL
+	 * - encoder will be the main encoder (ie. mst->primary)
+	 * - the main connector associated with this port
+	 *   won't be active or linked to a crtc
+	 * - crtc_state will be the state of the first stream to
+	 *   be activated on this port, and it may not be the same
+	 *   stream that will be deactivated last, but each stream
+	 *   should have a state that is identical when it comes to
+	 *   the DP link parameteres
+	 */
+
 	WARN_ON(crtc_state->has_pch_encoder);
 
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
@@ -2254,12 +2267,7 @@ static void intel_ddi_post_disable_dp(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
 	struct intel_dp *intel_dp = &dig_port->dp;
-	/*
-	 * old_crtc_state and old_conn_state are NULL when called from
-	 * DP_MST. The main connector associated with this port is never
-	 * bound to a crtc for MST.
-	 */
-	bool is_mst = !old_crtc_state;
+	bool is_mst = intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_DP_MST);
 
 	/*
 	 * Power down sink before disabling the port, otherwise we end
@@ -2303,12 +2311,19 @@ static void intel_ddi_post_disable(struct intel_encoder *encoder,
 				   const struct drm_connector_state *old_conn_state)
 {
 	/*
-	 * old_crtc_state and old_conn_state are NULL when called from
-	 * DP_MST. The main connector associated with this port is never
-	 * bound to a crtc for MST.
+	 * When called from DP MST code:
+	 * - old_conn_state will be NULL
+	 * - encoder will be the main encoder (ie. mst->primary)
+	 * - the main connector associated with this port
+	 *   won't be active or linked to a crtc
+	 * - old_crtc_state will be the state of the last stream to
+	 *   be deactivated on this port, and it may not be the same
+	 *   stream that was activated last, but each stream
+	 *   should have a state that is identical when it comes to
+	 *   the DP link parameteres
 	 */
-	if (old_crtc_state &&
-	    intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_HDMI))
+
+	if (intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_HDMI))
 		intel_ddi_post_disable_hdmi(encoder,
 					    old_crtc_state, old_conn_state);
 	else
