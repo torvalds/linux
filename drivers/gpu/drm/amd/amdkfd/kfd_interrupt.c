@@ -45,7 +45,7 @@
 #include <linux/kfifo.h>
 #include "kfd_priv.h"
 
-#define KFD_IH_NUM_ENTRIES 1024
+#define KFD_IH_NUM_ENTRIES 8192
 
 static void interrupt_wq(struct work_struct *);
 
