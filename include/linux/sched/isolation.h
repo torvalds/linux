@@ -29,7 +29,7 @@ static inline void housekeeping_affine(struct task_struct *t) { }
 static inline void housekeeping_init(void) { }
 #endif /* CONFIG_NO_HZ_FULL */
 
-static inline bool is_housekeeping_cpu(int cpu)
+static inline bool housekeeping_cpu(int cpu)
 {
 #ifdef CONFIG_NO_HZ_FULL
 	if (static_branch_unlikely(&housekeeping_overriden))

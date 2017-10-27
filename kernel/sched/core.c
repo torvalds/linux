@@ -527,7 +527,7 @@ int get_nohz_timer_target(void)
 	int i, cpu = smp_processor_id();
 	struct sched_domain *sd;
 
-	if (!idle_cpu(cpu) && is_housekeeping_cpu(cpu))
+	if (!idle_cpu(cpu) && housekeeping_cpu(cpu))
 		return cpu;
 
 	rcu_read_lock();
@@ -536,14 +536,14 @@ int get_nohz_timer_target(void)
 			if (cpu == i)
 				continue;
 
-			if (!idle_cpu(i) && is_housekeeping_cpu(i)) {
+			if (!idle_cpu(i) && housekeeping_cpu(i)) {
 				cpu = i;
 				goto unlock;
 			}
 		}
 	}
 
-	if (!is_housekeeping_cpu(cpu))
+	if (!housekeeping_cpu(cpu))
 		cpu = housekeeping_any_cpu();
 unlock:
 	rcu_read_unlock();
