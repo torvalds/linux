@@ -66,6 +66,8 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 #define FRAME_DESC_SZ                   16
 #define MIN_802_11_HDR_LEN              24
 #define RSI_DEF_KEEPALIVE               90
+#define RSI_WOW_KEEPALIVE                5
+#define RSI_BCN_MISS_THRESHOLD           24
 
 #define DATA_QUEUE_WATER_MARK           400
 #define MIN_DATA_QUEUE_WATER_MARK       300
@@ -107,6 +109,10 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 	((_q) == BE_Q) ? IEEE80211_AC_BE : \
 	((_q) == VI_Q) ? IEEE80211_AC_VI : \
 	IEEE80211_AC_VO)
+
+/* WoWLAN flags */
+#define RSI_WOW_ENABLED			BIT(0)
+#define RSI_WOW_NO_CONNECTION		BIT(1)
 
 #define RSI_DEV_9113		1
 
@@ -266,7 +272,7 @@ struct rsi_common {
 	u8 obm_ant_sel_val;
 	int tx_power;
 	u8 ant_in_use;
-
+	u8 wow_flags;
 	u16 beacon_interval;
 	u8 dtim_cnt;
 

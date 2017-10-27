@@ -379,6 +379,12 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 		rsi_dbg(ERR_ZONE, "%s: FSM state not open\n", __func__);
 		goto xmit_fail;
 	}
+	if (common->wow_flags & RSI_WOW_ENABLED) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Blocking Tx_packets when WOWLAN is enabled\n",
+			__func__);
+		goto xmit_fail;
+	}
 
 	info = IEEE80211_SKB_CB(skb);
 	tx_params = (struct skb_info *)info->driver_data;

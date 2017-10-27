@@ -45,6 +45,17 @@
 #define MAGIC_WORD                      0x5A
 #define WLAN_EEPROM_RFTYPE_ADDR		424
 
+/*WOWLAN RESUME WAKEUP TYPES*/
+#define RSI_UNICAST_MAGIC_PKT		BIT(0)
+#define RSI_BROADCAST_MAGICPKT		BIT(1)
+#define RSI_EAPOL_PKT			BIT(2)
+#define RSI_DISCONNECT_PKT		BIT(3)
+#define RSI_HW_BMISS_PKT		BIT(4)
+#define RSI_INSERT_SEQ_IN_FW		BIT(2)
+
+#define WOW_MAX_FILTERS_PER_LIST 16
+#define WOW_PATTERN_SIZE 256
+
 /* Receive Frame Types */
 #define TA_CONFIRM_TYPE                 0x01
 #define RX_DOT11_MGMT                   0x02
@@ -201,6 +212,13 @@
 #define RSI_DATA_DESC_INSERT_TSF	BIT(15)
 #define RSI_DATA_DESC_INSERT_SEQ_NO	BIT(2)
 
+#ifdef CONFIG_PM
+#define RSI_WOW_ANY			BIT(1)
+#define RSI_WOW_GTK_REKEY		BIT(3)
+#define RSI_WOW_MAGIC_PKT		BIT(4)
+#define RSI_WOW_DISCONNECT		BIT(5)
+#endif
+
 enum opmode {
 	RSI_OPMODE_UNSUPPORTED = -1,
 	RSI_OPMODE_AP = 0,
@@ -262,7 +280,9 @@ enum cmd_frame_type {
 	ANT_SEL_FRAME = 0x20,
 	VAP_DYNAMIC_UPDATE = 0x27,
 	COMMON_DEV_CONFIG = 0x28,
-	RADIO_PARAMS_UPDATE = 0x29
+	RADIO_PARAMS_UPDATE = 0x29,
+	WOWLAN_CONFIG_PARAMS = 0x2B,
+	WOWLAN_WAKEUP_REASON = 0xc5
 };
 
 struct rsi_mac_frame {
@@ -581,6 +601,13 @@ struct rsi_request_ps {
 	__le16 ps_num_dtim_intervals;
 } __packed;
 
+struct rsi_wowlan_req {
+	struct rsi_cmd_desc desc;
+	u8 sourceid[ETH_ALEN];
+	u16 wow_flags;
+	u16 host_sleep_status;
+} __packed;
+
 static inline u32 rsi_get_queueno(u8 *addr, u16 offset)
 {
 	return (le16_to_cpu(*(__le16 *)&addr[offset]) & 0x7000) >> 12;
@@ -641,6 +668,8 @@ int rsi_band_check(struct rsi_common *common, struct ieee80211_channel *chan);
 int rsi_send_rx_filter_frame(struct rsi_common *common, u16 rx_filter_word);
 int rsi_send_radio_params_update(struct rsi_common *common);
 int rsi_set_antenna(struct rsi_common *common, u8 antenna);
+int rsi_send_wowlan_request(struct rsi_common *common, u16 flags,
+			    u16 sleep_status);
 int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
 			struct ieee80211_vif *vif);
 #endif

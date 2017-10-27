@@ -1124,6 +1124,8 @@ static int rsi_sdio_enable_interrupts(struct sdio_func *pfunc)
 {
 	u8 data;
 	int ret;
+	struct rsi_hw *adapter = sdio_get_drvdata(pfunc);
+	struct rsi_common *common = adapter->priv;
 
 	sdio_claim_host(pfunc);
 	ret = rsi_cmd52readbyte(pfunc->card, RSI_INT_ENABLE_REGISTER, &data);
@@ -1142,6 +1144,11 @@ static int rsi_sdio_enable_interrupts(struct sdio_func *pfunc)
 			__func__);
 		goto done;
 	}
+
+	if ((common->wow_flags & RSI_WOW_ENABLED) &&
+	    (common->wow_flags & RSI_WOW_NO_CONNECTION))
+		rsi_dbg(ERR_ZONE,
+			"##### Device can not wake up through WLAN\n");
 
 	ret = rsi_cmd52readbyte(pfunc->card, RSI_INT_ENABLE_REGISTER, &data);
 	if (ret < 0) {
