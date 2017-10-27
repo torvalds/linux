@@ -273,10 +273,10 @@ void __init iop_init(void)
 	int i;
 
 	if (iop_scc_present) {
-		pr_info("IOP: detected SCC IOP at %p\n", iop_base[IOP_NUM_SCC]);
+		pr_debug("SCC IOP detected at %p\n", iop_base[IOP_NUM_SCC]);
 	}
 	if (iop_ism_present) {
-		pr_info("IOP: detected ISM IOP at %p\n", iop_base[IOP_NUM_ISM]);
+		pr_debug("ISM IOP detected at %p\n", iop_base[IOP_NUM_ISM]);
 		iop_start(iop_base[IOP_NUM_ISM]);
 		iop_alive(iop_base[IOP_NUM_ISM]); /* clears the alive flag */
 	}

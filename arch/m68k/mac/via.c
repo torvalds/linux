@@ -121,18 +121,21 @@ void via_debug_dump(void);
 
 void __init via_init(void)
 {
+	via1 = (void *)VIA1_BASE;
+	pr_debug("VIA1 detected at %p\n", via1);
+
 	switch(macintosh_config->via_type) {
 
 		/* IIci, IIsi, IIvx, IIvi (P6xx), LC series */
 
 		case MAC_VIA_IICI:
-			via1 = (void *) VIA1_BASE;
 			if (macintosh_config->ident == MAC_MODEL_IIFX) {
 				via2 = NULL;
 				rbv_present = 0;
 				oss_present = 1;
 			} else {
 				via2 = (void *) RBV_BASE;
+				pr_debug("VIA2 (RBV) detected at %p\n", via2);
 				rbv_present = 1;
 				oss_present = 0;
 			}
@@ -154,8 +157,8 @@ void __init via_init(void)
 
 		case MAC_VIA_QUADRA:
 		case MAC_VIA_II:
-			via1 = (void *) VIA1_BASE;
 			via2 = (void *) VIA2_BASE;
+			pr_debug("VIA2 detected at %p\n", via2);
 			rbv_present = 0;
 			oss_present = 0;
 			rbv_clear = 0x00;
@@ -166,17 +169,6 @@ void __init via_init(void)
 			break;
 		default:
 			panic("UNKNOWN VIA TYPE");
-	}
-
-	printk(KERN_INFO "VIA1 at %p is a 6522 or clone\n", via1);
-
-	printk(KERN_INFO "VIA2 at %p is ", via2);
-	if (rbv_present) {
-		printk("an RBV\n");
-	} else if (oss_present) {
-		printk("an OSS\n");
-	} else {
-		printk("a 6522 or clone\n");
 	}
 
 #ifdef DEBUG_VIA
