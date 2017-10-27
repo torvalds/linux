@@ -1226,7 +1226,6 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list,
 static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 {
 	int srcu_idx;
-	bool run_queue;
 
 	/*
 	 * We should be running this queue from one of the CPUs that
@@ -1243,18 +1242,15 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 
 	if (!(hctx->flags & BLK_MQ_F_BLOCKING)) {
 		rcu_read_lock();
-		run_queue = blk_mq_sched_dispatch_requests(hctx);
+		blk_mq_sched_dispatch_requests(hctx);
 		rcu_read_unlock();
 	} else {
 		might_sleep();
 
 		srcu_idx = srcu_read_lock(hctx->queue_rq_srcu);
-		run_queue = blk_mq_sched_dispatch_requests(hctx);
+		blk_mq_sched_dispatch_requests(hctx);
 		srcu_read_unlock(hctx->queue_rq_srcu, srcu_idx);
 	}
-
-	if (run_queue)
-		blk_mq_run_hw_queue(hctx, true);
 }
 
 /*

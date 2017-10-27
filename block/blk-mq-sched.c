@@ -81,8 +81,12 @@ void blk_mq_sched_restart(struct blk_mq_hw_ctx *hctx)
 	}
 }
 
-/* return true if hctx need to run again */
-static bool blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
+/*
+ * Only SCSI implements .get_budget and .put_budget, and SCSI restarts
+ * its queue by itself in its completion handler, so we don't need to
+ * restart queue if .get_budget() returns BLK_STS_NO_RESOURCE.
+ */
+static void blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 {
 	struct request_queue *q = hctx->queue;
 	struct elevator_queue *e = q->elevator;
@@ -98,7 +102,7 @@ static bool blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 
 		ret = blk_mq_get_dispatch_budget(hctx);
 		if (ret == BLK_STS_RESOURCE)
-			return true;
+			break;
 
 		rq = e->type->ops.mq.dispatch_request(hctx);
 		if (!rq) {
@@ -116,8 +120,6 @@ static bool blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 		 */
 		list_add(&rq->queuelist, &rq_list);
 	} while (blk_mq_dispatch_rq_list(q, &rq_list, true));
-
-	return false;
 }
 
 static struct blk_mq_ctx *blk_mq_next_ctx(struct blk_mq_hw_ctx *hctx,
@@ -131,8 +133,12 @@ static struct blk_mq_ctx *blk_mq_next_ctx(struct blk_mq_hw_ctx *hctx,
 	return hctx->ctxs[idx];
 }
 
-/* return true if hctx need to run again */
-static bool blk_mq_do_dispatch_ctx(struct blk_mq_hw_ctx *hctx)
+/*
+ * Only SCSI implements .get_budget and .put_budget, and SCSI restarts
+ * its queue by itself in its completion handler, so we don't need to
+ * restart queue if .get_budget() returns BLK_STS_NO_RESOURCE.
+ */
+static void blk_mq_do_dispatch_ctx(struct blk_mq_hw_ctx *hctx)
 {
 	struct request_queue *q = hctx->queue;
 	LIST_HEAD(rq_list);
@@ -147,7 +153,7 @@ static bool blk_mq_do_dispatch_ctx(struct blk_mq_hw_ctx *hctx)
 
 		ret = blk_mq_get_dispatch_budget(hctx);
 		if (ret == BLK_STS_RESOURCE)
-			return true;
+			break;
 
 		rq = blk_mq_dequeue_from_ctx(hctx, ctx);
 		if (!rq) {
@@ -171,22 +177,19 @@ static bool blk_mq_do_dispatch_ctx(struct blk_mq_hw_ctx *hctx)
 	} while (blk_mq_dispatch_rq_list(q, &rq_list, true));
 
 	WRITE_ONCE(hctx->dispatch_from, ctx);
-
-	return false;
 }
 
 /* return true if hw queue need to be run again */
-bool blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
+void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 {
 	struct request_queue *q = hctx->queue;
 	struct elevator_queue *e = q->elevator;
 	const bool has_sched_dispatch = e && e->type->ops.mq.dispatch_request;
 	LIST_HEAD(rq_list);
-	bool run_queue = false;
 
 	/* RCU or SRCU read lock is needed before checking quiesced flag */
 	if (unlikely(blk_mq_hctx_stopped(hctx) || blk_queue_quiesced(q)))
-		return false;
+		return;
 
 	hctx->run++;
 
@@ -218,12 +221,12 @@ bool blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 		blk_mq_sched_mark_restart_hctx(hctx);
 		if (blk_mq_dispatch_rq_list(q, &rq_list, false)) {
 			if (has_sched_dispatch)
-				run_queue = blk_mq_do_dispatch_sched(hctx);
+				blk_mq_do_dispatch_sched(hctx);
 			else
-				run_queue = blk_mq_do_dispatch_ctx(hctx);
+				blk_mq_do_dispatch_ctx(hctx);
 		}
 	} else if (has_sched_dispatch) {
-		run_queue = blk_mq_do_dispatch_sched(hctx);
+		blk_mq_do_dispatch_sched(hctx);
 	} else if (q->mq_ops->get_budget) {
 		/*
 		 * If we need to get budget before queuing request, we
@@ -233,19 +236,11 @@ bool blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 		 * TODO: get more budgets, and dequeue more requests in
 		 * one time.
 		 */
-		run_queue = blk_mq_do_dispatch_ctx(hctx);
+		blk_mq_do_dispatch_ctx(hctx);
 	} else {
 		blk_mq_flush_busy_ctxs(hctx, &rq_list);
 		blk_mq_dispatch_rq_list(q, &rq_list, false);
 	}
-
-	if (run_queue && !blk_mq_sched_needs_restart(hctx) &&
-			!test_bit(BLK_MQ_S_TAG_WAITING, &hctx->state)) {
-		blk_mq_sched_mark_restart_hctx(hctx);
-		return true;
-	}
-
-	return false;
 }
 
 bool blk_mq_sched_try_merge(struct request_queue *q, struct bio *bio,
