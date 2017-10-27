@@ -1423,19 +1423,16 @@ static void hsw_ddi_clock_get(struct intel_encoder *encoder,
 	ddi_dotclock_get(pipe_config);
 }
 
-static int bxt_calc_pll_link(struct drm_i915_private *dev_priv,
-			     enum intel_dpll_id pll_id)
+static int bxt_calc_pll_link(struct intel_crtc_state *crtc_state)
 {
-	struct intel_shared_dpll *pll;
 	struct intel_dpll_hw_state *state;
 	struct dpll clock;
 
 	/* For DDI ports we always use a shared PLL. */
-	if (WARN_ON(pll_id == DPLL_ID_PRIVATE))
+	if (WARN_ON(!crtc_state->shared_dpll))
 		return 0;
 
-	pll = &dev_priv->shared_dplls[pll_id];
-	state = &pll->state.hw_state;
+	state = &crtc_state->dpll_hw_state;
 
 	clock.m1 = 2;
 	clock.m2 = (state->pll0 & PORT_PLL_M2_MASK) << 22;
@@ -1449,13 +1446,9 @@ static int bxt_calc_pll_link(struct drm_i915_private *dev_priv,
 }
 
 static void bxt_ddi_clock_get(struct intel_encoder *encoder,
-				struct intel_crtc_state *pipe_config)
+			      struct intel_crtc_state *pipe_config)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum port port = encoder->port;
-	enum intel_dpll_id pll_id = port;
-
-	pipe_config->port_clock = bxt_calc_pll_link(dev_priv, pll_id);
+	pipe_config->port_clock = bxt_calc_pll_link(pipe_config);
 
 	ddi_dotclock_get(pipe_config);
 }
