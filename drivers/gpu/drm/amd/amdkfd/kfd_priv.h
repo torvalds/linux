@@ -543,6 +543,7 @@ struct kfd_process {
 	struct idr event_idr;
 	/* Event page */
 	struct kfd_signal_page *signal_page;
+	size_t signal_mapped_size;
 	size_t signal_event_count;
 	bool signal_event_limit_reached;
 };
