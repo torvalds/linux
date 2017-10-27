@@ -177,6 +177,8 @@ static int wifi_driver_insmod = 0;
 static int wifi_init_exit_module(int enable)
 {
 	int ret = 0;
+#ifdef CONFIG_WIFI_BUILD_MODULE
+#else
 #ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
 	int type = 0;
 	type = get_wifi_chip_type();
@@ -197,6 +199,7 @@ static int wifi_init_exit_module(int enable)
 			rockchip_wifi_exit_module_rtkwifi();
 		return ret;
 	}
+#endif
 #endif
 #endif
 	return ret;

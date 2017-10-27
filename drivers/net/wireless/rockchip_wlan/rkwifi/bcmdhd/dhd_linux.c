@@ -13156,13 +13156,17 @@ void rockchip_wifi_exit_module_rkwifi(void)
 {
 	dhd_module_exit();
 }
-
+#ifdef CONFIG_WIFI_BUILD_MODULE
+module_init(rockchip_wifi_init_module_rkwifi);
+module_exit(rockchip_wifi_exit_module_rkwifi);
+#else
 #ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
 late_initcall(rockchip_wifi_init_module_rkwifi);
 module_exit(rockchip_wifi_exit_module_rkwifi);
 #else
 module_init(rockchip_wifi_init_module_rkwifi);
 module_exit(rockchip_wifi_exit_module_rkwifi);
+#endif
 #endif
 #if 0
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
