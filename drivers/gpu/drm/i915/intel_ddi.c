@@ -2662,8 +2662,7 @@ static bool intel_ddi_compute_config(struct intel_encoder *encoder,
 
 	if (IS_GEN9_LP(dev_priv) && ret)
 		pipe_config->lane_lat_optim_mask =
-			bxt_ddi_phy_calc_lane_lat_optim_mask(encoder,
-							     pipe_config->lane_count);
+			bxt_ddi_phy_calc_lane_lat_optim_mask(pipe_config->lane_count);
 
 	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
 

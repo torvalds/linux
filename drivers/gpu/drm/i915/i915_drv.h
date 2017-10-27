@@ -4179,8 +4179,7 @@ bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
 			    enum dpio_phy phy);
 bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
 			      enum dpio_phy phy);
-uint8_t bxt_ddi_phy_calc_lane_lat_optim_mask(struct intel_encoder *encoder,
-					     uint8_t lane_count);
+uint8_t bxt_ddi_phy_calc_lane_lat_optim_mask(uint8_t lane_count);
 void bxt_ddi_phy_set_lane_optim_mask(struct intel_encoder *encoder,
 				     uint8_t lane_lat_optim_mask);
 uint8_t bxt_ddi_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder);

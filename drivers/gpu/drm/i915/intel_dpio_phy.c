@@ -567,8 +567,7 @@ bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
 }
 
 uint8_t
-bxt_ddi_phy_calc_lane_lat_optim_mask(struct intel_encoder *encoder,
-				     uint8_t lane_count)
+bxt_ddi_phy_calc_lane_lat_optim_mask(uint8_t lane_count)
 {
 	switch (lane_count) {
 	case 1:

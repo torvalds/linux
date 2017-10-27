@@ -88,6 +88,10 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 	pipe_config->dp_m_n.tu = slots;
 
+	if (IS_GEN9_LP(dev_priv))
+		pipe_config->lane_lat_optim_mask =
+			bxt_ddi_phy_calc_lane_lat_optim_mask(pipe_config->lane_count);
+
 	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
 
 	return true;
@@ -180,6 +184,20 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 						  NULL, NULL);
 	}
 	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
+}
+
+static void intel_mst_pre_pll_enable_dp(struct intel_encoder *encoder,
+					const struct intel_crtc_state *pipe_config,
+					const struct drm_connector_state *conn_state)
+{
+	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
+	struct intel_digital_port *intel_dig_port = intel_mst->primary;
+	struct intel_dp *intel_dp = &intel_dig_port->dp;
+
+	if (intel_dp->active_mst_links == 0 &&
+	    intel_dig_port->base.pre_pll_enable)
+		intel_dig_port->base.pre_pll_enable(&intel_dig_port->base,
+						    pipe_config, NULL);
 }
 
 static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
@@ -310,6 +328,10 @@ static void intel_dp_mst_enc_get_config(struct intel_encoder *encoder,
 	intel_dp_get_m_n(crtc, pipe_config);
 
 	intel_ddi_clock_get(&intel_dig_port->base, pipe_config);
+
+	if (IS_GEN9_LP(dev_priv))
+		pipe_config->lane_lat_optim_mask =
+			bxt_ddi_phy_get_lane_lat_optim_mask(encoder);
 
 	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
 }
@@ -582,6 +604,7 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *intel_dig_port, enum
 	intel_encoder->compute_config = intel_dp_mst_compute_config;
 	intel_encoder->disable = intel_mst_disable_dp;
 	intel_encoder->post_disable = intel_mst_post_disable_dp;
+	intel_encoder->pre_pll_enable = intel_mst_pre_pll_enable_dp;
 	intel_encoder->pre_enable = intel_mst_pre_enable_dp;
 	intel_encoder->enable = intel_mst_enable_dp;
 	intel_encoder->get_hw_state = intel_dp_mst_enc_get_hw_state;
