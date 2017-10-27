@@ -40,6 +40,18 @@ bool soc_is_brcmstb(void)
 	return of_match_node(brcmstb_machine_match, root) != NULL;
 }
 
+u32 brcmstb_get_family_id(void)
+{
+	return family_id;
+}
+EXPORT_SYMBOL(brcmstb_get_family_id);
+
+u32 brcmstb_get_product_id(void)
+{
+	return product_id;
+}
+EXPORT_SYMBOL(brcmstb_get_product_id);
+
 static const struct of_device_id sun_top_ctrl_match[] = {
 	{ .compatible = "brcm,bcm7125-sun-top-ctrl", },
 	{ .compatible = "brcm,bcm7346-sun-top-ctrl", },
