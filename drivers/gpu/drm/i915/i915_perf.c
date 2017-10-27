@@ -2690,8 +2690,8 @@ err:
 
 static u64 oa_exponent_to_ns(struct drm_i915_private *dev_priv, int exponent)
 {
-	return div_u64(1000000000ULL * (2ULL << exponent),
-		       dev_priv->perf.oa.timestamp_frequency);
+	return div64_u64(1000000000ULL * (2ULL << exponent),
+			 1000ULL * INTEL_INFO(dev_priv)->cs_timestamp_frequency_khz);
 }
 
 /**
@@ -3423,8 +3423,6 @@ static struct ctl_table dev_root[] = {
  */
 void i915_perf_init(struct drm_i915_private *dev_priv)
 {
-	dev_priv->perf.oa.timestamp_frequency = 0;
-
 	if (IS_HASWELL(dev_priv)) {
 		dev_priv->perf.oa.ops.is_valid_b_counter_reg =
 			gen7_is_valid_b_counter_addr;
@@ -3439,8 +3437,6 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		dev_priv->perf.oa.ops.read = gen7_oa_read;
 		dev_priv->perf.oa.ops.oa_hw_tail_read =
 			gen7_oa_hw_tail_read;
-
-		dev_priv->perf.oa.timestamp_frequency = 12500000;
 
 		dev_priv->perf.oa.oa_formats = hsw_oa_formats;
 	} else if (i915_modparams.enable_execlists) {
@@ -3485,23 +3481,6 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 
 				dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<16);
 			}
-
-			switch (dev_priv->info.platform) {
-			case INTEL_BROADWELL:
-				dev_priv->perf.oa.timestamp_frequency = 12500000;
-				break;
-			case INTEL_BROXTON:
-			case INTEL_GEMINILAKE:
-				dev_priv->perf.oa.timestamp_frequency = 19200000;
-				break;
-			case INTEL_SKYLAKE:
-			case INTEL_KABYLAKE:
-			case INTEL_COFFEELAKE:
-				dev_priv->perf.oa.timestamp_frequency = 12000000;
-				break;
-			default:
-				break;
-			}
 		} else if (IS_GEN10(dev_priv)) {
 			dev_priv->perf.oa.ops.is_valid_b_counter_reg =
 				gen7_is_valid_b_counter_addr;
@@ -3517,15 +3496,10 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 			dev_priv->perf.oa.ctx_flexeu0_offset = 0x3de;
 
 			dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<16);
-
-			/* Default frequency, although we need to read it from
-			 * the register as it might vary between parts.
-			 */
-			dev_priv->perf.oa.timestamp_frequency = 12000000;
 		}
 	}
 
-	if (dev_priv->perf.oa.timestamp_frequency) {
+	if (dev_priv->perf.oa.ops.enable_metric_set) {
 		hrtimer_init(&dev_priv->perf.oa.poll_check_timer,
 				CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		dev_priv->perf.oa.poll_check_timer.function = oa_poll_check_timer_cb;
@@ -3535,8 +3509,8 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		mutex_init(&dev_priv->perf.lock);
 		spin_lock_init(&dev_priv->perf.oa.oa_buffer.ptr_lock);
 
-		oa_sample_rate_hard_limit =
-			dev_priv->perf.oa.timestamp_frequency / 2;
+		oa_sample_rate_hard_limit = 1000 *
+			(INTEL_INFO(dev_priv)->cs_timestamp_frequency_khz / 2);
 		dev_priv->perf.sysctl_header = register_sysctl_table(dev_root);
 
 		mutex_init(&dev_priv->perf.metrics_lock);

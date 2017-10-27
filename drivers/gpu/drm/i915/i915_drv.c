@@ -936,8 +936,6 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 
 	intel_detect_preproduction_hw(dev_priv);
 
-	i915_perf_init(dev_priv);
-
 	return 0;
 
 err_irq:
@@ -954,7 +952,6 @@ err_engines:
  */
 static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
 {
-	i915_perf_fini(dev_priv);
 	i915_gem_load_cleanup(dev_priv);
 	intel_irq_fini(dev_priv);
 	i915_workqueues_cleanup(dev_priv);
@@ -1101,6 +1098,8 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 
 	intel_sanitize_options(dev_priv);
 
+	i915_perf_init(dev_priv);
+
 	ret = i915_ggtt_probe_hw(dev_priv);
 	if (ret)
 		return ret;
@@ -1205,6 +1204,8 @@ out_ggtt:
 static void i915_driver_cleanup_hw(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
+
+	i915_perf_fini(dev_priv);
 
 	if (pdev->msi_enabled)
 		pci_disable_msi(pdev);
