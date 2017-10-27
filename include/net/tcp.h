@@ -265,7 +265,6 @@ extern int sysctl_tcp_workaround_signed_windows;
 extern int sysctl_tcp_slow_start_after_idle;
 extern int sysctl_tcp_thin_linear_timeouts;
 extern int sysctl_tcp_thin_dupack;
-extern int sysctl_tcp_early_retrans;
 extern int sysctl_tcp_recovery;
 #define TCP_RACK_LOSS_DETECTION  0x1 /* Use RACK to detect losses */
 
