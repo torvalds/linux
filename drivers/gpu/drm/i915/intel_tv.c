@@ -868,6 +868,8 @@ static void
 intel_tv_get_config(struct intel_encoder *encoder,
 		    struct intel_crtc_state *pipe_config)
 {
+	pipe_config->output_types |= BIT(INTEL_OUTPUT_TVOUT);
+
 	pipe_config->base.adjusted_mode.crtc_clock = pipe_config->port_clock;
 }
 

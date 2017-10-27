@@ -1243,6 +1243,8 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 	u32 pclk;
 	DRM_DEBUG_KMS("\n");
 
+	pipe_config->output_types |= BIT(INTEL_OUTPUT_DSI);
+
 	if (IS_GEN9_LP(dev_priv))
 		bxt_dsi_get_pipe_config(encoder, pipe_config);
 

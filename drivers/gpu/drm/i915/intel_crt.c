@@ -119,6 +119,8 @@ static unsigned int intel_crt_get_flags(struct intel_encoder *encoder)
 static void intel_crt_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config)
 {
+	pipe_config->output_types |= BIT(INTEL_OUTPUT_ANALOG);
+
 	pipe_config->base.adjusted_mode.flags |= intel_crt_get_flags(encoder);
 
 	pipe_config->base.adjusted_mode.crtc_clock = pipe_config->port_clock;

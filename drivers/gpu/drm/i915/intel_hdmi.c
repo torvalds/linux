@@ -957,6 +957,8 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 	u32 tmp, flags = 0;
 	int dotclock;
 
+	pipe_config->output_types |= BIT(INTEL_OUTPUT_HDMI);
+
 	tmp = I915_READ(intel_hdmi->hdmi_reg);
 
 	if (tmp & SDVO_HSYNC_ACTIVE_HIGH)

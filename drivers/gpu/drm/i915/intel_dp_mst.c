@@ -291,6 +291,8 @@ static void intel_dp_mst_enc_get_config(struct intel_encoder *encoder,
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
 	u32 temp, flags = 0;
 
+	pipe_config->output_types |= BIT(INTEL_OUTPUT_DP_MST);
+
 	pipe_config->has_audio =
 		intel_ddi_is_audio_enabled(dev_priv, crtc);
 

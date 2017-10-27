@@ -2621,6 +2621,11 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 	enum port port = dp_to_dig_port(intel_dp)->port;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 
+	if (encoder->type == INTEL_OUTPUT_EDP)
+		pipe_config->output_types |= BIT(INTEL_OUTPUT_EDP);
+	else
+		pipe_config->output_types |= BIT(INTEL_OUTPUT_DP);
+
 	tmp = I915_READ(intel_dp->output_reg);
 
 	pipe_config->has_audio = tmp & DP_AUDIO_OUTPUT_ENABLE && port != PORT_A;

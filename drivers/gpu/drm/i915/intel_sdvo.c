@@ -1429,6 +1429,8 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 	u8 val;
 	bool ret;
 
+	pipe_config->output_types |= BIT(INTEL_OUTPUT_SDVO);
+
 	sdvox = I915_READ(intel_sdvo->sdvo_reg);
 
 	ret = intel_sdvo_get_input_timing(intel_sdvo, &dtd);

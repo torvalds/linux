@@ -159,6 +159,8 @@ static void intel_dvo_get_config(struct intel_encoder *encoder,
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	u32 tmp, flags = 0;
 
+	pipe_config->output_types |= BIT(INTEL_OUTPUT_DVO);
+
 	tmp = I915_READ(intel_dvo->dev.dvo_reg);
 	if (tmp & DVO_HSYNC_ACTIVE_HIGH)
 		flags |= DRM_MODE_FLAG_PHSYNC;

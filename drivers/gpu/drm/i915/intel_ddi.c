@@ -2595,12 +2595,23 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 			pipe_config->hdmi_high_tmds_clock_ratio = true;
 		/* fall through */
 	case TRANS_DDI_MODE_SELECT_DVI:
+		pipe_config->output_types |= BIT(INTEL_OUTPUT_HDMI);
 		pipe_config->lane_count = 4;
 		break;
 	case TRANS_DDI_MODE_SELECT_FDI:
+		pipe_config->output_types |= BIT(INTEL_OUTPUT_ANALOG);
 		break;
 	case TRANS_DDI_MODE_SELECT_DP_SST:
+		if (encoder->type == INTEL_OUTPUT_EDP)
+			pipe_config->output_types |= BIT(INTEL_OUTPUT_EDP);
+		else
+			pipe_config->output_types |= BIT(INTEL_OUTPUT_DP);
+		pipe_config->lane_count =
+			((temp & DDI_PORT_WIDTH_MASK) >> DDI_PORT_WIDTH_SHIFT) + 1;
+		intel_dp_get_m_n(intel_crtc, pipe_config);
+		break;
 	case TRANS_DDI_MODE_SELECT_DP_MST:
+		pipe_config->output_types |= BIT(INTEL_OUTPUT_DP_MST);
 		pipe_config->lane_count =
 			((temp & DDI_PORT_WIDTH_MASK) >> DDI_PORT_WIDTH_SHIFT) + 1;
 		intel_dp_get_m_n(intel_crtc, pipe_config);
