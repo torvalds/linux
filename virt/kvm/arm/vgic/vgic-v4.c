@@ -131,6 +131,45 @@ void vgic_v4_teardown(struct kvm *kvm)
 	its_vm->vpes = NULL;
 }
 
+int vgic_v4_sync_hwstate(struct kvm_vcpu *vcpu)
+{
+	if (!vgic_supports_direct_msis(vcpu->kvm))
+		return 0;
+
+	return its_schedule_vpe(&vcpu->arch.vgic_cpu.vgic_v3.its_vpe, false);
+}
+
+int vgic_v4_flush_hwstate(struct kvm_vcpu *vcpu)
+{
+	int irq = vcpu->arch.vgic_cpu.vgic_v3.its_vpe.irq;
+	int err;
+
+	if (!vgic_supports_direct_msis(vcpu->kvm))
+		return 0;
+
+	/*
+	 * Before making the VPE resident, make sure the redistributor
+	 * corresponding to our current CPU expects us here. See the
+	 * doc in drivers/irqchip/irq-gic-v4.c to understand how this
+	 * turns into a VMOVP command at the ITS level.
+	 */
+	err = irq_set_affinity(irq, cpumask_of(smp_processor_id()));
+	if (err)
+		return err;
+
+	err = its_schedule_vpe(&vcpu->arch.vgic_cpu.vgic_v3.its_vpe, true);
+	if (err)
+		return err;
+
+	/*
+	 * Now that the VPE is resident, let's get rid of a potential
+	 * doorbell interrupt that would still be pending.
+	 */
+	err = irq_set_irqchip_state(irq, IRQCHIP_STATE_PENDING, false);
+
+	return err;
+}
+
 static struct vgic_its *vgic_get_its(struct kvm *kvm,
 				     struct kvm_kernel_irq_routing_entry *irq_entry)
 {
