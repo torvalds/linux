@@ -1082,6 +1082,7 @@ struct f2fs_sb_info {
 	block_t discard_blks;			/* discard command candidats */
 	block_t last_valid_block_count;		/* for recovery */
 	block_t reserved_blocks;		/* configurable reserved blocks */
+	block_t current_reserved_blocks;	/* current reserved blocks */
 
 	u32 s_next_generation;			/* for NFS support */
 
@@ -1557,7 +1558,8 @@ static inline int inc_valid_block_count(struct f2fs_sb_info *sbi,
 
 	spin_lock(&sbi->stat_lock);
 	sbi->total_valid_block_count += (block_t)(*count);
-	avail_user_block_count = sbi->user_block_count - sbi->reserved_blocks;
+	avail_user_block_count = sbi->user_block_count -
+					sbi->current_reserved_blocks;
 	if (unlikely(sbi->total_valid_block_count > avail_user_block_count)) {
 		diff = sbi->total_valid_block_count - avail_user_block_count;
 		*count -= diff;
@@ -1591,6 +1593,10 @@ static inline void dec_valid_block_count(struct f2fs_sb_info *sbi,
 	f2fs_bug_on(sbi, sbi->total_valid_block_count < (block_t) count);
 	f2fs_bug_on(sbi, inode->i_blocks < sectors);
 	sbi->total_valid_block_count -= (block_t)count;
+	if (sbi->reserved_blocks &&
+		sbi->current_reserved_blocks < sbi->reserved_blocks)
+		sbi->current_reserved_blocks = min(sbi->reserved_blocks,
+					sbi->current_reserved_blocks + count);
 	spin_unlock(&sbi->stat_lock);
 	f2fs_i_blocks_write(inode, count, false, true);
 }
@@ -1737,7 +1743,7 @@ static inline int inc_valid_node_count(struct f2fs_sb_info *sbi,
 	spin_lock(&sbi->stat_lock);
 
 	valid_block_count = sbi->total_valid_block_count + 1;
-	if (unlikely(valid_block_count + sbi->reserved_blocks >
+	if (unlikely(valid_block_count + sbi->current_reserved_blocks >
 						sbi->user_block_count)) {
 		spin_unlock(&sbi->stat_lock);
 		goto enospc;
@@ -1780,6 +1786,9 @@ static inline void dec_valid_node_count(struct f2fs_sb_info *sbi,
 
 	sbi->total_valid_node_count--;
 	sbi->total_valid_block_count--;
+	if (sbi->reserved_blocks &&
+		sbi->current_reserved_blocks < sbi->reserved_blocks)
+		sbi->current_reserved_blocks++;
 
 	spin_unlock(&sbi->stat_lock);
 
