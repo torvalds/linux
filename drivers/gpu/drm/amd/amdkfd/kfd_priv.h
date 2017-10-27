@@ -31,6 +31,7 @@
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
 #include <linux/kfd_ioctl.h>
+#include <linux/idr.h>
 #include <kgd_kfd_interface.h>
 
 #include "amd_shared.h"
@@ -538,11 +539,10 @@ struct kfd_process {
 
 	/* Event-related data */
 	struct mutex event_mutex;
-	/* All events in process hashed by ID, linked on kfd_event.events. */
-	DECLARE_HASHTABLE(events, 4);
+	/* Event ID allocator and lookup */
+	struct idr event_idr;
 	/* Event page */
 	struct kfd_signal_page *signal_page;
-	u32 next_nonsignal_event_id;
 	size_t signal_event_count;
 	bool signal_event_limit_reached;
 };
