@@ -427,6 +427,14 @@ static int get_reg_offset(struct insn *insn, struct pt_regs *regs,
 	switch (type) {
 	case REG_TYPE_RM:
 		regno = X86_MODRM_RM(insn->modrm.value);
+
+		/*
+		 * ModRM.mod == 0 and ModRM.rm == 5 means a 32-bit displacement
+		 * follows the ModRM byte.
+		 */
+		if (!X86_MODRM_MOD(insn->modrm.value) && regno == 5)
+			return -EDOM;
+
 		if (X86_REX_B(insn->rex_prefix.value))
 			regno += 8;
 		break;
@@ -770,10 +778,21 @@ void __user *insn_get_addr_ref(struct insn *insn, struct pt_regs *regs)
 			eff_addr = base + indx * (1 << X86_SIB_SCALE(sib));
 		} else {
 			addr_offset = get_reg_offset(insn, regs, REG_TYPE_RM);
-			if (addr_offset < 0)
+			/*
+			 * -EDOM means that we must ignore the address_offset.
+			 * In such a case, in 64-bit mode the effective address
+			 * relative to the RIP of the following instruction.
+			 */
+			if (addr_offset == -EDOM) {
+				if (user_64bit_mode(regs))
+					eff_addr = (long)regs->ip + insn->length;
+				else
+					eff_addr = 0;
+			} else if (addr_offset < 0) {
 				goto out;
-
-			eff_addr = regs_get_register(regs, addr_offset);
+			} else {
+				eff_addr = regs_get_register(regs, addr_offset);
+			}
 		}
 
 		eff_addr += insn->displacement.value;
