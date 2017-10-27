@@ -43,22 +43,23 @@ static void rmnet_set_skb_proto(struct sk_buff *skb)
 
 /* Generic handler */
 
-static rx_handler_result_t
+static void
 rmnet_deliver_skb(struct sk_buff *skb)
 {
+	struct rmnet_priv *priv = netdev_priv(skb->dev);
+
 	skb_reset_transport_header(skb);
 	skb_reset_network_header(skb);
 	rmnet_vnd_rx_fixup(skb, skb->dev);
 
 	skb->pkt_type = PACKET_HOST;
 	skb_set_mac_header(skb, 0);
-	netif_receive_skb(skb);
-	return RX_HANDLER_CONSUMED;
+	gro_cells_receive(&priv->gro_cells, skb);
 }
 
 /* MAP handler */
 
-static rx_handler_result_t
+static void
 __rmnet_map_ingress_handler(struct sk_buff *skb,
 			    struct rmnet_port *port)
 {
@@ -84,38 +85,33 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 	if (!ep)
 		goto free_skb;
 
-	if (port->ingress_data_format & RMNET_INGRESS_FORMAT_DEMUXING)
-		skb->dev = ep->egress_dev;
+	skb->dev = ep->egress_dev;
 
 	/* Subtract MAP header */
 	skb_pull(skb, sizeof(struct rmnet_map_header));
 	skb_trim(skb, len);
 	rmnet_set_skb_proto(skb);
-	return rmnet_deliver_skb(skb);
+	rmnet_deliver_skb(skb);
+	return;
 
 free_skb:
 	kfree_skb(skb);
-	return RX_HANDLER_CONSUMED;
 }
 
-static rx_handler_result_t
+static void
 rmnet_map_ingress_handler(struct sk_buff *skb,
 			  struct rmnet_port *port)
 {
 	struct sk_buff *skbn;
-	int rc;
 
 	if (port->ingress_data_format & RMNET_INGRESS_FORMAT_DEAGGREGATION) {
 		while ((skbn = rmnet_map_deaggregate(skb)) != NULL)
 			__rmnet_map_ingress_handler(skbn, port);
 
 		consume_skb(skb);
-		rc = RX_HANDLER_CONSUMED;
 	} else {
-		rc = __rmnet_map_ingress_handler(skb, port);
+		__rmnet_map_ingress_handler(skb, port);
 	}
-
-	return rc;
 }
 
 static int rmnet_map_egress_handler(struct sk_buff *skb,
@@ -149,15 +145,13 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 	return RMNET_MAP_SUCCESS;
 }
 
-static rx_handler_result_t
+static void
 rmnet_bridge_handler(struct sk_buff *skb, struct net_device *bridge_dev)
 {
 	if (bridge_dev) {
 		skb->dev = bridge_dev;
 		dev_queue_xmit(skb);
 	}
-
-	return RX_HANDLER_CONSUMED;
 }
 
 /* Ingress / Egress Entry Points */
@@ -168,13 +162,12 @@ rmnet_bridge_handler(struct sk_buff *skb, struct net_device *bridge_dev)
  */
 rx_handler_result_t rmnet_rx_handler(struct sk_buff **pskb)
 {
-	int rc = RX_HANDLER_CONSUMED;
 	struct sk_buff *skb = *pskb;
 	struct rmnet_port *port;
 	struct net_device *dev;
 
 	if (!skb)
-		return RX_HANDLER_CONSUMED;
+		goto done;
 
 	dev = skb->dev;
 	port = rmnet_get_port(dev);
@@ -182,14 +175,15 @@ rx_handler_result_t rmnet_rx_handler(struct sk_buff **pskb)
 	switch (port->rmnet_mode) {
 	case RMNET_EPMODE_VND:
 		if (port->ingress_data_format & RMNET_INGRESS_FORMAT_MAP)
-			rc = rmnet_map_ingress_handler(skb, port);
+			rmnet_map_ingress_handler(skb, port);
 		break;
 	case RMNET_EPMODE_BRIDGE:
-		rc = rmnet_bridge_handler(skb, port->bridge_ep);
+		rmnet_bridge_handler(skb, port->bridge_ep);
 		break;
 	}
 
-	return rc;
+done:
+	return RX_HANDLER_CONSUMED;
 }
 
 /* Modifies packet as per logical endpoint configuration and egress data format
