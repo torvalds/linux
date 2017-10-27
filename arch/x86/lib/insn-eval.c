@@ -526,6 +526,120 @@ static struct desc_struct *get_desc(unsigned short sel)
 }
 
 /**
+ * insn_get_seg_base() - Obtain base address of segment descriptor.
+ * @regs:		Register values as seen when entering kernel mode
+ * @seg_reg_idx:	Index of the segment register pointing to seg descriptor
+ *
+ * Obtain the base address of the segment as indicated by the segment descriptor
+ * pointed by the segment selector. The segment selector is obtained from the
+ * input segment register index @seg_reg_idx.
+ *
+ * Returns:
+ *
+ * In protected mode, base address of the segment. Zero in long mode,
+ * except when FS or GS are used. In virtual-8086 mode, the segment
+ * selector shifted 4 bits to the right.
+ *
+ * -1L in case of error.
+ */
+unsigned long insn_get_seg_base(struct pt_regs *regs, int seg_reg_idx)
+{
+	struct desc_struct *desc;
+	short sel;
+
+	sel = get_segment_selector(regs, seg_reg_idx);
+	if (sel < 0)
+		return -1L;
+
+	if (v8086_mode(regs))
+		/*
+		 * Base is simply the segment selector shifted 4
+		 * bits to the right.
+		 */
+		return (unsigned long)(sel << 4);
+
+	if (user_64bit_mode(regs)) {
+		/*
+		 * Only FS or GS will have a base address, the rest of
+		 * the segments' bases are forced to 0.
+		 */
+		unsigned long base;
+
+		if (seg_reg_idx == INAT_SEG_REG_FS)
+			rdmsrl(MSR_FS_BASE, base);
+		else if (seg_reg_idx == INAT_SEG_REG_GS)
+			/*
+			 * swapgs was called at the kernel entry point. Thus,
+			 * MSR_KERNEL_GS_BASE will have the user-space GS base.
+			 */
+			rdmsrl(MSR_KERNEL_GS_BASE, base);
+		else
+			base = 0;
+		return base;
+	}
+
+	/* In protected mode the segment selector cannot be null. */
+	if (!sel)
+		return -1L;
+
+	desc = get_desc(sel);
+	if (!desc)
+		return -1L;
+
+	return get_desc_base(desc);
+}
+
+/**
+ * get_seg_limit() - Obtain the limit of a segment descriptor
+ * @regs:		Register values as seen when entering kernel mode
+ * @seg_reg_idx:	Index of the segment register pointing to seg descriptor
+ *
+ * Obtain the limit of the segment as indicated by the segment descriptor
+ * pointed by the segment selector. The segment selector is obtained from the
+ * input segment register index @seg_reg_idx.
+ *
+ * Returns:
+ *
+ * In protected mode, the limit of the segment descriptor in bytes.
+ * In long mode and virtual-8086 mode, segment limits are not enforced. Thus,
+ * limit is returned as -1L to imply a limit-less segment.
+ *
+ * Zero is returned on error.
+ */
+static unsigned long get_seg_limit(struct pt_regs *regs, int seg_reg_idx)
+{
+	struct desc_struct *desc;
+	unsigned long limit;
+	short sel;
+
+	sel = get_segment_selector(regs, seg_reg_idx);
+	if (sel < 0)
+		return 0;
+
+	if (user_64bit_mode(regs) || v8086_mode(regs))
+		return -1L;
+
+	if (!sel)
+		return 0;
+
+	desc = get_desc(sel);
+	if (!desc)
+		return 0;
+
+	/*
+	 * If the granularity bit is set, the limit is given in multiples
+	 * of 4096. This also means that the 12 least significant bits are
+	 * not tested when checking the segment limits. In practice,
+	 * this means that the segment ends in (limit << 12) + 0xfff.
+	 */
+	limit = get_desc_limit(desc);
+	if (desc->g)
+		limit = (limit << 12) + 0xfff;
+
+	return limit;
+}
+
+/**
  * insn_get_modrm_rm_off() - Obtain register in r/m part of the ModRM byte
  * @insn:	Instruction containing the ModRM byte
  * @regs:	Register values as seen when entering kernel mode
