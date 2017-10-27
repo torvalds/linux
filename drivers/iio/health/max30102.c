@@ -66,6 +66,7 @@ enum max3012_led_idx {
 #define MAX30102_REG_FIFO_CONFIG_AFULL		BIT(0)
 
 #define MAX30102_REG_MODE_CONFIG		0x09
+#define MAX30102_REG_MODE_CONFIG_MODE_NONE	0x00
 #define MAX30102_REG_MODE_CONFIG_MODE_HR	0x02 /* red LED */
 #define MAX30102_REG_MODE_CONFIG_MODE_HR_SPO2	0x03 /* red + IR LED */
 #define MAX30102_REG_MODE_CONFIG_MODE_MULTI	0x07 /* multi-LED mode */
@@ -139,25 +140,41 @@ static const struct iio_chan_spec max30102_channels[] = {
 	},
 };
 
-static int max30102_set_powermode(struct max30102_data *data, bool state)
+static int max30102_set_power(struct max30102_data *data, bool en)
 {
 	return regmap_update_bits(data->regmap, MAX30102_REG_MODE_CONFIG,
 				  MAX30102_REG_MODE_CONFIG_PWR,
-				  state ? 0 : MAX30102_REG_MODE_CONFIG_PWR);
+				  en ? 0 : MAX30102_REG_MODE_CONFIG_PWR);
+}
+
+static int max30102_set_powermode(struct max30102_data *data, u8 mode, bool en)
+{
+	u8 reg = mode;
+
+	if (!en)
+		reg |= MAX30102_REG_MODE_CONFIG_PWR;
+
+	return regmap_update_bits(data->regmap, MAX30102_REG_MODE_CONFIG,
+				  MAX30102_REG_MODE_CONFIG_PWR |
+				  MAX30102_REG_MODE_CONFIG_MODE_MASK, reg);
 }
 
 static int max30102_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct max30102_data *data = iio_priv(indio_dev);
+	u8 reg;
 
-	return max30102_set_powermode(data, true);
+	reg = MAX30102_REG_MODE_CONFIG_MODE_HR_SPO2;
+
+	return max30102_set_powermode(data, reg, true);
 }
 
 static int max30102_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct max30102_data *data = iio_priv(indio_dev);
 
-	return max30102_set_powermode(data, false);
+	return max30102_set_powermode(data, MAX30102_REG_MODE_CONFIG_MODE_NONE,
+				      false);
 }
 
 static const struct iio_buffer_setup_ops max30102_buffer_setup_ops = {
@@ -278,20 +295,13 @@ static int max30102_chip_init(struct max30102_data *data)
 	if (ret)
 		return ret;
 
-	/* enable 18-bit HR + SPO2 readings at 400Hz */
+	/* configure 18-bit HR + SpO2 readings at 400Hz */
 	ret = regmap_write(data->regmap, MAX30102_REG_SPO2_CONFIG,
 				(MAX30102_REG_SPO2_CONFIG_ADC_4096_STEPS
 				 << MAX30102_REG_SPO2_CONFIG_ADC_MASK_SHIFT) |
 				(MAX30102_REG_SPO2_CONFIG_SR_400HZ
 				 << MAX30102_REG_SPO2_CONFIG_SR_MASK_SHIFT) |
 				 MAX30102_REG_SPO2_CONFIG_PULSE_411_US);
-	if (ret)
-		return ret;
-
-	/* enable HR + SPO2 mode */
-	ret = regmap_update_bits(data->regmap, MAX30102_REG_MODE_CONFIG,
-				 MAX30102_REG_MODE_CONFIG_MODE_MASK,
-				 MAX30102_REG_MODE_CONFIG_MODE_HR_SPO2);
 	if (ret)
 		return ret;
 
@@ -334,7 +344,7 @@ static int max30102_get_temp(struct max30102_data *data, int *val, bool en)
 	int ret;
 
 	if (en) {
-		ret = max30102_set_powermode(data, true);
+		ret = max30102_set_power(data, true);
 		if (ret)
 			return ret;
 	}
@@ -351,7 +361,7 @@ static int max30102_get_temp(struct max30102_data *data, int *val, bool en)
 
 out:
 	if (en)
-		max30102_set_powermode(data, false);
+		max30102_set_power(data, false);
 
 	return ret;
 }
@@ -448,7 +458,9 @@ static int max30102_probe(struct i2c_client *client,
 		return ret;
 	dev_dbg(&client->dev, "max3010x revision %02x\n", reg);
 
-	ret = max30102_set_powermode(data, false);
+	/* clear mode setting, chip shutdown */
+	ret = max30102_set_powermode(data, MAX30102_REG_MODE_CONFIG_MODE_NONE,
+				     false);
 	if (ret)
 		return ret;
 
@@ -479,7 +491,7 @@ static int max30102_remove(struct i2c_client *client)
 	struct max30102_data *data = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	max30102_set_powermode(data, false);
+	max30102_set_power(data, false);
 
 	return 0;
 }
