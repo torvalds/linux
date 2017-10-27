@@ -149,6 +149,7 @@ struct netns_ipv4 {
 	int sysctl_tcp_limit_output_bytes;
 	int sysctl_tcp_challenge_ack_limit;
 	int sysctl_tcp_min_tso_segs;
+	int sysctl_tcp_min_rtt_wlen;
 	struct inet_timewait_death_row tcp_death_row;
 	int sysctl_max_syn_backlog;
 	int sysctl_tcp_fastopen;

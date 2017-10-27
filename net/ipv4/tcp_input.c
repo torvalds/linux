@@ -80,7 +80,6 @@
 #include <linux/static_key.h>
 
 int sysctl_tcp_max_orphans __read_mostly = NR_FILE;
-int sysctl_tcp_min_rtt_wlen __read_mostly = 300;
 int sysctl_tcp_invalid_ratelimit __read_mostly = HZ/2;
 
 #define FLAG_DATA		0x01 /* Incoming frame contained data.		*/
@@ -2915,8 +2914,8 @@ static void tcp_fastretrans_alert(struct sock *sk, const int acked,
 
 static void tcp_update_rtt_min(struct sock *sk, u32 rtt_us)
 {
+	u32 wlen = sock_net(sk)->ipv4.sysctl_tcp_min_rtt_wlen * HZ;
 	struct tcp_sock *tp = tcp_sk(sk);
-	u32 wlen = sysctl_tcp_min_rtt_wlen * HZ;
 
 	minmax_running_min(&tp->rtt_min, wlen, tcp_jiffies32,
 			   rtt_us ? : jiffies_to_usecs(1));

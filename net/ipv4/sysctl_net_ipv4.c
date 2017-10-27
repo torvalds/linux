@@ -438,13 +438,6 @@ static struct ctl_table ipv4_table[] = {
 		.extra1		= &one,
 	},
 	{
-		.procname	= "tcp_min_rtt_wlen",
-		.data		= &sysctl_tcp_min_rtt_wlen,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{
 		.procname	= "tcp_low_latency",
 		.data		= &sysctl_tcp_low_latency,
 		.maxlen		= sizeof(int),
@@ -1144,6 +1137,13 @@ static struct ctl_table ipv4_net_table[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &one,
 		.extra2		= &gso_max_segs,
+	},
+	{
+		.procname	= "tcp_min_rtt_wlen",
+		.data		= &init_net.ipv4.sysctl_tcp_min_rtt_wlen,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
 	},
 	{ }
 };

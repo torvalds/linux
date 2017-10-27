@@ -2504,6 +2504,7 @@ static int __net_init tcp_sk_init(struct net *net)
 	/* rfc5961 challenge ack rate limiting */
 	net->ipv4.sysctl_tcp_challenge_ack_limit = 1000;
 	net->ipv4.sysctl_tcp_min_tso_segs = 2;
+	net->ipv4.sysctl_tcp_min_rtt_wlen = 300;
 
 	net->ipv4.sysctl_tcp_fastopen = TFO_CLIENT_ENABLE;
 	spin_lock_init(&net->ipv4.tcp_fastopen_ctx_lock);
