@@ -30,7 +30,7 @@ enum {
 	FAULT_INFO_RATE,	/* struct f2fs_fault_info */
 	FAULT_INFO_TYPE,	/* struct f2fs_fault_info */
 #endif
-	RESERVED_BLOCKS,
+	RESERVED_BLOCKS,	/* struct f2fs_sb_info */
 };
 
 struct f2fs_attr {
@@ -114,6 +114,12 @@ static ssize_t features_show(struct f2fs_attr *a,
 	return len;
 }
 
+static ssize_t current_reserved_blocks_show(struct f2fs_attr *a,
+					struct f2fs_sb_info *sbi, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%u\n", sbi->current_reserved_blocks);
+}
+
 static ssize_t f2fs_sbi_show(struct f2fs_attr *a,
 			struct f2fs_sb_info *sbi, char *buf)
 {
@@ -153,12 +159,13 @@ static ssize_t f2fs_sbi_store(struct f2fs_attr *a,
 #endif
 	if (a->struct_type == RESERVED_BLOCKS) {
 		spin_lock(&sbi->stat_lock);
-		if ((unsigned long)sbi->total_valid_block_count + t >
-				(unsigned long)sbi->user_block_count) {
+		if (t > (unsigned long)sbi->user_block_count) {
 			spin_unlock(&sbi->stat_lock);
 			return -EINVAL;
 		}
 		*ui = t;
+		sbi->current_reserved_blocks = min(sbi->reserved_blocks,
+				sbi->user_block_count - valid_user_blocks(sbi));
 		spin_unlock(&sbi->stat_lock);
 		return count;
 	}
@@ -293,6 +300,7 @@ F2FS_RW_ATTR(FAULT_INFO_TYPE, f2fs_fault_info, inject_type, inject_type);
 F2FS_GENERAL_RO_ATTR(dirty_segments);
 F2FS_GENERAL_RO_ATTR(lifetime_write_kbytes);
 F2FS_GENERAL_RO_ATTR(features);
+F2FS_GENERAL_RO_ATTR(current_reserved_blocks);
 
 #ifdef CONFIG_F2FS_FS_ENCRYPTION
 F2FS_FEATURE_RO_ATTR(encryption, FEAT_CRYPTO);
@@ -338,6 +346,7 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(lifetime_write_kbytes),
 	ATTR_LIST(features),
 	ATTR_LIST(reserved_blocks),
+	ATTR_LIST(current_reserved_blocks),
 	NULL,
 };
 
