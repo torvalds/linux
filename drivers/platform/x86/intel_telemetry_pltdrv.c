@@ -16,6 +16,8 @@
  * It used the PUNIT and PMC IPC interfaces for configuring the counters.
  * The accumulated results are fetched from SRAM.
  */
+
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
