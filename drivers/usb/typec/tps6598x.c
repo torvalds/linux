@@ -403,6 +403,7 @@ static int tps6598x_probe(struct i2c_client *client)
 	case TPS_PORTINFO_DRP_UFP_DRD:
 	case TPS_PORTINFO_DRP_DFP_DRD:
 		tps->typec_cap.dr_set = tps6598x_dr_set;
+		/* fall through */
 	case TPS_PORTINFO_DRP_UFP:
 	case TPS_PORTINFO_DRP_DFP:
 		tps->typec_cap.pr_set = tps6598x_pr_set;
