@@ -916,7 +916,7 @@ static int open_file_regdump(struct inode *inode, struct file *file)
 	u8 *buf;
 	int i, j = 0;
 	unsigned long num_regs, regdump_len, max_reg_offset;
-	const struct reg_hole {
+	static const struct reg_hole {
 		u32 start;
 		u32 end;
 	} reg_hole_list[] = {

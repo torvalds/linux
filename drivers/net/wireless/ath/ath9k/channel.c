@@ -29,6 +29,7 @@ static int ath_set_channel(struct ath_softc *sc)
 	struct cfg80211_chan_def *chandef = &sc->cur_chan->chandef;
 	struct ieee80211_channel *chan = chandef->chan;
 	int pos = chan->hw_value;
+	unsigned long flags;
 	int old_pos = -1;
 	int r;
 
@@ -42,9 +43,9 @@ static int ath_set_channel(struct ath_softc *sc)
 		chan->center_freq, chandef->width);
 
 	/* update survey stats for the old channel before switching */
-	spin_lock_bh(&common->cc_lock);
+	spin_lock_irqsave(&common->cc_lock, flags);
 	ath_update_survey_stats(sc);
-	spin_unlock_bh(&common->cc_lock);
+	spin_unlock_irqrestore(&common->cc_lock, flags);
 
 	ath9k_cmn_get_channel(hw, ah, chandef);
 
