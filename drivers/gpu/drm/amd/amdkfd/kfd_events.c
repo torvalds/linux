@@ -617,7 +617,7 @@ static struct kfd_event_waiter *alloc_event_waiters(uint32_t num_events)
 	return event_waiters;
 }
 
-static int init_event_waiter(struct kfd_process *p,
+static int init_event_waiter_get_status(struct kfd_process *p,
 		struct kfd_event_waiter *waiter,
 		uint32_t event_id,
 		uint32_t input_index)
@@ -632,9 +632,18 @@ static int init_event_waiter(struct kfd_process *p,
 	waiter->activated = ev->signaled;
 	ev->signaled = ev->signaled && !ev->auto_reset;
 
-	list_add(&waiter->waiters, &ev->waiters);
-
 	return 0;
+}
+
+static void init_event_waiter_add_to_waitlist(struct kfd_event_waiter *waiter)
+{
+	struct kfd_event *ev = waiter->event;
+
+	/* Only add to the wait list if we actually need to
+	 * wait on this event.
+	 */
+	if (!waiter->activated)
+		list_add(&waiter->waiters, &ev->waiters);
 }
 
 static bool test_event_condition(bool all, uint32_t num_events,
@@ -724,10 +733,16 @@ int kfd_wait_on_events(struct kfd_process *p,
 			(struct kfd_event_data __user *) data;
 	uint32_t i;
 	int ret = 0;
+
 	struct kfd_event_waiter *event_waiters = NULL;
 	long timeout = user_timeout_to_jiffies(user_timeout_ms);
 
 	mutex_lock(&p->event_mutex);
+
+	/* Set to something unreasonable - this is really
+	 * just a bool for now.
+	 */
+	*wait_result = KFD_WAIT_TIMEOUT;
 
 	event_waiters = alloc_event_waiters(num_events);
 	if (!event_waiters) {
@@ -744,13 +759,33 @@ int kfd_wait_on_events(struct kfd_process *p,
 			goto fail;
 		}
 
-		ret = init_event_waiter(p, &event_waiters[i],
+		ret = init_event_waiter_get_status(p, &event_waiters[i],
 				event_data.event_id, i);
 		if (ret)
 			goto fail;
 	}
 
+	/* Check condition once. */
+	if (test_event_condition(all, num_events, event_waiters)) {
+		if (copy_signaled_event_data(num_events,
+				event_waiters, events))
+			*wait_result = KFD_WAIT_COMPLETE;
+		else
+			*wait_result = KFD_WAIT_ERROR;
+		free_waiters(num_events, event_waiters);
+	} else {
+		/* Add to wait lists if we need to wait. */
+		for (i = 0; i < num_events; i++)
+			init_event_waiter_add_to_waitlist(&event_waiters[i]);
+	}
+
 	mutex_unlock(&p->event_mutex);
+
+	/* Return if all waits were already satisfied. */
+	if (*wait_result != KFD_WAIT_TIMEOUT) {
+		__set_current_state(TASK_RUNNING);
+		return ret;
+	}
 
 	while (true) {
 		if (fatal_signal_pending(current)) {
