@@ -53,12 +53,6 @@ int sysctl_tcp_workaround_signed_windows __read_mostly = 0;
 /* Default TSQ limit of four TSO segments */
 int sysctl_tcp_limit_output_bytes __read_mostly = 262144;
 
-/* This limits the percentage of the congestion window which we
- * will allow a single TSO frame to consume.  Building TSO frames
- * which are too large can cause TCP streams to be bursty.
- */
-int sysctl_tcp_tso_win_divisor __read_mostly = 3;
-
 static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 			   int push_one, gfp_t gfp);
 
@@ -1988,7 +1982,7 @@ static bool tcp_tso_should_defer(struct sock *sk, struct sk_buff *skb,
 	if ((skb != tcp_write_queue_tail(sk)) && (limit >= skb->len))
 		goto send_now;
 
-	win_divisor = ACCESS_ONCE(sysctl_tcp_tso_win_divisor);
+	win_divisor = ACCESS_ONCE(sock_net(sk)->ipv4.sysctl_tcp_tso_win_divisor);
 	if (win_divisor) {
 		u32 chunk = min(tp->snd_wnd, tp->snd_cwnd * tp->mss_cache);
 
