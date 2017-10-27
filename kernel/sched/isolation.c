@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/static_key.h>
+#include <linux/ctype.h>
 
 DEFINE_STATIC_KEY_FALSE(housekeeping_overriden);
 EXPORT_SYMBOL_GPL(housekeeping_overriden);
@@ -126,6 +127,29 @@ __setup("nohz_full=", housekeeping_nohz_full_setup);
 
 static int __init housekeeping_isolcpus_setup(char *str)
 {
-	return housekeeping_setup(str, HK_FLAG_DOMAIN);
+	unsigned int flags = 0;
+
+	while (isalpha(*str)) {
+		if (!strncmp(str, "nohz,", 5)) {
+			str += 5;
+			flags |= HK_FLAG_TICK;
+			continue;
+		}
+
+		if (!strncmp(str, "domain,", 7)) {
+			str += 7;
+			flags |= HK_FLAG_DOMAIN;
+			continue;
+		}
+
+		pr_warn("isolcpus: Error, unknown flag\n");
+		return 0;
+	}
+
+	/* Default behaviour for isolcpus without flags */
+	if (!flags)
+		flags |= HK_FLAG_DOMAIN;
+
+	return housekeeping_setup(str, flags);
 }
 __setup("isolcpus=", housekeeping_isolcpus_setup);
