@@ -575,13 +575,14 @@ static int MC32X0_ReadData(struct i2c_client *client,
 
 static int mc3230_get_data(struct i2c_client *client)
 {
-	struct sensor_private_data *mc3230 = i2c_get_clientdata(client);
+	struct sensor_private_data *sensor =
+		(struct sensor_private_data *)i2c_get_clientdata(client);
+	struct sensor_platform_data *pdata = sensor->pdata;
 	s16 buffer[6];
 	int ret;
 	int x, y, z;
 	int value = 0;
 	struct mc3230_axis axis;
-	struct sensor_platform_data *pdata = pdata = client->dev.platform_data;
 
 	if (load_cali_flg > 0) {
 		ret = mcube_read_cali_file(client);
@@ -625,20 +626,16 @@ static int mc3230_get_data(struct i2c_client *client)
 	    (pdata->orientation[6]) * x + (pdata->orientation[7]) * y +
 	    (pdata->orientation[8]) * z;
 
-	axis.x = y;
-	axis.y = -x;
-	axis.z = z;
-
 	mc3230_report_value(client, &axis);
 
-	mutex_lock(&mc3230->data_mutex);
+	mutex_lock(&sensor->data_mutex);
 	/* get data from buffer */
-	memcpy(&axis, &mc3230->axis, sizeof(mc3230->axis));
-	mutex_unlock(&mc3230->data_mutex);
+	memcpy(&axis, &sensor->axis, sizeof(sensor->axis));
+	mutex_unlock(&sensor->data_mutex);
 
 	/* data_ready */
-	atomic_set(&mc3230->data_ready, 1);
-	wake_up(&mc3230->data_ready_wq);
+	atomic_set(&sensor->data_ready, 1);
+	wake_up(&sensor->data_ready_wq);
 
 	return 0;
 }
