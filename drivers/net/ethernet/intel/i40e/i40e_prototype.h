@@ -343,6 +343,37 @@ static inline struct i40e_rx_ptype_decoded decode_rx_desc_ptype(u8 ptype)
 	return i40e_ptype_lookup[ptype];
 }
 
+/**
+ * i40e_virtchnl_link_speed - Convert AdminQ link_speed to virtchnl definition
+ * @link_speed: the speed to convert
+ *
+ * Returns the link_speed in terms of the virtchnl interface, for use in
+ * converting link_speed as reported by the AdminQ into the format used for
+ * talking to virtchnl devices. If we can't represent the link speed properly,
+ * report LINK_SPEED_UNKNOWN.
+ **/
+static inline enum virtchnl_link_speed
+i40e_virtchnl_link_speed(enum i40e_aq_link_speed link_speed)
+{
+	switch (link_speed) {
+	case I40E_LINK_SPEED_100MB:
+		return VIRTCHNL_LINK_SPEED_100MB;
+	case I40E_LINK_SPEED_1GB:
+		return VIRTCHNL_LINK_SPEED_1GB;
+	case I40E_LINK_SPEED_10GB:
+		return VIRTCHNL_LINK_SPEED_10GB;
+	case I40E_LINK_SPEED_40GB:
+		return VIRTCHNL_LINK_SPEED_40GB;
+	case I40E_LINK_SPEED_20GB:
+		return VIRTCHNL_LINK_SPEED_20GB;
+	case I40E_LINK_SPEED_25GB:
+		return VIRTCHNL_LINK_SPEED_25GB;
+	case I40E_LINK_SPEED_UNKNOWN:
+	default:
+		return VIRTCHNL_LINK_SPEED_UNKNOWN;
+	}
+}
+
 /* prototype for functions used for SW locks */
 
 /* i40e_common for VF drivers*/
