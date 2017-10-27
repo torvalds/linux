@@ -3352,13 +3352,6 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	 */
 	synchronize_irq(dev_priv->drm.irq);
 
-	/*
-	 * We are committed now to parking the engines, make sure there
-	 * will be no more interrupts arriving later.
-	 */
-	if (!intel_engines_are_idle(dev_priv))
-		DRM_ERROR("Timeout waiting for engines to idle\n");
-
 	intel_engines_park(dev_priv);
 	i915_gem_timelines_mark_idle(dev_priv);
 

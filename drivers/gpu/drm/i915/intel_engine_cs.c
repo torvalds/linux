@@ -1613,6 +1613,13 @@ void intel_engines_park(struct drm_i915_private *i915)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
+	/*
+	 * We are committed now to parking the engines, make sure there
+	 * will be no more interrupts arriving later.
+	 */
+	if (!intel_engines_are_idle(dev_priv))
+		DRM_ERROR("Timeout waiting for engines to idle\n");
+
 	for_each_engine(engine, i915, id) {
 		if (engine->park)
 			engine->park(engine);
