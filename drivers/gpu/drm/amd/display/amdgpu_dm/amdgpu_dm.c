@@ -4653,6 +4653,9 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		}
 	} else {
 		for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+			if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
+				continue;
+
 			if (!new_crtc_state->enable)
 				continue;
 
