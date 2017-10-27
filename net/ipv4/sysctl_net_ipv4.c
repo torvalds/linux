@@ -493,15 +493,6 @@ static struct ctl_table ipv4_table[] = {
 		.proc_handler   = proc_allowed_congestion_control,
 	},
 	{
-		.procname	= "tcp_pacing_ss_ratio",
-		.data		= &sysctl_tcp_pacing_ss_ratio,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &zero,
-		.extra2		= &thousand,
-	},
-	{
 		.procname	= "tcp_pacing_ca_ratio",
 		.data		= &sysctl_tcp_pacing_ca_ratio,
 		.maxlen		= sizeof(int),
@@ -1144,6 +1135,15 @@ static struct ctl_table ipv4_net_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_ms_jiffies,
+	},
+	{
+		.procname	= "tcp_pacing_ss_ratio",
+		.data		= &init_net.ipv4.sysctl_tcp_pacing_ss_ratio,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &thousand,
 	},
 	{ }
 };

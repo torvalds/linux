@@ -767,13 +767,6 @@ static void tcp_rtt_estimator(struct sock *sk, long mrtt_us)
 	tp->srtt_us = max(1U, srtt);
 }
 
-/* Set the sk_pacing_rate to allow proper sizing of TSO packets.
- * Note: TCP stack does not yet implement pacing.
- * FQ packet scheduler can be used to implement cheap but effective
- * TCP pacing, to smooth the burst on large writes when packets
- * in flight is significantly lower than cwnd (or rwin)
- */
-int sysctl_tcp_pacing_ss_ratio __read_mostly = 200;
 int sysctl_tcp_pacing_ca_ratio __read_mostly = 120;
 
 static void tcp_update_pacing_rate(struct sock *sk)
@@ -793,7 +786,7 @@ static void tcp_update_pacing_rate(struct sock *sk)
 	 *	 end of slow start and should slow down.
 	 */
 	if (tp->snd_cwnd < tp->snd_ssthresh / 2)
-		rate *= sysctl_tcp_pacing_ss_ratio;
+		rate *= sock_net(sk)->ipv4.sysctl_tcp_pacing_ss_ratio;
 	else
 		rate *= sysctl_tcp_pacing_ca_ratio;
 
