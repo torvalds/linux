@@ -187,7 +187,6 @@ static bool ipv6_dest_hao(struct sk_buff *skb, int optoff)
 	struct ipv6_destopt_hao *hao;
 	struct inet6_skb_parm *opt = IP6CB(skb);
 	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
-	struct in6_addr tmp_addr;
 	int ret;
 
 	if (opt->dsthao) {
@@ -229,9 +228,7 @@ static bool ipv6_dest_hao(struct sk_buff *skb, int optoff)
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
 		skb->ip_summed = CHECKSUM_NONE;
 
-	tmp_addr = ipv6h->saddr;
-	ipv6h->saddr = hao->addr;
-	hao->addr = tmp_addr;
+	swap(ipv6h->saddr, hao->addr);
 
 	if (skb->tstamp == 0)
 		__net_timestamp(skb);
