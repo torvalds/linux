@@ -1758,7 +1758,8 @@ static u32 tcp_tso_segs(struct sock *sk, unsigned int mss_now)
 	u32 tso_segs = ca_ops->tso_segs_goal ? ca_ops->tso_segs_goal(sk) : 0;
 
 	return tso_segs ? :
-		tcp_tso_autosize(sk, mss_now, sysctl_tcp_min_tso_segs);
+		tcp_tso_autosize(sk, mss_now,
+				 sock_net(sk)->ipv4.sysctl_tcp_min_tso_segs);
 }
 
 /* Returns the portion of skb which can be sent right away */
