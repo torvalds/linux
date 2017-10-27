@@ -79,9 +79,6 @@
 #include <linux/unaligned/access_ok.h>
 #include <linux/static_key.h>
 
-/* rfc5961 challenge ack rate limiting */
-int sysctl_tcp_challenge_ack_limit = 1000;
-
 int sysctl_tcp_max_orphans __read_mostly = NR_FILE;
 int sysctl_tcp_min_rtt_wlen __read_mostly = 300;
 int sysctl_tcp_invalid_ratelimit __read_mostly = HZ/2;
@@ -3443,10 +3440,11 @@ static void tcp_send_challenge_ack(struct sock *sk, const struct sk_buff *skb)
 	static u32 challenge_timestamp;
 	static unsigned int challenge_count;
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct net *net = sock_net(sk);
 	u32 count, now;
 
 	/* First check our per-socket dupack rate limit. */
-	if (__tcp_oow_rate_limited(sock_net(sk),
+	if (__tcp_oow_rate_limited(net,
 				   LINUX_MIB_TCPACKSKIPPEDCHALLENGE,
 				   &tp->last_oow_ack_time))
 		return;
@@ -3454,16 +3452,16 @@ static void tcp_send_challenge_ack(struct sock *sk, const struct sk_buff *skb)
 	/* Then check host-wide RFC 5961 rate limit. */
 	now = jiffies / HZ;
 	if (now != challenge_timestamp) {
-		u32 half = (sysctl_tcp_challenge_ack_limit + 1) >> 1;
+		u32 ack_limit = net->ipv4.sysctl_tcp_challenge_ack_limit;
+		u32 half = (ack_limit + 1) >> 1;
 
 		challenge_timestamp = now;
-		WRITE_ONCE(challenge_count, half +
-			   prandom_u32_max(sysctl_tcp_challenge_ack_limit));
+		WRITE_ONCE(challenge_count, half + prandom_u32_max(ack_limit));
 	}
 	count = READ_ONCE(challenge_count);
 	if (count > 0) {
 		WRITE_ONCE(challenge_count, count - 1);
-		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPCHALLENGEACK);
+		NET_INC_STATS(net, LINUX_MIB_TCPCHALLENGEACK);
 		tcp_send_ack(sk);
 	}
 }
