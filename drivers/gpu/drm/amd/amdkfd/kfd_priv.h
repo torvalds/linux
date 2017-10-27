@@ -32,6 +32,7 @@
 #include <linux/spinlock.h>
 #include <linux/kfd_ioctl.h>
 #include <linux/idr.h>
+#include <linux/kfifo.h>
 #include <kgd_kfd_interface.h>
 
 #include "amd_shared.h"
@@ -182,10 +183,7 @@ struct kfd_dev {
 	unsigned int gtt_sa_num_of_chunks;
 
 	/* Interrupts */
-	void *interrupt_ring;
-	size_t interrupt_ring_size;
-	atomic_t interrupt_ring_rptr;
-	atomic_t interrupt_ring_wptr;
+	struct kfifo ih_fifo;
 	struct work_struct interrupt_work;
 	spinlock_t interrupt_lock;
 
