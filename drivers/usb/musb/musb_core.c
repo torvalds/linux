@@ -906,7 +906,7 @@ b_host:
 	 */
 	if (int_usb & MUSB_INTR_RESET) {
 		handled = IRQ_HANDLED;
-		if (devctl & MUSB_DEVCTL_HM) {
+		if (is_host_active(musb)) {
 			/*
 			 * When BABBLE happens what we can depends on which
 			 * platform MUSB is running, because some platforms
@@ -916,9 +916,7 @@ b_host:
 			 * drop the session.
 			 */
 			dev_err(musb->controller, "Babble\n");
-
-			if (is_host_active(musb))
-				musb_recover_from_babble(musb);
+			musb_recover_from_babble(musb);
 		} else {
 			musb_dbg(musb, "BUS RESET as %s",
 				usb_otg_state_string(musb->xceiv->otg->state));
@@ -1861,22 +1859,22 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 		MUSB_DEVCTL_HR;
 	switch (devctl & ~s) {
 	case MUSB_QUIRK_B_INVALID_VBUS_91:
-		if (musb->quirk_retries--) {
+		if (musb->quirk_retries && !musb->flush_irq_work) {
 			musb_dbg(musb,
 				 "Poll devctl on invalid vbus, assume no session");
 			schedule_delayed_work(&musb->irq_work,
 					      msecs_to_jiffies(1000));
-
+			musb->quirk_retries--;
 			return;
 		}
 		/* fall through */
 	case MUSB_QUIRK_A_DISCONNECT_19:
-		if (musb->quirk_retries--) {
+		if (musb->quirk_retries && !musb->flush_irq_work) {
 			musb_dbg(musb,
 				 "Poll devctl on possible host mode disconnect");
 			schedule_delayed_work(&musb->irq_work,
 					      msecs_to_jiffies(1000));
-
+			musb->quirk_retries--;
 			return;
 		}
 		if (!musb->session)
@@ -2681,8 +2679,15 @@ static int musb_suspend(struct device *dev)
 
 	musb_platform_disable(musb);
 	musb_disable_interrupts(musb);
+
+	musb->flush_irq_work = true;
+	while (flush_delayed_work(&musb->irq_work))
+		;
+	musb->flush_irq_work = false;
+
 	if (!(musb->io.quirks & MUSB_PRESERVE_SESSION))
 		musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
+
 	WARN_ON(!list_empty(&musb->pending_list));
 
 	spin_lock_irqsave(&musb->lock, flags);
