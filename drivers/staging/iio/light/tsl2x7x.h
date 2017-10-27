@@ -23,8 +23,6 @@
 #define __TSL2X7X_H
 #include <linux/pm.h>
 
-struct iio_dev;
-
 struct tsl2x7x_lux {
 	unsigned int ratio;
 	unsigned int ch0;
