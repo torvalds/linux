@@ -184,7 +184,7 @@ static int dsa_ds_complete(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 		if (err != 0)
 			return err;
 
-		ds->dsa_port_mask |= BIT(index);
+		port->type = DSA_PORT_TYPE_DSA;
 	}
 
 	return 0;
@@ -312,7 +312,7 @@ static int dsa_ds_apply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 	 * the slave MDIO bus driver rely on these values for probing PHY
 	 * devices or not
 	 */
-	ds->phys_mii_mask = ds->enabled_port_mask;
+	ds->phys_mii_mask |= dsa_user_ports(ds);
 
 	/* Add the switch to devlink before calling setup, so that setup can
 	 * add dpipe tables
@@ -499,11 +499,7 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 		dst->cpu_dp->master = ethernet_dev;
 	}
 
-	/* Initialize cpu_port_mask now for drv->setup()
-	 * to have access to a correct value, just like what
-	 * net/dsa/dsa.c::dsa_switch_setup_one does.
-	 */
-	ds->cpu_port_mask |= BIT(index);
+	port->type = DSA_PORT_TYPE_CPU;
 
 	tag_protocol = ds->ops->get_tag_protocol(ds);
 	tag_ops = dsa_resolve_tag_protocol(tag_protocol);
@@ -538,11 +534,7 @@ static int dsa_ds_parse(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 			if (err)
 				return err;
 		} else {
-			/* Initialize enabled_port_mask now for drv->setup()
-			 * to have access to a correct value, just like what
-			 * net/dsa/dsa.c::dsa_switch_setup_one does.
-			 */
-			ds->enabled_port_mask |= BIT(index);
+			port->type = DSA_PORT_TYPE_USER;
 		}
 
 	}

@@ -1676,7 +1676,7 @@ static int mv88e6xxx_setup_port_mode(struct mv88e6xxx_chip *chip, int port)
 	if (dsa_is_dsa_port(chip->ds, port))
 		return mv88e6xxx_set_port_mode_dsa(chip, port);
 
-	if (dsa_is_normal_port(chip->ds, port))
+	if (dsa_is_user_port(chip->ds, port))
 		return mv88e6xxx_set_port_mode_normal(chip, port);
 
 	/* Setup CPU port mode depending on its supported tag format */
@@ -2005,6 +2005,9 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 
 	/* Setup Switch Port Registers */
 	for (i = 0; i < mv88e6xxx_num_ports(chip); i++) {
+		if (dsa_is_unused_port(ds, i))
+			continue;
+
 		err = mv88e6xxx_setup_port(chip, i);
 		if (err)
 			goto unlock;

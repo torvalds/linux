@@ -688,7 +688,7 @@ mt7530_cpu_port_enable(struct mt7530_priv *priv,
 	 * the switch
 	 */
 	mt7530_write(priv, MT7530_PCR_P(port),
-		     PCR_MATRIX(priv->ds->enabled_port_mask));
+		     PCR_MATRIX(dsa_user_ports(priv->ds)));
 
 	return 0;
 }
@@ -781,7 +781,7 @@ mt7530_port_bridge_join(struct dsa_switch *ds, int port,
 		 * same bridge. If the port is disabled, port matrix is kept
 		 * and not being setup until the port becomes enabled.
 		 */
-		if (ds->enabled_port_mask & BIT(i) && i != port) {
+		if (dsa_is_user_port(ds, i) && i != port) {
 			if (dsa_to_port(ds, i)->bridge_dev != bridge)
 				continue;
 			if (priv->ports[i].enable)
@@ -818,7 +818,7 @@ mt7530_port_bridge_leave(struct dsa_switch *ds, int port,
 		 * in the same bridge. If the port is disabled, port matrix
 		 * is kept and not being setup until the port becomes enabled.
 		 */
-		if (ds->enabled_port_mask & BIT(i) && i != port) {
+		if (dsa_is_user_port(ds, i) && i != port) {
 			if (dsa_to_port(ds, i)->bridge_dev != bridge)
 				continue;
 			if (priv->ports[i].enable)
