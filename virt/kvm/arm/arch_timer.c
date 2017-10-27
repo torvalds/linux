@@ -103,7 +103,8 @@ static irqreturn_t kvm_arch_timer_handler(int irq, void *dev_id)
 	if (kvm_timer_irq_can_fire(vtimer))
 		kvm_timer_update_irq(vcpu, true, vtimer);
 
-	if (unlikely(!irqchip_in_kernel(vcpu->kvm)))
+	if (static_branch_unlikely(&userspace_irqchip_in_use) &&
+	    unlikely(!irqchip_in_kernel(vcpu->kvm)))
 		kvm_vtimer_update_mask_user(vcpu);
 
 	return IRQ_HANDLED;
@@ -284,7 +285,8 @@ static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level,
 	trace_kvm_timer_update_irq(vcpu->vcpu_id, timer_ctx->irq.irq,
 				   timer_ctx->irq.level);
 
-	if (likely(irqchip_in_kernel(vcpu->kvm))) {
+	if (!static_branch_unlikely(&userspace_irqchip_in_use) &&
+	    likely(irqchip_in_kernel(vcpu->kvm))) {
 		ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
 					  timer_ctx->irq.irq,
 					  timer_ctx->irq.level,
