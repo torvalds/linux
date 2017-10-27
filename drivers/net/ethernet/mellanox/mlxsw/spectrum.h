@@ -231,9 +231,9 @@ struct mlxsw_sp_port {
 	struct list_head mall_tc_list;
 	struct {
 		#define MLXSW_HW_STATS_UPDATE_TIME HZ
-		struct rtnl_link_stats64 *cache;
+		struct rtnl_link_stats64 stats;
 		struct delayed_work update_dw;
-	} hw_stats;
+	} periodic_hw_stats;
 	struct mlxsw_sp_port_sample *sample;
 	struct list_head vlans_list;
 };
