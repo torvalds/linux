@@ -480,9 +480,13 @@ static bool stop_ring(struct intel_engine_cs *engine)
 		}
 	}
 
-	I915_WRITE_CTL(engine, 0);
+	I915_WRITE_HEAD(engine, I915_READ_TAIL(engine));
+
 	I915_WRITE_HEAD(engine, 0);
 	I915_WRITE_TAIL(engine, 0);
+
+	/* The ring must be empty before it is disabled */
+	I915_WRITE_CTL(engine, 0);
 
 	return (I915_READ_HEAD(engine) & HEAD_ADDR) == 0;
 }
