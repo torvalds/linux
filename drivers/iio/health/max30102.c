@@ -32,6 +32,7 @@
 
 #define MAX30102_REGMAP_NAME	"max30102_regmap"
 #define MAX30102_DRV_NAME	"max30102"
+#define MAX30102_PART_NUMBER	0x15
 
 #define MAX30102_REG_INT_STATUS			0x00
 #define MAX30102_REG_INT_STATUS_PWR_RDY		BIT(0)
@@ -82,6 +83,9 @@
 
 #define MAX30102_REG_TEMP_INTEGER		0x1f
 #define MAX30102_REG_TEMP_FRACTION		0x20
+
+#define MAX30102_REG_REV_ID			0xfe
+#define MAX30102_REG_PART_ID			0xff
 
 struct max30102_data {
 	struct i2c_client *client;
@@ -391,6 +395,7 @@ static int max30102_probe(struct i2c_client *client,
 	struct iio_buffer *buffer;
 	struct iio_dev *indio_dev;
 	int ret;
+	unsigned int reg;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
@@ -423,6 +428,19 @@ static int max30102_probe(struct i2c_client *client,
 		dev_err(&client->dev, "regmap initialization failed\n");
 		return PTR_ERR(data->regmap);
 	}
+
+	/* check part ID */
+	ret = regmap_read(data->regmap, MAX30102_REG_PART_ID, &reg);
+	if (ret)
+		return ret;
+	if (reg != MAX30102_PART_NUMBER)
+		return -ENODEV;
+
+	/* show revision ID */
+	ret = regmap_read(data->regmap, MAX30102_REG_REV_ID, &reg);
+	if (ret)
+		return ret;
+	dev_dbg(&client->dev, "max3010x revision %02x\n", reg);
 
 	ret = max30102_set_powermode(data, false);
 	if (ret)
