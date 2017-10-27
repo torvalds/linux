@@ -367,7 +367,7 @@ int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 	if (intel_encoder->type == INTEL_OUTPUT_DSI)
 		port = 0;
 	else
-		port = intel_ddi_get_encoder_port(intel_encoder);
+		port = intel_encoder->port;
 
 	if (port == PORT_E)  {
 		port = 0;
