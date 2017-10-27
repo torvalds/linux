@@ -29,7 +29,7 @@ int bnxt_dl_register(struct bnxt *bp)
 	if (!pci_find_ext_capability(bp->pdev, PCI_EXT_CAP_ID_SRIOV))
 		return 0;
 
-	if (bp->hwrm_spec_code < 0x10800) {
+	if (bp->hwrm_spec_code < 0x10803) {
 		netdev_warn(bp->dev, "Firmware does not support SR-IOV E-Switch SWITCHDEV mode.\n");
 		return -ENOTSUPP;
 	}
