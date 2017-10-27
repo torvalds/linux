@@ -431,7 +431,7 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 static int  mdio_wait_link(struct net_device *dev, int wait);
 static int  netdev_open(struct net_device *dev);
 static void check_duplex(struct net_device *dev);
-static void netdev_timer(unsigned long data);
+static void netdev_timer(struct timer_list *t);
 static void tx_timeout(struct net_device *dev);
 static void init_ring(struct net_device *dev);
 static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev);
@@ -913,7 +913,7 @@ static int netdev_open(struct net_device *dev)
 			   ioread16(ioaddr + MACCtrl1), ioread16(ioaddr + MACCtrl0));
 
 	/* Set the timer to check for link beat. */
-	setup_timer(&np->timer, netdev_timer, (unsigned long)dev);
+	timer_setup(&np->timer, netdev_timer, 0);
 	np->timer.expires = jiffies + 3*HZ;
 	add_timer(&np->timer);
 
@@ -951,10 +951,10 @@ static void check_duplex(struct net_device *dev)
 	}
 }
 
-static void netdev_timer(unsigned long data)
+static void netdev_timer(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)data;
-	struct netdev_private *np = netdev_priv(dev);
+	struct netdev_private *np = from_timer(np, t, timer);
+	struct net_device *dev = np->mii_if.dev;
 	void __iomem *ioaddr = np->base;
 	int next_tick = 10*HZ;
 
