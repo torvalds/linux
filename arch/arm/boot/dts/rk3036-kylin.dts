@@ -138,6 +138,10 @@
 	status = "okay";
 };
 
+&hevc_mmu {
+	status = "okay";
+};
+
 &i2c1 {
 	clock-frequency = <400000>;
 
@@ -395,11 +399,15 @@
 	status = "okay";
 };
 
-&vpu {
+&vop_mmu {
 	status = "okay";
 };
 
-&vop_mmu {
+&vpu_combo {
+	status = "okay";
+};
+
+&vpu_mmu {
 	status = "okay";
 };
 
