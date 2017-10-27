@@ -1218,12 +1218,11 @@ static int rsi_freeze(struct device *dev)
 	common = adapter->priv;
 	sdev = (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 
-#ifdef CONFIG_RSI_WOW
 	if ((common->wow_flags & RSI_WOW_ENABLED) &&
 	    (common->wow_flags & RSI_WOW_NO_CONNECTION))
 		rsi_dbg(ERR_ZONE,
 			"##### Device can not wake up through WLAN\n");
-#endif
+
 	ret = rsi_sdio_disable_interrupts(pfunction);
 
 	if (sdev->write_fail)
@@ -1255,6 +1254,31 @@ static int rsi_thaw(struct device *dev)
 	rsi_dbg(INFO_ZONE, "***** RSI module thaw done *****\n");
 
 	return 0;
+}
+
+static void rsi_shutdown(struct device *dev)
+{
+	struct sdio_func *pfunction = dev_to_sdio_func(dev);
+	struct rsi_hw *adapter = sdio_get_drvdata(pfunction);
+	struct rsi_91x_sdiodev *sdev =
+		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	struct ieee80211_hw *hw = adapter->hw;
+	struct cfg80211_wowlan *wowlan = hw->wiphy->wowlan_config;
+
+	rsi_dbg(ERR_ZONE, "SDIO Bus shutdown =====>\n");
+
+	if (rsi_config_wowlan(adapter, wowlan))
+		rsi_dbg(ERR_ZONE, "Failed to configure WoWLAN\n");
+
+	rsi_sdio_disable_interrupts(sdev->pfunction);
+
+	if (sdev->write_fail)
+		rsi_dbg(INFO_ZONE, "###### Device is not ready #######\n");
+
+	if (rsi_set_sdio_pm_caps(adapter))
+		rsi_dbg(INFO_ZONE, "Setting power management caps failed\n");
+
+	rsi_dbg(INFO_ZONE, "***** RSI module shut down *****\n");
 }
 
 int rsi_sdio_reinit_device(struct rsi_hw *adapter)
@@ -1297,9 +1321,7 @@ static int rsi_restore(struct device *dev)
 	adapter->sc_nvifs = 0;
 	ieee80211_restart_hw(adapter->hw);
 
-#ifdef CONFIG_RSI_WOW
 	common->wow_flags = 0;
-#endif
 	common->iface_down = false;
 
 	rsi_dbg(INFO_ZONE, "RSI module restored\n");
@@ -1331,6 +1353,7 @@ static struct sdio_driver rsi_driver = {
 #ifdef CONFIG_PM
 	.drv = {
 		.pm = &rsi_pm_ops,
+		.shutdown   = rsi_shutdown,
 	}
 #endif
 };
