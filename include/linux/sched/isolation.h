@@ -6,6 +6,7 @@
 #include <linux/tick.h>
 
 #ifdef CONFIG_NO_HZ_FULL
+DECLARE_STATIC_KEY_FALSE(housekeeping_overriden);
 extern int housekeeping_any_cpu(void);
 extern const struct cpumask *housekeeping_cpumask(void);
 extern void housekeeping_affine(struct task_struct *t);
@@ -31,7 +32,7 @@ static inline void housekeeping_init(void) { }
 static inline bool is_housekeeping_cpu(int cpu)
 {
 #ifdef CONFIG_NO_HZ_FULL
-	if (tick_nohz_full_enabled())
+	if (static_branch_unlikely(&housekeeping_overriden))
 		return housekeeping_test_cpu(cpu);
 #endif
 	return true;
