@@ -653,10 +653,10 @@ static void korina_check_media(struct net_device *dev, unsigned int init_media)
 						&lp->eth_regs->ethmac2);
 }
 
-static void korina_poll_media(unsigned long data)
+static void korina_poll_media(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *) data;
-	struct korina_private *lp = netdev_priv(dev);
+	struct korina_private *lp = from_timer(lp, t, media_check_timer);
+	struct net_device *dev = lp->dev;
 
 	korina_check_media(dev, 0);
 	mod_timer(&lp->media_check_timer, jiffies + HZ);
@@ -1103,7 +1103,7 @@ static int korina_probe(struct platform_device *pdev)
 			": cannot register net device: %d\n", rc);
 		goto probe_err_register;
 	}
-	setup_timer(&lp->media_check_timer, korina_poll_media, (unsigned long) dev);
+	timer_setup(&lp->media_check_timer, korina_poll_media, 0);
 
 	INIT_WORK(&lp->restart_task, korina_restart_task);
 
