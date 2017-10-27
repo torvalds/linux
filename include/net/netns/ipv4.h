@@ -153,6 +153,7 @@ struct netns_ipv4 {
 	int sysctl_tcp_autocorking;
 	int sysctl_tcp_invalid_ratelimit;
 	int sysctl_tcp_pacing_ss_ratio;
+	int sysctl_tcp_pacing_ca_ratio;
 	struct inet_timewait_death_row tcp_death_row;
 	int sysctl_max_syn_backlog;
 	int sysctl_tcp_fastopen;

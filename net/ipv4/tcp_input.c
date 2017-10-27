@@ -767,8 +767,6 @@ static void tcp_rtt_estimator(struct sock *sk, long mrtt_us)
 	tp->srtt_us = max(1U, srtt);
 }
 
-int sysctl_tcp_pacing_ca_ratio __read_mostly = 120;
-
 static void tcp_update_pacing_rate(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
@@ -788,7 +786,7 @@ static void tcp_update_pacing_rate(struct sock *sk)
 	if (tp->snd_cwnd < tp->snd_ssthresh / 2)
 		rate *= sock_net(sk)->ipv4.sysctl_tcp_pacing_ss_ratio;
 	else
-		rate *= sysctl_tcp_pacing_ca_ratio;
+		rate *= sock_net(sk)->ipv4.sysctl_tcp_pacing_ca_ratio;
 
 	rate *= max(tp->snd_cwnd, tp->packets_out);
 
