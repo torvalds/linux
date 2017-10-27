@@ -7870,7 +7870,8 @@ ath10k_wmi_10_4_gen_update_fw_tdls_state(struct ath10k *ar, u32 vdev_id,
 	if (!skb)
 		return ERR_PTR(-ENOMEM);
 
-	if (test_bit(WMI_SERVICE_TDLS_EXPLICIT_MODE_ONLY, ar->wmi.svc_map))
+	if (test_bit(WMI_SERVICE_TDLS_EXPLICIT_MODE_ONLY, ar->wmi.svc_map) &&
+	    state == WMI_TDLS_ENABLE_ACTIVE)
 		state = WMI_TDLS_ENABLE_PASSIVE;
 
 	if (test_bit(WMI_SERVICE_TDLS_UAPSD_BUFFER_STA, ar->wmi.svc_map))
