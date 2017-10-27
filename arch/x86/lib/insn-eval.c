@@ -728,6 +728,43 @@ int insn_get_modrm_rm_off(struct insn *insn, struct pt_regs *regs)
 	return get_reg_offset(insn, regs, REG_TYPE_RM);
 }
 
+/**
+ * get_seg_base_addr() - obtain base address of a segment
+ * @insn:	Instruction. Must be valid.
+ * @regs:	Register values as seen when entering kernel mode
+ * @regoff:	Operand offset, in pt_regs, used to resolve segment descriptor
+ * @base:	Obtained segment base
+ *
+ * Obtain the base address of the segment associated with the operand @regoff
+ * and, if any or allowed, override prefixes in @insn. This function is
+ * different from insn_get_seg_base() as the latter does not resolve the segment
+ * associated with the instruction operand.
+ *
+ * Returns:
+ *
+ * 0 on success. @base will contain the base address of the resolved segment.
+ *
+ * -EINVAL on error.
+ */
+static int get_seg_base_addr(struct insn *insn, struct pt_regs *regs,
+			     int regoff, unsigned long *base)
+{
+	int seg_reg_idx;
+
+	if (!base)
+		return -EINVAL;
+
+	seg_reg_idx = resolve_seg_reg(insn, regs, regoff);
+	if (seg_reg_idx < 0)
+		return seg_reg_idx;
+
+	*base = insn_get_seg_base(regs, seg_reg_idx);
+	if (*base == -1L)
+		return -EINVAL;
+
+	return 0;
+}
+
 /*
  * return the address being referenced be instruction
  * for rm=3 returning the content of the rm reg
@@ -735,8 +772,8 @@ int insn_get_modrm_rm_off(struct insn *insn, struct pt_regs *regs)
  */
 void __user *insn_get_addr_ref(struct insn *insn, struct pt_regs *regs)
 {
-	int addr_offset, base_offset, indx_offset;
-	unsigned long linear_addr = -1L;
+	int addr_offset, base_offset, indx_offset, ret;
+	unsigned long linear_addr = -1L, seg_base;
 	long eff_addr, base, indx;
 	insn_byte_t sib;
 
@@ -750,6 +787,7 @@ void __user *insn_get_addr_ref(struct insn *insn, struct pt_regs *regs)
 			goto out;
 
 		eff_addr = regs_get_register(regs, addr_offset);
+
 	} else {
 		if (insn->sib.nbytes) {
 			/*
@@ -776,6 +814,13 @@ void __user *insn_get_addr_ref(struct insn *insn, struct pt_regs *regs)
 				indx = regs_get_register(regs, indx_offset);
 
 			eff_addr = base + indx * (1 << X86_SIB_SCALE(sib));
+
+			/*
+			 * The base determines the segment used to compute
+			 * the linear address.
+			 */
+			addr_offset = base_offset;
+
 		} else {
 			addr_offset = get_reg_offset(insn, regs, REG_TYPE_RM);
 			/*
@@ -798,7 +843,11 @@ void __user *insn_get_addr_ref(struct insn *insn, struct pt_regs *regs)
 		eff_addr += insn->displacement.value;
 	}
 
-	linear_addr = (unsigned long)eff_addr;
+	ret = get_seg_base_addr(insn, regs, addr_offset, &seg_base);
+	if (ret)
+		goto out;
+
+	linear_addr = (unsigned long)eff_addr + seg_base;
 
 out:
 	return (void __user *)linear_addr;
