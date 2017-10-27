@@ -420,7 +420,7 @@ static int max30102_probe(struct i2c_client *client,
 
 	data->regmap = devm_regmap_init_i2c(client, &max30102_regmap_config);
 	if (IS_ERR(data->regmap)) {
-		dev_err(&client->dev, "regmap initialization failed.\n");
+		dev_err(&client->dev, "regmap initialization failed\n");
 		return PTR_ERR(data->regmap);
 	}
 	max30102_set_powermode(data, false);
