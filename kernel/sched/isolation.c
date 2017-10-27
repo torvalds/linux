@@ -54,23 +54,41 @@ EXPORT_SYMBOL_GPL(housekeeping_test_cpu);
 
 void __init housekeeping_init(void)
 {
-	if (!tick_nohz_full_enabled())
+	if (!housekeeping_flags)
 		return;
-
-	if (!alloc_cpumask_var(&housekeeping_mask, GFP_KERNEL)) {
-		WARN(1, "NO_HZ: Can't allocate not-full dynticks cpumask\n");
-		cpumask_clear(tick_nohz_full_mask);
-		tick_nohz_full_running = false;
-		return;
-	}
-
-	cpumask_andnot(housekeeping_mask,
-		       cpu_possible_mask, tick_nohz_full_mask);
-
-	housekeeping_flags = HK_FLAG_TIMER | HK_FLAG_RCU | HK_FLAG_MISC;
 
 	static_branch_enable(&housekeeping_overriden);
 
 	/* We need at least one CPU to handle housekeeping work */
 	WARN_ON_ONCE(cpumask_empty(housekeeping_mask));
 }
+
+#ifdef CONFIG_NO_HZ_FULL
+static int __init housekeeping_nohz_full_setup(char *str)
+{
+	cpumask_var_t non_housekeeping_mask;
+
+	alloc_bootmem_cpumask_var(&non_housekeeping_mask);
+	if (cpulist_parse(str, non_housekeeping_mask) < 0) {
+		pr_warn("Housekeeping: Incorrect nohz_full cpumask\n");
+		free_bootmem_cpumask_var(non_housekeeping_mask);
+		return 0;
+	}
+
+	alloc_bootmem_cpumask_var(&housekeeping_mask);
+	cpumask_andnot(housekeeping_mask, cpu_possible_mask, non_housekeeping_mask);
+
+	if (cpumask_empty(housekeeping_mask))
+		cpumask_set_cpu(smp_processor_id(), housekeeping_mask);
+
+	housekeeping_flags = HK_FLAG_TICK | HK_FLAG_TIMER |
+				HK_FLAG_RCU | HK_FLAG_MISC;
+
+	tick_nohz_full_setup(non_housekeeping_mask);
+
+	free_bootmem_cpumask_var(non_housekeeping_mask);
+
+	return 1;
+}
+__setup("nohz_full=", housekeeping_nohz_full_setup);
+#endif
