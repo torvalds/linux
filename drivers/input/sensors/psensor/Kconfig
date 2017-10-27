@@ -20,5 +20,9 @@ config PS_AP321XX
   bool "psensor ap321xx"
 	default n
 
+config PS_STK3410
+	bool "proximity sensor stk3410"
+	default n
+
 endif
 
