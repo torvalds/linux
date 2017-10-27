@@ -17,19 +17,19 @@
 
 #include "mdp5_kms.h"
 
-struct mdp5_hw_pipe *mdp5_pipe_assign(struct drm_atomic_state *s,
-		struct drm_plane *plane, uint32_t caps, uint32_t blkcfg)
+int mdp5_pipe_assign(struct drm_atomic_state *s, struct drm_plane *plane,
+		     uint32_t caps, uint32_t blkcfg,
+		     struct mdp5_hw_pipe **hwpipe)
 {
 	struct msm_drm_private *priv = s->dev->dev_private;
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(priv->kms));
 	struct mdp5_state *state;
 	struct mdp5_hw_pipe_state *old_state, *new_state;
-	struct mdp5_hw_pipe *hwpipe = NULL;
 	int i;
 
 	state = mdp5_get_state(s);
 	if (IS_ERR(state))
-		return ERR_CAST(state);
+		return PTR_ERR(state);
 
 	/* grab old_state after mdp5_get_state(), since now we hold lock: */
 	old_state = &mdp5_kms->state->hwpipe;
@@ -64,31 +64,31 @@ struct mdp5_hw_pipe *mdp5_pipe_assign(struct drm_atomic_state *s,
 		/* possible candidate, take the one with the
 		 * fewest unneeded caps bits set:
 		 */
-		if (!hwpipe || (hweight_long(cur->caps & ~caps) <
-				hweight_long(hwpipe->caps & ~caps)))
-			hwpipe = cur;
+		if (!(*hwpipe) || (hweight_long(cur->caps & ~caps) <
+				   hweight_long((*hwpipe)->caps & ~caps)))
+			*hwpipe = cur;
 	}
 
-	if (!hwpipe)
-		return ERR_PTR(-ENOMEM);
+	if (!(*hwpipe))
+		return -ENOMEM;
 
 	if (mdp5_kms->smp) {
 		int ret;
 
-		DBG("%s: alloc SMP blocks", hwpipe->name);
+		DBG("%s: alloc SMP blocks", (*hwpipe)->name);
 		ret = mdp5_smp_assign(mdp5_kms->smp, &state->smp,
-				hwpipe->pipe, blkcfg);
+				(*hwpipe)->pipe, blkcfg);
 		if (ret)
-			return ERR_PTR(-ENOMEM);
+			return -ENOMEM;
 
-		hwpipe->blkcfg = blkcfg;
+		(*hwpipe)->blkcfg = blkcfg;
 	}
 
 	DBG("%s: assign to plane %s for caps %x",
-			hwpipe->name, plane->name, caps);
-	new_state->hwpipe_to_plane[hwpipe->idx] = plane;
+			(*hwpipe)->name, plane->name, caps);
+	new_state->hwpipe_to_plane[(*hwpipe)->idx] = plane;
 
-	return hwpipe;
+	return 0;
 }
 
 void mdp5_pipe_release(struct drm_atomic_state *s, struct mdp5_hw_pipe *hwpipe)

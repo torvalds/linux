@@ -394,21 +394,21 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 			struct mdp5_hw_pipe *old_right_hwpipe =
 							  mdp5_state->r_hwpipe;
 
-			mdp5_state->hwpipe = mdp5_pipe_assign(state->state,
-					plane, caps, blkcfg);
-			if (IS_ERR(mdp5_state->hwpipe)) {
+			ret = mdp5_pipe_assign(state->state, plane, caps,
+					       blkcfg, &mdp5_state->hwpipe);
+			if (ret) {
 				DBG("%s: failed to assign hwpipe!", plane->name);
-				return PTR_ERR(mdp5_state->hwpipe);
+				return ret;
 			}
 
 			if (need_right_hwpipe) {
-				mdp5_state->r_hwpipe =
-					mdp5_pipe_assign(state->state, plane,
-							 caps, blkcfg);
-				if (IS_ERR(mdp5_state->r_hwpipe)) {
+				ret = mdp5_pipe_assign(state->state, plane,
+						       caps, blkcfg,
+						       &mdp5_state->r_hwpipe);
+				if (ret) {
 					DBG("%s: failed to assign right hwpipe",
 					    plane->name);
-					return PTR_ERR(mdp5_state->r_hwpipe);
+					return ret;
 				}
 			} else {
 				/*
