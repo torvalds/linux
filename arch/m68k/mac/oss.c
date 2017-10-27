@@ -31,18 +31,18 @@ volatile struct mac_oss *oss;
 
 /*
  * Initialize the OSS
- *
- * The OSS "detection" code is actually in via_init() which is always called
- * before us. Thus we can count on oss_present being valid on entry.
  */
 
 void __init oss_init(void)
 {
 	int i;
 
-	if (!oss_present) return;
+	if (macintosh_config->ident != MAC_MODEL_IIFX)
+		return;
 
 	oss = (struct mac_oss *) OSS_BASE;
+	pr_debug("OSS detected at %p", oss);
+	oss_present = 1;
 
 	/* Disable all interrupts. Unlike a VIA it looks like we    */
 	/* do this by setting the source's interrupt level to zero. */
