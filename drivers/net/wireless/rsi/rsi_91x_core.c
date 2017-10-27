@@ -276,6 +276,8 @@ void rsi_core_qos_processor(struct rsi_common *common)
 			rsi_dbg(DATA_TX_ZONE, "%s: No More Pkt\n", __func__);
 			break;
 		}
+		if (common->hibernate_resume)
+			break;
 
 		mutex_lock(&common->tx_lock);
 

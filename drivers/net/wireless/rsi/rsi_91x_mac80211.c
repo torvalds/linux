@@ -17,6 +17,7 @@
 #include <linux/etherdevice.h>
 #include "rsi_debugfs.h"
 #include "rsi_mgmt.h"
+#include "rsi_sdio.h"
 #include "rsi_common.h"
 #include "rsi_ps.h"
 
@@ -325,6 +326,11 @@ static int rsi_mac80211_start(struct ieee80211_hw *hw)
 
 	rsi_dbg(ERR_ZONE, "===> Interface UP <===\n");
 	mutex_lock(&common->mutex);
+	if (common->hibernate_resume) {
+		common->reinit_hw = true;
+		adapter->host_intf_ops->reinit_device(adapter);
+		wait_for_completion(&adapter->priv->wlan_init_completion);
+	}
 	common->iface_down = false;
 	wiphy_rfkill_start_polling(hw->wiphy);
 	rsi_send_rx_filter_frame(common, 0);
@@ -1845,6 +1851,9 @@ static int rsi_mac80211_resume(struct ieee80211_hw *hw)
 	common->wow_flags = 0;
 
 	rsi_dbg(INFO_ZONE, "%s: mac80211 resume\n", __func__);
+
+	if (common->hibernate_resume)
+		return 0;
 
 	mutex_lock(&common->mutex);
 	rsi_send_wowlan_request(common, 0, 0);

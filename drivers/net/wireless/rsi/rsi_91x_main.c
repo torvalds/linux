@@ -263,6 +263,7 @@ struct rsi_hw *rsi_91x_init(void)
 	rsi_default_ps_params(adapter);
 	spin_lock_init(&adapter->ps_lock);
 	timer_setup(&common->roc_timer, rsi_roc_timeout, 0);
+	init_completion(&common->wlan_init_completion);
 	common->init_done = true;
 	return adapter;
 

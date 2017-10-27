@@ -1761,7 +1761,11 @@ static int rsi_handle_ta_confirm_type(struct rsi_common *common,
 			common->bb_rf_prog_count--;
 			if (!common->bb_rf_prog_count) {
 				common->fsm_state = FSM_MAC_INIT_DONE;
-				return rsi_mac80211_attach(common);
+				if (common->reinit_hw) {
+					complete(&common->wlan_init_completion);
+				} else {
+					return rsi_mac80211_attach(common);
+				}
 			}
 		} else {
 			rsi_dbg(INFO_ZONE,
@@ -1839,6 +1843,7 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 	case TA_CONFIRM_TYPE:
 		return rsi_handle_ta_confirm_type(common, msg);
 	case CARD_READY_IND:
+		common->hibernate_resume = false;
 		rsi_dbg(FSM_ZONE, "%s: Card ready indication received\n",
 			__func__);
 		return rsi_handle_card_ready(common, msg);

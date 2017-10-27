@@ -214,6 +214,7 @@ struct rsi_common {
 
 	struct rsi_thread tx_thread;
 	struct sk_buff_head tx_queue[NUM_EDCA_QUEUES + 2];
+	struct completion wlan_init_completion;
 	/* Mutex declaration */
 	struct mutex mutex;
 	/* Mutex used for tx thread */
@@ -272,6 +273,8 @@ struct rsi_common {
 	u8 obm_ant_sel_val;
 	int tx_power;
 	u8 ant_in_use;
+	bool hibernate_resume;
+	bool reinit_hw;
 	u8 wow_flags;
 	u16 beacon_interval;
 	u8 dtim_cnt;
@@ -362,5 +365,6 @@ struct rsi_host_intf_ops {
 	int (*load_data_master_write)(struct rsi_hw *adapter, u32 addr,
 				      u32 instructions_size, u16 block_size,
 				      u8 *fw);
+	int (*reinit_device)(struct rsi_hw *adapter);
 };
 #endif
