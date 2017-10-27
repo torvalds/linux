@@ -55,6 +55,8 @@ struct mdp5_crtc {
 
 	struct completion pp_completion;
 
+	bool lm_cursor_enabled;
+
 	struct {
 		/* protect REG_MDP5_LM_CURSOR* registers and cursor scanout_bo*/
 		spinlock_t lock;
@@ -457,19 +459,24 @@ static void mdp5_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	pm_runtime_get_sync(dev);
 
-	/* Restore cursor state, as it might have been lost with suspend: */
-	if (mdp5_crtc->cursor.iova) {
-		unsigned long flags;
+	if (mdp5_crtc->lm_cursor_enabled) {
+		/*
+		 * Restore LM cursor state, as it might have been lost
+		 * with suspend:
+		 */
+		if (mdp5_crtc->cursor.iova) {
+			unsigned long flags;
 
-		spin_lock_irqsave(&mdp5_crtc->cursor.lock, flags);
-		mdp5_crtc_restore_cursor(crtc);
-		spin_unlock_irqrestore(&mdp5_crtc->cursor.lock, flags);
+			spin_lock_irqsave(&mdp5_crtc->cursor.lock, flags);
+			mdp5_crtc_restore_cursor(crtc);
+			spin_unlock_irqrestore(&mdp5_crtc->cursor.lock, flags);
 
-		mdp5_ctl_set_cursor(mdp5_cstate->ctl,
-			&mdp5_cstate->pipeline, 0, true);
-	} else {
-		mdp5_ctl_set_cursor(mdp5_cstate->ctl,
-			&mdp5_cstate->pipeline, 0, false);
+			mdp5_ctl_set_cursor(mdp5_cstate->ctl,
+					    &mdp5_cstate->pipeline, 0, true);
+		} else {
+			mdp5_ctl_set_cursor(mdp5_cstate->ctl,
+					    &mdp5_cstate->pipeline, 0, false);
+		}
 	}
 
 	/* Restore vblank irq handling after power is enabled */
@@ -817,6 +824,12 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	bool cursor_enable = true;
 	unsigned long flags;
 
+	if (!mdp5_crtc->lm_cursor_enabled) {
+		dev_warn(dev->dev,
+			 "cursor_set is deprecated with cursor planes\n");
+		return -EINVAL;
+	}
+
 	if ((width > CURSOR_WIDTH) || (height > CURSOR_HEIGHT)) {
 		dev_err(dev->dev, "bad cursor size: %dx%d\n", width, height);
 		return -EINVAL;
@@ -888,9 +901,16 @@ static int mdp5_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
 	uint32_t flush_mask = mdp_ctl_flush_mask_cursor(0);
+	struct drm_device *dev = crtc->dev;
 	uint32_t roi_w;
 	uint32_t roi_h;
 	unsigned long flags;
+
+	if (!mdp5_crtc->lm_cursor_enabled) {
+		dev_warn(dev->dev,
+			 "cursor_move is deprecated with cursor planes\n");
+		return -EINVAL;
+	}
 
 	/* don't support LM cursors when we we have source split enabled */
 	if (mdp5_cstate->pipeline.r_mixer)
@@ -990,16 +1010,6 @@ static const struct drm_crtc_funcs mdp5_crtc_funcs = {
 	.atomic_destroy_state = mdp5_crtc_destroy_state,
 	.cursor_set = mdp5_crtc_cursor_set,
 	.cursor_move = mdp5_crtc_cursor_move,
-	.atomic_print_state = mdp5_crtc_atomic_print_state,
-};
-
-static const struct drm_crtc_funcs mdp5_crtc_no_lm_cursor_funcs = {
-	.set_config = drm_atomic_helper_set_config,
-	.destroy = mdp5_crtc_destroy,
-	.page_flip = drm_atomic_helper_page_flip,
-	.reset = mdp5_crtc_reset,
-	.atomic_duplicate_state = mdp5_crtc_duplicate_state,
-	.atomic_destroy_state = mdp5_crtc_destroy_state,
 	.atomic_print_state = mdp5_crtc_atomic_print_state,
 };
 
@@ -1171,12 +1181,10 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 	mdp5_crtc->err.irq = mdp5_crtc_err_irq;
 	mdp5_crtc->pp_done.irq = mdp5_crtc_pp_done_irq;
 
-	if (cursor_plane)
-		drm_crtc_init_with_planes(dev, crtc, plane, cursor_plane,
-					  &mdp5_crtc_no_lm_cursor_funcs, NULL);
-	else
-		drm_crtc_init_with_planes(dev, crtc, plane, NULL,
-					  &mdp5_crtc_funcs, NULL);
+	mdp5_crtc->lm_cursor_enabled = cursor_plane ? false : true;
+
+	drm_crtc_init_with_planes(dev, crtc, plane, cursor_plane,
+				  &mdp5_crtc_funcs, NULL);
 
 	drm_flip_work_init(&mdp5_crtc->unref_cursor_work,
 			"unref cursor", unref_cursor_worker);
