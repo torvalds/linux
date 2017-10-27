@@ -598,3 +598,12 @@ irqreturn_t iop_ism_irq(int irq, void *dev_id)
 	}
 	return IRQ_HANDLED;
 }
+
+void iop_ism_irq_poll(uint iop_num)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	iop_ism_irq(0, (void *)iop_num);
+	local_irq_restore(flags);
+}
