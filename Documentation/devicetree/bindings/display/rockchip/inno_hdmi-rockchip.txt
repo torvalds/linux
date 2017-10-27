@@ -4,6 +4,7 @@ Rockchip specific extensions to the Innosilicon HDMI
 Required properties:
 - compatible:
 	"rockchip,rk3036-inno-hdmi";
+	"rockchip,rk3128-inno-hdmi";
 - reg:
 	Physical base address and length of the controller's registers.
 - clocks, clock-names:
