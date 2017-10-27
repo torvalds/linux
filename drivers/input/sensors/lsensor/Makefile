@@ -9,3 +9,4 @@ obj-$(CONFIG_LS_ISL29023) 		+= isl29023.o
 obj-$(CONFIG_LS_AP321XX) 		+= ls_ap321xx.o
 obj-$(CONFIG_LS_PHOTORESISTOR) 		+= ls_photoresistor.o
 obj-$(CONFIG_LS_US5152)  		+= ls_us5152.o
+obj-$(CONFIG_LS_STK3410) 		+= ls_stk3410.o
