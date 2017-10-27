@@ -511,13 +511,6 @@ static struct ctl_table ipv4_table[] = {
 		.extra2		= &thousand,
 	},
 	{
-		.procname	= "tcp_invalid_ratelimit",
-		.data		= &sysctl_tcp_invalid_ratelimit,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_ms_jiffies,
-	},
-	{
 		.procname	= "tcp_available_ulp",
 		.maxlen		= TCP_ULP_BUF_MAX,
 		.mode		= 0444,
@@ -1144,6 +1137,13 @@ static struct ctl_table ipv4_net_table[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &zero,
 		.extra2		= &one,
+	},
+	{
+		.procname	= "tcp_invalid_ratelimit",
+		.data		= &init_net.ipv4.sysctl_tcp_invalid_ratelimit,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_ms_jiffies,
 	},
 	{ }
 };
