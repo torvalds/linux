@@ -470,6 +470,9 @@ static int mdp5_plane_atomic_async_check(struct drm_plane *plane,
 {
 	struct mdp5_plane_state *mdp5_state = to_mdp5_plane_state(state);
 	struct drm_crtc_state *crtc_state;
+	struct drm_rect clip;
+	int min_scale, max_scale;
+	int ret;
 
 	crtc_state = drm_atomic_get_existing_crtc_state(state->state,
 							state->crtc);
@@ -493,6 +496,28 @@ static int mdp5_plane_atomic_async_check(struct drm_plane *plane,
 	    plane->state->crtc_h != state->crtc_h ||
 	    !plane->state->fb ||
 	    plane->state->fb != state->fb)
+		return -EINVAL;
+
+	clip.x1 = 0;
+	clip.y1 = 0;
+	clip.x2 = crtc_state->adjusted_mode.hdisplay;
+	clip.y2 = crtc_state->adjusted_mode.vdisplay;
+	min_scale = FRAC_16_16(1, 8);
+	max_scale = FRAC_16_16(8, 1);
+
+	ret = drm_plane_helper_check_state(state, &clip, min_scale,
+					   max_scale, true, true);
+	if (ret)
+		return ret;
+
+	/*
+	 * if the visibility of the plane changes (i.e, if the cursor is
+	 * clipped out completely, we can't take the async path because
+	 * we need to stage/unstage the plane from the Layer Mixer(s). We
+	 * also assign/unassign the hwpipe(s) tied to the plane. We avoid
+	 * taking the fast path for both these reasons.
+	 */
+	if (state->visible != plane->state->visible)
 		return -EINVAL;
 
 	return 0;
