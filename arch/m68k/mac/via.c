@@ -106,6 +106,7 @@ static int gIER,gIFR,gBufA,gBufB;
 static u8 nubus_disabled;
 
 void via_debug_dump(void);
+static void via_nubus_init(void);
 
 /*
  * Initialize the VIAs
@@ -238,6 +239,8 @@ void __init via_init(void)
 		via2[vACR] &= ~0x03; /* disable port A & B latches */
 	}
 
+	via_nubus_init();
+
 	/* Everything below this point is VIA2 only... */
 
 	if (rbv_present)
@@ -359,7 +362,7 @@ int via_get_cache_disable(void)
  * Initialize VIA2 for Nubus access
  */
 
-void __init via_nubus_init(void)
+static void __init via_nubus_init(void)
 {
 	/* unlock nubus transactions */
 

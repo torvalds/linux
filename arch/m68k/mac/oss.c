@@ -52,14 +52,6 @@ void __init oss_init(void)
 }
 
 /*
- * Initialize OSS for Nubus access
- */
-
-void __init oss_nubus_init(void)
-{
-}
-
-/*
  * Handle miscellaneous OSS interrupts.
  */
 
