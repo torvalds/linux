@@ -45,9 +45,6 @@
 
 #include <trace/events/tcp.h>
 
-/* People can turn this off for buggy TCP's found in printers etc. */
-int sysctl_tcp_retrans_collapse __read_mostly = 1;
-
 /* People can turn this on to work with those rare, broken TCPs that
  * interpret the window field as a signed quantity.
  */
@@ -2804,7 +2801,7 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *to,
 	struct sk_buff *skb = to, *tmp;
 	bool first = true;
 
-	if (!sysctl_tcp_retrans_collapse)
+	if (!sock_net(sk)->ipv4.sysctl_tcp_retrans_collapse)
 		return;
 	if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_SYN)
 		return;

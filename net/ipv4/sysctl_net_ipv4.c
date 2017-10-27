@@ -387,13 +387,6 @@ static int proc_tcp_available_ulp(struct ctl_table *ctl,
 
 static struct ctl_table ipv4_table[] = {
 	{
-		.procname	= "tcp_retrans_collapse",
-		.data		= &sysctl_tcp_retrans_collapse,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{
 		.procname	= "tcp_max_orphans",
 		.data		= &sysctl_tcp_max_orphans,
 		.maxlen		= sizeof(int),
@@ -1141,6 +1134,13 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "tcp_slow_start_after_idle",
 		.data		= &init_net.ipv4.sysctl_tcp_slow_start_after_idle,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
+	{
+		.procname	= "tcp_retrans_collapse",
+		.data		= &init_net.ipv4.sysctl_tcp_retrans_collapse,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
