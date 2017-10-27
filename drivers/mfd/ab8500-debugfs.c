@@ -1620,18 +1620,15 @@ static int ab8500_print_modem_registers(struct seq_file *s, void *p)
 
 	err = abx500_get_register_interruptible(dev,
 		AB8500_REGU_CTRL1, AB8500_SUPPLY_CONTROL_REG, &orig_value);
-	if (err < 0) {
-		dev_err(dev, "ab->read fail %d\n", err);
-		return err;
-	}
+	if (err < 0)
+		goto report_read_failure;
+
 	/* Config 1 will allow APE side to read SIM registers */
 	err = abx500_set_register_interruptible(dev,
 		AB8500_REGU_CTRL1, AB8500_SUPPLY_CONTROL_REG,
 		AB8500_SUPPLY_CONTROL_CONFIG_1);
-	if (err < 0) {
-		dev_err(dev, "ab->write fail %d\n", err);
-		return err;
-	}
+	if (err < 0)
+		goto report_write_failure;
 
 	seq_printf(s, " bank 0x%02X:\n", bank);
 
@@ -1641,19 +1638,25 @@ static int ab8500_print_modem_registers(struct seq_file *s, void *p)
 	for (reg = AB8500_FIRST_SIM_REG; reg <= last_sim_reg; reg++) {
 		err = abx500_get_register_interruptible(dev,
 			bank, reg, &value);
-		if (err < 0) {
-			dev_err(dev, "ab->read fail %d\n", err);
-			return err;
-		}
+		if (err < 0)
+			goto report_read_failure;
+
 		seq_printf(s, "  [0x%02X/0x%02X]: 0x%02X\n", bank, reg, value);
 	}
 	err = abx500_set_register_interruptible(dev,
 		AB8500_REGU_CTRL1, AB8500_SUPPLY_CONTROL_REG, orig_value);
-	if (err < 0) {
-		dev_err(dev, "ab->write fail %d\n", err);
-		return err;
-	}
+	if (err < 0)
+		goto report_write_failure;
+
 	return 0;
+
+report_read_failure:
+	dev_err(dev, "ab->read fail %d\n", err);
+	return err;
+
+report_write_failure:
+	dev_err(dev, "ab->write fail %d\n", err);
+	return err;
 }
 
 static int ab8500_modem_open(struct inode *inode, struct file *file)
