@@ -91,11 +91,11 @@ void kfd_interrupt_exit(struct kfd_dev *kfd)
 	spin_unlock_irqrestore(&kfd->interrupt_lock, flags);
 
 	/*
-	 * Flush_scheduled_work ensures that there are no outstanding
+	 * flush_work ensures that there are no outstanding
 	 * work-queue items that will access interrupt_ring. New work items
 	 * can't be created because we stopped interrupt handling above.
 	 */
-	flush_scheduled_work();
+	flush_work(&kfd->interrupt_work);
 
 	kfifo_free(&kfd->ih_fifo);
 }
