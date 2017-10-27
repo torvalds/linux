@@ -19,13 +19,14 @@
 
 int mdp5_pipe_assign(struct drm_atomic_state *s, struct drm_plane *plane,
 		     uint32_t caps, uint32_t blkcfg,
-		     struct mdp5_hw_pipe **hwpipe)
+		     struct mdp5_hw_pipe **hwpipe,
+		     struct mdp5_hw_pipe **r_hwpipe)
 {
 	struct msm_drm_private *priv = s->dev->dev_private;
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(priv->kms));
 	struct mdp5_state *state;
 	struct mdp5_hw_pipe_state *old_state, *new_state;
-	int i;
+	int i, j;
 
 	state = mdp5_get_state(s);
 	if (IS_ERR(state))
@@ -65,15 +66,45 @@ int mdp5_pipe_assign(struct drm_atomic_state *s, struct drm_plane *plane,
 		 * fewest unneeded caps bits set:
 		 */
 		if (!(*hwpipe) || (hweight_long(cur->caps & ~caps) <
-				   hweight_long((*hwpipe)->caps & ~caps)))
-			*hwpipe = cur;
+				   hweight_long((*hwpipe)->caps & ~caps))) {
+			bool r_found = false;
+
+			if (r_hwpipe) {
+				for (j = i + 1; j < mdp5_kms->num_hwpipes;
+				     j++) {
+					struct mdp5_hw_pipe *r_cur =
+							mdp5_kms->hwpipes[j];
+
+					/* reject different types of hwpipes */
+					if (r_cur->caps != cur->caps)
+						continue;
+
+					/* respect priority, eg. VIG0 > VIG1 */
+					if (cur->pipe > r_cur->pipe)
+						continue;
+
+					*r_hwpipe = r_cur;
+					r_found = true;
+					break;
+				}
+			}
+
+			if (!r_hwpipe || r_found)
+				*hwpipe = cur;
+		}
 	}
 
 	if (!(*hwpipe))
 		return -ENOMEM;
 
+	if (r_hwpipe && !(*r_hwpipe))
+		return -ENOMEM;
+
 	if (mdp5_kms->smp) {
 		int ret;
+
+		/* We don't support SMP and 2 hwpipes/plane together */
+		WARN_ON(r_hwpipe);
 
 		DBG("%s: alloc SMP blocks", (*hwpipe)->name);
 		ret = mdp5_smp_assign(mdp5_kms->smp, &state->smp,
@@ -87,6 +118,12 @@ int mdp5_pipe_assign(struct drm_atomic_state *s, struct drm_plane *plane,
 	DBG("%s: assign to plane %s for caps %x",
 			(*hwpipe)->name, plane->name, caps);
 	new_state->hwpipe_to_plane[(*hwpipe)->idx] = plane;
+
+	if (r_hwpipe) {
+		DBG("%s: assign to right of plane %s for caps %x",
+		    (*r_hwpipe)->name, plane->name, caps);
+		new_state->hwpipe_to_plane[(*r_hwpipe)->idx] = plane;
+	}
 
 	return 0;
 }

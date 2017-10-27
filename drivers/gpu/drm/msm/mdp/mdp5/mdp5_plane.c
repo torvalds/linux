@@ -393,31 +393,30 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 			struct mdp5_hw_pipe *old_hwpipe = mdp5_state->hwpipe;
 			struct mdp5_hw_pipe *old_right_hwpipe =
 							  mdp5_state->r_hwpipe;
+			struct mdp5_hw_pipe *new_hwpipe = NULL;
+			struct mdp5_hw_pipe *new_right_hwpipe = NULL;
 
 			ret = mdp5_pipe_assign(state->state, plane, caps,
-					       blkcfg, &mdp5_state->hwpipe);
+					       blkcfg, &new_hwpipe,
+					       need_right_hwpipe ?
+					       &new_right_hwpipe : NULL);
 			if (ret) {
-				DBG("%s: failed to assign hwpipe!", plane->name);
+				DBG("%s: failed to assign hwpipe(s)!",
+				    plane->name);
 				return ret;
 			}
 
-			if (need_right_hwpipe) {
-				ret = mdp5_pipe_assign(state->state, plane,
-						       caps, blkcfg,
-						       &mdp5_state->r_hwpipe);
-				if (ret) {
-					DBG("%s: failed to assign right hwpipe",
-					    plane->name);
-					return ret;
-				}
-			} else {
+			mdp5_state->hwpipe = new_hwpipe;
+			if (need_right_hwpipe)
+				mdp5_state->r_hwpipe = new_right_hwpipe;
+			else
 				/*
 				 * set it to NULL so that the driver knows we
 				 * don't have a right hwpipe when committing a
 				 * new state
 				 */
 				mdp5_state->r_hwpipe = NULL;
-			}
+
 
 			mdp5_pipe_release(state->state, old_hwpipe);
 			mdp5_pipe_release(state->state, old_right_hwpipe);
