@@ -286,56 +286,8 @@ static void intel_dp_mst_enc_get_config(struct intel_encoder *encoder,
 {
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
-	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
-	u32 temp, flags = 0;
 
-	pipe_config->output_types |= BIT(INTEL_OUTPUT_DP_MST);
-
-	pipe_config->has_audio =
-		intel_ddi_is_audio_enabled(dev_priv, crtc);
-
-	temp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
-	if (temp & TRANS_DDI_PHSYNC)
-		flags |= DRM_MODE_FLAG_PHSYNC;
-	else
-		flags |= DRM_MODE_FLAG_NHSYNC;
-	if (temp & TRANS_DDI_PVSYNC)
-		flags |= DRM_MODE_FLAG_PVSYNC;
-	else
-		flags |= DRM_MODE_FLAG_NVSYNC;
-
-	switch (temp & TRANS_DDI_BPC_MASK) {
-	case TRANS_DDI_BPC_6:
-		pipe_config->pipe_bpp = 18;
-		break;
-	case TRANS_DDI_BPC_8:
-		pipe_config->pipe_bpp = 24;
-		break;
-	case TRANS_DDI_BPC_10:
-		pipe_config->pipe_bpp = 30;
-		break;
-	case TRANS_DDI_BPC_12:
-		pipe_config->pipe_bpp = 36;
-		break;
-	default:
-		break;
-	}
-	pipe_config->base.adjusted_mode.flags |= flags;
-
-	pipe_config->lane_count =
-		((temp & DDI_PORT_WIDTH_MASK) >> DDI_PORT_WIDTH_SHIFT) + 1;
-
-	intel_dp_get_m_n(crtc, pipe_config);
-
-	intel_ddi_clock_get(&intel_dig_port->base, pipe_config);
-
-	if (IS_GEN9_LP(dev_priv))
-		pipe_config->lane_lat_optim_mask =
-			bxt_ddi_phy_get_lane_lat_optim_mask(encoder);
-
-	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
+	intel_ddi_get_config(&intel_dig_port->base, pipe_config);
 }
 
 static int intel_dp_mst_get_ddc_modes(struct drm_connector *connector)
