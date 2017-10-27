@@ -1613,11 +1613,6 @@ static int spi_imx_probe(struct platform_device *pdev)
 	spi_imx->devtype_data->intctrl(spi_imx, 0);
 
 	master->dev.of_node = pdev->dev.of_node;
-	ret = spi_bitbang_start(&spi_imx->bitbang);
-	if (ret) {
-		dev_err(&pdev->dev, "bitbang start failed with %d\n", ret);
-		goto out_clk_put;
-	}
 
 	if (!spi_imx->slave_mode) {
 		if (!master->cs_gpios) {
@@ -1639,6 +1634,12 @@ static int spi_imx_probe(struct platform_device *pdev)
 				goto out_clk_put;
 			}
 		}
+	}
+
+	ret = spi_bitbang_start(&spi_imx->bitbang);
+	if (ret) {
+		dev_err(&pdev->dev, "bitbang start failed with %d\n", ret);
+		goto out_clk_put;
 	}
 
 	dev_info(&pdev->dev, "probed\n");
