@@ -261,7 +261,7 @@ static int max30102_led_init(struct max30102_data *data)
 
 	ret = max30102_get_current_idx(val, &reg);
 	if (ret) {
-		dev_err(dev, "invalid IR LED current setting %d", val);
+		dev_err(dev, "invalid IR LED current setting %d\n", val);
 		return ret;
 	}
 
