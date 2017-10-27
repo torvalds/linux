@@ -321,20 +321,31 @@ static int max30102_read_temp(struct max30102_data *data, int *val)
 	return 0;
 }
 
-static int max30102_get_temp(struct max30102_data *data, int *val)
+static int max30102_get_temp(struct max30102_data *data, int *val, bool en)
 {
 	int ret;
+
+	if (en) {
+		ret = max30102_set_powermode(data, true);
+		if (ret)
+			return ret;
+	}
 
 	/* start acquisition */
 	ret = regmap_update_bits(data->regmap, MAX30102_REG_TEMP_CONFIG,
 				 MAX30102_REG_TEMP_CONFIG_TEMP_EN,
 				 MAX30102_REG_TEMP_CONFIG_TEMP_EN);
 	if (ret)
-		return ret;
+		goto out;
 
 	msleep(35);
+	ret = max30102_read_temp(data, val);
 
-	return max30102_read_temp(data, val);
+out:
+	if (en)
+		max30102_set_powermode(data, false);
+
+	return ret;
 }
 
 static int max30102_read_raw(struct iio_dev *indio_dev,
@@ -347,20 +358,19 @@ static int max30102_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		/*
-		 * Temperature reading can only be acquired while engine
-		 * is running
+		 * Temperature reading can only be acquired when not in
+		 * shutdown; leave shutdown briefly when buffer not running
 		 */
 		mutex_lock(&indio_dev->mlock);
-
 		if (!iio_buffer_enabled(indio_dev))
-			ret = -EBUSY;
-		else {
-			ret = max30102_get_temp(data, val);
-			if (!ret)
-				ret = IIO_VAL_INT;
-		}
-
+			ret = max30102_get_temp(data, val, true);
+		else
+			ret = max30102_get_temp(data, val, false);
 		mutex_unlock(&indio_dev->mlock);
+		if (ret)
+			return ret;
+
+		ret = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SCALE:
 		*val = 1;  /* 0.0625 */
