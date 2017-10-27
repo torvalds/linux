@@ -135,6 +135,7 @@ struct netns_ipv4 {
 	int sysctl_tcp_retrans_collapse;
 	int sysctl_tcp_stdurg;
 	int sysctl_tcp_rfc1337;
+	int sysctl_tcp_abort_on_overflow;
 	struct inet_timewait_death_row tcp_death_row;
 	int sysctl_max_syn_backlog;
 	int sysctl_tcp_fastopen;
