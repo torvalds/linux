@@ -875,7 +875,7 @@ static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 	return r;
 }
 
-int amdgpu_ttm_bind(struct ttm_buffer_object *bo)
+int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
 	struct ttm_mem_reg tmp;
@@ -1601,7 +1601,7 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 	}
 
 	if (bo->tbo.mem.mem_type == TTM_PL_TT) {
-		r = amdgpu_ttm_bind(&bo->tbo);
+		r = amdgpu_ttm_alloc_gart(&bo->tbo);
 		if (r)
 			return r;
 	}
