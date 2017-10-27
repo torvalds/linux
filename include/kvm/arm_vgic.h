@@ -26,6 +26,8 @@
 #include <linux/list.h>
 #include <linux/jump_label.h>
 
+#include <linux/irqchip/arm-gic-v4.h>
+
 #define VGIC_V3_MAX_CPUS	255
 #define VGIC_V2_MAX_CPUS	8
 #define VGIC_NR_IRQS_LEGACY     256
@@ -236,6 +238,15 @@ struct vgic_dist {
 
 	/* used by vgic-debug */
 	struct vgic_state_iter *iter;
+
+	/*
+	 * GICv4 ITS per-VM data, containing the IRQ domain, the VPE
+	 * array, the property table pointer as well as allocation
+	 * data. This essentially ties the Linux IRQ core and ITS
+	 * together, and avoids leaking KVM's data structures anywhere
+	 * else.
+	 */
+	struct its_vm		its_vm;
 };
 
 struct vgic_v2_cpu_if {
@@ -254,6 +265,14 @@ struct vgic_v3_cpu_if {
 	u32		vgic_ap0r[4];
 	u32		vgic_ap1r[4];
 	u64		vgic_lr[VGIC_V3_MAX_LRS];
+
+	/*
+	 * GICv4 ITS per-VPE data, containing the doorbell IRQ, the
+	 * pending table pointer, the its_vm pointer and a few other
+	 * HW specific things. As for the its_vm structure, this is
+	 * linking the Linux IRQ subsystem and the ITS together.
+	 */
+	struct its_vpe	its_vpe;
 };
 
 struct vgic_cpu {
