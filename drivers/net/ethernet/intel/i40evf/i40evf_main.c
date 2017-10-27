@@ -1960,8 +1960,8 @@ continue_reset:
 
 	adapter->aq_required |= I40EVF_FLAG_AQ_ADD_MAC_FILTER;
 	adapter->aq_required |= I40EVF_FLAG_AQ_ADD_VLAN_FILTER;
-	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 	clear_bit(__I40EVF_IN_CLIENT_TASK, &adapter->crit_section);
+	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 	i40evf_misc_irq_enable(adapter);
 
 	mod_timer(&adapter->watchdog_timer, jiffies + 2);
