@@ -706,7 +706,8 @@ static void i40evf_configure_rx(struct i40evf_adapter *adapter)
  * @adapter: board private structure
  * @vlan: vlan tag
  *
- * Returns ptr to the filter object or NULL
+ * Returns ptr to the filter object or NULL. Must be called while holding the
+ * mac_vlan_list_lock.
  **/
 static struct
 i40evf_vlan_filter *i40evf_find_vlan(struct i40evf_adapter *adapter, u16 vlan)
@@ -731,14 +732,8 @@ static struct
 i40evf_vlan_filter *i40evf_add_vlan(struct i40evf_adapter *adapter, u16 vlan)
 {
 	struct i40evf_vlan_filter *f = NULL;
-	int count = 50;
 
-	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
-				&adapter->crit_section)) {
-		udelay(1);
-		if (--count == 0)
-			goto out;
-	}
+	spin_lock_bh(&adapter->mac_vlan_list_lock);
 
 	f = i40evf_find_vlan(adapter, vlan);
 	if (!f) {
@@ -755,8 +750,7 @@ i40evf_vlan_filter *i40evf_add_vlan(struct i40evf_adapter *adapter, u16 vlan)
 	}
 
 clearout:
-	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
-out:
+	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 	return f;
 }
 
@@ -768,21 +762,16 @@ out:
 static void i40evf_del_vlan(struct i40evf_adapter *adapter, u16 vlan)
 {
 	struct i40evf_vlan_filter *f;
-	int count = 50;
 
-	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
-				&adapter->crit_section)) {
-		udelay(1);
-		if (--count == 0)
-			return;
-	}
+	spin_lock_bh(&adapter->mac_vlan_list_lock);
 
 	f = i40evf_find_vlan(adapter, vlan);
 	if (f) {
 		f->remove = true;
 		adapter->aq_required |= I40EVF_FLAG_AQ_DEL_VLAN_FILTER;
 	}
-	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
+
+	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 }
 
 /**
@@ -824,7 +813,8 @@ static int i40evf_vlan_rx_kill_vid(struct net_device *netdev,
  * @adapter: board private structure
  * @macaddr: the MAC address
  *
- * Returns ptr to the filter object or NULL
+ * Returns ptr to the filter object or NULL. Must be called while holding the
+ * mac_vlan_list_lock.
  **/
 static struct
 i40evf_mac_filter *i40evf_find_filter(struct i40evf_adapter *adapter,
@@ -854,26 +844,17 @@ i40evf_mac_filter *i40evf_add_filter(struct i40evf_adapter *adapter,
 				     u8 *macaddr)
 {
 	struct i40evf_mac_filter *f;
-	int count = 50;
 
 	if (!macaddr)
 		return NULL;
 
-	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
-				&adapter->crit_section)) {
-		udelay(1);
-		if (--count == 0)
-			return NULL;
-	}
+	spin_lock_bh(&adapter->mac_vlan_list_lock);
 
 	f = i40evf_find_filter(adapter, macaddr);
 	if (!f) {
 		f = kzalloc(sizeof(*f), GFP_ATOMIC);
-		if (!f) {
-			clear_bit(__I40EVF_IN_CRITICAL_TASK,
-				  &adapter->crit_section);
-			return NULL;
-		}
+		if (!f)
+			goto clearout;
 
 		ether_addr_copy(f->macaddr, macaddr);
 
@@ -884,7 +865,8 @@ i40evf_mac_filter *i40evf_add_filter(struct i40evf_adapter *adapter,
 		f->remove = false;
 	}
 
-	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
+clearout:
+	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 	return f;
 }
 
@@ -911,11 +893,15 @@ static int i40evf_set_mac(struct net_device *netdev, void *p)
 	if (adapter->flags & I40EVF_FLAG_ADDR_SET_BY_PF)
 		return -EPERM;
 
+	spin_lock_bh(&adapter->mac_vlan_list_lock);
+
 	f = i40evf_find_filter(adapter, hw->mac.addr);
 	if (f) {
 		f->remove = true;
 		adapter->aq_required |= I40EVF_FLAG_AQ_DEL_MAC_FILTER;
 	}
+
+	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 
 	f = i40evf_add_filter(adapter, addr->sa_data);
 	if (f) {
@@ -937,7 +923,6 @@ static void i40evf_set_rx_mode(struct net_device *netdev)
 	struct netdev_hw_addr *uca;
 	struct netdev_hw_addr *mca;
 	struct netdev_hw_addr *ha;
-	int count = 50;
 
 	/* add addr if not already in the filter list */
 	netdev_for_each_uc_addr(uca, netdev) {
@@ -947,16 +932,8 @@ static void i40evf_set_rx_mode(struct net_device *netdev)
 		i40evf_add_filter(adapter, mca->addr);
 	}
 
-	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
-				&adapter->crit_section)) {
-		udelay(1);
-		if (--count == 0) {
-			dev_err(&adapter->pdev->dev,
-				"Failed to get lock in %s\n", __func__);
-			return;
-		}
-	}
-	/* remove filter if not in netdev list */
+	spin_lock_bh(&adapter->mac_vlan_list_lock);
+
 	list_for_each_entry_safe(f, ftmp, &adapter->mac_filter_list, list) {
 		netdev_for_each_mc_addr(mca, netdev)
 			if (ether_addr_equal(mca->addr, f->macaddr))
@@ -995,7 +972,7 @@ bottom_of_search_loop:
 		 adapter->flags & I40EVF_FLAG_ALLMULTI_ON)
 		adapter->aq_required |= I40EVF_FLAG_AQ_RELEASE_ALLMULTI;
 
-	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
+	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 }
 
 /**
@@ -1094,6 +1071,8 @@ void i40evf_down(struct i40evf_adapter *adapter)
 	i40evf_napi_disable_all(adapter);
 	i40evf_irq_disable(adapter);
 
+	spin_lock_bh(&adapter->mac_vlan_list_lock);
+
 	/* remove all MAC filters */
 	list_for_each_entry(f, &adapter->mac_filter_list, list) {
 		f->remove = true;
@@ -1102,6 +1081,9 @@ void i40evf_down(struct i40evf_adapter *adapter)
 	list_for_each_entry(f, &adapter->vlan_filter_list, list) {
 		f->remove = true;
 	}
+
+	spin_unlock_bh(&adapter->mac_vlan_list_lock);
+
 	if (!(adapter->flags & I40EVF_FLAG_PF_COMMS_FAILED) &&
 	    adapter->state != __I40EVF_RESETTING) {
 		/* cancel any current operation */
@@ -1812,6 +1794,8 @@ static void i40evf_disable_vf(struct i40evf_adapter *adapter)
 		i40evf_free_all_rx_resources(adapter);
 	}
 
+	spin_lock_bh(&adapter->mac_vlan_list_lock);
+
 	/* Delete all of the filters, both MAC and VLAN. */
 	list_for_each_entry_safe(f, ftmp, &adapter->mac_filter_list, list) {
 		list_del(&f->list);
@@ -1822,6 +1806,8 @@ static void i40evf_disable_vf(struct i40evf_adapter *adapter)
 		list_del(&fv->list);
 		kfree(fv);
 	}
+
+	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 
 	i40evf_free_misc_irq(adapter);
 	i40evf_reset_interrupt_capability(adapter);
@@ -1959,6 +1945,8 @@ continue_reset:
 	adapter->aq_required |= I40EVF_FLAG_AQ_GET_CONFIG;
 	adapter->aq_required |= I40EVF_FLAG_AQ_MAP_VECTORS;
 
+	spin_lock_bh(&adapter->mac_vlan_list_lock);
+
 	/* re-add all MAC filters */
 	list_for_each_entry(f, &adapter->mac_filter_list, list) {
 		f->add = true;
@@ -1967,6 +1955,9 @@ continue_reset:
 	list_for_each_entry(vlf, &adapter->vlan_filter_list, list) {
 		vlf->add = true;
 	}
+
+	spin_unlock_bh(&adapter->mac_vlan_list_lock);
+
 	adapter->aq_required |= I40EVF_FLAG_AQ_ADD_MAC_FILTER;
 	adapter->aq_required |= I40EVF_FLAG_AQ_ADD_VLAN_FILTER;
 	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
@@ -2957,6 +2948,8 @@ static int i40evf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mutex_init(&hw->aq.asq_mutex);
 	mutex_init(&hw->aq.arq_mutex);
 
+	spin_lock_init(&adapter->mac_vlan_list_lock);
+
 	INIT_LIST_HEAD(&adapter->mac_filter_list);
 	INIT_LIST_HEAD(&adapter->vlan_filter_list);
 
@@ -3132,6 +3125,7 @@ static void i40evf_remove(struct pci_dev *pdev)
 	i40evf_free_all_rx_resources(adapter);
 	i40evf_free_queues(adapter);
 	kfree(adapter->vf_res);
+	spin_lock_bh(&adapter->mac_vlan_list_lock);
 	/* If we got removed before an up/down sequence, we've got a filter
 	 * hanging out there that we need to get rid of.
 	 */
@@ -3143,6 +3137,8 @@ static void i40evf_remove(struct pci_dev *pdev)
 		list_del(&f->list);
 		kfree(f);
 	}
+
+	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 
 	free_netdev(netdev);
 

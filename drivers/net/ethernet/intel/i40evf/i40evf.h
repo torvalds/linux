@@ -199,6 +199,9 @@ struct i40evf_adapter {
 	wait_queue_head_t down_waitqueue;
 	struct i40e_q_vector *q_vectors;
 	struct list_head vlan_filter_list;
+	struct list_head mac_filter_list;
+	/* Lock to protect accesses to MAC and VLAN lists */
+	spinlock_t mac_vlan_list_lock;
 	char misc_vector_name[IFNAMSIZ + 9];
 	int num_active_queues;
 	int num_req_queues;
@@ -206,7 +209,6 @@ struct i40evf_adapter {
 	/* TX */
 	struct i40e_ring *tx_rings;
 	u32 tx_timeout_count;
-	struct list_head mac_filter_list;
 	u32 tx_desc_count;
 
 	/* RX */
