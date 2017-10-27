@@ -48,6 +48,8 @@
 10. Use LED flash API for flash LED drivers such as LM3554 (which already
     has a LED class driver).
 
+11. Switch from videobuf1 to videobuf2. Videobuf1 is being removed!
+
 Limitations:
 
 1. To test the patches, you also need the ISP firmware
