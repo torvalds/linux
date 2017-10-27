@@ -758,10 +758,15 @@ void intel_power_sequencer_reset(struct drm_i915_private *dev_priv)
 		struct intel_dp *intel_dp;
 
 		if (encoder->type != INTEL_OUTPUT_DP &&
-		    encoder->type != INTEL_OUTPUT_EDP)
+		    encoder->type != INTEL_OUTPUT_EDP &&
+		    encoder->type != INTEL_OUTPUT_DDI)
 			continue;
 
 		intel_dp = enc_to_intel_dp(&encoder->base);
+
+		/* Skip pure DVI/HDMI DDI encoders */
+		if (!i915_mmio_reg_valid(intel_dp->output_reg))
+			continue;
 
 		WARN_ON(intel_dp->active_pipe != INVALID_PIPE);
 
@@ -4733,8 +4738,6 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 {
 	struct drm_connector *connector = &intel_connector->base;
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct intel_encoder *intel_encoder = &intel_dig_port->base;
 	struct drm_device *dev = connector->dev;
 	enum drm_connector_status status;
 	u8 sink_irq_vector = 0;
@@ -4766,9 +4769,6 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 
 		goto out;
 	}
-
-	if (intel_encoder->type != INTEL_OUTPUT_EDP)
-		intel_encoder->type = INTEL_OUTPUT_DP;
 
 	if (intel_dp->reset_link_params) {
 		/* Initial max link lane count */
@@ -4886,9 +4886,6 @@ intel_dp_force(struct drm_connector *connector)
 	intel_dp_set_edid(intel_dp);
 
 	intel_display_power_put(dev_priv, intel_dp->aux_power_domain);
-
-	if (intel_encoder->type != INTEL_OUTPUT_EDP)
-		intel_encoder->type = INTEL_OUTPUT_DP;
 }
 
 static int intel_dp_get_modes(struct drm_connector *connector)
@@ -5106,10 +5103,6 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum irqreturn ret = IRQ_NONE;
-
-	if (intel_dig_port->base.type != INTEL_OUTPUT_EDP &&
-	    intel_dig_port->base.type != INTEL_OUTPUT_HDMI)
-		intel_dig_port->base.type = INTEL_OUTPUT_DP;
 
 	if (long_hpd && intel_dig_port->base.type == INTEL_OUTPUT_EDP) {
 		/*

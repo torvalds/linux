@@ -10579,7 +10579,7 @@ static const char * const output_type_str[] = {
 	OUTPUT_TYPE(DP),
 	OUTPUT_TYPE(EDP),
 	OUTPUT_TYPE(DSI),
-	OUTPUT_TYPE(UNKNOWN),
+	OUTPUT_TYPE(DDI),
 	OUTPUT_TYPE(DP_MST),
 };
 
@@ -10750,7 +10750,7 @@ static bool check_digital_port_conflicts(struct drm_atomic_state *state)
 
 		switch (encoder->type) {
 			unsigned int port_mask;
-		case INTEL_OUTPUT_UNKNOWN:
+		case INTEL_OUTPUT_DDI:
 			if (WARN_ON(!HAS_DDI(to_i915(dev))))
 				break;
 		case INTEL_OUTPUT_DP:
@@ -10883,7 +10883,12 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 		 * Determine output_types before calling the .compute_config()
 		 * hooks so that the hooks can use this information safely.
 		 */
-		pipe_config->output_types |= 1 << encoder->type;
+		if (encoder->compute_output_type)
+			pipe_config->output_types |=
+				BIT(encoder->compute_output_type(encoder, pipe_config,
+								 connector_state));
+		else
+			pipe_config->output_types |= BIT(encoder->type);
 	}
 
 encoder_retry:

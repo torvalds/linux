@@ -497,10 +497,8 @@ enum port intel_ddi_get_encoder_port(struct intel_encoder *encoder)
 	switch (encoder->type) {
 	case INTEL_OUTPUT_DP_MST:
 		return enc_to_mst(&encoder->base)->primary->port;
-	case INTEL_OUTPUT_DP:
 	case INTEL_OUTPUT_EDP:
-	case INTEL_OUTPUT_HDMI:
-	case INTEL_OUTPUT_UNKNOWN:
+	case INTEL_OUTPUT_DDI:
 		return enc_to_dig_port(&encoder->base)->port;
 	case INTEL_OUTPUT_ANALOG:
 		return PORT_E;
@@ -1534,6 +1532,7 @@ void intel_ddi_set_vc_payload_alloc(const struct intel_crtc_state *crtc_state,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	uint32_t temp;
+
 	temp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
 	if (state == true)
 		temp |= TRANS_DDI_DP_VC_PAYLOAD_ALLOC;
@@ -2652,21 +2651,36 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
 }
 
+static enum intel_output_type
+intel_ddi_compute_output_type(struct intel_encoder *encoder,
+			      struct intel_crtc_state *crtc_state,
+			      struct drm_connector_state *conn_state)
+{
+	switch (conn_state->connector->connector_type) {
+	case DRM_MODE_CONNECTOR_HDMIA:
+		return INTEL_OUTPUT_HDMI;
+	case DRM_MODE_CONNECTOR_eDP:
+		return INTEL_OUTPUT_EDP;
+	case DRM_MODE_CONNECTOR_DisplayPort:
+		return INTEL_OUTPUT_DP;
+	default:
+		MISSING_CASE(conn_state->connector->connector_type);
+		return INTEL_OUTPUT_UNUSED;
+	}
+}
+
 static bool intel_ddi_compute_config(struct intel_encoder *encoder,
 				     struct intel_crtc_state *pipe_config,
 				     struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	int type = encoder->type;
 	int port = intel_ddi_get_encoder_port(encoder);
 	int ret;
-
-	WARN(type == INTEL_OUTPUT_UNKNOWN, "compute_config() on unknown output!\n");
 
 	if (port == PORT_A)
 		pipe_config->cpu_transcoder = TRANSCODER_EDP;
 
-	if (type == INTEL_OUTPUT_HDMI)
+	if (intel_crtc_has_type(pipe_config, INTEL_OUTPUT_HDMI))
 		ret = intel_hdmi_compute_config(encoder, pipe_config, conn_state);
 	else
 		ret = intel_dp_compute_config(encoder, pipe_config, conn_state);
@@ -2815,6 +2829,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	drm_encoder_init(&dev_priv->drm, encoder, &intel_ddi_funcs,
 			 DRM_MODE_ENCODER_TMDS, "DDI %c", port_name(port));
 
+	intel_encoder->compute_output_type = intel_ddi_compute_output_type;
 	intel_encoder->compute_config = intel_ddi_compute_config;
 	intel_encoder->enable = intel_enable_ddi;
 	if (IS_GEN9_LP(dev_priv))
@@ -2868,9 +2883,10 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 		max_lanes = 4;
 	}
 
+	intel_dig_port->dp.output_reg = INVALID_MMIO_REG;
 	intel_dig_port->max_lanes = max_lanes;
 
-	intel_encoder->type = INTEL_OUTPUT_UNKNOWN;
+	intel_encoder->type = INTEL_OUTPUT_DDI;
 	intel_encoder->power_domain = intel_port_to_power_domain(port);
 	intel_encoder->port = port;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);

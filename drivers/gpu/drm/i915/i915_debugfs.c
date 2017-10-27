@@ -3051,7 +3051,7 @@ static void intel_connector_info(struct seq_file *m,
 		break;
 	case DRM_MODE_CONNECTOR_HDMIA:
 		if (intel_encoder->type == INTEL_OUTPUT_HDMI ||
-		    intel_encoder->type == INTEL_OUTPUT_UNKNOWN)
+		    intel_encoder->type == INTEL_OUTPUT_DDI)
 			intel_hdmi_info(m, intel_connector);
 		break;
 	default:

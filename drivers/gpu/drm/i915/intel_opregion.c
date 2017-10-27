@@ -383,7 +383,7 @@ int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 	case INTEL_OUTPUT_ANALOG:
 		type = DISPLAY_TYPE_CRT;
 		break;
-	case INTEL_OUTPUT_UNKNOWN:
+	case INTEL_OUTPUT_DDI:
 	case INTEL_OUTPUT_DP:
 	case INTEL_OUTPUT_HDMI:
 	case INTEL_OUTPUT_DP_MST:
