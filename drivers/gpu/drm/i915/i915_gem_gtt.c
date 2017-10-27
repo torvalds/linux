@@ -3178,12 +3178,6 @@ static void cnl_setup_private_ppat(struct intel_ppat *ppat)
 	ppat->match = bdw_private_pat_match;
 	ppat->clear_value = GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3);
 
-	/* XXX: spec is unclear if this is still needed for CNL+ */
-	if (!USES_PPGTT(ppat->i915)) {
-		__alloc_ppat_entry(ppat, 0, GEN8_PPAT_UC);
-		return;
-	}
-
 	__alloc_ppat_entry(ppat, 0, GEN8_PPAT_WB | GEN8_PPAT_LLC);
 	__alloc_ppat_entry(ppat, 1, GEN8_PPAT_WC | GEN8_PPAT_LLCELLC);
 	__alloc_ppat_entry(ppat, 2, GEN8_PPAT_WT | GEN8_PPAT_LLCELLC);
