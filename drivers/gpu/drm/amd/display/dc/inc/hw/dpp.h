@@ -92,11 +92,9 @@ struct dpp_funcs {
 			const struct pwl_params *params);
 
 	void (*opp_program_regamma_pwl)(
-		struct dpp *dpp, const struct pwl_params *params);
-
-	void (*opp_set_regamma_mode)(
-			struct dpp *dpp_base,
-			enum opp_regamma mode);
+		struct dpp *dpp,
+		const struct pwl_params *params,
+		enum opp_regamma mode);
 
 	void (*ipp_program_bias_and_scale)(
 			struct dpp *dpp,

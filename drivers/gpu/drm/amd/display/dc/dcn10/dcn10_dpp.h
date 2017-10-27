@@ -54,7 +54,6 @@
 	SRI(LB_MEMORY_CTRL, DSCL, id), \
 	SRI(DSCL_AUTOCAL, DSCL, id), \
 	SRI(SCL_BLACK_OFFSET, DSCL, id), \
-	SRI(DSCL_CONTROL, DSCL, id), \
 	SRI(SCL_TAP_CONTROL, DSCL, id), \
 	SRI(SCL_COEF_RAM_TAP_SELECT, DSCL, id), \
 	SRI(SCL_COEF_RAM_TAP_DATA, DSCL, id), \
@@ -194,7 +193,6 @@
 	TF_SF(DSCL0_DSCL_AUTOCAL, AUTOCAL_PIPE_ID, mask_sh),\
 	TF_SF(DSCL0_SCL_BLACK_OFFSET, SCL_BLACK_OFFSET_RGB_Y, mask_sh),\
 	TF_SF(DSCL0_SCL_BLACK_OFFSET, SCL_BLACK_OFFSET_CBCR, mask_sh),\
-	TF_SF(DSCL0_DSCL_CONTROL, SCL_BOUNDARY_MODE, mask_sh),\
 	TF_SF(DSCL0_SCL_TAP_CONTROL, SCL_V_NUM_TAPS, mask_sh),\
 	TF_SF(DSCL0_SCL_TAP_CONTROL, SCL_H_NUM_TAPS, mask_sh),\
 	TF_SF(DSCL0_SCL_TAP_CONTROL, SCL_V_NUM_TAPS_C, mask_sh),\
@@ -440,7 +438,6 @@
 	type AUTOCAL_PIPE_ID; \
 	type SCL_BLACK_OFFSET_RGB_Y; \
 	type SCL_BLACK_OFFSET_CBCR; \
-	type SCL_BOUNDARY_MODE; \
 	type SCL_V_NUM_TAPS; \
 	type SCL_H_NUM_TAPS; \
 	type SCL_V_NUM_TAPS_C; \
@@ -1038,7 +1035,6 @@ struct dcn_dpp_registers {
 	uint32_t LB_MEMORY_CTRL;
 	uint32_t DSCL_AUTOCAL;
 	uint32_t SCL_BLACK_OFFSET;
-	uint32_t DSCL_CONTROL;
 	uint32_t SCL_TAP_CONTROL;
 	uint32_t SCL_COEF_RAM_TAP_SELECT;
 	uint32_t SCL_COEF_RAM_TAP_DATA;
@@ -1284,6 +1280,8 @@ struct dcn10_dpp {
 	int lb_memory_size;
 	int lb_bits_per_entry;
 	bool is_write_to_ram_a_safe;
+	struct scaler_data scl_data;
+	struct pwl_params pwl_data;
 };
 
 enum dcn10_input_csc_select {

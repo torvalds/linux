@@ -1235,13 +1235,12 @@ static bool dcn10_set_output_transfer_func(
 			TF_TYPE_PREDEFINED &&
 		stream->out_transfer_func->tf ==
 			TRANSFER_FUNCTION_SRGB) {
-		dpp->funcs->opp_set_regamma_mode(dpp, OPP_REGAMMA_SRGB);
+		dpp->funcs->opp_program_regamma_pwl(dpp, NULL, OPP_REGAMMA_SRGB);
 	} else if (dcn10_translate_regamma_to_hw_format(
 				stream->out_transfer_func, &dpp->regamma_params)) {
-			dpp->funcs->opp_program_regamma_pwl(dpp, &dpp->regamma_params);
-			dpp->funcs->opp_set_regamma_mode(dpp, OPP_REGAMMA_USER);
+			dpp->funcs->opp_program_regamma_pwl(dpp, &dpp->regamma_params, OPP_REGAMMA_USER);
 	} else {
-		dpp->funcs->opp_set_regamma_mode(dpp, OPP_REGAMMA_BYPASS);
+		dpp->funcs->opp_program_regamma_pwl(dpp, NULL, OPP_REGAMMA_BYPASS);
 	}
 
 	return true;
@@ -2118,8 +2117,7 @@ static void dcn10_apply_ctx_for_surface(
 
 	if (num_planes == 0) {
 		for (i = dc->res_pool->pipe_count - 1; i >= 0 ; i--) {
-			struct pipe_ctx *old_pipe_ctx =
-							&dc->current_state->res_ctx.pipe_ctx[i];
+			struct pipe_ctx *old_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
 
 			if (old_pipe_ctx->stream_res.tg && old_pipe_ctx->stream_res.tg->inst == be_idx) {
 				old_pipe_ctx->stream_res.tg->funcs->set_blank(old_pipe_ctx->stream_res.tg, true);
