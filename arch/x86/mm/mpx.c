@@ -138,7 +138,7 @@ static int get_reg_offset(struct insn *insn, struct pt_regs *regs,
  */
 static void __user *mpx_get_addr_ref(struct insn *insn, struct pt_regs *regs)
 {
-	unsigned long addr, base, indx;
+	unsigned long addr = -1L, base, indx;
 	int addr_offset, base_offset, indx_offset;
 	insn_byte_t sib;
 
@@ -149,17 +149,17 @@ static void __user *mpx_get_addr_ref(struct insn *insn, struct pt_regs *regs)
 	if (X86_MODRM_MOD(insn->modrm.value) == 3) {
 		addr_offset = get_reg_offset(insn, regs, REG_TYPE_RM);
 		if (addr_offset < 0)
-			goto out_err;
+			goto out;
 		addr = regs_get_register(regs, addr_offset);
 	} else {
 		if (insn->sib.nbytes) {
 			base_offset = get_reg_offset(insn, regs, REG_TYPE_BASE);
 			if (base_offset < 0)
-				goto out_err;
+				goto out;
 
 			indx_offset = get_reg_offset(insn, regs, REG_TYPE_INDEX);
 			if (indx_offset < 0)
-				goto out_err;
+				goto out;
 
 			base = regs_get_register(regs, base_offset);
 			indx = regs_get_register(regs, indx_offset);
@@ -167,14 +167,13 @@ static void __user *mpx_get_addr_ref(struct insn *insn, struct pt_regs *regs)
 		} else {
 			addr_offset = get_reg_offset(insn, regs, REG_TYPE_RM);
 			if (addr_offset < 0)
-				goto out_err;
+				goto out;
 			addr = regs_get_register(regs, addr_offset);
 		}
 		addr += insn->displacement.value;
 	}
+out:
 	return (void __user *)addr;
-out_err:
-	return (void __user *)-1;
 }
 
 static int mpx_insn_decode(struct insn *insn,
