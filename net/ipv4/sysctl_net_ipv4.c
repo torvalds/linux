@@ -438,15 +438,6 @@ static struct ctl_table ipv4_table[] = {
 		.extra1		= &one,
 	},
 	{
-		.procname	= "tcp_adv_win_scale",
-		.data		= &sysctl_tcp_adv_win_scale,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &tcp_adv_win_scale_min,
-		.extra2		= &tcp_adv_win_scale_max,
-	},
-	{
 		.procname	= "tcp_frto",
 		.data		= &sysctl_tcp_frto,
 		.maxlen		= sizeof(int),
@@ -1144,6 +1135,15 @@ static struct ctl_table ipv4_net_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
+	},
+	{
+		.procname	= "tcp_adv_win_scale",
+		.data		= &init_net.ipv4.sysctl_tcp_adv_win_scale,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &tcp_adv_win_scale_min,
+		.extra2		= &tcp_adv_win_scale_max,
 	},
 	{ }
 };
