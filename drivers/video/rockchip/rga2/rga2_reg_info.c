@@ -34,7 +34,7 @@
 //#include "../rga/rga_rop.h"
 #include "rga2.h"
 
-extern unsigned int ROP3_code[256];
+extern unsigned int rga2_ROP3_code[256];
 
 void
 RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
@@ -638,14 +638,14 @@ RGA2_set_reg_rop_info(u8 *base, struct rga2_req *msg)
     bRGA_PAT_CON   = (RK_U32 *)(base + RGA2_PAT_CON_OFFSET);
 
     if(msg->rop_mode == 0) {
-        rop_code0 =  ROP3_code[(msg->rop_code & 0xff)];
+	rop_code0 = rga2_ROP3_code[(msg->rop_code & 0xff)];
     }
     else if(msg->rop_mode == 1) {
-        rop_code0 =  ROP3_code[(msg->rop_code & 0xff)];
+	rop_code0 = rga2_ROP3_code[(msg->rop_code & 0xff)];
     }
     else if(msg->rop_mode == 2) {
-        rop_code0 =  ROP3_code[(msg->rop_code & 0xff)];
-        rop_code1 =  ROP3_code[(msg->rop_code & 0xff00)>>8];
+	rop_code0 = rga2_ROP3_code[(msg->rop_code & 0xff)];
+	rop_code1 = rga2_ROP3_code[(msg->rop_code & 0xff00)>>8];
     }
 
     *bRGA_ROP_CTRL0 = rop_code0;

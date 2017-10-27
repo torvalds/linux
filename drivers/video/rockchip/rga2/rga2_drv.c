@@ -74,7 +74,7 @@ int rga2_flag;
 int first_RGA2_proc;
 
 rga2_session rga2_session_global;
-long (*rga_ioctl_kernel_p)(struct rga_req *);
+long (*rga2_ioctl_kernel_p)(struct rga_req *);
 
 struct rga2_drvdata_t {
 	struct miscdevice miscdev;
@@ -225,11 +225,11 @@ static void rga2_dump(void)
 		printk("task_running %d\n", running);
 		list_for_each_entry_safe(reg, reg_tmp, &session->waiting, session_link)
 		{
-			printk("waiting register set 0x%.lu\n", (unsigned long)reg);
+			printk("waiting register set 0x %.lu\n", (unsigned long)reg);
 		}
 		list_for_each_entry_safe(reg, reg_tmp, &session->running, session_link)
 		{
-			printk("running register set 0x%.lu\n", (unsigned long)reg);
+			printk("running register set 0x %.lu\n", (unsigned long)reg);
 		}
 	}
 }
@@ -452,8 +452,7 @@ static struct rga2_reg * rga2_reg_init(rga2_session *session, struct rga2_req *r
         ret = rga2_set_mmu_info(reg, req);
         if(ret < 0) {
             printk("%s, [%d] set mmu info error \n", __FUNCTION__, __LINE__);
-            if(reg != NULL)
-                kfree(reg);
+            kfree(reg);
 
             return NULL;
         }
@@ -461,8 +460,7 @@ static struct rga2_reg * rga2_reg_init(rga2_session *session, struct rga2_req *r
 
     if(RGA2_gen_reg_info((uint8_t *)reg->cmd_reg, req) == -1) {
         printk("gen reg info error\n");
-        if(reg != NULL)
-            kfree(reg);
+        kfree(reg);
 
         return NULL;
     }
@@ -1358,7 +1356,7 @@ static int rga2_drv_probe(struct platform_device *pdev)
 	rga2_service.last_prc_src_format = 1; /* default is yuv first*/
 	rga2_service.enable = false;
 
-	rga_ioctl_kernel_p = rga2_ioctl_kernel;
+	rga2_ioctl_kernel_p = rga2_ioctl_kernel;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct rga2_drvdata_t), GFP_KERNEL);
 	if(NULL == data)
@@ -1457,7 +1455,7 @@ static int rga2_drv_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 #endif
 
-	kfree(data);
+	//kfree(data);
 	return 0;
 }
 
@@ -1465,7 +1463,6 @@ static struct platform_driver rga2_driver = {
 	.probe		= rga2_drv_probe,
 	.remove		= rga2_drv_remove,
 	.driver		= {
-		.owner  = THIS_MODULE,
 		.name	= "rga2",
 		.of_match_table = of_match_ptr(rockchip_rga_dt_ids),
 	},
@@ -1530,8 +1527,7 @@ static void __exit rga2_exit(void)
 {
 	rga2_power_off();
 
-	if (rga2_mmu_buf.buf_virtual)
-		kfree(rga2_mmu_buf.buf_virtual);
+	kfree(rga2_mmu_buf.buf_virtual);
 
 	platform_driver_unregister(&rga2_driver);
 }
@@ -1672,10 +1668,8 @@ void rga2_test_0(void)
 	}
 #endif
 
-	if(src)
-		kfree(src);
-	if(dst)
-		kfree(dst);
+	kfree(src);
+	kfree(dst);
 }
 #endif
 
