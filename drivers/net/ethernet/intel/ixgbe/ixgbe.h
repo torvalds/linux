@@ -723,8 +723,7 @@ struct ixgbe_adapter {
 
 	u16 bridge_mode;
 
-	u16 eeprom_verh;
-	u16 eeprom_verl;
+	char eeprom_id[NVM_VER_SIZE];
 	u16 eeprom_cap;
 
 	u32 interrupt_event;

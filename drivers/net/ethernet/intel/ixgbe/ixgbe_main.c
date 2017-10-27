@@ -10235,6 +10235,41 @@ bool ixgbe_wol_supported(struct ixgbe_adapter *adapter, u16 device_id,
 }
 
 /**
+ * ixgbe_set_fw_version - Set FW version
+ * @adapter: the adapter private structure
+ *
+ * This function is used by probe and ethtool to determine the FW version to
+ * format to display. The FW version is taken from the EEPROM/NVM.
+ */
+static void ixgbe_set_fw_version(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct ixgbe_nvm_version nvm_ver;
+
+	ixgbe_get_oem_prod_version(hw, &nvm_ver);
+	if (nvm_ver.oem_valid) {
+		snprintf(adapter->eeprom_id, sizeof(adapter->eeprom_id),
+			 "%x.%x.%x", nvm_ver.oem_major, nvm_ver.oem_minor,
+			 nvm_ver.oem_release);
+		return;
+	}
+
+	ixgbe_get_etk_id(hw, &nvm_ver);
+	ixgbe_get_orom_version(hw, &nvm_ver);
+
+	if (nvm_ver.or_valid) {
+		snprintf(adapter->eeprom_id, sizeof(adapter->eeprom_id),
+			 "0x%08x, %d.%d.%d", nvm_ver.etk_id, nvm_ver.or_major,
+			 nvm_ver.or_build, nvm_ver.or_patch);
+		return;
+	}
+
+	/* Set ETrack ID format */
+	snprintf(adapter->eeprom_id, sizeof(adapter->eeprom_id),
+		 "0x%08x", nvm_ver.etk_id);
+}
+
+/**
  * ixgbe_probe - Device Initialization Routine
  * @pdev: PCI device information struct
  * @ent: entry in ixgbe_pci_tbl
@@ -10570,8 +10605,7 @@ skip_sriov:
 	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
 
 	/* save off EEPROM version number */
-	hw->eeprom.ops.read(hw, 0x2e, &adapter->eeprom_verh);
-	hw->eeprom.ops.read(hw, 0x2d, &adapter->eeprom_verl);
+	ixgbe_set_fw_version(adapter);
 
 	/* pick up the PCI bus settings for reporting later */
 	if (ixgbe_pcie_from_parent(hw))
