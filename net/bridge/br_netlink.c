@@ -506,7 +506,7 @@ int br_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 }
 
 static int br_vlan_info(struct net_bridge *br, struct net_bridge_port *p,
-			int cmd, struct bridge_vlan_info *vinfo)
+			int cmd, struct bridge_vlan_info *vinfo, bool *changed)
 {
 	int err = 0;
 
@@ -517,21 +517,24 @@ static int br_vlan_info(struct net_bridge *br, struct net_bridge_port *p,
 			 * per-VLAN entry as well
 			 */
 			err = nbp_vlan_add(p, vinfo->vid, vinfo->flags);
-			if (err)
-				break;
 		} else {
 			vinfo->flags |= BRIDGE_VLAN_INFO_BRENTRY;
 			err = br_vlan_add(br, vinfo->vid, vinfo->flags);
 		}
+		if (!err)
+			*changed = true;
 		break;
 
 	case RTM_DELLINK:
 		if (p) {
-			nbp_vlan_delete(p, vinfo->vid);
-			if (vinfo->flags & BRIDGE_VLAN_INFO_MASTER)
-				br_vlan_delete(p->br, vinfo->vid);
-		} else {
-			br_vlan_delete(br, vinfo->vid);
+			if (!nbp_vlan_delete(p, vinfo->vid))
+				*changed = true;
+
+			if ((vinfo->flags & BRIDGE_VLAN_INFO_MASTER) &&
+			    !br_vlan_delete(p->br, vinfo->vid))
+				*changed = true;
+		} else if (!br_vlan_delete(br, vinfo->vid)) {
+			*changed = true;
 		}
 		break;
 	}
@@ -542,7 +545,8 @@ static int br_vlan_info(struct net_bridge *br, struct net_bridge_port *p,
 static int br_process_vlan_info(struct net_bridge *br,
 				struct net_bridge_port *p, int cmd,
 				struct bridge_vlan_info *vinfo_curr,
-				struct bridge_vlan_info **vinfo_last)
+				struct bridge_vlan_info **vinfo_last,
+				bool *changed)
 {
 	if (!vinfo_curr->vid || vinfo_curr->vid >= VLAN_VID_MASK)
 		return -EINVAL;
@@ -572,7 +576,7 @@ static int br_process_vlan_info(struct net_bridge *br,
 		       sizeof(struct bridge_vlan_info));
 		for (v = (*vinfo_last)->vid; v <= vinfo_curr->vid; v++) {
 			tmp_vinfo.vid = v;
-			err = br_vlan_info(br, p, cmd, &tmp_vinfo);
+			err = br_vlan_info(br, p, cmd, &tmp_vinfo, changed);
 			if (err)
 				break;
 		}
@@ -581,13 +585,13 @@ static int br_process_vlan_info(struct net_bridge *br,
 		return err;
 	}
 
-	return br_vlan_info(br, p, cmd, vinfo_curr);
+	return br_vlan_info(br, p, cmd, vinfo_curr, changed);
 }
 
 static int br_afspec(struct net_bridge *br,
 		     struct net_bridge_port *p,
 		     struct nlattr *af_spec,
-		     int cmd)
+		     int cmd, bool *changed)
 {
 	struct bridge_vlan_info *vinfo_curr = NULL;
 	struct bridge_vlan_info *vinfo_last = NULL;
@@ -607,7 +611,8 @@ static int br_afspec(struct net_bridge *br,
 				return err;
 			err = br_process_vlan_tunnel_info(br, p, cmd,
 							  &tinfo_curr,
-							  &tinfo_last);
+							  &tinfo_last,
+							  changed);
 			if (err)
 				return err;
 			break;
@@ -616,7 +621,7 @@ static int br_afspec(struct net_bridge *br,
 				return -EINVAL;
 			vinfo_curr = nla_data(attr);
 			err = br_process_vlan_info(br, p, cmd, vinfo_curr,
-						   &vinfo_last);
+						   &vinfo_last, changed);
 			if (err)
 				return err;
 			break;
@@ -804,6 +809,7 @@ int br_setlink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags)
 	struct nlattr *afspec;
 	struct net_bridge_port *p;
 	struct nlattr *tb[IFLA_BRPORT_MAX + 1];
+	bool changed = false;
 	int err = 0;
 
 	protinfo = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_PROTINFO);
@@ -839,14 +845,15 @@ int br_setlink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags)
 		}
 		if (err)
 			goto out;
+		changed = true;
 	}
 
 	if (afspec) {
 		err = br_afspec((struct net_bridge *)netdev_priv(dev), p,
-				afspec, RTM_SETLINK);
+				afspec, RTM_SETLINK, &changed);
 	}
 
-	if (err == 0)
+	if (changed)
 		br_ifinfo_notify(RTM_NEWLINK, p);
 out:
 	return err;
@@ -857,6 +864,7 @@ int br_dellink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags)
 {
 	struct nlattr *afspec;
 	struct net_bridge_port *p;
+	bool changed = false;
 	int err = 0;
 
 	afspec = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_AF_SPEC);
@@ -869,8 +877,8 @@ int br_dellink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags)
 		return -EINVAL;
 
 	err = br_afspec((struct net_bridge *)netdev_priv(dev), p,
-			afspec, RTM_DELLINK);
-	if (err == 0)
+			afspec, RTM_DELLINK, &changed);
+	if (changed)
 		/* Send RTM_NEWLINK because userspace
 		 * expects RTM_NEWLINK for vlan dels
 		 */
