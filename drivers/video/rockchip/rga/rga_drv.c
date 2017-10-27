@@ -42,7 +42,7 @@
 #include <linux/slab.h>
 #include <linux/fb.h>
 #include <linux/wakelock.h>
-
+#include <linux/dma-buf.h>
 #if defined(CONFIG_ION_ROCKCHIP)
 #include <linux/rockchip_ion.h>
 #endif
@@ -77,7 +77,6 @@
 #define DRIVER_DESC		"RGA Device Driver"
 #define DRIVER_NAME		"rga"
 
-#define RGA_VERSION   "1.003"
 
 ktime_t rga_start;
 ktime_t rga_end;
@@ -89,7 +88,7 @@ long (*rga_ioctl_kernel_p)(struct rga_req *);
 
 struct rga_drvdata {
   	struct miscdevice miscdev;
-  	struct device dev;
+	struct device *dev;
 	void *rga_base;
 	int irq;
 
@@ -104,6 +103,7 @@ struct rga_drvdata {
     //#if defined(CONFIG_ION_ROCKCHIP)
     struct ion_client * ion_client;
     //#endif
+	char *version;
 };
 
 static struct rga_drvdata *drvdata;
@@ -138,7 +138,7 @@ static void rga_try_set_reg(void);
 #if RGA_TEST
 static void print_info(struct rga_req *req)
 {
-    printk("src : yrgb_addr = %.8x, src.uv_addr = %.8x, src.v_addr = %.8x, format = %d\n",
+	printk(KERN_ERR "src : yrgb_addr = %.lx, src.uv_addr = %.lx, src.v_addr = %.lx, format = %d\n",
             req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr, req->src.format);
     printk("src : act_w = %d, act_h = %d, vir_w = %d, vir_h = %d\n",
         req->src.act_w, req->src.act_h, req->src.vir_w, req->src.vir_h);
@@ -155,8 +155,8 @@ static void print_info(struct rga_req *req)
 
     printk("mmu_flag = %.8x\n", req->mmu_info.mmu_flag);
 
-    //printk("alpha_rop_flag = %.8x\n", req->alpha_rop_flag);
-    //printk("alpha_rop_mode = %.8x\n", req->alpha_rop_mode);
+	printk(KERN_ERR "alpha_rop_flag = %.8x\n", req->alpha_rop_flag);
+	printk(KERN_ERR "alpha_rop_mode = %.8x\n", req->alpha_rop_mode);
     //printk("PD_mode = %.8x\n", req->PD_mode);
 }
 #endif
@@ -251,11 +251,11 @@ static void rga_dump(void)
 		printk("task_running %d\n", running);
 		list_for_each_entry_safe(reg, reg_tmp, &session->waiting, session_link)
         {
-			printk("waiting register set 0x%.lu\n", (unsigned long)reg);
+			printk("waiting register set 0x %.lu\n", (unsigned long)reg);
 		}
 		list_for_each_entry_safe(reg, reg_tmp, &session->running, session_link)
         {
-			printk("running register set 0x%.lu\n", (unsigned long)reg);
+			printk("running register set 0x %.lu\n", (unsigned long)reg);
 		}
 	}
 }
@@ -809,6 +809,7 @@ static void rga_mem_addr_sel(struct rga_req *req)
 
 }
 
+/*
 static int rga_convert_dma_buf(struct rga_req *req)
 {
 	struct ion_handle *hdl;
@@ -879,7 +880,122 @@ static int rga_convert_dma_buf(struct rga_req *req)
 
     return 0;
 }
+*/
 
+static int rga_get_img_info(rga_img_info_t *img,
+			     u8 mmu_flag,
+			     struct sg_table **psgt,
+			     struct dma_buf_attachment **pattach)
+{
+	struct dma_buf_attachment *attach = NULL;
+	struct device *rga_dev = NULL;
+	struct sg_table *sgt = NULL;
+	struct dma_buf *dma_buf = NULL;
+	u32 vir_w, vir_h;
+	int yrgb_addr = -1;
+	int ret = 0;
+
+	rga_dev = drvdata->dev;
+	yrgb_addr = (int)img->yrgb_addr;
+	vir_w = img->vir_w;
+	vir_h = img->vir_h;
+
+	if (yrgb_addr > 0) {
+		dma_buf = dma_buf_get(img->yrgb_addr);
+		if (IS_ERR(dma_buf)) {
+			ret = -EINVAL;
+			pr_err("dma_buf_get fail fd[%d]\n", yrgb_addr);
+			return ret;
+		}
+
+		attach = dma_buf_attach(dma_buf, rga_dev);
+		if (IS_ERR(attach)) {
+			dma_buf_put(dma_buf);
+			ret = -EINVAL;
+			pr_err("Failed to attach dma_buf\n");
+			return ret;
+		}
+
+		*pattach = attach;
+		sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
+		if (IS_ERR(sgt)) {
+			ret = -EINVAL;
+			pr_err("Failed to map src attachment\n");
+			goto err_get_sg;
+		}
+		if (!mmu_flag) {
+			ret = -EINVAL;
+			pr_err("Fix it please enable iommu flag\n");
+			goto err_get_sg;
+		}
+
+		if (mmu_flag) {
+			*psgt = sgt;
+			img->yrgb_addr = img->uv_addr;
+			img->uv_addr = img->yrgb_addr + (vir_w * vir_h);
+			img->v_addr = img->uv_addr + (vir_w * vir_h) / 4;
+		}
+	} else {
+		img->yrgb_addr = img->uv_addr;
+		img->uv_addr = img->yrgb_addr + (vir_w * vir_h);
+		img->v_addr = img->uv_addr + (vir_w * vir_h) / 4;
+	}
+
+	return ret;
+
+err_get_sg:
+	if (sgt)
+		dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
+	if (attach) {
+		dma_buf = attach->dmabuf;
+		dma_buf_detach(dma_buf, attach);
+		*pattach = NULL;
+		dma_buf_put(dma_buf);
+	}
+	return ret;
+}
+
+static int rga_get_dma_buf(struct rga_req *req)
+{
+	struct dma_buf *dma_buf = NULL;
+	u8 mmu_flag = 0;
+	int ret = 0;
+
+	req->sg_src = NULL;
+	req->sg_dst = NULL;
+	req->sg_els = NULL;
+	req->attach_src = NULL;
+	req->attach_dst = NULL;
+	mmu_flag = req->mmu_info.mmu_flag;
+	ret = rga_get_img_info(&req->src, mmu_flag, &req->sg_src,
+				&req->attach_src);
+	if (ret) {
+		pr_err("src:rga_get_img_info fail\n");
+		goto err_src;
+	}
+
+	mmu_flag = req->mmu_info.mmu_flag;
+	ret = rga_get_img_info(&req->dst, mmu_flag, &req->sg_dst,
+				&req->attach_dst);
+	if (ret) {
+		pr_err("dst:rga_get_img_info fail\n");
+		goto err_dst;
+	}
+
+	return ret;
+
+err_dst:
+	if (req->sg_src && req->attach_src) {
+		dma_buf_unmap_attachment(req->attach_src,
+					 req->sg_src, DMA_BIDIRECTIONAL);
+		dma_buf = req->attach_src->dmabuf;
+		dma_buf_detach(dma_buf, req->attach_src);
+		dma_buf_put(dma_buf);
+	}
+err_src:
+
+	return ret;
+}
 
 static int rga_blit(rga_session *session, struct rga_req *req)
 {
@@ -898,8 +1014,7 @@ static int rga_blit(rga_session *session, struct rga_req *req)
     #if RGA_TEST
     print_info(req);
     #endif
-
-    if(rga_convert_dma_buf(req)) {
+	if (rga_get_dma_buf(req)) {
         printk("RGA : DMA buf copy error\n");
         return -EFAULT;
     }
@@ -951,6 +1066,7 @@ static int rga_blit(rga_session *session, struct rga_req *req)
 
             reg = rga_reg_init(session, req);
             if(reg == NULL) {
+		pr_err("init reg fail\n");
                 break;
             }
             num = 1;
@@ -1027,6 +1143,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	int ret = 0;
     rga_session *session;
 
+	memset(&req, 0x0, sizeof(req));
     mutex_lock(&rga_service.mutex);
 
     session = (rga_session *)file->private_data;
@@ -1073,8 +1190,21 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
             ret = rga_get_result(session, arg);
             break;
         case RGA_GET_VERSION:
-            ret = copy_to_user((void *)arg, RGA_VERSION, sizeof(RGA_VERSION));
-            //ret = 0;
+			if (!drvdata->version) {
+				drvdata->version = kzalloc(16, GFP_KERNEL);
+				if (!drvdata->version) {
+					ret = -ENOMEM;
+					break;
+				}
+				rga_power_on();
+				udelay(1);
+				if (rga_read(RGA_VERSION) == 0x02018632)
+					snprintf(drvdata->version, 16, "1.6");
+				else
+					snprintf(drvdata->version, 16, "1.003");
+			}
+
+			ret = copy_to_user((void *)arg, drvdata->version, 16);
             break;
 		default:
 			ERR("unknown ioctl cmd!\n");
@@ -1275,6 +1405,7 @@ static int rga_drv_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, data);
+	data->dev = &pdev->dev;
 	drvdata = data;
 
     #if defined(CONFIG_ION_ROCKCHIP)
@@ -1318,6 +1449,7 @@ static int rga_drv_remove(struct platform_device *pdev)
 	misc_deregister(&(data->miscdev));
 	free_irq(data->irq, &data->miscdev);
 	iounmap((void __iomem *)(data->rga_base));
+	kfree(data->version);
 
 	//clk_put(data->pd_rga);
 	devm_clk_put(&pdev->dev, data->aclk_rga);
@@ -1331,7 +1463,6 @@ static struct platform_driver rga_driver = {
 	.probe		= rga_drv_probe,
 	.remove		= rga_drv_remove,
 	.driver		= {
-		.owner  = THIS_MODULE,
 		.name	= "rga",
 		.of_match_table = of_match_ptr(rockchip_rga_dt_ids),
 	},
@@ -1358,6 +1489,9 @@ static int __init rga_init(void)
         printk(KERN_ERR "RGA get Pre Scale buff failed. \n");
         return -1;
     }
+	if (mmu_buf_virtual == NULL) {
+		return -1;
+	}
 
     /* malloc 4 M buf */
     for(i=0; i<1024; i++) {
@@ -1441,11 +1575,9 @@ static void __exit rga_exit(void)
         kfree((uint8_t *)rga_service.pre_scale_buf);
     }
 
-    if (rga_mmu_buf.buf_virtual)
-        kfree(rga_mmu_buf.buf_virtual);
+    kfree(rga_mmu_buf.buf_virtual);
 
-    if (rga_mmu_buf.pages)
-        kfree(rga_mmu_buf.pages);
+    kfree(rga_mmu_buf.pages);
 
 	platform_driver_unregister(&rga_driver);
 }

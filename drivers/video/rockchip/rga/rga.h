@@ -184,7 +184,17 @@ typedef struct MMU
 {
     unsigned char mmu_en;
     unsigned long base_addr;
-    uint32_t mmu_flag;     /* [0] mmu enable [1] src_flush [2] dst_flush [3] CMD_flush [4~5] page size*/
+	uint32_t mmu_flag;
+
+	unsigned long src0_base_addr;
+	unsigned long src1_base_addr;
+	unsigned long dst_base_addr;
+	unsigned long els_base_addr;
+
+	u8 src0_mmu_flag;
+	u8 src1_mmu_flag;
+	u8 dst_mmu_flag;
+	u8 els_mmu_flag;
 } MMU;
 
 
@@ -299,7 +309,10 @@ struct rga_req {
     uint8_t  src_trans_mode;
 
     struct sg_table *sg_src;
-    struct sg_table *sg_dst;
+	struct sg_table *sg_dst;
+	struct sg_table *sg_els;
+	struct dma_buf_attachment *attach_src;
+	struct dma_buf_attachment *attach_dst;
 };
 
 
@@ -377,6 +390,13 @@ struct rga_reg {
     //atomic_t int_enable;
 
     //struct rga_req      req;
+	struct sg_table *sg_src0;
+	struct sg_table *sg_src1;
+	struct sg_table *sg_dst;
+
+	struct dma_buf_attachment *attach_src0;
+	struct dma_buf_attachment *attach_src1;
+	struct dma_buf_attachment *attach_dst;
 };
 
 
@@ -395,10 +415,13 @@ typedef struct rga_service_info {
     uint32_t            cmd_buff[28*8];/* cmd_buff for rga */
     uint32_t            *pre_scale_buf;
     unsigned long       *pre_scale_buf_virtual;
-    atomic_t            int_disable;     /* 0 int enable 1 int disable  */
+	atomic_t            int_disable;     /* 0 int enable 1 int disable  */
     atomic_t            cmd_num;
-    atomic_t            rga_working;
+	atomic_t src_format_swt;
+	int last_prc_src_format;
+	atomic_t            rga_working;
     bool                enable;
+	u32 dev_mode;
 
     //struct rga_req      req[10];
 
@@ -422,6 +445,7 @@ typedef struct rga_service_info {
 #define RGA_AXI_ID               0x014
 #define RGA_MMU_STA_CTRL         0x018
 #define RGA_MMU_STA              0x01c
+#define RGA_VERSION              0x028
 
 //Command code start
 #define RGA_MODE_CTRL            0x100
