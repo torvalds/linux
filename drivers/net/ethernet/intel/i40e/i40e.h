@@ -253,6 +253,12 @@ struct i40e_fdir_filter {
 	u32 fd_id;
 };
 
+struct i40e_cloud_filter {
+	struct hlist_node cloud_node;
+	unsigned long cookie;
+	u16 seid;	/* filter control */
+};
+
 #define I40E_ETH_P_LLDP			0x88cc
 
 #define I40E_DCB_PRIO_TYPE_STRICT	0
@@ -419,6 +425,9 @@ struct i40e_pf {
 
 	struct i40e_udp_port_config udp_ports[I40E_MAX_PF_UDP_OFFLOAD_PORTS];
 	u16 pending_udp_bitmap;
+
+	struct hlist_head cloud_filter_list;
+	u16 num_cloud_filters;
 
 	enum i40e_interrupt_policy int_policy;
 	u16 rx_itr_default;

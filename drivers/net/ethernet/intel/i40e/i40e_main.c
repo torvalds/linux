@@ -6937,6 +6937,26 @@ static void i40e_fdir_filter_exit(struct i40e_pf *pf)
 }
 
 /**
+ * i40e_cloud_filter_exit - Cleans up the cloud filters
+ * @pf: Pointer to PF
+ *
+ * This function destroys the hlist where all the cloud filters
+ * were saved.
+ **/
+static void i40e_cloud_filter_exit(struct i40e_pf *pf)
+{
+	struct i40e_cloud_filter *cfilter;
+	struct hlist_node *node;
+
+	hlist_for_each_entry_safe(cfilter, node,
+				  &pf->cloud_filter_list, cloud_node) {
+		hlist_del(&cfilter->cloud_node);
+		kfree(cfilter);
+	}
+	pf->num_cloud_filters = 0;
+}
+
+/**
  * i40e_close - Disables a network interface
  * @netdev: network interface device structure
  *
@@ -12196,6 +12216,7 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 			vsi = i40e_vsi_reinit_setup(pf->vsi[pf->lan_vsi]);
 		if (!vsi) {
 			dev_info(&pf->pdev->dev, "setup of MAIN VSI failed\n");
+			i40e_cloud_filter_exit(pf);
 			i40e_fdir_teardown(pf);
 			return -EAGAIN;
 		}
@@ -13030,6 +13051,8 @@ static void i40e_remove(struct pci_dev *pdev)
 	if (pf->vsi[pf->lan_vsi])
 		i40e_vsi_release(pf->vsi[pf->lan_vsi]);
 
+	i40e_cloud_filter_exit(pf);
+
 	/* remove attached clients */
 	if (pf->flags & I40E_FLAG_IWARP_ENABLED) {
 		ret_code = i40e_lan_del_device(pf);
@@ -13261,6 +13284,7 @@ static void i40e_shutdown(struct pci_dev *pdev)
 
 	del_timer_sync(&pf->service_timer);
 	cancel_work_sync(&pf->service_task);
+	i40e_cloud_filter_exit(pf);
 	i40e_fdir_teardown(pf);
 
 	/* Client close must be called explicitly here because the timer
