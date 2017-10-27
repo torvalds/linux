@@ -401,13 +401,6 @@ static struct ctl_table ipv4_table[] = {
 		.proc_handler	= proc_dointvec
 	},
 	{
-		.procname	= "tcp_stdurg",
-		.data		= &sysctl_tcp_stdurg,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{
 		.procname	= "tcp_rfc1337",
 		.data		= &sysctl_tcp_rfc1337,
 		.maxlen		= sizeof(int),
@@ -1141,6 +1134,13 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "tcp_retrans_collapse",
 		.data		= &init_net.ipv4.sysctl_tcp_retrans_collapse,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
+	{
+		.procname	= "tcp_stdurg",
+		.data		= &init_net.ipv4.sysctl_tcp_stdurg,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
