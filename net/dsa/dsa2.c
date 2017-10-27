@@ -590,11 +590,17 @@ static int dsa_dst_parse(struct dsa_switch_tree *dst)
 	return 0;
 }
 
-static int dsa_parse_ports_dn(struct device_node *ports, struct dsa_switch *ds)
+static int dsa_parse_ports_of(struct device_node *dn, struct dsa_switch *ds)
 {
-	struct device_node *port;
-	int err;
+	struct device_node *ports, *port;
 	u32 reg;
+	int err;
+
+	ports = of_get_child_by_name(dn, "ports");
+	if (!ports) {
+		dev_err(ds->dev, "no ports child node found\n");
+		return -EINVAL;
+	}
 
 	for_each_available_child_of_node(ports, port) {
 		err = of_property_read_u32(port, "reg", &reg);
@@ -665,26 +671,11 @@ static int dsa_parse_member(struct dsa_chip_data *pd, u32 *tree, u32 *index)
 	return 0;
 }
 
-static struct device_node *dsa_get_ports(struct dsa_switch *ds,
-					 struct device_node *np)
-{
-	struct device_node *ports;
-
-	ports = of_get_child_by_name(np, "ports");
-	if (!ports) {
-		dev_err(ds->dev, "no ports child node found\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	return ports;
-}
-
 static int _dsa_register_switch(struct dsa_switch *ds)
 {
 	struct dsa_chip_data *pdata = ds->dev->platform_data;
 	struct device_node *np = ds->dev->of_node;
 	struct dsa_switch_tree *dst;
-	struct device_node *ports;
 	u32 tree, index;
 	int i, err;
 
@@ -693,11 +684,7 @@ static int _dsa_register_switch(struct dsa_switch *ds)
 		if (err)
 			return err;
 
-		ports = dsa_get_ports(ds, np);
-		if (IS_ERR(ports))
-			return PTR_ERR(ports);
-
-		err = dsa_parse_ports_dn(ports, ds);
+		err = dsa_parse_ports_of(np, ds);
 		if (err)
 			return err;
 	} else {
