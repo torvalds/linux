@@ -23,6 +23,8 @@
  * Rob Clark <robdclark@gmail.com>
  */
 
+#define DEBUG /* for pr_debug() */
+
 #include <stdarg.h>
 #include <linux/seq_file.h>
 #include <drm/drmP.h>
