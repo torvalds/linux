@@ -57,7 +57,10 @@ struct route4_filter {
 	u32			handle;
 	struct route4_bucket	*bkt;
 	struct tcf_proto	*tp;
-	struct rcu_head		rcu;
+	union {
+		struct work_struct	work;
+		struct rcu_head		rcu;
+	};
 };
 
 #define ROUTE4_FAILURE ((struct route4_filter *)(-1L))
@@ -254,12 +257,22 @@ static int route4_init(struct tcf_proto *tp)
 	return 0;
 }
 
+static void route4_delete_filter_work(struct work_struct *work)
+{
+	struct route4_filter *f = container_of(work, struct route4_filter, work);
+
+	rtnl_lock();
+	tcf_exts_destroy(&f->exts);
+	kfree(f);
+	rtnl_unlock();
+}
+
 static void route4_delete_filter(struct rcu_head *head)
 {
 	struct route4_filter *f = container_of(head, struct route4_filter, rcu);
 
-	tcf_exts_destroy(&f->exts);
-	kfree(f);
+	INIT_WORK(&f->work, route4_delete_filter_work);
+	tcf_queue_work(&f->work);
 }
 
 static void route4_destroy(struct tcf_proto *tp)
