@@ -60,7 +60,6 @@ struct kfd_event {
 	wait_queue_head_t wq; /* List of event waiters. */
 
 	/* Only for signal events. */
-	struct signal_page *signal_page;
 	unsigned int signal_slot_index;
 	uint64_t __user *user_signal_address;
 

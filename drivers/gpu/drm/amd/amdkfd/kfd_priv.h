@@ -540,8 +540,8 @@ struct kfd_process {
 	struct mutex event_mutex;
 	/* All events in process hashed by ID, linked on kfd_event.events. */
 	DECLARE_HASHTABLE(events, 4);
-	/* struct slot_page_header.event_pages */
-	struct list_head signal_event_pages;
+	/* Event page */
+	struct kfd_signal_page *signal_page;
 	u32 next_nonsignal_event_id;
 	size_t signal_event_count;
 	bool signal_event_limit_reached;
