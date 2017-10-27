@@ -1608,6 +1608,8 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 			tbl_entry.color_space = color_space;
 			//tbl_entry.regval = matrix;
 			pipe_ctx->plane_res.dpp->funcs->opp_set_csc_adjustment(pipe_ctx->plane_res.dpp, &tbl_entry);
+	} else {
+		pipe_ctx->plane_res.dpp->funcs->opp_set_csc_default(pipe_ctx->plane_res.dpp, colorspace);
 	}
 }
 
