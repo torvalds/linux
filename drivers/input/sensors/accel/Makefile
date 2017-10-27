@@ -10,3 +10,4 @@ obj-$(CONFIG_GS_MC3230)    += mc3230.o
 obj-$(CONFIG_MPU6880_ACC)   += mpu6880_acc.o
 obj-$(CONFIG_MPU6500_ACC)   += mpu6500_acc.o
 obj-$(CONFIG_LSM330_ACC)   += lsm330_acc.o
+obj-$(CONFIG_BMA2XX_ACC)	+= bma2xx.o
