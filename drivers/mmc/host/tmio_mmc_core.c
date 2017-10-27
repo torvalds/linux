@@ -1302,23 +1302,24 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
 	pm_runtime_enable(&pdev->dev);
 
 	ret = mmc_add_host(mmc);
-	if (ret < 0) {
-		tmio_mmc_host_remove(_host);
-		return ret;
-	}
+	if (ret)
+		goto remove_host;
 
 	dev_pm_qos_expose_latency_limit(&pdev->dev, 100);
 
 	if (pdata->flags & TMIO_MMC_USE_GPIO_CD) {
 		ret = mmc_gpio_request_cd(mmc, pdata->cd_gpio, 0);
-		if (ret < 0) {
-			tmio_mmc_host_remove(_host);
-			return ret;
-		}
+		if (ret)
+			goto remove_host;
+
 		mmc_gpiod_request_cd_irq(mmc);
 	}
 
 	return 0;
+
+remove_host:
+	tmio_mmc_host_remove(_host);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(tmio_mmc_host_probe);
 
