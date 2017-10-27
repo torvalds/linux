@@ -348,13 +348,6 @@ static int rk816_set_suspend_enable(struct regulator_dev *rdev)
 	}
 
 	if ((rdev->desc->id > RK816_ID_DCDC4) &&
-	    (rdev->desc->id <= RK816_ID_OTG_SWITCH)) {
-		reg = rdev->desc->enable_reg +
-			RK816_SWITCH_SLP_EN_REG_OFFSET;
-		val = 1 << (rdev->desc->id + 1);
-	}
-
-	if ((rdev->desc->id > RK816_ID_OTG_SWITCH) &&
 	    (rdev->desc->id <= RK816_ID_LDO4)) {
 		reg = rdev->desc->enable_reg -
 			RK816_LDO1_4_SLP_EN_REG_OFFSET;
@@ -382,11 +375,6 @@ static int rk816_set_suspend_disable(struct regulator_dev *rdev)
 			RK816_DCDC_SLP_EN_REG_OFFSET;
 
 	if ((rdev->desc->id > RK816_ID_DCDC4) &&
-	    (rdev->desc->id <= RK816_ID_OTG_SWITCH))
-		reg = rdev->desc->enable_reg +
-			RK816_SWITCH_SLP_EN_REG_OFFSET;
-
-	if ((rdev->desc->id > RK816_ID_OTG_SWITCH) &&
 	    (rdev->desc->id <= RK816_ID_LDO4))
 		reg = rdev->desc->enable_reg -
 			RK816_LDO1_4_SLP_EN_REG_OFFSET;
