@@ -12166,7 +12166,7 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 		u16 valid_flags;
 
 		valid_flags = I40E_AQ_SET_SWITCH_CFG_PROMISC;
-		ret = i40e_aq_set_switch_config(&pf->hw, flags, valid_flags,
+		ret = i40e_aq_set_switch_config(&pf->hw, flags, valid_flags, 0,
 						NULL);
 		if (ret && pf->hw.aq.asq_last_status != I40E_AQ_RC_ESRCH) {
 			dev_info(&pf->pdev->dev,

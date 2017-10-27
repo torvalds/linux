@@ -2407,13 +2407,14 @@ i40e_status i40e_aq_get_switch_config(struct i40e_hw *hw,
  * @hw: pointer to the hardware structure
  * @flags: bit flag values to set
  * @valid_flags: which bit flags to set
+ * @mode: cloud filter mode
  * @cmd_details: pointer to command details structure or NULL
  *
  * Set switch configuration bits
  **/
 enum i40e_status_code i40e_aq_set_switch_config(struct i40e_hw *hw,
 						u16 flags,
-						u16 valid_flags,
+						u16 valid_flags, u8 mode,
 				struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
@@ -2425,6 +2426,7 @@ enum i40e_status_code i40e_aq_set_switch_config(struct i40e_hw *hw,
 					  i40e_aqc_opc_set_switch_config);
 	scfg->flags = cpu_to_le16(flags);
 	scfg->valid_flags = cpu_to_le16(valid_flags);
+	scfg->mode = mode;
 	if (hw->flags & I40E_HW_FLAG_802_1AD_CAPABLE) {
 		scfg->switch_tag = cpu_to_le16(hw->switch_tag);
 		scfg->first_tag = cpu_to_le16(hw->first_tag);

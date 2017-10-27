@@ -790,7 +790,35 @@ struct i40e_aqc_set_switch_config {
 	 */
 	__le16	first_tag;
 	__le16	second_tag;
-	u8	reserved[6];
+	/* Next byte is split into following:
+	 * Bit 7    : 0 : No action, 1: Switch to mode defined by bits 6:0
+	 * Bit 6    : 0 : Destination Port, 1: source port
+	 * Bit 5..4 : L4 type
+	 * 0: rsvd
+	 * 1: TCP
+	 * 2: UDP
+	 * 3: Both TCP and UDP
+	 * Bits 3:0 Mode
+	 * 0: default mode
+	 * 1: L4 port only mode
+	 * 2: non-tunneled mode
+	 * 3: tunneled mode
+	 */
+#define I40E_AQ_SET_SWITCH_BIT7_VALID		0x80
+
+#define I40E_AQ_SET_SWITCH_L4_SRC_PORT		0x40
+
+#define I40E_AQ_SET_SWITCH_L4_TYPE_RSVD		0x00
+#define I40E_AQ_SET_SWITCH_L4_TYPE_TCP		0x10
+#define I40E_AQ_SET_SWITCH_L4_TYPE_UDP		0x20
+#define I40E_AQ_SET_SWITCH_L4_TYPE_BOTH		0x30
+
+#define I40E_AQ_SET_SWITCH_MODE_DEFAULT		0x00
+#define I40E_AQ_SET_SWITCH_MODE_L4_PORT		0x01
+#define I40E_AQ_SET_SWITCH_MODE_NON_TUNNEL	0x02
+#define I40E_AQ_SET_SWITCH_MODE_TUNNEL		0x03
+	u8	mode;
+	u8	rsvd5[5];
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_set_switch_config);

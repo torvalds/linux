@@ -283,6 +283,15 @@ struct i40e_hw_capabilities {
 #define I40E_NVM_IMAGE_TYPE_CLOUD	0x2
 #define I40E_NVM_IMAGE_TYPE_UDP_CLOUD	0x3
 
+	/* Cloud filter modes:
+	 * Mode1: Filter on L4 port only
+	 * Mode2: Filter for non-tunneled traffic
+	 * Mode3: Filter for tunnel traffic
+	 */
+#define I40E_CLOUD_FILTER_MODE1	0x6
+#define I40E_CLOUD_FILTER_MODE2	0x7
+#define I40E_CLOUD_FILTER_MODE3	0x8
+
 	u32  management_mode;
 	u32  mng_protocols_over_mctp;
 #define I40E_MNG_PROTOCOL_PLDM		0x2
