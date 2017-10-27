@@ -508,6 +508,7 @@ int br_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 static int br_vlan_info(struct net_bridge *br, struct net_bridge_port *p,
 			int cmd, struct bridge_vlan_info *vinfo, bool *changed)
 {
+	bool curr_change;
 	int err = 0;
 
 	switch (cmd) {
@@ -516,12 +517,14 @@ static int br_vlan_info(struct net_bridge *br, struct net_bridge_port *p,
 			/* if the MASTER flag is set this will act on the global
 			 * per-VLAN entry as well
 			 */
-			err = nbp_vlan_add(p, vinfo->vid, vinfo->flags);
+			err = nbp_vlan_add(p, vinfo->vid, vinfo->flags,
+					   &curr_change);
 		} else {
 			vinfo->flags |= BRIDGE_VLAN_INFO_BRENTRY;
-			err = br_vlan_add(br, vinfo->vid, vinfo->flags);
+			err = br_vlan_add(br, vinfo->vid, vinfo->flags,
+					  &curr_change);
 		}
-		if (!err)
+		if (curr_change)
 			*changed = true;
 		break;
 
