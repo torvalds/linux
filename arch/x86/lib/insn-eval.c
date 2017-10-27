@@ -640,6 +640,70 @@ static unsigned long get_seg_limit(struct pt_regs *regs, int seg_reg_idx)
 }
 
 /**
+ * insn_get_code_seg_params() - Obtain code segment parameters
+ * @regs:	Structure with register values as seen when entering kernel mode
+ *
+ * Obtain address and operand sizes of the code segment. It is obtained from the
+ * selector contained in the CS register in regs. In protected mode, the default
+ * address is determined by inspecting the L and D bits of the segment
+ * descriptor. In virtual-8086 mode, the default is always two bytes for both
+ * address and operand sizes.
+ *
+ * Returns:
+ *
+ * A signed 8-bit value containing the default parameters on success.
+ *
+ * -EINVAL on error.
+ */
+char insn_get_code_seg_params(struct pt_regs *regs)
+{
+	struct desc_struct *desc;
+	short sel;
+
+	if (v8086_mode(regs))
+		/* Address and operand size are both 16-bit. */
+		return INSN_CODE_SEG_PARAMS(2, 2);
+
+	sel = get_segment_selector(regs, INAT_SEG_REG_CS);
+	if (sel < 0)
+		return sel;
+
+	desc = get_desc(sel);
+	if (!desc)
+		return -EINVAL;
+
+	/*
+	 * The most significant byte of the Type field of the segment descriptor
+	 * determines whether a segment contains data or code. If this is a data
+	 * segment, return error.
+	 */
+	if (!(desc->type & BIT(3)))
+		return -EINVAL;
+
+	switch ((desc->l << 1) | desc->d) {
+	case 0: /*
+		 * Legacy mode. CS.L=0, CS.D=0. Address and operand size are
+		 * both 16-bit.
+		 */
+		return INSN_CODE_SEG_PARAMS(2, 2);
+	case 1: /*
+		 * Legacy mode. CS.L=0, CS.D=1. Address and operand size are
+		 * both 32-bit.
+		 */
+		return INSN_CODE_SEG_PARAMS(4, 4);
+	case 2: /*
+		 * IA-32e 64-bit mode. CS.L=1, CS.D=0. Address size is 64-bit;
+		 * operand size is 32-bit.
+		 */
+		return INSN_CODE_SEG_PARAMS(4, 8);
+	case 3: /* Invalid setting. CS.L=1, CS.D=1 */
+		/* fall through */
+	default:
+		return -EINVAL;
+	}
+}
+
+/**
  * insn_get_modrm_rm_off() - Obtain register in r/m part of the ModRM byte
  * @insn:	Instruction containing the ModRM byte
  * @regs:	Register values as seen when entering kernel mode
