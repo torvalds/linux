@@ -812,7 +812,6 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 			if (!sta) {
 				wcn36xx_err("sta %pM is not found\n",
 					      bss_conf->bssid);
-				rcu_read_unlock();
 				goto out;
 			}
 			sta_priv = wcn36xx_sta_to_priv(sta);
