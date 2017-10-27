@@ -1,8 +1,6 @@
 #include <linux/tcp.h>
 #include <net/tcp.h>
 
-int sysctl_tcp_recovery __read_mostly = TCP_RACK_LOSS_DETECTION;
-
 static void tcp_rack_mark_skb_lost(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
