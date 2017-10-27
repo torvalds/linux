@@ -292,6 +292,16 @@
 		};
 	};
 
+	rga: rga@1010c000 {
+		compatible = "rockchip,rk312x-rga";
+		reg = <0x1010c000 0x1000>;
+		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA>;
+		clock-names = "aclk_rga", "hclk_rga", "sclk_rga";
+		dma-coherent;
+		status = "disabled";
+	};
+
 	vop: vop@1010e000 {
 		compatible = "rockchip,rk3126-vop";
 		reg = <0x1010e000 0x100>, <0x1010ec00 0x400>;
