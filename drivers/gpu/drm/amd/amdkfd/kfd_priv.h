@@ -726,19 +726,13 @@ uint64_t kfd_get_number_elems(struct kfd_dev *kfd);
 extern const struct kfd_event_interrupt_class event_interrupt_class_cik;
 extern const struct kfd_device_global_init_class device_global_init_class_cik;
 
-enum kfd_event_wait_result {
-	KFD_WAIT_COMPLETE,
-	KFD_WAIT_TIMEOUT,
-	KFD_WAIT_ERROR
-};
-
 void kfd_event_init_process(struct kfd_process *p);
 void kfd_event_free_process(struct kfd_process *p);
 int kfd_event_mmap(struct kfd_process *process, struct vm_area_struct *vma);
 int kfd_wait_on_events(struct kfd_process *p,
 		       uint32_t num_events, void __user *data,
 		       bool all, uint32_t user_timeout_ms,
-		       enum kfd_event_wait_result *wait_result);
+		       uint32_t *wait_result);
 void kfd_signal_event_interrupt(unsigned int pasid, uint32_t partial_id,
 				uint32_t valid_id_bits);
 void kfd_signal_iommu_event(struct kfd_dev *dev,

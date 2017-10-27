@@ -668,7 +668,7 @@ static bool test_event_condition(bool all, uint32_t num_events,
  * Copy event specific data, if defined.
  * Currently only memory exception events have additional data to copy to user
  */
-static bool copy_signaled_event_data(uint32_t num_events,
+static int copy_signaled_event_data(uint32_t num_events,
 		struct kfd_event_waiter *event_waiters,
 		struct kfd_event_data __user *data)
 {
@@ -686,11 +686,11 @@ static bool copy_signaled_event_data(uint32_t num_events,
 			src = &event->memory_exception_data;
 			if (copy_to_user(dst, src,
 				sizeof(struct kfd_hsa_memory_exception_data)))
-				return false;
+				return -EFAULT;
 		}
 	}
 
-	return true;
+	return 0;
 
 }
 
@@ -727,7 +727,7 @@ static void free_waiters(uint32_t num_events, struct kfd_event_waiter *waiters)
 int kfd_wait_on_events(struct kfd_process *p,
 		       uint32_t num_events, void __user *data,
 		       bool all, uint32_t user_timeout_ms,
-		       enum kfd_event_wait_result *wait_result)
+		       uint32_t *wait_result)
 {
 	struct kfd_event_data __user *events =
 			(struct kfd_event_data __user *) data;
@@ -737,18 +737,18 @@ int kfd_wait_on_events(struct kfd_process *p,
 	struct kfd_event_waiter *event_waiters = NULL;
 	long timeout = user_timeout_to_jiffies(user_timeout_ms);
 
+	event_waiters = alloc_event_waiters(num_events);
+	if (!event_waiters) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
 	mutex_lock(&p->event_mutex);
 
 	/* Set to something unreasonable - this is really
 	 * just a bool for now.
 	 */
-	*wait_result = KFD_WAIT_TIMEOUT;
-
-	event_waiters = alloc_event_waiters(num_events);
-	if (!event_waiters) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	*wait_result = KFD_IOC_WAIT_RESULT_TIMEOUT;
 
 	for (i = 0; i < num_events; i++) {
 		struct kfd_event_data event_data;
@@ -756,23 +756,21 @@ int kfd_wait_on_events(struct kfd_process *p,
 		if (copy_from_user(&event_data, &events[i],
 				sizeof(struct kfd_event_data))) {
 			ret = -EFAULT;
-			goto fail;
+			goto out_unlock;
 		}
 
 		ret = init_event_waiter_get_status(p, &event_waiters[i],
 				event_data.event_id, i);
 		if (ret)
-			goto fail;
+			goto out_unlock;
 	}
 
 	/* Check condition once. */
 	if (test_event_condition(all, num_events, event_waiters)) {
-		if (copy_signaled_event_data(num_events,
-				event_waiters, events))
-			*wait_result = KFD_WAIT_COMPLETE;
-		else
-			*wait_result = KFD_WAIT_ERROR;
-		free_waiters(num_events, event_waiters);
+		*wait_result = KFD_IOC_WAIT_RESULT_COMPLETE;
+		ret = copy_signaled_event_data(num_events,
+					       event_waiters, events);
+		goto out_unlock;
 	} else {
 		/* Add to wait lists if we need to wait. */
 		for (i = 0; i < num_events; i++)
@@ -780,12 +778,6 @@ int kfd_wait_on_events(struct kfd_process *p,
 	}
 
 	mutex_unlock(&p->event_mutex);
-
-	/* Return if all waits were already satisfied. */
-	if (*wait_result != KFD_WAIT_TIMEOUT) {
-		__set_current_state(TASK_RUNNING);
-		return ret;
-	}
 
 	while (true) {
 		if (fatal_signal_pending(current)) {
@@ -818,16 +810,12 @@ int kfd_wait_on_events(struct kfd_process *p,
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		if (test_event_condition(all, num_events, event_waiters)) {
-			if (copy_signaled_event_data(num_events,
-					event_waiters, events))
-				*wait_result = KFD_WAIT_COMPLETE;
-			else
-				*wait_result = KFD_WAIT_ERROR;
+			*wait_result = KFD_IOC_WAIT_RESULT_COMPLETE;
 			break;
 		}
 
 		if (timeout <= 0) {
-			*wait_result = KFD_WAIT_TIMEOUT;
+			*wait_result = KFD_IOC_WAIT_RESULT_TIMEOUT;
 			break;
 		}
 
@@ -835,19 +823,20 @@ int kfd_wait_on_events(struct kfd_process *p,
 	}
 	__set_current_state(TASK_RUNNING);
 
+	/* copy_signaled_event_data may sleep. So this has to happen
+	 * after the task state is set back to RUNNING.
+	 */
+	if (!ret && *wait_result == KFD_IOC_WAIT_RESULT_COMPLETE)
+		ret = copy_signaled_event_data(num_events,
+					       event_waiters, events);
+
 	mutex_lock(&p->event_mutex);
+out_unlock:
 	free_waiters(num_events, event_waiters);
 	mutex_unlock(&p->event_mutex);
-
-	return ret;
-
-fail:
-	if (event_waiters)
-		free_waiters(num_events, event_waiters);
-
-	mutex_unlock(&p->event_mutex);
-
-	*wait_result = KFD_WAIT_ERROR;
+out:
+	if (ret)
+		*wait_result = KFD_IOC_WAIT_RESULT_FAIL;
 
 	return ret;
 }
