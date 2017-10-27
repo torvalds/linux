@@ -1246,12 +1246,8 @@ static void __download_offload_pseudocode(struct vub300_mmc_host *vub300,
 						USB_RECIP_DEVICE, 0x0000, 0x0000,
 						xfer_buffer, xfer_length, HZ);
 			kfree(xfer_buffer);
-			if (retval < 0) {
-				strncpy(vub300->vub_name,
-					"SDIO pseudocode download failed",
-					sizeof(vub300->vub_name));
-				return;
-			}
+			if (retval < 0)
+				goto copy_error_message;
 		} else {
 			dev_err(&vub300->udev->dev,
 				"not enough memory for xfer buffer to send"
@@ -1293,12 +1289,8 @@ static void __download_offload_pseudocode(struct vub300_mmc_host *vub300,
 						USB_RECIP_DEVICE, 0x0000, 0x0000,
 						xfer_buffer, xfer_length, HZ);
 			kfree(xfer_buffer);
-			if (retval < 0) {
-				strncpy(vub300->vub_name,
-					"SDIO pseudocode download failed",
-					sizeof(vub300->vub_name));
-				return;
-			}
+			if (retval < 0)
+				goto copy_error_message;
 		} else {
 			dev_err(&vub300->udev->dev,
 				"not enough memory for xfer buffer to send"
@@ -1351,6 +1343,12 @@ static void __download_offload_pseudocode(struct vub300_mmc_host *vub300,
 			sizeof(vub300->vub_name));
 		return;
 	}
+
+	return;
+
+copy_error_message:
+	strncpy(vub300->vub_name, "SDIO pseudocode download failed",
+		sizeof(vub300->vub_name));
 }
 
 /*
