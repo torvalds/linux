@@ -260,11 +260,6 @@ static int dsa_user_port_apply(struct dsa_port *port)
 	const char *name = port->name;
 	int err;
 
-	if (port->dn)
-		name = of_get_property(port->dn, "label", NULL);
-	if (!name)
-		name = "eth%d";
-
 	err = dsa_slave_create(port, name);
 	if (err) {
 		dev_warn(ds->dev, "Failed to create slave %d: %d\n",
@@ -564,6 +559,7 @@ static int dsa_port_parse_of(struct dsa_port *dp, struct device_node *dn)
 {
 	struct device_node *ethernet = of_parse_phandle(dn, "ethernet", 0);
 	struct device_node *link = of_parse_phandle(dn, "link", 0);
+	const char *name = of_get_property(dn, "label", NULL);
 
 	if (ethernet) {
 		struct net_device *master;
@@ -577,7 +573,11 @@ static int dsa_port_parse_of(struct dsa_port *dp, struct device_node *dn)
 	} else if (link) {
 		dp->type = DSA_PORT_TYPE_DSA;
 	} else {
+		if (!name)
+			name = "eth%d";
+
 		dp->type = DSA_PORT_TYPE_USER;
+		dp->name = name;
 	}
 
 	dp->dn = dn;

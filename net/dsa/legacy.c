@@ -115,6 +115,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 		name = cd->port_names[i];
 		if (name == NULL)
 			continue;
+		dp->name = name;
 
 		if (!strcmp(name, "cpu")) {
 			if (dst->cpu_dp) {
