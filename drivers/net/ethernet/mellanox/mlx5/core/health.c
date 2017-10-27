@@ -285,9 +285,9 @@ void mlx5_trigger_health_work(struct mlx5_core_dev *dev)
 	spin_unlock_irqrestore(&health->wq_lock, flags);
 }
 
-static void poll_health(unsigned long data)
+static void poll_health(struct timer_list *t)
 {
-	struct mlx5_core_dev *dev = (struct mlx5_core_dev *)data;
+	struct mlx5_core_dev *dev = from_timer(dev, t, priv.health.timer);
 	struct mlx5_core_health *health = &dev->priv.health;
 	u32 count;
 
@@ -320,7 +320,7 @@ void mlx5_start_health_poll(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
 
-	setup_timer(&health->timer, poll_health, (unsigned long)dev);
+	timer_setup(&health->timer, poll_health, 0);
 	health->sick = 0;
 	clear_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags);
 	clear_bit(MLX5_DROP_NEW_RECOVERY_WORK, &health->flags);
