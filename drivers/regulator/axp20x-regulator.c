@@ -590,7 +590,7 @@ static bool axp20x_is_polyphase_slave(struct axp20x_dev *axp20x, int id)
 		case AXP803_DCDC3:
 			return !!(reg & BIT(6));
 		case AXP803_DCDC6:
-			return !!(reg & BIT(7));
+			return !!(reg & BIT(5));
 		}
 		break;
 

@@ -865,7 +865,6 @@ complete:
 static int zpa2326_wait_oneshot_completion(const struct iio_dev   *indio_dev,
 					   struct zpa2326_private *private)
 {
-	int          ret;
 	unsigned int val;
 	long     timeout;
 
@@ -887,14 +886,11 @@ static int zpa2326_wait_oneshot_completion(const struct iio_dev   *indio_dev,
 		/* Timed out. */
 		zpa2326_warn(indio_dev, "no one shot interrupt occurred (%ld)",
 			     timeout);
-		ret = -ETIME;
-	} else if (timeout < 0) {
-		zpa2326_warn(indio_dev,
-			     "wait for one shot interrupt cancelled");
-		ret = -ERESTARTSYS;
+		return -ETIME;
 	}
 
-	return ret;
+	zpa2326_warn(indio_dev, "wait for one shot interrupt cancelled");
+	return -ERESTARTSYS;
 }
 
 static int zpa2326_init_managed_irq(struct device          *parent,
