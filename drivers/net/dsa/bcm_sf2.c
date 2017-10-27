@@ -738,45 +738,6 @@ static int bcm_sf2_sw_set_wol(struct dsa_switch *ds, int port,
 	return p->ethtool_ops->set_wol(p, wol);
 }
 
-static int bcm_sf2_vlan_op_wait(struct bcm_sf2_priv *priv)
-{
-	unsigned int timeout = 10;
-	u32 reg;
-
-	do {
-		reg = core_readl(priv, CORE_ARLA_VTBL_RWCTRL);
-		if (!(reg & ARLA_VTBL_STDN))
-			return 0;
-
-		usleep_range(1000, 2000);
-	} while (timeout--);
-
-	return -ETIMEDOUT;
-}
-
-static int bcm_sf2_vlan_op(struct bcm_sf2_priv *priv, u8 op)
-{
-	core_writel(priv, ARLA_VTBL_STDN | op, CORE_ARLA_VTBL_RWCTRL);
-
-	return bcm_sf2_vlan_op_wait(priv);
-}
-
-static void bcm_sf2_sw_configure_vlan(struct dsa_switch *ds)
-{
-	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	unsigned int port;
-
-	/* Clear all VLANs */
-	bcm_sf2_vlan_op(priv, ARLA_VTBL_CMD_CLEAR);
-
-	for (port = 0; port < priv->hw_params.num_ports; port++) {
-		if (!dsa_is_user_port(ds, port))
-			continue;
-
-		core_writel(priv, 1, CORE_DEFAULT_1Q_TAG_P(port));
-	}
-}
-
 static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
@@ -793,7 +754,7 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 			bcm_sf2_port_disable(ds, port, NULL);
 	}
 
-	bcm_sf2_sw_configure_vlan(ds);
+	b53_configure_vlan(ds);
 	bcm_sf2_enable_acb(ds);
 
 	return 0;
