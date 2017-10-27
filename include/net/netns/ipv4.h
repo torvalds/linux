@@ -131,6 +131,7 @@ struct netns_ipv4 {
 	int sysctl_tcp_early_retrans;
 	int sysctl_tcp_recovery;
 	int sysctl_tcp_thin_linear_timeouts;
+	int sysctl_tcp_slow_start_after_idle;
 	struct inet_timewait_death_row tcp_death_row;
 	int sysctl_max_syn_backlog;
 	int sysctl_tcp_fastopen;

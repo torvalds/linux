@@ -62,9 +62,6 @@ int sysctl_tcp_limit_output_bytes __read_mostly = 262144;
  */
 int sysctl_tcp_tso_win_divisor __read_mostly = 3;
 
-/* By default, RFC2861 behavior.  */
-int sysctl_tcp_slow_start_after_idle __read_mostly = 1;
-
 static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 			   int push_one, gfp_t gfp);
 
@@ -1690,7 +1687,7 @@ static void tcp_cwnd_validate(struct sock *sk, bool is_cwnd_limited)
 		if (tp->packets_out > tp->snd_cwnd_used)
 			tp->snd_cwnd_used = tp->packets_out;
 
-		if (sysctl_tcp_slow_start_after_idle &&
+		if (sock_net(sk)->ipv4.sysctl_tcp_slow_start_after_idle &&
 		    (s32)(tcp_jiffies32 - tp->snd_cwnd_stamp) >= inet_csk(sk)->icsk_rto &&
 		    !ca_ops->cong_control)
 			tcp_cwnd_application_limited(sk);

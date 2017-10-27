@@ -571,13 +571,6 @@ static struct ctl_table ipv4_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
-	{
-		.procname	= "tcp_slow_start_after_idle",
-		.data		= &sysctl_tcp_slow_start_after_idle,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
 #ifdef CONFIG_NETLABEL
 	{
 		.procname	= "cipso_cache_enable",
@@ -1144,6 +1137,13 @@ static struct ctl_table ipv4_net_table[] = {
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
 		.proc_handler   = proc_dointvec
+	},
+	{
+		.procname	= "tcp_slow_start_after_idle",
+		.data		= &init_net.ipv4.sysctl_tcp_slow_start_after_idle,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
 	},
 	{ }
 };
