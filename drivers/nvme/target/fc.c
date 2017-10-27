@@ -150,6 +150,7 @@ struct nvmet_fc_tgt_assoc {
 	struct list_head		a_list;
 	struct nvmet_fc_tgt_queue	*queues[NVMET_NR_QUEUES + 1];
 	struct kref			ref;
+	struct work_struct		del_work;
 };
 
 
@@ -232,6 +233,7 @@ static void nvmet_fc_tgtport_put(struct nvmet_fc_tgtport *tgtport);
 static int nvmet_fc_tgtport_get(struct nvmet_fc_tgtport *tgtport);
 static void nvmet_fc_handle_fcp_rqst(struct nvmet_fc_tgtport *tgtport,
 					struct nvmet_fc_fcp_iod *fod);
+static void nvmet_fc_delete_target_assoc(struct nvmet_fc_tgt_assoc *assoc);
 
 
 /* *********************** FC-NVME DMA Handling **************************** */
@@ -802,6 +804,16 @@ nvmet_fc_find_target_queue(struct nvmet_fc_tgtport *tgtport,
 	return NULL;
 }
 
+static void
+nvmet_fc_delete_assoc(struct work_struct *work)
+{
+	struct nvmet_fc_tgt_assoc *assoc =
+		container_of(work, struct nvmet_fc_tgt_assoc, del_work);
+
+	nvmet_fc_delete_target_assoc(assoc);
+	nvmet_fc_tgt_a_put(assoc);
+}
+
 static struct nvmet_fc_tgt_assoc *
 nvmet_fc_alloc_target_assoc(struct nvmet_fc_tgtport *tgtport)
 {
@@ -826,6 +838,7 @@ nvmet_fc_alloc_target_assoc(struct nvmet_fc_tgtport *tgtport)
 	assoc->a_id = idx;
 	INIT_LIST_HEAD(&assoc->a_list);
 	kref_init(&assoc->ref);
+	INIT_WORK(&assoc->del_work, nvmet_fc_delete_assoc);
 
 	while (needrandom) {
 		get_random_bytes(&ran, sizeof(ran) - BYTES_FOR_QID);
@@ -1118,8 +1131,7 @@ nvmet_fc_delete_ctrl(struct nvmet_ctrl *ctrl)
 		nvmet_fc_tgtport_put(tgtport);
 
 		if (found_ctrl) {
-			nvmet_fc_delete_target_assoc(assoc);
-			nvmet_fc_tgt_a_put(assoc);
+			schedule_work(&assoc->del_work);
 			return;
 		}
 
