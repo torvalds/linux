@@ -16,11 +16,23 @@
  */
 
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kvm_host.h>
 #include <linux/irqchip/arm-gic-v3.h>
 
 #include "vgic.h"
+
+static irqreturn_t vgic_v4_doorbell_handler(int irq, void *info)
+{
+	struct kvm_vcpu *vcpu = info;
+
+	vcpu->arch.vgic_cpu.vgic_v3.its_vpe.pending_last = true;
+	kvm_make_request(KVM_REQ_IRQ_PENDING, vcpu);
+	kvm_vcpu_kick(vcpu);
+
+	return IRQ_HANDLED;
+}
 
 /**
  * vgic_v4_init - Initialize the GICv4 data structures
@@ -61,6 +73,33 @@ int vgic_v4_init(struct kvm *kvm)
 		return ret;
 	}
 
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		int irq = dist->its_vm.vpes[i]->irq;
+
+		/*
+		 * Don't automatically enable the doorbell, as we're
+		 * flipping it back and forth when the vcpu gets
+		 * blocked. Also disable the lazy disabling, as the
+		 * doorbell could kick us out of the guest too
+		 * early...
+		 */
+		irq_set_status_flags(irq, IRQ_NOAUTOEN | IRQ_DISABLE_UNLAZY);
+		ret = request_irq(irq, vgic_v4_doorbell_handler,
+				  0, "vcpu", vcpu);
+		if (ret) {
+			kvm_err("failed to allocate vcpu IRQ%d\n", irq);
+			/*
+			 * Trick: adjust the number of vpes so we know
+			 * how many to nuke on teardown...
+			 */
+			dist->its_vm.nr_vpes = i;
+			break;
+		}
+	}
+
+	if (ret)
+		vgic_v4_teardown(kvm);
+
 	return ret;
 }
 
@@ -73,9 +112,18 @@ int vgic_v4_init(struct kvm *kvm)
 void vgic_v4_teardown(struct kvm *kvm)
 {
 	struct its_vm *its_vm = &kvm->arch.vgic.its_vm;
+	int i;
 
 	if (!its_vm->vpes)
 		return;
+
+	for (i = 0; i < its_vm->nr_vpes; i++) {
+		struct kvm_vcpu *vcpu = kvm_get_vcpu(kvm, i);
+		int irq = its_vm->vpes[i]->irq;
+
+		irq_clear_status_flags(irq, IRQ_NOAUTOEN | IRQ_DISABLE_UNLAZY);
+		free_irq(irq, vcpu);
+	}
 
 	its_free_vcpu_irqs(its_vm);
 	kfree(its_vm->vpes);
