@@ -2133,14 +2133,13 @@ xfs_buf_terminate(void)
 
 void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
-
 	/*
 	 * Set the lru reference count to 0 based on the error injection tag.
 	 * This allows userspace to disrupt buffer caching for debug/testing
 	 * purposes.
 	 */
-	if (XFS_TEST_ERROR(false, mp, XFS_ERRTAG_BUF_LRU_REF))
+	if (XFS_TEST_ERROR(false, bp->b_target->bt_mount,
+			   XFS_ERRTAG_BUF_LRU_REF))
 		lru_ref = 0;
 
 	atomic_set(&bp->b_lru_ref, lru_ref);
