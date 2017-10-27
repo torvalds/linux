@@ -46,7 +46,6 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Xunlong Orange Pi 2";
@@ -105,6 +104,15 @@
 	};
 };
 
+&codec {
+	allwinner,pa-gpios = <&pio 0 16 GPIO_ACTIVE_HIGH>; /* PA16 */
+	allwinner,audio-routing =
+		"Speaker", "LINEOUT",
+		"MIC1", "Mic",
+		"Mic",  "MBIAS";
+	status = "okay";
+};
+
 &ehci1 {
 	status = "okay";
 };
@@ -145,33 +153,25 @@
 
 &pio {
 	leds_opc: led_pins@0 {
-		allwinner,pins = "PA15";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PA15";
+		function = "gpio_out";
 	};
 };
 
 &r_pio {
 	leds_r_opc: led_pins@0 {
-		allwinner,pins = "PL10";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PL10";
+		function = "gpio_out";
 	};
 
 	sw_r_opc: key_pins@0 {
-		allwinner,pins = "PL3", "PL4";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PL3", "PL4";
+		function = "gpio_in";
 	};
 
 	wifi_pwrseq_pin_orangepi: wifi_pwrseq_pin@0 {
-		allwinner,pins = "PL7";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PL7";
+		function = "gpio_out";
 	};
 };
 
@@ -202,10 +202,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pins>;
 	status = "disabled";
-};
-
-&usb1_vbus_pin_a {
-	allwinner,pins = "PG13";
 };
 
 &usbphy {

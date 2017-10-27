@@ -109,28 +109,11 @@
 #include "../comedi_pci.h"
 
 #include "8255.h"
+#include "plx9080.h"
 
-#define DAQBOARD2000_FIRMWARE		"daqboard2000_firmware.bin"
+#define DB2K_FIRMWARE		"daqboard2000_firmware.bin"
 
-#define DAQBOARD2000_SUBSYSTEM_IDS2	0x0002	/* Daqboard/2000 - 2 Dacs */
-#define DAQBOARD2000_SUBSYSTEM_IDS4	0x0004	/* Daqboard/2000 - 4 Dacs */
-
-/* Initialization bits for the Serial EEPROM Control Register */
-#define DB2K_SECR_PROG_PIN_HI		0x8001767e
-#define DB2K_SECR_PROG_PIN_LO		0x8000767e
-#define DB2K_SECR_LOCAL_BUS_HI		0xc000767e
-#define DB2K_SECR_LOCAL_BUS_LO		0x8000767e
-#define DB2K_SECR_RELOAD_HI		0xa000767e
-#define DB2K_SECR_RELOAD_LO		0x8000767e
-
-/* SECR status bits */
-#define DAQBOARD2000_EEPROM_PRESENT     0x10000000
-
-/* CPLD status bits */
-#define DAQBOARD2000_CPLD_INIT		0x0002
-#define DAQBOARD2000_CPLD_DONE		0x0004
-
-static const struct comedi_lrange range_daqboard2000_ai = {
+static const struct comedi_lrange db2k_ai_range = {
 	13, {
 		BIP_RANGE(10),
 		BIP_RANGE(5),
@@ -182,6 +165,10 @@ static const struct comedi_lrange range_daqboard2000_ai = {
 #define DB2K_REG_ACQ_DIGITAL_MARK		0xba		/* u16 */
 #define DB2K_REG_TRIG_DACS			0xbc		/* u16 */
 #define DB2K_REG_DIO_P2_EXP_IO_16_BIT(x)	(0xc0 + (x) * 2) /* s16 */
+
+/* CPLD registers */
+#define DB2K_REG_CPLD_STATUS			0x1000		/* u16 (r) */
+#define DB2K_REG_CPLD_WDATA			0x1000		/* u16 (w) */
 
 /* Scan Sequencer programming */
 #define DB2K_ACQ_CONTROL_SEQ_START_SCAN_LIST		0x0011
@@ -248,33 +235,45 @@ static const struct comedi_lrange range_daqboard2000_ai = {
 #define DB2K_REF_DACS_SELECT_POS_REF			0x0100
 #define DB2K_REF_DACS_SELECT_NEG_REF			0x0000
 
-struct daq200_boardtype {
+/* CPLD status bits */
+#define DB2K_CPLD_STATUS_INIT				0x0002
+#define DB2K_CPLD_STATUS_TXREADY			0x0004
+#define DB2K_CPLD_VERSION_MASK				0xf000
+/* "New CPLD" signature. */
+#define DB2K_CPLD_VERSION_NEW				0x5000
+
+enum db2k_boardid {
+	BOARD_DAQBOARD2000,
+	BOARD_DAQBOARD2001
+};
+
+struct db2k_boardtype {
 	const char *name;
-	int id;
+	bool has_2_ao:1;	/* false: 4 AO chans; true: 2 AO chans */
 };
 
-static const struct daq200_boardtype boardtypes[] = {
-	{"ids2", DAQBOARD2000_SUBSYSTEM_IDS2},
-	{"ids4", DAQBOARD2000_SUBSYSTEM_IDS4},
+static const struct db2k_boardtype db2k_boardtypes[] = {
+	[BOARD_DAQBOARD2000] = {
+		.name		= "daqboard2000",
+		.has_2_ao	= true,
+	},
+	[BOARD_DAQBOARD2001] = {
+		.name		= "daqboard2001",
+	},
 };
 
-struct daqboard2000_private {
-	enum {
-		card_daqboard_2000
-	} card;
+struct db2k_private {
 	void __iomem *plx;
 };
 
-static void daqboard2000_write_acq_scan_list_entry(struct comedi_device *dev,
-						   u16 entry)
+static void db2k_write_acq_scan_list_entry(struct comedi_device *dev, u16 entry)
 {
 	writew(entry & 0x00ff, dev->mmio + DB2K_REG_ACQ_SCAN_LIST_FIFO);
 	writew((entry >> 8) & 0x00ff,
 	       dev->mmio + DB2K_REG_ACQ_SCAN_LIST_FIFO);
 }
 
-static void daqboard2000_setup_sampling(struct comedi_device *dev, int chan,
-					int gain)
+static void db2k_setup_sampling(struct comedi_device *dev, int chan, int gain)
 {
 	u16 word0, word1, word2, word3;
 
@@ -308,16 +307,14 @@ static void daqboard2000_setup_sampling(struct comedi_device *dev, int chan,
 	/* These should be read from EEPROM */
 	word2 |= 0x0800;	/* offset */
 	word3 |= 0xc000;	/* gain */
-	daqboard2000_write_acq_scan_list_entry(dev, word0);
-	daqboard2000_write_acq_scan_list_entry(dev, word1);
-	daqboard2000_write_acq_scan_list_entry(dev, word2);
-	daqboard2000_write_acq_scan_list_entry(dev, word3);
+	db2k_write_acq_scan_list_entry(dev, word0);
+	db2k_write_acq_scan_list_entry(dev, word1);
+	db2k_write_acq_scan_list_entry(dev, word2);
+	db2k_write_acq_scan_list_entry(dev, word3);
 }
 
-static int daqboard2000_ai_status(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn,
-				  unsigned long context)
+static int db2k_ai_status(struct comedi_device *dev, struct comedi_subdevice *s,
+			  struct comedi_insn *insn, unsigned long context)
 {
 	unsigned int status;
 
@@ -327,10 +324,9 @@ static int daqboard2000_ai_status(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int daqboard2000_ai_insn_read(struct comedi_device *dev,
-				     struct comedi_subdevice *s,
-				     struct comedi_insn *insn,
-				     unsigned int *data)
+static int db2k_ai_insn_read(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn, unsigned int *data)
 {
 	int gain, chan;
 	int ret;
@@ -359,12 +355,12 @@ static int daqboard2000_ai_insn_read(struct comedi_device *dev,
 	 * forced to fix it.  --ds
 	 */
 	for (i = 0; i < insn->n; i++) {
-		daqboard2000_setup_sampling(dev, chan, gain);
+		db2k_setup_sampling(dev, chan, gain);
 		/* Enable reading from the scanlist FIFO */
 		writew(DB2K_ACQ_CONTROL_SEQ_START_SCAN_LIST,
 		       dev->mmio + DB2K_REG_ACQ_CONTROL);
 
-		ret = comedi_timeout(dev, s, insn, daqboard2000_ai_status,
+		ret = comedi_timeout(dev, s, insn, db2k_ai_status,
 				     DB2K_ACQ_STATUS_CONFIG_PIPE_FULL);
 		if (ret)
 			return ret;
@@ -372,13 +368,13 @@ static int daqboard2000_ai_insn_read(struct comedi_device *dev,
 		writew(DB2K_ACQ_CONTROL_ADC_PACER_ENABLE,
 		       dev->mmio + DB2K_REG_ACQ_CONTROL);
 
-		ret = comedi_timeout(dev, s, insn, daqboard2000_ai_status,
+		ret = comedi_timeout(dev, s, insn, db2k_ai_status,
 				     DB2K_ACQ_STATUS_LOGIC_SCANNING);
 		if (ret)
 			return ret;
 
 		ret =
-		comedi_timeout(dev, s, insn, daqboard2000_ai_status,
+		comedi_timeout(dev, s, insn, db2k_ai_status,
 			       DB2K_ACQ_STATUS_RESULTS_FIFO_HAS_DATA);
 		if (ret)
 			return ret;
@@ -393,10 +389,8 @@ static int daqboard2000_ai_insn_read(struct comedi_device *dev,
 	return i;
 }
 
-static int daqboard2000_ao_eoc(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn,
-			       unsigned long context)
+static int db2k_ao_eoc(struct comedi_device *dev, struct comedi_subdevice *s,
+		       struct comedi_insn *insn, unsigned long context)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int status;
@@ -407,10 +401,9 @@ static int daqboard2000_ao_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int daqboard2000_ao_insn_write(struct comedi_device *dev,
-				      struct comedi_subdevice *s,
-				      struct comedi_insn *insn,
-				      unsigned int *data)
+static int db2k_ao_insn_write(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	int i;
@@ -421,7 +414,7 @@ static int daqboard2000_ao_insn_write(struct comedi_device *dev,
 
 		writew(val, dev->mmio + DB2K_REG_DAC_SETTING(chan));
 
-		ret = comedi_timeout(dev, s, insn, daqboard2000_ao_eoc, 0);
+		ret = comedi_timeout(dev, s, insn, db2k_ao_eoc, 0);
 		if (ret)
 			return ret;
 
@@ -431,49 +424,62 @@ static int daqboard2000_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-static void daqboard2000_reset_local_bus(struct comedi_device *dev)
+static void db2k_reset_local_bus(struct comedi_device *dev)
 {
-	struct daqboard2000_private *devpriv = dev->private;
+	struct db2k_private *devpriv = dev->private;
+	u32 cntrl;
 
-	writel(DB2K_SECR_LOCAL_BUS_HI, devpriv->plx + 0x6c);
+	cntrl = readl(devpriv->plx + PLX_REG_CNTRL);
+	cntrl |= PLX_CNTRL_RESET;
+	writel(cntrl, devpriv->plx + PLX_REG_CNTRL);
 	mdelay(10);
-	writel(DB2K_SECR_LOCAL_BUS_LO, devpriv->plx + 0x6c);
+	cntrl &= ~PLX_CNTRL_RESET;
+	writel(cntrl, devpriv->plx + PLX_REG_CNTRL);
 	mdelay(10);
 }
 
-static void daqboard2000_reload_plx(struct comedi_device *dev)
+static void db2k_reload_plx(struct comedi_device *dev)
 {
-	struct daqboard2000_private *devpriv = dev->private;
+	struct db2k_private *devpriv = dev->private;
+	u32 cntrl;
 
-	writel(DB2K_SECR_RELOAD_LO, devpriv->plx + 0x6c);
+	cntrl = readl(devpriv->plx + PLX_REG_CNTRL);
+	cntrl &= ~PLX_CNTRL_EERELOAD;
+	writel(cntrl, devpriv->plx + PLX_REG_CNTRL);
 	mdelay(10);
-	writel(DB2K_SECR_RELOAD_HI, devpriv->plx + 0x6c);
+	cntrl |= PLX_CNTRL_EERELOAD;
+	writel(cntrl, devpriv->plx + PLX_REG_CNTRL);
 	mdelay(10);
-	writel(DB2K_SECR_RELOAD_LO, devpriv->plx + 0x6c);
+	cntrl &= ~PLX_CNTRL_EERELOAD;
+	writel(cntrl, devpriv->plx + PLX_REG_CNTRL);
 	mdelay(10);
 }
 
-static void daqboard2000_pulse_prog_pin(struct comedi_device *dev)
+static void db2k_pulse_prog_pin(struct comedi_device *dev)
 {
-	struct daqboard2000_private *devpriv = dev->private;
+	struct db2k_private *devpriv = dev->private;
+	u32 cntrl;
 
-	writel(DB2K_SECR_PROG_PIN_HI, devpriv->plx + 0x6c);
+	cntrl = readl(devpriv->plx + PLX_REG_CNTRL);
+	cntrl |= PLX_CNTRL_USERO;
+	writel(cntrl, devpriv->plx + PLX_REG_CNTRL);
 	mdelay(10);
-	writel(DB2K_SECR_PROG_PIN_LO, devpriv->plx + 0x6c);
+	cntrl &= ~PLX_CNTRL_USERO;
+	writel(cntrl, devpriv->plx + PLX_REG_CNTRL);
 	mdelay(10);	/* Not in the original code, but I like symmetry... */
 }
 
-static int daqboard2000_poll_cpld(struct comedi_device *dev, int mask)
+static int db2k_wait_cpld_init(struct comedi_device *dev)
 {
-	int result = 0;
+	int result = -ETIMEDOUT;
 	int i;
-	int cpld;
+	u16 cpld;
 
 	/* timeout after 50 tries -> 5ms */
 	for (i = 0; i < 50; i++) {
-		cpld = readw(dev->mmio + 0x1000);
-		if ((cpld & mask) == mask) {
-			result = 1;
+		cpld = readw(dev->mmio + DB2K_REG_CPLD_STATUS);
+		if (cpld & DB2K_CPLD_STATUS_INIT) {
+			result = 0;
 			break;
 		}
 		usleep_range(100, 1000);
@@ -482,67 +488,123 @@ static int daqboard2000_poll_cpld(struct comedi_device *dev, int mask)
 	return result;
 }
 
-static int daqboard2000_write_cpld(struct comedi_device *dev, int data)
+static int db2k_wait_cpld_txready(struct comedi_device *dev)
+{
+	int i;
+
+	for (i = 0; i < 100; i++) {
+		if (readw(dev->mmio + DB2K_REG_CPLD_STATUS) &
+		    DB2K_CPLD_STATUS_TXREADY) {
+			return 0;
+		}
+		udelay(1);
+	}
+	return -ETIMEDOUT;
+}
+
+static int db2k_write_cpld(struct comedi_device *dev, u16 data, bool new_cpld)
 {
 	int result = 0;
 
-	usleep_range(10, 20);
-	writew(data, dev->mmio + 0x1000);
-	if ((readw(dev->mmio + 0x1000) & DAQBOARD2000_CPLD_INIT) ==
-	    DAQBOARD2000_CPLD_INIT) {
-		result = 1;
+	if (new_cpld) {
+		result = db2k_wait_cpld_txready(dev);
+		if (result)
+			return result;
+	} else {
+		usleep_range(10, 20);
 	}
+	writew(data, dev->mmio + DB2K_REG_CPLD_WDATA);
+	if (!(readw(dev->mmio + DB2K_REG_CPLD_STATUS) & DB2K_CPLD_STATUS_INIT))
+		result = -EIO;
+
 	return result;
 }
 
-static int daqboard2000_load_firmware(struct comedi_device *dev,
-				      const u8 *cpld_array, size_t len,
-				      unsigned long context)
+static int db2k_wait_fpga_programmed(struct comedi_device *dev)
 {
-	struct daqboard2000_private *devpriv = dev->private;
+	struct db2k_private *devpriv = dev->private;
+	int i;
+
+	/* Time out after 200 tries -> 20ms */
+	for (i = 0; i < 200; i++) {
+		u32 cntrl = readl(devpriv->plx + PLX_REG_CNTRL);
+		/* General Purpose Input (USERI) set on FPGA "DONE". */
+		if (cntrl & PLX_CNTRL_USERI)
+			return 0;
+
+		usleep_range(100, 1000);
+	}
+	return -ETIMEDOUT;
+}
+
+static int db2k_load_firmware(struct comedi_device *dev, const u8 *cpld_array,
+			      size_t len, unsigned long context)
+{
+	struct db2k_private *devpriv = dev->private;
 	int result = -EIO;
-	/* Read the serial EEPROM control register */
-	int secr;
+	u32 cntrl;
 	int retry;
 	size_t i;
+	bool new_cpld;
+
+	/* Look for FPGA start sequence in firmware. */
+	for (i = 0; i + 1 < len; i++) {
+		if (cpld_array[i] == 0xff && cpld_array[i + 1] == 0x20)
+			break;
+	}
+	if (i + 1 >= len) {
+		dev_err(dev->class_dev, "bad firmware - no start sequence\n");
+		return -EINVAL;
+	}
+	/* Check length is even. */
+	if ((len - i) & 1) {
+		dev_err(dev->class_dev,
+			"bad firmware - odd length (%zu = %zu - %zu)\n",
+			len - i, len, i);
+		return -EINVAL;
+	}
+	/* Strip firmware header. */
+	cpld_array += i;
+	len -= i;
 
 	/* Check to make sure the serial eeprom is present on the board */
-	secr = readl(devpriv->plx + 0x6c);
-	if (!(secr & DAQBOARD2000_EEPROM_PRESENT))
+	cntrl = readl(devpriv->plx + PLX_REG_CNTRL);
+	if (!(cntrl & PLX_CNTRL_EEPRESENT))
 		return -EIO;
 
 	for (retry = 0; retry < 3; retry++) {
-		daqboard2000_reset_local_bus(dev);
-		daqboard2000_reload_plx(dev);
-		daqboard2000_pulse_prog_pin(dev);
-		if (daqboard2000_poll_cpld(dev, DAQBOARD2000_CPLD_INIT)) {
-			for (i = 0; i < len; i++) {
-				if (cpld_array[i] == 0xff &&
-				    cpld_array[i + 1] == 0x20)
-					break;
-			}
-			for (; i < len; i += 2) {
-				int data =
-				    (cpld_array[i] << 8) + cpld_array[i + 1];
-				if (!daqboard2000_write_cpld(dev, data))
-					break;
-			}
-			if (i >= len) {
-				daqboard2000_reset_local_bus(dev);
-				daqboard2000_reload_plx(dev);
-				result = 0;
+		db2k_reset_local_bus(dev);
+		db2k_reload_plx(dev);
+		db2k_pulse_prog_pin(dev);
+		result = db2k_wait_cpld_init(dev);
+		if (result)
+			continue;
+
+		new_cpld = (readw(dev->mmio + DB2K_REG_CPLD_STATUS) &
+			    DB2K_CPLD_VERSION_MASK) == DB2K_CPLD_VERSION_NEW;
+		for (; i < len; i += 2) {
+			u16 data = (cpld_array[i] << 8) + cpld_array[i + 1];
+
+			result = db2k_write_cpld(dev, data, new_cpld);
+			if (result)
 				break;
-			}
+		}
+		if (result == 0)
+			result = db2k_wait_fpga_programmed(dev);
+		if (result == 0) {
+			db2k_reset_local_bus(dev);
+			db2k_reload_plx(dev);
+			break;
 		}
 	}
 	return result;
 }
 
-static void daqboard2000_adc_stop_dma_transfer(struct comedi_device *dev)
+static void db2k_adc_stop_dma_transfer(struct comedi_device *dev)
 {
 }
 
-static void daqboard2000_adc_disarm(struct comedi_device *dev)
+static void db2k_adc_disarm(struct comedi_device *dev)
 {
 	/* Disable hardware triggers */
 	udelay(2);
@@ -563,10 +625,10 @@ static void daqboard2000_adc_disarm(struct comedi_device *dev)
 	       dev->mmio + DB2K_REG_ACQ_CONTROL);
 
 	/* Stop the input dma (abort channel 1) */
-	daqboard2000_adc_stop_dma_transfer(dev);
+	db2k_adc_stop_dma_transfer(dev);
 }
 
-static void daqboard2000_activate_reference_dacs(struct comedi_device *dev)
+static void db2k_activate_reference_dacs(struct comedi_device *dev)
 {
 	unsigned int val;
 	int timeout;
@@ -592,34 +654,33 @@ static void daqboard2000_activate_reference_dacs(struct comedi_device *dev)
 	}
 }
 
-static void daqboard2000_initialize_ctrs(struct comedi_device *dev)
+static void db2k_initialize_ctrs(struct comedi_device *dev)
 {
 }
 
-static void daqboard2000_initialize_tmrs(struct comedi_device *dev)
+static void db2k_initialize_tmrs(struct comedi_device *dev)
 {
 }
 
-static void daqboard2000_dac_disarm(struct comedi_device *dev)
+static void db2k_dac_disarm(struct comedi_device *dev)
 {
 }
 
-static void daqboard2000_initialize_adc(struct comedi_device *dev)
+static void db2k_initialize_adc(struct comedi_device *dev)
 {
-	daqboard2000_adc_disarm(dev);
-	daqboard2000_activate_reference_dacs(dev);
-	daqboard2000_initialize_ctrs(dev);
-	daqboard2000_initialize_tmrs(dev);
+	db2k_adc_disarm(dev);
+	db2k_activate_reference_dacs(dev);
+	db2k_initialize_ctrs(dev);
+	db2k_initialize_tmrs(dev);
 }
 
-static void daqboard2000_initialize_dac(struct comedi_device *dev)
+static void db2k_initialize_dac(struct comedi_device *dev)
 {
-	daqboard2000_dac_disarm(dev);
+	db2k_dac_disarm(dev);
 }
 
-static int daqboard2000_8255_cb(struct comedi_device *dev,
-				int dir, int port, int data,
-				unsigned long iobase)
+static int db2k_8255_cb(struct comedi_device *dev, int dir, int port, int data,
+			unsigned long iobase)
 {
 	if (dir) {
 		writew(data, dev->mmio + iobase + port * 2);
@@ -628,34 +689,18 @@ static int daqboard2000_8255_cb(struct comedi_device *dev,
 	return readw(dev->mmio + iobase + port * 2);
 }
 
-static const void *daqboard2000_find_boardinfo(struct comedi_device *dev,
-					       struct pci_dev *pcidev)
-{
-	const struct daq200_boardtype *board;
-	int i;
-
-	if (pcidev->subsystem_vendor != PCI_VENDOR_ID_IOTECH)
-		return NULL;
-
-	for (i = 0; i < ARRAY_SIZE(boardtypes); i++) {
-		board = &boardtypes[i];
-		if (pcidev->subsystem_device == board->id)
-			return board;
-	}
-	return NULL;
-}
-
-static int daqboard2000_auto_attach(struct comedi_device *dev,
-				    unsigned long context_unused)
+static int db2k_auto_attach(struct comedi_device *dev, unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct daq200_boardtype *board;
-	struct daqboard2000_private *devpriv;
+	const struct db2k_boardtype *board;
+	struct db2k_private *devpriv;
 	struct comedi_subdevice *s;
 	int result;
 
-	board = daqboard2000_find_boardinfo(dev, pcidev);
-	if (!board)
+	if (context >= ARRAY_SIZE(db2k_boardtypes))
+		return -ENODEV;
+	board = &db2k_boardtypes[context];
+	if (!board->name)
 		return -ENODEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
@@ -677,16 +722,13 @@ static int daqboard2000_auto_attach(struct comedi_device *dev,
 	if (result)
 		return result;
 
-	readl(devpriv->plx + 0x6c);
-
 	result = comedi_load_firmware(dev, &comedi_to_pci_dev(dev)->dev,
-				      DAQBOARD2000_FIRMWARE,
-				      daqboard2000_load_firmware, 0);
+				      DB2K_FIRMWARE, db2k_load_firmware, 0);
 	if (result < 0)
 		return result;
 
-	daqboard2000_initialize_adc(dev);
-	daqboard2000_initialize_dac(dev);
+	db2k_initialize_adc(dev);
+	db2k_initialize_dac(dev);
 
 	s = &dev->subdevices[0];
 	/* ai subdevice */
@@ -694,16 +736,16 @@ static int daqboard2000_auto_attach(struct comedi_device *dev,
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = 24;
 	s->maxdata = 0xffff;
-	s->insn_read = daqboard2000_ai_insn_read;
-	s->range_table = &range_daqboard2000_ai;
+	s->insn_read = db2k_ai_insn_read;
+	s->range_table = &db2k_ai_range;
 
 	s = &dev->subdevices[1];
 	/* ao subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 2;
+	s->n_chan = board->has_2_ao ? 2 : 4;
 	s->maxdata = 0xffff;
-	s->insn_write = daqboard2000_ao_insn_write;
+	s->insn_write = db2k_ao_insn_write;
 	s->range_table = &range_bipolar10;
 
 	result = comedi_alloc_subdev_readback(s);
@@ -711,48 +753,49 @@ static int daqboard2000_auto_attach(struct comedi_device *dev,
 		return result;
 
 	s = &dev->subdevices[2];
-	return subdev_8255_init(dev, s, daqboard2000_8255_cb,
+	return subdev_8255_init(dev, s, db2k_8255_cb,
 				DB2K_REG_DIO_P2_EXP_IO_8_BIT);
 }
 
-static void daqboard2000_detach(struct comedi_device *dev)
+static void db2k_detach(struct comedi_device *dev)
 {
-	struct daqboard2000_private *devpriv = dev->private;
+	struct db2k_private *devpriv = dev->private;
 
 	if (devpriv && devpriv->plx)
 		iounmap(devpriv->plx);
 	comedi_pci_detach(dev);
 }
 
-static struct comedi_driver daqboard2000_driver = {
+static struct comedi_driver db2k_driver = {
 	.driver_name	= "daqboard2000",
 	.module		= THIS_MODULE,
-	.auto_attach	= daqboard2000_auto_attach,
-	.detach		= daqboard2000_detach,
+	.auto_attach	= db2k_auto_attach,
+	.detach		= db2k_detach,
 };
 
-static int daqboard2000_pci_probe(struct pci_dev *dev,
-				  const struct pci_device_id *id)
+static int db2k_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &daqboard2000_driver,
-				      id->driver_data);
+	return comedi_pci_auto_config(dev, &db2k_driver, id->driver_data);
 }
 
-static const struct pci_device_id daqboard2000_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_IOTECH, 0x0409) },
+static const struct pci_device_id db2k_pci_table[] = {
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_IOTECH, 0x0409, PCI_VENDOR_ID_IOTECH,
+			 0x0002), .driver_data = BOARD_DAQBOARD2000, },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_IOTECH, 0x0409, PCI_VENDOR_ID_IOTECH,
+			 0x0004), .driver_data = BOARD_DAQBOARD2001, },
 	{ 0 }
 };
-MODULE_DEVICE_TABLE(pci, daqboard2000_pci_table);
+MODULE_DEVICE_TABLE(pci, db2k_pci_table);
 
-static struct pci_driver daqboard2000_pci_driver = {
+static struct pci_driver db2k_pci_driver = {
 	.name		= "daqboard2000",
-	.id_table	= daqboard2000_pci_table,
-	.probe		= daqboard2000_pci_probe,
+	.id_table	= db2k_pci_table,
+	.probe		= db2k_pci_probe,
 	.remove		= comedi_pci_auto_unconfig,
 };
-module_comedi_pci_driver(daqboard2000_driver, daqboard2000_pci_driver);
+module_comedi_pci_driver(db2k_driver, db2k_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
 MODULE_LICENSE("GPL");
-MODULE_FIRMWARE(DAQBOARD2000_FIRMWARE);
+MODULE_FIRMWARE(DB2K_FIRMWARE);

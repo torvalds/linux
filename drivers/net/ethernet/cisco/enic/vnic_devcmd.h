@@ -406,6 +406,31 @@ enum vnic_devcmd_cmd {
 	 * in: (u32) a0=Queue Pair number
 	 */
 	CMD_QP_STATS_CLEAR = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 63),
+
+	/* Use this devcmd for agreeing on the highest common version supported
+	 * by both driver and fw for features who need such a facility.
+	 * in:	(u64) a0 = feature (driver requests for the supported versions
+	 *	on this feature)
+	 * out: (u64) a0 = bitmap of all supported versions for that feature
+	 */
+	CMD_GET_SUPP_FEATURE_VER = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ENET, 69),
+
+	/* Control (Enable/Disable) overlay offloads on the given vnic
+	 * in: (u8) a0 = OVERLAY_FEATURE_NVGRE : NVGRE
+	 *	    a0 = OVERLAY_FEATURE_VXLAN : VxLAN
+	 * in: (u8) a1 = OVERLAY_OFFLOAD_ENABLE : Enable or
+	 *	    a1 = OVERLAY_OFFLOAD_DISABLE : Disable or
+	 *	    a1 = OVERLAY_OFFLOAD_ENABLE_V2 : Enable with version 2
+	 */
+	CMD_OVERLAY_OFFLOAD_CTRL = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 72),
+
+	/* Configuration of overlay offloads feature on a given vNIC
+	 * in: (u8) a0 = DEVCMD_OVERLAY_NVGRE : NVGRE
+	 *	    a0 = DEVCMD_OVERLAY_VXLAN : VxLAN
+	 * in: (u8) a1 = VXLAN_PORT_UPDATE : VxLAN
+	 * in: (u16) a2 = unsigned short int port information
+	 */
+	CMD_OVERLAY_OFFLOAD_CFG = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 73),
 };
 
 /* CMD_ENABLE2 flags */
@@ -656,5 +681,31 @@ struct devcmd2_result {
 
 #define DEVCMD2_RING_SIZE	32
 #define DEVCMD2_DESC_SIZE	128
+
+enum overlay_feature_t {
+	OVERLAY_FEATURE_NVGRE = 1,
+	OVERLAY_FEATURE_VXLAN,
+	OVERLAY_FEATURE_MAX,
+};
+
+enum overlay_ofld_cmd {
+	OVERLAY_OFFLOAD_ENABLE,
+	OVERLAY_OFFLOAD_DISABLE,
+	OVERLAY_OFFLOAD_ENABLE_P2,
+	OVERLAY_OFFLOAD_MAX,
+};
+
+#define OVERLAY_CFG_VXLAN_PORT_UPDATE	0
+
+/* Use this enum to get the supported versions for each of these features
+ * If you need to use the devcmd_get_supported_feature_version(), add
+ * the new feature into this enum and install function handler in devcmd.c
+ */
+enum vic_feature_t {
+	VIC_FEATURE_VXLAN,
+	VIC_FEATURE_RDMA,
+	VIC_FEATURE_VXLAN_PATCH,
+	VIC_FEATURE_MAX,
+};
 
 #endif /* _VNIC_DEVCMD_H_ */

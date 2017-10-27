@@ -21,7 +21,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/smp.h>
@@ -255,12 +255,11 @@ void arch_send_call_function_single_ipi(int cpu)
 static void __init
 smp_cpu_init(int cpunum)
 {
-	extern int init_per_cpu(int);  /* arch/parisc/kernel/processor.c */
 	extern void init_IRQ(void);    /* arch/parisc/kernel/irq.c */
 	extern void start_cpu_itimer(void); /* arch/parisc/kernel/time.c */
 
 	/* Set modes and Enable floating point coprocessor */
-	(void) init_per_cpu(cpunum);
+	init_per_cpu(cpunum);
 
 	disable_sr_hashing();
 
@@ -279,7 +278,7 @@ smp_cpu_init(int cpunum)
 	set_cpu_online(cpunum, true);
 
 	/* Initialise the idle task for this CPU */
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);

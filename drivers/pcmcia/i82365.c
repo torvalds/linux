@@ -108,12 +108,12 @@ static int async_clock = -1;
 static int cable_mode = -1;
 static int wakeup = 0;
 
-module_param(i365_base, ulong, 0444);
+module_param_hw(i365_base, ulong, ioport, 0444);
 module_param(ignore, int, 0444);
 module_param(extra_sockets, int, 0444);
-module_param(irq_mask, int, 0444);
-module_param_array(irq_list, int, &irq_list_count, 0444);
-module_param(cs_irq, int, 0444);
+module_param_hw(irq_mask, int, other, 0444);
+module_param_hw_array(irq_list, int, irq, &irq_list_count, 0444);
+module_param_hw(cs_irq, int, irq, 0444);
 module_param(async_clock, int, 0444);
 module_param(cable_mode, int, 0444);
 module_param(wakeup, int, 0444);

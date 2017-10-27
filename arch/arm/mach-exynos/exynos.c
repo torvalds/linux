@@ -45,8 +45,8 @@ static struct platform_device exynos_cpuidle = {
 	.id                = -1,
 };
 
-void __iomem *sysram_base_addr;
-void __iomem *sysram_ns_base_addr;
+void __iomem *sysram_base_addr __ro_after_init;
+void __iomem *sysram_ns_base_addr __ro_after_init;
 
 void __init exynos_sysram_init(void)
 {
@@ -210,7 +210,6 @@ static char const *const exynos_dt_compat[] __initconst = {
 	"samsung,exynos4210",
 	"samsung,exynos4212",
 	"samsung,exynos4412",
-	"samsung,exynos4415",
 	"samsung,exynos5",
 	"samsung,exynos5250",
 	"samsung,exynos5260",

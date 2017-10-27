@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -11,6 +12,7 @@
 #include "thread_map.h"
 #include "symbol.h"
 #include "thread.h"
+#include "util.h"
 
 #define THREADS 4
 
@@ -219,7 +221,7 @@ static int mmap_events(synth_cb synth)
  *
  * by using all thread objects.
  */
-int test__mmap_thread_lookup(int subtest __maybe_unused)
+int test__mmap_thread_lookup(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	/* perf_event__synthesize_threads synthesize */
 	TEST_ASSERT_VAL("failed with sythesizing all",

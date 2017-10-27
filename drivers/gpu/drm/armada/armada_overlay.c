@@ -94,7 +94,8 @@ static int
 armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct drm_framebuffer *fb,
 	int crtc_x, int crtc_y, unsigned crtc_w, unsigned crtc_h,
-	uint32_t src_x, uint32_t src_y, uint32_t src_w, uint32_t src_h)
+	uint32_t src_x, uint32_t src_y, uint32_t src_w, uint32_t src_h,
+	struct drm_modeset_acquire_ctx *ctx)
 {
 	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(plane);
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
@@ -124,7 +125,7 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 				 src_x, src_y, src_w, src_h);
 
 	ret = drm_plane_helper_check_update(plane, crtc, fb, &src, &dest, &clip,
-					    DRM_ROTATE_0,
+					    DRM_MODE_ROTATE_0,
 					    0, INT_MAX, true, false, &visible);
 	if (ret)
 		return ret;
@@ -186,9 +187,9 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 
 		armada_drm_plane_calc_addrs(addrs, fb, src_x, src_y);
 
-		pixel_format = fb->pixel_format;
+		pixel_format = fb->format->format;
 		hsub = drm_format_horz_chroma_subsampling(pixel_format);
-		num_planes = drm_format_num_planes(pixel_format);
+		num_planes = fb->format->num_planes;
 
 		/*
 		 * Annoyingly, shifting a YUYV-format image by one pixel
@@ -257,7 +258,8 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	return 0;
 }
 
-static int armada_ovl_plane_disable(struct drm_plane *plane)
+static int armada_ovl_plane_disable(struct drm_plane *plane,
+				    struct drm_modeset_acquire_ctx *ctx)
 {
 	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(plane);
 	struct drm_framebuffer *fb;
@@ -386,7 +388,7 @@ static const uint32_t armada_ovl_formats[] = {
 	DRM_FORMAT_BGR565,
 };
 
-static struct drm_prop_enum_list armada_drm_colorkey_enum_list[] = {
+static const struct drm_prop_enum_list armada_drm_colorkey_enum_list[] = {
 	{ CKMODE_DISABLE, "disabled" },
 	{ CKMODE_Y,       "Y component" },
 	{ CKMODE_U,       "U component" },
@@ -458,6 +460,7 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 				       &armada_ovl_plane_funcs,
 				       armada_ovl_formats,
 				       ARRAY_SIZE(armada_ovl_formats),
+				       NULL,
 				       DRM_PLANE_TYPE_OVERLAY, NULL);
 	if (ret) {
 		kfree(dplane);

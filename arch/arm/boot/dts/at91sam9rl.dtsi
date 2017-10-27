@@ -92,21 +92,29 @@
 			status = "disabled";
 		};
 
-		nand0: nand@40000000 {
-			compatible = "atmel,at91rm9200-nand";
-			#address-cells = <1>;
+		ebi: ebi@10000000 {
+			compatible = "atmel,at91sam9rl-ebi";
+			#address-cells = <2>;
 			#size-cells = <1>;
-			reg = <0x40000000 0x10000000>,
-			      <0xffffe800 0x200>;
-			atmel,nand-addr-offset = <21>;
-			atmel,nand-cmd-offset = <22>;
-			atmel,nand-has-dma;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_nand>;
-			gpios = <&pioD 17 GPIO_ACTIVE_HIGH>,
-				<&pioB 6 GPIO_ACTIVE_HIGH>,
-				<0>;
+			atmel,smc = <&smc>;
+			atmel,matrix = <&matrix>;
+			reg = <0x10000000 0x80000000>;
+			ranges = <0x0 0x0 0x10000000 0x10000000
+				  0x1 0x0 0x20000000 0x10000000
+				  0x2 0x0 0x30000000 0x10000000
+				  0x3 0x0 0x40000000 0x10000000
+				  0x4 0x0 0x50000000 0x10000000
+				  0x5 0x0 0x60000000 0x10000000>;
+			clocks = <&mck>;
 			status = "disabled";
+
+			nand_controller: nand-controller {
+				compatible = "atmel,at91sam9g45-nand-controller";
+				#address-cells = <2>;
+				#size-cells = <1>;
+				ranges;
+				status = "disabled";
+			};
 		};
 
 		apb {
@@ -364,6 +372,16 @@
 				reg = <0xffffea00 0x200>;
 			};
 
+			smc: smc@ffffec00 {
+				compatible = "atmel,at91sam9260-smc", "syscon";
+				reg = <0xffffec00 0x200>;
+			};
+
+			matrix: matrix@ffffee00 {
+				compatible = "atmel,at91sam9rl-matrix", "syscon";
+				reg = <0xffffee00 0x200>;
+			};
+
 			aic: interrupt-controller@fffff000 {
 				#interrupt-cells = <3>;
 				compatible = "atmel,at91rm9200-aic";
@@ -443,6 +461,14 @@
 					};
 				};
 
+				ebi {
+					pinctrl_ebi_addr_nand: ebi-addr-0 {
+						atmel,pins =
+							<AT91_PIOB 2 AT91_PERIPH_A AT91_PINCTRL_NONE>,
+							<AT91_PIOB 3 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+					};
+				};
+
 				fb {
 					pinctrl_fb: fb-0 {
 						atmel,pins =
@@ -507,27 +533,20 @@
 				};
 
 				nand {
-					pinctrl_nand: nand-0 {
+					pinctrl_nand_rb: nand-rb-0 {
 						atmel,pins =
-							<AT91_PIOD 17 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>,
+							<AT91_PIOD 17 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;
+					};
+
+					pinctrl_nand_cs: nand-cs-0 {
+						atmel,pins =
 							<AT91_PIOB 6 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;
 					};
 
-					pinctrl_nand0_ale_cle: nand_ale_cle-0 {
-						atmel,pins =
-							<AT91_PIOB 2 AT91_PERIPH_A AT91_PINCTRL_NONE>,
-							<AT91_PIOB 3 AT91_PERIPH_A AT91_PINCTRL_NONE>;
-					};
-
-					pinctrl_nand0_oe_we: nand_oe_we-0 {
+					pinctrl_nand_oe_we: nand-oe-we-0 {
 						atmel,pins =
 							<AT91_PIOB 4 AT91_PERIPH_A AT91_PINCTRL_NONE>,
 							<AT91_PIOB 5 AT91_PERIPH_A AT91_PINCTRL_NONE>;
-					};
-
-					pinctrl_nand0_cs: nand_cs-0 {
-						atmel,pins =
-							<AT91_PIOB 6 AT91_PERIPH_A AT91_PINCTRL_NONE>;
 					};
 				};
 

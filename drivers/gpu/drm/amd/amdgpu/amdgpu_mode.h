@@ -32,6 +32,7 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_fixed.h>
 #include <drm/drm_crtc_helper.h>
@@ -256,15 +257,7 @@ struct amdgpu_audio {
 	int num_pins;
 };
 
-struct amdgpu_mode_mc_save {
-	u32 vga_render_control;
-	u32 vga_hdp_control;
-	bool crtc_enabled[AMDGPU_MAX_CRTCS];
-};
-
 struct amdgpu_display_funcs {
-	/* vga render */
-	void (*set_vga_render_state)(struct amdgpu_device *adev, bool render);
 	/* display watermarks */
 	void (*bandwidth_update)(struct amdgpu_device *adev);
 	/* get frame count */
@@ -299,10 +292,6 @@ struct amdgpu_display_funcs {
 			      uint16_t connector_object_id,
 			      struct amdgpu_hpd *hpd,
 			      struct amdgpu_router *router);
-	void (*stop_mc_access)(struct amdgpu_device *adev,
-			       struct amdgpu_mode_mc_save *save);
-	void (*resume_mc_access)(struct amdgpu_device *adev,
-				 struct amdgpu_mode_mc_save *save);
 };
 
 struct amdgpu_mode_info {
@@ -368,7 +357,6 @@ struct amdgpu_atom_ss {
 struct amdgpu_crtc {
 	struct drm_crtc base;
 	int crtc_id;
-	u16 lut_r[256], lut_g[256], lut_b[256];
 	bool enabled;
 	bool can_tile;
 	uint32_t crtc_offset;
@@ -533,6 +521,9 @@ struct amdgpu_framebuffer {
 				((em) == ATOM_ENCODER_MODE_DP_MST))
 
 /* Driver internal use only flags of amdgpu_get_crtc_scanoutpos() */
+#define DRM_SCANOUTPOS_VALID        (1 << 0)
+#define DRM_SCANOUTPOS_IN_VBLANK    (1 << 1)
+#define DRM_SCANOUTPOS_ACCURATE     (1 << 2)
 #define USE_REAL_VBLANKSTART		(1 << 30)
 #define GET_DISTANCE_TO_VBLANKSTART	(1 << 31)
 
@@ -589,11 +580,13 @@ int amdgpu_align_pitch(struct amdgpu_device *adev, int width, int bpp, bool tile
 /* amdgpu_display.c */
 void amdgpu_print_display_setup(struct drm_device *dev);
 int amdgpu_modeset_create_props(struct amdgpu_device *adev);
-int amdgpu_crtc_set_config(struct drm_mode_set *set);
+int amdgpu_crtc_set_config(struct drm_mode_set *set,
+			   struct drm_modeset_acquire_ctx *ctx);
 int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
 				 struct drm_framebuffer *fb,
 				 struct drm_pending_vblank_event *event,
-				 uint32_t page_flip_flags, uint32_t target);
+				 uint32_t page_flip_flags, uint32_t target,
+				 struct drm_modeset_acquire_ctx *ctx);
 extern const struct drm_mode_config_funcs amdgpu_mode_funcs;
 
 #endif

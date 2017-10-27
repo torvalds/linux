@@ -802,10 +802,8 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			break;
 
 		default:
-#ifdef CONFIG_MMC_DEBUG
 			pr_warn("%s: Data command %d is not supported by this controller\n",
 				mmc_hostname(host->mmc), cmd->opcode);
-#endif
 			cmd->error = -EINVAL;
 
 			goto done;
@@ -1386,7 +1384,7 @@ static void wbsd_request_dma(struct wbsd_host *host, int dma)
 	 * order for ISA to be able to DMA to it.
 	 */
 	host->dma_buffer = kmalloc(WBSD_DMA_SIZE,
-		GFP_NOIO | GFP_DMA | __GFP_REPEAT | __GFP_NOWARN);
+		GFP_NOIO | GFP_DMA | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
 	if (!host->dma_buffer)
 		goto free;
 
@@ -1437,11 +1435,14 @@ err:
 
 static void wbsd_release_dma(struct wbsd_host *host)
 {
-	if (!dma_mapping_error(mmc_dev(host->mmc), host->dma_addr)) {
+	/*
+	 * host->dma_addr is valid here iff host->dma_buffer is not NULL.
+	 */
+	if (host->dma_buffer) {
 		dma_unmap_single(mmc_dev(host->mmc), host->dma_addr,
 			WBSD_DMA_SIZE, DMA_BIDIRECTIONAL);
+		kfree(host->dma_buffer);
 	}
-	kfree(host->dma_buffer);
 	if (host->dma >= 0)
 		free_dma(host->dma);
 
@@ -1998,11 +1999,11 @@ static void __exit wbsd_drv_exit(void)
 module_init(wbsd_drv_init);
 module_exit(wbsd_drv_exit);
 #ifdef CONFIG_PNP
-module_param_named(nopnp, param_nopnp, uint, 0444);
+module_param_hw_named(nopnp, param_nopnp, uint, other, 0444);
 #endif
-module_param_named(io, param_io, uint, 0444);
-module_param_named(irq, param_irq, uint, 0444);
-module_param_named(dma, param_dma, int, 0444);
+module_param_hw_named(io, param_io, uint, ioport, 0444);
+module_param_hw_named(irq, param_irq, uint, irq, 0444);
+module_param_hw_named(dma, param_dma, int, dma, 0444);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pierre Ossman <pierre@ossman.eu>");

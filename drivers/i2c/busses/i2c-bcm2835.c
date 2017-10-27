@@ -195,7 +195,9 @@ static irqreturn_t bcm2835_i2c_isr(int this_irq, void *data)
 	}
 
 	if (val & BCM2835_I2C_S_DONE) {
-		if (i2c_dev->curr_msg->flags & I2C_M_RD) {
+		if (!i2c_dev->curr_msg) {
+			dev_err(i2c_dev->dev, "Got unexpected interrupt (from firmware?)\n");
+		} else if (i2c_dev->curr_msg->flags & I2C_M_RD) {
 			bcm2835_drain_rxfifo(i2c_dev);
 			val = bcm2835_i2c_readl(i2c_dev, BCM2835_I2C_S);
 		}

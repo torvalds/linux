@@ -559,7 +559,7 @@ static int hil_dev_connect(struct serio *serio, struct serio_driver *drv)
 	return error;
 }
 
-static struct serio_device_id hil_dev_ids[] = {
+static const struct serio_device_id hil_dev_ids[] = {
 	{
 		.type = SERIO_HIL_MLC,
 		.proto = SERIO_HIL,

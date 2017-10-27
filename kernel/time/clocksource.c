@@ -141,6 +141,10 @@ static void __clocksource_unstable(struct clocksource *cs)
 {
 	cs->flags &= ~(CLOCK_SOURCE_VALID_FOR_HRES | CLOCK_SOURCE_WATCHDOG);
 	cs->flags |= CLOCK_SOURCE_UNSTABLE;
+
+	if (cs->mark_unstable)
+		cs->mark_unstable(cs);
+
 	if (finished_booting)
 		schedule_work(&watchdog_work);
 }
@@ -228,6 +232,9 @@ static void clocksource_watchdog(unsigned long data)
 			__clocksource_unstable(cs);
 			continue;
 		}
+
+		if (cs == curr_clocksource && cs->tick_stable)
+			cs->tick_stable(cs);
 
 		if (!(cs->flags & CLOCK_SOURCE_VALID_FOR_HRES) &&
 		    (cs->flags & CLOCK_SOURCE_IS_CONTINUOUS) &&

@@ -1,0 +1,92 @@
+Mediatek MT7530 Ethernet switch
+================================
+
+Required properties:
+
+- compatible: Must be compatible = "mediatek,mt7530";
+- #address-cells: Must be 1.
+- #size-cells: Must be 0.
+- mediatek,mcm: Boolean; if defined, indicates that either MT7530 is the part
+	on multi-chip module belong to MT7623A has or the remotely standalone
+	chip as the function MT7623N reference board provided for.
+- core-supply: Phandle to the regulator node necessary for the core power.
+- io-supply: Phandle to the regulator node necessary for the I/O power.
+	See Documentation/devicetree/bindings/regulator/mt6323-regulator.txt
+	for details for the regulator setup on these boards.
+
+If the property mediatek,mcm isn't defined, following property is required
+
+- reset-gpios: Should be a gpio specifier for a reset line.
+
+Else, following properties are required
+
+- resets : Phandle pointing to the system reset controller with
+	line index for the ethsys.
+- reset-names : Should be set to "mcm".
+
+Required properties for the child nodes within ports container:
+
+- reg: Port address described must be 6 for CPU port and from 0 to 5 for
+	user ports.
+- phy-mode: String, must be either "trgmii" or "rgmii" for port labeled
+	 "cpu".
+
+See Documentation/devicetree/bindings/dsa/dsa.txt for a list of additional
+required, optional properties and how the integrated switch subnodes must
+be specified.
+
+Example:
+
+	&mdio0 {
+		switch@0 {
+			compatible = "mediatek,mt7530";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			core-supply = <&mt6323_vpa_reg>;
+			io-supply = <&mt6323_vemc3v3_reg>;
+			reset-gpios = <&pio 33 0>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0>;
+				port@0 {
+					reg = <0>;
+					label = "lan0";
+				};
+
+				port@1 {
+					reg = <1>;
+					label = "lan1";
+				};
+
+				port@2 {
+					reg = <2>;
+					label = "lan2";
+				};
+
+				port@3 {
+					reg = <3>;
+					label = "lan3";
+				};
+
+				port@4 {
+					reg = <4>;
+					label = "wan";
+				};
+
+				port@6 {
+					reg = <6>;
+					label = "cpu";
+					ethernet = <&gmac0>;
+					phy-mode = "trgmii";
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+					};
+				};
+			};
+		};
+	};

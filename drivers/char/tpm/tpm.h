@@ -34,8 +34,11 @@
 #include <linux/acpi.h>
 #include <linux/cdev.h>
 #include <linux/highmem.h>
+#include <crypto/hash_info.h>
 
-#include "tpm_eventlog.h"
+#ifdef CONFIG_X86
+#include <asm/intel-family.h>
+#endif
 
 enum tpm_const {
 	TPM_MINOR = 224,	/* officially assigned */
@@ -47,7 +50,8 @@ enum tpm_const {
 
 enum tpm_timeout {
 	TPM_TIMEOUT = 5,	/* msecs */
-	TPM_TIMEOUT_RETRY = 100 /* msecs */
+	TPM_TIMEOUT_RETRY = 100, /* msecs */
+	TPM_TIMEOUT_RANGE_US = 300	/* usecs */
 };
 
 /* TPM addresses */
@@ -90,13 +94,17 @@ enum tpm2_structures {
 };
 
 enum tpm2_return_codes {
+	TPM2_RC_SUCCESS		= 0x0000,
 	TPM2_RC_HASH		= 0x0083, /* RC_FMT1 */
+	TPM2_RC_HANDLE		= 0x008B,
 	TPM2_RC_INITIALIZE	= 0x0100, /* RC_VER1 */
 	TPM2_RC_DISABLED	= 0x0120,
 	TPM2_RC_TESTING		= 0x090A, /* RC_WARN */
+	TPM2_RC_REFERENCE_H0	= 0x0910,
 };
 
 enum tpm2_algorithms {
+	TPM2_ALG_ERROR		= 0x0000,
 	TPM2_ALG_SHA1		= 0x0004,
 	TPM2_ALG_KEYEDHASH	= 0x0008,
 	TPM2_ALG_SHA256		= 0x000B,
@@ -114,6 +122,8 @@ enum tpm2_command_codes {
 	TPM2_CC_CREATE		= 0x0153,
 	TPM2_CC_LOAD		= 0x0157,
 	TPM2_CC_UNSEAL		= 0x015E,
+	TPM2_CC_CONTEXT_LOAD	= 0x0161,
+	TPM2_CC_CONTEXT_SAVE	= 0x0162,
 	TPM2_CC_FLUSH_CONTEXT	= 0x0165,
 	TPM2_CC_GET_CAPABILITY	= 0x017A,
 	TPM2_CC_GET_RANDOM	= 0x017B,
@@ -127,12 +137,24 @@ enum tpm2_permanent_handles {
 };
 
 enum tpm2_capabilities {
+	TPM2_CAP_HANDLES	= 1,
+	TPM2_CAP_COMMANDS	= 2,
+	TPM2_CAP_PCRS		= 5,
 	TPM2_CAP_TPM_PROPERTIES = 6,
+};
+
+enum tpm2_properties {
+	TPM_PT_TOTAL_COMMANDS	= 0x0129,
 };
 
 enum tpm2_startup_types {
 	TPM2_SU_CLEAR	= 0x0000,
 	TPM2_SU_STATE	= 0x0001,
+};
+
+enum tpm2_cc_attrs {
+	TPM2_CC_ATTR_CHANDLES	= 25,
+	TPM2_CC_ATTR_RHANDLE	= 28,
 };
 
 #define TPM_VID_INTEL    0x8086
@@ -141,11 +163,24 @@ enum tpm2_startup_types {
 
 #define TPM_PPI_VERSION_LEN		3
 
+struct tpm_space {
+	u32 context_tbl[3];
+	u8 *context_buf;
+	u32 session_tbl[3];
+	u8 *session_buf;
+};
+
 enum tpm_chip_flags {
 	TPM_CHIP_FLAG_TPM2		= BIT(1),
 	TPM_CHIP_FLAG_IRQ		= BIT(2),
 	TPM_CHIP_FLAG_VIRTUAL		= BIT(3),
 	TPM_CHIP_FLAG_HAVE_TIMEOUTS	= BIT(4),
+	TPM_CHIP_FLAG_ALWAYS_POWERED	= BIT(5),
+};
+
+struct tpm_bios_log {
+	void *bios_event_log;
+	void *bios_event_log_end;
 };
 
 struct tpm_chip_seqops {
@@ -155,7 +190,9 @@ struct tpm_chip_seqops {
 
 struct tpm_chip {
 	struct device dev;
+	struct device devs;
 	struct cdev cdev;
+	struct cdev cdevs;
 
 	/* A driver callback under ops cannot be run unless ops_sem is held
 	 * (sometimes implicitly, eg for the sysfs code). ops becomes null
@@ -187,25 +224,23 @@ struct tpm_chip {
 
 	const struct attribute_group *groups[3];
 	unsigned int groups_cnt;
+
+	u16 active_banks[7];
 #ifdef CONFIG_ACPI
 	acpi_handle acpi_dev_handle;
 	char ppi_version[TPM_PPI_VERSION_LEN + 1];
 #endif /* CONFIG_ACPI */
+
+	struct tpm_space work_space;
+	u32 nr_commands;
+	u32 *cc_attrs_tbl;
+
+	/* active locality */
+	int locality;
 };
 
 #define to_tpm_chip(d) container_of(d, struct tpm_chip, dev)
 
-static inline int tpm_read_index(int base, int index)
-{
-	outb(index, base);
-	return inb(base+1) & 0xFF;
-}
-
-static inline void tpm_write_index(int base, int index, int value)
-{
-	outb(index, base);
-	outb(value & 0xFF, base+1);
-}
 struct tpm_input_header {
 	__be16	tag;
 	__be32	length;
@@ -218,7 +253,7 @@ struct tpm_output_header {
 	__be32	return_code;
 } __packed;
 
-#define TPM_TAG_RQU_COMMAND cpu_to_be16(193)
+#define TPM_TAG_RQU_COMMAND 193
 
 struct	stclear_flags_t {
 	__be16	tag;
@@ -284,7 +319,7 @@ struct permanent_flags_t {
 typedef union {
 	struct	permanent_flags_t perm_flags;
 	struct	stclear_flags_t	stclear_flags;
-	bool	owned;
+	__u8	owned;
 	__be32	num_pcrs;
 	struct	tpm_version_t	tpm_version;
 	struct	tpm_version_1_2_t tpm_version_1_2;
@@ -310,17 +345,6 @@ enum tpm_sub_capabilities {
 	TPM_CAP_PROP_TIS_DURATION = 0x120,
 };
 
-struct	tpm_getcap_params_in {
-	__be32	cap;
-	__be32	subcap_size;
-	__be32	subcap;
-} __packed;
-
-struct	tpm_getcap_params_out {
-	__be32	cap_size;
-	cap_t	cap;
-} __packed;
-
 struct	tpm_readpubek_params_out {
 	u8	algorithm[4];
 	u8	encscheme[2];
@@ -345,11 +369,6 @@ struct tpm_pcrread_in {
 	__be32	pcr_idx;
 } __packed;
 
-struct tpm_pcrextend_in {
-	__be32	pcr_idx;
-	u8	hash[TPM_DIGEST_SIZE];
-} __packed;
-
 /* 128 bytes is an arbitrary cap. This could be as large as TPM_BUFSIZE - 18
  * bytes, but 128 is still a relatively large number of random bytes and
  * anything much bigger causes users of struct tpm_cmd_t to start getting
@@ -365,26 +384,23 @@ struct tpm_getrandom_in {
 	__be32 num_bytes;
 } __packed;
 
-struct tpm_startup_in {
-	__be16	startup_type;
-} __packed;
-
 typedef union {
-	struct	tpm_getcap_params_out getcap_out;
 	struct	tpm_readpubek_params_out readpubek_out;
 	u8	readpubek_out_buffer[sizeof(struct tpm_readpubek_params_out)];
-	struct	tpm_getcap_params_in getcap_in;
 	struct	tpm_pcrread_in	pcrread_in;
 	struct	tpm_pcrread_out	pcrread_out;
-	struct	tpm_pcrextend_in pcrextend_in;
 	struct	tpm_getrandom_in getrandom_in;
 	struct	tpm_getrandom_out getrandom_out;
-	struct tpm_startup_in startup_in;
 } tpm_cmd_params;
 
 struct tpm_cmd_t {
 	tpm_cmd_header	header;
 	tpm_cmd_params	params;
+} __packed;
+
+struct tpm2_digest {
+	u16 alg_id;
+	u8 digest[SHA512_DIGEST_SIZE];
 } __packed;
 
 /* A string buffer type for constructing TPM commands. This is based on the
@@ -483,20 +499,26 @@ static inline void tpm_buf_append_u32(struct tpm_buf *buf, const u32 value)
 }
 
 extern struct class *tpm_class;
+extern struct class *tpmrm_class;
 extern dev_t tpm_devt;
 extern const struct file_operations tpm_fops;
+extern const struct file_operations tpmrm_fops;
 extern struct idr dev_nums_idr;
 
 enum tpm_transmit_flags {
 	TPM_TRANSMIT_UNLOCKED	= BIT(0),
+	TPM_TRANSMIT_RAW	= BIT(1),
 };
 
-ssize_t tpm_transmit(struct tpm_chip *chip, const u8 *buf, size_t bufsiz,
-		     unsigned int flags);
-ssize_t tpm_transmit_cmd(struct tpm_chip *chip, const void *cmd, int len,
-			 unsigned int flags, const char *desc);
+ssize_t tpm_transmit(struct tpm_chip *chip, struct tpm_space *space,
+		     u8 *buf, size_t bufsiz, unsigned int flags);
+ssize_t tpm_transmit_cmd(struct tpm_chip *chip, struct tpm_space *space,
+			 const void *buf, size_t bufsiz,
+			 size_t min_rsp_body_length, unsigned int flags,
+			 const char *desc);
+int tpm_startup(struct tpm_chip *chip);
 ssize_t tpm_getcap(struct tpm_chip *chip, u32 subcap_id, cap_t *cap,
-		   const char *desc);
+		   const char *desc, size_t min_cap_length);
 int tpm_get_timeouts(struct tpm_chip *);
 int tpm1_auto_startup(struct tpm_chip *chip);
 int tpm_do_selftest(struct tpm_chip *chip);
@@ -505,6 +527,12 @@ int tpm_pm_suspend(struct device *dev);
 int tpm_pm_resume(struct device *dev);
 int wait_for_tpm_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
 		      wait_queue_head_t *queue, bool check_cancel);
+
+static inline void tpm_msleep(unsigned int delay_msec)
+{
+	usleep_range(delay_msec * 1000,
+		     (delay_msec * 1000) + TPM_TIMEOUT_RANGE_US);
+};
 
 struct tpm_chip *tpm_chip_find_get(int chip_num);
 __must_check int tpm_try_get_ops(struct tpm_chip *chip);
@@ -529,9 +557,17 @@ static inline void tpm_add_ppi(struct tpm_chip *chip)
 }
 #endif
 
+static inline inline u32 tpm2_rc_value(u32 rc)
+{
+	return (rc & BIT(7)) ? rc & 0xff : rc;
+}
+
 int tpm2_pcr_read(struct tpm_chip *chip, int pcr_idx, u8 *res_buf);
-int tpm2_pcr_extend(struct tpm_chip *chip, int pcr_idx, const u8 *hash);
+int tpm2_pcr_extend(struct tpm_chip *chip, int pcr_idx, u32 count,
+		    struct tpm2_digest *digests);
 int tpm2_get_random(struct tpm_chip *chip, u8 *out, size_t max);
+void tpm2_flush_context_cmd(struct tpm_chip *chip, u32 handle,
+			    unsigned int flags);
 int tpm2_seal_trusted(struct tpm_chip *chip,
 		      struct trusted_key_payload *payload,
 		      struct trusted_key_options *options);
@@ -545,4 +581,11 @@ int tpm2_auto_startup(struct tpm_chip *chip);
 void tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type);
 unsigned long tpm2_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal);
 int tpm2_probe(struct tpm_chip *chip);
+int tpm2_find_cc(struct tpm_chip *chip, u32 cc);
+int tpm2_init_space(struct tpm_space *space);
+void tpm2_del_space(struct tpm_chip *chip, struct tpm_space *space);
+int tpm2_prepare_space(struct tpm_chip *chip, struct tpm_space *space, u32 cc,
+		       u8 *cmd);
+int tpm2_commit_space(struct tpm_chip *chip, struct tpm_space *space,
+		      u32 cc, u8 *buf, size_t *bufsiz);
 #endif

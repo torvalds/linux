@@ -11,10 +11,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/delay.h>
@@ -62,7 +58,7 @@ static const struct vs6624_format {
 	},
 };
 
-static struct v4l2_mbus_framefmt vs6624_default_fmt = {
+static const struct v4l2_mbus_framefmt vs6624_default_fmt = {
 	.width = VGA_WIDTH,
 	.height = VGA_HEIGHT,
 	.code = MEDIA_BUS_FMT_UYVY8_2X8,

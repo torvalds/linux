@@ -9,12 +9,14 @@
  * the Free Software Foundation.
  */
 
+#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/rmi.h>
 #include <linux/firmware.h>
-#include <asm/unaligned.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/jiffies.h>
+#include <asm/unaligned.h>
 
 #include "rmi_driver.h"
 #include "rmi_f34.h"
@@ -31,7 +33,7 @@ static int rmi_f34v7_read_flash_status(struct f34_data *f34)
 			sizeof(status));
 	if (ret < 0) {
 		rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
-			"%s: Failed to read flash status\n", __func__);
+			"%s: Error %d reading flash status\n", __func__, ret);
 		return ret;
 	}
 
@@ -60,28 +62,17 @@ static int rmi_f34v7_read_flash_status(struct f34_data *f34)
 
 static int rmi_f34v7_wait_for_idle(struct f34_data *f34, int timeout_ms)
 {
-	int count = 0;
-	int timeout_count = ((timeout_ms * 1000) / MAX_SLEEP_TIME_US) + 1;
+	unsigned long timeout;
 
-	do {
-		usleep_range(MIN_SLEEP_TIME_US, MAX_SLEEP_TIME_US);
+	timeout = msecs_to_jiffies(timeout_ms);
 
-		count++;
+	if (!wait_for_completion_timeout(&f34->v7.cmd_done, timeout)) {
+		dev_warn(&f34->fn->dev, "%s: Timed out waiting for idle status\n",
+			 __func__);
+		return -ETIMEDOUT;
+	}
 
-		rmi_f34v7_read_flash_status(f34);
-
-		if ((f34->v7.command == v7_CMD_IDLE)
-		    && (f34->v7.flash_status == 0x00)) {
-			rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
-				"Idle status detected\n");
-			return 0;
-		}
-	} while (count < timeout_count);
-
-	dev_err(&f34->fn->dev,
-		"%s: Timed out waiting for idle status\n", __func__);
-
-	return -ETIMEDOUT;
+	return 0;
 }
 
 static int rmi_f34v7_write_command_single_transaction(struct f34_data *f34,
@@ -285,9 +276,10 @@ static int rmi_f34v7_write_partition_id(struct f34_data *f34, u8 cmd)
 	return 0;
 }
 
-static int rmi_f34v7_read_f34v7_partition_table(struct f34_data *f34)
+static int rmi_f34v7_read_partition_table(struct f34_data *f34)
 {
 	int ret;
+	unsigned long timeout;
 	u8 base;
 	__le16 length;
 	u16 block_number = 0;
@@ -320,6 +312,8 @@ static int rmi_f34v7_read_f34v7_partition_table(struct f34_data *f34)
 		return ret;
 	}
 
+	init_completion(&f34->v7.cmd_done);
+
 	ret = rmi_f34v7_write_command(f34, v7_CMD_READ_CONFIG);
 	if (ret < 0) {
 		dev_err(&f34->fn->dev, "%s: Failed to write command\n",
@@ -327,11 +321,15 @@ static int rmi_f34v7_read_f34v7_partition_table(struct f34_data *f34)
 		return ret;
 	}
 
-	ret = rmi_f34v7_wait_for_idle(f34, WRITE_WAIT_MS);
-	if (ret < 0) {
-		dev_err(&f34->fn->dev, "%s: Failed to wait for idle status\n",
-			__func__);
-		return ret;
+	timeout = msecs_to_jiffies(F34_WRITE_WAIT_MS);
+	while (time_before(jiffies, timeout)) {
+		usleep_range(5000, 6000);
+		rmi_f34v7_read_flash_status(f34);
+
+		if (f34->v7.command == v7_CMD_IDLE &&
+		    f34->v7.flash_status == 0x00) {
+			break;
+		}
 	}
 
 	ret = rmi_read_block(f34->fn->rmi_dev,
@@ -467,7 +465,7 @@ static int rmi_f34v7_read_queries_bl_version(struct f34_data *f34)
 static int rmi_f34v7_read_queries(struct f34_data *f34)
 {
 	int ret;
-	int i, j;
+	int i;
 	u8 base;
 	int offset;
 	u8 *ptable;
@@ -521,10 +519,7 @@ static int rmi_f34v7_read_queries(struct f34_data *f34)
 			query_1_7.partition_support[1] & HAS_GUEST_CODE;
 
 	if (query_0 & HAS_CONFIG_ID) {
-		char f34_ctrl[CONFIG_ID_SIZE];
-		int i = 0;
-		u8 *p = f34->configuration_id;
-		*p = '\0';
+		u8 f34_ctrl[CONFIG_ID_SIZE];
 
 		ret = rmi_read_block(f34->fn->rmi_dev,
 				f34->fn->fd.control_base_addr,
@@ -534,13 +529,11 @@ static int rmi_f34v7_read_queries(struct f34_data *f34)
 			return ret;
 
 		/* Eat leading zeros */
-		while (i < sizeof(f34_ctrl) && !f34_ctrl[i])
-			i++;
+		for (i = 0; i < sizeof(f34_ctrl) - 1 && !f34_ctrl[i]; i++)
+			/* Empty */;
 
-		for (; i < sizeof(f34_ctrl); i++)
-			p += snprintf(p, f34->configuration_id
-				      + sizeof(f34->configuration_id) - p,
-				      "%02X", f34_ctrl[i]);
+		snprintf(f34->configuration_id, sizeof(f34->configuration_id),
+			 "%*phN", (int)sizeof(f34_ctrl) - i, f34_ctrl + i);
 
 		rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev, "Configuration ID: %s\n",
 			f34->configuration_id);
@@ -548,9 +541,7 @@ static int rmi_f34v7_read_queries(struct f34_data *f34)
 
 	f34->v7.partitions = 0;
 	for (i = 0; i < sizeof(query_1_7.partition_support); i++)
-		for (j = 0; j < 8; j++)
-			if (query_1_7.partition_support[i] & (1 << j))
-				f34->v7.partitions++;
+		f34->v7.partitions += hweight8(query_1_7.partition_support[i]);
 
 	rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev, "%s: Supported partitions: %*ph\n",
 		__func__, sizeof(query_1_7.partition_support),
@@ -570,7 +561,7 @@ static int rmi_f34v7_read_queries(struct f34_data *f34)
 	f34->v7.read_config_buf_size = f34->v7.partition_table_bytes;
 	ptable = f34->v7.read_config_buf;
 
-	ret = rmi_f34v7_read_f34v7_partition_table(f34);
+	ret = rmi_f34v7_read_partition_table(f34);
 	if (ret < 0) {
 		dev_err(&f34->fn->dev, "%s: Failed to read partition table\n",
 				__func__);
@@ -588,6 +579,7 @@ static int rmi_f34v7_check_ui_firmware_size(struct f34_data *f34)
 	u16 block_count;
 
 	block_count = f34->v7.img.ui_firmware.size / f34->v7.block_size;
+	f34->update_size += block_count;
 
 	if (block_count != f34->v7.blkcount.ui_firmware) {
 		dev_err(&f34->fn->dev,
@@ -604,6 +596,7 @@ static int rmi_f34v7_check_ui_config_size(struct f34_data *f34)
 	u16 block_count;
 
 	block_count = f34->v7.img.ui_config.size / f34->v7.block_size;
+	f34->update_size += block_count;
 
 	if (block_count != f34->v7.blkcount.ui_config) {
 		dev_err(&f34->fn->dev, "UI config size mismatch\n");
@@ -618,6 +611,7 @@ static int rmi_f34v7_check_dp_config_size(struct f34_data *f34)
 	u16 block_count;
 
 	block_count = f34->v7.img.dp_config.size / f34->v7.block_size;
+	f34->update_size += block_count;
 
 	if (block_count != f34->v7.blkcount.dp_config) {
 		dev_err(&f34->fn->dev, "Display config size mismatch\n");
@@ -632,6 +626,8 @@ static int rmi_f34v7_check_guest_code_size(struct f34_data *f34)
 	u16 block_count;
 
 	block_count = f34->v7.img.guest_code.size / f34->v7.block_size;
+	f34->update_size += block_count;
+
 	if (block_count != f34->v7.blkcount.guest_code) {
 		dev_err(&f34->fn->dev, "Guest code size mismatch\n");
 		return -EINVAL;
@@ -645,6 +641,7 @@ static int rmi_f34v7_check_bl_config_size(struct f34_data *f34)
 	u16 block_count;
 
 	block_count = f34->v7.img.bl_config.size / f34->v7.block_size;
+	f34->update_size += block_count;
 
 	if (block_count != f34->v7.blkcount.bl_config) {
 		dev_err(&f34->fn->dev, "Bootloader config size mismatch\n");
@@ -659,6 +656,8 @@ static int rmi_f34v7_erase_config(struct f34_data *f34)
 	int ret;
 
 	dev_info(&f34->fn->dev, "Erasing config...\n");
+
+	init_completion(&f34->v7.cmd_done);
 
 	switch (f34->v7.config_area) {
 	case v7_UI_CONFIG_AREA:
@@ -678,11 +677,11 @@ static int rmi_f34v7_erase_config(struct f34_data *f34)
 		break;
 	}
 
-	ret = rmi_f34v7_wait_for_idle(f34, ENABLE_WAIT_MS);
+	ret = rmi_f34v7_wait_for_idle(f34, F34_ERASE_WAIT_MS);
 	if (ret < 0)
 		return ret;
 
-	return ret;
+	return 0;
 }
 
 static int rmi_f34v7_erase_guest_code(struct f34_data *f34)
@@ -691,11 +690,13 @@ static int rmi_f34v7_erase_guest_code(struct f34_data *f34)
 
 	dev_info(&f34->fn->dev, "Erasing guest code...\n");
 
+	init_completion(&f34->v7.cmd_done);
+
 	ret = rmi_f34v7_write_command(f34, v7_CMD_ERASE_GUEST_CODE);
 	if (ret < 0)
 		return ret;
 
-	ret = rmi_f34v7_wait_for_idle(f34, ENABLE_WAIT_MS);
+	ret = rmi_f34v7_wait_for_idle(f34, F34_ERASE_WAIT_MS);
 	if (ret < 0)
 		return ret;
 
@@ -708,11 +709,13 @@ static int rmi_f34v7_erase_all(struct f34_data *f34)
 
 	dev_info(&f34->fn->dev, "Erasing firmware...\n");
 
+	init_completion(&f34->v7.cmd_done);
+
 	ret = rmi_f34v7_write_command(f34, v7_CMD_ERASE_UI_FIRMWARE);
 	if (ret < 0)
 		return ret;
 
-	ret = rmi_f34v7_wait_for_idle(f34, ENABLE_WAIT_MS);
+	ret = rmi_f34v7_wait_for_idle(f34, F34_ERASE_WAIT_MS);
 	if (ret < 0)
 		return ret;
 
@@ -737,8 +740,8 @@ static int rmi_f34v7_erase_all(struct f34_data *f34)
 	return 0;
 }
 
-static int rmi_f34v7_read_f34v7_blocks(struct f34_data *f34, u16 block_cnt,
-				       u8 command)
+static int rmi_f34v7_read_blocks(struct f34_data *f34,
+				 u16 block_cnt, u8 command)
 {
 	int ret;
 	u8 base;
@@ -781,17 +784,15 @@ static int rmi_f34v7_read_f34v7_blocks(struct f34_data *f34, u16 block_cnt,
 			return ret;
 		}
 
+		init_completion(&f34->v7.cmd_done);
+
 		ret = rmi_f34v7_write_command(f34, command);
 		if (ret < 0)
 			return ret;
 
-		ret = rmi_f34v7_wait_for_idle(f34, ENABLE_WAIT_MS);
-		if (ret < 0) {
-			dev_err(&f34->fn->dev,
-				"%s: Wait for idle failed (%d blks remaining)\n",
-				__func__, remaining);
+		ret = rmi_f34v7_wait_for_idle(f34, F34_ENABLE_WAIT_MS);
+		if (ret < 0)
 			return ret;
-		}
 
 		ret = rmi_read_block(f34->fn->rmi_dev,
 				base + f34->v7.off.payload,
@@ -847,6 +848,8 @@ static int rmi_f34v7_write_f34v7_blocks(struct f34_data *f34,
 		transfer = min(remaining, max_transfer);
 		put_unaligned_le16(transfer, &length);
 
+		init_completion(&f34->v7.cmd_done);
+
 		ret = rmi_write_block(f34->fn->rmi_dev,
 				base + f34->v7.off.transfer_length,
 				&length, sizeof(length));
@@ -871,16 +874,15 @@ static int rmi_f34v7_write_f34v7_blocks(struct f34_data *f34,
 			return ret;
 		}
 
-		ret = rmi_f34v7_wait_for_idle(f34, ENABLE_WAIT_MS);
-		if (ret < 0) {
-			dev_err(&f34->fn->dev,
-				"%s: Failed wait for idle (%d blks remaining)\n",
-				__func__, remaining);
+		ret = rmi_f34v7_wait_for_idle(f34, F34_ENABLE_WAIT_MS);
+		if (ret < 0)
 			return ret;
-		}
 
 		block_ptr += (transfer * f34->v7.block_size);
 		remaining -= transfer;
+		f34->update_progress += transfer;
+		f34->update_status = (f34->update_progress * 100) /
+				     f34->update_size;
 	} while (remaining);
 
 	return 0;
@@ -936,6 +938,8 @@ static int rmi_f34v7_write_flash_config(struct f34_data *f34)
 		return -EINVAL;
 	}
 
+	init_completion(&f34->v7.cmd_done);
+
 	ret = rmi_f34v7_write_command(f34, v7_CMD_ERASE_FLASH_CONFIG);
 	if (ret < 0)
 		return ret;
@@ -943,7 +947,7 @@ static int rmi_f34v7_write_flash_config(struct f34_data *f34)
 	rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
 		"%s: Erase flash config command written\n", __func__);
 
-	ret = rmi_f34v7_wait_for_idle(f34, ENABLE_WAIT_MS);
+	ret = rmi_f34v7_wait_for_idle(f34, F34_WRITE_WAIT_MS);
 	if (ret < 0)
 		return ret;
 
@@ -972,7 +976,7 @@ static int rmi_f34v7_write_partition_table(struct f34_data *f34)
 
 	f34->v7.read_config_buf_size = f34->v7.config_size;
 
-	ret = rmi_f34v7_read_f34v7_blocks(f34, block_count, v7_CMD_READ_CONFIG);
+	ret = rmi_f34v7_read_blocks(f34, block_count, v7_CMD_READ_CONFIG);
 	if (ret < 0)
 		return ret;
 
@@ -1191,6 +1195,8 @@ int rmi_f34v7_do_reflash(struct f34_data *f34, const struct firmware *fw)
 	rmi_f34v7_read_queries_bl_version(f34);
 
 	f34->v7.image = fw->data;
+	f34->update_progress = 0;
+	f34->update_size = 0;
 
 	ret = rmi_f34v7_parse_image_info(f34);
 	if (ret < 0)
@@ -1276,6 +1282,8 @@ static int rmi_f34v7_enter_flash_prog(struct f34_data *f34)
 {
 	int ret;
 
+	f34->fn->rmi_dev->driver->set_irq_bits(f34->fn->rmi_dev, f34->fn->irq_mask);
+
 	ret = rmi_f34v7_read_flash_status(f34);
 	if (ret < 0)
 		return ret;
@@ -1283,18 +1291,15 @@ static int rmi_f34v7_enter_flash_prog(struct f34_data *f34)
 	if (f34->v7.in_bl_mode)
 		return 0;
 
+	init_completion(&f34->v7.cmd_done);
+
 	ret = rmi_f34v7_write_command(f34, v7_CMD_ENABLE_FLASH_PROG);
 	if (ret < 0)
 		return ret;
 
-	ret = rmi_f34v7_wait_for_idle(f34, ENABLE_WAIT_MS);
+	ret = rmi_f34v7_wait_for_idle(f34, F34_ENABLE_WAIT_MS);
 	if (ret < 0)
 		return ret;
-
-	if (!f34->v7.in_bl_mode) {
-		dev_err(&f34->fn->dev, "%s: BL mode not entered\n", __func__);
-		return -EINVAL;
-	}
 
 	return 0;
 }
@@ -1302,6 +1307,8 @@ static int rmi_f34v7_enter_flash_prog(struct f34_data *f34)
 int rmi_f34v7_start_reflash(struct f34_data *f34, const struct firmware *fw)
 {
 	int ret = 0;
+
+	f34->fn->rmi_dev->driver->set_irq_bits(f34->fn->rmi_dev, f34->fn->irq_mask);
 
 	f34->v7.config_area = v7_UI_CONFIG_AREA;
 	f34->v7.image = fw->data;
@@ -1365,8 +1372,13 @@ int rmi_f34v7_probe(struct f34_data *f34)
 
 	memset(&f34->v7.blkcount, 0x00, sizeof(f34->v7.blkcount));
 	memset(&f34->v7.phyaddr, 0x00, sizeof(f34->v7.phyaddr));
-	rmi_f34v7_read_queries(f34);
 
-	f34->v7.force_update = false;
+	init_completion(&f34->v7.cmd_done);
+
+	ret = rmi_f34v7_read_queries(f34);
+	if (ret < 0)
+		return ret;
+
+	f34->v7.force_update = true;
 	return 0;
 }

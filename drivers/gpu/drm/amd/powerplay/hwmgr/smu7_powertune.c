@@ -20,16 +20,18 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "pp_debug.h"
 #include "hwmgr.h"
 #include "smumgr.h"
 #include "smu7_hwmgr.h"
 #include "smu7_powertune.h"
-#include "pp_debug.h"
 #include "smu7_common.h"
 
 #define VOLTAGE_SCALE  4
 
 static uint32_t DIDTBlock_Info = SQ_IR_MASK | TCP_IR_MASK | TD_PCC_MASK;
+
+static uint32_t Polaris11_DIDTBlock_Info = SQ_PCC_MASK | TCP_IR_MASK | TD_PCC_MASK;
 
 static const struct gpu_pt_config_reg GCCACConfig_Polaris10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -261,9 +263,9 @@ static const struct gpu_pt_config_reg DIDTConfig_Polaris11[] = {
 	{   ixDIDT_SQ_CTRL_OCP,                DIDT_SQ_CTRL_OCP__UNUSED_0_MASK,                    DIDT_SQ_CTRL_OCP__UNUSED_0__SHIFT,                  0x0000,     GPU_CONFIGREG_DIDT_IND },
 	{   ixDIDT_SQ_CTRL_OCP,                DIDT_SQ_CTRL_OCP__OCP_MAX_POWER_MASK,               DIDT_SQ_CTRL_OCP__OCP_MAX_POWER__SHIFT,             0xffff,     GPU_CONFIGREG_DIDT_IND },
 
-	{   ixDIDT_SQ_CTRL2,                   DIDT_SQ_CTRL2__MAX_POWER_DELTA_MASK,                DIDT_SQ_CTRL2__MAX_POWER_DELTA__SHIFT,              0x3853,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_CTRL2,                   DIDT_SQ_CTRL2__MAX_POWER_DELTA_MASK,                DIDT_SQ_CTRL2__MAX_POWER_DELTA__SHIFT,              0x3fff,     GPU_CONFIGREG_DIDT_IND },
 	{   ixDIDT_SQ_CTRL2,                   DIDT_SQ_CTRL2__UNUSED_0_MASK,                       DIDT_SQ_CTRL2__UNUSED_0__SHIFT,                     0x0000,     GPU_CONFIGREG_DIDT_IND },
-	{   ixDIDT_SQ_CTRL2,                   DIDT_SQ_CTRL2__SHORT_TERM_INTERVAL_SIZE_MASK,       DIDT_SQ_CTRL2__SHORT_TERM_INTERVAL_SIZE__SHIFT,     0x005a,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_CTRL2,                   DIDT_SQ_CTRL2__SHORT_TERM_INTERVAL_SIZE_MASK,       DIDT_SQ_CTRL2__SHORT_TERM_INTERVAL_SIZE__SHIFT,     0x000f,     GPU_CONFIGREG_DIDT_IND },
 	{   ixDIDT_SQ_CTRL2,                   DIDT_SQ_CTRL2__UNUSED_1_MASK,                       DIDT_SQ_CTRL2__UNUSED_1__SHIFT,                     0x0000,     GPU_CONFIGREG_DIDT_IND },
 	{   ixDIDT_SQ_CTRL2,                   DIDT_SQ_CTRL2__LONG_TERM_INTERVAL_RATIO_MASK,       DIDT_SQ_CTRL2__LONG_TERM_INTERVAL_RATIO__SHIFT,     0x0000,     GPU_CONFIGREG_DIDT_IND },
 	{   ixDIDT_SQ_CTRL2,                   DIDT_SQ_CTRL2__UNUSED_2_MASK,                       DIDT_SQ_CTRL2__UNUSED_2__SHIFT,                     0x0000,     GPU_CONFIGREG_DIDT_IND },
@@ -271,12 +273,12 @@ static const struct gpu_pt_config_reg DIDTConfig_Polaris11[] = {
 	{   ixDIDT_SQ_STALL_CTRL,              DIDT_SQ_STALL_CTRL__DIDT_STALL_CTRL_ENABLE_MASK,    DIDT_SQ_STALL_CTRL__DIDT_STALL_CTRL_ENABLE__SHIFT,  0x0001,     GPU_CONFIGREG_DIDT_IND },
 	{   ixDIDT_SQ_STALL_CTRL,              DIDT_SQ_STALL_CTRL__DIDT_STALL_DELAY_HI_MASK,       DIDT_SQ_STALL_CTRL__DIDT_STALL_DELAY_HI__SHIFT,     0x0001,     GPU_CONFIGREG_DIDT_IND },
 	{   ixDIDT_SQ_STALL_CTRL,              DIDT_SQ_STALL_CTRL__DIDT_STALL_DELAY_LO_MASK,       DIDT_SQ_STALL_CTRL__DIDT_STALL_DELAY_LO__SHIFT,     0x0001,     GPU_CONFIGREG_DIDT_IND },
-	{   ixDIDT_SQ_STALL_CTRL,              DIDT_SQ_STALL_CTRL__DIDT_HI_POWER_THRESHOLD_MASK,   DIDT_SQ_STALL_CTRL__DIDT_HI_POWER_THRESHOLD__SHIFT, 0x0ebb,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_STALL_CTRL,              DIDT_SQ_STALL_CTRL__DIDT_HI_POWER_THRESHOLD_MASK,   DIDT_SQ_STALL_CTRL__DIDT_HI_POWER_THRESHOLD__SHIFT, 0x01aa,     GPU_CONFIGREG_DIDT_IND },
 	{   ixDIDT_SQ_STALL_CTRL,              DIDT_SQ_STALL_CTRL__UNUSED_0_MASK,                  DIDT_SQ_STALL_CTRL__UNUSED_0__SHIFT,                0x0000,     GPU_CONFIGREG_DIDT_IND },
 
-	{   ixDIDT_SQ_TUNING_CTRL,             DIDT_SQ_TUNING_CTRL__DIDT_TUNING_ENABLE_MASK,       DIDT_SQ_TUNING_CTRL__DIDT_TUNING_ENABLE__SHIFT,     0x0001,     GPU_CONFIGREG_DIDT_IND },
-	{   ixDIDT_SQ_TUNING_CTRL,             DIDT_SQ_TUNING_CTRL__MAX_POWER_DELTA_HI_MASK,       DIDT_SQ_TUNING_CTRL__MAX_POWER_DELTA_HI__SHIFT,     0x3853,     GPU_CONFIGREG_DIDT_IND },
-	{   ixDIDT_SQ_TUNING_CTRL,             DIDT_SQ_TUNING_CTRL__MAX_POWER_DELTA_LO_MASK,       DIDT_SQ_TUNING_CTRL__MAX_POWER_DELTA_LO__SHIFT,     0x3153,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_TUNING_CTRL,             DIDT_SQ_TUNING_CTRL__DIDT_TUNING_ENABLE_MASK,       DIDT_SQ_TUNING_CTRL__DIDT_TUNING_ENABLE__SHIFT,     0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_TUNING_CTRL,             DIDT_SQ_TUNING_CTRL__MAX_POWER_DELTA_HI_MASK,       DIDT_SQ_TUNING_CTRL__MAX_POWER_DELTA_HI__SHIFT,     0x0dde,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_TUNING_CTRL,             DIDT_SQ_TUNING_CTRL__MAX_POWER_DELTA_LO_MASK,       DIDT_SQ_TUNING_CTRL__MAX_POWER_DELTA_LO__SHIFT,     0x0dde,     GPU_CONFIGREG_DIDT_IND },
 	{   ixDIDT_SQ_TUNING_CTRL,             DIDT_SQ_TUNING_CTRL__UNUSED_0_MASK,                 DIDT_SQ_TUNING_CTRL__UNUSED_0__SHIFT,               0x0000,     GPU_CONFIGREG_DIDT_IND },
 
 	{   ixDIDT_SQ_CTRL0,                   DIDT_SQ_CTRL0__DIDT_CTRL_EN_MASK,                   DIDT_SQ_CTRL0__DIDT_CTRL_EN__SHIFT,                 0x0001,     GPU_CONFIGREG_DIDT_IND },
@@ -284,8 +286,8 @@ static const struct gpu_pt_config_reg DIDTConfig_Polaris11[] = {
 	{   ixDIDT_SQ_CTRL0,                   DIDT_SQ_CTRL0__PHASE_OFFSET_MASK,                   DIDT_SQ_CTRL0__PHASE_OFFSET__SHIFT,                 0x0000,     GPU_CONFIGREG_DIDT_IND },
 	{   ixDIDT_SQ_CTRL0,                   DIDT_SQ_CTRL0__DIDT_CTRL_RST_MASK,                  DIDT_SQ_CTRL0__DIDT_CTRL_RST__SHIFT,                0x0000,     GPU_CONFIGREG_DIDT_IND },
 	{   ixDIDT_SQ_CTRL0,                   DIDT_SQ_CTRL0__DIDT_CLK_EN_OVERRIDE_MASK,           DIDT_SQ_CTRL0__DIDT_CLK_EN_OVERRIDE__SHIFT,         0x0000,     GPU_CONFIGREG_DIDT_IND },
-	{   ixDIDT_SQ_CTRL0,                   DIDT_SQ_CTRL0__DIDT_MAX_STALLS_ALLOWED_HI_MASK,     DIDT_SQ_CTRL0__DIDT_MAX_STALLS_ALLOWED_HI__SHIFT,   0x0010,     GPU_CONFIGREG_DIDT_IND },
-	{   ixDIDT_SQ_CTRL0,                   DIDT_SQ_CTRL0__DIDT_MAX_STALLS_ALLOWED_LO_MASK,     DIDT_SQ_CTRL0__DIDT_MAX_STALLS_ALLOWED_LO__SHIFT,   0x0010,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_CTRL0,                   DIDT_SQ_CTRL0__DIDT_MAX_STALLS_ALLOWED_HI_MASK,     DIDT_SQ_CTRL0__DIDT_MAX_STALLS_ALLOWED_HI__SHIFT,   0x0008,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_CTRL0,                   DIDT_SQ_CTRL0__DIDT_MAX_STALLS_ALLOWED_LO_MASK,     DIDT_SQ_CTRL0__DIDT_MAX_STALLS_ALLOWED_LO__SHIFT,   0x0008,     GPU_CONFIGREG_DIDT_IND },
 	{   ixDIDT_SQ_CTRL0,                   DIDT_SQ_CTRL0__UNUSED_0_MASK,                       DIDT_SQ_CTRL0__UNUSED_0__SHIFT,                     0x0000,     GPU_CONFIGREG_DIDT_IND },
 
 	{   ixDIDT_TD_WEIGHT0_3,               DIDT_TD_WEIGHT0_3__WEIGHT0_MASK,                    DIDT_TD_WEIGHT0_3__WEIGHT0__SHIFT,                  0x000a,     GPU_CONFIGREG_DIDT_IND },
@@ -373,55 +375,305 @@ static const struct gpu_pt_config_reg DIDTConfig_Polaris11[] = {
 	{   ixDIDT_TCP_CTRL0,                   DIDT_TCP_CTRL0__DIDT_MAX_STALLS_ALLOWED_HI_MASK,     DIDT_TCP_CTRL0__DIDT_MAX_STALLS_ALLOWED_HI__SHIFT,   0x0010,     GPU_CONFIGREG_DIDT_IND },
 	{   ixDIDT_TCP_CTRL0,                   DIDT_TCP_CTRL0__DIDT_MAX_STALLS_ALLOWED_LO_MASK,     DIDT_TCP_CTRL0__DIDT_MAX_STALLS_ALLOWED_LO__SHIFT,   0x0010,     GPU_CONFIGREG_DIDT_IND },
 	{   ixDIDT_TCP_CTRL0,                   DIDT_TCP_CTRL0__UNUSED_0_MASK,                       DIDT_TCP_CTRL0__UNUSED_0__SHIFT,                     0x0000,     GPU_CONFIGREG_DIDT_IND },
+
 	{   0xFFFFFFFF  }
 };
 
+static const struct gpu_pt_config_reg DIDTConfig_Polaris12[] = {
+/* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ *      Offset                             Mask                                                Shift                                               Value       Type
+ * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ */
+	{   ixDIDT_SQ_WEIGHT0_3,               DIDT_SQ_WEIGHT0_3__WEIGHT0_MASK,                    DIDT_SQ_WEIGHT0_3__WEIGHT0__SHIFT,                  0x0073,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_WEIGHT0_3,               DIDT_SQ_WEIGHT0_3__WEIGHT1_MASK,                    DIDT_SQ_WEIGHT0_3__WEIGHT1__SHIFT,                  0x00ab,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_WEIGHT0_3,               DIDT_SQ_WEIGHT0_3__WEIGHT2_MASK,                    DIDT_SQ_WEIGHT0_3__WEIGHT2__SHIFT,                  0x0084,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_WEIGHT0_3,               DIDT_SQ_WEIGHT0_3__WEIGHT3_MASK,                    DIDT_SQ_WEIGHT0_3__WEIGHT3__SHIFT,                  0x005a,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_SQ_WEIGHT4_7,               DIDT_SQ_WEIGHT4_7__WEIGHT4_MASK,                    DIDT_SQ_WEIGHT4_7__WEIGHT4__SHIFT,                  0x0067,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_WEIGHT4_7,               DIDT_SQ_WEIGHT4_7__WEIGHT5_MASK,                    DIDT_SQ_WEIGHT4_7__WEIGHT5__SHIFT,                  0x0084,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_WEIGHT4_7,               DIDT_SQ_WEIGHT4_7__WEIGHT6_MASK,                    DIDT_SQ_WEIGHT4_7__WEIGHT6__SHIFT,                  0x0027,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_WEIGHT4_7,               DIDT_SQ_WEIGHT4_7__WEIGHT7_MASK,                    DIDT_SQ_WEIGHT4_7__WEIGHT7__SHIFT,                  0x0046,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_SQ_WEIGHT8_11,              DIDT_SQ_WEIGHT8_11__WEIGHT8_MASK,                   DIDT_SQ_WEIGHT8_11__WEIGHT8__SHIFT,                 0x00aa,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_WEIGHT8_11,              DIDT_SQ_WEIGHT8_11__WEIGHT9_MASK,                   DIDT_SQ_WEIGHT8_11__WEIGHT9__SHIFT,                 0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_WEIGHT8_11,              DIDT_SQ_WEIGHT8_11__WEIGHT10_MASK,                  DIDT_SQ_WEIGHT8_11__WEIGHT10__SHIFT,                0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_WEIGHT8_11,              DIDT_SQ_WEIGHT8_11__WEIGHT11_MASK,                  DIDT_SQ_WEIGHT8_11__WEIGHT11__SHIFT,                0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_SQ_CTRL1,                   DIDT_SQ_CTRL1__MIN_POWER_MASK,                      DIDT_SQ_CTRL1__MIN_POWER__SHIFT,                    0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_CTRL1,                   DIDT_SQ_CTRL1__MAX_POWER_MASK,                      DIDT_SQ_CTRL1__MAX_POWER__SHIFT,                    0xffff,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_SQ_CTRL_OCP,                DIDT_SQ_CTRL_OCP__UNUSED_0_MASK,                    DIDT_SQ_CTRL_OCP__UNUSED_0__SHIFT,                  0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL_OCP,                DIDT_TD_CTRL_OCP__OCP_MAX_POWER_MASK,               DIDT_TD_CTRL_OCP__OCP_MAX_POWER__SHIFT,             0x00ff,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TD_CTRL2,                   DIDT_TD_CTRL2__MAX_POWER_DELTA_MASK,                DIDT_TD_CTRL2__MAX_POWER_DELTA__SHIFT,              0x3fff,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL2,                   DIDT_TD_CTRL2__UNUSED_0_MASK,                       DIDT_TD_CTRL2__UNUSED_0__SHIFT,                     0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL2,                   DIDT_TD_CTRL2__SHORT_TERM_INTERVAL_SIZE_MASK,       DIDT_TD_CTRL2__SHORT_TERM_INTERVAL_SIZE__SHIFT,     0x000f,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL2,                   DIDT_TD_CTRL2__UNUSED_1_MASK,                       DIDT_TD_CTRL2__UNUSED_1__SHIFT,                     0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL2,                   DIDT_TD_CTRL2__LONG_TERM_INTERVAL_RATIO_MASK,       DIDT_TD_CTRL2__LONG_TERM_INTERVAL_RATIO__SHIFT,     0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL2,                   DIDT_TD_CTRL2__UNUSED_2_MASK,                       DIDT_TD_CTRL2__UNUSED_2__SHIFT,                     0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TD_STALL_CTRL,              DIDT_TD_STALL_CTRL__DIDT_STALL_CTRL_ENABLE_MASK,    DIDT_TD_STALL_CTRL__DIDT_STALL_CTRL_ENABLE__SHIFT,  0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_STALL_CTRL,              DIDT_TD_STALL_CTRL__DIDT_STALL_DELAY_HI_MASK,       DIDT_TD_STALL_CTRL__DIDT_STALL_DELAY_HI__SHIFT,     0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_STALL_CTRL,              DIDT_TD_STALL_CTRL__DIDT_STALL_DELAY_LO_MASK,       DIDT_TD_STALL_CTRL__DIDT_STALL_DELAY_LO__SHIFT,     0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_STALL_CTRL,              DIDT_TD_STALL_CTRL__DIDT_HI_POWER_THRESHOLD_MASK,   DIDT_TD_STALL_CTRL__DIDT_HI_POWER_THRESHOLD__SHIFT, 0x01aa,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_STALL_CTRL,              DIDT_TD_STALL_CTRL__UNUSED_0_MASK,                  DIDT_TD_STALL_CTRL__UNUSED_0__SHIFT,                0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TD_TUNING_CTRL,             DIDT_TD_TUNING_CTRL__DIDT_TUNING_ENABLE_MASK,       DIDT_TD_TUNING_CTRL__DIDT_TUNING_ENABLE__SHIFT,     0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_TUNING_CTRL,             DIDT_TD_TUNING_CTRL__MAX_POWER_DELTA_HI_MASK,       DIDT_TD_TUNING_CTRL__MAX_POWER_DELTA_HI__SHIFT,     0x0dde,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_TUNING_CTRL,             DIDT_TD_TUNING_CTRL__MAX_POWER_DELTA_LO_MASK,       DIDT_TD_TUNING_CTRL__MAX_POWER_DELTA_LO__SHIFT,     0x0dde,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_TUNING_CTRL,             DIDT_TD_TUNING_CTRL__UNUSED_0_MASK,                 DIDT_TD_TUNING_CTRL__UNUSED_0__SHIFT,               0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TD_CTRL0,                   DIDT_TD_CTRL0__DIDT_CTRL_EN_MASK,                   DIDT_TD_CTRL0__DIDT_CTRL_EN__SHIFT,                 0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL0,                   DIDT_TD_CTRL0__USE_REF_CLOCK_MASK,                  DIDT_TD_CTRL0__USE_REF_CLOCK__SHIFT,                0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL0,                   DIDT_TD_CTRL0__PHASE_OFFSET_MASK,                   DIDT_TD_CTRL0__PHASE_OFFSET__SHIFT,                 0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL0,                   DIDT_TD_CTRL0__DIDT_CTRL_RST_MASK,                  DIDT_TD_CTRL0__DIDT_CTRL_RST__SHIFT,                0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL0,                   DIDT_TD_CTRL0__DIDT_CLK_EN_OVERRIDE_MASK,           DIDT_TD_CTRL0__DIDT_CLK_EN_OVERRIDE__SHIFT,         0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL0,                   DIDT_TD_CTRL0__DIDT_MAX_STALLS_ALLOWED_HI_MASK,     DIDT_TD_CTRL0__DIDT_MAX_STALLS_ALLOWED_HI__SHIFT,   0x0008,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL0,                   DIDT_TD_CTRL0__DIDT_MAX_STALLS_ALLOWED_LO_MASK,     DIDT_TD_CTRL0__DIDT_MAX_STALLS_ALLOWED_LO__SHIFT,   0x0008,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL0,                   DIDT_TD_CTRL0__UNUSED_0_MASK,                       DIDT_TD_CTRL0__UNUSED_0__SHIFT,                     0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TCP_WEIGHT0_3,              DIDT_TCP_WEIGHT0_3__WEIGHT0_MASK,                   DIDT_TCP_WEIGHT0_3__WEIGHT0__SHIFT,                 0x0004,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_WEIGHT0_3,              DIDT_TCP_WEIGHT0_3__WEIGHT1_MASK,                   DIDT_TCP_WEIGHT0_3__WEIGHT1__SHIFT,                 0x0037,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_WEIGHT0_3,              DIDT_TCP_WEIGHT0_3__WEIGHT2_MASK,                   DIDT_TCP_WEIGHT0_3__WEIGHT2__SHIFT,                 0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_WEIGHT0_3,              DIDT_TCP_WEIGHT0_3__WEIGHT3_MASK,                   DIDT_TCP_WEIGHT0_3__WEIGHT3__SHIFT,                 0x00ff,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TCP_WEIGHT4_7,              DIDT_TCP_WEIGHT4_7__WEIGHT4_MASK,                   DIDT_TCP_WEIGHT4_7__WEIGHT4__SHIFT,                 0x0054,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_WEIGHT4_7,              DIDT_TCP_WEIGHT4_7__WEIGHT5_MASK,                   DIDT_TCP_WEIGHT4_7__WEIGHT5__SHIFT,                 0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_WEIGHT4_7,              DIDT_TCP_WEIGHT4_7__WEIGHT6_MASK,                   DIDT_TCP_WEIGHT4_7__WEIGHT6__SHIFT,                 0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_WEIGHT4_7,              DIDT_TCP_WEIGHT4_7__WEIGHT7_MASK,                   DIDT_TCP_WEIGHT4_7__WEIGHT7__SHIFT,                 0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TCP_CTRL1,                  DIDT_TCP_CTRL1__MIN_POWER_MASK,                     DIDT_TCP_CTRL1__MIN_POWER__SHIFT,                   0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL1,                  DIDT_TCP_CTRL1__MAX_POWER_MASK,                     DIDT_TCP_CTRL1__MAX_POWER__SHIFT,                   0xffff,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TCP_CTRL_OCP,               DIDT_TCP_CTRL_OCP__UNUSED_0_MASK,                   DIDT_TCP_CTRL_OCP__UNUSED_0__SHIFT,                 0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL_OCP,               DIDT_TCP_CTRL_OCP__OCP_MAX_POWER_MASK,              DIDT_TCP_CTRL_OCP__OCP_MAX_POWER__SHIFT,            0xffff,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TCP_CTRL2,                  DIDT_TCP_CTRL2__MAX_POWER_DELTA_MASK,               DIDT_TCP_CTRL2__MAX_POWER_DELTA__SHIFT,             0x3dde,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL2,                  DIDT_TCP_CTRL2__UNUSED_0_MASK,                      DIDT_TCP_CTRL2__UNUSED_0__SHIFT,                    0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL2,                  DIDT_TCP_CTRL2__SHORT_TERM_INTERVAL_SIZE_MASK,      DIDT_TCP_CTRL2__SHORT_TERM_INTERVAL_SIZE__SHIFT,    0x0032,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL2,                  DIDT_TCP_CTRL2__UNUSED_1_MASK,                      DIDT_TCP_CTRL2__UNUSED_1__SHIFT,                    0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL2,                  DIDT_TCP_CTRL2__LONG_TERM_INTERVAL_RATIO_MASK,      DIDT_TCP_CTRL2__LONG_TERM_INTERVAL_RATIO__SHIFT,    0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL2,                  DIDT_TCP_CTRL2__UNUSED_2_MASK,                      DIDT_TCP_CTRL2__UNUSED_2__SHIFT,                    0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__DIDT_STALL_CTRL_ENABLE_MASK,   DIDT_TCP_STALL_CTRL__DIDT_STALL_CTRL_ENABLE__SHIFT, 0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__DIDT_STALL_DELAY_HI_MASK,      DIDT_TCP_STALL_CTRL__DIDT_STALL_DELAY_HI__SHIFT,    0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__DIDT_STALL_DELAY_LO_MASK,      DIDT_TCP_STALL_CTRL__DIDT_STALL_DELAY_LO__SHIFT,    0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__DIDT_HI_POWER_THRESHOLD_MASK,  DIDT_TCP_STALL_CTRL__DIDT_HI_POWER_THRESHOLD__SHIFT, 0x01aa,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__UNUSED_0_MASK,                 DIDT_TCP_STALL_CTRL__UNUSED_0__SHIFT,               0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TCP_TUNING_CTRL,            DIDT_TCP_TUNING_CTRL__DIDT_TUNING_ENABLE_MASK,      DIDT_TCP_TUNING_CTRL__DIDT_TUNING_ENABLE__SHIFT,    0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_TUNING_CTRL,            DIDT_TCP_TUNING_CTRL__MAX_POWER_DELTA_HI_MASK,      DIDT_TCP_TUNING_CTRL__MAX_POWER_DELTA_HI__SHIFT,    0x3dde,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_TUNING_CTRL,            DIDT_TCP_TUNING_CTRL__MAX_POWER_DELTA_LO_MASK,      DIDT_TCP_TUNING_CTRL__MAX_POWER_DELTA_LO__SHIFT,    0x3dde,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_TUNING_CTRL,            DIDT_TCP_TUNING_CTRL__UNUSED_0_MASK,                DIDT_TCP_TUNING_CTRL__UNUSED_0__SHIFT,              0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TCP_CTRL0,                   DIDT_TCP_CTRL0__DIDT_CTRL_EN_MASK,                   DIDT_TCP_CTRL0__DIDT_CTRL_EN__SHIFT,                 0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL0,                   DIDT_TCP_CTRL0__USE_REF_CLOCK_MASK,                  DIDT_TCP_CTRL0__USE_REF_CLOCK__SHIFT,                0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL0,                   DIDT_TCP_CTRL0__PHASE_OFFSET_MASK,                   DIDT_TCP_CTRL0__PHASE_OFFSET__SHIFT,                 0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL0,                   DIDT_TCP_CTRL0__DIDT_CTRL_RST_MASK,                  DIDT_TCP_CTRL0__DIDT_CTRL_RST__SHIFT,                0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL0,                   DIDT_TCP_CTRL0__DIDT_CLK_EN_OVERRIDE_MASK,           DIDT_TCP_CTRL0__DIDT_CLK_EN_OVERRIDE__SHIFT,         0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL0,                   DIDT_TCP_CTRL0__DIDT_MAX_STALLS_ALLOWED_HI_MASK,     DIDT_TCP_CTRL0__DIDT_MAX_STALLS_ALLOWED_HI__SHIFT,   0x0010,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL0,                   DIDT_TCP_CTRL0__DIDT_MAX_STALLS_ALLOWED_LO_MASK,     DIDT_TCP_CTRL0__DIDT_MAX_STALLS_ALLOWED_LO__SHIFT,   0x0010,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL0,                   DIDT_TCP_CTRL0__UNUSED_0_MASK,                       DIDT_TCP_CTRL0__UNUSED_0__SHIFT,                     0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   0xFFFFFFFF  }
+};
+
+static const struct gpu_pt_config_reg DIDTConfig_Polaris11_Kicker[] =
+{
+/* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ *      Offset                             Mask                                                Shift                                               Value       Type
+ * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ */
+	/* DIDT_SQ */
+	{   ixDIDT_SQ_WEIGHT0_3,               DIDT_SQ_WEIGHT0_3__WEIGHT0_MASK,                    DIDT_SQ_WEIGHT0_3__WEIGHT0__SHIFT,                  0x004c,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_WEIGHT0_3,               DIDT_SQ_WEIGHT0_3__WEIGHT1_MASK,                    DIDT_SQ_WEIGHT0_3__WEIGHT1__SHIFT,                  0x00d0,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_WEIGHT0_3,               DIDT_SQ_WEIGHT0_3__WEIGHT2_MASK,                    DIDT_SQ_WEIGHT0_3__WEIGHT2__SHIFT,                  0x0069,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_WEIGHT0_3,               DIDT_SQ_WEIGHT0_3__WEIGHT3_MASK,                    DIDT_SQ_WEIGHT0_3__WEIGHT3__SHIFT,                  0x0048,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_SQ_WEIGHT4_7,               DIDT_SQ_WEIGHT4_7__WEIGHT4_MASK,                    DIDT_SQ_WEIGHT4_7__WEIGHT4__SHIFT,                  0x005f,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_WEIGHT4_7,               DIDT_SQ_WEIGHT4_7__WEIGHT5_MASK,                    DIDT_SQ_WEIGHT4_7__WEIGHT5__SHIFT,                  0x007a,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_WEIGHT4_7,               DIDT_SQ_WEIGHT4_7__WEIGHT6_MASK,                    DIDT_SQ_WEIGHT4_7__WEIGHT6__SHIFT,                  0x001f,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_WEIGHT4_7,               DIDT_SQ_WEIGHT4_7__WEIGHT7_MASK,                    DIDT_SQ_WEIGHT4_7__WEIGHT7__SHIFT,                  0x002d,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_SQ_WEIGHT8_11,              DIDT_SQ_WEIGHT8_11__WEIGHT8_MASK,                   DIDT_SQ_WEIGHT8_11__WEIGHT8__SHIFT,                 0x0088,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_WEIGHT8_11,              DIDT_SQ_WEIGHT8_11__WEIGHT9_MASK,                   DIDT_SQ_WEIGHT8_11__WEIGHT9__SHIFT,                 0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_WEIGHT8_11,              DIDT_SQ_WEIGHT8_11__WEIGHT10_MASK,                  DIDT_SQ_WEIGHT8_11__WEIGHT10__SHIFT,                0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_WEIGHT8_11,              DIDT_SQ_WEIGHT8_11__WEIGHT11_MASK,                  DIDT_SQ_WEIGHT8_11__WEIGHT11__SHIFT,                0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_SQ_CTRL1,                   DIDT_SQ_CTRL1__MIN_POWER_MASK,                      DIDT_SQ_CTRL1__MIN_POWER__SHIFT,                    0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_CTRL1,                   DIDT_SQ_CTRL1__MAX_POWER_MASK,                      DIDT_SQ_CTRL1__MAX_POWER__SHIFT,                    0xffff,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_SQ_CTRL_OCP,                DIDT_SQ_CTRL_OCP__UNUSED_0_MASK,                    DIDT_SQ_CTRL_OCP__UNUSED_0__SHIFT,                  0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_CTRL_OCP,                DIDT_SQ_CTRL_OCP__OCP_MAX_POWER_MASK,               DIDT_SQ_CTRL_OCP__OCP_MAX_POWER__SHIFT,             0x00ff,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_SQ_CTRL2,                   DIDT_SQ_CTRL2__MAX_POWER_DELTA_MASK,                DIDT_SQ_CTRL2__MAX_POWER_DELTA__SHIFT,              0x3fff,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_CTRL2,                   DIDT_SQ_CTRL2__UNUSED_0_MASK,                       DIDT_SQ_CTRL2__UNUSED_0__SHIFT,                     0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_CTRL2,                   DIDT_SQ_CTRL2__SHORT_TERM_INTERVAL_SIZE_MASK,       DIDT_SQ_CTRL2__SHORT_TERM_INTERVAL_SIZE__SHIFT,     0x000f,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_CTRL2,                   DIDT_SQ_CTRL2__UNUSED_1_MASK,                       DIDT_SQ_CTRL2__UNUSED_1__SHIFT,                     0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_CTRL2,                   DIDT_SQ_CTRL2__LONG_TERM_INTERVAL_RATIO_MASK,       DIDT_SQ_CTRL2__LONG_TERM_INTERVAL_RATIO__SHIFT,     0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_CTRL2,                   DIDT_SQ_CTRL2__UNUSED_2_MASK,                       DIDT_SQ_CTRL2__UNUSED_2__SHIFT,                     0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_SQ_STALL_CTRL,              DIDT_SQ_STALL_CTRL__DIDT_STALL_CTRL_ENABLE_MASK,    DIDT_SQ_STALL_CTRL__DIDT_STALL_CTRL_ENABLE__SHIFT,  0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_STALL_CTRL,              DIDT_SQ_STALL_CTRL__DIDT_STALL_DELAY_HI_MASK,       DIDT_SQ_STALL_CTRL__DIDT_STALL_DELAY_HI__SHIFT,     0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_STALL_CTRL,              DIDT_SQ_STALL_CTRL__DIDT_STALL_DELAY_LO_MASK,       DIDT_SQ_STALL_CTRL__DIDT_STALL_DELAY_LO__SHIFT,     0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_STALL_CTRL,              DIDT_SQ_STALL_CTRL__DIDT_HI_POWER_THRESHOLD_MASK,   DIDT_SQ_STALL_CTRL__DIDT_HI_POWER_THRESHOLD__SHIFT, 0x01aa,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_STALL_CTRL,              DIDT_SQ_STALL_CTRL__UNUSED_0_MASK,                  DIDT_SQ_STALL_CTRL__UNUSED_0__SHIFT,                0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_SQ_TUNING_CTRL,             DIDT_SQ_TUNING_CTRL__DIDT_TUNING_ENABLE_MASK,       DIDT_SQ_TUNING_CTRL__DIDT_TUNING_ENABLE__SHIFT,     0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_TUNING_CTRL,             DIDT_SQ_TUNING_CTRL__MAX_POWER_DELTA_HI_MASK,       DIDT_SQ_TUNING_CTRL__MAX_POWER_DELTA_HI__SHIFT,     0x0dde,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_TUNING_CTRL,             DIDT_SQ_TUNING_CTRL__MAX_POWER_DELTA_LO_MASK,       DIDT_SQ_TUNING_CTRL__MAX_POWER_DELTA_LO__SHIFT,     0x0dde,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_TUNING_CTRL,             DIDT_SQ_TUNING_CTRL__UNUSED_0_MASK,                 DIDT_SQ_TUNING_CTRL__UNUSED_0__SHIFT,               0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_SQ_CTRL0,                   DIDT_SQ_CTRL0__DIDT_CTRL_EN_MASK,                   DIDT_SQ_CTRL0__DIDT_CTRL_EN__SHIFT,                 0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_CTRL0,                   DIDT_SQ_CTRL0__USE_REF_CLOCK_MASK,                  DIDT_SQ_CTRL0__USE_REF_CLOCK__SHIFT,                0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_CTRL0,                   DIDT_SQ_CTRL0__PHASE_OFFSET_MASK,                   DIDT_SQ_CTRL0__PHASE_OFFSET__SHIFT,                 0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_CTRL0,                   DIDT_SQ_CTRL0__DIDT_CTRL_RST_MASK,                  DIDT_SQ_CTRL0__DIDT_CTRL_RST__SHIFT,                0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_CTRL0,                   DIDT_SQ_CTRL0__DIDT_CLK_EN_OVERRIDE_MASK,           DIDT_SQ_CTRL0__DIDT_CLK_EN_OVERRIDE__SHIFT,         0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_CTRL0,                   DIDT_SQ_CTRL0__DIDT_MAX_STALLS_ALLOWED_HI_MASK,     DIDT_SQ_CTRL0__DIDT_MAX_STALLS_ALLOWED_HI__SHIFT,   0x0008,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_CTRL0,                   DIDT_SQ_CTRL0__DIDT_MAX_STALLS_ALLOWED_LO_MASK,     DIDT_SQ_CTRL0__DIDT_MAX_STALLS_ALLOWED_LO__SHIFT,   0x0008,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_SQ_CTRL0,                   DIDT_SQ_CTRL0__UNUSED_0_MASK,                       DIDT_SQ_CTRL0__UNUSED_0__SHIFT,                     0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	/* DIDT_TD */
+	{   ixDIDT_TD_WEIGHT0_3,               DIDT_TD_WEIGHT0_3__WEIGHT0_MASK,                    DIDT_TD_WEIGHT0_3__WEIGHT0__SHIFT,                  0x000a,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_WEIGHT0_3,               DIDT_TD_WEIGHT0_3__WEIGHT1_MASK,                    DIDT_TD_WEIGHT0_3__WEIGHT1__SHIFT,                  0x0010,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_WEIGHT0_3,               DIDT_TD_WEIGHT0_3__WEIGHT2_MASK,                    DIDT_TD_WEIGHT0_3__WEIGHT2__SHIFT,                  0x0017,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_WEIGHT0_3,               DIDT_TD_WEIGHT0_3__WEIGHT3_MASK,                    DIDT_TD_WEIGHT0_3__WEIGHT3__SHIFT,                  0x002f,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TD_WEIGHT4_7,               DIDT_TD_WEIGHT4_7__WEIGHT4_MASK,                    DIDT_TD_WEIGHT4_7__WEIGHT4__SHIFT,                  0x0046,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_WEIGHT4_7,               DIDT_TD_WEIGHT4_7__WEIGHT5_MASK,                    DIDT_TD_WEIGHT4_7__WEIGHT5__SHIFT,                  0x005d,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_WEIGHT4_7,               DIDT_TD_WEIGHT4_7__WEIGHT6_MASK,                    DIDT_TD_WEIGHT4_7__WEIGHT6__SHIFT,                  0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_WEIGHT4_7,               DIDT_TD_WEIGHT4_7__WEIGHT7_MASK,                    DIDT_TD_WEIGHT4_7__WEIGHT7__SHIFT,                  0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TD_CTRL1,                   DIDT_TD_CTRL1__MIN_POWER_MASK,                      DIDT_TD_CTRL1__MIN_POWER__SHIFT,                    0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL1,                   DIDT_TD_CTRL1__MAX_POWER_MASK,                      DIDT_TD_CTRL1__MAX_POWER__SHIFT,                    0xffff,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TD_CTRL_OCP,                DIDT_TD_CTRL_OCP__UNUSED_0_MASK,                    DIDT_TD_CTRL_OCP__UNUSED_0__SHIFT,                  0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL_OCP,                DIDT_TD_CTRL_OCP__OCP_MAX_POWER_MASK,               DIDT_TD_CTRL_OCP__OCP_MAX_POWER__SHIFT,             0x00ff,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TD_CTRL2,                   DIDT_TD_CTRL2__MAX_POWER_DELTA_MASK,                DIDT_TD_CTRL2__MAX_POWER_DELTA__SHIFT,              0x3fff,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL2,                   DIDT_TD_CTRL2__UNUSED_0_MASK,                       DIDT_TD_CTRL2__UNUSED_0__SHIFT,                     0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL2,                   DIDT_TD_CTRL2__SHORT_TERM_INTERVAL_SIZE_MASK,       DIDT_TD_CTRL2__SHORT_TERM_INTERVAL_SIZE__SHIFT,     0x000f,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL2,                   DIDT_TD_CTRL2__UNUSED_1_MASK,                       DIDT_TD_CTRL2__UNUSED_1__SHIFT,                     0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL2,                   DIDT_TD_CTRL2__LONG_TERM_INTERVAL_RATIO_MASK,       DIDT_TD_CTRL2__LONG_TERM_INTERVAL_RATIO__SHIFT,     0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL2,                   DIDT_TD_CTRL2__UNUSED_2_MASK,                       DIDT_TD_CTRL2__UNUSED_2__SHIFT,                     0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TD_STALL_CTRL,              DIDT_TD_STALL_CTRL__DIDT_STALL_CTRL_ENABLE_MASK,    DIDT_TD_STALL_CTRL__DIDT_STALL_CTRL_ENABLE__SHIFT,  0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_STALL_CTRL,              DIDT_TD_STALL_CTRL__DIDT_STALL_DELAY_HI_MASK,       DIDT_TD_STALL_CTRL__DIDT_STALL_DELAY_HI__SHIFT,     0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_STALL_CTRL,              DIDT_TD_STALL_CTRL__DIDT_STALL_DELAY_LO_MASK,       DIDT_TD_STALL_CTRL__DIDT_STALL_DELAY_LO__SHIFT,     0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_STALL_CTRL,              DIDT_TD_STALL_CTRL__DIDT_HI_POWER_THRESHOLD_MASK,   DIDT_TD_STALL_CTRL__DIDT_HI_POWER_THRESHOLD__SHIFT, 0x01aa,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_STALL_CTRL,              DIDT_TD_STALL_CTRL__UNUSED_0_MASK,                  DIDT_TD_STALL_CTRL__UNUSED_0__SHIFT,                0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TD_TUNING_CTRL,             DIDT_TD_TUNING_CTRL__DIDT_TUNING_ENABLE_MASK,       DIDT_TD_TUNING_CTRL__DIDT_TUNING_ENABLE__SHIFT,     0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_TUNING_CTRL,             DIDT_TD_TUNING_CTRL__MAX_POWER_DELTA_HI_MASK,       DIDT_TD_TUNING_CTRL__MAX_POWER_DELTA_HI__SHIFT,     0x0dde,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_TUNING_CTRL,             DIDT_TD_TUNING_CTRL__MAX_POWER_DELTA_LO_MASK,       DIDT_TD_TUNING_CTRL__MAX_POWER_DELTA_LO__SHIFT,     0x0dde,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_TUNING_CTRL,             DIDT_TD_TUNING_CTRL__UNUSED_0_MASK,                 DIDT_TD_TUNING_CTRL__UNUSED_0__SHIFT,               0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TD_CTRL0,                   DIDT_TD_CTRL0__DIDT_CTRL_EN_MASK,                   DIDT_TD_CTRL0__DIDT_CTRL_EN__SHIFT,                 0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL0,                   DIDT_TD_CTRL0__USE_REF_CLOCK_MASK,                  DIDT_TD_CTRL0__USE_REF_CLOCK__SHIFT,                0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL0,                   DIDT_TD_CTRL0__PHASE_OFFSET_MASK,                   DIDT_TD_CTRL0__PHASE_OFFSET__SHIFT,                 0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL0,                   DIDT_TD_CTRL0__DIDT_CTRL_RST_MASK,                  DIDT_TD_CTRL0__DIDT_CTRL_RST__SHIFT,                0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL0,                   DIDT_TD_CTRL0__DIDT_CLK_EN_OVERRIDE_MASK,           DIDT_TD_CTRL0__DIDT_CLK_EN_OVERRIDE__SHIFT,         0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL0,                   DIDT_TD_CTRL0__DIDT_MAX_STALLS_ALLOWED_HI_MASK,     DIDT_TD_CTRL0__DIDT_MAX_STALLS_ALLOWED_HI__SHIFT,   0x0008,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL0,                   DIDT_TD_CTRL0__DIDT_MAX_STALLS_ALLOWED_LO_MASK,     DIDT_TD_CTRL0__DIDT_MAX_STALLS_ALLOWED_LO__SHIFT,   0x0008,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TD_CTRL0,                   DIDT_TD_CTRL0__UNUSED_0_MASK,                       DIDT_TD_CTRL0__UNUSED_0__SHIFT,                     0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	/* DIDT_TCP */
+	{   ixDIDT_TCP_WEIGHT0_3,              DIDT_TCP_WEIGHT0_3__WEIGHT0_MASK,                   DIDT_TCP_WEIGHT0_3__WEIGHT0__SHIFT,                 0x0004,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_WEIGHT0_3,              DIDT_TCP_WEIGHT0_3__WEIGHT1_MASK,                   DIDT_TCP_WEIGHT0_3__WEIGHT1__SHIFT,                 0x0037,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_WEIGHT0_3,              DIDT_TCP_WEIGHT0_3__WEIGHT2_MASK,                   DIDT_TCP_WEIGHT0_3__WEIGHT2__SHIFT,                 0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_WEIGHT0_3,              DIDT_TCP_WEIGHT0_3__WEIGHT3_MASK,                   DIDT_TCP_WEIGHT0_3__WEIGHT3__SHIFT,                 0x00ff,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TCP_WEIGHT4_7,              DIDT_TCP_WEIGHT4_7__WEIGHT4_MASK,                   DIDT_TCP_WEIGHT4_7__WEIGHT4__SHIFT,                 0x0054,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_WEIGHT4_7,              DIDT_TCP_WEIGHT4_7__WEIGHT5_MASK,                   DIDT_TCP_WEIGHT4_7__WEIGHT5__SHIFT,                 0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_WEIGHT4_7,              DIDT_TCP_WEIGHT4_7__WEIGHT6_MASK,                   DIDT_TCP_WEIGHT4_7__WEIGHT6__SHIFT,                 0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_WEIGHT4_7,              DIDT_TCP_WEIGHT4_7__WEIGHT7_MASK,                   DIDT_TCP_WEIGHT4_7__WEIGHT7__SHIFT,                 0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TCP_CTRL1,                  DIDT_TCP_CTRL1__MIN_POWER_MASK,                     DIDT_TCP_CTRL1__MIN_POWER__SHIFT,                   0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL1,                  DIDT_TCP_CTRL1__MAX_POWER_MASK,                     DIDT_TCP_CTRL1__MAX_POWER__SHIFT,                   0xffff,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TCP_CTRL_OCP,               DIDT_TCP_CTRL_OCP__UNUSED_0_MASK,                   DIDT_TCP_CTRL_OCP__UNUSED_0__SHIFT,                 0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL_OCP,               DIDT_TCP_CTRL_OCP__OCP_MAX_POWER_MASK,              DIDT_TCP_CTRL_OCP__OCP_MAX_POWER__SHIFT,            0xffff,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TCP_CTRL2,                  DIDT_TCP_CTRL2__MAX_POWER_DELTA_MASK,               DIDT_TCP_CTRL2__MAX_POWER_DELTA__SHIFT,             0x3dde,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL2,                  DIDT_TCP_CTRL2__UNUSED_0_MASK,                      DIDT_TCP_CTRL2__UNUSED_0__SHIFT,                    0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL2,                  DIDT_TCP_CTRL2__SHORT_TERM_INTERVAL_SIZE_MASK,      DIDT_TCP_CTRL2__SHORT_TERM_INTERVAL_SIZE__SHIFT,    0x0032,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL2,                  DIDT_TCP_CTRL2__UNUSED_1_MASK,                      DIDT_TCP_CTRL2__UNUSED_1__SHIFT,                    0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL2,                  DIDT_TCP_CTRL2__LONG_TERM_INTERVAL_RATIO_MASK,      DIDT_TCP_CTRL2__LONG_TERM_INTERVAL_RATIO__SHIFT,    0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL2,                  DIDT_TCP_CTRL2__UNUSED_2_MASK,                      DIDT_TCP_CTRL2__UNUSED_2__SHIFT,                    0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__DIDT_STALL_CTRL_ENABLE_MASK,   DIDT_TCP_STALL_CTRL__DIDT_STALL_CTRL_ENABLE__SHIFT, 0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__DIDT_STALL_DELAY_HI_MASK,      DIDT_TCP_STALL_CTRL__DIDT_STALL_DELAY_HI__SHIFT,    0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__DIDT_STALL_DELAY_LO_MASK,      DIDT_TCP_STALL_CTRL__DIDT_STALL_DELAY_LO__SHIFT,    0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__DIDT_HI_POWER_THRESHOLD_MASK,  DIDT_TCP_STALL_CTRL__DIDT_HI_POWER_THRESHOLD__SHIFT,0x01aa,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__UNUSED_0_MASK,                 DIDT_TCP_STALL_CTRL__UNUSED_0__SHIFT,               0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TCP_TUNING_CTRL,            DIDT_TCP_TUNING_CTRL__DIDT_TUNING_ENABLE_MASK,      DIDT_TCP_TUNING_CTRL__DIDT_TUNING_ENABLE__SHIFT,    0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_TUNING_CTRL,            DIDT_TCP_TUNING_CTRL__MAX_POWER_DELTA_HI_MASK,      DIDT_TCP_TUNING_CTRL__MAX_POWER_DELTA_HI__SHIFT,    0x3dde,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_TUNING_CTRL,            DIDT_TCP_TUNING_CTRL__MAX_POWER_DELTA_LO_MASK,      DIDT_TCP_TUNING_CTRL__MAX_POWER_DELTA_LO__SHIFT,    0x3dde,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_TUNING_CTRL,            DIDT_TCP_TUNING_CTRL__UNUSED_0_MASK,                DIDT_TCP_TUNING_CTRL__UNUSED_0__SHIFT,              0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   ixDIDT_TCP_CTRL0,                   DIDT_TCP_CTRL0__DIDT_CTRL_EN_MASK,                   DIDT_TCP_CTRL0__DIDT_CTRL_EN__SHIFT,                 0x0001,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL0,                   DIDT_TCP_CTRL0__USE_REF_CLOCK_MASK,                  DIDT_TCP_CTRL0__USE_REF_CLOCK__SHIFT,                0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL0,                   DIDT_TCP_CTRL0__PHASE_OFFSET_MASK,                   DIDT_TCP_CTRL0__PHASE_OFFSET__SHIFT,                 0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL0,                   DIDT_TCP_CTRL0__DIDT_CTRL_RST_MASK,                  DIDT_TCP_CTRL0__DIDT_CTRL_RST__SHIFT,                0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL0,                   DIDT_TCP_CTRL0__DIDT_CLK_EN_OVERRIDE_MASK,           DIDT_TCP_CTRL0__DIDT_CLK_EN_OVERRIDE__SHIFT,         0x0000,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL0,                   DIDT_TCP_CTRL0__DIDT_MAX_STALLS_ALLOWED_HI_MASK,     DIDT_TCP_CTRL0__DIDT_MAX_STALLS_ALLOWED_HI__SHIFT,   0x0010,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL0,                   DIDT_TCP_CTRL0__DIDT_MAX_STALLS_ALLOWED_LO_MASK,     DIDT_TCP_CTRL0__DIDT_MAX_STALLS_ALLOWED_LO__SHIFT,   0x0010,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_CTRL0,                   DIDT_TCP_CTRL0__UNUSED_0_MASK,                       DIDT_TCP_CTRL0__UNUSED_0__SHIFT,                     0x0000,     GPU_CONFIGREG_DIDT_IND },
+
+	{   0xFFFFFFFF  }  /* End of list */
+};
 
 static int smu7_enable_didt(struct pp_hwmgr *hwmgr, const bool enable)
 {
-
 	uint32_t en = enable ? 1 : 0;
+	uint32_t block_en = 0;
 	int32_t result = 0;
+	uint32_t didt_block;
 	uint32_t data;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SQRamping)) {
-		data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_SQ_CTRL0);
-		data &= ~DIDT_SQ_CTRL0__DIDT_CTRL_EN_MASK;
-		data |= ((en << DIDT_SQ_CTRL0__DIDT_CTRL_EN__SHIFT) & DIDT_SQ_CTRL0__DIDT_CTRL_EN_MASK);
-		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_SQ_CTRL0, data);
-		DIDTBlock_Info &= ~SQ_Enable_MASK;
-		DIDTBlock_Info |= en << SQ_Enable_SHIFT;
-	}
+	if (hwmgr->chip_id == CHIP_POLARIS11)
+		didt_block = Polaris11_DIDTBlock_Info;
+	else
+		didt_block = DIDTBlock_Info;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DBRamping)) {
-		data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_DB_CTRL0);
-		data &= ~DIDT_DB_CTRL0__DIDT_CTRL_EN_MASK;
-		data |= ((en << DIDT_DB_CTRL0__DIDT_CTRL_EN__SHIFT) & DIDT_DB_CTRL0__DIDT_CTRL_EN_MASK);
-		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_DB_CTRL0, data);
-		DIDTBlock_Info &= ~DB_Enable_MASK;
-		DIDTBlock_Info |= en << DB_Enable_SHIFT;
-	}
+	block_en = phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SQRamping) ? en : 0;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TDRamping)) {
-		data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TD_CTRL0);
-		data &= ~DIDT_TD_CTRL0__DIDT_CTRL_EN_MASK;
-		data |= ((en << DIDT_TD_CTRL0__DIDT_CTRL_EN__SHIFT) & DIDT_TD_CTRL0__DIDT_CTRL_EN_MASK);
-		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TD_CTRL0, data);
-		DIDTBlock_Info &= ~TD_Enable_MASK;
-		DIDTBlock_Info |= en << TD_Enable_SHIFT;
-	}
+	data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_SQ_CTRL0);
+	data &= ~DIDT_SQ_CTRL0__DIDT_CTRL_EN_MASK;
+	data |= ((block_en << DIDT_SQ_CTRL0__DIDT_CTRL_EN__SHIFT) & DIDT_SQ_CTRL0__DIDT_CTRL_EN_MASK);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_SQ_CTRL0, data);
+	didt_block &= ~SQ_Enable_MASK;
+	didt_block |= block_en << SQ_Enable_SHIFT;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TCPRamping)) {
-		data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TCP_CTRL0);
-		data &= ~DIDT_TCP_CTRL0__DIDT_CTRL_EN_MASK;
-		data |= ((en << DIDT_TCP_CTRL0__DIDT_CTRL_EN__SHIFT) & DIDT_TCP_CTRL0__DIDT_CTRL_EN_MASK);
-		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TCP_CTRL0, data);
-		DIDTBlock_Info &= ~TCP_Enable_MASK;
-		DIDTBlock_Info |= en << TCP_Enable_SHIFT;
-	}
+	block_en = phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DBRamping) ? en : 0;
+
+	data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_DB_CTRL0);
+	data &= ~DIDT_DB_CTRL0__DIDT_CTRL_EN_MASK;
+	data |= ((block_en << DIDT_DB_CTRL0__DIDT_CTRL_EN__SHIFT) & DIDT_DB_CTRL0__DIDT_CTRL_EN_MASK);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_DB_CTRL0, data);
+	didt_block &= ~DB_Enable_MASK;
+	didt_block |= block_en << DB_Enable_SHIFT;
+
+	block_en = phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TDRamping) ? en : 0;
+	data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TD_CTRL0);
+	data &= ~DIDT_TD_CTRL0__DIDT_CTRL_EN_MASK;
+	data |= ((block_en << DIDT_TD_CTRL0__DIDT_CTRL_EN__SHIFT) & DIDT_TD_CTRL0__DIDT_CTRL_EN_MASK);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TD_CTRL0, data);
+	didt_block &= ~TD_Enable_MASK;
+	didt_block |= block_en << TD_Enable_SHIFT;
+
+	block_en = phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TCPRamping) ? en : 0;
+
+	data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TCP_CTRL0);
+	data &= ~DIDT_TCP_CTRL0__DIDT_CTRL_EN_MASK;
+	data |= ((block_en << DIDT_TCP_CTRL0__DIDT_CTRL_EN__SHIFT) & DIDT_TCP_CTRL0__DIDT_CTRL_EN_MASK);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TCP_CTRL0, data);
+	didt_block &= ~TCP_Enable_MASK;
+	didt_block |= block_en << TCP_Enable_SHIFT;
+
 
 	if (enable)
-		result = smum_send_msg_to_smc_with_parameter(hwmgr->smumgr, PPSMC_MSG_Didt_Block_Function, DIDTBlock_Info);
+		result = smum_send_msg_to_smc_with_parameter(hwmgr->smumgr, PPSMC_MSG_Didt_Block_Function, didt_block);
 
 	return result;
 }
@@ -498,7 +750,6 @@ int smu7_enable_didt_config(struct pp_hwmgr *hwmgr)
 	sys_info.info_id = CGS_SYSTEM_INFO_GFX_SE_INFO;
 	result = cgs_query_system_info(hwmgr->device, &sys_info);
 
-
 	if (result == 0)
 		num_se = sys_info.value;
 
@@ -507,7 +758,7 @@ int smu7_enable_didt_config(struct pp_hwmgr *hwmgr)
 		phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TDRamping) ||
 		phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TCPRamping)) {
 
-		/* TO DO Pre DIDT disable clock gating */
+		cgs_enter_safe_mode(hwmgr->device, true);
 		value = 0;
 		value2 = cgs_read_register(hwmgr->device, mmGRBM_GFX_INDEX);
 		for (count = 0; count < num_se; count++) {
@@ -521,10 +772,18 @@ int smu7_enable_didt_config(struct pp_hwmgr *hwmgr)
 				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", return result);
 				result = smu7_program_pt_config_registers(hwmgr, DIDTConfig_Polaris10);
 				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", return result);
-			} else if ((hwmgr->chip_id == CHIP_POLARIS11) || (hwmgr->chip_id == CHIP_POLARIS12)) {
+			} else if (hwmgr->chip_id == CHIP_POLARIS11) {
 				result = smu7_program_pt_config_registers(hwmgr, GCCACConfig_Polaris11);
 				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", return result);
-				result = smu7_program_pt_config_registers(hwmgr, DIDTConfig_Polaris11);
+				if (hwmgr->smumgr->is_kicker)
+					result = smu7_program_pt_config_registers(hwmgr, DIDTConfig_Polaris11_Kicker);
+				else
+					result = smu7_program_pt_config_registers(hwmgr, DIDTConfig_Polaris11);
+				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", return result);
+			} else if (hwmgr->chip_id == CHIP_POLARIS12) {
+				result = smu7_program_pt_config_registers(hwmgr, GCCACConfig_Polaris11);
+				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", return result);
+				result = smu7_program_pt_config_registers(hwmgr, DIDTConfig_Polaris12);
 				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", return result);
 			}
 		}
@@ -533,7 +792,13 @@ int smu7_enable_didt_config(struct pp_hwmgr *hwmgr)
 		result = smu7_enable_didt(hwmgr, true);
 		PP_ASSERT_WITH_CODE((result == 0), "EnableDiDt failed.", return result);
 
-		/* TO DO Post DIDT enable clock gating */
+		if (hwmgr->chip_id == CHIP_POLARIS11) {
+			result = smum_send_msg_to_smc(hwmgr->smumgr,
+						(uint16_t)(PPSMC_MSG_EnableDpmDidt));
+			PP_ASSERT_WITH_CODE((0 == result),
+					"Failed to enable DPM DIDT.", return result);
+		}
+		cgs_enter_safe_mode(hwmgr->device, false);
 	}
 
 	return 0;
@@ -547,11 +812,20 @@ int smu7_disable_didt_config(struct pp_hwmgr *hwmgr)
 		phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DBRamping) ||
 		phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TDRamping) ||
 		phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TCPRamping)) {
-		/* TO DO Pre DIDT disable clock gating */
+
+		cgs_enter_safe_mode(hwmgr->device, true);
 
 		result = smu7_enable_didt(hwmgr, false);
-		PP_ASSERT_WITH_CODE((result == 0), "Post DIDT enable clock gating failed.", return result);
-		/* TO DO Post DIDT enable clock gating */
+		PP_ASSERT_WITH_CODE((result == 0),
+				"Post DIDT enable clock gating failed.",
+				return result);
+		if (hwmgr->chip_id == CHIP_POLARIS11) {
+			result = smum_send_msg_to_smc(hwmgr->smumgr,
+						(uint16_t)(PPSMC_MSG_DisableDpmDidt));
+			PP_ASSERT_WITH_CODE((0 == result),
+					"Failed to disable DPM DIDT.", return result);
+		}
+		cgs_enter_safe_mode(hwmgr->device, false);
 	}
 
 	return 0;
@@ -651,7 +925,7 @@ int smu7_enable_power_containment(struct pp_hwmgr *hwmgr)
 						POWERCONTAINMENT_FEATURE_PkgPwrLimit;
 
 				if (smu7_set_power_limit(hwmgr, default_limit))
-					printk(KERN_ERR "Failed to set Default Power Limit in SMC!");
+					pr_err("Failed to set Default Power Limit in SMC!");
 			}
 		}
 	}

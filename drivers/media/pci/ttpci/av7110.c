@@ -19,11 +19,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  *
  *
  * the project's page is at https://linuxtv.org
@@ -339,6 +336,7 @@ static int DvbDmxFilterCallback(u8 *buffer1, size_t buffer1_len,
 			av7110_p2t_write(buffer1, buffer1_len,
 					 dvbdmxfilter->feed->pid,
 					 &av7110->p2t_filter[dvbdmxfilter->index]);
+		return 0;
 	default:
 		return 0;
 	}
@@ -454,8 +452,12 @@ static void debiirq(unsigned long cookie)
 
 	case DATA_CI_PUT:
 		dprintk(4, "debi DATA_CI_PUT\n");
+		xfer = TX_BUFF;
+		break;
 	case DATA_MPEG_PLAY:
 		dprintk(4, "debi DATA_MPEG_PLAY\n");
+		xfer = TX_BUFF;
+		break;
 	case DATA_BMP_LOAD:
 		dprintk(4, "debi DATA_BMP_LOAD\n");
 		xfer = TX_BUFF;
@@ -2870,7 +2872,7 @@ MAKE_AV7110_INFO(fsc,        "Fujitsu Siemens DVB-C");
 MAKE_AV7110_INFO(fss,        "Fujitsu Siemens DVB-S rev1.6");
 MAKE_AV7110_INFO(gxs_1_3,    "Galaxis DVB-S rev1.3");
 
-static struct pci_device_id pci_tbl[] = {
+static const struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(fsc,         0x110a, 0x0000),
 	MAKE_EXTENSION_PCI(tts_1_X_fsc, 0x13c2, 0x0000),
 	MAKE_EXTENSION_PCI(ttt_1_X,     0x13c2, 0x0001),

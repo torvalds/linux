@@ -16,26 +16,17 @@
  * General Public License for more details.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/device.h>
-#include <linux/clk.h>
-#include <linux/io.h>
-#include <linux/interrupt.h>
-#include <linux/bitops.h>
-#include <linux/slab.h>
-#include <linux/spinlock.h>
-#include <linux/platform_device.h>
-#include <linux/dma-mapping.h>
-#include <linux/of.h>
-#include <linux/of_irq.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
-#include <linux/pm_runtime.h>
-#include <linux/firmware.h>
 #include <linux/debugfs.h>
-#include <linux/seq_file.h>
-#include <linux/string.h>
+#include <linux/dma-mapping.h>
+#include <linux/firmware.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/module.h>
+#include <linux/of_address.h>
+#include <linux/of_device.h>
+#include <linux/of_irq.h>
+#include <linux/pm_runtime.h>
+#include <linux/slab.h>
 #include <linux/soc/ti/knav_qmss.h>
 
 #include "knav_qmss.h"
@@ -753,6 +744,9 @@ void *knav_pool_create(const char *name,
 	unsigned last_offset;
 	bool slot_found;
 	int ret;
+
+	if (!kdev)
+		return ERR_PTR(-EPROBE_DEFER);
 
 	if (!kdev->dev)
 		return ERR_PTR(-ENODEV);

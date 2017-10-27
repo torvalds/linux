@@ -97,7 +97,7 @@ static const struct of_device_id ebi_match[] = {
 static int ap_flash_init(struct platform_device *pdev)
 {
 	struct device_node *ebi;
-	static void __iomem *ebi_base;
+	void __iomem *ebi_base;
 	u32 val;
 	int ret;
 
@@ -252,4 +252,3 @@ int of_flash_probe_versatile(struct platform_device *pdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(of_flash_probe_versatile);

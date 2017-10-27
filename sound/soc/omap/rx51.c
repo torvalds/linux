@@ -123,7 +123,7 @@ static int rx51_hw_params(struct snd_pcm_substream *substream,
 				      SND_SOC_CLOCK_IN);
 }
 
-static struct snd_soc_ops rx51_ops = {
+static const struct snd_soc_ops rx51_ops = {
 	.startup = rx51_startup,
 	.hw_params = rx51_hw_params,
 };
@@ -311,14 +311,6 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 	return err;
 }
 
-static int rx51_card_remove(struct snd_soc_card *card)
-{
-	snd_soc_jack_free_gpios(&rx51_av_jack, ARRAY_SIZE(rx51_av_jack_gpios),
-				rx51_av_jack_gpios);
-
-	return 0;
-}
-
 /* Digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link rx51_dai[] = {
 	{
@@ -361,7 +353,6 @@ static struct snd_soc_codec_conf rx51_codec_conf[] = {
 static struct snd_soc_card rx51_sound_card = {
 	.name = "RX-51",
 	.owner = THIS_MODULE,
-	.remove = rx51_card_remove,
 	.dai_link = rx51_dai,
 	.num_links = ARRAY_SIZE(rx51_dai),
 	.aux_dev = rx51_aux_dev,
@@ -433,10 +424,9 @@ static int rx51_soc_probe(struct platform_device *pdev)
 	}
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (pdata == NULL) {
-		dev_err(card->dev, "failed to create private data\n");
+	if (pdata == NULL)
 		return -ENOMEM;
-	}
+
 	snd_soc_card_set_drvdata(card, pdata);
 
 	pdata->tvout_selection_gpio = devm_gpiod_get(card->dev,

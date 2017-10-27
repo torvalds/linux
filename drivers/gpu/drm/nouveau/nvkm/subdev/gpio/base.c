@@ -164,14 +164,14 @@ static int
 nvkm_gpio_fini(struct nvkm_subdev *subdev, bool suspend)
 {
 	struct nvkm_gpio *gpio = nvkm_gpio(subdev);
-	u32 mask = (1 << gpio->func->lines) - 1;
+	u32 mask = (1ULL << gpio->func->lines) - 1;
 
 	gpio->func->intr_mask(gpio, NVKM_GPIO_TOGGLED, mask, 0);
 	gpio->func->intr_stat(gpio, &mask, &mask);
 	return 0;
 }
 
-static struct dmi_system_id gpio_reset_ids[] = {
+static const struct dmi_system_id gpio_reset_ids[] = {
 	{
 		.ident = "Apple Macbook 10,1",
 		.matches = {

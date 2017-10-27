@@ -465,8 +465,16 @@
 			serial0 {
 				pinctrl_serial0: serial0-0 {
 					st,pins {
-						tx = <&pio17 0 ALT1 OUT>;
-						rx = <&pio17 1 ALT1 IN>;
+						tx =  <&pio17 0 ALT1 OUT>;
+						rx =  <&pio17 1 ALT1 IN>;
+					};
+				};
+				pinctrl_serial0_hw_flowctrl: serial0-0_hw_flowctrl {
+					st,pins {
+						tx =  <&pio17 0 ALT1 OUT>;
+						rx =  <&pio17 1 ALT1 IN>;
+						cts = <&pio17 2 ALT1 IN>;
+						rts = <&pio17 3 ALT1 OUT>;
 					};
 				};
 			};

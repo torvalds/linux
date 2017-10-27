@@ -70,6 +70,8 @@
 	};
 
 	dsa {
+		status = "disabled";
+
 		compatible = "marvell,dsa";
 		#address-cells = <2>;
 		#size-cells = <0>;
@@ -207,6 +209,53 @@
 
 &mdio {
 	status = "okay";
+
+	switch@10 {
+		compatible = "marvell,mv88e6085";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <16>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				label = "ethernet1";
+			};
+
+			port@1 {
+				reg = <1>;
+				label = "ethernet2";
+			};
+
+			port@2 {
+				reg = <2>;
+				label = "ethernet3";
+			};
+
+			port@3 {
+				reg = <3>;
+				label = "ethernet4";
+			};
+
+			port@4 {
+				reg = <4>;
+				label = "internet";
+			};
+
+			port@5 {
+				reg = <5>;
+				label = "cpu";
+				ethernet = <&eth0port>;
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+		};
+	};
 };
 
 &uart0 {

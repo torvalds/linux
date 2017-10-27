@@ -63,7 +63,7 @@ static struct musb_fifo_cfg jz4740_musb_fifo_cfg[] = {
 { .hw_ep_num = 2, .style = FIFO_TX, .maxpacket = 64, },
 };
 
-static struct musb_hdrc_config jz4740_musb_config = {
+static const struct musb_hdrc_config jz4740_musb_config = {
 	/* Silicon does not implement USB OTG. */
 	.multipoint = 0,
 	/* Max EPs scanned, driver will decide which EP can be used. */

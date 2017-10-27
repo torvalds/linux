@@ -39,12 +39,12 @@
 
 #define DEBUG_SUBSYSTEM S_LDLM
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../include/obd.h"
-#include "../include/obd_class.h"
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_net.h"
-#include "../include/lustre_sec.h"
+#include <linux/libcfs/libcfs.h>
+#include <obd.h>
+#include <obd_class.h>
+#include <lustre_dlm.h>
+#include <lustre_net.h>
+#include <lustre_sec.h>
 #include "ldlm_internal.h"
 
 /* @priority: If non-zero, move the selected connection to the list head.
@@ -336,6 +336,7 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	INIT_LIST_HEAD(&cli->cl_lru_list);
 	spin_lock_init(&cli->cl_lru_list_lock);
 	atomic_long_set(&cli->cl_unstable_count, 0);
+	INIT_LIST_HEAD(&cli->cl_shrink_list);
 
 	init_waitqueue_head(&cli->cl_destroy_waitq);
 	atomic_set(&cli->cl_destroy_in_flight, 0);
@@ -350,13 +351,11 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	cli->cl_supp_cksum_types = OBD_CKSUM_CRC32;
 	atomic_set(&cli->cl_resends, OSC_DEFAULT_RESENDS);
 
-	/* This value may be reduced at connect time in
-	 * ptlrpc_connect_interpret() . We initialize it to only
-	 * 1MB until we know what the performance looks like.
-	 * In the future this should likely be increased. LU-1431
+	/*
+	 * Set it to possible maximum size. It may be reduced by ocd_brw_size
+	 * from OFD after connecting.
 	 */
-	cli->cl_max_pages_per_rpc = min_t(int, PTLRPC_MAX_BRW_PAGES,
-					  LNET_MTU >> PAGE_SHIFT);
+	cli->cl_max_pages_per_rpc = PTLRPC_MAX_BRW_PAGES;
 
 	/*
 	 * set cl_chunkbits default value to PAGE_CACHE_SHIFT,
@@ -364,17 +363,16 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	 */
 	cli->cl_chunkbits = PAGE_SHIFT;
 
-	if (!strcmp(name, LUSTRE_MDC_NAME)) {
+	if (!strcmp(name, LUSTRE_MDC_NAME))
 		cli->cl_max_rpcs_in_flight = OBD_MAX_RIF_DEFAULT;
-	} else if (totalram_pages >> (20 - PAGE_SHIFT) <= 128 /* MB */) {
+	else if (totalram_pages >> (20 - PAGE_SHIFT) <= 128 /* MB */)
 		cli->cl_max_rpcs_in_flight = 2;
-	} else if (totalram_pages >> (20 - PAGE_SHIFT) <= 256 /* MB */) {
+	else if (totalram_pages >> (20 - PAGE_SHIFT) <= 256 /* MB */)
 		cli->cl_max_rpcs_in_flight = 3;
-	} else if (totalram_pages >> (20 - PAGE_SHIFT) <= 512 /* MB */) {
+	else if (totalram_pages >> (20 - PAGE_SHIFT) <= 512 /* MB */)
 		cli->cl_max_rpcs_in_flight = 4;
-	} else {
+	else
 		cli->cl_max_rpcs_in_flight = OBD_MAX_RIF_DEFAULT;
-	}
 
 	spin_lock_init(&cli->cl_mod_rpcs_lock);
 	spin_lock_init(&cli->cl_mod_rpcs_hist.oh_lock);
@@ -524,6 +522,8 @@ int client_connect_import(const struct lu_env *env,
 
 	rc = ptlrpc_connect_import(imp);
 	if (rc != 0) {
+		if (data && is_mdc)
+			data->ocd_connect_flags &= ~OBD_CONNECT_MULTIMODRPCS;
 		LASSERT(imp->imp_state == LUSTRE_IMP_DISCON);
 		goto out_ldlm;
 	}

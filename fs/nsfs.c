@@ -7,6 +7,7 @@
 #include <linux/seq_file.h>
 #include <linux/user_namespace.h>
 #include <linux/nsfs.h>
+#include <linux/uaccess.h>
 
 static struct vfsmount *nsfs_mnt;
 
@@ -52,7 +53,6 @@ static void nsfs_evict(struct inode *inode)
 static void *__ns_get_path(struct path *path, struct ns_common *ns)
 {
 	struct vfsmount *mnt = nsfs_mnt;
-	struct qstr qname = { .name = "", };
 	struct dentry *dentry;
 	struct inode *inode;
 	unsigned long d;
@@ -84,12 +84,13 @@ slow:
 	inode->i_fop = &ns_file_operations;
 	inode->i_private = ns;
 
-	dentry = d_alloc_pseudo(mnt->mnt_sb, &qname);
+	dentry = d_alloc_pseudo(mnt->mnt_sb, &empty_name);
 	if (!dentry) {
 		iput(inode);
 		return ERR_PTR(-ENOMEM);
 	}
 	d_instantiate(dentry, inode);
+	dentry->d_flags |= DCACHE_RCUACCESS;
 	dentry->d_fsdata = (void *)ns->ops;
 	d = atomic_long_cmpxchg(&ns->stashed, 0, (unsigned long)dentry);
 	if (d) {
@@ -163,7 +164,10 @@ int open_related_ns(struct ns_common *ns,
 static long ns_ioctl(struct file *filp, unsigned int ioctl,
 			unsigned long arg)
 {
+	struct user_namespace *user_ns;
 	struct ns_common *ns = get_proc_ns(file_inode(filp));
+	uid_t __user *argp;
+	uid_t uid;
 
 	switch (ioctl) {
 	case NS_GET_USERNS:
@@ -172,6 +176,15 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 		if (!ns->ops->get_parent)
 			return -EINVAL;
 		return open_related_ns(ns, ns->ops->get_parent);
+	case NS_GET_NSTYPE:
+		return ns->ops->type;
+	case NS_GET_OWNER_UID:
+		if (ns->ops->type != CLONE_NEWUSER)
+			return -EINVAL;
+		user_ns = container_of(ns, struct user_namespace, ns);
+		argp = (uid_t __user *) arg;
+		uid = from_kuid_munged(current_user_ns(), user_ns->owner);
+		return put_user(uid, argp);
 	default:
 		return -ENOTTY;
 	}
@@ -182,9 +195,11 @@ int ns_get_name(char *buf, size_t size, struct task_struct *task,
 {
 	struct ns_common *ns;
 	int res = -ENOENT;
+	const char *name;
 	ns = ns_ops->get(task);
 	if (ns) {
-		res = snprintf(buf, size, "%s:[%u]", ns_ops->name, ns->inum);
+		name = ns_ops->real_ns_name ? : ns_ops->name;
+		res = snprintf(buf, size, "%s:[%u]", name, ns->inum);
 		ns_ops->put(ns);
 	}
 	return res;

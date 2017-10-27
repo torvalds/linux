@@ -50,7 +50,15 @@
 
 #include "pvrdma_verbs.h"
 
-#define PVRDMA_VERSION			17
+/*
+ * PVRDMA version macros. Some new features require updates to PVRDMA_VERSION.
+ * These macros allow us to check for different features if necessary.
+ */
+
+#define PVRDMA_ROCEV1_VERSION		17
+#define PVRDMA_ROCEV2_VERSION		18
+#define PVRDMA_VERSION			PVRDMA_ROCEV2_VERSION
+
 #define PVRDMA_BOARD_ID			1
 #define PVRDMA_REV_ID			1
 
@@ -123,6 +131,31 @@
 #define PVRDMA_GID_TYPE_FLAG_ROCE_V1	BIT(0)
 #define PVRDMA_GID_TYPE_FLAG_ROCE_V2	BIT(1)
 
+/*
+ * Version checks. This checks whether each version supports specific
+ * capabilities from the device.
+ */
+
+#define PVRDMA_IS_VERSION17(_dev)					\
+	(_dev->dsr_version == PVRDMA_ROCEV1_VERSION &&			\
+	 _dev->dsr->caps.gid_types == PVRDMA_GID_TYPE_FLAG_ROCE_V1)
+
+#define PVRDMA_IS_VERSION18(_dev)					\
+	(_dev->dsr_version >= PVRDMA_ROCEV2_VERSION &&			\
+	 (_dev->dsr->caps.gid_types == PVRDMA_GID_TYPE_FLAG_ROCE_V1 ||  \
+	  _dev->dsr->caps.gid_types == PVRDMA_GID_TYPE_FLAG_ROCE_V2))	\
+
+#define PVRDMA_SUPPORTED(_dev)						\
+	((_dev->dsr->caps.mode == PVRDMA_DEVICE_MODE_ROCE) &&		\
+	 (PVRDMA_IS_VERSION17(_dev) || PVRDMA_IS_VERSION18(_dev)))
+
+/*
+ * Get capability values based on device version.
+ */
+
+#define PVRDMA_GET_CAP(_dev, _old_val, _val) \
+	((PVRDMA_IS_VERSION18(_dev)) ? _val : _old_val)
+
 enum pvrdma_pci_resource {
 	PVRDMA_PCI_RESOURCE_MSIX,	/* BAR0: MSI-X, MMIO. */
 	PVRDMA_PCI_RESOURCE_REG,	/* BAR1: Registers, MMIO. */
@@ -132,7 +165,7 @@ enum pvrdma_pci_resource {
 
 enum pvrdma_device_ctl {
 	PVRDMA_DEVICE_CTL_ACTIVATE,	/* Activate device. */
-	PVRDMA_DEVICE_CTL_QUIESCE,	/* Quiesce device. */
+	PVRDMA_DEVICE_CTL_UNQUIESCE,	/* Unquiesce device. */
 	PVRDMA_DEVICE_CTL_RESET,	/* Reset device. */
 };
 
@@ -147,12 +180,6 @@ enum pvrdma_intr_cause {
 	PVRDMA_INTR_CAUSE_RESPONSE	= (1 << PVRDMA_INTR_VECTOR_RESPONSE),
 	PVRDMA_INTR_CAUSE_ASYNC		= (1 << PVRDMA_INTR_VECTOR_ASYNC),
 	PVRDMA_INTR_CAUSE_CQ		= (1 << PVRDMA_INTR_VECTOR_CQ),
-};
-
-enum pvrdma_intr_type {
-	PVRDMA_INTR_TYPE_INTX,		/* Legacy. */
-	PVRDMA_INTR_TYPE_MSI,		/* MSI. */
-	PVRDMA_INTR_TYPE_MSIX,		/* MSI-X. */
 };
 
 enum pvrdma_gos_bits {
@@ -231,7 +258,7 @@ struct pvrdma_device_caps {
 	u8  atomic_ops;				/* PVRDMA_ATOMIC_OP_* bits */
 	u8  bmme_flags;				/* FRWR Mem Mgmt Extensions */
 	u8  gid_types;				/* PVRDMA_GID_TYPE_FLAG_ */
-	u8  reserved[4];
+	u32 max_fast_reg_page_list_len;
 };
 
 struct pvrdma_ring_page_info {

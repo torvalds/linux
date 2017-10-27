@@ -16,10 +16,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -868,7 +864,7 @@ static int s5h1420_tuner_i2c_tuner_xfer(struct i2c_adapter *i2c_adap, struct i2c
 	return i2c_transfer(state->i2c, m, 1 + num) == 1 + num ? num : -EIO;
 }
 
-static struct i2c_algorithm s5h1420_tuner_i2c_algo = {
+static const struct i2c_algorithm s5h1420_tuner_i2c_algo = {
 	.master_xfer   = s5h1420_tuner_i2c_tuner_xfer,
 	.functionality = s5h1420_tuner_i2c_func,
 };

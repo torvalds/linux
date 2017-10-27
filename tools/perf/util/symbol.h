@@ -13,7 +13,7 @@
 #include <libgen.h>
 #include "build-id.h"
 #include "event.h"
-#include "util.h"
+#include "path.h"
 
 #ifdef HAVE_LIBELF_SUPPORT
 #include <libelf.h>
@@ -118,7 +118,8 @@ struct symbol_conf {
 			show_ref_callgraph,
 			hide_unresolved,
 			raw_trace,
-			report_hierarchy;
+			report_hierarchy,
+			inline_name;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,
@@ -185,6 +186,7 @@ struct addr_map_symbol {
 	struct symbol *sym;
 	u64	      addr;
 	u64	      al_addr;
+	u64	      phys_addr;
 };
 
 struct branch_info {
@@ -272,7 +274,7 @@ int filename__read_build_id(const char *filename, void *bf, size_t size);
 int sysfs__read_build_id(const char *filename, void *bf, size_t size);
 int modules__parse(const char *filename, void *arg,
 		   int (*process_module)(void *arg, const char *name,
-					 u64 start));
+					 u64 start, u64 size));
 int filename__read_debuglink(const char *filename, char *debuglink,
 			     size_t size);
 
@@ -304,6 +306,8 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		  struct symsrc *runtime_ss, int kmodule);
 int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss,
 				struct map *map);
+
+char *dso__demangle_sym(struct dso *dso, int kmodule, const char *elf_name);
 
 void __symbols__insert(struct rb_root *symbols, struct symbol *sym, bool kernel);
 void symbols__insert(struct rb_root *symbols, struct symbol *sym);
@@ -345,12 +349,24 @@ void arch__sym_update(struct symbol *s, GElf_Sym *sym);
 #define SYMBOL_A 0
 #define SYMBOL_B 1
 
+int arch__compare_symbol_names(const char *namea, const char *nameb);
+int arch__compare_symbol_names_n(const char *namea, const char *nameb,
+				 unsigned int n);
 int arch__choose_best_symbol(struct symbol *syma, struct symbol *symb);
+
+enum symbol_tag_include {
+	SYMBOL_TAG_INCLUDE__NONE = 0,
+	SYMBOL_TAG_INCLUDE__DEFAULT_ONLY
+};
+
+int symbol__match_symbol_name(const char *namea, const char *nameb,
+			      enum symbol_tag_include includes);
 
 /* structure containing an SDT note's info */
 struct sdt_note {
 	char *name;			/* name of the note*/
 	char *provider;			/* provider name */
+	char *args;
 	bool bit32;			/* whether the location is 32 bits? */
 	union {				/* location, base and semaphore addrs */
 		Elf64_Addr a64[3];

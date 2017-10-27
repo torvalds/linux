@@ -67,7 +67,6 @@ struct pnfs_layout_segment {
 	u32 pls_seq;
 	unsigned long pls_flags;
 	struct pnfs_layout_hdr *pls_layout;
-	struct work_struct pls_work;
 };
 
 enum pnfs_try_status {
@@ -173,14 +172,9 @@ struct pnfs_layoutdriver_type {
 			gfp_t gfp_flags);
 
 	int (*prepare_layoutreturn) (struct nfs4_layoutreturn_args *);
-	void (*encode_layoutreturn) (struct xdr_stream *xdr,
-				     const struct nfs4_layoutreturn_args *args);
 
 	void (*cleanup_layoutcommit) (struct nfs4_layoutcommit_data *data);
 	int (*prepare_layoutcommit) (struct nfs4_layoutcommit_args *args);
-	void (*encode_layoutcommit) (struct pnfs_layout_hdr *lo,
-				     struct xdr_stream *xdr,
-				     const struct nfs4_layoutcommit_args *args);
 	int (*prepare_layoutstats) (struct nfs42_layoutstat_args *args);
 };
 
@@ -235,10 +229,10 @@ extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp, bool sync);
 /* pnfs.c */
 void pnfs_get_layout_hdr(struct pnfs_layout_hdr *lo);
 void pnfs_put_lseg(struct pnfs_layout_segment *lseg);
-void pnfs_put_lseg_locked(struct pnfs_layout_segment *lseg);
 
 void set_pnfs_layoutdriver(struct nfs_server *, const struct nfs_fh *, struct nfs_fsinfo *);
 void unset_pnfs_layoutdriver(struct nfs_server *);
+void pnfs_generic_pg_check_layout(struct nfs_pageio_descriptor *pgio);
 void pnfs_generic_pg_init_read(struct nfs_pageio_descriptor *, struct nfs_page *);
 int pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc);
 void pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *pgio,
@@ -367,7 +361,7 @@ void nfs4_pnfs_ds_put(struct nfs4_pnfs_ds *ds);
 struct nfs4_pnfs_ds *nfs4_pnfs_ds_add(struct list_head *dsaddrs,
 				      gfp_t gfp_flags);
 void nfs4_pnfs_v3_ds_connect_unload(void);
-void nfs4_pnfs_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds,
+int nfs4_pnfs_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds,
 			  struct nfs4_deviceid_node *devid, unsigned int timeo,
 			  unsigned int retrans, u32 version, u32 minor_version);
 struct nfs4_pnfs_ds_addr *nfs4_decode_mp_ds_addr(struct net *net,
@@ -595,6 +589,16 @@ pnfs_lseg_range_intersecting(const struct pnfs_layout_range *l1,
 	u64 end2 = pnfs_end_offset(l2->offset, l2->length);
 
 	return pnfs_is_range_intersecting(l1->offset, end1, l2->offset, end2);
+}
+
+static inline bool
+pnfs_lseg_request_intersecting(struct pnfs_layout_segment *lseg, struct nfs_page *req)
+{
+	u64 seg_last = pnfs_end_offset(lseg->pls_range.offset, lseg->pls_range.length);
+	u64 req_last = req_offset(req) + req->wb_bytes;
+
+	return pnfs_is_range_intersecting(lseg->pls_range.offset, seg_last,
+				req_offset(req), req_last);
 }
 
 extern unsigned int layoutstats_timer;

@@ -101,12 +101,12 @@ static void lec_vcc_close(struct lec_priv *priv, struct atm_vcc *vcc);
 /* must be done under lec_arp_lock */
 static inline void lec_arp_hold(struct lec_arp_table *entry)
 {
-	atomic_inc(&entry->usage);
+	refcount_inc(&entry->usage);
 }
 
 static inline void lec_arp_put(struct lec_arp_table *entry)
 {
-	if (atomic_dec_and_test(&entry->usage))
+	if (refcount_dec_and_test(&entry->usage))
 		kfree(entry);
 }
 
@@ -181,7 +181,7 @@ lec_send(struct atm_vcc *vcc, struct sk_buff *skb)
 	ATM_SKB(skb)->vcc = vcc;
 	ATM_SKB(skb)->atm_options = vcc->atm_options;
 
-	atomic_add(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc);
+	refcount_add(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc);
 	if (vcc->send(vcc, skb) < 0) {
 		dev->stats.tx_dropped++;
 		return;
@@ -345,7 +345,7 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 	int i;
 	char *tmp;		/* FIXME */
 
-	atomic_sub(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc);
+	WARN_ON(refcount_sub_and_test(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc));
 	mesg = (struct atmlec_msg *)skb->data;
 	tmp = skb->data;
 	tmp += sizeof(struct atmlec_msg);
@@ -486,7 +486,7 @@ static void lec_atm_close(struct atm_vcc *vcc)
 	module_put(THIS_MODULE);
 }
 
-static struct atmdev_ops lecdev_ops = {
+static const struct atmdev_ops lecdev_ops = {
 	.close = lec_atm_close,
 	.send = lec_atm_send
 };
@@ -1564,7 +1564,7 @@ static struct lec_arp_table *make_entry(struct lec_priv *priv,
 	to_return->last_used = jiffies;
 	to_return->priv = priv;
 	skb_queue_head_init(&to_return->tx_wait);
-	atomic_set(&to_return->usage, 1);
+	refcount_set(&to_return->usage, 1);
 	return to_return;
 }
 

@@ -111,7 +111,7 @@ ssize_t drm_dp_dual_mode_write(struct i2c_adapter *adapter,
 	void *data;
 	int ret;
 
-	data = kmalloc(msg.len, GFP_TEMPORARY);
+	data = kmalloc(msg.len, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -386,6 +386,8 @@ const char *drm_dp_get_dual_mode_type_name(enum drm_dp_dual_mode_type type)
 		return "type 2 DVI";
 	case DRM_DP_DUAL_MODE_TYPE2_HDMI:
 		return "type 2 HDMI";
+	case DRM_DP_DUAL_MODE_LSPCON:
+		return "lspcon";
 	default:
 		WARN_ON(type != DRM_DP_DUAL_MODE_UNKNOWN);
 		return "unknown";

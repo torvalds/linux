@@ -23,6 +23,8 @@
 #ifndef _OCTEON_MAIN_H_
 #define  _OCTEON_MAIN_H_
 
+#include <linux/sched/signal.h>
+
 #if BITS_PER_LONG == 32
 #define CVM_CAST64(v) ((long long)(v))
 #elif BITS_PER_LONG == 64
@@ -32,6 +34,12 @@
 #endif
 
 #define DRV_NAME "LiquidIO"
+
+struct octeon_device_priv {
+	/** Tasklet structures for this device. */
+	struct tasklet_struct droq_tasklet;
+	unsigned long napi_mask;
+};
 
 /** This structure is used by NIC driver to store information required
  * to free the sk_buff when the packet has been fetched by Octeon.
@@ -138,53 +146,11 @@ err_release_region:
 	return 1;
 }
 
-static inline void *
-cnnic_numa_alloc_aligned_dma(u32 size,
-			     u32 *alloc_size,
-			     size_t *orig_ptr,
-			     int numa_node)
-{
-	int retries = 0;
-	void *ptr = NULL;
-
-#define OCTEON_MAX_ALLOC_RETRIES     1
-	do {
-		struct page *page = NULL;
-
-		page = alloc_pages_node(numa_node,
-					GFP_KERNEL,
-					get_order(size));
-		if (!page)
-			page = alloc_pages(GFP_KERNEL,
-					   get_order(size));
-		ptr = (void *)page_address(page);
-		if ((unsigned long)ptr & 0x07) {
-			__free_pages(page, get_order(size));
-			ptr = NULL;
-			/* Increment the size required if the first
-			 * attempt failed.
-			 */
-			if (!retries)
-				size += 7;
-		}
-		retries++;
-	} while ((retries <= OCTEON_MAX_ALLOC_RETRIES) && !ptr);
-
-	*alloc_size = size;
-	*orig_ptr = (unsigned long)ptr;
-	if ((unsigned long)ptr & 0x07)
-		ptr = (void *)(((unsigned long)ptr + 7) & ~(7UL));
-	return ptr;
-}
-
-#define cnnic_free_aligned_dma(pci_dev, ptr, size, orig_ptr, dma_addr) \
-		free_pages(orig_ptr, get_order(size))
-
 static inline int
 sleep_cond(wait_queue_head_t *wait_queue, int *condition)
 {
 	int errno = 0;
-	wait_queue_t we;
+	wait_queue_entry_t we;
 
 	init_waitqueue_entry(&we, current);
 	add_wait_queue(wait_queue, &we);
@@ -211,7 +177,7 @@ sleep_timeout_cond(wait_queue_head_t *wait_queue,
 		   int *condition,
 		   int timeout)
 {
-	wait_queue_t we;
+	wait_queue_entry_t we;
 
 	init_waitqueue_entry(&we, current);
 	add_wait_queue(wait_queue, &we);

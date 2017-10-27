@@ -41,8 +41,6 @@ static struct sync_file *sync_file_alloc(void)
 	if (IS_ERR(sync_file->file))
 		goto err;
 
-	kref_init(&sync_file->kref);
-
 	init_waitqueue_head(&sync_file->wq);
 
 	INIT_LIST_HEAD(&sync_file->cb.node);
@@ -67,9 +65,10 @@ static void fence_check_cb_func(struct dma_fence *f, struct dma_fence_cb *cb)
  * sync_file_create() - creates a sync file
  * @fence:	fence to add to the sync_fence
  *
- * Creates a sync_file containg @fence. Once this is called, the sync_file
- * takes ownership of @fence. The sync_file can be released with
- * fput(sync_file->file). Returns the sync_file or NULL in case of error.
+ * Creates a sync_file containg @fence. This function acquires and additional
+ * reference of @fence for the newly-created &sync_file, if it succeeds. The
+ * sync_file can be released with fput(sync_file->file). Returns the
+ * sync_file or NULL in case of error.
  */
 struct sync_file *sync_file_create(struct dma_fence *fence)
 {
@@ -81,22 +80,10 @@ struct sync_file *sync_file_create(struct dma_fence *fence)
 
 	sync_file->fence = dma_fence_get(fence);
 
-	snprintf(sync_file->name, sizeof(sync_file->name), "%s-%s%llu-%d",
-		 fence->ops->get_driver_name(fence),
-		 fence->ops->get_timeline_name(fence), fence->context,
-		 fence->seqno);
-
 	return sync_file;
 }
 EXPORT_SYMBOL(sync_file_create);
 
-/**
- * sync_file_fdget() - get a sync_file from an fd
- * @fd:		fd referencing a fence
- *
- * Ensures @fd references a valid sync_file, increments the refcount of the
- * backing file. Returns the sync_file or NULL in case of error.
- */
 static struct sync_file *sync_file_fdget(int fd)
 {
 	struct file *file = fget(fd);
@@ -136,6 +123,36 @@ struct dma_fence *sync_file_get_fence(int fd)
 	return fence;
 }
 EXPORT_SYMBOL(sync_file_get_fence);
+
+/**
+ * sync_file_get_name - get the name of the sync_file
+ * @sync_file:		sync_file to get the fence from
+ * @buf:		destination buffer to copy sync_file name into
+ * @len:		available size of destination buffer.
+ *
+ * Each sync_file may have a name assigned either by the user (when merging
+ * sync_files together) or created from the fence it contains. In the latter
+ * case construction of the name is deferred until use, and so requires
+ * sync_file_get_name().
+ *
+ * Returns: a string representing the name.
+ */
+char *sync_file_get_name(struct sync_file *sync_file, char *buf, int len)
+{
+	if (sync_file->user_name[0]) {
+		strlcpy(buf, sync_file->user_name, len);
+	} else {
+		struct dma_fence *fence = sync_file->fence;
+
+		snprintf(buf, len, "%s-%s%llu-%d",
+			 fence->ops->get_driver_name(fence),
+			 fence->ops->get_timeline_name(fence),
+			 fence->context,
+			 fence->seqno);
+	}
+
+	return buf;
+}
 
 static int sync_file_set_fence(struct sync_file *sync_file,
 			       struct dma_fence **fences, int num_fences)
@@ -274,7 +291,7 @@ static struct sync_file *sync_file_merge(const char *name, struct sync_file *a,
 		goto err;
 	}
 
-	strlcpy(sync_file->name, name, sizeof(sync_file->name));
+	strlcpy(sync_file->user_name, name, sizeof(sync_file->user_name));
 	return sync_file;
 
 err:
@@ -283,22 +300,15 @@ err:
 
 }
 
-static void sync_file_free(struct kref *kref)
-{
-	struct sync_file *sync_file = container_of(kref, struct sync_file,
-						     kref);
-
-	if (test_bit(POLL_ENABLED, &sync_file->fence->flags))
-		dma_fence_remove_callback(sync_file->fence, &sync_file->cb);
-	dma_fence_put(sync_file->fence);
-	kfree(sync_file);
-}
-
 static int sync_file_release(struct inode *inode, struct file *file)
 {
 	struct sync_file *sync_file = file->private_data;
 
-	kref_put(&sync_file->kref, sync_file_free);
+	if (test_bit(POLL_ENABLED, &sync_file->flags))
+		dma_fence_remove_callback(sync_file->fence, &sync_file->cb);
+	dma_fence_put(sync_file->fence);
+	kfree(sync_file);
+
 	return 0;
 }
 
@@ -308,7 +318,8 @@ static unsigned int sync_file_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &sync_file->wq, wait);
 
-	if (!test_and_set_bit(POLL_ENABLED, &sync_file->fence->flags)) {
+	if (list_empty(&sync_file->cb.node) &&
+	    !test_and_set_bit(POLL_ENABLED, &sync_file->flags)) {
 		if (dma_fence_add_callback(sync_file->fence, &sync_file->cb,
 					   fence_check_cb_func) < 0)
 			wake_up_all(&sync_file->wq);
@@ -372,18 +383,24 @@ err_put_fd:
 	return err;
 }
 
-static void sync_fill_fence_info(struct dma_fence *fence,
+static int sync_fill_fence_info(struct dma_fence *fence,
 				 struct sync_fence_info *info)
 {
 	strlcpy(info->obj_name, fence->ops->get_timeline_name(fence),
 		sizeof(info->obj_name));
 	strlcpy(info->driver_name, fence->ops->get_driver_name(fence),
 		sizeof(info->driver_name));
-	if (dma_fence_is_signaled(fence))
-		info->status = fence->status >= 0 ? 1 : fence->status;
-	else
-		info->status = 0;
-	info->timestamp_ns = ktime_to_ns(fence->timestamp);
+
+	info->status = dma_fence_get_status(fence);
+	while (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags) &&
+	       !test_bit(DMA_FENCE_FLAG_TIMESTAMP_BIT, &fence->flags))
+		cpu_relax();
+	info->timestamp_ns =
+		test_bit(DMA_FENCE_FLAG_TIMESTAMP_BIT, &fence->flags) ?
+		ktime_to_ns(fence->timestamp) :
+		ktime_set(0, 0);
+
+	return info->status;
 }
 
 static long sync_file_ioctl_fence_info(struct sync_file *sync_file,
@@ -409,8 +426,12 @@ static long sync_file_ioctl_fence_info(struct sync_file *sync_file,
 	 * sync_fence_info and return the actual number of fences on
 	 * info->num_fences.
 	 */
-	if (!info.num_fences)
+	if (!info.num_fences) {
+		info.status = dma_fence_is_signaled(sync_file->fence);
 		goto no_fences;
+	} else {
+		info.status = 1;
+	}
 
 	if (info.num_fences < num_fences)
 		return -EINVAL;
@@ -420,8 +441,10 @@ static long sync_file_ioctl_fence_info(struct sync_file *sync_file,
 	if (!fence_info)
 		return -ENOMEM;
 
-	for (i = 0; i < num_fences; i++)
-		sync_fill_fence_info(fences[i], &fence_info[i]);
+	for (i = 0; i < num_fences; i++) {
+		int status = sync_fill_fence_info(fences[i], &fence_info[i]);
+		info.status = info.status <= 0 ? info.status : status;
+	}
 
 	if (copy_to_user(u64_to_user_ptr(info.sync_fence_info), fence_info,
 			 size)) {
@@ -430,8 +453,7 @@ static long sync_file_ioctl_fence_info(struct sync_file *sync_file,
 	}
 
 no_fences:
-	strlcpy(info.name, sync_file->name, sizeof(info.name));
-	info.status = dma_fence_is_signaled(sync_file->fence);
+	sync_file_get_name(sync_file, info.name, sizeof(info.name));
 	info.num_fences = num_fences;
 
 	if (copy_to_user((void __user *)arg, &info, sizeof(info)))
@@ -468,4 +490,3 @@ static const struct file_operations sync_file_fops = {
 	.unlocked_ioctl = sync_file_ioctl,
 	.compat_ioctl = sync_file_ioctl,
 };
-

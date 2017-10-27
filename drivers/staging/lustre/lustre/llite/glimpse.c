@@ -36,18 +36,18 @@
  *   Author: Oleg Drokin <oleg.drokin@sun.com>
  */
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
-#include "../include/obd.h"
+#include <linux/libcfs/libcfs.h>
+#include <obd_class.h>
+#include <obd_support.h>
+#include <obd.h>
 
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_mdc.h"
+#include <lustre_dlm.h>
+#include <lustre_mdc.h>
 #include <linux/pagemap.h>
 #include <linux/file.h>
 
-#include "../include/cl_object.h"
-#include "../llite/llite_internal.h"
+#include <cl_object.h>
+#include "llite_internal.h"
 
 static const struct cl_lock_descr whole_file = {
 	.cld_start = 0,
@@ -138,7 +138,7 @@ int cl_glimpse_lock(const struct lu_env *env, struct cl_io *io,
 }
 
 static int cl_io_get(struct inode *inode, struct lu_env **envout,
-		     struct cl_io **ioout, int *refcheck)
+		     struct cl_io **ioout, u16 *refcheck)
 {
 	struct lu_env	  *env;
 	struct cl_io	   *io;
@@ -178,7 +178,7 @@ int cl_glimpse_size0(struct inode *inode, int agl)
 	struct lu_env	  *env = NULL;
 	struct cl_io	   *io  = NULL;
 	int		     result;
-	int		     refcheck;
+	u16 refcheck;
 
 	result = cl_io_get(inode, &env, &io, &refcheck);
 	if (result > 0) {

@@ -38,22 +38,22 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LOV
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-#include "../include/lustre/lustre_idl.h"
-#include "../include/lustre/lustre_ioctl.h"
+#include <uapi/linux/lustre/lustre_idl.h>
+#include <uapi/linux/lustre/lustre_ioctl.h>
 
-#include "../include/cl_object.h"
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_fid.h"
-#include "../include/lustre_lib.h"
-#include "../include/lustre_mds.h"
-#include "../include/lustre_net.h"
-#include "../include/lustre_param.h"
-#include "../include/lustre_swab.h"
-#include "../include/lprocfs_status.h"
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
+#include <cl_object.h>
+#include <lustre_dlm.h>
+#include <lustre_fid.h>
+#include <lustre_lib.h>
+#include <lustre_mds.h>
+#include <lustre_net.h>
+#include <uapi/linux/lustre/lustre_param.h>
+#include <lustre_swab.h>
+#include <lprocfs_status.h>
+#include <obd_class.h>
+#include <obd_support.h>
 
 #include "lov_internal.h"
 
@@ -68,7 +68,6 @@ static void lov_getref(struct obd_device *obd)
 	mutex_lock(&lov->lov_lock);
 	atomic_inc(&lov->lov_refcount);
 	mutex_unlock(&lov->lov_lock);
-	return;
 }
 
 static void __lov_del_obd(struct obd_device *obd, struct lov_tgt_desc *tgt);
@@ -592,8 +591,6 @@ static int lov_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 	CDEBUG(D_CONFIG, "idx=%d ltd_gen=%d ld_tgt_count=%d\n",
 	       index, tgt->ltd_gen, lov->desc.ld_tgt_count);
 
-	rc = obd_notify(obd, tgt_obd, OBD_NOTIFY_CREATE, &index);
-
 	if (lov->lov_connects == 0) {
 		/* lov_connect hasn't been called yet. We'll do the
 		 * lov_connect_obd on this target when that fn first runs,
@@ -950,7 +947,8 @@ out:
 	return rc;
 }
 
-int lov_statfs_interpret(struct ptlrpc_request_set *rqset, void *data, int rc)
+static int
+lov_statfs_interpret(struct ptlrpc_request_set *rqset, void *data, int rc)
 {
 	struct lov_request_set *lovset = (struct lov_request_set *)data;
 	int err;
@@ -1089,17 +1087,17 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		data = (struct obd_ioctl_data *)buf;
 
 		if (sizeof(*desc) > data->ioc_inllen1) {
-			obd_ioctl_freedata(buf, len);
+			kvfree(buf);
 			return -EINVAL;
 		}
 
 		if (sizeof(uuidp->uuid) * count > data->ioc_inllen2) {
-			obd_ioctl_freedata(buf, len);
+			kvfree(buf);
 			return -EINVAL;
 		}
 
 		if (sizeof(__u32) * count > data->ioc_inllen3) {
-			obd_ioctl_freedata(buf, len);
+			kvfree(buf);
 			return -EINVAL;
 		}
 
@@ -1118,7 +1116,7 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 
 		if (copy_to_user(uarg, buf, len))
 			rc = -EFAULT;
-		obd_ioctl_freedata(buf, len);
+		kvfree(buf);
 		break;
 	}
 	case OBD_IOC_QUOTACTL: {

@@ -15,7 +15,6 @@
 	((unlikely(pgd_none(*(pud))) && __pmd_alloc(mm, pud, address))? \
  		NULL: pmd_offset(pud, address))
 
-#define pud_alloc(mm, pgd, address)	(pgd)
 #define pud_offset(pgd, start)		(pgd)
 #define pud_none(pud)			0
 #define pud_bad(pud)			0
@@ -34,5 +33,7 @@
 
 #undef  pud_addr_end
 #define pud_addr_end(addr, end)		(end)
+
+#include <asm-generic/5level-fixup.h>
 
 #endif

@@ -575,7 +575,7 @@ static void metag_dma_sync_sg_for_device(struct device *dev,
 		dma_sync_for_device(sg_virt(sg), sg->length, direction);
 }
 
-struct dma_map_ops metag_dma_ops = {
+const struct dma_map_ops metag_dma_ops = {
 	.alloc			= metag_dma_alloc,
 	.free			= metag_dma_free,
 	.map_page		= metag_dma_map_page,

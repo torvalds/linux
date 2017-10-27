@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -298,7 +298,7 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 					NULL, &return_desc->integer.value);
 		break;
 
-	case AML_CONCAT_OP:	/* Concatenate (Data1, Data2, Result) */
+	case AML_CONCATENATE_OP:	/* Concatenate (Data1, Data2, Result) */
 
 		status =
 		    acpi_ex_do_concatenate(operand[0], operand[1], &return_desc,
@@ -343,7 +343,7 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 		       operand[0]->buffer.pointer, length);
 		break;
 
-	case AML_CONCAT_RES_OP:
+	case AML_CONCATENATE_TEMPLATE_OP:
 
 		/* concatenate_res_template (Buffer, Buffer, Result) (ACPI 2.0) */
 
@@ -414,6 +414,9 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 
 		default:
 
+			ACPI_ERROR((AE_INFO,
+				    "Invalid object type: %X",
+				    (operand[0])->common.type));
 			status = AE_AML_INTERNAL;
 			goto cleanup;
 		}

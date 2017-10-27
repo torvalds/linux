@@ -7,6 +7,9 @@
 #include "lkdtm.h"
 #include <linux/list.h>
 #include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/task_stack.h>
+#include <linux/uaccess.h>
 
 struct lkdtm_list {
 	struct list_head node;
@@ -66,7 +69,7 @@ void lkdtm_WARNING(void)
 
 void lkdtm_EXCEPTION(void)
 {
-	*((int *) 0) = 0;
+	*((volatile int *) 0) = 0;
 }
 
 void lkdtm_LOOP(void)
@@ -80,13 +83,33 @@ void lkdtm_OVERFLOW(void)
 	(void) recursive_loop(recur_count);
 }
 
+static noinline void __lkdtm_CORRUPT_STACK(void *stack)
+{
+	memset(stack, '\xff', 64);
+}
+
+/* This should trip the stack canary, not corrupt the return address. */
 noinline void lkdtm_CORRUPT_STACK(void)
 {
 	/* Use default char array length that triggers stack protection. */
-	char data[8];
+	char data[8] __aligned(sizeof(void *));
 
-	memset((void *)data, 'a', 64);
-	pr_info("Corrupted stack with '%16s'...\n", data);
+	__lkdtm_CORRUPT_STACK(&data);
+
+	pr_info("Corrupted stack containing char array ...\n");
+}
+
+/* Same as above but will only get a canary with -fstack-protector-strong */
+noinline void lkdtm_CORRUPT_STACK_STRONG(void)
+{
+	union {
+		unsigned short shorts[4];
+		unsigned long *ptr;
+	} data __aligned(sizeof(void *));
+
+	__lkdtm_CORRUPT_STACK(&data);
+
+	pr_info("Corrupted stack containing union ...\n");
 }
 
 void lkdtm_UNALIGNED_LOAD_STORE_WRITE(void)
@@ -127,30 +150,6 @@ void lkdtm_HUNG_TASK(void)
 {
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	schedule();
-}
-
-void lkdtm_ATOMIC_UNDERFLOW(void)
-{
-	atomic_t under = ATOMIC_INIT(INT_MIN);
-
-	pr_info("attempting good atomic increment\n");
-	atomic_inc(&under);
-	atomic_dec(&under);
-
-	pr_info("attempting bad atomic underflow\n");
-	atomic_dec(&under);
-}
-
-void lkdtm_ATOMIC_OVERFLOW(void)
-{
-	atomic_t over = ATOMIC_INIT(INT_MAX);
-
-	pr_info("attempting good atomic decrement\n");
-	atomic_dec(&over);
-	atomic_inc(&over);
-
-	pr_info("attempting bad atomic overflow\n");
-	atomic_inc(&over);
 }
 
 void lkdtm_CORRUPT_LIST_ADD(void)
@@ -214,4 +213,42 @@ void lkdtm_CORRUPT_LIST_DEL(void)
 		pr_err("Overwrite did not happen, but no BUG?!\n");
 	else
 		pr_err("list_del() corruption not detected!\n");
+}
+
+/* Test if unbalanced set_fs(KERNEL_DS)/set_fs(USER_DS) check exists. */
+void lkdtm_CORRUPT_USER_DS(void)
+{
+	pr_info("setting bad task size limit\n");
+	set_fs(KERNEL_DS);
+
+	/* Make sure we do not keep running with a KERNEL_DS! */
+	force_sig(SIGKILL, current);
+}
+
+/* Test that VMAP_STACK is actually allocating with a leading guard page */
+void lkdtm_STACK_GUARD_PAGE_LEADING(void)
+{
+	const unsigned char *stack = task_stack_page(current);
+	const unsigned char *ptr = stack - 1;
+	volatile unsigned char byte;
+
+	pr_info("attempting bad read from page below current stack\n");
+
+	byte = *ptr;
+
+	pr_err("FAIL: accessed page before stack!\n");
+}
+
+/* Test that VMAP_STACK is actually allocating with a trailing guard page */
+void lkdtm_STACK_GUARD_PAGE_TRAILING(void)
+{
+	const unsigned char *stack = task_stack_page(current);
+	const unsigned char *ptr = stack + THREAD_SIZE;
+	volatile unsigned char byte;
+
+	pr_info("attempting bad read from page above current stack\n");
+
+	byte = *ptr;
+
+	pr_err("FAIL: accessed page after stack!\n");
 }

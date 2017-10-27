@@ -17,7 +17,6 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
-#include <linux/of_graph.h>
 
 #include <drm/drm_of.h>
 #include <drm/drm_crtc_helper.h>
@@ -604,6 +603,72 @@ static void dsi_encoder_enable(struct drm_encoder *encoder)
 	dsi->enable = true;
 }
 
+static enum drm_mode_status dsi_encoder_phy_mode_valid(
+					struct drm_encoder *encoder,
+					const struct drm_display_mode *mode)
+{
+	struct dw_dsi *dsi = encoder_to_dsi(encoder);
+	struct mipi_phy_params phy;
+	u32 bpp = mipi_dsi_pixel_format_to_bpp(dsi->format);
+	u32 req_kHz, act_kHz, lane_byte_clk_kHz;
+
+	/* Calculate the lane byte clk using the adjusted mode clk */
+	memset(&phy, 0, sizeof(phy));
+	req_kHz = mode->clock * bpp / dsi->lanes;
+	act_kHz = dsi_calc_phy_rate(req_kHz, &phy);
+	lane_byte_clk_kHz = act_kHz / 8;
+
+	DRM_DEBUG_DRIVER("Checking mode %ix%i-%i@%i clock: %i...",
+			mode->hdisplay, mode->vdisplay, bpp,
+			drm_mode_vrefresh(mode), mode->clock);
+
+	/*
+	 * Make sure the adjusted mode clock and the lane byte clk
+	 * have a common denominator base frequency
+	 */
+	if (mode->clock/dsi->lanes == lane_byte_clk_kHz/3) {
+		DRM_DEBUG_DRIVER("OK!\n");
+		return MODE_OK;
+	}
+
+	DRM_DEBUG_DRIVER("BAD!\n");
+	return MODE_BAD;
+}
+
+static enum drm_mode_status dsi_encoder_mode_valid(struct drm_encoder *encoder,
+					const struct drm_display_mode *mode)
+
+{
+	const struct drm_crtc_helper_funcs *crtc_funcs = NULL;
+	struct drm_crtc *crtc = NULL;
+	struct drm_display_mode adj_mode;
+	enum drm_mode_status ret;
+
+	/*
+	 * The crtc might adjust the mode, so go through the
+	 * possible crtcs (technically just one) and call
+	 * mode_fixup to figure out the adjusted mode before we
+	 * validate it.
+	 */
+	drm_for_each_crtc(crtc, encoder->dev) {
+		/*
+		 * reset adj_mode to the mode value each time,
+		 * so we don't adjust the mode twice
+		 */
+		drm_mode_copy(&adj_mode, mode);
+
+		crtc_funcs = crtc->helper_private;
+		if (crtc_funcs && crtc_funcs->mode_fixup)
+			if (!crtc_funcs->mode_fixup(crtc, mode, &adj_mode))
+				return MODE_BAD;
+
+		ret = dsi_encoder_phy_mode_valid(encoder, &adj_mode);
+		if (ret != MODE_OK)
+			return ret;
+	}
+	return MODE_OK;
+}
+
 static void dsi_encoder_mode_set(struct drm_encoder *encoder,
 				 struct drm_display_mode *mode,
 				 struct drm_display_mode *adj_mode)
@@ -623,6 +688,7 @@ static int dsi_encoder_atomic_check(struct drm_encoder *encoder,
 
 static const struct drm_encoder_helper_funcs dw_encoder_helper_funcs = {
 	.atomic_check	= dsi_encoder_atomic_check,
+	.mode_valid	= dsi_encoder_mode_valid,
 	.mode_set	= dsi_encoder_mode_set,
 	.enable		= dsi_encoder_enable,
 	.disable	= dsi_encoder_disable
@@ -709,10 +775,7 @@ static int dsi_bridge_init(struct drm_device *dev, struct dw_dsi *dsi)
 	int ret;
 
 	/* associate the bridge to dsi encoder */
-	encoder->bridge = bridge;
-	bridge->encoder = encoder;
-
-	ret = drm_bridge_attach(dev, bridge);
+	ret = drm_bridge_attach(encoder, bridge, NULL);
 	if (ret) {
 		DRM_ERROR("failed to attach external bridge\n");
 		return ret;
@@ -757,34 +820,16 @@ static int dsi_parse_dt(struct platform_device *pdev, struct dw_dsi *dsi)
 {
 	struct dsi_hw_ctx *ctx = dsi->ctx;
 	struct device_node *np = pdev->dev.of_node;
-	struct device_node *endpoint, *bridge_node;
-	struct drm_bridge *bridge;
 	struct resource *res;
+	int ret;
 
 	/*
 	 * Get the endpoint node. In our case, dsi has one output port1
 	 * to which the external HDMI bridge is connected.
 	 */
-	endpoint = of_graph_get_endpoint_by_regs(np, 1, -1);
-	if (!endpoint) {
-		DRM_ERROR("no valid endpoint node\n");
-		return -ENODEV;
-	}
-	of_node_put(endpoint);
-
-	bridge_node = of_graph_get_remote_port_parent(endpoint);
-	if (!bridge_node) {
-		DRM_ERROR("no valid bridge node\n");
-		return -ENODEV;
-	}
-	of_node_put(bridge_node);
-
-	bridge = of_drm_find_bridge(bridge_node);
-	if (!bridge) {
-		DRM_INFO("wait for external HDMI bridge driver.\n");
-		return -EPROBE_DEFER;
-	}
-	dsi->bridge = bridge;
+	ret = drm_of_find_panel_or_bridge(np, 1, 0, NULL, &dsi->bridge);
+	if (ret)
+		return ret;
 
 	ctx->pclk = devm_clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(ctx->pclk)) {

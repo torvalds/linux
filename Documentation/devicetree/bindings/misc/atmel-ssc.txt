@@ -24,6 +24,8 @@ Optional properties:
        this parameter to choose where the clock from.
      - By default the clock is from TK pin, if the clock from RK pin, this
        property is needed.
+  - #sound-dai-cells: Should contain <0>.
+     - This property makes the SSC into an automatically registered DAI.
 
 Examples:
 - PDC transfer:
@@ -45,5 +47,4 @@ ssc0: ssc@f0010000 {
       dma-names = "tx", "rx";
       pinctrl-names = "default";
       pinctrl-0 = <&pinctrl_ssc0_tx &pinctrl_ssc0_rx>;
-      status = "disabled";
 };

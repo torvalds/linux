@@ -14,7 +14,7 @@
 #ifndef _DT_BINDINGS_CLK_MSM_RPMCC_H
 #define _DT_BINDINGS_CLK_MSM_RPMCC_H
 
-/* apq8064 */
+/* RPM clocks */
 #define RPM_PXO_CLK				0
 #define RPM_PXO_A_CLK				1
 #define RPM_CXO_CLK				2
@@ -38,7 +38,7 @@
 #define RPM_SFPB_CLK				20
 #define RPM_SFPB_A_CLK				21
 
-/* msm8916 */
+/* SMD RPM clocks */
 #define RPM_SMD_XO_CLK_SRC				0
 #define RPM_SMD_XO_A_CLK_SRC			1
 #define RPM_SMD_PCNOC_CLK				2
@@ -65,5 +65,41 @@
 #define RPM_SMD_RF_CLK1_A_PIN			23
 #define RPM_SMD_RF_CLK2_PIN				24
 #define RPM_SMD_RF_CLK2_A_PIN			25
+#define RPM_SMD_PNOC_CLK			26
+#define RPM_SMD_PNOC_A_CLK			27
+#define RPM_SMD_CNOC_CLK			28
+#define RPM_SMD_CNOC_A_CLK			29
+#define RPM_SMD_MMSSNOC_AHB_CLK			30
+#define RPM_SMD_MMSSNOC_AHB_A_CLK		31
+#define RPM_SMD_GFX3D_CLK_SRC			32
+#define RPM_SMD_GFX3D_A_CLK_SRC			33
+#define RPM_SMD_OCMEMGX_CLK			34
+#define RPM_SMD_OCMEMGX_A_CLK			35
+#define RPM_SMD_CXO_D0				36
+#define RPM_SMD_CXO_D0_A			37
+#define RPM_SMD_CXO_D1				38
+#define RPM_SMD_CXO_D1_A			39
+#define RPM_SMD_CXO_A0				40
+#define RPM_SMD_CXO_A0_A			41
+#define RPM_SMD_CXO_A1				42
+#define RPM_SMD_CXO_A1_A			43
+#define RPM_SMD_CXO_A2				44
+#define RPM_SMD_CXO_A2_A			45
+#define RPM_SMD_DIV_CLK1			46
+#define RPM_SMD_DIV_A_CLK1			47
+#define RPM_SMD_DIV_CLK2			48
+#define RPM_SMD_DIV_A_CLK2			49
+#define RPM_SMD_DIFF_CLK			50
+#define RPM_SMD_DIFF_A_CLK			51
+#define RPM_SMD_CXO_D0_PIN			52
+#define RPM_SMD_CXO_D0_A_PIN			53
+#define RPM_SMD_CXO_D1_PIN			54
+#define RPM_SMD_CXO_D1_A_PIN			55
+#define RPM_SMD_CXO_A0_PIN			56
+#define RPM_SMD_CXO_A0_A_PIN			57
+#define RPM_SMD_CXO_A1_PIN			58
+#define RPM_SMD_CXO_A1_A_PIN			59
+#define RPM_SMD_CXO_A2_PIN			60
+#define RPM_SMD_CXO_A2_A_PIN			61
 
 #endif

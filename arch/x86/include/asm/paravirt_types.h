@@ -51,6 +51,7 @@ struct mm_struct;
 struct desc_struct;
 struct task_struct;
 struct cpumask;
+struct flush_tlb_info;
 
 /*
  * Wrapper type for pointers to code which uses the non-standard
@@ -83,7 +84,7 @@ struct pv_init_ops {
 	 */
 	unsigned (*patch)(u8 type, u16 clobber, void *insnbuf,
 			  unsigned long addr, unsigned len);
-};
+} __no_randomize_layout;
 
 
 struct pv_lazy_ops {
@@ -91,12 +92,12 @@ struct pv_lazy_ops {
 	void (*enter)(void);
 	void (*leave)(void);
 	void (*flush)(void);
-};
+} __no_randomize_layout;
 
 struct pv_time_ops {
 	unsigned long long (*sched_clock)(void);
 	unsigned long long (*steal_clock)(int cpu);
-};
+} __no_randomize_layout;
 
 struct pv_cpu_ops {
 	/* hooks for various privileged instructions */
@@ -106,7 +107,6 @@ struct pv_cpu_ops {
 	unsigned long (*read_cr0)(void);
 	void (*write_cr0)(unsigned long);
 
-	unsigned long (*read_cr4)(void);
 	void (*write_cr4)(unsigned long);
 
 #ifdef CONFIG_X86_64
@@ -118,8 +118,6 @@ struct pv_cpu_ops {
 	void (*load_tr_desc)(void);
 	void (*load_gdt)(const struct desc_ptr *);
 	void (*load_idt)(const struct desc_ptr *);
-	/* store_gdt has been removed. */
-	void (*store_idt)(struct desc_ptr *);
 	void (*set_ldt)(const void *desc, unsigned entries);
 	unsigned long (*store_tr)(void);
 	void (*load_tls)(struct thread_struct *t, unsigned int cpu);
@@ -175,7 +173,7 @@ struct pv_cpu_ops {
 
 	void (*start_context_switch)(struct task_struct *prev);
 	void (*end_context_switch)(struct task_struct *next);
-};
+} __no_randomize_layout;
 
 struct pv_irq_ops {
 	/*
@@ -195,10 +193,7 @@ struct pv_irq_ops {
 	void (*safe_halt)(void);
 	void (*halt)(void);
 
-#ifdef CONFIG_X86_64
-	void (*adjust_exception_frame)(void);
-#endif
-};
+} __no_randomize_layout;
 
 struct pv_mmu_ops {
 	unsigned long (*read_cr2)(void);
@@ -223,9 +218,7 @@ struct pv_mmu_ops {
 	void (*flush_tlb_kernel)(void);
 	void (*flush_tlb_single)(unsigned long addr);
 	void (*flush_tlb_others)(const struct cpumask *cpus,
-				 struct mm_struct *mm,
-				 unsigned long start,
-				 unsigned long end);
+				 const struct flush_tlb_info *info);
 
 	/* Hooks for allocating and freeing a pagetable top-level */
 	int  (*pgd_alloc)(struct mm_struct *mm);
@@ -238,19 +231,17 @@ struct pv_mmu_ops {
 	void (*alloc_pte)(struct mm_struct *mm, unsigned long pfn);
 	void (*alloc_pmd)(struct mm_struct *mm, unsigned long pfn);
 	void (*alloc_pud)(struct mm_struct *mm, unsigned long pfn);
+	void (*alloc_p4d)(struct mm_struct *mm, unsigned long pfn);
 	void (*release_pte)(unsigned long pfn);
 	void (*release_pmd)(unsigned long pfn);
 	void (*release_pud)(unsigned long pfn);
+	void (*release_p4d)(unsigned long pfn);
 
 	/* Pagetable manipulation functions */
 	void (*set_pte)(pte_t *ptep, pte_t pteval);
 	void (*set_pte_at)(struct mm_struct *mm, unsigned long addr,
 			   pte_t *ptep, pte_t pteval);
 	void (*set_pmd)(pmd_t *pmdp, pmd_t pmdval);
-	void (*set_pmd_at)(struct mm_struct *mm, unsigned long addr,
-			   pmd_t *pmdp, pmd_t pmdval);
-	void (*pte_update)(struct mm_struct *mm, unsigned long addr,
-			   pte_t *ptep);
 
 	pte_t (*ptep_modify_prot_start)(struct mm_struct *mm, unsigned long addr,
 					pte_t *ptep);
@@ -277,12 +268,21 @@ struct pv_mmu_ops {
 	struct paravirt_callee_save pmd_val;
 	struct paravirt_callee_save make_pmd;
 
-#if CONFIG_PGTABLE_LEVELS == 4
+#if CONFIG_PGTABLE_LEVELS >= 4
 	struct paravirt_callee_save pud_val;
 	struct paravirt_callee_save make_pud;
 
-	void (*set_pgd)(pgd_t *pudp, pgd_t pgdval);
-#endif	/* CONFIG_PGTABLE_LEVELS == 4 */
+	void (*set_p4d)(p4d_t *p4dp, p4d_t p4dval);
+
+#if CONFIG_PGTABLE_LEVELS >= 5
+	struct paravirt_callee_save p4d_val;
+	struct paravirt_callee_save make_p4d;
+
+	void (*set_pgd)(pgd_t *pgdp, pgd_t pgdval);
+#endif	/* CONFIG_PGTABLE_LEVELS >= 5 */
+
+#endif	/* CONFIG_PGTABLE_LEVELS >= 4 */
+
 #endif	/* CONFIG_PGTABLE_LEVELS >= 3 */
 
 	struct pv_lazy_ops lazy_mode;
@@ -293,7 +293,7 @@ struct pv_mmu_ops {
 	   an mfn.  We can tell which is which from the index. */
 	void (*set_fixmap)(unsigned /* enum fixed_addresses */ idx,
 			   phys_addr_t phys, pgprot_t flags);
-};
+} __no_randomize_layout;
 
 struct arch_spinlock;
 #ifdef CONFIG_SMP
@@ -310,7 +310,7 @@ struct pv_lock_ops {
 	void (*kick)(int cpu);
 
 	struct paravirt_callee_save vcpu_is_preempted;
-};
+} __no_randomize_layout;
 
 /* This contains all the paravirt structures: we get a convenient
  * number for each function using the offset which we use to indicate
@@ -322,7 +322,7 @@ struct paravirt_patch_template {
 	struct pv_irq_ops pv_irq_ops;
 	struct pv_mmu_ops pv_mmu_ops;
 	struct pv_lock_ops pv_lock_ops;
-};
+} __no_randomize_layout;
 
 extern struct pv_info pv_info;
 extern struct pv_init_ops pv_init_ops;
@@ -459,8 +459,8 @@ int paravirt_disable_iospace(void);
  */
 #ifdef CONFIG_X86_32
 #define PVOP_VCALL_ARGS							\
-	unsigned long __eax = __eax, __edx = __edx, __ecx = __ecx;	\
-	register void *__sp asm("esp")
+	unsigned long __eax = __eax, __edx = __edx, __ecx = __ecx;
+
 #define PVOP_CALL_ARGS			PVOP_VCALL_ARGS
 
 #define PVOP_CALL_ARG1(x)		"a" ((unsigned long)(x))
@@ -480,8 +480,8 @@ int paravirt_disable_iospace(void);
 /* [re]ax isn't an arg, but the return val */
 #define PVOP_VCALL_ARGS						\
 	unsigned long __edi = __edi, __esi = __esi,		\
-		__edx = __edx, __ecx = __ecx, __eax = __eax;	\
-	register void *__sp asm("rsp")
+		__edx = __edx, __ecx = __ecx, __eax = __eax;
+
 #define PVOP_CALL_ARGS		PVOP_VCALL_ARGS
 
 #define PVOP_CALL_ARG1(x)		"D" ((unsigned long)(x))
@@ -532,7 +532,7 @@ int paravirt_disable_iospace(void);
 			asm volatile(pre				\
 				     paravirt_alt(PARAVIRT_CALL)	\
 				     post				\
-				     : call_clbr, "+r" (__sp)		\
+				     : call_clbr, ASM_CALL_CONSTRAINT	\
 				     : paravirt_type(op),		\
 				       paravirt_clobber(clbr),		\
 				       ##__VA_ARGS__			\
@@ -542,7 +542,7 @@ int paravirt_disable_iospace(void);
 			asm volatile(pre				\
 				     paravirt_alt(PARAVIRT_CALL)	\
 				     post				\
-				     : call_clbr, "+r" (__sp)		\
+				     : call_clbr, ASM_CALL_CONSTRAINT	\
 				     : paravirt_type(op),		\
 				       paravirt_clobber(clbr),		\
 				       ##__VA_ARGS__			\
@@ -569,7 +569,7 @@ int paravirt_disable_iospace(void);
 		asm volatile(pre					\
 			     paravirt_alt(PARAVIRT_CALL)		\
 			     post					\
-			     : call_clbr, "+r" (__sp)			\
+			     : call_clbr, ASM_CALL_CONSTRAINT		\
 			     : paravirt_type(op),			\
 			       paravirt_clobber(clbr),			\
 			       ##__VA_ARGS__				\

@@ -6,6 +6,7 @@ config MAC80211
 	select CRYPTO_AES
 	select CRYPTO_CCM
 	select CRYPTO_GCM
+	select CRYPTO_CMAC
 	select CRC32
 	---help---
 	  This option enables the hardware independent IEEE 802.11

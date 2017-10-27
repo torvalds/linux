@@ -39,12 +39,12 @@
 #include <linux/regulator/consumer.h>
 #include <linux/component.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
 #include <sound/omap-hdmi-audio.h>
 
 #include "omapdss.h"
 #include "hdmi5_core.h"
 #include "dss.h"
-#include "dss_features.h"
 
 static struct omap_hdmi hdmi;
 
@@ -572,7 +572,7 @@ static int hdmi_probe_of(struct platform_device *pdev)
 	struct device_node *ep;
 	int r;
 
-	ep = omapdss_of_get_first_endpoint(node);
+	ep = of_graph_get_endpoint_by_regs(node, 0, 0);
 	if (!ep)
 		return 0;
 
@@ -694,7 +694,7 @@ static int hdmi_audio_register(struct device *dev)
 {
 	struct omap_hdmi_audio_pdata pdata = {
 		.dev = dev,
-		.dss_version = omapdss_get_version(),
+		.version = 5,
 		.audio_dma_addr = hdmi_wp_get_audio_dma_addr(&hdmi.wp),
 		.ops = &hdmi_audio_ops,
 	};
@@ -727,13 +727,11 @@ static int hdmi5_bind(struct device *dev, struct device *master, void *data)
 	mutex_init(&hdmi.lock);
 	spin_lock_init(&hdmi.audio_playing_lock);
 
-	if (pdev->dev.of_node) {
-		r = hdmi_probe_of(pdev);
-		if (r)
-			return r;
-	}
+	r = hdmi_probe_of(pdev);
+	if (r)
+		return r;
 
-	r = hdmi_wp_init(pdev, &hdmi.wp);
+	r = hdmi_wp_init(pdev, &hdmi.wp, 5);
 	if (r)
 		return r;
 
@@ -741,7 +739,7 @@ static int hdmi5_bind(struct device *dev, struct device *master, void *data)
 	if (r)
 		return r;
 
-	r = hdmi_phy_init(pdev, &hdmi.phy);
+	r = hdmi_phy_init(pdev, &hdmi.phy, 5);
 	if (r)
 		goto err;
 

@@ -28,13 +28,9 @@
 #include "sdhci-pltfm.h"
 #include <linux/of.h>
 
-#define SDHCI_ARASAN_CLK_CTRL_OFFSET	0x2c
 #define SDHCI_ARASAN_VENDOR_REGISTER	0x78
 
 #define VENDOR_ENHANCED_STROBE		BIT(0)
-#define CLK_CTRL_TIMEOUT_SHIFT		16
-#define CLK_CTRL_TIMEOUT_MASK		(0xf << CLK_CTRL_TIMEOUT_SHIFT)
-#define CLK_CTRL_TIMEOUT_MIN_EXP	13
 
 #define PHY_CLK_TOO_SLOW_HZ		400000
 
@@ -161,21 +157,6 @@ static int sdhci_arasan_syscon_write(struct sdhci_host *host,
 	return ret;
 }
 
-static unsigned int sdhci_arasan_get_timeout_clock(struct sdhci_host *host)
-{
-	u32 div;
-	unsigned long freq;
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-
-	div = readl(host->ioaddr + SDHCI_ARASAN_CLK_CTRL_OFFSET);
-	div = (div & CLK_CTRL_TIMEOUT_MASK) >> CLK_CTRL_TIMEOUT_SHIFT;
-
-	freq = clk_get_rate(pltfm_host->clk);
-	freq /= 1 << (CLK_CTRL_TIMEOUT_MIN_EXP + div);
-
-	return freq;
-}
-
 static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -198,9 +179,7 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 			 * through low speeds without power cycling.
 			 */
 			sdhci_set_clock(host, host->max_clk);
-			spin_unlock_irq(&host->lock);
 			phy_power_on(sdhci_arasan->phy);
-			spin_lock_irq(&host->lock);
 			sdhci_arasan->is_phy_on = true;
 
 			/*
@@ -219,18 +198,14 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 	}
 
 	if (ctrl_phy && sdhci_arasan->is_phy_on) {
-		spin_unlock_irq(&host->lock);
 		phy_power_off(sdhci_arasan->phy);
-		spin_lock_irq(&host->lock);
 		sdhci_arasan->is_phy_on = false;
 	}
 
 	sdhci_set_clock(host, clock);
 
 	if (ctrl_phy) {
-		spin_unlock_irq(&host->lock);
 		phy_power_on(sdhci_arasan->phy);
-		spin_lock_irq(&host->lock);
 		sdhci_arasan->is_phy_on = true;
 	}
 }
@@ -241,13 +216,13 @@ static void sdhci_arasan_hs400_enhanced_strobe(struct mmc_host *mmc,
 	u32 vendor;
 	struct sdhci_host *host = mmc_priv(mmc);
 
-	vendor = readl(host->ioaddr + SDHCI_ARASAN_VENDOR_REGISTER);
+	vendor = sdhci_readl(host, SDHCI_ARASAN_VENDOR_REGISTER);
 	if (ios->enhanced_strobe)
 		vendor |= VENDOR_ENHANCED_STROBE;
 	else
 		vendor &= ~VENDOR_ENHANCED_STROBE;
 
-	writel(vendor, host->ioaddr + SDHCI_ARASAN_VENDOR_REGISTER);
+	sdhci_writel(host, vendor, SDHCI_ARASAN_VENDOR_REGISTER);
 }
 
 static void sdhci_arasan_reset(struct sdhci_host *host, u8 mask)
@@ -287,16 +262,16 @@ static int sdhci_arasan_voltage_switch(struct mmc_host *mmc,
 	return -EINVAL;
 }
 
-static struct sdhci_ops sdhci_arasan_ops = {
+static const struct sdhci_ops sdhci_arasan_ops = {
 	.set_clock = sdhci_arasan_set_clock,
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
-	.get_timeout_clock = sdhci_arasan_get_timeout_clock,
+	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
 	.set_bus_width = sdhci_set_bus_width,
 	.reset = sdhci_arasan_reset,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
-static struct sdhci_pltfm_data sdhci_arasan_pdata = {
+static const struct sdhci_pltfm_data sdhci_arasan_pdata = {
 	.ops = &sdhci_arasan_ops,
 	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
@@ -318,6 +293,9 @@ static int sdhci_arasan_suspend(struct device *dev)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_arasan_data *sdhci_arasan = sdhci_pltfm_priv(pltfm_host);
 	int ret;
+
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
 
 	ret = sdhci_suspend_host(host);
 	if (ret)
@@ -660,7 +638,7 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret) {
-		dev_err(&pdev->dev, "parsing dt failed (%u)\n", ret);
+		dev_err(&pdev->dev, "parsing dt failed (%d)\n", ret);
 		goto unreg_clk;
 	}
 

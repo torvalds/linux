@@ -47,18 +47,13 @@
 			compatible = "snps,archs-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
-/*			interrupts = <16 17 18 19 20 21 22 23 24 25>; */
 		};
 
 		idu_intc: idu-interrupt-controller {
 			compatible = "snps,archs-idu-intc";
 			interrupt-controller;
 			interrupt-parent = <&core_intc>;
-			/* <hwirq  distribution>
-			distribution: 0=RR; 1=cpu0, 2=cpu1, 4=cpu2, 8=cpu3 */
-			#interrupt-cells = <2>;
-			interrupts = <24 25 26 27 28 29 30 31>;
-
+			#interrupt-cells = <1>;
 		};
 
 		uart0: serial@f0000000 {
@@ -66,9 +61,7 @@
 			compatible = "ns16550a";
 			reg = <0xf0000000 0x2000>;
 			interrupt-parent = <&idu_intc>;
-			/* interrupts = <0 1>;  DEST=1*/
-			/* interrupts = <0 2>;  DEST=2*/
-			interrupts = <0 0>;  /* RR*/
+			interrupts = <0>;
 			clock-frequency = <50000000>;
 			baud = <115200>;
 			reg-shift = <2>;

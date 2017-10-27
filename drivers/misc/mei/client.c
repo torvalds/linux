@@ -14,7 +14,7 @@
  *
  */
 
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -377,19 +377,19 @@ static struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl,
 }
 
 /**
- * __mei_io_list_flush - removes and frees cbs belonging to cl.
+ * __mei_io_list_flush_cl - removes and frees cbs belonging to cl.
  *
- * @list:  an instance of our list structure
+ * @head:  an instance of our list structure
  * @cl:    host client, can be NULL for flushing the whole list
  * @free:  whether to free the cbs
  */
-static void __mei_io_list_flush(struct mei_cl_cb *list,
-				struct mei_cl *cl, bool free)
+static void __mei_io_list_flush_cl(struct list_head *head,
+				   const struct mei_cl *cl, bool free)
 {
 	struct mei_cl_cb *cb, *next;
 
 	/* enable removing everything if no cl is specified */
-	list_for_each_entry_safe(cb, next, &list->list, list) {
+	list_for_each_entry_safe(cb, next, head, list) {
 		if (!cl || mei_cl_cmp_id(cl, cb->cl)) {
 			list_del_init(&cb->list);
 			if (free)
@@ -399,25 +399,42 @@ static void __mei_io_list_flush(struct mei_cl_cb *list,
 }
 
 /**
- * mei_io_list_flush - removes list entry belonging to cl.
+ * mei_io_list_flush_cl - removes list entry belonging to cl.
  *
- * @list:  An instance of our list structure
+ * @head: An instance of our list structure
  * @cl: host client
  */
-void mei_io_list_flush(struct mei_cl_cb *list, struct mei_cl *cl)
+static inline void mei_io_list_flush_cl(struct list_head *head,
+					const struct mei_cl *cl)
 {
-	__mei_io_list_flush(list, cl, false);
+	__mei_io_list_flush_cl(head, cl, false);
 }
 
 /**
- * mei_io_list_free - removes cb belonging to cl and free them
+ * mei_io_list_free_cl - removes cb belonging to cl and free them
  *
- * @list:  An instance of our list structure
+ * @head: An instance of our list structure
  * @cl: host client
  */
-static inline void mei_io_list_free(struct mei_cl_cb *list, struct mei_cl *cl)
+static inline void mei_io_list_free_cl(struct list_head *head,
+				       const struct mei_cl *cl)
 {
-	__mei_io_list_flush(list, cl, true);
+	__mei_io_list_flush_cl(head, cl, true);
+}
+
+/**
+ * mei_io_list_free_fp - free cb from a list that matches file pointer
+ *
+ * @head: io list
+ * @fp: file pointer (matching cb file object), may be NULL
+ */
+static void mei_io_list_free_fp(struct list_head *head, const struct file *fp)
+{
+	struct mei_cl_cb *cb, *next;
+
+	list_for_each_entry_safe(cb, next, head, list)
+		if (!fp || fp == cb->fp)
+			mei_io_cb_free(cb);
 }
 
 /**
@@ -479,7 +496,7 @@ struct mei_cl_cb *mei_cl_enqueue_ctrl_wr_cb(struct mei_cl *cl, size_t length,
 	if (!cb)
 		return NULL;
 
-	list_add_tail(&cb->list, &cl->dev->ctrl_wr_list.list);
+	list_add_tail(&cb->list, &cl->dev->ctrl_wr_list);
 	return cb;
 }
 
@@ -504,27 +521,6 @@ struct mei_cl_cb *mei_cl_read_cb(const struct mei_cl *cl, const struct file *fp)
 }
 
 /**
- * mei_cl_read_cb_flush - free client's read pending and completed cbs
- *   for a specific file
- *
- * @cl: host client
- * @fp: file pointer (matching cb file object), may be NULL
- */
-void mei_cl_read_cb_flush(const struct mei_cl *cl, const struct file *fp)
-{
-	struct mei_cl_cb *cb, *next;
-
-	list_for_each_entry_safe(cb, next, &cl->rd_completed, list)
-		if (!fp || fp == cb->fp)
-			mei_io_cb_free(cb);
-
-
-	list_for_each_entry_safe(cb, next, &cl->rd_pending, list)
-		if (!fp || fp == cb->fp)
-			mei_io_cb_free(cb);
-}
-
-/**
  * mei_cl_flush_queues - flushes queue lists belonging to cl.
  *
  * @cl: host client
@@ -542,17 +538,15 @@ int mei_cl_flush_queues(struct mei_cl *cl, const struct file *fp)
 	dev = cl->dev;
 
 	cl_dbg(dev, cl, "remove list entry belonging to cl\n");
-	mei_io_list_free(&cl->dev->write_list, cl);
-	mei_io_list_free(&cl->dev->write_waiting_list, cl);
-	mei_io_list_flush(&cl->dev->ctrl_wr_list, cl);
-	mei_io_list_flush(&cl->dev->ctrl_rd_list, cl);
-	mei_io_list_flush(&cl->dev->amthif_cmd_list, cl);
-
-	mei_cl_read_cb_flush(cl, fp);
+	mei_io_list_free_cl(&cl->dev->write_list, cl);
+	mei_io_list_free_cl(&cl->dev->write_waiting_list, cl);
+	mei_io_list_flush_cl(&cl->dev->ctrl_wr_list, cl);
+	mei_io_list_flush_cl(&cl->dev->ctrl_rd_list, cl);
+	mei_io_list_free_fp(&cl->rd_pending, fp);
+	mei_io_list_free_fp(&cl->rd_completed, fp);
 
 	return 0;
 }
-
 
 /**
  * mei_cl_init - initializes cl.
@@ -560,7 +554,7 @@ int mei_cl_flush_queues(struct mei_cl *cl, const struct file *fp)
  * @cl: host client to be initialized
  * @dev: mei device
  */
-void mei_cl_init(struct mei_cl *cl, struct mei_device *dev)
+static void mei_cl_init(struct mei_cl *cl, struct mei_device *dev)
 {
 	memset(cl, 0, sizeof(struct mei_cl));
 	init_waitqueue_head(&cl->wait);
@@ -606,7 +600,6 @@ struct mei_cl *mei_cl_allocate(struct mei_device *dev)
 int mei_cl_link(struct mei_cl *cl)
 {
 	struct mei_device *dev;
-	long open_handle_count;
 	int id;
 
 	if (WARN_ON(!cl || !cl->dev))
@@ -620,8 +613,7 @@ int mei_cl_link(struct mei_cl *cl)
 		return -EMFILE;
 	}
 
-	open_handle_count = dev->open_handle_count + dev->iamthif_open_count;
-	if (open_handle_count >= MEI_MAX_OPEN_HANDLE_COUNT) {
+	if (dev->open_handle_count >= MEI_MAX_OPEN_HANDLE_COUNT) {
 		dev_err(dev->dev, "open_handle_count exceeded %d",
 			MEI_MAX_OPEN_HANDLE_COUNT);
 		return -EMFILE;
@@ -655,8 +647,7 @@ int mei_cl_unlink(struct mei_cl *cl)
 	if (!cl)
 		return 0;
 
-	/* amthif might not be initialized */
-	if (!cl->dev)
+	if (WARN_ON(!cl->dev))
 		return 0;
 
 	dev = cl->dev;
@@ -756,7 +747,7 @@ static void mei_cl_wake_all(struct mei_cl *cl)
  *
  * @cl: host client
  */
-void mei_cl_set_disconnected(struct mei_cl *cl)
+static void mei_cl_set_disconnected(struct mei_cl *cl)
 {
 	struct mei_device *dev = cl->dev;
 
@@ -765,14 +756,16 @@ void mei_cl_set_disconnected(struct mei_cl *cl)
 		return;
 
 	cl->state = MEI_FILE_DISCONNECTED;
-	mei_io_list_free(&dev->write_list, cl);
-	mei_io_list_free(&dev->write_waiting_list, cl);
-	mei_io_list_flush(&dev->ctrl_rd_list, cl);
-	mei_io_list_flush(&dev->ctrl_wr_list, cl);
+	mei_io_list_free_cl(&dev->write_list, cl);
+	mei_io_list_free_cl(&dev->write_waiting_list, cl);
+	mei_io_list_flush_cl(&dev->ctrl_rd_list, cl);
+	mei_io_list_flush_cl(&dev->ctrl_wr_list, cl);
 	mei_cl_wake_all(cl);
 	cl->rx_flow_ctrl_creds = 0;
 	cl->tx_flow_ctrl_creds = 0;
 	cl->timer_count = 0;
+
+	mei_cl_bus_module_put(cl);
 
 	if (!cl->me_cl)
 		return;
@@ -829,7 +822,7 @@ static int mei_cl_send_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb)
 		return ret;
 	}
 
-	list_move_tail(&cb->list, &dev->ctrl_rd_list.list);
+	list_move_tail(&cb->list, &dev->ctrl_rd_list);
 	cl->timer_count = MEI_CONNECT_TIMEOUT;
 	mei_schedule_stall_timer(dev);
 
@@ -847,7 +840,7 @@ static int mei_cl_send_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb)
  * Return: 0, OK; otherwise, error.
  */
 int mei_cl_irq_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb,
-			    struct mei_cl_cb *cmpl_list)
+			  struct list_head *cmpl_list)
 {
 	struct mei_device *dev = cl->dev;
 	u32 msg_slots;
@@ -862,7 +855,7 @@ int mei_cl_irq_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 	ret = mei_cl_send_disconnect(cl, cb);
 	if (ret)
-		list_move_tail(&cb->list, &cmpl_list->list);
+		list_move_tail(&cb->list, cmpl_list);
 
 	return ret;
 }
@@ -984,7 +977,7 @@ static bool mei_cl_is_other_connecting(struct mei_cl *cl)
 
 	dev = cl->dev;
 
-	list_for_each_entry(cb, &dev->ctrl_rd_list.list, list) {
+	list_for_each_entry(cb, &dev->ctrl_rd_list, list) {
 		if (cb->fop_type == MEI_FOP_CONNECT &&
 		    mei_cl_me_id(cl) == mei_cl_me_id(cb->cl))
 			return true;
@@ -1015,7 +1008,7 @@ static int mei_cl_send_connect(struct mei_cl *cl, struct mei_cl_cb *cb)
 		return ret;
 	}
 
-	list_move_tail(&cb->list, &dev->ctrl_rd_list.list);
+	list_move_tail(&cb->list, &dev->ctrl_rd_list);
 	cl->timer_count = MEI_CONNECT_TIMEOUT;
 	mei_schedule_stall_timer(dev);
 	return 0;
@@ -1031,7 +1024,7 @@ static int mei_cl_send_connect(struct mei_cl *cl, struct mei_cl_cb *cb)
  * Return: 0, OK; otherwise, error.
  */
 int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
-			      struct mei_cl_cb *cmpl_list)
+		       struct list_head *cmpl_list)
 {
 	struct mei_device *dev = cl->dev;
 	u32 msg_slots;
@@ -1049,7 +1042,7 @@ int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 	rets = mei_cl_send_connect(cl, cb);
 	if (rets)
-		list_move_tail(&cb->list, &cmpl_list->list);
+		list_move_tail(&cb->list, cmpl_list);
 
 	return rets;
 }
@@ -1077,13 +1070,17 @@ int mei_cl_connect(struct mei_cl *cl, struct mei_me_client *me_cl,
 
 	dev = cl->dev;
 
+	if (!mei_cl_bus_module_get(cl))
+		return -ENODEV;
+
 	rets = mei_cl_set_connecting(cl, me_cl);
 	if (rets)
-		return rets;
+		goto nortpm;
 
 	if (mei_cl_is_fixed_address(cl)) {
 		cl->state = MEI_FILE_CONNECTED;
-		return 0;
+		rets = 0;
+		goto nortpm;
 	}
 
 	rets = pm_runtime_get(dev->dev);
@@ -1117,8 +1114,8 @@ int mei_cl_connect(struct mei_cl *cl, struct mei_me_client *me_cl,
 
 	if (!mei_cl_is_connected(cl)) {
 		if (cl->state == MEI_FILE_DISCONNECT_REQUIRED) {
-			mei_io_list_flush(&dev->ctrl_rd_list, cl);
-			mei_io_list_flush(&dev->ctrl_wr_list, cl);
+			mei_io_list_flush_cl(&dev->ctrl_rd_list, cl);
+			mei_io_list_flush_cl(&dev->ctrl_wr_list, cl);
 			 /* ignore disconnect return valuue;
 			  * in case of failure reset will be invoked
 			  */
@@ -1270,7 +1267,7 @@ enum mei_cb_file_ops mei_cl_notify_req2fop(u8 req)
  * Return: 0 on such and error otherwise.
  */
 int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
-		      struct mei_cl_cb *cmpl_list)
+		      struct list_head *cmpl_list)
 {
 	struct mei_device *dev = cl->dev;
 	u32 msg_slots;
@@ -1288,11 +1285,11 @@ int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
 	ret = mei_hbm_cl_notify_req(dev, cl, request);
 	if (ret) {
 		cl->status = ret;
-		list_move_tail(&cb->list, &cmpl_list->list);
+		list_move_tail(&cb->list, cmpl_list);
 		return ret;
 	}
 
-	list_move_tail(&cb->list, &dev->ctrl_rd_list.list);
+	list_move_tail(&cb->list, &dev->ctrl_rd_list);
 	return 0;
 }
 
@@ -1325,6 +1322,9 @@ int mei_cl_notify_request(struct mei_cl *cl,
 		return -EOPNOTSUPP;
 	}
 
+	if (!mei_cl_is_connected(cl))
+		return -ENODEV;
+
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
 		pm_runtime_put_noidle(dev->dev);
@@ -1344,7 +1344,7 @@ int mei_cl_notify_request(struct mei_cl *cl,
 			rets = -ENODEV;
 			goto out;
 		}
-		list_move_tail(&cb->list, &dev->ctrl_rd_list.list);
+		list_move_tail(&cb->list, &dev->ctrl_rd_list);
 	}
 
 	mutex_unlock(&dev->device_lock);
@@ -1419,6 +1419,11 @@ int mei_cl_notify_get(struct mei_cl *cl, bool block, bool *notify_ev)
 
 	dev = cl->dev;
 
+	if (!dev->hbm_f_ev_supported) {
+		cl_dbg(dev, cl, "notifications not supported\n");
+		return -EOPNOTSUPP;
+	}
+
 	if (!mei_cl_is_connected(cl))
 		return -ENODEV;
 
@@ -1469,7 +1474,7 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length, const struct file *fp)
 		return  -ENOTTY;
 	}
 
-	if (mei_cl_is_fixed_address(cl) || cl == &dev->iamthif_cl)
+	if (mei_cl_is_fixed_address(cl))
 		return 0;
 
 	/* HW currently supports only one pending read */
@@ -1519,7 +1524,7 @@ nortpm:
  * Return: 0, OK; otherwise error.
  */
 int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
-		     struct mei_cl_cb *cmpl_list)
+		     struct list_head *cmpl_list)
 {
 	struct mei_device *dev;
 	struct mei_msg_data *buf;
@@ -1591,13 +1596,13 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	}
 
 	if (mei_hdr.msg_complete)
-		list_move_tail(&cb->list, &dev->write_waiting_list.list);
+		list_move_tail(&cb->list, &dev->write_waiting_list);
 
 	return 0;
 
 err:
 	cl->status = rets;
-	list_move_tail(&cb->list, &cmpl_list->list);
+	list_move_tail(&cb->list, cmpl_list);
 	return rets;
 }
 
@@ -1687,9 +1692,9 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 
 out:
 	if (mei_hdr.msg_complete)
-		list_add_tail(&cb->list, &dev->write_waiting_list.list);
+		list_add_tail(&cb->list, &dev->write_waiting_list);
 	else
-		list_add_tail(&cb->list, &dev->write_list.list);
+		list_add_tail(&cb->list, &dev->write_list);
 
 	cb = NULL;
 	if (blocking && cl->writing_state != MEI_WRITE_COMPLETE) {

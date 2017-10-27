@@ -148,6 +148,8 @@ int amdgpu_atombios_get_clock_info(struct amdgpu_device *adev);
 
 int amdgpu_atombios_get_gfx_info(struct amdgpu_device *adev);
 
+int amdgpu_atombios_get_vram_width(struct amdgpu_device *adev);
+
 bool amdgpu_atombios_get_asic_ss_info(struct amdgpu_device *adev,
 				      struct amdgpu_atom_ss *ss,
 				      int id, u32 clock);
@@ -198,6 +200,7 @@ void amdgpu_atombios_scratch_regs_save(struct amdgpu_device *adev);
 void amdgpu_atombios_scratch_regs_restore(struct amdgpu_device *adev);
 void amdgpu_atombios_scratch_regs_engine_hung(struct amdgpu_device *adev,
 					      bool hung);
+bool amdgpu_atombios_scratch_need_asic_init(struct amdgpu_device *adev);
 
 void amdgpu_atombios_copy_swap(u8 *dst, u8 *src, u8 num_bytes, bool to_le);
 int amdgpu_atombios_get_max_vddc(struct amdgpu_device *adev, u8 voltage_type,
@@ -215,4 +218,7 @@ int amdgpu_atombios_get_clock_dividers(struct amdgpu_device *adev,
 int amdgpu_atombios_get_svi2_info(struct amdgpu_device *adev,
 			      u8 voltage_type,
 			      u8 *svd_gpio_id, u8 *svc_gpio_id);
+
+int amdgpu_atombios_allocate_fb_scratch(struct amdgpu_device *adev);
+
 #endif

@@ -26,6 +26,12 @@ DEFINE_SPINLOCK(ebu_lock);
 EXPORT_SYMBOL_GPL(ebu_lock);
 
 /*
+ * This is needed by the VPE loader code, just set it to 0 and assume
+ * that the firmware hardcodes this value to something useful.
+ */
+unsigned long physical_memsize = 0L;
+
+/*
  * this struct is filled by the soc specific detection code and holds
  * information about the specific soc type, revision and name
  */
@@ -111,7 +117,7 @@ void __init prom_init(void)
 
 int __init plat_of_setup(void)
 {
-	return __dt_register_buses(soc_info.compatible, "simple-bus");
+	return of_platform_default_populate(NULL, NULL, NULL);
 }
 
 arch_initcall(plat_of_setup);

@@ -151,7 +151,7 @@ static void brcmstb_cpu_boot(u32 cpu)
 	 * Set the reset vector to point to the secondary_startup
 	 * routine
 	 */
-	cpu_set_boot_addr(cpu, virt_to_phys(secondary_startup));
+	cpu_set_boot_addr(cpu, __pa_symbol(secondary_startup));
 
 	/* Unhalt the cpu */
 	cpu_rst_cfg_set(cpu, 0);

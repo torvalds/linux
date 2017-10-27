@@ -21,6 +21,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>

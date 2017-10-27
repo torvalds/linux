@@ -37,7 +37,7 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/obd.h"
+#include <obd.h>
 
 #include "llite_internal.h"
 #include "vvp_internal.h"
@@ -219,6 +219,7 @@ static int vvp_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
 	if (vio->vui_fd && (vio->vui_fd->fd_flags & LL_FILE_GROUP_LOCKED)) {
 		descr->cld_mode = CLM_GROUP;
 		descr->cld_gid  = vio->vui_fd->fd_grouplock.lg_gid;
+		enqflags |= CEF_LOCK_MATCH;
 	} else {
 		descr->cld_mode  = mode;
 	}
@@ -288,7 +289,7 @@ static void vvp_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 	       io->ci_ignore_layout, io->ci_verify_layout,
 	       vio->vui_layout_gen, io->ci_restore_needed);
 
-	if (io->ci_restore_needed == 1) {
+	if (io->ci_restore_needed) {
 		int	rc;
 
 		/* file was detected release, we need to restore it
@@ -324,7 +325,7 @@ static void vvp_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 		io->ci_need_restart = vio->vui_layout_gen != gen;
 		if (io->ci_need_restart) {
 			CDEBUG(D_VFSTRACE,
-			       DFID" layout changed from %d to %d.\n",
+			       DFID " layout changed from %d to %d.\n",
 			       PFID(lu_object_fid(&obj->co_lu)),
 			       vio->vui_layout_gen, gen);
 			/* today successful restore is the only possible case */
@@ -449,6 +450,7 @@ static void vvp_io_advance(const struct lu_env *env,
 {
 	struct cl_object *obj = ios->cis_io->ci_obj;
 	struct vvp_io	 *vio = cl2vvp_io(env, ios);
+
 	CLOBINVRNT(env, obj, vvp_object_invariant(obj));
 
 	vio->vui_tot_count -= nob;
@@ -657,7 +659,15 @@ static void vvp_io_setattr_end(const struct lu_env *env,
 static void vvp_io_setattr_fini(const struct lu_env *env,
 				const struct cl_io_slice *ios)
 {
+	bool restore_needed = ios->cis_io->ci_restore_needed;
+	struct inode *inode = vvp_object_inode(ios->cis_obj);
+
 	vvp_io_fini(env, ios);
+
+	if (restore_needed && !ios->cis_io->ci_restore_needed) {
+		/* restore finished, set data modified flag for HSM */
+		set_bit(LLIF_DATA_MODIFIED, &(ll_i2info(inode))->lli_flags);
+	}
 }
 
 static int vvp_io_read_start(const struct lu_env *env,
@@ -1006,7 +1016,7 @@ static int vvp_io_kernel_fault(struct vvp_fault_io *cfio)
 {
 	struct vm_fault *vmf = cfio->ft_vmf;
 
-	cfio->ft_flags = filemap_fault(cfio->ft_vma, vmf);
+	cfio->ft_flags = filemap_fault(vmf);
 	cfio->ft_flags_valid = 1;
 
 	if (vmf->page) {
@@ -1339,13 +1349,6 @@ int vvp_io_init(const struct lu_env *env, struct cl_object *obj,
 		if (!cl_io_is_trunc(io))
 			io->ci_lockreq = CILR_MANDATORY;
 	}
-
-	/* ignore layout change for generic CIT_MISC but not for glimpse.
-	 * io context for glimpse must set ci_verify_layout to true,
-	 * see cl_glimpse_size0() for details.
-	 */
-	if (io->ci_type == CIT_MISC && !io->ci_verify_layout)
-		io->ci_ignore_layout = 1;
 
 	/* Enqueue layout lock and get layout version. We need to do this
 	 * even for operations requiring to open file, such as read and write,

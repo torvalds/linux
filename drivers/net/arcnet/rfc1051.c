@@ -162,7 +162,7 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 			unsigned short type, uint8_t daddr)
 {
 	int hdr_size = ARC_HDR_SIZE + RFC1051_HDR_SIZE;
-	struct archdr *pkt = (struct archdr *)skb_push(skb, hdr_size);
+	struct archdr *pkt = skb_push(skb, hdr_size);
 	struct arc_rfc1051 *soft = &pkt->soft.rfc1051;
 
 	/* set the protocol ID according to RFC1051 */

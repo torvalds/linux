@@ -16,13 +16,16 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#define pr_fmt(fmt)	"trace_kprobe: " fmt
 
 #include <linux/module.h>
 #include <linux/uaccess.h>
+#include <linux/rculist.h>
 
 #include "trace_probe.h"
 
 #define KPROBE_EVENT_SYSTEM "kprobes"
+#define KRETPROBE_MAXACTIVE_MAX 4096
 
 /**
  * Kprobe event core functions
@@ -280,6 +283,7 @@ static struct trace_kprobe *alloc_trace_kprobe(const char *group,
 					     void *addr,
 					     const char *symbol,
 					     unsigned long offs,
+					     int maxactive,
 					     int nargs, bool is_return)
 {
 	struct trace_kprobe *tk;
@@ -306,6 +310,8 @@ static struct trace_kprobe *alloc_trace_kprobe(const char *group,
 		tk->rp.handler = kretprobe_dispatcher;
 	else
 		tk->rp.kp.pre_handler = kprobe_dispatcher;
+
+	tk->rp.maxactive = maxactive;
 
 	if (!event || !is_good_name(event)) {
 		ret = -EINVAL;
@@ -592,12 +598,22 @@ static struct notifier_block trace_kprobe_module_nb = {
 	.priority = 1	/* Invoked after kprobe module callback */
 };
 
+/* Convert certain expected symbols into '_' when generating event names */
+static inline void sanitize_event_name(char *name)
+{
+	while (*name++ != '\0')
+		if (*name == ':' || *name == '.')
+			*name = '_';
+}
+
 static int create_trace_kprobe(int argc, char **argv)
 {
 	/*
 	 * Argument syntax:
-	 *  - Add kprobe: p[:[GRP/]EVENT] [MOD:]KSYM[+OFFS]|KADDR [FETCHARGS]
-	 *  - Add kretprobe: r[:[GRP/]EVENT] [MOD:]KSYM[+0] [FETCHARGS]
+	 *  - Add kprobe:
+	 *      p[:[GRP/]EVENT] [MOD:]KSYM[+OFFS]|KADDR [FETCHARGS]
+	 *  - Add kretprobe:
+	 *      r[MAXACTIVE][:[GRP/]EVENT] [MOD:]KSYM[+0] [FETCHARGS]
 	 * Fetch args:
 	 *  $retval	: fetch return value
 	 *  $stack	: fetch stack address
@@ -617,6 +633,7 @@ static int create_trace_kprobe(int argc, char **argv)
 	int i, ret = 0;
 	bool is_return = false, is_delete = false;
 	char *symbol = NULL, *event = NULL, *group = NULL;
+	int maxactive = 0;
 	char *arg;
 	unsigned long offset = 0;
 	void *addr = NULL;
@@ -635,8 +652,28 @@ static int create_trace_kprobe(int argc, char **argv)
 		return -EINVAL;
 	}
 
-	if (argv[0][1] == ':') {
-		event = &argv[0][2];
+	event = strchr(&argv[0][1], ':');
+	if (event) {
+		event[0] = '\0';
+		event++;
+	}
+	if (is_return && isdigit(argv[0][1])) {
+		ret = kstrtouint(&argv[0][1], 0, &maxactive);
+		if (ret) {
+			pr_info("Failed to parse maxactive.\n");
+			return ret;
+		}
+		/* kretprobes instances are iterated over via a list. The
+		 * maximum should stay reasonable.
+		 */
+		if (maxactive > KRETPROBE_MAXACTIVE_MAX) {
+			pr_info("Maxactive is too big (%d > %d).\n",
+				maxactive, KRETPROBE_MAXACTIVE_MAX);
+			return -E2BIG;
+		}
+	}
+
+	if (event) {
 		if (strchr(event, '/')) {
 			group = event;
 			event = strchr(group, '/') + 1;
@@ -678,28 +715,21 @@ static int create_trace_kprobe(int argc, char **argv)
 		pr_info("Probe point is not specified.\n");
 		return -EINVAL;
 	}
-	if (isdigit(argv[1][0])) {
-		if (is_return) {
-			pr_info("Return probe point must be a symbol.\n");
-			return -EINVAL;
-		}
-		/* an address specified */
-		ret = kstrtoul(&argv[1][0], 0, (unsigned long *)&addr);
-		if (ret) {
-			pr_info("Failed to parse address.\n");
-			return ret;
-		}
-	} else {
+
+	/* try to parse an address. if that fails, try to read the
+	 * input as a symbol. */
+	if (kstrtoul(argv[1], 0, (unsigned long *)&addr)) {
 		/* a symbol specified */
 		symbol = argv[1];
 		/* TODO: support .init module functions */
 		ret = traceprobe_split_symbol_offset(symbol, &offset);
 		if (ret) {
-			pr_info("Failed to parse symbol.\n");
+			pr_info("Failed to parse either an address or a symbol.\n");
 			return ret;
 		}
-		if (offset && is_return) {
-			pr_info("Return probe must be used without offset.\n");
+		if (offset && is_return &&
+		    !kprobe_on_func_entry(NULL, symbol, offset)) {
+			pr_info("Given offset is not valid for return probe.\n");
 			return -EINVAL;
 		}
 	}
@@ -714,10 +744,11 @@ static int create_trace_kprobe(int argc, char **argv)
 		else
 			snprintf(buf, MAX_EVENT_NAME_LEN, "%c_0x%p",
 				 is_return ? 'r' : 'p', addr);
+		sanitize_event_name(buf);
 		event = buf;
 	}
-	tk = alloc_trace_kprobe(group, event, addr, symbol, offset, argc,
-			       is_return);
+	tk = alloc_trace_kprobe(group, event, addr, symbol, offset, maxactive,
+			       argc, is_return);
 	if (IS_ERR(tk)) {
 		pr_info("Failed to allocate trace_probe.(%d)\n",
 			(int)PTR_ERR(tk));
@@ -1169,7 +1200,7 @@ kprobe_perf_func(struct trace_kprobe *tk, struct pt_regs *regs)
 	memset(&entry[1], 0, dsize);
 	store_trace_args(sizeof(*entry), &tk->tp, regs, (u8 *)&entry[1], dsize);
 	perf_trace_buf_submit(entry, size, rctx, call->event.type, 1, regs,
-			      head, NULL);
+			      head, NULL, NULL);
 }
 NOKPROBE_SYMBOL(kprobe_perf_func);
 
@@ -1205,7 +1236,7 @@ kretprobe_perf_func(struct trace_kprobe *tk, struct kretprobe_instance *ri,
 	entry->ret_ip = (unsigned long)ri->ret_addr;
 	store_trace_args(sizeof(*entry), &tk->tp, regs, (u8 *)&entry[1], dsize);
 	perf_trace_buf_submit(entry, size, rctx, call->event.type, 1, regs,
-			      head, NULL);
+			      head, NULL, NULL);
 }
 NOKPROBE_SYMBOL(kretprobe_perf_func);
 #endif	/* CONFIG_PERF_EVENTS */
@@ -1509,6 +1540,11 @@ static __init int kprobe_trace_self_tests_init(void)
 
 end:
 	release_all_trace_kprobes();
+	/*
+	 * Wait for the optimizer work to finish. Otherwise it might fiddle
+	 * with probes in already freed __init text.
+	 */
+	wait_for_kprobe_optimizer();
 	if (warn)
 		pr_cont("NG: Some tests are failed. Please check them.\n");
 	else

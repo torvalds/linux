@@ -21,13 +21,13 @@
  *
  */
 
+#include "pp_debug.h"
 #include "polaris10_smc.h"
 #include "smu7_dyn_defaults.h"
 
 #include "smu7_hwmgr.h"
 #include "hardwaremanager.h"
 #include "ppatomctrl.h"
-#include "pp_debug.h"
 #include "cgs_common.h"
 #include "atombios.h"
 #include "polaris10_smumgr.h"
@@ -494,6 +494,7 @@ static int polaris10_populate_ulv_level(struct pp_hwmgr *hwmgr,
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
+	struct pp_smumgr *smumgr = hwmgr->smumgr;
 
 	state->CcPwrDynRm = 0;
 	state->CcPwrDynRm1 = 0;
@@ -502,7 +503,10 @@ static int polaris10_populate_ulv_level(struct pp_hwmgr *hwmgr,
 	state->VddcOffsetVid = (uint8_t)(table_info->us_ulv_voltage_offset *
 			VOLTAGE_VID_OFFSET_SCALE2 / VOLTAGE_VID_OFFSET_SCALE1);
 
-	state->VddcPhase = (data->vddc_phase_shed_control) ? 0 : 1;
+	if (smumgr->chip_id == CHIP_POLARIS12 || smumgr->is_kicker)
+		state->VddcPhase = data->vddc_phase_shed_control ^ 0x3;
+	else
+		state->VddcPhase = (data->vddc_phase_shed_control) ? 0 : 1;
 
 	CONVERT_FROM_HOST_TO_SMC_UL(state->CcPwrDynRm);
 	CONVERT_FROM_HOST_TO_SMC_UL(state->CcPwrDynRm1);
@@ -1494,7 +1498,7 @@ static int polaris10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 			table_info->vdd_dep_on_sclk;
 
 
-	if (smu_data->avfs.avfs_btc_status == AVFS_BTC_NOTSUPPORTED)
+	if (((struct smu7_smumgr *)smu_data)->avfs.avfs_btc_status == AVFS_BTC_NOTSUPPORTED)
 		return result;
 
 	result = atomctrl_get_avfs_information(hwmgr, &avfs_params);
@@ -1607,6 +1611,42 @@ static void polaris10_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 	else
 		smu_data->power_tune_defaults = &polaris10_power_tune_data_set_array[0];
 
+}
+
+static void polaris10_save_default_power_profile(struct pp_hwmgr *hwmgr)
+{
+	struct polaris10_smumgr *data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct SMU74_Discrete_GraphicsLevel *levels =
+				data->smc_state_table.GraphicsLevel;
+	unsigned min_level = 1;
+
+	hwmgr->default_gfx_power_profile.activity_threshold =
+			be16_to_cpu(levels[0].ActivityLevel);
+	hwmgr->default_gfx_power_profile.up_hyst = levels[0].UpHyst;
+	hwmgr->default_gfx_power_profile.down_hyst = levels[0].DownHyst;
+	hwmgr->default_gfx_power_profile.type = AMD_PP_GFX_PROFILE;
+
+	hwmgr->default_compute_power_profile = hwmgr->default_gfx_power_profile;
+	hwmgr->default_compute_power_profile.type = AMD_PP_COMPUTE_PROFILE;
+
+	/* Workaround compute SDMA instability: disable lowest SCLK
+	 * DPM level. Optimize compute power profile: Use only highest
+	 * 2 power levels (if more than 2 are available), Hysteresis:
+	 * 0ms up, 5ms down
+	 */
+	if (data->smc_state_table.GraphicsDpmLevelCount > 2)
+		min_level = data->smc_state_table.GraphicsDpmLevelCount - 2;
+	else if (data->smc_state_table.GraphicsDpmLevelCount == 2)
+		min_level = 1;
+	else
+		min_level = 0;
+	hwmgr->default_compute_power_profile.min_sclk =
+		be32_to_cpu(levels[min_level].SclkSetting.SclkFrequency);
+	hwmgr->default_compute_power_profile.up_hyst = 0;
+	hwmgr->default_compute_power_profile.down_hyst = 5;
+
+	hwmgr->gfx_power_profile = hwmgr->default_gfx_power_profile;
+	hwmgr->compute_power_profile = hwmgr->default_compute_power_profile;
 }
 
 /**
@@ -1828,6 +1868,9 @@ int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 	result = polaris10_populate_pm_fuses(hwmgr);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to  populate PM fuses to SMC memory!", return result);
+
+	polaris10_save_default_power_profile(hwmgr);
+
 	return 0;
 }
 
@@ -1846,7 +1889,7 @@ int polaris10_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 {
 	int ret;
 	struct pp_smumgr *smumgr = (struct pp_smumgr *)(hwmgr->smumgr);
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(smumgr->backend);
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	if (smu_data->avfs.avfs_btc_status == AVFS_BTC_NOTSUPPORTED)
@@ -2180,7 +2223,7 @@ uint32_t polaris10_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU74_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
 	}
-	printk(KERN_WARNING "can't get the offset of type %x member %x\n", type, member);
+	pr_warn("can't get the offset of type %x member %x\n", type, member);
 	return 0;
 }
 
@@ -2207,7 +2250,7 @@ uint32_t polaris10_get_mac_definition(uint32_t value)
 		return SMU7_UVD_MCLK_HANDSHAKE_DISABLE;
 	}
 
-	printk(KERN_WARNING "can't get the mac of %x\n", value);
+	pr_warn("can't get the mac of %x\n", value);
 	return 0;
 }
 
@@ -2293,4 +2336,29 @@ bool polaris10_is_dpm_running(struct pp_hwmgr *hwmgr)
 	return (1 == PHM_READ_INDIRECT_FIELD(hwmgr->device,
 			CGS_IND_REG__SMC, FEATURE_STATUS, VOLTAGE_CONTROLLER_ON))
 			? true : false;
+}
+
+int polaris10_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
+		struct amd_pp_profile *request)
+{
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)
+			(hwmgr->smumgr->backend);
+	struct SMU74_Discrete_GraphicsLevel *levels =
+			smu_data->smc_state_table.GraphicsLevel;
+	uint32_t array = smu_data->smu7_data.dpm_table_start +
+			offsetof(SMU74_Discrete_DpmTable, GraphicsLevel);
+	uint32_t array_size = sizeof(struct SMU74_Discrete_GraphicsLevel) *
+			SMU74_MAX_LEVELS_GRAPHICS;
+	uint32_t i;
+
+	for (i = 0; i < smu_data->smc_state_table.GraphicsDpmLevelCount; i++) {
+		levels[i].ActivityLevel =
+				cpu_to_be16(request->activity_threshold);
+		levels[i].EnabledForActivity = 1;
+		levels[i].UpHyst = request->up_hyst;
+		levels[i].DownHyst = request->down_hyst;
+	}
+
+	return smu7_copy_bytes_to_smc(hwmgr->smumgr, array, (uint8_t *)levels,
+				array_size, SMC_RAM_END);
 }

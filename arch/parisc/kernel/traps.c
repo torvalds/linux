@@ -11,6 +11,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -816,7 +817,7 @@ void __init initialize_ivt(const void *iva)
 	u32 check = 0;
 	u32 *ivap;
 	u32 *hpmcp;
-	u32 length;
+	u32 length, instr;
 
 	if (strcmp((const char *)iva, "cows can fly"))
 		panic("IVT invalid");
@@ -825,6 +826,14 @@ void __init initialize_ivt(const void *iva)
 
 	for (i = 0; i < 8; i++)
 	    *ivap++ = 0;
+
+	/*
+	 * Use PDC_INSTR firmware function to get instruction that invokes
+	 * PDCE_CHECK in HPMC handler.  See programming note at page 1-31 of
+	 * the PA 1.1 Firmware Architecture document.
+	 */
+	if (pdc_instr(&instr) == PDC_OK)
+		ivap[0] = instr;
 
 	/* Compute Checksum for HPMC handler */
 	length = os_hpmc_size;

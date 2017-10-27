@@ -30,10 +30,6 @@
 #ifndef _TTM_BO_DRIVER_H_
 #define _TTM_BO_DRIVER_H_
 
-#include <ttm/ttm_bo_api.h>
-#include <ttm/ttm_memory.h>
-#include <ttm/ttm_module.h>
-#include <ttm/ttm_placement.h>
 #include <drm/drm_mm.h>
 #include <drm/drm_global.h>
 #include <drm/drm_vma_manager.h>
@@ -41,6 +37,13 @@
 #include <linux/fs.h>
 #include <linux/spinlock.h>
 #include <linux/reservation.h>
+
+#include "ttm_bo_api.h"
+#include "ttm_memory.h"
+#include "ttm_module.h"
+#include "ttm_placement.h"
+
+#define TTM_MAX_BO_PRIORITY	4U
 
 struct ttm_backend_func {
 	/**
@@ -226,13 +229,14 @@ struct ttm_mem_type_manager_func {
 	 * struct ttm_mem_type_manager member debug
 	 *
 	 * @man: Pointer to a memory type manager.
-	 * @prefix: Prefix to be used in printout to identify the caller.
+	 * @printer: Prefix to be used in printout to identify the caller.
 	 *
 	 * This function is called to print out the state of the memory
 	 * type manager to aid debugging of out-of-memory conditions.
 	 * It may not be called from within atomic context.
 	 */
-	void (*debug)(struct ttm_mem_type_manager *man, const char *prefix);
+	void (*debug)(struct ttm_mem_type_manager *man,
+		      struct drm_printer *printer);
 };
 
 /**
@@ -298,7 +302,7 @@ struct ttm_mem_type_manager {
 	 * Protected by the global->lru_lock.
 	 */
 
-	struct list_head lru;
+	struct list_head lru[TTM_MAX_BO_PRIORITY];
 
 	/*
 	 * Protected by @move_lock.
@@ -431,9 +435,15 @@ struct ttm_bo_driver {
 	int (*verify_access)(struct ttm_buffer_object *bo,
 			     struct file *filp);
 
-	/* hook to notify driver about a driver move so it
-	 * can do tiling things */
+	/**
+	 * Hook to notify driver about a driver move so it
+	 * can do tiling things and book-keeping.
+	 *
+	 * @evict: whether this move is evicting the buffer from the graphics
+	 * address space
+	 */
 	void (*move_notify)(struct ttm_buffer_object *bo,
+			    bool evict,
 			    struct ttm_mem_reg *new_mem);
 	/* notify the driver we are taking a fault on this BO
 	 * and have reserved it */
@@ -456,16 +466,30 @@ struct ttm_bo_driver {
 			    struct ttm_mem_reg *mem);
 
 	/**
-	 * Optional driver callback for when BO is removed from the LRU.
-	 * Called with LRU lock held immediately before the removal.
+	 * Return the pfn for a given page_offset inside the BO.
+	 *
+	 * @bo: the BO to look up the pfn for
+	 * @page_offset: the offset to look up
 	 */
-	void (*lru_removal)(struct ttm_buffer_object *bo);
+	unsigned long (*io_mem_pfn)(struct ttm_buffer_object *bo,
+				    unsigned long page_offset);
 
 	/**
-	 * Return the list_head after which a BO should be inserted in the LRU.
+	 * Read/write memory buffers for ptrace access
+	 *
+	 * @bo: the BO to access
+	 * @offset: the offset from the start of the BO
+	 * @buf: pointer to source/destination buffer
+	 * @len: number of bytes to copy
+	 * @write: whether to read (0) from or write (non-0) to BO
+	 *
+	 * If successful, this function should return the number of
+	 * bytes copied, -EIO otherwise. If the number of bytes
+	 * returned is < len, the function may be called again with
+	 * the remainder of the buffer to copy.
 	 */
-	struct list_head *(*lru_tail)(struct ttm_buffer_object *bo);
-	struct list_head *(*swap_lru_tail)(struct ttm_buffer_object *bo);
+	int (*access_memory)(struct ttm_buffer_object *bo, unsigned long offset,
+			     void *buf, int len, int write);
 };
 
 /**
@@ -512,7 +536,7 @@ struct ttm_bo_global {
 	/**
 	 * Protected by the lru_lock.
 	 */
-	struct list_head swap_lru;
+	struct list_head swap_lru[TTM_MAX_BO_PRIORITY];
 
 	/**
 	 * Internal protection.
@@ -780,9 +804,6 @@ extern void ttm_mem_io_unlock(struct ttm_mem_type_manager *man);
 extern void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo);
 extern void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
 
-struct list_head *ttm_bo_default_lru_tail(struct ttm_buffer_object *bo);
-struct list_head *ttm_bo_default_swap_lru_tail(struct ttm_buffer_object *bo);
-
 /**
  * __ttm_bo_reserve:
  *
@@ -878,7 +899,7 @@ static inline int ttm_bo_reserve(struct ttm_buffer_object *bo,
 {
 	int ret;
 
-	WARN_ON(!atomic_read(&bo->kref.refcount));
+	WARN_ON(!kref_read(&bo->kref));
 
 	ret = __ttm_bo_reserve(bo, interruptible, no_wait, ticket);
 	if (likely(ret == 0))
@@ -903,7 +924,7 @@ static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
 {
 	int ret = 0;
 
-	WARN_ON(!atomic_read(&bo->kref.refcount));
+	WARN_ON(!kref_read(&bo->kref));
 
 	if (interruptible)
 		ret = ww_mutex_lock_slow_interruptible(&bo->resv->lock,

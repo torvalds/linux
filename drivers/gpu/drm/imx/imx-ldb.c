@@ -389,7 +389,6 @@ static int imx_ldb_encoder_atomic_check(struct drm_encoder *encoder,
 
 
 static const struct drm_connector_funcs imx_ldb_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = imx_drm_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,
@@ -454,10 +453,8 @@ static int imx_ldb_register(struct drm_device *drm,
 			 DRM_MODE_ENCODER_LVDS, NULL);
 
 	if (imx_ldb_ch->bridge) {
-		imx_ldb_ch->bridge->encoder = encoder;
-
-		imx_ldb_ch->encoder.bridge = imx_ldb_ch->bridge;
-		ret = drm_bridge_attach(drm, imx_ldb_ch->bridge);
+		ret = drm_bridge_attach(&imx_ldb_ch->encoder,
+					imx_ldb_ch->bridge, NULL);
 		if (ret) {
 			DRM_ERROR("Failed to initialize bridge with drm\n");
 			return ret;
@@ -649,7 +646,6 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 
 	for_each_child_of_node(np, child) {
 		struct imx_ldb_channel *channel;
-		struct device_node *ep;
 		int bus_format;
 
 		ret = of_property_read_u32(child, "reg", &i);
@@ -673,27 +669,11 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 		 * The output port is port@4 with an external 4-port mux or
 		 * port@2 with the internal 2-port mux.
 		 */
-		ep = of_graph_get_endpoint_by_regs(child,
-						   imx_ldb->lvds_mux ? 4 : 2,
-						   -1);
-		if (ep) {
-			struct device_node *remote;
-
-			remote = of_graph_get_remote_port_parent(ep);
-			of_node_put(ep);
-			if (remote) {
-				channel->panel = of_drm_find_panel(remote);
-				channel->bridge = of_drm_find_bridge(remote);
-			} else
-				return -EPROBE_DEFER;
-			of_node_put(remote);
-
-			if (!channel->panel && !channel->bridge) {
-				dev_err(dev, "panel/bridge not found: %s\n",
-					remote->full_name);
-				return -EPROBE_DEFER;
-			}
-		}
+		ret = drm_of_find_panel_or_bridge(child,
+						  imx_ldb->lvds_mux ? 4 : 2, 0,
+						  &channel->panel, &channel->bridge);
+		if (ret && ret != -ENODEV)
+			return ret;
 
 		/* panel ddc only if there is no bridge */
 		if (!channel->bridge) {
@@ -738,8 +718,6 @@ static void imx_ldb_unbind(struct device *dev, struct device *master,
 	for (i = 0; i < 2; i++) {
 		struct imx_ldb_channel *channel = &imx_ldb->channel[i];
 
-		if (channel->bridge)
-			drm_bridge_detach(channel->bridge);
 		if (channel->panel)
 			drm_panel_detach(channel->panel);
 

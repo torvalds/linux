@@ -62,7 +62,7 @@ static struct snd_soc_dai_driver bt_sco_dai[] = {
 	}
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_bt_sco = {
+static const struct snd_soc_codec_driver soc_codec_dev_bt_sco = {
 	.component_driver = {
 		.dapm_widgets		= bt_sco_widgets,
 		.num_dapm_widgets	= ARRAY_SIZE(bt_sco_widgets),

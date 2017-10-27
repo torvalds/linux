@@ -33,7 +33,7 @@
 
 #ifdef CONFIG_X86_32
 
-extern unsigned long asmlinkage efi_call_phys(void *, ...);
+extern asmlinkage unsigned long efi_call_phys(void *, ...);
 
 #define arch_efi_call_virt_setup()	kernel_fpu_begin()
 #define arch_efi_call_virt_teardown()	kernel_fpu_end()
@@ -52,7 +52,7 @@ extern unsigned long asmlinkage efi_call_phys(void *, ...);
 
 #define EFI_LOADER_SIGNATURE	"EL64"
 
-extern u64 asmlinkage efi_call(void *fp, ...);
+extern asmlinkage u64 efi_call(void *fp, ...);
 
 #define efi_call_phys(f, args...)		efi_call((f), args)
 
@@ -74,7 +74,7 @@ struct efi_scratch {
 	__kernel_fpu_begin();						\
 									\
 	if (efi_scratch.use_pgd) {					\
-		efi_scratch.prev_cr3 = read_cr3();			\
+		efi_scratch.prev_cr3 = __read_cr3();			\
 		write_cr3((unsigned long)efi_scratch.efi_pgt);		\
 		__flush_tlb_all();					\
 	}								\
@@ -191,6 +191,7 @@ static inline efi_status_t efi_thunk_set_virtual_address_map(
 struct efi_config {
 	u64 image_handle;
 	u64 table;
+	u64 runtime_services;
 	u64 boot_services;
 	u64 text_output;
 	efi_status_t (*call)(unsigned long, ...);
@@ -225,6 +226,10 @@ static inline bool efi_is_64bit(void)
 
 #define __efi_call_early(f, ...)					\
 	__efi_early()->call((unsigned long)f, __VA_ARGS__);
+
+#define efi_call_runtime(f, ...)					\
+	__efi_early()->call(efi_table_attr(efi_runtime_services, f,	\
+		__efi_early()->runtime_services), __VA_ARGS__)
 
 extern bool efi_reboot_required(void);
 

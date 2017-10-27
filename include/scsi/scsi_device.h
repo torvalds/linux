@@ -80,6 +80,18 @@ struct scsi_event {
 	 */
 };
 
+/**
+ * struct scsi_vpd - SCSI Vital Product Data
+ * @rcu: For kfree_rcu().
+ * @len: Length in bytes of @data.
+ * @data: VPD data as defined in various T10 SCSI standard documents.
+ */
+struct scsi_vpd {
+	struct rcu_head	rcu;
+	int		len;
+	unsigned char	data[];
+};
+
 struct scsi_device {
 	struct Scsi_Host *host;
 	struct request_queue *request_queue;
@@ -111,7 +123,7 @@ struct scsi_device {
 	unsigned sector_size;	/* size in bytes */
 
 	void *hostdata;		/* available to low-level driver */
-	char type;
+	unsigned char type;
 	char scsi_level;
 	char inq_periph_qual;	/* PQ from INQUIRY data */	
 	struct mutex inquiry_mutex;
@@ -122,10 +134,8 @@ struct scsi_device {
 	const char * rev;		/* ... "nullnullnullnull" before scan */
 
 #define SCSI_VPD_PG_LEN                255
-	int vpd_pg83_len;
-	unsigned char __rcu *vpd_pg83;
-	int vpd_pg80_len;
-	unsigned char __rcu *vpd_pg80;
+	struct scsi_vpd __rcu *vpd_pg83;
+	struct scsi_vpd __rcu *vpd_pg80;
 	unsigned char current_tag;	/* current tag */
 	struct scsi_target      *sdev_target;   /* used only for single_lun */
 
@@ -176,12 +186,13 @@ struct scsi_device {
 	unsigned no_read_disc_info:1;	/* Avoid READ_DISC_INFO cmds */
 	unsigned no_read_capacity_16:1; /* Avoid READ_CAPACITY_16 cmds */
 	unsigned try_rc_10_first:1;	/* Try READ_CAPACACITY_10 first */
+	unsigned security_supported:1;	/* Supports Security Protocols */
 	unsigned is_visible:1;	/* is the device visible in sysfs */
 	unsigned wce_default_on:1;	/* Cache is ON by default */
 	unsigned no_dif:1;	/* T10 PI (DIF) should be disabled */
 	unsigned broken_fua:1;		/* Don't set FUA bit */
 	unsigned lun_in_cdb:1;		/* Store LUN bits in CDB[1] */
-	unsigned synchronous_alua:1;	/* Synchronous ALUA commands */
+	unsigned unmap_limit_for_ws:1;	/* Use the UNMAP limit for WRITE SAME */
 
 	atomic_t disk_events_disable_depth; /* disable depth for disk events */
 
@@ -207,6 +218,7 @@ struct scsi_device {
 	void			*handler_data;
 
 	unsigned char		access_state;
+	struct mutex		state_mutex;
 	enum scsi_device_state sdev_state;
 	unsigned long		sdev_data[0];
 } __attribute__((aligned(sizeof(unsigned long))));
@@ -248,6 +260,7 @@ enum scsi_target_state {
 	STARGET_CREATED = 1,
 	STARGET_RUNNING,
 	STARGET_REMOVE,
+	STARGET_CREATED_REMOVE,
 	STARGET_DEL,
 };
 
@@ -315,7 +328,8 @@ extern void scsi_remove_device(struct scsi_device *);
 extern int scsi_unregister_device_handler(struct scsi_device_handler *scsi_dh);
 void scsi_attach_vpd(struct scsi_device *sdev);
 
-extern int scsi_device_get(struct scsi_device *);
+extern struct scsi_device *scsi_device_from_queue(struct request_queue *q);
+extern int __must_check scsi_device_get(struct scsi_device *);
 extern void scsi_device_put(struct scsi_device *);
 extern struct scsi_device *scsi_device_lookup(struct Scsi_Host *,
 					      uint, uint, u64);
@@ -409,19 +423,16 @@ extern int scsi_is_target_device(const struct device *);
 extern void scsi_sanitize_inquiry_string(unsigned char *s, int len);
 extern int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 			int data_direction, void *buffer, unsigned bufflen,
-			unsigned char *sense, int timeout, int retries,
-			u64 flags, int *resid);
-extern int scsi_execute_req_flags(struct scsi_device *sdev,
-	const unsigned char *cmd, int data_direction, void *buffer,
-	unsigned bufflen, struct scsi_sense_hdr *sshdr, int timeout,
-	int retries, int *resid, u64 flags, req_flags_t rq_flags);
+			unsigned char *sense, struct scsi_sense_hdr *sshdr,
+			int timeout, int retries, u64 flags,
+			req_flags_t rq_flags, int *resid);
 static inline int scsi_execute_req(struct scsi_device *sdev,
 	const unsigned char *cmd, int data_direction, void *buffer,
 	unsigned bufflen, struct scsi_sense_hdr *sshdr, int timeout,
 	int retries, int *resid)
 {
-	return scsi_execute_req_flags(sdev, cmd, data_direction, buffer,
-		bufflen, sshdr, timeout, retries, resid, 0, 0);
+	return scsi_execute(sdev, cmd, data_direction, buffer,
+		bufflen, NULL, sshdr, timeout, retries,  0, 0, resid);
 }
 extern void sdev_disable_disk_events(struct scsi_device *sdev);
 extern void sdev_enable_disk_events(struct scsi_device *sdev);
@@ -473,6 +484,10 @@ static inline int scsi_device_created(struct scsi_device *sdev)
 	return sdev->sdev_state == SDEV_CREATED ||
 		sdev->sdev_state == SDEV_CREATED_BLOCK;
 }
+
+int scsi_internal_device_block_nowait(struct scsi_device *sdev);
+int scsi_internal_device_unblock_nowait(struct scsi_device *sdev,
+					enum scsi_device_state new_state);
 
 /* accessor functions for the SCSI parameters */
 static inline int scsi_device_sync(struct scsi_device *sdev)

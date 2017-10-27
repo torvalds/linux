@@ -90,5 +90,4 @@ auart0: serial@8006a000 {
 	reg = <0x8006a000 0x2000>;
 	interrupts = <112 70 71>;
 	clocks = <&clks 45>;
-	status = "disabled";
 };

@@ -104,7 +104,7 @@ static void ath9k_op_ps_restore(struct ath_common *common)
 	ath9k_ps_restore((struct ath_softc *) common->priv);
 }
 
-static struct ath_ps_ops ath9k_ps_ops = {
+static const struct ath_ps_ops ath9k_ps_ops = {
 	.wakeup = ath9k_op_ps_wakeup,
 	.restore = ath9k_op_ps_restore,
 };
@@ -620,6 +620,8 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 
 	/* Will be cleared in ath9k_start() */
 	set_bit(ATH_OP_INVALID, &common->op_flags);
+	sc->airtime_flags = (AIRTIME_USE_TX | AIRTIME_USE_RX |
+			     AIRTIME_USE_NEW_QUEUES);
 
 	sc->sc_ah = ah;
 	sc->dfs_detector = dfs_pattern_detector_init(common, NL80211_DFS_UNSET);
@@ -667,6 +669,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 		common->bt_ant_diversity = 1;
 
 	spin_lock_init(&common->cc_lock);
+	spin_lock_init(&sc->intr_lock);
 	spin_lock_init(&sc->sc_serial_rw);
 	spin_lock_init(&sc->sc_pm_lock);
 	spin_lock_init(&sc->chan_lock);
@@ -679,6 +682,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	INIT_WORK(&sc->hw_reset_work, ath_reset_work);
 	INIT_WORK(&sc->paprd_work, ath_paprd_calibrate);
 	INIT_DELAYED_WORK(&sc->hw_pll_work, ath_hw_pll_work);
+	INIT_DELAYED_WORK(&sc->hw_check_work, ath_hw_check_work);
 
 	ath9k_init_channel_context(sc);
 
@@ -951,6 +955,8 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	ath9k_cmn_reload_chainmask(ah);
 
 	SET_IEEE80211_PERM_ADDR(hw, common->macaddr);
+
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 }
 
 int ath9k_init_device(u16 devid, struct ath_softc *sc,

@@ -1,7 +1,7 @@
 /*
  * Device Tree Source for the r8a7745 SoC
  *
- * Copyright (C) 2016 Cogent Embedded Inc.
+ * Copyright (C) 2016-2017 Cogent Embedded Inc.
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of any
@@ -32,9 +32,8 @@
 			next-level-cache = <&L2_CA7>;
 		};
 
-		L2_CA7: cache-controller@0 {
+		L2_CA7: cache-controller-0 {
 			compatible = "cache";
-			reg = <0>;
 			cache-unified;
 			cache-level = <2>;
 			power-domains = <&sysc R8A7745_PD_CA7_SCU>;
@@ -55,11 +54,15 @@
 			#address-cells = <0>;
 			interrupt-controller;
 			reg = <0 0xf1001000 0 0x1000>,
-			      <0 0xf1002000 0 0x1000>,
+			      <0 0xf1002000 0 0x2000>,
 			      <0 0xf1004000 0 0x2000>,
 			      <0 0xf1006000 0 0x2000>;
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(2) |
 						 IRQ_TYPE_LEVEL_HIGH)>;
+			clocks = <&cpg CPG_MOD 408>;
+			clock-names = "clk";
+			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 408>;
 		};
 
 		irqc: interrupt-controller@e61c0000 {
@@ -79,6 +82,7 @@
 				     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 407>;
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 407>;
 		};
 
 		timer {
@@ -100,6 +104,17 @@
 			clock-names = "extal", "usb_extal";
 			#clock-cells = <2>;
 			#power-domain-cells = <0>;
+			#reset-cells = <1>;
+		};
+
+		prr: chipid@ff000044 {
+			compatible = "renesas,prr";
+			reg = <0 0xff000044 0 4>;
+		};
+
+		rst: reset-controller@e6160000 {
+			compatible = "renesas,r8a7745-rst";
+			reg = <0 0xe6160000 0 0x100>;
 		};
 
 		sysc: system-controller@e6180000 {
@@ -108,9 +123,9 @@
 			#power-domain-cells = <1>;
 		};
 
-		rst: reset-controller@e6160000 {
-			compatible = "renesas,r8a7745-rst";
-			reg = <0 0xe6160000 0 0x100>;
+		pfc: pin-controller@e6060000 {
+			compatible = "renesas,pfc-r8a7745";
+			reg = <0 0xe6060000 0 0x11c>;
 		};
 
 		dmac0: dma-controller@e6700000 {
@@ -141,6 +156,7 @@
 			clocks = <&cpg CPG_MOD 219>;
 			clock-names = "fck";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 219>;
 			#dma-cells = <1>;
 			dma-channels = <15>;
 		};
@@ -173,6 +189,7 @@
 			clocks = <&cpg CPG_MOD 218>;
 			clock-names = "fck";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 218>;
 			#dma-cells = <1>;
 			dma-channels = <15>;
 		};
@@ -188,6 +205,7 @@
 			       <&dmac1 0x21>, <&dmac1 0x22>;
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 204>;
 			status = "disabled";
 		};
 
@@ -202,6 +220,7 @@
 			       <&dmac1 0x25>, <&dmac1 0x26>;
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 203>;
 			status = "disabled";
 		};
 
@@ -216,6 +235,7 @@
 			       <&dmac1 0x27>, <&dmac1 0x28>;
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 202>;
 			status = "disabled";
 		};
 
@@ -230,6 +250,7 @@
 			       <&dmac1 0x1b>, <&dmac1 0x1c>;
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 1106>;
 			status = "disabled";
 		};
 
@@ -244,6 +265,7 @@
 			       <&dmac1 0x1f>, <&dmac1 0x20>;
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 1107>;
 			status = "disabled";
 		};
 
@@ -258,6 +280,7 @@
 			       <&dmac1 0x23>, <&dmac1 0x24>;
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 1108>;
 			status = "disabled";
 		};
 
@@ -269,9 +292,10 @@
 			clocks = <&cpg CPG_MOD 206>;
 			clock-names = "fck";
 			dmas = <&dmac0 0x3d>, <&dmac0 0x3e>,
-		       <&dmac1 0x3d>, <&dmac1 0x3e>;
+			       <&dmac1 0x3d>, <&dmac1 0x3e>;
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 206>;
 			status = "disabled";
 		};
 
@@ -286,6 +310,7 @@
 			       <&dmac1 0x19>, <&dmac1 0x1a>;
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 207>;
 			status = "disabled";
 		};
 
@@ -300,6 +325,7 @@
 			       <&dmac1 0x1d>, <&dmac1 0x1e>;
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 216>;
 			status = "disabled";
 		};
 
@@ -315,6 +341,7 @@
 			       <&dmac1 0x29>, <&dmac1 0x2a>;
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 721>;
 			status = "disabled";
 		};
 
@@ -330,6 +357,7 @@
 			       <&dmac1 0x2d>, <&dmac1 0x2e>;
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 720>;
 			status = "disabled";
 		};
 
@@ -345,6 +373,7 @@
 			       <&dmac1 0x2b>, <&dmac1 0x2c>;
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 719>;
 			status = "disabled";
 		};
 
@@ -360,6 +389,7 @@
 			       <&dmac1 0x2f>, <&dmac1 0x30>;
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 718>;
 			status = "disabled";
 		};
 
@@ -375,6 +405,7 @@
 			       <&dmac1 0xfb>, <&dmac1 0xfc>;
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 715>;
 			status = "disabled";
 		};
 
@@ -390,6 +421,7 @@
 			       <&dmac1 0xfd>, <&dmac1 0xfe>;
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 714>;
 			status = "disabled";
 		};
 
@@ -405,6 +437,7 @@
 			       <&dmac1 0x39>, <&dmac1 0x3a>;
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 717>;
 			status = "disabled";
 		};
 
@@ -420,6 +453,7 @@
 			       <&dmac1 0x4d>, <&dmac1 0x4e>;
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 716>;
 			status = "disabled";
 		};
 
@@ -435,7 +469,31 @@
 			       <&dmac1 0x3b>, <&dmac1 0x3c>;
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 713>;
 			status = "disabled";
+		};
+
+		icram2:	sram@e6300000 {
+			compatible = "mmio-sram";
+			reg = <0 0xe6300000 0 0x40000>;
+		};
+
+		icram0:	sram@e63a0000 {
+			compatible = "mmio-sram";
+			reg = <0 0xe63a0000 0 0x12000>;
+		};
+
+		icram1:	sram@e63c0000 {
+			compatible = "mmio-sram";
+			reg = <0 0xe63c0000 0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0 0xe63c0000 0x1000>;
+
+			smp-sram@0 {
+				compatible = "renesas,smp-sram";
+				reg = <0 0x10>;
+			};
 		};
 
 		ether: ethernet@ee700000 {
@@ -444,6 +502,7 @@
 			interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 813>;
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;
+			resets = <&cpg 813>;
 			phy-mode = "rmii";
 			#address-cells = <1>;
 			#size-cells = <0>;

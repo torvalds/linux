@@ -19,10 +19,6 @@
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
 */
 
 /*
@@ -137,7 +133,7 @@ static int or51132_load_firmware (struct dvb_frontend* fe, const struct firmware
 	u32 firmwareAsize, firmwareBsize;
 	int i,ret;
 
-	dprintk("Firmware is %Zd bytes\n",fw->size);
+	dprintk("Firmware is %zd bytes\n",fw->size);
 
 	/* Get size of firmware A and B */
 	firmwareAsize = le32_to_cpu(*((__le32*)fw->data));
@@ -497,8 +493,8 @@ start:
 	switch (reg&0xff) {
 	case 0x06:
 		if (reg & 0x1000) usK = 3 << 24;
-		/* Fall through to QAM64 case */
-	case 0x43:
+		/* fall through */
+	case 0x43: /* QAM64 */
 		c = 150204167;
 		break;
 	case 0x45:

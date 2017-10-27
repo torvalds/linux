@@ -11,6 +11,8 @@
 #define _ASM_FPU_H
 
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
+#include <linux/ptrace.h>
 #include <linux/thread_info.h>
 #include <linux/bitops.h>
 
@@ -19,6 +21,7 @@
 #include <asm/cpu-features.h>
 #include <asm/fpu_emulator.h>
 #include <asm/hazards.h>
+#include <asm/ptrace.h>
 #include <asm/processor.h>
 #include <asm/current.h>
 #include <asm/msa.h>

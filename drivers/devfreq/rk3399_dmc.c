@@ -91,17 +91,13 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 	unsigned long target_volt, target_rate;
 	int err;
 
-	rcu_read_lock();
 	opp = devfreq_recommended_opp(dev, freq, flags);
-	if (IS_ERR(opp)) {
-		rcu_read_unlock();
+	if (IS_ERR(opp))
 		return PTR_ERR(opp);
-	}
 
 	target_rate = dev_pm_opp_get_freq(opp);
 	target_volt = dev_pm_opp_get_voltage(opp);
-
-	rcu_read_unlock();
+	dev_pm_opp_put(opp);
 
 	if (dmcfreq->rate == target_rate)
 		return 0;
@@ -340,8 +336,9 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "Cannot get the dmc interrupt resource\n");
-		return -EINVAL;
+		dev_err(&pdev->dev,
+			"Cannot get the dmc interrupt resource: %d\n", irq);
+		return irq;
 	}
 	data = devm_kzalloc(dev, sizeof(struct rk3399_dmcfreq), GFP_KERNEL);
 	if (!data)
@@ -422,15 +419,13 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 
 	data->rate = clk_get_rate(data->dmc_clk);
 
-	rcu_read_lock();
 	opp = devfreq_recommended_opp(dev, &data->rate, 0);
-	if (IS_ERR(opp)) {
-		rcu_read_unlock();
+	if (IS_ERR(opp))
 		return PTR_ERR(opp);
-	}
+
 	data->rate = dev_pm_opp_get_freq(opp);
 	data->volt = dev_pm_opp_get_voltage(opp);
-	rcu_read_unlock();
+	dev_pm_opp_put(opp);
 
 	rk3399_devfreq_dmc_profile.initial_freq = data->rate;
 

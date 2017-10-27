@@ -50,13 +50,12 @@
 
 # define DEBUG_SUBSYSTEM S_LNET
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 #include <asm/div64.h>
 
-#include "../../include/linux/libcfs/libcfs_crypto.h"
-#include "../../include/linux/lnet/lib-lnet.h"
-#include "../../include/linux/lnet/lib-dlc.h"
-#include "../../include/linux/lnet/lnet.h"
+#include <linux/libcfs/libcfs_crypto.h>
+#include <linux/lnet/lib-lnet.h>
+#include <uapi/linux/lnet/lnet-dlc.h>
 #include "tracefile.h"
 
 static struct dentry *lnet_debugfs_root;
@@ -488,10 +487,10 @@ static const struct file_operations lnet_debugfs_file_operations_wo = {
 
 static const struct file_operations *lnet_debugfs_fops_select(umode_t mode)
 {
-	if (!(mode & S_IWUGO))
+	if (!(mode & 0222))
 		return &lnet_debugfs_file_operations_ro;
 
-	if (!(mode & S_IRUGO))
+	if (!(mode & 0444))
 		return &lnet_debugfs_file_operations_wo;
 
 	return &lnet_debugfs_file_operations_rw;

@@ -17,10 +17,11 @@
 #include <linux/srcu.h>
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/slab.h>
 
 /* global SRCU for all MMs */
-static struct srcu_struct srcu;
+DEFINE_STATIC_SRCU(srcu);
 
 /*
  * This function allows mmu_notifier::release callback to delay a call to
@@ -173,20 +174,6 @@ void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
 	srcu_read_unlock(&srcu, id);
 }
 
-void __mmu_notifier_invalidate_page(struct mm_struct *mm,
-					  unsigned long address)
-{
-	struct mmu_notifier *mn;
-	int id;
-
-	id = srcu_read_lock(&srcu);
-	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
-		if (mn->ops->invalidate_page)
-			mn->ops->invalidate_page(mn, mm, address);
-	}
-	srcu_read_unlock(&srcu, id);
-}
-
 void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
 				  unsigned long start, unsigned long end)
 {
@@ -251,12 +238,6 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
 
 	BUG_ON(atomic_read(&mm->mm_users) <= 0);
 
-	/*
-	 * Verify that mmu_notifier_init() already run and the global srcu is
-	 * initialized.
-	 */
-	BUG_ON(!srcu.per_cpu_ref);
-
 	ret = -ENOMEM;
 	mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm), GFP_KERNEL);
 	if (unlikely(!mmu_notifier_mm))
@@ -275,7 +256,7 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
 		mm->mmu_notifier_mm = mmu_notifier_mm;
 		mmu_notifier_mm = NULL;
 	}
-	atomic_inc(&mm->mm_count);
+	mmgrab(mm);
 
 	/*
 	 * Serialize the update against mmu_notifier_unregister. A
@@ -405,9 +386,3 @@ void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
 	mmdrop(mm);
 }
 EXPORT_SYMBOL_GPL(mmu_notifier_unregister_no_release);
-
-static int __init mmu_notifier_init(void)
-{
-	return init_srcu_struct(&srcu);
-}
-subsys_initcall(mmu_notifier_init);

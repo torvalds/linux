@@ -527,7 +527,7 @@ static void fotg210_ep_fifo_flush(struct usb_ep *_ep)
 {
 }
 
-static struct usb_ep_ops fotg210_ep_ops = {
+static const struct usb_ep_ops fotg210_ep_ops = {
 	.enable		= fotg210_ep_enable,
 	.disable	= fotg210_ep_disable,
 
@@ -1058,7 +1058,7 @@ static int fotg210_udc_stop(struct usb_gadget *g)
 	return 0;
 }
 
-static struct usb_gadget_ops fotg210_gadget_ops = {
+static const struct usb_gadget_ops fotg210_gadget_ops = {
 	.udc_start		= fotg210_udc_start,
 	.udc_stop		= fotg210_udc_stop,
 };

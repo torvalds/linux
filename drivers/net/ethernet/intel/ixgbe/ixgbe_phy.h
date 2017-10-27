@@ -84,8 +84,9 @@
 #define IXGBE_CS4227_GLOBAL_ID_LSB		0
 #define IXGBE_CS4227_GLOBAL_ID_MSB		1
 #define IXGBE_CS4227_SCRATCH			2
-#define IXGBE_CS4223_PHY_ID			0x7003	/* Quad port */
-#define IXGBE_CS4227_PHY_ID			0x3003	/* Dual port */
+#define IXGBE_CS4227_EFUSE_PDF_SKU		0x19F
+#define IXGBE_CS4223_SKU_ID			0x0010  /* Quad port */
+#define IXGBE_CS4227_SKU_ID			0x0014  /* Dual port */
 #define IXGBE_CS4227_RESET_PENDING		0x1357
 #define IXGBE_CS4227_RESET_COMPLETE		0x5AA5
 #define IXGBE_CS4227_RETRIES			15
@@ -168,10 +169,6 @@ s32 ixgbe_check_phy_link_tnx(struct ixgbe_hw *hw,
 			     ixgbe_link_speed *speed,
 			     bool *link_up);
 s32 ixgbe_setup_phy_link_tnx(struct ixgbe_hw *hw);
-s32 ixgbe_get_phy_firmware_version_tnx(struct ixgbe_hw *hw,
-				       u16 *firmware_version);
-s32 ixgbe_get_phy_firmware_version_generic(struct ixgbe_hw *hw,
-					   u16 *firmware_version);
 
 s32 ixgbe_reset_phy_nl(struct ixgbe_hw *hw);
 s32 ixgbe_set_copper_phy_power(struct ixgbe_hw *hw, bool on);

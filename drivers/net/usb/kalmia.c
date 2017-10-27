@@ -217,7 +217,7 @@ done:
 	remainder = skb->len % KALMIA_ALIGN_SIZE;
 	if (remainder > 0) {
 		padlen = KALMIA_ALIGN_SIZE - remainder;
-		memset(skb_put(skb, padlen), 0, padlen);
+		skb_put_zero(skb, padlen);
 	}
 
 	netdev_dbg(dev->net,
@@ -343,7 +343,7 @@ static const struct driver_info kalmia_info = {
 static const struct usb_device_id products[] = {
 	/* The unswitched USB ID, to get the module auto loaded: */
 	{ USB_DEVICE(0x04e8, 0x689a) },
-	/* The stick swithed into modem (by e.g. usb_modeswitch): */
+	/* The stick switched into modem (by e.g. usb_modeswitch): */
 	{ USB_DEVICE(0x04e8, 0x6889),
 		.driver_info = (unsigned long) &kalmia_info, },
 	{ /* EMPTY == end of list */} };

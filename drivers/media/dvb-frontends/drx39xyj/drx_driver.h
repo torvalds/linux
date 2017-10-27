@@ -256,8 +256,7 @@ int drxbsp_tuner_default_i2c_write_read(struct tuner_instance *tuner,
 *
 * The actual DAP implementation may be restricted to only one of the modes.
 * A compiler warning or error will be generated if the DAP implementation
-* overides or cannot handle the mode defined below.
-*
+* overrides or cannot handle the mode defined below.
 */
 #ifndef DRXDAP_SINGLE_MASTER
 #define DRXDAP_SINGLE_MASTER 1
@@ -272,7 +271,7 @@ int drxbsp_tuner_default_i2c_write_read(struct tuner_instance *tuner,
 *
 * This maximum size may be restricted by the actual DAP implementation.
 * A compiler warning or error will be generated if the DAP implementation
-* overides or cannot handle the chunksize defined below.
+* overrides or cannot handle the chunksize defined below.
 *
 * Beware that the DAP uses  DRXDAP_MAX_WCHUNKSIZE to create a temporary data
 * buffer. Do not undefine or choose too large, unless your system is able to
@@ -292,8 +291,7 @@ int drxbsp_tuner_default_i2c_write_read(struct tuner_instance *tuner,
 *
 * This maximum size may be restricted by the actual DAP implementation.
 * A compiler warning or error will be generated if the DAP implementation
-* overides or cannot handle the chunksize defined below.
-*
+* overrides or cannot handle the chunksize defined below.
 */
 #ifndef DRXDAP_MAX_RCHUNKSIZE
 #define  DRXDAP_MAX_RCHUNKSIZE 60
@@ -309,7 +307,7 @@ int drxbsp_tuner_default_i2c_write_read(struct tuner_instance *tuner,
 * \def DRX_UNKNOWN
 * \brief Generic UNKNOWN value for DRX enumerated types.
 *
-* Used to indicate that the parameter value is unknown or not yet initalized.
+* Used to indicate that the parameter value is unknown or not yet initialized.
 */
 #ifndef DRX_UNKNOWN
 #define DRX_UNKNOWN (254)
@@ -450,19 +448,6 @@ MACROS
 */
 #define DRX_16TO8(x) ((u8) (((u16)x) & 0xFF)), \
 			((u8)((((u16)x)>>8)&0xFF))
-
-/**
-* \brief Macro to sign extend signed 9 bit value to signed  16 bit value
-*/
-#define DRX_S9TOS16(x) ((((u16)x)&0x100) ? ((s16)((u16)(x)|0xFF00)) : (x))
-
-/**
-* \brief Macro to sign extend signed 9 bit value to signed  16 bit value
-*/
-#define DRX_S24TODRXFREQ(x) ((((u32) x) & 0x00800000UL) ? \
-				 ((s32) \
-				    (((u32) x) | 0xFF000000)) : \
-				 ((s32) x))
 
 /**
 * \brief Macro to convert 16 bit register value to a s32
@@ -1317,9 +1302,9 @@ struct drx_version_list {
 		DRX_MPEG_STR_WIDTH_8
 	};
 
-/* CTRL CFG MPEG ouput */
+/* CTRL CFG MPEG output */
 /**
-* \struct struct drx_cfg_mpeg_output * \brief Configuartion parameters for MPEG output control.
+* \struct struct drx_cfg_mpeg_output * \brief Configuration parameters for MPEG output control.
 *
 * Used by DRX_CFG_MPEG_OUTPUT, in combination with DRX_CTRL_SET_CFG and
 * DRX_CTRL_GET_CFG.

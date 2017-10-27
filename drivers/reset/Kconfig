@@ -14,6 +14,13 @@ menuconfig RESET_CONTROLLER
 
 if RESET_CONTROLLER
 
+config RESET_A10SR
+	tristate "Altera Arria10 System Resource Reset"
+	depends on MFD_ALTERA_A10SR
+	help
+	  This option enables support for the external reset functions for
+	  peripheral PHYs on the Altera Arria10 System Resource Chip.
+
 config RESET_ATH79
 	bool "AR71xx Reset Driver" if COMPILE_TEST
 	default ATH79
@@ -26,6 +33,26 @@ config RESET_BERLIN
 	default ARCH_BERLIN
 	help
 	  This enables the reset controller driver for Marvell Berlin SoCs.
+
+config RESET_HSDK
+	bool "Synopsys HSDK Reset Driver"
+	depends on HAS_IOMEM
+	depends on ARC_SOC_HSDK || COMPILE_TEST
+	help
+	  This enables the reset controller driver for HSDK board.
+
+config RESET_IMX7
+	bool "i.MX7 Reset Driver" if COMPILE_TEST
+	default SOC_IMX7D
+	select MFD_SYSCON
+	help
+	  This enables the reset controller driver for i.MX7 SoCs.
+
+config RESET_LANTIQ
+	bool "Lantiq XWAY Reset Driver" if COMPILE_TEST
+	default SOC_TYPE_XWAY
+	help
+	  This enables the reset controller driver for Lantiq / Intel XWAY SoCs.
 
 config RESET_LPC18XX
 	bool "LPC18xx/43xx Reset Driver" if COMPILE_TEST
@@ -66,7 +93,15 @@ config RESET_SUNXI
 	help
 	  This enables the reset driver for Allwinner SoCs.
 
-config TI_SYSCON_RESET
+config RESET_TI_SCI
+	tristate "TI System Control Interface (TI-SCI) reset driver"
+	depends on TI_SCI_PROTOCOL
+	help
+	  This enables the reset driver support over TI System Control Interface
+	  available on some new TI's SoCs. If you wish to use reset resources
+	  managed by the TI System Controller, say Y here. Otherwise, say N.
+
+config RESET_TI_SYSCON
 	tristate "TI SYSCON Reset Driver"
 	depends on HAS_IOMEM
 	select MFD_SYSCON
@@ -85,6 +120,12 @@ config RESET_UNIPHIER
 	  Support for reset controllers on UniPhier SoCs.
 	  Say Y if you want to control reset signals provided by System Control
 	  block, Media I/O block, Peripheral Block.
+
+config RESET_ZX2967
+	bool "ZTE ZX2967 Reset Driver"
+	depends on ARCH_ZX || COMPILE_TEST
+	help
+	  This enables the reset controller driver for ZTE's zx2967 family.
 
 config RESET_ZYNQ
 	bool "ZYNQ Reset Driver" if COMPILE_TEST

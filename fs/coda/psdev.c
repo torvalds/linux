@@ -22,7 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/major.h>
 #include <linux/time.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/fcntl.h>

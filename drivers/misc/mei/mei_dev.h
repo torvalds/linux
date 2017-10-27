@@ -26,12 +26,6 @@
 #include "hw.h"
 #include "hbm.h"
 
-
-/*
- * AMTHI Client UUID
- */
-extern const uuid_le mei_amthif_guid;
-
 #define MEI_RD_MSG_BUF_SIZE           (128 * sizeof(u32))
 
 /*
@@ -77,12 +71,6 @@ enum mei_dev_state {
 };
 
 const char *mei_dev_state_str(int state);
-
-enum iamthif_states {
-	MEI_IAMTHIF_IDLE,
-	MEI_IAMTHIF_WRITING,
-	MEI_IAMTHIF_READING,
-};
 
 enum mei_file_transaction_states {
 	MEI_IDLE,
@@ -318,7 +306,6 @@ struct mei_hw_ops {
 };
 
 /* MEI bus API*/
-void mei_cl_bus_rescan(struct mei_device *bus);
 void mei_cl_bus_rescan_work(struct work_struct *work);
 void mei_cl_bus_dev_fixup(struct mei_cl_device *dev);
 ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
@@ -328,6 +315,8 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length,
 bool mei_cl_bus_rx_event(struct mei_cl *cl);
 bool mei_cl_bus_notify_event(struct mei_cl *cl);
 void mei_cl_bus_remove_devices(struct mei_device *bus);
+bool mei_cl_bus_module_get(struct mei_cl *cl);
+void mei_cl_bus_module_put(struct mei_cl *cl);
 int mei_cl_bus_init(void);
 void mei_cl_bus_exit(void);
 
@@ -416,13 +405,6 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @allow_fixed_address: allow user space to connect a fixed client
  * @override_fixed_address: force allow fixed address behavior
  *
- * @amthif_cmd_list : amthif list for cmd waiting
- * @iamthif_cl  : amthif host client
- * @iamthif_open_count : number of opened amthif connections
- * @iamthif_stall_timer : timer to detect amthif hang
- * @iamthif_state : amthif processor state
- * @iamthif_canceled : current amthif command is canceled
- *
  * @reset_work  : work item for the device reset
  * @bus_rescan_work : work item for the bus rescan
  *
@@ -439,10 +421,10 @@ struct mei_device {
 	struct cdev cdev;
 	int minor;
 
-	struct mei_cl_cb write_list;
-	struct mei_cl_cb write_waiting_list;
-	struct mei_cl_cb ctrl_wr_list;
-	struct mei_cl_cb ctrl_rd_list;
+	struct list_head write_list;
+	struct list_head write_waiting_list;
+	struct list_head ctrl_wr_list;
+	struct list_head ctrl_rd_list;
 
 	struct list_head file_list;
 	long open_handle_count;
@@ -497,14 +479,6 @@ struct mei_device {
 
 	bool allow_fixed_address;
 	bool override_fixed_address;
-
-	/* amthif list for cmd waiting */
-	struct mei_cl_cb amthif_cmd_list;
-	struct mei_cl iamthif_cl;
-	long iamthif_open_count;
-	u32 iamthif_stall_timer;
-	enum iamthif_states iamthif_state;
-	bool iamthif_canceled;
 
 	struct work_struct reset_work;
 	struct work_struct bus_rescan_work;
@@ -571,32 +545,10 @@ void mei_cancel_work(struct mei_device *dev);
 void mei_timer(struct work_struct *work);
 void mei_schedule_stall_timer(struct mei_device *dev);
 int mei_irq_read_handler(struct mei_device *dev,
-		struct mei_cl_cb *cmpl_list, s32 *slots);
+			 struct list_head *cmpl_list, s32 *slots);
 
-int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list);
-void mei_irq_compl_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list);
-
-/*
- * AMTHIF - AMT Host Interface Functions
- */
-void mei_amthif_reset_params(struct mei_device *dev);
-
-int mei_amthif_host_init(struct mei_device *dev, struct mei_me_client *me_cl);
-
-unsigned int mei_amthif_poll(struct file *file, poll_table *wait);
-
-int mei_amthif_release(struct mei_device *dev, struct file *file);
-
-int mei_amthif_write(struct mei_cl *cl, struct mei_cl_cb *cb);
-int mei_amthif_run_next_cmd(struct mei_device *dev);
-int mei_amthif_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
-			struct mei_cl_cb *cmpl_list);
-
-void mei_amthif_complete(struct mei_cl *cl, struct mei_cl_cb *cb);
-int mei_amthif_irq_read_msg(struct mei_cl *cl,
-			    struct mei_msg_hdr *mei_hdr,
-			    struct mei_cl_cb *complete_list);
-int mei_amthif_irq_read(struct mei_device *dev, s32 *slots);
+int mei_irq_write_handler(struct mei_device *dev, struct list_head *cmpl_list);
+void mei_irq_compl_handler(struct mei_device *dev, struct list_head *cmpl_list);
 
 /*
  * Register Access Function
@@ -708,8 +660,6 @@ static inline int mei_fw_status(struct mei_device *dev,
 bool mei_hbuf_acquire(struct mei_device *dev);
 
 bool mei_write_is_idle(struct mei_device *dev);
-
-void mei_irq_discard_msg(struct mei_device *dev, struct mei_msg_hdr *hdr);
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 int mei_dbgfs_register(struct mei_device *dev, const char *name);

@@ -47,7 +47,7 @@ static int gb_interface_hibernate_link(struct gb_interface *intf);
 static int gb_interface_refclk_set(struct gb_interface *intf, bool enable);
 
 static int gb_interface_dme_attr_get(struct gb_interface *intf,
-							u16 attr, u32 *val)
+				     u16 attr, u32 *val)
 {
 	return gb_svc_dme_peer_get(intf->hd->svc, intf->interface_id,
 					attr, DME_SELECTOR_INDEX_NULL, val);
@@ -64,7 +64,7 @@ static int gb_interface_read_ara_dme(struct gb_interface *intf)
 	 */
 	if (intf->ddbl1_manufacturer_id != TOSHIBA_DMID) {
 		dev_err(&intf->dev, "unknown manufacturer %08x\n",
-				intf->ddbl1_manufacturer_id);
+			intf->ddbl1_manufacturer_id);
 		return -ENODEV;
 	}
 
@@ -110,7 +110,7 @@ static int gb_interface_read_dme(struct gb_interface *intf)
 		return ret;
 
 	if (intf->ddbl1_manufacturer_id == TOSHIBA_DMID &&
-			intf->ddbl1_product_id == TOSHIBA_ES2_BRIDGE_DPID) {
+	    intf->ddbl1_product_id == TOSHIBA_ES2_BRIDGE_DPID) {
 		intf->quirks |= GB_INTERFACE_QUIRK_NO_GMP_IDS;
 		intf->quirks |= GB_INTERFACE_QUIRK_NO_INIT_STATUS;
 	}
@@ -144,7 +144,7 @@ static int gb_interface_route_create(struct gb_interface *intf)
 	ret = gb_svc_intf_device_id(svc, intf_id, device_id);
 	if (ret) {
 		dev_err(&intf->dev, "failed to set device id %u: %d\n",
-				device_id, ret);
+			device_id, ret);
 		goto err_ida_remove;
 	}
 
@@ -205,21 +205,21 @@ static int gb_interface_legacy_mode_switch(struct gb_interface *intf)
 }
 
 void gb_interface_mailbox_event(struct gb_interface *intf, u16 result,
-								u32 mailbox)
+				u32 mailbox)
 {
 	mutex_lock(&intf->mutex);
 
 	if (result) {
 		dev_warn(&intf->dev,
-				"mailbox event with UniPro error: 0x%04x\n",
-				result);
+			 "mailbox event with UniPro error: 0x%04x\n",
+			 result);
 		goto err_disable;
 	}
 
 	if (mailbox != GB_SVC_INTF_MAILBOX_GREYBUS) {
 		dev_warn(&intf->dev,
-				"mailbox event with unexpected value: 0x%08x\n",
-				mailbox);
+			 "mailbox event with unexpected value: 0x%08x\n",
+			 mailbox);
 		goto err_disable;
 	}
 
@@ -230,7 +230,7 @@ void gb_interface_mailbox_event(struct gb_interface *intf, u16 result,
 
 	if (!intf->mode_switch) {
 		dev_warn(&intf->dev, "unexpected mailbox event: 0x%08x\n",
-				mailbox);
+			 mailbox);
 		goto err_disable;
 	}
 
@@ -299,7 +299,7 @@ static void gb_interface_mode_switch_work(struct work_struct *work)
 		ret = gb_interface_enable(intf);
 		if (ret) {
 			dev_err(&intf->dev, "failed to re-enable interface: %d\n",
-					ret);
+				ret);
 			gb_interface_deactivate(intf);
 		}
 	}
@@ -619,7 +619,7 @@ static struct attribute *interface_common_attrs[] = {
 };
 
 static umode_t interface_unipro_is_visible(struct kobject *kobj,
-						struct attribute *attr, int n)
+					   struct attribute *attr, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct gb_interface *intf = to_gb_interface(dev);
@@ -634,7 +634,7 @@ static umode_t interface_unipro_is_visible(struct kobject *kobj,
 }
 
 static umode_t interface_greybus_is_visible(struct kobject *kobj,
-						struct attribute *attr, int n)
+					    struct attribute *attr, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct gb_interface *intf = to_gb_interface(dev);
@@ -648,7 +648,7 @@ static umode_t interface_greybus_is_visible(struct kobject *kobj,
 }
 
 static umode_t interface_power_is_visible(struct kobject *kobj,
-						struct attribute *attr, int n)
+					  struct attribute *attr, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct gb_interface *intf = to_gb_interface(dev);
@@ -702,13 +702,11 @@ static void gb_interface_release(struct device *dev)
 static int gb_interface_suspend(struct device *dev)
 {
 	struct gb_interface *intf = to_gb_interface(dev);
-	int ret, timesync_ret;
+	int ret;
 
 	ret = gb_control_interface_suspend_prepare(intf->control);
 	if (ret)
 		return ret;
-
-	gb_timesync_interface_remove(intf);
 
 	ret = gb_control_suspend(intf->control);
 	if (ret)
@@ -730,12 +728,6 @@ static int gb_interface_suspend(struct device *dev)
 err_hibernate_abort:
 	gb_control_interface_hibernate_abort(intf->control);
 
-	timesync_ret = gb_timesync_interface_add(intf);
-	if (timesync_ret) {
-		dev_err(dev, "failed to add to timesync: %d\n", timesync_ret);
-		return timesync_ret;
-	}
-
 	return ret;
 }
 
@@ -756,18 +748,6 @@ static int gb_interface_resume(struct device *dev)
 	ret = gb_control_resume(intf->control);
 	if (ret)
 		return ret;
-
-	ret = gb_timesync_interface_add(intf);
-	if (ret) {
-		dev_err(dev, "failed to add to timesync: %d\n", ret);
-		return ret;
-	}
-
-	ret = gb_timesync_schedule_synchronous(intf);
-	if (ret) {
-		dev_err(dev, "failed to synchronize FrameTime: %d\n", ret);
-		return ret;
-	}
 
 	return 0;
 }
@@ -833,7 +813,7 @@ struct gb_interface *gb_interface_create(struct gb_module *module,
 	intf->dev.dma_mask = module->dev.dma_mask;
 	device_initialize(&intf->dev);
 	dev_set_name(&intf->dev, "%s.%u", dev_name(&module->dev),
-			interface_id);
+		     interface_id);
 
 	pm_runtime_set_autosuspend_delay(&intf->dev,
 					 GB_INTERFACE_AUTOSUSPEND_MS);
@@ -1103,7 +1083,7 @@ int gb_interface_enable(struct gb_interface *intf)
 	control = gb_control_create(intf);
 	if (IS_ERR(control)) {
 		dev_err(&intf->dev, "failed to create control device: %ld\n",
-				PTR_ERR(control));
+			PTR_ERR(control));
 		return PTR_ERR(control);
 	}
 	intf->control = control;
@@ -1152,16 +1132,10 @@ int gb_interface_enable(struct gb_interface *intf)
 	if (ret)
 		goto err_destroy_bundles;
 
-	ret = gb_timesync_interface_add(intf);
-	if (ret) {
-		dev_err(&intf->dev, "failed to add to timesync: %d\n", ret);
-		goto err_destroy_bundles;
-	}
-
 	/* Register the control device and any bundles */
 	ret = gb_control_add(intf->control);
 	if (ret)
-		goto err_remove_timesync;
+		goto err_destroy_bundles;
 
 	pm_runtime_use_autosuspend(&intf->dev);
 	pm_runtime_get_noresume(&intf->dev);
@@ -1186,8 +1160,6 @@ int gb_interface_enable(struct gb_interface *intf)
 
 	return 0;
 
-err_remove_timesync:
-	gb_timesync_interface_remove(intf);
 err_destroy_bundles:
 	list_for_each_entry_safe(bundle, tmp, &intf->bundles, links)
 		gb_bundle_destroy(bundle);
@@ -1230,7 +1202,6 @@ void gb_interface_disable(struct gb_interface *intf)
 		gb_control_interface_deactivate_prepare(intf->control);
 
 	gb_control_del(intf->control);
-	gb_timesync_interface_remove(intf);
 	gb_control_disable(intf->control);
 	gb_control_put(intf->control);
 	intf->control = NULL;
@@ -1241,29 +1212,6 @@ void gb_interface_disable(struct gb_interface *intf)
 	pm_runtime_set_suspended(&intf->dev);
 	pm_runtime_dont_use_autosuspend(&intf->dev);
 	pm_runtime_put_noidle(&intf->dev);
-}
-
-/* Enable TimeSync on an Interface control connection. */
-int gb_interface_timesync_enable(struct gb_interface *intf, u8 count,
-				 u64 frame_time, u32 strobe_delay, u32 refclk)
-{
-	return gb_control_timesync_enable(intf->control, count,
-					  frame_time, strobe_delay,
-					  refclk);
-}
-
-/* Disable TimeSync on an Interface control connection. */
-int gb_interface_timesync_disable(struct gb_interface *intf)
-{
-	return gb_control_timesync_disable(intf->control);
-}
-
-/* Transmit the Authoritative FrameTime via an Interface control connection. */
-int gb_interface_timesync_authoritative(struct gb_interface *intf,
-					u64 *frame_time)
-{
-	return gb_control_timesync_authoritative(intf->control,
-						frame_time);
 }
 
 /* Register an interface. */
@@ -1280,17 +1228,17 @@ int gb_interface_add(struct gb_interface *intf)
 	trace_gb_interface_add(intf);
 
 	dev_info(&intf->dev, "Interface added (%s)\n",
-			gb_interface_type_string(intf));
+		 gb_interface_type_string(intf));
 
 	switch (intf->type) {
 	case GB_INTERFACE_TYPE_GREYBUS:
 		dev_info(&intf->dev, "GMP VID=0x%08x, PID=0x%08x\n",
-				intf->vendor_id, intf->product_id);
+			 intf->vendor_id, intf->product_id);
 		/* fall-through */
 	case GB_INTERFACE_TYPE_UNIPRO:
 		dev_info(&intf->dev, "DDBL1 Manufacturer=0x%08x, Product=0x%08x\n",
-				intf->ddbl1_manufacturer_id,
-				intf->ddbl1_product_id);
+			 intf->ddbl1_manufacturer_id,
+			 intf->ddbl1_product_id);
 		break;
 	default:
 		break;

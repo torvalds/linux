@@ -53,7 +53,6 @@
 #include <sound/initval.h>
 #include <sound/ac97_codec.h>
 
-#include "pxa2xx-ac97.h"
 #include "../codecs/wm9713.h"
 
 #define AC97_GPIO_PULL		0x58
@@ -158,7 +157,7 @@ static struct snd_soc_dai_link mioa701_dai[] = {
 		.name = "AC97 Aux",
 		.stream_name = "AC97 Aux",
 		.cpu_dai_name = "pxa2xx-ac97-aux",
-		.codec_dai_name ="wm9713-aux",
+		.codec_dai_name = "wm9713-aux",
 		.codec_name = "wm9713-codec",
 		.platform_name = "pxa-pcm-audio",
 		.ops = &mioa701_ops,

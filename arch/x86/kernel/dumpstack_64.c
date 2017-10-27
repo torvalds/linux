@@ -2,6 +2,7 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 2000, 2001, 2002 Andi Kleen, SuSE Labs
  */
+#include <linux/sched/debug.h>
 #include <linux/kallsyms.h>
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>
@@ -54,7 +55,7 @@ static bool in_exception_stack(unsigned long *stack, struct stack_info *info)
 		begin = end - (exception_stack_sizes[k] / sizeof(long));
 		regs  = (struct pt_regs *)end - 1;
 
-		if (stack < begin || stack >= end)
+		if (stack <= begin || stack >= end)
 			continue;
 
 		info->type	= STACK_TYPE_EXCEPTION + k;
@@ -77,7 +78,7 @@ static bool in_irq_stack(unsigned long *stack, struct stack_info *info)
 	 * This is a software stack, so 'end' can be a valid stack pointer.
 	 * It just means the stack is empty.
 	 */
-	if (stack < begin || stack > end)
+	if (stack <= begin || stack > end)
 		return false;
 
 	info->type	= STACK_TYPE_IRQ;
@@ -176,14 +177,4 @@ void show_regs(struct pt_regs *regs)
 		}
 	}
 	pr_cont("\n");
-}
-
-int is_valid_bugaddr(unsigned long ip)
-{
-	unsigned short ud2;
-
-	if (__copy_from_user(&ud2, (const void __user *) ip, sizeof(ud2)))
-		return 0;
-
-	return ud2 == 0x0b0f;
 }

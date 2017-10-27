@@ -63,6 +63,22 @@
 		};
 	};
 
+	/*
+	 * These channels from the ADC are simply hardware monitors.
+	 * That is why the ADC is referred to as "HKADC" - HouseKeeping
+	 * ADC.
+	 */
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&xoadc 0x00 0x01>, /* Battery */
+			    <&xoadc 0x00 0x02>, /* DC in (charger) */
+			    <&xoadc 0x00 0x04>, /* VPH the main system voltage */
+			    <&xoadc 0x00 0x0b>, /* Die temperature */
+			    <&xoadc 0x00 0x0c>, /* Reference voltage 1.25V */
+			    <&xoadc 0x00 0x0d>, /* Reference voltage 0.625V */
+			    <&xoadc 0x00 0x0e>; /* Reference voltage 0.325V */
+	};
+
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -105,6 +121,31 @@
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			reg = <0x900000 0x4000>;
+		};
+
+
+		gsbi8: gsbi@19800000 {
+			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <12>;
+			reg = <0x19800000 0x100>;
+			clocks = <&gcc GSBI8_H_CLK>;
+			clock-names = "iface";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			syscon-tcsr = <&tcsr>;
+
+			gsbi8_i2c: i2c@19880000 {
+				compatible = "qcom,i2c-qup-v1.1.1";
+				reg = <0x19880000 0x1000>;
+				interrupts = <GIC_SPI 161 IRQ_TYPE_NONE>;
+				clocks = <&gcc GSBI8_QUP_CLK>, <&gcc GSBI8_H_CLK>;
+				clock-names = "core", "iface";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
 		};
 
 		gsbi12: gsbi@19c00000 {
@@ -163,7 +204,7 @@
 			reg = <0x500000 0x1000>;
 			qcom,controller-type = "pmic-arbiter";
 
-			pmicintc: pmic@0 {
+			pm8058: pmic@0 {
 				compatible = "qcom,pm8058";
 				interrupt-parent = <&tlmm>;
 				interrupts = <88 8>;
@@ -176,7 +217,7 @@
 					compatible = "qcom,pm8058-gpio",
 						     "qcom,ssbi-gpio";
 					reg = <0x150>;
-					interrupt-parent = <&pmicintc>;
+					interrupt-parent = <&pm8058>;
 					interrupts = <192 IRQ_TYPE_NONE>,
 						     <193 IRQ_TYPE_NONE>,
 						     <194 IRQ_TYPE_NONE>,
@@ -232,7 +273,7 @@
 					reg = <0x50>;
 					gpio-controller;
 					#gpio-cells = <2>;
-					interrupt-parent = <&pmicintc>;
+					interrupt-parent = <&pm8058>;
 					interrupts =
 					<128 IRQ_TYPE_NONE>,
 					<129 IRQ_TYPE_NONE>,
@@ -251,7 +292,7 @@
 				pwrkey@1c {
 					compatible = "qcom,pm8058-pwrkey";
 					reg = <0x1c>;
-					interrupt-parent = <&pmicintc>;
+					interrupt-parent = <&pm8058>;
 					interrupts = <50 1>, <51 1>;
 					debounce = <15625>;
 					pull-up;
@@ -260,17 +301,60 @@
 				keypad@148 {
 					compatible = "qcom,pm8058-keypad";
 					reg = <0x148>;
-					interrupt-parent = <&pmicintc>;
+					interrupt-parent = <&pm8058>;
 					interrupts = <74 1>, <75 1>;
 					debounce = <15>;
 					scan-delay = <32>;
 					row-hold = <91500>;
 				};
 
+				xoadc: xoadc@197 {
+					compatible = "qcom,pm8058-adc";
+					reg = <0x197>;
+					interrupts-extended = <&pm8058 76 IRQ_TYPE_EDGE_RISING>;
+					#address-cells = <2>;
+					#size-cells = <0>;
+					#io-channel-cells = <2>;
+
+					vcoin: adc-channel@00 {
+						reg = <0x00 0x00>;
+					};
+					vbat: adc-channel@01 {
+						reg = <0x00 0x01>;
+					};
+					dcin: adc-channel@02 {
+						reg = <0x00 0x02>;
+					};
+					ichg: adc-channel@03 {
+						reg = <0x00 0x03>;
+					};
+					vph_pwr: adc-channel@04 {
+						reg = <0x00 0x04>;
+					};
+					usb_vbus: adc-channel@0a {
+						reg = <0x00 0x0a>;
+					};
+					die_temp: adc-channel@0b {
+						reg = <0x00 0x0b>;
+					};
+					ref_625mv: adc-channel@0c {
+						reg = <0x00 0x0c>;
+					};
+					ref_1250mv: adc-channel@0d {
+						reg = <0x00 0x0d>;
+					};
+					ref_325mv: adc-channel@0e {
+						reg = <0x00 0x0e>;
+					};
+					ref_muxoff: adc-channel@0f {
+						reg = <0x00 0x0f>;
+					};
+				};
+
 				rtc@1e8 {
 					compatible = "qcom,pm8058-rtc";
 					reg = <0x1e8>;
-					interrupt-parent = <&pmicintc>;
+					interrupt-parent = <&pm8058>;
 					interrupts = <39 1>;
 					allow-set-time;
 				};
@@ -392,6 +476,21 @@
 				cap-mmc-highspeed;
 			};
 
+			sdcc2: sdcc@12140000 {
+				status		= "disabled";
+				compatible	= "arm,pl18x", "arm,primecell";
+				arm,primecell-periphid = <0x00051180>;
+				reg		= <0x12140000 0x8000>;
+				interrupts	= <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names	= "cmd_irq";
+				clocks		= <&gcc SDC2_CLK>, <&gcc SDC2_H_CLK>;
+				clock-names	= "mclk", "apb_pclk";
+				bus-width	= <8>;
+				max-frequency	= <48000000>;
+				cap-sd-highspeed;
+				cap-mmc-highspeed;
+			};
+
 			sdcc3: sdcc@12180000 {
 				compatible	= "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
@@ -406,6 +505,21 @@
 				cap-mmc-highspeed;
 				max-frequency	= <48000000>;
 				no-1-8-v;
+			};
+
+			sdcc4: sdcc@121c0000 {
+				compatible	= "arm,pl18x", "arm,primecell";
+				arm,primecell-periphid = <0x00051180>;
+				status		= "disabled";
+				reg		= <0x121c0000 0x8000>;
+				interrupts	= <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names	= "cmd_irq";
+				clocks		= <&gcc SDC4_CLK>, <&gcc SDC4_H_CLK>;
+				clock-names	= "mclk", "apb_pclk";
+				bus-width	= <4>;
+				max-frequency	= <48000000>;
+				cap-sd-highspeed;
+				cap-mmc-highspeed;
 			};
 
 			sdcc5: sdcc@12200000 {

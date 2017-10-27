@@ -1066,13 +1066,13 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	/* cif_testout */
 	MUX(0, "clk_testout1_pll_src", mux_pll_src_cpll_gpll_npll_p, 0,
 			RK3399_CLKSEL_CON(38), 6, 2, MFLAGS),
-	COMPOSITE(0, "clk_testout1", mux_clk_testout1_p, 0,
+	COMPOSITE(SCLK_TESTCLKOUT1, "clk_testout1", mux_clk_testout1_p, 0,
 			RK3399_CLKSEL_CON(38), 5, 1, MFLAGS, 0, 5, DFLAGS,
 			RK3399_CLKGATE_CON(13), 14, GFLAGS),
 
 	MUX(0, "clk_testout2_pll_src", mux_pll_src_cpll_gpll_npll_p, 0,
 			RK3399_CLKSEL_CON(38), 14, 2, MFLAGS),
-	COMPOSITE(0, "clk_testout2", mux_clk_testout2_p, 0,
+	COMPOSITE(SCLK_TESTCLKOUT2, "clk_testout2", mux_clk_testout2_p, 0,
 			RK3399_CLKSEL_CON(38), 13, 1, MFLAGS, 8, 5, DFLAGS,
 			RK3399_CLKGATE_CON(13), 15, GFLAGS),
 
@@ -1132,7 +1132,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(11), 8, GFLAGS),
 
 	COMPOSITE(PCLK_EDP, "pclk_edp", mux_pll_src_cpll_gpll_p, 0,
-			RK3399_CLKSEL_CON(44), 15, 1, MFLAGS, 8, 5, DFLAGS,
+			RK3399_CLKSEL_CON(44), 15, 1, MFLAGS, 8, 6, DFLAGS,
 			RK3399_CLKGATE_CON(11), 11, GFLAGS),
 	GATE(PCLK_EDP_NOC, "pclk_edp_noc", "pclk_edp", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(32), 12, GFLAGS),
@@ -1477,10 +1477,10 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 	GATE(PCLK_UART4_PMU, "pclk_uart4_pmu", "pclk_pmu_src", 0, RK3399_PMU_CLKGATE_CON(1), 14, GFLAGS),
 	GATE(PCLK_WDT_M0_PMU, "pclk_wdt_m0_pmu", "pclk_pmu_src", 0, RK3399_PMU_CLKGATE_CON(1), 15, GFLAGS),
 
-	GATE(FCLK_CM0S_PMU, "fclk_cm0s_pmu", "fclk_cm0s_src_pmu", 0, RK3399_PMU_CLKGATE_CON(2), 0, GFLAGS),
-	GATE(SCLK_CM0S_PMU, "sclk_cm0s_pmu", "fclk_cm0s_src_pmu", 0, RK3399_PMU_CLKGATE_CON(2), 1, GFLAGS),
-	GATE(HCLK_CM0S_PMU, "hclk_cm0s_pmu", "fclk_cm0s_src_pmu", 0, RK3399_PMU_CLKGATE_CON(2), 2, GFLAGS),
-	GATE(DCLK_CM0S_PMU, "dclk_cm0s_pmu", "fclk_cm0s_src_pmu", 0, RK3399_PMU_CLKGATE_CON(2), 3, GFLAGS),
+	GATE(FCLK_CM0S_PMU, "fclk_cm0s_pmu", "fclk_cm0s_src_pmu", CLK_IGNORE_UNUSED, RK3399_PMU_CLKGATE_CON(2), 0, GFLAGS),
+	GATE(SCLK_CM0S_PMU, "sclk_cm0s_pmu", "fclk_cm0s_src_pmu", CLK_IGNORE_UNUSED, RK3399_PMU_CLKGATE_CON(2), 1, GFLAGS),
+	GATE(HCLK_CM0S_PMU, "hclk_cm0s_pmu", "fclk_cm0s_src_pmu", CLK_IGNORE_UNUSED, RK3399_PMU_CLKGATE_CON(2), 2, GFLAGS),
+	GATE(DCLK_CM0S_PMU, "dclk_cm0s_pmu", "fclk_cm0s_src_pmu", CLK_IGNORE_UNUSED, RK3399_PMU_CLKGATE_CON(2), 3, GFLAGS),
 	GATE(HCLK_NOC_PMU, "hclk_noc_pmu", "fclk_cm0s_src_pmu", CLK_IGNORE_UNUSED, RK3399_PMU_CLKGATE_CON(2), 5, GFLAGS),
 };
 

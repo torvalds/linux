@@ -15,13 +15,10 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -1205,7 +1202,7 @@ err:
 
 }
 
-static struct pci_device_id pt1_id_table[] = {
+static const struct pci_device_id pt1_id_table[] = {
 	{ PCI_DEVICE(0x10ee, 0x211a) },
 	{ PCI_DEVICE(0x10ee, 0x222a) },
 	{ },

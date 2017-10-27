@@ -39,6 +39,8 @@
 #ifndef _LUSTRE_REQ_LAYOUT_H__
 #define _LUSTRE_REQ_LAYOUT_H__
 
+#include <linux/types.h>
+
 /** \defgroup req_layout req_layout
  *
  * @{
@@ -65,11 +67,6 @@ struct req_capsule {
 	enum req_location	rc_loc;
 	__u32		    rc_area[RCL_NR][REQ_MAX_FIELD_NR];
 };
-
-#if !defined(__REQ_LAYOUT_USER__)
-
-/* struct ptlrpc_request, lustre_msg* */
-#include "lustre_net.h"
 
 void req_capsule_init(struct req_capsule *pill, struct ptlrpc_request *req,
 		      enum req_location location);
@@ -119,9 +116,6 @@ void req_capsule_shrink(struct req_capsule *pill,
 			u32 newlen, enum req_location loc);
 int  req_layout_init(void);
 void req_layout_fini(void);
-
-/* __REQ_LAYOUT_USER__ */
-#endif
 
 extern struct req_format RQF_OBD_PING;
 extern struct req_format RQF_OBD_SET_INFO;

@@ -1,4 +1,4 @@
-ccflags-y := -Iinclude/drm -Idrivers/gpu/drm/msm
+ccflags-y := -Idrivers/gpu/drm/msm
 ccflags-$(CONFIG_DRM_MSM_DSI) += -Idrivers/gpu/drm/msm/dsi
 
 msm-y := \
@@ -40,6 +40,7 @@ msm-y := \
 	mdp/mdp5/mdp5_mdss.o \
 	mdp/mdp5/mdp5_kms.o \
 	mdp/mdp5/mdp5_pipe.o \
+	mdp/mdp5/mdp5_mixer.o \
 	mdp/mdp5/mdp5_plane.o \
 	mdp/mdp5/mdp5_smp.o \
 	msm_atomic.o \
@@ -76,11 +77,13 @@ msm-$(CONFIG_DRM_MSM_DSI) += dsi/dsi.o \
 msm-$(CONFIG_DRM_MSM_DSI_28NM_PHY) += dsi/phy/dsi_phy_28nm.o
 msm-$(CONFIG_DRM_MSM_DSI_20NM_PHY) += dsi/phy/dsi_phy_20nm.o
 msm-$(CONFIG_DRM_MSM_DSI_28NM_8960_PHY) += dsi/phy/dsi_phy_28nm_8960.o
+msm-$(CONFIG_DRM_MSM_DSI_14NM_PHY) += dsi/phy/dsi_phy_14nm.o
 
 ifeq ($(CONFIG_DRM_MSM_DSI_PLL),y)
 msm-y += dsi/pll/dsi_pll.o
 msm-$(CONFIG_DRM_MSM_DSI_28NM_PHY) += dsi/pll/dsi_pll_28nm.o
 msm-$(CONFIG_DRM_MSM_DSI_28NM_8960_PHY) += dsi/pll/dsi_pll_28nm_8960.o
+msm-$(CONFIG_DRM_MSM_DSI_14NM_PHY) += dsi/pll/dsi_pll_14nm.o
 endif
 
 obj-$(CONFIG_DRM_MSM)	+= msm.o

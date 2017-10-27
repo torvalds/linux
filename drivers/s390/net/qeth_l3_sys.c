@@ -250,9 +250,6 @@ static ssize_t qeth_l3_dev_hsuid_show(struct device *dev,
 	if (card->info.type != QETH_CARD_TYPE_IQD)
 		return -EPERM;
 
-	if (card->state == CARD_STATE_DOWN)
-		return -EPERM;
-
 	memcpy(tmp_hsuid, card->options.hsuid, sizeof(tmp_hsuid));
 	EBCASC(tmp_hsuid, 8);
 	return sprintf(buf, "%s\n", tmp_hsuid);
@@ -289,7 +286,7 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 		if (!addr)
 			return -ENOMEM;
 
-		addr->u.a6.addr.s6_addr32[0] = 0xfe800000;
+		addr->u.a6.addr.s6_addr32[0] = cpu_to_be32(0xfe800000);
 		addr->u.a6.addr.s6_addr32[1] = 0x00000000;
 		for (i = 8; i < 16; i++)
 			addr->u.a6.addr.s6_addr[i] =
@@ -323,7 +320,7 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 
 	addr = qeth_l3_get_addr_buffer(QETH_PROT_IPV6);
 	if (addr != NULL) {
-		addr->u.a6.addr.s6_addr32[0] = 0xfe800000;
+		addr->u.a6.addr.s6_addr32[0] = cpu_to_be32(0xfe800000);
 		addr->u.a6.addr.s6_addr32[1] = 0x00000000;
 		for (i = 8; i < 16; i++)
 			addr->u.a6.addr.s6_addr[i] = card->options.hsuid[i - 8];
@@ -353,7 +350,7 @@ static struct attribute *qeth_l3_device_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group qeth_l3_device_attr_group = {
+static const struct attribute_group qeth_l3_device_attr_group = {
 	.attrs = qeth_l3_device_attrs,
 };
 
@@ -683,7 +680,7 @@ static struct attribute *qeth_ipato_device_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group qeth_device_ipato_group = {
+static const struct attribute_group qeth_device_ipato_group = {
 	.name = "ipa_takeover",
 	.attrs = qeth_ipato_device_attrs,
 };
@@ -692,15 +689,15 @@ static ssize_t qeth_l3_dev_vipa_add_show(char *buf, struct qeth_card *card,
 			enum qeth_prot_versions proto)
 {
 	struct qeth_ipaddr *ipaddr;
-	struct hlist_node  *tmp;
 	char addr_str[40];
+	int str_len = 0;
 	int entry_len; /* length of 1 entry string, differs between v4 and v6 */
-	int i = 0;
+	int i;
 
 	entry_len = (proto == QETH_PROT_IPV4)? 12 : 40;
 	entry_len += 2; /* \n + terminator */
 	spin_lock_bh(&card->ip_lock);
-	hash_for_each_safe(card->ip_htable, i, tmp, ipaddr, hnode) {
+	hash_for_each(card->ip_htable, i, ipaddr, hnode) {
 		if (ipaddr->proto != proto)
 			continue;
 		if (ipaddr->type != QETH_IP_TYPE_VIPA)
@@ -708,16 +705,17 @@ static ssize_t qeth_l3_dev_vipa_add_show(char *buf, struct qeth_card *card,
 		/* String must not be longer than PAGE_SIZE. So we check if
 		 * string length gets near PAGE_SIZE. Then we can savely display
 		 * the next IPv6 address (worst case, compared to IPv4) */
-		if ((PAGE_SIZE - i) <= entry_len)
+		if ((PAGE_SIZE - str_len) <= entry_len)
 			break;
 		qeth_l3_ipaddr_to_string(proto, (const u8 *)&ipaddr->u,
 			addr_str);
-		i += snprintf(buf + i, PAGE_SIZE - i, "%s\n", addr_str);
+		str_len += snprintf(buf + str_len, PAGE_SIZE - str_len, "%s\n",
+				    addr_str);
 	}
 	spin_unlock_bh(&card->ip_lock);
-	i += snprintf(buf + i, PAGE_SIZE - i, "\n");
+	str_len += snprintf(buf + str_len, PAGE_SIZE - str_len, "\n");
 
-	return i;
+	return str_len;
 }
 
 static ssize_t qeth_l3_dev_vipa_add4_show(struct device *dev,
@@ -845,7 +843,7 @@ static struct attribute *qeth_vipa_device_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group qeth_device_vipa_group = {
+static const struct attribute_group qeth_device_vipa_group = {
 	.name = "vipa",
 	.attrs = qeth_vipa_device_attrs,
 };
@@ -854,15 +852,15 @@ static ssize_t qeth_l3_dev_rxip_add_show(char *buf, struct qeth_card *card,
 		       enum qeth_prot_versions proto)
 {
 	struct qeth_ipaddr *ipaddr;
-	struct hlist_node *tmp;
 	char addr_str[40];
+	int str_len = 0;
 	int entry_len; /* length of 1 entry string, differs between v4 and v6 */
-	int i = 0;
+	int i;
 
 	entry_len = (proto == QETH_PROT_IPV4)? 12 : 40;
 	entry_len += 2; /* \n + terminator */
 	spin_lock_bh(&card->ip_lock);
-	hash_for_each_safe(card->ip_htable, i, tmp, ipaddr, hnode) {
+	hash_for_each(card->ip_htable, i, ipaddr, hnode) {
 		if (ipaddr->proto != proto)
 			continue;
 		if (ipaddr->type != QETH_IP_TYPE_RXIP)
@@ -870,16 +868,17 @@ static ssize_t qeth_l3_dev_rxip_add_show(char *buf, struct qeth_card *card,
 		/* String must not be longer than PAGE_SIZE. So we check if
 		 * string length gets near PAGE_SIZE. Then we can savely display
 		 * the next IPv6 address (worst case, compared to IPv4) */
-		if ((PAGE_SIZE - i) <= entry_len)
+		if ((PAGE_SIZE - str_len) <= entry_len)
 			break;
 		qeth_l3_ipaddr_to_string(proto, (const u8 *)&ipaddr->u,
 			addr_str);
-		i += snprintf(buf + i, PAGE_SIZE - i, "%s\n", addr_str);
+		str_len += snprintf(buf + str_len, PAGE_SIZE - str_len, "%s\n",
+				    addr_str);
 	}
 	spin_unlock_bh(&card->ip_lock);
-	i += snprintf(buf + i, PAGE_SIZE - i, "\n");
+	str_len += snprintf(buf + str_len, PAGE_SIZE - str_len, "\n");
 
-	return i;
+	return str_len;
 }
 
 static ssize_t qeth_l3_dev_rxip_add4_show(struct device *dev,
@@ -896,9 +895,26 @@ static ssize_t qeth_l3_dev_rxip_add4_show(struct device *dev,
 static int qeth_l3_parse_rxipe(const char *buf, enum qeth_prot_versions proto,
 		 u8 *addr)
 {
+	__be32 ipv4_addr;
+	struct in6_addr ipv6_addr;
+
 	if (qeth_l3_string_to_ipaddr(buf, proto, addr)) {
 		return -EINVAL;
 	}
+	if (proto == QETH_PROT_IPV4) {
+		memcpy(&ipv4_addr, addr, sizeof(ipv4_addr));
+		if (ipv4_is_multicast(ipv4_addr)) {
+			QETH_DBF_MESSAGE(2, "multicast rxip not supported.\n");
+			return -EINVAL;
+		}
+	} else if (proto == QETH_PROT_IPV6) {
+		memcpy(&ipv6_addr, addr, sizeof(ipv6_addr));
+		if (ipv6_addr_is_multicast(&ipv6_addr)) {
+			QETH_DBF_MESSAGE(2, "multicast rxip not supported.\n");
+			return -EINVAL;
+		}
+	}
+
 	return 0;
 }
 
@@ -1007,7 +1023,7 @@ static struct attribute *qeth_rxip_device_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group qeth_device_rxip_group = {
+static const struct attribute_group qeth_device_rxip_group = {
 	.name = "rxip",
 	.attrs = qeth_rxip_device_attrs,
 };
@@ -1050,3 +1066,14 @@ void qeth_l3_remove_device_attributes(struct device *dev)
 	sysfs_remove_group(&dev->kobj, &qeth_device_vipa_group);
 	sysfs_remove_group(&dev->kobj, &qeth_device_rxip_group);
 }
+
+const struct attribute_group *qeth_l3_attr_groups[] = {
+	&qeth_device_attr_group,
+	&qeth_device_blkt_group,
+	/* l3 specific, see l3_{create,remove}_device_attributes(): */
+	&qeth_l3_device_attr_group,
+	&qeth_device_ipato_group,
+	&qeth_device_vipa_group,
+	&qeth_device_rxip_group,
+NULL,
+};

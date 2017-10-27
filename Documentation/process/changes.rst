@@ -30,8 +30,8 @@ you probably needn't concern yourself with isdn4k-utils.
         Program        Minimal version       Command to check the version
 ====================== ===============  ========================================
 GNU C                  3.2              gcc --version
-GNU make               3.80             make --version
-binutils               2.12             ld -v
+GNU make               3.81             make --version
+binutils               2.20             ld -v
 util-linux             2.10o            fdformat --version
 module-init-tools      0.9.10           depmod -V
 e2fsprogs              1.41.4           e2fsck -V
@@ -53,7 +53,7 @@ mcelog                 0.6              mcelog --version
 iptables               1.4.2            iptables -V
 openssl & libcrypto    1.0.0            openssl version
 bc                     1.06.95          bc --version
-Sphinx\ [#f1]_	       1.2		sphinx-build --version
+Sphinx\ [#f1]_	       1.3		sphinx-build --version
 ====================== ===============  ========================================
 
 .. [#f1] Sphinx is needed only to build the Kernel documentation
@@ -70,15 +70,14 @@ computer.
 Make
 ----
 
-You will need GNU make 3.80 or later to build the kernel.
+You will need GNU make 3.81 or later to build the kernel.
 
 Binutils
 --------
 
-Linux on IA-32 has recently switched from using ``as86`` to using ``gas`` for
-assembling the 16-bit boot code, removing the need for ``as86`` to compile
-your kernel.  This change does, however, mean that you need a recent
-release of binutils.
+The build system has, as of 4.13, switched to using thin archives (`ar T`)
+rather than incremental linking (`ld -r`) for built-in.o intermediate steps.
+This requires binutils 2.20 or newer.
 
 Perl
 ----
@@ -116,12 +115,11 @@ DevFS has been obsoleted in favour of udev
 
 Linux documentation for functions is transitioning to inline
 documentation via specially-formatted comments near their
-definitions in the source.  These comments can be combined with the
-SGML templates in the Documentation/DocBook directory to make DocBook
-files, which can then be converted by DocBook stylesheets to PostScript,
-HTML, PDF files, and several other formats.  In order to convert from
-DocBook format to a format of your choice, you'll need to install Jade as
-well as the desired DocBook stylesheets.
+definitions in the source.  These comments can be combined with ReST
+files the Documentation/ directory to make enriched documentation, which can
+then be converted to PostScript, HTML, LaTex, ePUB and PDF files.
+In order to convert from ReST format to a format of your choice, you'll need
+Sphinx.
 
 Util-linux
 ----------
@@ -311,23 +309,8 @@ Kernel documentation
 Sphinx
 ------
 
-The ReST markups currently used by the Documentation/ files are meant to be
-built with ``Sphinx`` version 1.2 or upper. If you're desiring to build
-PDF outputs, it is recommended to use version 1.4.6.
-
-.. note::
-
-  Please notice that, for PDF and LaTeX output, you'll also need ``XeLaTeX``
-  version 3.14159265. Depending on the distribution, you may also need
-  to install a series of ``texlive`` packages that provide the minimal
-  set of functionalities required for ``XeLaTex`` to work.
-
-Other tools
------------
-
-In order to produce documentation from DocBook, you'll also need ``xmlto``.
-Please notice, however, that we're currently migrating all documents to use
-``Sphinx``.
+Please see :ref:`sphinx_install` in ``Documentation/doc-guide/sphinx.rst``
+for details about Sphinx requirements.
 
 Getting updated software
 ========================
@@ -348,7 +331,7 @@ Make
 Binutils
 --------
 
-- <ftp://ftp.kernel.org/pub/linux/devel/binutils/>
+- <https://www.kernel.org/pub/linux/devel/binutils/>
 
 OpenSSL
 -------
@@ -361,17 +344,17 @@ System utilities
 Util-linux
 ----------
 
-- <ftp://ftp.kernel.org/pub/linux/utils/util-linux/>
+- <https://www.kernel.org/pub/linux/utils/util-linux/>
 
 Ksymoops
 --------
 
-- <ftp://ftp.kernel.org/pub/linux/utils/kernel/ksymoops/v2.4/>
+- <https://www.kernel.org/pub/linux/utils/kernel/ksymoops/v2.4/>
 
 Module-Init-Tools
 -----------------
 
-- <ftp://ftp.kernel.org/pub/linux/kernel/people/rusty/modules/>
+- <https://www.kernel.org/pub/linux/utils/kernel/module-init-tools/>
 
 Mkinitrd
 --------
@@ -401,22 +384,13 @@ Xfsprogs
 Pcmciautils
 -----------
 
-- <ftp://ftp.kernel.org/pub/linux/utils/kernel/pcmcia/>
+- <https://www.kernel.org/pub/linux/utils/kernel/pcmcia/>
 
 Quota-tools
 -----------
 
 - <http://sourceforge.net/projects/linuxquota/>
 
-DocBook Stylesheets
--------------------
-
-- <http://sourceforge.net/projects/docbook/files/docbook-dsssl/>
-
-XMLTO XSLT Frontend
--------------------
-
-- <http://cyberelk.net/tim/xmlto/>
 
 Intel P6 microcode
 ------------------

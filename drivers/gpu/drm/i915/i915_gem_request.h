@@ -32,10 +32,12 @@
 
 struct drm_file;
 struct drm_i915_gem_object;
+struct drm_i915_gem_request;
 
 struct intel_wait {
 	struct rb_node node;
 	struct task_struct *tsk;
+	struct drm_i915_gem_request *request;
 	u32 seqno;
 };
 
@@ -65,10 +67,16 @@ struct i915_dependency {
 struct i915_priotree {
 	struct list_head signalers_list; /* those before us, we depend upon */
 	struct list_head waiters_list; /* those after us, they depend upon us */
-	struct rb_node node;
+	struct list_head link;
 	int priority;
 #define I915_PRIORITY_MAX 1024
+#define I915_PRIORITY_NORMAL 0
 #define I915_PRIORITY_MIN (-I915_PRIORITY_MAX)
+};
+
+struct i915_gem_capture_list {
+	struct i915_gem_capture_list *next;
+	struct i915_vma *vma;
 };
 
 /**
@@ -119,18 +127,10 @@ struct drm_i915_gem_request {
 	 * The submit fence is used to await upon all of the request's
 	 * dependencies. When it is signaled, the request is ready to run.
 	 * It is used by the driver to then queue the request for execution.
-	 *
-	 * The execute fence is used to signal when the request has been
-	 * sent to hardware.
-	 *
-	 * It is illegal for the submit fence of one request to wait upon the
-	 * execute fence of an earlier request. It should be sufficient to
-	 * wait upon the submit fence of the earlier request.
 	 */
 	struct i915_sw_fence submit;
-	struct i915_sw_fence execute;
-	wait_queue_t submitq;
-	wait_queue_t execq;
+	wait_queue_entry_t submitq;
+	wait_queue_head_t execute;
 
 	/* A list of everyone we wait upon, and everyone who waits upon us.
 	 * Even though we will not be submitted to the hardware before the
@@ -143,13 +143,12 @@ struct drm_i915_gem_request {
 	struct i915_priotree priotree;
 	struct i915_dependency dep;
 
-	u32 global_seqno;
-
-	/** GEM sequence number associated with the previous request,
-	 * when the HWS breadcrumb is equal to this the GPU is processing
-	 * this request.
+	/** GEM sequence number associated with this request on the
+	 * global execution timeline. It is zero when the request is not
+	 * on the HW queue (i.e. not on the engine timeline list).
+	 * Its value is guarded by the timeline spinlock.
 	 */
-	u32 previous_seqno;
+	u32 global_seqno;
 
 	/** Position in the ring of the start of the request */
 	u32 head;
@@ -170,25 +169,22 @@ struct drm_i915_gem_request {
 	/** Preallocate space in the ring for the emitting the request */
 	u32 reserved_space;
 
-	/**
-	 * Context related to the previous request.
-	 * As the contexts are accessed by the hardware until the switch is
-	 * completed to a new context, the hardware may still be writing
-	 * to the context object after the breadcrumb is visible. We must
-	 * not unpin/unbind/prune that object whilst still active and so
-	 * we keep the previous context pinned until the following (this)
-	 * request is retired.
-	 */
-	struct i915_gem_context *previous_context;
-
 	/** Batch buffer related to this request if any (used for
 	 * error state dump only).
 	 */
 	struct i915_vma *batch;
+	/** Additional buffers requested by userspace to be captured upon
+	 * a GPU hang. The vma/obj on this list are protected by their
+	 * active reference - all objects on this list must also be
+	 * on the active_list (of their final request).
+	 */
+	struct i915_gem_capture_list *capture_list;
 	struct list_head active_list;
 
 	/** Time at which this request was emitted, in jiffies. */
 	unsigned long emitted_jiffies;
+
+	bool waitboost;
 
 	/** engine->request_list entry for this request */
 	struct list_head link;
@@ -198,7 +194,7 @@ struct drm_i915_gem_request {
 
 	struct drm_i915_file_private *file_priv;
 	/** file_priv list entry for this request */
-	struct list_head client_list;
+	struct list_head client_link;
 };
 
 extern const struct dma_fence_ops i915_fence_ops;
@@ -211,8 +207,6 @@ static inline bool dma_fence_is_i915(const struct dma_fence *fence)
 struct drm_i915_gem_request * __must_check
 i915_gem_request_alloc(struct intel_engine_cs *engine,
 		       struct i915_gem_context *ctx);
-int i915_gem_request_add_to_client(struct drm_i915_gem_request *req,
-				   struct drm_file *file);
 void i915_gem_request_retire_upto(struct drm_i915_gem_request *req);
 
 static inline struct drm_i915_gem_request *
@@ -254,6 +248,30 @@ static inline void i915_gem_request_assign(struct drm_i915_gem_request **pdst,
 	*pdst = src;
 }
 
+/**
+ * i915_gem_request_global_seqno - report the current global seqno
+ * @request - the request
+ *
+ * A request is assigned a global seqno only when it is on the hardware
+ * execution queue. The global seqno can be used to maintain a list of
+ * requests on the same engine in retirement order, for example for
+ * constructing a priority queue for waiting. Prior to its execution, or
+ * if it is subsequently removed in the event of preemption, its global
+ * seqno is zero. As both insertion and removal from the execution queue
+ * may operate in IRQ context, it is not guarded by the usual struct_mutex
+ * BKL. Instead those relying on the global seqno must be prepared for its
+ * value to change between reads. Only when the request is complete can
+ * the global seqno be stable (due to the memory barriers on submitting
+ * the commands to the hardware to write the breadcrumb, if the HWS shows
+ * that it has passed the global seqno and the global seqno is unchanged
+ * after the read, it is indeed complete).
+ */
+static u32
+i915_gem_request_global_seqno(const struct drm_i915_gem_request *request)
+{
+	return READ_ONCE(request->global_seqno);
+}
+
 int
 i915_gem_request_await_object(struct drm_i915_gem_request *to,
 			      struct drm_i915_gem_object *obj,
@@ -263,12 +281,13 @@ int i915_gem_request_await_dma_fence(struct drm_i915_gem_request *req,
 
 void __i915_add_request(struct drm_i915_gem_request *req, bool flush_caches);
 #define i915_add_request(req) \
-	__i915_add_request(req, true)
-#define i915_add_request_no_flush(req) \
 	__i915_add_request(req, false)
 
 void __i915_gem_request_submit(struct drm_i915_gem_request *request);
 void i915_gem_request_submit(struct drm_i915_gem_request *request);
+
+void __i915_gem_request_unsubmit(struct drm_i915_gem_request *request);
+void i915_gem_request_unsubmit(struct drm_i915_gem_request *request);
 
 struct intel_rps_client;
 #define NO_WAITBOOST ERR_PTR(-1)
@@ -294,46 +313,58 @@ static inline bool i915_seqno_passed(u32 seq1, u32 seq2)
 }
 
 static inline bool
-__i915_gem_request_started(const struct drm_i915_gem_request *req)
+__i915_gem_request_started(const struct drm_i915_gem_request *req, u32 seqno)
 {
-	GEM_BUG_ON(!req->global_seqno);
+	GEM_BUG_ON(!seqno);
 	return i915_seqno_passed(intel_engine_get_seqno(req->engine),
-				 req->previous_seqno);
+				 seqno - 1);
 }
 
 static inline bool
 i915_gem_request_started(const struct drm_i915_gem_request *req)
 {
-	if (!req->global_seqno)
+	u32 seqno;
+
+	seqno = i915_gem_request_global_seqno(req);
+	if (!seqno)
 		return false;
 
-	return __i915_gem_request_started(req);
+	return __i915_gem_request_started(req, seqno);
 }
 
 static inline bool
-__i915_gem_request_completed(const struct drm_i915_gem_request *req)
+__i915_gem_request_completed(const struct drm_i915_gem_request *req, u32 seqno)
 {
-	GEM_BUG_ON(!req->global_seqno);
-	return i915_seqno_passed(intel_engine_get_seqno(req->engine),
-				 req->global_seqno);
+	GEM_BUG_ON(!seqno);
+	return i915_seqno_passed(intel_engine_get_seqno(req->engine), seqno) &&
+		seqno == i915_gem_request_global_seqno(req);
 }
 
 static inline bool
 i915_gem_request_completed(const struct drm_i915_gem_request *req)
 {
-	if (!req->global_seqno)
+	u32 seqno;
+
+	seqno = i915_gem_request_global_seqno(req);
+	if (!seqno)
 		return false;
 
-	return __i915_gem_request_completed(req);
+	return __i915_gem_request_completed(req, seqno);
 }
 
 bool __i915_spin_request(const struct drm_i915_gem_request *request,
-			 int state, unsigned long timeout_us);
+			 u32 seqno, int state, unsigned long timeout_us);
 static inline bool i915_spin_request(const struct drm_i915_gem_request *request,
 				     int state, unsigned long timeout_us)
 {
-	return (__i915_gem_request_started(request) &&
-		__i915_spin_request(request, state, timeout_us));
+	u32 seqno;
+
+	seqno = i915_gem_request_global_seqno(request);
+	if (!seqno)
+		return 0;
+
+	return (__i915_gem_request_started(request, seqno) &&
+		__i915_spin_request(request, seqno, state, timeout_us));
 }
 
 /* We treat requests as fences. This is not be to confused with our
@@ -504,7 +535,7 @@ static inline struct drm_i915_gem_request *
 __i915_gem_active_get_rcu(const struct i915_gem_active *active)
 {
 	/* Performing a lockless retrieval of the active request is super
-	 * tricky. SLAB_DESTROY_BY_RCU merely guarantees that the backing
+	 * tricky. SLAB_TYPESAFE_BY_RCU merely guarantees that the backing
 	 * slab of request objects will not be freed whilst we hold the
 	 * RCU read lock. It does not guarantee that the request itself
 	 * will not be freed and then *reused*. Viz,

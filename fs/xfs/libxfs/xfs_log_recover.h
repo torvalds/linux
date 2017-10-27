@@ -26,7 +26,7 @@
 #define XLOG_RHASH_SIZE	16
 #define XLOG_RHASH_SHIFT 2
 #define XLOG_RHASH(tid)	\
-	((((__uint32_t)tid)>>XLOG_RHASH_SHIFT) & (XLOG_RHASH_SIZE-1))
+	((((uint32_t)tid)>>XLOG_RHASH_SHIFT) & (XLOG_RHASH_SIZE-1))
 
 #define XLOG_MAX_REGIONS_IN_ITEM   (XFS_MAX_BLOCKSIZE / XFS_BLF_CHUNK / 2 + 1)
 
@@ -42,7 +42,6 @@ typedef struct xlog_recover_item {
 	xfs_log_iovec_t		*ri_buf;	/* ptr to regions buffer */
 } xlog_recover_item_t;
 
-struct xlog_tid;
 typedef struct xlog_recover {
 	struct hlist_node	r_list;
 	xlog_tid_t		r_log_tid;	/* log's transaction id */

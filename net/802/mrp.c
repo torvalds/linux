@@ -311,7 +311,7 @@ static int mrp_pdu_init(struct mrp_applicant *app)
 	skb_reset_network_header(skb);
 	skb_reset_transport_header(skb);
 
-	ph = (struct mrp_pdu_hdr *)__skb_put(skb, sizeof(*ph));
+	ph = __skb_put(skb, sizeof(*ph));
 	ph->version = app->app->version;
 
 	app->pdu = skb;
@@ -324,7 +324,7 @@ static int mrp_pdu_append_end_mark(struct mrp_applicant *app)
 
 	if (skb_tailroom(app->pdu) < sizeof(*endmark))
 		return -1;
-	endmark = (__be16 *)__skb_put(app->pdu, sizeof(*endmark));
+	endmark = __skb_put(app->pdu, sizeof(*endmark));
 	put_unaligned(MRP_END_MARK, endmark);
 	return 0;
 }
@@ -368,7 +368,7 @@ static int mrp_pdu_append_msg_hdr(struct mrp_applicant *app,
 
 	if (skb_tailroom(app->pdu) < sizeof(*mh))
 		return -1;
-	mh = (struct mrp_msg_hdr *)__skb_put(app->pdu, sizeof(*mh));
+	mh = __skb_put(app->pdu, sizeof(*mh));
 	mh->attrtype = attrtype;
 	mh->attrlen = attrlen;
 	mrp_cb(app->pdu)->mh = mh;
@@ -382,8 +382,7 @@ static int mrp_pdu_append_vecattr_hdr(struct mrp_applicant *app,
 
 	if (skb_tailroom(app->pdu) < sizeof(*vah) + attrlen)
 		return -1;
-	vah = (struct mrp_vecattr_hdr *)__skb_put(app->pdu,
-						  sizeof(*vah) + attrlen);
+	vah = __skb_put(app->pdu, sizeof(*vah) + attrlen);
 	put_unaligned(0, &vah->lenflags);
 	memcpy(vah->firstattrvalue, firstattrvalue, attrlen);
 	mrp_cb(app->pdu)->vah = vah;
@@ -435,7 +434,7 @@ again:
 	if (!pos) {
 		if (skb_tailroom(app->pdu) < sizeof(u8))
 			goto queue;
-		vaevents = (u8 *)__skb_put(app->pdu, sizeof(u8));
+		vaevents = __skb_put(app->pdu, sizeof(u8));
 	} else {
 		vaevents = (u8 *)(skb_tail_pointer(app->pdu) - sizeof(u8));
 	}

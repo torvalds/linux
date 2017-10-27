@@ -7,7 +7,7 @@
  * This file is released under the GPLv2.
  */
 
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/export.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_wakeirq.h>
@@ -253,7 +253,7 @@ static int rpm_check_suspend_allowed(struct device *dev)
 	    || (dev->power.request_pending
 			&& dev->power.request == RPM_REQ_RESUME))
 		retval = -EAGAIN;
-	else if (__dev_pm_qos_read_value(dev) < 0)
+	else if (__dev_pm_qos_read_value(dev) == 0)
 		retval = -EPERM;
 	else if (dev->power.runtime_status == RPM_SUSPENDED)
 		retval = 1;

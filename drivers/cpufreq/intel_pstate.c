@@ -19,7 +19,7 @@
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
+#include <linux/sched/cpufreq.h>
 #include <linux/list.h>
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
@@ -37,12 +37,10 @@
 #include <asm/cpufeature.h>
 #include <asm/intel-family.h>
 
-#define INTEL_CPUFREQ_TRANSITION_LATENCY	20000
+#define INTEL_PSTATE_SAMPLING_INTERVAL	(10 * NSEC_PER_MSEC)
 
-#define ATOM_RATIOS		0x66a
-#define ATOM_VIDS		0x66b
-#define ATOM_TURBO_RATIOS	0x66c
-#define ATOM_TURBO_VIDS		0x66d
+#define INTEL_CPUFREQ_TRANSITION_LATENCY	20000
+#define INTEL_CPUFREQ_TRANSITION_DELAY		500
 
 #ifdef CONFIG_ACPI
 #include <acpi/processor.h>
@@ -79,6 +77,11 @@ static inline int ceiling_fp(int32_t x)
 	return ret;
 }
 
+static inline int32_t percent_fp(int percent)
+{
+	return div_fp(percent, 100);
+}
+
 static inline u64 mul_ext_fp(u64 x, u64 y)
 {
 	return (x * y) >> EXT_FRAC_BITS;
@@ -87,6 +90,11 @@ static inline u64 mul_ext_fp(u64 x, u64 y)
 static inline u64 div_ext_fp(u64 x, u64 y)
 {
 	return div64_u64(x << EXT_FRAC_BITS, y);
+}
+
+static inline int32_t percent_ext_fp(int percent)
+{
+	return div_ext_fp(percent, 100);
 }
 
 /**
@@ -164,67 +172,22 @@ struct vid_data {
 };
 
 /**
- * struct _pid -	Stores PID data
- * @setpoint:		Target set point for busyness or performance
- * @integral:		Storage for accumulated error values
- * @p_gain:		PID proportional gain
- * @i_gain:		PID integral gain
- * @d_gain:		PID derivative gain
- * @deadband:		PID deadband
- * @last_err:		Last error storage for integral part of PID calculation
- *
- * Stores PID coefficients and last error for PID controller.
+ * struct global_params - Global parameters, mostly tunable via sysfs.
+ * @no_turbo:		Whether or not to use turbo P-states.
+ * @turbo_disabled:	Whethet or not turbo P-states are available at all,
+ *			based on the MSR_IA32_MISC_ENABLE value and whether or
+ *			not the maximum reported turbo P-state is different from
+ *			the maximum reported non-turbo one.
+ * @min_perf_pct:	Minimum capacity limit in percent of the maximum turbo
+ *			P-state capacity.
+ * @max_perf_pct:	Maximum capacity limit in percent of the maximum turbo
+ *			P-state capacity.
  */
-struct _pid {
-	int setpoint;
-	int32_t integral;
-	int32_t p_gain;
-	int32_t i_gain;
-	int32_t d_gain;
-	int deadband;
-	int32_t last_err;
-};
-
-/**
- * struct perf_limits - Store user and policy limits
- * @no_turbo:		User requested turbo state from intel_pstate sysfs
- * @turbo_disabled:	Platform turbo status either from msr
- *			MSR_IA32_MISC_ENABLE or when maximum available pstate
- *			matches the maximum turbo pstate
- * @max_perf_pct:	Effective maximum performance limit in percentage, this
- *			is minimum of either limits enforced by cpufreq policy
- *			or limits from user set limits via intel_pstate sysfs
- * @min_perf_pct:	Effective minimum performance limit in percentage, this
- *			is maximum of either limits enforced by cpufreq policy
- *			or limits from user set limits via intel_pstate sysfs
- * @max_perf:		This is a scaled value between 0 to 255 for max_perf_pct
- *			This value is used to limit max pstate
- * @min_perf:		This is a scaled value between 0 to 255 for min_perf_pct
- *			This value is used to limit min pstate
- * @max_policy_pct:	The maximum performance in percentage enforced by
- *			cpufreq setpolicy interface
- * @max_sysfs_pct:	The maximum performance in percentage enforced by
- *			intel pstate sysfs interface, unused when per cpu
- *			controls are enforced
- * @min_policy_pct:	The minimum performance in percentage enforced by
- *			cpufreq setpolicy interface
- * @min_sysfs_pct:	The minimum performance in percentage enforced by
- *			intel pstate sysfs interface, unused when per cpu
- *			controls are enforced
- *
- * Storage for user and policy defined limits.
- */
-struct perf_limits {
-	int no_turbo;
-	int turbo_disabled;
+struct global_params {
+	bool no_turbo;
+	bool turbo_disabled;
 	int max_perf_pct;
 	int min_perf_pct;
-	int32_t max_perf;
-	int32_t min_perf;
-	int max_policy_pct;
-	int max_sysfs_pct;
-	int min_policy_pct;
-	int min_sysfs_pct;
 };
 
 /**
@@ -237,17 +200,18 @@ struct perf_limits {
  * @last_update:	Time of the last update.
  * @pstate:		Stores P state limits for this CPU
  * @vid:		Stores VID limits for this CPU
- * @pid:		Stores PID parameters for this CPU
  * @last_sample_time:	Last Sample time
+ * @aperf_mperf_shift:	Number of clock cycles after aperf, merf is incremented
+ *			This shift is a multiplier to mperf delta to
+ *			calculate CPU busy.
  * @prev_aperf:		Last APERF value read from APERF MSR
  * @prev_mperf:		Last MPERF value read from MPERF MSR
  * @prev_tsc:		Last timestamp counter (TSC) value
  * @prev_cummulative_iowait: IO Wait time difference from last and
  *			current sample
  * @sample:		Storage for storing last Sample data
- * @perf_limits:	Pointer to perf_limit unique to this CPU
- *			Not all field in the structure are applicable
- *			when per cpu controls are enforced
+ * @min_perf_ratio:	Minimum capacity in terms of PERF or HWP ratios
+ * @max_perf_ratio:	Maximum capacity in terms of PERF or HWP ratios
  * @acpi_perf_data:	Stores ACPI perf information read from _PSS
  * @valid_pss_table:	Set to true for valid ACPI _PSS entries found
  * @epp_powersave:	Last saved HWP energy performance preference
@@ -270,16 +234,17 @@ struct cpudata {
 
 	struct pstate_data pstate;
 	struct vid_data vid;
-	struct _pid pid;
 
 	u64	last_update;
 	u64	last_sample_time;
+	u64	aperf_mperf_shift;
 	u64	prev_aperf;
 	u64	prev_mperf;
 	u64	prev_tsc;
 	u64	prev_cummulative_iowait;
 	struct sample sample;
-	struct perf_limits *perf_limits;
+	int32_t	min_perf_ratio;
+	int32_t	max_perf_ratio;
 #ifdef CONFIG_ACPI
 	struct acpi_processor_performance acpi_perf_data;
 	bool valid_pss_table;
@@ -294,28 +259,6 @@ struct cpudata {
 static struct cpudata **all_cpu_data;
 
 /**
- * struct pstate_adjust_policy - Stores static PID configuration data
- * @sample_rate_ms:	PID calculation sample rate in ms
- * @sample_rate_ns:	Sample rate calculation in ns
- * @deadband:		PID deadband
- * @setpoint:		PID Setpoint
- * @p_gain_pct:		PID proportional gain
- * @i_gain_pct:		PID integral gain
- * @d_gain_pct:		PID derivative gain
- *
- * Stores per CPU model static PID configuration data.
- */
-struct pstate_adjust_policy {
-	int sample_rate_ms;
-	s64 sample_rate_ns;
-	int deadband;
-	int setpoint;
-	int p_gain_pct;
-	int d_gain_pct;
-	int i_gain_pct;
-};
-
-/**
  * struct pstate_funcs - Per CPU model specific callbacks
  * @get_max:		Callback to get maximum non turbo effective P state
  * @get_max_physical:	Callback to get maximum non turbo physical P state
@@ -324,7 +267,6 @@ struct pstate_adjust_policy {
  * @get_scaling:	Callback to get frequency scaling factor
  * @get_val:		Callback to convert P state to actual MSR write value
  * @get_vid:		Callback to get VID data for Atom platforms
- * @get_target_pstate:	Callback to a function to calculate next P state to use
  *
  * Core and Atom CPU models have different way to get P State limits. This
  * structure is used to store those callbacks.
@@ -335,65 +277,25 @@ struct pstate_funcs {
 	int (*get_min)(void);
 	int (*get_turbo)(void);
 	int (*get_scaling)(void);
+	int (*get_aperf_mperf_shift)(void);
 	u64 (*get_val)(struct cpudata*, int pstate);
 	void (*get_vid)(struct cpudata *);
-	int32_t (*get_target_pstate)(struct cpudata *);
 };
 
-/**
- * struct cpu_defaults- Per CPU model default config data
- * @pid_policy:	PID config data
- * @funcs:		Callback function data
- */
-struct cpu_defaults {
-	struct pstate_adjust_policy pid_policy;
-	struct pstate_funcs funcs;
-};
-
-static inline int32_t get_target_pstate_use_performance(struct cpudata *cpu);
-static inline int32_t get_target_pstate_use_cpu_load(struct cpudata *cpu);
-
-static struct pstate_adjust_policy pid_params __read_mostly;
 static struct pstate_funcs pstate_funcs __read_mostly;
+
 static int hwp_active __read_mostly;
 static bool per_cpu_limits __read_mostly;
+
+static struct cpufreq_driver *intel_pstate_driver __read_mostly;
 
 #ifdef CONFIG_ACPI
 static bool acpi_ppc;
 #endif
 
-static struct perf_limits performance_limits = {
-	.no_turbo = 0,
-	.turbo_disabled = 0,
-	.max_perf_pct = 100,
-	.max_perf = int_ext_tofp(1),
-	.min_perf_pct = 100,
-	.min_perf = int_ext_tofp(1),
-	.max_policy_pct = 100,
-	.max_sysfs_pct = 100,
-	.min_policy_pct = 0,
-	.min_sysfs_pct = 0,
-};
+static struct global_params global;
 
-static struct perf_limits powersave_limits = {
-	.no_turbo = 0,
-	.turbo_disabled = 0,
-	.max_perf_pct = 100,
-	.max_perf = int_ext_tofp(1),
-	.min_perf_pct = 0,
-	.min_perf = 0,
-	.max_policy_pct = 100,
-	.max_sysfs_pct = 100,
-	.min_policy_pct = 0,
-	.min_sysfs_pct = 0,
-};
-
-#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE
-static struct perf_limits *limits = &performance_limits;
-#else
-static struct perf_limits *limits = &powersave_limits;
-#endif
-
+static DEFINE_MUTEX(intel_pstate_driver_lock);
 static DEFINE_MUTEX(intel_pstate_limits_lock);
 
 #ifdef CONFIG_ACPI
@@ -515,7 +417,7 @@ static void intel_pstate_init_acpi_perf_limits(struct cpufreq_policy *policy)
 	 * correct max turbo frequency based on the turbo state.
 	 * Also need to convert to MHz as _PSS freq is in MHz.
 	 */
-	if (!limits->turbo_disabled)
+	if (!global.turbo_disabled)
 		cpu->acpi_perf_data.states[0].core_frequency =
 					policy->cpuinfo.max_freq / 1000;
 	cpu->valid_pss_table = true;
@@ -538,7 +440,6 @@ static void intel_pstate_exit_perf_limits(struct cpufreq_policy *policy)
 
 	acpi_processor_unregister_performance(policy->cpu);
 }
-
 #else
 static inline void intel_pstate_init_acpi_perf_limits(struct cpufreq_policy *policy)
 {
@@ -549,85 +450,6 @@ static inline void intel_pstate_exit_perf_limits(struct cpufreq_policy *policy)
 }
 #endif
 
-static inline void pid_reset(struct _pid *pid, int setpoint, int busy,
-			     int deadband, int integral) {
-	pid->setpoint = int_tofp(setpoint);
-	pid->deadband  = int_tofp(deadband);
-	pid->integral  = int_tofp(integral);
-	pid->last_err  = int_tofp(setpoint) - int_tofp(busy);
-}
-
-static inline void pid_p_gain_set(struct _pid *pid, int percent)
-{
-	pid->p_gain = div_fp(percent, 100);
-}
-
-static inline void pid_i_gain_set(struct _pid *pid, int percent)
-{
-	pid->i_gain = div_fp(percent, 100);
-}
-
-static inline void pid_d_gain_set(struct _pid *pid, int percent)
-{
-	pid->d_gain = div_fp(percent, 100);
-}
-
-static signed int pid_calc(struct _pid *pid, int32_t busy)
-{
-	signed int result;
-	int32_t pterm, dterm, fp_error;
-	int32_t integral_limit;
-
-	fp_error = pid->setpoint - busy;
-
-	if (abs(fp_error) <= pid->deadband)
-		return 0;
-
-	pterm = mul_fp(pid->p_gain, fp_error);
-
-	pid->integral += fp_error;
-
-	/*
-	 * We limit the integral here so that it will never
-	 * get higher than 30.  This prevents it from becoming
-	 * too large an input over long periods of time and allows
-	 * it to get factored out sooner.
-	 *
-	 * The value of 30 was chosen through experimentation.
-	 */
-	integral_limit = int_tofp(30);
-	if (pid->integral > integral_limit)
-		pid->integral = integral_limit;
-	if (pid->integral < -integral_limit)
-		pid->integral = -integral_limit;
-
-	dterm = mul_fp(pid->d_gain, fp_error - pid->last_err);
-	pid->last_err = fp_error;
-
-	result = pterm + mul_fp(pid->integral, pid->i_gain) + dterm;
-	result = result + (1 << (FRAC_BITS-1));
-	return (signed int)fp_toint(result);
-}
-
-static inline void intel_pstate_busy_pid_reset(struct cpudata *cpu)
-{
-	pid_p_gain_set(&cpu->pid, pid_params.p_gain_pct);
-	pid_d_gain_set(&cpu->pid, pid_params.d_gain_pct);
-	pid_i_gain_set(&cpu->pid, pid_params.i_gain_pct);
-
-	pid_reset(&cpu->pid, pid_params.setpoint, 100, pid_params.deadband, 0);
-}
-
-static inline void intel_pstate_reset_all_pid(void)
-{
-	unsigned int cpu;
-
-	for_each_online_cpu(cpu) {
-		if (all_cpu_data[cpu])
-			intel_pstate_busy_pid_reset(all_cpu_data[cpu]);
-	}
-}
-
 static inline void update_turbo_state(void)
 {
 	u64 misc_en;
@@ -635,9 +457,18 @@ static inline void update_turbo_state(void)
 
 	cpu = all_cpu_data[0];
 	rdmsrl(MSR_IA32_MISC_ENABLE, misc_en);
-	limits->turbo_disabled =
+	global.turbo_disabled =
 		(misc_en & MSR_IA32_MISC_ENABLE_TURBO_DISABLE ||
 		 cpu->pstate.max_pstate == cpu->pstate.turbo_pstate);
+}
+
+static int min_perf_pct_min(void)
+{
+	struct cpudata *cpu = all_cpu_data[0];
+	int turbo_pstate = cpu->pstate.turbo_pstate;
+
+	return turbo_pstate ?
+		(cpu->pstate.min_pstate * 100 / turbo_pstate) : 0;
 }
 
 static s16 intel_pstate_get_epb(struct cpudata *cpu_data)
@@ -716,6 +547,12 @@ static const char * const energy_perf_strings[] = {
 	"power",
 	NULL
 };
+static const unsigned int epp_values[] = {
+	HWP_EPP_PERFORMANCE,
+	HWP_EPP_BALANCE_PERFORMANCE,
+	HWP_EPP_BALANCE_POWERSAVE,
+	HWP_EPP_POWERSAVE
+};
 
 static int intel_pstate_get_energy_pref_index(struct cpudata *cpu_data)
 {
@@ -727,17 +564,14 @@ static int intel_pstate_get_energy_pref_index(struct cpudata *cpu_data)
 		return epp;
 
 	if (static_cpu_has(X86_FEATURE_HWP_EPP)) {
-		/*
-		 * Range:
-		 *	0x00-0x3F	:	Performance
-		 *	0x40-0x7F	:	Balance performance
-		 *	0x80-0xBF	:	Balance power
-		 *	0xC0-0xFF	:	Power
-		 * The EPP is a 8 bit value, but our ranges restrict the
-		 * value which can be set. Here only using top two bits
-		 * effectively.
-		 */
-		index = (epp >> 6) + 1;
+		if (epp == HWP_EPP_PERFORMANCE)
+			return 1;
+		if (epp <= HWP_EPP_BALANCE_PERFORMANCE)
+			return 2;
+		if (epp <= HWP_EPP_BALANCE_POWERSAVE)
+			return 3;
+		else
+			return 4;
 	} else if (static_cpu_has(X86_FEATURE_EPB)) {
 		/*
 		 * Range:
@@ -775,15 +609,8 @@ static int intel_pstate_set_energy_pref_index(struct cpudata *cpu_data,
 
 		value &= ~GENMASK_ULL(31, 24);
 
-		/*
-		 * If epp is not default, convert from index into
-		 * energy_perf_strings to epp value, by shifting 6
-		 * bits left to use only top two bits in epp.
-		 * The resultant epp need to shifted by 24 bits to
-		 * epp position in MSR_HWP_REQUEST.
-		 */
 		if (epp == -EINVAL)
-			epp = (pref_index - 1) << 6;
+			epp = epp_values[pref_index - 1];
 
 		value |= (u64)epp << 24;
 		ret = wrmsrl_on_cpu(cpu_data->cpu, MSR_HWP_REQUEST, value);
@@ -857,101 +684,87 @@ static struct freq_attr *hwp_cpufreq_attrs[] = {
 	NULL,
 };
 
-static void intel_pstate_hwp_set(struct cpufreq_policy *policy)
+static void intel_pstate_get_hwp_max(unsigned int cpu, int *phy_max,
+				     int *current_max)
 {
-	int min, hw_min, max, hw_max, cpu, range, adj_range;
-	struct perf_limits *perf_limits = limits;
-	u64 value, cap;
+	u64 cap;
 
-	for_each_cpu(cpu, policy->cpus) {
-		int max_perf_pct, min_perf_pct;
-		struct cpudata *cpu_data = all_cpu_data[cpu];
-		s16 epp;
+	rdmsrl_on_cpu(cpu, MSR_HWP_CAPABILITIES, &cap);
+	if (global.no_turbo)
+		*current_max = HWP_GUARANTEED_PERF(cap);
+	else
+		*current_max = HWP_HIGHEST_PERF(cap);
 
-		if (per_cpu_limits)
-			perf_limits = all_cpu_data[cpu]->perf_limits;
-
-		rdmsrl_on_cpu(cpu, MSR_HWP_CAPABILITIES, &cap);
-		hw_min = HWP_LOWEST_PERF(cap);
-		hw_max = HWP_HIGHEST_PERF(cap);
-		range = hw_max - hw_min;
-
-		max_perf_pct = perf_limits->max_perf_pct;
-		min_perf_pct = perf_limits->min_perf_pct;
-
-		rdmsrl_on_cpu(cpu, MSR_HWP_REQUEST, &value);
-		adj_range = min_perf_pct * range / 100;
-		min = hw_min + adj_range;
-		value &= ~HWP_MIN_PERF(~0L);
-		value |= HWP_MIN_PERF(min);
-
-		adj_range = max_perf_pct * range / 100;
-		max = hw_min + adj_range;
-		if (limits->no_turbo) {
-			hw_max = HWP_GUARANTEED_PERF(cap);
-			if (hw_max < max)
-				max = hw_max;
-		}
-
-		value &= ~HWP_MAX_PERF(~0L);
-		value |= HWP_MAX_PERF(max);
-
-		if (cpu_data->epp_policy == cpu_data->policy)
-			goto skip_epp;
-
-		cpu_data->epp_policy = cpu_data->policy;
-
-		if (cpu_data->epp_saved >= 0) {
-			epp = cpu_data->epp_saved;
-			cpu_data->epp_saved = -EINVAL;
-			goto update_epp;
-		}
-
-		if (cpu_data->policy == CPUFREQ_POLICY_PERFORMANCE) {
-			epp = intel_pstate_get_epp(cpu_data, value);
-			cpu_data->epp_powersave = epp;
-			/* If EPP read was failed, then don't try to write */
-			if (epp < 0)
-				goto skip_epp;
-
-
-			epp = 0;
-		} else {
-			/* skip setting EPP, when saved value is invalid */
-			if (cpu_data->epp_powersave < 0)
-				goto skip_epp;
-
-			/*
-			 * No need to restore EPP when it is not zero. This
-			 * means:
-			 *  - Policy is not changed
-			 *  - user has manually changed
-			 *  - Error reading EPB
-			 */
-			epp = intel_pstate_get_epp(cpu_data, value);
-			if (epp)
-				goto skip_epp;
-
-			epp = cpu_data->epp_powersave;
-		}
-update_epp:
-		if (static_cpu_has(X86_FEATURE_HWP_EPP)) {
-			value &= ~GENMASK_ULL(31, 24);
-			value |= (u64)epp << 24;
-		} else {
-			intel_pstate_set_epb(cpu, epp);
-		}
-skip_epp:
-		wrmsrl_on_cpu(cpu, MSR_HWP_REQUEST, value);
-	}
+	*phy_max = HWP_HIGHEST_PERF(cap);
 }
 
-static int intel_pstate_hwp_set_policy(struct cpufreq_policy *policy)
+static void intel_pstate_hwp_set(unsigned int cpu)
 {
-	if (hwp_active)
-		intel_pstate_hwp_set(policy);
+	struct cpudata *cpu_data = all_cpu_data[cpu];
+	int max, min;
+	u64 value;
+	s16 epp;
 
-	return 0;
+	max = cpu_data->max_perf_ratio;
+	min = cpu_data->min_perf_ratio;
+
+	if (cpu_data->policy == CPUFREQ_POLICY_PERFORMANCE)
+		min = max;
+
+	rdmsrl_on_cpu(cpu, MSR_HWP_REQUEST, &value);
+
+	value &= ~HWP_MIN_PERF(~0L);
+	value |= HWP_MIN_PERF(min);
+
+	value &= ~HWP_MAX_PERF(~0L);
+	value |= HWP_MAX_PERF(max);
+
+	if (cpu_data->epp_policy == cpu_data->policy)
+		goto skip_epp;
+
+	cpu_data->epp_policy = cpu_data->policy;
+
+	if (cpu_data->epp_saved >= 0) {
+		epp = cpu_data->epp_saved;
+		cpu_data->epp_saved = -EINVAL;
+		goto update_epp;
+	}
+
+	if (cpu_data->policy == CPUFREQ_POLICY_PERFORMANCE) {
+		epp = intel_pstate_get_epp(cpu_data, value);
+		cpu_data->epp_powersave = epp;
+		/* If EPP read was failed, then don't try to write */
+		if (epp < 0)
+			goto skip_epp;
+
+		epp = 0;
+	} else {
+		/* skip setting EPP, when saved value is invalid */
+		if (cpu_data->epp_powersave < 0)
+			goto skip_epp;
+
+		/*
+		 * No need to restore EPP when it is not zero. This
+		 * means:
+		 *  - Policy is not changed
+		 *  - user has manually changed
+		 *  - Error reading EPB
+		 */
+		epp = intel_pstate_get_epp(cpu_data, value);
+		if (epp)
+			goto skip_epp;
+
+		epp = cpu_data->epp_powersave;
+	}
+update_epp:
+	if (static_cpu_has(X86_FEATURE_HWP_EPP)) {
+		value &= ~GENMASK_ULL(31, 24);
+		value |= (u64)epp << 24;
+	} else {
+		intel_pstate_set_epb(cpu, epp);
+	}
+skip_epp:
+	wrmsrl_on_cpu(cpu, MSR_HWP_REQUEST, value);
 }
 
 static int intel_pstate_hwp_save_state(struct cpufreq_policy *policy)
@@ -968,20 +781,17 @@ static int intel_pstate_hwp_save_state(struct cpufreq_policy *policy)
 
 static int intel_pstate_resume(struct cpufreq_policy *policy)
 {
-	int ret;
-
 	if (!hwp_active)
 		return 0;
 
 	mutex_lock(&intel_pstate_limits_lock);
 
 	all_cpu_data[policy->cpu]->epp_policy = 0;
-
-	ret = intel_pstate_hwp_set_policy(policy);
+	intel_pstate_hwp_set(policy->cpu);
 
 	mutex_unlock(&intel_pstate_limits_lock);
 
-	return ret;
+	return 0;
 }
 
 static void intel_pstate_update_policies(void)
@@ -992,61 +802,41 @@ static void intel_pstate_update_policies(void)
 		cpufreq_update_policy(cpu);
 }
 
-/************************** debugfs begin ************************/
-static int pid_param_set(void *data, u64 val)
-{
-	*(u32 *)data = val;
-	intel_pstate_reset_all_pid();
-	return 0;
-}
-
-static int pid_param_get(void *data, u64 *val)
-{
-	*val = *(u32 *)data;
-	return 0;
-}
-DEFINE_SIMPLE_ATTRIBUTE(fops_pid_param, pid_param_get, pid_param_set, "%llu\n");
-
-struct pid_param {
-	char *name;
-	void *value;
-};
-
-static struct pid_param pid_files[] = {
-	{"sample_rate_ms", &pid_params.sample_rate_ms},
-	{"d_gain_pct", &pid_params.d_gain_pct},
-	{"i_gain_pct", &pid_params.i_gain_pct},
-	{"deadband", &pid_params.deadband},
-	{"setpoint", &pid_params.setpoint},
-	{"p_gain_pct", &pid_params.p_gain_pct},
-	{NULL, NULL}
-};
-
-static void __init intel_pstate_debug_expose_params(void)
-{
-	struct dentry *debugfs_parent;
-	int i = 0;
-
-	debugfs_parent = debugfs_create_dir("pstate_snb", NULL);
-	if (IS_ERR_OR_NULL(debugfs_parent))
-		return;
-	while (pid_files[i].name) {
-		debugfs_create_file(pid_files[i].name, 0660,
-				    debugfs_parent, pid_files[i].value,
-				    &fops_pid_param);
-		i++;
-	}
-}
-
-/************************** debugfs end ************************/
-
 /************************** sysfs begin ************************/
 #define show_one(file_name, object)					\
 	static ssize_t show_##file_name					\
 	(struct kobject *kobj, struct attribute *attr, char *buf)	\
 	{								\
-		return sprintf(buf, "%u\n", limits->object);		\
+		return sprintf(buf, "%u\n", global.object);		\
 	}
+
+static ssize_t intel_pstate_show_status(char *buf);
+static int intel_pstate_update_status(const char *buf, size_t size);
+
+static ssize_t show_status(struct kobject *kobj,
+			   struct attribute *attr, char *buf)
+{
+	ssize_t ret;
+
+	mutex_lock(&intel_pstate_driver_lock);
+	ret = intel_pstate_show_status(buf);
+	mutex_unlock(&intel_pstate_driver_lock);
+
+	return ret;
+}
+
+static ssize_t store_status(struct kobject *a, struct attribute *b,
+			    const char *buf, size_t count)
+{
+	char *p = memchr(buf, '\n', count);
+	int ret;
+
+	mutex_lock(&intel_pstate_driver_lock);
+	ret = intel_pstate_update_status(buf, p ? p - buf : count);
+	mutex_unlock(&intel_pstate_driver_lock);
+
+	return ret < 0 ? ret : count;
+}
 
 static ssize_t show_turbo_pct(struct kobject *kobj,
 				struct attribute *attr, char *buf)
@@ -1055,12 +845,22 @@ static ssize_t show_turbo_pct(struct kobject *kobj,
 	int total, no_turbo, turbo_pct;
 	uint32_t turbo_fp;
 
+	mutex_lock(&intel_pstate_driver_lock);
+
+	if (!intel_pstate_driver) {
+		mutex_unlock(&intel_pstate_driver_lock);
+		return -EAGAIN;
+	}
+
 	cpu = all_cpu_data[0];
 
 	total = cpu->pstate.turbo_pstate - cpu->pstate.min_pstate + 1;
 	no_turbo = cpu->pstate.max_pstate - cpu->pstate.min_pstate + 1;
 	turbo_fp = div_fp(no_turbo, total);
 	turbo_pct = 100 - fp_toint(mul_fp(turbo_fp, int_tofp(100)));
+
+	mutex_unlock(&intel_pstate_driver_lock);
+
 	return sprintf(buf, "%u\n", turbo_pct);
 }
 
@@ -1070,8 +870,18 @@ static ssize_t show_num_pstates(struct kobject *kobj,
 	struct cpudata *cpu;
 	int total;
 
+	mutex_lock(&intel_pstate_driver_lock);
+
+	if (!intel_pstate_driver) {
+		mutex_unlock(&intel_pstate_driver_lock);
+		return -EAGAIN;
+	}
+
 	cpu = all_cpu_data[0];
 	total = cpu->pstate.turbo_pstate - cpu->pstate.min_pstate + 1;
+
+	mutex_unlock(&intel_pstate_driver_lock);
+
 	return sprintf(buf, "%u\n", total);
 }
 
@@ -1080,11 +890,20 @@ static ssize_t show_no_turbo(struct kobject *kobj,
 {
 	ssize_t ret;
 
+	mutex_lock(&intel_pstate_driver_lock);
+
+	if (!intel_pstate_driver) {
+		mutex_unlock(&intel_pstate_driver_lock);
+		return -EAGAIN;
+	}
+
 	update_turbo_state();
-	if (limits->turbo_disabled)
-		ret = sprintf(buf, "%u\n", limits->turbo_disabled);
+	if (global.turbo_disabled)
+		ret = sprintf(buf, "%u\n", global.turbo_disabled);
 	else
-		ret = sprintf(buf, "%u\n", limits->no_turbo);
+		ret = sprintf(buf, "%u\n", global.no_turbo);
+
+	mutex_unlock(&intel_pstate_driver_lock);
 
 	return ret;
 }
@@ -1099,20 +918,39 @@ static ssize_t store_no_turbo(struct kobject *a, struct attribute *b,
 	if (ret != 1)
 		return -EINVAL;
 
+	mutex_lock(&intel_pstate_driver_lock);
+
+	if (!intel_pstate_driver) {
+		mutex_unlock(&intel_pstate_driver_lock);
+		return -EAGAIN;
+	}
+
 	mutex_lock(&intel_pstate_limits_lock);
 
 	update_turbo_state();
-	if (limits->turbo_disabled) {
+	if (global.turbo_disabled) {
 		pr_warn("Turbo disabled by BIOS or unavailable on processor\n");
 		mutex_unlock(&intel_pstate_limits_lock);
+		mutex_unlock(&intel_pstate_driver_lock);
 		return -EPERM;
 	}
 
-	limits->no_turbo = clamp_t(int, input, 0, 1);
+	global.no_turbo = clamp_t(int, input, 0, 1);
+
+	if (global.no_turbo) {
+		struct cpudata *cpu = all_cpu_data[0];
+		int pct = cpu->pstate.max_pstate * 100 / cpu->pstate.turbo_pstate;
+
+		/* Squash the global minimum into the permitted range. */
+		if (global.min_perf_pct > pct)
+			global.min_perf_pct = pct;
+	}
 
 	mutex_unlock(&intel_pstate_limits_lock);
 
 	intel_pstate_update_policies();
+
+	mutex_unlock(&intel_pstate_driver_lock);
 
 	return count;
 }
@@ -1127,20 +965,22 @@ static ssize_t store_max_perf_pct(struct kobject *a, struct attribute *b,
 	if (ret != 1)
 		return -EINVAL;
 
+	mutex_lock(&intel_pstate_driver_lock);
+
+	if (!intel_pstate_driver) {
+		mutex_unlock(&intel_pstate_driver_lock);
+		return -EAGAIN;
+	}
+
 	mutex_lock(&intel_pstate_limits_lock);
 
-	limits->max_sysfs_pct = clamp_t(int, input, 0 , 100);
-	limits->max_perf_pct = min(limits->max_policy_pct,
-				   limits->max_sysfs_pct);
-	limits->max_perf_pct = max(limits->min_policy_pct,
-				   limits->max_perf_pct);
-	limits->max_perf_pct = max(limits->min_perf_pct,
-				   limits->max_perf_pct);
-	limits->max_perf = div_ext_fp(limits->max_perf_pct, 100);
+	global.max_perf_pct = clamp_t(int, input, global.min_perf_pct, 100);
 
 	mutex_unlock(&intel_pstate_limits_lock);
 
 	intel_pstate_update_policies();
+
+	mutex_unlock(&intel_pstate_driver_lock);
 
 	return count;
 }
@@ -1155,20 +995,23 @@ static ssize_t store_min_perf_pct(struct kobject *a, struct attribute *b,
 	if (ret != 1)
 		return -EINVAL;
 
+	mutex_lock(&intel_pstate_driver_lock);
+
+	if (!intel_pstate_driver) {
+		mutex_unlock(&intel_pstate_driver_lock);
+		return -EAGAIN;
+	}
+
 	mutex_lock(&intel_pstate_limits_lock);
 
-	limits->min_sysfs_pct = clamp_t(int, input, 0 , 100);
-	limits->min_perf_pct = max(limits->min_policy_pct,
-				   limits->min_sysfs_pct);
-	limits->min_perf_pct = min(limits->max_policy_pct,
-				   limits->min_perf_pct);
-	limits->min_perf_pct = min(limits->max_perf_pct,
-				   limits->min_perf_pct);
-	limits->min_perf = div_ext_fp(limits->min_perf_pct, 100);
+	global.min_perf_pct = clamp_t(int, input,
+				      min_perf_pct_min(), global.max_perf_pct);
 
 	mutex_unlock(&intel_pstate_limits_lock);
 
 	intel_pstate_update_policies();
+
+	mutex_unlock(&intel_pstate_driver_lock);
 
 	return count;
 }
@@ -1176,6 +1019,7 @@ static ssize_t store_min_perf_pct(struct kobject *a, struct attribute *b,
 show_one(max_perf_pct, max_perf_pct);
 show_one(min_perf_pct, min_perf_pct);
 
+define_one_global_rw(status);
 define_one_global_rw(no_turbo);
 define_one_global_rw(max_perf_pct);
 define_one_global_rw(min_perf_pct);
@@ -1183,13 +1027,14 @@ define_one_global_ro(turbo_pct);
 define_one_global_ro(num_pstates);
 
 static struct attribute *intel_pstate_attributes[] = {
+	&status.attr,
 	&no_turbo.attr,
 	&turbo_pct.attr,
 	&num_pstates.attr,
 	NULL
 };
 
-static struct attribute_group intel_pstate_attr_group = {
+static const struct attribute_group intel_pstate_attr_group = {
 	.attrs = intel_pstate_attributes,
 };
 
@@ -1258,7 +1103,7 @@ static int atom_get_min_pstate(void)
 {
 	u64 value;
 
-	rdmsrl(ATOM_RATIOS, value);
+	rdmsrl(MSR_ATOM_CORE_RATIOS, value);
 	return (value >> 8) & 0x7F;
 }
 
@@ -1266,7 +1111,7 @@ static int atom_get_max_pstate(void)
 {
 	u64 value;
 
-	rdmsrl(ATOM_RATIOS, value);
+	rdmsrl(MSR_ATOM_CORE_RATIOS, value);
 	return (value >> 16) & 0x7F;
 }
 
@@ -1274,7 +1119,7 @@ static int atom_get_turbo_pstate(void)
 {
 	u64 value;
 
-	rdmsrl(ATOM_TURBO_RATIOS, value);
+	rdmsrl(MSR_ATOM_CORE_TURBO_RATIOS, value);
 	return value & 0x7F;
 }
 
@@ -1285,7 +1130,7 @@ static u64 atom_get_val(struct cpudata *cpudata, int pstate)
 	u32 vid;
 
 	val = (u64)pstate << 8;
-	if (limits->no_turbo && !limits->turbo_disabled)
+	if (global.no_turbo && !global.turbo_disabled)
 		val |= (u64)1 << 32;
 
 	vid_fp = cpudata->vid.min + mul_fp(
@@ -1336,7 +1181,7 @@ static void atom_get_vid(struct cpudata *cpudata)
 {
 	u64 value;
 
-	rdmsrl(ATOM_VIDS, value);
+	rdmsrl(MSR_ATOM_CORE_VIDS, value);
 	cpudata->vid.min = int_tofp((value >> 8) & 0x7f);
 	cpudata->vid.max = int_tofp((value >> 16) & 0x7f);
 	cpudata->vid.ratio = div_fp(
@@ -1344,7 +1189,7 @@ static void atom_get_vid(struct cpudata *cpudata)
 		int_tofp(cpudata->pstate.max_pstate -
 			cpudata->pstate.min_pstate));
 
-	rdmsrl(ATOM_TURBO_VIDS, value);
+	rdmsrl(MSR_ATOM_CORE_TURBO_VIDS, value);
 	cpudata->vid.turbo = value & 0x7f;
 }
 
@@ -1364,48 +1209,71 @@ static int core_get_max_pstate_physical(void)
 	return (value >> 8) & 0xFF;
 }
 
+static int core_get_tdp_ratio(u64 plat_info)
+{
+	/* Check how many TDP levels present */
+	if (plat_info & 0x600000000) {
+		u64 tdp_ctrl;
+		u64 tdp_ratio;
+		int tdp_msr;
+		int err;
+
+		/* Get the TDP level (0, 1, 2) to get ratios */
+		err = rdmsrl_safe(MSR_CONFIG_TDP_CONTROL, &tdp_ctrl);
+		if (err)
+			return err;
+
+		/* TDP MSR are continuous starting at 0x648 */
+		tdp_msr = MSR_CONFIG_TDP_NOMINAL + (tdp_ctrl & 0x03);
+		err = rdmsrl_safe(tdp_msr, &tdp_ratio);
+		if (err)
+			return err;
+
+		/* For level 1 and 2, bits[23:16] contain the ratio */
+		if (tdp_ctrl & 0x03)
+			tdp_ratio >>= 16;
+
+		tdp_ratio &= 0xff; /* ratios are only 8 bits long */
+		pr_debug("tdp_ratio %x\n", (int)tdp_ratio);
+
+		return (int)tdp_ratio;
+	}
+
+	return -ENXIO;
+}
+
 static int core_get_max_pstate(void)
 {
 	u64 tar;
 	u64 plat_info;
 	int max_pstate;
+	int tdp_ratio;
 	int err;
 
 	rdmsrl(MSR_PLATFORM_INFO, plat_info);
 	max_pstate = (plat_info >> 8) & 0xFF;
 
+	tdp_ratio = core_get_tdp_ratio(plat_info);
+	if (tdp_ratio <= 0)
+		return max_pstate;
+
+	if (hwp_active) {
+		/* Turbo activation ratio is not used on HWP platforms */
+		return tdp_ratio;
+	}
+
 	err = rdmsrl_safe(MSR_TURBO_ACTIVATION_RATIO, &tar);
 	if (!err) {
+		int tar_levels;
+
 		/* Do some sanity checking for safety */
-		if (plat_info & 0x600000000) {
-			u64 tdp_ctrl;
-			u64 tdp_ratio;
-			int tdp_msr;
-
-			err = rdmsrl_safe(MSR_CONFIG_TDP_CONTROL, &tdp_ctrl);
-			if (err)
-				goto skip_tar;
-
-			tdp_msr = MSR_CONFIG_TDP_NOMINAL + (tdp_ctrl & 0x3);
-			err = rdmsrl_safe(tdp_msr, &tdp_ratio);
-			if (err)
-				goto skip_tar;
-
-			/* For level 1 and 2, bits[23:16] contain the ratio */
-			if (tdp_ctrl)
-				tdp_ratio >>= 16;
-
-			tdp_ratio &= 0xff; /* ratios are only 8 bits long */
-			if (tdp_ratio - 1 == tar) {
-				max_pstate = tar;
-				pr_debug("max_pstate=TAC %x\n", max_pstate);
-			} else {
-				goto skip_tar;
-			}
+		tar_levels = tar & 0xff;
+		if (tdp_ratio - 1 == tar_levels) {
+			max_pstate = tar_levels;
+			pr_debug("max_pstate=TAC %x\n", max_pstate);
 		}
 	}
 
-skip_tar:
 	return max_pstate;
 }
 
@@ -1432,10 +1300,15 @@ static u64 core_get_val(struct cpudata *cpudata, int pstate)
 	u64 val;
 
 	val = (u64)pstate << 8;
-	if (limits->no_turbo && !limits->turbo_disabled)
+	if (global.no_turbo && !global.turbo_disabled)
 		val |= (u64)1 << 32;
 
 	return val;
+}
+
+static int knl_get_aperf_mperf_shift(void)
+{
+	return 10;
 }
 
 static int knl_get_turbo_pstate(void)
@@ -1451,132 +1324,10 @@ static int knl_get_turbo_pstate(void)
 	return ret;
 }
 
-static struct cpu_defaults core_params = {
-	.pid_policy = {
-		.sample_rate_ms = 10,
-		.deadband = 0,
-		.setpoint = 97,
-		.p_gain_pct = 20,
-		.d_gain_pct = 0,
-		.i_gain_pct = 0,
-	},
-	.funcs = {
-		.get_max = core_get_max_pstate,
-		.get_max_physical = core_get_max_pstate_physical,
-		.get_min = core_get_min_pstate,
-		.get_turbo = core_get_turbo_pstate,
-		.get_scaling = core_get_scaling,
-		.get_val = core_get_val,
-		.get_target_pstate = get_target_pstate_use_performance,
-	},
-};
-
-static const struct cpu_defaults silvermont_params = {
-	.pid_policy = {
-		.sample_rate_ms = 10,
-		.deadband = 0,
-		.setpoint = 60,
-		.p_gain_pct = 14,
-		.d_gain_pct = 0,
-		.i_gain_pct = 4,
-	},
-	.funcs = {
-		.get_max = atom_get_max_pstate,
-		.get_max_physical = atom_get_max_pstate,
-		.get_min = atom_get_min_pstate,
-		.get_turbo = atom_get_turbo_pstate,
-		.get_val = atom_get_val,
-		.get_scaling = silvermont_get_scaling,
-		.get_vid = atom_get_vid,
-		.get_target_pstate = get_target_pstate_use_cpu_load,
-	},
-};
-
-static const struct cpu_defaults airmont_params = {
-	.pid_policy = {
-		.sample_rate_ms = 10,
-		.deadband = 0,
-		.setpoint = 60,
-		.p_gain_pct = 14,
-		.d_gain_pct = 0,
-		.i_gain_pct = 4,
-	},
-	.funcs = {
-		.get_max = atom_get_max_pstate,
-		.get_max_physical = atom_get_max_pstate,
-		.get_min = atom_get_min_pstate,
-		.get_turbo = atom_get_turbo_pstate,
-		.get_val = atom_get_val,
-		.get_scaling = airmont_get_scaling,
-		.get_vid = atom_get_vid,
-		.get_target_pstate = get_target_pstate_use_cpu_load,
-	},
-};
-
-static const struct cpu_defaults knl_params = {
-	.pid_policy = {
-		.sample_rate_ms = 10,
-		.deadband = 0,
-		.setpoint = 97,
-		.p_gain_pct = 20,
-		.d_gain_pct = 0,
-		.i_gain_pct = 0,
-	},
-	.funcs = {
-		.get_max = core_get_max_pstate,
-		.get_max_physical = core_get_max_pstate_physical,
-		.get_min = core_get_min_pstate,
-		.get_turbo = knl_get_turbo_pstate,
-		.get_scaling = core_get_scaling,
-		.get_val = core_get_val,
-		.get_target_pstate = get_target_pstate_use_performance,
-	},
-};
-
-static const struct cpu_defaults bxt_params = {
-	.pid_policy = {
-		.sample_rate_ms = 10,
-		.deadband = 0,
-		.setpoint = 60,
-		.p_gain_pct = 14,
-		.d_gain_pct = 0,
-		.i_gain_pct = 4,
-	},
-	.funcs = {
-		.get_max = core_get_max_pstate,
-		.get_max_physical = core_get_max_pstate_physical,
-		.get_min = core_get_min_pstate,
-		.get_turbo = core_get_turbo_pstate,
-		.get_scaling = core_get_scaling,
-		.get_val = core_get_val,
-		.get_target_pstate = get_target_pstate_use_cpu_load,
-	},
-};
-
-static void intel_pstate_get_min_max(struct cpudata *cpu, int *min, int *max)
+static int intel_pstate_get_base_pstate(struct cpudata *cpu)
 {
-	int max_perf = cpu->pstate.turbo_pstate;
-	int max_perf_adj;
-	int min_perf;
-	struct perf_limits *perf_limits = limits;
-
-	if (limits->no_turbo || limits->turbo_disabled)
-		max_perf = cpu->pstate.max_pstate;
-
-	if (per_cpu_limits)
-		perf_limits = cpu->perf_limits;
-
-	/*
-	 * performance can be limited by user through sysfs, by cpufreq
-	 * policy, or by cpu specific default values determined through
-	 * experimentation.
-	 */
-	max_perf_adj = fp_ext_toint(max_perf * perf_limits->max_perf);
-	*max = clamp_t(int, max_perf_adj,
-			cpu->pstate.min_pstate, cpu->pstate.turbo_pstate);
-
-	min_perf = fp_ext_toint(max_perf * perf_limits->min_perf);
-	*min = clamp_t(int, min_perf, cpu->pstate.min_pstate, max_perf);
+	return global.no_turbo || global.turbo_disabled ?
+			cpu->pstate.max_pstate : cpu->pstate.turbo_pstate;
 }
 
 static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate)
@@ -1599,11 +1350,12 @@ static void intel_pstate_set_min_pstate(struct cpudata *cpu)
 
 static void intel_pstate_max_within_limits(struct cpudata *cpu)
 {
-	int min_pstate, max_pstate;
+	int pstate;
 
 	update_turbo_state();
-	intel_pstate_get_min_max(cpu, &min_pstate, &max_pstate);
-	intel_pstate_set_pstate(cpu, max_pstate);
+	pstate = intel_pstate_get_base_pstate(cpu);
+	pstate = max(cpu->pstate.min_pstate, cpu->max_perf_ratio);
+	intel_pstate_set_pstate(cpu, pstate);
 }
 
 static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
@@ -1615,6 +1367,9 @@ static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
 	cpu->pstate.scaling = pstate_funcs.get_scaling();
 	cpu->pstate.max_freq = cpu->pstate.max_pstate * cpu->pstate.scaling;
 	cpu->pstate.turbo_freq = cpu->pstate.turbo_pstate * cpu->pstate.scaling;
+
+	if (pstate_funcs.get_aperf_mperf_shift)
+		cpu->aperf_mperf_shift = pstate_funcs.get_aperf_mperf_shift();
 
 	if (pstate_funcs.get_vid)
 		pstate_funcs.get_vid(cpu);
@@ -1664,13 +1419,16 @@ static inline bool intel_pstate_sample(struct cpudata *cpu, u64 time)
 	 * that sample.time will always be reset before setting the utilization
 	 * update hook and make the caller skip the sample then.
 	 */
-	return !!cpu->last_sample_time;
+	if (cpu->last_sample_time) {
+		intel_pstate_calc_avg_perf(cpu);
+		return true;
+	}
+	return false;
 }
 
 static inline int32_t get_avg_frequency(struct cpudata *cpu)
 {
-	return mul_ext_fp(cpu->sample.core_avg_perf,
-			  cpu->pstate.max_pstate_physical * cpu->pstate.scaling);
+	return mul_ext_fp(cpu->sample.core_avg_perf, cpu_khz);
 }
 
 static inline int32_t get_avg_pstate(struct cpudata *cpu)
@@ -1679,13 +1437,14 @@ static inline int32_t get_avg_pstate(struct cpudata *cpu)
 			  cpu->sample.core_avg_perf);
 }
 
-static inline int32_t get_target_pstate_use_cpu_load(struct cpudata *cpu)
+static inline int32_t get_target_pstate(struct cpudata *cpu)
 {
 	struct sample *sample = &cpu->sample;
 	int32_t busy_frac, boost;
 	int target, avg_pstate;
 
-	busy_frac = div_fp(sample->mperf, sample->tsc);
+	busy_frac = div_fp(sample->mperf << cpu->aperf_mperf_shift,
+			   sample->tsc);
 
 	boost = cpu->iowait_boost;
 	cpu->iowait_boost >>= 1;
@@ -1695,7 +1454,7 @@ static inline int32_t get_target_pstate_use_cpu_load(struct cpudata *cpu)
 
 	sample->busy_scaled = busy_frac * 100;
 
-	target = limits->no_turbo || limits->turbo_disabled ?
+	target = global.no_turbo || global.turbo_disabled ?
 			cpu->pstate.max_pstate : cpu->pstate.turbo_pstate;
 	target += target >> 2;
 	target = mul_fp(target, busy_frac);
@@ -1716,56 +1475,18 @@ static inline int32_t get_target_pstate_use_cpu_load(struct cpudata *cpu)
 	return target;
 }
 
-static inline int32_t get_target_pstate_use_performance(struct cpudata *cpu)
-{
-	int32_t perf_scaled, max_pstate, current_pstate, sample_ratio;
-	u64 duration_ns;
-
-	/*
-	 * perf_scaled is the ratio of the average P-state during the last
-	 * sampling period to the P-state requested last time (in percent).
-	 *
-	 * That measures the system's response to the previous P-state
-	 * selection.
-	 */
-	max_pstate = cpu->pstate.max_pstate_physical;
-	current_pstate = cpu->pstate.current_pstate;
-	perf_scaled = mul_ext_fp(cpu->sample.core_avg_perf,
-			       div_fp(100 * max_pstate, current_pstate));
-
-	/*
-	 * Since our utilization update callback will not run unless we are
-	 * in C0, check if the actual elapsed time is significantly greater (3x)
-	 * than our sample interval.  If it is, then we were idle for a long
-	 * enough period of time to adjust our performance metric.
-	 */
-	duration_ns = cpu->sample.time - cpu->last_sample_time;
-	if ((s64)duration_ns > pid_params.sample_rate_ns * 3) {
-		sample_ratio = div_fp(pid_params.sample_rate_ns, duration_ns);
-		perf_scaled = mul_fp(perf_scaled, sample_ratio);
-	} else {
-		sample_ratio = div_fp(100 * cpu->sample.mperf, cpu->sample.tsc);
-		if (sample_ratio < int_tofp(1))
-			perf_scaled = 0;
-	}
-
-	cpu->sample.busy_scaled = perf_scaled;
-	return cpu->pstate.current_pstate - pid_calc(&cpu->pid, perf_scaled);
-}
-
 static int intel_pstate_prepare_request(struct cpudata *cpu, int pstate)
 {
-	int max_perf, min_perf;
+	int max_pstate = intel_pstate_get_base_pstate(cpu);
+	int min_pstate;
 
-	intel_pstate_get_min_max(cpu, &min_perf, &max_perf);
-	pstate = clamp_t(int, pstate, min_perf, max_perf);
-	trace_cpu_frequency(pstate * cpu->pstate.scaling, cpu->cpu);
-	return pstate;
+	min_pstate = max(cpu->pstate.min_pstate, cpu->min_perf_ratio);
+	max_pstate = max(min_pstate, cpu->max_perf_ratio);
+	return clamp_t(int, pstate, min_pstate, max_pstate);
 }
 
 static void intel_pstate_update_pstate(struct cpudata *cpu, int pstate)
 {
-	pstate = intel_pstate_prepare_request(cpu, pstate);
 	if (pstate == cpu->pstate.current_pstate)
 		return;
 
@@ -1773,18 +1494,17 @@ static void intel_pstate_update_pstate(struct cpudata *cpu, int pstate)
 	wrmsrl(MSR_IA32_PERF_CTL, pstate_funcs.get_val(cpu, pstate));
 }
 
-static inline void intel_pstate_adjust_busy_pstate(struct cpudata *cpu)
+static void intel_pstate_adjust_pstate(struct cpudata *cpu)
 {
-	int from, target_pstate;
+	int from = cpu->pstate.current_pstate;
 	struct sample *sample;
-
-	from = cpu->pstate.current_pstate;
-
-	target_pstate = cpu->policy == CPUFREQ_POLICY_PERFORMANCE ?
-		cpu->pstate.turbo_pstate : pstate_funcs.get_target_pstate(cpu);
+	int target_pstate;
 
 	update_turbo_state();
 
+	target_pstate = get_target_pstate(cpu);
+	target_pstate = intel_pstate_prepare_request(cpu, target_pstate);
+	trace_cpu_frequency(target_pstate * cpu->pstate.scaling, cpu->cpu);
 	intel_pstate_update_pstate(cpu, target_pstate);
 
 	sample = &cpu->sample;
@@ -1805,67 +1525,123 @@ static void intel_pstate_update_util(struct update_util_data *data, u64 time,
 	struct cpudata *cpu = container_of(data, struct cpudata, update_util);
 	u64 delta_ns;
 
-	if (pstate_funcs.get_target_pstate == get_target_pstate_use_cpu_load) {
-		if (flags & SCHED_CPUFREQ_IOWAIT) {
-			cpu->iowait_boost = int_tofp(1);
-		} else if (cpu->iowait_boost) {
-			/* Clear iowait_boost if the CPU may have been idle. */
-			delta_ns = time - cpu->last_update;
-			if (delta_ns > TICK_NSEC)
-				cpu->iowait_boost = 0;
-		}
+	/* Don't allow remote callbacks */
+	if (smp_processor_id() != cpu->cpu)
+		return;
+
+	if (flags & SCHED_CPUFREQ_IOWAIT) {
+		cpu->iowait_boost = int_tofp(1);
 		cpu->last_update = time;
-	}
+		/*
+		 * The last time the busy was 100% so P-state was max anyway
+		 * so avoid overhead of computation.
+		 */
+		if (fp_toint(cpu->sample.busy_scaled) == 100)
+			return;
 
+		goto set_pstate;
+	} else if (cpu->iowait_boost) {
+		/* Clear iowait_boost if the CPU may have been idle. */
+		delta_ns = time - cpu->last_update;
+		if (delta_ns > TICK_NSEC)
+			cpu->iowait_boost = 0;
+	}
+	cpu->last_update = time;
 	delta_ns = time - cpu->sample.time;
-	if ((s64)delta_ns >= pid_params.sample_rate_ns) {
-		bool sample_taken = intel_pstate_sample(cpu, time);
+	if ((s64)delta_ns < INTEL_PSTATE_SAMPLING_INTERVAL)
+		return;
 
-		if (sample_taken) {
-			intel_pstate_calc_avg_perf(cpu);
-			if (!hwp_active)
-				intel_pstate_adjust_busy_pstate(cpu);
-		}
-	}
+set_pstate:
+	if (intel_pstate_sample(cpu, time))
+		intel_pstate_adjust_pstate(cpu);
 }
+
+static struct pstate_funcs core_funcs = {
+	.get_max = core_get_max_pstate,
+	.get_max_physical = core_get_max_pstate_physical,
+	.get_min = core_get_min_pstate,
+	.get_turbo = core_get_turbo_pstate,
+	.get_scaling = core_get_scaling,
+	.get_val = core_get_val,
+};
+
+static const struct pstate_funcs silvermont_funcs = {
+	.get_max = atom_get_max_pstate,
+	.get_max_physical = atom_get_max_pstate,
+	.get_min = atom_get_min_pstate,
+	.get_turbo = atom_get_turbo_pstate,
+	.get_val = atom_get_val,
+	.get_scaling = silvermont_get_scaling,
+	.get_vid = atom_get_vid,
+};
+
+static const struct pstate_funcs airmont_funcs = {
+	.get_max = atom_get_max_pstate,
+	.get_max_physical = atom_get_max_pstate,
+	.get_min = atom_get_min_pstate,
+	.get_turbo = atom_get_turbo_pstate,
+	.get_val = atom_get_val,
+	.get_scaling = airmont_get_scaling,
+	.get_vid = atom_get_vid,
+};
+
+static const struct pstate_funcs knl_funcs = {
+	.get_max = core_get_max_pstate,
+	.get_max_physical = core_get_max_pstate_physical,
+	.get_min = core_get_min_pstate,
+	.get_turbo = knl_get_turbo_pstate,
+	.get_aperf_mperf_shift = knl_get_aperf_mperf_shift,
+	.get_scaling = core_get_scaling,
+	.get_val = core_get_val,
+};
+
+static const struct pstate_funcs bxt_funcs = {
+	.get_max = core_get_max_pstate,
+	.get_max_physical = core_get_max_pstate_physical,
+	.get_min = core_get_min_pstate,
+	.get_turbo = core_get_turbo_pstate,
+	.get_scaling = core_get_scaling,
+	.get_val = core_get_val,
+};
 
 #define ICPU(model, policy) \
 	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_APERFMPERF,\
 			(unsigned long)&policy }
 
 static const struct x86_cpu_id intel_pstate_cpu_ids[] = {
-	ICPU(INTEL_FAM6_SANDYBRIDGE, 		core_params),
-	ICPU(INTEL_FAM6_SANDYBRIDGE_X,		core_params),
-	ICPU(INTEL_FAM6_ATOM_SILVERMONT1,	silvermont_params),
-	ICPU(INTEL_FAM6_IVYBRIDGE,		core_params),
-	ICPU(INTEL_FAM6_HASWELL_CORE,		core_params),
-	ICPU(INTEL_FAM6_BROADWELL_CORE,		core_params),
-	ICPU(INTEL_FAM6_IVYBRIDGE_X,		core_params),
-	ICPU(INTEL_FAM6_HASWELL_X,		core_params),
-	ICPU(INTEL_FAM6_HASWELL_ULT,		core_params),
-	ICPU(INTEL_FAM6_HASWELL_GT3E,		core_params),
-	ICPU(INTEL_FAM6_BROADWELL_GT3E,		core_params),
-	ICPU(INTEL_FAM6_ATOM_AIRMONT,		airmont_params),
-	ICPU(INTEL_FAM6_SKYLAKE_MOBILE,		core_params),
-	ICPU(INTEL_FAM6_BROADWELL_X,		core_params),
-	ICPU(INTEL_FAM6_SKYLAKE_DESKTOP,	core_params),
-	ICPU(INTEL_FAM6_BROADWELL_XEON_D,	core_params),
-	ICPU(INTEL_FAM6_XEON_PHI_KNL,		knl_params),
-	ICPU(INTEL_FAM6_XEON_PHI_KNM,		knl_params),
-	ICPU(INTEL_FAM6_ATOM_GOLDMONT,		bxt_params),
+	ICPU(INTEL_FAM6_SANDYBRIDGE, 		core_funcs),
+	ICPU(INTEL_FAM6_SANDYBRIDGE_X,		core_funcs),
+	ICPU(INTEL_FAM6_ATOM_SILVERMONT1,	silvermont_funcs),
+	ICPU(INTEL_FAM6_IVYBRIDGE,		core_funcs),
+	ICPU(INTEL_FAM6_HASWELL_CORE,		core_funcs),
+	ICPU(INTEL_FAM6_BROADWELL_CORE,		core_funcs),
+	ICPU(INTEL_FAM6_IVYBRIDGE_X,		core_funcs),
+	ICPU(INTEL_FAM6_HASWELL_X,		core_funcs),
+	ICPU(INTEL_FAM6_HASWELL_ULT,		core_funcs),
+	ICPU(INTEL_FAM6_HASWELL_GT3E,		core_funcs),
+	ICPU(INTEL_FAM6_BROADWELL_GT3E,		core_funcs),
+	ICPU(INTEL_FAM6_ATOM_AIRMONT,		airmont_funcs),
+	ICPU(INTEL_FAM6_SKYLAKE_MOBILE,		core_funcs),
+	ICPU(INTEL_FAM6_BROADWELL_X,		core_funcs),
+	ICPU(INTEL_FAM6_SKYLAKE_DESKTOP,	core_funcs),
+	ICPU(INTEL_FAM6_BROADWELL_XEON_D,	core_funcs),
+	ICPU(INTEL_FAM6_XEON_PHI_KNL,		knl_funcs),
+	ICPU(INTEL_FAM6_XEON_PHI_KNM,		knl_funcs),
+	ICPU(INTEL_FAM6_ATOM_GOLDMONT,		bxt_funcs),
+	ICPU(INTEL_FAM6_ATOM_GEMINI_LAKE,       bxt_funcs),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_pstate_cpu_ids);
 
 static const struct x86_cpu_id intel_pstate_cpu_oob_ids[] __initconst = {
-	ICPU(INTEL_FAM6_BROADWELL_XEON_D, core_params),
-	ICPU(INTEL_FAM6_BROADWELL_X, core_params),
-	ICPU(INTEL_FAM6_SKYLAKE_X, core_params),
+	ICPU(INTEL_FAM6_BROADWELL_XEON_D, core_funcs),
+	ICPU(INTEL_FAM6_BROADWELL_X, core_funcs),
+	ICPU(INTEL_FAM6_SKYLAKE_X, core_funcs),
 	{}
 };
 
 static const struct x86_cpu_id intel_pstate_cpu_ee_disable_ids[] = {
-	ICPU(INTEL_FAM6_KABYLAKE_DESKTOP, core_params),
+	ICPU(INTEL_FAM6_KABYLAKE_DESKTOP, core_funcs),
 	{}
 };
 
@@ -1876,18 +1652,11 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 	cpu = all_cpu_data[cpunum];
 
 	if (!cpu) {
-		unsigned int size = sizeof(struct cpudata);
-
-		if (per_cpu_limits)
-			size += sizeof(struct perf_limits);
-
-		cpu = kzalloc(size, GFP_KERNEL);
+		cpu = kzalloc(sizeof(*cpu), GFP_KERNEL);
 		if (!cpu)
 			return -ENOMEM;
 
 		all_cpu_data[cpunum] = cpu;
-		if (per_cpu_limits)
-			cpu->perf_limits = (struct perf_limits *)(cpu + 1);
 
 		cpu->epp_default = -EINVAL;
 		cpu->epp_powersave = -EINVAL;
@@ -1906,29 +1675,21 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 			intel_pstate_disable_ee(cpunum);
 
 		intel_pstate_hwp_enable(cpu);
-		pid_params.sample_rate_ms = 50;
-		pid_params.sample_rate_ns = 50 * NSEC_PER_MSEC;
 	}
 
 	intel_pstate_get_cpu_pstates(cpu);
-
-	intel_pstate_busy_pid_reset(cpu);
 
 	pr_debug("controlling: cpu %d\n", cpunum);
 
 	return 0;
 }
 
-static unsigned int intel_pstate_get(unsigned int cpu_num)
-{
-	struct cpudata *cpu = all_cpu_data[cpu_num];
-
-	return cpu ? get_avg_frequency(cpu) : 0;
-}
-
 static void intel_pstate_set_update_util_hook(unsigned int cpu_num)
 {
 	struct cpudata *cpu = all_cpu_data[cpu_num];
+
+	if (hwp_active)
+		return;
 
 	if (cpu->update_util_set)
 		return;
@@ -1952,62 +1713,77 @@ static void intel_pstate_clear_update_util_hook(unsigned int cpu)
 	synchronize_sched();
 }
 
-static void intel_pstate_set_performance_limits(struct perf_limits *limits)
+static int intel_pstate_get_max_freq(struct cpudata *cpu)
 {
-	limits->no_turbo = 0;
-	limits->turbo_disabled = 0;
-	limits->max_perf_pct = 100;
-	limits->max_perf = int_ext_tofp(1);
-	limits->min_perf_pct = 100;
-	limits->min_perf = int_ext_tofp(1);
-	limits->max_policy_pct = 100;
-	limits->max_sysfs_pct = 100;
-	limits->min_policy_pct = 0;
-	limits->min_sysfs_pct = 0;
+	return global.turbo_disabled || global.no_turbo ?
+			cpu->pstate.max_freq : cpu->pstate.turbo_freq;
 }
 
 static void intel_pstate_update_perf_limits(struct cpufreq_policy *policy,
-					    struct perf_limits *limits)
+					    struct cpudata *cpu)
 {
+	int max_freq = intel_pstate_get_max_freq(cpu);
+	int32_t max_policy_perf, min_policy_perf;
+	int max_state, turbo_max;
 
-	limits->max_policy_pct = DIV_ROUND_UP(policy->max * 100,
-					      policy->cpuinfo.max_freq);
-	limits->max_policy_pct = clamp_t(int, limits->max_policy_pct, 0, 100);
-	if (policy->max == policy->min) {
-		limits->min_policy_pct = limits->max_policy_pct;
+	/*
+	 * HWP needs some special consideration, because on BDX the
+	 * HWP_REQUEST uses abstract value to represent performance
+	 * rather than pure ratios.
+	 */
+	if (hwp_active) {
+		intel_pstate_get_hwp_max(cpu->cpu, &turbo_max, &max_state);
 	} else {
-		limits->min_policy_pct = DIV_ROUND_UP(policy->min * 100,
-						      policy->cpuinfo.max_freq);
-		limits->min_policy_pct = clamp_t(int, limits->min_policy_pct,
-						 0, 100);
+		max_state = intel_pstate_get_base_pstate(cpu);
+		turbo_max = cpu->pstate.turbo_pstate;
 	}
 
-	/* Normalize user input to [min_policy_pct, max_policy_pct] */
-	limits->min_perf_pct = max(limits->min_policy_pct,
-				   limits->min_sysfs_pct);
-	limits->min_perf_pct = min(limits->max_policy_pct,
-				   limits->min_perf_pct);
-	limits->max_perf_pct = min(limits->max_policy_pct,
-				   limits->max_sysfs_pct);
-	limits->max_perf_pct = max(limits->min_policy_pct,
-				   limits->max_perf_pct);
+	max_policy_perf = max_state * policy->max / max_freq;
+	if (policy->max == policy->min) {
+		min_policy_perf = max_policy_perf;
+	} else {
+		min_policy_perf = max_state * policy->min / max_freq;
+		min_policy_perf = clamp_t(int32_t, min_policy_perf,
+					  0, max_policy_perf);
+	}
 
-	/* Make sure min_perf_pct <= max_perf_pct */
-	limits->min_perf_pct = min(limits->max_perf_pct, limits->min_perf_pct);
+	pr_debug("cpu:%d max_state %d min_policy_perf:%d max_policy_perf:%d\n",
+		 policy->cpu, max_state,
+		 min_policy_perf, max_policy_perf);
 
-	limits->min_perf = div_ext_fp(limits->min_perf_pct, 100);
-	limits->max_perf = div_ext_fp(limits->max_perf_pct, 100);
-	limits->max_perf = round_up(limits->max_perf, EXT_FRAC_BITS);
-	limits->min_perf = round_up(limits->min_perf, EXT_FRAC_BITS);
+	/* Normalize user input to [min_perf, max_perf] */
+	if (per_cpu_limits) {
+		cpu->min_perf_ratio = min_policy_perf;
+		cpu->max_perf_ratio = max_policy_perf;
+	} else {
+		int32_t global_min, global_max;
 
-	pr_debug("cpu:%d max_perf_pct:%d min_perf_pct:%d\n", policy->cpu,
-		 limits->max_perf_pct, limits->min_perf_pct);
+		/* Global limits are in percent of the maximum turbo P-state. */
+		global_max = DIV_ROUND_UP(turbo_max * global.max_perf_pct, 100);
+		global_min = DIV_ROUND_UP(turbo_max * global.min_perf_pct, 100);
+		global_min = clamp_t(int32_t, global_min, 0, global_max);
+
+		pr_debug("cpu:%d global_min:%d global_max:%d\n", policy->cpu,
+			 global_min, global_max);
+
+		cpu->min_perf_ratio = max(min_policy_perf, global_min);
+		cpu->min_perf_ratio = min(cpu->min_perf_ratio, max_policy_perf);
+		cpu->max_perf_ratio = min(max_policy_perf, global_max);
+		cpu->max_perf_ratio = max(min_policy_perf, cpu->max_perf_ratio);
+
+		/* Make sure min_perf <= max_perf */
+		cpu->min_perf_ratio = min(cpu->min_perf_ratio,
+					  cpu->max_perf_ratio);
+
+	}
+	pr_debug("cpu:%d max_perf_ratio:%d min_perf_ratio:%d\n", policy->cpu,
+		 cpu->max_perf_ratio,
+		 cpu->min_perf_ratio);
 }
 
 static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 {
 	struct cpudata *cpu;
-	struct perf_limits *perf_limits = NULL;
 
 	if (!policy->cpuinfo.max_freq)
 		return -ENODEV;
@@ -2018,40 +1794,10 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	cpu = all_cpu_data[policy->cpu];
 	cpu->policy = policy->policy;
 
-	if (cpu->pstate.max_pstate_physical > cpu->pstate.max_pstate &&
-	    policy->max < policy->cpuinfo.max_freq &&
-	    policy->max > cpu->pstate.max_pstate * cpu->pstate.scaling) {
-		pr_debug("policy->max > max non turbo frequency\n");
-		policy->max = policy->cpuinfo.max_freq;
-	}
-
-	if (per_cpu_limits)
-		perf_limits = cpu->perf_limits;
-
 	mutex_lock(&intel_pstate_limits_lock);
 
-	if (policy->policy == CPUFREQ_POLICY_PERFORMANCE) {
-		if (!perf_limits) {
-			limits = &performance_limits;
-			perf_limits = limits;
-		}
-		if (policy->max >= policy->cpuinfo.max_freq &&
-		    !limits->no_turbo) {
-			pr_debug("set performance\n");
-			intel_pstate_set_performance_limits(perf_limits);
-			goto out;
-		}
-	} else {
-		pr_debug("set powersave\n");
-		if (!perf_limits) {
-			limits = &powersave_limits;
-			perf_limits = limits;
-		}
+	intel_pstate_update_perf_limits(policy, cpu);
 
-	}
-
-	intel_pstate_update_perf_limits(policy, perf_limits);
- out:
 	if (cpu->policy == CPUFREQ_POLICY_PERFORMANCE) {
 		/*
 		 * NOHZ_FULL CPUs need this as the governor callback may not
@@ -2059,35 +1805,42 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 		 */
 		intel_pstate_clear_update_util_hook(policy->cpu);
 		intel_pstate_max_within_limits(cpu);
+	} else {
+		intel_pstate_set_update_util_hook(policy->cpu);
 	}
 
-	intel_pstate_set_update_util_hook(policy->cpu);
-
-	intel_pstate_hwp_set_policy(policy);
+	if (hwp_active)
+		intel_pstate_hwp_set(policy->cpu);
 
 	mutex_unlock(&intel_pstate_limits_lock);
 
 	return 0;
 }
 
+static void intel_pstate_adjust_policy_max(struct cpufreq_policy *policy,
+					 struct cpudata *cpu)
+{
+	if (cpu->pstate.max_pstate_physical > cpu->pstate.max_pstate &&
+	    policy->max < policy->cpuinfo.max_freq &&
+	    policy->max > cpu->pstate.max_freq) {
+		pr_debug("policy->max > max non turbo frequency\n");
+		policy->max = policy->cpuinfo.max_freq;
+	}
+}
+
 static int intel_pstate_verify_policy(struct cpufreq_policy *policy)
 {
-	cpufreq_verify_within_cpu_limits(policy);
+	struct cpudata *cpu = all_cpu_data[policy->cpu];
+
+	update_turbo_state();
+	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
+				     intel_pstate_get_max_freq(cpu));
 
 	if (policy->policy != CPUFREQ_POLICY_POWERSAVE &&
 	    policy->policy != CPUFREQ_POLICY_PERFORMANCE)
 		return -EINVAL;
 
-	/* When per-CPU limits are used, sysfs limits are not used */
-	if (!per_cpu_limits) {
-		unsigned int max_freq, min_freq;
-
-		max_freq = policy->cpuinfo.max_freq *
-						limits->max_sysfs_pct / 100;
-		min_freq = policy->cpuinfo.max_freq *
-						limits->min_sysfs_pct / 100;
-		cpufreq_verify_within_limits(policy, min_freq, max_freq);
-	}
+	intel_pstate_adjust_policy_max(policy, cpu);
 
 	return 0;
 }
@@ -2128,13 +1881,8 @@ static int __intel_pstate_cpu_init(struct cpufreq_policy *policy)
 
 	cpu = all_cpu_data[policy->cpu];
 
-	/*
-	 * We need sane value in the cpu->perf_limits, so inherit from global
-	 * perf_limits limits, which are seeded with values based on the
-	 * CONFIG_CPU_FREQ_DEFAULT_GOV_*, during boot up.
-	 */
-	if (per_cpu_limits)
-		memcpy(cpu->perf_limits, limits, sizeof(struct perf_limits));
+	cpu->max_perf_ratio = 0xFF;
+	cpu->min_perf_ratio = 0;
 
 	policy->min = cpu->pstate.min_pstate * cpu->pstate.scaling;
 	policy->max = cpu->pstate.turbo_pstate * cpu->pstate.scaling;
@@ -2142,12 +1890,11 @@ static int __intel_pstate_cpu_init(struct cpufreq_policy *policy)
 	/* cpuinfo and default policy values */
 	policy->cpuinfo.min_freq = cpu->pstate.min_pstate * cpu->pstate.scaling;
 	update_turbo_state();
-	policy->cpuinfo.max_freq = limits->turbo_disabled ?
+	policy->cpuinfo.max_freq = global.turbo_disabled ?
 			cpu->pstate.max_pstate : cpu->pstate.turbo_pstate;
 	policy->cpuinfo.max_freq *= cpu->pstate.scaling;
 
 	intel_pstate_init_acpi_perf_limits(policy);
-	cpumask_set_cpu(policy->cpu, policy->cpus);
 
 	policy->fast_switch_possible = true;
 
@@ -2161,8 +1908,7 @@ static int intel_pstate_cpu_init(struct cpufreq_policy *policy)
 	if (ret)
 		return ret;
 
-	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
-	if (limits->min_perf_pct == 100 && limits->max_perf_pct == 100)
+	if (IS_ENABLED(CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE))
 		policy->policy = CPUFREQ_POLICY_PERFORMANCE;
 	else
 		policy->policy = CPUFREQ_POLICY_POWERSAVE;
@@ -2176,7 +1922,6 @@ static struct cpufreq_driver intel_pstate = {
 	.setpolicy	= intel_pstate_set_policy,
 	.suspend	= intel_pstate_hwp_save_state,
 	.resume		= intel_pstate_resume,
-	.get		= intel_pstate_get,
 	.init		= intel_pstate_cpu_init,
 	.exit		= intel_pstate_cpu_exit,
 	.stop_cpu	= intel_pstate_stop_cpu,
@@ -2186,44 +1931,16 @@ static struct cpufreq_driver intel_pstate = {
 static int intel_cpufreq_verify_policy(struct cpufreq_policy *policy)
 {
 	struct cpudata *cpu = all_cpu_data[policy->cpu];
-	struct perf_limits *perf_limits = limits;
 
 	update_turbo_state();
-	policy->cpuinfo.max_freq = limits->turbo_disabled ?
-			cpu->pstate.max_freq : cpu->pstate.turbo_freq;
+	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
+				     intel_pstate_get_max_freq(cpu));
 
-	cpufreq_verify_within_cpu_limits(policy);
+	intel_pstate_adjust_policy_max(policy, cpu);
 
-	if (per_cpu_limits)
-		perf_limits = cpu->perf_limits;
-
-	mutex_lock(&intel_pstate_limits_lock);
-
-	intel_pstate_update_perf_limits(policy, perf_limits);
-
-	mutex_unlock(&intel_pstate_limits_lock);
+	intel_pstate_update_perf_limits(policy, cpu);
 
 	return 0;
-}
-
-static unsigned int intel_cpufreq_turbo_update(struct cpudata *cpu,
-					       struct cpufreq_policy *policy,
-					       unsigned int target_freq)
-{
-	unsigned int max_freq;
-
-	update_turbo_state();
-
-	max_freq = limits->no_turbo || limits->turbo_disabled ?
-			cpu->pstate.max_freq : cpu->pstate.turbo_freq;
-	policy->cpuinfo.max_freq = max_freq;
-	if (policy->max > max_freq)
-		policy->max = max_freq;
-
-	if (target_freq > max_freq)
-		target_freq = max_freq;
-
-	return target_freq;
 }
 
 static int intel_cpufreq_target(struct cpufreq_policy *policy,
@@ -2234,8 +1951,10 @@ static int intel_cpufreq_target(struct cpufreq_policy *policy,
 	struct cpufreq_freqs freqs;
 	int target_pstate;
 
+	update_turbo_state();
+
 	freqs.old = policy->cur;
-	freqs.new = intel_cpufreq_turbo_update(cpu, policy, target_freq);
+	freqs.new = target_freq;
 
 	cpufreq_freq_transition_begin(policy, &freqs);
 	switch (relation) {
@@ -2255,6 +1974,7 @@ static int intel_cpufreq_target(struct cpufreq_policy *policy,
 		wrmsrl_on_cpu(policy->cpu, MSR_IA32_PERF_CTL,
 			      pstate_funcs.get_val(cpu, target_pstate));
 	}
+	freqs.new = target_pstate * cpu->pstate.scaling;
 	cpufreq_freq_transition_end(policy, &freqs, false);
 
 	return 0;
@@ -2266,10 +1986,12 @@ static unsigned int intel_cpufreq_fast_switch(struct cpufreq_policy *policy,
 	struct cpudata *cpu = all_cpu_data[policy->cpu];
 	int target_pstate;
 
-	target_freq = intel_cpufreq_turbo_update(cpu, policy, target_freq);
+	update_turbo_state();
+
 	target_pstate = DIV_ROUND_UP(target_freq, cpu->pstate.scaling);
+	target_pstate = intel_pstate_prepare_request(cpu, target_pstate);
 	intel_pstate_update_pstate(cpu, target_pstate);
-	return target_freq;
+	return target_pstate * cpu->pstate.scaling;
 }
 
 static int intel_cpufreq_cpu_init(struct cpufreq_policy *policy)
@@ -2280,6 +2002,7 @@ static int intel_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		return ret;
 
 	policy->cpuinfo.transition_latency = INTEL_CPUFREQ_TRANSITION_LATENCY;
+	policy->transition_delay_us = INTEL_CPUFREQ_TRANSITION_DELAY;
 	/* This reflects the intel_pstate_get_cpu_pstates() setting. */
 	policy->cur = policy->cpuinfo.min_freq;
 
@@ -2297,7 +2020,101 @@ static struct cpufreq_driver intel_cpufreq = {
 	.name		= "intel_cpufreq",
 };
 
-static struct cpufreq_driver *intel_pstate_driver = &intel_pstate;
+static struct cpufreq_driver *default_driver = &intel_pstate;
+
+static void intel_pstate_driver_cleanup(void)
+{
+	unsigned int cpu;
+
+	get_online_cpus();
+	for_each_online_cpu(cpu) {
+		if (all_cpu_data[cpu]) {
+			if (intel_pstate_driver == &intel_pstate)
+				intel_pstate_clear_update_util_hook(cpu);
+
+			kfree(all_cpu_data[cpu]);
+			all_cpu_data[cpu] = NULL;
+		}
+	}
+	put_online_cpus();
+	intel_pstate_driver = NULL;
+}
+
+static int intel_pstate_register_driver(struct cpufreq_driver *driver)
+{
+	int ret;
+
+	memset(&global, 0, sizeof(global));
+	global.max_perf_pct = 100;
+
+	intel_pstate_driver = driver;
+	ret = cpufreq_register_driver(intel_pstate_driver);
+	if (ret) {
+		intel_pstate_driver_cleanup();
+		return ret;
+	}
+
+	global.min_perf_pct = min_perf_pct_min();
+
+	return 0;
+}
+
+static int intel_pstate_unregister_driver(void)
+{
+	if (hwp_active)
+		return -EBUSY;
+
+	cpufreq_unregister_driver(intel_pstate_driver);
+	intel_pstate_driver_cleanup();
+
+	return 0;
+}
+
+static ssize_t intel_pstate_show_status(char *buf)
+{
+	if (!intel_pstate_driver)
+		return sprintf(buf, "off\n");
+
+	return sprintf(buf, "%s\n", intel_pstate_driver == &intel_pstate ?
+					"active" : "passive");
+}
+
+static int intel_pstate_update_status(const char *buf, size_t size)
+{
+	int ret;
+
+	if (size == 3 && !strncmp(buf, "off", size))
+		return intel_pstate_driver ?
+			intel_pstate_unregister_driver() : -EINVAL;
+
+	if (size == 6 && !strncmp(buf, "active", size)) {
+		if (intel_pstate_driver) {
+			if (intel_pstate_driver == &intel_pstate)
+				return 0;
+
+			ret = intel_pstate_unregister_driver();
+			if (ret)
+				return ret;
+		}
+
+		return intel_pstate_register_driver(&intel_pstate);
+	}
+
+	if (size == 7 && !strncmp(buf, "passive", size)) {
+		if (intel_pstate_driver) {
+			if (intel_pstate_driver == &intel_cpufreq)
+				return 0;
+
+			ret = intel_pstate_unregister_driver();
+			if (ret)
+				return ret;
+		}
+
+		return intel_pstate_register_driver(&intel_cpufreq);
+	}
+
+	return -EINVAL;
+}
 
 static int no_load __initdata;
 static int no_hwp __initdata;
@@ -2314,30 +2131,6 @@ static int __init intel_pstate_msrs_not_valid(void)
 	return 0;
 }
 
-static void __init copy_pid_params(struct pstate_adjust_policy *policy)
-{
-	pid_params.sample_rate_ms = policy->sample_rate_ms;
-	pid_params.sample_rate_ns = pid_params.sample_rate_ms * NSEC_PER_MSEC;
-	pid_params.p_gain_pct = policy->p_gain_pct;
-	pid_params.i_gain_pct = policy->i_gain_pct;
-	pid_params.d_gain_pct = policy->d_gain_pct;
-	pid_params.deadband = policy->deadband;
-	pid_params.setpoint = policy->setpoint;
-}
-
-#ifdef CONFIG_ACPI
-static void intel_pstate_use_acpi_profile(void)
-{
-	if (acpi_gbl_FADT.preferred_profile == PM_MOBILE)
-		pstate_funcs.get_target_pstate =
-				get_target_pstate_use_cpu_load;
-}
-#else
-static void intel_pstate_use_acpi_profile(void)
-{
-}
-#endif
-
 static void __init copy_cpu_funcs(struct pstate_funcs *funcs)
 {
 	pstate_funcs.get_max   = funcs->get_max;
@@ -2347,9 +2140,7 @@ static void __init copy_cpu_funcs(struct pstate_funcs *funcs)
 	pstate_funcs.get_scaling = funcs->get_scaling;
 	pstate_funcs.get_val   = funcs->get_val;
 	pstate_funcs.get_vid   = funcs->get_vid;
-	pstate_funcs.get_target_pstate = funcs->get_target_pstate;
-
-	intel_pstate_use_acpi_profile();
+	pstate_funcs.get_aperf_mperf_shift = funcs->get_aperf_mperf_shift;
 }
 
 #ifdef CONFIG_ACPI
@@ -2403,39 +2194,31 @@ enum {
 	PPC,
 };
 
-struct hw_vendor_info {
-	u16  valid;
-	char oem_id[ACPI_OEM_ID_SIZE];
-	char oem_table_id[ACPI_OEM_TABLE_ID_SIZE];
-	int  oem_pwr_table;
-};
-
 /* Hardware vendor-specific info that has its own power management modes */
-static struct hw_vendor_info vendor_info[] __initdata = {
-	{1, "HP    ", "ProLiant", PSS},
-	{1, "ORACLE", "X4-2    ", PPC},
-	{1, "ORACLE", "X4-2L   ", PPC},
-	{1, "ORACLE", "X4-2B   ", PPC},
-	{1, "ORACLE", "X3-2    ", PPC},
-	{1, "ORACLE", "X3-2L   ", PPC},
-	{1, "ORACLE", "X3-2B   ", PPC},
-	{1, "ORACLE", "X4470M2 ", PPC},
-	{1, "ORACLE", "X4270M3 ", PPC},
-	{1, "ORACLE", "X4270M2 ", PPC},
-	{1, "ORACLE", "X4170M2 ", PPC},
-	{1, "ORACLE", "X4170 M3", PPC},
-	{1, "ORACLE", "X4275 M3", PPC},
-	{1, "ORACLE", "X6-2    ", PPC},
-	{1, "ORACLE", "Sudbury ", PPC},
-	{0, "", ""},
+static struct acpi_platform_list plat_info[] __initdata = {
+	{"HP    ", "ProLiant", 0, ACPI_SIG_FADT, all_versions, 0, PSS},
+	{"ORACLE", "X4-2    ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
+	{"ORACLE", "X4-2L   ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
+	{"ORACLE", "X4-2B   ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
+	{"ORACLE", "X3-2    ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
+	{"ORACLE", "X3-2L   ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
+	{"ORACLE", "X3-2B   ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
+	{"ORACLE", "X4470M2 ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
+	{"ORACLE", "X4270M3 ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
+	{"ORACLE", "X4270M2 ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
+	{"ORACLE", "X4170M2 ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
+	{"ORACLE", "X4170 M3", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
+	{"ORACLE", "X4275 M3", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
+	{"ORACLE", "X6-2    ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
+	{"ORACLE", "Sudbury ", 0, ACPI_SIG_FADT, all_versions, 0, PPC},
+	{ } /* End */
 };
 
 static bool __init intel_pstate_platform_pwr_mgmt_exists(void)
 {
-	struct acpi_table_header hdr;
-	struct hw_vendor_info *v_info;
 	const struct x86_cpu_id *id;
 	u64 misc_pwr;
+	int idx;
 
 	id = x86_match_cpu(intel_pstate_cpu_oob_ids);
 	if (id) {
@@ -2444,21 +2227,15 @@ static bool __init intel_pstate_platform_pwr_mgmt_exists(void)
 			return true;
 	}
 
-	if (acpi_disabled ||
-	    ACPI_FAILURE(acpi_get_table_header(ACPI_SIG_FADT, 0, &hdr)))
+	idx = acpi_match_platform_list(plat_info);
+	if (idx < 0)
 		return false;
 
-	for (v_info = vendor_info; v_info->valid; v_info++) {
-		if (!strncmp(hdr.oem_id, v_info->oem_id, ACPI_OEM_ID_SIZE) &&
-			!strncmp(hdr.oem_table_id, v_info->oem_table_id,
-						ACPI_OEM_TABLE_ID_SIZE))
-			switch (v_info->oem_pwr_table) {
-			case PSS:
-				return intel_pstate_no_acpi_pss();
-			case PPC:
-				return intel_pstate_has_acpi_ppc() &&
-					(!force_load);
-			}
+	switch (plat_info[idx].data) {
+	case PSS:
+		return intel_pstate_no_acpi_pss();
+	case PPC:
+		return intel_pstate_has_acpi_ppc() && !force_load;
 	}
 
 	return false;
@@ -2486,28 +2263,27 @@ static const struct x86_cpu_id hwp_support_ids[] __initconst = {
 
 static int __init intel_pstate_init(void)
 {
-	int cpu, rc = 0;
-	const struct x86_cpu_id *id;
-	struct cpu_defaults *cpu_def;
+	int rc;
 
 	if (no_load)
 		return -ENODEV;
 
-	if (x86_match_cpu(hwp_support_ids) && !no_hwp) {
-		copy_cpu_funcs(&core_params.funcs);
-		hwp_active++;
-		intel_pstate.attr = hwp_cpufreq_attrs;
-		goto hwp_cpu_matched;
+	if (x86_match_cpu(hwp_support_ids)) {
+		copy_cpu_funcs(&core_funcs);
+		if (!no_hwp) {
+			hwp_active++;
+			intel_pstate.attr = hwp_cpufreq_attrs;
+			goto hwp_cpu_matched;
+		}
+	} else {
+		const struct x86_cpu_id *id;
+
+		id = x86_match_cpu(intel_pstate_cpu_ids);
+		if (!id)
+			return -ENODEV;
+
+		copy_cpu_funcs((struct pstate_funcs *)id->driver_data);
 	}
-
-	id = x86_match_cpu(intel_pstate_cpu_ids);
-	if (!id)
-		return -ENODEV;
-
-	cpu_def = (struct cpu_defaults *)id->driver_data;
-
-	copy_pid_params(&cpu_def->pid_policy);
-	copy_cpu_funcs(&cpu_def->funcs);
 
 	if (intel_pstate_msrs_not_valid())
 		return -ENODEV;
@@ -2520,45 +2296,29 @@ hwp_cpu_matched:
 	if (intel_pstate_platform_pwr_mgmt_exists())
 		return -ENODEV;
 
+	if (!hwp_active && hwp_only)
+		return -ENOTSUPP;
+
 	pr_info("Intel P-state driver initializing\n");
 
 	all_cpu_data = vzalloc(sizeof(void *) * num_possible_cpus());
 	if (!all_cpu_data)
 		return -ENOMEM;
 
-	if (!hwp_active && hwp_only)
-		goto out;
-
 	intel_pstate_request_control_from_smm();
 
-	rc = cpufreq_register_driver(intel_pstate_driver);
-	if (rc)
-		goto out;
-
-	if (intel_pstate_driver == &intel_pstate && !hwp_active &&
-	    pstate_funcs.get_target_pstate != get_target_pstate_use_cpu_load)
-		intel_pstate_debug_expose_params();
-
 	intel_pstate_sysfs_expose_params();
+
+	mutex_lock(&intel_pstate_driver_lock);
+	rc = intel_pstate_register_driver(default_driver);
+	mutex_unlock(&intel_pstate_driver_lock);
+	if (rc)
+		return rc;
 
 	if (hwp_active)
 		pr_info("HWP enabled\n");
 
-	return rc;
-out:
-	get_online_cpus();
-	for_each_online_cpu(cpu) {
-		if (all_cpu_data[cpu]) {
-			if (intel_pstate_driver == &intel_pstate)
-				intel_pstate_clear_update_util_hook(cpu);
-
-			kfree(all_cpu_data[cpu]);
-		}
-	}
-
-	put_online_cpus();
-	vfree(all_cpu_data);
-	return -ENODEV;
+	return 0;
 }
 device_initcall(intel_pstate_init);
 
@@ -2571,7 +2331,7 @@ static int __init intel_pstate_setup(char *str)
 		no_load = 1;
 	} else if (!strcmp(str, "passive")) {
 		pr_info("Passive mode enabled\n");
-		intel_pstate_driver = &intel_cpufreq;
+		default_driver = &intel_cpufreq;
 		no_hwp = 1;
 	}
 	if (!strcmp(str, "no_hwp")) {

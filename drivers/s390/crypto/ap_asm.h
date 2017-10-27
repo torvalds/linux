@@ -69,16 +69,19 @@ static inline struct ap_queue_status ap_rapq(ap_qid_t qid)
 }
 
 /**
- * ap_aqic(): Enable interruption for a specific AP.
+ * ap_aqic(): Control interruption for a specific AP.
  * @qid: The AP queue number
+ * @qirqctrl: struct ap_qirq_ctrl (64 bit value)
  * @ind: The notification indicator byte
  *
  * Returns AP queue status.
  */
-static inline struct ap_queue_status ap_aqic(ap_qid_t qid, void *ind)
+static inline struct ap_queue_status ap_aqic(ap_qid_t qid,
+					     struct ap_qirq_ctrl qirqctrl,
+					     void *ind)
 {
 	register unsigned long reg0 asm ("0") = qid | (3UL << 24);
-	register unsigned long reg1_in asm ("1") = (8UL << 44) | AP_ISC;
+	register struct ap_qirq_ctrl reg1_in asm ("1") = qirqctrl;
 	register struct ap_queue_status reg1_out asm ("1");
 	register void *reg2 asm ("2") = ind;
 
@@ -129,7 +132,6 @@ static inline struct ap_queue_status ap_nqap(ap_qid_t qid,
 					     unsigned long long psmid,
 					     void *msg, size_t length)
 {
-	struct msgblock { char _[length]; };
 	register unsigned long reg0 asm ("0") = qid | 0x40000000UL;
 	register struct ap_queue_status reg1 asm ("1");
 	register unsigned long reg2 asm ("2") = (unsigned long) msg;
@@ -141,8 +143,8 @@ static inline struct ap_queue_status ap_nqap(ap_qid_t qid,
 		"0: .long 0xb2ad0042\n"		/* NQAP */
 		"   brc   2,0b"
 		: "+d" (reg0), "=d" (reg1), "+d" (reg2), "+d" (reg3)
-		: "d" (reg4), "d" (reg5), "m" (*(struct msgblock *) msg)
-		: "cc");
+		: "d" (reg4), "d" (reg5)
+		: "cc", "memory");
 	return reg1;
 }
 
@@ -168,7 +170,6 @@ static inline struct ap_queue_status ap_dqap(ap_qid_t qid,
 					     unsigned long long *psmid,
 					     void *msg, size_t length)
 {
-	struct msgblock { char _[length]; };
 	register unsigned long reg0 asm("0") = qid | 0x80000000UL;
 	register struct ap_queue_status reg1 asm ("1");
 	register unsigned long reg2 asm("2") = 0UL;
@@ -182,8 +183,8 @@ static inline struct ap_queue_status ap_dqap(ap_qid_t qid,
 		"0: .long 0xb2ae0064\n"		/* DQAP */
 		"   brc   6,0b\n"
 		: "+d" (reg0), "=d" (reg1), "+d" (reg2),
-		"+d" (reg4), "+d" (reg5), "+d" (reg6), "+d" (reg7),
-		"=m" (*(struct msgblock *) msg) : : "cc");
+		  "+d" (reg4), "+d" (reg5), "+d" (reg6), "+d" (reg7)
+		: : "cc", "memory");
 	*psmid = (((unsigned long long) reg6) << 32) + reg7;
 	return reg1;
 }

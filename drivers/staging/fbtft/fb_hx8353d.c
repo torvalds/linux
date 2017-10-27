@@ -118,7 +118,7 @@ static int set_var(struct fbtft_par *par)
 }
 
 /* gamma string format: */
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	write_reg(par, 0xE0,
 		  curves[0], curves[1], curves[2], curves[3],

@@ -167,7 +167,7 @@
 			#size-cells = <0>;
 			interrupt-controller;
 			reg = <0x10481000 0x1000>,
-				<0x10482000 0x1000>,
+				<0x10482000 0x2000>,
 				<0x10484000 0x2000>,
 				<0x10486000 0x2000>;
 			interrupts = <GIC_PPI 9

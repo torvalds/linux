@@ -31,6 +31,10 @@ struct msm_mdss {
 
 	struct regulator *vdd;
 
+	struct clk *ahb_clk;
+	struct clk *axi_clk;
+	struct clk *vsync_clk;
+
 	struct {
 		volatile unsigned long enabled_mask;
 		struct irq_domain *domain;
@@ -116,7 +120,7 @@ static int mdss_hw_irqdomain_map(struct irq_domain *d, unsigned int irq,
 	return 0;
 }
 
-static struct irq_domain_ops mdss_hw_irqdomain_ops = {
+static const struct irq_domain_ops mdss_hw_irqdomain_ops = {
 	.map = mdss_hw_irqdomain_map,
 	.xlate = irq_domain_xlate_onecell,
 };
@@ -140,6 +144,51 @@ static int mdss_irq_domain_init(struct msm_mdss *mdss)
 	return 0;
 }
 
+int msm_mdss_enable(struct msm_mdss *mdss)
+{
+	DBG("");
+
+	clk_prepare_enable(mdss->ahb_clk);
+	if (mdss->axi_clk)
+		clk_prepare_enable(mdss->axi_clk);
+	if (mdss->vsync_clk)
+		clk_prepare_enable(mdss->vsync_clk);
+
+	return 0;
+}
+
+int msm_mdss_disable(struct msm_mdss *mdss)
+{
+	DBG("");
+
+	if (mdss->vsync_clk)
+		clk_disable_unprepare(mdss->vsync_clk);
+	if (mdss->axi_clk)
+		clk_disable_unprepare(mdss->axi_clk);
+	clk_disable_unprepare(mdss->ahb_clk);
+
+	return 0;
+}
+
+static int msm_mdss_get_clocks(struct msm_mdss *mdss)
+{
+	struct platform_device *pdev = to_platform_device(mdss->dev->dev);
+
+	mdss->ahb_clk = msm_clk_get(pdev, "iface");
+	if (IS_ERR(mdss->ahb_clk))
+		mdss->ahb_clk = NULL;
+
+	mdss->axi_clk = msm_clk_get(pdev, "bus");
+	if (IS_ERR(mdss->axi_clk))
+		mdss->axi_clk = NULL;
+
+	mdss->vsync_clk = msm_clk_get(pdev, "vsync");
+	if (IS_ERR(mdss->vsync_clk))
+		mdss->vsync_clk = NULL;
+
+	return 0;
+}
+
 void msm_mdss_destroy(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
@@ -153,14 +202,12 @@ void msm_mdss_destroy(struct drm_device *dev)
 
 	regulator_disable(mdss->vdd);
 
-	pm_runtime_put_sync(dev->dev);
-
 	pm_runtime_disable(dev->dev);
 }
 
 int msm_mdss_init(struct drm_device *dev)
 {
-	struct platform_device *pdev = dev->platformdev;
+	struct platform_device *pdev = to_platform_device(dev->dev);
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_mdss *mdss;
 	int ret;
@@ -187,6 +234,12 @@ int msm_mdss_init(struct drm_device *dev)
 	mdss->vbif = msm_ioremap(pdev, "vbif_phys", "VBIF");
 	if (IS_ERR(mdss->vbif)) {
 		ret = PTR_ERR(mdss->vbif);
+		goto fail;
+	}
+
+	ret = msm_mdss_get_clocks(mdss);
+	if (ret) {
+		dev_err(dev->dev, "failed to get clocks: %d\n", ret);
 		goto fail;
 	}
 
@@ -220,12 +273,6 @@ int msm_mdss_init(struct drm_device *dev)
 	priv->mdss = mdss;
 
 	pm_runtime_enable(dev->dev);
-
-	/*
-	 * TODO: This is needed as the MDSS GDSC is only tied to MDSS's power
-	 * domain. Remove this once runtime PM is adapted for all the devices.
-	 */
-	pm_runtime_get_sync(dev->dev);
 
 	return 0;
 fail_irq:

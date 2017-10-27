@@ -235,6 +235,9 @@ int v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev)
 		if (!(sd->flags & V4L2_SUBDEV_FL_HAS_DEVNODE))
 			continue;
 
+		if (sd->devnode)
+			continue;
+
 		vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
 		if (!vdev) {
 			err = -ENOMEM;
@@ -253,6 +256,7 @@ int v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev)
 			kfree(vdev);
 			goto clean_up;
 		}
+		sd->devnode = vdev;
 #if defined(CONFIG_MEDIA_CONTROLLER)
 		sd->entity.info.dev.major = VIDEO_MAJOR;
 		sd->entity.info.dev.minor = vdev->minor;
@@ -270,7 +274,6 @@ int v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev)
 			}
 		}
 #endif
-		sd->devnode = vdev;
 	}
 	return 0;
 

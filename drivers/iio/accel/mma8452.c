@@ -248,7 +248,7 @@ static int mma8452_get_int_plus_micros_index(const int (*vals)[2], int n,
 	return -EINVAL;
 }
 
-static int mma8452_get_odr_index(struct mma8452_data *data)
+static unsigned int mma8452_get_odr_index(struct mma8452_data *data)
 {
 	return (data->ctrl_reg1 & MMA8452_CTRL_DR_MASK) >>
 			MMA8452_CTRL_DR_SHIFT;
@@ -260,7 +260,7 @@ static const int mma8452_samp_freq[8][2] = {
 };
 
 /* Datasheet table: step time "Relationship with the ODR" (sample frequency) */
-static const int mma8452_transient_time_step_us[4][8] = {
+static const unsigned int mma8452_transient_time_step_us[4][8] = {
 	{ 1250, 2500, 5000, 10000, 20000, 20000, 20000, 20000 },  /* normal */
 	{ 1250, 2500, 5000, 10000, 20000, 80000, 80000, 80000 },  /* l p l n */
 	{ 1250, 2500, 2500, 2500, 2500, 2500, 2500, 2500 },	  /* high res*/

@@ -28,9 +28,6 @@
 #include <linux/tc_act/tc_mirred.h>
 #include <net/tc_act/tc_mirred.h>
 
-#include <linux/if_arp.h>
-
-#define MIRRED_TAB_MASK     7
 static LIST_HEAD(mirred_list);
 static DEFINE_SPINLOCK(mirred_list_lock);
 
@@ -39,15 +36,15 @@ static bool tcf_mirred_is_act_redirect(int action)
 	return action == TCA_EGRESS_REDIR || action == TCA_INGRESS_REDIR;
 }
 
-static u32 tcf_mirred_act_direction(int action)
+static bool tcf_mirred_act_wants_ingress(int action)
 {
 	switch (action) {
 	case TCA_EGRESS_REDIR:
 	case TCA_EGRESS_MIRROR:
-		return AT_EGRESS;
+		return false;
 	case TCA_INGRESS_REDIR:
 	case TCA_INGRESS_MIRROR:
-		return AT_INGRESS;
+		return true;
 	default:
 		BUG();
 	}
@@ -89,14 +86,14 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 
 	if (nla == NULL)
 		return -EINVAL;
-	ret = nla_parse_nested(tb, TCA_MIRRED_MAX, nla, mirred_policy);
+	ret = nla_parse_nested(tb, TCA_MIRRED_MAX, nla, mirred_policy, NULL);
 	if (ret < 0)
 		return ret;
 	if (tb[TCA_MIRRED_PARMS] == NULL)
 		return -EINVAL;
 	parm = nla_data(tb[TCA_MIRRED_PARMS]);
 
-	exists = tcf_hash_check(tn, parm->index, a, bind);
+	exists = tcf_idr_check(tn, parm->index, a, bind);
 	if (exists && bind)
 		return 0;
 
@@ -108,14 +105,14 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		break;
 	default:
 		if (exists)
-			tcf_hash_release(*a, bind);
+			tcf_idr_release(*a, bind);
 		return -EINVAL;
 	}
 	if (parm->ifindex) {
 		dev = __dev_get_by_index(net, parm->ifindex);
 		if (dev == NULL) {
 			if (exists)
-				tcf_hash_release(*a, bind);
+				tcf_idr_release(*a, bind);
 			return -ENODEV;
 		}
 		mac_header_xmit = dev_is_mac_header_xmit(dev);
@@ -126,13 +123,13 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	if (!exists) {
 		if (dev == NULL)
 			return -EINVAL;
-		ret = tcf_hash_create(tn, parm->index, est, a,
-				      &act_mirred_ops, bind, true);
+		ret = tcf_idr_create(tn, parm->index, est, a,
+				     &act_mirred_ops, bind, true);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
 	} else {
-		tcf_hash_release(*a, bind);
+		tcf_idr_release(*a, bind);
 		if (!ovr)
 			return -EEXIST;
 	}
@@ -154,7 +151,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		spin_lock_bh(&mirred_list_lock);
 		list_add(&m->tcfm_list, &mirred_list);
 		spin_unlock_bh(&mirred_list_lock);
-		tcf_hash_insert(tn, *a);
+		tcf_idr_insert(tn, *a);
 	}
 
 	return ret;
@@ -170,7 +167,6 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 	int retval, err = 0;
 	int m_eaction;
 	int mac_len;
-	u32 at;
 
 	tcf_lastuse_update(&m->tcf_tm);
 	bstats_cpu_update(this_cpu_ptr(m->common.cpu_bstats), skb);
@@ -191,7 +187,6 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 		goto out;
 	}
 
-	at = G_TC_AT(skb->tc_verd);
 	skb2 = skb_clone(skb, GFP_ATOMIC);
 	if (!skb2)
 		goto out;
@@ -200,8 +195,9 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 	 * and devices expect a mac header on xmit, then mac push/pull is
 	 * needed.
 	 */
-	if (at != tcf_mirred_act_direction(m_eaction) && m_mac_header_xmit) {
-		if (at & AT_EGRESS) {
+	if (skb_at_tc_ingress(skb) != tcf_mirred_act_wants_ingress(m_eaction) &&
+	    m_mac_header_xmit) {
+		if (!skb_at_tc_ingress(skb)) {
 			/* caught at egress, act ingress: pull mac */
 			mac_len = skb_network_header(skb) - skb_mac_header(skb);
 			skb_pull_rcsum(skb2, mac_len);
@@ -212,12 +208,14 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 	}
 
 	/* mirror is always swallowed */
-	if (tcf_mirred_is_act_redirect(m_eaction))
-		skb2->tc_verd = SET_TC_FROM(skb2->tc_verd, at);
+	if (tcf_mirred_is_act_redirect(m_eaction)) {
+		skb2->tc_redirected = 1;
+		skb2->tc_from_ingress = skb2->tc_at_ingress;
+	}
 
 	skb2->skb_iif = skb->dev->ifindex;
 	skb2->dev = dev;
-	if (tcf_mirred_act_direction(m_eaction) & AT_EGRESS)
+	if (!tcf_mirred_act_wants_ingress(m_eaction))
 		err = dev_queue_xmit(skb2);
 	else
 		err = netif_receive_skb(skb2);
@@ -284,7 +282,7 @@ static int tcf_mirred_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, mirred_net_id);
 
-	return tcf_hash_search(tn, a, index);
+	return tcf_idr_search(tn, a, index);
 }
 
 static int mirred_device_event(struct notifier_block *unused,
@@ -345,7 +343,7 @@ static __net_init int mirred_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, mirred_net_id);
 
-	return tc_action_net_init(tn, &act_mirred_ops, MIRRED_TAB_MASK);
+	return tc_action_net_init(tn, &act_mirred_ops);
 }
 
 static void __net_exit mirred_exit_net(struct net *net)

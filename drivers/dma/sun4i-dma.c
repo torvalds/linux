@@ -238,7 +238,7 @@ static struct sun4i_dma_pchan *find_and_use_pchan(struct sun4i_dma_dev *priv,
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
-	for_each_clear_bit_from(i, &priv->pchans_used, max) {
+	for_each_clear_bit_from(i, priv->pchans_used, max) {
 		pchan = &pchans[i];
 		pchan->vchan = vchan;
 		set_bit(i, priv->pchans_used);

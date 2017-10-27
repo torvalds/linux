@@ -25,6 +25,7 @@
 #include <linux/spinlock.h>
 #include <linux/sysctl.h>
 #include <linux/wait.h>
+#include <linux/sched/signal.h>
 #include <linux/bcd.h>
 #include <linux/seq_file.h>
 #include <linux/bitops.h>
@@ -574,7 +575,7 @@ static inline unsigned long hpet_time_div(struct hpets *hpets,
 }
 
 static int
-hpet_ioctl_common(struct hpet_dev *devp, int cmd, unsigned long arg,
+hpet_ioctl_common(struct hpet_dev *devp, unsigned int cmd, unsigned long arg,
 		  struct hpet_info *info)
 {
 	struct hpet_timer __iomem *timer;

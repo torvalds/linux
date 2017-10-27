@@ -79,7 +79,7 @@ static int mt8173_rt5650_rt5676_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops mt8173_rt5650_rt5676_ops = {
+static const struct snd_soc_ops mt8173_rt5650_rt5676_ops = {
 	.hw_params = mt8173_rt5650_rt5676_hw_params,
 };
 
@@ -279,7 +279,6 @@ static int mt8173_rt5650_rt5676_dev_probe(struct platform_device *pdev)
 	}
 
 	card->dev = &pdev->dev;
-	platform_set_drvdata(pdev, card);
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret)

@@ -45,6 +45,8 @@ Optional properties:
 			a free-running PHY clock.
  - snps,dis-del-phy-power-chg-quirk: when set core will change PHY power
 			from P0 to P1/P2/P3 without delay.
+ - snps,dis-tx-ipgap-linecheck-quirk: when set, disable u2mac linestate check
+			during HS transmit.
  - snps,is-utmi-l1-suspend: true when DWC3 asserts output signal
 			utmi_l1_suspend_n, false when asserts utmi_sleep_n
  - snps,hird-threshold: HIRD threshold
@@ -55,6 +57,10 @@ Optional properties:
 	fladj_30mhz_sdbnd signal is invalid or incorrect.
 
  - <DEPRECATED> tx-fifo-resize: determines if the FIFO *has* to be reallocated.
+
+ - in addition all properties from usb-xhci.txt from the current directory are
+   supported as well
+
 
 This is usually a subnode to DWC3 glue to which it is connected.
 

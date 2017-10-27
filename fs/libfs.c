@@ -7,6 +7,7 @@
 #include <linux/export.h>
 #include <linux/pagemap.h>
 #include <linux/slab.h>
+#include <linux/cred.h>
 #include <linux/mount.h>
 #include <linux/vfs.h>
 #include <linux/quotaops.h>
@@ -20,10 +21,10 @@
 
 #include "internal.h"
 
-int simple_getattr(struct vfsmount *mnt, struct dentry *dentry,
-		   struct kstat *stat)
+int simple_getattr(const struct path *path, struct kstat *stat,
+		   u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(dentry);
+	struct inode *inode = d_inode(path->dentry);
 	generic_fillattr(inode, stat);
 	stat->blocks = inode->i_mapping->nrpages << (PAGE_SHIFT - 9);
 	return 0;
@@ -506,7 +507,7 @@ EXPORT_SYMBOL(simple_write_end);
  * to pass it an appropriate max_reserved value to avoid collisions.
  */
 int simple_fill_super(struct super_block *s, unsigned long magic,
-		      struct tree_descr *files)
+		      const struct tree_descr *files)
 {
 	struct inode *inode;
 	struct dentry *root;
@@ -973,7 +974,7 @@ int __generic_file_fsync(struct file *file, loff_t start, loff_t end,
 	int err;
 	int ret;
 
-	err = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	err = file_write_and_wait_range(file, start, end);
 	if (err)
 		return err;
 
@@ -990,6 +991,10 @@ int __generic_file_fsync(struct file *file, loff_t start, loff_t end,
 
 out:
 	inode_unlock(inode);
+	/* check and advance again to catch errors after syncing out buffers */
+	err = file_check_and_advance_wb_err(file);
+	if (ret == 0)
+		ret = err;
 	return ret;
 }
 EXPORT_SYMBOL(__generic_file_fsync);
@@ -1143,10 +1148,10 @@ static struct dentry *empty_dir_lookup(struct inode *dir, struct dentry *dentry,
 	return ERR_PTR(-ENOENT);
 }
 
-static int empty_dir_getattr(struct vfsmount *mnt, struct dentry *dentry,
-				 struct kstat *stat)
+static int empty_dir_getattr(const struct path *path, struct kstat *stat,
+			     u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(dentry);
+	struct inode *inode = d_inode(path->dentry);
 	generic_fillattr(inode, stat);
 	return 0;
 }

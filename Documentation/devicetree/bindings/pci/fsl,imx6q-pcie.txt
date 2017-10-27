@@ -1,10 +1,14 @@
 * Freescale i.MX6 PCIe interface
 
-This PCIe host controller is based on the Synopsis Designware PCIe IP
+This PCIe host controller is based on the Synopsys DesignWare PCIe IP
 and thus inherits all the common properties defined in designware-pcie.txt.
 
 Required properties:
-- compatible: "fsl,imx6q-pcie", "fsl,imx6sx-pcie", "fsl,imx6qp-pcie"
+- compatible:
+	- "fsl,imx6q-pcie"
+	- "fsl,imx6sx-pcie",
+	- "fsl,imx6qp-pcie"
+	- "fsl,imx7d-pcie"
 - reg: base address and length of the PCIe controller
 - interrupts: A list of interrupt outputs of the controller. Must contain an
   entry for each entry in the interrupt-names property.
@@ -29,10 +33,22 @@ Optional properties:
 - reset-gpio-active-high: If present then the reset sequence using the GPIO
   specified in the "reset-gpio" property is reversed (H=reset state,
   L=operation state).
+- vpcie-supply: Should specify the regulator in charge of PCIe port power.
+  The regulator will be enabled when initializing the PCIe host and
+  disabled either as part of the init process or when shutting down the
+  host.
 
 Additional required properties for imx6sx-pcie:
 - clock names: Must include the following additional entries:
 	- "pcie_inbound_axi"
+
+Additional required properties for imx7d-pcie:
+- power-domains: Must be set to a phandle pointing to PCIE_PHY power domain
+- resets: Must contain phandles to PCIe-related reset lines exposed by SRC
+  IP block
+- reset-names: Must contain the following entires:
+	       - "pciephy"
+	       - "apps"
 
 Example:
 

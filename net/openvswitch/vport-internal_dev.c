@@ -94,10 +94,9 @@ static void internal_dev_destructor(struct net_device *dev)
 	struct vport *vport = ovs_internal_dev_get_vport(dev);
 
 	ovs_vport_free(vport);
-	free_netdev(dev);
 }
 
-static struct rtnl_link_stats64 *
+static void
 internal_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	int i;
@@ -125,8 +124,6 @@ internal_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		stats->tx_bytes         += local_stats.tx_bytes;
 		stats->tx_packets       += local_stats.tx_packets;
 	}
-
-	return stats;
 }
 
 static void internal_set_rx_headroom(struct net_device *dev, int new_hr)
@@ -151,12 +148,15 @@ static void do_setup(struct net_device *netdev)
 {
 	ether_setup(netdev);
 
+	netdev->max_mtu = ETH_MAX_MTU;
+
 	netdev->netdev_ops = &internal_dev_netdev_ops;
 
 	netdev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	netdev->priv_flags |= IFF_LIVE_ADDR_CHANGE | IFF_OPENVSWITCH |
 			      IFF_PHONY_HEADROOM | IFF_NO_QUEUE;
-	netdev->destructor = internal_dev_destructor;
+	netdev->needs_free_netdev = true;
+	netdev->priv_destructor = internal_dev_destructor;
 	netdev->ethtool_ops = &internal_dev_ethtool_ops;
 	netdev->rtnl_link_ops = &internal_dev_link_ops;
 

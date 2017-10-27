@@ -106,7 +106,7 @@ static int frv_dma_supported(struct device *dev, u64 mask)
 	return 1;
 }
 
-struct dma_map_ops frv_dma_ops = {
+const struct dma_map_ops frv_dma_ops = {
 	.alloc			= frv_dma_alloc,
 	.free			= frv_dma_free,
 	.map_page		= frv_dma_map_page,

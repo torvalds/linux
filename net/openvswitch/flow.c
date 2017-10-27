@@ -72,8 +72,7 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 			   const struct sk_buff *skb)
 {
 	struct flow_stats *stats;
-	int node = numa_node_id();
-	int cpu = smp_processor_id();
+	unsigned int cpu = smp_processor_id();
 	int len = skb->len + (skb_vlan_tag_present(skb) ? VLAN_HLEN : 0);
 
 	stats = rcu_dereference(flow->stats[cpu]);
@@ -108,7 +107,7 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 							      __GFP_THISNODE |
 							      __GFP_NOWARN |
 							      __GFP_NOMEMALLOC,
-							      node);
+							      numa_node_id());
 				if (likely(new_stats)) {
 					new_stats->used = jiffies;
 					new_stats->packet_count = 1;
@@ -118,6 +117,7 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 
 					rcu_assign_pointer(flow->stats[cpu],
 							   new_stats);
+					cpumask_set_cpu(cpu, &flow->cpu_used_mask);
 					goto unlock;
 				}
 			}
@@ -145,7 +145,7 @@ void ovs_flow_stats_get(const struct sw_flow *flow,
 	memset(ovs_stats, 0, sizeof(*ovs_stats));
 
 	/* We open code this to make sure cpu 0 is always considered */
-	for (cpu = 0; cpu < nr_cpu_ids; cpu = cpumask_next(cpu, cpu_possible_mask)) {
+	for (cpu = 0; cpu < nr_cpu_ids; cpu = cpumask_next(cpu, &flow->cpu_used_mask)) {
 		struct flow_stats *stats = rcu_dereference_ovsl(flow->stats[cpu]);
 
 		if (stats) {
@@ -169,7 +169,7 @@ void ovs_flow_stats_clear(struct sw_flow *flow)
 	int cpu;
 
 	/* We open code this to make sure cpu 0 is always considered */
-	for (cpu = 0; cpu < nr_cpu_ids; cpu = cpumask_next(cpu, cpu_possible_mask)) {
+	for (cpu = 0; cpu < nr_cpu_ids; cpu = cpumask_next(cpu, &flow->cpu_used_mask)) {
 		struct flow_stats *stats = ovsl_dereference(flow->stats[cpu]);
 
 		if (stats) {
@@ -527,7 +527,7 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 
 	/* Link layer. */
 	clear_vlan(key);
-	if (key->mac_proto == MAC_PROTO_NONE) {
+	if (ovs_key_mac_proto(key) == MAC_PROTO_NONE) {
 		if (unlikely(eth_type_vlan(skb->protocol)))
 			return -EINVAL;
 
@@ -584,8 +584,7 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 			key->ip.frag = OVS_FRAG_TYPE_LATER;
 			return 0;
 		}
-		if (nh->frag_off & htons(IP_MF) ||
-			skb_shinfo(skb)->gso_type & SKB_GSO_UDP)
+		if (nh->frag_off & htons(IP_MF))
 			key->ip.frag = OVS_FRAG_TYPE_FIRST;
 		else
 			key->ip.frag = OVS_FRAG_TYPE_NONE;
@@ -701,9 +700,6 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 
 		if (key->ip.frag == OVS_FRAG_TYPE_LATER)
 			return 0;
-		if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP)
-			key->ip.frag = OVS_FRAG_TYPE_FIRST;
-
 		/* Transport layer. */
 		if (key->ip.proto == NEXTHDR_TCP) {
 			if (tcphdr_ok(skb)) {
@@ -745,7 +741,13 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 
 int ovs_flow_key_update(struct sk_buff *skb, struct sw_flow_key *key)
 {
-	return key_extract(skb, key);
+	int res;
+
+	res = key_extract(skb, key);
+	if (!res)
+		key->mac_proto &= ~SW_FLOW_KEY_INVALID;
+
+	return res;
 }
 
 static int key_extract_mac_proto(struct sk_buff *skb)
@@ -765,7 +767,7 @@ static int key_extract_mac_proto(struct sk_buff *skb)
 int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 			 struct sk_buff *skb, struct sw_flow_key *key)
 {
-	int res;
+	int res, err;
 
 	/* Extract metadata from packet. */
 	if (tun_info) {
@@ -792,7 +794,6 @@ int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 	key->phy.priority = skb->priority;
 	key->phy.in_port = OVS_CB(skb)->input_vport->port_no;
 	key->phy.skb_mark = skb->mark;
-	ovs_ct_fill_key(skb, key);
 	key->ovs_flow_hash = 0;
 	res = key_extract_mac_proto(skb);
 	if (res < 0)
@@ -800,17 +801,26 @@ int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 	key->mac_proto = res;
 	key->recirc_id = 0;
 
-	return key_extract(skb, key);
+	err = key_extract(skb, key);
+	if (!err)
+		ovs_ct_fill_key(skb, key);   /* Must be after key_extract(). */
+	return err;
 }
 
 int ovs_flow_key_extract_userspace(struct net *net, const struct nlattr *attr,
 				   struct sk_buff *skb,
 				   struct sw_flow_key *key, bool log)
 {
+	const struct nlattr *a[OVS_KEY_ATTR_MAX + 1];
+	u64 attrs = 0;
 	int err;
 
+	err = parse_flow_nlattrs(attr, a, &attrs, log);
+	if (err)
+		return -EINVAL;
+
 	/* Extract metadata from netlink attributes. */
-	err = ovs_nla_get_flow_metadata(net, attr, key, log);
+	err = ovs_nla_get_flow_metadata(net, a, attrs, key, log);
 	if (err)
 		return err;
 
@@ -824,5 +834,21 @@ int ovs_flow_key_extract_userspace(struct net *net, const struct nlattr *attr,
 	 */
 
 	skb->protocol = key->eth.type;
-	return key_extract(skb, key);
+	err = key_extract(skb, key);
+	if (err)
+		return err;
+
+	/* Check that we have conntrack original direction tuple metadata only
+	 * for packets for which it makes sense.  Otherwise the key may be
+	 * corrupted due to overlapping key fields.
+	 */
+	if (attrs & (1 << OVS_KEY_ATTR_CT_ORIG_TUPLE_IPV4) &&
+	    key->eth.type != htons(ETH_P_IP))
+		return -EINVAL;
+	if (attrs & (1 << OVS_KEY_ATTR_CT_ORIG_TUPLE_IPV6) &&
+	    (key->eth.type != htons(ETH_P_IPV6) ||
+	     sw_flow_key_is_nd(key)))
+		return -EINVAL;
+
+	return 0;
 }

@@ -21,10 +21,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
  */
 
 #ifndef __DEMUX_H
@@ -214,7 +210,7 @@ struct dmx_section_feed {
  * the start of the first undelivered TS packet within a circular buffer.
  * The @buffer2 buffer parameter is normally NULL, except when the received
  * TS packets have crossed the last address of the circular buffer and
- * ”wrapped” to the beginning of the buffer. In the latter case the @buffer1
+ * "wrapped" to the beginning of the buffer. In the latter case the @buffer1
  * parameter would contain an address within the circular buffer, while the
  * @buffer2 parameter would contain the first address of the circular buffer.
  * The number of bytes delivered with this function (i.e. @buffer1_length +

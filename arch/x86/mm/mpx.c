@@ -7,6 +7,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/mm_types.h>
 #include <linux/syscalls.h>
 #include <linux/sched/sysctl.h>
 
@@ -51,7 +52,7 @@ static unsigned long mpx_mmap(unsigned long len)
 
 	down_write(&mm->mmap_sem);
 	addr = do_mmap(NULL, 0, len, PROT_READ | PROT_WRITE,
-			MAP_ANONYMOUS | MAP_PRIVATE, VM_MPX, 0, &populate);
+		       MAP_ANONYMOUS | MAP_PRIVATE, VM_MPX, 0, &populate, NULL);
 	up_write(&mm->mmap_sem);
 	if (populate)
 		mm_populate(addr, populate);
@@ -354,10 +355,19 @@ int mpx_enable_management(void)
 	 */
 	bd_base = mpx_get_bounds_dir();
 	down_write(&mm->mmap_sem);
+
+	/* MPX doesn't support addresses above 47 bits yet. */
+	if (find_vma(mm, DEFAULT_MAP_WINDOW)) {
+		pr_warn_once("%s (%d): MPX cannot handle addresses "
+				"above 47-bits. Disabling.",
+				current->comm, current->pid);
+		ret = -ENXIO;
+		goto out;
+	}
 	mm->context.bd_addr = bd_base;
 	if (mm->context.bd_addr == MPX_INVALID_BOUNDS_DIR)
 		ret = -ENXIO;
-
+out:
 	up_write(&mm->mmap_sem);
 	return ret;
 }
@@ -525,15 +535,7 @@ int mpx_handle_bd_fault(void)
 	if (!kernel_managing_mpx_tables(current->mm))
 		return -EINVAL;
 
-	if (do_mpx_bt_fault()) {
-		force_sig(SIGSEGV, current);
-		/*
-		 * The force_sig() is essentially "handling" this
-		 * exception, so we do not pass up the error
-		 * from do_mpx_bt_fault().
-		 */
-	}
-	return 0;
+	return do_mpx_bt_fault();
 }
 
 /*
@@ -589,7 +591,7 @@ static unsigned long mpx_bd_entry_to_bt_addr(struct mm_struct *mm,
  * we might run off the end of the bounds table if we are on
  * a 64-bit kernel and try to get 8 bytes.
  */
-int get_user_bd_entry(struct mm_struct *mm, unsigned long *bd_entry_ret,
+static int get_user_bd_entry(struct mm_struct *mm, unsigned long *bd_entry_ret,
 		long __user *bd_entry_ptr)
 {
 	u32 bd_entry_32;
@@ -796,7 +798,7 @@ static noinline int zap_bt_entries_mapping(struct mm_struct *mm,
 			return -EINVAL;
 
 		len = min(vma->vm_end, end) - addr;
-		zap_page_range(vma, addr, len, NULL);
+		zap_page_range(vma, addr, len);
 		trace_mpx_unmap_zap(addr, addr+len);
 
 		vma = vma->vm_next;
@@ -893,7 +895,7 @@ static int unmap_entire_bt(struct mm_struct *mm,
 	 * avoid recursion, do_munmap() will check whether it comes
 	 * from one bounds table through VM_MPX flag.
 	 */
-	return do_munmap(mm, bt_addr, mpx_bt_size_bytes(mm));
+	return do_munmap(mm, bt_addr, mpx_bt_size_bytes(mm), NULL);
 }
 
 static int try_unmap_single_bt(struct mm_struct *mm,
@@ -1036,4 +1038,26 @@ void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
 	ret = mpx_unmap_tables(mm, start, end);
 	if (ret)
 		force_sig(SIGSEGV, current);
+}
+
+/* MPX cannot handle addresses above 47 bits yet. */
+unsigned long mpx_unmapped_area_check(unsigned long addr, unsigned long len,
+		unsigned long flags)
+{
+	if (!kernel_managing_mpx_tables(current->mm))
+		return addr;
+	if (addr + len <= DEFAULT_MAP_WINDOW)
+		return addr;
+	if (flags & MAP_FIXED)
+		return -ENOMEM;
+
+	/*
+	 * Requested len is larger than the whole area we're allowed to map in.
+	 * Resetting hinting address wouldn't do much good -- fail early.
+	 */
+	if (len > DEFAULT_MAP_WINDOW)
+		return -ENOMEM;
+
+	/* Look for unmap area within DEFAULT_MAP_WINDOW */
+	return 0;
 }

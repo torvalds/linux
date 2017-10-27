@@ -21,7 +21,11 @@
 #include <linux/of_net.h>
 #include "bgmac.h"
 
+#define NICPM_PADRING_CFG		0x00000004
 #define NICPM_IOMUX_CTRL		0x00000008
+
+#define NICPM_PADRING_CFG_INIT_VAL	0x74000000
+#define NICPM_IOMUX_CTRL_INIT_VAL_AX	0x21880000
 
 #define NICPM_IOMUX_CTRL_INIT_VAL	0x3196e000
 #define NICPM_IOMUX_CTRL_SPD_SHIFT	10
@@ -46,13 +50,15 @@ static u32 platform_bgmac_idm_read(struct bgmac *bgmac, u16 offset)
 
 static void platform_bgmac_idm_write(struct bgmac *bgmac, u16 offset, u32 value)
 {
-	return writel(value, bgmac->plat.idm_base + offset);
+	writel(value, bgmac->plat.idm_base + offset);
 }
 
 static bool platform_bgmac_clk_enabled(struct bgmac *bgmac)
 {
-	if ((bgmac_idm_read(bgmac, BCMA_IOCTL) &
-	     (BCMA_IOCTL_CLK | BCMA_IOCTL_FGC)) != BCMA_IOCTL_CLK)
+	if (!bgmac->plat.idm_base)
+		return true;
+
+	if ((bgmac_idm_read(bgmac, BCMA_IOCTL) & BGMAC_CLK_EN) != BGMAC_CLK_EN)
 		return false;
 	if (bgmac_idm_read(bgmac, BCMA_RESET_CTL) & BCMA_RESET_CTL_RESET)
 		return false;
@@ -61,15 +67,28 @@ static bool platform_bgmac_clk_enabled(struct bgmac *bgmac)
 
 static void platform_bgmac_clk_enable(struct bgmac *bgmac, u32 flags)
 {
-	bgmac_idm_write(bgmac, BCMA_IOCTL,
-			(BCMA_IOCTL_CLK | BCMA_IOCTL_FGC | flags));
-	bgmac_idm_read(bgmac, BCMA_IOCTL);
+	u32 val;
 
-	bgmac_idm_write(bgmac, BCMA_RESET_CTL, 0);
-	bgmac_idm_read(bgmac, BCMA_RESET_CTL);
-	udelay(1);
+	if (!bgmac->plat.idm_base)
+		return;
 
-	bgmac_idm_write(bgmac, BCMA_IOCTL, (BCMA_IOCTL_CLK | flags));
+	/* The Reset Control register only contains a single bit to show if the
+	 * controller is currently in reset.  Do a sanity check here, just in
+	 * case the bootloader happened to leave the device in reset.
+	 */
+	val = bgmac_idm_read(bgmac, BCMA_RESET_CTL);
+	if (val) {
+		bgmac_idm_write(bgmac, BCMA_RESET_CTL, 0);
+		bgmac_idm_read(bgmac, BCMA_RESET_CTL);
+		udelay(1);
+	}
+
+	val = bgmac_idm_read(bgmac, BCMA_IOCTL);
+	/* Some bits of BCMA_IOCTL set by HW/ATF and should not change */
+	val |= flags & ~(BGMAC_AWCACHE | BGMAC_ARCACHE | BGMAC_AWUSER |
+			 BGMAC_ARUSER);
+	val |= BGMAC_CLK_EN;
+	bgmac_idm_write(bgmac, BCMA_IOCTL, val);
 	bgmac_idm_read(bgmac, BCMA_IOCTL);
 	udelay(1);
 }
@@ -103,6 +122,10 @@ static void bgmac_nicpm_speed_set(struct net_device *net_dev)
 
 	if (!bgmac->plat.nicpm_base)
 		return;
+
+	/* SET RGMII IO CONFIG */
+	writel(NICPM_PADRING_CFG_INIT_VAL,
+	       bgmac->plat.nicpm_base + NICPM_PADRING_CFG);
 
 	val = NICPM_IOMUX_CTRL_INIT_VAL;
 	switch (bgmac->net_dev->phydev->speed) {
@@ -151,7 +174,7 @@ static int bgmac_probe(struct platform_device *pdev)
 	struct resource *regs;
 	const u8 *mac_addr;
 
-	bgmac = devm_kzalloc(&pdev->dev, sizeof(*bgmac), GFP_KERNEL);
+	bgmac = bgmac_alloc(&pdev->dev);
 	if (!bgmac)
 		return -ENOMEM;
 
@@ -163,13 +186,14 @@ static int bgmac_probe(struct platform_device *pdev)
 	bgmac->feature_flags |= BGMAC_FEAT_CMDCFG_SR_REV4;
 	bgmac->feature_flags |= BGMAC_FEAT_TX_MASK_SETUP;
 	bgmac->feature_flags |= BGMAC_FEAT_RX_MASK_SETUP;
+	bgmac->feature_flags |= BGMAC_FEAT_IDM_MASK;
 
 	bgmac->dev = &pdev->dev;
 	bgmac->dma_dev = &pdev->dev;
 
 	mac_addr = of_get_mac_address(np);
 	if (mac_addr)
-		ether_addr_copy(bgmac->mac_addr, mac_addr);
+		ether_addr_copy(bgmac->net_dev->dev_addr, mac_addr);
 	else
 		dev_warn(&pdev->dev, "MAC address not present in device tree\n");
 
@@ -190,14 +214,12 @@ static int bgmac_probe(struct platform_device *pdev)
 		return PTR_ERR(bgmac->plat.base);
 
 	regs = platform_get_resource_byname(pdev, IORESOURCE_MEM, "idm_base");
-	if (!regs) {
-		dev_err(&pdev->dev, "Unable to obtain idm resource\n");
-		return -EINVAL;
+	if (regs) {
+		bgmac->plat.idm_base = devm_ioremap_resource(&pdev->dev, regs);
+		if (IS_ERR(bgmac->plat.idm_base))
+			return PTR_ERR(bgmac->plat.idm_base);
+		bgmac->feature_flags &= ~BGMAC_FEAT_IDM_MASK;
 	}
-
-	bgmac->plat.idm_base = devm_ioremap_resource(&pdev->dev, regs);
-	if (IS_ERR(bgmac->plat.idm_base))
-		return PTR_ERR(bgmac->plat.idm_base);
 
 	regs = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nicpm_base");
 	if (regs) {
@@ -235,6 +257,31 @@ static int bgmac_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int bgmac_suspend(struct device *dev)
+{
+	struct bgmac *bgmac = dev_get_drvdata(dev);
+
+	return bgmac_enet_suspend(bgmac);
+}
+
+static int bgmac_resume(struct device *dev)
+{
+	struct bgmac *bgmac = dev_get_drvdata(dev);
+
+	return bgmac_enet_resume(bgmac);
+}
+
+static const struct dev_pm_ops bgmac_pm_ops = {
+	.suspend = bgmac_suspend,
+	.resume = bgmac_resume
+};
+
+#define BGMAC_PM_OPS (&bgmac_pm_ops)
+#else
+#define BGMAC_PM_OPS NULL
+#endif /* CONFIG_PM */
+
 static const struct of_device_id bgmac_of_enet_match[] = {
 	{.compatible = "brcm,amac",},
 	{.compatible = "brcm,nsp-amac",},
@@ -248,6 +295,7 @@ static struct platform_driver bgmac_enet_driver = {
 	.driver = {
 		.name  = "bgmac-enet",
 		.of_match_table = bgmac_of_enet_match,
+		.pm = BGMAC_PM_OPS
 	},
 	.probe = bgmac_probe,
 	.remove = bgmac_remove,

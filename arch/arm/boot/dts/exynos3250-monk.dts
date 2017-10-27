@@ -67,7 +67,7 @@
 		max77836: subpmic@25 {
 			compatible = "maxim,max77836";
 			interrupt-parent = <&gpx1>;
-			interrupts = <5 0>;
+			interrupts = <5 IRQ_TYPE_NONE>;
 			reg = <0x25>;
 			wakeup-source;
 
@@ -191,7 +191,7 @@
 	s2mps14_pmic@66 {
 		compatible = "samsung,s2mps14-pmic";
 		interrupt-parent = <&gpx0>;
-		interrupts = <7 0>;
+		interrupts = <7 IRQ_TYPE_NONE>;
 		reg = <0x66>;
 		wakeup-source;
 
@@ -414,7 +414,7 @@
 	fuelgauge@36 {
 		compatible = "maxim,max77836-battery";
 		interrupt-parent = <&gpx1>;
-		interrupts = <2 8>;
+		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0x36>;
 	};
 };
@@ -426,7 +426,6 @@
 &mshc_0 {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	num-slots = <1>;
 	broken-cd;
 	non-removable;
 	cap-mmc-highspeed;

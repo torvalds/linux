@@ -60,35 +60,36 @@ struct mite {
 	spinlock_t lock;
 };
 
-u32 mite_bytes_in_transit(struct mite_channel *);
+u32 mite_bytes_in_transit(struct mite_channel *mite_chan);
 
-void mite_sync_dma(struct mite_channel *, struct comedi_subdevice *);
-void mite_ack_linkc(struct mite_channel *, struct comedi_subdevice *s,
+void mite_sync_dma(struct mite_channel *mite_chan, struct comedi_subdevice *s);
+void mite_ack_linkc(struct mite_channel *mite_chan, struct comedi_subdevice *s,
 		    bool sync);
-int mite_done(struct mite_channel *);
+int mite_done(struct mite_channel *mite_chan);
 
-void mite_dma_arm(struct mite_channel *);
-void mite_dma_disarm(struct mite_channel *);
+void mite_dma_arm(struct mite_channel *mite_chan);
+void mite_dma_disarm(struct mite_channel *mite_chan);
 
-void mite_prep_dma(struct mite_channel *,
+void mite_prep_dma(struct mite_channel *mite_chan,
 		   unsigned int num_device_bits, unsigned int num_memory_bits);
 
-struct mite_channel *mite_request_channel_in_range(struct mite *,
-						   struct mite_ring *,
+struct mite_channel *mite_request_channel_in_range(struct mite *mite,
+						   struct mite_ring *ring,
 						   unsigned int min_channel,
 						   unsigned int max_channel);
-struct mite_channel *mite_request_channel(struct mite *, struct mite_ring *);
-void mite_release_channel(struct mite_channel *);
+struct mite_channel *mite_request_channel(struct mite *mite,
+					  struct mite_ring *ring);
+void mite_release_channel(struct mite_channel *mite_chan);
 
-int mite_init_ring_descriptors(struct mite_ring *, struct comedi_subdevice *,
-			       unsigned int nbytes);
-int mite_buf_change(struct mite_ring *, struct comedi_subdevice *);
+int mite_init_ring_descriptors(struct mite_ring *ring,
+			       struct comedi_subdevice *s, unsigned int nbytes);
+int mite_buf_change(struct mite_ring *ring, struct comedi_subdevice *s);
 
-struct mite_ring *mite_alloc_ring(struct mite *);
-void mite_free_ring(struct mite_ring *);
+struct mite_ring *mite_alloc_ring(struct mite *mite);
+void mite_free_ring(struct mite_ring *ring);
 
-struct mite *mite_attach(struct comedi_device *, bool use_win1);
-void mite_detach(struct mite *);
+struct mite *mite_attach(struct comedi_device *dev, bool use_win1);
+void mite_detach(struct mite *mite);
 
 /*
  * Mite registers (used outside of the mite driver)

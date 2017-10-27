@@ -72,7 +72,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/kernel.h>
@@ -181,7 +181,7 @@ int console_blanked;
 
 static int vesa_blank_mode; /* 0:none 1:suspendV 2:suspendH 3:powerdown */
 static int vesa_off_interval;
-static int blankinterval = 10*60;
+static int blankinterval;
 core_param(consoleblank, blankinterval, int, 0444);
 
 static DECLARE_WORK(console_work, console_callback);
@@ -425,7 +425,7 @@ static u8 build_attr(struct vc_data *vc, u8 _color, u8 _intensity, u8 _blink,
 	else if (_underline)
 		a = (a & 0xf0) | vc->vc_ulcolor;
 	else if (_intensity == 0)
-		a = (a & 0xf0) | vc->vc_ulcolor;
+		a = (a & 0xf0) | vc->vc_halfcolor;
 	if (_reverse)
 		a = ((a) & 0x88) | ((((a) >> 4) | ((a) << 4)) & 0x77);
 	if (_blink)
@@ -623,6 +623,14 @@ static void save_screen(struct vc_data *vc)
 
 	if (vc->vc_sw->con_save_screen)
 		vc->vc_sw->con_save_screen(vc);
+}
+
+static void flush_scrollback(struct vc_data *vc)
+{
+	WARN_CONSOLE_UNLOCKED();
+
+	if (vc->vc_sw->con_flush_scrollback)
+		vc->vc_sw->con_flush_scrollback(vc);
 }
 
 /*
@@ -1171,6 +1179,7 @@ static void csi_J(struct vc_data *vc, int vpar)
 		case 3: /* erase scroll-back buffer (and whole display) */
 			scr_memsetw(vc->vc_screenbuf, vc->vc_video_erase_char,
 				    vc->vc_screenbuf_size);
+			flush_scrollback(vc);
 			set_origin(vc);
 			if (con_is_visible(vc))
 				update_screen(vc);
@@ -2700,13 +2709,13 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 	 * related to the kernel should not use this.
 	 */
 			data = vt_get_shift_state();
-			ret = __put_user(data, p);
+			ret = put_user(data, p);
 			break;
 		case TIOCL_GETMOUSEREPORTING:
 			console_lock();	/* May be overkill */
 			data = mouse_reporting();
 			console_unlock();
-			ret = __put_user(data, p);
+			ret = put_user(data, p);
 			break;
 		case TIOCL_SETVESABLANK:
 			console_lock();
@@ -2715,7 +2724,7 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 			break;
 		case TIOCL_GETKMSGREDIRECT:
 			data = vt_get_kmsg_redirect();
-			ret = __put_user(data, p);
+			ret = put_user(data, p);
 			break;
 		case TIOCL_SETKMSGREDIRECT:
 			if (!capable(CAP_SYS_ADMIN)) {

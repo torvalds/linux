@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -1406,6 +1402,8 @@ static int adv7180_remove(struct i2c_client *client)
 
 static const struct i2c_device_id adv7180_id[] = {
 	{ "adv7180", (kernel_ulong_t)&adv7180_info },
+	{ "adv7180cp", (kernel_ulong_t)&adv7180_info },
+	{ "adv7180st", (kernel_ulong_t)&adv7180_info },
 	{ "adv7182", (kernel_ulong_t)&adv7182_info },
 	{ "adv7280", (kernel_ulong_t)&adv7280_info },
 	{ "adv7280-m", (kernel_ulong_t)&adv7280_m_info },
@@ -1456,6 +1454,8 @@ static SIMPLE_DEV_PM_OPS(adv7180_pm_ops, adv7180_suspend, adv7180_resume);
 #ifdef CONFIG_OF
 static const struct of_device_id adv7180_of_id[] = {
 	{ .compatible = "adi,adv7180", },
+	{ .compatible = "adi,adv7180cp", },
+	{ .compatible = "adi,adv7180st", },
 	{ .compatible = "adi,adv7182", },
 	{ .compatible = "adi,adv7280", },
 	{ .compatible = "adi,adv7280-m", },

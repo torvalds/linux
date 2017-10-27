@@ -18,7 +18,7 @@
 #include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/of_device.h>
@@ -379,13 +379,6 @@ static const struct backlight_ops dsicm_bl_ops = {
 	.update_status  = dsicm_bl_update_status,
 };
 
-static void dsicm_get_resolution(struct omap_dss_device *dssdev,
-		u16 *xres, u16 *yres)
-{
-	*xres = dssdev->panel.vm.hactive;
-	*yres = dssdev->panel.vm.vactive;
-}
-
 static ssize_t dsicm_num_errors_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -561,7 +554,7 @@ static struct attribute *dsicm_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group dsicm_attr_group = {
+static const struct attribute_group dsicm_attr_group = {
 	.attrs = dsicm_attrs,
 };
 
@@ -1116,9 +1109,6 @@ static struct omap_dss_driver dsicm_ops = {
 	.update		= dsicm_update,
 	.sync		= dsicm_sync,
 
-	.get_resolution	= dsicm_get_resolution,
-	.get_recommended_bpp = omapdss_default_get_recommended_bpp,
-
 	.enable_te	= dsicm_enable_te,
 	.get_te		= dsicm_get_te,
 
@@ -1253,7 +1243,7 @@ static int dsicm_probe(struct platform_device *pdev)
 	dsicm_hw_reset(ddata);
 
 	if (ddata->use_dsi_backlight) {
-		memset(&props, 0, sizeof(struct backlight_properties));
+		memset(&props, 0, sizeof(props));
 		props.max_brightness = 255;
 
 		props.type = BACKLIGHT_RAW;

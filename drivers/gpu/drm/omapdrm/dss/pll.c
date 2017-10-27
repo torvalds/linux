@@ -215,8 +215,8 @@ bool dss_pll_calc_a(const struct dss_pll *pll, unsigned long clkin,
 		dss_pll_calc_func func, void *data)
 {
 	const struct dss_pll_hw *hw = pll->hw;
-	int n, n_start, n_stop;
-	int m, m_start, m_stop;
+	int n, n_start, n_stop, n_inc;
+	int m, m_start, m_stop, m_inc;
 	unsigned long fint, clkdco;
 	unsigned long pll_hw_max;
 	unsigned long fint_hw_min, fint_hw_max;
@@ -228,10 +228,16 @@ bool dss_pll_calc_a(const struct dss_pll *pll, unsigned long clkin,
 
 	n_start = max(DIV_ROUND_UP(clkin, fint_hw_max), 1ul);
 	n_stop = min((unsigned)(clkin / fint_hw_min), hw->n_max);
+	n_inc = 1;
+
+	if (hw->errata_i886) {
+		swap(n_start, n_stop);
+		n_inc = -1;
+	}
 
 	pll_max = pll_max ? pll_max : ULONG_MAX;
 
-	for (n = n_start; n <= n_stop; ++n) {
+	for (n = n_start; n != n_stop; n += n_inc) {
 		fint = clkin / n;
 
 		m_start = max(DIV_ROUND_UP(DIV_ROUND_UP(pll_min, fint), 2),
@@ -239,8 +245,14 @@ bool dss_pll_calc_a(const struct dss_pll *pll, unsigned long clkin,
 		m_stop = min3((unsigned)(pll_max / fint / 2),
 				(unsigned)(pll_hw_max / fint / 2),
 				hw->m_max);
+		m_inc = 1;
 
-		for (m = m_start; m <= m_stop; ++m) {
+		if (hw->errata_i886) {
+			swap(m_start, m_stop);
+			m_inc = -1;
+		}
+
+		for (m = m_start; m != m_stop; m += m_inc) {
 			clkdco = 2 * m * fint;
 
 			if (func(n, m, fint, clkdco, data))

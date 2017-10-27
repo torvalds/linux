@@ -2,6 +2,7 @@
  * Functions related to mapping data to requests
  */
 #include <linux/kernel.h>
+#include <linux/sched/task_stack.h>
 #include <linux/module.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
@@ -15,9 +16,9 @@
  */
 int blk_rq_append_bio(struct request *rq, struct bio *bio)
 {
+	blk_queue_bounce(rq->q, &bio);
+
 	if (!rq->bio) {
-		rq->cmd_flags &= REQ_OP_MASK;
-		rq->cmd_flags |= (bio->bi_opf & REQ_OP_MASK);
 		blk_rq_bio_prep(rq->q, rq, bio);
 	} else {
 		if (!ll_back_merge_fn(rq->q, rq, bio))
@@ -62,6 +63,9 @@ static int __blk_rq_map_user_iov(struct request *rq,
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
+	bio->bi_opf &= ~REQ_OP_MASK;
+	bio->bi_opf |= req_op(rq);
+
 	if (map_data && map_data->null_mapped)
 		bio_set_flag(bio, BIO_NULL_MAPPED);
 
@@ -70,15 +74,13 @@ static int __blk_rq_map_user_iov(struct request *rq,
 		map_data->offset += bio->bi_iter.bi_size;
 
 	orig_bio = bio;
-	blk_queue_bounce(q, &bio);
 
 	/*
 	 * We link the bounce buffer in and could have to traverse it
 	 * later so we have to get a ref to prevent it from being freed
 	 */
-	bio_get(bio);
-
 	ret = blk_rq_append_bio(rq, bio);
+	bio_get(bio);
 	if (ret) {
 		bio_endio(bio);
 		__blk_rq_unmap_user(orig_bio);
@@ -90,7 +92,7 @@ static int __blk_rq_map_user_iov(struct request *rq,
 }
 
 /**
- * blk_rq_map_user_iov - map user data to a request, for REQ_TYPE_BLOCK_PC usage
+ * blk_rq_map_user_iov - map user data to a request, for passthrough requests
  * @q:		request queue where request should be inserted
  * @rq:		request to map data to
  * @map_data:   pointer to the rq_map_data holding pages (if necessary)
@@ -199,7 +201,7 @@ int blk_rq_unmap_user(struct bio *bio)
 EXPORT_SYMBOL(blk_rq_unmap_user);
 
 /**
- * blk_rq_map_kern - map kernel data to a request, for REQ_TYPE_BLOCK_PC usage
+ * blk_rq_map_kern - map kernel data to a request, for passthrough requests
  * @q:		request queue where request should be inserted
  * @rq:		request to fill
  * @kbuf:	the kernel buffer
@@ -234,8 +236,8 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
-	if (!reading)
-		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+	bio->bi_opf &= ~REQ_OP_MASK;
+	bio->bi_opf |= req_op(rq);
 
 	if (do_copy)
 		rq->rq_flags |= RQF_COPY_USER;
@@ -247,7 +249,6 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 		return ret;
 	}
 
-	blk_queue_bounce(q, &rq->bio);
 	return 0;
 }
 EXPORT_SYMBOL(blk_rq_map_kern);

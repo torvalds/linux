@@ -129,7 +129,7 @@ static void no_colors_theme(void)
 	mkattrn(FUNCTION_TEXT, A_REVERSE);
 }
 
-void set_colors()
+void set_colors(void)
 {
 	start_color();
 	use_default_colors();
@@ -192,7 +192,7 @@ const char *get_line(const char *text, int line_no)
 	int lines = 0;
 
 	if (!text)
-		return 0;
+		return NULL;
 
 	for (i = 0; text[i] != '\0' && lines < line_no; i++)
 		if (text[i] == '\n')

@@ -124,7 +124,6 @@ int pci_iov_add_virtfn(struct pci_dev *dev, int id, int reset)
 	struct pci_sriov *iov = dev->sriov;
 	struct pci_bus *bus;
 
-	mutex_lock(&iov->dev->sriov->lock);
 	bus = virtfn_add_bus(dev->bus, pci_iov_virtfn_bus(dev, id));
 	if (!bus)
 		goto failed;
@@ -162,7 +161,6 @@ int pci_iov_add_virtfn(struct pci_dev *dev, int id, int reset)
 		__pci_reset_function(virtfn);
 
 	pci_device_add(virtfn, virtfn->bus);
-	mutex_unlock(&iov->dev->sriov->lock);
 
 	pci_bus_add_device(virtfn);
 	sprintf(buf, "virtfn%u", id);
@@ -181,12 +179,10 @@ failed2:
 	sysfs_remove_link(&dev->dev.kobj, buf);
 failed1:
 	pci_dev_put(dev);
-	mutex_lock(&iov->dev->sriov->lock);
 	pci_stop_and_remove_bus_device(virtfn);
 failed0:
 	virtfn_remove_bus(dev->bus, bus);
 failed:
-	mutex_unlock(&iov->dev->sriov->lock);
 
 	return rc;
 }
@@ -195,7 +191,6 @@ void pci_iov_remove_virtfn(struct pci_dev *dev, int id, int reset)
 {
 	char buf[VIRTFN_ID_LEN];
 	struct pci_dev *virtfn;
-	struct pci_sriov *iov = dev->sriov;
 
 	virtfn = pci_get_domain_bus_and_slot(pci_domain_nr(dev->bus),
 					     pci_iov_virtfn_bus(dev, id),
@@ -218,10 +213,8 @@ void pci_iov_remove_virtfn(struct pci_dev *dev, int id, int reset)
 	if (virtfn->dev.kobj.sd)
 		sysfs_remove_link(&virtfn->dev.kobj, "physfn");
 
-	mutex_lock(&iov->dev->sriov->lock);
 	pci_stop_and_remove_bus_device(virtfn);
 	virtfn_remove_bus(dev->bus, virtfn->bus);
-	mutex_unlock(&iov->dev->sriov->lock);
 
 	/* balance pci_get_domain_bus_and_slot() */
 	pci_dev_put(virtfn);
@@ -338,13 +331,14 @@ failed:
 	while (i--)
 		pci_iov_remove_virtfn(dev, i, 0);
 
-	pcibios_sriov_disable(dev);
 err_pcibios:
 	iov->ctrl &= ~(PCI_SRIOV_CTRL_VFE | PCI_SRIOV_CTRL_MSE);
 	pci_cfg_access_lock(dev);
 	pci_write_config_word(dev, iov->pos + PCI_SRIOV_CTRL, iov->ctrl);
 	ssleep(1);
 	pci_cfg_access_unlock(dev);
+
+	pcibios_sriov_disable(dev);
 
 	if (iov->link != dev->devfn)
 		sysfs_remove_link(&dev->dev.kobj, "dep_link");
@@ -364,13 +358,13 @@ static void sriov_disable(struct pci_dev *dev)
 	for (i = 0; i < iov->num_VFs; i++)
 		pci_iov_remove_virtfn(dev, i, 0);
 
-	pcibios_sriov_disable(dev);
-
 	iov->ctrl &= ~(PCI_SRIOV_CTRL_VFE | PCI_SRIOV_CTRL_MSE);
 	pci_cfg_access_lock(dev);
 	pci_write_config_word(dev, iov->pos + PCI_SRIOV_CTRL, iov->ctrl);
 	ssleep(1);
 	pci_cfg_access_unlock(dev);
+
+	pcibios_sriov_disable(dev);
 
 	if (iov->link != dev->devfn)
 		sysfs_remove_link(&dev->dev.kobj, "dep_link");
@@ -457,6 +451,7 @@ found:
 	iov->total_VFs = total;
 	iov->pgsz = pgsz;
 	iov->self = dev;
+	iov->drivers_autoprobe = true;
 	pci_read_config_dword(dev, pos + PCI_SRIOV_CAP, &iov->cap);
 	pci_read_config_byte(dev, pos + PCI_SRIOV_FUNC_LINK, &iov->link);
 	if (pci_pcie_type(dev) == PCI_EXP_TYPE_RC_END)
@@ -466,8 +461,6 @@ found:
 		iov->dev = pci_dev_get(pdev);
 	else
 		iov->dev = dev;
-
-	mutex_init(&iov->lock);
 
 	dev->sriov = iov;
 	dev->is_physfn = 1;
@@ -496,8 +489,6 @@ static void sriov_release(struct pci_dev *dev)
 
 	if (dev != dev->sriov->dev)
 		pci_dev_put(dev->sriov->dev);
-
-	mutex_destroy(&dev->sriov->lock);
 
 	kfree(dev->sriov);
 	dev->sriov = NULL;

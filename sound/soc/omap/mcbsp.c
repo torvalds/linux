@@ -835,15 +835,11 @@ static ssize_t dma_op_mode_store(struct device *dev,
 				const char *buf, size_t size)
 {
 	struct omap_mcbsp *mcbsp = dev_get_drvdata(dev);
-	const char * const *s;
-	int i = 0;
+	int i;
 
-	for (s = &dma_op_modes[i]; i < ARRAY_SIZE(dma_op_modes); s++, i++)
-		if (sysfs_streq(buf, *s))
-			break;
-
-	if (i == ARRAY_SIZE(dma_op_modes))
-		return -EINVAL;
+	i = sysfs_match_string(dma_op_modes, buf);
+	if (i < 0)
+		return i;
 
 	spin_lock_irq(&mcbsp->lock);
 	if (!mcbsp->free) {

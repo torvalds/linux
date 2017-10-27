@@ -31,7 +31,7 @@ static unsigned int watchdog;
 static unsigned int watchdog_hz = 1;
 unsigned int watchdog_alert_counter[NR_CPUS];
 
-EXPORT_SYMBOL(touch_nmi_watchdog);
+EXPORT_SYMBOL(arch_touch_nmi_watchdog);
 
 /*
  * the best way to detect whether a CPU has a 'hard lockup' problem

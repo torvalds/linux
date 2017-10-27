@@ -28,7 +28,6 @@
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/watchdog.h>
-#include <linux/miscdevice.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include "sch56xx-common.h"

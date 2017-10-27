@@ -36,8 +36,8 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../../include/linux/lnet/lnet.h"
+#include <linux/libcfs/libcfs.h>
+#include <uapi/linux/lnet/nidstr.h>
 
 /* max value for numeric network address */
 #define MAX_NUMERIC_VALUE 0xffffffff
@@ -1226,7 +1226,7 @@ libcfs_str2nid(const char *str)
 EXPORT_SYMBOL(libcfs_str2nid);
 
 char *
-libcfs_id2str(lnet_process_id_t id)
+libcfs_id2str(struct lnet_process_id id)
 {
 	char *str = libcfs_next_nidstring();
 

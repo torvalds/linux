@@ -186,15 +186,15 @@ static int udl_dmabuf_mmap(struct dma_buf *dma_buf,
 	return -EINVAL;
 }
 
-static struct dma_buf_ops udl_dmabuf_ops = {
+static const struct dma_buf_ops udl_dmabuf_ops = {
 	.attach			= udl_attach_dma_buf,
 	.detach			= udl_detach_dma_buf,
 	.map_dma_buf		= udl_map_dma_buf,
 	.unmap_dma_buf		= udl_unmap_dma_buf,
-	.kmap			= udl_dmabuf_kmap,
-	.kmap_atomic		= udl_dmabuf_kmap_atomic,
-	.kunmap			= udl_dmabuf_kunmap,
-	.kunmap_atomic		= udl_dmabuf_kunmap_atomic,
+	.map			= udl_dmabuf_kmap,
+	.map_atomic		= udl_dmabuf_kmap_atomic,
+	.unmap			= udl_dmabuf_kunmap,
+	.unmap_atomic		= udl_dmabuf_kunmap_atomic,
 	.mmap			= udl_dmabuf_mmap,
 	.release		= drm_gem_dmabuf_release,
 };
@@ -228,7 +228,7 @@ static int udl_prime_create(struct drm_device *dev,
 		return -ENOMEM;
 
 	obj->sg = sg;
-	obj->pages = drm_malloc_ab(npages, sizeof(struct page *));
+	obj->pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (obj->pages == NULL) {
 		DRM_ERROR("obj pages is NULL %d\n", npages);
 		return -ENOMEM;

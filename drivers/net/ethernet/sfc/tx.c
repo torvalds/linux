@@ -28,7 +28,6 @@
 
 #ifdef EFX_USE_PIO
 
-#define EFX_PIOBUF_SIZE_MAX ER_DZ_TX_PIOBUF_SIZE
 #define EFX_PIOBUF_SIZE_DEF ALIGN(256, L1_CACHE_BYTES)
 unsigned int efx_piobuf_size __read_mostly = EFX_PIOBUF_SIZE_DEF;
 
@@ -654,22 +653,25 @@ void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue)
 				     efx->n_tx_channels : 0));
 }
 
-int efx_setup_tc(struct net_device *net_dev, u32 handle, __be16 proto,
-		 struct tc_to_netdev *ntc)
+int efx_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
+		 void *type_data)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
+	struct tc_mqprio_qopt *mqprio = type_data;
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
 	unsigned tc, num_tc;
 	int rc;
 
-	if (ntc->type != TC_SETUP_MQPRIO)
-		return -EINVAL;
+	if (type != TC_SETUP_MQPRIO)
+		return -EOPNOTSUPP;
 
-	num_tc = ntc->tc;
+	num_tc = mqprio->num_tc;
 
 	if (num_tc > EFX_MAX_TX_TC)
 		return -EINVAL;
+
+	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 
 	if (num_tc == net_dev->num_tc)
 		return 0;
@@ -817,6 +819,7 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 
 	tx_queue->insert_count = 0;
 	tx_queue->write_count = 0;
+	tx_queue->packet_write_count = 0;
 	tx_queue->old_write_count = 0;
 	tx_queue->read_count = 0;
 	tx_queue->old_read_count = 0;

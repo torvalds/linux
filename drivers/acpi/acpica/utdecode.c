@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -238,7 +238,7 @@ const char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc)
 
 	if (!obj_desc) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Null Object Descriptor\n"));
-		return_PTR("[NULL Object Descriptor]");
+		return_STR("[NULL Object Descriptor]");
 	}
 
 	/* These descriptor types share a common area */
@@ -251,7 +251,7 @@ const char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc)
 				  acpi_ut_get_descriptor_name(obj_desc),
 				  obj_desc));
 
-		return_PTR("Invalid object");
+		return_STR("Invalid object");
 	}
 
 	return_STR(acpi_ut_get_type_name(obj_desc->common.type));
@@ -460,9 +460,11 @@ static const char *acpi_gbl_generic_notify[ACPI_GENERIC_NOTIFY_MAX + 1] = {
 	/* 09 */ "Device PLD Check",
 	/* 0A */ "Reserved",
 	/* 0B */ "System Locality Update",
-					/* 0C */ "Shutdown Request",
-					/* Reserved in ACPI 6.0 */
-	/* 0D */ "System Resource Affinity Update"
+								/* 0C */ "Reserved (was previously Shutdown Request)",
+								/* Reserved in ACPI 6.0 */
+	/* 0D */ "System Resource Affinity Update",
+								/* 0E */ "Heterogeneous Memory Attributes Update"
+								/* ACPI 6.2 */
 };
 
 static const char *acpi_gbl_device_notify[5] = {

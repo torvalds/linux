@@ -13,6 +13,9 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
@@ -193,15 +196,6 @@ unsigned long get_wchan(struct task_struct *p)
 	} while (count++ < 16);
 
 	return 0;
-}
-
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	/* Check whether the thread is blocked in resume() */
-	if (in_sched_functions(tsk->thread.pc))
-		return ((unsigned long *)tsk->thread.fp)[2];
-	else
-		return tsk->thread.pc;
 }
 
 int elf_check_arch(const struct elf32_hdr *hdr)

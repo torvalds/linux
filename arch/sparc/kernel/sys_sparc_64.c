@@ -7,7 +7,9 @@
 
 #include <linux/errno.h>
 #include <linux/types.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/debug.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/mm.h>
@@ -118,7 +120,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 
 		vma = find_vma(mm, addr);
 		if (task_size - len >= addr &&
-		    (!vma || addr + len <= vma->vm_start))
+		    (!vma || addr + len <= vm_start_gap(vma)))
 			return addr;
 	}
 
@@ -181,7 +183,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 
 		vma = find_vma(mm, addr);
 		if (task_size - len >= addr &&
-		    (!vma || addr + len <= vma->vm_start))
+		    (!vma || addr + len <= vm_start_gap(vma)))
 			return addr;
 	}
 

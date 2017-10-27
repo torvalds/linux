@@ -15,6 +15,7 @@
  */
 
 #include "common.xml.h"
+#include "etnaviv_cmdbuf.h"
 #include "etnaviv_drv.h"
 #include "etnaviv_gem.h"
 #include "etnaviv_gpu.h"
@@ -107,24 +108,21 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu *mmu,
 				   struct drm_mm_node *node, size_t size)
 {
 	struct etnaviv_vram_mapping *free = NULL;
+	enum drm_mm_insert_mode mode = DRM_MM_INSERT_LOW;
 	int ret;
 
 	lockdep_assert_held(&mmu->lock);
 
 	while (1) {
 		struct etnaviv_vram_mapping *m, *n;
+		struct drm_mm_scan scan;
 		struct list_head list;
 		bool found;
 
-		/*
-		 * XXX: The DRM_MM_SEARCH_BELOW is really a hack to trick
-		 * drm_mm into giving out a low IOVA after address space
-		 * rollover. This needs a proper fix.
-		 */
 		ret = drm_mm_insert_node_in_range(&mmu->mm, node,
-			size, 0, mmu->last_iova, ~0UL,
-			mmu->last_iova ? DRM_MM_SEARCH_DEFAULT : DRM_MM_SEARCH_BELOW);
-
+						  size, 0, 0,
+						  mmu->last_iova, U64_MAX,
+						  mode);
 		if (ret != -ENOSPC)
 			break;
 
@@ -139,7 +137,7 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu *mmu,
 		}
 
 		/* Try to retire some entries */
-		drm_mm_init_scan(&mmu->mm, size, 0, 0);
+		drm_mm_scan_init(&scan, &mmu->mm, size, 0, 0, mode);
 
 		found = 0;
 		INIT_LIST_HEAD(&list);
@@ -156,7 +154,7 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu *mmu,
 				continue;
 
 			list_add(&free->scan_node, &list);
-			if (drm_mm_scan_add_block(&free->vram_node)) {
+			if (drm_mm_scan_add_block(&scan, &free->vram_node)) {
 				found = true;
 				break;
 			}
@@ -165,7 +163,7 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu *mmu,
 		if (!found) {
 			/* Nothing found, clean up and fail */
 			list_for_each_entry_safe(m, n, &list, scan_node)
-				BUG_ON(drm_mm_scan_remove_block(&m->vram_node));
+				BUG_ON(drm_mm_scan_remove_block(&scan, &m->vram_node));
 			break;
 		}
 
@@ -176,7 +174,7 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu *mmu,
 		 * can leave the block pinned.
 		 */
 		list_for_each_entry_safe(m, n, &list, scan_node)
-			if (!drm_mm_scan_remove_block(&m->vram_node))
+			if (!drm_mm_scan_remove_block(&scan, &m->vram_node))
 				list_del_init(&m->scan_node);
 
 		/*
@@ -191,13 +189,12 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu *mmu,
 			list_del_init(&m->scan_node);
 		}
 
+		mode = DRM_MM_INSERT_EVICT;
+
 		/*
 		 * We removed enough mappings so that the new allocation will
-		 * succeed.  Ensure that the MMU will be flushed before the
-		 * associated commit requesting this mapping, and retry the
-		 * allocation one more time.
+		 * succeed, retry the allocation one more time.
 		 */
-		mmu->need_flush = true;
 	}
 
 	return ret;
@@ -249,6 +246,7 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu *mmu,
 	}
 
 	list_add_tail(&mapping->mmu_node, &mmu->mappings);
+	mmu->need_flush = true;
 	mutex_unlock(&mmu->lock);
 
 	return ret;
@@ -266,6 +264,7 @@ void etnaviv_iommu_unmap_gem(struct etnaviv_iommu *mmu,
 		etnaviv_iommu_remove_mapping(mmu, mapping);
 
 	list_del(&mapping->mmu_node);
+	mmu->need_flush = true;
 	mutex_unlock(&mmu->lock);
 }
 
@@ -321,55 +320,50 @@ void etnaviv_iommu_restore(struct etnaviv_gpu *gpu)
 		etnaviv_iommuv2_restore(gpu);
 }
 
-u32 etnaviv_iommu_get_cmdbuf_va(struct etnaviv_gpu *gpu,
-				struct etnaviv_cmdbuf *buf)
+int etnaviv_iommu_get_suballoc_va(struct etnaviv_gpu *gpu, dma_addr_t paddr,
+				  struct drm_mm_node *vram_node, size_t size,
+				  u32 *iova)
 {
 	struct etnaviv_iommu *mmu = gpu->mmu;
 
 	if (mmu->version == ETNAVIV_IOMMU_V1) {
-		return buf->paddr - gpu->memory_base;
+		*iova = paddr - gpu->memory_base;
+		return 0;
 	} else {
 		int ret;
 
-		if (buf->vram_node.allocated)
-			return (u32)buf->vram_node.start;
-
 		mutex_lock(&mmu->lock);
-		ret = etnaviv_iommu_find_iova(mmu, &buf->vram_node,
-					      buf->size + SZ_64K);
+		ret = etnaviv_iommu_find_iova(mmu, vram_node, size);
 		if (ret < 0) {
 			mutex_unlock(&mmu->lock);
-			return 0;
+			return ret;
 		}
-		ret = iommu_map(mmu->domain, buf->vram_node.start, buf->paddr,
-				buf->size, IOMMU_READ);
+		ret = iommu_map(mmu->domain, vram_node->start, paddr, size,
+				IOMMU_READ);
 		if (ret < 0) {
-			drm_mm_remove_node(&buf->vram_node);
+			drm_mm_remove_node(vram_node);
 			mutex_unlock(&mmu->lock);
-			return 0;
+			return ret;
 		}
-		/*
-		 * At least on GC3000 the FE MMU doesn't properly flush old TLB
-		 * entries. Make sure to space the command buffers out in a way
-		 * that the FE MMU prefetch won't load invalid entries.
-		 */
-		mmu->last_iova = buf->vram_node.start + buf->size + SZ_64K;
+		mmu->last_iova = vram_node->start + size;
 		gpu->mmu->need_flush = true;
 		mutex_unlock(&mmu->lock);
 
-		return (u32)buf->vram_node.start;
+		*iova = (u32)vram_node->start;
+		return 0;
 	}
 }
 
-void etnaviv_iommu_put_cmdbuf_va(struct etnaviv_gpu *gpu,
-				 struct etnaviv_cmdbuf *buf)
+void etnaviv_iommu_put_suballoc_va(struct etnaviv_gpu *gpu,
+				   struct drm_mm_node *vram_node, size_t size,
+				   u32 iova)
 {
 	struct etnaviv_iommu *mmu = gpu->mmu;
 
-	if (mmu->version == ETNAVIV_IOMMU_V2 && buf->vram_node.allocated) {
+	if (mmu->version == ETNAVIV_IOMMU_V2) {
 		mutex_lock(&mmu->lock);
-		iommu_unmap(mmu->domain, buf->vram_node.start, buf->size);
-		drm_mm_remove_node(&buf->vram_node);
+		iommu_unmap(mmu->domain,iova, size);
+		drm_mm_remove_node(vram_node);
 		mutex_unlock(&mmu->lock);
 	}
 }

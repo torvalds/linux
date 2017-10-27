@@ -91,9 +91,9 @@ static void rxe_mem_init(int access, struct rxe_mem *mem)
 	mem->map_shift		= ilog2(RXE_BUF_PER_MAP);
 }
 
-void rxe_mem_cleanup(void *arg)
+void rxe_mem_cleanup(struct rxe_pool_entry *arg)
 {
-	struct rxe_mem *mem = arg;
+	struct rxe_mem *mem = container_of(arg, typeof(*mem), pelem);
 	int i;
 
 	if (mem->umem)
@@ -125,7 +125,7 @@ static int rxe_mem_alloc(struct rxe_dev *rxe, struct rxe_mem *mem, int num_buf)
 			goto err2;
 	}
 
-	WARN_ON(!is_power_of_2(RXE_BUF_PER_MAP));
+	BUILD_BUG_ON(!is_power_of_2(RXE_BUF_PER_MAP));
 
 	mem->map_shift	= ilog2(RXE_BUF_PER_MAP);
 	mem->map_mask	= RXE_BUF_PER_MAP - 1;
@@ -191,10 +191,8 @@ int rxe_mem_init_user(struct rxe_dev *rxe, struct rxe_pd *pd, u64 start,
 		goto err1;
 	}
 
-	WARN_ON(!is_power_of_2(umem->page_size));
-
-	mem->page_shift		= ilog2(umem->page_size);
-	mem->page_mask		= umem->page_size - 1;
+	mem->page_shift		= umem->page_shift;
+	mem->page_mask		= BIT(umem->page_shift) - 1;
 
 	num_buf			= 0;
 	map			= mem->map;
@@ -210,7 +208,7 @@ int rxe_mem_init_user(struct rxe_dev *rxe, struct rxe_pd *pd, u64 start,
 			}
 
 			buf->addr = (uintptr_t)vaddr;
-			buf->size = umem->page_size;
+			buf->size = BIT(umem->page_shift);
 			num_buf++;
 			buf++;
 
@@ -369,15 +367,16 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 		dest = (dir == to_mem_obj) ?
 			((void *)(uintptr_t)iova) : addr;
 
-		if (crcp)
-			*crcp = crc32_le(*crcp, src, length);
-
 		memcpy(dest, src, length);
+
+		if (crcp)
+			*crcp = rxe_crc32(to_rdev(mem->pd->ibpd.device),
+					*crcp, dest, length);
 
 		return 0;
 	}
 
-	WARN_ON(!mem->map);
+	WARN_ON_ONCE(!mem->map);
 
 	err = mem_check_range(mem, iova, length);
 	if (err) {
@@ -402,10 +401,11 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 		if (bytes > length)
 			bytes = length;
 
-		if (crcp)
-			crc = crc32_le(crc, src, bytes);
-
 		memcpy(dest, src, bytes);
+
+		if (crcp)
+			crc = rxe_crc32(to_rdev(mem->pd->ibpd.device),
+					crc, dest, bytes);
 
 		length	-= bytes;
 		addr	+= bytes;

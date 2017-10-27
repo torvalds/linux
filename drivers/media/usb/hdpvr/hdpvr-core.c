@@ -53,7 +53,7 @@ MODULE_PARM_DESC(boost_audio, "boost the audio signal");
 
 
 /* table of devices that work with this driver */
-static struct usb_device_id hdpvr_table[] = {
+static const struct usb_device_id hdpvr_table[] = {
 	{ USB_DEVICE(HD_PVR_VENDOR_ID, HD_PVR_PRODUCT_ID) },
 	{ USB_DEVICE(HD_PVR_VENDOR_ID, HD_PVR_PRODUCT_ID1) },
 	{ USB_DEVICE(HD_PVR_VENDOR_ID, HD_PVR_PRODUCT_ID2) },

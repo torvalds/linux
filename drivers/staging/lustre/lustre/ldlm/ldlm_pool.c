@@ -94,10 +94,10 @@
 
 #define DEBUG_SUBSYSTEM S_LDLM
 
-#include "../include/lustre_dlm.h"
-#include "../include/cl_object.h"
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
+#include <lustre_dlm.h>
+#include <cl_object.h>
+#include <obd_class.h>
+#include <obd_support.h>
 #include "ldlm_internal.h"
 
 /*
@@ -900,8 +900,9 @@ static int ldlm_pools_recalc(enum ldlm_side client)
 {
 	struct ldlm_namespace *ns;
 	struct ldlm_namespace *ns_old = NULL;
+	/* seconds of sleep if no active namespaces */
+	int time = LDLM_POOL_CLI_DEF_RECALC_PERIOD;
 	int nr;
-	int time = 50; /* seconds of sleep if no active namespaces */
 
 	/*
 	 * Recalc at least ldlm_namespace_nr_read(client) namespaces.
@@ -974,6 +975,10 @@ static int ldlm_pools_recalc(enum ldlm_side client)
 			ldlm_namespace_put(ns);
 		}
 	}
+
+	/* Wake up the blocking threads from time to time. */
+	ldlm_bl_thread_wakeup();
+
 	return time;
 }
 

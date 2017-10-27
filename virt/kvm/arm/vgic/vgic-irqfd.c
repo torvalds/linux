@@ -34,7 +34,7 @@ static int vgic_irqfd_set_irq(struct kvm_kernel_irq_routing_entry *e,
 
 	if (!vgic_valid_spi(kvm, spi_id))
 		return -EINVAL;
-	return kvm_vgic_inject_irq(kvm, 0, spi_id, level);
+	return kvm_vgic_inject_irq(kvm, 0, spi_id, level, NULL);
 }
 
 /**
@@ -98,6 +98,9 @@ int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 
 	if (!vgic_has_its(kvm))
 		return -ENODEV;
+
+	if (!level)
+		return -1;
 
 	return vgic_its_inject_msi(kvm, &msi);
 }

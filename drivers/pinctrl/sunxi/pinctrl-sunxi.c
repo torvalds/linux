@@ -540,7 +540,7 @@ static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
 		enum pin_config_param param;
 		unsigned long flags;
 		u32 offset, shift, mask, reg;
-		u16 arg, val;
+		u32 arg, val;
 		int ret;
 
 		param = pinconf_to_config_param(configs[i]);
@@ -564,7 +564,8 @@ static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
 			val = arg / 10 - 1;
 			break;
 		case PIN_CONFIG_BIAS_DISABLE:
-			continue;
+			val = 0;
+			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
 			if (arg == 0)
 				return -EINVAL;
@@ -581,11 +582,11 @@ static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
 			return -ENOTSUPP;
 		}
 
-		spin_lock_irqsave(&pctl->lock, flags);
+		raw_spin_lock_irqsave(&pctl->lock, flags);
 		reg = readl(pctl->membase + offset);
 		reg &= ~(mask << shift);
 		writel(reg | val << shift, pctl->membase + offset);
-		spin_unlock_irqrestore(&pctl->lock, flags);
+		raw_spin_unlock_irqrestore(&pctl->lock, flags);
 	} /* for each config */
 
 	return 0;
@@ -634,7 +635,7 @@ static void sunxi_pmx_set(struct pinctrl_dev *pctldev,
 	unsigned long flags;
 	u32 val, mask;
 
-	spin_lock_irqsave(&pctl->lock, flags);
+	raw_spin_lock_irqsave(&pctl->lock, flags);
 
 	pin -= pctl->desc->pin_base;
 	val = readl(pctl->membase + sunxi_mux_reg(pin));
@@ -642,7 +643,7 @@ static void sunxi_pmx_set(struct pinctrl_dev *pctldev,
 	writel((val & ~mask) | config << sunxi_mux_offset(pin),
 		pctl->membase + sunxi_mux_reg(pin));
 
-	spin_unlock_irqrestore(&pctl->lock, flags);
+	raw_spin_unlock_irqrestore(&pctl->lock, flags);
 }
 
 static int sunxi_pmx_set_mux(struct pinctrl_dev *pctldev,
@@ -733,7 +734,7 @@ static void sunxi_pinctrl_gpio_set(struct gpio_chip *chip,
 	unsigned long flags;
 	u32 regval;
 
-	spin_lock_irqsave(&pctl->lock, flags);
+	raw_spin_lock_irqsave(&pctl->lock, flags);
 
 	regval = readl(pctl->membase + reg);
 
@@ -744,7 +745,7 @@ static void sunxi_pinctrl_gpio_set(struct gpio_chip *chip,
 
 	writel(regval, pctl->membase + reg);
 
-	spin_unlock_irqrestore(&pctl->lock, flags);
+	raw_spin_unlock_irqrestore(&pctl->lock, flags);
 }
 
 static int sunxi_pinctrl_gpio_direction_output(struct gpio_chip *chip,
@@ -856,7 +857,7 @@ static int sunxi_pinctrl_irq_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&pctl->lock, flags);
+	raw_spin_lock_irqsave(&pctl->lock, flags);
 
 	if (type & IRQ_TYPE_LEVEL_MASK)
 		irq_set_chip_handler_name_locked(d, &sunxi_pinctrl_level_irq_chip,
@@ -869,7 +870,7 @@ static int sunxi_pinctrl_irq_set_type(struct irq_data *d, unsigned int type)
 	regval &= ~(IRQ_CFG_IRQ_MASK << index);
 	writel(regval | (mode << index), pctl->membase + reg);
 
-	spin_unlock_irqrestore(&pctl->lock, flags);
+	raw_spin_unlock_irqrestore(&pctl->lock, flags);
 
 	return 0;
 }
@@ -893,13 +894,13 @@ static void sunxi_pinctrl_irq_mask(struct irq_data *d)
 	unsigned long flags;
 	u32 val;
 
-	spin_lock_irqsave(&pctl->lock, flags);
+	raw_spin_lock_irqsave(&pctl->lock, flags);
 
 	/* Mask the IRQ */
 	val = readl(pctl->membase + reg);
 	writel(val & ~(1 << idx), pctl->membase + reg);
 
-	spin_unlock_irqrestore(&pctl->lock, flags);
+	raw_spin_unlock_irqrestore(&pctl->lock, flags);
 }
 
 static void sunxi_pinctrl_irq_unmask(struct irq_data *d)
@@ -910,13 +911,13 @@ static void sunxi_pinctrl_irq_unmask(struct irq_data *d)
 	unsigned long flags;
 	u32 val;
 
-	spin_lock_irqsave(&pctl->lock, flags);
+	raw_spin_lock_irqsave(&pctl->lock, flags);
 
 	/* Unmask the IRQ */
 	val = readl(pctl->membase + reg);
 	writel(val | (1 << idx), pctl->membase + reg);
 
-	spin_unlock_irqrestore(&pctl->lock, flags);
+	raw_spin_unlock_irqrestore(&pctl->lock, flags);
 }
 
 static void sunxi_pinctrl_irq_ack_unmask(struct irq_data *d)
@@ -979,7 +980,7 @@ static int sunxi_pinctrl_irq_of_xlate(struct irq_domain *d,
 	return 0;
 }
 
-static struct irq_domain_ops sunxi_pinctrl_irq_domain_ops = {
+static const struct irq_domain_ops sunxi_pinctrl_irq_domain_ops = {
 	.xlate		= sunxi_pinctrl_irq_of_xlate,
 };
 
@@ -1040,21 +1041,35 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 	struct sunxi_pinctrl *pctl = platform_get_drvdata(pdev);
 	int i;
 
-	pctl->ngroups = pctl->desc->npins;
+	/*
+	 * Allocate groups
+	 *
+	 * We assume that the number of groups is the number of pins
+	 * given in the data array.
 
-	/* Allocate groups */
+	 * This will not always be true, since some pins might not be
+	 * available in the current variant, but fortunately for us,
+	 * this means that the number of pins is the maximum group
+	 * number we will ever see.
+	 */
 	pctl->groups = devm_kzalloc(&pdev->dev,
-				    pctl->ngroups * sizeof(*pctl->groups),
+				    pctl->desc->npins * sizeof(*pctl->groups),
 				    GFP_KERNEL);
 	if (!pctl->groups)
 		return -ENOMEM;
 
 	for (i = 0; i < pctl->desc->npins; i++) {
 		const struct sunxi_desc_pin *pin = pctl->desc->pins + i;
-		struct sunxi_pinctrl_group *group = pctl->groups + i;
+		struct sunxi_pinctrl_group *group = pctl->groups + pctl->ngroups;
+
+		if (pin->variant && !(pctl->variant & pin->variant))
+			continue;
 
 		group->name = pin->pin.name;
 		group->pin = pin->pin.number;
+
+		/* And now we count the actual number of pins / groups */
+		pctl->ngroups++;
 	}
 
 	/*
@@ -1062,17 +1077,23 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 	 * we'll reallocate that later anyway
 	 */
 	pctl->functions = devm_kzalloc(&pdev->dev,
-				pctl->desc->npins * sizeof(*pctl->functions),
-				GFP_KERNEL);
+				       pctl->ngroups * sizeof(*pctl->functions),
+				       GFP_KERNEL);
 	if (!pctl->functions)
 		return -ENOMEM;
 
 	/* Count functions and their associated groups */
 	for (i = 0; i < pctl->desc->npins; i++) {
 		const struct sunxi_desc_pin *pin = pctl->desc->pins + i;
-		struct sunxi_desc_function *func = pin->functions;
+		struct sunxi_desc_function *func;
 
-		while (func->name) {
+		if (pin->variant && !(pctl->variant & pin->variant))
+			continue;
+
+		for (func = pin->functions; func->name; func++) {
+			if (func->variant && !(pctl->variant & func->variant))
+				continue;
+
 			/* Create interrupt mapping while we're at it */
 			if (!strcmp(func->name, "irq")) {
 				int irqnum = func->irqnum + func->irqbank * IRQ_PER_BANK;
@@ -1080,21 +1101,31 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 			}
 
 			sunxi_pinctrl_add_function(pctl, func->name);
-			func++;
 		}
 	}
 
+	/* And now allocated and fill the array for real */
 	pctl->functions = krealloc(pctl->functions,
-				pctl->nfunctions * sizeof(*pctl->functions),
-				GFP_KERNEL);
+				   pctl->nfunctions * sizeof(*pctl->functions),
+				   GFP_KERNEL);
+	if (!pctl->functions) {
+		kfree(pctl->functions);
+		return -ENOMEM;
+	}
 
 	for (i = 0; i < pctl->desc->npins; i++) {
 		const struct sunxi_desc_pin *pin = pctl->desc->pins + i;
-		struct sunxi_desc_function *func = pin->functions;
+		struct sunxi_desc_function *func;
 
-		while (func->name) {
+		if (pin->variant && !(pctl->variant & pin->variant))
+			continue;
+
+		for (func = pin->functions; func->name; func++) {
 			struct sunxi_pinctrl_function *func_item;
 			const char **func_grp;
+
+			if (func->variant && !(pctl->variant & func->variant))
+				continue;
 
 			func_item = sunxi_pinctrl_find_function_by_name(pctl,
 									func->name);
@@ -1115,7 +1146,6 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 				func_grp++;
 
 			*func_grp = pin->pin.name;
-			func++;
 		}
 	}
 
@@ -1207,15 +1237,16 @@ static int sunxi_pinctrl_setup_debounce(struct sunxi_pinctrl *pctl,
 	return 0;
 }
 
-int sunxi_pinctrl_init(struct platform_device *pdev,
-		       const struct sunxi_pinctrl_desc *desc)
+int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
+				    const struct sunxi_pinctrl_desc *desc,
+				    unsigned long variant)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct pinctrl_desc *pctrl_desc;
 	struct pinctrl_pin_desc *pins;
 	struct sunxi_pinctrl *pctl;
 	struct resource *res;
-	int i, ret, last_pin;
+	int i, ret, last_pin, pin_idx;
 	struct clk *clk;
 
 	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
@@ -1223,7 +1254,7 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 		return -ENOMEM;
 	platform_set_drvdata(pdev, pctl);
 
-	spin_lock_init(&pctl->lock);
+	raw_spin_lock_init(&pctl->lock);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	pctl->membase = devm_ioremap_resource(&pdev->dev, res);
@@ -1232,6 +1263,7 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 
 	pctl->dev = &pdev->dev;
 	pctl->desc = desc;
+	pctl->variant = variant;
 
 	pctl->irq_array = devm_kcalloc(&pdev->dev,
 				       IRQ_PER_BANK * pctl->desc->irq_banks,
@@ -1252,8 +1284,14 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 	if (!pins)
 		return -ENOMEM;
 
-	for (i = 0; i < pctl->desc->npins; i++)
-		pins[i] = pctl->desc->pins[i].pin;
+	for (i = 0, pin_idx = 0; i < pctl->desc->npins; i++) {
+		const struct sunxi_desc_pin *pin = pctl->desc->pins + i;
+
+		if (pin->variant && !(pctl->variant & pin->variant))
+			continue;
+
+		pins[pin_idx++] = pin->pin;
+	}
 
 	pctrl_desc = devm_kzalloc(&pdev->dev,
 				  sizeof(*pctrl_desc),
@@ -1264,7 +1302,7 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 	pctrl_desc->name = dev_name(&pdev->dev);
 	pctrl_desc->owner = THIS_MODULE;
 	pctrl_desc->pins = pins;
-	pctrl_desc->npins = pctl->desc->npins;
+	pctrl_desc->npins = pctl->ngroups;
 	pctrl_desc->confops = &sunxi_pconf_ops;
 	pctrl_desc->pctlops = &sunxi_pctrl_ops;
 	pctrl_desc->pmxops =  &sunxi_pmx_ops;

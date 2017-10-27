@@ -196,7 +196,7 @@ pgm_check_entry:
 	larl	%r15,init_thread_union
 	ahi	%r15,1<<(PAGE_SHIFT+THREAD_SIZE_ORDER)
 	larl	%r2,.Lpanic_string
-	larl	%r3,_sclp_print_early
+	larl	%r3,sclp_early_printk
 	lghi	%r1,0
 	sam31
 	sigp	%r1,%r0,SIGP_SET_ARCHITECTURE
@@ -273,7 +273,7 @@ restore_registers:
 .Ldisabled_wait_31:
 	.long  0x000a0000,0x00000000
 .Lpanic_string:
-	.asciz	"Resume not possible because suspend CPU is no longer available"
+	.asciz	"Resume not possible because suspend CPU is no longer available\n"
 	.align	8
 .Lrestart_diag308_psw:
 	.long	0x00080000,0x80000000

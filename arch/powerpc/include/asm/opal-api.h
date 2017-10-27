@@ -40,6 +40,9 @@
 #define OPAL_I2C_ARBT_LOST	-22
 #define OPAL_I2C_NACK_RCVD	-23
 #define OPAL_I2C_STOP_ERR	-24
+#define OPAL_XIVE_PROVISIONING	-31
+#define OPAL_XIVE_FREE_ACTIVE	-32
+#define OPAL_TIMEOUT		-33
 
 /* API Tokens (in r0) */
 #define OPAL_INVALID_CALL		       -1
@@ -167,7 +170,37 @@
 #define OPAL_INT_EOI				124
 #define OPAL_INT_SET_MFRR			125
 #define OPAL_PCI_TCE_KILL			126
-#define OPAL_LAST				126
+#define OPAL_NMMU_SET_PTCR			127
+#define OPAL_XIVE_RESET				128
+#define OPAL_XIVE_GET_IRQ_INFO			129
+#define OPAL_XIVE_GET_IRQ_CONFIG		130
+#define OPAL_XIVE_SET_IRQ_CONFIG		131
+#define OPAL_XIVE_GET_QUEUE_INFO		132
+#define OPAL_XIVE_SET_QUEUE_INFO		133
+#define OPAL_XIVE_DONATE_PAGE			134
+#define OPAL_XIVE_ALLOCATE_VP_BLOCK		135
+#define OPAL_XIVE_FREE_VP_BLOCK			136
+#define OPAL_XIVE_GET_VP_INFO			137
+#define OPAL_XIVE_SET_VP_INFO			138
+#define OPAL_XIVE_ALLOCATE_IRQ			139
+#define OPAL_XIVE_FREE_IRQ			140
+#define OPAL_XIVE_SYNC				141
+#define OPAL_XIVE_DUMP				142
+#define OPAL_XIVE_RESERVED3			143
+#define OPAL_XIVE_RESERVED4			144
+#define OPAL_NPU_INIT_CONTEXT			146
+#define OPAL_NPU_DESTROY_CONTEXT		147
+#define OPAL_NPU_MAP_LPAR			148
+#define OPAL_IMC_COUNTERS_INIT			149
+#define OPAL_IMC_COUNTERS_START			150
+#define OPAL_IMC_COUNTERS_STOP			151
+#define OPAL_GET_POWERCAP			152
+#define OPAL_SET_POWERCAP			153
+#define OPAL_GET_POWER_SHIFT_RATIO		154
+#define OPAL_SET_POWER_SHIFT_RATIO		155
+#define OPAL_SENSOR_GROUP_CLEAR			156
+#define OPAL_PCI_SET_P2P			157
+#define OPAL_LAST				157
 
 /* Device tree flags */
 
@@ -644,12 +677,14 @@ enum {
 
 enum {
 	OPAL_PHB_ERROR_DATA_TYPE_P7IOC = 1,
-	OPAL_PHB_ERROR_DATA_TYPE_PHB3 = 2
+	OPAL_PHB_ERROR_DATA_TYPE_PHB3 = 2,
+	OPAL_PHB_ERROR_DATA_TYPE_PHB4 = 3
 };
 
 enum {
 	OPAL_P7IOC_NUM_PEST_REGS = 128,
-	OPAL_PHB3_NUM_PEST_REGS = 256
+	OPAL_PHB3_NUM_PEST_REGS = 256,
+	OPAL_PHB4_NUM_PEST_REGS = 512
 };
 
 struct OpalIoPhbErrorCommon {
@@ -779,9 +814,87 @@ struct OpalIoPhb3ErrorData {
 	__be64 pestB[OPAL_PHB3_NUM_PEST_REGS];
 };
 
+struct OpalIoPhb4ErrorData {
+	struct OpalIoPhbErrorCommon common;
+
+	__be32 brdgCtl;
+
+	/* PHB4 cfg regs */
+	__be32 deviceStatus;
+	__be32 slotStatus;
+	__be32 linkStatus;
+	__be32 devCmdStatus;
+	__be32 devSecStatus;
+
+	/* cfg AER regs */
+	__be32 rootErrorStatus;
+	__be32 uncorrErrorStatus;
+	__be32 corrErrorStatus;
+	__be32 tlpHdr1;
+	__be32 tlpHdr2;
+	__be32 tlpHdr3;
+	__be32 tlpHdr4;
+	__be32 sourceId;
+
+	/* PHB4 ETU Error Regs */
+	__be64 nFir;				/* 000 */
+	__be64 nFirMask;			/* 003 */
+	__be64 nFirWOF;				/* 008 */
+	__be64 phbPlssr;			/* 120 */
+	__be64 phbCsr;				/* 110 */
+	__be64 lemFir;				/* C00 */
+	__be64 lemErrorMask;			/* C18 */
+	__be64 lemWOF;				/* C40 */
+	__be64 phbErrorStatus;			/* C80 */
+	__be64 phbFirstErrorStatus;		/* C88 */
+	__be64 phbErrorLog0;			/* CC0 */
+	__be64 phbErrorLog1;			/* CC8 */
+	__be64 phbTxeErrorStatus;		/* D00 */
+	__be64 phbTxeFirstErrorStatus;		/* D08 */
+	__be64 phbTxeErrorLog0;			/* D40 */
+	__be64 phbTxeErrorLog1;			/* D48 */
+	__be64 phbRxeArbErrorStatus;		/* D80 */
+	__be64 phbRxeArbFirstErrorStatus;	/* D88 */
+	__be64 phbRxeArbErrorLog0;		/* DC0 */
+	__be64 phbRxeArbErrorLog1;		/* DC8 */
+	__be64 phbRxeMrgErrorStatus;		/* E00 */
+	__be64 phbRxeMrgFirstErrorStatus;	/* E08 */
+	__be64 phbRxeMrgErrorLog0;		/* E40 */
+	__be64 phbRxeMrgErrorLog1;		/* E48 */
+	__be64 phbRxeTceErrorStatus;		/* E80 */
+	__be64 phbRxeTceFirstErrorStatus;	/* E88 */
+	__be64 phbRxeTceErrorLog0;		/* EC0 */
+	__be64 phbRxeTceErrorLog1;		/* EC8 */
+
+	/* PHB4 REGB Error Regs */
+	__be64 phbPblErrorStatus;		/* 1900 */
+	__be64 phbPblFirstErrorStatus;		/* 1908 */
+	__be64 phbPblErrorLog0;			/* 1940 */
+	__be64 phbPblErrorLog1;			/* 1948 */
+	__be64 phbPcieDlpErrorLog1;		/* 1AA0 */
+	__be64 phbPcieDlpErrorLog2;		/* 1AA8 */
+	__be64 phbPcieDlpErrorStatus;		/* 1AB0 */
+	__be64 phbRegbErrorStatus;		/* 1C00 */
+	__be64 phbRegbFirstErrorStatus;		/* 1C08 */
+	__be64 phbRegbErrorLog0;		/* 1C40 */
+	__be64 phbRegbErrorLog1;		/* 1C48 */
+
+	__be64 pestA[OPAL_PHB4_NUM_PEST_REGS];
+	__be64 pestB[OPAL_PHB4_NUM_PEST_REGS];
+};
+
 enum {
 	OPAL_REINIT_CPUS_HILE_BE	= (1 << 0),
 	OPAL_REINIT_CPUS_HILE_LE	= (1 << 1),
+
+	/* These two define the base MMU mode of the host on P9
+	 *
+	 * On P9 Nimbus DD2.0 and Cumlus (and later), KVM can still
+	 * create hash guests in "radix" mode with care (full core
+	 * switch only).
+	 */
+	OPAL_REINIT_CPUS_MMU_HASH	= (1 << 2),
+	OPAL_REINIT_CPUS_MMU_RADIX	= (1 << 3),
 };
 
 typedef struct oppanel_line {
@@ -854,6 +967,7 @@ enum {
 	OPAL_PHB_CAPI_MODE_SNOOP_OFF    = 2,
 	OPAL_PHB_CAPI_MODE_SNOOP_ON	= 3,
 	OPAL_PHB_CAPI_MODE_DMA		= 4,
+	OPAL_PHB_CAPI_MODE_DMA_TVT1	= 5,
 };
 
 /* OPAL I2C request */
@@ -926,6 +1040,71 @@ enum {
 	OPAL_PCI_TCE_KILL_PE,
 	OPAL_PCI_TCE_KILL_ALL,
 };
+
+/* The xive operation mode indicates the active "API" and
+ * corresponds to the "mode" parameter of the opal_xive_reset()
+ * call
+ */
+enum {
+	OPAL_XIVE_MODE_EMU	= 0,
+	OPAL_XIVE_MODE_EXPL	= 1,
+};
+
+/* Flags for OPAL_XIVE_GET_IRQ_INFO */
+enum {
+	OPAL_XIVE_IRQ_TRIGGER_PAGE	= 0x00000001,
+	OPAL_XIVE_IRQ_STORE_EOI		= 0x00000002,
+	OPAL_XIVE_IRQ_LSI		= 0x00000004,
+	OPAL_XIVE_IRQ_SHIFT_BUG		= 0x00000008,
+	OPAL_XIVE_IRQ_MASK_VIA_FW	= 0x00000010,
+	OPAL_XIVE_IRQ_EOI_VIA_FW	= 0x00000020,
+};
+
+/* Flags for OPAL_XIVE_GET/SET_QUEUE_INFO */
+enum {
+	OPAL_XIVE_EQ_ENABLED		= 0x00000001,
+	OPAL_XIVE_EQ_ALWAYS_NOTIFY	= 0x00000002,
+	OPAL_XIVE_EQ_ESCALATE		= 0x00000004,
+};
+
+/* Flags for OPAL_XIVE_GET/SET_VP_INFO */
+enum {
+	OPAL_XIVE_VP_ENABLED		= 0x00000001,
+};
+
+/* "Any chip" replacement for chip ID for allocation functions */
+enum {
+	OPAL_XIVE_ANY_CHIP		= 0xffffffff,
+};
+
+/* Xive sync options */
+enum {
+	/* This bits are cumulative, arg is a girq */
+	XIVE_SYNC_EAS			= 0x00000001, /* Sync irq source */
+	XIVE_SYNC_QUEUE			= 0x00000002, /* Sync irq target */
+};
+
+/* Dump options */
+enum {
+	XIVE_DUMP_TM_HYP	= 0,
+	XIVE_DUMP_TM_POOL	= 1,
+	XIVE_DUMP_TM_OS		= 2,
+	XIVE_DUMP_TM_USER	= 3,
+	XIVE_DUMP_VP		= 4,
+	XIVE_DUMP_EMU_STATE	= 5,
+};
+
+/* "type" argument options for OPAL_IMC_COUNTERS_* calls */
+enum {
+	OPAL_IMC_COUNTERS_NEST = 1,
+	OPAL_IMC_COUNTERS_CORE = 2,
+};
+
+
+/* PCI p2p descriptor */
+#define OPAL_PCI_P2P_ENABLE		0x1
+#define OPAL_PCI_P2P_LOAD		0x2
+#define OPAL_PCI_P2P_STORE		0x4
 
 #endif /* __ASSEMBLY__ */
 

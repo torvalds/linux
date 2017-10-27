@@ -36,7 +36,7 @@ static unsigned int dbg_level;
 #include "../libcxgbi.h"
 
 #define	DRV_MODULE_NAME		"cxgb4i"
-#define DRV_MODULE_DESC		"Chelsio T4/T5 iSCSI Driver"
+#define DRV_MODULE_DESC		"Chelsio T4-T6 iSCSI Driver"
 #define	DRV_MODULE_VERSION	"0.9.5-ko"
 #define DRV_MODULE_RELDATE	"Apr. 2015"
 
@@ -103,6 +103,7 @@ static struct scsi_host_template cxgb4i_host_template = {
 	.sg_tablesize	= SG_ALL,
 	.max_sectors	= 0xFFFF,
 	.cmd_per_lun	= ISCSI_DEF_CMD_PER_LUN,
+	.eh_timed_out	= iscsi_eh_cmd_timed_out,
 	.eh_abort_handler = iscsi_eh_abort,
 	.eh_device_reset_handler = iscsi_eh_device_reset,
 	.eh_target_reset_handler = iscsi_eh_recover_target,
@@ -643,7 +644,7 @@ static inline void make_tx_data_wr(struct cxgbi_sock *csk, struct sk_buff *skb,
 	unsigned int wr_ulp_mode = 0, val;
 	bool imm = is_ofld_imm(skb);
 
-	req = (struct fw_ofld_tx_data_wr *)__skb_push(skb, sizeof(*req));
+	req = __skb_push(skb, sizeof(*req));
 
 	if (imm) {
 		req->op_to_immdlen = htonl(FW_WR_OP_V(FW_OFLD_TX_DATA_WR) |
@@ -805,7 +806,7 @@ static void do_act_establish(struct cxgbi_device *cdev, struct sk_buff *skb)
 
 	cxgbi_sock_get(csk);
 	csk->tid = tid;
-	cxgb4_insert_tid(lldi->tids, csk, tid);
+	cxgb4_insert_tid(lldi->tids, csk, tid, csk->csk_family);
 	cxgbi_sock_set_flag(csk, CTPF_HAS_TID);
 
 	free_atid(csk);
@@ -955,7 +956,8 @@ static void do_act_open_rpl(struct cxgbi_device *cdev, struct sk_buff *skb)
 	if (status && status != CPL_ERR_TCAM_FULL &&
 	    status != CPL_ERR_CONN_EXIST &&
 	    status != CPL_ERR_ARP_MISS)
-		cxgb4_remove_tid(lldi->tids, csk->port_id, GET_TID(rpl));
+		cxgb4_remove_tid(lldi->tids, csk->port_id, GET_TID(rpl),
+				 csk->csk_family);
 
 	cxgbi_sock_get(csk);
 	spin_lock_bh(&csk->lock);
@@ -1589,12 +1591,12 @@ static void release_offload_resources(struct cxgbi_sock *csk)
 		free_atid(csk);
 	else if (cxgbi_sock_flag(csk, CTPF_HAS_TID)) {
 		lldi = cxgbi_cdev_priv(csk->cdev);
-		cxgb4_remove_tid(lldi->tids, 0, csk->tid);
+		cxgb4_remove_tid(lldi->tids, 0, csk->tid,
+				 csk->csk_family);
 		cxgbi_sock_clear_flag(csk, CTPF_HAS_TID);
 		cxgbi_sock_put(csk);
 	}
 	csk->dst = NULL;
-	csk->cdev = NULL;
 }
 
 static int init_act_open(struct cxgbi_sock *csk)
@@ -1606,6 +1608,7 @@ static int init_act_open(struct cxgbi_sock *csk)
 	struct neighbour *n = NULL;
 	void *daddr;
 	unsigned int step;
+	unsigned int rxq_idx;
 	unsigned int size, size6;
 	unsigned int linkspeed;
 	unsigned int rcv_winf, snd_winf;
@@ -1631,6 +1634,9 @@ static int init_act_open(struct cxgbi_sock *csk)
 		pr_err("%s, can't get neighbour of csk->dst.\n", ndev->name);
 		goto rel_resource;
 	}
+
+	if (!(n->nud_state & NUD_VALID))
+		neigh_event_send(n, NULL);
 
 	csk->atid = cxgb4_alloc_atid(lldi->tids, csk);
 	if (csk->atid < 0) {
@@ -1684,7 +1690,9 @@ static int init_act_open(struct cxgbi_sock *csk)
 	step = lldi->ntxq / lldi->nchan;
 	csk->txq_idx = cxgb4_port_idx(ndev) * step;
 	step = lldi->nrxq / lldi->nchan;
-	csk->rss_qid = lldi->rxq_ids[cxgb4_port_idx(ndev) * step];
+	rxq_idx = (cxgb4_port_idx(ndev) * step) + (cdev->rxq_idx_cntr % step);
+	cdev->rxq_idx_cntr++;
+	csk->rss_qid = lldi->rxq_ids[rxq_idx];
 	linkspeed = ((struct port_info *)netdev_priv(ndev))->link_cfg.speed;
 	csk->snd_win = cxgb4i_snd_win;
 	csk->rcv_win = cxgb4i_rcv_win;

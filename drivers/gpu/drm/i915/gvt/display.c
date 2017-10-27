@@ -83,45 +83,87 @@ static int pipe_is_enabled(struct intel_vgpu *vgpu, int pipe)
 	return 0;
 }
 
+static unsigned char virtual_dp_monitor_edid[GVT_EDID_NUM][EDID_SIZE] = {
+	{
 /* EDID with 1024x768 as its resolution */
-static unsigned char virtual_dp_monitor_edid[] = {
-	/*Header*/
-	0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
-	/* Vendor & Product Identification */
-	0x22, 0xf0, 0x54, 0x29, 0x00, 0x00, 0x00, 0x00, 0x04, 0x17,
-	/* Version & Revision */
-	0x01, 0x04,
-	/* Basic Display Parameters & Features */
-	0xa5, 0x34, 0x20, 0x78, 0x23,
-	/* Color Characteristics */
-	0xfc, 0x81, 0xa4, 0x55, 0x4d, 0x9d, 0x25, 0x12, 0x50, 0x54,
-	/* Established Timings: maximum resolution is 1024x768 */
-	0x21, 0x08, 0x00,
-	/* Standard Timings. All invalid */
-	0x00, 0xc0, 0x00, 0xc0, 0x00, 0x40, 0x00, 0x80, 0x00, 0x00,
-	0x00, 0x40, 0x00, 0x00, 0x00, 0x01,
-	/* 18 Byte Data Blocks 1: invalid */
-	0x00, 0x00, 0x80, 0xa0, 0x70, 0xb0,
-	0x23, 0x40, 0x30, 0x20, 0x36, 0x00, 0x06, 0x44, 0x21, 0x00, 0x00, 0x1a,
-	/* 18 Byte Data Blocks 2: invalid */
-	0x00, 0x00, 0x00, 0xfd, 0x00, 0x18, 0x3c, 0x18, 0x50, 0x11, 0x00, 0x0a,
-	0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
-	/* 18 Byte Data Blocks 3: invalid */
-	0x00, 0x00, 0x00, 0xfc, 0x00, 0x48,
-	0x50, 0x20, 0x5a, 0x52, 0x32, 0x34, 0x34, 0x30, 0x77, 0x0a, 0x20, 0x20,
-	/* 18 Byte Data Blocks 4: invalid */
-	0x00, 0x00, 0x00, 0xff, 0x00, 0x43, 0x4e, 0x34, 0x33, 0x30, 0x34, 0x30,
-	0x44, 0x58, 0x51, 0x0a, 0x20, 0x20,
-	/* Extension Block Count */
-	0x00,
-	/* Checksum */
-	0xef,
+		/*Header*/
+		0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
+		/* Vendor & Product Identification */
+		0x22, 0xf0, 0x54, 0x29, 0x00, 0x00, 0x00, 0x00, 0x04, 0x17,
+		/* Version & Revision */
+		0x01, 0x04,
+		/* Basic Display Parameters & Features */
+		0xa5, 0x34, 0x20, 0x78, 0x23,
+		/* Color Characteristics */
+		0xfc, 0x81, 0xa4, 0x55, 0x4d, 0x9d, 0x25, 0x12, 0x50, 0x54,
+		/* Established Timings: maximum resolution is 1024x768 */
+		0x21, 0x08, 0x00,
+		/* Standard Timings. All invalid */
+		0x00, 0xc0, 0x00, 0xc0, 0x00, 0x40, 0x00, 0x80, 0x00, 0x00,
+		0x00, 0x40, 0x00, 0x00, 0x00, 0x01,
+		/* 18 Byte Data Blocks 1: invalid */
+		0x00, 0x00, 0x80, 0xa0, 0x70, 0xb0,
+		0x23, 0x40, 0x30, 0x20, 0x36, 0x00, 0x06, 0x44, 0x21, 0x00, 0x00, 0x1a,
+		/* 18 Byte Data Blocks 2: invalid */
+		0x00, 0x00, 0x00, 0xfd, 0x00, 0x18, 0x3c, 0x18, 0x50, 0x11, 0x00, 0x0a,
+		0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+		/* 18 Byte Data Blocks 3: invalid */
+		0x00, 0x00, 0x00, 0xfc, 0x00, 0x48,
+		0x50, 0x20, 0x5a, 0x52, 0x32, 0x34, 0x34, 0x30, 0x77, 0x0a, 0x20, 0x20,
+		/* 18 Byte Data Blocks 4: invalid */
+		0x00, 0x00, 0x00, 0xff, 0x00, 0x43, 0x4e, 0x34, 0x33, 0x30, 0x34, 0x30,
+		0x44, 0x58, 0x51, 0x0a, 0x20, 0x20,
+		/* Extension Block Count */
+		0x00,
+		/* Checksum */
+		0xef,
+	},
+	{
+/* EDID with 1920x1200 as its resolution */
+		/*Header*/
+		0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
+		/* Vendor & Product Identification */
+		0x22, 0xf0, 0x54, 0x29, 0x00, 0x00, 0x00, 0x00, 0x04, 0x17,
+		/* Version & Revision */
+		0x01, 0x04,
+		/* Basic Display Parameters & Features */
+		0xa5, 0x34, 0x20, 0x78, 0x23,
+		/* Color Characteristics */
+		0xfc, 0x81, 0xa4, 0x55, 0x4d, 0x9d, 0x25, 0x12, 0x50, 0x54,
+		/* Established Timings: maximum resolution is 1024x768 */
+		0x21, 0x08, 0x00,
+		/*
+		 * Standard Timings.
+		 * below new resolutions can be supported:
+		 * 1920x1080, 1280x720, 1280x960, 1280x1024,
+		 * 1440x900, 1600x1200, 1680x1050
+		 */
+		0xd1, 0xc0, 0x81, 0xc0, 0x81, 0x40, 0x81, 0x80, 0x95, 0x00,
+		0xa9, 0x40, 0xb3, 0x00, 0x01, 0x01,
+		/* 18 Byte Data Blocks 1: max resolution is 1920x1200 */
+		0x28, 0x3c, 0x80, 0xa0, 0x70, 0xb0,
+		0x23, 0x40, 0x30, 0x20, 0x36, 0x00, 0x06, 0x44, 0x21, 0x00, 0x00, 0x1a,
+		/* 18 Byte Data Blocks 2: invalid */
+		0x00, 0x00, 0x00, 0xfd, 0x00, 0x18, 0x3c, 0x18, 0x50, 0x11, 0x00, 0x0a,
+		0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+		/* 18 Byte Data Blocks 3: invalid */
+		0x00, 0x00, 0x00, 0xfc, 0x00, 0x48,
+		0x50, 0x20, 0x5a, 0x52, 0x32, 0x34, 0x34, 0x30, 0x77, 0x0a, 0x20, 0x20,
+		/* 18 Byte Data Blocks 4: invalid */
+		0x00, 0x00, 0x00, 0xff, 0x00, 0x43, 0x4e, 0x34, 0x33, 0x30, 0x34, 0x30,
+		0x44, 0x58, 0x51, 0x0a, 0x20, 0x20,
+		/* Extension Block Count */
+		0x00,
+		/* Checksum */
+		0x45,
+	},
 };
 
 #define DPCD_HEADER_SIZE        0xb
 
+/* let the virtual display supports DP1.2 */
 static u8 dpcd_fix_data[DPCD_HEADER_SIZE] = {
-	0x11, 0x0a, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	0x12, 0x014, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
 static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
@@ -131,20 +173,82 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 			SDE_PORTC_HOTPLUG_CPT |
 			SDE_PORTD_HOTPLUG_CPT);
 
-	if (IS_SKYLAKE(dev_priv))
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		vgpu_vreg(vgpu, SDEISR) &= ~(SDE_PORTA_HOTPLUG_SPT |
 				SDE_PORTE_HOTPLUG_SPT);
+		vgpu_vreg(vgpu, SKL_FUSE_STATUS) |=
+				SKL_FUSE_DOWNLOAD_STATUS |
+				SKL_FUSE_PG_DIST_STATUS(SKL_PG0) |
+				SKL_FUSE_PG_DIST_STATUS(SKL_PG1) |
+				SKL_FUSE_PG_DIST_STATUS(SKL_PG2);
+		vgpu_vreg(vgpu, LCPLL1_CTL) |=
+				LCPLL_PLL_ENABLE |
+				LCPLL_PLL_LOCK;
+		vgpu_vreg(vgpu, LCPLL2_CTL) |= LCPLL_PLL_ENABLE;
 
-	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_B))
+	}
+
+	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_B)) {
+		vgpu_vreg(vgpu, SFUSE_STRAP) |= SFUSE_STRAP_DDIB_DETECTED;
+		vgpu_vreg(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) &=
+			~(TRANS_DDI_BPC_MASK | TRANS_DDI_MODE_SELECT_MASK |
+			TRANS_DDI_PORT_MASK);
+		vgpu_vreg(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) |=
+			(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DP_SST |
+			(PORT_B << TRANS_DDI_PORT_SHIFT) |
+			TRANS_DDI_FUNC_ENABLE);
+		if (IS_BROADWELL(dev_priv)) {
+			vgpu_vreg(vgpu, PORT_CLK_SEL(PORT_B)) &=
+				~PORT_CLK_SEL_MASK;
+			vgpu_vreg(vgpu, PORT_CLK_SEL(PORT_B)) |=
+				PORT_CLK_SEL_LCPLL_810;
+		}
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_B)) |= DDI_BUF_CTL_ENABLE;
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_B)) &= ~DDI_BUF_IS_IDLE;
 		vgpu_vreg(vgpu, SDEISR) |= SDE_PORTB_HOTPLUG_CPT;
+	}
 
-	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_C))
+	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_C)) {
 		vgpu_vreg(vgpu, SDEISR) |= SDE_PORTC_HOTPLUG_CPT;
+		vgpu_vreg(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) &=
+			~(TRANS_DDI_BPC_MASK | TRANS_DDI_MODE_SELECT_MASK |
+			TRANS_DDI_PORT_MASK);
+		vgpu_vreg(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) |=
+			(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DP_SST |
+			(PORT_C << TRANS_DDI_PORT_SHIFT) |
+			TRANS_DDI_FUNC_ENABLE);
+		if (IS_BROADWELL(dev_priv)) {
+			vgpu_vreg(vgpu, PORT_CLK_SEL(PORT_C)) &=
+				~PORT_CLK_SEL_MASK;
+			vgpu_vreg(vgpu, PORT_CLK_SEL(PORT_C)) |=
+				PORT_CLK_SEL_LCPLL_810;
+		}
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_C)) |= DDI_BUF_CTL_ENABLE;
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_C)) &= ~DDI_BUF_IS_IDLE;
+		vgpu_vreg(vgpu, SFUSE_STRAP) |= SFUSE_STRAP_DDIC_DETECTED;
+	}
 
-	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_D))
+	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_D)) {
 		vgpu_vreg(vgpu, SDEISR) |= SDE_PORTD_HOTPLUG_CPT;
+		vgpu_vreg(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) &=
+			~(TRANS_DDI_BPC_MASK | TRANS_DDI_MODE_SELECT_MASK |
+			TRANS_DDI_PORT_MASK);
+		vgpu_vreg(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) |=
+			(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DP_SST |
+			(PORT_D << TRANS_DDI_PORT_SHIFT) |
+			TRANS_DDI_FUNC_ENABLE);
+		if (IS_BROADWELL(dev_priv)) {
+			vgpu_vreg(vgpu, PORT_CLK_SEL(PORT_D)) &=
+				~PORT_CLK_SEL_MASK;
+			vgpu_vreg(vgpu, PORT_CLK_SEL(PORT_D)) |=
+				PORT_CLK_SEL_LCPLL_810;
+		}
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_D)) |= DDI_BUF_CTL_ENABLE;
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_D)) &= ~DDI_BUF_IS_IDLE;
+		vgpu_vreg(vgpu, SFUSE_STRAP) |= SFUSE_STRAP_DDID_DETECTED;
+	}
 
-	if (IS_SKYLAKE(dev_priv) &&
+	if ((IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) &&
 			intel_vgpu_has_monitor_on_port(vgpu, PORT_E)) {
 		vgpu_vreg(vgpu, SDEISR) |= SDE_PORTE_HOTPLUG_SPT;
 	}
@@ -155,7 +259,13 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 				GEN8_PORT_DP_A_HOTPLUG;
 		else
 			vgpu_vreg(vgpu, SDEISR) |= SDE_PORTA_HOTPLUG_SPT;
+
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_A)) |= DDI_INIT_DISPLAY_DETECTED;
 	}
+
+	/* Clear host CRT status, so guest couldn't detect this host CRT. */
+	if (IS_BROADWELL(dev_priv))
+		vgpu_vreg(vgpu, PCH_ADPA) &= ~ADPA_CRT_HOTPLUG_MONITOR_MASK;
 }
 
 static void clean_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num)
@@ -170,9 +280,12 @@ static void clean_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num)
 }
 
 static int setup_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num,
-		int type)
+				    int type, unsigned int resolution)
 {
 	struct intel_vgpu_port *port = intel_vgpu_port(vgpu, port_num);
+
+	if (WARN_ON(resolution >= GVT_EDID_NUM))
+		return -EINVAL;
 
 	port->edid = kzalloc(sizeof(*(port->edid)), GFP_KERNEL);
 	if (!port->edid)
@@ -184,7 +297,7 @@ static int setup_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num,
 		return -ENOMEM;
 	}
 
-	memcpy(port->edid->edid_block, virtual_dp_monitor_edid,
+	memcpy(port->edid->edid_block, virtual_dp_monitor_edid[resolution],
 			EDID_SIZE);
 	port->edid->data_valid = true;
 
@@ -210,27 +323,27 @@ void intel_gvt_check_vblank_emulation(struct intel_gvt *gvt)
 {
 	struct intel_gvt_irq *irq = &gvt->irq;
 	struct intel_vgpu *vgpu;
-	bool have_enabled_pipe = false;
 	int pipe, id;
 
 	if (WARN_ON(!mutex_is_locked(&gvt->lock)))
 		return;
 
-	hrtimer_cancel(&irq->vblank_timer.timer);
-
 	for_each_active_vgpu(gvt, vgpu, id) {
 		for (pipe = 0; pipe < I915_MAX_PIPES; pipe++) {
-			have_enabled_pipe =
-				pipe_is_enabled(vgpu, pipe);
-			if (have_enabled_pipe)
-				break;
+			if (pipe_is_enabled(vgpu, pipe))
+				goto out;
 		}
 	}
 
-	if (have_enabled_pipe)
-		hrtimer_start(&irq->vblank_timer.timer,
-			ktime_add_ns(ktime_get(), irq->vblank_timer.period),
-			HRTIMER_MODE_ABS);
+	/* all the pipes are disabled */
+	hrtimer_cancel(&irq->vblank_timer.timer);
+	return;
+
+out:
+	hrtimer_start(&irq->vblank_timer.timer,
+		ktime_add_ns(ktime_get(), irq->vblank_timer.period),
+		HRTIMER_MODE_ABS);
+
 }
 
 static void emulate_vblank_on_pipe(struct intel_vgpu *vgpu, int pipe)
@@ -301,7 +414,7 @@ void intel_vgpu_clean_display(struct intel_vgpu *vgpu)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 
-	if (IS_SKYLAKE(dev_priv))
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		clean_virtual_dp_monitor(vgpu, PORT_D);
 	else
 		clean_virtual_dp_monitor(vgpu, PORT_B);
@@ -317,14 +430,28 @@ void intel_vgpu_clean_display(struct intel_vgpu *vgpu)
  * Zero on success, negative error code if failed.
  *
  */
-int intel_vgpu_init_display(struct intel_vgpu *vgpu)
+int intel_vgpu_init_display(struct intel_vgpu *vgpu, u64 resolution)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 
 	intel_vgpu_init_i2c_edid(vgpu);
 
-	if (IS_SKYLAKE(dev_priv))
-		return setup_virtual_dp_monitor(vgpu, PORT_D, GVT_DP_D);
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
+		return setup_virtual_dp_monitor(vgpu, PORT_D, GVT_DP_D,
+						resolution);
 	else
-		return setup_virtual_dp_monitor(vgpu, PORT_B, GVT_DP_B);
+		return setup_virtual_dp_monitor(vgpu, PORT_B, GVT_DP_B,
+						resolution);
+}
+
+/**
+ * intel_vgpu_reset_display- reset vGPU virtual display emulation
+ * @vgpu: a vGPU
+ *
+ * This function is used to reset vGPU virtual display emulation stuffs
+ *
+ */
+void intel_vgpu_reset_display(struct intel_vgpu *vgpu)
+{
+	emulate_monitor_status_change(vgpu);
 }

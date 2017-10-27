@@ -237,9 +237,9 @@ static int set_flow_attrs(u32 *match_c, u32 *match_v,
 	if ((fs->flow_type & FLOW_EXT) &&
 	    (fs->m_ext.vlan_tci & cpu_to_be16(VLAN_VID_MASK))) {
 		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c,
-			 vlan_tag, 1);
+			 cvlan_tag, 1);
 		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v,
-			 vlan_tag, 1);
+			 cvlan_tag, 1);
 		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c,
 			 first_vid, 0xfff);
 		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v,
@@ -276,7 +276,7 @@ static void add_rule_to_list(struct mlx5e_priv *priv,
 
 static bool outer_header_zero(u32 *match_criteria)
 {
-	int size = MLX5_ST_SZ_BYTES(fte_match_param);
+	int size = MLX5_FLD_SZ_BYTES(fte_match_param, outer_headers);
 	char *outer_headers_c = MLX5_ADDR_OF(fte_match_param, match_criteria,
 					     outer_headers);
 
@@ -296,7 +296,7 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 	struct mlx5_flow_handle *rule;
 	int err = 0;
 
-	spec = mlx5_vzalloc(sizeof(*spec));
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return ERR_PTR(-ENOMEM);
 	err = set_flow_attrs(spec->match_criteria, spec->match_value,
@@ -320,7 +320,7 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 
 	spec->match_criteria_enable = (!outer_header_zero(spec->match_criteria));
 	flow_act.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG;
-	rule = mlx5_add_flow_rules(ft, spec, &flow_act, dst, 1);
+	rule = mlx5_add_flow_rules(ft, spec, &flow_act, dst, dst ? 1 : 0);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		netdev_err(priv->netdev, "%s: failed to add ethtool steering rule: %d\n",
@@ -390,7 +390,7 @@ static int validate_flow(struct mlx5e_priv *priv,
 	if (fs->location >= MAX_NUM_OF_ETHTOOL_RULES)
 		return -EINVAL;
 
-	if (fs->ring_cookie >= priv->params.num_channels &&
+	if (fs->ring_cookie >= priv->channels.params.num_channels &&
 	    fs->ring_cookie != RX_CLS_FLOW_DISC)
 		return -EINVAL;
 
@@ -564,6 +564,7 @@ int mlx5e_ethtool_get_all_flows(struct mlx5e_priv *priv, struct ethtool_rxnfc *i
 	int idx = 0;
 	int err = 0;
 
+	info->data = MAX_NUM_OF_ETHTOOL_RULES;
 	while ((!err || err == -ENOENT) && idx < info->rule_cnt) {
 		err = mlx5e_ethtool_get_flow(priv, info, location);
 		if (!err)

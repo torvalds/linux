@@ -123,7 +123,7 @@
 #define DTSEC_ECNTRL_R100M		0x00000008
 #define DTSEC_ECNTRL_QSGMIIM		0x00000001
 
-#define DTSEC_TCTRL_GTS			0x00000020
+#define TCTRL_GTS			0x00000020
 
 #define RCTRL_PAL_MASK			0x001f0000
 #define RCTRL_PAL_SHIFT			16
@@ -337,7 +337,7 @@ struct fman_mac {
 	u8 mac_id;
 	u32 exceptions;
 	bool ptp_tsu_enabled;
-	bool en_tsu_err_exeption;
+	bool en_tsu_err_exception;
 	struct dtsec_cfg *dtsec_drv_param;
 	void *fm;
 	struct fman_rev_info fm_rev_info;
@@ -381,6 +381,9 @@ static int init(struct dtsec_regs __iomem *regs, struct dtsec_cfg *cfg,
 
 	/* check RGMII support */
 	if (iface == PHY_INTERFACE_MODE_RGMII ||
+	    iface == PHY_INTERFACE_MODE_RGMII_ID ||
+	    iface == PHY_INTERFACE_MODE_RGMII_RXID ||
+	    iface == PHY_INTERFACE_MODE_RGMII_TXID ||
 	    iface == PHY_INTERFACE_MODE_RMII)
 		if (tmp & DTSEC_ID2_INT_REDUCED_OFF)
 			return -EINVAL;
@@ -390,7 +393,10 @@ static int init(struct dtsec_regs __iomem *regs, struct dtsec_cfg *cfg,
 		if (tmp & DTSEC_ID2_INT_REDUCED_OFF)
 			return -EINVAL;
 
-	is_rgmii = iface == PHY_INTERFACE_MODE_RGMII;
+	is_rgmii = iface == PHY_INTERFACE_MODE_RGMII ||
+		   iface == PHY_INTERFACE_MODE_RGMII_ID ||
+		   iface == PHY_INTERFACE_MODE_RGMII_RXID ||
+		   iface == PHY_INTERFACE_MODE_RGMII_TXID;
 	is_sgmii = iface == PHY_INTERFACE_MODE_SGMII;
 	is_qsgmii = iface == PHY_INTERFACE_MODE_QSGMII;
 
@@ -857,6 +863,52 @@ int dtsec_cfg_pad_and_crc(struct fman_mac *dtsec, bool new_val)
 	return 0;
 }
 
+static void graceful_start(struct fman_mac *dtsec, enum comm_mode mode)
+{
+	struct dtsec_regs __iomem *regs = dtsec->regs;
+
+	if (mode & COMM_MODE_TX)
+		iowrite32be(ioread32be(&regs->tctrl) &
+				~TCTRL_GTS, &regs->tctrl);
+	if (mode & COMM_MODE_RX)
+		iowrite32be(ioread32be(&regs->rctrl) &
+				~RCTRL_GRS, &regs->rctrl);
+}
+
+static void graceful_stop(struct fman_mac *dtsec, enum comm_mode mode)
+{
+	struct dtsec_regs __iomem *regs = dtsec->regs;
+	u32 tmp;
+
+	/* Graceful stop - Assert the graceful Rx stop bit */
+	if (mode & COMM_MODE_RX) {
+		tmp = ioread32be(&regs->rctrl) | RCTRL_GRS;
+		iowrite32be(tmp, &regs->rctrl);
+
+		if (dtsec->fm_rev_info.major == 2) {
+			/* Workaround for dTSEC Errata A002 */
+			usleep_range(100, 200);
+		} else {
+			/* Workaround for dTSEC Errata A004839 */
+			usleep_range(10, 50);
+		}
+	}
+
+	/* Graceful stop - Assert the graceful Tx stop bit */
+	if (mode & COMM_MODE_TX) {
+		if (dtsec->fm_rev_info.major == 2) {
+			/* dTSEC Errata A004: Do not use TCTRL[GTS]=1 */
+			pr_debug("GTS not supported due to DTSEC_A004 Errata.\n");
+		} else {
+			tmp = ioread32be(&regs->tctrl) | TCTRL_GTS;
+			iowrite32be(tmp, &regs->tctrl);
+
+			/* Workaround for dTSEC Errata A0012, A0014 */
+			usleep_range(10, 50);
+		}
+	}
+}
+
 int dtsec_enable(struct fman_mac *dtsec, enum comm_mode mode)
 {
 	struct dtsec_regs __iomem *regs = dtsec->regs;
@@ -874,13 +926,8 @@ int dtsec_enable(struct fman_mac *dtsec, enum comm_mode mode)
 
 	iowrite32be(tmp, &regs->maccfg1);
 
-	/* Graceful start - clear the graceful receive stop bit */
-	if (mode & COMM_MODE_TX)
-		iowrite32be(ioread32be(&regs->tctrl) & ~DTSEC_TCTRL_GTS,
-			    &regs->tctrl);
-	if (mode & COMM_MODE_RX)
-		iowrite32be(ioread32be(&regs->rctrl) & ~RCTRL_GRS,
-			    &regs->rctrl);
+	/* Graceful start - clear the graceful Rx/Tx stop bit */
+	graceful_start(dtsec, mode);
 
 	return 0;
 }
@@ -893,23 +940,8 @@ int dtsec_disable(struct fman_mac *dtsec, enum comm_mode mode)
 	if (!is_init_done(dtsec->dtsec_drv_param))
 		return -EINVAL;
 
-	/* Gracefull stop - Assert the graceful transmit stop bit */
-	if (mode & COMM_MODE_RX) {
-		tmp = ioread32be(&regs->rctrl) | RCTRL_GRS;
-		iowrite32be(tmp, &regs->rctrl);
-
-		if (dtsec->fm_rev_info.major == 2)
-			usleep_range(100, 200);
-		else
-			udelay(10);
-	}
-
-	if (mode & COMM_MODE_TX) {
-		if (dtsec->fm_rev_info.major == 2)
-			pr_debug("GTS not supported due to DTSEC_A004 errata.\n");
-		else
-			pr_debug("GTS not supported due to DTSEC_A0014 errata.\n");
-	}
+	/* Graceful stop - Assert the graceful Rx/Tx stop bit */
+	graceful_stop(dtsec, mode);
 
 	tmp = ioread32be(&regs->maccfg1);
 	if (mode & COMM_MODE_RX)
@@ -927,10 +959,18 @@ int dtsec_set_tx_pause_frames(struct fman_mac *dtsec,
 			      u16 pause_time, u16 __maybe_unused thresh_time)
 {
 	struct dtsec_regs __iomem *regs = dtsec->regs;
+	enum comm_mode mode = COMM_MODE_NONE;
 	u32 ptv = 0;
 
 	if (!is_init_done(dtsec->dtsec_drv_param))
 		return -EINVAL;
+
+	if ((ioread32be(&regs->rctrl) & RCTRL_GRS) == 0)
+		mode |= COMM_MODE_RX;
+	if ((ioread32be(&regs->tctrl) & TCTRL_GTS) == 0)
+		mode |= COMM_MODE_TX;
+
+	graceful_stop(dtsec, mode);
 
 	if (pause_time) {
 		/* FM_BAD_TX_TS_IN_B_2_B_ERRATA_DTSEC_A003 Errata workaround */
@@ -952,16 +992,26 @@ int dtsec_set_tx_pause_frames(struct fman_mac *dtsec,
 		iowrite32be(ioread32be(&regs->maccfg1) & ~MACCFG1_TX_FLOW,
 			    &regs->maccfg1);
 
+	graceful_start(dtsec, mode);
+
 	return 0;
 }
 
 int dtsec_accept_rx_pause_frames(struct fman_mac *dtsec, bool en)
 {
 	struct dtsec_regs __iomem *regs = dtsec->regs;
+	enum comm_mode mode = COMM_MODE_NONE;
 	u32 tmp;
 
 	if (!is_init_done(dtsec->dtsec_drv_param))
 		return -EINVAL;
+
+	if ((ioread32be(&regs->rctrl) & RCTRL_GRS) == 0)
+		mode |= COMM_MODE_RX;
+	if ((ioread32be(&regs->tctrl) & TCTRL_GTS) == 0)
+		mode |= COMM_MODE_TX;
+
+	graceful_stop(dtsec, mode);
 
 	tmp = ioread32be(&regs->maccfg1);
 	if (en)
@@ -970,19 +1020,33 @@ int dtsec_accept_rx_pause_frames(struct fman_mac *dtsec, bool en)
 		tmp &= ~MACCFG1_RX_FLOW;
 	iowrite32be(tmp, &regs->maccfg1);
 
+	graceful_start(dtsec, mode);
+
 	return 0;
 }
 
 int dtsec_modify_mac_address(struct fman_mac *dtsec, enet_addr_t *enet_addr)
 {
+	struct dtsec_regs __iomem *regs = dtsec->regs;
+	enum comm_mode mode = COMM_MODE_NONE;
+
 	if (!is_init_done(dtsec->dtsec_drv_param))
 		return -EINVAL;
+
+	if ((ioread32be(&regs->rctrl) & RCTRL_GRS) == 0)
+		mode |= COMM_MODE_RX;
+	if ((ioread32be(&regs->tctrl) & TCTRL_GTS) == 0)
+		mode |= COMM_MODE_TX;
+
+	graceful_stop(dtsec, mode);
 
 	/* Initialize MAC Station Address registers (1 & 2)
 	 * Station address have to be swapped (big endian to little endian
 	 */
 	dtsec->addr = ENET_ADDR_TO_UINT64(*enet_addr);
 	set_mac_address(dtsec->regs, (u8 *)(*enet_addr));
+
+	graceful_start(dtsec, mode);
 
 	return 0;
 }
@@ -1156,10 +1220,18 @@ int dtsec_set_promiscuous(struct fman_mac *dtsec, bool new_val)
 int dtsec_adjust_link(struct fman_mac *dtsec, u16 speed)
 {
 	struct dtsec_regs __iomem *regs = dtsec->regs;
+	enum comm_mode mode = COMM_MODE_NONE;
 	u32 tmp;
 
 	if (!is_init_done(dtsec->dtsec_drv_param))
 		return -EINVAL;
+
+	if ((ioread32be(&regs->rctrl) & RCTRL_GRS) == 0)
+		mode |= COMM_MODE_RX;
+	if ((ioread32be(&regs->tctrl) & TCTRL_GTS) == 0)
+		mode |= COMM_MODE_TX;
+
+	graceful_stop(dtsec, mode);
 
 	tmp = ioread32be(&regs->maccfg2);
 
@@ -1179,6 +1251,8 @@ int dtsec_adjust_link(struct fman_mac *dtsec, u16 speed)
 	else
 		tmp &= ~DTSEC_ECNTRL_R100M;
 	iowrite32be(tmp, &regs->ecntrl);
+
+	graceful_start(dtsec, mode);
 
 	return 0;
 }
@@ -1247,12 +1321,12 @@ int dtsec_set_exception(struct fman_mac *dtsec,
 		switch (exception) {
 		case FM_MAC_EX_1G_1588_TS_RX_ERR:
 			if (enable) {
-				dtsec->en_tsu_err_exeption = true;
+				dtsec->en_tsu_err_exception = true;
 				iowrite32be(ioread32be(&regs->tmr_pemask) |
 					    TMR_PEMASK_TSREEN,
 					    &regs->tmr_pemask);
 			} else {
-				dtsec->en_tsu_err_exeption = false;
+				dtsec->en_tsu_err_exception = false;
 				iowrite32be(ioread32be(&regs->tmr_pemask) &
 					    ~TMR_PEMASK_TSREEN,
 					    &regs->tmr_pemask);
@@ -1420,7 +1494,7 @@ struct fman_mac *dtsec_config(struct fman_mac_params *params)
 	dtsec->event_cb = params->event_cb;
 	dtsec->dev_id = params->dev_id;
 	dtsec->ptp_tsu_enabled = dtsec->dtsec_drv_param->ptp_tsu_en;
-	dtsec->en_tsu_err_exeption = dtsec->dtsec_drv_param->ptp_exception_en;
+	dtsec->en_tsu_err_exception = dtsec->dtsec_drv_param->ptp_exception_en;
 
 	dtsec->fm = params->fm;
 	dtsec->basex_if = params->basex_if;

@@ -34,15 +34,16 @@ static int sunxi_reset_assert(struct reset_controller_dev *rcdev,
 	struct sunxi_reset_data *data = container_of(rcdev,
 						     struct sunxi_reset_data,
 						     rcdev);
-	int bank = id / BITS_PER_LONG;
-	int offset = id % BITS_PER_LONG;
+	int reg_width = sizeof(u32);
+	int bank = id / (reg_width * BITS_PER_BYTE);
+	int offset = id % (reg_width * BITS_PER_BYTE);
 	unsigned long flags;
 	u32 reg;
 
 	spin_lock_irqsave(&data->lock, flags);
 
-	reg = readl(data->membase + (bank * 4));
-	writel(reg & ~BIT(offset), data->membase + (bank * 4));
+	reg = readl(data->membase + (bank * reg_width));
+	writel(reg & ~BIT(offset), data->membase + (bank * reg_width));
 
 	spin_unlock_irqrestore(&data->lock, flags);
 
@@ -55,15 +56,16 @@ static int sunxi_reset_deassert(struct reset_controller_dev *rcdev,
 	struct sunxi_reset_data *data = container_of(rcdev,
 						     struct sunxi_reset_data,
 						     rcdev);
-	int bank = id / BITS_PER_LONG;
-	int offset = id % BITS_PER_LONG;
+	int reg_width = sizeof(u32);
+	int bank = id / (reg_width * BITS_PER_BYTE);
+	int offset = id % (reg_width * BITS_PER_BYTE);
 	unsigned long flags;
 	u32 reg;
 
 	spin_lock_irqsave(&data->lock, flags);
 
-	reg = readl(data->membase + (bank * 4));
-	writel(reg | BIT(offset), data->membase + (bank * 4));
+	reg = readl(data->membase + (bank * reg_width));
+	writel(reg | BIT(offset), data->membase + (bank * reg_width));
 
 	spin_unlock_irqrestore(&data->lock, flags);
 
@@ -105,7 +107,7 @@ static int sunxi_reset_init(struct device_node *np)
 	spin_lock_init(&data->lock);
 
 	data->rcdev.owner = THIS_MODULE;
-	data->rcdev.nr_resets = size * 32;
+	data->rcdev.nr_resets = size * 8;
 	data->rcdev.ops = &sunxi_reset_ops;
 	data->rcdev.of_node = np;
 
@@ -160,7 +162,7 @@ static int sunxi_reset_probe(struct platform_device *pdev)
 	spin_lock_init(&data->lock);
 
 	data->rcdev.owner = THIS_MODULE;
-	data->rcdev.nr_resets = resource_size(res) * 32;
+	data->rcdev.nr_resets = resource_size(res) * 8;
 	data->rcdev.ops = &sunxi_reset_ops;
 	data->rcdev.of_node = pdev->dev.of_node;
 

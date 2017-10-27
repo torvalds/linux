@@ -249,9 +249,9 @@ static const struct ethtool_ops sr9700_ethtool_ops = {
 	.set_msglevel	= usbnet_set_msglevel,
 	.get_eeprom_len	= sr9700_get_eeprom_len,
 	.get_eeprom	= sr9700_get_eeprom,
-	.get_settings	= usbnet_get_settings,
-	.set_settings	= usbnet_set_settings,
 	.nway_reset	= usbnet_nway_reset,
+	.get_link_ksettings	= usbnet_get_link_ksettings,
+	.set_link_ksettings	= usbnet_set_link_ksettings,
 };
 
 static void sr9700_set_multicast(struct net_device *netdev)
@@ -308,6 +308,7 @@ static const struct net_device_ops sr9700_netdev_ops = {
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
 	.ndo_change_mtu		= usbnet_change_mtu,
+	.ndo_get_stats64	= usbnet_get_stats64,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= sr9700_ioctl,
 	.ndo_set_rx_mode	= sr9700_set_multicast,
@@ -456,14 +457,9 @@ static struct sk_buff *sr9700_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 
 	len = skb->len;
 
-	if (skb_headroom(skb) < SR_TX_OVERHEAD) {
-		struct sk_buff *skb2;
-
-		skb2 = skb_copy_expand(skb, SR_TX_OVERHEAD, 0, flags);
+	if (skb_cow_head(skb, SR_TX_OVERHEAD)) {
 		dev_kfree_skb_any(skb);
-		skb = skb2;
-		if (!skb)
-			return NULL;
+		return NULL;
 	}
 
 	__skb_push(skb, SR_TX_OVERHEAD);

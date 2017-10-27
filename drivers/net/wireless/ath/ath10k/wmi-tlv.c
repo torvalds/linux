@@ -1105,8 +1105,10 @@ static int ath10k_wmi_tlv_op_pull_fw_stats(struct ath10k *ar,
 		struct ath10k_fw_stats_pdev *dst;
 
 		src = data;
-		if (data_len < sizeof(*src))
+		if (data_len < sizeof(*src)) {
+			kfree(tb);
 			return -EPROTO;
+		}
 
 		data += sizeof(*src);
 		data_len -= sizeof(*src);
@@ -1126,8 +1128,10 @@ static int ath10k_wmi_tlv_op_pull_fw_stats(struct ath10k *ar,
 		struct ath10k_fw_stats_vdev *dst;
 
 		src = data;
-		if (data_len < sizeof(*src))
+		if (data_len < sizeof(*src)) {
+			kfree(tb);
 			return -EPROTO;
+		}
 
 		data += sizeof(*src);
 		data_len -= sizeof(*src);
@@ -1145,8 +1149,10 @@ static int ath10k_wmi_tlv_op_pull_fw_stats(struct ath10k *ar,
 		struct ath10k_fw_stats_peer *dst;
 
 		src = data;
-		if (data_len < sizeof(*src))
+		if (data_len < sizeof(*src)) {
+			kfree(tb);
 			return -EPROTO;
+		}
 
 		data += sizeof(*src);
 		data_len -= sizeof(*src);
@@ -2016,7 +2022,7 @@ ath10k_wmi_tlv_op_gen_sta_keepalive(struct ath10k *ar,
 	arp->dest_ip4_addr = arg->dest_ip4_addr;
 	ether_addr_copy(arp->dest_mac_addr.addr, arg->dest_mac_addr);
 
-	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv sta keepalive vdev %d enabled %d method %d inverval %d\n",
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv sta keepalive vdev %d enabled %d method %d interval %d\n",
 		   arg->vdev_id, arg->enabled, arg->method, arg->interval);
 	return skb;
 }
@@ -3631,6 +3637,7 @@ static const struct wmi_peer_flags_map wmi_tlv_peer_flags_map = {
 	.vht = WMI_TLV_PEER_VHT,
 	.bw80 = WMI_TLV_PEER_80MHZ,
 	.pmf = WMI_TLV_PEER_PMF,
+	.bw160 = WMI_TLV_PEER_160MHZ,
 };
 
 /************/

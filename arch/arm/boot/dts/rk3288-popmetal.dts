@@ -50,7 +50,7 @@
 
 	memory@0 {
 		device_type = "memory";
-		reg = <0 0x80000000>;
+		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
 	ext_gmac: external-gmac-clock {
@@ -150,7 +150,6 @@
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 	non-removable;
-	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_pwr &emmc_bus8>;
 	vmmc-supply = <&vcc_io>;
@@ -164,7 +163,6 @@
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
 	disable-wp;                     /* wp not hooked up */
-	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
 	sd-uhs-sdr12;
@@ -180,7 +178,7 @@
 	phy-supply = <&vcc_lan>;
 	phy-mode = "rgmii";
 	clock_in_out = "input";
-	snps,reset-gpio = <&gpio4 RK_PB0 0>;
+	snps,reset-gpio = <&gpio4 RK_PB0 GPIO_ACTIVE_HIGH>;
 	snps,reset-active-low;
 	snps,reset-delays-us = <0 10000 1000000>;
 	assigned-clocks = <&cru SCLK_MAC>;
@@ -205,7 +203,7 @@
 		compatible = "rockchip,rk808";
 		reg = <0x1b>;
 		interrupt-parent = <&gpio0>;
-		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PA4 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int &global_pwroff>;
 		rockchip,system-power-controller;
@@ -390,7 +388,7 @@
 		compatible = "asahi-kasei,ak8975";
 		reg = <0x0d>;
 		interrupt-parent = <&gpio8>;
-		interrupts = <1 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <RK_PA1 IRQ_TYPE_EDGE_RISING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&comp_int>;
 		vdd-supply = <&vcc_io>;
@@ -409,7 +407,7 @@
 		compatible = "fsl,mma8452";
 		reg = <0x1d>;
 		interrupt-parent = <&gpio8>;
-		interrupts = <0 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <RK_PA0 IRQ_TYPE_EDGE_RISING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&gsensor_int>;
 	};

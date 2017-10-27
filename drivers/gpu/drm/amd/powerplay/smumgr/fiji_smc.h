@@ -46,6 +46,8 @@ uint32_t fiji_get_mac_definition(uint32_t value);
 int fiji_process_firmware_header(struct pp_hwmgr *hwmgr);
 int fiji_initialize_mc_reg_table(struct pp_hwmgr *hwmgr);
 bool fiji_is_dpm_running(struct pp_hwmgr *hwmgr);
-
+int fiji_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
+		struct amd_pp_profile *request);
+int fiji_thermal_avfs_enable(struct pp_hwmgr *hwmgr);
 #endif
 

@@ -35,6 +35,7 @@
 #include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_graph.h>
 #include <linux/hdmi.h>
 #include <linux/component.h>
 #include <linux/mfd/syscon.h>
@@ -42,7 +43,8 @@
 
 #include <drm/exynos_drm.h>
 
-#include "exynos_drm_drv.h"
+#include <media/cec-notifier.h>
+
 #include "exynos_drm_crtc.h"
 
 #define HOTPLUG_DEBOUNCE_MS		1100
@@ -118,6 +120,7 @@ struct hdmi_context {
 	bool				dvi_mode;
 	struct delayed_work		hotplug_work;
 	struct drm_display_mode		current_mode;
+	struct cec_notifier		*notifier;
 	const struct hdmi_driver_data	*drv_data;
 
 	void __iomem			*regs;
@@ -133,6 +136,7 @@ struct hdmi_context {
 	struct regulator_bulk_data	regul_bulk[ARRAY_SIZE(supply)];
 	struct regulator		*reg_hdmi_en;
 	struct exynos_drm_clk		phy_clk;
+	struct drm_bridge		*bridge;
 };
 
 static inline struct hdmi_context *encoder_to_hdmi(struct drm_encoder *e)
@@ -509,9 +513,9 @@ static const struct hdmiphy_config hdmiphy_5433_configs[] = {
 	{
 		.pixel_clock = 27000000,
 		.conf = {
-			0x01, 0x51, 0x22, 0x51, 0x08, 0xfc, 0x88, 0x46,
-			0x72, 0x50, 0x24, 0x0c, 0x24, 0x0f, 0x7c, 0xa5,
-			0xd4, 0x2b, 0x87, 0x00, 0x00, 0x04, 0x00, 0x30,
+			0x01, 0x51, 0x2d, 0x75, 0x01, 0x00, 0x88, 0x02,
+			0x72, 0x50, 0x44, 0x8c, 0x27, 0x00, 0x7c, 0xac,
+			0xd6, 0x2b, 0x67, 0x00, 0x00, 0x04, 0x00, 0x30,
 			0x08, 0x10, 0x01, 0x01, 0x48, 0x40, 0x00, 0x40,
 		},
 	},
@@ -519,9 +523,9 @@ static const struct hdmiphy_config hdmiphy_5433_configs[] = {
 		.pixel_clock = 27027000,
 		.conf = {
 			0x01, 0x51, 0x2d, 0x72, 0x64, 0x09, 0x88, 0xc3,
-			0x71, 0x50, 0x24, 0x14, 0x24, 0x0f, 0x7c, 0xa5,
-			0xd4, 0x2b, 0x87, 0x00, 0x00, 0x04, 0x00, 0x30,
-			0x28, 0x10, 0x01, 0x01, 0x48, 0x40, 0x00, 0x40,
+			0x71, 0x50, 0x44, 0x8c, 0x27, 0x00, 0x7c, 0xac,
+			0xd6, 0x2b, 0x67, 0x00, 0x00, 0x04, 0x00, 0x30,
+			0x08, 0x10, 0x01, 0x01, 0x48, 0x40, 0x00, 0x40,
 		},
 	},
 	{
@@ -585,6 +589,15 @@ static const struct hdmiphy_config hdmiphy_5433_configs[] = {
 			0x52, 0x52, 0x24, 0x0c, 0x24, 0x0f, 0x7c, 0xa5,
 			0xd4, 0x2b, 0x87, 0x00, 0x00, 0x04, 0x00, 0x30,
 			0x08, 0x10, 0x01, 0x01, 0x48, 0x4a, 0x00, 0x40,
+		},
+	},
+	{
+		.pixel_clock = 297000000,
+		.conf = {
+			0x01, 0x51, 0x3E, 0x05, 0x40, 0xF0, 0x88, 0xC2,
+			0x52, 0x53, 0x44, 0x8C, 0x27, 0x00, 0x7C, 0xAC,
+			0xD6, 0x2B, 0x67, 0x00, 0x00, 0x04, 0x00, 0x30,
+			0x08, 0x10, 0x01, 0x01, 0x48, 0x40, 0x00, 0x40,
 		},
 	},
 };
@@ -771,7 +784,7 @@ static void hdmi_reg_infoframes(struct hdmi_context *hdata)
 	}
 
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frm.avi,
-			&hdata->current_mode);
+			&hdata->current_mode, false);
 	if (!ret)
 		ret = hdmi_avi_infoframe_pack(&frm.avi, buf, sizeof(buf));
 	if (ret > 0) {
@@ -788,7 +801,8 @@ static void hdmi_reg_infoframes(struct hdmi_context *hdata)
 				sizeof(buf));
 	if (ret > 0) {
 		hdmi_reg_writeb(hdata, HDMI_VSI_CON, HDMI_VSI_CON_EVERY_VSYNC);
-		hdmi_reg_write_buf(hdata, HDMI_VSI_HEADER0, buf, ret);
+		hdmi_reg_write_buf(hdata, HDMI_VSI_HEADER0, buf, 3);
+		hdmi_reg_write_buf(hdata, HDMI_VSI_DATA(0), buf + 3, ret - 3);
 	}
 
 	ret = hdmi_audio_infoframe_init(&frm.audio);
@@ -810,6 +824,7 @@ static enum drm_connector_status hdmi_detect(struct drm_connector *connector,
 	if (gpiod_get_value(hdata->hpd_gpio))
 		return connector_status_connected;
 
+	cec_notifier_set_phys_addr(hdata->notifier, CEC_PHYS_ADDR_INVALID);
 	return connector_status_disconnected;
 }
 
@@ -820,7 +835,6 @@ static void hdmi_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs hdmi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = hdmi_detect,
 	.destroy = hdmi_connector_destroy,
@@ -848,6 +862,7 @@ static int hdmi_get_modes(struct drm_connector *connector)
 		edid->width_cm, edid->height_cm);
 
 	drm_mode_connector_update_edid_property(connector, edid);
+	cec_notifier_set_phys_addr_from_edid(hdata->notifier, edid);
 
 	ret = drm_add_edid_modes(connector, edid);
 
@@ -909,10 +924,17 @@ static int hdmi_create_connector(struct drm_encoder *encoder)
 	}
 
 	drm_connector_helper_add(connector, &hdmi_connector_helper_funcs);
-	drm_connector_register(connector);
 	drm_mode_connector_attach_encoder(connector, encoder);
 
-	return 0;
+	if (hdata->bridge) {
+		encoder->bridge = hdata->bridge;
+		hdata->bridge->encoder = encoder;
+		ret = drm_bridge_attach(encoder, hdata->bridge, NULL);
+		if (ret)
+			DRM_ERROR("Failed to attach bridge\n");
+	}
+
+	return ret;
 }
 
 static bool hdmi_mode_fixup(struct drm_encoder *encoder,
@@ -922,22 +944,27 @@ static bool hdmi_mode_fixup(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct drm_connector *connector;
 	struct drm_display_mode *m;
+	struct drm_connector_list_iter conn_iter;
 	int mode_ok;
 
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->encoder == encoder)
 			break;
 	}
+	if (connector)
+		drm_connector_get(connector);
+	drm_connector_list_iter_end(&conn_iter);
 
-	if (connector->encoder != encoder)
+	if (!connector)
 		return true;
 
 	mode_ok = hdmi_mode_valid(connector, adjusted_mode);
 
 	if (mode_ok == MODE_OK)
-		return true;
+		goto cleanup;
 
 	/*
 	 * Find the most suitable mode and copy it to adjusted_mode.
@@ -956,6 +983,9 @@ static bool hdmi_mode_fixup(struct drm_encoder *encoder,
 			break;
 		}
 	}
+
+cleanup:
+	drm_connector_put(connector);
 
 	return true;
 }
@@ -1463,8 +1493,6 @@ static void hdmi_enable(struct drm_encoder *encoder)
 static void hdmi_disable(struct drm_encoder *encoder)
 {
 	struct hdmi_context *hdata = encoder_to_hdmi(encoder);
-	struct drm_crtc *crtc = encoder->crtc;
-	const struct drm_crtc_helper_funcs *funcs = NULL;
 
 	if (!hdata->powered)
 		return;
@@ -1475,17 +1503,11 @@ static void hdmi_disable(struct drm_encoder *encoder)
 	 * to disable TV Subsystem should be as following,
 	 *	VP -> Mixer -> HDMI
 	 *
-	 * Below codes will try to disable Mixer and VP(if used)
-	 * prior to disabling HDMI.
+	 * To achieve such sequence HDMI is disabled together with HDMI PHY, via
+	 * pipe clock callback.
 	 */
-	if (crtc)
-		funcs = crtc->helper_private;
-	if (funcs && funcs->disable)
-		(*funcs->disable)(crtc);
-
 	cancel_delayed_work(&hdata->hotplug_work);
-
-	hdmiphy_disable(hdata);
+	cec_notifier_set_phys_addr(hdata->notifier, CEC_PHYS_ADDR_INVALID);
 }
 
 static const struct drm_encoder_helper_funcs exynos_hdmi_encoder_helper_funcs = {
@@ -1581,6 +1603,31 @@ static void hdmiphy_clk_enable(struct exynos_drm_clk *clk, bool enable)
 		hdmiphy_disable(hdata);
 }
 
+static int hdmi_bridge_init(struct hdmi_context *hdata)
+{
+	struct device *dev = hdata->dev;
+	struct device_node *ep, *np;
+
+	ep = of_graph_get_endpoint_by_regs(dev->of_node, 1, -1);
+	if (!ep)
+		return 0;
+
+	np = of_graph_get_remote_port_parent(ep);
+	of_node_put(ep);
+	if (!np) {
+		DRM_ERROR("failed to get remote port parent");
+		return -EINVAL;
+	}
+
+	hdata->bridge = of_drm_find_bridge(np);
+	of_node_put(np);
+
+	if (!hdata->bridge)
+		return -EPROBE_DEFER;
+
+	return 0;
+}
+
 static int hdmi_resources_init(struct hdmi_context *hdata)
 {
 	struct device *dev = hdata->dev;
@@ -1620,20 +1667,21 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 
 	hdata->reg_hdmi_en = devm_regulator_get_optional(dev, "hdmi-en");
 
-	if (PTR_ERR(hdata->reg_hdmi_en) == -ENODEV)
-		return 0;
+	if (PTR_ERR(hdata->reg_hdmi_en) != -ENODEV) {
+		if (IS_ERR(hdata->reg_hdmi_en))
+			return PTR_ERR(hdata->reg_hdmi_en);
 
-	if (IS_ERR(hdata->reg_hdmi_en))
-		return PTR_ERR(hdata->reg_hdmi_en);
+		ret = regulator_enable(hdata->reg_hdmi_en);
+		if (ret) {
+			DRM_ERROR("failed to enable hdmi-en regulator\n");
+			return ret;
+		}
+	}
 
-	ret = regulator_enable(hdata->reg_hdmi_en);
-	if (ret)
-		DRM_ERROR("failed to enable hdmi-en regulator\n");
-
-	return ret;
+	return hdmi_bridge_init(hdata);
 }
 
-static struct of_device_id hdmi_match_types[] = {
+static const struct of_device_id hdmi_match_types[] = {
 	{
 		.compatible = "samsung,exynos4210-hdmi",
 		.data = &exynos4210_hdmi_driver_data,
@@ -1657,27 +1705,24 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	struct hdmi_context *hdata = dev_get_drvdata(dev);
 	struct drm_encoder *encoder = &hdata->encoder;
-	int ret, pipe;
+	struct exynos_drm_crtc *crtc;
+	int ret;
 
 	hdata->drm_dev = drm_dev;
 
-	pipe = exynos_drm_crtc_get_pipe_from_type(drm_dev,
-						  EXYNOS_DISPLAY_TYPE_HDMI);
-	if (pipe < 0)
-		return pipe;
-
 	hdata->phy_clk.enable = hdmiphy_clk_enable;
-
-	exynos_drm_crtc_from_pipe(drm_dev, pipe)->pipe_clk = &hdata->phy_clk;
-
-	encoder->possible_crtcs = 1 << pipe;
-
-	DRM_DEBUG_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
 
 	drm_encoder_init(drm_dev, encoder, &exynos_hdmi_encoder_funcs,
 			 DRM_MODE_ENCODER_TMDS, NULL);
 
 	drm_encoder_helper_add(encoder, &exynos_hdmi_encoder_helper_funcs);
+
+	ret = exynos_drm_set_possible_crtcs(encoder, EXYNOS_DISPLAY_TYPE_HDMI);
+	if (ret < 0)
+		return ret;
+
+	crtc = exynos_drm_crtc_get_by_type(drm_dev, EXYNOS_DISPLAY_TYPE_HDMI);
+	crtc->pipe_clk = &hdata->phy_clk;
 
 	ret = hdmi_create_connector(encoder);
 	if (ret) {
@@ -1832,15 +1877,22 @@ static int hdmi_probe(struct platform_device *pdev)
 		}
 	}
 
+	hdata->notifier = cec_notifier_get(&pdev->dev);
+	if (hdata->notifier == NULL) {
+		ret = -ENOMEM;
+		goto err_hdmiphy;
+	}
+
 	pm_runtime_enable(dev);
 
 	ret = component_add(&pdev->dev, &hdmi_component_ops);
 	if (ret)
-		goto err_disable_pm_runtime;
+		goto err_notifier_put;
 
 	return ret;
 
-err_disable_pm_runtime:
+err_notifier_put:
+	cec_notifier_put(hdata->notifier);
 	pm_runtime_disable(dev);
 
 err_hdmiphy:
@@ -1859,9 +1911,11 @@ static int hdmi_remove(struct platform_device *pdev)
 	struct hdmi_context *hdata = platform_get_drvdata(pdev);
 
 	cancel_delayed_work_sync(&hdata->hotplug_work);
+	cec_notifier_set_phys_addr(hdata->notifier, CEC_PHYS_ADDR_INVALID);
 
 	component_del(&pdev->dev, &hdmi_component_ops);
 
+	cec_notifier_put(hdata->notifier);
 	pm_runtime_disable(&pdev->dev);
 
 	if (!IS_ERR(hdata->reg_hdmi_en))
@@ -1878,8 +1932,7 @@ static int hdmi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int exynos_hdmi_suspend(struct device *dev)
+static int __maybe_unused exynos_hdmi_suspend(struct device *dev)
 {
 	struct hdmi_context *hdata = dev_get_drvdata(dev);
 
@@ -1888,7 +1941,7 @@ static int exynos_hdmi_suspend(struct device *dev)
 	return 0;
 }
 
-static int exynos_hdmi_resume(struct device *dev)
+static int __maybe_unused exynos_hdmi_resume(struct device *dev)
 {
 	struct hdmi_context *hdata = dev_get_drvdata(dev);
 	int ret;
@@ -1899,7 +1952,6 @@ static int exynos_hdmi_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops exynos_hdmi_pm_ops = {
 	SET_RUNTIME_PM_OPS(exynos_hdmi_suspend, exynos_hdmi_resume, NULL)

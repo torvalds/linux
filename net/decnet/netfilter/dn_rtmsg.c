@@ -96,13 +96,15 @@ static unsigned int dnrmg_hook(void *priv,
 }
 
 
-#define RCV_SKB_FAIL(err) do { netlink_ack(skb, nlh, (err)); return; } while (0)
+#define RCV_SKB_FAIL(err) do { netlink_ack(skb, nlh, (err), NULL); return; } while (0)
 
 static inline void dnrmg_receive_user_skb(struct sk_buff *skb)
 {
 	struct nlmsghdr *nlh = nlmsg_hdr(skb);
 
-	if (nlh->nlmsg_len < sizeof(*nlh) || skb->len < nlh->nlmsg_len)
+	if (skb->len < sizeof(*nlh) ||
+	    nlh->nlmsg_len < sizeof(*nlh) ||
+	    skb->len < nlh->nlmsg_len)
 		return;
 
 	if (!netlink_capable(skb, CAP_NET_ADMIN))
@@ -113,7 +115,7 @@ static inline void dnrmg_receive_user_skb(struct sk_buff *skb)
 	RCV_SKB_FAIL(-EINVAL);
 }
 
-static struct nf_hook_ops dnrmg_ops __read_mostly = {
+static const struct nf_hook_ops dnrmg_ops = {
 	.hook		= dnrmg_hook,
 	.pf		= NFPROTO_DECNET,
 	.hooknum	= NF_DN_ROUTE,
@@ -134,7 +136,7 @@ static int __init dn_rtmsg_init(void)
 		return -ENOMEM;
 	}
 
-	rv = nf_register_hook(&dnrmg_ops);
+	rv = nf_register_net_hook(&init_net, &dnrmg_ops);
 	if (rv) {
 		netlink_kernel_release(dnrmg);
 	}
@@ -144,7 +146,7 @@ static int __init dn_rtmsg_init(void)
 
 static void __exit dn_rtmsg_fini(void)
 {
-	nf_unregister_hook(&dnrmg_ops);
+	nf_unregister_net_hook(&init_net, &dnrmg_ops);
 	netlink_kernel_release(dnrmg);
 }
 

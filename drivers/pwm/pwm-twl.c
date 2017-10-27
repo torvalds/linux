@@ -21,7 +21,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 #include <linux/slab.h>
 
 /*
@@ -323,7 +323,6 @@ static int twl_pwm_probe(struct platform_device *pdev)
 	twl->chip.dev = &pdev->dev;
 	twl->chip.base = -1;
 	twl->chip.npwm = 2;
-	twl->chip.can_sleep = true;
 
 	mutex_init(&twl->mutex);
 

@@ -15,10 +15,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/completion.h>
@@ -1660,9 +1656,18 @@ static const struct i2c_device_id si4713_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, si4713_id);
 
+#if IS_ENABLED(CONFIG_OF)
+static const struct of_device_id si4713_of_match[] = {
+	{ .compatible = "silabs,si4713" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, si4713_of_match);
+#endif
+
 static struct i2c_driver si4713_i2c_driver = {
 	.driver		= {
 		.name	= "si4713",
+		.of_match_table = of_match_ptr(si4713_of_match),
 	},
 	.probe		= si4713_probe,
 	.remove         = si4713_remove,

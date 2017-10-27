@@ -136,7 +136,7 @@ brw_client_init(struct sfw_test_instance *tsi)
 	return 0;
 }
 
-int brw_inject_one_error(void)
+static int brw_inject_one_error(void)
 {
 	struct timespec64 ts;
 
@@ -267,8 +267,8 @@ brw_check_bulk(struct srpc_bulk *bk, int pattern, __u64 magic)
 }
 
 static int
-brw_client_prep_rpc(struct sfw_test_unit *tsu,
-		    lnet_process_id_t dest, struct srpc_client_rpc **rpcpp)
+brw_client_prep_rpc(struct sfw_test_unit *tsu, struct lnet_process_id dest,
+		    struct srpc_client_rpc **rpcpp)
 {
 	struct srpc_bulk *bulk = tsu->tsu_private;
 	struct sfw_test_instance *tsi = tsu->tsu_instance;

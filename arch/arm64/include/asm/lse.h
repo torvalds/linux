@@ -19,7 +19,7 @@
 __asm__(".arch_extension	lse");
 
 /* Move the ll/sc atomics out-of-line */
-#define __LL_SC_INLINE
+#define __LL_SC_INLINE		notrace
 #define __LL_SC_PREFIX(x)	__ll_sc_##x
 #define __LL_SC_EXPORT(x)	EXPORT_SYMBOL(__LL_SC_PREFIX(x))
 

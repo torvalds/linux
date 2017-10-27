@@ -103,7 +103,7 @@ static int dwmac4_wrback_get_rx_status(void *data, struct stmmac_extra_stats *x,
 			x->rx_mii++;
 
 		if (unlikely(rdes3 & RDES3_CRC_ERROR)) {
-			x->rx_crc++;
+			x->rx_crc_errors++;
 			stats->rx_crc_errors++;
 		}
 
@@ -214,13 +214,13 @@ static int dwmac4_wrback_get_tx_timestamp_status(struct dma_desc *p)
 {
 	/* Context type from W/B descriptor must be zero */
 	if (le32_to_cpu(p->des3) & TDES3_CONTEXT_TYPE)
-		return -EINVAL;
+		return 0;
 
 	/* Tx Timestamp Status is 1 so des0 and des1'll have valid values */
 	if (le32_to_cpu(p->des3) & TDES3_TIMESTAMP_STATUS)
-		return 0;
+		return 1;
 
-	return 1;
+	return 0;
 }
 
 static inline u64 dwmac4_get_timestamp(void *desc, u32 ats)
@@ -275,14 +275,17 @@ static int dwmac4_wrback_get_rx_timestamp_status(void *desc, u32 ats)
 					goto exit;
 				i++;
 
-			} while ((ret == 1) || (i < 10));
+			} while ((ret == 1) && (i < 10));
 
 			if (i == 10)
 				ret = -EBUSY;
 		}
 	}
 exit:
-	return ret;
+	if (likely(ret == 0))
+		return 1;
+
+	return 0;
 }
 
 static void dwmac4_rd_init_rx_desc(struct dma_desc *p, int disable_rx_ic,
@@ -304,12 +307,13 @@ static void dwmac4_rd_init_tx_desc(struct dma_desc *p, int mode, int end)
 
 static void dwmac4_rd_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 				      bool csum_flag, int mode, bool tx_own,
-				      bool ls)
+				      bool ls, unsigned int tot_pkt_len)
 {
 	unsigned int tdes3 = le32_to_cpu(p->des3);
 
 	p->des2 |= cpu_to_le32(len & TDES2_BUFFER1_SIZE_MASK);
 
+	tdes3 |= tot_pkt_len & TDES3_PACKET_SIZE_MASK;
 	if (is_fs)
 		tdes3 |= TDES3_FIRST_DESCRIPTOR;
 	else

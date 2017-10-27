@@ -29,7 +29,7 @@
  * PGRAPH context implementation
  ******************************************************************************/
 
-static void
+void
 gp100_grctx_generate_pagepool(struct gf100_grctx *info)
 {
 	const struct gf100_grctx_func *grctx = info->gr->func->grctx;
@@ -123,7 +123,7 @@ gp100_grctx_generate_405b60(struct gf100_gr *gr)
 		nvkm_wr32(device, 0x405ba0 + (i * 4), gpcs[i]);
 }
 
-static void
+void
 gp100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;

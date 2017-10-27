@@ -40,7 +40,7 @@ bool seg6_validate_srh(struct ipv6_sr_hdr *srh, int len)
 	if (((srh->hdrlen + 1) << 3) != len)
 		return false;
 
-	if (srh->segments_left != srh->first_segment)
+	if (srh->segments_left > srh->first_segment)
 		return false;
 
 	tlv_offset = sizeof(*srh) + ((srh->first_segment + 1) << 4);
@@ -52,6 +52,9 @@ bool seg6_validate_srh(struct ipv6_sr_hdr *srh, int len)
 	while (trailing) {
 		struct sr6_tlv *tlv;
 		unsigned int tlv_len;
+
+		if (trailing < sizeof(*tlv))
+			return false;
 
 		tlv = (struct sr6_tlv *)((unsigned char *)srh + tlv_offset);
 		tlv_len = sizeof(*tlv) + tlv->len;
@@ -300,12 +303,8 @@ static int seg6_genl_dumphmac_done(struct netlink_callback *cb)
 static int seg6_genl_dumphmac(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct rhashtable_iter *iter = (struct rhashtable_iter *)cb->args[0];
-	struct net *net = sock_net(skb->sk);
-	struct seg6_pernet_data *sdata;
 	struct seg6_hmac_info *hinfo;
 	int ret;
-
-	sdata = seg6_pernet(net);
 
 	ret = rhashtable_walk_start(iter);
 	if (ret && ret != -EAGAIN)
@@ -457,6 +456,10 @@ int __init seg6_init(void)
 	err = seg6_iptunnel_init();
 	if (err)
 		goto out_unregister_pernet;
+
+	err = seg6_local_init();
+	if (err)
+		goto out_unregister_pernet;
 #endif
 
 #ifdef CONFIG_IPV6_SEG6_HMAC
@@ -472,6 +475,7 @@ out:
 #ifdef CONFIG_IPV6_SEG6_HMAC
 out_unregister_iptun:
 #ifdef CONFIG_IPV6_SEG6_LWTUNNEL
+	seg6_local_exit();
 	seg6_iptunnel_exit();
 #endif
 #endif

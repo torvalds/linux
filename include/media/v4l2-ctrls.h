@@ -174,10 +174,10 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
  *		not freed when the control is deleted. Should this be needed
  *		then a new internal bitfield can be added to tell the framework
  *		to free this pointer.
- * @p_cur:	The control's current value represented via an union with
+ * @p_cur:	The control's current value represented via a union with
  *		provides a standard way of accessing control types
  *		through a pointer.
- * @p_new:	The control's new value represented via an union with provides
+ * @p_new:	The control's new value represented via a union with provides
  *		a standard way of accessing control types
  *		through a pointer.
  */
@@ -340,17 +340,17 @@ struct v4l2_ctrl_config {
  * v4l2_ctrl_fill - Fill in the control fields based on the control ID.
  *
  * @id: ID of the control
- * @name: name of the control
- * @type: type of the control
- * @min: minimum value for the control
- * @max: maximum value for the control
- * @step: control step
- * @def: default value for the control
- * @flags: flags to be used on the control
+ * @name: pointer to be filled with a string with the name of the control
+ * @type: pointer for storing the type of the control
+ * @min: pointer for storing the minimum value for the control
+ * @max: pointer for storing the maximum value for the control
+ * @step: pointer for storing the control step
+ * @def: pointer for storing the default value for the control
+ * @flags: pointer for storing the flags to be used on the control
  *
  * This works for all standard V4L2 controls.
  * For non-standard controls it will only fill in the given arguments
- * and @name will be %NULL.
+ * and @name content will be set to %NULL.
  *
  * This function will overwrite the contents of @name, @type and @flags.
  * The contents of @min, @max, @step and @def may be modified depending on
@@ -456,6 +456,19 @@ static inline void v4l2_ctrl_unlock(struct v4l2_ctrl *ctrl)
 {
 	mutex_unlock(ctrl->handler->lock);
 }
+
+/**
+ * __v4l2_ctrl_handler_setup() - Call the s_ctrl op for all controls belonging
+ * to the handler to initialize the hardware to the current control values. The
+ * caller is responsible for acquiring the control handler mutex on behalf of
+ * __v4l2_ctrl_handler_setup().
+ * @hdl:	The control handler.
+ *
+ * Button controls will be skipped, as are read-only controls.
+ *
+ * If @hdl == NULL, then this just returns 0.
+ */
+int __v4l2_ctrl_handler_setup(struct v4l2_ctrl_handler *hdl);
 
 /**
  * v4l2_ctrl_handler_setup() - Call the s_ctrl op for all controls belonging

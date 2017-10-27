@@ -153,10 +153,18 @@ static int benchmark_event_kthread(void *arg)
 		trace_do_benchmark();
 
 		/*
-		 * We don't go to sleep, but let others
-		 * run as well.
+		 * We don't go to sleep, but let others run as well.
+		 * This is bascially a "yield()" to let any task that
+		 * wants to run, schedule in, but if the CPU is idle,
+		 * we'll keep burning cycles.
+		 *
+		 * Note the _rcu_qs() version of cond_resched() will
+		 * notify synchronize_rcu_tasks() that this thread has
+		 * passed a quiescent state for rcu_tasks. Otherwise
+		 * this thread will never voluntarily schedule which would
+		 * block synchronize_rcu_tasks() indefinitely.
 		 */
-		cond_resched();
+		cond_resched_rcu_qs();
 	}
 
 	return 0;
@@ -175,9 +183,9 @@ int trace_benchmark_reg(void)
 
 	bm_event_thread = kthread_run(benchmark_event_kthread,
 				      NULL, "event_benchmark");
-	if (!bm_event_thread) {
+	if (IS_ERR(bm_event_thread)) {
 		pr_warning("trace benchmark failed to create kernel thread\n");
-		return -ENOMEM;
+		return PTR_ERR(bm_event_thread);
 	}
 
 	return 0;

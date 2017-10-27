@@ -15,7 +15,7 @@ Required properties:
  - display-timings: typical videomode of lcd panel.  Multiple video modes
    can be listed if the panel supports multiple timings, but the 'native-mode'
    should be the preferred/default resolution.  Refer to
-   Documentation/devicetree/bindings/display/display-timing.txt for display
+   Documentation/devicetree/bindings/display/panel/display-timing.txt for display
    timing binding details.
 
 Optional properties:

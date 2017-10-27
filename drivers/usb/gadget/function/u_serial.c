@@ -537,7 +537,7 @@ static void gs_rx_push(unsigned long _port)
 		}
 
 		/* push data to (open) tty */
-		if (req->actual) {
+		if (req->actual && tty) {
 			char		*packet = req->buf;
 			unsigned	size = req->actual;
 			unsigned	n;
@@ -1256,7 +1256,7 @@ static void gserial_console_exit(void)
 	struct gscons_info *info = &gscons_info;
 
 	unregister_console(&gserial_cons);
-	if (info->console_thread != NULL)
+	if (!IS_ERR_OR_NULL(info->console_thread))
 		kthread_stop(info->console_thread);
 	gs_buf_free(&info->con_buf);
 }

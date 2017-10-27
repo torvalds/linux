@@ -230,7 +230,7 @@ static umode_t esrt_attr_is_visible(struct kobject *kobj,
 	return attr->mode;
 }
 
-static struct attribute_group esrt_attr_group = {
+static const struct attribute_group esrt_attr_group = {
 	.attrs = esrt_attrs,
 	.is_visible = esrt_attr_is_visible,
 };
@@ -254,7 +254,7 @@ void __init efi_esrt_init(void)
 
 	rc = efi_mem_desc_lookup(efi.esrt, &md);
 	if (rc < 0) {
-		pr_err("ESRT header is not in the memory map.\n");
+		pr_warn("ESRT header is not in the memory map.\n");
 		return;
 	}
 
@@ -269,7 +269,7 @@ void __init efi_esrt_init(void)
 	max -= efi.esrt;
 
 	if (max < size) {
-		pr_err("ESRT header doen't fit on single memory map entry. (size: %zu max: %zu)\n",
+		pr_err("ESRT header doesn't fit on single memory map entry. (size: %zu max: %zu)\n",
 		       size, max);
 		return;
 	}

@@ -11,7 +11,6 @@
 
 #include <linux/err.h>
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include "pinctrl-spear.h"
@@ -2033,14 +2032,3 @@ static int __init spear1340_pinctrl_init(void)
 	return platform_driver_register(&spear1340_pinctrl_driver);
 }
 arch_initcall(spear1340_pinctrl_init);
-
-static void __exit spear1340_pinctrl_exit(void)
-{
-	platform_driver_unregister(&spear1340_pinctrl_driver);
-}
-module_exit(spear1340_pinctrl_exit);
-
-MODULE_AUTHOR("Viresh Kumar <vireshk@kernel.org>");
-MODULE_DESCRIPTION("ST Microelectronics SPEAr1340 pinctrl driver");
-MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, spear1340_pinctrl_of_match);

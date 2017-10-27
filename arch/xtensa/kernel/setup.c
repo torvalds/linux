@@ -126,6 +126,8 @@ static int __init parse_tag_initrd(const bp_tag_t* tag)
 
 __tagtable(BP_TAG_INITRD, parse_tag_initrd);
 
+#endif /* CONFIG_BLK_DEV_INITRD */
+
 #ifdef CONFIG_OF
 
 static int __init parse_tag_fdt(const bp_tag_t *tag)
@@ -137,8 +139,6 @@ static int __init parse_tag_fdt(const bp_tag_t *tag)
 __tagtable(BP_TAG_FDT, parse_tag_fdt);
 
 #endif /* CONFIG_OF */
-
-#endif /* CONFIG_BLK_DEV_INITRD */
 
 static int __init parse_tag_cmdline(const bp_tag_t* tag)
 {
@@ -273,8 +273,8 @@ void __init init_arch(bp_tag_t *bp_start)
  * Initialize system. Setup memory and reserve regions.
  */
 
-extern char _end;
-extern char _stext;
+extern char _end[];
+extern char _stext[];
 extern char _WindowVectors_text_start;
 extern char _WindowVectors_text_end;
 extern char _DebugInterruptVector_literal_start;
@@ -317,8 +317,9 @@ static inline int mem_reserve(unsigned long start, unsigned long end)
 
 void __init setup_arch(char **cmdline_p)
 {
-	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
+	platform_setup(cmdline_p);
+	strlcpy(boot_command_line, *cmdline_p, COMMAND_LINE_SIZE);
 
 	/* Reserve some memory regions */
 
@@ -332,8 +333,9 @@ void __init setup_arch(char **cmdline_p)
 	}
 #endif
 
-	mem_reserve(__pa(&_stext), __pa(&_end));
+	mem_reserve(__pa(_stext), __pa(_end));
 
+#ifdef CONFIG_VECTORS_OFFSET
 	mem_reserve(__pa(&_WindowVectors_text_start),
 		    __pa(&_WindowVectors_text_end));
 
@@ -370,6 +372,8 @@ void __init setup_arch(char **cmdline_p)
 		    __pa(&_Level6InterruptVector_text_end));
 #endif
 
+#endif /* CONFIG_VECTORS_OFFSET */
+
 #ifdef CONFIG_SMP
 	mem_reserve(__pa(&_SecondaryResetVector_text_start),
 		    __pa(&_SecondaryResetVector_text_end));
@@ -378,8 +382,6 @@ void __init setup_arch(char **cmdline_p)
 	bootmem_init();
 
 	unflatten_and_copy_device_tree();
-
-	platform_setup(cmdline_p);
 
 #ifdef CONFIG_SMP
 	smp_init_cpus();
@@ -450,9 +452,9 @@ void cpu_reset(void)
 			tmpaddr += SZ_512M;
 
 		/* Invalidate mapping in the selected temporary area */
-		if (itlb_probe(tmpaddr) & 0x8)
+		if (itlb_probe(tmpaddr) & BIT(ITLB_HIT_BIT))
 			invalidate_itlb_entry(itlb_probe(tmpaddr));
-		if (itlb_probe(tmpaddr + PAGE_SIZE) & 0x8)
+		if (itlb_probe(tmpaddr + PAGE_SIZE) & BIT(ITLB_HIT_BIT))
 			invalidate_itlb_entry(itlb_probe(tmpaddr + PAGE_SIZE));
 
 		/*
@@ -591,8 +593,7 @@ c_show(struct seq_file *f, void *slot)
 		      (ccount_freq/10000) % 100,
 		      loops_per_jiffy/(500000/HZ),
 		      (loops_per_jiffy/(5000/HZ)) % 100);
-
-	seq_printf(f,"flags\t\t: "
+	seq_puts(f, "flags\t\t: "
 #if XCHAL_HAVE_NMI
 		     "nmi "
 #endif

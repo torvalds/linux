@@ -205,7 +205,7 @@ static int reg_to_rpm(u16 reg)
 	return 5400540 / reg;
 }
 
-static ssize_t show_name(struct device *dev, struct device_attribute *devattr,
+static ssize_t name_show(struct device *dev, struct device_attribute *devattr,
 	char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%s\n", DEVNAME);
@@ -326,7 +326,7 @@ static ssize_t show_in_label(struct device *dev, struct device_attribute
 			SCH5627_IN_LABELS[attr->index]);
 }
 
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+static DEVICE_ATTR_RO(name);
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, show_temp, NULL, 1);
 static SENSOR_DEVICE_ATTR(temp3_input, S_IRUGO, show_temp, NULL, 2);

@@ -14,10 +14,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "saa7134.h"
@@ -7323,7 +7319,7 @@ static void hauppauge_eeprom(struct saa7134_dev *dev, u8 *eeprom_data)
 {
 	struct tveeprom tv;
 
-	tveeprom_hauppauge_analog(&dev->i2c_client, &tv, eeprom_data);
+	tveeprom_hauppauge_analog(&tv, eeprom_data);
 
 	/* Make sure we support the board model */
 	switch (tv.model) {
@@ -7810,7 +7806,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 				dev->name, saa7134_boards[dev->board].name);
 			break;
 		}
-		/* break intentionally omitted */
+		/* fall-through */
 	case SAA7134_BOARD_VIDEOMATE_DVBT_300:
 	case SAA7134_BOARD_ASUS_EUROPA2_HYBRID:
 	case SAA7134_BOARD_ASUS_EUROPA_HYBRID:
@@ -7868,7 +7864,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
 		hauppauge_eeprom(dev, dev->eedata+0x80);
-		/* break intentionally omitted */
+		/* fall-through */
 	case SAA7134_BOARD_PINNACLE_PCTV_310i:
 	case SAA7134_BOARD_KWORLD_DVBT_210:
 	case SAA7134_BOARD_TEVION_DVBT_220RF:

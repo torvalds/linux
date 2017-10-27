@@ -29,6 +29,7 @@
 #include "usb.h"
 #include "core.h"
 #include "common.h"
+#include "bcdc.h"
 
 
 #define IOCTL_RESP_TIMEOUT		msecs_to_jiffies(2000)
@@ -49,6 +50,7 @@ BRCMF_FW_DEF(43143, "brcmfmac43143.bin");
 BRCMF_FW_DEF(43236B, "brcmfmac43236b.bin");
 BRCMF_FW_DEF(43242A, "brcmfmac43242a.bin");
 BRCMF_FW_DEF(43569, "brcmfmac43569.bin");
+BRCMF_FW_DEF(4373, "brcmfmac4373.bin");
 
 static struct brcmf_firmware_mapping brcmf_usb_fwnames[] = {
 	BRCMF_FW_ENTRY(BRCM_CC_43143_CHIP_ID, 0xFFFFFFFF, 43143),
@@ -57,7 +59,8 @@ static struct brcmf_firmware_mapping brcmf_usb_fwnames[] = {
 	BRCMF_FW_ENTRY(BRCM_CC_43238_CHIP_ID, 0x00000008, 43236B),
 	BRCMF_FW_ENTRY(BRCM_CC_43242_CHIP_ID, 0xFFFFFFFF, 43242A),
 	BRCMF_FW_ENTRY(BRCM_CC_43566_CHIP_ID, 0xFFFFFFFF, 43569),
-	BRCMF_FW_ENTRY(BRCM_CC_43569_CHIP_ID, 0xFFFFFFFF, 43569)
+	BRCMF_FW_ENTRY(BRCM_CC_43569_CHIP_ID, 0xFFFFFFFF, 43569),
+	BRCMF_FW_ENTRY(CY_CC_4373_CHIP_ID, 0xFFFFFFFF, 4373)
 };
 
 #define TRX_MAGIC		0x30524448	/* "HDR0" */
@@ -482,13 +485,13 @@ static void brcmf_usb_tx_complete(struct urb *urb)
 		  req->skb);
 	brcmf_usb_del_fromq(devinfo, req);
 
-	brcmf_txcomplete(devinfo->dev, req->skb, urb->status == 0);
+	brcmf_proto_bcdc_txcomplete(devinfo->dev, req->skb, urb->status == 0);
 	req->skb = NULL;
 	brcmf_usb_enq(devinfo, &devinfo->tx_freeq, req, &devinfo->tx_freecount);
 	spin_lock_irqsave(&devinfo->tx_flowblock_lock, flags);
 	if (devinfo->tx_freecount > devinfo->tx_high_watermark &&
 		devinfo->tx_flowblock) {
-		brcmf_txflowblock(devinfo->dev, false);
+		brcmf_proto_bcdc_txflowblock(devinfo->dev, false);
 		devinfo->tx_flowblock = false;
 	}
 	spin_unlock_irqrestore(&devinfo->tx_flowblock_lock, flags);
@@ -635,7 +638,7 @@ static int brcmf_usb_tx(struct device *dev, struct sk_buff *skb)
 	spin_lock_irqsave(&devinfo->tx_flowblock_lock, flags);
 	if (devinfo->tx_freecount < devinfo->tx_low_watermark &&
 	    !devinfo->tx_flowblock) {
-		brcmf_txflowblock(dev, true);
+		brcmf_proto_bcdc_txflowblock(dev, true);
 		devinfo->tx_flowblock = true;
 	}
 	spin_unlock_irqrestore(&devinfo->tx_flowblock_lock, flags);
@@ -1148,7 +1151,7 @@ static int brcmf_usb_bus_setup(struct brcmf_usbdev_info *devinfo)
 	if (ret)
 		goto fail;
 
-	ret = brcmf_bus_start(devinfo->dev);
+	ret = brcmf_bus_started(devinfo->dev);
 	if (ret)
 		goto fail;
 
@@ -1158,17 +1161,18 @@ fail:
 	return ret;
 }
 
-static void brcmf_usb_probe_phase2(struct device *dev,
+static void brcmf_usb_probe_phase2(struct device *dev, int ret,
 				   const struct firmware *fw,
 				   void *nvram, u32 nvlen)
 {
 	struct brcmf_bus *bus = dev_get_drvdata(dev);
-	struct brcmf_usbdev_info *devinfo;
-	int ret;
+	struct brcmf_usbdev_info *devinfo = bus->bus_priv.usb->devinfo;
+
+	if (ret)
+		goto error;
 
 	brcmf_dbg(USB, "Start fw downloading\n");
 
-	devinfo = bus->bus_priv.usb->devinfo;
 	ret = check_file(fw->data);
 	if (ret < 0) {
 		brcmf_err("invalid firmware\n");
@@ -1461,15 +1465,20 @@ static int brcmf_usb_reset_resume(struct usb_interface *intf)
 #define LINKSYS_USB_DEVICE(dev_id)	\
 	{ USB_DEVICE(BRCM_USB_VENDOR_ID_LINKSYS, dev_id) }
 
-static struct usb_device_id brcmf_usb_devid_table[] = {
+#define CYPRESS_USB_DEVICE(dev_id)	\
+	{ USB_DEVICE(CY_USB_VENDOR_ID_CYPRESS, dev_id) }
+
+static const struct usb_device_id brcmf_usb_devid_table[] = {
 	BRCMF_USB_DEVICE(BRCM_USB_43143_DEVICE_ID),
 	BRCMF_USB_DEVICE(BRCM_USB_43236_DEVICE_ID),
 	BRCMF_USB_DEVICE(BRCM_USB_43242_DEVICE_ID),
 	BRCMF_USB_DEVICE(BRCM_USB_43569_DEVICE_ID),
 	LINKSYS_USB_DEVICE(BRCM_USB_43235_LINKSYS_DEVICE_ID),
+	CYPRESS_USB_DEVICE(CY_USB_4373_DEVICE_ID),
 	{ USB_DEVICE(BRCM_USB_VENDOR_ID_LG, BRCM_USB_43242_LG_DEVICE_ID) },
 	/* special entry for device with firmware loaded and running */
 	BRCMF_USB_DEVICE(BRCM_USB_BCMFW_DEVICE_ID),
+	CYPRESS_USB_DEVICE(BRCM_USB_BCMFW_DEVICE_ID),
 	{ /* end: all zeroes */ }
 };
 

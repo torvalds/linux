@@ -127,6 +127,10 @@ struct bcm_rsb {
 #define INTRL2_0_DESC_ALLOC_ERR		(1 << 10)
 #define INTRL2_0_UNEXP_PKTSIZE_ACK	(1 << 11)
 
+/* SYSTEMPORT Lite groups the TX queues interrupts on instance 0 */
+#define INTRL2_0_TDMA_MBDONE_SHIFT	12
+#define INTRL2_0_TDMA_MBDONE_MASK	(0xffff << INTRL2_0_TDMA_MBDONE_SHIFT)
+
 /* RXCHK offset and defines */
 #define SYS_PORT_RXCHK_OFFSET		0x300
 
@@ -176,7 +180,9 @@ struct bcm_rsb {
 #define  RBUF_OK_TO_SEND_MASK		0xff
 #define  RBUF_CRC_REPLACE		(1 << 20)
 #define  RBUF_OK_TO_SEND_MODE		(1 << 21)
-#define  RBUF_RSB_SWAP			(1 << 22)
+/* SYSTEMPORT Lite uses two bits here */
+#define  RBUF_RSB_SWAP0			(1 << 22)
+#define  RBUF_RSB_SWAP1			(1 << 23)
 #define  RBUF_ACPI_EN			(1 << 23)
 
 #define RBUF_PKT_RDY_THRESH		0x04
@@ -247,6 +253,7 @@ struct bcm_rsb {
 #define  MIB_RUNT_CNT_RST		(1 << 1)
 #define  MIB_TX_CNT_RST			(1 << 2)
 
+/* These offsets are valid for SYSTEMPORT and SYSTEMPORT Lite */
 #define UMAC_MPD_CTRL			0x620
 #define  MPD_EN				(1 << 0)
 #define  MSEQ_LEN_SHIFT			16
@@ -257,6 +264,34 @@ struct bcm_rsb {
 #define UMAC_PSW_LS			0x628
 #define UMAC_MDF_CTRL			0x650
 #define UMAC_MDF_ADDR			0x654
+
+/* Only valid on SYSTEMPORT Lite */
+#define SYS_PORT_GIB_OFFSET		0x1000
+
+#define GIB_CONTROL			0x00
+#define  GIB_TX_EN			(1 << 0)
+#define  GIB_RX_EN			(1 << 1)
+#define  GIB_TX_FLUSH			(1 << 2)
+#define  GIB_RX_FLUSH			(1 << 3)
+#define  GIB_GTX_CLK_SEL_SHIFT		4
+#define  GIB_GTX_CLK_EXT_CLK		(0 << GIB_GTX_CLK_SEL_SHIFT)
+#define  GIB_GTX_CLK_125MHZ		(1 << GIB_GTX_CLK_SEL_SHIFT)
+#define  GIB_GTX_CLK_250MHZ		(2 << GIB_GTX_CLK_SEL_SHIFT)
+#define  GIB_FCS_STRIP			(1 << 6)
+#define  GIB_LCL_LOOP_EN		(1 << 7)
+#define  GIB_LCL_LOOP_TXEN		(1 << 8)
+#define  GIB_RMT_LOOP_EN		(1 << 9)
+#define  GIB_RMT_LOOP_RXEN		(1 << 10)
+#define  GIB_RX_PAUSE_EN		(1 << 11)
+#define  GIB_PREAMBLE_LEN_SHIFT		12
+#define  GIB_PREAMBLE_LEN_MASK		0xf
+#define  GIB_IPG_LEN_SHIFT		16
+#define  GIB_IPG_LEN_MASK		0x3f
+#define  GIB_PAD_EXTENSION_SHIFT	22
+#define  GIB_PAD_EXTENSION_MASK		0x3f
+
+#define GIB_MAC1			0x08
+#define GIB_MAC0			0x0c
 
 /* Receive DMA offset and defines */
 #define SYS_PORT_RDMA_OFFSET		0x2000
@@ -409,16 +444,20 @@ struct bcm_rsb {
 					RING_PCP_DEI_VID)
 
 #define TDMA_CONTROL			0x600
-#define  TDMA_EN			(1 << 0)
-#define  TSB_EN				(1 << 1)
-#define  TSB_SWAP			(1 << 2)
-#define  ACB_ALGO			(1 << 3)
+#define  TDMA_EN			0
+#define  TSB_EN				1
+/* Uses 2 bits on SYSTEMPORT Lite and shifts everything by 1 bit, we
+ * keep the SYSTEMPORT layout here and adjust with tdma_control_bit()
+ */
+#define  TSB_SWAP0			2
+#define  TSB_SWAP1			3
+#define  ACB_ALGO			3
 #define  BUF_DATA_OFFSET_SHIFT		4
 #define  BUF_DATA_OFFSET_MASK		0x3ff
-#define  VLAN_EN			(1 << 14)
-#define  SW_BRCM_TAG			(1 << 15)
-#define  WNC_KPT_SIZE_UPDATE		(1 << 16)
-#define  SYNC_PKT_SIZE			(1 << 17)
+#define  VLAN_EN			14
+#define  SW_BRCM_TAG			15
+#define  WNC_KPT_SIZE_UPDATE		16
+#define  SYNC_PKT_SIZE			17
 #define  ACH_TXDONE_DELAY_SHIFT		18
 #define  ACH_TXDONE_DELAY_MASK		0xff
 
@@ -475,12 +514,12 @@ struct dma_desc {
 };
 
 /* Number of Receive hardware descriptor words */
-#define NUM_HW_RX_DESC_WORDS		1024
-/* Real number of usable descriptors */
-#define NUM_RX_DESC			(NUM_HW_RX_DESC_WORDS / WORDS_PER_DESC)
+#define SP_NUM_HW_RX_DESC_WORDS		1024
+#define SP_LT_NUM_HW_RX_DESC_WORDS	256
 
-/* Internal linked-list RAM has up to 1536 entries */
-#define NUM_TX_DESC			1536
+/* Internal linked-list RAM size */
+#define SP_NUM_TX_DESC			1536
+#define SP_LT_NUM_TX_DESC		256
 
 #define WORDS_PER_DESC			(sizeof(struct dma_desc) / sizeof(u32))
 
@@ -565,6 +604,7 @@ struct bcm_sysport_mib {
 /* HW maintains a large list of counters */
 enum bcm_sysport_stat_type {
 	BCM_SYSPORT_STAT_NETDEV = -1,
+	BCM_SYSPORT_STAT_NETDEV64,
 	BCM_SYSPORT_STAT_MIB_RX,
 	BCM_SYSPORT_STAT_MIB_TX,
 	BCM_SYSPORT_STAT_RUNT,
@@ -579,6 +619,13 @@ enum bcm_sysport_stat_type {
 	.stat_sizeof = sizeof(((struct net_device_stats *)0)->m), \
 	.stat_offset = offsetof(struct net_device_stats, m), \
 	.type = BCM_SYSPORT_STAT_NETDEV, \
+}
+
+#define STAT_NETDEV64(m) { \
+	.stat_string = __stringify(m), \
+	.stat_sizeof = sizeof(((struct bcm_sysport_stats64 *)0)->m), \
+	.stat_offset = offsetof(struct bcm_sysport_stats64, m), \
+	.type = BCM_SYSPORT_STAT_NETDEV64, \
 }
 
 #define STAT_MIB(str, m, _type) { \
@@ -609,6 +656,9 @@ enum bcm_sysport_stat_type {
 	.reg_offset = ofs, \
 }
 
+/* TX bytes and packets */
+#define NUM_SYSPORT_TXQ_STAT	2
+
 struct bcm_sysport_stats {
 	char stat_string[ETH_GSTRING_LEN];
 	int stat_sizeof;
@@ -618,6 +668,14 @@ struct bcm_sysport_stats {
 	u16 reg_offset;
 };
 
+struct bcm_sysport_stats64 {
+	/* 64bit stats on 32bit/64bit Machine */
+	u64	rx_packets;
+	u64	rx_bytes;
+	u64	tx_packets;
+	u64	tx_bytes;
+};
+
 /* Software house keeping helper structure */
 struct bcm_sysport_cb {
 	struct sk_buff	*skb;		/* SKB for RX packets */
@@ -625,6 +683,16 @@ struct bcm_sysport_cb {
 
 	DEFINE_DMA_UNMAP_ADDR(dma_addr);
 	DEFINE_DMA_UNMAP_LEN(dma_len);
+};
+
+enum bcm_sysport_type {
+	SYSTEMPORT = 0,
+	SYSTEMPORT_LITE,
+};
+
+struct bcm_sysport_hw_params {
+	bool		is_lite;
+	unsigned int	num_rx_desc_words;
 };
 
 /* Software view of the TX ring */
@@ -642,6 +710,8 @@ struct bcm_sysport_tx_ring {
 	struct bcm_sysport_cb *cbs;	/* Transmit control blocks */
 	struct dma_desc	*desc_cpu;	/* CPU view of the descriptor */
 	struct bcm_sysport_priv *priv;	/* private context backpointer */
+	unsigned long	packets;	/* packets statistics */
+	unsigned long	bytes;		/* bytes statistics */
 };
 
 /* Driver private structure */
@@ -651,6 +721,8 @@ struct bcm_sysport_priv {
 	u32			irq0_mask;
 	u32			irq1_stat;
 	u32			irq1_mask;
+	bool			is_lite;
+	unsigned int		num_rx_desc_words;
 	struct napi_struct	napi ____cacheline_aligned;
 	struct net_device	*netdev;
 	struct platform_device	*pdev;
@@ -659,7 +731,7 @@ struct bcm_sysport_priv {
 	int			wol_irq;
 
 	/* Transmit rings */
-	struct bcm_sysport_tx_ring tx_rings[TDMA_NUM_RINGS];
+	struct bcm_sysport_tx_ring *tx_rings;
 
 	/* Receive queue */
 	void __iomem		*rx_bds;
@@ -688,5 +760,10 @@ struct bcm_sysport_priv {
 
 	/* Ethtool */
 	u32			msg_enable;
+
+	struct bcm_sysport_stats64	stats64;
+
+	/* For atomic update generic 64bit value on 32bit Machine */
+	struct u64_stats_sync	syncp;
 };
 #endif /* __BCM_SYSPORT_H */

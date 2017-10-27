@@ -78,9 +78,9 @@ static int irq = 11;
 
 static DEFINE_SPINLOCK(wdt_lock);
 
-module_param(io, int, 0);
+module_param_hw(io, int, ioport, 0);
 MODULE_PARM_DESC(io, "WDT io port (default=0x240)");
-module_param(irq, int, 0);
+module_param_hw(irq, int, irq, 0);
 MODULE_PARM_DESC(irq, "WDT irq (default=11)");
 
 /* Support for the Fan Tachometer on the WDT501-P */

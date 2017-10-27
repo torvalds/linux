@@ -729,7 +729,7 @@ static int tcp_accept_from_sock(struct connection *con)
 	mutex_unlock(&connections_lock);
 
 	memset(&peeraddr, 0, sizeof(peeraddr));
-	result = sock_create_kern(&init_net, dlm_local_addr[0]->ss_family,
+	result = sock_create_lite(dlm_local_addr[0]->ss_family,
 				  SOCK_STREAM, IPPROTO_TCP, &newsock);
 	if (result < 0)
 		return -ENOMEM;
@@ -743,7 +743,7 @@ static int tcp_accept_from_sock(struct connection *con)
 	newsock->type = con->sock->type;
 	newsock->ops = con->sock->ops;
 
-	result = con->sock->ops->accept(con->sock, newsock, O_NONBLOCK);
+	result = con->sock->ops->accept(con->sock, newsock, O_NONBLOCK, true);
 	if (result < 0)
 		goto accept_err;
 

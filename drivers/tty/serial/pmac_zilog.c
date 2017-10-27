@@ -1379,7 +1379,7 @@ static void pmz_poll_put_char(struct uart_port *port, unsigned char c)
 
 #endif /* CONFIG_CONSOLE_POLL */
 
-static struct uart_ops pmz_pops = {
+static const struct uart_ops pmz_pops = {
 	.tx_empty	=	pmz_tx_empty,
 	.set_mctrl	=	pmz_set_mctrl,
 	.get_mctrl	=	pmz_get_mctrl,
@@ -1671,8 +1671,8 @@ static int __init pmz_probe(void)
 		if (!node_a && !node_b) {
 			of_node_put(node_a);
 			of_node_put(node_b);
-			printk(KERN_ERR "pmac_zilog: missing node %c for escc %s\n",
-				(!node_a) ? 'a' : 'b', node_p->full_name);
+			printk(KERN_ERR "pmac_zilog: missing node %c for escc %pOF\n",
+				(!node_a) ? 'a' : 'b', node_p);
 			continue;
 		}
 

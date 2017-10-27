@@ -137,6 +137,12 @@ Control IDs
 ``V4L2_CID_GAIN`` ``(integer)``
     Gain control.
 
+    Primarily used to control gain on e.g. TV tuners but also on
+    webcams. Most devices control only digital gain with this control
+    but on some this could include analogue gain as well. Devices that
+    recognise the difference between digital and analogue gain use
+    controls ``V4L2_CID_DIGITAL_GAIN`` and ``V4L2_CID_ANALOGUE_GAIN``.
+
 ``V4L2_CID_HFLIP`` ``(boolean)``
     Mirror the picture horizontally.
 

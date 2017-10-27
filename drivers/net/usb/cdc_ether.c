@@ -54,11 +54,19 @@ static int is_wireless_rndis(struct usb_interface_descriptor *desc)
 		desc->bInterfaceProtocol == 3);
 }
 
+static int is_novatel_rndis(struct usb_interface_descriptor *desc)
+{
+	return (desc->bInterfaceClass == USB_CLASS_MISC &&
+		desc->bInterfaceSubClass == 4 &&
+		desc->bInterfaceProtocol == 1);
+}
+
 #else
 
 #define is_rndis(desc)		0
 #define is_activesync(desc)	0
 #define is_wireless_rndis(desc)	0
+#define is_novatel_rndis(desc)	0
 
 #endif
 
@@ -150,7 +158,8 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 	 */
 	rndis = (is_rndis(&intf->cur_altsetting->desc) ||
 		 is_activesync(&intf->cur_altsetting->desc) ||
-		 is_wireless_rndis(&intf->cur_altsetting->desc));
+		 is_wireless_rndis(&intf->cur_altsetting->desc) ||
+		 is_novatel_rndis(&intf->cur_altsetting->desc));
 
 	memset(info, 0, sizeof(*info));
 	info->control = intf;
@@ -310,13 +319,6 @@ skip:
 		return -ENODEV;
 	}
 
-	/* Some devices don't initialise properly. In particular
-	 * the packet filter is not reset. There are devices that
-	 * don't do reset all the way. So the packet filter should
-	 * be set to a sane initial value.
-	 */
-	usbnet_cdc_update_filter(dev);
-
 	return 0;
 
 bad_desc:
@@ -324,6 +326,30 @@ bad_desc:
 	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(usbnet_generic_cdc_bind);
+
+
+/* like usbnet_generic_cdc_bind() but handles filter initialization
+ * correctly
+ */
+int usbnet_ether_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
+{
+	int rv;
+
+	rv = usbnet_generic_cdc_bind(dev, intf);
+	if (rv < 0)
+		goto bail_out;
+
+	/* Some devices don't initialise properly. In particular
+	 * the packet filter is not reset. There are devices that
+	 * don't do reset all the way. So the packet filter should
+	 * be set to a sane initial value.
+	 */
+	usbnet_cdc_update_filter(dev);
+
+bail_out:
+	return rv;
+}
+EXPORT_SYMBOL_GPL(usbnet_ether_cdc_bind);
 
 void usbnet_cdc_unbind(struct usbnet *dev, struct usb_interface *intf)
 {
@@ -417,7 +443,7 @@ int usbnet_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 	BUILD_BUG_ON((sizeof(((struct usbnet *)0)->data)
 			< sizeof(struct cdc_state)));
 
-	status = usbnet_generic_cdc_bind(dev, intf);
+	status = usbnet_ether_cdc_bind(dev, intf);
 	if (status < 0)
 		return status;
 
@@ -466,7 +492,7 @@ static int usbnet_cdc_zte_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
  * connected. This causes the link state to be incorrect. Work around this by
  * always setting the state to off, then on.
  */
-void usbnet_cdc_zte_status(struct usbnet *dev, struct urb *urb)
+static void usbnet_cdc_zte_status(struct usbnet *dev, struct urb *urb)
 {
 	struct usb_cdc_notification *event;
 
@@ -530,8 +556,11 @@ static const struct driver_info wwan_info = {
 #define REALTEK_VENDOR_ID	0x0bda
 #define SAMSUNG_VENDOR_ID	0x04e8
 #define LENOVO_VENDOR_ID	0x17ef
+#define LINKSYS_VENDOR_ID	0x13b1
 #define NVIDIA_VENDOR_ID	0x0955
 #define HP_VENDOR_ID		0x03f0
+#define MICROSOFT_VENDOR_ID	0x045e
+#define UBLOX_VENDOR_ID		0x1546
 
 static const struct usb_device_id	products[] = {
 /* BLACKLIST !!
@@ -719,6 +748,15 @@ static const struct usb_device_id	products[] = {
 	.driver_info = 0,
 },
 
+#if IS_ENABLED(CONFIG_USB_RTL8152)
+/* Linksys USB3GIGV1 Ethernet Adapter */
+{
+	USB_DEVICE_AND_INTERFACE_INFO(LINKSYS_VENDOR_ID, 0x0041, USB_CLASS_COMM,
+			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+	.driver_info = 0,
+},
+#endif
+
 /* ThinkPad USB-C Dock (based on Realtek RTL8153) */
 {
 	USB_DEVICE_AND_INTERFACE_INFO(LENOVO_VENDOR_ID, 0x3062, USB_CLASS_COMM,
@@ -757,6 +795,20 @@ static const struct usb_device_id	products[] = {
 /* NVIDIA Tegra USB 3.0 Ethernet Adapters (based on Realtek RTL8153) */
 {
 	USB_DEVICE_AND_INTERFACE_INFO(NVIDIA_VENDOR_ID, 0x09ff, USB_CLASS_COMM,
+			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+	.driver_info = 0,
+},
+
+/* Microsoft Surface 2 dock (based on Realtek RTL8152) */
+{
+	USB_DEVICE_AND_INTERFACE_INFO(MICROSOFT_VENDOR_ID, 0x07ab, USB_CLASS_COMM,
+			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+	.driver_info = 0,
+},
+
+/* Microsoft Surface 3 dock (based on Realtek RTL8153) */
+{
+	USB_DEVICE_AND_INTERFACE_INFO(MICROSOFT_VENDOR_ID, 0x07c6, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
 	.driver_info = 0,
 },
@@ -817,6 +869,18 @@ static const struct usb_device_id	products[] = {
 				      USB_CDC_SUBCLASS_ETHERNET,
 				      USB_CDC_PROTO_NONE),
 	.driver_info = (unsigned long)&zte_cdc_info,
+}, {
+	/* U-blox TOBY-L2 */
+	USB_DEVICE_AND_INTERFACE_INFO(UBLOX_VENDOR_ID, 0x1143, USB_CLASS_COMM,
+				      USB_CDC_SUBCLASS_ETHERNET,
+				      USB_CDC_PROTO_NONE),
+	.driver_info = (unsigned long)&wwan_info,
+}, {
+	/* U-blox SARA-U2 */
+	USB_DEVICE_AND_INTERFACE_INFO(UBLOX_VENDOR_ID, 0x1104, USB_CLASS_COMM,
+				      USB_CDC_SUBCLASS_ETHERNET,
+				      USB_CDC_PROTO_NONE),
+	.driver_info = (unsigned long)&wwan_info,
 }, {
 	USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ETHERNET,
 			USB_CDC_PROTO_NONE),

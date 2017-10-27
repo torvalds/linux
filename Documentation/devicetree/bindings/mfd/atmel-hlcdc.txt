@@ -15,7 +15,7 @@ Required properties:
 
 The HLCDC IP exposes two subdevices:
  - a PWM chip: see ../pwm/atmel-hlcdc-pwm.txt
- - a Display Controller: see ../display/atmel-hlcdc-dc.txt
+ - a Display Controller: see ../display/atmel/hlcdc-dc.txt
 
 Example:
 
@@ -25,7 +25,6 @@ Example:
 		clocks = <&lcdc_clk>, <&lcdck>, <&clk32k>;
 		clock-names = "periph_clk","sys_clk", "slow_clk";
 		interrupts = <36 IRQ_TYPE_LEVEL_HIGH 0>;
-		status = "disabled";
 
 		hlcdc-display-controller {
 			compatible = "atmel,hlcdc-display-controller";

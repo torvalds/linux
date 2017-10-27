@@ -16,12 +16,9 @@ void ipvlan_init_secret(void)
 	net_get_random_once(&ipvlan_jhash_secret, sizeof(ipvlan_jhash_secret));
 }
 
-static void ipvlan_count_rx(const struct ipvl_dev *ipvlan,
+void ipvlan_count_rx(const struct ipvl_dev *ipvlan,
 			    unsigned int len, bool success, bool mcast)
 {
-	if (!ipvlan)
-		return;
-
 	if (likely(success)) {
 		struct ipvl_pcpu_stats *pcptr;
 
@@ -36,6 +33,7 @@ static void ipvlan_count_rx(const struct ipvl_dev *ipvlan,
 		this_cpu_inc(ipvlan->pcpu_stats->rx_errs);
 	}
 }
+EXPORT_SYMBOL_GPL(ipvlan_count_rx);
 
 static u8 ipvlan_get_v6_hash(const void *iaddr)
 {

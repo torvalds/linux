@@ -48,6 +48,7 @@ struct vnic_enet_config {
 #define VENETF_RSSHASH_IPV6_EX	0x200	/* Hash on IPv6 extended fields */
 #define VENETF_RSSHASH_TCPIPV6_EX 0x400	/* Hash on TCP + IPv6 ext. fields */
 #define VENETF_LOOP		0x800	/* Loopback enabled */
+#define VENETF_VXLAN		0x10000	/* VxLAN offload */
 
 #define VENET_INTR_TYPE_MIN	0	/* Timer specs min interrupt spacing */
 #define VENET_INTR_TYPE_IDLE	1	/* Timer specs idle time before irq */

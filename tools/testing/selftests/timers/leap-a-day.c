@@ -48,18 +48,7 @@
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
-#ifdef KTEST
 #include "../kselftest.h"
-#else
-static inline int ksft_exit_pass(void)
-{
-	exit(0);
-}
-static inline int ksft_exit_fail(void)
-{
-	exit(1);
-}
-#endif
 
 #define NSEC_PER_SEC 1000000000ULL
 #define CLOCK_TAI 11
@@ -190,18 +179,18 @@ int main(int argc, char **argv)
 	struct sigevent se;
 	struct sigaction act;
 	int signum = SIGRTMAX;
-	int settime = 0;
+	int settime = 1;
 	int tai_time = 0;
 	int insert = 1;
-	int iterations = -1;
+	int iterations = 10;
 	int opt;
 
 	/* Process arguments */
 	while ((opt = getopt(argc, argv, "sti:")) != -1) {
 		switch (opt) {
-		case 's':
-			printf("Setting time to speed up testing\n");
-			settime = 1;
+		case 'w':
+			printf("Only setting leap-flag, not changing time. It could take up to a day for leap to trigger.\n");
+			settime = 0;
 			break;
 		case 'i':
 			iterations = atoi(optarg);
@@ -210,9 +199,10 @@ int main(int argc, char **argv)
 			tai_time = 1;
 			break;
 		default:
-			printf("Usage: %s [-s] [-i <iterations>]\n", argv[0]);
-			printf("	-s: Set time to right before leap second each iteration\n");
-			printf("	-i: Number of iterations\n");
+			printf("Usage: %s [-w] [-i <iterations>]\n", argv[0]);
+			printf("	-w: Set flag and wait for leap second each iteration");
+			printf("	    (default sets time to right before leapsecond)\n");
+			printf("	-i: Number of iterations (-1 = infinite, default is 10)\n");
 			printf("	-t: Print TAI time\n");
 			exit(-1);
 		}

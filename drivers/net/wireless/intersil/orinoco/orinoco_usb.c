@@ -64,6 +64,7 @@
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>
 #include <linux/firmware.h>
+#include <linux/refcount.h>
 
 #include "mic.h"
 #include "orinoco.h"
@@ -209,7 +210,7 @@ struct ezusb_packet {
 } __packed;
 
 /* Table of devices that work or may work with this driver */
-static struct usb_device_id ezusb_table[] = {
+static const struct usb_device_id ezusb_table[] = {
 	{USB_DEVICE(USB_COMPAQ_VENDOR_ID, USB_COMPAQ_WL215_ID)},
 	{USB_DEVICE(USB_COMPAQ_VENDOR_ID, USB_HP_WL215_ID)},
 	{USB_DEVICE(USB_COMPAQ_VENDOR_ID, USB_COMPAQ_W200_ID)},
@@ -268,7 +269,7 @@ enum ezusb_state {
 
 struct request_context {
 	struct list_head list;
-	atomic_t refcount;
+	refcount_t refcount;
 	struct completion done;	/* Signals that CTX is dead */
 	int killed;
 	struct urb *outurb;	/* OUT for req pkt */
@@ -298,7 +299,7 @@ static inline u8 ezusb_reply_inc(u8 count)
 
 static void ezusb_request_context_put(struct request_context *ctx)
 {
-	if (!atomic_dec_and_test(&ctx->refcount))
+	if (!refcount_dec_and_test(&ctx->refcount))
 		return;
 
 	WARN_ON(!ctx->done.done);
@@ -328,7 +329,7 @@ static void ezusb_request_timerfn(u_long _ctx)
 	} else {
 		ctx->state = EZUSB_CTX_RESP_TIMEOUT;
 		dev_dbg(&ctx->outurb->dev->dev, "couldn't unlink\n");
-		atomic_inc(&ctx->refcount);
+		refcount_inc(&ctx->refcount);
 		ctx->killed = 1;
 		ezusb_ctx_complete(ctx);
 		ezusb_request_context_put(ctx);
@@ -361,7 +362,7 @@ static struct request_context *ezusb_alloc_ctx(struct ezusb_priv *upriv,
 	ctx->out_rid = out_rid;
 	ctx->in_rid = in_rid;
 
-	atomic_set(&ctx->refcount, 1);
+	refcount_set(&ctx->refcount, 1);
 	init_completion(&ctx->done);
 
 	setup_timer(&ctx->timer, ezusb_request_timerfn, (u_long)ctx);
@@ -403,8 +404,7 @@ static void ezusb_ctx_complete(struct request_context *ctx)
 
 		if ((ctx->out_rid == EZUSB_RID_TX) && upriv->dev) {
 			struct net_device *dev = upriv->dev;
-			struct orinoco_private *priv = ndev_priv(dev);
-			struct net_device_stats *stats = &priv->stats;
+			struct net_device_stats *stats = &dev->stats;
 
 			if (ctx->state != EZUSB_CTX_COMPLETE)
 				stats->tx_errors++;
@@ -470,7 +470,7 @@ static void ezusb_req_queue_run(struct ezusb_priv *upriv)
 	list_move_tail(&ctx->list, &upriv->req_active);
 
 	if (ctx->state == EZUSB_CTX_QUEUED) {
-		atomic_inc(&ctx->refcount);
+		refcount_inc(&ctx->refcount);
 		result = usb_submit_urb(ctx->outurb, GFP_ATOMIC);
 		if (result) {
 			ctx->state = EZUSB_CTX_REQSUBMIT_FAIL;
@@ -508,7 +508,7 @@ static void ezusb_req_enqueue_run(struct ezusb_priv *upriv,
 		spin_unlock_irqrestore(&upriv->req_lock, flags);
 		goto done;
 	}
-	atomic_inc(&ctx->refcount);
+	refcount_inc(&ctx->refcount);
 	list_add_tail(&ctx->list, &upriv->req_pending);
 	spin_unlock_irqrestore(&upriv->req_lock, flags);
 
@@ -770,18 +770,31 @@ static int ezusb_submit_in_urb(struct ezusb_priv *upriv)
 
 static inline int ezusb_8051_cpucs(struct ezusb_priv *upriv, int reset)
 {
-	u8 res_val = reset;	/* avoid argument promotion */
+	int ret;
+	u8 *res_val = NULL;
 
 	if (!upriv->udev) {
 		err("%s: !upriv->udev", __func__);
 		return -EFAULT;
 	}
-	return usb_control_msg(upriv->udev,
+
+	res_val = kmalloc(sizeof(*res_val), GFP_KERNEL);
+
+	if (!res_val)
+		return -ENOMEM;
+
+	*res_val = reset;	/* avoid argument promotion */
+
+	ret =  usb_control_msg(upriv->udev,
 			       usb_sndctrlpipe(upriv->udev, 0),
 			       EZUSB_REQUEST_FW_TRANS,
 			       USB_TYPE_VENDOR | USB_RECIP_DEVICE |
-			       USB_DIR_OUT, EZUSB_CPUCS_REG, 0, &res_val,
-			       sizeof(res_val), DEF_TIMEOUT);
+			       USB_DIR_OUT, EZUSB_CPUCS_REG, 0, res_val,
+			       sizeof(*res_val), DEF_TIMEOUT);
+
+	kfree(res_val);
+
+	return ret;
 }
 
 static int ezusb_firmware_download(struct ezusb_priv *upriv,
@@ -1183,7 +1196,7 @@ static int ezusb_program(struct hermes *hw, const char *buf,
 static netdev_tx_t ezusb_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &dev->stats;
 	struct ezusb_priv *upriv = priv->card;
 	u8 mic[MICHAEL_MIC_LEN + 1];
 	int err = 0;
@@ -1465,7 +1478,7 @@ static inline void ezusb_delete(struct ezusb_priv *upriv)
 		int err;
 
 		ctx = list_entry(item, struct request_context, list);
-		atomic_inc(&ctx->refcount);
+		refcount_inc(&ctx->refcount);
 
 		ctx->outurb->transfer_flags |= URB_ASYNC_UNLINK;
 		err = usb_unlink_urb(ctx->outurb);
@@ -1556,7 +1569,6 @@ static const struct net_device_ops ezusb_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_tx_timeout		= orinoco_tx_timeout,
-	.ndo_get_stats		= orinoco_get_stats,
 };
 
 static int ezusb_probe(struct usb_interface *interface,

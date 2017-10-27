@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
+#include <linux/if_vlan.h>
 #include <linux/etherdevice.h>
 #include <linux/bitmap.h>
 #include <linux/rcupdate.h>
@@ -63,6 +64,10 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	u32 rate_flags = 0;
 
+	/* assume HW handles this */
+	if (tx->rate.flags & (IEEE80211_TX_RC_MCS | IEEE80211_TX_RC_VHT_MCS))
+		return 0;
+
 	rcu_read_lock();
 	chanctx_conf = rcu_dereference(tx->sdata->vif.chanctx_conf);
 	if (chanctx_conf) {
@@ -70,10 +75,6 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 		rate_flags = ieee80211_chandef_rate_flags(&chanctx_conf->def);
 	}
 	rcu_read_unlock();
-
-	/* assume HW handles this */
-	if (tx->rate.flags & (IEEE80211_TX_RC_MCS | IEEE80211_TX_RC_VHT_MCS))
-		return 0;
 
 	/* uh huh? */
 	if (WARN_ON_ONCE(tx->rate.idx < 0))
@@ -681,10 +682,6 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	txrc.skb = tx->skb;
 	txrc.reported_rate.idx = -1;
 	txrc.rate_idx_mask = tx->sdata->rc_rateidx_mask[info->band];
-	if (txrc.rate_idx_mask == (1 << sband->n_bitrates) - 1)
-		txrc.max_rate_idx = -1;
-	else
-		txrc.max_rate_idx = fls(txrc.rate_idx_mask) - 1;
 
 	if (tx->sdata->rc_has_mcs_mask[info->band])
 		txrc.rate_idx_mcs_mask =
@@ -906,8 +903,8 @@ static int ieee80211_fragment(struct ieee80211_tx_data *tx,
 		tmp->dev = skb->dev;
 
 		/* copy header and data */
-		memcpy(skb_put(tmp, hdrlen), skb->data, hdrlen);
-		memcpy(skb_put(tmp, fraglen), skb->data + pos, fraglen);
+		skb_put_data(tmp, skb->data, hdrlen);
+		skb_put_data(tmp, skb->data + pos, fraglen);
 
 		pos += fraglen;
 	}
@@ -1279,11 +1276,6 @@ static void ieee80211_set_skb_enqueue_time(struct sk_buff *skb)
 	IEEE80211_SKB_CB(skb)->control.enqueue_time = codel_get_time();
 }
 
-static void ieee80211_set_skb_vif(struct sk_buff *skb, struct txq_info *txqi)
-{
-	IEEE80211_SKB_CB(skb)->control.vif = txqi->txq.vif;
-}
-
 static u32 codel_skb_len_func(const struct sk_buff *skb)
 {
 	return skb->len;
@@ -1343,8 +1335,15 @@ static struct sk_buff *fq_tin_dequeue_func(struct fq *fq,
 
 	local = container_of(fq, struct ieee80211_local, fq);
 	txqi = container_of(tin, struct txq_info, tin);
-	cparams = &local->cparams;
 	cstats = &txqi->cstats;
+
+	if (txqi->txq.sta) {
+		struct sta_info *sta = container_of(txqi->txq.sta,
+						    struct sta_info, sta);
+		cparams = &sta->cparams;
+	} else {
+		cparams = &local->cparams;
+	}
 
 	if (flow == &txqi->def_flow)
 		cvars = &txqi->def_cvars;
@@ -1413,7 +1412,7 @@ void ieee80211_txq_init(struct ieee80211_sub_if_data *sdata,
 		txqi->txq.sta = &sta->sta;
 		sta->sta.txq[tid] = &txqi->txq;
 		txqi->txq.tid = tid;
-		txqi->txq.ac = ieee802_1d_to_ac[tid & 7];
+		txqi->txq.ac = ieee80211_ac_from_tid(tid);
 	} else {
 		sdata->vif.txq = &txqi->txq;
 		txqi->txq.tid = 0;
@@ -2704,7 +2703,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	if (ieee80211_is_data_qos(fc)) {
 		__le16 *qos_control;
 
-		qos_control = (__le16 *) skb_push(skb, 2);
+		qos_control = skb_push(skb, 2);
 		memcpy(skb_push(skb, hdrlen - 2), &hdr, hdrlen - 2);
 		/*
 		 * Maybe we could actually set some fields here, for now just
@@ -3040,7 +3039,7 @@ static bool ieee80211_amsdu_realloc_pad(struct ieee80211_local *local,
 
 	if (padding) {
 		*subframe_len += padding;
-		memset(skb_put(skb, padding), 0, padding);
+		skb_put_zero(skb, padding);
 	}
 
 	return true;
@@ -3343,7 +3342,7 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 	}
 
 	memcpy(&eth, skb->data, ETH_HLEN - 2);
-	hdr = (void *)skb_push(skb, extra_head);
+	hdr = skb_push(skb, extra_head);
 	memcpy(skb->data, fast_tx->hdr, fast_tx->hdr_len);
 	memcpy(skb->data + fast_tx->da_offs, eth.h_dest, ETH_ALEN);
 	memcpy(skb->data + fast_tx->sa_offs, eth.h_source, ETH_ALEN);
@@ -3410,6 +3409,7 @@ struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info;
 	struct ieee80211_tx_data tx;
 	ieee80211_tx_result r;
+	struct ieee80211_vif *vif;
 
 	spin_lock_bh(&fq->lock);
 
@@ -3425,8 +3425,6 @@ begin:
 	skb = fq_tin_dequeue(fq, tin, fq_tin_dequeue_func);
 	if (!skb)
 		goto out;
-
-	ieee80211_set_skb_vif(skb, txqi);
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	info = IEEE80211_SKB_CB(skb);
@@ -3484,6 +3482,34 @@ begin:
 		}
 	}
 
+	switch (tx.sdata->vif.type) {
+	case NL80211_IFTYPE_MONITOR:
+		if (tx.sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE) {
+			vif = &tx.sdata->vif;
+			break;
+		}
+		tx.sdata = rcu_dereference(local->monitor_sdata);
+		if (tx.sdata) {
+			vif = &tx.sdata->vif;
+			info->hw_queue =
+				vif->hw_queue[skb_get_queue_mapping(skb)];
+		} else if (ieee80211_hw_check(&local->hw, QUEUE_CONTROL)) {
+			ieee80211_free_txskb(&local->hw, skb);
+			goto begin;
+		} else {
+			vif = NULL;
+		}
+		break;
+	case NL80211_IFTYPE_AP_VLAN:
+		tx.sdata = container_of(tx.sdata->bss,
+					struct ieee80211_sub_if_data, u.ap);
+		/* fall through */
+	default:
+		vif = &tx.sdata->vif;
+		break;
+	}
+
+	IEEE80211_SKB_CB(skb)->control.vif = vif;
 out:
 	spin_unlock_bh(&fq->lock);
 
@@ -3571,6 +3597,115 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 	rcu_read_unlock();
 }
 
+static int ieee80211_change_da(struct sk_buff *skb, struct sta_info *sta)
+{
+	struct ethhdr *eth;
+	int err;
+
+	err = skb_ensure_writable(skb, ETH_HLEN);
+	if (unlikely(err))
+		return err;
+
+	eth = (void *)skb->data;
+	ether_addr_copy(eth->h_dest, sta->sta.addr);
+
+	return 0;
+}
+
+static bool ieee80211_multicast_to_unicast(struct sk_buff *skb,
+					   struct net_device *dev)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	const struct ethhdr *eth = (void *)skb->data;
+	const struct vlan_ethhdr *ethvlan = (void *)skb->data;
+	__be16 ethertype;
+
+	if (likely(!is_multicast_ether_addr(eth->h_dest)))
+		return false;
+
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_AP_VLAN:
+		if (sdata->u.vlan.sta)
+			return false;
+		if (sdata->wdev.use_4addr)
+			return false;
+		/* fall through */
+	case NL80211_IFTYPE_AP:
+		/* check runtime toggle for this bss */
+		if (!sdata->bss->multicast_to_unicast)
+			return false;
+		break;
+	default:
+		return false;
+	}
+
+	/* multicast to unicast conversion only for some payload */
+	ethertype = eth->h_proto;
+	if (ethertype == htons(ETH_P_8021Q) && skb->len >= VLAN_ETH_HLEN)
+		ethertype = ethvlan->h_vlan_encapsulated_proto;
+	switch (ethertype) {
+	case htons(ETH_P_ARP):
+	case htons(ETH_P_IP):
+	case htons(ETH_P_IPV6):
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+static void
+ieee80211_convert_to_unicast(struct sk_buff *skb, struct net_device *dev,
+			     struct sk_buff_head *queue)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+	const struct ethhdr *eth = (struct ethhdr *)skb->data;
+	struct sta_info *sta, *first = NULL;
+	struct sk_buff *cloned_skb;
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(sta, &local->sta_list, list) {
+		if (sdata != sta->sdata)
+			/* AP-VLAN mismatch */
+			continue;
+		if (unlikely(ether_addr_equal(eth->h_source, sta->sta.addr)))
+			/* do not send back to source */
+			continue;
+		if (!first) {
+			first = sta;
+			continue;
+		}
+		cloned_skb = skb_clone(skb, GFP_ATOMIC);
+		if (!cloned_skb)
+			goto multicast;
+		if (unlikely(ieee80211_change_da(cloned_skb, sta))) {
+			dev_kfree_skb(cloned_skb);
+			goto multicast;
+		}
+		__skb_queue_tail(queue, cloned_skb);
+	}
+
+	if (likely(first)) {
+		if (unlikely(ieee80211_change_da(skb, first)))
+			goto multicast;
+		__skb_queue_tail(queue, skb);
+	} else {
+		/* no STA connected, drop */
+		kfree_skb(skb);
+		skb = NULL;
+	}
+
+	goto out;
+multicast:
+	__skb_queue_purge(queue);
+	__skb_queue_tail(queue, skb);
+out:
+	rcu_read_unlock();
+}
+
 /**
  * ieee80211_subif_start_xmit - netif start_xmit function for 802.3 vifs
  * @skb: packet to be sent
@@ -3581,7 +3716,17 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 				       struct net_device *dev)
 {
-	__ieee80211_subif_start_xmit(skb, dev, 0);
+	if (unlikely(ieee80211_multicast_to_unicast(skb, dev))) {
+		struct sk_buff_head queue;
+
+		__skb_queue_head_init(&queue);
+		ieee80211_convert_to_unicast(skb, dev, &queue);
+		while ((skb = __skb_dequeue(&queue)))
+			__ieee80211_subif_start_xmit(skb, dev, 0);
+	} else {
+		__ieee80211_subif_start_xmit(skb, dev, 0);
+	}
+
 	return NETDEV_TX_OK;
 }
 
@@ -3751,7 +3896,7 @@ static void __ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
 			ps->dtim_count--;
 	}
 
-	tim = pos = (u8 *) skb_put(skb, 6);
+	tim = pos = skb_put(skb, 6);
 	*pos++ = WLAN_EID_TIM;
 	*pos++ = 4;
 	*pos++ = ps->dtim_count;
@@ -4009,8 +4154,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 				goto out;
 
 			skb_reserve(skb, local->tx_headroom);
-			memcpy(skb_put(skb, beacon->head_len), beacon->head,
-			       beacon->head_len);
+			skb_put_data(skb, beacon->head, beacon->head_len);
 
 			ieee80211_beacon_add_tim(sdata, &ap->ps, skb,
 						 is_template);
@@ -4024,8 +4168,8 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 			}
 
 			if (beacon->tail)
-				memcpy(skb_put(skb, beacon->tail_len),
-				       beacon->tail, beacon->tail_len);
+				skb_put_data(skb, beacon->tail,
+					     beacon->tail_len);
 		} else
 			goto out;
 	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
@@ -4048,8 +4192,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 		if (!skb)
 			goto out;
 		skb_reserve(skb, local->tx_headroom);
-		memcpy(skb_put(skb, beacon->head_len), beacon->head,
-		       beacon->head_len);
+		skb_put_data(skb, beacon->head, beacon->head_len);
 
 		hdr = (struct ieee80211_hdr *) skb->data;
 		hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
@@ -4074,7 +4217,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 		}
 
 		if (ifmsh->sync_ops)
-			ifmsh->sync_ops->adjust_tbtt(sdata, beacon);
+			ifmsh->sync_ops->adjust_tsf(sdata, beacon);
 
 		skb = dev_alloc_skb(local->tx_headroom +
 				    beacon->head_len +
@@ -4084,8 +4227,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 		if (!skb)
 			goto out;
 		skb_reserve(skb, local->tx_headroom);
-		memcpy(skb_put(skb, beacon->head_len), beacon->head,
-		       beacon->head_len);
+		skb_put_data(skb, beacon->head, beacon->head_len);
 		ieee80211_beacon_add_tim(sdata, &ifmsh->ps, skb, is_template);
 
 		if (offs) {
@@ -4093,8 +4235,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 			offs->tim_length = skb->len - beacon->head_len;
 		}
 
-		memcpy(skb_put(skb, beacon->tail_len), beacon->tail,
-		       beacon->tail_len);
+		skb_put_data(skb, beacon->tail, beacon->tail_len);
 	} else {
 		WARN_ON(1);
 		goto out;
@@ -4129,10 +4270,6 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 	txrc.skb = skb;
 	txrc.reported_rate.idx = -1;
 	txrc.rate_idx_mask = sdata->rc_rateidx_mask[band];
-	if (txrc.rate_idx_mask == (1 << txrc.sband->n_bitrates) - 1)
-		txrc.max_rate_idx = -1;
-	else
-		txrc.max_rate_idx = fls(txrc.rate_idx_mask) - 1;
 	txrc.bss = true;
 	rate_control_get_rate(sdata, NULL, &txrc);
 
@@ -4185,7 +4322,10 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 		return bcn;
 
 	shift = ieee80211_vif_get_shift(vif);
-	sband = hw->wiphy->bands[ieee80211_get_sdata_band(vif_to_sdata(vif))];
+	sband = ieee80211_get_sband(vif_to_sdata(vif));
+	if (!sband)
+		return bcn;
+
 	ieee80211_tx_monitor(hw_to_local(hw), copy, sband, 1, shift, false);
 
 	return bcn;
@@ -4215,7 +4355,7 @@ struct sk_buff *ieee80211_proberesp_get(struct ieee80211_hw *hw,
 	if (!skb)
 		goto out;
 
-	memcpy(skb_put(skb, presp->len), presp->data, presp->len);
+	skb_put_data(skb, presp->data, presp->len);
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 	memset(hdr->addr1, 0, sizeof(hdr->addr1));
@@ -4248,8 +4388,7 @@ struct sk_buff *ieee80211_pspoll_get(struct ieee80211_hw *hw,
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	pspoll = (struct ieee80211_pspoll *) skb_put(skb, sizeof(*pspoll));
-	memset(pspoll, 0, sizeof(*pspoll));
+	pspoll = skb_put_zero(skb, sizeof(*pspoll));
 	pspoll->frame_control = cpu_to_le16(IEEE80211_FTYPE_CTL |
 					    IEEE80211_STYPE_PSPOLL);
 	pspoll->aid = cpu_to_le16(ifmgd->aid);
@@ -4286,9 +4425,7 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	nullfunc = (struct ieee80211_hdr_3addr *) skb_put(skb,
-							  sizeof(*nullfunc));
-	memset(nullfunc, 0, sizeof(*nullfunc));
+	nullfunc = skb_put_zero(skb, sizeof(*nullfunc));
 	nullfunc->frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA |
 					      IEEE80211_STYPE_NULLFUNC |
 					      IEEE80211_FCTL_TODS);
@@ -4320,8 +4457,7 @@ struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw,
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	hdr = (struct ieee80211_hdr_3addr *) skb_put(skb, sizeof(*hdr));
-	memset(hdr, 0, sizeof(*hdr));
+	hdr = skb_put_zero(skb, sizeof(*hdr));
 	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					 IEEE80211_STYPE_PROBE_REQ);
 	eth_broadcast_addr(hdr->addr1);
@@ -4539,7 +4675,7 @@ void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 				 struct sk_buff *skb, int tid,
 				 enum nl80211_band band)
 {
-	int ac = ieee802_1d_to_ac[tid & 7];
+	int ac = ieee80211_ac_from_tid(tid);
 
 	skb_reset_mac_header(skb);
 	skb_set_queue_mapping(skb, ac);

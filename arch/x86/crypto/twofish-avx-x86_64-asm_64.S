@@ -29,11 +29,13 @@
 
 .file "twofish-avx-x86_64-asm_64.S"
 
-.data
+.section	.rodata.cst16.bswap128_mask, "aM", @progbits, 16
 .align 16
-
 .Lbswap128_mask:
 	.byte 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+
+.section	.rodata.cst16.xts_gf128mul_and_shl1_mask, "aM", @progbits, 16
+.align 16
 .Lxts_gf128mul_and_shl1_mask:
 	.byte 0x87, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0
 
@@ -74,8 +76,8 @@
 #define RT %xmm14
 #define RR %xmm15
 
-#define RID1  %rbp
-#define RID1d %ebp
+#define RID1  %r13
+#define RID1d %r13d
 #define RID2  %rsi
 #define RID2d %esi
 
@@ -257,7 +259,7 @@ __twofish_enc_blk8:
 
 	vmovdqu w(CTX), RK1;
 
-	pushq %rbp;
+	pushq %r13;
 	pushq %rbx;
 	pushq %rcx;
 
@@ -280,7 +282,7 @@ __twofish_enc_blk8:
 
 	popq %rcx;
 	popq %rbx;
-	popq %rbp;
+	popq %r13;
 
 	outunpack_blocks(RC1, RD1, RA1, RB1, RK1, RX0, RY0, RK2);
 	outunpack_blocks(RC2, RD2, RA2, RB2, RK1, RX0, RY0, RK2);
@@ -299,7 +301,7 @@ __twofish_dec_blk8:
 
 	vmovdqu (w+4*4)(CTX), RK1;
 
-	pushq %rbp;
+	pushq %r13;
 	pushq %rbx;
 
 	inpack_blocks(RC1, RD1, RA1, RB1, RK1, RX0, RY0, RK2);
@@ -320,7 +322,7 @@ __twofish_dec_blk8:
 	vmovdqu (w)(CTX), RK1;
 
 	popq %rbx;
-	popq %rbp;
+	popq %r13;
 
 	outunpack_blocks(RA1, RB1, RC1, RD1, RK1, RX0, RY0, RK2);
 	outunpack_blocks(RA2, RB2, RC2, RD2, RK1, RX0, RY0, RK2);

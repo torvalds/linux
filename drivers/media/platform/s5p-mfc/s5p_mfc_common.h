@@ -33,8 +33,9 @@
 *  while mmaping */
 #define DST_QUEUE_OFF_BASE	(1 << 30)
 
-#define MFC_BANK1_ALLOC_CTX	0
-#define MFC_BANK2_ALLOC_CTX	1
+#define BANK_L_CTX	0
+#define BANK_R_CTX	1
+#define BANK_CTX_NUM	2
 
 #define MFC_BANK1_ALIGN_ORDER	13
 #define MFC_BANK2_ALIGN_ORDER	13
@@ -43,14 +44,6 @@
 #define MFC_FW_MAX_VERSIONS	2
 
 #include <media/videobuf2-dma-contig.h>
-
-static inline dma_addr_t s5p_mfc_mem_cookie(void *a, void *b)
-{
-	/* Same functionality as the vb2_dma_contig_plane_paddr */
-	dma_addr_t *paddr = vb2_dma_contig_memops.cookie(b);
-
-	return *paddr;
-}
 
 /* MFC definitions */
 #define MFC_MAX_EXTRA_DPB       5
@@ -200,7 +193,7 @@ struct s5p_mfc_buf {
  */
 struct s5p_mfc_pm {
 	struct clk	*clock_gate;
-	const char	**clk_names;
+	const char * const *clk_names;
 	struct clk	*clocks[MFC_MAX_CLOCKS];
 	int		num_clocks;
 	bool		use_clock_gating;
@@ -229,16 +222,11 @@ struct s5p_mfc_buf_size {
 	void *priv;
 };
 
-struct s5p_mfc_buf_align {
-	unsigned int base;
-};
-
 struct s5p_mfc_variant {
 	unsigned int version;
 	unsigned int port_num;
 	u32 version_bit;
 	struct s5p_mfc_buf_size *buf_size;
-	struct s5p_mfc_buf_align *buf_align;
 	char	*fw_name[MFC_FW_MAX_VERSIONS];
 	const char	*clk_names[MFC_MAX_CLOCKS];
 	int		num_clocks;
@@ -252,12 +240,14 @@ struct s5p_mfc_variant {
  *			buffer accessed by driver
  * @dma:		DMA address, only valid when kernel DMA API used
  * @size:		size of the buffer
+ * @ctx:		memory context (bank) used for this allocation
  */
 struct s5p_mfc_priv_buf {
 	unsigned long	ofs;
 	void		*virt;
 	dma_addr_t	dma;
 	size_t		size;
+	unsigned int	ctx;
 };
 
 /**
@@ -267,8 +257,7 @@ struct s5p_mfc_priv_buf {
  * @vfd_dec:		video device for decoding
  * @vfd_enc:		video device for encoding
  * @plat_dev:		platform device
- * @mem_dev_l:		child device of the left memory bank (0)
- * @mem_dev_r:		child device of the right memory bank (1)
+ * @mem_dev[]:		child devices of the memory banks
  * @regs_base:		base address of the MFC hw registers
  * @irq:		irq resource
  * @dec_ctrl_handler:	control framework handler for decoding
@@ -286,8 +275,7 @@ struct s5p_mfc_priv_buf {
  * @queue:		waitqueue for waiting for completion of device commands
  * @fw_size:		size of firmware
  * @fw_virt_addr:	virtual firmware address
- * @bank1:		address of the beginning of bank 1 memory
- * @bank2:		address of the beginning of bank 2 memory
+ * @dma_base[]:		address of the beginning of memory banks
  * @hw_lock:		used for hardware locking
  * @ctx:		array of driver contexts
  * @curr_ctx:		number of the currently running context
@@ -310,14 +298,13 @@ struct s5p_mfc_dev {
 	struct video_device	*vfd_dec;
 	struct video_device	*vfd_enc;
 	struct platform_device	*plat_dev;
-	struct device		*mem_dev_l;
-	struct device		*mem_dev_r;
+	struct device		*mem_dev[BANK_CTX_NUM];
 	void __iomem		*regs_base;
 	int			irq;
 	struct v4l2_ctrl_handler dec_ctrl_handler;
 	struct v4l2_ctrl_handler enc_ctrl_handler;
 	struct s5p_mfc_pm	pm;
-	struct s5p_mfc_variant	*variant;
+	const struct s5p_mfc_variant	*variant;
 	int num_inst;
 	spinlock_t irqlock;	/* lock when operating on context */
 	spinlock_t condlock;	/* lock when changing/checking if a context is
@@ -327,10 +314,12 @@ struct s5p_mfc_dev {
 	int int_type;
 	unsigned int int_err;
 	wait_queue_head_t queue;
-	size_t fw_size;
-	void *fw_virt_addr;
-	dma_addr_t bank1;
-	dma_addr_t bank2;
+	struct s5p_mfc_priv_buf fw_buf;
+	size_t mem_size;
+	dma_addr_t mem_base;
+	unsigned long *mem_bitmap;
+	void *mem_virt;
+	dma_addr_t dma_base[BANK_CTX_NUM];
 	unsigned long hw_lock;
 	struct s5p_mfc_ctx *ctx[MFC_NUM_CONTEXTS];
 	int curr_ctx;

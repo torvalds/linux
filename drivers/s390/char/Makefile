@@ -2,9 +2,23 @@
 # S/390 character devices
 #
 
+ifdef CONFIG_FUNCTION_TRACER
+# Do not trace early setup code
+CFLAGS_REMOVE_sclp_early_core.o	= $(CC_FLAGS_FTRACE)
+endif
+
+GCOV_PROFILE_sclp_early_core.o		:= n
+KCOV_INSTRUMENT_sclp_early_core.o	:= n
+UBSAN_SANITIZE_sclp_early_core.o	:= n
+
+ifneq ($(CC_FLAGS_MARCH),-march=z900)
+CFLAGS_REMOVE_sclp_early_core.o	+= $(CC_FLAGS_MARCH)
+CFLAGS_sclp_early_core.o		+= -march=z900
+endif
+
 obj-y += ctrlchar.o keyboard.o defkeymap.o sclp.o sclp_rw.o sclp_quiesce.o \
 	 sclp_cmd.o sclp_config.o sclp_cpi_sys.o sclp_ocf.o sclp_ctl.o \
-	 sclp_early.o
+	 sclp_early.o sclp_early_core.o
 
 obj-$(CONFIG_TN3270) += raw3270.o
 obj-$(CONFIG_TN3270_CONSOLE) += con3270.o

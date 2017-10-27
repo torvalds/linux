@@ -80,15 +80,17 @@ static int comedi_proc_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations comedi_proc_fops = {
+	.owner		= THIS_MODULE,
 	.open		= comedi_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
 
-void comedi_proc_init(void)
+void __init comedi_proc_init(void)
 {
-	proc_create("comedi", 0644, NULL, &comedi_proc_fops);
+	if (!proc_create("comedi", 0444, NULL, &comedi_proc_fops))
+		pr_warn("comedi: unable to create proc entry\n");
 }
 
 void comedi_proc_cleanup(void)

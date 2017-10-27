@@ -225,8 +225,9 @@ static int bf5xx_pcm_mmap(struct snd_pcm_substream *substream,
 	return 0 ;
 }
 
-static int bf5xx_pcm_copy(struct snd_pcm_substream *substream, int channel,
-	snd_pcm_uframes_t pos, void *buf, snd_pcm_uframes_t count)
+static int bf5xx_pcm_copy(struct snd_pcm_substream *substream,
+			  int channel, unsigned long pos,
+			  void *buf, unsigned long count)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -238,6 +239,8 @@ static int bf5xx_pcm_copy(struct snd_pcm_substream *substream, int channel,
 	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	if (dma_data->tdm_mode) {
+		pos = bytes_to_frames(runtime, pos);
+		count = bytes_to_frames(runtime, count);
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			src = buf;
 			dst = runtime->dma_area;
@@ -269,21 +272,29 @@ static int bf5xx_pcm_copy(struct snd_pcm_substream *substream, int channel,
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			src = buf;
 			dst = runtime->dma_area;
-			dst += frames_to_bytes(runtime, pos);
+			dst += pos;
 		} else {
 			src = runtime->dma_area;
-			src += frames_to_bytes(runtime, pos);
+			src += pos;
 			dst = buf;
 		}
 
-		memcpy(dst, src, frames_to_bytes(runtime, count));
+		memcpy(dst, src, count);
 	}
 
 	return 0;
 }
 
+static int bf5xx_pcm_copy_user(struct snd_pcm_substream *substream,
+			       int channel, unsigned long pos,
+			       void __user *buf, unsigned long count)
+{
+	return bf5xx_pcm_copy(substream, channel, pos, (void *)buf, count);
+}
+
 static int bf5xx_pcm_silence(struct snd_pcm_substream *substream,
-	int channel, snd_pcm_uframes_t pos, snd_pcm_uframes_t count)
+			     int channel, unsigned long pos,
+			     unsigned long count)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -295,11 +306,11 @@ static int bf5xx_pcm_silence(struct snd_pcm_substream *substream,
 	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	if (dma_data->tdm_mode) {
-		offset = pos * 8 * sample_size;
-		samples = count * 8;
+		offset = bytes_to_frames(runtime, pos) * 8 * sample_size;
+		samples = bytes_to_frames(runtime, count) * 8;
 	} else {
-		offset = frames_to_bytes(runtime, pos);
-		samples = count * runtime->channels;
+		offset = pos;
+		samples = bytes_to_samples(runtime, count);
 	}
 
 	snd_pcm_format_set_silence(runtime->format, buf + offset, samples);
@@ -307,7 +318,7 @@ static int bf5xx_pcm_silence(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_pcm_ops bf5xx_pcm_i2s_ops = {
+static const struct snd_pcm_ops bf5xx_pcm_i2s_ops = {
 	.open		= bf5xx_pcm_open,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= bf5xx_pcm_hw_params,
@@ -316,8 +327,9 @@ static struct snd_pcm_ops bf5xx_pcm_i2s_ops = {
 	.trigger	= bf5xx_pcm_trigger,
 	.pointer	= bf5xx_pcm_pointer,
 	.mmap		= bf5xx_pcm_mmap,
-	.copy		= bf5xx_pcm_copy,
-	.silence	= bf5xx_pcm_silence,
+	.copy_user	= bf5xx_pcm_copy_user,
+	.copy_kernel	= bf5xx_pcm_copy,
+	.fill_silence	= bf5xx_pcm_silence,
 };
 
 static int bf5xx_pcm_i2s_new(struct snd_soc_pcm_runtime *rtd)

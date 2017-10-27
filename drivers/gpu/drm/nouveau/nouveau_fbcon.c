@@ -41,6 +41,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_atomic.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_gem.h"
@@ -59,7 +60,7 @@ nouveau_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	struct nouveau_fbdev *fbcon = info->par;
 	struct nouveau_drm *drm = nouveau_drm(fbcon->helper.dev);
-	struct nvif_device *device = &drm->device;
+	struct nvif_device *device = &drm->client.device;
 	int ret;
 
 	if (info->state != FBINFO_STATE_RUNNING)
@@ -91,7 +92,7 @@ nouveau_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *image)
 {
 	struct nouveau_fbdev *fbcon = info->par;
 	struct nouveau_drm *drm = nouveau_drm(fbcon->helper.dev);
-	struct nvif_device *device = &drm->device;
+	struct nvif_device *device = &drm->client.device;
 	int ret;
 
 	if (info->state != FBINFO_STATE_RUNNING)
@@ -123,7 +124,7 @@ nouveau_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	struct nouveau_fbdev *fbcon = info->par;
 	struct nouveau_drm *drm = nouveau_drm(fbcon->helper.dev);
-	struct nvif_device *device = &drm->device;
+	struct nvif_device *device = &drm->client.device;
 	int ret;
 
 	if (info->state != FBINFO_STATE_RUNNING)
@@ -222,7 +223,7 @@ void
 nouveau_fbcon_accel_save_disable(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	if (drm->fbcon) {
+	if (drm->fbcon && drm->fbcon->helper.fbdev) {
 		drm->fbcon->saved_flags = drm->fbcon->helper.fbdev->flags;
 		drm->fbcon->helper.fbdev->flags |= FBINFO_HWACCEL_DISABLED;
 	}
@@ -232,7 +233,7 @@ void
 nouveau_fbcon_accel_restore(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	if (drm->fbcon) {
+	if (drm->fbcon && drm->fbcon->helper.fbdev) {
 		drm->fbcon->helper.fbdev->flags = drm->fbcon->saved_flags;
 	}
 }
@@ -244,7 +245,8 @@ nouveau_fbcon_accel_fini(struct drm_device *dev)
 	struct nouveau_fbdev *fbcon = drm->fbcon;
 	if (fbcon && drm->channel) {
 		console_lock();
-		fbcon->helper.fbdev->flags |= FBINFO_HWACCEL_DISABLED;
+		if (fbcon->helper.fbdev)
+			fbcon->helper.fbdev->flags |= FBINFO_HWACCEL_DISABLED;
 		console_unlock();
 		nouveau_channel_idle(drm->channel);
 		nvif_object_fini(&fbcon->twod);
@@ -265,36 +267,16 @@ nouveau_fbcon_accel_init(struct drm_device *dev)
 	struct fb_info *info = fbcon->helper.fbdev;
 	int ret;
 
-	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA)
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA)
 		ret = nv04_fbcon_accel_init(info);
 	else
-	if (drm->device.info.family < NV_DEVICE_INFO_V0_FERMI)
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_FERMI)
 		ret = nv50_fbcon_accel_init(info);
 	else
 		ret = nvc0_fbcon_accel_init(info);
 
 	if (ret == 0)
 		info->fbops = &nouveau_fbcon_ops;
-}
-
-static void nouveau_fbcon_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-				    u16 blue, int regno)
-{
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-
-	nv_crtc->lut.r[regno] = red;
-	nv_crtc->lut.g[regno] = green;
-	nv_crtc->lut.b[regno] = blue;
-}
-
-static void nouveau_fbcon_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
-				    u16 *blue, int regno)
-{
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-
-	*red = nv_crtc->lut.r[regno];
-	*green = nv_crtc->lut.g[regno];
-	*blue = nv_crtc->lut.b[regno];
 }
 
 static void
@@ -323,7 +305,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 		container_of(helper, struct nouveau_fbdev, helper);
 	struct drm_device *dev = fbcon->helper.dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_device *device = &drm->device;
+	struct nvif_device *device = &drm->client.device;
 	struct fb_info *info;
 	struct nouveau_framebuffer *fb;
 	struct nouveau_channel *chan;
@@ -340,8 +322,9 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 							  sizes->surface_depth);
 
-	ret = nouveau_gem_new(dev, mode_cmd.pitches[0] * mode_cmd.height,
-			      0, NOUVEAU_GEM_DOMAIN_VRAM, 0, 0x0000, &nvbo);
+	ret = nouveau_gem_new(&drm->client, mode_cmd.pitches[0] *
+			      mode_cmd.height, 0, NOUVEAU_GEM_DOMAIN_VRAM,
+			      0, 0x0000, &nvbo);
 	if (ret) {
 		NV_ERROR(drm, "failed to allocate framebuffer\n");
 		goto out;
@@ -400,7 +383,8 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	info->screen_base = nvbo_kmap_obj_iovirtual(fb->nvbo);
 	info->screen_size = fb->nvbo->bo.mem.num_pages << PAGE_SHIFT;
 
-	drm_fb_helper_fill_fix(info, fb->base.pitches[0], fb->base.depth);
+	drm_fb_helper_fill_fix(info, fb->base.pitches[0],
+			       fb->base.format->depth);
 	drm_fb_helper_fill_var(info, &fbcon->helper, sizes->fb_width, sizes->fb_height);
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
@@ -442,7 +426,6 @@ nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 	struct nouveau_framebuffer *nouveau_fb = nouveau_framebuffer(fbcon->helper.fb);
 
 	drm_fb_helper_unregister_fbi(&fbcon->helper);
-	drm_fb_helper_release_fbi(&fbcon->helper);
 	drm_fb_helper_fini(&fbcon->helper);
 
 	if (nouveau_fb->nvbo) {
@@ -465,8 +448,6 @@ void nouveau_fbcon_gpu_lockup(struct fb_info *info)
 }
 
 static const struct drm_fb_helper_funcs nouveau_fbcon_helper_funcs = {
-	.gamma_set = nouveau_fbcon_gamma_set,
-	.gamma_get = nouveau_fbcon_gamma_get,
 	.fb_probe = nouveau_fbcon_create,
 };
 
@@ -530,8 +511,7 @@ nouveau_fbcon_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, &fbcon->helper, &nouveau_fbcon_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, &fbcon->helper,
-				 dev->mode_config.num_crtc, 4);
+	ret = drm_fb_helper_init(dev, &fbcon->helper, 4);
 	if (ret)
 		goto free;
 
@@ -539,16 +519,16 @@ nouveau_fbcon_init(struct drm_device *dev)
 	if (ret)
 		goto fini;
 
-	if (drm->device.info.ram_size <= 32 * 1024 * 1024)
+	if (drm->client.device.info.ram_size <= 32 * 1024 * 1024)
 		preferred_bpp = 8;
 	else
-	if (drm->device.info.ram_size <= 64 * 1024 * 1024)
+	if (drm->client.device.info.ram_size <= 64 * 1024 * 1024)
 		preferred_bpp = 16;
 	else
 		preferred_bpp = 32;
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
-	if (!dev->mode_config.funcs->atomic_commit)
+	if (!drm_drv_uses_atomic_modeset(dev))
 		drm_helper_disable_unused_functions(dev);
 
 	ret = drm_fb_helper_initial_config(&fbcon->helper, preferred_bpp);

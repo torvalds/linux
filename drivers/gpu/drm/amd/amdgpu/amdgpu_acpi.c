@@ -30,10 +30,10 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include "amdgpu.h"
+#include "amdgpu_pm.h"
 #include "amd_acpi.h"
 #include "atom.h"
 
-extern void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev);
 /* Call the ATIF method
  */
 /**
@@ -289,7 +289,7 @@ out:
  * handles it.
  * Returns NOTIFY code
  */
-int amdgpu_atif_handler(struct amdgpu_device *adev,
+static int amdgpu_atif_handler(struct amdgpu_device *adev,
 			struct acpi_bus_event *event)
 {
 	struct amdgpu_atif *atif = &adev->atif;
@@ -672,12 +672,10 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 
 			if ((enc->devices & (ATOM_DEVICE_LCD_SUPPORT)) &&
 			    enc->enc_priv) {
-				if (adev->is_atom_bios) {
-					struct amdgpu_encoder_atom_dig *dig = enc->enc_priv;
-					if (dig->bl_dev) {
-						atif->encoder_for_bl = enc;
-						break;
-					}
+				struct amdgpu_encoder_atom_dig *dig = enc->enc_priv;
+				if (dig->bl_dev) {
+					atif->encoder_for_bl = enc;
+					break;
 				}
 			}
 		}

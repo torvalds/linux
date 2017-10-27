@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/errno.h>
-#include <rxrpc/packet.h>
 #include "internal.h"
 #include "afs_fs.h"
 
@@ -83,6 +82,8 @@ int afs_abort_to_error(u32 abort_code)
 	case RXKADSEALEDINCON:	return -EKEYREJECTED;
 	case RXKADDATALEN:	return -EKEYREJECTED;
 	case RXKADILLEGALLEVEL:	return -EKEYREJECTED;
+
+	case RXGEN_OPCODE:	return -ENOTSUPP;
 
 	default:		return -EREMOTEIO;
 	}

@@ -204,106 +204,14 @@ static unsigned configure_dma_errata(void)
 	return errata;
 }
 
-static const struct dma_slave_map omap24xx_sdma_map[] = {
-	{ "omap-gpmc", "rxtx", SDMA_FILTER_PARAM(4) },
-	{ "omap-aes", "tx", SDMA_FILTER_PARAM(9) },
-	{ "omap-aes", "rx", SDMA_FILTER_PARAM(10) },
-	{ "omap-sham", "rx", SDMA_FILTER_PARAM(13) },
-	{ "omap2_mcspi.2", "tx0", SDMA_FILTER_PARAM(15) },
-	{ "omap2_mcspi.2", "rx0", SDMA_FILTER_PARAM(16) },
-	{ "omap-mcbsp.3", "tx", SDMA_FILTER_PARAM(17) },
-	{ "omap-mcbsp.3", "rx", SDMA_FILTER_PARAM(18) },
-	{ "omap-mcbsp.4", "tx", SDMA_FILTER_PARAM(19) },
-	{ "omap-mcbsp.4", "rx", SDMA_FILTER_PARAM(20) },
-	{ "omap-mcbsp.5", "tx", SDMA_FILTER_PARAM(21) },
-	{ "omap-mcbsp.5", "rx", SDMA_FILTER_PARAM(22) },
-	{ "omap2_mcspi.2", "tx1", SDMA_FILTER_PARAM(23) },
-	{ "omap2_mcspi.2", "rx1", SDMA_FILTER_PARAM(24) },
-	{ "omap_i2c.1", "tx", SDMA_FILTER_PARAM(27) },
-	{ "omap_i2c.1", "rx", SDMA_FILTER_PARAM(28) },
-	{ "omap_i2c.2", "tx", SDMA_FILTER_PARAM(29) },
-	{ "omap_i2c.2", "rx", SDMA_FILTER_PARAM(30) },
-	{ "omap-mcbsp.1", "tx", SDMA_FILTER_PARAM(31) },
-	{ "omap-mcbsp.1", "rx", SDMA_FILTER_PARAM(32) },
-	{ "omap-mcbsp.2", "tx", SDMA_FILTER_PARAM(33) },
-	{ "omap-mcbsp.2", "rx", SDMA_FILTER_PARAM(34) },
-	{ "omap2_mcspi.0", "tx0", SDMA_FILTER_PARAM(35) },
-	{ "omap2_mcspi.0", "rx0", SDMA_FILTER_PARAM(36) },
-	{ "omap2_mcspi.0", "tx1", SDMA_FILTER_PARAM(37) },
-	{ "omap2_mcspi.0", "rx1", SDMA_FILTER_PARAM(38) },
-	{ "omap2_mcspi.0", "tx2", SDMA_FILTER_PARAM(39) },
-	{ "omap2_mcspi.0", "rx2", SDMA_FILTER_PARAM(40) },
-	{ "omap2_mcspi.0", "tx3", SDMA_FILTER_PARAM(41) },
-	{ "omap2_mcspi.0", "rx3", SDMA_FILTER_PARAM(42) },
-	{ "omap2_mcspi.1", "tx0", SDMA_FILTER_PARAM(43) },
-	{ "omap2_mcspi.1", "rx0", SDMA_FILTER_PARAM(44) },
-	{ "omap2_mcspi.1", "tx1", SDMA_FILTER_PARAM(45) },
-	{ "omap2_mcspi.1", "rx1", SDMA_FILTER_PARAM(46) },
-	{ "omap_hsmmc.1", "tx", SDMA_FILTER_PARAM(47) },
-	{ "omap_hsmmc.1", "rx", SDMA_FILTER_PARAM(48) },
-	{ "omap_uart.0", "tx", SDMA_FILTER_PARAM(49) },
-	{ "omap_uart.0", "rx", SDMA_FILTER_PARAM(50) },
-	{ "omap_uart.1", "tx", SDMA_FILTER_PARAM(51) },
-	{ "omap_uart.1", "rx", SDMA_FILTER_PARAM(52) },
-	{ "omap_uart.2", "tx", SDMA_FILTER_PARAM(53) },
-	{ "omap_uart.2", "rx", SDMA_FILTER_PARAM(54) },
-	{ "omap_hsmmc.0", "tx", SDMA_FILTER_PARAM(61) },
-	{ "omap_hsmmc.0", "rx", SDMA_FILTER_PARAM(62) },
-};
-
-static const struct dma_slave_map omap3xxx_sdma_map[] = {
-	{ "omap-gpmc", "rxtx", SDMA_FILTER_PARAM(4) },
-	{ "omap2_mcspi.2", "tx0", SDMA_FILTER_PARAM(15) },
-	{ "omap2_mcspi.2", "rx0", SDMA_FILTER_PARAM(16) },
-	{ "omap-mcbsp.3", "tx", SDMA_FILTER_PARAM(17) },
-	{ "omap-mcbsp.3", "rx", SDMA_FILTER_PARAM(18) },
-	{ "omap-mcbsp.4", "tx", SDMA_FILTER_PARAM(19) },
-	{ "omap-mcbsp.4", "rx", SDMA_FILTER_PARAM(20) },
-	{ "omap-mcbsp.5", "tx", SDMA_FILTER_PARAM(21) },
-	{ "omap-mcbsp.5", "rx", SDMA_FILTER_PARAM(22) },
-	{ "omap2_mcspi.2", "tx1", SDMA_FILTER_PARAM(23) },
-	{ "omap2_mcspi.2", "rx1", SDMA_FILTER_PARAM(24) },
-	{ "omap_i2c.3", "tx", SDMA_FILTER_PARAM(25) },
-	{ "omap_i2c.3", "rx", SDMA_FILTER_PARAM(26) },
-	{ "omap_i2c.1", "tx", SDMA_FILTER_PARAM(27) },
-	{ "omap_i2c.1", "rx", SDMA_FILTER_PARAM(28) },
-	{ "omap_i2c.2", "tx", SDMA_FILTER_PARAM(29) },
-	{ "omap_i2c.2", "rx", SDMA_FILTER_PARAM(30) },
-	{ "omap-mcbsp.1", "tx", SDMA_FILTER_PARAM(31) },
-	{ "omap-mcbsp.1", "rx", SDMA_FILTER_PARAM(32) },
-	{ "omap-mcbsp.2", "tx", SDMA_FILTER_PARAM(33) },
-	{ "omap-mcbsp.2", "rx", SDMA_FILTER_PARAM(34) },
-	{ "omap2_mcspi.0", "tx0", SDMA_FILTER_PARAM(35) },
-	{ "omap2_mcspi.0", "rx0", SDMA_FILTER_PARAM(36) },
-	{ "omap2_mcspi.0", "tx1", SDMA_FILTER_PARAM(37) },
-	{ "omap2_mcspi.0", "rx1", SDMA_FILTER_PARAM(38) },
-	{ "omap2_mcspi.0", "tx2", SDMA_FILTER_PARAM(39) },
-	{ "omap2_mcspi.0", "rx2", SDMA_FILTER_PARAM(40) },
-	{ "omap2_mcspi.0", "tx3", SDMA_FILTER_PARAM(41) },
-	{ "omap2_mcspi.0", "rx3", SDMA_FILTER_PARAM(42) },
-	{ "omap2_mcspi.1", "tx0", SDMA_FILTER_PARAM(43) },
-	{ "omap2_mcspi.1", "rx0", SDMA_FILTER_PARAM(44) },
-	{ "omap2_mcspi.1", "tx1", SDMA_FILTER_PARAM(45) },
-	{ "omap2_mcspi.1", "rx1", SDMA_FILTER_PARAM(46) },
-	{ "omap_hsmmc.1", "tx", SDMA_FILTER_PARAM(47) },
-	{ "omap_hsmmc.1", "rx", SDMA_FILTER_PARAM(48) },
-	{ "omap_uart.0", "tx", SDMA_FILTER_PARAM(49) },
-	{ "omap_uart.0", "rx", SDMA_FILTER_PARAM(50) },
-	{ "omap_uart.1", "tx", SDMA_FILTER_PARAM(51) },
-	{ "omap_uart.1", "rx", SDMA_FILTER_PARAM(52) },
-	{ "omap_uart.2", "tx", SDMA_FILTER_PARAM(53) },
-	{ "omap_uart.2", "rx", SDMA_FILTER_PARAM(54) },
-	{ "omap_hsmmc.0", "tx", SDMA_FILTER_PARAM(61) },
-	{ "omap_hsmmc.0", "rx", SDMA_FILTER_PARAM(62) },
-	{ "omap-aes", "tx", SDMA_FILTER_PARAM(65) },
-	{ "omap-aes", "rx", SDMA_FILTER_PARAM(66) },
-	{ "omap-sham", "rx", SDMA_FILTER_PARAM(69) },
-	{ "omap2_mcspi.3", "tx0", SDMA_FILTER_PARAM(70) },
-	{ "omap2_mcspi.3", "rx0", SDMA_FILTER_PARAM(71) },
-	{ "omap_hsmmc.2", "tx", SDMA_FILTER_PARAM(77) },
-	{ "omap_hsmmc.2", "rx", SDMA_FILTER_PARAM(78) },
-	{ "omap_uart.3", "tx", SDMA_FILTER_PARAM(81) },
-	{ "omap_uart.3", "rx", SDMA_FILTER_PARAM(82) },
+static const struct dma_slave_map omap24xx_sdma_dt_map[] = {
+	/* external DMA requests when tusb6010 is used */
+	{ "musb-hdrc.1.auto", "dmareq0", SDMA_FILTER_PARAM(2) },
+	{ "musb-hdrc.1.auto", "dmareq1", SDMA_FILTER_PARAM(3) },
+	{ "musb-hdrc.1.auto", "dmareq2", SDMA_FILTER_PARAM(14) }, /* OMAP2420 only */
+	{ "musb-hdrc.1.auto", "dmareq3", SDMA_FILTER_PARAM(15) }, /* OMAP2420 only */
+	{ "musb-hdrc.1.auto", "dmareq4", SDMA_FILTER_PARAM(16) }, /* OMAP2420 only */
+	{ "musb-hdrc.1.auto", "dmareq5", SDMA_FILTER_PARAM(64) }, /* OMAP2420 only */
 };
 
 static struct omap_system_dma_plat_info dma_plat_info __initdata = {
@@ -334,18 +242,10 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 	p.dma_attr = (struct omap_dma_dev_attr *)oh->dev_attr;
 	p.errata = configure_dma_errata();
 
-	if (!of_have_populated_dt()) {
-		if (soc_is_omap24xx()) {
-			p.slave_map = omap24xx_sdma_map;
-			p.slavecnt = ARRAY_SIZE(omap24xx_sdma_map);
-		} else if (soc_is_omap34xx() || soc_is_omap3630()) {
-			p.slave_map = omap3xxx_sdma_map;
-			p.slavecnt = ARRAY_SIZE(omap3xxx_sdma_map);
-		} else {
-			pr_err("%s: The legacy DMA map is not provided!\n",
-			       __func__);
-			return -ENODEV;
-		}
+	if (soc_is_omap24xx()) {
+		/* DMA slave map for drivers not yet converted to DT */
+		p.slave_map = omap24xx_sdma_dt_map;
+		p.slavecnt = ARRAY_SIZE(omap24xx_sdma_dt_map);
 	}
 
 	pdev = omap_device_build(name, 0, oh, &p, sizeof(p));
@@ -389,21 +289,7 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 
 static int __init omap2_system_dma_init(void)
 {
-	struct platform_device *pdev;
-	int res;
-
-	res = omap_hwmod_for_each_by_class("dma",
+	return omap_hwmod_for_each_by_class("dma",
 			omap2_system_dma_init_dev, NULL);
-	if (res)
-		return res;
-
-	if (of_have_populated_dt())
-		return res;
-
-	pdev = platform_device_register_full(&omap_dma_dev_info);
-	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
-
-	return res;
 }
 omap_arch_initcall(omap2_system_dma_init);

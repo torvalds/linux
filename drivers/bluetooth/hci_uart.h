@@ -58,6 +58,7 @@
 #define HCI_UART_VND_DETECT	5
 
 struct hci_uart;
+struct serdev_device;
 
 struct hci_uart_proto {
 	unsigned int id;
@@ -77,6 +78,7 @@ struct hci_uart_proto {
 
 struct hci_uart {
 	struct tty_struct	*tty;
+	struct serdev_device	*serdev;
 	struct hci_dev		*hdev;
 	unsigned long		flags;
 	unsigned long		hdev_flags;
@@ -85,6 +87,7 @@ struct hci_uart {
 	struct work_struct	write_work;
 
 	const struct hci_uart_proto *proto;
+	rwlock_t		proto_lock;	/* Stop work for proto close */
 	void			*priv;
 
 	struct sk_buff		*tx_skb;
@@ -92,6 +95,9 @@ struct hci_uart {
 
 	unsigned int init_speed;
 	unsigned int oper_speed;
+
+	u8			alignment;
+	u8			padding;
 };
 
 /* HCI_UART proto flag bits */
@@ -105,9 +111,11 @@ struct hci_uart {
 
 int hci_uart_register_proto(const struct hci_uart_proto *p);
 int hci_uart_unregister_proto(const struct hci_uart_proto *p);
+int hci_uart_register_device(struct hci_uart *hu, const struct hci_uart_proto *p);
+void hci_uart_unregister_device(struct hci_uart *hu);
+
 int hci_uart_tx_wakeup(struct hci_uart *hu);
 int hci_uart_init_ready(struct hci_uart *hu);
-void hci_uart_init_tty(struct hci_uart *hu);
 void hci_uart_set_baudrate(struct hci_uart *hu, unsigned int speed);
 void hci_uart_set_flow_control(struct hci_uart *hu, bool enable);
 void hci_uart_set_speeds(struct hci_uart *hu, unsigned int init_speed,

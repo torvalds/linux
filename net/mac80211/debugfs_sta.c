@@ -154,6 +154,12 @@ static ssize_t sta_aqm_read(struct file *file, char __user *userbuf,
 
 	p += scnprintf(p,
 		       bufsz+buf-p,
+		       "target %uus interval %uus ecn %s\n",
+		       codel_time_to_us(sta->cparams.target),
+		       codel_time_to_us(sta->cparams.interval),
+		       sta->cparams.ecn ? "yes" : "no");
+	p += scnprintf(p,
+		       bufsz+buf-p,
 		       "tid ac backlog-bytes backlog-packets new-flows drops marks overlimit collisions tx-bytes tx-packets\n");
 
 	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
@@ -522,6 +528,7 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 		return;
 
 	DEBUGFS_ADD(flags);
+	DEBUGFS_ADD(aid);
 	DEBUGFS_ADD(num_ps_buf_frames);
 	DEBUGFS_ADD(last_seq_ctrl);
 	DEBUGFS_ADD(agg_status);

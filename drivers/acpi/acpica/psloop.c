@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,6 +55,7 @@
 #include "acparser.h"
 #include "acdispat.h"
 #include "amlcode.h"
+#include "acconvert.h"
 
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("psloop")
@@ -92,6 +93,10 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 
 	ACPI_FUNCTION_TRACE_PTR(ps_get_arguments, walk_state);
 
+	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+			  "Get arguments for opcode [%s]\n",
+			  op->common.aml_op_name));
+
 	switch (op->common.aml_opcode) {
 	case AML_BYTE_OP:	/* AML_BYTEDATA_ARG */
 	case AML_WORD_OP:	/* AML_WORDDATA_ARG */
@@ -128,6 +133,21 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 		       !walk_state->arg_count) {
 			walk_state->aml = walk_state->parser_state.aml;
 
+			switch (op->common.aml_opcode) {
+			case AML_METHOD_OP:
+			case AML_BUFFER_OP:
+			case AML_PACKAGE_OP:
+			case AML_VARIABLE_PACKAGE_OP:
+			case AML_WHILE_OP:
+
+				break;
+
+			default:
+
+				ASL_CV_CAPTURE_COMMENTS(walk_state);
+				break;
+			}
+
 			status =
 			    acpi_ps_get_next_arg(walk_state,
 						 &(walk_state->parser_state),
@@ -143,6 +163,11 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 
 			INCREMENT_ARG_LIST(walk_state->arg_types);
 		}
+
+		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+				  "Final argument count: %u pass %u\n",
+				  walk_state->arg_count,
+				  walk_state->pass_number));
 
 		/*
 		 * Handle executable code at "module-level". This refers to
@@ -250,13 +275,18 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 
 		case AML_BUFFER_OP:
 		case AML_PACKAGE_OP:
-		case AML_VAR_PACKAGE_OP:
+		case AML_VARIABLE_PACKAGE_OP:
 
 			if ((op->common.parent) &&
 			    (op->common.parent->common.aml_opcode ==
 			     AML_NAME_OP)
 			    && (walk_state->pass_number <=
 				ACPI_IMODE_LOAD_PASS2)) {
+				ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+						  "Setup Package/Buffer: Pass %u, AML Ptr: %p\n",
+						  walk_state->pass_number,
+						  aml_op_start));
+
 				/*
 				 * Skip parsing of Buffers and Packages because we don't have
 				 * enough info in the first pass to parse them correctly.
@@ -476,6 +506,8 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 	/* Iterative parsing loop, while there is more AML to process: */
 
 	while ((parser_state->aml < parser_state->aml_end) || (op)) {
+		ASL_CV_CAPTURE_COMMENTS(walk_state);
+
 		aml_op_start = parser_state->aml;
 		if (!op) {
 			status =
@@ -512,6 +544,20 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 		 */
 		walk_state->arg_count = 0;
 
+		switch (op->common.aml_opcode) {
+		case AML_BYTE_OP:
+		case AML_WORD_OP:
+		case AML_DWORD_OP:
+		case AML_QWORD_OP:
+
+			break;
+
+		default:
+
+			ASL_CV_CAPTURE_COMMENTS(walk_state);
+			break;
+		}
+
 		/* Are there any arguments that must be processed? */
 
 		if (walk_state->arg_types) {
@@ -533,6 +579,10 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 		}
 
 		/* Check for arguments that need to be processed */
+
+		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+				  "Parseloop: argument count: %u\n",
+				  walk_state->arg_count));
 
 		if (walk_state->arg_count) {
 			/*

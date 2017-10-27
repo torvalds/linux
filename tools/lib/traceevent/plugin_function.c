@@ -130,7 +130,7 @@ static int function_handler(struct trace_seq *s, struct pevent_record *record,
 	unsigned long long pfunction;
 	const char *func;
 	const char *parent;
-	int index;
+	int index = 0;
 
 	if (pevent_get_field_val(s, event, "ip", record, &function, 1))
 		return trace_seq_putc(s, '!');

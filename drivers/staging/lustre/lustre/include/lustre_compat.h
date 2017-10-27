@@ -35,8 +35,9 @@
 
 #include <linux/fs_struct.h>
 #include <linux/namei.h>
+#include <linux/cred.h>
 
-#include "lustre_patchless_compat.h"
+#include <lustre_patchless_compat.h>
 
 /*
  * set ATTR_BLOCKS to a high value to avoid any risk of collision with other

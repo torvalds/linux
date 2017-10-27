@@ -12,6 +12,8 @@
 #ifndef __RT5663_H__
 #define __RT5663_H__
 
+#include <sound/rt5663.h>
+
 /* Info */
 #define RT5663_RESET				0x0000
 #define RT5663_VENDOR_ID			0x00fd
@@ -590,6 +592,10 @@
 #define RT5663_IRQ_POW_SAV_JD1_SHIFT		14
 #define RT5663_IRQ_POW_SAV_JD1_DIS		(0x0 << 14)
 #define RT5663_IRQ_POW_SAV_JD1_EN		(0x1 << 14)
+#define RT5663_IRQ_MANUAL_MASK			(0x1 << 8)
+#define RT5663_IRQ_MANUAL_SHIFT			8
+#define RT5663_IRQ_MANUAL_DIS			(0x0 << 8)
+#define RT5663_IRQ_MANUAL_EN			(0x1 << 8)
 
 /* IRQ Control 1 (0x00b6) */
 #define RT5663_EN_CB_JD_MASK			(0x1 << 3)

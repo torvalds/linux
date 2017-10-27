@@ -33,10 +33,11 @@
  * future).
  *
  */
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
-#include "../include/obd.h"
-#include "../include/cl_object.h"
+#define DEBUG_SUBSYSTEM S_LLITE
+#include <obd_class.h>
+#include <obd_support.h>
+#include <obd.h>
+#include <cl_object.h>
 
 #include "llite_internal.h"
 
@@ -123,7 +124,7 @@ int cl_get_grouplock(struct cl_object *obj, unsigned long gid, int nonblock,
 	struct cl_lock	 *lock;
 	struct cl_lock_descr   *descr;
 	__u32		   enqflags;
-	int		     refcheck;
+	u16 refcheck;
 	int		     rc;
 
 	env = cl_env_get(&refcheck);
@@ -132,7 +133,6 @@ int cl_get_grouplock(struct cl_object *obj, unsigned long gid, int nonblock,
 
 	io = vvp_env_thread_io(env);
 	io->ci_obj = obj;
-	io->ci_ignore_layout = 1;
 
 	rc = cl_io_init(env, io, CIT_MISC, io->ci_obj);
 	if (rc != 0) {

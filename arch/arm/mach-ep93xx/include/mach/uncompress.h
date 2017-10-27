@@ -10,6 +10,7 @@
  */
 
 #include <mach/ep93xx-regs.h>
+#include <asm/mach-types.h>
 
 static unsigned char __raw_readb(unsigned int ptr)
 {
@@ -75,8 +76,19 @@ static void ethernet_reset(void)
 		;
 }
 
+#define TS72XX_WDT_CONTROL_PHYS_BASE	0x23800000
+#define TS72XX_WDT_FEED_PHYS_BASE	0x23c00000
+#define TS72XX_WDT_FEED_VAL		0x05
+
+static void __maybe_unused ts72xx_watchdog_disable(void)
+{
+	__raw_writeb(TS72XX_WDT_FEED_VAL, TS72XX_WDT_FEED_PHYS_BASE);
+	__raw_writeb(0, TS72XX_WDT_CONTROL_PHYS_BASE);
+}
 
 static void arch_decomp_setup(void)
 {
+	if (machine_is_ts72xx())
+		ts72xx_watchdog_disable();
 	ethernet_reset();
 }

@@ -713,8 +713,7 @@ static int hgpk_toggle_powersave(struct psmouse *psmouse, int enable)
 		 * the upper bound. (in practice, it takes about 3 loops.)
 		 */
 		for (timeo = 20; timeo > 0; timeo--) {
-			if (!ps2_sendbyte(&psmouse->ps2dev,
-					PSMOUSE_CMD_DISABLE, 20))
+			if (!ps2_sendbyte(ps2dev, PSMOUSE_CMD_DISABLE, 20))
 				break;
 			msleep(25);
 		}
@@ -740,7 +739,7 @@ static int hgpk_toggle_powersave(struct psmouse *psmouse, int enable)
 		psmouse_set_state(psmouse, PSMOUSE_IGNORE);
 
 		/* probably won't see an ACK, the touchpad will be off */
-		ps2_sendbyte(&psmouse->ps2dev, 0xec, 20);
+		ps2_sendbyte(ps2dev, 0xec, 20);
 	}
 
 	return 0;

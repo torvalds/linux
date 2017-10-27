@@ -562,7 +562,7 @@ static int cyapa_gen3_bl_exit(struct cyapa *cyapa)
 	 * Wait for bootloader to exit, and operation mode to start.
 	 * Normally, this takes at least 50 ms.
 	 */
-	usleep_range(50000, 100000);
+	msleep(50);
 	/*
 	 * In addition, when a device boots for the first time after being
 	 * updated to new firmware, it must first calibrate its sensors, which
@@ -789,7 +789,7 @@ static ssize_t cyapa_gen3_do_calibrate(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct cyapa *cyapa = dev_get_drvdata(dev);
-	int tries;
+	unsigned long timeout;
 	int ret;
 
 	ret = cyapa_read_byte(cyapa, CYAPA_CMD_DEV_STATUS);
@@ -812,31 +812,28 @@ static ssize_t cyapa_gen3_do_calibrate(struct device *dev,
 		goto out;
 	}
 
-	tries = 20;  /* max recalibration timeout 2s. */
+	/* max recalibration timeout 2s. */
+	timeout = jiffies + 2 * HZ;
 	do {
 		/*
 		 * For this recalibration, the max time will not exceed 2s.
 		 * The average time is approximately 500 - 700 ms, and we
 		 * will check the status every 100 - 200ms.
 		 */
-		usleep_range(100000, 200000);
-
+		msleep(100);
 		ret = cyapa_read_byte(cyapa, CYAPA_CMD_DEV_STATUS);
 		if (ret < 0) {
-			dev_err(dev, "Error reading dev status: %d\n",
-				ret);
+			dev_err(dev, "Error reading dev status: %d\n", ret);
 			goto out;
 		}
-		if ((ret & CYAPA_DEV_NORMAL) == CYAPA_DEV_NORMAL)
-			break;
-	} while (--tries);
+		if ((ret & CYAPA_DEV_NORMAL) == CYAPA_DEV_NORMAL) {
+			dev_dbg(dev, "Calibration successful.\n");
+			goto out;
+		}
+	} while (time_is_after_jiffies(timeout));
 
-	if (tries == 0) {
-		dev_err(dev, "Failed to calibrate. Timeout.\n");
-		ret = -ETIMEDOUT;
-		goto out;
-	}
-	dev_dbg(dev, "Calibration successful.\n");
+	dev_err(dev, "Failed to calibrate. Timeout.\n");
+	ret = -ETIMEDOUT;
 
 out:
 	return ret < 0 ? ret : count;

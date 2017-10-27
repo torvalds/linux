@@ -32,7 +32,9 @@
 #define DP83867_CFG3		0x1e
 
 /* Extended Registers */
+#define DP83867_CFG4            0x0031
 #define DP83867_RGMIICTL	0x0032
+#define DP83867_STRAP_STS1	0x006E
 #define DP83867_RGMIIDCTL	0x0086
 #define DP83867_IO_MUX_CFG	0x0170
 
@@ -57,9 +59,13 @@
 #define DP83867_RGMII_TX_CLK_DELAY_EN		BIT(1)
 #define DP83867_RGMII_RX_CLK_DELAY_EN		BIT(0)
 
+/* STRAP_STS1 bits */
+#define DP83867_STRAP_STS1_RESERVED		BIT(11)
+
 /* PHY CTRL bits */
 #define DP83867_PHYCR_FIFO_DEPTH_SHIFT		14
 #define DP83867_PHYCR_FIFO_DEPTH_MASK		(3 << 14)
+#define DP83867_PHYCR_RESERVED_MASK		BIT(11)
 
 /* RGMIIDCTL bits */
 #define DP83867_RGMII_TX_CLK_DELAY_SHIFT	4
@@ -70,11 +76,22 @@
 #define DP83867_IO_MUX_CFG_IO_IMPEDANCE_MAX	0x0
 #define DP83867_IO_MUX_CFG_IO_IMPEDANCE_MIN	0x1f
 
+/* CFG4 bits */
+#define DP83867_CFG4_PORT_MIRROR_EN              BIT(0)
+
+enum {
+	DP83867_PORT_MIRROING_KEEP,
+	DP83867_PORT_MIRROING_EN,
+	DP83867_PORT_MIRROING_DIS,
+};
+
 struct dp83867_private {
 	int rx_id_delay;
 	int tx_id_delay;
 	int fifo_depth;
 	int io_impedance;
+	int port_mirroring;
+	bool rxctrl_strap_quirk;
 };
 
 static int dp83867_ack_interrupt(struct phy_device *phydev)
@@ -111,6 +128,24 @@ static int dp83867_config_intr(struct phy_device *phydev)
 	return phy_write(phydev, MII_DP83867_MICR, micr_status);
 }
 
+static int dp83867_config_port_mirroring(struct phy_device *phydev)
+{
+	struct dp83867_private *dp83867 =
+		(struct dp83867_private *)phydev->priv;
+	u16 val;
+
+	val = phy_read_mmd(phydev, DP83867_DEVADDR, DP83867_CFG4);
+
+	if (dp83867->port_mirroring == DP83867_PORT_MIRROING_EN)
+		val |= DP83867_CFG4_PORT_MIRROR_EN;
+	else
+		val &= ~DP83867_CFG4_PORT_MIRROR_EN;
+
+	phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_CFG4, val);
+
+	return 0;
+}
+
 #ifdef CONFIG_OF_MDIO
 static int dp83867_of_init(struct phy_device *phydev)
 {
@@ -130,6 +165,9 @@ static int dp83867_of_init(struct phy_device *phydev)
 	else if (of_property_read_bool(of_node, "ti,min-output-impedance"))
 		dp83867->io_impedance = DP83867_IO_MUX_CFG_IO_IMPEDANCE_MIN;
 
+	dp83867->rxctrl_strap_quirk = of_property_read_bool(of_node,
+					"ti,dp83867-rxctrl-strap-quirk");
+
 	ret = of_property_read_u32(of_node, "ti,rx-internal-delay",
 				   &dp83867->rx_id_delay);
 	if (ret &&
@@ -144,6 +182,12 @@ static int dp83867_of_init(struct phy_device *phydev)
 	     phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID))
 		return ret;
 
+	if (of_property_read_bool(of_node, "enet-phy-lane-swap"))
+		dp83867->port_mirroring = DP83867_PORT_MIRROING_EN;
+
+	if (of_property_read_bool(of_node, "enet-phy-lane-no-swap"))
+		dp83867->port_mirroring = DP83867_PORT_MIRROING_DIS;
+
 	return of_property_read_u32(of_node, "ti,fifo-depth",
 				   &dp83867->fifo_depth);
 }
@@ -157,7 +201,7 @@ static int dp83867_of_init(struct phy_device *phydev)
 static int dp83867_config_init(struct phy_device *phydev)
 {
 	struct dp83867_private *dp83867;
-	int ret, val;
+	int ret, val, bs;
 	u16 delay;
 
 	if (!phydev->priv) {
@@ -174,12 +218,34 @@ static int dp83867_config_init(struct phy_device *phydev)
 		dp83867 = (struct dp83867_private *)phydev->priv;
 	}
 
+	/* RX_DV/RX_CTRL strapped in mode 1 or mode 2 workaround */
+	if (dp83867->rxctrl_strap_quirk) {
+		val = phy_read_mmd(phydev, DP83867_DEVADDR, DP83867_CFG4);
+		val &= ~BIT(7);
+		phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_CFG4, val);
+	}
+
 	if (phy_interface_is_rgmii(phydev)) {
 		val = phy_read(phydev, MII_DP83867_PHYCTRL);
 		if (val < 0)
 			return val;
 		val &= ~DP83867_PHYCR_FIFO_DEPTH_MASK;
 		val |= (dp83867->fifo_depth << DP83867_PHYCR_FIFO_DEPTH_SHIFT);
+
+		/* The code below checks if "port mirroring" N/A MODE4 has been
+		 * enabled during power on bootstrap.
+		 *
+		 * Such N/A mode enabled by mistake can put PHY IC in some
+		 * internal testing mode and disable RGMII transmission.
+		 *
+		 * In this particular case one needs to check STRAP_STS1
+		 * register's bit 11 (marked as RESERVED).
+		 */
+
+		bs = phy_read_mmd(phydev, DP83867_DEVADDR, DP83867_STRAP_STS1);
+		if (bs & DP83867_STRAP_STS1_RESERVED)
+			val &= ~DP83867_PHYCR_RESERVED_MASK;
+
 		ret = phy_write(phydev, MII_DP83867_PHYCTRL, val);
 		if (ret)
 			return ret;
@@ -187,8 +253,7 @@ static int dp83867_config_init(struct phy_device *phydev)
 
 	if ((phydev->interface >= PHY_INTERFACE_MODE_RGMII_ID) &&
 	    (phydev->interface <= PHY_INTERFACE_MODE_RGMII_RXID)) {
-		val = phy_read_mmd_indirect(phydev, DP83867_RGMIICTL,
-					    DP83867_DEVADDR);
+		val = phy_read_mmd(phydev, DP83867_DEVADDR, DP83867_RGMIICTL);
 
 		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
 			val |= (DP83867_RGMII_TX_CLK_DELAY_EN | DP83867_RGMII_RX_CLK_DELAY_EN);
@@ -199,25 +264,24 @@ static int dp83867_config_init(struct phy_device *phydev)
 		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID)
 			val |= DP83867_RGMII_RX_CLK_DELAY_EN;
 
-		phy_write_mmd_indirect(phydev, DP83867_RGMIICTL,
-				       DP83867_DEVADDR, val);
+		phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_RGMIICTL, val);
 
 		delay = (dp83867->rx_id_delay |
 			(dp83867->tx_id_delay << DP83867_RGMII_TX_CLK_DELAY_SHIFT));
 
-		phy_write_mmd_indirect(phydev, DP83867_RGMIIDCTL,
-				       DP83867_DEVADDR, delay);
+		phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_RGMIIDCTL,
+			      delay);
 
 		if (dp83867->io_impedance >= 0) {
-			val = phy_read_mmd_indirect(phydev, DP83867_IO_MUX_CFG,
-						    DP83867_DEVADDR);
+			val = phy_read_mmd(phydev, DP83867_DEVADDR,
+					   DP83867_IO_MUX_CFG);
 
 			val &= ~DP83867_IO_MUX_CFG_IO_IMPEDANCE_CTRL;
 			val |= dp83867->io_impedance &
 			       DP83867_IO_MUX_CFG_IO_IMPEDANCE_CTRL;
 
-			phy_write_mmd_indirect(phydev, DP83867_IO_MUX_CFG,
-					       DP83867_DEVADDR, val);
+			phy_write_mmd(phydev, DP83867_DEVADDR,
+				      DP83867_IO_MUX_CFG, val);
 		}
 	}
 
@@ -227,6 +291,9 @@ static int dp83867_config_init(struct phy_device *phydev)
 		val |= BIT(7);
 		phy_write(phydev, DP83867_CFG3, val);
 	}
+
+	if (dp83867->port_mirroring != DP83867_PORT_MIRROING_KEEP)
+		dp83867_config_port_mirroring(phydev);
 
 	return 0;
 }

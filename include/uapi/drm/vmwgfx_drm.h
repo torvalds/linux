@@ -41,6 +41,7 @@ extern "C" {
 #define DRM_VMW_GET_PARAM            0
 #define DRM_VMW_ALLOC_DMABUF         1
 #define DRM_VMW_UNREF_DMABUF         2
+#define DRM_VMW_HANDLE_CLOSE         2
 #define DRM_VMW_CURSOR_BYPASS        3
 /* guarded by DRM_VMW_PARAM_NUM_STREAMS != 0*/
 #define DRM_VMW_CONTROL_STREAM       4
@@ -296,12 +297,16 @@ union drm_vmw_surface_reference_arg {
  * @version: Allows expanding the execbuf ioctl parameters without breaking
  * backwards compatibility, since user-space will always tell the kernel
  * which version it uses.
- * @flags: Execbuf flags. None currently.
+ * @flags: Execbuf flags.
+ * @imported_fence_fd:  FD for a fence imported from another device
  *
  * Argument to the DRM_VMW_EXECBUF Ioctl.
  */
 
 #define DRM_VMW_EXECBUF_VERSION 2
+
+#define DRM_VMW_EXECBUF_FLAG_IMPORT_FENCE_FD (1 << 0)
+#define DRM_VMW_EXECBUF_FLAG_EXPORT_FENCE_FD (1 << 1)
 
 struct drm_vmw_execbuf_arg {
 	__u64 commands;
@@ -311,7 +316,7 @@ struct drm_vmw_execbuf_arg {
 	__u32 version;
 	__u32 flags;
 	__u32 context_handle;
-	__u32 pad64;
+	__s32 imported_fence_fd;
 };
 
 /**
@@ -327,6 +332,7 @@ struct drm_vmw_execbuf_arg {
  * @passed_seqno: The highest seqno number processed by the hardware
  * so far. This can be used to mark user-space fence objects as signaled, and
  * to determine whether a fence seqno might be stale.
+ * @fd: FD associated with the fence, -1 if not exported
  * @error: This member should've been set to -EFAULT on submission.
  * The following actions should be take on completion:
  * error == -EFAULT: Fence communication failed. The host is synchronized.
@@ -344,7 +350,7 @@ struct drm_vmw_fence_rep {
 	__u32 mask;
 	__u32 seqno;
 	__u32 passed_seqno;
-	__u32 pad64;
+	__s32 fd;
 	__s32 error;
 };
 
@@ -1091,6 +1097,29 @@ union drm_vmw_extended_context_arg {
 	enum drm_vmw_extended_context req;
 	struct drm_vmw_context_arg rep;
 };
+
+/*************************************************************************/
+/*
+ * DRM_VMW_HANDLE_CLOSE - Close a user-space handle and release its
+ * underlying resource.
+ *
+ * Note that this ioctl is overlaid on the DRM_VMW_UNREF_DMABUF Ioctl.
+ * The ioctl arguments therefore need to be identical in layout.
+ *
+ */
+
+/**
+ * struct drm_vmw_handle_close_arg
+ *
+ * @handle: Handle to close.
+ *
+ * Argument to the DRM_VMW_HANDLE_CLOSE Ioctl.
+ */
+struct drm_vmw_handle_close_arg {
+	__u32 handle;
+	__u32 pad64;
+};
+
 
 #if defined(__cplusplus)
 }

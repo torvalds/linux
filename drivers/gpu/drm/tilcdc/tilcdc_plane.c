@@ -28,7 +28,6 @@ static struct drm_plane_funcs tilcdc_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy	= drm_plane_cleanup,
-	.set_property	= drm_atomic_helper_plane_set_property,
 	.reset		= drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
@@ -69,7 +68,7 @@ static int tilcdc_plane_atomic_check(struct drm_plane *plane,
 	}
 
 	pitch = crtc_state->mode.hdisplay *
-		drm_format_plane_cpp(state->fb->pixel_format, 0);
+		state->fb->format->cpp[0];
 	if (state->fb->pitches[0] != pitch) {
 		dev_err(plane->dev->dev,
 			"Invalid pitch: fb and crtc widths must be the same");
@@ -77,7 +76,7 @@ static int tilcdc_plane_atomic_check(struct drm_plane *plane,
 	}
 
 	if (state->fb && old_state->fb &&
-	    state->fb->pixel_format != old_state->fb->pixel_format) {
+	    state->fb->format != old_state->fb->format) {
 		dev_dbg(plane->dev->dev,
 			"%s(): pixel format change requires mode_change\n",
 			__func__);

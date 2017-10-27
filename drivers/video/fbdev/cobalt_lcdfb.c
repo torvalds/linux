@@ -26,6 +26,7 @@
 #include <linux/uaccess.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
+#include <linux/sched/signal.h>
 
 /*
  * Cursor position address
@@ -125,7 +126,7 @@ static void lcd_clear(struct fb_info *info)
 	lcd_write_control(info, LCD_RESET);
 }
 
-static struct fb_fix_screeninfo cobalt_lcdfb_fix = {
+static const struct fb_fix_screeninfo cobalt_lcdfb_fix = {
 	.id		= "cobalt-lcd",
 	.type		= FB_TYPE_TEXT,
 	.type_aux	= FB_AUX_TEXT_MDA,

@@ -78,7 +78,8 @@ static int comedi_pcmcia_conf_check(struct pcmcia_device *link,
  *	or a negative error number from pcmcia_enable_device() if it fails.
  */
 int comedi_pcmcia_enable(struct comedi_device *dev,
-			 int (*conf_check)(struct pcmcia_device *, void *))
+			 int (*conf_check)(struct pcmcia_device *p_dev,
+					   void *priv_data))
 {
 	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
 	int ret;

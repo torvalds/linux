@@ -27,6 +27,13 @@ struct arc_fpu {
 };
 #endif
 
+#ifdef CONFIG_ARC_PLAT_EZNPS
+struct eznps_dp {
+	unsigned int eflags;
+	unsigned int gpa1;
+};
+#endif
+
 /* Arch specific stuff which needs to be saved per task.
  * However these items are not so important so as to earn a place in
  * struct thread_info
@@ -37,6 +44,9 @@ struct thread_struct {
 	unsigned long fault_address;	/* dbls as brkpt holder as well */
 #ifdef CONFIG_ARC_FPU_SAVE_RESTORE
 	struct arc_fpu fpu;
+#endif
+#ifdef CONFIG_ARC_PLAT_EZNPS
+	struct eznps_dp dp;
 #endif
 };
 
@@ -68,9 +78,6 @@ struct task_struct;
 
 #endif
 
-#define copy_segments(tsk, mm)      do { } while (0)
-#define release_segments(mm)        do { } while (0)
-
 #define KSTK_EIP(tsk)   (task_pt_regs(tsk)->ret)
 #define KSTK_ESP(tsk)   (task_pt_regs(tsk)->sp)
 
@@ -85,8 +92,6 @@ struct task_struct;
 
 #define TSK_K_BLINK(tsk)	TSK_K_REG(tsk, 4)
 #define TSK_K_FP(tsk)		TSK_K_REG(tsk, 0)
-
-#define thread_saved_pc(tsk)	TSK_K_BLINK(tsk)
 
 extern void start_thread(struct pt_regs * regs, unsigned long pc,
 			 unsigned long usp);

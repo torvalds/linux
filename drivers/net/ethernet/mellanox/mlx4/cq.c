@@ -81,8 +81,9 @@ void mlx4_cq_tasklet_cb(unsigned long data)
 
 static void mlx4_add_cq_to_tasklet(struct mlx4_cq *cq)
 {
-	unsigned long flags;
 	struct mlx4_eq_tasklet *tasklet_ctx = cq->tasklet_ctx.priv;
+	unsigned long flags;
+	bool kick;
 
 	spin_lock_irqsave(&tasklet_ctx->lock, flags);
 	/* When migrating CQs between EQs will be implemented, please note
@@ -92,7 +93,10 @@ static void mlx4_add_cq_to_tasklet(struct mlx4_cq *cq)
 	 */
 	if (list_empty_careful(&cq->tasklet_ctx.list)) {
 		atomic_inc(&cq->refcount);
+		kick = list_empty(&tasklet_ctx->list);
 		list_add_tail(&cq->tasklet_ctx.list, &tasklet_ctx->list);
+		if (kick)
+			tasklet_schedule(&tasklet_ctx->task);
 	}
 	spin_unlock_irqrestore(&tasklet_ctx->lock, flags);
 }
@@ -220,11 +224,11 @@ int __mlx4_cq_alloc_icm(struct mlx4_dev *dev, int *cqn)
 	if (*cqn == -1)
 		return -ENOMEM;
 
-	err = mlx4_table_get(dev, &cq_table->table, *cqn, GFP_KERNEL);
+	err = mlx4_table_get(dev, &cq_table->table, *cqn);
 	if (err)
 		goto err_out;
 
-	err = mlx4_table_get(dev, &cq_table->cmpt_table, *cqn, GFP_KERNEL);
+	err = mlx4_table_get(dev, &cq_table->cmpt_table, *cqn);
 	if (err)
 		goto err_put;
 	return 0;
@@ -237,13 +241,14 @@ err_out:
 	return err;
 }
 
-static int mlx4_cq_alloc_icm(struct mlx4_dev *dev, int *cqn)
+static int mlx4_cq_alloc_icm(struct mlx4_dev *dev, int *cqn, u8 usage)
 {
+	u32 in_modifier = RES_CQ | (((u32)usage & 3) << 30);
 	u64 out_param;
 	int err;
 
 	if (mlx4_is_mfunc(dev)) {
-		err = mlx4_cmd_imm(dev, 0, &out_param, RES_CQ,
+		err = mlx4_cmd_imm(dev, 0, &out_param, in_modifier,
 				   RES_OP_RESERVE_AND_MAP, MLX4_CMD_ALLOC_RES,
 				   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
 		if (err)
@@ -299,7 +304,7 @@ int mlx4_cq_alloc(struct mlx4_dev *dev, int nent,
 
 	cq->vector = vector;
 
-	err = mlx4_cq_alloc_icm(dev, &cq->cqn);
+	err = mlx4_cq_alloc_icm(dev, &cq->cqn, cq->usage);
 	if (err)
 		return err;
 

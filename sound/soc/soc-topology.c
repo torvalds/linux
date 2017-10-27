@@ -242,6 +242,14 @@ static const struct soc_tplg_map dapm_map[] = {
 	{SND_SOC_TPLG_DAPM_DAI_IN, snd_soc_dapm_dai_in},
 	{SND_SOC_TPLG_DAPM_DAI_OUT, snd_soc_dapm_dai_out},
 	{SND_SOC_TPLG_DAPM_DAI_LINK, snd_soc_dapm_dai_link},
+	{SND_SOC_TPLG_DAPM_BUFFER, snd_soc_dapm_buffer},
+	{SND_SOC_TPLG_DAPM_SCHEDULER, snd_soc_dapm_scheduler},
+	{SND_SOC_TPLG_DAPM_EFFECT, snd_soc_dapm_effect},
+	{SND_SOC_TPLG_DAPM_SIGGEN, snd_soc_dapm_siggen},
+	{SND_SOC_TPLG_DAPM_SRC, snd_soc_dapm_src},
+	{SND_SOC_TPLG_DAPM_ASRC, snd_soc_dapm_asrc},
+	{SND_SOC_TPLG_DAPM_ENCODER, snd_soc_dapm_encoder},
+	{SND_SOC_TPLG_DAPM_DECODER, snd_soc_dapm_decoder},
 };
 
 static int tplc_chan_get_reg(struct soc_tplg *tplg,
@@ -344,7 +352,18 @@ static int soc_tplg_widget_load(struct soc_tplg *tplg,
 	return 0;
 }
 
-/* pass DAI configurations to component driver for extra intialization */
+/* optionally pass new dynamic widget to component driver. This is mainly for
+ * external widgets where we can assign private data/ops */
+static int soc_tplg_widget_ready(struct soc_tplg *tplg,
+	struct snd_soc_dapm_widget *w, struct snd_soc_tplg_dapm_widget *tplg_w)
+{
+	if (tplg->comp && tplg->ops && tplg->ops->widget_ready)
+		return tplg->ops->widget_ready(tplg->comp, w, tplg_w);
+
+	return 0;
+}
+
+/* pass DAI configurations to component driver for extra initialization */
 static int soc_tplg_dai_load(struct soc_tplg *tplg,
 	struct snd_soc_dai_driver *dai_drv)
 {
@@ -354,7 +373,7 @@ static int soc_tplg_dai_load(struct soc_tplg *tplg,
 	return 0;
 }
 
-/* pass link configurations to component driver for extra intialization */
+/* pass link configurations to component driver for extra initialization */
 static int soc_tplg_dai_link_load(struct soc_tplg *tplg,
 	struct snd_soc_dai_link *link)
 {
@@ -495,12 +514,13 @@ static void remove_widget(struct snd_soc_component *comp,
 			struct snd_kcontrol *kcontrol = w->kcontrols[i];
 			struct soc_enum *se =
 				(struct soc_enum *)kcontrol->private_value;
+			int j;
 
 			snd_ctl_remove(card, kcontrol);
 
 			kfree(se->dobj.control.dvalues);
-			for (i = 0; i < se->items; i++)
-				kfree(se->dobj.control.dtexts[i]);
+			for (j = 0; j < se->items; j++)
+				kfree(se->dobj.control.dtexts[j]);
 
 			kfree(se);
 		}
@@ -933,6 +953,7 @@ static int soc_tplg_denum_create_texts(struct soc_enum *se,
 		}
 	}
 
+	se->texts = (const char * const *)se->dobj.control.dtexts;
 	return 0;
 
 err:
@@ -1150,7 +1171,8 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 		return -EINVAL;
 	}
 
-	dev_dbg(tplg->dev, "ASoC: adding %d DAPM routes\n", count);
+	dev_dbg(tplg->dev, "ASoC: adding %d DAPM routes for index %d\n", count,
+		hdr->index);
 
 	for (i = 0; i < count; i++) {
 		elem = (struct snd_soc_tplg_dapm_graph_elem *)tplg->pos;
@@ -1463,6 +1485,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 	if (template.id < 0)
 		return template.id;
 
+	/* strings are allocated here, but used and freed by the widget */
 	template.name = kstrdup(w->name, GFP_KERNEL);
 	if (!template.name)
 		return -ENOMEM;
@@ -1555,6 +1578,15 @@ widget:
 		widget = snd_soc_dapm_new_control(dapm, &template);
 	else
 		widget = snd_soc_dapm_new_control_unlocked(dapm, &template);
+	if (IS_ERR(widget)) {
+		ret = PTR_ERR(widget);
+		/* Do not nag about probe deferrals */
+		if (ret != -EPROBE_DEFER)
+			dev_err(tplg->dev,
+				"ASoC: failed to create widget %s controls (%d)\n",
+				w->name, ret);
+		goto hdr_err;
+	}
 	if (widget == NULL) {
 		dev_err(tplg->dev, "ASoC: failed to create widget %s controls\n",
 			w->name);
@@ -1566,11 +1598,17 @@ widget:
 	widget->dobj.widget.kcontrol_type = kcontrol_type;
 	widget->dobj.ops = tplg->ops;
 	widget->dobj.index = tplg->index;
-	kfree(template.sname);
-	kfree(template.name);
 	list_add(&widget->dobj.list, &tplg->comp->dobj_list);
+
+	ret = soc_tplg_widget_ready(tplg, widget, w);
+	if (ret < 0)
+		goto ready_err;
+
 	return 0;
 
+ready_err:
+	snd_soc_tplg_widget_remove(widget);
+	snd_soc_dapm_free_widget(widget);
 hdr_err:
 	kfree(template.sname);
 err:
@@ -1617,7 +1655,7 @@ static int soc_tplg_dapm_complete(struct soc_tplg *tplg)
 	*/
 	if (!card || !card->instantiated) {
 		dev_warn(tplg->dev, "ASoC: Parent card not yet available,"
-				"Do not add new widgets now\n");
+			" widget card binding deferred\n");
 		return 0;
 	}
 
@@ -1862,7 +1900,7 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 {
 	struct snd_soc_tplg_pcm *pcm, *_pcm;
 	int count = hdr->count;
-	int i, err;
+	int i;
 	bool abi_match;
 
 	if (tplg->pass != SOC_TPLG_PASS_PCM_DAI)
@@ -1896,7 +1934,7 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 			_pcm = pcm;
 		} else {
 			abi_match = false;
-			err = pcm_new_ver(tplg, pcm, &_pcm);
+			pcm_new_ver(tplg, pcm, &_pcm);
 		}
 
 		/* create the FE DAIs and DAI links */
@@ -1918,7 +1956,7 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 
 /**
  * set_link_hw_format - Set the HW audio format of the physical DAI link.
- * @tplg: topology context
+ * @link: &snd_soc_dai_link which should be updated
  * @cfg: physical link configs.
  *
  * Topology context contains a list of supported HW formats (configs) and
@@ -1969,7 +2007,7 @@ static void set_link_hw_format(struct snd_soc_dai_link *link,
 /**
  * link_new_ver - Create a new physical link config from the old
  * version of source.
- * @toplogy: topology context
+ * @tplg: topology context
  * @src: old version of phyical link config as a source
  * @link: latest version of physical link config created from the source
  *
@@ -2211,7 +2249,7 @@ static int soc_tplg_dai_elems_load(struct soc_tplg *tplg,
 /**
  * manifest_new_ver - Create a new version of manifest from the old version
  * of source.
- * @toplogy: topology context
+ * @tplg: topology context
  * @src: old version of manifest as a source
  * @manifest: latest version of manifest created from the source
  *
@@ -2352,7 +2390,7 @@ static int soc_tplg_load_header(struct soc_tplg *tplg,
 
 	/* check for matching ID */
 	if (hdr->index != tplg->req_index &&
-		hdr->index != SND_SOC_TPLG_INDEX_ALL)
+		tplg->req_index != SND_SOC_TPLG_INDEX_ALL)
 		return 0;
 
 	tplg->index = hdr->index;

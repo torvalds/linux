@@ -70,11 +70,9 @@ config IP_MULTIPLE_TABLES
 	  address into account. Furthermore, the TOS (Type-Of-Service) field
 	  of the packet can be used for routing decisions as well.
 
-	  If you are interested in this, please see the preliminary
-	  documentation at <http://www.compendium.com.ar/policy-routing.txt>
-	  and <ftp://post.tepkom.ru/pub/vol2/Linux/docs/advanced-routing.tex>.
-	  You will need supporting software from
-	  <ftp://ftp.tux.org/pub/net/ip-routing/>.
+	  If you need more information, see the Linux Advanced
+	  Routing and Traffic Control documentation at
+	  <http://lartc.org/howto/lartc.rpdb.html>
 
 	  If unsure, say N.
 
@@ -187,6 +185,7 @@ config NET_IPGRE_DEMUX
 config NET_IP_TUNNEL
 	tristate
 	select DST_CACHE
+	select GRO_CELLS
 	default n
 
 config NET_IPGRE
@@ -359,6 +358,19 @@ config INET_ESP
 	  Support for IPsec ESP.
 
 	  If unsure, say Y.
+
+config INET_ESP_OFFLOAD
+	tristate "IP: ESP transformation offload"
+	depends on INET_ESP
+	select XFRM_OFFLOAD
+	default n
+	---help---
+	  Support for ESP transformation offload. This makes sense
+	  only if this system really does IPsec and want to do it
+	  with high throughput. A typical desktop system does not
+	  need it, even if it does IPsec.
+
+	  If unsure, say N.
 
 config INET_IPCOMP
 	tristate "IP: IPComp transformation"

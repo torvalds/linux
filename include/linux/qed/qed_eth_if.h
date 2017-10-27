@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #ifndef _QED_ETH_IF_H
@@ -23,8 +47,7 @@ struct qed_queue_start_common_params {
 	/* Relative, but relevant only for PFs */
 	u8 stats_id;
 
-	/* These are always absolute */
-	u16 sb;
+	struct qed_sb_info *p_sb;
 	u8 sb_idx;
 };
 
@@ -50,10 +73,13 @@ struct qed_dev_eth_info {
 
 	/* Legacy VF - this affects the datapath, so qede has to know */
 	bool is_legacy;
+
+	/* Might depend on available resources [in case of VF] */
+	bool xdp_supported;
 };
 
 struct qed_update_vport_rss_params {
-	u16	rss_ind_table[128];
+	void	*rss_ind_table[128];
 	u32	rss_key[10];
 	u8	rss_caps;
 };
@@ -72,6 +98,7 @@ struct qed_update_vport_params {
 
 struct qed_start_vport_params {
 	bool remove_inner_vlan;
+	bool handle_ptp_pkts;
 	bool gro_enable;
 	bool drop_ttl0;
 	u8 vport_id;
@@ -133,6 +160,27 @@ struct qed_tunn_params {
 struct qed_eth_cb_ops {
 	struct qed_common_cb_ops common;
 	void (*force_mac) (void *dev, u8 *mac, bool forced);
+	void (*ports_update)(void *dev, u16 vxlan_port, u16 geneve_port);
+};
+
+#define QED_MAX_PHC_DRIFT_PPB   291666666
+
+enum qed_ptp_filter_type {
+	QED_PTP_FILTER_NONE,
+	QED_PTP_FILTER_ALL,
+	QED_PTP_FILTER_V1_L4_EVENT,
+	QED_PTP_FILTER_V1_L4_GEN,
+	QED_PTP_FILTER_V2_L4_EVENT,
+	QED_PTP_FILTER_V2_L4_GEN,
+	QED_PTP_FILTER_V2_L2_EVENT,
+	QED_PTP_FILTER_V2_L2_GEN,
+	QED_PTP_FILTER_V2_EVENT,
+	QED_PTP_FILTER_V2_GEN
+};
+
+enum qed_ptp_hwtstamp_tx_type {
+	QED_PTP_HWTSTAMP_TX_OFF,
+	QED_PTP_HWTSTAMP_TX_ON,
 };
 
 #ifdef CONFIG_DCB
@@ -194,6 +242,17 @@ struct qed_eth_dcbnl_ops {
 };
 #endif
 
+struct qed_eth_ptp_ops {
+	int (*cfg_filters)(struct qed_dev *, enum qed_ptp_filter_type,
+			   enum qed_ptp_hwtstamp_tx_type);
+	int (*read_rx_ts)(struct qed_dev *, u64 *);
+	int (*read_tx_ts)(struct qed_dev *, u64 *);
+	int (*read_cc)(struct qed_dev *, u64 *);
+	int (*disable)(struct qed_dev *);
+	int (*adjfreq)(struct qed_dev *, s32);
+	int (*enable)(struct qed_dev *);
+};
+
 struct qed_eth_ops {
 	const struct qed_common_ops *common;
 #ifdef CONFIG_QED_SRIOV
@@ -202,6 +261,7 @@ struct qed_eth_ops {
 #ifdef CONFIG_DCB
 	const struct qed_eth_dcbnl_ops *dcb;
 #endif
+	const struct qed_eth_ptp_ops *ptp;
 
 	int (*fill_dev_info)(struct qed_dev *cdev,
 			     struct qed_dev_eth_info *info);
@@ -255,6 +315,15 @@ struct qed_eth_ops {
 
 	int (*tunn_config)(struct qed_dev *cdev,
 			   struct qed_tunn_params *params);
+
+	int (*ntuple_filter_config)(struct qed_dev *cdev, void *cookie,
+				    dma_addr_t mapping, u16 length,
+				    u16 vport_id, u16 rx_queue_id,
+				    bool add_filter);
+
+	int (*configure_arfs_searcher)(struct qed_dev *cdev,
+				       bool en_searcher);
+	int (*get_coalesce)(struct qed_dev *cdev, u16 *coal, void *handle);
 };
 
 const struct qed_eth_ops *qed_get_eth_ops(void);

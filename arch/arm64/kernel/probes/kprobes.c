@@ -22,6 +22,7 @@
 #include <linux/extable.h>
 #include <linux/slab.h>
 #include <linux/stop_machine.h>
+#include <linux/sched/debug.h>
 #include <linux/stringify.h>
 #include <asm/traps.h>
 #include <asm/ptrace.h>
@@ -371,12 +372,6 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, unsigned int fsr)
 	return 0;
 }
 
-int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
-				       unsigned long val, void *data)
-{
-	return NOTIFY_DONE;
-}
-
 static void __kprobes kprobe_handler(struct pt_regs *regs)
 {
 	struct kprobe *p, *cur_kprobe;
@@ -527,9 +522,9 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 		pr_err("current sp %lx does not match saved sp %lx\n",
 		       orig_sp, stack_addr);
 		pr_err("Saved registers for jprobe %p\n", jp);
-		show_regs(saved_regs);
+		__show_regs(saved_regs);
 		pr_err("Current registers\n");
-		show_regs(regs);
+		__show_regs(regs);
 		BUG();
 	}
 	unpause_graph_tracing();

@@ -91,6 +91,12 @@ static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
 		value |= bitmask;
 	cpg_mstp_write(group, value, group->smstpcr);
 
+	if (!group->mstpsr) {
+		/* dummy read to ensure write has completed */
+		cpg_mstp_read(group, group->smstpcr);
+		barrier_data(group->smstpcr);
+	}
+
 	spin_unlock_irqrestore(&group->lock, flags);
 
 	if (!enable || !group->mstpsr)
@@ -141,9 +147,9 @@ static const struct clk_ops cpg_mstp_clock_ops = {
 	.is_enabled = cpg_mstp_clock_is_enabled,
 };
 
-static struct clk * __init
-cpg_mstp_clock_register(const char *name, const char *parent_name,
-			unsigned int index, struct mstp_clock_group *group)
+static struct clk * __init cpg_mstp_clock_register(const char *name,
+	const char *parent_name, unsigned int index,
+	struct mstp_clock_group *group)
 {
 	struct clk_init_data init;
 	struct mstp_clock *clock;
@@ -158,6 +164,11 @@ cpg_mstp_clock_register(const char *name, const char *parent_name,
 	init.name = name;
 	init.ops = &cpg_mstp_clock_ops;
 	init.flags = CLK_IS_BASIC | CLK_SET_RATE_PARENT;
+	/* INTC-SYS is the module clock of the GIC, and must not be disabled */
+	if (!strcmp(name, "intc-sys")) {
+		pr_debug("MSTP %s setting CLK_IS_CRITICAL\n", name);
+		init.flags |= CLK_IS_CRITICAL;
+	}
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
@@ -314,7 +325,7 @@ fail_put:
 
 void cpg_mstp_detach_dev(struct generic_pm_domain *unused, struct device *dev)
 {
-	if (!list_empty(&dev->power.subsys_data->clock_list))
+	if (!pm_clk_no_clocks(dev))
 		pm_clk_destroy(dev);
 }
 
@@ -324,7 +335,7 @@ void __init cpg_mstp_add_clk_domain(struct device_node *np)
 	u32 ncells;
 
 	if (of_property_read_u32(np, "#power-domain-cells", &ncells)) {
-		pr_warn("%s lacks #power-domain-cells\n", np->full_name);
+		pr_warn("%pOF lacks #power-domain-cells\n", np);
 		return;
 	}
 

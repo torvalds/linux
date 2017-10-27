@@ -2079,7 +2079,7 @@ void
 mpt_detach(struct pci_dev *pdev)
 {
 	MPT_ADAPTER 	*ioc = pci_get_drvdata(pdev);
-	char pname[32];
+	char pname[64];
 	u8 cb_idx;
 	unsigned long flags;
 	struct workqueue_struct *wq;
@@ -2100,11 +2100,11 @@ mpt_detach(struct pci_dev *pdev)
 	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 	destroy_workqueue(wq);
 
-	sprintf(pname, MPT_PROCFS_MPTBASEDIR "/%s/summary", ioc->name);
+	snprintf(pname, sizeof(pname), MPT_PROCFS_MPTBASEDIR "/%s/summary", ioc->name);
 	remove_proc_entry(pname, NULL);
-	sprintf(pname, MPT_PROCFS_MPTBASEDIR "/%s/info", ioc->name);
+	snprintf(pname, sizeof(pname), MPT_PROCFS_MPTBASEDIR "/%s/info", ioc->name);
 	remove_proc_entry(pname, NULL);
-	sprintf(pname, MPT_PROCFS_MPTBASEDIR "/%s", ioc->name);
+	snprintf(pname, sizeof(pname), MPT_PROCFS_MPTBASEDIR "/%s", ioc->name);
 	remove_proc_entry(pname, NULL);
 
 	/* call per device driver remove entry point */
@@ -7396,7 +7396,7 @@ mpt_display_event_info(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply)
 			break;
 		case MPI_EVENT_SAS_DEV_STAT_RC_NO_PERSIST_ADDED:
 			snprintf(evStr, EVENT_DESCR_STR_SZ,
-			    "SAS Device Status Change: No Persistancy: "
+			    "SAS Device Status Change: No Persistency: "
 			    "id=%d channel=%d", id, channel);
 			break;
 		case MPI_EVENT_SAS_DEV_STAT_RC_UNSUPPORTED:

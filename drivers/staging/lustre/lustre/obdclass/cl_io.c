@@ -37,12 +37,12 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
-#include "../include/lustre_fid.h"
+#include <obd_class.h>
+#include <obd_support.h>
+#include <lustre_fid.h>
 #include <linux/list.h>
 #include <linux/sched.h>
-#include "../include/cl_object.h"
+#include <cl_object.h>
 #include "cl_internal.h"
 
 /*****************************************************************************
@@ -1119,9 +1119,9 @@ int cl_sync_io_wait(const struct lu_env *env, struct cl_sync_io *anchor,
 	LASSERT(atomic_read(&anchor->csi_sync_nr) == 0);
 
 	/* wait until cl_sync_io_note() has done wakeup */
-	while (unlikely(atomic_read(&anchor->csi_barrier) != 0)) {
+	while (unlikely(atomic_read(&anchor->csi_barrier) != 0))
 		cpu_relax();
-	}
+
 
 	return rc;
 }

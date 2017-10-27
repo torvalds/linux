@@ -490,7 +490,7 @@ static struct svc_xprt *svc_xprt_dequeue(struct svc_pool *pool)
 		svc_xprt_get(xprt);
 
 		dprintk("svc: transport %p dequeued, inuse=%d\n",
-			xprt, atomic_read(&xprt->xpt_ref.refcount));
+			xprt, kref_read(&xprt->xpt_ref));
 	}
 	spin_unlock_bh(&pool->sp_lock);
 out:
@@ -659,11 +659,13 @@ static int svc_alloc_arg(struct svc_rqst *rqstp)
 	int i;
 
 	/* now allocate needed pages.  If we get a failure, sleep briefly */
-	pages = (serv->sv_max_mesg + PAGE_SIZE) / PAGE_SIZE;
-	WARN_ON_ONCE(pages >= RPCSVC_MAXPAGES);
-	if (pages >= RPCSVC_MAXPAGES)
+	pages = (serv->sv_max_mesg + 2 * PAGE_SIZE) >> PAGE_SHIFT;
+	if (pages > RPCSVC_MAXPAGES) {
+		pr_warn_once("svc: warning: pages=%u > RPCSVC_MAXPAGES=%lu\n",
+			     pages, RPCSVC_MAXPAGES);
 		/* use as many pages as possible */
-		pages = RPCSVC_MAXPAGES - 1;
+		pages = RPCSVC_MAXPAGES;
+	}
 	for (i = 0; i < pages ; i++)
 		while (rqstp->rq_pages[i] == NULL) {
 			struct page *p = alloc_page(GFP_KERNEL);
@@ -822,7 +824,7 @@ static int svc_handle_xprt(struct svc_rqst *rqstp, struct svc_xprt *xprt)
 		/* XPT_DATA|XPT_DEFERRED case: */
 		dprintk("svc: server %p, pool %u, transport %p, inuse=%d\n",
 			rqstp, rqstp->rq_pool->sp_id, xprt,
-			atomic_read(&xprt->xpt_ref.refcount));
+			kref_read(&xprt->xpt_ref));
 		rqstp->rq_deferred = svc_deferred_dequeue(xprt);
 		if (rqstp->rq_deferred)
 			len = svc_deferred_recv(rqstp);
@@ -980,7 +982,7 @@ static void svc_age_temp_xprts(unsigned long closure)
 		 * through, close it. */
 		if (!test_and_set_bit(XPT_OLD, &xprt->xpt_flags))
 			continue;
-		if (atomic_read(&xprt->xpt_ref.refcount) > 1 ||
+		if (kref_read(&xprt->xpt_ref) > 1 ||
 		    test_bit(XPT_BUSY, &xprt->xpt_flags))
 			continue;
 		list_del_init(le);

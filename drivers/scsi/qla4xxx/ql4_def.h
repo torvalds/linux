@@ -408,9 +408,6 @@ struct qla4_8xxx_legacy_intr_set {
 };
 
 /* MSI-X Support */
-
-#define QLA_MSIX_DEFAULT	0
-#define QLA_MSIX_RSP_Q		1
 #define QLA_MSIX_ENTRIES	2
 
 /*

@@ -1851,7 +1851,7 @@ vmxnet3_poll(struct napi_struct *napi, int budget)
 	rxd_done = vmxnet3_do_poll(rx_queue->adapter, budget);
 
 	if (rxd_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, rxd_done);
 		vmxnet3_enable_all_intrs(rx_queue->adapter);
 	}
 	return rxd_done;
@@ -1882,7 +1882,7 @@ vmxnet3_poll_rx_only(struct napi_struct *napi, int budget)
 	rxd_done = vmxnet3_rq_rx_complete(rq, adapter, budget);
 
 	if (rxd_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, rxd_done);
 		vmxnet3_enable_intr(adapter, rq->comp_ring.intr_idx);
 	}
 	return rxd_done;
@@ -2962,6 +2962,11 @@ vmxnet3_force_close(struct vmxnet3_adapter *adapter)
 	/* we need to enable NAPI, otherwise dev_close will deadlock */
 	for (i = 0; i < adapter->num_rx_queues; i++)
 		napi_enable(&adapter->rx_queue[i].napi);
+	/*
+	 * Need to clear the quiesce bit to ensure that vmxnet3_close
+	 * can quiesce the device properly
+	 */
+	clear_bit(VMXNET3_STATE_BIT_QUIESCED, &adapter->state);
 	dev_close(adapter->netdev);
 }
 

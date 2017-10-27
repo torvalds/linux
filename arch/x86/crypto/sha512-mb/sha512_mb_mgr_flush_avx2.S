@@ -280,12 +280,18 @@ ENTRY(sha512_mb_mgr_get_comp_job_avx2)
 	pop     %rbx
         ret
 ENDPROC(sha512_mb_mgr_get_comp_job_avx2)
-.data
 
-.align 16
+.section	.rodata.cst8.one, "aM", @progbits, 8
+.align 8
 one:
 .quad  1
+
+.section	.rodata.cst8.two, "aM", @progbits, 8
+.align 8
 two:
 .quad  2
+
+.section	.rodata.cst8.three, "aM", @progbits, 8
+.align 8
 three:
 .quad  3

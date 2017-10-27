@@ -24,6 +24,7 @@
 #include <mach/common.h>
 #include <mach/time.h>
 #include <mach/da8xx.h>
+#include <mach/clock.h>
 #include "cpuidle.h"
 #include "sram.h"
 
@@ -788,13 +789,33 @@ int __init da850_register_mmcsd1(struct davinci_mmc_config *config)
 
 static struct resource da8xx_rproc_resources[] = {
 	{ /* DSP boot address */
+		.name		= "host1cfg",
 		.start		= DA8XX_SYSCFG0_BASE + DA8XX_HOST1CFG_REG,
 		.end		= DA8XX_SYSCFG0_BASE + DA8XX_HOST1CFG_REG + 3,
 		.flags		= IORESOURCE_MEM,
 	},
 	{ /* DSP interrupt registers */
+		.name		= "chipsig",
 		.start		= DA8XX_SYSCFG0_BASE + DA8XX_CHIPSIG_REG,
 		.end		= DA8XX_SYSCFG0_BASE + DA8XX_CHIPSIG_REG + 7,
+		.flags		= IORESOURCE_MEM,
+	},
+	{ /* DSP L2 RAM */
+		.name		= "l2sram",
+		.start		= DA8XX_DSP_L2_RAM_BASE,
+		.end		= DA8XX_DSP_L2_RAM_BASE + SZ_256K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{ /* DSP L1P RAM */
+		.name		= "l1pram",
+		.start		= DA8XX_DSP_L1P_RAM_BASE,
+		.end		= DA8XX_DSP_L1P_RAM_BASE + SZ_32K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{ /* DSP L1D RAM */
+		.name		= "l1dram",
+		.start		= DA8XX_DSP_L1D_RAM_BASE,
+		.end		= DA8XX_DSP_L1D_RAM_BASE + SZ_32K - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 	{ /* dsp irq */
@@ -812,6 +833,8 @@ static struct platform_device da8xx_dsp = {
 	.num_resources	= ARRAY_SIZE(da8xx_rproc_resources),
 	.resource	= da8xx_rproc_resources,
 };
+
+static bool rproc_mem_inited __initdata;
 
 #if IS_ENABLED(CONFIG_DA8XX_REMOTEPROC)
 
@@ -851,6 +874,8 @@ void __init da8xx_rproc_reserve_cma(void)
 	ret = dma_declare_contiguous(&da8xx_dsp.dev, rproc_size, rproc_base, 0);
 	if (ret)
 		pr_err("%s: dma_declare_contiguous failed %d\n", __func__, ret);
+	else
+		rproc_mem_inited = true;
 }
 
 #else
@@ -864,6 +889,12 @@ void __init da8xx_rproc_reserve_cma(void)
 int __init da8xx_register_rproc(void)
 {
 	int ret;
+
+	if (!rproc_mem_inited) {
+		pr_warn("%s: memory not reserved for DSP, not registering DSP device\n",
+			__func__);
+		return -ENOMEM;
+	}
 
 	ret = platform_device_register(&da8xx_dsp);
 	if (ret)
@@ -1023,6 +1054,28 @@ int __init da8xx_register_spi_bus(int instance, unsigned num_chipselect)
 }
 
 #ifdef CONFIG_ARCH_DAVINCI_DA850
+static struct clk sata_refclk = {
+	.name		= "sata_refclk",
+	.set_rate	= davinci_simple_set_rate,
+};
+
+static struct clk_lookup sata_refclk_lookup =
+		CLK("ahci_da850", "refclk", &sata_refclk);
+
+int __init da850_register_sata_refclk(int rate)
+{
+	int ret;
+
+	sata_refclk.rate = rate;
+	ret = clk_register(&sata_refclk);
+	if (ret)
+		return ret;
+
+	clkdev_add(&sata_refclk_lookup);
+
+	return 0;
+}
+
 static struct resource da850_sata_resources[] = {
 	{
 		.start	= DA850_SATA_BASE,
@@ -1055,8 +1108,11 @@ static struct platform_device da850_sata_device = {
 
 int __init da850_register_sata(unsigned long refclkpn)
 {
-	/* please see comment in drivers/ata/ahci_da850.c */
-	BUG_ON(refclkpn != 100 * 1000 * 1000);
+	int ret;
+
+	ret = da850_register_sata_refclk(refclkpn);
+	if (ret)
+		return ret;
 
 	return platform_device_register(&da850_sata_device);
 }

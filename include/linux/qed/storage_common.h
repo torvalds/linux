@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #ifndef __STORAGE_COMMON__
@@ -16,6 +40,8 @@
 #define BDQ_ID_IMM_DATA          (1)
 #define BDQ_NUM_IDS          (2)
 
+#define SCSI_NUM_SGES_SLOW_SGL_THR      8
+
 #define BDQ_MAX_EXTERNAL_RING_SIZE (1 << 15)
 
 struct scsi_bd {
@@ -26,6 +52,16 @@ struct scsi_bd {
 struct scsi_bdq_ram_drv_data {
 	__le16 external_producer;
 	__le16 reserved0[3];
+};
+
+struct scsi_sge {
+	struct regpair sge_addr;
+	__le32 sge_len;
+	__le32 reserved;
+};
+
+struct scsi_cached_sges {
+	struct scsi_sge sge[4];
 };
 
 struct scsi_drv_cmdq {
@@ -75,11 +111,19 @@ struct scsi_ram_per_bdq_resource_drv_data {
 	struct scsi_bdq_ram_drv_data drv_data_per_bdq_id[BDQ_NUM_IDS];
 };
 
-struct scsi_sge {
-	struct regpair sge_addr;
-	__le16 sge_len;
-	__le16 reserved0;
-	__le32 reserved1;
+enum scsi_sgl_mode {
+	SCSI_TX_SLOW_SGL,
+	SCSI_FAST_SGL,
+	MAX_SCSI_SGL_MODE
+};
+
+struct scsi_sgl_params {
+	struct regpair sgl_addr;
+	__le32 sgl_total_length;
+	__le32 sge_offset;
+	__le16 sgl_num_sges;
+	u8 sgl_index;
+	u8 reserved;
 };
 
 struct scsi_terminate_extra_params {

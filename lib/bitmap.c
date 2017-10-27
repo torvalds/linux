@@ -251,7 +251,7 @@ int __bitmap_weight(const unsigned long *bitmap, unsigned int bits)
 }
 EXPORT_SYMBOL(__bitmap_weight);
 
-void bitmap_set(unsigned long *map, unsigned int start, int len)
+void __bitmap_set(unsigned long *map, unsigned int start, int len)
 {
 	unsigned long *p = map + BIT_WORD(start);
 	const unsigned int size = start + len;
@@ -270,9 +270,9 @@ void bitmap_set(unsigned long *map, unsigned int start, int len)
 		*p |= mask_to_set;
 	}
 }
-EXPORT_SYMBOL(bitmap_set);
+EXPORT_SYMBOL(__bitmap_set);
 
-void bitmap_clear(unsigned long *map, unsigned int start, int len)
+void __bitmap_clear(unsigned long *map, unsigned int start, int len)
 {
 	unsigned long *p = map + BIT_WORD(start);
 	const unsigned int size = start + len;
@@ -291,7 +291,7 @@ void bitmap_clear(unsigned long *map, unsigned int start, int len)
 		*p &= ~mask_to_clear;
 	}
 }
-EXPORT_SYMBOL(bitmap_clear);
+EXPORT_SYMBOL(__bitmap_clear);
 
 /**
  * bitmap_find_next_zero_area_off - find a contiguous aligned zero area
@@ -502,18 +502,18 @@ EXPORT_SYMBOL(bitmap_print_to_pagebuf);
  * Syntax: range:used_size/group_size
  * Example: 0-1023:2/256 ==> 0,1,256,257,512,513,768,769
  *
- * Returns 0 on success, -errno on invalid input strings.
- * Error values:
- *    %-EINVAL: second number in range smaller than first
- *    %-EINVAL: invalid character in string
- *    %-ERANGE: bit number specified too large for mask
+ * Returns: 0 on success, -errno on invalid input strings. Error values:
+ *
+ *   - ``-EINVAL``: second number in range smaller than first
+ *   - ``-EINVAL``: invalid character in string
+ *   - ``-ERANGE``: bit number specified too large for mask
  */
 static int __bitmap_parselist(const char *buf, unsigned int buflen,
 		int is_user, unsigned long *maskp,
 		int nmaskbits)
 {
 	unsigned int a, b, old_a, old_b;
-	unsigned int group_size, used_size;
+	unsigned int group_size, used_size, off;
 	int c, old_c, totaldigits, ndigits;
 	const char __user __force *ubuf = (const char __user __force *)buf;
 	int at_start, in_range, in_partial_range;
@@ -599,6 +599,8 @@ static int __bitmap_parselist(const char *buf, unsigned int buflen,
 			a = old_a;
 			b = old_b;
 			old_a = old_b = 0;
+		} else {
+			used_size = group_size = b - a + 1;
 		}
 		/* if no digit is after '-', it's wrong*/
 		if (at_start && in_range)
@@ -608,17 +610,9 @@ static int __bitmap_parselist(const char *buf, unsigned int buflen,
 		if (b >= nmaskbits)
 			return -ERANGE;
 		while (a <= b) {
-			if (in_partial_range) {
-				static int pos_in_group = 1;
-
-				if (pos_in_group <= used_size)
-					set_bit(a, maskp);
-
-				if (a == b || ++pos_in_group > group_size)
-					pos_in_group = 1;
-			} else
-				set_bit(a, maskp);
-			a++;
+			off = min(b - a + 1, used_size);
+			bitmap_set(maskp, a, off);
+			a += group_size;
 		}
 	} while (buflen && c == ',');
 	return 0;
@@ -864,14 +858,16 @@ EXPORT_SYMBOL(bitmap_bitremap);
  *  11 was set in @orig had no affect on @dst.
  *
  * Example [2] for bitmap_fold() + bitmap_onto():
- *  Let's say @relmap has these ten bits set:
+ *  Let's say @relmap has these ten bits set::
+ *
  *		40 41 42 43 45 48 53 61 74 95
+ *
  *  (for the curious, that's 40 plus the first ten terms of the
  *  Fibonacci sequence.)
  *
  *  Further lets say we use the following code, invoking
  *  bitmap_fold() then bitmap_onto, as suggested above to
- *  avoid the possibility of an empty @dst result:
+ *  avoid the possibility of an empty @dst result::
  *
  *	unsigned long *tmp;	// a temporary bitmap's bits
  *
@@ -882,22 +878,26 @@ EXPORT_SYMBOL(bitmap_bitremap);
  *  various @orig's.  I list the zero-based positions of each set bit.
  *  The tmp column shows the intermediate result, as computed by
  *  using bitmap_fold() to fold the @orig bitmap modulo ten
- *  (the weight of @relmap).
+ *  (the weight of @relmap):
  *
+ *      =============== ============== =================
  *      @orig           tmp            @dst
  *      0                0             40
  *      1                1             41
  *      9                9             95
- *      10               0             40 (*)
+ *      10               0             40 [#f1]_
  *      1 3 5 7          1 3 5 7       41 43 48 61
  *      0 1 2 3 4        0 1 2 3 4     40 41 42 43 45
  *      0 9 18 27        0 9 8 7       40 61 74 95
  *      0 10 20 30       0             40
  *      0 11 22 33       0 1 2 3       40 41 42 43
  *      0 12 24 36       0 2 4 6       40 42 45 53
- *      78 102 211       1 2 8         41 42 74 (*)
+ *      78 102 211       1 2 8         41 42 74 [#f1]_
+ *      =============== ============== =================
  *
- * (*) For these marked lines, if we hadn't first done bitmap_fold()
+ * .. [#f1]
+ *
+ *     For these marked lines, if we hadn't first done bitmap_fold()
  *     into tmp, then the @dst result would have been empty.
  *
  * If either of @orig or @relmap is empty (no set bits), then @dst

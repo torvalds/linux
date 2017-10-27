@@ -149,7 +149,7 @@ repeat:
 	if (acia_stat & ACIA_OVRN) {
 		/* a very fast typist or a slow system, give a warning */
 		/* ...happens often if interrupts were disabled for too long */
-		printk(KERN_DEBUG "Keyboard overrun\n");
+		pr_debug("Keyboard overrun\n");
 		scancode = acia.key_data;
 		if (ikbd_self_test)
 			/* During self test, don't do resyncing, just process the code */
@@ -228,14 +228,14 @@ repeat:
 					keytyp = KTYP(keyval) - 0xf0;
 					keyval = KVAL(keyval);
 
-					printk(KERN_WARNING "Key with scancode %d ", scancode);
+					pr_warn("Key with scancode %d ", scancode);
 					if (keytyp == KT_LATIN || keytyp == KT_LETTER) {
 						if (keyval < ' ')
-							printk("('^%c') ", keyval + '@');
+							pr_cont("('^%c') ", keyval + '@');
 						else
-							printk("('%c') ", keyval);
+							pr_cont("('%c') ", keyval);
 					}
-					printk("is broken -- will be ignored.\n");
+					pr_cont("is broken -- will be ignored.\n");
 					break;
 				} else if (test_bit(scancode, broken_keys))
 					break;
@@ -299,7 +299,7 @@ repeat:
 #endif
 
 	if (acia_stat & (ACIA_FE | ACIA_PE)) {
-		printk("Error in keyboard communication\n");
+		pr_err("Error in keyboard communication\n");
 	}
 
 	/* handle_scancode() can take a lot of time, so check again if
@@ -553,7 +553,7 @@ int atari_keyb_init(void)
 		barrier();
 	/* if not incremented: no 0xf1 received */
 	if (ikbd_self_test == 1)
-		printk(KERN_ERR "WARNING: keyboard self test failed!\n");
+		pr_err("Keyboard self test failed!\n");
 	ikbd_self_test = 0;
 
 	ikbd_mouse_disable();

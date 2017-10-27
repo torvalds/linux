@@ -10,10 +10,6 @@
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include "saa7134.h"
@@ -631,7 +627,7 @@ snd_card_saa7134_capture_pointer(struct snd_pcm_substream * substream)
  *    switching to 32kHz without any frequency translation
  */
 
-static struct snd_pcm_hardware snd_card_saa7134_capture =
+static const struct snd_pcm_hardware snd_card_saa7134_capture =
 {
 	.info =                 (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |

@@ -47,7 +47,7 @@ struct dma_fence_cb;
  * can be compared to decide which fence would be signaled later.
  * @flags: A mask of DMA_FENCE_FLAG_* defined below
  * @timestamp: Timestamp when the fence was signaled.
- * @status: Optional, only valid if < 0, must be set before calling
+ * @error: Optional, only valid if < 0, must be set before calling
  * dma_fence_signal, indicates that the fence has completed with an error.
  *
  * the flags member must be manipulated and read using the appropriate
@@ -55,6 +55,7 @@ struct dma_fence_cb;
  * of the time.
  *
  * DMA_FENCE_FLAG_SIGNALED_BIT - fence is already signaled
+ * DMA_FENCE_FLAG_TIMESTAMP_BIT - timestamp recorded for fence signaling
  * DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT - enable_signaling might have been called
  * DMA_FENCE_FLAG_USER_BITS - start of the unused bits, can be used by the
  * implementer of the fence for its own purposes. Can be used in different
@@ -79,11 +80,12 @@ struct dma_fence {
 	unsigned seqno;
 	unsigned long flags;
 	ktime_t timestamp;
-	int status;
+	int error;
 };
 
 enum dma_fence_flag_bits {
 	DMA_FENCE_FLAG_SIGNALED_BIT,
+	DMA_FENCE_FLAG_TIMESTAMP_BIT,
 	DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
 	DMA_FENCE_FLAG_USER_BITS, /* must always be last member */
 };
@@ -133,7 +135,7 @@ struct dma_fence_cb {
  * or some failure occurred that made it impossible to enable
  * signaling. True indicates successful enabling.
  *
- * fence->status may be set in enable_signaling, but only when false is
+ * fence->error may be set in enable_signaling, but only when false is
  * returned.
  *
  * Calling dma_fence_signal before enable_signaling is called allows
@@ -145,7 +147,7 @@ struct dma_fence_cb {
  * the second time will be a noop since it was already signaled.
  *
  * Notes on signaled:
- * May set fence->status if returning true.
+ * May set fence->error if returning true.
  *
  * Notes on wait:
  * Must not be NULL, set to dma_fence_default_wait for default implementation.
@@ -229,7 +231,7 @@ static inline struct dma_fence *dma_fence_get_rcu(struct dma_fence *fence)
  *
  * Function returns NULL if no refcount could be obtained, or the fence.
  * This function handles acquiring a reference to a fence that may be
- * reallocated within the RCU grace period (such as with SLAB_DESTROY_BY_RCU),
+ * reallocated within the RCU grace period (such as with SLAB_TYPESAFE_BY_RCU),
  * so long as the caller is using RCU on the pointer to the fence.
  *
  * An alternative mechanism is to employ a seqlock to protect a bunch of
@@ -257,7 +259,7 @@ dma_fence_get_rcu_safe(struct dma_fence * __rcu *fencep)
 		 * have successfully acquire a reference to it. If it no
 		 * longer matches, we are holding a reference to some other
 		 * reallocated pointer. This is possible if the allocator
-		 * is using a freelist like SLAB_DESTROY_BY_RCU where the
+		 * is using a freelist like SLAB_TYPESAFE_BY_RCU where the
 		 * fence remains valid for the RCU grace period, but it
 		 * may be reallocated. When using such allocators, we are
 		 * responsible for ensuring the reference we get is to
@@ -336,6 +338,19 @@ dma_fence_is_signaled(struct dma_fence *fence)
 }
 
 /**
+ * __dma_fence_is_later - return if f1 is chronologically later than f2
+ * @f1:	[in]	the first fence's seqno
+ * @f2:	[in]	the second fence's seqno from the same context
+ *
+ * Returns true if f1 is chronologically later than f2. Both fences must be
+ * from the same context, since a seqno is not common across contexts.
+ */
+static inline bool __dma_fence_is_later(u32 f1, u32 f2)
+{
+	return (int)(f1 - f2) > 0;
+}
+
+/**
  * dma_fence_is_later - return if f1 is chronologically later than f2
  * @f1:	[in]	the first fence from the same context
  * @f2:	[in]	the second fence from the same context
@@ -349,7 +364,7 @@ static inline bool dma_fence_is_later(struct dma_fence *f1,
 	if (WARN_ON(f1->context != f2->context))
 		return false;
 
-	return (int)(f1->seqno - f2->seqno) > 0;
+	return __dma_fence_is_later(f1->seqno, f2->seqno);
 }
 
 /**
@@ -376,6 +391,50 @@ static inline struct dma_fence *dma_fence_later(struct dma_fence *f1,
 		return dma_fence_is_signaled(f1) ? NULL : f1;
 	else
 		return dma_fence_is_signaled(f2) ? NULL : f2;
+}
+
+/**
+ * dma_fence_get_status_locked - returns the status upon completion
+ * @fence: [in]	the dma_fence to query
+ *
+ * Drivers can supply an optional error status condition before they signal
+ * the fence (to indicate whether the fence was completed due to an error
+ * rather than success). The value of the status condition is only valid
+ * if the fence has been signaled, dma_fence_get_status_locked() first checks
+ * the signal state before reporting the error status.
+ *
+ * Returns 0 if the fence has not yet been signaled, 1 if the fence has
+ * been signaled without an error condition, or a negative error code
+ * if the fence has been completed in err.
+ */
+static inline int dma_fence_get_status_locked(struct dma_fence *fence)
+{
+	if (dma_fence_is_signaled_locked(fence))
+		return fence->error ?: 1;
+	else
+		return 0;
+}
+
+int dma_fence_get_status(struct dma_fence *fence);
+
+/**
+ * dma_fence_set_error - flag an error condition on the fence
+ * @fence: [in]	the dma_fence
+ * @error: [in]	the error to store
+ *
+ * Drivers can supply an optional error status condition before they signal
+ * the fence, to indicate that the fence was completed due to an error
+ * rather than success. This must be set before signaling (so that the value
+ * is visible before any waiters on the signal callback are woken). This
+ * helper exists to help catching erroneous setting of #dma_fence.error.
+ */
+static inline void dma_fence_set_error(struct dma_fence *fence,
+				       int error)
+{
+	WARN_ON(test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags));
+	WARN_ON(error >= 0 || error < -MAX_ERRNO);
+
+	fence->error = error;
 }
 
 signed long dma_fence_wait_timeout(struct dma_fence *,

@@ -29,6 +29,7 @@
 #include <core/gpuobj.h>
 #include <subdev/ltc.h>
 #include <subdev/mmu.h>
+#include <engine/falcon.h>
 
 #define GPC_MAX 32
 #define TPC_MAX_PER_GPC 8
@@ -75,6 +76,8 @@ struct gf100_gr {
 	const struct gf100_gr_func *func;
 	struct nvkm_gr base;
 
+	struct nvkm_falcon *fecs;
+	struct nvkm_falcon *gpccs;
 	struct gf100_gr_fuc fuc409c;
 	struct gf100_gr_fuc fuc409d;
 	struct gf100_gr_fuc fuc41ac;
@@ -121,6 +124,8 @@ struct gf100_gr_func {
 	void (*init_gpc_mmu)(struct gf100_gr *);
 	void (*init_rop_active_fbps)(struct gf100_gr *);
 	void (*init_ppc_exceptions)(struct gf100_gr *);
+	void (*init_swdx_pes_mask)(struct gf100_gr *);
+	void (*init_num_active_ltcs)(struct gf100_gr *);
 	void (*set_hww_esr_report_mask)(struct gf100_gr *);
 	const struct gf100_gr_pack *mmio;
 	struct {
@@ -146,6 +151,9 @@ int gk20a_gr_init(struct gf100_gr *);
 
 int gm200_gr_init(struct gf100_gr *);
 int gm200_gr_rops(struct gf100_gr *);
+
+int gp100_gr_init(struct gf100_gr *);
+void gp100_gr_init_rop_active_fbps(struct gf100_gr *);
 
 #define gf100_gr_chan(p) container_of((p), struct gf100_gr_chan, object)
 
@@ -294,4 +302,8 @@ extern const struct gf100_gr_init gm107_gr_init_cbm_0[];
 void gm107_gr_init_bios(struct gf100_gr *);
 
 void gm200_gr_init_gpc_mmu(struct gf100_gr *);
+
+void gp100_gr_init_num_active_ltcs(struct gf100_gr *gr);
+
+void gp102_gr_init_swdx_pes_mask(struct gf100_gr *);
 #endif

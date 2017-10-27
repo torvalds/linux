@@ -196,7 +196,7 @@ int nf_nat_icmpv6_reply_translation(struct sk_buff *skb,
 	struct nf_conntrack_tuple target;
 	unsigned long statusbit;
 
-	NF_CT_ASSERT(ctinfo == IP_CT_RELATED || ctinfo == IP_CT_RELATED_REPLY);
+	WARN_ON(ctinfo != IP_CT_RELATED && ctinfo != IP_CT_RELATED_REPLY);
 
 	if (!skb_make_writable(skb, hdrlen + sizeof(*inside)))
 		return 0;
@@ -235,7 +235,7 @@ int nf_nat_icmpv6_reply_translation(struct sk_buff *skb,
 		inside->icmp6.icmp6_cksum =
 			csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr,
 					skb->len - hdrlen, IPPROTO_ICMPV6,
-					csum_partial(&inside->icmp6,
+					skb_checksum(skb, hdrlen,
 						     skb->len - hdrlen, 0));
 	}
 
@@ -273,13 +273,7 @@ nf_nat_ipv6_fn(void *priv, struct sk_buff *skb,
 	if (!ct)
 		return NF_ACCEPT;
 
-	/* Don't try to NAT if this packet is not conntracked */
-	if (nf_ct_is_untracked(ct))
-		return NF_ACCEPT;
-
-	nat = nf_ct_nat_ext_add(ct);
-	if (nat == NULL)
-		return NF_ACCEPT;
+	nat = nfct_nat(ct);
 
 	switch (ctinfo) {
 	case IP_CT_RELATED:
@@ -325,8 +319,8 @@ nf_nat_ipv6_fn(void *priv, struct sk_buff *skb,
 
 	default:
 		/* ESTABLISHED */
-		NF_CT_ASSERT(ctinfo == IP_CT_ESTABLISHED ||
-			     ctinfo == IP_CT_ESTABLISHED_REPLY);
+		WARN_ON(ctinfo != IP_CT_ESTABLISHED &&
+			ctinfo != IP_CT_ESTABLISHED_REPLY);
 		if (nf_nat_oif_changed(state->hook, ctinfo, nat, state->out))
 			goto oif_changed;
 	}

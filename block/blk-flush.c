@@ -1,12 +1,12 @@
 /*
- * Functions to sequence FLUSH and FUA writes.
+ * Functions to sequence PREFLUSH and FUA writes.
  *
  * Copyright (C) 2011		Max Planck Institute for Gravitational Physics
  * Copyright (C) 2011		Tejun Heo <tj@kernel.org>
  *
  * This file is released under the GPLv2.
  *
- * REQ_{FLUSH|FUA} requests are decomposed to sequences consisted of three
+ * REQ_{PREFLUSH|FUA} requests are decomposed to sequences consisted of three
  * optional steps - PREFLUSH, DATA and POSTFLUSH - according to the request
  * properties and hardware capability.
  *
@@ -16,9 +16,9 @@
  * REQ_FUA means that the data must be on non-volatile media on request
  * completion.
  *
- * If the device doesn't have writeback cache, FLUSH and FUA don't make any
- * difference.  The requests are either completed immediately if there's no
- * data or executed as normal requests otherwise.
+ * If the device doesn't have writeback cache, PREFLUSH and FUA don't make any
+ * difference.  The requests are either completed immediately if there's no data
+ * or executed as normal requests otherwise.
  *
  * If the device has writeback cache and supports FUA, REQ_PREFLUSH is
  * translated to PREFLUSH but REQ_FUA is passed down directly with DATA.
@@ -31,7 +31,7 @@
  * fq->flush_queue[fq->flush_pending_idx].  Once certain criteria are met, a
  * REQ_OP_FLUSH is issued and the pending_idx is toggled.  When the flush
  * completes, all the requests which were pending are proceeded to the next
- * step.  This allows arbitrary merging of different types of FLUSH/FUA
+ * step.  This allows arbitrary merging of different types of PREFLUSH/FUA
  * requests.
  *
  * Currently, the following conditions are used to determine when to issue
@@ -47,19 +47,19 @@
  * C3. The second condition is ignored if there is a request which has
  *     waited longer than FLUSH_PENDING_TIMEOUT.  This is to avoid
  *     starvation in the unlikely case where there are continuous stream of
- *     FUA (without FLUSH) requests.
+ *     FUA (without PREFLUSH) requests.
  *
  * For devices which support FUA, it isn't clear whether C2 (and thus C3)
  * is beneficial.
  *
- * Note that a sequenced FLUSH/FUA request with DATA is completed twice.
+ * Note that a sequenced PREFLUSH/FUA request with DATA is completed twice.
  * Once while executing DATA and again after the whole sequence is
  * complete.  The first completion updates the contained bio but doesn't
  * finish it so that the bio submitter is notified only after the whole
  * sequence is complete.  This is implemented by testing RQF_FLUSH_SEQ in
  * req_bio_endio().
  *
- * The above peculiarity requires that each FLUSH/FUA request has only one
+ * The above peculiarity requires that each PREFLUSH/FUA request has only one
  * bio attached to it, which is guaranteed as they aren't allowed to be
  * merged in the usual way.
  */
@@ -74,8 +74,9 @@
 #include "blk.h"
 #include "blk-mq.h"
 #include "blk-mq-tag.h"
+#include "blk-mq-sched.h"
 
-/* FLUSH/FUA sequences */
+/* PREFLUSH/FUA sequences */
 enum {
 	REQ_FSEQ_PREFLUSH	= (1 << 0), /* pre-flushing in progress */
 	REQ_FSEQ_DATA		= (1 << 1), /* data write in progress */
@@ -147,7 +148,7 @@ static bool blk_flush_queue_rq(struct request *rq, bool add_front)
 
 /**
  * blk_flush_complete_seq - complete flush sequence
- * @rq: FLUSH/FUA request being sequenced
+ * @rq: PREFLUSH/FUA request being sequenced
  * @fq: flush queue
  * @seq: sequences to complete (mask of %REQ_FSEQ_*, can be zero)
  * @error: whether an error occurred
@@ -163,7 +164,7 @@ static bool blk_flush_queue_rq(struct request *rq, bool add_front)
  */
 static bool blk_flush_complete_seq(struct request *rq,
 				   struct blk_flush_queue *fq,
-				   unsigned int seq, int error)
+				   unsigned int seq, blk_status_t error)
 {
 	struct request_queue *q = rq->q;
 	struct list_head *pending = &fq->flush_queue[fq->flush_pending_idx];
@@ -215,7 +216,7 @@ static bool blk_flush_complete_seq(struct request *rq,
 	return kicked | queued;
 }
 
-static void flush_end_io(struct request *flush_rq, int error)
+static void flush_end_io(struct request *flush_rq, blk_status_t error)
 {
 	struct request_queue *q = flush_rq->q;
 	struct list_head *running;
@@ -296,8 +297,14 @@ static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq)
 	if (fq->flush_pending_idx != fq->flush_running_idx || list_empty(pending))
 		return false;
 
-	/* C2 and C3 */
+	/* C2 and C3
+	 *
+	 * For blk-mq + scheduling, we can risk having all driver tags
+	 * assigned to empty flushes, and we deadlock if we are expecting
+	 * other requests to make progress. Don't defer for that case.
+	 */
 	if (!list_empty(&fq->flush_data_in_flight) &&
+	    !(q->mq_ops && q->elevator) &&
 	    time_before(jiffies,
 			fq->flush_pending_since + FLUSH_PENDING_TIMEOUT))
 		return false;
@@ -326,7 +333,6 @@ static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq)
 		blk_mq_tag_set_rq(hctx, first_rq->tag, flush_rq);
 	}
 
-	flush_rq->cmd_type = REQ_TYPE_FS;
 	flush_rq->cmd_flags = REQ_OP_FLUSH | REQ_PREFLUSH;
 	flush_rq->rq_flags |= RQF_FLUSH_SEQ;
 	flush_rq->rq_disk = first_rq->rq_disk;
@@ -335,10 +341,12 @@ static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq)
 	return blk_flush_queue_rq(flush_rq, false);
 }
 
-static void flush_data_end_io(struct request *rq, int error)
+static void flush_data_end_io(struct request *rq, blk_status_t error)
 {
 	struct request_queue *q = rq->q;
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, NULL);
+
+	lockdep_assert_held(q->queue_lock);
 
 	/*
 	 * Updating q->in_flight[] here for making this tag usable
@@ -376,7 +384,7 @@ static void flush_data_end_io(struct request *rq, int error)
 		blk_run_queue_async(q);
 }
 
-static void mq_flush_data_end_io(struct request *rq, int error)
+static void mq_flush_data_end_io(struct request *rq, blk_status_t error)
 {
 	struct request_queue *q = rq->q;
 	struct blk_mq_hw_ctx *hctx;
@@ -391,22 +399,20 @@ static void mq_flush_data_end_io(struct request *rq, int error)
 	 * the comment in flush_end_io().
 	 */
 	spin_lock_irqsave(&fq->mq_flush_lock, flags);
-	if (blk_flush_complete_seq(rq, fq, REQ_FSEQ_DATA, error))
-		blk_mq_run_hw_queue(hctx, true);
+	blk_flush_complete_seq(rq, fq, REQ_FSEQ_DATA, error);
 	spin_unlock_irqrestore(&fq->mq_flush_lock, flags);
+
+	blk_mq_run_hw_queue(hctx, true);
 }
 
 /**
- * blk_insert_flush - insert a new FLUSH/FUA request
+ * blk_insert_flush - insert a new PREFLUSH/FUA request
  * @rq: request to insert
  *
  * To be called from __elv_add_request() for %ELEVATOR_INSERT_FLUSH insertions.
  * or __blk_mq_run_hw_queue() to dispatch request.
  * @rq is being submitted.  Analyze what needs to be done and put it on the
  * right queue.
- *
- * CONTEXT:
- * spin_lock_irq(q->queue_lock) in !mq case
  */
 void blk_insert_flush(struct request *rq)
 {
@@ -414,6 +420,9 @@ void blk_insert_flush(struct request *rq)
 	unsigned long fflags = q->queue_flags;	/* may change, cache */
 	unsigned int policy = blk_flush_policy(fflags, rq);
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, rq->mq_ctx);
+
+	if (!q->mq_ops)
+		lockdep_assert_held(q->queue_lock);
 
 	/*
 	 * @policy now records what operations need to be done.  Adjust
@@ -440,7 +449,7 @@ void blk_insert_flush(struct request *rq)
 		if (q->mq_ops)
 			blk_mq_end_request(rq, 0);
 		else
-			__blk_end_bidi_request(rq, 0, 0, 0);
+			__blk_end_request(rq, 0, 0);
 		return;
 	}
 
@@ -453,9 +462,9 @@ void blk_insert_flush(struct request *rq)
 	 */
 	if ((policy & REQ_FSEQ_DATA) &&
 	    !(policy & (REQ_FSEQ_PREFLUSH | REQ_FSEQ_POSTFLUSH))) {
-		if (q->mq_ops) {
-			blk_mq_insert_request(rq, false, true, false);
-		} else
+		if (q->mq_ops)
+			blk_mq_sched_insert_request(rq, false, true, false, false);
+		else
 			list_add_tail(&rq->queuelist, &q->queue_head);
 		return;
 	}
@@ -490,8 +499,7 @@ void blk_insert_flush(struct request *rq)
  * Description:
  *    Issue a flush for the block device in question. Caller can supply
  *    room for storing the error offset in case of a flush error, if they
- *    wish to. If WAIT flag is not passed then caller may check only what
- *    request was pushed in some internal queue for later handling.
+ *    wish to.
  */
 int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 		sector_t *error_sector)
@@ -517,7 +525,7 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 		return -ENXIO;
 
 	bio = bio_alloc(gfp_mask, 0);
-	bio->bi_bdev = bdev;
+	bio_set_dev(bio, bdev);
 	bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
 
 	ret = submit_bio_wait(bio);
@@ -545,11 +553,10 @@ struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
 	if (!fq)
 		goto fail;
 
-	if (q->mq_ops) {
+	if (q->mq_ops)
 		spin_lock_init(&fq->mq_flush_lock);
-		rq_sz = round_up(rq_sz + cmd_size, cache_line_size());
-	}
 
+	rq_sz = round_up(rq_sz + cmd_size, cache_line_size());
 	fq->flush_rq = kzalloc_node(rq_sz, GFP_KERNEL, node);
 	if (!fq->flush_rq)
 		goto fail_rq;

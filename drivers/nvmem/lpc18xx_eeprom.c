@@ -197,7 +197,7 @@ static int lpc18xx_eeprom_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rst = devm_reset_control_get(dev, NULL);
+	rst = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(rst)) {
 		dev_err(dev, "failed to get reset: %ld\n", PTR_ERR(rst));
 		ret = PTR_ERR(rst);

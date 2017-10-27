@@ -285,6 +285,11 @@ enum host_event_code {
 	EC_HOST_EVENT_HANG_DETECT = 20,
 	/* Hang detect logic detected a hang and warm rebooted the AP */
 	EC_HOST_EVENT_HANG_REBOOT = 21,
+	/* PD MCU triggering host event */
+	EC_HOST_EVENT_PD_MCU = 22,
+
+	/* EC desires to change state of host-controlled USB mux */
+	EC_HOST_EVENT_USB_MUX = 28,
 
 	/*
 	 * The high bit of the event mask is not used as a host event code.  If
@@ -623,6 +628,10 @@ struct ec_params_read_memmap {
 
 struct ec_params_get_cmd_versions {
 	uint8_t cmd;      /* Command to check */
+} __packed;
+
+struct ec_params_get_cmd_versions_v1 {
+	uint16_t cmd;     /* Command to check */
 } __packed;
 
 struct ec_response_get_cmd_versions {
@@ -1158,13 +1167,20 @@ struct lightbar_params_v1 {
 	struct rgb_s color[8];			/* 0-3 are Google colors */
 } __packed;
 
+/* Lightbar program */
+#define EC_LB_PROG_LEN 192
+struct lightbar_program {
+	uint8_t size;
+	uint8_t data[EC_LB_PROG_LEN];
+};
+
 struct ec_params_lightbar {
 	uint8_t cmd;		      /* Command (see enum lightbar_command) */
 	union {
 		struct {
 			/* no args */
 		} dump, off, on, init, get_seq, get_params_v0, get_params_v1,
-			version, get_brightness, get_demo;
+			version, get_brightness, get_demo, suspend, resume;
 
 		struct {
 			uint8_t num;
@@ -1182,8 +1198,13 @@ struct ec_params_lightbar {
 			uint8_t led;
 		} get_rgb;
 
+		struct {
+			uint8_t enable;
+		} manual_suspend_ctrl;
+
 		struct lightbar_params_v0 set_params_v0;
 		struct lightbar_params_v1 set_params_v1;
+		struct lightbar_program set_program;
 	};
 } __packed;
 
@@ -1216,7 +1237,8 @@ struct ec_response_lightbar {
 		struct {
 			/* no return params */
 		} off, on, init, set_brightness, seq, reg, set_rgb,
-			demo, set_params_v0, set_params_v1;
+			demo, set_params_v0, set_params_v1,
+			set_program, manual_suspend_ctrl, suspend, resume;
 	};
 } __packed;
 
@@ -1240,6 +1262,10 @@ enum lightbar_command {
 	LIGHTBAR_CMD_GET_DEMO = 15,
 	LIGHTBAR_CMD_GET_PARAMS_V1 = 16,
 	LIGHTBAR_CMD_SET_PARAMS_V1 = 17,
+	LIGHTBAR_CMD_SET_PROGRAM = 18,
+	LIGHTBAR_CMD_MANUAL_SUSPEND_CTRL = 19,
+	LIGHTBAR_CMD_SUSPEND = 20,
+	LIGHTBAR_CMD_RESUME = 21,
 	LIGHTBAR_NUM_CMDS
 };
 
@@ -1441,7 +1467,8 @@ enum motionsensor_type {
 	MOTIONSENSE_TYPE_PROX = 3,
 	MOTIONSENSE_TYPE_LIGHT = 4,
 	MOTIONSENSE_TYPE_ACTIVITY = 5,
-	MOTIONSENSE_TYPE_MAX
+	MOTIONSENSE_TYPE_BARO = 6,
+	MOTIONSENSE_TYPE_MAX,
 };
 
 /* List of motion sensor locations. */
@@ -1839,17 +1866,68 @@ struct ec_response_tmp006_get_raw {
  *
  * Returns raw data for keyboard cols; see ec_response_mkbp_info.cols for
  * expected response size.
+ *
+ * NOTE: This has been superseded by EC_CMD_MKBP_GET_NEXT_EVENT.  If you wish
+ * to obtain the instantaneous state, use EC_CMD_MKBP_INFO with the type
+ * EC_MKBP_INFO_CURRENT and event EC_MKBP_EVENT_KEY_MATRIX.
  */
 #define EC_CMD_MKBP_STATE 0x60
 
-/* Provide information about the matrix : number of rows and columns */
+/*
+ * Provide information about various MKBP things.  See enum ec_mkbp_info_type.
+ */
 #define EC_CMD_MKBP_INFO 0x61
 
 struct ec_response_mkbp_info {
 	uint32_t rows;
 	uint32_t cols;
-	uint8_t switches;
+	/* Formerly "switches", which was 0. */
+	uint8_t reserved;
 } __packed;
+
+struct ec_params_mkbp_info {
+	uint8_t info_type;
+	uint8_t event_type;
+} __packed;
+
+enum ec_mkbp_info_type {
+	/*
+	 * Info about the keyboard matrix: number of rows and columns.
+	 *
+	 * Returns struct ec_response_mkbp_info.
+	 */
+	EC_MKBP_INFO_KBD = 0,
+
+	/*
+	 * For buttons and switches, info about which specifically are
+	 * supported.  event_type must be set to one of the values in enum
+	 * ec_mkbp_event.
+	 *
+	 * For EC_MKBP_EVENT_BUTTON and EC_MKBP_EVENT_SWITCH, returns a 4 byte
+	 * bitmask indicating which buttons or switches are present.  See the
+	 * bit inidices below.
+	 */
+	EC_MKBP_INFO_SUPPORTED = 1,
+
+	/*
+	 * Instantaneous state of buttons and switches.
+	 *
+	 * event_type must be set to one of the values in enum ec_mkbp_event.
+	 *
+	 * For EC_MKBP_EVENT_KEY_MATRIX, returns uint8_t key_matrix[13]
+	 * indicating the current state of the keyboard matrix.
+	 *
+	 * For EC_MKBP_EVENT_HOST_EVENT, return uint32_t host_event, the raw
+	 * event state.
+	 *
+	 * For EC_MKBP_EVENT_BUTTON, returns uint32_t buttons, indicating the
+	 * state of supported buttons.
+	 *
+	 * For EC_MKBP_EVENT_SWITCH, returns uint32_t switches, indicating the
+	 * state of supported switches.
+	 */
+	EC_MKBP_INFO_CURRENT = 2,
+};
 
 /* Simulate key press */
 #define EC_CMD_MKBP_SIMULATE_KEY 0x62
@@ -1983,6 +2061,15 @@ enum ec_mkbp_event {
 	/* New Sensor FIFO data. The event data is fifo_info structure. */
 	EC_MKBP_EVENT_SENSOR_FIFO = 2,
 
+	/* The state of the non-matrixed buttons have changed. */
+	EC_MKBP_EVENT_BUTTON = 3,
+
+	/* The state of the switches have changed. */
+	EC_MKBP_EVENT_SWITCH = 4,
+
+	/* EC sent a sysrq command */
+	EC_MKBP_EVENT_SYSRQ = 6,
+
 	/* Number of MKBP events */
 	EC_MKBP_EVENT_COUNT,
 };
@@ -1992,6 +2079,10 @@ union ec_response_get_next_data {
 
 	/* Unaligned */
 	uint32_t  host_event;
+
+	uint32_t   buttons;
+	uint32_t   switches;
+	uint32_t   sysrq;
 } __packed;
 
 struct ec_response_get_next_event {
@@ -1999,6 +2090,16 @@ struct ec_response_get_next_event {
 	/* Followed by event data if any */
 	union ec_response_get_next_data data;
 } __packed;
+
+/* Bit indices for buttons and switches.*/
+/* Buttons */
+#define EC_MKBP_POWER_BUTTON	0
+#define EC_MKBP_VOL_UP		1
+#define EC_MKBP_VOL_DOWN	2
+
+/* Switches */
+#define EC_MKBP_LID_OPEN	0
+#define EC_MKBP_TABLET_MODE	1
 
 /*****************************************************************************/
 /* Temperature sensor commands */
@@ -2210,12 +2311,27 @@ struct ec_params_charge_control {
 #define EC_CMD_CONSOLE_SNAPSHOT 0x97
 
 /*
- * Read next chunk of data from saved snapshot.
+ * Read data from the saved snapshot. If the subcmd parameter is
+ * CONSOLE_READ_NEXT, this will return data starting from the beginning of
+ * the latest snapshot. If it is CONSOLE_READ_RECENT, it will start from the
+ * end of the previous snapshot.
+ *
+ * The params are only looked at in version >= 1 of this command. Prior
+ * versions will just default to CONSOLE_READ_NEXT behavior.
  *
  * Response is null-terminated string.  Empty string, if there is no more
  * remaining output.
  */
 #define EC_CMD_CONSOLE_READ 0x98
+
+enum ec_console_read_subcmd {
+	CONSOLE_READ_NEXT = 0,
+	CONSOLE_READ_RECENT
+};
+
+struct ec_params_console_read_v1 {
+	uint8_t subcmd; /* enum ec_console_read_subcmd */
+} __packed;
 
 /*****************************************************************************/
 
@@ -2475,6 +2591,20 @@ struct ec_params_current_limit {
 
 struct ec_params_ext_power_current_limit {
 	uint32_t limit; /* in mA */
+} __packed;
+
+/* Inform the EC when entering a sleep state */
+#define EC_CMD_HOST_SLEEP_EVENT 0xa9
+
+enum host_sleep_event {
+	HOST_SLEEP_EVENT_S3_SUSPEND   = 1,
+	HOST_SLEEP_EVENT_S3_RESUME    = 2,
+	HOST_SLEEP_EVENT_S0IX_SUSPEND = 3,
+	HOST_SLEEP_EVENT_S0IX_RESUME  = 4
+};
+
+struct ec_params_host_sleep_event {
+	uint8_t sleep_event;
 } __packed;
 
 /*****************************************************************************/
@@ -2778,6 +2908,76 @@ struct ec_params_usb_pd_control {
 	uint8_t port;
 	uint8_t role;
 	uint8_t mux;
+} __packed;
+
+#define PD_CTRL_RESP_ENABLED_COMMS      (1 << 0) /* Communication enabled */
+#define PD_CTRL_RESP_ENABLED_CONNECTED  (1 << 1) /* Device connected */
+#define PD_CTRL_RESP_ENABLED_PD_CAPABLE (1 << 2) /* Partner is PD capable */
+
+struct ec_response_usb_pd_control_v1 {
+	uint8_t enabled;
+	uint8_t role;
+	uint8_t polarity;
+	char state[32];
+} __packed;
+
+#define EC_CMD_USB_PD_PORTS 0x102
+
+struct ec_response_usb_pd_ports {
+	uint8_t num_ports;
+} __packed;
+
+#define EC_CMD_USB_PD_POWER_INFO 0x103
+
+#define PD_POWER_CHARGING_PORT 0xff
+struct ec_params_usb_pd_power_info {
+	uint8_t port;
+} __packed;
+
+enum usb_chg_type {
+	USB_CHG_TYPE_NONE,
+	USB_CHG_TYPE_PD,
+	USB_CHG_TYPE_C,
+	USB_CHG_TYPE_PROPRIETARY,
+	USB_CHG_TYPE_BC12_DCP,
+	USB_CHG_TYPE_BC12_CDP,
+	USB_CHG_TYPE_BC12_SDP,
+	USB_CHG_TYPE_OTHER,
+	USB_CHG_TYPE_VBUS,
+	USB_CHG_TYPE_UNKNOWN,
+};
+
+struct usb_chg_measures {
+	uint16_t voltage_max;
+	uint16_t voltage_now;
+	uint16_t current_max;
+	uint16_t current_lim;
+} __packed;
+
+struct ec_response_usb_pd_power_info {
+	uint8_t role;
+	uint8_t type;
+	uint8_t dualrole;
+	uint8_t reserved1;
+	struct usb_chg_measures meas;
+	uint32_t max_power;
+} __packed;
+
+/* Get info about USB-C SS muxes */
+#define EC_CMD_USB_PD_MUX_INFO 0x11a
+
+struct ec_params_usb_pd_mux_info {
+	uint8_t port; /* USB-C port number */
+} __packed;
+
+/* Flags representing mux state */
+#define USB_PD_MUX_USB_ENABLED       (1 << 0)
+#define USB_PD_MUX_DP_ENABLED        (1 << 1)
+#define USB_PD_MUX_POLARITY_INVERTED (1 << 2)
+#define USB_PD_MUX_HPD_IRQ           (1 << 3)
+
+struct ec_response_usb_pd_mux_info {
+	uint8_t flags; /* USB_PD_MUX_*-encoded USB mux state */
 } __packed;
 
 /*****************************************************************************/

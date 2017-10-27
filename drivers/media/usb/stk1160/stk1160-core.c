@@ -20,8 +20,7 @@
  *
  * TODO:
  *
- * 1. (Try to) detect if we must register ac97 mixer
- * 2. Support stream at lower speed: lower frame rate or lower frame size.
+ * 1. Support stream at lower speed: lower frame rate or lower frame size.
  *
  */
 
@@ -48,7 +47,7 @@ MODULE_AUTHOR("Ezequiel Garcia");
 MODULE_DESCRIPTION("STK1160 driver");
 
 /* Devices supported by this driver */
-static struct usb_device_id stk1160_id_table[] = {
+static const struct usb_device_id stk1160_id_table[] = {
 	{ USB_DEVICE(0x05e1, 0x0408) },
 	{ }
 };
@@ -373,7 +372,7 @@ static int stk1160_probe(struct usb_interface *interface,
 	/* select default input */
 	stk1160_select_input(dev);
 
-	stk1160_ac97_register(dev);
+	stk1160_ac97_setup(dev);
 
 	rc = stk1160_video_register(dev);
 	if (rc < 0)
@@ -410,9 +409,6 @@ static void stk1160_disconnect(struct usb_interface *interface)
 
 	/* Here is the only place where isoc get released */
 	stk1160_uninit_isoc(dev);
-
-	/* ac97 unregister needs to be done before usb_device is cleared */
-	stk1160_ac97_unregister(dev);
 
 	stk1160_clear_queue(dev);
 

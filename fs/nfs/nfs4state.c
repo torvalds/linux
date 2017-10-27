@@ -352,11 +352,17 @@ int nfs41_discover_server_trunking(struct nfs_client *clp,
 	if (clp != *result)
 		return 0;
 
-	/* Purge state if the client id was established in a prior instance */
-	if (clp->cl_exchange_flags & EXCHGID4_FLAG_CONFIRMED_R)
-		set_bit(NFS4CLNT_PURGE_STATE, &clp->cl_state);
-	else
-		set_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
+	/*
+	 * Purge state if the client id was established in a prior
+	 * instance and the client id could not have arrived on the
+	 * server via Transparent State Migration.
+	 */
+	if (clp->cl_exchange_flags & EXCHGID4_FLAG_CONFIRMED_R) {
+		if (!test_bit(NFS_CS_TSM_POSSIBLE, &clp->cl_flags))
+			set_bit(NFS4CLNT_PURGE_STATE, &clp->cl_state);
+		else
+			set_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
+	}
 	nfs4_schedule_state_manager(clp);
 	status = nfs_wait_client_init_complete(clp);
 	if (status < 0)
@@ -868,7 +874,7 @@ static struct nfs4_lock_state *nfs4_get_lock_state(struct nfs4_state *state, fl_
 	
 	for(;;) {
 		spin_lock(&state->state_lock);
-		lsp = __nfs4_find_lock_state(state, owner, 0);
+		lsp = __nfs4_find_lock_state(state, owner, NULL);
 		if (lsp != NULL)
 			break;
 		if (new != NULL) {
@@ -1649,13 +1655,14 @@ static void nfs4_state_start_reclaim_reboot(struct nfs_client *clp)
 	nfs4_state_mark_reclaim_helper(clp, nfs4_state_mark_reclaim_reboot);
 }
 
-static void nfs4_reclaim_complete(struct nfs_client *clp,
+static int nfs4_reclaim_complete(struct nfs_client *clp,
 				 const struct nfs4_state_recovery_ops *ops,
 				 struct rpc_cred *cred)
 {
 	/* Notify the server we're done reclaiming our state */
 	if (ops->reclaim_complete)
-		(void)ops->reclaim_complete(clp, cred);
+		return ops->reclaim_complete(clp, cred);
+	return 0;
 }
 
 static void nfs4_clear_reclaim_server(struct nfs_server *server)
@@ -1702,13 +1709,16 @@ static void nfs4_state_end_reclaim_reboot(struct nfs_client *clp)
 {
 	const struct nfs4_state_recovery_ops *ops;
 	struct rpc_cred *cred;
+	int err;
 
 	if (!nfs4_state_clear_reclaim_reboot(clp))
 		return;
 	ops = clp->cl_mvops->reboot_recovery_ops;
 	cred = nfs4_get_clid_cred(clp);
-	nfs4_reclaim_complete(clp, ops, cred);
+	err = nfs4_reclaim_complete(clp, ops, cred);
 	put_rpccred(cred);
+	if (err == -NFS4ERR_CONN_NOT_BOUND_TO_SESSION)
+		set_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state);
 }
 
 static void nfs4_state_start_reclaim_nograce(struct nfs_client *clp)
@@ -2130,6 +2140,8 @@ again:
 	put_rpccred(cred);
 	switch (status) {
 	case 0:
+	case -EINTR:
+	case -ERESTARTSYS:
 		break;
 	case -ETIMEDOUT:
 		if (clnt->cl_softrtry)

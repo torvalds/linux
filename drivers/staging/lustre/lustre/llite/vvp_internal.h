@@ -37,8 +37,8 @@
 #ifndef VVP_INTERNAL_H
 #define VVP_INTERNAL_H
 
-#include "../include/lustre/lustre_idl.h"
-#include "../include/cl_object.h"
+#include <uapi/linux/lustre/lustre_idl.h>
+#include <cl_object.h>
 
 enum obd_notify_event;
 struct inode;
@@ -300,8 +300,6 @@ static inline struct vvp_lock *cl2vvp_lock(const struct cl_lock_slice *slice)
 
 # define CLOBINVRNT(env, clob, expr)					\
 	((void)sizeof(env), (void)sizeof(clob), (void)sizeof(!!(expr)))
-
-int lov_read_and_clear_async_rc(struct cl_object *clob);
 
 int vvp_io_init(const struct lu_env *env, struct cl_object *obj,
 		struct cl_io *io);

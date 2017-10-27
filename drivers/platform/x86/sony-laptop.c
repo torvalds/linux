@@ -222,7 +222,7 @@ struct sony_laptop_keypress {
 /* Correspondance table between sonypi events
  * and input layer indexes in the keymap
  */
-static int sony_laptop_input_index[] = {
+static const int sony_laptop_input_index[] = {
 	-1,	/*  0 no event */
 	-1,	/*  1 SONYPI_EVENT_JOGDIAL_DOWN */
 	-1,	/*  2 SONYPI_EVENT_JOGDIAL_UP */
@@ -4032,7 +4032,7 @@ static struct attribute *spic_attributes[] = {
 	NULL
 };
 
-static struct attribute_group spic_attribute_group = {
+static const struct attribute_group spic_attribute_group = {
 	.attrs = spic_attributes
 };
 
@@ -4880,7 +4880,7 @@ static struct acpi_driver sony_pic_driver = {
 	.drv.pm = &sony_pic_pm,
 };
 
-static struct dmi_system_id __initdata sonypi_dmi_table[] = {
+static const struct dmi_system_id sonypi_dmi_table[] __initconst = {
 	{
 		.ident = "Sony Vaio",
 		.matches = {

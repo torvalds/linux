@@ -610,6 +610,13 @@
 #define ADI_GNICEPLUS_PID	0xF001
 
 /*
+ * Cypress WICED USB UART
+ */
+#define CYPRESS_VID			0x04B4
+#define CYPRESS_WICED_BT_USB_PID	0x009B
+#define CYPRESS_WICED_WL_USB_PID	0xF900
+
+/*
  * Microchip Technology, Inc.
  *
  * MICROCHIP_VID (0x04D8) and MICROCHIP_USB_BOARD_PID (0x000A) are
@@ -873,9 +880,17 @@
 #define	FIC_VID			0x1457
 #define	FIC_NEO1973_DEBUG_PID	0x5118
 
+/*
+ * Actel / Microsemi
+ */
+#define ACTEL_VID				0x1514
+#define MICROSEMI_ARROW_SF2PLUS_BOARD_PID	0x2008
+
 /* Olimex */
 #define OLIMEX_VID			0x15BA
 #define OLIMEX_ARM_USB_OCD_PID		0x0003
+#define OLIMEX_ARM_USB_TINY_PID	0x0004
+#define OLIMEX_ARM_USB_TINY_H_PID	0x002a
 #define OLIMEX_ARM_USB_OCD_H_PID	0x002b
 
 /*

@@ -82,7 +82,7 @@ static LIST_HEAD(raw3270_devices);
 static int raw3270_registered;
 
 /* Module parameters */
-static bool tubxcorrect = 0;
+static bool tubxcorrect;
 module_param(tubxcorrect, bool, 0);
 
 /*
@@ -1082,7 +1082,7 @@ static struct attribute * raw3270_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group raw3270_attr_group = {
+static const struct attribute_group raw3270_attr_group = {
 	.attrs = raw3270_attrs,
 };
 

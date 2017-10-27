@@ -19,12 +19,6 @@
 	};
 
 	soc {
-		usb_per5@a03e0000 {
-			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&musb_default_mode>;
-			pinctrl-1 = <&musb_sleep_mode>;
-		};
-
 		uart@80120000 {
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&uart0_default_mode>;
@@ -111,6 +105,7 @@
 			pinctrl-1 = <&i2c3_sleep_mode>;
 		};
 
+		/* ST6G3244ME level translator for 1.8/2.9 V */
 		vmmci: regulator-gpio {
 			compatible = "regulator-gpio";
 
@@ -120,7 +115,6 @@
 			regulator-type = "voltage";
 
 			startup-delay-us = <100>;
-			enable-active-high;
 
 			states = <1800000 0x1
 				  2900000 0x0>;
@@ -192,13 +186,6 @@
 			status = "okay";
 		};
 
-		sound {
-			compatible = "stericsson,snd-soc-mop500";
-
-			stericsson,cpu-dai = <&msp1 &msp3>;
-			stericsson,audio-codec = <&codec>;
-		};
-
 		msp0: msp@80123000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&msp0_default_mode>;
@@ -223,6 +210,12 @@
 		prcmu@80157000 {
 			ab8500 {
 				ab8500-gpio {
+				};
+
+				ab8500_usb {
+					pinctrl-names = "default", "sleep";
+					pinctrl-0 = <&musb_default_mode>;
+					pinctrl-1 = <&musb_sleep_mode>;
 				};
 
 				ab8500-regulators {

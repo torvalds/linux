@@ -1,6 +1,5 @@
 /*
- * registers.h - REGISTERS H for DA9062
- * Copyright (C) 2015  Dialog Semiconductor Ltd.
+ * Copyright (C) 2015-2017  Dialog Semiconductor
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -18,6 +17,8 @@
 
 #define DA9062_PMIC_DEVICE_ID		0x62
 #define DA9062_PMIC_VARIANT_MRC_AA	0x01
+#define DA9062_PMIC_VARIANT_VRC_DA9061	0x01
+#define DA9062_PMIC_VARIANT_VRC_DA9062	0x02
 
 #define DA9062_I2C_PAGE_SEL_SHIFT	1
 

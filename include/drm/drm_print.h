@@ -26,6 +26,8 @@
 #ifndef DRM_PRINT_H_
 #define DRM_PRINT_H_
 
+#include <linux/compiler.h>
+#include <linux/printk.h>
 #include <linux/seq_file.h>
 #include <linux/device.h>
 
@@ -60,26 +62,28 @@
 
 /**
  * struct drm_printer - drm output "stream"
- * @printfn: actual output fxn
- * @arg: output fxn specific data
  *
  * Do not use struct members directly.  Use drm_printer_seq_file(),
  * drm_printer_info(), etc to initialize.  And drm_printf() for output.
  */
 struct drm_printer {
+	/* private: */
 	void (*printfn)(struct drm_printer *p, struct va_format *vaf);
 	void *arg;
+	const char *prefix;
 };
 
 void __drm_printfn_seq_file(struct drm_printer *p, struct va_format *vaf);
 void __drm_printfn_info(struct drm_printer *p, struct va_format *vaf);
+void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf);
 
+__printf(2, 3)
 void drm_printf(struct drm_printer *p, const char *f, ...);
 
 
 /**
  * drm_seq_file_printer - construct a &drm_printer that outputs to &seq_file
- * @f:  the struct &seq_file to output to
+ * @f:  the &struct seq_file to output to
  *
  * RETURNS:
  * The &drm_printer object
@@ -95,7 +99,7 @@ static inline struct drm_printer drm_seq_file_printer(struct seq_file *f)
 
 /**
  * drm_info_printer - construct a &drm_printer that outputs to dev_printk()
- * @dev: the struct &device pointer
+ * @dev: the &struct device pointer
  *
  * RETURNS:
  * The &drm_printer object
@@ -109,4 +113,19 @@ static inline struct drm_printer drm_info_printer(struct device *dev)
 	return p;
 }
 
+/**
+ * drm_debug_printer - construct a &drm_printer that outputs to pr_debug()
+ * @prefix: debug output prefix
+ *
+ * RETURNS:
+ * The &drm_printer object
+ */
+static inline struct drm_printer drm_debug_printer(const char *prefix)
+{
+	struct drm_printer p = {
+		.printfn = __drm_printfn_debug,
+		.prefix = prefix
+	};
+	return p;
+}
 #endif /* DRM_PRINT_H_ */

@@ -25,6 +25,7 @@
 #ifndef __ASM_OPENRISC_PGTABLE_H
 #define __ASM_OPENRISC_PGTABLE_H
 
+#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopmd.h>
 
 #ifndef __ASSEMBLY__
@@ -412,6 +413,8 @@ static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
 	       __FILE__, __LINE__, &(e), pgd_val(e))
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD]; /* defined in head.S */
+
+struct vm_area_struct;
 
 /*
  * or32 doesn't have any external MMU info: the kernel page

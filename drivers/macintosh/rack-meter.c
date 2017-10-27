@@ -52,8 +52,8 @@ struct rackmeter_dma {
 struct rackmeter_cpu {
 	struct delayed_work	sniffer;
 	struct rackmeter	*rm;
-	cputime64_t		prev_wall;
-	cputime64_t		prev_idle;
+	u64			prev_wall;
+	u64			prev_idle;
 	int			zero;
 } ____cacheline_aligned;
 
@@ -81,7 +81,7 @@ static int rackmeter_ignore_nice;
 /* This is copied from cpufreq_ondemand, maybe we should put it in
  * a common header somewhere
  */
-static inline cputime64_t get_cpu_idle_time(unsigned int cpu)
+static inline u64 get_cpu_idle_time(unsigned int cpu)
 {
 	u64 retval;
 
@@ -217,23 +217,23 @@ static void rackmeter_do_timer(struct work_struct *work)
 		container_of(work, struct rackmeter_cpu, sniffer.work);
 	struct rackmeter *rm = rcpu->rm;
 	unsigned int cpu = smp_processor_id();
-	cputime64_t cur_jiffies, total_idle_ticks;
-	unsigned int total_ticks, idle_ticks;
+	u64 cur_nsecs, total_idle_nsecs;
+	u64 total_nsecs, idle_nsecs;
 	int i, offset, load, cumm, pause;
 
-	cur_jiffies = jiffies64_to_cputime64(get_jiffies_64());
-	total_ticks = (unsigned int) (cur_jiffies - rcpu->prev_wall);
-	rcpu->prev_wall = cur_jiffies;
+	cur_nsecs = jiffies64_to_nsecs(get_jiffies_64());
+	total_nsecs = cur_nsecs - rcpu->prev_wall;
+	rcpu->prev_wall = cur_nsecs;
 
-	total_idle_ticks = get_cpu_idle_time(cpu);
-	idle_ticks = (unsigned int) (total_idle_ticks - rcpu->prev_idle);
-	idle_ticks = min(idle_ticks, total_ticks);
-	rcpu->prev_idle = total_idle_ticks;
+	total_idle_nsecs = get_cpu_idle_time(cpu);
+	idle_nsecs = total_idle_nsecs - rcpu->prev_idle;
+	idle_nsecs = min(idle_nsecs, total_nsecs);
+	rcpu->prev_idle = total_idle_nsecs;
 
 	/* We do a very dumb calculation to update the LEDs for now,
 	 * we'll do better once we have actual PWM implemented
 	 */
-	load = (9 * (total_ticks - idle_ticks)) / total_ticks;
+	load = div64_u64(9 * (total_nsecs - idle_nsecs), total_nsecs);
 
 	offset = cpu << 3;
 	cumm = 0;
@@ -278,7 +278,7 @@ static void rackmeter_init_cpu_sniffer(struct rackmeter *rm)
 			continue;
 		rcpu = &rm->cpu[cpu];
 		rcpu->prev_idle = get_cpu_idle_time(cpu);
-		rcpu->prev_wall = jiffies64_to_cputime64(get_jiffies_64());
+		rcpu->prev_wall = jiffies64_to_nsecs(get_jiffies_64());
 		schedule_delayed_work_on(cpu, &rm->cpu[cpu].sniffer,
 					 msecs_to_jiffies(CPU_SAMPLING_RATE));
 	}
@@ -411,16 +411,16 @@ static int rackmeter_probe(struct macio_dev* mdev,
 #if 0 /* Use that when i2s-a is finally an mdev per-se */
 	if (macio_resource_count(mdev) < 2 || macio_irq_count(mdev) < 2) {
 		printk(KERN_ERR
-		       "rackmeter: found match but lacks resources: %s"
+		       "rackmeter: found match but lacks resources: %pOF"
 		       " (%d resources, %d interrupts)\n",
-		       mdev->ofdev.node->full_name);
+		       mdev->ofdev.dev.of_node);
 		rc = -ENXIO;
 		goto bail_free;
 	}
 	if (macio_request_resources(mdev, "rackmeter")) {
 		printk(KERN_ERR
-		       "rackmeter: failed to request resources: %s\n",
-		       mdev->ofdev.node->full_name);
+		       "rackmeter: failed to request resources: %pOF\n",
+		       mdev->ofdev.dev.of_node);
 		rc = -EBUSY;
 		goto bail_free;
 	}
@@ -431,8 +431,8 @@ static int rackmeter_probe(struct macio_dev* mdev,
 	    of_address_to_resource(i2s, 0, &ri2s) ||
 	    of_address_to_resource(i2s, 1, &rdma)) {
 		printk(KERN_ERR
-		       "rackmeter: found match but lacks resources: %s",
-		       mdev->ofdev.dev.of_node->full_name);
+		       "rackmeter: found match but lacks resources: %pOF",
+		       mdev->ofdev.dev.of_node);
 		rc = -ENXIO;
 		goto bail_free;
 	}
@@ -579,7 +579,7 @@ static int rackmeter_shutdown(struct macio_dev* mdev)
 	return 0;
 }
 
-static struct of_device_id rackmeter_match[] = {
+static const struct of_device_id rackmeter_match[] = {
 	{ .name = "i2s" },
 	{ }
 };

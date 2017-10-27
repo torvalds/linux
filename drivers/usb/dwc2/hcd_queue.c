@@ -76,14 +76,13 @@ static int dwc2_periodic_channel_available(struct dwc2_hsotg *hsotg)
 	int num_channels;
 
 	num_channels = hsotg->params.host_channels;
-	if (hsotg->periodic_channels + hsotg->non_periodic_channels <
-								num_channels
-	    && hsotg->periodic_channels < num_channels - 1) {
+	if ((hsotg->periodic_channels + hsotg->non_periodic_channels <
+	     num_channels) && (hsotg->periodic_channels < num_channels - 1)) {
 		status = 0;
 	} else {
 		dev_dbg(hsotg->dev,
-			"%s: Total channels: %d, Periodic: %d, "
-			"Non-periodic: %d\n", __func__, num_channels,
+			"%s: Total channels: %d, Periodic: %d, Non-periodic: %d\n",
+			__func__, num_channels,
 			hsotg->periodic_channels, hsotg->non_periodic_channels);
 		status = -ENOSPC;
 	}
@@ -485,7 +484,6 @@ static void pmap_print(unsigned long *map, int bits_per_period,
 	}
 }
 
-
 struct dwc2_qh_print_data {
 	struct dwc2_hsotg *hsotg;
 	struct dwc2_qh *qh;
@@ -558,7 +556,6 @@ static void dwc2_qh_schedule_print(struct dwc2_hsotg *hsotg,
 			   DWC2_HS_SCHEDULE_UFRAMES, "uFrame", "us",
 			   dwc2_qh_print, &print_data);
 	}
-	return;
 }
 #else
 static inline void dwc2_qh_schedule_print(struct dwc2_hsotg *hsotg,
@@ -587,7 +584,7 @@ static int dwc2_ls_pmap_schedule(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 	unsigned long *map = dwc2_get_ls_map(hsotg, qh);
 	int slice;
 
-	if (map == NULL)
+	if (!map)
 		return -EINVAL;
 
 	/*
@@ -626,7 +623,7 @@ static void dwc2_ls_pmap_unschedule(struct dwc2_hsotg *hsotg,
 	unsigned long *map = dwc2_get_ls_map(hsotg, qh);
 
 	/* Schedule should have failed, so no worries about no error code */
-	if (map == NULL)
+	if (!map)
 		return;
 
 	pmap_unschedule(map, DWC2_LS_PERIODIC_SLICES_PER_FRAME,
@@ -1107,7 +1104,7 @@ static void dwc2_pick_first_frame(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	next_active_frame = earliest_frame;
 
 	/* Get the "no microframe schduler" out of the way... */
-	if (hsotg->params.uframe_sched <= 0) {
+	if (!hsotg->params.uframe_sched) {
 		if (qh->do_split)
 			/* Splits are active at microframe 0 minus 1 */
 			next_active_frame |= 0x7;
@@ -1182,7 +1179,7 @@ exit:
 	qh->start_active_frame = next_active_frame;
 
 	dwc2_sch_vdbg(hsotg, "QH=%p First fn=%04x nxt=%04x\n",
-		     qh, frame_number, qh->next_active_frame);
+		      qh, frame_number, qh->next_active_frame);
 }
 
 /**
@@ -1200,7 +1197,7 @@ static int dwc2_do_reserve(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 {
 	int status;
 
-	if (hsotg->params.uframe_sched > 0) {
+	if (hsotg->params.uframe_sched) {
 		status = dwc2_uframe_schedule(hsotg, qh);
 	} else {
 		status = dwc2_periodic_channel_available(hsotg);
@@ -1221,7 +1218,7 @@ static int dwc2_do_reserve(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 		return status;
 	}
 
-	if (hsotg->params.uframe_sched <= 0)
+	if (!hsotg->params.uframe_sched)
 		/* Reserve periodic channel */
 		hsotg->periodic_channels++;
 
@@ -1257,7 +1254,7 @@ static void dwc2_do_unreserve(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	/* Update claimed usecs per (micro)frame */
 	hsotg->periodic_usecs -= qh->host_us;
 
-	if (hsotg->params.uframe_sched > 0) {
+	if (hsotg->params.uframe_sched) {
 		dwc2_uframe_unschedule(hsotg, qh);
 	} else {
 		/* Release periodic channel reservation */
@@ -1394,7 +1391,7 @@ static int dwc2_schedule_periodic(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 
 	qh->unreserve_pending = 0;
 
-	if (hsotg->params.dma_desc_enable > 0)
+	if (hsotg->params.dma_desc_enable)
 		/* Don't rely on SOF and start in ready schedule */
 		list_add_tail(&qh->qh_list_entry, &hsotg->periodic_sched_ready);
 	else
@@ -1501,7 +1498,6 @@ static void dwc2_qh_init(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 			device_ns += dwc_tt->usb_tt->think_time;
 		qh->device_us = NS_TO_US(device_ns);
 
-
 		qh->device_interval = urb->interval;
 		qh->host_interval = urb->interval * (do_split ? 8 : 1);
 
@@ -1587,7 +1583,7 @@ static void dwc2_qh_init(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
  * Return: Pointer to the newly allocated QH, or NULL on error
  */
 struct dwc2_qh *dwc2_hcd_qh_create(struct dwc2_hsotg *hsotg,
-					  struct dwc2_hcd_urb *urb,
+				   struct dwc2_hcd_urb *urb,
 					  gfp_t mem_flags)
 {
 	struct dwc2_qh *qh;
@@ -1602,7 +1598,7 @@ struct dwc2_qh *dwc2_hcd_qh_create(struct dwc2_hsotg *hsotg,
 
 	dwc2_qh_init(hsotg, qh, urb, mem_flags);
 
-	if (hsotg->params.dma_desc_enable > 0 &&
+	if (hsotg->params.dma_desc_enable &&
 	    dwc2_hcd_qh_init_ddma(hsotg, qh, mem_flags) < 0) {
 		dwc2_hcd_qh_free(hsotg, qh);
 		return NULL;
@@ -1714,7 +1710,7 @@ void dwc2_hcd_qh_unlink(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	dwc2_deschedule_periodic(hsotg, qh);
 	hsotg->periodic_qh_count--;
 	if (!hsotg->periodic_qh_count &&
-	    hsotg->params.dma_desc_enable <= 0) {
+	    !hsotg->params.dma_desc_enable) {
 		intr_mask = dwc2_readl(hsotg->regs + GINTMSK);
 		intr_mask &= ~GINTSTS_SOF;
 		dwc2_writel(intr_mask, hsotg->regs + GINTMSK);
@@ -1741,7 +1737,7 @@ void dwc2_hcd_qh_unlink(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
  * Return: number missed by (or 0 if we didn't miss).
  */
 static int dwc2_next_for_periodic_split(struct dwc2_hsotg *hsotg,
-					 struct dwc2_qh *qh, u16 frame_number)
+					struct dwc2_qh *qh, u16 frame_number)
 {
 	u16 old_frame = qh->next_active_frame;
 	u16 prev_frame_number = dwc2_frame_num_dec(frame_number, 1);
@@ -1804,7 +1800,7 @@ static int dwc2_next_for_periodic_split(struct dwc2_hsotg *hsotg,
  * Return: number missed by (or 0 if we didn't miss).
  */
 static int dwc2_next_periodic_start(struct dwc2_hsotg *hsotg,
-				     struct dwc2_qh *qh, u16 frame_number)
+				    struct dwc2_qh *qh, u16 frame_number)
 {
 	int missed = 0;
 	u16 interval = qh->host_interval;
@@ -1926,7 +1922,7 @@ void dwc2_hcd_qh_deactivate(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 		missed = dwc2_next_periodic_start(hsotg, qh, frame_number);
 
 	dwc2_sch_vdbg(hsotg,
-		     "QH=%p next(%d) fn=%04x, sch=%04x=>%04x (%+d) miss=%d %s\n",
+		      "QH=%p next(%d) fn=%04x, sch=%04x=>%04x (%+d) miss=%d %s\n",
 		     qh, sched_next_periodic_split, frame_number, old_frame,
 		     qh->next_active_frame,
 		     dwc2_frame_num_dec(qh->next_active_frame, old_frame),

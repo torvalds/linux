@@ -2,6 +2,7 @@
  * Copyright (C) 2008 Steven Rostedt <srostedt@redhat.com>
  *
  */
+#include <linux/sched/task_stack.h>
 #include <linux/stacktrace.h>
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
@@ -34,7 +35,7 @@ unsigned long stack_trace_max_size;
 arch_spinlock_t stack_trace_max_lock =
 	(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
-static DEFINE_PER_CPU(int, trace_active);
+DEFINE_PER_CPU(int, disable_stack_tracer);
 static DEFINE_MUTEX(stack_sysctl_mutex);
 
 int stack_tracer_enabled;
@@ -64,7 +65,7 @@ void stack_trace_print(void)
 }
 
 /*
- * When arch-specific code overides this function, the following
+ * When arch-specific code overrides this function, the following
  * data should be filled up, assuming stack_trace_max_lock is held to
  * prevent concurrent updates.
  *     stack_trace_index[]
@@ -97,12 +98,6 @@ check_stack(unsigned long ip, unsigned long *stack)
 
 	local_irq_save(flags);
 	arch_spin_lock(&stack_trace_max_lock);
-
-	/*
-	 * RCU may not be watching, make it see us.
-	 * The stack trace code uses rcu_sched.
-	 */
-	rcu_irq_enter();
 
 	/* In case another CPU set the tracer_frame on us */
 	if (unlikely(!frame_size))
@@ -196,7 +191,6 @@ check_stack(unsigned long ip, unsigned long *stack)
 	}
 
  out:
-	rcu_irq_exit();
 	arch_spin_unlock(&stack_trace_max_lock);
 	local_irq_restore(flags);
 }
@@ -206,13 +200,12 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip,
 		 struct ftrace_ops *op, struct pt_regs *pt_regs)
 {
 	unsigned long stack;
-	int cpu;
 
 	preempt_disable_notrace();
 
-	cpu = raw_smp_processor_id();
 	/* no atomic needed, we only modify this variable by this cpu */
-	if (per_cpu(trace_active, cpu)++ != 0)
+	__this_cpu_inc(disable_stack_tracer);
+	if (__this_cpu_read(disable_stack_tracer) != 1)
 		goto out;
 
 	ip += MCOUNT_INSN_SIZE;
@@ -220,7 +213,7 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip,
 	check_stack(ip, &stack);
 
  out:
-	per_cpu(trace_active, cpu)--;
+	__this_cpu_dec(disable_stack_tracer);
 	/* prevent recursion in schedule */
 	preempt_enable_notrace();
 }
@@ -252,7 +245,6 @@ stack_max_size_write(struct file *filp, const char __user *ubuf,
 	long *ptr = filp->private_data;
 	unsigned long val, flags;
 	int ret;
-	int cpu;
 
 	ret = kstrtoul_from_user(ubuf, count, 10, &val);
 	if (ret)
@@ -263,16 +255,15 @@ stack_max_size_write(struct file *filp, const char __user *ubuf,
 	/*
 	 * In case we trace inside arch_spin_lock() or after (NMI),
 	 * we will cause circular lock, so we also need to increase
-	 * the percpu trace_active here.
+	 * the percpu disable_stack_tracer here.
 	 */
-	cpu = smp_processor_id();
-	per_cpu(trace_active, cpu)++;
+	__this_cpu_inc(disable_stack_tracer);
 
 	arch_spin_lock(&stack_trace_max_lock);
 	*ptr = val;
 	arch_spin_unlock(&stack_trace_max_lock);
 
-	per_cpu(trace_active, cpu)--;
+	__this_cpu_dec(disable_stack_tracer);
 	local_irq_restore(flags);
 
 	return count;
@@ -306,12 +297,9 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 
 static void *t_start(struct seq_file *m, loff_t *pos)
 {
-	int cpu;
-
 	local_irq_disable();
 
-	cpu = smp_processor_id();
-	per_cpu(trace_active, cpu)++;
+	__this_cpu_inc(disable_stack_tracer);
 
 	arch_spin_lock(&stack_trace_max_lock);
 
@@ -323,12 +311,9 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 
 static void t_stop(struct seq_file *m, void *p)
 {
-	int cpu;
-
 	arch_spin_unlock(&stack_trace_max_lock);
 
-	cpu = smp_processor_id();
-	per_cpu(trace_active, cpu)--;
+	__this_cpu_dec(disable_stack_tracer);
 
 	local_irq_enable();
 }
@@ -406,10 +391,14 @@ static const struct file_operations stack_trace_fops = {
 	.release	= seq_release,
 };
 
+#ifdef CONFIG_DYNAMIC_FTRACE
+
 static int
 stack_trace_filter_open(struct inode *inode, struct file *file)
 {
-	return ftrace_regex_open(&trace_ops, FTRACE_ITER_FILTER,
+	struct ftrace_ops *ops = inode->i_private;
+
+	return ftrace_regex_open(ops, FTRACE_ITER_FILTER,
 				 inode, file);
 }
 
@@ -420,6 +409,8 @@ static const struct file_operations stack_trace_filter_fops = {
 	.llseek = tracing_lseek,
 	.release = ftrace_regex_release,
 };
+
+#endif /* CONFIG_DYNAMIC_FTRACE */
 
 int
 stack_trace_sysctl(struct ctl_table *table, int write,
@@ -475,8 +466,10 @@ static __init int stack_trace_init(void)
 	trace_create_file("stack_trace", 0444, d_tracer,
 			NULL, &stack_trace_fops);
 
+#ifdef CONFIG_DYNAMIC_FTRACE
 	trace_create_file("stack_trace_filter", 0444, d_tracer,
-			NULL, &stack_trace_filter_fops);
+			  &trace_ops, &stack_trace_filter_fops);
+#endif
 
 	if (stack_trace_filter_buf[0])
 		ftrace_set_early_filter(&trace_ops, stack_trace_filter_buf, 1);

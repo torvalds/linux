@@ -27,8 +27,8 @@
  * they may need 64-bit accounting. Hence, 64-bit quota-counters,
  * and quota-limits. This is a waste in the common case, but hey ...
  */
-typedef __uint64_t	xfs_qcnt_t;
-typedef __uint16_t	xfs_qwarncnt_t;
+typedef uint64_t	xfs_qcnt_t;
+typedef uint16_t	xfs_qwarncnt_t;
 
 /*
  * flags for q_flags field in the dquot.

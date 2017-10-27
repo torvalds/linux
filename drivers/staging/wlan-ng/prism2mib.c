@@ -146,7 +146,6 @@ static int prism2mib_priv(struct mibrec *mib,
 			  struct p80211msg_dot11req_mibset *msg, void *data);
 
 static struct mibrec mibtab[] = {
-
 	/* dot11smt MIB's */
 	{DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(1),
 	 F_STA | F_WRITE,
@@ -624,7 +623,6 @@ static int prism2mib_excludeunencrypted(struct mibrec *mib,
 					struct p80211msg_dot11req_mibset *msg,
 					void *data)
 {
-
 	return prism2mib_flag(mib, isget, wlandev, hw, msg, data);
 }
 
@@ -747,7 +745,7 @@ static int prism2mib_priv(struct mibrec *mib,
  *	pstr		wlan message data
  *
  * Returns:
- * 	Nothing
+ *	Nothing
  *
  */
 
@@ -776,7 +774,7 @@ void prism2mgmt_pstr2bytestr(struct hfa384x_bytestr *bytestr,
 void prism2mgmt_bytestr2pstr(struct hfa384x_bytestr *bytestr,
 			     struct p80211pstrd *pstr)
 {
-	pstr->len = (u8)(le16_to_cpu((u16)(bytestr->len)));
+	pstr->len = (u8)(le16_to_cpu(bytestr->len));
 	memcpy(pstr->data, bytestr->data, pstr->len);
 }
 

@@ -315,6 +315,24 @@ static const struct reset_control_ops qcom_scm_pas_reset_ops = {
 	.deassert = qcom_scm_pas_reset_deassert,
 };
 
+int qcom_scm_restore_sec_cfg(u32 device_id, u32 spare)
+{
+	return __qcom_scm_restore_sec_cfg(__scm->dev, device_id, spare);
+}
+EXPORT_SYMBOL(qcom_scm_restore_sec_cfg);
+
+int qcom_scm_iommu_secure_ptbl_size(u32 spare, size_t *size)
+{
+	return __qcom_scm_iommu_secure_ptbl_size(__scm->dev, spare, size);
+}
+EXPORT_SYMBOL(qcom_scm_iommu_secure_ptbl_size);
+
+int qcom_scm_iommu_secure_ptbl_init(u64 addr, u32 size, u32 spare)
+{
+	return __qcom_scm_iommu_secure_ptbl_init(__scm->dev, addr, size, spare);
+}
+EXPORT_SYMBOL(qcom_scm_iommu_secure_ptbl_init);
+
 /**
  * qcom_scm_is_available() - Checks if SCM is available
  */
@@ -323,6 +341,12 @@ bool qcom_scm_is_available(void)
 	return !!__scm;
 }
 EXPORT_SYMBOL(qcom_scm_is_available);
+
+int qcom_scm_set_remote_state(u32 state, u32 id)
+{
+	return __qcom_scm_set_remote_state(__scm->dev, state, id);
+}
+EXPORT_SYMBOL(qcom_scm_set_remote_state);
 
 static int qcom_scm_probe(struct platform_device *pdev)
 {
@@ -387,7 +411,7 @@ static int qcom_scm_probe(struct platform_device *pdev)
 
 static const struct of_device_id qcom_scm_dt_match[] = {
 	{ .compatible = "qcom,scm-apq8064",
-	  .data = (void *) SCM_HAS_CORE_CLK,
+	  /* FIXME: This should have .data = (void *) SCM_HAS_CORE_CLK */
 	},
 	{ .compatible = "qcom,scm-msm8660",
 	  .data = (void *) SCM_HAS_CORE_CLK,

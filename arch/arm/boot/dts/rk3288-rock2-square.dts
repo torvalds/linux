@@ -53,13 +53,13 @@
 		compatible = "gpio-leds";
 
 		heartbeat {
-			gpios = <&gpio7 15 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio7 RK_PB7 GPIO_ACTIVE_LOW>;
 			label = "rock2:green:state1";
 			linux,default-trigger = "heartbeat";
 		};
 
 		mmc {
-			gpios = <&gpio0 11 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_LOW>;
 			label = "rock2:blue:state2";
 			linux,default-trigger = "mmc0";
 		};
@@ -67,7 +67,7 @@
 
 	ir: ir-receiver {
 		compatible = "gpio-ir-receiver";
-		gpios = <&gpio8 1 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio8 RK_PA1 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ir_int>;
 	};
@@ -81,9 +81,33 @@
 		};
 	};
 
+	sata_pwr: sata-prw-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 13 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sata_pwr_en>;
+		/* Always turn on the 5V sata power connector */
+		regulator-always-on;
+		regulator-name = "sata_pwr";
+	};
+
 	spdif_out: spdif-out {
 		compatible = "linux,spdif-dit";
 		#sound-dai-cells = <0>;
+	};
+
+	sound-i2s {
+		compatible = "rockchip,rk3288-hdmi-analog";
+		pinctrl-names = "default";
+		pinctrl-0 = <&phone_ctl>, <&hp_det>;
+		rockchip,audio-codec = <&es8388>;
+		rockchip,hp-det-gpios = <&gpio7 7 GPIO_ACTIVE_HIGH>;
+		rockchip,hp-en-gpios = <&gpio8 0 GPIO_ACTIVE_HIGH>;
+		rockchip,i2s-controller = <&i2s>;
+		rockchip,model = "I2S";
+		rockchip,routing = "Analog", "LOUT2",
+				   "Analog", "ROUT2";
 	};
 
 	sdio_pwrseq: sdio-pwrseq {
@@ -92,25 +116,21 @@
 		clock-names = "ext_clock";
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_enable>;
-		reset-gpios = <&gpio4 28 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio4 RK_PD4 GPIO_ACTIVE_LOW>;
 	};
 
 	vcc_usb_host: vcc-host-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 14 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&host_vbus_drv>;
-		/* Always on as the rockchip usb phy doesn't have a vbus-supply
-		 * property
-		 */
-		regulator-always-on;
 		regulator-name = "vcc_host";
 	};
 
 	vcc_sd: sdmmc-regulator {
 		compatible = "regulator-fixed";
-		gpio = <&gpio7 11 GPIO_ACTIVE_LOW>;
+		gpio = <&gpio7 RK_PB3 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdmmc_pwr>;
 		regulator-name = "vcc_sd";
@@ -127,7 +147,6 @@
 	disable-wp;
 	mmc-pwrseq = <&sdio_pwrseq>;
 	non-removable;
-	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk &sdio0_int>;
 	vmmc-supply = <&vcc_io>;
@@ -141,7 +160,6 @@
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
 	disable-wp;	/* wp not hooked up */
-	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
 	vmmc-supply = <&vcc_sd>;
@@ -166,14 +184,32 @@
 		clock-frequency = <32768>;
 		clock-output-names = "xin32k";
 		interrupt-parent = <&gpio0>;
-		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+		interrupts = <RK_PA4 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int>;
 
 	};
 };
 
+&i2c2 {
+	status = "okay";
+
+	es8388: es8388@10 {
+		compatible = "everest,es8388", "everest,es8328";
+		reg = <0x10>;
+		AVDD-supply = <&vccio_codec>;
+		DVDD-supply = <&vccio_codec>;
+		HPVDD-supply = <&vccio_codec>;
+		PVDD-supply = <&vccio_codec>;
+		clocks = <&cru SCLK_I2S0_OUT>;
+	};
+};
+
 &i2c5 {
+	status = "okay";
+};
+
+&i2s {
 	status = "okay";
 };
 
@@ -190,9 +226,25 @@
 		};
 	};
 
+	headphone {
+		hp_det: hp-det {
+			rockchip,pins = <7 7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		phone_ctl: phone-ctl {
+			rockchip,pins = <8 0 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
 	usb {
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins = <0 14 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	sata {
+		sata_pwr_en: sata-pwr-en {
+			rockchip,pins = <0 13 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -221,6 +273,14 @@
 	status = "okay";
 };
 
+&usbphy1 {
+	vbus-supply = <&vcc_usb_host>;
+};
+
 &usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host1 {
 	status = "okay";
 };

@@ -13,10 +13,6 @@
  * License, or (at your option) any later version.
  *
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  * THIS PROGRAM IS PROVIDED "AS IS" AND BOTH THE COPYRIGHT HOLDER AND
  * TECHNISAT DIGITAL UK LTD DISCLAIM ALL WARRANTIES WITH REGARD TO
  * THIS PROGRAM INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY OR
@@ -70,10 +66,10 @@ static struct rc_map_table technisat_usb2[] = {
 
 static struct rc_map_list technisat_usb2_map = {
 	.map = {
-		.scan    = technisat_usb2,
-		.size    = ARRAY_SIZE(technisat_usb2),
-		.rc_type = RC_TYPE_RC5,
-		.name    = RC_MAP_TECHNISAT_USB2,
+		.scan     = technisat_usb2,
+		.size     = ARRAY_SIZE(technisat_usb2),
+		.rc_proto = RC_PROTO_RC5,
+		.name     = RC_MAP_TECHNISAT_USB2,
 	}
 };
 

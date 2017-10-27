@@ -367,7 +367,7 @@ static int grgpio_probe(struct platform_device *ofdev)
 	gc->of_node = np;
 	gc->owner = THIS_MODULE;
 	gc->to_irq = grgpio_to_irq;
-	gc->label = np->full_name;
+	gc->label = devm_kasprintf(&ofdev->dev, GFP_KERNEL, "%pOF", np);
 	gc->base = -1;
 
 	err = of_property_read_u32(np, "nbits", &prop);

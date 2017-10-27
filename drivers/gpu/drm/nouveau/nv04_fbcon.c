@@ -136,7 +136,7 @@ nv04_fbcon_accel_init(struct fb_info *info)
 	struct drm_device *dev = nfbdev->helper.dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_channel *chan = drm->channel;
-	struct nvif_device *device = &drm->device;
+	struct nvif_device *device = &drm->client.device;
 	int surface_fmt, pattern_fmt, rect_fmt;
 	int ret;
 

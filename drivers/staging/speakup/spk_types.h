@@ -55,7 +55,7 @@ struct spk_highlight_color_track {
 	/* Count of each background color */
 	unsigned int bgcount[8];
 	/* Buffer for characters drawn with each background color */
-	char highbuf[8][COLOR_BUFFER_SIZE];
+	u16 highbuf[8][COLOR_BUFFER_SIZE];
 	/* Current index into highbuf */
 	unsigned int highsize[8];
 	/* Reading Position for each color */
@@ -146,6 +146,17 @@ struct synth_indexing {
 	unsigned char currindex;
 };
 
+struct spk_synth;
+
+struct spk_io_ops {
+	int (*synth_out)(struct spk_synth *synth, const char ch);
+	void (*send_xchar)(char ch);
+	void (*tiocmset)(unsigned int set, unsigned int clear);
+	unsigned char (*synth_in)(void);
+	unsigned char (*synth_in_nowait)(void);
+	void (*flush_buffer)(void);
+};
+
 struct spk_synth {
 	const char *name;
 	const char *version;
@@ -158,12 +169,14 @@ struct spk_synth {
 	int jiffies;
 	int full;
 	int ser;
+	char *dev_name;
 	short flags;
 	short startup;
 	const int checkval; /* for validating a proper synth module */
 	struct var_t *vars;
 	int *default_pitch;
 	int *default_vol;
+	struct spk_io_ops *io_ops;
 	int (*probe)(struct spk_synth *synth);
 	void (*release)(void);
 	const char *(*synth_immediate)(struct spk_synth *synth,
@@ -173,7 +186,7 @@ struct spk_synth {
 	int (*is_alive)(struct spk_synth *synth);
 	int (*synth_adjust)(struct st_var_header *var);
 	void (*read_buff_add)(u_char);
-	unsigned char (*get_index)(void);
+	unsigned char (*get_index)(struct spk_synth *synth);
 	struct synth_indexing indexing;
 	int alive;
 	struct attribute_group attributes;

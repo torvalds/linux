@@ -15,10 +15,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -289,7 +285,7 @@ static const struct i2c_algorithm cx25821_i2c_algo_template = {
 #endif
 };
 
-static struct i2c_adapter cx25821_i2c_adap_template = {
+static const struct i2c_adapter cx25821_i2c_adap_template = {
 	.name = "cx25821",
 	.owner = THIS_MODULE,
 	.algo = &cx25821_i2c_algo_template,

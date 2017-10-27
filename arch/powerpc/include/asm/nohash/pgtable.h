@@ -14,6 +14,7 @@ static inline int pte_write(pte_t pte)
 {
 	return (pte_val(pte) & (_PAGE_RW | _PAGE_RO)) != _PAGE_RO;
 }
+static inline int pte_read(pte_t pte)		{ return 1; }
 static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
 static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }
@@ -230,7 +231,7 @@ static inline int hugepd_ok(hugepd_t hpd)
 	return ((hpd_val(hpd) & 0x4) != 0);
 #else
 	/* We clear the top bit to indicate hugepd */
-	return ((hpd_val(hpd) & PD_HUGE) ==  0);
+	return (hpd_val(hpd) && (hpd_val(hpd) & PD_HUGE) == 0);
 #endif
 }
 

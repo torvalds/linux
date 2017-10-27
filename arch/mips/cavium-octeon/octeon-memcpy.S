@@ -15,6 +15,7 @@
 
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/export.h>
 #include <asm/regdef.h>
 
 #define dst a0
@@ -139,14 +140,6 @@
 	.set	noat
 
 /*
- * t7 is used as a flag to note inatomic mode.
- */
-LEAF(__copy_user_inatomic)
-	b	__copy_user_common
-	 li	t7, 1
-	END(__copy_user_inatomic)
-
-/*
  * A combined memcpy/__copy_user
  * __copy_user sets len to 0 for success; else to an upper bound of
  * the number of uncopied bytes.
@@ -154,11 +147,11 @@ LEAF(__copy_user_inatomic)
  */
 	.align	5
 LEAF(memcpy)					/* a0=dst a1=src a2=len */
+EXPORT_SYMBOL(memcpy)
 	move	v0, dst				/* return value */
 __memcpy:
 FEXPORT(__copy_user)
-	li	t7, 0				/* not inatomic */
-__copy_user_common:
+EXPORT_SYMBOL(__copy_user)
 	/*
 	 * Note: dst & src may be unaligned, len may be 0
 	 * Temps
@@ -208,18 +201,18 @@ EXC(	STORE	t2, UNIT(6)(dst),	s_exc_p10u)
 	ADD	src, src, 16*NBYTES
 EXC(	STORE	t3, UNIT(7)(dst),	s_exc_p9u)
 	ADD	dst, dst, 16*NBYTES
-EXC(	LOAD	t0, UNIT(-8)(src),	l_exc_copy)
-EXC(	LOAD	t1, UNIT(-7)(src),	l_exc_copy)
-EXC(	LOAD	t2, UNIT(-6)(src),	l_exc_copy)
-EXC(	LOAD	t3, UNIT(-5)(src),	l_exc_copy)
+EXC(	LOAD	t0, UNIT(-8)(src),	l_exc_copy_rewind16)
+EXC(	LOAD	t1, UNIT(-7)(src),	l_exc_copy_rewind16)
+EXC(	LOAD	t2, UNIT(-6)(src),	l_exc_copy_rewind16)
+EXC(	LOAD	t3, UNIT(-5)(src),	l_exc_copy_rewind16)
 EXC(	STORE	t0, UNIT(-8)(dst),	s_exc_p8u)
 EXC(	STORE	t1, UNIT(-7)(dst),	s_exc_p7u)
 EXC(	STORE	t2, UNIT(-6)(dst),	s_exc_p6u)
 EXC(	STORE	t3, UNIT(-5)(dst),	s_exc_p5u)
-EXC(	LOAD	t0, UNIT(-4)(src),	l_exc_copy)
-EXC(	LOAD	t1, UNIT(-3)(src),	l_exc_copy)
-EXC(	LOAD	t2, UNIT(-2)(src),	l_exc_copy)
-EXC(	LOAD	t3, UNIT(-1)(src),	l_exc_copy)
+EXC(	LOAD	t0, UNIT(-4)(src),	l_exc_copy_rewind16)
+EXC(	LOAD	t1, UNIT(-3)(src),	l_exc_copy_rewind16)
+EXC(	LOAD	t2, UNIT(-2)(src),	l_exc_copy_rewind16)
+EXC(	LOAD	t3, UNIT(-1)(src),	l_exc_copy_rewind16)
 EXC(	STORE	t0, UNIT(-4)(dst),	s_exc_p4u)
 EXC(	STORE	t1, UNIT(-3)(dst),	s_exc_p3u)
 EXC(	STORE	t2, UNIT(-2)(dst),	s_exc_p2u)
@@ -383,6 +376,10 @@ done:
 	 nop
 	END(memcpy)
 
+l_exc_copy_rewind16:
+	/* Rewind src and dst by 16*NBYTES for l_exc_copy */
+	SUB	src, src, 16*NBYTES
+	SUB	dst, dst, 16*NBYTES
 l_exc_copy:
 	/*
 	 * Copy bytes from src until faulting load address (or until a
@@ -406,25 +403,7 @@ l_exc:
 	LOAD	t0, TI_TASK($28)
 	LOAD	t0, THREAD_BUADDR(t0)	# t0 is just past last good address
 	SUB	len, AT, t0		# len number of uncopied bytes
-	bnez	t7, 2f		/* Skip the zeroing out part if inatomic */
-	/*
-	 * Here's where we rely on src and dst being incremented in tandem,
-	 *   See (3) above.
-	 * dst += (fault addr - src) to put dst at first byte to clear
-	 */
-	ADD	dst, t0			# compute start address in a1
-	SUB	dst, src
-	/*
-	 * Clear len bytes starting at dst.  Can't call __bzero because it
-	 * might modify len.  An inefficient loop for these rare times...
-	 */
-	beqz	len, done
-	 SUB	src, len, 1
-1:	sb	zero, 0(dst)
-	ADD	dst, dst, 1
-	bnez	src, 1b
-	 SUB	src, src, 1
-2:	jr	ra
+	jr	ra
 	 nop
 
 
@@ -459,6 +438,7 @@ s_exc:
 
 	.align	5
 LEAF(memmove)
+EXPORT_SYMBOL(memmove)
 	ADD	t0, a0, a2
 	ADD	t1, a1, a2
 	sltu	t0, a1, t0			# dst + len <= src -> memcpy

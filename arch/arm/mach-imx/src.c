@@ -99,7 +99,7 @@ void imx_enable_cpu(int cpu, bool enable)
 void imx_set_cpu_jump(int cpu, void *jump_addr)
 {
 	cpu = cpu_logical_map(cpu);
-	writel_relaxed(virt_to_phys(jump_addr),
+	writel_relaxed(__pa_symbol(jump_addr),
 		       src_base + SRC_GPR1 + cpu * 8);
 }
 

@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -89,7 +89,7 @@ acpi_ns_print_node_pathname(struct acpi_namespace_node *node,
 			acpi_os_printf("%s ", message);
 		}
 
-		acpi_os_printf("[%s] (Node %p)", (char *)buffer.pointer, node);
+		acpi_os_printf("%s", (char *)buffer.pointer);
 		ACPI_FREE(buffer.pointer);
 	}
 }
@@ -252,7 +252,7 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 			internal_name[1] = AML_DUAL_NAME_PREFIX;
 			result = &internal_name[2];
 		} else {
-			internal_name[1] = AML_MULTI_NAME_PREFIX_OP;
+			internal_name[1] = AML_MULTI_NAME_PREFIX;
 			internal_name[2] = (char)num_segments;
 			result = &internal_name[3];
 		}
@@ -274,7 +274,7 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 			internal_name[i] = AML_DUAL_NAME_PREFIX;
 			result = &internal_name[(acpi_size)i + 1];
 		} else {
-			internal_name[i] = AML_MULTI_NAME_PREFIX_OP;
+			internal_name[i] = AML_MULTI_NAME_PREFIX;
 			internal_name[(acpi_size)i + 1] = (char)num_segments;
 			result = &internal_name[(acpi_size)i + 2];
 		}
@@ -450,7 +450,7 @@ acpi_ns_externalize_name(u32 internal_name_length,
 	 */
 	if (prefix_length < internal_name_length) {
 		switch (internal_name[prefix_length]) {
-		case AML_MULTI_NAME_PREFIX_OP:
+		case AML_MULTI_NAME_PREFIX:
 
 			/* <count> 4-byte names */
 
@@ -594,25 +594,20 @@ struct acpi_namespace_node *acpi_ns_validate_handle(acpi_handle handle)
 void acpi_ns_terminate(void)
 {
 	acpi_status status;
+	union acpi_operand_object *prev;
+	union acpi_operand_object *next;
 
 	ACPI_FUNCTION_TRACE(ns_terminate);
 
-#ifdef ACPI_EXEC_APP
-	{
-		union acpi_operand_object *prev;
-		union acpi_operand_object *next;
+	/* Delete any module-level code blocks */
 
-		/* Delete any module-level code blocks */
-
-		next = acpi_gbl_module_code_list;
-		while (next) {
-			prev = next;
-			next = next->method.mutex;
-			prev->method.mutex = NULL;	/* Clear the Mutex (cheated) field */
-			acpi_ut_remove_reference(prev);
-		}
+	next = acpi_gbl_module_code_list;
+	while (next) {
+		prev = next;
+		next = next->method.mutex;
+		prev->method.mutex = NULL;	/* Clear the Mutex (cheated) field */
+		acpi_ut_remove_reference(prev);
 	}
-#endif
 
 	/*
 	 * Free the entire namespace -- all nodes and all objects

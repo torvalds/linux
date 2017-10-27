@@ -211,7 +211,6 @@ btrfs_alloc_dummy_block_group(struct btrfs_fs_info *fs_info,
 	cache->key.objectid = 0;
 	cache->key.offset = length;
 	cache->key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
-	cache->sectorsize = fs_info->sectorsize;
 	cache->full_stripe_len = fs_info->sectorsize;
 	cache->fs_info = fs_info;
 
@@ -237,7 +236,6 @@ void btrfs_init_dummy_trans(struct btrfs_trans_handle *trans)
 {
 	memset(trans, 0, sizeof(*trans));
 	trans->transid = 1;
-	INIT_LIST_HEAD(&trans->qgroup_ref_list);
 	trans->type = __TRANS_DUMMY;
 }
 

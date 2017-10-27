@@ -1,7 +1,7 @@
 /*
  * RTL8XXXU mac80211 USB driver
  *
- * Copyright (c) 2014 - 2016 Jes Sorensen <Jes.Sorensen@redhat.com>
+ * Copyright (c) 2014 - 2017 Jes Sorensen <Jes.Sorensen@gmail.com>
  *
  * Portions, notably calibration code:
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
@@ -48,7 +48,7 @@ static bool rtl8xxxu_dma_aggregation;
 static int rtl8xxxu_dma_agg_timeout = -1;
 static int rtl8xxxu_dma_agg_pages = -1;
 
-MODULE_AUTHOR("Jes Sorensen <Jes.Sorensen@redhat.com>");
+MODULE_AUTHOR("Jes Sorensen <Jes.Sorensen@gmail.com>");
 MODULE_DESCRIPTION("RTL8XXXu USB mac80211 Wireless LAN Driver");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE("rtlwifi/rtl8723aufw_A.bin");
@@ -4952,7 +4952,7 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 	if (control && control->sta)
 		sta = control->sta;
 
-	tx_desc = (struct rtl8xxxu_txdesc32 *)skb_push(skb, tx_desc_size);
+	tx_desc = skb_push(skb, tx_desc_size);
 
 	memset(tx_desc, 0, tx_desc_size);
 	tx_desc->pkt_size = cpu_to_le16(pktlen);
@@ -5041,7 +5041,7 @@ static void rtl8xxxu_rx_parse_phystats(struct rtl8xxxu_priv *priv,
 				       u32 rxmcs)
 {
 	if (phy_stats->sgi_en)
-		rx_status->flag |= RX_FLAG_SHORT_GI;
+		rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 
 	if (rxmcs < DESC_RATE_6M) {
 		/*
@@ -5267,10 +5267,10 @@ int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb)
 		if (rx_desc->crc32)
 			rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 		if (rx_desc->bw)
-			rx_status->flag |= RX_FLAG_40MHZ;
+			rx_status->bw = RATE_INFO_BW_40;
 
 		if (rx_desc->rxht) {
-			rx_status->flag |= RX_FLAG_HT;
+			rx_status->encoding = RX_ENC_HT;
 			rx_status->rate_idx = rx_desc->rxmcs - DESC_RATE_MCS0;
 		} else {
 			rx_status->rate_idx = rx_desc->rxmcs;
@@ -5337,10 +5337,10 @@ int rtl8xxxu_parse_rxdesc24(struct rtl8xxxu_priv *priv, struct sk_buff *skb)
 	if (rx_desc->crc32)
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 	if (rx_desc->bw)
-		rx_status->flag |= RX_FLAG_40MHZ;
+		rx_status->bw = RATE_INFO_BW_40;
 
 	if (rx_desc->rxmcs >= DESC_RATE_MCS0) {
-		rx_status->flag |= RX_FLAG_HT;
+		rx_status->encoding = RX_ENC_HT;
 		rx_status->rate_idx = rx_desc->rxmcs - DESC_RATE_MCS0;
 	} else {
 		rx_status->rate_idx = rx_desc->rxmcs;
@@ -6000,6 +6000,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 		case 0x8176:
 		case 0x8178:
 		case 0x817f:
+		case 0x818b:
 			untested = 0;
 			break;
 		}
@@ -6134,6 +6135,8 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	ieee80211_hw_set(hw, HAS_RATE_CONTROL);
 	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
 
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
 	ret = ieee80211_register_hw(priv->hw);
 	if (ret) {
 		dev_err(&udev->dev, "%s: Failed to register: %i\n",
@@ -6187,7 +6190,7 @@ static void rtl8xxxu_disconnect(struct usb_interface *interface)
 	ieee80211_free_hw(hw);
 }
 
-static struct usb_device_id dev_table[] = {
+static const struct usb_device_id dev_table[] = {
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x8724, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8723au_fops},
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x1724, 0xff, 0xff, 0xff),
@@ -6195,6 +6198,12 @@ static struct usb_device_id dev_table[] = {
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x0724, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8723au_fops},
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x818b, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8192eu_fops},
+/* TP-Link TL-WN822N v4 */
+{USB_DEVICE_AND_INTERFACE_INFO(0x2357, 0x0108, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8192eu_fops},
+/* D-Link DWA-131 rev E1, tested by David Patiño */
+{USB_DEVICE_AND_INTERFACE_INFO(0x2001, 0x3319, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8192eu_fops},
 /* Tested by Myckel Habets */
 {USB_DEVICE_AND_INTERFACE_INFO(0x2357, 0x0109, 0xff, 0xff, 0xff),
@@ -6347,6 +6356,13 @@ static struct usb_device_id dev_table[] = {
 	.driver_info = (unsigned long)&rtl8192cu_fops},
 {USB_DEVICE_AND_INTERFACE_INFO(0x7392, 0x7822, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8192cu_fops},
+/* found in rtl8192eu vendor driver */
+{USB_DEVICE_AND_INTERFACE_INFO(0x2357, 0x0107, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8192eu_fops},
+{USB_DEVICE_AND_INTERFACE_INFO(0x2019, 0xab33, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8192eu_fops},
+{USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x818c, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8192eu_fops},
 #endif
 { }
 };

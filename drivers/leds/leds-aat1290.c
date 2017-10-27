@@ -314,8 +314,10 @@ static void aat1290_led_validate_mm_current(struct aat1290_led *led,
 static int init_mm_current_scale(struct aat1290_led *led,
 			struct aat1290_led_config_data *cfg)
 {
-	int max_mm_current_percent[] = { 20, 22, 25, 28, 32, 36, 40, 45, 50, 56,
-						63, 71, 79, 89, 100 };
+	static const int max_mm_current_percent[] = {
+		20, 22, 25, 28, 32, 36, 40, 45, 50, 56,
+		63, 71, 79, 89, 100
+	};
 	int i, max_mm_current =
 			AAT1290_MAX_MM_CURRENT(cfg->max_flash_current);
 
@@ -432,7 +434,7 @@ static void aat1290_init_v4l2_flash_config(struct aat1290_led *led,
 	strlcpy(v4l2_sd_cfg->dev_name, led_cdev->name,
 		sizeof(v4l2_sd_cfg->dev_name));
 
-	s = &v4l2_sd_cfg->torch_intensity;
+	s = &v4l2_sd_cfg->intensity;
 	s->min = led->mm_current_scale[0];
 	s->max = led_cfg->max_mm_current;
 	s->step = 1;
@@ -503,8 +505,9 @@ static int aat1290_led_probe(struct platform_device *pdev)
 	aat1290_init_v4l2_flash_config(led, &led_cfg, &v4l2_sd_cfg);
 
 	/* Create V4L2 Flash subdev. */
-	led->v4l2_flash = v4l2_flash_init(dev, sub_node, fled_cdev, NULL,
-					  &v4l2_flash_ops, &v4l2_sd_cfg);
+	led->v4l2_flash = v4l2_flash_init(dev, of_fwnode_handle(sub_node),
+					  fled_cdev, &v4l2_flash_ops,
+					  &v4l2_sd_cfg);
 	if (IS_ERR(led->v4l2_flash)) {
 		ret = PTR_ERR(led->v4l2_flash);
 		goto error_v4l2_flash_init;

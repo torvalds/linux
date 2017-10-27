@@ -7,35 +7,35 @@
 #include <linux/device.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/sys_soc.h>
 
 #include "compat.h"
 #include "regs.h"
 #include "intern.h"
 #include "jr.h"
 #include "desc_constr.h"
-#include "error.h"
 #include "ctrl.h"
 
 bool caam_little_end;
 EXPORT_SYMBOL(caam_little_end);
+bool caam_dpaa2;
+EXPORT_SYMBOL(caam_dpaa2);
+bool caam_imx;
+EXPORT_SYMBOL(caam_imx);
+
+#ifdef CONFIG_CAAM_QI
+#include "qi.h"
+#endif
 
 /*
  * i.MX targets tend to have clock control subsystems that can
  * enable/disable clocking to our device.
  */
-#ifdef CONFIG_CRYPTO_DEV_FSL_CAAM_IMX
 static inline struct clk *caam_drv_identify_clk(struct device *dev,
 						char *clk_name)
 {
-	return devm_clk_get(dev, clk_name);
+	return caam_imx ? devm_clk_get(dev, clk_name) : NULL;
 }
-#else
-static inline struct clk *caam_drv_identify_clk(struct device *dev,
-						char *clk_name)
-{
-	return NULL;
-}
-#endif
 
 /*
  * Descriptor to instantiate RNG State Handle 0 in normal mode and
@@ -270,7 +270,7 @@ static int deinstantiate_rng(struct device *ctrldev, int state_handle_mask)
 		/*
 		 * If the corresponding bit is set, then it means the state
 		 * handle was initialized by us, and thus it needs to be
-		 * deintialized as well
+		 * deinitialized as well
 		 */
 		if ((1 << sh_idx) & state_handle_mask) {
 			/*
@@ -282,7 +282,8 @@ static int deinstantiate_rng(struct device *ctrldev, int state_handle_mask)
 			/* Try to run it through DECO0 */
 			ret = run_descriptor_deco0(ctrldev, desc, &status);
 
-			if (ret || status) {
+			if (ret ||
+			    (status && status != JRSTA_SSRC_JUMP_HALT_CC)) {
 				dev_err(ctrldev,
 					"Failed to deinstantiate RNG4 SH%d\n",
 					sh_idx);
@@ -302,20 +303,24 @@ static int caam_remove(struct platform_device *pdev)
 	struct device *ctrldev;
 	struct caam_drv_private *ctrlpriv;
 	struct caam_ctrl __iomem *ctrl;
-	int ring;
 
 	ctrldev = &pdev->dev;
 	ctrlpriv = dev_get_drvdata(ctrldev);
 	ctrl = (struct caam_ctrl __iomem *)ctrlpriv->ctrl;
 
-	/* Remove platform devices for JobRs */
-	for (ring = 0; ring < ctrlpriv->total_jobrs; ring++) {
-		if (ctrlpriv->jrpdev[ring])
-			of_device_unregister(ctrlpriv->jrpdev[ring]);
-	}
+	/* Remove platform devices under the crypto node */
+	of_platform_depopulate(ctrldev);
 
-	/* De-initialize RNG state handles initialized by this driver. */
-	if (ctrlpriv->rng4_sh_init)
+#ifdef CONFIG_CAAM_QI
+	if (ctrlpriv->qidev)
+		caam_qi_shutdown(ctrlpriv->qidev);
+#endif
+
+	/*
+	 * De-initialize RNG state handles initialized by this driver.
+	 * In case of DPAA 2.x, RNG is managed by MC firmware.
+	 */
+	if (!caam_dpaa2 && ctrlpriv->rng4_sh_init)
 		deinstantiate_rng(ctrldev, ctrlpriv->rng4_sh_init);
 
 	/* Shut down debug views */
@@ -404,28 +409,26 @@ int caam_get_era(void)
 }
 EXPORT_SYMBOL(caam_get_era);
 
-#ifdef CONFIG_DEBUG_FS
-static int caam_debugfs_u64_get(void *data, u64 *val)
-{
-	*val = caam64_to_cpu(*(u64 *)data);
-	return 0;
-}
-
-static int caam_debugfs_u32_get(void *data, u64 *val)
-{
-	*val = caam32_to_cpu(*(u32 *)data);
-	return 0;
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(caam_fops_u32_ro, caam_debugfs_u32_get, NULL, "%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(caam_fops_u64_ro, caam_debugfs_u64_get, NULL, "%llu\n");
-#endif
+static const struct of_device_id caam_match[] = {
+	{
+		.compatible = "fsl,sec-v4.0",
+	},
+	{
+		.compatible = "fsl,sec4.0",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, caam_match);
 
 /* Probe routine for CAAM top (controller) level */
 static int caam_probe(struct platform_device *pdev)
 {
-	int ret, ring, rspec, gen_sk, ent_delay = RTSDCTL_ENT_DLY_MIN;
+	int ret, ring, gen_sk, ent_delay = RTSDCTL_ENT_DLY_MIN;
 	u64 caam_id;
+	static const struct soc_device_attribute imx_soc[] = {
+		{.family = "Freescale i.MX"},
+		{},
+	};
 	struct device *dev;
 	struct device_node *nprop, *np;
 	struct caam_ctrl __iomem *ctrl;
@@ -445,8 +448,9 @@ static int caam_probe(struct platform_device *pdev)
 
 	dev = &pdev->dev;
 	dev_set_drvdata(dev, ctrlpriv);
-	ctrlpriv->pdev = pdev;
 	nprop = pdev->dev.of_node;
+
+	caam_imx = (bool)soc_device_match(imx_soc);
 
 	/* Enable clocking */
 	clk = caam_drv_identify_clk(&pdev->dev, "ipg");
@@ -554,12 +558,17 @@ static int caam_probe(struct platform_device *pdev)
 
 	/*
 	 * Enable DECO watchdogs and, if this is a PHYS_ADDR_T_64BIT kernel,
-	 * long pointers in master configuration register
+	 * long pointers in master configuration register.
+	 * In case of DPAA 2.x, Management Complex firmware performs
+	 * the configuration.
 	 */
-	clrsetbits_32(&ctrl->mcr, MCFGR_AWCACHE_MASK | MCFGR_LONG_PTR,
-		      MCFGR_AWCACHE_CACH | MCFGR_AWCACHE_BUFF |
-		      MCFGR_WDENABLE | MCFGR_LARGE_BURST |
-		      (sizeof(dma_addr_t) == sizeof(u64) ? MCFGR_LONG_PTR : 0));
+	caam_dpaa2 = !!(comp_params & CTPR_MS_DPAA2);
+	if (!caam_dpaa2)
+		clrsetbits_32(&ctrl->mcr, MCFGR_AWCACHE_MASK | MCFGR_LONG_PTR,
+			      MCFGR_AWCACHE_CACH | MCFGR_AWCACHE_BUFF |
+			      MCFGR_WDENABLE | MCFGR_LARGE_BURST |
+			      (sizeof(dma_addr_t) == sizeof(u64) ?
+			       MCFGR_LONG_PTR : 0));
 
 	/*
 	 *  Read the Compile Time paramters and SCFGR to determine
@@ -587,44 +596,43 @@ static int caam_probe(struct platform_device *pdev)
 			      JRSTART_JR1_START | JRSTART_JR2_START |
 			      JRSTART_JR3_START);
 
-	if (sizeof(dma_addr_t) == sizeof(u64))
-		if (of_device_is_compatible(nprop, "fsl,sec-v5.0"))
-			dma_set_mask_and_coherent(dev, DMA_BIT_MASK(40));
+	if (sizeof(dma_addr_t) == sizeof(u64)) {
+		if (caam_dpaa2)
+			ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(49));
+		else if (of_device_is_compatible(nprop, "fsl,sec-v5.0"))
+			ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(40));
 		else
-			dma_set_mask_and_coherent(dev, DMA_BIT_MASK(36));
-	else
-		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
-
-	/*
-	 * Detect and enable JobRs
-	 * First, find out how many ring spec'ed, allocate references
-	 * for all, then go probe each one.
-	 */
-	rspec = 0;
-	for_each_available_child_of_node(nprop, np)
-		if (of_device_is_compatible(np, "fsl,sec-v4.0-job-ring") ||
-		    of_device_is_compatible(np, "fsl,sec4.0-job-ring"))
-			rspec++;
-
-	ctrlpriv->jrpdev = devm_kcalloc(&pdev->dev, rspec,
-					sizeof(*ctrlpriv->jrpdev), GFP_KERNEL);
-	if (ctrlpriv->jrpdev == NULL) {
-		ret = -ENOMEM;
+			ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(36));
+	} else {
+		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	}
+	if (ret) {
+		dev_err(dev, "dma_set_mask_and_coherent failed (%d)\n", ret);
 		goto iounmap_ctrl;
 	}
 
+	ret = of_platform_populate(nprop, caam_match, NULL, dev);
+	if (ret) {
+		dev_err(dev, "JR platform devices creation error\n");
+		goto iounmap_ctrl;
+	}
+
+#ifdef CONFIG_DEBUG_FS
+	/*
+	 * FIXME: needs better naming distinction, as some amalgamation of
+	 * "caam" and nprop->full_name. The OF name isn't distinctive,
+	 * but does separate instances
+	 */
+	perfmon = (struct caam_perfmon __force *)&ctrl->perfmon;
+
+	ctrlpriv->dfs_root = debugfs_create_dir(dev_name(dev), NULL);
+	ctrlpriv->ctl = debugfs_create_dir("ctl", ctrlpriv->dfs_root);
+#endif
+
 	ring = 0;
-	ctrlpriv->total_jobrs = 0;
 	for_each_available_child_of_node(nprop, np)
 		if (of_device_is_compatible(np, "fsl,sec-v4.0-job-ring") ||
 		    of_device_is_compatible(np, "fsl,sec4.0-job-ring")) {
-			ctrlpriv->jrpdev[ring] =
-				of_platform_device_create(np, NULL, dev);
-			if (!ctrlpriv->jrpdev[ring]) {
-				pr_warn("JR%d Platform device creation error\n",
-					ring);
-				continue;
-			}
 			ctrlpriv->jr[ring] = (struct caam_job_ring __iomem __force *)
 					     ((__force uint8_t *)ctrl +
 					     (ring + JR_BLOCK_NUMBER) *
@@ -632,19 +640,24 @@ static int caam_probe(struct platform_device *pdev)
 					     );
 			ctrlpriv->total_jobrs++;
 			ring++;
-	}
+		}
 
-	/* Check to see if QI present. If so, enable */
-	ctrlpriv->qi_present =
-			!!(rd_reg32(&ctrl->perfmon.comp_parms_ms) &
-			   CTPR_MS_QI_MASK);
-	if (ctrlpriv->qi_present) {
+	/* Check to see if (DPAA 1.x) QI present. If so, enable */
+	ctrlpriv->qi_present = !!(comp_params & CTPR_MS_QI_MASK);
+	if (ctrlpriv->qi_present && !caam_dpaa2) {
 		ctrlpriv->qi = (struct caam_queue_if __iomem __force *)
 			       ((__force uint8_t *)ctrl +
 				 BLOCK_OFFSET * QI_BLOCK_NUMBER
 			       );
 		/* This is all that's required to physically enable QI */
 		wr_reg32(&ctrlpriv->qi->qi_control_lo, QICTL_DQEN);
+
+		/* If QMAN driver is present, init CAAM-QI backend */
+#ifdef CONFIG_CAAM_QI
+		ret = caam_qi_init(pdev);
+		if (ret)
+			dev_err(dev, "caam qi i/f init failed: %d\n", ret);
+#endif
 	}
 
 	/* If no QI and no rings specified, quit and go home */
@@ -659,8 +672,10 @@ static int caam_probe(struct platform_device *pdev)
 	/*
 	 * If SEC has RNG version >= 4 and RNG state handle has not been
 	 * already instantiated, do RNG instantiation
+	 * In case of DPAA 2.x, RNG is managed by MC firmware.
 	 */
-	if ((cha_vid_ls & CHA_ID_LS_RNG_MASK) >> CHA_ID_LS_RNG_SHIFT >= 4) {
+	if (!caam_dpaa2 &&
+	    (cha_vid_ls & CHA_ID_LS_RNG_MASK) >> CHA_ID_LS_RNG_SHIFT >= 4) {
 		ctrlpriv->rng4_sh_init =
 			rd_reg32(&ctrl->r4tst[0].rdsta);
 		/*
@@ -728,74 +743,43 @@ static int caam_probe(struct platform_device *pdev)
 	/* Report "alive" for developer to see */
 	dev_info(dev, "device ID = 0x%016llx (Era %d)\n", caam_id,
 		 caam_get_era());
-	dev_info(dev, "job rings = %d, qi = %d\n",
-		 ctrlpriv->total_jobrs, ctrlpriv->qi_present);
+	dev_info(dev, "job rings = %d, qi = %d, dpaa2 = %s\n",
+		 ctrlpriv->total_jobrs, ctrlpriv->qi_present,
+		 caam_dpaa2 ? "yes" : "no");
 
 #ifdef CONFIG_DEBUG_FS
-	/*
-	 * FIXME: needs better naming distinction, as some amalgamation of
-	 * "caam" and nprop->full_name. The OF name isn't distinctive,
-	 * but does separate instances
-	 */
-	perfmon = (struct caam_perfmon __force *)&ctrl->perfmon;
-
-	ctrlpriv->dfs_root = debugfs_create_dir(dev_name(dev), NULL);
-	ctrlpriv->ctl = debugfs_create_dir("ctl", ctrlpriv->dfs_root);
-
-	/* Controller-level - performance monitor counters */
-
-	ctrlpriv->ctl_rq_dequeued =
-		debugfs_create_file("rq_dequeued",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->req_dequeued,
-				    &caam_fops_u64_ro);
-	ctrlpriv->ctl_ob_enc_req =
-		debugfs_create_file("ob_rq_encrypted",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->ob_enc_req,
-				    &caam_fops_u64_ro);
-	ctrlpriv->ctl_ib_dec_req =
-		debugfs_create_file("ib_rq_decrypted",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->ib_dec_req,
-				    &caam_fops_u64_ro);
-	ctrlpriv->ctl_ob_enc_bytes =
-		debugfs_create_file("ob_bytes_encrypted",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->ob_enc_bytes,
-				    &caam_fops_u64_ro);
-	ctrlpriv->ctl_ob_prot_bytes =
-		debugfs_create_file("ob_bytes_protected",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->ob_prot_bytes,
-				    &caam_fops_u64_ro);
-	ctrlpriv->ctl_ib_dec_bytes =
-		debugfs_create_file("ib_bytes_decrypted",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->ib_dec_bytes,
-				    &caam_fops_u64_ro);
-	ctrlpriv->ctl_ib_valid_bytes =
-		debugfs_create_file("ib_bytes_validated",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->ib_valid_bytes,
-				    &caam_fops_u64_ro);
+	debugfs_create_file("rq_dequeued", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->req_dequeued,
+			    &caam_fops_u64_ro);
+	debugfs_create_file("ob_rq_encrypted", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->ob_enc_req,
+			    &caam_fops_u64_ro);
+	debugfs_create_file("ib_rq_decrypted", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->ib_dec_req,
+			    &caam_fops_u64_ro);
+	debugfs_create_file("ob_bytes_encrypted", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->ob_enc_bytes,
+			    &caam_fops_u64_ro);
+	debugfs_create_file("ob_bytes_protected", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->ob_prot_bytes,
+			    &caam_fops_u64_ro);
+	debugfs_create_file("ib_bytes_decrypted", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->ib_dec_bytes,
+			    &caam_fops_u64_ro);
+	debugfs_create_file("ib_bytes_validated", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->ib_valid_bytes,
+			    &caam_fops_u64_ro);
 
 	/* Controller level - global status values */
-	ctrlpriv->ctl_faultaddr =
-		debugfs_create_file("fault_addr",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->faultaddr,
-				    &caam_fops_u32_ro);
-	ctrlpriv->ctl_faultdetail =
-		debugfs_create_file("fault_detail",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->faultdetail,
-				    &caam_fops_u32_ro);
-	ctrlpriv->ctl_faultstatus =
-		debugfs_create_file("fault_status",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->status,
-				    &caam_fops_u32_ro);
+	debugfs_create_file("fault_addr", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->faultaddr,
+			    &caam_fops_u32_ro);
+	debugfs_create_file("fault_detail", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->faultdetail,
+			    &caam_fops_u32_ro);
+	debugfs_create_file("fault_status", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->status,
+			    &caam_fops_u32_ro);
 
 	/* Internal covering keys (useful in non-secure mode only) */
 	ctrlpriv->ctl_kek_wrap.data = (__force void *)&ctrlpriv->ctrl->kek[0];
@@ -825,6 +809,9 @@ static int caam_probe(struct platform_device *pdev)
 	return 0;
 
 caam_remove:
+#ifdef CONFIG_DEBUG_FS
+	debugfs_remove_recursive(ctrlpriv->dfs_root);
+#endif
 	caam_remove(pdev);
 	return ret;
 
@@ -841,17 +828,6 @@ disable_caam_ipg:
 	clk_disable_unprepare(ctrlpriv->caam_ipg);
 	return ret;
 }
-
-static struct of_device_id caam_match[] = {
-	{
-		.compatible = "fsl,sec-v4.0",
-	},
-	{
-		.compatible = "fsl,sec4.0",
-	},
-	{},
-};
-MODULE_DEVICE_TABLE(of, caam_match);
 
 static struct platform_driver caam_driver = {
 	.driver = {

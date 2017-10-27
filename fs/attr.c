@@ -9,6 +9,7 @@
 #include <linux/time.h>
 #include <linux/mm.h>
 #include <linux/string.h>
+#include <linux/sched/signal.h>
 #include <linux/capability.h>
 #include <linux/fsnotify.h>
 #include <linux/fcntl.h>

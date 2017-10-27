@@ -12,6 +12,7 @@
  * the SpitFire page tables.
  */
 
+#include <asm-generic/5level-fixup.h>
 #include <linux/compiler.h>
 #include <linux/const.h>
 #include <asm/types.h>
@@ -375,7 +376,10 @@ static inline pgprot_t pgprot_noncached(pgprot_t prot)
 #define pgprot_noncached pgprot_noncached
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-static inline unsigned long __pte_huge_mask(void)
+extern pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
+				struct page *page, int writable);
+#define arch_make_huge_pte arch_make_huge_pte
+static inline unsigned long __pte_default_huge_mask(void)
 {
 	unsigned long mask;
 
@@ -395,17 +399,24 @@ static inline unsigned long __pte_huge_mask(void)
 
 static inline pte_t pte_mkhuge(pte_t pte)
 {
-	return __pte(pte_val(pte) | _PAGE_PMD_HUGE | __pte_huge_mask());
+	return __pte(pte_val(pte) | __pte_default_huge_mask());
 }
 
-static inline bool is_hugetlb_pte(pte_t pte)
+static inline bool is_default_hugetlb_pte(pte_t pte)
 {
-	return !!(pte_val(pte) & __pte_huge_mask());
+	unsigned long mask = __pte_default_huge_mask();
+
+	return (pte_val(pte) & mask) == mask;
 }
 
 static inline bool is_hugetlb_pmd(pmd_t pmd)
 {
 	return !!(pmd_val(pmd) & _PAGE_PMD_HUGE);
+}
+
+static inline bool is_hugetlb_pud(pud_t pud)
+{
+	return !!(pud_val(pud) & _PAGE_PUD_HUGE);
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -673,6 +684,16 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
 	return pte_pfn(pte);
 }
 
+#define __HAVE_ARCH_PMD_WRITE
+static inline unsigned long pmd_write(pmd_t pmd)
+{
+	pte_t pte = __pte(pmd_val(pmd));
+
+	return pte_write(pte);
+}
+
+#define pud_write(pud)	pte_write(__pte(pud_val(pud)))
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 static inline unsigned long pmd_dirty(pmd_t pmd)
 {
@@ -686,13 +707,6 @@ static inline unsigned long pmd_young(pmd_t pmd)
 	pte_t pte = __pte(pmd_val(pmd));
 
 	return pte_young(pte);
-}
-
-static inline unsigned long pmd_write(pmd_t pmd)
-{
-	pte_t pte = __pte(pmd_val(pmd));
-
-	return pte_write(pte);
 }
 
 static inline unsigned long pmd_trans_huge(pmd_t pmd)
@@ -816,9 +830,18 @@ static inline unsigned long __pmd_page(pmd_t pmd)
 
 	return ((unsigned long) __va(pfn << PAGE_SHIFT));
 }
+
+static inline unsigned long pud_page_vaddr(pud_t pud)
+{
+	pte_t pte = __pte(pud_val(pud));
+	unsigned long pfn;
+
+	pfn = pte_pfn(pte);
+
+	return ((unsigned long) __va(pfn << PAGE_SHIFT));
+}
+
 #define pmd_page(pmd) 			virt_to_page((void *)__pmd_page(pmd))
-#define pud_page_vaddr(pud)		\
-	((unsigned long) __va(pud_val(pud)))
 #define pud_page(pud) 			virt_to_page((void *)pud_page_vaddr(pud))
 #define pmd_clear(pmdp)			(pmd_val(*(pmdp)) = 0UL)
 #define pud_present(pud)		(pud_val(pud) != 0U)
@@ -873,12 +896,17 @@ static inline unsigned long pud_pfn(pud_t pud)
 #define pte_offset_map			pte_index
 #define pte_unmap(pte)			do { } while (0)
 
+/* We cannot include <linux/mm_types.h> at this point yet: */
+extern struct mm_struct init_mm;
+
 /* Actual page table PTE updates.  */
 void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
-		   pte_t *ptep, pte_t orig, int fullmm);
+		   pte_t *ptep, pte_t orig, int fullmm,
+		   unsigned int hugepage_shift);
 
 static void maybe_tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
-				pte_t *ptep, pte_t orig, int fullmm)
+				pte_t *ptep, pte_t orig, int fullmm,
+				unsigned int hugepage_shift)
 {
 	/* It is more efficient to let flush_tlb_kernel_range()
 	 * handle init_mm tlb flushes.
@@ -887,7 +915,7 @@ static void maybe_tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
 	 *             and SUN4V pte layout, so this inline test is fine.
 	 */
 	if (likely(mm != &init_mm) && pte_accessible(mm, orig))
-		tlb_batch_add(mm, vaddr, ptep, orig, fullmm);
+		tlb_batch_add(mm, vaddr, ptep, orig, fullmm, hugepage_shift);
 }
 
 #define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR
@@ -906,7 +934,7 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	pte_t orig = *ptep;
 
 	*ptep = pte;
-	maybe_tlb_batch_add(mm, addr, ptep, orig, fullmm);
+	maybe_tlb_batch_add(mm, addr, ptep, orig, fullmm, PAGE_SHIFT);
 }
 
 #define set_pte_at(mm,addr,ptep,pte)	\

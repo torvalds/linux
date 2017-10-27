@@ -9,8 +9,13 @@ static int ubifs_crypt_get_context(struct inode *inode, void *ctx, size_t len)
 static int ubifs_crypt_set_context(struct inode *inode, const void *ctx,
 				   size_t len, void *fs_data)
 {
+	/*
+	 * Creating an encryption context is done unlocked since we
+	 * operate on a new inode which is not visible to other users
+	 * at this point. So, no need to check whether inode is locked.
+	 */
 	return ubifs_xattr_set(inode, UBIFS_XATTR_NAME_ENCRYPTION_CONTEXT,
-			       ctx, len, 0);
+			       ctx, len, 0, false);
 }
 
 static bool ubifs_crypt_empty_dir(struct inode *inode)
@@ -24,15 +29,6 @@ static unsigned int ubifs_crypt_max_namelen(struct inode *inode)
 		return UBIFS_MAX_INO_DATA;
 	else
 		return UBIFS_MAX_NLEN;
-}
-
-static int ubifs_key_prefix(struct inode *inode, u8 **key)
-{
-	static char prefix[] = "ubifs:";
-
-	*key = prefix;
-
-	return sizeof(prefix) - 1;
 }
 
 int ubifs_encrypt(const struct inode *inode, struct ubifs_data_node *dn,
@@ -86,12 +82,12 @@ int ubifs_decrypt(const struct inode *inode, struct ubifs_data_node *dn,
 	return 0;
 }
 
-struct fscrypt_operations ubifs_crypt_operations = {
+const struct fscrypt_operations ubifs_crypt_operations = {
 	.flags			= FS_CFLG_OWN_PAGES,
+	.key_prefix		= "ubifs:",
 	.get_context		= ubifs_crypt_get_context,
 	.set_context		= ubifs_crypt_set_context,
 	.is_encrypted		= __ubifs_crypt_is_encrypted,
 	.empty_dir		= ubifs_crypt_empty_dir,
 	.max_namelen		= ubifs_crypt_max_namelen,
-	.key_prefix		= ubifs_key_prefix,
 };

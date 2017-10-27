@@ -22,7 +22,7 @@
  * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |
  *   | | [ ]                       [ ] [      thresh_cmp     ]   [  thresh_ctl   ]
  *   | |  |                         |                                     |
- *   | |  *- IFM (Linux)            |    thresh start/stop OR FAB match -*
+ *   | |  *- IFM (Linux)            |	               thresh start/stop -*
  *   | *- BHRB (Linux)              *sm
  *   *- EBB (Linux)
  *
@@ -50,11 +50,9 @@
  * MMCR1[31]   = pmc4combine[1]
  *
  * if pmc == 3 and unit == 0 and pmcxsel[0:6] == 0b0101011
- *	# PM_MRK_FAB_RSP_MATCH
- *	MMCR1[20:27] = thresh_ctl   (FAB_CRESP_MATCH / FAB_TYPE_MATCH)
+ *	MMCR1[20:27] = thresh_ctl
  * else if pmc == 4 and unit == 0xf and pmcxsel[0:6] == 0b0101001
- *	# PM_MRK_FAB_RSP_MATCH_CYC
- *	MMCR1[20:27] = thresh_ctl   (FAB_CRESP_MATCH / FAB_TYPE_MATCH)
+ *	MMCR1[20:27] = thresh_ctl
  * else
  *	MMCRA[48:55] = thresh_ctl   (THRESH START/END)
  *
@@ -106,11 +104,31 @@ enum {
 /* PowerISA v2.07 format attribute structure*/
 extern struct attribute_group isa207_pmu_format_group;
 
+/* Table of alternatives, sorted by column 0 */
+static const unsigned int power9_event_alternatives[][MAX_ALT] = {
+	{ PM_INST_DISP,			PM_INST_DISP_ALT },
+	{ PM_RUN_CYC_ALT,		PM_RUN_CYC },
+	{ PM_RUN_INST_CMPL_ALT,		PM_RUN_INST_CMPL },
+	{ PM_LD_MISS_L1,		PM_LD_MISS_L1_ALT },
+	{ PM_BR_2PATH,			PM_BR_2PATH_ALT },
+};
+
+static int power9_get_alternatives(u64 event, unsigned int flags, u64 alt[])
+{
+	int num_alt = 0;
+
+	num_alt = isa207_get_alternatives(event, alt,
+					  ARRAY_SIZE(power9_event_alternatives), flags,
+					  power9_event_alternatives);
+
+	return num_alt;
+}
+
 GENERIC_EVENT_ATTR(cpu-cycles,			PM_CYC);
 GENERIC_EVENT_ATTR(stalled-cycles-frontend,	PM_ICT_NOSLOT_CYC);
 GENERIC_EVENT_ATTR(stalled-cycles-backend,	PM_CMPLU_STALL);
 GENERIC_EVENT_ATTR(instructions,		PM_INST_CMPL);
-GENERIC_EVENT_ATTR(branch-instructions,		PM_BRU_CMPL);
+GENERIC_EVENT_ATTR(branch-instructions,		PM_BR_CMPL);
 GENERIC_EVENT_ATTR(branch-misses,		PM_BR_MPRED_CMPL);
 GENERIC_EVENT_ATTR(cache-references,		PM_LD_REF_L1);
 GENERIC_EVENT_ATTR(cache-misses,		PM_LD_MISS_L1_FIN);
@@ -128,7 +146,7 @@ CACHE_EVENT_ATTR(LLC-prefetches,		PM_L3_PREF_ALL);
 CACHE_EVENT_ATTR(LLC-store-misses,		PM_L2_ST_MISS);
 CACHE_EVENT_ATTR(LLC-stores,			PM_L2_ST);
 CACHE_EVENT_ATTR(branch-load-misses,		PM_BR_MPRED_CMPL);
-CACHE_EVENT_ATTR(branch-loads,			PM_BRU_CMPL);
+CACHE_EVENT_ATTR(branch-loads,			PM_BR_CMPL);
 CACHE_EVENT_ATTR(dTLB-load-misses,		PM_DTLB_MISS);
 CACHE_EVENT_ATTR(iTLB-load-misses,		PM_ITLB_MISS);
 
@@ -137,7 +155,7 @@ static struct attribute *power9_events_attr[] = {
 	GENERIC_EVENT_PTR(PM_ICT_NOSLOT_CYC),
 	GENERIC_EVENT_PTR(PM_CMPLU_STALL),
 	GENERIC_EVENT_PTR(PM_INST_CMPL),
-	GENERIC_EVENT_PTR(PM_BRU_CMPL),
+	GENERIC_EVENT_PTR(PM_BR_CMPL),
 	GENERIC_EVENT_PTR(PM_BR_MPRED_CMPL),
 	GENERIC_EVENT_PTR(PM_LD_REF_L1),
 	GENERIC_EVENT_PTR(PM_LD_MISS_L1_FIN),
@@ -154,7 +172,7 @@ static struct attribute *power9_events_attr[] = {
 	CACHE_EVENT_PTR(PM_L2_ST_MISS),
 	CACHE_EVENT_PTR(PM_L2_ST),
 	CACHE_EVENT_PTR(PM_BR_MPRED_CMPL),
-	CACHE_EVENT_PTR(PM_BRU_CMPL),
+	CACHE_EVENT_PTR(PM_BR_CMPL),
 	CACHE_EVENT_PTR(PM_DTLB_MISS),
 	CACHE_EVENT_PTR(PM_ITLB_MISS),
 	NULL
@@ -213,12 +231,23 @@ static const struct attribute_group *power9_pmu_attr_groups[] = {
 	NULL,
 };
 
+static int power9_generic_events_dd1[] = {
+	[PERF_COUNT_HW_CPU_CYCLES] =			PM_CYC,
+	[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] =	PM_ICT_NOSLOT_CYC,
+	[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] =	PM_CMPLU_STALL,
+	[PERF_COUNT_HW_INSTRUCTIONS] =			PM_INST_DISP,
+	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] =		PM_BR_CMPL_ALT,
+	[PERF_COUNT_HW_BRANCH_MISSES] =			PM_BR_MPRED_CMPL,
+	[PERF_COUNT_HW_CACHE_REFERENCES] =		PM_LD_REF_L1,
+	[PERF_COUNT_HW_CACHE_MISSES] =			PM_LD_MISS_L1_FIN,
+};
+
 static int power9_generic_events[] = {
 	[PERF_COUNT_HW_CPU_CYCLES] =			PM_CYC,
 	[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] =	PM_ICT_NOSLOT_CYC,
 	[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] =	PM_CMPLU_STALL,
 	[PERF_COUNT_HW_INSTRUCTIONS] =			PM_INST_CMPL,
-	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] =		PM_BRU_CMPL,
+	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] =		PM_BR_CMPL,
 	[PERF_COUNT_HW_BRANCH_MISSES] =			PM_BR_MPRED_CMPL,
 	[PERF_COUNT_HW_CACHE_REFERENCES] =		PM_LD_REF_L1,
 	[PERF_COUNT_HW_CACHE_MISSES] =			PM_LD_MISS_L1_FIN,
@@ -344,7 +373,7 @@ static int power9_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	},
 	[ C(BPU) ] = {
 		[ C(OP_READ) ] = {
-			[ C(RESULT_ACCESS) ] = PM_BRU_CMPL,
+			[ C(RESULT_ACCESS) ] = PM_BR_CMPL,
 			[ C(RESULT_MISS)   ] = PM_BR_MPRED_CMPL,
 		},
 		[ C(OP_WRITE) ] = {
@@ -378,15 +407,16 @@ static struct power_pmu power9_isa207_pmu = {
 	.name			= "POWER9",
 	.n_counter		= MAX_PMU_COUNTERS,
 	.add_fields		= ISA207_ADD_FIELDS,
-	.test_adder		= ISA207_TEST_ADDER,
+	.test_adder		= P9_DD1_TEST_ADDER,
 	.compute_mmcr		= isa207_compute_mmcr,
 	.config_bhrb		= power9_config_bhrb,
 	.bhrb_filter_map	= power9_bhrb_filter_map,
 	.get_constraint		= isa207_get_constraint,
+	.get_alternatives	= power9_get_alternatives,
 	.disable_pmc		= isa207_disable_pmc,
 	.flags			= PPMU_NO_SIAR | PPMU_ARCH_207S,
-	.n_generic		= ARRAY_SIZE(power9_generic_events),
-	.generic_events		= power9_generic_events,
+	.n_generic		= ARRAY_SIZE(power9_generic_events_dd1),
+	.generic_events		= power9_generic_events_dd1,
 	.cache_events		= &power9_cache_events,
 	.attr_groups		= power9_isa207_pmu_attr_groups,
 	.bhrb_nr		= 32,
@@ -401,6 +431,9 @@ static struct power_pmu power9_pmu = {
 	.config_bhrb		= power9_config_bhrb,
 	.bhrb_filter_map	= power9_bhrb_filter_map,
 	.get_constraint		= isa207_get_constraint,
+	.get_alternatives	= power9_get_alternatives,
+	.get_mem_data_src	= isa207_get_mem_data_src,
+	.get_mem_weight		= isa207_get_mem_weight,
 	.disable_pmc		= isa207_disable_pmc,
 	.flags			= PPMU_HAS_SIER | PPMU_ARCH_207S,
 	.n_generic		= ARRAY_SIZE(power9_generic_events),
@@ -420,6 +453,17 @@ static int __init init_power9_pmu(void)
 		return -ENODEV;
 
 	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
+		/*
+		 * Since PM_INST_CMPL may not provide right counts in all
+		 * sampling scenarios in power9 DD1, instead use PM_INST_DISP.
+		 */
+		EVENT_VAR(PM_INST_CMPL, _g).id = PM_INST_DISP;
+		/*
+		 * Power9 DD1 should use PM_BR_CMPL_ALT event code for
+		 * "branches" to provide correct counter value.
+		 */
+		EVENT_VAR(PM_BR_CMPL, _g).id = PM_BR_CMPL_ALT;
+		EVENT_VAR(PM_BR_CMPL, _c).id = PM_BR_CMPL_ALT;
 		rc = register_power_pmu(&power9_isa207_pmu);
 	} else {
 		rc = register_power_pmu(&power9_pmu);

@@ -46,8 +46,16 @@ static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
 	 */
 	VM_WARN_ON(page_shift == mmu_psize_defs[MMU_PAGE_1G].shift);
 	if (page_shift == mmu_psize_defs[MMU_PAGE_2M].shift)
-		return __pte(pte_val(entry) | _PAGE_LARGE);
+		return __pte(pte_val(entry) | R_PAGE_LARGE);
 	else
 		return entry;
 }
+
+#ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
+static inline bool gigantic_page_supported(void)
+{
+	return true;
+}
+#endif
+
 #endif

@@ -439,9 +439,9 @@ static unsigned long lcdc_sys_read_data(void *handle)
 }
 
 static struct sh_mobile_lcdc_sys_bus_ops sh_mobile_lcdc_sys_bus_ops = {
-	lcdc_sys_write_index,
-	lcdc_sys_write_data,
-	lcdc_sys_read_data,
+	.write_index	= lcdc_sys_write_index,
+	.write_data	= lcdc_sys_write_data,
+	.read_data	= lcdc_sys_read_data,
 };
 
 static int sh_mobile_lcdc_sginit(struct fb_info *info,
@@ -2301,7 +2301,7 @@ static int sh_mobile_lcdc_check_fb(struct backlight_device *bdev,
 	return (info->bl_dev == bdev);
 }
 
-static struct backlight_ops sh_mobile_lcdc_bl_ops = {
+static const struct backlight_ops sh_mobile_lcdc_bl_ops = {
 	.options	= BL_CORE_SUSPENDRESUME,
 	.update_status	= sh_mobile_lcdc_update_bl,
 	.get_brightness	= sh_mobile_lcdc_get_brightness,
@@ -2782,8 +2782,10 @@ static int sh_mobile_lcdc_probe(struct platform_device *pdev)
 		priv->forced_fourcc = pdata->ch[0].fourcc;
 
 	priv->base = ioremap_nocache(res->start, resource_size(res));
-	if (!priv->base)
+	if (!priv->base) {
+		error = -ENOMEM;
 		goto err1;
+	}
 
 	error = sh_mobile_lcdc_setup_clocks(priv, pdata->clock_source);
 	if (error) {

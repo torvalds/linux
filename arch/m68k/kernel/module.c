@@ -12,9 +12,9 @@
 #include <linux/kernel.h>
 
 #if 0
-#define DEBUGP printk
+#define DEBUGP(fmt, ...) printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #else
-#define DEBUGP(fmt...)
+#define DEBUGP(fmt, ...) no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 #ifdef CONFIG_MODULES
@@ -51,8 +51,8 @@ int apply_relocate(Elf32_Shdr *sechdrs,
 			*location += sym->st_value - (uint32_t)location;
 			break;
 		default:
-			printk(KERN_ERR "module %s: Unknown relocation: %u\n",
-			       me->name, ELF32_R_TYPE(rel[i].r_info));
+			pr_err("module %s: Unknown relocation: %u\n", me->name,
+			       ELF32_R_TYPE(rel[i].r_info));
 			return -ENOEXEC;
 		}
 	}
@@ -91,8 +91,8 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			*location = rel[i].r_addend + sym->st_value - (uint32_t)location;
 			break;
 		default:
-			printk(KERN_ERR "module %s: Unknown relocation: %u\n",
-			       me->name, ELF32_R_TYPE(rel[i].r_info));
+			pr_err("module %s: Unknown relocation: %u\n", me->name,
+			       ELF32_R_TYPE(rel[i].r_info));
 			return -ENOEXEC;
 		}
 	}

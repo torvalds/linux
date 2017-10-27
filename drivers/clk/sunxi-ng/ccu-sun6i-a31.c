@@ -195,6 +195,9 @@ static SUNXI_CCU_DIV_TABLE(axi_clk, "axi", "cpu",
 
 static const char * const ahb1_parents[] = { "osc32k", "osc24M",
 					     "axi", "pll-periph" };
+static const struct ccu_mux_var_prediv ahb1_predivs[] = {
+	{ .index = 3, .shift = 6, .width = 2 },
+};
 
 static struct ccu_div ahb1_clk = {
 	.div		= _SUNXI_CCU_DIV_FLAGS(4, 2, CLK_DIVIDER_POWER_OF_TWO),
@@ -203,11 +206,8 @@ static struct ccu_div ahb1_clk = {
 		.shift	= 12,
 		.width	= 2,
 
-		.variable_prediv	= {
-			.index	= 3,
-			.shift	= 6,
-			.width	= 2,
-		},
+		.var_predivs	= ahb1_predivs,
+		.n_var_predivs	= ARRAY_SIZE(ahb1_predivs),
 	},
 
 	.common		= {
@@ -468,8 +468,8 @@ static SUNXI_CCU_MUX_WITH_GATE(daudio0_clk, "daudio0", daudio_parents,
 static SUNXI_CCU_MUX_WITH_GATE(daudio1_clk, "daudio1", daudio_parents,
 			       0x0b4, 16, 2, BIT(31), CLK_SET_RATE_PARENT);
 
-static SUNXI_CCU_M_WITH_GATE(spdif_clk, "spdif", "pll-audio",
-			     0x0c0, 0, 4, BIT(31), CLK_SET_RATE_PARENT);
+static SUNXI_CCU_MUX_WITH_GATE(spdif_clk, "spdif", daudio_parents,
+			       0x0c0, 16, 2, BIT(31), CLK_SET_RATE_PARENT);
 
 static SUNXI_CCU_GATE(usb_phy0_clk,	"usb-phy0",	"osc24M",
 		      0x0cc, BIT(8), 0);
@@ -556,7 +556,7 @@ static SUNXI_CCU_M_WITH_MUX_GATE(lcd0_ch1_clk, "lcd0-ch1", lcd_ch1_parents,
 				 0x12c, 0, 4, 24, 3, BIT(31),
 				 CLK_SET_RATE_PARENT);
 static SUNXI_CCU_M_WITH_MUX_GATE(lcd1_ch1_clk, "lcd1-ch1", lcd_ch1_parents,
-				 0x12c, 0, 4, 24, 3, BIT(31),
+				 0x130, 0, 4, 24, 3, BIT(31),
 				 CLK_SET_RATE_PARENT);
 
 static const char * const csi_sclk_parents[] = { "pll-video0", "pll-video1",
@@ -608,7 +608,7 @@ static SUNXI_CCU_M_WITH_MUX_GATE(hdmi_clk, "hdmi", lcd_ch1_parents,
 				 0x150, 0, 4, 24, 2, BIT(31),
 				 CLK_SET_RATE_PARENT);
 
-static SUNXI_CCU_GATE(hdmi_ddc_clk, "hdmi-ddc", "osc24M", 0x150, BIT(31), 0);
+static SUNXI_CCU_GATE(hdmi_ddc_clk, "hdmi-ddc", "osc24M", 0x150, BIT(30), 0);
 
 static SUNXI_CCU_GATE(ps_clk, "ps", "lcd1-ch1", 0x140, BIT(31), 0);
 
@@ -1217,8 +1217,7 @@ static void __init sun6i_a31_ccu_setup(struct device_node *node)
 
 	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
 	if (IS_ERR(reg)) {
-		pr_err("%s: Could not map the clock registers\n",
-		       of_node_full_name(node));
+		pr_err("%pOF: Could not map the clock registers\n", node);
 		return;
 	}
 

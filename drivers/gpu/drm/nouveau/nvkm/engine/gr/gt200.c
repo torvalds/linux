@@ -23,6 +23,8 @@
  */
 #include "nv50.h"
 
+#include <nvif/class.h>
+
 static const struct nvkm_gr_func
 gt200_gr = {
 	.init = nv50_gr_init,
@@ -31,11 +33,11 @@ gt200_gr = {
 	.tlb_flush = g84_gr_tlb_flush,
 	.units = nv50_gr_units,
 	.sclass = {
-		{ -1, -1, 0x0030, &nv50_gr_object },
-		{ -1, -1, 0x502d, &nv50_gr_object },
-		{ -1, -1, 0x5039, &nv50_gr_object },
-		{ -1, -1, 0x50c0, &nv50_gr_object },
-		{ -1, -1, 0x8397, &nv50_gr_object },
+		{ -1, -1, NV_NULL_CLASS, &nv50_gr_object },
+		{ -1, -1, NV50_TWOD, &nv50_gr_object },
+		{ -1, -1, NV50_MEMORY_TO_MEMORY_FORMAT, &nv50_gr_object },
+		{ -1, -1, NV50_COMPUTE, &nv50_gr_object },
+		{ -1, -1, GT200_TESLA, &nv50_gr_object },
 		{}
 	}
 };

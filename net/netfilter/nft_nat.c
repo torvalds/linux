@@ -65,10 +65,10 @@ static void nft_nat_eval(const struct nft_expr *expr,
 	}
 
 	if (priv->sreg_proto_min) {
-		range.min_proto.all =
-			*(__be16 *)&regs->data[priv->sreg_proto_min];
-		range.max_proto.all =
-			*(__be16 *)&regs->data[priv->sreg_proto_max];
+		range.min_proto.all = (__force __be16)nft_reg_load16(
+			&regs->data[priv->sreg_proto_min]);
+		range.max_proto.all = (__force __be16)nft_reg_load16(
+			&regs->data[priv->sreg_proto_max]);
 		range.flags |= NF_NAT_RANGE_PROTO_SPECIFIED;
 	}
 
@@ -137,10 +137,6 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	default:
 		return -EINVAL;
 	}
-
-	err = nft_nat_validate(ctx, expr, NULL);
-	if (err < 0)
-		return err;
 
 	if (tb[NFTA_NAT_FAMILY] == NULL)
 		return -EINVAL;

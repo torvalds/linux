@@ -610,13 +610,11 @@ static int sisusb_write_memio_byte(struct sisusb_usb_data *sisusb, int type,
 		u32 addr, u8 data)
 {
 	struct sisusb_packet packet;
-	int ret;
 
 	packet.header  = (1 << (addr & 3)) | (type << 6);
 	packet.address = addr & ~3;
 	packet.data    = data << ((addr & 3) << 3);
-	ret = sisusb_send_packet(sisusb, 10, &packet);
-	return ret;
+	return sisusb_send_packet(sisusb, 10, &packet);
 }
 
 static int sisusb_write_memio_word(struct sisusb_usb_data *sisusb, int type,
@@ -1333,13 +1331,11 @@ static int sisusb_write_pci_config(struct sisusb_usb_data *sisusb,
 		int regnum, u32 data)
 {
 	struct sisusb_packet packet;
-	int ret;
 
 	packet.header = 0x008f;
 	packet.address = regnum | 0x10000;
 	packet.data = data;
-	ret = sisusb_send_packet(sisusb, 10, &packet);
-	return ret;
+	return sisusb_send_packet(sisusb, 10, &packet);
 }
 
 static int sisusb_read_pci_config(struct sisusb_usb_data *sisusb,
@@ -1831,16 +1827,10 @@ static int sisusb_set_default_mode(struct sisusb_usb_data *sisusb,
 	SETIREGANDOR(SISCR, 0x09, 0x5f, ((crtcdata[16] & 0x01) << 5));
 	SETIREG(SISCR, 0x14, 0x4f);
 	du = (modex / 16) * (bpp * 2);	/* offset/pitch */
-	if (modex % 16)
-		du += bpp;
-
 	SETIREGANDOR(SISSR, 0x0e, 0xf0, ((du >> 8) & 0x0f));
 	SETIREG(SISCR, 0x13, (du & 0xff));
 	du <<= 5;
 	tmp8 = du >> 8;
-	if (du & 0xff)
-		tmp8++;
-
 	SETIREG(SISSR, 0x10, tmp8);
 	SETIREG(SISSR, 0x31, 0x00);	/* VCLK */
 	SETIREG(SISSR, 0x2b, 0x1b);
@@ -2988,14 +2978,11 @@ err_out:
 static long sisusb_compat_ioctl(struct file *f, unsigned int cmd,
 		unsigned long arg)
 {
-	long retval;
-
 	switch (cmd) {
 	case SISUSB_GET_CONFIG_SIZE:
 	case SISUSB_GET_CONFIG:
 	case SISUSB_COMMAND:
-		retval = sisusb_ioctl(f, cmd, arg);
-		return retval;
+		return sisusb_ioctl(f, cmd, arg);
 
 	default:
 		return -ENOIOCTLCMD;

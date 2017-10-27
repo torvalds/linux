@@ -7,13 +7,15 @@
  *   written by Ralf Baechle <ralf@linux-mips.org>
  */
 #include <linux/compiler.h>
+#include <linux/elf-randomize.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/export.h>
 #include <linux/personality.h>
 #include <linux/random.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
 
 unsigned long shm_align_mask = PAGE_SIZE - 1;	/* Sane caches */
 EXPORT_SYMBOL(shm_align_mask);
@@ -92,7 +94,7 @@ static unsigned long arch_get_unmapped_area_common(struct file *filp,
 
 		vma = find_vma(mm, addr);
 		if (TASK_SIZE - len >= addr &&
-		    (!vma || addr + len <= vma->vm_start))
+		    (!vma || addr + len <= vm_start_gap(vma)))
 			return addr;
 	}
 
@@ -146,14 +148,14 @@ unsigned long arch_mmap_rnd(void)
 {
 	unsigned long rnd;
 
-	rnd = get_random_long();
-	rnd <<= PAGE_SHIFT;
+#ifdef CONFIG_COMPAT
 	if (TASK_IS_32BIT_ADDR)
-		rnd &= 0xfffffful;
+		rnd = get_random_long() & ((1UL << mmap_rnd_compat_bits) - 1);
 	else
-		rnd &= 0xffffffful;
+#endif /* CONFIG_COMPAT */
+		rnd = get_random_long() & ((1UL << mmap_rnd_bits) - 1);
 
-	return rnd;
+	return rnd << PAGE_SHIFT;
 }
 
 void arch_pick_mmap_layout(struct mm_struct *mm)

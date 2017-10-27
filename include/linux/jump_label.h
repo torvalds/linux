@@ -89,11 +89,24 @@ extern bool static_key_initialized;
 
 struct static_key {
 	atomic_t enabled;
-/* Set lsb bit to 1 if branch is default true, 0 ot */
-	struct jump_entry *entries;
-#ifdef CONFIG_MODULES
-	struct static_key_mod *next;
-#endif
+/*
+ * Note:
+ *   To make anonymous unions work with old compilers, the static
+ *   initialization of them requires brackets. This creates a dependency
+ *   on the order of the struct with the initializers. If any fields
+ *   are added, STATIC_KEY_INIT_TRUE and STATIC_KEY_INIT_FALSE may need
+ *   to be modified.
+ *
+ * bit 0 => 1 if key is initially true
+ *	    0 if initially false
+ * bit 1 => 1 if points to struct static_key_mod
+ *	    0 if points to struct jump_entry
+ */
+	union {
+		unsigned long type;
+		struct jump_entry *entries;
+		struct static_key_mod *next;
+	};
 };
 
 #else
@@ -118,9 +131,10 @@ struct module;
 
 #ifdef HAVE_JUMP_LABEL
 
-#define JUMP_TYPE_FALSE	0UL
-#define JUMP_TYPE_TRUE	1UL
-#define JUMP_TYPE_MASK	1UL
+#define JUMP_TYPE_FALSE		0UL
+#define JUMP_TYPE_TRUE		1UL
+#define JUMP_TYPE_LINKED	2UL
+#define JUMP_TYPE_MASK		3UL
 
 static __always_inline bool static_key_false(struct static_key *key)
 {
@@ -149,6 +163,8 @@ extern void jump_label_apply_nops(struct module *mod);
 extern int static_key_count(struct static_key *key);
 extern void static_key_enable(struct static_key *key);
 extern void static_key_disable(struct static_key *key);
+extern void static_key_enable_cpuslocked(struct static_key *key);
+extern void static_key_disable_cpuslocked(struct static_key *key);
 
 /*
  * We should be using ATOMIC_INIT() for initializing .enabled, but
@@ -159,10 +175,10 @@ extern void static_key_disable(struct static_key *key);
  */
 #define STATIC_KEY_INIT_TRUE					\
 	{ .enabled = { 1 },					\
-	  .entries = (void *)JUMP_TYPE_TRUE }
+	  { .entries = (void *)JUMP_TYPE_TRUE } }
 #define STATIC_KEY_INIT_FALSE					\
 	{ .enabled = { 0 },					\
-	  .entries = (void *)JUMP_TYPE_FALSE }
+	  { .entries = (void *)JUMP_TYPE_FALSE } }
 
 #else  /* !HAVE_JUMP_LABEL */
 
@@ -220,23 +236,28 @@ static inline int jump_label_apply_nops(struct module *mod)
 
 static inline void static_key_enable(struct static_key *key)
 {
-	int count = static_key_count(key);
+	STATIC_KEY_CHECK_USE();
 
-	WARN_ON_ONCE(count < 0 || count > 1);
-
-	if (!count)
-		static_key_slow_inc(key);
+	if (atomic_read(&key->enabled) != 0) {
+		WARN_ON_ONCE(atomic_read(&key->enabled) != 1);
+		return;
+	}
+	atomic_set(&key->enabled, 1);
 }
 
 static inline void static_key_disable(struct static_key *key)
 {
-	int count = static_key_count(key);
+	STATIC_KEY_CHECK_USE();
 
-	WARN_ON_ONCE(count < 0 || count > 1);
-
-	if (count)
-		static_key_slow_dec(key);
+	if (atomic_read(&key->enabled) != 1) {
+		WARN_ON_ONCE(atomic_read(&key->enabled) != 0);
+		return;
+	}
+	atomic_set(&key->enabled, 0);
 }
+
+#define static_key_enable_cpuslocked(k)		static_key_enable((k))
+#define static_key_disable_cpuslocked(k)	static_key_disable((k))
 
 #define STATIC_KEY_INIT_TRUE	{ .enabled = ATOMIC_INIT(1) }
 #define STATIC_KEY_INIT_FALSE	{ .enabled = ATOMIC_INIT(0) }
@@ -399,9 +420,11 @@ extern bool ____wrong_branch_error(void);
  * Normal usage; boolean enable/disable.
  */
 
-#define static_branch_enable(x)		static_key_enable(&(x)->key)
-#define static_branch_disable(x)	static_key_disable(&(x)->key)
-
-#endif	/* _LINUX_JUMP_LABEL_H */
+#define static_branch_enable(x)			static_key_enable(&(x)->key)
+#define static_branch_disable(x)		static_key_disable(&(x)->key)
+#define static_branch_enable_cpuslocked(x)	static_key_enable_cpuslocked(&(x)->key)
+#define static_branch_disable_cpuslocked(x)	static_key_disable_cpuslocked(&(x)->key)
 
 #endif /* __ASSEMBLY__ */
+
+#endif	/* _LINUX_JUMP_LABEL_H */

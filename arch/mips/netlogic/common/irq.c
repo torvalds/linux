@@ -275,7 +275,7 @@ asmlinkage void plat_irq_dispatch(void)
 	do_IRQ(nlm_irq_to_xirq(node, i));
 }
 
-#ifdef CONFIG_OF
+#ifdef CONFIG_CPU_XLP
 static const struct irq_domain_ops xlp_pic_irq_domain_ops = {
 	.xlate = irq_domain_xlate_onetwocell,
 };
@@ -348,7 +348,7 @@ void __init arch_init_irq(void)
 #if defined(CONFIG_CPU_XLR)
 	nlm_setup_fmn_irq();
 #endif
-#if defined(CONFIG_OF)
+#ifdef CONFIG_CPU_XLP
 	of_irq_init(xlp_pic_irq_ids);
 #endif
 }

@@ -106,18 +106,9 @@ xfs_trans_ail_update(
 	xfs_trans_ail_update_bulk(ailp, NULL, &lip, 1, lsn);
 }
 
-void	xfs_trans_ail_delete_bulk(struct xfs_ail *ailp,
-				struct xfs_log_item **log_items, int nr_items,
-				int shutdown_type)
-				__releases(ailp->xa_lock);
-static inline void
-xfs_trans_ail_delete(
-	struct xfs_ail	*ailp,
-	xfs_log_item_t	*lip,
-	int		shutdown_type) __releases(ailp->xa_lock)
-{
-	xfs_trans_ail_delete_bulk(ailp, &lip, 1, shutdown_type);
-}
+bool xfs_ail_delete_one(struct xfs_ail *ailp, struct xfs_log_item *lip);
+void xfs_trans_ail_delete(struct xfs_ail *ailp, struct xfs_log_item *lip,
+		int shutdown_type) __releases(ailp->xa_lock);
 
 static inline void
 xfs_trans_ail_remove(
@@ -173,4 +164,35 @@ xfs_trans_ail_copy_lsn(
 	*dst = *src;
 }
 #endif
+
+static inline void
+xfs_clear_li_failed(
+	struct xfs_log_item	*lip)
+{
+	struct xfs_buf	*bp = lip->li_buf;
+
+	ASSERT(lip->li_flags & XFS_LI_IN_AIL);
+	lockdep_assert_held(&lip->li_ailp->xa_lock);
+
+	if (lip->li_flags & XFS_LI_FAILED) {
+		lip->li_flags &= ~XFS_LI_FAILED;
+		lip->li_buf = NULL;
+		xfs_buf_rele(bp);
+	}
+}
+
+static inline void
+xfs_set_li_failed(
+	struct xfs_log_item	*lip,
+	struct xfs_buf		*bp)
+{
+	lockdep_assert_held(&lip->li_ailp->xa_lock);
+
+	if (!(lip->li_flags & XFS_LI_FAILED)) {
+		xfs_buf_hold(bp);
+		lip->li_flags |= XFS_LI_FAILED;
+		lip->li_buf = bp;
+	}
+}
+
 #endif	/* __XFS_TRANS_PRIV_H__ */

@@ -64,5 +64,5 @@ void __init plat_time_init(void)
 	pr_info("CPU Clock: %ldMHz\n", rate / 1000000);
 	mips_hpt_frequency = rate / 2;
 
-	clocksource_probe();
+	timer_probe();
 }

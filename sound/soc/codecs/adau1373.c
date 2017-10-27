@@ -1458,7 +1458,7 @@ static const struct regmap_config adau1373_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(adau1373_reg_defaults),
 };
 
-static struct snd_soc_codec_driver adau1373_codec_driver = {
+static const struct snd_soc_codec_driver adau1373_codec_driver = {
 	.probe =	adau1373_probe,
 	.resume =	adau1373_resume,
 	.set_bias_level = adau1373_set_bias_level,

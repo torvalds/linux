@@ -1681,7 +1681,7 @@ static irqreturn_t snd_m3_interrupt(int irq, void *dev_id)
 /*
  */
 
-static struct snd_pcm_hardware snd_m3_playback =
+static const struct snd_pcm_hardware snd_m3_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED |
@@ -1702,7 +1702,7 @@ static struct snd_pcm_hardware snd_m3_playback =
 	.periods_max =		1024,
 };
 
-static struct snd_pcm_hardware snd_m3_capture =
+static const struct snd_pcm_hardware snd_m3_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED |
@@ -2622,22 +2622,18 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 
 	err = request_firmware(&chip->assp_kernel_image,
 			       "ess/maestro3_assp_kernel.fw", &pci->dev);
-	if (err < 0) {
-		snd_m3_free(chip);
-		return err;
-	}
+	if (err < 0)
+		goto free_chip;
 
 	err = request_firmware(&chip->assp_minisrc_image,
 			       "ess/maestro3_assp_minisrc.fw", &pci->dev);
-	if (err < 0) {
-		snd_m3_free(chip);
-		return err;
-	}
+	if (err < 0)
+		goto free_chip;
 
-	if ((err = pci_request_regions(pci, card->driver)) < 0) {
-		snd_m3_free(chip);
-		return err;
-	}
+	err = pci_request_regions(pci, card->driver);
+	if (err < 0)
+		goto free_chip;
+
 	chip->iobase = pci_resource_start(pci, 0);
 	
 	/* just to be sure */
@@ -2655,8 +2651,8 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	if (request_irq(pci->irq, snd_m3_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, chip)) {
 		dev_err(card->dev, "unable to grab IRQ %d\n", pci->irq);
-		snd_m3_free(chip);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto free_chip;
 	}
 	chip->irq = pci->irq;
 
@@ -2666,10 +2662,9 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 		dev_warn(card->dev, "can't allocate apm buffer\n");
 #endif
 
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
-		snd_m3_free(chip);
-		return err;
-	}
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+	if (err < 0)
+		goto free_chip;
 
 	if ((err = snd_m3_mixer(chip)) < 0)
 		return err;
@@ -2699,6 +2694,10 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	*chip_ret = chip;
 
 	return 0; 
+
+free_chip:
+	snd_m3_free(chip);
+	return err;
 }
 
 /*
@@ -2741,23 +2740,19 @@ snd_m3_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		break;
 	}
 
-	if ((err = snd_m3_create(card, pci,
-				 external_amp[dev],
-				 amp_gpio[dev],
-				 &chip)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	err = snd_m3_create(card, pci, external_amp[dev], amp_gpio[dev], &chip);
+	if (err < 0)
+		goto free_card;
+
 	card->private_data = chip;
 
 	sprintf(card->shortname, "ESS %s PCI", card->driver);
 	sprintf(card->longname, "%s at 0x%lx, irq %d",
 		card->shortname, chip->iobase, chip->irq);
 
-	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	err = snd_card_register(card);
+	if (err < 0)
+		goto free_card;
 
 #if 0 /* TODO: not supported yet */
 	/* TODO enable MIDI IRQ and I/O */
@@ -2772,6 +2767,10 @@ snd_m3_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
+
+free_card:
+	snd_card_free(card);
+	return err;
 }
 
 static void snd_m3_remove(struct pci_dev *pci)

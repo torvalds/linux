@@ -1169,11 +1169,6 @@ static struct adpt_device* adpt_find_device(adpt_hba* pHba, u32 chan, u32 id, u6
 	if(chan < 0 || chan >= MAX_CHANNEL)
 		return NULL;
 	
-	if( pHba->channel[chan].device == NULL){
-		printk(KERN_DEBUG"Adaptec I2O RAID: Trying to find device before they are allocated\n");
-		return NULL;
-	}
-
 	d = pHba->channel[chan].device[id];
 	if(!d || d->tid == 0) {
 		return NULL;
@@ -2768,16 +2763,12 @@ static int adpt_i2o_activate_hba(adpt_hba* pHba)
  
 static int adpt_i2o_online_hba(adpt_hba* pHba)
 {
-	if (adpt_i2o_systab_send(pHba) < 0) {
-		adpt_i2o_delete_hba(pHba);
+	if (adpt_i2o_systab_send(pHba) < 0)
 		return -1;
-	}
 	/* In READY state */
 
-	if (adpt_i2o_enable_hba(pHba) < 0) {
-		adpt_i2o_delete_hba(pHba);
+	if (adpt_i2o_enable_hba(pHba) < 0)
 		return -1;
-	}
 
 	/* In OPERATIONAL state  */
 	return 0;

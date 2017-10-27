@@ -166,7 +166,7 @@ static int __init dcscb_init(void)
 	 * Future entries into the kernel can now go
 	 * through the cluster entry vectors.
 	 */
-	vexpress_flags_set(virt_to_phys(mcpm_entry_point));
+	vexpress_flags_set(__pa_symbol(mcpm_entry_point));
 
 	return 0;
 }

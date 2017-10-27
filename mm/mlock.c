@@ -8,6 +8,7 @@
 #include <linux/capability.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
+#include <linux/sched/user.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
 #include <linux/pagemap.h>
@@ -122,17 +123,15 @@ static bool __munlock_isolate_lru_page(struct page *page, bool getpage)
  */
 static void __munlock_isolated_page(struct page *page)
 {
-	int ret = SWAP_AGAIN;
-
 	/*
 	 * Optimization: if the page was mapped just once, that's our mapping
 	 * and we don't need to check all the other vmas.
 	 */
 	if (page_mapcount(page) > 1)
-		ret = try_to_munlock(page);
+		try_to_munlock(page);
 
 	/* Did try_to_unlock() succeed or punt? */
-	if (ret != SWAP_MLOCK)
+	if (!PageMlocked(page))
 		count_vm_event(UNEVICTABLE_PGMUNLOCKED);
 
 	putback_lru_page(page);
@@ -285,7 +284,7 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
 {
 	int i;
 	int nr = pagevec_count(pvec);
-	int delta_munlocked;
+	int delta_munlocked = -nr;
 	struct pagevec pvec_putback;
 	int pgrescued = 0;
 
@@ -305,6 +304,8 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
 				continue;
 			else
 				__munlock_isolation_failed(page);
+		} else {
+			delta_munlocked++;
 		}
 
 		/*
@@ -316,7 +317,6 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
 		pagevec_add(&pvec_putback, pvec->pages[i]);
 		pvec->pages[i] = NULL;
 	}
-	delta_munlocked = -nr + pagevec_count(&pvec_putback);
 	__mod_zone_page_state(zone, NR_MLOCK, delta_munlocked);
 	spin_unlock_irq(zone_lru_lock(zone));
 
@@ -365,8 +365,8 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
  * @start + PAGE_SIZE when no page could be added by the pte walk.
  */
 static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
-		struct vm_area_struct *vma, int zoneid,	unsigned long start,
-		unsigned long end)
+			struct vm_area_struct *vma, struct zone *zone,
+			unsigned long start, unsigned long end)
 {
 	pte_t *pte;
 	spinlock_t *ptl;
@@ -379,6 +379,7 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
 	pte = get_locked_pte(vma->vm_mm, start,	&ptl);
 	/* Make sure we do not cross the page table boundary */
 	end = pgd_addr_end(start, end);
+	end = p4d_addr_end(start, end);
 	end = pud_addr_end(start, end);
 	end = pmd_addr_end(start, end);
 
@@ -393,7 +394,7 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
 		 * Break if page could not be obtained or the page's node+zone does not
 		 * match
 		 */
-		if (!page || page_zone_id(page) != zoneid)
+		if (!page || page_zone(page) != zone)
 			break;
 
 		/*
@@ -441,11 +442,10 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
 
 	while (start < end) {
 		struct page *page;
-		unsigned int page_mask;
+		unsigned int page_mask = 0;
 		unsigned long page_increm;
 		struct pagevec pvec;
 		struct zone *zone;
-		int zoneid;
 
 		pagevec_init(&pvec, 0);
 		/*
@@ -455,8 +455,7 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
 		 * suits munlock very well (and if somehow an abnormal page
 		 * has sneaked into the range, we won't oops here: great).
 		 */
-		page = follow_page_mask(vma, start, FOLL_GET | FOLL_DUMP,
-				&page_mask);
+		page = follow_page(vma, start, FOLL_GET | FOLL_DUMP);
 
 		if (page && !IS_ERR(page)) {
 			if (PageTransTail(page)) {
@@ -467,8 +466,8 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
 				/*
 				 * Any THP page found by follow_page_mask() may
 				 * have gotten split before reaching
-				 * munlock_vma_page(), so we need to recompute
-				 * the page_mask here.
+				 * munlock_vma_page(), so we need to compute
+				 * the page_mask here instead.
 				 */
 				page_mask = munlock_vma_page(page);
 				unlock_page(page);
@@ -481,7 +480,6 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
 				 */
 				pagevec_add(&pvec, page);
 				zone = page_zone(page);
-				zoneid = page_zone_id(page);
 
 				/*
 				 * Try to fill the rest of pagevec using fast
@@ -490,7 +488,7 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
 				 * pagevec.
 				 */
 				start = __munlock_pagevec_fill(&pvec, vma,
-						zoneid, start, end);
+						zone, start, end);
 				__munlock_pagevec(&pvec, zone);
 				goto next;
 			}

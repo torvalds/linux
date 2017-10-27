@@ -17,7 +17,7 @@
 #include <asm/paravirt.h>
 #include <asm/alternative.h>
 #include <asm/pgtable.h>
-#include <asm/cacheflush.h>
+#include <asm/set_memory.h>
 
 void __init check_bugs(void)
 {

@@ -115,7 +115,7 @@
  *
  * The CMX has special functions for conferences with one, two and more
  * members. It will allow different types of data flow. Receive and transmit
- * data to/form upper layer may be swithed on/off individually without losing
+ * data to/form upper layer may be switched on/off individually without losing
  * features of CMX, Tones and DTMF.
  *
  * Echo Cancellation: Sometimes we like to cancel echo from the interface.
@@ -1092,9 +1092,7 @@ dspcreate(struct channel_req *crq)
 	ndsp->pcm_bank_tx = -1;
 	ndsp->hfc_conf = -1; /* current conference number */
 	/* set tone timer */
-	ndsp->tone.tl.function = (void *)dsp_tone_timeout;
-	ndsp->tone.tl.data = (long) ndsp;
-	init_timer(&ndsp->tone.tl);
+	setup_timer(&ndsp->tone.tl, (void *)dsp_tone_timeout, (long)ndsp);
 
 	if (dtmfthreshold < 20 || dtmfthreshold > 500)
 		dtmfthreshold = 200;

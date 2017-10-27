@@ -1,6 +1,7 @@
 config CRYPTO_DEV_FSL_CAAM
 	tristate "Freescale CAAM-Multicore driver backend"
 	depends on FSL_SOC || ARCH_MXC || ARCH_LAYERSCAPE
+	select SOC_BUS
 	help
 	  Enables the driver module for Freescale's Cryptographic Accelerator
 	  and Assurance Module (CAAM), also known as the SEC version 4 (SEC4).
@@ -87,6 +88,23 @@ config CRYPTO_DEV_FSL_CAAM_CRYPTO_API
 	  To compile this as a module, choose M here: the module
 	  will be called caamalg.
 
+config CRYPTO_DEV_FSL_CAAM_CRYPTO_API_QI
+	tristate "Queue Interface as Crypto API backend"
+	depends on CRYPTO_DEV_FSL_CAAM_JR && FSL_DPAA && NET
+	default y
+	select CRYPTO_AUTHENC
+	select CRYPTO_BLKCIPHER
+	help
+	  Selecting this will use CAAM Queue Interface (QI) for sending
+	  & receiving crypto jobs to/from CAAM. This gives better performance
+	  than job ring interface when the number of cores are more than the
+	  number of job rings assigned to the kernel. The number of portals
+	  assigned to the kernel should also be more than the number of
+	  job rings.
+
+	  To compile this as a module, choose M here: the module
+	  will be called caamalg_qi.
+
 config CRYPTO_DEV_FSL_CAAM_AHASH_API
 	tristate "Register hash algorithm implementations with Crypto API"
 	depends on CRYPTO_DEV_FSL_CAAM_JR
@@ -124,10 +142,6 @@ config CRYPTO_DEV_FSL_CAAM_RNG_API
 	  To compile this as a module, choose M here: the module
 	  will be called caamrng.
 
-config CRYPTO_DEV_FSL_CAAM_IMX
-	def_bool SOC_IMX6 || SOC_IMX7D
-	depends on CRYPTO_DEV_FSL_CAAM
-
 config CRYPTO_DEV_FSL_CAAM_DEBUG
 	bool "Enable debug output in CAAM driver"
 	depends on CRYPTO_DEV_FSL_CAAM
@@ -136,4 +150,5 @@ config CRYPTO_DEV_FSL_CAAM_DEBUG
 	  information in the CAAM driver.
 
 config CRYPTO_DEV_FSL_CAAM_CRYPTO_API_DESC
-	def_tristate CRYPTO_DEV_FSL_CAAM_CRYPTO_API
+	def_tristate (CRYPTO_DEV_FSL_CAAM_CRYPTO_API || \
+		      CRYPTO_DEV_FSL_CAAM_CRYPTO_API_QI)

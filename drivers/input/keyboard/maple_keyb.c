@@ -196,7 +196,6 @@ static int probe_maple_kbd(struct device *dev)
 	__clear_bit(KEY_RESERVED, idev->keybit);
 
 	input_set_capability(idev, EV_MSC, MSC_SCAN);
-	input_set_drvdata(idev, kbd);
 
 	error = input_register_device(idev);
 	if (error)

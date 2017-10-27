@@ -22,6 +22,7 @@ snd-pcm-$(CONFIG_SND_PCM_IEC958) += pcm_iec958.o
 
 # for trace-points
 CFLAGS_pcm_lib.o := -I$(src)
+CFLAGS_pcm_native.o := -I$(src)
 
 snd-pcm-dmaengine-objs := pcm_dmaengine.o
 
@@ -30,6 +31,7 @@ snd-timer-objs    := timer.o
 snd-hrtimer-objs  := hrtimer.o
 snd-rtctimer-objs := rtctimer.o
 snd-hwdep-objs    := hwdep.o
+snd-seq-device-objs := seq_device.o
 
 snd-compress-objs := compress_offload.o
 
@@ -39,6 +41,7 @@ obj-$(CONFIG_SND_TIMER)		+= snd-timer.o
 obj-$(CONFIG_SND_HRTIMER)	+= snd-hrtimer.o
 obj-$(CONFIG_SND_PCM)		+= snd-pcm.o
 obj-$(CONFIG_SND_DMAENGINE_PCM)	+= snd-pcm-dmaengine.o
+obj-$(CONFIG_SND_SEQ_DEVICE)	+= snd-seq-device.o
 obj-$(CONFIG_SND_RAWMIDI)	+= snd-rawmidi.o
 
 obj-$(CONFIG_SND_OSSEMUL)	+= oss/

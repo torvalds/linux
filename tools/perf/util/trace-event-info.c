@@ -42,7 +42,7 @@
 #include "evsel.h"
 #include "debug.h"
 
-#define VERSION "0.5"
+#define VERSION "0.6"
 
 static int output_fd;
 
@@ -170,6 +170,12 @@ static bool name_in_tp_list(char *sys, struct tracepoint_path *tps)
 	return false;
 }
 
+#define for_each_event(dir, dent, tps)				\
+	while ((dent = readdir(dir)))				\
+		if (dent->d_type == DT_DIR &&			\
+		    (strcmp(dent->d_name, ".")) &&		\
+		    (strcmp(dent->d_name, "..")))		\
+
 static int copy_event_system(const char *sys, struct tracepoint_path *tps)
 {
 	struct dirent *dent;
@@ -186,12 +192,10 @@ static int copy_event_system(const char *sys, struct tracepoint_path *tps)
 		return -errno;
 	}
 
-	while ((dent = readdir(dir))) {
-		if (dent->d_type != DT_DIR ||
-		    strcmp(dent->d_name, ".") == 0 ||
-		    strcmp(dent->d_name, "..") == 0 ||
-		    !name_in_tp_list(dent->d_name, tps))
+	for_each_event(dir, dent, tps) {
+		if (!name_in_tp_list(dent->d_name, tps))
 			continue;
+
 		if (asprintf(&format, "%s/%s/format", sys, dent->d_name) < 0) {
 			err = -ENOMEM;
 			goto out;
@@ -210,12 +214,10 @@ static int copy_event_system(const char *sys, struct tracepoint_path *tps)
 	}
 
 	rewinddir(dir);
-	while ((dent = readdir(dir))) {
-		if (dent->d_type != DT_DIR ||
-		    strcmp(dent->d_name, ".") == 0 ||
-		    strcmp(dent->d_name, "..") == 0 ||
-		    !name_in_tp_list(dent->d_name, tps))
+	for_each_event(dir, dent, tps) {
+		if (!name_in_tp_list(dent->d_name, tps))
 			continue;
+
 		if (asprintf(&format, "%s/%s/format", sys, dent->d_name) < 0) {
 			err = -ENOMEM;
 			goto out;
@@ -290,13 +292,11 @@ static int record_event_files(struct tracepoint_path *tps)
 		goto out;
 	}
 
-	while ((dent = readdir(dir))) {
-		if (dent->d_type != DT_DIR ||
-		    strcmp(dent->d_name, ".") == 0 ||
-		    strcmp(dent->d_name, "..") == 0 ||
-		    strcmp(dent->d_name, "ftrace") == 0 ||
+	for_each_event(dir, dent, tps) {
+		if (strcmp(dent->d_name, "ftrace") == 0 ||
 		    !system_in_tp_list(dent->d_name, tps))
 			continue;
+
 		count++;
 	}
 
@@ -307,13 +307,11 @@ static int record_event_files(struct tracepoint_path *tps)
 	}
 
 	rewinddir(dir);
-	while ((dent = readdir(dir))) {
-		if (dent->d_type != DT_DIR ||
-		    strcmp(dent->d_name, ".") == 0 ||
-		    strcmp(dent->d_name, "..") == 0 ||
-		    strcmp(dent->d_name, "ftrace") == 0 ||
+	for_each_event(dir, dent, tps) {
+		if (strcmp(dent->d_name, "ftrace") == 0 ||
 		    !system_in_tp_list(dent->d_name, tps))
 			continue;
+
 		if (asprintf(&sys, "%s/%s", path, dent->d_name) < 0) {
 			err = -ENOMEM;
 			goto out;
@@ -373,6 +371,34 @@ static int record_ftrace_printk(void)
 		goto out;
 	}
 	err = record_file(path, 4);
+
+out:
+	put_tracing_file(path);
+	return err;
+}
+
+static int record_saved_cmdline(void)
+{
+	unsigned int size;
+	char *path;
+	struct stat st;
+	int ret, err = 0;
+
+	path = get_tracing_file("saved_cmdlines");
+	if (!path) {
+		pr_debug("can't get tracing/saved_cmdline");
+		return -ENOMEM;
+	}
+
+	ret = stat(path, &st);
+	if (ret < 0) {
+		/* not found */
+		size = 0;
+		if (write(output_fd, &size, 8) != 8)
+			err = -EIO;
+		goto out;
+	}
+	err = record_file(path, 8);
 
 out:
 	put_tracing_file(path);
@@ -539,6 +565,9 @@ struct tracing_data *tracing_data_get(struct list_head *pattrs,
 	if (err)
 		goto out;
 	err = record_ftrace_printk();
+	if (err)
+		goto out;
+	err = record_saved_cmdline();
 
 out:
 	/*

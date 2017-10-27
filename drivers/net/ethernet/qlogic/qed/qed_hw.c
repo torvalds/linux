@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #include <linux/types.h>
@@ -34,6 +58,7 @@ struct qed_ptt {
 	struct list_head	list_entry;
 	unsigned int		idx;
 	struct pxp_ptt_entry	pxp;
+	u8			hwfn_id;
 };
 
 struct qed_ptt_pool {
@@ -55,6 +80,7 @@ int qed_ptt_pool_alloc(struct qed_hwfn *p_hwfn)
 		p_pool->ptts[i].idx = i;
 		p_pool->ptts[i].pxp.offset = QED_BAR_INVALID_OFFSET;
 		p_pool->ptts[i].pxp.pretend.control = 0;
+		p_pool->ptts[i].hwfn_id = p_hwfn->my_id;
 		if (i >= RESERVED_PTT_MAX)
 			list_add(&p_pool->ptts[i].list_entry,
 				 &p_pool->free_list);
@@ -168,6 +194,11 @@ static u32 qed_set_ptt(struct qed_hwfn *p_hwfn,
 	u32 offset;
 
 	offset = hw_addr - win_hw_addr;
+
+	if (p_ptt->hwfn_id != p_hwfn->my_id)
+		DP_NOTICE(p_hwfn,
+			  "ptt[%d] of hwfn[%02x] is used by hwfn[%02x]!\n",
+			  p_ptt->idx, p_ptt->hwfn_id, p_hwfn->my_id);
 
 	/* Verify the address is within the window */
 	if (hw_addr < win_hw_addr ||
@@ -776,52 +807,3 @@ int qed_dmae_host2host(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-u16 qed_get_qm_pq(struct qed_hwfn *p_hwfn,
-		  enum protocol_type proto, union qed_qm_pq_params *p_params)
-{
-	u16 pq_id = 0;
-
-	if ((proto == PROTOCOLID_CORE ||
-	     proto == PROTOCOLID_ETH ||
-	     proto == PROTOCOLID_ISCSI ||
-	     proto == PROTOCOLID_ROCE) && !p_params) {
-		DP_NOTICE(p_hwfn,
-			  "Protocol %d received NULL PQ params\n", proto);
-		return 0;
-	}
-
-	switch (proto) {
-	case PROTOCOLID_CORE:
-		if (p_params->core.tc == LB_TC)
-			pq_id = p_hwfn->qm_info.pure_lb_pq;
-		else if (p_params->core.tc == OOO_LB_TC)
-			pq_id = p_hwfn->qm_info.ooo_pq;
-		else
-			pq_id = p_hwfn->qm_info.offload_pq;
-		break;
-	case PROTOCOLID_ETH:
-		pq_id = p_params->eth.tc;
-		if (p_params->eth.is_vf)
-			pq_id += p_hwfn->qm_info.vf_queues_offset +
-				 p_params->eth.vf_id;
-		break;
-	case PROTOCOLID_ISCSI:
-		if (p_params->iscsi.q_idx == 1)
-			pq_id = p_hwfn->qm_info.pure_ack_pq;
-		break;
-	case PROTOCOLID_ROCE:
-		if (p_params->roce.dcqcn)
-			pq_id = p_params->roce.qpid;
-		else
-			pq_id = p_hwfn->qm_info.offload_pq;
-		if (pq_id > p_hwfn->qm_info.num_pf_rls)
-			pq_id = p_hwfn->qm_info.offload_pq;
-		break;
-	default:
-		pq_id = 0;
-	}
-
-	pq_id = CM_TX_PQ_BASE + pq_id + RESC_START(p_hwfn, QED_PQ);
-
-	return pq_id;
-}

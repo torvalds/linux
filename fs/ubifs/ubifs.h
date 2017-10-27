@@ -38,7 +38,11 @@
 #include <linux/backing-dev.h>
 #include <linux/security.h>
 #include <linux/xattr.h>
-#include <linux/fscrypto.h>
+#ifdef CONFIG_UBIFS_FS_ENCRYPTION
+#include <linux/fscrypt_supp.h>
+#else
+#include <linux/fscrypt_notsupp.h>
+#endif
 #include <linux/random.h>
 #include "ubifs-media.h"
 
@@ -968,7 +972,6 @@ struct ubifs_debug_info;
  * struct ubifs_info - UBIFS file-system description data structure
  * (per-superblock).
  * @vfs_sb: VFS @struct super_block object
- * @bdi: backing device info object to make VFS happy and disable read-ahead
  *
  * @highest_inum: highest used inode number
  * @max_sqnum: current global sequence number
@@ -1216,7 +1219,6 @@ struct ubifs_debug_info;
  */
 struct ubifs_info {
 	struct super_block *vfs_sb;
-	struct backing_dev_info bdi;
 
 	ino_t highest_inum;
 	unsigned long long max_sqnum;
@@ -1449,7 +1451,6 @@ struct ubifs_info {
 extern struct list_head ubifs_infos;
 extern spinlock_t ubifs_infos_lock;
 extern atomic_long_t ubifs_clean_zn_cnt;
-extern struct kmem_cache *ubifs_inode_slab;
 extern const struct super_operations ubifs_super_operations;
 extern const struct address_space_operations ubifs_file_address_operations;
 extern const struct file_operations ubifs_file_operations;
@@ -1457,7 +1458,6 @@ extern const struct inode_operations ubifs_file_inode_operations;
 extern const struct file_operations ubifs_dir_operations;
 extern const struct inode_operations ubifs_dir_inode_operations;
 extern const struct inode_operations ubifs_symlink_inode_operations;
-extern struct backing_dev_info ubifs_backing_dev_info;
 extern struct ubifs_compressor *ubifs_compressors[UBIFS_COMPR_TYPES_CNT];
 
 /* io.c */
@@ -1589,6 +1589,8 @@ int ubifs_tnc_add_nm(struct ubifs_info *c, const union ubifs_key *key,
 int ubifs_tnc_remove(struct ubifs_info *c, const union ubifs_key *key);
 int ubifs_tnc_remove_nm(struct ubifs_info *c, const union ubifs_key *key,
 			const struct fscrypt_name *nm);
+int ubifs_tnc_remove_dh(struct ubifs_info *c, const union ubifs_key *key,
+			uint32_t cookie);
 int ubifs_tnc_remove_range(struct ubifs_info *c, union ubifs_key *from_key,
 			   union ubifs_key *to_key);
 int ubifs_tnc_remove_ino(struct ubifs_info *c, ino_t inum);
@@ -1745,19 +1747,30 @@ int ubifs_update_time(struct inode *inode, struct timespec *time, int flags);
 /* dir.c */
 struct inode *ubifs_new_inode(struct ubifs_info *c, struct inode *dir,
 			      umode_t mode);
-int ubifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
-		  struct kstat *stat);
+int ubifs_getattr(const struct path *path, struct kstat *stat,
+		  u32 request_mask, unsigned int flags);
 int ubifs_check_dir_empty(struct inode *dir);
 
 /* xattr.c */
 extern const struct xattr_handler *ubifs_xattr_handlers[];
 ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size);
-int ubifs_init_security(struct inode *dentry, struct inode *inode,
-			const struct qstr *qstr);
 int ubifs_xattr_set(struct inode *host, const char *name, const void *value,
-		    size_t size, int flags);
+		    size_t size, int flags, bool check_lock);
 ssize_t ubifs_xattr_get(struct inode *host, const char *name, void *buf,
 			size_t size);
+void ubifs_evict_xattr_inode(struct ubifs_info *c, ino_t xattr_inum);
+
+#ifdef CONFIG_UBIFS_FS_SECURITY
+extern int ubifs_init_security(struct inode *dentry, struct inode *inode,
+			const struct qstr *qstr);
+#else
+static inline int ubifs_init_security(struct inode *dentry,
+			struct inode *inode, const struct qstr *qstr)
+{
+	return 0;
+}
+#endif
+
 
 /* super.c */
 struct inode *ubifs_iget(struct super_block *sb, unsigned long inum);
@@ -1797,28 +1810,6 @@ int ubifs_decompress(const struct ubifs_info *c, const void *buf, int len,
 #include "key.h"
 
 #ifndef CONFIG_UBIFS_FS_ENCRYPTION
-#define fscrypt_set_d_op(i)
-#define fscrypt_get_ctx                 fscrypt_notsupp_get_ctx
-#define fscrypt_release_ctx             fscrypt_notsupp_release_ctx
-#define fscrypt_encrypt_page            fscrypt_notsupp_encrypt_page
-#define fscrypt_decrypt_page            fscrypt_notsupp_decrypt_page
-#define fscrypt_decrypt_bio_pages       fscrypt_notsupp_decrypt_bio_pages
-#define fscrypt_pullback_bio_page       fscrypt_notsupp_pullback_bio_page
-#define fscrypt_restore_control_page    fscrypt_notsupp_restore_control_page
-#define fscrypt_zeroout_range           fscrypt_notsupp_zeroout_range
-#define fscrypt_ioctl_set_policy	fscrypt_notsupp_ioctl_set_policy
-#define fscrypt_ioctl_get_policy	fscrypt_notsupp_ioctl_get_policy
-#define fscrypt_has_permitted_context   fscrypt_notsupp_has_permitted_context
-#define fscrypt_inherit_context         fscrypt_notsupp_inherit_context
-#define fscrypt_get_encryption_info     fscrypt_notsupp_get_encryption_info
-#define fscrypt_put_encryption_info     fscrypt_notsupp_put_encryption_info
-#define fscrypt_setup_filename          fscrypt_notsupp_setup_filename
-#define fscrypt_free_filename           fscrypt_notsupp_free_filename
-#define fscrypt_fname_encrypted_size    fscrypt_notsupp_fname_encrypted_size
-#define fscrypt_fname_alloc_buffer      fscrypt_notsupp_fname_alloc_buffer
-#define fscrypt_fname_free_buffer       fscrypt_notsupp_fname_free_buffer
-#define fscrypt_fname_disk_to_usr       fscrypt_notsupp_fname_disk_to_usr
-#define fscrypt_fname_usr_to_disk       fscrypt_notsupp_fname_usr_to_disk
 static inline int ubifs_encrypt(const struct inode *inode,
 				struct ubifs_data_node *dn,
 				unsigned int in_len, unsigned int *out_len,
@@ -1842,7 +1833,7 @@ int ubifs_decrypt(const struct inode *inode, struct ubifs_data_node *dn,
 		  unsigned int *out_len, int block);
 #endif
 
-extern struct fscrypt_operations ubifs_crypt_operations;
+extern const struct fscrypt_operations ubifs_crypt_operations;
 
 static inline bool __ubifs_crypt_is_encrypted(struct inode *inode)
 {

@@ -34,7 +34,7 @@ coda_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 
 	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
 
-	return vfs_iter_read(cfi->cfi_container, to, &iocb->ki_pos);
+	return vfs_iter_read(cfi->cfi_container, to, &iocb->ki_pos, 0);
 }
 
 static ssize_t
@@ -51,7 +51,7 @@ coda_file_write_iter(struct kiocb *iocb, struct iov_iter *to)
 	host_file = cfi->cfi_container;
 	file_start_write(host_file);
 	inode_lock(coda_inode);
-	ret = vfs_iter_write(cfi->cfi_container, to, &iocb->ki_pos);
+	ret = vfs_iter_write(cfi->cfi_container, to, &iocb->ki_pos, 0);
 	coda_inode->i_size = file_inode(host_file)->i_size;
 	coda_inode->i_blocks = (coda_inode->i_size + 511) >> 9;
 	coda_inode->i_mtime = coda_inode->i_ctime = current_time(coda_inode);
@@ -96,7 +96,7 @@ coda_file_mmap(struct file *coda_file, struct vm_area_struct *vma)
 	cfi->cfi_mapcount++;
 	spin_unlock(&cii->c_lock);
 
-	return host_file->f_op->mmap(host_file, vma);
+	return call_mmap(host_file, vma);
 }
 
 int coda_open(struct inode *coda_inode, struct file *coda_file)

@@ -36,11 +36,11 @@
  */
 
 #define DEBUG_SUBSYSTEM S_RPC
-#include "../include/obd_support.h"
-#include "../include/obd_class.h"
-#include "../include/lustre_net.h"
-#include "../include/lprocfs_status.h"
-#include "../../include/linux/libcfs/libcfs.h"
+#include <obd_support.h>
+#include <obd_class.h>
+#include <lustre_net.h>
+#include <lprocfs_status.h>
+#include <linux/libcfs/libcfs.h>
 #include "ptlrpc_internal.h"
 
 /**
@@ -1558,9 +1558,6 @@ int ptlrpc_nrs_policy_control(const struct ptlrpc_service *svc,
 out:
 	return rc;
 }
-
-/* ptlrpc/nrs_fifo.c */
-extern struct ptlrpc_nrs_pol_conf nrs_conf_fifo;
 
 /**
  * Adds all policies that ship with the ptlrpc module, to NRS core's list of

@@ -29,7 +29,7 @@
 #include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 #include <linux/i2c-omap.h>
 #include <linux/reboot.h>
 #include <linux/irqchip/irq-omap-intc.h>
@@ -265,6 +265,8 @@ extern int omap4_cpu_kill(unsigned int cpu);
 
 extern const struct smp_operations omap4_smp_ops;
 #endif
+
+extern u32 omap4_get_cpu1_ns_pa_addr(void);
 
 #if defined(CONFIG_SMP) && defined(CONFIG_PM)
 extern int omap4_mpuss_init(void);

@@ -387,14 +387,18 @@ static int sx9500_read_raw(struct iio_dev *indio_dev,
 			   int *val, int *val2, long mask)
 {
 	struct sx9500_data *data = iio_priv(indio_dev);
+	int ret;
 
 	switch (chan->type) {
 	case IIO_PROXIMITY:
 		switch (mask) {
 		case IIO_CHAN_INFO_RAW:
-			if (iio_buffer_enabled(indio_dev))
-				return -EBUSY;
-			return sx9500_read_proximity(data, chan, val);
+			ret = iio_device_claim_direct_mode(indio_dev);
+			if (ret)
+				return ret;
+			ret = sx9500_read_proximity(data, chan, val);
+			iio_device_release_direct_mode(indio_dev);
+			return ret;
 		case IIO_CHAN_INFO_SAMP_FREQ:
 			return sx9500_read_samp_freq(data, val, val2);
 		default:
@@ -874,8 +878,7 @@ static void sx9500_gpio_probe(struct i2c_client *client,
 
 	dev = &client->dev;
 
-	data->gpiod_rst = devm_gpiod_get_index(dev, SX9500_GPIO_RESET,
-					       0, GPIOD_OUT_HIGH);
+	data->gpiod_rst = devm_gpiod_get(dev, SX9500_GPIO_RESET, GPIOD_OUT_HIGH);
 	if (IS_ERR(data->gpiod_rst)) {
 		dev_warn(dev, "gpio get reset pin failed\n");
 		data->gpiod_rst = NULL;

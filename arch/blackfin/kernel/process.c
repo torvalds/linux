@@ -12,6 +12,10 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
+#include <linux/mm_types.h>
 #include <linux/tick.h>
 #include <linux/fs.h>
 #include <linux/err.h>
@@ -366,7 +370,7 @@ int _access_ok(unsigned long addr, unsigned long size)
 	/* Check that things do not wrap around */
 	if (addr > ULONG_MAX - size)
 		return 0;
-	if (segment_eq(get_fs(), KERNEL_DS))
+	if (uaccess_kernel())
 		return 1;
 #ifdef CONFIG_MTD_UCLINUX
 	if (1)

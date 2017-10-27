@@ -34,17 +34,76 @@ extern void add_input_randomness(unsigned int type, unsigned int code,
 extern void add_interrupt_randomness(int irq, int irq_flags) __latent_entropy;
 
 extern void get_random_bytes(void *buf, int nbytes);
+extern int wait_for_random_bytes(void);
 extern int add_random_ready_callback(struct random_ready_callback *rdy);
 extern void del_random_ready_callback(struct random_ready_callback *rdy);
 extern void get_random_bytes_arch(void *buf, int nbytes);
-extern int random_int_secret_init(void);
 
 #ifndef MODULE
 extern const struct file_operations random_fops, urandom_fops;
 #endif
 
-unsigned int get_random_int(void);
-unsigned long get_random_long(void);
+u32 get_random_u32(void);
+u64 get_random_u64(void);
+static inline unsigned int get_random_int(void)
+{
+	return get_random_u32();
+}
+static inline unsigned long get_random_long(void)
+{
+#if BITS_PER_LONG == 64
+	return get_random_u64();
+#else
+	return get_random_u32();
+#endif
+}
+
+/*
+ * On 64-bit architectures, protect against non-terminated C string overflows
+ * by zeroing out the first byte of the canary; this leaves 56 bits of entropy.
+ */
+#ifdef CONFIG_64BIT
+# ifdef __LITTLE_ENDIAN
+#  define CANARY_MASK 0xffffffffffffff00UL
+# else /* big endian, 64 bits: */
+#  define CANARY_MASK 0x00ffffffffffffffUL
+# endif
+#else /* 32 bits: */
+# define CANARY_MASK 0xffffffffUL
+#endif
+
+static inline unsigned long get_random_canary(void)
+{
+	unsigned long val = get_random_long();
+
+	return val & CANARY_MASK;
+}
+
+/* Calls wait_for_random_bytes() and then calls get_random_bytes(buf, nbytes).
+ * Returns the result of the call to wait_for_random_bytes. */
+static inline int get_random_bytes_wait(void *buf, int nbytes)
+{
+	int ret = wait_for_random_bytes();
+	if (unlikely(ret))
+		return ret;
+	get_random_bytes(buf, nbytes);
+	return 0;
+}
+
+#define declare_get_random_var_wait(var) \
+	static inline int get_random_ ## var ## _wait(var *out) { \
+		int ret = wait_for_random_bytes(); \
+		if (unlikely(ret)) \
+			return ret; \
+		*out = get_random_ ## var(); \
+		return 0; \
+	}
+declare_get_random_var_wait(u32)
+declare_get_random_var_wait(u64)
+declare_get_random_var_wait(int)
+declare_get_random_var_wait(long)
+#undef declare_get_random_var
+
 unsigned long randomize_page(unsigned long start, unsigned long range);
 
 u32 prandom_u32(void);

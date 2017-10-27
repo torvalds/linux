@@ -16,6 +16,8 @@
 #include <linux/export.h>
 #include <linux/user_namespace.h>
 #include <linux/net_namespace.h>
+#include <linux/sched/task.h>
+
 #include <net/sock.h>
 #include <net/netlink.h>
 #include <net/net_namespace.h>
@@ -33,7 +35,8 @@ LIST_HEAD(net_namespace_list);
 EXPORT_SYMBOL_GPL(net_namespace_list);
 
 struct net init_net = {
-	.dev_base_head = LIST_HEAD_INIT(init_net.dev_base_head),
+	.count		= ATOMIC_INIT(1),
+	.dev_base_head	= LIST_HEAD_INIT(init_net.dev_base_head),
 };
 EXPORT_SYMBOL(init_net);
 
@@ -281,7 +284,7 @@ static __net_init int setup_net(struct net *net, struct user_namespace *user_ns)
 	LIST_HEAD(net_exit_list);
 
 	atomic_set(&net->count, 1);
-	atomic_set(&net->passive, 1);
+	refcount_set(&net->passive, 1);
 	net->dev_base_seq = 1;
 	net->user_ns = user_ns;
 	idr_init(&net->netns_ids);
@@ -312,6 +315,25 @@ out_undo:
 	goto out;
 }
 
+static int __net_init net_defaults_init_net(struct net *net)
+{
+	net->core.sysctl_somaxconn = SOMAXCONN;
+	return 0;
+}
+
+static struct pernet_operations net_defaults_ops = {
+	.init = net_defaults_init_net,
+};
+
+static __init int net_defaults_init(void)
+{
+	if (register_pernet_subsys(&net_defaults_ops))
+		panic("Cannot initialize net default settings");
+
+	return 0;
+}
+
+core_initcall(net_defaults_init);
 
 #ifdef CONFIG_NET_NS
 static struct ucounts *inc_net_namespaces(struct user_namespace *ns)
@@ -358,7 +380,7 @@ static void net_free(struct net *net)
 void net_drop_ns(void *p)
 {
 	struct net *ns = p;
-	if (ns && atomic_dec_and_test(&ns->passive))
+	if (ns && refcount_dec_and_test(&ns->passive))
 		net_free(ns);
 }
 
@@ -479,6 +501,23 @@ static void cleanup_net(struct work_struct *work)
 		net_drop_ns(net);
 	}
 }
+
+/**
+ * net_ns_barrier - wait until concurrent net_cleanup_work is done
+ *
+ * cleanup_net runs from work queue and will first remove namespaces
+ * from the global list, then run net exit functions.
+ *
+ * Call this in module exit path to make sure that all netns
+ * ->exit ops have been invoked before the function is removed.
+ */
+void net_ns_barrier(void)
+{
+	mutex_lock(&net_mutex);
+	mutex_unlock(&net_mutex);
+}
+EXPORT_SYMBOL(net_ns_barrier);
+
 static DECLARE_WORK(net_cleanup_work, cleanup_net);
 
 void __put_net(struct net *net)
@@ -569,34 +608,48 @@ static const struct nla_policy rtnl_net_policy[NETNSA_MAX + 1] = {
 	[NETNSA_FD]		= { .type = NLA_U32 },
 };
 
-static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh,
+			  struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[NETNSA_MAX + 1];
+	struct nlattr *nla;
 	struct net *peer;
 	int nsid, err;
 
 	err = nlmsg_parse(nlh, sizeof(struct rtgenmsg), tb, NETNSA_MAX,
-			  rtnl_net_policy);
+			  rtnl_net_policy, extack);
 	if (err < 0)
 		return err;
-	if (!tb[NETNSA_NSID])
+	if (!tb[NETNSA_NSID]) {
+		NL_SET_ERR_MSG(extack, "nsid is missing");
 		return -EINVAL;
+	}
 	nsid = nla_get_s32(tb[NETNSA_NSID]);
 
-	if (tb[NETNSA_PID])
+	if (tb[NETNSA_PID]) {
 		peer = get_net_ns_by_pid(nla_get_u32(tb[NETNSA_PID]));
-	else if (tb[NETNSA_FD])
+		nla = tb[NETNSA_PID];
+	} else if (tb[NETNSA_FD]) {
 		peer = get_net_ns_by_fd(nla_get_u32(tb[NETNSA_FD]));
-	else
+		nla = tb[NETNSA_FD];
+	} else {
+		NL_SET_ERR_MSG(extack, "Peer netns reference is missing");
 		return -EINVAL;
-	if (IS_ERR(peer))
+	}
+	if (IS_ERR(peer)) {
+		NL_SET_BAD_ATTR(extack, nla);
+		NL_SET_ERR_MSG(extack, "Peer netns reference is invalid");
 		return PTR_ERR(peer);
+	}
 
 	spin_lock_bh(&net->nsid_lock);
 	if (__peernet2id(net, peer) >= 0) {
 		spin_unlock_bh(&net->nsid_lock);
 		err = -EEXIST;
+		NL_SET_BAD_ATTR(extack, nla);
+		NL_SET_ERR_MSG(extack,
+			       "Peer netns already has a nsid assigned");
 		goto out;
 	}
 
@@ -605,6 +658,10 @@ static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (err >= 0) {
 		rtnl_net_notifyid(net, RTM_NEWNSID, err);
 		err = 0;
+	} else if (err == -ENOSPC && nsid >= 0) {
+		err = -EEXIST;
+		NL_SET_BAD_ATTR(extack, tb[NETNSA_NSID]);
+		NL_SET_ERR_MSG(extack, "The specified nsid is already used");
 	}
 out:
 	put_net(peer);
@@ -642,27 +699,36 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh,
+			  struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[NETNSA_MAX + 1];
+	struct nlattr *nla;
 	struct sk_buff *msg;
 	struct net *peer;
 	int err, id;
 
 	err = nlmsg_parse(nlh, sizeof(struct rtgenmsg), tb, NETNSA_MAX,
-			  rtnl_net_policy);
+			  rtnl_net_policy, extack);
 	if (err < 0)
 		return err;
-	if (tb[NETNSA_PID])
+	if (tb[NETNSA_PID]) {
 		peer = get_net_ns_by_pid(nla_get_u32(tb[NETNSA_PID]));
-	else if (tb[NETNSA_FD])
+		nla = tb[NETNSA_PID];
+	} else if (tb[NETNSA_FD]) {
 		peer = get_net_ns_by_fd(nla_get_u32(tb[NETNSA_FD]));
-	else
+		nla = tb[NETNSA_FD];
+	} else {
+		NL_SET_ERR_MSG(extack, "Peer netns reference is missing");
 		return -EINVAL;
+	}
 
-	if (IS_ERR(peer))
+	if (IS_ERR(peer)) {
+		NL_SET_BAD_ATTR(extack, nla);
+		NL_SET_ERR_MSG(extack, "Peer netns reference is invalid");
 		return PTR_ERR(peer);
+	}
 
 	msg = nlmsg_new(rtnl_net_get_size(), GFP_KERNEL);
 	if (!msg) {
@@ -789,9 +855,10 @@ static int __init net_ns_init(void)
 
 	register_pernet_subsys(&net_ns_ops);
 
-	rtnl_register(PF_UNSPEC, RTM_NEWNSID, rtnl_net_newid, NULL, NULL);
+	rtnl_register(PF_UNSPEC, RTM_NEWNSID, rtnl_net_newid, NULL,
+		      RTNL_FLAG_DOIT_UNLOCKED);
 	rtnl_register(PF_UNSPEC, RTM_GETNSID, rtnl_net_getid, rtnl_net_dumpid,
-		      NULL);
+		      RTNL_FLAG_DOIT_UNLOCKED);
 
 	return 0;
 }

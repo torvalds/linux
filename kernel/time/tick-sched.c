@@ -17,8 +17,12 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/percpu.h>
+#include <linux/nmi.h>
 #include <linux/profile.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/clock.h>
+#include <linux/sched/stat.h>
+#include <linux/sched/nohz.h>
 #include <linux/module.h>
 #include <linux/irq_work.h>
 #include <linux/posix-timers.h>
@@ -146,6 +150,12 @@ static void tick_sched_handle(struct tick_sched *ts, struct pt_regs *regs)
 		touch_softlockup_watchdog_sched();
 		if (is_idle_task(current))
 			ts->idle_jiffies++;
+		/*
+		 * In case the current tick fired too early past its expected
+		 * expiration, make sure we don't bypass the next clock reprogramming
+		 * to the same deadline.
+		 */
+		ts->next_tick = 0;
 	}
 #endif
 	update_process_times(user_mode(regs));
@@ -550,7 +560,7 @@ static void tick_nohz_stop_idle(struct tick_sched *ts, ktime_t now)
 	update_ts_time_stats(smp_processor_id(), ts, now, NULL);
 	ts->idle_active = 0;
 
-	sched_clock_idle_wakeup_event(0);
+	sched_clock_idle_wakeup_event();
 }
 
 static ktime_t tick_nohz_start_idle(struct tick_sched *ts)
@@ -656,6 +666,12 @@ static void tick_nohz_restart(struct tick_sched *ts, ktime_t now)
 		hrtimer_start_expires(&ts->sched_timer, HRTIMER_MODE_ABS_PINNED);
 	else
 		tick_program_event(hrtimer_get_expires(&ts->sched_timer), 1);
+
+	/*
+	 * Reset to make sure next tick stop doesn't get fooled by past
+	 * cached clock deadline.
+	 */
+	ts->next_tick = 0;
 }
 
 static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
@@ -697,8 +713,6 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 	 */
 	delta = next_tick - basemono;
 	if (delta <= (u64)TICK_NSEC) {
-		tick = 0;
-
 		/*
 		 * Tell the timer code that the base is not idle, i.e. undo
 		 * the effect of get_next_timer_interrupt():
@@ -708,28 +722,8 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 		 * We've not stopped the tick yet, and there's a timer in the
 		 * next period, so no point in stopping it either, bail.
 		 */
-		if (!ts->tick_stopped)
-			goto out;
-
-		/*
-		 * If, OTOH, we did stop it, but there's a pending (expired)
-		 * timer reprogram the timer hardware to fire now.
-		 *
-		 * We will not restart the tick proper, just prod the timer
-		 * hardware into firing an interrupt to process the pending
-		 * timers. Just like tick_irq_exit() will not restart the tick
-		 * for 'normal' interrupts.
-		 *
-		 * Only once we exit the idle loop will we re-enable the tick,
-		 * see tick_nohz_idle_exit().
-		 */
-		if (delta == 0) {
-			tick_nohz_restart(ts, now);
-			/*
-			 * Make sure next tick stop doesn't get fooled by past
-			 * clock deadline
-			 */
-			ts->next_tick = 0;
+		if (!ts->tick_stopped) {
+			tick = 0;
 			goto out;
 		}
 	}
@@ -772,8 +766,16 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 	tick = expires;
 
 	/* Skip reprogram of event if its not changed */
-	if (ts->tick_stopped && (expires == ts->next_tick))
-		goto out;
+	if (ts->tick_stopped && (expires == ts->next_tick)) {
+		/* Sanity check: make sure clockevent is actually programmed */
+		if (tick == KTIME_MAX || ts->next_tick == hrtimer_get_expires(&ts->sched_timer))
+			goto out;
+
+		WARN_ON_ONCE(1);
+		printk_once("basemono: %llu ts->next_tick: %llu dev->next_event: %llu timer->active: %d timer->expires: %llu\n",
+			    basemono, ts->next_tick, dev->next_event,
+			    hrtimer_active(&ts->sched_timer), hrtimer_get_expires(&ts->sched_timer));
+	}
 
 	/*
 	 * nohz_stop_sched_tick can be called several times before
@@ -783,8 +785,7 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 	 * the scheduler tick in nohz_restart_sched_tick.
 	 */
 	if (!ts->tick_stopped) {
-		nohz_balance_enter_idle(cpu);
-		calc_load_enter_idle();
+		calc_load_nohz_start();
 		cpu_load_update_nohz_start();
 
 		ts->last_tick = hrtimer_get_expires(&ts->sched_timer);
@@ -804,8 +805,10 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 		goto out;
 	}
 
+	hrtimer_set_expires(&ts->sched_timer, tick);
+
 	if (ts->nohz_mode == NOHZ_MODE_HIGHRES)
-		hrtimer_start(&ts->sched_timer, tick, HRTIMER_MODE_ABS_PINNED);
+		hrtimer_start_expires(&ts->sched_timer, HRTIMER_MODE_ABS_PINNED);
 	else
 		tick_program_event(tick, 1);
 out:
@@ -829,7 +832,7 @@ static void tick_nohz_restart_sched_tick(struct tick_sched *ts, ktime_t now)
 	 */
 	timer_clear_idle();
 
-	calc_load_exit_idle();
+	calc_load_nohz_stop();
 	touch_softlockup_watchdog_sched();
 	/*
 	 * Cancel the scheduled timer and restore the tick
@@ -870,6 +873,11 @@ static bool can_stop_idle_tick(int cpu, struct tick_sched *ts)
 	if (unlikely(!cpu_online(cpu))) {
 		if (cpu == tick_do_timer_cpu)
 			tick_do_timer_cpu = TICK_DO_TIMER_NONE;
+		/*
+		 * Make sure the CPU doesn't get fooled by obsolete tick
+		 * deadline if it comes back online later.
+		 */
+		ts->next_tick = 0;
 		return false;
 	}
 
@@ -929,8 +937,10 @@ static void __tick_nohz_idle_enter(struct tick_sched *ts)
 			ts->idle_expires = expires;
 		}
 
-		if (!was_stopped && ts->tick_stopped)
+		if (!was_stopped && ts->tick_stopped) {
 			ts->idle_jiffies = ts->last_jiffies;
+			nohz_balance_enter_idle(cpu);
+		}
 	}
 }
 
@@ -997,6 +1007,18 @@ ktime_t tick_nohz_get_sleep_length(void)
 	struct tick_sched *ts = this_cpu_ptr(&tick_cpu_sched);
 
 	return ts->sleep_length;
+}
+
+/**
+ * tick_nohz_get_idle_calls - return the current idle calls counter value
+ *
+ * Called from the schedutil frequency scaling governor in scheduler context.
+ */
+unsigned long tick_nohz_get_idle_calls(void)
+{
+	struct tick_sched *ts = this_cpu_ptr(&tick_cpu_sched);
+
+	return ts->idle_calls;
 }
 
 static void tick_nohz_account_idle_ticks(struct tick_sched *ts)
@@ -1166,6 +1188,8 @@ static enum hrtimer_restart tick_sched_timer(struct hrtimer *timer)
 	 */
 	if (regs)
 		tick_sched_handle(ts, regs);
+	else
+		ts->next_tick = 0;
 
 	/* No need to reprogram if we are in idle or full dynticks mode */
 	if (unlikely(ts->tick_stopped))

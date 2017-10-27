@@ -18,6 +18,9 @@
 #include <linux/dma-fence.h>
 #include <linux/moduleparam.h>
 #include <linux/of_device.h>
+#include <linux/thermal.h>
+
+#include "etnaviv_cmdbuf.h"
 #include "etnaviv_dump.h"
 #include "etnaviv_gpu.h"
 #include "etnaviv_gem.h"
@@ -407,6 +410,23 @@ static void etnaviv_gpu_load_clock(struct etnaviv_gpu *gpu, u32 clock)
 	gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, clock);
 }
 
+static void etnaviv_gpu_update_clock(struct etnaviv_gpu *gpu)
+{
+	if (gpu->identity.minor_features2 &
+	    chipMinorFeatures2_DYNAMIC_FREQUENCY_SCALING) {
+		clk_set_rate(gpu->clk_core,
+			     gpu->base_rate_core >> gpu->freq_scale);
+		clk_set_rate(gpu->clk_shader,
+			     gpu->base_rate_shader >> gpu->freq_scale);
+	} else {
+		unsigned int fscale = 1 << (6 - gpu->freq_scale);
+		u32 clock = VIVS_HI_CLOCK_CONTROL_DISABLE_DEBUG_REGISTERS |
+			    VIVS_HI_CLOCK_CONTROL_FSCALE_VAL(fscale);
+
+		etnaviv_gpu_load_clock(gpu, clock);
+	}
+}
+
 static int etnaviv_hw_reset(struct etnaviv_gpu *gpu)
 {
 	u32 control, idle;
@@ -424,11 +444,10 @@ static int etnaviv_hw_reset(struct etnaviv_gpu *gpu)
 	timeout = jiffies + msecs_to_jiffies(1000);
 
 	while (time_is_after_jiffies(timeout)) {
-		control = VIVS_HI_CLOCK_CONTROL_DISABLE_DEBUG_REGISTERS |
-			  VIVS_HI_CLOCK_CONTROL_FSCALE_VAL(0x40);
-
 		/* enable clock */
-		etnaviv_gpu_load_clock(gpu, control);
+		etnaviv_gpu_update_clock(gpu);
+
+		control = gpu_read(gpu, VIVS_HI_CLOCK_CONTROL);
 
 		/* Wait for stable clock.  Vivante's code waited for 1ms */
 		usleep_range(1000, 10000);
@@ -488,11 +507,7 @@ static int etnaviv_hw_reset(struct etnaviv_gpu *gpu)
 	}
 
 	/* We rely on the GPU running, so program the clock */
-	control = VIVS_HI_CLOCK_CONTROL_DISABLE_DEBUG_REGISTERS |
-		  VIVS_HI_CLOCK_CONTROL_FSCALE_VAL(0x40);
-
-	/* enable clock */
-	etnaviv_gpu_load_clock(gpu, control);
+	etnaviv_gpu_update_clock(gpu);
 
 	return 0;
 }
@@ -514,9 +529,10 @@ static void etnaviv_gpu_enable_mlcg(struct etnaviv_gpu *gpu)
 
 	pmc = gpu_read(gpu, VIVS_PM_MODULE_CONTROLS);
 
-	/* Disable PA clock gating for GC400+ except for GC420 */
+	/* Disable PA clock gating for GC400+ without bugfix except for GC420 */
 	if (gpu->identity.model >= chipModel_GC400 &&
-	    gpu->identity.model != chipModel_GC420)
+	    gpu->identity.model != chipModel_GC420 &&
+	    !(gpu->identity.minor_features3 & chipMinorFeatures3_BUG_FIXES12))
 		pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_PA;
 
 	/*
@@ -532,6 +548,11 @@ static void etnaviv_gpu_enable_mlcg(struct etnaviv_gpu *gpu)
 	if (gpu->identity.revision < 0x5422)
 		pmc |= BIT(15); /* Unknown bit */
 
+	/* Disable TX clock gating on affected core revisions. */
+	if (etnaviv_is_model_rev(gpu, GC4000, 0x5222) ||
+	    etnaviv_is_model_rev(gpu, GC2000, 0x5108))
+		pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_TX;
+
 	pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_RA_HZ;
 	pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_RA_EZ;
 
@@ -544,6 +565,37 @@ void etnaviv_gpu_start_fe(struct etnaviv_gpu *gpu, u32 address, u16 prefetch)
 	gpu_write(gpu, VIVS_FE_COMMAND_CONTROL,
 		  VIVS_FE_COMMAND_CONTROL_ENABLE |
 		  VIVS_FE_COMMAND_CONTROL_PREFETCH(prefetch));
+}
+
+static void etnaviv_gpu_setup_pulse_eater(struct etnaviv_gpu *gpu)
+{
+	/*
+	 * Base value for VIVS_PM_PULSE_EATER register on models where it
+	 * cannot be read, extracted from vivante kernel driver.
+	 */
+	u32 pulse_eater = 0x01590880;
+
+	if (etnaviv_is_model_rev(gpu, GC4000, 0x5208) ||
+	    etnaviv_is_model_rev(gpu, GC4000, 0x5222)) {
+		pulse_eater |= BIT(23);
+
+	}
+
+	if (etnaviv_is_model_rev(gpu, GC1000, 0x5039) ||
+	    etnaviv_is_model_rev(gpu, GC1000, 0x5040)) {
+		pulse_eater &= ~BIT(16);
+		pulse_eater |= BIT(17);
+	}
+
+	if ((gpu->identity.revision > 0x5420) &&
+	    (gpu->identity.features & chipFeatures_PIPE_3D))
+	{
+		/* Performance fix: disable internal DFS */
+		pulse_eater = gpu_read(gpu, VIVS_PM_PULSE_EATER);
+		pulse_eater |= BIT(18);
+	}
+
+	gpu_write(gpu, VIVS_PM_PULSE_EATER, pulse_eater);
 }
 
 static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
@@ -586,6 +638,9 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 		gpu_write(gpu, VIVS_MC_BUS_CONFIG, bus_config);
 	}
 
+	/* setup the pulse eater */
+	etnaviv_gpu_setup_pulse_eater(gpu);
+
 	/* setup the MMU */
 	etnaviv_iommu_restore(gpu);
 
@@ -593,7 +648,7 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 	prefetch = etnaviv_buffer_init(gpu);
 
 	gpu_write(gpu, VIVS_HI_INTR_ENBL, ~0U);
-	etnaviv_gpu_start_fe(gpu, etnaviv_iommu_get_cmdbuf_va(gpu, gpu->buffer),
+	etnaviv_gpu_start_fe(gpu, etnaviv_cmdbuf_get_va(gpu->buffer),
 			     prefetch);
 }
 
@@ -658,8 +713,15 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 		goto fail;
 	}
 
+	gpu->cmdbuf_suballoc = etnaviv_cmdbuf_suballoc_new(gpu);
+	if (IS_ERR(gpu->cmdbuf_suballoc)) {
+		dev_err(gpu->dev, "Failed to create cmdbuf suballocator\n");
+		ret = PTR_ERR(gpu->cmdbuf_suballoc);
+		goto fail;
+	}
+
 	/* Create buffer: */
-	gpu->buffer = etnaviv_gpu_cmdbuf_new(gpu, PAGE_SIZE, 0);
+	gpu->buffer = etnaviv_cmdbuf_new(gpu->cmdbuf_suballoc, PAGE_SIZE, 0);
 	if (!gpu->buffer) {
 		ret = -ENOMEM;
 		dev_err(gpu->dev, "could not create command buffer\n");
@@ -667,7 +729,7 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	}
 
 	if (gpu->mmu->version == ETNAVIV_IOMMU_V1 &&
-	    gpu->buffer->paddr - gpu->memory_base > 0x80000000) {
+	    etnaviv_cmdbuf_get_va(gpu->buffer) > 0x80000000) {
 		ret = -EINVAL;
 		dev_err(gpu->dev,
 			"command buffer outside valid memory window\n");
@@ -694,7 +756,7 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	return 0;
 
 free_buffer:
-	etnaviv_gpu_cmdbuf_free(gpu->buffer);
+	etnaviv_cmdbuf_free(gpu->buffer);
 	gpu->buffer = NULL;
 destroy_iommu:
 	etnaviv_iommu_destroy(gpu->mmu);
@@ -1008,6 +1070,12 @@ static struct dma_fence *etnaviv_gpu_fence_alloc(struct etnaviv_gpu *gpu)
 {
 	struct etnaviv_fence *f;
 
+	/*
+	 * GPU lock must already be held, otherwise fence completion order might
+	 * not match the seqno order assigned here.
+	 */
+	lockdep_assert_held(&gpu->lock);
+
 	f = kzalloc(sizeof(*f), GFP_KERNEL);
 	if (!f)
 		return NULL;
@@ -1021,7 +1089,7 @@ static struct dma_fence *etnaviv_gpu_fence_alloc(struct etnaviv_gpu *gpu)
 }
 
 int etnaviv_gpu_fence_sync_obj(struct etnaviv_gem_object *etnaviv_obj,
-	unsigned int context, bool exclusive)
+	unsigned int context, bool exclusive, bool explicit)
 {
 	struct reservation_object *robj = etnaviv_obj->resv;
 	struct reservation_object_list *fobj;
@@ -1033,6 +1101,9 @@ int etnaviv_gpu_fence_sync_obj(struct etnaviv_gem_object *etnaviv_obj,
 		if (ret)
 			return ret;
 	}
+
+	if (explicit)
+		return 0;
 
 	/*
 	 * If we have any shared fences, then the exclusive fence
@@ -1117,41 +1188,6 @@ static void event_free(struct etnaviv_gpu *gpu, unsigned int event)
  * Cmdstream submission/retirement:
  */
 
-struct etnaviv_cmdbuf *etnaviv_gpu_cmdbuf_new(struct etnaviv_gpu *gpu, u32 size,
-	size_t nr_bos)
-{
-	struct etnaviv_cmdbuf *cmdbuf;
-	size_t sz = size_vstruct(nr_bos, sizeof(cmdbuf->bo_map[0]),
-				 sizeof(*cmdbuf));
-
-	cmdbuf = kzalloc(sz, GFP_KERNEL);
-	if (!cmdbuf)
-		return NULL;
-
-	if (gpu->mmu->version == ETNAVIV_IOMMU_V2)
-		size = ALIGN(size, SZ_4K);
-
-	cmdbuf->vaddr = dma_alloc_wc(gpu->dev, size, &cmdbuf->paddr,
-				     GFP_KERNEL);
-	if (!cmdbuf->vaddr) {
-		kfree(cmdbuf);
-		return NULL;
-	}
-
-	cmdbuf->gpu = gpu;
-	cmdbuf->size = size;
-
-	return cmdbuf;
-}
-
-void etnaviv_gpu_cmdbuf_free(struct etnaviv_cmdbuf *cmdbuf)
-{
-	etnaviv_iommu_put_cmdbuf_va(cmdbuf->gpu, cmdbuf);
-	dma_free_wc(cmdbuf->gpu->dev, cmdbuf->size, cmdbuf->vaddr,
-		    cmdbuf->paddr);
-	kfree(cmdbuf);
-}
-
 static void retire_worker(struct work_struct *work)
 {
 	struct etnaviv_gpu *gpu = container_of(work, struct etnaviv_gpu,
@@ -1177,7 +1213,7 @@ static void retire_worker(struct work_struct *work)
 			etnaviv_gem_mapping_unreference(mapping);
 		}
 
-		etnaviv_gpu_cmdbuf_free(cmdbuf);
+		etnaviv_cmdbuf_free(cmdbuf);
 		/*
 		 * We need to balance the runtime PM count caused by
 		 * each submission.  Upon submission, we increment
@@ -1303,18 +1339,18 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 		goto out_pm_put;
 	}
 
+	mutex_lock(&gpu->lock);
+
 	fence = etnaviv_gpu_fence_alloc(gpu);
 	if (!fence) {
 		event_free(gpu, event);
 		ret = -ENOMEM;
-		goto out_pm_put;
+		goto out_unlock;
 	}
 
-	mutex_lock(&gpu->lock);
-
 	gpu->event[event].fence = fence;
-	submit->fence = fence->seqno;
-	gpu->active_fence = submit->fence;
+	submit->fence = dma_fence_get(fence);
+	gpu->active_fence = submit->fence->seqno;
 
 	if (gpu->lastctx != cmdbuf->ctx) {
 		gpu->mmu->need_flush = true;
@@ -1349,6 +1385,7 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	hangcheck_timer_reset(gpu);
 	ret = 0;
 
+out_unlock:
 	mutex_unlock(&gpu->lock);
 
 out_pm_put:
@@ -1518,17 +1555,13 @@ static int etnaviv_gpu_hw_suspend(struct etnaviv_gpu *gpu)
 #ifdef CONFIG_PM
 static int etnaviv_gpu_hw_resume(struct etnaviv_gpu *gpu)
 {
-	u32 clock;
 	int ret;
 
 	ret = mutex_lock_killable(&gpu->lock);
 	if (ret)
 		return ret;
 
-	clock = VIVS_HI_CLOCK_CONTROL_DISABLE_DEBUG_REGISTERS |
-		VIVS_HI_CLOCK_CONTROL_FSCALE_VAL(0x40);
-
-	etnaviv_gpu_load_clock(gpu, clock);
+	etnaviv_gpu_update_clock(gpu);
 	etnaviv_gpu_hw_init(gpu);
 
 	gpu->switch_context = true;
@@ -1540,6 +1573,47 @@ static int etnaviv_gpu_hw_resume(struct etnaviv_gpu *gpu)
 }
 #endif
 
+static int
+etnaviv_gpu_cooling_get_max_state(struct thermal_cooling_device *cdev,
+				  unsigned long *state)
+{
+	*state = 6;
+
+	return 0;
+}
+
+static int
+etnaviv_gpu_cooling_get_cur_state(struct thermal_cooling_device *cdev,
+				  unsigned long *state)
+{
+	struct etnaviv_gpu *gpu = cdev->devdata;
+
+	*state = gpu->freq_scale;
+
+	return 0;
+}
+
+static int
+etnaviv_gpu_cooling_set_cur_state(struct thermal_cooling_device *cdev,
+				  unsigned long state)
+{
+	struct etnaviv_gpu *gpu = cdev->devdata;
+
+	mutex_lock(&gpu->lock);
+	gpu->freq_scale = state;
+	if (!pm_runtime_suspended(gpu->dev))
+		etnaviv_gpu_update_clock(gpu);
+	mutex_unlock(&gpu->lock);
+
+	return 0;
+}
+
+static struct thermal_cooling_device_ops cooling_ops = {
+	.get_max_state = etnaviv_gpu_cooling_get_max_state,
+	.get_cur_state = etnaviv_gpu_cooling_get_cur_state,
+	.set_cur_state = etnaviv_gpu_cooling_set_cur_state,
+};
+
 static int etnaviv_gpu_bind(struct device *dev, struct device *master,
 	void *data)
 {
@@ -1548,13 +1622,22 @@ static int etnaviv_gpu_bind(struct device *dev, struct device *master,
 	struct etnaviv_gpu *gpu = dev_get_drvdata(dev);
 	int ret;
 
+	if (IS_ENABLED(CONFIG_THERMAL)) {
+		gpu->cooling = thermal_of_cooling_device_register(dev->of_node,
+				(char *)dev_name(dev), gpu, &cooling_ops);
+		if (IS_ERR(gpu->cooling))
+			return PTR_ERR(gpu->cooling);
+	}
+
 #ifdef CONFIG_PM
 	ret = pm_runtime_get_sync(gpu->dev);
 #else
 	ret = etnaviv_gpu_clk_enable(gpu);
 #endif
-	if (ret < 0)
+	if (ret < 0) {
+		thermal_cooling_device_unregister(gpu->cooling);
 		return ret;
+	}
 
 	gpu->drm = drm;
 	gpu->fence_context = dma_fence_context_alloc(1);
@@ -1593,8 +1676,13 @@ static void etnaviv_gpu_unbind(struct device *dev, struct device *master,
 #endif
 
 	if (gpu->buffer) {
-		etnaviv_gpu_cmdbuf_free(gpu->buffer);
+		etnaviv_cmdbuf_free(gpu->buffer);
 		gpu->buffer = NULL;
+	}
+
+	if (gpu->cmdbuf_suballoc) {
+		etnaviv_cmdbuf_suballoc_destroy(gpu->cmdbuf_suballoc);
+		gpu->cmdbuf_suballoc = NULL;
 	}
 
 	if (gpu->mmu) {
@@ -1603,6 +1691,9 @@ static void etnaviv_gpu_unbind(struct device *dev, struct device *master,
 	}
 
 	gpu->drm = NULL;
+
+	thermal_cooling_device_unregister(gpu->cooling);
+	gpu->cooling = NULL;
 }
 
 static const struct component_ops gpu_ops = {
@@ -1659,11 +1750,13 @@ static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 	DBG("clk_core: %p", gpu->clk_core);
 	if (IS_ERR(gpu->clk_core))
 		gpu->clk_core = NULL;
+	gpu->base_rate_core = clk_get_rate(gpu->clk_core);
 
 	gpu->clk_shader = devm_clk_get(&pdev->dev, "shader");
 	DBG("clk_shader: %p", gpu->clk_shader);
 	if (IS_ERR(gpu->clk_shader))
 		gpu->clk_shader = NULL;
+	gpu->base_rate_shader = clk_get_rate(gpu->clk_shader);
 
 	/* TODO: figure out max mapped size */
 	dev_set_drvdata(dev, gpu);

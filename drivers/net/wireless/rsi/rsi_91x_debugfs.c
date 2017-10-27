@@ -125,9 +125,12 @@ static int rsi_stats_read(struct seq_file *seq, void *data)
 	struct rsi_common *common = seq->private;
 
 	unsigned char fsm_state[][32] = {
+		"FSM_FW_NOT_LOADED",
 		"FSM_CARD_NOT_READY",
+		"FSM_COMMON_DEV_PARAMS_SENT",
 		"FSM_BOOT_PARAMS_SENT",
 		"FSM_EEPROM_READ_MAC_ADDR",
+		"FSM_EEPROM_READ_RF_TYPE",
 		"FSM_RESET_MAC_SENT",
 		"FSM_RADIO_CAPS_SENT",
 		"FSM_BB_RF_PROG_SENT",
@@ -135,6 +138,8 @@ static int rsi_stats_read(struct seq_file *seq, void *data)
 	};
 	seq_puts(seq, "==> RSI STA DRIVER STATUS <==\n");
 	seq_puts(seq, "DRIVER_FSM_STATE: ");
+
+	BUILD_BUG_ON(ARRAY_SIZE(fsm_state) != NUM_FSM_STATES);
 
 	if (common->fsm_state <= FSM_MAC_INIT_DONE)
 		seq_printf(seq, "%s", fsm_state[common->fsm_state]);

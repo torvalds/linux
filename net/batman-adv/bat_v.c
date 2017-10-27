@@ -1,4 +1,4 @@
-/* Copyright (C) 2013-2016 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2013-2017  B.A.T.M.A.N. contributors:
  *
  * Linus Lüssing, Marek Lindner
  *
@@ -400,7 +400,7 @@ static void batadv_v_orig_print(struct batadv_priv *bat_priv,
 				   neigh_node->if_incoming->net_dev->name);
 
 			batadv_v_orig_print_neigh(orig_node, if_outgoing, seq);
-			seq_puts(seq, "\n");
+			seq_putc(seq, '\n');
 			batman_count++;
 
 next:
@@ -666,6 +666,16 @@ err_ifinfo2:
 	batadv_neigh_ifinfo_put(ifinfo1);
 err_ifinfo1:
 	return ret;
+}
+
+/**
+ * batadv_v_init_sel_class - initialize GW selection class
+ * @bat_priv: the bat priv with all the soft interface information
+ */
+static void batadv_v_init_sel_class(struct batadv_priv *bat_priv)
+{
+	/* set default throughput difference threshold to 5Mbps */
+	atomic_set(&bat_priv->gw.sel_class, 50);
 }
 
 static ssize_t batadv_v_store_sel_class(struct batadv_priv *bat_priv,
@@ -1052,6 +1062,7 @@ static struct batadv_algo_ops batadv_batman_v __read_mostly = {
 		.dump = batadv_v_orig_dump,
 	},
 	.gw = {
+		.init_sel_class = batadv_v_init_sel_class,
 		.store_sel_class = batadv_v_store_sel_class,
 		.show_sel_class = batadv_v_show_sel_class,
 		.get_best_gw_node = batadv_v_gw_get_best_gw_node,
@@ -1091,9 +1102,6 @@ int batadv_v_mesh_init(struct batadv_priv *bat_priv)
 	ret = batadv_v_ogm_init(bat_priv);
 	if (ret < 0)
 		return ret;
-
-	/* set default throughput difference threshold to 5Mbps */
-	atomic_set(&bat_priv->gw.sel_class, 50);
 
 	return 0;
 }

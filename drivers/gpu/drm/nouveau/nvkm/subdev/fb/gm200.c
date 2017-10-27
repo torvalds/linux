@@ -68,7 +68,7 @@ gm200_fb = {
 	.init = gm200_fb_init,
 	.init_page = gm200_fb_init_page,
 	.intr = gf100_fb_intr,
-	.ram_new = gm107_ram_new,
+	.ram_new = gm200_ram_new,
 	.memtype_valid = gf100_fb_memtype_valid,
 };
 

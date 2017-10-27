@@ -3,6 +3,11 @@
 Required properties:
 - compatible: "arm,pl080", "arm,primecell";
 	      "arm,pl081", "arm,primecell";
+	      "faraday,ftdmac020", "arm,primecell"
+- arm,primecell-periphid: on the FTDMAC020 the primecell ID is not hard-coded
+  in the hardware and must be specified here as <0x0003b080>. This number
+  follows the PrimeCell standard numbering using the JEP106 vendor code 0x38
+  for Faraday Technology.
 - reg: Address range of the PL08x registers
 - interrupt: The PL08x interrupt number
 - clocks: The clock running the IP core clock
@@ -20,8 +25,8 @@ Optional properties:
 - dma-requests: contains the total number of DMA requests supported by the DMAC
 - memcpy-burst-size: the size of the bursts for memcpy: 1, 4, 8, 16, 32
   64, 128 or 256 bytes are legal values
-- memcpy-bus-width: the bus width used for memcpy: 8, 16 or 32 are legal
-  values
+- memcpy-bus-width: the bus width used for memcpy in bits: 8, 16 or 32 are legal
+  values, the Faraday FTDMAC020 can also accept 64 bits
 
 Clients
 Required properties:

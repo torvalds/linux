@@ -35,6 +35,7 @@ static const intercept_handler_t instruction_handlers[256] = {
 	[0xb6] = kvm_s390_handle_stctl,
 	[0xb7] = kvm_s390_handle_lctl,
 	[0xb9] = kvm_s390_handle_b9,
+	[0xe3] = kvm_s390_handle_e3,
 	[0xe5] = kvm_s390_handle_e5,
 	[0xeb] = kvm_s390_handle_eb,
 };
@@ -238,7 +239,9 @@ static int handle_prog(struct kvm_vcpu *vcpu)
 	vcpu->stat.exit_program_interruption++;
 
 	if (guestdbg_enabled(vcpu) && per_event(vcpu)) {
-		kvm_s390_handle_per_event(vcpu);
+		rc = kvm_s390_handle_per_event(vcpu);
+		if (rc)
+			return rc;
 		/* the interrupt might have been filtered out completely */
 		if (vcpu->arch.sie_block->iprcc == 0)
 			return 0;
@@ -359,15 +362,35 @@ static int handle_partial_execution(struct kvm_vcpu *vcpu)
 
 static int handle_operexc(struct kvm_vcpu *vcpu)
 {
+	psw_t oldpsw, newpsw;
+	int rc;
+
 	vcpu->stat.exit_operation_exception++;
 	trace_kvm_s390_handle_operexc(vcpu, vcpu->arch.sie_block->ipa,
 				      vcpu->arch.sie_block->ipb);
 
-	if (vcpu->arch.sie_block->ipa == 0xb256 &&
-	    test_kvm_facility(vcpu->kvm, 74))
+	if (vcpu->arch.sie_block->ipa == 0xb256)
 		return handle_sthyi(vcpu);
 
 	if (vcpu->arch.sie_block->ipa == 0 && vcpu->kvm->arch.user_instr0)
+		return -EOPNOTSUPP;
+	rc = read_guest_lc(vcpu, __LC_PGM_NEW_PSW, &newpsw, sizeof(psw_t));
+	if (rc)
+		return rc;
+	/*
+	 * Avoid endless loops of operation exceptions, if the pgm new
+	 * PSW will cause a new operation exception.
+	 * The heuristic checks if the pgm new psw is within 6 bytes before
+	 * the faulting psw address (with same DAT, AS settings) and the
+	 * new psw is not a wait psw and the fault was not triggered by
+	 * problem state.
+	 */
+	oldpsw = vcpu->arch.sie_block->gpsw;
+	if (oldpsw.addr - newpsw.addr <= 6 &&
+	    !(newpsw.mask & PSW_MASK_WAIT) &&
+	    !(oldpsw.mask & PSW_MASK_PSTATE) &&
+	    (newpsw.mask & PSW_MASK_ASC) == (oldpsw.mask & PSW_MASK_ASC) &&
+	    (newpsw.mask & PSW_MASK_DAT) == (oldpsw.mask & PSW_MASK_DAT))
 		return -EOPNOTSUPP;
 
 	return kvm_s390_inject_program_int(vcpu, PGM_OPERATION);
@@ -381,27 +404,30 @@ int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
 		return -EOPNOTSUPP;
 
 	switch (vcpu->arch.sie_block->icptcode) {
-	case 0x10:
-	case 0x18:
+	case ICPT_EXTREQ:
+	case ICPT_IOREQ:
 		return handle_noop(vcpu);
-	case 0x04:
+	case ICPT_INST:
 		rc = handle_instruction(vcpu);
 		break;
-	case 0x08:
+	case ICPT_PROGI:
 		return handle_prog(vcpu);
-	case 0x14:
+	case ICPT_EXTINT:
 		return handle_external_interrupt(vcpu);
-	case 0x1c:
+	case ICPT_WAIT:
 		return kvm_s390_handle_wait(vcpu);
-	case 0x20:
+	case ICPT_VALIDITY:
 		return handle_validity(vcpu);
-	case 0x28:
+	case ICPT_STOP:
 		return handle_stop(vcpu);
-	case 0x2c:
+	case ICPT_OPEREXC:
 		rc = handle_operexc(vcpu);
 		break;
-	case 0x38:
+	case ICPT_PARTEXEC:
 		rc = handle_partial_execution(vcpu);
+		break;
+	case ICPT_KSS:
+		rc = kvm_s390_skey_check_enable(vcpu);
 		break;
 	default:
 		return -EOPNOTSUPP;

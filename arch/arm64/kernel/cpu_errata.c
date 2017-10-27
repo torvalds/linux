@@ -53,6 +53,13 @@ static int cpu_enable_trap_ctr_access(void *__unused)
 	.midr_range_min = min, \
 	.midr_range_max = max
 
+#define MIDR_ALL_VERSIONS(model) \
+	.def_scope = SCOPE_LOCAL_CPU, \
+	.matches = is_affected_midr_range, \
+	.midr_model = model, \
+	.midr_range_min = 0, \
+	.midr_range_max = (MIDR_VARIANT_MASK | MIDR_REVISION_MASK)
+
 const struct arm64_cpu_capabilities arm64_errata[] = {
 #if	defined(CONFIG_ARM64_ERRATUM_826319) || \
 	defined(CONFIG_ARM64_ERRATUM_827319) || \
@@ -79,8 +86,9 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 	/* Cortex-A57 r0p0 - r1p2 */
 		.desc = "ARM erratum 832075",
 		.capability = ARM64_WORKAROUND_DEVICE_LOAD_ACQUIRE,
-		MIDR_RANGE(MIDR_CORTEX_A57, 0x00,
-			   (1 << MIDR_VARIANT_SHIFT) | 2),
+		MIDR_RANGE(MIDR_CORTEX_A57,
+			   MIDR_CPU_VAR_REV(0, 0),
+			   MIDR_CPU_VAR_REV(1, 2)),
 	},
 #endif
 #ifdef CONFIG_ARM64_ERRATUM_834220
@@ -88,8 +96,9 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 	/* Cortex-A57 r0p0 - r1p2 */
 		.desc = "ARM erratum 834220",
 		.capability = ARM64_WORKAROUND_834220,
-		MIDR_RANGE(MIDR_CORTEX_A57, 0x00,
-			   (1 << MIDR_VARIANT_SHIFT) | 2),
+		MIDR_RANGE(MIDR_CORTEX_A57,
+			   MIDR_CPU_VAR_REV(0, 0),
+			   MIDR_CPU_VAR_REV(1, 2)),
 	},
 #endif
 #ifdef CONFIG_ARM64_ERRATUM_845719
@@ -113,14 +122,36 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 	/* Cavium ThunderX, T88 pass 1.x - 2.1 */
 		.desc = "Cavium erratum 27456",
 		.capability = ARM64_WORKAROUND_CAVIUM_27456,
-		MIDR_RANGE(MIDR_THUNDERX, 0x00,
-			   (1 << MIDR_VARIANT_SHIFT) | 1),
+		MIDR_RANGE(MIDR_THUNDERX,
+			   MIDR_CPU_VAR_REV(0, 0),
+			   MIDR_CPU_VAR_REV(1, 1)),
 	},
 	{
 	/* Cavium ThunderX, T81 pass 1.0 */
 		.desc = "Cavium erratum 27456",
 		.capability = ARM64_WORKAROUND_CAVIUM_27456,
 		MIDR_RANGE(MIDR_THUNDERX_81XX, 0x00, 0x00),
+	},
+#endif
+#ifdef CONFIG_CAVIUM_ERRATUM_30115
+	{
+	/* Cavium ThunderX, T88 pass 1.x - 2.2 */
+		.desc = "Cavium erratum 30115",
+		.capability = ARM64_WORKAROUND_CAVIUM_30115,
+		MIDR_RANGE(MIDR_THUNDERX, 0x00,
+			   (1 << MIDR_VARIANT_SHIFT) | 2),
+	},
+	{
+	/* Cavium ThunderX, T81 pass 1.0 - 1.2 */
+		.desc = "Cavium erratum 30115",
+		.capability = ARM64_WORKAROUND_CAVIUM_30115,
+		MIDR_RANGE(MIDR_THUNDERX_81XX, 0x00, 0x02),
+	},
+	{
+	/* Cavium ThunderX, T83 pass 1.0 */
+		.desc = "Cavium erratum 30115",
+		.capability = ARM64_WORKAROUND_CAVIUM_30115,
+		MIDR_RANGE(MIDR_THUNDERX_83XX, 0x00, 0x00),
 	},
 #endif
 	{
@@ -130,6 +161,32 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		.def_scope = SCOPE_LOCAL_CPU,
 		.enable = cpu_enable_trap_ctr_access,
 	},
+#ifdef CONFIG_QCOM_FALKOR_ERRATUM_1003
+	{
+		.desc = "Qualcomm Technologies Falkor erratum 1003",
+		.capability = ARM64_WORKAROUND_QCOM_FALKOR_E1003,
+		MIDR_RANGE(MIDR_QCOM_FALKOR_V1,
+			   MIDR_CPU_VAR_REV(0, 0),
+			   MIDR_CPU_VAR_REV(0, 0)),
+	},
+#endif
+#ifdef CONFIG_QCOM_FALKOR_ERRATUM_1009
+	{
+		.desc = "Qualcomm Technologies Falkor erratum 1009",
+		.capability = ARM64_WORKAROUND_REPEAT_TLBI,
+		MIDR_RANGE(MIDR_QCOM_FALKOR_V1,
+			   MIDR_CPU_VAR_REV(0, 0),
+			   MIDR_CPU_VAR_REV(0, 0)),
+	},
+#endif
+#ifdef CONFIG_ARM64_ERRATUM_858921
+	{
+	/* Cortex-A73 all versions */
+		.desc = "ARM erratum 858921",
+		.capability = ARM64_WORKAROUND_858921,
+		MIDR_ALL_VERSIONS(MIDR_CORTEX_A73),
+	},
+#endif
 	{
 	}
 };

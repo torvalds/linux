@@ -221,7 +221,7 @@ out:
 /*
  * Set the access or default ACL of an inode.
  */
-int ocfs2_set_acl(handle_t *handle,
+static int ocfs2_set_acl(handle_t *handle,
 			 struct inode *inode,
 			 struct buffer_head *di_bh,
 			 int type,
@@ -240,18 +240,6 @@ int ocfs2_set_acl(handle_t *handle,
 	switch (type) {
 	case ACL_TYPE_ACCESS:
 		name_index = OCFS2_XATTR_INDEX_POSIX_ACL_ACCESS;
-		if (acl) {
-			umode_t mode;
-
-			ret = posix_acl_update_mode(inode, &mode, &acl);
-			if (ret)
-				return ret;
-
-			ret = ocfs2_acl_set_mode(inode, di_bh,
-						 handle, mode);
-			if (ret)
-				return ret;
-		}
 		break;
 	case ACL_TYPE_DEFAULT:
 		name_index = OCFS2_XATTR_INDEX_POSIX_ACL_DEFAULT;
@@ -283,16 +271,26 @@ int ocfs2_set_acl(handle_t *handle,
 int ocfs2_iop_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
 	struct buffer_head *bh = NULL;
-	int status = 0;
+	int status, had_lock;
+	struct ocfs2_lock_holder oh;
 
-	status = ocfs2_inode_lock(inode, &bh, 1);
-	if (status < 0) {
-		if (status != -ENOENT)
-			mlog_errno(status);
-		return status;
+	had_lock = ocfs2_inode_lock_tracker(inode, &bh, 1, &oh);
+	if (had_lock < 0)
+		return had_lock;
+	if (type == ACL_TYPE_ACCESS && acl) {
+		umode_t mode;
+
+		status = posix_acl_update_mode(inode, &mode, &acl);
+		if (status)
+			goto unlock;
+
+		status = ocfs2_acl_set_mode(inode, bh, NULL, mode);
+		if (status)
+			goto unlock;
 	}
 	status = ocfs2_set_acl(NULL, inode, bh, type, acl, NULL, NULL);
-	ocfs2_inode_unlock(inode, 1);
+unlock:
+	ocfs2_inode_unlock_tracker(inode, 1, &oh, had_lock);
 	brelse(bh);
 	return status;
 }
@@ -302,21 +300,20 @@ struct posix_acl *ocfs2_iop_get_acl(struct inode *inode, int type)
 	struct ocfs2_super *osb;
 	struct buffer_head *di_bh = NULL;
 	struct posix_acl *acl;
-	int ret;
+	int had_lock;
+	struct ocfs2_lock_holder oh;
 
 	osb = OCFS2_SB(inode->i_sb);
 	if (!(osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL))
 		return NULL;
-	ret = ocfs2_inode_lock(inode, &di_bh, 0);
-	if (ret < 0) {
-		if (ret != -ENOENT)
-			mlog_errno(ret);
-		return ERR_PTR(ret);
-	}
+
+	had_lock = ocfs2_inode_lock_tracker(inode, &di_bh, 0, &oh);
+	if (had_lock < 0)
+		return ERR_PTR(had_lock);
 
 	acl = ocfs2_get_acl_nolock(inode, type, di_bh);
 
-	ocfs2_inode_unlock(inode, 0);
+	ocfs2_inode_unlock_tracker(inode, 0, &oh, had_lock);
 	brelse(di_bh);
 	return acl;
 }

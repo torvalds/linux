@@ -31,13 +31,13 @@ extern int iscsit_find_cmd_for_recovery(struct iscsi_session *, struct iscsi_cmd
 			struct iscsi_conn_recovery **, itt_t);
 extern void iscsit_add_cmd_to_immediate_queue(struct iscsi_cmd *, struct iscsi_conn *, u8);
 extern struct iscsi_queue_req *iscsit_get_cmd_from_immediate_queue(struct iscsi_conn *);
-extern void iscsit_add_cmd_to_response_queue(struct iscsi_cmd *, struct iscsi_conn *, u8);
+extern int iscsit_add_cmd_to_response_queue(struct iscsi_cmd *, struct iscsi_conn *, u8);
 extern struct iscsi_queue_req *iscsit_get_cmd_from_response_queue(struct iscsi_conn *);
 extern void iscsit_remove_cmd_from_tx_queues(struct iscsi_cmd *, struct iscsi_conn *);
 extern bool iscsit_conn_all_queues_empty(struct iscsi_conn *);
 extern void iscsit_free_queue_reqs_for_conn(struct iscsi_conn *);
 extern void iscsit_release_cmd(struct iscsi_cmd *);
-extern void __iscsit_free_cmd(struct iscsi_cmd *, bool, bool);
+extern void __iscsit_free_cmd(struct iscsi_cmd *, bool);
 extern void iscsit_free_cmd(struct iscsi_cmd *, bool);
 extern int iscsit_check_session_usage_count(struct iscsi_session *);
 extern void iscsit_dec_session_usage_count(struct iscsi_session *);

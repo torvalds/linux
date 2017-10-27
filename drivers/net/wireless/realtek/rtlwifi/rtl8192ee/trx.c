@@ -394,10 +394,10 @@ bool rtl92ee_rx_query_desc(struct ieee80211_hw *hw,
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
 	if (status->rx_is40Mhzpacket)
-		rx_status->flag |= RX_FLAG_40MHZ;
+		rx_status->bw = RATE_INFO_BW_40;
 
 	if (status->is_ht)
-		rx_status->flag |= RX_FLAG_HT;
+		rx_status->encoding = RX_ENC_HT;
 
 	rx_status->flag |= RX_FLAG_MACTIME_START;
 
@@ -478,7 +478,6 @@ u16 rtl92ee_rx_desc_buff_remained_cnt(struct ieee80211_hw *hw, u8 queue_index)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u16 read_point = 0, write_point = 0, remind_cnt = 0;
 	u32 tmp_4byte = 0;
-	static u16 last_read_point;
 	static bool start_rx;
 
 	tmp_4byte = rtl_read_dword(rtlpriv, REG_RXQ_TXBD_IDX);
@@ -506,7 +505,6 @@ u16 rtl92ee_rx_desc_buff_remained_cnt(struct ieee80211_hw *hw, u8 queue_index)
 
 	rtlpci->rx_ring[queue_index].next_rx_rp = write_point;
 
-	last_read_point = read_point;
 	return remind_cnt;
 }
 
@@ -731,6 +729,9 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 			SET_TX_DESC_OFFSET(pdesc, USB_HWDESC_HEADER_LEN);
 		}
 
+		/* tx report */
+		rtl_get_tx_report(ptcb_desc, pdesc, hw);
+
 		SET_TX_DESC_TX_RATE(pdesc, ptcb_desc->hw_rate);
 
 		if (ieee80211_is_mgmt(fc)) {
@@ -914,7 +915,6 @@ void rtl92ee_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u16 cur_tx_rp = 0;
 	u16 cur_tx_wp = 0;
-	static u16 last_txw_point;
 	static bool over_run;
 	u32 tmp = 0;
 	u8 q_idx = *val;
@@ -948,9 +948,6 @@ void rtl92ee_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
 				rtl_write_word(rtlpriv,
 					       get_desc_addr_fr_q_idx(q_idx),
 					       ring->cur_tx_wp);
-
-				if (q_idx == 1)
-					last_txw_point = cur_tx_wp;
 			}
 
 			if (ring->avl_desc < (max_tx_desc - 15)) {
@@ -991,8 +988,9 @@ void rtl92ee_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
 			SET_RX_DESC_EOR(pdesc, 1);
 			break;
 		default:
-			RT_ASSERT(false,
-				  "ERR rxdesc :%d not process\n", desc_name);
+			WARN_ONCE(true,
+				  "rtl8192ee: ERR rxdesc :%d not processed\n",
+				  desc_name);
 			break;
 		}
 	}
@@ -1011,8 +1009,9 @@ u32 rtl92ee_get_desc(u8 *pdesc, bool istx, u8 desc_name)
 			ret = GET_TXBUFFER_DESC_ADDR_LOW(pdesc, 1);
 			break;
 		default:
-			RT_ASSERT(false,
-				  "ERR txdesc :%d not process\n", desc_name);
+			WARN_ONCE(true,
+				  "rtl8192ee: ERR txdesc :%d not processed\n",
+				  desc_name);
 			break;
 		}
 	} else {
@@ -1027,8 +1026,9 @@ u32 rtl92ee_get_desc(u8 *pdesc, bool istx, u8 desc_name)
 			ret = GET_RX_DESC_BUFF_ADDR(pdesc);
 			break;
 		default:
-			RT_ASSERT(false,
-				  "ERR rxdesc :%d not process\n", desc_name);
+			WARN_ONCE(true,
+				  "rtl8192ee: ERR rxdesc :%d not processed\n",
+				  desc_name);
 			break;
 		}
 	}

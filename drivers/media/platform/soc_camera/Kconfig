@@ -1,7 +1,6 @@
 config SOC_CAMERA
 	tristate "SoC camera support"
 	depends on VIDEO_V4L2 && HAS_DMA && I2C
-	select VIDEOBUF_GEN
 	select VIDEOBUF2_CORE
 	help
 	  SoC Camera is a common API to several cameras, not connecting
@@ -26,14 +25,3 @@ config VIDEO_SH_MOBILE_CEU
 	select SOC_CAMERA_SCALE_CROP
 	---help---
 	  This is a v4l2 driver for the SuperH Mobile CEU Interface
-
-config VIDEO_ATMEL_ISI
-	tristate "ATMEL Image Sensor Interface (ISI) support"
-	depends on VIDEO_DEV && SOC_CAMERA
-	depends on ARCH_AT91 || COMPILE_TEST
-	depends on HAS_DMA
-	select VIDEOBUF2_DMA_CONTIG
-	---help---
-	  This module makes the ATMEL Image Sensor Interface available
-	  as a v4l2 device.
-

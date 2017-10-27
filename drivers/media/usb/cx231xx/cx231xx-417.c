@@ -18,10 +18,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "cx231xx.h"
@@ -1494,7 +1490,7 @@ static void bb_buf_release(struct videobuf_queue *q,
 	free_buffer(q, buf);
 }
 
-static struct videobuf_queue_ops cx231xx_qops = {
+static const struct videobuf_queue_ops cx231xx_qops = {
 	.buf_setup    = bb_buf_setup,
 	.buf_prepare  = bb_buf_prepare,
 	.buf_queue    = bb_buf_queue,
@@ -1847,7 +1843,7 @@ static int mpeg_mmap(struct file *file, struct vm_area_struct *vma)
 	return videobuf_mmap_mapper(&fh->vidq, vma);
 }
 
-static struct v4l2_file_operations mpeg_fops = {
+static const struct v4l2_file_operations mpeg_fops = {
 	.owner	       = THIS_MODULE,
 	.open	       = mpeg_open,
 	.release       = mpeg_release,

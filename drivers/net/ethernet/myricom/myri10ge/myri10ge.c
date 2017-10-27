@@ -191,21 +191,6 @@ struct myri10ge_slice_state {
 	int cpu;
 	__be32 __iomem *dca_tag;
 #endif
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	unsigned int state;
-#define SLICE_STATE_IDLE	0
-#define SLICE_STATE_NAPI	1	/* NAPI owns this slice */
-#define SLICE_STATE_POLL	2	/* poll owns this slice */
-#define SLICE_LOCKED (SLICE_STATE_NAPI | SLICE_STATE_POLL)
-#define SLICE_STATE_NAPI_YIELD	4	/* NAPI yielded this slice */
-#define SLICE_STATE_POLL_YIELD	8	/* poll yielded this slice */
-#define SLICE_USER_PEND (SLICE_STATE_POLL | SLICE_STATE_POLL_YIELD)
-	spinlock_t lock;
-	unsigned long lock_napi_yield;
-	unsigned long lock_poll_yield;
-	unsigned long busy_poll_miss;
-	unsigned long busy_poll_cnt;
-#endif /* CONFIG_NET_RX_BUSY_POLL */
 	char irq_desc[32];
 };
 
@@ -378,8 +363,8 @@ static inline void put_be32(__be32 val, __be32 __iomem * p)
 	__raw_writel((__force __u32) val, (__force void __iomem *)p);
 }
 
-static struct rtnl_link_stats64 *myri10ge_get_stats(struct net_device *dev,
-						    struct rtnl_link_stats64 *stats);
+static void myri10ge_get_stats(struct net_device *dev,
+			       struct rtnl_link_stats64 *stats);
 
 static void set_fw_name(struct myri10ge_priv *mgp, char *name, bool allocated)
 {
@@ -925,92 +910,6 @@ abort:
 	return status;
 }
 
-#ifdef CONFIG_NET_RX_BUSY_POLL
-static inline void myri10ge_ss_init_lock(struct myri10ge_slice_state *ss)
-{
-	spin_lock_init(&ss->lock);
-	ss->state = SLICE_STATE_IDLE;
-}
-
-static inline bool myri10ge_ss_lock_napi(struct myri10ge_slice_state *ss)
-{
-	bool rc = true;
-	spin_lock(&ss->lock);
-	if ((ss->state & SLICE_LOCKED)) {
-		WARN_ON((ss->state & SLICE_STATE_NAPI));
-		ss->state |= SLICE_STATE_NAPI_YIELD;
-		rc = false;
-		ss->lock_napi_yield++;
-	} else
-		ss->state = SLICE_STATE_NAPI;
-	spin_unlock(&ss->lock);
-	return rc;
-}
-
-static inline void myri10ge_ss_unlock_napi(struct myri10ge_slice_state *ss)
-{
-	spin_lock(&ss->lock);
-	WARN_ON((ss->state & (SLICE_STATE_POLL | SLICE_STATE_NAPI_YIELD)));
-	ss->state = SLICE_STATE_IDLE;
-	spin_unlock(&ss->lock);
-}
-
-static inline bool myri10ge_ss_lock_poll(struct myri10ge_slice_state *ss)
-{
-	bool rc = true;
-	spin_lock_bh(&ss->lock);
-	if ((ss->state & SLICE_LOCKED)) {
-		ss->state |= SLICE_STATE_POLL_YIELD;
-		rc = false;
-		ss->lock_poll_yield++;
-	} else
-		ss->state |= SLICE_STATE_POLL;
-	spin_unlock_bh(&ss->lock);
-	return rc;
-}
-
-static inline void myri10ge_ss_unlock_poll(struct myri10ge_slice_state *ss)
-{
-	spin_lock_bh(&ss->lock);
-	WARN_ON((ss->state & SLICE_STATE_NAPI));
-	ss->state = SLICE_STATE_IDLE;
-	spin_unlock_bh(&ss->lock);
-}
-
-static inline bool myri10ge_ss_busy_polling(struct myri10ge_slice_state *ss)
-{
-	WARN_ON(!(ss->state & SLICE_LOCKED));
-	return (ss->state & SLICE_USER_PEND);
-}
-#else /* CONFIG_NET_RX_BUSY_POLL */
-static inline void myri10ge_ss_init_lock(struct myri10ge_slice_state *ss)
-{
-}
-
-static inline bool myri10ge_ss_lock_napi(struct myri10ge_slice_state *ss)
-{
-	return false;
-}
-
-static inline void myri10ge_ss_unlock_napi(struct myri10ge_slice_state *ss)
-{
-}
-
-static inline bool myri10ge_ss_lock_poll(struct myri10ge_slice_state *ss)
-{
-	return false;
-}
-
-static inline void myri10ge_ss_unlock_poll(struct myri10ge_slice_state *ss)
-{
-}
-
-static inline bool myri10ge_ss_busy_polling(struct myri10ge_slice_state *ss)
-{
-	return false;
-}
-#endif
-
 static int myri10ge_reset(struct myri10ge_priv *mgp)
 {
 	struct myri10ge_cmd cmd;
@@ -1426,7 +1325,6 @@ myri10ge_rx_done(struct myri10ge_slice_state *ss, int len, __wsum csum)
 	struct pci_dev *pdev = mgp->pdev;
 	struct net_device *dev = mgp->dev;
 	u8 *va;
-	bool polling;
 
 	if (len <= mgp->small_bytes) {
 		rx = &ss->rx_small;
@@ -1441,15 +1339,7 @@ myri10ge_rx_done(struct myri10ge_slice_state *ss, int len, __wsum csum)
 	va = page_address(rx->info[idx].page) + rx->info[idx].page_offset;
 	prefetch(va);
 
-	/* When busy polling in user context, allocate skb and copy headers to
-	 * skb's linear memory ourselves.  When not busy polling, use the napi
-	 * gro api.
-	 */
-	polling = myri10ge_ss_busy_polling(ss);
-	if (polling)
-		skb = netdev_alloc_skb(dev, MYRI10GE_HLEN + 16);
-	else
-		skb = napi_get_frags(&ss->napi);
+	skb = napi_get_frags(&ss->napi);
 	if (unlikely(skb == NULL)) {
 		ss->stats.rx_dropped++;
 		for (i = 0, remainder = len; remainder > 0; i++) {
@@ -1489,27 +1379,7 @@ myri10ge_rx_done(struct myri10ge_slice_state *ss, int len, __wsum csum)
 	myri10ge_vlan_rx(mgp->dev, va, skb);
 	skb_record_rx_queue(skb, ss - &mgp->ss[0]);
 
-	if (polling) {
-		int hlen;
-
-		/* myri10ge_vlan_rx might have moved the header, so compute
-		 * length and address again.
-		 */
-		hlen = MYRI10GE_HLEN > skb->len ? skb->len : MYRI10GE_HLEN;
-		va = page_address(skb_frag_page(&rx_frags[0])) +
-			rx_frags[0].page_offset;
-		/* Copy header into the skb linear memory */
-		skb_copy_to_linear_data(skb, va, hlen);
-		rx_frags[0].page_offset += hlen;
-		rx_frags[0].size -= hlen;
-		skb->data_len -= hlen;
-		skb->tail += hlen;
-		skb->protocol = eth_type_trans(skb, dev);
-		skb_mark_napi_id(skb, &ss->napi);
-		netif_receive_skb(skb);
-	}
-	else
-		napi_gro_frags(&ss->napi);
+	napi_gro_frags(&ss->napi);
 
 	return 1;
 }
@@ -1669,48 +1539,15 @@ static int myri10ge_poll(struct napi_struct *napi, int budget)
 	if (ss->mgp->dca_enabled)
 		myri10ge_update_dca(ss);
 #endif
-	/* Try later if the busy_poll handler is running. */
-	if (!myri10ge_ss_lock_napi(ss))
-		return budget;
-
 	/* process as many rx events as NAPI will allow */
 	work_done = myri10ge_clean_rx_done(ss, budget);
 
-	myri10ge_ss_unlock_napi(ss);
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		put_be32(htonl(3), ss->irq_claim);
 	}
 	return work_done;
 }
-
-#ifdef CONFIG_NET_RX_BUSY_POLL
-static int myri10ge_busy_poll(struct napi_struct *napi)
-{
-	struct myri10ge_slice_state *ss =
-	    container_of(napi, struct myri10ge_slice_state, napi);
-	struct myri10ge_priv *mgp = ss->mgp;
-	int work_done;
-
-	/* Poll only when the link is up */
-	if (mgp->link_state != MXGEFW_LINK_UP)
-		return LL_FLUSH_FAILED;
-
-	if (!myri10ge_ss_lock_poll(ss))
-		return LL_FLUSH_BUSY;
-
-	/* Process a small number of packets */
-	work_done = myri10ge_clean_rx_done(ss, 4);
-	if (work_done)
-		ss->busy_poll_cnt += work_done;
-	else
-		ss->busy_poll_miss++;
-
-	myri10ge_ss_unlock_poll(ss);
-
-	return work_done;
-}
-#endif /* CONFIG_NET_RX_BUSY_POLL */
 
 static irqreturn_t myri10ge_intr(int irq, void *arg)
 {
@@ -1773,15 +1610,16 @@ static irqreturn_t myri10ge_intr(int irq, void *arg)
 }
 
 static int
-myri10ge_get_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
+myri10ge_get_link_ksettings(struct net_device *netdev,
+			    struct ethtool_link_ksettings *cmd)
 {
 	struct myri10ge_priv *mgp = netdev_priv(netdev);
 	char *ptr;
 	int i;
 
-	cmd->autoneg = AUTONEG_DISABLE;
-	ethtool_cmd_speed_set(cmd, SPEED_10000);
-	cmd->duplex = DUPLEX_FULL;
+	cmd->base.autoneg = AUTONEG_DISABLE;
+	cmd->base.speed = SPEED_10000;
+	cmd->base.duplex = DUPLEX_FULL;
 
 	/*
 	 * parse the product code to deterimine the interface type
@@ -1806,16 +1644,12 @@ myri10ge_get_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
 		ptr++;
 	if (*ptr == 'R' || *ptr == 'Q' || *ptr == 'S') {
 		/* We've found either an XFP, quad ribbon fiber, or SFP+ */
-		cmd->port = PORT_FIBRE;
-		cmd->supported |= SUPPORTED_FIBRE;
-		cmd->advertising |= ADVERTISED_FIBRE;
+		cmd->base.port = PORT_FIBRE;
+		ethtool_link_ksettings_add_link_mode(cmd, supported, FIBRE);
+		ethtool_link_ksettings_add_link_mode(cmd, advertising, FIBRE);
 	} else {
-		cmd->port = PORT_OTHER;
+		cmd->base.port = PORT_OTHER;
 	}
-	if (*ptr == 'R' || *ptr == 'S')
-		cmd->transceiver = XCVR_EXTERNAL;
-	else
-		cmd->transceiver = XCVR_INTERNAL;
 
 	return 0;
 }
@@ -1919,10 +1753,6 @@ static const char myri10ge_gstrings_slice_stats[][ETH_GSTRING_LEN] = {
 	"tx_pkt_start", "tx_pkt_done", "tx_req", "tx_done",
 	"rx_small_cnt", "rx_big_cnt",
 	"wake_queue", "stop_queue", "tx_linearized",
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	"rx_lock_napi_yield", "rx_lock_poll_yield", "rx_busy_poll_miss",
-	"rx_busy_poll_cnt",
-#endif
 };
 
 #define MYRI10GE_NET_STATS_LEN      21
@@ -2022,12 +1852,6 @@ myri10ge_get_ethtool_stats(struct net_device *netdev,
 		data[i++] = (unsigned int)ss->tx.wake_queue;
 		data[i++] = (unsigned int)ss->tx.stop_queue;
 		data[i++] = (unsigned int)ss->tx.linearized;
-#ifdef CONFIG_NET_RX_BUSY_POLL
-		data[i++] = ss->lock_napi_yield;
-		data[i++] = ss->lock_poll_yield;
-		data[i++] = ss->busy_poll_miss;
-		data[i++] = ss->busy_poll_cnt;
-#endif
 	}
 }
 
@@ -2098,7 +1922,6 @@ myri10ge_phys_id(struct net_device *netdev, enum ethtool_phys_id_state state)
 }
 
 static const struct ethtool_ops myri10ge_ethtool_ops = {
-	.get_settings = myri10ge_get_settings,
 	.get_drvinfo = myri10ge_get_drvinfo,
 	.get_coalesce = myri10ge_get_coalesce,
 	.set_coalesce = myri10ge_set_coalesce,
@@ -2112,6 +1935,7 @@ static const struct ethtool_ops myri10ge_ethtool_ops = {
 	.set_msglevel = myri10ge_set_msglevel,
 	.get_msglevel = myri10ge_get_msglevel,
 	.set_phys_id = myri10ge_phys_id,
+	.get_link_ksettings = myri10ge_get_link_ksettings,
 };
 
 static int myri10ge_allocate_rings(struct myri10ge_slice_state *ss)
@@ -2589,9 +2413,6 @@ static int myri10ge_open(struct net_device *dev)
 			goto abort_with_rings;
 		}
 
-		/* Initialize the slice spinlock and state used for polling */
-		myri10ge_ss_init_lock(ss);
-
 		/* must happen prior to any irq */
 		napi_enable(&(ss)->napi);
 	}
@@ -2668,19 +2489,9 @@ static int myri10ge_close(struct net_device *dev)
 
 	del_timer_sync(&mgp->watchdog_timer);
 	mgp->running = MYRI10GE_ETH_STOPPING;
-	for (i = 0; i < mgp->num_slices; i++) {
+	for (i = 0; i < mgp->num_slices; i++)
 		napi_disable(&mgp->ss[i].napi);
-		local_bh_disable(); /* myri10ge_ss_lock_napi needs this */
-		/* Lock the slice to prevent the busy_poll handler from
-		 * accessing it.  Later when we bring the NIC up, myri10ge_open
-		 * resets the slice including this lock.
-		 */
-		while (!myri10ge_ss_lock_napi(&mgp->ss[i])) {
-			pr_info("Slice %d locked\n", i);
-			mdelay(1);
-		}
-		local_bh_enable();
-	}
+
 	netif_carrier_off(dev);
 
 	netif_tx_stop_all_queues(dev);
@@ -3119,8 +2930,8 @@ drop:
 	return NETDEV_TX_OK;
 }
 
-static struct rtnl_link_stats64 *myri10ge_get_stats(struct net_device *dev,
-						    struct rtnl_link_stats64 *stats)
+static void myri10ge_get_stats(struct net_device *dev,
+			       struct rtnl_link_stats64 *stats)
 {
 	const struct myri10ge_priv *mgp = netdev_priv(dev);
 	const struct myri10ge_slice_netstats *slice_stats;
@@ -3135,7 +2946,6 @@ static struct rtnl_link_stats64 *myri10ge_get_stats(struct net_device *dev,
 		stats->rx_dropped += slice_stats->rx_dropped;
 		stats->tx_dropped += slice_stats->tx_dropped;
 	}
-	return stats;
 }
 
 static void myri10ge_set_multicast_list(struct net_device *dev)
@@ -3954,9 +3764,6 @@ static const struct net_device_ops myri10ge_netdev_ops = {
 	.ndo_change_mtu		= myri10ge_change_mtu,
 	.ndo_set_rx_mode	= myri10ge_set_multicast_list,
 	.ndo_set_mac_address	= myri10ge_set_mac_address,
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	.ndo_busy_poll		= myri10ge_busy_poll,
-#endif
 };
 
 static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)

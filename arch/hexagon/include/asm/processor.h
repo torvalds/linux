@@ -33,9 +33,6 @@
 /*  task_struct, defined elsewhere, is the "process descriptor" */
 struct task_struct;
 
-/*  this is defined in arch/process.c  */
-extern unsigned long thread_saved_pc(struct task_struct *tsk);
-
 extern void start_thread(struct pt_regs *, unsigned long, unsigned long);
 
 /*

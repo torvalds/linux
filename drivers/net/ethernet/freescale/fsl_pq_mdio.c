@@ -267,8 +267,8 @@ static void ucc_configure(phys_addr_t start, phys_addr_t end)
 
 		ret = of_address_to_resource(np, 0, &res);
 		if (ret < 0) {
-			pr_debug("fsl-pq-mdio: no address range in node %s\n",
-				 np->full_name);
+			pr_debug("fsl-pq-mdio: no address range in node %pOF\n",
+				 np);
 			continue;
 		}
 
@@ -280,8 +280,8 @@ static void ucc_configure(phys_addr_t start, phys_addr_t end)
 		if (!iprop) {
 			iprop = of_get_property(np, "device-id", NULL);
 			if (!iprop) {
-				pr_debug("fsl-pq-mdio: no UCC ID in node %s\n",
-					 np->full_name);
+				pr_debug("fsl-pq-mdio: no UCC ID in node %pOF\n",
+					 np);
 				continue;
 			}
 		}
@@ -293,8 +293,8 @@ static void ucc_configure(phys_addr_t start, phys_addr_t end)
 		 * numbered from 1, not 0.
 		 */
 		if (ucc_set_qe_mux_mii_mng(id - 1) < 0) {
-			pr_debug("fsl-pq-mdio: invalid UCC ID in node %s\n",
-				 np->full_name);
+			pr_debug("fsl-pq-mdio: invalid UCC ID in node %pOF\n",
+				 np);
 			continue;
 		}
 
@@ -381,13 +381,20 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *id =
 		of_match_device(fsl_pq_mdio_match, &pdev->dev);
-	const struct fsl_pq_mdio_data *data = id->data;
+	const struct fsl_pq_mdio_data *data;
 	struct device_node *np = pdev->dev.of_node;
 	struct resource res;
 	struct device_node *tbi;
 	struct fsl_pq_mdio_priv *priv;
 	struct mii_bus *new_bus;
 	int err;
+
+	if (!id) {
+		dev_err(&pdev->dev, "Failed to match device\n");
+		return -ENODEV;
+	}
+
+	data = id->data;
 
 	dev_dbg(&pdev->dev, "found %s compatible node\n", id->compatible);
 
@@ -435,8 +442,8 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 	if (data->get_tbipa) {
 		for_each_child_of_node(np, tbi) {
 			if (strcmp(tbi->type, "tbi-phy") == 0) {
-				dev_dbg(&pdev->dev, "found TBI PHY node %s\n",
-					strrchr(tbi->full_name, '/') + 1);
+				dev_dbg(&pdev->dev, "found TBI PHY node %pOFP\n",
+					tbi);
 				break;
 			}
 		}
@@ -447,8 +454,8 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 
 			if (!prop) {
 				dev_err(&pdev->dev,
-					"missing 'reg' property in node %s\n",
-					tbi->full_name);
+					"missing 'reg' property in node %pOF\n",
+					tbi);
 				err = -EBUSY;
 				goto error;
 			}

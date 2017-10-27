@@ -62,11 +62,9 @@ static u_int32_t tcpmss_reverse_mtu(struct net *net,
 		memset(fl6, 0, sizeof(*fl6));
 		fl6->daddr = ipv6_hdr(skb)->saddr;
 	}
-	rcu_read_lock();
 	ai = nf_get_afinfo(family);
 	if (ai != NULL)
 		ai->route(net, (struct dst_entry **)&rt, &fl, false);
-	rcu_read_unlock();
 
 	if (rt != NULL) {
 		mtu = dst_mtu(&rt->dst);
@@ -104,7 +102,7 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 	tcph = (struct tcphdr *)(skb_network_header(skb) + tcphoff);
 	tcp_hdrlen = tcph->doff * 4;
 
-	if (len < tcp_hdrlen)
+	if (len < tcp_hdrlen || tcp_hdrlen < sizeof(struct tcphdr))
 		return -1;
 
 	if (info->mss == XT_TCPMSS_CLAMP_PMTU) {
@@ -150,6 +148,10 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 	 * itself too large. Accept the packet unmodified instead.
 	 */
 	if (len > tcp_hdrlen)
+		return 0;
+
+	/* tcph->doff has 4 bits, do not wrap it to 0 */
+	if (tcp_hdrlen >= 15 * 4)
 		return 0;
 
 	/*

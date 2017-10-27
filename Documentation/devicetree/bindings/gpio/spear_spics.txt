@@ -42,7 +42,6 @@ spics: spics@e0700000{
 
 
 spi0: spi@e0100000 {
-        status = "okay";
         num-cs = <3>;
         cs-gpios = <&gpio1 7 0>, <&spics 0>,
                    <&spics 1>;

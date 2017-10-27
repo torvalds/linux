@@ -49,9 +49,8 @@
 struct nfs_access_entry {
 	struct rb_node		rb_node;
 	struct list_head	lru;
-	unsigned long		jiffies;
 	struct rpc_cred *	cred;
-	int			mask;
+	__u32			mask;
 	struct rcu_head		rcu_head;
 };
 
@@ -76,6 +75,7 @@ struct nfs_open_context {
 #define NFS_CONTEXT_ERROR_WRITE		(0)
 #define NFS_CONTEXT_RESEND_WRITES	(1)
 #define NFS_CONTEXT_BAD			(2)
+#define NFS_CONTEXT_UNLOCK	(3)
 	int error;
 
 	struct list_head list;
@@ -153,7 +153,7 @@ struct nfs_inode {
 	 */
 	__be32			cookieverf[2];
 
-	unsigned long		nrequests;
+	atomic_long_t		nrequests;
 	struct nfs_mds_commit_info commit_info;
 
 	/* Open contexts for shared mmap writes */
@@ -162,6 +162,7 @@ struct nfs_inode {
 	/* Readers: in-flight sillydelete RPC calls */
 	/* Writers: rmdir */
 	struct rw_semaphore	rmdir_sem;
+	struct mutex		commit_mutex;
 
 #if IS_ENABLED(CONFIG_NFS_V4)
 	struct nfs4_cached_acl	*nfs4_acl;
@@ -331,11 +332,12 @@ extern void nfs_zap_caches(struct inode *);
 extern void nfs_invalidate_atime(struct inode *);
 extern struct inode *nfs_fhget(struct super_block *, struct nfs_fh *,
 				struct nfs_fattr *, struct nfs4_label *);
+struct inode *nfs_ilookup(struct super_block *sb, struct nfs_fattr *, struct nfs_fh *);
 extern int nfs_refresh_inode(struct inode *, struct nfs_fattr *);
 extern int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr);
 extern int nfs_post_op_update_inode_force_wcc(struct inode *inode, struct nfs_fattr *fattr);
 extern int nfs_post_op_update_inode_force_wcc_locked(struct inode *inode, struct nfs_fattr *fattr);
-extern int nfs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
+extern int nfs_getattr(const struct path *, struct kstat *, u32, unsigned int);
 extern void nfs_access_add_cache(struct inode *, struct nfs_access_entry *);
 extern void nfs_access_set_mask(struct nfs_access_entry *, u32);
 extern int nfs_permission(struct inode *, int);
@@ -499,28 +501,16 @@ extern int  nfs_updatepage(struct file *, struct page *, unsigned int, unsigned 
  */
 extern int nfs_sync_inode(struct inode *inode);
 extern int nfs_wb_all(struct inode *inode);
-extern int nfs_wb_single_page(struct inode *inode, struct page *page, bool launder);
+extern int nfs_wb_page(struct inode *inode, struct page *page);
 extern int nfs_wb_page_cancel(struct inode *inode, struct page* page);
 extern int  nfs_commit_inode(struct inode *, int);
-extern struct nfs_commit_data *nfs_commitdata_alloc(void);
+extern struct nfs_commit_data *nfs_commitdata_alloc(bool never_fail);
 extern void nfs_commit_free(struct nfs_commit_data *data);
-
-static inline int
-nfs_wb_launder_page(struct inode *inode, struct page *page)
-{
-	return nfs_wb_single_page(inode, page, true);
-}
-
-static inline int
-nfs_wb_page(struct inode *inode, struct page *page)
-{
-	return nfs_wb_single_page(inode, page, false);
-}
 
 static inline int
 nfs_have_writebacks(struct inode *inode)
 {
-	return NFS_I(inode)->nrequests != 0;
+	return atomic_long_read(&NFS_I(inode)->nrequests) != 0;
 }
 
 /*

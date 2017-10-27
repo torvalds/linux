@@ -19,6 +19,7 @@
 #include <linux/clockchips.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/sched/clock.h>
 #include <linux/sched_clock.h>
 
 #include <clocksource/pxa.h>
@@ -165,14 +166,14 @@ static int __init pxa_timer_common_init(int irq, unsigned long clock_tick_rate)
 
 	ret = setup_irq(irq, &pxa_ost0_irq);
 	if (ret) {
-		pr_err("Failed to setup irq");
+		pr_err("Failed to setup irq\n");
 		return ret;
 	}
 
 	ret = clocksource_mmio_init(timer_base + OSCR, "oscr0", clock_tick_rate, 200,
 				    32, clocksource_mmio_readl_up);
 	if (ret) {
-		pr_err("Failed to init clocksource");
+		pr_err("Failed to init clocksource\n");
 		return ret;
 	}
 
@@ -202,7 +203,7 @@ static int __init pxa_timer_dt_init(struct device_node *np)
 
 	ret = clk_prepare_enable(clk);
 	if (ret) {
-		pr_crit("Failed to prepare clock");
+		pr_crit("Failed to prepare clock\n");
 		return ret;
 	}
 
@@ -215,7 +216,7 @@ static int __init pxa_timer_dt_init(struct device_node *np)
 
 	return pxa_timer_common_init(irq, clk_get_rate(clk));
 }
-CLOCKSOURCE_OF_DECLARE(pxa_timer, "marvell,pxa-timer", pxa_timer_dt_init);
+TIMER_OF_DECLARE(pxa_timer, "marvell,pxa-timer", pxa_timer_dt_init);
 
 /*
  * Legacy timer init for non device-tree boards.

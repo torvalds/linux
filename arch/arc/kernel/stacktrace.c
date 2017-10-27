@@ -28,6 +28,8 @@
 #include <linux/export.h>
 #include <linux/stacktrace.h>
 #include <linux/kallsyms.h>
+#include <linux/sched/debug.h>
+
 #include <asm/arcregs.h>
 #include <asm/unwind.h>
 #include <asm/switch_to.h>

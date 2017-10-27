@@ -179,8 +179,6 @@
 };
 
 &usbotg {
-	phy_type = "utmi";
-	dr_mode = "otg";
 	external-vbus-divider;
 	status = "okay";
 };

@@ -57,7 +57,7 @@ nilfs_mdt_insert_new_block(struct inode *inode, unsigned long block,
 	set_buffer_mapped(bh);
 
 	kaddr = kmap_atomic(bh->b_page);
-	memset(kaddr + bh_offset(bh), 0, 1 << inode->i_blkbits);
+	memset(kaddr + bh_offset(bh), 0, i_blocksize(inode));
 	if (init_block)
 		init_block(inode, bh, kaddr);
 	flush_dcache_page(bh->b_page);
@@ -413,7 +413,7 @@ nilfs_mdt_write_page(struct page *page, struct writeback_control *wbc)
 	struct super_block *sb;
 	int err = 0;
 
-	if (inode && (inode->i_sb->s_flags & MS_RDONLY)) {
+	if (inode && sb_rdonly(inode->i_sb)) {
 		/*
 		 * It means that filesystem was remounted in read-only
 		 * mode because of error or metadata corruption. But we
@@ -501,7 +501,7 @@ void nilfs_mdt_set_entry_size(struct inode *inode, unsigned int entry_size,
 	struct nilfs_mdt_info *mi = NILFS_MDT(inode);
 
 	mi->mi_entry_size = entry_size;
-	mi->mi_entries_per_block = (1 << inode->i_blkbits) / entry_size;
+	mi->mi_entries_per_block = i_blocksize(inode) / entry_size;
 	mi->mi_first_entry_offset = DIV_ROUND_UP(header_size, entry_size);
 }
 

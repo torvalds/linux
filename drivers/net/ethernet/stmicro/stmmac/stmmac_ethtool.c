@@ -12,10 +12,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
@@ -33,9 +29,11 @@
 #include "stmmac.h"
 #include "dwmac_dma.h"
 
-#define REG_SPACE_SIZE	0x1054
+#define REG_SPACE_SIZE	0x1060
 #define MAC100_ETHTOOL_NAME	"st_mac100"
 #define GMAC_ETHTOOL_NAME	"st_gmac"
+
+#define ETHTOOL_DMA_OFFSET	55
 
 struct stmmac_stats {
 	char stat_string[ETH_GSTRING_LEN];
@@ -65,7 +63,7 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(overflow_error),
 	STMMAC_STAT(ipc_csum_error),
 	STMMAC_STAT(rx_collision),
-	STMMAC_STAT(rx_crc),
+	STMMAC_STAT(rx_crc_errors),
 	STMMAC_STAT(dribbling_bit),
 	STMMAC_STAT(rx_length),
 	STMMAC_STAT(rx_mii),
@@ -277,7 +275,6 @@ static int stmmac_ethtool_get_link_ksettings(struct net_device *dev,
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	struct phy_device *phy = dev->phydev;
-	int rc;
 
 	if (priv->hw->pcs & STMMAC_PCS_RGMII ||
 	    priv->hw->pcs & STMMAC_PCS_SGMII) {
@@ -368,8 +365,8 @@ static int stmmac_ethtool_get_link_ksettings(struct net_device *dev,
 		"link speed / duplex setting\n", dev->name);
 		return -EBUSY;
 	}
-	rc = phy_ethtool_ksettings_get(phy, cmd);
-	return rc;
+	phy_ethtool_ksettings_get(phy, cmd);
+	return 0;
 }
 
 static int
@@ -439,32 +436,17 @@ static int stmmac_ethtool_get_regs_len(struct net_device *dev)
 static void stmmac_ethtool_gregs(struct net_device *dev,
 			  struct ethtool_regs *regs, void *space)
 {
-	int i;
 	u32 *reg_space = (u32 *) space;
 
 	struct stmmac_priv *priv = netdev_priv(dev);
 
 	memset(reg_space, 0x0, REG_SPACE_SIZE);
 
-	if (!(priv->plat->has_gmac || priv->plat->has_gmac4)) {
-		/* MAC registers */
-		for (i = 0; i < 12; i++)
-			reg_space[i] = readl(priv->ioaddr + (i * 4));
-		/* DMA registers */
-		for (i = 0; i < 9; i++)
-			reg_space[i + 12] =
-			    readl(priv->ioaddr + (DMA_BUS_MODE + (i * 4)));
-		reg_space[22] = readl(priv->ioaddr + DMA_CUR_TX_BUF_ADDR);
-		reg_space[23] = readl(priv->ioaddr + DMA_CUR_RX_BUF_ADDR);
-	} else {
-		/* MAC registers */
-		for (i = 0; i < 55; i++)
-			reg_space[i] = readl(priv->ioaddr + (i * 4));
-		/* DMA registers */
-		for (i = 0; i < 22; i++)
-			reg_space[i + 55] =
-			    readl(priv->ioaddr + (DMA_BUS_MODE + (i * 4)));
-	}
+	priv->hw->mac->dump_regs(priv->hw, reg_space);
+	priv->hw->dma->dump_regs(priv->ioaddr, reg_space);
+	/* Copy DMA registers to where ethtool expects them */
+	memcpy(&reg_space[ETHTOOL_DMA_OFFSET], &reg_space[DMA_BUS_MODE / 4],
+	       NUM_DWMAC1000_DMA_REGS * 4);
 }
 
 static void
@@ -503,6 +485,7 @@ stmmac_set_pauseparam(struct net_device *netdev,
 		      struct ethtool_pauseparam *pause)
 {
 	struct stmmac_priv *priv = netdev_priv(netdev);
+	u32 tx_cnt = priv->plat->tx_queues_to_use;
 	struct phy_device *phy = netdev->phydev;
 	int new_pause = FLOW_OFF;
 
@@ -533,7 +516,7 @@ stmmac_set_pauseparam(struct net_device *netdev,
 	}
 
 	priv->hw->mac->flow_ctrl(priv->hw, phy->duplex, priv->flow_ctrl,
-				 priv->pause);
+				 priv->pause, tx_cnt);
 	return 0;
 }
 
@@ -541,6 +524,8 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 				 struct ethtool_stats *dummy, u64 *data)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
+	u32 rx_queues_count = priv->plat->rx_queues_to_use;
+	u32 tx_queues_count = priv->plat->tx_queues_to_use;
 	int i, j = 0;
 
 	/* Update the DMA HW counters for dwmac10/100 */
@@ -571,7 +556,8 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 		if ((priv->hw->mac->debug) &&
 		    (priv->synopsys_id >= DWMAC_CORE_3_50))
 			priv->hw->mac->debug(priv->ioaddr,
-					     (void *)&priv->xstats);
+					     (void *)&priv->xstats,
+					     rx_queues_count, tx_queues_count);
 	}
 	for (i = 0; i < STMMAC_STATS_LEN; i++) {
 		char *p = (char *)priv + stmmac_gstrings_stats[i].stat_offset;
@@ -712,7 +698,7 @@ static int stmmac_ethtool_op_set_eee(struct net_device *dev,
 
 static u32 stmmac_usec2riwt(u32 usec, struct stmmac_priv *priv)
 {
-	unsigned long clk = clk_get_rate(priv->stmmac_clk);
+	unsigned long clk = clk_get_rate(priv->plat->stmmac_clk);
 
 	if (!clk)
 		return 0;
@@ -722,7 +708,7 @@ static u32 stmmac_usec2riwt(u32 usec, struct stmmac_priv *priv)
 
 static u32 stmmac_riwt2usec(u32 riwt, struct stmmac_priv *priv)
 {
-	unsigned long clk = clk_get_rate(priv->stmmac_clk);
+	unsigned long clk = clk_get_rate(priv->plat->stmmac_clk);
 
 	if (!clk)
 		return 0;
@@ -748,6 +734,7 @@ static int stmmac_set_coalesce(struct net_device *dev,
 			       struct ethtool_coalesce *ec)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
+	u32 rx_cnt = priv->plat->rx_queues_to_use;
 	unsigned int rx_riwt;
 
 	/* Check not supported parameters  */
@@ -786,7 +773,7 @@ static int stmmac_set_coalesce(struct net_device *dev,
 	priv->tx_coal_frames = ec->tx_max_coalesced_frames;
 	priv->tx_coal_timer = ec->tx_coalesce_usecs;
 	priv->rx_riwt = rx_riwt;
-	priv->hw->dma->rx_watchdog(priv->ioaddr, priv->rx_riwt);
+	priv->hw->dma->rx_watchdog(priv->ioaddr, priv->rx_riwt, rx_cnt);
 
 	return 0;
 }

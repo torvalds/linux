@@ -31,8 +31,9 @@
 #ifndef _TTM_EXECBUF_UTIL_H_
 #define _TTM_EXECBUF_UTIL_H_
 
-#include <ttm/ttm_bo_api.h>
 #include <linux/list.h>
+
+#include "ttm_bo_api.h"
 
 /**
  * struct ttm_validate_buffer

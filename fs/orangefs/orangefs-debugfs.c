@@ -440,6 +440,9 @@ static ssize_t orangefs_debug_write(struct file *file,
 		"orangefs_debug_write: %pD\n",
 		file);
 
+	if (count == 0)
+		return 0;
+
 	/*
 	 * Thwart users who try to jamb a ridiculous number
 	 * of bytes into the debug file...
@@ -568,11 +571,8 @@ static int orangefs_prepare_cdm_array(char *debug_array_string)
 		goto out;
 	}
 
-	cdm_array =
-		kzalloc(cdm_element_count * sizeof(struct client_debug_mask),
-			GFP_KERNEL);
+	cdm_array = kcalloc(cdm_element_count, sizeof(*cdm_array), GFP_KERNEL);
 	if (!cdm_array) {
-		pr_info("malloc failed for cdm_array!\n");
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -967,13 +967,13 @@ int orangefs_debugfs_new_client_string(void __user *arg)
 	int ret;
 
 	ret = copy_from_user(&client_debug_array_string,
-                                     (void __user *)arg,
-                                     ORANGEFS_MAX_DEBUG_STRING_LEN);
+			     (void __user *)arg,
+			     ORANGEFS_MAX_DEBUG_STRING_LEN);
 
 	if (ret != 0) {
 		pr_info("%s: CLIENT_STRING: copy_from_user failed\n",
 			__func__);
-		return -EIO;
+		return -EFAULT;
 	}
 
 	/*
@@ -988,17 +988,18 @@ int orangefs_debugfs_new_client_string(void __user *arg)
 	 */
 	client_debug_array_string[ORANGEFS_MAX_DEBUG_STRING_LEN - 1] =
 		'\0';
-	
+
 	pr_info("%s: client debug array string has been received.\n",
 		__func__);
 
 	if (!help_string_initialized) {
 
 		/* Build a proper debug help string. */
-		if (orangefs_prepare_debugfs_help_string(0)) {
+		ret = orangefs_prepare_debugfs_help_string(0);
+		if (ret) {
 			gossip_err("%s: no debug help string \n",
 				   __func__);
-			return -EIO;
+			return ret;
 		}
 
 	}
@@ -1011,7 +1012,7 @@ int orangefs_debugfs_new_client_string(void __user *arg)
 
 	help_string_initialized++;
 
-	return ret;
+	return 0;
 }
 
 int orangefs_debugfs_new_debug(void __user *arg) 

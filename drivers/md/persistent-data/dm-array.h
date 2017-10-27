@@ -207,6 +207,7 @@ void dm_array_cursor_end(struct dm_array_cursor *c);
 
 uint32_t dm_array_cursor_index(struct dm_array_cursor *c);
 int dm_array_cursor_next(struct dm_array_cursor *c);
+int dm_array_cursor_skip(struct dm_array_cursor *c, uint32_t count);
 
 /*
  * value_le is only valid while the cursor points at the current value.

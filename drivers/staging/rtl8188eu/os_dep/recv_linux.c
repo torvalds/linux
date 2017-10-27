@@ -88,27 +88,6 @@ int rtw_recv_indicatepkt(struct adapter *padapter,
 		goto _recv_indicatepkt_drop;
 	}
 
-	RT_TRACE(_module_recv_osdep_c_, _drv_info_,
-		 ("rtw_recv_indicatepkt():skb != NULL !!!\n"));
-	RT_TRACE(_module_recv_osdep_c_, _drv_info_,
-		 ("rtw_recv_indicatepkt():precv_frame->rx_head =%p  precv_frame->hdr.rx_data =%p\n",
-		 precv_frame->rx_head, precv_frame->rx_data));
-	RT_TRACE(_module_recv_osdep_c_, _drv_info_,
-		 ("precv_frame->hdr.rx_tail =%p precv_frame->rx_end =%p precv_frame->hdr.len =%d\n",
-		 precv_frame->rx_tail, precv_frame->rx_end,
-		 precv_frame->len));
-
-	skb->data = precv_frame->rx_data;
-
-	skb_set_tail_pointer(skb, precv_frame->len);
-
-	skb->len = precv_frame->len;
-
-	RT_TRACE(_module_recv_osdep_c_, _drv_info_,
-		 ("skb->head =%p skb->data =%p skb->tail =%p skb->end =%p skb->len =%d\n",
-		 skb->head, skb->data, skb_tail_pointer(skb),
-		 skb_end_pointer(skb), skb->len));
-
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		struct sk_buff *pskb2 = NULL;
 		struct sta_info *psta = NULL;

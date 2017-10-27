@@ -100,21 +100,21 @@ static int lp873x_gpio_request(struct gpio_chip *gc, unsigned int offset)
 	return 0;
 }
 
-static int lp873x_gpio_set_single_ended(struct gpio_chip *gc,
-					unsigned int offset,
-					enum single_ended_mode mode)
+static int lp873x_gpio_set_config(struct gpio_chip *gc, unsigned offset,
+				  unsigned long config)
 {
 	struct lp873x_gpio *gpio = gpiochip_get_data(gc);
 
-	switch (mode) {
-	case LINE_MODE_OPEN_DRAIN:
+	switch (pinconf_to_config_param(config)) {
+	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 		return regmap_update_bits(gpio->lp873->regmap,
 					  LP873X_REG_GPO_CTRL,
 					  BIT(offset * BITS_PER_GPO +
 					  LP873X_GPO_CTRL_OD),
 					  BIT(offset * BITS_PER_GPO +
 					  LP873X_GPO_CTRL_OD));
-	case LINE_MODE_PUSH_PULL:
+
+	case PIN_CONFIG_DRIVE_PUSH_PULL:
 		return regmap_update_bits(gpio->lp873->regmap,
 					  LP873X_REG_GPO_CTRL,
 					  BIT(offset * BITS_PER_GPO +
@@ -133,7 +133,7 @@ static const struct gpio_chip template_chip = {
 	.direction_output	= lp873x_gpio_direction_output,
 	.get			= lp873x_gpio_get,
 	.set			= lp873x_gpio_set,
-	.set_single_ended	= lp873x_gpio_set_single_ended,
+	.set_config		= lp873x_gpio_set_config,
 	.base			= -1,
 	.ngpio			= 2,
 	.can_sleep		= true,

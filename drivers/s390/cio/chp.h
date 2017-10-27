@@ -54,7 +54,7 @@ struct channel_path {
 /* Return channel_path struct for given chpid. */
 static inline struct channel_path *chpid_to_chp(struct chp_id chpid)
 {
-	return channel_subsystems[chpid.cssid]->chps[chpid.id];
+	return css_by_id(chpid.cssid)->chps[chpid.id];
 }
 
 int chp_get_status(struct chp_id chpid);

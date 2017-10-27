@@ -15,6 +15,13 @@
 #define __pa(x)  ((unsigned long)(x))
 #define __va(x)  ((void *)((unsigned long)(x)))
 
+/*
+ * The pgtable.h and mm/ident_map.c includes make use of the SME related
+ * information which is not used in the compressed image support. Un-define
+ * the SME support to avoid any compile and link errors.
+ */
+#undef CONFIG_AMD_MEM_ENCRYPT
+
 #include "misc.h"
 
 /* These actually do the work of building the kernel identity maps. */
@@ -63,14 +70,14 @@ static void *alloc_pgt_page(void *context)
 static struct alloc_pgt_data pgt_data;
 
 /* The top level page table entry pointer. */
-static unsigned long level4p;
+static unsigned long top_level_pgt;
 
 /*
  * Mapping information structure passed to kernel_ident_mapping_init().
  * Due to relocation, pointers must be assigned at run time not build time.
  */
 static struct x86_mapping_info mapping_info = {
-	.pmd_flag       = __PAGE_KERNEL_LARGE_EXEC,
+	.page_flag       = __PAGE_KERNEL_LARGE_EXEC,
 };
 
 /* Locates and clears a region for a new top level page table. */
@@ -91,9 +98,15 @@ void initialize_identity_maps(void)
 	 * If we came here via startup_32(), cr3 will be _pgtable already
 	 * and we must append to the existing area instead of entirely
 	 * overwriting it.
+	 *
+	 * With 5-level paging, we use '_pgtable' to allocate the p4d page table,
+	 * the top-level page table is allocated separately.
+	 *
+	 * p4d_offset(top_level_pgt, 0) would cover both the 4- and 5-level
+	 * cases. On 4-level paging it's equal to 'top_level_pgt'.
 	 */
-	level4p = read_cr3();
-	if (level4p == (unsigned long)_pgtable) {
+	top_level_pgt = read_cr3_pa();
+	if (p4d_offset((pgd_t *)top_level_pgt, 0) == (p4d_t *)_pgtable) {
 		debug_putstr("booted via startup_32()\n");
 		pgt_data.pgt_buf = _pgtable + BOOT_INIT_PGT_SIZE;
 		pgt_data.pgt_buf_size = BOOT_PGT_SIZE - BOOT_INIT_PGT_SIZE;
@@ -103,7 +116,7 @@ void initialize_identity_maps(void)
 		pgt_data.pgt_buf = _pgtable;
 		pgt_data.pgt_buf_size = BOOT_PGT_SIZE;
 		memset(pgt_data.pgt_buf, 0, pgt_data.pgt_buf_size);
-		level4p = (unsigned long)alloc_pgt_page(&pgt_data);
+		top_level_pgt = (unsigned long)alloc_pgt_page(&pgt_data);
 	}
 }
 
@@ -123,7 +136,7 @@ void add_identity_map(unsigned long start, unsigned long size)
 		return;
 
 	/* Build the mapping. */
-	kernel_ident_mapping_init(&mapping_info, (pgd_t *)level4p,
+	kernel_ident_mapping_init(&mapping_info, (pgd_t *)top_level_pgt,
 				  start, end);
 }
 
@@ -134,5 +147,5 @@ void add_identity_map(unsigned long start, unsigned long size)
  */
 void finalize_identity_maps(void)
 {
-	write_cr3(level4p);
+	write_cr3(top_level_pgt);
 }

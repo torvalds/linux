@@ -902,7 +902,7 @@ static int b44_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		b44_enable_ints(bp);
 	}
 
@@ -1674,8 +1674,8 @@ static int b44_close(struct net_device *dev)
 	return 0;
 }
 
-static struct rtnl_link_stats64 *b44_get_stats64(struct net_device *dev,
-					struct rtnl_link_stats64 *nstat)
+static void b44_get_stats64(struct net_device *dev,
+			    struct rtnl_link_stats64 *nstat)
 {
 	struct b44 *bp = netdev_priv(dev);
 	struct b44_hw_stats *hwstat = &bp->hw_stats;
@@ -1718,7 +1718,6 @@ static struct rtnl_link_stats64 *b44_get_stats64(struct net_device *dev,
 #endif
 	} while (u64_stats_fetch_retry_irq(&hwstat->syncp, start));
 
-	return nstat;
 }
 
 static int __b44_load_mcast(struct b44 *bp, struct net_device *dev)
@@ -1837,7 +1836,9 @@ static int b44_get_link_ksettings(struct net_device *dev,
 
 	if (bp->flags & B44_FLAG_EXTERNAL_PHY) {
 		BUG_ON(!dev->phydev);
-		return phy_ethtool_ksettings_get(dev->phydev, cmd);
+		phy_ethtool_ksettings_get(dev->phydev, cmd);
+
+		return 0;
 	}
 
 	supported = (SUPPORTED_Autoneg);
@@ -2367,6 +2368,7 @@ static int b44_init_one(struct ssb_device *sdev,
 	bp->msg_enable = netif_msg_init(b44_debug, B44_DEF_MSG_ENABLE);
 
 	spin_lock_init(&bp->lock);
+	u64_stats_init(&bp->hw_stats.syncp);
 
 	bp->rx_pending = B44_DEF_RX_RING_PENDING;
 	bp->tx_pending = B44_DEF_TX_RING_PENDING;

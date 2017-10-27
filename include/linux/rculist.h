@@ -276,7 +276,7 @@ static inline void list_splice_tail_init_rcu(struct list_head *list,
 #define list_entry_rcu(ptr, type, member) \
 	container_of(lockless_dereference(ptr), type, member)
 
-/**
+/*
  * Where are list_empty_rcu() and list_first_entry_rcu()?
  *
  * Implementing those functions following their counterparts list_empty() and
@@ -509,7 +509,8 @@ static inline void hlist_add_tail_rcu(struct hlist_node *n,
 {
 	struct hlist_node *i, *last = NULL;
 
-	for (i = hlist_first_rcu(h); i; i = hlist_next_rcu(i))
+	/* Note: write side code, so rcu accessors are not needed. */
+	for (i = h->first; i; i = i->next)
 		last = i;
 
 	if (last) {

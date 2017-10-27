@@ -34,6 +34,8 @@
 #include <linux/kernel_stat.h>
 #include <linux/clockchips.h>
 #include <linux/cpu.h>
+#include <linux/sched/task_stack.h>
+
 #include <asm/hyperv.h>
 #include <asm/hypervisor.h>
 #include <asm/mshyperv.h>
@@ -54,31 +56,7 @@ static struct acpi_device  *hv_acpi_dev;
 
 static struct completion probe_event;
 
-
-static void hyperv_report_panic(struct pt_regs *regs)
-{
-	static bool panic_reported;
-
-	/*
-	 * We prefer to report panic on 'die' chain as we have proper
-	 * registers to report, but if we miss it (e.g. on BUG()) we need
-	 * to report it on 'panic'.
-	 */
-	if (panic_reported)
-		return;
-	panic_reported = true;
-
-	wrmsrl(HV_X64_MSR_CRASH_P0, regs->ip);
-	wrmsrl(HV_X64_MSR_CRASH_P1, regs->ax);
-	wrmsrl(HV_X64_MSR_CRASH_P2, regs->bx);
-	wrmsrl(HV_X64_MSR_CRASH_P3, regs->cx);
-	wrmsrl(HV_X64_MSR_CRASH_P4, regs->dx);
-
-	/*
-	 * Let Hyper-V know there is crash data available
-	 */
-	wrmsrl(HV_X64_MSR_CRASH_CTL, HV_CRASH_CTL_CRASH_NOTIFY);
-}
+static int hyperv_cpuhp_online;
 
 static int hyperv_panic_event(struct notifier_block *nb, unsigned long val,
 			      void *args)
@@ -630,40 +608,6 @@ static void vmbus_free_dynids(struct hv_driver *drv)
 	spin_unlock(&drv->dynids.lock);
 }
 
-/* Parse string of form: 1b4e28ba-2fa1-11d2-883f-b9a761bde3f */
-static int get_uuid_le(const char *str, uuid_le *uu)
-{
-	unsigned int b[16];
-	int i;
-
-	if (strlen(str) < 37)
-		return -1;
-
-	for (i = 0; i < 36; i++) {
-		switch (i) {
-		case 8: case 13: case 18: case 23:
-			if (str[i] != '-')
-				return -1;
-			break;
-		default:
-			if (!isxdigit(str[i]))
-				return -1;
-		}
-	}
-
-	/* unparse little endian output byte order */
-	if (sscanf(str,
-		   "%2x%2x%2x%2x-%2x%2x-%2x%2x-%2x%2x-%2x%2x%2x%2x%2x%2x",
-		   &b[3], &b[2], &b[1], &b[0],
-		   &b[5], &b[4], &b[7], &b[6], &b[8], &b[9],
-		   &b[10], &b[11], &b[12], &b[13], &b[14], &b[15]) != 16)
-		return -1;
-
-	for (i = 0; i < 16; i++)
-		uu->b[i] = b[i];
-	return 0;
-}
-
 /*
  * store_new_id - sysfs frontend to vmbus_add_dynid()
  *
@@ -673,11 +617,12 @@ static ssize_t new_id_store(struct device_driver *driver, const char *buf,
 			    size_t count)
 {
 	struct hv_driver *drv = drv_to_hv_drv(driver);
-	uuid_le guid = NULL_UUID_LE;
+	uuid_le guid;
 	ssize_t retval;
 
-	if (get_uuid_le(buf, &guid) != 0)
-		return -EINVAL;
+	retval = uuid_le_to_bin(buf, &guid);
+	if (retval)
+		return retval;
 
 	if (hv_vmbus_get_id(drv, &guid))
 		return -EEXIST;
@@ -699,12 +644,14 @@ static ssize_t remove_id_store(struct device_driver *driver, const char *buf,
 {
 	struct hv_driver *drv = drv_to_hv_drv(driver);
 	struct vmbus_dynid *dynid, *n;
-	uuid_le guid = NULL_UUID_LE;
-	size_t retval = -ENODEV;
+	uuid_le guid;
+	ssize_t retval;
 
-	if (get_uuid_le(buf, &guid))
-		return -EINVAL;
+	retval = uuid_le_to_bin(buf, &guid);
+	if (retval)
+		return retval;
 
+	retval = -ENODEV;
 	spin_lock(&drv->dynids.lock);
 	list_for_each_entry_safe(dynid, n, &drv->dynids.list, node) {
 		struct hv_vmbus_device_id *id = &dynid->id;
@@ -809,8 +756,6 @@ static void vmbus_shutdown(struct device *child_device)
 
 	if (drv->shutdown)
 		drv->shutdown(dev);
-
-	return;
 }
 
 
@@ -822,8 +767,9 @@ static void vmbus_device_release(struct device *device)
 	struct hv_device *hv_dev = device_to_hv_device(device);
 	struct vmbus_channel *channel = hv_dev->channel;
 
-	hv_process_channel_removal(channel,
-				   channel->offermsg.child_relid);
+	mutex_lock(&vmbus_connection.channel_mutex);
+	hv_process_channel_removal(channel->offermsg.child_relid);
+	mutex_unlock(&vmbus_connection.channel_mutex);
 	kfree(hv_dev);
 
 }
@@ -859,9 +805,10 @@ static void vmbus_onmessage_work(struct work_struct *work)
 	kfree(ctx);
 }
 
-static void hv_process_timer_expiration(struct hv_message *msg, int cpu)
+static void hv_process_timer_expiration(struct hv_message *msg,
+					struct hv_per_cpu_context *hv_cpu)
 {
-	struct clock_event_device *dev = hv_context.clk_evt[cpu];
+	struct clock_event_device *dev = hv_cpu->clk_evt;
 
 	if (dev->event_handler)
 		dev->event_handler(dev);
@@ -871,12 +818,12 @@ static void hv_process_timer_expiration(struct hv_message *msg, int cpu)
 
 void vmbus_on_msg_dpc(unsigned long data)
 {
-	int cpu = smp_processor_id();
-	void *page_addr = hv_context.synic_message_page[cpu];
+	struct hv_per_cpu_context *hv_cpu = (void *)data;
+	void *page_addr = hv_cpu->synic_message_page;
 	struct hv_message *msg = (struct hv_message *)page_addr +
 				  VMBUS_MESSAGE_SINT;
 	struct vmbus_channel_message_header *hdr;
-	struct vmbus_channel_message_table_entry *entry;
+	const struct vmbus_channel_message_table_entry *entry;
 	struct onmessage_work_context *ctx;
 	u32 message_type = msg->header.message_type;
 
@@ -900,7 +847,32 @@ void vmbus_on_msg_dpc(unsigned long data)
 		INIT_WORK(&ctx->work, vmbus_onmessage_work);
 		memcpy(&ctx->msg, msg, sizeof(*msg));
 
-		queue_work(vmbus_connection.work_queue, &ctx->work);
+		/*
+		 * The host can generate a rescind message while we
+		 * may still be handling the original offer. We deal with
+		 * this condition by ensuring the processing is done on the
+		 * same CPU.
+		 */
+		switch (hdr->msgtype) {
+		case CHANNELMSG_RESCIND_CHANNELOFFER:
+			/*
+			 * If we are handling the rescind message;
+			 * schedule the work on the global work queue.
+			 */
+			schedule_work_on(vmbus_connection.connect_cpu,
+					 &ctx->work);
+			break;
+
+		case CHANNELMSG_OFFERCHANNEL:
+			atomic_inc(&vmbus_connection.offer_in_progress);
+			queue_work_on(vmbus_connection.connect_cpu,
+				      vmbus_connection.work_queue,
+				      &ctx->work);
+			break;
+
+		default:
+			queue_work(vmbus_connection.work_queue, &ctx->work);
+		}
 	} else
 		entry->message_handler(hdr);
 
@@ -908,16 +880,95 @@ msg_handled:
 	vmbus_signal_eom(msg, message_type);
 }
 
+
+/*
+ * Direct callback for channels using other deferred processing
+ */
+static void vmbus_channel_isr(struct vmbus_channel *channel)
+{
+	void (*callback_fn)(void *);
+
+	callback_fn = READ_ONCE(channel->onchannel_callback);
+	if (likely(callback_fn != NULL))
+		(*callback_fn)(channel->channel_callback_context);
+}
+
+/*
+ * Schedule all channels with events pending
+ */
+static void vmbus_chan_sched(struct hv_per_cpu_context *hv_cpu)
+{
+	unsigned long *recv_int_page;
+	u32 maxbits, relid;
+
+	if (vmbus_proto_version < VERSION_WIN8) {
+		maxbits = MAX_NUM_CHANNELS_SUPPORTED;
+		recv_int_page = vmbus_connection.recv_int_page;
+	} else {
+		/*
+		 * When the host is win8 and beyond, the event page
+		 * can be directly checked to get the id of the channel
+		 * that has the interrupt pending.
+		 */
+		void *page_addr = hv_cpu->synic_event_page;
+		union hv_synic_event_flags *event
+			= (union hv_synic_event_flags *)page_addr +
+						 VMBUS_MESSAGE_SINT;
+
+		maxbits = HV_EVENT_FLAGS_COUNT;
+		recv_int_page = event->flags;
+	}
+
+	if (unlikely(!recv_int_page))
+		return;
+
+	for_each_set_bit(relid, recv_int_page, maxbits) {
+		struct vmbus_channel *channel;
+
+		if (!sync_test_and_clear_bit(relid, recv_int_page))
+			continue;
+
+		/* Special case - vmbus channel protocol msg */
+		if (relid == 0)
+			continue;
+
+		rcu_read_lock();
+
+		/* Find channel based on relid */
+		list_for_each_entry_rcu(channel, &hv_cpu->chan_list, percpu_list) {
+			if (channel->offermsg.child_relid != relid)
+				continue;
+
+			if (channel->rescind)
+				continue;
+
+			switch (channel->callback_mode) {
+			case HV_CALL_ISR:
+				vmbus_channel_isr(channel);
+				break;
+
+			case HV_CALL_BATCHED:
+				hv_begin_read(&channel->inbound);
+				/* fallthrough */
+			case HV_CALL_DIRECT:
+				tasklet_schedule(&channel->callback_event);
+			}
+		}
+
+		rcu_read_unlock();
+	}
+}
+
 static void vmbus_isr(void)
 {
-	int cpu = smp_processor_id();
-	void *page_addr;
+	struct hv_per_cpu_context *hv_cpu
+		= this_cpu_ptr(hv_context.cpu_context);
+	void *page_addr = hv_cpu->synic_event_page;
 	struct hv_message *msg;
 	union hv_synic_event_flags *event;
 	bool handled = false;
 
-	page_addr = hv_context.synic_event_page[cpu];
-	if (page_addr == NULL)
+	if (unlikely(page_addr == NULL))
 		return;
 
 	event = (union hv_synic_event_flags *)page_addr +
@@ -932,10 +983,8 @@ static void vmbus_isr(void)
 		(vmbus_proto_version == VERSION_WIN7)) {
 
 		/* Since we are a child, we only need to check bit 0 */
-		if (sync_test_and_clear_bit(0,
-			(unsigned long *) &event->flags32[0])) {
+		if (sync_test_and_clear_bit(0, event->flags))
 			handled = true;
-		}
 	} else {
 		/*
 		 * Our host is win8 or above. The signaling mechanism
@@ -947,18 +996,17 @@ static void vmbus_isr(void)
 	}
 
 	if (handled)
-		tasklet_schedule(hv_context.event_dpc[cpu]);
+		vmbus_chan_sched(hv_cpu);
 
-
-	page_addr = hv_context.synic_message_page[cpu];
+	page_addr = hv_cpu->synic_message_page;
 	msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;
 
 	/* Check if there are actual msgs to be processed */
 	if (msg->header.message_type != HVMSG_NONE) {
 		if (msg->header.message_type == HVMSG_TIMER_EXPIRED)
-			hv_process_timer_expiration(msg, cpu);
+			hv_process_timer_expiration(msg, hv_cpu);
 		else
-			tasklet_schedule(hv_context.msg_dpc[cpu]);
+			tasklet_schedule(&hv_cpu->msg_dpc);
 	}
 
 	add_interrupt_randomness(HYPERVISOR_CALLBACK_VECTOR, 0);
@@ -986,7 +1034,7 @@ static int vmbus_bus_init(void)
 
 	ret = bus_register(&hv_bus);
 	if (ret)
-		goto err_cleanup;
+		return ret;
 
 	hv_setup_vmbus_irq(vmbus_isr);
 
@@ -997,13 +1045,15 @@ static int vmbus_bus_init(void)
 	 * Initialize the per-cpu interrupt state and
 	 * connect to the host.
 	 */
-	on_each_cpu(hv_synic_init, NULL, 1);
+	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/hyperv:online",
+				hv_synic_init, hv_synic_cleanup);
+	if (ret < 0)
+		goto err_alloc;
+	hyperv_cpuhp_online = ret;
+
 	ret = vmbus_connect();
 	if (ret)
 		goto err_connect;
-
-	if (vmbus_proto_version > VERSION_WIN7)
-		cpu_hotplug_disable();
 
 	/*
 	 * Only register if the crash MSRs are available
@@ -1019,15 +1069,12 @@ static int vmbus_bus_init(void)
 	return 0;
 
 err_connect:
-	on_each_cpu(hv_synic_cleanup, NULL, 1);
+	cpuhp_remove_state(hyperv_cpuhp_online);
 err_alloc:
 	hv_synic_free();
 	hv_remove_vmbus_irq();
 
 	bus_unregister(&hv_bus);
-
-err_cleanup:
-	hv_cleanup(false);
 
 	return ret;
 }
@@ -1406,23 +1453,6 @@ void vmbus_free_mmio(resource_size_t start, resource_size_t size)
 }
 EXPORT_SYMBOL_GPL(vmbus_free_mmio);
 
-/**
- * vmbus_cpu_number_to_vp_number() - Map CPU to VP.
- * @cpu_number: CPU number in Linux terms
- *
- * This function returns the mapping between the Linux processor
- * number and the hypervisor's virtual processor number, useful
- * in making hypercalls and such that talk about specific
- * processors.
- *
- * Return: Virtual processor number in Hyper-V terms
- */
-int vmbus_cpu_number_to_vp_number(int cpu_number)
-{
-	return hv_context.vp_index[cpu_number];
-}
-EXPORT_SYMBOL_GPL(vmbus_cpu_number_to_vp_number);
-
 static int vmbus_acpi_add(struct acpi_device *device)
 {
 	acpi_status result;
@@ -1478,13 +1508,13 @@ static struct acpi_driver vmbus_acpi_driver = {
 
 static void hv_kexec_handler(void)
 {
-	int cpu;
-
 	hv_synic_clockevents_cleanup();
 	vmbus_initiate_unload(false);
-	for_each_online_cpu(cpu)
-		smp_call_function_single(cpu, hv_synic_cleanup, NULL, 1);
-	hv_cleanup(false);
+	vmbus_connection.conn_state = DISCONNECTED;
+	/* Make sure conn_state is set as hv_synic_cleanup checks for it */
+	mb();
+	cpuhp_remove_state(hyperv_cpuhp_online);
+	hyperv_cleanup();
 };
 
 static void hv_crash_handler(struct pt_regs *regs)
@@ -1495,8 +1525,9 @@ static void hv_crash_handler(struct pt_regs *regs)
 	 * doing the cleanup for current CPU only. This should be sufficient
 	 * for kdump.
 	 */
-	hv_synic_cleanup(NULL);
-	hv_cleanup(true);
+	vmbus_connection.conn_state = DISCONNECTED;
+	hv_synic_cleanup(smp_processor_id());
+	hyperv_cleanup();
 };
 
 static int __init hv_acpi_init(void)
@@ -1547,24 +1578,24 @@ static void __exit vmbus_exit(void)
 	hv_synic_clockevents_cleanup();
 	vmbus_disconnect();
 	hv_remove_vmbus_irq();
-	for_each_online_cpu(cpu)
-		tasklet_kill(hv_context.msg_dpc[cpu]);
+	for_each_online_cpu(cpu) {
+		struct hv_per_cpu_context *hv_cpu
+			= per_cpu_ptr(hv_context.cpu_context, cpu);
+
+		tasklet_kill(&hv_cpu->msg_dpc);
+	}
 	vmbus_free_channels();
+
 	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
 		unregister_die_notifier(&hyperv_die_block);
 		atomic_notifier_chain_unregister(&panic_notifier_list,
 						 &hyperv_panic_block);
 	}
 	bus_unregister(&hv_bus);
-	hv_cleanup(false);
-	for_each_online_cpu(cpu) {
-		tasklet_kill(hv_context.event_dpc[cpu]);
-		smp_call_function_single(cpu, hv_synic_cleanup, NULL, 1);
-	}
+
+	cpuhp_remove_state(hyperv_cpuhp_online);
 	hv_synic_free();
 	acpi_bus_unregister_driver(&vmbus_acpi_driver);
-	if (vmbus_proto_version > VERSION_WIN7)
-		cpu_hotplug_enable();
 }
 
 

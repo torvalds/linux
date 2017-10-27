@@ -147,7 +147,7 @@ struct drm_vma_offset_node *drm_vma_offset_lookup_locked(struct drm_vma_offset_m
 	struct rb_node *iter;
 	unsigned long offset;
 
-	iter = mgr->vm_addr_space_mm.interval_tree.rb_node;
+	iter = mgr->vm_addr_space_mm.interval_tree.rb_root.rb_node;
 	best = NULL;
 
 	while (likely(iter)) {
@@ -212,8 +212,7 @@ int drm_vma_offset_add(struct drm_vma_offset_manager *mgr,
 		goto out_unlock;
 	}
 
-	ret = drm_mm_insert_node(&mgr->vm_addr_space_mm, &node->vm_node,
-				 pages, 0, DRM_MM_SEARCH_DEFAULT);
+	ret = drm_mm_insert_node(&mgr->vm_addr_space_mm, &node->vm_node, pages);
 	if (ret)
 		goto out_unlock;
 

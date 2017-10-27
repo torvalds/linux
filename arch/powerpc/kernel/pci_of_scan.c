@@ -211,19 +211,19 @@ void of_scan_pci_bridge(struct pci_dev *dev)
 	unsigned int flags;
 	u64 size;
 
-	pr_debug("of_scan_pci_bridge(%s)\n", node->full_name);
+	pr_debug("of_scan_pci_bridge(%pOF)\n", node);
 
 	/* parse bus-range property */
 	busrange = of_get_property(node, "bus-range", &len);
 	if (busrange == NULL || len != 8) {
-		printk(KERN_DEBUG "Can't get bus-range for PCI-PCI bridge %s\n",
-		       node->full_name);
+		printk(KERN_DEBUG "Can't get bus-range for PCI-PCI bridge %pOF\n",
+		       node);
 		return;
 	}
 	ranges = of_get_property(node, "ranges", &len);
 	if (ranges == NULL) {
-		printk(KERN_DEBUG "Can't get ranges for PCI-PCI bridge %s\n",
-		       node->full_name);
+		printk(KERN_DEBUG "Can't get ranges for PCI-PCI bridge %pOF\n",
+		       node);
 		return;
 	}
 
@@ -233,8 +233,8 @@ void of_scan_pci_bridge(struct pci_dev *dev)
 		bus = pci_add_new_bus(dev->bus, dev,
 				      of_read_number(busrange, 1));
 		if (!bus) {
-			printk(KERN_ERR "Failed to create pci bus for %s\n",
-			       node->full_name);
+			printk(KERN_ERR "Failed to create pci bus for %pOF\n",
+			       node);
 			return;
 		}
 	}
@@ -262,13 +262,13 @@ void of_scan_pci_bridge(struct pci_dev *dev)
 			res = bus->resource[0];
 			if (res->flags) {
 				printk(KERN_ERR "PCI: ignoring extra I/O range"
-				       " for bridge %s\n", node->full_name);
+				       " for bridge %pOF\n", node);
 				continue;
 			}
 		} else {
 			if (i >= PCI_NUM_RESOURCES - PCI_BRIDGE_RESOURCES) {
 				printk(KERN_ERR "PCI: too many memory ranges"
-				       " for bridge %s\n", node->full_name);
+				       " for bridge %pOF\n", node);
 				continue;
 			}
 			res = bus->resource[i];
@@ -307,7 +307,7 @@ static struct pci_dev *of_scan_pci_dev(struct pci_bus *bus,
 	struct eeh_dev *edev = pdn_to_eeh_dev(PCI_DN(dn));
 #endif
 
-	pr_debug("  * %s\n", dn->full_name);
+	pr_debug("  * %pOF\n", dn);
 	if (!of_device_is_available(dn))
 		return NULL;
 
@@ -350,8 +350,8 @@ static void __of_scan_bus(struct device_node *node, struct pci_bus *bus,
 	struct device_node *child;
 	struct pci_dev *dev;
 
-	pr_debug("of_scan_bus(%s) bus no %d...\n",
-		 node->full_name, bus->number);
+	pr_debug("of_scan_bus(%pOF) bus no %d...\n",
+		 node, bus->number);
 
 	/* Scan direct children */
 	for_each_child_of_node(node, child) {

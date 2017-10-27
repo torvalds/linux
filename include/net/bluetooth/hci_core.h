@@ -26,6 +26,8 @@
 #define __HCI_CORE_H
 
 #include <linux/leds.h>
+#include <linux/rculist.h>
+
 #include <net/bluetooth/hci.h>
 #include <net/bluetooth/hci_sock.h>
 
@@ -987,7 +989,7 @@ static inline void hci_conn_drop(struct hci_conn *conn)
 static inline void hci_dev_put(struct hci_dev *d)
 {
 	BT_DBG("%s orig refcnt %d", d->name,
-	       atomic_read(&d->dev.kobj.kref.refcount));
+	       kref_read(&d->dev.kobj.kref));
 
 	put_device(&d->dev);
 }
@@ -995,7 +997,7 @@ static inline void hci_dev_put(struct hci_dev *d)
 static inline struct hci_dev *hci_dev_hold(struct hci_dev *d)
 {
 	BT_DBG("%s orig refcnt %d", d->name,
-	       atomic_read(&d->dev.kobj.kref.refcount));
+	       kref_read(&d->dev.kobj.kref));
 
 	get_device(&d->dev);
 	return d;

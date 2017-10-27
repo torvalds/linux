@@ -145,6 +145,60 @@ reservation_object_get_list(struct reservation_object *obj)
 }
 
 /**
+ * reservation_object_lock - lock the reservation object
+ * @obj: the reservation object
+ * @ctx: the locking context
+ *
+ * Locks the reservation object for exclusive access and modification. Note,
+ * that the lock is only against other writers, readers will run concurrently
+ * with a writer under RCU. The seqlock is used to notify readers if they
+ * overlap with a writer.
+ *
+ * As the reservation object may be locked by multiple parties in an
+ * undefined order, a #ww_acquire_ctx is passed to unwind if a cycle
+ * is detected. See ww_mutex_lock() and ww_acquire_init(). A reservation
+ * object may be locked by itself by passing NULL as @ctx.
+ */
+static inline int
+reservation_object_lock(struct reservation_object *obj,
+			struct ww_acquire_ctx *ctx)
+{
+	return ww_mutex_lock(&obj->lock, ctx);
+}
+
+/**
+ * reservation_object_trylock - trylock the reservation object
+ * @obj: the reservation object
+ *
+ * Tries to lock the reservation object for exclusive access and modification.
+ * Note, that the lock is only against other writers, readers will run
+ * concurrently with a writer under RCU. The seqlock is used to notify readers
+ * if they overlap with a writer.
+ *
+ * Also note that since no context is provided, no deadlock protection is
+ * possible.
+ *
+ * Returns true if the lock was acquired, false otherwise.
+ */
+static inline bool __must_check
+reservation_object_trylock(struct reservation_object *obj)
+{
+	return ww_mutex_trylock(&obj->lock);
+}
+
+/**
+ * reservation_object_unlock - unlock the reservation object
+ * @obj: the reservation object
+ *
+ * Unlocks the reservation object following exclusive access.
+ */
+static inline void
+reservation_object_unlock(struct reservation_object *obj)
+{
+	ww_mutex_unlock(&obj->lock);
+}
+
+/**
  * reservation_object_get_excl - get the reservation object's
  * exclusive fence, with update-side lock held
  * @obj: the reservation object
@@ -199,6 +253,9 @@ int reservation_object_get_fences_rcu(struct reservation_object *obj,
 				      struct dma_fence **pfence_excl,
 				      unsigned *pshared_count,
 				      struct dma_fence ***pshared);
+
+int reservation_object_copy_fences(struct reservation_object *dst,
+				   struct reservation_object *src);
 
 long reservation_object_wait_timeout_rcu(struct reservation_object *obj,
 					 bool wait_all, bool intr,

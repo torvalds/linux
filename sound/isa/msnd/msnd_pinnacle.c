@@ -170,23 +170,24 @@ static irqreturn_t snd_msnd_interrupt(int irq, void *dev_id)
 {
 	struct snd_msnd *chip = dev_id;
 	void *pwDSPQData = chip->mappedbase + DSPQ_DATA_BUFF;
+	u16 head, tail, size;
 
 	/* Send ack to DSP */
 	/* inb(chip->io + HP_RXL); */
 
 	/* Evaluate queued DSP messages */
-	while (readw(chip->DSPQ + JQS_wTail) != readw(chip->DSPQ + JQS_wHead)) {
-		u16 wTmp;
-
-		snd_msnd_eval_dsp_msg(chip,
-			readw(pwDSPQData + 2 * readw(chip->DSPQ + JQS_wHead)));
-
-		wTmp = readw(chip->DSPQ + JQS_wHead) + 1;
-		if (wTmp > readw(chip->DSPQ + JQS_wSize))
-			writew(0, chip->DSPQ + JQS_wHead);
-		else
-			writew(wTmp, chip->DSPQ + JQS_wHead);
+	head = readw(chip->DSPQ + JQS_wHead);
+	tail = readw(chip->DSPQ + JQS_wTail);
+	size = readw(chip->DSPQ + JQS_wSize);
+	if (head > size || tail > size)
+		goto out;
+	while (head != tail) {
+		snd_msnd_eval_dsp_msg(chip, readw(pwDSPQData + 2 * head));
+		if (++head > size)
+			head = 0;
+		writew(head, chip->DSPQ + JQS_wHead);
 	}
+ out:
 	/* Send ack to DSP */
 	inb(chip->io + HP_RXL);
 	return IRQ_HANDLED;
@@ -800,22 +801,22 @@ MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(INITCODEFILE);
 MODULE_FIRMWARE(PERMCODEFILE);
 
-module_param_array(io, long, NULL, S_IRUGO);
+module_param_hw_array(io, long, ioport, NULL, S_IRUGO);
 MODULE_PARM_DESC(io, "IO port #");
-module_param_array(irq, int, NULL, S_IRUGO);
-module_param_array(mem, long, NULL, S_IRUGO);
+module_param_hw_array(irq, int, irq, NULL, S_IRUGO);
+module_param_hw_array(mem, long, iomem, NULL, S_IRUGO);
 module_param_array(write_ndelay, int, NULL, S_IRUGO);
 module_param(calibrate_signal, int, S_IRUGO);
 #ifndef MSND_CLASSIC
 module_param_array(digital, int, NULL, S_IRUGO);
-module_param_array(cfg, long, NULL, S_IRUGO);
+module_param_hw_array(cfg, long, ioport, NULL, S_IRUGO);
 module_param_array(reset, int, 0, S_IRUGO);
-module_param_array(mpu_io, long, NULL, S_IRUGO);
-module_param_array(mpu_irq, int, NULL, S_IRUGO);
-module_param_array(ide_io0, long, NULL, S_IRUGO);
-module_param_array(ide_io1, long, NULL, S_IRUGO);
-module_param_array(ide_irq, int, NULL, S_IRUGO);
-module_param_array(joystick_io, long, NULL, S_IRUGO);
+module_param_hw_array(mpu_io, long, ioport, NULL, S_IRUGO);
+module_param_hw_array(mpu_irq, int, irq, NULL, S_IRUGO);
+module_param_hw_array(ide_io0, long, ioport, NULL, S_IRUGO);
+module_param_hw_array(ide_io1, long, ioport, NULL, S_IRUGO);
+module_param_hw_array(ide_irq, int, irq, NULL, S_IRUGO);
+module_param_hw_array(joystick_io, long, ioport, NULL, S_IRUGO);
 #endif
 
 
@@ -1191,7 +1192,7 @@ static void snd_msnd_pnp_remove(struct pnp_card_link *pcard)
 static int isa_registered;
 static int pnp_registered;
 
-static struct pnp_card_device_id msnd_pnpids[] = {
+static const struct pnp_card_device_id msnd_pnpids[] = {
 	/* Pinnacle PnP */
 	{ .id = "BVJ0440", .devs = { { "TBS0000" }, { "TBS0001" } } },
 	{ .id = "" }	/* end */

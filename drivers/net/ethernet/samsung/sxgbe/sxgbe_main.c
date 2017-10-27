@@ -387,7 +387,7 @@ static void sxgbe_free_rx_buffers(struct net_device *dev,
 /**
  * init_tx_ring - init the TX descriptor ring
  * @dev: net device structure
- * @tx_ring: ring to be intialised
+ * @tx_ring: ring to be initialised
  * @tx_rsize: ring size
  * Description:  this function initializes the DMA TX descriptor
  */
@@ -437,7 +437,7 @@ dmamem_err:
 /**
  * free_rx_ring - free the RX descriptor ring
  * @dev: net device structure
- * @rx_ring: ring to be intialised
+ * @rx_ring: ring to be initialised
  * @rx_rsize: ring size
  * Description:  this function initializes the DMA RX descriptor
  */
@@ -453,7 +453,7 @@ static void free_rx_ring(struct device *dev, struct sxgbe_rx_queue *rx_ring,
 /**
  * init_rx_ring - init the RX descriptor ring
  * @dev: net device structure
- * @rx_ring: ring to be intialised
+ * @rx_ring: ring to be initialised
  * @rx_rsize: ring size
  * Description:  this function initializes the DMA RX descriptor
  */
@@ -539,7 +539,7 @@ err_free_dma_rx:
 /**
  * free_tx_ring - free the TX descriptor ring
  * @dev: net device structure
- * @tx_ring: ring to be intialised
+ * @tx_ring: ring to be initialised
  * @tx_rsize: ring size
  * Description:  this function initializes the DMA TX descriptor
  */
@@ -1418,8 +1418,7 @@ static netdev_tx_t sxgbe_xmit(struct sk_buff *skb, struct net_device *dev)
 		priv->hw->desc->tx_enable_tstamp(first_desc);
 	}
 
-	if (!tqueue->hwts_tx_en)
-		skb_tx_timestamp(skb);
+	skb_tx_timestamp(skb);
 
 	priv->hw->dma->enable_dma_transmission(priv->ioaddr, txq_index);
 
@@ -1563,7 +1562,7 @@ static int sxgbe_poll(struct napi_struct *napi, int budget)
 
 	work_done = sxgbe_rx(priv, budget);
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		priv->hw->dma->enable_dma_irq(priv->ioaddr, qnum);
 	}
 
@@ -1706,11 +1705,9 @@ static inline u64 sxgbe_get_stat64(void __iomem *ioaddr, int reg_lo, int reg_hi)
  *  This function is a driver entry point whenever ifconfig command gets
  *  executed to see device statistics. Statistics are number of
  *  bytes sent or received, errors occurred etc.
- *  Return value:
- *  This function returns various statistical information of device.
  */
-static struct rtnl_link_stats64 *sxgbe_get_stats64(struct net_device *dev,
-						   struct rtnl_link_stats64 *stats)
+static void sxgbe_get_stats64(struct net_device *dev,
+			      struct rtnl_link_stats64 *stats)
 {
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
 	void __iomem *ioaddr = priv->ioaddr;
@@ -1761,8 +1758,6 @@ static struct rtnl_link_stats64 *sxgbe_get_stats64(struct net_device *dev,
 						 SXGBE_MMC_TXUFLWHI_GBCNT_REG);
 	writel(0, ioaddr + SXGBE_MMC_CTL_REG);
 	spin_unlock(&priv->stats_lock);
-
-	return stats;
 }
 
 /*  sxgbe_set_features - entry point to set offload features of the device.

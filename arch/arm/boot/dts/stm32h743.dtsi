@@ -1,0 +1,202 @@
+/*
+ * Copyright 2017 - Alexandre Torgue <alexandre.torgue@st.com>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+#include "skeleton.dtsi"
+#include "armv7-m.dtsi"
+
+/ {
+	clocks {
+		clk_hse: clk-hse {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <0>;
+		};
+
+		timer_clk: timer-clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <125000000>;
+		};
+	};
+
+	soc {
+		timer5: timer@40000c00 {
+			compatible = "st,stm32-timer";
+			reg = <0x40000c00 0x400>;
+			interrupts = <50>;
+			clocks = <&timer_clk>;
+		};
+
+		usart2: serial@40004400 {
+			compatible = "st,stm32f7-usart", "st,stm32f7-uart";
+			reg = <0x40004400 0x400>;
+			interrupts = <38>;
+			status = "disabled";
+			clocks = <&timer_clk>;
+		};
+
+		dac: dac@40007400 {
+			compatible = "st,stm32h7-dac-core";
+			reg = <0x40007400 0x400>;
+			clocks = <&timer_clk>;
+			clock-names = "pclk";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+
+			dac1: dac@1 {
+				compatible = "st,stm32-dac";
+				#io-channels-cells = <1>;
+				reg = <1>;
+				status = "disabled";
+			};
+
+			dac2: dac@2 {
+				compatible = "st,stm32-dac";
+				#io-channels-cells = <1>;
+				reg = <2>;
+				status = "disabled";
+			};
+		};
+
+		usart1: serial@40011000 {
+			compatible = "st,stm32f7-usart", "st,stm32f7-uart";
+			reg = <0x40011000 0x400>;
+			interrupts = <37>;
+			status = "disabled";
+			clocks = <&timer_clk>;
+
+		};
+
+		dma1: dma@40020000 {
+			compatible = "st,stm32-dma";
+			reg = <0x40020000 0x400>;
+			interrupts = <11>,
+				     <12>,
+				     <13>,
+				     <14>,
+				     <15>,
+				     <16>,
+				     <17>,
+				     <47>;
+			clocks = <&timer_clk>;
+			#dma-cells = <4>;
+			st,mem2mem;
+			status = "disabled";
+		};
+
+		dma2: dma@40020400 {
+			compatible = "st,stm32-dma";
+			reg = <0x40020400 0x400>;
+			interrupts = <56>,
+				     <57>,
+				     <58>,
+				     <59>,
+				     <60>,
+				     <68>,
+				     <69>,
+				     <70>;
+			clocks = <&timer_clk>;
+			#dma-cells = <4>;
+			st,mem2mem;
+			status = "disabled";
+		};
+
+		adc_12: adc@40022000 {
+			compatible = "st,stm32h7-adc-core";
+			reg = <0x40022000 0x400>;
+			interrupts = <18>;
+			clocks = <&timer_clk>;
+			clock-names = "bus";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+
+			adc1: adc@0 {
+				compatible = "st,stm32h7-adc";
+				#io-channel-cells = <1>;
+				reg = <0x0>;
+				interrupt-parent = <&adc_12>;
+				interrupts = <0>;
+				status = "disabled";
+			};
+
+			adc2: adc@100 {
+				compatible = "st,stm32h7-adc";
+				#io-channel-cells = <1>;
+				reg = <0x100>;
+				interrupt-parent = <&adc_12>;
+				interrupts = <1>;
+				status = "disabled";
+			};
+		};
+
+		adc_3: adc@58026000 {
+			compatible = "st,stm32h7-adc-core";
+			reg = <0x58026000 0x400>;
+			interrupts = <127>;
+			clocks = <&timer_clk>;
+			clock-names = "bus";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+
+			adc3: adc@0 {
+				compatible = "st,stm32h7-adc";
+				#io-channel-cells = <1>;
+				reg = <0x0>;
+				interrupt-parent = <&adc_3>;
+				interrupts = <0>;
+				status = "disabled";
+			};
+		};
+	};
+};
+
+&systick {
+	clock-frequency = <250000000>;
+	status = "okay";
+};

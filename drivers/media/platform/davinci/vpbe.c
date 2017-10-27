@@ -9,10 +9,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -794,7 +790,7 @@ static void vpbe_deinitialize(struct device *dev, struct vpbe_device *vpbe_dev)
 	vpss_enable_clock(VPSS_VPBE_CLOCK, 0);
 }
 
-static struct vpbe_device_ops vpbe_dev_ops = {
+static const struct vpbe_device_ops vpbe_dev_ops = {
 	.g_cropcap = vpbe_g_cropcap,
 	.enum_outputs = vpbe_enum_outputs,
 	.set_output = vpbe_set_output,

@@ -37,6 +37,12 @@
 
 #include "halbtcoutsrc.h"
 
+/* Interface type */
+#define RT_PCI_INTERFACE	1
+#define RT_USB_INTERFACE	2
+#define RT_SDIO_INTERFACE	3
+#define DEV_BUS_TYPE		RT_PCI_INTERFACE
+
 #include "halbtc8192e2ant.h"
 #include "halbtc8723b1ant.h"
 #include "halbtc8723b2ant.h"

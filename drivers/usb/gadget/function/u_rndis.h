@@ -26,8 +26,13 @@ struct f_rndis_opts {
 	bool				bound;
 	bool				borrowed_net;
 
+	struct config_group		*rndis_interf_group;
 	struct usb_os_desc		rndis_os_desc;
 	char				rndis_ext_compat_id[16];
+
+	u8				class;
+	u8				subclass;
+	u8				protocol;
 
 	/*
 	 * Read/write access to configfs attributes is handled by configfs.

@@ -288,19 +288,17 @@ static int mlx5e_dcbnl_ieee_setpfc(struct net_device *dev,
 static u8 mlx5e_dcbnl_getdcbx(struct net_device *dev)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	struct mlx5e_dcbx *dcbx = &priv->dcbx;
-	u8 mode = DCB_CAP_DCBX_VER_IEEE | DCB_CAP_DCBX_VER_CEE;
 
-	if (dcbx->mode == MLX5E_DCBX_PARAM_VER_OPER_HOST)
-		mode |= DCB_CAP_DCBX_HOST;
-
-	return mode;
+	return priv->dcbx.cap;
 }
 
 static u8 mlx5e_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5e_dcbx *dcbx = &priv->dcbx;
+
+	if (mode & DCB_CAP_DCBX_LLD_MANAGED)
+		return 1;
 
 	if ((!mode) && MLX5_CAP_GEN(priv->mdev, dcbx)) {
 		if (dcbx->mode == MLX5E_DCBX_PARAM_VER_OPER_AUTO)
@@ -309,20 +307,20 @@ static u8 mlx5e_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 		/* set dcbx to fw controlled */
 		if (!mlx5e_dcbnl_set_dcbx_mode(priv, MLX5E_DCBX_PARAM_VER_OPER_AUTO)) {
 			dcbx->mode = MLX5E_DCBX_PARAM_VER_OPER_AUTO;
+			dcbx->cap &= ~DCB_CAP_DCBX_HOST;
 			return 0;
 		}
 
 		return 1;
 	}
 
+	if (!(mode & DCB_CAP_DCBX_HOST))
+		return 1;
+
 	if (mlx5e_dcbnl_switch_to_host_mode(netdev_priv(dev)))
 		return 1;
 
-	if ((mode & DCB_CAP_DCBX_LLD_MANAGED) ||
-	    !(mode & DCB_CAP_DCBX_VER_CEE) ||
-	    !(mode & DCB_CAP_DCBX_VER_IEEE) ||
-	    !(mode & DCB_CAP_DCBX_HOST))
-		return 1;
+	dcbx->cap = mode;
 
 	return 0;
 }
@@ -463,6 +461,8 @@ static void mlx5e_dcbnl_getpermhwaddr(struct net_device *netdev,
 
 	if (!perm_addr)
 		return;
+
+	memset(perm_addr, 0xff, MAX_ADDR_LEN);
 
 	mlx5_query_nic_vport_mac_address(priv->mdev, 0, perm_addr);
 }
@@ -626,9 +626,9 @@ static u8 mlx5e_dcbnl_getcap(struct net_device *netdev,
 		*cap = false;
 		break;
 	case DCB_CAP_ATTR_DCBX:
-		*cap = (DCB_CAP_DCBX_LLD_MANAGED |
-			DCB_CAP_DCBX_VER_CEE |
-			DCB_CAP_DCBX_STATIC);
+		*cap = priv->dcbx.cap |
+		       DCB_CAP_DCBX_VER_CEE |
+		       DCB_CAP_DCBX_VER_IEEE;
 		break;
 	default:
 		*cap = 0;
@@ -752,8 +752,16 @@ void mlx5e_dcbnl_initialize(struct mlx5e_priv *priv)
 {
 	struct mlx5e_dcbx *dcbx = &priv->dcbx;
 
+	if (!MLX5_CAP_GEN(priv->mdev, qos))
+		return;
+
 	if (MLX5_CAP_GEN(priv->mdev, dcbx))
 		mlx5e_dcbnl_query_dcbx_mode(priv, &dcbx->mode);
+
+	priv->dcbx.cap = DCB_CAP_DCBX_VER_CEE |
+			 DCB_CAP_DCBX_VER_IEEE;
+	if (priv->dcbx.mode == MLX5E_DCBX_PARAM_VER_OPER_HOST)
+		priv->dcbx.cap |= DCB_CAP_DCBX_HOST;
 
 	mlx5e_ets_init(priv);
 }

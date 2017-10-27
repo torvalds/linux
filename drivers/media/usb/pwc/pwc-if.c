@@ -146,7 +146,7 @@ static const struct v4l2_file_operations pwc_fops = {
 	.mmap =		vb2_fop_mmap,
 	.unlocked_ioctl = video_ioctl2,
 };
-static struct video_device pwc_template = {
+static const struct video_device pwc_template = {
 	.name =		"Philips Webcam",	/* Filled in later */
 	.release =	video_device_release_empty,
 	.fops =         &pwc_fops,

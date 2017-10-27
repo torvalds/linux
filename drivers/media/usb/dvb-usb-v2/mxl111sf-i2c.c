@@ -12,10 +12,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "mxl111sf-i2c.h"
@@ -320,7 +316,7 @@ fail:
 static int mxl111sf_i2c_send_data(struct mxl111sf_state *state,
 				  u8 index, u8 *wdata)
 {
-	int ret = mxl111sf_ctrl_msg(state->d, wdata[0],
+	int ret = mxl111sf_ctrl_msg(state, wdata[0],
 				    &wdata[1], 25, NULL, 0);
 	mxl_fail(ret);
 
@@ -330,7 +326,7 @@ static int mxl111sf_i2c_send_data(struct mxl111sf_state *state,
 static int mxl111sf_i2c_get_data(struct mxl111sf_state *state,
 				 u8 index, u8 *wdata, u8 *rdata)
 {
-	int ret = mxl111sf_ctrl_msg(state->d, wdata[0],
+	int ret = mxl111sf_ctrl_msg(state, wdata[0],
 				    &wdata[1], 25, rdata, 24);
 	mxl_fail(ret);
 

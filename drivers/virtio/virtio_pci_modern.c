@@ -297,6 +297,7 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 				  unsigned index,
 				  void (*callback)(struct virtqueue *vq),
 				  const char *name,
+				  bool ctx,
 				  u16 msix_vec)
 {
 	struct virtio_pci_common_cfg __iomem *cfg = vp_dev->common;
@@ -328,7 +329,8 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 	/* create the vring */
 	vq = vring_create_virtqueue(index, num,
 				    SMP_CACHE_BYTES, &vp_dev->vdev,
-				    true, true, vp_notify, callback, name);
+				    true, true, ctx,
+				    vp_notify, callback, name);
 	if (!vq)
 		return ERR_PTR(-ENOMEM);
 
@@ -389,11 +391,12 @@ err_map_notify:
 static int vp_modern_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 			      struct virtqueue *vqs[],
 			      vq_callback_t *callbacks[],
-			      const char * const names[])
+			      const char * const names[], const bool *ctx,
+			      struct irq_affinity *desc)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	struct virtqueue *vq;
-	int rc = vp_find_vqs(vdev, nvqs, vqs, callbacks, names);
+	int rc = vp_find_vqs(vdev, nvqs, vqs, callbacks, names, ctx, desc);
 
 	if (rc)
 		return rc;
@@ -442,6 +445,7 @@ static const struct virtio_config_ops virtio_pci_config_nodev_ops = {
 	.finalize_features = vp_finalize_features,
 	.bus_name	= vp_bus_name,
 	.set_vq_affinity = vp_set_vq_affinity,
+	.get_vq_affinity = vp_get_vq_affinity,
 };
 
 static const struct virtio_config_ops virtio_pci_config_ops = {
@@ -457,6 +461,7 @@ static const struct virtio_config_ops virtio_pci_config_ops = {
 	.finalize_features = vp_finalize_features,
 	.bus_name	= vp_bus_name,
 	.set_vq_affinity = vp_set_vq_affinity,
+	.get_vq_affinity = vp_get_vq_affinity,
 };
 
 /**

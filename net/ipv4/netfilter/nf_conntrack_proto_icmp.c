@@ -71,16 +71,6 @@ static bool icmp_invert_tuple(struct nf_conntrack_tuple *tuple,
 	return true;
 }
 
-/* Print out the per-protocol part of the tuple. */
-static void icmp_print_tuple(struct seq_file *s,
-			    const struct nf_conntrack_tuple *tuple)
-{
-	seq_printf(s, "type=%u code=%u id=%u ",
-		   tuple->dst.u.icmp.type,
-		   tuple->dst.u.icmp.code,
-		   ntohs(tuple->src.u.icmp.id));
-}
-
 static unsigned int *icmp_get_timeouts(struct net *net)
 {
 	return &icmp_pernet(net)->timeout;
@@ -92,7 +82,6 @@ static int icmp_packet(struct nf_conn *ct,
 		       unsigned int dataoff,
 		       enum ip_conntrack_info ctinfo,
 		       u_int8_t pf,
-		       unsigned int hooknum,
 		       unsigned int *timeout)
 {
 	/* Do not immediately delete the connection after the first
@@ -128,16 +117,16 @@ static bool icmp_new(struct nf_conn *ct, const struct sk_buff *skb,
 /* Returns conntrack if it dealt with ICMP, and filled in skb fields */
 static int
 icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
-		 enum ip_conntrack_info *ctinfo,
 		 unsigned int hooknum)
 {
 	struct nf_conntrack_tuple innertuple, origtuple;
 	const struct nf_conntrack_l4proto *innerproto;
 	const struct nf_conntrack_tuple_hash *h;
 	const struct nf_conntrack_zone *zone;
+	enum ip_conntrack_info ctinfo;
 	struct nf_conntrack_zone tmp;
 
-	NF_CT_ASSERT(skb->nfct == NULL);
+	WARN_ON(skb_nfct(skb));
 	zone = nf_ct_zone_tmpl(tmpl, skb, &tmp);
 
 	/* Are they talking about one of our connections? */
@@ -160,7 +149,7 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 		return -NF_ACCEPT;
 	}
 
-	*ctinfo = IP_CT_RELATED;
+	ctinfo = IP_CT_RELATED;
 
 	h = nf_conntrack_find_get(net, zone, &innertuple);
 	if (!h) {
@@ -169,11 +158,10 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 	}
 
 	if (NF_CT_DIRECTION(h) == IP_CT_DIR_REPLY)
-		*ctinfo += IP_CT_IS_REPLY;
+		ctinfo += IP_CT_IS_REPLY;
 
 	/* Update skb to refer to this connection */
-	skb->nfct = &nf_ct_tuplehash_to_ctrack(h)->ct_general;
-	skb->nfctinfo = *ctinfo;
+	nf_ct_set(skb, nf_ct_tuplehash_to_ctrack(h), ctinfo);
 	return NF_ACCEPT;
 }
 
@@ -181,7 +169,7 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 static int
 icmp_error(struct net *net, struct nf_conn *tmpl,
 	   struct sk_buff *skb, unsigned int dataoff,
-	   enum ip_conntrack_info *ctinfo, u_int8_t pf, unsigned int hooknum)
+	   u8 pf, unsigned int hooknum)
 {
 	const struct icmphdr *icmph;
 	struct icmphdr _ih;
@@ -225,7 +213,7 @@ icmp_error(struct net *net, struct nf_conn *tmpl,
 	    icmph->type != ICMP_REDIRECT)
 		return NF_ACCEPT;
 
-	return icmp_error_message(net, tmpl, skb, ctinfo, hooknum);
+	return icmp_error_message(net, tmpl, skb, hooknum);
 }
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
@@ -363,10 +351,8 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp __read_mostly =
 {
 	.l3proto		= PF_INET,
 	.l4proto		= IPPROTO_ICMP,
-	.name			= "icmp",
 	.pkt_to_tuple		= icmp_pkt_to_tuple,
 	.invert_tuple		= icmp_invert_tuple,
-	.print_tuple		= icmp_print_tuple,
 	.packet			= icmp_packet,
 	.get_timeouts		= icmp_get_timeouts,
 	.new			= icmp_new,

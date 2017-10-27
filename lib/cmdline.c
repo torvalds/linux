@@ -15,6 +15,7 @@
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/ctype.h>
 
 /*
  *	If a hyphen was found in get_option, this will handle the
@@ -22,14 +23,14 @@
  *	the values[M, M+1, ..., N] into the ints array in get_options.
  */
 
-static int get_range(char **str, int *pint)
+static int get_range(char **str, int *pint, int n)
 {
 	int x, inc_counter, upper_range;
 
 	(*str)++;
 	upper_range = simple_strtol((*str), NULL, 0);
 	inc_counter = upper_range - *pint;
-	for (x = *pint; x < upper_range; x++)
+	for (x = *pint; n && x < upper_range; x++, n--)
 		*pint++ = x;
 	return inc_counter;
 }
@@ -96,7 +97,7 @@ char *get_options(const char *str, int nints, int *ints)
 			break;
 		if (res == 3) {
 			int range_nums;
-			range_nums = get_range((char **)&str, ints + i);
+			range_nums = get_range((char **)&str, ints + i, nints - i);
 			if (range_nums < 0)
 				break;
 			/*
@@ -188,4 +189,59 @@ bool parse_option_str(const char *str, const char *option)
 	}
 
 	return false;
+}
+
+/*
+ * Parse a string to get a param value pair.
+ * You can use " around spaces, but can't escape ".
+ * Hyphens and underscores equivalent in parameter names.
+ */
+char *next_arg(char *args, char **param, char **val)
+{
+	unsigned int i, equals = 0;
+	int in_quote = 0, quoted = 0;
+	char *next;
+
+	if (*args == '"') {
+		args++;
+		in_quote = 1;
+		quoted = 1;
+	}
+
+	for (i = 0; args[i]; i++) {
+		if (isspace(args[i]) && !in_quote)
+			break;
+		if (equals == 0) {
+			if (args[i] == '=')
+				equals = i;
+		}
+		if (args[i] == '"')
+			in_quote = !in_quote;
+	}
+
+	*param = args;
+	if (!equals)
+		*val = NULL;
+	else {
+		args[equals] = '\0';
+		*val = args + equals + 1;
+
+		/* Don't include quotes in value. */
+		if (**val == '"') {
+			(*val)++;
+			if (args[i-1] == '"')
+				args[i-1] = '\0';
+		}
+	}
+	if (quoted && args[i-1] == '"')
+		args[i-1] = '\0';
+
+	if (args[i]) {
+		args[i] = '\0';
+		next = args + i + 1;
+	} else
+		next = args + i;
+
+	/* Chew up trailing spaces. */
+	return skip_spaces(next);
 }

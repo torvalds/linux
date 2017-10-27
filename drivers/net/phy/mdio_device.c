@@ -34,6 +34,17 @@ static void mdio_device_release(struct device *dev)
 	kfree(to_mdio_device(dev));
 }
 
+int mdio_device_bus_match(struct device *dev, struct device_driver *drv)
+{
+	struct mdio_device *mdiodev = to_mdio_device(dev);
+	struct mdio_driver *mdiodrv = to_mdio_driver(drv);
+
+	if (mdiodrv->mdiodrv.flags & MDIO_DEVICE_IS_PHY)
+		return 0;
+
+	return strcmp(mdiodev->modalias, drv->name) == 0;
+}
+
 struct mdio_device *mdio_device_create(struct mii_bus *bus, int addr)
 {
 	struct mdio_device *mdiodev;
@@ -67,7 +78,7 @@ int mdio_device_register(struct mdio_device *mdiodev)
 {
 	int err;
 
-	dev_info(&mdiodev->dev, "mdio_device_register\n");
+	dev_dbg(&mdiodev->dev, "mdio_device_register\n");
 
 	err = mdiobus_register_device(mdiodev);
 	if (err)

@@ -48,10 +48,21 @@
  * @wqe: cqp wqe for header
  * @header: header for the cqp wqe
  */
-static inline void i40iw_insert_wqe_hdr(u64 *wqe, u64 header)
+void i40iw_insert_wqe_hdr(u64 *wqe, u64 header)
 {
 	wmb();            /* make sure WQE is populated before polarity is set */
 	set_64bit_val(wqe, 24, header);
+}
+
+void i40iw_check_cqp_progress(struct i40iw_cqp_timeout *cqp_timeout, struct i40iw_sc_dev *dev)
+{
+	if (cqp_timeout->compl_cqp_cmds != dev->cqp_cmd_stats[OP_COMPLETED_COMMANDS]) {
+		cqp_timeout->compl_cqp_cmds = dev->cqp_cmd_stats[OP_COMPLETED_COMMANDS];
+		cqp_timeout->count = 0;
+	} else {
+		if (dev->cqp_cmd_stats[OP_REQUESTED_COMMANDS] != cqp_timeout->compl_cqp_cmds)
+			cqp_timeout->count++;
+	}
 }
 
 /**
@@ -130,20 +141,32 @@ static enum i40iw_status_code i40iw_sc_parse_fpm_commit_buf(
 	u64 base = 0;
 	u32 i, j;
 	u32 k = 0;
-	u32 low;
 
 	/* copy base values in obj_info */
-	for (i = I40IW_HMC_IW_QP, j = 0;
-			i <= I40IW_HMC_IW_PBLE; i++, j += 8) {
+	for (i = I40IW_HMC_IW_QP, j = 0; i <= I40IW_HMC_IW_PBLE; i++, j += 8) {
+		if ((i == I40IW_HMC_IW_SRQ) ||
+			(i == I40IW_HMC_IW_FSIMC) ||
+			(i == I40IW_HMC_IW_FSIAV)) {
+			info[i].base = 0;
+			info[i].cnt = 0;
+			continue;
+		}
 		get_64bit_val(buf, j, &temp);
 		info[i].base = RS_64_1(temp, 32) * 512;
 		if (info[i].base > base) {
 			base = info[i].base;
 			k = i;
 		}
-		low = (u32)(temp);
-		if (low)
-			info[i].cnt = low;
+		if (i == I40IW_HMC_IW_APBVT_ENTRY) {
+			info[i].cnt = 1;
+			continue;
+		}
+		if (i == I40IW_HMC_IW_QP)
+			info[i].cnt = (u32)RS_64(temp, I40IW_QUERY_FPM_MAX_QPS);
+		else if (i == I40IW_HMC_IW_CQ)
+			info[i].cnt = (u32)RS_64(temp, I40IW_QUERY_FPM_MAX_CQS);
+		else
+			info[i].cnt = (u32)(temp);
 	}
 	size = info[k].cnt * info[k].size + info[k].base;
 	if (size & 0x1FFFFF)
@@ -152,6 +175,31 @@ static enum i40iw_status_code i40iw_sc_parse_fpm_commit_buf(
 		*sd = (u32)(size >> 21);
 
 	return 0;
+}
+
+/**
+ * i40iw_sc_decode_fpm_query() - Decode a 64 bit value into max count and size
+ * @buf: ptr to fpm query buffer
+ * @buf_idx: index into buf
+ * @info: ptr to i40iw_hmc_obj_info struct
+ * @rsrc_idx: resource index into info
+ *
+ * Decode a 64 bit value from fpm query buffer into max count and size
+ */
+static u64 i40iw_sc_decode_fpm_query(u64 *buf,
+					    u32 buf_idx,
+					    struct i40iw_hmc_obj_info *obj_info,
+					    u32 rsrc_idx)
+{
+	u64 temp;
+	u32 size;
+
+	get_64bit_val(buf, buf_idx, &temp);
+	obj_info[rsrc_idx].max_cnt = (u32)temp;
+	size = (u32)RS_64_1(temp, 32);
+	obj_info[rsrc_idx].size = LS_64_1(1, size);
+
+	return temp;
 }
 
 /**
@@ -168,9 +216,9 @@ static enum i40iw_status_code i40iw_sc_parse_fpm_query_buf(
 				struct i40iw_hmc_info *hmc_info,
 				struct i40iw_hmc_fpm_misc *hmc_fpm_misc)
 {
-	u64 temp;
 	struct i40iw_hmc_obj_info *obj_info;
-	u32 i, j, size;
+	u64 temp;
+	u32 size;
 	u16 max_pe_sds;
 
 	obj_info = hmc_info->hmc_obj;
@@ -185,41 +233,52 @@ static enum i40iw_status_code i40iw_sc_parse_fpm_query_buf(
 	hmc_fpm_misc->max_sds = max_pe_sds;
 	hmc_info->sd_table.sd_cnt = max_pe_sds + hmc_info->first_sd_index;
 
-	for (i = I40IW_HMC_IW_QP, j = 8;
-	     i <= I40IW_HMC_IW_ARP; i++, j += 8) {
-		get_64bit_val(buf, j, &temp);
-		if (i == I40IW_HMC_IW_QP)
-			obj_info[i].max_cnt = (u32)RS_64(temp, I40IW_QUERY_FPM_MAX_QPS);
-		else if (i == I40IW_HMC_IW_CQ)
-			obj_info[i].max_cnt = (u32)RS_64(temp, I40IW_QUERY_FPM_MAX_CQS);
-		else
-			obj_info[i].max_cnt = (u32)temp;
+	get_64bit_val(buf, 8, &temp);
+	obj_info[I40IW_HMC_IW_QP].max_cnt = (u32)RS_64(temp, I40IW_QUERY_FPM_MAX_QPS);
+	size = (u32)RS_64_1(temp, 32);
+	obj_info[I40IW_HMC_IW_QP].size = LS_64_1(1, size);
 
-		size = (u32)RS_64_1(temp, 32);
-		obj_info[i].size = ((u64)1 << size);
-	}
-	for (i = I40IW_HMC_IW_MR, j = 48;
-			i <= I40IW_HMC_IW_PBLE; i++, j += 8) {
-		get_64bit_val(buf, j, &temp);
-		obj_info[i].max_cnt = (u32)temp;
-		size = (u32)RS_64_1(temp, 32);
-		obj_info[i].size = LS_64_1(1, size);
-	}
+	get_64bit_val(buf, 16, &temp);
+	obj_info[I40IW_HMC_IW_CQ].max_cnt = (u32)RS_64(temp, I40IW_QUERY_FPM_MAX_CQS);
+	size = (u32)RS_64_1(temp, 32);
+	obj_info[I40IW_HMC_IW_CQ].size = LS_64_1(1, size);
 
-	get_64bit_val(buf, 120, &temp);
-	hmc_fpm_misc->max_ceqs = (u8)RS_64(temp, I40IW_QUERY_FPM_MAX_CEQS);
-	get_64bit_val(buf, 120, &temp);
-	hmc_fpm_misc->ht_multiplier = RS_64(temp, I40IW_QUERY_FPM_HTMULTIPLIER);
-	get_64bit_val(buf, 120, &temp);
-	hmc_fpm_misc->timer_bucket = RS_64(temp, I40IW_QUERY_FPM_TIMERBUCKET);
+	i40iw_sc_decode_fpm_query(buf, 32, obj_info, I40IW_HMC_IW_HTE);
+	i40iw_sc_decode_fpm_query(buf, 40, obj_info, I40IW_HMC_IW_ARP);
+
+	obj_info[I40IW_HMC_IW_APBVT_ENTRY].size = 8192;
+	obj_info[I40IW_HMC_IW_APBVT_ENTRY].max_cnt = 1;
+
+	i40iw_sc_decode_fpm_query(buf, 48, obj_info, I40IW_HMC_IW_MR);
+	i40iw_sc_decode_fpm_query(buf, 56, obj_info, I40IW_HMC_IW_XF);
+
 	get_64bit_val(buf, 64, &temp);
+	obj_info[I40IW_HMC_IW_XFFL].max_cnt = (u32)temp;
+	obj_info[I40IW_HMC_IW_XFFL].size = 4;
 	hmc_fpm_misc->xf_block_size = RS_64(temp, I40IW_QUERY_FPM_XFBLOCKSIZE);
 	if (!hmc_fpm_misc->xf_block_size)
 		return I40IW_ERR_INVALID_SIZE;
+
+	i40iw_sc_decode_fpm_query(buf, 72, obj_info, I40IW_HMC_IW_Q1);
+
 	get_64bit_val(buf, 80, &temp);
+	obj_info[I40IW_HMC_IW_Q1FL].max_cnt = (u32)temp;
+	obj_info[I40IW_HMC_IW_Q1FL].size = 4;
 	hmc_fpm_misc->q1_block_size = RS_64(temp, I40IW_QUERY_FPM_Q1BLOCKSIZE);
 	if (!hmc_fpm_misc->q1_block_size)
 		return I40IW_ERR_INVALID_SIZE;
+
+	i40iw_sc_decode_fpm_query(buf, 88, obj_info, I40IW_HMC_IW_TIMER);
+
+	get_64bit_val(buf, 112, &temp);
+	obj_info[I40IW_HMC_IW_PBLE].max_cnt = (u32)temp;
+	obj_info[I40IW_HMC_IW_PBLE].size = 8;
+
+	get_64bit_val(buf, 120, &temp);
+	hmc_fpm_misc->max_ceqs = (u8)RS_64(temp, I40IW_QUERY_FPM_MAX_CEQS);
+	hmc_fpm_misc->ht_multiplier = RS_64(temp, I40IW_QUERY_FPM_HTMULTIPLIER);
+	hmc_fpm_misc->timer_bucket = RS_64(temp, I40IW_QUERY_FPM_TIMERBUCKET);
+
 	return 0;
 }
 
@@ -285,28 +344,20 @@ void i40iw_change_l2params(struct i40iw_sc_vsi *vsi, struct i40iw_l2params *l2pa
 	struct i40iw_sc_dev *dev = vsi->dev;
 	struct i40iw_sc_qp *qp = NULL;
 	bool qs_handle_change = false;
-	bool mss_change = false;
 	unsigned long flags;
 	u16 qs_handle;
 	int i;
 
-	if (vsi->mss != l2params->mss) {
-		mss_change = true;
-		vsi->mss = l2params->mss;
-	}
+	vsi->mss = l2params->mss;
 
 	i40iw_fill_qos_list(l2params->qs_handle_list);
 	for (i = 0; i < I40IW_MAX_USER_PRIORITY; i++) {
 		qs_handle = l2params->qs_handle_list[i];
 		if (vsi->qos[i].qs_handle != qs_handle)
 			qs_handle_change = true;
-		else if (!mss_change)
-			continue;       /* no MSS nor qs handle change */
 		spin_lock_irqsave(&vsi->qos[i].lock, flags);
 		qp = i40iw_get_qp(&vsi->qos[i].qplist, qp);
 		while (qp) {
-			if (mss_change)
-				i40iw_qp_mss_modify(dev, qp);
 			if (qs_handle_change) {
 				qp->qs_handle = qs_handle;
 				/* issue cqp suspend command */
@@ -449,6 +500,9 @@ static enum i40iw_status_code i40iw_sc_cqp_create(struct i40iw_sc_cqp *cqp,
 	u64 temp;
 	u32 cnt = 0, p1, p2, val = 0, err_code;
 	enum i40iw_status_code ret_code;
+
+	*maj_err = 0;
+	*min_err = 0;
 
 	ret_code = i40iw_allocate_dma_mem(cqp->dev->hw,
 					  &cqp->sdbuf,
@@ -1975,6 +2029,8 @@ static enum i40iw_status_code i40iw_sc_ccq_destroy(struct i40iw_sc_cq *ccq,
 		ret_code = i40iw_cqp_poll_registers(cqp, tail, 1000);
 	}
 
+	cqp->process_cqp_sds = i40iw_update_sds_noccq;
+
 	return ret_code;
 }
 
@@ -2392,7 +2448,6 @@ static enum i40iw_status_code i40iw_sc_qp_modify(
 
 	set_64bit_val(wqe,
 		      8,
-		      LS_64(info->new_mss, I40IW_CQPSQ_QP_NEWMSS) |
 		      LS_64(term_len, I40IW_CQPSQ_QP_TERMLEN));
 
 	set_64bit_val(wqe, 16, qp->hw_host_ctx_pa);
@@ -2407,7 +2462,6 @@ static enum i40iw_status_code i40iw_sc_qp_modify(
 		 LS_64(info->cq_num_valid, I40IW_CQPSQ_QP_CQNUMVALID) |
 		 LS_64(info->force_loopback, I40IW_CQPSQ_QP_FORCELOOPBACK) |
 		 LS_64(qp->qp_type, I40IW_CQPSQ_QP_QPTYPE) |
-		 LS_64(info->mss_change, I40IW_CQPSQ_QP_MSSCHANGE) |
 		 LS_64(info->static_rsrc, I40IW_CQPSQ_QP_STATRSRC) |
 		 LS_64(info->remove_hash_idx, I40IW_CQPSQ_QP_REMOVEHASHENTRY) |
 		 LS_64(term_actions, I40IW_CQPSQ_QP_TERMACT) |
@@ -3396,13 +3450,6 @@ enum i40iw_status_code i40iw_sc_init_iw_hmc(struct i40iw_sc_dev *dev, u8 hmc_fn_
 			return ret_code;
 		hmc_info->sd_table.sd_entry = virt_mem.va;
 	}
-
-	/* fill size of objects which are fixed */
-	hmc_info->hmc_obj[I40IW_HMC_IW_XFFL].size = 4;
-	hmc_info->hmc_obj[I40IW_HMC_IW_Q1FL].size = 4;
-	hmc_info->hmc_obj[I40IW_HMC_IW_PBLE].size = 8;
-	hmc_info->hmc_obj[I40IW_HMC_IW_APBVT_ENTRY].size = 8192;
-	hmc_info->hmc_obj[I40IW_HMC_IW_APBVT_ENTRY].max_cnt = 1;
 
 	return ret_code;
 }
@@ -4498,9 +4545,9 @@ void i40iw_sc_vsi_init(struct i40iw_sc_vsi *vsi, struct i40iw_vsi_init_info *inf
 	i40iw_fill_qos_list(info->params->qs_handle_list);
 
 	for (i = 0; i < I40IW_MAX_USER_PRIORITY; i++) {
-		vsi->qos[i].qs_handle =
-			info->params->qs_handle_list[i];
-			i40iw_debug(vsi->dev, I40IW_DEBUG_DCB, "qset[%d]: %d\n", i, vsi->qos[i].qs_handle);
+		vsi->qos[i].qs_handle = info->params->qs_handle_list[i];
+		i40iw_debug(vsi->dev, I40IW_DEBUG_DCB, "qset[%d]: %d\n", i,
+			    vsi->qos[i].qs_handle);
 		spin_lock_init(&vsi->qos[i].lock);
 		INIT_LIST_HEAD(&vsi->qos[i].qplist);
 	}
@@ -4845,52 +4892,52 @@ void i40iw_vsi_stats_free(struct i40iw_sc_vsi *vsi)
 {
 	u8 fcn_id = vsi->fcn_id;
 
-	if ((vsi->stats_fcn_id_alloc) && (fcn_id != I40IW_INVALID_FCN_ID))
+	if (vsi->stats_fcn_id_alloc && fcn_id < I40IW_MAX_STATS_COUNT)
 		vsi->dev->fcn_id_array[fcn_id] = false;
 	i40iw_hw_stats_stop_timer(vsi);
 }
 
 static struct i40iw_cqp_ops iw_cqp_ops = {
-	i40iw_sc_cqp_init,
-	i40iw_sc_cqp_create,
-	i40iw_sc_cqp_post_sq,
-	i40iw_sc_cqp_get_next_send_wqe,
-	i40iw_sc_cqp_destroy,
-	i40iw_sc_poll_for_cqp_op_done
+	.cqp_init = i40iw_sc_cqp_init,
+	.cqp_create = i40iw_sc_cqp_create,
+	.cqp_post_sq = i40iw_sc_cqp_post_sq,
+	.cqp_get_next_send_wqe = i40iw_sc_cqp_get_next_send_wqe,
+	.cqp_destroy = i40iw_sc_cqp_destroy,
+	.poll_for_cqp_op_done = i40iw_sc_poll_for_cqp_op_done
 };
 
 static struct i40iw_ccq_ops iw_ccq_ops = {
-	i40iw_sc_ccq_init,
-	i40iw_sc_ccq_create,
-	i40iw_sc_ccq_destroy,
-	i40iw_sc_ccq_create_done,
-	i40iw_sc_ccq_get_cqe_info,
-	i40iw_sc_ccq_arm
+	.ccq_init = i40iw_sc_ccq_init,
+	.ccq_create = i40iw_sc_ccq_create,
+	.ccq_destroy = i40iw_sc_ccq_destroy,
+	.ccq_create_done = i40iw_sc_ccq_create_done,
+	.ccq_get_cqe_info = i40iw_sc_ccq_get_cqe_info,
+	.ccq_arm = i40iw_sc_ccq_arm
 };
 
 static struct i40iw_ceq_ops iw_ceq_ops = {
-	i40iw_sc_ceq_init,
-	i40iw_sc_ceq_create,
-	i40iw_sc_cceq_create_done,
-	i40iw_sc_cceq_destroy_done,
-	i40iw_sc_cceq_create,
-	i40iw_sc_ceq_destroy,
-	i40iw_sc_process_ceq
+	.ceq_init = i40iw_sc_ceq_init,
+	.ceq_create = i40iw_sc_ceq_create,
+	.cceq_create_done = i40iw_sc_cceq_create_done,
+	.cceq_destroy_done = i40iw_sc_cceq_destroy_done,
+	.cceq_create = i40iw_sc_cceq_create,
+	.ceq_destroy = i40iw_sc_ceq_destroy,
+	.process_ceq = i40iw_sc_process_ceq
 };
 
 static struct i40iw_aeq_ops iw_aeq_ops = {
-	i40iw_sc_aeq_init,
-	i40iw_sc_aeq_create,
-	i40iw_sc_aeq_destroy,
-	i40iw_sc_get_next_aeqe,
-	i40iw_sc_repost_aeq_entries,
-	i40iw_sc_aeq_create_done,
-	i40iw_sc_aeq_destroy_done
+	.aeq_init = i40iw_sc_aeq_init,
+	.aeq_create = i40iw_sc_aeq_create,
+	.aeq_destroy = i40iw_sc_aeq_destroy,
+	.get_next_aeqe = i40iw_sc_get_next_aeqe,
+	.repost_aeq_entries = i40iw_sc_repost_aeq_entries,
+	.aeq_create_done = i40iw_sc_aeq_create_done,
+	.aeq_destroy_done = i40iw_sc_aeq_destroy_done
 };
 
 /* iwarp pd ops */
 static struct i40iw_pd_ops iw_pd_ops = {
-	i40iw_sc_pd_init,
+	.pd_init = i40iw_sc_pd_init,
 };
 
 static struct i40iw_priv_qp_ops iw_priv_qp_ops = {
@@ -4909,53 +4956,51 @@ static struct i40iw_priv_qp_ops iw_priv_qp_ops = {
 };
 
 static struct i40iw_priv_cq_ops iw_priv_cq_ops = {
-	i40iw_sc_cq_init,
-	i40iw_sc_cq_create,
-	i40iw_sc_cq_destroy,
-	i40iw_sc_cq_modify,
+	.cq_init = i40iw_sc_cq_init,
+	.cq_create = i40iw_sc_cq_create,
+	.cq_destroy = i40iw_sc_cq_destroy,
+	.cq_modify = i40iw_sc_cq_modify,
 };
 
 static struct i40iw_mr_ops iw_mr_ops = {
-	i40iw_sc_alloc_stag,
-	i40iw_sc_mr_reg_non_shared,
-	i40iw_sc_mr_reg_shared,
-	i40iw_sc_dealloc_stag,
-	i40iw_sc_query_stag,
-	i40iw_sc_mw_alloc
+	.alloc_stag = i40iw_sc_alloc_stag,
+	.mr_reg_non_shared = i40iw_sc_mr_reg_non_shared,
+	.mr_reg_shared = i40iw_sc_mr_reg_shared,
+	.dealloc_stag = i40iw_sc_dealloc_stag,
+	.query_stag = i40iw_sc_query_stag,
+	.mw_alloc = i40iw_sc_mw_alloc
 };
 
 static struct i40iw_cqp_misc_ops iw_cqp_misc_ops = {
-	i40iw_sc_manage_push_page,
-	i40iw_sc_manage_hmc_pm_func_table,
-	i40iw_sc_set_hmc_resource_profile,
-	i40iw_sc_commit_fpm_values,
-	i40iw_sc_query_fpm_values,
-	i40iw_sc_static_hmc_pages_allocated,
-	i40iw_sc_add_arp_cache_entry,
-	i40iw_sc_del_arp_cache_entry,
-	i40iw_sc_query_arp_cache_entry,
-	i40iw_sc_manage_apbvt_entry,
-	i40iw_sc_manage_qhash_table_entry,
-	i40iw_sc_alloc_local_mac_ipaddr_entry,
-	i40iw_sc_add_local_mac_ipaddr_entry,
-	i40iw_sc_del_local_mac_ipaddr_entry,
-	i40iw_sc_cqp_nop,
-	i40iw_sc_commit_fpm_values_done,
-	i40iw_sc_query_fpm_values_done,
-	i40iw_sc_manage_hmc_pm_func_table_done,
-	i40iw_sc_suspend_qp,
-	i40iw_sc_resume_qp
+	.manage_push_page = i40iw_sc_manage_push_page,
+	.manage_hmc_pm_func_table = i40iw_sc_manage_hmc_pm_func_table,
+	.set_hmc_resource_profile = i40iw_sc_set_hmc_resource_profile,
+	.commit_fpm_values = i40iw_sc_commit_fpm_values,
+	.query_fpm_values = i40iw_sc_query_fpm_values,
+	.static_hmc_pages_allocated = i40iw_sc_static_hmc_pages_allocated,
+	.add_arp_cache_entry = i40iw_sc_add_arp_cache_entry,
+	.del_arp_cache_entry = i40iw_sc_del_arp_cache_entry,
+	.query_arp_cache_entry = i40iw_sc_query_arp_cache_entry,
+	.manage_apbvt_entry = i40iw_sc_manage_apbvt_entry,
+	.manage_qhash_table_entry = i40iw_sc_manage_qhash_table_entry,
+	.alloc_local_mac_ipaddr_table_entry = i40iw_sc_alloc_local_mac_ipaddr_entry,
+	.add_local_mac_ipaddr_entry = i40iw_sc_add_local_mac_ipaddr_entry,
+	.del_local_mac_ipaddr_entry = i40iw_sc_del_local_mac_ipaddr_entry,
+	.cqp_nop = i40iw_sc_cqp_nop,
+	.commit_fpm_values_done = i40iw_sc_commit_fpm_values_done,
+	.query_fpm_values_done = i40iw_sc_query_fpm_values_done,
+	.manage_hmc_pm_func_table_done = i40iw_sc_manage_hmc_pm_func_table_done,
+	.update_suspend_qp = i40iw_sc_suspend_qp,
+	.update_resume_qp = i40iw_sc_resume_qp
 };
 
 static struct i40iw_hmc_ops iw_hmc_ops = {
-	i40iw_sc_init_iw_hmc,
-	i40iw_sc_parse_fpm_query_buf,
-	i40iw_sc_configure_iw_fpm,
-	i40iw_sc_parse_fpm_commit_buf,
-	i40iw_sc_create_hmc_obj,
-	i40iw_sc_del_hmc_obj,
-	NULL,
-	NULL
+	.init_iw_hmc = i40iw_sc_init_iw_hmc,
+	.parse_fpm_query_buf = i40iw_sc_parse_fpm_query_buf,
+	.configure_iw_fpm = i40iw_sc_configure_iw_fpm,
+	.parse_fpm_commit_buf = i40iw_sc_parse_fpm_commit_buf,
+	.create_hmc_object = i40iw_sc_create_hmc_obj,
+	.del_hmc_object = i40iw_sc_del_hmc_obj
 };
 
 /**

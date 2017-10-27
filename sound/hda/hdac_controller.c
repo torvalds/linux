@@ -106,7 +106,11 @@ void snd_hdac_bus_stop_cmd_io(struct hdac_bus *bus)
 	/* disable ringbuffer DMAs */
 	snd_hdac_chip_writeb(bus, RIRBCTL, 0);
 	snd_hdac_chip_writeb(bus, CORBCTL, 0);
+	spin_unlock_irq(&bus->reg_lock);
+
 	hdac_wait_for_cmd_dmas(bus);
+
+	spin_lock_irq(&bus->reg_lock);
 	/* disable unsolicited responses */
 	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, 0);
 	spin_unlock_irq(&bus->reg_lock);
@@ -268,17 +272,22 @@ int snd_hdac_bus_parse_capabilities(struct hdac_bus *bus)
 	unsigned int offset;
 	unsigned int counter = 0;
 
-	offset = snd_hdac_chip_readl(bus, LLCH);
+	offset = snd_hdac_chip_readw(bus, LLCH);
 
 	/* Lets walk the linked capabilities list */
 	do {
-		cur_cap = _snd_hdac_chip_read(l, bus, offset);
+		cur_cap = _snd_hdac_chip_readl(bus, offset);
 
 		dev_dbg(bus->dev, "Capability version: 0x%x\n",
 			(cur_cap & AZX_CAP_HDR_VER_MASK) >> AZX_CAP_HDR_VER_OFF);
 
 		dev_dbg(bus->dev, "HDA capability ID: 0x%x\n",
 			(cur_cap & AZX_CAP_HDR_ID_MASK) >> AZX_CAP_HDR_ID_OFF);
+
+		if (cur_cap == -1) {
+			dev_dbg(bus->dev, "Invalid capability reg read\n");
+			break;
+		}
 
 		switch ((cur_cap & AZX_CAP_HDR_ID_MASK) >> AZX_CAP_HDR_ID_OFF) {
 		case AZX_ML_CAP_ID:

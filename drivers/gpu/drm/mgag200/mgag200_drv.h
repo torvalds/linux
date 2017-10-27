@@ -15,6 +15,7 @@
 
 #include <video/vga.h>
 
+#include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
@@ -179,6 +180,7 @@ enum mga_type {
 	G200_WB,
 	G200_EV,
 	G200_EH,
+	G200_EH3,
 	G200_ER,
 	G200_EW3,
 };
@@ -235,11 +237,6 @@ mgag200_bo(struct ttm_buffer_object *bo)
 {
 	return container_of(bo, struct mgag200_bo, bo);
 }
-				/* mgag200_crtc.c */
-void mga_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-			     u16 blue, int regno);
-void mga_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
-			     u16 *blue, int regno);
 
 				/* mgag200_mode.c */
 int mgag200_modeset_init(struct mga_device *mdev);
@@ -257,7 +254,7 @@ int mgag200_framebuffer_init(struct drm_device *dev,
 
 
 int mgag200_driver_load(struct drm_device *dev, unsigned long flags);
-int mgag200_driver_unload(struct drm_device *dev);
+void mgag200_driver_unload(struct drm_device *dev);
 int mgag200_gem_create(struct drm_device *dev,
 		   u32 size, bool iskernel,
 		       struct drm_gem_object **obj);

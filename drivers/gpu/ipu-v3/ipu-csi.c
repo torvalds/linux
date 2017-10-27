@@ -544,6 +544,7 @@ void ipu_csi_set_downsize(struct ipu_csi *csi, bool horiz, bool vert)
 
 	spin_unlock_irqrestore(&csi->lock, flags);
 }
+EXPORT_SYMBOL_GPL(ipu_csi_set_downsize);
 
 void ipu_csi_set_test_generator(struct ipu_csi *csi, bool active,
 				u32 r_value, u32 g_value, u32 b_value,

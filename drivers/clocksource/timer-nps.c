@@ -55,7 +55,7 @@ static int __init nps_get_timer_clk(struct device_node *node,
 	*clk = of_clk_get(node, 0);
 	ret = PTR_ERR_OR_ZERO(*clk);
 	if (ret) {
-		pr_err("timer missing clk");
+		pr_err("timer missing clk\n");
 		return ret;
 	}
 
@@ -110,9 +110,9 @@ static int __init nps_setup_clocksource(struct device_node *node)
 	return ret;
 }
 
-CLOCKSOURCE_OF_DECLARE(ezchip_nps400_clksrc, "ezchip,nps400-timer",
+TIMER_OF_DECLARE(ezchip_nps400_clksrc, "ezchip,nps400-timer",
 		       nps_setup_clocksource);
-CLOCKSOURCE_OF_DECLARE(ezchip_nps400_clk_src, "ezchip,nps400-timer1",
+TIMER_OF_DECLARE(ezchip_nps400_clk_src, "ezchip,nps400-timer1",
 		       nps_setup_clocksource);
 
 #ifdef CONFIG_EZNPS_MTM_EXT
@@ -247,7 +247,7 @@ static int __init nps_setup_clockevent(struct device_node *node)
 
 	nps_timer0_irq = irq_of_parse_and_map(node, 0);
 	if (nps_timer0_irq <= 0) {
-		pr_err("clockevent: missing irq");
+		pr_err("clockevent: missing irq\n");
 		return -EINVAL;
 	}
 
@@ -270,7 +270,7 @@ static int __init nps_setup_clockevent(struct device_node *node)
 				nps_timer_starting_cpu,
 				nps_timer_dying_cpu);
 	if (ret) {
-		pr_err("Failed to setup hotplug state");
+		pr_err("Failed to setup hotplug state\n");
 		clk_disable_unprepare(clk);
 		free_percpu_irq(nps_timer0_irq, &nps_clockevent_device);
 		return ret;
@@ -279,6 +279,6 @@ static int __init nps_setup_clockevent(struct device_node *node)
 	return 0;
 }
 
-CLOCKSOURCE_OF_DECLARE(ezchip_nps400_clk_evt, "ezchip,nps400-timer0",
+TIMER_OF_DECLARE(ezchip_nps400_clk_evt, "ezchip,nps400-timer0",
 		       nps_setup_clockevent);
 #endif /* CONFIG_EZNPS_MTM_EXT */

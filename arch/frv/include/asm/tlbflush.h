@@ -18,10 +18,10 @@
 #ifdef CONFIG_MMU
 
 #ifndef __ASSEMBLY__
-extern void asmlinkage __flush_tlb_all(void);
-extern void asmlinkage __flush_tlb_mm(unsigned long contextid);
-extern void asmlinkage __flush_tlb_page(unsigned long contextid, unsigned long start);
-extern void asmlinkage __flush_tlb_range(unsigned long contextid,
+extern asmlinkage void __flush_tlb_all(void);
+extern asmlinkage void __flush_tlb_mm(unsigned long contextid);
+extern asmlinkage void __flush_tlb_page(unsigned long contextid, unsigned long start);
+extern asmlinkage void __flush_tlb_range(unsigned long contextid,
 					 unsigned long start, unsigned long end);
 #endif /* !__ASSEMBLY__ */
 

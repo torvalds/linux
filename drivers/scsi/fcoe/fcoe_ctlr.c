@@ -626,7 +626,7 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip, struct fc_lport *lport,
 	fh = (struct fc_frame_header *)skb->data;
 	op = *(u8 *)(fh + 1);
 	dlen = sizeof(struct fip_encaps) + skb->len;	/* len before push */
-	cap = (struct fip_encaps_head *)skb_push(skb, sizeof(*cap));
+	cap = skb_push(skb, sizeof(*cap));
 	memset(cap, 0, sizeof(*cap));
 
 	if (lport->point_to_multipoint) {
@@ -660,8 +660,7 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip, struct fc_lport *lport,
 
 	if (op != ELS_LS_RJT) {
 		dlen += sizeof(*mac);
-		mac = (struct fip_mac_desc *)skb_put(skb, sizeof(*mac));
-		memset(mac, 0, sizeof(*mac));
+		mac = skb_put_zero(skb, sizeof(*mac));
 		mac->fd_desc.fip_dtype = FIP_DT_MAC;
 		mac->fd_desc.fip_dlen = sizeof(*mac) / FIP_BPW;
 		if (dtype != FIP_DT_FLOGI && dtype != FIP_DT_FDISC) {
@@ -1387,7 +1386,7 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 	/*
 	 * Actually need to subtract 'sizeof(*mp) - sizeof(*wp)' from 'rlen'
 	 * before determining max Vx_Port descriptor but a buggy FCF could have
-	 * omited either or both MAC Address and Name Identifier descriptors
+	 * omitted either or both MAC Address and Name Identifier descriptors
 	 */
 	num_vlink_desc = rlen / sizeof(*vp);
 	if (num_vlink_desc)

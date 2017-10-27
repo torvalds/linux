@@ -1,3 +1,5 @@
+#include <errno.h>
+#include <inttypes.h>
 #include <math.h>
 #include "stat.h"
 #include "evlist.h"
@@ -84,6 +86,8 @@ static const char *id_str[PERF_STAT_EVSEL_ID__MAX] = {
 	ID(TOPDOWN_SLOTS_RETIRED, topdown-slots-retired),
 	ID(TOPDOWN_FETCH_BUBBLES, topdown-fetch-bubbles),
 	ID(TOPDOWN_RECOVERY_BUBBLES, topdown-recovery-bubbles),
+	ID(SMI_NUM, msr/smi/),
+	ID(APERF, msr/aperf/),
 };
 #undef ID
 
@@ -124,6 +128,10 @@ static int perf_evsel__alloc_stat_priv(struct perf_evsel *evsel)
 
 static void perf_evsel__free_stat_priv(struct perf_evsel *evsel)
 {
+	struct perf_stat_evsel *ps = evsel->priv;
+
+	if (ps)
+		free(ps->group_data);
 	zfree(&evsel->priv);
 }
 
@@ -344,7 +352,7 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 	for (i = 0; i < 3; i++)
 		update_stats(&ps->res_stats[i], count[i]);
 
-	if (verbose) {
+	if (verbose > 0) {
 		fprintf(config->output, "%s: %" PRIu64 " %" PRIu64 " %" PRIu64 "\n",
 			perf_evsel__name(counter), count[0], count[1], count[2]);
 	}

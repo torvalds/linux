@@ -1046,7 +1046,7 @@ static struct snd_soc_dai_driver rt286_dai[] = {
 
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_rt286 = {
+static const struct snd_soc_codec_driver soc_codec_dev_rt286 = {
 	.probe = rt286_probe,
 	.remove = rt286_remove,
 	.suspend = rt286_suspend,
@@ -1106,6 +1106,13 @@ static const struct dmi_system_id force_combo_jack_table[] = {
 		.ident = "Intel Kabylake RVP",
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Kabylake Client platform")
+		}
+	},
+	{
+		.ident = "Thinkpad Helix 2nd",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad Helix 2nd")
 		}
 	},
 

@@ -63,23 +63,23 @@ MODULE_PARM_DESC(enable, "Enable WaveFront soundcard.");
 module_param_array(isapnp, bool, NULL, 0444);
 MODULE_PARM_DESC(isapnp, "ISA PnP detection for WaveFront soundcards.");
 #endif
-module_param_array(cs4232_pcm_port, long, NULL, 0444);
+module_param_hw_array(cs4232_pcm_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(cs4232_pcm_port, "Port # for CS4232 PCM interface.");
-module_param_array(cs4232_pcm_irq, int, NULL, 0444);
+module_param_hw_array(cs4232_pcm_irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(cs4232_pcm_irq, "IRQ # for CS4232 PCM interface.");
-module_param_array(dma1, int, NULL, 0444);
+module_param_hw_array(dma1, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma1, "DMA1 # for CS4232 PCM interface.");
-module_param_array(dma2, int, NULL, 0444);
+module_param_hw_array(dma2, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA2 # for CS4232 PCM interface.");
-module_param_array(cs4232_mpu_port, long, NULL, 0444);
+module_param_hw_array(cs4232_mpu_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(cs4232_mpu_port, "port # for CS4232 MPU-401 interface.");
-module_param_array(cs4232_mpu_irq, int, NULL, 0444);
+module_param_hw_array(cs4232_mpu_irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(cs4232_mpu_irq, "IRQ # for CS4232 MPU-401 interface.");
-module_param_array(ics2115_irq, int, NULL, 0444);
+module_param_hw_array(ics2115_irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(ics2115_irq, "IRQ # for ICS2115.");
-module_param_array(ics2115_port, long, NULL, 0444);
+module_param_hw_array(ics2115_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(ics2115_port, "Port # for ICS2115.");
-module_param_array(fm_port, long, NULL, 0444);
+module_param_hw_array(fm_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(fm_port, "FM port #.");
 module_param_array(use_cs4232_midi, bool, NULL, 0444);
 MODULE_PARM_DESC(use_cs4232_midi, "Use CS4232 MPU-401 interface (inaccessibly located inside your computer)");
@@ -88,7 +88,7 @@ MODULE_PARM_DESC(use_cs4232_midi, "Use CS4232 MPU-401 interface (inaccessibly lo
 static int isa_registered;
 static int pnp_registered;
 
-static struct pnp_card_device_id snd_wavefront_pnpids[] = {
+static const struct pnp_card_device_id snd_wavefront_pnpids[] = {
 	/* Tropez */
 	{ .id = "CSC7532", .devs = { { "CSC0000" }, { "CSC0010" }, { "PnPb006" }, { "CSC0004" } } },
 	/* Tropez+ */

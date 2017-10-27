@@ -48,6 +48,7 @@ void drm_helper_move_panel_connectors_to_head(struct drm_device *dev)
 
 	INIT_LIST_HEAD(&panel_list);
 
+	spin_lock_irq(&dev->mode_config.connector_list_lock);
 	list_for_each_entry_safe(connector, tmp,
 				 &dev->mode_config.connector_list, head) {
 		if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS ||
@@ -57,38 +58,27 @@ void drm_helper_move_panel_connectors_to_head(struct drm_device *dev)
 	}
 
 	list_splice(&panel_list, &dev->mode_config.connector_list);
+	spin_unlock_irq(&dev->mode_config.connector_list_lock);
 }
 EXPORT_SYMBOL(drm_helper_move_panel_connectors_to_head);
 
 /**
  * drm_helper_mode_fill_fb_struct - fill out framebuffer metadata
+ * @dev: DRM device
  * @fb: drm_framebuffer object to fill out
  * @mode_cmd: metadata from the userspace fb creation request
  *
  * This helper can be used in a drivers fb_create callback to pre-fill the fb's
  * metadata fields.
  */
-void drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
+void drm_helper_mode_fill_fb_struct(struct drm_device *dev,
+				    struct drm_framebuffer *fb,
 				    const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	const struct drm_format_info *info;
 	int i;
 
-	info = drm_format_info(mode_cmd->pixel_format);
-	if (!info || !info->depth) {
-		struct drm_format_name_buf format_name;
-
-		DRM_DEBUG_KMS("non-RGB pixel format %s\n",
-		              drm_get_format_name(mode_cmd->pixel_format,
-		                                  &format_name));
-
-		fb->depth = 0;
-		fb->bits_per_pixel = 0;
-	} else {
-		fb->depth = info->depth;
-		fb->bits_per_pixel = info->cpp[0] * 8;
-	}
-
+	fb->dev = dev;
+	fb->format = drm_get_format_info(dev, mode_cmd);
 	fb->width = mode_cmd->width;
 	fb->height = mode_cmd->height;
 	for (i = 0; i < 4; i++) {
@@ -96,7 +86,6 @@ void drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
 		fb->offsets[i] = mode_cmd->offsets[i];
 	}
 	fb->modifier = mode_cmd->modifier[0];
-	fb->pixel_format = mode_cmd->pixel_format;
 	fb->flags = mode_cmd->flags;
 }
 EXPORT_SYMBOL(drm_helper_mode_fill_fb_struct);
@@ -135,6 +124,7 @@ static struct drm_plane *create_primary_plane(struct drm_device *dev)
 				       &drm_primary_helper_funcs,
 				       safe_modeset_formats,
 				       ARRAY_SIZE(safe_modeset_formats),
+				       NULL,
 				       DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (ret) {
 		kfree(primary);

@@ -102,9 +102,6 @@ struct rrpc_lun {
 };
 
 struct rrpc {
-	/* instance must be kept in top to resolve rrpc in unprep */
-	struct nvm_tgt_instance instance;
-
 	struct nvm_tgt_dev *dev;
 	struct gendisk *disk;
 

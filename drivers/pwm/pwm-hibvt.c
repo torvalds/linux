@@ -165,7 +165,7 @@ static int hibvt_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	return 0;
 }
 
-static struct pwm_ops hibvt_pwm_ops = {
+static const struct pwm_ops hibvt_pwm_ops = {
 	.get_state = hibvt_pwm_get_state,
 	.apply = hibvt_pwm_apply,
 
@@ -208,7 +208,7 @@ static int hibvt_pwm_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	pwm_chip->rstc = devm_reset_control_get(&pdev->dev, NULL);
+	pwm_chip->rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(pwm_chip->rstc)) {
 		clk_disable_unprepare(pwm_chip->clk);
 		return PTR_ERR(pwm_chip->rstc);

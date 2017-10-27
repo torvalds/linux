@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,10 +58,10 @@
 #include <acpi/actypes.h>		/* ACPICA data types and structures */
 #include <acpi/acexcep.h>		/* ACPICA exceptions */
 #include <acpi/actbl.h>		/* ACPI table definitions */
-#include <acpi/acoutput.h>		/* Error output and Debug macros */
 #include <acpi/acrestyp.h>		/* Resource Descriptor structs */
+#include <acpi/platform/acenvex.h>	/* Extra environment-specific items */
+#include <acpi/acoutput.h>		/* Error output and Debug macros */
 #include <acpi/acpiosxf.h>		/* OSL interfaces (ACPICA-to-OS) */
 #include <acpi/acpixf.h>		/* ACPI core subsystem external interfaces */
-#include <acpi/platform/acenvex.h>	/* Extra environment-specific items */
 
 #endif				/* __ACPI_H__ */

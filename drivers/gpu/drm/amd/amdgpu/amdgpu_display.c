@@ -123,7 +123,7 @@ static void amdgpu_unpin_work_func(struct work_struct *__work)
 	int r;
 
 	/* unpin of the old buffer */
-	r = amdgpu_bo_reserve(work->old_abo, false);
+	r = amdgpu_bo_reserve(work->old_abo, true);
 	if (likely(r == 0)) {
 		r = amdgpu_bo_unpin(work->old_abo);
 		if (unlikely(r != 0)) {
@@ -141,7 +141,8 @@ static void amdgpu_unpin_work_func(struct work_struct *__work)
 int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
 				 struct drm_framebuffer *fb,
 				 struct drm_pending_vblank_event *event,
-				 uint32_t page_flip_flags, uint32_t target)
+				 uint32_t page_flip_flags, uint32_t target,
+				 struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev = crtc->dev;
 	struct amdgpu_device *adev = dev->dev_private;
@@ -189,7 +190,6 @@ int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
 
 	r = amdgpu_bo_pin(new_abo, AMDGPU_GEM_DOMAIN_VRAM, &base);
 	if (unlikely(r != 0)) {
-		r = -EINVAL;
 		DRM_ERROR("failed to pin new abo buffer before flip\n");
 		goto unreserve;
 	}
@@ -253,7 +253,8 @@ cleanup:
 	return r;
 }
 
-int amdgpu_crtc_set_config(struct drm_mode_set *set)
+int amdgpu_crtc_set_config(struct drm_mode_set *set,
+			   struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev;
 	struct amdgpu_device *adev;
@@ -270,7 +271,7 @@ int amdgpu_crtc_set_config(struct drm_mode_set *set)
 	if (ret < 0)
 		return ret;
 
-	ret = drm_crtc_helper_set_config(set);
+	ret = drm_crtc_helper_set_config(set, ctx);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		if (crtc->enabled)
@@ -481,7 +482,7 @@ static void amdgpu_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct amdgpu_framebuffer *amdgpu_fb = to_amdgpu_framebuffer(fb);
 
-	drm_gem_object_unreference_unlocked(amdgpu_fb->obj);
+	drm_gem_object_put_unlocked(amdgpu_fb->obj);
 	drm_framebuffer_cleanup(fb);
 	kfree(amdgpu_fb);
 }
@@ -508,7 +509,7 @@ amdgpu_framebuffer_init(struct drm_device *dev,
 {
 	int ret;
 	rfb->obj = obj;
-	drm_helper_mode_fill_fb_struct(&rfb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &rfb->base, mode_cmd);
 	ret = drm_framebuffer_init(dev, &rfb->base, &amdgpu_fb_funcs);
 	if (ret) {
 		rfb->obj = NULL;
@@ -533,16 +534,22 @@ amdgpu_user_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-ENOENT);
 	}
 
+	/* Handle is imported dma-buf, so cannot be migrated to VRAM for scanout */
+	if (obj->import_attach) {
+		DRM_DEBUG_KMS("Cannot create framebuffer from imported dma_buf\n");
+		return ERR_PTR(-EINVAL);
+	}
+
 	amdgpu_fb = kzalloc(sizeof(*amdgpu_fb), GFP_KERNEL);
 	if (amdgpu_fb == NULL) {
-		drm_gem_object_unreference_unlocked(obj);
+		drm_gem_object_put_unlocked(obj);
 		return ERR_PTR(-ENOMEM);
 	}
 
 	ret = amdgpu_framebuffer_init(dev, amdgpu_fb, mode_cmd, obj);
 	if (ret) {
 		kfree(amdgpu_fb);
-		drm_gem_object_unreference_unlocked(obj);
+		drm_gem_object_put_unlocked(obj);
 		return ERR_PTR(ret);
 	}
 
@@ -582,12 +589,10 @@ int amdgpu_modeset_create_props(struct amdgpu_device *adev)
 {
 	int sz;
 
-	if (adev->is_atom_bios) {
-		adev->mode_info.coherent_mode_property =
-			drm_property_create_range(adev->ddev, 0 , "coherent", 0, 1);
-		if (!adev->mode_info.coherent_mode_property)
-			return -ENOMEM;
-	}
+	adev->mode_info.coherent_mode_property =
+		drm_property_create_range(adev->ddev, 0 , "coherent", 0, 1);
+	if (!adev->mode_info.coherent_mode_property)
+		return -ENOMEM;
 
 	adev->mode_info.load_detect_property =
 		drm_property_create_range(adev->ddev, 0, "load detection", 0, 1);

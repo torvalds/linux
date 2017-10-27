@@ -388,7 +388,7 @@ DataAccess:
 	EXCEPTION_PROLOG
 	mfspr	r10,SPRN_DSISR
 	stw	r10,_DSISR(r11)
-	andis.	r0,r10,0xa470		/* weird error? */
+	andis.	r0,r10,DSISR_BAD_FAULT_32S@h
 	bne	1f			/* if not, try to put a PTE */
 	mfspr	r4,SPRN_DAR		/* into the hash table */
 	rlwinm	r3,r10,32-15,21,21	/* DSISR_STORE -> _PAGE_RW */
@@ -403,13 +403,13 @@ DataAccess:
 	DO_KVM  0x400
 InstructionAccess:
 	EXCEPTION_PROLOG
-	andis.	r0,r9,0x4000		/* no pte found? */
+	andis.	r0,r9,SRR1_ISI_NOPT@h	/* no pte found? */
 	beq	1f			/* if so, try to put a PTE */
 	li	r3,0			/* into the hash table */
 	mr	r4,r12			/* SRR0 is fault address */
 	bl	hash_page
 1:	mr	r4,r12
-	mr	r5,r9
+	andis.	r5,r9,DSISR_SRR1_MATCH_32S@h /* Filter relevant SRR1 bits */
 	EXC_XFER_LITE(0x400, handle_page_fault)
 
 /* External interrupt */
@@ -735,11 +735,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
 	EXCEPTION(0x2c00, Trap_2c, unknown_exception, EXC_XFER_EE)
 	EXCEPTION(0x2d00, Trap_2d, unknown_exception, EXC_XFER_EE)
 	EXCEPTION(0x2e00, Trap_2e, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x2f00, MOLTrampoline, unknown_exception, EXC_XFER_EE_LITE)
-
-	.globl mol_trampoline
-	.set mol_trampoline, i0x2f00
-	EXPORT_SYMBOL(mol_trampoline)
+	EXCEPTION(0x2f00, Trap_2f, unknown_exception, EXC_XFER_EE)
 
 	. = 0x3000
 
@@ -869,7 +865,6 @@ __secondary_start:
 
 	/* enable MMU and jump to start_secondary */
 	li	r4,MSR_KERNEL
-	FIX_SRR1(r4,r5)
 	lis	r3,start_secondary@h
 	ori	r3,r3,start_secondary@l
 	mtspr	SPRN_SRR0,r3
@@ -977,7 +972,6 @@ start_here:
 	ori	r4,r4,2f@l
 	tophys(r4,r4)
 	li	r3,MSR_KERNEL & ~(MSR_IR|MSR_DR)
-	FIX_SRR1(r3,r5)
 	mtspr	SPRN_SRR0,r4
 	mtspr	SPRN_SRR1,r3
 	SYNC
@@ -1001,7 +995,6 @@ start_here:
 
 /* Now turn on the MMU for real! */
 	li	r4,MSR_KERNEL
-	FIX_SRR1(r4,r5)
 	lis	r3,start_kernel@h
 	ori	r3,r3,start_kernel@l
 	mtspr	SPRN_SRR0,r3
@@ -1280,16 +1273,6 @@ EXPORT_SYMBOL(empty_zero_page)
 	.globl	swapper_pg_dir
 swapper_pg_dir:
 	.space	PGD_TABLE_SIZE
-
-	.globl intercept_table
-intercept_table:
-	.long 0, 0, i0x200, i0x300, i0x400, 0, i0x600, i0x700
-	.long i0x800, 0, 0, 0, 0, i0xd00, 0, 0
-	.long 0, 0, 0, i0x1300, 0, 0, 0, 0
-	.long 0, 0, 0, 0, 0, 0, 0, 0
-	.long 0, 0, 0, 0, 0, 0, 0, 0
-	.long 0, 0, 0, 0, 0, 0, 0, 0
-EXPORT_SYMBOL(intercept_table)
 
 /* Room for two PTE pointers, usually the kernel and current user pointers
  * to their respective root page table.

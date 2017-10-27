@@ -143,6 +143,15 @@
 #define UVC_GUID_FORMAT_RW10 \
 	{ 'R',  'W',  '1',  '0', 0x00, 0x00, 0x10, 0x00, \
 	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
+#define UVC_GUID_FORMAT_INVZ \
+	{ 'I',  'N',  'V',  'Z', 0x90, 0x2d, 0x58, 0x4a, \
+	 0x92, 0x0b, 0x77, 0x3f, 0x1f, 0x2c, 0x55, 0x6b}
+#define UVC_GUID_FORMAT_INZI \
+	{ 'I',  'N',  'Z',  'I', 0x66, 0x1a, 0x42, 0xa2, \
+	 0x90, 0x65, 0xd0, 0x18, 0x14, 0xa8, 0xef, 0x8a}
+#define UVC_GUID_FORMAT_INVI \
+	{ 'I',  'N',  'V',  'I', 0xdb, 0x57, 0x49, 0x5e, \
+	 0x8e, 0x3f, 0xf4, 0x79, 0x53, 0x2b, 0x94, 0x6f}
 
 /* ------------------------------------------------------------------------
  * Driver specific constants.
@@ -157,7 +166,7 @@
 /* Maximum status buffer size in bytes of interrupt URB. */
 #define UVC_MAX_STATUS_SIZE	16
 
-#define UVC_CTRL_CONTROL_TIMEOUT	300
+#define UVC_CTRL_CONTROL_TIMEOUT	500
 #define UVC_CTRL_STREAMING_TIMEOUT	5000
 
 /* Maximum allowed number of control mappings per device */
@@ -566,7 +575,7 @@ struct uvc_device {
 
 	/* Video Streaming interfaces */
 	struct list_head streams;
-	atomic_t nstreams;
+	struct kref ref;
 
 	/* Status Interrupt Endpoint */
 	struct usb_host_endpoint *int_ep;
@@ -757,9 +766,9 @@ void uvc_video_decode_isight(struct urb *urb, struct uvc_streaming *stream,
 		struct uvc_buffer *buf);
 
 /* debugfs and statistics */
-int uvc_debugfs_init(void);
+void uvc_debugfs_init(void);
 void uvc_debugfs_cleanup(void);
-int uvc_debugfs_init_stream(struct uvc_streaming *stream);
+void uvc_debugfs_init_stream(struct uvc_streaming *stream);
 void uvc_debugfs_cleanup_stream(struct uvc_streaming *stream);
 
 size_t uvc_video_stats_dump(struct uvc_streaming *stream, char *buf,

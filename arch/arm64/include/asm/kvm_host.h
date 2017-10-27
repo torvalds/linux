@@ -24,15 +24,14 @@
 
 #include <linux/types.h>
 #include <linux/kvm_types.h>
+#include <asm/cpufeature.h>
 #include <asm/kvm.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
 
 #define __KVM_HAVE_ARCH_INTC_INITIALIZED
 
-#define KVM_USER_MEM_SLOTS 32
-#define KVM_PRIVATE_MEM_SLOTS 4
-#define KVM_COALESCED_MMIO_PAGE_OFFSET 1
+#define KVM_USER_MEM_SLOTS 512
 #define KVM_HALT_POLL_NS_DEFAULT 500000
 
 #include <kvm/arm_vgic.h>
@@ -43,7 +42,9 @@
 
 #define KVM_VCPU_MAX_FEATURES 4
 
-#define KVM_REQ_VCPU_EXIT	8
+#define KVM_REQ_SLEEP \
+	KVM_ARCH_REQ_FLAGS(0, KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
+#define KVM_REQ_IRQ_PENDING	KVM_ARCH_REQ(1)
 
 int __attribute_const__ kvm_target_cpu(void);
 int kvm_reset_vcpu(struct kvm_vcpu *vcpu);
@@ -70,9 +71,6 @@ struct kvm_arch {
 
 	/* Interrupt controller */
 	struct vgic_dist	vgic;
-
-	/* Timer */
-	struct arch_timer_kvm	timer;
 };
 
 #define KVM_NR_MEM_OBJS     40
@@ -229,7 +227,12 @@ struct kvm_vcpu_arch {
 
 	/* Pointer to host CPU context */
 	kvm_cpu_context_t *host_cpu_context;
-	struct kvm_guest_debug_arch host_debug_state;
+	struct {
+		/* {Break,watch}point registers */
+		struct kvm_guest_debug_arch regs;
+		/* Statistical profiling extension */
+		u64 pmscr_el1;
+	} host_debug_state;
 
 	/* VGIC state */
 	struct vgic_cpu vgic_cpu;
@@ -323,18 +326,10 @@ void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
 int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end);
 int kvm_test_age_hva(struct kvm *kvm, unsigned long hva);
 
-/* We do not have shadow page tables, hence the empty hooks */
-static inline void kvm_arch_mmu_notifier_invalidate_page(struct kvm *kvm,
-							 unsigned long address)
-{
-}
-
 struct kvm_vcpu *kvm_arm_get_running_vcpu(void);
 struct kvm_vcpu * __percpu *kvm_get_running_vcpus(void);
 void kvm_arm_halt_guest(struct kvm *kvm);
 void kvm_arm_resume_guest(struct kvm *kvm);
-void kvm_arm_halt_vcpu(struct kvm_vcpu *vcpu);
-void kvm_arm_resume_vcpu(struct kvm_vcpu *vcpu);
 
 u64 __kvm_call_hyp(void *hypfn, ...);
 #define kvm_call_hyp(f, ...) __kvm_call_hyp(kvm_ksym_ref(f), ##__VA_ARGS__)
@@ -355,17 +350,13 @@ static inline void __cpu_init_hyp_mode(phys_addr_t pgd_ptr,
 				       unsigned long vector_ptr)
 {
 	/*
-	 * Call initialization code, and switch to the full blown
-	 * HYP code.
+	 * Call initialization code, and switch to the full blown HYP code.
+	 * If the cpucaps haven't been finalized yet, something has gone very
+	 * wrong, and hyp will crash and burn when it uses any
+	 * cpus_have_const_cap() wrapper.
 	 */
+	BUG_ON(!static_branch_likely(&arm64_const_caps_ready));
 	__kvm_call_hyp((void *)pgd_ptr, hyp_stack_ptr, vector_ptr);
-}
-
-void __kvm_hyp_teardown(void);
-static inline void __cpu_reset_hyp_mode(unsigned long vector_ptr,
-					phys_addr_t phys_idmap_start)
-{
-	kvm_call_hyp(__kvm_hyp_teardown, phys_idmap_start);
 }
 
 static inline void kvm_arch_hardware_unsetup(void) {}

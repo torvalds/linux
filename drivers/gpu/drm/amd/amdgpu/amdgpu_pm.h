@@ -24,6 +24,13 @@
 #ifndef __AMDGPU_PM_H__
 #define __AMDGPU_PM_H__
 
+struct cg_flag_name
+{
+	u32 flag;
+	const char *name;
+};
+
+void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev);
 int amdgpu_pm_sysfs_init(struct amdgpu_device *adev);
 void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev);
 void amdgpu_pm_print_power_states(struct amdgpu_device *adev);

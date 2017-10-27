@@ -172,17 +172,22 @@ static inline unsigned long ima_hash_key(u8 *digest)
 	return hash_long(*digest, IMA_HASH_BITS);
 }
 
+#define __ima_hooks(hook)		\
+	hook(NONE)			\
+	hook(FILE_CHECK)		\
+	hook(MMAP_CHECK)		\
+	hook(BPRM_CHECK)		\
+	hook(POST_SETATTR)		\
+	hook(MODULE_CHECK)		\
+	hook(FIRMWARE_CHECK)		\
+	hook(KEXEC_KERNEL_CHECK)	\
+	hook(KEXEC_INITRAMFS_CHECK)	\
+	hook(POLICY_CHECK)		\
+	hook(MAX_CHECK)
+#define __ima_hook_enumify(ENUM)	ENUM,
+
 enum ima_hooks {
-	FILE_CHECK = 1,
-	MMAP_CHECK,
-	BPRM_CHECK,
-	POST_SETATTR,
-	MODULE_CHECK,
-	FIRMWARE_CHECK,
-	KEXEC_KERNEL_CHECK,
-	KEXEC_INITRAMFS_CHECK,
-	POLICY_CHECK,
-	MAX_CHECK
+	__ima_hooks(__ima_hook_enumify)
 };
 
 /* LIM API function definitions */
@@ -204,7 +209,7 @@ int ima_store_template(struct ima_template_entry *entry, int violation,
 		       struct inode *inode,
 		       const unsigned char *filename, int pcr);
 void ima_free_template_entry(struct ima_template_entry *entry);
-const char *ima_d_path(const struct path *path, char **pathbuf);
+const char *ima_d_path(const struct path *path, char **pathbuf, char *filename);
 
 /* IMA policy related functions */
 int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
@@ -284,7 +289,7 @@ static inline int ima_read_xattr(struct dentry *dentry,
 	return 0;
 }
 
-#endif
+#endif /* CONFIG_IMA_APPRAISE */
 
 /* LSM based policy rules require audit */
 #ifdef CONFIG_IMA_LSM_RULES
@@ -306,12 +311,12 @@ static inline int security_filter_rule_match(u32 secid, u32 field, u32 op,
 {
 	return -EINVAL;
 }
-#endif /* CONFIG_IMA_TRUSTED_KEYRING */
+#endif /* CONFIG_IMA_LSM_RULES */
 
 #ifdef	CONFIG_IMA_READ_POLICY
 #define	POLICY_FILE_FLAGS	(S_IWUSR | S_IRUSR)
 #else
 #define	POLICY_FILE_FLAGS	S_IWUSR
-#endif /* CONFIG_IMA_WRITE_POLICY */
+#endif /* CONFIG_IMA_READ_POLICY */
 
 #endif /* __LINUX_IMA_H */

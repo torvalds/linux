@@ -587,7 +587,7 @@ static int snd_usX2Y_usbpcm_close(struct snd_pcm_substream *substream)
 }
 
 
-static struct snd_pcm_ops snd_usX2Y_usbpcm_ops = 
+static const struct snd_pcm_ops snd_usX2Y_usbpcm_ops =
 {
 	.open =		snd_usX2Y_usbpcm_open,
 	.close =	snd_usX2Y_usbpcm_close,
@@ -652,14 +652,13 @@ static void snd_usX2Y_hwdep_pcm_vm_close(struct vm_area_struct *area)
 }
 
 
-static int snd_usX2Y_hwdep_pcm_vm_fault(struct vm_area_struct *area,
-					struct vm_fault *vmf)
+static int snd_usX2Y_hwdep_pcm_vm_fault(struct vm_fault *vmf)
 {
 	unsigned long offset;
 	void *vaddr;
 
 	offset = vmf->pgoff << PAGE_SHIFT;
-	vaddr = (char*)((struct usX2Ydev *)area->vm_private_data)->hwdep_pcm_shm + offset;
+	vaddr = (char *)((struct usX2Ydev *)vmf->vma->vm_private_data)->hwdep_pcm_shm + offset;
 	vmf->page = virt_to_page(vaddr);
 	get_page(vmf->page);
 	return 0;
@@ -724,7 +723,7 @@ int usX2Y_hwdep_pcm_new(struct snd_card *card)
 	hw->ops.release = snd_usX2Y_hwdep_pcm_release;
 	hw->ops.mmap = snd_usX2Y_hwdep_pcm_mmap;
 	hw->exclusive = 1;
-	sprintf(hw->name, "/proc/bus/usb/%03d/%03d/hwdeppcm", dev->bus->busnum, dev->devnum);
+	sprintf(hw->name, "/dev/bus/usb/%03d/%03d/hwdeppcm", dev->bus->busnum, dev->devnum);
 
 	err = snd_pcm_new(card, NAME_ALLCAPS" hwdep Audio", 2, 1, 1, &pcm);
 	if (err < 0) {

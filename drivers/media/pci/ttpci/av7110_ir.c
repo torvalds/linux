@@ -13,11 +13,8 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  *
  */
 
@@ -336,9 +333,8 @@ int av7110_ir_init(struct av7110 *av7110)
 	av_list[av_cnt++] = av7110;
 	av7110_check_ir_config(av7110, true);
 
-	init_timer(&av7110->ir.keyup_timer);
-	av7110->ir.keyup_timer.function = av7110_emit_keyup;
-	av7110->ir.keyup_timer.data = (unsigned long) &av7110->ir;
+	setup_timer(&av7110->ir.keyup_timer, av7110_emit_keyup,
+		    (unsigned long)&av7110->ir);
 
 	input_dev = input_allocate_device();
 	if (!input_dev)

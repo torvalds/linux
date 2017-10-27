@@ -43,7 +43,7 @@
  * &drm_encoder_slave. The @slave_funcs field will be initialized with
  * the hooks provided by the slave driver.
  *
- * If @info->platform_data is non-NULL it will be used as the initial
+ * If @info.platform_data is non-NULL it will be used as the initial
  * slave config.
  *
  * Returns 0 on success or a negative errno on failure, in particular,

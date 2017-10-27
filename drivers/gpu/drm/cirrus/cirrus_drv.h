@@ -13,6 +13,7 @@
 
 #include <video/vga.h>
 
+#include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 
 #include <drm/ttm/ttm_bo_api.h>
@@ -95,7 +96,6 @@
 
 struct cirrus_crtc {
 	struct drm_crtc			base;
-	u8				lut_r[256], lut_g[256], lut_b[256];
 	int				last_dpms;
 	bool				enabled;
 };
@@ -179,13 +179,6 @@ cirrus_bo(struct ttm_buffer_object *bo)
 #define to_cirrus_obj(x) container_of(x, struct cirrus_gem_object, base)
 #define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
 
-				/* cirrus_mode.c */
-void cirrus_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-			     u16 blue, int regno);
-void cirrus_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
-			     u16 *blue, int regno);
-
-
 				/* cirrus_main.c */
 int cirrus_device_init(struct cirrus_device *cdev,
 		      struct drm_device *ddev,
@@ -230,7 +223,7 @@ irqreturn_t cirrus_driver_irq_handler(int irq, void *arg);
 
 				/* cirrus_kms.c */
 int cirrus_driver_load(struct drm_device *dev, unsigned long flags);
-int cirrus_driver_unload(struct drm_device *dev);
+void cirrus_driver_unload(struct drm_device *dev);
 extern struct drm_ioctl_desc cirrus_ioctls[];
 extern int cirrus_max_ioctl;
 

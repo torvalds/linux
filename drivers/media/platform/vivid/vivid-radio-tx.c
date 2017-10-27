@@ -19,6 +19,7 @@
 
 #include <linux/errno.h>
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/delay.h>
 #include <linux/videodev2.h>
 #include <linux/v4l2-dv-timings.h>

@@ -714,7 +714,7 @@ nv4a_chipset = {
 	.i2c = nv04_i2c_new,
 	.imem = nv40_instmem_new,
 	.mc = nv44_mc_new,
-	.mmu = nv44_mmu_new,
+	.mmu = nv04_mmu_new,
 	.pci = nv40_pci_new,
 	.therm = nv40_therm_new,
 	.timer = nv41_timer_new,
@@ -993,7 +993,7 @@ nv92_chipset = {
 	.mc = g84_mc_new,
 	.mmu = nv50_mmu_new,
 	.mxm = nv50_mxm_new,
-	.pci = g84_pci_new,
+	.pci = g92_pci_new,
 	.therm = g84_therm_new,
 	.timer = nv41_timer_new,
 	.volt = nv40_volt_new,
@@ -1257,7 +1257,7 @@ nvaa_chipset = {
 	.therm = g84_therm_new,
 	.timer = nv41_timer_new,
 	.volt = nv40_volt_new,
-	.disp = g94_disp_new,
+	.disp = mcp77_disp_new,
 	.dma = nv50_dma_new,
 	.fifo = g84_fifo_new,
 	.gr = gt200_gr_new,
@@ -1289,7 +1289,7 @@ nvac_chipset = {
 	.therm = g84_therm_new,
 	.timer = nv41_timer_new,
 	.volt = nv40_volt_new,
-	.disp = g94_disp_new,
+	.disp = mcp77_disp_new,
 	.dma = nv50_dma_new,
 	.fifo = g84_fifo_new,
 	.gr = mcp79_gr_new,
@@ -1323,7 +1323,7 @@ nvaf_chipset = {
 	.timer = nv41_timer_new,
 	.volt = nv40_volt_new,
 	.ce[0] = gt215_ce_new,
-	.disp = gt215_disp_new,
+	.disp = mcp89_disp_new,
 	.dma = nv50_dma_new,
 	.fifo = g84_fifo_new,
 	.gr = mcp89_gr_new,
@@ -1379,7 +1379,7 @@ nvc1_chipset = {
 	.bus = gf100_bus_new,
 	.clk = gf100_clk_new,
 	.devinit = gf100_devinit_new,
-	.fb = gf100_fb_new,
+	.fb = gf108_fb_new,
 	.fuse = gf100_fuse_new,
 	.gpio = g94_gpio_new,
 	.i2c = g94_i2c_new,
@@ -2043,6 +2043,7 @@ nv120_chipset = {
 	.mxm = nv50_mxm_new,
 	.pci = gk104_pci_new,
 	.pmu = gm107_pmu_new,
+	.therm = gm200_therm_new,
 	.secboot = gm200_secboot_new,
 	.timer = gk20a_timer_new,
 	.top = gk104_top_new,
@@ -2077,6 +2078,7 @@ nv124_chipset = {
 	.mxm = nv50_mxm_new,
 	.pci = gk104_pci_new,
 	.pmu = gm107_pmu_new,
+	.therm = gm200_therm_new,
 	.secboot = gm200_secboot_new,
 	.timer = gk20a_timer_new,
 	.top = gk104_top_new,
@@ -2111,6 +2113,7 @@ nv126_chipset = {
 	.mxm = nv50_mxm_new,
 	.pci = gk104_pci_new,
 	.pmu = gm107_pmu_new,
+	.therm = gm200_therm_new,
 	.secboot = gm200_secboot_new,
 	.timer = gk20a_timer_new,
 	.top = gk104_top_new,
@@ -2138,6 +2141,7 @@ nv12b_chipset = {
 	.ltc = gm200_ltc_new,
 	.mc = gk20a_mc_new,
 	.mmu = gf100_mmu_new,
+	.pmu = gm20b_pmu_new,
 	.secboot = gm20b_secboot_new,
 	.timer = gk20a_timer_new,
 	.top = gk104_top_new,
@@ -2199,6 +2203,7 @@ nv132_chipset = {
 	.ltc = gp100_ltc_new,
 	.mc = gp100_mc_new,
 	.mmu = gf100_mmu_new,
+	.secboot = gp102_secboot_new,
 	.pci = gp100_pci_new,
 	.pmu = gp102_pmu_new,
 	.timer = gk20a_timer_new,
@@ -2210,6 +2215,10 @@ nv132_chipset = {
 	.disp = gp102_disp_new,
 	.dma = gf119_dma_new,
 	.fifo = gp100_fifo_new,
+	.gr = gp102_gr_new,
+	.nvdec = gp102_nvdec_new,
+	.sec2 = gp102_sec2_new,
+	.sw = gf100_sw_new,
 };
 
 static const struct nvkm_device_chip
@@ -2228,6 +2237,7 @@ nv134_chipset = {
 	.ltc = gp100_ltc_new,
 	.mc = gp100_mc_new,
 	.mmu = gf100_mmu_new,
+	.secboot = gp102_secboot_new,
 	.pci = gp100_pci_new,
 	.pmu = gp102_pmu_new,
 	.timer = gk20a_timer_new,
@@ -2239,11 +2249,83 @@ nv134_chipset = {
 	.disp = gp102_disp_new,
 	.dma = gf119_dma_new,
 	.fifo = gp100_fifo_new,
+	.gr = gp102_gr_new,
+	.nvdec = gp102_nvdec_new,
+	.sec2 = gp102_sec2_new,
+	.sw = gf100_sw_new,
 };
 
 static const struct nvkm_device_chip
 nv136_chipset = {
 	.name = "GP106",
+	.bar = gf100_bar_new,
+	.bios = nvkm_bios_new,
+	.bus = gf100_bus_new,
+	.devinit = gm200_devinit_new,
+	.fb = gp102_fb_new,
+	.fuse = gm107_fuse_new,
+	.gpio = gk104_gpio_new,
+	.i2c = gm200_i2c_new,
+	.ibus = gm200_ibus_new,
+	.imem = nv50_instmem_new,
+	.ltc = gp100_ltc_new,
+	.mc = gp100_mc_new,
+	.mmu = gf100_mmu_new,
+	.secboot = gp102_secboot_new,
+	.pci = gp100_pci_new,
+	.pmu = gp102_pmu_new,
+	.timer = gk20a_timer_new,
+	.top = gk104_top_new,
+	.ce[0] = gp102_ce_new,
+	.ce[1] = gp102_ce_new,
+	.ce[2] = gp102_ce_new,
+	.ce[3] = gp102_ce_new,
+	.disp = gp102_disp_new,
+	.dma = gf119_dma_new,
+	.fifo = gp100_fifo_new,
+	.gr = gp102_gr_new,
+	.nvdec = gp102_nvdec_new,
+	.sec2 = gp102_sec2_new,
+	.sw = gf100_sw_new,
+};
+
+static const struct nvkm_device_chip
+nv137_chipset = {
+	.name = "GP107",
+	.bar = gf100_bar_new,
+	.bios = nvkm_bios_new,
+	.bus = gf100_bus_new,
+	.devinit = gm200_devinit_new,
+	.fb = gp102_fb_new,
+	.fuse = gm107_fuse_new,
+	.gpio = gk104_gpio_new,
+	.i2c = gm200_i2c_new,
+	.ibus = gm200_ibus_new,
+	.imem = nv50_instmem_new,
+	.ltc = gp100_ltc_new,
+	.mc = gp100_mc_new,
+	.mmu = gf100_mmu_new,
+	.secboot = gp102_secboot_new,
+	.pci = gp100_pci_new,
+	.pmu = gp102_pmu_new,
+	.timer = gk20a_timer_new,
+	.top = gk104_top_new,
+	.ce[0] = gp102_ce_new,
+	.ce[1] = gp102_ce_new,
+	.ce[2] = gp102_ce_new,
+	.ce[3] = gp102_ce_new,
+	.disp = gp102_disp_new,
+	.dma = gf119_dma_new,
+	.fifo = gp100_fifo_new,
+	.gr = gp107_gr_new,
+	.nvdec = gp102_nvdec_new,
+	.sec2 = gp102_sec2_new,
+	.sw = gf100_sw_new,
+};
+
+static const struct nvkm_device_chip
+nv138_chipset = {
+	.name = "GP108",
 	.bar = gf100_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
@@ -2268,6 +2350,29 @@ nv136_chipset = {
 	.disp = gp102_disp_new,
 	.dma = gf119_dma_new,
 	.fifo = gp100_fifo_new,
+};
+
+static const struct nvkm_device_chip
+nv13b_chipset = {
+	.name = "GP10B",
+	.bar = gk20a_bar_new,
+	.bus = gf100_bus_new,
+	.fb = gp10b_fb_new,
+	.fuse = gm107_fuse_new,
+	.ibus = gp10b_ibus_new,
+	.imem = gk20a_instmem_new,
+	.ltc = gp100_ltc_new,
+	.mc = gp10b_mc_new,
+	.mmu = gf100_mmu_new,
+	.secboot = gp10b_secboot_new,
+	.pmu = gm20b_pmu_new,
+	.timer = gk20a_timer_new,
+	.top = gk104_top_new,
+	.ce[2] = gp102_ce_new,
+	.dma = gf119_dma_new,
+	.fifo = gp10b_fifo_new,
+	.gr = gp10b_gr_new,
+	.sw = gf100_sw_new,
 };
 
 static int
@@ -2361,9 +2466,10 @@ nvkm_device_engine(struct nvkm_device *device, int index)
 	_(NVENC0 , device->nvenc[0],  device->nvenc[0]);
 	_(NVENC1 , device->nvenc[1],  device->nvenc[1]);
 	_(NVENC2 , device->nvenc[2],  device->nvenc[2]);
-	_(NVDEC  , device->nvdec   ,  device->nvdec);
+	_(NVDEC  , device->nvdec   , &device->nvdec->engine);
 	_(PM     , device->pm      , &device->pm->engine);
 	_(SEC    , device->sec     ,  device->sec);
+	_(SEC2   , device->sec2    , &device->sec2->engine);
 	_(SW     , device->sw      , &device->sw->engine);
 	_(VIC    , device->vic     ,  device->vic);
 	_(VP     , device->vp      ,  device->vp);
@@ -2707,6 +2813,9 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		case 0x132: device->chip = &nv132_chipset; break;
 		case 0x134: device->chip = &nv134_chipset; break;
 		case 0x136: device->chip = &nv136_chipset; break;
+		case 0x137: device->chip = &nv137_chipset; break;
+		case 0x138: device->chip = &nv138_chipset; break;
+		case 0x13b: device->chip = &nv13b_chipset; break;
 		default:
 			nvdev_error(device, "unknown chipset (%08x)\n", boot0);
 			goto done;
@@ -2811,6 +2920,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		_(NVKM_ENGINE_NVDEC   ,    nvdec);
 		_(NVKM_ENGINE_PM      ,       pm);
 		_(NVKM_ENGINE_SEC     ,      sec);
+		_(NVKM_ENGINE_SEC2    ,     sec2);
 		_(NVKM_ENGINE_SW      ,       sw);
 		_(NVKM_ENGINE_VIC     ,      vic);
 		_(NVKM_ENGINE_VP      ,       vp);

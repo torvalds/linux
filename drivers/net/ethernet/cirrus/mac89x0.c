@@ -56,7 +56,7 @@
   local_irq_{dis,en}able()
 */
 
-static char *version =
+static const char version[] =
 "cs89x0.c:v1.02 11/26/96 Russell Nelson <nelson@crynwr.com>\n";
 
 /* ======================= configure the driver here ======================= */

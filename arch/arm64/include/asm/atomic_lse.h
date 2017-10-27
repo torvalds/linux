@@ -322,7 +322,7 @@ static inline void atomic64_and(long i, atomic64_t *v)
 #define ATOMIC64_FETCH_OP_AND(name, mb, cl...)				\
 static inline long atomic64_fetch_and##name(long i, atomic64_t *v)	\
 {									\
-	register long x0 asm ("w0") = i;				\
+	register long x0 asm ("x0") = i;				\
 	register atomic64_t *x1 asm ("x1") = v;				\
 									\
 	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
@@ -394,7 +394,7 @@ ATOMIC64_OP_SUB_RETURN(        , al, "memory")
 #define ATOMIC64_FETCH_OP_SUB(name, mb, cl...)				\
 static inline long atomic64_fetch_sub##name(long i, atomic64_t *v)	\
 {									\
-	register long x0 asm ("w0") = i;				\
+	register long x0 asm ("x0") = i;				\
 	register atomic64_t *x1 asm ("x1") = v;				\
 									\
 	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
@@ -435,7 +435,7 @@ static inline long atomic64_dec_if_positive(atomic64_t *v)
 	"	sub	x30, x30, %[ret]\n"
 	"	cbnz	x30, 1b\n"
 	"2:")
-	: [ret] "+&r" (x0), [v] "+Q" (v->counter)
+	: [ret] "+r" (x0), [v] "+Q" (v->counter)
 	:
 	: __LL_SC_CLOBBERS, "cc", "memory");
 

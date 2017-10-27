@@ -17,7 +17,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/atomic.h>
+#include <linux/refcount.h>
 #include <linux/cdev.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -47,7 +47,8 @@ static const char driver_name[] = "vme_user";
 static int bus[VME_USER_BUS_MAX];
 static unsigned int bus_num;
 
-/* Currently Documentation/admin-guide/devices.rst defines the following for VME:
+/* Currently Documentation/admin-guide/devices.rst defines the
+ * following for VME:
  *
  * 221 char	VME bus
  *		  0 = /dev/bus/vme/m0		First master image
@@ -117,7 +118,7 @@ static const int type[VME_DEVS] = {	MASTER_MINOR,	MASTER_MINOR,
 
 struct vme_user_vma_priv {
 	unsigned int minor;
-	atomic_t refcnt;
+	refcount_t refcnt;
 };
 
 static ssize_t resource_to_user(int minor, char __user *buf, size_t count,
@@ -429,7 +430,7 @@ static void vme_user_vm_open(struct vm_area_struct *vma)
 {
 	struct vme_user_vma_priv *vma_priv = vma->vm_private_data;
 
-	atomic_inc(&vma_priv->refcnt);
+	refcount_inc(&vma_priv->refcnt);
 }
 
 static void vme_user_vm_close(struct vm_area_struct *vma)
@@ -437,7 +438,7 @@ static void vme_user_vm_close(struct vm_area_struct *vma)
 	struct vme_user_vma_priv *vma_priv = vma->vm_private_data;
 	unsigned int minor = vma_priv->minor;
 
-	if (!atomic_dec_and_test(&vma_priv->refcnt))
+	if (!refcount_dec_and_test(&vma_priv->refcnt))
 		return;
 
 	mutex_lock(&image[minor].mutex);
@@ -472,7 +473,7 @@ static int vme_user_master_mmap(unsigned int minor, struct vm_area_struct *vma)
 	}
 
 	vma_priv->minor = minor;
-	atomic_set(&vma_priv->refcnt, 1);
+	refcount_set(&vma_priv->refcnt, 1);
 	vma->vm_ops = &vme_user_vm_ops;
 	vma->vm_private_data = vma_priv;
 

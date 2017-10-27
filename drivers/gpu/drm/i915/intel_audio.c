@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/component.h>
 #include <drm/i915_component.h>
+#include <drm/intel_lpe_audio.h>
 #include "intel_drv.h"
 
 #include <drm/drmP.h>
@@ -605,11 +606,6 @@ void intel_audio_codec_enable(struct intel_encoder *intel_encoder,
 			 connector->encoder->base.id,
 			 connector->encoder->name);
 
-	/* ELD Conn_Type */
-	connector->eld[5] &= ~(3 << 2);
-	if (intel_crtc_has_dp_encoder(crtc_state))
-		connector->eld[5] |= (1 << 2);
-
 	connector->eld[6] = drm_av_sync_delay(connector, adjusted_mode) / 2;
 
 	if (dev_priv->display.audio_codec_enable)
@@ -623,13 +619,17 @@ void intel_audio_codec_enable(struct intel_encoder *intel_encoder,
 	dev_priv->av_enc_map[pipe] = intel_encoder;
 	mutex_unlock(&dev_priv->av_mutex);
 
-	/* audio drivers expect pipe = -1 to indicate Non-MST cases */
-	if (intel_encoder->type != INTEL_OUTPUT_DP_MST)
-		pipe = -1;
-
-	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_notify)
+	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_notify) {
+		/* audio drivers expect pipe = -1 to indicate Non-MST cases */
+		if (intel_encoder->type != INTEL_OUTPUT_DP_MST)
+			pipe = -1;
 		acomp->audio_ops->pin_eld_notify(acomp->audio_ops->audio_ptr,
 						 (int) port, (int) pipe);
+	}
+
+	intel_lpe_audio_notify(dev_priv, pipe, port, connector->eld,
+			       crtc_state->port_clock,
+			       intel_encoder->type == INTEL_OUTPUT_DP);
 }
 
 /**
@@ -656,13 +656,15 @@ void intel_audio_codec_disable(struct intel_encoder *intel_encoder)
 	dev_priv->av_enc_map[pipe] = NULL;
 	mutex_unlock(&dev_priv->av_mutex);
 
-	/* audio drivers expect pipe = -1 to indicate Non-MST cases */
-	if (intel_encoder->type != INTEL_OUTPUT_DP_MST)
-		pipe = -1;
-
-	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_notify)
+	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_notify) {
+		/* audio drivers expect pipe = -1 to indicate Non-MST cases */
+		if (intel_encoder->type != INTEL_OUTPUT_DP_MST)
+			pipe = -1;
 		acomp->audio_ops->pin_eld_notify(acomp->audio_ops->audio_ptr,
 						 (int) port, (int) pipe);
+	}
+
+	intel_lpe_audio_notify(dev_priv, pipe, port, NULL, 0, false);
 }
 
 /**
@@ -702,7 +704,7 @@ static void i915_audio_component_codec_wake_override(struct device *kdev,
 	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
 	u32 tmp;
 
-	if (!IS_SKYLAKE(dev_priv) && !IS_KABYLAKE(dev_priv))
+	if (!IS_GEN9_BC(dev_priv))
 		return;
 
 	i915_audio_component_get_power(kdev);
@@ -734,26 +736,50 @@ static int i915_audio_component_get_cdclk_freq(struct device *kdev)
 	if (WARN_ON_ONCE(!HAS_DDI(dev_priv)))
 		return -ENODEV;
 
-	return dev_priv->cdclk_freq;
+	return dev_priv->cdclk.hw.cdclk;
 }
 
+/*
+ * get the intel_encoder according to the parameter port and pipe
+ * intel_encoder is saved by the index of pipe
+ * MST & (pipe >= 0): return the av_enc_map[pipe],
+ *   when port is matched
+ * MST & (pipe < 0): this is invalid
+ * Non-MST & (pipe >= 0): only pipe = 0 (the first device entry)
+ *   will get the right intel_encoder with port matched
+ * Non-MST & (pipe < 0): get the right intel_encoder with port matched
+ */
 static struct intel_encoder *get_saved_enc(struct drm_i915_private *dev_priv,
 					       int port, int pipe)
 {
+	struct intel_encoder *encoder;
 
 	if (WARN_ON(pipe >= I915_MAX_PIPES))
 		return NULL;
 
 	/* MST */
-	if (pipe >= 0)
-		return dev_priv->av_enc_map[pipe];
+	if (pipe >= 0) {
+		encoder = dev_priv->av_enc_map[pipe];
+		/*
+		 * when bootup, audio driver may not know it is
+		 * MST or not. So it will poll all the port & pipe
+		 * combinations
+		 */
+		if (encoder != NULL && encoder->port == port &&
+		    encoder->type == INTEL_OUTPUT_DP_MST)
+			return encoder;
+	}
 
 	/* Non-MST */
-	for_each_pipe(dev_priv, pipe) {
-		struct intel_encoder *encoder;
+	if (pipe > 0)
+		return NULL;
 
+	for_each_pipe(dev_priv, pipe) {
 		encoder = dev_priv->av_enc_map[pipe];
 		if (encoder == NULL)
+			continue;
+
+		if (encoder->type == INTEL_OUTPUT_DP_MST)
 			continue;
 
 		if (port == encoder->port)
@@ -781,9 +807,7 @@ static int i915_audio_component_sync_audio_rate(struct device *kdev, int port,
 
 	/* 1. get the pipe */
 	intel_encoder = get_saved_enc(dev_priv, port, pipe);
-	if (!intel_encoder || !intel_encoder->base.crtc ||
-	    (intel_encoder->type != INTEL_OUTPUT_HDMI &&
-	     intel_encoder->type != INTEL_OUTPUT_DP)) {
+	if (!intel_encoder || !intel_encoder->base.crtc) {
 		DRM_DEBUG_KMS("Not valid for port %c\n", port_name(port));
 		err = -ENODEV;
 		goto unlock;
@@ -906,6 +930,9 @@ void i915_audio_component_init(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
+	if (INTEL_INFO(dev_priv)->num_pipes == 0)
+		return;
+
 	ret = component_add(dev_priv->drm.dev, &i915_audio_component_bind_ops);
 	if (ret < 0) {
 		DRM_ERROR("failed to add audio component (%d)\n", ret);
@@ -930,4 +957,29 @@ void i915_audio_component_cleanup(struct drm_i915_private *dev_priv)
 
 	component_del(dev_priv->drm.dev, &i915_audio_component_bind_ops);
 	dev_priv->audio_component_registered = false;
+}
+
+/**
+ * intel_audio_init() - Initialize the audio driver either using
+ * component framework or using lpe audio bridge
+ * @dev_priv: the i915 drm device private data
+ *
+ */
+void intel_audio_init(struct drm_i915_private *dev_priv)
+{
+	if (intel_lpe_audio_init(dev_priv) < 0)
+		i915_audio_component_init(dev_priv);
+}
+
+/**
+ * intel_audio_deinit() - deinitialize the audio driver
+ * @dev_priv: the i915 drm device private data
+ *
+ */
+void intel_audio_deinit(struct drm_i915_private *dev_priv)
+{
+	if ((dev_priv)->lpe_audio.platdev != NULL)
+		intel_lpe_audio_teardown(dev_priv);
+	else
+		i915_audio_component_cleanup(dev_priv);
 }

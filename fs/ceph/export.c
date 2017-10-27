@@ -91,6 +91,10 @@ static struct dentry *__fh_to_dentry(struct super_block *sb, u64 ino)
 		ceph_mdsc_put_request(req);
 		if (!inode)
 			return ERR_PTR(-ESTALE);
+		if (inode->i_nlink == 0) {
+			iput(inode);
+			return ERR_PTR(-ESTALE);
+		}
 	}
 
 	return d_obtain_alias(inode);
@@ -207,7 +211,8 @@ static int ceph_get_name(struct dentry *parent, char *name,
 	req->r_inode = d_inode(child);
 	ihold(d_inode(child));
 	req->r_ino2 = ceph_vino(d_inode(parent));
-	req->r_locked_dir = d_inode(parent);
+	req->r_parent = d_inode(parent);
+	set_bit(CEPH_MDS_R_PARENT_LOCKED, &req->r_req_flags);
 	req->r_num_caps = 2;
 	err = ceph_mdsc_do_request(mdsc, NULL, req);
 

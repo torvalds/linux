@@ -88,8 +88,8 @@
 /*
  * super-class definitions.
  */
-#include "lu_object.h"
-#include "lustre_compat.h"
+#include <lu_object.h>
+#include <lustre_compat.h>
 #include <linux/atomic.h>
 #include <linux/mutex.h>
 #include <linux/radix-tree.h>
@@ -284,12 +284,6 @@ struct cl_layout {
 	size_t		cl_size;
 	/** Layout generation. */
 	u32		cl_layout_gen;
-	/**
-	 * True if this is a released file.
-	 * Temporarily added for released file truncate in ll_setattr_raw().
-	 * It will be removed later. -Jinshan
-	 */
-	bool		cl_is_released;
 };
 
 /**
@@ -1293,7 +1287,7 @@ do {								    \
  * @{
  */
 struct cl_page_list {
-	unsigned	     pl_nr;
+	unsigned int		 pl_nr;
 	struct list_head	   pl_pages;
 	struct task_struct	*pl_owner;
 };
@@ -1364,7 +1358,7 @@ struct cl_2queue {
 /** IO types */
 enum cl_io_type {
 	/** read system call */
-	CIT_READ,
+	CIT_READ = 1,
 	/** write system call */
 	CIT_WRITE,
 	/** truncate, utime system calls */
@@ -1458,8 +1452,10 @@ struct cl_read_ahead {
 	 * cra_end is included.
 	 */
 	pgoff_t cra_end;
+	/* optimal RPC size for this read, by pages */
+	unsigned long cra_rpc_size;
 	/*
-	 * Release routine. If readahead holds resources underneath, this
+	 * Release callback. If readahead holds resources underneath, this
 	 * function should be called to release it.
 	 */
 	void (*cra_release)(const struct lu_env *env, void *cbdata);
@@ -1644,9 +1640,14 @@ enum cl_enq_flags {
 	 */
 	CEF_PEEK	= 0x00000040,
 	/**
+	 * Lock match only. Used by group lock in I/O as group lock
+	 * is known to exist.
+	 */
+	CEF_LOCK_MATCH	= BIT(7),
+	/**
 	 * mask of enq_flags.
 	 */
-	CEF_MASK         = 0x0000007f,
+	CEF_MASK	= 0x000000ff,
 };
 
 /**
@@ -1841,7 +1842,7 @@ struct cl_io {
 	/**
 	 * Number of pages owned by this IO. For invariant checking.
 	 */
-	unsigned	     ci_owned_nr;
+	unsigned int	     ci_owned_nr;
 };
 
 /** @} cl_io */
@@ -2311,7 +2312,7 @@ struct cl_io *cl_io_top(struct cl_io *io);
 do {									\
 	typeof(foo_io) __foo_io = (foo_io);				\
 									\
-	CLASSERT(offsetof(typeof(*__foo_io), base) == 0);		\
+	BUILD_BUG_ON(offsetof(typeof(*__foo_io), base) != 0);		\
 	memset(&__foo_io->base + 1, 0,					\
 	       sizeof(*__foo_io) - sizeof(__foo_io->base));		\
 } while (0)
@@ -2436,9 +2437,9 @@ void cl_sync_io_end(const struct lu_env *env, struct cl_sync_io *anchor);
  * @{
  */
 
-struct lu_env *cl_env_get(int *refcheck);
-struct lu_env *cl_env_alloc(int *refcheck, __u32 tags);
-void cl_env_put(struct lu_env *env, int *refcheck);
+struct lu_env *cl_env_get(u16 *refcheck);
+struct lu_env *cl_env_alloc(u16 *refcheck, __u32 tags);
+void cl_env_put(struct lu_env *env, u16 *refcheck);
 unsigned int cl_env_cache_purge(unsigned int nr);
 struct lu_env *cl_env_percpu_get(void);
 void cl_env_percpu_put(struct lu_env *env);

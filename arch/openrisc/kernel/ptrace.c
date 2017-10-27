@@ -16,9 +16,9 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#include <stddef.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/string.h>
 
 #include <linux/mm.h>

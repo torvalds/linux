@@ -41,6 +41,7 @@ enum sdio_interrupt_type {
 #define PKT_BUFF_FULL                           1
 #define PKT_MGMT_BUFF_FULL                      2
 #define MSDU_PKT_PENDING                        3
+#define RECV_NUM_BLOCKS                         4
 /* Interrupt Bit Related Macros */
 #define PKT_BUFF_AVAILABLE                      1
 #define FW_ASSERT_IND                           2
@@ -58,6 +59,7 @@ enum sdio_interrupt_type {
 #define SDIO_READ_START_LVL                     0x000FC
 #define SDIO_READ_FIFO_CTL                      0x000FD
 #define SDIO_WRITE_FIFO_CTL                     0x000FE
+#define SDIO_WAKEUP_REG				0x000FF
 #define SDIO_FUN1_INTR_CLR_REG                  0x0008
 #define SDIO_REG_HIGH_SPEED                     0x0013
 
@@ -103,27 +105,28 @@ struct receive_info {
 
 struct rsi_91x_sdiodev {
 	struct sdio_func *pfunction;
-	struct task_struct *in_sdio_litefi_irq;
+	struct task_struct *sdio_irq_task;
 	struct receive_info rx_info;
 	u32 next_read_delay;
 	u32 sdio_high_speed_enable;
 	u8 sdio_clock_speed;
 	u32 cardcapability;
 	u8 prev_desc[16];
-	u32 tx_blk_size;
+	u16 tx_blk_size;
 	u8 write_fail;
+	bool buff_status_updated;
 };
 
 void rsi_interrupt_handler(struct rsi_hw *adapter);
 int rsi_init_sdio_slave_regs(struct rsi_hw *adapter);
-int rsi_sdio_device_init(struct rsi_common *common);
 int rsi_sdio_read_register(struct rsi_hw *adapter, u32 addr, u8 *data);
 int rsi_sdio_host_intf_read_pkt(struct rsi_hw *adapter, u8 *pkt, u32 length);
 int rsi_sdio_write_register(struct rsi_hw *adapter, u8 function,
 			    u32 addr, u8 *data);
 int rsi_sdio_write_register_multiple(struct rsi_hw *adapter, u32 addr,
-				     u8 *data, u32 count);
+				     u8 *data, u16 count);
+int rsi_sdio_master_access_msword(struct rsi_hw *adapter, u16 ms_word);
 void rsi_sdio_ack_intr(struct rsi_hw *adapter, u8 int_bit);
 int rsi_sdio_determine_event_timeout(struct rsi_hw *adapter);
-int rsi_sdio_read_buffer_status_register(struct rsi_hw *adapter, u8 q_num);
+int rsi_sdio_check_buffer_status(struct rsi_hw *adapter, u8 q_num);
 #endif

@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,6 +85,8 @@ acpi_evaluate_object_typed(acpi_handle handle,
 {
 	acpi_status status;
 	u8 free_buffer_on_error = FALSE;
+	acpi_handle target_handle;
+	char *full_pathname;
 
 	ACPI_FUNCTION_TRACE(acpi_evaluate_object_typed);
 
@@ -98,38 +100,55 @@ acpi_evaluate_object_typed(acpi_handle handle,
 		free_buffer_on_error = TRUE;
 	}
 
-	/* Evaluate the object */
-
-	status = acpi_evaluate_object(handle, pathname,
-				      external_params, return_buffer);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
+	if (pathname) {
+		status = acpi_get_handle(handle, pathname, &target_handle);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
+	} else {
+		target_handle = handle;
 	}
 
-	/* Type ANY means "don't care" */
+	full_pathname = acpi_ns_get_external_pathname(target_handle);
+	if (!full_pathname) {
+		return_ACPI_STATUS(AE_NO_MEMORY);
+	}
+
+	/* Evaluate the object */
+
+	status = acpi_evaluate_object(target_handle, NULL, external_params,
+				      return_buffer);
+	if (ACPI_FAILURE(status)) {
+		goto exit;
+	}
+
+	/* Type ANY means "don't care about return value type" */
 
 	if (return_type == ACPI_TYPE_ANY) {
-		return_ACPI_STATUS(AE_OK);
+		goto exit;
 	}
 
 	if (return_buffer->length == 0) {
 
 		/* Error because caller specifically asked for a return value */
 
-		ACPI_ERROR((AE_INFO, "No return value"));
-		return_ACPI_STATUS(AE_NULL_OBJECT);
+		ACPI_ERROR((AE_INFO, "%s did not return any object",
+			    full_pathname));
+		status = AE_NULL_OBJECT;
+		goto exit;
 	}
 
 	/* Examine the object type returned from evaluate_object */
 
 	if (((union acpi_object *)return_buffer->pointer)->type == return_type) {
-		return_ACPI_STATUS(AE_OK);
+		goto exit;
 	}
 
 	/* Return object type does not match requested type */
 
 	ACPI_ERROR((AE_INFO,
-		    "Incorrect return type [%s] requested [%s]",
+		    "Incorrect return type from %s - received [%s], requested [%s]",
+		    full_pathname,
 		    acpi_ut_get_type_name(((union acpi_object *)return_buffer->
 					   pointer)->type),
 		    acpi_ut_get_type_name(return_type)));
@@ -147,7 +166,11 @@ acpi_evaluate_object_typed(acpi_handle handle,
 	}
 
 	return_buffer->length = 0;
-	return_ACPI_STATUS(AE_TYPE);
+	status = AE_TYPE;
+
+exit:
+	ACPI_FREE(full_pathname);
+	return_ACPI_STATUS(status);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_evaluate_object_typed)
@@ -495,9 +518,9 @@ static void acpi_ns_resolve_references(struct acpi_evaluate_info *info)
 	/*
 	 * Two types of references are supported - those created by Index and
 	 * ref_of operators. A name reference (AML_NAMEPATH_OP) can be converted
-	 * to an union acpi_object, so it is not dereferenced here. A ddb_handle
+	 * to a union acpi_object, so it is not dereferenced here. A ddb_handle
 	 * (AML_LOAD_OP) cannot be dereferenced, nor can it be converted to
-	 * an union acpi_object.
+	 * a union acpi_object.
 	 */
 	switch (info->return_object->reference.class) {
 	case ACPI_REFCLASS_INDEX:

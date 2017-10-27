@@ -21,13 +21,13 @@
 */
 
 #ifdef CONFIG_PA11
-extern struct dma_map_ops pcxl_dma_ops;
-extern struct dma_map_ops pcx_dma_ops;
+extern const struct dma_map_ops pcxl_dma_ops;
+extern const struct dma_map_ops pcx_dma_ops;
 #endif
 
-extern struct dma_map_ops *hppa_dma_ops;
+extern const struct dma_map_ops *hppa_dma_ops;
 
-static inline struct dma_map_ops *get_dma_ops(struct device *dev)
+static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
 	return hppa_dma_ops;
 }
@@ -54,12 +54,13 @@ parisc_walk_tree(struct device *dev)
 			break;
 		}
 	}
-	BUG_ON(!dev->platform_data);
 	return dev->platform_data;
 }
-		
-#define GET_IOC(dev) (HBA_DATA(parisc_walk_tree(dev))->iommu)
-	
+
+#define GET_IOC(dev) ({					\
+	void *__pdata = parisc_walk_tree(dev);		\
+	__pdata ? HBA_DATA(__pdata)->iommu : NULL;	\
+})
 
 #ifdef CONFIG_IOMMU_CCIO
 struct parisc_device;

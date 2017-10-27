@@ -163,6 +163,14 @@
 typedef void (ak4114_write_t)(void *private_data, unsigned char addr, unsigned char data);
 typedef unsigned char (ak4114_read_t)(void *private_data, unsigned char addr);
 
+enum {
+	AK4114_PARITY_ERRORS,
+	AK4114_V_BIT_ERRORS,
+	AK4114_QCRC_ERRORS,
+	AK4114_CCRC_ERRORS,
+	AK4114_NUM_ERRORS
+};
+
 struct ak4114 {
 	struct snd_card *card;
 	ak4114_write_t * write;
@@ -176,10 +184,7 @@ struct ak4114 {
 	struct snd_kcontrol *kctls[AK4114_CONTROLS];
 	struct snd_pcm_substream *playback_substream;
 	struct snd_pcm_substream *capture_substream;
-	unsigned long parity_errors;
-	unsigned long v_bit_errors;
-	unsigned long qcrc_errors;
-	unsigned long ccrc_errors;
+	unsigned long errors[AK4114_NUM_ERRORS];
 	unsigned char rcs0;
 	unsigned char rcs1;
 	struct delayed_work work;

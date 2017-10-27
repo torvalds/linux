@@ -24,7 +24,7 @@
 #include <linux/netfilter/xt_LOG.h>
 #include <net/netfilter/nf_log.h>
 
-static struct nf_loginfo default_loginfo = {
+static const struct nf_loginfo default_loginfo = {
 	.type	= NF_LOG_TYPE_LOG,
 	.u = {
 		.log = {
@@ -319,7 +319,7 @@ static void nf_log_ip_packet(struct net *net, u_int8_t pf,
 	struct nf_log_buf *m;
 
 	/* FIXME: Disabled from containers until syslog ns is supported */
-	if (!net_eq(net, &init_net))
+	if (!net_eq(net, &init_net) && !sysctl_nf_log_all_netns)
 		return;
 
 	m = nf_log_buf_open();

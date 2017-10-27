@@ -1,0 +1,48 @@
+[
+    {
+        "BriefDescription": "QPI clock ticks. Use to get percentages for QPI cycles events",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x14",
+        "EventName": "UNC_Q_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Cycles where receiving QPI link is in half-width mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x10",
+        "EventName": "UNC_Q_RxL0P_POWER_CYCLES",
+        "MetricExpr": "(UNC_Q_RxL0P_POWER_CYCLES / UNC_Q_CLOCKTICKS) * 100.",
+        "MetricName": "rxl0p_power_cycles %",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Cycles where transmitting QPI link is in half-width mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xd",
+        "EventName": "UNC_Q_TxL0P_POWER_CYCLES",
+        "MetricExpr": "(UNC_Q_TxL0P_POWER_CYCLES / UNC_Q_CLOCKTICKS) * 100.",
+        "MetricName": "txl0p_power_cycles %",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Number of data flits transmitted ",
+        "Counter": "0,1,2,3",
+        "EventName": "UNC_Q_TxL_FLITS_G0.DATA",
+        "PerPkg": "1",
+        "ScaleUnit": "8Bytes",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Number of non data (control) flits transmitted ",
+        "Counter": "0,1,2,3",
+        "EventName": "UNC_Q_TxL_FLITS_G0.NON_DATA",
+        "PerPkg": "1",
+        "ScaleUnit": "8Bytes",
+        "UMask": "0x4",
+        "Unit": "QPI LL"
+    }
+]

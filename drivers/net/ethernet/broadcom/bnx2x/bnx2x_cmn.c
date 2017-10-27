@@ -549,14 +549,7 @@ static int bnx2x_alloc_rx_sge(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	struct bnx2x_alloc_pool *pool = &fp->page_pool;
 	dma_addr_t mapping;
 
-	if (!pool->page || (PAGE_SIZE - pool->offset) < SGE_PAGE_SIZE) {
-
-		/* put page reference used by the memory pool, since we
-		 * won't be using this page as the mempool anymore.
-		 */
-		if (pool->page)
-			put_page(pool->page);
-
+	if (!pool->page) {
 		pool->page = alloc_pages(gfp_mask, PAGES_PER_SGE_SHIFT);
 		if (unlikely(!pool->page))
 			return -ENOMEM;
@@ -571,7 +564,6 @@ static int bnx2x_alloc_rx_sge(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		return -ENOMEM;
 	}
 
-	get_page(pool->page);
 	sw_buf->page = pool->page;
 	sw_buf->offset = pool->offset;
 
@@ -581,7 +573,10 @@ static int bnx2x_alloc_rx_sge(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	sge->addr_lo = cpu_to_le32(U64_LO(mapping));
 
 	pool->offset += SGE_PAGE_SIZE;
-
+	if (PAGE_SIZE - pool->offset >= SGE_PAGE_SIZE)
+		get_page(pool->page);
+	else
+		pool->page = NULL;
 	return 0;
 }
 
@@ -1931,7 +1926,7 @@ u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb,
 	}
 
 	/* select a non-FCoE queue */
-	return fallback(dev, skb) % BNX2X_NUM_ETH_QUEUES(bp);
+	return fallback(dev, skb) % (BNX2X_NUM_ETH_QUEUES(bp) * bp->max_cos);
 }
 
 void bnx2x_set_num_queues(struct bnx2x *bp)
@@ -2026,6 +2021,7 @@ static void bnx2x_set_rx_buf_size(struct bnx2x *bp)
 				  ETH_OVERHEAD +
 				  mtu +
 				  BNX2X_FW_RX_ALIGN_END;
+		fp->rx_buf_size = SKB_DATA_ALIGN(fp->rx_buf_size);
 		/* Note : rx_buf_size doesn't take into account NET_SKB_PAD */
 		if (fp->rx_buf_size + NET_SKB_PAD <= PAGE_SIZE)
 			fp->rx_frag_size = fp->rx_buf_size + NET_SKB_PAD;
@@ -3229,7 +3225,7 @@ static int bnx2x_poll(struct napi_struct *napi, int budget)
 		 * has been updated when NAPI was scheduled.
 		 */
 		if (IS_FCOE_FP(fp)) {
-			napi_complete(napi);
+			napi_complete_done(napi, rx_work_done);
 		} else {
 			bnx2x_update_fpsb_idx(fp);
 			/* bnx2x_has_rx_work() reads the status block,
@@ -3887,15 +3883,26 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* when transmitting in a vf, start bd must hold the ethertype
 		 * for fw to enforce it
 		 */
+		u16 vlan_tci = 0;
 #ifndef BNX2X_STOP_ON_ERROR
-		if (IS_VF(bp))
+		if (IS_VF(bp)) {
 #endif
-			tx_start_bd->vlan_or_ethertype =
-				cpu_to_le16(ntohs(eth->h_proto));
+			/* Still need to consider inband vlan for enforced */
+			if (__vlan_get_tag(skb, &vlan_tci)) {
+				tx_start_bd->vlan_or_ethertype =
+					cpu_to_le16(ntohs(eth->h_proto));
+			} else {
+				tx_start_bd->bd_flags.as_bitfield |=
+					(X_ETH_INBAND_VLAN <<
+					 ETH_TX_BD_FLAGS_VLAN_MODE_SHIFT);
+				tx_start_bd->vlan_or_ethertype =
+					cpu_to_le16(vlan_tci);
+			}
 #ifndef BNX2X_STOP_ON_ERROR
-		else
+		} else {
 			/* used by FW for packet accounting */
 			tx_start_bd->vlan_or_ethertype = cpu_to_le16(pkt_prod);
+		}
 #endif
 	}
 
@@ -4277,12 +4284,17 @@ int bnx2x_setup_tc(struct net_device *dev, u8 num_tc)
 	return 0;
 }
 
-int __bnx2x_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
-		     struct tc_to_netdev *tc)
+int __bnx2x_setup_tc(struct net_device *dev, enum tc_setup_type type,
+		     void *type_data)
 {
-	if (tc->type != TC_SETUP_MQPRIO)
-		return -EINVAL;
-	return bnx2x_setup_tc(dev, tc->tc);
+	struct tc_mqprio_qopt *mqprio = type_data;
+
+	if (type != TC_SETUP_MQPRIO)
+		return -EOPNOTSUPP;
+
+	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+
+	return bnx2x_setup_tc(dev, mqprio->num_tc);
 }
 
 /* called with rtnl_lock */

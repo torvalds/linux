@@ -3,6 +3,7 @@
 
 #include <linux/limits.h>
 #include <linux/net.h>
+#include <linux/cred.h>
 #include <linux/security.h>
 #include <linux/pid.h>
 #include <linux/nsproxy.h>

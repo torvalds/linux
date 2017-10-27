@@ -44,14 +44,14 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/obd_support.h"
-#include "../include/obd_class.h"
-#include "../include/lustre/lustre_ioctl.h"
-#include "../include/lustre_lib.h"
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_fid.h"
-#include "../include/lustre_kernelcomm.h"
-#include "../include/lustre_swab.h"
+#include <obd_support.h>
+#include <obd_class.h>
+#include <uapi/linux/lustre/lustre_ioctl.h>
+#include <lustre_lib.h>
+#include <lustre_dlm.h>
+#include <lustre_fid.h>
+#include <lustre_kernelcomm.h>
+#include <lustre_swab.h>
 
 #include "llite_internal.h"
 
@@ -303,7 +303,7 @@ static int ll_readdir(struct file *filp, struct dir_context *ctx)
 	struct md_op_data *op_data;
 	int			rc;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p) pos/size %lu/%llu 32bit_api %d\n",
+	CDEBUG(D_VFSTRACE, "VFS Op:inode=" DFID "(%p) pos/size %lu/%llu 32bit_api %d\n",
 	       PFID(ll_inode2fid(inode)), inode, (unsigned long)pos,
 	       i_size_read(inode), api32);
 
@@ -419,7 +419,7 @@ static int ll_dir_setdirstripe(struct inode *parent, struct lmv_user_md *lump,
 	if (unlikely(lump->lum_magic != LMV_USER_MAGIC))
 		return -EINVAL;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p) name %s stripe_offset %d, stripe_count: %u\n",
+	CDEBUG(D_VFSTRACE, "VFS Op:inode=" DFID "(%p) name %s stripe_offset %d, stripe_count: %u\n",
 	       PFID(ll_inode2fid(parent)), parent, dirname,
 	       (int)lump->lum_stripe_offset, lump->lum_stripe_count);
 
@@ -432,7 +432,7 @@ static int ll_dir_setdirstripe(struct inode *parent, struct lmv_user_md *lump,
 
 	if (!IS_POSIXACL(parent) || !exp_connect_umask(ll_i2mdexp(parent)))
 		mode &= ~current_umask();
-	mode = (mode & (S_IRWXUGO | S_ISVTX)) | S_IFDIR;
+	mode = (mode & (0777 | S_ISVTX)) | S_IFDIR;
 	op_data = ll_prep_md_op_data(NULL, parent, NULL, dirname,
 				     strlen(dirname), mode, LUSTRE_OPC_MKDIR,
 				     lump);
@@ -521,12 +521,15 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 	rc = md_setattr(sbi->ll_md_exp, op_data, lump, lum_size, &req);
 	ll_finish_md_op_data(op_data);
 	ptlrpc_req_finished(req);
-	if (rc) {
-		if (rc != -EPERM && rc != -EACCES)
-			CERROR("mdc_setattr fails: rc = %d\n", rc);
-	}
+	if (rc)
+		return rc;
 
-	/* In the following we use the fact that LOV_USER_MAGIC_V1 and
+#if OBD_OCD_VERSION(2, 13, 53, 0) > LUSTRE_VERSION_CODE
+	/*
+	 * 2.9 server has stored filesystem default stripe in ROOT xattr,
+	 * and it's stored into system config for backward compatibility.
+	 *
+	 * In the following we use the fact that LOV_USER_MAGIC_V1 and
 	 * LOV_USER_MAGIC_V3 have the same initial fields so we do not
 	 * need to make the distinction between the 2 versions
 	 */
@@ -567,6 +570,7 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 end:
 		kfree(param);
 	}
+#endif
 	return rc;
 }
 
@@ -602,7 +606,7 @@ int ll_dir_getstripe(struct inode *inode, void **plmm, int *plmm_size,
 	rc = md_getattr(sbi->ll_md_exp, op_data, &req);
 	ll_finish_md_op_data(op_data);
 	if (rc < 0) {
-		CDEBUG(D_INFO, "md_getattr failed on inode "DFID": rc %d\n",
+		CDEBUG(D_INFO, "md_getattr failed on inode " DFID ": rc %d\n",
 		       PFID(ll_inode2fid(inode)), rc);
 		goto out;
 	}
@@ -729,7 +733,7 @@ static int ll_ioc_copy_start(struct super_block *sb, struct hsm_copy *copy)
 		iput(inode);
 		if (rc != 0) {
 			CDEBUG(D_HSM, "Could not read file data version of "
-				      DFID" (rc = %d). Archive request (%#llx) could not be done.\n",
+				      DFID " (rc = %d). Archive request (%#llx) could not be done.\n",
 				      PFID(&copy->hc_hai.hai_fid), rc,
 				      copy->hc_hai.hai_cookie);
 			hpk.hpk_flags |= HP_FLAG_RETRY;
@@ -829,7 +833,7 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 		if ((copy->hc_hai.hai_action == HSMA_ARCHIVE) &&
 		    (copy->hc_data_version != data_version)) {
 			CDEBUG(D_HSM, "File data version mismatched. File content was changed during archiving. "
-			       DFID", start:%#llx current:%#llx\n",
+			       DFID ", start:%#llx current:%#llx\n",
 			       PFID(&copy->hc_hai.hai_fid),
 			       copy->hc_data_version, data_version);
 			/* File was changed, send error to cdt. Do not ask for
@@ -1033,7 +1037,7 @@ static long ll_dir_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct obd_ioctl_data *data;
 	int rc = 0;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p), cmd=%#x\n",
+	CDEBUG(D_VFSTRACE, "VFS Op:inode=" DFID "(%p), cmd=%#x\n",
 	       PFID(ll_inode2fid(inode)), inode, cmd);
 
 	/* asm-ppc{,64} declares TCGETS, et. al. as type 't' not 'T' */
@@ -1093,7 +1097,7 @@ static long ll_dir_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			goto out_free;
 		}
 out_free:
-		obd_ioctl_freedata(buf, len);
+		kvfree(buf);
 		return rc;
 	}
 	case LL_IOC_LMV_SETSTRIPE: {
@@ -1137,13 +1141,13 @@ out_free:
 		}
 
 #if OBD_OCD_VERSION(2, 9, 50, 0) > LUSTRE_VERSION_CODE
-		mode = data->ioc_type != 0 ? data->ioc_type : S_IRWXUGO;
+		mode = data->ioc_type != 0 ? data->ioc_type : 0777;
 #else
 		mode = data->ioc_type;
 #endif
 		rc = ll_dir_setdirstripe(inode, lum, filename, mode);
 lmv_out_free:
-		obd_ioctl_freedata(buf, len);
+		kvfree(buf);
 		return rc;
 	}
 	case LL_IOC_LMV_SET_DEFAULT_STRIPE: {
@@ -1622,7 +1626,7 @@ out_quotactl:
 
 		rc = ll_migrate(inode, file, mdtidx, filename, namelen - 1);
 migrate_free:
-		obd_ioctl_freedata(buf, len);
+		kvfree(buf);
 
 		return rc;
 	}

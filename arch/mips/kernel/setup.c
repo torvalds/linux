@@ -27,6 +27,7 @@
 #include <linux/device.h>
 #include <linux/dma-contiguous.h>
 #include <linux/decompress/generic.h>
+#include <linux/of_fdt.h>
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
@@ -151,6 +152,35 @@ void __init detect_memory_region(phys_addr_t start, phys_addr_t sz_min, phys_add
 		((unsigned long long) sz_max) / SZ_1M);
 
 	add_memory_region(start, size, BOOT_MEM_RAM);
+}
+
+bool __init memory_region_available(phys_addr_t start, phys_addr_t size)
+{
+	int i;
+	bool in_ram = false, free = true;
+
+	for (i = 0; i < boot_mem_map.nr_map; i++) {
+		phys_addr_t start_, end_;
+
+		start_ = boot_mem_map.map[i].addr;
+		end_ = boot_mem_map.map[i].addr + boot_mem_map.map[i].size;
+
+		switch (boot_mem_map.map[i].type) {
+		case BOOT_MEM_RAM:
+			if (start >= start_ && start + size <= end_)
+				in_ram = true;
+			break;
+		case BOOT_MEM_RESERVED:
+			if ((start >= start_ && start < end_) ||
+			    (start < start_ && start + size >= start_))
+				free = false;
+			break;
+		default:
+			continue;
+		}
+	}
+
+	return in_ram && free;
 }
 
 static void __init print_memory_map(void)
@@ -332,11 +362,19 @@ static void __init bootmem_init(void)
 
 #else  /* !CONFIG_SGI_IP27 */
 
+static unsigned long __init bootmap_bytes(unsigned long pages)
+{
+	unsigned long bytes = DIV_ROUND_UP(pages, 8);
+
+	return ALIGN(bytes, sizeof(long));
+}
+
 static void __init bootmem_init(void)
 {
 	unsigned long reserved_end;
 	unsigned long mapstart = ~0UL;
 	unsigned long bootmap_size;
+	bool bootmap_valid = false;
 	int i;
 
 	/*
@@ -430,11 +468,42 @@ static void __init bootmem_init(void)
 #endif
 
 	/*
+	 * check that mapstart doesn't overlap with any of
+	 * memory regions that have been reserved through eg. DTB
+	 */
+	bootmap_size = bootmap_bytes(max_low_pfn - min_low_pfn);
+
+	bootmap_valid = memory_region_available(PFN_PHYS(mapstart),
+						bootmap_size);
+	for (i = 0; i < boot_mem_map.nr_map && !bootmap_valid; i++) {
+		unsigned long mapstart_addr;
+
+		switch (boot_mem_map.map[i].type) {
+		case BOOT_MEM_RESERVED:
+			mapstart_addr = PFN_ALIGN(boot_mem_map.map[i].addr +
+						boot_mem_map.map[i].size);
+			if (PHYS_PFN(mapstart_addr) < mapstart)
+				break;
+
+			bootmap_valid = memory_region_available(mapstart_addr,
+								bootmap_size);
+			if (bootmap_valid)
+				mapstart = PHYS_PFN(mapstart_addr);
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (!bootmap_valid)
+		panic("No memory area to place a bootmap bitmap");
+
+	/*
 	 * Initialize the boot-time allocator with low memory only.
 	 */
-	bootmap_size = init_bootmem_node(NODE_DATA(0), mapstart,
-					 min_low_pfn, max_low_pfn);
-
+	if (bootmap_size != init_bootmem_node(NODE_DATA(0), mapstart,
+					 min_low_pfn, max_low_pfn))
+		panic("Unexpected memory size required for bootmap");
 
 	for (i = 0; i < boot_mem_map.nr_map; i++) {
 		unsigned long start, end;
@@ -483,6 +552,10 @@ static void __init bootmem_init(void)
 			continue;
 		default:
 			/* Not usable memory */
+			if (start > min_low_pfn && end < max_low_pfn)
+				reserve_bootmem(boot_mem_map.map[i].addr,
+						boot_mem_map.map[i].size,
+						BOOTMEM_DEFAULT);
 			continue;
 		}
 
@@ -589,9 +662,53 @@ static int __init early_parse_mem(char *p)
 		start = memparse(p + 1, &p);
 
 	add_memory_region(start, size, BOOT_MEM_RAM);
+
+	if (start && start > PHYS_OFFSET)
+		add_memory_region(PHYS_OFFSET, start - PHYS_OFFSET,
+				BOOT_MEM_RESERVED);
 	return 0;
 }
 early_param("mem", early_parse_mem);
+
+static int __init early_parse_memmap(char *p)
+{
+	char *oldp;
+	u64 start_at, mem_size;
+
+	if (!p)
+		return -EINVAL;
+
+	if (!strncmp(p, "exactmap", 8)) {
+		pr_err("\"memmap=exactmap\" invalid on MIPS\n");
+		return 0;
+	}
+
+	oldp = p;
+	mem_size = memparse(p, &p);
+	if (p == oldp)
+		return -EINVAL;
+
+	if (*p == '@') {
+		start_at = memparse(p+1, &p);
+		add_memory_region(start_at, mem_size, BOOT_MEM_RAM);
+	} else if (*p == '#') {
+		pr_err("\"memmap=nn#ss\" (force ACPI data) invalid on MIPS\n");
+		return -EINVAL;
+	} else if (*p == '$') {
+		start_at = memparse(p+1, &p);
+		add_memory_region(start_at, mem_size, BOOT_MEM_RESERVED);
+	} else {
+		pr_err("\"memmap\" invalid format!\n");
+		return -EINVAL;
+	}
+
+	if (*p == '\0') {
+		usermem = 1;
+		return 0;
+	} else
+		return -EINVAL;
+}
+early_param("memmap", early_parse_memmap);
 
 #ifdef CONFIG_PROC_VMCORE
 unsigned long setup_elfcorehdr, setup_elfcorehdr_size;
@@ -664,6 +781,11 @@ static void __init mips_parse_crashkernel(void)
 	if (ret != 0 || crash_size <= 0)
 		return;
 
+	if (!memory_region_available(crash_base, crash_size)) {
+		pr_warn("Invalid memory region reserved for crash kernel\n");
+		return;
+	}
+
 	crashk_res.start = crash_base;
 	crashk_res.end	 = crash_base + crash_size - 1;
 }
@@ -671,6 +793,9 @@ static void __init mips_parse_crashkernel(void)
 static void __init request_crashkernel(struct resource *res)
 {
 	int ret;
+
+	if (crashk_res.start == crashk_res.end)
+		return;
 
 	ret = request_resource(res, &crashk_res);
 	if (!ret)
@@ -756,6 +881,9 @@ static void __init arch_mem_init(char **cmdline_p)
 		pr_info("User-defined physical RAM map:\n");
 		print_memory_map();
 	}
+
+	early_init_fdt_reserve_self();
+	early_init_fdt_scan_reserved_mem();
 
 	bootmem_init();
 #ifdef CONFIG_PROC_VMCORE

@@ -17,9 +17,6 @@
 #define _ASM_TILE_DEVICE_H
 
 struct dev_archdata {
-	/* DMA operations on that device */
-        struct dma_map_ops	*dma_ops;
-
 	/* Offset of the DMA address from the PA. */
 	dma_addr_t		dma_offset;
 

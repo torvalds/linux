@@ -63,11 +63,11 @@ struct hwmon_thermal_data {
 };
 
 static ssize_t
-show_name(struct device *dev, struct device_attribute *attr, char *buf)
+name_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", to_hwmon_device(dev)->name);
 }
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+static DEVICE_ATTR_RO(name);
 
 static struct attribute *hwmon_dev_attrs[] = {
 	&dev_attr_name.attr,
@@ -85,7 +85,7 @@ static umode_t hwmon_dev_name_is_visible(struct kobject *kobj,
 	return attr->mode;
 }
 
-static struct attribute_group hwmon_dev_attr_group = {
+static const struct attribute_group hwmon_dev_attr_group = {
 	.attrs		= hwmon_dev_attrs,
 	.is_visible	= hwmon_dev_name_is_visible,
 };
@@ -135,7 +135,7 @@ static int hwmon_thermal_get_temp(void *data, int *temp)
 	return 0;
 }
 
-static struct thermal_zone_of_device_ops hwmon_thermal_ops = {
+static const struct thermal_zone_of_device_ops hwmon_thermal_ops = {
 	.get_temp = hwmon_thermal_get_temp,
 };
 
@@ -186,7 +186,7 @@ static ssize_t hwmon_attr_show_string(struct device *dev,
 				      char *buf)
 {
 	struct hwmon_device_attribute *hattr = to_hwmon_attr(devattr);
-	char *s;
+	const char *s;
 	int ret;
 
 	ret = hattr->ops->read_string(dev, hattr->type, hattr->attr,
@@ -544,9 +544,11 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 	struct device *hdev;
 	int i, j, err, id;
 
-	/* Do not accept invalid characters in hwmon name attribute */
+	/* Complain about invalid characters in hwmon name attribute */
 	if (name && (!strlen(name) || strpbrk(name, "-* \t\n")))
-		return ERR_PTR(-EINVAL);
+		dev_warn(dev,
+			 "hwmon: '%s' is not a valid name attribute, please fix\n",
+			 name);
 
 	id = ida_simple_get(&hwmon_ida, 0, 0, GFP_KERNEL);
 	if (id < 0)
@@ -606,7 +608,7 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 	if (err)
 		goto free_hwmon;
 
-	if (chip && chip->ops->read &&
+	if (dev && chip && chip->ops->read &&
 	    chip->info[0]->type == hwmon_chip &&
 	    (chip->info[0]->config[0] & HWMON_C_REGISTER_TZ)) {
 		const struct hwmon_channel_info **info = chip->info;
@@ -651,6 +653,9 @@ hwmon_device_register_with_groups(struct device *dev, const char *name,
 				  void *drvdata,
 				  const struct attribute_group **groups)
 {
+	if (!name)
+		return ERR_PTR(-EINVAL);
+
 	return __hwmon_device_register(dev, name, drvdata, NULL, groups);
 }
 EXPORT_SYMBOL_GPL(hwmon_device_register_with_groups);
@@ -674,6 +679,9 @@ hwmon_device_register_with_info(struct device *dev, const char *name,
 				const struct hwmon_chip_info *chip,
 				const struct attribute_group **extra_groups)
 {
+	if (!name)
+		return ERR_PTR(-EINVAL);
+
 	if (chip && (!chip->ops || !chip->ops->is_visible || !chip->info))
 		return ERR_PTR(-EINVAL);
 
@@ -695,7 +703,7 @@ struct device *hwmon_device_register(struct device *dev)
 	dev_warn(dev,
 		 "hwmon_device_register() is deprecated. Please convert the driver to use hwmon_device_register_with_info().\n");
 
-	return hwmon_device_register_with_groups(dev, NULL, NULL, NULL);
+	return __hwmon_device_register(dev, NULL, NULL, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(hwmon_device_register);
 

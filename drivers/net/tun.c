@@ -44,6 +44,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/major.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
@@ -72,6 +73,8 @@
 #include <linux/seq_file.h>
 #include <linux/uio.h>
 #include <linux/skb_array.h>
+#include <linux/bpf.h>
+#include <linux/bpf_trace.h>
 
 #include <linux/uaccess.h>
 
@@ -103,6 +106,9 @@ do {								\
 		printk(level fmt, ##args);			\
 } while (0)
 #endif
+
+#define TUN_HEADROOM 256
+#define TUN_RX_PAD (NET_IP_ALIGN + NET_SKB_PAD)
 
 /* TUN device flags */
 
@@ -198,7 +204,7 @@ struct tun_struct {
 	struct net_device	*dev;
 	netdev_features_t	set_features;
 #define TUN_USER_FEATURES (NETIF_F_HW_CSUM|NETIF_F_TSO_ECN|NETIF_F_TSO| \
-			  NETIF_F_TSO6|NETIF_F_UFO)
+			  NETIF_F_TSO6)
 
 	int			align;
 	int			vnet_hdr_sz;
@@ -218,7 +224,9 @@ struct tun_struct {
 	struct list_head disabled;
 	void *security;
 	u32 flow_count;
+	u32 rx_batched;
 	struct tun_pcpu_stats __percpu *pcpu_stats;
+	struct bpf_prog __rcu *xdp_prog;
 };
 
 #ifdef CONFIG_TUN_VNET_CROSS_LE
@@ -463,7 +471,7 @@ static u16 tun_select_queue(struct net_device *dev, struct sk_buff *skb,
 	rcu_read_lock();
 	numqueues = ACCESS_ONCE(tun->numqueues);
 
-	txq = skb_get_hash(skb);
+	txq = __skb_get_hash_symmetric(skb);
 	if (txq) {
 		e = tun_flow_find(&tun->flows[tun_hashfn(txq)], txq);
 		if (e) {
@@ -522,6 +530,7 @@ static void tun_queue_purge(struct tun_file *tfile)
 	while ((skb = skb_array_consume(&tfile->tx_array)) != NULL)
 		kfree_skb(skb);
 
+	skb_queue_purge(&tfile->sk.sk_write_queue);
 	skb_queue_purge(&tfile->sk.sk_error_queue);
 }
 
@@ -582,6 +591,7 @@ static void tun_detach(struct tun_file *tfile, bool clean)
 static void tun_detach_all(struct net_device *dev)
 {
 	struct tun_struct *tun = netdev_priv(dev);
+	struct bpf_prog *xdp_prog = rtnl_dereference(tun->xdp_prog);
 	struct tun_file *tfile, *tmp;
 	int i, n = tun->numqueues;
 
@@ -613,6 +623,9 @@ static void tun_detach_all(struct net_device *dev)
 		sock_put(&tfile->sk);
 	}
 	BUG_ON(tun->numdisabled != 0);
+
+	if (xdp_prog)
+		bpf_prog_put(xdp_prog);
 
 	if (tun->flags & IFF_PERSIST)
 		module_put(THIS_MODULE);
@@ -819,7 +832,18 @@ static void tun_net_uninit(struct net_device *dev)
 /* Net device open. */
 static int tun_net_open(struct net_device *dev)
 {
+	struct tun_struct *tun = netdev_priv(dev);
+	int i;
+
 	netif_tx_start_all_queues(dev);
+
+	for (i = 0; i < tun->numqueues; i++) {
+		struct tun_file *tfile;
+
+		tfile = rtnl_dereference(tun->tfiles[i]);
+		tfile->socket.sk->sk_write_space(tfile->socket.sk);
+	}
+
 	return 0;
 }
 
@@ -853,7 +877,7 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		__u32 rxhash;
 
-		rxhash = skb_get_hash(skb);
+		rxhash = __skb_get_hash_symmetric(skb);
 		if (rxhash) {
 			struct tun_flow_entry *e;
 			e = tun_flow_find(&tun->flows[tun_hashfn(rxhash)],
@@ -878,7 +902,7 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	    sk_filter(tfile->socket.sk, skb))
 		goto drop;
 
-	if (unlikely(skb_orphan_frags(skb, GFP_ATOMIC)))
+	if (unlikely(skb_orphan_frags_rx(skb, GFP_ATOMIC)))
 		goto drop;
 
 	skb_tx_timestamp(skb);
@@ -953,7 +977,7 @@ static void tun_set_headroom(struct net_device *dev, int new_hr)
 	tun->align = new_hr;
 }
 
-static struct rtnl_link_stats64 *
+static void
 tun_net_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	u32 rx_dropped = 0, tx_dropped = 0, rx_frame_errors = 0;
@@ -987,7 +1011,46 @@ tun_net_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	stats->rx_dropped  = rx_dropped;
 	stats->rx_frame_errors = rx_frame_errors;
 	stats->tx_dropped = tx_dropped;
-	return stats;
+}
+
+static int tun_xdp_set(struct net_device *dev, struct bpf_prog *prog,
+		       struct netlink_ext_ack *extack)
+{
+	struct tun_struct *tun = netdev_priv(dev);
+	struct bpf_prog *old_prog;
+
+	old_prog = rtnl_dereference(tun->xdp_prog);
+	rcu_assign_pointer(tun->xdp_prog, prog);
+	if (old_prog)
+		bpf_prog_put(old_prog);
+
+	return 0;
+}
+
+static u32 tun_xdp_query(struct net_device *dev)
+{
+	struct tun_struct *tun = netdev_priv(dev);
+	const struct bpf_prog *xdp_prog;
+
+	xdp_prog = rtnl_dereference(tun->xdp_prog);
+	if (xdp_prog)
+		return xdp_prog->aux->id;
+
+	return 0;
+}
+
+static int tun_xdp(struct net_device *dev, struct netdev_xdp *xdp)
+{
+	switch (xdp->command) {
+	case XDP_SETUP_PROG:
+		return tun_xdp_set(dev, xdp->prog, xdp->extack);
+	case XDP_QUERY_PROG:
+		xdp->prog_id = tun_xdp_query(dev);
+		xdp->prog_attached = !!xdp->prog_id;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 static const struct net_device_ops tun_netdev_ops = {
@@ -1020,6 +1083,7 @@ static const struct net_device_ops tap_netdev_ops = {
 	.ndo_features_check	= passthru_features_check,
 	.ndo_set_rx_headroom	= tun_set_headroom,
 	.ndo_get_stats64	= tun_net_get_stats64,
+	.ndo_xdp		= tun_xdp,
 };
 
 static void tun_flow_init(struct tun_struct *tun)
@@ -1101,9 +1165,10 @@ static unsigned int tun_chr_poll(struct file *file, poll_table *wait)
 	if (!skb_array_empty(&tfile->tx_array))
 		mask |= POLLIN | POLLRDNORM;
 
-	if (sock_writeable(sk) ||
-	    (!test_and_set_bit(SOCKWQ_ASYNC_NOSPACE, &sk->sk_socket->flags) &&
-	     sock_writeable(sk)))
+	if (tun->dev->flags & IFF_UP &&
+	    (sock_writeable(sk) ||
+	     (!test_and_set_bit(SOCKWQ_ASYNC_NOSPACE, &sk->sk_socket->flags) &&
+	      sock_writeable(sk))))
 		mask |= POLLOUT | POLLWRNORM;
 
 	if (tun->dev->reg_state != NETREG_REGISTERED)
@@ -1140,10 +1205,178 @@ static struct sk_buff *tun_alloc_skb(struct tun_file *tfile,
 	return skb;
 }
 
+static void tun_rx_batched(struct tun_struct *tun, struct tun_file *tfile,
+			   struct sk_buff *skb, int more)
+{
+	struct sk_buff_head *queue = &tfile->sk.sk_write_queue;
+	struct sk_buff_head process_queue;
+	u32 rx_batched = tun->rx_batched;
+	bool rcv = false;
+
+	if (!rx_batched || (!more && skb_queue_empty(queue))) {
+		local_bh_disable();
+		netif_receive_skb(skb);
+		local_bh_enable();
+		return;
+	}
+
+	spin_lock(&queue->lock);
+	if (!more || skb_queue_len(queue) == rx_batched) {
+		__skb_queue_head_init(&process_queue);
+		skb_queue_splice_tail_init(queue, &process_queue);
+		rcv = true;
+	} else {
+		__skb_queue_tail(queue, skb);
+	}
+	spin_unlock(&queue->lock);
+
+	if (rcv) {
+		struct sk_buff *nskb;
+
+		local_bh_disable();
+		while ((nskb = __skb_dequeue(&process_queue)))
+			netif_receive_skb(nskb);
+		netif_receive_skb(skb);
+		local_bh_enable();
+	}
+}
+
+static bool tun_can_build_skb(struct tun_struct *tun, struct tun_file *tfile,
+			      int len, int noblock, bool zerocopy)
+{
+	if ((tun->flags & TUN_TYPE_MASK) != IFF_TAP)
+		return false;
+
+	if (tfile->socket.sk->sk_sndbuf != INT_MAX)
+		return false;
+
+	if (!noblock)
+		return false;
+
+	if (zerocopy)
+		return false;
+
+	if (SKB_DATA_ALIGN(len + TUN_RX_PAD) +
+	    SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) > PAGE_SIZE)
+		return false;
+
+	return true;
+}
+
+static struct sk_buff *tun_build_skb(struct tun_struct *tun,
+				     struct tun_file *tfile,
+				     struct iov_iter *from,
+				     struct virtio_net_hdr *hdr,
+				     int len, int *skb_xdp)
+{
+	struct page_frag *alloc_frag = &current->task_frag;
+	struct sk_buff *skb;
+	struct bpf_prog *xdp_prog;
+	int buflen = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	unsigned int delta = 0;
+	char *buf;
+	size_t copied;
+	bool xdp_xmit = false;
+	int err, pad = TUN_RX_PAD;
+
+	rcu_read_lock();
+	xdp_prog = rcu_dereference(tun->xdp_prog);
+	if (xdp_prog)
+		pad += TUN_HEADROOM;
+	buflen += SKB_DATA_ALIGN(len + pad);
+	rcu_read_unlock();
+
+	if (unlikely(!skb_page_frag_refill(buflen, alloc_frag, GFP_KERNEL)))
+		return ERR_PTR(-ENOMEM);
+
+	buf = (char *)page_address(alloc_frag->page) + alloc_frag->offset;
+	copied = copy_page_from_iter(alloc_frag->page,
+				     alloc_frag->offset + pad,
+				     len, from);
+	if (copied != len)
+		return ERR_PTR(-EFAULT);
+
+	/* There's a small window that XDP may be set after the check
+	 * of xdp_prog above, this should be rare and for simplicity
+	 * we do XDP on skb in case the headroom is not enough.
+	 */
+	if (hdr->gso_type || !xdp_prog)
+		*skb_xdp = 1;
+	else
+		*skb_xdp = 0;
+
+	rcu_read_lock();
+	xdp_prog = rcu_dereference(tun->xdp_prog);
+	if (xdp_prog && !*skb_xdp) {
+		struct xdp_buff xdp;
+		void *orig_data;
+		u32 act;
+
+		xdp.data_hard_start = buf;
+		xdp.data = buf + pad;
+		xdp.data_end = xdp.data + len;
+		orig_data = xdp.data;
+		act = bpf_prog_run_xdp(xdp_prog, &xdp);
+
+		switch (act) {
+		case XDP_REDIRECT:
+			get_page(alloc_frag->page);
+			alloc_frag->offset += buflen;
+			err = xdp_do_redirect(tun->dev, &xdp, xdp_prog);
+			if (err)
+				goto err_redirect;
+			return NULL;
+		case XDP_TX:
+			xdp_xmit = true;
+			/* fall through */
+		case XDP_PASS:
+			delta = orig_data - xdp.data;
+			break;
+		default:
+			bpf_warn_invalid_xdp_action(act);
+			/* fall through */
+		case XDP_ABORTED:
+			trace_xdp_exception(tun->dev, xdp_prog, act);
+			/* fall through */
+		case XDP_DROP:
+			goto err_xdp;
+		}
+	}
+
+	skb = build_skb(buf, buflen);
+	if (!skb) {
+		rcu_read_unlock();
+		return ERR_PTR(-ENOMEM);
+	}
+
+	skb_reserve(skb, pad - delta);
+	skb_put(skb, len + delta);
+	get_page(alloc_frag->page);
+	alloc_frag->offset += buflen;
+
+	if (xdp_xmit) {
+		skb->dev = tun->dev;
+		generic_xdp_tx(skb, xdp_prog);
+		rcu_read_lock();
+		return NULL;
+	}
+
+	rcu_read_unlock();
+
+	return skb;
+
+err_redirect:
+	put_page(alloc_frag->page);
+err_xdp:
+	rcu_read_unlock();
+	this_cpu_inc(tun->pcpu_stats->rx_dropped);
+	return NULL;
+}
+
 /* Get packet from user space buffer */
 static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 			    void *msg_control, struct iov_iter *from,
-			    int noblock)
+			    int noblock, bool more)
 {
 	struct tun_pi pi = { 0, cpu_to_be16(ETH_P_IP) };
 	struct sk_buff *skb;
@@ -1156,6 +1389,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	bool zerocopy = false;
 	int err;
 	u32 rxhash;
+	int skb_xdp = 1;
 
 	if (!(tun->dev->flags & IFF_UP))
 		return -EIO;
@@ -1213,30 +1447,44 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 			zerocopy = true;
 	}
 
-	if (!zerocopy) {
-		copylen = len;
-		if (tun16_to_cpu(tun, gso.hdr_len) > good_linear)
-			linear = good_linear;
-		else
-			linear = tun16_to_cpu(tun, gso.hdr_len);
-	}
-
-	skb = tun_alloc_skb(tfile, align, copylen, linear, noblock);
-	if (IS_ERR(skb)) {
-		if (PTR_ERR(skb) != -EAGAIN)
+	if (tun_can_build_skb(tun, tfile, len, noblock, zerocopy)) {
+		/* For the packet that is not easy to be processed
+		 * (e.g gso or jumbo packet), we will do it at after
+		 * skb was created with generic XDP routine.
+		 */
+		skb = tun_build_skb(tun, tfile, from, &gso, len, &skb_xdp);
+		if (IS_ERR(skb)) {
 			this_cpu_inc(tun->pcpu_stats->rx_dropped);
-		return PTR_ERR(skb);
-	}
+			return PTR_ERR(skb);
+		}
+		if (!skb)
+			return total_len;
+	} else {
+		if (!zerocopy) {
+			copylen = len;
+			if (tun16_to_cpu(tun, gso.hdr_len) > good_linear)
+				linear = good_linear;
+			else
+				linear = tun16_to_cpu(tun, gso.hdr_len);
+		}
 
-	if (zerocopy)
-		err = zerocopy_sg_from_iter(skb, from);
-	else
-		err = skb_copy_datagram_from_iter(skb, 0, from, len);
+		skb = tun_alloc_skb(tfile, align, copylen, linear, noblock);
+		if (IS_ERR(skb)) {
+			if (PTR_ERR(skb) != -EAGAIN)
+				this_cpu_inc(tun->pcpu_stats->rx_dropped);
+			return PTR_ERR(skb);
+		}
 
-	if (err) {
-		this_cpu_inc(tun->pcpu_stats->rx_dropped);
-		kfree_skb(skb);
-		return -EFAULT;
+		if (zerocopy)
+			err = zerocopy_sg_from_iter(skb, from);
+		else
+			err = skb_copy_datagram_from_iter(skb, 0, from, len);
+
+		if (err) {
+			this_cpu_inc(tun->pcpu_stats->rx_dropped);
+			kfree_skb(skb);
+			return -EFAULT;
+		}
 	}
 
 	if (virtio_net_hdr_to_skb(skb, &gso, tun_is_little_endian(tun))) {
@@ -1248,11 +1496,13 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	switch (tun->flags & TUN_TYPE_MASK) {
 	case IFF_TUN:
 		if (tun->flags & IFF_NO_PI) {
-			switch (skb->data[0] & 0xf0) {
-			case 0x40:
+			u8 ip_version = skb->len ? (skb->data[0] >> 4) : 0;
+
+			switch (ip_version) {
+			case 4:
 				pi.proto = htons(ETH_P_IP);
 				break;
-			case 0x60:
+			case 6:
 				pi.proto = htons(ETH_P_IPV6);
 				break;
 			default:
@@ -1284,11 +1534,25 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	skb_reset_network_header(skb);
 	skb_probe_transport_header(skb, 0);
 
-	rxhash = skb_get_hash(skb);
+	if (skb_xdp) {
+		struct bpf_prog *xdp_prog;
+		int ret;
+
+		rcu_read_lock();
+		xdp_prog = rcu_dereference(tun->xdp_prog);
+		if (xdp_prog) {
+			ret = do_xdp_generic(xdp_prog, skb);
+			if (ret != XDP_PASS) {
+				rcu_read_unlock();
+				return total_len;
+			}
+		}
+		rcu_read_unlock();
+	}
+
+	rxhash = __skb_get_hash_symmetric(skb);
 #ifndef CONFIG_4KSTACKS
-	local_bh_disable();
-	netif_receive_skb(skb);
-	local_bh_enable();
+	tun_rx_batched(tun, tfile, skb, more);
 #else
 	netif_rx_ni(skb);
 #endif
@@ -1314,7 +1578,8 @@ static ssize_t tun_chr_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (!tun)
 		return -EBADFD;
 
-	result = tun_get_user(tun, tfile, NULL, from, file->f_flags & O_NONBLOCK);
+	result = tun_get_user(tun, tfile, NULL, from,
+			      file->f_flags & O_NONBLOCK, false);
 
 	tun_put(tun);
 	return result;
@@ -1461,9 +1726,8 @@ out:
 
 static ssize_t tun_do_read(struct tun_struct *tun, struct tun_file *tfile,
 			   struct iov_iter *to,
-			   int noblock)
+			   int noblock, struct sk_buff *skb)
 {
-	struct sk_buff *skb;
 	ssize_t ret;
 	int err;
 
@@ -1472,10 +1736,12 @@ static ssize_t tun_do_read(struct tun_struct *tun, struct tun_file *tfile,
 	if (!iov_iter_count(to))
 		return 0;
 
-	/* Read frames from ring */
-	skb = tun_ring_recv(tfile, noblock, &err);
-	if (!skb)
-		return err;
+	if (!skb) {
+		/* Read frames from ring */
+		skb = tun_ring_recv(tfile, noblock, &err);
+		if (!skb)
+			return err;
+	}
 
 	ret = tun_put_user(tun, tfile, skb, to);
 	if (unlikely(ret < 0))
@@ -1495,7 +1761,7 @@ static ssize_t tun_chr_read_iter(struct kiocb *iocb, struct iov_iter *to)
 
 	if (!tun)
 		return -EBADFD;
-	ret = tun_do_read(tun, tfile, to, file->f_flags & O_NONBLOCK);
+	ret = tun_do_read(tun, tfile, to, file->f_flags & O_NONBLOCK, NULL);
 	ret = min_t(ssize_t, ret, len);
 	if (ret > 0)
 		iocb->ki_pos = ret;
@@ -1511,7 +1777,6 @@ static void tun_free_netdev(struct net_device *dev)
 	free_percpu(tun->pcpu_stats);
 	tun_flow_uninit(tun);
 	security_tun_dev_free_security(tun->security);
-	free_netdev(dev);
 }
 
 static void tun_setup(struct net_device *dev)
@@ -1522,7 +1787,8 @@ static void tun_setup(struct net_device *dev)
 	tun->group = INVALID_GID;
 
 	dev->ethtool_ops = &tun_ethtool_ops;
-	dev->destructor = tun_free_netdev;
+	dev->needs_free_netdev = true;
+	dev->priv_destructor = tun_free_netdev;
 	/* We prefer our own queue length */
 	dev->tx_queue_len = TUN_READQ_SIZE;
 }
@@ -1530,7 +1796,8 @@ static void tun_setup(struct net_device *dev)
 /* Trivial set of netlink ops to allow deleting tun or tap
  * device with netlink.
  */
-static int tun_validate(struct nlattr *tb[], struct nlattr *data[])
+static int tun_validate(struct nlattr *tb[], struct nlattr *data[],
+			struct netlink_ext_ack *extack)
 {
 	return -EINVAL;
 }
@@ -1572,7 +1839,8 @@ static int tun_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len)
 		return -EBADFD;
 
 	ret = tun_get_user(tun, tfile, m->msg_control, &m->msg_iter,
-			   m->msg_flags & MSG_DONTWAIT);
+			   m->msg_flags & MSG_DONTWAIT,
+			   m->msg_flags & MSG_MORE);
 	tun_put(tun);
 	return ret;
 }
@@ -1596,7 +1864,8 @@ static int tun_recvmsg(struct socket *sock, struct msghdr *m, size_t total_len,
 					 SOL_PACKET, TUN_TX_TIMESTAMP);
 		goto out;
 	}
-	ret = tun_do_read(tun, tfile, &m->msg_iter, flags & MSG_DONTWAIT);
+	ret = tun_do_read(tun, tfile, &m->msg_iter, flags & MSG_DONTWAIT,
+			  m->msg_control);
 	if (ret > (ssize_t)total_len) {
 		m->msg_flags |= MSG_TRUNC;
 		ret = flags & MSG_TRUNC ? ret : total_len;
@@ -1758,6 +2027,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		if (!dev)
 			return -ENOMEM;
+		err = dev_get_valid_name(net, dev, name);
+		if (err)
+			goto err_free_dev;
 
 		dev_net_set(dev, net);
 		dev->rtnl_link_ops = &tun_link_ops;
@@ -1773,6 +2045,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		tun->align = NET_SKB_PAD;
 		tun->filter_attached = false;
 		tun->sndbuf = tfile->socket.sk->sk_sndbuf;
+		tun->rx_batched = 0;
 
 		tun->pcpu_stats = netdev_alloc_pcpu_stats(struct tun_pcpu_stats);
 		if (!tun->pcpu_stats) {
@@ -1825,6 +2098,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 err_detach:
 	tun_detach_all(dev);
+	/* register_netdevice() already called tun_free_netdev() */
+	goto err_free_dev;
+
 err_free_flow:
 	tun_flow_uninit(tun);
 	security_tun_dev_free_security(tun->security);
@@ -1867,11 +2143,6 @@ static int set_offload(struct tun_struct *tun, unsigned long arg)
 				features |= NETIF_F_TSO6;
 			arg &= ~(TUN_F_TSO4|TUN_F_TSO6);
 		}
-
-		if (arg & TUN_F_UFO) {
-			features |= NETIF_F_UFO;
-			arg &= ~TUN_F_UFO;
-		}
 	}
 
 	/* This gives the user a way to test for new features in future by
@@ -1880,6 +2151,8 @@ static int set_offload(struct tun_struct *tun, unsigned long arg)
 		return -EINVAL;
 
 	tun->set_features = features;
+	tun->dev->wanted_features &= ~TUN_USER_FEATURES;
+	tun->dev->wanted_features |= features;
 	netdev_update_features(tun->dev);
 
 	return 0;
@@ -2391,18 +2664,16 @@ static struct miscdevice tun_miscdev = {
 
 /* ethtool interface */
 
-static int tun_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int tun_get_link_ksettings(struct net_device *dev,
+				  struct ethtool_link_ksettings *cmd)
 {
-	cmd->supported		= 0;
-	cmd->advertising	= 0;
-	ethtool_cmd_speed_set(cmd, SPEED_10);
-	cmd->duplex		= DUPLEX_FULL;
-	cmd->port		= PORT_TP;
-	cmd->phy_address	= 0;
-	cmd->transceiver	= XCVR_INTERNAL;
-	cmd->autoneg		= AUTONEG_DISABLE;
-	cmd->maxtxpkt		= 0;
-	cmd->maxrxpkt		= 0;
+	ethtool_link_ksettings_zero_link_mode(cmd, supported);
+	ethtool_link_ksettings_zero_link_mode(cmd, advertising);
+	cmd->base.speed		= SPEED_10;
+	cmd->base.duplex	= DUPLEX_FULL;
+	cmd->base.port		= PORT_TP;
+	cmd->base.phy_address	= 0;
+	cmd->base.autoneg	= AUTONEG_DISABLE;
 	return 0;
 }
 
@@ -2441,13 +2712,38 @@ static void tun_set_msglevel(struct net_device *dev, u32 value)
 #endif
 }
 
+static int tun_get_coalesce(struct net_device *dev,
+			    struct ethtool_coalesce *ec)
+{
+	struct tun_struct *tun = netdev_priv(dev);
+
+	ec->rx_max_coalesced_frames = tun->rx_batched;
+
+	return 0;
+}
+
+static int tun_set_coalesce(struct net_device *dev,
+			    struct ethtool_coalesce *ec)
+{
+	struct tun_struct *tun = netdev_priv(dev);
+
+	if (ec->rx_max_coalesced_frames > NAPI_POLL_WEIGHT)
+		tun->rx_batched = NAPI_POLL_WEIGHT;
+	else
+		tun->rx_batched = ec->rx_max_coalesced_frames;
+
+	return 0;
+}
+
 static const struct ethtool_ops tun_ethtool_ops = {
-	.get_settings	= tun_get_settings,
 	.get_drvinfo	= tun_get_drvinfo,
 	.get_msglevel	= tun_get_msglevel,
 	.set_msglevel	= tun_set_msglevel,
 	.get_link	= ethtool_op_get_link,
 	.get_ts_info	= ethtool_op_get_ts_info,
+	.get_coalesce   = tun_get_coalesce,
+	.set_coalesce   = tun_set_coalesce,
+	.get_link_ksettings = tun_get_link_ksettings,
 };
 
 static int tun_queue_resize(struct tun_struct *tun)
@@ -2458,7 +2754,7 @@ static int tun_queue_resize(struct tun_struct *tun)
 	int n = tun->numqueues + tun->numdisabled;
 	int ret, i;
 
-	arrays = kmalloc(sizeof *arrays * n, GFP_KERNEL);
+	arrays = kmalloc_array(n, sizeof(*arrays), GFP_KERNEL);
 	if (!arrays)
 		return -ENOMEM;
 
@@ -2506,7 +2802,6 @@ static int __init tun_init(void)
 	int ret = 0;
 
 	pr_info("%s, %s\n", DRV_DESCRIPTION, DRV_VERSION);
-	pr_info("%s\n", DRV_COPYRIGHT);
 
 	ret = rtnl_link_register(&tun_link_ops);
 	if (ret) {
@@ -2520,8 +2815,16 @@ static int __init tun_init(void)
 		goto err_misc;
 	}
 
-	register_netdevice_notifier(&tun_notifier_block);
+	ret = register_netdevice_notifier(&tun_notifier_block);
+	if (ret) {
+		pr_err("Can't register netdevice notifier\n");
+		goto err_notifier;
+	}
+
 	return  0;
+
+err_notifier:
+	misc_deregister(&tun_miscdev);
 err_misc:
 	rtnl_link_unregister(&tun_link_ops);
 err_linkops:
@@ -2550,6 +2853,19 @@ struct socket *tun_get_socket(struct file *file)
 	return &tfile->socket;
 }
 EXPORT_SYMBOL_GPL(tun_get_socket);
+
+struct skb_array *tun_get_skb_array(struct file *file)
+{
+	struct tun_file *tfile;
+
+	if (file->f_op != &tun_fops)
+		return ERR_PTR(-EINVAL);
+	tfile = file->private_data;
+	if (!tfile)
+		return ERR_PTR(-EBADFD);
+	return &tfile->tx_array;
+}
+EXPORT_SYMBOL_GPL(tun_get_skb_array);
 
 module_init(tun_init);
 module_exit(tun_cleanup);

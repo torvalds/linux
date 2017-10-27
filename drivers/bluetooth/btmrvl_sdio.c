@@ -20,6 +20,7 @@
 
 #include <linux/firmware.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/sdio_func.h>
@@ -60,13 +61,15 @@ static const struct of_device_id btmrvl_sdio_of_match_table[] = {
 
 static irqreturn_t btmrvl_wake_irq_bt(int irq, void *priv)
 {
-	struct btmrvl_plt_wake_cfg *cfg = priv;
+	struct btmrvl_sdio_card *card = priv;
+	struct btmrvl_plt_wake_cfg *cfg = card->plt_wake_cfg;
 
-	if (cfg->irq_bt >= 0) {
-		pr_info("%s: wake by bt", __func__);
-		cfg->wake_by_bt = true;
-		disable_irq_nosync(irq);
-	}
+	pr_info("%s: wake by bt", __func__);
+	cfg->wake_by_bt = true;
+	disable_irq_nosync(irq);
+
+	pm_wakeup_event(&card->func->dev, 0);
+	pm_system_wakeup();
 
 	return IRQ_HANDLED;
 }
@@ -97,11 +100,11 @@ static int btmrvl_sdio_probe_of(struct device *dev,
 		cfg->irq_bt = irq_of_parse_and_map(card->plt_of_node, 0);
 		if (!cfg->irq_bt) {
 			dev_err(dev, "fail to parse irq_bt from device tree");
+			cfg->irq_bt = -1;
 		} else {
 			ret = devm_request_irq(dev, cfg->irq_bt,
 					       btmrvl_wake_irq_bt,
-					       IRQF_TRIGGER_LOW,
-					       "bt_wake", cfg);
+					       0, "bt_wake", card);
 			if (ret) {
 				dev_err(dev,
 					"Failed to request irq_bt %d (%d)\n",
@@ -1452,7 +1455,8 @@ done:
 	fw_dump_ptr = fw_dump_data;
 
 	/* Dump all the memory data into single file, a userspace script will
-	   be used to split all the memory data to multiple files*/
+	 * be used to split all the memory data to multiple files
+	 */
 	BT_INFO("== btmrvl firmware dump to /sys/class/devcoredump start");
 	for (idx = 0; idx < dump_num; idx++) {
 		struct memory_type_mapping *entry = &mem_type_mapping_tbl[idx];
@@ -1479,7 +1483,8 @@ done:
 	}
 
 	/* fw_dump_data will be free in device coredump release function
-	   after 5 min*/
+	 * after 5 min
+	 */
 	dev_coredumpv(&card->func->dev, fw_dump_data, fw_dump_len, GFP_KERNEL);
 	BT_INFO("== btmrvl firmware dump to /sys/class/devcoredump end");
 }
@@ -1574,7 +1579,7 @@ static void btmrvl_sdio_remove(struct sdio_func *func)
 							MODULE_SHUTDOWN_REQ);
 				btmrvl_sdio_disable_host_int(card);
 			}
-			BT_DBG("unregester dev");
+			BT_DBG("unregister dev");
 			card->priv->surprise_removed = true;
 			btmrvl_sdio_unregister_dev(card);
 			btmrvl_remove_card(card->priv);
@@ -1624,7 +1629,14 @@ static int btmrvl_sdio_suspend(struct device *dev)
 
 	if (priv->adapter->hs_state != HS_ACTIVATED) {
 		if (btmrvl_enable_hs(priv)) {
-			BT_ERR("HS not actived, suspend failed!");
+			BT_ERR("HS not activated, suspend failed!");
+			/* Disable platform specific wakeup interrupt */
+			if (card->plt_wake_cfg &&
+			    card->plt_wake_cfg->irq_bt >= 0) {
+				disable_irq_wake(card->plt_wake_cfg->irq_bt);
+				disable_irq(card->plt_wake_cfg->irq_bt);
+			}
+
 			priv->adapter->is_suspending = false;
 			return -EBUSY;
 		}
@@ -1637,10 +1649,10 @@ static int btmrvl_sdio_suspend(struct device *dev)
 	if (priv->adapter->hs_state == HS_ACTIVATED) {
 		BT_DBG("suspend with MMC_PM_KEEP_POWER");
 		return sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
-	} else {
-		BT_DBG("suspend without MMC_PM_KEEP_POWER");
-		return 0;
 	}
+
+	BT_DBG("suspend without MMC_PM_KEEP_POWER");
+	return 0;
 }
 
 static int btmrvl_sdio_resume(struct device *dev)
@@ -1682,8 +1694,12 @@ static int btmrvl_sdio_resume(struct device *dev)
 	/* Disable platform specific wakeup interrupt */
 	if (card->plt_wake_cfg && card->plt_wake_cfg->irq_bt >= 0) {
 		disable_irq_wake(card->plt_wake_cfg->irq_bt);
-		if (!card->plt_wake_cfg->wake_by_bt)
-			disable_irq(card->plt_wake_cfg->irq_bt);
+		disable_irq(card->plt_wake_cfg->irq_bt);
+		if (card->plt_wake_cfg->wake_by_bt)
+			/* Undo our disable, since interrupt handler already
+			 * did this.
+			 */
+			enable_irq(card->plt_wake_cfg->irq_bt);
 	}
 
 	return 0;

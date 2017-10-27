@@ -101,8 +101,8 @@ static int __init arm_cpuidle_read_ops(struct device_node *dn, int cpu)
 
 	ops = arm_cpuidle_get_ops(enable_method);
 	if (!ops) {
-		pr_warn("%s: unsupported enable-method property: %s\n",
-			dn->full_name, enable_method);
+		pr_warn("%pOF: unsupported enable-method property: %s\n",
+			dn, enable_method);
 		return -EOPNOTSUPP;
 	}
 

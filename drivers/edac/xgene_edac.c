@@ -415,7 +415,6 @@ static int xgene_edac_mc_add(struct xgene_edac *edac, struct device_node *np)
 	mci->edac_ctl_cap = EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = "0.1";
 	mci->ctl_page_to_phys = NULL;
 	mci->scrub_cap = SCRUB_FLAG_HW_SRC;
 	mci->scrub_mode = SCRUB_HW_SRC;
@@ -1596,7 +1595,7 @@ static void xgene_edac_pa_report(struct edac_device_ctl_info *edac_dev)
 	reg = readl(ctx->dev_csr + IOBPATRANSERRINTSTS);
 	if (!reg)
 		goto chk_iob_axi0;
-	dev_err(edac_dev->dev, "IOB procesing agent (PA) transaction error\n");
+	dev_err(edac_dev->dev, "IOB processing agent (PA) transaction error\n");
 	if (reg & IOBPA_RDATA_CORRUPT_MASK)
 		dev_err(edac_dev->dev, "IOB PA read data RAM error\n");
 	if (reg & IOBPA_M_RDATA_CORRUPT_MASK)

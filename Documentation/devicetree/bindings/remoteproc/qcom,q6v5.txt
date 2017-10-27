@@ -7,7 +7,9 @@ on the Qualcomm Hexagon core.
 	Usage: required
 	Value type: <string>
 	Definition: must be one of:
-		    "qcom,q6v5-pil"
+		    "qcom,q6v5-pil",
+		    "qcom,msm8916-mss-pil",
+		    "qcom,msm8974-mss-pil"
 
 - reg:
 	Usage: required
@@ -87,6 +89,11 @@ the memory regions used by the Hexagon firmware. Each sub-node must contain:
 	Usage: required
 	Value type: <phandle>
 	Definition: reference to the reserved-memory for the region
+
+The Hexagon node may also have an subnode named either "smd-edge" or
+"glink-edge" that describes the communication edge, channels and devices
+related to the Hexagon.  See ../soc/qcom/qcom,smd.txt and
+../soc/qcom/qcom,glink.txt for details on how to describe these.
 
 = EXAMPLE
 The following example describes the resources needed to boot control the

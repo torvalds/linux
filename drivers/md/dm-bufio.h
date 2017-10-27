@@ -32,6 +32,13 @@ dm_bufio_client_create(struct block_device *bdev, unsigned block_size,
 void dm_bufio_client_destroy(struct dm_bufio_client *c);
 
 /*
+ * Set the sector range.
+ * When this function is called, there must be no I/O in progress on the bufio
+ * client.
+ */
+void dm_bufio_set_sector_offset(struct dm_bufio_client *c, sector_t start);
+
+/*
  * WARNING: to avoid deadlocks, these conditions are observed:
  *
  * - At most one thread can hold at most "reserved_buffers" simultaneously.
@@ -85,6 +92,15 @@ void dm_bufio_release(struct dm_buffer *b);
  * the actual writing may occur earlier.
  */
 void dm_bufio_mark_buffer_dirty(struct dm_buffer *b);
+
+/*
+ * Mark a part of the buffer dirty.
+ *
+ * The specified part of the buffer is scheduled to be written. dm-bufio may
+ * write the specified part of the buffer or it may write a larger superset.
+ */
+void dm_bufio_mark_partial_buffer_dirty(struct dm_buffer *b,
+					unsigned start, unsigned end);
 
 /*
  * Initiate writing of dirty buffers, without waiting for completion.

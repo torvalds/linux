@@ -14,7 +14,6 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/input/input.h>
 #include "exynos5250.dtsi"
-#include "exynos-mfc-reserved-memory.dtsi"
 
 / {
 	model = "Insignal Arndale evaluation board based on EXYNOS5250";
@@ -519,7 +518,6 @@
 
 &mmc_0 {
 	status = "okay";
-	num-slots = <1>;
 	broken-cd;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
@@ -534,7 +532,6 @@
 
 &mmc_2 {
 	status = "okay";
-	num-slots = <1>;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <2 3>;

@@ -656,8 +656,8 @@ static const struct mfd_cell ab8500_devs[] = {
 		.of_compatible = "stericsson,ab8500-regulator",
 	},
 	{
-		.name = "abx500-clk",
-		.of_compatible = "stericsson,abx500-clk",
+		.name = "ab8500-clk",
+		.of_compatible = "stericsson,ab8500-clk",
 	},
 	{
 		.name = "ab8500-gpadc",
@@ -1059,15 +1059,15 @@ static struct attribute *ab9540_sysfs_entries[] = {
 	NULL,
 };
 
-static struct attribute_group ab8500_attr_group = {
+static const struct attribute_group ab8500_attr_group = {
 	.attrs	= ab8500_sysfs_entries,
 };
 
-static struct attribute_group ab8505_attr_group = {
+static const struct attribute_group ab8505_attr_group = {
 	.attrs	= ab8505_sysfs_entries,
 };
 
-static struct attribute_group ab9540_attr_group = {
+static const struct attribute_group ab9540_attr_group = {
 	.attrs	= ab9540_sysfs_entries,
 };
 

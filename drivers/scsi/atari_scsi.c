@@ -178,37 +178,6 @@ static int scsi_dma_is_ignored_buserr(unsigned char dma_stat)
 }
 
 
-#if 0
-/* Dead code... wasn't called anyway :-) and causes some trouble, because at
- * end-of-DMA, both SCSI ints are triggered simultaneously, so the NCR int has
- * to clear the DMA int pending bit before it allows other level 6 interrupts.
- */
-static void scsi_dma_buserr(int irq, void *dummy)
-{
-	unsigned char dma_stat = tt_scsi_dma.dma_ctrl;
-
-	/* Don't do anything if a NCR interrupt is pending. Probably it's just
-	 * masked... */
-	if (atari_irq_pending(IRQ_TT_MFP_SCSI))
-		return;
-
-	printk("Bad SCSI DMA interrupt! dma_addr=0x%08lx dma_stat=%02x dma_cnt=%08lx\n",
-	       SCSI_DMA_READ_P(dma_addr), dma_stat, SCSI_DMA_READ_P(dma_cnt));
-	if (dma_stat & 0x80) {
-		if (!scsi_dma_is_ignored_buserr(dma_stat))
-			printk("SCSI DMA bus error -- bad DMA programming!\n");
-	} else {
-		/* Under normal circumstances we never should get to this point,
-		 * since both interrupts are triggered simultaneously and the 5380
-		 * int has higher priority. When this irq is handled, that DMA
-		 * interrupt is cleared. So a warning message is printed here.
-		 */
-		printk("SCSI DMA intr ?? -- this shouldn't happen!\n");
-	}
-}
-#endif
-
-
 static irqreturn_t scsi_tt_intr(int irq, void *dev)
 {
 	struct Scsi_Host *instance = dev;
@@ -702,7 +671,7 @@ static void atari_scsi_falcon_reg_write(unsigned int reg, u8 value)
 
 #include "NCR5380.c"
 
-static int atari_scsi_bus_reset(struct scsi_cmnd *cmd)
+static int atari_scsi_host_reset(struct scsi_cmnd *cmd)
 {
 	int rv;
 	unsigned long flags;
@@ -713,12 +682,13 @@ static int atari_scsi_bus_reset(struct scsi_cmnd *cmd)
 	if (IS_A_TT()) {
 		tt_scsi_dma.dma_ctrl = 0;
 	} else {
-		st_dma.dma_mode_status = 0x90;
+		if (stdma_is_locked_by(scsi_falcon_intr))
+			st_dma.dma_mode_status = 0x90;
 		atari_dma_active = 0;
 		atari_dma_orig_addr = NULL;
 	}
 
-	rv = NCR5380_bus_reset(cmd);
+	rv = NCR5380_host_reset(cmd);
 
 	/* The 5380 raises its IRQ line while _RST is active but the ST DMA
 	 * "lock" has been released so this interrupt may end up handled by
@@ -741,7 +711,7 @@ static struct scsi_host_template atari_scsi_template = {
 	.info			= atari_scsi_info,
 	.queuecommand		= atari_scsi_queue_command,
 	.eh_abort_handler	= atari_scsi_abort,
-	.eh_bus_reset_handler	= atari_scsi_bus_reset,
+	.eh_host_reset_handler	= atari_scsi_host_reset,
 	.this_id		= 7,
 	.cmd_per_lun		= 2,
 	.use_clustering		= DISABLE_CLUSTERING,
@@ -806,14 +776,14 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 	 * from/to alternative Ram.
 	 */
 	if (ATARIHW_PRESENT(ST_SCSI) && !ATARIHW_PRESENT(EXTD_DMA) &&
-	    m68k_num_memory > 1) {
+	    m68k_realnum_memory > 1) {
 		atari_dma_buffer = atari_stram_alloc(STRAM_BUFFER_SIZE, "SCSI");
 		if (!atari_dma_buffer) {
 			pr_err(PFX "can't allocate ST-RAM double buffer\n");
 			return -ENOMEM;
 		}
 		atari_dma_phys_buffer = atari_stram_to_phys(atari_dma_buffer);
-		atari_dma_orig_addr = 0;
+		atari_dma_orig_addr = NULL;
 	}
 
 	instance = scsi_host_alloc(&atari_scsi_template,

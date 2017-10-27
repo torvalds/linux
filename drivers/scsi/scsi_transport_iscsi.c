@@ -1009,7 +1009,7 @@ static void iscsi_flashnode_sess_release(struct device *dev)
 	kfree(fnode_sess);
 }
 
-static struct device_type iscsi_flashnode_sess_dev_type = {
+static const struct device_type iscsi_flashnode_sess_dev_type = {
 	.name = "iscsi_flashnode_sess_dev_type",
 	.groups = iscsi_flashnode_sess_attr_groups,
 	.release = iscsi_flashnode_sess_release,
@@ -1195,7 +1195,7 @@ static void iscsi_flashnode_conn_release(struct device *dev)
 	kfree(fnode_conn);
 }
 
-static struct device_type iscsi_flashnode_conn_dev_type = {
+static const struct device_type iscsi_flashnode_conn_dev_type = {
 	.name = "iscsi_flashnode_conn_dev_type",
 	.groups = iscsi_flashnode_conn_attr_groups,
 	.release = iscsi_flashnode_conn_release,
@@ -1537,24 +1537,18 @@ iscsi_bsg_host_add(struct Scsi_Host *shost, struct iscsi_cls_host *ihost)
 	struct iscsi_internal *i = to_iscsi_internal(shost->transportt);
 	struct request_queue *q;
 	char bsg_name[20];
-	int ret;
 
 	if (!i->iscsi_transport->bsg_request)
 		return -ENOTSUPP;
 
 	snprintf(bsg_name, sizeof(bsg_name), "iscsi_host%d", shost->host_no);
-
-	q = __scsi_alloc_queue(shost, bsg_request_fn);
-	if (!q)
-		return -ENOMEM;
-
-	ret = bsg_setup_queue(dev, q, bsg_name, iscsi_bsg_host_dispatch, 0);
-	if (ret) {
+	q = bsg_setup_queue(dev, bsg_name, iscsi_bsg_host_dispatch, 0, NULL);
+	if (IS_ERR(q)) {
 		shost_printk(KERN_ERR, shost, "bsg interface failed to "
 			     "initialize - no request queue\n");
-		blk_cleanup_queue(q);
-		return ret;
+		return PTR_ERR(q);
 	}
+	__scsi_init_queue(shost, q);
 
 	ihost->bsg_q = q;
 	return 0;
@@ -2164,7 +2158,6 @@ static int iscsi_iter_destroy_conn_fn(struct device *dev, void *data)
 
 void iscsi_remove_session(struct iscsi_cls_session *session)
 {
-	struct Scsi_Host *shost = iscsi_session_to_shost(session);
 	unsigned long flags;
 	int err;
 
@@ -2191,7 +2184,7 @@ void iscsi_remove_session(struct iscsi_cls_session *session)
 
 	scsi_target_unblock(&session->dev, SDEV_TRANSPORT_OFFLINE);
 	/* flush running scans then delete devices */
-	scsi_flush_work(shost);
+	flush_work(&session->scan_work);
 	__iscsi_unbind_session(&session->unbind_work);
 
 	/* hw iscsi may not have removed all connections from session */
@@ -2216,22 +2209,6 @@ void iscsi_free_session(struct iscsi_cls_session *session)
 	put_device(&session->dev);
 }
 EXPORT_SYMBOL_GPL(iscsi_free_session);
-
-/**
- * iscsi_destroy_session - destroy iscsi session
- * @session: iscsi_session
- *
- * Can be called by a LLD or iscsi_transport. There must not be
- * any running connections.
- */
-int iscsi_destroy_session(struct iscsi_cls_session *session)
-{
-	iscsi_remove_session(session);
-	ISCSI_DBG_TRANS_SESSION(session, "Completing session destruction\n");
-	iscsi_free_session(session);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(iscsi_destroy_session);
 
 /**
  * iscsi_create_conn - create iscsi class connection
@@ -3696,7 +3673,7 @@ iscsi_if_rx(struct sk_buff *skb)
 		uint32_t group;
 
 		nlh = nlmsg_hdr(skb);
-		if (nlh->nlmsg_len < sizeof(*nlh) ||
+		if (nlh->nlmsg_len < sizeof(*nlh) + sizeof(*ev) ||
 		    skb->len < nlh->nlmsg_len) {
 			break;
 		}

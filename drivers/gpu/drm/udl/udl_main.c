@@ -367,11 +367,9 @@ int udl_drop_usb(struct drm_device *dev)
 	return 0;
 }
 
-int udl_driver_unload(struct drm_device *dev)
+void udl_driver_unload(struct drm_device *dev)
 {
 	struct udl_device *udl = dev->dev_private;
-
-	drm_vblank_cleanup(dev);
 
 	if (udl->urbs.count)
 		udl_free_urb_list(dev);
@@ -379,5 +377,4 @@ int udl_driver_unload(struct drm_device *dev)
 	udl_fbdev_cleanup(dev);
 	udl_modeset_cleanup(dev);
 	kfree(udl);
-	return 0;
 }

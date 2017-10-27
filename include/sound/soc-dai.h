@@ -256,6 +256,9 @@ struct snd_soc_dai_driver {
 	int (*resume)(struct snd_soc_dai *dai);
 	/* compress dai */
 	int (*compress_new)(struct snd_soc_pcm_runtime *rtd, int num);
+	/* Optional Callback used at pcm creation*/
+	int (*pcm_new)(struct snd_soc_pcm_runtime *rtd,
+		       struct snd_soc_dai *dai);
 	/* DAI is also used for the control bus */
 	bool bus_control;
 

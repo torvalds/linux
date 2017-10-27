@@ -162,9 +162,9 @@ static int adf_enable_sriov(struct adf_accel_dev *accel_dev)
 
 /**
  * adf_disable_sriov() - Disable SRIOV for the device
- * @pdev:  Pointer to pci device.
+ * @accel_dev:  Pointer to accel device.
  *
- * Function disables SRIOV for the pci device.
+ * Function disables SRIOV for the accel device.
  *
  * Return: 0 on success, error code otherwise.
  */

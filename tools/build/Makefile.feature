@@ -63,7 +63,9 @@ FEATURE_TESTS_BASIC :=                  \
         lzma                            \
         get_cpuid                       \
         bpf                             \
-        sdt
+        sched_getcpu			\
+        sdt				\
+        setns
 
 # FEATURE_TESTS_BASIC + FEATURE_TESTS_EXTRA is the complete list
 # of all feature tests

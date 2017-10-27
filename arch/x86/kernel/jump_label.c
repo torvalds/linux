@@ -32,8 +32,7 @@ static void bug_at(unsigned char *ip, int line)
 	 * Something went wrong. Crash the box, as something could be
 	 * corrupting the kernel.
 	 */
-	pr_warning("Unexpected op at %pS [%p] (%02x %02x %02x %02x %02x) %s:%d\n",
-	       ip, ip, ip[0], ip[1], ip[2], ip[3], ip[4], __FILE__, line);
+	pr_crit("jump_label: Fatal kernel bug, unexpected op at %pS [%p] (%5ph) %d\n", ip, ip, ip, line);
 	BUG();
 }
 
@@ -106,11 +105,9 @@ static void __jump_label_transform(struct jump_entry *entry,
 void arch_jump_label_transform(struct jump_entry *entry,
 			       enum jump_label_type type)
 {
-	get_online_cpus();
 	mutex_lock(&text_mutex);
 	__jump_label_transform(entry, type, NULL, 0);
 	mutex_unlock(&text_mutex);
-	put_online_cpus();
 }
 
 static enum {

@@ -22,6 +22,7 @@
 #include <linux/dvb/frontend.h>
 #include "dvb_math.h"
 #include "lgdt3306a.h"
+#include <linux/i2c-mux.h>
 
 
 static int debug;
@@ -65,6 +66,8 @@ struct lgdt3306a_state {
 	enum fe_modulation current_modulation;
 	u32 current_frequency;
 	u32 snr;
+
+	struct i2c_mux_core *muxc;
 };
 
 /*
@@ -2130,6 +2133,111 @@ static const struct dvb_frontend_ops lgdt3306a_ops = {
 	.ts_bus_ctrl          = lgdt3306a_ts_bus_ctrl,
 	.search               = lgdt3306a_search,
 };
+
+static int lgdt3306a_select(struct i2c_mux_core *muxc, u32 chan)
+{
+	struct i2c_client *client = i2c_mux_priv(muxc);
+	struct lgdt3306a_state *state = i2c_get_clientdata(client);
+
+	return lgdt3306a_i2c_gate_ctrl(&state->frontend, 1);
+}
+
+static int lgdt3306a_deselect(struct i2c_mux_core *muxc, u32 chan)
+{
+	struct i2c_client *client = i2c_mux_priv(muxc);
+	struct lgdt3306a_state *state = i2c_get_clientdata(client);
+
+	return lgdt3306a_i2c_gate_ctrl(&state->frontend, 0);
+}
+
+static int lgdt3306a_probe(struct i2c_client *client,
+		const struct i2c_device_id *id)
+{
+	struct lgdt3306a_config *config;
+	struct lgdt3306a_state *state;
+	struct dvb_frontend *fe;
+	int ret;
+
+	config = kzalloc(sizeof(struct lgdt3306a_config), GFP_KERNEL);
+	if (config == NULL) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	memcpy(config, client->dev.platform_data,
+			sizeof(struct lgdt3306a_config));
+
+	config->i2c_addr = client->addr;
+	fe = lgdt3306a_attach(config, client->adapter);
+	if (fe == NULL) {
+		ret = -ENODEV;
+		goto err_fe;
+	}
+
+	i2c_set_clientdata(client, fe->demodulator_priv);
+	state = fe->demodulator_priv;
+
+	/* create mux i2c adapter for tuner */
+	state->muxc = i2c_mux_alloc(client->adapter, &client->dev,
+				  1, 0, I2C_MUX_LOCKED,
+				  lgdt3306a_select, lgdt3306a_deselect);
+	if (!state->muxc) {
+		ret = -ENOMEM;
+		goto err_kfree;
+	}
+	state->muxc->priv = client;
+	ret = i2c_mux_add_adapter(state->muxc, 0, 0, 0);
+	if (ret)
+		goto err_kfree;
+
+	/* create dvb_frontend */
+	fe->ops.i2c_gate_ctrl = NULL;
+	*config->i2c_adapter = state->muxc->adapter[0];
+	*config->fe = fe;
+
+	return 0;
+
+err_kfree:
+	kfree(state);
+err_fe:
+	kfree(config);
+fail:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
+}
+
+static int lgdt3306a_remove(struct i2c_client *client)
+{
+	struct lgdt3306a_state *state = i2c_get_clientdata(client);
+
+	i2c_mux_del_adapters(state->muxc);
+
+	state->frontend.ops.release = NULL;
+	state->frontend.demodulator_priv = NULL;
+
+	kfree(state->cfg);
+	kfree(state);
+
+	return 0;
+}
+
+static const struct i2c_device_id lgdt3306a_id_table[] = {
+	{"lgdt3306a", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, lgdt3306a_id_table);
+
+static struct i2c_driver lgdt3306a_driver = {
+	.driver = {
+		.name                = "lgdt3306a",
+		.suppress_bind_attrs = true,
+	},
+	.probe		= lgdt3306a_probe,
+	.remove		= lgdt3306a_remove,
+	.id_table	= lgdt3306a_id_table,
+};
+
+module_i2c_driver(lgdt3306a_driver);
 
 MODULE_DESCRIPTION("LG Electronics LGDT3306A ATSC/QAM-B Demodulator Driver");
 MODULE_AUTHOR("Fred Richter <frichter@hauppauge.com>");

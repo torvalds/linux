@@ -69,6 +69,7 @@ struct nlm_host *nlmclnt_init(const struct nlmclnt_initdata *nlm_init)
 	if (host->h_rpcclnt == NULL && nlm_bind_host(host) == NULL)
 		goto out_nobind;
 
+	host->h_nlmclnt_ops = nlm_init->nlmclnt_ops;
 	return host;
 out_nobind:
 	nlmclnt_release_host(host);
@@ -234,12 +235,8 @@ reclaimer(void *ptr)
 	struct net *net = host->net;
 
 	req = kmalloc(sizeof(*req), GFP_KERNEL);
-	if (!req) {
-		printk(KERN_ERR "lockd: reclaimer unable to alloc memory."
-				" Locks for %s won't be reclaimed!\n",
-				host->h_name);
+	if (!req)
 		return 0;
-	}
 
 	allow_signal(SIGKILL);
 

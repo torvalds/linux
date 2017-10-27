@@ -33,10 +33,28 @@
 
 #include <drm/i915_drm.h>
 
+#include "i915_gem_request.h"
+#include "i915_selftest.h"
+
+struct drm_i915_gem_object;
+
+/*
+ * struct i915_lut_handle tracks the fast lookups from handle to vma used
+ * for execbuf. Although we use a radixtree for that mapping, in order to
+ * remove them as the object or context is closed, we need a secondary list
+ * and a translation entry (i915_lut_handle).
+ */
+struct i915_lut_handle {
+	struct list_head obj_link;
+	struct list_head ctx_link;
+	struct i915_gem_context *ctx;
+	u32 handle;
+};
+
 struct drm_i915_gem_object_ops {
 	unsigned int flags;
-#define I915_GEM_OBJECT_HAS_STRUCT_PAGE 0x1
-#define I915_GEM_OBJECT_IS_SHRINKABLE   0x2
+#define I915_GEM_OBJECT_HAS_STRUCT_PAGE BIT(0)
+#define I915_GEM_OBJECT_IS_SHRINKABLE   BIT(1)
 
 	/* Interface between the GEM object and its backing storage.
 	 * get_pages() is called once prior to the use of the associated set
@@ -54,6 +72,9 @@ struct drm_i915_gem_object_ops {
 	struct sg_table *(*get_pages)(struct drm_i915_gem_object *);
 	void (*put_pages)(struct drm_i915_gem_object *, struct sg_table *);
 
+	int (*pwrite)(struct drm_i915_gem_object *,
+		      const struct drm_i915_gem_pwrite *);
+
 	int (*dmabuf_export)(struct drm_i915_gem_object *);
 	void (*release)(struct drm_i915_gem_object *);
 };
@@ -63,9 +84,33 @@ struct drm_i915_gem_object {
 
 	const struct drm_i915_gem_object_ops *ops;
 
-	/** List of VMAs backed by this object */
+	/**
+	 * @vma_list: List of VMAs backed by this object
+	 *
+	 * The VMA on this list are ordered by type, all GGTT vma are placed
+	 * at the head and all ppGTT vma are placed at the tail. The different
+	 * types of GGTT vma are unordered between themselves, use the
+	 * @vma_tree (which has a defined order between all VMA) to find an
+	 * exact match.
+	 */
 	struct list_head vma_list;
+	/**
+	 * @vma_tree: Ordered tree of VMAs backed by this object
+	 *
+	 * All VMA created for this object are placed in the @vma_tree for
+	 * fast retrieval via a binary search in i915_vma_instance().
+	 * They are also added to @vma_list for easy iteration.
+	 */
 	struct rb_root vma_tree;
+
+	/**
+	 * @lut_list: List of vma lookup entries in use for this object.
+	 *
+	 * If this object is closed, we need to remove all of its VMA from
+	 * the fast lookup index in associated contexts; @lut_list provides
+	 * this translation from object to context->handles_vma.
+	 */
+	struct list_head lut_list;
 
 	/** Stolen memory for this object, instead of being backed by shmem. */
 	struct drm_mm_node *stolen;
@@ -80,10 +125,8 @@ struct drm_i915_gem_object {
 	 */
 	struct list_head userfault_link;
 
-	/** Used in execbuf to temporarily hold a ref */
-	struct list_head obj_exec_link;
-
 	struct list_head batch_pool_link;
+	I915_SELFTEST_DECLARE(struct list_head st_link);
 
 	unsigned long flags;
 
@@ -99,6 +142,9 @@ struct drm_i915_gem_object {
 	 */
 	unsigned long gt_ro:1;
 	unsigned int cache_level:3;
+	unsigned int cache_coherent:2;
+#define I915_BO_CACHE_COHERENT_FOR_READ BIT(0)
+#define I915_BO_CACHE_COHERENT_FOR_WRITE BIT(1)
 	unsigned int cache_dirty:1;
 
 	atomic_t frontbuffer_bits;
@@ -162,19 +208,23 @@ struct drm_i915_gem_object {
 	struct reservation_object *resv;
 
 	/** References from framebuffers, locks out tiling changes. */
-	unsigned long framebuffer_references;
+	unsigned int framebuffer_references;
 
 	/** Record of address bit 17 of each page at last unbind. */
 	unsigned long *bit_17;
 
-	struct i915_gem_userptr {
-		uintptr_t ptr;
-		unsigned read_only :1;
+	union {
+		struct i915_gem_userptr {
+			uintptr_t ptr;
+			unsigned read_only :1;
 
-		struct i915_mm_struct *mm;
-		struct i915_mmu_object *mmu_object;
-		struct work_struct *work;
-	} userptr;
+			struct i915_mm_struct *mm;
+			struct i915_mmu_object *mmu_object;
+			struct work_struct *work;
+		} userptr;
+
+		unsigned long scratch;
+	};
 
 	/** for phys allocated objects */
 	struct drm_dma_handle *phys_handle;
@@ -253,10 +303,14 @@ extern void drm_gem_object_unreference(struct drm_gem_object *);
 __deprecated
 extern void drm_gem_object_unreference_unlocked(struct drm_gem_object *);
 
-static inline bool
-i915_gem_object_is_dead(const struct drm_i915_gem_object *obj)
+static inline void i915_gem_object_lock(struct drm_i915_gem_object *obj)
 {
-	return atomic_read(&obj->base.refcount.refcount) == 0;
+	reservation_object_lock(obj->resv, NULL);
+}
+
+static inline void i915_gem_object_unlock(struct drm_i915_gem_object *obj)
+{
+	reservation_object_unlock(obj->resv);
 }
 
 static inline bool
@@ -299,6 +353,12 @@ i915_gem_object_clear_active_reference(struct drm_i915_gem_object *obj)
 
 void __i915_gem_object_release_unless_active(struct drm_i915_gem_object *obj);
 
+static inline bool
+i915_gem_object_is_framebuffer(const struct drm_i915_gem_object *obj)
+{
+	return READ_ONCE(obj->framebuffer_references);
+}
+
 static inline unsigned int
 i915_gem_object_get_tiling(struct drm_i915_gem_object *obj)
 {
@@ -317,6 +377,29 @@ i915_gem_object_get_stride(struct drm_i915_gem_object *obj)
 	return obj->tiling_and_stride & STRIDE_MASK;
 }
 
+static inline unsigned int
+i915_gem_tile_height(unsigned int tiling)
+{
+	GEM_BUG_ON(!tiling);
+	return tiling == I915_TILING_Y ? 32 : 8;
+}
+
+static inline unsigned int
+i915_gem_object_get_tile_height(struct drm_i915_gem_object *obj)
+{
+	return i915_gem_tile_height(i915_gem_object_get_tiling(obj));
+}
+
+static inline unsigned int
+i915_gem_object_get_tile_row_size(struct drm_i915_gem_object *obj)
+{
+	return (i915_gem_object_get_stride(obj) *
+		i915_gem_object_get_tile_height(obj));
+}
+
+int i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
+			       unsigned int tiling, unsigned int stride);
+
 static inline struct intel_engine_cs *
 i915_gem_object_last_write_engine(struct drm_i915_gem_object *obj)
 {
@@ -333,6 +416,10 @@ i915_gem_object_last_write_engine(struct drm_i915_gem_object *obj)
 
 	return engine;
 }
+
+void i915_gem_object_set_cache_coherency(struct drm_i915_gem_object *obj,
+					 unsigned int cache_level);
+void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj);
 
 #endif
 

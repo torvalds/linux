@@ -95,6 +95,7 @@
 #define AUART_LINECTRL_BAUD_DIVFRAC_SHIFT	8
 #define AUART_LINECTRL_BAUD_DIVFRAC_MASK	0x00003f00
 #define AUART_LINECTRL_BAUD_DIVFRAC(v)		(((v) & 0x3f) << 8)
+#define AUART_LINECTRL_SPS			(1 << 7)
 #define AUART_LINECTRL_WLEN_MASK		0x00000060
 #define AUART_LINECTRL_WLEN(v)			(((v) & 0x3) << 5)
 #define AUART_LINECTRL_FEN			(1 << 4)
@@ -1014,6 +1015,8 @@ static void mxs_auart_settermios(struct uart_port *u,
 		ctrl |= AUART_LINECTRL_PEN;
 		if ((cflag & PARODD) == 0)
 			ctrl |= AUART_LINECTRL_EPS;
+		if (cflag & CMSPAR)
+			ctrl |= AUART_LINECTRL_SPS;
 	}
 
 	u->read_status_mask = AUART_STAT_OERR;
@@ -1085,7 +1088,7 @@ static void mxs_auart_settermios(struct uart_port *u,
 					AUART_LINECTRL_BAUD_DIV_MAX);
 		baud_max = u->uartclk * 32 / AUART_LINECTRL_BAUD_DIV_MIN;
 		baud = uart_get_baud_rate(u, termios, old, baud_min, baud_max);
-		div = u->uartclk * 32 / baud;
+		div = DIV_ROUND_CLOSEST(u->uartclk * 32, baud);
 	}
 
 	ctrl |= AUART_LINECTRL_BAUD_DIVFRAC(div & 0x3F);

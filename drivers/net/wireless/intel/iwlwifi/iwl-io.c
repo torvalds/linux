@@ -54,8 +54,8 @@ IWL_EXPORT_SYMBOL(iwl_write32);
 void iwl_write64(struct iwl_trans *trans, u64 ofs, u64 val)
 {
 	trace_iwlwifi_dev_iowrite64(trans->dev, ofs, val);
-	iwl_trans_write32(trans, ofs, val & 0xffffffff);
-	iwl_trans_write32(trans, ofs + 4, val >> 32);
+	iwl_trans_write32(trans, ofs, lower_32_bits(val));
+	iwl_trans_write32(trans, ofs + 4, upper_32_bits(val));
 }
 IWL_EXPORT_SYMBOL(iwl_write64);
 
@@ -241,17 +241,12 @@ IWL_EXPORT_SYMBOL(iwl_clear_bits_prph);
 
 void iwl_force_nmi(struct iwl_trans *trans)
 {
-	if (trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) {
+	if (trans->cfg->device_family < IWL_DEVICE_FAMILY_9000)
 		iwl_write_prph(trans, DEVICE_SET_NMI_REG,
 			       DEVICE_SET_NMI_VAL_DRV);
-		iwl_write_prph(trans, DEVICE_SET_NMI_REG,
-			       DEVICE_SET_NMI_VAL_HW);
-	} else {
-		iwl_write_prph(trans, DEVICE_SET_NMI_8000_REG,
-			       DEVICE_SET_NMI_8000_VAL);
-		iwl_write_prph(trans, DEVICE_SET_NMI_REG,
-			       DEVICE_SET_NMI_VAL_DRV);
-	}
+	else
+		iwl_write_prph(trans, UREG_NIC_SET_NMI_DRIVER,
+			       UREG_NIC_SET_NMI_DRIVER_NMI_FROM_DRIVER_MSK);
 }
 IWL_EXPORT_SYMBOL(iwl_force_nmi);
 

@@ -1,0 +1,29 @@
+*****************************************************************************
+*                                                                           *
+*                           TODO: BCM2835-AUDIO                             *
+*                                                                           *
+*****************************************************************************
+
+
+1) Document the device tree node
+
+The downstream tree(the tree that the driver was imported from) at
+http://www.github.com/raspberrypi/linux uses this node:
+
+audio: audio {
+	compatible = "brcm,bcm2835-audio";
+	brcm,pwm-channels = <8>;
+};
+
+Since the driver requires the use of VCHIQ, it may be useful to have a link
+in the device tree to the VCHIQ driver.
+
+2) Gracefully handle the case where VCHIQ is missing from the device tree or
+it has not been initialized yet.
+
+3) Review error handling and remove duplicate code.
+
+4) Cleanup the logging mechanism.  The driver should probably be using the
+standard kernel logging mechanisms such as dev_info, dev_dbg, and friends.
+
+5) Fix the remaining checkpatch.pl errors and warnings.

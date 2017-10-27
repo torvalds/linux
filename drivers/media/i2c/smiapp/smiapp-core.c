@@ -27,12 +27,13 @@
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/smiapp.h>
 #include <linux/v4l2-mediabus.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-of.h>
 
 #include "smiapp.h"
 
@@ -840,6 +841,8 @@ static int smiapp_get_mbus_formats(struct smiapp_sensor *sensor)
 		&client->dev,
 		compressed_max_bpp - sensor->compressed_min_bpp + 1,
 		sizeof(*sensor->valid_link_freqs), GFP_KERNEL);
+	if (!sensor->valid_link_freqs)
+		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(smiapp_csi_data_formats); i++) {
 		const struct smiapp_csi_data_format *f =
@@ -2784,19 +2787,20 @@ static int __maybe_unused smiapp_resume(struct device *dev)
 static struct smiapp_hwconfig *smiapp_get_hwconfig(struct device *dev)
 {
 	struct smiapp_hwconfig *hwcfg;
-	struct v4l2_of_endpoint *bus_cfg;
-	struct device_node *ep;
+	struct v4l2_fwnode_endpoint *bus_cfg;
+	struct fwnode_handle *ep;
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	int i;
 	int rval;
 
-	if (!dev->of_node)
+	if (!fwnode)
 		return dev->platform_data;
 
-	ep = of_graph_get_next_endpoint(dev->of_node, NULL);
+	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
 	if (!ep)
 		return NULL;
 
-	bus_cfg = v4l2_of_alloc_parse_endpoint(ep);
+	bus_cfg = v4l2_fwnode_endpoint_alloc_parse(ep);
 	if (IS_ERR(bus_cfg))
 		goto out_err;
 
@@ -2807,28 +2811,33 @@ static struct smiapp_hwconfig *smiapp_get_hwconfig(struct device *dev)
 	switch (bus_cfg->bus_type) {
 	case V4L2_MBUS_CSI2:
 		hwcfg->csi_signalling_mode = SMIAPP_CSI_SIGNALLING_MODE_CSI2;
+		hwcfg->lanes = bus_cfg->bus.mipi_csi2.num_data_lanes;
 		break;
-		/* FIXME: add CCP2 support. */
+	case V4L2_MBUS_CCP2:
+		hwcfg->csi_signalling_mode = (bus_cfg->bus.mipi_csi1.strobe) ?
+		SMIAPP_CSI_SIGNALLING_MODE_CCP2_DATA_STROBE :
+		SMIAPP_CSI_SIGNALLING_MODE_CCP2_DATA_CLOCK;
+		hwcfg->lanes = 1;
+		break;
 	default:
+		dev_err(dev, "unsupported bus %u\n", bus_cfg->bus_type);
 		goto out_err;
 	}
 
-	hwcfg->lanes = bus_cfg->bus.mipi_csi2.num_data_lanes;
 	dev_dbg(dev, "lanes %u\n", hwcfg->lanes);
 
 	/* NVM size is not mandatory */
-	of_property_read_u32(dev->of_node, "nokia,nvm-size",
-				    &hwcfg->nvm_size);
+	fwnode_property_read_u32(fwnode, "nokia,nvm-size", &hwcfg->nvm_size);
 
-	rval = of_property_read_u32(dev->of_node, "clock-frequency",
-				    &hwcfg->ext_clk);
+	rval = fwnode_property_read_u32(fwnode, "clock-frequency",
+					&hwcfg->ext_clk);
 	if (rval) {
 		dev_warn(dev, "can't get clock-frequency\n");
 		goto out_err;
 	}
 
-	dev_dbg(dev, "nvm %d, clk %d, csi %d\n", hwcfg->nvm_size,
-		hwcfg->ext_clk, hwcfg->csi_signalling_mode);
+	dev_dbg(dev, "nvm %d, clk %d, mode %d\n",
+		hwcfg->nvm_size, hwcfg->ext_clk, hwcfg->csi_signalling_mode);
 
 	if (!bus_cfg->nr_of_link_frequencies) {
 		dev_warn(dev, "no link frequencies defined\n");
@@ -2846,13 +2855,13 @@ static struct smiapp_hwconfig *smiapp_get_hwconfig(struct device *dev)
 		dev_dbg(dev, "freq %d: %lld\n", i, hwcfg->op_sys_clock[i]);
 	}
 
-	v4l2_of_free_endpoint(bus_cfg);
-	of_node_put(ep);
+	v4l2_fwnode_endpoint_free(bus_cfg);
+	fwnode_handle_put(ep);
 	return hwcfg;
 
 out_err:
-	v4l2_of_free_endpoint(bus_cfg);
-	of_node_put(ep);
+	v4l2_fwnode_endpoint_free(bus_cfg);
+	fwnode_handle_put(ep);
 	return NULL;
 }
 

@@ -22,10 +22,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -424,8 +420,8 @@ static int hasRadioTuner(int tunerType)
 	return 0;
 }
 
-void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
-				unsigned char *eeprom_data)
+void tveeprom_hauppauge_analog(struct tveeprom *tvee,
+			       unsigned char *eeprom_data)
 {
 	/* ----------------------------------------------
 	** The hauppauge eeprom format is tagged

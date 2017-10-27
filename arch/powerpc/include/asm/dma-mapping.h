@@ -17,10 +17,6 @@
 #include <asm/io.h>
 #include <asm/swiotlb.h>
 
-#ifdef CONFIG_PPC64
-#define DMA_ERROR_CODE		(~(dma_addr_t)0x0)
-#endif
-
 /* Some dma direct funcs must be visible for use in other dma_ops */
 extern void *__dma_direct_alloc_coherent(struct device *dev, size_t size,
 					 dma_addr_t *dma_handle, gfp_t flag,
@@ -76,24 +72,16 @@ static inline unsigned long device_to_mask(struct device *dev)
 #ifdef CONFIG_PPC64
 extern struct dma_map_ops dma_iommu_ops;
 #endif
-extern struct dma_map_ops dma_direct_ops;
+extern const struct dma_map_ops dma_direct_ops;
 
-static inline struct dma_map_ops *get_dma_ops(struct device *dev)
+static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
 	/* We don't handle the NULL dev case for ISA for now. We could
 	 * do it via an out of line call but it is not needed for now. The
 	 * only ISA DMA device we support is the floppy and we have a hack
 	 * in the floppy driver directly to get a device for us.
 	 */
-	if (unlikely(dev == NULL))
-		return NULL;
-
-	return dev->archdata.dma_ops;
-}
-
-static inline void set_dma_ops(struct device *dev, struct dma_map_ops *ops)
-{
-	dev->archdata.dma_ops = ops;
+	return NULL;
 }
 
 /*
@@ -124,7 +112,6 @@ static inline void set_dma_offset(struct device *dev, dma_addr_t off)
 #define HAVE_ARCH_DMA_SET_MASK 1
 extern int dma_set_mask(struct device *dev, u64 dma_mask);
 
-extern int __dma_set_mask(struct device *dev, u64 dma_mask);
 extern u64 __dma_get_required_mask(struct device *dev);
 
 static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)

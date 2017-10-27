@@ -424,41 +424,6 @@ static int sx150x_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return !!(value & BIT(offset));
 }
 
-static int sx150x_gpio_set_single_ended(struct gpio_chip *chip,
-					unsigned int offset,
-					enum single_ended_mode mode)
-{
-	struct sx150x_pinctrl *pctl = gpiochip_get_data(chip);
-	int ret;
-
-	switch (mode) {
-	case LINE_MODE_PUSH_PULL:
-		if (pctl->data->model != SX150X_789 ||
-		    sx150x_pin_is_oscio(pctl, offset))
-			return 0;
-
-		ret = regmap_write_bits(pctl->regmap,
-					pctl->data->pri.x789.reg_drain,
-					BIT(offset), 0);
-		break;
-
-	case LINE_MODE_OPEN_DRAIN:
-		if (pctl->data->model != SX150X_789 ||
-		    sx150x_pin_is_oscio(pctl, offset))
-			return -ENOTSUPP;
-
-		ret = regmap_write_bits(pctl->regmap,
-					pctl->data->pri.x789.reg_drain,
-					BIT(offset), BIT(offset));
-		break;
-	default:
-		ret = -ENOTSUPP;
-		break;
-	}
-
-	return ret;
-}
-
 static int __sx150x_gpio_set(struct sx150x_pinctrl *pctl, unsigned int offset,
 			     int value)
 {
@@ -811,16 +776,26 @@ static int sx150x_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			break;
 
 		case PIN_CONFIG_DRIVE_OPEN_DRAIN:
-			ret = sx150x_gpio_set_single_ended(&pctl->gpio,
-						pin, LINE_MODE_OPEN_DRAIN);
+			if (pctl->data->model != SX150X_789 ||
+			    sx150x_pin_is_oscio(pctl, pin))
+				return -ENOTSUPP;
+
+			ret = regmap_write_bits(pctl->regmap,
+						pctl->data->pri.x789.reg_drain,
+						BIT(pin), BIT(pin));
 			if (ret < 0)
 				return ret;
 
 			break;
 
 		case PIN_CONFIG_DRIVE_PUSH_PULL:
-			ret = sx150x_gpio_set_single_ended(&pctl->gpio,
-						pin, LINE_MODE_PUSH_PULL);
+			if (pctl->data->model != SX150X_789 ||
+			    sx150x_pin_is_oscio(pctl, pin))
+				return 0;
+
+			ret = regmap_write_bits(pctl->regmap,
+						pctl->data->pri.x789.reg_drain,
+						BIT(pin), 0);
 			if (ret < 0)
 				return ret;
 
@@ -1178,7 +1153,7 @@ static int sx150x_probe(struct i2c_client *client,
 	pctl->gpio.direction_output = sx150x_gpio_direction_output;
 	pctl->gpio.get = sx150x_gpio_get;
 	pctl->gpio.set = sx150x_gpio_set;
-	pctl->gpio.set_single_ended = sx150x_gpio_set_single_ended;
+	pctl->gpio.set_config = gpiochip_generic_config;
 	pctl->gpio.parent = dev;
 #ifdef CONFIG_OF_GPIO
 	pctl->gpio.of_node = dev->of_node;

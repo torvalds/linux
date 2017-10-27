@@ -34,7 +34,7 @@
 #include <linux/interrupt.h>
 
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
@@ -775,6 +775,8 @@ static int fsl_elbc_chip_init(struct fsl_elbc_mtd *priv)
 	chip->select_chip = fsl_elbc_select_chip;
 	chip->cmdfunc = fsl_elbc_cmdfunc;
 	chip->waitfunc = fsl_elbc_wait;
+	chip->onfi_set_features = nand_onfi_get_set_features_notsupp;
+	chip->onfi_get_features = nand_onfi_get_set_features_notsupp;
 
 	chip->bbt_td = &bbt_main_descr;
 	chip->bbt_md = &bbt_mirror_descr;

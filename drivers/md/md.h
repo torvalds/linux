@@ -122,12 +122,21 @@ struct md_rdev {
 					   * sysfs entry */
 
 	struct badblocks badblocks;
+
+	struct {
+		short offset;	/* Offset from superblock to start of PPL.
+				 * Not used by external metadata. */
+		unsigned int size;	/* Size in sectors of the PPL space */
+		sector_t sector;	/* First sector of the PPL space */
+	} ppl;
 };
 enum flag_bits {
 	Faulty,			/* device is known to have a fault */
 	In_sync,		/* device is in_sync with rest of array */
 	Bitmap_sync,		/* ..actually, not quite In_sync.  Need a
-				 * bitmap-based recovery to get fully in sync
+				 * bitmap-based recovery to get fully in sync.
+				 * The bit is only meaningful before device
+				 * has been passed to pers->hot_add_disk.
 				 */
 	WriteMostly,		/* Avoid reading if at all possible */
 	AutoDetected,		/* added by auto-detect */
@@ -219,9 +228,6 @@ enum mddev_flags {
 				 * it then */
 	MD_JOURNAL_CLEAN,	/* A raid with journal is already clean */
 	MD_HAS_JOURNAL,		/* The raid array has journal feature set */
-	MD_RELOAD_SB,		/* Reload the superblock because another node
-				 * updated it.
-				 */
 	MD_CLUSTER_RESYNC_LOCKED, /* cluster raid only, which means node
 				   * already took resync lock, need to
 				   * release the lock */
@@ -229,6 +235,8 @@ enum mddev_flags {
 				 * supported as calls to md_error() will
 				 * never cause the array to become failed.
 				 */
+	MD_HAS_PPL,		/* The raid array has PPL feature set */
+	MD_HAS_MULTIPLE_PPLS,	/* The raid array has multiple PPLs feature set */
 };
 
 enum mddev_sb_flags {
@@ -404,7 +412,8 @@ struct mddev {
 							 */
 	unsigned int			safemode_delay;
 	struct timer_list		safemode_timer;
-	atomic_t			writes_pending;
+	struct percpu_ref		writes_pending;
+	int				sync_checkers;	/* # of threads checking writes_pending */
 	struct request_queue		*queue;	/* for plugging ... */
 
 	struct bitmap			*bitmap; /* the bitmap for the device */
@@ -438,6 +447,9 @@ struct mddev {
 	struct attribute_group		*to_remove;
 
 	struct bio_set			*bio_set;
+	struct bio_set			*sync_set; /* for sync operations like
+						   * metadata and bitmap writes
+						   */
 
 	/* Generic flush handling.
 	 * The last to finish preflush schedules a worker to submit
@@ -498,13 +510,18 @@ static inline void md_sync_acct(struct block_device *bdev, unsigned long nr_sect
 	atomic_add(nr_sectors, &bdev->bd_contains->bd_disk->sync_io);
 }
 
+static inline void md_sync_acct_bio(struct bio *bio, unsigned long nr_sectors)
+{
+	atomic_add(nr_sectors, &bio->bi_disk->sync_io);
+}
+
 struct md_personality
 {
 	char *name;
 	int level;
 	struct list_head list;
 	struct module *owner;
-	void (*make_request)(struct mddev *mddev, struct bio *bio);
+	bool (*make_request)(struct mddev *mddev, struct bio *bio);
 	int (*run)(struct mddev *mddev);
 	void (*free)(struct mddev *mddev, void *priv);
 	void (*status)(struct seq_file *seq, struct mddev *mddev);
@@ -540,6 +557,8 @@ struct md_personality
 	/* congested implements bdi.congested_fn().
 	 * Will not be called while array is 'suspended' */
 	int (*congested)(struct mddev *mddev, int bits);
+	/* Changes the consistency policy of an active array. */
+	int (*change_consistency_policy)(struct mddev *mddev, const char *buf);
 };
 
 struct md_sysfs_entry {
@@ -640,7 +659,9 @@ extern void md_unregister_thread(struct md_thread **threadp);
 extern void md_wakeup_thread(struct md_thread *thread);
 extern void md_check_recovery(struct mddev *mddev);
 extern void md_reap_sync_thread(struct mddev *mddev);
-extern void md_write_start(struct mddev *mddev, struct bio *bi);
+extern int mddev_init_writes_pending(struct mddev *mddev);
+extern bool md_write_start(struct mddev *mddev, struct bio *bi);
+extern void md_write_inc(struct mddev *mddev, struct bio *bi);
 extern void md_write_end(struct mddev *mddev);
 extern void md_done_sync(struct mddev *mddev, int blocks, int ok);
 extern void md_error(struct mddev *mddev, struct md_rdev *rdev);
@@ -656,7 +677,7 @@ extern int sync_page_io(struct md_rdev *rdev, sector_t sector, int size,
 			bool metadata_op);
 extern void md_do_sync(struct md_thread *thread);
 extern void md_new_event(struct mddev *mddev);
-extern int md_allow_write(struct mddev *mddev);
+extern void md_allow_write(struct mddev *mddev);
 extern void md_wait_for_blocked_rdev(struct md_rdev *rdev, struct mddev *mddev);
 extern void md_set_array_sectors(struct mddev *mddev, sector_t array_sectors);
 extern int md_check_no_bitmap(struct mddev *mddev);
@@ -671,23 +692,16 @@ extern void md_stop_writes(struct mddev *mddev);
 extern int md_rdev_init(struct md_rdev *rdev);
 extern void md_rdev_clear(struct md_rdev *rdev);
 
+extern void md_handle_request(struct mddev *mddev, struct bio *bio);
 extern void mddev_suspend(struct mddev *mddev);
 extern void mddev_resume(struct mddev *mddev);
-extern struct bio *bio_clone_mddev(struct bio *bio, gfp_t gfp_mask,
-				   struct mddev *mddev);
 extern struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
 				   struct mddev *mddev);
 
-extern void md_unplug(struct blk_plug_cb *cb, bool from_schedule);
 extern void md_reload_sb(struct mddev *mddev, int raid_disk);
 extern void md_update_sb(struct mddev *mddev, int force);
 extern void md_kick_rdev_from_array(struct md_rdev * rdev);
 struct md_rdev *md_find_rdev_nr_rcu(struct mddev *mddev, int nr);
-static inline int mddev_check_plugged(struct mddev *mddev)
-{
-	return !!blk_check_plugged(md_unplug, mddev,
-				   sizeof(struct blk_plug_cb));
-}
 
 static inline void rdev_dec_pending(struct md_rdev *rdev, struct mddev *mddev)
 {
@@ -709,5 +723,19 @@ static inline void mddev_clear_unsupported_flags(struct mddev *mddev,
 	unsigned long unsupported_flags)
 {
 	mddev->flags &= ~unsupported_flags;
+}
+
+static inline void mddev_check_writesame(struct mddev *mddev, struct bio *bio)
+{
+	if (bio_op(bio) == REQ_OP_WRITE_SAME &&
+	    !bio->bi_disk->queue->limits.max_write_same_sectors)
+		mddev->queue->limits.max_write_same_sectors = 0;
+}
+
+static inline void mddev_check_write_zeroes(struct mddev *mddev, struct bio *bio)
+{
+	if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
+	    !bio->bi_disk->queue->limits.max_write_zeroes_sectors)
+		mddev->queue->limits.max_write_zeroes_sectors = 0;
 }
 #endif /* _MD_MD_H */

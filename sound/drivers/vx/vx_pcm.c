@@ -500,7 +500,7 @@ static int vx_stop_stream(struct vx_core *chip, struct vx_pipe *pipe)
  * playback hw information
  */
 
-static struct snd_pcm_hardware vx_pcm_playback_hw = {
+static const struct snd_pcm_hardware vx_pcm_playback_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_MMAP_VALID /*|*/
 				 /*SNDRV_PCM_INFO_RESUME*/),
@@ -873,7 +873,7 @@ static int vx_pcm_prepare(struct snd_pcm_substream *subs)
 /*
  * operators for PCM playback
  */
-static struct snd_pcm_ops vx_pcm_playback_ops = {
+static const struct snd_pcm_ops vx_pcm_playback_ops = {
 	.open =		vx_pcm_playback_open,
 	.close =	vx_pcm_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -891,7 +891,7 @@ static struct snd_pcm_ops vx_pcm_playback_ops = {
  * playback hw information
  */
 
-static struct snd_pcm_hardware vx_pcm_capture_hw = {
+static const struct snd_pcm_hardware vx_pcm_capture_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_MMAP_VALID /*|*/
 				 /*SNDRV_PCM_INFO_RESUME*/),
@@ -1015,7 +1015,7 @@ static void vx_pcm_capture_update(struct vx_core *chip, struct snd_pcm_substream
 	int size, space, count;
 	struct snd_pcm_runtime *runtime = subs->runtime;
 
-	if (! pipe->prepared || (chip->chip_status & VX_STAT_IS_STALE))
+	if (!pipe->running || (chip->chip_status & VX_STAT_IS_STALE))
 		return;
 
 	size = runtime->buffer_size - snd_pcm_capture_avail(runtime);
@@ -1048,8 +1048,10 @@ static void vx_pcm_capture_update(struct vx_core *chip, struct snd_pcm_substream
 		/* ok, let's accelerate! */
 		int align = pipe->align * 3;
 		space = (count / align) * align;
-		vx_pseudo_dma_read(chip, runtime, pipe, space);
-		count -= space;
+		if (space > 0) {
+			vx_pseudo_dma_read(chip, runtime, pipe, space);
+			count -= space;
+		}
 	}
 	/* read the rest of bytes */
 	while (count > 0) {
@@ -1093,7 +1095,7 @@ static snd_pcm_uframes_t vx_pcm_capture_pointer(struct snd_pcm_substream *subs)
 /*
  * operators for PCM capture
  */
-static struct snd_pcm_ops vx_pcm_capture_ops = {
+static const struct snd_pcm_ops vx_pcm_capture_ops = {
 	.open =		vx_pcm_capture_open,
 	.close =	vx_pcm_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,

@@ -15,6 +15,12 @@
 #define PFN_DEV (1ULL << (BITS_PER_LONG_LONG - 3))
 #define PFN_MAP (1ULL << (BITS_PER_LONG_LONG - 4))
 
+#define PFN_FLAGS_TRACE \
+	{ PFN_SG_CHAIN,	"SG_CHAIN" }, \
+	{ PFN_SG_LAST,	"SG_LAST" }, \
+	{ PFN_DEV,	"DEV" }, \
+	{ PFN_MAP,	"MAP" }
+
 static inline pfn_t __pfn_to_pfn_t(unsigned long pfn, u64 flags)
 {
 	pfn_t pfn_t = { .val = pfn | (flags & PFN_FLAGS_MASK), };
@@ -84,6 +90,13 @@ static inline pmd_t pfn_t_pmd(pfn_t pfn, pgprot_t pgprot)
 {
 	return pfn_pmd(pfn_t_to_pfn(pfn), pgprot);
 }
+
+#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
+static inline pud_t pfn_t_pud(pfn_t pfn, pgprot_t pgprot)
+{
+	return pfn_pud(pfn_t_to_pfn(pfn), pgprot);
+}
+#endif
 #endif
 
 #ifdef __HAVE_ARCH_PTE_DEVMAP
@@ -100,5 +113,10 @@ static inline bool pfn_t_devmap(pfn_t pfn)
 }
 pte_t pte_mkdevmap(pte_t pte);
 pmd_t pmd_mkdevmap(pmd_t pmd);
+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && \
+	defined(CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD)
+pud_t pud_mkdevmap(pud_t pud);
 #endif
+#endif /* __HAVE_ARCH_PTE_DEVMAP */
+
 #endif /* _LINUX_PFN_T_H_ */

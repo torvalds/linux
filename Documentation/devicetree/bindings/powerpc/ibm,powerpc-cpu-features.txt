@@ -1,0 +1,248 @@
+*** NOTE ***
+This document is copied from OPAL firmware
+(skiboot/doc/device-tree/ibm,powerpc-cpu-features/binding.txt)
+
+There is more complete overview and documentation of features in that
+source tree.  All patches and modifications should go there.
+************
+
+ibm,powerpc-cpu-features binding
+================================
+
+This device tree binding describes CPU features available to software, with
+enablement, privilege, and compatibility metadata.
+
+More general description of design and implementation of this binding is
+found in design.txt, which also points to documentation of specific features.
+
+
+/cpus/ibm,powerpc-cpu-features node binding
+-------------------------------------------
+
+Node: ibm,powerpc-cpu-features
+
+Description: Container of CPU feature nodes.
+
+The node name must be "ibm,powerpc-cpu-features".
+
+It is implemented as a child of the node "/cpus", but this must not be
+assumed by parsers.
+
+The node is optional but should be provided by new OPAL firmware.
+
+Properties:
+
+- compatible
+  Usage: required
+  Value type: string
+  Definition: "ibm,powerpc-cpu-features"
+
+  This compatibility refers to backwards compatibility of the overall
+  design with parsers that behave according to these guidelines. This can
+  be extended in a backward compatible manner which would not warrant a
+  revision of the compatible property.
+
+- isa
+  Usage: required
+  Value type: <u32>
+  Definition:
+
+  isa that the CPU is currently running in. This provides instruction set
+  compatibility, less the individual feature nodes. For example, an ISA v3.0
+  implementation that lacks the "transactional-memory" cpufeature node
+  should not use transactional memory facilities.
+
+  Value corresponds to the "Power ISA Version" multiplied by 1000.
+  For example, <3000> corresponds to Version 3.0, <2070> to Version 2.07.
+  The minor digit is available for revisions.
+
+- display-name
+  Usage: optional
+  Value type: string
+  Definition:
+
+  A human readable name for the CPU.
+
+/cpus/ibm,powerpc-cpu-features/example-feature node bindings
+----------------------------------------------------------------
+
+Each child node of cpu-features represents a CPU feature / capability.
+
+Node: A string describing an architected CPU feature, e.g., "floating-point".
+
+Description: A feature or capability supported by the CPUs.
+
+The name of the node is a human readable string that forms the interface
+used to describe features to software. Features are currently documented
+in the code where they are implemented in skiboot/core/cpufeatures.c
+
+Presence of the node indicates the feature is available.
+
+Properties:
+
+- isa
+  Usage: required
+  Value type: <u32>
+  Definition:
+
+  First level of the Power ISA that the feature appears in.
+  Software should filter out features when constraining the
+  environment to a particular ISA version.
+
+  Value is defined similarly to /cpus/features/isa
+
+- usable-privilege
+  Usage: required
+  Value type: <u32> bit mask
+  Definition:
+              Bit numbers are LSB0
+              bit 0 - PR (problem state / user mode)
+              bit 1 - OS (privileged state)
+              bit 2 - HV (hypervisor state)
+              All other bits reserved and should be zero.
+
+  This property describes the privilege levels and/or software components
+  that can use the feature.
+
+  If bit 0 is set, then the hwcap-bit-nr property will exist.
+
+
+- hv-support
+  Usage: optional
+  Value type: <u32> bit mask
+  Definition:
+              Bit numbers are LSB0
+              bit 0 -  HFSCR
+              All other bits reserved and should be zero.
+
+  This property describes the HV privilege support required to enable the
+  feature to lesser privilege levels. If the property does not exist then no
+  support is required.
+
+  If no bits are set, the hypervisor must have explicit/custom support for
+  this feature.
+
+  If the HFSCR bit is set, then the hfscr-bit-nr property will exist and
+  the feature may be enabled by setting this bit in the HFSCR register.
+
+
+- os-support
+  Usage: optional
+  Value type: <u32> bit mask
+  Definition:
+              Bit numbers are LSB0
+              bit 0 -  FSCR
+              All other bits reserved and should be zero.
+
+  This property describes the OS privilege support required to enable the
+  feature to lesser privilege levels. If the property does not exist then no
+  support is required.
+
+  If no bits are set, the operating system must have explicit/custom support
+  for this feature.
+
+  If the FSCR bit is set, then the fscr-bit-nr property will exist and
+  the feature may be enabled by setting this bit in the FSCR register.
+
+
+- hfscr-bit-nr
+  Usage: optional
+  Value type: <u32>
+  Definition: HFSCR bit position (LSB0)
+
+  This property exists when the hv-support property HFSCR bit is set. This
+  property describes the bit number in the HFSCR register that the
+  hypervisor must set in order to enable this feature.
+
+  This property also exists if an HFSCR bit corresponds with this feature.
+  This makes CPU feature parsing slightly simpler.
+
+
+- fscr-bit-nr
+  Usage: optional
+  Value type: <u32>
+  Definition: FSCR bit position (LSB0)
+
+  This property exists when the os-support property FSCR bit is set. This
+  property describes the bit number in the FSCR register that the
+  operating system must set in order to enable this feature.
+
+  This property also exists if an FSCR bit corresponds with this feature.
+  This makes CPU feature parsing slightly simpler.
+
+
+- hwcap-bit-nr
+  Usage: optional
+  Value type: <u32>
+  Definition: Linux ELF AUX vector bit position (LSB0)
+
+  This property may exist when the usable-privilege property value has PR bit set.
+  This property describes the bit number that should be set in the ELF AUX
+  hardware capability vectors in order to advertise this feature to userspace.
+  Bits 0-31 correspond to bits 0-31 in AT_HWCAP vector. Bits 32-63 correspond
+  to 0-31 in AT_HWCAP2 vector, and so on.  Missing AT_HWCAPx vectors implies
+  that the feature is not enabled or can not be advertised. Operating systems
+  may provide a number of unassigned hardware capability bits to allow for new
+  features to be advertised.
+
+  Some properties representing features created before this binding are
+  advertised to userspace without a one-to-one hwcap bit number may not specify
+  this bit. Operating system will handle those bits specifically.  All new
+  features usable by userspace will have a hwcap-bit-nr property.
+
+
+- dependencies
+  Usage: optional
+  Value type: <prop-encoded-array>
+  Definition:
+
+  If this property exists then it is a list of phandles to cpu feature
+  nodes that must be enabled for this feature to be enabled.
+
+
+Example
+-------
+
+	/cpus/ibm,powerpc-cpu-features {
+		compatible = "ibm,powerpc-cpu-features";
+
+		isa = <3020>;
+
+		darn {
+			isa = <3000>;
+			usable-privilege = <1 | 2 | 4>;
+			hwcap-bit-nr = <xx>;
+		};
+
+		scv {
+			isa = <3000>;
+			usable-privilege = <1 | 2>;
+			os-support = <0>;
+			hwcap-bit-nr = <xx>;
+		};
+
+		stop {
+			isa = <3000>;
+			usable-privilege = <2 | 4>;
+			hv-support = <0>;
+			os-support = <0>;
+		};
+
+		vsx2 (hypothetical) {
+			isa = <3010>;
+			usable-privilege = <1 | 2 | 4>;
+			hv-support = <0>;
+			os-support = <0>;
+			hwcap-bit-nr = <xx>;
+		};
+
+		vsx2-newinsns {
+			isa = <3020>;
+			usable-privilege = <1 | 2 | 4>;
+			os-support = <1>;
+			fscr-bit-nr = <xx>;
+			hwcap-bit-nr = <xx>;
+			dependencies = <&vsx2>;
+		};
+
+	};

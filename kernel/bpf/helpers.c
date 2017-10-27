@@ -176,6 +176,6 @@ const struct bpf_func_proto bpf_get_current_comm_proto = {
 	.func		= bpf_get_current_comm,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
-	.arg1_type	= ARG_PTR_TO_RAW_STACK,
-	.arg2_type	= ARG_CONST_STACK_SIZE,
+	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg2_type	= ARG_CONST_SIZE,
 };

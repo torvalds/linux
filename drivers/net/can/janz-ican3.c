@@ -1475,7 +1475,7 @@ static int ican3_napi(struct napi_struct *napi, int budget)
 	/* We have processed all packets that the adapter had, but it
 	 * was less than our budget, stop polling */
 	if (received < budget)
-		napi_complete(napi);
+		napi_complete_done(napi, received);
 
 	spin_lock_irqsave(&mod->lock, flags);
 
@@ -1875,7 +1875,7 @@ static struct attribute *ican3_sysfs_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group ican3_sysfs_attr_group = {
+static const struct attribute_group ican3_sysfs_attr_group = {
 	.attrs = ican3_sysfs_attrs,
 };
 

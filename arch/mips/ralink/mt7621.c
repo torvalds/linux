@@ -9,12 +9,10 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/module.h>
 
 #include <asm/mipsregs.h>
 #include <asm/smp-ops.h>
-#include <asm/mips-cm.h>
-#include <asm/mips-cpc.h>
+#include <asm/mips-cps.h>
 #include <asm/mach-ralink/ralink_regs.h>
 #include <asm/mach-ralink/mt7621.h>
 
@@ -181,7 +179,7 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 	} else {
 		panic("mt7621: unknown SoC, n0:%08x n1:%08x\n", n0, n1);
 	}
-
+	ralink_soc = MT762X_SOC_MT7621AT;
 	rev = __raw_readl(sysc + SYSC_REG_CHIP_REV);
 
 	snprintf(soc_info->sys_type, RAMIPS_SYS_TYPE_LEN,
@@ -200,7 +198,7 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 	mips_cm_probe();
 	mips_cpc_probe();
 
-	if (mips_cm_numiocu()) {
+	if (mips_cps_numiocu(0)) {
 		/*
 		 * mips_cm_probe() wipes out bootloader
 		 * config for CM regions and we have to configure them

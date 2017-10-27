@@ -23,11 +23,8 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  */
 
 /*
@@ -831,8 +828,7 @@ static void dvb_net_ule(struct net_device *dev, const u8 *buf, size_t buf_len)
 
 		/* Copy data into our current skb. */
 		h.how_much = min(h.priv->ule_sndu_remain, (int)h.ts_remain);
-		memcpy(skb_put(h.priv->ule_skb, h.how_much),
-		       h.from_where, h.how_much);
+		skb_put_data(h.priv->ule_skb, h.from_where, h.how_much);
 		h.priv->ule_sndu_remain -= h.how_much;
 		h.ts_remain -= h.how_much;
 		h.from_where += h.how_much;
@@ -967,7 +963,7 @@ static void dvb_net_sec(struct net_device *dev,
 	skb->dev = dev;
 
 	/* copy L3 payload */
-	eth = (u8 *) skb_put(skb, pkt_len - 12 - 4 + 14 - snap);
+	eth = skb_put(skb, pkt_len - 12 - 4 + 14 - snap);
 	memcpy(eth + 14, pkt + 12 + snap, pkt_len - 12 - 4 - snap);
 
 	/* create ethernet header: */

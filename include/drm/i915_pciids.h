@@ -47,6 +47,14 @@
 	0x030000, 0xff0000,			\
 	(unsigned long) info }
 
+#define INTEL_I810_IDS(info)					\
+	INTEL_VGA_DEVICE(0x7121, info), /* I810 */		\
+	INTEL_VGA_DEVICE(0x7123, info), /* I810_DC100 */	\
+	INTEL_VGA_DEVICE(0x7125, info)  /* I810_E */
+
+#define INTEL_I815_IDS(info)					\
+	INTEL_VGA_DEVICE(0x1132, info)  /* I815*/
+
 #define INTEL_I830_IDS(info)				\
 	INTEL_VGA_DEVICE(0x3577, info)
 
@@ -226,23 +234,18 @@
 	INTEL_VGA_DEVICE(0x162A, info), /* Server */ \
 	INTEL_VGA_DEVICE(0x162D, info)  /* Workstation */
 
-#define INTEL_BDW_RSVDM_IDS(info) \
+#define INTEL_BDW_RSVD_IDS(info) \
 	INTEL_VGA_DEVICE(0x1632, info), /* ULT */ \
 	INTEL_VGA_DEVICE(0x1636, info), /* ULT */ \
 	INTEL_VGA_DEVICE(0x163B, info), /* Iris */ \
-	INTEL_VGA_DEVICE(0x163E, info)  /* ULX */
-
-#define INTEL_BDW_RSVDD_IDS(info) \
+	INTEL_VGA_DEVICE(0x163E, info), /* ULX */ \
 	INTEL_VGA_DEVICE(0x163A, info), /* Server */ \
 	INTEL_VGA_DEVICE(0x163D, info)  /* Workstation */
 
 #define INTEL_BDW_IDS(info) \
 	INTEL_BDW_GT12_IDS(info), \
 	INTEL_BDW_GT3_IDS(info), \
-	INTEL_BDW_RSVDM_IDS(info), \
-	INTEL_BDW_GT12_IDS(info), \
-	INTEL_BDW_GT3_IDS(info), \
-	INTEL_BDW_RSVDD_IDS(info)
+	INTEL_BDW_RSVD_IDS(info)
 
 #define INTEL_CHV_IDS(info) \
 	INTEL_VGA_DEVICE(0x22b0, info), \
@@ -271,13 +274,14 @@
 	INTEL_VGA_DEVICE(0x1926, info), /* ULT GT3 */ \
 	INTEL_VGA_DEVICE(0x1927, info), /* ULT GT3 */ \
 	INTEL_VGA_DEVICE(0x192B, info), /* Halo GT3 */ \
-	INTEL_VGA_DEVICE(0x192A, info)  /* SRV GT3 */
+	INTEL_VGA_DEVICE(0x192D, info)  /* SRV GT3 */
 
 #define INTEL_SKL_GT4_IDS(info) \
 	INTEL_VGA_DEVICE(0x1932, info), /* DT GT4 */ \
 	INTEL_VGA_DEVICE(0x193B, info), /* Halo GT4 */ \
 	INTEL_VGA_DEVICE(0x193D, info), /* WKS GT4 */ \
-	INTEL_VGA_DEVICE(0x193A, info)  /* SRV GT4 */
+	INTEL_VGA_DEVICE(0x192A, info), /* SRV GT4 */ \
+	INTEL_VGA_DEVICE(0x193A, info)  /* SRV GT4e */
 
 #define INTEL_SKL_IDS(info)	 \
 	INTEL_SKL_GT1_IDS(info), \
@@ -291,6 +295,10 @@
 	INTEL_VGA_DEVICE(0x1A85, info), \
 	INTEL_VGA_DEVICE(0x5A84, info), /* APL HD Graphics 505 */ \
 	INTEL_VGA_DEVICE(0x5A85, info)  /* APL HD Graphics 500 */
+
+#define INTEL_GLK_IDS(info) \
+	INTEL_VGA_DEVICE(0x3184, info), \
+	INTEL_VGA_DEVICE(0x3185, info)
 
 #define INTEL_KBL_GT1_IDS(info)	\
 	INTEL_VGA_DEVICE(0x5913, info), /* ULT GT1.5 */ \
@@ -325,5 +333,45 @@
 	INTEL_KBL_GT2_IDS(info), \
 	INTEL_KBL_GT3_IDS(info), \
 	INTEL_KBL_GT4_IDS(info)
+
+/* CFL S */
+#define INTEL_CFL_S_IDS(info) \
+	INTEL_VGA_DEVICE(0x3E90, info), /* SRV GT1 */ \
+	INTEL_VGA_DEVICE(0x3E93, info), /* SRV GT1 */ \
+	INTEL_VGA_DEVICE(0x3E91, info), /* SRV GT2 */ \
+	INTEL_VGA_DEVICE(0x3E92, info), /* SRV GT2 */ \
+	INTEL_VGA_DEVICE(0x3E96, info)  /* SRV GT2 */
+
+/* CFL H */
+#define INTEL_CFL_H_IDS(info) \
+	INTEL_VGA_DEVICE(0x3E9B, info), /* Halo GT2 */ \
+	INTEL_VGA_DEVICE(0x3E94, info)  /* Halo GT2 */
+
+/* CFL U */
+#define INTEL_CFL_U_IDS(info) \
+	INTEL_VGA_DEVICE(0x3EA6, info), /* ULT GT3 */ \
+	INTEL_VGA_DEVICE(0x3EA7, info), /* ULT GT3 */ \
+	INTEL_VGA_DEVICE(0x3EA8, info), /* ULT GT3 */ \
+	INTEL_VGA_DEVICE(0x3EA5, info)  /* ULT GT3 */
+
+/* CNL U 2+2 */
+#define INTEL_CNL_U_GT2_IDS(info) \
+	INTEL_VGA_DEVICE(0x5A52, info), \
+	INTEL_VGA_DEVICE(0x5A5A, info), \
+	INTEL_VGA_DEVICE(0x5A42, info), \
+	INTEL_VGA_DEVICE(0x5A4A, info)
+
+/* CNL Y 2+2 */
+#define INTEL_CNL_Y_GT2_IDS(info) \
+	INTEL_VGA_DEVICE(0x5A51, info), \
+	INTEL_VGA_DEVICE(0x5A59, info), \
+	INTEL_VGA_DEVICE(0x5A41, info), \
+	INTEL_VGA_DEVICE(0x5A49, info), \
+	INTEL_VGA_DEVICE(0x5A71, info), \
+	INTEL_VGA_DEVICE(0x5A79, info)
+
+#define INTEL_CNL_IDS(info) \
+	INTEL_CNL_U_GT2_IDS(info), \
+	INTEL_CNL_Y_GT2_IDS(info)
 
 #endif /* _I915_PCIIDS_H */

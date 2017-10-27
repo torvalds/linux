@@ -78,9 +78,8 @@ static int lan88xx_probe(struct phy_device *phydev)
 	priv->wolopts = 0;
 
 	/* these values can be used to identify internal PHY */
-	priv->chip_id = phy_read_mmd_indirect(phydev, LAN88XX_MMD3_CHIP_ID, 3);
-	priv->chip_rev = phy_read_mmd_indirect(phydev, LAN88XX_MMD3_CHIP_REV,
-					       3);
+	priv->chip_id = phy_read_mmd(phydev, 3, LAN88XX_MMD3_CHIP_ID);
+	priv->chip_rev = phy_read_mmd(phydev, 3, LAN88XX_MMD3_CHIP_REV);
 
 	phydev->priv = priv;
 
@@ -147,7 +146,7 @@ static struct phy_driver microchip_phy_driver[] = {
 	.name		= "Microchip LAN88xx",
 
 	.features	= PHY_GBIT_FEATURES,
-	.flags		= PHY_HAS_INTERRUPT | PHY_HAS_MAGICANEG,
+	.flags		= PHY_HAS_INTERRUPT,
 
 	.probe		= lan88xx_probe,
 	.remove		= lan88xx_remove,

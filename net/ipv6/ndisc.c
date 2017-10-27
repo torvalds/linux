@@ -127,7 +127,7 @@ struct neigh_table nd_tbl = {
 			[NEIGH_VAR_BASE_REACHABLE_TIME] = ND_REACHABLE_TIME,
 			[NEIGH_VAR_DELAY_PROBE_TIME] = 5 * HZ,
 			[NEIGH_VAR_GC_STALETIME] = 60 * HZ,
-			[NEIGH_VAR_QUEUE_LEN_BYTES] = 64 * 1024,
+			[NEIGH_VAR_QUEUE_LEN_BYTES] = SK_WMEM_MAX,
 			[NEIGH_VAR_PROXY_QLEN] = 64,
 			[NEIGH_VAR_ANYCAST_DELAY] = 1 * HZ,
 			[NEIGH_VAR_PROXY_DELAY] = (8 * HZ) / 10,
@@ -528,7 +528,7 @@ void ndisc_send_na(struct net_device *dev, const struct in6_addr *daddr,
 	if (!skb)
 		return;
 
-	msg = (struct nd_msg *)skb_put(skb, sizeof(*msg));
+	msg = skb_put(skb, sizeof(*msg));
 	*msg = (struct nd_msg) {
 		.icmph = {
 			.icmp6_type = NDISC_NEIGHBOUR_ADVERTISEMENT,
@@ -597,7 +597,7 @@ void ndisc_send_ns(struct net_device *dev, const struct in6_addr *solicit,
 	if (!skb)
 		return;
 
-	msg = (struct nd_msg *)skb_put(skb, sizeof(*msg));
+	msg = skb_put(skb, sizeof(*msg));
 	*msg = (struct nd_msg) {
 		.icmph = {
 			.icmp6_type = NDISC_NEIGHBOUR_SOLICITATION,
@@ -657,7 +657,7 @@ void ndisc_send_rs(struct net_device *dev, const struct in6_addr *saddr,
 	if (!skb)
 		return;
 
-	msg = (struct rs_msg *)skb_put(skb, sizeof(*msg));
+	msg = skb_put(skb, sizeof(*msg));
 	*msg = (struct rs_msg) {
 		.icmph = {
 			.icmp6_type = NDISC_ROUTER_SOLICITATION,
@@ -732,7 +732,7 @@ void ndisc_update(const struct net_device *dev, struct neighbour *neigh,
 		  const u8 *lladdr, u8 new, u32 flags, u8 icmp6_type,
 		  struct ndisc_options *ndopts)
 {
-	neigh_update(neigh, lladdr, new, flags);
+	neigh_update(neigh, lladdr, new, flags, 0);
 	/* report ndisc ops about neighbour update */
 	ndisc_ops_update(dev, neigh, flags, icmp6_type, ndopts);
 }
@@ -1418,6 +1418,8 @@ skip_linkparms:
 			if (ri->prefix_len == 0 &&
 			    !in6_dev->cnf.accept_ra_defrtr)
 				continue;
+			if (ri->prefix_len < in6_dev->cnf.accept_ra_rt_info_min_plen)
+				continue;
 			if (ri->prefix_len > in6_dev->cnf.accept_ra_rt_info_max_plen)
 				continue;
 			rt6_route_rcv(skb->dev, (u8 *)p, (p->nd_opt_len) << 3,
@@ -1631,7 +1633,7 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 	if (!buff)
 		goto release;
 
-	msg = (struct rd_msg *)skb_put(buff, sizeof(*msg));
+	msg = skb_put(buff, sizeof(*msg));
 	*msg = (struct rd_msg) {
 		.icmph = {
 			.icmp6_type = NDISC_REDIRECT,
@@ -1746,10 +1748,13 @@ static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, 
 	case NETDEV_CHANGEADDR:
 		neigh_changeaddr(&nd_tbl, dev);
 		fib6_run_gc(0, net, false);
+		/* fallthrough */
+	case NETDEV_UP:
 		idev = in6_dev_get(dev);
 		if (!idev)
 			break;
-		if (idev->cnf.ndisc_notify)
+		if (idev->cnf.ndisc_notify ||
+		    net->ipv6.devconf_all->ndisc_notify)
 			ndisc_send_unsol_na(dev);
 		in6_dev_put(idev);
 		break;
@@ -1774,6 +1779,7 @@ static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, 
 
 static struct notifier_block ndisc_netdev_notifier = {
 	.notifier_call = ndisc_netdev_event,
+	.priority = ADDRCONF_NOTIFY_PRIORITY - 5,
 };
 
 #ifdef CONFIG_SYSCTL

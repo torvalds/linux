@@ -202,6 +202,7 @@ static int dw_probe(struct platform_device *pdev)
 		pdata = dw_dma_parse_dt(pdev);
 
 	chip->dev = dev;
+	chip->id = pdev->id;
 	chip->pdata = pdata;
 
 	chip->clk = devm_clk_get(chip->dev, "hclk");
@@ -305,8 +306,12 @@ static int dw_resume_early(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_dma_chip *chip = platform_get_drvdata(pdev);
+	int ret;
 
-	clk_prepare_enable(chip->clk);
+	ret = clk_prepare_enable(chip->clk);
+	if (ret)
+		return ret;
+
 	return dw_dma_enable(chip);
 }
 

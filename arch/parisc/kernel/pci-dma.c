@@ -41,7 +41,7 @@ static unsigned long pcxl_used_bytes __read_mostly = 0;
 static unsigned long pcxl_used_pages __read_mostly = 0;
 
 extern unsigned long pcxl_dma_start; /* Start of pcxl dma mapping area */
-static spinlock_t   pcxl_res_lock;
+static DEFINE_SPINLOCK(pcxl_res_lock);
 static char    *pcxl_res_map;
 static int     pcxl_res_hint;
 static int     pcxl_res_size;
@@ -390,7 +390,6 @@ pcxl_dma_init(void)
 	if (pcxl_dma_start == 0)
 		return 0;
 
-	spin_lock_init(&pcxl_res_lock);
 	pcxl_res_size = PCXL_DMA_MAP_SIZE >> (PAGE_SHIFT + 3);
 	pcxl_res_hint = 0;
 	pcxl_res_map = (char *)__get_free_pages(GFP_KERNEL,
@@ -572,7 +571,7 @@ static void pa11_dma_sync_sg_for_device(struct device *dev, struct scatterlist *
 		flush_kernel_vmap_range(sg_virt(sg), sg->length);
 }
 
-struct dma_map_ops pcxl_dma_ops = {
+const struct dma_map_ops pcxl_dma_ops = {
 	.dma_supported =	pa11_dma_supported,
 	.alloc =		pa11_dma_alloc,
 	.free =			pa11_dma_free,
@@ -608,7 +607,7 @@ static void pcx_dma_free(struct device *dev, size_t size, void *vaddr,
 	return;
 }
 
-struct dma_map_ops pcx_dma_ops = {
+const struct dma_map_ops pcx_dma_ops = {
 	.dma_supported =	pa11_dma_supported,
 	.alloc =		pcx_dma_alloc,
 	.free =			pcx_dma_free,

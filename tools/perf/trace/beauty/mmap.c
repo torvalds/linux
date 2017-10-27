@@ -34,6 +34,9 @@ static size_t syscall_arg__scnprintf_mmap_flags(char *bf, size_t size,
 {
 	int printed = 0, flags = arg->val;
 
+	if (flags & MAP_ANONYMOUS)
+		arg->mask |= (1 << 4) | (1 << 5); /* Mask 4th ('fd') and 5th ('offset') args, ignored */
+
 #define	P_MMAP_FLAG(n) \
 	if (flags & MAP_##n) { \
 		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \

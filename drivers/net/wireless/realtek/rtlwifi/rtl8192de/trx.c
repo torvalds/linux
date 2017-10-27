@@ -503,9 +503,9 @@ bool rtl92de_rx_query_desc(struct ieee80211_hw *hw,	struct rtl_stats *stats,
 	if (!GET_RX_DESC_SWDEC(pdesc))
 		rx_status->flag |= RX_FLAG_DECRYPTED;
 	if (GET_RX_DESC_BW(pdesc))
-		rx_status->flag |= RX_FLAG_40MHZ;
+		rx_status->bw = RATE_INFO_BW_40;
 	if (GET_RX_DESC_RXHT(pdesc))
-		rx_status->flag |= RX_FLAG_HT;
+		rx_status->encoding = RX_ENC_HT;
 	rx_status->flag |= RX_FLAG_MACTIME_START;
 	if (stats->decrypted)
 		rx_status->flag |= RX_FLAG_DECRYPTED;
@@ -794,7 +794,7 @@ void rtl92de_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
 			SET_TX_DESC_NEXT_DESC_ADDRESS(pdesc, *(u32 *) val);
 			break;
 		default:
-			RT_ASSERT(false, "ERR txdesc :%d not process\n",
+			WARN_ONCE(true, "rtl8192de: ERR txdesc :%d not processed\n",
 				  desc_name);
 			break;
 		}
@@ -814,7 +814,7 @@ void rtl92de_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
 			SET_RX_DESC_EOR(pdesc, 1);
 			break;
 		default:
-			RT_ASSERT(false, "ERR rxdesc :%d not process\n",
+			WARN_ONCE(true, "rtl8192de: ERR rxdesc :%d not processed\n",
 				  desc_name);
 			break;
 		}
@@ -834,7 +834,7 @@ u32 rtl92de_get_desc(u8 *p_desc, bool istx, u8 desc_name)
 			ret = GET_TX_DESC_TX_BUFFER_ADDRESS(p_desc);
 			break;
 		default:
-			RT_ASSERT(false, "ERR txdesc :%d not process\n",
+			WARN_ONCE(true, "rtl8192de: ERR txdesc :%d not processed\n",
 				  desc_name);
 			break;
 		}
@@ -848,7 +848,7 @@ u32 rtl92de_get_desc(u8 *p_desc, bool istx, u8 desc_name)
 			ret = GET_RX_DESC_PKT_LEN(pdesc);
 			break;
 		default:
-			RT_ASSERT(false, "ERR rxdesc :%d not process\n",
+			WARN_ONCE(true, "rtl8192de: ERR rxdesc :%d not processed\n",
 				  desc_name);
 			break;
 		}

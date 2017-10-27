@@ -12,12 +12,12 @@
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/memblock.h>
-#include <asm/ppc-opcode.h>
 
+#include <asm/ppc-opcode.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
-
-static DEFINE_RAW_SPINLOCK(native_tlbie_lock);
+#include <asm/trace.h>
+#include <asm/cputhreads.h>
 
 #define RIC_FLUSH_TLB 0
 #define RIC_FLUSH_PWC 1
@@ -34,10 +34,9 @@ static inline void __tlbiel_pid(unsigned long pid, int set,
 	prs = 1; /* process scoped */
 	r = 1;   /* raidx format */
 
-	asm volatile("ptesync": : :"memory");
 	asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
-	asm volatile("ptesync": : :"memory");
+	trace_tlbie(0, 1, rb, rs, ric, prs, r);
 }
 
 /*
@@ -47,9 +46,25 @@ static inline void _tlbiel_pid(unsigned long pid, unsigned long ric)
 {
 	int set;
 
-	for (set = 0; set < POWER9_TLB_SETS_RADIX ; set++) {
-		__tlbiel_pid(pid, set, ric);
+	asm volatile("ptesync": : :"memory");
+
+	/*
+	 * Flush the first set of the TLB, and if we're doing a RIC_FLUSH_ALL,
+	 * also flush the entire Page Walk Cache.
+	 */
+	__tlbiel_pid(pid, 0, ric);
+
+	/* For PWC, only one flush is needed */
+	if (ric == RIC_FLUSH_PWC) {
+		asm volatile("ptesync": : :"memory");
+		return;
 	}
+
+	/* For the remaining sets, just flush the TLB */
+	for (set = 1; set < POWER9_TLB_SETS_RADIX ; set++)
+		__tlbiel_pid(pid, set, RIC_FLUSH_TLB);
+
+	asm volatile("ptesync": : :"memory");
 	asm volatile(PPC_INVALIDATE_ERAT "; isync" : : :"memory");
 }
 
@@ -66,6 +81,7 @@ static inline void _tlbie_pid(unsigned long pid, unsigned long ric)
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+	trace_tlbie(0, 0, rb, rs, ric, prs, r);
 }
 
 static inline void _tlbiel_va(unsigned long va, unsigned long pid,
@@ -83,6 +99,7 @@ static inline void _tlbiel_va(unsigned long va, unsigned long pid,
 	asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("ptesync": : :"memory");
+	trace_tlbie(0, 1, rb, rs, ric, prs, r);
 }
 
 static inline void _tlbie_va(unsigned long va, unsigned long pid,
@@ -100,6 +117,7 @@ static inline void _tlbie_va(unsigned long va, unsigned long pid,
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+	trace_tlbie(0, 0, rb, rs, ric, prs, r);
 }
 
 /*
@@ -120,25 +138,23 @@ void radix__local_flush_tlb_mm(struct mm_struct *mm)
 	preempt_disable();
 	pid = mm->context.id;
 	if (pid != MMU_NO_CONTEXT)
-		_tlbiel_pid(pid, RIC_FLUSH_ALL);
+		_tlbiel_pid(pid, RIC_FLUSH_TLB);
 	preempt_enable();
 }
 EXPORT_SYMBOL(radix__local_flush_tlb_mm);
 
-void radix__local_flush_tlb_pwc(struct mmu_gather *tlb, unsigned long addr)
+#ifndef CONFIG_SMP
+static void radix__local_flush_all_mm(struct mm_struct *mm)
 {
 	unsigned long pid;
-	struct mm_struct *mm = tlb->mm;
 
 	preempt_disable();
-
 	pid = mm->context.id;
 	if (pid != MMU_NO_CONTEXT)
-		_tlbiel_pid(pid, RIC_FLUSH_PWC);
-
+		_tlbiel_pid(pid, RIC_FLUSH_ALL);
 	preempt_enable();
 }
-EXPORT_SYMBOL(radix__local_flush_tlb_pwc);
+#endif /* CONFIG_SMP */
 
 void radix__local_flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
 				       int psize)
@@ -175,44 +191,35 @@ void radix__flush_tlb_mm(struct mm_struct *mm)
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		goto no_context;
 
-	if (!mm_is_thread_local(mm)) {
-		int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
-
-		if (lock_tlbie)
-			raw_spin_lock(&native_tlbie_lock);
-		_tlbie_pid(pid, RIC_FLUSH_ALL);
-		if (lock_tlbie)
-			raw_spin_unlock(&native_tlbie_lock);
-	} else
-		_tlbiel_pid(pid, RIC_FLUSH_ALL);
+	if (!mm_is_thread_local(mm))
+		_tlbie_pid(pid, RIC_FLUSH_TLB);
+	else
+		_tlbiel_pid(pid, RIC_FLUSH_TLB);
 no_context:
 	preempt_enable();
 }
 EXPORT_SYMBOL(radix__flush_tlb_mm);
 
-void radix__flush_tlb_pwc(struct mmu_gather *tlb, unsigned long addr)
+static void radix__flush_all_mm(struct mm_struct *mm)
 {
 	unsigned long pid;
-	struct mm_struct *mm = tlb->mm;
 
 	preempt_disable();
-
 	pid = mm->context.id;
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		goto no_context;
 
-	if (!mm_is_thread_local(mm)) {
-		int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
-
-		if (lock_tlbie)
-			raw_spin_lock(&native_tlbie_lock);
-		_tlbie_pid(pid, RIC_FLUSH_PWC);
-		if (lock_tlbie)
-			raw_spin_unlock(&native_tlbie_lock);
-	} else
-		_tlbiel_pid(pid, RIC_FLUSH_PWC);
+	if (!mm_is_thread_local(mm))
+		_tlbie_pid(pid, RIC_FLUSH_ALL);
+	else
+		_tlbiel_pid(pid, RIC_FLUSH_ALL);
 no_context:
 	preempt_enable();
+}
+
+void radix__flush_tlb_pwc(struct mmu_gather *tlb, unsigned long addr)
+{
+	tlb->need_flush_all = 1;
 }
 EXPORT_SYMBOL(radix__flush_tlb_pwc);
 
@@ -226,15 +233,9 @@ void radix__flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
 	pid = mm ? mm->context.id : 0;
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		goto bail;
-	if (!mm_is_thread_local(mm)) {
-		int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
-
-		if (lock_tlbie)
-			raw_spin_lock(&native_tlbie_lock);
+	if (!mm_is_thread_local(mm))
 		_tlbie_va(vmaddr, pid, ap, RIC_FLUSH_TLB);
-		if (lock_tlbie)
-			raw_spin_unlock(&native_tlbie_lock);
-	} else
+	else
 		_tlbiel_va(vmaddr, pid, ap, RIC_FLUSH_TLB);
 bail:
 	preempt_enable();
@@ -251,17 +252,13 @@ void radix__flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 }
 EXPORT_SYMBOL(radix__flush_tlb_page);
 
+#else /* CONFIG_SMP */
+#define radix__flush_all_mm radix__local_flush_all_mm
 #endif /* CONFIG_SMP */
 
 void radix__flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
-	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
-
-	if (lock_tlbie)
-		raw_spin_lock(&native_tlbie_lock);
 	_tlbie_pid(0, RIC_FLUSH_ALL);
-	if (lock_tlbie)
-		raw_spin_unlock(&native_tlbie_lock);
 }
 EXPORT_SYMBOL(radix__flush_tlb_kernel_range);
 
@@ -274,6 +271,7 @@ void radix__flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 
 {
 	struct mm_struct *mm = vma->vm_mm;
+
 	radix__flush_tlb_mm(mm);
 }
 EXPORT_SYMBOL(radix__flush_tlb_range);
@@ -305,7 +303,10 @@ void radix__tlb_flush(struct mmu_gather *tlb)
 	 */
 	if (psize != -1 && !tlb->fullmm && !tlb->need_flush_all)
 		radix__flush_tlb_range_psize(mm, tlb->start, tlb->end, psize);
-	else
+	else if (tlb->need_flush_all) {
+		tlb->need_flush_all = 0;
+		radix__flush_all_mm(mm);
+	} else
 		radix__flush_tlb_mm(mm);
 }
 
@@ -323,7 +324,6 @@ void radix__flush_tlb_range_psize(struct mm_struct *mm, unsigned long start,
 	unsigned long addr;
 	int local = mm_is_thread_local(mm);
 	unsigned long ap = mmu_get_ap(psize);
-	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 	unsigned long page_size = 1UL << mmu_psize_defs[psize].shift;
 
 
@@ -344,17 +344,49 @@ void radix__flush_tlb_range_psize(struct mm_struct *mm, unsigned long start,
 
 		if (local)
 			_tlbiel_va(addr, pid, ap, RIC_FLUSH_TLB);
-		else {
-			if (lock_tlbie)
-				raw_spin_lock(&native_tlbie_lock);
+		else
 			_tlbie_va(addr, pid, ap, RIC_FLUSH_TLB);
-			if (lock_tlbie)
-				raw_spin_unlock(&native_tlbie_lock);
-		}
 	}
 err_out:
 	preempt_enable();
 }
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+void radix__flush_tlb_collapsed_pmd(struct mm_struct *mm, unsigned long addr)
+{
+	int local = mm_is_thread_local(mm);
+	unsigned long ap = mmu_get_ap(mmu_virtual_psize);
+	unsigned long pid, end;
+
+
+	pid = mm ? mm->context.id : 0;
+	if (unlikely(pid == MMU_NO_CONTEXT))
+		goto no_context;
+
+	/* 4k page size, just blow the world */
+	if (PAGE_SIZE == 0x1000) {
+		radix__flush_all_mm(mm);
+		return;
+	}
+
+	/* Otherwise first do the PWC */
+	if (local)
+		_tlbiel_pid(pid, RIC_FLUSH_PWC);
+	else
+		_tlbie_pid(pid, RIC_FLUSH_PWC);
+
+	/* Then iterate the pages */
+	end = addr + HPAGE_PMD_SIZE;
+	for (; addr < end; addr += PAGE_SIZE) {
+		if (local)
+			_tlbiel_va(addr, pid, ap, RIC_FLUSH_TLB);
+		else
+			_tlbie_va(addr, pid, ap, RIC_FLUSH_TLB);
+	}
+no_context:
+	preempt_enable();
+}
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 void radix__flush_tlb_lpid_va(unsigned long lpid, unsigned long gpa,
 			      unsigned long page_size)
@@ -374,6 +406,7 @@ void radix__flush_tlb_lpid_va(unsigned long lpid, unsigned long gpa,
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+	trace_tlbie(lpid, 0, rb, rs, ric, prs, r);
 }
 EXPORT_SYMBOL(radix__flush_tlb_lpid_va);
 
@@ -391,6 +424,7 @@ void radix__flush_tlb_lpid(unsigned long lpid)
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+	trace_tlbie(lpid, 0, rb, rs, ric, prs, r);
 }
 EXPORT_SYMBOL(radix__flush_tlb_lpid);
 
@@ -417,12 +451,14 @@ void radix__flush_tlb_all(void)
 	 */
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(1), "i"(ric), "r"(rs) : "memory");
+	trace_tlbie(0, 0, rb, rs, ric, prs, r);
 	/*
 	 * now flush host entires by passing PRS = 0 and LPID == 0
 	 */
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(0) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+	trace_tlbie(0, 0, rb, 0, ric, prs, r);
 }
 
 void radix__flush_tlb_pte_p9_dd1(unsigned long old_pte, struct mm_struct *mm,
@@ -437,8 +473,49 @@ void radix__flush_tlb_pte_p9_dd1(unsigned long old_pte, struct mm_struct *mm,
 		return;
 	}
 
-	if (old_pte & _PAGE_LARGE)
+	if (old_pte & R_PAGE_LARGE)
 		radix__flush_tlb_page_psize(mm, address, MMU_PAGE_2M);
 	else
 		radix__flush_tlb_page_psize(mm, address, mmu_virtual_psize);
 }
+
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+extern void radix_kvm_prefetch_workaround(struct mm_struct *mm)
+{
+	unsigned int pid = mm->context.id;
+
+	if (unlikely(pid == MMU_NO_CONTEXT))
+		return;
+
+	/*
+	 * If this context hasn't run on that CPU before and KVM is
+	 * around, there's a slim chance that the guest on another
+	 * CPU just brought in obsolete translation into the TLB of
+	 * this CPU due to a bad prefetch using the guest PID on
+	 * the way into the hypervisor.
+	 *
+	 * We work around this here. If KVM is possible, we check if
+	 * any sibling thread is in KVM. If it is, the window may exist
+	 * and thus we flush that PID from the core.
+	 *
+	 * A potential future improvement would be to mark which PIDs
+	 * have never been used on the system and avoid it if the PID
+	 * is new and the process has no other cpumask bit set.
+	 */
+	if (cpu_has_feature(CPU_FTR_HVMODE) && radix_enabled()) {
+		int cpu = smp_processor_id();
+		int sib = cpu_first_thread_sibling(cpu);
+		bool flush = false;
+
+		for (; sib <= cpu_last_thread_sibling(cpu) && !flush; sib++) {
+			if (sib == cpu)
+				continue;
+			if (paca[sib].kvm_hstate.kvm_vcpu)
+				flush = true;
+		}
+		if (flush)
+			_tlbiel_pid(pid, RIC_FLUSH_ALL);
+	}
+}
+EXPORT_SYMBOL_GPL(radix_kvm_prefetch_workaround);
+#endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */

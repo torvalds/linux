@@ -58,7 +58,7 @@ static void mtk_drm_fb_destroy(struct drm_framebuffer *fb)
 
 	drm_framebuffer_cleanup(fb);
 
-	drm_gem_object_unreference_unlocked(mtk_fb->gem_obj);
+	drm_gem_object_put_unlocked(mtk_fb->gem_obj);
 
 	kfree(mtk_fb);
 }
@@ -82,7 +82,7 @@ static struct mtk_drm_fb *mtk_drm_framebuffer_init(struct drm_device *dev,
 	if (!mtk_fb)
 		return ERR_PTR(-ENOMEM);
 
-	drm_helper_mode_fill_fb_struct(&mtk_fb->base, mode);
+	drm_helper_mode_fill_fb_struct(dev, &mtk_fb->base, mode);
 
 	mtk_fb->gem_obj = obj;
 
@@ -160,6 +160,6 @@ struct drm_framebuffer *mtk_drm_mode_fb_create(struct drm_device *dev,
 	return &mtk_fb->base;
 
 unreference:
-	drm_gem_object_unreference_unlocked(gem);
+	drm_gem_object_put_unlocked(gem);
 	return ERR_PTR(ret);
 }

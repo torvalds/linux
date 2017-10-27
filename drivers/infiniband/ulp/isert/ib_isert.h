@@ -60,7 +60,7 @@
 
 #define ISER_RX_PAD_SIZE	(ISCSI_DEF_MAX_RECV_SEG_LEN + 4096 - \
 		(ISER_RX_PAYLOAD_SIZE + sizeof(u64) + sizeof(struct ib_sge) + \
-		 sizeof(struct ib_cqe)))
+		 sizeof(struct ib_cqe) + sizeof(bool)))
 
 #define ISCSI_ISER_SG_TABLESIZE		256
 
@@ -85,6 +85,7 @@ struct iser_rx_desc {
 	u64		dma_addr;
 	struct ib_sge	rx_sg;
 	struct ib_cqe	rx_cqe;
+	bool		in_use;
 	char		pad[ISER_RX_PAD_SIZE];
 } __packed;
 

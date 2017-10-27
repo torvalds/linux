@@ -1823,8 +1823,8 @@ static int vxge_poll_msix(struct napi_struct *napi, int budget)
 	vxge_hw_vpath_poll_rx(ring->handle);
 	pkts_processed = ring->pkts_processed;
 
-	if (ring->pkts_processed < budget_org) {
-		napi_complete(napi);
+	if (pkts_processed < budget_org) {
+		napi_complete_done(napi, pkts_processed);
 
 		/* Re enable the Rx interrupts for the vpath */
 		vxge_hw_channel_msix_unmask(
@@ -1863,7 +1863,7 @@ static int vxge_poll_inta(struct napi_struct *napi, int budget)
 	VXGE_COMPLETE_ALL_TX(vdev);
 
 	if (pkts_processed < budget_org) {
-		napi_complete(napi);
+		napi_complete_done(napi, pkts_processed);
 		/* Re enable the Rx interrupts for the ring */
 		vxge_hw_device_unmask_all(hldev);
 		vxge_hw_device_flush_io(hldev);
@@ -3111,7 +3111,7 @@ static int vxge_change_mtu(struct net_device *dev, int new_mtu)
  * @stats: pointer to struct rtnl_link_stats64
  *
  */
-static struct rtnl_link_stats64 *
+static void
 vxge_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *net_stats)
 {
 	struct vxgedev *vdev = netdev_priv(dev);
@@ -3150,8 +3150,6 @@ vxge_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *net_stats)
 		net_stats->tx_bytes += bytes;
 		net_stats->tx_errors += txstats->tx_errors;
 	}
-
-	return net_stats;
 }
 
 static enum vxge_hw_status vxge_timestamp_config(struct __vxge_hw_device *devh)
@@ -3220,6 +3218,7 @@ static int vxge_hwtstamp_set(struct vxgedev *vdev, void __user *data)
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_NTP_ALL:
 		if (vdev->devh->config.hwts_en != VXGE_HW_HWTS_ENABLE)
 			return -EFAULT;
 

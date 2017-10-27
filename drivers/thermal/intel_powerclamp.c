@@ -50,6 +50,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/sched/rt.h>
+#include <uapi/linux/sched/types.h>
 
 #include <asm/nmi.h>
 #include <asm/msr.h>
@@ -461,16 +462,13 @@ static void poll_pkg_cstate(struct work_struct *dummy)
 {
 	static u64 msr_last;
 	static u64 tsc_last;
-	static unsigned long jiffies_last;
 
 	u64 msr_now;
-	unsigned long jiffies_now;
 	u64 tsc_now;
 	u64 val64;
 
 	msr_now = pkg_state_counter();
 	tsc_now = rdtsc();
-	jiffies_now = jiffies;
 
 	/* calculate pkg cstate vs tsc ratio */
 	if (!msr_last || !tsc_last)
@@ -485,7 +483,6 @@ static void poll_pkg_cstate(struct work_struct *dummy)
 
 	/* update record */
 	msr_last = msr_now;
-	jiffies_last = jiffies_now;
 	tsc_last = tsc_now;
 
 	if (true == clamping)

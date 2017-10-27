@@ -1,5 +1,9 @@
-#ifndef _SCHED_SYSCTL_H
-#define _SCHED_SYSCTL_H
+#ifndef _LINUX_SCHED_SYSCTL_H
+#define _LINUX_SCHED_SYSCTL_H
+
+#include <linux/types.h>
+
+struct ctl_table;
 
 #ifdef CONFIG_DETECT_HUNG_TASK
 extern int	     sysctl_hung_task_check_count;
@@ -59,6 +63,7 @@ extern unsigned int sysctl_sched_cfs_bandwidth_slice;
 extern unsigned int sysctl_sched_autogroup_enabled;
 #endif
 
+extern int sysctl_sched_rr_timeslice;
 extern int sched_rr_timeslice;
 
 extern int sched_rr_handler(struct ctl_table *table, int write,
@@ -77,4 +82,4 @@ extern int sysctl_schedstats(struct ctl_table *table, int write,
 				 void __user *buffer, size_t *lenp,
 				 loff_t *ppos);
 
-#endif /* _SCHED_SYSCTL_H */
+#endif /* _LINUX_SCHED_SYSCTL_H */

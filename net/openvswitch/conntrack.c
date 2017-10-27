@@ -65,13 +65,18 @@ struct ovs_conntrack_info {
 	struct nf_conn *ct;
 	u8 commit : 1;
 	u8 nat : 3;                 /* enum ovs_ct_nat */
+	u8 force : 1;
+	u8 have_eventmask : 1;
 	u16 family;
+	u32 eventmask;              /* Mask of 1 << IPCT_*. */
 	struct md_mark mark;
 	struct md_labels labels;
 #ifdef CONFIG_NF_NAT_NEEDED
 	struct nf_nat_range range;  /* Only present for SRC NAT and DST NAT. */
 #endif
 };
+
+static bool labels_nonzero(const struct ovs_key_ct_labels *labels);
 
 static void __ovs_ct_free_action(struct ovs_conntrack_info *ct_info);
 
@@ -129,21 +134,33 @@ static u32 ovs_ct_get_mark(const struct nf_conn *ct)
 #endif
 }
 
+/* Guard against conntrack labels max size shrinking below 128 bits. */
+#if NF_CT_LABELS_MAX_SIZE < 16
+#error NF_CT_LABELS_MAX_SIZE must be at least 16 bytes
+#endif
+
 static void ovs_ct_get_labels(const struct nf_conn *ct,
 			      struct ovs_key_ct_labels *labels)
 {
 	struct nf_conn_labels *cl = ct ? nf_ct_labels_find(ct) : NULL;
 
-	if (cl) {
-		size_t len = sizeof(cl->bits);
-
-		if (len > OVS_CT_LABELS_LEN)
-			len = OVS_CT_LABELS_LEN;
-		else if (len < OVS_CT_LABELS_LEN)
-			memset(labels, 0, OVS_CT_LABELS_LEN);
-		memcpy(labels, cl->bits, len);
-	} else {
+	if (cl)
+		memcpy(labels, cl->bits, OVS_CT_LABELS_LEN);
+	else
 		memset(labels, 0, OVS_CT_LABELS_LEN);
+}
+
+static void __ovs_ct_update_key_orig_tp(struct sw_flow_key *key,
+					const struct nf_conntrack_tuple *orig,
+					u8 icmp_proto)
+{
+	key->ct_orig_proto = orig->dst.protonum;
+	if (orig->dst.protonum == icmp_proto) {
+		key->ct.orig_tp.src = htons(orig->dst.u.icmp.type);
+		key->ct.orig_tp.dst = htons(orig->dst.u.icmp.code);
+	} else {
+		key->ct.orig_tp.src = orig->src.u.all;
+		key->ct.orig_tp.dst = orig->dst.u.all;
 	}
 }
 
@@ -151,13 +168,42 @@ static void __ovs_ct_update_key(struct sw_flow_key *key, u8 state,
 				const struct nf_conntrack_zone *zone,
 				const struct nf_conn *ct)
 {
-	key->ct.state = state;
-	key->ct.zone = zone->id;
+	key->ct_state = state;
+	key->ct_zone = zone->id;
 	key->ct.mark = ovs_ct_get_mark(ct);
 	ovs_ct_get_labels(ct, &key->ct.labels);
+
+	if (ct) {
+		const struct nf_conntrack_tuple *orig;
+
+		/* Use the master if we have one. */
+		if (ct->master)
+			ct = ct->master;
+		orig = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
+
+		/* IP version must match with the master connection. */
+		if (key->eth.type == htons(ETH_P_IP) &&
+		    nf_ct_l3num(ct) == NFPROTO_IPV4) {
+			key->ipv4.ct_orig.src = orig->src.u3.ip;
+			key->ipv4.ct_orig.dst = orig->dst.u3.ip;
+			__ovs_ct_update_key_orig_tp(key, orig, IPPROTO_ICMP);
+			return;
+		} else if (key->eth.type == htons(ETH_P_IPV6) &&
+			   !sw_flow_key_is_nd(key) &&
+			   nf_ct_l3num(ct) == NFPROTO_IPV6) {
+			key->ipv6.ct_orig.src = orig->src.u3.in6;
+			key->ipv6.ct_orig.dst = orig->dst.u3.in6;
+			__ovs_ct_update_key_orig_tp(key, orig, NEXTHDR_ICMP);
+			return;
+		}
+	}
+	/* Clear 'ct_orig_proto' to mark the non-existence of conntrack
+	 * original direction key fields.
+	 */
+	key->ct_orig_proto = 0;
 }
 
-/* Update 'key' based on skb->nfct.  If 'post_ct' is true, then OVS has
+/* Update 'key' based on skb->_nfct.  If 'post_ct' is true, then OVS has
  * previously sent the packet to conntrack via the ct action.  If
  * 'keep_nat_flags' is true, the existing NAT flags retained, else they are
  * initialized from the connection status.
@@ -184,7 +230,7 @@ static void ovs_ct_update_key(const struct sk_buff *skb,
 		if (ct->master)
 			state |= OVS_CS_F_RELATED;
 		if (keep_nat_flags) {
-			state |= key->ct.state & OVS_CS_F_NAT_MASK;
+			state |= key->ct_state & OVS_CS_F_NAT_MASK;
 		} else {
 			if (ct->status & IPS_SRC_NAT)
 				state |= OVS_CS_F_SRC_NAT;
@@ -208,44 +254,69 @@ void ovs_ct_fill_key(const struct sk_buff *skb, struct sw_flow_key *key)
 	ovs_ct_update_key(skb, NULL, key, false, false);
 }
 
-int ovs_ct_put_key(const struct sw_flow_key *key, struct sk_buff *skb)
+#define IN6_ADDR_INITIALIZER(ADDR) \
+	{ (ADDR).s6_addr32[0], (ADDR).s6_addr32[1], \
+	  (ADDR).s6_addr32[2], (ADDR).s6_addr32[3] }
+
+int ovs_ct_put_key(const struct sw_flow_key *swkey,
+		   const struct sw_flow_key *output, struct sk_buff *skb)
 {
-	if (nla_put_u32(skb, OVS_KEY_ATTR_CT_STATE, key->ct.state))
+	if (nla_put_u32(skb, OVS_KEY_ATTR_CT_STATE, output->ct_state))
 		return -EMSGSIZE;
 
 	if (IS_ENABLED(CONFIG_NF_CONNTRACK_ZONES) &&
-	    nla_put_u16(skb, OVS_KEY_ATTR_CT_ZONE, key->ct.zone))
+	    nla_put_u16(skb, OVS_KEY_ATTR_CT_ZONE, output->ct_zone))
 		return -EMSGSIZE;
 
 	if (IS_ENABLED(CONFIG_NF_CONNTRACK_MARK) &&
-	    nla_put_u32(skb, OVS_KEY_ATTR_CT_MARK, key->ct.mark))
+	    nla_put_u32(skb, OVS_KEY_ATTR_CT_MARK, output->ct.mark))
 		return -EMSGSIZE;
 
 	if (IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS) &&
-	    nla_put(skb, OVS_KEY_ATTR_CT_LABELS, sizeof(key->ct.labels),
-		    &key->ct.labels))
+	    nla_put(skb, OVS_KEY_ATTR_CT_LABELS, sizeof(output->ct.labels),
+		    &output->ct.labels))
 		return -EMSGSIZE;
+
+	if (swkey->ct_orig_proto) {
+		if (swkey->eth.type == htons(ETH_P_IP)) {
+			struct ovs_key_ct_tuple_ipv4 orig = {
+				output->ipv4.ct_orig.src,
+				output->ipv4.ct_orig.dst,
+				output->ct.orig_tp.src,
+				output->ct.orig_tp.dst,
+				output->ct_orig_proto,
+			};
+			if (nla_put(skb, OVS_KEY_ATTR_CT_ORIG_TUPLE_IPV4,
+				    sizeof(orig), &orig))
+				return -EMSGSIZE;
+		} else if (swkey->eth.type == htons(ETH_P_IPV6)) {
+			struct ovs_key_ct_tuple_ipv6 orig = {
+				IN6_ADDR_INITIALIZER(output->ipv6.ct_orig.src),
+				IN6_ADDR_INITIALIZER(output->ipv6.ct_orig.dst),
+				output->ct.orig_tp.src,
+				output->ct.orig_tp.dst,
+				output->ct_orig_proto,
+			};
+			if (nla_put(skb, OVS_KEY_ATTR_CT_ORIG_TUPLE_IPV6,
+				    sizeof(orig), &orig))
+				return -EMSGSIZE;
+		}
+	}
 
 	return 0;
 }
 
-static int ovs_ct_set_mark(struct sk_buff *skb, struct sw_flow_key *key,
+static int ovs_ct_set_mark(struct nf_conn *ct, struct sw_flow_key *key,
 			   u32 ct_mark, u32 mask)
 {
 #if IS_ENABLED(CONFIG_NF_CONNTRACK_MARK)
-	enum ip_conntrack_info ctinfo;
-	struct nf_conn *ct;
 	u32 new_mark;
-
-	/* The connection could be invalid, in which case set_mark is no-op. */
-	ct = nf_ct_get(skb, &ctinfo);
-	if (!ct)
-		return 0;
 
 	new_mark = ct_mark | (ct->mark & ~(mask));
 	if (ct->mark != new_mark) {
 		ct->mark = new_mark;
-		nf_conntrack_event_cache(IPCT_MARK, ct);
+		if (nf_ct_is_confirmed(ct))
+			nf_conntrack_event_cache(IPCT_MARK, ct);
 		key->ct.mark = new_mark;
 	}
 
@@ -255,34 +326,83 @@ static int ovs_ct_set_mark(struct sk_buff *skb, struct sw_flow_key *key,
 #endif
 }
 
-static int ovs_ct_set_labels(struct sk_buff *skb, struct sw_flow_key *key,
-			     const struct ovs_key_ct_labels *labels,
-			     const struct ovs_key_ct_labels *mask)
+static struct nf_conn_labels *ovs_ct_get_conn_labels(struct nf_conn *ct)
 {
-	enum ip_conntrack_info ctinfo;
 	struct nf_conn_labels *cl;
-	struct nf_conn *ct;
-	int err;
-
-	/* The connection could be invalid, in which case set_label is no-op.*/
-	ct = nf_ct_get(skb, &ctinfo);
-	if (!ct)
-		return 0;
 
 	cl = nf_ct_labels_find(ct);
 	if (!cl) {
 		nf_ct_labels_ext_add(ct);
 		cl = nf_ct_labels_find(ct);
 	}
-	if (!cl || sizeof(cl->bits) < OVS_CT_LABELS_LEN)
+
+	return cl;
+}
+
+/* Initialize labels for a new, yet to be committed conntrack entry.  Note that
+ * since the new connection is not yet confirmed, and thus no-one else has
+ * access to it's labels, we simply write them over.
+ */
+static int ovs_ct_init_labels(struct nf_conn *ct, struct sw_flow_key *key,
+			      const struct ovs_key_ct_labels *labels,
+			      const struct ovs_key_ct_labels *mask)
+{
+	struct nf_conn_labels *cl, *master_cl;
+	bool have_mask = labels_nonzero(mask);
+
+	/* Inherit master's labels to the related connection? */
+	master_cl = ct->master ? nf_ct_labels_find(ct->master) : NULL;
+
+	if (!master_cl && !have_mask)
+		return 0;   /* Nothing to do. */
+
+	cl = ovs_ct_get_conn_labels(ct);
+	if (!cl)
 		return -ENOSPC;
 
-	err = nf_connlabels_replace(ct, (u32 *)labels, (u32 *)mask,
-				    OVS_CT_LABELS_LEN / sizeof(u32));
+	/* Inherit the master's labels, if any. */
+	if (master_cl)
+		*cl = *master_cl;
+
+	if (have_mask) {
+		u32 *dst = (u32 *)cl->bits;
+		int i;
+
+		for (i = 0; i < OVS_CT_LABELS_LEN_32; i++)
+			dst[i] = (dst[i] & ~mask->ct_labels_32[i]) |
+				(labels->ct_labels_32[i]
+				 & mask->ct_labels_32[i]);
+	}
+
+	/* Labels are included in the IPCTNL_MSG_CT_NEW event only if the
+	 * IPCT_LABEL bit is set in the event cache.
+	 */
+	nf_conntrack_event_cache(IPCT_LABEL, ct);
+
+	memcpy(&key->ct.labels, cl->bits, OVS_CT_LABELS_LEN);
+
+	return 0;
+}
+
+static int ovs_ct_set_labels(struct nf_conn *ct, struct sw_flow_key *key,
+			     const struct ovs_key_ct_labels *labels,
+			     const struct ovs_key_ct_labels *mask)
+{
+	struct nf_conn_labels *cl;
+	int err;
+
+	cl = ovs_ct_get_conn_labels(ct);
+	if (!cl)
+		return -ENOSPC;
+
+	err = nf_connlabels_replace(ct, labels->ct_labels_32,
+				    mask->ct_labels_32,
+				    OVS_CT_LABELS_LEN_32);
 	if (err)
 		return err;
 
-	ovs_ct_get_labels(ct, &key->ct.labels);
+	memcpy(&key->ct.labels, cl->bits, OVS_CT_LABELS_LEN);
+
 	return 0;
 }
 
@@ -367,7 +487,6 @@ static int handle_fragments(struct net *net, struct sw_flow_key *key,
 	} else if (key->eth.type == htons(ETH_P_IPV6)) {
 		enum ip6_defrag_users user = IP6_DEFRAG_CONNTRACK_IN + zone;
 
-		skb_orphan(skb);
 		memset(IP6CB(skb), 0, sizeof(struct inet6_skb_parm));
 		err = nf_ct_frag6_gather(net, skb, user);
 		if (err) {
@@ -397,10 +516,38 @@ ovs_ct_expect_find(struct net *net, const struct nf_conntrack_zone *zone,
 		   u16 proto, const struct sk_buff *skb)
 {
 	struct nf_conntrack_tuple tuple;
+	struct nf_conntrack_expect *exp;
 
 	if (!nf_ct_get_tuplepr(skb, skb_network_offset(skb), proto, net, &tuple))
 		return NULL;
-	return __nf_ct_expect_find(net, zone, &tuple);
+
+	exp = __nf_ct_expect_find(net, zone, &tuple);
+	if (exp) {
+		struct nf_conntrack_tuple_hash *h;
+
+		/* Delete existing conntrack entry, if it clashes with the
+		 * expectation.  This can happen since conntrack ALGs do not
+		 * check for clashes between (new) expectations and existing
+		 * conntrack entries.  nf_conntrack_in() will check the
+		 * expectations only if a conntrack entry can not be found,
+		 * which can lead to OVS finding the expectation (here) in the
+		 * init direction, but which will not be removed by the
+		 * nf_conntrack_in() call, if a matching conntrack entry is
+		 * found instead.  In this case all init direction packets
+		 * would be reported as new related packets, while reply
+		 * direction packets would be reported as un-related
+		 * established packets.
+		 */
+		h = nf_conntrack_find_get(net, zone, &tuple);
+		if (h) {
+			struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(h);
+
+			nf_ct_delete(ct, 0, 0);
+			nf_conntrack_put(&ct->ct_general);
+		}
+	}
+
+	return exp;
 }
 
 /* This replicates logic from nf_conntrack_core.c that is not exported. */
@@ -421,19 +568,19 @@ ovs_ct_get_info(const struct nf_conntrack_tuple_hash *h)
 
 /* Find an existing connection which this packet belongs to without
  * re-attributing statistics or modifying the connection state.  This allows an
- * skb->nfct lost due to an upcall to be recovered during actions execution.
+ * skb->_nfct lost due to an upcall to be recovered during actions execution.
  *
  * Must be called with rcu_read_lock.
  *
- * On success, populates skb->nfct and skb->nfctinfo, and returns the
- * connection.  Returns NULL if there is no existing entry.
+ * On success, populates skb->_nfct and returns the connection.  Returns NULL
+ * if there is no existing entry.
  */
 static struct nf_conn *
 ovs_ct_find_existing(struct net *net, const struct nf_conntrack_zone *zone,
-		     u8 l3num, struct sk_buff *skb)
+		     u8 l3num, struct sk_buff *skb, bool natted)
 {
-	struct nf_conntrack_l3proto *l3proto;
-	struct nf_conntrack_l4proto *l4proto;
+	const struct nf_conntrack_l3proto *l3proto;
+	const struct nf_conntrack_l4proto *l4proto;
 	struct nf_conntrack_tuple tuple;
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conn *ct;
@@ -453,6 +600,17 @@ ovs_ct_find_existing(struct net *net, const struct nf_conntrack_zone *zone,
 		return NULL;
 	}
 
+	/* Must invert the tuple if skb has been transformed by NAT. */
+	if (natted) {
+		struct nf_conntrack_tuple inverse;
+
+		if (!nf_ct_invert_tuple(&inverse, &tuple, l3proto, l4proto)) {
+			pr_debug("ovs_ct_find_existing: Inversion failed!\n");
+			return NULL;
+		}
+		tuple = inverse;
+	}
+
 	/* look for tuple match */
 	h = nf_conntrack_find_get(net, zone, &tuple);
 	if (!h)
@@ -460,12 +618,46 @@ ovs_ct_find_existing(struct net *net, const struct nf_conntrack_zone *zone,
 
 	ct = nf_ct_tuplehash_to_ctrack(h);
 
-	skb->nfct = &ct->ct_general;
-	skb->nfctinfo = ovs_ct_get_info(h);
+	/* Inverted packet tuple matches the reverse direction conntrack tuple,
+	 * select the other tuplehash to get the right 'ctinfo' bits for this
+	 * packet.
+	 */
+	if (natted)
+		h = &ct->tuplehash[!h->tuple.dst.dir];
+
+	nf_ct_set(skb, ct, ovs_ct_get_info(h));
 	return ct;
 }
 
-/* Determine whether skb->nfct is equal to the result of conntrack lookup. */
+static
+struct nf_conn *ovs_ct_executed(struct net *net,
+				const struct sw_flow_key *key,
+				const struct ovs_conntrack_info *info,
+				struct sk_buff *skb,
+				bool *ct_executed)
+{
+	struct nf_conn *ct = NULL;
+
+	/* If no ct, check if we have evidence that an existing conntrack entry
+	 * might be found for this skb.  This happens when we lose a skb->_nfct
+	 * due to an upcall, or if the direction is being forced.  If the
+	 * connection was not confirmed, it is not cached and needs to be run
+	 * through conntrack again.
+	 */
+	*ct_executed = (key->ct_state & OVS_CS_F_TRACKED) &&
+		       !(key->ct_state & OVS_CS_F_INVALID) &&
+		       (key->ct_zone == info->zone.id);
+
+	if (*ct_executed || (!key->ct_state && info->force)) {
+		ct = ovs_ct_find_existing(net, &info->zone, info->family, skb,
+					  !!(key->ct_state &
+					  OVS_CS_F_NAT_MASK));
+	}
+
+	return ct;
+}
+
+/* Determine whether skb->_nfct is equal to the result of conntrack lookup. */
 static bool skb_nfct_cached(struct net *net,
 			    const struct sw_flow_key *key,
 			    const struct ovs_conntrack_info *info,
@@ -473,19 +665,17 @@ static bool skb_nfct_cached(struct net *net,
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct;
+	bool ct_executed = true;
 
 	ct = nf_ct_get(skb, &ctinfo);
-	/* If no ct, check if we have evidence that an existing conntrack entry
-	 * might be found for this skb.  This happens when we lose a skb->nfct
-	 * due to an upcall.  If the connection was not confirmed, it is not
-	 * cached and needs to be run through conntrack again.
-	 */
-	if (!ct && key->ct.state & OVS_CS_F_TRACKED &&
-	    !(key->ct.state & OVS_CS_F_INVALID) &&
-	    key->ct.zone == info->zone.id)
-		ct = ovs_ct_find_existing(net, &info->zone, info->family, skb);
 	if (!ct)
+		ct = ovs_ct_executed(net, key, info, skb, &ct_executed);
+
+	if (ct)
+		nf_ct_get(skb, &ctinfo);
+	else
 		return false;
+
 	if (!net_eq(net, read_pnet(&ct->ct_net)))
 		return false;
 	if (!nf_ct_zone_equal_any(info->ct, nf_ct_zone(ct)))
@@ -497,8 +687,20 @@ static bool skb_nfct_cached(struct net *net,
 		if (help && rcu_access_pointer(help->helper) != info->helper)
 			return false;
 	}
+	/* Force conntrack entry direction to the current packet? */
+	if (info->force && CTINFO2DIR(ctinfo) != IP_CT_DIR_ORIGINAL) {
+		/* Delete the conntrack entry if confirmed, else just release
+		 * the reference.
+		 */
+		if (nf_ct_is_confirmed(ct))
+			nf_ct_delete(ct, 0, 0);
 
-	return true;
+		nf_conntrack_put(&ct->ct_general);
+		nf_ct_set(skb, NULL, 0);
+		return false;
+	}
+
+	return ct_executed;
 }
 
 #ifdef CONFIG_NF_NAT_NEEDED
@@ -591,7 +793,7 @@ static void ovs_nat_update_key(struct sw_flow_key *key,
 	if (maniptype == NF_NAT_MANIP_SRC) {
 		__be16 src;
 
-		key->ct.state |= OVS_CS_F_SRC_NAT;
+		key->ct_state |= OVS_CS_F_SRC_NAT;
 		if (key->eth.type == htons(ETH_P_IP))
 			key->ipv4.addr.src = ip_hdr(skb)->saddr;
 		else if (key->eth.type == htons(ETH_P_IPV6))
@@ -613,7 +815,7 @@ static void ovs_nat_update_key(struct sw_flow_key *key,
 	} else {
 		__be16 dst;
 
-		key->ct.state |= OVS_CS_F_DST_NAT;
+		key->ct_state |= OVS_CS_F_DST_NAT;
 		if (key->eth.type == htons(ETH_P_IP))
 			key->ipv4.addr.dst = ip_hdr(skb)->daddr;
 		else if (key->eth.type == htons(ETH_P_IPV6))
@@ -643,11 +845,6 @@ static int ovs_ct_nat(struct net *net, struct sw_flow_key *key,
 {
 	enum nf_nat_manip_type maniptype;
 	int err;
-
-	if (nf_ct_is_untracked(ct)) {
-		/* A NAT action may only be performed on tracked packets. */
-		return NF_ACCEPT;
-	}
 
 	/* Add NAT extension if not confirmed yet. */
 	if (!nf_ct_is_confirmed(ct) && !nf_ct_nat_ext_add(ct))
@@ -700,7 +897,7 @@ static int ovs_ct_nat(struct net *net, struct sw_flow_key *key,
 /* Pass 'skb' through conntrack in 'net', using zone configured in 'info', if
  * not done already.  Update key with new CT state after passing the packet
  * through conntrack.
- * Note that if the packet is deemed invalid by conntrack, skb->nfct will be
+ * Note that if the packet is deemed invalid by conntrack, skb->_nfct will be
  * set to NULL and 0 will be returned.
  */
 static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
@@ -722,11 +919,10 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 
 		/* Associate skb with specified zone. */
 		if (tmpl) {
-			if (skb->nfct)
-				nf_conntrack_put(skb->nfct);
+			if (skb_nfct(skb))
+				nf_conntrack_put(skb_nfct(skb));
 			nf_conntrack_get(&tmpl->ct_general);
-			skb->nfct = &tmpl->ct_general;
-			skb->nfctinfo = IP_CT_NEW;
+			nf_ct_set(skb, tmpl, IP_CT_NEW);
 		}
 
 		err = nf_conntrack_in(net, info->family,
@@ -738,7 +934,7 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 		 * NAT after the nf_conntrack_in() call.  We can actually clear
 		 * the whole state, as it will be re-initialized below.
 		 */
-		key->ct.state = 0;
+		key->ct_state = 0;
 
 		/* Update the key, but keep the NAT flags. */
 		ovs_ct_update_key(skb, info, key, true, true);
@@ -754,9 +950,9 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 		 *
 		 * NAT will be done only if the CT action has NAT, and only
 		 * once per packet (per zone), as guarded by the NAT bits in
-		 * the key->ct.state.
+		 * the key->ct_state.
 		 */
-		if (info->nat && !(key->ct.state & OVS_CS_F_NAT_MASK) &&
+		if (info->nat && !(key->ct_state & OVS_CS_F_NAT_MASK) &&
 		    (nf_ct_is_confirmed(ct) || info->commit) &&
 		    ovs_ct_nat(net, key, info, skb, ct, ctinfo) != NF_ACCEPT) {
 			return -EINVAL;
@@ -820,7 +1016,7 @@ static int ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 		if (err)
 			return err;
 
-		ct = (struct nf_conn *)skb->nfct;
+		ct = (struct nf_conn *)skb_nfct(skb);
 		if (ct)
 			nf_ct_deliver_cached_events(ct);
 	}
@@ -832,8 +1028,8 @@ static bool labels_nonzero(const struct ovs_key_ct_labels *labels)
 {
 	size_t i;
 
-	for (i = 0; i < sizeof(*labels); i++)
-		if (labels->ct_labels[i])
+	for (i = 0; i < OVS_CT_LABELS_LEN_32; i++)
+		if (labels->ct_labels_32[i])
 			return true;
 
 	return false;
@@ -844,24 +1040,50 @@ static int ovs_ct_commit(struct net *net, struct sw_flow_key *key,
 			 const struct ovs_conntrack_info *info,
 			 struct sk_buff *skb)
 {
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct;
 	int err;
 
 	err = __ovs_ct_lookup(net, key, info, skb);
 	if (err)
 		return err;
 
+	/* The connection could be invalid, in which case this is a no-op.*/
+	ct = nf_ct_get(skb, &ctinfo);
+	if (!ct)
+		return 0;
+
+	/* Set the conntrack event mask if given.  NEW and DELETE events have
+	 * their own groups, but the NFNLGRP_CONNTRACK_UPDATE group listener
+	 * typically would receive many kinds of updates.  Setting the event
+	 * mask allows those events to be filtered.  The set event mask will
+	 * remain in effect for the lifetime of the connection unless changed
+	 * by a further CT action with both the commit flag and the eventmask
+	 * option. */
+	if (info->have_eventmask) {
+		struct nf_conntrack_ecache *cache = nf_ct_ecache_find(ct);
+
+		if (cache)
+			cache->ctmask = info->eventmask;
+	}
+
 	/* Apply changes before confirming the connection so that the initial
 	 * conntrack NEW netlink event carries the values given in the CT
 	 * action.
 	 */
 	if (info->mark.mask) {
-		err = ovs_ct_set_mark(skb, key, info->mark.value,
+		err = ovs_ct_set_mark(ct, key, info->mark.value,
 				      info->mark.mask);
 		if (err)
 			return err;
 	}
-	if (labels_nonzero(&info->labels.mask)) {
-		err = ovs_ct_set_labels(skb, key, &info->labels.value,
+	if (!nf_ct_is_confirmed(ct)) {
+		err = ovs_ct_init_labels(ct, key, &info->labels.value,
+					 &info->labels.mask);
+		if (err)
+			return err;
+	} else if (labels_nonzero(&info->labels.mask)) {
+		err = ovs_ct_set_labels(ct, key, &info->labels.value,
 					&info->labels.mask);
 		if (err)
 			return err;
@@ -922,7 +1144,7 @@ static int ovs_ct_add_helper(struct ovs_conntrack_info *info, const char *name,
 
 	help = nf_ct_helper_ext_add(info->ct, helper, GFP_KERNEL);
 	if (!help) {
-		module_put(helper->me);
+		nf_conntrack_helper_put(helper);
 		return -ENOMEM;
 	}
 
@@ -958,15 +1180,13 @@ static int parse_nat(const struct nlattr *attr,
 		int type = nla_type(a);
 
 		if (type > OVS_NAT_ATTR_MAX) {
-			OVS_NLERR(log,
-				  "Unknown NAT attribute (type=%d, max=%d).\n",
+			OVS_NLERR(log, "Unknown NAT attribute (type=%d, max=%d)",
 				  type, OVS_NAT_ATTR_MAX);
 			return -EINVAL;
 		}
 
 		if (nla_len(a) != ovs_nat_attr_lens[type][ip_vers]) {
-			OVS_NLERR(log,
-				  "NAT attribute type %d has unexpected length (%d != %d).\n",
+			OVS_NLERR(log, "NAT attribute type %d has unexpected length (%d != %d)",
 				  type, nla_len(a),
 				  ovs_nat_attr_lens[type][ip_vers]);
 			return -EINVAL;
@@ -976,9 +1196,7 @@ static int parse_nat(const struct nlattr *attr,
 		case OVS_NAT_ATTR_SRC:
 		case OVS_NAT_ATTR_DST:
 			if (info->nat) {
-				OVS_NLERR(log,
-					  "Only one type of NAT may be specified.\n"
-					  );
+				OVS_NLERR(log, "Only one type of NAT may be specified");
 				return -ERANGE;
 			}
 			info->nat |= OVS_CT_NAT;
@@ -1023,13 +1241,13 @@ static int parse_nat(const struct nlattr *attr,
 			break;
 
 		default:
-			OVS_NLERR(log, "Unknown nat attribute (%d).\n", type);
+			OVS_NLERR(log, "Unknown nat attribute (%d)", type);
 			return -EINVAL;
 		}
 	}
 
 	if (rem > 0) {
-		OVS_NLERR(log, "NAT attribute has %d unknown bytes.\n", rem);
+		OVS_NLERR(log, "NAT attribute has %d unknown bytes", rem);
 		return -EINVAL;
 	}
 	if (!info->nat) {
@@ -1063,6 +1281,7 @@ static int parse_nat(const struct nlattr *attr,
 
 static const struct ovs_ct_len_tbl ovs_ct_attr_lens[OVS_CT_ATTR_MAX + 1] = {
 	[OVS_CT_ATTR_COMMIT]	= { .minlen = 0, .maxlen = 0 },
+	[OVS_CT_ATTR_FORCE_COMMIT]	= { .minlen = 0, .maxlen = 0 },
 	[OVS_CT_ATTR_ZONE]	= { .minlen = sizeof(u16),
 				    .maxlen = sizeof(u16) },
 	[OVS_CT_ATTR_MARK]	= { .minlen = sizeof(struct md_mark),
@@ -1075,6 +1294,8 @@ static const struct ovs_ct_len_tbl ovs_ct_attr_lens[OVS_CT_ATTR_MAX + 1] = {
 	/* NAT length is checked when parsing the nested attributes. */
 	[OVS_CT_ATTR_NAT]	= { .minlen = 0, .maxlen = INT_MAX },
 #endif
+	[OVS_CT_ATTR_EVENTMASK]	= { .minlen = sizeof(u32),
+				    .maxlen = sizeof(u32) },
 };
 
 static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
@@ -1085,8 +1306,8 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 
 	nla_for_each_nested(a, attr, rem) {
 		int type = nla_type(a);
-		int maxlen = ovs_ct_attr_lens[type].maxlen;
-		int minlen = ovs_ct_attr_lens[type].minlen;
+		int maxlen;
+		int minlen;
 
 		if (type > OVS_CT_ATTR_MAX) {
 			OVS_NLERR(log,
@@ -1094,6 +1315,9 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 				  type, OVS_CT_ATTR_MAX);
 			return -EINVAL;
 		}
+
+		maxlen = ovs_ct_attr_lens[type].maxlen;
+		minlen = ovs_ct_attr_lens[type].minlen;
 		if (nla_len(a) < minlen || nla_len(a) > maxlen) {
 			OVS_NLERR(log,
 				  "Conntrack attr type has unexpected length (type=%d, length=%d, expected=%d)",
@@ -1102,6 +1326,9 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 		}
 
 		switch (type) {
+		case OVS_CT_ATTR_FORCE_COMMIT:
+			info->force = true;
+			/* fall through. */
 		case OVS_CT_ATTR_COMMIT:
 			info->commit = true;
 			break;
@@ -1150,6 +1377,11 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 			break;
 		}
 #endif
+		case OVS_CT_ATTR_EVENTMASK:
+			info->have_eventmask = true;
+			info->eventmask = nla_get_u32(a);
+			break;
+
 		default:
 			OVS_NLERR(log, "Unknown conntrack attr (%d)",
 				  type);
@@ -1328,7 +1560,9 @@ int ovs_ct_action_to_attr(const struct ovs_conntrack_info *ct_info,
 	if (!start)
 		return -EMSGSIZE;
 
-	if (ct_info->commit && nla_put_flag(skb, OVS_CT_ATTR_COMMIT))
+	if (ct_info->commit && nla_put_flag(skb, ct_info->force
+					    ? OVS_CT_ATTR_FORCE_COMMIT
+					    : OVS_CT_ATTR_COMMIT))
 		return -EMSGSIZE;
 	if (IS_ENABLED(CONFIG_NF_CONNTRACK_ZONES) &&
 	    nla_put_u16(skb, OVS_CT_ATTR_ZONE, ct_info->zone.id))
@@ -1347,6 +1581,10 @@ int ovs_ct_action_to_attr(const struct ovs_conntrack_info *ct_info,
 				   ct_info->helper->name))
 			return -EMSGSIZE;
 	}
+	if (ct_info->have_eventmask &&
+	    nla_put_u32(skb, OVS_CT_ATTR_EVENTMASK, ct_info->eventmask))
+		return -EMSGSIZE;
+
 #ifdef CONFIG_NF_NAT_NEEDED
 	if (ct_info->nat && !ovs_ct_nat_to_attr(ct_info, skb))
 		return -EMSGSIZE;
@@ -1366,7 +1604,7 @@ void ovs_ct_free_action(const struct nlattr *a)
 static void __ovs_ct_free_action(struct ovs_conntrack_info *ct_info)
 {
 	if (ct_info->helper)
-		module_put(ct_info->helper->me);
+		nf_conntrack_helper_put(ct_info->helper);
 	if (ct_info->ct)
 		nf_ct_tmpl_free(ct_info->ct);
 }

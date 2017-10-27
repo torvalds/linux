@@ -9,6 +9,7 @@
  * to indicate a major problem.
  */
 #include <linux/debug_locks.h>
+#include <linux/sched/debug.h>
 #include <linux/interrupt.h>
 #include <linux/kmsg_dump.h>
 #include <linux/kallsyms.h>
@@ -25,6 +26,7 @@
 #include <linux/nmi.h>
 #include <linux/console.h>
 #include <linux/bug.h>
+#include <linux/ratelimit.h>
 
 #define PANIC_TIMER_STEP 100
 #define PANIC_BLINK_SPD 18
@@ -188,7 +190,7 @@ void panic(const char *fmt, ...)
 	 * Bypass the panic_cpu check and call __crash_kexec directly.
 	 */
 	if (!_crash_kexec_post_notifiers) {
-		printk_nmi_flush_on_panic();
+		printk_safe_flush_on_panic();
 		__crash_kexec(NULL);
 
 		/*
@@ -213,7 +215,7 @@ void panic(const char *fmt, ...)
 	atomic_notifier_call_chain(&panic_notifier_list, 0, buf);
 
 	/* Call flush even twice. It tries harder with a single online CPU */
-	printk_nmi_flush_on_panic();
+	printk_safe_flush_on_panic();
 	kmsg_dump(KMSG_DUMP_PANIC);
 
 	/*
@@ -273,7 +275,8 @@ void panic(const char *fmt, ...)
 		extern int stop_a_enabled;
 		/* Make sure the user can actually press Stop-A (L1-A) */
 		stop_a_enabled = 1;
-		pr_emerg("Press Stop-A (L1-A) to return to the boot prom\n");
+		pr_emerg("Press Stop-A (L1-A) from sun keyboard or send break\n"
+			 "twice on console to return to the boot prom\n");
 	}
 #endif
 #if defined(CONFIG_S390)
@@ -597,6 +600,17 @@ __visible void __stack_chk_fail(void)
 }
 EXPORT_SYMBOL(__stack_chk_fail);
 
+#endif
+
+#ifdef CONFIG_ARCH_HAS_REFCOUNT
+void refcount_error_report(struct pt_regs *regs, const char *err)
+{
+	WARN_RATELIMIT(1, "refcount_t %s at %pB in %s[%d], uid/euid: %u/%u\n",
+		err, (void *)instruction_pointer(regs),
+		current->comm, task_pid_nr(current),
+		from_kuid_munged(&init_user_ns, current_uid()),
+		from_kuid_munged(&init_user_ns, current_euid()));
+}
 #endif
 
 core_param(panic, panic_timeout, int, 0644);

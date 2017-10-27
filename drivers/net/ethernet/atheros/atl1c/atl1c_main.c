@@ -1892,7 +1892,7 @@ static int atl1c_clean(struct napi_struct *napi, int budget)
 
 	if (work_done < budget) {
 quit_polling:
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		adapter->hw.intr_mask |= ISR_RX_PKT;
 		AT_WRITE_REG(&adapter->hw, REG_IMR, adapter->hw.intr_mask);
 	}
@@ -2252,7 +2252,7 @@ static netdev_tx_t atl1c_xmit_frame(struct sk_buff *skb,
 
 	if (atl1c_tx_map(adapter, skb, tpd, type) < 0) {
 		netif_info(adapter, tx_done, adapter->netdev,
-			   "tx-skb droppted due to dma error\n");
+			   "tx-skb dropped due to dma error\n");
 		/* roll back tpd/buffer */
 		atl1c_tx_rollback(adapter, tpd, type);
 		dev_kfree_skb_any(skb);

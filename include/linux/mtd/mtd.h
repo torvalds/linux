@@ -24,6 +24,7 @@
 #include <linux/uio.h>
 #include <linux/notifier.h>
 #include <linux/device.h>
+#include <linux/of.h>
 
 #include <mtd/mtd-abi.h>
 
@@ -205,6 +206,15 @@ struct mtd_pairing_scheme {
 
 struct module;	/* only needed for owner field in mtd_info */
 
+/**
+ * struct mtd_debug_info - debugging information for an MTD device.
+ *
+ * @dfs_dir: direntry object of the MTD device debugfs directory
+ */
+struct mtd_debug_info {
+	struct dentry *dfs_dir;
+};
+
 struct mtd_info {
 	u_char type;
 	uint32_t flags;
@@ -322,6 +332,7 @@ struct mtd_info {
 	int (*_block_isreserved) (struct mtd_info *mtd, loff_t ofs);
 	int (*_block_isbad) (struct mtd_info *mtd, loff_t ofs);
 	int (*_block_markbad) (struct mtd_info *mtd, loff_t ofs);
+	int (*_max_bad_blocks) (struct mtd_info *mtd, loff_t ofs, size_t len);
 	int (*_suspend) (struct mtd_info *mtd);
 	void (*_resume) (struct mtd_info *mtd);
 	void (*_reboot) (struct mtd_info *mtd);
@@ -331,11 +342,6 @@ struct mtd_info {
 	 */
 	int (*_get_device) (struct mtd_info *mtd);
 	void (*_put_device) (struct mtd_info *mtd);
-
-	/* Backing device capabilities for this device
-	 * - provides mmap capabilities
-	 */
-	struct backing_dev_info *backing_dev_info;
 
 	struct notifier_block reboot_notifier;  /* default mode before reboot */
 
@@ -349,6 +355,7 @@ struct mtd_info {
 	struct module *owner;
 	struct device dev;
 	int usecount;
+	struct mtd_debug_info dbg;
 };
 
 int mtd_ooblayout_ecc(struct mtd_info *mtd, int section,
@@ -385,16 +392,30 @@ static inline void mtd_set_of_node(struct mtd_info *mtd,
 				   struct device_node *np)
 {
 	mtd->dev.of_node = np;
+	if (!mtd->name)
+		of_property_read_string(np, "label", &mtd->name);
 }
 
 static inline struct device_node *mtd_get_of_node(struct mtd_info *mtd)
 {
-	return mtd->dev.of_node;
+	return dev_of_node(&mtd->dev);
 }
 
 static inline int mtd_oobavail(struct mtd_info *mtd, struct mtd_oob_ops *ops)
 {
 	return ops->mode == MTD_OPS_AUTO_OOB ? mtd->oobavail : mtd->oobsize;
+}
+
+static inline int mtd_max_bad_blocks(struct mtd_info *mtd,
+				     loff_t ofs, size_t len)
+{
+	if (!mtd->_max_bad_blocks)
+		return -ENOTSUPP;
+
+	if (mtd->size < (len + ofs) || ofs < 0)
+		return -EINVAL;
+
+	return mtd->_max_bad_blocks(mtd, ofs, len);
 }
 
 int mtd_wunit_to_pairing_info(struct mtd_info *mtd, int wunit,

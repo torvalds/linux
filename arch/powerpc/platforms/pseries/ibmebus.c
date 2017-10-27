@@ -136,7 +136,7 @@ static u64 ibmebus_dma_get_required_mask(struct device *dev)
 	return DMA_BIT_MASK(64);
 }
 
-static struct dma_map_ops ibmebus_dma_ops = {
+static const struct dma_map_ops ibmebus_dma_ops = {
 	.alloc              = ibmebus_alloc_coherent,
 	.free               = ibmebus_free_coherent,
 	.map_sg             = ibmebus_map_sg,
@@ -150,8 +150,7 @@ static struct dma_map_ops ibmebus_dma_ops = {
 static int ibmebus_match_path(struct device *dev, void *data)
 {
 	struct device_node *dn = to_platform_device(dev)->dev.of_node;
-	return (dn->full_name &&
-		(strcasecmp((char *)data, dn->full_name) == 0));
+	return (of_find_node_by_path(data) == dn);
 }
 
 static int ibmebus_match_node(struct device *dev, void *data)
@@ -169,7 +168,7 @@ static int ibmebus_create_device(struct device_node *dn)
 		return -ENOMEM;
 
 	dev->dev.bus = &ibmebus_bus_type;
-	dev->dev.archdata.dma_ops = &ibmebus_dma_ops;
+	dev->dev.dma_ops = &ibmebus_dma_ops;
 
 	ret = of_device_add(dev);
 	if (ret)
@@ -395,8 +394,9 @@ static ssize_t devspec_show(struct device *dev,
 	struct platform_device *ofdev;
 
 	ofdev = to_platform_device(dev);
-	return sprintf(buf, "%s\n", ofdev->dev.of_node->full_name);
+	return sprintf(buf, "%pOF\n", ofdev->dev.of_node);
 }
+static DEVICE_ATTR_RO(devspec);
 
 static ssize_t name_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -406,22 +406,22 @@ static ssize_t name_show(struct device *dev,
 	ofdev = to_platform_device(dev);
 	return sprintf(buf, "%s\n", ofdev->dev.of_node->name);
 }
+static DEVICE_ATTR_RO(name);
 
 static ssize_t modalias_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	ssize_t len = of_device_get_modalias(dev, buf, PAGE_SIZE - 2);
-	buf[len] = '\n';
-	buf[len+1] = 0;
-	return len+1;
+	return of_device_modalias(dev, buf, PAGE_SIZE);
 }
+static DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute ibmebus_bus_device_attrs[] = {
-	__ATTR_RO(devspec),
-	__ATTR_RO(name),
-	__ATTR_RO(modalias),
-	__ATTR_NULL
+static struct attribute *ibmebus_bus_device_attrs[] = {
+	&dev_attr_devspec.attr,
+	&dev_attr_name.attr,
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(ibmebus_bus_device);
 
 struct bus_type ibmebus_bus_type = {
 	.name      = "ibmebus",
@@ -431,7 +431,7 @@ struct bus_type ibmebus_bus_type = {
 	.probe     = ibmebus_bus_device_probe,
 	.remove    = ibmebus_bus_device_remove,
 	.shutdown  = ibmebus_bus_device_shutdown,
-	.dev_attrs = ibmebus_bus_device_attrs,
+	.dev_groups = ibmebus_bus_device_groups,
 };
 EXPORT_SYMBOL(ibmebus_bus_type);
 

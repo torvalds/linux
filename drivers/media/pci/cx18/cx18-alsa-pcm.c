@@ -16,11 +16,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- *  02111-1307  USA
  */
 
 #include <linux/init.h>
@@ -49,7 +44,7 @@ MODULE_PARM_DESC(pcm_debug, "enable debug messages for pcm");
 				  __func__, ##arg); 			\
 	} while (0)
 
-static struct snd_pcm_hardware snd_cx18_hw_capture = {
+static const struct snd_pcm_hardware snd_cx18_hw_capture = {
 	.info = SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_MMAP           |
 		SNDRV_PCM_INFO_INTERLEAVED    |
@@ -262,14 +257,16 @@ static int snd_cx18_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_cx18_card *cxsc = snd_pcm_substream_chip(substream);
 	unsigned long flags;
+	unsigned char *dma_area = NULL;
 
 	spin_lock_irqsave(&cxsc->slock, flags);
 	if (substream->runtime->dma_area) {
 		dprintk("freeing pcm capture region\n");
-		vfree(substream->runtime->dma_area);
+		dma_area = substream->runtime->dma_area;
 		substream->runtime->dma_area = NULL;
 	}
 	spin_unlock_irqrestore(&cxsc->slock, flags);
+	vfree(dma_area);
 
 	return 0;
 }

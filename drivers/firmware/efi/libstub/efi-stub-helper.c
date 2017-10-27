@@ -32,6 +32,18 @@
 
 static unsigned long __chunk_size = EFI_READ_CHUNK_SIZE;
 
+static int __section(.data) __nokaslr;
+static int __section(.data) __quiet;
+
+int __pure nokaslr(void)
+{
+	return __nokaslr;
+}
+int __pure is_quiet(void)
+{
+	return __quiet;
+}
+
 #define EFI_MMAP_NR_SLACK_SLOTS	8
 
 struct file_info {
@@ -193,7 +205,7 @@ again:
 		unsigned long m = (unsigned long)map;
 		u64 start, end;
 
-		desc = (efi_memory_desc_t *)(m + (i * desc_size));
+		desc = efi_early_memdesc_ptr(m, desc_size, i);
 		if (desc->type != EFI_CONVENTIONAL_MEMORY)
 			continue;
 
@@ -286,7 +298,7 @@ efi_status_t efi_low_alloc(efi_system_table_t *sys_table_arg,
 		unsigned long m = (unsigned long)map;
 		u64 start, end;
 
-		desc = (efi_memory_desc_t *)(m + (i * desc_size));
+		desc = efi_early_memdesc_ptr(m, desc_size, i);
 
 		if (desc->type != EFI_CONVENTIONAL_MEMORY)
 			continue;
@@ -338,6 +350,69 @@ void efi_free(efi_system_table_t *sys_table_arg, unsigned long size,
 	efi_call_early(free_pages, addr, nr_pages);
 }
 
+static efi_status_t efi_file_size(efi_system_table_t *sys_table_arg, void *__fh,
+				  efi_char16_t *filename_16, void **handle,
+				  u64 *file_sz)
+{
+	efi_file_handle_t *h, *fh = __fh;
+	efi_file_info_t *info;
+	efi_status_t status;
+	efi_guid_t info_guid = EFI_FILE_INFO_ID;
+	unsigned long info_sz;
+
+	status = efi_call_proto(efi_file_handle, open, fh, &h, filename_16,
+				EFI_FILE_MODE_READ, (u64)0);
+	if (status != EFI_SUCCESS) {
+		efi_printk(sys_table_arg, "Failed to open file: ");
+		efi_char16_printk(sys_table_arg, filename_16);
+		efi_printk(sys_table_arg, "\n");
+		return status;
+	}
+
+	*handle = h;
+
+	info_sz = 0;
+	status = efi_call_proto(efi_file_handle, get_info, h, &info_guid,
+				&info_sz, NULL);
+	if (status != EFI_BUFFER_TOO_SMALL) {
+		efi_printk(sys_table_arg, "Failed to get file info size\n");
+		return status;
+	}
+
+grow:
+	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
+				info_sz, (void **)&info);
+	if (status != EFI_SUCCESS) {
+		efi_printk(sys_table_arg, "Failed to alloc mem for file info\n");
+		return status;
+	}
+
+	status = efi_call_proto(efi_file_handle, get_info, h, &info_guid,
+				&info_sz, info);
+	if (status == EFI_BUFFER_TOO_SMALL) {
+		efi_call_early(free_pool, info);
+		goto grow;
+	}
+
+	*file_sz = info->file_size;
+	efi_call_early(free_pool, info);
+
+	if (status != EFI_SUCCESS)
+		efi_printk(sys_table_arg, "Failed to get initrd info\n");
+
+	return status;
+}
+
+static efi_status_t efi_file_read(void *handle, unsigned long *size, void *addr)
+{
+	return efi_call_proto(efi_file_handle, read, handle, size, addr);
+}
+
+static efi_status_t efi_file_close(void *handle)
+{
+	return efi_call_proto(efi_file_handle, close, handle);
+}
+
 /*
  * Parse the ASCII string 'cmdline' for EFI options, denoted by the efi=
  * option, e.g. efi=nochunk.
@@ -346,9 +421,17 @@ void efi_free(efi_system_table_t *sys_table_arg, unsigned long size,
  * environments, first in the early boot environment of the EFI boot
  * stub, and subsequently during the kernel boot.
  */
-efi_status_t efi_parse_options(char *cmdline)
+efi_status_t efi_parse_options(char const *cmdline)
 {
 	char *str;
+
+	str = strstr(cmdline, "nokaslr");
+	if (str == cmdline || (str && str > cmdline && *(str - 1) == ' '))
+		__nokaslr = 1;
+
+	str = strstr(cmdline, "quiet");
+	if (str == cmdline || (str && str > cmdline && *(str - 1) == ' '))
+		__quiet = 1;
 
 	/*
 	 * If no EFI parameters were specified on the cmdline we've got
@@ -365,14 +448,14 @@ efi_status_t efi_parse_options(char *cmdline)
 	 * Remember, because efi= is also used by the kernel we need to
 	 * skip over arguments we don't understand.
 	 */
-	while (*str) {
+	while (*str && *str != ' ') {
 		if (!strncmp(str, "nochunk", 7)) {
 			str += strlen("nochunk");
 			__chunk_size = -1UL;
 		}
 
 		/* Group words together, delimited by "," */
-		while (*str && *str != ',')
+		while (*str && *str != ' ' && *str != ',')
 			str++;
 
 		if (*str == ',')
@@ -523,7 +606,8 @@ efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 			size = files[j].size;
 			while (size) {
 				unsigned long chunksize;
-				if (size > __chunk_size)
+
+				if (IS_ENABLED(CONFIG_X86) && size > __chunk_size)
 					chunksize = __chunk_size;
 				else
 					chunksize = size;

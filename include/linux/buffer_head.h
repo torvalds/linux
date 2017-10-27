@@ -149,6 +149,7 @@ void buffer_check_dirty_writeback(struct page *page,
  */
 
 void mark_buffer_dirty(struct buffer_head *bh);
+void mark_buffer_write_io_error(struct buffer_head *bh);
 void init_buffer(struct buffer_head *, bh_end_io_t *, void *);
 void touch_buffer(struct buffer_head *bh);
 void set_bh_page(struct buffer_head *bh,
@@ -196,13 +197,13 @@ void ll_rw_block(int, int, int, struct buffer_head * bh[]);
 int sync_dirty_buffer(struct buffer_head *bh);
 int __sync_dirty_buffer(struct buffer_head *bh, int op_flags);
 void write_dirty_buffer(struct buffer_head *bh, int op_flags);
-int _submit_bh(int op, int op_flags, struct buffer_head *bh,
-	       unsigned long bio_flags);
 int submit_bh(int, int, struct buffer_head *);
 void write_boundary_block(struct block_device *bdev,
 			sector_t bblock, unsigned blocksize);
 int bh_uptodate_or_lock(struct buffer_head *bh);
 int bh_submit_read(struct buffer_head *bh);
+loff_t page_cache_seek_hole_data(struct inode *inode, loff_t offset,
+				 loff_t length, int whence);
 
 extern int buffer_heads_over_limit;
 
@@ -231,6 +232,7 @@ int generic_write_end(struct file *, struct address_space *,
 				loff_t, unsigned, unsigned,
 				struct page *, void *);
 void page_zero_new_buffers(struct page *page, unsigned from, unsigned to);
+void clean_page_buffers(struct page *page);
 int cont_write_begin(struct file *, struct address_space *, loff_t,
 			unsigned, unsigned, struct page **, void **,
 			get_block_t *, loff_t *);

@@ -26,10 +26,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include <linux/module.h>
@@ -420,7 +416,7 @@ static int fm_send_cmd(struct fmdev *fmdev, u8 fm_op, u16 type,	void *payload,
 	if (!test_bit(FM_FW_DW_INPROGRESS, &fmdev->flag) ||
 			test_bit(FM_INTTASK_RUNNING, &fmdev->flag)) {
 		/* Fill command header info */
-		hdr = (struct fm_cmd_msg_hdr *)skb_put(skb, FM_CMD_MSG_HDR_SIZE);
+		hdr = skb_put(skb, FM_CMD_MSG_HDR_SIZE);
 		hdr->hdr = FM_PKT_LOGICAL_CHAN_NUMBER;	/* 0x08 */
 
 		/* 3 (fm_opcode,rd_wr,dlen) + payload len) */
@@ -446,7 +442,7 @@ static int fm_send_cmd(struct fmdev *fmdev, u8 fm_op, u16 type,	void *payload,
 		fm_cb(skb)->fm_op = *((u8 *)payload + 2);
 	}
 	if (payload != NULL)
-		memcpy(skb_put(skb, payload_len), payload, payload_len);
+		skb_put_data(skb, payload, payload_len);
 
 	fm_cb(skb)->completion = wait_completion;
 	skb_queue_tail(&fmdev->tx_q, skb);
@@ -1554,9 +1550,8 @@ int fmc_prepare(struct fmdev *fmdev)
 	atomic_set(&fmdev->tx_cnt, 1);
 	fmdev->resp_comp = NULL;
 
-	init_timer(&fmdev->irq_info.timer);
-	fmdev->irq_info.timer.function = &int_timeout_handler;
-	fmdev->irq_info.timer.data = (unsigned long)fmdev;
+	setup_timer(&fmdev->irq_info.timer, &int_timeout_handler,
+		    (unsigned long)fmdev);
 	/*TODO: add FM_STIC_EVENT later */
 	fmdev->irq_info.mask = FM_MAL_EVENT;
 

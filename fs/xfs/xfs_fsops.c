@@ -352,12 +352,7 @@ xfs_growfs_data_private(
 			goto error0;
 		}
 
-		if (xfs_sb_version_hascrc(&mp->m_sb))
-			xfs_btree_init_block(mp, bp, XFS_ABTB_CRC_MAGIC, 0, 1,
-						agno, XFS_BTREE_CRC_BLOCKS);
-		else
-			xfs_btree_init_block(mp, bp, XFS_ABTB_MAGIC, 0, 1,
-						agno, 0);
+		xfs_btree_init_block(mp, bp, XFS_BTNUM_BNO, 0, 1, agno, 0);
 
 		arec = XFS_ALLOC_REC_ADDR(mp, XFS_BUF_TO_BLOCK(bp), 1);
 		arec->ar_startblock = cpu_to_be32(mp->m_ag_prealloc_blocks);
@@ -381,12 +376,7 @@ xfs_growfs_data_private(
 			goto error0;
 		}
 
-		if (xfs_sb_version_hascrc(&mp->m_sb))
-			xfs_btree_init_block(mp, bp, XFS_ABTC_CRC_MAGIC, 0, 1,
-						agno, XFS_BTREE_CRC_BLOCKS);
-		else
-			xfs_btree_init_block(mp, bp, XFS_ABTC_MAGIC, 0, 1,
-						agno, 0);
+		xfs_btree_init_block(mp, bp, XFS_BTNUM_CNT, 0, 1, agno, 0);
 
 		arec = XFS_ALLOC_REC_ADDR(mp, XFS_BUF_TO_BLOCK(bp), 1);
 		arec->ar_startblock = cpu_to_be32(mp->m_ag_prealloc_blocks);
@@ -413,8 +403,8 @@ xfs_growfs_data_private(
 				goto error0;
 			}
 
-			xfs_btree_init_block(mp, bp, XFS_RMAP_CRC_MAGIC, 0, 0,
-						agno, XFS_BTREE_CRC_BLOCKS);
+			xfs_btree_init_block(mp, bp, XFS_BTNUM_RMAP, 0, 0,
+						agno, 0);
 			block = XFS_BUF_TO_BLOCK(bp);
 
 
@@ -488,12 +478,7 @@ xfs_growfs_data_private(
 			goto error0;
 		}
 
-		if (xfs_sb_version_hascrc(&mp->m_sb))
-			xfs_btree_init_block(mp, bp, XFS_IBT_CRC_MAGIC, 0, 0,
-						agno, XFS_BTREE_CRC_BLOCKS);
-		else
-			xfs_btree_init_block(mp, bp, XFS_IBT_MAGIC, 0, 0,
-						agno, 0);
+		xfs_btree_init_block(mp, bp, XFS_BTNUM_INO , 0, 0, agno, 0);
 
 		error = xfs_bwrite(bp);
 		xfs_buf_relse(bp);
@@ -513,13 +498,8 @@ xfs_growfs_data_private(
 				goto error0;
 			}
 
-			if (xfs_sb_version_hascrc(&mp->m_sb))
-				xfs_btree_init_block(mp, bp, XFS_FIBT_CRC_MAGIC,
-						     0, 0, agno,
-						     XFS_BTREE_CRC_BLOCKS);
-			else
-				xfs_btree_init_block(mp, bp, XFS_FIBT_MAGIC, 0,
-						     0, agno, 0);
+			xfs_btree_init_block(mp, bp, XFS_BTNUM_FINO,
+						     0, 0, agno, 0);
 
 			error = xfs_bwrite(bp);
 			xfs_buf_relse(bp);
@@ -540,9 +520,8 @@ xfs_growfs_data_private(
 				goto error0;
 			}
 
-			xfs_btree_init_block(mp, bp, XFS_REFC_CRC_MAGIC,
-					     0, 0, agno,
-					     XFS_BTREE_CRC_BLOCKS);
+			xfs_btree_init_block(mp, bp, XFS_BTNUM_REFC,
+					     0, 0, agno, 0);
 
 			error = xfs_bwrite(bp);
 			xfs_buf_relse(bp);
@@ -623,7 +602,7 @@ xfs_growfs_data_private(
 	if (nagimax)
 		mp->m_maxagi = nagimax;
 	if (mp->m_sb.sb_imax_pct) {
-		__uint64_t icount = mp->m_sb.sb_dblocks * mp->m_sb.sb_imax_pct;
+		uint64_t icount = mp->m_sb.sb_dblocks * mp->m_sb.sb_imax_pct;
 		do_div(icount, 100);
 		mp->m_maxicount = icount << mp->m_sb.sb_inopblog;
 	} else
@@ -814,17 +793,17 @@ xfs_fs_counts(
 int
 xfs_reserve_blocks(
 	xfs_mount_t             *mp,
-	__uint64_t              *inval,
+	uint64_t              *inval,
 	xfs_fsop_resblks_t      *outval)
 {
-	__int64_t		lcounter, delta;
-	__int64_t		fdblks_delta = 0;
-	__uint64_t		request;
-	__int64_t		free;
+	int64_t			lcounter, delta;
+	int64_t			fdblks_delta = 0;
+	uint64_t		request;
+	int64_t			free;
 	int			error = 0;
 
 	/* If inval is null, report current values and return */
-	if (inval == (__uint64_t *)NULL) {
+	if (inval == (uint64_t *)NULL) {
 		if (!outval)
 			return -EINVAL;
 		outval->resblks = mp->m_resblks;
@@ -925,7 +904,7 @@ out:
 int
 xfs_fs_goingdown(
 	xfs_mount_t	*mp,
-	__uint32_t	inflags)
+	uint32_t	inflags)
 {
 	switch (inflags) {
 	case XFS_FSOP_GOING_FLAGS_DEFAULT: {

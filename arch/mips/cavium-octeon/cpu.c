@@ -10,7 +10,9 @@
 #include <linux/irqflags.h>
 #include <linux/notifier.h>
 #include <linux/prefetch.h>
+#include <linux/ptrace.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/cop2.h>
 #include <asm/current.h>

@@ -14,6 +14,9 @@
 #include <linux/hardirq.h>
 #include <linux/time.h>
 #include <linux/module.h>
+#include <linux/sched/signal.h>
+
+#include <linux/export.h>
 #include <asm/lowcore.h>
 #include <asm/smp.h>
 #include <asm/stp.h>
@@ -22,6 +25,8 @@
 #include <asm/crw.h>
 #include <asm/switch_to.h>
 #include <asm/ctl_reg.h>
+#include <asm/asm-offsets.h>
+#include <linux/kvm_host.h>
 
 struct mcck_struct {
 	unsigned int kill_task : 1;
@@ -103,6 +108,7 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 	int kill_task;
 	u64 zero;
 	void *fpt_save_area;
+	struct mcesa *mcesa;
 
 	kill_task = 0;
 	zero = 0;
@@ -115,6 +121,19 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 		if (!umode)
 			s390_handle_damage();
 		kill_task = 1;
+	}
+	/* Validate control registers */
+	if (!mci.cr) {
+		/*
+		 * Control registers have unknown contents.
+		 * Can't recover and therefore stopping machine.
+		 */
+		s390_handle_damage();
+	} else {
+		asm volatile(
+			"	lctlg	0,15,0(%0)\n"
+			"	ptlb\n"
+			: : "a" (&S390_lowcore.cregs_save_area) : "memory");
 	}
 	if (!mci.fp) {
 		/*
@@ -149,6 +168,7 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 			     : : "Q" (S390_lowcore.fpt_creg_save_area));
 	}
 
+	mcesa = (struct mcesa *)(S390_lowcore.mcesad & MCESA_ORIGIN_MASK);
 	if (!MACHINE_HAS_VX) {
 		/* Validate floating point registers */
 		asm volatile(
@@ -193,8 +213,8 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 			"	la	1,%0\n"
 			"	.word	0xe70f,0x1000,0x0036\n"	/* vlm 0,15,0(1) */
 			"	.word	0xe70f,0x1100,0x0c36\n"	/* vlm 16,31,256(1) */
-			: : "Q" (*(struct vx_array *)
-				 &S390_lowcore.vector_save_area) : "1");
+			: : "Q" (*(struct vx_array *) mcesa->vector_save_area)
+			: "1");
 		__ctl_load(S390_lowcore.cregs_save_area[0], 0, 0);
 	}
 	/* Validate access registers */
@@ -208,17 +228,18 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 		 */
 		kill_task = 1;
 	}
-	/* Validate control registers */
-	if (!mci.cr) {
-		/*
-		 * Control registers have unknown contents.
-		 * Can't recover and therefore stopping machine.
-		 */
-		s390_handle_damage();
-	} else {
-		asm volatile(
-			"	lctlg	0,15,0(%0)"
-			: : "a" (&S390_lowcore.cregs_save_area) : "memory");
+	/* Validate guarded storage registers */
+	if (MACHINE_HAS_GS && (S390_lowcore.cregs_save_area[2] & (1UL << 4))) {
+		if (!mci.gs)
+			/*
+			 * Guarded storage register can't be restored and
+			 * the current processes uses guarded storage.
+			 * It has to be terminated.
+			 */
+			kill_task = 1;
+		else
+			load_gs_cb((struct gs_cb *)
+				   mcesa->guarded_storage_save_area);
 	}
 	/*
 	 * We don't even try to validate the TOD register, since we simply
@@ -255,11 +276,38 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 	return kill_task;
 }
 
+/*
+ * Backup the guest's machine check info to its description block
+ */
+static void notrace s390_backup_mcck_info(struct pt_regs *regs)
+{
+	struct mcck_volatile_info *mcck_backup;
+	struct sie_page *sie_page;
+
+	/* r14 contains the sie block, which was set in sie64a */
+	struct kvm_s390_sie_block *sie_block =
+			(struct kvm_s390_sie_block *) regs->gprs[14];
+
+	if (sie_block == NULL)
+		/* Something's seriously wrong, stop system. */
+		s390_handle_damage();
+
+	sie_page = container_of(sie_block, struct sie_page, sie_block);
+	mcck_backup = &sie_page->mcck_info;
+	mcck_backup->mcic = S390_lowcore.mcck_interruption_code &
+				~(MCCK_CODE_CP | MCCK_CODE_EXT_DAMAGE);
+	mcck_backup->ext_damage_code = S390_lowcore.external_damage_code;
+	mcck_backup->failing_storage_address
+			= S390_lowcore.failing_storage_address;
+}
+
 #define MAX_IPD_COUNT	29
 #define MAX_IPD_TIME	(5 * 60 * USEC_PER_SEC) /* 5 minutes */
 
 #define ED_STP_ISLAND	6	/* External damage STP island check */
 #define ED_STP_SYNC	7	/* External damage STP sync check */
+
+#define MCCK_CODE_NO_GUEST	(MCCK_CODE_CP | MCCK_CODE_EXT_DAMAGE)
 
 /*
  * machine check handler.
@@ -272,6 +320,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	struct mcck_struct *mcck;
 	unsigned long long tmp;
 	union mci mci;
+	unsigned long mcck_dam_code;
 
 	nmi_enter();
 	inc_irq_stat(NMI_NMI);
@@ -282,7 +331,13 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 		/* System damage -> stopping machine */
 		s390_handle_damage();
 	}
-	if (mci.pd) {
+
+	/*
+	 * Reinject the instruction processing damages' machine checks
+	 * including Delayed Access Exception into the guest
+	 * instead of damaging the host if they happen in the guest.
+	 */
+	if (mci.pd && !test_cpu_flag(CIF_MCCK_GUEST)) {
 		if (mci.b) {
 			/* Processing backup -> verify if we can survive this */
 			u64 z_mcic, o_mcic, t_mcic;
@@ -326,6 +381,14 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 		mcck->mcck_code = mci.val;
 		set_cpu_flag(CIF_MCCK_PENDING);
 	}
+
+	/*
+	 * Backup the machine check's info if it happens when the guest
+	 * is running.
+	 */
+	if (test_cpu_flag(CIF_MCCK_GUEST))
+		s390_backup_mcck_info(regs);
+
 	if (mci.cd) {
 		/* Timing facility damage */
 		s390_handle_damage();
@@ -339,15 +402,22 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 		if (mcck->stp_queue)
 			set_cpu_flag(CIF_MCCK_PENDING);
 	}
-	if (mci.se)
-		/* Storage error uncorrected */
-		s390_handle_damage();
-	if (mci.ke)
-		/* Storage key-error uncorrected */
-		s390_handle_damage();
-	if (mci.ds && mci.fa)
-		/* Storage degradation */
-		s390_handle_damage();
+
+	/*
+	 * Reinject storage related machine checks into the guest if they
+	 * happen when the guest is running.
+	 */
+	if (!test_cpu_flag(CIF_MCCK_GUEST)) {
+		if (mci.se)
+			/* Storage error uncorrected */
+			s390_handle_damage();
+		if (mci.ke)
+			/* Storage key-error uncorrected */
+			s390_handle_damage();
+		if (mci.ds && mci.fa)
+			/* Storage degradation */
+			s390_handle_damage();
+	}
 	if (mci.cp) {
 		/* Channel report word pending */
 		mcck->channel_report = 1;
@@ -358,6 +428,19 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 		mcck->warning = 1;
 		set_cpu_flag(CIF_MCCK_PENDING);
 	}
+
+	/*
+	 * If there are only Channel Report Pending and External Damage
+	 * machine checks, they will not be reinjected into the guest
+	 * because they refer to host conditions only.
+	 */
+	mcck_dam_code = (mci.val & MCIC_SUBCLASS_MASK);
+	if (test_cpu_flag(CIF_MCCK_GUEST) &&
+	(mcck_dam_code & MCCK_CODE_NO_GUEST) != mcck_dam_code) {
+		/* Set exit reason code for host's later handling */
+		*((long *)(regs->gprs[15] + __SF_SIE_REASON)) = -EINTR;
+	}
+	clear_cpu_flag(CIF_MCCK_GUEST);
 	nmi_exit();
 }
 

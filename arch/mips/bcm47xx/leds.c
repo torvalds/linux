@@ -373,6 +373,60 @@ bcm47xx_leds_linksys_wrtsl54gs[] __initconst = {
 /* Luxul */
 
 static const struct gpio_led
+bcm47xx_leds_luxul_abr_4400_v1[] __initconst = {
+	BCM47XX_GPIO_LED(12, "green", "usb", 0, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED_TRIGGER(15, "green", "status", 0, "timer"),
+};
+
+static const struct gpio_led
+bcm47xx_leds_luxul_xap_310_v1[] __initconst = {
+	BCM47XX_GPIO_LED_TRIGGER(6, "green", "status", 1, "timer"),
+};
+
+static const struct gpio_led
+bcm47xx_leds_luxul_xap_1210_v1[] __initconst = {
+	BCM47XX_GPIO_LED_TRIGGER(6, "green", "status", 1, "timer"),
+};
+
+static const struct gpio_led
+bcm47xx_leds_luxul_xap_1230_v1[] __initconst = {
+	BCM47XX_GPIO_LED(3, "blue", "2ghz", 0, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(4, "green", "bridge", 0, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED_TRIGGER(6, "green", "status", 1, "timer"),
+};
+
+static const struct gpio_led
+bcm47xx_leds_luxul_xap_1240_v1[] __initconst = {
+	BCM47XX_GPIO_LED(3, "blue", "2ghz", 0, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(4, "green", "bridge", 0, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED_TRIGGER(6, "green", "status", 1, "timer"),
+};
+
+static const struct gpio_led
+bcm47xx_leds_luxul_xap_1500_v1[] __initconst = {
+	BCM47XX_GPIO_LED_TRIGGER(13, "green", "status", 1, "timer"),
+};
+
+static const struct gpio_led
+bcm47xx_leds_luxul_xbr_4400_v1[] __initconst = {
+	BCM47XX_GPIO_LED(12, "green", "usb", 0, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED_TRIGGER(15, "green", "status", 0, "timer"),
+};
+
+static const struct gpio_led
+bcm47xx_leds_luxul_xvw_p30_v1[] __initconst = {
+	BCM47XX_GPIO_LED_TRIGGER(0, "blue", "status", 1, "timer"),
+	BCM47XX_GPIO_LED(1, "green", "link", 1, LEDS_GPIO_DEFSTATE_OFF),
+};
+
+static const struct gpio_led
+bcm47xx_leds_luxul_xwr_600_v1[] __initconst = {
+	BCM47XX_GPIO_LED(3, "green", "wps", 0, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED_TRIGGER(6, "green", "status", 1, "timer"),
+	BCM47XX_GPIO_LED(9, "green", "usb", 0, LEDS_GPIO_DEFSTATE_OFF),
+};
+
+static const struct gpio_led
 bcm47xx_leds_luxul_xwr_1750_v1[] __initconst = {
 	BCM47XX_GPIO_LED(5, "green", "5ghz", 0, LEDS_GPIO_DEFSTATE_OFF),
 	BCM47XX_GPIO_LED(12, "green", "usb", 0, LEDS_GPIO_DEFSTATE_OFF),
@@ -633,6 +687,33 @@ void __init bcm47xx_leds_register(void)
 		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrtsl54gs);
 		break;
 
+	case BCM47XX_BOARD_LUXUL_ABR_4400_V1:
+		bcm47xx_set_pdata(bcm47xx_leds_luxul_abr_4400_v1);
+		break;
+	case BCM47XX_BOARD_LUXUL_XAP_310_V1:
+		bcm47xx_set_pdata(bcm47xx_leds_luxul_xap_310_v1);
+		break;
+	case BCM47XX_BOARD_LUXUL_XAP_1210_V1:
+		bcm47xx_set_pdata(bcm47xx_leds_luxul_xap_1210_v1);
+		break;
+	case BCM47XX_BOARD_LUXUL_XAP_1230_V1:
+		bcm47xx_set_pdata(bcm47xx_leds_luxul_xap_1230_v1);
+		break;
+	case BCM47XX_BOARD_LUXUL_XAP_1240_V1:
+		bcm47xx_set_pdata(bcm47xx_leds_luxul_xap_1240_v1);
+		break;
+	case BCM47XX_BOARD_LUXUL_XAP_1500_V1:
+		bcm47xx_set_pdata(bcm47xx_leds_luxul_xap_1500_v1);
+		break;
+	case BCM47XX_BOARD_LUXUL_XBR_4400_V1:
+		bcm47xx_set_pdata(bcm47xx_leds_luxul_xbr_4400_v1);
+		break;
+	case BCM47XX_BOARD_LUXUL_XVW_P30_V1:
+		bcm47xx_set_pdata(bcm47xx_leds_luxul_xvw_p30_v1);
+		break;
+	case BCM47XX_BOARD_LUXUL_XWR_600_V1:
+		bcm47xx_set_pdata(bcm47xx_leds_luxul_xwr_600_v1);
+		break;
 	case BCM47XX_BOARD_LUXUL_XWR_1750_V1:
 		bcm47xx_set_pdata(bcm47xx_leds_luxul_xwr_1750_v1);
 		break;

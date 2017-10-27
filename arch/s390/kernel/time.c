@@ -16,8 +16,9 @@
 
 #include <linux/kernel_stat.h>
 #include <linux/errno.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/string.h>
@@ -50,8 +51,15 @@
 #include <asm/cio.h>
 #include "entry.h"
 
-u64 sched_clock_base_cc = -1;	/* Force to data section. */
-EXPORT_SYMBOL_GPL(sched_clock_base_cc);
+unsigned char tod_clock_base[16] __aligned(8) = {
+	/* Force to data section. */
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+};
+EXPORT_SYMBOL_GPL(tod_clock_base);
+
+u64 clock_comparator_max = -1ULL;
+EXPORT_SYMBOL_GPL(clock_comparator_max);
 
 static DEFINE_PER_CPU(struct clock_event_device, comparators);
 
@@ -74,7 +82,7 @@ void __init time_early_init(void)
 	struct ptff_qui qui;
 
 	/* Initialize TOD steering parameters */
-	tod_steering_end = sched_clock_base_cc;
+	tod_steering_end = *(unsigned long long *) &tod_clock_base[1];
 	vdso_data->ts_end = tod_steering_end;
 
 	if (!test_facility(28))
@@ -110,23 +118,27 @@ unsigned long long monotonic_clock(void)
 }
 EXPORT_SYMBOL(monotonic_clock);
 
-void tod_to_timeval(__u64 todval, struct timespec64 *xt)
+static void ext_to_timespec64(unsigned char *clk, struct timespec64 *xt)
 {
-	unsigned long long sec;
+	unsigned long long high, low, rem, sec, nsec;
 
-	sec = todval >> 12;
-	do_div(sec, 1000000);
+	/* Split extendnd TOD clock to micro-seconds and sub-micro-seconds */
+	high = (*(unsigned long long *) clk) >> 4;
+	low = (*(unsigned long long *)&clk[7]) << 4;
+	/* Calculate seconds and nano-seconds */
+	sec = high;
+	rem = do_div(sec, 1000000);
+	nsec = (((low >> 32) + (rem << 32)) * 1000) >> 32;
+
 	xt->tv_sec = sec;
-	todval -= (sec * 1000000) << 12;
-	xt->tv_nsec = ((todval * 1000) >> 12);
+	xt->tv_nsec = nsec;
 }
-EXPORT_SYMBOL(tod_to_timeval);
 
 void clock_comparator_work(void)
 {
 	struct clock_event_device *cd;
 
-	S390_lowcore.clock_comparator = -1ULL;
+	S390_lowcore.clock_comparator = clock_comparator_max;
 	cd = this_cpu_ptr(&comparators);
 	cd->event_handler(cd);
 }
@@ -148,7 +160,7 @@ void init_cpu_timer(void)
 	struct clock_event_device *cd;
 	int cpu;
 
-	S390_lowcore.clock_comparator = -1ULL;
+	S390_lowcore.clock_comparator = clock_comparator_max;
 	set_clock_comparator(S390_lowcore.clock_comparator);
 
 	cpu = smp_processor_id();
@@ -158,7 +170,9 @@ void init_cpu_timer(void)
 	cd->mult		= 16777;
 	cd->shift		= 12;
 	cd->min_delta_ns	= 1;
+	cd->min_delta_ticks	= 1;
 	cd->max_delta_ns	= LONG_MAX;
+	cd->max_delta_ticks	= ULONG_MAX;
 	cd->rating		= 400;
 	cd->cpumask		= cpumask_of(cpu);
 	cd->set_next_event	= s390_next_event;
@@ -177,7 +191,7 @@ static void clock_comparator_interrupt(struct ext_code ext_code,
 				       unsigned long param64)
 {
 	inc_irq_stat(IRQEXT_CLK);
-	if (S390_lowcore.clock_comparator == -1ULL)
+	if (S390_lowcore.clock_comparator == clock_comparator_max)
 		set_clock_comparator(S390_lowcore.clock_comparator);
 }
 
@@ -195,18 +209,28 @@ static void stp_reset(void);
 
 void read_persistent_clock64(struct timespec64 *ts)
 {
-	__u64 clock;
+	unsigned char clk[STORE_CLOCK_EXT_SIZE];
+	__u64 delta;
 
-	clock = get_tod_clock() - initial_leap_seconds;
-	tod_to_timeval(clock - TOD_UNIX_EPOCH, ts);
+	delta = initial_leap_seconds + TOD_UNIX_EPOCH;
+	get_tod_clock_ext(clk);
+	*(__u64 *) &clk[1] -= delta;
+	if (*(__u64 *) &clk[1] > delta)
+		clk[0]--;
+	ext_to_timespec64(clk, ts);
 }
 
 void read_boot_clock64(struct timespec64 *ts)
 {
-	__u64 clock;
+	unsigned char clk[STORE_CLOCK_EXT_SIZE];
+	__u64 delta;
 
-	clock = sched_clock_base_cc - initial_leap_seconds;
-	tod_to_timeval(clock - TOD_UNIX_EPOCH, ts);
+	delta = initial_leap_seconds + TOD_UNIX_EPOCH;
+	memcpy(clk, tod_clock_base, 16);
+	*(__u64 *) &clk[1] -= delta;
+	if (*(__u64 *) &clk[1] > delta)
+		clk[0]--;
+	ext_to_timespec64(clk, ts);
 }
 
 static u64 read_tod_clock(struct clocksource *cs)
@@ -333,7 +357,7 @@ static unsigned long clock_sync_flags;
  * source. If the clock mode is local it will return -EOPNOTSUPP and
  * -EAGAIN if the clock is not in sync with the external reference.
  */
-int get_phys_clock(unsigned long long *clock)
+int get_phys_clock(unsigned long *clock)
 {
 	atomic_t *sw_ptr;
 	unsigned int sw0, sw1;
@@ -404,7 +428,10 @@ static void clock_sync_global(unsigned long long delta)
 	struct ptff_qto qto;
 
 	/* Fixup the monotonic sched clock. */
-	sched_clock_base_cc += delta;
+	*(unsigned long long *) &tod_clock_base[1] += delta;
+	if (*(unsigned long long *) &tod_clock_base[1] < delta)
+		/* Epoch overflow */
+		tod_clock_base[0]++;
 	/* Adjust TOD steering parameters. */
 	vdso_data->tb_update_count++;
 	now = get_tod_clock();
@@ -435,7 +462,7 @@ static void clock_sync_global(unsigned long long delta)
 static void clock_sync_local(unsigned long long delta)
 {
 	/* Add the delta to the clock comparator. */
-	if (S390_lowcore.clock_comparator != -1ULL) {
+	if (S390_lowcore.clock_comparator != clock_comparator_max) {
 		S390_lowcore.clock_comparator += delta;
 		set_clock_comparator(S390_lowcore.clock_comparator);
 	}
@@ -492,7 +519,7 @@ static void __init stp_reset(void)
 		pr_warn("The real or virtual hardware system does not provide an STP interface\n");
 		free_page((unsigned long) stp_page);
 		stp_page = NULL;
-		stp_online = 0;
+		stp_online = false;
 	}
 }
 
@@ -634,10 +661,10 @@ static void stp_work_fn(struct work_struct *work)
 		goto out_unlock;
 
 	memset(&stp_sync, 0, sizeof(stp_sync));
-	get_online_cpus();
+	cpus_read_lock();
 	atomic_set(&stp_sync.cpus, num_online_cpus() - 1);
-	stop_machine(stp_sync_clock, &stp_sync, cpu_online_mask);
-	put_online_cpus();
+	stop_machine_cpuslocked(stp_sync_clock, &stp_sync, cpu_online_mask);
+	cpus_read_unlock();
 
 	if (!check_sync_clock())
 		/*

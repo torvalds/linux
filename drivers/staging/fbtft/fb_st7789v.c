@@ -178,7 +178,7 @@ static int set_var(struct fbtft_par *par)
  *
  * Return: 0 on success, < 0 if error occurred.
  */
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	int i;
 	int j;
@@ -189,7 +189,7 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 	 * The masks are the same for both positive and negative voltage
 	 * gamma curves.
 	 */
-	const u8 gamma_par_mask[] = {
+	static const u8 gamma_par_mask[] = {
 		0xFF, /* V63[3:0], V0[3:0]*/
 		0x3F, /* V1[5:0] */
 		0x3F, /* V2[5:0] */

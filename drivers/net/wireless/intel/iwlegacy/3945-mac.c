@@ -3464,12 +3464,12 @@ static struct attribute *il3945_sysfs_entries[] = {
 	NULL
 };
 
-static struct attribute_group il3945_attribute_group = {
+static const struct attribute_group il3945_attribute_group = {
 	.name = NULL,		/* put in device directory */
 	.attrs = il3945_sysfs_entries,
 };
 
-static struct ieee80211_ops il3945_mac_ops __read_mostly = {
+static struct ieee80211_ops il3945_mac_ops __ro_after_init = {
 	.tx = il3945_mac_tx,
 	.start = il3945_mac_start,
 	.stop = il3945_mac_stop,
@@ -3592,6 +3592,8 @@ il3945_setup_mac(struct il_priv *il)
 
 	il_leds_init(il);
 
+	wiphy_ext_feature_set(il->hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
 	ret = ieee80211_register_hw(il->hw);
 	if (ret) {
 		IL_ERR("Failed to register hw (error %d)\n", ret);
@@ -3626,15 +3628,6 @@ il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 
 	il->cmd_queue = IL39_CMD_QUEUE_NUM;
-
-	/*
-	 * Disabling hardware scan means that mac80211 will perform scans
-	 * "the hard way", rather than using device's scan.
-	 */
-	if (il3945_mod_params.disable_hw_scan) {
-		D_INFO("Disabling hw_scan\n");
-		il3945_mac_ops.hw_scan = NULL;
-	}
 
 	D_INFO("*** LOAD DRIVER ***\n");
 	il->cfg = cfg;
@@ -3912,6 +3905,15 @@ il3945_init(void)
 	int ret;
 	pr_info(DRV_DESCRIPTION ", " DRV_VERSION "\n");
 	pr_info(DRV_COPYRIGHT "\n");
+
+	/*
+	 * Disabling hardware scan means that mac80211 will perform scans
+	 * "the hard way", rather than using device's scan.
+	 */
+	if (il3945_mod_params.disable_hw_scan) {
+		pr_info("hw_scan is disabled\n");
+		il3945_mac_ops.hw_scan = NULL;
+	}
 
 	ret = il3945_rate_control_register();
 	if (ret) {

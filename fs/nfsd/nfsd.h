@@ -60,7 +60,7 @@ struct readdir_cd {
 
 
 extern struct svc_program	nfsd_program;
-extern struct svc_version	nfsd_version2, nfsd_version3,
+extern const struct svc_version	nfsd_version2, nfsd_version3,
 				nfsd_version4;
 extern struct mutex		nfsd_mutex;
 extern spinlock_t		nfsd_drc_lock;
@@ -86,12 +86,12 @@ void		nfsd_destroy(struct net *net);
 
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
 #ifdef CONFIG_NFSD_V2_ACL
-extern struct svc_version nfsd_acl_version2;
+extern const struct svc_version nfsd_acl_version2;
 #else
 #define nfsd_acl_version2 NULL
 #endif
 #ifdef CONFIG_NFSD_V3_ACL
-extern struct svc_version nfsd_acl_version3;
+extern const struct svc_version nfsd_acl_version3;
 #else
 #define nfsd_acl_version3 NULL
 #endif
@@ -362,16 +362,16 @@ void		nfsd_lockd_shutdown(void);
 	FATTR4_WORD2_MODE_UMASK | \
 	NFSD4_2_SECURITY_ATTRS)
 
-extern u32 nfsd_suppattrs[3][3];
+extern const u32 nfsd_suppattrs[3][3];
 
-static inline bool bmval_is_subset(u32 *bm1, u32 *bm2)
+static inline bool bmval_is_subset(const u32 *bm1, const u32 *bm2)
 {
 	return !((bm1[0] & ~bm2[0]) ||
 	         (bm1[1] & ~bm2[1]) ||
 		 (bm1[2] & ~bm2[2]));
 }
 
-static inline bool nfsd_attrs_supported(u32 minorversion, u32 *bmval)
+static inline bool nfsd_attrs_supported(u32 minorversion, const u32 *bmval)
 {
 	return bmval_is_subset(bmval, nfsd_suppattrs[minorversion]);
 }

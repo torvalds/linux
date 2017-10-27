@@ -29,19 +29,15 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/hwmon.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Evgeniy Polyakov <zbr@ioremap.net>");
-MODULE_DESCRIPTION("Driver for 1-wire Dallas network protocol, temperature family.");
-MODULE_ALIAS("w1-family-" __stringify(W1_THERM_DS18S20));
-MODULE_ALIAS("w1-family-" __stringify(W1_THERM_DS1822));
-MODULE_ALIAS("w1-family-" __stringify(W1_THERM_DS18B20));
-MODULE_ALIAS("w1-family-" __stringify(W1_THERM_DS1825));
-MODULE_ALIAS("w1-family-" __stringify(W1_THERM_DS28EA00));
+#define W1_THERM_DS18S20	0x10
+#define W1_THERM_DS1822		0x22
+#define W1_THERM_DS18B20	0x28
+#define W1_THERM_DS1825		0x3B
+#define W1_THERM_DS28EA00	0x42
 
 /* Allow the strong pullup to be disabled, but default to enabled.
  * If it was disabled a parasite powered device might not get the require
@@ -62,6 +58,12 @@ module_param_named(strong_pullup, w1_strong_pullup, int, 0);
 struct w1_therm_family_data {
 	uint8_t rom[9];
 	atomic_t refcnt;
+};
+
+struct therm_info {
+	u8 rom[9];
+	u8 crc;
+	u8 verdict;
 };
 
 /* return the address of the refcnt in the family data */
@@ -112,19 +114,72 @@ static struct attribute *w1_ds28ea00_attrs[] = {
 	&dev_attr_w1_seq.attr,
 	NULL,
 };
+
 ATTRIBUTE_GROUPS(w1_therm);
 ATTRIBUTE_GROUPS(w1_ds28ea00);
+
+#if IS_REACHABLE(CONFIG_HWMON)
+static int w1_read_temp(struct device *dev, u32 attr, int channel,
+			long *val);
+
+static umode_t w1_is_visible(const void *_data, enum hwmon_sensor_types type,
+			     u32 attr, int channel)
+{
+	return attr == hwmon_temp_input ? 0444 : 0;
+}
+
+static int w1_read(struct device *dev, enum hwmon_sensor_types type,
+		   u32 attr, int channel, long *val)
+{
+	switch (type) {
+	case hwmon_temp:
+		return w1_read_temp(dev, attr, channel, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static const u32 w1_temp_config[] = {
+	HWMON_T_INPUT,
+	0
+};
+
+static const struct hwmon_channel_info w1_temp = {
+	.type = hwmon_temp,
+	.config = w1_temp_config,
+};
+
+static const struct hwmon_channel_info *w1_info[] = {
+	&w1_temp,
+	NULL
+};
+
+static const struct hwmon_ops w1_hwmon_ops = {
+	.is_visible = w1_is_visible,
+	.read = w1_read,
+};
+
+static const struct hwmon_chip_info w1_chip_info = {
+	.ops = &w1_hwmon_ops,
+	.info = w1_info,
+};
+#define W1_CHIPINFO	(&w1_chip_info)
+#else
+#define W1_CHIPINFO	NULL
+#endif
 
 static struct w1_family_ops w1_therm_fops = {
 	.add_slave	= w1_therm_add_slave,
 	.remove_slave	= w1_therm_remove_slave,
 	.groups		= w1_therm_groups,
+	.chip_info	= W1_CHIPINFO,
 };
 
 static struct w1_family_ops w1_ds28ea00_fops = {
 	.add_slave	= w1_therm_add_slave,
 	.remove_slave	= w1_therm_remove_slave,
 	.groups		= w1_ds28ea00_groups,
+	.chip_info	= W1_CHIPINFO,
 };
 
 static struct w1_family w1_therm_family_DS18S20 = {
@@ -427,33 +482,31 @@ static ssize_t w1_slave_store(struct device *device,
 	return ret ? : size;
 }
 
-static ssize_t w1_slave_show(struct device *device,
-	struct device_attribute *attr, char *buf)
+static ssize_t read_therm(struct device *device,
+			  struct w1_slave *sl, struct therm_info *info)
 {
-	struct w1_slave *sl = dev_to_w1_slave(device);
 	struct w1_master *dev = sl->master;
-	u8 rom[9], crc, verdict, external_power;
-	int i, ret, max_trying = 10;
-	ssize_t c = PAGE_SIZE;
+	u8 external_power;
+	int ret, max_trying = 10;
 	u8 *family_data = sl->family_data;
 
 	ret = mutex_lock_interruptible(&dev->bus_mutex);
 	if (ret != 0)
-		goto post_unlock;
+		goto error;
 
-	if (!sl->family_data) {
+	if (!family_data) {
 		ret = -ENODEV;
-		goto pre_unlock;
+		goto mt_unlock;
 	}
 
 	/* prevent the slave from going away in sleep */
 	atomic_inc(THERM_REFCNT(family_data));
-	memset(rom, 0, sizeof(rom));
+	memset(info->rom, 0, sizeof(info->rom));
 
 	while (max_trying--) {
 
-		verdict = 0;
-		crc = 0;
+		info->verdict = 0;
+		info->crc = 0;
 
 		if (!w1_reset_select_slave(sl)) {
 			int count = 0;
@@ -479,47 +532,69 @@ static ssize_t w1_slave_show(struct device *device,
 				sleep_rem = msleep_interruptible(tm);
 				if (sleep_rem != 0) {
 					ret = -EINTR;
-					goto post_unlock;
+					goto dec_refcnt;
 				}
 
 				ret = mutex_lock_interruptible(&dev->bus_mutex);
 				if (ret != 0)
-					goto post_unlock;
+					goto dec_refcnt;
 			} else if (!w1_strong_pullup) {
 				sleep_rem = msleep_interruptible(tm);
 				if (sleep_rem != 0) {
 					ret = -EINTR;
-					goto pre_unlock;
+					goto dec_refcnt;
 				}
 			}
 
 			if (!w1_reset_select_slave(sl)) {
 
 				w1_write_8(dev, W1_READ_SCRATCHPAD);
-				count = w1_read_block(dev, rom, 9);
+				count = w1_read_block(dev, info->rom, 9);
 				if (count != 9) {
 					dev_warn(device, "w1_read_block() "
 						"returned %u instead of 9.\n",
 						count);
 				}
 
-				crc = w1_calc_crc8(rom, 8);
+				info->crc = w1_calc_crc8(info->rom, 8);
 
-				if (rom[8] == crc)
-					verdict = 1;
+				if (info->rom[8] == info->crc)
+					info->verdict = 1;
 			}
 		}
 
-		if (verdict)
+		if (info->verdict)
 			break;
 	}
 
+dec_refcnt:
+	atomic_dec(THERM_REFCNT(family_data));
+mt_unlock:
+	mutex_unlock(&dev->bus_mutex);
+error:
+	return ret;
+}
+
+static ssize_t w1_slave_show(struct device *device,
+			     struct device_attribute *attr, char *buf)
+{
+	struct w1_slave *sl = dev_to_w1_slave(device);
+	struct therm_info info;
+	u8 *family_data = sl->family_data;
+	int ret, i;
+	ssize_t c = PAGE_SIZE;
+	u8 fid = sl->family->fid;
+
+	ret = read_therm(device, sl, &info);
+	if (ret)
+		return ret;
+
 	for (i = 0; i < 9; ++i)
-		c -= snprintf(buf + PAGE_SIZE - c, c, "%02x ", rom[i]);
+		c -= snprintf(buf + PAGE_SIZE - c, c, "%02x ", info.rom[i]);
 	c -= snprintf(buf + PAGE_SIZE - c, c, ": crc=%02x %s\n",
-		      crc, (verdict) ? "YES" : "NO");
-	if (verdict)
-		memcpy(family_data, rom, sizeof(rom));
+		      info.crc, (info.verdict) ? "YES" : "NO");
+	if (info.verdict)
+		memcpy(family_data, info.rom, sizeof(info.rom));
 	else
 		dev_warn(device, "Read failed CRC check\n");
 
@@ -528,16 +603,42 @@ static ssize_t w1_slave_show(struct device *device,
 			      ((u8 *)family_data)[i]);
 
 	c -= snprintf(buf + PAGE_SIZE - c, c, "t=%d\n",
-		w1_convert_temp(rom, sl->family->fid));
+			w1_convert_temp(info.rom, fid));
 	ret = PAGE_SIZE - c;
-
-pre_unlock:
-	mutex_unlock(&dev->bus_mutex);
-
-post_unlock:
-	atomic_dec(THERM_REFCNT(family_data));
 	return ret;
 }
+
+#if IS_REACHABLE(CONFIG_HWMON)
+static int w1_read_temp(struct device *device, u32 attr, int channel,
+			long *val)
+{
+	struct w1_slave *sl = dev_get_drvdata(device);
+	struct therm_info info;
+	u8 fid = sl->family->fid;
+	int ret;
+
+	switch (attr) {
+	case hwmon_temp_input:
+		ret = read_therm(device, sl, &info);
+		if (ret)
+			return ret;
+
+		if (!info.verdict) {
+			ret = -EIO;
+			return ret;
+		}
+
+		*val = w1_convert_temp(info.rom, fid);
+		ret = 0;
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		break;
+	}
+
+	return ret;
+}
+#endif
 
 #define W1_42_CHAIN	0x99
 #define W1_42_CHAIN_OFF	0x3C
@@ -646,3 +747,12 @@ static void __exit w1_therm_fini(void)
 
 module_init(w1_therm_init);
 module_exit(w1_therm_fini);
+
+MODULE_AUTHOR("Evgeniy Polyakov <zbr@ioremap.net>");
+MODULE_DESCRIPTION("Driver for 1-wire Dallas network protocol, temperature family.");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("w1-family-" __stringify(W1_THERM_DS18S20));
+MODULE_ALIAS("w1-family-" __stringify(W1_THERM_DS1822));
+MODULE_ALIAS("w1-family-" __stringify(W1_THERM_DS18B20));
+MODULE_ALIAS("w1-family-" __stringify(W1_THERM_DS1825));
+MODULE_ALIAS("w1-family-" __stringify(W1_THERM_DS28EA00));

@@ -36,7 +36,7 @@
  * DOC: CRC ABI
  *
  * DRM device drivers can provide to userspace CRC information of each frame as
- * it reached a given hardware component (a "source").
+ * it reached a given hardware component (a CRC sampling "source").
  *
  * Userspace can control generation of CRCs in a given CRTC by writing to the
  * file dri/0/crtc-N/crc/control in debugfs, with N being the index of the CRTC.
@@ -57,6 +57,11 @@
  * rely on being able to generate matching CRC values for the frame contents that
  * it submits. In this general case, the maximum userspace can do is to compare
  * the reported CRCs of frames that should have the same contents.
+ *
+ * On the driver side the implementation effort is minimal, drivers only need to
+ * implement &drm_crtc_funcs.set_crc_source. The debugfs files are automatically
+ * set up if that vfunc is set. CRC samples need to be captured in the driver by
+ * calling drm_crtc_add_crc_entry().
  */
 
 static int crc_control_show(struct seq_file *m, void *data)
@@ -125,20 +130,56 @@ static const struct file_operations drm_crtc_crc_control_fops = {
 	.write = crc_control_write
 };
 
+static int crtc_crc_data_count(struct drm_crtc_crc *crc)
+{
+	assert_spin_locked(&crc->lock);
+	return CIRC_CNT(crc->head, crc->tail, DRM_CRC_ENTRIES_NR);
+}
+
+static void crtc_crc_cleanup(struct drm_crtc_crc *crc)
+{
+	kfree(crc->entries);
+	crc->entries = NULL;
+	crc->head = 0;
+	crc->tail = 0;
+	crc->values_cnt = 0;
+	crc->opened = false;
+}
+
 static int crtc_crc_open(struct inode *inode, struct file *filep)
 {
 	struct drm_crtc *crtc = inode->i_private;
 	struct drm_crtc_crc *crc = &crtc->crc;
 	struct drm_crtc_crc_entry *entries = NULL;
 	size_t values_cnt;
-	int ret;
+	int ret = 0;
 
-	if (crc->opened)
-		return -EBUSY;
+	if (drm_drv_uses_atomic_modeset(crtc->dev)) {
+		ret = drm_modeset_lock_interruptible(&crtc->mutex, NULL);
+		if (ret)
+			return ret;
+
+		if (!crtc->state->active)
+			ret = -EIO;
+		drm_modeset_unlock(&crtc->mutex);
+
+		if (ret)
+			return ret;
+	}
+
+	spin_lock_irq(&crc->lock);
+	if (!crc->opened)
+		crc->opened = true;
+	else
+		ret = -EBUSY;
+	spin_unlock_irq(&crc->lock);
+
+	if (ret)
+		return ret;
 
 	ret = crtc->funcs->set_crc_source(crtc, crc->source, &values_cnt);
 	if (ret)
-		return ret;
+		goto err;
 
 	if (WARN_ON(values_cnt > DRM_MAX_CRC_NR)) {
 		ret = -EINVAL;
@@ -159,13 +200,28 @@ static int crtc_crc_open(struct inode *inode, struct file *filep)
 	spin_lock_irq(&crc->lock);
 	crc->entries = entries;
 	crc->values_cnt = values_cnt;
-	crc->opened = true;
+
+	/*
+	 * Only return once we got a first frame, so userspace doesn't have to
+	 * guess when this particular piece of HW will be ready to start
+	 * generating CRCs.
+	 */
+	ret = wait_event_interruptible_lock_irq(crc->wq,
+						crtc_crc_data_count(crc),
+						crc->lock);
 	spin_unlock_irq(&crc->lock);
+
+	if (ret)
+		goto err_disable;
 
 	return 0;
 
 err_disable:
 	crtc->funcs->set_crc_source(crtc, NULL, &values_cnt);
+err:
+	spin_lock_irq(&crc->lock);
+	crtc_crc_cleanup(crc);
+	spin_unlock_irq(&crc->lock);
 	return ret;
 }
 
@@ -175,24 +231,13 @@ static int crtc_crc_release(struct inode *inode, struct file *filep)
 	struct drm_crtc_crc *crc = &crtc->crc;
 	size_t values_cnt;
 
-	spin_lock_irq(&crc->lock);
-	kfree(crc->entries);
-	crc->entries = NULL;
-	crc->head = 0;
-	crc->tail = 0;
-	crc->values_cnt = 0;
-	crc->opened = false;
-	spin_unlock_irq(&crc->lock);
-
 	crtc->funcs->set_crc_source(crtc, NULL, &values_cnt);
 
-	return 0;
-}
+	spin_lock_irq(&crc->lock);
+	crtc_crc_cleanup(crc);
+	spin_unlock_irq(&crc->lock);
 
-static int crtc_crc_data_count(struct drm_crtc_crc *crc)
-{
-	assert_spin_locked(&crc->lock);
-	return CIRC_CNT(crc->head, crc->tail, DRM_CRC_ENTRIES_NR);
+	return 0;
 }
 
 /*
@@ -269,16 +314,6 @@ static const struct file_operations drm_crtc_crc_data_fops = {
 	.release = crtc_crc_release,
 };
 
-/**
- * drm_debugfs_crtc_crc_add - Add files to debugfs for capture of frame CRCs
- * @crtc: CRTC to whom the frames will belong
- *
- * Adds files to debugfs directory that allows userspace to control the
- * generation of frame CRCs and to read them.
- *
- * Returns:
- * Zero on success, error code on failure.
- */
 int drm_debugfs_crtc_crc_add(struct drm_crtc *crtc)
 {
 	struct dentry *crc_ent, *ent;
@@ -325,16 +360,19 @@ int drm_crtc_add_crc_entry(struct drm_crtc *crtc, bool has_frame,
 	struct drm_crtc_crc_entry *entry;
 	int head, tail;
 
-	assert_spin_locked(&crc->lock);
+	spin_lock(&crc->lock);
 
 	/* Caller may not have noticed yet that userspace has stopped reading */
-	if (!crc->opened)
+	if (!crc->entries) {
+		spin_unlock(&crc->lock);
 		return -EINVAL;
+	}
 
 	head = crc->head;
 	tail = crc->tail;
 
 	if (CIRC_SPACE(head, tail, DRM_CRC_ENTRIES_NR) < 1) {
+		spin_unlock(&crc->lock);
 		DRM_ERROR("Overflow of CRC buffer, userspace reads too slow.\n");
 		return -ENOBUFS;
 	}
@@ -346,6 +384,10 @@ int drm_crtc_add_crc_entry(struct drm_crtc *crtc, bool has_frame,
 
 	head = (head + 1) & (DRM_CRC_ENTRIES_NR - 1);
 	crc->head = head;
+
+	spin_unlock(&crc->lock);
+
+	wake_up_interruptible(&crc->wq);
 
 	return 0;
 }

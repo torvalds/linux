@@ -51,6 +51,7 @@ int mlx5_query_nic_vport_mac_address(struct mlx5_core_dev *mdev,
 				     u16 vport, u8 *addr);
 int mlx5_query_nic_vport_min_inline(struct mlx5_core_dev *mdev,
 				    u16 vport, u8 *min_inline);
+void mlx5_query_min_inline(struct mlx5_core_dev *mdev, u8 *min_inline);
 int mlx5_modify_nic_vport_min_inline(struct mlx5_core_dev *mdev,
 				     u16 vport, u8 min_inline);
 int mlx5_modify_nic_vport_mac_address(struct mlx5_core_dev *dev,
@@ -113,5 +114,6 @@ int mlx5_core_modify_hca_vport_context(struct mlx5_core_dev *dev,
 				       u8 other_vport, u8 port_num,
 				       int vf,
 				       struct mlx5_hca_vport_context *req);
-
+int mlx5_nic_vport_update_local_lb(struct mlx5_core_dev *mdev, bool enable);
+int mlx5_nic_vport_query_local_lb(struct mlx5_core_dev *mdev, bool *status);
 #endif /* __MLX5_VPORT_H__ */

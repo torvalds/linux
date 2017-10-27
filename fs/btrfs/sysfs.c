@@ -120,7 +120,7 @@ static ssize_t btrfs_feature_attr_store(struct kobject *kobj,
 	if (!fs_info)
 		return -EPERM;
 
-	if (fs_info->sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(fs_info->sb))
 		return -EROFS;
 
 	ret = kstrtoul(skip_spaces(buf), 0, &val);
@@ -200,6 +200,7 @@ BTRFS_FEAT_ATTR_INCOMPAT(mixed_backref, MIXED_BACKREF);
 BTRFS_FEAT_ATTR_INCOMPAT(default_subvol, DEFAULT_SUBVOL);
 BTRFS_FEAT_ATTR_INCOMPAT(mixed_groups, MIXED_GROUPS);
 BTRFS_FEAT_ATTR_INCOMPAT(compress_lzo, COMPRESS_LZO);
+BTRFS_FEAT_ATTR_INCOMPAT(compress_zstd, COMPRESS_ZSTD);
 BTRFS_FEAT_ATTR_INCOMPAT(big_metadata, BIG_METADATA);
 BTRFS_FEAT_ATTR_INCOMPAT(extended_iref, EXTENDED_IREF);
 BTRFS_FEAT_ATTR_INCOMPAT(raid56, RAID56);
@@ -212,6 +213,7 @@ static struct attribute *btrfs_supported_feature_attrs[] = {
 	BTRFS_FEAT_ATTR_PTR(default_subvol),
 	BTRFS_FEAT_ATTR_PTR(mixed_groups),
 	BTRFS_FEAT_ATTR_PTR(compress_lzo),
+	BTRFS_FEAT_ATTR_PTR(compress_zstd),
 	BTRFS_FEAT_ATTR_PTR(big_metadata),
 	BTRFS_FEAT_ATTR_PTR(extended_iref),
 	BTRFS_FEAT_ATTR_PTR(raid56),
@@ -388,7 +390,7 @@ static ssize_t btrfs_label_store(struct kobject *kobj,
 	if (!fs_info)
 		return -EPERM;
 
-	if (fs_info->sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(fs_info->sb))
 		return -EROFS;
 
 	/*
@@ -447,11 +449,52 @@ static ssize_t btrfs_clone_alignment_show(struct kobject *kobj,
 
 BTRFS_ATTR(clone_alignment, btrfs_clone_alignment_show);
 
+static ssize_t quota_override_show(struct kobject *kobj,
+				   struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+	int quota_override;
+
+	quota_override = test_bit(BTRFS_FS_QUOTA_OVERRIDE, &fs_info->flags);
+	return snprintf(buf, PAGE_SIZE, "%d\n", quota_override);
+}
+
+static ssize_t quota_override_store(struct kobject *kobj,
+				    struct kobj_attribute *a,
+				    const char *buf, size_t len)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+	unsigned long knob;
+	int err;
+
+	if (!fs_info)
+		return -EPERM;
+
+	if (!capable(CAP_SYS_RESOURCE))
+		return -EPERM;
+
+	err = kstrtoul(buf, 10, &knob);
+	if (err)
+		return err;
+	if (knob > 1)
+		return -EINVAL;
+
+	if (knob)
+		set_bit(BTRFS_FS_QUOTA_OVERRIDE, &fs_info->flags);
+	else
+		clear_bit(BTRFS_FS_QUOTA_OVERRIDE, &fs_info->flags);
+
+	return len;
+}
+
+BTRFS_ATTR_RW(quota_override, quota_override_show, quota_override_store);
+
 static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(label),
 	BTRFS_ATTR_PTR(nodesize),
 	BTRFS_ATTR_PTR(sectorsize),
 	BTRFS_ATTR_PTR(clone_alignment),
+	BTRFS_ATTR_PTR(quota_override),
 	NULL,
 };
 

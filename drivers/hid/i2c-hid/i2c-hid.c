@@ -40,7 +40,7 @@
 #include <linux/of.h>
 #include <linux/regulator/consumer.h>
 
-#include <linux/i2c/i2c-hid.h>
+#include <linux/platform_data/i2c-hid.h>
 
 #include "../hid-ids.h"
 
@@ -508,66 +508,6 @@ static int i2c_hid_get_report_length(struct hid_report *report)
 		report->device->report_enum[report->type].numbered + 2;
 }
 
-static void i2c_hid_init_report(struct hid_report *report, u8 *buffer,
-	size_t bufsize)
-{
-	struct hid_device *hid = report->device;
-	struct i2c_client *client = hid->driver_data;
-	struct i2c_hid *ihid = i2c_get_clientdata(client);
-	unsigned int size, ret_size;
-
-	size = i2c_hid_get_report_length(report);
-	if (i2c_hid_get_report(client,
-			report->type == HID_FEATURE_REPORT ? 0x03 : 0x01,
-			report->id, buffer, size))
-		return;
-
-	i2c_hid_dbg(ihid, "report (len=%d): %*ph\n", size, size, buffer);
-
-	ret_size = buffer[0] | (buffer[1] << 8);
-
-	if (ret_size != size) {
-		dev_err(&client->dev, "error in %s size:%d / ret_size:%d\n",
-			__func__, size, ret_size);
-		return;
-	}
-
-	/* hid->driver_lock is held as we are in probe function,
-	 * we just need to setup the input fields, so using
-	 * hid_report_raw_event is safe. */
-	hid_report_raw_event(hid, report->type, buffer + 2, size - 2, 1);
-}
-
-/*
- * Initialize all reports
- */
-static void i2c_hid_init_reports(struct hid_device *hid)
-{
-	struct hid_report *report;
-	struct i2c_client *client = hid->driver_data;
-	struct i2c_hid *ihid = i2c_get_clientdata(client);
-	u8 *inbuf = kzalloc(ihid->bufsize, GFP_KERNEL);
-
-	if (!inbuf) {
-		dev_err(&client->dev, "can not retrieve initial reports\n");
-		return;
-	}
-
-	/*
-	 * The device must be powered on while we fetch initial reports
-	 * from it.
-	 */
-	pm_runtime_get_sync(&client->dev);
-
-	list_for_each_entry(report,
-		&hid->report_enum[HID_FEATURE_REPORT].report_list, list)
-		i2c_hid_init_report(report, inbuf, ihid->bufsize);
-
-	pm_runtime_put(&client->dev);
-
-	kfree(inbuf);
-}
-
 /*
  * Traverse the supplied list of reports and find the longest
  */
@@ -603,7 +543,8 @@ static int i2c_hid_alloc_buffers(struct i2c_hid *ihid, size_t report_size)
 {
 	/* the worst case is computed from the set_report command with a
 	 * reportID > 15 and the maximum report length */
-	int args_len = sizeof(__u8) + /* optional ReportID byte */
+	int args_len = sizeof(__u8) + /* ReportID */
+		       sizeof(__u8) + /* optional ReportID byte */
 		       sizeof(__u16) + /* data register */
 		       sizeof(__u16) + /* size of the report */
 		       report_size; /* report */
@@ -789,9 +730,6 @@ static int i2c_hid_start(struct hid_device *hid)
 			return ret;
 	}
 
-	if (!(hid->quirks & HID_QUIRK_NO_INIT_REPORTS))
-		i2c_hid_init_reports(hid);
-
 	return 0;
 }
 
@@ -806,18 +744,12 @@ static int i2c_hid_open(struct hid_device *hid)
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
 	int ret = 0;
 
-	mutex_lock(&i2c_hid_open_mut);
-	if (!hid->open++) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0) {
-			hid->open--;
-			goto done;
-		}
-		set_bit(I2C_HID_STARTED, &ihid->flags);
-	}
-done:
-	mutex_unlock(&i2c_hid_open_mut);
-	return ret < 0 ? ret : 0;
+	ret = pm_runtime_get_sync(&client->dev);
+	if (ret < 0)
+		return ret;
+
+	set_bit(I2C_HID_STARTED, &ihid->flags);
+	return 0;
 }
 
 static void i2c_hid_close(struct hid_device *hid)
@@ -825,18 +757,10 @@ static void i2c_hid_close(struct hid_device *hid)
 	struct i2c_client *client = hid->driver_data;
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
 
-	/* protecting hid->open to make sure we don't restart
-	 * data acquistion due to a resumption we no longer
-	 * care about
-	 */
-	mutex_lock(&i2c_hid_open_mut);
-	if (!--hid->open) {
-		clear_bit(I2C_HID_STARTED, &ihid->flags);
+	clear_bit(I2C_HID_STARTED, &ihid->flags);
 
-		/* Save some power */
-		pm_runtime_put(&client->dev);
-	}
-	mutex_unlock(&i2c_hid_open_mut);
+	/* Save some power */
+	pm_runtime_put(&client->dev);
 }
 
 static int i2c_hid_power(struct hid_device *hid, int lvl)
@@ -857,7 +781,7 @@ static int i2c_hid_power(struct hid_device *hid, int lvl)
 	return 0;
 }
 
-static struct hid_ll_driver i2c_hid_ll_driver = {
+struct hid_ll_driver i2c_hid_ll_driver = {
 	.parse = i2c_hid_parse,
 	.start = i2c_hid_start,
 	.stop = i2c_hid_stop,
@@ -867,6 +791,7 @@ static struct hid_ll_driver i2c_hid_ll_driver = {
 	.output_report = i2c_hid_output_report,
 	.raw_request = i2c_hid_raw_request,
 };
+EXPORT_SYMBOL_GPL(i2c_hid_ll_driver);
 
 static int i2c_hid_init_irq(struct i2c_client *client)
 {
@@ -935,10 +860,9 @@ static int i2c_hid_fetch_hid_descriptor(struct i2c_hid *ihid)
 static int i2c_hid_acpi_pdata(struct i2c_client *client,
 		struct i2c_hid_platform_data *pdata)
 {
-	static u8 i2c_hid_guid[] = {
-		0xF7, 0xF6, 0xDF, 0x3C, 0x67, 0x42, 0x55, 0x45,
-		0xAD, 0x05, 0xB3, 0x0A, 0x3D, 0x89, 0x38, 0xDE,
-	};
+	static guid_t i2c_hid_guid =
+		GUID_INIT(0x3CDFF6F7, 0x4267, 0x4555,
+			  0xAD, 0x05, 0xB3, 0x0A, 0x3D, 0x89, 0x38, 0xDE);
 	union acpi_object *obj;
 	struct acpi_device *adev;
 	acpi_handle handle;
@@ -947,7 +871,7 @@ static int i2c_hid_acpi_pdata(struct i2c_client *client,
 	if (!handle || acpi_bus_get_device(handle, &adev))
 		return -ENODEV;
 
-	obj = acpi_evaluate_dsm_typed(handle, i2c_hid_guid, 1, 1, NULL,
+	obj = acpi_evaluate_dsm_typed(handle, &i2c_hid_guid, 1, 1, NULL,
 				      ACPI_TYPE_INTEGER);
 	if (!obj) {
 		dev_err(&client->dev, "device _DSM execution failed\n");
@@ -958,6 +882,15 @@ static int i2c_hid_acpi_pdata(struct i2c_client *client,
 	ACPI_FREE(obj);
 
 	return 0;
+}
+
+static void i2c_hid_acpi_fix_up_power(struct device *dev)
+{
+	acpi_handle handle = ACPI_HANDLE(dev);
+	struct acpi_device *adev;
+
+	if (handle && acpi_bus_get_device(handle, &adev) == 0)
+		acpi_device_fix_up_power(adev);
 }
 
 static const struct acpi_device_id i2c_hid_acpi_match[] = {
@@ -972,6 +905,8 @@ static inline int i2c_hid_acpi_pdata(struct i2c_client *client,
 {
 	return -ENODEV;
 }
+
+static inline void i2c_hid_acpi_fix_up_power(struct device *dev) {}
 #endif
 
 #ifdef CONFIG_OF
@@ -993,6 +928,11 @@ static int i2c_hid_of_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 	pdata->hid_descriptor_address = val;
+
+	ret = of_property_read_u32(dev->of_node, "post-power-on-delay-ms",
+				   &val);
+	if (!ret)
+		pdata->post_power_delay_ms = val;
 
 	return 0;
 }
@@ -1053,6 +993,24 @@ static int i2c_hid_probe(struct i2c_client *client,
 		ihid->pdata = *platform_data;
 	}
 
+	ihid->pdata.supply = devm_regulator_get(&client->dev, "vdd");
+	if (IS_ERR(ihid->pdata.supply)) {
+		ret = PTR_ERR(ihid->pdata.supply);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&client->dev, "Failed to get regulator: %d\n",
+				ret);
+		goto err;
+	}
+
+	ret = regulator_enable(ihid->pdata.supply);
+	if (ret < 0) {
+		dev_err(&client->dev, "Failed to enable regulator: %d\n",
+			ret);
+		goto err;
+	}
+	if (ihid->pdata.post_power_delay_ms)
+		msleep(ihid->pdata.post_power_delay_ms);
+
 	i2c_set_clientdata(client, ihid);
 
 	ihid->client = client;
@@ -1068,7 +1026,9 @@ static int i2c_hid_probe(struct i2c_client *client,
 	 * real computation later. */
 	ret = i2c_hid_alloc_buffers(ihid, HID_MIN_BUFFER_SIZE);
 	if (ret < 0)
-		goto err;
+		goto err_regulator;
+
+	i2c_hid_acpi_fix_up_power(&client->dev);
 
 	pm_runtime_get_noresume(&client->dev);
 	pm_runtime_set_active(&client->dev);
@@ -1125,6 +1085,9 @@ err_pm:
 	pm_runtime_put_noidle(&client->dev);
 	pm_runtime_disable(&client->dev);
 
+err_regulator:
+	regulator_disable(ihid->pdata.supply);
+
 err:
 	i2c_hid_free_buffers(ihid);
 	kfree(ihid);
@@ -1148,6 +1111,8 @@ static int i2c_hid_remove(struct i2c_client *client)
 
 	if (ihid->bufsize)
 		i2c_hid_free_buffers(ihid);
+
+	regulator_disable(ihid->pdata.supply);
 
 	kfree(ihid);
 
@@ -1199,6 +1164,10 @@ static int i2c_hid_suspend(struct device *dev)
 		else
 			hid_warn(hid, "Failed to enable irq wake: %d\n",
 				wake_status);
+	} else {
+		ret = regulator_disable(ihid->pdata.supply);
+		if (ret < 0)
+			hid_warn(hid, "Failed to disable supply: %d\n", ret);
 	}
 
 	return 0;
@@ -1212,7 +1181,13 @@ static int i2c_hid_resume(struct device *dev)
 	struct hid_device *hid = ihid->hid;
 	int wake_status;
 
-	if (device_may_wakeup(&client->dev) && ihid->irq_wake_enabled) {
+	if (!device_may_wakeup(&client->dev)) {
+		ret = regulator_enable(ihid->pdata.supply);
+		if (ret < 0)
+			hid_warn(hid, "Failed to enable supply: %d\n", ret);
+		if (ihid->pdata.post_power_delay_ms)
+			msleep(ihid->pdata.post_power_delay_ms);
+	} else if (ihid->irq_wake_enabled) {
 		wake_status = disable_irq_wake(client->irq);
 		if (!wake_status)
 			ihid->irq_wake_enabled = false;

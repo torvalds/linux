@@ -1,7 +1,7 @@
 /*
  * Implementation of the access vector table type.
  *
- * Author : Stephen Smalley, <sds@epoch.ncsc.mil>
+ * Author : Stephen Smalley, <sds@tycho.nsa.gov>
  */
 
 /* Updated: Frank Mayer <mayerf@tresys.com> and Karl MacMillan <kmacmillan@tresys.com>

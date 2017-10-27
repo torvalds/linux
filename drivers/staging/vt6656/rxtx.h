@@ -249,9 +249,9 @@ struct vnt_beacon_buffer {
 	struct ieee80211_mgmt mgmt_hdr;
 } __packed;
 
-int vnt_tx_packet(struct vnt_private *, struct sk_buff *);
-int vnt_beacon_make(struct vnt_private *, struct ieee80211_vif *);
-int vnt_beacon_enable(struct vnt_private *, struct ieee80211_vif *,
-	struct ieee80211_bss_conf *);
+int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb);
+int vnt_beacon_make(struct vnt_private *priv, struct ieee80211_vif *vif);
+int vnt_beacon_enable(struct vnt_private *priv, struct ieee80211_vif *vif,
+		      struct ieee80211_bss_conf *conf);
 
 #endif /* __RXTX_H__ */

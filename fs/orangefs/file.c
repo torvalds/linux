@@ -114,7 +114,6 @@ static ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inod
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_khandle *handle = &orangefs_inode->refn.khandle;
 	struct orangefs_kernel_op_s *new_op = NULL;
-	struct iov_iter saved = *iter;
 	int buffer_index = -1;
 	ssize_t ret;
 
@@ -193,7 +192,7 @@ populate_shared_memory:
 		orangefs_bufmap_put(buffer_index);
 		buffer_index = -1;
 		if (type == ORANGEFS_IO_WRITE)
-			*iter = saved;
+			iov_iter_revert(iter, total_size);
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s:going to repopulate_shared_memory.\n",
 			     __func__);
@@ -475,7 +474,8 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb, struct iov_iter *ite
 
 	/* Make sure generic_write_checks sees an up to date inode size. */
 	if (file->f_flags & O_APPEND) {
-		rc = orangefs_inode_getattr(file->f_mapping->host, 0, 1);
+		rc = orangefs_inode_getattr(file->f_mapping->host, 0, 1,
+		    STATX_SIZE);
 		if (rc == -ESTALE)
 			rc = -EIO;
 		if (rc) {
@@ -646,13 +646,10 @@ static int orangefs_fsync(struct file *file,
 		       loff_t end,
 		       int datasync)
 {
-	int ret = -EINVAL;
+	int ret;
 	struct orangefs_inode_s *orangefs_inode =
 		ORANGEFS_I(file_inode(file));
 	struct orangefs_kernel_op_s *new_op = NULL;
-
-	/* required call */
-	filemap_write_and_wait_range(file->f_mapping, start, end);
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FSYNC);
 	if (!new_op)
@@ -693,7 +690,8 @@ static loff_t orangefs_file_llseek(struct file *file, loff_t offset, int origin)
 		 * NOTE: We are only interested in file size here,
 		 * so we set mask accordingly.
 		 */
-		ret = orangefs_inode_getattr(file->f_mapping->host, 0, 1);
+		ret = orangefs_inode_getattr(file->f_mapping->host, 0, 1,
+		    STATX_SIZE);
 		if (ret == -ESTALE)
 			ret = -EIO;
 		if (ret) {

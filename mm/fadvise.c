@@ -52,7 +52,9 @@ SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
 		goto out;
 	}
 
-	if (IS_DAX(inode)) {
+	bdi = inode_to_bdi(mapping->host);
+
+	if (IS_DAX(inode) || (bdi == &noop_backing_dev_info)) {
 		switch (advice) {
 		case POSIX_FADV_NORMAL:
 		case POSIX_FADV_RANDOM:
@@ -74,8 +76,6 @@ SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
 		endbyte = -1;
 	else
 		endbyte--;		/* inclusive */
-
-	bdi = inode_to_bdi(mapping->host);
 
 	switch (advice) {
 	case POSIX_FADV_NORMAL:

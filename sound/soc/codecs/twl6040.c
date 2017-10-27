@@ -606,6 +606,14 @@ static const struct snd_kcontrol_new twl6040_snd_controls[] = {
 		twl6040_headset_power_get_enum,
 		twl6040_headset_power_put_enum),
 
+	/* Left HS PDM data routed to Right HSDAC */
+	SOC_SINGLE("Headset Mono to Stereo Playback Switch",
+		TWL6040_REG_HSRCTL, 7, 1, 0),
+
+	/* Left HF PDM data routed to Right HFDAC */
+	SOC_SINGLE("Handsfree Mono to Stereo Playback Switch",
+		TWL6040_REG_HFRCTL, 5, 1, 0),
+
 	SOC_ENUM_EXT("PLL Selection", twl6040_power_mode_enum,
 		twl6040_pll_get_enum, twl6040_pll_put_enum),
 };
@@ -1115,8 +1123,8 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 
 	priv->plug_irq = platform_get_irq(pdev, 0);
 	if (priv->plug_irq < 0) {
-		dev_err(codec->dev, "invalid irq\n");
-		return -EINVAL;
+		dev_err(codec->dev, "invalid irq: %d\n", priv->plug_irq);
+		return priv->plug_irq;
 	}
 
 	INIT_DELAYED_WORK(&priv->hs_jack.work, twl6040_accessory_work);
@@ -1147,7 +1155,7 @@ static int twl6040_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_twl6040 = {
+static const struct snd_soc_codec_driver soc_codec_dev_twl6040 = {
 	.probe = twl6040_probe,
 	.remove = twl6040_remove,
 	.read = twl6040_read,

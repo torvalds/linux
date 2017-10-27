@@ -47,14 +47,14 @@ static inline void clear_page(void *addr)
 	unsigned long iterations;
 	unsigned long onex, twox, fourx, eightx;
 
-	iterations = ppc64_caches.dlines_per_page / 8;
+	iterations = ppc64_caches.l1d.blocks_per_page / 8;
 
 	/*
 	 * Some verisions of gcc use multiply instructions to
 	 * calculate the offsets so lets give it a hand to
 	 * do better.
 	 */
-	onex = ppc64_caches.dline_size;
+	onex = ppc64_caches.l1d.block_size;
 	twox = onex << 1;
 	fourx = onex << 2;
 	eightx = onex << 3;
@@ -98,21 +98,7 @@ extern u64 ppc64_pft_size;
 #define GET_LOW_SLICE_INDEX(addr)	((addr) >> SLICE_LOW_SHIFT)
 #define GET_HIGH_SLICE_INDEX(addr)	((addr) >> SLICE_HIGH_SHIFT)
 
-/*
- * 1 bit per slice and we have one slice per 1TB
- * Right now we support only 64TB.
- * IF we change this we will have to change the type
- * of high_slices
- */
-#define SLICE_MASK_SIZE 8
-
 #ifndef __ASSEMBLY__
-
-struct slice_mask {
-	u16 low_slices;
-	u64 high_slices;
-};
-
 struct mm_struct;
 
 extern unsigned long slice_get_unmapped_area(unsigned long addr,

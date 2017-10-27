@@ -14,6 +14,8 @@
 #include <linux/bug.h>
 #include <linux/list.h>
 #include <linux/bitmap.h>
+#include <linux/sched/signal.h>
+
 #include <asm/gmap.h>
 #include <asm/mmu_context.h>
 #include <asm/sclp.h>
@@ -24,16 +26,21 @@
 
 struct vsie_page {
 	struct kvm_s390_sie_block scb_s;	/* 0x0000 */
+	/*
+	 * the backup info for machine check. ensure it's at
+	 * the same offset as that in struct sie_page!
+	 */
+	struct mcck_volatile_info mcck_info;    /* 0x0200 */
 	/* the pinned originial scb */
-	struct kvm_s390_sie_block *scb_o;	/* 0x0200 */
+	struct kvm_s390_sie_block *scb_o;	/* 0x0218 */
 	/* the shadow gmap in use by the vsie_page */
-	struct gmap *gmap;			/* 0x0208 */
+	struct gmap *gmap;			/* 0x0220 */
 	/* address of the last reported fault to guest2 */
-	unsigned long fault_addr;		/* 0x0210 */
-	__u8 reserved[0x0700 - 0x0218];		/* 0x0218 */
+	unsigned long fault_addr;		/* 0x0228 */
+	__u8 reserved[0x0700 - 0x0230];		/* 0x0230 */
 	struct kvm_s390_crypto_cb crycb;	/* 0x0700 */
 	__u8 fac[S390_ARCH_FAC_LIST_SIZE_BYTE];	/* 0x0800 */
-} __packed;
+};
 
 /* trigger a validity icpt for the given scb */
 static int set_validity_icpt(struct kvm_s390_sie_block *scb,
@@ -115,6 +122,8 @@ static int prepare_cpuflags(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		newflags |= cpuflags & CPUSTAT_SM;
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_IBS))
 		newflags |= cpuflags & CPUSTAT_IBS;
+	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_KSS))
+		newflags |= cpuflags & CPUSTAT_KSS;
 
 	atomic_set(&scb_s->cpuflags, newflags);
 	return 0;
@@ -247,7 +256,7 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 {
 	struct kvm_s390_sie_block *scb_o = vsie_page->scb_o;
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
-	bool had_tx = scb_s->ecb & 0x10U;
+	bool had_tx = scb_s->ecb & ECB_TE;
 	unsigned long new_mso = 0;
 	int rc;
 
@@ -287,7 +296,9 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	 * bits. Therefore we cannot provide interpretation and would later
 	 * have to provide own emulation handlers.
 	 */
-	scb_s->ictl |= ICTL_ISKE | ICTL_SSKE | ICTL_RRBE;
+	if (!(atomic_read(&scb_s->cpuflags) & CPUSTAT_KSS))
+		scb_s->ictl |= ICTL_ISKE | ICTL_SSKE | ICTL_RRBE;
+
 	scb_s->icpua = scb_o->icpua;
 
 	if (!(atomic_read(&scb_s->cpuflags) & CPUSTAT_SM))
@@ -305,31 +316,42 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		scb_s->ihcpu = scb_o->ihcpu;
 
 	/* MVPG and Protection Exception Interpretation are always available */
-	scb_s->eca |= scb_o->eca & 0x01002000U;
+	scb_s->eca |= scb_o->eca & (ECA_MVPGI | ECA_PROTEXCI);
 	/* Host-protection-interruption introduced with ESOP */
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_ESOP))
-		scb_s->ecb |= scb_o->ecb & 0x02U;
+		scb_s->ecb |= scb_o->ecb & ECB_HOSTPROTINT;
 	/* transactional execution */
 	if (test_kvm_facility(vcpu->kvm, 73)) {
 		/* remap the prefix is tx is toggled on */
-		if ((scb_o->ecb & 0x10U) && !had_tx)
+		if ((scb_o->ecb & ECB_TE) && !had_tx)
 			prefix_unmapped(vsie_page);
-		scb_s->ecb |= scb_o->ecb & 0x10U;
+		scb_s->ecb |= scb_o->ecb & ECB_TE;
 	}
 	/* SIMD */
 	if (test_kvm_facility(vcpu->kvm, 129)) {
-		scb_s->eca |= scb_o->eca & 0x00020000U;
-		scb_s->ecd |= scb_o->ecd & 0x20000000U;
+		scb_s->eca |= scb_o->eca & ECA_VX;
+		scb_s->ecd |= scb_o->ecd & ECD_HOSTREGMGMT;
 	}
 	/* Run-time-Instrumentation */
 	if (test_kvm_facility(vcpu->kvm, 64))
-		scb_s->ecb3 |= scb_o->ecb3 & 0x01U;
+		scb_s->ecb3 |= scb_o->ecb3 & ECB3_RI;
+	/* Instruction Execution Prevention */
+	if (test_kvm_facility(vcpu->kvm, 130))
+		scb_s->ecb2 |= scb_o->ecb2 & ECB2_IEP;
+	/* Guarded Storage */
+	if (test_kvm_facility(vcpu->kvm, 133)) {
+		scb_s->ecb |= scb_o->ecb & ECB_GS;
+		scb_s->ecd |= scb_o->ecd & ECD_HOSTREGMGMT;
+	}
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_SIIF))
-		scb_s->eca |= scb_o->eca & 0x00000001U;
+		scb_s->eca |= scb_o->eca & ECA_SII;
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_IB))
-		scb_s->eca |= scb_o->eca & 0x40000000U;
+		scb_s->eca |= scb_o->eca & ECA_IB;
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_CEI))
-		scb_s->eca |= scb_o->eca & 0x80000000U;
+		scb_s->eca |= scb_o->eca & ECA_CEI;
+	/* Epoch Extension */
+	if (test_kvm_facility(vcpu->kvm, 139))
+		scb_s->ecd |= scb_o->ecd & ECD_MEF;
 
 	prepare_ibc(vcpu, vsie_page);
 	rc = shadow_crycb(vcpu, vsie_page);
@@ -401,7 +423,7 @@ static int map_prefix(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	prefix += scb_s->mso;
 
 	rc = kvm_s390_shadow_fault(vcpu, vsie_page->gmap, prefix);
-	if (!rc && (scb_s->ecb & 0x10U))
+	if (!rc && (scb_s->ecb & ECB_TE))
 		rc = kvm_s390_shadow_fault(vcpu, vsie_page->gmap,
 					   prefix + PAGE_SIZE);
 	/*
@@ -491,6 +513,13 @@ static void unpin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		unpin_guest_page(vcpu->kvm, gpa, hpa);
 		scb_s->riccbd = 0;
 	}
+
+	hpa = scb_s->sdnxo;
+	if (hpa) {
+		gpa = scb_o->sdnxo;
+		unpin_guest_page(vcpu->kvm, gpa, hpa);
+		scb_s->sdnxo = 0;
+	}
 }
 
 /*
@@ -538,7 +567,7 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	}
 
 	gpa = scb_o->itdba & ~0xffUL;
-	if (gpa && (scb_s->ecb & 0x10U)) {
+	if (gpa && (scb_s->ecb & ECB_TE)) {
 		if (!(gpa & ~0x1fffU)) {
 			rc = set_validity_icpt(scb_s, 0x0080U);
 			goto unpin;
@@ -553,8 +582,7 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	}
 
 	gpa = scb_o->gvrd & ~0x1ffUL;
-	if (gpa && (scb_s->eca & 0x00020000U) &&
-	    !(scb_s->ecd & 0x20000000U)) {
+	if (gpa && (scb_s->eca & ECA_VX) && !(scb_s->ecd & ECD_HOSTREGMGMT)) {
 		if (!(gpa & ~0x1fffUL)) {
 			rc = set_validity_icpt(scb_s, 0x1310U);
 			goto unpin;
@@ -572,7 +600,7 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	}
 
 	gpa = scb_o->riccbd & ~0x3fUL;
-	if (gpa && (scb_s->ecb3 & 0x01U)) {
+	if (gpa && (scb_s->ecb3 & ECB3_RI)) {
 		if (!(gpa & ~0x1fffUL)) {
 			rc = set_validity_icpt(scb_s, 0x0043U);
 			goto unpin;
@@ -585,6 +613,33 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		if (rc)
 			goto unpin;
 		scb_s->riccbd = hpa;
+	}
+	if ((scb_s->ecb & ECB_GS) && !(scb_s->ecd & ECD_HOSTREGMGMT)) {
+		unsigned long sdnxc;
+
+		gpa = scb_o->sdnxo & ~0xfUL;
+		sdnxc = scb_o->sdnxo & 0xfUL;
+		if (!gpa || !(gpa & ~0x1fffUL)) {
+			rc = set_validity_icpt(scb_s, 0x10b0U);
+			goto unpin;
+		}
+		if (sdnxc < 6 || sdnxc > 12) {
+			rc = set_validity_icpt(scb_s, 0x10b1U);
+			goto unpin;
+		}
+		if (gpa & ((1 << sdnxc) - 1)) {
+			rc = set_validity_icpt(scb_s, 0x10b2U);
+			goto unpin;
+		}
+		/* Due to alignment rules (checked above) this cannot
+		 * cross page boundaries
+		 */
+		rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
+		if (rc == -EINVAL)
+			rc = set_validity_icpt(scb_s, 0x10b0U);
+		if (rc)
+			goto unpin;
+		scb_s->sdnxo = hpa | sdnxc;
 	}
 	return 0;
 unpin:
@@ -775,6 +830,12 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	local_irq_enable();
 	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 
+	if (rc == -EINTR) {
+		VCPU_EVENT(vcpu, 3, "%s", "machine check");
+		kvm_s390_reinject_machine_check(vcpu, &vsie_page->mcck_info);
+		return 0;
+	}
+
 	if (rc > 0)
 		rc = 0; /* we could still have an icpt */
 	else if (rc == -EFAULT)
@@ -857,6 +918,13 @@ static void register_shadow_scb(struct kvm_vcpu *vcpu,
 	 */
 	preempt_disable();
 	scb_s->epoch += vcpu->kvm->arch.epoch;
+
+	if (scb_s->ecd & ECD_MEF) {
+		scb_s->epdx += vcpu->kvm->arch.epdx;
+		if (scb_s->epoch < vcpu->kvm->arch.epoch)
+			scb_s->epdx += 1;
+	}
+
 	preempt_enable();
 }
 
@@ -899,7 +967,7 @@ static int vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		if (rc || scb_s->icptcode || signal_pending(current) ||
 		    kvm_s390_vcpu_has_irq(vcpu, 0))
 			break;
-	};
+	}
 
 	if (rc == -EFAULT) {
 		/*
@@ -1007,7 +1075,7 @@ int kvm_s390_handle_vsie(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
-	BUILD_BUG_ON(sizeof(struct vsie_page) != 4096);
+	BUILD_BUG_ON(sizeof(struct vsie_page) != PAGE_SIZE);
 	scb_addr = kvm_s390_get_base_disp_s(vcpu, NULL);
 
 	/* 512 byte alignment */

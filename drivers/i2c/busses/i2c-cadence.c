@@ -405,14 +405,14 @@ static void cdns_i2c_mrecv(struct cdns_i2c *id)
 		cdns_i2c_writereg(id->recv_count, CDNS_I2C_XFER_SIZE_OFFSET);
 	}
 
+	/* Set the slave address in address register - triggers operation */
+	cdns_i2c_writereg(id->p_msg->addr & CDNS_I2C_ADDR_MASK,
+						CDNS_I2C_ADDR_OFFSET);
 	/* Clear the bus hold flag if bytes to receive is less than FIFO size */
 	if (!id->bus_hold_flag &&
 		((id->p_msg->flags & I2C_M_RECV_LEN) != I2C_M_RECV_LEN) &&
 		(id->recv_count <= CDNS_I2C_FIFO_DEPTH))
 			cdns_i2c_clear_bus_hold(id);
-	/* Set the slave address in address register - triggers operation */
-	cdns_i2c_writereg(id->p_msg->addr & CDNS_I2C_ADDR_MASK,
-						CDNS_I2C_ADDR_OFFSET);
 	cdns_i2c_writereg(CDNS_I2C_ENABLED_INTR_MASK, CDNS_I2C_IER_OFFSET);
 }
 
@@ -826,8 +826,7 @@ static int cdns_i2c_clk_notifier_cb(struct notifier_block *nb, unsigned long
  */
 static int __maybe_unused cdns_i2c_runtime_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct cdns_i2c *xi2c = platform_get_drvdata(pdev);
+	struct cdns_i2c *xi2c = dev_get_drvdata(dev);
 
 	clk_disable(xi2c->clk);
 
@@ -844,8 +843,7 @@ static int __maybe_unused cdns_i2c_runtime_suspend(struct device *dev)
  */
 static int __maybe_unused cdns_i2c_runtime_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct cdns_i2c *xi2c = platform_get_drvdata(pdev);
+	struct cdns_i2c *xi2c = dev_get_drvdata(dev);
 	int ret;
 
 	ret = clk_enable(xi2c->clk);

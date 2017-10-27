@@ -339,10 +339,8 @@ static int __init atmel_wm97xx_probe(struct platform_device *pdev)
 	int ret;
 
 	atmel_wm97xx = kzalloc(sizeof(struct atmel_wm97xx), GFP_KERNEL);
-	if (!atmel_wm97xx) {
-		dev_dbg(&pdev->dev, "out of memory\n");
+	if (!atmel_wm97xx)
 		return -ENOMEM;
-	}
 
 	atmel_wm97xx->wm	= wm;
 	atmel_wm97xx->regs	= (void *)ATMEL_WM97XX_AC97C_IOMEM;

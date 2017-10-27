@@ -21,17 +21,18 @@
 
 #include <linux/bpf.h>
 
-#include "bpf_sys.h"
+#include <bpf/bpf.h>
+#include <bpf/libbpf.h>
 #include "bpf_util.h"
 
 static int map_flags;
 
 static void test_hashmap(int task, void *data)
 {
-	long long key, next_key, value;
+	long long key, next_key, first_key, value;
 	int fd;
 
-	fd = bpf_map_create(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
+	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
 			    2, map_flags);
 	if (fd < 0) {
 		printf("Failed to create hashmap '%s'!\n", strerror(errno));
@@ -41,145 +42,178 @@ static void test_hashmap(int task, void *data)
 	key = 1;
 	value = 1234;
 	/* Insert key=1 element. */
-	assert(bpf_map_update(fd, &key, &value, BPF_ANY) == 0);
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == 0);
 
 	value = 0;
 	/* BPF_NOEXIST means add new element if it doesn't exist. */
-	assert(bpf_map_update(fd, &key, &value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
 	       /* key=1 already exists. */
 	       errno == EEXIST);
 
 	/* -1 is an invalid flag. */
-	assert(bpf_map_update(fd, &key, &value, -1) == -1 && errno == EINVAL);
+	assert(bpf_map_update_elem(fd, &key, &value, -1) == -1 &&
+	       errno == EINVAL);
 
 	/* Check that key=1 can be found. */
-	assert(bpf_map_lookup(fd, &key, &value) == 0 && value == 1234);
+	assert(bpf_map_lookup_elem(fd, &key, &value) == 0 && value == 1234);
 
 	key = 2;
 	/* Check that key=2 is not found. */
-	assert(bpf_map_lookup(fd, &key, &value) == -1 && errno == ENOENT);
+	assert(bpf_map_lookup_elem(fd, &key, &value) == -1 && errno == ENOENT);
 
 	/* BPF_EXIST means update existing element. */
-	assert(bpf_map_update(fd, &key, &value, BPF_EXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_EXIST) == -1 &&
 	       /* key=2 is not there. */
 	       errno == ENOENT);
 
 	/* Insert key=2 element. */
-	assert(bpf_map_update(fd, &key, &value, BPF_NOEXIST) == 0);
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == 0);
 
 	/* key=1 and key=2 were inserted, check that key=0 cannot be
 	 * inserted due to max_entries limit.
 	 */
 	key = 0;
-	assert(bpf_map_update(fd, &key, &value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
 	       errno == E2BIG);
 
 	/* Update existing element, though the map is full. */
 	key = 1;
-	assert(bpf_map_update(fd, &key, &value, BPF_EXIST) == 0);
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_EXIST) == 0);
 	key = 2;
-	assert(bpf_map_update(fd, &key, &value, BPF_ANY) == 0);
-	key = 1;
-	assert(bpf_map_update(fd, &key, &value, BPF_ANY) == 0);
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == 0);
+	key = 3;
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
+	       errno == E2BIG);
 
 	/* Check that key = 0 doesn't exist. */
 	key = 0;
-	assert(bpf_map_delete(fd, &key) == -1 && errno == ENOENT);
+	assert(bpf_map_delete_elem(fd, &key) == -1 && errno == ENOENT);
 
 	/* Iterate over two elements. */
-	assert(bpf_map_next_key(fd, &key, &next_key) == 0 &&
-	       (next_key == 1 || next_key == 2));
-	assert(bpf_map_next_key(fd, &next_key, &next_key) == 0 &&
-	       (next_key == 1 || next_key == 2));
-	assert(bpf_map_next_key(fd, &next_key, &next_key) == -1 &&
+	assert(bpf_map_get_next_key(fd, NULL, &first_key) == 0 &&
+	       (first_key == 1 || first_key == 2));
+	assert(bpf_map_get_next_key(fd, &key, &next_key) == 0 &&
+	       (next_key == first_key));
+	assert(bpf_map_get_next_key(fd, &next_key, &next_key) == 0 &&
+	       (next_key == 1 || next_key == 2) &&
+	       (next_key != first_key));
+	assert(bpf_map_get_next_key(fd, &next_key, &next_key) == -1 &&
 	       errno == ENOENT);
 
 	/* Delete both elements. */
 	key = 1;
-	assert(bpf_map_delete(fd, &key) == 0);
+	assert(bpf_map_delete_elem(fd, &key) == 0);
 	key = 2;
-	assert(bpf_map_delete(fd, &key) == 0);
-	assert(bpf_map_delete(fd, &key) == -1 && errno == ENOENT);
+	assert(bpf_map_delete_elem(fd, &key) == 0);
+	assert(bpf_map_delete_elem(fd, &key) == -1 && errno == ENOENT);
 
 	key = 0;
 	/* Check that map is empty. */
-	assert(bpf_map_next_key(fd, &key, &next_key) == -1 &&
+	assert(bpf_map_get_next_key(fd, NULL, &next_key) == -1 &&
+	       errno == ENOENT);
+	assert(bpf_map_get_next_key(fd, &key, &next_key) == -1 &&
 	       errno == ENOENT);
 
 	close(fd);
 }
 
+static void test_hashmap_sizes(int task, void *data)
+{
+	int fd, i, j;
+
+	for (i = 1; i <= 512; i <<= 1)
+		for (j = 1; j <= 1 << 18; j <<= 1) {
+			fd = bpf_create_map(BPF_MAP_TYPE_HASH, i, j,
+					    2, map_flags);
+			if (fd < 0) {
+				printf("Failed to create hashmap key=%d value=%d '%s'\n",
+				       i, j, strerror(errno));
+				exit(1);
+			}
+			close(fd);
+			usleep(10); /* give kernel time to destroy */
+		}
+}
+
 static void test_hashmap_percpu(int task, void *data)
 {
 	unsigned int nr_cpus = bpf_num_possible_cpus();
-	long long value[nr_cpus];
-	long long key, next_key;
+	BPF_DECLARE_PERCPU(long, value);
+	long long key, next_key, first_key;
 	int expected_key_mask = 0;
 	int fd, i;
 
-	fd = bpf_map_create(BPF_MAP_TYPE_PERCPU_HASH, sizeof(key),
-			    sizeof(value[0]), 2, map_flags);
+	fd = bpf_create_map(BPF_MAP_TYPE_PERCPU_HASH, sizeof(key),
+			    sizeof(bpf_percpu(value, 0)), 2, map_flags);
 	if (fd < 0) {
 		printf("Failed to create hashmap '%s'!\n", strerror(errno));
 		exit(1);
 	}
 
 	for (i = 0; i < nr_cpus; i++)
-		value[i] = i + 100;
+		bpf_percpu(value, i) = i + 100;
 
 	key = 1;
 	/* Insert key=1 element. */
 	assert(!(expected_key_mask & key));
-	assert(bpf_map_update(fd, &key, value, BPF_ANY) == 0);
+	assert(bpf_map_update_elem(fd, &key, value, BPF_ANY) == 0);
 	expected_key_mask |= key;
 
 	/* BPF_NOEXIST means add new element if it doesn't exist. */
-	assert(bpf_map_update(fd, &key, value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, value, BPF_NOEXIST) == -1 &&
 	       /* key=1 already exists. */
 	       errno == EEXIST);
 
 	/* -1 is an invalid flag. */
-	assert(bpf_map_update(fd, &key, value, -1) == -1 && errno == EINVAL);
+	assert(bpf_map_update_elem(fd, &key, value, -1) == -1 &&
+	       errno == EINVAL);
 
 	/* Check that key=1 can be found. Value could be 0 if the lookup
 	 * was run from a different CPU.
 	 */
-	value[0] = 1;
-	assert(bpf_map_lookup(fd, &key, value) == 0 && value[0] == 100);
+	bpf_percpu(value, 0) = 1;
+	assert(bpf_map_lookup_elem(fd, &key, value) == 0 &&
+	       bpf_percpu(value, 0) == 100);
 
 	key = 2;
 	/* Check that key=2 is not found. */
-	assert(bpf_map_lookup(fd, &key, value) == -1 && errno == ENOENT);
+	assert(bpf_map_lookup_elem(fd, &key, value) == -1 && errno == ENOENT);
 
 	/* BPF_EXIST means update existing element. */
-	assert(bpf_map_update(fd, &key, value, BPF_EXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, value, BPF_EXIST) == -1 &&
 	       /* key=2 is not there. */
 	       errno == ENOENT);
 
 	/* Insert key=2 element. */
 	assert(!(expected_key_mask & key));
-	assert(bpf_map_update(fd, &key, value, BPF_NOEXIST) == 0);
+	assert(bpf_map_update_elem(fd, &key, value, BPF_NOEXIST) == 0);
 	expected_key_mask |= key;
 
 	/* key=1 and key=2 were inserted, check that key=0 cannot be
 	 * inserted due to max_entries limit.
 	 */
 	key = 0;
-	assert(bpf_map_update(fd, &key, value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, value, BPF_NOEXIST) == -1 &&
 	       errno == E2BIG);
 
 	/* Check that key = 0 doesn't exist. */
-	assert(bpf_map_delete(fd, &key) == -1 && errno == ENOENT);
+	assert(bpf_map_delete_elem(fd, &key) == -1 && errno == ENOENT);
 
 	/* Iterate over two elements. */
-	while (!bpf_map_next_key(fd, &key, &next_key)) {
+	assert(bpf_map_get_next_key(fd, NULL, &first_key) == 0 &&
+	       ((expected_key_mask & first_key) == first_key));
+	while (!bpf_map_get_next_key(fd, &key, &next_key)) {
+		if (first_key) {
+			assert(next_key == first_key);
+			first_key = 0;
+		}
 		assert((expected_key_mask & next_key) == next_key);
 		expected_key_mask &= ~next_key;
 
-		assert(bpf_map_lookup(fd, &next_key, value) == 0);
+		assert(bpf_map_lookup_elem(fd, &next_key, value) == 0);
 
 		for (i = 0; i < nr_cpus; i++)
-			assert(value[i] == i + 100);
+			assert(bpf_percpu(value, i) == i + 100);
 
 		key = next_key;
 	}
@@ -187,20 +221,70 @@ static void test_hashmap_percpu(int task, void *data)
 
 	/* Update with BPF_EXIST. */
 	key = 1;
-	assert(bpf_map_update(fd, &key, value, BPF_EXIST) == 0);
+	assert(bpf_map_update_elem(fd, &key, value, BPF_EXIST) == 0);
 
 	/* Delete both elements. */
 	key = 1;
-	assert(bpf_map_delete(fd, &key) == 0);
+	assert(bpf_map_delete_elem(fd, &key) == 0);
 	key = 2;
-	assert(bpf_map_delete(fd, &key) == 0);
-	assert(bpf_map_delete(fd, &key) == -1 && errno == ENOENT);
+	assert(bpf_map_delete_elem(fd, &key) == 0);
+	assert(bpf_map_delete_elem(fd, &key) == -1 && errno == ENOENT);
 
 	key = 0;
 	/* Check that map is empty. */
-	assert(bpf_map_next_key(fd, &key, &next_key) == -1 &&
+	assert(bpf_map_get_next_key(fd, NULL, &next_key) == -1 &&
+	       errno == ENOENT);
+	assert(bpf_map_get_next_key(fd, &key, &next_key) == -1 &&
 	       errno == ENOENT);
 
+	close(fd);
+}
+
+static void test_hashmap_walk(int task, void *data)
+{
+	int fd, i, max_entries = 100000;
+	long long key, value, next_key;
+	bool next_key_valid = true;
+
+	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
+			    max_entries, map_flags);
+	if (fd < 0) {
+		printf("Failed to create hashmap '%s'!\n", strerror(errno));
+		exit(1);
+	}
+
+	for (i = 0; i < max_entries; i++) {
+		key = i; value = key;
+		assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == 0);
+	}
+
+	for (i = 0; bpf_map_get_next_key(fd, !i ? NULL : &key,
+					 &next_key) == 0; i++) {
+		key = next_key;
+		assert(bpf_map_lookup_elem(fd, &key, &value) == 0);
+	}
+
+	assert(i == max_entries);
+
+	assert(bpf_map_get_next_key(fd, NULL, &key) == 0);
+	for (i = 0; next_key_valid; i++) {
+		next_key_valid = bpf_map_get_next_key(fd, &key, &next_key) == 0;
+		assert(bpf_map_lookup_elem(fd, &key, &value) == 0);
+		value++;
+		assert(bpf_map_update_elem(fd, &key, &value, BPF_EXIST) == 0);
+		key = next_key;
+	}
+
+	assert(i == max_entries);
+
+	for (i = 0; bpf_map_get_next_key(fd, !i ? NULL : &key,
+					 &next_key) == 0; i++) {
+		key = next_key;
+		assert(bpf_map_lookup_elem(fd, &key, &value) == 0);
+		assert(value - 1 == key);
+	}
+
+	assert(i == max_entries);
 	close(fd);
 }
 
@@ -209,7 +293,7 @@ static void test_arraymap(int task, void *data)
 	int key, next_key, fd;
 	long long value;
 
-	fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, sizeof(key), sizeof(value),
+	fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, sizeof(key), sizeof(value),
 			    2, 0);
 	if (fd < 0) {
 		printf("Failed to create arraymap '%s'!\n", strerror(errno));
@@ -219,40 +303,42 @@ static void test_arraymap(int task, void *data)
 	key = 1;
 	value = 1234;
 	/* Insert key=1 element. */
-	assert(bpf_map_update(fd, &key, &value, BPF_ANY) == 0);
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == 0);
 
 	value = 0;
-	assert(bpf_map_update(fd, &key, &value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
 	       errno == EEXIST);
 
 	/* Check that key=1 can be found. */
-	assert(bpf_map_lookup(fd, &key, &value) == 0 && value == 1234);
+	assert(bpf_map_lookup_elem(fd, &key, &value) == 0 && value == 1234);
 
 	key = 0;
 	/* Check that key=0 is also found and zero initialized. */
-	assert(bpf_map_lookup(fd, &key, &value) == 0 && value == 0);
+	assert(bpf_map_lookup_elem(fd, &key, &value) == 0 && value == 0);
 
 	/* key=0 and key=1 were inserted, check that key=2 cannot be inserted
 	 * due to max_entries limit.
 	 */
 	key = 2;
-	assert(bpf_map_update(fd, &key, &value, BPF_EXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_EXIST) == -1 &&
 	       errno == E2BIG);
 
 	/* Check that key = 2 doesn't exist. */
-	assert(bpf_map_lookup(fd, &key, &value) == -1 && errno == ENOENT);
+	assert(bpf_map_lookup_elem(fd, &key, &value) == -1 && errno == ENOENT);
 
 	/* Iterate over two elements. */
-	assert(bpf_map_next_key(fd, &key, &next_key) == 0 &&
+	assert(bpf_map_get_next_key(fd, NULL, &next_key) == 0 &&
 	       next_key == 0);
-	assert(bpf_map_next_key(fd, &next_key, &next_key) == 0 &&
+	assert(bpf_map_get_next_key(fd, &key, &next_key) == 0 &&
+	       next_key == 0);
+	assert(bpf_map_get_next_key(fd, &next_key, &next_key) == 0 &&
 	       next_key == 1);
-	assert(bpf_map_next_key(fd, &next_key, &next_key) == -1 &&
+	assert(bpf_map_get_next_key(fd, &next_key, &next_key) == -1 &&
 	       errno == ENOENT);
 
 	/* Delete shouldn't succeed. */
 	key = 1;
-	assert(bpf_map_delete(fd, &key) == -1 && errno == EINVAL);
+	assert(bpf_map_delete_elem(fd, &key) == -1 && errno == EINVAL);
 
 	close(fd);
 }
@@ -260,54 +346,58 @@ static void test_arraymap(int task, void *data)
 static void test_arraymap_percpu(int task, void *data)
 {
 	unsigned int nr_cpus = bpf_num_possible_cpus();
+	BPF_DECLARE_PERCPU(long, values);
 	int key, next_key, fd, i;
-	long values[nr_cpus];
 
-	fd = bpf_map_create(BPF_MAP_TYPE_PERCPU_ARRAY, sizeof(key),
-			    sizeof(values[0]), 2, 0);
+	fd = bpf_create_map(BPF_MAP_TYPE_PERCPU_ARRAY, sizeof(key),
+			    sizeof(bpf_percpu(values, 0)), 2, 0);
 	if (fd < 0) {
 		printf("Failed to create arraymap '%s'!\n", strerror(errno));
 		exit(1);
 	}
 
 	for (i = 0; i < nr_cpus; i++)
-		values[i] = i + 100;
+		bpf_percpu(values, i) = i + 100;
 
 	key = 1;
 	/* Insert key=1 element. */
-	assert(bpf_map_update(fd, &key, values, BPF_ANY) == 0);
+	assert(bpf_map_update_elem(fd, &key, values, BPF_ANY) == 0);
 
-	values[0] = 0;
-	assert(bpf_map_update(fd, &key, values, BPF_NOEXIST) == -1 &&
+	bpf_percpu(values, 0) = 0;
+	assert(bpf_map_update_elem(fd, &key, values, BPF_NOEXIST) == -1 &&
 	       errno == EEXIST);
 
 	/* Check that key=1 can be found. */
-	assert(bpf_map_lookup(fd, &key, values) == 0 && values[0] == 100);
+	assert(bpf_map_lookup_elem(fd, &key, values) == 0 &&
+	       bpf_percpu(values, 0) == 100);
 
 	key = 0;
 	/* Check that key=0 is also found and zero initialized. */
-	assert(bpf_map_lookup(fd, &key, values) == 0 &&
-	       values[0] == 0 && values[nr_cpus - 1] == 0);
+	assert(bpf_map_lookup_elem(fd, &key, values) == 0 &&
+	       bpf_percpu(values, 0) == 0 &&
+	       bpf_percpu(values, nr_cpus - 1) == 0);
 
 	/* Check that key=2 cannot be inserted due to max_entries limit. */
 	key = 2;
-	assert(bpf_map_update(fd, &key, values, BPF_EXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, values, BPF_EXIST) == -1 &&
 	       errno == E2BIG);
 
 	/* Check that key = 2 doesn't exist. */
-	assert(bpf_map_lookup(fd, &key, values) == -1 && errno == ENOENT);
+	assert(bpf_map_lookup_elem(fd, &key, values) == -1 && errno == ENOENT);
 
 	/* Iterate over two elements. */
-	assert(bpf_map_next_key(fd, &key, &next_key) == 0 &&
+	assert(bpf_map_get_next_key(fd, NULL, &next_key) == 0 &&
 	       next_key == 0);
-	assert(bpf_map_next_key(fd, &next_key, &next_key) == 0 &&
+	assert(bpf_map_get_next_key(fd, &key, &next_key) == 0 &&
+	       next_key == 0);
+	assert(bpf_map_get_next_key(fd, &next_key, &next_key) == 0 &&
 	       next_key == 1);
-	assert(bpf_map_next_key(fd, &next_key, &next_key) == -1 &&
+	assert(bpf_map_get_next_key(fd, &next_key, &next_key) == -1 &&
 	       errno == ENOENT);
 
 	/* Delete shouldn't succeed. */
 	key = 1;
-	assert(bpf_map_delete(fd, &key) == -1 && errno == EINVAL);
+	assert(bpf_map_delete_elem(fd, &key) == -1 && errno == EINVAL);
 
 	close(fd);
 }
@@ -315,12 +405,15 @@ static void test_arraymap_percpu(int task, void *data)
 static void test_arraymap_percpu_many_keys(void)
 {
 	unsigned int nr_cpus = bpf_num_possible_cpus();
-	unsigned int nr_keys = 20000;
-	long values[nr_cpus];
+	BPF_DECLARE_PERCPU(long, values);
+	/* nr_keys is not too large otherwise the test stresses percpu
+	 * allocator more than anything else
+	 */
+	unsigned int nr_keys = 2000;
 	int key, fd, i;
 
-	fd = bpf_map_create(BPF_MAP_TYPE_PERCPU_ARRAY, sizeof(key),
-			    sizeof(values[0]), nr_keys, 0);
+	fd = bpf_create_map(BPF_MAP_TYPE_PERCPU_ARRAY, sizeof(key),
+			    sizeof(bpf_percpu(values, 0)), nr_keys, 0);
 	if (fd < 0) {
 		printf("Failed to create per-cpu arraymap '%s'!\n",
 		       strerror(errno));
@@ -328,22 +421,470 @@ static void test_arraymap_percpu_many_keys(void)
 	}
 
 	for (i = 0; i < nr_cpus; i++)
-		values[i] = i + 10;
+		bpf_percpu(values, i) = i + 10;
 
 	for (key = 0; key < nr_keys; key++)
-		assert(bpf_map_update(fd, &key, values, BPF_ANY) == 0);
+		assert(bpf_map_update_elem(fd, &key, values, BPF_ANY) == 0);
 
 	for (key = 0; key < nr_keys; key++) {
 		for (i = 0; i < nr_cpus; i++)
-			values[i] = 0;
+			bpf_percpu(values, i) = 0;
 
-		assert(bpf_map_lookup(fd, &key, values) == 0);
+		assert(bpf_map_lookup_elem(fd, &key, values) == 0);
 
 		for (i = 0; i < nr_cpus; i++)
-			assert(values[i] == i + 10);
+			assert(bpf_percpu(values, i) == i + 10);
 	}
 
 	close(fd);
+}
+
+static void test_devmap(int task, void *data)
+{
+	int fd;
+	__u32 key, value;
+
+	fd = bpf_create_map(BPF_MAP_TYPE_DEVMAP, sizeof(key), sizeof(value),
+			    2, 0);
+	if (fd < 0) {
+		printf("Failed to create arraymap '%s'!\n", strerror(errno));
+		exit(1);
+	}
+
+	close(fd);
+}
+
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <arpa/inet.h>
+#include <sys/select.h>
+#include <linux/err.h>
+#define SOCKMAP_PARSE_PROG "./sockmap_parse_prog.o"
+#define SOCKMAP_VERDICT_PROG "./sockmap_verdict_prog.o"
+static void test_sockmap(int tasks, void *data)
+{
+	int one = 1, map_fd_rx, map_fd_tx, map_fd_break, s, sc, rc;
+	struct bpf_map *bpf_map_rx, *bpf_map_tx, *bpf_map_break;
+	int ports[] = {50200, 50201, 50202, 50204};
+	int err, i, fd, udp, sfd[6] = {0xdeadbeef};
+	u8 buf[20] = {0x0, 0x5, 0x3, 0x2, 0x1, 0x0};
+	int parse_prog, verdict_prog;
+	struct sockaddr_in addr;
+	struct bpf_object *obj;
+	struct timeval to;
+	__u32 key, value;
+	pid_t pid[tasks];
+	fd_set w;
+
+	/* Create some sockets to use with sockmap */
+	for (i = 0; i < 2; i++) {
+		sfd[i] = socket(AF_INET, SOCK_STREAM, 0);
+		if (sfd[i] < 0)
+			goto out;
+		err = setsockopt(sfd[i], SOL_SOCKET, SO_REUSEADDR,
+				 (char *)&one, sizeof(one));
+		if (err) {
+			printf("failed to setsockopt\n");
+			goto out;
+		}
+		err = ioctl(sfd[i], FIONBIO, (char *)&one);
+		if (err < 0) {
+			printf("failed to ioctl\n");
+			goto out;
+		}
+		memset(&addr, 0, sizeof(struct sockaddr_in));
+		addr.sin_family = AF_INET;
+		addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+		addr.sin_port = htons(ports[i]);
+		err = bind(sfd[i], (struct sockaddr *)&addr, sizeof(addr));
+		if (err < 0) {
+			printf("failed to bind: err %i: %i:%i\n",
+			       err, i, sfd[i]);
+			goto out;
+		}
+		err = listen(sfd[i], 32);
+		if (err < 0) {
+			printf("failed to listen\n");
+			goto out;
+		}
+	}
+
+	for (i = 2; i < 4; i++) {
+		sfd[i] = socket(AF_INET, SOCK_STREAM, 0);
+		if (sfd[i] < 0)
+			goto out;
+		err = setsockopt(sfd[i], SOL_SOCKET, SO_REUSEADDR,
+				 (char *)&one, sizeof(one));
+		if (err) {
+			printf("set sock opt\n");
+			goto out;
+		}
+		memset(&addr, 0, sizeof(struct sockaddr_in));
+		addr.sin_family = AF_INET;
+		addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+		addr.sin_port = htons(ports[i - 2]);
+		err = connect(sfd[i], (struct sockaddr *)&addr, sizeof(addr));
+		if (err) {
+			printf("failed to connect\n");
+			goto out;
+		}
+	}
+
+
+	for (i = 4; i < 6; i++) {
+		sfd[i] = accept(sfd[i - 4], NULL, NULL);
+		if (sfd[i] < 0) {
+			printf("accept failed\n");
+			goto out;
+		}
+	}
+
+	/* Test sockmap with connected sockets */
+	fd = bpf_create_map(BPF_MAP_TYPE_SOCKMAP,
+			    sizeof(key), sizeof(value),
+			    6, 0);
+	if (fd < 0) {
+		printf("Failed to create sockmap %i\n", fd);
+		goto out_sockmap;
+	}
+
+	/* Test update with unsupported UDP socket */
+	udp = socket(AF_INET, SOCK_DGRAM, 0);
+	i = 0;
+	err = bpf_map_update_elem(fd, &i, &udp, BPF_ANY);
+	if (!err) {
+		printf("Failed socket SOCK_DGRAM allowed '%i:%i'\n",
+		       i, udp);
+		goto out_sockmap;
+	}
+
+	/* Test update without programs */
+	for (i = 0; i < 6; i++) {
+		err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_ANY);
+		if (err) {
+			printf("Failed noprog update sockmap '%i:%i'\n",
+			       i, sfd[i]);
+			goto out_sockmap;
+		}
+	}
+
+	/* Test attaching/detaching bad fds */
+	err = bpf_prog_attach(-1, fd, BPF_SK_SKB_STREAM_PARSER, 0);
+	if (!err) {
+		printf("Failed invalid parser prog attach\n");
+		goto out_sockmap;
+	}
+
+	err = bpf_prog_attach(-1, fd, BPF_SK_SKB_STREAM_VERDICT, 0);
+	if (!err) {
+		printf("Failed invalid verdict prog attach\n");
+		goto out_sockmap;
+	}
+
+	err = bpf_prog_attach(-1, fd, __MAX_BPF_ATTACH_TYPE, 0);
+	if (!err) {
+		printf("Failed unknown prog attach\n");
+		goto out_sockmap;
+	}
+
+	err = bpf_prog_detach(fd, BPF_SK_SKB_STREAM_PARSER);
+	if (err) {
+		printf("Failed empty parser prog detach\n");
+		goto out_sockmap;
+	}
+
+	err = bpf_prog_detach(fd, BPF_SK_SKB_STREAM_VERDICT);
+	if (err) {
+		printf("Failed empty verdict prog detach\n");
+		goto out_sockmap;
+	}
+
+	err = bpf_prog_detach(fd, __MAX_BPF_ATTACH_TYPE);
+	if (!err) {
+		printf("Detach invalid prog successful\n");
+		goto out_sockmap;
+	}
+
+	/* Load SK_SKB program and Attach */
+	err = bpf_prog_load(SOCKMAP_PARSE_PROG,
+			    BPF_PROG_TYPE_SK_SKB, &obj, &parse_prog);
+	if (err) {
+		printf("Failed to load SK_SKB parse prog\n");
+		goto out_sockmap;
+	}
+
+	err = bpf_prog_load(SOCKMAP_VERDICT_PROG,
+			    BPF_PROG_TYPE_SK_SKB, &obj, &verdict_prog);
+	if (err) {
+		printf("Failed to load SK_SKB verdict prog\n");
+		goto out_sockmap;
+	}
+
+	bpf_map_rx = bpf_object__find_map_by_name(obj, "sock_map_rx");
+	if (IS_ERR(bpf_map_rx)) {
+		printf("Failed to load map rx from verdict prog\n");
+		goto out_sockmap;
+	}
+
+	map_fd_rx = bpf_map__fd(bpf_map_rx);
+	if (map_fd_rx < 0) {
+		printf("Failed to get map fd\n");
+		goto out_sockmap;
+	}
+
+	bpf_map_tx = bpf_object__find_map_by_name(obj, "sock_map_tx");
+	if (IS_ERR(bpf_map_tx)) {
+		printf("Failed to load map tx from verdict prog\n");
+		goto out_sockmap;
+	}
+
+	map_fd_tx = bpf_map__fd(bpf_map_tx);
+	if (map_fd_tx < 0) {
+		printf("Failed to get map tx fd\n");
+		goto out_sockmap;
+	}
+
+	bpf_map_break = bpf_object__find_map_by_name(obj, "sock_map_break");
+	if (IS_ERR(bpf_map_break)) {
+		printf("Failed to load map tx from verdict prog\n");
+		goto out_sockmap;
+	}
+
+	map_fd_break = bpf_map__fd(bpf_map_break);
+	if (map_fd_break < 0) {
+		printf("Failed to get map tx fd\n");
+		goto out_sockmap;
+	}
+
+	err = bpf_prog_attach(parse_prog, map_fd_break,
+			      BPF_SK_SKB_STREAM_PARSER, 0);
+	if (!err) {
+		printf("Allowed attaching SK_SKB program to invalid map\n");
+		goto out_sockmap;
+	}
+
+	err = bpf_prog_attach(parse_prog, map_fd_rx,
+		      BPF_SK_SKB_STREAM_PARSER, 0);
+	if (err) {
+		printf("Failed stream parser bpf prog attach\n");
+		goto out_sockmap;
+	}
+
+	err = bpf_prog_attach(verdict_prog, map_fd_rx,
+			      BPF_SK_SKB_STREAM_VERDICT, 0);
+	if (err) {
+		printf("Failed stream verdict bpf prog attach\n");
+		goto out_sockmap;
+	}
+
+	err = bpf_prog_attach(verdict_prog, map_fd_rx,
+			      __MAX_BPF_ATTACH_TYPE, 0);
+	if (!err) {
+		printf("Attached unknown bpf prog\n");
+		goto out_sockmap;
+	}
+
+	/* Test map update elem afterwards fd lives in fd and map_fd */
+	for (i = 0; i < 6; i++) {
+		err = bpf_map_update_elem(map_fd_rx, &i, &sfd[i], BPF_ANY);
+		if (err) {
+			printf("Failed map_fd_rx update sockmap %i '%i:%i'\n",
+			       err, i, sfd[i]);
+			goto out_sockmap;
+		}
+		err = bpf_map_update_elem(map_fd_tx, &i, &sfd[i], BPF_ANY);
+		if (err) {
+			printf("Failed map_fd_tx update sockmap %i '%i:%i'\n",
+			       err, i, sfd[i]);
+			goto out_sockmap;
+		}
+	}
+
+	/* Test map delete elem and remove send/recv sockets */
+	for (i = 2; i < 4; i++) {
+		err = bpf_map_delete_elem(map_fd_rx, &i);
+		if (err) {
+			printf("Failed delete sockmap rx %i '%i:%i'\n",
+			       err, i, sfd[i]);
+			goto out_sockmap;
+		}
+		err = bpf_map_delete_elem(map_fd_tx, &i);
+		if (err) {
+			printf("Failed delete sockmap tx %i '%i:%i'\n",
+			       err, i, sfd[i]);
+			goto out_sockmap;
+		}
+	}
+
+	/* Test map send/recv */
+	for (i = 0; i < 2; i++) {
+		buf[0] = i;
+		buf[1] = 0x5;
+		sc = send(sfd[2], buf, 20, 0);
+		if (sc < 0) {
+			printf("Failed sockmap send\n");
+			goto out_sockmap;
+		}
+
+		FD_ZERO(&w);
+		FD_SET(sfd[3], &w);
+		to.tv_sec = 1;
+		to.tv_usec = 0;
+		s = select(sfd[3] + 1, &w, NULL, NULL, &to);
+		if (s == -1) {
+			perror("Failed sockmap select()");
+			goto out_sockmap;
+		} else if (!s) {
+			printf("Failed sockmap unexpected timeout\n");
+			goto out_sockmap;
+		}
+
+		if (!FD_ISSET(sfd[3], &w)) {
+			printf("Failed sockmap select/recv\n");
+			goto out_sockmap;
+		}
+
+		rc = recv(sfd[3], buf, sizeof(buf), 0);
+		if (rc < 0) {
+			printf("Failed sockmap recv\n");
+			goto out_sockmap;
+		}
+	}
+
+	/* Negative null entry lookup from datapath should be dropped */
+	buf[0] = 1;
+	buf[1] = 12;
+	sc = send(sfd[2], buf, 20, 0);
+	if (sc < 0) {
+		printf("Failed sockmap send\n");
+		goto out_sockmap;
+	}
+
+	/* Push fd into same slot */
+	i = 2;
+	err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_NOEXIST);
+	if (!err) {
+		printf("Failed allowed sockmap dup slot BPF_NOEXIST\n");
+		goto out_sockmap;
+	}
+
+	err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_ANY);
+	if (err) {
+		printf("Failed sockmap update new slot BPF_ANY\n");
+		goto out_sockmap;
+	}
+
+	err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_EXIST);
+	if (err) {
+		printf("Failed sockmap update new slot BPF_EXIST\n");
+		goto out_sockmap;
+	}
+
+	/* Delete the elems without programs */
+	for (i = 0; i < 6; i++) {
+		err = bpf_map_delete_elem(fd, &i);
+		if (err) {
+			printf("Failed delete sockmap %i '%i:%i'\n",
+			       err, i, sfd[i]);
+		}
+	}
+
+	/* Test having multiple maps open and set with programs on same fds */
+	err = bpf_prog_attach(parse_prog, fd,
+			      BPF_SK_SKB_STREAM_PARSER, 0);
+	if (err) {
+		printf("Failed fd bpf parse prog attach\n");
+		goto out_sockmap;
+	}
+	err = bpf_prog_attach(verdict_prog, fd,
+			      BPF_SK_SKB_STREAM_VERDICT, 0);
+	if (err) {
+		printf("Failed fd bpf verdict prog attach\n");
+		goto out_sockmap;
+	}
+
+	for (i = 4; i < 6; i++) {
+		err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_ANY);
+		if (!err) {
+			printf("Failed allowed duplicate programs in update ANY sockmap %i '%i:%i'\n",
+			       err, i, sfd[i]);
+			goto out_sockmap;
+		}
+		err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_NOEXIST);
+		if (!err) {
+			printf("Failed allowed duplicate program in update NOEXIST sockmap  %i '%i:%i'\n",
+			       err, i, sfd[i]);
+			goto out_sockmap;
+		}
+		err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_EXIST);
+		if (!err) {
+			printf("Failed allowed duplicate program in update EXIST sockmap  %i '%i:%i'\n",
+			       err, i, sfd[i]);
+			goto out_sockmap;
+		}
+	}
+
+	/* Test tasks number of forked operations */
+	for (i = 0; i < tasks; i++) {
+		pid[i] = fork();
+		if (pid[i] == 0) {
+			for (i = 0; i < 6; i++) {
+				bpf_map_delete_elem(map_fd_tx, &i);
+				bpf_map_delete_elem(map_fd_rx, &i);
+				bpf_map_update_elem(map_fd_tx, &i,
+						    &sfd[i], BPF_ANY);
+				bpf_map_update_elem(map_fd_rx, &i,
+						    &sfd[i], BPF_ANY);
+			}
+			exit(0);
+		} else if (pid[i] == -1) {
+			printf("Couldn't spawn #%d process!\n", i);
+			exit(1);
+		}
+	}
+
+	for (i = 0; i < tasks; i++) {
+		int status;
+
+		assert(waitpid(pid[i], &status, 0) == pid[i]);
+		assert(status == 0);
+	}
+
+	err = bpf_prog_detach(map_fd_rx, __MAX_BPF_ATTACH_TYPE);
+	if (!err) {
+		printf("Detached an invalid prog type.\n");
+		goto out_sockmap;
+	}
+
+	err = bpf_prog_detach(map_fd_rx, BPF_SK_SKB_STREAM_PARSER);
+	if (err) {
+		printf("Failed parser prog detach\n");
+		goto out_sockmap;
+	}
+
+	err = bpf_prog_detach(map_fd_rx, BPF_SK_SKB_STREAM_VERDICT);
+	if (err) {
+		printf("Failed parser prog detach\n");
+		goto out_sockmap;
+	}
+
+	/* Test map close sockets */
+	for (i = 0; i < 6; i++)
+		close(sfd[i]);
+	close(fd);
+	close(map_fd_rx);
+	bpf_object__close(obj);
+	return;
+out:
+	for (i = 0; i < 6; i++)
+		close(sfd[i]);
+	printf("Failed to create sockmap '%i:%s'!\n", i, strerror(errno));
+	exit(1);
+out_sockmap:
+	for (i = 0; i < 6; i++)
+		close(sfd[i]);
+	close(fd);
+	exit(1);
 }
 
 #define MAP_SIZE (32 * 1024)
@@ -357,7 +898,7 @@ static void test_map_large(void)
 	} key;
 	int fd, i, value;
 
-	fd = bpf_map_create(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
+	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
 			    MAP_SIZE, map_flags);
 	if (fd < 0) {
 		printf("Failed to create large map '%s'!\n", strerror(errno));
@@ -368,22 +909,24 @@ static void test_map_large(void)
 		key = (struct bigkey) { .c = i };
 		value = i;
 
-		assert(bpf_map_update(fd, &key, &value, BPF_NOEXIST) == 0);
+		assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == 0);
 	}
 
 	key.c = -1;
-	assert(bpf_map_update(fd, &key, &value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
 	       errno == E2BIG);
 
 	/* Iterate through all elements. */
+	assert(bpf_map_get_next_key(fd, NULL, &key) == 0);
+	key.c = -1;
 	for (i = 0; i < MAP_SIZE; i++)
-		assert(bpf_map_next_key(fd, &key, &key) == 0);
-	assert(bpf_map_next_key(fd, &key, &key) == -1 && errno == ENOENT);
+		assert(bpf_map_get_next_key(fd, &key, &key) == 0);
+	assert(bpf_map_get_next_key(fd, &key, &key) == -1 && errno == ENOENT);
 
 	key.c = 0;
-	assert(bpf_map_lookup(fd, &key, &value) == 0 && value == 0);
+	assert(bpf_map_lookup_elem(fd, &key, &value) == 0 && value == 0);
 	key.a = 1;
-	assert(bpf_map_lookup(fd, &key, &value) == -1 && errno == ENOENT);
+	assert(bpf_map_lookup_elem(fd, &key, &value) == -1 && errno == ENOENT);
 
 	close(fd);
 }
@@ -417,6 +960,8 @@ static void test_map_stress(void)
 {
 	run_parallel(100, test_hashmap, NULL);
 	run_parallel(100, test_hashmap_percpu, NULL);
+	run_parallel(100, test_hashmap_sizes, NULL);
+	run_parallel(100, test_hashmap_walk, NULL);
 
 	run_parallel(100, test_arraymap, NULL);
 	run_parallel(100, test_arraymap_percpu, NULL);
@@ -437,10 +982,12 @@ static void do_work(int fn, void *data)
 		key = value = i;
 
 		if (do_update) {
-			assert(bpf_map_update(fd, &key, &value, BPF_NOEXIST) == 0);
-			assert(bpf_map_update(fd, &key, &value, BPF_EXIST) == 0);
+			assert(bpf_map_update_elem(fd, &key, &value,
+						   BPF_NOEXIST) == 0);
+			assert(bpf_map_update_elem(fd, &key, &value,
+						   BPF_EXIST) == 0);
 		} else {
-			assert(bpf_map_delete(fd, &key) == 0);
+			assert(bpf_map_delete_elem(fd, &key) == 0);
 		}
 	}
 }
@@ -450,7 +997,7 @@ static void test_map_parallel(void)
 	int i, fd, key = 0, value = 0;
 	int data[2];
 
-	fd = bpf_map_create(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
+	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
 			    MAP_SIZE, map_flags);
 	if (fd < 0) {
 		printf("Failed to create map for parallel test '%s'!\n",
@@ -468,20 +1015,21 @@ static void test_map_parallel(void)
 	run_parallel(TASKS, do_work, data);
 
 	/* Check that key=0 is already there. */
-	assert(bpf_map_update(fd, &key, &value, BPF_NOEXIST) == -1 &&
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
 	       errno == EEXIST);
 
 	/* Check that all elements were inserted. */
+	assert(bpf_map_get_next_key(fd, NULL, &key) == 0);
 	key = -1;
 	for (i = 0; i < MAP_SIZE; i++)
-		assert(bpf_map_next_key(fd, &key, &key) == 0);
-	assert(bpf_map_next_key(fd, &key, &key) == -1 && errno == ENOENT);
+		assert(bpf_map_get_next_key(fd, &key, &key) == 0);
+	assert(bpf_map_get_next_key(fd, &key, &key) == -1 && errno == ENOENT);
 
 	/* Another check for all elements */
 	for (i = 0; i < MAP_SIZE; i++) {
 		key = MAP_SIZE - i - 1;
 
-		assert(bpf_map_lookup(fd, &key, &value) == 0 &&
+		assert(bpf_map_lookup_elem(fd, &key, &value) == 0 &&
 		       value == key);
 	}
 
@@ -491,18 +1039,23 @@ static void test_map_parallel(void)
 
 	/* Nothing should be left. */
 	key = -1;
-	assert(bpf_map_next_key(fd, &key, &key) == -1 && errno == ENOENT);
+	assert(bpf_map_get_next_key(fd, NULL, &key) == -1 && errno == ENOENT);
+	assert(bpf_map_get_next_key(fd, &key, &key) == -1 && errno == ENOENT);
 }
 
 static void run_all_tests(void)
 {
 	test_hashmap(0, NULL);
 	test_hashmap_percpu(0, NULL);
+	test_hashmap_walk(0, NULL);
 
 	test_arraymap(0, NULL);
 	test_arraymap_percpu(0, NULL);
 
 	test_arraymap_percpu_many_keys();
+
+	test_devmap(0, NULL);
+	test_sockmap(0, NULL);
 
 	test_map_large();
 	test_map_parallel();

@@ -31,8 +31,9 @@ enum cxgbit_pducb_flags {
 	PDUCBF_RX_DATA		= (1 << 1), /* received pdu payload */
 	PDUCBF_RX_STATUS	= (1 << 2), /* received ddp status */
 	PDUCBF_RX_DATA_DDPD	= (1 << 3), /* pdu payload ddp'd */
-	PDUCBF_RX_HCRC_ERR	= (1 << 4), /* header digest error */
-	PDUCBF_RX_DCRC_ERR	= (1 << 5), /* data digest error */
+	PDUCBF_RX_DDP_CMP	= (1 << 4), /* ddp completion */
+	PDUCBF_RX_HCRC_ERR	= (1 << 5), /* header digest error */
+	PDUCBF_RX_DCRC_ERR	= (1 << 6), /* data digest error */
 };
 
 struct cxgbit_lro_pdu_cb {

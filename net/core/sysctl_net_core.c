@@ -222,6 +222,21 @@ static int set_default_qdisc(struct ctl_table *table, int write,
 }
 #endif
 
+static int proc_do_dev_weight(struct ctl_table *table, int write,
+			   void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int ret;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	if (ret != 0)
+		return ret;
+
+	dev_rx_weight = weight_p * dev_weight_rx_bias;
+	dev_tx_weight = weight_p * dev_weight_tx_bias;
+
+	return ret;
+}
+
 static int proc_do_rss_key(struct ctl_table *table, int write,
 			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -273,7 +288,21 @@ static struct ctl_table net_core_table[] = {
 		.data		= &weight_p,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_do_dev_weight,
+	},
+	{
+		.procname	= "dev_weight_rx_bias",
+		.data		= &dev_weight_rx_bias,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_do_dev_weight,
+	},
+	{
+		.procname	= "dev_weight_tx_bias",
+		.data		= &dev_weight_tx_bias,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_do_dev_weight,
 	},
 	{
 		.procname	= "netdev_max_backlog",
@@ -301,6 +330,13 @@ static struct ctl_table net_core_table[] = {
 	{
 		.procname	= "bpf_jit_harden",
 		.data		= &bpf_jit_harden,
+		.maxlen		= sizeof(int),
+		.mode		= 0600,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "bpf_jit_kallsyms",
+		.data		= &bpf_jit_kallsyms,
 		.maxlen		= sizeof(int),
 		.mode		= 0600,
 		.proc_handler	= proc_dointvec,
@@ -372,14 +408,16 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_net_busy_poll,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
 	},
 	{
 		.procname	= "busy_read",
 		.data		= &sysctl_net_busy_read,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
 	},
 #endif
 #ifdef CONFIG_NET_SCHED
@@ -414,6 +452,14 @@ static struct ctl_table net_core_table[] = {
 		.extra1		= &one,
 		.extra2		= &max_skb_frags,
 	},
+	{
+		.procname	= "netdev_budget_usecs",
+		.data		= &netdev_budget_usecs,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+	},
 	{ }
 };
 
@@ -432,8 +478,6 @@ static struct ctl_table netns_core_table[] = {
 static __net_init int sysctl_core_net_init(struct net *net)
 {
 	struct ctl_table *tbl;
-
-	net->core.sysctl_somaxconn = SOMAXCONN;
 
 	tbl = netns_core_table;
 	if (!net_eq(net, &init_net)) {

@@ -174,7 +174,7 @@ static void hw_guard_wait(struct mipid_device *md)
 {
 	unsigned long wait = md->hw_guard_end - jiffies;
 
-	if ((long)wait > 0 && wait <= md->hw_guard_wait) {
+	if ((long)wait > 0 && time_before_eq(wait,  md->hw_guard_wait)) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(wait);
 	}
@@ -496,7 +496,7 @@ static void mipid_cleanup(struct lcd_panel *panel)
 		mipid_esd_stop_check(md);
 }
 
-static struct lcd_panel mipid_panel = {
+static const struct lcd_panel mipid_panel = {
 	.config		= OMAP_LCDC_PANEL_TFT,
 
 	.bpp		= 16,

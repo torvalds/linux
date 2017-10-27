@@ -71,7 +71,7 @@ static int altr_a10sr_gpio_direction_output(struct gpio_chip *gc,
 	return -EINVAL;
 }
 
-static struct gpio_chip altr_a10sr_gc = {
+static const struct gpio_chip altr_a10sr_gc = {
 	.label = "altr_a10sr_gpio",
 	.owner = THIS_MODULE,
 	.get = altr_a10sr_gpio_get,
@@ -96,7 +96,7 @@ static int altr_a10sr_gpio_probe(struct platform_device *pdev)
 	gpio->regmap = a10sr->regmap;
 
 	gpio->gp = altr_a10sr_gc;
-
+	gpio->gp.parent = pdev->dev.parent;
 	gpio->gp.of_node = pdev->dev.of_node;
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &gpio->gp, gpio);

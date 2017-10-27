@@ -74,9 +74,9 @@ static const int int_time_mapping[] = {100000, 50000, 200000, 400000};
 static const struct reg_field reg_field_it =
 				REG_FIELD(LTR501_ALS_MEAS_RATE, 3, 4);
 static const struct reg_field reg_field_als_intr =
-				REG_FIELD(LTR501_INTR, 0, 0);
-static const struct reg_field reg_field_ps_intr =
 				REG_FIELD(LTR501_INTR, 1, 1);
+static const struct reg_field reg_field_ps_intr =
+				REG_FIELD(LTR501_INTR, 0, 0);
 static const struct reg_field reg_field_als_rate =
 				REG_FIELD(LTR501_ALS_MEAS_RATE, 0, 2);
 static const struct reg_field reg_field_ps_rate =

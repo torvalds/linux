@@ -394,7 +394,6 @@ int sst_free_stream(struct intel_sst_drv *sst_drv_ctx, int str_id)
 {
 	int retval = 0;
 	struct stream_info *str_info;
-	struct intel_sst_ops *ops;
 
 	dev_dbg(sst_drv_ctx->dev, "SST DBG:sst_free_stream for %d\n", str_id);
 
@@ -407,7 +406,6 @@ int sst_free_stream(struct intel_sst_drv *sst_drv_ctx, int str_id)
 	str_info = get_stream_info(sst_drv_ctx, str_id);
 	if (!str_info)
 		return -EINVAL;
-	ops = sst_drv_ctx->ops;
 
 	mutex_lock(&str_info->lock);
 	if (str_info->status != STREAM_UN_INIT) {

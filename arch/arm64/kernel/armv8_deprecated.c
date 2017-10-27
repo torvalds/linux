@@ -19,6 +19,7 @@
 #include <asm/sysreg.h>
 #include <asm/system_misc.h>
 #include <asm/traps.h>
+#include <asm/kprobes.h>
 #include <linux/uaccess.h>
 #include <asm/cpufeature.h>
 
@@ -305,7 +306,8 @@ do {								\
 	_ASM_EXTABLE(0b, 4b)					\
 	_ASM_EXTABLE(1b, 4b)					\
 	: "=&r" (res), "+r" (data), "=&r" (temp), "=&r" (temp2)	\
-	: "r" (addr), "i" (-EAGAIN), "i" (-EFAULT),		\
+	: "r" ((unsigned long)addr), "i" (-EAGAIN),		\
+	  "i" (-EFAULT),					\
 	  "i" (__SWP_LL_SC_LOOPS)				\
 	: "memory");						\
 	uaccess_disable();					\
@@ -636,7 +638,7 @@ static int __init armv8_deprecated_init(void)
 		if(system_supports_mixed_endian_el0())
 			register_insn_emulation(&setend_ops);
 		else
-			pr_info("setend instruction emulation is not supported on the system");
+			pr_info("setend instruction emulation is not supported on this system\n");
 	}
 
 	cpuhp_setup_state_nocalls(CPUHP_AP_ARM64_ISNDEP_STARTING,
@@ -647,4 +649,4 @@ static int __init armv8_deprecated_init(void)
 	return 0;
 }
 
-late_initcall(armv8_deprecated_init);
+core_initcall(armv8_deprecated_init);

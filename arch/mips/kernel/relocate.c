@@ -18,7 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/libfdt.h>
 #include <linux/of_fdt.h>
-#include <linux/sched.h>
+#include <linux/sched/task.h>
 #include <linux/start_kernel.h>
 #include <linux/string.h>
 #include <linux/printk.h>
@@ -30,6 +30,18 @@ extern u32 _relocation_end[];	/* End relocation table */
 
 extern long __start___ex_table;	/* Start exception table */
 extern long __stop___ex_table;	/* End exception table */
+
+extern void __weak plat_fdt_relocated(void *new_location);
+
+/*
+ * This function may be defined for a platform to perform any post-relocation
+ * fixup necessary.
+ * Return non-zero to abort relocation
+ */
+int __weak plat_post_relocation(long offset)
+{
+	return 0;
+}
 
 static inline u32 __init get_synci_step(void)
 {
@@ -291,12 +303,14 @@ void *__init relocate_kernel(void)
 	int res = 1;
 	/* Default to original kernel entry point */
 	void *kernel_entry = start_kernel;
+	void *fdt = NULL;
 
 	/* Get the command line */
 	fw_init_cmdline();
 #if defined(CONFIG_USE_OF)
 	/* Deal with the device tree */
-	early_init_dt_scan(plat_get_fdt());
+	fdt = plat_get_fdt();
+	early_init_dt_scan(fdt);
 	if (boot_command_line[0]) {
 		/* Boot command line was passed in device tree */
 		strlcpy(arcs_cmdline, boot_command_line, COMMAND_LINE_SIZE);
@@ -316,6 +330,29 @@ void *__init relocate_kernel(void)
 	arcs_cmdline[0] = '\0';
 
 	if (offset) {
+		void (*fdt_relocated_)(void *) = NULL;
+#if defined(CONFIG_USE_OF)
+		unsigned long fdt_phys = virt_to_phys(fdt);
+
+		/*
+		 * If built-in dtb is used then it will have been relocated
+		 * during kernel _text relocation. If appended DTB is used
+		 * then it will not be relocated, but it should remain
+		 * intact in the original location. If dtb is loaded by
+		 * the bootloader then it may need to be moved if it crosses
+		 * the target memory area
+		 */
+
+		if (fdt_phys >= virt_to_phys(RELOCATED(&_text)) &&
+			fdt_phys <= virt_to_phys(RELOCATED(&_end))) {
+			void *fdt_relocated =
+				RELOCATED(ALIGN((long)&_end, PAGE_SIZE));
+			memcpy(fdt_relocated, fdt, fdt_totalsize(fdt));
+			fdt = fdt_relocated;
+			fdt_relocated_ = RELOCATED(&plat_fdt_relocated);
+		}
+#endif /* CONFIG_USE_OF */
+
 		/* Copy the kernel to it's new location */
 		memcpy(loc_new, &_text, kernel_length);
 
@@ -337,6 +374,23 @@ void *__init relocate_kernel(void)
 		 * stored to it so make a copy in the new location.
 		 */
 		memcpy(RELOCATED(&__bss_start), &__bss_start, bss_length);
+
+		/*
+		 * If fdt was stored outside of the kernel image and
+		 * had to be moved then update platform's state data
+		 * with the new fdt location
+		 */
+		if (fdt_relocated_)
+			fdt_relocated_(fdt);
+
+		/*
+		 * Last chance for the platform to abort relocation.
+		 * This may also be used by the platform to perform any
+		 * initialisation required now that the new kernel is
+		 * resident in memory and ready to be executed.
+		 */
+		if (plat_post_relocation(offset))
+			goto out;
 
 		/* The current thread is now within the relocated image */
 		__current_thread_info = RELOCATED(&init_thread_union);

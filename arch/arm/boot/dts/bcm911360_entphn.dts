@@ -39,9 +39,12 @@
 	model = "Cygnus Enterprise Phone (BCM911360_ENTPHN)";
 	compatible = "brcm,bcm11360", "brcm,cygnus";
 
+	aliases {
+		serial0 = &uart3;
+	};
+
 	chosen {
-		stdout-path = &uart3;
-		bootargs = "console=ttyS0,115200";
+		stdout-path = "serial0:115200n8";
 	};
 
 	gpio_keys {
@@ -55,6 +58,26 @@
 			gpios = <&gpio_asiu 48 0>;
 		};
 	};
+};
+
+&eth0 {
+	status = "okay";
+};
+
+&mdio {
+	status = "okay";
+};
+
+&switch {
+	status = "okay";
+};
+
+&v3d {
+	assigned-clocks =
+		<&mipipll BCM_CYGNUS_MIPIPLL>,
+		<&mipipll BCM_CYGNUS_MIPIPLL_CH2_V3D>;
+	assigned-clock-rates = <525000000>, <300000000>;
+	status = "okay";
 };
 
 &uart3 {

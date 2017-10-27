@@ -32,7 +32,8 @@
 #include <linux/smp.h>
 #include <linux/rcupdate.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/completion.h>
@@ -50,6 +51,8 @@
 #include <asm/byteorder.h>
 #include <linux/torture.h>
 #include <linux/vmalloc.h>
+
+#include "rcu.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and Josh Triplett <josh@joshtriplett.org>");
@@ -196,7 +199,8 @@ MODULE_PARM_DESC(torture_runnable, "Start rcutorture at boot");
 static u64 notrace rcu_trace_clock_local(void)
 {
 	u64 ts = trace_clock_local();
-	unsigned long __maybe_unused ts_rem = do_div(ts, NSEC_PER_USEC);
+
+	(void)do_div(ts, NSEC_PER_USEC);
 	return ts;
 }
 #else /* #ifdef CONFIG_RCU_TRACE */
@@ -493,7 +497,7 @@ static struct rcu_torture_ops rcu_busted_ops = {
 	.fqs		= NULL,
 	.stats		= NULL,
 	.irq_capable	= 1,
-	.name		= "rcu_busted"
+	.name		= "busted"
 };
 
 /*
@@ -519,7 +523,7 @@ static void srcu_read_delay(struct torture_random_state *rrsp)
 
 	delay = torture_random(rrsp) %
 		(nrealreaders * 2 * longdelay * uspertick);
-	if (!delay)
+	if (!delay && in_task())
 		schedule_timeout_interruptible(longdelay);
 	else
 		rcu_read_delay(rrsp);
@@ -558,19 +562,7 @@ static void srcu_torture_barrier(void)
 
 static void srcu_torture_stats(void)
 {
-	int cpu;
-	int idx = srcu_ctlp->completed & 0x1;
-
-	pr_alert("%s%s per-CPU(idx=%d):",
-		 torture_type, TORTURE_FLAG, idx);
-	for_each_possible_cpu(cpu) {
-		long c0, c1;
-
-		c0 = (long)per_cpu_ptr(srcu_ctlp->per_cpu_ref, cpu)->c[!idx];
-		c1 = (long)per_cpu_ptr(srcu_ctlp->per_cpu_ref, cpu)->c[idx];
-		pr_cont(" %d(%ld,%ld)", cpu, c0, c1);
-	}
-	pr_cont("\n");
+	srcu_torture_stats_print(srcu_ctlp, torture_type, TORTURE_FLAG);
 }
 
 static void srcu_torture_synchronize_expedited(void)
@@ -592,6 +584,7 @@ static struct rcu_torture_ops srcu_ops = {
 	.call		= srcu_torture_call,
 	.cb_barrier	= srcu_torture_barrier,
 	.stats		= srcu_torture_stats,
+	.irq_capable	= 1,
 	.name		= "srcu"
 };
 
@@ -624,6 +617,7 @@ static struct rcu_torture_ops srcud_ops = {
 	.call		= srcu_torture_call,
 	.cb_barrier	= srcu_torture_barrier,
 	.stats		= srcu_torture_stats,
+	.irq_capable	= 1,
 	.name		= "srcud"
 };
 
@@ -668,8 +662,6 @@ static struct rcu_torture_ops sched_ops = {
 	.name		= "sched"
 };
 
-#ifdef CONFIG_TASKS_RCU
-
 /*
  * Definitions for RCU-tasks torture testing.
  */
@@ -707,23 +699,10 @@ static struct rcu_torture_ops tasks_ops = {
 	.name		= "tasks"
 };
 
-#define RCUTORTURE_TASKS_OPS &tasks_ops,
-
 static bool __maybe_unused torturing_tasks(void)
 {
 	return cur_ops == &tasks_ops;
 }
-
-#else /* #ifdef CONFIG_TASKS_RCU */
-
-#define RCUTORTURE_TASKS_OPS
-
-static bool __maybe_unused torturing_tasks(void)
-{
-	return false;
-}
-
-#endif /* #else #ifdef CONFIG_TASKS_RCU */
 
 /*
  * RCU torture priority-boost testing.  Runs one real-time thread per
@@ -1086,6 +1065,11 @@ rcu_torture_fakewriter(void *arg)
 	return 0;
 }
 
+static void rcu_torture_timer_cb(struct rcu_head *rhp)
+{
+	kfree(rhp);
+}
+
 /*
  * RCU torture reader from timer handler.  Dereferences rcu_torture_current,
  * incrementing the corresponding element of the pipeline array.  The
@@ -1148,6 +1132,14 @@ static void rcu_torture_timer(unsigned long unused)
 	__this_cpu_inc(rcu_torture_batch[completed]);
 	preempt_enable();
 	cur_ops->readunlock(idx);
+
+	/* Test call_rcu() invocation from interrupt handler. */
+	if (cur_ops->call) {
+		struct rcu_head *rhp = kmalloc(sizeof(*rhp), GFP_NOWAIT);
+
+		if (rhp)
+			cur_ops->call(rhp, rcu_torture_timer_cb);
+	}
 }
 
 /*
@@ -1317,18 +1309,21 @@ rcu_torture_stats_print(void)
 		cur_ops->stats();
 	if (rtcv_snap == rcu_torture_current_version &&
 	    rcu_torture_current != NULL) {
-		int __maybe_unused flags;
-		unsigned long __maybe_unused gpnum;
-		unsigned long __maybe_unused completed;
+		int __maybe_unused flags = 0;
+		unsigned long __maybe_unused gpnum = 0;
+		unsigned long __maybe_unused completed = 0;
 
 		rcutorture_get_gp_data(cur_ops->ttype,
 				       &flags, &gpnum, &completed);
+		srcutorture_get_gp_data(cur_ops->ttype, srcu_ctlp,
+					&flags, &gpnum, &completed);
 		wtp = READ_ONCE(writer_task);
-		pr_alert("??? Writer stall state %s(%d) g%lu c%lu f%#x ->state %#lx\n",
+		pr_alert("??? Writer stall state %s(%d) g%lu c%lu f%#x ->state %#lx cpu %d\n",
 			 rcu_torture_writer_state_getname(),
 			 rcu_torture_writer_state,
 			 gpnum, completed, flags,
-			 wtp == NULL ? ~0UL : wtp->state);
+			 wtp == NULL ? ~0UL : wtp->state,
+			 wtp == NULL ? -1 : (int)task_cpu(wtp));
 		show_rcu_gp_kthreads();
 		rcu_ftrace_dump(DUMP_ALL);
 	}
@@ -1719,7 +1714,7 @@ rcu_torture_init(void)
 	int firsterr = 0;
 	static struct rcu_torture_ops *torture_ops[] = {
 		&rcu_ops, &rcu_bh_ops, &rcu_busted_ops, &srcu_ops, &srcud_ops,
-		&sched_ops, RCUTORTURE_TASKS_OPS
+		&sched_ops, &tasks_ops,
 	};
 
 	if (!torture_init_begin(torture_type, verbose, &torture_runnable))

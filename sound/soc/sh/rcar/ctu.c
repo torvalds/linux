@@ -279,12 +279,14 @@ static int rsnd_ctu_pcm_new(struct rsnd_mod *mod,
 
 	/* CTU Pass */
 	ret = rsnd_kctrl_new_m(mod, io, rtd, "CTU Pass",
+			       rsnd_kctrl_accept_anytime,
 			       NULL,
 			       &ctu->pass, RSND_MAX_CHANNELS,
 			       0xC);
 
 	/* ROW0 */
 	ret = rsnd_kctrl_new_m(mod, io, rtd, "CTU SV0",
+			       rsnd_kctrl_accept_anytime,
 			       NULL,
 			       &ctu->sv0, RSND_MAX_CHANNELS,
 			       0x00FFFFFF);
@@ -293,6 +295,7 @@ static int rsnd_ctu_pcm_new(struct rsnd_mod *mod,
 
 	/* ROW1 */
 	ret = rsnd_kctrl_new_m(mod, io, rtd, "CTU SV1",
+			       rsnd_kctrl_accept_anytime,
 			       NULL,
 			       &ctu->sv1, RSND_MAX_CHANNELS,
 			       0x00FFFFFF);
@@ -301,6 +304,7 @@ static int rsnd_ctu_pcm_new(struct rsnd_mod *mod,
 
 	/* ROW2 */
 	ret = rsnd_kctrl_new_m(mod, io, rtd, "CTU SV2",
+			       rsnd_kctrl_accept_anytime,
 			       NULL,
 			       &ctu->sv2, RSND_MAX_CHANNELS,
 			       0x00FFFFFF);
@@ -309,6 +313,7 @@ static int rsnd_ctu_pcm_new(struct rsnd_mod *mod,
 
 	/* ROW3 */
 	ret = rsnd_kctrl_new_m(mod, io, rtd, "CTU SV3",
+			       rsnd_kctrl_accept_anytime,
 			       NULL,
 			       &ctu->sv3, RSND_MAX_CHANNELS,
 			       0x00FFFFFF);
@@ -317,6 +322,7 @@ static int rsnd_ctu_pcm_new(struct rsnd_mod *mod,
 
 	/* Reset */
 	ret = rsnd_kctrl_new_s(mod, io, rtd, "CTU Reset",
+			       rsnd_kctrl_accept_anytime,
 			       rsnd_ctu_value_reset,
 			       &ctu->reset, 1);
 
@@ -388,13 +394,16 @@ int rsnd_ctu_probe(struct rsnd_priv *priv)
 		clk = devm_clk_get(dev, name);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
+			of_node_put(np);
 			goto rsnd_ctu_probe_done;
 		}
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(ctu), &rsnd_ctu_ops,
 				    clk, rsnd_mod_get_status, RSND_MOD_CTU, i);
-		if (ret)
+		if (ret) {
+			of_node_put(np);
 			goto rsnd_ctu_probe_done;
+		}
 
 		i++;
 	}

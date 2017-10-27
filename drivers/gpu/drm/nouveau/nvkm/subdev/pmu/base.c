@@ -23,6 +23,7 @@
  */
 #include "priv.h"
 
+#include <core/msgqueue.h>
 #include <subdev/timer.h>
 
 void
@@ -74,7 +75,7 @@ nvkm_pmu_reset(struct nvkm_pmu *pmu)
 {
 	struct nvkm_device *device = pmu->subdev.device;
 
-	if (!(nvkm_rd32(device, 0x000200) & 0x00002000))
+	if (!pmu->func->enabled(pmu))
 		return 0;
 
 	/* Inhibit interrupts, and wait for idle. */
@@ -85,7 +86,8 @@ nvkm_pmu_reset(struct nvkm_pmu *pmu)
 	);
 
 	/* Reset. */
-	pmu->func->reset(pmu);
+	if (pmu->func->reset)
+		pmu->func->reset(pmu);
 
 	/* Wait for IMEM/DMEM scrubbing to be complete. */
 	nvkm_msec(device, 2000,
@@ -113,9 +115,19 @@ nvkm_pmu_init(struct nvkm_subdev *subdev)
 	return ret;
 }
 
+static int
+nvkm_pmu_oneinit(struct nvkm_subdev *subdev)
+{
+	struct nvkm_pmu *pmu = nvkm_pmu(subdev);
+	return nvkm_falcon_v1_new(&pmu->subdev, "PMU", 0x10a000, &pmu->falcon);
+}
+
 static void *
 nvkm_pmu_dtor(struct nvkm_subdev *subdev)
 {
+	struct nvkm_pmu *pmu = nvkm_pmu(subdev);
+	nvkm_msgqueue_del(&pmu->queue);
+	nvkm_falcon_del(&pmu->falcon);
 	return nvkm_pmu(subdev);
 }
 
@@ -123,10 +135,22 @@ static const struct nvkm_subdev_func
 nvkm_pmu = {
 	.dtor = nvkm_pmu_dtor,
 	.preinit = nvkm_pmu_preinit,
+	.oneinit = nvkm_pmu_oneinit,
 	.init = nvkm_pmu_init,
 	.fini = nvkm_pmu_fini,
 	.intr = nvkm_pmu_intr,
 };
+
+int
+nvkm_pmu_ctor(const struct nvkm_pmu_func *func, struct nvkm_device *device,
+	      int index, struct nvkm_pmu *pmu)
+{
+	nvkm_subdev_ctor(&nvkm_pmu, device, index, &pmu->subdev);
+	pmu->func = func;
+	INIT_WORK(&pmu->recv.work, nvkm_pmu_recv);
+	init_waitqueue_head(&pmu->recv.wait);
+	return 0;
+}
 
 int
 nvkm_pmu_new_(const struct nvkm_pmu_func *func, struct nvkm_device *device,
@@ -135,9 +159,5 @@ nvkm_pmu_new_(const struct nvkm_pmu_func *func, struct nvkm_device *device,
 	struct nvkm_pmu *pmu;
 	if (!(pmu = *ppmu = kzalloc(sizeof(*pmu), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_subdev_ctor(&nvkm_pmu, device, index, &pmu->subdev);
-	pmu->func = func;
-	INIT_WORK(&pmu->recv.work, nvkm_pmu_recv);
-	init_waitqueue_head(&pmu->recv.wait);
-	return 0;
+	return nvkm_pmu_ctor(func, device, index, *ppmu);
 }

@@ -53,14 +53,12 @@ typedef enum message_event_type {
    MESSAGE_EVENT_MSG_DISCARDED
 } MESSAGE_EVENT_TYPE_T;
 
-typedef enum vchi_msg_flags
-{
+typedef enum vchi_msg_flags {
    VCHI_MSG_FLAGS_NONE                  = 0x0,
    VCHI_MSG_FLAGS_TERMINATE_DMA         = 0x1
 } VCHI_MSG_FLAGS_T;
 
-typedef enum message_tx_channel
-{
+typedef enum message_tx_channel {
    MESSAGE_TX_CHANNEL_MESSAGE           = 0,
    MESSAGE_TX_CHANNEL_BULK              = 1 // drivers may provide multiple bulk channels, from 1 upwards
 } MESSAGE_TX_CHANNEL_T;
@@ -69,8 +67,7 @@ typedef enum message_tx_channel
 #define MESSAGE_TX_CHANNEL_BULK_PREV(c) (MESSAGE_TX_CHANNEL_BULK+((c)-MESSAGE_TX_CHANNEL_BULK+VCHI_MAX_BULK_TX_CHANNELS_PER_CONNECTION-1)%VCHI_MAX_BULK_TX_CHANNELS_PER_CONNECTION)
 #define MESSAGE_TX_CHANNEL_BULK_NEXT(c) (MESSAGE_TX_CHANNEL_BULK+((c)-MESSAGE_TX_CHANNEL_BULK+1)%VCHI_MAX_BULK_TX_CHANNELS_PER_CONNECTION)
 
-typedef enum message_rx_channel
-{
+typedef enum message_rx_channel {
    MESSAGE_RX_CHANNEL_MESSAGE           = 0,
    MESSAGE_RX_CHANNEL_BULK              = 1 // drivers may provide multiple bulk channels, from 1 upwards
 } MESSAGE_RX_CHANNEL_T;

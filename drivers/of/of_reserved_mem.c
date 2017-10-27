@@ -25,7 +25,7 @@
 #include <linux/sort.h>
 #include <linux/slab.h>
 
-#define MAX_RESERVED_REGIONS	16
+#define MAX_RESERVED_REGIONS	32
 static struct reserved_mem reserved_mem[MAX_RESERVED_REGIONS];
 static int reserved_mem_count;
 
@@ -354,6 +354,10 @@ int of_reserved_mem_device_init_by_idx(struct device *dev,
 		mutex_lock(&of_rmem_assigned_device_mutex);
 		list_add(&rd->list, &of_rmem_assigned_device_list);
 		mutex_unlock(&of_rmem_assigned_device_mutex);
+		/* ensure that dma_ops is set for virtual devices
+		 * using reserved memory
+		 */
+		of_dma_configure(dev, np);
 
 		dev_info(dev, "assigned reserved memory node %s\n", rmem->name);
 	} else {

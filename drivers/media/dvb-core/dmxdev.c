@@ -14,10 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
  */
 
 #define pr_fmt(fmt) "dmxdev: " fmt
@@ -151,6 +147,7 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
 		void *mem;
+
 		if (!dvbdev->readers) {
 			mutex_unlock(&dmxdev->mutex);
 			return -EBUSY;
@@ -202,6 +199,7 @@ static int dvb_dvr_release(struct inode *inode, struct file *file)
 		dvbdev->readers++;
 		if (dmxdev->dvr_buffer.data) {
 			void *mem = dmxdev->dvr_buffer.data;
+			/*memory barrier*/
 			mb();
 			spin_lock_irq(&dmxdev->lock);
 			dmxdev->dvr_buffer.data = NULL;
@@ -564,7 +562,7 @@ static int dvb_dmxdev_start_feed(struct dmxdev *dmxdev,
 {
 	ktime_t timeout = 0;
 	struct dmx_pes_filter_params *para = &filter->params.pes;
-	dmx_output_t otype;
+	enum dmx_output otype;
 	int ret;
 	int ts_type;
 	enum dmx_ts_pes ts_pes;
@@ -789,7 +787,7 @@ static int dvb_dmxdev_filter_free(struct dmxdev *dmxdev,
 	return 0;
 }
 
-static inline void invert_mode(dmx_filter_t *filter)
+static inline void invert_mode(struct dmx_filter *filter)
 {
 	int i;
 
@@ -876,7 +874,7 @@ static int dvb_dmxdev_pes_filter_set(struct dmxdev *dmxdev,
 	dvb_dmxdev_filter_stop(dmxdevfilter);
 	dvb_dmxdev_filter_reset(dmxdevfilter);
 
-	if ((unsigned)params->pes_type > DMX_PES_OTHER)
+	if ((unsigned int)params->pes_type > DMX_PES_OTHER)
 		return -EINVAL;
 
 	dmxdevfilter->type = DMXDEV_TYPE_PES;
@@ -1027,26 +1025,6 @@ static int dvb_demux_do_ioctl(struct file *file,
 		dmxdev->demux->get_pes_pids(dmxdev->demux, parg);
 		break;
 
-#if 0
-	/* Not used upstream and never documented */
-
-	case DMX_GET_CAPS:
-		if (!dmxdev->demux->get_caps) {
-			ret = -EINVAL;
-			break;
-		}
-		ret = dmxdev->demux->get_caps(dmxdev->demux, parg);
-		break;
-
-	case DMX_SET_SOURCE:
-		if (!dmxdev->demux->set_source) {
-			ret = -EINVAL;
-			break;
-		}
-		ret = dmxdev->demux->set_source(dmxdev->demux, parg);
-		break;
-#endif
-
 	case DMX_GET_STC:
 		if (!dmxdev->demux->get_stc) {
 			ret = -EINVAL;
@@ -1125,7 +1103,7 @@ static int dvb_demux_release(struct inode *inode, struct file *file)
 
 	mutex_lock(&dmxdev->mutex);
 	dmxdev->dvbdev->users--;
-	if(dmxdev->dvbdev->users==1 && dmxdev->exit==1) {
+	if (dmxdev->dvbdev->users == 1 && dmxdev->exit == 1) {
 		mutex_unlock(&dmxdev->mutex);
 		wake_up(&dmxdev->dvbdev->wait_queue);
 	} else
@@ -1263,14 +1241,14 @@ EXPORT_SYMBOL(dvb_dmxdev_init);
 
 void dvb_dmxdev_release(struct dmxdev *dmxdev)
 {
-	dmxdev->exit=1;
+	dmxdev->exit = 1;
 	if (dmxdev->dvbdev->users > 1) {
 		wait_event(dmxdev->dvbdev->wait_queue,
-				dmxdev->dvbdev->users==1);
+				dmxdev->dvbdev->users == 1);
 	}
 	if (dmxdev->dvr_dvbdev->users > 1) {
 		wait_event(dmxdev->dvr_dvbdev->wait_queue,
-				dmxdev->dvr_dvbdev->users==1);
+				dmxdev->dvr_dvbdev->users == 1);
 	}
 
 	dvb_unregister_device(dmxdev->dvbdev);

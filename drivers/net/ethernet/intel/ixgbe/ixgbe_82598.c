@@ -139,8 +139,6 @@ static s32 ixgbe_init_phy_ops_82598(struct ixgbe_hw *hw)
 	case ixgbe_phy_tn:
 		phy->ops.setup_link = &ixgbe_setup_phy_link_tnx;
 		phy->ops.check_link = &ixgbe_check_phy_link_tnx;
-		phy->ops.get_firmware_version =
-			     &ixgbe_get_phy_firmware_version_tnx;
 		break;
 	case ixgbe_phy_nl:
 		phy->ops.reset = &ixgbe_reset_phy_nl;
@@ -177,31 +175,9 @@ static s32 ixgbe_init_phy_ops_82598(struct ixgbe_hw *hw)
  **/
 static s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
 {
-#ifndef CONFIG_SPARC
-	u32 regval;
-	u32 i;
-#endif
 	s32 ret_val;
 
 	ret_val = ixgbe_start_hw_generic(hw);
-
-#ifndef CONFIG_SPARC
-	/* Disable relaxed ordering */
-	for (i = 0; ((i < hw->mac.max_tx_queues) &&
-	     (i < IXGBE_DCA_MAX_QUEUES_82598)); i++) {
-		regval = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL(i));
-		regval &= ~IXGBE_DCA_TXCTRL_DESC_WRO_EN;
-		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL(i), regval);
-	}
-
-	for (i = 0; ((i < hw->mac.max_rx_queues) &&
-	     (i < IXGBE_DCA_MAX_QUEUES_82598)); i++) {
-		regval = IXGBE_READ_REG(hw, IXGBE_DCA_RXCTRL(i));
-		regval &= ~(IXGBE_DCA_RXCTRL_DATA_WRO_EN |
-			    IXGBE_DCA_RXCTRL_HEAD_WRO_EN);
-		IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(i), regval);
-	}
-#endif
 	if (ret_val)
 		return ret_val;
 

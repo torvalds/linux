@@ -41,6 +41,7 @@
 #include <net/netlabel.h>
 #include <net/request_sock.h>
 #include <linux/atomic.h>
+#include <linux/refcount.h>
 #include <asm/unaligned.h>
 
 /* known doi values */
@@ -85,7 +86,7 @@ struct cipso_v4_doi {
 	} map;
 	u8 tags[CIPSO_V4_TAG_MAXCNT];
 
-	atomic_t refcount;
+	refcount_t refcount;
 	struct list_head list;
 	struct rcu_head rcu;
 };

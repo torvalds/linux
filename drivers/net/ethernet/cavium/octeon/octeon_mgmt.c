@@ -501,7 +501,7 @@ static int octeon_mgmt_napi_poll(struct napi_struct *napi, int budget)
 
 	if (work_done < budget) {
 		/* We stopped because no more packets were available. */
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		octeon_mgmt_enable_rx_irq(p);
 	}
 	octeon_mgmt_update_rx_stats(netdev);
@@ -755,6 +755,7 @@ static int octeon_mgmt_ioctl_hwtstamp(struct net_device *netdev,
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_NTP_ALL:
 		p->has_rx_tstamp = have_hw_timestamps;
 		config.rx_filter = HWTSTAMP_FILTER_ALL;
 		if (p->has_rx_tstamp) {

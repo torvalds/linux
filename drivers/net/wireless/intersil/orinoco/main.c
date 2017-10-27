@@ -294,14 +294,6 @@ int orinoco_stop(struct net_device *dev)
 }
 EXPORT_SYMBOL(orinoco_stop);
 
-struct net_device_stats *orinoco_get_stats(struct net_device *dev)
-{
-	struct orinoco_private *priv = ndev_priv(dev);
-
-	return &priv->stats;
-}
-EXPORT_SYMBOL(orinoco_get_stats);
-
 void orinoco_set_multicast_list(struct net_device *dev)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
@@ -404,7 +396,7 @@ int orinoco_process_xmit_skb(struct sk_buff *skb,
 		memcpy(hdr.encap, encaps_hdr, sizeof(encaps_hdr));
 
 		/* Make room for the new header, and copy it in */
-		eh = (struct ethhdr *) skb_push(skb, ENCAPS_OVERHEAD);
+		eh = skb_push(skb, ENCAPS_OVERHEAD);
 		memcpy(eh, &hdr, sizeof(hdr));
 	}
 
@@ -433,7 +425,7 @@ EXPORT_SYMBOL(orinoco_process_xmit_skb);
 static netdev_tx_t orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &dev->stats;
 	struct hermes *hw = &priv->hw;
 	int err = 0;
 	u16 txfid = priv->txfid;
@@ -593,10 +585,7 @@ static void __orinoco_ev_alloc(struct net_device *dev, struct hermes *hw)
 
 static void __orinoco_ev_tx(struct net_device *dev, struct hermes *hw)
 {
-	struct orinoco_private *priv = ndev_priv(dev);
-	struct net_device_stats *stats = &priv->stats;
-
-	stats->tx_packets++;
+	dev->stats.tx_packets++;
 
 	netif_wake_queue(dev);
 
@@ -605,8 +594,7 @@ static void __orinoco_ev_tx(struct net_device *dev, struct hermes *hw)
 
 static void __orinoco_ev_txexc(struct net_device *dev, struct hermes *hw)
 {
-	struct orinoco_private *priv = ndev_priv(dev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &dev->stats;
 	u16 fid = hermes_read_regn(hw, TXCOMPLFID);
 	u16 status;
 	struct hermes_txexc_data hdr;
@@ -662,7 +650,7 @@ static void __orinoco_ev_txexc(struct net_device *dev, struct hermes *hw)
 void orinoco_tx_timeout(struct net_device *dev)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &dev->stats;
 	struct hermes *hw = &priv->hw;
 
 	printk(KERN_WARNING "%s: Tx timeout! "
@@ -749,7 +737,7 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 	int len;
 	struct sk_buff *skb;
 	struct orinoco_private *priv = ndev_priv(dev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &dev->stats;
 	struct hermes *hw = &priv->hw;
 
 	len = le16_to_cpu(desc->data_len);
@@ -804,7 +792,7 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 	}
 
 	/* Copy the 802.11 header to the skb */
-	memcpy(skb_put(skb, hdrlen), &(desc->frame_ctl), hdrlen);
+	skb_put_data(skb, &(desc->frame_ctl), hdrlen);
 	skb_reset_mac_header(skb);
 
 	/* If any, copy the data from the card to the skb */
@@ -840,7 +828,7 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 void __orinoco_ev_rx(struct net_device *dev, struct hermes *hw)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &dev->stats;
 	struct iw_statistics *wstats = &priv->wstats;
 	struct sk_buff *skb = NULL;
 	u16 rxfid, status;
@@ -959,7 +947,7 @@ static void orinoco_rx(struct net_device *dev,
 		       struct sk_buff *skb)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &dev->stats;
 	u16 status, fc;
 	int length;
 	struct ethhdr *hdr;
@@ -1041,11 +1029,10 @@ static void orinoco_rx(struct net_device *dev,
 		/* These indicate a SNAP within 802.2 LLC within
 		   802.11 frame which we'll need to de-encapsulate to
 		   the original EthernetII frame. */
-		hdr = (struct ethhdr *)skb_push(skb,
-						ETH_HLEN - ENCAPS_OVERHEAD);
+		hdr = skb_push(skb, ETH_HLEN - ENCAPS_OVERHEAD);
 	} else {
 		/* 802.3 frame - prepend 802.3 header as is */
-		hdr = (struct ethhdr *)skb_push(skb, ETH_HLEN);
+		hdr = skb_push(skb, ETH_HLEN);
 		hdr->h_proto = htons(length);
 	}
 	memcpy(hdr->h_dest, desc->addr1, ETH_ALEN);
@@ -2137,7 +2124,6 @@ static const struct net_device_ops orinoco_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_tx_timeout		= orinoco_tx_timeout,
-	.ndo_get_stats		= orinoco_get_stats,
 };
 
 /* Allocate private data.
@@ -2296,7 +2282,7 @@ int orinoco_if_add(struct orinoco_private *priv,
 	priv->ndev = dev;
 
 	/* Report what we've done */
-	dev_dbg(priv->dev, "Registerred interface %s.\n", dev->name);
+	dev_dbg(priv->dev, "Registered interface %s.\n", dev->name);
 
 	return 0;
 

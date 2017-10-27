@@ -57,6 +57,7 @@
 #include <xen/interface/grant_table.h>
 
 /* Module parameters */
+#define MAX_QUEUES_DEFAULT 8
 static unsigned int xennet_max_queues;
 module_param_named(max_queues, xennet_max_queues, uint, 0644);
 MODULE_PARM_DESC(max_queues,
@@ -610,7 +611,7 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		nskb = skb_copy(skb, GFP_ATOMIC);
 		if (!nskb)
 			goto drop;
-		dev_kfree_skb_any(skb);
+		dev_consume_skb_any(skb);
 		skb = nskb;
 		page = virt_to_page(skb->data);
 		offset = offset_in_page(skb->data);
@@ -1059,7 +1060,7 @@ err:
 	if (work_done < budget) {
 		int more_to_do = 0;
 
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 
 		RING_FINAL_CHECK_FOR_RESPONSES(&queue->rx, more_to_do);
 		if (more_to_do)
@@ -1081,8 +1082,8 @@ static int xennet_change_mtu(struct net_device *dev, int mtu)
 	return 0;
 }
 
-static struct rtnl_link_stats64 *xennet_get_stats64(struct net_device *dev,
-						    struct rtnl_link_stats64 *tot)
+static void xennet_get_stats64(struct net_device *dev,
+			       struct rtnl_link_stats64 *tot)
 {
 	struct netfront_info *np = netdev_priv(dev);
 	int cpu;
@@ -1113,8 +1114,6 @@ static struct rtnl_link_stats64 *xennet_get_stats64(struct net_device *dev,
 
 	tot->rx_errors  = dev->stats.rx_errors;
 	tot->tx_dropped = dev->stats.tx_dropped;
-
-	return tot;
 }
 
 static void xennet_release_tx_bufs(struct netfront_queue *queue)
@@ -1317,7 +1316,7 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 	netdev->features |= netdev->hw_features;
 
 	netdev->ethtool_ops = &xennet_ethtool_ops;
-	netdev->min_mtu = 0;
+	netdev->min_mtu = ETH_MIN_MTU;
 	netdev->max_mtu = XEN_NETIF_MAX_TX_SIZE;
 	SET_NETDEV_DEV(netdev, &dev->dev);
 
@@ -1935,8 +1934,7 @@ abort_transaction_no_dev_fatal:
 	xennet_disconnect_backend(info);
 	xennet_destroy_queues(info);
  out:
-	unregister_netdev(info->netdev);
-	xennet_free_netdev(info->netdev);
+	device_unregister(&dev->dev);
 	return err;
 }
 
@@ -2166,11 +2164,12 @@ static int __init netif_init(void)
 
 	pr_info("Initialising Xen virtual ethernet driver\n");
 
-	/* Allow as many queues as there are CPUs if user has not
+	/* Allow as many queues as there are CPUs inut max. 8 if user has not
 	 * specified a value.
 	 */
 	if (xennet_max_queues == 0)
-		xennet_max_queues = num_online_cpus();
+		xennet_max_queues = min_t(unsigned int, MAX_QUEUES_DEFAULT,
+					  num_online_cpus());
 
 	return xenbus_register_frontend(&netfront_driver);
 }

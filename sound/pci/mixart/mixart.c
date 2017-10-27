@@ -675,7 +675,7 @@ static int snd_mixart_hw_free(struct snd_pcm_substream *subs)
 /*
  *  TODO CONFIGURATION SPACE for all pcms, mono pcm must update channels_max
  */
-static struct snd_pcm_hardware snd_mixart_analog_caps =
+static const struct snd_pcm_hardware snd_mixart_analog_caps =
 {
 	.info             = ( SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 			      SNDRV_PCM_INFO_MMAP_VALID |
@@ -696,7 +696,7 @@ static struct snd_pcm_hardware snd_mixart_analog_caps =
 	.periods_max      = (32*1024/256),
 };
 
-static struct snd_pcm_hardware snd_mixart_digital_caps =
+static const struct snd_pcm_hardware snd_mixart_digital_caps =
 {
 	.info             = ( SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 			      SNDRV_PCM_INFO_MMAP_VALID |
@@ -1052,10 +1052,8 @@ static int snd_mixart_create(struct mixart_mgr *mgr, struct snd_card *card, int 
 	};
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-	if (! chip) {
-		dev_err(card->dev, "cannot allocate chip\n");
+	if (!chip)
 		return -ENOMEM;
-	}
 
 	chip->card = card;
 	chip->chip_idx = idx;
@@ -1313,9 +1311,6 @@ static int snd_mixart_probe(struct pci_dev *pci,
 	}
 	mgr->irq = pci->irq;
 
-	sprintf(mgr->shortname, "Digigram miXart");
-	sprintf(mgr->longname, "%s at 0x%lx & 0x%lx, irq %i", mgr->shortname, mgr->mem[0].phys, mgr->mem[1].phys, mgr->irq);
-
 	/* init mailbox  */
 	mgr->msg_fifo_readptr = 0;
 	mgr->msg_fifo_writeptr = 0;
@@ -1350,8 +1345,11 @@ static int snd_mixart_probe(struct pci_dev *pci,
 		}
 
 		strcpy(card->driver, CARD_NAME);
-		sprintf(card->shortname, "%s [PCM #%d]", mgr->shortname, i);
-		sprintf(card->longname, "%s [PCM #%d]", mgr->longname, i);
+		snprintf(card->shortname, sizeof(card->shortname),
+			 "Digigram miXart [PCM #%d]", i);
+		snprintf(card->longname, sizeof(card->longname),
+			"Digigram miXart at 0x%lx & 0x%lx, irq %i [PCM #%d]",
+			mgr->mem[0].phys, mgr->mem[1].phys, mgr->irq, i);
 
 		if ((err = snd_mixart_create(mgr, card, i)) < 0) {
 			snd_card_free(card);

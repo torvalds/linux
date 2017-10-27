@@ -89,7 +89,7 @@ mlx4_en_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 	struct mlx4_en_dev *mdev = priv->mdev;
 
 	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, DRV_VERSION " (" DRV_RELDATE ")",
+	strlcpy(drvinfo->version, DRV_VERSION,
 		sizeof(drvinfo->version));
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		"%d.%d.%d",
@@ -117,7 +117,7 @@ static const char main_strings[][ETH_GSTRING_LEN] = {
 	/* port statistics */
 	"tso_packets",
 	"xmit_more",
-	"queue_stopped", "wake_queue", "tx_timeout", "rx_alloc_failed",
+	"queue_stopped", "wake_queue", "tx_timeout", "rx_alloc_pages",
 	"rx_csum_good", "rx_csum_none", "rx_csum_complete", "tx_chksum_offload",
 
 	/* pf statistics */
@@ -223,6 +223,7 @@ static void mlx4_en_get_wol(struct net_device *netdev,
 			    struct ethtool_wolinfo *wol)
 {
 	struct mlx4_en_priv *priv = netdev_priv(netdev);
+	struct mlx4_caps *caps = &priv->mdev->dev->caps;
 	int err = 0;
 	u64 config = 0;
 	u64 mask;
@@ -235,11 +236,16 @@ static void mlx4_en_get_wol(struct net_device *netdev,
 	mask = (priv->port == 1) ? MLX4_DEV_CAP_FLAG_WOL_PORT1 :
 		MLX4_DEV_CAP_FLAG_WOL_PORT2;
 
-	if (!(priv->mdev->dev->caps.flags & mask)) {
+	if (!(caps->flags & mask)) {
 		wol->supported = 0;
 		wol->wolopts = 0;
 		return;
 	}
+
+	if (caps->wol_port[priv->port])
+		wol->supported = WAKE_MAGIC;
+	else
+		wol->supported = 0;
 
 	err = mlx4_wol_read(priv->mdev->dev, &config, priv->port);
 	if (err) {
@@ -247,12 +253,7 @@ static void mlx4_en_get_wol(struct net_device *netdev,
 		return;
 	}
 
-	if (config & MLX4_EN_WOL_MAGIC)
-		wol->supported = WAKE_MAGIC;
-	else
-		wol->supported = 0;
-
-	if (config & MLX4_EN_WOL_ENABLED)
+	if ((config & MLX4_EN_WOL_ENABLED) && (config & MLX4_EN_WOL_MAGIC))
 		wol->wolopts = WAKE_MAGIC;
 	else
 		wol->wolopts = 0;
@@ -902,6 +903,7 @@ mlx4_en_set_link_ksettings(struct net_device *dev,
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_ptys_reg ptys_reg;
 	__be32 proto_admin;
+	u8 cur_autoneg;
 	int ret;
 
 	u32 ptys_adv = ethtool2ptys_link_modes(
@@ -931,10 +933,21 @@ mlx4_en_set_link_ksettings(struct net_device *dev,
 		return 0;
 	}
 
-	proto_admin = link_ksettings->base.autoneg == AUTONEG_ENABLE ?
-		cpu_to_be32(ptys_adv) :
-		speed_set_ptys_admin(priv, speed,
-				     ptys_reg.eth_proto_cap);
+	cur_autoneg = ptys_reg.flags & MLX4_PTYS_AN_DISABLE_ADMIN ?
+				AUTONEG_DISABLE : AUTONEG_ENABLE;
+
+	if (link_ksettings->base.autoneg == AUTONEG_DISABLE) {
+		proto_admin = speed_set_ptys_admin(priv, speed,
+						   ptys_reg.eth_proto_cap);
+		if ((be32_to_cpu(proto_admin) &
+		     (MLX4_PROT_MASK(MLX4_1000BASE_CX_SGMII) |
+		      MLX4_PROT_MASK(MLX4_1000BASE_KX))) &&
+		    (ptys_reg.flags & MLX4_PTYS_AN_DISABLE_CAP))
+			ptys_reg.flags |= MLX4_PTYS_AN_DISABLE_ADMIN;
+	} else {
+		proto_admin = cpu_to_be32(ptys_adv);
+		ptys_reg.flags &= ~MLX4_PTYS_AN_DISABLE_ADMIN;
+	}
 
 	proto_admin &= ptys_reg.eth_proto_cap;
 	if (!proto_admin) {
@@ -942,7 +955,9 @@ mlx4_en_set_link_ksettings(struct net_device *dev,
 		return -EINVAL; /* nothing to change due to bad input */
 	}
 
-	if (proto_admin == ptys_reg.eth_proto_admin)
+	if ((proto_admin == ptys_reg.eth_proto_admin) &&
+	    ((ptys_reg.flags & MLX4_PTYS_AN_DISABLE_CAP) &&
+	     (link_ksettings->base.autoneg == cur_autoneg)))
 		return 0; /* Nothing to change */
 
 	en_dbg(DRV, priv, "mlx4_ACCESS_PTYS_REG SET: ptys_reg.eth_proto_admin = 0x%x\n",
@@ -1736,7 +1751,8 @@ static void mlx4_en_get_channels(struct net_device *dev,
 	channel->max_tx = MLX4_EN_MAX_TX_RING_P_UP;
 
 	channel->rx_count = priv->rx_ring_num;
-	channel->tx_count = priv->tx_ring_num[TX] / MLX4_EN_NUM_UP;
+	channel->tx_count = priv->tx_ring_num[TX] /
+			    priv->prof->num_up;
 }
 
 static int mlx4_en_set_channels(struct net_device *dev,
@@ -1749,6 +1765,7 @@ static int mlx4_en_set_channels(struct net_device *dev,
 	int port_up = 0;
 	int xdp_count;
 	int err = 0;
+	u8 up;
 
 	if (!channel->tx_count || !channel->rx_count)
 		return -EINVAL;
@@ -1759,18 +1776,19 @@ static int mlx4_en_set_channels(struct net_device *dev,
 
 	mutex_lock(&mdev->state_lock);
 	xdp_count = priv->tx_ring_num[TX_XDP] ? channel->rx_count : 0;
-	if (channel->tx_count * MLX4_EN_NUM_UP + xdp_count > MAX_TX_RINGS) {
+	if (channel->tx_count * priv->prof->num_up + xdp_count >
+	    MAX_TX_RINGS) {
 		err = -EINVAL;
 		en_err(priv,
 		       "Total number of TX and XDP rings (%d) exceeds the maximum supported (%d)\n",
-		       channel->tx_count * MLX4_EN_NUM_UP + xdp_count,
+		       channel->tx_count * priv->prof->num_up  + xdp_count,
 		       MAX_TX_RINGS);
 		goto out;
 	}
 
 	memcpy(&new_prof, priv->prof, sizeof(struct mlx4_en_port_profile));
 	new_prof.num_tx_rings_p_up = channel->tx_count;
-	new_prof.tx_ring_num[TX] = channel->tx_count * MLX4_EN_NUM_UP;
+	new_prof.tx_ring_num[TX] = channel->tx_count * priv->prof->num_up;
 	new_prof.tx_ring_num[TX_XDP] = xdp_count;
 	new_prof.rx_ring_num = channel->rx_count;
 
@@ -1785,11 +1803,11 @@ static int mlx4_en_set_channels(struct net_device *dev,
 
 	mlx4_en_safe_replace_resources(priv, tmp);
 
-	netif_set_real_num_tx_queues(dev, priv->tx_ring_num[TX]);
 	netif_set_real_num_rx_queues(dev, priv->rx_ring_num);
 
-	if (dev->num_tc)
-		mlx4_en_setup_tc(dev, MLX4_EN_NUM_UP);
+	up = (priv->prof->num_up == MLX4_EN_NUM_UP_LOW) ?
+				    0 : priv->prof->num_up;
+	mlx4_en_setup_tc(dev, up);
 
 	en_warn(priv, "Using %d TX rings\n", priv->tx_ring_num[TX]);
 	en_warn(priv, "Using %d RX rings\n", priv->rx_ring_num);
@@ -1980,7 +1998,7 @@ static int mlx4_en_get_module_info(struct net_device *dev,
 		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
 		break;
 	default:
-		return -ENOSYS;
+		return -EINVAL;
 	}
 
 	return 0;

@@ -62,7 +62,7 @@ struct osc_async_page {
 	struct list_head	      oap_rpc_item;
 
 	u64		 oap_obj_off;
-	unsigned		oap_page_off;
+	unsigned int		oap_page_off;
 	enum async_flags	oap_async_flags;
 
 	struct brw_page	 oap_brw_page;
@@ -99,7 +99,7 @@ void osc_update_next_shrink(struct client_obd *cli);
 /*
  * cl integration.
  */
-#include "../include/cl_object.h"
+#include <cl_object.h>
 
 extern struct ptlrpc_request_set *PTLRPCD_SET;
 
@@ -114,9 +114,9 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 		     struct ptlrpc_request_set *rqset, int async, int agl);
 
 int osc_match_base(struct obd_export *exp, struct ldlm_res_id *res_id,
-		   __u32 type, union ldlm_policy_data *policy, __u32 mode,
-		   __u64 *flags, void *data, struct lustre_handle *lockh,
-		   int unref);
+		   enum ldlm_type type, union ldlm_policy_data *policy,
+		   enum ldlm_mode mode, __u64 *flags, void *data,
+		   struct lustre_handle *lockh, int unref);
 
 int osc_setattr_async(struct obd_export *exp, struct obdo *oa,
 		      obd_enqueue_update_f upcall, void *cookie,
@@ -133,7 +133,8 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 		  struct list_head *ext_list, int cmd);
 long osc_lru_shrink(const struct lu_env *env, struct client_obd *cli,
 		    long target, bool force);
-long osc_lru_reclaim(struct client_obd *cli, unsigned long npages);
+unsigned long osc_lru_reserve(struct client_obd *cli, unsigned long npages);
+void osc_lru_unreserve(struct client_obd *cli, unsigned long npages);
 
 unsigned long osc_ldlm_weigh_ast(struct ldlm_lock *dlmlock);
 
@@ -181,6 +182,8 @@ static inline struct osc_device *obd2osc_dev(const struct obd_device *d)
 	return container_of0(d->obd_lu_dev, struct osc_device, od_cl.cd_lu_dev);
 }
 
+extern struct lu_kmem_descr osc_caches[];
+
 extern struct kmem_cache *osc_quota_kmem;
 struct osc_quota_info {
 	/** linkage for quota hash table */
@@ -217,5 +220,16 @@ enum osc_dap_flags {
 struct ldlm_lock *osc_dlmlock_at_pgoff(const struct lu_env *env,
 				       struct osc_object *obj, pgoff_t index,
 				       enum osc_dap_flags flags);
+
+int osc_object_invalidate(const struct lu_env *env, struct osc_object *osc);
+
+/** osc shrink list to link all osc client obd */
+extern struct list_head osc_shrink_list;
+/** spin lock to protect osc_shrink_list */
+extern spinlock_t osc_shrink_lock;
+unsigned long osc_cache_shrink_count(struct shrinker *sk,
+				     struct shrink_control *sc);
+unsigned long osc_cache_shrink_scan(struct shrinker *sk,
+				    struct shrink_control *sc);
 
 #endif /* OSC_INTERNAL_H */

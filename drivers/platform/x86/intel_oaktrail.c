@@ -299,7 +299,7 @@ static int dmi_check_cb(const struct dmi_system_id *id)
 	return 0;
 }
 
-static struct dmi_system_id __initdata oaktrail_dmi_table[] = {
+static const struct dmi_system_id oaktrail_dmi_table[] __initconst = {
 	{
 		.ident = "OakTrail platform",
 		.matches = {

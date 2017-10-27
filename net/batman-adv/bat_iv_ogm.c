@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2016  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2017  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -679,14 +679,10 @@ static void batadv_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 {
 	struct batadv_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct batadv_forw_packet *forw_packet_aggr;
+	struct sk_buff *skb;
 	unsigned char *skb_buff;
 	unsigned int skb_size;
 	atomic_t *queue_left = own_packet ? NULL : &bat_priv->batman_queue_left;
-
-	forw_packet_aggr = batadv_forw_packet_alloc(if_incoming, if_outgoing,
-						    queue_left, bat_priv);
-	if (!forw_packet_aggr)
-		return;
 
 	if (atomic_read(&bat_priv->aggregated_ogms) &&
 	    packet_len < BATADV_MAX_AGGREGATION_BYTES)
@@ -696,9 +692,14 @@ static void batadv_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 
 	skb_size += ETH_HLEN;
 
-	forw_packet_aggr->skb = netdev_alloc_skb_ip_align(NULL, skb_size);
-	if (!forw_packet_aggr->skb) {
-		batadv_forw_packet_free(forw_packet_aggr, true);
+	skb = netdev_alloc_skb_ip_align(NULL, skb_size);
+	if (!skb)
+		return;
+
+	forw_packet_aggr = batadv_forw_packet_alloc(if_incoming, if_outgoing,
+						    queue_left, bat_priv, skb);
+	if (!forw_packet_aggr) {
+		kfree_skb(skb);
 		return;
 	}
 
@@ -728,11 +729,9 @@ static void batadv_iv_ogm_aggregate(struct batadv_forw_packet *forw_packet_aggr,
 				    const unsigned char *packet_buff,
 				    int packet_len, bool direct_link)
 {
-	unsigned char *skb_buff;
 	unsigned long new_direct_link_flag;
 
-	skb_buff = skb_put(forw_packet_aggr->skb, packet_len);
-	memcpy(skb_buff, packet_buff, packet_len);
+	skb_put_data(forw_packet_aggr->skb, packet_buff, packet_len);
 	forw_packet_aggr->packet_len += packet_len;
 	forw_packet_aggr->num_packets++;
 
@@ -1021,7 +1020,8 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 	u8 tq_avg;
 
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-		   "update_originator(): Searching and updating originator entry of received packet\n");
+		   "%s(): Searching and updating originator entry of received packet\n",
+		   __func__);
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(tmp_neigh_node,
@@ -1279,7 +1279,7 @@ static bool batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
 	batadv_ogm_packet->tq = combined_tq;
 
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-		   "bidirectional: orig = %-15pM neigh = %-15pM => own_bcast = %2i, real recv = %2i, local tq: %3i, asym_penalty: %3i, iface_penalty: %3i, total tq: %3i, if_incoming = %s, if_outgoing = %s\n",
+		   "bidirectional: orig = %pM neigh = %pM => own_bcast = %2i, real recv = %2i, local tq: %3i, asym_penalty: %3i, iface_penalty: %3i, total tq: %3i, if_incoming = %s, if_outgoing = %s\n",
 		   orig_node->orig, orig_neigh_node->orig, total_count,
 		   neigh_rq_count, tq_own, tq_asym_penalty, tq_iface_penalty,
 		   batadv_ogm_packet->tq, if_incoming->net_dev->name,
@@ -1943,7 +1943,7 @@ static void batadv_iv_ogm_orig_print(struct batadv_priv *bat_priv,
 
 			batadv_iv_ogm_orig_print_neigh(orig_node, if_outgoing,
 						       seq);
-			seq_puts(seq, "\n");
+			seq_putc(seq, '\n');
 			batman_count++;
 
 next:
@@ -2477,6 +2477,16 @@ static void batadv_iv_iface_activate(struct batadv_hard_iface *hard_iface)
 	batadv_iv_ogm_schedule(hard_iface);
 }
 
+/**
+ * batadv_iv_init_sel_class - initialize GW selection class
+ * @bat_priv: the bat priv with all the soft interface information
+ */
+static void batadv_iv_init_sel_class(struct batadv_priv *bat_priv)
+{
+	/* set default TQ difference threshold to 20 */
+	atomic_set(&bat_priv->gw.sel_class, 20);
+}
+
 static struct batadv_gw_node *
 batadv_iv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 {
@@ -2823,6 +2833,7 @@ static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 		.del_if = batadv_iv_ogm_orig_del_if,
 	},
 	.gw = {
+		.init_sel_class = batadv_iv_init_sel_class,
 		.get_best_gw_node = batadv_iv_gw_get_best_gw_node,
 		.is_eligible = batadv_iv_gw_is_eligible,
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS

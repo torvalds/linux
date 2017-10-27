@@ -9,6 +9,7 @@
 #include <linux/completion.h>
 #include <linux/ip.h>
 #include <linux/module.h>
+#include <linux/sched/signal.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/svcsock.h>
 #include <linux/nfs_fs.h>
@@ -75,7 +76,10 @@ nfs4_callback_svc(void *vrqstp)
 
 	set_freezable();
 
-	while (!kthread_should_stop()) {
+	while (!kthread_freezable_should_stop(NULL)) {
+
+		if (signal_pending(current))
+			flush_signals(current);
 		/*
 		 * Listen for a request on the socket
 		 */
@@ -84,6 +88,8 @@ nfs4_callback_svc(void *vrqstp)
 			continue;
 		svc_process(rqstp);
 	}
+	svc_exit_thread(rqstp);
+	module_put_and_exit(0);
 	return 0;
 }
 
@@ -102,9 +108,10 @@ nfs41_callback_svc(void *vrqstp)
 
 	set_freezable();
 
-	while (!kthread_should_stop()) {
-		if (try_to_freeze())
-			continue;
+	while (!kthread_freezable_should_stop(NULL)) {
+
+		if (signal_pending(current))
+			flush_signals(current);
 
 		prepare_to_wait(&serv->sv_cb_waitq, &wq, TASK_INTERRUPTIBLE);
 		spin_lock_bh(&serv->sv_cb_lock);
@@ -120,11 +127,13 @@ nfs41_callback_svc(void *vrqstp)
 				error);
 		} else {
 			spin_unlock_bh(&serv->sv_cb_lock);
-			schedule();
+			if (!kthread_should_stop())
+				schedule();
 			finish_wait(&serv->sv_cb_waitq, &wq);
 		}
-		flush_signals(current);
 	}
+	svc_exit_thread(rqstp);
+	module_put_and_exit(0);
 	return 0;
 }
 
@@ -217,26 +226,26 @@ err_bind:
 	return ret;
 }
 
-static struct svc_serv_ops nfs40_cb_sv_ops = {
+static const struct svc_serv_ops nfs40_cb_sv_ops = {
 	.svo_function		= nfs4_callback_svc,
 	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
-	.svo_setup		= svc_set_num_threads,
+	.svo_setup		= svc_set_num_threads_sync,
 	.svo_module		= THIS_MODULE,
 };
 #if defined(CONFIG_NFS_V4_1)
-static struct svc_serv_ops nfs41_cb_sv_ops = {
+static const struct svc_serv_ops nfs41_cb_sv_ops = {
 	.svo_function		= nfs41_callback_svc,
 	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
-	.svo_setup		= svc_set_num_threads,
+	.svo_setup		= svc_set_num_threads_sync,
 	.svo_module		= THIS_MODULE,
 };
 
-struct svc_serv_ops *nfs4_cb_sv_ops[] = {
+static const struct svc_serv_ops *nfs4_cb_sv_ops[] = {
 	[0] = &nfs40_cb_sv_ops,
 	[1] = &nfs41_cb_sv_ops,
 };
 #else
-struct svc_serv_ops *nfs4_cb_sv_ops[] = {
+static const struct svc_serv_ops *nfs4_cb_sv_ops[] = {
 	[0] = &nfs40_cb_sv_ops,
 	[1] = NULL,
 };
@@ -245,8 +254,8 @@ struct svc_serv_ops *nfs4_cb_sv_ops[] = {
 static struct svc_serv *nfs_callback_create_svc(int minorversion)
 {
 	struct nfs_callback_data *cb_info = &nfs_callback_info[minorversion];
+	const struct svc_serv_ops *sv_ops;
 	struct svc_serv *serv;
-	struct svc_serv_ops *sv_ops;
 
 	/*
 	 * Check whether we're already up and running.
@@ -279,7 +288,7 @@ static struct svc_serv *nfs_callback_create_svc(int minorversion)
 		printk(KERN_WARNING "nfs_callback_create_svc: no kthread, %d users??\n",
 			cb_info->users);
 
-	serv = svc_create(&nfs4_callback_program, NFS4_CALLBACK_BUFSIZE, sv_ops);
+	serv = svc_create_pooled(&nfs4_callback_program, NFS4_CALLBACK_BUFSIZE, sv_ops);
 	if (!serv) {
 		printk(KERN_ERR "nfs_callback_create_svc: create service failed\n");
 		return ERR_PTR(-ENOMEM);
@@ -430,7 +439,7 @@ static int nfs_callback_authenticate(struct svc_rqst *rqstp)
 /*
  * Define NFS4 callback program
  */
-static struct svc_version *nfs4_callback_version[] = {
+static const struct svc_version *nfs4_callback_version[] = {
 	[1] = &nfs4_callback_version1,
 	[4] = &nfs4_callback_version4,
 };

@@ -21,10 +21,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -1537,7 +1533,7 @@ static const struct v4l2_ioctl_ops meye_ioctl_ops = {
 	.vidioc_default		= vidioc_default,
 };
 
-static struct video_device meye_template = {
+static const struct video_device meye_template = {
 	.name		= "meye",
 	.fops		= &meye_fops,
 	.ioctl_ops 	= &meye_ioctl_ops,
@@ -1663,6 +1659,7 @@ static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 		goto outenabledev;
 	}
 
+	ret = -EIO;
 	mchip_adr = pci_resource_start(meye.mchip_dev,0);
 	if (!mchip_adr) {
 		v4l2_err(v4l2_dev, "meye: mchip has no device base address\n");
@@ -1804,7 +1801,7 @@ static void meye_remove(struct pci_dev *pcidev)
 	printk(KERN_INFO "meye: removed\n");
 }
 
-static struct pci_device_id meye_pci_tbl[] = {
+static const struct pci_device_id meye_pci_tbl[] = {
 	{ PCI_VDEVICE(KAWASAKI, PCI_DEVICE_ID_MCHIP_KL5A72002), 0 },
 	{ }
 };

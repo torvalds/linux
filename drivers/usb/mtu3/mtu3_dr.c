@@ -223,25 +223,25 @@ static int ssusb_extcon_register(struct otg_switch_mtk *otg_sx)
 		return 0;
 
 	otg_sx->vbus_nb.notifier_call = ssusb_vbus_notifier;
-	ret = extcon_register_notifier(edev, EXTCON_USB,
+	ret = devm_extcon_register_notifier(ssusb->dev, edev, EXTCON_USB,
 					&otg_sx->vbus_nb);
 	if (ret < 0)
 		dev_err(ssusb->dev, "failed to register notifier for USB\n");
 
 	otg_sx->id_nb.notifier_call = ssusb_id_notifier;
-	ret = extcon_register_notifier(edev, EXTCON_USB_HOST,
+	ret = devm_extcon_register_notifier(ssusb->dev, edev, EXTCON_USB_HOST,
 					&otg_sx->id_nb);
 	if (ret < 0)
 		dev_err(ssusb->dev, "failed to register notifier for USB-HOST\n");
 
 	dev_dbg(ssusb->dev, "EXTCON_USB: %d, EXTCON_USB_HOST: %d\n",
-		extcon_get_cable_state_(edev, EXTCON_USB),
-		extcon_get_cable_state_(edev, EXTCON_USB_HOST));
+		extcon_get_state(edev, EXTCON_USB),
+		extcon_get_state(edev, EXTCON_USB_HOST));
 
 	/* default as host, switch to device mode if needed */
-	if (extcon_get_cable_state_(edev, EXTCON_USB_HOST) == false)
+	if (extcon_get_state(edev, EXTCON_USB_HOST) == false)
 		ssusb_set_mailbox(otg_sx, MTU3_ID_FLOAT);
-	if (extcon_get_cable_state_(edev, EXTCON_USB) == true)
+	if (extcon_get_state(edev, EXTCON_USB) == true)
 		ssusb_set_mailbox(otg_sx, MTU3_VBUS_VALID);
 
 	return 0;
@@ -322,23 +322,65 @@ static const struct file_operations ssusb_mode_fops = {
 	.release = single_release,
 };
 
+static int ssusb_vbus_show(struct seq_file *sf, void *unused)
+{
+	struct ssusb_mtk *ssusb = sf->private;
+	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
+
+	seq_printf(sf, "vbus state: %s\n(echo on/off)\n",
+		regulator_is_enabled(otg_sx->vbus) ? "on" : "off");
+
+	return 0;
+}
+
+static int ssusb_vbus_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ssusb_vbus_show, inode->i_private);
+}
+
+static ssize_t ssusb_vbus_write(struct file *file,
+	const char __user *ubuf, size_t count, loff_t *ppos)
+{
+	struct seq_file *sf = file->private_data;
+	struct ssusb_mtk *ssusb = sf->private;
+	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
+	char buf[16];
+	bool enable;
+
+	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
+		return -EFAULT;
+
+	if (kstrtobool(buf, &enable)) {
+		dev_err(ssusb->dev, "wrong setting\n");
+		return -EINVAL;
+	}
+
+	ssusb_set_vbus(otg_sx, enable);
+
+	return count;
+}
+
+static const struct file_operations ssusb_vbus_fops = {
+	.open = ssusb_vbus_open,
+	.write = ssusb_vbus_write,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 static void ssusb_debugfs_init(struct ssusb_mtk *ssusb)
 {
 	struct dentry *root;
-	struct dentry *file;
 
 	root = debugfs_create_dir(dev_name(ssusb->dev), usb_debug_root);
-	if (IS_ERR_OR_NULL(root)) {
-		if (!root)
-			dev_err(ssusb->dev, "create debugfs root failed\n");
+	if (!root) {
+		dev_err(ssusb->dev, "create debugfs root failed\n");
 		return;
 	}
 	ssusb->dbgfs_root = root;
 
-	file = debugfs_create_file("mode", S_IRUGO | S_IWUSR, root,
-			ssusb, &ssusb_mode_fops);
-	if (!file)
-		dev_dbg(ssusb->dev, "create debugfs mode failed\n");
+	debugfs_create_file("mode", 0644, root, ssusb, &ssusb_mode_fops);
+	debugfs_create_file("vbus", 0644, root, ssusb, &ssusb_vbus_fops);
 }
 
 static void ssusb_debugfs_exit(struct ssusb_mtk *ssusb)
@@ -366,13 +408,6 @@ void ssusb_otg_switch_exit(struct ssusb_mtk *ssusb)
 	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
 
 	cancel_delayed_work(&otg_sx->extcon_reg_dwork);
-
-	if (otg_sx->edev) {
-		extcon_unregister_notifier(otg_sx->edev,
-			EXTCON_USB, &otg_sx->vbus_nb);
-		extcon_unregister_notifier(otg_sx->edev,
-			EXTCON_USB_HOST, &otg_sx->id_nb);
-	}
 
 	if (otg_sx->manual_drd_enabled)
 		ssusb_debugfs_exit(ssusb);

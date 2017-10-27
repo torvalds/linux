@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Broadcom Corporation
+ * Copyright (C) 2014-2017 Broadcom
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -9,7 +9,9 @@
  * kind, whether express or implied; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
+ */
+
+/*
  * This file contains the Broadcom Northstar Plus (NSP) GPIO driver that
  * supports the chipCommonA GPIO controller. Basic PINCONF such as bias,
  * pull up/down, slew and drive strength are also supported in this driver.
@@ -73,7 +75,7 @@ struct nsp_gpio {
 	struct pinctrl_dev *pctl;
 	struct pinctrl_desc pctldesc;
 	struct irq_domain *irq_domain;
-	spinlock_t lock;
+	raw_spinlock_t lock;
 };
 
 enum base_type {
@@ -203,9 +205,9 @@ static void nsp_gpio_irq_mask(struct irq_data *d)
 	struct nsp_gpio *chip = irq_data_get_irq_chip_data(d);
 	unsigned long flags;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 	nsp_gpio_irq_set_mask(d, false);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 }
 
 static void nsp_gpio_irq_unmask(struct irq_data *d)
@@ -213,9 +215,9 @@ static void nsp_gpio_irq_unmask(struct irq_data *d)
 	struct nsp_gpio *chip = irq_data_get_irq_chip_data(d);
 	unsigned long flags;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 	nsp_gpio_irq_set_mask(d, true);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 }
 
 static int nsp_gpio_irq_set_type(struct irq_data *d, unsigned int type)
@@ -226,7 +228,7 @@ static int nsp_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	bool falling;
 	unsigned long flags;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 	falling = nsp_get_bit(chip, REG, NSP_GPIO_EVENT_INT_POLARITY, gpio);
 	level_low = nsp_get_bit(chip, REG, NSP_GPIO_INT_POLARITY, gpio);
 
@@ -250,13 +252,13 @@ static int nsp_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	default:
 		dev_err(chip->dev, "invalid GPIO IRQ type 0x%x\n",
 			type);
-		spin_unlock_irqrestore(&chip->lock, flags);
+		raw_spin_unlock_irqrestore(&chip->lock, flags);
 		return -EINVAL;
 	}
 
 	nsp_set_bit(chip, REG, NSP_GPIO_EVENT_INT_POLARITY, gpio, falling);
 	nsp_set_bit(chip, REG, NSP_GPIO_INT_POLARITY, gpio, level_low);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	dev_dbg(chip->dev, "gpio:%u level_low:%s falling:%s\n", gpio,
 		level_low ? "true" : "false", falling ? "true" : "false");
@@ -295,9 +297,9 @@ static int nsp_gpio_direction_input(struct gpio_chip *gc, unsigned gpio)
 	struct nsp_gpio *chip = gpiochip_get_data(gc);
 	unsigned long flags;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 	nsp_set_bit(chip, REG, NSP_GPIO_OUT_EN, gpio, false);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	dev_dbg(chip->dev, "gpio:%u set input\n", gpio);
 	return 0;
@@ -309,10 +311,10 @@ static int nsp_gpio_direction_output(struct gpio_chip *gc, unsigned gpio,
 	struct nsp_gpio *chip = gpiochip_get_data(gc);
 	unsigned long flags;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 	nsp_set_bit(chip, REG, NSP_GPIO_OUT_EN, gpio, true);
 	nsp_set_bit(chip, REG, NSP_GPIO_DATA_OUT, gpio, !!(val));
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	dev_dbg(chip->dev, "gpio:%u set output, value:%d\n", gpio, val);
 	return 0;
@@ -323,9 +325,9 @@ static void nsp_gpio_set(struct gpio_chip *gc, unsigned gpio, int val)
 	struct nsp_gpio *chip = gpiochip_get_data(gc);
 	unsigned long flags;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 	nsp_set_bit(chip, REG, NSP_GPIO_DATA_OUT, gpio, !!(val));
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	dev_dbg(chip->dev, "gpio:%u set, value:%d\n", gpio, val);
 }
@@ -366,7 +368,7 @@ static const struct pinctrl_ops nsp_pctrl_ops = {
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
-static int nsp_gpio_set_slew(struct nsp_gpio *chip, unsigned gpio, u16 slew)
+static int nsp_gpio_set_slew(struct nsp_gpio *chip, unsigned gpio, u32 slew)
 {
 	if (slew)
 		nsp_set_bit(chip, IO_CTRL, NSP_GPIO_SLEW_RATE_EN, gpio, true);
@@ -381,10 +383,10 @@ static int nsp_gpio_set_pull(struct nsp_gpio *chip, unsigned gpio,
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 	nsp_set_bit(chip, IO_CTRL, NSP_PULL_DOWN_EN, gpio, pull_down);
 	nsp_set_bit(chip, IO_CTRL, NSP_PULL_UP_EN, gpio, pull_up);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	dev_dbg(chip->dev, "gpio:%u set pullup:%d pulldown: %d\n",
 		gpio, pull_up, pull_down);
@@ -396,14 +398,14 @@ static void nsp_gpio_get_pull(struct nsp_gpio *chip, unsigned gpio,
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 	*pull_up = nsp_get_bit(chip, IO_CTRL, NSP_PULL_UP_EN, gpio);
 	*pull_down = nsp_get_bit(chip, IO_CTRL, NSP_PULL_DOWN_EN, gpio);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 }
 
 static int nsp_gpio_set_strength(struct nsp_gpio *chip, unsigned gpio,
-				 u16 strength)
+				 u32 strength)
 {
 	u32 offset, shift, i;
 	u32 val;
@@ -417,7 +419,7 @@ static int nsp_gpio_set_strength(struct nsp_gpio *chip, unsigned gpio,
 	offset = NSP_GPIO_DRV_CTRL;
 	dev_dbg(chip->dev, "gpio:%u set drive strength:%d mA\n", gpio,
 		strength);
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 	strength = (strength / 2) - 1;
 	for (i = GPIO_DRV_STRENGTH_BITS; i > 0; i--) {
 		val = readl(chip->io_ctrl + offset);
@@ -426,7 +428,7 @@ static int nsp_gpio_set_strength(struct nsp_gpio *chip, unsigned gpio,
 		writel(val, chip->io_ctrl + offset);
 		offset += 4;
 	}
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	return 0;
 }
@@ -442,7 +444,7 @@ static int nsp_gpio_get_strength(struct nsp_gpio *chip, unsigned gpio,
 	offset = NSP_GPIO_DRV_CTRL;
 	shift = gpio;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 	*strength = 0;
 	for (i = (GPIO_DRV_STRENGTH_BITS - 1); i >= 0; i--) {
 		val = readl(chip->io_ctrl + offset) & BIT(shift);
@@ -453,7 +455,7 @@ static int nsp_gpio_get_strength(struct nsp_gpio *chip, unsigned gpio,
 
 	/* convert to mA */
 	*strength = (*strength + 1) * 2;
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	return 0;
 }
@@ -522,7 +524,7 @@ static int nsp_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 {
 	struct nsp_gpio *chip = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param;
-	u16 arg;
+	u32 arg;
 	unsigned int i, gpio;
 	int ret = -ENOTSUPP;
 
@@ -660,7 +662,7 @@ static int nsp_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(chip->io_ctrl);
 	}
 
-	spin_lock_init(&chip->lock);
+	raw_spin_lock_init(&chip->lock);
 	gc = &chip->gc;
 	gc->base = -1;
 	gc->can_sleep = false;

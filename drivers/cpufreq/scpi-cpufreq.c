@@ -30,46 +30,20 @@
 
 static struct scpi_ops *scpi_ops;
 
-static struct scpi_dvfs_info *scpi_get_dvfs_info(struct device *cpu_dev)
-{
-	int domain = topology_physical_package_id(cpu_dev->id);
-
-	if (domain < 0)
-		return ERR_PTR(-EINVAL);
-	return scpi_ops->dvfs_get_info(domain);
-}
-
 static int scpi_get_transition_latency(struct device *cpu_dev)
 {
-	struct scpi_dvfs_info *info = scpi_get_dvfs_info(cpu_dev);
-
-	if (IS_ERR(info))
-		return PTR_ERR(info);
-	return info->latency;
+	return scpi_ops->get_transition_latency(cpu_dev);
 }
 
 static int scpi_init_opp_table(const struct cpumask *cpumask)
 {
-	int idx, ret;
-	struct scpi_opp *opp;
+	int ret;
 	struct device *cpu_dev = get_cpu_device(cpumask_first(cpumask));
-	struct scpi_dvfs_info *info = scpi_get_dvfs_info(cpu_dev);
 
-	if (IS_ERR(info))
-		return PTR_ERR(info);
-
-	if (!info->opps)
-		return -EIO;
-
-	for (opp = info->opps, idx = 0; idx < info->count; idx++, opp++) {
-		ret = dev_pm_opp_add(cpu_dev, opp->freq, opp->m_volt * 1000);
-		if (ret) {
-			dev_warn(cpu_dev, "failed to add opp %uHz %umV\n",
-				 opp->freq, opp->m_volt);
-			while (idx-- > 0)
-				dev_pm_opp_remove(cpu_dev, (--opp)->freq);
-			return ret;
-		}
+	ret = scpi_ops->add_opps_to_device(cpu_dev);
+	if (ret) {
+		dev_warn(cpu_dev, "failed to add opps to the device\n");
+		return ret;
 	}
 
 	ret = dev_pm_opp_set_sharing_cpus(cpu_dev, cpumask);

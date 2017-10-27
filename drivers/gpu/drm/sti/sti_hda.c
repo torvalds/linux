@@ -320,8 +320,7 @@ static void hda_dbg_awg_microcode(struct seq_file *s, void __iomem *reg)
 {
 	unsigned int i;
 
-	seq_puts(s, "\n\n");
-	seq_puts(s, "  HDA AWG microcode:");
+	seq_puts(s, "\n\n  HDA AWG microcode:");
 	for (i = 0; i < AWG_MAX_INST; i++) {
 		if (i % 8 == 0)
 			seq_printf(s, "\n  %04X:", i);
@@ -333,8 +332,7 @@ static void hda_dbg_video_dacs_ctrl(struct seq_file *s, void __iomem *reg)
 {
 	u32 val = readl(reg);
 
-	seq_puts(s, "\n");
-	seq_printf(s, "\n  %-25s 0x%08X", "VIDEO_DACS_CONTROL", val);
+	seq_printf(s, "\n\n  %-25s 0x%08X", "VIDEO_DACS_CONTROL", val);
 	seq_puts(s, "\tHD DACs ");
 	seq_puts(s, val & DAC_CFG_HD_HZUVW_OFF_MASK ? "disabled" : "enabled");
 }
@@ -356,21 +354,13 @@ static int hda_dbg_show(struct seq_file *s, void *data)
 	hda_dbg_awg_microcode(s, hda->regs + HDA_SYNC_AWGI);
 	if (hda->video_dacs_ctrl)
 		hda_dbg_video_dacs_ctrl(s, hda->video_dacs_ctrl);
-	seq_puts(s, "\n");
-
+	seq_putc(s, '\n');
 	return 0;
 }
 
 static struct drm_info_list hda_debugfs_files[] = {
 	{ "hda", hda_dbg_show, 0, NULL },
 };
-
-static void hda_debugfs_exit(struct sti_hda *hda, struct drm_minor *minor)
-{
-	drm_debugfs_remove_files(hda_debugfs_files,
-				 ARRAY_SIZE(hda_debugfs_files),
-				 minor);
-}
 
 static int hda_debugfs_init(struct sti_hda *hda, struct drm_minor *minor)
 {
@@ -657,7 +647,6 @@ static int sti_hda_late_register(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs sti_hda_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
@@ -707,9 +696,8 @@ static int sti_hda_bind(struct device *dev, struct device *master, void *data)
 
 	bridge->driver_private = hda;
 	bridge->funcs = &sti_hda_bridge_funcs;
-	drm_bridge_attach(drm_dev, bridge);
+	drm_bridge_attach(encoder, bridge, NULL);
 
-	encoder->bridge = bridge;
 	connector->encoder = encoder;
 
 	drm_connector = (struct drm_connector *)connector;
@@ -740,10 +728,6 @@ err_sysfs:
 static void sti_hda_unbind(struct device *dev,
 		struct device *master, void *data)
 {
-	struct sti_hda *hda = dev_get_drvdata(dev);
-	struct drm_device *drm_dev = data;
-
-	hda_debugfs_exit(hda, drm_dev->primary);
 }
 
 static const struct component_ops sti_hda_ops = {

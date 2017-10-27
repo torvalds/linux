@@ -25,6 +25,14 @@
 #define BTRFS_SUPER_MIRROR_MAX	 3
 #define BTRFS_SUPER_MIRROR_SHIFT 12
 
+/*
+ * Fixed blocksize for all devices, applies to specific ways of reading
+ * metadata like superblock. Must meet the set_blocksize requirements.
+ *
+ * Do not change.
+ */
+#define BTRFS_BDEV_BLOCKSIZE	(4096)
+
 enum btrfs_wq_endio_type {
 	BTRFS_WQ_ENDIO_DATA = 0,
 	BTRFS_WQ_ENDIO_METADATA = 1,
@@ -52,14 +60,12 @@ int reada_tree_block_flagged(struct btrfs_fs_info *fs_info, u64 bytenr,
 struct extent_buffer *btrfs_find_create_tree_block(
 						struct btrfs_fs_info *fs_info,
 						u64 bytenr);
-void clean_tree_block(struct btrfs_trans_handle *trans,
-		      struct btrfs_fs_info *fs_info, struct extent_buffer *buf);
+void clean_tree_block(struct btrfs_fs_info *fs_info, struct extent_buffer *buf);
 int open_ctree(struct super_block *sb,
 	       struct btrfs_fs_devices *fs_devices,
 	       char *options);
 void close_ctree(struct btrfs_fs_info *fs_info);
-int write_ctree_super(struct btrfs_trans_handle *trans,
-		      struct btrfs_fs_info *fs_info, int max_mirrors);
+int write_all_supers(struct btrfs_fs_info *fs_info, int max_mirrors);
 struct buffer_head *btrfs_read_dev_super(struct block_device *bdev);
 int btrfs_read_dev_one_super(struct block_device *bdev, int copy_num,
 			struct buffer_head **bh_ret);
@@ -103,14 +109,14 @@ struct btrfs_root *btrfs_alloc_dummy_root(struct btrfs_fs_info *fs_info);
  */
 static inline struct btrfs_root *btrfs_grab_fs_root(struct btrfs_root *root)
 {
-	if (atomic_inc_not_zero(&root->refs))
+	if (refcount_inc_not_zero(&root->refs))
 		return root;
 	return NULL;
 }
 
 static inline void btrfs_put_fs_root(struct btrfs_root *root)
 {
-	if (atomic_dec_and_test(&root->refs))
+	if (refcount_dec_and_test(&root->refs))
 		kfree(root);
 }
 
@@ -118,18 +124,18 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf);
 int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
 			  int atomic);
 int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid);
-u32 btrfs_csum_data(char *data, u32 seed, size_t len);
+u32 btrfs_csum_data(const char *data, u32 seed, size_t len);
 void btrfs_csum_final(u32 crc, u8 *result);
-int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
+blk_status_t btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
 			enum btrfs_wq_endio_type metadata);
-int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
-			struct bio *bio, int mirror_num,
-			unsigned long bio_flags, u64 bio_offset,
+blk_status_t btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
+			int mirror_num, unsigned long bio_flags,
+			u64 bio_offset, void *private_data,
 			extent_submit_bio_hook_t *submit_bio_start,
 			extent_submit_bio_hook_t *submit_bio_done);
 unsigned long btrfs_async_submit_limit(struct btrfs_fs_info *info);
 int btrfs_write_tree_block(struct extent_buffer *buf);
-int btrfs_wait_tree_block_writeback(struct extent_buffer *buf);
+void btrfs_wait_tree_block_writeback(struct extent_buffer *buf);
 int btrfs_init_log_root_tree(struct btrfs_trans_handle *trans,
 			     struct btrfs_fs_info *fs_info);
 int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
@@ -144,8 +150,6 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 int btree_lock_page_hook(struct page *page, void *data,
 				void (*flush_fn)(void *));
 int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags);
-int btrfs_calc_num_tolerated_disk_barrier_failures(
-	struct btrfs_fs_info *fs_info);
 int __init btrfs_end_io_wq_init(void);
 void btrfs_end_io_wq_exit(void);
 

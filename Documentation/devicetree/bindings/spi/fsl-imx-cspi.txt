@@ -9,6 +9,7 @@ Required properties:
   - "fsl,imx31-cspi" for SPI compatible with the one integrated on i.MX31
   - "fsl,imx35-cspi" for SPI compatible with the one integrated on i.MX35
   - "fsl,imx51-ecspi" for SPI compatible with the one integrated on i.MX51
+  - "fsl,imx53-ecspi" for SPI compatible with the one integrated on i.MX53 and later Soc
 - reg : Offset and length of the register set for the device
 - interrupts : Should contain CSPI/eCSPI interrupt
 - cs-gpios : Specifies the gpio pins to be used for chipselects.
@@ -23,6 +24,12 @@ See the clock consumer binding,
 Obsolete properties:
 - fsl,spi-num-chipselects : Contains the number of the chipselect
 
+Optional properties:
+- fsl,spi-rdy-drctl: Integer, representing the value of DRCTL, the register
+controlling the SPI_READY handling. Note that to enable the DRCTL consideration,
+the SPI_READY mode-flag needs to be set too.
+Valid values are: 0 (disabled), 1 (edge-triggered burst) and 2 (level-triggered burst).
+
 Example:
 
 ecspi@70010000 {
@@ -35,4 +42,5 @@ ecspi@70010000 {
 		   <&gpio3 25 0>; /* GPIO3_25 */
 	dmas = <&sdma 3 7 1>, <&sdma 4 7 2>;
 	dma-names = "rx", "tx";
+	fsl,spi-rdy-drctl = <1>;
 };

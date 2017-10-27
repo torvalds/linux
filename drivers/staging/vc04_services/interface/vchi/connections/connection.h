@@ -217,8 +217,7 @@ typedef void   (*VCHI_BUFFER_FREE)(VCHI_CONNECTION_SERVICE_HANDLE_T service_hand
  System driver struct
  *****************************************************************************/
 
-struct opaque_vchi_connection_api_t
-{
+struct opaque_vchi_connection_api_t {
    // Routine to init the connection
    VCHI_CONNECTION_INIT_T                      init;
 

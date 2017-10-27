@@ -1,40 +1,18 @@
-if ARCH_GEMINI
-
-menu "Cortina Systems Gemini Implementations"
-
-config MACH_NAS4220B
-	bool "Raidsonic NAS-4220-B"
-	select GEMINI_MEM_SWAP
+menuconfig ARCH_GEMINI
+	bool "Cortina Systems Gemini"
+	depends on ARCH_MULTI_V4
+	select ARCH_HAS_RESET_CONTROLLER
+	select ARM_AMBA
+	select ARM_APPENDED_DTB # Old Redboot bootloaders deployed
+	select COMMON_CLK_GEMINI
+	select FARADAY_FTINTC010
+	select FTTMR010_TIMER
+	select GPIO_FTGPIO010
+	select GPIOLIB
+	select PINCTRL
+	select PINCTRL_GEMINI
+	select POWER_RESET
+	select POWER_RESET_GEMINI_POWEROFF
+	select POWER_RESET_SYSCON
 	help
-	  Say Y here if you intend to run this kernel on a
-	  Raidsonic NAS-4220-B.
-
-config MACH_RUT100
-	bool "Teltonika RUT100"
-	select GEMINI_MEM_SWAP
-	help
-	  Say Y here if you intend to run this kernel on a
-	  Teltonika 3G Router RUT100.
-
-config MACH_WBD111
-	bool "Wiliboard WBD-111"
-	select GEMINI_MEM_SWAP
-	help
-	  Say Y here if you intend to run this kernel on a
-	  Wiliboard WBD-111.
-
-config MACH_WBD222
-        bool "Wiliboard WBD-222"
-        select GEMINI_MEM_SWAP
-        help
-          Say Y here if you intend to run this kernel on a
-          Wiliboard WBD-222.
-
-endmenu
-
-config GEMINI_MEM_SWAP
-	bool "Gemini memory is swapped"
-	help
-	  Say Y here if Gemini memory is swapped by bootloader.
-
-endif
+	  Support for the Cortina Systems Gemini family SoCs

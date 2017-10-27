@@ -1,7 +1,7 @@
 /*
  * Performance event support - s390 specific definitions.
  *
- * Copyright IBM Corp. 2009, 2013
+ * Copyright IBM Corp. 2009, 2017
  * Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  *	      Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  */
@@ -47,7 +47,7 @@ struct perf_sf_sde_regs {
 };
 
 /* Perf PMU definitions for the counter facility */
-#define PERF_CPUM_CF_MAX_CTR		256
+#define PERF_CPUM_CF_MAX_CTR		0xffffUL  /* Max ctr for ECCTR */
 
 /* Perf PMU definitions for the sampling facility */
 #define PERF_CPUM_SF_MAX_CTR		2

@@ -6,6 +6,7 @@
 #include <linux/trace_events.h>
 #include <linux/ring_buffer.h>
 #include <linux/trace_clock.h>
+#include <linux/sched/clock.h>
 #include <linux/trace_seq.h>
 #include <linux/spinlock.h>
 #include <linux/irq_work.h>
@@ -437,6 +438,7 @@ struct ring_buffer_per_cpu {
 	raw_spinlock_t			reader_lock;	/* serialize readers */
 	arch_spinlock_t			lock;
 	struct lock_class_key		lock_key;
+	struct buffer_data_page		*free_page;
 	unsigned long			nr_pages;
 	unsigned int			current_context;
 	struct list_head		*pages;
@@ -1134,12 +1136,12 @@ static int __rb_allocate_pages(long nr_pages, struct list_head *pages, int cpu)
 	for (i = 0; i < nr_pages; i++) {
 		struct page *page;
 		/*
-		 * __GFP_NORETRY flag makes sure that the allocation fails
-		 * gracefully without invoking oom-killer and the system is
-		 * not destabilized.
+		 * __GFP_RETRY_MAYFAIL flag makes sure that the allocation fails
+		 * gracefully without invoking oom-killer and the system is not
+		 * destabilized.
 		 */
 		bpage = kzalloc_node(ALIGN(sizeof(*bpage), cache_line_size()),
-				    GFP_KERNEL | __GFP_NORETRY,
+				    GFP_KERNEL | __GFP_RETRY_MAYFAIL,
 				    cpu_to_node(cpu));
 		if (!bpage)
 			goto free_pages;
@@ -1147,7 +1149,7 @@ static int __rb_allocate_pages(long nr_pages, struct list_head *pages, int cpu)
 		list_add(&bpage->list, pages);
 
 		page = alloc_pages_node(cpu_to_node(cpu),
-					GFP_KERNEL | __GFP_NORETRY, 0);
+					GFP_KERNEL | __GFP_RETRY_MAYFAIL, 0);
 		if (!page)
 			goto free_pages;
 		bpage->page = page_address(page);
@@ -3404,11 +3406,23 @@ EXPORT_SYMBOL_GPL(ring_buffer_iter_reset);
 int ring_buffer_iter_empty(struct ring_buffer_iter *iter)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
+	struct buffer_page *reader;
+	struct buffer_page *head_page;
+	struct buffer_page *commit_page;
+	unsigned commit;
 
 	cpu_buffer = iter->cpu_buffer;
 
-	return iter->head_page == cpu_buffer->commit_page &&
-		iter->head == rb_commit_index(cpu_buffer);
+	/* Remember, trace recording is off when iterator is in use */
+	reader = cpu_buffer->reader_page;
+	head_page = cpu_buffer->head_page;
+	commit_page = cpu_buffer->commit_page;
+	commit = rb_page_commit(commit_page);
+
+	return ((iter->head_page == commit_page && iter->head == commit) ||
+		(iter->head_page == reader && commit_page == head_page &&
+		 head_page->read == commit &&
+		 iter->head == rb_page_commit(cpu_buffer->reader_page)));
 }
 EXPORT_SYMBOL_GPL(ring_buffer_iter_empty);
 
@@ -4372,20 +4386,41 @@ EXPORT_SYMBOL_GPL(ring_buffer_swap_cpu);
  * the page that was allocated, with the read page of the buffer.
  *
  * Returns:
- *  The page allocated, or NULL on error.
+ *  The page allocated, or ERR_PTR
  */
 void *ring_buffer_alloc_read_page(struct ring_buffer *buffer, int cpu)
 {
-	struct buffer_data_page *bpage;
+	struct ring_buffer_per_cpu *cpu_buffer;
+	struct buffer_data_page *bpage = NULL;
+	unsigned long flags;
 	struct page *page;
+
+	if (!cpumask_test_cpu(cpu, buffer->cpumask))
+		return ERR_PTR(-ENODEV);
+
+	cpu_buffer = buffer->buffers[cpu];
+	local_irq_save(flags);
+	arch_spin_lock(&cpu_buffer->lock);
+
+	if (cpu_buffer->free_page) {
+		bpage = cpu_buffer->free_page;
+		cpu_buffer->free_page = NULL;
+	}
+
+	arch_spin_unlock(&cpu_buffer->lock);
+	local_irq_restore(flags);
+
+	if (bpage)
+		goto out;
 
 	page = alloc_pages_node(cpu_to_node(cpu),
 				GFP_KERNEL | __GFP_NORETRY, 0);
 	if (!page)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	bpage = page_address(page);
 
+ out:
 	rb_init_page(bpage);
 
 	return bpage;
@@ -4395,13 +4430,29 @@ EXPORT_SYMBOL_GPL(ring_buffer_alloc_read_page);
 /**
  * ring_buffer_free_read_page - free an allocated read page
  * @buffer: the buffer the page was allocate for
+ * @cpu: the cpu buffer the page came from
  * @data: the page to free
  *
  * Free a page allocated from ring_buffer_alloc_read_page.
  */
-void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data)
+void ring_buffer_free_read_page(struct ring_buffer *buffer, int cpu, void *data)
 {
-	free_page((unsigned long)data);
+	struct ring_buffer_per_cpu *cpu_buffer = buffer->buffers[cpu];
+	struct buffer_data_page *bpage = data;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	arch_spin_lock(&cpu_buffer->lock);
+
+	if (!cpu_buffer->free_page) {
+		cpu_buffer->free_page = bpage;
+		bpage = NULL;
+	}
+
+	arch_spin_unlock(&cpu_buffer->lock);
+	local_irq_restore(flags);
+
+	free_page((unsigned long)bpage);
 }
 EXPORT_SYMBOL_GPL(ring_buffer_free_read_page);
 
@@ -4420,8 +4471,8 @@ EXPORT_SYMBOL_GPL(ring_buffer_free_read_page);
  *
  * for example:
  *	rpage = ring_buffer_alloc_read_page(buffer, cpu);
- *	if (!rpage)
- *		return error;
+ *	if (IS_ERR(rpage))
+ *		return PTR_ERR(rpage);
  *	ret = ring_buffer_read_page(buffer, &rpage, len, cpu, 0);
  *	if (ret >= 0)
  *		process_page(rpage, ret);
@@ -4825,9 +4876,9 @@ static __init int test_ringbuffer(void)
 		rb_data[cpu].cnt = cpu;
 		rb_threads[cpu] = kthread_create(rb_test, &rb_data[cpu],
 						 "rbtester/%d", cpu);
-		if (WARN_ON(!rb_threads[cpu])) {
+		if (WARN_ON(IS_ERR(rb_threads[cpu]))) {
 			pr_cont("FAILED\n");
-			ret = -1;
+			ret = PTR_ERR(rb_threads[cpu]);
 			goto out_free;
 		}
 
@@ -4837,9 +4888,9 @@ static __init int test_ringbuffer(void)
 
 	/* Now create the rb hammer! */
 	rb_hammer = kthread_run(rb_hammer_test, NULL, "rbhammer");
-	if (WARN_ON(!rb_hammer)) {
+	if (WARN_ON(IS_ERR(rb_hammer))) {
 		pr_cont("FAILED\n");
-		ret = -1;
+		ret = PTR_ERR(rb_hammer);
 		goto out_free;
 	}
 

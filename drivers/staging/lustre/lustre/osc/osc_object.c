@@ -78,6 +78,9 @@ static int osc_object_init(const struct lu_env *env, struct lu_object *obj,
 	INIT_LIST_HEAD(&osc->oo_write_item);
 	INIT_LIST_HEAD(&osc->oo_read_item);
 
+	atomic_set(&osc->oo_nr_ios, 0);
+	init_waitqueue_head(&osc->oo_io_waitq);
+
 	osc->oo_root.rb_node = NULL;
 	INIT_LIST_HEAD(&osc->oo_hp_exts);
 	INIT_LIST_HEAD(&osc->oo_urgent_exts);
@@ -112,6 +115,7 @@ static void osc_object_free(const struct lu_env *env, struct lu_object *obj)
 	LASSERT(atomic_read(&osc->oo_nr_reads) == 0);
 	LASSERT(atomic_read(&osc->oo_nr_writes) == 0);
 	LASSERT(list_empty(&osc->oo_ol_list));
+	LASSERT(!atomic_read(&osc->oo_nr_ios));
 
 	lu_object_fini(obj);
 	kmem_cache_free(osc_object_kmem, osc);
@@ -195,10 +199,6 @@ static int osc_object_prune(const struct lu_env *env, struct cl_object *obj)
 {
 	struct osc_object       *osc = cl2osc(obj);
 	struct ldlm_res_id      *resname = &osc_env_info(env)->oti_resname;
-
-	LASSERTF(osc->oo_npages == 0,
-		 DFID "still have %lu pages, obj: %p, osc: %p\n",
-		 PFID(lu_object_fid(&obj->co_lu)), osc->oo_npages, obj, osc);
 
 	/* DLM locks don't hold a reference of osc_object so we have to
 	 * clear it before the object is being destroyed.
@@ -369,7 +369,14 @@ static void osc_req_attr_set(const struct lu_env *env, struct cl_object *obj,
 		oa->o_valid |= OBD_MD_FLGROUP;
 	}
 	if (flags & OBD_MD_FLID) {
-		ostid_set_id(&oa->o_oi, ostid_id(&oinfo->loi_oi));
+		int rc;
+
+		rc = ostid_set_id(&oa->o_oi, ostid_id(&oinfo->loi_oi));
+		if (rc) {
+			CERROR("Bad %llu to set " DOSTID " : rc %d\n",
+			       (unsigned long long)ostid_id(&oinfo->loi_oi),
+			       POSTID(&oa->o_oi), rc);
+		}
 		oa->o_valid |= OBD_MD_FLID;
 	}
 	if (flags & OBD_MD_FLHANDLE) {
@@ -442,6 +449,27 @@ struct lu_object *osc_object_alloc(const struct lu_env *env,
 		obj = NULL;
 	}
 	return obj;
+}
+
+int osc_object_invalidate(const struct lu_env *env, struct osc_object *osc)
+{
+	struct l_wait_info lwi = { 0 };
+
+	CDEBUG(D_INODE, "Invalidate osc object: %p, # of active IOs: %d\n",
+	       osc, atomic_read(&osc->oo_nr_ios));
+
+	l_wait_event(osc->oo_io_waitq, !atomic_read(&osc->oo_nr_ios), &lwi);
+
+	/* Discard all dirty pages of this object. */
+	osc_cache_truncate_start(env, osc, 0, NULL);
+
+	/* Discard all caching pages */
+	osc_lock_discard_pages(env, osc, 0, CL_PAGE_EOF, CLM_WRITE);
+
+	/* Clear ast data of dlm lock. Do this after discarding all pages */
+	osc_object_prune(env, osc2cl(osc));
+
+	return 0;
 }
 
 /** @} osc */

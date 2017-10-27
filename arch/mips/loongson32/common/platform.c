@@ -1,9 +1,9 @@
 /*
  * Copyright (c) 2011-2016 Zhang, Keguang <keguang.zhang@gmail.com>
  *
- * This program is free software; you can redistribute	it and/or modify it
- * under  the terms of	the GNU General	 Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
  * option) any later version.
  */
 
@@ -22,10 +22,6 @@
 #include <cpufreq.h>
 #include <dma.h>
 #include <nand.h>
-
-#define LS1X_RTC_CTRL	((void __iomem *)KSEG1ADDR(LS1X_RTC_BASE + 0x40))
-#define RTC_EXTCLK_OK	(BIT(5) | BIT(8))
-#define RTC_EXTCLK_EN	BIT(8)
 
 /* 8250/16550 compatible UART */
 #define LS1X_UART(_id)						\
@@ -70,19 +66,10 @@ void __init ls1x_serial_set_uartclk(struct platform_device *pdev)
 		p->uartclk = clk_get_rate(clk);
 }
 
-void __init ls1x_rtc_set_extclk(struct platform_device *pdev)
-{
-	u32 val;
-
-	val = __raw_readl(LS1X_RTC_CTRL);
-	if (!(val & RTC_EXTCLK_OK))
-		__raw_writel(val | RTC_EXTCLK_EN, LS1X_RTC_CTRL);
-}
-
 /* CPUFreq */
 static struct plat_ls1x_cpufreq ls1x_cpufreq_pdata = {
 	.clk_name	= "cpu_clk",
-	.osc_clk_name	= "osc_33m_clk",
+	.osc_clk_name	= "osc_clk",
 	.max_freq	= 266 * 1000,
 	.min_freq	= 33 * 1000,
 };
@@ -196,18 +183,20 @@ int ls1x_eth_mux_init(struct platform_device *pdev, void *priv)
 }
 
 static struct plat_stmmacenet_data ls1x_eth0_pdata = {
-	.bus_id		= 0,
-	.phy_addr	= -1,
+	.bus_id			= 0,
+	.phy_addr		= -1,
 #if defined(CONFIG_LOONGSON1_LS1B)
-	.interface	= PHY_INTERFACE_MODE_MII,
+	.interface		= PHY_INTERFACE_MODE_MII,
 #elif defined(CONFIG_LOONGSON1_LS1C)
-	.interface	= PHY_INTERFACE_MODE_RMII,
+	.interface		= PHY_INTERFACE_MODE_RMII,
 #endif
-	.mdio_bus_data	= &ls1x_mdio_bus_data,
-	.dma_cfg	= &ls1x_eth_dma_cfg,
-	.has_gmac	= 1,
-	.tx_coe		= 1,
-	.init		= ls1x_eth_mux_init,
+	.mdio_bus_data		= &ls1x_mdio_bus_data,
+	.dma_cfg		= &ls1x_eth_dma_cfg,
+	.has_gmac		= 1,
+	.tx_coe			= 1,
+	.rx_queues_to_use	= 1,
+	.tx_queues_to_use	= 1,
+	.init			= ls1x_eth_mux_init,
 };
 
 static struct resource ls1x_eth0_resources[] = {
@@ -235,14 +224,16 @@ struct platform_device ls1x_eth0_pdev = {
 
 #ifdef CONFIG_LOONGSON1_LS1B
 static struct plat_stmmacenet_data ls1x_eth1_pdata = {
-	.bus_id		= 1,
-	.phy_addr	= -1,
-	.interface	= PHY_INTERFACE_MODE_MII,
-	.mdio_bus_data	= &ls1x_mdio_bus_data,
-	.dma_cfg	= &ls1x_eth_dma_cfg,
-	.has_gmac	= 1,
-	.tx_coe		= 1,
-	.init		= ls1x_eth_mux_init,
+	.bus_id			= 1,
+	.phy_addr		= -1,
+	.interface		= PHY_INTERFACE_MODE_MII,
+	.mdio_bus_data		= &ls1x_mdio_bus_data,
+	.dma_cfg		= &ls1x_eth_dma_cfg,
+	.has_gmac		= 1,
+	.tx_coe			= 1,
+	.rx_queues_to_use	= 1,
+	.tx_queues_to_use	= 1,
+	.init			= ls1x_eth_mux_init,
 };
 
 static struct resource ls1x_eth1_resources[] = {
@@ -357,7 +348,31 @@ struct platform_device ls1x_ehci_pdev = {
 };
 
 /* Real Time Clock */
+void __init ls1x_rtc_set_extclk(struct platform_device *pdev)
+{
+	u32 val = __raw_readl(LS1X_RTC_CTRL);
+
+	if (!(val & RTC_EXTCLK_OK))
+		__raw_writel(val | RTC_EXTCLK_EN, LS1X_RTC_CTRL);
+}
+
 struct platform_device ls1x_rtc_pdev = {
 	.name		= "ls1x-rtc",
 	.id		= -1,
+};
+
+/* Watchdog */
+static struct resource ls1x_wdt_resources[] = {
+	{
+		.start	= LS1X_WDT_BASE,
+		.end	= LS1X_WDT_BASE + SZ_16 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device ls1x_wdt_pdev = {
+	.name		= "ls1x-wdt",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(ls1x_wdt_resources),
+	.resource	= ls1x_wdt_resources,
 };

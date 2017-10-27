@@ -599,7 +599,8 @@ static int oaktrail_pipe_set_base(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
-	struct psb_framebuffer *psbfb = to_psb_fb(crtc->primary->fb);
+	struct drm_framebuffer *fb = crtc->primary->fb;
+	struct psb_framebuffer *psbfb = to_psb_fb(fb);
 	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	unsigned long start, offset;
@@ -608,7 +609,7 @@ static int oaktrail_pipe_set_base(struct drm_crtc *crtc,
 	int ret = 0;
 
 	/* no fb bound */
-	if (!crtc->primary->fb) {
+	if (!fb) {
 		dev_dbg(dev->dev, "No FB bound\n");
 		return 0;
 	}
@@ -617,19 +618,19 @@ static int oaktrail_pipe_set_base(struct drm_crtc *crtc,
 		return 0;
 
 	start = psbfb->gtt->offset;
-	offset = y * crtc->primary->fb->pitches[0] + x * (crtc->primary->fb->bits_per_pixel / 8);
+	offset = y * fb->pitches[0] + x * fb->format->cpp[0];
 
-	REG_WRITE(map->stride, crtc->primary->fb->pitches[0]);
+	REG_WRITE(map->stride, fb->pitches[0]);
 
 	dspcntr = REG_READ(map->cntr);
 	dspcntr &= ~DISPPLANE_PIXFORMAT_MASK;
 
-	switch (crtc->primary->fb->bits_per_pixel) {
+	switch (fb->format->cpp[0] * 8) {
 	case 8:
 		dspcntr |= DISPPLANE_8BPP;
 		break;
 	case 16:
-		if (crtc->primary->fb->depth == 15)
+		if (fb->format->depth == 15)
 			dspcntr |= DISPPLANE_15_16BPP;
 		else
 			dspcntr |= DISPPLANE_16BPP;

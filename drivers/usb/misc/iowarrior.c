@@ -21,10 +21,8 @@
 #include <linux/poll.h>
 #include <linux/usb/iowarrior.h>
 
-/* Version Information */
-#define DRIVER_VERSION "v0.4.0"
 #define DRIVER_AUTHOR "Christian Lucht <lucht@codemercs.com>"
-#define DRIVER_DESC "USB IO-Warrior driver (Linux 2.6.x)"
+#define DRIVER_DESC "USB IO-Warrior driver"
 
 #define USB_VENDOR_ID_CODEMERCS		1984
 /* low speed iowarrior */
@@ -368,14 +366,9 @@ static ssize_t iowarrior_write(struct file *file,
 	case USB_DEVICE_ID_CODEMERCS_IOWPV2:
 	case USB_DEVICE_ID_CODEMERCS_IOW40:
 		/* IOW24 and IOW40 use a synchronous call */
-		buf = kmalloc(count, GFP_KERNEL);
-		if (!buf) {
-			retval = -ENOMEM;
-			goto exit;
-		}
-		if (copy_from_user(buf, user_buffer, count)) {
-			retval = -EFAULT;
-			kfree(buf);
+		buf = memdup_user(user_buffer, count);
+		if (IS_ERR(buf)) {
+			retval = PTR_ERR(buf);
 			goto exit;
 		}
 		retval = usb_set_report(dev->interface, 2, 0, buf, count);
@@ -554,7 +547,7 @@ static long iowarrior_ioctl(struct file *file, unsigned int cmd,
 			info.revision = le16_to_cpu(dev->udev->descriptor.bcdDevice);
 
 			/* 0==UNKNOWN, 1==LOW(usb1.1) ,2=FULL(usb1.1), 3=HIGH(usb2.0) */
-			info.speed = le16_to_cpu(dev->udev->speed);
+			info.speed = dev->udev->speed;
 			info.if_num = dev->interface->cur_altsetting->desc.bInterfaceNumber;
 			info.report_size = dev->report_size;
 
@@ -756,9 +749,8 @@ static int iowarrior_probe(struct usb_interface *interface,
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct iowarrior *dev = NULL;
 	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *endpoint;
-	int i;
 	int retval = -ENOMEM;
+	int res;
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(struct iowarrior), GFP_KERNEL);
@@ -781,22 +773,23 @@ static int iowarrior_probe(struct usb_interface *interface,
 	iface_desc = interface->cur_altsetting;
 	dev->product_id = le16_to_cpu(udev->descriptor.idProduct);
 
-	if (iface_desc->desc.bNumEndpoints < 1) {
-		dev_err(&interface->dev, "Invalid number of endpoints\n");
-		retval = -EINVAL;
+	res = usb_find_last_int_in_endpoint(iface_desc, &dev->int_in_endpoint);
+	if (res) {
+		dev_err(&interface->dev, "no interrupt-in endpoint found\n");
+		retval = res;
 		goto error;
 	}
 
-	/* set up the endpoint information */
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-
-		if (usb_endpoint_is_int_in(endpoint))
-			dev->int_in_endpoint = endpoint;
-		if (usb_endpoint_is_int_out(endpoint))
-			/* this one will match for the IOWarrior56 only */
-			dev->int_out_endpoint = endpoint;
+	if (dev->product_id == USB_DEVICE_ID_CODEMERCS_IOW56) {
+		res = usb_find_last_int_out_endpoint(iface_desc,
+				&dev->int_out_endpoint);
+		if (res) {
+			dev_err(&interface->dev, "no interrupt-out endpoint found\n");
+			retval = res;
+			goto error;
+		}
 	}
+
 	/* we have to check the report_size often, so remember it in the endianness suitable for our machine */
 	dev->report_size = usb_endpoint_maxp(dev->int_in_endpoint);
 	if ((dev->interface->cur_altsetting->desc.bInterfaceNumber == 0) &&

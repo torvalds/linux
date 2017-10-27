@@ -823,9 +823,12 @@ static int cpumsf_pmu_event_init(struct perf_event *event)
 	}
 
 	/* Check online status of the CPU to which the event is pinned */
-	if (event->cpu >= nr_cpumask_bits ||
-	    (event->cpu >= 0 && !cpu_online(event->cpu)))
-		return -ENODEV;
+	if (event->cpu >= 0) {
+		if ((unsigned int)event->cpu >= nr_cpumask_bits)
+			return -ENODEV;
+		if (!cpu_online(event->cpu))
+			return -ENODEV;
+	}
 
 	/* Force reset of idle/hv excludes regardless of what the
 	 * user requested.
@@ -995,11 +998,11 @@ static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
 	regs.int_parm = CPU_MF_INT_SF_PRA;
 	sde_regs = (struct perf_sf_sde_regs *) &regs.int_parm_long;
 
-	psw_bits(regs.psw).ia = sfr->basic.ia;
-	psw_bits(regs.psw).t  = sfr->basic.T;
-	psw_bits(regs.psw).w  = sfr->basic.W;
-	psw_bits(regs.psw).p  = sfr->basic.P;
-	psw_bits(regs.psw).as = sfr->basic.AS;
+	psw_bits(regs.psw).ia	= sfr->basic.ia;
+	psw_bits(regs.psw).dat	= sfr->basic.T;
+	psw_bits(regs.psw).wait = sfr->basic.W;
+	psw_bits(regs.psw).pstate = sfr->basic.P;
+	psw_bits(regs.psw).as	= sfr->basic.AS;
 
 	/*
 	 * Use the hardware provided configuration level to decide if the
@@ -1009,8 +1012,8 @@ static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
 	 * sample. Some early samples or samples from guests without
 	 * lpp usage would be misaccounted to the host. We use the asn
 	 * value as an addon heuristic to detect most of these guest samples.
-	 * If the value differs from the host hpp value, we assume to be a
-	 * KVM guest.
+	 * If the value differs from 0xffff (the host value), we assume to
+	 * be a KVM guest.
 	 */
 	switch (sfr->basic.CL) {
 	case 1: /* logical partition */
@@ -1020,8 +1023,7 @@ static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
 		sde_regs->in_guest = 1;
 		break;
 	default: /* old machine, use heuristics */
-		if (sfr->basic.gpp ||
-		    sfr->basic.prim_asn != (u16)sfr->basic.hpp)
+		if (sfr->basic.gpp || sfr->basic.prim_asn != 0xffff)
 			sde_regs->in_guest = 1;
 		break;
 	}

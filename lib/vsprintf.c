@@ -31,6 +31,7 @@
 #include <linux/dcache.h>
 #include <linux/cred.h>
 #include <linux/uuid.h>
+#include <linux/of.h>
 #include <net/addrconf.h>
 #ifdef CONFIG_BLOCK
 #include <linux/blkdev.h>
@@ -1308,14 +1309,14 @@ char *uuid_string(char *buf, char *end, const u8 *addr,
 	char uuid[UUID_STRING_LEN + 1];
 	char *p = uuid;
 	int i;
-	const u8 *index = uuid_be_index;
+	const u8 *index = uuid_index;
 	bool uc = false;
 
 	switch (*(++fmt)) {
 	case 'L':
 		uc = true;		/* fall-through */
 	case 'l':
-		index = uuid_le_index;
+		index = guid_index;
 		break;
 	case 'B':
 		uc = true;
@@ -1470,12 +1471,135 @@ char *flags_string(char *buf, char *end, void *flags_ptr, const char *fmt)
 	return format_flags(buf, end, flags, names);
 }
 
+static const char *device_node_name_for_depth(const struct device_node *np, int depth)
+{
+	for ( ; np && depth; depth--)
+		np = np->parent;
+
+	return kbasename(np->full_name);
+}
+
+static noinline_for_stack
+char *device_node_gen_full_name(const struct device_node *np, char *buf, char *end)
+{
+	int depth;
+	const struct device_node *parent = np->parent;
+	static const struct printf_spec strspec = {
+		.field_width = -1,
+		.precision = -1,
+	};
+
+	/* special case for root node */
+	if (!parent)
+		return string(buf, end, "/", strspec);
+
+	for (depth = 0; parent->parent; depth++)
+		parent = parent->parent;
+
+	for ( ; depth >= 0; depth--) {
+		buf = string(buf, end, "/", strspec);
+		buf = string(buf, end, device_node_name_for_depth(np, depth),
+			     strspec);
+	}
+	return buf;
+}
+
+static noinline_for_stack
+char *device_node_string(char *buf, char *end, struct device_node *dn,
+			 struct printf_spec spec, const char *fmt)
+{
+	char tbuf[sizeof("xxxx") + 1];
+	const char *p;
+	int ret;
+	char *buf_start = buf;
+	struct property *prop;
+	bool has_mult, pass;
+	static const struct printf_spec num_spec = {
+		.flags = SMALL,
+		.field_width = -1,
+		.precision = -1,
+		.base = 10,
+	};
+
+	struct printf_spec str_spec = spec;
+	str_spec.field_width = -1;
+
+	if (!IS_ENABLED(CONFIG_OF))
+		return string(buf, end, "(!OF)", spec);
+
+	if ((unsigned long)dn < PAGE_SIZE)
+		return string(buf, end, "(null)", spec);
+
+	/* simple case without anything any more format specifiers */
+	fmt++;
+	if (fmt[0] == '\0' || strcspn(fmt,"fnpPFcC") > 0)
+		fmt = "f";
+
+	for (pass = false; strspn(fmt,"fnpPFcC"); fmt++, pass = true) {
+		if (pass) {
+			if (buf < end)
+				*buf = ':';
+			buf++;
+		}
+
+		switch (*fmt) {
+		case 'f':	/* full_name */
+			buf = device_node_gen_full_name(dn, buf, end);
+			break;
+		case 'n':	/* name */
+			buf = string(buf, end, dn->name, str_spec);
+			break;
+		case 'p':	/* phandle */
+			buf = number(buf, end, (unsigned int)dn->phandle, num_spec);
+			break;
+		case 'P':	/* path-spec */
+			p = kbasename(of_node_full_name(dn));
+			if (!p[1])
+				p = "/";
+			buf = string(buf, end, p, str_spec);
+			break;
+		case 'F':	/* flags */
+			tbuf[0] = of_node_check_flag(dn, OF_DYNAMIC) ? 'D' : '-';
+			tbuf[1] = of_node_check_flag(dn, OF_DETACHED) ? 'd' : '-';
+			tbuf[2] = of_node_check_flag(dn, OF_POPULATED) ? 'P' : '-';
+			tbuf[3] = of_node_check_flag(dn, OF_POPULATED_BUS) ? 'B' : '-';
+			tbuf[4] = 0;
+			buf = string(buf, end, tbuf, str_spec);
+			break;
+		case 'c':	/* major compatible string */
+			ret = of_property_read_string(dn, "compatible", &p);
+			if (!ret)
+				buf = string(buf, end, p, str_spec);
+			break;
+		case 'C':	/* full compatible string */
+			has_mult = false;
+			of_property_for_each_string(dn, "compatible", prop, p) {
+				if (has_mult)
+					buf = string(buf, end, ",", str_spec);
+				buf = string(buf, end, "\"", str_spec);
+				buf = string(buf, end, p, str_spec);
+				buf = string(buf, end, "\"", str_spec);
+
+				has_mult = true;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
+	return widen_string(buf, buf - buf_start, end, spec);
+}
+
 int kptr_restrict __read_mostly;
 
 /*
  * Show a '%p' thing.  A kernel extension is that the '%p' is followed
  * by an extra set of alphanumeric characters that are extended format
  * specifiers.
+ *
+ * Please update scripts/checkpatch.pl when adding/removing conversion
+ * characters.  (Search for "check for vsprintf extension").
  *
  * Right now we handle:
  *
@@ -1563,6 +1687,16 @@ int kptr_restrict __read_mostly;
  *       p page flags (see struct page) given as pointer to unsigned long
  *       g gfp flags (GFP_* and __GFP_*) given as pointer to gfp_t
  *       v vma flags (VM_*) given as pointer to unsigned long
+ * - 'O' For a kobject based struct. Must be one of the following:
+ *       - 'OF[fnpPcCF]'  For a device tree object
+ *                        Without any optional arguments prints the full_name
+ *                        f device node full_name
+ *                        n device node name
+ *                        p device node phandle
+ *                        P device node path spec (name + @unit)
+ *                        F device node flags
+ *                        c major compatible string
+ *                        C full compatible string
  *
  * ** Please update also Documentation/printk-formats.txt when making changes **
  *
@@ -1718,6 +1852,11 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 
 	case 'G':
 		return flags_string(buf, end, ptr, fmt);
+	case 'O':
+		switch (fmt[1]) {
+		case 'F':
+			return device_node_string(buf, end, ptr, spec, fmt + 1);
+		}
 	}
 	spec.flags |= SMALL;
 	if (spec.field_width == -1) {
@@ -1739,6 +1878,7 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
  * 'h', 'l', or 'L' for integer fields
  * 'z' support added 23/7/1999 S.H.
  * 'z' changed to 'Z' --davidm 1/25/99
+ * 'Z' changed to 'z' --adobriyan 2017-01-25
  * 't' added for ptrdiff_t
  *
  * @fmt: the format string
@@ -1838,7 +1978,7 @@ qualifier:
 	/* get the conversion qualifier */
 	qualifier = 0;
 	if (*fmt == 'h' || _tolower(*fmt) == 'l' ||
-	    _tolower(*fmt) == 'z' || *fmt == 't') {
+	    *fmt == 'z' || *fmt == 't') {
 		qualifier = *fmt++;
 		if (unlikely(qualifier == *fmt)) {
 			if (qualifier == 'l') {
@@ -1907,7 +2047,7 @@ qualifier:
 	else if (qualifier == 'l') {
 		BUILD_BUG_ON(FORMAT_TYPE_ULONG + SIGN != FORMAT_TYPE_LONG);
 		spec->type = FORMAT_TYPE_ULONG + (spec->flags & SIGN);
-	} else if (_tolower(qualifier) == 'z') {
+	} else if (qualifier == 'z') {
 		spec->type = FORMAT_TYPE_SIZE_T;
 	} else if (qualifier == 't') {
 		spec->type = FORMAT_TYPE_PTRDIFF;
@@ -1953,13 +2093,13 @@ set_precision(struct printf_spec *spec, int prec)
  * This function generally follows C99 vsnprintf, but has some
  * extensions and a few limitations:
  *
- * %n is unsupported
- * %p* is handled by pointer()
+ *  - ``%n`` is unsupported
+ *  - ``%p*`` is handled by pointer()
  *
  * See pointer() or Documentation/printk-formats.txt for more
  * extensive description.
  *
- * ** Please update the documentation in both places when making changes **
+ * **Please update the documentation in both places when making changes**
  *
  * The return value is the number of characters which would
  * be generated for the given input, excluding the trailing
@@ -2657,7 +2797,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 		/* get conversion qualifier */
 		qualifier = -1;
 		if (*fmt == 'h' || _tolower(*fmt) == 'l' ||
-		    _tolower(*fmt) == 'z') {
+		    *fmt == 'z') {
 			qualifier = *fmt++;
 			if (unlikely(qualifier == *fmt)) {
 				if (qualifier == 'h') {
@@ -2851,7 +2991,6 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 			else
 				*va_arg(args, unsigned long long *) = val.u;
 			break;
-		case 'Z':
 		case 'z':
 			*va_arg(args, size_t *) = val.u;
 			break;

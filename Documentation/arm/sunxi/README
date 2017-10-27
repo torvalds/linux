@@ -63,9 +63,17 @@ SunXi family
         + User Manual
           http://dl.linux-sunxi.org/A33/A33%20user%20manual%20release%201.1.pdf
 
+      - Allwinner H2+ (sun8i)
+        + No document available now, but is known to be working properly with
+          H3 drivers and memory map.
+
       - Allwinner H3 (sun8i)
         + Datasheet
           http://dl.linux-sunxi.org/H3/Allwinner_H3_Datasheet_V1.0.pdf
+
+      - Allwinner V3s (sun8i)
+        + Datasheet
+          http://linux-sunxi.org/File:Allwinner_V3s_Datasheet_V1.0.pdf
 
     * Quad ARM Cortex-A15, Quad ARM Cortex-A7 based SoCs
       - Allwinner A80

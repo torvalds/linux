@@ -355,7 +355,12 @@ int cx231xx_send_vendor_cmd(struct cx231xx *dev,
 	 */
 	if ((ven_req->wLength > 4) && ((ven_req->bRequest == 0x4) ||
 					(ven_req->bRequest == 0x5) ||
-					(ven_req->bRequest == 0x6))) {
+					(ven_req->bRequest == 0x6) ||
+
+					/* Internal Master 3 Bus can send
+					 * and receive only 4 bytes per time
+					 */
+					(ven_req->bRequest == 0x2))) {
 		unsend_size = 0;
 		pdata = ven_req->pBuff;
 
@@ -1306,6 +1311,7 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	dev->i2c_bus[0].i2c_period = I2C_SPEED_100K;	/* 100 KHz */
 	dev->i2c_bus[0].i2c_nostop = 0;
 	dev->i2c_bus[0].i2c_reserve = 0;
+	dev->i2c_bus[0].i2c_rc = -ENODEV;
 
 	/* External Master 2 Bus */
 	dev->i2c_bus[1].nr = 1;
@@ -1313,6 +1319,7 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	dev->i2c_bus[1].i2c_period = I2C_SPEED_100K;	/* 100 KHz */
 	dev->i2c_bus[1].i2c_nostop = 0;
 	dev->i2c_bus[1].i2c_reserve = 0;
+	dev->i2c_bus[1].i2c_rc = -ENODEV;
 
 	/* Internal Master 3 Bus */
 	dev->i2c_bus[2].nr = 2;
@@ -1320,6 +1327,7 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	dev->i2c_bus[2].i2c_period = I2C_SPEED_100K;	/* 100kHz */
 	dev->i2c_bus[2].i2c_nostop = 0;
 	dev->i2c_bus[2].i2c_reserve = 0;
+	dev->i2c_bus[2].i2c_rc = -ENODEV;
 
 	/* register I2C buses */
 	errCode = cx231xx_i2c_register(&dev->i2c_bus[0]);

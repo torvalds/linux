@@ -75,7 +75,9 @@ struct adreno_info {
 	const char *pm4fw, *pfpfw;
 	const char *gpmufw;
 	uint32_t gmem;
+	enum adreno_quirks quirks;
 	struct msm_gpu *(*init)(struct drm_device *dev);
+	const char *zapfw;
 };
 
 const struct adreno_info *adreno_info(struct adreno_rev rev);
@@ -85,7 +87,6 @@ const struct adreno_info *adreno_info(struct adreno_rev rev);
 
 struct adreno_rbmemptrs {
 	volatile uint32_t rptr;
-	volatile uint32_t wptr;
 	volatile uint32_t fence;
 };
 
@@ -116,19 +117,16 @@ struct adreno_gpu {
 	 * code (a3xx_gpu.c) and stored in this common location.
 	 */
 	const unsigned int *reg_offsets;
-
-	uint32_t quirks;
 };
 #define to_adreno_gpu(x) container_of(x, struct adreno_gpu, base)
 
 /* platform config data (ie. from DT, or pdata) */
 struct adreno_platform_config {
 	struct adreno_rev rev;
-	uint32_t fast_rate, slow_rate, bus_freq;
+	uint32_t fast_rate, bus_freq;
 #ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
 	struct msm_bus_scale_pdata *bus_scale_table;
 #endif
-	uint32_t quirks;
 };
 
 #define ADRENO_IDLE_TIMEOUT msecs_to_jiffies(1000)

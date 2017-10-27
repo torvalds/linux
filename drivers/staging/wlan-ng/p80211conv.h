@@ -101,20 +101,20 @@ void p80211skb_rxmeta_detach(struct sk_buff *skb);
  * Frame capture header.  (See doc/capturefrm.txt)
  */
 struct p80211_caphdr {
-	u32 version;
-	u32 length;
-	u64 mactime;
-	u64 hosttime;
-	u32 phytype;
-	u32 channel;
-	u32 datarate;
-	u32 antenna;
-	u32 priority;
-	u32 ssi_type;
-	s32 ssi_signal;
-	s32 ssi_noise;
-	u32 preamble;
-	u32 encoding;
+	__be32 version;
+	__be32 length;
+	__be64 mactime;
+	__be64 hosttime;
+	__be32 phytype;
+	__be32 channel;
+	__be32 datarate;
+	__be32 antenna;
+	__be32 priority;
+	__be32 ssi_type;
+	__be32 ssi_signal;
+	__be32 ssi_noise;
+	__be32 preamble;
+	__be32 encoding;
 };
 
 /* buffer free method pointer type */
@@ -130,7 +130,7 @@ struct p80211_metawep {
 struct wlan_ethhdr {
 	u8 daddr[ETH_ALEN];
 	u8 saddr[ETH_ALEN];
-	u16 type;
+	__be16 type;
 } __packed;
 
 /* local llc header type */
@@ -143,7 +143,7 @@ struct wlan_llc {
 /* local snap header type */
 struct wlan_snap {
 	u8 oui[WLAN_IEEE_OUI_LEN];
-	u16 type;
+	__be16 type;
 } __packed;
 
 /* Circular include trick */

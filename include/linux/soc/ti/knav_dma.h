@@ -17,6 +17,8 @@
 #ifndef __SOC_TI_KEYSTONE_NAVIGATOR_DMA_H__
 #define __SOC_TI_KEYSTONE_NAVIGATOR_DMA_H__
 
+#include <linux/dmaengine.h>
+
 /*
  * PKTDMA descriptor manipulation macros for host packet descriptor
  */
@@ -41,6 +43,8 @@
 #define KNAV_DMA_DESC_RETQ_SHIFT		0
 #define KNAV_DMA_DESC_RETQ_MASK			MASK(14)
 #define KNAV_DMA_DESC_BUF_LEN_MASK		MASK(22)
+#define KNAV_DMA_DESC_EFLAGS_MASK		MASK(4)
+#define KNAV_DMA_DESC_EFLAGS_SHIFT		20
 
 #define KNAV_DMA_NUM_EPIB_WORDS			4
 #define KNAV_DMA_NUM_PS_WORDS			16

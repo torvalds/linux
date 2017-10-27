@@ -483,11 +483,8 @@ static int bL_cpufreq_init(struct cpufreq_policy *policy)
 		return ret;
 	}
 
-	if (arm_bL_ops->get_transition_latency)
-		policy->cpuinfo.transition_latency =
-			arm_bL_ops->get_transition_latency(cpu_dev);
-	else
-		policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
+	policy->cpuinfo.transition_latency =
+				arm_bL_ops->get_transition_latency(cpu_dev);
 
 	if (is_bL_switching_enabled())
 		per_cpu(cpu_last_req_freq, policy->cpu) = clk_get_cpu_rate(policy->cpu);
@@ -540,7 +537,7 @@ static void bL_cpufreq_ready(struct cpufreq_policy *policy)
 				     &power_coefficient);
 
 		cdev[cur_cluster] = of_cpufreq_power_cooling_register(np,
-				policy->related_cpus, power_coefficient, NULL);
+				policy, power_coefficient, NULL);
 		if (IS_ERR(cdev[cur_cluster])) {
 			dev_err(cpu_dev,
 				"running cpufreq without cooling device: %ld\n",
@@ -622,7 +619,8 @@ int bL_cpufreq_register(struct cpufreq_arm_bL_ops *ops)
 		return -EBUSY;
 	}
 
-	if (!ops || !strlen(ops->name) || !ops->init_opp_table) {
+	if (!ops || !strlen(ops->name) || !ops->init_opp_table ||
+	    !ops->get_transition_latency) {
 		pr_err("%s: Invalid arm_bL_ops, exiting\n", __func__);
 		return -ENODEV;
 	}

@@ -98,6 +98,7 @@ struct gb_operation {
 	struct work_struct	work;
 	gb_operation_callback	callback;
 	struct completion	completion;
+	struct timer_list	timer;
 
 	struct kref		kref;
 	atomic_t		waiters;
@@ -164,6 +165,7 @@ bool gb_operation_response_alloc(struct gb_operation *operation,
 
 int gb_operation_request_send(struct gb_operation *operation,
 				gb_operation_callback callback,
+				unsigned int timeout,
 				gfp_t gfp);
 int gb_operation_request_send_sync_timeout(struct gb_operation *operation,
 						unsigned int timeout);

@@ -35,21 +35,59 @@ static struct intel_dp *lspcon_to_intel_dp(struct intel_lspcon *lspcon)
 	return &dig_port->dp;
 }
 
+static const char *lspcon_mode_name(enum drm_lspcon_mode mode)
+{
+	switch (mode) {
+	case DRM_LSPCON_MODE_PCON:
+		return "PCON";
+	case DRM_LSPCON_MODE_LS:
+		return "LS";
+	case DRM_LSPCON_MODE_INVALID:
+		return "INVALID";
+	default:
+		MISSING_CASE(mode);
+		return "INVALID";
+	}
+}
+
 static enum drm_lspcon_mode lspcon_get_current_mode(struct intel_lspcon *lspcon)
 {
-	enum drm_lspcon_mode current_mode = DRM_LSPCON_MODE_INVALID;
+	enum drm_lspcon_mode current_mode;
 	struct i2c_adapter *adapter = &lspcon_to_intel_dp(lspcon)->aux.ddc;
 
-	if (drm_lspcon_get_mode(adapter, &current_mode))
+	if (drm_lspcon_get_mode(adapter, &current_mode)) {
 		DRM_ERROR("Error reading LSPCON mode\n");
-	else
-		DRM_DEBUG_KMS("Current LSPCON mode %s\n",
-			current_mode == DRM_LSPCON_MODE_PCON ? "PCON" : "LS");
+		return DRM_LSPCON_MODE_INVALID;
+	}
+	return current_mode;
+}
+
+static enum drm_lspcon_mode lspcon_wait_mode(struct intel_lspcon *lspcon,
+					     enum drm_lspcon_mode mode)
+{
+	enum drm_lspcon_mode current_mode;
+
+	current_mode = lspcon_get_current_mode(lspcon);
+	if (current_mode == mode || current_mode == DRM_LSPCON_MODE_INVALID)
+		goto out;
+
+	DRM_DEBUG_KMS("Waiting for LSPCON mode %s to settle\n",
+		      lspcon_mode_name(mode));
+
+	wait_for((current_mode = lspcon_get_current_mode(lspcon)) == mode ||
+		 current_mode == DRM_LSPCON_MODE_INVALID, 100);
+	if (current_mode != mode)
+		DRM_DEBUG_KMS("LSPCON mode hasn't settled\n");
+
+out:
+	DRM_DEBUG_KMS("Current LSPCON mode %s\n",
+		      lspcon_mode_name(current_mode));
+
 	return current_mode;
 }
 
 static int lspcon_change_mode(struct intel_lspcon *lspcon,
-	enum drm_lspcon_mode mode, bool force)
+			      enum drm_lspcon_mode mode)
 {
 	int err;
 	enum drm_lspcon_mode current_mode;
@@ -77,10 +115,30 @@ static int lspcon_change_mode(struct intel_lspcon *lspcon,
 	return 0;
 }
 
+static bool lspcon_wake_native_aux_ch(struct intel_lspcon *lspcon)
+{
+	uint8_t rev;
+
+	if (drm_dp_dpcd_readb(&lspcon_to_intel_dp(lspcon)->aux, DP_DPCD_REV,
+			      &rev) != 1) {
+		DRM_DEBUG_KMS("Native AUX CH down\n");
+		return false;
+	}
+
+	DRM_DEBUG_KMS("Native AUX CH up, DPCD version: %d.%d\n",
+		      rev >> 4, rev & 0xf);
+
+	return true;
+}
+
 static bool lspcon_probe(struct intel_lspcon *lspcon)
 {
 	enum drm_dp_dual_mode_type adaptor_type;
 	struct i2c_adapter *adapter = &lspcon_to_intel_dp(lspcon)->aux.ddc;
+	enum drm_lspcon_mode expected_mode;
+
+	expected_mode = lspcon_wake_native_aux_ch(lspcon) ?
+			DRM_LSPCON_MODE_PCON : DRM_LSPCON_MODE_LS;
 
 	/* Lets probe the adaptor and check its type */
 	adaptor_type = drm_dp_dual_mode_detect(adapter);
@@ -92,7 +150,7 @@ static bool lspcon_probe(struct intel_lspcon *lspcon)
 
 	/* Yay ... got a LSPCON device */
 	DRM_DEBUG_KMS("LSPCON detected\n");
-	lspcon->mode = lspcon_get_current_mode(lspcon);
+	lspcon->mode = lspcon_wait_mode(lspcon, expected_mode);
 	lspcon->active = true;
 	return true;
 }
@@ -100,22 +158,12 @@ static bool lspcon_probe(struct intel_lspcon *lspcon)
 static void lspcon_resume_in_pcon_wa(struct intel_lspcon *lspcon)
 {
 	struct intel_dp *intel_dp = lspcon_to_intel_dp(lspcon);
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	unsigned long start = jiffies;
 
-	if (!lspcon->desc_valid)
-		return;
-
 	while (1) {
-		struct intel_dp_desc desc;
-
-		/*
-		 * The w/a only applies in PCON mode and we don't expect any
-		 * AUX errors.
-		 */
-		if (!__intel_dp_read_desc(intel_dp, &desc))
-			return;
-
-		if (!memcmp(&intel_dp->desc, &desc, sizeof(desc))) {
+		if (intel_digital_port_connected(dev_priv, dig_port)) {
 			DRM_DEBUG_KMS("LSPCON recovering in PCON mode after %u ms\n",
 				      jiffies_to_msecs(jiffies - start));
 			return;
@@ -132,12 +180,27 @@ static void lspcon_resume_in_pcon_wa(struct intel_lspcon *lspcon)
 
 void lspcon_resume(struct intel_lspcon *lspcon)
 {
-	lspcon_resume_in_pcon_wa(lspcon);
+	enum drm_lspcon_mode expected_mode;
 
-	if (lspcon_change_mode(lspcon, DRM_LSPCON_MODE_PCON, true))
+	if (lspcon_wake_native_aux_ch(lspcon)) {
+		expected_mode = DRM_LSPCON_MODE_PCON;
+		lspcon_resume_in_pcon_wa(lspcon);
+	} else {
+		expected_mode = DRM_LSPCON_MODE_LS;
+	}
+
+	if (lspcon_wait_mode(lspcon, expected_mode) == DRM_LSPCON_MODE_PCON)
+		return;
+
+	if (lspcon_change_mode(lspcon, DRM_LSPCON_MODE_PCON))
 		DRM_ERROR("LSPCON resume failed\n");
 	else
 		DRM_DEBUG_KMS("LSPCON resume success\n");
+}
+
+void lspcon_wait_pcon_mode(struct intel_lspcon *lspcon)
+{
+	lspcon_wait_mode(lspcon, DRM_LSPCON_MODE_PCON);
 }
 
 bool lspcon_init(struct intel_digital_port *intel_dig_port)
@@ -147,8 +210,8 @@ bool lspcon_init(struct intel_digital_port *intel_dig_port)
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	if (!IS_GEN9(dev_priv)) {
-		DRM_ERROR("LSPCON is supported on GEN9 only\n");
+	if (!HAS_LSPCON(dev_priv)) {
+		DRM_ERROR("LSPCON is not supported on this platform\n");
 		return false;
 	}
 
@@ -166,8 +229,7 @@ bool lspcon_init(struct intel_digital_port *intel_dig_port)
 	* 2.0 sinks.
 	*/
 	if (lspcon->active && lspcon->mode != DRM_LSPCON_MODE_PCON) {
-		if (lspcon_change_mode(lspcon, DRM_LSPCON_MODE_PCON,
-			true) < 0) {
+		if (lspcon_change_mode(lspcon, DRM_LSPCON_MODE_PCON) < 0) {
 			DRM_ERROR("LSPCON mode change to PCON failed\n");
 			return false;
 		}
@@ -178,7 +240,7 @@ bool lspcon_init(struct intel_digital_port *intel_dig_port)
 		return false;
 	}
 
-	lspcon->desc_valid = intel_dp_read_desc(dp);
+	drm_dp_read_desc(&dp->aux, &dp->desc, drm_dp_is_branch(dp->dpcd));
 
 	DRM_DEBUG_KMS("Success: LSPCON init\n");
 	return true;

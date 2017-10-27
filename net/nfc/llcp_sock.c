@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/nfc.h>
+#include <linux/sched/signal.h>
 
 #include "nfc.h"
 #include "llcp.h"
@@ -76,7 +77,8 @@ static int llcp_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	struct sockaddr_nfc_llcp llcp_addr;
 	int len, ret = 0;
 
-	if (!addr || addr->sa_family != AF_NFC)
+	if (!addr || alen < offsetofend(struct sockaddr, sa_family) ||
+	    addr->sa_family != AF_NFC)
 		return -EINVAL;
 
 	pr_debug("sk %p addr %p family %d\n", sk, addr, addr->sa_family);
@@ -150,7 +152,8 @@ static int llcp_raw_sock_bind(struct socket *sock, struct sockaddr *addr,
 	struct sockaddr_nfc_llcp llcp_addr;
 	int len, ret = 0;
 
-	if (!addr || addr->sa_family != AF_NFC)
+	if (!addr || alen < offsetofend(struct sockaddr, sa_family) ||
+	    addr->sa_family != AF_NFC)
 		return -EINVAL;
 
 	pr_debug("sk %p addr %p family %d\n", sk, addr, addr->sa_family);
@@ -440,7 +443,7 @@ struct sock *nfc_llcp_accept_dequeue(struct sock *parent,
 }
 
 static int llcp_sock_accept(struct socket *sock, struct socket *newsock,
-			    int flags)
+			    int flags, bool kern)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	struct sock *sk = sock->sk, *new_sk;
@@ -661,8 +664,7 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 
 	pr_debug("sock %p sk %p flags 0x%x\n", sock, sk, flags);
 
-	if (!addr || len < sizeof(struct sockaddr_nfc) ||
-	    addr->sa_family != AF_NFC)
+	if (!addr || len < sizeof(*addr) || addr->sa_family != AF_NFC)
 		return -EINVAL;
 
 	if (addr->service_name_len == 0 && addr->dsap == 0)

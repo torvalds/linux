@@ -162,6 +162,7 @@ static struct xt_target xt_rateest_tg_reg __read_mostly = {
 	.checkentry = xt_rateest_tg_checkentry,
 	.destroy    = xt_rateest_tg_destroy,
 	.targetsize = sizeof(struct xt_rateest_target_info),
+	.usersize   = offsetof(struct xt_rateest_target_info, est),
 	.me         = THIS_MODULE,
 };
 

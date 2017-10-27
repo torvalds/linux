@@ -13,10 +13,6 @@
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  * TODO:
  * - add smart card reader support for Conditional Access (CA)
  *
@@ -1146,7 +1142,7 @@ static int anysee_rc_query(struct dvb_usb_device *d)
 	if (ircode[0]) {
 		dev_dbg(&d->udev->dev, "%s: key pressed %02x\n", __func__,
 				ircode[1]);
-		rc_keydown(d->rc_dev, RC_TYPE_NEC,
+		rc_keydown(d->rc_dev, RC_PROTO_NEC,
 			   RC_SCANCODE_NEC(0x08, ircode[1]), 0);
 	}
 
@@ -1155,7 +1151,7 @@ static int anysee_rc_query(struct dvb_usb_device *d)
 
 static int anysee_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 {
-	rc->allowed_protos = RC_BIT_NEC;
+	rc->allowed_protos = RC_PROTO_BIT_NEC;
 	rc->query          = anysee_rc_query;
 	rc->interval       = 250;  /* windows driver uses 500ms */
 

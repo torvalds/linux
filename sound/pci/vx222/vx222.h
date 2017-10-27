@@ -39,6 +39,8 @@ struct snd_vx222 {
 	int mic_level;		/* mic level for vx222 mic */
 };
 
+#define to_vx222(x)	container_of(x, struct snd_vx222, core)
+
 /* we use a lookup table with 148 values, see vx_mixer.c */
 #define VX2_AKM_LEVEL_MAX	0x93
 

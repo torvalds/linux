@@ -22,10 +22,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include <linux/export.h>
@@ -513,7 +509,7 @@ static const struct v4l2_ioctl_ops fm_drv_ioctl_ops = {
 };
 
 /* V4L2 RADIO device parent structure */
-static struct video_device fm_viddev_template = {
+static const struct video_device fm_viddev_template = {
 	.fops = &fm_drv_fops,
 	.ioctl_ops = &fm_drv_ioctl_ops,
 	.name = FM_DRV_NAME,

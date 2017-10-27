@@ -304,8 +304,9 @@ void btrfs_after_dev_replace_commit(struct btrfs_fs_info *fs_info)
 		dev_replace->cursor_left_last_write_of_item;
 }
 
-int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info, char *tgtdev_name,
-				u64 srcdevid, char *srcdev_name, int read_src)
+int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
+		const char *tgtdev_name, u64 srcdevid, const char *srcdev_name,
+		int read_src)
 {
 	struct btrfs_root *root = fs_info->dev_root;
 	struct btrfs_trans_handle *trans;
@@ -387,7 +388,7 @@ int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info, char *tgtdev_name,
 	if (ret)
 		btrfs_err(fs_info, "kobj add dev failed %d", ret);
 
-	btrfs_wait_ordered_roots(fs_info, -1, 0, (u64)-1);
+	btrfs_wait_ordered_roots(fs_info, U64_MAX, 0, (u64)-1);
 
 	/* force writing the updated state information to disk */
 	trans = btrfs_start_transaction(root, 0);
@@ -506,7 +507,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 		mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
 		return ret;
 	}
-	btrfs_wait_ordered_roots(fs_info, -1, 0, (u64)-1);
+	btrfs_wait_ordered_roots(fs_info, U64_MAX, 0, (u64)-1);
 
 	trans = btrfs_start_transaction(root, 0);
 	if (IS_ERR(trans)) {
@@ -545,8 +546,10 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 		mutex_unlock(&fs_info->chunk_mutex);
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 		mutex_unlock(&uuid_mutex);
+		btrfs_rm_dev_replace_blocked(fs_info);
 		if (tgt_device)
 			btrfs_destroy_dev_replace_tgtdev(fs_info, tgt_device);
+		btrfs_rm_dev_replace_unblocked(fs_info);
 		mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
 
 		return scrub_ret;
@@ -636,11 +639,39 @@ static void btrfs_dev_replace_update_device_in_mapping_tree(
 	write_unlock(&em_tree->lock);
 }
 
+/*
+ * Read progress of device replace status according to the state and last
+ * stored position. The value format is the same as for
+ * btrfs_dev_replace::progress_1000
+ */
+static u64 btrfs_dev_replace_progress(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
+	u64 ret = 0;
+
+	switch (dev_replace->replace_state) {
+	case BTRFS_IOCTL_DEV_REPLACE_STATE_NEVER_STARTED:
+	case BTRFS_IOCTL_DEV_REPLACE_STATE_CANCELED:
+		ret = 0;
+		break;
+	case BTRFS_IOCTL_DEV_REPLACE_STATE_FINISHED:
+		ret = 1000;
+		break;
+	case BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED:
+	case BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED:
+		ret = div64_u64(dev_replace->cursor_left,
+				div_u64(btrfs_device_get_total_bytes(
+						dev_replace->srcdev), 1000));
+		break;
+	}
+
+	return ret;
+}
+
 void btrfs_dev_replace_status(struct btrfs_fs_info *fs_info,
 			      struct btrfs_ioctl_dev_replace_args *args)
 {
 	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
-	struct btrfs_device *srcdev;
 
 	btrfs_dev_replace_lock(dev_replace, 0);
 	/* even if !dev_replace_is_valid, the values are good enough for
@@ -653,21 +684,7 @@ void btrfs_dev_replace_status(struct btrfs_fs_info *fs_info,
 		atomic64_read(&dev_replace->num_write_errors);
 	args->status.num_uncorrectable_read_errors =
 		atomic64_read(&dev_replace->num_uncorrectable_read_errors);
-	switch (dev_replace->replace_state) {
-	case BTRFS_IOCTL_DEV_REPLACE_STATE_NEVER_STARTED:
-	case BTRFS_IOCTL_DEV_REPLACE_STATE_CANCELED:
-		args->status.progress_1000 = 0;
-		break;
-	case BTRFS_IOCTL_DEV_REPLACE_STATE_FINISHED:
-		args->status.progress_1000 = 1000;
-		break;
-	case BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED:
-	case BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED:
-		srcdev = dev_replace->srcdev;
-		args->status.progress_1000 = div_u64(dev_replace->cursor_left,
-			div_u64(btrfs_device_get_total_bytes(srcdev), 1000));
-		break;
-	}
+	args->status.progress_1000 = btrfs_dev_replace_progress(fs_info);
 	btrfs_dev_replace_unlock(dev_replace, 0);
 }
 
@@ -687,7 +704,7 @@ static u64 __btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 	u64 result;
 	int ret;
 
-	if (fs_info->sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(fs_info->sb))
 		return -EROFS;
 
 	mutex_lock(&dev_replace->lock_finishing_cancel_unmount);
@@ -783,8 +800,7 @@ int btrfs_resume_dev_replace_async(struct btrfs_fs_info *fs_info)
 	}
 	btrfs_dev_replace_unlock(dev_replace, 1);
 
-	WARN_ON(atomic_xchg(
-		&fs_info->mutually_exclusive_operation_running, 1));
+	WARN_ON(test_and_set_bit(BTRFS_FS_EXCL_OP, &fs_info->flags));
 	task = kthread_run(btrfs_dev_replace_kthread, fs_info, "btrfs-devrepl");
 	return PTR_ERR_OR_ZERO(task);
 }
@@ -793,27 +809,21 @@ static int btrfs_dev_replace_kthread(void *data)
 {
 	struct btrfs_fs_info *fs_info = data;
 	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
-	struct btrfs_ioctl_dev_replace_args *status_args;
 	u64 progress;
 
-	status_args = kzalloc(sizeof(*status_args), GFP_KERNEL);
-	if (status_args) {
-		btrfs_dev_replace_status(fs_info, status_args);
-		progress = status_args->status.progress_1000;
-		kfree(status_args);
-		progress = div_u64(progress, 10);
-		btrfs_info_in_rcu(fs_info,
-			"continuing dev_replace from %s (devid %llu) to %s @%u%%",
-			dev_replace->srcdev->missing ? "<missing disk>" :
-			rcu_str_deref(dev_replace->srcdev->name),
-			dev_replace->srcdev->devid,
-			dev_replace->tgtdev ?
-			rcu_str_deref(dev_replace->tgtdev->name) :
-			"<missing target disk>",
-			(unsigned int)progress);
-	}
+	progress = btrfs_dev_replace_progress(fs_info);
+	progress = div_u64(progress, 10);
+	btrfs_info_in_rcu(fs_info,
+		"continuing dev_replace from %s (devid %llu) to %s @%u%%",
+		dev_replace->srcdev->missing ? "<missing disk>"
+			: rcu_str_deref(dev_replace->srcdev->name),
+		dev_replace->srcdev->devid,
+		dev_replace->tgtdev ? rcu_str_deref(dev_replace->tgtdev->name)
+			: "<missing target disk>",
+		(unsigned int)progress);
+
 	btrfs_dev_replace_continue_on_mount(fs_info);
-	atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
+	clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
 
 	return 0;
 }

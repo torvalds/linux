@@ -29,6 +29,7 @@
 #include <linux/backing-dev.h>
 #include <linux/bug.h>
 #include <linux/module.h>
+#include <linux/sched/mm.h>
 
 #include <trace/events/jbd2.h>
 
@@ -388,6 +389,11 @@ repeat:
 
 	rwsem_acquire_read(&journal->j_trans_commit_map, 0, 0, _THIS_IP_);
 	jbd2_journal_free_transaction(new_transaction);
+	/*
+	 * Ensure that no allocations done while the transaction is open are
+	 * going to recurse back to the fs layer.
+	 */
+	handle->saved_alloc_context = memalloc_nofs_save();
 	return 0;
 }
 
@@ -403,25 +409,6 @@ static handle_t *new_handle(int nblocks)
 	return handle;
 }
 
-/**
- * handle_t *jbd2_journal_start() - Obtain a new handle.
- * @journal: Journal to start transaction on.
- * @nblocks: number of block buffer we might modify
- *
- * We make sure that the transaction can guarantee at least nblocks of
- * modified buffers in the log.  We block until the log can guarantee
- * that much space. Additionally, if rsv_blocks > 0, we also create another
- * handle with rsv_blocks reserved blocks in the journal. This handle is
- * is stored in h_rsv_handle. It is not attached to any particular transaction
- * and thus doesn't block transaction commit. If the caller uses this reserved
- * handle, it has to set h_rsv_handle to NULL as otherwise jbd2_journal_stop()
- * on the parent handle will dispose the reserved one. Reserved handle has to
- * be converted to a normal handle using jbd2_journal_start_reserved() before
- * it can be used.
- *
- * Return a pointer to a newly allocated handle, or an ERR_PTR() value
- * on failure.
- */
 handle_t *jbd2__journal_start(journal_t *journal, int nblocks, int rsv_blocks,
 			      gfp_t gfp_mask, unsigned int type,
 			      unsigned int line_no)
@@ -466,11 +453,31 @@ handle_t *jbd2__journal_start(journal_t *journal, int nblocks, int rsv_blocks,
 	trace_jbd2_handle_start(journal->j_fs_dev->bd_dev,
 				handle->h_transaction->t_tid, type,
 				line_no, nblocks);
+
 	return handle;
 }
 EXPORT_SYMBOL(jbd2__journal_start);
 
 
+/**
+ * handle_t *jbd2_journal_start() - Obtain a new handle.
+ * @journal: Journal to start transaction on.
+ * @nblocks: number of block buffer we might modify
+ *
+ * We make sure that the transaction can guarantee at least nblocks of
+ * modified buffers in the log.  We block until the log can guarantee
+ * that much space. Additionally, if rsv_blocks > 0, we also create another
+ * handle with rsv_blocks reserved blocks in the journal. This handle is
+ * is stored in h_rsv_handle. It is not attached to any particular transaction
+ * and thus doesn't block transaction commit. If the caller uses this reserved
+ * handle, it has to set h_rsv_handle to NULL as otherwise jbd2_journal_stop()
+ * on the parent handle will dispose the reserved one. Reserved handle has to
+ * be converted to a normal handle using jbd2_journal_start_reserved() before
+ * it can be used.
+ *
+ * Return a pointer to a newly allocated handle, or an ERR_PTR() value
+ * on failure.
+ */
 handle_t *jbd2_journal_start(journal_t *journal, int nblocks)
 {
 	return jbd2__journal_start(journal, nblocks, 0, GFP_NOFS, 0, 0);
@@ -673,6 +680,12 @@ int jbd2__journal_restart(handle_t *handle, int nblocks, gfp_t gfp_mask)
 
 	rwsem_release(&journal->j_trans_commit_map, 1, _THIS_IP_);
 	handle->h_buffer_credits = nblocks;
+	/*
+	 * Restore the original nofs context because the journal restart
+	 * is basically the same thing as journal stop and start.
+	 * start_this_handle will start a new nofs context.
+	 */
+	memalloc_nofs_restore(handle->saved_alloc_context);
 	ret = start_this_handle(journal, handle, gfp_mask);
 	return ret;
 }
@@ -1059,10 +1072,10 @@ out:
  * @handle: transaction to add buffer modifications to
  * @bh:     bh to be used for metadata writes
  *
- * Returns an error code or 0 on success.
+ * Returns: error code or 0 on success.
  *
  * In full data journalling mode the buffer may be of type BJ_AsyncData,
- * because we're write()ing a buffer which is also part of a shared mapping.
+ * because we're ``write()ing`` a buffer which is also part of a shared mapping.
  */
 
 int jbd2_journal_get_write_access(handle_t *handle, struct buffer_head *bh)
@@ -1760,6 +1773,11 @@ int jbd2_journal_stop(handle_t *handle)
 	if (handle->h_rsv_handle)
 		jbd2_journal_free_reserved(handle->h_rsv_handle);
 free_and_exit:
+	/*
+	 * Scope of the GFP_NOFS context is over here and so we can restore the
+	 * original alloc context.
+	 */
+	memalloc_nofs_restore(handle->saved_alloc_context);
 	jbd2_free_handle(handle);
 	return err;
 }
@@ -1863,7 +1881,9 @@ static void __jbd2_journal_temp_unlink_buffer(struct journal_head *jh)
 
 	__blist_del_buffer(list, jh);
 	jh->b_jlist = BJ_None;
-	if (test_clear_buffer_jbddirty(bh))
+	if (transaction && is_journal_aborted(transaction->t_journal))
+		clear_buffer_jbddirty(bh);
+	else if (test_clear_buffer_jbddirty(bh))
 		mark_buffer_dirty(bh);	/* Expose it to the VM */
 }
 

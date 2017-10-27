@@ -272,6 +272,10 @@
 	vdd_pll-supply = <&ldo8_reg>;
 };
 
+&hdmicec {
+	status = "okay";
+};
+
 &i2c_0 {
 	status = "okay";
 	samsung,i2c-sda-delay = <100>;
@@ -526,7 +530,6 @@
 /* eMMC flash */
 &mmc_0 {
 	status = "okay";
-	num-slots = <1>;
 	non-removable;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <2 3>;
@@ -540,7 +543,6 @@
 /* uSD card */
 &mmc_2 {
 	status = "okay";
-	num-slots = <1>;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <2 3>;
@@ -560,7 +562,6 @@
  */
 &mmc_3 {
 	status = "okay";
-	num-slots = <1>;
 	non-removable;
 	cap-sdio-irq;
 	keep-power-in-suspend;

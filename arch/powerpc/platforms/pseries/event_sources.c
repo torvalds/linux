@@ -36,8 +36,8 @@ void request_event_sources_irqs(struct device_node *np,
 		virqs[count] = irq_create_of_mapping(&oirq);
 		if (!virqs[count]) {
 			pr_err("event-sources: Unable to allocate "
-			       "interrupt number for %s\n",
-			       np->full_name);
+			       "interrupt number for %pOF\n",
+			       np);
 			WARN_ON(1);
 		} else {
 			count++;
@@ -48,7 +48,7 @@ void request_event_sources_irqs(struct device_node *np,
 	for (i = 0; i < count; i++) {
 		if (request_irq(virqs[i], handler, 0, name, NULL)) {
 			pr_err("event-sources: Unable to request interrupt "
-			       "%d for %s\n", virqs[i], np->full_name);
+			       "%d for %pOF\n", virqs[i], np);
 			WARN_ON(1);
 			return;
 		}

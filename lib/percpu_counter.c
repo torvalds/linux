@@ -72,7 +72,14 @@ void percpu_counter_set(struct percpu_counter *fbc, s64 amount)
 }
 EXPORT_SYMBOL(percpu_counter_set);
 
-void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch)
+/**
+ * This function is both preempt and irq safe. The former is due to explicit
+ * preemption disable. The latter is guaranteed by the fact that the slow path
+ * is explicitly protected by an irq-safe spinlock whereas the fast patch uses
+ * this_cpu_add which is irq-safe by definition. Hence there is no need muck
+ * with irq state before calling this one
+ */
+void percpu_counter_add_batch(struct percpu_counter *fbc, s64 amount, s32 batch)
 {
 	s64 count;
 
@@ -89,7 +96,7 @@ void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch)
 	}
 	preempt_enable();
 }
-EXPORT_SYMBOL(__percpu_counter_add);
+EXPORT_SYMBOL(percpu_counter_add_batch);
 
 /*
  * Add up all the per-cpu counts, return the result.  This is a more accurate
@@ -176,13 +183,12 @@ static int percpu_counter_cpu_dead(unsigned int cpu)
 	spin_lock_irq(&percpu_counters_lock);
 	list_for_each_entry(fbc, &percpu_counters, list) {
 		s32 *pcount;
-		unsigned long flags;
 
-		raw_spin_lock_irqsave(&fbc->lock, flags);
+		raw_spin_lock(&fbc->lock);
 		pcount = per_cpu_ptr(fbc->counters, cpu);
 		fbc->count += *pcount;
 		*pcount = 0;
-		raw_spin_unlock_irqrestore(&fbc->lock, flags);
+		raw_spin_unlock(&fbc->lock);
 	}
 	spin_unlock_irq(&percpu_counters_lock);
 #endif

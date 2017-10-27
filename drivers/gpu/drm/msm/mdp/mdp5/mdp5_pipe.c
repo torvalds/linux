@@ -53,6 +53,14 @@ struct mdp5_hw_pipe *mdp5_pipe_assign(struct drm_atomic_state *s,
 		if (caps & ~cur->caps)
 			continue;
 
+		/*
+		 * don't assign a cursor pipe to a plane that isn't going to
+		 * be used as a cursor
+		 */
+		if (cur->caps & MDP_PIPE_CAP_CURSOR &&
+				plane->type != DRM_PLANE_TYPE_CURSOR)
+			continue;
+
 		/* possible candidate, take the one with the
 		 * fewest unneeded caps bits set:
 		 */
@@ -126,8 +134,6 @@ struct mdp5_hw_pipe *mdp5_pipe_init(enum mdp5_pipe pipe,
 	hwpipe->reg_offset = reg_offset;
 	hwpipe->caps = caps;
 	hwpipe->flush_mask = mdp_ctl_flush_mask_pipe(pipe);
-
-	spin_lock_init(&hwpipe->pipe_lock);
 
 	return hwpipe;
 }

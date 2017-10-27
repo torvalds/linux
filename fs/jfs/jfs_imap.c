@@ -3148,7 +3148,6 @@ static void copy_to_dinode(struct dinode * dip, struct inode *ip)
 	else
 		dip->di_gid = cpu_to_le32(from_kgid(&init_user_ns,
 						    jfs_ip->saved_gid));
-	jfs_get_inode_flags(jfs_ip);
 	/*
 	 * mode2 is only needed for storing the higher order bits.
 	 * Trust i_mode for the lower order ones

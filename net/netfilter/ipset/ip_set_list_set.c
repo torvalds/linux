@@ -260,11 +260,14 @@ list_set_uadd(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 		else
 			prev = e;
 	}
+
+	/* If before/after is used on an empty set */
+	if ((d->before > 0 && !next) ||
+	    (d->before < 0 && !prev))
+		return -IPSET_ERR_REF_EXIST;
+
 	/* Re-add already existing element */
 	if (n) {
-		if ((d->before > 0 && !next) ||
-		    (d->before < 0 && !prev))
-			return -IPSET_ERR_REF_EXIST;
 		if (!flag_exist)
 			return -IPSET_ERR_EXIST;
 		/* Update extensions */

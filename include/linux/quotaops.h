@@ -38,12 +38,8 @@ void __quota_error(struct super_block *sb, const char *func,
 /*
  * declaration of quota_function calls in kernel.
  */
-void inode_add_rsv_space(struct inode *inode, qsize_t number);
-void inode_claim_rsv_space(struct inode *inode, qsize_t number);
-void inode_sub_rsv_space(struct inode *inode, qsize_t number);
-void inode_reclaim_rsv_space(struct inode *inode, qsize_t number);
-
 int dquot_initialize(struct inode *inode);
+bool dquot_initialize_needed(struct inode *inode);
 void dquot_drop(struct inode *inode);
 struct dquot *dqget(struct super_block *sb, struct kqid qid);
 static inline struct dquot *dqgrab(struct dquot *dquot)
@@ -162,7 +158,6 @@ static inline bool sb_has_quota_active(struct super_block *sb, int type)
  * Operations supported for diskquotas.
  */
 extern const struct dquot_operations dquot_operations;
-extern const struct quotactl_ops dquot_quotactl_ops;
 extern const struct quotactl_ops dquot_quotactl_sysfile_ops;
 
 #else
@@ -206,6 +201,11 @@ static inline int sb_has_quota_active(struct super_block *sb, int type)
 static inline int dquot_initialize(struct inode *inode)
 {
 	return 0;
+}
+
+static inline bool dquot_initialize_needed(struct inode *inode)
+{
+	return false;
 }
 
 static inline void dquot_drop(struct inode *inode)

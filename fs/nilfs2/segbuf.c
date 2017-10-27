@@ -338,7 +338,7 @@ static void nilfs_end_bio_write(struct bio *bio)
 {
 	struct nilfs_segment_buffer *segbuf = bio->bi_private;
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		atomic_inc(&segbuf->sb_err);
 
 	bio_put(bio);
@@ -400,7 +400,7 @@ static struct bio *nilfs_alloc_seg_bio(struct the_nilfs *nilfs, sector_t start,
 			bio = bio_alloc(GFP_NOIO, nr_vecs);
 	}
 	if (likely(bio)) {
-		bio->bi_bdev = nilfs->ns_bdev;
+		bio_set_dev(bio, nilfs->ns_bdev);
 		bio->bi_iter.bi_sector =
 			start << (nilfs->ns_blocksize_bits - 9);
 	}

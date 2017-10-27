@@ -392,7 +392,6 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client,
 		return error;
 
 	dev_info(dev, "CAP11XX detected, revision 0x%02x\n", rev);
-	i2c_set_clientdata(i2c_client, priv);
 	node = dev->of_node;
 
 	if (!of_property_read_u32(node, "microchip,sensor-gain", &gain32)) {

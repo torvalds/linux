@@ -25,7 +25,7 @@ struct vm_area_struct;
 #define ___GFP_FS		0x80u
 #define ___GFP_COLD		0x100u
 #define ___GFP_NOWARN		0x200u
-#define ___GFP_REPEAT		0x400u
+#define ___GFP_RETRY_MAYFAIL	0x400u
 #define ___GFP_NOFAIL		0x800u
 #define ___GFP_NORETRY		0x1000u
 #define ___GFP_MEMALLOC		0x2000u
@@ -40,6 +40,11 @@ struct vm_area_struct;
 #define ___GFP_DIRECT_RECLAIM	0x400000u
 #define ___GFP_WRITE		0x800000u
 #define ___GFP_KSWAPD_RECLAIM	0x1000000u
+#ifdef CONFIG_LOCKDEP
+#define ___GFP_NOLOCKDEP	0x2000000u
+#else
+#define ___GFP_NOLOCKDEP	0
+#endif
 /* If the above are modified, __GFP_BITS_SHIFT may need updating */
 
 /*
@@ -131,26 +136,56 @@ struct vm_area_struct;
  *
  * __GFP_RECLAIM is shorthand to allow/forbid both direct and kswapd reclaim.
  *
- * __GFP_REPEAT: Try hard to allocate the memory, but the allocation attempt
- *   _might_ fail.  This depends upon the particular VM implementation.
+ * The default allocator behavior depends on the request size. We have a concept
+ * of so called costly allocations (with order > PAGE_ALLOC_COSTLY_ORDER).
+ * !costly allocations are too essential to fail so they are implicitly
+ * non-failing by default (with some exceptions like OOM victims might fail so
+ * the caller still has to check for failures) while costly requests try to be
+ * not disruptive and back off even without invoking the OOM killer.
+ * The following three modifiers might be used to override some of these
+ * implicit rules
+ *
+ * __GFP_NORETRY: The VM implementation will try only very lightweight
+ *   memory direct reclaim to get some memory under memory pressure (thus
+ *   it can sleep). It will avoid disruptive actions like OOM killer. The
+ *   caller must handle the failure which is quite likely to happen under
+ *   heavy memory pressure. The flag is suitable when failure can easily be
+ *   handled at small cost, such as reduced throughput
+ *
+ * __GFP_RETRY_MAYFAIL: The VM implementation will retry memory reclaim
+ *   procedures that have previously failed if there is some indication
+ *   that progress has been made else where.  It can wait for other
+ *   tasks to attempt high level approaches to freeing memory such as
+ *   compaction (which removes fragmentation) and page-out.
+ *   There is still a definite limit to the number of retries, but it is
+ *   a larger limit than with __GFP_NORETRY.
+ *   Allocations with this flag may fail, but only when there is
+ *   genuinely little unused memory. While these allocations do not
+ *   directly trigger the OOM killer, their failure indicates that
+ *   the system is likely to need to use the OOM killer soon.  The
+ *   caller must handle failure, but can reasonably do so by failing
+ *   a higher-level request, or completing it only in a much less
+ *   efficient manner.
+ *   If the allocation does fail, and the caller is in a position to
+ *   free some non-essential memory, doing so could benefit the system
+ *   as a whole.
  *
  * __GFP_NOFAIL: The VM implementation _must_ retry infinitely: the caller
- *   cannot handle allocation failures. New users should be evaluated carefully
- *   (and the flag should be used only when there is no reasonable failure
- *   policy) but it is definitely preferable to use the flag rather than
- *   opencode endless loop around allocator.
- *
- * __GFP_NORETRY: The VM implementation must not retry indefinitely and will
- *   return NULL when direct reclaim and memory compaction have failed to allow
- *   the allocation to succeed.  The OOM killer is not called with the current
- *   implementation.
+ *   cannot handle allocation failures. The allocation could block
+ *   indefinitely but will never return with failure. Testing for
+ *   failure is pointless.
+ *   New users should be evaluated carefully (and the flag should be
+ *   used only when there is no reasonable failure policy) but it is
+ *   definitely preferable to use the flag rather than opencode endless
+ *   loop around allocator.
+ *   Using this flag for costly allocations is _highly_ discouraged.
  */
 #define __GFP_IO	((__force gfp_t)___GFP_IO)
 #define __GFP_FS	((__force gfp_t)___GFP_FS)
 #define __GFP_DIRECT_RECLAIM	((__force gfp_t)___GFP_DIRECT_RECLAIM) /* Caller can reclaim */
 #define __GFP_KSWAPD_RECLAIM	((__force gfp_t)___GFP_KSWAPD_RECLAIM) /* kswapd can wake */
 #define __GFP_RECLAIM ((__force gfp_t)(___GFP_DIRECT_RECLAIM|___GFP_KSWAPD_RECLAIM))
-#define __GFP_REPEAT	((__force gfp_t)___GFP_REPEAT)
+#define __GFP_RETRY_MAYFAIL	((__force gfp_t)___GFP_RETRY_MAYFAIL)
 #define __GFP_NOFAIL	((__force gfp_t)___GFP_NOFAIL)
 #define __GFP_NORETRY	((__force gfp_t)___GFP_NORETRY)
 
@@ -179,8 +214,11 @@ struct vm_area_struct;
 #define __GFP_NOTRACK	((__force gfp_t)___GFP_NOTRACK)
 #define __GFP_NOTRACK_FALSE_POSITIVE (__GFP_NOTRACK)
 
+/* Disable lockdep for GFP context tracking */
+#define __GFP_NOLOCKDEP ((__force gfp_t)___GFP_NOLOCKDEP)
+
 /* Room for N __GFP_FOO bits */
-#define __GFP_BITS_SHIFT 25
+#define __GFP_BITS_SHIFT (25 + IS_ENABLED(CONFIG_LOCKDEP))
 #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
 
 /*
@@ -202,8 +240,16 @@ struct vm_area_struct;
  *
  * GFP_NOIO will use direct reclaim to discard clean pages or slab pages
  *   that do not require the starting of any physical IO.
+ *   Please try to avoid using this flag directly and instead use
+ *   memalloc_noio_{save,restore} to mark the whole scope which cannot
+ *   perform any IO with a short explanation why. All allocation requests
+ *   will inherit GFP_NOIO implicitly.
  *
  * GFP_NOFS will use direct reclaim but will not use any filesystem interfaces.
+ *   Please try to avoid using this flag directly and instead use
+ *   memalloc_nofs_{save,restore} to mark the whole scope which cannot/shouldn't
+ *   recurse into the FS layer with a short explanation why. All allocation
+ *   requests will inherit GFP_NOFS implicitly.
  *
  * GFP_USER is for userspace allocations that also need to be directly
  *   accessibly by the kernel or hardware. It is typically used by hardware
@@ -242,8 +288,6 @@ struct vm_area_struct;
 #define GFP_NOWAIT	(__GFP_KSWAPD_RECLAIM)
 #define GFP_NOIO	(__GFP_RECLAIM)
 #define GFP_NOFS	(__GFP_RECLAIM | __GFP_IO)
-#define GFP_TEMPORARY	(__GFP_RECLAIM | __GFP_IO | __GFP_FS | \
-			 __GFP_RECLAIMABLE)
 #define GFP_USER	(__GFP_RECLAIM | __GFP_IO | __GFP_FS | __GFP_HARDWALL)
 #define GFP_DMA		__GFP_DMA
 #define GFP_DMA32	__GFP_DMA32
@@ -297,8 +341,8 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
 
 /*
  * GFP_ZONE_TABLE is a word size bitstring that is used for looking up the
- * zone to use given the lowest 4 bits of gfp_t. Entries are ZONE_SHIFT long
- * and there are 16 of them to cover all possible combinations of
+ * zone to use given the lowest 4 bits of gfp_t. Entries are GFP_ZONES_SHIFT
+ * bits long and there are 16 of them to cover all possible combinations of
  * __GFP_DMA, __GFP_DMA32, __GFP_MOVABLE and __GFP_HIGHMEM.
  *
  * The zone fallback order is MOVABLE=>HIGHMEM=>NORMAL=>DMA32=>DMA.
@@ -416,14 +460,13 @@ static inline void arch_alloc_page(struct page *page, int order) { }
 #endif
 
 struct page *
-__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
-		       struct zonelist *zonelist, nodemask_t *nodemask);
+__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
+							nodemask_t *nodemask);
 
 static inline struct page *
-__alloc_pages(gfp_t gfp_mask, unsigned int order,
-		struct zonelist *zonelist)
+__alloc_pages(gfp_t gfp_mask, unsigned int order, int preferred_nid)
 {
-	return __alloc_pages_nodemask(gfp_mask, order, zonelist, NULL);
+	return __alloc_pages_nodemask(gfp_mask, order, preferred_nid, NULL);
 }
 
 /*
@@ -436,7 +479,7 @@ __alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
 	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
 	VM_WARN_ON(!node_online(nid));
 
-	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
+	return __alloc_pages(gfp_mask, order, nid);
 }
 
 /*
@@ -541,7 +584,7 @@ static inline bool pm_suspended_storage(void)
 #if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || defined(CONFIG_CMA)
 /* The below functions must be run on a range from a single zone. */
 extern int alloc_contig_range(unsigned long start, unsigned long end,
-			      unsigned migratetype);
+			      unsigned migratetype, gfp_t gfp_mask);
 extern void free_contig_range(unsigned long pfn, unsigned nr_pages);
 #endif
 

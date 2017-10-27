@@ -1,0 +1,18 @@
+Device tree binding for the TI DA850 AHCI SATA Controller
+---------------------------------------------------------
+
+Required properties:
+  - compatible: must be "ti,da850-ahci"
+  - reg: physical base addresses and sizes of the two register regions
+         used by the controller: the register map as defined by the
+         AHCI 1.1 standard and the Power Down Control Register (PWRDN)
+         for enabling/disabling the SATA clock receiver
+  - interrupts: interrupt specifier (refer to the interrupt binding)
+
+Example:
+
+	sata: sata@218000 {
+		compatible = "ti,da850-ahci";
+		reg = <0x218000 0x2000>, <0x22c018 0x4>;
+		interrupts = <67>;
+	};

@@ -30,6 +30,7 @@ struct tegra_dc_soc_info {
 	bool supports_block_linear;
 	unsigned int pitch_align;
 	bool has_powergate;
+	bool broken_reset;
 };
 
 struct tegra_plane {
@@ -485,11 +486,24 @@ static int tegra_plane_state_add(struct tegra_plane *plane,
 {
 	struct drm_crtc_state *crtc_state;
 	struct tegra_dc_state *tegra;
+	struct drm_rect clip;
+	int err;
 
 	/* Propagate errors from allocation or locking failures. */
 	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
+
+	clip.x1 = 0;
+	clip.y1 = 0;
+	clip.x2 = crtc_state->mode.hdisplay;
+	clip.y2 = crtc_state->mode.vdisplay;
+
+	/* Check plane state for visibility and calculate clipping bounds */
+	err = drm_plane_helper_check_state(state, &clip, 0, INT_MAX,
+					   true, true);
+	if (err < 0)
+		return err;
 
 	tegra = to_dc_state(crtc_state);
 
@@ -511,7 +525,7 @@ static int tegra_plane_atomic_check(struct drm_plane *plane,
 	if (!state->crtc)
 		return 0;
 
-	err = tegra_dc_format(state->fb->pixel_format, &plane_state->format,
+	err = tegra_dc_format(state->fb->format->format, &plane_state->format,
 			      &plane_state->swap);
 	if (err < 0)
 		return err;
@@ -531,7 +545,7 @@ static int tegra_plane_atomic_check(struct drm_plane *plane,
 	 * error out if the user tries to display a framebuffer with such a
 	 * configuration.
 	 */
-	if (drm_format_num_planes(state->fb->pixel_format) > 2) {
+	if (state->fb->format->num_planes > 2) {
 		if (state->fb->pitches[2] != state->fb->pitches[1]) {
 			DRM_ERROR("unsupported UV-plane configuration\n");
 			return -EINVAL;
@@ -543,6 +557,23 @@ static int tegra_plane_atomic_check(struct drm_plane *plane,
 		return err;
 
 	return 0;
+}
+
+static void tegra_dc_disable_window(struct tegra_dc *dc, int index)
+{
+	unsigned long flags;
+	u32 value;
+
+	spin_lock_irqsave(&dc->lock, flags);
+
+	value = WINDOW_A_SELECT << index;
+	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_WINDOW_HEADER);
+
+	value = tegra_dc_readl(dc, DC_WIN_WIN_OPTIONS);
+	value &= ~WIN_ENABLE;
+	tegra_dc_writel(dc, value, DC_WIN_WIN_OPTIONS);
+
+	spin_unlock_irqrestore(&dc->lock, flags);
 }
 
 static void tegra_plane_atomic_update(struct drm_plane *plane,
@@ -559,16 +590,19 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 	if (!plane->state->crtc || !plane->state->fb)
 		return;
 
+	if (!plane->state->visible)
+		return tegra_dc_disable_window(dc, p->index);
+
 	memset(&window, 0, sizeof(window));
-	window.src.x = plane->state->src_x >> 16;
-	window.src.y = plane->state->src_y >> 16;
-	window.src.w = plane->state->src_w >> 16;
-	window.src.h = plane->state->src_h >> 16;
-	window.dst.x = plane->state->crtc_x;
-	window.dst.y = plane->state->crtc_y;
-	window.dst.w = plane->state->crtc_w;
-	window.dst.h = plane->state->crtc_h;
-	window.bits_per_pixel = fb->bits_per_pixel;
+	window.src.x = plane->state->src.x1 >> 16;
+	window.src.y = plane->state->src.y1 >> 16;
+	window.src.w = drm_rect_width(&plane->state->src) >> 16;
+	window.src.h = drm_rect_height(&plane->state->src) >> 16;
+	window.dst.x = plane->state->dst.x1;
+	window.dst.y = plane->state->dst.y1;
+	window.dst.w = drm_rect_width(&plane->state->dst);
+	window.dst.h = drm_rect_height(&plane->state->dst);
+	window.bits_per_pixel = fb->format->cpp[0] * 8;
 	window.bottom_up = tegra_fb_is_bottom_up(fb);
 
 	/* copy from state */
@@ -576,7 +610,7 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 	window.format = state->format;
 	window.swap = state->swap;
 
-	for (i = 0; i < drm_format_num_planes(fb->pixel_format); i++) {
+	for (i = 0; i < fb->format->num_planes; i++) {
 		struct tegra_bo *bo = tegra_fb_get_plane(fb, i);
 
 		window.base[i] = bo->paddr + fb->offsets[i];
@@ -598,8 +632,6 @@ static void tegra_plane_atomic_disable(struct drm_plane *plane,
 {
 	struct tegra_plane *p = to_tegra_plane(plane);
 	struct tegra_dc *dc;
-	unsigned long flags;
-	u32 value;
 
 	/* rien ne va plus */
 	if (!old_state || !old_state->crtc)
@@ -607,16 +639,7 @@ static void tegra_plane_atomic_disable(struct drm_plane *plane,
 
 	dc = to_tegra_dc(old_state->crtc);
 
-	spin_lock_irqsave(&dc->lock, flags);
-
-	value = WINDOW_A_SELECT << p->index;
-	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_WINDOW_HEADER);
-
-	value = tegra_dc_readl(dc, DC_WIN_WIN_OPTIONS);
-	value &= ~WIN_ENABLE;
-	tegra_dc_writel(dc, value, DC_WIN_WIN_OPTIONS);
-
-	spin_unlock_irqrestore(&dc->lock, flags);
+	tegra_dc_disable_window(dc, p->index);
 }
 
 static const struct drm_plane_helper_funcs tegra_primary_plane_helper_funcs = {
@@ -655,8 +678,8 @@ static struct drm_plane *tegra_dc_primary_plane_create(struct drm_device *drm,
 
 	err = drm_universal_plane_init(drm, &plane->base, possible_crtcs,
 				       &tegra_primary_plane_funcs, formats,
-				       num_formats, DRM_PLANE_TYPE_PRIMARY,
-				       NULL);
+				       num_formats, NULL,
+				       DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (err < 0) {
 		kfree(plane);
 		return ERR_PTR(err);
@@ -821,8 +844,8 @@ static struct drm_plane *tegra_dc_cursor_plane_create(struct drm_device *drm,
 
 	err = drm_universal_plane_init(drm, &plane->base, 1 << dc->pipe,
 				       &tegra_cursor_plane_funcs, formats,
-				       num_formats, DRM_PLANE_TYPE_CURSOR,
-				       NULL);
+				       num_formats, NULL,
+				       DRM_PLANE_TYPE_CURSOR, NULL);
 	if (err < 0) {
 		kfree(plane);
 		return ERR_PTR(err);
@@ -883,8 +906,8 @@ static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 
 	err = drm_universal_plane_init(drm, &plane->base, 1 << dc->pipe,
 				       &tegra_overlay_plane_funcs, formats,
-				       num_formats, DRM_PLANE_TYPE_OVERLAY,
-				       NULL);
+				       num_formats, NULL,
+				       DRM_PLANE_TYPE_OVERLAY, NULL);
 	if (err < 0) {
 		kfree(plane);
 		return ERR_PTR(err);
@@ -909,8 +932,10 @@ static int tegra_dc_add_planes(struct drm_device *drm, struct tegra_dc *dc)
 	return 0;
 }
 
-u32 tegra_dc_get_vblank_counter(struct tegra_dc *dc)
+static u32 tegra_dc_get_vblank_counter(struct drm_crtc *crtc)
 {
+	struct tegra_dc *dc = to_tegra_dc(crtc);
+
 	if (dc->syncpt)
 		return host1x_syncpt_read(dc->syncpt);
 
@@ -918,8 +943,9 @@ u32 tegra_dc_get_vblank_counter(struct tegra_dc *dc)
 	return drm_crtc_vblank_count(&dc->base);
 }
 
-void tegra_dc_enable_vblank(struct tegra_dc *dc)
+static int tegra_dc_enable_vblank(struct drm_crtc *crtc)
 {
+	struct tegra_dc *dc = to_tegra_dc(crtc);
 	unsigned long value, flags;
 
 	spin_lock_irqsave(&dc->lock, flags);
@@ -929,10 +955,13 @@ void tegra_dc_enable_vblank(struct tegra_dc *dc)
 	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
 
 	spin_unlock_irqrestore(&dc->lock, flags);
+
+	return 0;
 }
 
-void tegra_dc_disable_vblank(struct tegra_dc *dc)
+static void tegra_dc_disable_vblank(struct drm_crtc *crtc)
 {
+	struct tegra_dc *dc = to_tegra_dc(crtc);
 	unsigned long value, flags;
 
 	spin_lock_irqsave(&dc->lock, flags);
@@ -1036,6 +1065,9 @@ static const struct drm_crtc_funcs tegra_crtc_funcs = {
 	.reset = tegra_crtc_reset,
 	.atomic_duplicate_state = tegra_crtc_atomic_duplicate_state,
 	.atomic_destroy_state = tegra_crtc_atomic_destroy_state,
+	.get_vblank_counter = tegra_dc_get_vblank_counter,
+	.enable_vblank = tegra_dc_enable_vblank,
+	.disable_vblank = tegra_dc_disable_vblank,
 };
 
 static int tegra_dc_set_timings(struct tegra_dc *dc,
@@ -1167,7 +1199,8 @@ static int tegra_dc_wait_idle(struct tegra_dc *dc, unsigned long timeout)
 	return -ETIMEDOUT;
 }
 
-static void tegra_crtc_disable(struct drm_crtc *crtc)
+static void tegra_crtc_atomic_disable(struct drm_crtc *crtc,
+				      struct drm_crtc_state *old_state)
 {
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	u32 value;
@@ -1211,7 +1244,8 @@ static void tegra_crtc_disable(struct drm_crtc *crtc)
 	pm_runtime_put_sync(dc->dev);
 }
 
-static void tegra_crtc_enable(struct drm_crtc *crtc)
+static void tegra_crtc_atomic_enable(struct drm_crtc *crtc,
+				     struct drm_crtc_state *old_state)
 {
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	struct tegra_dc_state *state = to_dc_state(crtc->state);
@@ -1319,11 +1353,11 @@ static void tegra_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs tegra_crtc_helper_funcs = {
-	.disable = tegra_crtc_disable,
-	.enable = tegra_crtc_enable,
 	.atomic_check = tegra_crtc_atomic_check,
 	.atomic_begin = tegra_crtc_atomic_begin,
 	.atomic_flush = tegra_crtc_atomic_flush,
+	.atomic_enable = tegra_crtc_atomic_enable,
+	.atomic_disable = tegra_crtc_atomic_disable,
 };
 
 static irqreturn_t tegra_dc_irq(int irq, void *data)
@@ -1373,7 +1407,7 @@ static int tegra_dc_show_regs(struct seq_file *s, void *data)
 	struct tegra_dc *dc = node->info_ent->data;
 	int err = 0;
 
-	drm_modeset_lock_crtc(&dc->base, NULL);
+	drm_modeset_lock(&dc->base.mutex, NULL);
 
 	if (!dc->base.state->active) {
 		err = -EBUSY;
@@ -1600,7 +1634,7 @@ static int tegra_dc_show_regs(struct seq_file *s, void *data)
 #undef DUMP_REG
 
 unlock:
-	drm_modeset_unlock_crtc(&dc->base);
+	drm_modeset_unlock(&dc->base.mutex);
 	return err;
 }
 
@@ -1611,7 +1645,7 @@ static int tegra_dc_show_crc(struct seq_file *s, void *data)
 	int err = 0;
 	u32 value;
 
-	drm_modeset_lock_crtc(&dc->base, NULL);
+	drm_modeset_lock(&dc->base.mutex, NULL);
 
 	if (!dc->base.state->active) {
 		err = -EBUSY;
@@ -1631,7 +1665,7 @@ static int tegra_dc_show_crc(struct seq_file *s, void *data)
 	tegra_dc_writel(dc, 0, DC_COM_CRC_CONTROL);
 
 unlock:
-	drm_modeset_unlock_crtc(&dc->base);
+	drm_modeset_unlock(&dc->base.mutex);
 	return err;
 }
 
@@ -1847,6 +1881,7 @@ static const struct tegra_dc_soc_info tegra20_dc_soc_info = {
 	.supports_block_linear = false,
 	.pitch_align = 8,
 	.has_powergate = false,
+	.broken_reset = true,
 };
 
 static const struct tegra_dc_soc_info tegra30_dc_soc_info = {
@@ -1856,6 +1891,7 @@ static const struct tegra_dc_soc_info tegra30_dc_soc_info = {
 	.supports_block_linear = false,
 	.pitch_align = 8,
 	.has_powergate = false,
+	.broken_reset = false,
 };
 
 static const struct tegra_dc_soc_info tegra114_dc_soc_info = {
@@ -1865,6 +1901,7 @@ static const struct tegra_dc_soc_info tegra114_dc_soc_info = {
 	.supports_block_linear = false,
 	.pitch_align = 64,
 	.has_powergate = true,
+	.broken_reset = false,
 };
 
 static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
@@ -1874,6 +1911,7 @@ static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
 	.supports_block_linear = true,
 	.pitch_align = 64,
 	.has_powergate = true,
+	.broken_reset = false,
 };
 
 static const struct tegra_dc_soc_info tegra210_dc_soc_info = {
@@ -1883,6 +1921,7 @@ static const struct tegra_dc_soc_info tegra210_dc_soc_info = {
 	.supports_block_linear = true,
 	.pitch_align = 64,
 	.has_powergate = true,
+	.broken_reset = false,
 };
 
 static const struct of_device_id tegra_dc_of_match[] = {
@@ -1980,7 +2019,8 @@ static int tegra_dc_probe(struct platform_device *pdev)
 		return PTR_ERR(dc->rst);
 	}
 
-	reset_control_assert(dc->rst);
+	if (!dc->soc->broken_reset)
+		reset_control_assert(dc->rst);
 
 	if (dc->soc->has_powergate) {
 		if (dc->pipe == 0)
@@ -2054,10 +2094,12 @@ static int tegra_dc_suspend(struct device *dev)
 	struct tegra_dc *dc = dev_get_drvdata(dev);
 	int err;
 
-	err = reset_control_assert(dc->rst);
-	if (err < 0) {
-		dev_err(dev, "failed to assert reset: %d\n", err);
-		return err;
+	if (!dc->soc->broken_reset) {
+		err = reset_control_assert(dc->rst);
+		if (err < 0) {
+			dev_err(dev, "failed to assert reset: %d\n", err);
+			return err;
+		}
 	}
 
 	if (dc->soc->has_powergate)
@@ -2087,10 +2129,13 @@ static int tegra_dc_resume(struct device *dev)
 			return err;
 		}
 
-		err = reset_control_deassert(dc->rst);
-		if (err < 0) {
-			dev_err(dev, "failed to deassert reset: %d\n", err);
-			return err;
+		if (!dc->soc->broken_reset) {
+			err = reset_control_deassert(dc->rst);
+			if (err < 0) {
+				dev_err(dev,
+					"failed to deassert reset: %d\n", err);
+				return err;
+			}
 		}
 	}
 

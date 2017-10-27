@@ -989,7 +989,7 @@ gk104_pll_calc_hiclk(int target_khz, int crystal,
 		int *N1, int *fN1, int *M1, int *P1,
 		int *N2, int *M2, int *P2)
 {
-	int best_clk = 0, best_err = target_khz, p_ref, n_ref;
+	int best_err = target_khz, p_ref, n_ref;
 	bool upper = false;
 
 	*M1 = 1;
@@ -1010,7 +1010,6 @@ gk104_pll_calc_hiclk(int target_khz, int crystal,
 			/* we found a better combination */
 			if (cur_err < best_err) {
 				best_err = cur_err;
-				best_clk = cur_clk;
 				*N2 = cur_N;
 				*N1 = n_ref;
 				*P1 = p_ref;
@@ -1022,7 +1021,6 @@ gk104_pll_calc_hiclk(int target_khz, int crystal,
 				- target_khz;
 			if (cur_err < best_err) {
 				best_err = cur_err;
-				best_clk = cur_clk;
 				*N2 = cur_N;
 				*N1 = n_ref;
 				*P1 = p_ref;
@@ -1110,7 +1108,7 @@ gk104_ram_calc_xits(struct gk104_ram *ram, struct nvkm_ram_data *next)
 	return ret;
 }
 
-static int
+int
 gk104_ram_calc(struct nvkm_ram *base, u32 freq)
 {
 	struct gk104_ram *ram = gk104_ram(base);
@@ -1229,7 +1227,7 @@ gk104_ram_prog_0(struct gk104_ram *ram, u32 freq)
 	nvkm_mask(device, 0x10f444, mask, data);
 }
 
-static int
+int
 gk104_ram_prog(struct nvkm_ram *base)
 {
 	struct gk104_ram *ram = gk104_ram(base);
@@ -1249,7 +1247,7 @@ gk104_ram_prog(struct nvkm_ram *base)
 	return (ram->base.next == &ram->base.xition);
 }
 
-static void
+void
 gk104_ram_tidy(struct nvkm_ram *base)
 {
 	struct gk104_ram *ram = gk104_ram(base);
@@ -1426,12 +1424,7 @@ gk104_ram_init(struct nvkm_ram *ram)
 	for (i = 0; i < cnt; i++, data += 4) {
 		if (i != save >> 4) {
 			nvkm_mask(device, 0x10f65c, 0x000000f0, i << 4);
-			nvbios_exec(&(struct nvbios_init) {
-					.subdev = subdev,
-					.bios = bios,
-					.offset = nvbios_rd32(bios, data),
-					.execute = 1,
-				    });
+			nvbios_init(subdev, nvbios_rd32(bios, data));
 		}
 	}
 	nvkm_mask(device, 0x10f65c, 0x000000f0, save);
@@ -1511,7 +1504,7 @@ done:
 	return ret;
 }
 
-static void *
+void *
 gk104_ram_dtor(struct nvkm_ram *base)
 {
 	struct gk104_ram *ram = gk104_ram(base);
@@ -1524,31 +1517,14 @@ gk104_ram_dtor(struct nvkm_ram *base)
 	return ram;
 }
 
-static const struct nvkm_ram_func
-gk104_ram_func = {
-	.dtor = gk104_ram_dtor,
-	.init = gk104_ram_init,
-	.get = gf100_ram_get,
-	.put = gf100_ram_put,
-	.calc = gk104_ram_calc,
-	.prog = gk104_ram_prog,
-	.tidy = gk104_ram_tidy,
-};
-
 int
-gk104_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
-{
-	return gk104_ram_ctor(fb, pram, 0x022554);
-}
-
-int
-gk104_ram_ctor(struct nvkm_fb *fb, struct nvkm_ram **pram, u32 maskaddr)
+gk104_ram_new_(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
+	       struct nvkm_ram **pram)
 {
 	struct nvkm_subdev *subdev = &fb->subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_bios *bios = device->bios;
-	struct nvkm_gpio *gpio = device->gpio;
-	struct dcb_gpio_func func;
+	struct dcb_gpio_func gpio;
 	struct gk104_ram *ram;
 	int ret, i;
 	u8  ramcfg = nvbios_ramcfg_index(subdev);
@@ -1558,7 +1534,7 @@ gk104_ram_ctor(struct nvkm_fb *fb, struct nvkm_ram **pram, u32 maskaddr)
 		return -ENOMEM;
 	*pram = &ram->base;
 
-	ret = gf100_ram_ctor(&gk104_ram_func, fb, maskaddr, &ram->base);
+	ret = gf100_ram_ctor(func, fb, &ram->base);
 	if (ret)
 		return ret;
 
@@ -1616,18 +1592,18 @@ gk104_ram_ctor(struct nvkm_fb *fb, struct nvkm_ram **pram, u32 maskaddr)
 	}
 
 	/* lookup memory voltage gpios */
-	ret = nvkm_gpio_find(gpio, 0, 0x18, DCB_GPIO_UNUSED, &func);
+	ret = nvkm_gpio_find(device->gpio, 0, 0x18, DCB_GPIO_UNUSED, &gpio);
 	if (ret == 0) {
-		ram->fuc.r_gpioMV = ramfuc_reg(0x00d610 + (func.line * 0x04));
-		ram->fuc.r_funcMV[0] = (func.log[0] ^ 2) << 12;
-		ram->fuc.r_funcMV[1] = (func.log[1] ^ 2) << 12;
+		ram->fuc.r_gpioMV = ramfuc_reg(0x00d610 + (gpio.line * 0x04));
+		ram->fuc.r_funcMV[0] = (gpio.log[0] ^ 2) << 12;
+		ram->fuc.r_funcMV[1] = (gpio.log[1] ^ 2) << 12;
 	}
 
-	ret = nvkm_gpio_find(gpio, 0, 0x2e, DCB_GPIO_UNUSED, &func);
+	ret = nvkm_gpio_find(device->gpio, 0, 0x2e, DCB_GPIO_UNUSED, &gpio);
 	if (ret == 0) {
-		ram->fuc.r_gpio2E = ramfuc_reg(0x00d610 + (func.line * 0x04));
-		ram->fuc.r_func2E[0] = (func.log[0] ^ 2) << 12;
-		ram->fuc.r_func2E[1] = (func.log[1] ^ 2) << 12;
+		ram->fuc.r_gpio2E = ramfuc_reg(0x00d610 + (gpio.line * 0x04));
+		ram->fuc.r_func2E[0] = (gpio.log[0] ^ 2) << 12;
+		ram->fuc.r_func2E[1] = (gpio.log[1] ^ 2) << 12;
 	}
 
 	ram->fuc.r_gpiotrig = ramfuc_reg(0x00d604);
@@ -1718,4 +1694,25 @@ gk104_ram_ctor(struct nvkm_fb *fb, struct nvkm_ram **pram, u32 maskaddr)
 	ram->fuc.r_0x100710 = ramfuc_reg(0x100710);
 	ram->fuc.r_0x100750 = ramfuc_reg(0x100750);
 	return 0;
+}
+
+static const struct nvkm_ram_func
+gk104_ram = {
+	.upper = 0x0200000000,
+	.probe_fbp = gf100_ram_probe_fbp,
+	.probe_fbp_amount = gf108_ram_probe_fbp_amount,
+	.probe_fbpa_amount = gf100_ram_probe_fbpa_amount,
+	.dtor = gk104_ram_dtor,
+	.init = gk104_ram_init,
+	.get = gf100_ram_get,
+	.put = gf100_ram_put,
+	.calc = gk104_ram_calc,
+	.prog = gk104_ram_prog,
+	.tidy = gk104_ram_tidy,
+};
+
+int
+gk104_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
+{
+	return gk104_ram_new_(&gk104_ram, fb, pram);
 }

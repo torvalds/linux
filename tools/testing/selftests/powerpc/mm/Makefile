@@ -1,19 +1,15 @@
 noarg:
 	$(MAKE) -C ../
 
-TEST_PROGS := hugetlb_vs_thp_test subpage_prot prot_sao
-TEST_FILES := tempfile
-
-all: $(TEST_PROGS) $(TEST_FILES)
-
-$(TEST_PROGS): ../harness.c
-
-prot_sao: ../utils.c
+TEST_GEN_PROGS := hugetlb_vs_thp_test subpage_prot prot_sao
+TEST_GEN_FILES := tempfile
 
 include ../../lib.mk
 
-tempfile:
-	dd if=/dev/zero of=tempfile bs=64k count=1
+$(TEST_GEN_PROGS): ../harness.c
 
-clean:
-	rm -f $(TEST_PROGS) tempfile
+$(OUTPUT)/prot_sao: ../utils.c
+
+$(OUTPUT)/tempfile:
+	dd if=/dev/zero of=$@ bs=64k count=1
+

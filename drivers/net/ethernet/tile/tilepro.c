@@ -842,7 +842,7 @@ static int tile_net_poll(struct napi_struct *napi, int budget)
 		}
 	}
 
-	napi_complete(&info->napi);
+	napi_complete_done(&info->napi, work);
 
 	if (!priv->active)
 		goto done;
@@ -2047,8 +2047,8 @@ static int tile_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
  *
  * Returns the address of the device statistics structure.
  */
-static struct rtnl_link_stats64 *tile_net_get_stats64(struct net_device *dev,
-		struct rtnl_link_stats64 *stats)
+static void tile_net_get_stats64(struct net_device *dev,
+				 struct rtnl_link_stats64 *stats)
 {
 	struct tile_net_priv *priv = netdev_priv(dev);
 	u64 rx_packets = 0, tx_packets = 0;
@@ -2090,11 +2090,7 @@ static struct rtnl_link_stats64 *tile_net_get_stats64(struct net_device *dev,
 	stats->tx_bytes   = tx_bytes;
 	stats->rx_errors  = rx_errors;
 	stats->rx_dropped = rx_dropped;
-
-	return stats;
 }
-
-
 
 /*
  * Change the Ethernet Address of the NIC.

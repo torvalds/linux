@@ -254,22 +254,18 @@ cc_error:
 	return first_dn;
 }
 
-int dlpar_attach_node(struct device_node *dn)
+int dlpar_attach_node(struct device_node *dn, struct device_node *parent)
 {
 	int rc;
 
-	dn->parent = pseries_of_derive_parent(dn->full_name);
-	if (IS_ERR(dn->parent))
-		return PTR_ERR(dn->parent);
+	dn->parent = parent;
 
 	rc = of_attach_node(dn);
 	if (rc) {
-		printk(KERN_ERR "Failed to add device node %s\n",
-		       dn->full_name);
+		printk(KERN_ERR "Failed to add device node %pOF\n", dn);
 		return rc;
 	}
 
-	of_node_put(dn->parent);
 	return 0;
 }
 
@@ -288,7 +284,6 @@ int dlpar_detach_node(struct device_node *dn)
 	if (rc)
 		return rc;
 
-	of_node_put(dn); /* Must decrement the refcount */
 	return 0;
 }
 
@@ -354,11 +349,17 @@ static int handle_dlpar_errorlog(struct pseries_hp_errorlog *hp_elog)
 	switch (hp_elog->id_type) {
 	case PSERIES_HP_ELOG_ID_DRC_COUNT:
 		hp_elog->_drc_u.drc_count =
-					be32_to_cpu(hp_elog->_drc_u.drc_count);
+				be32_to_cpu(hp_elog->_drc_u.drc_count);
 		break;
 	case PSERIES_HP_ELOG_ID_DRC_INDEX:
 		hp_elog->_drc_u.drc_index =
-					be32_to_cpu(hp_elog->_drc_u.drc_index);
+				be32_to_cpu(hp_elog->_drc_u.drc_index);
+		break;
+	case PSERIES_HP_ELOG_ID_DRC_IC:
+		hp_elog->_drc_u.ic.count =
+				be32_to_cpu(hp_elog->_drc_u.ic.count);
+		hp_elog->_drc_u.ic.index =
+				be32_to_cpu(hp_elog->_drc_u.ic.index);
 	}
 
 	switch (hp_elog->resource) {
@@ -467,7 +468,33 @@ static int dlpar_parse_id_type(char **cmd, struct pseries_hp_errorlog *hp_elog)
 	if (!arg)
 		return -EINVAL;
 
-	if (sysfs_streq(arg, "index")) {
+	if (sysfs_streq(arg, "indexed-count")) {
+		hp_elog->id_type = PSERIES_HP_ELOG_ID_DRC_IC;
+		arg = strsep(cmd, " ");
+		if (!arg) {
+			pr_err("No DRC count specified.\n");
+			return -EINVAL;
+		}
+
+		if (kstrtou32(arg, 0, &count)) {
+			pr_err("Invalid DRC count specified.\n");
+			return -EINVAL;
+		}
+
+		arg = strsep(cmd, " ");
+		if (!arg) {
+			pr_err("No DRC Index specified.\n");
+			return -EINVAL;
+		}
+
+		if (kstrtou32(arg, 0, &index)) {
+			pr_err("Invalid DRC Index specified.\n");
+			return -EINVAL;
+		}
+
+		hp_elog->_drc_u.ic.count = cpu_to_be32(count);
+		hp_elog->_drc_u.ic.index = cpu_to_be32(index);
+	} else if (sysfs_streq(arg, "index")) {
 		hp_elog->id_type = PSERIES_HP_ELOG_ID_DRC_INDEX;
 		arg = strsep(cmd, " ");
 		if (!arg) {
@@ -551,7 +578,13 @@ dlpar_store_out:
 	return rc ? rc : count;
 }
 
-static CLASS_ATTR(dlpar, S_IWUSR, NULL, dlpar_store);
+static ssize_t dlpar_show(struct class *class, struct class_attribute *attr,
+			  char *buf)
+{
+	return sprintf(buf, "%s\n", "memory,cpu");
+}
+
+static CLASS_ATTR_RW(dlpar);
 
 static int __init pseries_dlpar_init(void)
 {

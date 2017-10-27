@@ -12,6 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
 #include <linux/export.h>
@@ -350,7 +351,7 @@ static int genregs64_set(struct task_struct *target,
 	}
 
 	if (!ret) {
-		unsigned long y;
+		unsigned long y = regs->y;
 
 		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 					 &y,
@@ -1160,4 +1161,40 @@ int regs_query_register_offset(const char *name)
 		if (!strcmp(roff->name, name))
 			return roff->offset;
 	return -EINVAL;
+}
+
+/**
+ * regs_within_kernel_stack() - check the address in the stack
+ * @regs:	pt_regs which contains kernel stack pointer.
+ * @addr:	address which is checked.
+ *
+ * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
+ * If @addr is within the kernel stack, it returns true. If not, returns false.
+ */
+static inline int regs_within_kernel_stack(struct pt_regs *regs,
+					   unsigned long addr)
+{
+	unsigned long ksp = kernel_stack_pointer(regs) + STACK_BIAS;
+	return ((addr & ~(THREAD_SIZE - 1))  ==
+		(ksp & ~(THREAD_SIZE - 1)));
+}
+
+/**
+ * regs_get_kernel_stack_nth() - get Nth entry of the stack
+ * @regs:	pt_regs which contains kernel stack pointer.
+ * @n:		stack entry number.
+ *
+ * regs_get_kernel_stack_nth() returns @n th entry of the kernel stack which
+ * is specified by @regs. If the @n th entry is NOT in the kernel stack,
+ * this returns 0.
+ */
+unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n)
+{
+	unsigned long ksp = kernel_stack_pointer(regs) + STACK_BIAS;
+	unsigned long *addr = (unsigned long *)ksp;
+	addr += n;
+	if (regs_within_kernel_stack(regs, (unsigned long)addr))
+		return *addr;
+	else
+		return 0;
 }

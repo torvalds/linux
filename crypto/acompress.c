@@ -20,6 +20,7 @@
 #include <linux/crypto.h>
 #include <crypto/algapi.h>
 #include <linux/cryptouser.h>
+#include <linux/compiler.h>
 #include <net/netlink.h>
 #include <crypto/internal/acompress.h>
 #include <crypto/internal/scompress.h>
@@ -50,7 +51,7 @@ static int crypto_acomp_report(struct sk_buff *skb, struct crypto_alg *alg)
 #endif
 
 static void crypto_acomp_show(struct seq_file *m, struct crypto_alg *alg)
-	__attribute__ ((unused));
+	__maybe_unused;
 
 static void crypto_acomp_show(struct seq_file *m, struct crypto_alg *alg)
 {
@@ -164,6 +165,35 @@ int crypto_unregister_acomp(struct acomp_alg *alg)
 	return crypto_unregister_alg(&alg->base);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_acomp);
+
+int crypto_register_acomps(struct acomp_alg *algs, int count)
+{
+	int i, ret;
+
+	for (i = 0; i < count; i++) {
+		ret = crypto_register_acomp(&algs[i]);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	for (--i; i >= 0; --i)
+		crypto_unregister_acomp(&algs[i]);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(crypto_register_acomps);
+
+void crypto_unregister_acomps(struct acomp_alg *algs, int count)
+{
+	int i;
+
+	for (i = count - 1; i >= 0; --i)
+		crypto_unregister_acomp(&algs[i]);
+}
+EXPORT_SYMBOL_GPL(crypto_unregister_acomps);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Asynchronous compression type");

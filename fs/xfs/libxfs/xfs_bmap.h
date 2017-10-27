@@ -172,6 +172,18 @@ static inline int xfs_bmapi_whichfork(int bmapi_flags)
 
 
 /*
+ * Return true if the extent is a real, allocated extent, or false if it is  a
+ * delayed allocation, and unwritten extent or a hole.
+ */
+static inline bool xfs_bmap_is_real_extent(struct xfs_bmbt_irec *irec)
+{
+	return irec->br_state != XFS_EXT_UNWRITTEN &&
+		irec->br_startblock != HOLESTARTBLOCK &&
+		irec->br_startblock != DELAYSTARTBLOCK &&
+		!isnullstartblock(irec->br_startblock);
+}
+
+/*
  * This macro is used to determine how many extents will be shifted
  * in one write transaction. We could require two splits,
  * an extent move on the first and an extent merge on the second,
@@ -196,6 +208,7 @@ void	xfs_bmap_trace_exlist(struct xfs_inode *ip, xfs_extnum_t cnt,
 
 void	xfs_trim_extent(struct xfs_bmbt_irec *irec, xfs_fileoff_t bno,
 		xfs_filblks_t len);
+void	xfs_trim_extent_eof(struct xfs_bmbt_irec *, struct xfs_inode *);
 int	xfs_bmap_add_attrfork(struct xfs_inode *ip, int size, int rsvd);
 void	xfs_bmap_local_to_extents_empty(struct xfs_inode *ip, int whichfork);
 void	xfs_bmap_add_free(struct xfs_mount *mp, struct xfs_defer_ops *dfops,
@@ -232,8 +245,6 @@ int	xfs_bmap_del_extent_delay(struct xfs_inode *ip, int whichfork,
 		struct xfs_bmbt_irec *del);
 void	xfs_bmap_del_extent_cow(struct xfs_inode *ip, xfs_extnum_t *idx,
 		struct xfs_bmbt_irec *got, struct xfs_bmbt_irec *del);
-int	xfs_check_nostate_extents(struct xfs_ifork *ifp, xfs_extnum_t idx,
-		xfs_extnum_t num);
 uint	xfs_default_attroffset(struct xfs_inode *ip);
 int	xfs_bmap_shift_extents(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_fileoff_t *next_fsb, xfs_fileoff_t offset_shift_fsb,
@@ -261,7 +272,7 @@ struct xfs_bmap_intent {
 int	xfs_bmap_finish_one(struct xfs_trans *tp, struct xfs_defer_ops *dfops,
 		struct xfs_inode *ip, enum xfs_bmap_intent_type type,
 		int whichfork, xfs_fileoff_t startoff, xfs_fsblock_t startblock,
-		xfs_filblks_t blockcount, xfs_exntst_t state);
+		xfs_filblks_t *blockcount, xfs_exntst_t state);
 int	xfs_bmap_map_extent(struct xfs_mount *mp, struct xfs_defer_ops *dfops,
 		struct xfs_inode *ip, struct xfs_bmbt_irec *imap);
 int	xfs_bmap_unmap_extent(struct xfs_mount *mp, struct xfs_defer_ops *dfops,

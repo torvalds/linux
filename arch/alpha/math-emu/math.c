@@ -2,6 +2,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <asm/ptrace.h>
 
 #include <linux/uaccess.h>
 
@@ -52,6 +53,7 @@ extern void alpha_write_fp_reg_s (unsigned long reg, unsigned long val);
 #ifdef MODULE
 
 MODULE_DESCRIPTION("FP Software completion module");
+MODULE_LICENSE("GPL v2");
 
 extern long (*alpha_fp_emul_imprecise)(struct pt_regs *, unsigned long);
 extern long (*alpha_fp_emul) (unsigned long pc);

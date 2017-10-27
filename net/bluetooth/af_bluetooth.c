@@ -27,6 +27,8 @@
 #include <linux/module.h>
 #include <linux/debugfs.h>
 #include <linux/stringify.h>
+#include <linux/sched/signal.h>
+
 #include <asm/ioctls.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -157,12 +159,17 @@ void bt_accept_enqueue(struct sock *parent, struct sock *sk)
 	BT_DBG("parent %p, sk %p", parent, sk);
 
 	sock_hold(sk);
+	lock_sock(sk);
 	list_add_tail(&bt_sk(sk)->accept_q, &bt_sk(parent)->accept_q);
 	bt_sk(sk)->parent = parent;
+	release_sock(sk);
 	parent->sk_ack_backlog++;
 }
 EXPORT_SYMBOL(bt_accept_enqueue);
 
+/* Calling function must hold the sk lock.
+ * bt_sk(sk)->parent must be non-NULL meaning sk is in the parent list.
+ */
 void bt_accept_unlink(struct sock *sk)
 {
 	BT_DBG("sk %p state %d", sk, sk->sk_state);
@@ -181,10 +188,31 @@ struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock)
 
 	BT_DBG("parent %p", parent);
 
+restart:
 	list_for_each_entry_safe(s, n, &bt_sk(parent)->accept_q, accept_q) {
 		sk = (struct sock *)s;
 
+		/* Prevent early freeing of sk due to unlink and sock_kill */
+		sock_hold(sk);
 		lock_sock(sk);
+
+		/* Check sk has not already been unlinked via
+		 * bt_accept_unlink() due to serialisation caused by sk locking
+		 */
+		if (!bt_sk(sk)->parent) {
+			BT_DBG("sk %p, already unlinked", sk);
+			release_sock(sk);
+			sock_put(sk);
+
+			/* Restart the loop as sk is no longer in the list
+			 * and also avoid a potential infinite loop because
+			 * list_for_each_entry_safe() is not thread safe.
+			 */
+			goto restart;
+		}
+
+		/* sk is safely in the parent list so reduce reference count */
+		sock_put(sk);
 
 		/* FIXME: Is this check still needed */
 		if (sk->sk_state == BT_CLOSED) {
@@ -245,7 +273,7 @@ int bt_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	if (err == 0) {
 		sock_recv_ts_and_drops(msg, sk, skb);
 
-		if (bt_sk(sk)->skb_msg_name)
+		if (msg->msg_name && bt_sk(sk)->skb_msg_name)
 			bt_sk(sk)->skb_msg_name(skb, msg->msg_name,
 						&msg->msg_namelen);
 	}
@@ -629,7 +657,7 @@ static int bt_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq,
 			   "%pK %-6d %-6u %-6u %-6u %-6lu %-6lu",
 			   sk,
-			   atomic_read(&sk->sk_refcnt),
+			   refcount_read(&sk->sk_refcnt),
 			   sk_rmem_alloc_get(sk),
 			   sk_wmem_alloc_get(sk),
 			   from_kuid(seq_user_ns(seq), sock_i_uid(sk)),
@@ -705,7 +733,7 @@ void bt_procfs_cleanup(struct net *net, const char *name)
 EXPORT_SYMBOL(bt_procfs_init);
 EXPORT_SYMBOL(bt_procfs_cleanup);
 
-static struct net_proto_family bt_sock_family_ops = {
+static const struct net_proto_family bt_sock_family_ops = {
 	.owner	= THIS_MODULE,
 	.family	= PF_BLUETOOTH,
 	.create	= bt_sock_create,

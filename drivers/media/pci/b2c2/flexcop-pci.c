@@ -157,7 +157,7 @@ static irqreturn_t flexcop_pci_isr(int irq, void *dev_id)
 	if (v.irq_20c.Data_receiver_error)
 		deb_chk("data receiver error\n");
 	if (v.irq_20c.Continuity_error_flag)
-		deb_chk("Contunuity error flag is set\n");
+		deb_chk("Continuity error flag is set\n");
 	if (v.irq_20c.LLC_SNAP_FLAG_set)
 		deb_chk("LLC_SNAP_FLAG_set is set\n");
 	if (v.irq_20c.Transport_Error)
@@ -415,7 +415,7 @@ static void flexcop_pci_remove(struct pci_dev *pdev)
 	flexcop_device_kfree(fc_pci->fc_dev);
 }
 
-static struct pci_device_id flexcop_pci_tbl[] = {
+static const struct pci_device_id flexcop_pci_tbl[] = {
 	{ PCI_DEVICE(0x13d0, 0x2103) },
 	{ },
 };

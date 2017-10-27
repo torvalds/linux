@@ -53,8 +53,8 @@
 int sctp_primitive_ ## name(struct net *net, struct sctp_association *asoc, \
 			    void *arg) { \
 	int error = 0; \
-	sctp_event_t event_type; sctp_subtype_t subtype; \
-	sctp_state_t state; \
+	enum sctp_event event_type; union sctp_subtype subtype; \
+	enum sctp_state state; \
 	struct sctp_endpoint *ep; \
 	\
 	event_type = SCTP_EVENT_T_PRIMITIVE; \
@@ -211,3 +211,6 @@ DECLARE_PRIMITIVE(REQUESTHEARTBEAT);
 */
 
 DECLARE_PRIMITIVE(ASCONF);
+
+/* RE-CONFIG 5.1 */
+DECLARE_PRIMITIVE(RECONF);

@@ -44,18 +44,6 @@
  */
 
 /**
- * intel_gvt_hypervisor_detect_host - check if GVT-g is running within
- * hypervisor host/privilged domain
- *
- * Returns:
- * Zero on success, -ENODEV if current kernel is running inside a VM
- */
-static inline int intel_gvt_hypervisor_detect_host(void)
-{
-	return intel_gvt_host.mpt->detect_host();
-}
-
-/**
  * intel_gvt_hypervisor_host_init - init GVT-g host side
  *
  * Returns:
@@ -145,8 +133,7 @@ static inline int intel_gvt_hypervisor_inject_msi(struct intel_vgpu *vgpu)
 	if (WARN(control & GENMASK(15, 1), "only support one MSI format\n"))
 		return -EINVAL;
 
-	gvt_dbg_irq("vgpu%d: inject msi address %x data%x\n", vgpu->id, addr,
-		    data);
+	trace_inject_msi(vgpu->id, addr, data);
 
 	ret = intel_gvt_host.mpt->inject_msi(vgpu->handle, addr, data);
 	if (ret)

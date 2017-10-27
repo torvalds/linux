@@ -2072,6 +2072,7 @@ static struct scsi_host_template driver_template = {
 	.name = "IBM POWER Virtual SCSI Adapter " IBMVSCSI_VERSION,
 	.proc_name = "ibmvscsi",
 	.queuecommand = ibmvscsi_queuecommand,
+	.eh_timed_out = srp_timed_out,
 	.eh_abort_handler = ibmvscsi_eh_abort_handler,
 	.eh_device_reset_handler = ibmvscsi_eh_device_reset_handler,
 	.eh_host_reset_handler = ibmvscsi_eh_host_reset_handler,
@@ -2329,13 +2330,13 @@ static int ibmvscsi_resume(struct device *dev)
  * ibmvscsi_device_table: Used by vio.c to match devices in the device tree we 
  * support.
  */
-static struct vio_device_id ibmvscsi_device_table[] = {
+static const struct vio_device_id ibmvscsi_device_table[] = {
 	{"vscsi", "IBM,v-scsi"},
 	{ "", "" }
 };
 MODULE_DEVICE_TABLE(vio, ibmvscsi_device_table);
 
-static struct dev_pm_ops ibmvscsi_pm_ops = {
+static const struct dev_pm_ops ibmvscsi_pm_ops = {
 	.resume = ibmvscsi_resume
 };
 

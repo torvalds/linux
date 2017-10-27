@@ -231,17 +231,17 @@ static char *get_binary(char *buffer, int value)
 /*
  * Initial setup of the conversion array GPIO <-> rate
  */
-static unsigned int qtet_rates[] = {
+static const unsigned int qtet_rates[] = {
 	44100, 48000, 88200,
 	96000, 176400, 192000,
 };
 
-static unsigned int cks_vals[] = {
+static const unsigned int cks_vals[] = {
 	CPLD_CKS_44100HZ, CPLD_CKS_48000HZ, CPLD_CKS_88200HZ,
 	CPLD_CKS_96000HZ, CPLD_CKS_176400HZ, CPLD_CKS_192000HZ,
 };
 
-static struct snd_pcm_hw_constraint_list qtet_rates_info = {
+static const struct snd_pcm_hw_constraint_list qtet_rates_info = {
 	.count = ARRAY_SIZE(qtet_rates),
 	.list = qtet_rates,
 	.mask = 0,
@@ -386,7 +386,7 @@ static const struct snd_akm4xxx_adc_channel qtet_adc[] = {
 	AK_CONTROL(PCM_34_CAPTURE_VOLUME, 2),
 };
 
-static struct snd_akm4xxx akm_qtet_dac = {
+static const struct snd_akm4xxx akm_qtet_dac = {
 	.type = SND_AK4620,
 	.num_dacs = 4,	/* DAC1 - Output 12
 	*/

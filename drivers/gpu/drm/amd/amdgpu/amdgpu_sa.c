@@ -64,7 +64,7 @@ int amdgpu_sa_bo_manager_init(struct amdgpu_device *adev,
 		INIT_LIST_HEAD(&sa_manager->flist[i]);
 
 	r = amdgpu_bo_create(adev, size, align, true, domain,
-			     0, NULL, NULL, &sa_manager->bo);
+			     0, NULL, NULL, 0, &sa_manager->bo);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to allocate bo for manager\n", r);
 		return r;
@@ -130,7 +130,7 @@ int amdgpu_sa_bo_manager_suspend(struct amdgpu_device *adev,
 		return -EINVAL;
 	}
 
-	r = amdgpu_bo_reserve(sa_manager->bo, false);
+	r = amdgpu_bo_reserve(sa_manager->bo, true);
 	if (!r) {
 		amdgpu_bo_kunmap(sa_manager->bo);
 		amdgpu_bo_unpin(sa_manager->bo);

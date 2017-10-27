@@ -13,14 +13,14 @@
 .macro op_safe_regs op
 ENTRY(\op\()_safe_regs)
 	pushq %rbx
-	pushq %rbp
+	pushq %r12
 	movq	%rdi, %r10	/* Save pointer */
 	xorl	%r11d, %r11d	/* Return value */
 	movl    (%rdi), %eax
 	movl    4(%rdi), %ecx
 	movl    8(%rdi), %edx
 	movl    12(%rdi), %ebx
-	movl    20(%rdi), %ebp
+	movl    20(%rdi), %r12d
 	movl    24(%rdi), %esi
 	movl    28(%rdi), %edi
 1:	\op
@@ -29,10 +29,10 @@ ENTRY(\op\()_safe_regs)
 	movl    %ecx, 4(%r10)
 	movl    %edx, 8(%r10)
 	movl    %ebx, 12(%r10)
-	movl    %ebp, 20(%r10)
+	movl    %r12d, 20(%r10)
 	movl    %esi, 24(%r10)
 	movl    %edi, 28(%r10)
-	popq %rbp
+	popq %r12
 	popq %rbx
 	ret
 3:

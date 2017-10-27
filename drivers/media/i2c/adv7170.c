@@ -22,10 +22,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -302,7 +298,6 @@ static int adv7170_set_fmt(struct v4l2_subdev *sd,
 {
 	struct v4l2_mbus_framefmt *mf = &format->format;
 	u8 val = adv7170_read(sd, 0x7);
-	int ret = 0;
 
 	if (format->pad)
 		return -EINVAL;
@@ -323,9 +318,9 @@ static int adv7170_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		ret = adv7170_write(sd, 0x7, val);
+		return adv7170_write(sd, 0x7, val);
 
-	return ret;
+	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

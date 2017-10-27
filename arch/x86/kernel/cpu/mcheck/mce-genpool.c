@@ -72,7 +72,7 @@ struct llist_node *mce_gen_pool_prepare_records(void)
 	return new_head.first;
 }
 
-void mce_gen_pool_process(void)
+void mce_gen_pool_process(struct work_struct *__unused)
 {
 	struct llist_node *head;
 	struct mce_evt_llist *node, *tmp;
@@ -85,7 +85,7 @@ void mce_gen_pool_process(void)
 	head = llist_reverse_order(head);
 	llist_for_each_entry_safe(node, tmp, head, llnode) {
 		mce = &node->mce;
-		atomic_notifier_call_chain(&x86_mce_decoder_chain, 0, mce);
+		blocking_notifier_call_chain(&x86_mce_decoder_chain, 0, mce);
 		gen_pool_free(mce_evt_pool, (unsigned long)node, sizeof(*node));
 	}
 }

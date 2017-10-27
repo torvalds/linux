@@ -49,7 +49,7 @@ octeon_alloc_soft_command_resp(struct octeon_device    *oct,
 	/* Add in the response related fields. Opcode and Param are already
 	 * there.
 	 */
-	if (OCTEON_CN23XX_PF(oct)) {
+	if (OCTEON_CN23XX_PF(oct) || OCTEON_CN23XX_VF(oct)) {
 		ih3      = (struct octeon_instr_ih3 *)&sc->cmd.cmd3.ih3;
 		rdp     = (struct octeon_instr_rdp *)&sc->cmd.cmd3.rdp;
 		irh     = (struct octeon_instr_irh *)&sc->cmd.cmd3.irh;
@@ -70,7 +70,7 @@ octeon_alloc_soft_command_resp(struct octeon_device    *oct,
 
 	*sc->status_word = COMPLETION_WORD_INIT;
 
-	if (OCTEON_CN23XX_PF(oct))
+	if (OCTEON_CN23XX_PF(oct) || OCTEON_CN23XX_VF(oct))
 		sc->cmd.cmd3.rptr =  sc->dmarptr;
 	else
 		sc->cmd.cmd2.rptr =  sc->dmarptr;
@@ -100,14 +100,16 @@ static void octnet_link_ctrl_callback(struct octeon_device *oct,
 
 	nctrl = (struct octnic_ctrl_pkt *)sc->ctxptr;
 
-	/* Call the callback function if status is OK.
-	 * Status is OK only if a response was expected and core returned
-	 * success.
+	/* Call the callback function if status is zero (meaning OK) or status
+	 * contains a firmware status code bigger than zero (meaning the
+	 * firmware is reporting an error).
 	 * If no response was expected, status is OK if the command was posted
 	 * successfully.
 	 */
-	if (!status && nctrl->cb_fn)
+	if ((!status || status > FIRMWARE_STATUS_CODE(0)) && nctrl->cb_fn) {
+		nctrl->status = status;
 		nctrl->cb_fn(nctrl);
+	}
 
 	octeon_free_soft_command(oct, sc);
 }

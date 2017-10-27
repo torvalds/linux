@@ -76,7 +76,7 @@ socket_match(const struct sk_buff *skb, struct xt_action_param *par,
 			transparent = nf_sk_is_transparent(sk);
 
 		if (info->flags & XT_SOCKET_RESTORESKMARK && !wildcard &&
-		    transparent)
+		    transparent && sk_fullsock(sk))
 			pskb->mark = sk->sk_mark;
 
 		if (sk != skb->sk)
@@ -133,7 +133,7 @@ socket_mt6_v1_v2_v3(const struct sk_buff *skb, struct xt_action_param *par)
 			transparent = nf_sk_is_transparent(sk);
 
 		if (info->flags & XT_SOCKET_RESTORESKMARK && !wildcard &&
-		    transparent)
+		    transparent && sk_fullsock(sk))
 			pskb->mark = sk->sk_mark;
 
 		if (sk != skb->sk)
@@ -152,7 +152,7 @@ static int socket_mt_enable_defrag(struct net *net, int family)
 	switch (family) {
 	case NFPROTO_IPV4:
 		return nf_defrag_ipv4_enable(net);
-#ifdef XT_SOCKET_HAVE_IPV6
+#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 	case NFPROTO_IPV6:
 		return nf_defrag_ipv6_enable(net);
 #endif

@@ -14,10 +14,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "saa7134.h"
@@ -1046,11 +1042,11 @@ static int md8800_set_high_voltage2(struct dvb_frontend *fe, long arg)
  * nxt200x based ATSC cards, helper functions
  */
 
-static struct nxt200x_config avertvhda180 = {
+static const struct nxt200x_config avertvhda180 = {
 	.demod_address    = 0x0a,
 };
 
-static struct nxt200x_config kworldatsc110 = {
+static const struct nxt200x_config kworldatsc110 = {
 	.demod_address    = 0x0a,
 };
 

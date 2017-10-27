@@ -65,6 +65,8 @@ struct brcmf_mp_device {
 	} bus;
 };
 
+void brcmf_c_set_joinpref_default(struct brcmf_if *ifp);
+
 struct brcmf_mp_device *brcmf_get_module_param(struct device *dev,
 					       enum brcmf_bus_type bus_type,
 					       u32 chip, u32 chiprev);

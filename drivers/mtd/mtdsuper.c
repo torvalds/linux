@@ -18,6 +18,7 @@
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <linux/major.h>
+#include <linux/backing-dev.h>
 
 /*
  * compare superblocks to see if they're equivalent
@@ -38,6 +39,8 @@ static int get_sb_mtd_compare(struct super_block *sb, void *_mtd)
 	return 0;
 }
 
+extern struct backing_dev_info *mtd_bdi;
+
 /*
  * mark the superblock by the MTD device it is using
  * - set the device number to be the correct MTD block device for pesuperstence
@@ -49,7 +52,8 @@ static int get_sb_mtd_set(struct super_block *sb, void *_mtd)
 
 	sb->s_mtd = mtd;
 	sb->s_dev = MKDEV(MTD_BLOCK_MAJOR, mtd->index);
-	sb->s_bdi = mtd->backing_dev_info;
+	sb->s_bdi = bdi_get(mtd_bdi);
+
 	return 0;
 }
 

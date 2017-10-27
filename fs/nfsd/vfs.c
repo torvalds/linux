@@ -94,6 +94,12 @@ nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
 	err = follow_down(&path);
 	if (err < 0)
 		goto out;
+	if (path.mnt == exp->ex_path.mnt && path.dentry == dentry &&
+	    nfsd_mountpoint(dentry, exp) == 2) {
+		/* This is only a mountpoint in some other namespace */
+		path_put(&path);
+		goto out;
+	}
 
 	exp2 = rqst_exp_get_by_name(rqstp, &path);
 	if (IS_ERR(exp2)) {
@@ -167,16 +173,26 @@ static int nfsd_lookup_parent(struct svc_rqst *rqstp, struct dentry *dparent, st
 /*
  * For nfsd purposes, we treat V4ROOT exports as though there was an
  * export at *every* directory.
+ * We return:
+ * '1' if this dentry *must* be an export point,
+ * '2' if it might be, if there is really a mount here, and
+ * '0' if there is no chance of an export point here.
  */
 int nfsd_mountpoint(struct dentry *dentry, struct svc_export *exp)
 {
-	if (d_mountpoint(dentry))
+	if (!d_inode(dentry))
+		return 0;
+	if (exp->ex_flags & NFSEXP_V4ROOT)
 		return 1;
 	if (nfsd4_is_junction(dentry))
 		return 1;
-	if (!(exp->ex_flags & NFSEXP_V4ROOT))
-		return 0;
-	return d_inode(dentry) != NULL;
+	if (d_mountpoint(dentry))
+		/*
+		 * Might only be a mountpoint in a different namespace,
+		 * but we need to check.
+		 */
+		return 2;
+	return 0;
 }
 
 __be32
@@ -377,7 +393,7 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 	__be32		err;
 	int		host_err;
 	bool		get_write_count;
-	int		size_change = 0;
+	bool		size_change = (iap->ia_valid & ATTR_SIZE);
 
 	if (iap->ia_valid & (ATTR_ATIME | ATTR_MTIME | ATTR_SIZE))
 		accmode |= NFSD_MAY_WRITE|NFSD_MAY_OWNER_OVERRIDE;
@@ -390,11 +406,11 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 	/* Get inode */
 	err = fh_verify(rqstp, fhp, ftype, accmode);
 	if (err)
-		goto out;
+		return err;
 	if (get_write_count) {
 		host_err = fh_want_write(fhp);
 		if (host_err)
-			return nfserrno(host_err);
+			goto out;
 	}
 
 	dentry = fhp->fh_dentry;
@@ -405,20 +421,28 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 		iap->ia_valid &= ~ATTR_MODE;
 
 	if (!iap->ia_valid)
-		goto out;
+		return 0;
 
 	nfsd_sanitize_attrs(inode, iap);
 
+	if (check_guard && guardtime != inode->i_ctime.tv_sec)
+		return nfserr_notsync;
+
 	/*
 	 * The size case is special, it changes the file in addition to the
-	 * attributes.
+	 * attributes, and file systems don't expect it to be mixed with
+	 * "random" attribute changes.  We thus split out the size change
+	 * into a separate call to ->setattr, and do the rest as a separate
+	 * setattr call.
 	 */
-	if (iap->ia_valid & ATTR_SIZE) {
+	if (size_change) {
 		err = nfsd_get_write_access(rqstp, fhp, iap);
 		if (err)
-			goto out;
-		size_change = 1;
+			return err;
+	}
 
+	fh_lock(fhp);
+	if (size_change) {
 		/*
 		 * RFC5661, Section 18.30.4:
 		 *   Changing the size of a file with SETATTR indirectly
@@ -426,29 +450,36 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 		 *
 		 * (and similar for the older RFCs)
 		 */
-		if (iap->ia_size != i_size_read(inode))
-			iap->ia_valid |= ATTR_MTIME;
+		struct iattr size_attr = {
+			.ia_valid	= ATTR_SIZE | ATTR_CTIME | ATTR_MTIME,
+			.ia_size	= iap->ia_size,
+		};
+
+		host_err = notify_change(dentry, &size_attr, NULL);
+		if (host_err)
+			goto out_unlock;
+		iap->ia_valid &= ~ATTR_SIZE;
+
+		/*
+		 * Avoid the additional setattr call below if the only other
+		 * attribute that the client sends is the mtime, as we update
+		 * it as part of the size change above.
+		 */
+		if ((iap->ia_valid & ~ATTR_MTIME) == 0)
+			goto out_unlock;
 	}
 
 	iap->ia_valid |= ATTR_CTIME;
-
-	if (check_guard && guardtime != inode->i_ctime.tv_sec) {
-		err = nfserr_notsync;
-		goto out_put_write_access;
-	}
-
-	fh_lock(fhp);
 	host_err = notify_change(dentry, iap, NULL);
-	fh_unlock(fhp);
-	err = nfserrno(host_err);
 
-out_put_write_access:
+out_unlock:
+	fh_unlock(fhp);
 	if (size_change)
 		put_write_access(inode);
-	if (!err)
-		err = nfserrno(commit_metadata(fhp));
 out:
-	return err;
+	if (!host_err)
+		host_err = commit_metadata(fhp);
+	return nfserrno(host_err);
 }
 
 #if defined(CONFIG_NFSD_V4)
@@ -880,24 +911,13 @@ __be32 nfsd_splice_read(struct svc_rqst *rqstp,
 __be32 nfsd_readv(struct file *file, loff_t offset, struct kvec *vec, int vlen,
 		unsigned long *count)
 {
-	mm_segment_t oldfs;
+	struct iov_iter iter;
 	int host_err;
 
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	host_err = vfs_readv(file, (struct iovec __user *)vec, vlen, &offset, 0);
-	set_fs(oldfs);
-	return nfsd_finish_read(file, count, host_err);
-}
+	iov_iter_kvec(&iter, READ | ITER_KVEC, vec, vlen, *count);
+	host_err = vfs_iter_read(file, &iter, &offset, 0);
 
-static __be32
-nfsd_vfs_read(struct svc_rqst *rqstp, struct file *file,
-	      loff_t offset, struct kvec *vec, int vlen, unsigned long *count)
-{
-	if (file->f_op->splice_read && test_bit(RQ_SPLICE_OK, &rqstp->rq_flags))
-		return nfsd_splice_read(rqstp, file, offset, count);
-	else
-		return nfsd_readv(file, offset, vec, vlen, count);
+	return nfsd_finish_read(file, count, host_err);
 }
 
 /*
@@ -940,18 +960,16 @@ static int wait_for_concurrent_writes(struct file *file)
 __be32
 nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 				loff_t offset, struct kvec *vec, int vlen,
-				unsigned long *cnt, int *stablep)
+				unsigned long *cnt, int stable)
 {
 	struct svc_export	*exp;
-	struct inode		*inode;
-	mm_segment_t		oldfs;
+	struct iov_iter		iter;
 	__be32			err = 0;
 	int			host_err;
-	int			stable = *stablep;
 	int			use_wgather;
 	loff_t			pos = offset;
 	unsigned int		pflags = current->flags;
-	int			flags = 0;
+	rwf_t			flags = 0;
 
 	if (test_bit(RQ_LOCAL, &rqstp->rq_flags))
 		/*
@@ -962,21 +980,17 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 		 */
 		current->flags |= PF_LESS_THROTTLE;
 
-	inode = file_inode(file);
-	exp   = fhp->fh_export;
-
+	exp = fhp->fh_export;
 	use_wgather = (rqstp->rq_vers == 2) && EX_WGATHER(exp);
 
 	if (!EX_ISSYNC(exp))
-		stable = 0;
+		stable = NFS_UNSTABLE;
 
 	if (stable && !use_wgather)
 		flags |= RWF_SYNC;
 
-	/* Write the data. */
-	oldfs = get_fs(); set_fs(KERNEL_DS);
-	host_err = vfs_writev(file, (struct iovec __user *)vec, vlen, &pos, flags);
-	set_fs(oldfs);
+	iov_iter_kvec(&iter, WRITE | ITER_KVEC, vec, vlen, *cnt);
+	host_err = vfs_iter_write(file, &iter, &pos, flags);
 	if (host_err < 0)
 		goto out_nfserr;
 	*cnt = host_err;
@@ -993,7 +1007,7 @@ out_nfserr:
 	else
 		err = nfserrno(host_err);
 	if (test_bit(RQ_LOCAL, &rqstp->rq_flags))
-		tsk_restore_flags(current, pflags, PF_LESS_THROTTLE);
+		current_restore_flags(pflags, PF_LESS_THROTTLE);
 	return err;
 }
 
@@ -1017,7 +1031,12 @@ __be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	ra = nfsd_init_raparms(file);
 
 	trace_read_opened(rqstp, fhp, offset, vlen);
-	err = nfsd_vfs_read(rqstp, file, offset, vec, vlen, count);
+
+	if (file->f_op->splice_read && test_bit(RQ_SPLICE_OK, &rqstp->rq_flags))
+		err = nfsd_splice_read(rqstp, file, offset, count);
+	else
+		err = nfsd_readv(file, offset, vec, vlen, count);
+
 	trace_read_io_done(rqstp, fhp, offset, vlen);
 
 	if (ra)
@@ -1035,35 +1054,22 @@ __be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
  * N.B. After this call fhp needs an fh_put
  */
 __be32
-nfsd_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
-		loff_t offset, struct kvec *vec, int vlen, unsigned long *cnt,
-		int *stablep)
+nfsd_write(struct svc_rqst *rqstp, struct svc_fh *fhp, loff_t offset,
+	   struct kvec *vec, int vlen, unsigned long *cnt, int stable)
 {
-	__be32			err = 0;
+	struct file *file = NULL;
+	__be32 err = 0;
 
 	trace_write_start(rqstp, fhp, offset, vlen);
 
-	if (file) {
-		err = nfsd_permission(rqstp, fhp->fh_export, fhp->fh_dentry,
-				NFSD_MAY_WRITE|NFSD_MAY_OWNER_OVERRIDE);
-		if (err)
-			goto out;
-		trace_write_opened(rqstp, fhp, offset, vlen);
-		err = nfsd_vfs_write(rqstp, fhp, file, offset, vec, vlen, cnt,
-				stablep);
-		trace_write_io_done(rqstp, fhp, offset, vlen);
-	} else {
-		err = nfsd_open(rqstp, fhp, S_IFREG, NFSD_MAY_WRITE, &file);
-		if (err)
-			goto out;
+	err = nfsd_open(rqstp, fhp, S_IFREG, NFSD_MAY_WRITE, &file);
+	if (err)
+		goto out;
 
-		trace_write_opened(rqstp, fhp, offset, vlen);
-		if (cnt)
-			err = nfsd_vfs_write(rqstp, fhp, file, offset, vec, vlen,
-					     cnt, stablep);
-		trace_write_io_done(rqstp, fhp, offset, vlen);
-		fput(file);
-	}
+	trace_write_opened(rqstp, fhp, offset, vlen);
+	err = nfsd_vfs_write(rqstp, fhp, file, offset, vec, vlen, cnt, stable);
+	trace_write_io_done(rqstp, fhp, offset, vlen);
+	fput(file);
 out:
 	trace_write_done(rqstp, fhp, offset, vlen);
 	return err;
@@ -1450,41 +1456,34 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 __be32
 nfsd_readlink(struct svc_rqst *rqstp, struct svc_fh *fhp, char *buf, int *lenp)
 {
-	mm_segment_t	oldfs;
 	__be32		err;
-	int		host_err;
+	const char *link;
 	struct path path;
+	DEFINE_DELAYED_CALL(done);
+	int len;
 
 	err = fh_verify(rqstp, fhp, S_IFLNK, NFSD_MAY_NOP);
-	if (err)
-		goto out;
+	if (unlikely(err))
+		return err;
 
 	path.mnt = fhp->fh_export->ex_path.mnt;
 	path.dentry = fhp->fh_dentry;
 
-	err = nfserr_inval;
-	if (!d_is_symlink(path.dentry))
-		goto out;
+	if (unlikely(!d_is_symlink(path.dentry)))
+		return nfserr_inval;
 
 	touch_atime(&path);
-	/* N.B. Why does this call need a get_fs()??
-	 * Remove the set_fs and watch the fireworks:-) --okir
-	 */
 
-	oldfs = get_fs(); set_fs(KERNEL_DS);
-	host_err = vfs_readlink(path.dentry, (char __user *)buf, *lenp);
-	set_fs(oldfs);
+	link = vfs_get_link(path.dentry, &done);
+	if (IS_ERR(link))
+		return nfserrno(PTR_ERR(link));
 
-	if (host_err < 0)
-		goto out_nfserr;
-	*lenp = host_err;
-	err = 0;
-out:
-	return err;
-
-out_nfserr:
-	err = nfserrno(host_err);
-	goto out;
+	len = strlen(link);
+	if (len < *lenp)
+		*lenp = len;
+	memcpy(buf, link, *lenp);
+	do_delayed_call(&done);
+	return 0;
 }
 
 /*

@@ -259,37 +259,29 @@
 
 &pio {
 	mmc0_cd_pin_gr8_evb: mmc0-cd-pin@0 {
-		allwinner,pins = "PG0";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PG0";
+		function = "gpio_in";
 	};
 
 	usb0_id_pin_gr8_evb: usb0-id-pin@0 {
-		allwinner,pins = "PG2";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PG2";
+		function = "gpio_in";
 	};
 
 	usb0_vbus_det_pin_gr8_evb: usb0-vbus-det-pin@0 {
-		allwinner,pins = "PG1";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PG1";
+		function = "gpio_in";
 	};
 
 	usb1_vbus_pin_gr8_evb: usb1-vbus-pin@0 {
-		allwinner,pins = "PG13";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PG13";
+		function = "gpio_out";
 	};
 };
 
 &pwm {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pwm0_pins_a>;
+	pinctrl-0 = <&pwm0_pins>;
 	status = "okay";
 };
 
@@ -340,7 +332,7 @@
 
 &uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart1_pins_a>, <&uart1_cts_rts_pins_a>;
+	pinctrl-0 = <&uart1_pins_b>, <&uart1_cts_rts_pins_a>;
 	status = "okay";
 };
 

@@ -112,10 +112,11 @@ struct mmu_gather {
 
 #define HAVE_GENERIC_MMU_GATHER
 
-void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long start, unsigned long end);
+void arch_tlb_gather_mmu(struct mmu_gather *tlb,
+	struct mm_struct *mm, unsigned long start, unsigned long end);
 void tlb_flush_mmu(struct mmu_gather *tlb);
-void tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start,
-							unsigned long end);
+void arch_tlb_finish_mmu(struct mmu_gather *tlb,
+			 unsigned long start, unsigned long end, bool force);
 extern bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page,
 				   int page_size);
 
@@ -232,6 +233,20 @@ static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
 		__tlb_remove_pmd_tlb_entry(tlb, pmdp, address);		\
 	} while (0)
 
+/**
+ * tlb_remove_pud_tlb_entry - remember a pud mapping for later tlb
+ * invalidation. This is a nop so far, because only x86 needs it.
+ */
+#ifndef __tlb_remove_pud_tlb_entry
+#define __tlb_remove_pud_tlb_entry(tlb, pudp, address) do {} while (0)
+#endif
+
+#define tlb_remove_pud_tlb_entry(tlb, pudp, address)			\
+	do {								\
+		__tlb_adjust_range(tlb, address, HPAGE_PUD_SIZE);	\
+		__tlb_remove_pud_tlb_entry(tlb, pudp, address);		\
+	} while (0)
+
 /*
  * For things like page tables caches (ie caching addresses "inside" the
  * page tables, like x86 does), for legacy reasons, flushing an
@@ -256,6 +271,12 @@ static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
 		__pte_free_tlb(tlb, ptep, address);		\
 	} while (0)
 
+#define pmd_free_tlb(tlb, pmdp, address)			\
+	do {							\
+		__tlb_adjust_range(tlb, address, PAGE_SIZE);		\
+		__pmd_free_tlb(tlb, pmdp, address);		\
+	} while (0)
+
 #ifndef __ARCH_HAS_4LEVEL_HACK
 #define pud_free_tlb(tlb, pudp, address)			\
 	do {							\
@@ -264,11 +285,13 @@ static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
 	} while (0)
 #endif
 
-#define pmd_free_tlb(tlb, pmdp, address)			\
+#ifndef __ARCH_HAS_5LEVEL_HACK
+#define p4d_free_tlb(tlb, pudp, address)			\
 	do {							\
-		__tlb_adjust_range(tlb, address, PAGE_SIZE);	\
-		__pmd_free_tlb(tlb, pmdp, address);		\
+		__tlb_adjust_range(tlb, address, PAGE_SIZE);		\
+		__p4d_free_tlb(tlb, pudp, address);		\
 	} while (0)
+#endif
 
 #define tlb_migrate_finish(mm) do {} while (0)
 

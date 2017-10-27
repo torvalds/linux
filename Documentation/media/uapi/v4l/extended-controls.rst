@@ -942,21 +942,21 @@ enum v4l2_mpeg_video_mpeg4_level -
     :header-rows:  0
     :stub-columns: 0
 
-    * - ``V4L2_MPEG_VIDEO_LEVEL_0``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_LEVEL_0``
       - Level 0
-    * - ``V4L2_MPEG_VIDEO_LEVEL_0B``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_LEVEL_0B``
       - Level 0b
-    * - ``V4L2_MPEG_VIDEO_LEVEL_1``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_LEVEL_1``
       - Level 1
-    * - ``V4L2_MPEG_VIDEO_LEVEL_2``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_LEVEL_2``
       - Level 2
-    * - ``V4L2_MPEG_VIDEO_LEVEL_3``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_LEVEL_3``
       - Level 3
-    * - ``V4L2_MPEG_VIDEO_LEVEL_3B``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_LEVEL_3B``
       - Level 3b
-    * - ``V4L2_MPEG_VIDEO_LEVEL_4``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_LEVEL_4``
       - Level 4
-    * - ``V4L2_MPEG_VIDEO_LEVEL_5``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_LEVEL_5``
       - Level 5
 
 
@@ -1028,15 +1028,15 @@ enum v4l2_mpeg_video_mpeg4_profile -
     :header-rows:  0
     :stub-columns: 0
 
-    * - ``V4L2_MPEG_VIDEO_PROFILE_SIMPLE``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_PROFILE_SIMPLE``
       - Simple profile
-    * - ``V4L2_MPEG_VIDEO_PROFILE_ADVANCED_SIMPLE``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_PROFILE_ADVANCED_SIMPLE``
       - Advanced Simple profile
-    * - ``V4L2_MPEG_VIDEO_PROFILE_CORE``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_PROFILE_CORE``
       - Core profile
-    * - ``V4L2_MPEG_VIDEO_PROFILE_SIMPLE_SCALABLE``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_PROFILE_SIMPLE_SCALABLE``
       - Simple Scalable profile
-    * - ``V4L2_MPEG_VIDEO_PROFILE_ADVANCED_CODING_EFFICIENCY``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_PROFILE_ADVANCED_CODING_EFFICIENCY``
       -
 
 
@@ -1922,9 +1922,9 @@ enum v4l2_vp8_golden_frame_sel -
 
 .. raw:: latex
 
-    \begin{adjustbox}{width=\columnwidth}
+    \footnotesize
 
-.. tabularcolumns:: |p{11.0cm}|p{10.0cm}|
+.. tabularcolumns:: |p{9.0cm}|p{8.0cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -1940,7 +1940,7 @@ enum v4l2_vp8_golden_frame_sel -
 
 .. raw:: latex
 
-    \end{adjustbox}
+    \normalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_VPX_MIN_QP (integer)``
@@ -2019,7 +2019,7 @@ enum v4l2_exposure_auto_type -
     dynamically vary the frame rate. By default this feature is disabled
     (0) and the frame rate must remain constant.
 
-``V4L2_CID_EXPOSURE_BIAS (integer menu)``
+``V4L2_CID_AUTO_EXPOSURE_BIAS (integer menu)``
     Determines the automatic exposure compensation, it is effective only
     when ``V4L2_CID_EXPOSURE_AUTO`` control is set to ``AUTO``,
     ``SHUTTER_PRIORITY`` or ``APERTURE_PRIORITY``. It is expressed in
@@ -3020,6 +3020,13 @@ Image Process Control IDs
 ``V4L2_CID_DEINTERLACING_MODE (menu)``
     The video deinterlacing mode (such as Bob, Weave, ...). The menu items are
     driver specific and are documented in :ref:`v4l-drivers`.
+
+``V4L2_CID_DIGITAL_GAIN (integer)``
+    Digital gain is the value by which all colour components
+    are multiplied by. Typically the digital gain applied is the
+    control value divided by e.g. 0x100, meaning that to get no
+    digital gain the control value needs to be 0x100. The no-gain
+    configuration is also typically the default.
 
 
 .. _dv-controls:

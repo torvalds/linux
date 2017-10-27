@@ -26,6 +26,7 @@
 #include <linux/kprobes.h>
 #include <linux/stat.h>
 #include <linux/uaccess.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/cpufeature.h>
 #include <asm/cputype.h>
@@ -35,7 +36,7 @@
 /* Determine debug architecture. */
 u8 debug_monitors_arch(void)
 {
-	return cpuid_feature_extract_unsigned_field(read_system_reg(SYS_ID_AA64DFR0_EL1),
+	return cpuid_feature_extract_unsigned_field(read_sanitised_ftr_reg(SYS_ID_AA64DFR0_EL1),
 						ID_AA64DFR0_DEBUGVER_SHIFT);
 }
 
@@ -340,20 +341,22 @@ int aarch32_break_handler(struct pt_regs *regs)
 
 	if (compat_thumb_mode(regs)) {
 		/* get 16-bit Thumb instruction */
-		get_user(thumb_instr, (u16 __user *)pc);
-		thumb_instr = le16_to_cpu(thumb_instr);
+		__le16 instr;
+		get_user(instr, (__le16 __user *)pc);
+		thumb_instr = le16_to_cpu(instr);
 		if (thumb_instr == AARCH32_BREAK_THUMB2_LO) {
 			/* get second half of 32-bit Thumb-2 instruction */
-			get_user(thumb_instr, (u16 __user *)(pc + 2));
-			thumb_instr = le16_to_cpu(thumb_instr);
+			get_user(instr, (__le16 __user *)(pc + 2));
+			thumb_instr = le16_to_cpu(instr);
 			bp = thumb_instr == AARCH32_BREAK_THUMB2_HI;
 		} else {
 			bp = thumb_instr == AARCH32_BREAK_THUMB;
 		}
 	} else {
 		/* 32-bit ARM instruction */
-		get_user(arm_instr, (u32 __user *)pc);
-		arm_instr = le32_to_cpu(arm_instr);
+		__le32 instr;
+		get_user(instr, (__le32 __user *)pc);
+		arm_instr = le32_to_cpu(instr);
 		bp = (arm_instr & ~0xf0000000) == AARCH32_BREAK_ARM;
 	}
 

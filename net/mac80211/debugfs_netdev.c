@@ -330,8 +330,7 @@ static ssize_t ieee80211_if_parse_tkip_mic_test(
 		return -ENOMEM;
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	hdr = (struct ieee80211_hdr *) skb_put(skb, 24);
-	memset(hdr, 0, 24);
+	hdr = skb_put_zero(skb, 24);
 	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA);
 
 	switch (sdata->vif.type) {
@@ -367,7 +366,7 @@ static ssize_t ieee80211_if_parse_tkip_mic_test(
 	 * The exact contents does not matter since the recipient is required
 	 * to drop this because of the Michael MIC failure.
 	 */
-	memset(skb_put(skb, 50), 0, 50);
+	skb_put_zero(skb, 50);
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_TKIP_MIC_FAILURE;
 
@@ -518,6 +517,8 @@ static ssize_t ieee80211_if_fmt_aqm(
 	return len;
 }
 IEEE80211_IF_FILE_R(aqm);
+
+IEEE80211_IF_FILE(multicast_to_unicast, u.ap.multicast_to_unicast, HEX);
 
 /* IBSS attributes */
 static ssize_t ieee80211_if_fmt_tsf(
@@ -683,6 +684,7 @@ static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(dtim_count);
 	DEBUGFS_ADD(num_buffered_multicast);
 	DEBUGFS_ADD_MODE(tkip_mic_test, 0200);
+	DEBUGFS_ADD_MODE(multicast_to_unicast, 0600);
 }
 
 static void add_vlan_files(struct ieee80211_sub_if_data *sdata)

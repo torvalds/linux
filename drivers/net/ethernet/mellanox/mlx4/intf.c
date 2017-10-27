@@ -53,7 +53,7 @@ static void mlx4_add_device(struct mlx4_interface *intf, struct mlx4_priv *priv)
 {
 	struct mlx4_device_context *dev_ctx;
 
-	dev_ctx = kmalloc(sizeof *dev_ctx, GFP_KERNEL);
+	dev_ctx = kmalloc(sizeof(*dev_ctx), GFP_KERNEL);
 	if (!dev_ctx)
 		return;
 
@@ -136,7 +136,7 @@ int mlx4_do_bond(struct mlx4_dev *dev, bool enable)
 	LIST_HEAD(bond_list);
 
 	if (!(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_PORT_REMAP))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	ret = mlx4_disable_rx_port_check(dev, enable);
 	if (ret) {

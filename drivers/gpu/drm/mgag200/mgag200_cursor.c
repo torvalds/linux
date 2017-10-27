@@ -248,7 +248,7 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 out_unreserve1:
 	mgag200_bo_unreserve(pixels_2);
 out_unref:
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	return ret;
 }

@@ -128,6 +128,14 @@
 
 #include "axp209.dtsi"
 
+&ac_power_supply {
+	status = "okay";
+};
+
+&battery_power_supply {
+	status = "okay";
+};
+
 &i2c1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins_a>;
@@ -154,7 +162,7 @@
 };
 
 &mmc0_pins_a {
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	bias-pull-up;
 };
 
 &mmc0 {
@@ -177,31 +185,24 @@
 
 &pio {
 	chip_vbus_pin: chip_vbus_pin@0 {
-		allwinner,pins = "PB10";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PB10";
+		function = "gpio_out";
 	};
 
 	chip_wifi_reg_on_pin: chip_wifi_reg_on_pin@0 {
-	        allwinner,pins = "PC19";
-	        allwinner,function = "gpio_out";
-	        allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-	        allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	        pins = "PC19";
+	        function = "gpio_out";
 	};
 
 	chip_id_det_pin: chip_id_det_pin@0 {
-		allwinner,pins = "PG2";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PG2";
+		function = "gpio_in";
 	};
 
 	chip_w1_pin: chip_w1_pin@0 {
-		allwinner,pins = "PD2";
-		allwinner,function = "gpio_in";
-	        allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-	        allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PD2";
+		function = "gpio_in";
+	        bias-pull-up;
 	};
 };
 
@@ -288,7 +289,7 @@
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pins_a>,
-		    <&uart3_pins_cts_rts_a>;
+		    <&uart3_cts_rts_pins_a>;
 	status = "okay";
 };
 

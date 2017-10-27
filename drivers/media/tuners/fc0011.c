@@ -15,10 +15,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "fc0011.h"
@@ -346,6 +342,7 @@ static int fc0011_set_params(struct dvb_frontend *fe)
 	switch (vco_sel) {
 	default:
 		WARN_ON(1);
+		return -EINVAL;
 	case 0:
 		if (vco_cal < 8) {
 			regs[FC11_REG_VCOSEL] &= ~(FC11_VCOSEL_1 | FC11_VCOSEL_2);

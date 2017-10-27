@@ -31,9 +31,15 @@
  */
 
 #define DEBUG_SUBSYSTEM S_MDC
-#include "../include/lustre_net.h"
-#include "../include/lustre/lustre_idl.h"
+#include <lustre_net.h>
+#include <uapi/linux/lustre/lustre_idl.h>
 #include "mdc_internal.h"
+
+static void set_mrc_cr_flags(struct mdt_rec_create *mrc, u64 flags)
+{
+	mrc->cr_flags_l = (u32)(flags & 0xFFFFFFFFUll);
+	mrc->cr_flags_h = (u32)(flags >> 32);
+}
 
 static void __mdc_pack_body(struct mdt_body *b, __u32 suppgid)
 {
@@ -125,7 +131,7 @@ void mdc_create_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	char			*tmp;
 	__u64			 flags;
 
-	CLASSERT(sizeof(struct mdt_rec_reint) == sizeof(struct mdt_rec_create));
+	BUILD_BUG_ON(sizeof(struct mdt_rec_reint) != sizeof(struct mdt_rec_create));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 
 	rec->cr_opcode   = REINT_CREATE;
@@ -189,7 +195,7 @@ void mdc_open_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	char *tmp;
 	__u64 cr_flags;
 
-	CLASSERT(sizeof(struct mdt_rec_reint) == sizeof(struct mdt_rec_create));
+	BUILD_BUG_ON(sizeof(struct mdt_rec_reint) != sizeof(struct mdt_rec_create));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 
 	/* XXX do something about time, uid, gid */
@@ -313,7 +319,7 @@ void mdc_setattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	struct mdt_rec_setattr *rec;
 	struct lov_user_md *lum = NULL;
 
-	CLASSERT(sizeof(struct mdt_rec_reint) ==
+	BUILD_BUG_ON(sizeof(struct mdt_rec_reint) !=
 					sizeof(struct mdt_rec_setattr));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 	mdc_setattr_pack_rec(rec, op_data);
@@ -336,7 +342,7 @@ void mdc_unlink_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 {
 	struct mdt_rec_unlink *rec;
 
-	CLASSERT(sizeof(struct mdt_rec_reint) == sizeof(struct mdt_rec_unlink));
+	BUILD_BUG_ON(sizeof(struct mdt_rec_reint) != sizeof(struct mdt_rec_unlink));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 
 	rec->ul_opcode   = op_data->op_cli_flags & CLI_RM_ENTRY ?
@@ -359,7 +365,7 @@ void mdc_link_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 {
 	struct mdt_rec_link *rec;
 
-	CLASSERT(sizeof(struct mdt_rec_reint) == sizeof(struct mdt_rec_link));
+	BUILD_BUG_ON(sizeof(struct mdt_rec_reint) != sizeof(struct mdt_rec_link));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 
 	rec->lk_opcode   = REINT_LINK;
@@ -407,7 +413,7 @@ void mdc_rename_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 {
 	struct mdt_rec_rename *rec;
 
-	CLASSERT(sizeof(struct mdt_rec_reint) == sizeof(struct mdt_rec_rename));
+	BUILD_BUG_ON(sizeof(struct mdt_rec_reint) != sizeof(struct mdt_rec_rename));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 
 	/* XXX do something about time, uid, gid */

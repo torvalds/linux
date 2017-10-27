@@ -50,7 +50,7 @@
 static void crypto4xx_hw_init(struct crypto4xx_device *dev)
 {
 	union ce_ring_size ring_size;
-	union ce_ring_contol ring_ctrl;
+	union ce_ring_control ring_ctrl;
 	union ce_part_ring_size part_ring_size;
 	union ce_io_threshold io_threshold;
 	u32 rand_num;
@@ -1179,6 +1179,7 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	dev_set_drvdata(dev, core_dev);
 	core_dev->ofdev = ofdev;
 	core_dev->dev = kzalloc(sizeof(struct crypto4xx_device), GFP_KERNEL);
+	rc = -ENOMEM;
 	if (!core_dev->dev)
 		goto err_alloc_dev;
 

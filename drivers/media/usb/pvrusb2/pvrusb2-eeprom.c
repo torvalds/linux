@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include <linux/slab.h>
@@ -122,15 +118,10 @@ int pvr2_eeprom_analyze(struct pvr2_hdw *hdw)
 	memset(&tvdata,0,sizeof(tvdata));
 
 	eeprom = pvr2_eeprom_fetch(hdw);
-	if (!eeprom) return -EINVAL;
+	if (!eeprom)
+		return -EINVAL;
 
-	{
-		struct i2c_client fake_client;
-		/* Newer version expects a useless client interface */
-		fake_client.addr = hdw->eeprom_addr;
-		fake_client.adapter = &hdw->i2c_adap;
-		tveeprom_hauppauge_analog(&fake_client,&tvdata,eeprom);
-	}
+	tveeprom_hauppauge_analog(&tvdata, eeprom);
 
 	trace_eeprom("eeprom assumed v4l tveeprom module");
 	trace_eeprom("eeprom direct call results:");

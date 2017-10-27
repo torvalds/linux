@@ -778,6 +778,11 @@ SOC_ENUM("ISRC2 FSH", arizona_isrc_fsh[1]),
 SOC_ENUM("ISRC3 FSH", arizona_isrc_fsh[2]),
 SOC_ENUM("ASRC RATE 1", arizona_asrc_rate1),
 
+WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
+WM_ADSP2_PRELOAD_SWITCH("DSP2", 2),
+WM_ADSP2_PRELOAD_SWITCH("DSP3", 3),
+WM_ADSP2_PRELOAD_SWITCH("DSP4", 4),
+
 ARIZONA_MIXER_CONTROLS("DSP1L", ARIZONA_DSP1LMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("DSP1R", ARIZONA_DSP1RMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("DSP2L", ARIZONA_DSP2LMIX_INPUT_1_SOURCE),
@@ -2279,7 +2284,10 @@ static int wm5110_codec_probe(struct snd_soc_codec *codec)
 
 	priv->core.arizona->dapm = dapm;
 
-	arizona_init_spk(codec);
+	ret = arizona_init_spk(codec);
+	if (ret < 0)
+		return ret;
+
 	arizona_init_gpio(codec);
 	arizona_init_mono(codec);
 	arizona_init_notifiers(codec);
@@ -2364,7 +2372,7 @@ static const struct snd_soc_codec_driver soc_codec_dev_wm5110 = {
 	},
 };
 
-static struct snd_compr_ops wm5110_compr_ops = {
+static const struct snd_compr_ops wm5110_compr_ops = {
 	.open = wm5110_open,
 	.free = wm_adsp_compr_free,
 	.set_params = wm_adsp_compr_set_params,
@@ -2374,7 +2382,7 @@ static struct snd_compr_ops wm5110_compr_ops = {
 	.copy = wm_adsp_compr_copy,
 };
 
-static struct snd_soc_platform_driver wm5110_compr_platform = {
+static const struct snd_soc_platform_driver wm5110_compr_platform = {
 	.compr_ops = &wm5110_compr_ops,
 };
 

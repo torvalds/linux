@@ -19,6 +19,7 @@
 #include <linux/highuid.h>
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
+#include <linux/cred.h>
 
 #include <linux/uaccess.h>
 

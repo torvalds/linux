@@ -10,4 +10,3 @@ that are due for investigation shortly, i.e. our TODO list:
    or1k and this change is slowly trickling through the stack.  For the time
    being, or32 is equivalent to or1k.
 
--- Implement optimized version of memcpy and memset

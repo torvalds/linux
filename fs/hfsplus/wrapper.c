@@ -65,7 +65,7 @@ int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
 
 	bio = bio_alloc(GFP_NOIO, 1);
 	bio->bi_iter.bi_sector = sector;
-	bio->bi_bdev = sb->s_bdev;
+	bio_set_dev(bio, sb->s_bdev);
 	bio_set_op_attrs(bio, op, op_flags);
 
 	if (op != WRITE && data)
@@ -132,7 +132,7 @@ static int hfsplus_get_last_session(struct super_block *sb,
 
 	/* default values */
 	*start = 0;
-	*size = sb->s_bdev->bd_inode->i_size >> 9;
+	*size = i_size_read(sb->s_bdev->bd_inode) >> 9;
 
 	if (HFSPLUS_SB(sb)->session >= 0) {
 		te.cdte_track = HFSPLUS_SB(sb)->session;

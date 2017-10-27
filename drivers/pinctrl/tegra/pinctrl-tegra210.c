@@ -13,7 +13,7 @@
  * more details.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -1573,7 +1573,6 @@ static const struct of_device_id tegra210_pinctrl_of_match[] = {
 	{ .compatible = "nvidia,tegra210-pinmux", },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, tegra210_pinctrl_of_match);
 
 static struct platform_driver tegra210_pinctrl_driver = {
 	.driver = {
@@ -1582,8 +1581,4 @@ static struct platform_driver tegra210_pinctrl_driver = {
 	},
 	.probe = tegra210_pinctrl_probe,
 };
-module_platform_driver(tegra210_pinctrl_driver);
-
-MODULE_AUTHOR("NVIDIA");
-MODULE_DESCRIPTION("NVIDIA Tegra210 pinctrl driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(tegra210_pinctrl_driver);

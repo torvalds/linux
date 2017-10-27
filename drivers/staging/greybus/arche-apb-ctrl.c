@@ -22,6 +22,8 @@
 #include "arche_platform.h"
 
 
+static void apb_bootret_deassert(struct device *dev);
+
 struct arche_apb_ctrl_drvdata {
 	/* Control GPIO signals to and from AP <=> AP Bridges */
 	int resetn_gpio;
@@ -168,7 +170,10 @@ static int standby_boot_seq(struct platform_device *pdev)
 	if (apb->init_disabled)
 		return 0;
 
-	/* Even if it is in OFF state, then we do not want to change the state */
+	/*
+	 * Even if it is in OFF state,
+	 * then we do not want to change the state
+	 */
 	if (apb->state == ARCHE_PLATFORM_STATE_STANDBY ||
 			apb->state == ARCHE_PLATFORM_STATE_OFF)
 		return 0;
@@ -219,14 +224,7 @@ static void poweroff_seq(struct platform_device *pdev)
 	/* TODO: May have to send an event to SVC about this exit */
 }
 
-void apb_bootret_assert(struct device *dev)
-{
-	struct arche_apb_ctrl_drvdata *apb = dev_get_drvdata(dev);
-
-	gpio_set_value(apb->boot_ret_gpio, 1);
-}
-
-void apb_bootret_deassert(struct device *dev)
+static void apb_bootret_deassert(struct device *dev)
 {
 	struct arche_apb_ctrl_drvdata *apb = dev_get_drvdata(dev);
 
@@ -461,7 +459,7 @@ static int arche_apb_ctrl_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int arche_apb_ctrl_suspend(struct device *dev)
+static int __maybe_unused arche_apb_ctrl_suspend(struct device *dev)
 {
 	/*
 	 * If timing profile permits, we may shutdown bridge
@@ -475,7 +473,7 @@ static int arche_apb_ctrl_suspend(struct device *dev)
 	return 0;
 }
 
-static int arche_apb_ctrl_resume(struct device *dev)
+static int __maybe_unused arche_apb_ctrl_resume(struct device *dev)
 {
 	/*
 	 * Atleast for ES2 we have to meet the delay requirement between

@@ -15,6 +15,7 @@
  */
 
 #include <linux/perf_event.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/stacktrace.h>
 

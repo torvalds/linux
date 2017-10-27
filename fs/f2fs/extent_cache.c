@@ -18,6 +18,179 @@
 #include "node.h"
 #include <trace/events/f2fs.h>
 
+static struct rb_entry *__lookup_rb_tree_fast(struct rb_entry *cached_re,
+							unsigned int ofs)
+{
+	if (cached_re) {
+		if (cached_re->ofs <= ofs &&
+				cached_re->ofs + cached_re->len > ofs) {
+			return cached_re;
+		}
+	}
+	return NULL;
+}
+
+static struct rb_entry *__lookup_rb_tree_slow(struct rb_root *root,
+							unsigned int ofs)
+{
+	struct rb_node *node = root->rb_node;
+	struct rb_entry *re;
+
+	while (node) {
+		re = rb_entry(node, struct rb_entry, rb_node);
+
+		if (ofs < re->ofs)
+			node = node->rb_left;
+		else if (ofs >= re->ofs + re->len)
+			node = node->rb_right;
+		else
+			return re;
+	}
+	return NULL;
+}
+
+struct rb_entry *__lookup_rb_tree(struct rb_root *root,
+				struct rb_entry *cached_re, unsigned int ofs)
+{
+	struct rb_entry *re;
+
+	re = __lookup_rb_tree_fast(cached_re, ofs);
+	if (!re)
+		return __lookup_rb_tree_slow(root, ofs);
+
+	return re;
+}
+
+struct rb_node **__lookup_rb_tree_for_insert(struct f2fs_sb_info *sbi,
+				struct rb_root *root, struct rb_node **parent,
+				unsigned int ofs)
+{
+	struct rb_node **p = &root->rb_node;
+	struct rb_entry *re;
+
+	while (*p) {
+		*parent = *p;
+		re = rb_entry(*parent, struct rb_entry, rb_node);
+
+		if (ofs < re->ofs)
+			p = &(*p)->rb_left;
+		else if (ofs >= re->ofs + re->len)
+			p = &(*p)->rb_right;
+		else
+			f2fs_bug_on(sbi, 1);
+	}
+
+	return p;
+}
+
+/*
+ * lookup rb entry in position of @ofs in rb-tree,
+ * if hit, return the entry, otherwise, return NULL
+ * @prev_ex: extent before ofs
+ * @next_ex: extent after ofs
+ * @insert_p: insert point for new extent at ofs
+ * in order to simpfy the insertion after.
+ * tree must stay unchanged between lookup and insertion.
+ */
+struct rb_entry *__lookup_rb_tree_ret(struct rb_root *root,
+				struct rb_entry *cached_re,
+				unsigned int ofs,
+				struct rb_entry **prev_entry,
+				struct rb_entry **next_entry,
+				struct rb_node ***insert_p,
+				struct rb_node **insert_parent,
+				bool force)
+{
+	struct rb_node **pnode = &root->rb_node;
+	struct rb_node *parent = NULL, *tmp_node;
+	struct rb_entry *re = cached_re;
+
+	*insert_p = NULL;
+	*insert_parent = NULL;
+	*prev_entry = NULL;
+	*next_entry = NULL;
+
+	if (RB_EMPTY_ROOT(root))
+		return NULL;
+
+	if (re) {
+		if (re->ofs <= ofs && re->ofs + re->len > ofs)
+			goto lookup_neighbors;
+	}
+
+	while (*pnode) {
+		parent = *pnode;
+		re = rb_entry(*pnode, struct rb_entry, rb_node);
+
+		if (ofs < re->ofs)
+			pnode = &(*pnode)->rb_left;
+		else if (ofs >= re->ofs + re->len)
+			pnode = &(*pnode)->rb_right;
+		else
+			goto lookup_neighbors;
+	}
+
+	*insert_p = pnode;
+	*insert_parent = parent;
+
+	re = rb_entry(parent, struct rb_entry, rb_node);
+	tmp_node = parent;
+	if (parent && ofs > re->ofs)
+		tmp_node = rb_next(parent);
+	*next_entry = rb_entry_safe(tmp_node, struct rb_entry, rb_node);
+
+	tmp_node = parent;
+	if (parent && ofs < re->ofs)
+		tmp_node = rb_prev(parent);
+	*prev_entry = rb_entry_safe(tmp_node, struct rb_entry, rb_node);
+	return NULL;
+
+lookup_neighbors:
+	if (ofs == re->ofs || force) {
+		/* lookup prev node for merging backward later */
+		tmp_node = rb_prev(&re->rb_node);
+		*prev_entry = rb_entry_safe(tmp_node, struct rb_entry, rb_node);
+	}
+	if (ofs == re->ofs + re->len - 1 || force) {
+		/* lookup next node for merging frontward later */
+		tmp_node = rb_next(&re->rb_node);
+		*next_entry = rb_entry_safe(tmp_node, struct rb_entry, rb_node);
+	}
+	return re;
+}
+
+bool __check_rb_tree_consistence(struct f2fs_sb_info *sbi,
+						struct rb_root *root)
+{
+#ifdef CONFIG_F2FS_CHECK_FS
+	struct rb_node *cur = rb_first(root), *next;
+	struct rb_entry *cur_re, *next_re;
+
+	if (!cur)
+		return true;
+
+	while (cur) {
+		next = rb_next(cur);
+		if (!next)
+			return true;
+
+		cur_re = rb_entry(cur, struct rb_entry, rb_node);
+		next_re = rb_entry(next, struct rb_entry, rb_node);
+
+		if (cur_re->ofs + cur_re->len > next_re->ofs) {
+			f2fs_msg(sbi->sb, KERN_INFO, "inconsistent rbtree, "
+				"cur(%u, %u) next(%u, %u)",
+				cur_re->ofs, cur_re->len,
+				next_re->ofs, next_re->len);
+			return false;
+		}
+
+		cur = next;
+	}
+#endif
+	return true;
+}
+
 static struct kmem_cache *extent_tree_slab;
 static struct kmem_cache *extent_node_slab;
 
@@ -77,7 +250,7 @@ static struct extent_tree *__grab_extent_tree(struct inode *inode)
 	struct extent_tree *et;
 	nid_t ino = inode->i_ino;
 
-	down_write(&sbi->extent_tree_lock);
+	mutex_lock(&sbi->extent_tree_lock);
 	et = radix_tree_lookup(&sbi->extent_tree_root, ino);
 	if (!et) {
 		et = f2fs_kmem_cache_alloc(extent_tree_slab, GFP_NOFS);
@@ -94,42 +267,12 @@ static struct extent_tree *__grab_extent_tree(struct inode *inode)
 		atomic_dec(&sbi->total_zombie_tree);
 		list_del_init(&et->list);
 	}
-	up_write(&sbi->extent_tree_lock);
+	mutex_unlock(&sbi->extent_tree_lock);
 
 	/* never died until evict_inode */
 	F2FS_I(inode)->extent_tree = et;
 
 	return et;
-}
-
-static struct extent_node *__lookup_extent_tree(struct f2fs_sb_info *sbi,
-				struct extent_tree *et, unsigned int fofs)
-{
-	struct rb_node *node = et->root.rb_node;
-	struct extent_node *en = et->cached_en;
-
-	if (en) {
-		struct extent_info *cei = &en->ei;
-
-		if (cei->fofs <= fofs && cei->fofs + cei->len > fofs) {
-			stat_inc_cached_node_hit(sbi);
-			return en;
-		}
-	}
-
-	while (node) {
-		en = rb_entry(node, struct extent_node, rb_node);
-
-		if (fofs < en->ei.fofs) {
-			node = node->rb_left;
-		} else if (fofs >= en->ei.fofs + en->ei.len) {
-			node = node->rb_right;
-		} else {
-			stat_inc_rbtree_node_hit(sbi);
-			return en;
-		}
-	}
-	return NULL;
 }
 
 static struct extent_node *__init_extent_tree(struct f2fs_sb_info *sbi,
@@ -177,7 +320,7 @@ static void __drop_largest_extent(struct inode *inode,
 }
 
 /* return true, if inode page is changed */
-bool f2fs_init_extent_tree(struct inode *inode, struct f2fs_extent *i_ext)
+static bool __f2fs_init_extent_tree(struct inode *inode, struct f2fs_extent *i_ext)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct extent_tree *et;
@@ -215,6 +358,16 @@ out:
 	return false;
 }
 
+bool f2fs_init_extent_tree(struct inode *inode, struct f2fs_extent *i_ext)
+{
+	bool ret =  __f2fs_init_extent_tree(inode, i_ext);
+
+	if (!F2FS_I(inode)->extent_tree)
+		set_inode_flag(inode, FI_NO_EXTENT);
+
+	return ret;
+}
+
 static bool f2fs_lookup_extent_tree(struct inode *inode, pgoff_t pgofs,
 							struct extent_info *ei)
 {
@@ -237,104 +390,30 @@ static bool f2fs_lookup_extent_tree(struct inode *inode, pgoff_t pgofs,
 		goto out;
 	}
 
-	en = __lookup_extent_tree(sbi, et, pgofs);
-	if (en) {
-		*ei = en->ei;
-		spin_lock(&sbi->extent_lock);
-		if (!list_empty(&en->list)) {
-			list_move_tail(&en->list, &sbi->extent_list);
-			et->cached_en = en;
-		}
-		spin_unlock(&sbi->extent_lock);
-		ret = true;
+	en = (struct extent_node *)__lookup_rb_tree(&et->root,
+				(struct rb_entry *)et->cached_en, pgofs);
+	if (!en)
+		goto out;
+
+	if (en == et->cached_en)
+		stat_inc_cached_node_hit(sbi);
+	else
+		stat_inc_rbtree_node_hit(sbi);
+
+	*ei = en->ei;
+	spin_lock(&sbi->extent_lock);
+	if (!list_empty(&en->list)) {
+		list_move_tail(&en->list, &sbi->extent_list);
+		et->cached_en = en;
 	}
+	spin_unlock(&sbi->extent_lock);
+	ret = true;
 out:
 	stat_inc_total_hit(sbi);
 	read_unlock(&et->lock);
 
 	trace_f2fs_lookup_extent_tree_end(inode, pgofs, ei);
 	return ret;
-}
-
-
-/*
- * lookup extent at @fofs, if hit, return the extent
- * if not, return NULL and
- * @prev_ex: extent before fofs
- * @next_ex: extent after fofs
- * @insert_p: insert point for new extent at fofs
- * in order to simpfy the insertion after.
- * tree must stay unchanged between lookup and insertion.
- */
-static struct extent_node *__lookup_extent_tree_ret(struct extent_tree *et,
-				unsigned int fofs,
-				struct extent_node **prev_ex,
-				struct extent_node **next_ex,
-				struct rb_node ***insert_p,
-				struct rb_node **insert_parent)
-{
-	struct rb_node **pnode = &et->root.rb_node;
-	struct rb_node *parent = NULL, *tmp_node;
-	struct extent_node *en = et->cached_en;
-
-	*insert_p = NULL;
-	*insert_parent = NULL;
-	*prev_ex = NULL;
-	*next_ex = NULL;
-
-	if (RB_EMPTY_ROOT(&et->root))
-		return NULL;
-
-	if (en) {
-		struct extent_info *cei = &en->ei;
-
-		if (cei->fofs <= fofs && cei->fofs + cei->len > fofs)
-			goto lookup_neighbors;
-	}
-
-	while (*pnode) {
-		parent = *pnode;
-		en = rb_entry(*pnode, struct extent_node, rb_node);
-
-		if (fofs < en->ei.fofs)
-			pnode = &(*pnode)->rb_left;
-		else if (fofs >= en->ei.fofs + en->ei.len)
-			pnode = &(*pnode)->rb_right;
-		else
-			goto lookup_neighbors;
-	}
-
-	*insert_p = pnode;
-	*insert_parent = parent;
-
-	en = rb_entry(parent, struct extent_node, rb_node);
-	tmp_node = parent;
-	if (parent && fofs > en->ei.fofs)
-		tmp_node = rb_next(parent);
-	*next_ex = tmp_node ?
-		rb_entry(tmp_node, struct extent_node, rb_node) : NULL;
-
-	tmp_node = parent;
-	if (parent && fofs < en->ei.fofs)
-		tmp_node = rb_prev(parent);
-	*prev_ex = tmp_node ?
-		rb_entry(tmp_node, struct extent_node, rb_node) : NULL;
-	return NULL;
-
-lookup_neighbors:
-	if (fofs == en->ei.fofs) {
-		/* lookup prev node for merging backward later */
-		tmp_node = rb_prev(&en->rb_node);
-		*prev_ex = tmp_node ?
-			rb_entry(tmp_node, struct extent_node, rb_node) : NULL;
-	}
-	if (fofs == en->ei.fofs + en->ei.len - 1) {
-		/* lookup next node for merging frontward later */
-		tmp_node = rb_next(&en->rb_node);
-		*next_ex = tmp_node ?
-			rb_entry(tmp_node, struct extent_node, rb_node) : NULL;
-	}
-	return en;
 }
 
 static struct extent_node *__try_merge_extent_node(struct inode *inode,
@@ -352,11 +431,12 @@ static struct extent_node *__try_merge_extent_node(struct inode *inode,
 	}
 
 	if (next_ex && __is_front_mergeable(ei, &next_ex->ei)) {
-		if (en)
-			__release_extent_node(sbi, et, prev_ex);
 		next_ex->ei.fofs = ei->fofs;
 		next_ex->ei.blk = ei->blk;
 		next_ex->ei.len += ei->len;
+		if (en)
+			__release_extent_node(sbi, et, prev_ex);
+
 		en = next_ex;
 	}
 
@@ -390,17 +470,7 @@ static struct extent_node *__insert_extent_tree(struct inode *inode,
 		goto do_insert;
 	}
 
-	while (*p) {
-		parent = *p;
-		en = rb_entry(parent, struct extent_node, rb_node);
-
-		if (ei->fofs < en->ei.fofs)
-			p = &(*p)->rb_left;
-		else if (ei->fofs >= en->ei.fofs + en->ei.len)
-			p = &(*p)->rb_right;
-		else
-			f2fs_bug_on(sbi, 1);
-	}
+	p = __lookup_rb_tree_for_insert(sbi, &et->root, &parent, ei->fofs);
 do_insert:
 	en = __attach_extent_node(sbi, et, ei, parent, p);
 	if (!en)
@@ -416,7 +486,7 @@ do_insert:
 	return en;
 }
 
-static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
+static void f2fs_update_extent_tree_range(struct inode *inode,
 				pgoff_t fofs, block_t blkaddr, unsigned int len)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
@@ -429,7 +499,7 @@ static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 	unsigned int pos = (unsigned int)fofs;
 
 	if (!et)
-		return false;
+		return;
 
 	trace_f2fs_update_extent_tree_range(inode, fofs, blkaddr, len);
 
@@ -437,7 +507,7 @@ static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 
 	if (is_inode_flag_set(inode, FI_NO_EXTENT)) {
 		write_unlock(&et->lock);
-		return false;
+		return;
 	}
 
 	prev = et->largest;
@@ -450,8 +520,11 @@ static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 	__drop_largest_extent(inode, fofs, len);
 
 	/* 1. lookup first extent node in range [fofs, fofs + len - 1] */
-	en = __lookup_extent_tree_ret(et, fofs, &prev_en, &next_en,
-					&insert_p, &insert_parent);
+	en = (struct extent_node *)__lookup_rb_tree_ret(&et->root,
+					(struct rb_entry *)et->cached_en, fofs,
+					(struct rb_entry **)&prev_en,
+					(struct rb_entry **)&next_en,
+					&insert_p, &insert_parent, false);
 	if (!en)
 		en = next_en;
 
@@ -492,9 +565,8 @@ static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 		if (!next_en) {
 			struct rb_node *node = rb_next(&en->rb_node);
 
-			next_en = node ?
-				rb_entry(node, struct extent_node, rb_node)
-				: NULL;
+			next_en = rb_entry_safe(node, struct extent_node,
+						rb_node);
 		}
 
 		if (parts)
@@ -535,8 +607,6 @@ static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 		__free_extent_tree(sbi, et);
 
 	write_unlock(&et->lock);
-
-	return !__is_extent_same(&prev, &et->largest);
 }
 
 unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
@@ -552,7 +622,7 @@ unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 	if (!atomic_read(&sbi->total_zombie_tree))
 		goto free_node;
 
-	if (!down_write_trylock(&sbi->extent_tree_lock))
+	if (!mutex_trylock(&sbi->extent_tree_lock))
 		goto out;
 
 	/* 1. remove unreferenced extent tree */
@@ -574,11 +644,11 @@ unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 			goto unlock_out;
 		cond_resched();
 	}
-	up_write(&sbi->extent_tree_lock);
+	mutex_unlock(&sbi->extent_tree_lock);
 
 free_node:
 	/* 2. remove LRU extent entries */
-	if (!down_write_trylock(&sbi->extent_tree_lock))
+	if (!mutex_trylock(&sbi->extent_tree_lock))
 		goto out;
 
 	remained = nr_shrink - (node_cnt + tree_cnt);
@@ -608,7 +678,7 @@ free_node:
 	spin_unlock(&sbi->extent_lock);
 
 unlock_out:
-	up_write(&sbi->extent_tree_lock);
+	mutex_unlock(&sbi->extent_tree_lock);
 out:
 	trace_f2fs_shrink_extent_tree(sbi, node_cnt, tree_cnt);
 
@@ -655,10 +725,10 @@ void f2fs_destroy_extent_tree(struct inode *inode)
 
 	if (inode->i_nlink && !is_bad_inode(inode) &&
 					atomic_read(&et->node_cnt)) {
-		down_write(&sbi->extent_tree_lock);
+		mutex_lock(&sbi->extent_tree_lock);
 		list_add_tail(&et->list, &sbi->zombie_list);
 		atomic_inc(&sbi->total_zombie_tree);
-		up_write(&sbi->extent_tree_lock);
+		mutex_unlock(&sbi->extent_tree_lock);
 		return;
 	}
 
@@ -666,12 +736,12 @@ void f2fs_destroy_extent_tree(struct inode *inode)
 	node_cnt = f2fs_destroy_extent_node(inode);
 
 	/* delete extent tree entry in radix tree */
-	down_write(&sbi->extent_tree_lock);
+	mutex_lock(&sbi->extent_tree_lock);
 	f2fs_bug_on(sbi, atomic_read(&et->node_cnt));
 	radix_tree_delete(&sbi->extent_tree_root, inode->i_ino);
 	kmem_cache_free(extent_tree_slab, et);
 	atomic_dec(&sbi->total_ext_tree);
-	up_write(&sbi->extent_tree_lock);
+	mutex_unlock(&sbi->extent_tree_lock);
 
 	F2FS_I(inode)->extent_tree = NULL;
 
@@ -718,7 +788,7 @@ void f2fs_update_extent_cache_range(struct dnode_of_data *dn,
 void init_extent_cache_info(struct f2fs_sb_info *sbi)
 {
 	INIT_RADIX_TREE(&sbi->extent_tree_root, GFP_NOIO);
-	init_rwsem(&sbi->extent_tree_lock);
+	mutex_init(&sbi->extent_tree_lock);
 	INIT_LIST_HEAD(&sbi->extent_list);
 	spin_lock_init(&sbi->extent_lock);
 	atomic_set(&sbi->total_ext_tree, 0);

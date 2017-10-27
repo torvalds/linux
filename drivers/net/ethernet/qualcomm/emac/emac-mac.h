@@ -230,7 +230,6 @@ struct emac_adapter;
 int  emac_mac_up(struct emac_adapter *adpt);
 void emac_mac_down(struct emac_adapter *adpt);
 void emac_mac_reset(struct emac_adapter *adpt);
-void emac_mac_start(struct emac_adapter *adpt);
 void emac_mac_stop(struct emac_adapter *adpt);
 void emac_mac_mode_config(struct emac_adapter *adpt);
 void emac_mac_rx_process(struct emac_adapter *adpt, struct emac_rx_queue *rx_q,

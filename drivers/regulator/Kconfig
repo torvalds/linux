@@ -125,12 +125,20 @@ config REGULATOR_AB8500
 	  This driver supports the regulators found on the ST-Ericsson mixed
 	  signal AB8500 PMIC
 
-config REGULATOR_ARIZONA
-	tristate "Wolfson Arizona class devices"
+config REGULATOR_ARIZONA_LDO1
+	tristate "Wolfson Arizona class devices LDO1"
 	depends on MFD_ARIZONA
 	depends on SND_SOC
 	help
-	  Support for the regulators found on Wolfson Arizona class
+	  Support for the LDO1 regulators found on Wolfson Arizona class
+	  devices.
+
+config REGULATOR_ARIZONA_MICSUPP
+	tristate "Wolfson Arizona class devices MICSUPP"
+	depends on MFD_ARIZONA
+	depends on SND_SOC
+	help
+	  Support for the MICSUPP regulators found on Wolfson Arizona class
 	  devices.
 
 config REGULATOR_AS3711
@@ -163,6 +171,24 @@ config REGULATOR_BCM590XX
 	  BCM590xx PMUs. This will enable support for the software
 	  controllable LDO/Switching regulators.
 
+config REGULATOR_BD9571MWV
+	tristate "ROHM BD9571MWV Regulators"
+	depends on MFD_BD9571MWV
+	help
+	  This driver provides support for the voltage regulators on the
+	  ROHM BD9571MWV PMIC. This will enable support for the software
+	  controllable regulator and voltage sampling units.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called bd9571mwv-regulator.
+
+config REGULATOR_CPCAP
+	tristate "Motorola CPCAP regulator"
+	depends on MFD_CPCAP
+	help
+	  Say y here for CPCAP regulator found on some Motorola phones
+	  and tablets such as Droid 4.
+
 config REGULATOR_DA903X
 	tristate "Dialog Semiconductor DA9030/DA9034 regulators"
 	depends on PMIC_DA903X
@@ -188,11 +214,11 @@ config REGULATOR_DA9055
 	  will be called da9055-regulator.
 
 config REGULATOR_DA9062
-	tristate "Dialog Semiconductor DA9062 regulators"
+	tristate "Dialog Semiconductor DA9061/62 regulators"
 	depends on MFD_DA9062
 	help
 	  Say y here to support the BUCKs and LDOs regulators found on
-	  DA9062 PMICs.
+	  DA9061 and DA9062 PMICs.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called da9062-regulator.
@@ -270,6 +296,16 @@ config REGULATOR_HI6421
 	  21 general purpose LDOs, 3 dedicated LDOs, and 5 BUCKs. All
 	  of them come with support to either ECO (idle) or sleep mode.
 
+config REGULATOR_HI6421V530
+	tristate "HiSilicon Hi6421v530 PMIC voltage regulator support"
+	depends on MFD_HI6421_PMIC && OF
+	help
+	  This driver provides support for the voltage regulators on
+	  HiSilicon Hi6421v530 PMU / Codec IC.
+	  Hi6421v530 is a multi-function device which, on regulator part,
+	  provides 5 general purpose LDOs, and all of them come with support
+	  to either ECO (idle) or sleep mode.
+
 config REGULATOR_HI655X
 	tristate "Hisilicon HI655X PMIC regulators support"
 	depends on ARCH_HISI || COMPILE_TEST
@@ -338,6 +374,14 @@ config REGULATOR_LP8755
 	  This driver supports LP8755 High Performance PMU driver. This
 	  chip contains six step-down DC/DC converters which can support
 	  9 mode multiphase configuration.
+
+config REGULATOR_LP87565
+	tristate "TI LP87565 Power regulators"
+	depends on MFD_TI_LP87565 && OF
+	help
+	  This driver supports LP87565 voltage regulator chips. LP87565
+	  provides four step-down converters. It supports software based
+	  voltage control for different voltage domains
 
 config REGULATOR_LP8788
 	tristate "TI LP8788 Power Regulators"
@@ -515,6 +559,15 @@ config REGULATOR_MT6323
 	  This driver supports the control of different power rails of device
 	  through regulator interface.
 
+config REGULATOR_MT6380
+	tristate "MediaTek MT6380 PMIC"
+	depends on MTK_PMIC_WRAP
+	help
+	  Say y here to select this option to enable the power regulator of
+	  MediaTek MT6380 PMIC.
+	  This driver supports the control of different power rails of device
+	  through regulator interface.
+
 config REGULATOR_MT6397
 	tristate "MediaTek MT6397 PMIC"
 	depends on MFD_MT6397
@@ -643,11 +696,11 @@ config REGULATOR_RC5T583
 	  outputs which can be controlled by i2c communication.
 
 config REGULATOR_RK808
-	tristate "Rockchip RK808/RK818 Power regulators"
+	tristate "Rockchip RK805/RK808/RK818 Power regulators"
 	depends on MFD_RK808
 	help
 	  Select this option to enable the power regulator of ROCKCHIP
-	  PMIC RK808 and RK818.
+	  PMIC RK805,RK808 and RK818.
 	  This driver supports the control of different power rails of device
 	  through regulator interface. The device supports multiple DCDC/LDO
 	  outputs which can be controlled by i2c communication.
@@ -656,8 +709,8 @@ config REGULATOR_RN5T618
 	tristate "Ricoh RN5T567/618 voltage regulators"
 	depends on MFD_RN5T618
 	help
-	  Say y here to support the regulators found on Ricoh RN5T567 or
-	  RN5T618 PMIC.
+	  Say y here to support the regulators found on Ricoh RN5T567,
+	  RN5T618 or RC5T619 PMIC.
 
 config REGULATOR_RT5033
 	tristate "Richtek RT5033 Regulators"
@@ -701,6 +754,18 @@ config REGULATOR_SKY81452
 
 	  This driver can also be built as a module. If so, the module
 	  will be called sky81452-regulator.
+
+config REGULATOR_STM32_VREFBUF
+	tristate "STMicroelectronics STM32 VREFBUF"
+	depends on ARCH_STM32 || COMPILE_TEST
+	help
+	  This driver supports STMicroelectronics STM32 VREFBUF (voltage
+	  reference buffer) which can be used as voltage reference for
+	  internal ADCs, DACs and also for external components through
+	  dedicated Vref+ pin.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called stm32-vrefbuf.
 
 config REGULATOR_TI_ABB
 	tristate "TI Adaptive Body Bias on-chip LDO"
@@ -781,6 +846,14 @@ config REGULATOR_TPS65090
 	  This driver provides support for the voltage regulators on the
 	  TI TPS65090 PMIC.
 
+config REGULATOR_TPS65132
+	tristate "TI TPS65132 Dual Output Power regulators"
+	depends on I2C && GPIOLIB
+	select REGMAP_I2C
+	help
+	  This driver supports TPS65132 single inductor - dual output
+	  power supply specifcally designed for display panels.
+
 config REGULATOR_TPS65217
 	tristate "TI TPS65217 Power regulators"
 	depends on MFD_TPS65217
@@ -842,6 +915,13 @@ config REGULATOR_TWL4030
 	help
 	  This driver supports the voltage regulators provided by
 	  this family of companion chips.
+
+config REGULATOR_VCTRL
+	tristate "Voltage controlled regulators"
+	depends on OF
+	help
+	  This driver provides support for voltage regulators whose output
+	  voltage is controlled by the voltage of another regulator.
 
 config REGULATOR_VEXPRESS
 	tristate "Versatile Express regulators"

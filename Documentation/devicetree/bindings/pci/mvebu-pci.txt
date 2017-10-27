@@ -77,14 +77,14 @@ and the following optional properties:
 - marvell,pcie-lane: the physical PCIe lane number, for ports having
   multiple lanes. If this property is not found, we assume that the
   value is 0.
-- reset-gpios: optional gpio to PERST#
-- reset-delay-us: delay in us to wait after reset de-assertion
+- reset-gpios: optional GPIO to PERST#
+- reset-delay-us: delay in us to wait after reset de-assertion, if not
+  specified will default to 100ms, as required by the PCIe specification.
 
 Example:
 
 pcie-controller {
 	compatible = "marvell,armada-xp-pcie";
-	status = "disabled";
 	device_type = "pci";
 
 	#address-cells = <3>;
@@ -146,7 +146,6 @@ pcie-controller {
 		/* wait 20ms for device settle after reset deassertion */
 		reset-delay-us = <20000>;
 		clocks = <&gateclk 5>;
-		status = "disabled";
 	};
 
 	pcie@2,0 {
@@ -163,7 +162,6 @@ pcie-controller {
 		marvell,pcie-port = <0>;
 		marvell,pcie-lane = <1>;
 		clocks = <&gateclk 6>;
-		status = "disabled";
 	};
 
 	pcie@3,0 {
@@ -180,7 +178,6 @@ pcie-controller {
 		marvell,pcie-port = <0>;
 		marvell,pcie-lane = <2>;
 		clocks = <&gateclk 7>;
-		status = "disabled";
 	};
 
 	pcie@4,0 {
@@ -197,7 +194,6 @@ pcie-controller {
 		marvell,pcie-port = <0>;
 		marvell,pcie-lane = <3>;
 		clocks = <&gateclk 8>;
-		status = "disabled";
 	};
 
 	pcie@5,0 {
@@ -214,7 +210,6 @@ pcie-controller {
 		marvell,pcie-port = <1>;
 		marvell,pcie-lane = <0>;
 		clocks = <&gateclk 9>;
-		status = "disabled";
 	};
 
 	pcie@6,0 {
@@ -231,7 +226,6 @@ pcie-controller {
 		marvell,pcie-port = <1>;
 		marvell,pcie-lane = <1>;
 		clocks = <&gateclk 10>;
-		status = "disabled";
 	};
 
 	pcie@7,0 {
@@ -248,7 +242,6 @@ pcie-controller {
 		marvell,pcie-port = <1>;
 		marvell,pcie-lane = <2>;
 		clocks = <&gateclk 11>;
-		status = "disabled";
 	};
 
 	pcie@8,0 {
@@ -265,7 +258,6 @@ pcie-controller {
 		marvell,pcie-port = <1>;
 		marvell,pcie-lane = <3>;
 		clocks = <&gateclk 12>;
-		status = "disabled";
 	};
 
 	pcie@9,0 {
@@ -282,10 +274,9 @@ pcie-controller {
 		marvell,pcie-port = <2>;
 		marvell,pcie-lane = <0>;
 		clocks = <&gateclk 26>;
-		status = "disabled";
 	};
 
-	pcie@10,0 {
+	pcie@a,0 {
 		device_type = "pci";
 		assigned-addresses = <0x82005000 0 0x82000 0 0x2000>;
 		reg = <0x5000 0 0 0 0>;
@@ -299,6 +290,5 @@ pcie-controller {
 		marvell,pcie-port = <3>;
 		marvell,pcie-lane = <0>;
 		clocks = <&gateclk 27>;
-		status = "disabled";
 	};
 };

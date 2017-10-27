@@ -25,7 +25,7 @@
  *
  *
  *  libata documentation is available via 'make {ps|pdf}docs',
- *  as Documentation/DocBook/libata.*
+ *  as Documentation/driver-api/libata.rst
  *
  *  Hardware documentation available from http://www.t13.org/ and
  *  http://www.sata-io.org/
@@ -549,6 +549,7 @@ enum blk_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd)
 	DPRINTK("EXIT, ret=%d\n", ret);
 	return ret;
 }
+EXPORT_SYMBOL(ata_scsi_timed_out);
 
 static void ata_eh_unload(struct ata_port *ap)
 {
@@ -644,11 +645,10 @@ void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap,
 	 * completions are honored.  A scmd is determined to have
 	 * timed out iff its associated qc is active and not failed.
 	 */
+	spin_lock_irqsave(ap->lock, flags);
 	if (ap->ops->error_handler) {
 		struct scsi_cmnd *scmd, *tmp;
 		int nr_timedout = 0;
-
-		spin_lock_irqsave(ap->lock, flags);
 
 		/* This must occur under the ap->lock as we don't want
 		   a polled recovery to race the real interrupt handler
@@ -699,12 +699,11 @@ void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap,
 		if (nr_timedout)
 			__ata_port_freeze(ap);
 
-		spin_unlock_irqrestore(ap->lock, flags);
 
 		/* initialize eh_tries */
 		ap->eh_tries = ATA_EH_MAX_TRIES;
-	} else
-		spin_unlock_wait(ap->lock);
+	}
+	spin_unlock_irqrestore(ap->lock, flags);
 
 }
 EXPORT_SYMBOL(ata_scsi_cmd_error_handler);
@@ -1433,7 +1432,7 @@ void ata_eh_about_to_do(struct ata_link *link, struct ata_device *dev,
 
 /**
  *	ata_eh_done - EH action complete
-*	@ap: target ATA port
+ *	@link: ATA link for which EH actions are complete
  *	@dev: target ATA dev for per-dev action (can be NULL)
  *	@action: action just completed
  *
@@ -1484,70 +1483,6 @@ static const char *ata_err_string(unsigned int err_mask)
 	if (err_mask & AC_ERR_DEV)
 		return "device error";
 	return "unknown error";
-}
-
-/**
- *	ata_read_log_page - read a specific log page
- *	@dev: target device
- *	@log: log to read
- *	@page: page to read
- *	@buf: buffer to store read page
- *	@sectors: number of sectors to read
- *
- *	Read log page using READ_LOG_EXT command.
- *
- *	LOCKING:
- *	Kernel thread context (may sleep).
- *
- *	RETURNS:
- *	0 on success, AC_ERR_* mask otherwise.
- */
-unsigned int ata_read_log_page(struct ata_device *dev, u8 log,
-			       u8 page, void *buf, unsigned int sectors)
-{
-	unsigned long ap_flags = dev->link->ap->flags;
-	struct ata_taskfile tf;
-	unsigned int err_mask;
-	bool dma = false;
-
-	DPRINTK("read log page - log 0x%x, page 0x%x\n", log, page);
-
-	/*
-	 * Return error without actually issuing the command on controllers
-	 * which e.g. lockup on a read log page.
-	 */
-	if (ap_flags & ATA_FLAG_NO_LOG_PAGE)
-		return AC_ERR_DEV;
-
-retry:
-	ata_tf_init(dev, &tf);
-	if (dev->dma_mode && ata_id_has_read_log_dma_ext(dev->id) &&
-	    !(dev->horkage & ATA_HORKAGE_NO_NCQ_LOG)) {
-		tf.command = ATA_CMD_READ_LOG_DMA_EXT;
-		tf.protocol = ATA_PROT_DMA;
-		dma = true;
-	} else {
-		tf.command = ATA_CMD_READ_LOG_EXT;
-		tf.protocol = ATA_PROT_PIO;
-		dma = false;
-	}
-	tf.lbal = log;
-	tf.lbam = page;
-	tf.nsect = sectors;
-	tf.hob_nsect = sectors >> 8;
-	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_LBA48 | ATA_TFLAG_DEVICE;
-
-	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_FROM_DEVICE,
-				     buf, sectors * ATA_SECT_SIZE, 0);
-
-	if (err_mask && dma) {
-		dev->horkage |= ATA_HORKAGE_NO_NCQ_LOG;
-		ata_dev_warn(dev, "READ LOG DMA EXT failed, trying unqueued\n");
-		goto retry;
-	}
-
-	DPRINTK("EXIT, err_mask=%x\n", err_mask);
-	return err_mask;
 }
 
 /**
@@ -1639,7 +1574,7 @@ unsigned int atapi_eh_tur(struct ata_device *dev, u8 *r_sense_key)
 
 /**
  *	ata_eh_request_sense - perform REQUEST_SENSE_DATA_EXT
- *	@dev: device to perform REQUEST_SENSE_SENSE_DATA_EXT to
+ *	@qc: qc to perform REQUEST_SENSE_SENSE_DATA_EXT to
  *	@cmd: scsi command for which the sense code should be set
  *
  *	Perform REQUEST_SENSE_DATA_EXT after the device reported CHECK
@@ -2033,7 +1968,7 @@ static int speed_down_verdict_cb(struct ata_ering_entry *ent, void *void_arg)
  *	This is to expedite speed down decisions right after device is
  *	initially configured.
  *
- *	The followings are speed down rules.  #1 and #2 deal with
+ *	The following are speed down rules.  #1 and #2 deal with
  *	DUBIOUS errors.
  *
  *	1. If more than one DUBIOUS_ATA_BUS or DUBIOUS_TOUT_HSM errors
@@ -2606,21 +2541,39 @@ static void ata_eh_link_report(struct ata_link *link)
 				[DMA_TO_DEVICE]		= "out",
 				[DMA_FROM_DEVICE]	= "in",
 			};
-			static const char *prot_str[] = {
-				[ATA_PROT_UNKNOWN]	= "unknown",
-				[ATA_PROT_NODATA]	= "nodata",
-				[ATA_PROT_PIO]		= "pio",
-				[ATA_PROT_DMA]		= "dma",
-				[ATA_PROT_NCQ]		= "ncq dma",
-				[ATA_PROT_NCQ_NODATA]	= "ncq nodata",
-				[ATAPI_PROT_NODATA]	= "nodata",
-				[ATAPI_PROT_PIO]	= "pio",
-				[ATAPI_PROT_DMA]	= "dma",
-			};
+			const char *prot_str = NULL;
 
+			switch (qc->tf.protocol) {
+			case ATA_PROT_UNKNOWN:
+				prot_str = "unknown";
+				break;
+			case ATA_PROT_NODATA:
+				prot_str = "nodata";
+				break;
+			case ATA_PROT_PIO:
+				prot_str = "pio";
+				break;
+			case ATA_PROT_DMA:
+				prot_str = "dma";
+				break;
+			case ATA_PROT_NCQ:
+				prot_str = "ncq dma";
+				break;
+			case ATA_PROT_NCQ_NODATA:
+				prot_str = "ncq nodata";
+				break;
+			case ATAPI_PROT_NODATA:
+				prot_str = "nodata";
+				break;
+			case ATAPI_PROT_PIO:
+				prot_str = "pio";
+				break;
+			case ATAPI_PROT_DMA:
+				prot_str = "dma";
+				break;
+			}
 			snprintf(data_buf, sizeof(data_buf), " %s %u %s",
-				 prot_str[qc->tf.protocol], qc->nbytes,
-				 dma_str[qc->dma_dir]);
+				 prot_str, qc->nbytes, dma_str[qc->dma_dir]);
 		}
 
 		if (ata_is_atapi(qc->tf.protocol)) {
@@ -4220,7 +4173,6 @@ static void ata_eh_handle_port_resume(struct ata_port *ap)
 	struct ata_link *link;
 	struct ata_device *dev;
 	unsigned long flags;
-	int rc = 0;
 
 	/* are we resuming? */
 	spin_lock_irqsave(ap->lock, flags);
@@ -4247,7 +4199,7 @@ static void ata_eh_handle_port_resume(struct ata_port *ap)
 	ata_acpi_set_state(ap, ap->pm_mesg);
 
 	if (ap->ops->port_resume)
-		rc = ap->ops->port_resume(ap);
+		ap->ops->port_resume(ap);
 
 	/* tell ACPI that we're resuming */
 	ata_acpi_on_resume(ap);

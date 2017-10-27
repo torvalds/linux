@@ -172,16 +172,15 @@ hwdep_compat_ioctl(struct snd_hwdep *hwdep, struct file *file,
 #define hwdep_compat_ioctl NULL
 #endif
 
-static const struct snd_hwdep_ops hwdep_ops = {
-	.read		= hwdep_read,
-	.release	= hwdep_release,
-	.poll		= hwdep_poll,
-	.ioctl		= hwdep_ioctl,
-	.ioctl_compat	= hwdep_compat_ioctl,
-};
-
 int snd_bebob_create_hwdep_device(struct snd_bebob *bebob)
 {
+	static const struct snd_hwdep_ops ops = {
+		.read		= hwdep_read,
+		.release	= hwdep_release,
+		.poll		= hwdep_poll,
+		.ioctl		= hwdep_ioctl,
+		.ioctl_compat	= hwdep_compat_ioctl,
+	};
 	struct snd_hwdep *hwdep;
 	int err;
 
@@ -190,7 +189,7 @@ int snd_bebob_create_hwdep_device(struct snd_bebob *bebob)
 		goto end;
 	strcpy(hwdep->name, "BeBoB");
 	hwdep->iface = SNDRV_HWDEP_IFACE_FW_BEBOB;
-	hwdep->ops = hwdep_ops;
+	hwdep->ops = ops;
 	hwdep->private_data = bebob;
 	hwdep->exclusive = true;
 end:

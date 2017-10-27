@@ -202,7 +202,7 @@ static int fan53555_set_ramp(struct regulator_dev *rdev, int ramp)
 				  CTL_SLEW_MASK, regval << CTL_SLEW_SHIFT);
 }
 
-static struct regulator_ops fan53555_regulator_ops = {
+static const struct regulator_ops fan53555_regulator_ops = {
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
@@ -407,14 +407,8 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 
 	di->regulator = pdata->regulator;
 	if (client->dev.of_node) {
-		const struct of_device_id *match;
-
-		match = of_match_device(of_match_ptr(fan53555_dt_ids),
-					&client->dev);
-		if (!match)
-			return -ENODEV;
-
-		di->vendor = (unsigned long) match->data;
+		di->vendor =
+			(unsigned long)of_device_get_match_data(&client->dev);
 	} else {
 		/* if no ramp constraint set, get the pdata ramp_delay */
 		if (!di->regulator->constraints.ramp_delay) {
@@ -476,7 +470,10 @@ static const struct i2c_device_id fan53555_id[] = {
 		.name = "fan53555",
 		.driver_data = FAN53555_VENDOR_FAIRCHILD
 	}, {
-		.name = "syr82x",
+		.name = "syr827",
+		.driver_data = FAN53555_VENDOR_SILERGY
+	}, {
+		.name = "syr828",
 		.driver_data = FAN53555_VENDOR_SILERGY
 	},
 	{ },

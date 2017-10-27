@@ -255,7 +255,7 @@
 	};
 
 	at24@50 {
-		compatible = "at24,24c02";
+		compatible = "atmel,24c02";
 		pagesize = <8>;
 		reg = <0x50>;
 	};
@@ -371,6 +371,8 @@
 
 	phy1: ethernet-phy@1 {
 		reg = <7>;
+		eee-broken-100tx;
+		eee-broken-1000t;
 	};
 };
 

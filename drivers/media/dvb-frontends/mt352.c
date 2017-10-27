@@ -24,10 +24,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
  */
 
 #include <linux/kernel.h>
@@ -215,6 +211,7 @@ static int mt352_set_parameters(struct dvb_frontend *fe)
 			if (op->hierarchy == HIERARCHY_AUTO ||
 			    op->hierarchy == HIERARCHY_NONE)
 				break;
+			/* fall through */
 		default:
 			return -EINVAL;
 	}

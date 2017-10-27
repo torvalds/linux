@@ -592,9 +592,9 @@ struct v4l2_subdev_ir_ops {
 /**
  * struct v4l2_subdev_pad_config - Used for storing subdev pad information.
  *
- * @try_fmt: pointer to &struct v4l2_mbus_framefmt
- * @try_crop: pointer to &struct v4l2_rect to be used for crop
- * @try_compose: pointer to &struct v4l2_rect to be used for compose
+ * @try_fmt: &struct v4l2_mbus_framefmt
+ * @try_crop: &struct v4l2_rect to be used for crop
+ * @try_compose: &struct v4l2_rect to be used for compose
  *
  * This structure only needs to be passed to the pad op if the 'which' field
  * of the main argument is set to %V4L2_SUBDEV_FORMAT_TRY. For
@@ -787,7 +787,8 @@ struct v4l2_subdev_platform_data {
  *	is attached.
  * @devnode: subdev device node
  * @dev: pointer to the physical device, if any
- * @of_node: The device_node of the subdev, usually the same as dev->of_node.
+ * @fwnode: The fwnode_handle of the subdev, usually the same as
+ *	    either dev->of_node->fwnode or dev->fwnode (whichever is non-NULL).
  * @async_list: Links this subdev to a global subdev_list or @notifier->done
  *	list.
  * @asd: Pointer to respective &struct v4l2_async_subdev.
@@ -818,15 +819,22 @@ struct v4l2_subdev {
 	void *host_priv;
 	struct video_device *devnode;
 	struct device *dev;
-	struct device_node *of_node;
+	struct fwnode_handle *fwnode;
 	struct list_head async_list;
 	struct v4l2_async_subdev *asd;
 	struct v4l2_async_notifier *notifier;
 	struct v4l2_subdev_platform_data *pdata;
 };
 
-#define media_entity_to_v4l2_subdev(ent) \
-	container_of(ent, struct v4l2_subdev, entity)
+#define media_entity_to_v4l2_subdev(ent)				\
+({									\
+	typeof(ent) __me_sd_ent = (ent);				\
+									\
+	__me_sd_ent ?							\
+		container_of(__me_sd_ent, struct v4l2_subdev, entity) :	\
+		NULL;							\
+})
+
 #define vdev_to_v4l2_subdev(vdev) \
 	((struct v4l2_subdev *)video_get_drvdata(vdev))
 
@@ -974,8 +982,16 @@ void v4l2_subdev_init(struct v4l2_subdev *sd,
  * Example: err = v4l2_subdev_call(sd, video, s_std, norm);
  */
 #define v4l2_subdev_call(sd, o, f, args...)				\
-	(!(sd) ? -ENODEV : (((sd)->ops->o && (sd)->ops->o->f) ?	\
-		(sd)->ops->o->f((sd), ##args) : -ENOIOCTLCMD))
+	({								\
+		int __result;						\
+		if (!(sd))						\
+			__result = -ENODEV;				\
+		else if (!((sd)->ops->o && (sd)->ops->o->f))		\
+			__result = -ENOIOCTLCMD;			\
+		else							\
+			__result = (sd)->ops->o->f((sd), ##args);	\
+		__result;						\
+	})
 
 #define v4l2_subdev_has_op(sd, o, f) \
 	((sd)->ops->o && (sd)->ops->o->f)

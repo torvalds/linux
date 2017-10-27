@@ -146,7 +146,7 @@ enum attr_idn {
 /* Descriptor idn for Query requests */
 enum desc_idn {
 	QUERY_DESC_IDN_DEVICE		= 0x0,
-	QUERY_DESC_IDN_CONFIGURAION	= 0x1,
+	QUERY_DESC_IDN_CONFIGURATION	= 0x1,
 	QUERY_DESC_IDN_UNIT		= 0x2,
 	QUERY_DESC_IDN_RFU_0		= 0x3,
 	QUERY_DESC_IDN_INTERCONNECT	= 0x4,
@@ -162,19 +162,13 @@ enum desc_header_offset {
 	QUERY_DESC_DESC_TYPE_OFFSET	= 0x01,
 };
 
-enum ufs_desc_max_size {
-	QUERY_DESC_DEVICE_MAX_SIZE		= 0x40,
-	QUERY_DESC_CONFIGURAION_MAX_SIZE	= 0x90,
-	QUERY_DESC_UNIT_MAX_SIZE		= 0x23,
-	QUERY_DESC_INTERCONNECT_MAX_SIZE	= 0x06,
-	/*
-	 * Max. 126 UNICODE characters (2 bytes per character) plus 2 bytes
-	 * of descriptor header.
-	 */
-	QUERY_DESC_STRING_MAX_SIZE		= 0xFE,
-	QUERY_DESC_GEOMETRY_MAX_SIZE		= 0x44,
-	QUERY_DESC_POWER_MAX_SIZE		= 0x62,
-	QUERY_DESC_RFU_MAX_SIZE			= 0x00,
+enum ufs_desc_def_size {
+	QUERY_DESC_DEVICE_DEF_SIZE		= 0x40,
+	QUERY_DESC_CONFIGURATION_DEF_SIZE	= 0x90,
+	QUERY_DESC_UNIT_DEF_SIZE		= 0x23,
+	QUERY_DESC_INTERCONNECT_DEF_SIZE	= 0x06,
+	QUERY_DESC_GEOMETRY_DEF_SIZE		= 0x44,
+	QUERY_DESC_POWER_DEF_SIZE		= 0x62,
 };
 
 /* Unit descriptor parameters offsets in bytes*/
@@ -521,6 +515,18 @@ struct ufs_dev_info {
 	bool f_power_on_wp_en;
 	/* Keeps information if any of the LU is power on write protected */
 	bool is_lu_power_on_wp;
+};
+
+#define MAX_MODEL_LEN 16
+/**
+ * ufs_dev_desc - ufs device details from the device descriptor
+ *
+ * @wmanufacturerid: card details
+ * @model: card model
+ */
+struct ufs_dev_desc {
+	u16 wmanufacturerid;
+	char model[MAX_MODEL_LEN + 1];
 };
 
 #endif /* End of Header */

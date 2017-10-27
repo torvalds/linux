@@ -62,7 +62,7 @@ mwifiex_11n_form_amsdu_pkt(struct sk_buff *skb_aggr,
 	};
 	struct tx_packet_hdr *tx_header;
 
-	tx_header = (void *)skb_put(skb_aggr, sizeof(*tx_header));
+	tx_header = skb_put(skb_aggr, sizeof(*tx_header));
 
 	/* Copy DA and SA */
 	dt_offset = 2 * ETH_ALEN;
@@ -81,7 +81,7 @@ mwifiex_11n_form_amsdu_pkt(struct sk_buff *skb_aggr,
 	tx_header->eth803_hdr.h_proto = htons(skb_src->len + LLC_SNAP_LEN);
 
 	/* Add payload */
-	memcpy(skb_put(skb_aggr, skb_src->len), skb_src->data, skb_src->len);
+	skb_put_data(skb_aggr, skb_src->data, skb_src->len);
 
 	/* Add padding for new MSDU to start from 4 byte boundary */
 	*pad = (4 - ((unsigned long)skb_aggr->tail & 0x3)) % 4;
@@ -101,13 +101,6 @@ mwifiex_11n_form_amsdu_txpd(struct mwifiex_private *priv,
 {
 	struct txpd *local_tx_pd;
 	struct mwifiex_txinfo *tx_info = MWIFIEX_SKB_TXCB(skb);
-	unsigned int pad;
-	int headroom = (priv->adapter->iface_type ==
-			MWIFIEX_USB) ? 0 : INTF_HEADER_LEN;
-
-	pad = ((void *)skb->data - sizeof(*local_tx_pd) -
-		headroom - NULL) & (MWIFIEX_DMA_ALIGN_SZ - 1);
-	skb_push(skb, pad);
 
 	skb_push(skb, sizeof(*local_tx_pd));
 
@@ -121,12 +114,10 @@ mwifiex_11n_form_amsdu_txpd(struct mwifiex_private *priv,
 	local_tx_pd->bss_num = priv->bss_num;
 	local_tx_pd->bss_type = priv->bss_type;
 	/* Always zero as the data is followed by struct txpd */
-	local_tx_pd->tx_pkt_offset = cpu_to_le16(sizeof(struct txpd) +
-						 pad);
+	local_tx_pd->tx_pkt_offset = cpu_to_le16(sizeof(struct txpd));
 	local_tx_pd->tx_pkt_type = cpu_to_le16(PKT_TYPE_AMSDU);
 	local_tx_pd->tx_pkt_length = cpu_to_le16(skb->len -
-						 sizeof(*local_tx_pd) -
-						 pad);
+						 sizeof(*local_tx_pd));
 
 	if (tx_info->flags & MWIFIEX_BUF_FLAG_TDLS_PKT)
 		local_tx_pd->flags |= MWIFIEX_TXPD_FLAGS_TDLS_PACKET;
@@ -173,7 +164,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	int pad = 0, aggr_num = 0, ret;
 	struct mwifiex_tx_param tx_param;
 	struct txpd *ptx_pd = NULL;
-	int headroom = adapter->iface_type == MWIFIEX_USB ? 0 : INTF_HEADER_LEN;
+	int headroom = adapter->intf_hdr_len;
 
 	skb_src = skb_peek(&pra_list->skb_head);
 	if (!skb_src) {
@@ -190,7 +181,11 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 				       ra_list_flags);
 		return -1;
 	}
-	skb_reserve(skb_aggr, MWIFIEX_MIN_DATA_HEADER_LEN);
+
+	/* skb_aggr->data already 64 byte align, just reserve bus interface
+	 * header and txpd.
+	 */
+	skb_reserve(skb_aggr, headroom + sizeof(struct txpd));
 	tx_info_aggr =  MWIFIEX_SKB_TXCB(skb_aggr);
 
 	memset(tx_info_aggr, 0, sizeof(*tx_info_aggr));
@@ -255,15 +250,15 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 		return 0;
 	}
 
+	if (skb_src)
+		tx_param.next_pkt_len = skb_src->len + sizeof(struct txpd);
+	else
+		tx_param.next_pkt_len = 0;
+
 	if (adapter->iface_type == MWIFIEX_USB) {
 		ret = adapter->if_ops.host_to_card(adapter, priv->usb_port,
-						   skb_aggr, NULL);
+						   skb_aggr, &tx_param);
 	} else {
-		if (skb_src)
-			tx_param.next_pkt_len =
-					skb_src->len + sizeof(struct txpd);
-		else
-			tx_param.next_pkt_len = 0;
 
 		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
 						   skb_aggr, &tx_param);

@@ -1,0 +1,20 @@
+config CRC_DEV_STM32
+	tristate "Support for STM32 crc accelerators"
+	depends on ARCH_STM32
+	select CRYPTO_HASH
+	help
+          This enables support for the CRC32 hw accelerator which can be found
+	  on STMicroelectronics STM32 SOC.
+
+config HASH_DEV_STM32
+	tristate "Support for STM32 hash accelerators"
+	depends on ARCH_STM32
+	depends on HAS_DMA
+	select CRYPTO_HASH
+	select CRYPTO_MD5
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	select CRYPTO_ENGINE
+	help
+          This enables support for the HASH hw accelerator which can be found
+	  on STMicroelectronics STM32 SOC.

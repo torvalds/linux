@@ -64,7 +64,6 @@ struct exofs_dev {
  * our extension to the in-memory superblock
  */
 struct exofs_sb_info {
-	struct backing_dev_info bdi;		/* register our bdi with VFS  */
 	struct exofs_sb_stats s_ess;		/* Written often, pre-allocate*/
 	int		s_timeout;		/* timeout for OSD operations */
 	uint64_t	s_nextid;		/* highest object ID used     */

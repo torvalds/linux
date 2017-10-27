@@ -8,6 +8,7 @@
 #include <linux/irqdomain.h>
 #include <linux/lockdep.h>
 #include <linux/pinctrl/pinctrl.h>
+#include <linux/pinctrl/pinconf-generic.h>
 
 struct gpio_desc;
 struct of_phandle_args;
@@ -17,18 +18,6 @@ struct gpio_device;
 struct module;
 
 #ifdef CONFIG_GPIOLIB
-
-/**
- * enum single_ended_mode - mode for single ended operation
- * @LINE_MODE_PUSH_PULL: normal mode for a GPIO line, drive actively high/low
- * @LINE_MODE_OPEN_DRAIN: set line to be open drain
- * @LINE_MODE_OPEN_SOURCE: set line to be open source
- */
-enum single_ended_mode {
-	LINE_MODE_PUSH_PULL,
-	LINE_MODE_OPEN_DRAIN,
-	LINE_MODE_OPEN_SOURCE,
-};
 
 /**
  * struct gpio_chip - abstract a GPIO controller
@@ -48,16 +37,8 @@ enum single_ended_mode {
  * @get: returns value for signal "offset", 0=low, 1=high, or negative error
  * @set: assigns output value for signal "offset"
  * @set_multiple: assigns output values for multiple signals defined by "mask"
- * @set_debounce: optional hook for setting debounce time for specified gpio in
- *	interrupt triggered gpio chips
- * @set_single_ended: optional hook for setting a line as open drain, open
- *	source, or non-single ended (restore from open drain/source to normal
- *	push-pull mode) this should be implemented if the hardware supports
- *	open drain or open source settings. The GPIOlib will otherwise try
- *	to emulate open drain/source by not actively driving lines high/low
- *	if a consumer request this. The driver may return -ENOTSUPP if e.g.
- *	it supports just open drain but not open source and is called
- *	with LINE_MODE_OPEN_SOURCE as mode argument.
+ * @set_config: optional hook for all kinds of settings. Uses the same
+ *	packed config format as generic pinconf.
  * @to_irq: optional hook supporting non-static gpio_to_irq() mappings;
  *	implementation may not sleep
  * @dbg_show: optional routine to show contents in debugfs; default code
@@ -150,13 +131,9 @@ struct gpio_chip {
 	void			(*set_multiple)(struct gpio_chip *chip,
 						unsigned long *mask,
 						unsigned long *bits);
-	int			(*set_debounce)(struct gpio_chip *chip,
-						unsigned offset,
-						unsigned debounce);
-	int			(*set_single_ended)(struct gpio_chip *chip,
-						unsigned offset,
-						enum single_ended_mode mode);
-
+	int			(*set_config)(struct gpio_chip *chip,
+					      unsigned offset,
+					      unsigned long config);
 	int			(*to_irq)(struct gpio_chip *chip,
 						unsigned offset);
 
@@ -191,7 +168,7 @@ struct gpio_chip {
 	unsigned int		irq_base;
 	irq_flow_handler_t	irq_handler;
 	unsigned int		irq_default_type;
-	int			irq_chained_parent;
+	unsigned int		irq_chained_parent;
 	bool			irq_nested;
 	bool			irq_need_valid_mask;
 	unsigned long		*irq_valid_mask;
@@ -203,8 +180,27 @@ struct gpio_chip {
 	 * If CONFIG_OF is enabled, then all GPIO controllers described in the
 	 * device tree automatically may have an OF translation
 	 */
+
+	/**
+	 * @of_node:
+	 *
+	 * Pointer to a device tree node representing this GPIO controller.
+	 */
 	struct device_node *of_node;
-	int of_gpio_n_cells;
+
+	/**
+	 * @of_gpio_n_cells:
+	 *
+	 * Number of cells used to form the GPIO specifier.
+	 */
+	unsigned int of_gpio_n_cells;
+
+	/**
+	 * @of_xlate:
+	 *
+	 * Callback to translate a device tree GPIO specifier into a chip-
+	 * relative GPIO number and flags.
+	 */
 	int (*of_xlate)(struct gpio_chip *gc,
 			const struct of_phandle_args *gpiospec, u32 *flags);
 #endif
@@ -235,6 +231,9 @@ bool gpiochip_line_is_irq(struct gpio_chip *chip, unsigned int offset);
 /* Line status inquiry for drivers */
 bool gpiochip_line_is_open_drain(struct gpio_chip *chip, unsigned int offset);
 bool gpiochip_line_is_open_source(struct gpio_chip *chip, unsigned int offset);
+
+/* Sleep persistence inquiry for drivers */
+bool gpiochip_line_is_persistent(struct gpio_chip *chip, unsigned int offset);
 
 /* get driver data */
 void *gpiochip_get_data(struct gpio_chip *chip);
@@ -267,12 +266,12 @@ int bgpio_init(struct gpio_chip *gc, struct device *dev,
 
 void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
 		struct irq_chip *irqchip,
-		int parent_irq,
+		unsigned int parent_irq,
 		irq_flow_handler_t parent_handler);
 
 void gpiochip_set_nested_irqchip(struct gpio_chip *gpiochip,
 		struct irq_chip *irqchip,
-		int parent_irq);
+		unsigned int parent_irq);
 
 int gpiochip_irqchip_add_key(struct gpio_chip *gpiochip,
 			     struct irq_chip *irqchip,
@@ -340,16 +339,17 @@ static inline int gpiochip_irqchip_add_nested(struct gpio_chip *gpiochip,
 
 int gpiochip_generic_request(struct gpio_chip *chip, unsigned offset);
 void gpiochip_generic_free(struct gpio_chip *chip, unsigned offset);
+int gpiochip_generic_config(struct gpio_chip *chip, unsigned offset,
+			    unsigned long config);
 
 #ifdef CONFIG_PINCTRL
 
 /**
  * struct gpio_pin_range - pin range controlled by a gpio chip
- * @head: list for maintaining set of pin ranges, used internally
+ * @node: list for maintaining set of pin ranges, used internally
  * @pctldev: pinctrl device which handles corresponding pins
  * @range: actual range of pins controlled by a gpio controller
  */
-
 struct gpio_pin_range {
 	struct list_head node;
 	struct pinctrl_dev *pctldev;

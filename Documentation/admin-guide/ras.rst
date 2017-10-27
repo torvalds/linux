@@ -8,7 +8,7 @@ RAS concepts
 ************
 
 Reliability, Availability and Serviceability (RAS) is a concept used on
-servers meant to measure their robusteness.
+servers meant to measure their robustness.
 
 Reliability
   is the probability that a system will produce correct outputs.
@@ -42,13 +42,13 @@ Among the monitoring measures, the most usual ones include:
 
 * CPU – detect errors at instruction execution and at L1/L2/L3 caches;
 * Memory – add error correction logic (ECC) to detect and correct errors;
-* I/O – add CRC checksums for tranfered data;
+* I/O – add CRC checksums for transferred data;
 * Storage – RAID, journal file systems, checksums,
   Self-Monitoring, Analysis and Reporting Technology (SMART).
 
 By monitoring the number of occurrences of error detections, it is possible
 to identify if the probability of hardware errors is increasing, and, on such
-case, do a preventive maintainance to replace a degrated component while
+case, do a preventive maintenance to replace a degraded component while
 those errors are correctable.
 
 Types of errors
@@ -81,7 +81,7 @@ That defines some categories of errors:
   still run, eventually replacing the affected hardware by a hot spare,
   if available.
 
-  Also, when an error happens on an userspace process, it is also possible to
+  Also, when an error happens on a userspace process, it is also possible to
   kill such process and let userspace restart it.
 
 The mechanism for handling non-fatal errors is usually complex and may
@@ -121,7 +121,7 @@ using the ``dmidecode`` tool. For example, on a desktop machine, it shows::
 On the above example, a DDR4 SO-DIMM memory module is located at the
 system's memory labeled as "BANK 0", as given by the *bank locator* field.
 Please notice that, on such system, the *total width* is equal to the
-*data witdh*. It means that such memory module doesn't have error
+*data width*. It means that such memory module doesn't have error
 detection/correction mechanisms.
 
 Unfortunately, not all systems use the same field to specify the memory
@@ -145,7 +145,7 @@ bank. On this example, from an older server, ``dmidecode`` shows::
 
 There, the DDR3 RDIMM memory module is located at the system's memory labeled
 as "DIMM_A1", as given by the *locator* field. Please notice that this
-memory module has 64 bits of *data witdh* and 72 bits of *total width*. So,
+memory module has 64 bits of *data width* and 72 bits of *total width*. So,
 it has 8 extra bits to be used by error detection and correction mechanisms.
 Such kind of memory is called Error-correcting code memory (ECC memory).
 
@@ -186,7 +186,7 @@ Architecture (MCA)\ [#f3]_.
 .. [#f1] Please notice that several memory controllers allow operation on a
   mode called "Lock-Step", where it groups two memory modules together,
   doing 128-bit reads/writes. That gives 16 bits for error correction, with
-  significatively improves the error correction mechanism, at the expense
+  significantly improves the error correction mechanism, at the expense
   that, when an error happens, there's no way to know what memory module is
   to blame. So, it has to blame both memory modules.
 
@@ -344,9 +344,9 @@ for more than 2 channels, like Fully Buffered DIMMs (FB-DIMMs) memory
 controllers. The following example will assume 2 channels:
 
 	+------------+-----------------------+
-	| Chip       |       Channels        |
-	| Select     +-----------+-----------+
-	| rows       |  ``ch0``  |  ``ch1``  |
+	| CS Rows    |       Channels        |
+	+------------+-----------+-----------+
+	|            |  ``ch0``  |  ``ch1``  |
 	+============+===========+===========+
 	| ``csrow0`` |  DIMM_A0  |  DIMM_B0  |
 	+------------+           |           |
@@ -438,11 +438,13 @@ A typical EDAC system has the following structure under
 	│   │   ├── ce_count
 	│   │   ├── ce_noinfo_count
 	│   │   ├── dimm0
+	│   │   │   ├── dimm_ce_count
 	│   │   │   ├── dimm_dev_type
 	│   │   │   ├── dimm_edac_mode
 	│   │   │   ├── dimm_label
 	│   │   │   ├── dimm_location
 	│   │   │   ├── dimm_mem_type
+	│   │   │   ├── dimm_ue_count
 	│   │   │   ├── size
 	│   │   │   └── uevent
 	│   │   ├── max_location
@@ -457,11 +459,13 @@ A typical EDAC system has the following structure under
 	│   │   ├── ce_count
 	│   │   ├── ce_noinfo_count
 	│   │   ├── dimm0
+	│   │   │   ├── dimm_ce_count
 	│   │   │   ├── dimm_dev_type
 	│   │   │   ├── dimm_edac_mode
 	│   │   │   ├── dimm_label
 	│   │   │   ├── dimm_location
 	│   │   │   ├── dimm_mem_type
+	│   │   │   ├── dimm_ue_count
 	│   │   │   ├── size
 	│   │   │   └── uevent
 	│   │   ├── max_location
@@ -482,6 +486,22 @@ this ``X`` memory module:
 
 	This attribute file displays, in count of megabytes, the memory
 	that this csrow contains.
+
+- ``dimm_ue_count`` - Uncorrectable Errors count attribute file
+
+	This attribute file displays the total count of uncorrectable
+	errors that have occurred on this DIMM. If panic_on_ue is set
+	this counter will not have a chance to increment, since EDAC
+	will panic the system.
+
+- ``dimm_ce_count`` - Correctable Errors count attribute file
+
+	This attribute file displays the total count of correctable
+	errors that have occurred on this DIMM. This count is very
+	important to examine. CEs provide early indications that a
+	DIMM is beginning to fail. This count field should be
+	monitored for non-zero values and report such information
+	to the system administrator.
 
 - ``dimm_dev_type``  - Device type attribute file
 
@@ -678,7 +698,7 @@ information indicating that errors have been detected::
 The structure of the message is:
 
 	+---------------------------------------+-------------+
-	| Content                               + Example     |
+	| Content                               | Example     |
 	+=======================================+=============+
 	| The memory controller                 | MC0         |
 	+---------------------------------------+-------------+
@@ -693,7 +713,7 @@ The structure of the message is:
 	+---------------------------------------+-------------+
 	| The error syndrome                    | 0xb741      |
 	+---------------------------------------+-------------+
-	| Memory row                            | row 0       +
+	| Memory row                            | row 0       |
 	+---------------------------------------+-------------+
 	| Memory channel                        | channel 1   |
 	+---------------------------------------+-------------+

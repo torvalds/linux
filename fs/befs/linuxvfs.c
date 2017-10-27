@@ -18,7 +18,9 @@
 #include <linux/parser.h>
 #include <linux/namei.h>
 #include <linux/sched.h>
+#include <linux/cred.h>
 #include <linux/exportfs.h>
+#include <linux/seq_file.h>
 
 #include "befs.h"
 #include "btree.h"
@@ -52,11 +54,13 @@ static int befs_nls2utf(struct super_block *sb, const char *in, int in_len,
 static void befs_put_super(struct super_block *);
 static int befs_remount(struct super_block *, int *, char *);
 static int befs_statfs(struct dentry *, struct kstatfs *);
+static int befs_show_options(struct seq_file *, struct dentry *);
 static int parse_options(char *, struct befs_mount_options *);
 static struct dentry *befs_fh_to_dentry(struct super_block *sb,
 				struct fid *fid, int fh_len, int fh_type);
 static struct dentry *befs_fh_to_parent(struct super_block *sb,
 				struct fid *fid, int fh_len, int fh_type);
+static struct dentry *befs_get_parent(struct dentry *child);
 
 static const struct super_operations befs_sops = {
 	.alloc_inode	= befs_alloc_inode,	/* allocate a new inode */
@@ -64,7 +68,7 @@ static const struct super_operations befs_sops = {
 	.put_super	= befs_put_super,	/* uninit super */
 	.statfs		= befs_statfs,	/* statfs */
 	.remount_fs	= befs_remount,
-	.show_options	= generic_show_options,
+	.show_options	= befs_show_options,
 };
 
 /* slab cache for befs_inode_info objects */
@@ -92,6 +96,7 @@ static const struct address_space_operations befs_symlink_aops = {
 static const struct export_operations befs_export_operations = {
 	.fh_to_dentry	= befs_fh_to_dentry,
 	.fh_to_parent	= befs_fh_to_parent,
+	.get_parent	= befs_get_parent,
 };
 
 /*
@@ -666,6 +671,19 @@ static struct dentry *befs_fh_to_parent(struct super_block *sb,
 				    befs_nfs_get_inode);
 }
 
+static struct dentry *befs_get_parent(struct dentry *child)
+{
+	struct inode *parent;
+	struct befs_inode_info *befs_ino = BEFS_I(d_inode(child));
+
+	parent = befs_iget(child->d_sb,
+			   (unsigned long)befs_ino->i_parent.start);
+	if (IS_ERR(parent))
+		return ERR_CAST(parent);
+
+	return d_obtain_alias(parent);
+}
+
 enum {
 	Opt_uid, Opt_gid, Opt_charset, Opt_debug, Opt_err,
 };
@@ -755,6 +773,24 @@ parse_options(char *options, struct befs_mount_options *opts)
 	return 1;
 }
 
+static int befs_show_options(struct seq_file *m, struct dentry *root)
+{
+	struct befs_sb_info *befs_sb = BEFS_SB(root->d_sb);
+	struct befs_mount_options *opts = &befs_sb->mount_opts;
+
+	if (!uid_eq(opts->uid, GLOBAL_ROOT_UID))
+		seq_printf(m, ",uid=%u",
+			   from_kuid_munged(&init_user_ns, opts->uid));
+	if (!gid_eq(opts->gid, GLOBAL_ROOT_GID))
+		seq_printf(m, ",gid=%u",
+			   from_kgid_munged(&init_user_ns, opts->gid));
+	if (opts->iocharset)
+		seq_printf(m, ",charset=%s", opts->iocharset);
+	if (opts->debug)
+		seq_puts(m, ",debug");
+	return 0;
+}
+
 /* This function has the responsibiltiy of getting the
  * filesystem ready for unmounting.
  * Basically, we free everything that we allocated in
@@ -788,8 +824,6 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	const off_t x86_sb_off = 512;
 	int blocksize;
 
-	save_mount_options(sb, data);
-
 	sb->s_fs_info = kzalloc(sizeof(*befs_sb), GFP_KERNEL);
 	if (sb->s_fs_info == NULL)
 		goto unacquire_none;
@@ -804,7 +838,7 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 
 	befs_debug(sb, "---> %s", __func__);
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		befs_warning(sb,
 			     "No write support. Marking filesystem read-only");
 		sb->s_flags |= MS_RDONLY;

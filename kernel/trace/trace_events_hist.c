@@ -19,6 +19,7 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/stacktrace.h>
+#include <linux/rculist.h>
 
 #include "tracing_map.h"
 #include "trace.h"

@@ -488,7 +488,15 @@ static int img_ir_set_filter(struct rc_dev *dev, enum rc_filter_type type,
 	/* convert scancode filter to raw filter */
 	filter.minlen = 0;
 	filter.maxlen = ~0;
-	ret = hw->decoder->filter(sc_filter, &filter, hw->enabled_protocols);
+	if (type == RC_FILTER_NORMAL) {
+		/* guess scancode from protocol */
+		ret = hw->decoder->filter(sc_filter, &filter,
+					  dev->enabled_protocols);
+	} else {
+		/* for wakeup user provided exact protocol variant */
+		ret = hw->decoder->filter(sc_filter, &filter,
+					  1ULL << dev->wakeup_protocol);
+	}
 	if (ret)
 		goto unlock;
 	dev_dbg(priv->dev, "IR raw %sfilter=%016llx & %016llx\n",
@@ -581,6 +589,7 @@ static void img_ir_set_decoder(struct img_ir_priv *priv,
 	/* clear the wakeup scancode filter */
 	rdev->scancode_wakeup_filter.data = 0;
 	rdev->scancode_wakeup_filter.mask = 0;
+	rdev->wakeup_protocol = RC_PROTO_UNKNOWN;
 
 	/* clear raw filters */
 	_img_ir_set_filter(priv, NULL);
@@ -685,7 +694,6 @@ success:
 	if (!hw->decoder || !hw->decoder->filter)
 		wakeup_protocols = 0;
 	rdev->allowed_wakeup_protocols = wakeup_protocols;
-	rdev->enabled_wakeup_protocols = wakeup_protocols;
 	return 0;
 }
 
@@ -694,14 +702,9 @@ static void img_ir_set_protocol(struct img_ir_priv *priv, u64 proto)
 {
 	struct rc_dev *rdev = priv->hw.rdev;
 
-	spin_lock_irq(&rdev->rc_map.lock);
-	rdev->rc_map.rc_type = __ffs64(proto);
-	spin_unlock_irq(&rdev->rc_map.lock);
-
 	mutex_lock(&rdev->lock);
 	rdev->enabled_protocols = proto;
 	rdev->allowed_wakeup_protocols = proto;
-	rdev->enabled_wakeup_protocols = proto;
 	mutex_unlock(&rdev->lock);
 }
 
@@ -820,7 +823,7 @@ static void img_ir_handle_data(struct img_ir_priv *priv, u32 len, u64 raw)
 	int ret = IMG_IR_SCANCODE;
 	struct img_ir_scancode_req request;
 
-	request.protocol = RC_TYPE_UNKNOWN;
+	request.protocol = RC_PROTO_UNKNOWN;
 	request.toggle   = 0;
 
 	if (dec->scancode)
@@ -1071,7 +1074,7 @@ int img_ir_probe_hw(struct img_ir_priv *priv)
 	}
 
 	/* Allocate hardware decoder */
-	hw->rdev = rdev = rc_allocate_device();
+	hw->rdev = rdev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!rdev) {
 		dev_err(priv->dev, "cannot allocate input device\n");
 		error = -ENOMEM;
@@ -1080,7 +1083,7 @@ int img_ir_probe_hw(struct img_ir_priv *priv)
 	rdev->priv = priv;
 	rdev->map_name = RC_MAP_EMPTY;
 	rdev->allowed_protocols = img_ir_allowed_protos(priv);
-	rdev->input_name = "IMG Infrared Decoder";
+	rdev->device_name = "IMG Infrared Decoder";
 	rdev->s_filter = img_ir_set_normal_filter;
 	rdev->s_wakeup_filter = img_ir_set_wakeup_filter;
 

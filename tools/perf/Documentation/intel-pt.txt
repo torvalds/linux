@@ -104,9 +104,12 @@ system, asynchronous, interrupt, transaction abort, trace begin, trace end, and
 in transaction, respectively.
 
 While it is possible to create scripts to analyze the data, an alternative
-approach is available to export the data to a postgresql database.  Refer to
-script export-to-postgresql.py for more details, and to script
-call-graph-from-postgresql.py for an example of using the database.
+approach is available to export the data to a sqlite or postgresql database.
+Refer to script export-to-sqlite.py or export-to-postgresql.py for more details,
+and to script call-graph-from-sql.py for an example of using the database.
+
+There is also script intel-pt-events.py which provides an example of how to
+unpack the raw data for power events and PTWRITE.
 
 As mentioned above, it is easy to capture too much data.  One way to limit the
 data captured is to use 'snapshot' mode which is explained further below.
@@ -363,6 +366,42 @@ cyc_thresh	Specifies how frequently CYC packets are produced - see cyc
 			Invalid cyc_thresh for intel_pt. Valid values are: 0-12
 
 		CYC packets are not requested by default.
+
+pt		Specifies pass-through which enables the 'branch' config term.
+
+		The default config selects 'pt' if it is available, so a user will
+		never need to specify this term.
+
+branch		Enable branch tracing.  Branch tracing is enabled by default so to
+		disable branch tracing use 'branch=0'.
+
+		The default config selects 'branch' if it is available.
+
+ptw		Enable PTWRITE packets which are produced when a ptwrite instruction
+		is executed.
+
+		Support for this feature is indicated by:
+
+			/sys/bus/event_source/devices/intel_pt/caps/ptwrite
+
+		which contains "1" if the feature is supported and
+		"0" otherwise.
+
+fup_on_ptw	Enable a FUP packet to follow the PTWRITE packet.  The FUP packet
+		provides the address of the ptwrite instruction.  In the absence of
+		fup_on_ptw, the decoder will use the address of the previous branch
+		if branch tracing is enabled, otherwise the address will be zero.
+		Note that fup_on_ptw will work even when branch tracing is disabled.
+
+pwr_evt		Enable power events.  The power events provide information about
+		changes to the CPU C-state.
+
+		Support for this feature is indicated by:
+
+			/sys/bus/event_source/devices/intel_pt/caps/power_event_trace
+
+		which contains "1" if the feature is supported and
+		"0" otherwise.
 
 
 new snapshot option
@@ -674,13 +713,15 @@ Having no option is the same as
 
 which, in turn, is the same as
 
-	--itrace=ibxe
+	--itrace=ibxwpe
 
 The letters are:
 
 	i	synthesize "instructions" events
 	b	synthesize "branches" events
 	x	synthesize "transactions" events
+	w	synthesize "ptwrite" events
+	p	synthesize "power" events
 	c	synthesize branches events (calls only)
 	r	synthesize branches events (returns only)
 	e	synthesize tracing error events
@@ -699,7 +740,40 @@ and "r" can be combined to get calls and returns.
 'flags' field can be used in perf script to determine whether the event is a
 tranasaction start, commit or abort.
 
-Error events are new.  They show where the decoder lost the trace.  Error events
+Note that "instructions", "branches" and "transactions" events depend on code
+flow packets which can be disabled by using the config term "branch=0".  Refer
+to the config terms section above.
+
+"ptwrite" events record the payload of the ptwrite instruction and whether
+"fup_on_ptw" was used.  "ptwrite" events depend on PTWRITE packets which are
+recorded only if the "ptw" config term was used.  Refer to the config terms
+section above.  perf script "synth" field displays "ptwrite" information like
+this: "ip: 0 payload: 0x123456789abcdef0"  where "ip" is 1 if "fup_on_ptw" was
+used.
+
+"Power" events correspond to power event packets and CBR (core-to-bus ratio)
+packets.  While CBR packets are always recorded when tracing is enabled, power
+event packets are recorded only if the "pwr_evt" config term was used.  Refer to
+the config terms section above.  The power events record information about
+C-state changes, whereas CBR is indicative of CPU frequency.  perf script
+"event,synth" fields display information like this:
+	cbr:  cbr: 22 freq: 2189 MHz (200%)
+	mwait:  hints: 0x60 extensions: 0x1
+	pwre:  hw: 0 cstate: 2 sub-cstate: 0
+	exstop:  ip: 1
+	pwrx:  deepest cstate: 2 last cstate: 2 wake reason: 0x4
+Where:
+	"cbr" includes the frequency and the percentage of maximum non-turbo
+	"mwait" shows mwait hints and extensions
+	"pwre" shows C-state transitions (to a C-state deeper than C0) and
+	whether	initiated by hardware
+	"exstop" indicates execution stopped and whether the IP was recorded
+	exactly,
+	"pwrx" indicates return to C0
+For more details refer to the Intel 64 and IA-32 Architectures Software
+Developer Manuals.
+
+Error events show where the decoder lost the trace.  Error events
 are quite important.  Users must know if what they are seeing is a complete
 picture or not.
 
@@ -799,7 +873,7 @@ amended to take the number of elements as a parameter.
 
 	$ cat ~/.perfconfig
 	[intel-pt]
-		mispred-all
+		mispred-all = on
 
 	$ perf record -e intel_pt//u ./sort 3000
 	Bubble sorting array of 3000 elements

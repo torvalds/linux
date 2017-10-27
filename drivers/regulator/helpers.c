@@ -446,6 +446,42 @@ int regulator_set_bypass_regmap(struct regulator_dev *rdev, bool enable)
 EXPORT_SYMBOL_GPL(regulator_set_bypass_regmap);
 
 /**
+ * regulator_set_soft_start_regmap - Default set_soft_start() using regmap
+ *
+ * @rdev: device to operate on.
+ */
+int regulator_set_soft_start_regmap(struct regulator_dev *rdev)
+{
+	unsigned int val;
+
+	val = rdev->desc->soft_start_val_on;
+	if (!val)
+		val = rdev->desc->soft_start_mask;
+
+	return regmap_update_bits(rdev->regmap, rdev->desc->soft_start_reg,
+				  rdev->desc->soft_start_mask, val);
+}
+EXPORT_SYMBOL_GPL(regulator_set_soft_start_regmap);
+
+/**
+ * regulator_set_pull_down_regmap - Default set_pull_down() using regmap
+ *
+ * @rdev: device to operate on.
+ */
+int regulator_set_pull_down_regmap(struct regulator_dev *rdev)
+{
+	unsigned int val;
+
+	val = rdev->desc->pull_down_val_on;
+	if (!val)
+		val = rdev->desc->pull_down_mask;
+
+	return regmap_update_bits(rdev->regmap, rdev->desc->pull_down_reg,
+				  rdev->desc->pull_down_mask, val);
+}
+EXPORT_SYMBOL_GPL(regulator_set_pull_down_regmap);
+
+/**
  * regulator_get_bypass_regmap - Default get_bypass() using regmap
  *
  * @rdev: device to operate on.

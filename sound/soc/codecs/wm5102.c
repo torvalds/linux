@@ -855,6 +855,8 @@ ARIZONA_LHPF_CONTROL("LHPF2 Coefficients", ARIZONA_HPLPF2_2),
 ARIZONA_LHPF_CONTROL("LHPF3 Coefficients", ARIZONA_HPLPF3_2),
 ARIZONA_LHPF_CONTROL("LHPF4 Coefficients", ARIZONA_HPLPF4_2),
 
+WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
+
 ARIZONA_MIXER_CONTROLS("DSP1L", ARIZONA_DSP1LMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("DSP1R", ARIZONA_DSP1RMIX_INPUT_1_SOURCE),
 
@@ -1944,7 +1946,10 @@ static int wm5102_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		goto err_adsp2_codec_probe;
 
-	arizona_init_spk(codec);
+	ret = arizona_init_spk(codec);
+	if (ret < 0)
+		return ret;
+
 	arizona_init_gpio(codec);
 	arizona_init_notifiers(codec);
 
@@ -2012,7 +2017,7 @@ static const struct snd_soc_codec_driver soc_codec_dev_wm5102 = {
 	},
 };
 
-static struct snd_compr_ops wm5102_compr_ops = {
+static const struct snd_compr_ops wm5102_compr_ops = {
 	.open = wm5102_open,
 	.free = wm_adsp_compr_free,
 	.set_params = wm_adsp_compr_set_params,
@@ -2022,7 +2027,7 @@ static struct snd_compr_ops wm5102_compr_ops = {
 	.copy = wm_adsp_compr_copy,
 };
 
-static struct snd_soc_platform_driver wm5102_compr_platform = {
+static const struct snd_soc_platform_driver wm5102_compr_platform = {
 	.compr_ops = &wm5102_compr_ops,
 };
 

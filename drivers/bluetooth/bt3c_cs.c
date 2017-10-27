@@ -282,7 +282,7 @@ static void bt3c_receive(struct bt3c_info *info)
 
 			__u8 x = inb(iobase + DATA_L);
 
-			*skb_put(info->rx_skb, 1) = x;
+			skb_put_u8(info->rx_skb, x);
 			inb(iobase + DATA_H);
 			info->rx_count--;
 
@@ -684,14 +684,16 @@ static int bt3c_config(struct pcmcia_device *link)
 	unsigned long try;
 
 	/* First pass: look for a config entry that looks normal.
-	   Two tries: without IO aliases, then with aliases */
+	 * Two tries: without IO aliases, then with aliases
+	 */
 	for (try = 0; try < 2; try++)
 		if (!pcmcia_loop_config(link, bt3c_check_config, (void *) try))
 			goto found_port;
 
 	/* Second pass: try to find an entry that isn't picky about
-	   its base address, then try to grab any standard serial port
-	   address, and finally try to get any free port. */
+	 * its base address, then try to grab any standard serial port
+	 * address, and finally try to get any free port.
+	 */
 	if (!pcmcia_loop_config(link, bt3c_check_config_notpicky, NULL))
 		goto found_port;
 

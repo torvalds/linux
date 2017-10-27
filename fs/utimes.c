@@ -1,14 +1,10 @@
-#include <linux/compiler.h>
 #include <linux/file.h>
-#include <linux/fs.h>
-#include <linux/linkage.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
-#include <linux/sched.h>
-#include <linux/stat.h>
 #include <linux/utime.h>
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
+#include <linux/compat.h>
 #include <asm/unistd.h>
 
 #ifdef __ARCH_WANT_SYS_UTIME
@@ -26,7 +22,7 @@
  */
 SYSCALL_DEFINE2(utime, char __user *, filename, struct utimbuf __user *, times)
 {
-	struct timespec tv[2];
+	struct timespec64 tv[2];
 
 	if (times) {
 		if (get_user(tv[0].tv_sec, &times->actime) ||
@@ -48,7 +44,7 @@ static bool nsec_valid(long nsec)
 	return nsec >= 0 && nsec <= 999999999;
 }
 
-static int utimes_common(const struct path *path, struct timespec *times)
+static int utimes_common(const struct path *path, struct timespec64 *times)
 {
 	int error;
 	struct iattr newattrs;
@@ -119,7 +115,7 @@ out:
  * must be owner or have write permission.
  * Else, update from *times, must be owner or super user.
  */
-long do_utimes(int dfd, const char __user *filename, struct timespec *times,
+long do_utimes(int dfd, const char __user *filename, struct timespec64 *times,
 	       int flags)
 {
 	int error = -EINVAL;
@@ -171,10 +167,11 @@ out:
 SYSCALL_DEFINE4(utimensat, int, dfd, const char __user *, filename,
 		struct timespec __user *, utimes, int, flags)
 {
-	struct timespec tstimes[2];
+	struct timespec64 tstimes[2];
 
 	if (utimes) {
-		if (copy_from_user(&tstimes, utimes, sizeof(tstimes)))
+		if ((get_timespec64(&tstimes[0], &utimes[0]) ||
+			get_timespec64(&tstimes[1], &utimes[1])))
 			return -EFAULT;
 
 		/* Nothing to do, we must not even check the path.  */
@@ -190,7 +187,7 @@ SYSCALL_DEFINE3(futimesat, int, dfd, const char __user *, filename,
 		struct timeval __user *, utimes)
 {
 	struct timeval times[2];
-	struct timespec tstimes[2];
+	struct timespec64 tstimes[2];
 
 	if (utimes) {
 		if (copy_from_user(&times, utimes, sizeof(times)))
@@ -219,3 +216,63 @@ SYSCALL_DEFINE2(utimes, char __user *, filename,
 {
 	return sys_futimesat(AT_FDCWD, filename, utimes);
 }
+
+#ifdef CONFIG_COMPAT
+/*
+ * Not all architectures have sys_utime, so implement this in terms
+ * of sys_utimes.
+ */
+COMPAT_SYSCALL_DEFINE2(utime, const char __user *, filename,
+		       struct compat_utimbuf __user *, t)
+{
+	struct timespec64 tv[2];
+
+	if (t) {
+		if (get_user(tv[0].tv_sec, &t->actime) ||
+		    get_user(tv[1].tv_sec, &t->modtime))
+			return -EFAULT;
+		tv[0].tv_nsec = 0;
+		tv[1].tv_nsec = 0;
+	}
+	return do_utimes(AT_FDCWD, filename, t ? tv : NULL, 0);
+}
+
+COMPAT_SYSCALL_DEFINE4(utimensat, unsigned int, dfd, const char __user *, filename, struct compat_timespec __user *, t, int, flags)
+{
+	struct timespec64 tv[2];
+
+	if  (t) {
+		if (compat_get_timespec64(&tv[0], &t[0]) ||
+		    compat_get_timespec64(&tv[1], &t[1]))
+			return -EFAULT;
+
+		if (tv[0].tv_nsec == UTIME_OMIT && tv[1].tv_nsec == UTIME_OMIT)
+			return 0;
+	}
+	return do_utimes(dfd, filename, t ? tv : NULL, flags);
+}
+
+COMPAT_SYSCALL_DEFINE3(futimesat, unsigned int, dfd, const char __user *, filename, struct compat_timeval __user *, t)
+{
+	struct timespec64 tv[2];
+
+	if (t) {
+		if (get_user(tv[0].tv_sec, &t[0].tv_sec) ||
+		    get_user(tv[0].tv_nsec, &t[0].tv_usec) ||
+		    get_user(tv[1].tv_sec, &t[1].tv_sec) ||
+		    get_user(tv[1].tv_nsec, &t[1].tv_usec))
+			return -EFAULT;
+		if (tv[0].tv_nsec >= 1000000 || tv[0].tv_nsec < 0 ||
+		    tv[1].tv_nsec >= 1000000 || tv[1].tv_nsec < 0)
+			return -EINVAL;
+		tv[0].tv_nsec *= 1000;
+		tv[1].tv_nsec *= 1000;
+	}
+	return do_utimes(dfd, filename, t ? tv : NULL, 0);
+}
+
+COMPAT_SYSCALL_DEFINE2(utimes, const char __user *, filename, struct compat_timeval __user *, t)
+{
+	return compat_sys_futimesat(AT_FDCWD, filename, t);
+}
+#endif

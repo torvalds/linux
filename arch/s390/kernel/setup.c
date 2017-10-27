@@ -18,6 +18,8 @@
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/sched.h>
+#include <linux/sched/task.h>
+#include <linux/cpu.h>
 #include <linux/kernel.h>
 #include <linux/memblock.h>
 #include <linux/mm.h>
@@ -303,7 +305,7 @@ static void __init setup_lowcore(void)
 	/*
 	 * Setup lowcore for boot cpu
 	 */
-	BUILD_BUG_ON(sizeof(struct lowcore) != LC_PAGES * 4096);
+	BUILD_BUG_ON(sizeof(struct lowcore) != LC_PAGES * PAGE_SIZE);
 	lc = memblock_virt_alloc_low(sizeof(*lc), sizeof(*lc));
 	lc->restart_psw.mask = PSW_KERNEL_BITS;
 	lc->restart_psw.addr = (unsigned long) restart_int_handler;
@@ -321,7 +323,7 @@ static void __init setup_lowcore(void)
 	lc->io_new_psw.mask = PSW_KERNEL_BITS |
 		PSW_MASK_DAT | PSW_MASK_MCHECK;
 	lc->io_new_psw.addr = (unsigned long) io_int_handler;
-	lc->clock_comparator = -1ULL;
+	lc->clock_comparator = clock_comparator_max;
 	lc->kernel_stack = ((unsigned long) &init_thread_union)
 		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->async_stack = (unsigned long)
@@ -337,9 +339,15 @@ static void __init setup_lowcore(void)
 	lc->stfl_fac_list = S390_lowcore.stfl_fac_list;
 	memcpy(lc->stfle_fac_list, S390_lowcore.stfle_fac_list,
 	       MAX_FACILITY_BIT/8);
-	if (MACHINE_HAS_VX)
-		lc->vector_save_area_addr =
-			(unsigned long) &lc->vector_save_area;
+	if (MACHINE_HAS_VX || MACHINE_HAS_GS) {
+		unsigned long bits, size;
+
+		bits = MACHINE_HAS_GS ? 11 : 10;
+		size = 1UL << bits;
+		lc->mcesad = (__u64) memblock_virt_alloc(size, size);
+		if (MACHINE_HAS_GS)
+			lc->mcesad |= bits;
+	}
 	lc->vdso_per_cpu_data = (unsigned long) &lc->paste[0];
 	lc->sync_enter_timer = S390_lowcore.sync_enter_timer;
 	lc->async_enter_timer = S390_lowcore.async_enter_timer;
@@ -461,10 +469,10 @@ static void __init setup_memory_end(void)
 	vmalloc_size = VMALLOC_END ?: (128UL << 30) - MODULES_LEN;
 	tmp = (memory_end ?: max_physmem_end) / PAGE_SIZE;
 	tmp = tmp * (sizeof(struct page) + PAGE_SIZE);
-	if (tmp + vmalloc_size + MODULES_LEN <= (1UL << 42))
-		vmax = 1UL << 42;	/* 3-level kernel page table */
+	if (tmp + vmalloc_size + MODULES_LEN <= _REGION2_SIZE)
+		vmax = _REGION2_SIZE; /* 3-level kernel page table */
 	else
-		vmax = 1UL << 53;	/* 4-level kernel page table */
+		vmax = _REGION1_SIZE; /* 4-level kernel page table */
 	/* module area is at the end of the kernel address space. */
 	MODULES_END = vmax;
 	MODULES_VADDR = MODULES_END - MODULES_LEN;
@@ -486,11 +494,6 @@ static void __init setup_memory_end(void)
 	memblock_remove(memory_end, ULONG_MAX);
 
 	pr_notice("The maximum memory size is %luMB\n", memory_end >> 20);
-}
-
-static void __init setup_vmcoreinfo(void)
-{
-	mem_assign_absolute(S390_lowcore.vmcore_info, paddr_vmcoreinfo_note());
 }
 
 #ifdef CONFIG_CRASH_DUMP
@@ -636,6 +639,8 @@ static void __init reserve_crashkernel(void)
 static void __init reserve_initrd(void)
 {
 #ifdef CONFIG_BLK_DEV_INITRD
+	if (!INITRD_START || !INITRD_SIZE)
+		return;
 	initrd_start = INITRD_START;
 	initrd_end = initrd_start + INITRD_SIZE;
 	memblock_reserve(INITRD_START, INITRD_SIZE);
@@ -747,7 +752,7 @@ static int __init setup_hwcaps(void)
 	/*
 	 * Huge page support HWCAP_S390_HPAGE is bit 7.
 	 */
-	if (MACHINE_HAS_HPAGE)
+	if (MACHINE_HAS_EDAT1)
 		elf_hwcap |= HWCAP_S390_HPAGE;
 
 	/*
@@ -767,8 +772,20 @@ static int __init setup_hwcaps(void)
 	 * can be disabled with the "novx" parameter. Use MACHINE_HAS_VX
 	 * instead of facility bit 129.
 	 */
-	if (MACHINE_HAS_VX)
+	if (MACHINE_HAS_VX) {
 		elf_hwcap |= HWCAP_S390_VXRS;
+		if (test_facility(134))
+			elf_hwcap |= HWCAP_S390_VXRS_EXT;
+		if (test_facility(135))
+			elf_hwcap |= HWCAP_S390_VXRS_BCD;
+	}
+
+	/*
+	 * Guarded storage support HWCAP_S390_GS is bit 12.
+	 */
+	if (MACHINE_HAS_GS)
+		elf_hwcap |= HWCAP_S390_GS;
+
 	get_cpu_id(&cpu_id);
 	add_device_randomness(&cpu_id, sizeof(cpu_id));
 	switch (cpu_id.machine) {
@@ -801,6 +818,9 @@ static int __init setup_hwcaps(void)
 	case 0x2965:
 		strcpy(elf_platform, "z13");
 		break;
+	case 0x3906:
+		strcpy(elf_platform, "z14");
+		break;
 	}
 
 	/*
@@ -820,10 +840,10 @@ static void __init setup_randomness(void)
 {
 	struct sysinfo_3_2_2 *vmms;
 
-	vmms = (struct sysinfo_3_2_2 *) alloc_page(GFP_KERNEL);
-	if (vmms && stsi(vmms, 3, 2, 2) == 0 && vmms->count)
-		add_device_randomness(&vmms, vmms->count);
-	free_page((unsigned long) vmms);
+	vmms = (struct sysinfo_3_2_2 *) memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+	if (stsi(vmms, 3, 2, 2) == 0 && vmms->count)
+		add_device_randomness(&vmms->vm, sizeof(vmms->vm[0]) * vmms->count);
+	memblock_free((unsigned long) vmms, PAGE_SIZE);
 }
 
 /*
@@ -905,6 +925,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_memory_end();
 	setup_memory();
 	dma_contiguous_reserve(memory_end);
+	vmcp_cma_reserve();
 
 	check_initrd();
 	reserve_crashkernel();
@@ -917,7 +938,6 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	setup_resources();
-	setup_vmcoreinfo();
 	setup_lowcore();
 	smp_fill_possible_mask();
 	cpu_detect_mhz_feature();

@@ -457,7 +457,7 @@ static inline void inbound_primed(struct qdio_q *q, int count)
 {
 	int new;
 
-	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in prim: %02x", count);
+	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in prim:%1d %02x", q->nr, count);
 
 	/* for QEBSM the ACK was already set by EQBS */
 	if (is_qebsm(q)) {
@@ -544,7 +544,8 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 	case SLSB_P_INPUT_ACK:
 		if (q->irq_ptr->perf_stat_enabled)
 			q->q_stats.nr_sbal_nop++;
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in nop");
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in nop:%1d %#02x",
+			q->nr, q->first_to_check);
 		break;
 	default:
 		WARN_ON_ONCE(1);

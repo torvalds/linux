@@ -31,7 +31,7 @@ struct svc_xprt_ops {
 struct svc_xprt_class {
 	const char		*xcl_name;
 	struct module		*xcl_owner;
-	struct svc_xprt_ops	*xcl_ops;
+	const struct svc_xprt_ops *xcl_ops;
 	struct list_head	xcl_list;
 	u32			xcl_max_payload;
 	int			xcl_ident;
@@ -49,7 +49,7 @@ struct svc_xpt_user {
 
 struct svc_xprt {
 	struct svc_xprt_class	*xpt_class;
-	struct svc_xprt_ops	*xpt_ops;
+	const struct svc_xprt_ops *xpt_ops;
 	struct kref		xpt_ref;
 	struct list_head	xpt_list;
 	struct list_head	xpt_ready;
@@ -67,6 +67,7 @@ struct svc_xprt {
 #define XPT_CACHE_AUTH	11		/* cache auth info */
 #define XPT_LOCAL	12		/* connection from loopback interface */
 #define XPT_KILL_TEMP   13		/* call xpo_kill_temp_xprt before closing */
+#define XPT_CONG_CTRL	14		/* has congestion control */
 
 	struct svc_serv		*xpt_server;	/* service for transport */
 	atomic_t    	    	xpt_reserved;	/* space on outq that is rsvd */

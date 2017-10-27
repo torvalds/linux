@@ -25,11 +25,6 @@
 #include "ahb.h"
 
 /*
- * maximum number of bytes that can be handled atomically by DiagRead/DiagWrite
- */
-#define DIAG_TRANSFER_LIMIT 2048
-
-/*
  * maximum number of bytes that can be
  * handled atomically by DiagRead/DiagWrite
  */
@@ -155,12 +150,6 @@ struct ath10k_pci_supp_chip {
 	u32 rev_id;
 };
 
-struct ath10k_bus_ops {
-	u32 (*read32)(struct ath10k *ar, u32 offset);
-	void (*write32)(struct ath10k *ar, u32 offset, u32 value);
-	int (*get_num_banks)(struct ath10k *ar);
-};
-
 enum ath10k_pci_irq_mode {
 	ATH10K_PCI_IRQ_AUTO = 0,
 	ATH10K_PCI_IRQ_LEGACY = 1,
@@ -182,11 +171,7 @@ struct ath10k_pci {
 	/* Copy Engine used for Diagnostic Accesses */
 	struct ath10k_ce_pipe *ce_diag;
 
-	/* FIXME: document what this really protects */
-	spinlock_t ce_lock;
-
-	/* Map CE id to ce_state */
-	struct ath10k_ce_pipe ce_states[CE_COUNT_MAX];
+	struct ath10k_ce ce;
 	struct timer_list rx_post_retry;
 
 	/* Due to HW quirks it is recommended to disable ASPM during device
@@ -230,13 +215,16 @@ struct ath10k_pci {
 	 */
 	bool pci_ps;
 
-	const struct ath10k_bus_ops *bus_ops;
-
 	/* Chip specific pci reset routine used to do a safe reset */
 	int (*pci_soft_reset)(struct ath10k *ar);
 
 	/* Chip specific pci full reset function */
 	int (*pci_hard_reset)(struct ath10k *ar);
+
+	/* chip specific methods for converting target CPU virtual address
+	 * space to CE address space
+	 */
+	u32 (*targ_cpu_to_ce_addr)(struct ath10k *ar, u32 addr);
 
 	/* Keep this entry in the last, memory for struct ath10k_ahb is
 	 * allocated (ahb support enabled case) in the continuation of

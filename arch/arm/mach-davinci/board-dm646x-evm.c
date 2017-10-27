@@ -23,13 +23,13 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/platform_data/at24.h>
-#include <linux/i2c/pcf857x.h>
+#include <linux/platform_data/pcf857x.h>
 
 #include <media/i2c/tvp514x.h>
 #include <media/i2c/adv7343.h>
 
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/clk.h>
 #include <linux/export.h>
@@ -119,7 +119,8 @@ static struct platform_device davinci_nand_device = {
 	},
 };
 
-#define HAS_ATA		IS_ENABLED(CONFIG_BLK_DEV_PALMCHIP_BK3710)
+#define HAS_ATA		(IS_ENABLED(CONFIG_BLK_DEV_PALMCHIP_BK3710) || \
+			 IS_ENABLED(CONFIG_PATA_BK3710))
 
 #ifdef CONFIG_I2C
 /* CPLD Register 0 bits to control ATA */
@@ -640,7 +641,7 @@ static struct vpif_subdev_info vpif_capture_sdev_info[] = {
 	},
 };
 
-static const struct vpif_input dm6467_ch0_inputs[] = {
+static struct vpif_input dm6467_ch0_inputs[] = {
 	{
 		.input = {
 			.index = 0,
@@ -655,7 +656,7 @@ static const struct vpif_input dm6467_ch0_inputs[] = {
 	},
 };
 
-static const struct vpif_input dm6467_ch1_inputs[] = {
+static struct vpif_input dm6467_ch1_inputs[] = {
        {
 		.input = {
 			.index = 0,

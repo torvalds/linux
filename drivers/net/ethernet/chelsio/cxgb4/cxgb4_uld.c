@@ -408,10 +408,9 @@ static void enable_rx(struct adapter *adap, struct sge_rspq *q)
 	if (!q)
 		return;
 
-	if (q->handler) {
-		cxgb_busy_poll_init_lock(q);
+	if (q->handler)
 		napi_enable(&q->napi);
-	}
+
 	/* 0-increment GTS to start the timer and enable interrupts */
 	t4_write_reg(adap, MYPF_REG(SGE_PF_GTS_A),
 		     SEINTARM_V(q->intr_params) |
@@ -420,13 +419,8 @@ static void enable_rx(struct adapter *adap, struct sge_rspq *q)
 
 static void quiesce_rx(struct adapter *adap, struct sge_rspq *q)
 {
-	if (q && q->handler) {
+	if (q && q->handler)
 		napi_disable(&q->napi);
-		local_bh_disable();
-		while (!cxgb_poll_lock_napi(q))
-			mdelay(1);
-		local_bh_enable();
-	}
 }
 
 static void enable_rx_uld(struct adapter *adap, unsigned int uld_type)
@@ -595,24 +589,37 @@ void t4_uld_mem_free(struct adapter *adap)
 	kfree(adap->uld);
 }
 
+/* This function should be called with uld_mutex taken. */
+static void cxgb4_shutdown_uld_adapter(struct adapter *adap, enum cxgb4_uld type)
+{
+	if (adap->uld[type].handle) {
+		adap->uld[type].handle = NULL;
+		adap->uld[type].add = NULL;
+		release_sge_txq_uld(adap, type);
+
+		if (adap->flags & FULL_INIT_DONE)
+			quiesce_rx_uld(adap, type);
+
+		if (adap->flags & USING_MSIX)
+			free_msix_queue_irqs_uld(adap, type);
+
+		free_sge_queues_uld(adap, type);
+		free_queues_uld(adap, type);
+	}
+}
+
 void t4_uld_clean_up(struct adapter *adap)
 {
-	struct sge_uld_rxq_info *rxq_info;
 	unsigned int i;
 
-	if (!adap->uld)
-		return;
+	mutex_lock(&uld_mutex);
 	for (i = 0; i < CXGB4_ULD_MAX; i++) {
 		if (!adap->uld[i].handle)
 			continue;
-		rxq_info = adap->sge.uld_rxq_info[i];
-		if (adap->flags & FULL_INIT_DONE)
-			quiesce_rx_uld(adap, i);
-		if (adap->flags & USING_MSIX)
-			free_msix_queue_irqs_uld(adap, i);
-		free_sge_queues_uld(adap, i);
-		free_queues_uld(adap, i);
+
+		cxgb4_shutdown_uld_adapter(adap, i);
 	}
+	mutex_unlock(&uld_mutex);
 }
 
 static void uld_init(struct adapter *adap, struct cxgb4_lld_info *lld)
@@ -650,6 +657,7 @@ static void uld_init(struct adapter *adap, struct cxgb4_lld_info *lld)
 	lld->sge_ingpadboundary = adap->sge.fl_align;
 	lld->sge_egrstatuspagesize = adap->sge.stat_len;
 	lld->sge_pktshift = adap->sge.pktshift;
+	lld->ulp_crypto = adap->params.crypto;
 	lld->enable_fw_ofld_conn = adap->flags & FW_OFLD_CONN;
 	lld->max_ordird_qp = adap->params.max_ordird_qp;
 	lld->max_ird_adapter = adap->params.max_ird_adapter;
@@ -790,15 +798,8 @@ int cxgb4_unregister_uld(enum cxgb4_uld type)
 			continue;
 		if (type == CXGB4_ULD_ISCSIT && is_t4(adap->params.chip))
 			continue;
-		adap->uld[type].handle = NULL;
-		adap->uld[type].add = NULL;
-		release_sge_txq_uld(adap, type);
-		if (adap->flags & FULL_INIT_DONE)
-			quiesce_rx_uld(adap, type);
-		if (adap->flags & USING_MSIX)
-			free_msix_queue_irqs_uld(adap, type);
-		free_sge_queues_uld(adap, type);
-		free_queues_uld(adap, type);
+
+		cxgb4_shutdown_uld_adapter(adap, type);
 	}
 	mutex_unlock(&uld_mutex);
 

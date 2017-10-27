@@ -1,8 +1,14 @@
+#include <errno.h>
+#include <inttypes.h>
 /* For the CPU_* macros */
 #include <pthread.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <api/fs/fs.h>
 #include <linux/err.h>
+#include <api/fs/tracing_path.h>
 #include "evsel.h"
 #include "tests.h"
 #include "thread_map.h"
@@ -10,7 +16,7 @@
 #include "debug.h"
 #include "stat.h"
 
-int test__openat_syscall_event_on_all_cpus(int subtest __maybe_unused)
+int test__openat_syscall_event_on_all_cpus(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = -1, fd, cpu;
 	struct cpu_map *cpus;
@@ -109,7 +115,7 @@ int test__openat_syscall_event_on_all_cpus(int subtest __maybe_unused)
 
 	perf_evsel__free_counts(evsel);
 out_close_fd:
-	perf_evsel__close_fd(evsel, 1, threads->nr);
+	perf_evsel__close_fd(evsel);
 out_evsel_delete:
 	perf_evsel__delete(evsel);
 out_thread_map_delete:

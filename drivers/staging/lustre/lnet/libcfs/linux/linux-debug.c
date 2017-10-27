@@ -51,7 +51,7 @@
 
 # define DEBUG_SUBSYSTEM S_LNET
 
-#include "../../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
 #include "../tracefile.h"
 
@@ -107,7 +107,7 @@ void __noreturn lbug_with_loc(struct libcfs_debug_msg_data *msgdata)
 		libcfs_debug_dumplog();
 	if (libcfs_panic_on_lbug)
 		panic("LBUG");
-	set_task_state(current, TASK_UNINTERRUPTIBLE);
+	set_current_state(TASK_UNINTERRUPTIBLE);
 	while (1)
 		schedule();
 }

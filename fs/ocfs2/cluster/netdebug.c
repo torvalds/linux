@@ -349,7 +349,7 @@ static void sc_show_sock_container(struct seq_file *seq,
 		   "  func key:        0x%08x\n"
 		   "  func type:       %u\n",
 		   sc,
-		   atomic_read(&sc->sc_kref.refcount),
+		   kref_read(&sc->sc_kref),
 		   &saddr, inet ? ntohs(sport) : 0,
 		   &daddr, inet ? ntohs(dport) : 0,
 		   sc->sc_node->nd_name,
@@ -426,6 +426,7 @@ static int sc_fop_release(struct inode *inode, struct file *file)
 	struct o2net_sock_container *dummy_sc = sd->dbg_sock;
 
 	o2net_debug_del_sc(dummy_sc);
+	kfree(dummy_sc);
 	return seq_release_private(inode, file);
 }
 

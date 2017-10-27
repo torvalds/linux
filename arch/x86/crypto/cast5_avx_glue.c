@@ -256,8 +256,7 @@ static void ctr_crypt_final(struct blkcipher_desc *desc,
 	unsigned int nbytes = walk->nbytes;
 
 	__cast5_encrypt(ctx, keystream, ctrblk);
-	crypto_xor(keystream, src, nbytes);
-	memcpy(dst, keystream, nbytes);
+	crypto_xor_cpy(dst, keystream, src, nbytes);
 
 	crypto_inc(ctrblk, CAST5_BLOCK_SIZE);
 }

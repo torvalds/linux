@@ -116,7 +116,7 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 	if (meson_vpu_is_compatible(priv, "amlogic,meson-gxbb-vpu"))
 		priv->viu.osd1_blk0_cfg[0] |= OSD_OUTPUT_COLOR_RGB;
 
-	switch (fb->pixel_format) {
+	switch (fb->format->format) {
 	case DRM_FORMAT_XRGB8888:
 		/* For XRGB, replace the pixel's alpha by 0xFF */
 		writel_bits_relaxed(OSD_REPLACE_EN, OSD_REPLACE_EN,
@@ -223,6 +223,7 @@ int meson_plane_create(struct meson_drm *priv)
 				 &meson_plane_funcs,
 				 supported_drm_formats,
 				 ARRAY_SIZE(supported_drm_formats),
+				 NULL,
 				 DRM_PLANE_TYPE_PRIMARY, "meson_primary_plane");
 
 	drm_plane_helper_add(plane, &meson_plane_helper_funcs);

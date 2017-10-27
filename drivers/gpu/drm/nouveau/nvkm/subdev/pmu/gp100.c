@@ -25,7 +25,8 @@
 
 static const struct nvkm_pmu_func
 gp100_pmu = {
-	.reset = gt215_pmu_reset,
+	.enabled = gf100_pmu_enabled,
+	.reset = gf100_pmu_reset,
 };
 
 int

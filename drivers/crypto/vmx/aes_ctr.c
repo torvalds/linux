@@ -36,14 +36,9 @@ struct p8_aes_ctr_ctx {
 
 static int p8_aes_ctr_init(struct crypto_tfm *tfm)
 {
-	const char *alg;
+	const char *alg = crypto_tfm_alg_name(tfm);
 	struct crypto_blkcipher *fallback;
 	struct p8_aes_ctr_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	if (!(alg = crypto_tfm_alg_name(tfm))) {
-		printk(KERN_ERR "Failed to get algorithm name.\n");
-		return -ENOENT;
-	}
 
 	fallback =
 	    crypto_alloc_blkcipher(alg, 0, CRYPTO_ALG_NEED_FALLBACK);
@@ -80,11 +75,13 @@ static int p8_aes_ctr_setkey(struct crypto_tfm *tfm, const u8 *key,
 	int ret;
 	struct p8_aes_ctr_ctx *ctx = crypto_tfm_ctx(tfm);
 
+	preempt_disable();
 	pagefault_disable();
 	enable_kernel_vsx();
 	ret = aes_p8_set_encrypt_key(key, keylen * 8, &ctx->enc_key);
 	disable_kernel_vsx();
 	pagefault_enable();
+	preempt_enable();
 
 	ret += crypto_blkcipher_setkey(ctx->fallback, key, keylen);
 	return ret;
@@ -99,14 +96,15 @@ static void p8_aes_ctr_final(struct p8_aes_ctr_ctx *ctx,
 	u8 *dst = walk->dst.virt.addr;
 	unsigned int nbytes = walk->nbytes;
 
+	preempt_disable();
 	pagefault_disable();
 	enable_kernel_vsx();
 	aes_p8_encrypt(ctrblk, keystream, &ctx->enc_key);
 	disable_kernel_vsx();
 	pagefault_enable();
+	preempt_enable();
 
-	crypto_xor(keystream, src, nbytes);
-	memcpy(dst, keystream, nbytes);
+	crypto_xor_cpy(dst, keystream, src, nbytes);
 	crypto_inc(ctrblk, AES_BLOCK_SIZE);
 }
 
@@ -132,6 +130,7 @@ static int p8_aes_ctr_crypt(struct blkcipher_desc *desc,
 		blkcipher_walk_init(&walk, dst, src, nbytes);
 		ret = blkcipher_walk_virt_block(desc, &walk, AES_BLOCK_SIZE);
 		while ((nbytes = walk.nbytes) >= AES_BLOCK_SIZE) {
+			preempt_disable();
 			pagefault_disable();
 			enable_kernel_vsx();
 			aes_p8_ctr32_encrypt_blocks(walk.src.virt.addr,
@@ -143,6 +142,7 @@ static int p8_aes_ctr_crypt(struct blkcipher_desc *desc,
 						    walk.iv);
 			disable_kernel_vsx();
 			pagefault_enable();
+			preempt_enable();
 
 			/* We need to update IV mostly for last bytes/round */
 			inc = (nbytes & AES_BLOCK_MASK) / AES_BLOCK_SIZE;

@@ -71,7 +71,7 @@ static void ath9k_htc_op_ps_restore(struct ath_common *common)
 	ath9k_htc_ps_restore((struct ath9k_htc_priv *) common->priv);
 }
 
-static struct ath_ps_ops ath9k_htc_ps_ops = {
+static const struct ath_ps_ops ath9k_htc_ps_ops = {
 	.wakeup = ath9k_htc_op_ps_wakeup,
 	.restore = ath9k_htc_op_ps_restore,
 };
@@ -780,6 +780,8 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 	}
 
 	SET_IEEE80211_PERM_ADDR(hw, common->macaddr);
+
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 }
 
 static int ath9k_init_firmware_version(struct ath9k_htc_priv *priv)

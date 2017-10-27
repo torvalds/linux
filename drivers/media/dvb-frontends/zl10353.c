@@ -13,10 +13,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -215,7 +211,7 @@ static int zl10353_set_parameters(struct dvb_frontend *fe)
 		break;
 	default:
 		c->bandwidth_hz = 8000000;
-		/* fall though */
+		/* fall through */
 	case 8000000:
 		zl10353_single_write(fe, MCLK_RATIO, 0x75);
 		zl10353_single_write(fe, 0x64, 0x36);
@@ -272,6 +268,7 @@ static int zl10353_set_parameters(struct dvb_frontend *fe)
 		if (c->hierarchy == HIERARCHY_AUTO ||
 		    c->hierarchy == HIERARCHY_NONE)
 			break;
+		/* fall through */
 	default:
 		return -EINVAL;
 	}

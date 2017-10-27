@@ -77,7 +77,7 @@ MODULE_DEVICE_TABLE(pci, snd_lx6464es_ids);
 
 
 /* alsa callbacks */
-static struct snd_pcm_hardware lx_caps = {
+static const struct snd_pcm_hardware lx_caps = {
 	.info             = (SNDRV_PCM_INFO_MMAP |
 			     SNDRV_PCM_INFO_INTERLEAVED |
 			     SNDRV_PCM_INFO_MMAP_VALID |
@@ -899,7 +899,7 @@ static int lx_control_playback_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new lx_control_playback_switch = {
+static const struct snd_kcontrol_new lx_control_playback_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "PCM Playback Switch",
 	.index = 0,

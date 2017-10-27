@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mmu_context.h>
+#include <linux/sched/mm.h>
 
 #include "async_pf.h"
 #include <trace/events/kvm.h>
@@ -105,11 +106,7 @@ static void async_pf_execute(struct work_struct *work)
 
 	trace_kvm_async_pf_completed(addr, gva);
 
-	/*
-	 * This memory barrier pairs with prepare_to_wait's set_current_state()
-	 */
-	smp_mb();
-	if (swait_active(&vcpu->wq))
+	if (swq_has_sleeper(&vcpu->wq))
 		swake_up(&vcpu->wq);
 
 	mmput(mm);
@@ -204,7 +201,7 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, unsigned long hva,
 	work->addr = hva;
 	work->arch = *arch;
 	work->mm = current->mm;
-	atomic_inc(&work->mm->mm_users);
+	mmget(work->mm);
 	kvm_get_kvm(work->vcpu->kvm);
 
 	/* this can't really happen otherwise gfn_to_pfn_async

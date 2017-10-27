@@ -15,10 +15,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -1394,10 +1390,7 @@ static struct pci_driver cx25821_pci_driver = {
 
 static int __init cx25821_init(void)
 {
-	pr_info("driver version %d.%d.%d loaded\n",
-		(CX25821_VERSION_CODE >> 16) & 0xff,
-		(CX25821_VERSION_CODE >> 8) & 0xff,
-		CX25821_VERSION_CODE & 0xff);
+	pr_info("driver loaded\n");
 	return pci_register_driver(&cx25821_pci_driver);
 }
 

@@ -321,7 +321,7 @@ static int ad1836_remove(struct snd_soc_codec *codec)
 		AD1836_ADC_SERFMT_MASK, 0);
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_ad1836 = {
+static const struct snd_soc_codec_driver soc_codec_dev_ad1836 = {
 	.probe = ad1836_probe,
 	.remove = ad1836_remove,
 	.suspend = ad1836_suspend,

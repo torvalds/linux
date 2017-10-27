@@ -2,7 +2,6 @@
 
 
 generic-y += clkdev.h
-generic-y += cputime.h
 generic-y += div64.h
 generic-y += emergency-restart.h
 generic-y += exec.h
@@ -19,5 +18,4 @@ generic-y += preempt.h
 generic-y += rwsem.h
 generic-y += serial.h
 generic-y += trace_clock.h
-generic-y += types.h
 generic-y += word-at-a-time.h

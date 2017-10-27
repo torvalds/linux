@@ -242,6 +242,8 @@ int chsc_pnso_brinfo(struct subchannel_id schid,
 		struct chsc_brinfo_resume_token resume_token,
 		int cnc);
 
+int __init chsc_get_cssid(int idx);
+
 #ifdef CONFIG_SCM_BUS
 int scm_update_information(void);
 int scm_process_availability_information(void);

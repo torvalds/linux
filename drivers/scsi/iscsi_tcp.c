@@ -30,6 +30,7 @@
 #include <linux/types.h>
 #include <linux/inet.h>
 #include <linux/slab.h>
+#include <linux/sched/mm.h>
 #include <linux/file.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
@@ -162,7 +163,6 @@ static void iscsi_sw_tcp_state_change(struct sock *sk)
 	struct iscsi_tcp_conn *tcp_conn;
 	struct iscsi_sw_tcp_conn *tcp_sw_conn;
 	struct iscsi_conn *conn;
-	struct iscsi_session *session;
 	void (*old_state_change)(struct sock *);
 
 	read_lock_bh(&sk->sk_callback_lock);
@@ -171,7 +171,6 @@ static void iscsi_sw_tcp_state_change(struct sock *sk)
 		read_unlock_bh(&sk->sk_callback_lock);
 		return;
 	}
-	session = conn->session;
 
 	iscsi_sw_sk_state_check(sk);
 
@@ -371,10 +370,10 @@ static inline int iscsi_sw_tcp_xmit_qlen(struct iscsi_conn *conn)
 static int iscsi_sw_tcp_pdu_xmit(struct iscsi_task *task)
 {
 	struct iscsi_conn *conn = task->conn;
-	unsigned long pflags = current->flags;
+	unsigned int noreclaim_flag;
 	int rc = 0;
 
-	current->flags |= PF_MEMALLOC;
+	noreclaim_flag = memalloc_noreclaim_save();
 
 	while (iscsi_sw_tcp_xmit_qlen(conn)) {
 		rc = iscsi_sw_tcp_xmit(conn);
@@ -387,7 +386,7 @@ static int iscsi_sw_tcp_pdu_xmit(struct iscsi_task *task)
 		rc = 0;
 	}
 
-	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+	memalloc_noreclaim_restore(noreclaim_flag);
 	return rc;
 }
 
@@ -967,6 +966,7 @@ static struct scsi_host_template iscsi_sw_tcp_sht = {
 	.sg_tablesize		= 4096,
 	.max_sectors		= 0xFFFF,
 	.cmd_per_lun		= ISCSI_DEF_CMD_PER_LUN,
+	.eh_timed_out		= iscsi_eh_cmd_timed_out,
 	.eh_abort_handler       = iscsi_eh_abort,
 	.eh_device_reset_handler= iscsi_eh_device_reset,
 	.eh_target_reset_handler = iscsi_eh_recover_target,

@@ -143,8 +143,8 @@ static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 /* This is the same as calling block_write_full_page, but it also
  * writes pages outside of i_size
  */
-int gfs2_write_full_page(struct page *page, get_block_t *get_block,
-			 struct writeback_control *wbc)
+static int gfs2_write_full_page(struct page *page, get_block_t *get_block,
+				struct writeback_control *wbc)
 {
 	struct inode * const inode = page->mapping->host;
 	loff_t i_size = i_size_read(inode);
@@ -234,7 +234,19 @@ out:
 static int gfs2_writepages(struct address_space *mapping,
 			   struct writeback_control *wbc)
 {
-	return mpage_writepages(mapping, wbc, gfs2_get_block_noalloc);
+	struct gfs2_sbd *sdp = gfs2_mapping2sbd(mapping);
+	int ret = mpage_writepages(mapping, wbc, gfs2_get_block_noalloc);
+
+	/*
+	 * Even if we didn't write any pages here, we might still be holding
+	 * dirty pages in the ail. We forcibly flush the ail because we don't
+	 * want balance_dirty_pages() to loop indefinitely trying to write out
+	 * pages held in the ail that it can't find.
+	 */
+	if (ret == 0)
+		set_bit(SDF_FORCE_AIL_FLUSH, &sdp->sd_flags);
+
+	return ret;
 }
 
 /**

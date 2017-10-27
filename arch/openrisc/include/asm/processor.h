@@ -84,11 +84,6 @@ void start_thread(struct pt_regs *regs, unsigned long nip, unsigned long sp);
 void release_thread(struct task_struct *);
 unsigned long get_wchan(struct task_struct *p);
 
-/*
- * Return saved PC of a blocked thread. For now, this is the "user" PC
- */
-extern unsigned long thread_saved_pc(struct task_struct *t);
-
 #define init_stack      (init_thread_union.stack)
 
 #define cpu_relax()     barrier()

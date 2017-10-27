@@ -63,6 +63,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/loadavg.h>
 #include <linux/string.h>
 #include <linux/skbuff.h>
 #include <linux/random.h>
@@ -339,7 +340,7 @@ META_COLLECTOR(int_sk_refcnt)
 		*err = -1;
 		return;
 	}
-	dst->value = atomic_read(&skb->sk->sk_refcnt);
+	dst->value = refcount_read(&skb->sk->sk_refcnt);
 }
 
 META_COLLECTOR(int_sk_rcvbuf)
@@ -911,7 +912,7 @@ static int em_meta_change(struct net *net, void *data, int len,
 	struct tcf_meta_hdr *hdr;
 	struct meta_match *meta = NULL;
 
-	err = nla_parse(tb, TCA_EM_META_MAX, data, len, meta_policy);
+	err = nla_parse(tb, TCA_EM_META_MAX, data, len, meta_policy, NULL);
 	if (err < 0)
 		goto errout;
 

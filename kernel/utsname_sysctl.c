@@ -14,6 +14,7 @@
 #include <linux/utsname.h>
 #include <linux/sysctl.h>
 #include <linux/wait.h>
+#include <linux/rwsem.h>
 
 #ifdef CONFIG_PROC_SYSCTL
 

@@ -67,6 +67,20 @@ CACHELINE_BYTES = L1_CACHE_BYTES
 LG_CACHELINE_BYTES = L1_CACHE_SHIFT
 CACHELINE_MASK = (L1_CACHE_BYTES-1)
 
+_GLOBAL(memset16)
+	rlwinm.	r0 ,r5, 31, 1, 31
+	addi	r6, r3, -4
+	beq-	2f
+	rlwimi	r4 ,r4 ,16 ,0 ,15
+	mtctr	r0
+1:	stwu	r4, 4(r6)
+	bdnz	1b
+2:	andi.	r0, r5, 1
+	beqlr
+	sth	r4, 4(r6)
+	blr
+EXPORT_SYMBOL(memset16)
+
 /*
  * Use dcbz on the complete cache lines in the destination
  * to set them to zero.  This requires that the destination
@@ -77,22 +91,24 @@ CACHELINE_MASK = (L1_CACHE_BYTES-1)
  * replaced by a nop once cache is active. This is done in machine_init()
  */
 _GLOBAL(memset)
+	cmplwi	0,r5,4
+	blt	7f
+
 	rlwimi	r4,r4,8,16,23
 	rlwimi	r4,r4,16,0,15
 
-	addi	r6,r3,-4
-	cmplwi	0,r5,4
-	blt	7f
-	stwu	r4,4(r6)
+	stw	r4,0(r3)
 	beqlr
-	andi.	r0,r6,3
+	andi.	r0,r3,3
 	add	r5,r0,r5
-	subf	r6,r0,r6
+	subf	r6,r0,r3
 	cmplwi	0,r4,0
-	bne	2f	/* Use normal procedure if r4 is not zero */
-EXPORT_SYMBOL(memset)
+	/*
+	 * Skip optimised bloc until cache is enabled. Will be replaced
+	 * by 'bne' during boot to use normal procedure if r4 is not zero
+	 */
 _GLOBAL(memset_nocache_branch)
-	b	2f	/* Skip optimised bloc until cache is enabled */
+	b	2f
 
 	clrlwi	r7,r6,32-LG_CACHELINE_BYTES
 	add	r8,r7,r5
@@ -119,13 +135,21 @@ _GLOBAL(memset_nocache_branch)
 1:	stwu	r4,4(r6)
 	bdnz	1b
 6:	andi.	r5,r5,3
-7:	cmpwi	0,r5,0
 	beqlr
 	mtctr	r5
 	addi	r6,r6,3
 8:	stbu	r4,1(r6)
 	bdnz	8b
 	blr
+
+7:	cmpwi	0,r5,0
+	beqlr
+	mtctr	r5
+	addi	r6,r3,-1
+9:	stbu	r4,1(r6)
+	bdnz	9b
+	blr
+EXPORT_SYMBOL(memset)
 
 /*
  * This version uses dcbz on the complete cache lines in the
@@ -477,18 +501,6 @@ _GLOBAL(__copy_tofrom_user)
 	bdnz	130b
 /* then clear out the destination: r3 bytes starting at 4(r6) */
 132:	mfctr	r3
-	srwi.	r0,r3,2
-	li	r9,0
-	mtctr	r0
-	beq	113f
-112:	stwu	r9,4(r6)
-	bdnz	112b
-113:	andi.	r0,r3,3
-	mtctr	r0
-	beq	120f
-114:	stb	r9,4(r6)
-	addi	r6,r6,1
-	bdnz	114b
 120:	blr
 
 	EX_TABLE(30b,108b)
@@ -497,7 +509,5 @@ _GLOBAL(__copy_tofrom_user)
 	EX_TABLE(41b,111b)
 	EX_TABLE(130b,132b)
 	EX_TABLE(131b,120b)
-	EX_TABLE(112b,120b)
-	EX_TABLE(114b,120b)
 
 EXPORT_SYMBOL(__copy_tofrom_user)

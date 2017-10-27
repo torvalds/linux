@@ -5,6 +5,9 @@
 #include <linux/nsproxy.h>
 #include <linux/ns_common.h>
 #include <linux/sched.h>
+#include <linux/workqueue.h>
+#include <linux/rwsem.h>
+#include <linux/sysctl.h>
 #include <linux/err.h>
 
 #define UID_GID_MAP_MAX_EXTENTS 5
@@ -32,6 +35,10 @@ enum ucount_type {
 	UCOUNT_NET_NAMESPACES,
 	UCOUNT_MNT_NAMESPACES,
 	UCOUNT_CGROUP_NAMESPACES,
+#ifdef CONFIG_INOTIFY_USER
+	UCOUNT_INOTIFY_INSTANCES,
+	UCOUNT_INOTIFY_WATCHES,
+#endif
 	UCOUNT_COUNTS,
 };
 
@@ -59,13 +66,13 @@ struct user_namespace {
 #endif
 	struct ucounts		*ucounts;
 	int ucount_max[UCOUNT_COUNTS];
-};
+} __randomize_layout;
 
 struct ucounts {
 	struct hlist_node node;
 	struct user_namespace *ns;
 	kuid_t uid;
-	atomic_t count;
+	int count;
 	atomic_t ucount[UCOUNT_COUNTS];
 };
 
@@ -105,8 +112,9 @@ extern ssize_t proc_projid_map_write(struct file *, const char __user *, size_t,
 extern ssize_t proc_setgroups_write(struct file *, const char __user *, size_t, loff_t *);
 extern int proc_setgroups_show(struct seq_file *m, void *v);
 extern bool userns_may_setgroups(const struct user_namespace *ns);
+extern bool in_userns(const struct user_namespace *ancestor,
+		       const struct user_namespace *child);
 extern bool current_in_userns(const struct user_namespace *target_ns);
-
 struct ns_common *ns_get_owner(struct ns_common *ns);
 #else
 
@@ -133,6 +141,12 @@ static inline void put_user_ns(struct user_namespace *ns)
 }
 
 static inline bool userns_may_setgroups(const struct user_namespace *ns)
+{
+	return true;
+}
+
+static inline bool in_userns(const struct user_namespace *ancestor,
+			     const struct user_namespace *child)
 {
 	return true;
 }

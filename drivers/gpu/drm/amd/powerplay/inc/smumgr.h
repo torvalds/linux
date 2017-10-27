@@ -33,6 +33,14 @@ struct pp_hwmgr;
 #define smu_lower_32_bits(n) ((uint32_t)(n))
 #define smu_upper_32_bits(n) ((uint32_t)(((n)>>16)>>16))
 
+extern const struct pp_smumgr_func cz_smu_funcs;
+extern const struct pp_smumgr_func iceland_smu_funcs;
+extern const struct pp_smumgr_func tonga_smu_funcs;
+extern const struct pp_smumgr_func fiji_smu_funcs;
+extern const struct pp_smumgr_func polaris10_smu_funcs;
+extern const struct pp_smumgr_func vega10_smu_funcs;
+extern const struct pp_smumgr_func rv_smu_funcs;
+
 enum AVFS_BTC_STATUS {
 	AVFS_BTC_BOOT = 0,
 	AVFS_BTC_BOOT_STARTEDSMU,
@@ -121,6 +129,9 @@ struct pp_smumgr_func {
 	uint32_t (*get_offsetof)(uint32_t type, uint32_t member);
 	uint32_t (*get_mac_definition)(uint32_t value);
 	bool (*is_dpm_running)(struct pp_hwmgr *hwmgr);
+	int (*populate_requested_graphic_levels)(struct pp_hwmgr *hwmgr,
+			struct amd_pp_profile *request);
+	bool (*is_hw_avfs_present)(struct pp_smumgr *smumgr);
 };
 
 struct pp_smumgr {
@@ -131,13 +142,10 @@ struct pp_smumgr {
 	uint32_t usec_timeout;
 	bool reload_fw;
 	const struct pp_smumgr_func *smumgr_funcs;
+	bool is_kicker;
 };
 
-
-extern int smum_init(struct amd_pp_init *pp_init,
-		     struct pp_instance *handle);
-
-extern int smum_fini(struct pp_smumgr *smumgr);
+extern int smum_early_init(struct pp_instance *handle);
 
 extern int smum_get_argument(struct pp_smumgr *smumgr);
 
@@ -172,12 +180,7 @@ extern int smu_allocate_memory(void *device, uint32_t size,
 			 void **kptr, void *handle);
 
 extern int smu_free_memory(void *device, void *handle);
-
-extern int cz_smum_init(struct pp_smumgr *smumgr);
-extern int iceland_smum_init(struct pp_smumgr *smumgr);
-extern int tonga_smum_init(struct pp_smumgr *smumgr);
-extern int fiji_smum_init(struct pp_smumgr *smumgr);
-extern int polaris10_smum_init(struct pp_smumgr *smumgr);
+extern int vega10_smum_init(struct pp_smumgr *smumgr);
 
 extern int smum_update_sclk_threshold(struct pp_hwmgr *hwmgr);
 
@@ -196,6 +199,11 @@ extern uint32_t smum_get_offsetof(struct pp_smumgr *smumgr,
 extern uint32_t smum_get_mac_definition(struct pp_smumgr *smumgr, uint32_t value);
 
 extern bool smum_is_dpm_running(struct pp_hwmgr *hwmgr);
+
+extern int smum_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
+		struct amd_pp_profile *request);
+
+extern bool smum_is_hw_avfs_present(struct pp_smumgr *smumgr);
 
 #define SMUM_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
 

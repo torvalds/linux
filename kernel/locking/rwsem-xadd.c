@@ -10,10 +10,12 @@
  * and Davidlohr Bueso <davidlohr@hp.com>. Based on mutexes.
  */
 #include <linux/rwsem.h>
-#include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/export.h>
+#include <linux/sched/signal.h>
 #include <linux/sched/rt.h>
+#include <linux/sched/wake_q.h>
+#include <linux/sched/debug.h>
 #include <linux/osq_lock.h>
 
 #include "rwsem.h"
@@ -219,15 +221,14 @@ static void __rwsem_mark_wake(struct rw_semaphore *sem,
 /*
  * Wait for the read lock to be granted
  */
-__visible
-struct rw_semaphore __sched *rwsem_down_read_failed(struct rw_semaphore *sem)
+static inline struct rw_semaphore __sched *
+__rwsem_down_read_failed_common(struct rw_semaphore *sem, int state)
 {
 	long count, adjustment = -RWSEM_ACTIVE_READ_BIAS;
 	struct rwsem_waiter waiter;
-	struct task_struct *tsk = current;
 	DEFINE_WAKE_Q(wake_q);
 
-	waiter.task = tsk;
+	waiter.task = current;
 	waiter.type = RWSEM_WAITING_FOR_READ;
 
 	raw_spin_lock_irq(&sem->wait_lock);
@@ -254,16 +255,43 @@ struct rw_semaphore __sched *rwsem_down_read_failed(struct rw_semaphore *sem)
 
 	/* wait to be given the lock */
 	while (true) {
-		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+		set_current_state(state);
 		if (!waiter.task)
 			break;
+		if (signal_pending_state(state, current)) {
+			raw_spin_lock_irq(&sem->wait_lock);
+			if (waiter.task)
+				goto out_nolock;
+			raw_spin_unlock_irq(&sem->wait_lock);
+			break;
+		}
 		schedule();
 	}
 
-	__set_task_state(tsk, TASK_RUNNING);
+	__set_current_state(TASK_RUNNING);
 	return sem;
+out_nolock:
+	list_del(&waiter.list);
+	if (list_empty(&sem->wait_list))
+		atomic_long_add(-RWSEM_WAITING_BIAS, &sem->count);
+	raw_spin_unlock_irq(&sem->wait_lock);
+	__set_current_state(TASK_RUNNING);
+	return ERR_PTR(-EINTR);
+}
+
+__visible struct rw_semaphore * __sched
+rwsem_down_read_failed(struct rw_semaphore *sem)
+{
+	return __rwsem_down_read_failed_common(sem, TASK_UNINTERRUPTIBLE);
 }
 EXPORT_SYMBOL(rwsem_down_read_failed);
+
+__visible struct rw_semaphore * __sched
+rwsem_down_read_failed_killable(struct rw_semaphore *sem)
+{
+	return __rwsem_down_read_failed_common(sem, TASK_KILLABLE);
+}
+EXPORT_SYMBOL(rwsem_down_read_failed_killable);
 
 /*
  * This function must be called with the sem->wait_lock held to prevent
@@ -503,8 +531,6 @@ __rwsem_down_write_failed_common(struct rw_semaphore *sem, int state)
 		 * wake any read locks that were queued ahead of us.
 		 */
 		if (count > RWSEM_WAITING_BIAS) {
-			DEFINE_WAKE_Q(wake_q);
-
 			__rwsem_mark_wake(sem, RWSEM_WAKE_READERS, &wake_q);
 			/*
 			 * The wakeup is normally called _after_ the wait_lock
@@ -514,6 +540,11 @@ __rwsem_down_write_failed_common(struct rw_semaphore *sem, int state)
 			 * for attempting rwsem_try_write_lock().
 			 */
 			wake_up_q(&wake_q);
+
+			/*
+			 * Reinitialize wake_q after use.
+			 */
+			wake_q_init(&wake_q);
 		}
 
 	} else
@@ -580,6 +611,33 @@ struct rw_semaphore *rwsem_wake(struct rw_semaphore *sem)
 {
 	unsigned long flags;
 	DEFINE_WAKE_Q(wake_q);
+
+	/*
+	* __rwsem_down_write_failed_common(sem)
+	*   rwsem_optimistic_spin(sem)
+	*     osq_unlock(sem->osq)
+	*   ...
+	*   atomic_long_add_return(&sem->count)
+	*
+	*      - VS -
+	*
+	*              __up_write()
+	*                if (atomic_long_sub_return_release(&sem->count) < 0)
+	*                  rwsem_wake(sem)
+	*                    osq_is_locked(&sem->osq)
+	*
+	* And __up_write() must observe !osq_is_locked() when it observes the
+	* atomic_long_add_return() in order to not miss a wakeup.
+	*
+	* This boils down to:
+	*
+	* [S.rel] X = 1                [RmW] r0 = (Y += 0)
+	*         MB                         RMB
+	* [RmW]   Y += 1               [L]   r1 = X
+	*
+	* exists (r0=1 /\ r1=0)
+	*/
+	smp_rmb();
 
 	/*
 	 * If a spinner is present, it is not necessary to do the wakeup.

@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
+#include <drm/drm_pci.h>
 #include <drm/drmP.h>
 #include "drm_internal.h"
 #include "drm_legacy.h"
@@ -35,6 +36,9 @@
  * @dev: DRM device
  * @size: size of block to allocate
  * @align: alignment of block
+ *
+ * FIXME: This is a needless abstraction of the Linux dma-api and should be
+ * removed.
  *
  * Return: A handle to the allocated memory block on success or NULL on
  * failure.
@@ -104,6 +108,9 @@ void __drm_legacy_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
  * drm_pci_free - Free a PCI consistent memory block
  * @dev: DRM device
  * @dmah: handle to memory block
+ *
+ * FIXME: This is a needless abstraction of the Linux dma-api and should be
+ * removed.
  */
 void drm_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
 {
@@ -142,7 +149,6 @@ int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master)
 	master->unique_len = strlen(master->unique);
 	return 0;
 }
-EXPORT_SYMBOL(drm_pci_set_busid);
 
 static int drm_pci_irq_by_busid(struct drm_device *dev, struct drm_irq_busid *p)
 {
@@ -191,7 +197,7 @@ int drm_irq_by_busid(struct drm_device *dev, void *data,
 static void drm_pci_agp_init(struct drm_device *dev)
 {
 	if (drm_core_check_feature(dev, DRIVER_USE_AGP)) {
-		if (drm_pci_device_is_agp(dev))
+		if (pci_find_capability(dev->pdev, PCI_CAP_ID_AGP))
 			dev->agp = drm_agp_init(dev);
 		if (dev->agp) {
 			dev->agp->agp_mtrr = arch_phys_wc_add(
@@ -223,7 +229,7 @@ void drm_pci_agp_destroy(struct drm_device *dev)
  * Try and register, if we fail to register, backout previous work.
  *
  * NOTE: This function is deprecated, please use drm_dev_alloc() and
- * drm_dev_register() instead and remove your ->load() callback.
+ * drm_dev_register() instead and remove your &drm_driver.load callback.
  *
  * Return: 0 on success or a negative error code on failure.
  */
@@ -257,10 +263,6 @@ int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 	if (ret)
 		goto err_agp;
 
-	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
-		 driver->name, driver->major, driver->minor, driver->patchlevel,
-		 driver->date, pci_name(pdev), dev->primary->index);
-
 	/* No locking needed since shadow-attach is single-threaded since it may
 	 * only be called from the per-driver module init hook. */
 	if (drm_core_check_feature(dev, DRIVER_LEGACY))
@@ -278,20 +280,15 @@ err_free:
 EXPORT_SYMBOL(drm_get_pci_dev);
 
 /**
- * drm_pci_init - Register matching PCI devices with the DRM subsystem
+ * drm_legacy_pci_init - shadow-attach a legacy DRM PCI driver
  * @driver: DRM device driver
  * @pdriver: PCI device driver
  *
- * Initializes a drm_device structures, registering the stubs and initializing
- * the AGP device.
- *
- * NOTE: This function is deprecated. Modern modesetting drm drivers should use
- * pci_register_driver() directly, this function only provides shadow-binding
- * support for old legacy drivers on top of that core pci function.
+ * This is only used by legacy dri1 drivers and deprecated.
  *
  * Return: 0 on success or a negative error code on failure.
  */
-int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
+int drm_legacy_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 {
 	struct pci_dev *pdev = NULL;
 	const struct pci_device_id *pid;
@@ -299,8 +296,8 @@ int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 
 	DRM_DEBUG("\n");
 
-	if (!(driver->driver_features & DRIVER_LEGACY))
-		return pci_register_driver(pdriver);
+	if (WARN_ON(!(driver->driver_features & DRIVER_LEGACY)))
+		return -EINVAL;
 
 	/* If not using KMS, fall back to stealth mode manual scanning. */
 	INIT_LIST_HEAD(&driver->legacy_dev_list);
@@ -327,6 +324,7 @@ int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 	}
 	return 0;
 }
+EXPORT_SYMBOL(drm_legacy_pci_init);
 
 int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *mask)
 {
@@ -388,11 +386,6 @@ EXPORT_SYMBOL(drm_pcie_get_max_link_width);
 
 #else
 
-int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
-{
-	return -1;
-}
-
 void drm_pci_agp_destroy(struct drm_device *dev) {}
 
 int drm_irq_by_busid(struct drm_device *dev, void *data,
@@ -402,27 +395,21 @@ int drm_irq_by_busid(struct drm_device *dev, void *data,
 }
 #endif
 
-EXPORT_SYMBOL(drm_pci_init);
-
 /**
- * drm_pci_exit - Unregister matching PCI devices from the DRM subsystem
+ * drm_legacy_pci_exit - unregister shadow-attach legacy DRM driver
  * @driver: DRM device driver
  * @pdriver: PCI device driver
  *
- * Unregisters one or more devices matched by a PCI driver from the DRM
- * subsystem.
- *
- * NOTE: This function is deprecated. Modern modesetting drm drivers should use
- * pci_unregister_driver() directly, this function only provides shadow-binding
- * support for old legacy drivers on top of that core pci function.
+ * Unregister a DRM driver shadow-attached through drm_legacy_pci_init(). This
+ * is deprecated and only used by dri1 drivers.
  */
-void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver)
+void drm_legacy_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver)
 {
 	struct drm_device *dev, *tmp;
 	DRM_DEBUG("\n");
 
 	if (!(driver->driver_features & DRIVER_LEGACY)) {
-		pci_unregister_driver(pdriver);
+		WARN_ON(1);
 	} else {
 		list_for_each_entry_safe(dev, tmp, &driver->legacy_dev_list,
 					 legacy_dev_list) {
@@ -432,4 +419,4 @@ void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver)
 	}
 	DRM_INFO("Module unloaded\n");
 }
-EXPORT_SYMBOL(drm_pci_exit);
+EXPORT_SYMBOL(drm_legacy_pci_exit);

@@ -653,9 +653,8 @@ static int rtl8139_poll(struct napi_struct *napi, int budget);
 static irqreturn_t rtl8139_interrupt (int irq, void *dev_instance);
 static int rtl8139_close (struct net_device *dev);
 static int netdev_ioctl (struct net_device *dev, struct ifreq *rq, int cmd);
-static struct rtnl_link_stats64 *rtl8139_get_stats64(struct net_device *dev,
-						    struct rtnl_link_stats64
-						    *stats);
+static void rtl8139_get_stats64(struct net_device *dev,
+				struct rtnl_link_stats64 *stats);
 static void rtl8139_set_rx_mode (struct net_device *dev);
 static void __set_rx_mode (struct net_device *dev);
 static void rtl8139_hw_start (struct net_device *dev);
@@ -2138,13 +2137,10 @@ static int rtl8139_poll(struct napi_struct *napi, int budget)
 
 	if (work_done < budget) {
 		unsigned long flags;
-		/*
-		 * Order is important since data can get interrupted
-		 * again when we think we are done.
-		 */
+
 		spin_lock_irqsave(&tp->lock, flags);
-		__napi_complete(napi);
-		RTL_W16_F(IntrMask, rtl8139_intr_mask);
+		if (napi_complete_done(napi, work_done))
+			RTL_W16_F(IntrMask, rtl8139_intr_mask);
 		spin_unlock_irqrestore(&tp->lock, flags);
 	}
 	spin_unlock(&tp->rx_lock);
@@ -2389,21 +2385,23 @@ static void rtl8139_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *
 	strlcpy(info->bus_info, pci_name(tp->pci_dev), sizeof(info->bus_info));
 }
 
-static int rtl8139_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int rtl8139_get_link_ksettings(struct net_device *dev,
+				      struct ethtool_link_ksettings *cmd)
 {
 	struct rtl8139_private *tp = netdev_priv(dev);
 	spin_lock_irq(&tp->lock);
-	mii_ethtool_gset(&tp->mii, cmd);
+	mii_ethtool_get_link_ksettings(&tp->mii, cmd);
 	spin_unlock_irq(&tp->lock);
 	return 0;
 }
 
-static int rtl8139_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int rtl8139_set_link_ksettings(struct net_device *dev,
+				      const struct ethtool_link_ksettings *cmd)
 {
 	struct rtl8139_private *tp = netdev_priv(dev);
 	int rc;
 	spin_lock_irq(&tp->lock);
-	rc = mii_ethtool_sset(&tp->mii, cmd);
+	rc = mii_ethtool_set_link_ksettings(&tp->mii, cmd);
 	spin_unlock_irq(&tp->lock);
 	return rc;
 }
@@ -2485,8 +2483,6 @@ static void rtl8139_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 
 static const struct ethtool_ops rtl8139_ethtool_ops = {
 	.get_drvinfo		= rtl8139_get_drvinfo,
-	.get_settings		= rtl8139_get_settings,
-	.set_settings		= rtl8139_set_settings,
 	.get_regs_len		= rtl8139_get_regs_len,
 	.get_regs		= rtl8139_get_regs,
 	.nway_reset		= rtl8139_nway_reset,
@@ -2498,6 +2494,8 @@ static const struct ethtool_ops rtl8139_ethtool_ops = {
 	.get_strings		= rtl8139_get_strings,
 	.get_sset_count		= rtl8139_get_sset_count,
 	.get_ethtool_stats	= rtl8139_get_ethtool_stats,
+	.get_link_ksettings	= rtl8139_get_link_ksettings,
+	.set_link_ksettings	= rtl8139_set_link_ksettings,
 };
 
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
@@ -2516,7 +2514,7 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 }
 
 
-static struct rtnl_link_stats64 *
+static void
 rtl8139_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct rtl8139_private *tp = netdev_priv(dev);
@@ -2544,8 +2542,6 @@ rtl8139_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		stats->tx_packets = tp->tx_stats.packets;
 		stats->tx_bytes = tp->tx_stats.bytes;
 	} while (u64_stats_fetch_retry_irq(&tp->tx_stats.syncp, start));
-
-	return stats;
 }
 
 /* Set or clear the multicast filter for this adaptor.

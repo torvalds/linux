@@ -21,7 +21,7 @@
       supports a variety of varients of Interphase ATM PCI (i)Chip adapter 
       card family (See www.iphase.com/products/ClassSheet.cfm?ClassID=ATM) 
       in terms of PHY type, the size of control memory and the size of 
-      packet memory. The followings are the change log and history:
+      packet memory. The following are the change log and history:
      
           Bugfix the Mona's UBR driver.
           Modify the basic memory allocation and dma logic.

@@ -13,6 +13,7 @@
 #define __LINUX_LEDS_H_INCLUDED
 
 #include <linux/device.h>
+#include <linux/kernfs.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
@@ -27,6 +28,7 @@ struct device;
 
 enum led_brightness {
 	LED_OFF		= 0,
+	LED_ON		= 1,
 	LED_HALF	= 127,
 	LED_FULL	= 255,
 };
@@ -46,6 +48,8 @@ struct led_classdev {
 #define LED_DEV_CAP_FLASH	(1 << 18)
 #define LED_HW_PLUGGABLE	(1 << 19)
 #define LED_PANIC_INDICATOR	(1 << 20)
+#define LED_BRIGHT_HW_CHANGED	(1 << 21)
+#define LED_RETAIN_AT_SHUTDOWN	(1 << 22)
 
 	/* set_brightness_work / blink_timer flags, atomic, private. */
 	unsigned long		work_flags;
@@ -110,14 +114,25 @@ struct led_classdev {
 	bool			activated;
 #endif
 
+#ifdef CONFIG_LEDS_BRIGHTNESS_HW_CHANGED
+	int			 brightness_hw_changed;
+	struct kernfs_node	*brightness_hw_changed_kn;
+#endif
+
 	/* Ensures consistent access to the LED Flash Class device */
 	struct mutex		led_access;
 };
 
-extern int led_classdev_register(struct device *parent,
-				 struct led_classdev *led_cdev);
-extern int devm_led_classdev_register(struct device *parent,
-				      struct led_classdev *led_cdev);
+extern int of_led_classdev_register(struct device *parent,
+				    struct device_node *np,
+				    struct led_classdev *led_cdev);
+#define led_classdev_register(parent, led_cdev)				\
+	of_led_classdev_register(parent, NULL, led_cdev)
+extern int devm_of_led_classdev_register(struct device *parent,
+					 struct device_node *np,
+					 struct led_classdev *led_cdev);
+#define devm_led_classdev_register(parent, led_cdev)			\
+	devm_of_led_classdev_register(parent, NULL, led_cdev)
 extern void led_classdev_unregister(struct led_classdev *led_cdev);
 extern void devm_led_classdev_unregister(struct device *parent,
 					 struct led_classdev *led_cdev);
@@ -378,6 +393,7 @@ struct gpio_led {
 	unsigned	retain_state_suspended : 1;
 	unsigned	panic_indicator : 1;
 	unsigned	default_state : 2;
+	unsigned	retain_state_shutdown : 1;
 	/* default_state should be one of LEDS_GPIO_DEFSTATE_(ON|OFF|KEEP) */
 	struct gpio_desc *gpiod;
 };
@@ -420,6 +436,14 @@ static inline void ledtrig_cpu(enum cpu_led_event evt)
 {
 	return;
 }
+#endif
+
+#ifdef CONFIG_LEDS_BRIGHTNESS_HW_CHANGED
+extern void led_classdev_notify_brightness_hw_changed(
+	struct led_classdev *led_cdev, enum led_brightness brightness);
+#else
+static inline void led_classdev_notify_brightness_hw_changed(
+	struct led_classdev *led_cdev, enum led_brightness brightness) { }
 #endif
 
 #endif		/* __LINUX_LEDS_H_INCLUDED */

@@ -1,6 +1,7 @@
 #ifndef _ASM_POWERPC_NOHASH_32_PGTABLE_H
 #define _ASM_POWERPC_NOHASH_32_PGTABLE_H
 
+#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopmd.h>
 
 #ifndef __ASSEMBLY__
@@ -120,7 +121,7 @@ extern int icache_44x_need_flush;
 #include <asm/nohash/pte-book3e.h>
 #elif defined(CONFIG_FSL_BOOKE)
 #include <asm/nohash/32/pte-fsl-booke.h>
-#elif defined(CONFIG_8xx)
+#elif defined(CONFIG_PPC_8xx)
 #include <asm/nohash/32/pte-8xx.h>
 #endif
 
@@ -336,8 +337,7 @@ static inline void __ptep_set_access_flags(struct mm_struct *mm,
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) >> 3 })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val << 3 })
 
-extern int get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep,
-		      pmd_t **pmdp);
+int map_kernel_page(unsigned long va, phys_addr_t pa, int flags);
 
 #endif /* !__ASSEMBLY__ */
 

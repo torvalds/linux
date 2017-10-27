@@ -53,7 +53,7 @@ CFLAGS_REMOVE_vdso-note.o = -pg -fprofile-arcs -ftest-coverage
 CFLAGS_REMOVE_um_vdso.o = -pg -fprofile-arcs -ftest-coverage
 
 targets += vdso-syms.lds
-obj-$(VDSO64-y)			+= vdso-syms.lds
+extra-$(VDSO64-y)			+= vdso-syms.lds
 
 #
 # Match symbols in the DSO that look like VDSO*; produce a file of constants.

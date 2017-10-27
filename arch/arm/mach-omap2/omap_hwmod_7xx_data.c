@@ -359,6 +359,7 @@ static struct omap_hwmod dra7xx_dcan1_hwmod = {
 	.class		= &dra7xx_dcan_hwmod_class,
 	.clkdm_name	= "wkupaon_clkdm",
 	.main_clk	= "dcan1_sys_clk_mux",
+	.flags		= HWMOD_CLKDM_NOAUTO,
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_WKUPAON_DCAN1_CLKCTRL_OFFSET,
@@ -374,6 +375,7 @@ static struct omap_hwmod dra7xx_dcan2_hwmod = {
 	.class		= &dra7xx_dcan_hwmod_class,
 	.clkdm_name	= "l4per2_clkdm",
 	.main_clk	= "sys_clkin1",
+	.flags		= HWMOD_CLKDM_NOAUTO,
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4PER2_DCAN2_CLKCTRL_OFFSET,
@@ -837,6 +839,7 @@ static struct omap_hwmod dra7xx_gpio1_hwmod = {
 	.name		= "gpio1",
 	.class		= &dra7xx_gpio_hwmod_class,
 	.clkdm_name	= "wkupaon_clkdm",
+	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.main_clk	= "wkupaon_iclk_mux",
 	.prcm = {
 		.omap4 = {
@@ -1098,7 +1101,6 @@ static struct omap_hwmod_class_sysconfig dra7xx_i2c_sysc = {
 			   SYSC_HAS_SOFTRESET | SYSS_HAS_RESET_STATUS),
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
 			   SIDLE_SMART_WKUP),
-	.clockact	= CLOCKACT_TEST_ICLK,
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -2700,6 +2702,7 @@ static struct omap_hwmod dra7xx_usb_otg_ss1_hwmod = {
 	.class		= &dra7xx_usb_otg_ss_hwmod_class,
 	.clkdm_name	= "l3init_clkdm",
 	.main_clk	= "dpll_core_h13x2_ck",
+	.flags		= HWMOD_CLKDM_NOAUTO,
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L3INIT_USB_OTG_SS1_CLKCTRL_OFFSET,
@@ -2721,6 +2724,7 @@ static struct omap_hwmod dra7xx_usb_otg_ss2_hwmod = {
 	.class		= &dra7xx_usb_otg_ss_hwmod_class,
 	.clkdm_name	= "l3init_clkdm",
 	.main_clk	= "dpll_core_h13x2_ck",
+	.flags		= HWMOD_CLKDM_NOAUTO,
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L3INIT_USB_OTG_SS2_CLKCTRL_OFFSET,
@@ -4067,6 +4071,11 @@ static struct omap_hwmod_ocp_if *dra7xx_gp_hwmod_ocp_ifs[] __initdata = {
 };
 
 /* SoC variant specific hwmod links */
+static struct omap_hwmod_ocp_if *dra76x_hwmod_ocp_ifs[] __initdata = {
+	&dra7xx_l4_per3__usb_otg_ss4,
+	NULL,
+};
+
 static struct omap_hwmod_ocp_if *dra74x_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l4_per3__usb_otg_ss4,
 	NULL,
@@ -4092,12 +4101,14 @@ int __init dra7xx_hwmod_init(void)
 		ret = omap_hwmod_register_links(dra74x_hwmod_ocp_ifs);
 	else if (!ret && soc_is_dra72x())
 		ret = omap_hwmod_register_links(dra72x_hwmod_ocp_ifs);
+	else if (!ret && soc_is_dra76x())
+		ret = omap_hwmod_register_links(dra76x_hwmod_ocp_ifs);
 
 	if (!ret && omap_type() == OMAP2_DEVICE_TYPE_GP)
 		ret = omap_hwmod_register_links(dra7xx_gp_hwmod_ocp_ifs);
 
-	/* now for the IPs *NOT* in dra71 */
-	if (!ret && !of_machine_is_compatible("ti,dra718"))
+	/* now for the IPs available only in dra74 and dra72 */
+	if (!ret && !of_machine_is_compatible("ti,dra718") && !soc_is_dra76x())
 		ret = omap_hwmod_register_links(dra74x_dra72x_hwmod_ocp_ifs);
 
 	return ret;

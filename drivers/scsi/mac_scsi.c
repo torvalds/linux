@@ -41,7 +41,7 @@
 #define NCR5380_intr                    macscsi_intr
 #define NCR5380_queue_command           macscsi_queue_command
 #define NCR5380_abort                   macscsi_abort
-#define NCR5380_bus_reset               macscsi_bus_reset
+#define NCR5380_host_reset              macscsi_host_reset
 #define NCR5380_info                    macscsi_info
 
 #include "NCR5380.h"
@@ -154,7 +154,7 @@ __asm__ __volatile__					\
 static inline int macscsi_pread(struct NCR5380_hostdata *hostdata,
                                 unsigned char *dst, int len)
 {
-	unsigned char *s = hostdata->pdma_io + (INPUT_DATA_REG << 4);
+	u8 __iomem *s = hostdata->pdma_io + (INPUT_DATA_REG << 4);
 	unsigned char *d = dst;
 	int n = len;
 	int transferred;
@@ -257,7 +257,7 @@ static inline int macscsi_pwrite(struct NCR5380_hostdata *hostdata,
                                  unsigned char *src, int len)
 {
 	unsigned char *s = src;
-	unsigned char *d = hostdata->pdma_io + (OUTPUT_DATA_REG << 4);
+	u8 __iomem *d = hostdata->pdma_io + (OUTPUT_DATA_REG << 4);
 	int n = len;
 	int transferred;
 
@@ -328,7 +328,7 @@ static struct scsi_host_template mac_scsi_template = {
 	.info			= macscsi_info,
 	.queuecommand		= macscsi_queue_command,
 	.eh_abort_handler	= macscsi_abort,
-	.eh_bus_reset_handler	= macscsi_bus_reset,
+	.eh_host_reset_handler	= macscsi_host_reset,
 	.can_queue		= 16,
 	.this_id		= 7,
 	.sg_tablesize		= 1,
@@ -381,10 +381,10 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 
 	hostdata = shost_priv(instance);
 	hostdata->base = pio_mem->start;
-	hostdata->io = (void *)pio_mem->start;
+	hostdata->io = (u8 __iomem *)pio_mem->start;
 
 	if (pdma_mem && setup_use_pdma)
-		hostdata->pdma_io = (void *)pdma_mem->start;
+		hostdata->pdma_io = (u8 __iomem *)pdma_mem->start;
 	else
 		host_flags |= FLAG_NO_PSEUDO_DMA;
 

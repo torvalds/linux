@@ -23,7 +23,6 @@ struct reservation_object;
 struct i915_sw_fence {
 	wait_queue_head_t wait;
 	unsigned long flags;
-	struct kref kref;
 	atomic_t pending;
 };
 
@@ -56,11 +55,17 @@ do {								\
 	__i915_sw_fence_init((fence), (fn), NULL, NULL)
 #endif
 
+#ifdef CONFIG_DRM_I915_SW_FENCE_DEBUG_OBJECTS
+void i915_sw_fence_fini(struct i915_sw_fence *fence);
+#else
+static inline void i915_sw_fence_fini(struct i915_sw_fence *fence) {}
+#endif
+
 void i915_sw_fence_commit(struct i915_sw_fence *fence);
 
 int i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 				 struct i915_sw_fence *after,
-				 wait_queue_t *wq);
+				 wait_queue_entry_t *wq);
 int i915_sw_fence_await_sw_fence_gfp(struct i915_sw_fence *fence,
 				     struct i915_sw_fence *after,
 				     gfp_t gfp);

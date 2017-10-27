@@ -18,6 +18,10 @@
 		reg = <0 0x80000000 0 0x7f000000>; /* 2032 MB */
 	};
 
+	aliases {
+		ethernet = &ethernet;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		led1 {
@@ -133,6 +137,13 @@
 	};
 };
 
+&mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+
+	cd-gpios = <&gpio5 24 GPIO_ACTIVE_LOW>;	/* gpio5_152 */
+};
+
 &omap5_pmx_core {
 	evm_keys_pins: pinmux_evm_keys_gpio_pins {
 		pinctrl-single,pins = <
@@ -144,6 +155,12 @@
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x1c6, PIN_INPUT | MUX_MODE0)		/* i2c5_scl */
 			OMAP5_IOPAD(0x1c8, PIN_INPUT | MUX_MODE0)		/* i2c5_sda */
+		>;
+	};
+
+	mmc1_pins: pinmux_mmc1_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x1d4, PIN_INPUT_PULLUP | MUX_MODE6)	/* gpio5_152 */
 		>;
 	};
 };
@@ -162,6 +179,23 @@
 	pinctrl-single,pins = <
 		OMAP5_IOPAD(0x1be, PIN_OUTPUT | MUX_MODE6)	/* mcspi1_somi.gpio5_141 */
 	>;
+};
+
+&usbhsehci {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	hub@2 {
+		compatible = "usb424,3503";
+		reg = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	ethernet: usbether@3 {
+		compatible = "usb424,9730";
+		reg = <3>;
+	};
 };
 
 &wlcore {

@@ -69,6 +69,7 @@ struct nlm_host {
 	char			*h_addrbuf;	/* address eyecatcher */
 	struct net		*net;		/* host net */
 	char			nodename[UNX_MAXNODENAME + 1];
+	const struct nlmclnt_operations	*h_nlmclnt_ops;	/* Callback ops for NLM users */
 };
 
 /*
@@ -142,6 +143,7 @@ struct nlm_rqst {
 	struct nlm_block *	a_block;
 	unsigned int		a_retries;	/* Retry count */
 	u8			a_owner[NLMCLNT_OHSIZE];
+	void *	a_callback_data; /* sent to nlmclnt_operations callbacks */
 };
 
 /*
@@ -190,9 +192,9 @@ struct nlm_block {
  * Global variables
  */
 extern const struct rpc_program	nlm_program;
-extern struct svc_procedure	nlmsvc_procedures[];
+extern const struct svc_procedure nlmsvc_procedures[];
 #ifdef CONFIG_LOCKD_V4
-extern struct svc_procedure	nlmsvc_procedures4[];
+extern const struct svc_procedure nlmsvc_procedures4[];
 #endif
 extern int			nlmsvc_grace_period;
 extern unsigned long		nlmsvc_timeout;
@@ -355,7 +357,8 @@ static inline int nlm_privileged_requester(const struct svc_rqst *rqstp)
 static inline int nlm_compare_locks(const struct file_lock *fl1,
 				    const struct file_lock *fl2)
 {
-	return	fl1->fl_pid   == fl2->fl_pid
+	return file_inode(fl1->fl_file) == file_inode(fl2->fl_file)
+	     && fl1->fl_pid   == fl2->fl_pid
 	     && fl1->fl_owner == fl2->fl_owner
 	     && fl1->fl_start == fl2->fl_start
 	     && fl1->fl_end   == fl2->fl_end

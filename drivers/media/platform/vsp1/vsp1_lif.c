@@ -30,7 +30,7 @@
 static inline void vsp1_lif_write(struct vsp1_lif *lif, struct vsp1_dl_list *dl,
 				  u32 reg, u32 data)
 {
-	vsp1_dl_list_write(dl, reg, data);
+	vsp1_dl_list_write(dl, reg + lif->entity.index * VI6_LIF_OFFSET, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -84,7 +84,8 @@ static int lif_set_format(struct v4l2_subdev *subdev,
 	format = vsp1_entity_get_pad_format(&lif->entity, config, fmt->pad);
 
 	if (fmt->pad == LIF_PAD_SOURCE) {
-		/* The LIF source format is always identical to its sink
+		/*
+		 * The LIF source format is always identical to its sink
 		 * format.
 		 */
 		fmt->format = *format;
@@ -164,7 +165,7 @@ static const struct vsp1_entity_operations lif_entity_ops = {
  * Initialization and Cleanup
  */
 
-struct vsp1_lif *vsp1_lif_create(struct vsp1_device *vsp1)
+struct vsp1_lif *vsp1_lif_create(struct vsp1_device *vsp1, unsigned int index)
 {
 	struct vsp1_lif *lif;
 	int ret;
@@ -175,8 +176,10 @@ struct vsp1_lif *vsp1_lif_create(struct vsp1_device *vsp1)
 
 	lif->entity.ops = &lif_entity_ops;
 	lif->entity.type = VSP1_ENTITY_LIF;
+	lif->entity.index = index;
 
-	/* The LIF is never exposed to userspace, but media entity registration
+	/*
+	 * The LIF is never exposed to userspace, but media entity registration
 	 * requires a function to be set. Use PROC_VIDEO_PIXEL_FORMATTER just to
 	 * avoid triggering a WARN_ON(), the value won't be seen anywhere.
 	 */

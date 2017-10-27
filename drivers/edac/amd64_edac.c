@@ -782,24 +782,26 @@ static void debug_dump_dramcfg_low(struct amd64_pvt *pvt, u32 dclr, int chan)
 
 static void debug_display_dimm_sizes_df(struct amd64_pvt *pvt, u8 ctrl)
 {
-	u32 *dcsb = ctrl ? pvt->csels[1].csbases : pvt->csels[0].csbases;
-	int dimm, size0, size1;
+	int dimm, size0, size1, cs0, cs1;
 
 	edac_printk(KERN_DEBUG, EDAC_MC, "UMC%d chip selects:\n", ctrl);
 
 	for (dimm = 0; dimm < 4; dimm++) {
 		size0 = 0;
+		cs0 = dimm * 2;
 
-		if (dcsb[dimm*2] & DCSB_CS_ENABLE)
-			size0 = pvt->ops->dbam_to_cs(pvt, ctrl, 0, dimm);
+		if (csrow_enabled(cs0, ctrl, pvt))
+			size0 = pvt->ops->dbam_to_cs(pvt, ctrl, 0, cs0);
 
 		size1 = 0;
-		if (dcsb[dimm*2 + 1] & DCSB_CS_ENABLE)
-			size1 = pvt->ops->dbam_to_cs(pvt, ctrl, 0, dimm);
+		cs1 = dimm * 2 + 1;
+
+		if (csrow_enabled(cs1, ctrl, pvt))
+			size1 = pvt->ops->dbam_to_cs(pvt, ctrl, 0, cs1);
 
 		amd64_info(EDAC_MC ": %d: %5dMB %d: %5dMB\n",
-				dimm * 2,     size0,
-				dimm * 2 + 1, size1);
+				cs0,	size0,
+				cs1,	size1);
 	}
 }
 
@@ -2756,26 +2758,22 @@ skip:
  *	encompasses
  *
  */
-static u32 get_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr)
+static u32 get_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr_orig)
 {
-	u32 cs_mode, nr_pages;
 	u32 dbam = dct ? pvt->dbam1 : pvt->dbam0;
+	int csrow_nr = csrow_nr_orig;
+	u32 cs_mode, nr_pages;
 
+	if (!pvt->umc)
+		csrow_nr >>= 1;
 
-	/*
-	 * The math on this doesn't look right on the surface because x/2*4 can
-	 * be simplified to x*2 but this expression makes use of the fact that
-	 * it is integral math where 1/2=0. This intermediate value becomes the
-	 * number of bits to shift the DBAM register to extract the proper CSROW
-	 * field.
-	 */
-	cs_mode = DBAM_DIMM(csrow_nr / 2, dbam);
+	cs_mode = DBAM_DIMM(csrow_nr, dbam);
 
-	nr_pages = pvt->ops->dbam_to_cs(pvt, dct, cs_mode, (csrow_nr / 2))
-							   << (20 - PAGE_SHIFT);
+	nr_pages   = pvt->ops->dbam_to_cs(pvt, dct, cs_mode, csrow_nr);
+	nr_pages <<= 20 - PAGE_SHIFT;
 
 	edac_dbg(0, "csrow: %d, channel: %d, DBAM idx: %d\n",
-		    csrow_nr, dct,  cs_mode);
+		    csrow_nr_orig, dct,  cs_mode);
 	edac_dbg(0, "nr_pages/channel: %u\n", nr_pages);
 
 	return nr_pages;
@@ -3065,6 +3063,8 @@ static bool ecc_enabled(struct pci_dev *F3, u16 nid)
 		/* Check whether at least one UMC is enabled: */
 		if (umc_en_mask)
 			ecc_en = umc_en_mask == ecc_en_mask;
+		else
+			edac_dbg(0, "Node %d: No enabled UMCs.\n", nid);
 
 		/* Assume UMC MCA banks are enabled. */
 		nb_mce_en = true;
@@ -3075,14 +3075,15 @@ static bool ecc_enabled(struct pci_dev *F3, u16 nid)
 
 		nb_mce_en = nb_mce_bank_enabled_on_node(nid);
 		if (!nb_mce_en)
-			amd64_notice("NB MCE bank disabled, set MSR 0x%08x[4] on node %d to enable.\n",
+			edac_dbg(0, "NB MCE bank disabled, set MSR 0x%08x[4] on node %d to enable.\n",
 				     MSR_IA32_MCG_CTL, nid);
 	}
 
-	amd64_info("DRAM ECC %s.\n", (ecc_en ? "enabled" : "disabled"));
+	amd64_info("Node %d: DRAM ECC %s.\n",
+		   nid, (ecc_en ? "enabled" : "disabled"));
 
 	if (!ecc_en || !nb_mce_en) {
-		amd64_notice("%s", ecc_msg);
+		amd64_info("%s", ecc_msg);
 		return false;
 	}
 	return true;
@@ -3129,7 +3130,6 @@ static void setup_mci_misc_attrs(struct mem_ctl_info *mci,
 
 	mci->edac_cap		= determine_edac_cap(pvt);
 	mci->mod_name		= EDAC_MOD_STR;
-	mci->mod_ver		= EDAC_AMD64_VERSION;
 	mci->ctl_name		= fam->ctl_name;
 	mci->dev_name		= pci_name(pvt->F3);
 	mci->ctl_page_to_phys	= NULL;
@@ -3300,15 +3300,6 @@ static int init_one_instance(unsigned int nid)
 		goto err_add_mc;
 	}
 
-	/* register stuff with EDAC MCE */
-	if (report_gart_errors)
-		amd_report_gart_errors(true);
-
-	if (pvt->umc)
-		amd_register_ecc_decoder(decode_umc_error);
-	else
-		amd_register_ecc_decoder(decode_bus_error);
-
 	return 0;
 
 err_add_mc:
@@ -3342,7 +3333,7 @@ static int probe_one_instance(unsigned int nid)
 	ecc_stngs[nid] = s;
 
 	if (!ecc_enabled(F3, nid)) {
-		ret = -ENODEV;
+		ret = 0;
 
 		if (!ecc_enable_override)
 			goto err_enable;
@@ -3363,6 +3354,8 @@ static int probe_one_instance(unsigned int nid)
 
 		if (boot_cpu_data.x86 < 0x17)
 			restore_ecc_error_reporting(s, nid, F3);
+
+		goto err_enable;
 	}
 
 	return ret;
@@ -3395,14 +3388,6 @@ static void remove_one_instance(unsigned int nid)
 	restore_ecc_error_reporting(s, nid, F3);
 
 	free_mc_sibling_devs(pvt);
-
-	/* unregister from EDAC MCE */
-	amd_report_gart_errors(false);
-
-	if (pvt->umc)
-		amd_unregister_ecc_decoder(decode_umc_error);
-	else
-		amd_unregister_ecc_decoder(decode_bus_error);
 
 	kfree(ecc_stngs[nid]);
 	ecc_stngs[nid] = NULL;
@@ -3452,8 +3437,11 @@ static int __init amd64_edac_init(void)
 	int err = -ENODEV;
 	int i;
 
+	if (!x86_match_cpu(amd64_cpuids))
+		return -ENODEV;
+
 	if (amd_cache_northbridges() < 0)
-		goto err_ret;
+		return -ENODEV;
 
 	opstate_init();
 
@@ -3466,14 +3454,30 @@ static int __init amd64_edac_init(void)
 	if (!msrs)
 		goto err_free;
 
-	for (i = 0; i < amd_nb_num(); i++)
-		if (probe_one_instance(i)) {
+	for (i = 0; i < amd_nb_num(); i++) {
+		err = probe_one_instance(i);
+		if (err) {
 			/* unwind properly */
 			while (--i >= 0)
 				remove_one_instance(i);
 
 			goto err_pci;
 		}
+	}
+
+	if (!edac_has_mcs()) {
+		err = -ENODEV;
+		goto err_pci;
+	}
+
+	/* register stuff with EDAC MCE */
+	if (report_gart_errors)
+		amd_report_gart_errors(true);
+
+	if (boot_cpu_data.x86 >= 0x17)
+		amd_register_ecc_decoder(decode_umc_error);
+	else
+		amd_register_ecc_decoder(decode_bus_error);
 
 	setup_pci_device();
 
@@ -3493,7 +3497,6 @@ err_free:
 	kfree(ecc_stngs);
 	ecc_stngs = NULL;
 
-err_ret:
 	return err;
 }
 
@@ -3503,6 +3506,14 @@ static void __exit amd64_edac_exit(void)
 
 	if (pci_ctl)
 		edac_pci_release_generic_ctl(pci_ctl);
+
+	/* unregister from EDAC MCE */
+	amd_report_gart_errors(false);
+
+	if (boot_cpu_data.x86 >= 0x17)
+		amd_unregister_ecc_decoder(decode_umc_error);
+	else
+		amd_unregister_ecc_decoder(decode_bus_error);
 
 	for (i = 0; i < amd_nb_num(); i++)
 		remove_one_instance(i);

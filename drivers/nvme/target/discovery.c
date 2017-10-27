@@ -53,7 +53,7 @@ static void nvmet_format_discovery_entry(struct nvmf_disc_rsp_page_hdr *hdr,
 	e->portid = port->disc_addr.portid;
 	/* we support only dynamic controllers */
 	e->cntlid = cpu_to_le16(NVME_CNTLID_DYNAMIC);
-	e->asqsz = cpu_to_le16(NVMF_AQ_DEPTH);
+	e->asqsz = cpu_to_le16(NVME_AQ_DEPTH);
 	e->subtype = type;
 	memcpy(e->trsvcid, port->disc_addr.trsvcid, NVMF_TRSVCID_SIZE);
 	memcpy(e->traddr, port->disc_addr.traddr, NVMF_TRADDR_SIZE);
@@ -159,15 +159,15 @@ out:
 	nvmet_req_complete(req, status);
 }
 
-int nvmet_parse_discovery_cmd(struct nvmet_req *req)
+u16 nvmet_parse_discovery_cmd(struct nvmet_req *req)
 {
 	struct nvme_command *cmd = req->cmd;
 
 	req->ns = NULL;
 
 	if (unlikely(!(req->sq->ctrl->csts & NVME_CSTS_RDY))) {
-		pr_err("nvmet: got cmd %d while not ready\n",
-				cmd->common.opcode);
+		pr_err("got cmd %d while not ready\n",
+		       cmd->common.opcode);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 	}
 
@@ -180,29 +180,28 @@ int nvmet_parse_discovery_cmd(struct nvmet_req *req)
 			req->execute = nvmet_execute_get_disc_log_page;
 			return 0;
 		default:
-			pr_err("nvmet: unsupported get_log_page lid %d\n",
-				cmd->get_log_page.lid);
+			pr_err("unsupported get_log_page lid %d\n",
+			       cmd->get_log_page.lid);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 		}
 	case nvme_admin_identify:
-		req->data_len = 4096;
-		switch (le32_to_cpu(cmd->identify.cns)) {
+		req->data_len = NVME_IDENTIFY_DATA_SIZE;
+		switch (cmd->identify.cns) {
 		case NVME_ID_CNS_CTRL:
 			req->execute =
 				nvmet_execute_identify_disc_ctrl;
 			return 0;
 		default:
-			pr_err("nvmet: unsupported identify cns %d\n",
-				le32_to_cpu(cmd->identify.cns));
+			pr_err("unsupported identify cns %d\n",
+			       cmd->identify.cns);
 			return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 		}
 	default:
-		pr_err("nvmet: unsupported cmd %d\n",
-				cmd->common.opcode);
+		pr_err("unsupported cmd %d\n", cmd->common.opcode);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 	}
 
-	pr_err("nvmet: unhandled cmd %d\n", cmd->common.opcode);
+	pr_err("unhandled cmd %d\n", cmd->common.opcode);
 	return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 }
 

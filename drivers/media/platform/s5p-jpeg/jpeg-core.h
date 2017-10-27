@@ -63,6 +63,7 @@
 
 #define S5P_JPEG_ENCODE		0
 #define S5P_JPEG_DECODE		1
+#define S5P_JPEG_DISABLE	-1
 
 #define FMT_TYPE_OUTPUT		0
 #define FMT_TYPE_CAPTURE	1
@@ -96,6 +97,11 @@ enum  exynos4_jpeg_img_quality_level {
 	QUALITY_LEVEL_2,
 	QUALITY_LEVEL_3,
 	QUALITY_LEVEL_4,	/* low */
+};
+
+enum s5p_jpeg_ctx_state {
+	JPEGCTX_RUNNING = 0,
+	JPEGCTX_RESOLUTION_CHANGE,
 };
 
 /**
@@ -220,6 +226,7 @@ struct s5p_jpeg_q_data {
  * @hdr_parsed:		set if header has been parsed during decompression
  * @crop_altered:	set if crop rectangle has been altered by the user space
  * @ctrl_handler:	controls handler
+ * @state:		state of the context
  */
 struct s5p_jpeg_ctx {
 	struct s5p_jpeg		*jpeg;
@@ -235,6 +242,7 @@ struct s5p_jpeg_ctx {
 	bool			hdr_parsed;
 	bool			crop_altered;
 	struct v4l2_ctrl_handler ctrl_handler;
+	enum s5p_jpeg_ctx_state	state;
 };
 
 /**

@@ -41,7 +41,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/list.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/wait.h>
 #include <linux/spinlock.h>
 #include <linux/poll.h>
@@ -417,7 +417,7 @@ int vga_get(struct pci_dev *pdev, unsigned int rsrc, int interruptible)
 {
 	struct vga_device *vgadev, *conflict;
 	unsigned long flags;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	int rc = 0;
 
 	vga_check_first_use();

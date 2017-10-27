@@ -32,6 +32,7 @@
  */
 
 #include <linux/skbuff.h>
+#include <crypto/hash.h>
 
 #include "rxe.h"
 #include "rxe_loc.h"
@@ -42,7 +43,7 @@ static int next_opcode(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 
 static inline void retry_first_write_send(struct rxe_qp *qp,
 					  struct rxe_send_wqe *wqe,
-					  unsigned mask, int npsn)
+					  unsigned int mask, int npsn)
 {
 	int i;
 
@@ -361,19 +362,14 @@ static inline int check_init_depth(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 	return -EAGAIN;
 }
 
-static inline int get_mtu(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
+static inline int get_mtu(struct rxe_qp *qp)
 {
 	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
-	struct rxe_port *port;
-	struct rxe_av *av;
 
 	if ((qp_type(qp) == IB_QPT_RC) || (qp_type(qp) == IB_QPT_UC))
 		return qp->mtu;
 
-	av = &wqe->av;
-	port = &rxe->port;
-
-	return port->mtu_cap;
+	return rxe->port.mtu_cap;
 }
 
 static struct sk_buff *init_req_packet(struct rxe_qp *qp,
@@ -409,7 +405,7 @@ static struct sk_buff *init_req_packet(struct rxe_qp *qp,
 
 	/* init skb */
 	av = rxe_get_av(pkt);
-	skb = rxe->ifc_ops->init_packet(rxe, av, paylen, pkt);
+	skb = rxe_init_packet(rxe, av, paylen, pkt);
 	if (unlikely(!skb))
 		return NULL;
 
@@ -480,7 +476,7 @@ static int fill_packet(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 	u32 *p;
 	int err;
 
-	err = rxe->ifc_ops->prepare(rxe, pkt, skb, &crc);
+	err = rxe_prepare(rxe, pkt, skb, &crc);
 	if (err)
 		return err;
 
@@ -488,8 +484,7 @@ static int fill_packet(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 		if (wqe->wr.send_flags & IB_SEND_INLINE) {
 			u8 *tmp = &wqe->dma.inline_data[wqe->dma.sge_offset];
 
-			crc = crc32_le(crc, tmp, paylen);
-
+			crc = rxe_crc32(rxe, crc, tmp, paylen);
 			memcpy(payload_addr(pkt), tmp, paylen);
 
 			wqe->dma.resid -= paylen;
@@ -599,8 +594,15 @@ int rxe_requester(void *arg)
 	rxe_add_ref(qp);
 
 next_wqe:
-	if (unlikely(!qp->valid || qp->req.state == QP_STATE_ERROR))
+	if (unlikely(!qp->valid)) {
+		rxe_drain_req_pkts(qp, true);
 		goto exit;
+	}
+
+	if (unlikely(qp->req.state == QP_STATE_ERROR)) {
+		rxe_drain_req_pkts(qp, true);
+		goto exit;
+	}
 
 	if (unlikely(qp->req.state == QP_STATE_RESET)) {
 		qp->req.wqe_index = consumer_index(qp->sq.queue);
@@ -635,6 +637,7 @@ next_wqe:
 				goto exit;
 			}
 			rmr->state = RXE_MEM_STATE_FREE;
+			rxe_drop_ref(rmr);
 			wqe->state = wqe_state_done;
 			wqe->status = IB_WC_SUCCESS;
 		} else if (wqe->wr.opcode == IB_WR_REG_MR) {
@@ -679,7 +682,7 @@ next_wqe:
 			goto exit;
 	}
 
-	mtu = get_mtu(qp, wqe);
+	mtu = get_mtu(qp);
 	payload = (mask & RXE_WRITE_OR_SEND) ? wqe->dma.resid : 0;
 	if (payload > mtu) {
 		if (qp_type(qp) == IB_QPT_UD) {
@@ -728,11 +731,11 @@ next_wqe:
 	ret = rxe_xmit_packet(to_rdev(qp->ibqp.device), qp, &pkt, skb);
 	if (ret) {
 		qp->need_req_skb = 1;
-		kfree_skb(skb);
 
 		rollback_state(wqe, qp, &rollback_wqe, rollback_psn);
 
 		if (ret == -EAGAIN) {
+			kfree_skb(skb);
 			rxe_run_task(&qp->req.task, 1);
 			goto exit;
 		}
@@ -748,17 +751,8 @@ err:
 	kfree_skb(skb);
 	wqe->status = IB_WC_LOC_PROT_ERR;
 	wqe->state = wqe_state_error;
-
-	/*
-	 * IBA Spec. Section 10.7.3.1 SIGNALED COMPLETIONS
-	 * ---------8<---------8<-------------
-	 * ...Note that if a completion error occurs, a Work Completion
-	 * will always be generated, even if the signaling
-	 * indicator requests an Unsignaled Completion.
-	 * ---------8<---------8<-------------
-	 */
-	wqe->wr.send_flags |= IB_SEND_SIGNALED;
 	__rxe_do_task(&qp->comp.task);
+
 exit:
 	rxe_drop_ref(qp);
 	return -EAGAIN;

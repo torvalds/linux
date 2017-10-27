@@ -43,6 +43,7 @@ struct rsnd_adg {
 };
 
 #define LRCLK_ASYNC	(1 << 0)
+#define AUDIO_OUT_48	(1 << 1)
 #define adg_mode_flags(adg)	(adg->flags)
 
 #define for_each_rsnd_clk(pos, adg, i)		\
@@ -307,23 +308,12 @@ static void rsnd_adg_set_ssi_clk(struct rsnd_mod *ssi_mod, u32 val)
 	}
 }
 
-int rsnd_adg_ssi_clk_stop(struct rsnd_mod *ssi_mod)
+int rsnd_adg_clk_query(struct rsnd_priv *priv, unsigned int rate)
 {
-	rsnd_adg_set_ssi_clk(ssi_mod, 0);
-
-	return 0;
-}
-
-int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *ssi_mod, unsigned int rate)
-{
-	struct rsnd_priv *priv = rsnd_mod_to_priv(ssi_mod);
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
 	struct clk *clk;
 	int i;
-	u32 data;
-	u32 ckr = 0;
 	int sel_table[] = {
 		[CLKA] = 0x1,
 		[CLKB] = 0x2,
@@ -337,34 +327,49 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *ssi_mod, unsigned int rate)
 	 * find suitable clock from
 	 * AUDIO_CLKA/AUDIO_CLKB/AUDIO_CLKC/AUDIO_CLKI.
 	 */
-	data = 0;
 	for_each_rsnd_clk(clk, adg, i) {
-		if (rate == clk_get_rate(clk)) {
-			data = sel_table[i];
-			goto found_clock;
-		}
+		if (rate == clk_get_rate(clk))
+			return sel_table[i];
 	}
 
 	/*
 	 * find divided clock from BRGA/BRGB
 	 */
-	if (rate  == adg->rbga_rate_for_441khz) {
-		data = 0x10;
-		goto found_clock;
-	}
+	if (rate == adg->rbga_rate_for_441khz)
+		return 0x10;
 
-	if (rate == adg->rbgb_rate_for_48khz) {
-		data = 0x20;
-		goto found_clock;
-	}
+	if (rate == adg->rbgb_rate_for_48khz)
+		return 0x20;
 
 	return -EIO;
+}
 
-found_clock:
+int rsnd_adg_ssi_clk_stop(struct rsnd_mod *ssi_mod)
+{
+	rsnd_adg_set_ssi_clk(ssi_mod, 0);
+
+	return 0;
+}
+
+int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *ssi_mod, unsigned int rate)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(ssi_mod);
+	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
+	int data;
+	u32 ckr = 0;
+
+	data = rsnd_adg_clk_query(priv, rate);
+	if (data < 0)
+		return data;
 
 	rsnd_adg_set_ssi_clk(ssi_mod, data);
 
-	if (!(adg_mode_flags(adg) & LRCLK_ASYNC)) {
+	if (adg_mode_flags(adg) & LRCLK_ASYNC) {
+		if (adg_mode_flags(adg) & AUDIO_OUT_48)
+			ckr = 0x80000000;
+	} else {
 		if (0 == (rate % 8000))
 			ckr = 0x80000000;
 	}
@@ -427,11 +432,14 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 	struct clk *clk;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct device_node *np = dev->of_node;
+	struct property *prop;
 	u32 ckr, rbgx, rbga, rbgb;
-	u32 rate, req_rate = 0, div;
+	u32 rate, div;
+#define REQ_SIZE 2
+	u32 req_rate[REQ_SIZE] = {};
 	uint32_t count = 0;
 	unsigned long req_48kHz_rate, req_441kHz_rate;
-	int i;
+	int i, req_size;
 	const char *parent_clk_name = NULL;
 	static const char * const clkout_name[] = {
 		[CLKOUT]  = "audio_clkout",
@@ -446,19 +454,35 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 		[CLKI] = 0x2,
 	};
 
-	of_property_read_u32(np, "#clock-cells", &count);
+	ckr = 0;
+	rbga = 2; /* default 1/6 */
+	rbgb = 2; /* default 1/6 */
 
 	/*
 	 * ADG supports BRRA/BRRB output only
 	 * this means all clkout0/1/2/3 will be same rate
 	 */
-	of_property_read_u32(np, "clock-frequency", &req_rate);
+	prop = of_find_property(np, "clock-frequency", NULL);
+	if (!prop)
+		goto rsnd_adg_get_clkout_end;
+
+	req_size = prop->length / sizeof(u32);
+
+	of_property_read_u32_array(np, "clock-frequency", req_rate, req_size);
 	req_48kHz_rate = 0;
 	req_441kHz_rate = 0;
-	if (0 == (req_rate % 44100))
-		req_441kHz_rate = req_rate;
-	if (0 == (req_rate % 48000))
-		req_48kHz_rate = req_rate;
+	for (i = 0; i < req_size; i++) {
+		if (0 == (req_rate[i] % 44100))
+			req_441kHz_rate = req_rate[i];
+		if (0 == (req_rate[i] % 48000))
+			req_48kHz_rate = req_rate[i];
+	}
+
+	if (req_rate[0] % 48000 == 0)
+		adg->flags = AUDIO_OUT_48;
+
+	if (of_get_property(np, "clkout-lr-asynchronous", NULL))
+		adg->flags = LRCLK_ASYNC;
 
 	/*
 	 * This driver is assuming that AUDIO_CLKA/AUDIO_CLKB/AUDIO_CLKC
@@ -469,9 +493,6 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 	 *	rsnd_adg_ssi_clk_try_start()
 	 *	rsnd_ssi_master_clk_start()
 	 */
-	ckr = 0;
-	rbga = 2; /* default 1/6 */
-	rbgb = 2; /* default 1/6 */
 	adg->rbga_rate_for_441khz	= 0;
 	adg->rbgb_rate_for_48khz	= 0;
 	for_each_rsnd_clk(clk, adg, i) {
@@ -490,7 +511,8 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 				rbga = rbgx;
 				adg->rbga_rate_for_441khz = rate / div;
 				ckr |= brg_table[i] << 20;
-				if (req_441kHz_rate)
+				if (req_441kHz_rate &&
+				    !(adg_mode_flags(adg) & AUDIO_OUT_48))
 					parent_clk_name = __clk_get_name(clk);
 			}
 		}
@@ -505,10 +527,9 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 				rbgb = rbgx;
 				adg->rbgb_rate_for_48khz = rate / div;
 				ckr |= brg_table[i] << 16;
-				if (req_48kHz_rate) {
+				if (req_48kHz_rate &&
+				    (adg_mode_flags(adg) & AUDIO_OUT_48))
 					parent_clk_name = __clk_get_name(clk);
-					ckr |= 0x80000000;
-				}
 			}
 		}
 	}
@@ -518,12 +539,13 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 	 * this means all clkout0/1/2/3 will be * same rate
 	 */
 
+	of_property_read_u32(np, "#clock-cells", &count);
 	/*
 	 * for clkout
 	 */
 	if (!count) {
 		clk = clk_register_fixed_rate(dev, clkout_name[CLKOUT],
-					      parent_clk_name, 0, req_rate);
+					      parent_clk_name, 0, req_rate[0]);
 		if (!IS_ERR(clk)) {
 			adg->clkout[CLKOUT] = clk;
 			of_clk_add_provider(np, of_clk_src_simple_get, clk);
@@ -536,19 +558,17 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 		for (i = 0; i < CLKOUTMAX; i++) {
 			clk = clk_register_fixed_rate(dev, clkout_name[i],
 						      parent_clk_name, 0,
-						      req_rate);
-			if (!IS_ERR(clk)) {
-				adg->onecell.clks	= adg->clkout;
-				adg->onecell.clk_num	= CLKOUTMAX;
-
+						      req_rate[0]);
+			if (!IS_ERR(clk))
 				adg->clkout[i] = clk;
-
-				of_clk_add_provider(np, of_clk_src_onecell_get,
-						    &adg->onecell);
-			}
 		}
+		adg->onecell.clks	= adg->clkout;
+		adg->onecell.clk_num	= CLKOUTMAX;
+		of_clk_add_provider(np, of_clk_src_onecell_get,
+				    &adg->onecell);
 	}
 
+rsnd_adg_get_clkout_end:
 	adg->ckr = ckr;
 	adg->rbga = rbga;
 	adg->rbgb = rbgb;
@@ -563,22 +583,19 @@ int rsnd_adg_probe(struct rsnd_priv *priv)
 {
 	struct rsnd_adg *adg;
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *np = dev->of_node;
+	int ret;
 
 	adg = devm_kzalloc(dev, sizeof(*adg), GFP_KERNEL);
-	if (!adg) {
-		dev_err(dev, "ADG allocate failed\n");
+	if (!adg)
 		return -ENOMEM;
-	}
 
-	rsnd_mod_init(priv, &adg->mod, &adg_ops,
+	ret = rsnd_mod_init(priv, &adg->mod, &adg_ops,
 		      NULL, NULL, 0, 0);
+	if (ret)
+		return ret;
 
 	rsnd_adg_get_clkin(priv, adg);
 	rsnd_adg_get_clkout(priv, adg);
-
-	if (of_get_property(np, "clkout-lr-asynchronous", NULL))
-		adg->flags = LRCLK_ASYNC;
 
 	priv->adg = adg;
 
@@ -589,5 +606,17 @@ int rsnd_adg_probe(struct rsnd_priv *priv)
 
 void rsnd_adg_remove(struct rsnd_priv *priv)
 {
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct device_node *np = dev->of_node;
+	struct rsnd_adg *adg = priv->adg;
+	struct clk *clk;
+	int i;
+
+	for_each_rsnd_clkout(clk, adg, i)
+		if (adg->clkout[i])
+			clk_unregister_fixed_rate(adg->clkout[i]);
+
+	of_clk_del_provider(np);
+
 	rsnd_adg_clk_disable(priv);
 }

@@ -54,6 +54,20 @@ static struct bio *blk_bio_discard_split(struct request_queue *q,
 	return bio_split(bio, split_sectors, GFP_NOIO, bs);
 }
 
+static struct bio *blk_bio_write_zeroes_split(struct request_queue *q,
+		struct bio *bio, struct bio_set *bs, unsigned *nsegs)
+{
+	*nsegs = 1;
+
+	if (!q->limits.max_write_zeroes_sectors)
+		return NULL;
+
+	if (bio_sectors(bio) <= q->limits.max_write_zeroes_sectors)
+		return NULL;
+
+	return bio_split(bio, q->limits.max_write_zeroes_sectors, GFP_NOIO, bs);
+}
+
 static struct bio *blk_bio_write_same_split(struct request_queue *q,
 					    struct bio *bio,
 					    struct bio_set *bs,
@@ -94,30 +108,8 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 	bool do_split = true;
 	struct bio *new = NULL;
 	const unsigned max_sectors = get_max_io_size(q, bio);
-	unsigned bvecs = 0;
 
 	bio_for_each_segment(bv, bio, iter) {
-		/*
-		 * With arbitrary bio size, the incoming bio may be very
-		 * big. We have to split the bio into small bios so that
-		 * each holds at most BIO_MAX_PAGES bvecs because
-		 * bio_clone() can fail to allocate big bvecs.
-		 *
-		 * It should have been better to apply the limit per
-		 * request queue in which bio_clone() is involved,
-		 * instead of globally. The biggest blocker is the
-		 * bio_clone() in bio bounce.
-		 *
-		 * If bio is splitted by this reason, we should have
-		 * allowed to continue bios merging, but don't do
-		 * that now for making the change simple.
-		 *
-		 * TODO: deal with bio bounce's bio_clone() gracefully
-		 * and convert the global limit into per-queue limit.
-		 */
-		if (bvecs++ >= BIO_MAX_PAGES)
-			goto split;
-
 		/*
 		 * If the queue doesn't support SG gaps and adding this
 		 * offset would create a gap, disallow it.
@@ -188,8 +180,7 @@ split:
 	return do_split ? new : NULL;
 }
 
-void blk_queue_split(struct request_queue *q, struct bio **bio,
-		     struct bio_set *bs)
+void blk_queue_split(struct request_queue *q, struct bio **bio)
 {
 	struct bio *split, *res;
 	unsigned nsegs;
@@ -197,14 +188,13 @@ void blk_queue_split(struct request_queue *q, struct bio **bio,
 	switch (bio_op(*bio)) {
 	case REQ_OP_DISCARD:
 	case REQ_OP_SECURE_ERASE:
-		split = blk_bio_discard_split(q, *bio, bs, &nsegs);
+		split = blk_bio_discard_split(q, *bio, q->bio_split, &nsegs);
 		break;
 	case REQ_OP_WRITE_ZEROES:
-		split = NULL;
-		nsegs = (*bio)->bi_phys_segments;
+		split = blk_bio_write_zeroes_split(q, *bio, q->bio_split, &nsegs);
 		break;
 	case REQ_OP_WRITE_SAME:
-		split = blk_bio_write_same_split(q, *bio, bs, &nsegs);
+		split = blk_bio_write_same_split(q, *bio, q->bio_split, &nsegs);
 		break;
 	default:
 		split = blk_bio_segment_split(q, *bio, q->bio_split, &nsegs);
@@ -482,13 +472,6 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 }
 EXPORT_SYMBOL(blk_rq_map_sg);
 
-static void req_set_nomerge(struct request_queue *q, struct request *req)
-{
-	req->cmd_flags |= REQ_NOMERGE;
-	if (req == q->last_merge)
-		q->last_merge = NULL;
-}
-
 static inline int ll_new_hw_segment(struct request_queue *q,
 				    struct request *req,
 				    struct bio *bio)
@@ -650,8 +633,8 @@ static void blk_account_io_merge(struct request *req)
 		cpu = part_stat_lock();
 		part = req->part;
 
-		part_round_stats(cpu, part);
-		part_dec_in_flight(part, rq_data_dir(req));
+		part_round_stats(req->q, cpu, part);
+		part_dec_in_flight(req->q, part, rq_data_dir(req));
 
 		hd_struct_put(part);
 		part_stat_unlock();
@@ -659,31 +642,42 @@ static void blk_account_io_merge(struct request *req)
 }
 
 /*
- * Has to be called with the request spinlock acquired
+ * For non-mq, this has to be called with the request spinlock acquired.
+ * For mq with scheduling, the appropriate queue wide lock should be held.
  */
-static int attempt_merge(struct request_queue *q, struct request *req,
-			  struct request *next)
+static struct request *attempt_merge(struct request_queue *q,
+				     struct request *req, struct request *next)
 {
+	if (!q->mq_ops)
+		lockdep_assert_held(q->queue_lock);
+
 	if (!rq_mergeable(req) || !rq_mergeable(next))
-		return 0;
+		return NULL;
 
 	if (req_op(req) != req_op(next))
-		return 0;
+		return NULL;
 
 	/*
 	 * not contiguous
 	 */
 	if (blk_rq_pos(req) + blk_rq_sectors(req) != blk_rq_pos(next))
-		return 0;
+		return NULL;
 
 	if (rq_data_dir(req) != rq_data_dir(next)
 	    || req->rq_disk != next->rq_disk
 	    || req_no_special_merge(next))
-		return 0;
+		return NULL;
 
 	if (req_op(req) == REQ_OP_WRITE_SAME &&
 	    !blk_write_same_mergeable(req->bio, next->bio))
-		return 0;
+		return NULL;
+
+	/*
+	 * Don't allow merge of different write hints, or for a hint with
+	 * non-hint IO.
+	 */
+	if (req->write_hint != next->write_hint)
+		return NULL;
 
 	/*
 	 * If we are allowed to merge, then append bio list
@@ -692,7 +686,7 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 	 * counts here.
 	 */
 	if (!ll_merge_requests_fn(q, req, next))
-		return 0;
+		return NULL;
 
 	/*
 	 * If failfast settings disagree or any of the two is already
@@ -732,42 +726,51 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 	if (blk_rq_cpu_valid(next))
 		req->cpu = next->cpu;
 
-	/* owner-ship of bio passed from next to req */
+	/*
+	 * ownership of bio passed from next to req, return 'next' for
+	 * the caller to free
+	 */
 	next->bio = NULL;
-	__blk_put_request(q, next);
-	return 1;
+	return next;
 }
 
-int attempt_back_merge(struct request_queue *q, struct request *rq)
+struct request *attempt_back_merge(struct request_queue *q, struct request *rq)
 {
 	struct request *next = elv_latter_request(q, rq);
 
 	if (next)
 		return attempt_merge(q, rq, next);
 
-	return 0;
+	return NULL;
 }
 
-int attempt_front_merge(struct request_queue *q, struct request *rq)
+struct request *attempt_front_merge(struct request_queue *q, struct request *rq)
 {
 	struct request *prev = elv_former_request(q, rq);
 
 	if (prev)
 		return attempt_merge(q, prev, rq);
 
-	return 0;
+	return NULL;
 }
 
 int blk_attempt_req_merge(struct request_queue *q, struct request *rq,
 			  struct request *next)
 {
 	struct elevator_queue *e = q->elevator;
+	struct request *free;
 
-	if (e->type->ops.elevator_allow_rq_merge_fn)
-		if (!e->type->ops.elevator_allow_rq_merge_fn(q, rq, next))
+	if (!e->uses_mq && e->type->ops.sq.elevator_allow_rq_merge_fn)
+		if (!e->type->ops.sq.elevator_allow_rq_merge_fn(q, rq, next))
 			return 0;
 
-	return attempt_merge(q, rq, next);
+	free = attempt_merge(q, rq, next);
+	if (free) {
+		__blk_put_request(q, free);
+		return 1;
+	}
+
+	return 0;
 }
 
 bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
@@ -783,7 +786,7 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 		return false;
 
 	/* must be same device and not a special request */
-	if (rq->rq_disk != bio->bi_bdev->bd_disk || req_no_special_merge(rq))
+	if (rq->rq_disk != bio->bi_disk || req_no_special_merge(rq))
 		return false;
 
 	/* only merge integrity protected bio into ditto rq */
@@ -795,12 +798,22 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 	    !blk_write_same_mergeable(rq->bio, bio))
 		return false;
 
+	/*
+	 * Don't allow merge of different write hints, or for a hint with
+	 * non-hint IO.
+	 */
+	if (rq->write_hint != bio->bi_write_hint)
+		return false;
+
 	return true;
 }
 
-int blk_try_merge(struct request *rq, struct bio *bio)
+enum elv_merge blk_try_merge(struct request *rq, struct bio *bio)
 {
-	if (blk_rq_pos(rq) + blk_rq_sectors(rq) == bio->bi_iter.bi_sector)
+	if (req_op(rq) == REQ_OP_DISCARD &&
+	    queue_max_discard_segments(rq->q) > 1)
+		return ELEVATOR_DISCARD_MERGE;
+	else if (blk_rq_pos(rq) + blk_rq_sectors(rq) == bio->bi_iter.bi_sector)
 		return ELEVATOR_BACK_MERGE;
 	else if (blk_rq_pos(rq) - bio_sectors(bio) == bio->bi_iter.bi_sector)
 		return ELEVATOR_FRONT_MERGE;

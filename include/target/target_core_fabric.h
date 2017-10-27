@@ -47,7 +47,7 @@ struct target_core_fabric_ops {
 	u32 (*tpg_get_inst_index)(struct se_portal_group *);
 	/*
 	 * Optional to release struct se_cmd and fabric dependent allocated
-	 * I/O descriptor in transport_cmd_check_stop().
+	 * I/O descriptor after command execution has finished.
 	 *
 	 * Returning 1 will signal a descriptor has been released.
 	 * Returning 0 will signal a descriptor has not been released.
@@ -160,6 +160,7 @@ int	target_get_sess_cmd(struct se_cmd *, bool);
 int	target_put_sess_cmd(struct se_cmd *);
 void	target_sess_cmd_list_set_waiting(struct se_session *);
 void	target_wait_for_sess_cmds(struct se_session *);
+void	target_show_cmd(const char *pfx, struct se_cmd *cmd);
 
 int	core_alua_check_nonop_delay(struct se_cmd *);
 

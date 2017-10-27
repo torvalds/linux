@@ -53,7 +53,7 @@
 #define DRIVER_DESC "OHCI OMAP driver"
 
 #ifdef CONFIG_TPS65010
-#include <linux/i2c/tps65010.h>
+#include <linux/mfd/tps65010.h>
 #else
 
 #define LOW	0
@@ -227,8 +227,7 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 				return status;
 			}
 		} else {
-			dev_err(hcd->self.controller, "can't find phy\n");
-			return -ENODEV;
+			return -EPROBE_DEFER;
 		}
 		ohci->start_hnp = start_hnp;
 	}

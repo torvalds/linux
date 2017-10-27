@@ -33,7 +33,7 @@
 
 #define USE_OLD_WOWLAN_DEBUG_FW			0
 
-#define H2C_PWEMODE_LENGTH			5
+#define H2C_PWEMODE_LENGTH			7
 
 /* Fw PS state for RPWM.
 *BIT[2:0] = HW state
@@ -125,6 +125,8 @@ enum rtl8723b_c2h_evt {
 	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+3, 0, 8, __val)
 #define SET_H2CCMD_PWRMODE_PARM_PWR_STATE(__ph2ccmd, __val)		\
 	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+4, 0, 8, __val)
+#define SET_H2CCMD_PWRMODE_PARM_BYTE5(__ph2ccmd, __val)			\
+	SET_BITS_TO_LE_1BYTE((__ph2ccmd) + 5, 0, 8, __val)
 #define GET_88E_H2CCMD_PWRMODE_PARM_MODE(__ph2ccmd)			\
 	LE_BITS_TO_1BYTE(__ph2ccmd, 0, 8)
 
@@ -139,6 +141,10 @@ enum rtl8723b_c2h_evt {
 	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+1, 0, 8, __val)
 #define SET_H2CCMD_RSVDPAGE_LOC_NULL_DATA(__ph2ccmd, __val)		\
 	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+2, 0, 8, __val)
+#define SET_H2CCMD_RSVDPAGE_LOC_QOS_NULL_DATA(__ph2ccmd, __val)	\
+	SET_BITS_TO_LE_1BYTE((__ph2ccmd) + 3, 0, 8, __val)
+#define SET_H2CCMD_RSVDPAGE_LOC_BT_QOS_NULL_DATA(__ph2ccmd, __val)	\
+	SET_BITS_TO_LE_1BYTE((__ph2ccmd) + 4, 0, 8, __val)
 
 
 void rtl8723be_fill_h2c_cmd(struct ieee80211_hw *hw, u8 element_id,
@@ -148,5 +154,6 @@ void rtl8723be_set_fw_media_status_rpt_cmd(struct ieee80211_hw *hw, u8 mstatus);
 void rtl8723be_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished);
 void rtl8723be_set_p2p_ps_offload_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state);
 void rtl8723be_c2h_packet_handler(struct ieee80211_hw *hw, u8 *buffer, u8 len);
-
+void rtl8723be_c2h_content_parsing(struct ieee80211_hw *hw, u8 c2h_cmd_id,
+				   u8 c2h_cmd_len, u8 *tmp_buf);
 #endif

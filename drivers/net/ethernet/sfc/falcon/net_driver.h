@@ -448,131 +448,6 @@ struct ef4_channel {
 	struct ef4_tx_queue tx_queue[EF4_TXQ_TYPES];
 };
 
-#ifdef CONFIG_NET_RX_BUSY_POLL
-enum ef4_channel_busy_poll_state {
-	EF4_CHANNEL_STATE_IDLE = 0,
-	EF4_CHANNEL_STATE_NAPI = BIT(0),
-	EF4_CHANNEL_STATE_NAPI_REQ_BIT = 1,
-	EF4_CHANNEL_STATE_NAPI_REQ = BIT(1),
-	EF4_CHANNEL_STATE_POLL_BIT = 2,
-	EF4_CHANNEL_STATE_POLL = BIT(2),
-	EF4_CHANNEL_STATE_DISABLE_BIT = 3,
-};
-
-static inline void ef4_channel_busy_poll_init(struct ef4_channel *channel)
-{
-	WRITE_ONCE(channel->busy_poll_state, EF4_CHANNEL_STATE_IDLE);
-}
-
-/* Called from the device poll routine to get ownership of a channel. */
-static inline bool ef4_channel_lock_napi(struct ef4_channel *channel)
-{
-	unsigned long prev, old = READ_ONCE(channel->busy_poll_state);
-
-	while (1) {
-		switch (old) {
-		case EF4_CHANNEL_STATE_POLL:
-			/* Ensure ef4_channel_try_lock_poll() wont starve us */
-			set_bit(EF4_CHANNEL_STATE_NAPI_REQ_BIT,
-				&channel->busy_poll_state);
-			/* fallthrough */
-		case EF4_CHANNEL_STATE_POLL | EF4_CHANNEL_STATE_NAPI_REQ:
-			return false;
-		default:
-			break;
-		}
-		prev = cmpxchg(&channel->busy_poll_state, old,
-			       EF4_CHANNEL_STATE_NAPI);
-		if (unlikely(prev != old)) {
-			/* This is likely to mean we've just entered polling
-			 * state. Go back round to set the REQ bit.
-			 */
-			old = prev;
-			continue;
-		}
-		return true;
-	}
-}
-
-static inline void ef4_channel_unlock_napi(struct ef4_channel *channel)
-{
-	/* Make sure write has completed from ef4_channel_lock_napi() */
-	smp_wmb();
-	WRITE_ONCE(channel->busy_poll_state, EF4_CHANNEL_STATE_IDLE);
-}
-
-/* Called from ef4_busy_poll(). */
-static inline bool ef4_channel_try_lock_poll(struct ef4_channel *channel)
-{
-	return cmpxchg(&channel->busy_poll_state, EF4_CHANNEL_STATE_IDLE,
-			EF4_CHANNEL_STATE_POLL) == EF4_CHANNEL_STATE_IDLE;
-}
-
-static inline void ef4_channel_unlock_poll(struct ef4_channel *channel)
-{
-	clear_bit_unlock(EF4_CHANNEL_STATE_POLL_BIT, &channel->busy_poll_state);
-}
-
-static inline bool ef4_channel_busy_polling(struct ef4_channel *channel)
-{
-	return test_bit(EF4_CHANNEL_STATE_POLL_BIT, &channel->busy_poll_state);
-}
-
-static inline void ef4_channel_enable(struct ef4_channel *channel)
-{
-	clear_bit_unlock(EF4_CHANNEL_STATE_DISABLE_BIT,
-			 &channel->busy_poll_state);
-}
-
-/* Stop further polling or napi access.
- * Returns false if the channel is currently busy polling.
- */
-static inline bool ef4_channel_disable(struct ef4_channel *channel)
-{
-	set_bit(EF4_CHANNEL_STATE_DISABLE_BIT, &channel->busy_poll_state);
-	/* Implicit barrier in ef4_channel_busy_polling() */
-	return !ef4_channel_busy_polling(channel);
-}
-
-#else /* CONFIG_NET_RX_BUSY_POLL */
-
-static inline void ef4_channel_busy_poll_init(struct ef4_channel *channel)
-{
-}
-
-static inline bool ef4_channel_lock_napi(struct ef4_channel *channel)
-{
-	return true;
-}
-
-static inline void ef4_channel_unlock_napi(struct ef4_channel *channel)
-{
-}
-
-static inline bool ef4_channel_try_lock_poll(struct ef4_channel *channel)
-{
-	return false;
-}
-
-static inline void ef4_channel_unlock_poll(struct ef4_channel *channel)
-{
-}
-
-static inline bool ef4_channel_busy_polling(struct ef4_channel *channel)
-{
-	return false;
-}
-
-static inline void ef4_channel_enable(struct ef4_channel *channel)
-{
-}
-
-static inline bool ef4_channel_disable(struct ef4_channel *channel)
-{
-	return true;
-}
-#endif /* CONFIG_NET_RX_BUSY_POLL */
-
 /**
  * struct ef4_msi_context - Context for each MSI
  * @efx: The associated NIC
@@ -684,8 +559,8 @@ static inline bool ef4_link_state_equal(const struct ef4_link_state *left,
  * @reconfigure: Reconfigure PHY (e.g. for new link parameters)
  * @poll: Update @link_state and report whether it changed.
  *	Serialised by the mac_lock.
- * @get_settings: Get ethtool settings. Serialised by the mac_lock.
- * @set_settings: Set ethtool settings. Serialised by the mac_lock.
+ * @get_link_ksettings: Get ethtool settings. Serialised by the mac_lock.
+ * @set_link_ksettings: Set ethtool settings. Serialised by the mac_lock.
  * @set_npage_adv: Set abilities advertised in (Extended) Next Page
  *	(only needed where AN bit is set in mmds)
  * @test_alive: Test that PHY is 'alive' (online)
@@ -700,10 +575,10 @@ struct ef4_phy_operations {
 	void (*remove) (struct ef4_nic *efx);
 	int (*reconfigure) (struct ef4_nic *efx);
 	bool (*poll) (struct ef4_nic *efx);
-	void (*get_settings) (struct ef4_nic *efx,
-			      struct ethtool_cmd *ecmd);
-	int (*set_settings) (struct ef4_nic *efx,
-			     struct ethtool_cmd *ecmd);
+	void (*get_link_ksettings)(struct ef4_nic *efx,
+				   struct ethtool_link_ksettings *cmd);
+	int (*set_link_ksettings)(struct ef4_nic *efx,
+				  const struct ethtool_link_ksettings *cmd);
 	void (*set_npage_adv) (struct ef4_nic *efx, u32);
 	int (*test_alive) (struct ef4_nic *efx);
 	const char *(*test_name) (struct ef4_nic *efx, unsigned int index);

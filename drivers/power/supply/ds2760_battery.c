@@ -28,7 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 
-#include "../../w1/w1.h"
+#include <linux/w1.h>
 #include "../../w1/slaves/w1_ds2760.h"
 
 struct ds2760_device_info {

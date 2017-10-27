@@ -41,15 +41,15 @@
 
 #define CCM_B0_SIZE             16
 #define CCM_AAD_FIELD_SIZE      2
-#define T5_MAX_AAD_SIZE 512
+#define T6_MAX_AAD_SIZE 511
 
 
 /* Define following if h/w is not dropping the AAD and IV data before
  * giving the processed data
  */
 
-#define CHCR_CRA_PRIORITY 300
-
+#define CHCR_CRA_PRIORITY 500
+#define CHCR_AEAD_PRIORITY 6000
 #define CHCR_AES_MAX_KEY_LEN  (2 * (AES_MAX_KEY_SIZE)) /* consider xts */
 #define CHCR_MAX_CRYPTO_IV_LEN 16 /* AES IV len */
 
@@ -139,6 +139,9 @@
 #define CRYPTO_ALG_SUB_TYPE_AEAD_RFC4309    0x06000000
 #define CRYPTO_ALG_SUB_TYPE_AEAD_NULL       0x07000000
 #define CRYPTO_ALG_SUB_TYPE_CTR             0x08000000
+#define CRYPTO_ALG_SUB_TYPE_CTR_RFC3686     0x09000000
+#define CRYPTO_ALG_SUB_TYPE_XTS		    0x0a000000
+#define CRYPTO_ALG_SUB_TYPE_CBC		    0x0b000000
 #define CRYPTO_ALG_TYPE_HMAC (CRYPTO_ALG_TYPE_AHASH |\
 			      CRYPTO_ALG_SUB_TYPE_HASH_HMAC)
 
@@ -146,19 +149,24 @@
 
 #define CHCR_HASH_MAX_BLOCK_SIZE_64  64
 #define CHCR_HASH_MAX_BLOCK_SIZE_128 128
+#define CHCR_SG_SIZE 2048
 
 /* Aligned to 128 bit boundary */
 
 struct ablk_ctx {
+	struct crypto_skcipher *sw_cipher;
+	struct crypto_cipher *aes_generic;
 	__be32 key_ctx_hdr;
 	unsigned int enckey_len;
-	u8 key[CHCR_AES_MAX_KEY_LEN];
 	unsigned char ciph_mode;
+	u8 key[CHCR_AES_MAX_KEY_LEN];
+	u8 nonce[4];
 	u8 rrkey[AES_MAX_KEY_SIZE];
 };
 struct chcr_aead_reqctx {
 	struct	sk_buff	*skb;
 	struct scatterlist *dst;
+	struct scatterlist *newdstsg;
 	struct scatterlist srcffwd[2];
 	struct scatterlist dstffwd[2];
 	short int dst_nents;
@@ -188,6 +196,7 @@ struct chcr_aead_ctx {
 	__be32 key_ctx_hdr;
 	unsigned int enckey_len;
 	struct crypto_skcipher *null;
+	struct crypto_aead *sw_cipher;
 	u8 salt[MAX_SALT];
 	u8 key[CHCR_AES_MAX_KEY_LEN];
 	u16 hmac_ctrl;
@@ -211,7 +220,8 @@ struct __crypto_ctx {
 
 struct chcr_context {
 	struct chcr_dev *dev;
-	unsigned char tx_channel_id;
+	unsigned char tx_qidx;
+	unsigned char rx_qidx;
 	struct __crypto_ctx crypto_ctx[0];
 };
 
@@ -231,7 +241,14 @@ struct chcr_ahash_req_ctx {
 
 struct chcr_blkcipher_req_ctx {
 	struct sk_buff *skb;
-	unsigned int dst_nents;
+	struct scatterlist srcffwd[2];
+	struct scatterlist dstffwd[2];
+	struct scatterlist *dstsg;
+	struct scatterlist *dst;
+	struct scatterlist *newdstsg;
+	unsigned int processed;
+	unsigned int op;
+	short int dst_nents;
 	u8 iv[CHCR_MAX_CRYPTO_IV_LEN];
 };
 
@@ -273,5 +290,10 @@ static int chcr_aead_op(struct aead_request *req_base,
 			  int size,
 			  create_wr_t create_wr_fn);
 static inline int get_aead_subtype(struct crypto_aead *aead);
-
+static int is_newsg(struct scatterlist *sgl, unsigned int *newents);
+static struct scatterlist *alloc_new_sg(struct scatterlist *sgl,
+					unsigned int nents);
+static inline void free_new_sg(struct scatterlist *sgl);
+static int chcr_handle_cipher_resp(struct ablkcipher_request *req,
+				   unsigned char *input, int err);
 #endif /* __CHCR_CRYPTO_H__ */

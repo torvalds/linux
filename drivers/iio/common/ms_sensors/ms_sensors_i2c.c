@@ -74,7 +74,7 @@ EXPORT_SYMBOL(ms_sensors_reset);
 int ms_sensors_read_prom_word(void *cli, int cmd, u16 *word)
 {
 	int ret;
-	struct i2c_client *client = (struct i2c_client *)cli;
+	struct i2c_client *client = cli;
 
 	ret = i2c_smbus_read_word_swapped(client, cmd);
 	if (ret < 0) {
@@ -107,7 +107,7 @@ int ms_sensors_convert_and_read(void *cli, u8 conv, u8 rd,
 {
 	int ret;
 	__be32 buf = 0;
-	struct i2c_client *client = (struct i2c_client *)cli;
+	struct i2c_client *client = cli;
 
 	/* Trigger conversion */
 	ret = i2c_smbus_write_byte(client, conv);

@@ -1,0 +1,34 @@
+* Faraday Technology FTGMAC100 gigabit ethernet controller
+
+Required properties:
+- compatible: "faraday,ftgmac100"
+
+  Must also contain one of these if used as part of an Aspeed AST2400
+  or 2500 family SoC as they have some subtle tweaks to the
+  implementation:
+
+     - "aspeed,ast2400-mac"
+     - "aspeed,ast2500-mac"
+
+- reg: Address and length of the register set for the device
+- interrupts: Should contain ethernet controller interrupt
+
+Optional properties:
+- phy-mode: See ethernet.txt file in the same directory. If the property is
+  absent, "rgmii" is assumed. Supported values are "rgmii*" and "rmii" for
+  aspeed parts. Other (unknown) parts will accept any value.
+- use-ncsi: Use the NC-SI stack instead of an MDIO PHY. Currently assumes
+  rmii (100bT) but kept as a separate property in case NC-SI grows support
+  for a gigabit link.
+- no-hw-checksum: Used to disable HW checksum support. Here for backward
+  compatibility as the driver now should have correct defaults based on
+  the SoC.
+
+Example:
+
+	mac0: ethernet@1e660000 {
+		compatible = "aspeed,ast2500-mac", "faraday,ftgmac100";
+		reg = <0x1e660000 0x180>;
+		interrupts = <2>;
+		use-ncsi;
+	};

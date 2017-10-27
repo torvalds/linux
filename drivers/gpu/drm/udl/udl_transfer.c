@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/fb.h>
 #include <linux/prefetch.h>
+#include <asm/unaligned.h>
 
 #include <drm/drmP.h>
 #include "udl_drv.h"
@@ -163,7 +164,7 @@ static void udl_compress_hline16(
 			const u8 *const start = pixel;
 			const uint16_t repeating_pixel_val16 = pixel_val16;
 
-			*(uint16_t *)cmd = cpu_to_be16(pixel_val16);
+			put_unaligned_be16(pixel_val16, cmd);
 
 			cmd += 2;
 			pixel += bpp;

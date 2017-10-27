@@ -29,7 +29,9 @@
  */
 
 #include <linux/export.h>
-#include <drm/drmP.h>
+#include <linux/highmem.h>
+
+#include <drm/drm_cache.h>
 
 #if defined(CONFIG_X86)
 #include <asm/smp.h>
@@ -67,6 +69,14 @@ static void drm_cache_flush_clflush(struct page *pages[],
 }
 #endif
 
+/**
+ * drm_clflush_pages - Flush dcache lines of a set of pages.
+ * @pages: List of pages to be flushed.
+ * @num_pages: Number of pages in the array.
+ *
+ * Flush every data cache line entry that points to an address belonging
+ * to a page in the array.
+ */
 void
 drm_clflush_pages(struct page *pages[], unsigned long num_pages)
 {
@@ -78,7 +88,7 @@ drm_clflush_pages(struct page *pages[], unsigned long num_pages)
 	}
 
 	if (wbinvd_on_all_cpus())
-		printk(KERN_ERR "Timed out waiting for cache flush.\n");
+		pr_err("Timed out waiting for cache flush\n");
 
 #elif defined(__powerpc__)
 	unsigned long i;
@@ -95,12 +105,19 @@ drm_clflush_pages(struct page *pages[], unsigned long num_pages)
 		kunmap_atomic(page_virtual);
 	}
 #else
-	printk(KERN_ERR "Architecture has no drm_cache.c support\n");
+	pr_err("Architecture has no drm_cache.c support\n");
 	WARN_ON_ONCE(1);
 #endif
 }
 EXPORT_SYMBOL(drm_clflush_pages);
 
+/**
+ * drm_clflush_sg - Flush dcache lines pointing to a scather-gather.
+ * @st: struct sg_table.
+ *
+ * Flush every data cache line entry that points to an address in the
+ * sg.
+ */
 void
 drm_clflush_sg(struct sg_table *st)
 {
@@ -117,14 +134,22 @@ drm_clflush_sg(struct sg_table *st)
 	}
 
 	if (wbinvd_on_all_cpus())
-		printk(KERN_ERR "Timed out waiting for cache flush.\n");
+		pr_err("Timed out waiting for cache flush\n");
 #else
-	printk(KERN_ERR "Architecture has no drm_cache.c support\n");
+	pr_err("Architecture has no drm_cache.c support\n");
 	WARN_ON_ONCE(1);
 #endif
 }
 EXPORT_SYMBOL(drm_clflush_sg);
 
+/**
+ * drm_clflush_virt_range - Flush dcache lines of a region
+ * @addr: Initial kernel memory address.
+ * @length: Region size.
+ *
+ * Flush every data cache line entry that points to an address in the
+ * region requested.
+ */
 void
 drm_clflush_virt_range(void *addr, unsigned long length)
 {
@@ -142,9 +167,9 @@ drm_clflush_virt_range(void *addr, unsigned long length)
 	}
 
 	if (wbinvd_on_all_cpus())
-		printk(KERN_ERR "Timed out waiting for cache flush.\n");
+		pr_err("Timed out waiting for cache flush\n");
 #else
-	printk(KERN_ERR "Architecture has no drm_cache.c support\n");
+	pr_err("Architecture has no drm_cache.c support\n");
 	WARN_ON_ONCE(1);
 #endif
 }

@@ -205,7 +205,7 @@ static int wdt_set_timeout(struct watchdog_device * dev, unsigned int new_to)
 	return wdt_ping(dev);
 }
 
-static struct watchdog_ops wdt_ops = {
+static const struct watchdog_ops wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = wdt_start,
 	.stop = wdt_stop,
@@ -213,7 +213,7 @@ static struct watchdog_ops wdt_ops = {
 	.set_timeout = wdt_set_timeout,
 };
 
-static struct watchdog_info wdt_info = {
+static const struct watchdog_info wdt_info = {
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 	.firmware_version = 0,
 	.identity = "z Watchdog",

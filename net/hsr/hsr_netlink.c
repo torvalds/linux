@@ -33,7 +33,8 @@ static const struct nla_policy hsr_policy[IFLA_HSR_MAX + 1] = {
  * hsr_dev_setup routine has been executed. Nice!
  */
 static int hsr_newlink(struct net *src_net, struct net_device *dev,
-		       struct nlattr *tb[], struct nlattr *data[])
+		       struct nlattr *tb[], struct nlattr *data[],
+		       struct netlink_ext_ack *extack)
 {
 	struct net_device *link[2];
 	unsigned char multicast_spec, hsr_version;
@@ -350,7 +351,7 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 	return 0;
 
 invalid:
-	netlink_ack(skb_in, nlmsg_hdr(skb_in), -EINVAL);
+	netlink_ack(skb_in, nlmsg_hdr(skb_in), -EINVAL, NULL);
 	return 0;
 
 nla_put_failure:
@@ -432,7 +433,7 @@ static int hsr_get_node_list(struct sk_buff *skb_in, struct genl_info *info)
 	return 0;
 
 invalid:
-	netlink_ack(skb_in, nlmsg_hdr(skb_in), -EINVAL);
+	netlink_ack(skb_in, nlmsg_hdr(skb_in), -EINVAL, NULL);
 	return 0;
 
 nla_put_failure:

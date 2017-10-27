@@ -150,8 +150,8 @@ static void dlpar_pci_add_bus(struct device_node *dn)
 	/* Add EADS device to PHB bus, adding new entry to bus->devices */
 	dev = of_create_pci_dev(dn, phb->bus, pdn->devfn);
 	if (!dev) {
-		printk(KERN_ERR "%s: failed to create pci dev for %s\n",
-				__func__, dn->full_name);
+		printk(KERN_ERR "%s: failed to create pci dev for %pOF\n",
+				__func__, dn);
 		return;
 	}
 
@@ -463,7 +463,6 @@ static inline int is_dlpar_capable(void)
 
 int __init rpadlpar_io_init(void)
 {
-	int rc = 0;
 
 	if (!is_dlpar_capable()) {
 		printk(KERN_WARNING "%s: partition not DLPAR capable\n",
@@ -471,8 +470,7 @@ int __init rpadlpar_io_init(void)
 		return -EPERM;
 	}
 
-	rc = dlpar_sysfs_init();
-	return rc;
+	return dlpar_sysfs_init();
 }
 
 void rpadlpar_io_exit(void)

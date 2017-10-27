@@ -37,10 +37,11 @@ enum hns_nic_state {
 struct hns_nic_ring_data {
 	struct hnae_ring *ring;
 	struct napi_struct napi;
-	int queue_index;
+	cpumask_t mask; /* affinity mask */
+	u32 queue_index;
 	int (*poll_one)(struct hns_nic_ring_data *, int, void *);
 	void (*ex_process)(struct hns_nic_ring_data *, struct sk_buff *);
-	void (*fini_process)(struct hns_nic_ring_data *);
+	bool (*fini_process)(struct hns_nic_ring_data *);
 };
 
 /* compatible the difference between two versions */
@@ -91,8 +92,8 @@ void hns_ethtool_set_ops(struct net_device *ndev);
 void hns_nic_net_reset(struct net_device *ndev);
 void hns_nic_net_reinit(struct net_device *netdev);
 int hns_nic_init_phy(struct net_device *ndev, struct hnae_handle *h);
-int hns_nic_net_xmit_hw(struct net_device *ndev,
-			struct sk_buff *skb,
-			struct hns_nic_ring_data *ring_data);
+netdev_tx_t hns_nic_net_xmit_hw(struct net_device *ndev,
+				struct sk_buff *skb,
+				struct hns_nic_ring_data *ring_data);
 
 #endif	/**__HNS_ENET_H */

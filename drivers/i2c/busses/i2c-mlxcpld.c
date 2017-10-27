@@ -433,7 +433,7 @@ static const struct i2c_algorithm mlxcpld_i2c_algo = {
 	.functionality	= mlxcpld_i2c_func
 };
 
-static struct i2c_adapter_quirks mlxcpld_i2c_quirks = {
+static const struct i2c_adapter_quirks mlxcpld_i2c_quirks = {
 	.flags = I2C_AQ_COMB_WRITE_THEN_READ,
 	.max_read_len = MLXCPLD_I2C_DATA_REG_SZ - MLXCPLD_I2C_MAX_ADDR_LEN,
 	.max_write_len = MLXCPLD_I2C_DATA_REG_SZ,

@@ -5,6 +5,7 @@
 #define __NET_NET_NAMESPACE_H
 
 #include <linux/atomic.h>
+#include <linux/refcount.h>
 #include <linux/workqueue.h>
 #include <linux/list.h>
 #include <linux/sysctl.h>
@@ -27,6 +28,7 @@
 #include <net/netns/nftables.h>
 #include <net/netns/xfrm.h>
 #include <net/netns/mpls.h>
+#include <net/netns/can.h>
 #include <linux/ns_common.h>
 #include <linux/idr.h>
 #include <linux/skbuff.h>
@@ -45,7 +47,7 @@ struct netns_ipvs;
 #define NETDEV_HASHENTRIES (1 << NETDEV_HASHBITS)
 
 struct net {
-	atomic_t		passive;	/* To decided when the network
+	refcount_t		passive;	/* To decided when the network
 						 * namespace should be freed.
 						 */
 	atomic_t		count;		/* To decided when the network
@@ -86,6 +88,7 @@ struct net {
 	/* core fib_rules */
 	struct list_head	rules_ops;
 
+	struct list_head	fib_notifier_ops;  /* protected by net_mutex */
 
 	struct net_device       *loopback_dev;          /* The loopback */
 	struct netns_core	core;
@@ -141,9 +144,12 @@ struct net {
 #if IS_ENABLED(CONFIG_MPLS)
 	struct netns_mpls	mpls;
 #endif
+#if IS_ENABLED(CONFIG_CAN)
+	struct netns_can	can;
+#endif
 	struct sock		*diag_nlsk;
 	atomic_t		fnhe_genid;
-};
+} __randomize_layout;
 
 #include <linux/seq_file_net.h>
 
@@ -154,6 +160,7 @@ extern struct net init_net;
 struct net *copy_net_ns(unsigned long flags, struct user_namespace *user_ns,
 			struct net *old_net);
 
+void net_ns_barrier(void);
 #else /* CONFIG_NET_NS */
 #include <linux/sched.h>
 #include <linux/nsproxy.h>
@@ -164,6 +171,8 @@ static inline struct net *copy_net_ns(unsigned long flags,
 		return ERR_PTR(-EINVAL);
 	return old_net;
 }
+
+static inline void net_ns_barrier(void) {}
 #endif /* CONFIG_NET_NS */
 
 

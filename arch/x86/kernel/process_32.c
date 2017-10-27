@@ -12,6 +12,8 @@
 #include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -35,6 +37,7 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/kdebug.h>
+#include <linux/syscalls.h>
 
 #include <asm/pgtable.h>
 #include <asm/ldt.h>
@@ -53,7 +56,8 @@
 #include <asm/debugreg.h>
 #include <asm/switch_to.h>
 #include <asm/vm86.h>
-#include <asm/intel_rdt.h>
+#include <asm/intel_rdt_sched.h>
+#include <asm/proto.h>
 
 void __show_regs(struct pt_regs *regs, int all)
 {
@@ -64,7 +68,7 @@ void __show_regs(struct pt_regs *regs, int all)
 
 	if (user_mode(regs)) {
 		sp = regs->sp;
-		ss = regs->ss & 0xffff;
+		ss = regs->ss;
 		gs = get_user_gs(regs);
 	} else {
 		sp = kernel_stack_pointer(regs);
@@ -74,7 +78,7 @@ void __show_regs(struct pt_regs *regs, int all)
 
 	printk(KERN_DEFAULT "EIP: %pS\n", (void *)regs->ip);
 	printk(KERN_DEFAULT "EFLAGS: %08lx CPU: %d\n", regs->flags,
-		smp_processor_id());
+		raw_smp_processor_id());
 
 	printk(KERN_DEFAULT "EAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx\n",
 		regs->ax, regs->bx, regs->cx, regs->dx);
@@ -88,7 +92,7 @@ void __show_regs(struct pt_regs *regs, int all)
 
 	cr0 = read_cr0();
 	cr2 = read_cr2();
-	cr3 = read_cr3();
+	cr3 = __read_cr3();
 	cr4 = __read_cr4();
 	printk(KERN_DEFAULT "CR0: %08lx CR2: %08lx CR3: %08lx CR4: %08lx\n",
 			cr0, cr2, cr3, cr4);
@@ -301,4 +305,9 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	intel_rdt_sched_in();
 
 	return prev_p;
+}
+
+SYSCALL_DEFINE2(arch_prctl, int, option, unsigned long, arg2)
+{
+	return do_arch_prctl_common(current, option, arg2);
 }

@@ -20,7 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 
 #include <linux/jz4780-nemc.h>
@@ -205,7 +205,7 @@ static int jz4780_nand_init_ecc(struct jz4780_nand_chip *nand, struct device *de
 		return -EINVAL;
 	}
 
-	mtd->ooblayout = &nand_ooblayout_lp_ops;
+	mtd_set_ooblayout(mtd, &nand_ooblayout_lp_ops);
 
 	return 0;
 }

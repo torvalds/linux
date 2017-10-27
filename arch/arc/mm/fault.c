@@ -9,7 +9,7 @@
 
 #include <linux/signal.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/uaccess.h>
@@ -207,7 +207,7 @@ no_context:
 	/* Are we prepared to handle this kernel fault?
 	 *
 	 * (The kernel has valid exception-points in the source
-	 *  when it acesses user-memory. When it fails in one
+	 *  when it accesses user-memory. When it fails in one
 	 *  of those points, we find it in a table and do a jump
 	 *  to some fixup code that loads an appropriate error
 	 *  code)

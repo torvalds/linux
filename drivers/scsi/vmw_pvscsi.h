@@ -423,11 +423,6 @@ struct PVSCSIConfigPageController {
 #define PVSCSI_MAX_INTRS        24
 
 /*
- * Enumeration of supported MSI-X vectors
- */
-#define PVSCSI_VECTOR_COMPLETION   0
-
-/*
  * Misc constants for the rings.
  */
 

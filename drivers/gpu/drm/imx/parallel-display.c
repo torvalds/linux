@@ -19,10 +19,10 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <linux/videodev2.h>
 #include <video/of_display_timing.h>
-#include <linux/of_graph.h>
 
 #include "imx-drm.h"
 
@@ -135,7 +135,6 @@ static int imx_pd_encoder_atomic_check(struct drm_encoder *encoder,
 }
 
 static const struct drm_connector_funcs imx_pd_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = imx_drm_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,
@@ -191,9 +190,7 @@ static int imx_pd_register(struct drm_device *drm,
 		drm_panel_attach(imxpd->panel, &imxpd->connector);
 
 	if (imxpd->bridge) {
-		imxpd->bridge->encoder = encoder;
-		encoder->bridge = imxpd->bridge;
-		ret = drm_bridge_attach(drm, imxpd->bridge);
+		ret = drm_bridge_attach(encoder, imxpd->bridge, NULL);
 		if (ret < 0) {
 			dev_err(imxpd->dev, "failed to attach bridge: %d\n",
 				ret);
@@ -210,7 +207,6 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 {
 	struct drm_device *drm = data;
 	struct device_node *np = dev->of_node;
-	struct device_node *ep;
 	const u8 *edidp;
 	struct imx_parallel_display *imxpd;
 	int ret;
@@ -239,36 +235,9 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 	imxpd->bus_format = bus_format;
 
 	/* port@1 is the output port */
-	ep = of_graph_get_endpoint_by_regs(np, 1, -1);
-	if (ep) {
-		struct device_node *remote;
-
-		remote = of_graph_get_remote_port_parent(ep);
-		if (!remote) {
-			dev_warn(dev, "endpoint %s not connected\n",
-				 ep->full_name);
-			of_node_put(ep);
-			return -ENODEV;
-		}
-		of_node_put(ep);
-
-		imxpd->panel = of_drm_find_panel(remote);
-		if (imxpd->panel) {
-			dev_dbg(dev, "found panel %s\n", remote->full_name);
-		} else {
-			imxpd->bridge = of_drm_find_bridge(remote);
-			if (imxpd->bridge)
-				dev_dbg(dev, "found bridge %s\n",
-					remote->full_name);
-		}
-		if (!imxpd->panel && !imxpd->bridge) {
-			dev_dbg(dev, "waiting for panel or bridge %s\n",
-				remote->full_name);
-			of_node_put(remote);
-			return -EPROBE_DEFER;
-		}
-		of_node_put(remote);
-	}
+	ret = drm_of_find_panel_or_bridge(np, 1, 0, &imxpd->panel, &imxpd->bridge);
+	if (ret && ret != -ENODEV)
+		return ret;
 
 	imxpd->dev = dev;
 
@@ -286,8 +255,6 @@ static void imx_pd_unbind(struct device *dev, struct device *master,
 {
 	struct imx_parallel_display *imxpd = dev_get_drvdata(dev);
 
-	if (imxpd->bridge)
-		drm_bridge_detach(imxpd->bridge);
 	if (imxpd->panel)
 		drm_panel_detach(imxpd->panel);
 

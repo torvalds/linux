@@ -9,7 +9,8 @@
 #define IN_ARCH_STRING_C 1
 
 #include <linux/types.h>
-#include <linux/module.h>
+#include <linux/string.h>
+#include <linux/export.h>
 
 /*
  * Helper functions to find the end of a string

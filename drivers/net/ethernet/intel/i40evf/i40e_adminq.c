@@ -797,8 +797,8 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 			 */
 			if (i40evf_asq_done(hw))
 				break;
-			usleep_range(1000, 2000);
-			total_delay++;
+			udelay(50);
+			total_delay += 50;
 		} while (total_delay < hw->aq.asq_cmd_timeout);
 	}
 

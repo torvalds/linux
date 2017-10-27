@@ -87,7 +87,7 @@ static void etnaviv_gem_prime_release(struct etnaviv_gem_object *etnaviv_obj)
 	 * ours, just free the array we allocated:
 	 */
 	if (etnaviv_obj->pages)
-		drm_free_large(etnaviv_obj->pages);
+		kvfree(etnaviv_obj->pages);
 
 	drm_prime_gem_destroy(&etnaviv_obj->base, etnaviv_obj->sgt);
 }
@@ -128,7 +128,7 @@ struct drm_gem_object *etnaviv_gem_prime_import_sg_table(struct drm_device *dev,
 	npages = size / PAGE_SIZE;
 
 	etnaviv_obj->sgt = sgt;
-	etnaviv_obj->pages = drm_malloc_ab(npages, sizeof(struct page *));
+	etnaviv_obj->pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (!etnaviv_obj->pages) {
 		ret = -ENOMEM;
 		goto fail;
@@ -146,7 +146,14 @@ struct drm_gem_object *etnaviv_gem_prime_import_sg_table(struct drm_device *dev,
 	return &etnaviv_obj->base;
 
 fail:
-	drm_gem_object_unreference_unlocked(&etnaviv_obj->base);
+	drm_gem_object_put_unlocked(&etnaviv_obj->base);
 
 	return ERR_PTR(ret);
+}
+
+struct reservation_object *etnaviv_gem_prime_res_obj(struct drm_gem_object *obj)
+{
+	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
+
+	return etnaviv_obj->resv;
 }

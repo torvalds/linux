@@ -78,6 +78,8 @@ SECTIONS
 		*(.text.sys_exit)
 		*(.text.do_sigaltstack)
 		*(.text.do_fork)
+		*(.text.div)
+		*($$*)			/* millicode routines */
 		*(.text.*)
 		*(.fixup)
 		*(.lock.text)		/* out-of-line lock text */

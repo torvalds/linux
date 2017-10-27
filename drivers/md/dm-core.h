@@ -47,7 +47,7 @@ struct mapped_device {
 	struct request_queue *queue;
 	int numa_node_id;
 
-	unsigned type;
+	enum dm_queue_mode type;
 	/* Protect queue and type against concurrent access. */
 	struct mutex type_lock;
 
@@ -58,6 +58,7 @@ struct mapped_device {
 	struct target_type *immutable_target_type;
 
 	struct gendisk *disk;
+	struct dax_device *dax_dev;
 	char name[16];
 
 	void *interface_ptr;
@@ -92,7 +93,6 @@ struct mapped_device {
 	 * io objects are allocated from here.
 	 */
 	mempool_t *io_pool;
-	mempool_t *rq_pool;
 
 	struct bio_set *bs;
 
@@ -133,6 +133,7 @@ void dm_init_md_queue(struct mapped_device *md);
 void dm_init_normal_md_queue(struct mapped_device *md);
 int md_in_flight(struct mapped_device *md);
 void disable_write_same(struct mapped_device *md);
+void disable_write_zeroes(struct mapped_device *md);
 
 static inline struct completion *dm_get_completion_from_kobject(struct kobject *kobj)
 {
@@ -145,5 +146,9 @@ static inline bool dm_message_test_buffer_overflow(char *result, unsigned maxlen
 {
 	return !maxlen || strlen(result) + 1 >= maxlen;
 }
+
+extern atomic_t dm_global_event_nr;
+extern wait_queue_head_t dm_global_eventq;
+void dm_issue_global_event(void);
 
 #endif

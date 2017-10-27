@@ -15,7 +15,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/time.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -386,6 +386,28 @@ void nfs_setsecurity(struct inode *inode, struct nfs_fattr *fattr,
 #endif
 EXPORT_SYMBOL_GPL(nfs_setsecurity);
 
+/* Search for inode identified by fh, fileid and i_mode in inode cache. */
+struct inode *
+nfs_ilookup(struct super_block *sb, struct nfs_fattr *fattr, struct nfs_fh *fh)
+{
+	struct nfs_find_desc desc = {
+		.fh	= fh,
+		.fattr	= fattr,
+	};
+	struct inode *inode;
+	unsigned long hash;
+
+	if (!(fattr->valid & NFS_ATTR_FATTR_FILEID) ||
+	    !(fattr->valid & NFS_ATTR_FATTR_TYPE))
+		return NULL;
+
+	hash = nfs_fattr_to_ino_t(fattr);
+	inode = ilookup5(sb, hash, nfs_find_actor, &desc);
+
+	dprintk("%s: returning %p\n", __func__, inode);
+	return inode;
+}
+
 /*
  * This is our front-end to iget that looks up inodes by file handle
  * instead of inode number.
@@ -525,8 +547,14 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr, st
 		nfs_fscache_init_inode(inode);
 
 		unlock_new_inode(inode);
-	} else
-		nfs_refresh_inode(inode, fattr);
+	} else {
+		int err = nfs_refresh_inode(inode, fattr);
+		if (err < 0) {
+			iput(inode);
+			inode = ERR_PTR(err);
+			goto out_no_inode;
+		}
+	}
 	dprintk("NFS: nfs_fhget(%s/%Lu fh_crc=0x%08x ct=%d)\n",
 		inode->i_sb->s_id,
 		(unsigned long long)NFS_FILEID(inode),
@@ -703,9 +731,10 @@ static bool nfs_need_revalidate_inode(struct inode *inode)
 	return false;
 }
 
-int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+int nfs_getattr(const struct path *path, struct kstat *stat,
+		u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(dentry);
+	struct inode *inode = d_inode(path->dentry);
 	int need_atime = NFS_I(inode)->cache_validity & NFS_INO_INVALID_ATIME;
 	int err = 0;
 
@@ -726,17 +755,20 @@ int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 	 *  - NFS never sets MS_NOATIME or MS_NODIRATIME so there is
 	 *    no point in checking those.
 	 */
- 	if ((mnt->mnt_flags & MNT_NOATIME) ||
- 	    ((mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode)))
+	if ((path->mnt->mnt_flags & MNT_NOATIME) ||
+	    ((path->mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode)))
 		need_atime = 0;
 
 	if (need_atime || nfs_need_revalidate_inode(inode)) {
 		struct nfs_server *server = NFS_SERVER(inode);
 
-		nfs_readdirplus_parent_cache_miss(dentry);
+		if (!(server->flags & NFS_MOUNT_NOAC))
+			nfs_readdirplus_parent_cache_miss(path->dentry);
+		else
+			nfs_readdirplus_parent_cache_hit(path->dentry);
 		err = __nfs_revalidate_inode(server, inode);
 	} else
-		nfs_readdirplus_parent_cache_hit(dentry);
+		nfs_readdirplus_parent_cache_hit(path->dentry);
 	if (!err) {
 		generic_fillattr(inode, stat);
 		stat->ino = nfs_compat_user_ino64(NFS_FILEID(inode));
@@ -1253,7 +1285,6 @@ static bool nfs_file_has_buffered_writers(struct nfs_inode *nfsi)
 
 static unsigned long nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
 	unsigned long ret = 0;
 
 	if ((fattr->valid & NFS_ATTR_FATTR_PRECHANGE)
@@ -1283,7 +1314,7 @@ static unsigned long nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr 
 	if ((fattr->valid & NFS_ATTR_FATTR_PRESIZE)
 			&& (fattr->valid & NFS_ATTR_FATTR_SIZE)
 			&& i_size_read(inode) == nfs_size_to_loff_t(fattr->pre_size)
-			&& nfsi->nrequests == 0) {
+			&& !nfs_have_writebacks(inode)) {
 		i_size_write(inode, nfs_size_to_loff_t(fattr->size));
 		ret |= NFS_INO_INVALID_ATTR;
 	}
@@ -1311,9 +1342,9 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 		return 0;
 	/* Has the inode gone and changed behind our back? */
 	if ((fattr->valid & NFS_ATTR_FATTR_FILEID) && nfsi->fileid != fattr->fileid)
-		return -EIO;
+		return -ESTALE;
 	if ((fattr->valid & NFS_ATTR_FATTR_TYPE) && (inode->i_mode & S_IFMT) != (fattr->mode & S_IFMT))
-		return -EIO;
+		return -ESTALE;
 
 	if (!nfs_file_has_buffered_writers(nfsi)) {
 		/* Verify a few of the more important attributes */
@@ -1791,7 +1822,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		if (new_isize != cur_isize) {
 			/* Do we perhaps have any outstanding writes, or has
 			 * the file grown beyond our last write? */
-			if (nfsi->nrequests == 0 || new_isize > cur_isize) {
+			if (!nfs_have_writebacks(inode) || new_isize > cur_isize) {
 				i_size_write(inode, new_isize);
 				if (!have_writers)
 					invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
@@ -1980,10 +2011,11 @@ static void init_once(void *foo)
 	INIT_LIST_HEAD(&nfsi->access_cache_entry_lru);
 	INIT_LIST_HEAD(&nfsi->access_cache_inode_lru);
 	INIT_LIST_HEAD(&nfsi->commit_info.list);
-	nfsi->nrequests = 0;
-	nfsi->commit_info.ncommit = 0;
+	atomic_long_set(&nfsi->nrequests, 0);
+	atomic_long_set(&nfsi->commit_info.ncommit, 0);
 	atomic_set(&nfsi->commit_info.rpcs_out, 0);
 	init_rwsem(&nfsi->rmdir_sem);
+	mutex_init(&nfsi->commit_mutex);
 	nfs4_init_once(nfsi);
 }
 

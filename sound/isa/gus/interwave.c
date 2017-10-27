@@ -92,17 +92,17 @@ MODULE_PARM_DESC(enable, "Enable InterWave soundcard.");
 module_param_array(isapnp, bool, NULL, 0444);
 MODULE_PARM_DESC(isapnp, "ISA PnP detection for specified soundcard.");
 #endif
-module_param_array(port, long, NULL, 0444);
+module_param_hw_array(port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for InterWave driver.");
 #ifdef SNDRV_STB
-module_param_array(port_tc, long, NULL, 0444);
+module_param_hw_array(port_tc, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(port_tc, "Tone control (TEA6330T - i2c bus) port # for InterWave driver.");
 #endif
-module_param_array(irq, int, NULL, 0444);
+module_param_hw_array(irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for InterWave driver.");
-module_param_array(dma1, int, NULL, 0444);
+module_param_hw_array(dma1, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma1, "DMA1 # for InterWave driver.");
-module_param_array(dma2, int, NULL, 0444);
+module_param_hw_array(dma2, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA2 # for InterWave driver.");
 module_param_array(joystick_dac, int, NULL, 0444);
 MODULE_PARM_DESC(joystick_dac, "Joystick DAC level 0.59V-4.52V or 0.389V-2.98V for InterWave driver.");
@@ -136,7 +136,7 @@ struct snd_interwave {
 static int isa_registered;
 static int pnp_registered;
 
-static struct pnp_card_device_id snd_interwave_pnpids[] = {
+static const struct pnp_card_device_id snd_interwave_pnpids[] = {
 #ifndef SNDRV_STB
 	/* Gravis UltraSound Plug & Play */
 	{ .id = "GRV0001", .devs = { { .id = "GRV0000" } } },

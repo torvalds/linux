@@ -19,8 +19,6 @@
 #include <asm/ptrace.h>
 #include <asm/ustack.h>
 
-#define ARCH_HAS_PREFETCH_SWITCH_STACK
-
 #define IA64_NUM_PHYS_STACK_REG	96
 #define IA64_NUM_DBG_REGS	8
 
@@ -601,23 +599,6 @@ ia64_set_unat (__u64 *unat, void *spill_addr, unsigned long nat)
 	__u64 mask = 1UL << bit;
 
 	*unat = (*unat & ~mask) | (nat << bit);
-}
-
-/*
- * Return saved PC of a blocked thread.
- * Note that the only way T can block is through a call to schedule() -> switch_to().
- */
-static inline unsigned long
-thread_saved_pc (struct task_struct *t)
-{
-	struct unw_frame_info info;
-	unsigned long ip;
-
-	unw_init_from_blocked_task(&info, t);
-	if (unw_unwind(&info) < 0)
-		return 0;
-	unw_get_ip(&info, &ip);
-	return ip;
 }
 
 /*

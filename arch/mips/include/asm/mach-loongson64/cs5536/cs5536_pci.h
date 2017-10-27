@@ -80,7 +80,6 @@ extern u32 cs5536_pci_conf_read4(int function, int reg);
 #define PCI_BAR3_REG			0x1c
 #define PCI_BAR4_REG			0x20
 #define PCI_BAR5_REG			0x24
-#define PCI_BAR_COUNT			6
 #define PCI_BAR_RANGE_MASK		0xFFFFFFFF
 
 /* CARDBUS CIS POINTER */

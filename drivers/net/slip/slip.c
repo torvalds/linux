@@ -66,7 +66,7 @@
 
 #include <linux/uaccess.h>
 #include <linux/bitops.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
@@ -364,7 +364,7 @@ static void sl_bump(struct slip *sl)
 		return;
 	}
 	skb->dev = dev;
-	memcpy(skb_put(skb, count), sl->rbuff, count);
+	skb_put_data(skb, sl->rbuff, count);
 	skb_reset_mac_header(skb);
 	skb->protocol = htons(ETH_P_IP);
 	netif_rx_ni(skb);
@@ -566,7 +566,7 @@ static int sl_change_mtu(struct net_device *dev, int new_mtu)
 
 /* Netdevice get statistics request */
 
-static struct rtnl_link_stats64 *
+static void
 sl_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct net_device_stats *devstats = &dev->stats;
@@ -597,7 +597,6 @@ sl_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		stats->collisions     += comp->sls_o_misses;
 	}
 #endif
-	return stats;
 }
 
 /* Netdevice register callback */
@@ -630,7 +629,7 @@ static void sl_uninit(struct net_device *dev)
 static void sl_free_netdev(struct net_device *dev)
 {
 	int i = dev->base_addr;
-	free_netdev(dev);
+
 	slip_devs[i] = NULL;
 }
 
@@ -652,7 +651,8 @@ static const struct net_device_ops sl_netdev_ops = {
 static void sl_setup(struct net_device *dev)
 {
 	dev->netdev_ops		= &sl_netdev_ops;
-	dev->destructor		= sl_free_netdev;
+	dev->needs_free_netdev	= true;
+	dev->priv_destructor	= sl_free_netdev;
 
 	dev->hard_header_len	= 0;
 	dev->addr_len		= 0;
@@ -1370,8 +1370,6 @@ static void __exit slip_exit(void)
 		if (sl->tty) {
 			printk(KERN_ERR "%s: tty discipline still running\n",
 			       dev->name);
-			/* Intentionally leak the control block. */
-			dev->destructor = NULL;
 		}
 
 		unregister_netdev(dev);

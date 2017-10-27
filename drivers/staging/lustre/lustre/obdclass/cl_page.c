@@ -37,12 +37,12 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
+#include <linux/libcfs/libcfs.h>
+#include <obd_class.h>
+#include <obd_support.h>
 #include <linux/list.h>
 
-#include "../include/cl_object.h"
+#include <cl_object.h>
 #include "cl_internal.h"
 
 static void cl_page_delete0(const struct lu_env *env, struct cl_page *pg);
@@ -193,7 +193,7 @@ struct cl_page *cl_page_find(const struct lu_env *env,
 
 	hdr = cl_object_header(o);
 
-	CDEBUG(D_PAGE, "%lu@"DFID" %p %lx %d\n",
+	CDEBUG(D_PAGE, "%lu@" DFID " %p %lx %d\n",
 	       idx, PFID(&hdr->coh_lu.loh_fid), vmpage, vmpage->private, type);
 	/* fast path. */
 	if (type == CPT_CACHEABLE) {
@@ -482,6 +482,7 @@ void cl_page_disown0(const struct lu_env *env,
 int cl_page_is_owned(const struct cl_page *pg, const struct cl_io *io)
 {
 	struct cl_io *top = cl_io_top((struct cl_io *)io);
+
 	LINVRNT(cl_object_same(pg->cp_obj, io->ci_obj));
 	return pg->cp_state == CPS_OWNED && pg->cp_owner == top;
 }

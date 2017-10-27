@@ -182,7 +182,7 @@ static ssize_t contrast_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(contrast, 0644, contrast_show, contrast_store);
+static DEVICE_ATTR_RW(contrast);
 
 static inline u_int chan_to_field(u_int chan, struct fb_bitfield *bf)
 {

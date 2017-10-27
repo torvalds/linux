@@ -280,6 +280,7 @@ int jbd2_journal_init_revoke(journal_t *journal, int hash_size)
 
 fail1:
 	jbd2_journal_destroy_revoke_table(journal->j_revoke_table[0]);
+	journal->j_revoke_table[0] = NULL;
 fail0:
 	return -ENOMEM;
 }

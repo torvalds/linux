@@ -1,5 +1,6 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/syscalls.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
@@ -16,8 +17,11 @@
 #include <linux/uaccess.h>
 #include <linux/elf.h>
 
+#include <asm/elf.h>
+#include <asm/compat.h>
 #include <asm/ia32.h>
 #include <asm/syscalls.h>
+#include <asm/mpx.h>
 
 /*
  * Align a virtual address to avoid aliasing in the I$ on AMD F15h.
@@ -97,10 +101,10 @@ out:
 	return error;
 }
 
-static void find_start_end(unsigned long flags, unsigned long *begin,
-			   unsigned long *end)
+static void find_start_end(unsigned long addr, unsigned long flags,
+		unsigned long *begin, unsigned long *end)
 {
-	if (!test_thread_flag(TIF_ADDR32) && (flags & MAP_32BIT)) {
+	if (!in_compat_syscall() && (flags & MAP_32BIT)) {
 		/* This is usually used needed to map code in small
 		   model, so it needs to be in the first 31bit. Limit
 		   it to that.  This means we need to move the
@@ -113,10 +117,14 @@ static void find_start_end(unsigned long flags, unsigned long *begin,
 		if (current->flags & PF_RANDOMIZE) {
 			*begin = randomize_page(*begin, 0x02000000);
 		}
-	} else {
-		*begin = current->mm->mmap_legacy_base;
-		*end = TASK_SIZE;
+		return;
 	}
+
+	*begin	= get_mmap_base(1);
+	if (in_compat_syscall())
+		*end = task_size_32bit();
+	else
+		*end = task_size_64bit(addr > DEFAULT_MAP_WINDOW);
 }
 
 unsigned long
@@ -128,10 +136,14 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	struct vm_unmapped_area_info info;
 	unsigned long begin, end;
 
+	addr = mpx_unmapped_area_check(addr, len, flags);
+	if (IS_ERR_VALUE(addr))
+		return addr;
+
 	if (flags & MAP_FIXED)
 		return addr;
 
-	find_start_end(flags, &begin, &end);
+	find_start_end(addr, flags, &begin, &end);
 
 	if (len > end)
 		return -ENOMEM;
@@ -140,7 +152,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
 		if (end - len >= addr &&
-		    (!vma || addr + len <= vma->vm_start))
+		    (!vma || addr + len <= vm_start_gap(vma)))
 			return addr;
 	}
 
@@ -167,6 +179,10 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	unsigned long addr = addr0;
 	struct vm_unmapped_area_info info;
 
+	addr = mpx_unmapped_area_check(addr, len, flags);
+	if (IS_ERR_VALUE(addr))
+		return addr;
+
 	/* requested length too big for entire address space */
 	if (len > TASK_SIZE)
 		return -ENOMEM;
@@ -175,7 +191,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 		return addr;
 
 	/* for MAP_32BIT mappings we force the legacy mmap base */
-	if (!test_thread_flag(TIF_ADDR32) && (flags & MAP_32BIT))
+	if (!in_compat_syscall() && (flags & MAP_32BIT))
 		goto bottomup;
 
 	/* requesting a specific address */
@@ -183,14 +199,24 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
 		if (TASK_SIZE - len >= addr &&
-				(!vma || addr + len <= vma->vm_start))
+				(!vma || addr + len <= vm_start_gap(vma)))
 			return addr;
 	}
 
 	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
 	info.length = len;
 	info.low_limit = PAGE_SIZE;
-	info.high_limit = mm->mmap_base;
+	info.high_limit = get_mmap_base(0);
+
+	/*
+	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
+	 * in the full address space.
+	 *
+	 * !in_compat_syscall() check to avoid high addresses for x32.
+	 */
+	if (addr > DEFAULT_MAP_WINDOW && !in_compat_syscall())
+		info.high_limit += TASK_SIZE_MAX - DEFAULT_MAP_WINDOW;
+
 	info.align_mask = 0;
 	info.align_offset = pgoff << PAGE_SHIFT;
 	if (filp) {

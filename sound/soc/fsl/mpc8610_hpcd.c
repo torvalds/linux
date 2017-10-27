@@ -174,7 +174,7 @@ static int mpc8610_hpcd_machine_remove(struct snd_soc_card *card)
 /**
  * mpc8610_hpcd_ops: ASoC machine driver operations
  */
-static struct snd_soc_ops mpc8610_hpcd_ops = {
+static const struct snd_soc_ops mpc8610_hpcd_ops = {
 	.startup = mpc8610_hpcd_startup,
 };
 

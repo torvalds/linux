@@ -65,6 +65,8 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/export.h>
+#include <linux/rculist.h>
+
 #include <asm/unaligned.h>
 
 #include <scsi/libfc.h>
@@ -381,11 +383,11 @@ static void fc_rport_work(struct work_struct *work)
 				fc_rport_enter_flogi(rdata);
 				mutex_unlock(&rdata->rp_mutex);
 			} else {
+				mutex_unlock(&rdata->rp_mutex);
 				FC_RPORT_DBG(rdata, "work delete\n");
 				mutex_lock(&lport->disc.disc_mutex);
 				list_del_rcu(&rdata->peers);
 				mutex_unlock(&lport->disc.disc_mutex);
-				mutex_unlock(&rdata->rp_mutex);
 				kref_put(&rdata->kref, fc_rport_destroy);
 			}
 		} else {
@@ -1420,7 +1422,7 @@ static void fc_rport_recv_rtv_req(struct fc_rport_priv *rdata,
 	fp = fc_frame_alloc(lport, sizeof(*rtv));
 	if (!fp) {
 		rjt_data.reason = ELS_RJT_UNAB;
-		rjt_data.reason = ELS_EXPL_INSUF_RES;
+		rjt_data.explan = ELS_EXPL_INSUF_RES;
 		fc_seq_els_rsp_send(in_fp, ELS_LS_RJT, &rjt_data);
 		goto drop;
 	}

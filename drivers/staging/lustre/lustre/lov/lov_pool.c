@@ -40,9 +40,9 @@
 
 #define DEBUG_SUBSYSTEM S_LOV
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-#include "../include/obd.h"
+#include <obd.h>
 #include "lov_internal.h"
 
 #define pool_tgt(_p, _i) \
@@ -286,7 +286,7 @@ static int pool_proc_open(struct inode *inode, struct file *file)
 	return rc;
 }
 
-static struct file_operations pool_proc_operations = {
+static const struct file_operations pool_proc_operations = {
 	.open	   = pool_proc_open,
 	.read	   = seq_read,
 	.llseek	 = seq_lseek,
@@ -429,7 +429,7 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 						poolname, new_pool,
 						&pool_proc_operations);
 	if (IS_ERR_OR_NULL(new_pool->pool_debugfs_entry)) {
-		CWARN("Cannot add debugfs pool entry "LOV_POOLNAMEF"\n",
+		CWARN("Cannot add debugfs pool entry " LOV_POOLNAMEF "\n",
 		      poolname);
 		new_pool->pool_debugfs_entry = NULL;
 		lov_pool_putref(new_pool);
@@ -450,7 +450,7 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 		goto out_err;
 	}
 
-	CDEBUG(D_CONFIG, LOV_POOLNAMEF" is pool #%d\n",
+	CDEBUG(D_CONFIG, LOV_POOLNAMEF " is pool #%d\n",
 	       poolname, lov->lov_pool_count);
 
 	return 0;
@@ -531,7 +531,7 @@ int lov_pool_add(struct obd_device *obd, char *poolname, char *ostname)
 	if (rc)
 		goto out;
 
-	CDEBUG(D_CONFIG, "Added %s to "LOV_POOLNAMEF" as member %d\n",
+	CDEBUG(D_CONFIG, "Added %s to " LOV_POOLNAMEF " as member %d\n",
 	       ostname, poolname,  pool_tgt_count(pool));
 
 out:
@@ -575,7 +575,7 @@ int lov_pool_remove(struct obd_device *obd, char *poolname, char *ostname)
 
 	lov_ost_pool_remove(&pool->pool_obds, lov_idx);
 
-	CDEBUG(D_CONFIG, "%s removed from "LOV_POOLNAMEF"\n", ostname,
+	CDEBUG(D_CONFIG, "%s removed from " LOV_POOLNAMEF "\n", ostname,
 	       poolname);
 
 out:

@@ -8,6 +8,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <dt-bindings/reset/ti-syscon.h>
+
 / {
 	compatible = "ti,k2e", "ti,keystone";
 	model = "Texas Instruments Keystone 2 Edison SoC";
@@ -41,6 +43,10 @@
 			device_type = "cpu";
 			reg = <3>;
 		};
+	};
+
+	aliases {
+		rproc0 = &dsp0;
 	};
 
 	soc {
@@ -82,11 +88,50 @@
 			};
 		};
 
+		msm_ram: msmram@0c000000 {
+			compatible = "mmio-sram";
+			reg = <0x0c000000 0x200000>;
+			ranges = <0x0 0x0c000000 0x200000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			sram-bm@1f0000 {
+				reg = <0x001f0000 0x8000>;
+			};
+		};
+
+		psc: power-sleep-controller@02350000 {
+			pscrst: reset-controller {
+				compatible = "ti,k2e-pscrst", "ti,syscon-reset";
+				#reset-cells = <1>;
+
+				ti,reset-bits = <
+					0xa3c 8 0xa3c 8 0x83c 8 (ASSERT_CLEAR | DEASSERT_SET | STATUS_CLEAR) /* 0: dsp0 */
+				>;
+			};
+		};
+
 		dspgpio0: keystone_dsp_gpio@02620240 {
 			compatible = "ti,keystone-dsp-gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio,syscon-dev = <&devctrl 0x240>;
+		};
+
+		dsp0: dsp@10800000 {
+			compatible = "ti,k2e-dsp";
+			reg = <0x10800000 0x00080000>,
+			      <0x10e00000 0x00008000>,
+			      <0x10f00000 0x00008000>;
+			reg-names = "l2sram", "l1pram", "l1dram";
+			clocks = <&clkgem0>;
+			ti,syscon-dev = <&devctrl 0x844>;
+			resets = <&pscrst 0>;
+			interrupt-parent = <&kirq0>;
+			interrupts = <0 8>;
+			interrupt-names = "vring", "exception";
+			kick-gpios = <&dspgpio0 27 0>;
+			status = "disabled";
 		};
 
 		pcie1: pcie@21020000 {

@@ -148,7 +148,6 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	struct private_data *priv;
 	struct device *cpu_dev;
 	struct clk *cpu_clk;
-	struct dev_pm_opp *suspend_opp;
 	unsigned int transition_latency;
 	bool fallback = false;
 	const char *name;
@@ -252,11 +251,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	policy->driver_data = priv;
 	policy->clk = cpu_clk;
 
-	rcu_read_lock();
-	suspend_opp = dev_pm_opp_get_suspend_opp(cpu_dev);
-	if (suspend_opp)
-		policy->suspend_freq = dev_pm_opp_get_freq(suspend_opp) / 1000;
-	rcu_read_unlock();
+	policy->suspend_freq = dev_pm_opp_get_suspend_opp_freq(cpu_dev) / 1000;
 
 	ret = cpufreq_table_validate_and_show(policy, freq_table);
 	if (ret) {
@@ -279,6 +274,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 		transition_latency = CPUFREQ_ETERNAL;
 
 	policy->cpuinfo.transition_latency = transition_latency;
+	policy->dvfs_possible_from_any_cpu = true;
 
 	return 0;
 
@@ -331,7 +327,7 @@ static void cpufreq_ready(struct cpufreq_policy *policy)
 				     &power_coefficient);
 
 		priv->cdev = of_cpufreq_power_cooling_register(np,
-				policy->related_cpus, power_coefficient, NULL);
+				policy, power_coefficient, NULL);
 		if (IS_ERR(priv->cdev)) {
 			dev_err(priv->cpu_dev,
 				"running cpufreq without cooling device: %ld\n",

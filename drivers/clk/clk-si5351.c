@@ -519,6 +519,11 @@ static int si5351_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		SI5351_CLK_INTEGER_MODE,
 		(hwdata->params.p2 == 0) ? SI5351_CLK_INTEGER_MODE : 0);
 
+	/* Do a pll soft reset on the affected pll */
+	si5351_reg_write(hwdata->drvdata, SI5351_PLL_RESET,
+			 hwdata->num == 0 ? SI5351_PLL_RESET_A :
+					    SI5351_PLL_RESET_B);
+
 	dev_dbg(&hwdata->drvdata->client->dev,
 		"%s - %s: p1 = %lu, p2 = %lu, p3 = %lu, parent_rate = %lu, rate = %lu\n",
 		__func__, clk_hw_get_name(hw),
@@ -1091,13 +1096,6 @@ static int si5351_clkout_set_rate(struct clk_hw *hw, unsigned long rate,
 	si5351_set_bits(hwdata->drvdata, SI5351_CLK0_CTRL + hwdata->num,
 			SI5351_CLK_POWERDOWN, 0);
 
-	/*
-	 * Do a pll soft reset on both plls, needed in some cases to get
-	 * all outputs running.
-	 */
-	si5351_reg_write(hwdata->drvdata, SI5351_PLL_RESET,
-			 SI5351_PLL_RESET_A | SI5351_PLL_RESET_B);
-
 	dev_dbg(&hwdata->drvdata->client->dev,
 		"%s - %s: rdiv = %u, parent_rate = %lu, rate = %lu\n",
 		__func__, clk_hw_get_name(hw), (1 << rdiv),
@@ -1354,10 +1352,8 @@ static int si5351_i2c_probe(struct i2c_client *client,
 		return -EINVAL;
 
 	drvdata = devm_kzalloc(&client->dev, sizeof(*drvdata), GFP_KERNEL);
-	if (drvdata == NULL) {
-		dev_err(&client->dev, "unable to allocate driver data\n");
+	if (!drvdata)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(client, drvdata);
 	drvdata->client = client;
@@ -1535,9 +1531,9 @@ static int si5351_i2c_probe(struct i2c_client *client,
 	else
 		parent_names[1] = si5351_pll_names[1];
 
-	drvdata->msynth = devm_kzalloc(&client->dev, num_clocks *
+	drvdata->msynth = devm_kcalloc(&client->dev, num_clocks,
 				       sizeof(*drvdata->msynth), GFP_KERNEL);
-	drvdata->clkout = devm_kzalloc(&client->dev, num_clocks *
+	drvdata->clkout = devm_kcalloc(&client->dev, num_clocks,
 				       sizeof(*drvdata->clkout), GFP_KERNEL);
 	drvdata->num_clkout = num_clocks;
 

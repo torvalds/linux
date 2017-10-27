@@ -137,6 +137,9 @@ struct rpc_xprt_ops {
 	void		(*release_request)(struct rpc_task *task);
 	void		(*close)(struct rpc_xprt *xprt);
 	void		(*destroy)(struct rpc_xprt *xprt);
+	void		(*set_connect_timeout)(struct rpc_xprt *xprt,
+					unsigned long connect_timeout,
+					unsigned long reconnect_timeout);
 	void		(*print_stats)(struct rpc_xprt *xprt, struct seq_file *seq);
 	int		(*enable_swap)(struct rpc_xprt *xprt);
 	void		(*disable_swap)(struct rpc_xprt *xprt);
@@ -171,7 +174,7 @@ enum xprt_transports {
 
 struct rpc_xprt {
 	struct kref		kref;		/* Reference count */
-	struct rpc_xprt_ops *	ops;		/* transport methods */
+	const struct rpc_xprt_ops *ops;		/* transport methods */
 
 	const struct rpc_timeout *timeout;	/* timeout parms */
 	struct sockaddr_storage	addr;		/* server address */
@@ -221,6 +224,7 @@ struct rpc_xprt {
 	struct timer_list	timer;
 	unsigned long		last_used,
 				idle_timeout,
+				connect_timeout,
 				max_reconnect_timeout;
 
 	/*
@@ -228,6 +232,7 @@ struct rpc_xprt {
 	 */
 	spinlock_t		transport_lock;	/* lock transport info */
 	spinlock_t		reserve_lock;	/* lock slot table */
+	spinlock_t		recv_lock;	/* lock receive list */
 	u32			xid;		/* Next XID value to use */
 	struct rpc_task *	snd_task;	/* Task blocked in send */
 	struct svc_xprt		*bc_xprt;	/* NFSv4.1 backchannel */
@@ -368,6 +373,8 @@ void			xprt_write_space(struct rpc_xprt *xprt);
 void			xprt_adjust_cwnd(struct rpc_xprt *xprt, struct rpc_task *task, int result);
 struct rpc_rqst *	xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid);
 void			xprt_complete_rqst(struct rpc_task *task, int copied);
+void			xprt_pin_rqst(struct rpc_rqst *req);
+void			xprt_unpin_rqst(struct rpc_rqst *req);
 void			xprt_release_rqst_cong(struct rpc_task *task);
 void			xprt_disconnect_done(struct rpc_xprt *xprt);
 void			xprt_force_disconnect(struct rpc_xprt *xprt);

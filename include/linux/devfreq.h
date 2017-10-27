@@ -27,6 +27,7 @@
 #define DEVFREQ_POSTCHANGE		(1)
 
 struct devfreq;
+struct devfreq_governor;
 
 /**
  * struct devfreq_dev_status - Data given from devfreq user device to
@@ -98,32 +99,6 @@ struct devfreq_dev_profile {
 
 	unsigned long *freq_table;
 	unsigned int max_state;
-};
-
-/**
- * struct devfreq_governor - Devfreq policy governor
- * @node:		list node - contains registered devfreq governors
- * @name:		Governor's name
- * @get_target_freq:	Returns desired operating frequency for the device.
- *			Basically, get_target_freq will run
- *			devfreq_dev_profile.get_dev_status() to get the
- *			status of the device (load = busy_time / total_time).
- *			If no_central_polling is set, this callback is called
- *			only with update_devfreq() notified by OPP.
- * @event_handler:      Callback for devfreq core framework to notify events
- *                      to governors. Events include per device governor
- *                      init and exit, opp changes out of devfreq, suspend
- *                      and resume of per device devfreq during device idle.
- *
- * Note that the callbacks are called with devfreq->lock locked by devfreq.
- */
-struct devfreq_governor {
-	struct list_head node;
-
-	const char name[DEVFREQ_NAME_LEN];
-	int (*get_target_freq)(struct devfreq *this, unsigned long *freq);
-	int (*event_handler)(struct devfreq *devfreq,
-				unsigned int event, void *data);
 };
 
 /**
@@ -238,19 +213,6 @@ extern void devm_devfreq_unregister_notifier(struct device *dev,
 				unsigned int list);
 extern struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev,
 						int index);
-
-/**
- * devfreq_update_stats() - update the last_status pointer in struct devfreq
- * @df:		the devfreq instance whose status needs updating
- *
- *  Governors are recommended to use this function along with last_status,
- * which allows other entities to reuse the last_status without affecting
- * the values fetched later by governors.
- */
-static inline int devfreq_update_stats(struct devfreq *df)
-{
-	return df->profile->get_dev_status(df->dev.parent, &df->last_status);
-}
 
 #if IS_ENABLED(CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND)
 /**

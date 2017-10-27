@@ -10,6 +10,7 @@ menuconfig IDE
 	tristate "ATA/ATAPI/MFM/RLL support (DEPRECATED)"
 	depends on HAVE_IDE
 	depends on BLOCK
+	select BLK_SCSI_REQUEST
 	---help---
 	  If you say Y here, your kernel will be able to manage ATA/(E)IDE and
 	  ATAPI units. The most common cases are IDE hard drives and ATAPI

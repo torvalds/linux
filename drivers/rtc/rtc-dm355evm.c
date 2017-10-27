@@ -13,7 +13,7 @@
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
 
-#include <linux/i2c/dm355evm_msp.h>
+#include <linux/mfd/dm355evm_msp.h>
 #include <linux/module.h>
 
 
@@ -116,7 +116,7 @@ static int dm355evm_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static struct rtc_class_ops dm355evm_rtc_ops = {
+static const struct rtc_class_ops dm355evm_rtc_ops = {
 	.read_time	= dm355evm_rtc_read_time,
 	.set_time	= dm355evm_rtc_set_time,
 };

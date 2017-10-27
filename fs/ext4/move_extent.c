@@ -187,7 +187,7 @@ mext_page_mkuptodate(struct page *page, unsigned from, unsigned to)
 	if (PageUptodate(page))
 		return 0;
 
-	blocksize = 1 << inode->i_blkbits;
+	blocksize = i_blocksize(inode);
 	if (!page_has_buffers(page))
 		create_empty_buffers(page, blocksize, 0);
 
@@ -484,7 +484,7 @@ mext_check_arguments(struct inode *orig_inode,
 		return -EBUSY;
 	}
 
-	if (IS_NOQUOTA(orig_inode) || IS_NOQUOTA(donor_inode)) {
+	if (ext4_is_quota_file(orig_inode) && ext4_is_quota_file(donor_inode)) {
 		ext4_debug("ext4 move extent: The argument files should "
 			"not be quota files [ino:orig %lu, donor %lu]\n",
 			orig_inode->i_ino, donor_inode->i_ino);
@@ -511,7 +511,7 @@ mext_check_arguments(struct inode *orig_inode,
 	if ((orig_start & ~(PAGE_MASK >> orig_inode->i_blkbits)) !=
 	    (donor_start & ~(PAGE_MASK >> orig_inode->i_blkbits))) {
 		ext4_debug("ext4 move extent: orig and donor's start "
-			"offset are not alligned [ino:orig %lu, donor %lu]\n",
+			"offsets are not aligned [ino:orig %lu, donor %lu]\n",
 			orig_inode->i_ino, donor_inode->i_ino);
 		return -EINVAL;
 	}

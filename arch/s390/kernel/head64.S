@@ -21,8 +21,8 @@ ENTRY(startup_continue)
 	xc	__LC_LPP+1(7,0),__LC_LPP+1	# clear lpp and current_pid
 	mvi	__LC_LPP,0x80			#   and set LPP_MAGIC
 	.insn	s,0xb2800000,__LC_LPP		# load program parameter
-0:	larl	%r1,sched_clock_base_cc
-	mvc	0(8,%r1),__LC_LAST_UPDATE_CLOCK
+0:	larl	%r1,tod_clock_base
+	mvc	0(16,%r1),__LC_BOOT_CLOCK
 	larl	%r13,.LPG1		# get base
 	lctlg	%c0,%c15,.Lctl-.LPG1(%r13)	# load control registers
 	lg	%r12,.Lparmaddr-.LPG1(%r13)	# pointer to parameter area
@@ -52,7 +52,7 @@ ENTRY(startup_continue)
 	.quad	0			# cr1: primary space segment table
 	.quad	.Lduct			# cr2: dispatchable unit control table
 	.quad	0			# cr3: instruction authorization
-	.quad	0			# cr4: instruction authorization
+	.quad	0xffff			# cr4: instruction authorization
 	.quad	.Lduct			# cr5: primary-aste origin
 	.quad	0			# cr6:	I/O interrupts
 	.quad	0			# cr7:	secondary space segment table

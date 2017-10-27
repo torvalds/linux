@@ -494,6 +494,7 @@ unsigned int soc_mbus_config_compatible(const struct v4l2_mbus_config *cfg,
 					V4L2_MBUS_HSYNC_ACTIVE_LOW);
 		vsync = common_flags & (V4L2_MBUS_VSYNC_ACTIVE_HIGH |
 					V4L2_MBUS_VSYNC_ACTIVE_LOW);
+		/* fall through */
 	case V4L2_MBUS_BT656:
 		pclk = common_flags & (V4L2_MBUS_PCLK_SAMPLE_RISING |
 				       V4L2_MBUS_PCLK_SAMPLE_FALLING);
@@ -507,6 +508,9 @@ unsigned int soc_mbus_config_compatible(const struct v4l2_mbus_config *cfg,
 		mipi_clock = common_flags & (V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK |
 					     V4L2_MBUS_CSI2_CONTINUOUS_CLOCK);
 		return (!mipi_lanes || !mipi_clock) ? 0 : common_flags;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
 	}
 	return 0;
 }

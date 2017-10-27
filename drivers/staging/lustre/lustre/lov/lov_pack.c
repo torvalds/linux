@@ -38,14 +38,11 @@
 
 #define DEBUG_SUBSYSTEM S_LOV
 
-#include "../include/lustre/lustre_idl.h"
-#include "../include/lustre/lustre_user.h"
-
-#include "../include/lustre_net.h"
-#include "../include/lustre_swab.h"
-#include "../include/obd.h"
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
+#include <lustre_net.h>
+#include <lustre_swab.h>
+#include <obd.h>
+#include <obd_class.h>
+#include <obd_support.h>
 
 #include "lov_cl_internal.h"
 #include "lov_internal.h"
@@ -56,7 +53,7 @@ void lov_dump_lmm_common(int level, void *lmmp)
 	struct ost_id	oi;
 
 	lmm_oi_le_to_cpu(&oi, &lmm->lmm_oi);
-	CDEBUG(level, "objid "DOSTID", magic 0x%08x, pattern %#x\n",
+	CDEBUG(level, "objid " DOSTID ", magic 0x%08x, pattern %#x\n",
 	       POSTID(&oi), le32_to_cpu(lmm->lmm_magic),
 	       le32_to_cpu(lmm->lmm_pattern));
 	CDEBUG(level, "stripe_size %u, stripe_count %u, layout_gen %u\n",
@@ -80,7 +77,7 @@ static void lov_dump_lmm_objects(int level, struct lov_ost_data *lod,
 		struct ost_id	oi;
 
 		ostid_le_to_cpu(&lod->l_ost_oi, &oi);
-		CDEBUG(level, "stripe %u idx %u subobj "DOSTID"\n", i,
+		CDEBUG(level, "stripe %u idx %u subobj " DOSTID "\n", i,
 		       le32_to_cpu(lod->l_ost_idx), POSTID(&oi));
 	}
 }
@@ -95,7 +92,7 @@ void lov_dump_lmm_v1(int level, struct lov_mds_md_v1 *lmm)
 void lov_dump_lmm_v3(int level, struct lov_mds_md_v3 *lmm)
 {
 	lov_dump_lmm_common(level, lmm);
-	CDEBUG(level, "pool_name "LOV_POOLNAMEF"\n", lmm->lmm_pool_name);
+	CDEBUG(level, "pool_name " LOV_POOLNAMEF "\n", lmm->lmm_pool_name);
 	lov_dump_lmm_objects(level, lmm->lmm_objects,
 			     le16_to_cpu(lmm->lmm_stripe_count));
 }
@@ -136,7 +133,7 @@ ssize_t lov_lsm_pack(const struct lov_stripe_md *lsm, void *buf,
 	lmmv1->lmm_layout_gen = cpu_to_le16(lsm->lsm_layout_gen);
 
 	if (lsm->lsm_magic == LOV_MAGIC_V3) {
-		CLASSERT(sizeof(lsm->lsm_pool_name) ==
+		BUILD_BUG_ON(sizeof(lsm->lsm_pool_name) !=
 			 sizeof(lmmv3->lmm_pool_name));
 		strlcpy(lmmv3->lmm_pool_name, lsm->lsm_pool_name,
 			sizeof(lmmv3->lmm_pool_name));
@@ -198,7 +195,8 @@ static int lov_verify_lmm(void *lmm, int lmm_bytes, __u16 *stripe_count)
 	return rc;
 }
 
-struct lov_stripe_md *lov_lsm_alloc(u16 stripe_count, u32 pattern, u32 magic)
+static struct lov_stripe_md *lov_lsm_alloc(u16 stripe_count, u32 pattern,
+					   u32 magic)
 {
 	struct lov_stripe_md *lsm;
 	unsigned int i;
@@ -292,17 +290,9 @@ int lov_getstripe(struct lov_object *obj, struct lov_stripe_md *lsm,
 	size_t lmmk_size;
 	size_t lum_size;
 	int rc;
-	mm_segment_t seg;
 
 	if (!lsm)
 		return -ENODATA;
-
-	/*
-	 * "Switch to kernel segment" to allow copying from kernel space by
-	 * copy_{to,from}_user().
-	 */
-	seg = get_fs();
-	set_fs(KERNEL_DS);
 
 	if (lsm->lsm_magic != LOV_MAGIC_V1 && lsm->lsm_magic != LOV_MAGIC_V3) {
 		CERROR("bad LSM MAGIC: 0x%08X != 0x%08X nor 0x%08X\n",
@@ -356,8 +346,8 @@ int lov_getstripe(struct lov_object *obj, struct lov_stripe_md *lsm,
 
 	/* FIXME: Bug 1185 - copy fields properly when structs change */
 	/* struct lov_user_md_v3 and struct lov_mds_md_v3 must be the same */
-	CLASSERT(sizeof(lum) == sizeof(struct lov_mds_md_v3));
-	CLASSERT(sizeof(lum.lmm_objects[0]) == sizeof(lmmk->lmm_objects[0]));
+	BUILD_BUG_ON(sizeof(lum) != sizeof(struct lov_mds_md_v3));
+	BUILD_BUG_ON(sizeof(lum.lmm_objects[0]) != sizeof(lmmk->lmm_objects[0]));
 
 	if (cpu_to_le32(LOV_MAGIC) != LOV_MAGIC &&
 	    (lmmk->lmm_magic == cpu_to_le32(LOV_MAGIC_V1) ||
@@ -405,6 +395,5 @@ int lov_getstripe(struct lov_object *obj, struct lov_stripe_md *lsm,
 out_free:
 	kvfree(lmmk);
 out:
-	set_fs(seg);
 	return rc;
 }

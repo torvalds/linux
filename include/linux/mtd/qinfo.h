@@ -14,7 +14,7 @@
  * @DevId - Chip Device ID
  * @qinfo - pointer to qinfo records describing the chip
  * @numchips - number of chips including virual RWW partitions
- * @chipshift - Chip/partiton size 2^chipshift
+ * @chipshift - Chip/partition size 2^chipshift
  * @chips - per-chip data structure
  */
 struct lpddr_private {

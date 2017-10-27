@@ -67,7 +67,7 @@ master:
 	mr	%r16,%r3	/* save dt address in reg16 */
 	li	%r4,20
 	LWZX_BE	%r6,%r3,%r4	/* fetch __be32 version number at byte 20 */
-	cmpwi	%r0,%r6,2	/* v2 or later? */
+	cmpwi	%cr0,%r6,2	/* v2 or later? */
 	blt	1f
 	li	%r4,28
 	STWX_BE	%r17,%r3,%r4	/* Store my cpu as __be32 at byte 28 */
@@ -104,25 +104,25 @@ master:
 	.balign 8
 	.globl kernel
 kernel:
-	.llong  0x0
+	.8byte  0x0
 	.size kernel, . - kernel
 
 	.balign 8
 	.globl dt_offset
 dt_offset:
-	.llong  0x0
+	.8byte  0x0
 	.size dt_offset, . - dt_offset
 
 
 	.data
 	.balign 8
-.globl sha256_digest
-sha256_digest:
+.globl purgatory_sha256_digest
+purgatory_sha256_digest:
 	.skip	32
-	.size sha256_digest, . - sha256_digest
+	.size purgatory_sha256_digest, . - purgatory_sha256_digest
 
 	.balign 8
-.globl sha_regions
-sha_regions:
+.globl purgatory_sha_regions
+purgatory_sha_regions:
 	.skip	8 * 2 * 16
-	.size sha_regions, . - sha_regions
+	.size purgatory_sha_regions, . - purgatory_sha_regions

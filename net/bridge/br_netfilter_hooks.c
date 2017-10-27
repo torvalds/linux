@@ -149,12 +149,12 @@ static inline struct nf_bridge_info *nf_bridge_unshare(struct sk_buff *skb)
 {
 	struct nf_bridge_info *nf_bridge = skb->nf_bridge;
 
-	if (atomic_read(&nf_bridge->use) > 1) {
+	if (refcount_read(&nf_bridge->use) > 1) {
 		struct nf_bridge_info *tmp = nf_bridge_alloc(skb);
 
 		if (tmp) {
 			memcpy(tmp, nf_bridge, sizeof(struct nf_bridge_info));
-			atomic_set(&tmp->use, 1);
+			refcount_set(&tmp->use, 1);
 		}
 		nf_bridge_put(nf_bridge);
 		nf_bridge = tmp;
@@ -521,21 +521,6 @@ static unsigned int br_nf_pre_routing(void *priv,
 }
 
 
-/* PF_BRIDGE/LOCAL_IN ************************************************/
-/* The packet is locally destined, which requires a real
- * dst_entry, so detach the fake one.  On the way up, the
- * packet would pass through PRE_ROUTING again (which already
- * took place when the packet entered the bridge), but we
- * register an IPv4 PRE_ROUTING 'sabotage' hook that will
- * prevent this from happening. */
-static unsigned int br_nf_local_in(void *priv,
-				   struct sk_buff *skb,
-				   const struct nf_hook_state *state)
-{
-	br_drop_fake_rtable(skb);
-	return NF_ACCEPT;
-}
-
 /* PF_BRIDGE/FORWARD *************************************************/
 static int br_nf_forward_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
@@ -721,17 +706,19 @@ static unsigned int nf_bridge_mtu_reduction(const struct sk_buff *skb)
 
 static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	struct nf_bridge_info *nf_bridge;
-	unsigned int mtu_reserved;
+	struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
+	unsigned int mtu, mtu_reserved;
 
 	mtu_reserved = nf_bridge_mtu_reduction(skb);
+	mtu = skb->dev->mtu;
 
-	if (skb_is_gso(skb) || skb->len + mtu_reserved <= skb->dev->mtu) {
+	if (nf_bridge->frag_max_size && nf_bridge->frag_max_size < mtu)
+		mtu = nf_bridge->frag_max_size;
+
+	if (skb_is_gso(skb) || skb->len + mtu_reserved <= mtu) {
 		nf_bridge_info_free(skb);
 		return br_dev_queue_push_xmit(net, sk, skb);
 	}
-
-	nf_bridge = nf_bridge_info_get(skb);
 
 	/* This is wrong! We should preserve the original fragment
 	 * boundaries by preserving frag_list rather than refragmenting.
@@ -900,17 +887,11 @@ EXPORT_SYMBOL_GPL(br_netfilter_enable);
 
 /* For br_nf_post_routing, we need (prio = NF_BR_PRI_LAST), because
  * br_dev_queue_push_xmit is called afterwards */
-static struct nf_hook_ops br_nf_ops[] __read_mostly = {
+static const struct nf_hook_ops br_nf_ops[] = {
 	{
 		.hook = br_nf_pre_routing,
 		.pf = NFPROTO_BRIDGE,
 		.hooknum = NF_BR_PRE_ROUTING,
-		.priority = NF_BR_PRI_BRNF,
-	},
-	{
-		.hook = br_nf_local_in,
-		.pf = NFPROTO_BRIDGE,
-		.hooknum = NF_BR_LOCAL_IN,
 		.priority = NF_BR_PRI_BRNF,
 	},
 	{
@@ -1004,25 +985,25 @@ int br_nf_hook_thresh(unsigned int hook, struct net *net,
 		      int (*okfn)(struct net *, struct sock *,
 				  struct sk_buff *))
 {
-	struct nf_hook_entry *elem;
+	const struct nf_hook_entries *e;
 	struct nf_hook_state state;
+	struct nf_hook_ops **ops;
+	unsigned int i;
 	int ret;
 
-	for (elem = rcu_dereference(net->nf.hooks[NFPROTO_BRIDGE][hook]);
-	     elem && nf_hook_entry_priority(elem) <= NF_BR_PRI_BRNF;
-	     elem = rcu_dereference(elem->next))
-		;
-
-	if (!elem)
+	e = rcu_dereference(net->nf.hooks[NFPROTO_BRIDGE][hook]);
+	if (!e)
 		return okfn(net, sk, skb);
 
-	/* We may already have this, but read-locks nest anyway */
-	rcu_read_lock();
+	ops = nf_hook_entries_get_hook_ops(e);
+	for (i = 0; i < e->num_hook_entries &&
+	      ops[i]->priority <= NF_BR_PRI_BRNF; i++)
+		;
+
 	nf_hook_state_init(&state, hook, NFPROTO_BRIDGE, indev, outdev,
 			   sk, net, okfn);
 
-	ret = nf_hook_slow(skb, &state, elem);
-	rcu_read_unlock();
+	ret = nf_hook_slow(skb, &state, e, i);
 	if (ret == 1)
 		ret = okfn(net, sk, skb);
 

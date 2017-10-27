@@ -189,7 +189,7 @@
 		#address-cells = <0>;
 
 		reg = <0x10139000 0x1000>,
-		      <0x1013a000 0x1000>,
+		      <0x1013a000 0x2000>,
 		      <0x1013c000 0x2000>,
 		      <0x1013e000 0x2000>;
 		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
@@ -250,6 +250,8 @@
 		clock-names = "biu", "ciu";
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		resets = <&cru SRST_MMC0>;
+		reset-names = "reset";
 		status = "disabled";
 	};
 
@@ -262,6 +264,8 @@
 		clock-names = "biu", "ciu", "ciu_drv", "ciu_sample";
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		resets = <&cru SRST_SDIO>;
+		reset-names = "reset";
 		status = "disabled";
 	};
 
@@ -283,9 +287,10 @@
 		fifo-depth = <0x100>;
 		mmc-ddr-1_8v;
 		non-removable;
-		num-slots = <1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
+		resets = <&cru SRST_EMMC>;
+		reset-names = "reset";
 		status = "disabled";
 	};
 
@@ -593,7 +598,7 @@
 				rockchip,pins = <1 15 RK_FUNC_1 &pcfg_pull_default>;
 			};
 
-			sdmmc_cd: sdmcc-cd {
+			sdmmc_cd: sdmmc-cd {
 				rockchip,pins = <1 17 RK_FUNC_1 &pcfg_pull_default>;
 			};
 

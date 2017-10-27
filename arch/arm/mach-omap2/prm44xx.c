@@ -91,13 +91,13 @@ static struct prm_reset_src_map omap44xx_prm_reset_src_map[] = {
 /* Read a register in a CM/PRM instance in the PRM module */
 static u32 omap4_prm_read_inst_reg(s16 inst, u16 reg)
 {
-	return readl_relaxed(prm_base + inst + reg);
+	return readl_relaxed(prm_base.va + inst + reg);
 }
 
 /* Write into a register in a CM/PRM instance in the PRM module */
 static void omap4_prm_write_inst_reg(u32 val, s16 inst, u16 reg)
 {
-	writel_relaxed(val, prm_base + inst + reg);
+	writel_relaxed(val, prm_base.va + inst + reg);
 }
 
 /* Read-modify-write a register in a PRM module. Caller must lock */
@@ -742,16 +742,12 @@ static int omap44xx_prm_late_init(void)
 	if (!(prm_features & PRM_HAS_IO_WAKEUP))
 		return 0;
 
-	/* OMAP4+ is DT only now */
-	if (!of_have_populated_dt())
-		return 0;
-
 	irq_num = of_irq_get(prm_init_data->np, 0);
 	/*
 	 * Already have OMAP4 IRQ num. For all other platforms, we need
 	 * IRQ numbers from DT
 	 */
-	if (irq_num < 0 && !(prm_init_data->flags & PRM_IRQ_DEFAULT)) {
+	if (irq_num <= 0 && !(prm_init_data->flags & PRM_IRQ_DEFAULT)) {
 		if (irq_num == -EPROBE_DEFER)
 			return irq_num;
 
@@ -760,7 +756,7 @@ static int omap44xx_prm_late_init(void)
 	}
 
 	/* Once OMAP4 DT is filled as well */
-	if (irq_num >= 0) {
+	if (irq_num > 0) {
 		omap4_prcm_irq_setup.irq = irq_num;
 		omap4_prcm_irq_setup.xlate_irq = NULL;
 	}

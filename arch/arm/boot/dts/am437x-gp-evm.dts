@@ -23,6 +23,10 @@
 		display0 = &lcd0;
 	};
 
+	chosen {
+		stdout-path = &uart0;
+	};
+
 	evm_v3_3d: fixedregulator-v3_3d {
 		compatible = "regulator-fixed";
 		regulator-name = "evm_v3_3d";
@@ -144,6 +148,13 @@
 			sound-dai = <&tlv320aic3106>;
 			system-clock-frequency = <12000000>;
 		};
+	};
+
+	beeper: beeper {
+		compatible = "gpio-beeper";
+		pinctrl-names = "default";
+		pinctrl-0 = <&beeper_pins>;
+		gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -497,6 +508,28 @@
 			AM4372_IOPAD(0x884, PIN_INPUT_PULLDOWN | MUX_MODE7) /* gpmc_csn2.gpio1_31 */
 		>;
 	};
+
+	uart0_pins_default: uart0_pins_default {
+		pinctrl-single,pins = <
+			AM4372_IOPAD(0x968, PIN_INPUT | MUX_MODE0)		/* uart0_ctsn.uart0_ctsn */
+			AM4372_IOPAD(0x96C, PIN_OUTPUT_PULLDOWN | MUX_MODE0)	/* uart0_rtsn.uart0_rtsn */
+			AM4372_IOPAD(0x970, PIN_INPUT_PULLUP | MUX_MODE0)	/* uart0_rxd.uart0_rxd */
+			AM4372_IOPAD(0x974, PIN_OUTPUT_PULLDOWN | MUX_MODE0)	/* uart0_txd.uart0_txd */
+		>;
+	};
+
+	beeper_pins: beeper_pins {
+		pinctrl-single,pins = <
+			AM4372_IOPAD(0x9e0, PIN_OUTPUT_PULLUP | MUX_MODE7)	/* cam1_field.gpio4_12 */
+		>;
+	};
+
+};
+
+&uart0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins_default>;
 };
 
 &i2c0 {
@@ -530,8 +563,6 @@
 
 		dcdc3: regulator-dcdc3 {
 			regulator-name = "vdcdc3";
-			regulator-min-microvolt = <1500000>;
-			regulator-max-microvolt = <1500000>;
 			regulator-boot-on;
 			regulator-always-on;
 			regulator-state-mem {
@@ -825,6 +856,7 @@
 		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
 			     <1 IRQ_TYPE_NONE>;	/* termcount */
 		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>;	/* gpmc_wait0 */
+		ti,nand-xfer-type = "prefetch-dma";
 		ti,nand-ecc-opt = "bch16";
 		ti,elm-id = <&elm>;
 		nand-bus-width = <8>;
