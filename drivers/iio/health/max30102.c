@@ -423,7 +423,10 @@ static int max30102_probe(struct i2c_client *client,
 		dev_err(&client->dev, "regmap initialization failed\n");
 		return PTR_ERR(data->regmap);
 	}
-	max30102_set_powermode(data, false);
+
+	ret = max30102_set_powermode(data, false);
+	if (ret)
+		return ret;
 
 	ret = max30102_chip_init(data);
 	if (ret)
