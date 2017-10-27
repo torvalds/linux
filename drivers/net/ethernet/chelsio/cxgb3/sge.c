@@ -2853,9 +2853,9 @@ void t3_sge_err_intr_handler(struct adapter *adapter)
  *	bother cleaning them up here.
  *
  */
-static void sge_timer_tx(unsigned long data)
+static void sge_timer_tx(struct timer_list *t)
 {
-	struct sge_qset *qs = (struct sge_qset *)data;
+	struct sge_qset *qs = from_timer(qs, t, tx_reclaim_timer);
 	struct port_info *pi = netdev_priv(qs->netdev);
 	struct adapter *adap = pi->adapter;
 	unsigned int tbd[SGE_TXQ_PER_SET] = {0, 0};
@@ -2893,10 +2893,10 @@ static void sge_timer_tx(unsigned long data)
  *	starved.
  *
  */
-static void sge_timer_rx(unsigned long data)
+static void sge_timer_rx(struct timer_list *t)
 {
 	spinlock_t *lock;
-	struct sge_qset *qs = (struct sge_qset *)data;
+	struct sge_qset *qs = from_timer(qs, t, rx_reclaim_timer);
 	struct port_info *pi = netdev_priv(qs->netdev);
 	struct adapter *adap = pi->adapter;
 	u32 status;
@@ -2976,8 +2976,8 @@ int t3_sge_alloc_qset(struct adapter *adapter, unsigned int id, int nports,
 	struct sge_qset *q = &adapter->sge.qs[id];
 
 	init_qset_cntxt(q, id);
-	setup_timer(&q->tx_reclaim_timer, sge_timer_tx, (unsigned long)q);
-	setup_timer(&q->rx_reclaim_timer, sge_timer_rx, (unsigned long)q);
+	timer_setup(&q->tx_reclaim_timer, sge_timer_tx, 0);
+	timer_setup(&q->rx_reclaim_timer, sge_timer_rx, 0);
 
 	q->fl[0].desc = alloc_ring(adapter->pdev, p->fl_size,
 				   sizeof(struct rx_desc),

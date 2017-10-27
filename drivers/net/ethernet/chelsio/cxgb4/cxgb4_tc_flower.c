@@ -741,9 +741,9 @@ err:
 	return ret;
 }
 
-static void ch_flower_stats_cb(unsigned long data)
+static void ch_flower_stats_cb(struct timer_list *t)
 {
-	struct adapter *adap = (struct adapter *)data;
+	struct adapter *adap = from_timer(adap, t, flower_stats_timer);
 	struct ch_tc_flower_entry *flower_entry;
 	struct ch_tc_flower_stats *ofld_stats;
 	unsigned int i;
@@ -815,8 +815,7 @@ err:
 void cxgb4_init_tc_flower(struct adapter *adap)
 {
 	hash_init(adap->flower_anymatch_tbl);
-	setup_timer(&adap->flower_stats_timer, ch_flower_stats_cb,
-		    (unsigned long)adap);
+	timer_setup(&adap->flower_stats_timer, ch_flower_stats_cb, 0);
 	mod_timer(&adap->flower_stats_timer, jiffies + STATS_CHECK_PERIOD);
 }
 
