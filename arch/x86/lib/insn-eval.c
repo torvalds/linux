@@ -729,25 +729,29 @@ int insn_get_modrm_rm_off(struct insn *insn, struct pt_regs *regs)
 }
 
 /**
- * get_seg_base_addr() - obtain base address of a segment
+ * get_seg_base_limit() - obtain base address and limit of a segment
  * @insn:	Instruction. Must be valid.
  * @regs:	Register values as seen when entering kernel mode
  * @regoff:	Operand offset, in pt_regs, used to resolve segment descriptor
  * @base:	Obtained segment base
+ * @limit:	Obtained segment limit
  *
- * Obtain the base address of the segment associated with the operand @regoff
- * and, if any or allowed, override prefixes in @insn. This function is
+ * Obtain the base address and limit of the segment associated with the operand
+ * @regoff and, if any or allowed, override prefixes in @insn. This function is
  * different from insn_get_seg_base() as the latter does not resolve the segment
- * associated with the instruction operand.
+ * associated with the instruction operand. If a limit is not needed (e.g.,
+ * when running in long mode), @limit can be NULL.
  *
  * Returns:
  *
- * 0 on success. @base will contain the base address of the resolved segment.
+ * 0 on success. @base and @limit will contain the base address and of the
+ * resolved segment, respectively.
  *
  * -EINVAL on error.
  */
-static int get_seg_base_addr(struct insn *insn, struct pt_regs *regs,
-			     int regoff, unsigned long *base)
+static int get_seg_base_limit(struct insn *insn, struct pt_regs *regs,
+			      int regoff, unsigned long *base,
+			      unsigned long *limit)
 {
 	int seg_reg_idx;
 
@@ -760,6 +764,13 @@ static int get_seg_base_addr(struct insn *insn, struct pt_regs *regs,
 
 	*base = insn_get_seg_base(regs, seg_reg_idx);
 	if (*base == -1L)
+		return -EINVAL;
+
+	if (!limit)
+		return 0;
+
+	*limit = get_seg_limit(regs, seg_reg_idx);
+	if (!(*limit))
 		return -EINVAL;
 
 	return 0;
@@ -843,7 +854,7 @@ void __user *insn_get_addr_ref(struct insn *insn, struct pt_regs *regs)
 		eff_addr += insn->displacement.value;
 	}
 
-	ret = get_seg_base_addr(insn, regs, addr_offset, &seg_base);
+	ret = get_seg_base_limit(insn, regs, addr_offset, &seg_base, NULL);
 	if (ret)
 		goto out;
 
