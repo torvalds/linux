@@ -411,6 +411,13 @@ qdisc_class_find(const struct Qdisc_class_hash *hash, u32 id)
 	return NULL;
 }
 
+static inline int tc_classid_to_hwtc(struct net_device *dev, u32 classid)
+{
+	u32 hwtc = TC_H_MIN(classid) - TC_H_MIN_PRIORITY;
+
+	return (hwtc < netdev_get_num_tc(dev)) ? hwtc : -EINVAL;
+}
+
 int qdisc_class_hash_init(struct Qdisc_class_hash *);
 void qdisc_class_hash_insert(struct Qdisc_class_hash *,
 			     struct Qdisc_class_common *);
