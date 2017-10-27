@@ -345,17 +345,23 @@ void kfd_event_init_process(struct kfd_process *p)
 
 static void destroy_event(struct kfd_process *p, struct kfd_event *ev)
 {
+	/* Wake up pending waiters. They will return failure */
+	while (!list_empty(&ev->waiters)) {
+		struct kfd_event_waiter *waiter =
+			list_first_entry(&ev->waiters, struct kfd_event_waiter,
+					 waiters);
+
+		waiter->event = NULL;
+		/* _init because free_waiters will call list_del */
+		list_del_init(&waiter->waiters);
+		wake_up_process(waiter->sleeping_task);
+	}
+
 	if (ev->signal_page) {
 		release_event_notification_slot(ev->signal_page,
 						ev->signal_slot_index);
 		p->signal_event_count--;
 	}
-
-	/*
-	 * Abandon the list of waiters. Individual waiting threads will
-	 * clean up their own data.
-	 */
-	list_del(&ev->waiters);
 
 	hash_del(&ev->events);
 	kfree(ev);
@@ -646,22 +652,36 @@ static void init_event_waiter_add_to_waitlist(struct kfd_event_waiter *waiter)
 		list_add(&waiter->waiters, &ev->waiters);
 }
 
-static bool test_event_condition(bool all, uint32_t num_events,
+/* test_event_condition - Test condition of events being waited for
+ * @all:           Return completion only if all events have signaled
+ * @num_events:    Number of events to wait for
+ * @event_waiters: Array of event waiters, one per event
+ *
+ * Returns KFD_IOC_WAIT_RESULT_COMPLETE if all (or one) event(s) have
+ * signaled. Returns KFD_IOC_WAIT_RESULT_TIMEOUT if no (or not all)
+ * events have signaled. Returns KFD_IOC_WAIT_RESULT_FAIL if any of
+ * the events have been destroyed.
+ */
+static uint32_t test_event_condition(bool all, uint32_t num_events,
 				struct kfd_event_waiter *event_waiters)
 {
 	uint32_t i;
 	uint32_t activated_count = 0;
 
 	for (i = 0; i < num_events; i++) {
+		if (!event_waiters[i].event)
+			return KFD_IOC_WAIT_RESULT_FAIL;
+
 		if (event_waiters[i].activated) {
 			if (!all)
-				return true;
+				return KFD_IOC_WAIT_RESULT_COMPLETE;
 
 			activated_count++;
 		}
 	}
 
-	return activated_count == num_events;
+	return activated_count == num_events ?
+		KFD_IOC_WAIT_RESULT_COMPLETE : KFD_IOC_WAIT_RESULT_TIMEOUT;
 }
 
 /*
@@ -745,11 +765,6 @@ int kfd_wait_on_events(struct kfd_process *p,
 
 	mutex_lock(&p->event_mutex);
 
-	/* Set to something unreasonable - this is really
-	 * just a bool for now.
-	 */
-	*wait_result = KFD_IOC_WAIT_RESULT_TIMEOUT;
-
 	for (i = 0; i < num_events; i++) {
 		struct kfd_event_data event_data;
 
@@ -766,16 +781,21 @@ int kfd_wait_on_events(struct kfd_process *p,
 	}
 
 	/* Check condition once. */
-	if (test_event_condition(all, num_events, event_waiters)) {
-		*wait_result = KFD_IOC_WAIT_RESULT_COMPLETE;
+	*wait_result = test_event_condition(all, num_events, event_waiters);
+	if (*wait_result == KFD_IOC_WAIT_RESULT_COMPLETE) {
 		ret = copy_signaled_event_data(num_events,
 					       event_waiters, events);
 		goto out_unlock;
-	} else {
-		/* Add to wait lists if we need to wait. */
-		for (i = 0; i < num_events; i++)
-			init_event_waiter_add_to_waitlist(&event_waiters[i]);
+	} else if (WARN_ON(*wait_result == KFD_IOC_WAIT_RESULT_FAIL)) {
+		/* This should not happen. Events shouldn't be
+		 * destroyed while we're holding the event_mutex
+		 */
+		goto out_unlock;
 	}
+
+	/* Add to wait lists if we need to wait. */
+	for (i = 0; i < num_events; i++)
+		init_event_waiter_add_to_waitlist(&event_waiters[i]);
 
 	mutex_unlock(&p->event_mutex);
 
@@ -809,15 +829,13 @@ int kfd_wait_on_events(struct kfd_process *p,
 		 */
 		set_current_state(TASK_INTERRUPTIBLE);
 
-		if (test_event_condition(all, num_events, event_waiters)) {
-			*wait_result = KFD_IOC_WAIT_RESULT_COMPLETE;
+		*wait_result = test_event_condition(all, num_events,
+						    event_waiters);
+		if (*wait_result != KFD_IOC_WAIT_RESULT_TIMEOUT)
 			break;
-		}
 
-		if (timeout <= 0) {
-			*wait_result = KFD_IOC_WAIT_RESULT_TIMEOUT;
+		if (timeout <= 0)
 			break;
-		}
 
 		timeout = schedule_timeout(timeout);
 	}
@@ -837,6 +855,8 @@ out_unlock:
 out:
 	if (ret)
 		*wait_result = KFD_IOC_WAIT_RESULT_FAIL;
+	else if (*wait_result == KFD_IOC_WAIT_RESULT_FAIL)
+		ret = -EIO;
 
 	return ret;
 }
