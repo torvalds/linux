@@ -282,8 +282,7 @@ static uint64_t amdgpu_mm_node_addr(struct ttm_buffer_object *bo,
 {
 	uint64_t addr = 0;
 
-	if (mem->mem_type != TTM_PL_TT ||
-	    amdgpu_gtt_mgr_is_allocated(mem)) {
+	if (mem->mem_type != TTM_PL_TT || amdgpu_gtt_mgr_has_gart_addr(mem)) {
 		addr = mm_node->start << PAGE_SHIFT;
 		addr += bo->bdev->man[mem->mem_type].gpu_offset;
 	}
@@ -369,7 +368,7 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 		 * dst to window 1
 		 */
 		if (src->mem->mem_type == TTM_PL_TT &&
-		    !amdgpu_gtt_mgr_is_allocated(src->mem)) {
+		    !amdgpu_gtt_mgr_has_gart_addr(src->mem)) {
 			r = amdgpu_map_buffer(src->bo, src->mem,
 					PFN_UP(cur_size + src_page_offset),
 					src_node_start, 0, ring,
@@ -383,7 +382,7 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 		}
 
 		if (dst->mem->mem_type == TTM_PL_TT &&
-		    !amdgpu_gtt_mgr_is_allocated(dst->mem)) {
+		    !amdgpu_gtt_mgr_has_gart_addr(dst->mem)) {
 			r = amdgpu_map_buffer(dst->bo, dst->mem,
 					PFN_UP(cur_size + dst_page_offset),
 					dst_node_start, 1, ring,
@@ -861,8 +860,10 @@ static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 	    bo_mem->mem_type == AMDGPU_PL_OA)
 		return -EINVAL;
 
-	if (!amdgpu_gtt_mgr_is_allocated(bo_mem))
+	if (!amdgpu_gtt_mgr_has_gart_addr(bo_mem)) {
+		gtt->offset = AMDGPU_BO_INVALID_OFFSET;
 		return 0;
+	}
 
 	spin_lock(&gtt->adev->gtt_list_lock);
 	flags = amdgpu_ttm_tt_pte_flags(gtt->adev, ttm, bo_mem);
@@ -882,23 +883,16 @@ error_gart_bind:
 	return r;
 }
 
-bool amdgpu_ttm_is_bound(struct ttm_tt *ttm)
-{
-	struct amdgpu_ttm_tt *gtt = (void *)ttm;
-
-	return gtt && !list_empty(&gtt->list);
-}
-
 int amdgpu_ttm_bind(struct ttm_buffer_object *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
-	struct ttm_tt *ttm = bo->ttm;
 	struct ttm_mem_reg tmp;
 	struct ttm_placement placement;
 	struct ttm_place placements;
 	int r;
 
-	if (!ttm || amdgpu_ttm_is_bound(ttm))
+	if (bo->mem.mem_type != TTM_PL_TT ||
+	    amdgpu_gtt_mgr_has_gart_addr(&bo->mem))
 		return 0;
 
 	tmp = bo->mem;
@@ -959,7 +953,7 @@ static int amdgpu_ttm_backend_unbind(struct ttm_tt *ttm)
 	if (gtt->userptr)
 		amdgpu_ttm_tt_unpin_userptr(ttm);
 
-	if (!amdgpu_ttm_is_bound(ttm))
+	if (gtt->offset == AMDGPU_BO_INVALID_OFFSET)
 		return 0;
 
 	/* unbind shouldn't be done for GDS/GWS/OA in ttm_bo_clean_mm */

@@ -67,7 +67,7 @@ struct amdgpu_copy_mem {
 extern const struct ttm_mem_type_manager_func amdgpu_gtt_mgr_func;
 extern const struct ttm_mem_type_manager_func amdgpu_vram_mgr_func;
 
-bool amdgpu_gtt_mgr_is_allocated(struct ttm_mem_reg *mem);
+bool amdgpu_gtt_mgr_has_gart_addr(struct ttm_mem_reg *mem);
 uint64_t amdgpu_gtt_mgr_usage(struct ttm_mem_type_manager *man);
 
 uint64_t amdgpu_vram_mgr_usage(struct ttm_mem_type_manager *man);
@@ -90,7 +90,6 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 			struct dma_fence **fence);
 
 int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma);
-bool amdgpu_ttm_is_bound(struct ttm_tt *ttm);
 int amdgpu_ttm_bind(struct ttm_buffer_object *bo);
 int amdgpu_ttm_recover_gart(struct amdgpu_device *adev);
 

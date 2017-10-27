@@ -79,13 +79,13 @@ static int amdgpu_gtt_mgr_fini(struct ttm_mem_type_manager *man)
 }
 
 /**
- * amdgpu_gtt_mgr_is_allocated - Check if mem has address space
+ * amdgpu_gtt_mgr_has_gart_addr - Check if mem has address space
  *
  * @mem: the mem object to check
  *
  * Check if a mem object has already address space allocated.
  */
-bool amdgpu_gtt_mgr_is_allocated(struct ttm_mem_reg *mem)
+bool amdgpu_gtt_mgr_has_gart_addr(struct ttm_mem_reg *mem)
 {
 	struct drm_mm_node *node = mem->mm_node;
 
@@ -114,7 +114,7 @@ static int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
 	unsigned long fpfn, lpfn;
 	int r;
 
-	if (amdgpu_gtt_mgr_is_allocated(mem))
+	if (amdgpu_gtt_mgr_has_gart_addr(mem))
 		return 0;
 
 	if (place)
