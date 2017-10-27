@@ -23,6 +23,8 @@
 
 #include "vgic.h"
 
+#define DB_IRQ_FLAGS	(IRQ_NOAUTOEN | IRQ_DISABLE_UNLAZY | IRQ_NO_BALANCING)
+
 static irqreturn_t vgic_v4_doorbell_handler(int irq, void *info)
 {
 	struct kvm_vcpu *vcpu = info;
@@ -83,7 +85,7 @@ int vgic_v4_init(struct kvm *kvm)
 		 * doorbell could kick us out of the guest too
 		 * early...
 		 */
-		irq_set_status_flags(irq, IRQ_NOAUTOEN | IRQ_DISABLE_UNLAZY);
+		irq_set_status_flags(irq, DB_IRQ_FLAGS);
 		ret = request_irq(irq, vgic_v4_doorbell_handler,
 				  0, "vcpu", vcpu);
 		if (ret) {
@@ -121,7 +123,7 @@ void vgic_v4_teardown(struct kvm *kvm)
 		struct kvm_vcpu *vcpu = kvm_get_vcpu(kvm, i);
 		int irq = its_vm->vpes[i]->irq;
 
-		irq_clear_status_flags(irq, IRQ_NOAUTOEN | IRQ_DISABLE_UNLAZY);
+		irq_clear_status_flags(irq, DB_IRQ_FLAGS);
 		free_irq(irq, vcpu);
 	}
 
