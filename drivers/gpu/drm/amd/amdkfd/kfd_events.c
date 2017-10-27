@@ -806,6 +806,17 @@ int kfd_wait_on_events(struct kfd_process *p,
 			break;
 		}
 
+		/* Set task state to interruptible sleep before
+		 * checking wake-up conditions. A concurrent wake-up
+		 * will put the task back into runnable state. In that
+		 * case schedule_timeout will not put the task to
+		 * sleep and we'll get a chance to re-check the
+		 * updated conditions almost immediately. Otherwise,
+		 * this race condition would lead to a soft hang or a
+		 * very long sleep.
+		 */
+		set_current_state(TASK_INTERRUPTIBLE);
+
 		if (test_event_condition(all, num_events, event_waiters)) {
 			if (copy_signaled_event_data(num_events,
 					event_waiters, events))
@@ -820,7 +831,7 @@ int kfd_wait_on_events(struct kfd_process *p,
 			break;
 		}
 
-		timeout = schedule_timeout_interruptible(timeout);
+		timeout = schedule_timeout(timeout);
 	}
 	__set_current_state(TASK_RUNNING);
 
