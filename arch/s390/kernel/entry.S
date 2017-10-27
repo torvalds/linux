@@ -964,7 +964,7 @@ ENTRY(mcck_int_handler)
 	la	%r14,4095
 	lctlg	%c0,%c15,__LC_CREGS_SAVE_AREA-4095(%r14) # validate ctl regs
 	ptlb
-	lg	%r11,__LC_MCESAD	# extended machine check save area
+	lg	%r11,__LC_MCESAD-4095(%r14) # extended machine check save area
 	nill	%r11,0xfc00		# MCESA_ORIGIN_MASK
 	TSTMSK	__LC_CREGS_SAVE_AREA+16-4095(%r14),CR2_GUARDED_STORAGE
 	jno	0f
