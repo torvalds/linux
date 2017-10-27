@@ -84,9 +84,6 @@ __read_mostly int scheduler_running;
  */
 int sysctl_sched_rt_runtime = 950000;
 
-/* CPUs with isolated domains */
-cpumask_var_t cpu_isolated_map;
-
 /*
  * __task_rq_lock - lock the rq @p resides on.
  */
@@ -5735,10 +5732,6 @@ static inline void sched_init_smt(void) { }
 
 void __init sched_init_smp(void)
 {
-	cpumask_var_t non_isolated_cpus;
-
-	alloc_cpumask_var(&non_isolated_cpus, GFP_KERNEL);
-
 	sched_init_numa();
 
 	/*
@@ -5748,16 +5741,12 @@ void __init sched_init_smp(void)
 	 */
 	mutex_lock(&sched_domains_mutex);
 	sched_init_domains(cpu_active_mask);
-	cpumask_andnot(non_isolated_cpus, cpu_possible_mask, cpu_isolated_map);
-	if (cpumask_empty(non_isolated_cpus))
-		cpumask_set_cpu(smp_processor_id(), non_isolated_cpus);
 	mutex_unlock(&sched_domains_mutex);
 
 	/* Move init over to a non-isolated CPU */
-	if (set_cpus_allowed_ptr(current, non_isolated_cpus) < 0)
+	if (set_cpus_allowed_ptr(current, housekeeping_cpumask(HK_FLAG_DOMAIN)) < 0)
 		BUG();
 	sched_init_granularity();
-	free_cpumask_var(non_isolated_cpus);
 
 	init_sched_rt_class();
 	init_sched_dl_class();
@@ -5961,9 +5950,6 @@ void __init sched_init(void)
 	calc_load_update = jiffies + LOAD_FREQ;
 
 #ifdef CONFIG_SMP
-	/* May be allocated at isolcpus cmdline parse time */
-	if (cpu_isolated_map == NULL)
-		zalloc_cpumask_var(&cpu_isolated_map, GFP_NOWAIT);
 	idle_thread_set_boot_cpu();
 	set_cpu_rq_start_time(smp_processor_id());
 #endif

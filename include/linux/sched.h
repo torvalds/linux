@@ -165,8 +165,6 @@ struct task_group;
 /* Task command name length: */
 #define TASK_COMM_LEN			16
 
-extern cpumask_var_t			cpu_isolated_map;
-
 extern void scheduler_tick(void);
 
 #define	MAX_SCHEDULE_TIMEOUT		LONG_MAX
