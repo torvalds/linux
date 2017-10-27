@@ -694,8 +694,8 @@ static void report_data(struct gsl_ts *ts, u16 x, u16 y, u8 pressure, u8 id)
 	if (revert_y)
 		y = ts->screen_max_y - y;
 
-	printk("#####id=%d,x=%d,y=%d######\n", id, x, y);
-	printk("#####revert_xy=%d,revert_x=%d,revert_y=%d######\n", revert_xy, revert_x, revert_y);
+	print_info("#####id=%d,x=%d,y=%d######\n", id, x, y);
+	print_info("#####revert_xy=%d,revert_x=%d,revert_y=%d######\n", revert_xy, revert_x, revert_y);
 
 	if (x > ts->screen_max_x || y > ts->screen_max_y) {
 	#ifdef HAVE_TOUCH_KEY
@@ -766,7 +766,7 @@ static void gslX680_ts_worker(struct work_struct *work)
 
 	if (is_noid_version) {
 		cinfo.finger_num = touches;
-		printk("tp-gsl  finger_num = %d\n", cinfo.finger_num);
+		print_info("tp-gsl  finger_num = %d\n", cinfo.finger_num);
 		for (i = 0; i < (touches < MAX_CONTACTS ? touches : MAX_CONTACTS); i++) {
 			cinfo.x[i] = join_bytes((ts->touch_data[ts->dd->x_index  + 4 * i + 1] & 0xf),
 					ts->touch_data[ts->dd->x_index + 4 * i]);
@@ -1063,7 +1063,6 @@ static int gsl_ts_suspend(struct device *dev)
 	int i;
 	int tmp = 0;
 
-	printk("I'am in gsl_ts_suspend() start\n");
 #ifdef GSL_NOID_VERSION
 	tmp = gsl_version_id();
 #endif
@@ -1075,7 +1074,6 @@ static int gsl_ts_suspend(struct device *dev)
 #endif
 
 #ifdef GSL_MONITOR
-	printk("gsl_ts_suspend () : cancel gsl_monitor_work\n");
 	cancel_delayed_work_sync(&gsl_monitor_work);
 #endif
 /*
@@ -1116,8 +1114,6 @@ static int gsl_ts_resume(struct device *dev)
 	struct gsl_ts *ts = dev_get_drvdata(dev);
 	int i;
 
-	printk("I'am in gsl_ts_resume() start\n");
-
 #ifdef TPD_PROC_DEBUG
 	if (gsl_proc_flag == 1) {
 		return -1;
@@ -1143,7 +1139,6 @@ static int gsl_ts_resume(struct device *dev)
 	input_sync(ts->input);
 #endif
 #ifdef GSL_MONITOR
-	printk("gsl_ts_resume () : queue gsl_monitor_work\n");
 	queue_delayed_work(gsl_monitor_workqueue, &gsl_monitor_work, 300);
 #endif
 /*
@@ -1163,7 +1158,6 @@ static int gsl_ts_early_suspend(struct tp_device *tp_d)
 #ifdef BND_GESTURE
 	gsl_lcd_flag = 1;
 #endif
-	printk("[GSLX680] Enter %s\n", __func__);
 	return gsl_ts_suspend(&ts->client->dev);
 }
 
@@ -1174,7 +1168,6 @@ static int gsl_ts_late_resume(struct tp_device *tp_d)
 	gsl_lcd_flag = 0;
 	gsl_gesture_flag = 0;
 #endif
-	printk("[GSLX680] Enter %s\n", __func__);
 	return gsl_ts_resume(&ts->client->dev);
 }
 #endif
