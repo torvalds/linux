@@ -24,6 +24,15 @@ int cudbg_collect_reg_dump(struct cudbg_init *pdbg_init,
 int cudbg_collect_fw_devlog(struct cudbg_init *pdbg_init,
 			    struct cudbg_buffer *dbg_buff,
 			    struct cudbg_error *cudbg_err);
+int cudbg_collect_cim_la(struct cudbg_init *pdbg_init,
+			 struct cudbg_buffer *dbg_buff,
+			 struct cudbg_error *cudbg_err);
+int cudbg_collect_cim_ma_la(struct cudbg_init *pdbg_init,
+			    struct cudbg_buffer *dbg_buff,
+			    struct cudbg_error *cudbg_err);
+int cudbg_collect_cim_qcfg(struct cudbg_init *pdbg_init,
+			   struct cudbg_buffer *dbg_buff,
+			   struct cudbg_error *cudbg_err);
 int cudbg_collect_cim_ibq_tp0(struct cudbg_init *pdbg_init,
 			      struct cudbg_buffer *dbg_buff,
 			      struct cudbg_error *cudbg_err);
@@ -66,12 +75,39 @@ int cudbg_collect_edc0_meminfo(struct cudbg_init *pdbg_init,
 int cudbg_collect_edc1_meminfo(struct cudbg_init *pdbg_init,
 			       struct cudbg_buffer *dbg_buff,
 			       struct cudbg_error *cudbg_err);
+int cudbg_collect_rss(struct cudbg_init *pdbg_init,
+		      struct cudbg_buffer *dbg_buff,
+		      struct cudbg_error *cudbg_err);
+int cudbg_collect_rss_vf_config(struct cudbg_init *pdbg_init,
+				struct cudbg_buffer *dbg_buff,
+				struct cudbg_error *cudbg_err);
 int cudbg_collect_tp_indirect(struct cudbg_init *pdbg_init,
 			      struct cudbg_buffer *dbg_buff,
 			      struct cudbg_error *cudbg_err);
+int cudbg_collect_path_mtu(struct cudbg_init *pdbg_init,
+			   struct cudbg_buffer *dbg_buff,
+			   struct cudbg_error *cudbg_err);
+int cudbg_collect_pm_stats(struct cudbg_init *pdbg_init,
+			   struct cudbg_buffer *dbg_buff,
+			   struct cudbg_error *cudbg_err);
+int cudbg_collect_hw_sched(struct cudbg_init *pdbg_init,
+			   struct cudbg_buffer *dbg_buff,
+			   struct cudbg_error *cudbg_err);
 int cudbg_collect_sge_indirect(struct cudbg_init *pdbg_init,
 			       struct cudbg_buffer *dbg_buff,
 			       struct cudbg_error *cudbg_err);
+int cudbg_collect_ulprx_la(struct cudbg_init *pdbg_init,
+			   struct cudbg_buffer *dbg_buff,
+			   struct cudbg_error *cudbg_err);
+int cudbg_collect_tp_la(struct cudbg_init *pdbg_init,
+			struct cudbg_buffer *dbg_buff,
+			struct cudbg_error *cudbg_err);
+int cudbg_collect_cim_pif_la(struct cudbg_init *pdbg_init,
+			     struct cudbg_buffer *dbg_buff,
+			     struct cudbg_error *cudbg_err);
+int cudbg_collect_clk_info(struct cudbg_init *pdbg_init,
+			   struct cudbg_buffer *dbg_buff,
+			   struct cudbg_error *cudbg_err);
 int cudbg_collect_obq_sge_rx_q0(struct cudbg_init *pdbg_init,
 				struct cudbg_buffer *dbg_buff,
 				struct cudbg_error *cudbg_err);
@@ -84,12 +120,30 @@ int cudbg_collect_pcie_indirect(struct cudbg_init *pdbg_init,
 int cudbg_collect_pm_indirect(struct cudbg_init *pdbg_init,
 			      struct cudbg_buffer *dbg_buff,
 			      struct cudbg_error *cudbg_err);
+int cudbg_collect_tid(struct cudbg_init *pdbg_init,
+		      struct cudbg_buffer *dbg_buff,
+		      struct cudbg_error *cudbg_err);
+int cudbg_collect_mps_tcam(struct cudbg_init *pdbg_init,
+			   struct cudbg_buffer *dbg_buff,
+			   struct cudbg_error *cudbg_err);
+int cudbg_collect_vpd_data(struct cudbg_init *pdbg_init,
+			   struct cudbg_buffer *dbg_buff,
+			   struct cudbg_error *cudbg_err);
+int cudbg_collect_cctrl(struct cudbg_init *pdbg_init,
+			struct cudbg_buffer *dbg_buff,
+			struct cudbg_error *cudbg_err);
 int cudbg_collect_ma_indirect(struct cudbg_init *pdbg_init,
 			      struct cudbg_buffer *dbg_buff,
 			      struct cudbg_error *cudbg_err);
+int cudbg_collect_ulptx_la(struct cudbg_init *pdbg_init,
+			   struct cudbg_buffer *dbg_buff,
+			   struct cudbg_error *cudbg_err);
 int cudbg_collect_up_cim_indirect(struct cudbg_init *pdbg_init,
 				  struct cudbg_buffer *dbg_buff,
 				  struct cudbg_error *cudbg_err);
+int cudbg_collect_pbt_tables(struct cudbg_init *pdbg_init,
+			     struct cudbg_buffer *dbg_buff,
+			     struct cudbg_error *cudbg_err);
 int cudbg_collect_mbox_log(struct cudbg_init *pdbg_init,
 			   struct cudbg_buffer *dbg_buff,
 			   struct cudbg_error *cudbg_err);

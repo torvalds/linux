@@ -47,6 +47,7 @@ enum {
 	TCB_SIZE       = 128,   /* TCB size */
 	NMTUS          = 16,    /* size of MTU table */
 	NCCTRL_WIN     = 32,    /* # of congestion control windows */
+	NTX_SCHED      = 8,     /* # of HW Tx scheduling queues */
 	PM_NSTATS      = 5,     /* # of PM stats */
 	T6_PM_NSTATS   = 7,     /* # of PM stats in T6 */
 	MBOX_LEN       = 64,    /* mailbox size in bytes */

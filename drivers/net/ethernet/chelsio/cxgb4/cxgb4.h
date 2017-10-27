@@ -1335,6 +1335,12 @@ static inline unsigned int core_ticks_to_us(const struct adapter *adapter,
 		adapter->params.vpd.cclk);
 }
 
+static inline unsigned int dack_ticks_to_usec(const struct adapter *adap,
+					      unsigned int ticks)
+{
+	return (ticks << adap->params.tp.dack_re) / core_ticks_per_usec(adap);
+}
+
 void t4_set_reg_field(struct adapter *adap, unsigned int addr, u32 mask,
 		      u32 val);
 
@@ -1636,6 +1642,9 @@ void t4_get_trace_filter(struct adapter *adapter, struct trace_params *tp,
 			 int filter_index, int *enabled);
 int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
 			 u32 addr, u32 val);
+void t4_read_pace_tbl(struct adapter *adap, unsigned int pace_vals[NTX_SCHED]);
+void t4_get_tx_sched(struct adapter *adap, unsigned int sched,
+		     unsigned int *kbps, unsigned int *ipg, bool sleep_ok);
 int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
 		    int rateunit, int ratemode, int channel, int class,
 		    int minrate, int maxrate, int weight, int pktsize);

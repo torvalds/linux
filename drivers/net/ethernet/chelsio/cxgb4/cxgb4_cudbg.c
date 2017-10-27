@@ -29,6 +29,9 @@ static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
 	{ CUDBG_MBOX_LOG, cudbg_collect_mbox_log },
 	{ CUDBG_DEV_LOG, cudbg_collect_fw_devlog },
 	{ CUDBG_REG_DUMP, cudbg_collect_reg_dump },
+	{ CUDBG_CIM_LA, cudbg_collect_cim_la },
+	{ CUDBG_CIM_MA_LA, cudbg_collect_cim_ma_la },
+	{ CUDBG_CIM_QCFG, cudbg_collect_cim_qcfg },
 	{ CUDBG_CIM_IBQ_TP0, cudbg_collect_cim_ibq_tp0 },
 	{ CUDBG_CIM_IBQ_TP1, cudbg_collect_cim_ibq_tp1 },
 	{ CUDBG_CIM_IBQ_ULP, cudbg_collect_cim_ibq_ulp },
@@ -41,14 +44,29 @@ static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
 	{ CUDBG_CIM_OBQ_ULP3, cudbg_collect_cim_obq_ulp3 },
 	{ CUDBG_CIM_OBQ_SGE, cudbg_collect_cim_obq_sge },
 	{ CUDBG_CIM_OBQ_NCSI, cudbg_collect_cim_obq_ncsi },
+	{ CUDBG_RSS, cudbg_collect_rss },
+	{ CUDBG_RSS_VF_CONF, cudbg_collect_rss_vf_config },
+	{ CUDBG_PATH_MTU, cudbg_collect_path_mtu },
+	{ CUDBG_PM_STATS, cudbg_collect_pm_stats },
+	{ CUDBG_HW_SCHED, cudbg_collect_hw_sched },
 	{ CUDBG_TP_INDIRECT, cudbg_collect_tp_indirect },
 	{ CUDBG_SGE_INDIRECT, cudbg_collect_sge_indirect },
+	{ CUDBG_ULPRX_LA, cudbg_collect_ulprx_la },
+	{ CUDBG_TP_LA, cudbg_collect_tp_la },
+	{ CUDBG_CIM_PIF_LA, cudbg_collect_cim_pif_la },
+	{ CUDBG_CLK, cudbg_collect_clk_info },
 	{ CUDBG_CIM_OBQ_RXQ0, cudbg_collect_obq_sge_rx_q0 },
 	{ CUDBG_CIM_OBQ_RXQ1, cudbg_collect_obq_sge_rx_q1 },
 	{ CUDBG_PCIE_INDIRECT, cudbg_collect_pcie_indirect },
 	{ CUDBG_PM_INDIRECT, cudbg_collect_pm_indirect },
+	{ CUDBG_TID_INFO, cudbg_collect_tid },
+	{ CUDBG_MPS_TCAM, cudbg_collect_mps_tcam },
+	{ CUDBG_VPD_DATA, cudbg_collect_vpd_data },
+	{ CUDBG_CCTRL, cudbg_collect_cctrl },
 	{ CUDBG_MA_INDIRECT, cudbg_collect_ma_indirect },
+	{ CUDBG_ULPTX_LA, cudbg_collect_ulptx_la },
 	{ CUDBG_UP_CIM_INDIRECT, cudbg_collect_up_cim_indirect },
+	{ CUDBG_PBT_TABLE, cudbg_collect_pbt_tables },
 	{ CUDBG_HMA_INDIRECT, cudbg_collect_hma_indirect },
 };
 
@@ -72,6 +90,22 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		break;
 	case CUDBG_DEV_LOG:
 		len = adap->params.devlog.size;
+		break;
+	case CUDBG_CIM_LA:
+		if (is_t6(adap->params.chip)) {
+			len = adap->params.cim_la_size / 10 + 1;
+			len *= 11 * sizeof(u32);
+		} else {
+			len = adap->params.cim_la_size / 8;
+			len *= 8 * sizeof(u32);
+		}
+		len += sizeof(u32); /* for reading CIM LA configuration */
+		break;
+	case CUDBG_CIM_MA_LA:
+		len = 2 * CIM_MALA_SIZE * 5 * sizeof(u32);
+		break;
+	case CUDBG_CIM_QCFG:
+		len = sizeof(struct cudbg_cim_qcfg);
 		break;
 	case CUDBG_CIM_IBQ_TP0:
 	case CUDBG_CIM_IBQ_TP1:
@@ -121,6 +155,22 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		}
 		len = cudbg_mbytes_to_bytes(len);
 		break;
+	case CUDBG_RSS:
+		len = RSS_NENTRIES * sizeof(u16);
+		break;
+	case CUDBG_RSS_VF_CONF:
+		len = adap->params.arch.vfcount *
+		      sizeof(struct cudbg_rss_vf_conf);
+		break;
+	case CUDBG_PATH_MTU:
+		len = NMTUS * sizeof(u16);
+		break;
+	case CUDBG_PM_STATS:
+		len = sizeof(struct cudbg_pm_stats);
+		break;
+	case CUDBG_HW_SCHED:
+		len = sizeof(struct cudbg_hw_sched);
+		break;
 	case CUDBG_TP_INDIRECT:
 		switch (CHELSIO_CHIP_VERSION(adap->params.chip)) {
 		case CHELSIO_T5:
@@ -142,6 +192,19 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 	case CUDBG_SGE_INDIRECT:
 		len = sizeof(struct ireg_buf) * 2;
 		break;
+	case CUDBG_ULPRX_LA:
+		len = sizeof(struct cudbg_ulprx_la);
+		break;
+	case CUDBG_TP_LA:
+		len = sizeof(struct cudbg_tp_la) + TPLA_SIZE * sizeof(u64);
+		break;
+	case CUDBG_CIM_PIF_LA:
+		len = sizeof(struct cudbg_cim_pif_la);
+		len += 2 * CIM_PIFLA_SIZE * 6 * sizeof(u32);
+		break;
+	case CUDBG_CLK:
+		len = sizeof(struct cudbg_clk_info);
+		break;
 	case CUDBG_PCIE_INDIRECT:
 		n = sizeof(t5_pcie_pdbg_array) / (IREG_NUM_ELEM * sizeof(u32));
 		len = sizeof(struct ireg_buf) * n * 2;
@@ -150,6 +213,19 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		n = sizeof(t5_pm_rx_array) / (IREG_NUM_ELEM * sizeof(u32));
 		len = sizeof(struct ireg_buf) * n * 2;
 		break;
+	case CUDBG_TID_INFO:
+		len = sizeof(struct cudbg_tid_info_region_rev1);
+		break;
+	case CUDBG_MPS_TCAM:
+		len = sizeof(struct cudbg_mps_tcam) *
+		      adap->params.arch.mps_tcam_size;
+		break;
+	case CUDBG_VPD_DATA:
+		len = sizeof(struct cudbg_vpd_data);
+		break;
+	case CUDBG_CCTRL:
+		len = sizeof(u16) * NMTUS * NCCTRL_WIN;
+		break;
 	case CUDBG_MA_INDIRECT:
 		if (CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5) {
 			n = sizeof(t6_ma_ireg_array) /
@@ -157,9 +233,15 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 			len = sizeof(struct ireg_buf) * n * 2;
 		}
 		break;
+	case CUDBG_ULPTX_LA:
+		len = sizeof(struct cudbg_ulptx_la);
+		break;
 	case CUDBG_UP_CIM_INDIRECT:
 		n = sizeof(t5_up_cim_reg_array) / (IREG_NUM_ELEM * sizeof(u32));
 		len = sizeof(struct ireg_buf) * n;
+		break;
+	case CUDBG_PBT_TABLE:
+		len = sizeof(struct cudbg_pbt_tables);
 		break;
 	case CUDBG_MBOX_LOG:
 		len = sizeof(struct cudbg_mbox_log) * adap->mbox_log->size;

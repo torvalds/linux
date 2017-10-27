@@ -1415,6 +1415,7 @@
 #define ROWINDEX_V(x) ((x) << ROWINDEX_S)
 
 #define TP_CCTRL_TABLE_A	0x7ddc
+#define TP_PACE_TABLE_A 0x7dd8
 #define TP_MTU_TABLE_A		0x7de4
 
 #define MTUINDEX_S    24
@@ -1449,6 +1450,15 @@
 
 #define TP_TM_PIO_ADDR_A 0x7e18
 #define TP_TM_PIO_DATA_A 0x7e1c
+#define TP_MOD_CONFIG_A 0x7e24
+
+#define TIMERMODE_S    8
+#define TIMERMODE_M    0xffU
+#define TIMERMODE_G(x) (((x) >> TIMERMODE_S) & TIMERMODE_M)
+
+#define TP_TX_MOD_Q1_Q0_TIMER_SEPARATOR_A 0x3
+#define TP_TX_MOD_Q1_Q0_RATE_LIMIT_A 0x8
+
 #define TP_PIO_ADDR_A	0x7e40
 #define TP_PIO_DATA_A	0x7e44
 #define TP_MIB_INDEX_A	0x7e50
@@ -1628,6 +1638,10 @@
 #define IESPI_PAR_ERROR_S    1
 #define IESPI_PAR_ERROR_V(x) ((x) << IESPI_PAR_ERROR_S)
 #define IESPI_PAR_ERROR_F    IESPI_PAR_ERROR_V(1U)
+
+#define ULP_TX_LA_RDPTR_0_A 0x8ec0
+#define ULP_TX_LA_RDDATA_0_A 0x8ec4
+#define ULP_TX_LA_WRPTR_0_A 0x8ec8
 
 #define PMRX_E_PCMD_PAR_ERROR_S    0
 #define PMRX_E_PCMD_PAR_ERROR_V(x) ((x) << PMRX_E_PCMD_PAR_ERROR_S)
@@ -2435,6 +2449,18 @@
 #define MPS_CLS_TCAM_DATA0_A 0xf000
 #define MPS_CLS_TCAM_DATA1_A 0xf004
 
+#define CTLREQID_S    30
+#define CTLREQID_V(x) ((x) << CTLREQID_S)
+
+#define MPS_VF_RPLCT_MAP0_A 0x1111c
+#define MPS_VF_RPLCT_MAP1_A 0x11120
+#define MPS_VF_RPLCT_MAP2_A 0x11124
+#define MPS_VF_RPLCT_MAP3_A 0x11128
+#define MPS_VF_RPLCT_MAP4_A 0x11300
+#define MPS_VF_RPLCT_MAP5_A 0x11304
+#define MPS_VF_RPLCT_MAP6_A 0x11308
+#define MPS_VF_RPLCT_MAP7_A 0x1130c
+
 #define VIDL_S    16
 #define VIDL_M    0xffffU
 #define VIDL_G(x) (((x) >> VIDL_S) & VIDL_M)
@@ -2458,6 +2484,10 @@
 #define DATAVIDH1_S    0
 #define DATAVIDH1_M    0x7fU
 #define DATAVIDH1_G(x) (((x) >> DATAVIDH1_S) & DATAVIDH1_M)
+
+#define MPS_CLS_TCAM_RDATA0_REQ_ID1_A 0xf020
+#define MPS_CLS_TCAM_RDATA1_REQ_ID1_A 0xf024
+#define MPS_CLS_TCAM_RDATA2_REQ_ID1_A 0xf028
 
 #define USED_S    16
 #define USED_M    0x7ffU
@@ -2852,6 +2882,7 @@
 #define T6_LIPMISS_F    T6_LIPMISS_V(1U)
 
 #define LE_DB_CONFIG_A 0x19c04
+#define LE_DB_ACTIVE_TABLE_START_INDEX_A 0x19c10
 #define LE_DB_SERVER_INDEX_A 0x19c18
 #define LE_DB_SRVR_START_INDEX_A 0x19c18
 #define LE_DB_ACT_CNT_IPV4_A 0x19c20

@@ -9547,6 +9547,63 @@ int t4_set_vf_mac_acl(struct adapter *adapter, unsigned int vf,
 	return t4_wr_mbox(adapter, adapter->mbox, &cmd, sizeof(cmd), &cmd);
 }
 
+/**
+ * t4_read_pace_tbl - read the pace table
+ * @adap: the adapter
+ * @pace_vals: holds the returned values
+ *
+ * Returns the values of TP's pace table in microseconds.
+ */
+void t4_read_pace_tbl(struct adapter *adap, unsigned int pace_vals[NTX_SCHED])
+{
+	unsigned int i, v;
+
+	for (i = 0; i < NTX_SCHED; i++) {
+		t4_write_reg(adap, TP_PACE_TABLE_A, 0xffff0000 + i);
+		v = t4_read_reg(adap, TP_PACE_TABLE_A);
+		pace_vals[i] = dack_ticks_to_usec(adap, v);
+	}
+}
+
+/**
+ * t4_get_tx_sched - get the configuration of a Tx HW traffic scheduler
+ * @adap: the adapter
+ * @sched: the scheduler index
+ * @kbps: the byte rate in Kbps
+ * @ipg: the interpacket delay in tenths of nanoseconds
+ * @sleep_ok: if true we may sleep while awaiting command completion
+ *
+ * Return the current configuration of a HW Tx scheduler.
+ */
+void t4_get_tx_sched(struct adapter *adap, unsigned int sched,
+		     unsigned int *kbps, unsigned int *ipg, bool sleep_ok)
+{
+	unsigned int v, addr, bpt, cpt;
+
+	if (kbps) {
+		addr = TP_TX_MOD_Q1_Q0_RATE_LIMIT_A - sched / 2;
+		t4_tp_tm_pio_read(adap, &v, 1, addr, sleep_ok);
+		if (sched & 1)
+			v >>= 16;
+		bpt = (v >> 8) & 0xff;
+		cpt = v & 0xff;
+		if (!cpt) {
+			*kbps = 0;	/* scheduler disabled */
+		} else {
+			v = (adap->params.vpd.cclk * 1000) / cpt; /* ticks/s */
+			*kbps = (v * bpt) / 125;
+		}
+	}
+	if (ipg) {
+		addr = TP_TX_MOD_Q1_Q0_TIMER_SEPARATOR_A - sched / 2;
+		t4_tp_tm_pio_read(adap, &v, 1, addr, sleep_ok);
+		if (sched & 1)
+			v >>= 16;
+		v &= 0xffff;
+		*ipg = (10000 * v) / core_ticks_per_usec(adap);
+	}
+}
+
 int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
 		    int rateunit, int ratemode, int channel, int class,
 		    int minrate, int maxrate, int weight, int pktsize)

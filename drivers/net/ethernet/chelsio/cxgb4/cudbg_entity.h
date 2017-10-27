@@ -21,6 +21,8 @@
 #define EDC0_FLAG 3
 #define EDC1_FLAG 4
 
+#define CUDBG_ENTITY_SIGNATURE 0xCCEDB001
+
 struct card_mem {
 	u16 size_edc0;
 	u16 size_edc1;
@@ -33,6 +35,35 @@ struct cudbg_mbox_log {
 	u32 lo[MBOX_LEN / 8];
 };
 
+struct cudbg_cim_qcfg {
+	u8 chip;
+	u16 base[CIM_NUM_IBQ + CIM_NUM_OBQ_T5];
+	u16 size[CIM_NUM_IBQ + CIM_NUM_OBQ_T5];
+	u16 thres[CIM_NUM_IBQ];
+	u32 obq_wr[2 * CIM_NUM_OBQ_T5];
+	u32 stat[4 * (CIM_NUM_IBQ + CIM_NUM_OBQ_T5)];
+};
+
+struct cudbg_rss_vf_conf {
+	u32 rss_vf_vfl;
+	u32 rss_vf_vfh;
+};
+
+struct cudbg_pm_stats {
+	u32 tx_cnt[T6_PM_NSTATS];
+	u32 rx_cnt[T6_PM_NSTATS];
+	u64 tx_cyc[T6_PM_NSTATS];
+	u64 rx_cyc[T6_PM_NSTATS];
+};
+
+struct cudbg_hw_sched {
+	u32 kbps[NTX_SCHED];
+	u32 ipg[NTX_SCHED];
+	u32 pace_tab[NTX_SCHED];
+	u32 mode;
+	u32 map;
+};
+
 struct ireg_field {
 	u32 ireg_addr;
 	u32 ireg_data;
@@ -43,6 +74,134 @@ struct ireg_field {
 struct ireg_buf {
 	struct ireg_field tp_pio;
 	u32 outbuf[32];
+};
+
+struct cudbg_ulprx_la {
+	u32 data[ULPRX_LA_SIZE * 8];
+	u32 size;
+};
+
+struct cudbg_tp_la {
+	u32 size;
+	u32 mode;
+	u8 data[0];
+};
+
+struct cudbg_cim_pif_la {
+	int size;
+	u8 data[0];
+};
+
+struct cudbg_clk_info {
+	u64 retransmit_min;
+	u64 retransmit_max;
+	u64 persist_timer_min;
+	u64 persist_timer_max;
+	u64 keepalive_idle_timer;
+	u64 keepalive_interval;
+	u64 initial_srtt;
+	u64 finwait2_timer;
+	u32 dack_timer;
+	u32 res;
+	u32 cclk_ps;
+	u32 tre;
+	u32 dack_re;
+};
+
+struct cudbg_tid_info_region {
+	u32 ntids;
+	u32 nstids;
+	u32 stid_base;
+	u32 hash_base;
+
+	u32 natids;
+	u32 nftids;
+	u32 ftid_base;
+	u32 aftid_base;
+	u32 aftid_end;
+
+	u32 sftid_base;
+	u32 nsftids;
+
+	u32 uotid_base;
+	u32 nuotids;
+
+	u32 sb;
+	u32 flags;
+	u32 le_db_conf;
+	u32 ip_users;
+	u32 ipv6_users;
+
+	u32 hpftid_base;
+	u32 nhpftids;
+};
+
+#define CUDBG_TID_INFO_REV 1
+
+struct cudbg_tid_info_region_rev1 {
+	struct cudbg_ver_hdr ver_hdr;
+	struct cudbg_tid_info_region tid;
+	u32 tid_start;
+	u32 reserved[16];
+};
+
+#define CUDBG_MAX_RPLC_SIZE 128
+
+struct cudbg_mps_tcam {
+	u64 mask;
+	u32 rplc[8];
+	u32 idx;
+	u32 cls_lo;
+	u32 cls_hi;
+	u32 rplc_size;
+	u32 vniy;
+	u32 vnix;
+	u32 dip_hit;
+	u32 vlan_vld;
+	u32 repli;
+	u16 ivlan;
+	u8 addr[ETH_ALEN];
+	u8 lookup_type;
+	u8 port_num;
+	u8 reserved[2];
+};
+
+struct cudbg_vpd_data {
+	u8 sn[SERNUM_LEN + 1];
+	u8 bn[PN_LEN + 1];
+	u8 na[MACADDR_LEN + 1];
+	u8 mn[ID_LEN + 1];
+	u16 fw_major;
+	u16 fw_minor;
+	u16 fw_micro;
+	u16 fw_build;
+	u32 scfg_vers;
+	u32 vpd_vers;
+};
+
+#define CUDBG_NUM_ULPTX 11
+#define CUDBG_NUM_ULPTX_READ 512
+
+struct cudbg_ulptx_la {
+	u32 rdptr[CUDBG_NUM_ULPTX];
+	u32 wrptr[CUDBG_NUM_ULPTX];
+	u32 rddata[CUDBG_NUM_ULPTX];
+	u32 rd_data[CUDBG_NUM_ULPTX][CUDBG_NUM_ULPTX_READ];
+};
+
+#define CUDBG_CHAC_PBT_ADDR 0x2800
+#define CUDBG_CHAC_PBT_LRF  0x3000
+#define CUDBG_CHAC_PBT_DATA 0x3800
+#define CUDBG_PBT_DYNAMIC_ENTRIES 8
+#define CUDBG_PBT_STATIC_ENTRIES 16
+#define CUDBG_LRF_ENTRIES 8
+#define CUDBG_PBT_DATA_ENTRIES 512
+
+struct cudbg_pbt_tables {
+	u32 pbt_dynamic[CUDBG_PBT_DYNAMIC_ENTRIES];
+	u32 pbt_static[CUDBG_PBT_STATIC_ENTRIES];
+	u32 lrf_table[CUDBG_LRF_ENTRIES];
+	u32 pbt_data[CUDBG_PBT_DATA_ENTRIES];
 };
 
 #define IREG_NUM_ELEM 4

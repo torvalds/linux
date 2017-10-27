@@ -57,6 +57,12 @@ struct cudbg_entity_hdr {
 	u32 reserved[5];
 };
 
+struct cudbg_ver_hdr {
+	u32 signature;
+	u16 revision;
+	u16 size;
+};
+
 struct cudbg_buffer {
 	u32 size;
 	u32 offset;
