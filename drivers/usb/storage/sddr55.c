@@ -604,6 +604,7 @@ static unsigned long sddr55_get_capacity(struct us_data *us) {
 	case 0x64:
 		info->pageshift = 8;
 		info->smallpageshift = 1;
+		/* fall through */
 	case 0x5d: // 5d is a ROM card with pagesize 512.
 		return 0x00200000;
 
