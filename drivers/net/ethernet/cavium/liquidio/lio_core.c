@@ -143,6 +143,7 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 	switch (nctrl->ncmd.s.cmd) {
 	case OCTNET_CMD_CHANGE_DEVFLAGS:
 	case OCTNET_CMD_SET_MULTI_LIST:
+	case OCTNET_CMD_SET_UC_LIST:
 		break;
 
 	case OCTNET_CMD_CHANGE_MACADDR:
