@@ -338,11 +338,25 @@ static int vgic_copy_lpi_list(struct kvm_vcpu *vcpu, u32 **intid_ptr)
 
 static int update_affinity(struct vgic_irq *irq, struct kvm_vcpu *vcpu)
 {
+	int ret = 0;
+
 	spin_lock(&irq->irq_lock);
 	irq->target_vcpu = vcpu;
 	spin_unlock(&irq->irq_lock);
 
-	return 0;
+	if (irq->hw) {
+		struct its_vlpi_map map;
+
+		ret = its_get_vlpi(irq->host_irq, &map);
+		if (ret)
+			return ret;
+
+		map.vpe = &vcpu->arch.vgic_cpu.vgic_v3.its_vpe;
+
+		ret = its_map_vlpi(irq->host_irq, &map);
+	}
+
+	return ret;
 }
 
 /*
