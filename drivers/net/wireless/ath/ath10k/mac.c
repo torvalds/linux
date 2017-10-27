@@ -5585,6 +5585,59 @@ static void ath10k_mac_op_set_coverage_class(struct ieee80211_hw *hw, s16 value)
 	ar->hw_params.hw_ops->set_coverage_class(ar, value);
 }
 
+struct ath10k_mac_tdls_iter_data {
+	u32 num_tdls_stations;
+	struct ieee80211_vif *curr_vif;
+};
+
+static void ath10k_mac_tdls_vif_stations_count_iter(void *data,
+						    struct ieee80211_sta *sta)
+{
+	struct ath10k_mac_tdls_iter_data *iter_data = data;
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	struct ieee80211_vif *sta_vif = arsta->arvif->vif;
+
+	if (sta->tdls && sta_vif == iter_data->curr_vif)
+		iter_data->num_tdls_stations++;
+}
+
+static int ath10k_mac_tdls_vif_stations_count(struct ieee80211_hw *hw,
+					      struct ieee80211_vif *vif)
+{
+	struct ath10k_mac_tdls_iter_data data = {};
+
+	data.curr_vif = vif;
+
+	ieee80211_iterate_stations_atomic(hw,
+					  ath10k_mac_tdls_vif_stations_count_iter,
+					  &data);
+	return data.num_tdls_stations;
+}
+
+static void ath10k_mac_tdls_vifs_count_iter(void *data, u8 *mac,
+					    struct ieee80211_vif *vif)
+{
+	struct ath10k_vif *arvif = (void *)vif->drv_priv;
+	int *num_tdls_vifs = data;
+
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	if (ath10k_mac_tdls_vif_stations_count(arvif->ar->hw, vif) > 0)
+		(*num_tdls_vifs)++;
+}
+
+static int ath10k_mac_tdls_vifs_count(struct ieee80211_hw *hw)
+{
+	int num_tdls_vifs = 0;
+
+	ieee80211_iterate_active_interfaces_atomic(hw,
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   ath10k_mac_tdls_vifs_count_iter,
+						   &num_tdls_vifs);
+	return num_tdls_vifs;
+}
+
 static int ath10k_hw_scan(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif,
 			  struct ieee80211_scan_request *hw_req)
@@ -6011,59 +6064,6 @@ static void ath10k_mac_dec_num_stations(struct ath10k_vif *arvif,
 		return;
 
 	ar->num_stations--;
-}
-
-struct ath10k_mac_tdls_iter_data {
-	u32 num_tdls_stations;
-	struct ieee80211_vif *curr_vif;
-};
-
-static void ath10k_mac_tdls_vif_stations_count_iter(void *data,
-						    struct ieee80211_sta *sta)
-{
-	struct ath10k_mac_tdls_iter_data *iter_data = data;
-	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
-	struct ieee80211_vif *sta_vif = arsta->arvif->vif;
-
-	if (sta->tdls && sta_vif == iter_data->curr_vif)
-		iter_data->num_tdls_stations++;
-}
-
-static int ath10k_mac_tdls_vif_stations_count(struct ieee80211_hw *hw,
-					      struct ieee80211_vif *vif)
-{
-	struct ath10k_mac_tdls_iter_data data = {};
-
-	data.curr_vif = vif;
-
-	ieee80211_iterate_stations_atomic(hw,
-					  ath10k_mac_tdls_vif_stations_count_iter,
-					  &data);
-	return data.num_tdls_stations;
-}
-
-static void ath10k_mac_tdls_vifs_count_iter(void *data, u8 *mac,
-					    struct ieee80211_vif *vif)
-{
-	struct ath10k_vif *arvif = (void *)vif->drv_priv;
-	int *num_tdls_vifs = data;
-
-	if (vif->type != NL80211_IFTYPE_STATION)
-		return;
-
-	if (ath10k_mac_tdls_vif_stations_count(arvif->ar->hw, vif) > 0)
-		(*num_tdls_vifs)++;
-}
-
-static int ath10k_mac_tdls_vifs_count(struct ieee80211_hw *hw)
-{
-	int num_tdls_vifs = 0;
-
-	ieee80211_iterate_active_interfaces_atomic(hw,
-						   IEEE80211_IFACE_ITER_NORMAL,
-						   ath10k_mac_tdls_vifs_count_iter,
-						   &num_tdls_vifs);
-	return num_tdls_vifs;
 }
 
 static int ath10k_sta_state(struct ieee80211_hw *hw,
