@@ -441,9 +441,61 @@ static int rk805_set_suspend_disable(struct regulator_dev *rdev)
 				  0);
 }
 
+static int rk816_set_suspend_enable(struct regulator_dev *rdev)
+{
+	unsigned int reg, val;
+
+	if (rdev->desc->id <= RK816_ID_DCDC4) {
+		reg = rdev->desc->enable_reg +
+			RK816_DCDC_SLP_EN_REG_OFFSET;
+		val = 1 << rdev->desc->id;
+	} else if ((rdev->desc->id > RK816_ID_DCDC4) &&
+		   (rdev->desc->id <= RK816_ID_LDO4)) {
+		reg = rdev->desc->enable_reg -
+			RK816_LDO1_4_SLP_EN_REG_OFFSET;
+		val = 1 << (rdev->desc->id - RK816_ID_LDO1);
+	} else {
+		reg = rdev->desc->enable_reg -
+			RK816_LDO5_6_SLP_EN_REG_OFFSET;
+		val = 1 << (rdev->desc->id - RK816_ID_LDO1);
+	}
+
+	return regmap_update_bits(rdev->regmap, reg,
+				  val,
+				  val);
+}
+
+static int rk816_set_suspend_disable(struct regulator_dev *rdev)
+{
+	unsigned int reg, val;
+
+	if (rdev->desc->id <= RK816_ID_DCDC4) {
+		reg = rdev->desc->enable_reg +
+			RK816_DCDC_SLP_EN_REG_OFFSET;
+		val = 1 << rdev->desc->id;
+	} else if ((rdev->desc->id > RK816_ID_DCDC4) &&
+		   (rdev->desc->id <= RK816_ID_LDO4)) {
+		reg = rdev->desc->enable_reg -
+			RK816_LDO1_4_SLP_EN_REG_OFFSET;
+		val = 1 << (rdev->desc->id - RK816_ID_LDO1);
+	} else {
+		reg = rdev->desc->enable_reg -
+			RK816_LDO5_6_SLP_EN_REG_OFFSET;
+		val = 1 << (rdev->desc->id - RK816_ID_LDO1);
+	}
+
+	return regmap_update_bits(rdev->regmap, reg,
+				  val,
+				  0);
+}
+
 static int rk808_set_suspend_enable(struct regulator_dev *rdev)
 {
 	unsigned int reg;
+	struct rk808 *rk808 = dev_get_drvdata(rdev->dev.parent);
+
+	if (rk808->variant == RK816_ID)
+		return rk816_set_suspend_enable(rdev);
 
 	reg = rdev->desc->enable_reg + RK808_SLP_SET_OFF_REG_OFFSET;
 
@@ -455,6 +507,10 @@ static int rk808_set_suspend_enable(struct regulator_dev *rdev)
 static int rk808_set_suspend_disable(struct regulator_dev *rdev)
 {
 	unsigned int reg;
+	struct rk808 *rk808 = dev_get_drvdata(rdev->dev.parent);
+
+	if (rk808->variant == RK816_ID)
+		return rk816_set_suspend_disable(rdev);
 
 	reg = rdev->desc->enable_reg + RK808_SLP_SET_OFF_REG_OFFSET;
 
