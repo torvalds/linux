@@ -200,7 +200,6 @@ static void kfd_process_destroy_delayed(struct rcu_head *rcu)
 	struct kfd_process *p;
 
 	p = container_of(rcu, struct kfd_process, rcu);
-	WARN_ON(atomic_read(&p->mm->mm_count) <= 0);
 
 	mmdrop(p->mm);
 

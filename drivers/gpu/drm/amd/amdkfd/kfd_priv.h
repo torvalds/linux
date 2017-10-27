@@ -494,7 +494,12 @@ struct kfd_process {
 	 */
 	struct hlist_node kfd_processes;
 
-	struct mm_struct *mm;
+	/*
+	 * Opaque pointer to mm_struct. We don't hold a reference to
+	 * it so it should never be dereferenced from here. This is
+	 * only used for looking up processes by their mm.
+	 */
+	void *mm;
 
 	struct mutex mutex;
 

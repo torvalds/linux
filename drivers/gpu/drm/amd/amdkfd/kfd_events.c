@@ -24,8 +24,8 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
 #include <linux/uaccess.h>
-#include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/memory.h>
 #include "kfd_priv.h"
@@ -904,14 +904,24 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 	 * running so the lookup function returns a locked process.
 	 */
 	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
+	struct mm_struct *mm;
 
 	if (!p)
 		return; /* Presumably process exited. */
 
+	/* Take a safe reference to the mm_struct, which may otherwise
+	 * disappear even while the kfd_process is still referenced.
+	 */
+	mm = get_task_mm(p->lead_thread);
+	if (!mm) {
+		mutex_unlock(&p->mutex);
+		return; /* Process is exiting */
+	}
+
 	memset(&memory_exception_data, 0, sizeof(memory_exception_data));
 
-	down_read(&p->mm->mmap_sem);
-	vma = find_vma(p->mm, address);
+	down_read(&mm->mmap_sem);
+	vma = find_vma(mm, address);
 
 	memory_exception_data.gpu_id = dev->id;
 	memory_exception_data.va = address;
@@ -937,7 +947,8 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 		}
 	}
 
-	up_read(&p->mm->mmap_sem);
+	up_read(&mm->mmap_sem);
+	mmput(mm);
 
 	mutex_lock(&p->event_mutex);
 
