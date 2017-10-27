@@ -848,6 +848,9 @@ static void cpumsf_pmu_enable(struct pmu *pmu)
 		return;
 	}
 
+	/* Load current program parameter */
+	lpp(&S390_lowcore.lpp);
+
 	debug_sprintf_event(sfdbg, 6, "pmu_enable: es=%i cs=%i ed=%i cd=%i "
 			    "tear=%p dear=%p\n", cpuhw->lsctl.es, cpuhw->lsctl.cs,
 			    cpuhw->lsctl.ed, cpuhw->lsctl.cd,
