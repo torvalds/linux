@@ -27,6 +27,7 @@
 #include <linux/hashtable.h>
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/wait.h>
 #include "kfd_priv.h"
 #include <uapi/linux/kfd_ioctl.h>
 
@@ -56,7 +57,7 @@ struct kfd_event {
 
 	int type;
 
-	struct list_head waiters; /* List of kfd_event_waiter by waiters. */
+	wait_queue_head_t wq; /* List of event waiters. */
 
 	/* Only for signal events. */
 	struct signal_page *signal_page;
