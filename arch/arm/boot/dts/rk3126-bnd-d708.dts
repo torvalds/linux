@@ -150,6 +150,14 @@
 		regulator-max-microvolt = <4000000>;
 		regulator-always-on;
 	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+
+		wifi_chip_type = "rtl8723cs";
+		WIFI,host_wake_irq = <&gpio2 13 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
 };
 
 &cpu0 {
@@ -403,7 +411,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
 				};
 			};
 
@@ -496,13 +504,14 @@
 };
 
 &sdio {
-	cap-mmc-highspeed;
+	max-frequency = <50000000>;
+	cap-sd-highspeed;
 	supports-sdio;
 	ignore-pm-notify;
 	keep-power-in-suspend;
 	non-removable;
-	cap-sdio-irq;
-	status = "disabled";
+	vmmc-supply = <&ldo5>;
+	status = "okay";
 };
 
 &u2phy {
