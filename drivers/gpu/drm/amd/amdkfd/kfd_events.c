@@ -53,12 +53,6 @@ struct kfd_signal_page {
 	uint64_t __user *user_address;
 };
 
-/*
- * For signal events, the event ID is used as the interrupt user data.
- * For SQ s_sendmsg interrupts, this is limited to 8 bits.
- */
-
-#define INTERRUPT_DATA_BITS 8
 
 static uint64_t *page_slots(struct kfd_signal_page *page)
 {
@@ -123,6 +117,54 @@ static int allocate_event_notification_slot(struct kfd_process *p,
 static struct kfd_event *lookup_event_by_id(struct kfd_process *p, uint32_t id)
 {
 	return idr_find(&p->event_idr, id);
+}
+
+/**
+ * lookup_signaled_event_by_partial_id - Lookup signaled event from partial ID
+ * @p:     Pointer to struct kfd_process
+ * @id:    ID to look up
+ * @bits:  Number of valid bits in @id
+ *
+ * Finds the first signaled event with a matching partial ID. If no
+ * matching signaled event is found, returns NULL. In that case the
+ * caller should assume that the partial ID is invalid and do an
+ * exhaustive search of all siglaned events.
+ *
+ * If multiple events with the same partial ID signal at the same
+ * time, they will be found one interrupt at a time, not necessarily
+ * in the same order the interrupts occurred. As long as the number of
+ * interrupts is correct, all signaled events will be seen by the
+ * driver.
+ */
+static struct kfd_event *lookup_signaled_event_by_partial_id(
+	struct kfd_process *p, uint32_t id, uint32_t bits)
+{
+	struct kfd_event *ev;
+
+	if (!p->signal_page || id >= KFD_SIGNAL_EVENT_LIMIT)
+		return NULL;
+
+	/* Fast path for the common case that @id is not a partial ID
+	 * and we only need a single lookup.
+	 */
+	if (bits > 31 || (1U << bits) >= KFD_SIGNAL_EVENT_LIMIT) {
+		if (page_slots(p->signal_page)[id] == UNSIGNALED_EVENT_SLOT)
+			return NULL;
+
+		return idr_find(&p->event_idr, id);
+	}
+
+	/* General case for partial IDs: Iterate over all matching IDs
+	 * and find the first one that has signaled.
+	 */
+	for (ev = NULL; id < KFD_SIGNAL_EVENT_LIMIT && !ev; id += 1U << bits) {
+		if (page_slots(p->signal_page)[id] == UNSIGNALED_EVENT_SLOT)
+			continue;
+
+		ev = idr_find(&p->event_idr, id);
+	}
+
+	return ev;
 }
 
 static int create_signal_event(struct file *devkfd,
@@ -385,7 +427,7 @@ static void set_event_from_interrupt(struct kfd_process *p,
 void kfd_signal_event_interrupt(unsigned int pasid, uint32_t partial_id,
 				uint32_t valid_id_bits)
 {
-	struct kfd_event *ev;
+	struct kfd_event *ev = NULL;
 
 	/*
 	 * Because we are called from arbitrary context (workqueue) as opposed
@@ -399,18 +441,23 @@ void kfd_signal_event_interrupt(unsigned int pasid, uint32_t partial_id,
 
 	mutex_lock(&p->event_mutex);
 
-	if (valid_id_bits >= INTERRUPT_DATA_BITS) {
-		/* Partial ID is a full ID. */
-		ev = lookup_event_by_id(p, partial_id);
+	if (valid_id_bits)
+		ev = lookup_signaled_event_by_partial_id(p, partial_id,
+							 valid_id_bits);
+	if (ev) {
 		set_event_from_interrupt(p, ev);
 	} else if (p->signal_page) {
 		/*
-		 * Partial ID is in fact partial. For now we completely
-		 * ignore it, but we could use any bits we did receive to
-		 * search faster.
+		 * Partial ID lookup failed. Assume that the event ID
+		 * in the interrupt payload was invalid and do an
+		 * exhaustive search of signaled events.
 		 */
 		uint64_t *slots = page_slots(p->signal_page);
 		uint32_t id;
+
+		if (valid_id_bits)
+			pr_debug_ratelimited("Partial ID invalid: %u (%u valid bits)\n",
+					     partial_id, valid_id_bits);
 
 		if (p->signal_event_count < KFD_SIGNAL_EVENT_LIMIT/2) {
 			/* With relatively few events, it's faster to
