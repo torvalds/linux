@@ -40,6 +40,8 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include "rk3368-cif-sensor.dtsi"
+
 / {
 	chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xff690000 swiotlb=1 firmware_class.path=/system/vendor/firmware";
@@ -81,7 +83,7 @@
 		#size-cells = <0>;
 
 		cma-heap {
-			reg = <0x00000000 0x02000000>;
+			reg = <0x00000000 0x2800000>;
 		};
 
 		system-heap {
@@ -247,6 +249,18 @@
 };
 
 &isp_mmu {
+	status = "okay";
+};
+
+&cif {
+	status = "okay";
+};
+
+&vip_mmu {
+	status = "okay";
+};
+
+&rk3368_cif_sensor {
 	status = "okay";
 };
 

@@ -1,0 +1,34 @@
+#include "../../../../../drivers/soc/rockchip/rk_camera_sensor_info.h"
+
+/{
+	rk3368_cif_sensor: rk3368_cif_sensor{
+		compatible = "rockchip,sensor";
+		status = "okay";
+
+		tp2825 {
+			status = "okay";
+			is_front = <0>;
+			powerdown-gpios = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+			irq-gpios = <&gpio1 13 IRQ_TYPE_EDGE_FALLING>;
+			pwdn_active = <tp2825_PWRDN_ACTIVE>;
+			mir = <0>;
+			flash_attach = <1>;
+			flash_active = <1>;
+			resolution = <tp2825_FULL_RESOLUTION>;
+			powerup_sequence = <tp2825_PWRSEQ>;
+			orientation = <0>;
+			i2c_add = <tp2825_I2C_ADDR>;
+			i2c_chl = <3>;
+			cif_chl = <0>;
+			ad_chl = <0>; // 0 ~ 4;
+			mclk_rate = <24>;
+			rockchip,camera-module-defrect0 = <960 480 0 4 960 472>;
+			rockchip,camera-module-interface0 = "cvbs_ntsc";
+			rockchip,camera-module-defrect1 = <960 576 0 4 960 568>;
+			rockchip,camera-module-interface1 = "cvbs_pal";
+			rockchip,camera-module-defrect2 = <1280 720 8 20 1280 720>;
+			rockchip,camera-module-interface2 = "bt601_8_pp";
+			rockchip,camera-module-channel = <4 0>;
+		};
+	};
+};
