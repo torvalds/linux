@@ -11,7 +11,41 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 
-cpumask_var_t housekeeping_mask;
+static cpumask_var_t housekeeping_mask;
+
+int housekeeping_any_cpu(void)
+{
+	if (tick_nohz_full_enabled())
+		return cpumask_any_and(housekeeping_mask, cpu_online_mask);
+
+	return smp_processor_id();
+}
+EXPORT_SYMBOL_GPL(housekeeping_any_cpu);
+
+const struct cpumask *housekeeping_cpumask(void)
+{
+	if (tick_nohz_full_enabled())
+		return housekeeping_mask;
+
+	return cpu_possible_mask;
+}
+EXPORT_SYMBOL_GPL(housekeeping_cpumask);
+
+void housekeeping_affine(struct task_struct *t)
+{
+	if (tick_nohz_full_enabled())
+		set_cpus_allowed_ptr(t, housekeeping_mask);
+}
+EXPORT_SYMBOL_GPL(housekeeping_affine);
+
+bool housekeeping_test_cpu(int cpu)
+{
+	if (tick_nohz_full_enabled())
+		return cpumask_test_cpu(cpu, housekeeping_mask);
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(housekeeping_test_cpu);
 
 void __init housekeeping_init(void)
 {
