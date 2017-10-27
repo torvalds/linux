@@ -844,6 +844,7 @@ struct tcp_skb_cb {
 			__u32 key;
 			__u32 flags;
 			struct bpf_map *map;
+			void *data_end;
 		} bpf;
 	};
 };
