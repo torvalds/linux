@@ -55,6 +55,8 @@
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
 #include <net/pkt_cls.h>
+#include <net/tc_act/tc_gact.h>
+#include <net/tc_act/tc_mirred.h>
 #include "i40e_type.h"
 #include "i40e_prototype.h"
 #include "i40e_client.h"
@@ -253,10 +255,56 @@ struct i40e_fdir_filter {
 	u32 fd_id;
 };
 
+#define I40E_CLOUD_FIELD_OMAC	0x01
+#define I40E_CLOUD_FIELD_IMAC	0x02
+#define I40E_CLOUD_FIELD_IVLAN	0x04
+#define I40E_CLOUD_FIELD_TEN_ID	0x08
+#define I40E_CLOUD_FIELD_IIP	0x10
+
+#define I40E_CLOUD_FILTER_FLAGS_OMAC	I40E_CLOUD_FIELD_OMAC
+#define I40E_CLOUD_FILTER_FLAGS_IMAC	I40E_CLOUD_FIELD_IMAC
+#define I40E_CLOUD_FILTER_FLAGS_IMAC_IVLAN	(I40E_CLOUD_FIELD_IMAC | \
+						 I40E_CLOUD_FIELD_IVLAN)
+#define I40E_CLOUD_FILTER_FLAGS_IMAC_TEN_ID	(I40E_CLOUD_FIELD_IMAC | \
+						 I40E_CLOUD_FIELD_TEN_ID)
+#define I40E_CLOUD_FILTER_FLAGS_OMAC_TEN_ID_IMAC (I40E_CLOUD_FIELD_OMAC | \
+						  I40E_CLOUD_FIELD_IMAC | \
+						  I40E_CLOUD_FIELD_TEN_ID)
+#define I40E_CLOUD_FILTER_FLAGS_IMAC_IVLAN_TEN_ID (I40E_CLOUD_FIELD_IMAC | \
+						   I40E_CLOUD_FIELD_IVLAN | \
+						   I40E_CLOUD_FIELD_TEN_ID)
+#define I40E_CLOUD_FILTER_FLAGS_IIP	I40E_CLOUD_FIELD_IIP
+
 struct i40e_cloud_filter {
 	struct hlist_node cloud_node;
 	unsigned long cookie;
-	u16 seid;	/* filter control */
+	/* cloud filter input set follows */
+	u8 dst_mac[ETH_ALEN];
+	u8 src_mac[ETH_ALEN];
+	__be16 vlan_id;
+	u16 seid;       /* filter control */
+	__be16 dst_port;
+	__be16 src_port;
+	u32 tenant_id;
+	union {
+		struct {
+			struct in_addr dst_ip;
+			struct in_addr src_ip;
+		} v4;
+		struct {
+			struct in6_addr dst_ip6;
+			struct in6_addr src_ip6;
+		} v6;
+	} ip;
+#define dst_ipv6	ip.v6.dst_ip6.s6_addr32
+#define src_ipv6	ip.v6.src_ip6.s6_addr32
+#define dst_ipv4	ip.v4.dst_ip.s_addr
+#define src_ipv4	ip.v4.src_ip.s_addr
+	u16 n_proto;    /* Ethernet Protocol */
+	u8 ip_proto;    /* IPPROTO value */
+	u8 flags;
+#define I40E_CLOUD_TNL_TYPE_NONE        0xff
+	u8 tunnel_type;
 };
 
 #define I40E_ETH_P_LLDP			0x88cc
@@ -492,6 +540,8 @@ struct i40e_pf {
 #define I40E_FLAG_LINK_DOWN_ON_CLOSE_ENABLED	BIT(27)
 #define I40E_FLAG_SOURCE_PRUNING_DISABLED	BIT(28)
 #define I40E_FLAG_TC_MQPRIO			BIT(29)
+#define I40E_FLAG_FD_SB_INACTIVE		BIT(30)
+#define I40E_FLAG_FD_SB_TO_CLOUD_FILTER		BIT(31)
 
 	struct i40e_client_instance *cinst;
 	bool stat_offsets_loaded;
@@ -574,6 +624,8 @@ struct i40e_pf {
 	u16 phy_led_val;
 
 	u16 override_q_count;
+	u16 last_sw_conf_flags;
+	u16 last_sw_conf_valid_flags;
 };
 
 /**

@@ -1360,6 +1360,9 @@ struct i40e_aqc_cloud_filters_element_data {
 		struct {
 			u8 data[16];
 		} v6;
+		struct {
+			__le16 data[8];
+		} raw_v6;
 	} ipaddr;
 	__le16	flags;
 #define I40E_AQC_ADD_CLOUD_FILTER_SHIFT			0
