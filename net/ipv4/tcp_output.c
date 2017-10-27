@@ -45,9 +45,6 @@
 
 #include <trace/events/tcp.h>
 
-/* Default TSQ limit of four TSO segments */
-int sysctl_tcp_limit_output_bytes __read_mostly = 262144;
-
 static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 			   int push_one, gfp_t gfp);
 
@@ -2215,7 +2212,8 @@ static bool tcp_small_queue_check(struct sock *sk, const struct sk_buff *skb,
 	unsigned int limit;
 
 	limit = max(2 * skb->truesize, sk->sk_pacing_rate >> 10);
-	limit = min_t(u32, limit, sysctl_tcp_limit_output_bytes);
+	limit = min_t(u32, limit,
+		      sock_net(sk)->ipv4.sysctl_tcp_limit_output_bytes);
 	limit <<= factor;
 
 	if (refcount_read(&sk->sk_wmem_alloc) > limit) {

@@ -146,6 +146,7 @@ struct netns_ipv4 {
 	int sysctl_tcp_moderate_rcvbuf;
 	int sysctl_tcp_tso_win_divisor;
 	int sysctl_tcp_workaround_signed_windows;
+	int sysctl_tcp_limit_output_bytes;
 	struct inet_timewait_death_row tcp_death_row;
 	int sysctl_max_syn_backlog;
 	int sysctl_tcp_fastopen;
