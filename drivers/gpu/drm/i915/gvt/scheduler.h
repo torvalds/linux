@@ -68,6 +68,7 @@ struct shadow_indirect_ctx {
 struct shadow_per_ctx {
 	unsigned long guest_gma;
 	unsigned long shadow_gma;
+	unsigned valid;
 };
 
 struct intel_shadow_wa_ctx {
