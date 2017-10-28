@@ -904,6 +904,7 @@ static int bnxt_tc_resolve_tunnel_hdrs(struct bnxt *bp,
 				       struct bnxt_tc_l2_key *l2_info,
 				       struct net_device *real_dst_dev)
 {
+#ifdef CONFIG_INET
 	struct flowi4 flow = { {0} };
 	struct net_device *dst_dev;
 	struct neighbour *nbr;
@@ -925,6 +926,7 @@ static int bnxt_tc_resolve_tunnel_hdrs(struct bnxt *bp,
 	 */
 	dst_dev = rt->dst.dev;
 	if (is_vlan_dev(dst_dev)) {
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
 		struct vlan_dev_priv *vlan = vlan_dev_priv(dst_dev);
 
 		if (vlan->real_dev != real_dst_dev) {
@@ -938,6 +940,7 @@ static int bnxt_tc_resolve_tunnel_hdrs(struct bnxt *bp,
 		l2_info->inner_vlan_tci = htons(vlan->vlan_id);
 		l2_info->inner_vlan_tpid = vlan->vlan_proto;
 		l2_info->num_vlans = 1;
+#endif
 	} else if (dst_dev != real_dst_dev) {
 		netdev_info(bp->dev,
 			    "dst_dev(%s) for %pI4b is not PF-if(%s)",
@@ -966,6 +969,9 @@ static int bnxt_tc_resolve_tunnel_hdrs(struct bnxt *bp,
 put_rt:
 	ip_rt_put(rt);
 	return rc;
+#else
+	return -EOPNOTSUPP;
+#endif
 }
 
 static int bnxt_tc_get_decap_handle(struct bnxt *bp, struct bnxt_tc_flow *flow,
