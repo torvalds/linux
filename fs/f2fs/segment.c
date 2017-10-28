@@ -1256,21 +1256,27 @@ static bool __drop_discard_cmd(struct f2fs_sb_info *sbi)
 	return dropped;
 }
 
-static void __wait_one_discard_bio(struct f2fs_sb_info *sbi,
+static unsigned int __wait_one_discard_bio(struct f2fs_sb_info *sbi,
 							struct discard_cmd *dc)
 {
 	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
+	unsigned int len = 0;
 
 	wait_for_completion_io(&dc->wait);
 	mutex_lock(&dcc->cmd_lock);
 	f2fs_bug_on(sbi, dc->state != D_DONE);
 	dc->ref--;
-	if (!dc->ref)
+	if (!dc->ref) {
+		if (!dc->error)
+			len = dc->len;
 		__remove_discard_cmd(sbi, dc);
+	}
 	mutex_unlock(&dcc->cmd_lock);
+
+	return len;
 }
 
-static void __wait_discard_cmd_range(struct f2fs_sb_info *sbi,
+static unsigned int __wait_discard_cmd_range(struct f2fs_sb_info *sbi,
 						struct discard_policy *dpolicy,
 						block_t start, block_t end)
 {
@@ -1279,6 +1285,7 @@ static void __wait_discard_cmd_range(struct f2fs_sb_info *sbi,
 					&(dcc->fstrim_list) : &(dcc->wait_list);
 	struct discard_cmd *dc, *tmp;
 	bool need_wait;
+	unsigned int trimmed = 0;
 
 next:
 	need_wait = false;
@@ -1291,6 +1298,8 @@ next:
 			continue;
 		if (dc->state == D_DONE && !dc->ref) {
 			wait_for_completion_io(&dc->wait);
+			if (!dc->error)
+				trimmed += dc->len;
 			__remove_discard_cmd(sbi, dc);
 		} else {
 			dc->ref++;
@@ -1301,9 +1310,11 @@ next:
 	mutex_unlock(&dcc->cmd_lock);
 
 	if (need_wait) {
-		__wait_one_discard_bio(sbi, dc);
+		trimmed += __wait_one_discard_bio(sbi, dc);
 		goto next;
 	}
+
+	return trimmed;
 }
 
 static void __wait_all_discard_cmd(struct f2fs_sb_info *sbi,
@@ -1664,7 +1675,6 @@ find_next:
 
 			f2fs_issue_discard(sbi, entry->start_blkaddr + cur_pos,
 									len);
-			cpc->trimmed += len;
 			total_len += len;
 		} else {
 			next_pos = find_next_bit_le(entry->discard_map,
@@ -2367,12 +2377,12 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
 	block_t start_block, end_block;
 	struct cp_control cpc;
 	struct discard_policy dpolicy;
+	unsigned long long trimmed = 0;
 	int err = 0;
 
 	if (start >= MAX_BLKADDR(sbi) || range->len < sbi->blocksize)
 		return -EINVAL;
 
-	cpc.trimmed = 0;
 	if (end <= MAIN_BLKADDR(sbi))
 		goto out;
 
@@ -2419,9 +2429,10 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
 
 	init_discard_policy(&dpolicy, DPOLICY_FSTRIM, cpc.trim_minlen);
 	__issue_discard_cmd_range(sbi, &dpolicy, start_block, end_block);
-	__wait_discard_cmd_range(sbi, &dpolicy, start_block, end_block);
+	trimmed = __wait_discard_cmd_range(sbi, &dpolicy,
+					start_block, end_block);
 out:
-	range->len = F2FS_BLK_TO_BYTES(cpc.trimmed);
+	range->len = F2FS_BLK_TO_BYTES(trimmed);
 	return err;
 }
 
