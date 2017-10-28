@@ -511,7 +511,7 @@ void f2fs_balance_fs_bg(struct f2fs_sb_info *sbi)
 static int __submit_flush_wait(struct f2fs_sb_info *sbi,
 				struct block_device *bdev)
 {
-	struct bio *bio = f2fs_bio_alloc(0);
+	struct bio *bio = f2fs_bio_alloc(sbi, 0, true);
 	int ret;
 
 	bio->bi_rw = REQ_OP_WRITE;
@@ -943,7 +943,7 @@ static int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 			if (ret)
 				return ret;
 		}
-		bio = f2fs_bio_alloc(1);
+		bio = bio_alloc(GFP_NOIO | __GFP_NOFAIL, 1);
 		bio->bi_iter.bi_sector = sector;
 		bio->bi_bdev = bdev;
 		bio_set_op_attrs(bio, op, 0);
