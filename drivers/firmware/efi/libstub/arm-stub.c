@@ -238,7 +238,8 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 
 	efi_random_get_seed(sys_table);
 
-	if (!nokaslr()) {
+	/* hibernation expects the runtime regions to stay in the same place */
+	if (!IS_ENABLED(CONFIG_HIBERNATION) && !nokaslr()) {
 		/*
 		 * Randomize the base of the UEFI runtime services region.
 		 * Preserve the 2 MB alignment of the region by taking a
