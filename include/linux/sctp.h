@@ -231,7 +231,7 @@ struct sctp_datahdr {
 	__be32 tsn;
 	__be16 stream;
 	__be16 ssn;
-	__be32 ppid;
+	__u32 ppid;
 	__u8  payload[0];
 };
 

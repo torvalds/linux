@@ -2854,7 +2854,7 @@ struct sctp_chunk *sctp_make_asconf_update_ip(struct sctp_association *asoc,
 		addr_param_len = af->to_addr_param(addr, &addr_param);
 		param.param_hdr.type = flags;
 		param.param_hdr.length = htons(paramlen + addr_param_len);
-		param.crr_id = i;
+		param.crr_id = htonl(i);
 
 		sctp_addto_chunk(retval, paramlen, &param);
 		sctp_addto_chunk(retval, addr_param_len, &addr_param);
@@ -2867,7 +2867,7 @@ struct sctp_chunk *sctp_make_asconf_update_ip(struct sctp_association *asoc,
 		addr_param_len = af->to_addr_param(addr, &addr_param);
 		param.param_hdr.type = SCTP_PARAM_DEL_IP;
 		param.param_hdr.length = htons(paramlen + addr_param_len);
-		param.crr_id = i;
+		param.crr_id = htonl(i);
 
 		sctp_addto_chunk(retval, paramlen, &param);
 		sctp_addto_chunk(retval, addr_param_len, &addr_param);
