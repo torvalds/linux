@@ -1021,13 +1021,12 @@ int ovl_indexdir_cleanup(struct dentry *dentry, struct vfsmount *mnt,
 			break;
 		}
 		err = ovl_verify_index(index, lowerstack, numlower);
-		if (err) {
-			if (err == -EROFS)
-				break;
+		/* Cleanup stale and orphan index entries */
+		if (err && (err == -ESTALE || err == -ENOENT))
 			err = ovl_cleanup(dir, index);
-			if (err)
-				break;
-		}
+		if (err)
+			break;
+
 		dput(index);
 		index = NULL;
 	}
