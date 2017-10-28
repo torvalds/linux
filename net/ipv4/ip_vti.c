@@ -198,15 +198,6 @@ static netdev_tx_t vti_xmit(struct sk_buff *skb, struct net_device *dev,
 		goto tx_error;
 	}
 
-	if (tunnel->err_count > 0) {
-		if (time_before(jiffies,
-				tunnel->err_time + IPTUNNEL_ERR_TIMEO)) {
-			tunnel->err_count--;
-			dst_link_failure(skb);
-		} else
-			tunnel->err_count = 0;
-	}
-
 	mtu = dst_mtu(dst);
 	if (skb->len > mtu) {
 		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
