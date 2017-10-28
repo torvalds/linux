@@ -75,7 +75,6 @@ static int f2fs_derive_key_aes(char deriving_key[F2FS_AES_128_ECB_KEY_SIZE],
 					F2FS_AES_256_XTS_KEY_SIZE, NULL);
 	res = crypto_ablkcipher_encrypt(req);
 	if (res == -EINPROGRESS || res == -EBUSY) {
-		BUG_ON(req->base.data != &ecr);
 		wait_for_completion(&ecr.completion);
 		res = ecr.res;
 	}
@@ -189,18 +188,38 @@ int f2fs_get_encryption_info(struct inode *inode)
 		keyring_key = NULL;
 		goto out;
 	}
-	BUG_ON(keyring_key->type != &key_type_logon);
+	if (keyring_key->type != &key_type_logon) {
+		printk_once(KERN_WARNING "f2fs: key type must be logon\n");
+		res = -ENOKEY;
+		goto out;
+	}
+	down_read(&keyring_key->sem);
 	ukp = user_key_payload(keyring_key);
+	if (!ukp) {
+		/* key was revoked before we acquired its semaphore */
+		res = -EKEYREVOKED;
+		up_read(&keyring_key->sem);
+		goto out;
+	}
 	if (ukp->datalen != sizeof(struct f2fs_encryption_key)) {
 		res = -EINVAL;
+		up_read(&keyring_key->sem);
 		goto out;
 	}
 	master_key = (struct f2fs_encryption_key *)ukp->data;
 	BUILD_BUG_ON(F2FS_AES_128_ECB_KEY_SIZE !=
 				F2FS_KEY_DERIVATION_NONCE_SIZE);
-	BUG_ON(master_key->size != F2FS_AES_256_XTS_KEY_SIZE);
+	if (master_key->size != F2FS_AES_256_XTS_KEY_SIZE) {
+		printk_once(KERN_WARNING
+				"f2fs: key size incorrect: %d\n",
+				master_key->size);
+		res = -ENOKEY;
+		up_read(&keyring_key->sem);
+		goto out;
+	}
 	res = f2fs_derive_key_aes(ctx.nonce, master_key->raw,
 				  raw_key);
+	up_read(&keyring_key->sem);
 	if (res)
 		goto out;
 

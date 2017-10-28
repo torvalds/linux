@@ -45,6 +45,7 @@ struct metrousb_private {
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(FOCUS_VENDOR_ID, FOCUS_PRODUCT_ID_BI) },
 	{ USB_DEVICE(FOCUS_VENDOR_ID, FOCUS_PRODUCT_ID_UNI) },
+	{ USB_DEVICE_INTERFACE_CLASS(0x0c2e, 0x0730, 0xff) },	/* MS7820 */
 	{ }, /* Terminating entry. */
 };
 MODULE_DEVICE_TABLE(usb, id_table);
