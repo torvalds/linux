@@ -51,6 +51,12 @@ Description:
 		 Controls the dirty page count condition for the in-place-update
 		 policies.
 
+What:		/sys/fs/f2fs/<disk>/min_hot_blocks
+Date:		March 2017
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:
+		 Controls the dirty page count condition for redefining hot data.
+
 What:		/sys/fs/f2fs/<disk>/max_small_discards
 Date:		November 2013
 Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
@@ -102,6 +108,12 @@ Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:
 		 Controls the idle timing.
 
+What:		/sys/fs/f2fs/<disk>/iostat_enable
+Date:		August 2017
+Contact:	"Chao Yu" <yuchao0@huawei.com>
+Description:
+		 Controls to enable/disable IO stat.
+
 What:		/sys/fs/f2fs/<disk>/ra_nid_pages
 Date:		October 2015
 Contact:	"Chao Yu" <chao2.yu@samsung.com>
@@ -121,6 +133,12 @@ Date:		January 2016
 Contact:	"Shuoran Liu" <liushuoran@huawei.com>
 Description:
 		 Shows total written kbytes issued to disk.
+
+What:		/sys/fs/f2fs/<disk>/feature
+Date:		July 2017
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:
+		 Shows all enabled features in current device.
 
 What:		/sys/fs/f2fs/<disk>/inject_rate
 Date:		May 2016
