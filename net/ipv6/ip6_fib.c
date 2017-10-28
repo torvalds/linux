@@ -353,9 +353,11 @@ static int call_fib6_entry_notifier(struct notifier_block *nb, struct net *net,
 
 static int call_fib6_entry_notifiers(struct net *net,
 				     enum fib_event_type event_type,
-				     struct rt6_info *rt)
+				     struct rt6_info *rt,
+				     struct netlink_ext_ack *extack)
 {
 	struct fib6_entry_notifier_info info = {
+		.info.extack = extack,
 		.rt = rt,
 	};
 
@@ -868,7 +870,8 @@ static void fib6_purge_rt(struct rt6_info *rt, struct fib6_node *fn,
  */
 
 static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
-			    struct nl_info *info, struct mx6_config *mxc)
+			    struct nl_info *info, struct mx6_config *mxc,
+			    struct netlink_ext_ack *extack)
 {
 	struct rt6_info *leaf = rcu_dereference_protected(fn->leaf,
 				    lockdep_is_held(&rt->rt6i_table->tb6_lock));
@@ -1011,7 +1014,7 @@ add:
 		rcu_assign_pointer(rt->rt6i_node, fn);
 		rcu_assign_pointer(*ins, rt);
 		call_fib6_entry_notifiers(info->nl_net, FIB_EVENT_ENTRY_ADD,
-					  rt);
+					  rt, extack);
 		if (!info->skip_notify)
 			inet6_rt_notify(RTM_NEWROUTE, rt, info, nlflags);
 		info->nl_net->ipv6.rt6_stats->fib_rt_entries++;
@@ -1040,7 +1043,7 @@ add:
 		rt->dst.rt6_next = iter->dst.rt6_next;
 		rcu_assign_pointer(*ins, rt);
 		call_fib6_entry_notifiers(info->nl_net, FIB_EVENT_ENTRY_REPLACE,
-					  rt);
+					  rt, extack);
 		if (!info->skip_notify)
 			inet6_rt_notify(RTM_NEWROUTE, rt, info, NLM_F_REPLACE);
 		if (!(fn->fn_flags & RTN_RTINFO)) {
@@ -1225,7 +1228,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 	}
 #endif
 
-	err = fib6_add_rt2node(fn, rt, info, mxc);
+	err = fib6_add_rt2node(fn, rt, info, mxc, extack);
 	if (!err) {
 		fib6_update_sernum_upto_root(rt, sernum);
 		fib6_start_gc(info->nl_net, rt);
@@ -1686,7 +1689,7 @@ static void fib6_del_route(struct fib6_table *table, struct fib6_node *fn,
 
 	fib6_purge_rt(rt, fn, net);
 
-	call_fib6_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, rt);
+	call_fib6_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, rt, NULL);
 	if (!info->skip_notify)
 		inet6_rt_notify(RTM_DELROUTE, rt, info, 0);
 	rt6_release(rt);

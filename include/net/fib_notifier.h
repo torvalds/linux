@@ -9,6 +9,7 @@
 struct fib_notifier_info {
 	struct net *net;
 	int family;
+	struct netlink_ext_ack  *extack;
 };
 
 enum fib_event_type {
