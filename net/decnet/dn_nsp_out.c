@@ -313,11 +313,8 @@ static __le16 *dn_mk_ack_header(struct sock *sk, struct sk_buff *skb, unsigned c
 	ackcrs |= 0x8000;
 
 	/* If this is an "other data/ack" message, swap acknum and ackcrs */
-	if (other) {
-		unsigned short tmp = acknum;
-		acknum = ackcrs;
-		ackcrs = tmp;
-	}
+	if (other)
+		swap(acknum, ackcrs);
 
 	/* Set "cross subchannel" bit in ackcrs */
 	ackcrs |= 0x2000;
