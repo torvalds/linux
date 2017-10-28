@@ -522,6 +522,7 @@ smb2_query_eas(const unsigned int xid, struct cifs_tcon *tcon,
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
 	struct smb2_file_full_ea_info *smb2_data;
+	int ea_buf_size = SMB2_MIN_EA_BUF;
 
 	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
 	if (!utf16_path)
@@ -541,14 +542,32 @@ smb2_query_eas(const unsigned int xid, struct cifs_tcon *tcon,
 		return rc;
 	}
 
-	smb2_data = kzalloc(SMB2_MAX_EA_BUF, GFP_KERNEL);
-	if (smb2_data == NULL) {
-		SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
-		return -ENOMEM;
+	while (1) {
+		smb2_data = kzalloc(ea_buf_size, GFP_KERNEL);
+		if (smb2_data == NULL) {
+			SMB2_close(xid, tcon, fid.persistent_fid,
+				   fid.volatile_fid);
+			return -ENOMEM;
+		}
+
+		rc = SMB2_query_eas(xid, tcon, fid.persistent_fid,
+				    fid.volatile_fid,
+				    ea_buf_size, smb2_data);
+
+		if (rc != -E2BIG)
+			break;
+
+		kfree(smb2_data);
+		ea_buf_size <<= 1;
+
+		if (ea_buf_size > SMB2_MAX_EA_BUF) {
+			cifs_dbg(VFS, "EA size is too large\n");
+			SMB2_close(xid, tcon, fid.persistent_fid,
+				   fid.volatile_fid);
+			return -ENOMEM;
+		}
 	}
 
-	rc = SMB2_query_eas(xid, tcon, fid.persistent_fid, fid.volatile_fid,
-			    smb2_data);
 	SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
 
 	if (!rc)

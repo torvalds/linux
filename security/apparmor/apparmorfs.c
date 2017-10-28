@@ -2202,7 +2202,6 @@ static struct aa_sfs_entry aa_sfs_entry_features[] = {
 	AA_SFS_DIR("policy",			aa_sfs_entry_policy),
 	AA_SFS_DIR("domain",			aa_sfs_entry_domain),
 	AA_SFS_DIR("file",			aa_sfs_entry_file),
-	AA_SFS_DIR("network",			aa_sfs_entry_network),
 	AA_SFS_DIR("mount",			aa_sfs_entry_mount),
 	AA_SFS_DIR("namespaces",		aa_sfs_entry_ns),
 	AA_SFS_FILE_U64("capability",		VFS_CAP_FLAGS_MASK),
