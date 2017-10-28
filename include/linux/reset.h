@@ -2,8 +2,10 @@
 #ifndef _LINUX_RESET_H_
 #define _LINUX_RESET_H_
 
-#include <linux/device.h>
+#include <linux/types.h>
 
+struct device;
+struct device_node;
 struct reset_control;
 
 #ifdef CONFIG_RESET_CONTROLLER
