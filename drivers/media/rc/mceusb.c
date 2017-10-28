@@ -189,6 +189,7 @@ enum mceusb_model_type {
 	MCE_GEN2_NO_TX,
 	HAUPPAUGE_CX_HYBRID_TV,
 	EVROMEDIA_FULL_HYBRID_FULLHD,
+	ASTROMETA_T2HYBRID,
 };
 
 struct mceusb_model {
@@ -253,6 +254,11 @@ static const struct mceusb_model mceusb_model[] = {
 		.no_tx = 1,
 		.rc_map = RC_MAP_MSI_DIGIVOX_III,
 	},
+	[ASTROMETA_T2HYBRID] = {
+		.name = "Astrometa T2Hybrid",
+		.no_tx = 1,
+		.rc_map = RC_MAP_ASTROMETA_T2HYBRID,
+	}
 };
 
 static const struct usb_device_id mceusb_dev_table[] = {
@@ -407,6 +413,9 @@ static const struct usb_device_id mceusb_dev_table[] = {
 	/* Evromedia USB Full Hybrid Full HD */
 	{ USB_DEVICE(0x1b80, 0xd3b2),
 	  .driver_info = EVROMEDIA_FULL_HYBRID_FULLHD },
+	/* Astrometa T2hybrid */
+	{ USB_DEVICE(0x15f4, 0x0135),
+	  .driver_info = ASTROMETA_T2HYBRID },
 
 	/* Terminating entry */
 	{ }
