@@ -872,6 +872,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.name = "Astrometa T2hybrid",
 		.tuner_type = TUNER_ABSENT,
 		.has_dvb = 1,
+		.decoder = CX231XX_AVDECODER,
 		.output_mode = OUT_MODE_VIP11,
 		.agc_analog_digital_select_gpio = 0x01,
 		.ctl_pin_status_mask = 0xffffffc4,
