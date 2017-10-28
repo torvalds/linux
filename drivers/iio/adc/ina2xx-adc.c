@@ -115,7 +115,7 @@ enum ina2xx_ids { ina219, ina226 };
 struct ina2xx_config {
 	u16 config_default;
 	int calibration_factor;
-	int shunt_div;
+	int shunt_voltage_lsb;	/* nV */
 	int bus_voltage_shift;	/* position of lsb */
 	int bus_voltage_lsb;	/* uV */
 	int power_lsb;		/* uW */
@@ -138,7 +138,7 @@ static const struct ina2xx_config ina2xx_config[] = {
 	[ina219] = {
 		.config_default = INA219_CONFIG_DEFAULT,
 		.calibration_factor = 40960000,
-		.shunt_div = 100,
+		.shunt_voltage_lsb = 10000,
 		.bus_voltage_shift = INA219_BUS_VOLTAGE_SHIFT,
 		.bus_voltage_lsb = 4000,
 		.power_lsb = 20000,
@@ -147,7 +147,7 @@ static const struct ina2xx_config ina2xx_config[] = {
 	[ina226] = {
 		.config_default = INA226_CONFIG_DEFAULT,
 		.calibration_factor = 5120000,
-		.shunt_div = 400,
+		.shunt_voltage_lsb = 2500,
 		.bus_voltage_shift = 0,
 		.bus_voltage_lsb = 1250,
 		.power_lsb = 25000,
@@ -204,9 +204,9 @@ static int ina2xx_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->address) {
 		case INA2XX_SHUNT_VOLTAGE:
-			/* processed (mV) = raw/shunt_div */
-			*val2 = chip->config->shunt_div;
-			*val = 1;
+			/* processed (mV) = raw * lsb(nV) / 1000000 */
+			*val = chip->config->shunt_voltage_lsb;
+			*val2 = 1000000;
 			return IIO_VAL_FRACTIONAL;
 
 		case INA2XX_BUS_VOLTAGE:
