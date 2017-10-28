@@ -46,6 +46,7 @@
 enum {
 	FAULT_KMALLOC,
 	FAULT_PAGE_ALLOC,
+	FAULT_PAGE_GET,
 	FAULT_ALLOC_NID,
 	FAULT_ORPHAN,
 	FAULT_BLOCK,
@@ -1833,6 +1834,19 @@ static inline struct page *f2fs_grab_cache_page(struct address_space *mapping,
 	if (!for_write)
 		return grab_cache_page(mapping, index);
 	return grab_cache_page_write_begin(mapping, index, AOP_FLAG_NOFS);
+}
+
+static inline struct page *f2fs_pagecache_get_page(
+				struct address_space *mapping, pgoff_t index,
+				int fgp_flags, gfp_t gfp_mask)
+{
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	if (time_to_inject(F2FS_M_SB(mapping), FAULT_PAGE_GET)) {
+		f2fs_show_injection_info(FAULT_PAGE_GET);
+		return NULL;
+	}
+#endif
+	return pagecache_get_page(mapping, index, fgp_flags, gfp_mask);
 }
 
 static inline void f2fs_copy_page(struct page *src, struct page *dst)
