@@ -271,6 +271,10 @@ output-high		- set the pin to output mode with high level
 sleep-hardware-state	- indicate this is sleep related state which will be programmed
 			  into the registers for the sleep state.
 slew-rate		- set the slew rate
+skew-delay		- this affects the expected clock skew on input pins
+			  and the delay before latching a value to an output
+			  pin. Typically indicates how many double-inverters are
+			  used to delay the signal.
 
 For example:
 
