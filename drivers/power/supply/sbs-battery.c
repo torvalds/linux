@@ -177,10 +177,8 @@ static bool force_load;
 static int sbs_read_word_data(struct i2c_client *client, u8 address)
 {
 	struct sbs_info *chip = i2c_get_clientdata(client);
+	int retries = chip->i2c_retry_count;
 	s32 ret = 0;
-	int retries = 1;
-
-	retries = chip->i2c_retry_count;
 
 	while (retries > 0) {
 		ret = i2c_smbus_read_word_data(client, address);
@@ -204,7 +202,7 @@ static int sbs_read_string_data(struct i2c_client *client, u8 address,
 {
 	struct sbs_info *chip = i2c_get_clientdata(client);
 	s32 ret = 0, block_length = 0;
-	int retries_length = 1, retries_block = 1;
+	int retries_length, retries_block;
 	u8 block_buffer[I2C_SMBUS_BLOCK_MAX + 1];
 
 	retries_length = chip->i2c_retry_count;
@@ -269,10 +267,8 @@ static int sbs_write_word_data(struct i2c_client *client, u8 address,
 	u16 value)
 {
 	struct sbs_info *chip = i2c_get_clientdata(client);
+	int retries = chip->i2c_retry_count;
 	s32 ret = 0;
-	int retries = 1;
-
-	retries = chip->i2c_retry_count;
 
 	while (retries > 0) {
 		ret = i2c_smbus_write_word_data(client, address, value);
