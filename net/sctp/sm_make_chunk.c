@@ -3591,7 +3591,7 @@ static struct sctp_chunk *sctp_make_reconf(const struct sctp_association *asoc,
  */
 struct sctp_chunk *sctp_make_strreset_req(
 					const struct sctp_association *asoc,
-					__u16 stream_num, __u16 *stream_list,
+					__u16 stream_num, __be16 *stream_list,
 					bool out, bool in)
 {
 	struct sctp_strreset_outreq outreq;
@@ -3788,7 +3788,8 @@ bool sctp_verify_reconf(const struct sctp_association *asoc,
 {
 	struct sctp_reconf_chunk *hdr;
 	union sctp_params param;
-	__u16 last = 0, cnt = 0;
+	__be16 last = 0;
+	__u16 cnt = 0;
 
 	hdr = (struct sctp_reconf_chunk *)chunk->chunk_hdr;
 	sctp_walk_params(param, hdr, params) {
