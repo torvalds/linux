@@ -62,7 +62,7 @@ nautilus_init_irq(void)
 	common_init_isa_dma();
 }
 
-static int __init
+static int
 nautilus_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	/* Preserve the IRQ set up by the console.  */
