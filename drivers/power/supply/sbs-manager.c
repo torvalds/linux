@@ -193,7 +193,7 @@ static int sbsm_select(struct i2c_mux_core *muxc, u32 chan)
 	return ret;
 }
 
-static int sbsm_gpio_get_value(struct gpio_chip *gc, unsigned off)
+static int sbsm_gpio_get_value(struct gpio_chip *gc, unsigned int off)
 {
 	struct sbsm_data *data = gpiochip_get_data(gc);
 	int ret;
@@ -209,7 +209,7 @@ static int sbsm_gpio_get_value(struct gpio_chip *gc, unsigned off)
  * This needs to be defined or the GPIO lib fails to register the pin.
  * But the 'gpio' is always an input.
  */
-static int sbsm_gpio_direction_input(struct gpio_chip *gc, unsigned off)
+static int sbsm_gpio_direction_input(struct gpio_chip *gc, unsigned int off)
 {
 	return 0;
 }
@@ -229,8 +229,9 @@ static int sbsm_do_alert(struct device *dev, void *d)
 			driver->alert(client, I2C_PROTOCOL_SMBUS_ALERT, 0);
 		else
 			dev_warn(&client->dev, "no driver alert()!\n");
-	} else
+	} else {
 		dev_dbg(&client->dev, "alert with no driver\n");
+	}
 	device_unlock(dev);
 
 	return -EBUSY;
