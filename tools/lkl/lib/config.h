@@ -42,6 +42,7 @@ struct lkl_config {
 	char *sysctls;
 	char *boot_cmdline;
 	char *dump;
+	char *delay_main;
 };
 
 int init_config(struct lkl_config *cfg);
