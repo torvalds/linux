@@ -125,9 +125,6 @@ static inline int device_reset_optional(struct device *dev)
 static inline struct reset_control *
 __must_check reset_control_get_exclusive(struct device *dev, const char *id)
 {
-#ifndef CONFIG_RESET_CONTROLLER
-	WARN_ON(1);
-#endif
 	return __reset_control_get(dev, id, 0, false, false);
 }
 
@@ -273,9 +270,6 @@ static inline struct reset_control *
 __must_check devm_reset_control_get_exclusive(struct device *dev,
 					      const char *id)
 {
-#ifndef CONFIG_RESET_CONTROLLER
-	WARN_ON(1);
-#endif
 	return __devm_reset_control_get(dev, id, 0, false, false);
 }
 
