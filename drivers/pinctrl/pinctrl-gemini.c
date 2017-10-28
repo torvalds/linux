@@ -13,6 +13,8 @@
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
+#include <linux/pinctrl/pinconf.h>
+#include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
@@ -1918,73 +1920,13 @@ static void gemini_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	seq_printf(s, " " DRIVER_NAME);
 }
 
-static int gemini_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-					    struct device_node *np,
-					    struct pinctrl_map **map,
-					    unsigned int *reserved_maps,
-					    unsigned int *num_maps)
-{
-	int ret;
-	const char *function = NULL;
-	const char *group;
-	struct property *prop;
-
-	ret = of_property_read_string(np, "function", &function);
-	if (ret < 0)
-		return ret;
-
-	ret = of_property_count_strings(np, "groups");
-	if (ret < 0)
-		return ret;
-
-	ret = pinctrl_utils_reserve_map(pctldev, map, reserved_maps,
-					num_maps, ret);
-	if (ret < 0)
-		return ret;
-
-	of_property_for_each_string(np, "groups", prop, group) {
-		ret = pinctrl_utils_add_map_mux(pctldev, map, reserved_maps,
-						num_maps, group, function);
-		if (ret < 0)
-			return ret;
-		pr_debug("ADDED FUNCTION %s <-> GROUP %s\n",
-			 function, group);
-	}
-
-	return 0;
-}
-
-static int gemini_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-				struct device_node *np_config,
-				struct pinctrl_map **map,
-				unsigned int *num_maps)
-{
-	unsigned int reserved_maps = 0;
-	struct device_node *np;
-	int ret;
-
-	*map = NULL;
-	*num_maps = 0;
-
-	for_each_child_of_node(np_config, np) {
-		ret = gemini_pinctrl_dt_subnode_to_map(pctldev, np, map,
-					&reserved_maps, num_maps);
-		if (ret < 0) {
-			pinctrl_utils_free_map(pctldev, *map, *num_maps);
-			return ret;
-		}
-	}
-
-	return 0;
-};
-
 static const struct pinctrl_ops gemini_pctrl_ops = {
 	.get_groups_count = gemini_get_groups_count,
 	.get_group_name = gemini_get_group_name,
 	.get_group_pins = gemini_get_group_pins,
 	.pin_dbg_show = gemini_pin_dbg_show,
-	.dt_node_to_map = gemini_pinctrl_dt_node_to_map,
-	.dt_free_map = pinctrl_utils_free_map,
+	.dt_node_to_map = pinconf_generic_dt_node_to_map_group,
+	.dt_free_map = pinconf_generic_dt_free_map,
 };
 
 /**

@@ -151,6 +151,7 @@ config PINCTRL_GEMINI
 	depends on ARCH_GEMINI
 	default ARCH_GEMINI
 	select PINMUX
+	select GENERIC_PINCONF
 	select MFD_SYSCON
 
 config PINCTRL_MCP23S08
