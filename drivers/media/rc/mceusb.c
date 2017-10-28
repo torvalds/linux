@@ -188,6 +188,7 @@ enum mceusb_model_type {
 	TIVO_KIT,
 	MCE_GEN2_NO_TX,
 	HAUPPAUGE_CX_HYBRID_TV,
+	EVROMEDIA_FULL_HYBRID_FULLHD,
 };
 
 struct mceusb_model {
@@ -246,6 +247,11 @@ static const struct mceusb_model mceusb_model[] = {
 	[TIVO_KIT] = {
 		.mce_gen2 = 1,
 		.rc_map = RC_MAP_TIVO,
+	},
+	[EVROMEDIA_FULL_HYBRID_FULLHD] = {
+		.name = "Evromedia USB Full Hybrid Full HD",
+		.no_tx = 1,
+		.rc_map = RC_MAP_MSI_DIGIVOX_III,
 	},
 };
 
@@ -398,6 +404,9 @@ static const struct usb_device_id mceusb_dev_table[] = {
 	  .driver_info = HAUPPAUGE_CX_HYBRID_TV },
 	/* Adaptec / HP eHome Receiver */
 	{ USB_DEVICE(VENDOR_ADAPTEC, 0x0094) },
+	/* Evromedia USB Full Hybrid Full HD */
+	{ USB_DEVICE(0x1b80, 0xd3b2),
+	  .driver_info = EVROMEDIA_FULL_HYBRID_FULLHD },
 
 	/* Terminating entry */
 	{ }

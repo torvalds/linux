@@ -847,7 +847,6 @@ struct cx231xx_board cx231xx_boards[] = {
 		.demod_addr = 0x64, /* 0xc8 >> 1 */
 		.demod_i2c_master = I2C_1_MUX_3,
 		.has_dvb = 1,
-		.ir_i2c_master = I2C_0,
 		.norm = V4L2_STD_PAL,
 		.output_mode = OUT_MODE_VIP11,
 		.tuner_addr = 0x60, /* 0xc0 >> 1 */
