@@ -840,6 +840,7 @@ struct f2fs_sm_info {
 	unsigned int min_ipu_util;	/* in-place-update threshold */
 	unsigned int min_fsync_blocks;	/* threshold for fsync */
 	unsigned int min_hot_blocks;	/* threshold for hot block allocation */
+	unsigned int min_ssr_sections;	/* threshold to trigger SSR allocation */
 
 	/* for flush command control */
 	struct flush_cmd_control *fcc_info;
@@ -1077,6 +1078,7 @@ struct f2fs_sb_info {
 	int active_logs;			/* # of active logs */
 	int dir_level;				/* directory level */
 	int inline_xattr_size;			/* inline xattr size */
+	unsigned int trigger_ssr_threshold;	/* threshold to trigger ssr */
 
 	block_t user_block_count;		/* # of user blocks */
 	block_t total_valid_block_count;	/* # of valid blocks */
