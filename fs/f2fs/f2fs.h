@@ -47,6 +47,7 @@ enum {
 	FAULT_KMALLOC,
 	FAULT_PAGE_ALLOC,
 	FAULT_PAGE_GET,
+	FAULT_ALLOC_BIO,
 	FAULT_ALLOC_NID,
 	FAULT_ORPHAN,
 	FAULT_BLOCK,
@@ -1898,15 +1899,25 @@ static inline void *f2fs_kmem_cache_alloc(struct kmem_cache *cachep,
 	return entry;
 }
 
-static inline struct bio *f2fs_bio_alloc(int npages)
+static inline struct bio *f2fs_bio_alloc(struct f2fs_sb_info *sbi,
+						int npages, bool no_fail)
 {
 	struct bio *bio;
 
-	/* No failure on bio allocation */
-	bio = bio_alloc(GFP_NOIO, npages);
-	if (!bio)
-		bio = bio_alloc(GFP_NOIO | __GFP_NOFAIL, npages);
-	return bio;
+	if (no_fail) {
+		/* No failure on bio allocation */
+		bio = bio_alloc(GFP_NOIO, npages);
+		if (!bio)
+			bio = bio_alloc(GFP_NOIO | __GFP_NOFAIL, npages);
+		return bio;
+	}
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	if (time_to_inject(sbi, FAULT_ALLOC_BIO)) {
+		f2fs_show_injection_info(FAULT_ALLOC_BIO);
+		return NULL;
+	}
+#endif
+	return bio_alloc(GFP_KERNEL, npages);
 }
 
 static inline void f2fs_radix_tree_insert(struct radix_tree_root *root,
