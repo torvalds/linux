@@ -591,6 +591,8 @@ static int vmbus_close_internal(struct vmbus_channel *channel)
 	ret = vmbus_post_msg(msg, sizeof(struct vmbus_channel_close_channel),
 			     true);
 
+	trace_vmbus_close_internal(msg, ret);
+
 	if (ret) {
 		pr_err("Close failed: close post msg return is %d\n", ret);
 		/*

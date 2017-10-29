@@ -157,6 +157,21 @@ TRACE_EVENT(vmbus_open,
 		    )
 	);
 
+TRACE_EVENT(vmbus_close_internal,
+	    TP_PROTO(const struct vmbus_channel_close_channel *msg, int ret),
+	    TP_ARGS(msg, ret),
+	    TP_STRUCT__entry(
+		    __field(u32, child_relid)
+		    __field(int, ret)
+		    ),
+	    TP_fast_assign(
+		    __entry->child_relid = msg->child_relid;
+		    __entry->ret = ret;
+		    ),
+	    TP_printk("sending child_relid 0x%x, ret %d", __entry->child_relid,
+		    __entry->ret)
+	);
+
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
 #undef TRACE_INCLUDE_FILE
