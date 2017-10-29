@@ -392,7 +392,8 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 	 * telling the driver. New packets will not go through since
 	 * the aggregation session is no longer OPERATIONAL.
 	 */
-	synchronize_net();
+	if (!local->in_reconfig)
+		synchronize_net();
 
 	tid_tx->stop_initiator = reason == AGG_STOP_PEER_REQUEST ?
 					WLAN_BACK_RECIPIENT :
