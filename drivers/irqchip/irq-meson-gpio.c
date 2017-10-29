@@ -47,6 +47,10 @@ struct meson_gpio_irq_params {
 	unsigned int nr_hwirq;
 };
 
+static const struct meson_gpio_irq_params meson8_params = {
+	.nr_hwirq = 134,
+};
+
 static const struct meson_gpio_irq_params meson8b_params = {
 	.nr_hwirq = 119,
 };
@@ -60,6 +64,7 @@ static const struct meson_gpio_irq_params gxl_params = {
 };
 
 static const struct of_device_id meson_irq_gpio_matches[] = {
+	{ .compatible = "amlogic,meson8-gpio-intc", .data = &meson8_params },
 	{ .compatible = "amlogic,meson8b-gpio-intc", .data = &meson8b_params },
 	{ .compatible = "amlogic,meson-gxbb-gpio-intc", .data = &gxbb_params },
 	{ .compatible = "amlogic,meson-gxl-gpio-intc", .data = &gxl_params },

@@ -10,6 +10,7 @@ number of interrupt exposed depends on the SoC.
 Required properties:
 
 - compatible : must have "amlogic,meson8-gpio-intc” and either
+   “amlogic,meson8-gpio-intc” for meson8 SoCs (S802) or
    “amlogic,meson8b-gpio-intc” for meson8b SoCs (S805) or
    “amlogic,meson-gxbb-gpio-intc” for GXBB SoCs (S905) or
    “amlogic,meson-gxl-gpio-intc” for GXL SoCs (S905X, S912)
