@@ -1082,6 +1082,8 @@ static void vmbus_ongpadl_torndown(
 
 	gpadl_torndown = (struct vmbus_channel_gpadl_torndown *)hdr;
 
+	trace_vmbus_ongpadl_torndown(gpadl_torndown);
+
 	/*
 	 * Find the open msg, copy the result and signal/unblock the wait event
 	 */

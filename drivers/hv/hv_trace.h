@@ -103,6 +103,14 @@ TRACE_EVENT(vmbus_ongpadl_created,
 		    )
 	);
 
+TRACE_EVENT(vmbus_ongpadl_torndown,
+	    TP_PROTO(const struct vmbus_channel_gpadl_torndown *gpadltorndown),
+	    TP_ARGS(gpadltorndown),
+	    TP_STRUCT__entry(__field(u32, gpadl)),
+	    TP_fast_assign(__entry->gpadl = gpadltorndown->gpadl),
+	    TP_printk("gpadl 0x%x", __entry->gpadl)
+	);
+
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
 #undef TRACE_INCLUDE_FILE
