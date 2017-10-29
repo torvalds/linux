@@ -86,6 +86,23 @@ TRACE_EVENT(vmbus_onopen_result,
 		    )
 	);
 
+TRACE_EVENT(vmbus_ongpadl_created,
+	    TP_PROTO(const struct vmbus_channel_gpadl_created *gpadlcreated),
+	    TP_ARGS(gpadlcreated),
+	    TP_STRUCT__entry(
+		    __field(u32, child_relid)
+		    __field(u32, gpadl)
+		    __field(u32, status)
+		    ),
+	    TP_fast_assign(__entry->child_relid = gpadlcreated->child_relid;
+			   __entry->gpadl = gpadlcreated->gpadl;
+			   __entry->status = gpadlcreated->creation_status;
+		    ),
+	    TP_printk("child_relid 0x%x, gpadl 0x%x, creation_status %d",
+		      __entry->child_relid,  __entry->gpadl,  __entry->status
+		    )
+	);
+
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
 #undef TRACE_INCLUDE_FILE
