@@ -184,7 +184,7 @@
 
 			gpio_intc: interrupt-controller@9880 {
 				compatible = "amlogic,meson-gpio-intc";
-				reg = <0xc1109880 0x10>;
+				reg = <0x9880 0x10>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				amlogic,channel-interrupts = <64 65 66 67 68 69 70 71>;
