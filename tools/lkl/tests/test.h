@@ -1,21 +1,71 @@
-#define TEST_SUCCESS 1
-#define TEST_FAILURE 0
-#define MAX_MSG_LEN 60
+#ifndef _LKL_TEST_H
+#define _LKL_TEST_H
 
-static int g_test_pass = 0;
-#define TEST(name, ...)						\
-{								\
-	char str[MAX_MSG_LEN] = { 0, };				\
-	int (*fn)(char *str, int len, ...);			\
-	int ret;						\
-								\
-	fn = (int (*)(char *str, int len, ...))test_##name;	\
-	ret = fn(str, sizeof(str), ##__VA_ARGS__);		\
-	if (!ret)						\
-		g_test_pass = -1;				\
-								\
-	printf("%-20s %s [%s]\n", #name,			\
-	       ret == TEST_SUCCESS ? "passed" : "failed", str);	\
-	fflush(stdout);						\
-}
+#define TEST_SUCCESS	0
+#define TEST_FAILURE	1
+#define TEST_SKIP	2
+#define TEST_TODO	3
+#define TEST_BAILOUT	4
 
+struct lkl_test {
+	const char *name;
+	int (*fn)();
+	void *arg1, *arg2, *arg3;
+};
+
+/**
+ * Simple wrapper to initialize a test entry.
+ * @name - test name, it assume test function is named test_@name
+ * @vargs - arguments to be passed to the function
+ */
+#define LKL_TEST(name, ...) { #name, lkl_test_##name, __VA_ARGS__ }
+
+/**
+ * lkl_test_run - run a test suite
+ *
+ * @tests - the list of tests to run
+ * @nr - number of tests
+ * @fmt - format string to be used for suite name
+ */
+int lkl_test_run(const struct lkl_test *tests, int nr, const char *fmt, ...);
+
+/**
+ * lkl_test_log - store a string in the test log buffer
+ * @str - the string to log (can be non-NULL terminated)
+ * @len - the string length
+ */
+void lkl_test_log(const char *str, int len);
+
+/**
+ * lkl_test_logf - printf like function to store into the test log buffer
+ * @fmt - printf format string
+ * @vargs - arguments to the format string
+ */
+int lkl_test_logf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+
+/**
+ * LKL_TEST_CALL - create a test function as for a LKL call
+ *
+ * The test function will be named lkl_test_@name and will return
+ * TEST_SUCCESS if the called functions returns @expect. Otherwise
+ * will return TEST_FAILUIRE.
+ *
+ * @name - test name; must be unique because it is part of the the
+ * test function; the test function will be named
+ * @call - function to call
+ * @expect - expected return value for success
+ * @args - arguments to pass to the LKL call
+ */
+#define LKL_TEST_CALL(name, call, expect, ...)				\
+	static int lkl_test_##name(void)				\
+	{								\
+		long ret;						\
+									\
+		ret = call(__VA_ARGS__);				\
+		lkl_test_logf("%s(%s) = %ld %s\n", #call, #__VA_ARGS__, \
+			ret, ret < 0 ? lkl_strerror(ret) : "");		\
+		return (ret == expect) ? TEST_SUCCESS : TEST_FAILURE;	\
+	}
+
+
+#endif /* _LKL_TEST_H */
