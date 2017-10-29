@@ -138,6 +138,7 @@ struct nvme_ctrl {
 	struct cdev cdev;
 	struct ida ns_ida;
 	struct work_struct reset_work;
+	struct work_struct delete_work;
 
 	struct opal_dev *opal_dev;
 
@@ -236,7 +237,7 @@ struct nvme_ctrl_ops {
 	int (*reg_read64)(struct nvme_ctrl *ctrl, u32 off, u64 *val);
 	void (*free_ctrl)(struct nvme_ctrl *ctrl);
 	void (*submit_async_event)(struct nvme_ctrl *ctrl, int aer_idx);
-	int (*delete_ctrl)(struct nvme_ctrl *ctrl);
+	void (*delete_ctrl)(struct nvme_ctrl *ctrl);
 	int (*get_address)(struct nvme_ctrl *ctrl, char *buf, int size);
 	int (*reinit_request)(void *data, struct request *rq);
 };
@@ -339,6 +340,8 @@ int nvme_set_queue_count(struct nvme_ctrl *ctrl, int *count);
 void nvme_start_keep_alive(struct nvme_ctrl *ctrl);
 void nvme_stop_keep_alive(struct nvme_ctrl *ctrl);
 int nvme_reset_ctrl(struct nvme_ctrl *ctrl);
+int nvme_delete_ctrl(struct nvme_ctrl *ctrl);
+int nvme_delete_ctrl_sync(struct nvme_ctrl *ctrl);
 
 #ifdef CONFIG_NVM
 int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node);

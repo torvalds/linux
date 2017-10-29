@@ -105,7 +105,6 @@ struct nvme_rdma_ctrl {
 
 	/* other member variables */
 	struct blk_mq_tag_set	tag_set;
-	struct work_struct	delete_work;
 	struct work_struct	err_work;
 
 	struct nvme_rdma_qe	async_event_sqe;
@@ -913,7 +912,7 @@ static void nvme_rdma_reconnect_or_remove(struct nvme_rdma_ctrl *ctrl)
 				ctrl->ctrl.opts->reconnect_delay * HZ);
 	} else {
 		dev_info(ctrl->ctrl.device, "Removing controller...\n");
-		queue_work(nvme_wq, &ctrl->delete_work);
+		queue_work(nvme_wq, &ctrl->ctrl.delete_work);
 	}
 }
 
@@ -1764,41 +1763,10 @@ static void nvme_rdma_remove_ctrl(struct nvme_rdma_ctrl *ctrl)
 	nvme_put_ctrl(&ctrl->ctrl);
 }
 
-static void nvme_rdma_del_ctrl_work(struct work_struct *work)
+static void nvme_rdma_delete_ctrl(struct nvme_ctrl *ctrl)
 {
-	struct nvme_rdma_ctrl *ctrl = container_of(work,
-				struct nvme_rdma_ctrl, delete_work);
-
-	nvme_stop_ctrl(&ctrl->ctrl);
-	nvme_rdma_remove_ctrl(ctrl);
-}
-
-static int __nvme_rdma_del_ctrl(struct nvme_rdma_ctrl *ctrl)
-{
-	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_DELETING))
-		return -EBUSY;
-
-	if (!queue_work(nvme_wq, &ctrl->delete_work))
-		return -EBUSY;
-
-	return 0;
-}
-
-static int nvme_rdma_del_ctrl(struct nvme_ctrl *nctrl)
-{
-	struct nvme_rdma_ctrl *ctrl = to_rdma_ctrl(nctrl);
-	int ret = 0;
-
-	/*
-	 * Keep a reference until all work is flushed since
-	 * __nvme_rdma_del_ctrl can free the ctrl mem
-	 */
-	nvme_get_ctrl(&ctrl->ctrl);
-	ret = __nvme_rdma_del_ctrl(ctrl);
-	if (!ret)
-		flush_work(&ctrl->delete_work);
-	nvme_put_ctrl(&ctrl->ctrl);
-	return ret;
+	nvme_stop_ctrl(ctrl);
+	nvme_rdma_remove_ctrl(to_rdma_ctrl(ctrl));
 }
 
 static void nvme_rdma_reset_ctrl_work(struct work_struct *work)
@@ -1846,7 +1814,7 @@ static const struct nvme_ctrl_ops nvme_rdma_ctrl_ops = {
 	.reg_write32		= nvmf_reg_write32,
 	.free_ctrl		= nvme_rdma_free_ctrl,
 	.submit_async_event	= nvme_rdma_submit_async_event,
-	.delete_ctrl		= nvme_rdma_del_ctrl,
+	.delete_ctrl		= nvme_rdma_delete_ctrl,
 	.get_address		= nvmf_get_address,
 	.reinit_request		= nvme_rdma_reinit_request,
 };
@@ -1977,7 +1945,6 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 	INIT_DELAYED_WORK(&ctrl->reconnect_work,
 			nvme_rdma_reconnect_ctrl_work);
 	INIT_WORK(&ctrl->err_work, nvme_rdma_error_recovery_work);
-	INIT_WORK(&ctrl->delete_work, nvme_rdma_del_ctrl_work);
 	INIT_WORK(&ctrl->ctrl.reset_work, nvme_rdma_reset_ctrl_work);
 
 	ctrl->ctrl.queue_count = opts->nr_io_queues + 1; /* +1 for admin queue */
@@ -2081,7 +2048,7 @@ static void nvme_rdma_remove_one(struct ib_device *ib_device, void *client_data)
 		dev_info(ctrl->ctrl.device,
 			"Removing ctrl: NQN \"%s\", addr %pISp\n",
 			ctrl->ctrl.opts->subsysnqn, &ctrl->addr);
-		__nvme_rdma_del_ctrl(ctrl);
+		nvme_delete_ctrl(&ctrl->ctrl);
 	}
 	mutex_unlock(&nvme_rdma_ctrl_mutex);
 

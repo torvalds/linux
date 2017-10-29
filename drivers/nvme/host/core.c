@@ -97,6 +97,41 @@ static int nvme_reset_ctrl_sync(struct nvme_ctrl *ctrl)
 	return ret;
 }
 
+static void nvme_delete_ctrl_work(struct work_struct *work)
+{
+	struct nvme_ctrl *ctrl =
+		container_of(work, struct nvme_ctrl, delete_work);
+
+	ctrl->ops->delete_ctrl(ctrl);
+}
+
+int nvme_delete_ctrl(struct nvme_ctrl *ctrl)
+{
+	if (!nvme_change_ctrl_state(ctrl, NVME_CTRL_DELETING))
+		return -EBUSY;
+	if (!queue_work(nvme_wq, &ctrl->delete_work))
+		return -EBUSY;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nvme_delete_ctrl);
+
+int nvme_delete_ctrl_sync(struct nvme_ctrl *ctrl)
+{
+	int ret = 0;
+
+	/*
+	 * Keep a reference until the work is flushed since ->delete_ctrl
+	 * can free the controller.
+	 */
+	nvme_get_ctrl(ctrl);
+	ret = nvme_delete_ctrl(ctrl);
+	if (!ret)
+		flush_work(&ctrl->delete_work);
+	nvme_put_ctrl(ctrl);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nvme_delete_ctrl_sync);
+
 static blk_status_t nvme_error_status(struct request *req)
 {
 	switch (nvme_req(req)->status & 0x7ff) {
@@ -2122,7 +2157,7 @@ static ssize_t nvme_sysfs_delete(struct device *dev,
 	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
 
 	if (device_remove_file_self(dev, attr))
-		ctrl->ops->delete_ctrl(ctrl);
+		nvme_delete_ctrl_sync(ctrl);
 	return count;
 }
 static DEVICE_ATTR(delete_controller, S_IWUSR, NULL, nvme_sysfs_delete);
@@ -2702,6 +2737,7 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 	INIT_WORK(&ctrl->scan_work, nvme_scan_work);
 	INIT_WORK(&ctrl->async_event_work, nvme_async_event_work);
 	INIT_WORK(&ctrl->fw_act_work, nvme_fw_act_work);
+	INIT_WORK(&ctrl->delete_work, nvme_delete_ctrl_work);
 
 	ret = ida_simple_get(&nvme_instance_ida, 0, 0, GFP_KERNEL);
 	if (ret < 0)

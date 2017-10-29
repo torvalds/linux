@@ -887,7 +887,7 @@ nvmf_create_ctrl(struct device *dev, const char *buf, size_t count)
 			"controller returned incorrect NQN: \"%s\".\n",
 			ctrl->subnqn);
 		up_read(&nvmf_transports_rwsem);
-		ctrl->ops->delete_ctrl(ctrl);
+		nvme_delete_ctrl_sync(ctrl);
 		return ERR_PTR(-EINVAL);
 	}
 

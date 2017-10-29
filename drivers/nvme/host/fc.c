@@ -157,7 +157,6 @@ struct nvme_fc_ctrl {
 	struct blk_mq_tag_set	admin_tag_set;
 	struct blk_mq_tag_set	tag_set;
 
-	struct work_struct	delete_work;
 	struct delayed_work	connect_work;
 
 	struct kref		ref;
@@ -223,7 +222,6 @@ static struct device *fc_udev_device;
 
 /* *********************** FC-NVME Port Management ************************ */
 
-static int __nvme_fc_del_ctrl(struct nvme_fc_ctrl *);
 static void __nvme_fc_delete_hw_queue(struct nvme_fc_ctrl *,
 			struct nvme_fc_queue *, unsigned int);
 
@@ -662,7 +660,7 @@ nvme_fc_unregister_remoteport(struct nvme_fc_remote_port *portptr)
 
 	/* tear down all associations to the remote port */
 	list_for_each_entry(ctrl, &rport->ctrl_list, ctrl_list)
-		__nvme_fc_del_ctrl(ctrl);
+		nvme_delete_ctrl(&ctrl->ctrl);
 
 	spin_unlock_irqrestore(&rport->lock, flags);
 
@@ -2636,10 +2634,9 @@ nvme_fc_delete_association(struct nvme_fc_ctrl *ctrl)
 }
 
 static void
-nvme_fc_delete_ctrl_work(struct work_struct *work)
+nvme_fc_delete_ctrl(struct nvme_ctrl *nctrl)
 {
-	struct nvme_fc_ctrl *ctrl =
-		container_of(work, struct nvme_fc_ctrl, delete_work);
+	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(nctrl);
 
 	cancel_work_sync(&ctrl->ctrl.reset_work);
 	cancel_delayed_work_sync(&ctrl->connect_work);
@@ -2661,34 +2658,6 @@ nvme_fc_delete_ctrl_work(struct work_struct *work)
 	nvme_uninit_ctrl(&ctrl->ctrl);
 
 	nvme_put_ctrl(&ctrl->ctrl);
-}
-
-static int
-__nvme_fc_del_ctrl(struct nvme_fc_ctrl *ctrl)
-{
-	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_DELETING))
-		return -EBUSY;
-	if (!queue_work(nvme_wq, &ctrl->delete_work))
-		return -EBUSY;
-	return 0;
-}
-
-/*
- * Request from nvme core layer to delete the controller
- */
-static int
-nvme_fc_del_nvme_ctrl(struct nvme_ctrl *nctrl)
-{
-	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(nctrl);
-	int ret;
-
-	nvme_get_ctrl(&ctrl->ctrl);
-	ret = __nvme_fc_del_ctrl(ctrl);
-	if (!ret)
-		flush_work(&ctrl->delete_work);
-	nvme_put_ctrl(&ctrl->ctrl);
-
-	return ret;
 }
 
 static void
@@ -2716,7 +2685,7 @@ nvme_fc_reconnect_or_delete(struct nvme_fc_ctrl *ctrl, int status)
 				"NVME-FC{%d}: Max reconnect attempts (%d) "
 				"reached. Removing controller\n",
 				ctrl->cnum, ctrl->ctrl.nr_reconnects);
-		WARN_ON(__nvme_fc_del_ctrl(ctrl));
+		WARN_ON(nvme_delete_ctrl(&ctrl->ctrl));
 	}
 }
 
@@ -2748,7 +2717,7 @@ static const struct nvme_ctrl_ops nvme_fc_ctrl_ops = {
 	.reg_write32		= nvmf_reg_write32,
 	.free_ctrl		= nvme_fc_nvme_ctrl_freed,
 	.submit_async_event	= nvme_fc_submit_async_event,
-	.delete_ctrl		= nvme_fc_del_nvme_ctrl,
+	.delete_ctrl		= nvme_fc_delete_ctrl,
 	.get_address		= nvmf_get_address,
 	.reinit_request		= nvme_fc_reinit_request,
 };
@@ -2851,7 +2820,6 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	get_device(ctrl->dev);
 	kref_init(&ctrl->ref);
 
-	INIT_WORK(&ctrl->delete_work, nvme_fc_delete_ctrl_work);
 	INIT_WORK(&ctrl->ctrl.reset_work, nvme_fc_reset_ctrl_work);
 	INIT_DELAYED_WORK(&ctrl->connect_work, nvme_fc_connect_ctrl_work);
 	spin_lock_init(&ctrl->lock);
