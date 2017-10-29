@@ -1176,6 +1176,8 @@ void vmbus_onmessage(void *context)
 	hdr = (struct vmbus_channel_message_header *)msg->u.payload;
 	size = msg->header.payload_size;
 
+	trace_vmbus_on_message(hdr);
+
 	if (hdr->msgtype >= CHANNELMSG_COUNT) {
 		pr_err("Received invalid channel message type %d size %d\n",
 			   hdr->msgtype, size);

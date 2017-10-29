@@ -19,6 +19,11 @@ DEFINE_EVENT(vmbus_hdr_msg, vmbus_on_msg_dpc,
 	TP_ARGS(hdr)
 );
 
+DEFINE_EVENT(vmbus_hdr_msg, vmbus_on_message,
+	TP_PROTO(const struct vmbus_channel_message_header *hdr),
+	TP_ARGS(hdr)
+);
+
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
 #undef TRACE_INCLUDE_FILE
