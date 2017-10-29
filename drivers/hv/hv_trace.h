@@ -232,6 +232,32 @@ TRACE_EVENT(vmbus_teardown_gpadl,
 		    )
 	);
 
+TRACE_EVENT(vmbus_negotiate_version,
+	    TP_PROTO(const struct vmbus_channel_initiate_contact *msg, int ret),
+	    TP_ARGS(msg, ret),
+	    TP_STRUCT__entry(
+		    __field(u32, ver)
+		    __field(u32, target_vcpu)
+		    __field(int, ret)
+		    __field(u64, int_page)
+		    __field(u64, mon_page1)
+		    __field(u64, mon_page2)
+		    ),
+	    TP_fast_assign(
+		    __entry->ver = msg->vmbus_version_requested;
+		    __entry->target_vcpu = msg->target_vcpu;
+		    __entry->int_page = msg->interrupt_page;
+		    __entry->mon_page1 = msg->monitor_page1;
+		    __entry->mon_page2 = msg->monitor_page2;
+		    __entry->ret = ret;
+		    ),
+	    TP_printk("sending vmbus_version_requested %d, target_vcpu 0x%x, "
+		      "pages %llx:%llx:%llx, ret %d",
+		      __entry->ver, __entry->target_vcpu, __entry->int_page,
+		      __entry->mon_page1, __entry->mon_page2, __entry->ret
+		    )
+	);
+
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
 #undef TRACE_INCLUDE_FILE
