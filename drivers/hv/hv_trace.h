@@ -69,6 +69,23 @@ TRACE_EVENT(vmbus_onoffer_rescind,
 	    TP_printk("child_relid 0x%x", __entry->child_relid)
 	);
 
+TRACE_EVENT(vmbus_onopen_result,
+	    TP_PROTO(const struct vmbus_channel_open_result *result),
+	    TP_ARGS(result),
+	    TP_STRUCT__entry(
+		    __field(u32, child_relid)
+		    __field(u32, openid)
+		    __field(u32, status)
+		    ),
+	    TP_fast_assign(__entry->child_relid = result->child_relid;
+			   __entry->openid = result->openid;
+			   __entry->status = result->status;
+		    ),
+	    TP_printk("child_relid 0x%x, openid %d, status %d",
+		      __entry->child_relid,  __entry->openid,  __entry->status
+		    )
+	);
+
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
 #undef TRACE_INCLUDE_FILE

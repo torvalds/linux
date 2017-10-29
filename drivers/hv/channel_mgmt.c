@@ -986,6 +986,8 @@ static void vmbus_onopen_result(struct vmbus_channel_message_header *hdr)
 
 	result = (struct vmbus_channel_open_result *)hdr;
 
+	trace_vmbus_onopen_result(result);
+
 	/*
 	 * Find the open msg, copy the result and signal/unblock the wait event
 	 */
