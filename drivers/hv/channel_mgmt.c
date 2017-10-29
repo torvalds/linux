@@ -1224,9 +1224,11 @@ int vmbus_request_offers(void)
 
 	msg->msgtype = CHANNELMSG_REQUESTOFFERS;
 
-
 	ret = vmbus_post_msg(msg, sizeof(struct vmbus_channel_message_header),
 			     true);
+
+	trace_vmbus_request_offers(ret);
+
 	if (ret != 0) {
 		pr_err("Unable to request offers - %d\n", ret);
 

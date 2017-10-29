@@ -122,6 +122,14 @@ TRACE_EVENT(vmbus_onversion_response,
 	    TP_printk("version_supported %d", __entry->ver)
 	);
 
+TRACE_EVENT(vmbus_request_offers,
+	    TP_PROTO(int ret),
+	    TP_ARGS(ret),
+	    TP_STRUCT__entry(__field(int, ret)),
+	    TP_fast_assign(__entry->ret = ret),
+	    TP_printk("sending ret %d", __entry->ret)
+	);
+
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
 #undef TRACE_INCLUDE_FILE
