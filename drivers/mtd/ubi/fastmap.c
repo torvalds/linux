@@ -214,9 +214,8 @@ static void assign_aeb_to_av(struct ubi_attach_info *ai,
 			     struct ubi_ainf_volume *av)
 {
 	struct ubi_ainf_peb *tmp_aeb;
-	struct rb_node **p = &ai->volumes.rb_node, *parent = NULL;
+	struct rb_node **p = &av->root.rb_node, *parent = NULL;
 
-	p = &av->root.rb_node;
 	while (*p) {
 		parent = *p;
 
