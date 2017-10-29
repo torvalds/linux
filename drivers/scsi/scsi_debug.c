@@ -3001,11 +3001,11 @@ static int resp_write_same(struct scsi_cmnd *scp, u64 lba, u32 num,
 	if (-1 == ret) {
 		write_unlock_irqrestore(&atomic_rw, iflags);
 		return DID_ERROR << 16;
-	} else if (sdebug_verbose && (ret < (num * sdebug_sector_size)))
+	} else if (sdebug_verbose && !ndob && (ret < sdebug_sector_size))
 		sdev_printk(KERN_INFO, scp->device,
-			    "%s: %s: cdb indicated=%u, IO sent=%d bytes\n",
+			    "%s: %s: lb size=%u, IO sent=%d bytes\n",
 			    my_name, "write same",
-			    num * sdebug_sector_size, ret);
+			    sdebug_sector_size, ret);
 
 	/* Copy first sector to remaining blocks */
 	for (i = 1 ; i < num ; i++)
