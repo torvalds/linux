@@ -172,6 +172,8 @@ int load_config_json(struct lkl_config *cfg, char *jstr)
 			cfgptr = &cfg->boot_cmdline;
 		} else if (jsoneq(jstr, &toks[pos], "dump") == 0) {
 			cfgptr = &cfg->dump;
+		} else if (jsoneq(jstr, &toks[pos], "delay_main") == 0) {
+			cfgptr = &cfg->delay_main;
 		} else {
 			lkl_printf("unexpected key in json %.*s\n",
 					toks[pos].end-toks[pos].start,
@@ -201,6 +203,7 @@ void show_config(struct lkl_config *cfg)
 	lkl_printf("sysctl: %s\n", cfg->sysctls);
 	lkl_printf("cmdlien: %s\n", cfg->boot_cmdline);
 	lkl_printf("dump: %s\n", cfg->dump);
+	lkl_printf("delay: %s\n", cfg->delay_main);
 	for (i = 0; i < cfg->ifnum; i++) {
 		lkl_printf("ifmac[%d] = %s\n", i, cfg->ifmac_str[i]);
 		lkl_printf("ifmtu[%d] = %s\n", i, cfg->ifmtu_str[i]);
@@ -347,6 +350,7 @@ int init_config(struct lkl_config *cfg)
 	cfg->sysctls = NULL;
 	cfg->boot_cmdline = NULL;
 	cfg->dump = NULL;
+	cfg->delay_main = NULL;
 	return 0;
 }
 
@@ -386,5 +390,6 @@ int clean_config(struct lkl_config *cfg)
 	free_cfgparam(cfg->sysctls);
 	free_cfgparam(cfg->boot_cmdline);
 	free_cfgparam(cfg->dump);
+	free_cfgparam(cfg->delay_main);
 	return 0;
 }

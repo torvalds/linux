@@ -437,6 +437,20 @@ The following are the list of keys to describe a JSON file.
 	     "offload":"0x8002"
 	```
 
+* Delay
+
+  key: "delay_main"
+  value type: string
+
+  The delay before calling main() function of the application after the
+  initialization of LKL.  Some subsystems in Linux tree require a certain
+  amount of time before accepting a request from application, such as
+  delivery of address assignment to an network interface.  This parameter
+  is used in such case.  The value is described as a microsecond value.
+```
+     "delay_main":"500000"
+```
+
 FAQ
 ===
 

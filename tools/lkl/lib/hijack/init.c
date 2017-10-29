@@ -549,6 +549,19 @@ hijack_init(void)
 
 	if (cfg->sysctls)
 		lkl_sysctl_parse_write(cfg->sysctls);
+
+	/* put a delay before calling main() */
+	if (cfg->delay_main) {
+		unsigned long delay = strtoul(cfg->delay_main, NULL, 10);
+
+		if (delay == ~0UL)
+			fprintf(stderr, "got invalid delay_main value (%s)\n",
+				cfg->delay_main);
+		else {
+			lkl_printf("sleeping %lu usec\n", delay);
+			usleep(delay);
+		}
+	}
 }
 
 void __attribute__((destructor))
