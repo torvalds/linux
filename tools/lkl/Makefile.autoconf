@@ -1,0 +1,91 @@
+POSIX_HOSTS=elf64-x86-64 elf32-i386 elf64-x86-64-freebsd elf32-littlearm elf64-littleaarch64
+NT_HOSTS=pe-i386 pe-x86-64
+
+define set_autoconf_var
+  $(file >> $(OUTPUT)/include/autoconf.h,#define LKL_HOST_CONFIG_$(1) $(2))
+  $(file >> $(OUTPUT)/tests/autoconf.sh,LKL_HOST_CONFIG_$(1)=$(2))
+  export LKL_HOST_CONFIG_$(1)=$(2)
+endef
+
+define find_include
+  $(eval include_paths=$(shell $(CC) -E -Wp,-v -xc /dev/null 2>&1 | grep '^ '))
+  $(foreach f, $(include_paths), $(wildcard $(f)/$(1)))
+endef
+
+define is_defined
+$(shell $(CC) -dM -E - </dev/null | grep $(1))
+endef
+
+define android_host
+  $(call set_autoconf_var,ANDROID,y)
+endef
+
+define virtio_net_dpdk
+  $(call set_autoconf_var,VIRTIO_NET_DPDK,y)
+  RTE_SDK ?= $(OUTPUT)/dpdk-17.02
+  RTE_TARGET ?= build
+  DPDK_LIBS = -lrte_pmd_vmxnet3_uio -lrte_pmd_ixgbe -lrte_pmd_e1000
+  DPDK_LIBS += -lrte_pmd_virtio
+  DPDK_LIBS += -lrte_timer -lrte_hash -lrte_mbuf -lrte_ethdev -lrte_eal
+  DPDK_LIBS += -lrte_mempool -lrte_ring -lrte_pmd_ring
+  DPDK_LIBS += -lrte_kvargs -lrte_net
+  CFLAGS += -I$$(RTE_SDK)/$$(RTE_TARGET)/include -msse4.2 -mpopcnt
+  LDFLAGS +=-L$$(RTE_SDK)/$$(RTE_TARGET)/lib
+  LDFLAGS +=-Wl,--whole-archive $$(DPDK_LIBS) -Wl,--no-whole-archive -lm -ldl
+endef
+
+define virtio_net_vde
+  $(call set_autoconf_var,VIRTIO_NET_VDE,y)
+  LDLIBS += $(shell pkg-config --libs vdeplug)
+endef
+
+define posix_host
+  $(call set_autoconf_var,POSIX,y)
+  $(call set_autoconf_var,VIRTIO_NET,y)
+  LDFLAGS += -pie
+  CFLAGS += -fPIC -pthread
+  SOSUF := .so
+  $(if $(call is_defined,__ANDROID__),$(call android_host),LDLIBS += -lrt -lpthread)
+  $(if $(filter yes,$(dpdk)),$(call virtio_net_dpdk))
+  $(if $(filter yes,$(vde)),$(call virtio_net_vde))
+  $(if $(strip $(call find_include,fuse.h)),$(call set_autoconf_var,FUSE,y))
+  $(if $(strip $(call find_include,archive.h)),$(call set_autoconf_var,ARCHIVE,y))
+  $(if $(filter $(1),elf64-x86-64-freebsd),$(call set_autoconf_var,NEEDS_LARGP,y))
+endef
+
+define nt64_host
+  $(call set_autoconf_var,NEEDS_LARGP,y)
+  CFLAGS += -Wl,--enable-auto-image-base -Wl,--image-base -Wl,0x10000000 \
+  	 -Wl,--out-implib=$(OUTPUT)liblkl.dll.a -Wl,--export-all-symbols \
+	 -Wl,--enable-auto-import
+  LDFLAGS +=-Wl,--image-base -Wl,0x10000000 -Wl,--enable-auto-image-base \
+   	   -Wl,--out-implib=$(OUTPUT)liblkl.dll.a -Wl,--export-all-symbols \
+	   -Wl,--enable-auto-import
+endef
+
+define nt_host
+  $(call set_autoconf_var,NT,y)
+  KOPT = "KALLSYMS_EXTRA_PASS=1"
+  LDLIBS += -lws2_32
+  EXESUF := .exe
+  SOSUF := .dll
+  CFLAGS += -Iinclude/mingw32
+  $(if $(filter $(1),pe-x86-64),$(call nt64_host))
+endef
+
+define do_autoconf
+  export CROSS_COMPILE := $(CROSS_COMPILE)
+  export CC := $(CROSS_COMPILE)gcc
+  export LD := $(CROSS_COMPILE)ld
+  export AR := $(CROSS_COMPILE)ar
+  $(eval LD := $(CROSS_COMPILE)ld)
+  $(eval CC := $(CROSS_COMPILE)gcc)
+  $(eval LD_FMT := $(shell $(LD) -r -print-output-format))
+  $(if $(filter $(LD_FMT),$(POSIX_HOSTS)),$(call posix_host,$(LD_FMT)))
+  $(if $(filter $(LD_FMT),$(NT_HOSTS)),$(call nt_host,$(LD_FMT)))
+endef
+
+$(OUTPUT)Makefile.conf: Makefile.autoconf
+	$(file > $(OUTPUT)/include/autoconf.h)
+	$(file > $(OUTPUT)/tests/autoconf.sh)
+	$(file > $(OUTPUT)/Makefile.conf,$(call do_autoconf))

@@ -32,7 +32,7 @@ echo "== Loopback (LKL net) tests =="
 ./net-test --dst 127.0.0.1
 
 # the rest of the tests are not supported on mingw
-if [ "`printenv CONFIG_AUTO_LKL_POSIX_HOST`" != "y" ] ; then
+if [ "`printenv LKL_CONFIG_POSIX_HOST`" != "y" ] ; then
     exit 0
 fi
 

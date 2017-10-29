@@ -8,3 +8,6 @@ tests/valgrind*.xml
 *.dll
 tests/net-test
 tests/disk
+Makefile.conf
+include/autoconf.h
+tests/autoconf.sh

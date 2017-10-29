@@ -533,7 +533,7 @@ addr=$(LKL_HIJACK_CONFIG_FILE=$cfgjson \
 echo "$addr" | grep fc04::
 echo "$addr" | grep fc04::1
 
-if [ -z "`printenv CONFIG_AUTO_LKL_VIRTIO_NET_VDE`" ]; then
+if [ -z "`printenv LKL_CONFIG_VIRTIO_NET_VDE`" ]; then
     exit 0
 fi
 

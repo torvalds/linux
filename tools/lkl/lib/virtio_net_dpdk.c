@@ -9,7 +9,6 @@
 //#define DEBUG
 
 #include <stdio.h>
-#ifdef CONFIG_AUTO_LKL_VIRTIO_NET_DPDK
 #include <string.h>
 #include <stdint.h>
 #include <errno.h>
@@ -478,15 +477,3 @@ struct lkl_netdev *lkl_netdev_dpdk_create(const char *ifparams, int offload,
 
 	return (struct lkl_netdev *) nd;
 }
-
-#else
-#include <stdlib.h>
-
-struct lkl_netdev *lkl_netdev_dpdk_create(const char *ifparams, int offload,
-					  unsigned char *mac)
-{
-	fprintf(stderr,
-		"lkl: dpdk is not built. please build LKL to enable dpdk.\n");
-	exit(0);
-}
-#endif /* CONFIG_AUTO_LKL_VIRTIO_NET_DPDK */
