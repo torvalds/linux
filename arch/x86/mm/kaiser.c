@@ -108,18 +108,12 @@ static inline unsigned long get_pa_from_mapping(unsigned long vaddr)
  *
  * Returns a pointer to a PTE on success, or NULL on failure.
  */
-static pte_t *kaiser_pagetable_walk(unsigned long address, bool is_atomic)
+static pte_t *kaiser_pagetable_walk(unsigned long address)
 {
 	pmd_t *pmd;
 	pud_t *pud;
 	pgd_t *pgd = native_get_shadow_pgd(pgd_offset_k(address));
 	gfp_t gfp = (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO);
-
-	if (is_atomic) {
-		gfp &= ~GFP_KERNEL;
-		gfp |= __GFP_HIGH | __GFP_ATOMIC;
-	} else
-		might_sleep();
 
 	if (pgd_none(*pgd)) {
 		WARN_ONCE(1, "All shadow pgds should have been populated");
@@ -195,7 +189,7 @@ static int kaiser_add_user_map(const void *__start_addr, unsigned long size,
 			ret = -EIO;
 			break;
 		}
-		pte = kaiser_pagetable_walk(address, false);
+		pte = kaiser_pagetable_walk(address);
 		if (!pte) {
 			ret = -ENOMEM;
 			break;
