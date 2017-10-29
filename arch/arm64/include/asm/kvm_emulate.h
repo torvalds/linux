@@ -41,6 +41,9 @@ void kvm_inject_undefined(struct kvm_vcpu *vcpu);
 void kvm_inject_vabt(struct kvm_vcpu *vcpu);
 void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr);
 void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr);
+void kvm_inject_undef32(struct kvm_vcpu *vcpu);
+void kvm_inject_dabt32(struct kvm_vcpu *vcpu, unsigned long addr);
+void kvm_inject_pabt32(struct kvm_vcpu *vcpu, unsigned long addr);
 
 static inline void vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 {
