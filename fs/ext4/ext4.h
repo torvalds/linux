@@ -545,8 +545,8 @@ struct ext4_new_group_data {
 	__u64 inode_table;
 	__u32 blocks_count;
 	__u16 reserved_blocks;
-	__u16 unused;
-	__u32 free_blocks_count;
+	__u16 mdata_blocks;
+	__u32 free_clusters_count;
 };
 
 /* Indexes used to index group tables in ext4_new_group_data */

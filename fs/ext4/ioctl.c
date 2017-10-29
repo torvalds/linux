@@ -871,12 +871,6 @@ group_add_out:
 		int err = 0, err2 = 0;
 		ext4_group_t o_group = EXT4_SB(sb)->s_groups_count;
 
-		if (ext4_has_feature_bigalloc(sb)) {
-			ext4_msg(sb, KERN_ERR,
-				 "Online resizing not (yet) supported with bigalloc");
-			return -EOPNOTSUPP;
-		}
-
 		if (copy_from_user(&n_blocks_count, (__u64 __user *)arg,
 				   sizeof(__u64))) {
 			return -EFAULT;
