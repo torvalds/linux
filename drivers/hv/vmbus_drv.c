@@ -946,6 +946,8 @@ static void vmbus_chan_sched(struct hv_per_cpu_context *hv_cpu)
 			if (channel->rescind)
 				continue;
 
+			trace_vmbus_chan_sched(channel);
+
 			++channel->interrupts;
 
 			switch (channel->callback_mode) {

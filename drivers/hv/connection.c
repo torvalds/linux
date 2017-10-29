@@ -322,6 +322,8 @@ void vmbus_on_event(unsigned long data)
 	struct vmbus_channel *channel = (void *) data;
 	unsigned long time_limit = jiffies + 2;
 
+	trace_vmbus_on_event(channel);
+
 	do {
 		void (*callback_fn)(void *);
 

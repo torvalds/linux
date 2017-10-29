@@ -294,6 +294,29 @@ TRACE_EVENT(vmbus_send_tl_connect_request,
 		    )
 	);
 
+DECLARE_EVENT_CLASS(vmbus_channel,
+	TP_PROTO(const struct vmbus_channel *channel),
+	TP_ARGS(channel),
+	TP_STRUCT__entry(__field(u32, relid)),
+	TP_fast_assign(__entry->relid = channel->offermsg.child_relid),
+	TP_printk("relid 0x%x", __entry->relid)
+);
+
+DEFINE_EVENT(vmbus_channel, vmbus_chan_sched,
+	    TP_PROTO(const struct vmbus_channel *channel),
+	    TP_ARGS(channel)
+);
+
+DEFINE_EVENT(vmbus_channel, vmbus_setevent,
+	    TP_PROTO(const struct vmbus_channel *channel),
+	    TP_ARGS(channel)
+);
+
+DEFINE_EVENT(vmbus_channel, vmbus_on_event,
+	    TP_PROTO(const struct vmbus_channel *channel),
+	    TP_ARGS(channel)
+);
+
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
 #undef TRACE_INCLUDE_FILE

@@ -43,6 +43,8 @@ void vmbus_setevent(struct vmbus_channel *channel)
 {
 	struct hv_monitor_page *monitorpage;
 
+	trace_vmbus_setevent(channel);
+
 	/*
 	 * For channels marked as in "low latency" mode
 	 * bypass the monitor page mechanism.
