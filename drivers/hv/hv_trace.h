@@ -172,6 +172,48 @@ TRACE_EVENT(vmbus_close_internal,
 		    __entry->ret)
 	);
 
+TRACE_EVENT(vmbus_establish_gpadl_header,
+	    TP_PROTO(const struct vmbus_channel_gpadl_header *msg, int ret),
+	    TP_ARGS(msg, ret),
+	    TP_STRUCT__entry(
+		    __field(u32, child_relid)
+		    __field(u32, gpadl)
+		    __field(u16, range_buflen)
+		    __field(u16, rangecount)
+		    __field(int, ret)
+		    ),
+	    TP_fast_assign(
+		    __entry->child_relid = msg->child_relid;
+		    __entry->gpadl = msg->gpadl;
+		    __entry->range_buflen = msg->range_buflen;
+		    __entry->rangecount = msg->rangecount;
+		    __entry->ret = ret;
+		    ),
+	    TP_printk("sending child_relid 0x%x, gpadl 0x%x, range_buflen %d "
+		      "rangecount %d, ret %d",
+		      __entry->child_relid, __entry->gpadl,
+		      __entry->range_buflen, __entry->rangecount, __entry->ret
+		    )
+	);
+
+TRACE_EVENT(vmbus_establish_gpadl_body,
+	    TP_PROTO(const struct vmbus_channel_gpadl_body *msg, int ret),
+	    TP_ARGS(msg, ret),
+	    TP_STRUCT__entry(
+		    __field(u32, msgnumber)
+		    __field(u32, gpadl)
+		    __field(int, ret)
+		    ),
+	    TP_fast_assign(
+		    __entry->msgnumber = msg->msgnumber;
+		    __entry->gpadl = msg->gpadl;
+		    __entry->ret = ret;
+		    ),
+	    TP_printk("sending msgnumber %d, gpadl 0x%x, ret %d",
+		      __entry->msgnumber, __entry->gpadl, __entry->ret
+		    )
+	);
+
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
 #undef TRACE_INCLUDE_FILE

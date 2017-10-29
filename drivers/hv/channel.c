@@ -435,6 +435,9 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 
 	ret = vmbus_post_msg(gpadlmsg, msginfo->msgsize -
 			     sizeof(*msginfo), true);
+
+	trace_vmbus_establish_gpadl_header(gpadlmsg, ret);
+
 	if (ret != 0)
 		goto cleanup;
 
@@ -450,6 +453,9 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 		ret = vmbus_post_msg(gpadl_body,
 				     submsginfo->msgsize - sizeof(*submsginfo),
 				     true);
+
+		trace_vmbus_establish_gpadl_body(gpadl_body, ret);
+
 		if (ret != 0)
 			goto cleanup;
 
