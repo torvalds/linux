@@ -665,7 +665,6 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 	struct bnxt_re_ah *ah;
 	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
 	int rc;
-	u16 vlan_tag;
 	u8 nw_type;
 
 	struct ib_gid_attr sgid_attr;
@@ -711,11 +710,8 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 				grh->sgid_index);
 			goto fail;
 		}
-		if (sgid_attr.ndev) {
-			if (is_vlan_dev(sgid_attr.ndev))
-				vlan_tag = vlan_dev_vlan_id(sgid_attr.ndev);
+		if (sgid_attr.ndev)
 			dev_put(sgid_attr.ndev);
-		}
 		/* Get network header type for this GID */
 		nw_type = ib_gid_to_network_type(sgid_attr.gid_type, &sgid);
 		switch (nw_type) {
