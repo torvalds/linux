@@ -1611,9 +1611,8 @@ static int bnx2i_conn_start(struct iscsi_cls_conn *cls_conn)
 	 * this should normally not sleep for a long time so it should
 	 * not disrupt the caller.
 	 */
+	timer_setup(&bnx2i_conn->ep->ofld_timer, bnx2i_ep_ofld_timer, 0);
 	bnx2i_conn->ep->ofld_timer.expires = 1 * HZ + jiffies;
-	bnx2i_conn->ep->ofld_timer.function = bnx2i_ep_ofld_timer;
-	bnx2i_conn->ep->ofld_timer.data = (unsigned long) bnx2i_conn->ep;
 	add_timer(&bnx2i_conn->ep->ofld_timer);
 	/* update iSCSI context for this conn, wait for CNIC to complete */
 	wait_event_interruptible(bnx2i_conn->ep->ofld_wait,
@@ -1729,10 +1728,8 @@ static int bnx2i_tear_down_conn(struct bnx2i_hba *hba,
 	}
 
 	ep->state = EP_STATE_CLEANUP_START;
-	init_timer(&ep->ofld_timer);
+	timer_setup(&ep->ofld_timer, bnx2i_ep_ofld_timer, 0);
 	ep->ofld_timer.expires = hba->conn_ctx_destroy_tmo + jiffies;
-	ep->ofld_timer.function = bnx2i_ep_ofld_timer;
-	ep->ofld_timer.data = (unsigned long) ep;
 	add_timer(&ep->ofld_timer);
 
 	bnx2i_ep_destroy_list_add(hba, ep);
@@ -1835,10 +1832,8 @@ static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 	bnx2i_ep->state = EP_STATE_OFLD_START;
 	bnx2i_ep_ofld_list_add(hba, bnx2i_ep);
 
-	init_timer(&bnx2i_ep->ofld_timer);
+	timer_setup(&bnx2i_ep->ofld_timer, bnx2i_ep_ofld_timer, 0);
 	bnx2i_ep->ofld_timer.expires = 2 * HZ + jiffies;
-	bnx2i_ep->ofld_timer.function = bnx2i_ep_ofld_timer;
-	bnx2i_ep->ofld_timer.data = (unsigned long) bnx2i_ep;
 	add_timer(&bnx2i_ep->ofld_timer);
 
 	if (bnx2i_send_conn_ofld_req(hba, bnx2i_ep)) {
@@ -2054,10 +2049,8 @@ int bnx2i_hw_ep_disconnect(struct bnx2i_endpoint *bnx2i_ep)
 		session = conn->session;
 	}
 
-	init_timer(&bnx2i_ep->ofld_timer);
+	timer_setup(&bnx2i_ep->ofld_timer, bnx2i_ep_ofld_timer, 0);
 	bnx2i_ep->ofld_timer.expires = hba->conn_teardown_tmo + jiffies;
-	bnx2i_ep->ofld_timer.function = bnx2i_ep_ofld_timer;
-	bnx2i_ep->ofld_timer.data = (unsigned long) bnx2i_ep;
 	add_timer(&bnx2i_ep->ofld_timer);
 
 	if (!test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic))
