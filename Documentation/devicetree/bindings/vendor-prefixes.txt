@@ -230,6 +230,7 @@ netlogic	Broadcom Corporation (formerly NetLogic Microsystems)
 netron-dy	Netron DY
 netxeon		Shenzhen Netxeon Technology CO., LTD
 nexbox	Nexbox
+nextthing	Next Thing Co.
 newhaven	Newhaven Display International
 ni	National Instruments
 nintendo	Nintendo
