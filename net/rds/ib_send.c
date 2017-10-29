@@ -661,13 +661,15 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 			}
 		}
 
-		rds_ib_set_wr_signal_state(ic, send, 0);
+		rds_ib_set_wr_signal_state(ic, send, false);
 
 		/*
 		 * Always signal the last one if we're stopping due to flow control.
 		 */
-		if (ic->i_flowctl && flow_controlled && i == (work_alloc-1))
-			send->s_wr.send_flags |= IB_SEND_SIGNALED | IB_SEND_SOLICITED;
+		if (ic->i_flowctl && flow_controlled && i == (work_alloc - 1)) {
+			rds_ib_set_wr_signal_state(ic, send, true);
+			send->s_wr.send_flags |= IB_SEND_SOLICITED;
+		}
 
 		if (send->s_wr.send_flags & IB_SEND_SIGNALED)
 			nr_sig++;
@@ -705,11 +707,8 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	if (scat == &rm->data.op_sg[rm->data.op_count]) {
 		prev->s_op = ic->i_data_op;
 		prev->s_wr.send_flags |= IB_SEND_SOLICITED;
-		if (!(prev->s_wr.send_flags & IB_SEND_SIGNALED)) {
-			ic->i_unsignaled_wrs = rds_ib_sysctl_max_unsig_wrs;
-			prev->s_wr.send_flags |= IB_SEND_SIGNALED;
-			nr_sig++;
-		}
+		if (!(prev->s_wr.send_flags & IB_SEND_SIGNALED))
+			nr_sig += rds_ib_set_wr_signal_state(ic, prev, true);
 		ic->i_data_op = NULL;
 	}
 
@@ -792,6 +791,7 @@ int rds_ib_xmit_atomic(struct rds_connection *conn, struct rm_atomic_op *op)
 		send->s_atomic_wr.compare_add_mask = op->op_m_fadd.nocarry_mask;
 		send->s_atomic_wr.swap_mask = 0;
 	}
+	send->s_wr.send_flags = 0;
 	nr_sig = rds_ib_set_wr_signal_state(ic, send, op->op_notify);
 	send->s_atomic_wr.wr.num_sge = 1;
 	send->s_atomic_wr.wr.next = NULL;

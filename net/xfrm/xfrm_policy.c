@@ -1573,6 +1573,14 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 			goto put_states;
 		}
 
+		if (!dst_prev)
+			dst0 = dst1;
+		else
+			/* Ref count is taken during xfrm_alloc_dst()
+			 * No need to do dst_clone() on dst1
+			 */
+			dst_prev->child = dst1;
+
 		if (xfrm[i]->sel.family == AF_UNSPEC) {
 			inner_mode = xfrm_ip2inner_mode(xfrm[i],
 							xfrm_af2proto(family));
@@ -1583,14 +1591,6 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 			}
 		} else
 			inner_mode = xfrm[i]->inner_mode;
-
-		if (!dst_prev)
-			dst0 = dst1;
-		else
-			/* Ref count is taken during xfrm_alloc_dst()
-			 * No need to do dst_clone() on dst1
-			 */
-			dst_prev->child = dst1;
 
 		xdst->route = dst;
 		dst_copy_metrics(dst1, dst);

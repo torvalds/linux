@@ -68,7 +68,10 @@ struct tc_u_knode {
 	u32 __percpu		*pcpu_success;
 #endif
 	struct tcf_proto	*tp;
-	struct rcu_head		rcu;
+	union {
+		struct work_struct	work;
+		struct rcu_head		rcu;
+	};
 	/* The 'sel' field MUST be the last field in structure to allow for
 	 * tc_u32_keys allocated at end of structure.
 	 */
@@ -418,11 +421,21 @@ static int u32_destroy_key(struct tcf_proto *tp, struct tc_u_knode *n,
  * this the u32_delete_key_rcu variant does not free the percpu
  * statistics.
  */
+static void u32_delete_key_work(struct work_struct *work)
+{
+	struct tc_u_knode *key = container_of(work, struct tc_u_knode, work);
+
+	rtnl_lock();
+	u32_destroy_key(key->tp, key, false);
+	rtnl_unlock();
+}
+
 static void u32_delete_key_rcu(struct rcu_head *rcu)
 {
 	struct tc_u_knode *key = container_of(rcu, struct tc_u_knode, rcu);
 
-	u32_destroy_key(key->tp, key, false);
+	INIT_WORK(&key->work, u32_delete_key_work);
+	tcf_queue_work(&key->work);
 }
 
 /* u32_delete_key_freepf_rcu is the rcu callback variant
@@ -432,11 +445,21 @@ static void u32_delete_key_rcu(struct rcu_head *rcu)
  * for the variant that should be used with keys return from
  * u32_init_knode()
  */
+static void u32_delete_key_freepf_work(struct work_struct *work)
+{
+	struct tc_u_knode *key = container_of(work, struct tc_u_knode, work);
+
+	rtnl_lock();
+	u32_destroy_key(key->tp, key, true);
+	rtnl_unlock();
+}
+
 static void u32_delete_key_freepf_rcu(struct rcu_head *rcu)
 {
 	struct tc_u_knode *key = container_of(rcu, struct tc_u_knode, rcu);
 
-	u32_destroy_key(key->tp, key, true);
+	INIT_WORK(&key->work, u32_delete_key_freepf_work);
+	tcf_queue_work(&key->work);
 }
 
 static int u32_delete_key(struct tcf_proto *tp, struct tc_u_knode *key)

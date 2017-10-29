@@ -787,8 +787,8 @@ struct xdp_md {
 };
 
 enum sk_action {
-	SK_ABORTED = 0,
-	SK_DROP,
+	SK_DROP = 0,
+	SK_PASS,
 	SK_REDIRECT,
 };
 

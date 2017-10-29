@@ -21,7 +21,10 @@ struct cls_mall_head {
 	struct tcf_result res;
 	u32 handle;
 	u32 flags;
-	struct rcu_head	rcu;
+	union {
+		struct work_struct work;
+		struct rcu_head	rcu;
+	};
 };
 
 static int mall_classify(struct sk_buff *skb, const struct tcf_proto *tp,
@@ -41,13 +44,23 @@ static int mall_init(struct tcf_proto *tp)
 	return 0;
 }
 
+static void mall_destroy_work(struct work_struct *work)
+{
+	struct cls_mall_head *head = container_of(work, struct cls_mall_head,
+						  work);
+	rtnl_lock();
+	tcf_exts_destroy(&head->exts);
+	kfree(head);
+	rtnl_unlock();
+}
+
 static void mall_destroy_rcu(struct rcu_head *rcu)
 {
 	struct cls_mall_head *head = container_of(rcu, struct cls_mall_head,
 						  rcu);
 
-	tcf_exts_destroy(&head->exts);
-	kfree(head);
+	INIT_WORK(&head->work, mall_destroy_work);
+	tcf_queue_work(&head->work);
 }
 
 static int mall_replace_hw_filter(struct tcf_proto *tp,

@@ -738,7 +738,7 @@ static int sctp_v6_skb_iif(const struct sk_buff *skb)
 /* Was this packet marked by Explicit Congestion Notification? */
 static int sctp_v6_is_ce(const struct sk_buff *skb)
 {
-	return *((__u32 *)(ipv6_hdr(skb))) & htonl(1 << 20);
+	return *((__u32 *)(ipv6_hdr(skb))) & (__force __u32)htonl(1 << 20);
 }
 
 /* Dump the v6 addr to the seq file. */
@@ -882,8 +882,10 @@ static int sctp_inet6_bind_verify(struct sctp_sock *opt, union sctp_addr *addr)
 			net = sock_net(&opt->inet.sk);
 			rcu_read_lock();
 			dev = dev_get_by_index_rcu(net, addr->v6.sin6_scope_id);
-			if (!dev ||
-			    !ipv6_chk_addr(net, &addr->v6.sin6_addr, dev, 0)) {
+			if (!dev || !(opt->inet.freebind ||
+				      net->ipv6.sysctl.ip_nonlocal_bind ||
+				      ipv6_chk_addr(net, &addr->v6.sin6_addr,
+						    dev, 0))) {
 				rcu_read_unlock();
 				return 0;
 			}
