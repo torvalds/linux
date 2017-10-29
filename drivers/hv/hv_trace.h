@@ -214,6 +214,24 @@ TRACE_EVENT(vmbus_establish_gpadl_body,
 		    )
 	);
 
+TRACE_EVENT(vmbus_teardown_gpadl,
+	    TP_PROTO(const struct vmbus_channel_gpadl_teardown *msg, int ret),
+	    TP_ARGS(msg, ret),
+	    TP_STRUCT__entry(
+		    __field(u32, child_relid)
+		    __field(u32, gpadl)
+		    __field(int, ret)
+		    ),
+	    TP_fast_assign(
+		    __entry->child_relid = msg->child_relid;
+		    __entry->gpadl = msg->gpadl;
+		    __entry->ret = ret;
+		    ),
+	    TP_printk("sending child_relid 0x%x, gpadl 0x%x, ret %d",
+		      __entry->child_relid, __entry->gpadl, __entry->ret
+		    )
+	);
+
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
 #undef TRACE_INCLUDE_FILE

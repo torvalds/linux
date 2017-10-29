@@ -519,6 +519,8 @@ int vmbus_teardown_gpadl(struct vmbus_channel *channel, u32 gpadl_handle)
 	ret = vmbus_post_msg(msg, sizeof(struct vmbus_channel_gpadl_teardown),
 			     true);
 
+	trace_vmbus_teardown_gpadl(msg, ret);
+
 	if (ret)
 		goto post_msg_err;
 
