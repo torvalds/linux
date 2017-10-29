@@ -31,6 +31,8 @@
 #include <linux/hyperv.h>
 #include <linux/interrupt.h>
 
+#include "hv_trace.h"
+
 /*
  * Timeout for services such as KVP and fcopy.
  */
