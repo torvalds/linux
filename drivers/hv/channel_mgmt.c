@@ -373,12 +373,15 @@ static void percpu_channel_deq(void *arg)
 static void vmbus_release_relid(u32 relid)
 {
 	struct vmbus_channel_relid_released msg;
+	int ret;
 
 	memset(&msg, 0, sizeof(struct vmbus_channel_relid_released));
 	msg.child_relid = relid;
 	msg.header.msgtype = CHANNELMSG_RELID_RELEASED;
-	vmbus_post_msg(&msg, sizeof(struct vmbus_channel_relid_released),
-		       true);
+	ret = vmbus_post_msg(&msg, sizeof(struct vmbus_channel_relid_released),
+			     true);
+
+	trace_vmbus_release_relid(&msg, ret);
 }
 
 void hv_process_channel_removal(u32 relid)
