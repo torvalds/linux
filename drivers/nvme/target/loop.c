@@ -440,11 +440,7 @@ static void nvme_loop_shutdown_ctrl(struct nvme_loop_ctrl *ctrl)
 
 static void nvme_loop_delete_ctrl_host(struct nvme_ctrl *ctrl)
 {
-	nvme_stop_ctrl(ctrl);
-	nvme_remove_namespaces(ctrl);
 	nvme_loop_shutdown_ctrl(to_loop_ctrl(ctrl));
-	nvme_uninit_ctrl(ctrl);
-	nvme_put_ctrl(ctrl);
 }
 
 static void nvme_loop_delete_ctrl(struct nvmet_ctrl *nctrl)

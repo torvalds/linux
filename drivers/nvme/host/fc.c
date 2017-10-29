@@ -2640,24 +2640,11 @@ nvme_fc_delete_ctrl(struct nvme_ctrl *nctrl)
 
 	cancel_work_sync(&ctrl->ctrl.reset_work);
 	cancel_delayed_work_sync(&ctrl->connect_work);
-	nvme_stop_ctrl(&ctrl->ctrl);
-	nvme_remove_namespaces(&ctrl->ctrl);
 	/*
 	 * kill the association on the link side.  this will block
 	 * waiting for io to terminate
 	 */
 	nvme_fc_delete_association(ctrl);
-
-	/*
-	 * tear down the controller
-	 * After the last reference on the nvme ctrl is removed,
-	 * the transport nvme_fc_nvme_ctrl_freed() callback will be
-	 * invoked. From there, the transport will tear down it's
-	 * logical queues and association.
-	 */
-	nvme_uninit_ctrl(&ctrl->ctrl);
-
-	nvme_put_ctrl(&ctrl->ctrl);
 }
 
 static void

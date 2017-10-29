@@ -1757,11 +1757,7 @@ static void nvme_rdma_shutdown_ctrl(struct nvme_rdma_ctrl *ctrl, bool shutdown)
 
 static void nvme_rdma_delete_ctrl(struct nvme_ctrl *ctrl)
 {
-	nvme_stop_ctrl(ctrl);
-	nvme_remove_namespaces(ctrl);
 	nvme_rdma_shutdown_ctrl(to_rdma_ctrl(ctrl), true);
-	nvme_uninit_ctrl(ctrl);
-	nvme_put_ctrl(ctrl);
 }
 
 static void nvme_rdma_reset_ctrl_work(struct work_struct *work)
