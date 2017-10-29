@@ -856,6 +856,8 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 
 	rescind = (struct vmbus_channel_rescind_offer *)hdr;
 
+	trace_vmbus_onoffer_rescind(rescind);
+
 	/*
 	 * The offer msg and the corresponding rescind msg
 	 * from the host are guranteed to be ordered -
