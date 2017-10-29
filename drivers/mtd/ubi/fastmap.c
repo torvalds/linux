@@ -1063,7 +1063,7 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		e = kmem_cache_alloc(ubi_wl_entry_slab, GFP_KERNEL);
 		if (!e) {
 			while (i--)
-				kfree(fm->e[i]);
+				kmem_cache_free(ubi_wl_entry_slab, fm->e[i]);
 
 			ret = -ENOMEM;
 			goto free_hdr;
