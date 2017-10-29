@@ -1843,7 +1843,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	if (ret)
 		goto err_destroy_qp;
 
-	if (udata) {
+	if (udata && ucontext) {
 		sq_key_mm = kmalloc(sizeof(*sq_key_mm), GFP_KERNEL);
 		if (!sq_key_mm) {
 			ret = -ENOMEM;
