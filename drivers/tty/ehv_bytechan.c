@@ -325,7 +325,7 @@ console_initcall(ehv_bc_console_init);
 /******************************** TTY DRIVER ********************************/
 
 /*
- * byte channel receive interupt handler
+ * byte channel receive interrupt handler
  *
  * This ISR is called whenever data is available on a byte channel.
  */
@@ -425,7 +425,7 @@ static void ehv_bc_tx_dequeue(struct ehv_bc_data *bc)
 }
 
 /*
- * byte channel transmit interupt handler
+ * byte channel transmit interrupt handler
  *
  * This ISR is called whenever space becomes available for transmitting
  * characters on a byte channel.
