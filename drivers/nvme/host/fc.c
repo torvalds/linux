@@ -2663,22 +2663,14 @@ nvme_fc_delete_ctrl_work(struct work_struct *work)
 	nvme_put_ctrl(&ctrl->ctrl);
 }
 
-static bool
-__nvme_fc_schedule_delete_work(struct nvme_fc_ctrl *ctrl)
-{
-	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_DELETING))
-		return true;
-
-	if (!queue_work(nvme_wq, &ctrl->delete_work))
-		return true;
-
-	return false;
-}
-
 static int
 __nvme_fc_del_ctrl(struct nvme_fc_ctrl *ctrl)
 {
-	return __nvme_fc_schedule_delete_work(ctrl) ? -EBUSY : 0;
+	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_DELETING))
+		return -EBUSY;
+	if (!queue_work(nvme_wq, &ctrl->delete_work))
+		return -EBUSY;
+	return 0;
 }
 
 /*
@@ -2724,7 +2716,7 @@ nvme_fc_reconnect_or_delete(struct nvme_fc_ctrl *ctrl, int status)
 				"NVME-FC{%d}: Max reconnect attempts (%d) "
 				"reached. Removing controller\n",
 				ctrl->cnum, ctrl->ctrl.nr_reconnects);
-		WARN_ON(__nvme_fc_schedule_delete_work(ctrl));
+		WARN_ON(__nvme_fc_del_ctrl(ctrl));
 	}
 }
 
