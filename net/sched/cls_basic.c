@@ -34,7 +34,10 @@ struct basic_filter {
 	struct tcf_result	res;
 	struct tcf_proto	*tp;
 	struct list_head	link;
-	struct rcu_head		rcu;
+	union {
+		struct work_struct	work;
+		struct rcu_head		rcu;
+	};
 };
 
 static int basic_classify(struct sk_buff *skb, const struct tcf_proto *tp,
@@ -82,13 +85,24 @@ static int basic_init(struct tcf_proto *tp)
 	return 0;
 }
 
+static void basic_delete_filter_work(struct work_struct *work)
+{
+	struct basic_filter *f = container_of(work, struct basic_filter, work);
+
+	rtnl_lock();
+	tcf_exts_destroy(&f->exts);
+	tcf_em_tree_destroy(&f->ematches);
+	rtnl_unlock();
+
+	kfree(f);
+}
+
 static void basic_delete_filter(struct rcu_head *head)
 {
 	struct basic_filter *f = container_of(head, struct basic_filter, rcu);
 
-	tcf_exts_destroy(&f->exts);
-	tcf_em_tree_destroy(&f->ematches);
-	kfree(f);
+	INIT_WORK(&f->work, basic_delete_filter_work);
+	tcf_queue_work(&f->work);
 }
 
 static void basic_destroy(struct tcf_proto *tp)
