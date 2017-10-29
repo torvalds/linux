@@ -288,7 +288,7 @@ userspace.
     Unlike :c:func:`put_user()` and :c:func:`get_user()`, they
     return the amount of uncopied data (ie. 0 still means success).
 
-[Yes, this moronic interface makes me cringe. The flamewar comes up
+[Yes, this moronic interface makes me cringe. The flame war comes up
 every year or so. --RR.]
 
 The functions may sleep implicitly. This should never be called outside
@@ -387,7 +387,7 @@ convert value referred to by the pointer, and return void.
 Defined in ``include/linux/irqflags.h``
 
 These routines disable hard interrupts on the local CPU, and restore
-them. They are reentrant; saving the previous state in their one
+them. They are re-entrant; saving the previous state in their one
 ``unsigned long flags`` argument. If you know that interrupts are
 enabled, you can simply use :c:func:`local_irq_disable()` and
 :c:func:`local_irq_enable()`.
@@ -401,7 +401,7 @@ Defined in ``include/linux/bottom_half.h``
 
 
 These routines disable soft interrupts on the local CPU, and restore
-them. They are reentrant; if soft interrupts were disabled before, they
+them. They are re-entrant; if soft interrupts were disabled before, they
 will still be disabled after this pair of functions has been called.
 They prevent softirqs and tasklets from running on the current CPU.
 
@@ -486,7 +486,7 @@ module is being removed and you should act as if it wasn't there.
 Otherwise, you can safely enter the module, and call
 :c:func:`module_put()` when you're finished.
 
-Most registerable structures have an owner field, such as in the
+Most registrable structures have an owner field, such as in the
 :c:type:`struct file_operations <file_operations>` structure.
 Set this field to the macro ``THIS_MODULE``.
 
@@ -709,7 +709,7 @@ make a neat patch, there's administrative work to be done:
    you're not duplicating effort, or trying something that's already
    been rejected.
 
-   Make sure you put your name and EMail address at the top of any files
+   Make sure you put your name and Email address at the top of any files
    you create or mangle significantly. This is the first place people
    will look when they find a bug, or when **they** want to make a change.
 
