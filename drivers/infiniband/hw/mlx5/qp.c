@@ -1178,8 +1178,8 @@ static int create_raw_packet_qp_rq(struct mlx5_ib_dev *dev,
 
 	wq = MLX5_ADDR_OF(rqc, rqc, wq);
 	MLX5_SET(wq, wq, wq_type, MLX5_WQ_TYPE_CYCLIC);
-	MLX5_SET(wq, wq, end_padding_mode,
-		 MLX5_GET(qpc, qpc, end_padding_mode));
+	if (rq->flags & MLX5_IB_RQ_PCI_WRITE_END_PADDING)
+		MLX5_SET(wq, wq, end_padding_mode, MLX5_WQ_END_PAD_MODE_ALIGN);
 	MLX5_SET(wq, wq, page_offset, MLX5_GET(qpc, qpc, page_offset));
 	MLX5_SET(wq, wq, pd, MLX5_GET(qpc, qpc, pd));
 	MLX5_SET64(wq, wq, dbr_addr, MLX5_GET64(qpc, qpc, dbr_addr));
@@ -1276,6 +1276,8 @@ static int create_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 
 		if (qp->flags & MLX5_IB_QP_CVLAN_STRIPPING)
 			rq->flags |= MLX5_IB_RQ_CVLAN_STRIPPING;
+		if (qp->flags & MLX5_IB_QP_PCI_WRITE_END_PADDING)
+			rq->flags |= MLX5_IB_RQ_PCI_WRITE_END_PADDING;
 		err = create_raw_packet_qp_rq(dev, rq, in);
 		if (err)
 			goto err_destroy_sq;
@@ -1821,6 +1823,19 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		qp->flags |= MLX5_IB_QP_LSO;
 	}
 
+	if (init_attr->create_flags & IB_QP_CREATE_PCI_WRITE_END_PADDING) {
+		if (!MLX5_CAP_GEN(dev->mdev, end_pad)) {
+			mlx5_ib_dbg(dev, "scatter end padding is not supported\n");
+			err = -EOPNOTSUPP;
+			goto err;
+		} else if (init_attr->qp_type != IB_QPT_RAW_PACKET) {
+			MLX5_SET(qpc, qpc, end_padding_mode,
+				 MLX5_WQ_END_PAD_MODE_ALIGN);
+		} else {
+			qp->flags |= MLX5_IB_QP_PCI_WRITE_END_PADDING;
+		}
+	}
+
 	if (init_attr->qp_type == IB_QPT_RAW_PACKET ||
 	    qp->flags & MLX5_IB_QP_UNDERLAY) {
 		qp->raw_packet_qp.sq.ubuffer.buf_addr = ucmd.sq_buf_addr;
@@ -1865,6 +1880,7 @@ err_create:
 	else if (qp->create_type == MLX5_QP_KERNEL)
 		destroy_qp_kernel(dev, qp);
 
+err:
 	kvfree(in);
 	return err;
 }
@@ -4749,7 +4765,15 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 	MLX5_SET(wq, wq, wq_type,
 		 rwq->create_flags & MLX5_IB_WQ_FLAGS_STRIDING_RQ ?
 		 MLX5_WQ_TYPE_CYCLIC_STRIDING_RQ : MLX5_WQ_TYPE_CYCLIC);
-	MLX5_SET(wq, wq, end_padding_mode, MLX5_WQ_END_PAD_MODE_ALIGN);
+	if (init_attr->create_flags & IB_WQ_FLAGS_PCI_WRITE_END_PADDING) {
+		if (!MLX5_CAP_GEN(dev->mdev, end_pad)) {
+			mlx5_ib_dbg(dev, "Scatter end padding is not supported\n");
+			err = -EOPNOTSUPP;
+			goto out;
+		} else {
+			MLX5_SET(wq, wq, end_padding_mode, MLX5_WQ_END_PAD_MODE_ALIGN);
+		}
+	}
 	MLX5_SET(wq, wq, log_wq_stride, rwq->log_rq_stride);
 	if (rwq->create_flags & MLX5_IB_WQ_FLAGS_STRIDING_RQ) {
 		MLX5_SET(wq, wq, two_byte_shift_en, rwq->two_byte_shift_en);
@@ -5128,6 +5152,12 @@ int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 				   MLX5_MODIFY_RQ_IN_MODIFY_BITMASK_VSD);
 			MLX5_SET(rqc, rqc, vsd,
 				 (wq_attr->flags & IB_WQ_FLAGS_CVLAN_STRIPPING) ? 0 : 1);
+		}
+
+		if (wq_attr->flags_mask & IB_WQ_FLAGS_PCI_WRITE_END_PADDING) {
+			mlx5_ib_dbg(dev, "Modifying scatter end padding is not supported\n");
+			err = -EOPNOTSUPP;
+			goto out;
 		}
 	}
 

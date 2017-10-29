@@ -715,6 +715,9 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	if (mlx5_get_flow_namespace(dev->mdev, MLX5_FLOW_NAMESPACE_BYPASS))
 		props->device_cap_flags |= IB_DEVICE_MANAGED_FLOW_STEERING;
 
+	if (MLX5_CAP_GEN(mdev, end_pad))
+		props->device_cap_flags |= IB_DEVICE_PCI_WRITE_END_PADDING;
+
 	props->vendor_part_id	   = mdev->pdev->device;
 	props->hw_ver		   = mdev->pdev->revision;
 

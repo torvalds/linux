@@ -228,6 +228,7 @@ struct wr_list {
 
 enum mlx5_ib_rq_flags {
 	MLX5_IB_RQ_CVLAN_STRIPPING	= 1 << 0,
+	MLX5_IB_RQ_PCI_WRITE_END_PADDING	= 1 << 1,
 };
 
 struct mlx5_ib_wq {
@@ -421,7 +422,7 @@ enum mlx5_ib_qp_flags {
 	MLX5_IB_QP_RSS				= 1 << 8,
 	MLX5_IB_QP_CVLAN_STRIPPING		= 1 << 9,
 	MLX5_IB_QP_UNDERLAY			= 1 << 10,
-	/* Reserved for PCI_WRITE_PAD 		= 1 << 11, */
+	MLX5_IB_QP_PCI_WRITE_END_PADDING	= 1 << 11,
 	MLX5_IB_QP_TUNNEL_OFFLOAD		= 1 << 12,
 };
 
