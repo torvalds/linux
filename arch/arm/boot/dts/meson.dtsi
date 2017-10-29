@@ -85,15 +85,6 @@
 				reg = <0x7c00 0x200>;
 			};
 
-			gpio_intc: interrupt-controller@9880 {
-				compatible = "amlogic,meson-gpio-intc";
-				reg = <0xc1109880 0x10>;
-				interrupt-controller;
-				#interrupt-cells = <2>;
-				amlogic,channel-interrupts = <64 65 66 67 68 69 70 71>;
-				status = "disabled";
-			};
-
 			hwrng: rng@8100 {
 				compatible = "amlogic,meson-rng";
 				reg = <0x8100 0x8>;
@@ -188,6 +179,15 @@
 				reg = <0x8c80 0x80>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			gpio_intc: interrupt-controller@9880 {
+				compatible = "amlogic,meson-gpio-intc";
+				reg = <0xc1109880 0x10>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				amlogic,channel-interrupts = <64 65 66 67 68 69 70 71>;
 				status = "disabled";
 			};
 
