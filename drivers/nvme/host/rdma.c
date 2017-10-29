@@ -912,7 +912,7 @@ static void nvme_rdma_reconnect_or_remove(struct nvme_rdma_ctrl *ctrl)
 				ctrl->ctrl.opts->reconnect_delay * HZ);
 	} else {
 		dev_info(ctrl->ctrl.device, "Removing controller...\n");
-		queue_work(nvme_wq, &ctrl->ctrl.delete_work);
+		nvme_delete_ctrl(&ctrl->ctrl);
 	}
 }
 
