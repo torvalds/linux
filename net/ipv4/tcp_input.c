@@ -76,7 +76,6 @@
 #include <asm/unaligned.h>
 #include <linux/errqueue.h>
 #include <trace/events/tcp.h>
-#include <linux/unaligned/access_ok.h>
 #include <linux/static_key.h>
 
 int sysctl_tcp_max_orphans __read_mostly = NR_FILE;
