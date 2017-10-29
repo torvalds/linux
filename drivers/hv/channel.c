@@ -185,6 +185,8 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 	ret = vmbus_post_msg(open_msg,
 			     sizeof(struct vmbus_channel_open_channel), true);
 
+	trace_vmbus_open(open_msg, ret);
+
 	if (ret != 0) {
 		err = ret;
 		goto error_clean_msglist;

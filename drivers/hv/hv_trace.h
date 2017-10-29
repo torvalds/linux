@@ -130,6 +130,33 @@ TRACE_EVENT(vmbus_request_offers,
 	    TP_printk("sending ret %d", __entry->ret)
 	);
 
+TRACE_EVENT(vmbus_open,
+	    TP_PROTO(const struct vmbus_channel_open_channel *msg, int ret),
+	    TP_ARGS(msg, ret),
+	    TP_STRUCT__entry(
+		    __field(u32, child_relid)
+		    __field(u32, openid)
+		    __field(u32, gpadlhandle)
+		    __field(u32, target_vp)
+		    __field(u32, offset)
+		    __field(int, ret)
+		    ),
+	    TP_fast_assign(
+		    __entry->child_relid = msg->child_relid;
+		    __entry->openid = msg->openid;
+		    __entry->gpadlhandle = msg->ringbuffer_gpadlhandle;
+		    __entry->target_vp = msg->target_vp;
+		    __entry->offset = msg->downstream_ringbuffer_pageoffset;
+		    __entry->ret = ret;
+		    ),
+	    TP_printk("sending child_relid 0x%x, openid %d, "
+		      "gpadlhandle 0x%x, target_vp 0x%x, offset 0x%x, ret %d",
+		      __entry->child_relid,  __entry->openid,
+		      __entry->gpadlhandle, __entry->target_vp,
+		      __entry->offset, __entry->ret
+		    )
+	);
+
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
 #undef TRACE_INCLUDE_FILE
