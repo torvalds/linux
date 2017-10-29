@@ -1444,34 +1444,32 @@ static struct fsl_mc_device *setup_dpcon(struct dpaa2_eth_priv *priv)
 	err = dpcon_open(priv->mc_io, 0, dpcon->obj_desc.id, &dpcon->mc_handle);
 	if (err) {
 		dev_err(dev, "dpcon_open() failed\n");
-		goto err_open;
+		goto free;
 	}
 
 	err = dpcon_reset(priv->mc_io, 0, dpcon->mc_handle);
 	if (err) {
 		dev_err(dev, "dpcon_reset() failed\n");
-		goto err_reset;
+		goto close;
 	}
 
 	err = dpcon_get_attributes(priv->mc_io, 0, dpcon->mc_handle, &attrs);
 	if (err) {
 		dev_err(dev, "dpcon_get_attributes() failed\n");
-		goto err_get_attr;
+		goto close;
 	}
 
 	err = dpcon_enable(priv->mc_io, 0, dpcon->mc_handle);
 	if (err) {
 		dev_err(dev, "dpcon_enable() failed\n");
-		goto err_enable;
+		goto close;
 	}
 
 	return dpcon;
 
-err_enable:
-err_get_attr:
-err_reset:
+close:
 	dpcon_close(priv->mc_io, 0, dpcon->mc_handle);
-err_open:
+free:
 	fsl_mc_object_free(dpcon);
 
 	return NULL;
@@ -1794,7 +1792,7 @@ static int setup_dpni(struct fsl_mc_device *ls_dev)
 	err = dpni_open(priv->mc_io, 0, ls_dev->obj_desc.id, &priv->mc_token);
 	if (err) {
 		dev_err(dev, "dpni_open() failed\n");
-		goto err_open;
+		return err;
 	}
 
 	ls_dev->mc_io = priv->mc_io;
@@ -1803,14 +1801,14 @@ static int setup_dpni(struct fsl_mc_device *ls_dev)
 	err = dpni_reset(priv->mc_io, 0, priv->mc_token);
 	if (err) {
 		dev_err(dev, "dpni_reset() failed\n");
-		goto err_reset;
+		goto close;
 	}
 
 	err = dpni_get_attributes(priv->mc_io, 0, priv->mc_token,
 				  &priv->dpni_attrs);
 	if (err) {
 		dev_err(dev, "dpni_get_attributes() failed (err=%d)\n", err);
-		goto err_get_attr;
+		goto close;
 	}
 
 	/* Configure buffer layouts */
@@ -1827,7 +1825,7 @@ static int setup_dpni(struct fsl_mc_device *ls_dev)
 				     DPNI_QUEUE_RX, &buf_layout);
 	if (err) {
 		dev_err(dev, "dpni_set_buffer_layout(RX) failed\n");
-		goto err_buf_layout;
+		goto close;
 	}
 
 	/* tx buffer */
@@ -1837,7 +1835,7 @@ static int setup_dpni(struct fsl_mc_device *ls_dev)
 				     DPNI_QUEUE_TX, &buf_layout);
 	if (err) {
 		dev_err(dev, "dpni_set_buffer_layout(TX) failed\n");
-		goto err_buf_layout;
+		goto close;
 	}
 
 	/* tx-confirm buffer */
@@ -1846,7 +1844,7 @@ static int setup_dpni(struct fsl_mc_device *ls_dev)
 				     DPNI_QUEUE_TX_CONFIRM, &buf_layout);
 	if (err) {
 		dev_err(dev, "dpni_set_buffer_layout(TX_CONF) failed\n");
-		goto err_buf_layout;
+		goto close;
 	}
 
 	/* Now that we've set our tx buffer layout, retrieve the minimum
@@ -1856,7 +1854,7 @@ static int setup_dpni(struct fsl_mc_device *ls_dev)
 				      &priv->tx_data_offset);
 	if (err) {
 		dev_err(dev, "dpni_get_tx_data_offset() failed\n");
-		goto err_data_offset;
+		goto close;
 	}
 
 	if ((priv->tx_data_offset % 64) != 0)
@@ -1868,12 +1866,9 @@ static int setup_dpni(struct fsl_mc_device *ls_dev)
 
 	return 0;
 
-err_data_offset:
-err_buf_layout:
-err_get_attr:
-err_reset:
+close:
 	dpni_close(priv->mc_io, 0, priv->mc_token);
-err_open:
+
 	return err;
 }
 
