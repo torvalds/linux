@@ -1491,7 +1491,8 @@ static int create_qp(struct ib_uverbs_file *file,
 				IB_QP_CREATE_MANAGED_RECV |
 				IB_QP_CREATE_SCATTER_FCS |
 				IB_QP_CREATE_CVLAN_STRIPPING |
-				IB_QP_CREATE_SOURCE_QPN)) {
+				IB_QP_CREATE_SOURCE_QPN |
+				IB_QP_CREATE_PCI_WRITE_END_PADDING)) {
 		ret = -EINVAL;
 		goto err_put;
 	}
