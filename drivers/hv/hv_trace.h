@@ -111,6 +111,17 @@ TRACE_EVENT(vmbus_ongpadl_torndown,
 	    TP_printk("gpadl 0x%x", __entry->gpadl)
 	);
 
+TRACE_EVENT(vmbus_onversion_response,
+	    TP_PROTO(const struct vmbus_channel_version_response *response),
+	    TP_ARGS(response),
+	    TP_STRUCT__entry(
+		    __field(u8, ver)
+		    ),
+	    TP_fast_assign(__entry->ver = response->version_supported;
+		    ),
+	    TP_printk("version_supported %d", __entry->ver)
+	);
+
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
 #undef TRACE_INCLUDE_FILE
