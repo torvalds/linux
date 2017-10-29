@@ -575,6 +575,12 @@ static void mqprio_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 	}
 }
 
+static struct netdev_queue *mqprio_select_queue(struct Qdisc *sch,
+						struct tcmsg *tcm)
+{
+	return mqprio_queue_get(sch, TC_H_MIN(tcm->tcm_parent));
+}
+
 static const struct Qdisc_class_ops mqprio_class_ops = {
 	.graft		= mqprio_graft,
 	.leaf		= mqprio_leaf,
@@ -582,6 +588,7 @@ static const struct Qdisc_class_ops mqprio_class_ops = {
 	.walk		= mqprio_walk,
 	.dump		= mqprio_dump_class,
 	.dump_stats	= mqprio_dump_class_stats,
+	.select_queue	= mqprio_select_queue,
 };
 
 static struct Qdisc_ops mqprio_qdisc_ops __read_mostly = {
