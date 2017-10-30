@@ -705,8 +705,16 @@ static void cached_dev_read_error(struct closure *cl)
 {
 	struct search *s = container_of(cl, struct search, cl);
 	struct bio *bio = &s->bio.bio;
+	struct cached_dev *dc = container_of(s->d, struct cached_dev, disk);
 
-	if (s->recoverable) {
+	/*
+	 * If cache device is dirty (dc->has_dirty is non-zero), then
+	 * recovery a failed read request from cached device may get a
+	 * stale data back. So read failure recovery is only permitted
+	 * when cache device is clean.
+	 */
+	if (s->recoverable &&
+	    (dc && !atomic_read(&dc->has_dirty))) {
 		/* Retry from the backing device: */
 		trace_bcache_read_retry(s->orig_bio);
 
