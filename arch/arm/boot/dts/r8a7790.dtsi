@@ -56,6 +56,7 @@
 			clock-latency = <300000>; /* 300 us */
 			power-domains = <&sysc R8A7790_PD_CA15_CPU0>;
 			next-level-cache = <&L2_CA15>;
+			capacity-dmips-mhz = <1024>;
 
 			/* kHz - uV - OPPs unknown yet */
 			operating-points = <1400000 1000000>,
@@ -71,8 +72,10 @@
 			compatible = "arm,cortex-a15";
 			reg = <1>;
 			clock-frequency = <1300000000>;
+			clocks = <&cpg CPG_CORE R8A7790_CLK_Z>;
 			power-domains = <&sysc R8A7790_PD_CA15_CPU1>;
 			next-level-cache = <&L2_CA15>;
+			capacity-dmips-mhz = <1024>;
 		};
 
 		cpu2: cpu@2 {
@@ -80,8 +83,10 @@
 			compatible = "arm,cortex-a15";
 			reg = <2>;
 			clock-frequency = <1300000000>;
+			clocks = <&cpg CPG_CORE R8A7790_CLK_Z>;
 			power-domains = <&sysc R8A7790_PD_CA15_CPU2>;
 			next-level-cache = <&L2_CA15>;
+			capacity-dmips-mhz = <1024>;
 		};
 
 		cpu3: cpu@3 {
@@ -89,8 +94,10 @@
 			compatible = "arm,cortex-a15";
 			reg = <3>;
 			clock-frequency = <1300000000>;
+			clocks = <&cpg CPG_CORE R8A7790_CLK_Z>;
 			power-domains = <&sysc R8A7790_PD_CA15_CPU3>;
 			next-level-cache = <&L2_CA15>;
+			capacity-dmips-mhz = <1024>;
 		};
 
 		cpu4: cpu@100 {
@@ -98,8 +105,10 @@
 			compatible = "arm,cortex-a7";
 			reg = <0x100>;
 			clock-frequency = <780000000>;
+			clocks = <&cpg CPG_CORE R8A7790_CLK_Z2>;
 			power-domains = <&sysc R8A7790_PD_CA7_CPU0>;
 			next-level-cache = <&L2_CA7>;
+			capacity-dmips-mhz = <539>;
 		};
 
 		cpu5: cpu@101 {
@@ -107,8 +116,10 @@
 			compatible = "arm,cortex-a7";
 			reg = <0x101>;
 			clock-frequency = <780000000>;
+			clocks = <&cpg CPG_CORE R8A7790_CLK_Z2>;
 			power-domains = <&sysc R8A7790_PD_CA7_CPU1>;
 			next-level-cache = <&L2_CA7>;
+			capacity-dmips-mhz = <539>;
 		};
 
 		cpu6: cpu@102 {
@@ -116,8 +127,10 @@
 			compatible = "arm,cortex-a7";
 			reg = <0x102>;
 			clock-frequency = <780000000>;
+			clocks = <&cpg CPG_CORE R8A7790_CLK_Z2>;
 			power-domains = <&sysc R8A7790_PD_CA7_CPU2>;
 			next-level-cache = <&L2_CA7>;
+			capacity-dmips-mhz = <539>;
 		};
 
 		cpu7: cpu@103 {
@@ -125,8 +138,10 @@
 			compatible = "arm,cortex-a7";
 			reg = <0x103>;
 			clock-frequency = <780000000>;
+			clocks = <&cpg CPG_CORE R8A7790_CLK_Z2>;
 			power-domains = <&sysc R8A7790_PD_CA7_CPU3>;
 			next-level-cache = <&L2_CA7>;
+			capacity-dmips-mhz = <539>;
 		};
 
 		L2_CA15: cache-controller-0 {
@@ -192,7 +207,7 @@
 	};
 
 	gpio0: gpio@e6050000 {
-		compatible = "renesas,gpio-r8a7790", "renesas,gpio-rcar";
+		compatible = "renesas,gpio-r8a7790", "renesas,rcar-gen2-gpio";
 		reg = <0 0xe6050000 0 0x50>;
 		interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
@@ -206,7 +221,7 @@
 	};
 
 	gpio1: gpio@e6051000 {
-		compatible = "renesas,gpio-r8a7790", "renesas,gpio-rcar";
+		compatible = "renesas,gpio-r8a7790", "renesas,rcar-gen2-gpio";
 		reg = <0 0xe6051000 0 0x50>;
 		interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
@@ -220,7 +235,7 @@
 	};
 
 	gpio2: gpio@e6052000 {
-		compatible = "renesas,gpio-r8a7790", "renesas,gpio-rcar";
+		compatible = "renesas,gpio-r8a7790", "renesas,rcar-gen2-gpio";
 		reg = <0 0xe6052000 0 0x50>;
 		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
@@ -234,7 +249,7 @@
 	};
 
 	gpio3: gpio@e6053000 {
-		compatible = "renesas,gpio-r8a7790", "renesas,gpio-rcar";
+		compatible = "renesas,gpio-r8a7790", "renesas,rcar-gen2-gpio";
 		reg = <0 0xe6053000 0 0x50>;
 		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
@@ -248,7 +263,7 @@
 	};
 
 	gpio4: gpio@e6054000 {
-		compatible = "renesas,gpio-r8a7790", "renesas,gpio-rcar";
+		compatible = "renesas,gpio-r8a7790", "renesas,rcar-gen2-gpio";
 		reg = <0 0xe6054000 0 0x50>;
 		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
@@ -262,7 +277,7 @@
 	};
 
 	gpio5: gpio@e6055000 {
-		compatible = "renesas,gpio-r8a7790", "renesas,gpio-rcar";
+		compatible = "renesas,gpio-r8a7790", "renesas,rcar-gen2-gpio";
 		reg = <0 0xe6055000 0 0x50>;
 		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
@@ -1014,7 +1029,7 @@
 		status = "disabled";
 	};
 
-	vsp1@fe920000 {
+	vsp@fe920000 {
 		compatible = "renesas,vsp1";
 		reg = <0 0xfe920000 0 0x8000>;
 		interrupts = <GIC_SPI 266 IRQ_TYPE_LEVEL_HIGH>;
@@ -1023,7 +1038,7 @@
 		resets = <&cpg 130>;
 	};
 
-	vsp1@fe928000 {
+	vsp@fe928000 {
 		compatible = "renesas,vsp1";
 		reg = <0 0xfe928000 0 0x8000>;
 		interrupts = <GIC_SPI 267 IRQ_TYPE_LEVEL_HIGH>;
@@ -1032,7 +1047,7 @@
 		resets = <&cpg 131>;
 	};
 
-	vsp1@fe930000 {
+	vsp@fe930000 {
 		compatible = "renesas,vsp1";
 		reg = <0 0xfe930000 0 0x8000>;
 		interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
@@ -1041,7 +1056,7 @@
 		resets = <&cpg 128>;
 	};
 
-	vsp1@fe938000 {
+	vsp@fe938000 {
 		compatible = "renesas,vsp1";
 		reg = <0 0xfe938000 0 0x8000>;
 		interrupts = <GIC_SPI 247 IRQ_TYPE_LEVEL_HIGH>;
