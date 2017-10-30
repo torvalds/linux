@@ -446,8 +446,10 @@ static int xgpu_vi_send_access_requests(struct amdgpu_device *adev,
 		request == IDH_REQ_GPU_FINI_ACCESS ||
 		request == IDH_REQ_GPU_RESET_ACCESS) {
 		r = xgpu_vi_poll_msg(adev, IDH_READY_TO_ACCESS_GPU);
-		if (r)
-			pr_err("Doesn't get ack from pf, continue\n");
+		if (r) {
+			pr_err("Doesn't get ack from pf, give up\n");
+			return r;
+		}
 	}
 
 	return 0;
