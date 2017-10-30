@@ -138,8 +138,8 @@ struct irq_domain_chip_generic;
  * @mapcount: The number of mapped interrupts
  *
  * Optional elements
- * @of_node: Pointer to device tree nodes associated with the irq_domain. Used
- *           when decoding device tree interrupt specifiers.
+ * @fwnode: Pointer to firmware node associated with the irq_domain. Pretty easy
+ *          to swap it for the of_node via the irq_domain_get_of_node accessor
  * @gc: Pointer to a list of generic chips. There is a helper function for
  *      setting up one or more generic chips for interrupt controllers
  *      drivers using the generic chip library which uses this pointer.
