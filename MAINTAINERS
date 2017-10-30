@@ -6671,7 +6671,7 @@ F:	include/net/ieee802154_netdev.h
 F:	Documentation/networking/ieee802154.txt
 
 IFE PROTOCOL
-M:	Yotam Gigi <yotamg@mellanox.com>
+M:	Yotam Gigi <yotam.gi@gmail.com>
 M:	Jamal Hadi Salim <jhs@mojatatu.com>
 F:	net/ife
 F:	include/net/ife.h
@@ -10890,7 +10890,7 @@ S:	Maintained
 F:	drivers/block/ps3vram.c
 
 PSAMPLE PACKET SAMPLING SUPPORT:
-M:	Yotam Gigi <yotamg@mellanox.com>
+M:	Yotam Gigi <yotam.gi@gmail.com>
 S:	Maintained
 F:	net/psample
 F:	include/net/psample.h

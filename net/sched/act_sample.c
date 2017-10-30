@@ -271,6 +271,6 @@ static void __exit sample_cleanup_module(void)
 module_init(sample_init_module);
 module_exit(sample_cleanup_module);
 
-MODULE_AUTHOR("Yotam Gigi <yotamg@mellanox.com>");
+MODULE_AUTHOR("Yotam Gigi <yotam.gi@gmail.com>");
 MODULE_DESCRIPTION("Packet sampling action");
 MODULE_LICENSE("GPL v2");
