@@ -104,12 +104,144 @@ static int pvcalls_front_remove(struct xenbus_device *dev)
 static int pvcalls_front_probe(struct xenbus_device *dev,
 			  const struct xenbus_device_id *id)
 {
+	int ret = -ENOMEM, evtchn, i;
+	unsigned int max_page_order, function_calls, len;
+	char *versions;
+	grant_ref_t gref_head = 0;
+	struct xenbus_transaction xbt;
+	struct pvcalls_bedata *bedata = NULL;
+	struct xen_pvcalls_sring *sring;
+
+	if (pvcalls_front_dev != NULL) {
+		dev_err(&dev->dev, "only one PV Calls connection supported\n");
+		return -EINVAL;
+	}
+
+	versions = xenbus_read(XBT_NIL, dev->otherend, "versions", &len);
+	if (!len)
+		return -EINVAL;
+	if (strcmp(versions, "1")) {
+		kfree(versions);
+		return -EINVAL;
+	}
+	kfree(versions);
+	max_page_order = xenbus_read_unsigned(dev->otherend,
+					      "max-page-order", 0);
+	if (max_page_order < PVCALLS_RING_ORDER)
+		return -ENODEV;
+	function_calls = xenbus_read_unsigned(dev->otherend,
+					      "function-calls", 0);
+	/* See XENBUS_FUNCTIONS_CALLS in pvcalls.h */
+	if (function_calls != 1)
+		return -ENODEV;
+	pr_info("%s max-page-order is %u\n", __func__, max_page_order);
+
+	bedata = kzalloc(sizeof(struct pvcalls_bedata), GFP_KERNEL);
+	if (!bedata)
+		return -ENOMEM;
+
+	dev_set_drvdata(&dev->dev, bedata);
+	pvcalls_front_dev = dev;
+	init_waitqueue_head(&bedata->inflight_req);
+	INIT_LIST_HEAD(&bedata->socket_mappings);
+	spin_lock_init(&bedata->socket_lock);
+	bedata->irq = -1;
+	bedata->ref = -1;
+
+	for (i = 0; i < PVCALLS_NR_RSP_PER_RING; i++)
+		bedata->rsp[i].req_id = PVCALLS_INVALID_ID;
+
+	sring = (struct xen_pvcalls_sring *) __get_free_page(GFP_KERNEL |
+							     __GFP_ZERO);
+	if (!sring)
+		goto error;
+	SHARED_RING_INIT(sring);
+	FRONT_RING_INIT(&bedata->ring, sring, XEN_PAGE_SIZE);
+
+	ret = xenbus_alloc_evtchn(dev, &evtchn);
+	if (ret)
+		goto error;
+
+	bedata->irq = bind_evtchn_to_irqhandler(evtchn,
+						pvcalls_front_event_handler,
+						0, "pvcalls-frontend", dev);
+	if (bedata->irq < 0) {
+		ret = bedata->irq;
+		goto error;
+	}
+
+	ret = gnttab_alloc_grant_references(1, &gref_head);
+	if (ret < 0)
+		goto error;
+	bedata->ref = gnttab_claim_grant_reference(&gref_head);
+	if (bedata->ref < 0) {
+		ret = bedata->ref;
+		goto error;
+	}
+	gnttab_grant_foreign_access_ref(bedata->ref, dev->otherend_id,
+					virt_to_gfn((void *)sring), 0);
+
+ again:
+	ret = xenbus_transaction_start(&xbt);
+	if (ret) {
+		xenbus_dev_fatal(dev, ret, "starting transaction");
+		goto error;
+	}
+	ret = xenbus_printf(xbt, dev->nodename, "version", "%u", 1);
+	if (ret)
+		goto error_xenbus;
+	ret = xenbus_printf(xbt, dev->nodename, "ring-ref", "%d", bedata->ref);
+	if (ret)
+		goto error_xenbus;
+	ret = xenbus_printf(xbt, dev->nodename, "port", "%u",
+			    evtchn);
+	if (ret)
+		goto error_xenbus;
+	ret = xenbus_transaction_end(xbt, 0);
+	if (ret) {
+		if (ret == -EAGAIN)
+			goto again;
+		xenbus_dev_fatal(dev, ret, "completing transaction");
+		goto error;
+	}
+	xenbus_switch_state(dev, XenbusStateInitialised);
+
 	return 0;
+
+ error_xenbus:
+	xenbus_transaction_end(xbt, 1);
+	xenbus_dev_fatal(dev, ret, "writing xenstore");
+ error:
+	pvcalls_front_remove(dev);
+	return ret;
 }
 
 static void pvcalls_front_changed(struct xenbus_device *dev,
 			    enum xenbus_state backend_state)
 {
+	switch (backend_state) {
+	case XenbusStateReconfiguring:
+	case XenbusStateReconfigured:
+	case XenbusStateInitialising:
+	case XenbusStateInitialised:
+	case XenbusStateUnknown:
+		break;
+
+	case XenbusStateInitWait:
+		break;
+
+	case XenbusStateConnected:
+		xenbus_switch_state(dev, XenbusStateConnected);
+		break;
+
+	case XenbusStateClosed:
+		if (dev->state == XenbusStateClosed)
+			break;
+		/* Missed the backend's CLOSING state -- fallthrough */
+	case XenbusStateClosing:
+		xenbus_frontend_closed(dev);
+		break;
+	}
 }
 
 static struct xenbus_driver pvcalls_front_driver = {
