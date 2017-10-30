@@ -304,6 +304,10 @@ struct bdb_general_features {
 #define DVO_PORT_MIPIC		23				/* 171 */
 #define DVO_PORT_MIPID		24				/* 171 */
 
+#define HDMI_MAX_DATA_RATE_PLATFORM	0			/* 204 */
+#define HDMI_MAX_DATA_RATE_297		1			/* 204 */
+#define HDMI_MAX_DATA_RATE_165		2			/* 204 */
+
 #define LEGACY_CHILD_DEVICE_CONFIG_SIZE		33
 
 /* DDC Bus DDI Type 155+ */
