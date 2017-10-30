@@ -1894,16 +1894,6 @@ static void update_sit_entry(struct f2fs_sb_info *sbi, block_t blkaddr, int del)
 		get_sec_entry(sbi, segno)->valid_blocks += del;
 }
 
-void refresh_sit_entry(struct f2fs_sb_info *sbi, block_t old, block_t new)
-{
-	update_sit_entry(sbi, new, 1);
-	if (GET_SEGNO(sbi, old) != NULL_SEGNO)
-		update_sit_entry(sbi, old, -1);
-
-	locate_dirty_segment(sbi, GET_SEGNO(sbi, old));
-	locate_dirty_segment(sbi, GET_SEGNO(sbi, new));
-}
-
 void invalidate_blocks(struct f2fs_sb_info *sbi, block_t addr)
 {
 	unsigned int segno = GET_SEGNO(sbi, addr);
@@ -2540,13 +2530,24 @@ void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 
 	stat_inc_block_count(sbi, curseg);
 
+	/*
+	 * SIT information should be updated before segment allocation,
+	 * since SSR needs latest valid block information.
+	 */
+	update_sit_entry(sbi, *new_blkaddr, 1);
+	if (GET_SEGNO(sbi, old_blkaddr) != NULL_SEGNO)
+		update_sit_entry(sbi, old_blkaddr, -1);
+
 	if (!__has_curseg_space(sbi, type))
 		sit_i->s_ops->allocate_segment(sbi, type, false);
+
 	/*
-	 * SIT information should be updated after segment allocation,
-	 * since we need to keep dirty segments precisely under SSR.
+	 * segment dirty status should be updated after segment allocation,
+	 * so we just need to update status only one time after previous
+	 * segment being closed.
 	 */
-	refresh_sit_entry(sbi, old_blkaddr, *new_blkaddr);
+	locate_dirty_segment(sbi, GET_SEGNO(sbi, old_blkaddr));
+	locate_dirty_segment(sbi, GET_SEGNO(sbi, *new_blkaddr));
 
 	mutex_unlock(&sit_i->sentry_lock);
 
