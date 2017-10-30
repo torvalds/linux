@@ -41,6 +41,7 @@
 /dts-v1/;
 #include <dt-bindings/clock/rockchip,rk808.h>
 #include "rk3288.dtsi"
+#include "rk3288-rkisp1.dtsi"
 
 / {
 	compatible = "rockchip,rk3288-miniarm", "rockchip,rk3288";
@@ -170,6 +171,24 @@
 		regulator-max-microvolt = <3300000>;
 		startup-delay-us = <100000>;
 		vin-supply = <&vcc_io>;
+	};
+
+	vcc_cam: vcc-camera {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_cam";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_pwr>;
+		enable-active-high;
+		gpio = <&gpio2 0 GPIO_ACTIVE_HIGH>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	ext_cam_clk: external-camera-clock {
+		compatible = "fixed-clock";
+		clock-frequency = <25000000>;
+		clock-output-names = "CLK_CAMERA_25MHZ";
+		#clock-cells = <0>;
 	};
 };
 
@@ -422,20 +441,30 @@
 &i2c2 {
 	status = "okay";
 
+	camera0: ov5647@36 {
+		compatible = "ovti,ov5647";
+		reg = <0x36>;
+		clocks = <&ext_cam_clk>;
+		status = "okay";
+	};
+
+	camera1: imx219@10 {
+		compatible = "sony,imx219";
+		reg = <0x10>;
+		clocks = <&ext_cam_clk>;
+		status = "okay";
+
+		port {
+			imx219_out: endpoint {
+				remote-endpoint = <&imx219_in>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
 	m24c08@50 {
 		compatible = "at,24c08";
 		reg = <0x50>;
-	};
-};
-
-&i2c1 {
-	status = "okay";
-
-	pcm5122: pcm5122@4c {
-		#sound-dai-cells = <0>;
-		compatible = "ti,pcm5122";
-		reg = <0x4c>;
-		status = "disabled";
 	};
 };
 
@@ -445,6 +474,46 @@
 
 &i2c4 {
 	status = "okay";
+};
+
+&isp {
+	status = "okay";
+
+	port {
+		isp_mipi_in: endpoint {
+			remote-endpoint = <&dphy_rx0_out>;
+		};
+	};
+};
+
+&isp_mmu {
+	status = "okay";
+};
+
+&mipi_phy_rx0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			imx219_in: endpoint {
+				remote-endpoint = <&imx219_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			dphy_rx0_out: endpoint {
+				remote-endpoint = <&isp_mipi_in>;
+			};
+		};
+	};
 };
 
 &spi2 {
@@ -686,6 +755,12 @@
 	wireless-bluetooth {
 		uart0_gpios: uart0-gpios {
 			rockchip,pins = <4 19 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	cam_pins {
+		cam_pwr: cam-pwr {
+			rockchip,pins = <2 0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
