@@ -412,6 +412,63 @@ int pvcalls_front_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 	return 0;
 }
 
+int pvcalls_front_listen(struct socket *sock, int backlog)
+{
+	struct pvcalls_bedata *bedata;
+	struct sock_mapping *map;
+	struct xen_pvcalls_request *req;
+	int notify, req_id, ret;
+
+	pvcalls_enter();
+	if (!pvcalls_front_dev) {
+		pvcalls_exit();
+		return -ENOTCONN;
+	}
+	bedata = dev_get_drvdata(&pvcalls_front_dev->dev);
+
+	map = (struct sock_mapping *) sock->sk->sk_send_head;
+	if (!map) {
+		pvcalls_exit();
+		return -ENOTSOCK;
+	}
+
+	if (map->passive.status != PVCALLS_STATUS_BIND) {
+		pvcalls_exit();
+		return -EOPNOTSUPP;
+	}
+
+	spin_lock(&bedata->socket_lock);
+	ret = get_request(bedata, &req_id);
+	if (ret < 0) {
+		spin_unlock(&bedata->socket_lock);
+		pvcalls_exit();
+		return ret;
+	}
+	req = RING_GET_REQUEST(&bedata->ring, req_id);
+	req->req_id = req_id;
+	req->cmd = PVCALLS_LISTEN;
+	req->u.listen.id = (uintptr_t) map;
+	req->u.listen.backlog = backlog;
+
+	bedata->ring.req_prod_pvt++;
+	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, notify);
+	spin_unlock(&bedata->socket_lock);
+	if (notify)
+		notify_remote_via_irq(bedata->irq);
+
+	wait_event(bedata->inflight_req,
+		   READ_ONCE(bedata->rsp[req_id].req_id) == req_id);
+
+	/* read req_id, then the content */
+	smp_rmb();
+	ret = bedata->rsp[req_id].ret;
+	bedata->rsp[req_id].req_id = PVCALLS_INVALID_ID;
+
+	map->passive.status = PVCALLS_STATUS_LISTEN;
+	pvcalls_exit();
+	return ret;
+}
+
 static const struct xenbus_device_id pvcalls_front_ids[] = {
 	{ "pvcalls" },
 	{ "" }
