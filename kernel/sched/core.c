@@ -91,8 +91,6 @@
 #include <trace/events/sched.h>
 #include "walt.h"
 
-static bool have_sched_energy_data(void);
-
 DEFINE_MUTEX(sched_domains_mutex);
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 
@@ -195,10 +193,6 @@ static int sched_feat_set(char *cmp)
 				sysctl_sched_features &= ~(1UL << i);
 				sched_feat_disable(i);
 			} else {
-				if (i == __SCHED_FEAT_ENERGY_AWARE)
-					WARN(!have_sched_energy_data(),
-					     "Missing sched energy data\n");
-
 				sysctl_sched_features |= (1UL << i);
 				sched_feat_enable(i);
 			}
@@ -6655,19 +6649,6 @@ static void init_sched_groups_capacity(int cpu, struct sched_domain *sd)
 	atomic_set(&sg->sgc->nr_busy_cpus, sg->group_weight);
 }
 
-static bool have_sched_energy_data(void)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		if (!rcu_dereference(per_cpu(sd_scs, cpu)) ||
-		    !rcu_dereference(per_cpu(sd_ea, cpu)))
-			return false;
-	}
-
-	return true;
-}
-
 /*
  * Check that the per-cpu provided sd energy data is consistent for all cpus
  * within the mask.
@@ -7479,9 +7460,6 @@ static int build_sched_domains(const struct cpumask *cpu_map,
 		cpu_attach_domain(sd, d.rd, i);
 	}
 	rcu_read_unlock();
-
-	WARN(sched_feat(ENERGY_AWARE) && !have_sched_energy_data(),
-	     "Missing data for energy aware scheduling\n");
 
 	ret = 0;
 error:
