@@ -201,7 +201,7 @@ void show_config(struct lkl_config *cfg)
 	lkl_printf("mount: %s\n", cfg->mount);
 	lkl_printf("singlecpu: %s\n", cfg->single_cpu);
 	lkl_printf("sysctl: %s\n", cfg->sysctls);
-	lkl_printf("cmdlien: %s\n", cfg->boot_cmdline);
+	lkl_printf("cmdline: %s\n", cfg->boot_cmdline);
 	lkl_printf("dump: %s\n", cfg->dump);
 	lkl_printf("delay: %s\n", cfg->delay_main);
 	for (i = 0; i < cfg->ifnum; i++) {
