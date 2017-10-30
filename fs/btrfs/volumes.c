@@ -2345,17 +2345,15 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 
 	name = rcu_string_strdup(device_path, GFP_KERNEL);
 	if (!name) {
-		free_device(device);
 		ret = -ENOMEM;
-		goto error;
+		goto error_free_device;
 	}
 	rcu_assign_pointer(device->name, name);
 
 	trans = btrfs_start_transaction(root, 0);
 	if (IS_ERR(trans)) {
-		free_device(device);
 		ret = PTR_ERR(trans);
-		goto error;
+		goto error_free_device;
 	}
 
 	q = bdev_get_queue(bdev);
@@ -2495,6 +2493,7 @@ error_trans:
 		sb->s_flags |= SB_RDONLY;
 	if (trans)
 		btrfs_end_transaction(trans);
+error_free_device:
 	free_device(device);
 error:
 	blkdev_put(bdev, FMODE_EXCL);
