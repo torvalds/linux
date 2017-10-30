@@ -73,6 +73,7 @@ static const struct dmi_system_id peaq_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "PEAQ PMM C1010 MD99187"),
 		},
 	},
+	{}
 };
 
 static int __init peaq_wmi_init(void)
