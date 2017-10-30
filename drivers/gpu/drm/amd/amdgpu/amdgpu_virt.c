@@ -334,6 +334,7 @@ void amdgpu_virt_init_data_exchange(struct amdgpu_device *adev)
 		pf2vf_ver = adev->virt.fw_reserve.p_pf2vf->version;
 		AMDGPU_FW_VRAM_PF2VF_READ(adev, header.size, &pf2vf_size);
 		AMDGPU_FW_VRAM_PF2VF_READ(adev, checksum, &checksum);
+		AMDGPU_FW_VRAM_PF2VF_READ(adev, feature_flags, &adev->virt.gim_feature);
 
 		/* pf2vf message must be in 4K */
 		if (pf2vf_size > 0 && pf2vf_size < 4096) {

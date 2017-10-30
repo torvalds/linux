@@ -81,6 +81,8 @@ enum AMDGIM_FEATURE_FLAG {
 	AMDGIM_FEATURE_ERROR_LOG_COLLECT = 0x1,
 	/* GIM supports feature of loading uCodes */
 	AMDGIM_FEATURE_GIM_LOAD_UCODES   = 0x2,
+	/* VRAM LOST by GIM */
+	AMDGIM_FEATURE_GIM_FLR_VRAMLOST = 0x4,
 };
 
 struct amdgim_pf2vf_info_header {
@@ -246,6 +248,7 @@ struct amdgpu_virt {
 	const struct amdgpu_virt_ops	*ops;
 	struct amdgpu_vf_error_buffer   vf_errors;
 	struct amdgpu_virt_fw_reserve	fw_reserve;
+	uint32_t gim_feature;
 };
 
 #define AMDGPU_CSA_SIZE    (8 * 1024)

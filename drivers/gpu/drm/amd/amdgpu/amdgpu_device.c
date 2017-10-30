@@ -3037,11 +3037,10 @@ error:
 	amdgpu_virt_release_full_gpu(adev, true);
 
 	if (reset_flags) {
-		/* will get vram_lost from GIM in future, now all
-		 * reset request considered VRAM LOST
-		 */
-		(*reset_flags) |= ~AMDGPU_RESET_INFO_VRAM_LOST;
-		atomic_inc(&adev->vram_lost_counter);
+		if (adev->virt.gim_feature & AMDGIM_FEATURE_GIM_FLR_VRAMLOST) {
+			(*reset_flags) |= AMDGPU_RESET_INFO_VRAM_LOST;
+			atomic_inc(&adev->vram_lost_counter);
+		}
 
 		/* VF FLR or hotlink reset is always full-reset */
 		(*reset_flags) |= AMDGPU_RESET_INFO_FULLRESET;
