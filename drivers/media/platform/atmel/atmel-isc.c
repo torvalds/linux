@@ -598,7 +598,7 @@ static int isc_clk_prepare(struct clk_hw *hw)
 {
 	struct isc_clk *isc_clk = to_isc_clk(hw);
 
-	if (isc_clk->id == ISC_MCK)
+	if (isc_clk->id == ISC_ISPCK)
 		pm_runtime_get_sync(isc_clk->dev);
 
 	return isc_wait_clk_stable(hw);
@@ -610,7 +610,7 @@ static void isc_clk_unprepare(struct clk_hw *hw)
 
 	isc_wait_clk_stable(hw);
 
-	if (isc_clk->id == ISC_MCK)
+	if (isc_clk->id == ISC_ISPCK)
 		pm_runtime_put_sync(isc_clk->dev);
 }
 
@@ -657,12 +657,12 @@ static int isc_clk_is_enabled(struct clk_hw *hw)
 	struct isc_clk *isc_clk = to_isc_clk(hw);
 	u32 status;
 
-	if (isc_clk->id == ISC_MCK)
+	if (isc_clk->id == ISC_ISPCK)
 		pm_runtime_get_sync(isc_clk->dev);
 
 	regmap_read(isc_clk->regmap, ISC_CLKSR, &status);
 
-	if (isc_clk->id == ISC_MCK)
+	if (isc_clk->id == ISC_ISPCK)
 		pm_runtime_put_sync(isc_clk->dev);
 
 	return status & ISC_CLK(isc_clk->id) ? 1 : 0;
