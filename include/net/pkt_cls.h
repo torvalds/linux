@@ -2,6 +2,7 @@
 #define __NET_PKT_CLS_H
 
 #include <linux/pkt_cls.h>
+#include <linux/workqueue.h>
 #include <net/sch_generic.h>
 #include <net/act_api.h>
 
@@ -28,6 +29,7 @@ struct tcf_block_ext_info {
 };
 
 struct tcf_block_cb;
+bool tcf_queue_work(struct work_struct *work);
 
 #ifdef CONFIG_NET_CLS
 struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,

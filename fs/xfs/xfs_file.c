@@ -237,11 +237,13 @@ xfs_file_dax_read(
 	if (!count)
 		return 0; /* skip atime */
 
-	if (!xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED)) {
-		if (iocb->ki_flags & IOCB_NOWAIT)
+	if (iocb->ki_flags & IOCB_NOWAIT) {
+		if (!xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED))
 			return -EAGAIN;
+	} else {
 		xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	}
+
 	ret = dax_iomap_rw(iocb, to, &xfs_iomap_ops);
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
@@ -259,9 +261,10 @@ xfs_file_buffered_aio_read(
 
 	trace_xfs_file_buffered_read(ip, iov_iter_count(to), iocb->ki_pos);
 
-	if (!xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED)) {
-		if (iocb->ki_flags & IOCB_NOWAIT)
+	if (iocb->ki_flags & IOCB_NOWAIT) {
+		if (!xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED))
 			return -EAGAIN;
+	} else {
 		xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	}
 	ret = generic_file_read_iter(iocb, to);
@@ -552,9 +555,10 @@ xfs_file_dio_aio_write(
 		iolock = XFS_IOLOCK_SHARED;
 	}
 
-	if (!xfs_ilock_nowait(ip, iolock)) {
-		if (iocb->ki_flags & IOCB_NOWAIT)
+	if (iocb->ki_flags & IOCB_NOWAIT) {
+		if (!xfs_ilock_nowait(ip, iolock))
 			return -EAGAIN;
+	} else {
 		xfs_ilock(ip, iolock);
 	}
 
@@ -606,9 +610,10 @@ xfs_file_dax_write(
 	size_t			count;
 	loff_t			pos;
 
-	if (!xfs_ilock_nowait(ip, iolock)) {
-		if (iocb->ki_flags & IOCB_NOWAIT)
+	if (iocb->ki_flags & IOCB_NOWAIT) {
+		if (!xfs_ilock_nowait(ip, iolock))
 			return -EAGAIN;
+	} else {
 		xfs_ilock(ip, iolock);
 	}
 

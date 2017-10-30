@@ -301,6 +301,8 @@ struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
 {
 	struct Qdisc *q;
 
+	if (!handle)
+		return NULL;
 	q = qdisc_match_from_root(dev->qdisc, handle);
 	if (q)
 		goto out;

@@ -88,7 +88,7 @@ def prepare_env(cmdlist):
             exit(1)
 
 
-def test_runner(filtered_tests):
+def test_runner(filtered_tests, args):
     """
     Driver function for the unit tests.
 
@@ -105,6 +105,8 @@ def test_runner(filtered_tests):
     for tidx in testlist:
         result = True
         tresult = ""
+        if "flower" in tidx["category"] and args.device == None:
+            continue
         print("Test " + tidx["id"] + ": " + tidx["name"])
         prepare_env(tidx["setup"])
         (p, procout) = exec_cmd(tidx["cmdUnderTest"])
@@ -151,6 +153,10 @@ def ns_create():
         cmd = 'ip link set $DEV0 up'
         exec_cmd(cmd, False)
         cmd = 'ip -s $NS link set $DEV1 up'
+        exec_cmd(cmd, False)
+        cmd = 'ip link set $DEV2 netns $NS'
+        exec_cmd(cmd, False)
+        cmd = 'ip -s $NS link set $DEV2 up'
         exec_cmd(cmd, False)
 
 
@@ -211,7 +217,8 @@ def set_args(parser):
                         help='Execute the single test case with specified ID')
     parser.add_argument('-i', '--id', action='store_true', dest='gen_id',
                         help='Generate ID numbers for new test cases')
-    return parser
+    parser.add_argument('-d', '--device',
+                        help='Execute the test case in flower category')
     return parser
 
 
@@ -225,6 +232,8 @@ def check_default_settings(args):
 
     if args.path != None:
          NAMES['TC'] = args.path
+    if args.device != None:
+         NAMES['DEV2'] = args.device
     if not os.path.isfile(NAMES['TC']):
         print("The specified tc path " + NAMES['TC'] + " does not exist.")
         exit(1)
@@ -381,14 +390,17 @@ def set_operation_mode(args):
             if (len(alltests) == 0):
                 print("Cannot find a test case with ID matching " + target_id)
                 exit(1)
-        catresults = test_runner(alltests)
+        catresults = test_runner(alltests, args)
         print("All test results: " + "\n\n" + catresults)
     elif (len(target_category) > 0):
+        if (target_category == "flower") and args.device == None:
+            print("Please specify a NIC device (-d) to run category flower")
+            exit(1)
         if (target_category not in ucat):
             print("Specified category is not present in this file.")
             exit(1)
         else:
-            catresults = test_runner(testcases[target_category])
+            catresults = test_runner(testcases[target_category], args)
             print("Category " + target_category + "\n\n" + catresults)
 
     ns_destroy()

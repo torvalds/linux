@@ -937,7 +937,10 @@ void vmbus_hvsock_device_unregister(struct vmbus_channel *channel)
 {
 	BUG_ON(!is_hvsock_channel(channel));
 
-	channel->rescind = true;
+	/* We always get a rescind msg when a connection is closed. */
+	while (!READ_ONCE(channel->probe_done) || !READ_ONCE(channel->rescind))
+		msleep(1);
+
 	vmbus_device_unregister(channel->device_obj);
 }
 EXPORT_SYMBOL_GPL(vmbus_hvsock_device_unregister);

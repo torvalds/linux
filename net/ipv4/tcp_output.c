@@ -781,8 +781,10 @@ static void tcp_tsq_handler(struct sock *sk)
 		struct tcp_sock *tp = tcp_sk(sk);
 
 		if (tp->lost_out > tp->retrans_out &&
-		    tp->snd_cwnd > tcp_packets_in_flight(tp))
+		    tp->snd_cwnd > tcp_packets_in_flight(tp)) {
+			tcp_mstamp_refresh(tp);
 			tcp_xmit_retransmit_queue(sk);
+		}
 
 		tcp_write_xmit(sk, tcp_current_mss(sk), tp->nonagle,
 			       0, GFP_ATOMIC);
@@ -2307,6 +2309,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 
 	sent_pkts = 0;
 
+	tcp_mstamp_refresh(tp);
 	if (!push_one) {
 		/* Do MTU probing. */
 		result = tcp_mtu_probe(sk);
@@ -2318,7 +2321,6 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 	}
 
 	max_segs = tcp_tso_segs(sk, mss_now);
-	tcp_mstamp_refresh(tp);
 	while ((skb = tcp_send_head(sk))) {
 		unsigned int limit;
 
@@ -2911,8 +2913,10 @@ int __tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb, int segs)
 				     -ENOBUFS;
 		} tcp_skb_tsorted_restore(skb);
 
-		if (!err)
+		if (!err) {
 			tcp_update_skb_after_send(tp, skb);
+			tcp_rate_skb_sent(sk, skb);
+		}
 	} else {
 		err = tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);
 	}

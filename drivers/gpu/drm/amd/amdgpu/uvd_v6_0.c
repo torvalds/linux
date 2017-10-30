@@ -225,11 +225,7 @@ static int uvd_v6_0_suspend(void *handle)
 	if (r)
 		return r;
 
-	/* Skip this for APU for now */
-	if (!(adev->flags & AMD_IS_APU))
-		r = amdgpu_uvd_suspend(adev);
-
-	return r;
+	return amdgpu_uvd_suspend(adev);
 }
 
 static int uvd_v6_0_resume(void *handle)
@@ -237,12 +233,10 @@ static int uvd_v6_0_resume(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	/* Skip this for APU for now */
-	if (!(adev->flags & AMD_IS_APU)) {
-		r = amdgpu_uvd_resume(adev);
-		if (r)
-			return r;
-	}
+	r = amdgpu_uvd_resume(adev);
+	if (r)
+		return r;
+
 	return uvd_v6_0_hw_init(adev);
 }
 
