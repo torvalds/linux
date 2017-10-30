@@ -179,6 +179,10 @@ don't do this, drivers used dev_info/warn/err to make this differentiation. We
 now have DRM_DEV_* variants of the drm print macros, so we can start to convert
 those drivers back to using drm-formwatted specific log messages.
 
+Before you start this conversion please contact the relevant maintainers to make
+sure your work will be merged - not everyone agrees that the DRM dmesg macros
+are better.
+
 Contact: Sean Paul, Maintainer of the driver you plan to convert
 
 Core refactorings
