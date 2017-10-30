@@ -38,11 +38,12 @@
 #include <net/ipv6.h>
 #include <net/tso.h>
 
-/* RX Fifo Registers */
+/* Fifo Registers */
 #define MVPP2_RX_DATA_FIFO_SIZE_REG(port)	(0x00 + 4 * (port))
 #define MVPP2_RX_ATTR_FIFO_SIZE_REG(port)	(0x20 + 4 * (port))
 #define MVPP2_RX_MIN_PKT_SIZE_REG		0x60
 #define MVPP2_RX_FIFO_INIT_REG			0x64
+#define MVPP22_TX_FIFO_SIZE_REG(port)		(0x8860 + 4 * (port))
 
 /* RX DMA Top Registers */
 #define MVPP2_RX_CTRL_REG(port)			(0x140 + 4 * (port))
@@ -511,6 +512,10 @@
 #define MVPP2_RX_FIFO_PORT_ATTR_SIZE_8KB	0x80
 #define MVPP2_RX_FIFO_PORT_ATTR_SIZE_4KB	0x40
 #define MVPP2_RX_FIFO_PORT_MIN_PKT		0x80
+
+/* TX FIFO constants */
+#define MVPP22_TX_FIFO_DATA_SIZE_10KB		0xa
+#define MVPP22_TX_FIFO_DATA_SIZE_3KB		0x3
 
 /* RX buffer constants */
 #define MVPP2_SKB_SHINFO_SIZE \
@@ -7811,6 +7816,16 @@ static void mvpp22_rx_fifo_init(struct mvpp2 *priv)
 	mvpp2_write(priv, MVPP2_RX_FIFO_INIT_REG, 0x1);
 }
 
+/* Initialize Tx FIFO's */
+static void mvpp22_tx_fifo_init(struct mvpp2 *priv)
+{
+	int port;
+
+	for (port = 0; port < MVPP2_MAX_PORTS; port++)
+		mvpp2_write(priv, MVPP22_TX_FIFO_SIZE_REG(port),
+			    MVPP22_TX_FIFO_DATA_SIZE_3KB);
+}
+
 static void mvpp2_axi_init(struct mvpp2 *priv)
 {
 	u32 val, rdval, wrval;
@@ -7906,11 +7921,13 @@ static int mvpp2_init(struct platform_device *pdev, struct mvpp2 *priv)
 			return err;
 	}
 
-	/* Rx Fifo Init */
-	if (priv->hw_version == MVPP21)
+	/* Fifo Init */
+	if (priv->hw_version == MVPP21) {
 		mvpp2_rx_fifo_init(priv);
-	else
+	} else {
 		mvpp22_rx_fifo_init(priv);
+		mvpp22_tx_fifo_init(priv);
+	}
 
 	if (priv->hw_version == MVPP21)
 		writel(MVPP2_EXT_GLOBAL_CTRL_DEFAULT,
