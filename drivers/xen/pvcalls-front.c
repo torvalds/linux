@@ -83,6 +83,8 @@ struct sock_mapping {
 		 * Only one poll operation can be inflight for a given socket.
 		 */
 #define PVCALLS_FLAG_ACCEPT_INFLIGHT 0
+#define PVCALLS_FLAG_POLL_INFLIGHT   1
+#define PVCALLS_FLAG_POLL_RET        2
 			uint8_t flags;
 			uint32_t inflight_req_id;
 			struct sock_mapping *accept_map;
@@ -154,15 +156,32 @@ again:
 		rsp = RING_GET_RESPONSE(&bedata->ring, bedata->ring.rsp_cons);
 
 		req_id = rsp->req_id;
-		dst = (uint8_t *)&bedata->rsp[req_id] + sizeof(rsp->req_id);
-		src = (uint8_t *)rsp + sizeof(rsp->req_id);
-		memcpy(dst, src, sizeof(*rsp) - sizeof(rsp->req_id));
-		/*
-		 * First copy the rest of the data, then req_id. It is
-		 * paired with the barrier when accessing bedata->rsp.
-		 */
-		smp_wmb();
-		bedata->rsp[req_id].req_id = rsp->req_id;
+		if (rsp->cmd == PVCALLS_POLL) {
+			struct sock_mapping *map = (struct sock_mapping *)(uintptr_t)
+						   rsp->u.poll.id;
+
+			clear_bit(PVCALLS_FLAG_POLL_INFLIGHT,
+				  (void *)&map->passive.flags);
+			/*
+			 * clear INFLIGHT, then set RET. It pairs with
+			 * the checks at the beginning of
+			 * pvcalls_front_poll_passive.
+			 */
+			smp_wmb();
+			set_bit(PVCALLS_FLAG_POLL_RET,
+				(void *)&map->passive.flags);
+		} else {
+			dst = (uint8_t *)&bedata->rsp[req_id] +
+			      sizeof(rsp->req_id);
+			src = (uint8_t *)rsp + sizeof(rsp->req_id);
+			memcpy(dst, src, sizeof(*rsp) - sizeof(rsp->req_id));
+			/*
+			 * First copy the rest of the data, then req_id. It is
+			 * paired with the barrier when accessing bedata->rsp.
+			 */
+			smp_wmb();
+			bedata->rsp[req_id].req_id = req_id;
+		}
 
 		done = 1;
 		bedata->ring.rsp_cons++;
@@ -842,6 +861,113 @@ received:
 	clear_bit(PVCALLS_FLAG_ACCEPT_INFLIGHT, (void *)&map->passive.flags);
 	wake_up(&map->passive.inflight_accept_req);
 
+	pvcalls_exit();
+	return ret;
+}
+
+static unsigned int pvcalls_front_poll_passive(struct file *file,
+					       struct pvcalls_bedata *bedata,
+					       struct sock_mapping *map,
+					       poll_table *wait)
+{
+	int notify, req_id, ret;
+	struct xen_pvcalls_request *req;
+
+	if (test_bit(PVCALLS_FLAG_ACCEPT_INFLIGHT,
+		     (void *)&map->passive.flags)) {
+		uint32_t req_id = READ_ONCE(map->passive.inflight_req_id);
+
+		if (req_id != PVCALLS_INVALID_ID &&
+		    READ_ONCE(bedata->rsp[req_id].req_id) == req_id)
+			return POLLIN | POLLRDNORM;
+
+		poll_wait(file, &map->passive.inflight_accept_req, wait);
+		return 0;
+	}
+
+	if (test_and_clear_bit(PVCALLS_FLAG_POLL_RET,
+			       (void *)&map->passive.flags))
+		return POLLIN | POLLRDNORM;
+
+	/*
+	 * First check RET, then INFLIGHT. No barriers necessary to
+	 * ensure execution ordering because of the conditional
+	 * instructions creating control dependencies.
+	 */
+
+	if (test_and_set_bit(PVCALLS_FLAG_POLL_INFLIGHT,
+			     (void *)&map->passive.flags)) {
+		poll_wait(file, &bedata->inflight_req, wait);
+		return 0;
+	}
+
+	spin_lock(&bedata->socket_lock);
+	ret = get_request(bedata, &req_id);
+	if (ret < 0) {
+		spin_unlock(&bedata->socket_lock);
+		return ret;
+	}
+	req = RING_GET_REQUEST(&bedata->ring, req_id);
+	req->req_id = req_id;
+	req->cmd = PVCALLS_POLL;
+	req->u.poll.id = (uintptr_t) map;
+
+	bedata->ring.req_prod_pvt++;
+	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, notify);
+	spin_unlock(&bedata->socket_lock);
+	if (notify)
+		notify_remote_via_irq(bedata->irq);
+
+	poll_wait(file, &bedata->inflight_req, wait);
+	return 0;
+}
+
+static unsigned int pvcalls_front_poll_active(struct file *file,
+					      struct pvcalls_bedata *bedata,
+					      struct sock_mapping *map,
+					      poll_table *wait)
+{
+	unsigned int mask = 0;
+	int32_t in_error, out_error;
+	struct pvcalls_data_intf *intf = map->active.ring;
+
+	out_error = intf->out_error;
+	in_error = intf->in_error;
+
+	poll_wait(file, &map->active.inflight_conn_req, wait);
+	if (pvcalls_front_write_todo(map))
+		mask |= POLLOUT | POLLWRNORM;
+	if (pvcalls_front_read_todo(map))
+		mask |= POLLIN | POLLRDNORM;
+	if (in_error != 0 || out_error != 0)
+		mask |= POLLERR;
+
+	return mask;
+}
+
+unsigned int pvcalls_front_poll(struct file *file, struct socket *sock,
+			       poll_table *wait)
+{
+	struct pvcalls_bedata *bedata;
+	struct sock_mapping *map;
+	int ret;
+
+	pvcalls_enter();
+	if (!pvcalls_front_dev) {
+		pvcalls_exit();
+		return POLLNVAL;
+	}
+	bedata = dev_get_drvdata(&pvcalls_front_dev->dev);
+
+	map = (struct sock_mapping *) sock->sk->sk_send_head;
+	if (!map) {
+		pvcalls_exit();
+		return POLLNVAL;
+	}
+	if (map->active_socket)
+		ret = pvcalls_front_poll_active(file, bedata, map, wait);
+	else
+		ret = pvcalls_front_poll_passive(file, bedata, map, wait);
 	pvcalls_exit();
 	return ret;
 }
