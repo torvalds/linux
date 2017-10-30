@@ -206,7 +206,7 @@ static int ath_recv(struct hci_uart *hu, const void *data, int count)
 				  ath_recv_pkts, ARRAY_SIZE(ath_recv_pkts));
 	if (IS_ERR(ath->rx_skb)) {
 		int err = PTR_ERR(ath->rx_skb);
-		BT_ERR("%s: Frame reassembly failed (%d)", hu->hdev->name, err);
+		bt_dev_err(hu->hdev, "Frame reassembly failed (%d)", err);
 		ath->rx_skb = NULL;
 		return err;
 	}

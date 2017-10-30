@@ -800,7 +800,7 @@ static int qca_recv(struct hci_uart *hu, const void *data, int count)
 				  qca_recv_pkts, ARRAY_SIZE(qca_recv_pkts));
 	if (IS_ERR(qca->rx_skb)) {
 		int err = PTR_ERR(qca->rx_skb);
-		BT_ERR("%s: Frame reassembly failed (%d)", hu->hdev->name, err);
+		bt_dev_err(hu->hdev, "Frame reassembly failed (%d)", err);
 		qca->rx_skb = NULL;
 		return err;
 	}
@@ -863,7 +863,7 @@ static int qca_set_baudrate(struct hci_dev *hdev, uint8_t baudrate)
 
 	skb = bt_skb_alloc(sizeof(cmd), GFP_ATOMIC);
 	if (!skb) {
-		BT_ERR("Failed to allocate memory for baudrate packet");
+		bt_dev_err(hdev, "Failed to allocate baudrate packet");
 		return -ENOMEM;
 	}
 
@@ -892,7 +892,7 @@ static int qca_setup(struct hci_uart *hu)
 	unsigned int speed, qca_baudrate = QCA_BAUDRATE_115200;
 	int ret;
 
-	BT_INFO("%s: ROME setup", hdev->name);
+	bt_dev_info(hdev, "ROME setup");
 
 	/* Patch downloading has to be done without IBS mode */
 	clear_bit(STATE_IN_BAND_SLEEP_ENABLED, &qca->flags);
@@ -917,11 +917,11 @@ static int qca_setup(struct hci_uart *hu)
 	if (speed) {
 		qca_baudrate = qca_get_baudrate_value(speed);
 
-		BT_INFO("%s: Set UART speed to %d", hdev->name, speed);
+		bt_dev_info(hdev, "Set UART speed to %d", speed);
 		ret = qca_set_baudrate(hdev, qca_baudrate);
 		if (ret) {
-			BT_ERR("%s: Failed to change the baud rate (%d)",
-			       hdev->name, ret);
+			bt_dev_err(hdev, "Failed to change the baud rate (%d)",
+				   ret);
 			return ret;
 		}
 		hci_uart_set_baudrate(hu, speed);
