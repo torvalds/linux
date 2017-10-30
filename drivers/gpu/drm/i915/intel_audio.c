@@ -641,7 +641,7 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 
 	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_notify) {
 		/* audio drivers expect pipe = -1 to indicate Non-MST cases */
-		if (encoder->type != INTEL_OUTPUT_DP_MST)
+		if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST))
 			pipe = -1;
 		acomp->audio_ops->pin_eld_notify(acomp->audio_ops->audio_ptr,
 						 (int) port, (int) pipe);
@@ -649,7 +649,7 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 
 	intel_lpe_audio_notify(dev_priv, pipe, port, connector->eld,
 			       crtc_state->port_clock,
-			       encoder->type == INTEL_OUTPUT_DP);
+			       intel_crtc_has_dp_encoder(crtc_state));
 }
 
 /**
@@ -683,7 +683,7 @@ void intel_audio_codec_disable(struct intel_encoder *encoder,
 
 	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_notify) {
 		/* audio drivers expect pipe = -1 to indicate Non-MST cases */
-		if (encoder->type != INTEL_OUTPUT_DP_MST)
+		if (!intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_DP_MST))
 			pipe = -1;
 		acomp->audio_ops->pin_eld_notify(acomp->audio_ops->audio_ptr,
 						 (int) port, (int) pipe);
