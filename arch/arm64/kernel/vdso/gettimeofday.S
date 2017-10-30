@@ -310,7 +310,7 @@ ENTRY(__kernel_clock_getres)
 	b.ne	4f
 	ldr	x2, 6f
 2:
-	cbz	w1, 3f
+	cbz	x1, 3f
 	stp	xzr, x2, [x1]
 
 3:	/* res == NULL. */
