@@ -621,9 +621,8 @@ nlm_shutdown_hosts_net(struct net *net)
 
 	/* Then, perform a garbage collection pass */
 	nlm_gc_hosts(net);
-	mutex_unlock(&nlm_host_mutex);
-
 	nlm_complain_hosts(net);
+	mutex_unlock(&nlm_host_mutex);
 }
 
 /*
