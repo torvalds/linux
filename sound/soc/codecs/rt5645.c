@@ -432,6 +432,7 @@ struct rt5645_priv {
 	int jack_type;
 	bool en_button_func;
 	bool hp_on;
+	int v_id;
 };
 
 static int rt5645_reset(struct snd_soc_codec *codec)
@@ -2516,9 +2517,7 @@ static const struct snd_soc_dapm_route rt5645_dapm_routes[] = {
 	{ "SPKVOL L", "Switch", "SPK MIXL" },
 	{ "SPKVOL R", "Switch", "SPK MIXR" },
 
-	{ "SPOL MIX", "DAC R1 Switch", "DAC R1" },
 	{ "SPOL MIX", "DAC L1 Switch", "DAC L1" },
-	{ "SPOL MIX", "SPKVOL R Switch", "SPKVOL R" },
 	{ "SPOL MIX", "SPKVOL L Switch", "SPKVOL L" },
 	{ "SPOR MIX", "DAC R1 Switch", "DAC R1" },
 	{ "SPOR MIX", "SPKVOL R Switch", "SPKVOL R" },
@@ -2705,6 +2704,11 @@ static const struct snd_soc_dapm_route rt5645_specific_dapm_routes[] = {
 
 	{ "DAC L2 Mux", "IF1 DAC", "RT5645 IF1 DAC2 L Mux" },
 	{ "DAC R2 Mux", "IF1 DAC", "RT5645 IF1 DAC2 R Mux" },
+};
+
+static const struct snd_soc_dapm_route rt5645_old_dapm_routes[] = {
+	{ "SPOL MIX", "DAC R1 Switch", "DAC R1" },
+	{ "SPOL MIX", "SPKVOL R Switch", "SPKVOL R" },
 };
 
 static int rt5645_hw_params(struct snd_pcm_substream *substream,
@@ -3363,6 +3367,11 @@ static int rt5645_probe(struct snd_soc_codec *codec)
 		snd_soc_dapm_add_routes(dapm,
 			rt5645_specific_dapm_routes,
 			ARRAY_SIZE(rt5645_specific_dapm_routes));
+		if (rt5645->v_id < 3) {
+			snd_soc_dapm_add_routes(dapm,
+				rt5645_old_dapm_routes,
+				ARRAY_SIZE(rt5645_old_dapm_routes));
+		}
 		break;
 	case CODEC_TYPE_RT5650:
 		snd_soc_dapm_new_controls(dapm,
@@ -3802,6 +3811,9 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 	}
 
 	regmap_write(rt5645->regmap, RT5645_RESET, 0);
+
+	regmap_read(regmap, RT5645_VENDOR_ID, &val);
+	rt5645->v_id = val & 0xff;
 
 	ret = regmap_register_patch(rt5645->regmap, init_list,
 				    ARRAY_SIZE(init_list));
