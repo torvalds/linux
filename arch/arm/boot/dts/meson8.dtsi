@@ -173,6 +173,11 @@
 		reg = <0x8000 0x4>, <0x4000 0x460>;
 	};
 
+	analog_top: analog-top@81a8 {
+		compatible = "amlogic,meson8-analog-top", "syscon";
+		reg = <0x81a8 0x14>;
+	};
+
 	pwm_ef: pwm@86c0 {
 		compatible = "amlogic,meson8-pwm", "amlogic,meson8b-pwm";
 		reg = <0x86c0 0x10>;
@@ -292,6 +297,12 @@
 		<&clkc CLKID_SAR_ADC>,
 		<&clkc CLKID_SANA>;
 	clock-names = "clkin", "core", "sana";
+};
+
+&sdio {
+	compatible = "amlogic,meson8-sdio", "amlogic,meson-mx-sdio";
+	clocks = <&clkc CLKID_SDIO>, <&clkc CLKID_CLK81>;
+	clock-names = "core", "clkin";
 };
 
 &spifc {
