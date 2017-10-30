@@ -33,9 +33,9 @@ static int __intel_uc_reset_hw(struct drm_i915_private *dev_priv)
 	int ret;
 	u32 guc_status;
 
-	ret = intel_guc_reset(dev_priv);
+	ret = intel_reset_guc(dev_priv);
 	if (ret) {
-		DRM_ERROR("GuC reset failed, ret = %d\n", ret);
+		DRM_ERROR("Failed to reset GuC, ret = %d\n", ret);
 		return ret;
 	}
 

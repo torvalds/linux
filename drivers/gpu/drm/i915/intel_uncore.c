@@ -1803,7 +1803,7 @@ bool intel_has_reset_engine(struct drm_i915_private *dev_priv)
 		i915_modparams.reset >= 2);
 }
 
-int intel_guc_reset(struct drm_i915_private *dev_priv)
+int intel_reset_guc(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
