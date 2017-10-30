@@ -828,7 +828,7 @@
 
 			gpr: iomuxc-gpr@20e0000 {
 				compatible = "fsl,imx6q-iomuxc-gpr", "syscon", "simple-mfd";
-				reg = <0x020e0000 0x38>;
+				reg = <0x20e0000 0x38>;
 
 				mux: mux-controller {
 					compatible = "mmio-mux";
@@ -838,7 +838,7 @@
 
 			iomuxc: iomuxc@20e0000 {
 				compatible = "fsl,imx6dl-iomuxc", "fsl,imx6q-iomuxc";
-				reg = <0x020e0000 0x4000>;
+				reg = <0x20e0000 0x4000>;
 			};
 
 			ldb: ldb {

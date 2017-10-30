@@ -158,7 +158,6 @@
 		regulator-max-microvolt = <1500000>;
 		gpio = <&gpio7 12 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-		regulator-always-on;
 	};
 
 	reg_sata: regulator-sata {
@@ -447,6 +446,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pcie_novena>;
 	reset-gpio = <&gpio3 29 GPIO_ACTIVE_LOW>;
+	vpcie-supply = <&reg_pcie>;
 	status = "okay";
 };
 

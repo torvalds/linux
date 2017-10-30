@@ -543,7 +543,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <1>;
+			syna,nosleep-mode = <2>;
 		};
 
 		rmi4-f11@11 {
@@ -728,6 +728,7 @@
 
 &usbh1 {
 	vbus-supply = <&reg_5p0v_main>;
+	disable-over-current;
 	status = "okay";
 };
 
