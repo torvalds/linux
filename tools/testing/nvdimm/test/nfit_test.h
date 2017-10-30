@@ -33,6 +33,11 @@ struct nfit_test_resource {
 };
 
 #define ND_TRANSLATE_SPA_STATUS_INVALID_SPA  2
+#define NFIT_ARS_INJECT_INVALID 2
+
+enum err_inj_options {
+	ND_ARS_ERR_INJ_OPT_NOTIFY = 0,
+};
 
 /* nfit commands */
 enum nfit_cmd_num {
