@@ -95,8 +95,7 @@ int debugfs_use_file_start(const struct dentry *dentry, int *srcu_idx)
 
 void debugfs_use_file_finish(int srcu_idx) __releases(&debugfs_srcu);
 
-const struct file_operations *debugfs_real_fops(const struct file *filp)
-	__must_hold(&debugfs_srcu);
+const struct file_operations *debugfs_real_fops(const struct file *filp);
 
 int debugfs_file_get(struct dentry *dentry);
 void debugfs_file_put(struct dentry *dentry);

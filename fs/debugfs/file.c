@@ -98,13 +98,9 @@ EXPORT_SYMBOL_GPL(debugfs_use_file_finish);
 #define F_DENTRY(filp) ((filp)->f_path.dentry)
 
 const struct file_operations *debugfs_real_fops(const struct file *filp)
-	__must_hold(&debugfs_srcu)
 {
 	struct debugfs_fsdata *fsd = F_DENTRY(filp)->d_fsdata;
-	/*
-	 * Neither the pointer to the struct file_operations, nor its
-	 * contents ever change -- srcu_dereference() is not needed here.
-	 */
+
 	return fsd->real_fops;
 }
 EXPORT_SYMBOL_GPL(debugfs_real_fops);
