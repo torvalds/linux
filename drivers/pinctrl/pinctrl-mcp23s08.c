@@ -455,31 +455,22 @@ static irqreturn_t mcp23s08_irq(int irq, void *data)
 		defval_changed, gpio_set;
 
 	mutex_lock(&mcp->lock);
-	if (mcp_read(mcp, MCP_INTF, &intf) < 0) {
-		mutex_unlock(&mcp->lock);
-		return IRQ_HANDLED;
-	}
+	if (mcp_read(mcp, MCP_INTF, &intf))
+		goto unlock;
 
-	if (mcp_read(mcp, MCP_INTCAP, &intcap) < 0) {
-		mutex_unlock(&mcp->lock);
-		return IRQ_HANDLED;
-	}
+	if (mcp_read(mcp, MCP_INTCAP, &intcap))
+		goto unlock;
 
-	if (mcp_read(mcp, MCP_INTCON, &intcon) < 0) {
-		mutex_unlock(&mcp->lock);
-		return IRQ_HANDLED;
-	}
+	if (mcp_read(mcp, MCP_INTCON, &intcon))
+		goto unlock;
 
-	if (mcp_read(mcp, MCP_DEFVAL, &defval) < 0) {
-		mutex_unlock(&mcp->lock);
-		return IRQ_HANDLED;
-	}
+	if (mcp_read(mcp, MCP_DEFVAL, &defval))
+		goto unlock;
 
 	/* This clears the interrupt(configurable on S18) */
-	if (mcp_read(mcp, MCP_GPIO, &gpio) < 0) {
-		mutex_unlock(&mcp->lock);
-		return IRQ_HANDLED;
-	}
+	if (mcp_read(mcp, MCP_GPIO, &gpio))
+		goto unlock;
+
 	gpio_orig = mcp->cached_gpio;
 	mcp->cached_gpio = gpio;
 	mutex_unlock(&mcp->lock);
@@ -540,6 +531,10 @@ static irqreturn_t mcp23s08_irq(int irq, void *data)
 		}
 	}
 
+	return IRQ_HANDLED;
+
+unlock:
+	mutex_unlock(&mcp->lock);
 	return IRQ_HANDLED;
 }
 
