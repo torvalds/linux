@@ -37,6 +37,12 @@ do
 	sed -i -e '1iKBUILD_EXTMOD=${srctree}/ubuntu/vbox' $make
 done
 
+# Fix up KERN_DIR to point at the kernel source tree
+for make in vbox/*/Makefile.include.header
+do
+	sed -i -e 's/^KERN_DIR := .*$/KERN_DIR := $(srctree)/' $make
+done
+
 # We're now using the vboxvideo module in drivers/staging, so disable
 # the version that was imported.
 sed -i -e 's: vboxvideo/::' vbox/Makefile
