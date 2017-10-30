@@ -210,6 +210,51 @@ static struct {
 	},
 };
 
+struct perf_evsel_script {
+       char *filename;
+       FILE *fp;
+       u64  samples;
+};
+
+static struct perf_evsel_script *perf_evsel_script__new(struct perf_evsel *evsel,
+							struct perf_data_file *file)
+{
+	struct perf_evsel_script *es = malloc(sizeof(*es));
+
+	if (es != NULL) {
+		if (asprintf(&es->filename, "%s.%s.dump", file->path, perf_evsel__name(evsel)) < 0)
+			goto out_free;
+		es->fp = fopen(es->filename, "w");
+		if (es->fp == NULL)
+			goto out_free_filename;
+		es->samples = 0;
+	}
+
+	return es;
+out_free_filename:
+	zfree(&es->filename);
+out_free:
+	free(es);
+	return NULL;
+}
+
+static void perf_evsel_script__delete(struct perf_evsel_script *es)
+{
+	zfree(&es->filename);
+	fclose(es->fp);
+	es->fp = NULL;
+	free(es);
+}
+
+static int perf_evsel_script__fprintf(struct perf_evsel_script *es, FILE *fp)
+{
+	struct stat st;
+
+	fstat(fileno(es->fp), &st);
+	return fprintf(fp, "[ perf script: Wrote %.3f MB %s (%" PRIu64 " samples) ]\n",
+		       st.st_size / 1024.0 / 1024.0, es->filename, es->samples);
+}
+
 static inline int output_type(unsigned int type)
 {
 	switch (type) {
@@ -1439,10 +1484,13 @@ static void process_event(struct perf_script *script,
 	struct thread *thread = al->thread;
 	struct perf_event_attr *attr = &evsel->attr;
 	unsigned int type = output_type(attr->type);
-	FILE *fp = evsel->priv;
+	struct perf_evsel_script *es = evsel->priv;
+	FILE *fp = es->fp;
 
 	if (output[type].fields == 0)
 		return;
+
+	++es->samples;
 
 	perf_sample__fprintf_start(sample, thread, evsel, fp);
 
@@ -1896,7 +1944,7 @@ static void perf_script__fclose_per_event_dump(struct perf_script *script)
 	evlist__for_each_entry(evlist, evsel) {
 		if (!evsel->priv)
 			break;
-		fclose(evsel->priv);
+		perf_evsel_script__delete(evsel->priv);
 		evsel->priv = NULL;
 	}
 }
@@ -1906,10 +1954,7 @@ static int perf_script__fopen_per_event_dump(struct perf_script *script)
 	struct perf_evsel *evsel;
 
 	evlist__for_each_entry(script->session->evlist, evsel) {
-		char filename[PATH_MAX];
-		snprintf(filename, sizeof(filename), "%s.%s.dump",
-			 script->session->file->path, perf_evsel__name(evsel));
-		evsel->priv = fopen(filename, "w");
+		evsel->priv = perf_evsel_script__new(evsel, script->session->file);
 		if (evsel->priv == NULL)
 			goto out_err_fclose;
 	}
@@ -1924,14 +1969,30 @@ out_err_fclose:
 static int perf_script__setup_per_event_dump(struct perf_script *script)
 {
 	struct perf_evsel *evsel;
+	static struct perf_evsel_script es_stdout;
 
 	if (script->per_event_dump)
 		return perf_script__fopen_per_event_dump(script);
 
+	es_stdout.fp = stdout;
+
 	evlist__for_each_entry(script->session->evlist, evsel)
-		evsel->priv = stdout;
+		evsel->priv = &es_stdout;
 
 	return 0;
+}
+
+static void perf_script__exit_per_event_dump_stats(struct perf_script *script)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each_entry(script->session->evlist, evsel) {
+		struct perf_evsel_script *es = evsel->priv;
+
+		perf_evsel_script__fprintf(es, stdout);
+		perf_evsel_script__delete(es);
+		evsel->priv = NULL;
+	}
 }
 
 static int __cmd_script(struct perf_script *script)
@@ -1963,7 +2024,7 @@ static int __cmd_script(struct perf_script *script)
 	ret = perf_session__process_events(script->session);
 
 	if (script->per_event_dump)
-		perf_script__fclose_per_event_dump(script);
+		perf_script__exit_per_event_dump_stats(script);
 
 	if (debug_mode)
 		pr_err("Misordered timestamps: %" PRIu64 "\n", nr_unordered);
