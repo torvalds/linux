@@ -151,6 +151,9 @@ config CLPS711X_IRQCHIP
 	select SPARSE_IRQ
 	default y
 
+config OMPIC
+	bool
+
 config OR1K_PIC
 	bool
 	select IRQ_DOMAIN
