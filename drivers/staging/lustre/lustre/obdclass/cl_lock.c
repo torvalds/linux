@@ -79,13 +79,12 @@ EXPORT_SYMBOL(cl_lock_slice_add);
 
 void cl_lock_fini(const struct lu_env *env, struct cl_lock *lock)
 {
+	struct cl_lock_slice *slice;
 	cl_lock_trace(D_DLMTRACE, env, "destroy lock", lock);
 
-	while (!list_empty(&lock->cll_layers)) {
-		struct cl_lock_slice *slice;
-
-		slice = list_entry(lock->cll_layers.next,
-				   struct cl_lock_slice, cls_linkage);
+	while ((slice = list_first_entry_or_null(&lock->cll_layers,
+						 struct cl_lock_slice,
+						 cls_linkage)) != NULL) {
 		list_del_init(lock->cll_layers.next);
 		slice->cls_ops->clo_fini(env, slice);
 	}
