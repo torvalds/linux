@@ -73,7 +73,10 @@ qtnf_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 	[NL80211_IFTYPE_AP] = {
 		.tx = BIT(IEEE80211_STYPE_ACTION >> 4),
 		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
-		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4),
+		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4) |
+		      BIT(IEEE80211_STYPE_ASSOC_REQ >> 4) |
+		      BIT(IEEE80211_STYPE_REASSOC_REQ >> 4) |
+		      BIT(IEEE80211_STYPE_AUTH >> 4),
 	},
 };
 
@@ -353,6 +356,13 @@ qtnf_mgmt_frame_register(struct wiphy *wiphy, struct wireless_dev *wdev,
 		return;
 
 	switch (frame_type & IEEE80211_FCTL_STYPE) {
+	case IEEE80211_STYPE_REASSOC_REQ:
+	case IEEE80211_STYPE_ASSOC_REQ:
+		qlink_frame_type = QLINK_MGMT_FRAME_ASSOC_REQ;
+		break;
+	case IEEE80211_STYPE_AUTH:
+		qlink_frame_type = QLINK_MGMT_FRAME_AUTH;
+		break;
 	case IEEE80211_STYPE_PROBE_REQ:
 		qlink_frame_type = QLINK_MGMT_FRAME_PROBE_REQ;
 		break;
