@@ -506,6 +506,12 @@ int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 }
 
 /* low-level interface prime helpers */
+struct drm_gem_object *exynos_drm_gem_prime_import(struct drm_device *dev,
+					    struct dma_buf *dma_buf)
+{
+	return drm_gem_prime_import_dev(dev, dma_buf, to_dma_dev(dev));
+}
+
 struct sg_table *exynos_drm_gem_prime_get_sg_table(struct drm_gem_object *obj)
 {
 	struct exynos_drm_gem *exynos_gem = to_exynos_gem(obj);
