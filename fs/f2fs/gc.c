@@ -456,10 +456,10 @@ static int check_valid_map(struct f2fs_sb_info *sbi,
 	struct seg_entry *sentry;
 	int ret;
 
-	mutex_lock(&sit_i->sentry_lock);
+	down_read(&sit_i->sentry_lock);
 	sentry = get_seg_entry(sbi, segno);
 	ret = f2fs_test_bit(offset, sentry->cur_valid_map);
-	mutex_unlock(&sit_i->sentry_lock);
+	up_read(&sit_i->sentry_lock);
 	return ret;
 }
 
@@ -893,10 +893,10 @@ static int __get_victim(struct f2fs_sb_info *sbi, unsigned int *victim,
 	struct sit_info *sit_i = SIT_I(sbi);
 	int ret;
 
-	mutex_lock(&sit_i->sentry_lock);
+	down_write(&sit_i->sentry_lock);
 	ret = DIRTY_I(sbi)->v_ops->get_victim(sbi, victim, gc_type,
 					      NO_CHECK_TYPE, LFS);
-	mutex_unlock(&sit_i->sentry_lock);
+	up_write(&sit_i->sentry_lock);
 	return ret;
 }
 
@@ -944,8 +944,8 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 		/*
 		 * this is to avoid deadlock:
 		 * - lock_page(sum_page)         - f2fs_replace_block
-		 *  - check_valid_map()            - mutex_lock(sentry_lock)
-		 *   - mutex_lock(sentry_lock)     - change_curseg()
+		 *  - check_valid_map()            - down_write(sentry_lock)
+		 *   - down_read(sentry_lock)     - change_curseg()
 		 *                                  - lock_page(sum_page)
 		 */
 		if (type == SUM_TYPE_NODE)

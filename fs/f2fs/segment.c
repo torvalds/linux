@@ -1904,14 +1904,14 @@ void invalidate_blocks(struct f2fs_sb_info *sbi, block_t addr)
 		return;
 
 	/* add it into sit main buffer */
-	mutex_lock(&sit_i->sentry_lock);
+	down_write(&sit_i->sentry_lock);
 
 	update_sit_entry(sbi, addr, -1);
 
 	/* add it into dirty seglist */
 	locate_dirty_segment(sbi, segno);
 
-	mutex_unlock(&sit_i->sentry_lock);
+	up_write(&sit_i->sentry_lock);
 }
 
 bool is_checkpointed_data(struct f2fs_sb_info *sbi, block_t blkaddr)
@@ -1924,7 +1924,7 @@ bool is_checkpointed_data(struct f2fs_sb_info *sbi, block_t blkaddr)
 	if (blkaddr == NEW_ADDR || blkaddr == NULL_ADDR)
 		return true;
 
-	mutex_lock(&sit_i->sentry_lock);
+	down_read(&sit_i->sentry_lock);
 
 	segno = GET_SEGNO(sbi, blkaddr);
 	se = get_seg_entry(sbi, segno);
@@ -1933,7 +1933,7 @@ bool is_checkpointed_data(struct f2fs_sb_info *sbi, block_t blkaddr)
 	if (f2fs_test_bit(offset, se->ckpt_valid_map))
 		is_cp = true;
 
-	mutex_unlock(&sit_i->sentry_lock);
+	up_read(&sit_i->sentry_lock);
 
 	return is_cp;
 }
@@ -2329,12 +2329,16 @@ void allocate_new_segments(struct f2fs_sb_info *sbi)
 	unsigned int old_segno;
 	int i;
 
+	down_write(&SIT_I(sbi)->sentry_lock);
+
 	for (i = CURSEG_HOT_DATA; i <= CURSEG_COLD_DATA; i++) {
 		curseg = CURSEG_I(sbi, i);
 		old_segno = curseg->segno;
 		SIT_I(sbi)->s_ops->allocate_segment(sbi, i, true);
 		locate_dirty_segment(sbi, old_segno);
 	}
+
+	up_write(&SIT_I(sbi)->sentry_lock);
 }
 
 static const struct segment_allocation default_salloc_ops = {
@@ -2346,14 +2350,14 @@ bool exist_trim_candidates(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	__u64 trim_start = cpc->trim_start;
 	bool has_candidate = false;
 
-	mutex_lock(&SIT_I(sbi)->sentry_lock);
+	down_write(&SIT_I(sbi)->sentry_lock);
 	for (; cpc->trim_start <= cpc->trim_end; cpc->trim_start++) {
 		if (add_discard_addrs(sbi, cpc, true)) {
 			has_candidate = true;
 			break;
 		}
 	}
-	mutex_unlock(&SIT_I(sbi)->sentry_lock);
+	up_write(&SIT_I(sbi)->sentry_lock);
 
 	cpc->trim_start = trim_start;
 	return has_candidate;
@@ -2513,7 +2517,7 @@ void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
 
 	mutex_lock(&curseg->curseg_mutex);
-	mutex_lock(&sit_i->sentry_lock);
+	down_write(&sit_i->sentry_lock);
 
 	*new_blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
 
@@ -2549,7 +2553,7 @@ void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 	locate_dirty_segment(sbi, GET_SEGNO(sbi, old_blkaddr));
 	locate_dirty_segment(sbi, GET_SEGNO(sbi, *new_blkaddr));
 
-	mutex_unlock(&sit_i->sentry_lock);
+	up_write(&sit_i->sentry_lock);
 
 	if (page && IS_NODESEG(type)) {
 		fill_node_footer_blkaddr(page, NEXT_FREE_BLKADDR(sbi, curseg));
@@ -2707,7 +2711,7 @@ void __f2fs_replace_block(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 	curseg = CURSEG_I(sbi, type);
 
 	mutex_lock(&curseg->curseg_mutex);
-	mutex_lock(&sit_i->sentry_lock);
+	down_write(&sit_i->sentry_lock);
 
 	old_cursegno = curseg->segno;
 	old_blkoff = curseg->next_blkoff;
@@ -2739,7 +2743,7 @@ void __f2fs_replace_block(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 		curseg->next_blkoff = old_blkoff;
 	}
 
-	mutex_unlock(&sit_i->sentry_lock);
+	up_write(&sit_i->sentry_lock);
 	mutex_unlock(&curseg->curseg_mutex);
 }
 
@@ -3194,7 +3198,7 @@ void flush_sit_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	bool to_journal = true;
 	struct seg_entry *se;
 
-	mutex_lock(&sit_i->sentry_lock);
+	down_write(&sit_i->sentry_lock);
 
 	if (!sit_i->dirty_sentries)
 		goto out;
@@ -3288,7 +3292,7 @@ out:
 
 		cpc->trim_start = trim_start;
 	}
-	mutex_unlock(&sit_i->sentry_lock);
+	up_write(&sit_i->sentry_lock);
 
 	set_prefree_as_free_segments(sbi);
 }
@@ -3381,7 +3385,7 @@ static int build_sit_info(struct f2fs_sb_info *sbi)
 	sit_i->sents_per_block = SIT_ENTRY_PER_BLOCK;
 	sit_i->elapsed_time = le64_to_cpu(sbi->ckpt->elapsed_time);
 	sit_i->mounted_time = ktime_get_real_seconds();
-	mutex_init(&sit_i->sentry_lock);
+	init_rwsem(&sit_i->sentry_lock);
 	return 0;
 }
 
@@ -3622,7 +3626,7 @@ static void init_min_max_mtime(struct f2fs_sb_info *sbi)
 	struct sit_info *sit_i = SIT_I(sbi);
 	unsigned int segno;
 
-	mutex_lock(&sit_i->sentry_lock);
+	down_write(&sit_i->sentry_lock);
 
 	sit_i->min_mtime = LLONG_MAX;
 
@@ -3639,7 +3643,7 @@ static void init_min_max_mtime(struct f2fs_sb_info *sbi)
 			sit_i->min_mtime = mtime;
 	}
 	sit_i->max_mtime = get_mtime(sbi);
-	mutex_unlock(&sit_i->sentry_lock);
+	up_write(&sit_i->sentry_lock);
 }
 
 int build_segment_manager(struct f2fs_sb_info *sbi)
