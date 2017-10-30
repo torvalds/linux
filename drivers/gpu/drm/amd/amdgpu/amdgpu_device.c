@@ -1625,7 +1625,7 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev)) {
 		r = amdgpu_virt_request_full_gpu(adev, true);
 		if (r)
-			return r;
+			return -EAGAIN;
 	}
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
