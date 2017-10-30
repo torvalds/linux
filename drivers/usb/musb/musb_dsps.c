@@ -119,7 +119,6 @@ struct dsps_glue {
 	struct platform_device *musb;	/* child musb pdev */
 	const struct dsps_musb_wrapper *wrp; /* wrapper register offsets */
 	int vbus_irq;			/* optional vbus irq */
-	struct timer_list timer;	/* otg_workaround timer */
 	unsigned long last_timer;    /* last timer data for each instance */
 	bool sw_babble_enabled;
 	void __iomem *usbss_base;
@@ -149,6 +148,7 @@ static const struct debugfs_reg32 dsps_musb_regs[] = {
 
 static void dsps_mod_timer(struct dsps_glue *glue, int wait_ms)
 {
+	struct musb *musb = platform_get_drvdata(glue->musb);
 	int wait;
 
 	if (wait_ms < 0)
@@ -156,7 +156,7 @@ static void dsps_mod_timer(struct dsps_glue *glue, int wait_ms)
 	else
 		wait = msecs_to_jiffies(wait_ms);
 
-	mod_timer(&glue->timer, jiffies + wait);
+	mod_timer(&musb->dev_timer, jiffies + wait);
 }
 
 /*
@@ -216,7 +216,7 @@ static void dsps_musb_disable(struct musb *musb)
 	musb_writel(reg_base, wrp->coreintr_clear, wrp->usb_bitmap);
 	musb_writel(reg_base, wrp->epintr_clear,
 			 wrp->txep_bitmap | wrp->rxep_bitmap);
-	del_timer_sync(&glue->timer);
+	del_timer_sync(&musb->dev_timer);
 }
 
 /* Caller must take musb->lock */
@@ -230,7 +230,7 @@ static int dsps_check_status(struct musb *musb, void *unused)
 	int skip_session = 0;
 
 	if (glue->vbus_irq)
-		del_timer(&glue->timer);
+		del_timer(&musb->dev_timer);
 
 	/*
 	 * We poll because DSPS IP's won't expose several OTG-critical
@@ -284,8 +284,7 @@ static int dsps_check_status(struct musb *musb, void *unused)
 
 static void otg_timer(struct timer_list *t)
 {
-	struct dsps_glue *glue = from_timer(glue, t, timer);
-	struct musb *musb = platform_get_drvdata(glue->musb);
+	struct musb *musb = from_timer(musb, t, dev_timer);
 	struct device *dev = musb->controller;
 	unsigned long flags;
 	int err;
@@ -481,7 +480,7 @@ static int dsps_musb_init(struct musb *musb)
 		}
 	}
 
-	timer_setup(&glue->timer, otg_timer, 0);
+	timer_setup(&musb->dev_timer, otg_timer, 0);
 
 	/* Reset the musb */
 	musb_writel(reg_base, wrp->control, (1 << wrp->reset));
@@ -516,7 +515,7 @@ static int dsps_musb_exit(struct musb *musb)
 	struct device *dev = musb->controller;
 	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
 
-	del_timer_sync(&glue->timer);
+	del_timer_sync(&musb->dev_timer);
 	usb_phy_shutdown(musb->xceiv);
 	phy_power_off(musb->phy);
 	phy_exit(musb->phy);
@@ -1028,7 +1027,7 @@ static int dsps_suspend(struct device *dev)
 		return ret;
 	}
 
-	del_timer_sync(&glue->timer);
+	del_timer_sync(&musb->dev_timer);
 
 	mbase = musb->ctrl_base;
 	glue->context.control = musb_readl(mbase, wrp->control);
