@@ -168,7 +168,9 @@ static int mb86s70_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(gchip->clk))
 		return PTR_ERR(gchip->clk);
 
-	clk_prepare_enable(gchip->clk);
+	ret = clk_prepare_enable(gchip->clk);
+	if (ret)
+		return ret;
 
 	spin_lock_init(&gchip->lock);
 
@@ -217,8 +219,4 @@ static struct platform_driver mb86s70_gpio_driver = {
 	.remove = mb86s70_gpio_remove,
 };
 
-static int __init mb86s70_gpio_init(void)
-{
-	return platform_driver_register(&mb86s70_gpio_driver);
-}
-device_initcall(mb86s70_gpio_init);
+builtin_platform_driver(mb86s70_gpio_driver);

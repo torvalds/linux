@@ -96,8 +96,8 @@ static int fsl_ehci_drv_probe(struct platform_device *pdev)
 	}
 	irq = res->start;
 
-	hcd = usb_create_hcd(&fsl_ehci_hc_driver, &pdev->dev,
-				dev_name(&pdev->dev));
+	hcd = __usb_create_hcd(&fsl_ehci_hc_driver, pdev->dev.parent,
+			       &pdev->dev, dev_name(&pdev->dev), NULL);
 	if (!hcd) {
 		retval = -ENOMEM;
 		goto err1;
@@ -285,6 +285,9 @@ static int ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 	/* Deal with USB erratum A-005275 */
 	if (pdata->has_fsl_erratum_a005275 == 1)
 		ehci->has_fsl_hs_errata = 1;
+
+	if (pdata->has_fsl_erratum_a005697 == 1)
+		ehci->has_fsl_susp_errata = 1;
 
 	if ((pdata->operating_mode == FSL_USB2_DR_HOST) ||
 			(pdata->operating_mode == FSL_USB2_DR_OTG))
@@ -597,7 +600,7 @@ static int ehci_fsl_drv_restore(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops ehci_fsl_pm_ops = {
+static const struct dev_pm_ops ehci_fsl_pm_ops = {
 	.suspend = ehci_fsl_drv_suspend,
 	.resume = ehci_fsl_drv_resume,
 	.restore = ehci_fsl_drv_restore,
@@ -639,7 +642,7 @@ static int ehci_start_port_reset(struct usb_hcd *hcd, unsigned port)
 #define ehci_start_port_reset	NULL
 #endif /* CONFIG_USB_OTG */
 
-static struct ehci_driver_overrides ehci_fsl_overrides __initdata = {
+static const struct ehci_driver_overrides ehci_fsl_overrides __initconst = {
 	.extra_priv_size = sizeof(struct ehci_fsl),
 	.reset = ehci_fsl_setup,
 };

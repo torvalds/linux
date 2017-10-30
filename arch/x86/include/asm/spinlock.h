@@ -23,9 +23,6 @@
 /* How long a lock should spin before we consider blocking */
 #define SPIN_THRESHOLD	(1 << 15)
 
-extern struct static_key paravirt_ticketlocks_enabled;
-static __always_inline bool static_key_false(struct static_key *key);
-
 #include <asm/qspinlock.h>
 
 /*

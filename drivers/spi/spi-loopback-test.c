@@ -20,40 +20,65 @@
 
 #include <linux/delay.h>
 #include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/list_sort.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/printk.h>
+#include <linux/vmalloc.h>
 #include <linux/spi/spi.h>
 
 #include "spi-test.h"
 
 /* flag to only simulate transfers */
-int simulate_only;
+static int simulate_only;
 module_param(simulate_only, int, 0);
 MODULE_PARM_DESC(simulate_only, "if not 0 do not execute the spi message");
 
 /* dump spi messages */
-int dump_messages;
+static int dump_messages;
 module_param(dump_messages, int, 0);
 MODULE_PARM_DESC(dump_messages,
 		 "=1 dump the basic spi_message_structure, " \
 		 "=2 dump the spi_message_structure including data, " \
 		 "=3 dump the spi_message structure before and after execution");
 /* the device is jumpered for loopback - enabling some rx_buf tests */
-int loopback;
+static int loopback;
 module_param(loopback, int, 0);
 MODULE_PARM_DESC(loopback,
 		 "if set enable loopback mode, where the rx_buf "	\
 		 "is checked to match tx_buf after the spi_message "	\
 		 "is executed");
 
+static int loop_req;
+module_param(loop_req, int, 0);
+MODULE_PARM_DESC(loop_req,
+		 "if set controller will be asked to enable test loop mode. " \
+		 "If controller supported it, MISO and MOSI will be connected");
+
+static int no_cs;
+module_param(no_cs, int, 0);
+MODULE_PARM_DESC(no_cs,
+		 "if set Chip Select (CS) will not be used");
+
 /* run only a specific test */
-int run_only_test = -1;
+static int run_only_test = -1;
 module_param(run_only_test, int, 0);
 MODULE_PARM_DESC(run_only_test,
 		 "only run the test with this number (0-based !)");
+
+/* use vmalloc'ed buffers */
+static int use_vmalloc;
+module_param(use_vmalloc, int, 0644);
+MODULE_PARM_DESC(use_vmalloc,
+		 "use vmalloc'ed buffers instead of kmalloc'ed");
+
+/* check rx ranges */
+static int check_ranges = 1;
+module_param(check_ranges, int, 0644);
+MODULE_PARM_DESC(check_ranges,
+		 "checks rx_buffer pattern are valid");
 
 /* the actual tests to execute */
 static struct spi_test spi_tests[] = {
@@ -63,9 +88,9 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_rx_align = ITERATE_ALIGN,
+		.transfer_count = 1,
 		.transfers		= {
 			{
-				.len = 1,
 				.tx_buf = TX(0),
 				.rx_buf = RX(0),
 			},
@@ -77,9 +102,9 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_rx_align = ITERATE_ALIGN,
+		.transfer_count = 1,
 		.transfers		= {
 			{
-				.len = 1,
 				.tx_buf = TX(PAGE_SIZE - 4),
 				.rx_buf = RX(PAGE_SIZE - 4),
 			},
@@ -90,9 +115,9 @@ static struct spi_test spi_tests[] = {
 		.fill_option	= FILL_COUNT_8,
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
+		.transfer_count = 1,
 		.transfers		= {
 			{
-				.len = 1,
 				.tx_buf = TX(0),
 			},
 		},
@@ -102,9 +127,9 @@ static struct spi_test spi_tests[] = {
 		.fill_option	= FILL_COUNT_8,
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_rx_align = ITERATE_ALIGN,
+		.transfer_count = 1,
 		.transfers		= {
 			{
-				.len = 1,
 				.rx_buf = RX(0),
 			},
 		},
@@ -115,13 +140,12 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_transfer_mask = BIT(0) | BIT(1),
+		.transfer_count = 2,
 		.transfers		= {
 			{
-				.len = 1,
 				.tx_buf = TX(0),
 			},
 			{
-				.len = 1,
 				/* this is why we cant use ITERATE_MAX_LEN */
 				.tx_buf = TX(SPI_TEST_MAX_SIZE_HALF),
 			},
@@ -132,10 +156,10 @@ static struct spi_test spi_tests[] = {
 		.fill_option	= FILL_COUNT_8,
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
-		.iterate_transfer_mask = BIT(1),
+		.iterate_transfer_mask = BIT(0),
+		.transfer_count = 2,
 		.transfers		= {
 			{
-				.len = 1,
 				.tx_buf = TX(64),
 			},
 			{
@@ -149,14 +173,14 @@ static struct spi_test spi_tests[] = {
 		.fill_option	= FILL_COUNT_8,
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
-		.iterate_transfer_mask = BIT(0),
+		.iterate_transfer_mask = BIT(1),
+		.transfer_count = 2,
 		.transfers		= {
 			{
 				.len = 16,
 				.tx_buf = TX(0),
 			},
 			{
-				.len = 1,
 				.tx_buf = TX(64),
 			},
 		},
@@ -167,13 +191,12 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_transfer_mask = BIT(0) | BIT(1),
+		.transfer_count = 2,
 		.transfers		= {
 			{
-				.len = 1,
 				.tx_buf = TX(0),
 			},
 			{
-				.len = 1,
 				.rx_buf = RX(0),
 			},
 		},
@@ -184,9 +207,9 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_transfer_mask = BIT(0),
+		.transfer_count = 2,
 		.transfers		= {
 			{
-				.len = 1,
 				.tx_buf = TX(0),
 			},
 			{
@@ -201,13 +224,13 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_transfer_mask = BIT(1),
+		.transfer_count = 2,
 		.transfers		= {
 			{
 				.len = 1,
 				.tx_buf = TX(0),
 			},
 			{
-				.len = 1,
 				.rx_buf = RX(0),
 			},
 		},
@@ -218,14 +241,13 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_transfer_mask = BIT(0) | BIT(1),
+		.transfer_count = 2,
 		.transfers		= {
 			{
-				.len = 1,
 				.tx_buf = TX(0),
 				.rx_buf = RX(0),
 			},
 			{
-				.len = 1,
 				/* making sure we align without overwrite
 				 * the reason we can not use ITERATE_MAX_LEN
 				 */
@@ -240,9 +262,9 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_transfer_mask = BIT(0),
+		.transfer_count = 2,
 		.transfers		= {
 			{
-				.len = 1,
 				/* making sure we align without overwrite */
 				.tx_buf = TX(1024),
 				.rx_buf = RX(1024),
@@ -261,6 +283,7 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_transfer_mask = BIT(1),
+		.transfer_count = 2,
 		.transfers		= {
 			{
 				.len = 1,
@@ -268,10 +291,28 @@ static struct spi_test spi_tests[] = {
 				.rx_buf = RX(0),
 			},
 			{
-				.len = 1,
 				/* making sure we align without overwrite */
 				.tx_buf = TX(1024),
 				.rx_buf = RX(1024),
+			},
+		},
+	},
+	{
+		.description	= "two tx+rx transfers - delay after transfer",
+		.fill_option	= FILL_COUNT_8,
+		.iterate_len    = { ITERATE_MAX_LEN },
+		.iterate_transfer_mask = BIT(0) | BIT(1),
+		.transfer_count = 2,
+		.transfers		= {
+			{
+				.tx_buf = TX(0),
+				.rx_buf = RX(0),
+				.delay_usecs = 1000,
+			},
+			{
+				.tx_buf = TX(0),
+				.rx_buf = RX(0),
+				.delay_usecs = 1000,
 			},
 		},
 	},
@@ -282,6 +323,17 @@ static struct spi_test spi_tests[] = {
 static int spi_loopback_test_probe(struct spi_device *spi)
 {
 	int ret;
+
+	if (loop_req || no_cs) {
+		spi->mode |= loop_req ? SPI_LOOP : 0;
+		spi->mode |= no_cs ? SPI_NO_CS : 0;
+		ret = spi_setup(spi);
+		if (ret) {
+			dev_err(&spi->dev, "SPI setup with SPI_LOOP or SPI_NO_CS failed (%d)\n",
+				ret);
+			return ret;
+		}
+	}
 
 	dev_info(&spi->dev, "Executing spi-loopback-tests\n");
 
@@ -482,6 +534,36 @@ static int spi_check_rx_ranges(struct spi_device *spi,
 	return ret;
 }
 
+static int spi_test_check_elapsed_time(struct spi_device *spi,
+				       struct spi_test *test)
+{
+	int i;
+	unsigned long long estimated_time = 0;
+	unsigned long long delay_usecs = 0;
+
+	for (i = 0; i < test->transfer_count; i++) {
+		struct spi_transfer *xfer = test->transfers + i;
+		unsigned long long nbits = (unsigned long long)BITS_PER_BYTE *
+					   xfer->len;
+
+		delay_usecs += xfer->delay_usecs;
+		if (!xfer->speed_hz)
+			continue;
+		estimated_time += div_u64(nbits * NSEC_PER_SEC, xfer->speed_hz);
+	}
+
+	estimated_time += delay_usecs * NSEC_PER_USEC;
+	if (test->elapsed_time < estimated_time) {
+		dev_err(&spi->dev,
+			"elapsed time %lld ns is shorter than minimum estimated time %lld ns\n",
+			test->elapsed_time, estimated_time);
+
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int spi_test_check_loopback_result(struct spi_device *spi,
 					  struct spi_message *msg,
 					  void *tx, void *rx)
@@ -492,9 +574,11 @@ static int spi_test_check_loopback_result(struct spi_device *spi,
 	int ret;
 
 	/* checks rx_buffer pattern are valid with loopback or without */
-	ret = spi_check_rx_ranges(spi, msg, rx);
-	if (ret)
-		return ret;
+	if (check_ranges) {
+		ret = spi_check_rx_ranges(spi, msg, rx);
+		if (ret)
+			return ret;
+	}
 
 	/* if we run without loopback, then return now */
 	if (!loopback)
@@ -503,11 +587,11 @@ static int spi_test_check_loopback_result(struct spi_device *spi,
 	/* if applicable to transfer check that rx_buf is equal to tx_buf */
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		/* if there is no rx, then no check is needed */
-		if (!xfer->rx_buf)
+		if (!xfer->len || !xfer->rx_buf)
 			continue;
 		/* so depending on tx_buf we need to handle things */
 		if (xfer->tx_buf) {
-			for (i = 1; i < xfer->len; i++) {
+			for (i = 0; i < xfer->len; i++) {
 				txb = ((u8 *)xfer->tx_buf)[i];
 				rxb = ((u8 *)xfer->rx_buf)[i];
 				if (txb != rxb)
@@ -745,15 +829,6 @@ static int spi_test_run_iter(struct spi_device *spi,
 	/* copy the test template to test */
 	memcpy(&test, testtemplate, sizeof(test));
 
-	/* set up test->transfers to the correct count */
-	if (!test.transfer_count) {
-		for (i = 0;
-		    (i < SPI_TEST_MAX_TRANSFERS) && test.transfers[i].len;
-		    i++) {
-			test.transfer_count++;
-		}
-	}
-
 	/* if iterate_transfer_mask is not set,
 	 * then set it to first transfer only
 	 */
@@ -799,8 +874,7 @@ static int spi_test_run_iter(struct spi_device *spi,
 		/* only when bit in transfer mask is set */
 		if (!(test.iterate_transfer_mask & BIT(i)))
 			continue;
-		if (len)
-			test.transfers[i].len = len;
+		test.transfers[i].len = len;
 		if (test.transfers[i].tx_buf)
 			test.transfers[i].tx_buf += tx_off;
 		if (test.transfers[i].tx_buf)
@@ -830,15 +904,19 @@ int spi_test_execute_msg(struct spi_device *spi, struct spi_test *test,
 
 	/* only if we do not simulate */
 	if (!simulate_only) {
+		ktime_t start;
+
 		/* dump the complete message before and after the transfer */
 		if (dump_messages == 3)
 			spi_test_dump_message(spi, msg, true);
 
+		start = ktime_get();
 		/* run spi message */
 		ret = spi_sync(spi, msg);
+		test->elapsed_time = ktime_to_ns(ktime_sub(ktime_get(), start));
 		if (ret == -ETIMEDOUT) {
 			dev_info(&spi->dev,
-				 "spi-message timed out - reruning...\n");
+				 "spi-message timed out - rerunning...\n");
 			/* rerun after a few explicit schedules */
 			for (i = 0; i < 16; i++)
 				schedule();
@@ -861,6 +939,10 @@ int spi_test_execute_msg(struct spi_device *spi, struct spi_test *test,
 
 		/* run rx-buffer tests */
 		ret = spi_test_check_loopback_result(spi, msg, tx, rx);
+		if (ret)
+			goto exit;
+
+		ret = spi_test_check_elapsed_time(spi, test);
 	}
 
 	/* if requested or on error dump message (including data) */
@@ -910,15 +992,6 @@ int spi_test_run_test(struct spi_device *spi, const struct spi_test *test,
 	/* iterate over all the iterable values using macros
 	 * (to make it a bit more readable...
 	 */
-#define FOR_EACH_ITERATE(var, defaultvalue)				\
-	for (idx_##var = -1, var = defaultvalue;			\
-	     ((idx_##var < 0) ||					\
-		     (							\
-			     (idx_##var < SPI_TEST_MAX_ITERATE) &&	\
-			     (var = test->iterate_##var[idx_##var])	\
-		     )							\
-	     );								\
-	     idx_##var++)
 #define FOR_EACH_ALIGNMENT(var)						\
 	for (var = 0;							\
 	    var < (test->iterate_##var ?				\
@@ -928,7 +1001,8 @@ int spi_test_run_test(struct spi_device *spi, const struct spi_test *test,
 			1);						\
 	    var++)
 
-	FOR_EACH_ITERATE(len, 0) {
+	for (idx_len = 0; idx_len < SPI_TEST_MAX_ITERATE &&
+	     (len = test->iterate_len[idx_len]) != -1; idx_len++) {
 		FOR_EACH_ALIGNMENT(tx_align) {
 			FOR_EACH_ALIGNMENT(rx_align) {
 				/* and run the iteration */
@@ -965,16 +1039,21 @@ int spi_test_run_tests(struct spi_device *spi,
 	/* allocate rx/tx buffers of 128kB size without devm
 	 * in the hope that is on a page boundary
 	 */
-	rx = kzalloc(SPI_TEST_MAX_SIZE_PLUS, GFP_KERNEL);
-	if (!rx) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (use_vmalloc)
+		rx = vmalloc(SPI_TEST_MAX_SIZE_PLUS);
+	else
+		rx = kzalloc(SPI_TEST_MAX_SIZE_PLUS, GFP_KERNEL);
+	if (!rx)
+		return -ENOMEM;
 
-	tx = kzalloc(SPI_TEST_MAX_SIZE_PLUS, GFP_KERNEL);
+
+	if (use_vmalloc)
+		tx = vmalloc(SPI_TEST_MAX_SIZE_PLUS);
+	else
+		tx = kzalloc(SPI_TEST_MAX_SIZE_PLUS, GFP_KERNEL);
 	if (!tx) {
 		ret = -ENOMEM;
-		goto out;
+		goto err_tx;
 	}
 
 	/* now run the individual tests in the table */
@@ -999,8 +1078,9 @@ int spi_test_run_tests(struct spi_device *spi,
 	}
 
 out:
-	kfree(rx);
-	kfree(tx);
+	kvfree(tx);
+err_tx:
+	kvfree(rx);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(spi_test_run_tests);

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,6 +85,7 @@ extern const char *acpi_gbl_bpb_decode[];
 extern const char *acpi_gbl_sb_decode[];
 extern const char *acpi_gbl_fc_decode[];
 extern const char *acpi_gbl_pt_decode[];
+extern const char *acpi_gbl_ptyp_decode[];
 #endif
 
 /*
@@ -231,6 +232,8 @@ const char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc);
 const char *acpi_ut_get_region_name(u8 space_id);
 
 const char *acpi_ut_get_event_name(u32 event_id);
+
+const char *acpi_ut_get_argument_type_name(u32 arg_type);
 
 char acpi_ut_hex_to_ascii_char(u64 integer, u32 position);
 
@@ -513,7 +516,7 @@ union acpi_generic_state *acpi_ut_create_update_state(union acpi_operand_object
 
 union acpi_generic_state *acpi_ut_create_pkg_state(void *internal_object,
 						   void *external_object,
-						   u16 index);
+						   u32 index);
 
 acpi_status
 acpi_ut_create_update_state_and_push(union acpi_operand_object *object,
@@ -534,6 +537,13 @@ acpi_ut_divide(u64 in_dividend,
 acpi_status
 acpi_ut_short_divide(u64 in_dividend,
 		     u32 divisor, u64 *out_quotient, u32 *out_remainder);
+
+acpi_status
+acpi_ut_short_multiply(u64 in_multiplicand, u32 multiplier, u64 *outproduct);
+
+acpi_status acpi_ut_short_shift_left(u64 operand, u32 count, u64 *out_result);
+
+acpi_status acpi_ut_short_shift_right(u64 operand, u32 count, u64 *out_result);
 
 /*
  * utmisc

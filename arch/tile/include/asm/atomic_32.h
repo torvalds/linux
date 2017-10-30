@@ -101,6 +101,8 @@ static inline void atomic_set(atomic_t *v, int n)
 	_atomic_xchg(&v->counter, n);
 }
 
+#define atomic_set_release(v, i)	atomic_set((v), (i))
+
 /* A 64bit atomic type */
 
 typedef struct {

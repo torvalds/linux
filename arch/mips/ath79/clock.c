@@ -12,7 +12,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/clk.h>
@@ -45,7 +44,7 @@ static struct clk *__init ath79_add_sys_clkdev(
 	int err;
 
 	clk = clk_register_fixed_rate(NULL, id, NULL, 0, rate);
-	if (!clk)
+	if (IS_ERR(clk))
 		panic("failed to allocate %s clock structure", id);
 
 	err = clk_register_clkdev(clk, id, NULL);
@@ -488,17 +487,16 @@ static void __init ath79_clocks_init_dt_ng(struct device_node *np)
 {
 	struct clk *ref_clk;
 	void __iomem *pll_base;
-	const char *dnfn = of_node_full_name(np);
 
 	ref_clk = of_clk_get(np, 0);
 	if (IS_ERR(ref_clk)) {
-		pr_err("%s: of_clk_get failed\n", dnfn);
+		pr_err("%pOF: of_clk_get failed\n", np);
 		goto err;
 	}
 
 	pll_base = of_iomap(np, 0);
 	if (!pll_base) {
-		pr_err("%s: can't map pll registers\n", dnfn);
+		pr_err("%pOF: can't map pll registers\n", np);
 		goto err_clk;
 	}
 
@@ -507,16 +505,19 @@ static void __init ath79_clocks_init_dt_ng(struct device_node *np)
 	else if (of_device_is_compatible(np, "qca,ar9330-pll"))
 		ar9330_clk_init(ref_clk, pll_base);
 	else {
-		pr_err("%s: could not find any appropriate clk_init()\n", dnfn);
-		goto err_clk;
+		pr_err("%pOF: could not find any appropriate clk_init()\n", np);
+		goto err_iounmap;
 	}
 
 	if (of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data)) {
-		pr_err("%s: could not register clk provider\n", dnfn);
-		goto err_clk;
+		pr_err("%pOF: could not register clk provider\n", np);
+		goto err_iounmap;
 	}
 
 	return;
+
+err_iounmap:
+	iounmap(pll_base);
 
 err_clk:
 	clk_put(ref_clk);

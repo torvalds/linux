@@ -29,7 +29,7 @@
 #include <asm/local.h>
 #include <asm/mipsregs.h>
 #include <asm/ptrace.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_64BIT
 #define ADDIU	"daddiu "
@@ -46,9 +46,11 @@
 #define LL	"ll "
 #define SC	"sc "
 
-DEFINE_PER_CPU(struct mips_r2_emulator_stats, mipsr2emustats);
-DEFINE_PER_CPU(struct mips_r2_emulator_stats, mipsr2bdemustats);
-DEFINE_PER_CPU(struct mips_r2br_emulator_stats, mipsr2bremustats);
+#ifdef CONFIG_DEBUG_FS
+static DEFINE_PER_CPU(struct mips_r2_emulator_stats, mipsr2emustats);
+static DEFINE_PER_CPU(struct mips_r2_emulator_stats, mipsr2bdemustats);
+static DEFINE_PER_CPU(struct mips_r2br_emulator_stats, mipsr2bremustats);
+#endif
 
 extern const unsigned int fpucondbit[8];
 
@@ -433,8 +435,8 @@ static int multu_func(struct pt_regs *regs, u32 ir)
 	rs = regs->regs[MIPSInst_RS(ir)];
 	res = (u64)rt * (u64)rs;
 	rt = res;
-	regs->lo = (s64)rt;
-	regs->hi = (s64)(res >> 32);
+	regs->lo = (s64)(s32)rt;
+	regs->hi = (s64)(s32)(res >> 32);
 
 	MIPS_R2_STATS(muls);
 
@@ -600,7 +602,7 @@ static int ddivu_func(struct pt_regs *regs, u32 ir)
 }
 
 /* R6 removed instructions for the SPECIAL opcode */
-static struct r2_decoder_table spec_op_table[] = {
+static const struct r2_decoder_table spec_op_table[] = {
 	{ 0xfc1ff83f, 0x00000008, jr_func },
 	{ 0xfc00ffff, 0x00000018, mult_func },
 	{ 0xfc00ffff, 0x00000019, multu_func },
@@ -670,9 +672,9 @@ static int maddu_func(struct pt_regs *regs, u32 ir)
 	res += ((((s64)rt) << 32) | (u32)rs);
 
 	rt = res;
-	regs->lo = (s64)rt;
+	regs->lo = (s64)(s32)rt;
 	rs = res >> 32;
-	regs->hi = (s64)rs;
+	regs->hi = (s64)(s32)rs;
 
 	MIPS_R2_STATS(dsps);
 
@@ -728,9 +730,9 @@ static int msubu_func(struct pt_regs *regs, u32 ir)
 	res = ((((s64)rt) << 32) | (u32)rs) - res;
 
 	rt = res;
-	regs->lo = (s64)rt;
+	regs->lo = (s64)(s32)rt;
 	rs = res >> 32;
-	regs->hi = (s64)rs;
+	regs->hi = (s64)(s32)rs;
 
 	MIPS_R2_STATS(dsps);
 
@@ -867,7 +869,7 @@ static int dclo_func(struct pt_regs *regs, u32 ir)
 }
 
 /* R6 removed instructions for the SPECIAL2 opcode */
-static struct r2_decoder_table spec2_op_table[] = {
+static const struct r2_decoder_table spec2_op_table[] = {
 	{ 0xfc00ffff, 0x70000000, madd_func },
 	{ 0xfc00ffff, 0x70000001, maddu_func },
 	{ 0xfc0007ff, 0x70000002, mul_func },
@@ -881,9 +883,9 @@ static struct r2_decoder_table spec2_op_table[] = {
 };
 
 static inline int mipsr2_find_op_func(struct pt_regs *regs, u32 inst,
-				      struct r2_decoder_table *table)
+				      const struct r2_decoder_table *table)
 {
-	struct r2_decoder_table *p;
+	const struct r2_decoder_table *p;
 	int err;
 
 	for (p = table; p->func; p++) {
@@ -1096,10 +1098,20 @@ repeat:
 		}
 		break;
 
-	case beql_op:
-	case bnel_op:
 	case blezl_op:
 	case bgtzl_op:
+		/*
+		 * For BLEZL and BGTZL, rt field must be set to 0. If this
+		 * is not the case, this may be an encoding of a MIPS R6
+		 * instruction, so return to CPU execution if this occurs
+		 */
+		if (MIPSInst_RT(inst)) {
+			err = SIGILL;
+			break;
+		}
+		/* fall through */
+	case beql_op:
+	case bnel_op:
 		if (delay_slot(regs)) {
 			err = SIGILL;
 			break;
@@ -1200,7 +1212,7 @@ fpu_emul:
 	case lwl_op:
 		rt = regs->regs[MIPSInst_RT(inst)];
 		vaddr = regs->regs[MIPSInst_RS(inst)] + MIPSInst_SIMM(inst);
-		if (!access_ok(VERIFY_READ, vaddr, 4)) {
+		if (!access_ok(VERIFY_READ, (void __user *)vaddr, 4)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGSEGV;
 			break;
@@ -1273,7 +1285,7 @@ fpu_emul:
 	case lwr_op:
 		rt = regs->regs[MIPSInst_RT(inst)];
 		vaddr = regs->regs[MIPSInst_RS(inst)] + MIPSInst_SIMM(inst);
-		if (!access_ok(VERIFY_READ, vaddr, 4)) {
+		if (!access_ok(VERIFY_READ, (void __user *)vaddr, 4)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGSEGV;
 			break;
@@ -1347,7 +1359,7 @@ fpu_emul:
 	case swl_op:
 		rt = regs->regs[MIPSInst_RT(inst)];
 		vaddr = regs->regs[MIPSInst_RS(inst)] + MIPSInst_SIMM(inst);
-		if (!access_ok(VERIFY_WRITE, vaddr, 4)) {
+		if (!access_ok(VERIFY_WRITE, (void __user *)vaddr, 4)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGSEGV;
 			break;
@@ -1417,7 +1429,7 @@ fpu_emul:
 	case swr_op:
 		rt = regs->regs[MIPSInst_RT(inst)];
 		vaddr = regs->regs[MIPSInst_RS(inst)] + MIPSInst_SIMM(inst);
-		if (!access_ok(VERIFY_WRITE, vaddr, 4)) {
+		if (!access_ok(VERIFY_WRITE, (void __user *)vaddr, 4)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGSEGV;
 			break;
@@ -1492,7 +1504,7 @@ fpu_emul:
 
 		rt = regs->regs[MIPSInst_RT(inst)];
 		vaddr = regs->regs[MIPSInst_RS(inst)] + MIPSInst_SIMM(inst);
-		if (!access_ok(VERIFY_READ, vaddr, 8)) {
+		if (!access_ok(VERIFY_READ, (void __user *)vaddr, 8)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGSEGV;
 			break;
@@ -1611,7 +1623,7 @@ fpu_emul:
 
 		rt = regs->regs[MIPSInst_RT(inst)];
 		vaddr = regs->regs[MIPSInst_RS(inst)] + MIPSInst_SIMM(inst);
-		if (!access_ok(VERIFY_READ, vaddr, 8)) {
+		if (!access_ok(VERIFY_READ, (void __user *)vaddr, 8)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGSEGV;
 			break;
@@ -1730,7 +1742,7 @@ fpu_emul:
 
 		rt = regs->regs[MIPSInst_RT(inst)];
 		vaddr = regs->regs[MIPSInst_RS(inst)] + MIPSInst_SIMM(inst);
-		if (!access_ok(VERIFY_WRITE, vaddr, 8)) {
+		if (!access_ok(VERIFY_WRITE, (void __user *)vaddr, 8)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGSEGV;
 			break;
@@ -1848,7 +1860,7 @@ fpu_emul:
 
 		rt = regs->regs[MIPSInst_RT(inst)];
 		vaddr = regs->regs[MIPSInst_RS(inst)] + MIPSInst_SIMM(inst);
-		if (!access_ok(VERIFY_WRITE, vaddr, 8)) {
+		if (!access_ok(VERIFY_WRITE, (void __user *)vaddr, 8)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGSEGV;
 			break;
@@ -1965,7 +1977,7 @@ fpu_emul:
 			err = SIGBUS;
 			break;
 		}
-		if (!access_ok(VERIFY_READ, vaddr, 4)) {
+		if (!access_ok(VERIFY_READ, (void __user *)vaddr, 4)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGBUS;
 			break;
@@ -2021,7 +2033,7 @@ fpu_emul:
 			err = SIGBUS;
 			break;
 		}
-		if (!access_ok(VERIFY_WRITE, vaddr, 4)) {
+		if (!access_ok(VERIFY_WRITE, (void __user *)vaddr, 4)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGBUS;
 			break;
@@ -2084,7 +2096,7 @@ fpu_emul:
 			err = SIGBUS;
 			break;
 		}
-		if (!access_ok(VERIFY_READ, vaddr, 8)) {
+		if (!access_ok(VERIFY_READ, (void __user *)vaddr, 8)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGBUS;
 			break;
@@ -2145,7 +2157,7 @@ fpu_emul:
 			err = SIGBUS;
 			break;
 		}
-		if (!access_ok(VERIFY_WRITE, vaddr, 8)) {
+		if (!access_ok(VERIFY_WRITE, (void __user *)vaddr, 8)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGBUS;
 			break;
@@ -2329,6 +2341,8 @@ static int mipsr2_stats_clear_show(struct seq_file *s, void *unused)
 	__this_cpu_write((mipsr2bremustats).bgezl, 0);
 	__this_cpu_write((mipsr2bremustats).bltzll, 0);
 	__this_cpu_write((mipsr2bremustats).bgezll, 0);
+	__this_cpu_write((mipsr2bremustats).bltzall, 0);
+	__this_cpu_write((mipsr2bremustats).bgezall, 0);
 	__this_cpu_write((mipsr2bremustats).bltzal, 0);
 	__this_cpu_write((mipsr2bremustats).bgezal, 0);
 	__this_cpu_write((mipsr2bremustats).beql, 0);

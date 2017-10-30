@@ -65,4 +65,16 @@ struct nfgenmsg {
 #define NFNL_MSG_BATCH_BEGIN		NLMSG_MIN_TYPE
 #define NFNL_MSG_BATCH_END		NLMSG_MIN_TYPE+1
 
+/**
+ * enum nfnl_batch_attributes - nfnetlink batch netlink attributes
+ *
+ * @NFNL_BATCH_GENID: generation ID for this changeset (NLA_U32)
+ */
+enum nfnl_batch_attributes {
+        NFNL_BATCH_UNSPEC,
+        NFNL_BATCH_GENID,
+        __NFNL_BATCH_MAX
+};
+#define NFNL_BATCH_MAX			(__NFNL_BATCH_MAX - 1)
+
 #endif /* _UAPI_NFNETLINK_H */

@@ -68,9 +68,9 @@ struct sw_sync_create_fence_data {
 
 #define SW_SYNC_IOC_INC			_IOW(SW_SYNC_IOC_MAGIC, 1, __u32)
 
-static const struct fence_ops timeline_fence_ops;
+static const struct dma_fence_ops timeline_fence_ops;
 
-static inline struct sync_pt *fence_to_sync_pt(struct fence *fence)
+static inline struct sync_pt *dma_fence_to_sync_pt(struct dma_fence *fence)
 {
 	if (fence->ops != &timeline_fence_ops)
 		return NULL;
@@ -84,7 +84,7 @@ static inline struct sync_pt *fence_to_sync_pt(struct fence *fence)
  * Creates a new sync_timeline. Returns the sync_timeline object or NULL in
  * case of error.
  */
-struct sync_timeline *sync_timeline_create(const char *name)
+static struct sync_timeline *sync_timeline_create(const char *name)
 {
 	struct sync_timeline *obj;
 
@@ -93,12 +93,12 @@ struct sync_timeline *sync_timeline_create(const char *name)
 		return NULL;
 
 	kref_init(&obj->kref);
-	obj->context = fence_context_alloc(1);
+	obj->context = dma_fence_context_alloc(1);
 	strlcpy(obj->name, name, sizeof(obj->name));
 
-	INIT_LIST_HEAD(&obj->child_list_head);
-	INIT_LIST_HEAD(&obj->active_list_head);
-	spin_lock_init(&obj->child_list_lock);
+	obj->pt_tree = RB_ROOT;
+	INIT_LIST_HEAD(&obj->pt_list);
+	spin_lock_init(&obj->lock);
 
 	sync_timeline_debug_add(obj);
 
@@ -125,6 +125,75 @@ static void sync_timeline_put(struct sync_timeline *obj)
 	kref_put(&obj->kref, sync_timeline_free);
 }
 
+static const char *timeline_fence_get_driver_name(struct dma_fence *fence)
+{
+	return "sw_sync";
+}
+
+static const char *timeline_fence_get_timeline_name(struct dma_fence *fence)
+{
+	struct sync_timeline *parent = dma_fence_parent(fence);
+
+	return parent->name;
+}
+
+static void timeline_fence_release(struct dma_fence *fence)
+{
+	struct sync_pt *pt = dma_fence_to_sync_pt(fence);
+	struct sync_timeline *parent = dma_fence_parent(fence);
+
+	if (!list_empty(&pt->link)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(fence->lock, flags);
+		if (!list_empty(&pt->link)) {
+			list_del(&pt->link);
+			rb_erase(&pt->node, &parent->pt_tree);
+		}
+		spin_unlock_irqrestore(fence->lock, flags);
+	}
+
+	sync_timeline_put(parent);
+	dma_fence_free(fence);
+}
+
+static bool timeline_fence_signaled(struct dma_fence *fence)
+{
+	struct sync_timeline *parent = dma_fence_parent(fence);
+
+	return !__dma_fence_is_later(fence->seqno, parent->value);
+}
+
+static bool timeline_fence_enable_signaling(struct dma_fence *fence)
+{
+	return true;
+}
+
+static void timeline_fence_value_str(struct dma_fence *fence,
+				    char *str, int size)
+{
+	snprintf(str, size, "%d", fence->seqno);
+}
+
+static void timeline_fence_timeline_value_str(struct dma_fence *fence,
+					     char *str, int size)
+{
+	struct sync_timeline *parent = dma_fence_parent(fence);
+
+	snprintf(str, size, "%d", parent->value);
+}
+
+static const struct dma_fence_ops timeline_fence_ops = {
+	.get_driver_name = timeline_fence_get_driver_name,
+	.get_timeline_name = timeline_fence_get_timeline_name,
+	.enable_signaling = timeline_fence_enable_signaling,
+	.signaled = timeline_fence_signaled,
+	.wait = dma_fence_default_wait,
+	.release = timeline_fence_release,
+	.fence_value_str = timeline_fence_value_str,
+	.timeline_value_str = timeline_fence_timeline_value_str,
+};
+
 /**
  * sync_timeline_signal() - signal a status change on a sync_timeline
  * @obj:	sync_timeline to signal
@@ -135,28 +204,38 @@ static void sync_timeline_put(struct sync_timeline *obj)
  */
 static void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc)
 {
-	unsigned long flags;
 	struct sync_pt *pt, *next;
 
 	trace_sync_timeline(obj);
 
-	spin_lock_irqsave(&obj->child_list_lock, flags);
+	spin_lock_irq(&obj->lock);
 
 	obj->value += inc;
 
-	list_for_each_entry_safe(pt, next, &obj->active_list_head,
-				 active_list) {
-		if (fence_is_signaled_locked(&pt->base))
-			list_del_init(&pt->active_list);
+	list_for_each_entry_safe(pt, next, &obj->pt_list, link) {
+		if (!timeline_fence_signaled(&pt->base))
+			break;
+
+		list_del_init(&pt->link);
+		rb_erase(&pt->node, &obj->pt_tree);
+
+		/*
+		 * A signal callback may release the last reference to this
+		 * fence, causing it to be freed. That operation has to be
+		 * last to avoid a use after free inside this loop, and must
+		 * be after we remove the fence from the timeline in order to
+		 * prevent deadlocking on timeline->lock inside
+		 * timeline_fence_release().
+		 */
+		dma_fence_signal_locked(&pt->base);
 	}
 
-	spin_unlock_irqrestore(&obj->child_list_lock, flags);
+	spin_unlock_irq(&obj->lock);
 }
 
 /**
  * sync_pt_create() - creates a sync pt
  * @parent:	fence's parent sync_timeline
- * @size:	size to allocate for this pt
  * @inc:	value of the fence
  *
  * Creates a new sync_pt as a child of @parent.  @size bytes will be
@@ -164,100 +243,57 @@ static void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc)
  * the generic sync_timeline struct. Returns the sync_pt object or
  * NULL in case of error.
  */
-static struct sync_pt *sync_pt_create(struct sync_timeline *obj, int size,
-			     unsigned int value)
+static struct sync_pt *sync_pt_create(struct sync_timeline *obj,
+				      unsigned int value)
 {
-	unsigned long flags;
 	struct sync_pt *pt;
 
-	if (size < sizeof(*pt))
-		return NULL;
-
-	pt = kzalloc(size, GFP_KERNEL);
+	pt = kzalloc(sizeof(*pt), GFP_KERNEL);
 	if (!pt)
 		return NULL;
 
-	spin_lock_irqsave(&obj->child_list_lock, flags);
 	sync_timeline_get(obj);
-	fence_init(&pt->base, &timeline_fence_ops, &obj->child_list_lock,
-		   obj->context, value);
-	list_add_tail(&pt->child_list, &obj->child_list_head);
-	INIT_LIST_HEAD(&pt->active_list);
-	spin_unlock_irqrestore(&obj->child_list_lock, flags);
+	dma_fence_init(&pt->base, &timeline_fence_ops, &obj->lock,
+		       obj->context, value);
+	INIT_LIST_HEAD(&pt->link);
+
+	spin_lock_irq(&obj->lock);
+	if (!dma_fence_is_signaled_locked(&pt->base)) {
+		struct rb_node **p = &obj->pt_tree.rb_node;
+		struct rb_node *parent = NULL;
+
+		while (*p) {
+			struct sync_pt *other;
+			int cmp;
+
+			parent = *p;
+			other = rb_entry(parent, typeof(*pt), node);
+			cmp = value - other->base.seqno;
+			if (cmp > 0) {
+				p = &parent->rb_right;
+			} else if (cmp < 0) {
+				p = &parent->rb_left;
+			} else {
+				if (dma_fence_get_rcu(&other->base)) {
+					dma_fence_put(&pt->base);
+					pt = other;
+					goto unlock;
+				}
+				p = &parent->rb_left;
+			}
+		}
+		rb_link_node(&pt->node, parent, p);
+		rb_insert_color(&pt->node, &obj->pt_tree);
+
+		parent = rb_next(&pt->node);
+		list_add_tail(&pt->link,
+			      parent ? &rb_entry(parent, typeof(*pt), node)->link : &obj->pt_list);
+	}
+unlock:
+	spin_unlock_irq(&obj->lock);
+
 	return pt;
 }
-
-static const char *timeline_fence_get_driver_name(struct fence *fence)
-{
-	return "sw_sync";
-}
-
-static const char *timeline_fence_get_timeline_name(struct fence *fence)
-{
-	struct sync_timeline *parent = fence_parent(fence);
-
-	return parent->name;
-}
-
-static void timeline_fence_release(struct fence *fence)
-{
-	struct sync_pt *pt = fence_to_sync_pt(fence);
-	struct sync_timeline *parent = fence_parent(fence);
-	unsigned long flags;
-
-	spin_lock_irqsave(fence->lock, flags);
-	list_del(&pt->child_list);
-	if (!list_empty(&pt->active_list))
-		list_del(&pt->active_list);
-	spin_unlock_irqrestore(fence->lock, flags);
-
-	sync_timeline_put(parent);
-	fence_free(fence);
-}
-
-static bool timeline_fence_signaled(struct fence *fence)
-{
-	struct sync_timeline *parent = fence_parent(fence);
-
-	return (fence->seqno > parent->value) ? false : true;
-}
-
-static bool timeline_fence_enable_signaling(struct fence *fence)
-{
-	struct sync_pt *pt = fence_to_sync_pt(fence);
-	struct sync_timeline *parent = fence_parent(fence);
-
-	if (timeline_fence_signaled(fence))
-		return false;
-
-	list_add_tail(&pt->active_list, &parent->active_list_head);
-	return true;
-}
-
-static void timeline_fence_value_str(struct fence *fence,
-				    char *str, int size)
-{
-	snprintf(str, size, "%d", fence->seqno);
-}
-
-static void timeline_fence_timeline_value_str(struct fence *fence,
-					     char *str, int size)
-{
-	struct sync_timeline *parent = fence_parent(fence);
-
-	snprintf(str, size, "%d", parent->value);
-}
-
-static const struct fence_ops timeline_fence_ops = {
-	.get_driver_name = timeline_fence_get_driver_name,
-	.get_timeline_name = timeline_fence_get_timeline_name,
-	.enable_signaling = timeline_fence_enable_signaling,
-	.signaled = timeline_fence_signaled,
-	.wait = fence_default_wait,
-	.release = timeline_fence_release,
-	.fence_value_str = timeline_fence_value_str,
-	.timeline_value_str = timeline_fence_timeline_value_str,
-};
 
 /*
  * *WARNING*
@@ -309,15 +345,15 @@ static long sw_sync_ioctl_create_fence(struct sync_timeline *obj,
 		goto err;
 	}
 
-	pt = sync_pt_create(obj, sizeof(*pt), data.value);
+	pt = sync_pt_create(obj, data.value);
 	if (!pt) {
 		err = -ENOMEM;
 		goto err;
 	}
 
 	sync_file = sync_file_create(&pt->base);
+	dma_fence_put(&pt->base);
 	if (!sync_file) {
-		fence_put(&pt->base);
 		err = -ENOMEM;
 		goto err;
 	}
@@ -344,6 +380,11 @@ static long sw_sync_ioctl_inc(struct sync_timeline *obj, unsigned long arg)
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(value)))
 		return -EFAULT;
+
+	while (value > INT_MAX)  {
+		sync_timeline_signal(obj, INT_MAX);
+		value -= INT_MAX;
+	}
 
 	sync_timeline_signal(obj, value);
 

@@ -40,13 +40,7 @@
 
 static void rds_tcp_cork(struct socket *sock, int val)
 {
-	mm_segment_t oldfs;
-
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	sock->ops->setsockopt(sock, SOL_TCP, TCP_CORK, (char __user *)&val,
-			      sizeof(val));
-	set_fs(oldfs);
+	kernel_setsockopt(sock, SOL_TCP, TCP_CORK, (void *)&val, sizeof(val));
 }
 
 void rds_tcp_xmit_path_prepare(struct rds_conn_path *cp)
@@ -99,6 +93,9 @@ int rds_tcp_xmit(struct rds_connection *conn, struct rds_message *rm,
 		smp_mb__before_atomic();
 		set_bit(RDS_MSG_HAS_ACK_SEQ, &rm->m_flags);
 		tc->t_last_expected_una = rm->m_ack_seq + 1;
+
+		if (test_bit(RDS_MSG_RETRANSMITTED, &rm->m_flags))
+			rm->m_inc.i_hdr.h_flags |= RDS_FLAG_RETRANSMITTED;
 
 		rdsdebug("rm %p tcp nxt %u ack_seq %llu\n",
 			 rm, rds_tcp_snd_nxt(tc),
@@ -160,7 +157,7 @@ out:
 					"returned %d, "
 					"disconnecting and reconnecting\n",
 					&conn->c_faddr, cp->cp_index, ret);
-				rds_conn_path_drop(cp);
+				rds_conn_path_drop(cp, false);
 			}
 		}
 	}
@@ -205,7 +202,7 @@ void rds_tcp_write_space(struct sock *sk)
 	tc->t_last_seen_una = rds_tcp_snd_una(tc);
 	rds_send_path_drop_acked(cp, rds_tcp_snd_una(tc), rds_tcp_is_acked);
 
-	if ((atomic_read(&sk->sk_wmem_alloc) << 1) <= sk->sk_sndbuf)
+	if ((refcount_read(&sk->sk_wmem_alloc) << 1) <= sk->sk_sndbuf)
 		queue_delayed_work(rds_wq, &cp->cp_send_w, 0);
 
 out:

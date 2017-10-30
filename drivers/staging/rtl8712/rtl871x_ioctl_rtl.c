@@ -282,8 +282,7 @@ uint oid_rt_get_total_rx_bytes_hdl(struct oid_par_priv
 	if (poid_par_priv->information_buf_len >= sizeof(u32)) {
 		*(u32 *)poid_par_priv->information_buf =
 					   padapter->recvpriv.rx_bytes;
-		*poid_par_priv->bytes_rw = poid_par_priv->
-					   information_buf_len;
+		*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
 	} else {
 		return RNDIS_STATUS_INVALID_LENGTH;
 	}
@@ -325,8 +324,7 @@ uint oid_rt_get_channel_hdl(struct oid_par_priv *poid_par_priv)
 	    check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE))
 		pnic_Config = &pmlmepriv->cur_network.network.Configuration;
 	else
-		pnic_Config = &padapter->registrypriv.dev_network.
-			      Configuration;
+		pnic_Config = &padapter->registrypriv.dev_network.Configuration;
 	channelnum = pnic_Config->DSConfig;
 	*(u32 *)poid_par_priv->information_buf = channelnum;
 	*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
@@ -483,8 +481,8 @@ uint oid_rt_pro_rf_read_registry_hdl(struct oid_par_priv *poid_par_priv)
 		 */
 			if (!r8712_getrfreg_cmd(Adapter,
 			    *(unsigned char *)poid_par_priv->information_buf,
-			    (unsigned char *)&Adapter->mppriv.workparam.
-			    io_value))
+			    (unsigned char *)&Adapter->mppriv.workparam.io_value
+			    ))
 				status = RNDIS_STATUS_NOT_ACCEPTED;
 		}
 	} else {

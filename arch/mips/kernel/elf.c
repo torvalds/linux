@@ -87,6 +87,7 @@ int arch_elf_pt_proc(void *_ehdr, void *_phdr, struct file *elf,
 	bool elf32;
 	u32 flags;
 	int ret;
+	loff_t pos;
 
 	elf32 = ehdr->e32.e_ident[EI_CLASS] == ELFCLASS32;
 	flags = elf32 ? ehdr->e32.e_flags : ehdr->e64.e_flags;
@@ -108,21 +109,16 @@ int arch_elf_pt_proc(void *_ehdr, void *_phdr, struct file *elf,
 
 		if (phdr32->p_filesz < sizeof(abiflags))
 			return -EINVAL;
-
-		ret = kernel_read(elf, phdr32->p_offset,
-				  (char *)&abiflags,
-				  sizeof(abiflags));
+		pos = phdr32->p_offset;
 	} else {
 		if (phdr64->p_type != PT_MIPS_ABIFLAGS)
 			return 0;
 		if (phdr64->p_filesz < sizeof(abiflags))
 			return -EINVAL;
-
-		ret = kernel_read(elf, phdr64->p_offset,
-				  (char *)&abiflags,
-				  sizeof(abiflags));
+		pos = phdr64->p_offset;
 	}
 
+	ret = kernel_read(elf, &abiflags, sizeof(abiflags), &pos);
 	if (ret < 0)
 		return ret;
 	if (ret != sizeof(abiflags))
@@ -257,7 +253,7 @@ int arch_check_elf(void *_ehdr, bool has_interpreter, void *_interp_ehdr,
 	else if ((prog_req.fr1 && prog_req.frdefault) ||
 		 (prog_req.single && !prog_req.frdefault))
 		/* Make sure 64-bit MIPS III/IV/64R1 will not pick FR1 */
-		state->overall_fp_mode = ((current_cpu_data.fpu_id & MIPS_FPIR_F64) &&
+		state->overall_fp_mode = ((raw_current_cpu_data.fpu_id & MIPS_FPIR_F64) &&
 					  cpu_has_mips_r2_r6) ?
 					  FP_FR1 : FP_FR0;
 	else if (prog_req.fr1)

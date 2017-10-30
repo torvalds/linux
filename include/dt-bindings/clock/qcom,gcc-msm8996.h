@@ -233,6 +233,8 @@
 #define GCC_PCIE_CLKREF_CLK					216
 #define GCC_RX2_USB2_CLKREF_CLK					217
 #define GCC_RX1_USB2_CLKREF_CLK					218
+#define GCC_HLOS1_VOTE_LPASS_CORE_SMMU_CLK			219
+#define GCC_HLOS1_VOTE_LPASS_ADSP_SMMU_CLK			220
 
 #define GCC_SYSTEM_NOC_BCR					0
 #define GCC_CONFIG_NOC_BCR					1
@@ -339,6 +341,7 @@
 #define GCC_PCIE_PHY_COM_NOCSR_BCR				102
 #define GCC_USB3_PHY_BCR					103
 #define GCC_USB3PHY_PHY_BCR					104
+#define GCC_MSS_RESTART						105
 
 
 /* Indexes for GDSCs */

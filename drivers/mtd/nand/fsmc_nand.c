@@ -28,16 +28,145 @@
 #include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
 #include <linux/slab.h>
-#include <linux/mtd/fsmc.h>
 #include <linux/amba/bus.h>
 #include <mtd/mtd-abi.h>
+
+/* fsmc controller registers for NOR flash */
+#define CTRL			0x0
+	/* ctrl register definitions */
+	#define BANK_ENABLE		(1 << 0)
+	#define MUXED			(1 << 1)
+	#define NOR_DEV			(2 << 2)
+	#define WIDTH_8			(0 << 4)
+	#define WIDTH_16		(1 << 4)
+	#define RSTPWRDWN		(1 << 6)
+	#define WPROT			(1 << 7)
+	#define WRT_ENABLE		(1 << 12)
+	#define WAIT_ENB		(1 << 13)
+
+#define CTRL_TIM		0x4
+	/* ctrl_tim register definitions */
+
+#define FSMC_NOR_BANK_SZ	0x8
+#define FSMC_NOR_REG_SIZE	0x40
+
+#define FSMC_NOR_REG(base, bank, reg)		(base + \
+						FSMC_NOR_BANK_SZ * (bank) + \
+						reg)
+
+/* fsmc controller registers for NAND flash */
+#define PC			0x00
+	/* pc register definitions */
+	#define FSMC_RESET		(1 << 0)
+	#define FSMC_WAITON		(1 << 1)
+	#define FSMC_ENABLE		(1 << 2)
+	#define FSMC_DEVTYPE_NAND	(1 << 3)
+	#define FSMC_DEVWID_8		(0 << 4)
+	#define FSMC_DEVWID_16		(1 << 4)
+	#define FSMC_ECCEN		(1 << 6)
+	#define FSMC_ECCPLEN_512	(0 << 7)
+	#define FSMC_ECCPLEN_256	(1 << 7)
+	#define FSMC_TCLR_1		(1)
+	#define FSMC_TCLR_SHIFT		(9)
+	#define FSMC_TCLR_MASK		(0xF)
+	#define FSMC_TAR_1		(1)
+	#define FSMC_TAR_SHIFT		(13)
+	#define FSMC_TAR_MASK		(0xF)
+#define STS			0x04
+	/* sts register definitions */
+	#define FSMC_CODE_RDY		(1 << 15)
+#define COMM			0x08
+	/* comm register definitions */
+	#define FSMC_TSET_0		0
+	#define FSMC_TSET_SHIFT		0
+	#define FSMC_TSET_MASK		0xFF
+	#define FSMC_TWAIT_6		6
+	#define FSMC_TWAIT_SHIFT	8
+	#define FSMC_TWAIT_MASK		0xFF
+	#define FSMC_THOLD_4		4
+	#define FSMC_THOLD_SHIFT	16
+	#define FSMC_THOLD_MASK		0xFF
+	#define FSMC_THIZ_1		1
+	#define FSMC_THIZ_SHIFT		24
+	#define FSMC_THIZ_MASK		0xFF
+#define ATTRIB			0x0C
+#define IOATA			0x10
+#define ECC1			0x14
+#define ECC2			0x18
+#define ECC3			0x1C
+#define FSMC_NAND_BANK_SZ	0x20
+
+#define FSMC_NAND_REG(base, bank, reg)		(base + FSMC_NOR_REG_SIZE + \
+						(FSMC_NAND_BANK_SZ * (bank)) + \
+						reg)
+
+#define FSMC_BUSY_WAIT_TIMEOUT	(1 * HZ)
+
+struct fsmc_nand_timings {
+	uint8_t tclr;
+	uint8_t tar;
+	uint8_t thiz;
+	uint8_t thold;
+	uint8_t twait;
+	uint8_t tset;
+};
+
+enum access_mode {
+	USE_DMA_ACCESS = 1,
+	USE_WORD_ACCESS,
+};
+
+/**
+ * struct fsmc_nand_data - structure for FSMC NAND device state
+ *
+ * @pid:		Part ID on the AMBA PrimeCell format
+ * @mtd:		MTD info for a NAND flash.
+ * @nand:		Chip related info for a NAND flash.
+ * @partitions:		Partition info for a NAND Flash.
+ * @nr_partitions:	Total number of partition of a NAND flash.
+ *
+ * @bank:		Bank number for probed device.
+ * @clk:		Clock structure for FSMC.
+ *
+ * @read_dma_chan:	DMA channel for read access
+ * @write_dma_chan:	DMA channel for write access to NAND
+ * @dma_access_complete: Completion structure
+ *
+ * @data_pa:		NAND Physical port for Data.
+ * @data_va:		NAND port for Data.
+ * @cmd_va:		NAND port for Command.
+ * @addr_va:		NAND port for Address.
+ * @regs_va:		FSMC regs base address.
+ */
+struct fsmc_nand_data {
+	u32			pid;
+	struct nand_chip	nand;
+
+	unsigned int		bank;
+	struct device		*dev;
+	enum access_mode	mode;
+	struct clk		*clk;
+
+	/* DMA related objects */
+	struct dma_chan		*read_dma_chan;
+	struct dma_chan		*write_dma_chan;
+	struct completion	dma_access_complete;
+
+	struct fsmc_nand_timings *dev_timings;
+
+	dma_addr_t		data_pa;
+	void __iomem		*data_va;
+	void __iomem		*cmd_va;
+	void __iomem		*addr_va;
+	void __iomem		*regs_va;
+};
 
 static int fsmc_ecc1_ooblayout_ecc(struct mtd_info *mtd, int section,
 				   struct mtd_oob_region *oobregion)
@@ -123,84 +252,9 @@ static const struct mtd_ooblayout_ops fsmc_ecc4_ooblayout_ops = {
 	.free = fsmc_ecc4_ooblayout_free,
 };
 
-/**
- * struct fsmc_nand_data - structure for FSMC NAND device state
- *
- * @pid:		Part ID on the AMBA PrimeCell format
- * @mtd:		MTD info for a NAND flash.
- * @nand:		Chip related info for a NAND flash.
- * @partitions:		Partition info for a NAND Flash.
- * @nr_partitions:	Total number of partition of a NAND flash.
- *
- * @bank:		Bank number for probed device.
- * @clk:		Clock structure for FSMC.
- *
- * @read_dma_chan:	DMA channel for read access
- * @write_dma_chan:	DMA channel for write access to NAND
- * @dma_access_complete: Completion structure
- *
- * @data_pa:		NAND Physical port for Data.
- * @data_va:		NAND port for Data.
- * @cmd_va:		NAND port for Command.
- * @addr_va:		NAND port for Address.
- * @regs_va:		FSMC regs base address.
- */
-struct fsmc_nand_data {
-	u32			pid;
-	struct nand_chip	nand;
-	struct mtd_partition	*partitions;
-	unsigned int		nr_partitions;
-
-	unsigned int		bank;
-	struct device		*dev;
-	enum access_mode	mode;
-	struct clk		*clk;
-
-	/* DMA related objects */
-	struct dma_chan		*read_dma_chan;
-	struct dma_chan		*write_dma_chan;
-	struct completion	dma_access_complete;
-
-	struct fsmc_nand_timings *dev_timings;
-
-	dma_addr_t		data_pa;
-	void __iomem		*data_va;
-	void __iomem		*cmd_va;
-	void __iomem		*addr_va;
-	void __iomem		*regs_va;
-
-	void			(*select_chip)(uint32_t bank, uint32_t busw);
-};
-
 static inline struct fsmc_nand_data *mtd_to_fsmc(struct mtd_info *mtd)
 {
 	return container_of(mtd_to_nand(mtd), struct fsmc_nand_data, nand);
-}
-
-/* Assert CS signal based on chipnr */
-static void fsmc_select_chip(struct mtd_info *mtd, int chipnr)
-{
-	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct fsmc_nand_data *host;
-
-	host = mtd_to_fsmc(mtd);
-
-	switch (chipnr) {
-	case -1:
-		chip->cmd_ctrl(mtd, NAND_CMD_NONE, 0 | NAND_CTRL_CHANGE);
-		break;
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-		if (host->select_chip)
-			host->select_chip(chipnr,
-					chip->options & NAND_BUSWIDTH_16);
-		break;
-
-	default:
-		dev_err(host->dev, "unsupported chip-select %d\n", chipnr);
-	}
 }
 
 /*
@@ -248,25 +302,13 @@ static void fsmc_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
  * This routine initializes timing parameters related to NAND memory access in
  * FSMC registers
  */
-static void fsmc_nand_setup(void __iomem *regs, uint32_t bank,
-			   uint32_t busw, struct fsmc_nand_timings *timings)
+static void fsmc_nand_setup(struct fsmc_nand_data *host,
+			    struct fsmc_nand_timings *tims)
 {
 	uint32_t value = FSMC_DEVTYPE_NAND | FSMC_ENABLE | FSMC_WAITON;
 	uint32_t tclr, tar, thiz, thold, twait, tset;
-	struct fsmc_nand_timings *tims;
-	struct fsmc_nand_timings default_timings = {
-		.tclr	= FSMC_TCLR_1,
-		.tar	= FSMC_TAR_1,
-		.thiz	= FSMC_THIZ_1,
-		.thold	= FSMC_THOLD_4,
-		.twait	= FSMC_TWAIT_6,
-		.tset	= FSMC_TSET_0,
-	};
-
-	if (timings)
-		tims = timings;
-	else
-		tims = &default_timings;
+	unsigned int bank = host->bank;
+	void __iomem *regs = host->regs_va;
 
 	tclr = (tims->tclr & FSMC_TCLR_MASK) << FSMC_TCLR_SHIFT;
 	tar = (tims->tar & FSMC_TAR_MASK) << FSMC_TAR_SHIFT;
@@ -275,7 +317,7 @@ static void fsmc_nand_setup(void __iomem *regs, uint32_t bank,
 	twait = (tims->twait & FSMC_TWAIT_MASK) << FSMC_TWAIT_SHIFT;
 	tset = (tims->tset & FSMC_TSET_MASK) << FSMC_TSET_SHIFT;
 
-	if (busw)
+	if (host->nand.options & NAND_BUSWIDTH_16)
 		writel_relaxed(value | FSMC_DEVWID_16,
 				FSMC_NAND_REG(regs, bank, PC));
 	else
@@ -288,6 +330,87 @@ static void fsmc_nand_setup(void __iomem *regs, uint32_t bank,
 			FSMC_NAND_REG(regs, bank, COMM));
 	writel_relaxed(thiz | thold | twait | tset,
 			FSMC_NAND_REG(regs, bank, ATTRIB));
+}
+
+static int fsmc_calc_timings(struct fsmc_nand_data *host,
+			     const struct nand_sdr_timings *sdrt,
+			     struct fsmc_nand_timings *tims)
+{
+	unsigned long hclk = clk_get_rate(host->clk);
+	unsigned long hclkn = NSEC_PER_SEC / hclk;
+	uint32_t thiz, thold, twait, tset;
+
+	if (sdrt->tRC_min < 30000)
+		return -EOPNOTSUPP;
+
+	tims->tar = DIV_ROUND_UP(sdrt->tAR_min / 1000, hclkn) - 1;
+	if (tims->tar > FSMC_TAR_MASK)
+		tims->tar = FSMC_TAR_MASK;
+	tims->tclr = DIV_ROUND_UP(sdrt->tCLR_min / 1000, hclkn) - 1;
+	if (tims->tclr > FSMC_TCLR_MASK)
+		tims->tclr = FSMC_TCLR_MASK;
+
+	thiz = sdrt->tCS_min - sdrt->tWP_min;
+	tims->thiz = DIV_ROUND_UP(thiz / 1000, hclkn);
+
+	thold = sdrt->tDH_min;
+	if (thold < sdrt->tCH_min)
+		thold = sdrt->tCH_min;
+	if (thold < sdrt->tCLH_min)
+		thold = sdrt->tCLH_min;
+	if (thold < sdrt->tWH_min)
+		thold = sdrt->tWH_min;
+	if (thold < sdrt->tALH_min)
+		thold = sdrt->tALH_min;
+	if (thold < sdrt->tREH_min)
+		thold = sdrt->tREH_min;
+	tims->thold = DIV_ROUND_UP(thold / 1000, hclkn);
+	if (tims->thold == 0)
+		tims->thold = 1;
+	else if (tims->thold > FSMC_THOLD_MASK)
+		tims->thold = FSMC_THOLD_MASK;
+
+	twait = max(sdrt->tRP_min, sdrt->tWP_min);
+	tims->twait = DIV_ROUND_UP(twait / 1000, hclkn) - 1;
+	if (tims->twait == 0)
+		tims->twait = 1;
+	else if (tims->twait > FSMC_TWAIT_MASK)
+		tims->twait = FSMC_TWAIT_MASK;
+
+	tset = max(sdrt->tCS_min - sdrt->tWP_min,
+		   sdrt->tCEA_max - sdrt->tREA_max);
+	tims->tset = DIV_ROUND_UP(tset / 1000, hclkn) - 1;
+	if (tims->tset == 0)
+		tims->tset = 1;
+	else if (tims->tset > FSMC_TSET_MASK)
+		tims->tset = FSMC_TSET_MASK;
+
+	return 0;
+}
+
+static int fsmc_setup_data_interface(struct mtd_info *mtd, int csline,
+				     const struct nand_data_interface *conf)
+{
+	struct nand_chip *nand = mtd_to_nand(mtd);
+	struct fsmc_nand_data *host = nand_get_controller_data(nand);
+	struct fsmc_nand_timings tims;
+	const struct nand_sdr_timings *sdrt;
+	int ret;
+
+	sdrt = nand_get_sdr_timings(conf);
+	if (IS_ERR(sdrt))
+		return PTR_ERR(sdrt);
+
+	ret = fsmc_calc_timings(host, sdrt, &tims);
+	if (ret)
+		return ret;
+
+	if (csline == NAND_DATA_IFACE_CHECK_ONLY)
+		return 0;
+
+	fsmc_nand_setup(host, &tims);
+
+	return 0;
 }
 
 /*
@@ -714,56 +837,48 @@ static bool filter(struct dma_chan *chan, void *slave)
 	return true;
 }
 
-#ifdef CONFIG_OF
 static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
-				     struct device_node *np)
+				     struct fsmc_nand_data *host,
+				     struct nand_chip *nand)
 {
-	struct fsmc_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct device_node *np = pdev->dev.of_node;
 	u32 val;
 	int ret;
 
-	/* Set default NAND width to 8 bits */
-	pdata->width = 8;
+	nand->options = 0;
+
 	if (!of_property_read_u32(np, "bank-width", &val)) {
 		if (val == 2) {
-			pdata->width = 16;
+			nand->options |= NAND_BUSWIDTH_16;
 		} else if (val != 1) {
 			dev_err(&pdev->dev, "invalid bank-width %u\n", val);
 			return -EINVAL;
 		}
 	}
-	if (of_get_property(np, "nand-skip-bbtscan", NULL))
-		pdata->options = NAND_SKIP_BBTSCAN;
 
-	pdata->nand_timings = devm_kzalloc(&pdev->dev,
-				sizeof(*pdata->nand_timings), GFP_KERNEL);
-	if (!pdata->nand_timings)
+	if (of_get_property(np, "nand-skip-bbtscan", NULL))
+		nand->options |= NAND_SKIP_BBTSCAN;
+
+	host->dev_timings = devm_kzalloc(&pdev->dev,
+				sizeof(*host->dev_timings), GFP_KERNEL);
+	if (!host->dev_timings)
 		return -ENOMEM;
-	ret = of_property_read_u8_array(np, "timings", (u8 *)pdata->nand_timings,
-						sizeof(*pdata->nand_timings));
-	if (ret) {
-		dev_info(&pdev->dev, "No timings in dts specified, using default timings!\n");
-		pdata->nand_timings = NULL;
-	}
+	ret = of_property_read_u8_array(np, "timings", (u8 *)host->dev_timings,
+						sizeof(*host->dev_timings));
+	if (ret)
+		host->dev_timings = NULL;
 
 	/* Set default NAND bank to 0 */
-	pdata->bank = 0;
+	host->bank = 0;
 	if (!of_property_read_u32(np, "bank", &val)) {
 		if (val > 3) {
 			dev_err(&pdev->dev, "invalid bank %u\n", val);
 			return -EINVAL;
 		}
-		pdata->bank = val;
+		host->bank = val;
 	}
 	return 0;
 }
-#else
-static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
-				     struct device_node *np)
-{
-	return -ENOSYS;
-}
-#endif
 
 /*
  * fsmc_nand_probe - Probe function
@@ -771,8 +886,6 @@ static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
  */
 static int __init fsmc_nand_probe(struct platform_device *pdev)
 {
-	struct fsmc_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct device_node __maybe_unused *np = pdev->dev.of_node;
 	struct fsmc_nand_data *host;
 	struct mtd_info *mtd;
 	struct nand_chip *nand;
@@ -782,25 +895,16 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	u32 pid;
 	int i;
 
-	if (np) {
-		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-		pdev->dev.platform_data = pdata;
-		ret = fsmc_nand_probe_config_dt(pdev, np);
-		if (ret) {
-			dev_err(&pdev->dev, "no platform data\n");
-			return -ENODEV;
-		}
-	}
-
-	if (!pdata) {
-		dev_err(&pdev->dev, "platform data is NULL\n");
-		return -EINVAL;
-	}
-
 	/* Allocate memory for the device structure (and zero it) */
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
 		return -ENOMEM;
+
+	nand = &host->nand;
+
+	ret = fsmc_nand_probe_config_dt(pdev, host, nand);
+	if (ret)
+		return ret;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_data");
 	host->data_va = devm_ioremap_resource(&pdev->dev, res);
@@ -824,7 +928,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	if (IS_ERR(host->regs_va))
 		return PTR_ERR(host->regs_va);
 
-	host->clk = clk_get(&pdev->dev, NULL);
+	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
 		dev_err(&pdev->dev, "failed to fetch block clock\n");
 		return PTR_ERR(host->clk);
@@ -832,7 +936,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(host->clk);
 	if (ret)
-		goto err_clk_prepare_enable;
+		return ret;
 
 	/*
 	 * This device ID is actually a common AMBA ID as used on the
@@ -846,22 +950,15 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		 AMBA_PART_BITS(pid), AMBA_MANF_BITS(pid),
 		 AMBA_REV_BITS(pid), AMBA_CONFIG_BITS(pid));
 
-	host->bank = pdata->bank;
-	host->select_chip = pdata->select_bank;
-	host->partitions = pdata->partitions;
-	host->nr_partitions = pdata->nr_partitions;
 	host->dev = &pdev->dev;
-	host->dev_timings = pdata->nand_timings;
-	host->mode = pdata->mode;
 
 	if (host->mode == USE_DMA_ACCESS)
 		init_completion(&host->dma_access_complete);
 
 	/* Link all private pointers */
 	mtd = nand_to_mtd(&host->nand);
-	nand = &host->nand;
 	nand_set_controller_data(nand, host);
-	nand_set_flash_node(nand, np);
+	nand_set_flash_node(nand, pdev->dev.of_node);
 
 	mtd->dev.parent = &pdev->dev;
 	nand->IO_ADDR_R = host->data_va;
@@ -876,26 +973,18 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	nand->ecc.mode = NAND_ECC_HW;
 	nand->ecc.hwctl = fsmc_enable_hwecc;
 	nand->ecc.size = 512;
-	nand->options = pdata->options;
-	nand->select_chip = fsmc_select_chip;
 	nand->badblockbits = 7;
-	nand_set_flash_node(nand, np);
-
-	if (pdata->width == FSMC_NAND_BW16)
-		nand->options |= NAND_BUSWIDTH_16;
 
 	switch (host->mode) {
 	case USE_DMA_ACCESS:
 		dma_cap_zero(mask);
 		dma_cap_set(DMA_MEMCPY, mask);
-		host->read_dma_chan = dma_request_channel(mask, filter,
-				pdata->read_dma_priv);
+		host->read_dma_chan = dma_request_channel(mask, filter, NULL);
 		if (!host->read_dma_chan) {
 			dev_err(&pdev->dev, "Unable to get read dma channel\n");
 			goto err_req_read_chnl;
 		}
-		host->write_dma_chan = dma_request_channel(mask, filter,
-				pdata->write_dma_priv);
+		host->write_dma_chan = dma_request_channel(mask, filter, NULL);
 		if (!host->write_dma_chan) {
 			dev_err(&pdev->dev, "Unable to get write dma channel\n");
 			goto err_req_write_chnl;
@@ -911,9 +1000,10 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		break;
 	}
 
-	fsmc_nand_setup(host->regs_va, host->bank,
-			nand->options & NAND_BUSWIDTH_16,
-			host->dev_timings);
+	if (host->dev_timings)
+		fsmc_nand_setup(host, host->dev_timings);
+	else
+		nand->setup_data_interface = fsmc_setup_data_interface;
 
 	if (AMBA_REV_BITS(host->pid) >= 8) {
 		nand->ecc.read_page = fsmc_read_page_hwecc;
@@ -926,8 +1016,8 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	/*
 	 * Scan to find existence of the device
 	 */
-	if (nand_scan_ident(mtd, 1, NULL)) {
-		ret = -ENXIO;
+	ret = nand_scan_ident(mtd, 1, NULL);
+	if (ret) {
 		dev_err(&pdev->dev, "No NAND Device found!\n");
 		goto err_scan_ident;
 	}
@@ -964,6 +1054,9 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 				break;
 			}
 
+		case NAND_ECC_ON_DIE:
+			break;
+
 		default:
 			dev_err(&pdev->dev, "Unsupported ECC mode!\n");
 			goto err_probe;
@@ -992,23 +1085,12 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	}
 
 	/* Second stage of scan to fill MTD data-structures */
-	if (nand_scan_tail(mtd)) {
-		ret = -ENXIO;
+	ret = nand_scan_tail(mtd);
+	if (ret)
 		goto err_probe;
-	}
 
-	/*
-	 * The partition information can is accessed by (in the same precedence)
-	 *
-	 * command line through Bootloader,
-	 * platform data,
-	 * default partition information present in driver.
-	 */
-	/*
-	 * Check for partition info passed
-	 */
 	mtd->name = "nand";
-	ret = mtd_device_register(mtd, host->partitions, host->nr_partitions);
+	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret)
 		goto err_probe;
 
@@ -1025,8 +1107,6 @@ err_req_write_chnl:
 		dma_release_channel(host->read_dma_chan);
 err_req_read_chnl:
 	clk_disable_unprepare(host->clk);
-err_clk_prepare_enable:
-	clk_put(host->clk);
 	return ret;
 }
 
@@ -1045,7 +1125,6 @@ static int fsmc_nand_remove(struct platform_device *pdev)
 			dma_release_channel(host->read_dma_chan);
 		}
 		clk_disable_unprepare(host->clk);
-		clk_put(host->clk);
 	}
 
 	return 0;
@@ -1065,9 +1144,8 @@ static int fsmc_nand_resume(struct device *dev)
 	struct fsmc_nand_data *host = dev_get_drvdata(dev);
 	if (host) {
 		clk_prepare_enable(host->clk);
-		fsmc_nand_setup(host->regs_va, host->bank,
-				host->nand.options & NAND_BUSWIDTH_16,
-				host->dev_timings);
+		if (host->dev_timings)
+			fsmc_nand_setup(host, host->dev_timings);
 	}
 	return 0;
 }
@@ -1075,20 +1153,18 @@ static int fsmc_nand_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(fsmc_nand_pm_ops, fsmc_nand_suspend, fsmc_nand_resume);
 
-#ifdef CONFIG_OF
 static const struct of_device_id fsmc_nand_id_table[] = {
 	{ .compatible = "st,spear600-fsmc-nand" },
 	{ .compatible = "stericsson,fsmc-nand" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, fsmc_nand_id_table);
-#endif
 
 static struct platform_driver fsmc_nand_driver = {
 	.remove = fsmc_nand_remove,
 	.driver = {
 		.name = "fsmc-nand",
-		.of_match_table = of_match_ptr(fsmc_nand_id_table),
+		.of_match_table = fsmc_nand_id_table,
 		.pm = &fsmc_nand_pm_ops,
 	},
 };

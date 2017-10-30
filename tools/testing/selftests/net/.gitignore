@@ -1,6 +1,9 @@
+msg_zerocopy
 socket
 psock_fanout
 psock_tpacket
 reuseport_bpf
 reuseport_bpf_cpu
+reuseport_bpf_numa
 reuseport_dualstack
+reuseaddr_conflict

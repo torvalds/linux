@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #include <linux/types.h>
@@ -20,6 +44,7 @@
 #include "qed_hsi.h"
 #include "qed_sp.h"
 #include "qed_sriov.h"
+#include "qed_rdma.h"
 #ifdef CONFIG_DCB
 #include <linux/qed/qed_eth_if.h>
 #endif
@@ -40,11 +65,11 @@
 	((u32)(prio_tc_tbl >> ((7 - prio) * 4)) & 0x7)
 
 static const struct qed_dcbx_app_metadata qed_dcbx_app_update[] = {
-	{DCBX_PROTOCOL_ISCSI, "ISCSI", QED_PCI_DEFAULT},
-	{DCBX_PROTOCOL_FCOE, "FCOE", QED_PCI_DEFAULT},
-	{DCBX_PROTOCOL_ROCE, "ROCE", QED_PCI_DEFAULT},
-	{DCBX_PROTOCOL_ROCE_V2, "ROCE_V2", QED_PCI_DEFAULT},
-	{DCBX_PROTOCOL_ETH, "ETH", QED_PCI_ETH}
+	{DCBX_PROTOCOL_ISCSI, "ISCSI", QED_PCI_ISCSI},
+	{DCBX_PROTOCOL_FCOE, "FCOE", QED_PCI_FCOE},
+	{DCBX_PROTOCOL_ROCE, "ROCE", QED_PCI_ETH_ROCE},
+	{DCBX_PROTOCOL_ROCE_V2, "ROCE_V2", QED_PCI_ETH_ROCE},
+	{DCBX_PROTOCOL_ETH, "ETH", QED_PCI_ETH},
 };
 
 static bool qed_dcbx_app_ethtype(u32 app_info_bitmap)
@@ -159,7 +184,7 @@ qed_dcbx_dp_protocol(struct qed_hwfn *p_hwfn, struct qed_dcbx_results *p_data)
 			   "%s info: update %d, enable %d, prio %d, tc %d, num_tc %d\n",
 			   qed_dcbx_app_update[i].name, p_data->arr[id].update,
 			   p_data->arr[id].enable, p_data->arr[id].priority,
-			   p_data->arr[id].tc, p_hwfn->hw_info.num_tc);
+			   p_data->arr[id].tc, p_hwfn->hw_info.num_active_tc);
 	}
 }
 
@@ -167,25 +192,23 @@ static void
 qed_dcbx_set_params(struct qed_dcbx_results *p_data,
 		    struct qed_hw_info *p_info,
 		    bool enable,
-		    bool update,
 		    u8 prio,
 		    u8 tc,
 		    enum dcbx_protocol_type type,
 		    enum qed_pci_personality personality)
 {
 	/* PF update ramrod data */
-	p_data->arr[type].update = update;
 	p_data->arr[type].enable = enable;
 	p_data->arr[type].priority = prio;
 	p_data->arr[type].tc = tc;
+	if (enable)
+		p_data->arr[type].update = UPDATE_DCB;
+	else
+		p_data->arr[type].update = DONT_UPDATE_DCB_DSCP;
 
 	/* QM reconf data */
-	if (p_info->personality == personality) {
-		if (personality == QED_PCI_ETH)
-			p_info->non_offload_tc = tc;
-		else
-			p_info->offload_tc = tc;
-	}
+	if (p_info->personality == personality)
+		p_info->offload_tc = tc;
 }
 
 /* Update app protocol data and hw_info fields with the TLV info */
@@ -193,7 +216,6 @@ static void
 qed_dcbx_update_app_info(struct qed_dcbx_results *p_data,
 			 struct qed_hwfn *p_hwfn,
 			 bool enable,
-			 bool update,
 			 u8 prio, u8 tc, enum dcbx_protocol_type type)
 {
 	struct qed_hw_info *p_info = &p_hwfn->hw_info;
@@ -211,7 +233,7 @@ qed_dcbx_update_app_info(struct qed_dcbx_results *p_data,
 		personality = qed_dcbx_app_update[i].personality;
 		name = qed_dcbx_app_update[i].name;
 
-		qed_dcbx_set_params(p_data, p_info, enable, update,
+		qed_dcbx_set_params(p_data, p_info, enable,
 				    prio, tc, type, personality);
 	}
 }
@@ -251,8 +273,8 @@ qed_dcbx_process_tlv(struct qed_hwfn *p_hwfn,
 		     struct dcbx_app_priority_entry *p_tbl,
 		     u32 pri_tc_tbl, int count, u8 dcbx_version)
 {
-	u8 tc, priority_map;
 	enum dcbx_protocol_type type;
+	u8 tc, priority_map;
 	bool enable, ieee;
 	u16 protocol_id;
 	int priority;
@@ -284,20 +306,9 @@ qed_dcbx_process_tlv(struct qed_hwfn *p_hwfn,
 			 */
 			enable = !(type == DCBX_PROTOCOL_ETH);
 
-			qed_dcbx_update_app_info(p_data, p_hwfn, enable, true,
+			qed_dcbx_update_app_info(p_data, p_hwfn, enable,
 						 priority, tc, type);
 		}
-	}
-
-	/* If RoCE-V2 TLV is not detected, driver need to use RoCE app
-	 * data for RoCE-v2 not the default app data.
-	 */
-	if (!p_data->arr[DCBX_PROTOCOL_ROCE_V2].update &&
-	    p_data->arr[DCBX_PROTOCOL_ROCE].update) {
-		tc = p_data->arr[DCBX_PROTOCOL_ROCE].tc;
-		priority = p_data->arr[DCBX_PROTOCOL_ROCE].priority;
-		qed_dcbx_update_app_info(p_data, p_hwfn, true, true,
-					 priority, tc, DCBX_PROTOCOL_ROCE_V2);
 	}
 
 	/* Update ramrod protocol data and hw_info fields
@@ -312,8 +323,8 @@ qed_dcbx_process_tlv(struct qed_hwfn *p_hwfn,
 		if (p_data->arr[type].update)
 			continue;
 
-		enable = !(type == DCBX_PROTOCOL_ETH);
-		qed_dcbx_update_app_info(p_data, p_hwfn, enable, true,
+		enable = (type == DCBX_PROTOCOL_ETH) ? false : !!dcbx_version;
+		qed_dcbx_update_app_info(p_data, p_hwfn, enable,
 					 priority, tc, type);
 	}
 
@@ -352,7 +363,9 @@ static int qed_dcbx_process_mib_info(struct qed_hwfn *p_hwfn)
 	if (rc)
 		return rc;
 
-	p_info->num_tc = QED_MFW_GET_FIELD(p_ets->flags, DCBX_ETS_MAX_TCS);
+	p_info->num_active_tc = QED_MFW_GET_FIELD(p_ets->flags,
+						  DCBX_ETS_MAX_TCS);
+	p_hwfn->qm_info.ooo_tc = QED_MFW_GET_FIELD(p_ets->flags, DCBX_OOO_TC);
 	data.pf_id = p_hwfn->rel_pf_id;
 	data.dcbx_enabled = !!dcbx_version;
 
@@ -408,7 +421,6 @@ qed_dcbx_copy_mib(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-#ifdef CONFIG_DCB
 static void
 qed_dcbx_get_priority_info(struct qed_hwfn *p_hwfn,
 			   struct qed_dcbx_app_prio *p_prio,
@@ -535,8 +547,9 @@ qed_dcbx_get_pfc_data(struct qed_hwfn *p_hwfn,
 	p_params->pfc.prio[7] = !!(pfc_map & DCBX_PFC_PRI_EN_BITMAP_PRI_7);
 
 	DP_VERBOSE(p_hwfn, QED_MSG_DCB,
-		   "PFC params: willing %d, pfc_bitmap %d\n",
-		   p_params->pfc.willing, pfc_map);
+		   "PFC params: willing %d, pfc_bitmap %u max_tc = %u enabled = %d\n",
+		   p_params->pfc.willing, pfc_map, p_params->pfc.max_tc,
+		   p_params->pfc.enabled);
 }
 
 static void
@@ -555,10 +568,17 @@ qed_dcbx_get_ets_data(struct qed_hwfn *p_hwfn,
 	p_params->max_ets_tc = QED_MFW_GET_FIELD(p_ets->flags,
 						 DCBX_ETS_MAX_TCS);
 	DP_VERBOSE(p_hwfn, QED_MSG_DCB,
-		   "ETS params: willing %d, ets_cbs %d pri_tc_tbl_0 %x max_ets_tc %d\n",
-		   p_params->ets_willing,
-		   p_params->ets_cbs,
-		   p_ets->pri_tc_tbl[0], p_params->max_ets_tc);
+		   "ETS params: willing %d, enabled = %d ets_cbs %d pri_tc_tbl_0 %x max_ets_tc %d\n",
+		   p_params->ets_willing, p_params->ets_enabled,
+		   p_params->ets_cbs, p_ets->pri_tc_tbl[0],
+		   p_params->max_ets_tc);
+
+	if (p_params->ets_enabled && !p_params->max_ets_tc) {
+		p_params->max_ets_tc = QED_MAX_PFC_PRIORITIES;
+		DP_VERBOSE(p_hwfn, QED_MSG_DCB,
+			   "ETS params: max_ets_tc is forced to %d\n",
+		p_params->max_ets_tc);
+	}
 
 	/* 8 bit tsa and bw data corresponding to each of the 8 TC's are
 	 * encoded in a type u32 array of size 2.
@@ -592,8 +612,7 @@ qed_dcbx_get_common_params(struct qed_hwfn *p_hwfn,
 }
 
 static void
-qed_dcbx_get_local_params(struct qed_hwfn *p_hwfn,
-			  struct qed_ptt *p_ptt, struct qed_dcbx_get *params)
+qed_dcbx_get_local_params(struct qed_hwfn *p_hwfn, struct qed_dcbx_get *params)
 {
 	struct dcbx_features *p_feat;
 
@@ -605,8 +624,7 @@ qed_dcbx_get_local_params(struct qed_hwfn *p_hwfn,
 }
 
 static void
-qed_dcbx_get_remote_params(struct qed_hwfn *p_hwfn,
-			   struct qed_ptt *p_ptt, struct qed_dcbx_get *params)
+qed_dcbx_get_remote_params(struct qed_hwfn *p_hwfn, struct qed_dcbx_get *params)
 {
 	struct dcbx_features *p_feat;
 
@@ -619,7 +637,6 @@ qed_dcbx_get_remote_params(struct qed_hwfn *p_hwfn,
 
 static void
 qed_dcbx_get_operational_params(struct qed_hwfn *p_hwfn,
-				struct qed_ptt *p_ptt,
 				struct qed_dcbx_get *params)
 {
 	struct qed_dcbx_operational_params *p_operational;
@@ -640,6 +657,7 @@ qed_dcbx_get_operational_params(struct qed_hwfn *p_hwfn,
 	if (!enabled) {
 		p_operational->enabled = enabled;
 		p_operational->valid = false;
+		DP_VERBOSE(p_hwfn, QED_MSG_DCB, "Dcbx is disabled\n");
 		return;
 	}
 
@@ -653,8 +671,14 @@ qed_dcbx_get_operational_params(struct qed_hwfn *p_hwfn,
 		 DCBX_CONFIG_VERSION_CEE);
 	p_operational->cee = val;
 
-	DP_VERBOSE(p_hwfn, QED_MSG_DCB, "Version support: ieee %d, cee %d\n",
-		   p_operational->ieee, p_operational->cee);
+	val = !!(QED_MFW_GET_FIELD(flags, DCBX_CONFIG_VERSION) ==
+		 DCBX_CONFIG_VERSION_STATIC);
+	p_operational->local = val;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_DCB,
+		   "Version support: ieee %d, cee %d, static %d\n",
+		   p_operational->ieee, p_operational->cee,
+		   p_operational->local);
 
 	qed_dcbx_get_common_params(p_hwfn, &p_feat->app,
 				   p_feat->app.app_pri_tbl, &p_feat->ets,
@@ -669,7 +693,6 @@ qed_dcbx_get_operational_params(struct qed_hwfn *p_hwfn,
 
 static void
 qed_dcbx_get_local_lldp_params(struct qed_hwfn *p_hwfn,
-			       struct qed_ptt *p_ptt,
 			       struct qed_dcbx_get *params)
 {
 	struct lldp_config_params_s *p_local;
@@ -684,7 +707,6 @@ qed_dcbx_get_local_lldp_params(struct qed_hwfn *p_hwfn,
 
 static void
 qed_dcbx_get_remote_lldp_params(struct qed_hwfn *p_hwfn,
-				struct qed_ptt *p_ptt,
 				struct qed_dcbx_get *params)
 {
 	struct lldp_status_params_s *p_remote;
@@ -698,25 +720,24 @@ qed_dcbx_get_remote_lldp_params(struct qed_hwfn *p_hwfn,
 }
 
 static int
-qed_dcbx_get_params(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
-		    struct qed_dcbx_get *p_params,
+qed_dcbx_get_params(struct qed_hwfn *p_hwfn, struct qed_dcbx_get *p_params,
 		    enum qed_mib_read_type type)
 {
 	switch (type) {
 	case QED_DCBX_REMOTE_MIB:
-		qed_dcbx_get_remote_params(p_hwfn, p_ptt, p_params);
+		qed_dcbx_get_remote_params(p_hwfn, p_params);
 		break;
 	case QED_DCBX_LOCAL_MIB:
-		qed_dcbx_get_local_params(p_hwfn, p_ptt, p_params);
+		qed_dcbx_get_local_params(p_hwfn, p_params);
 		break;
 	case QED_DCBX_OPERATIONAL_MIB:
-		qed_dcbx_get_operational_params(p_hwfn, p_ptt, p_params);
+		qed_dcbx_get_operational_params(p_hwfn, p_params);
 		break;
 	case QED_DCBX_REMOTE_LLDP_MIB:
-		qed_dcbx_get_remote_lldp_params(p_hwfn, p_ptt, p_params);
+		qed_dcbx_get_remote_lldp_params(p_hwfn, p_params);
 		break;
 	case QED_DCBX_LOCAL_LLDP_MIB:
-		qed_dcbx_get_local_lldp_params(p_hwfn, p_ptt, p_params);
+		qed_dcbx_get_local_lldp_params(p_hwfn, p_params);
 		break;
 	default:
 		DP_ERR(p_hwfn, "MIB read err, unknown mib type %d\n", type);
@@ -725,7 +746,6 @@ qed_dcbx_get_params(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 
 	return 0;
 }
-#endif
 
 static int
 qed_dcbx_read_local_lldp_mib(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
@@ -840,6 +860,15 @@ static int qed_dcbx_read_mib(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
+void qed_dcbx_aen(struct qed_hwfn *hwfn, u32 mib_type)
+{
+	struct qed_common_cb_ops *op = hwfn->cdev->protocol_ops.common;
+	void *cookie = hwfn->cdev->ops_cookie;
+
+	if (cookie && op->dcbx_aen)
+		op->dcbx_aen(cookie, &hwfn->p_dcbx_info->get, mib_type);
+}
+
 /* Read updated MIB.
  * Reconfigure QM and invoke PF update ramrod command if operational MIB
  * change is detected.
@@ -864,27 +893,51 @@ qed_dcbx_mib_update_event(struct qed_hwfn *p_hwfn,
 
 			/* update storm FW with negotiation results */
 			qed_sp_pf_update(p_hwfn);
+
+			/* for roce PFs, we may want to enable/disable DPM
+			 * when DCBx change occurs
+			 */
+			if (p_hwfn->hw_info.personality ==
+			    QED_PCI_ETH_ROCE)
+				qed_roce_dpm_dcbx(p_hwfn, p_ptt);
 		}
 	}
+
+	qed_dcbx_get_params(p_hwfn, &p_hwfn->p_dcbx_info->get, type);
+
+	if (type == QED_DCBX_OPERATIONAL_MIB) {
+		struct qed_dcbx_results *p_data;
+		u16 val;
+
+		/* Configure in NIG which protocols support EDPM and should
+		 * honor PFC.
+		 */
+		p_data = &p_hwfn->p_dcbx_info->results;
+		val = (0x1 << p_data->arr[DCBX_PROTOCOL_ROCE].tc) |
+		      (0x1 << p_data->arr[DCBX_PROTOCOL_ROCE_V2].tc);
+		val <<= NIG_REG_TX_EDPM_CTRL_TX_EDPM_TC_EN_SHIFT;
+		val |= NIG_REG_TX_EDPM_CTRL_TX_EDPM_EN;
+		qed_wr(p_hwfn, p_ptt, NIG_REG_TX_EDPM_CTRL, val);
+	}
+
+	qed_dcbx_aen(p_hwfn, type);
 
 	return rc;
 }
 
 int qed_dcbx_info_alloc(struct qed_hwfn *p_hwfn)
 {
-	int rc = 0;
-
 	p_hwfn->p_dcbx_info = kzalloc(sizeof(*p_hwfn->p_dcbx_info), GFP_KERNEL);
 	if (!p_hwfn->p_dcbx_info)
-		rc = -ENOMEM;
+		return -ENOMEM;
 
-	return rc;
+	return 0;
 }
 
-void qed_dcbx_info_free(struct qed_hwfn *p_hwfn,
-			struct qed_dcbx_info *p_dcbx_info)
+void qed_dcbx_info_free(struct qed_hwfn *p_hwfn)
 {
 	kfree(p_hwfn->p_dcbx_info);
+	p_hwfn->p_dcbx_info = NULL;
 }
 
 static void qed_dcbx_update_protocol_data(struct protocol_dcb_data *p_data,
@@ -906,29 +959,25 @@ void qed_dcbx_set_pf_update_params(struct qed_dcbx_results *p_src,
 	p_dest->pf_id = p_src->pf_id;
 
 	update_flag = p_src->arr[DCBX_PROTOCOL_FCOE].update;
-	p_dest->update_fcoe_dcb_data_flag = update_flag;
+	p_dest->update_fcoe_dcb_data_mode = update_flag;
 
 	update_flag = p_src->arr[DCBX_PROTOCOL_ROCE].update;
-	p_dest->update_roce_dcb_data_flag = update_flag;
+	p_dest->update_roce_dcb_data_mode = update_flag;
+
 	update_flag = p_src->arr[DCBX_PROTOCOL_ROCE_V2].update;
-	p_dest->update_roce_dcb_data_flag = update_flag;
+	p_dest->update_rroce_dcb_data_mode = update_flag;
 
 	update_flag = p_src->arr[DCBX_PROTOCOL_ISCSI].update;
-	p_dest->update_iscsi_dcb_data_flag = update_flag;
+	p_dest->update_iscsi_dcb_data_mode = update_flag;
 	update_flag = p_src->arr[DCBX_PROTOCOL_ETH].update;
-	p_dest->update_eth_dcb_data_flag = update_flag;
+	p_dest->update_eth_dcb_data_mode = update_flag;
 
 	p_dcb_data = &p_dest->fcoe_dcb_data;
 	qed_dcbx_update_protocol_data(p_dcb_data, p_src, DCBX_PROTOCOL_FCOE);
 	p_dcb_data = &p_dest->roce_dcb_data;
-
-	if (p_src->arr[DCBX_PROTOCOL_ROCE].update)
-		qed_dcbx_update_protocol_data(p_dcb_data, p_src,
-					      DCBX_PROTOCOL_ROCE);
-	if (p_src->arr[DCBX_PROTOCOL_ROCE_V2].update)
-		qed_dcbx_update_protocol_data(p_dcb_data, p_src,
-					      DCBX_PROTOCOL_ROCE_V2);
-
+	qed_dcbx_update_protocol_data(p_dcb_data, p_src, DCBX_PROTOCOL_ROCE);
+	p_dcb_data = &p_dest->rroce_dcb_data;
+	qed_dcbx_update_protocol_data(p_dcb_data, p_src, DCBX_PROTOCOL_ROCE_V2);
 	p_dcb_data = &p_dest->iscsi_dcb_data;
 	qed_dcbx_update_protocol_data(p_dcb_data, p_src, DCBX_PROTOCOL_ISCSI);
 	p_dcb_data = &p_dest->eth_dcb_data;
@@ -954,7 +1003,7 @@ static int qed_dcbx_query_params(struct qed_hwfn *p_hwfn,
 	if (rc)
 		goto out;
 
-	rc = qed_dcbx_get_params(p_hwfn, p_ptt, p_get, type);
+	rc = qed_dcbx_get_params(p_hwfn, p_get, type);
 
 out:
 	qed_ptt_release(p_hwfn, p_ptt);
@@ -967,6 +1016,8 @@ qed_dcbx_set_pfc_data(struct qed_hwfn *p_hwfn,
 {
 	u8 pfc_map = 0;
 	int i;
+
+	*pfc &= ~DCBX_PFC_ERROR_MASK;
 
 	if (p_params->pfc.willing)
 		*pfc |= DCBX_PFC_WILLING_MASK;
@@ -1127,6 +1178,9 @@ qed_dcbx_set_local_params(struct qed_hwfn *p_hwfn,
 		local_admin->config = DCBX_CONFIG_VERSION_DISABLED;
 	}
 
+	DP_VERBOSE(p_hwfn, QED_MSG_DCB, "Dcbx version = %d\n",
+		   local_admin->config);
+
 	if (params->override_flags & QED_DCBX_OVERRIDE_PFC_CFG)
 		qed_dcbx_set_pfc_data(p_hwfn, &local_admin->features.pfc,
 				      &params->config.params);
@@ -1190,7 +1244,6 @@ int qed_dcbx_get_config_params(struct qed_hwfn *p_hwfn,
 	if (!dcbx_info)
 		return -ENOMEM;
 
-	memset(dcbx_info, 0, sizeof(*dcbx_info));
 	rc = qed_dcbx_query_params(p_hwfn, dcbx_info, QED_DCBX_OPERATIONAL_MIB);
 	if (rc) {
 		kfree(dcbx_info);
@@ -1203,6 +1256,8 @@ int qed_dcbx_get_config_params(struct qed_hwfn *p_hwfn,
 		p_hwfn->p_dcbx_info->set.ver_num |= DCBX_CONFIG_VERSION_CEE;
 	if (dcbx_info->operational.ieee)
 		p_hwfn->p_dcbx_info->set.ver_num |= DCBX_CONFIG_VERSION_IEEE;
+	if (dcbx_info->operational.local)
+		p_hwfn->p_dcbx_info->set.ver_num |= DCBX_CONFIG_VERSION_STATIC;
 
 	p_hwfn->p_dcbx_info->set.enabled = dcbx_info->operational.enabled;
 	memcpy(&p_hwfn->p_dcbx_info->set.config.params,
@@ -1222,7 +1277,7 @@ static struct qed_dcbx_get *qed_dcbnl_get_dcbx(struct qed_hwfn *hwfn,
 {
 	struct qed_dcbx_get *dcbx_info;
 
-	dcbx_info = kzalloc(sizeof(*dcbx_info), GFP_KERNEL);
+	dcbx_info = kmalloc(sizeof(*dcbx_info), GFP_ATOMIC);
 	if (!dcbx_info)
 		return NULL;
 
@@ -1418,7 +1473,7 @@ static u8 qed_dcbnl_getcap(struct qed_dev *cdev, int capid, u8 *cap)
 		break;
 	case DCB_CAP_ATTR_DCBX:
 		*cap = (DCB_CAP_DCBX_LLD_MANAGED | DCB_CAP_DCBX_VER_CEE |
-			DCB_CAP_DCBX_VER_IEEE);
+			DCB_CAP_DCBX_VER_IEEE | DCB_CAP_DCBX_STATIC);
 		break;
 	default:
 		*cap = false;
@@ -1492,6 +1547,8 @@ static u8 qed_dcbnl_getdcbx(struct qed_dev *cdev)
 		mode |= DCB_CAP_DCBX_VER_IEEE;
 	if (dcbx_info->operational.cee)
 		mode |= DCB_CAP_DCBX_VER_CEE;
+	if (dcbx_info->operational.local)
+		mode |= DCB_CAP_DCBX_STATIC;
 
 	DP_VERBOSE(hwfn, QED_MSG_DCB, "dcb mode = %d\n", mode);
 	kfree(dcbx_info);
@@ -1752,8 +1809,9 @@ static u8 qed_dcbnl_setdcbx(struct qed_dev *cdev, u8 mode)
 
 	DP_VERBOSE(hwfn, QED_MSG_DCB, "new mode = %x\n", mode);
 
-	if (!(mode & DCB_CAP_DCBX_VER_IEEE) && !(mode & DCB_CAP_DCBX_VER_CEE)) {
-		DP_INFO(hwfn, "Allowed mode is cee, ieee or both\n");
+	if (!(mode & DCB_CAP_DCBX_VER_IEEE) &&
+	    !(mode & DCB_CAP_DCBX_VER_CEE) && !(mode & DCB_CAP_DCBX_STATIC)) {
+		DP_INFO(hwfn, "Allowed modes are cee, ieee or static\n");
 		return 1;
 	}
 
@@ -1773,6 +1831,11 @@ static u8 qed_dcbnl_setdcbx(struct qed_dev *cdev, u8 mode)
 		dcbx_set.enabled = true;
 	}
 
+	if (mode & DCB_CAP_DCBX_STATIC) {
+		dcbx_set.ver_num |= DCBX_CONFIG_VERSION_STATIC;
+		dcbx_set.enabled = true;
+	}
+
 	ptt = qed_ptt_acquire(hwfn);
 	if (!ptt)
 		return 1;
@@ -1781,7 +1844,7 @@ static u8 qed_dcbnl_setdcbx(struct qed_dev *cdev, u8 mode)
 
 	qed_ptt_release(hwfn, ptt);
 
-	return 0;
+	return rc;
 }
 
 static u8 qed_dcbnl_getfeatcfg(struct qed_dev *cdev, int featid, u8 *flags)
@@ -2040,6 +2103,8 @@ static int qed_dcbnl_ieee_setpfc(struct qed_dev *cdev, struct ieee_pfc *pfc)
 	for (i = 0; i < QED_MAX_PFC_PRIORITIES; i++)
 		dcbx_set.config.params.pfc.prio[i] = !!(pfc->pfc_en & BIT(i));
 
+	dcbx_set.config.params.pfc.max_tc = pfc->pfc_cap;
+
 	ptt = qed_ptt_acquire(hwfn);
 	if (!ptt)
 		return -EINVAL;
@@ -2158,14 +2223,45 @@ qed_dcbnl_ieee_peer_getpfc(struct qed_dev *cdev, struct ieee_pfc *pfc)
 	return qed_dcbnl_get_ieee_pfc(cdev, pfc, true);
 }
 
+static int qed_get_sf_ieee_value(u8 selector, u8 *sf_ieee)
+{
+	switch (selector) {
+	case IEEE_8021QAZ_APP_SEL_ETHERTYPE:
+		*sf_ieee = QED_DCBX_SF_IEEE_ETHTYPE;
+		break;
+	case IEEE_8021QAZ_APP_SEL_STREAM:
+		*sf_ieee = QED_DCBX_SF_IEEE_TCP_PORT;
+		break;
+	case IEEE_8021QAZ_APP_SEL_DGRAM:
+		*sf_ieee = QED_DCBX_SF_IEEE_UDP_PORT;
+		break;
+	case IEEE_8021QAZ_APP_SEL_ANY:
+		*sf_ieee = QED_DCBX_SF_IEEE_TCP_UDP_PORT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int qed_dcbnl_ieee_getapp(struct qed_dev *cdev, struct dcb_app *app)
 {
 	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
 	struct qed_dcbx_get *dcbx_info;
 	struct qed_app_entry *entry;
-	bool ethtype;
 	u8 prio = 0;
+	u8 sf_ieee;
 	int i;
+
+	DP_VERBOSE(hwfn, QED_MSG_DCB, "selector = %d protocol = %d\n",
+		   app->selector, app->protocol);
+
+	if (qed_get_sf_ieee_value(app->selector, &sf_ieee)) {
+		DP_INFO(cdev, "Invalid selector field value %d\n",
+			app->selector);
+		return -EINVAL;
+	}
 
 	dcbx_info = qed_dcbnl_get_dcbx(hwfn, QED_DCBX_OPERATIONAL_MIB);
 	if (!dcbx_info)
@@ -2177,11 +2273,9 @@ static int qed_dcbnl_ieee_getapp(struct qed_dev *cdev, struct dcb_app *app)
 		return -EINVAL;
 	}
 
-	/* ieee defines the selector field value for ethertype to be 1 */
-	ethtype = !!((app->selector - 1) == DCB_APP_IDTYPE_ETHTYPE);
 	for (i = 0; i < QED_DCBX_MAX_APP_PROTOCOL; i++) {
 		entry = &dcbx_info->operational.params.app_entry[i];
-		if ((entry->ethtype == ethtype) &&
+		if ((entry->sf_ieee == sf_ieee) &&
 		    (entry->proto_id == app->protocol)) {
 			prio = entry->prio;
 			break;
@@ -2209,11 +2303,19 @@ static int qed_dcbnl_ieee_setapp(struct qed_dev *cdev, struct dcb_app *app)
 	struct qed_dcbx_set dcbx_set;
 	struct qed_app_entry *entry;
 	struct qed_ptt *ptt;
-	bool ethtype;
+	u8 sf_ieee;
 	int rc, i;
 
+	DP_VERBOSE(hwfn, QED_MSG_DCB, "selector = %d protocol = %d pri = %d\n",
+		   app->selector, app->protocol, app->priority);
 	if (app->priority < 0 || app->priority >= QED_MAX_PFC_PRIORITIES) {
 		DP_INFO(hwfn, "Invalid priority %d\n", app->priority);
+		return -EINVAL;
+	}
+
+	if (qed_get_sf_ieee_value(app->selector, &sf_ieee)) {
+		DP_INFO(cdev, "Invalid selector field value %d\n",
+			app->selector);
 		return -EINVAL;
 	}
 
@@ -2234,11 +2336,9 @@ static int qed_dcbnl_ieee_setapp(struct qed_dev *cdev, struct dcb_app *app)
 	if (rc)
 		return -EINVAL;
 
-	/* ieee defines the selector field value for ethertype to be 1 */
-	ethtype = !!((app->selector - 1) == DCB_APP_IDTYPE_ETHTYPE);
 	for (i = 0; i < QED_DCBX_MAX_APP_PROTOCOL; i++) {
 		entry = &dcbx_set.config.params.app_entry[i];
-		if ((entry->ethtype == ethtype) &&
+		if ((entry->sf_ieee == sf_ieee) &&
 		    (entry->proto_id == app->protocol))
 			break;
 		/* First empty slot */
@@ -2254,7 +2354,7 @@ static int qed_dcbnl_ieee_setapp(struct qed_dev *cdev, struct dcb_app *app)
 	}
 
 	dcbx_set.override_flags |= QED_DCBX_OVERRIDE_APP_CFG;
-	dcbx_set.config.params.app_entry[i].ethtype = ethtype;
+	dcbx_set.config.params.app_entry[i].sf_ieee = sf_ieee;
 	dcbx_set.config.params.app_entry[i].proto_id = app->protocol;
 	dcbx_set.config.params.app_entry[i].prio = BIT(app->priority);
 

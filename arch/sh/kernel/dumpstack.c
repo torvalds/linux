@@ -11,6 +11,8 @@
 #include <linux/kallsyms.h>
 #include <linux/ftrace.h>
 #include <linux/debug_locks.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/kdebug.h>
 #include <linux/export.h>
 #include <linux/uaccess.h>

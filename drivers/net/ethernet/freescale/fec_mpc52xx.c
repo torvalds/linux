@@ -802,7 +802,6 @@ static const struct net_device_ops mpc52xx_fec_netdev_ops = {
 	.ndo_set_mac_address = mpc52xx_fec_set_mac_address,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_do_ioctl = mpc52xx_fec_ioctl,
-	.ndo_change_mtu = eth_change_mtu,
 	.ndo_tx_timeout = mpc52xx_fec_tx_timeout,
 	.ndo_get_stats = mpc52xx_fec_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -961,8 +960,8 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 
 	/* We're done ! */
 	platform_set_drvdata(op, ndev);
-	netdev_info(ndev, "%s MAC %pM\n",
-		    op->dev.of_node->full_name, ndev->dev_addr);
+	netdev_info(ndev, "%pOF MAC %pM\n",
+		    op->dev.of_node, ndev->dev_addr);
 
 	return 0;
 

@@ -1,6 +1,6 @@
 config DRM_AST
 	tristate "AST server chips"
-	depends on DRM && PCI
+	depends on DRM && PCI && MMU
 	select DRM_TTM
 	select DRM_KMS_HELPER
 	select DRM_TTM

@@ -41,17 +41,18 @@
 #include <linux/namei.h>
 #include <linux/uaccess.h>
 
-#include "../include/lustre/lustre_idl.h"
-#include "../include/obd_support.h"
-#include "../include/lustre_net.h"
-#include "../include/obd_class.h"
-#include "../include/lustre_lmv.h"
-#include "../include/lprocfs_status.h"
-#include "../include/cl_object.h"
-#include "../include/lustre_fid.h"
-#include "../include/lustre/lustre_ioctl.h"
-#include "../include/lustre_kernelcomm.h"
+#include <obd_support.h>
+#include <lustre_net.h>
+#include <obd_class.h>
+#include <lustre_lmv.h>
+#include <lprocfs_status.h>
+#include <cl_object.h>
+#include <lustre_fid.h>
+#include <uapi/linux/lustre/lustre_ioctl.h>
+#include <lustre_kernelcomm.h>
 #include "lmv_internal.h"
+
+static int lmv_check_connect(struct obd_device *obd);
 
 static void lmv_activate_target(struct lmv_obd *lmv,
 				struct lmv_tgt_desc *tgt,
@@ -62,6 +63,7 @@ static void lmv_activate_target(struct lmv_obd *lmv,
 
 	tgt->ltd_active = activate;
 	lmv->desc.ld_active_tgt_count += (activate ? 1 : -1);
+	tgt->ltd_exp->exp_obd->obd_inactive = !activate;
 }
 
 /**
@@ -74,7 +76,7 @@ static void lmv_activate_target(struct lmv_obd *lmv,
 static int lmv_set_mdc_active(struct lmv_obd *lmv, const struct obd_uuid *uuid,
 			      int activate)
 {
-	struct lmv_tgt_desc    *uninitialized_var(tgt);
+	struct lmv_tgt_desc *tgt = NULL;
 	struct obd_device      *obd;
 	u32		     i;
 	int		     rc = 0;
@@ -172,14 +174,7 @@ static int lmv_notify(struct obd_device *obd, struct obd_device *watched,
 		 */
 		obd->obd_self_export->exp_connect_data = *conn_data;
 	}
-#if 0
-	else if (ev == OBD_NOTIFY_DISCON) {
-		/*
-		 * For disconnect event, flush fld cache for failout MDS case.
-		 */
-		fld_client_flush(&lmv->lmv_fld);
-	}
-#endif
+
 	/*
 	 * Pass the notification up the chain.
 	 */
@@ -189,28 +184,15 @@ static int lmv_notify(struct obd_device *obd, struct obd_device *watched,
 	return rc;
 }
 
-/**
- * This is fake connect function. Its purpose is to initialize lmv and say
- * caller that everything is okay. Real connection will be performed later.
- */
 static int lmv_connect(const struct lu_env *env,
-		       struct obd_export **exp, struct obd_device *obd,
+		       struct obd_export **pexp, struct obd_device *obd,
 		       struct obd_uuid *cluuid, struct obd_connect_data *data,
 		       void *localdata)
 {
 	struct lmv_obd	*lmv = &obd->u.lmv;
 	struct lustre_handle  conn = { 0 };
+	struct obd_export *exp;
 	int		    rc = 0;
-
-	/*
-	 * We don't want to actually do the underlying connections more than
-	 * once, so keep track.
-	 */
-	lmv->refcount++;
-	if (lmv->refcount > 1) {
-		*exp = NULL;
-		return 0;
-	}
 
 	rc = class_connect(&conn, obd, cluuid);
 	if (rc) {
@@ -218,35 +200,32 @@ static int lmv_connect(const struct lu_env *env,
 		return rc;
 	}
 
-	*exp = class_conn2export(&conn);
-	class_export_get(*exp);
+	exp = class_conn2export(&conn);
 
-	lmv->exp = *exp;
 	lmv->connected = 0;
 	lmv->cluuid = *cluuid;
-
-	if (data)
-		lmv->conn_data = *data;
+	lmv->conn_data = *data;
 
 	lmv->lmv_tgts_kobj = kobject_create_and_add("target_obds",
 						    &obd->obd_kobj);
-	/*
-	 * All real clients should perform actual connection right away, because
-	 * it is possible, that LMV will not have opportunity to connect targets
-	 * and MDC stuff will be called directly, for instance while reading
-	 * ../mdc/../kbytesfree procfs file, etc.
-	 */
-	if (data && data->ocd_connect_flags & OBD_CONNECT_REAL)
-		rc = lmv_check_connect(obd);
+	rc = lmv_check_connect(obd);
+	if (rc)
+		goto out_sysfs;
 
-	if (rc && lmv->lmv_tgts_kobj)
+	*pexp = exp;
+
+	return rc;
+
+out_sysfs:
+	if (lmv->lmv_tgts_kobj)
 		kobject_put(lmv->lmv_tgts_kobj);
+
+	class_disconnect(exp);
 
 	return rc;
 }
 
-static int lmv_init_ea_size(struct obd_export *exp, u32 easize, u32 def_easize,
-			    u32 cookiesize, u32 def_cookiesize)
+static int lmv_init_ea_size(struct obd_export *exp, u32 easize, u32 def_easize)
 {
 	struct obd_device   *obd = exp->exp_obd;
 	struct lmv_obd      *lmv = &obd->u.lmv;
@@ -262,14 +241,7 @@ static int lmv_init_ea_size(struct obd_export *exp, u32 easize, u32 def_easize,
 		lmv->max_def_easize = def_easize;
 		change = 1;
 	}
-	if (lmv->max_cookiesize < cookiesize) {
-		lmv->max_cookiesize = cookiesize;
-		change = 1;
-	}
-	if (lmv->max_def_cookiesize < def_cookiesize) {
-		lmv->max_def_cookiesize = def_cookiesize;
-		change = 1;
-	}
+
 	if (change == 0)
 		return 0;
 
@@ -284,8 +256,7 @@ static int lmv_init_ea_size(struct obd_export *exp, u32 easize, u32 def_easize,
 			continue;
 		}
 
-		rc = md_init_ea_size(tgt->ltd_exp, easize, def_easize,
-				     cookiesize, def_cookiesize);
+		rc = md_init_ea_size(tgt->ltd_exp, easize, def_easize);
 		if (rc) {
 			CERROR("%s: obd_init_ea_size() failed on MDT target %d: rc = %d\n",
 			       obd->obd_name, i, rc);
@@ -368,8 +339,7 @@ static int lmv_connect_mdc(struct obd_device *obd, struct lmv_tgt_desc *tgt)
 	tgt->ltd_exp = mdc_exp;
 	lmv->desc.ld_active_tgt_count++;
 
-	md_init_ea_size(tgt->ltd_exp, lmv->max_easize, lmv->max_def_easize,
-			lmv->max_cookiesize, lmv->max_def_cookiesize);
+	md_init_ea_size(tgt->ltd_exp, lmv->max_easize, lmv->max_def_easize);
 
 	CDEBUG(D_CONFIG, "Connected to %s(%s) successfully (%d)\n",
 	       mdc_obd->obd_name, mdc_obd->obd_uuid.uuid,
@@ -389,33 +359,28 @@ static void lmv_del_target(struct lmv_obd *lmv, int index)
 
 	kfree(lmv->tgts[index]);
 	lmv->tgts[index] = NULL;
-	return;
 }
 
 static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 			  __u32 index, int gen)
 {
 	struct lmv_obd      *lmv = &obd->u.lmv;
+	struct obd_device *mdc_obd;
 	struct lmv_tgt_desc *tgt;
 	int orig_tgt_count = 0;
 	int		  rc = 0;
 
 	CDEBUG(D_CONFIG, "Target uuid: %s. index %d\n", uuidp->uuid, index);
 
-	mutex_lock(&lmv->lmv_init_mutex);
-
-	if (lmv->desc.ld_tgt_count == 0) {
-		struct obd_device *mdc_obd;
-
-		mdc_obd = class_find_client_obd(uuidp, LUSTRE_MDC_NAME,
-						&obd->obd_uuid);
-		if (!mdc_obd) {
-			mutex_unlock(&lmv->lmv_init_mutex);
-			CERROR("%s: Target %s not attached: rc = %d\n",
-			       obd->obd_name, uuidp->uuid, -EINVAL);
-			return -EINVAL;
-		}
+	mdc_obd = class_find_client_obd(uuidp, LUSTRE_MDC_NAME,
+					&obd->obd_uuid);
+	if (!mdc_obd) {
+		CERROR("%s: Target %s not attached: rc = %d\n",
+		       obd->obd_name, uuidp->uuid, -EINVAL);
+		return -EINVAL;
 	}
+
+	mutex_lock(&lmv->lmv_init_mutex);
 
 	if ((index < lmv->tgts_size) && lmv->tgts[index]) {
 		tgt = lmv->tgts[index];
@@ -472,26 +437,31 @@ static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 		lmv->desc.ld_tgt_count = index + 1;
 	}
 
-	if (lmv->connected) {
-		rc = lmv_connect_mdc(obd, tgt);
-		if (rc) {
-			spin_lock(&lmv->lmv_lock);
-			if (lmv->desc.ld_tgt_count == index + 1)
-				lmv->desc.ld_tgt_count = orig_tgt_count;
-			memset(tgt, 0, sizeof(*tgt));
-			spin_unlock(&lmv->lmv_lock);
-		} else {
-			int easize = sizeof(struct lmv_stripe_md) +
-				lmv->desc.ld_tgt_count * sizeof(struct lu_fid);
-			lmv_init_ea_size(obd->obd_self_export, easize, 0, 0, 0);
-		}
+	if (!lmv->connected) {
+		/* lmv_check_connect() will connect this target. */
+		mutex_unlock(&lmv->lmv_init_mutex);
+		return rc;
 	}
 
+	/* Otherwise let's connect it ourselves */
 	mutex_unlock(&lmv->lmv_init_mutex);
+	rc = lmv_connect_mdc(obd, tgt);
+	if (rc) {
+		spin_lock(&lmv->lmv_lock);
+		if (lmv->desc.ld_tgt_count == index + 1)
+			lmv->desc.ld_tgt_count = orig_tgt_count;
+		memset(tgt, 0, sizeof(*tgt));
+		spin_unlock(&lmv->lmv_lock);
+	} else {
+		int easize = sizeof(struct lmv_stripe_md) +
+			     lmv->desc.ld_tgt_count * sizeof(struct lu_fid);
+		lmv_init_ea_size(obd->obd_self_export, easize, 0);
+	}
+
 	return rc;
 }
 
-int lmv_check_connect(struct obd_device *obd)
+static int lmv_check_connect(struct obd_device *obd)
 {
 	struct lmv_obd       *lmv = &obd->u.lmv;
 	struct lmv_tgt_desc  *tgt;
@@ -535,10 +505,9 @@ int lmv_check_connect(struct obd_device *obd)
 			goto out_disc;
 	}
 
-	class_export_put(lmv->exp);
 	lmv->connected = 1;
 	easize = lmv_mds_md_size(lmv->desc.ld_tgt_count, LMV_MAGIC);
-	lmv_init_ea_size(obd->obd_self_export, easize, 0, 0, 0);
+	lmv_init_ea_size(obd->obd_self_export, easize, 0);
 	mutex_unlock(&lmv->lmv_init_mutex);
 	return 0;
 
@@ -559,7 +528,7 @@ int lmv_check_connect(struct obd_device *obd)
 			}
 		}
 	}
-	class_disconnect(lmv->exp);
+
 	mutex_unlock(&lmv->lmv_init_mutex);
 	return rc;
 }
@@ -614,13 +583,6 @@ static int lmv_disconnect(struct obd_export *exp)
 	if (!lmv->tgts)
 		goto out_local;
 
-	/*
-	 * Only disconnect the underlying layers on the final disconnect.
-	 */
-	lmv->refcount--;
-	if (lmv->refcount != 0)
-		goto out_local;
-
 	for (i = 0; i < lmv->desc.ld_tgt_count; i++) {
 		if (!lmv->tgts[i] || !lmv->tgts[i]->ltd_exp)
 			continue;
@@ -639,8 +601,7 @@ out_local:
 	if (!lmv->connected)
 		class_export_put(exp);
 	rc = class_disconnect(exp);
-	if (lmv->refcount == 0)
-		lmv->connected = 0;
+	lmv->connected = 0;
 	return rc;
 }
 
@@ -655,7 +616,7 @@ static int lmv_fid2path(struct obd_export *exp, int len, void *karg,
 	int			remote_gf_size = 0;
 	int			rc;
 
-	gf = (struct getinfo_fid2path *)karg;
+	gf = karg;
 	tgt = lmv_find_target(lmv, &gf->gf_fid);
 	if (IS_ERR(tgt))
 		return PTR_ERR(tgt);
@@ -672,9 +633,9 @@ repeat_fid2path:
 		struct getinfo_fid2path *ori_gf;
 		char *ptr;
 
-		ori_gf = (struct getinfo_fid2path *)karg;
-		if (strlen(ori_gf->gf_path) +
-		    strlen(gf->gf_path) > ori_gf->gf_pathlen) {
+		ori_gf = karg;
+		if (strlen(ori_gf->gf_path) + 1 +
+		    strlen(gf->gf_path) + 1 > ori_gf->gf_pathlen) {
 			rc = -EOVERFLOW;
 			goto out_fid2path;
 		}
@@ -689,7 +650,7 @@ repeat_fid2path:
 		*ptr = '/';
 	}
 
-	CDEBUG(D_INFO, "%s: get path %s "DFID" rec: %llu ln: %u\n",
+	CDEBUG(D_INFO, "%s: get path %s " DFID " rec: %llu ln: %u\n",
 	       tgt->ltd_exp->exp_obd->obd_name,
 	       gf->gf_path, PFID(&gf->gf_fid), gf->gf_recno,
 	       gf->gf_linkno);
@@ -709,7 +670,7 @@ repeat_fid2path:
 	}
 
 	if (!fid_is_sane(&gf->gf_fid)) {
-		CERROR("%s: invalid FID "DFID": rc = %d\n",
+		CERROR("%s: invalid FID " DFID ": rc = %d\n",
 		       tgt->ltd_exp->exp_obd->obd_name,
 		       PFID(&gf->gf_fid), -EINVAL);
 		rc = -EINVAL;
@@ -744,16 +705,18 @@ static int lmv_hsm_req_count(struct lmv_obd *lmv,
 	/* count how many requests must be sent to the given target */
 	for (i = 0; i < hur->hur_request.hr_itemcount; i++) {
 		curr_tgt = lmv_find_target(lmv, &hur->hur_user_item[i].hui_fid);
+		if (IS_ERR(curr_tgt))
+			return PTR_ERR(curr_tgt);
 		if (obd_uuid_equals(&curr_tgt->ltd_uuid, &tgt_mds->ltd_uuid))
 			nr++;
 	}
 	return nr;
 }
 
-static void lmv_hsm_req_build(struct lmv_obd *lmv,
-			      struct hsm_user_request *hur_in,
-			      const struct lmv_tgt_desc *tgt_mds,
-			      struct hsm_user_request *hur_out)
+static int lmv_hsm_req_build(struct lmv_obd *lmv,
+			     struct hsm_user_request *hur_in,
+			     const struct lmv_tgt_desc *tgt_mds,
+			     struct hsm_user_request *hur_out)
 {
 	int			i, nr_out;
 	struct lmv_tgt_desc    *curr_tgt;
@@ -764,6 +727,8 @@ static void lmv_hsm_req_build(struct lmv_obd *lmv,
 	for (i = 0; i < hur_in->hur_request.hr_itemcount; i++) {
 		curr_tgt = lmv_find_target(lmv,
 					   &hur_in->hur_user_item[i].hui_fid);
+		if (IS_ERR(curr_tgt))
+			return PTR_ERR(curr_tgt);
 		if (obd_uuid_equals(&curr_tgt->ltd_uuid, &tgt_mds->ltd_uuid)) {
 			hur_out->hur_user_item[nr_out] =
 				hur_in->hur_user_item[i];
@@ -773,13 +738,14 @@ static void lmv_hsm_req_build(struct lmv_obd *lmv,
 	hur_out->hur_request.hr_itemcount = nr_out;
 	memcpy(hur_data(hur_out), hur_data(hur_in),
 	       hur_in->hur_request.hr_data_len);
+
+	return 0;
 }
 
 static int lmv_hsm_ct_unregister(struct lmv_obd *lmv, unsigned int cmd, int len,
 				 struct lustre_kernelcomm *lk,
 				 void __user *uarg)
 {
-	int rc = 0;
 	__u32 i;
 
 	/* unregister request (call from llapi_hsm_copytool_fini) */
@@ -799,9 +765,7 @@ static int lmv_hsm_ct_unregister(struct lmv_obd *lmv, unsigned int cmd, int len,
 	 * Unreached coordinators will get EPIPE on next requests
 	 * and will unregister automatically.
 	 */
-	rc = libcfs_kkuc_group_rem(lk->lk_uid, lk->lk_group);
-
-	return rc;
+	return libcfs_kkuc_group_rem(lk->lk_uid, lk->lk_group);
 }
 
 static int lmv_hsm_ct_register(struct lmv_obd *lmv, unsigned int cmd, int len,
@@ -1052,15 +1016,17 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 		} else {
 			/* split fid list to their respective MDS */
 			for (i = 0; i < count; i++) {
-				unsigned int		nr, reqlen;
-				int			rc1;
 				struct hsm_user_request *req;
+				size_t reqlen;
+				int nr, rc1;
 
 				tgt = lmv->tgts[i];
 				if (!tgt || !tgt->ltd_exp)
 					continue;
 
 				nr = lmv_hsm_req_count(lmv, hur, tgt);
+				if (nr < 0)
+					return nr;
 				if (nr == 0) /* nothing for this MDS */
 					continue;
 
@@ -1072,10 +1038,13 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 				if (!req)
 					return -ENOMEM;
 
-				lmv_hsm_req_build(lmv, hur, tgt, req);
+				rc1 = lmv_hsm_req_build(lmv, hur, tgt, req);
+				if (rc1 < 0)
+					goto hsm_req_err;
 
 				rc1 = obd_iocontrol(cmd, tgt->ltd_exp, reqlen,
 						    req, uarg);
+hsm_req_err:
 				if (rc1 != 0 && rc == 0)
 					rc = rc1;
 				kvfree(req);
@@ -1128,11 +1097,10 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 			mdc_obd = class_exp2obd(tgt->ltd_exp);
 			mdc_obd->obd_force = obddev->obd_force;
 			err = obd_iocontrol(cmd, tgt->ltd_exp, len, karg, uarg);
-			if (err == -ENODATA && cmd == OBD_IOC_POLL_QUOTACHECK) {
-				return err;
-			} else if (err) {
+			if (err) {
 				if (tgt->ltd_active) {
-					CERROR("error: iocontrol MDC %s on MDTidx %d cmd %x: err = %d\n",
+					CERROR("%s: error: iocontrol MDC %s on MDTidx %d cmd %x: err = %d\n",
+					       lmv2obd_dev(lmv)->obd_name,
 					       tgt->ltd_uuid.uuid, i, cmd, err);
 					if (!rc)
 						rc = err;
@@ -1284,10 +1252,8 @@ static int lmv_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	obd_str2uuid(&lmv->desc.ld_uuid, desc->ld_uuid.uuid);
 	lmv->desc.ld_tgt_count = 0;
 	lmv->desc.ld_active_tgt_count = 0;
-	lmv->max_cookiesize = 0;
 	lmv->max_def_easize = 0;
 	lmv->max_easize = 0;
-	lmv->lmv_placement = PLACEMENT_CHAR_POLICY;
 
 	spin_lock_init(&lmv->lmv_lock);
 	mutex_init(&lmv->lmv_init_mutex);
@@ -1380,10 +1346,6 @@ static int lmv_statfs(const struct lu_env *env, struct obd_export *exp,
 	int		    rc = 0;
 	u32 i;
 
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
-
 	temp = kzalloc(sizeof(*temp), GFP_NOFS);
 	if (!temp)
 		return -ENOMEM;
@@ -1430,14 +1392,8 @@ static int lmv_getstatus(struct obd_export *exp,
 {
 	struct obd_device    *obd = exp->exp_obd;
 	struct lmv_obd       *lmv = &obd->u.lmv;
-	int		   rc;
 
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
-
-	rc = md_getstatus(lmv->tgts[0]->ltd_exp, fid);
-	return rc;
+	return md_getstatus(lmv->tgts[0]->ltd_exp, fid);
 }
 
 static int lmv_getxattr(struct obd_export *exp, const struct lu_fid *fid,
@@ -1448,20 +1404,13 @@ static int lmv_getxattr(struct obd_export *exp, const struct lu_fid *fid,
 	struct obd_device      *obd = exp->exp_obd;
 	struct lmv_obd	 *lmv = &obd->u.lmv;
 	struct lmv_tgt_desc    *tgt;
-	int		     rc;
-
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
 
 	tgt = lmv_find_target(lmv, fid);
 	if (IS_ERR(tgt))
 		return PTR_ERR(tgt);
 
-	rc = md_getxattr(tgt->ltd_exp, fid, valid, name, input,
+	return md_getxattr(tgt->ltd_exp, fid, valid, name, input,
 			 input_size, output_size, flags, request);
-
-	return rc;
 }
 
 static int lmv_setxattr(struct obd_export *exp, const struct lu_fid *fid,
@@ -1473,21 +1422,14 @@ static int lmv_setxattr(struct obd_export *exp, const struct lu_fid *fid,
 	struct obd_device      *obd = exp->exp_obd;
 	struct lmv_obd	 *lmv = &obd->u.lmv;
 	struct lmv_tgt_desc    *tgt;
-	int		     rc;
-
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
 
 	tgt = lmv_find_target(lmv, fid);
 	if (IS_ERR(tgt))
 		return PTR_ERR(tgt);
 
-	rc = md_setxattr(tgt->ltd_exp, fid, valid, name, input,
+	return md_setxattr(tgt->ltd_exp, fid, valid, name, input,
 			 input_size, output_size, flags, suppgid,
 			 request);
-
-	return rc;
 }
 
 static int lmv_getattr(struct obd_export *exp, struct md_op_data *op_data,
@@ -1496,11 +1438,6 @@ static int lmv_getattr(struct obd_export *exp, struct md_op_data *op_data,
 	struct obd_device       *obd = exp->exp_obd;
 	struct lmv_obd	  *lmv = &obd->u.lmv;
 	struct lmv_tgt_desc     *tgt;
-	int		      rc;
-
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
 
 	tgt = lmv_find_target(lmv, &op_data->op_fid1);
 	if (IS_ERR(tgt))
@@ -1511,9 +1448,7 @@ static int lmv_getattr(struct obd_export *exp, struct md_op_data *op_data,
 		return 0;
 	}
 
-	rc = md_getattr(tgt->ltd_exp, op_data, request);
-
-	return rc;
+	return md_getattr(tgt->ltd_exp, op_data, request);
 }
 
 static int lmv_null_inode(struct obd_export *exp, const struct lu_fid *fid)
@@ -1521,13 +1456,8 @@ static int lmv_null_inode(struct obd_export *exp, const struct lu_fid *fid)
 	struct obd_device   *obd = exp->exp_obd;
 	struct lmv_obd      *lmv = &obd->u.lmv;
 	u32 i;
-	int		  rc;
 
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
-
-	CDEBUG(D_INODE, "CBDATA for "DFID"\n", PFID(fid));
+	CDEBUG(D_INODE, "CBDATA for " DFID "\n", PFID(fid));
 
 	/*
 	 * With DNE every object can have two locks in different namespaces:
@@ -1549,19 +1479,13 @@ static int lmv_close(struct obd_export *exp, struct md_op_data *op_data,
 	struct obd_device     *obd = exp->exp_obd;
 	struct lmv_obd	*lmv = &obd->u.lmv;
 	struct lmv_tgt_desc   *tgt;
-	int		    rc;
-
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
 
 	tgt = lmv_find_target(lmv, &op_data->op_fid1);
 	if (IS_ERR(tgt))
 		return PTR_ERR(tgt);
 
-	CDEBUG(D_INODE, "CLOSE "DFID"\n", PFID(&op_data->op_fid1));
-	rc = md_close(tgt->ltd_exp, op_data, mod, request);
-	return rc;
+	CDEBUG(D_INODE, "CLOSE " DFID "\n", PFID(&op_data->op_fid1));
+	return md_close(tgt->ltd_exp, op_data, mod, request);
 }
 
 /**
@@ -1630,27 +1554,28 @@ lmv_locate_mds(struct lmv_obd *lmv, struct md_op_data *op_data,
 	 * ct_restore().
 	 */
 	if (op_data->op_bias & MDS_CREATE_VOLATILE &&
-	    (int)op_data->op_mds != -1 && lsm) {
+	    (int)op_data->op_mds != -1) {
 		int i;
 
 		tgt = lmv_get_target(lmv, op_data->op_mds, NULL);
 		if (IS_ERR(tgt))
 			return tgt;
 
-		/* refill the right parent fid */
-		for (i = 0; i < lsm->lsm_md_stripe_count; i++) {
-			struct lmv_oinfo *oinfo;
+		if (lsm) {
+			/* refill the right parent fid */
+			for (i = 0; i < lsm->lsm_md_stripe_count; i++) {
+				struct lmv_oinfo *oinfo;
 
-			oinfo = &lsm->lsm_md_oinfo[i];
-			if (oinfo->lmo_mds == op_data->op_mds) {
-				*fid = oinfo->lmo_fid;
-				break;
+				oinfo = &lsm->lsm_md_oinfo[i];
+				if (oinfo->lmo_mds == op_data->op_mds) {
+					*fid = oinfo->lmo_fid;
+					break;
+				}
 			}
-		}
 
-		/* Hmm, can not find the stripe by mdt_index(op_mds) */
-		if (i == lsm->lsm_md_stripe_count)
-			tgt = ERR_PTR(-EINVAL);
+			if (i == lsm->lsm_md_stripe_count)
+				*fid = lsm->lsm_md_oinfo[0].lmo_fid;
+		}
 
 		return tgt;
 	}
@@ -1680,10 +1605,6 @@ static int lmv_create(struct obd_export *exp, struct md_op_data *op_data,
 	struct lmv_tgt_desc     *tgt;
 	int		      rc;
 
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
-
 	if (!lmv->desc.ld_active_tgt_count)
 		return -EIO;
 
@@ -1691,7 +1612,7 @@ static int lmv_create(struct obd_export *exp, struct md_op_data *op_data,
 	if (IS_ERR(tgt))
 		return PTR_ERR(tgt);
 
-	CDEBUG(D_INODE, "CREATE name '%.*s' on "DFID" -> mds #%x\n",
+	CDEBUG(D_INODE, "CREATE name '%.*s' on " DFID " -> mds #%x\n",
 	       (int)op_data->op_namelen, op_data->op_name,
 	       PFID(&op_data->op_fid1), op_data->op_mds);
 
@@ -1713,7 +1634,7 @@ static int lmv_create(struct obd_export *exp, struct md_op_data *op_data,
 		CDEBUG(D_CONFIG, "Server doesn't support striped dirs\n");
 	}
 
-	CDEBUG(D_INODE, "CREATE obj "DFID" -> mds #%x\n",
+	CDEBUG(D_INODE, "CREATE obj " DFID " -> mds #%x\n",
 	       PFID(&op_data->op_fid1), op_data->op_mds);
 
 	op_data->op_flags |= MF_MDC_CANCEL_FID1;
@@ -1723,48 +1644,22 @@ static int lmv_create(struct obd_export *exp, struct md_op_data *op_data,
 	if (rc == 0) {
 		if (!*request)
 			return rc;
-		CDEBUG(D_INODE, "Created - "DFID"\n", PFID(&op_data->op_fid2));
+		CDEBUG(D_INODE, "Created - " DFID "\n", PFID(&op_data->op_fid2));
 	}
-	return rc;
-}
-
-static int lmv_done_writing(struct obd_export *exp,
-			    struct md_op_data *op_data,
-			    struct md_open_data *mod)
-{
-	struct obd_device     *obd = exp->exp_obd;
-	struct lmv_obd	*lmv = &obd->u.lmv;
-	struct lmv_tgt_desc   *tgt;
-	int		    rc;
-
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
-
-	tgt = lmv_find_target(lmv, &op_data->op_fid1);
-	if (IS_ERR(tgt))
-		return PTR_ERR(tgt);
-
-	rc = md_done_writing(tgt->ltd_exp, op_data, mod);
 	return rc;
 }
 
 static int
 lmv_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
-	    const ldlm_policy_data_t *policy,
+	    const union ldlm_policy_data *policy,
 	    struct lookup_intent *it, struct md_op_data *op_data,
 	    struct lustre_handle *lockh, __u64 extra_lock_flags)
 {
 	struct obd_device	*obd = exp->exp_obd;
 	struct lmv_obd	   *lmv = &obd->u.lmv;
 	struct lmv_tgt_desc      *tgt;
-	int		       rc;
 
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
-
-	CDEBUG(D_INODE, "ENQUEUE '%s' on "DFID"\n",
+	CDEBUG(D_INODE, "ENQUEUE '%s' on " DFID "\n",
 	       LL_IT2STR(it), PFID(&op_data->op_fid1));
 
 	tgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid1);
@@ -1774,10 +1669,8 @@ lmv_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 	CDEBUG(D_INODE, "ENQUEUE '%s' on " DFID " -> mds #%u\n",
 	       LL_IT2STR(it), PFID(&op_data->op_fid1), tgt->ltd_idx);
 
-	rc = md_enqueue(tgt->ltd_exp, einfo, policy, it, op_data, lockh,
+	return md_enqueue(tgt->ltd_exp, einfo, policy, it, op_data, lockh,
 			extra_lock_flags);
-
-	return rc;
 }
 
 static int
@@ -1790,10 +1683,6 @@ lmv_getattr_name(struct obd_export *exp, struct md_op_data *op_data,
 	struct lmv_tgt_desc     *tgt;
 	struct mdt_body	 *body;
 	int		      rc;
-
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
 
 	tgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid1);
 	if (IS_ERR(tgt))
@@ -1811,7 +1700,7 @@ lmv_getattr_name(struct obd_export *exp, struct md_op_data *op_data,
 	if (body->mbo_valid & OBD_MD_MDS) {
 		struct lu_fid rid = body->mbo_fid1;
 
-		CDEBUG(D_INODE, "Request attrs for "DFID"\n",
+		CDEBUG(D_INODE, "Request attrs for " DFID "\n",
 		       PFID(&rid));
 
 		tgt = lmv_find_target(lmv, &rid);
@@ -1847,7 +1736,7 @@ static int lmv_early_cancel(struct obd_export *exp, struct lmv_tgt_desc *tgt,
 	struct lu_fid	  *fid = md_op_data_fid(op_data, flag);
 	struct obd_device      *obd = exp->exp_obd;
 	struct lmv_obd	 *lmv = &obd->u.lmv;
-	ldlm_policy_data_t      policy = { {0} };
+	union ldlm_policy_data policy = { { 0 } };
 	int		     rc = 0;
 
 	if (!fid_is_sane(fid))
@@ -1860,13 +1749,13 @@ static int lmv_early_cancel(struct obd_export *exp, struct lmv_tgt_desc *tgt,
 	}
 
 	if (tgt->ltd_idx != op_tgt) {
-		CDEBUG(D_INODE, "EARLY_CANCEL on "DFID"\n", PFID(fid));
+		CDEBUG(D_INODE, "EARLY_CANCEL on " DFID "\n", PFID(fid));
 		policy.l_inodebits.bits = bits;
 		rc = md_cancel_unused(tgt->ltd_exp, fid, &policy,
 				      mode, LCF_ASYNC, NULL);
 	} else {
 		CDEBUG(D_INODE,
-		       "EARLY_CANCEL skip operation target %d on "DFID"\n",
+		       "EARLY_CANCEL skip operation target %d on " DFID "\n",
 		       op_tgt, PFID(fid));
 		op_data->op_flags |= flag;
 		rc = 0;
@@ -1887,13 +1776,9 @@ static int lmv_link(struct obd_export *exp, struct md_op_data *op_data,
 	struct lmv_tgt_desc     *tgt;
 	int		      rc;
 
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
-
 	LASSERT(op_data->op_namelen != 0);
 
-	CDEBUG(D_INODE, "LINK "DFID":%*s to "DFID"\n",
+	CDEBUG(D_INODE, "LINK " DFID ":%*s to " DFID "\n",
 	       PFID(&op_data->op_fid2), (int)op_data->op_namelen,
 	       op_data->op_name, PFID(&op_data->op_fid1));
 
@@ -1925,9 +1810,7 @@ static int lmv_link(struct obd_export *exp, struct md_op_data *op_data,
 	if (rc != 0)
 		return rc;
 
-	rc = md_link(tgt->ltd_exp, op_data, request);
-
-	return rc;
+	return md_link(tgt->ltd_exp, op_data, request);
 }
 
 static int lmv_rename(struct obd_export *exp, struct md_op_data *op_data,
@@ -1937,27 +1820,26 @@ static int lmv_rename(struct obd_export *exp, struct md_op_data *op_data,
 {
 	struct obd_device       *obd = exp->exp_obd;
 	struct lmv_obd	  *lmv = &obd->u.lmv;
+	struct obd_export *target_exp;
 	struct lmv_tgt_desc     *src_tgt;
+	struct lmv_tgt_desc *tgt_tgt;
+	struct mdt_body *body;
 	int			rc;
 
 	LASSERT(oldlen != 0);
 
-	CDEBUG(D_INODE, "RENAME %.*s in "DFID":%d to %.*s in "DFID":%d\n",
+	CDEBUG(D_INODE, "RENAME %.*s in " DFID ":%d to %.*s in " DFID ":%d\n",
 	       (int)oldlen, old, PFID(&op_data->op_fid1),
 	       op_data->op_mea1 ? op_data->op_mea1->lsm_md_stripe_count : 0,
 	       (int)newlen, new, PFID(&op_data->op_fid2),
 	       op_data->op_mea2 ? op_data->op_mea2->lsm_md_stripe_count : 0);
-
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
 
 	op_data->op_fsuid = from_kuid(&init_user_ns, current_fsuid());
 	op_data->op_fsgid = from_kgid(&init_user_ns, current_fsgid());
 	op_data->op_cap = cfs_curproc_cap_pack();
 
 	if (op_data->op_cli_flags & CLI_MIGRATE) {
-		LASSERTF(fid_is_sane(&op_data->op_fid3), "invalid FID "DFID"\n",
+		LASSERTF(fid_is_sane(&op_data->op_fid3), "invalid FID " DFID "\n",
 			 PFID(&op_data->op_fid3));
 
 		if (op_data->op_mea1) {
@@ -1977,6 +1859,10 @@ static int lmv_rename(struct obd_export *exp, struct md_op_data *op_data,
 		if (rc)
 			return rc;
 		src_tgt = lmv_find_target(lmv, &op_data->op_fid3);
+		if (IS_ERR(src_tgt))
+			return PTR_ERR(src_tgt);
+
+		target_exp = src_tgt->ltd_exp;
 	} else {
 		if (op_data->op_mea1) {
 			struct lmv_stripe_md *lsm = op_data->op_mea1;
@@ -1985,29 +1871,27 @@ static int lmv_rename(struct obd_export *exp, struct md_op_data *op_data,
 							     oldlen,
 							     &op_data->op_fid1,
 							     &op_data->op_mds);
-			if (IS_ERR(src_tgt))
-				return PTR_ERR(src_tgt);
 		} else {
 			src_tgt = lmv_find_target(lmv, &op_data->op_fid1);
-			if (IS_ERR(src_tgt))
-				return PTR_ERR(src_tgt);
-
-			op_data->op_mds = src_tgt->ltd_idx;
 		}
+		if (IS_ERR(src_tgt))
+			return PTR_ERR(src_tgt);
 
 		if (op_data->op_mea2) {
 			struct lmv_stripe_md *lsm = op_data->op_mea2;
-			const struct lmv_oinfo *oinfo;
 
-			oinfo = lsm_name_to_stripe_info(lsm, new, newlen);
-			if (IS_ERR(oinfo))
-				return PTR_ERR(oinfo);
-
-			op_data->op_fid2 = oinfo->lmo_fid;
+			tgt_tgt = lmv_locate_target_for_name(lmv, lsm, new,
+							     newlen,
+							     &op_data->op_fid2,
+							     &op_data->op_mds);
+		} else {
+			tgt_tgt = lmv_find_target(lmv, &op_data->op_fid2);
 		}
+		if (IS_ERR(tgt_tgt))
+			return PTR_ERR(tgt_tgt);
+
+		target_exp = tgt_tgt->ltd_exp;
 	}
-	if (IS_ERR(src_tgt))
-		return PTR_ERR(src_tgt);
 
 	/*
 	 * LOOKUP lock on src child (fid3) should also be cancelled for
@@ -2048,37 +1932,62 @@ static int lmv_rename(struct obd_export *exp, struct md_op_data *op_data,
 			return rc;
 	}
 
+retry_rename:
 	/*
 	 * Cancel all the locks on tgt child (fid4).
 	 */
-	if (fid_is_sane(&op_data->op_fid4))
+	if (fid_is_sane(&op_data->op_fid4)) {
+		struct lmv_tgt_desc *tgt;
+
 		rc = lmv_early_cancel(exp, NULL, op_data, src_tgt->ltd_idx,
 				      LCK_EX, MDS_INODELOCK_FULL,
 				      MF_MDC_CANCEL_FID4);
+		if (rc)
+			return rc;
 
-	CDEBUG(D_INODE, DFID":m%d to "DFID"\n", PFID(&op_data->op_fid1),
-	       op_data->op_mds, PFID(&op_data->op_fid2));
+		tgt = lmv_find_target(lmv, &op_data->op_fid4);
+		if (IS_ERR(tgt))
+			return PTR_ERR(tgt);
 
-	rc = md_rename(src_tgt->ltd_exp, op_data, old, oldlen,
-		       new, newlen, request);
-	return rc;
+		/*
+		 * Since the target child might be destroyed, and it might
+		 * become orphan, and we can only check orphan on the local
+		 * MDT right now, so we send rename request to the MDT where
+		 * target child is located. If target child does not exist,
+		 * then it will send the request to the target parent
+		 */
+		target_exp = tgt->ltd_exp;
+	}
+
+	rc = md_rename(target_exp, op_data, old, oldlen, new, newlen, request);
+	if (rc && rc != -EREMOTE)
+		return rc;
+
+	body = req_capsule_server_get(&(*request)->rq_pill, &RMF_MDT_BODY);
+	if (!body)
+		return -EPROTO;
+
+	/* Not cross-ref case, just get out of here. */
+	if (likely(!(body->mbo_valid & OBD_MD_MDS)))
+		return rc;
+
+	CDEBUG(D_INODE, "%s: try rename to another MDT for " DFID "\n",
+	       exp->exp_obd->obd_name, PFID(&body->mbo_fid1));
+
+	op_data->op_fid4 = body->mbo_fid1;
+	ptlrpc_req_finished(*request);
+	*request = NULL;
+	goto retry_rename;
 }
 
 static int lmv_setattr(struct obd_export *exp, struct md_op_data *op_data,
-		       void *ea, size_t ealen, void *ea2, size_t ea2len,
-		       struct ptlrpc_request **request,
-		       struct md_open_data **mod)
+		       void *ea, size_t ealen, struct ptlrpc_request **request)
 {
 	struct obd_device       *obd = exp->exp_obd;
 	struct lmv_obd	  *lmv = &obd->u.lmv;
 	struct lmv_tgt_desc     *tgt;
-	int		      rc;
 
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
-
-	CDEBUG(D_INODE, "SETATTR for "DFID", valid 0x%x\n",
+	CDEBUG(D_INODE, "SETATTR for " DFID ", valid 0x%x\n",
 	       PFID(&op_data->op_fid1), op_data->op_attr.ia_valid);
 
 	op_data->op_flags |= MF_MDC_CANCEL_FID1;
@@ -2086,10 +1995,7 @@ static int lmv_setattr(struct obd_export *exp, struct md_op_data *op_data,
 	if (IS_ERR(tgt))
 		return PTR_ERR(tgt);
 
-	rc = md_setattr(tgt->ltd_exp, op_data, ea, ealen, ea2,
-			ea2len, request, mod);
-
-	return rc;
+	return md_setattr(tgt->ltd_exp, op_data, ea, ealen, request);
 }
 
 static int lmv_sync(struct obd_export *exp, const struct lu_fid *fid,
@@ -2098,18 +2004,12 @@ static int lmv_sync(struct obd_export *exp, const struct lu_fid *fid,
 	struct obd_device	 *obd = exp->exp_obd;
 	struct lmv_obd	    *lmv = &obd->u.lmv;
 	struct lmv_tgt_desc       *tgt;
-	int			rc;
-
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
 
 	tgt = lmv_find_target(lmv, fid);
 	if (IS_ERR(tgt))
 		return PTR_ERR(tgt);
 
-	rc = md_sync(tgt->ltd_exp, fid, request);
-	return rc;
+	return md_sync(tgt->ltd_exp, fid, request);
 }
 
 /**
@@ -2285,8 +2185,8 @@ static int lmv_read_striped_page(struct obd_export *exp,
 {
 	struct inode *master_inode = op_data->op_data;
 	struct lu_fid master_fid = op_data->op_fid1;
-	struct obd_device *obd = exp->exp_obd;
 	__u64 hash_offset = offset;
+	__u32 ldp_flags;
 	struct page *min_ent_page = NULL;
 	struct page *ent_page = NULL;
 	struct lu_dirent *min_ent = NULL;
@@ -2297,10 +2197,6 @@ static int lmv_read_striped_page(struct obd_export *exp,
 	int ent_idx = 0;
 	void *area;
 	int rc;
-
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
 
 	/*
 	 * Allocate a page and read entries from all of stripes and fill
@@ -2314,7 +2210,7 @@ static int lmv_read_striped_page(struct obd_export *exp,
 	dp = kmap(ent_page);
 	memset(dp, 0, sizeof(*dp));
 	dp->ldp_hash_start = cpu_to_le64(offset);
-	dp->ldp_flags |= LDF_COLLIDE;
+	ldp_flags = LDF_COLLIDE;
 
 	area = dp + 1;
 	left_bytes = PAGE_SIZE - sizeof(*dp);
@@ -2392,8 +2288,8 @@ out:
 		ent_page = NULL;
 	} else {
 		if (ent == area)
-			dp->ldp_flags |= LDF_EMPTY;
-		dp->ldp_flags = cpu_to_le32(dp->ldp_flags);
+			ldp_flags |= LDF_EMPTY;
+		dp->ldp_flags |= cpu_to_le32(ldp_flags);
 		dp->ldp_hash_end = cpu_to_le64(hash_offset);
 	}
 
@@ -2420,24 +2316,15 @@ static int lmv_read_page(struct obd_export *exp, struct md_op_data *op_data,
 	struct obd_device *obd = exp->exp_obd;
 	struct lmv_obd *lmv = &obd->u.lmv;
 	struct lmv_tgt_desc *tgt;
-	int rc;
 
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
-
-	if (unlikely(lsm)) {
-		rc = lmv_read_striped_page(exp, op_data, cb_op, offset, ppage);
-		return rc;
-	}
+	if (unlikely(lsm))
+		return lmv_read_striped_page(exp, op_data, cb_op, offset, ppage);
 
 	tgt = lmv_find_target(lmv, &op_data->op_fid1);
 	if (IS_ERR(tgt))
 		return PTR_ERR(tgt);
 
-	rc = md_read_page(tgt->ltd_exp, op_data, cb_op, offset, ppage);
-
-	return rc;
+	return md_read_page(tgt->ltd_exp, op_data, cb_op, offset, ppage);
 }
 
 /**
@@ -2476,9 +2363,6 @@ static int lmv_unlink(struct obd_export *exp, struct md_op_data *op_data,
 	int stripe_index = 0;
 	int		     rc;
 
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
 retry_unlink:
 	/* For striped dir, we need to locate the parent as well */
 	if (lsm) {
@@ -2593,7 +2477,7 @@ try_next_stripe:
 	if (likely(!(body->mbo_valid & OBD_MD_MDS)))
 		return rc;
 
-	CDEBUG(D_INODE, "%s: try unlink to another MDT for "DFID"\n",
+	CDEBUG(D_INODE, "%s: try unlink to another MDT for " DFID "\n",
 	       exp->exp_obd->obd_name, PFID(&body->mbo_fid1));
 
 	/* This is a remote object, try remote MDT, Note: it may
@@ -2623,23 +2507,10 @@ try_next_stripe:
 	goto retry_unlink;
 }
 
-static int lmv_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
+static int lmv_precleanup(struct obd_device *obd)
 {
-	struct lmv_obd *lmv = &obd->u.lmv;
-
-	switch (stage) {
-	case OBD_CLEANUP_EARLY:
-		/* XXX: here should be calling obd_precleanup() down to
-		 * stack.
-		 */
-		break;
-	case OBD_CLEANUP_EXPORTS:
-		fld_client_debugfs_fini(&lmv->lmv_fld);
-		lprocfs_obd_cleanup(obd);
-		break;
-	default:
-		break;
-	}
+	fld_client_debugfs_fini(&obd->u.lmv.lmv_fld);
+	lprocfs_obd_cleanup(obd);
 	return 0;
 }
 
@@ -2654,14 +2525,12 @@ static int lmv_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
  * \param[in]  key	identifier of key to get value for
  * \param[in]  vallen	size of \a val
  * \param[out] val	pointer to storage location for value
- * \param[in]  lsm	optional striping metadata of object
  *
  * \retval 0		on success
  * \retval negative	negated errno on failure
  */
 static int lmv_get_info(const struct lu_env *env, struct obd_export *exp,
-			__u32 keylen, void *key, __u32 *vallen, void *val,
-			struct lov_stripe_md *lsm)
+			__u32 keylen, void *key, __u32 *vallen, void *val)
 {
 	struct obd_device       *obd;
 	struct lmv_obd	  *lmv;
@@ -2678,10 +2547,6 @@ static int lmv_get_info(const struct lu_env *env, struct obd_export *exp,
 	if (keylen >= strlen("remote_flag") && !strcmp(key, "remote_flag")) {
 		int i;
 
-		rc = lmv_check_connect(obd);
-		if (rc)
-			return rc;
-
 		LASSERT(*vallen == sizeof(__u32));
 		for (i = 0; i < lmv->desc.ld_tgt_count; i++) {
 			struct lmv_tgt_desc *tgt = lmv->tgts[i];
@@ -2693,23 +2558,19 @@ static int lmv_get_info(const struct lu_env *env, struct obd_export *exp,
 				continue;
 
 			if (!obd_get_info(env, tgt->ltd_exp, keylen, key,
-					  vallen, val, NULL))
+					  vallen, val))
 				return 0;
 		}
 		return -EINVAL;
 	} else if (KEY_IS(KEY_MAX_EASIZE) ||
 		   KEY_IS(KEY_DEFAULT_EASIZE) ||
 		   KEY_IS(KEY_CONN_DATA)) {
-		rc = lmv_check_connect(obd);
-		if (rc)
-			return rc;
-
 		/*
 		 * Forwarding this request to first MDS, it should know LOV
 		 * desc.
 		 */
 		rc = obd_get_info(env, lmv->tgts[0]->ltd_exp, keylen, key,
-				  vallen, val, NULL);
+				  vallen, val);
 		if (!rc && KEY_IS(KEY_CONN_DATA))
 			exp->exp_connect_data = *(struct obd_connect_data *)val;
 		return rc;
@@ -2777,90 +2638,6 @@ static int lmv_set_info_async(const struct lu_env *env, struct obd_export *exp,
 	return -EINVAL;
 }
 
-static int lmv_pack_md_v1(const struct lmv_stripe_md *lsm,
-			  struct lmv_mds_md_v1 *lmm1)
-{
-	int cplen;
-	int i;
-
-	lmm1->lmv_magic = cpu_to_le32(lsm->lsm_md_magic);
-	lmm1->lmv_stripe_count = cpu_to_le32(lsm->lsm_md_stripe_count);
-	lmm1->lmv_master_mdt_index = cpu_to_le32(lsm->lsm_md_master_mdt_index);
-	lmm1->lmv_hash_type = cpu_to_le32(lsm->lsm_md_hash_type);
-	cplen = strlcpy(lmm1->lmv_pool_name, lsm->lsm_md_pool_name,
-			sizeof(lmm1->lmv_pool_name));
-	if (cplen >= sizeof(lmm1->lmv_pool_name))
-		return -E2BIG;
-
-	for (i = 0; i < lsm->lsm_md_stripe_count; i++)
-		fid_cpu_to_le(&lmm1->lmv_stripe_fids[i],
-			      &lsm->lsm_md_oinfo[i].lmo_fid);
-	return 0;
-}
-
-static int
-lmv_pack_md(union lmv_mds_md **lmmp, const struct lmv_stripe_md *lsm,
-	    int stripe_count)
-{
-	int lmm_size = 0, rc = 0;
-	bool allocated = false;
-
-	LASSERT(lmmp);
-
-	/* Free lmm */
-	if (*lmmp && !lsm) {
-		int stripe_cnt;
-
-		stripe_cnt = lmv_mds_md_stripe_count_get(*lmmp);
-		lmm_size = lmv_mds_md_size(stripe_cnt,
-					   le32_to_cpu((*lmmp)->lmv_magic));
-		if (!lmm_size)
-			return -EINVAL;
-		kvfree(*lmmp);
-		*lmmp = NULL;
-		return 0;
-	}
-
-	/* Alloc lmm */
-	if (!*lmmp && !lsm) {
-		lmm_size = lmv_mds_md_size(stripe_count, LMV_MAGIC);
-		LASSERT(lmm_size > 0);
-		*lmmp = libcfs_kvzalloc(lmm_size, GFP_NOFS);
-		if (!*lmmp)
-			return -ENOMEM;
-		lmv_mds_md_stripe_count_set(*lmmp, stripe_count);
-		(*lmmp)->lmv_magic = cpu_to_le32(LMV_MAGIC);
-		return lmm_size;
-	}
-
-	/* pack lmm */
-	LASSERT(lsm);
-	lmm_size = lmv_mds_md_size(lsm->lsm_md_stripe_count,
-				   lsm->lsm_md_magic);
-	if (!*lmmp) {
-		*lmmp = libcfs_kvzalloc(lmm_size, GFP_NOFS);
-		if (!*lmmp)
-			return -ENOMEM;
-		allocated = true;
-	}
-
-	switch (lsm->lsm_md_magic) {
-	case LMV_MAGIC_V1:
-		rc = lmv_pack_md_v1(lsm, &(*lmmp)->lmv_md_v1);
-		break;
-	default:
-		rc = -EINVAL;
-		break;
-	}
-
-	if (rc && allocated) {
-		kvfree(*lmmp);
-		*lmmp = NULL;
-	}
-
-	return lmm_size;
-}
-
 static int lmv_unpack_md_v1(struct obd_export *exp, struct lmv_stripe_md *lsm,
 			    const struct lmv_mds_md_v1 *lmm1)
 {
@@ -2896,15 +2673,15 @@ static int lmv_unpack_md_v1(struct obd_export *exp, struct lmv_stripe_md *lsm,
 				    &lsm->lsm_md_oinfo[i].lmo_mds);
 		if (rc)
 			return rc;
-		CDEBUG(D_INFO, "unpack fid #%d "DFID"\n", i,
+		CDEBUG(D_INFO, "unpack fid #%d " DFID "\n", i,
 		       PFID(&lsm->lsm_md_oinfo[i].lmo_fid));
 	}
 
 	return rc;
 }
 
-int lmv_unpack_md(struct obd_export *exp, struct lmv_stripe_md **lsmp,
-		  const union lmv_mds_md *lmm, int stripe_count)
+static int lmv_unpackmd(struct obd_export *exp, struct lmv_stripe_md **lsmp,
+			const union lmv_mds_md *lmm, size_t lmm_size)
 {
 	struct lmv_stripe_md *lsm;
 	bool allocated = false;
@@ -2930,17 +2707,6 @@ int lmv_unpack_md(struct obd_export *exp, struct lmv_stripe_md **lsmp,
 
 		kvfree(lsm);
 		*lsmp = NULL;
-		return 0;
-	}
-
-	/* Alloc memmd */
-	if (!lsm && !lmm) {
-		lsm_size = lmv_stripe_md_size(stripe_count);
-		lsm = libcfs_kvzalloc(lsm_size, GFP_NOFS);
-		if (!lsm)
-			return -ENOMEM;
-		lsm->lsm_md_stripe_count = stripe_count;
-		*lsmp = lsm;
 		return 0;
 	}
 
@@ -2991,38 +2757,17 @@ int lmv_unpack_md(struct obd_export *exp, struct lmv_stripe_md **lsmp,
 	}
 	return lsm_size;
 }
-EXPORT_SYMBOL(lmv_unpack_md);
 
-static int lmv_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
-			struct lov_mds_md *lmm, int disk_len)
+void lmv_free_memmd(struct lmv_stripe_md *lsm)
 {
-	return lmv_unpack_md(exp, (struct lmv_stripe_md **)lsmp,
-			     (union lmv_mds_md *)lmm, disk_len);
+	lmv_unpackmd(NULL, &lsm, NULL, 0);
 }
-
-static int lmv_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
-		      struct lov_stripe_md *lsm)
-{
-	const struct lmv_stripe_md *lmv = (struct lmv_stripe_md *)lsm;
-	struct obd_device *obd = exp->exp_obd;
-	struct lmv_obd *lmv_obd = &obd->u.lmv;
-	int stripe_count;
-
-	if (!lmmp) {
-		if (lsm)
-			stripe_count = lmv->lsm_md_stripe_count;
-		else
-			stripe_count = lmv_obd->desc.ld_tgt_count;
-
-		return lmv_mds_md_size(stripe_count, LMV_MAGIC_V1);
-	}
-
-	return lmv_pack_md((union lmv_mds_md **)lmmp, lmv, 0);
-}
+EXPORT_SYMBOL(lmv_free_memmd);
 
 static int lmv_cancel_unused(struct obd_export *exp, const struct lu_fid *fid,
-			     ldlm_policy_data_t *policy, enum ldlm_mode mode,
-			     enum ldlm_cancel_flags flags, void *opaque)
+			     union ldlm_policy_data *policy,
+			     enum ldlm_mode mode, enum ldlm_cancel_flags flags,
+			     void *opaque)
 {
 	struct obd_device       *obd = exp->exp_obd;
 	struct lmv_obd	  *lmv = &obd->u.lmv;
@@ -3052,19 +2797,17 @@ static int lmv_set_lock_data(struct obd_export *exp,
 {
 	struct lmv_obd	  *lmv = &exp->exp_obd->u.lmv;
 	struct lmv_tgt_desc *tgt = lmv->tgts[0];
-	int		      rc;
 
 	if (!tgt || !tgt->ltd_exp)
 		return -EINVAL;
 
-	rc = md_set_lock_data(tgt->ltd_exp, lockh, data, bits);
-	return rc;
+	return md_set_lock_data(tgt->ltd_exp, lockh, data, bits);
 }
 
 static enum ldlm_mode lmv_lock_match(struct obd_export *exp, __u64 flags,
 				     const struct lu_fid *fid,
 				     enum ldlm_type type,
-				     ldlm_policy_data_t *policy,
+				     union ldlm_policy_data *policy,
 				     enum ldlm_mode mode,
 				     struct lustre_handle *lockh)
 {
@@ -3074,7 +2817,7 @@ static enum ldlm_mode lmv_lock_match(struct obd_export *exp, __u64 flags,
 	int tgt;
 	u32 i;
 
-	CDEBUG(D_INODE, "Lock match for "DFID"\n", PFID(fid));
+	CDEBUG(D_INODE, "Lock match for " DFID "\n", PFID(fid));
 
 	/*
 	 * With DNE every object can have two locks in different namespaces:
@@ -3086,7 +2829,7 @@ static enum ldlm_mode lmv_lock_match(struct obd_export *exp, __u64 flags,
 	     i < lmv->desc.ld_tgt_count;
 	     i++, tgt = (tgt + 1) % lmv->desc.ld_tgt_count) {
 		if (tgt < 0) {
-			CDEBUG(D_HA, "%s: "DFID" is inaccessible: rc = %d\n",
+			CDEBUG(D_HA, "%s: " DFID " is inaccessible: rc = %d\n",
 			       obd->obd_name, PFID(fid), tgt);
 			tgt = 0;
 		}
@@ -3163,25 +2906,35 @@ static int lmv_clear_open_replay_data(struct obd_export *exp,
 }
 
 static int lmv_intent_getattr_async(struct obd_export *exp,
-				    struct md_enqueue_info *minfo,
-				    struct ldlm_enqueue_info *einfo)
+				    struct md_enqueue_info *minfo)
 {
 	struct md_op_data       *op_data = &minfo->mi_data;
 	struct obd_device       *obd = exp->exp_obd;
 	struct lmv_obd	  *lmv = &obd->u.lmv;
-	struct lmv_tgt_desc     *tgt = NULL;
-	int		      rc;
+	struct lmv_tgt_desc *ptgt = NULL;
+	struct lmv_tgt_desc *ctgt = NULL;
 
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
+	if (!fid_is_sane(&op_data->op_fid2))
+		return -EINVAL;
 
-	tgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid1);
-	if (IS_ERR(tgt))
-		return PTR_ERR(tgt);
+	ptgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid1);
+	if (IS_ERR(ptgt))
+		return PTR_ERR(ptgt);
 
-	rc = md_intent_getattr_async(tgt->ltd_exp, minfo, einfo);
-	return rc;
+	ctgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid2);
+	if (IS_ERR(ctgt))
+		return PTR_ERR(ctgt);
+
+	/*
+	 * if child is on remote MDT, we need 2 async RPCs to fetch both LOOKUP
+	 * lock on parent, and UPDATE lock on child MDT, which makes all
+	 * complicated. Considering remote dir is rare case, and not supporting
+	 * it in statahead won't cause any issue, drop its support for now.
+	 */
+	if (ptgt != ctgt)
+		return -ENOTSUPP;
+
+	return md_intent_getattr_async(ptgt->ltd_exp, minfo);
 }
 
 static int lmv_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
@@ -3190,18 +2943,12 @@ static int lmv_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
 	struct obd_device       *obd = exp->exp_obd;
 	struct lmv_obd	  *lmv = &obd->u.lmv;
 	struct lmv_tgt_desc     *tgt;
-	int		      rc;
-
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
 
 	tgt = lmv_find_target(lmv, fid);
 	if (IS_ERR(tgt))
 		return PTR_ERR(tgt);
 
-	rc = md_revalidate_lock(tgt->ltd_exp, it, fid, bits);
-	return rc;
+	return md_revalidate_lock(tgt->ltd_exp, it, fid, bits);
 }
 
 static int
@@ -3242,10 +2989,8 @@ static int lmv_quotactl(struct obd_device *unused, struct obd_export *exp,
 		return -EIO;
 	}
 
-	if (oqctl->qc_cmd != Q_GETOQUOTA) {
-		rc = obd_quotactl(tgt->ltd_exp, oqctl);
-		return rc;
-	}
+	if (oqctl->qc_cmd != Q_GETOQUOTA)
+		return obd_quotactl(tgt->ltd_exp, oqctl);
 
 	for (i = 0; i < lmv->desc.ld_tgt_count; i++) {
 		int err;
@@ -3271,32 +3016,6 @@ static int lmv_quotactl(struct obd_device *unused, struct obd_export *exp,
 	return rc;
 }
 
-static int lmv_quotacheck(struct obd_device *unused, struct obd_export *exp,
-			  struct obd_quotactl *oqctl)
-{
-	struct obd_device   *obd = class_exp2obd(exp);
-	struct lmv_obd      *lmv = &obd->u.lmv;
-	struct lmv_tgt_desc *tgt;
-	int rc = 0;
-	u32 i;
-
-	for (i = 0; i < lmv->desc.ld_tgt_count; i++) {
-		int err;
-
-		tgt = lmv->tgts[i];
-		if (!tgt || !tgt->ltd_exp || !tgt->ltd_active) {
-			CERROR("lmv idx %d inactive\n", i);
-			return -EIO;
-		}
-
-		err = obd_quotacheck(tgt->ltd_exp, oqctl);
-		if (err && !rc)
-			rc = err;
-	}
-
-	return rc;
-}
-
 static int lmv_merge_attr(struct obd_export *exp,
 			  const struct lmv_stripe_md *lsm,
 			  struct cl_attr *attr,
@@ -3311,7 +3030,7 @@ static int lmv_merge_attr(struct obd_export *exp,
 	for (i = 0; i < lsm->lsm_md_stripe_count; i++) {
 		struct inode *inode = lsm->lsm_md_oinfo[i].lmo_root;
 
-		CDEBUG(D_INFO, ""DFID" size %llu, blocks %llu nlink %u, atime %lu ctime %lu, mtime %lu.\n",
+		CDEBUG(D_INFO, "" DFID " size %llu, blocks %llu nlink %u, atime %lu ctime %lu, mtime %lu.\n",
 		       PFID(&lsm->lsm_md_oinfo[i].lmo_fid),
 		       i_size_read(inode), (unsigned long long)inode->i_blocks,
 		       inode->i_nlink, LTIME_S(inode->i_atime),
@@ -3349,12 +3068,9 @@ static struct obd_ops lmv_obd_ops = {
 	.statfs		= lmv_statfs,
 	.get_info	= lmv_get_info,
 	.set_info_async	= lmv_set_info_async,
-	.packmd		= lmv_packmd,
-	.unpackmd	= lmv_unpackmd,
 	.notify		= lmv_notify,
 	.get_uuid	= lmv_get_uuid,
 	.iocontrol	= lmv_iocontrol,
-	.quotacheck	= lmv_quotacheck,
 	.quotactl	= lmv_quotactl
 };
 
@@ -3363,7 +3079,6 @@ static struct md_ops lmv_md_ops = {
 	.null_inode		= lmv_null_inode,
 	.close			= lmv_close,
 	.create			= lmv_create,
-	.done_writing		= lmv_done_writing,
 	.enqueue		= lmv_enqueue,
 	.getattr		= lmv_getattr,
 	.getxattr		= lmv_getxattr,
@@ -3388,18 +3103,17 @@ static struct md_ops lmv_md_ops = {
 	.intent_getattr_async	= lmv_intent_getattr_async,
 	.revalidate_lock	= lmv_revalidate_lock,
 	.get_fid_from_lsm	= lmv_get_fid_from_lsm,
+	.unpackmd		= lmv_unpackmd,
 };
 
 static int __init lmv_init(void)
 {
 	struct lprocfs_static_vars lvars;
-	int			rc;
 
 	lprocfs_lmv_init_vars(&lvars);
 
-	rc = class_register_type(&lmv_obd_ops, &lmv_md_ops,
+	return class_register_type(&lmv_obd_ops, &lmv_md_ops,
 				 LUSTRE_LMV_NAME, NULL);
-	return rc;
 }
 
 static void lmv_exit(void)

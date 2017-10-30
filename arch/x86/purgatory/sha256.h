@@ -10,7 +10,6 @@
 #ifndef SHA256_H
 #define SHA256_H
 
-
 #include <linux/types.h>
 #include <crypto/sha.h>
 

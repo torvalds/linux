@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -64,30 +64,22 @@
 #define DEFAULT_FW_FABRIC_NAME "hfi1_fabric.fw"
 #define DEFAULT_FW_SBUS_NAME "hfi1_sbus.fw"
 #define DEFAULT_FW_PCIE_NAME "hfi1_pcie.fw"
-#define DEFAULT_PLATFORM_CONFIG_NAME "hfi1_platform.dat"
 #define ALT_FW_8051_NAME_ASIC "hfi1_dc8051_d.fw"
 #define ALT_FW_FABRIC_NAME "hfi1_fabric_d.fw"
 #define ALT_FW_SBUS_NAME "hfi1_sbus_d.fw"
 #define ALT_FW_PCIE_NAME "hfi1_pcie_d.fw"
+#define HOST_INTERFACE_VERSION 1
 
 static uint fw_8051_load = 1;
 static uint fw_fabric_serdes_load = 1;
 static uint fw_pcie_serdes_load = 1;
 static uint fw_sbus_load = 1;
 
-/*
- * Access required in platform.c
- * Maintains state of whether the platform config was fetched via the
- * fallback option
- */
-uint platform_config_load;
-
 /* Firmware file names get set in hfi1_firmware_init() based on the above */
 static char *fw_8051_name;
 static char *fw_fabric_serdes_name;
 static char *fw_sbus_name;
 static char *fw_pcie_serdes_name;
-static char *platform_config_name;
 
 #define SBUS_MAX_POLL_COUNT 100
 #define SBUS_COUNTER(reg, name) \
@@ -177,7 +169,6 @@ static struct firmware_details fw_8051;
 static struct firmware_details fw_fabric;
 static struct firmware_details fw_pcie;
 static struct firmware_details fw_sbus;
-static const struct firmware *platform_config;
 
 /* flags for turn_off_spicos() */
 #define SPICO_SBUS   0x1
@@ -239,6 +230,16 @@ static const u8 all_fabric_serdes_broadcast = 0xe1;
 const u8 pcie_serdes_broadcast[2] = { 0xe2, 0xe3 };
 static const u8 all_pcie_serdes_broadcast = 0xe0;
 
+static const u32 platform_config_table_limits[PLATFORM_CONFIG_TABLE_MAX] = {
+	0,
+	SYSTEM_TABLE_MAX,
+	PORT_TABLE_MAX,
+	RX_PRESET_TABLE_MAX,
+	TX_PRESET_TABLE_MAX,
+	QSFP_ATTEN_TABLE_MAX,
+	VARIABLE_SETTINGS_TABLE_MAX
+};
+
 /* forwards */
 static void dispose_one_firmware(struct firmware_details *fdet);
 static int load_fabric_serdes_firmware(struct hfi1_devdata *dd,
@@ -263,11 +264,13 @@ static int __read_8051_data(struct hfi1_devdata *dd, u32 addr, u64 *result)
 	u64 reg;
 	int count;
 
-	/* start the read at the given address */
-	reg = ((addr & DC_DC8051_CFG_RAM_ACCESS_CTRL_ADDRESS_MASK)
-			<< DC_DC8051_CFG_RAM_ACCESS_CTRL_ADDRESS_SHIFT)
-		| DC_DC8051_CFG_RAM_ACCESS_CTRL_READ_ENA_SMASK;
+	/* step 1: set the address, clear enable */
+	reg = (addr & DC_DC8051_CFG_RAM_ACCESS_CTRL_ADDRESS_MASK)
+			<< DC_DC8051_CFG_RAM_ACCESS_CTRL_ADDRESS_SHIFT;
 	write_csr(dd, DC_DC8051_CFG_RAM_ACCESS_CTRL, reg);
+	/* step 2: enable */
+	write_csr(dd, DC_DC8051_CFG_RAM_ACCESS_CTRL,
+		  reg | DC_DC8051_CFG_RAM_ACCESS_CTRL_READ_ENA_SMASK);
 
 	/* wait until ACCESS_COMPLETED is set */
 	count = 0;
@@ -603,6 +606,14 @@ retry:
 		fw_fabric_serdes_name = ALT_FW_FABRIC_NAME;
 		fw_sbus_name = ALT_FW_SBUS_NAME;
 		fw_pcie_serdes_name = ALT_FW_PCIE_NAME;
+
+		/*
+		 * Add a delay before obtaining and loading debug firmware.
+		 * Authorization will fail if the delay between firmware
+		 * authorization events is shorter than 50us. Add 100us to
+		 * make a delay time safe.
+		 */
+		usleep_range(100, 120);
 	}
 
 	if (fw_sbus_load) {
@@ -663,7 +674,6 @@ done:
 static int obtain_firmware(struct hfi1_devdata *dd)
 {
 	unsigned long timeout;
-	int err = 0;
 
 	mutex_lock(&fw_mutex);
 
@@ -687,35 +697,11 @@ static int obtain_firmware(struct hfi1_devdata *dd)
 	}
 	/* not in FW_TRY state */
 
-	if (fw_state == FW_FINAL) {
-		if (platform_config) {
-			dd->platform_config.data = platform_config->data;
-			dd->platform_config.size = platform_config->size;
-		}
-		goto done;	/* already acquired */
-	} else if (fw_state == FW_ERR) {
-		goto done;	/* already tried and failed */
-	}
-	/* fw_state is FW_EMPTY */
-
 	/* set fw_state to FW_TRY, FW_FINAL, or FW_ERR, and fw_err */
-	__obtain_firmware(dd);
+	if (fw_state == FW_EMPTY)
+		__obtain_firmware(dd);
 
-	if (platform_config_load) {
-		platform_config = NULL;
-		err = request_firmware(&platform_config, platform_config_name,
-				       &dd->pcidev->dev);
-		if (err) {
-			platform_config = NULL;
-			goto done;
-		}
-		dd->platform_config.data = platform_config->data;
-		dd->platform_config.size = platform_config->size;
-	}
-
-done:
 	mutex_unlock(&fw_mutex);
-
 	return fw_err;
 }
 
@@ -736,9 +722,6 @@ void dispose_firmware(void)
 	dispose_one_firmware(&fw_fabric);
 	dispose_one_firmware(&fw_pcie);
 	dispose_one_firmware(&fw_sbus);
-
-	release_firmware(platform_config);
-	platform_config = NULL;
 
 	/* retain the error state, otherwise revert to empty */
 	if (fw_state != FW_ERR)
@@ -989,7 +972,9 @@ static int load_8051_firmware(struct hfi1_devdata *dd,
 {
 	u64 reg;
 	int ret;
-	u8 ver_a, ver_b;
+	u8 ver_major;
+	u8 ver_minor;
+	u8 ver_patch;
 
 	/*
 	 * DC Reset sequence
@@ -1058,10 +1043,17 @@ static int load_8051_firmware(struct hfi1_devdata *dd,
 		return -ETIMEDOUT;
 	}
 
-	read_misc_status(dd, &ver_a, &ver_b);
-	dd_dev_info(dd, "8051 firmware version %d.%d\n",
-		    (int)ver_b, (int)ver_a);
-	dd->dc8051_ver = dc8051_ver(ver_b, ver_a);
+	read_misc_status(dd, &ver_major, &ver_minor, &ver_patch);
+	dd_dev_info(dd, "8051 firmware version %d.%d.%d\n",
+		    (int)ver_major, (int)ver_minor, (int)ver_patch);
+	dd->dc8051_ver = dc8051_ver(ver_major, ver_minor, ver_patch);
+	ret = write_host_interface_version(dd, HOST_INTERFACE_VERSION);
+	if (ret != HCMD_SUCCESS) {
+		dd_dev_err(dd,
+			   "Failed to set host interface version, return 0x%x\n",
+			   ret);
+		return -EIO;
+	}
 
 	return 0;
 }
@@ -1692,10 +1684,8 @@ int hfi1_firmware_init(struct hfi1_devdata *dd)
 	}
 
 	/* no 8051 or QSFP on simulator */
-	if (dd->icode == ICODE_FUNCTIONAL_SIMULATOR) {
+	if (dd->icode == ICODE_FUNCTIONAL_SIMULATOR)
 		fw_8051_load = 0;
-		platform_config_load = 0;
-	}
 
 	if (!fw_8051_name) {
 		if (dd->icode == ICODE_RTL_SILICON)
@@ -1709,8 +1699,6 @@ int hfi1_firmware_init(struct hfi1_devdata *dd)
 		fw_sbus_name = DEFAULT_FW_SBUS_NAME;
 	if (!fw_pcie_serdes_name)
 		fw_pcie_serdes_name = DEFAULT_FW_PCIE_NAME;
-	if (!platform_config_name)
-		platform_config_name = DEFAULT_PLATFORM_CONFIG_NAME;
 
 	return obtain_firmware(dd);
 }
@@ -1756,13 +1744,23 @@ static int check_meta_version(struct hfi1_devdata *dd, u32 *system_table)
 int parse_platform_config(struct hfi1_devdata *dd)
 {
 	struct platform_config_cache *pcfgcache = &dd->pcfg_cache;
+	struct hfi1_pportdata *ppd = dd->pport;
 	u32 *ptr = NULL;
 	u32 header1 = 0, header2 = 0, magic_num = 0, crc = 0, file_length = 0;
 	u32 record_idx = 0, table_type = 0, table_length_dwords = 0;
 	int ret = -EINVAL; /* assume failure */
 
+	/*
+	 * For integrated devices that did not fall back to the default file,
+	 * the SI tuning information for active channels is acquired from the
+	 * scratch register bitmap, thus there is no platform config to parse.
+	 * Skip parsing in these situations.
+	 */
+	if (ppd->config_from_scratch)
+		return 0;
+
 	if (!dd->platform_config.data) {
-		dd_dev_info(dd, "%s: Missing config file\n", __func__);
+		dd_dev_err(dd, "%s: Missing config file\n", __func__);
 		goto bail;
 	}
 	ptr = (u32 *)dd->platform_config.data;
@@ -1770,7 +1768,7 @@ int parse_platform_config(struct hfi1_devdata *dd)
 	magic_num = *ptr;
 	ptr++;
 	if (magic_num != PLATFORM_CONFIG_MAGIC_NUM) {
-		dd_dev_info(dd, "%s: Bad config file\n", __func__);
+		dd_dev_err(dd, "%s: Bad config file\n", __func__);
 		goto bail;
 	}
 
@@ -1797,9 +1795,9 @@ int parse_platform_config(struct hfi1_devdata *dd)
 		header1 = *ptr;
 		header2 = *(ptr + 1);
 		if (header1 != ~header2) {
-			dd_dev_info(dd, "%s: Failed validation at offset %ld\n",
-				    __func__, (ptr - (u32 *)
-					       dd->platform_config.data));
+			dd_dev_err(dd, "%s: Failed validation at offset %ld\n",
+				   __func__, (ptr - (u32 *)
+					      dd->platform_config.data));
 			goto bail;
 		}
 
@@ -1841,11 +1839,11 @@ int parse_platform_config(struct hfi1_devdata *dd)
 							table_length_dwords;
 				break;
 			default:
-				dd_dev_info(dd,
-					    "%s: Unknown data table %d, offset %ld\n",
-					    __func__, table_type,
-					    (ptr - (u32 *)
-					     dd->platform_config.data));
+				dd_dev_err(dd,
+					   "%s: Unknown data table %d, offset %ld\n",
+					   __func__, table_type,
+					   (ptr - (u32 *)
+					    dd->platform_config.data));
 				goto bail; /* We don't trust this file now */
 			}
 			pcfgcache->config_tables[table_type].table = ptr;
@@ -1865,11 +1863,11 @@ int parse_platform_config(struct hfi1_devdata *dd)
 			case PLATFORM_CONFIG_VARIABLE_SETTINGS_TABLE:
 				break;
 			default:
-				dd_dev_info(dd,
-					    "%s: Unknown meta table %d, offset %ld\n",
-					    __func__, table_type,
-					    (ptr -
-					     (u32 *)dd->platform_config.data));
+				dd_dev_err(dd,
+					   "%s: Unknown meta table %d, offset %ld\n",
+					   __func__, table_type,
+					   (ptr -
+					    (u32 *)dd->platform_config.data));
 				goto bail; /* We don't trust this file now */
 			}
 			pcfgcache->config_tables[table_type].table_metadata =
@@ -1884,10 +1882,9 @@ int parse_platform_config(struct hfi1_devdata *dd)
 		/* Jump the table */
 		ptr += table_length_dwords;
 		if (crc != *ptr) {
-			dd_dev_info(dd, "%s: Failed CRC check at offset %ld\n",
-				    __func__, (ptr -
-					       (u32 *)
-					       dd->platform_config.data));
+			dd_dev_err(dd, "%s: Failed CRC check at offset %ld\n",
+				   __func__, (ptr -
+				   (u32 *)dd->platform_config.data));
 			goto bail;
 		}
 		/* Jump the CRC DWORD */
@@ -1899,6 +1896,84 @@ int parse_platform_config(struct hfi1_devdata *dd)
 bail:
 	memset(pcfgcache, 0, sizeof(struct platform_config_cache));
 	return ret;
+}
+
+static void get_integrated_platform_config_field(
+		struct hfi1_devdata *dd,
+		enum platform_config_table_type_encoding table_type,
+		int field_index, u32 *data)
+{
+	struct hfi1_pportdata *ppd = dd->pport;
+	u8 *cache = ppd->qsfp_info.cache;
+	u32 tx_preset = 0;
+
+	switch (table_type) {
+	case PLATFORM_CONFIG_SYSTEM_TABLE:
+		if (field_index == SYSTEM_TABLE_QSFP_POWER_CLASS_MAX)
+			*data = ppd->max_power_class;
+		else if (field_index == SYSTEM_TABLE_QSFP_ATTENUATION_DEFAULT_25G)
+			*data = ppd->default_atten;
+		break;
+	case PLATFORM_CONFIG_PORT_TABLE:
+		if (field_index == PORT_TABLE_PORT_TYPE)
+			*data = ppd->port_type;
+		else if (field_index == PORT_TABLE_LOCAL_ATTEN_25G)
+			*data = ppd->local_atten;
+		else if (field_index == PORT_TABLE_REMOTE_ATTEN_25G)
+			*data = ppd->remote_atten;
+		break;
+	case PLATFORM_CONFIG_RX_PRESET_TABLE:
+		if (field_index == RX_PRESET_TABLE_QSFP_RX_CDR_APPLY)
+			*data = (ppd->rx_preset & QSFP_RX_CDR_APPLY_SMASK) >>
+				QSFP_RX_CDR_APPLY_SHIFT;
+		else if (field_index == RX_PRESET_TABLE_QSFP_RX_EMP_APPLY)
+			*data = (ppd->rx_preset & QSFP_RX_EMP_APPLY_SMASK) >>
+				QSFP_RX_EMP_APPLY_SHIFT;
+		else if (field_index == RX_PRESET_TABLE_QSFP_RX_AMP_APPLY)
+			*data = (ppd->rx_preset & QSFP_RX_AMP_APPLY_SMASK) >>
+				QSFP_RX_AMP_APPLY_SHIFT;
+		else if (field_index == RX_PRESET_TABLE_QSFP_RX_CDR)
+			*data = (ppd->rx_preset & QSFP_RX_CDR_SMASK) >>
+				QSFP_RX_CDR_SHIFT;
+		else if (field_index == RX_PRESET_TABLE_QSFP_RX_EMP)
+			*data = (ppd->rx_preset & QSFP_RX_EMP_SMASK) >>
+				QSFP_RX_EMP_SHIFT;
+		else if (field_index == RX_PRESET_TABLE_QSFP_RX_AMP)
+			*data = (ppd->rx_preset & QSFP_RX_AMP_SMASK) >>
+				QSFP_RX_AMP_SHIFT;
+		break;
+	case PLATFORM_CONFIG_TX_PRESET_TABLE:
+		if (cache[QSFP_EQ_INFO_OFFS] & 0x4)
+			tx_preset = ppd->tx_preset_eq;
+		else
+			tx_preset = ppd->tx_preset_noeq;
+		if (field_index == TX_PRESET_TABLE_PRECUR)
+			*data = (tx_preset & TX_PRECUR_SMASK) >>
+				TX_PRECUR_SHIFT;
+		else if (field_index == TX_PRESET_TABLE_ATTN)
+			*data = (tx_preset & TX_ATTN_SMASK) >>
+				TX_ATTN_SHIFT;
+		else if (field_index == TX_PRESET_TABLE_POSTCUR)
+			*data = (tx_preset & TX_POSTCUR_SMASK) >>
+				TX_POSTCUR_SHIFT;
+		else if (field_index == TX_PRESET_TABLE_QSFP_TX_CDR_APPLY)
+			*data = (tx_preset & QSFP_TX_CDR_APPLY_SMASK) >>
+				QSFP_TX_CDR_APPLY_SHIFT;
+		else if (field_index == TX_PRESET_TABLE_QSFP_TX_EQ_APPLY)
+			*data = (tx_preset & QSFP_TX_EQ_APPLY_SMASK) >>
+				QSFP_TX_EQ_APPLY_SHIFT;
+		else if (field_index == TX_PRESET_TABLE_QSFP_TX_CDR)
+			*data = (tx_preset & QSFP_TX_CDR_SMASK) >>
+				QSFP_TX_CDR_SHIFT;
+		else if (field_index == TX_PRESET_TABLE_QSFP_TX_EQ)
+			*data = (tx_preset & QSFP_TX_EQ_SMASK) >>
+				QSFP_TX_EQ_SHIFT;
+		break;
+	case PLATFORM_CONFIG_QSFP_ATTEN_TABLE:
+	case PLATFORM_CONFIG_VARIABLE_SETTINGS_TABLE:
+	default:
+		break;
+	}
 }
 
 static int get_platform_fw_field_metadata(struct hfi1_devdata *dd, int table,
@@ -1970,11 +2045,21 @@ int get_platform_config_field(struct hfi1_devdata *dd,
 	int ret = 0, wlen = 0, seek = 0;
 	u32 field_len_bits = 0, field_start_bits = 0, *src_ptr = NULL;
 	struct platform_config_cache *pcfgcache = &dd->pcfg_cache;
+	struct hfi1_pportdata *ppd = dd->pport;
 
 	if (data)
 		memset(data, 0, len);
 	else
 		return -EINVAL;
+
+	if (ppd->config_from_scratch) {
+		/*
+		 * Use saved configuration from ppd for integrated platforms
+		 */
+		get_integrated_platform_config_field(dd, table_type,
+						     field_index, data);
+		return 0;
+	}
 
 	ret = get_platform_fw_field_metadata(dd, table_type, field_index,
 					     &field_len_bits,

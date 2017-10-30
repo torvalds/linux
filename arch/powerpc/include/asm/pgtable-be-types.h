@@ -87,6 +87,7 @@ static inline bool pte_xchg(pte_t *ptep, pte_t old, pte_t new)
 	unsigned long *p = (unsigned long *)ptep;
 	__be64 prev;
 
+	/* See comment in switch_mm_irqs_off() */
 	prev = (__force __be64)__cmpxchg_u64(p, (__force unsigned long)pte_raw(old),
 					     (__force unsigned long)pte_raw(new));
 
@@ -102,6 +103,14 @@ static inline bool pmd_xchg(pmd_t *pmdp, pmd_t old, pmd_t new)
 					     (__force unsigned long)pmd_raw(new));
 
 	return pmd_raw(old) == prev;
+}
+
+typedef struct { __be64 pdbe; } hugepd_t;
+#define __hugepd(x) ((hugepd_t) { cpu_to_be64(x) })
+
+static inline unsigned long hpd_val(hugepd_t x)
+{
+	return be64_to_cpu(x.pdbe);
 }
 
 #endif /* _ASM_POWERPC_PGTABLE_BE_TYPES_H */

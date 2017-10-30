@@ -1,7 +1,7 @@
-Allwinner A31 SPI controller
+Allwinner A31/H3 SPI controller
 
 Required properties:
-- compatible: Should be "allwinner,sun6i-a31-spi".
+- compatible: Should be "allwinner,sun6i-a31-spi" or "allwinner,sun8i-h3-spi".
 - reg: Should contain register location and length.
 - interrupts: Should contain interrupt.
 - clocks: phandle to the clocks feeding the SPI controller. Two are
@@ -12,6 +12,11 @@ Required properties:
 - resets: phandle to the reset controller asserting this device in
           reset
 
+Optional properties:
+- dmas: DMA specifiers for rx and tx dma. See the DMA client binding,
+	Documentation/devicetree/bindings/dma/dma.txt
+- dma-names: DMA request names should include "rx" and "tx" if present.
+
 Example:
 
 spi1: spi@01c69000 {
@@ -21,4 +26,19 @@ spi1: spi@01c69000 {
 	clocks = <&ahb1_gates 21>, <&spi1_clk>;
 	clock-names = "ahb", "mod";
 	resets = <&ahb1_rst 21>;
+};
+
+spi0: spi@01c68000 {
+	compatible = "allwinner,sun8i-h3-spi";
+	reg = <0x01c68000 0x1000>;
+	interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&ccu CLK_BUS_SPI0>, <&ccu CLK_SPI0>;
+	clock-names = "ahb", "mod";
+	dmas = <&dma 23>, <&dma 23>;
+	dma-names = "rx", "tx";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_pins>;
+	resets = <&ccu RST_BUS_SPI0>;
+	#address-cells = <1>;
+	#size-cells = <0>;
 };

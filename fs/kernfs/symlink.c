@@ -98,9 +98,9 @@ static int kernfs_get_target_path(struct kernfs_node *parent,
 	return 0;
 }
 
-static int kernfs_getlink(struct dentry *dentry, char *path)
+static int kernfs_getlink(struct inode *inode, char *path)
 {
-	struct kernfs_node *kn = dentry->d_fsdata;
+	struct kernfs_node *kn = inode->i_private;
 	struct kernfs_node *parent = kn->parent;
 	struct kernfs_node *target = kn->symlink.target_kn;
 	int error;
@@ -124,7 +124,7 @@ static const char *kernfs_iop_get_link(struct dentry *dentry,
 	body = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!body)
 		return ERR_PTR(-ENOMEM);
-	error = kernfs_getlink(dentry, body);
+	error = kernfs_getlink(inode, body);
 	if (unlikely(error < 0)) {
 		kfree(body);
 		return ERR_PTR(error);
@@ -135,7 +135,6 @@ static const char *kernfs_iop_get_link(struct dentry *dentry,
 
 const struct inode_operations kernfs_symlink_iops = {
 	.listxattr	= kernfs_iop_listxattr,
-	.readlink	= generic_readlink,
 	.get_link	= kernfs_iop_get_link,
 	.setattr	= kernfs_iop_setattr,
 	.getattr	= kernfs_iop_getattr,

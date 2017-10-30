@@ -73,7 +73,7 @@ void i915_gem_batch_pool_fini(struct i915_gem_batch_pool *pool)
 		list_for_each_entry_safe(obj, next,
 					 &pool->cache_list[n],
 					 batch_pool_link)
-			i915_gem_object_put(obj);
+			__i915_gem_object_release_unless_active(obj);
 
 		INIT_LIST_HEAD(&pool->cache_list[n]);
 	}
@@ -96,10 +96,9 @@ struct drm_i915_gem_object *
 i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 			size_t size)
 {
-	struct drm_i915_gem_object *obj = NULL;
-	struct drm_i915_gem_object *tmp, *next;
+	struct drm_i915_gem_object *obj;
 	struct list_head *list;
-	int n;
+	int n, ret;
 
 	lockdep_assert_held(&pool->engine->i915->drm.struct_mutex);
 
@@ -112,40 +111,48 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 		n = ARRAY_SIZE(pool->cache_list) - 1;
 	list = &pool->cache_list[n];
 
-	list_for_each_entry_safe(tmp, next, list, batch_pool_link) {
+	list_for_each_entry(obj, list, batch_pool_link) {
 		/* The batches are strictly LRU ordered */
-		if (!i915_gem_active_is_idle(&tmp->last_read[pool->engine->id],
-					     &tmp->base.dev->struct_mutex))
-			break;
+		if (i915_gem_object_is_active(obj)) {
+			struct reservation_object *resv = obj->resv;
 
-		/* While we're looping, do some clean up */
-		if (tmp->madv == __I915_MADV_PURGED) {
-			list_del(&tmp->batch_pool_link);
-			i915_gem_object_put(tmp);
-			continue;
+			if (!reservation_object_test_signaled_rcu(resv, true))
+				break;
+
+			i915_gem_retire_requests(pool->engine->i915);
+			GEM_BUG_ON(i915_gem_object_is_active(obj));
+
+			/*
+			 * The object is now idle, clear the array of shared
+			 * fences before we add a new request. Although, we
+			 * remain on the same engine, we may be on a different
+			 * timeline and so may continually grow the array,
+			 * trapping a reference to all the old fences, rather
+			 * than replace the existing fence.
+			 */
+			if (rcu_access_pointer(resv->fence)) {
+				reservation_object_lock(resv, NULL);
+				reservation_object_add_excl_fence(resv, NULL);
+				reservation_object_unlock(resv);
+			}
 		}
 
-		if (tmp->base.size >= size) {
-			obj = tmp;
-			break;
-		}
+		GEM_BUG_ON(!reservation_object_test_signaled_rcu(obj->resv,
+								 true));
+
+		if (obj->base.size >= size)
+			goto found;
 	}
 
-	if (obj == NULL) {
-		int ret;
+	obj = i915_gem_object_create_internal(pool->engine->i915, size);
+	if (IS_ERR(obj))
+		return obj;
 
-		obj = i915_gem_object_create(&pool->engine->i915->drm, size);
-		if (IS_ERR(obj))
-			return obj;
-
-		ret = i915_gem_object_get_pages(obj);
-		if (ret)
-			return ERR_PTR(ret);
-
-		obj->madv = I915_MADV_DONTNEED;
-	}
+found:
+	ret = i915_gem_object_pin_pages(obj);
+	if (ret)
+		return ERR_PTR(ret);
 
 	list_move_tail(&obj->batch_pool_link, list);
-	i915_gem_object_pin_pages(obj);
 	return obj;
 }

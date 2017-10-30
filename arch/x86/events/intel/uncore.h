@@ -360,7 +360,7 @@ extern struct list_head pci2phy_map_head;
 extern struct pci_extra_dev *uncore_extra_pci_dev;
 extern struct event_constraint uncore_constraint_empty;
 
-/* perf_event_intel_uncore_snb.c */
+/* uncore_snb.c */
 int snb_uncore_pci_init(void);
 int ivb_uncore_pci_init(void);
 int hsw_uncore_pci_init(void);
@@ -371,7 +371,7 @@ void nhm_uncore_cpu_init(void);
 void skl_uncore_cpu_init(void);
 int snb_pci2phy_map_init(int devid);
 
-/* perf_event_intel_uncore_snbep.c */
+/* uncore_snbep.c */
 int snbep_uncore_pci_init(void);
 void snbep_uncore_cpu_init(void);
 int ivbep_uncore_pci_init(void);
@@ -385,5 +385,5 @@ void knl_uncore_cpu_init(void);
 int skx_uncore_pci_init(void);
 void skx_uncore_cpu_init(void);
 
-/* perf_event_intel_uncore_nhmex.c */
+/* uncore_nhmex.c */
 void nhmex_uncore_cpu_init(void);

@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -89,10 +89,62 @@ acpi_size acpi_ns_get_pathname_length(struct acpi_namespace_node *node)
 {
 	acpi_size size;
 
-	ACPI_FUNCTION_ENTRY();
+	/* Validate the Node */
+
+	if (ACPI_GET_DESCRIPTOR_TYPE(node) != ACPI_DESC_TYPE_NAMED) {
+		ACPI_ERROR((AE_INFO,
+			    "Invalid/cached reference target node: %p, descriptor type %d",
+			    node, ACPI_GET_DESCRIPTOR_TYPE(node)));
+		return (0);
+	}
 
 	size = acpi_ns_build_normalized_path(node, NULL, 0, FALSE);
 	return (size);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_handle_to_name
+ *
+ * PARAMETERS:  target_handle           - Handle of named object whose name is
+ *                                        to be found
+ *              buffer                  - Where the name is returned
+ *
+ * RETURN:      Status, Buffer is filled with name if status is AE_OK
+ *
+ * DESCRIPTION: Build and return a full namespace name
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ns_handle_to_name(acpi_handle target_handle, struct acpi_buffer *buffer)
+{
+	acpi_status status;
+	struct acpi_namespace_node *node;
+	const char *node_name;
+
+	ACPI_FUNCTION_TRACE_PTR(ns_handle_to_name, target_handle);
+
+	node = acpi_ns_validate_handle(target_handle);
+	if (!node) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
+
+	/* Validate/Allocate/Clear caller buffer */
+
+	status = acpi_ut_initialize_buffer(buffer, ACPI_PATH_SEGMENT_LENGTH);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/* Just copy the ACPI name from the Node and zero terminate it */
+
+	node_name = acpi_ut_get_node_name(node);
+	ACPI_MOVE_NAME(buffer->pointer, node_name);
+	((char *)buffer->pointer)[ACPI_NAME_SIZE] = 0;
+
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%4.4s\n", (char *)buffer->pointer));
+	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
@@ -145,9 +197,6 @@ acpi_ns_handle_to_pathname(acpi_handle target_handle,
 
 	(void)acpi_ns_build_normalized_path(node, buffer->pointer,
 					    required_size, no_trailing);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%s [%X]\n",
 			  (char *)buffer->pointer, (u32) required_size));

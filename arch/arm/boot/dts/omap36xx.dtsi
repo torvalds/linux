@@ -19,7 +19,7 @@
 
 	cpus {
 		/* OMAP3630/OMAP37xx 'standard device' variants OPP50 to OPP130 */
-		cpu@0 {
+		cpu: cpu@0 {
 			operating-points = <
 				/* kHz    uV */
 				300000  1012500
@@ -66,6 +66,7 @@
 			reg = <0x480025a0 0x5c>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			#pinctrl-cells = <1>;
 			#interrupt-cells = <1>;
 			interrupt-controller;
 			pinctrl-single,register-width = <16>;
@@ -87,11 +88,15 @@
 			};
 		};
 
-		bandgap@48002524 {
+		bandgap: bandgap@48002524 {
 			reg = <0x48002524 0x4>;
 			compatible = "ti,omap36xx-bandgap";
 			#thermal-sensor-cells = <0>;
 		};
+	};
+
+	thermal_zones: thermal-zones {
+		#include "omap3-cpu-thermal.dtsi"
 	};
 };
 

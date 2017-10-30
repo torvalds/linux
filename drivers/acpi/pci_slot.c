@@ -174,7 +174,7 @@ static int do_sta_before_sun(const struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id acpi_pci_slot_dmi_table[] __initdata = {
+static const struct dmi_system_id acpi_pci_slot_dmi_table[] __initconst = {
 	/*
 	 * Fujitsu Primequest machines will return 1023 to indicate an
 	 * error if the _SUN method is evaluated on SxFy objects that

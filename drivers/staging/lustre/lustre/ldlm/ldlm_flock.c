@@ -52,10 +52,10 @@
 
 #define DEBUG_SUBSYSTEM S_LDLM
 
-#include "../include/lustre_dlm.h"
-#include "../include/obd_support.h"
-#include "../include/obd_class.h"
-#include "../include/lustre_lib.h"
+#include <lustre_dlm.h>
+#include <obd_support.h>
+#include <obd_class.h>
+#include <lustre_lib.h>
 #include <linux/list.h>
 #include "ldlm_internal.h"
 
@@ -90,8 +90,8 @@ ldlm_flocks_overlap(struct ldlm_lock *lock, struct ldlm_lock *new)
 static inline void
 ldlm_flock_destroy(struct ldlm_lock *lock, enum ldlm_mode mode, __u64 flags)
 {
-	LDLM_DEBUG(lock, "ldlm_flock_destroy(mode: %d, flags: 0x%llx)",
-		   mode, flags);
+	LDLM_DEBUG(lock, "%s(mode: %d, flags: 0x%llx)",
+		   __func__, mode, flags);
 
 	/* Safe to not lock here, since it should be empty anyway */
 	LASSERT(hlist_unhashed(&lock->l_exp_flock_hash));
@@ -143,7 +143,7 @@ static int ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags,
 	int added = (mode == LCK_NL);
 	int overlaps = 0;
 	int splitted = 0;
-	const struct ldlm_callback_suite null_cbs = { NULL };
+	const struct ldlm_callback_suite null_cbs = { };
 
 	CDEBUG(D_DLMTRACE,
 	       "flags %#llx owner %llu pid %u mode %u start %llu end %llu\n",
@@ -596,7 +596,7 @@ granted:
 		default:
 			getlk->fl_type = F_UNLCK;
 		}
-		getlk->fl_pid = (pid_t)lock->l_policy_data.l_flock.pid;
+		getlk->fl_pid = -(pid_t)lock->l_policy_data.l_flock.pid;
 		getlk->fl_start = (loff_t)lock->l_policy_data.l_flock.start;
 		getlk->fl_end = (loff_t)lock->l_policy_data.l_flock.end;
 	} else {
@@ -612,32 +612,17 @@ granted:
 }
 EXPORT_SYMBOL(ldlm_flock_completion_ast);
 
-void ldlm_flock_policy_wire18_to_local(const ldlm_wire_policy_data_t *wpolicy,
-				       ldlm_policy_data_t *lpolicy)
+void ldlm_flock_policy_wire_to_local(const union ldlm_wire_policy_data *wpolicy,
+				     union ldlm_policy_data *lpolicy)
 {
-	memset(lpolicy, 0, sizeof(*lpolicy));
-	lpolicy->l_flock.start = wpolicy->l_flock.lfw_start;
-	lpolicy->l_flock.end = wpolicy->l_flock.lfw_end;
-	lpolicy->l_flock.pid = wpolicy->l_flock.lfw_pid;
-	/* Compat code, old clients had no idea about owner field and
-	 * relied solely on pid for ownership. Introduced in LU-104, 2.1,
-	 * April 2011
-	 */
-	lpolicy->l_flock.owner = wpolicy->l_flock.lfw_pid;
-}
-
-void ldlm_flock_policy_wire21_to_local(const ldlm_wire_policy_data_t *wpolicy,
-				       ldlm_policy_data_t *lpolicy)
-{
-	memset(lpolicy, 0, sizeof(*lpolicy));
 	lpolicy->l_flock.start = wpolicy->l_flock.lfw_start;
 	lpolicy->l_flock.end = wpolicy->l_flock.lfw_end;
 	lpolicy->l_flock.pid = wpolicy->l_flock.lfw_pid;
 	lpolicy->l_flock.owner = wpolicy->l_flock.lfw_owner;
 }
 
-void ldlm_flock_policy_local_to_wire(const ldlm_policy_data_t *lpolicy,
-				     ldlm_wire_policy_data_t *wpolicy)
+void ldlm_flock_policy_local_to_wire(const union ldlm_policy_data *lpolicy,
+				     union ldlm_wire_policy_data *wpolicy)
 {
 	memset(wpolicy, 0, sizeof(*wpolicy));
 	wpolicy->l_flock.lfw_start = lpolicy->l_flock.start;

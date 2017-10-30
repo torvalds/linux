@@ -30,7 +30,7 @@ You can try the experience changing the vendor/product ID values (look
 at the source code).
 
 You can get these values by looking at /var/log/messages when you plug
-your camera, or by typing : cat /proc/bus/usb/devices.
+your camera, or by typing : cat /sys/kernel/debug/usb/devices.
 
 If you manage to use your cam with this code, you can send me a mail
 (royale@zerezo.com) with the name of your cam and a patch if needed.

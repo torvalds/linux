@@ -36,7 +36,8 @@ struct flakey_c {
 };
 
 enum feature_flag_bits {
-	DROP_WRITES
+	DROP_WRITES,
+	ERROR_WRITES
 };
 
 struct per_bio_data {
@@ -50,7 +51,7 @@ static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
 	unsigned argc;
 	const char *arg_name;
 
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, 6, "Invalid number of feature args"},
 		{1, UINT_MAX, "Invalid corrupt bio byte"},
 		{0, 255, "Invalid corrupt value to write into bio byte (0-255)"},
@@ -75,6 +76,25 @@ static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
 		if (!strcasecmp(arg_name, "drop_writes")) {
 			if (test_and_set_bit(DROP_WRITES, &fc->flags)) {
 				ti->error = "Feature drop_writes duplicated";
+				return -EINVAL;
+			} else if (test_bit(ERROR_WRITES, &fc->flags)) {
+				ti->error = "Feature drop_writes conflicts with feature error_writes";
+				return -EINVAL;
+			}
+
+			continue;
+		}
+
+		/*
+		 * error_writes
+		 */
+		if (!strcasecmp(arg_name, "error_writes")) {
+			if (test_and_set_bit(ERROR_WRITES, &fc->flags)) {
+				ti->error = "Feature error_writes duplicated";
+				return -EINVAL;
+
+			} else if (test_bit(DROP_WRITES, &fc->flags)) {
+				ti->error = "Feature error_writes conflicts with feature drop_writes";
 				return -EINVAL;
 			}
 
@@ -135,6 +155,10 @@ static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
 	if (test_bit(DROP_WRITES, &fc->flags) && (fc->corrupt_bio_rw == WRITE)) {
 		ti->error = "drop_writes is incompatible with corrupt_bio_byte with the WRITE flag set";
 		return -EINVAL;
+
+	} else if (test_bit(ERROR_WRITES, &fc->flags) && (fc->corrupt_bio_rw == WRITE)) {
+		ti->error = "error_writes is incompatible with corrupt_bio_byte with the WRITE flag set";
+		return -EINVAL;
 	}
 
 	return 0;
@@ -154,7 +178,7 @@ static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
  */
 static int flakey_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, UINT_MAX, "Invalid up interval"},
 		{0, UINT_MAX, "Invalid down interval"},
 	};
@@ -200,11 +224,13 @@ static int flakey_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	if (!(fc->up_interval + fc->down_interval)) {
 		ti->error = "Total (up + down) interval is zero";
+		r = -EINVAL;
 		goto bad;
 	}
 
 	if (fc->up_interval + fc->down_interval < fc->up_interval) {
 		ti->error = "Interval overflow";
+		r = -EINVAL;
 		goto bad;
 	}
 
@@ -248,8 +274,8 @@ static void flakey_map_bio(struct dm_target *ti, struct bio *bio)
 {
 	struct flakey_c *fc = ti->private;
 
-	bio->bi_bdev = fc->dev->bdev;
-	if (bio_sectors(bio))
+	bio_set_dev(bio, fc->dev->bdev);
+	if (bio_sectors(bio) || bio_op(bio) == REQ_OP_ZONE_RESET)
 		bio->bi_iter.bi_sector =
 			flakey_map_sector(ti, bio->bi_iter.bi_sector);
 }
@@ -280,6 +306,14 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 	struct per_bio_data *pb = dm_per_bio_data(bio, sizeof(struct per_bio_data));
 	pb->bio_submitted = false;
 
+	/* Do not fail reset zone */
+	if (bio_op(bio) == REQ_OP_ZONE_RESET)
+		goto map_bio;
+
+	/* We need to remap reported zones, so remember the BIO iter */
+	if (bio_op(bio) == REQ_OP_ZONE_REPORT)
+		goto map_bio;
+
 	/* Are we alive ? */
 	elapsed = (jiffies - fc->start_time) / HZ;
 	if (elapsed % (fc->up_interval + fc->down_interval) >= fc->up_interval) {
@@ -289,20 +323,25 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 		pb->bio_submitted = true;
 
 		/*
-		 * Error reads if neither corrupt_bio_byte or drop_writes are set.
+		 * Error reads if neither corrupt_bio_byte or drop_writes or error_writes are set.
 		 * Otherwise, flakey_end_io() will decide if the reads should be modified.
 		 */
 		if (bio_data_dir(bio) == READ) {
-			if (!fc->corrupt_bio_byte && !test_bit(DROP_WRITES, &fc->flags))
-				return -EIO;
+			if (!fc->corrupt_bio_byte && !test_bit(DROP_WRITES, &fc->flags) &&
+			    !test_bit(ERROR_WRITES, &fc->flags))
+				return DM_MAPIO_KILL;
 			goto map_bio;
 		}
 
 		/*
-		 * Drop writes?
+		 * Drop or error writes?
 		 */
 		if (test_bit(DROP_WRITES, &fc->flags)) {
 			bio_endio(bio);
+			return DM_MAPIO_SUBMITTED;
+		}
+		else if (test_bit(ERROR_WRITES, &fc->flags)) {
+			bio_io_error(bio);
 			return DM_MAPIO_SUBMITTED;
 		}
 
@@ -318,7 +357,7 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 		/*
 		 * By default, error all I/O.
 		 */
-		return -EIO;
+		return DM_MAPIO_KILL;
 	}
 
 map_bio:
@@ -327,12 +366,21 @@ map_bio:
 	return DM_MAPIO_REMAPPED;
 }
 
-static int flakey_end_io(struct dm_target *ti, struct bio *bio, int error)
+static int flakey_end_io(struct dm_target *ti, struct bio *bio,
+			 blk_status_t *error)
 {
 	struct flakey_c *fc = ti->private;
 	struct per_bio_data *pb = dm_per_bio_data(bio, sizeof(struct per_bio_data));
 
-	if (!error && pb->bio_submitted && (bio_data_dir(bio) == READ)) {
+	if (bio_op(bio) == REQ_OP_ZONE_RESET)
+		return DM_ENDIO_DONE;
+
+	if (bio_op(bio) == REQ_OP_ZONE_REPORT) {
+		dm_remap_zone_report(ti, bio, fc->start);
+		return DM_ENDIO_DONE;
+	}
+
+	if (!*error && pb->bio_submitted && (bio_data_dir(bio) == READ)) {
 		if (fc->corrupt_bio_byte && (fc->corrupt_bio_rw == READ) &&
 		    all_corrupt_bio_flags_match(bio, fc)) {
 			/*
@@ -340,16 +388,17 @@ static int flakey_end_io(struct dm_target *ti, struct bio *bio, int error)
 			 */
 			corrupt_bio_data(bio, fc);
 
-		} else if (!test_bit(DROP_WRITES, &fc->flags)) {
+		} else if (!test_bit(DROP_WRITES, &fc->flags) &&
+			   !test_bit(ERROR_WRITES, &fc->flags)) {
 			/*
 			 * Error read during the down_interval if drop_writes
-			 * wasn't configured.
+			 * and error_writes were not configured.
 			 */
-			return -EIO;
+			*error = BLK_STS_IOERR;
 		}
 	}
 
-	return error;
+	return DM_ENDIO_DONE;
 }
 
 static void flakey_status(struct dm_target *ti, status_type_t type,
@@ -357,7 +406,7 @@ static void flakey_status(struct dm_target *ti, status_type_t type,
 {
 	unsigned sz = 0;
 	struct flakey_c *fc = ti->private;
-	unsigned drop_writes;
+	unsigned drop_writes, error_writes;
 
 	switch (type) {
 	case STATUSTYPE_INFO:
@@ -370,10 +419,13 @@ static void flakey_status(struct dm_target *ti, status_type_t type,
 		       fc->down_interval);
 
 		drop_writes = test_bit(DROP_WRITES, &fc->flags);
-		DMEMIT("%u ", drop_writes + (fc->corrupt_bio_byte > 0) * 5);
+		error_writes = test_bit(ERROR_WRITES, &fc->flags);
+		DMEMIT("%u ", drop_writes + error_writes + (fc->corrupt_bio_byte > 0) * 5);
 
 		if (drop_writes)
 			DMEMIT("drop_writes ");
+		else if (error_writes)
+			DMEMIT("error_writes ");
 
 		if (fc->corrupt_bio_byte)
 			DMEMIT("corrupt_bio_byte %u %c %u %u ",
@@ -410,7 +462,8 @@ static int flakey_iterate_devices(struct dm_target *ti, iterate_devices_callout_
 
 static struct target_type flakey_target = {
 	.name   = "flakey",
-	.version = {1, 3, 1},
+	.version = {1, 5, 0},
+	.features = DM_TARGET_ZONED_HM,
 	.module = THIS_MODULE,
 	.ctr    = flakey_ctr,
 	.dtr    = flakey_dtr,

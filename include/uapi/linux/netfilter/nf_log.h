@@ -9,4 +9,6 @@
 #define NF_LOG_MACDECODE	0x20	/* Decode MAC header */
 #define NF_LOG_MASK		0x2f
 
+#define NF_LOG_PREFIXLEN	128
+
 #endif /* _NETFILTER_NF_LOG_H */

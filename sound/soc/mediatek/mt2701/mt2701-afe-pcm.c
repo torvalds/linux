@@ -595,7 +595,7 @@ static const struct snd_soc_dai_ops mt2701_afe_i2s_ops = {
 };
 
 /* MRG BE DAIs */
-static struct snd_soc_dai_ops mt2701_btmrg_ops = {
+static const struct snd_soc_dai_ops mt2701_btmrg_ops = {
 	.startup = mt2701_btmrg_startup,
 	.shutdown = mt2701_btmrg_shutdown,
 	.hw_params = mt2701_btmrg_hw_params,
@@ -603,6 +603,22 @@ static struct snd_soc_dai_ops mt2701_btmrg_ops = {
 
 static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 	/* FE DAIs: memory intefaces to CPU */
+	{
+		.name = "PCMO0",
+		.id = MT2701_MEMIF_DL1,
+		.suspend = mtk_afe_dai_suspend,
+		.resume = mtk_afe_dai_resume,
+		.playback = {
+			.stream_name = "DL1",
+			.channels_min = 1,
+			.channels_max = 2,
+			.rates = SNDRV_PCM_RATE_8000_192000,
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE
+				| SNDRV_PCM_FMTBIT_S24_LE
+				| SNDRV_PCM_FMTBIT_S32_LE)
+		},
+		.ops = &mt2701_single_memif_dai_ops,
+	},
 	{
 		.name = "PCM_multi",
 		.id = MT2701_MEMIF_DLM,
@@ -1480,14 +1496,12 @@ static int mt2701_afe_runtime_resume(struct device *dev)
 
 static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 {
-	int ret, i;
-	unsigned int irq_id;
 	struct mtk_base_afe *afe;
 	struct mt2701_afe_private *afe_priv;
 	struct resource *res;
 	struct device *dev;
+	int i, irq_id, ret;
 
-	ret = 0;
 	afe = devm_kzalloc(&pdev->dev, sizeof(*afe), GFP_KERNEL);
 	if (!afe)
 		return -ENOMEM;
@@ -1500,11 +1514,12 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 	afe->dev = &pdev->dev;
 	dev = afe->dev;
 
-	irq_id = platform_get_irq(pdev, 0);
-	if (!irq_id) {
-		dev_err(dev, "%s no irq found\n", dev->of_node->name);
-		return -ENXIO;
+	irq_id = platform_get_irq_byname(pdev, "asys");
+	if (irq_id < 0) {
+		dev_err(dev, "unable to get ASYS IRQ\n");
+		return irq_id;
 	}
+
 	ret = devm_request_irq(dev, irq_id, mt2701_asys_isr,
 			       IRQF_TRIGGER_NONE, "asys-isr", (void *)afe);
 	if (ret) {
@@ -1578,6 +1593,7 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev))
 		goto err_pm_disable;
+	pm_runtime_get_sync(&pdev->dev);
 
 	ret = snd_soc_register_platform(&pdev->dev, &mtk_afe_pcm_platform);
 	if (ret) {
@@ -1617,6 +1633,7 @@ static int mt2701_afe_pcm_dev_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		mt2701_afe_runtime_suspend(&pdev->dev);
+	pm_runtime_put_sync(&pdev->dev);
 
 	snd_soc_unregister_component(&pdev->dev);
 	snd_soc_unregister_platform(&pdev->dev);

@@ -47,6 +47,7 @@
 
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/bitmap.h>
 
 #include "hfi.h"
 #include "common.h"
@@ -129,20 +130,26 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 		 * the remote values.  Both sides must be using the values.
 		 */
 		if (quick_linkup || dd->icode == ICODE_FUNCTIONAL_SIMULATOR) {
-			set_up_vl15(dd, dd->vau, dd->vl15_init);
+			set_up_vau(dd, dd->vau);
+			set_up_vl15(dd, dd->vl15_init);
 			assign_remote_cm_au_table(dd, dd->vcu);
-			ppd->neighbor_guid =
-				read_csr(dd, DC_DC8051_STS_REMOTE_GUID);
-			ppd->neighbor_type =
-				read_csr(dd, DC_DC8051_STS_REMOTE_NODE_TYPE) &
-					DC_DC8051_STS_REMOTE_NODE_TYPE_VAL_MASK;
-			ppd->neighbor_port_number =
-				read_csr(dd, DC_DC8051_STS_REMOTE_PORT_NO) &
-					 DC_DC8051_STS_REMOTE_PORT_NO_VAL_SMASK;
-			dd_dev_info(dd, "Neighbor GUID: %llx Neighbor type %d\n",
-				    ppd->neighbor_guid,
-				    ppd->neighbor_type);
 		}
+
+		ppd->neighbor_guid =
+			read_csr(dd, DC_DC8051_STS_REMOTE_GUID);
+		ppd->neighbor_type =
+			read_csr(dd, DC_DC8051_STS_REMOTE_NODE_TYPE) &
+				 DC_DC8051_STS_REMOTE_NODE_TYPE_VAL_MASK;
+		ppd->neighbor_port_number =
+			read_csr(dd, DC_DC8051_STS_REMOTE_PORT_NO) &
+				 DC_DC8051_STS_REMOTE_PORT_NO_VAL_SMASK;
+		ppd->neighbor_fm_security =
+			read_csr(dd, DC_DC8051_STS_REMOTE_FM_SECURITY) &
+				 DC_DC8051_STS_LOCAL_FM_SECURITY_DISABLED_MASK;
+		dd_dev_info(dd,
+			    "Neighbor Guid %llx, Type %d, Port Num %d\n",
+			    ppd->neighbor_guid, ppd->neighbor_type,
+			    ppd->neighbor_port_number);
 
 		/* physical link went up */
 		ppd->linkup = 1;
@@ -157,6 +164,7 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 		ppd->linkup = 0;
 
 		/* clear HW details of the previous connection */
+		ppd->actual_vls_operational = 0;
 		reset_link_credits(dd);
 
 		/* freeze after a link down to guarantee a clean egress */
@@ -184,12 +192,12 @@ void handle_user_interrupt(struct hfi1_ctxtdata *rcd)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dd->uctxt_lock, flags);
-	if (!rcd->cnt)
+	if (bitmap_empty(rcd->in_use_ctxts, HFI1_MAX_SHARED_CTXTS))
 		goto done;
 
 	if (test_and_clear_bit(HFI1_CTXT_WAITING_RCV, &rcd->event_flags)) {
 		wake_up_interruptible(&rcd->wait);
-		hfi1_rcvctrl(dd, HFI1_RCVCTRL_INTRAVAIL_DIS, rcd->ctxt);
+		hfi1_rcvctrl(dd, HFI1_RCVCTRL_INTRAVAIL_DIS, rcd);
 	} else if (test_and_clear_bit(HFI1_CTXT_WAITING_URG,
 							&rcd->event_flags)) {
 		rcd->urgent++;

@@ -8,7 +8,7 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  *
- * See Documentation/security/keys-request-key.txt
+ * See Documentation/security/keys/request-key.rst
  */
 
 #include <linux/module.h>
@@ -72,7 +72,7 @@ static void umh_keys_cleanup(struct subprocess_info *info)
 /*
  * Call a usermode helper with a specific session keyring.
  */
-static int call_usermodehelper_keys(char *path, char **argv, char **envp,
+static int call_usermodehelper_keys(const char *path, char **argv, char **envp,
 					struct key *session_keyring, int wait)
 {
 	struct subprocess_info *info;
@@ -95,6 +95,7 @@ static int call_sbin_request_key(struct key_construction *cons,
 				 const char *op,
 				 void *aux)
 {
+	static char const request_key[] = "/sbin/request-key";
 	const struct cred *cred = current_cred();
 	key_serial_t prkey, sskey;
 	struct key *key = cons->key, *authkey = cons->authkey, *keyring,
@@ -161,7 +162,7 @@ static int call_sbin_request_key(struct key_construction *cons,
 
 	/* set up the argument list */
 	i = 0;
-	argv[i++] = "/sbin/request-key";
+	argv[i++] = (char *)request_key;
 	argv[i++] = (char *) op;
 	argv[i++] = key_str;
 	argv[i++] = uid_str;
@@ -172,7 +173,7 @@ static int call_sbin_request_key(struct key_construction *cons,
 	argv[i] = NULL;
 
 	/* do it */
-	ret = call_usermodehelper_keys(argv[0], argv, envp, keyring,
+	ret = call_usermodehelper_keys(request_key, argv, envp, keyring,
 				       UMH_WAIT_PROC);
 	kdebug("usermode -> 0x%x", ret);
 	if (ret >= 0) {
@@ -594,10 +595,9 @@ int wait_for_key_construction(struct key *key, bool intr)
 			  intr ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
 	if (ret)
 		return -ERESTARTSYS;
-	if (test_bit(KEY_FLAG_NEGATIVE, &key->flags)) {
-		smp_rmb();
-		return key->reject_error;
-	}
+	ret = key_read_state(key);
+	if (ret < 0)
+		return ret;
 	return key_validate(key);
 }
 EXPORT_SYMBOL(wait_for_key_construction);

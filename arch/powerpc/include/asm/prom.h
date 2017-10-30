@@ -121,6 +121,8 @@ struct of_drconf_cell {
 #define OV1_PPC_2_06		0x02	/* set if we support PowerPC 2.06 */
 #define OV1_PPC_2_07		0x01	/* set if we support PowerPC 2.07 */
 
+#define OV1_PPC_3_00		0x80	/* set if we support PowerPC 3.00 */
+
 /* Option vector 2: Open Firmware options supported */
 #define OV2_REAL_MODE		0x20	/* set if we want OF in real mode */
 
@@ -151,19 +153,31 @@ struct of_drconf_cell {
 #define OV5_XCMO		0x0440	/* Page Coalescing */
 #define OV5_TYPE1_AFFINITY	0x0580	/* Type 1 NUMA affinity */
 #define OV5_PRRN		0x0540	/* Platform Resource Reassignment */
-#define OV5_PFO_HW_RNG		0x0E80	/* PFO Random Number Generator */
-#define OV5_PFO_HW_842		0x0E40	/* PFO Compression Accelerator */
-#define OV5_PFO_HW_ENCR		0x0E20	/* PFO Encryption Accelerator */
-#define OV5_SUB_PROCESSORS	0x0F01	/* 1,2,or 4 Sub-Processors supported */
+#define OV5_HP_EVT		0x0604	/* Hot Plug Event support */
+#define OV5_RESIZE_HPT		0x0601	/* Hash Page Table resizing */
+#define OV5_PFO_HW_RNG		0x1180	/* PFO Random Number Generator */
+#define OV5_PFO_HW_842		0x1140	/* PFO Compression Accelerator */
+#define OV5_PFO_HW_ENCR		0x1120	/* PFO Encryption Accelerator */
+#define OV5_SUB_PROCESSORS	0x1501	/* 1,2,or 4 Sub-Processors supported */
+#define OV5_XIVE_SUPPORT	0x17C0	/* XIVE Exploitation Support Mask */
+#define OV5_XIVE_LEGACY		0x1700	/* XIVE legacy mode Only */
+#define OV5_XIVE_EXPLOIT	0x1740	/* XIVE exploitation mode Only */
+#define OV5_XIVE_EITHER		0x1780	/* XIVE legacy or exploitation mode */
+/* MMU Base Architecture */
+#define OV5_MMU_SUPPORT		0x18C0	/* MMU Mode Support Mask */
+#define OV5_MMU_HASH		0x1800	/* Hash MMU Only */
+#define OV5_MMU_RADIX		0x1840	/* Radix MMU Only */
+#define OV5_MMU_EITHER		0x1880	/* Hash or Radix Supported */
+#define OV5_MMU_DYNAMIC		0x18C0	/* Hash or Radix Can Switch Later */
+#define OV5_NMMU		0x1820	/* Nest MMU Available */
+/* Hash Table Extensions */
+#define OV5_HASH_SEG_TBL	0x1980	/* In Memory Segment Tables Available */
+#define OV5_HASH_GTSE		0x1940	/* Guest Translation Shoot Down Avail */
+/* Radix Table Extensions */
+#define OV5_RADIX_GTSE		0x1A40	/* Guest Translation Shoot Down Avail */
 
 /* Option Vector 6: IBM PAPR hints */
 #define OV6_LINUX		0x02	/* Linux is our OS */
-
-/*
- * The architecture vector has an array of PVR mask/value pairs,
- * followed by # option vectors - 1, followed by the option vectors.
- */
-extern unsigned char ibm_architecture_vec[];
 
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_PROM_H */

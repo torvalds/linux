@@ -16,18 +16,17 @@
 #include <linux/clk-provider.h>
 #include "clk-pll.h"
 
-struct clk;
-
 /**
  * struct samsung_clk_provider: information about clock provider
  * @reg_base: virtual address for the register base.
- * @clk_data: holds clock related data like clk* and number of clocks.
  * @lock: maintains exclusion between callbacks for a given clock-provider.
+ * @clk_data: holds clock related data like clk_hw* and number of clocks.
  */
 struct samsung_clk_provider {
 	void __iomem *reg_base;
-	struct clk_onecell_data clk_data;
 	spinlock_t lock;
+	/* clk_data must be the last entry due to variable lenght 'hws' array */
+	struct clk_hw_onecell_data clk_data;
 };
 
 /**
@@ -367,7 +366,7 @@ extern void __init samsung_clk_of_register_fixed_ext(
 			const struct of_device_id *clk_matches);
 
 extern void samsung_clk_add_lookup(struct samsung_clk_provider *ctx,
-			struct clk *clk, unsigned int id);
+			struct clk_hw *clk_hw, unsigned int id);
 
 extern void __init samsung_clk_register_alias(struct samsung_clk_provider *ctx,
 			const struct samsung_clock_alias *list,

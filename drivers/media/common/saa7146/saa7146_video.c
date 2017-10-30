@@ -390,6 +390,7 @@ static int video_end(struct saa7146_fh *fh, struct file *file)
 {
 	struct saa7146_dev *dev = fh->dev;
 	struct saa7146_vv *vv = dev->vv_data;
+	struct saa7146_dmaqueue *q = &vv->video_dmaq;
 	struct saa7146_format *fmt = NULL;
 	unsigned long flags;
 	unsigned int resource;
@@ -427,6 +428,9 @@ static int video_end(struct saa7146_fh *fh, struct file *file)
 
 	/* shut down all used video dma transfers */
 	saa7146_write(dev, MC1, dmas);
+
+	if (q->curr)
+		saa7146_buffer_finish(dev, q, VIDEOBUF_DONE);
 
 	spin_unlock_irqrestore(&dev->slock, flags);
 
@@ -1183,7 +1187,7 @@ static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 	release_all_pagetables(dev, buf);
 }
 
-static struct videobuf_queue_ops video_qops = {
+static const struct videobuf_queue_ops video_qops = {
 	.buf_setup    = buffer_setup,
 	.buf_prepare  = buffer_prepare,
 	.buf_queue    = buffer_queue,
@@ -1197,9 +1201,8 @@ static void video_init(struct saa7146_dev *dev, struct saa7146_vv *vv)
 {
 	INIT_LIST_HEAD(&vv->video_dmaq.queue);
 
-	init_timer(&vv->video_dmaq.timeout);
-	vv->video_dmaq.timeout.function = saa7146_buffer_timeout;
-	vv->video_dmaq.timeout.data     = (unsigned long)(&vv->video_dmaq);
+	setup_timer(&vv->video_dmaq.timeout, saa7146_buffer_timeout,
+		    (unsigned long)(&vv->video_dmaq));
 	vv->video_dmaq.dev              = dev;
 
 	/* set some default values */

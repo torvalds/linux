@@ -48,7 +48,6 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "MSI Primo81 tablet";
@@ -134,24 +133,20 @@
 
 &pio {
 	gt911_int_primo81: gt911_int_pin@0 {
-		allwinner,pins = "PA3";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PA3";
+		function = "gpio_in";
 	};
 
 	mma8452_int_primo81: mma8452_int_pin@0 {
-		allwinner,pins = "PA9";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PA9";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 
 	mmc0_cd_pin_primo81: mmc0_cd_pin@0 {
-		allwinner,pins = "PA8";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PA8";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 };
 
@@ -163,10 +158,15 @@
 		reg = <0x68>;
 		interrupt-parent = <&nmi_intc>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		x-powers,drive-vbus-en;
 	};
 };
 
 #include "axp22x.dtsi"
+
+&battery_power_supply {
+	status = "okay";
+};
 
 &reg_aldo3 {
 	regulator-always-on;
@@ -231,6 +231,11 @@
 	regulator-name = "vddio-csi";
 };
 
+&reg_drivevbus {
+	regulator-name = "usb0-vbus";
+	status = "okay";
+};
+
 &reg_eldo3 {
 	regulator-min-microvolt = <1080000>;
 	regulator-max-microvolt = <1320000>;
@@ -243,12 +248,18 @@
 };
 
 &usb_otg {
-	/* otg support requires support for AXP221 usb-power-supply and GPIO */
-	dr_mode = "host";
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&usb_power_supply {
 	status = "okay";
 };
 
 &usbphy {
+	usb0_id_det-gpio = <&pio 0 15 GPIO_ACTIVE_HIGH>; /* PA15 */
+	usb0_vbus_power-supply = <&usb_power_supply>;
+	usb0_vbus-supply = <&reg_drivevbus>;
 	usb1_vbus-supply = <&reg_dldo1>;
 	status = "okay";
 };

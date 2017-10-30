@@ -92,14 +92,6 @@ static inline void release_thread(struct task_struct *dead_task)
 {
 }
 
-#define copy_segments(tsk, mm)		do { } while (0)
-#define release_segments(mm)		do { } while (0)
-
-/*
- * saved PC of a blocked thread.
- */
-#define thread_saved_pc(tsk) (task_pt_regs(tsk)->pc)
-
 /*
  * saved kernel SP and DP of a blocked thread.
  */
@@ -121,7 +113,6 @@ extern unsigned long get_wchan(struct task_struct *p);
 #define KSTK_ESP(task)	(task_pt_regs(task)->sp)
 
 #define cpu_relax()		do { } while (0)
-#define cpu_relax_lowlatency()        cpu_relax()
 
 extern const struct seq_operations cpuinfo_op;
 

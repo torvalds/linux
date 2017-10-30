@@ -98,14 +98,14 @@ int of_reconfig_notify(unsigned long action, struct of_reconfig_data *p)
 	switch (action) {
 	case OF_RECONFIG_ATTACH_NODE:
 	case OF_RECONFIG_DETACH_NODE:
-		pr_debug("notify %-15s %s\n", action_names[action],
-			pr->dn->full_name);
+		pr_debug("notify %-15s %pOF\n", action_names[action],
+			pr->dn);
 		break;
 	case OF_RECONFIG_ADD_PROPERTY:
 	case OF_RECONFIG_REMOVE_PROPERTY:
 	case OF_RECONFIG_UPDATE_PROPERTY:
-		pr_debug("notify %-15s %s:%s\n", action_names[action],
-			pr->dn->full_name, pr->prop->name);
+		pr_debug("notify %-15s %pOF:%s\n", action_names[action],
+			pr->dn, pr->prop->name);
 		break;
 
 	}
@@ -216,7 +216,7 @@ int of_property_notify(int action, struct device_node *np,
 	return of_reconfig_notify(action, &pr);
 }
 
-void __of_attach_node(struct device_node *np)
+static void __of_attach_node(struct device_node *np)
 {
 	const __be32 *phandle;
 	int sz;
@@ -328,11 +328,10 @@ void of_node_release(struct kobject *kobj)
 
 	/* We should never be releasing nodes that haven't been detached. */
 	if (!of_node_check_flag(node, OF_DETACHED)) {
-		pr_err("ERROR: Bad of_node_put() on %s\n", node->full_name);
+		pr_err("ERROR: Bad of_node_put() on %pOF\n", node);
 		dump_stack();
 		return;
 	}
-
 	if (!of_node_check_flag(node, OF_DYNAMIC))
 		return;
 
@@ -462,13 +461,13 @@ static void __of_changeset_entry_dump(struct of_changeset_entry *ce)
 	case OF_RECONFIG_ADD_PROPERTY:
 	case OF_RECONFIG_REMOVE_PROPERTY:
 	case OF_RECONFIG_UPDATE_PROPERTY:
-		pr_debug("cset<%p> %-15s %s/%s\n", ce, action_names[ce->action],
-			ce->np->full_name, ce->prop->name);
+		pr_debug("cset<%p> %-15s %pOF/%s\n", ce, action_names[ce->action],
+			ce->np, ce->prop->name);
 		break;
 	case OF_RECONFIG_ATTACH_NODE:
 	case OF_RECONFIG_DETACH_NODE:
-		pr_debug("cset<%p> %-15s %s\n", ce, action_names[ce->action],
-			ce->np->full_name);
+		pr_debug("cset<%p> %-15s %pOF\n", ce, action_names[ce->action],
+			ce->np);
 		break;
 	}
 }
@@ -539,7 +538,7 @@ static void __of_changeset_entry_notify(struct of_changeset_entry *ce, bool reve
 	}
 
 	if (ret)
-		pr_err("changeset notifier error @%s\n", ce->np->full_name);
+		pr_err("changeset notifier error @%pOF\n", ce->np);
 }
 
 static int __of_changeset_entry_apply(struct of_changeset_entry *ce)
@@ -570,8 +569,8 @@ static int __of_changeset_entry_apply(struct of_changeset_entry *ce)
 
 		ret = __of_add_property(ce->np, ce->prop);
 		if (ret) {
-			pr_err("changeset: add_property failed @%s/%s\n",
-				ce->np->full_name,
+			pr_err("changeset: add_property failed @%pOF/%s\n",
+				ce->np,
 				ce->prop->name);
 			break;
 		}
@@ -579,8 +578,8 @@ static int __of_changeset_entry_apply(struct of_changeset_entry *ce)
 	case OF_RECONFIG_REMOVE_PROPERTY:
 		ret = __of_remove_property(ce->np, ce->prop);
 		if (ret) {
-			pr_err("changeset: remove_property failed @%s/%s\n",
-				ce->np->full_name,
+			pr_err("changeset: remove_property failed @%pOF/%s\n",
+				ce->np,
 				ce->prop->name);
 			break;
 		}
@@ -598,8 +597,8 @@ static int __of_changeset_entry_apply(struct of_changeset_entry *ce)
 
 		ret = __of_update_property(ce->np, ce->prop, &old_prop);
 		if (ret) {
-			pr_err("changeset: update_property failed @%s/%s\n",
-				ce->np->full_name,
+			pr_err("changeset: update_property failed @%pOF/%s\n",
+				ce->np,
 				ce->prop->name);
 			break;
 		}

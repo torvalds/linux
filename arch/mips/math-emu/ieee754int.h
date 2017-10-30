@@ -26,6 +26,10 @@
 
 #define CLPAIR(x, y)	((x)*6+(y))
 
+enum maddf_flags {
+	MADDF_NEGATE_PRODUCT	= 1 << 0,
+};
+
 static inline void ieee754_clearcx(void)
 {
 	ieee754_csr.cx = 0;

@@ -70,7 +70,21 @@ const struct mdp5_cfg_hw msm8x74v1_config = {
 	.lm = {
 		.count = 5,
 		.base = { 0x03100, 0x03500, 0x03900, 0x03d00, 0x04100 },
+		.instances = {
+				{ .id = 0, .pp = 0, .dspp = 0,
+				  .caps = MDP_LM_CAP_DISPLAY, },
+				{ .id = 1, .pp = 1, .dspp = 1,
+				  .caps = MDP_LM_CAP_DISPLAY, },
+				{ .id = 2, .pp = 2, .dspp = 2,
+				  .caps = MDP_LM_CAP_DISPLAY, },
+				{ .id = 3, .pp = -1, .dspp = -1,
+				  .caps = MDP_LM_CAP_WB },
+				{ .id = 4, .pp = -1, .dspp = -1,
+				  .caps = MDP_LM_CAP_WB },
+			     },
 		.nb_stages = 5,
+		.max_width = 2048,
+		.max_height = 0xFFFF,
 	},
 	.dspp = {
 		.count = 3,
@@ -134,6 +148,18 @@ const struct mdp5_cfg_hw msm8x74v2_config = {
 	.lm = {
 		.count = 5,
 		.base = { 0x03100, 0x03500, 0x03900, 0x03d00, 0x04100 },
+		.instances = {
+				{ .id = 0, .pp = 0, .dspp = 0,
+				  .caps = MDP_LM_CAP_DISPLAY, },
+				{ .id = 1, .pp = 1, .dspp = 1,
+				  .caps = MDP_LM_CAP_DISPLAY, },
+				{ .id = 2, .pp = 2, .dspp = 2,
+				  .caps = MDP_LM_CAP_DISPLAY, },
+				{ .id = 3, .pp = -1, .dspp = -1,
+				  .caps = MDP_LM_CAP_WB, },
+				{ .id = 4, .pp = -1, .dspp = -1,
+				  .caps = MDP_LM_CAP_WB, },
+			     },
 		.nb_stages = 5,
 		.max_width = 2048,
 		.max_height = 0xFFFF,
@@ -167,6 +193,7 @@ const struct mdp5_cfg_hw apq8084_config = {
 	.mdp = {
 		.count = 1,
 		.caps = MDP_CAP_SMP |
+			MDP_CAP_SRC_SPLIT |
 			0,
 	},
 	.smp = {
@@ -211,6 +238,22 @@ const struct mdp5_cfg_hw apq8084_config = {
 	.lm = {
 		.count = 6,
 		.base = { 0x03900, 0x03d00, 0x04100, 0x04500, 0x04900, 0x04d00 },
+		.instances = {
+				{ .id = 0, .pp = 0, .dspp = 0,
+				  .caps = MDP_LM_CAP_DISPLAY |
+					  MDP_LM_CAP_PAIR, },
+				{ .id = 1, .pp = 1, .dspp = 1,
+				  .caps = MDP_LM_CAP_DISPLAY, },
+				{ .id = 2, .pp = 2, .dspp = 2,
+				  .caps = MDP_LM_CAP_DISPLAY |
+					  MDP_LM_CAP_PAIR, },
+				{ .id = 3, .pp = -1, .dspp = -1,
+				  .caps = MDP_LM_CAP_WB, },
+				{ .id = 4, .pp = -1, .dspp = -1,
+				  .caps = MDP_LM_CAP_WB, },
+				{ .id = 5, .pp = 3, .dspp = 3,
+				  .caps = MDP_LM_CAP_DISPLAY, },
+			     },
 		.nb_stages = 5,
 		.max_width = 2048,
 		.max_height = 0xFFFF,
@@ -282,6 +325,12 @@ const struct mdp5_cfg_hw msm8x16_config = {
 	.lm = {
 		.count = 2, /* LM0 and LM3 */
 		.base = { 0x44000, 0x47000 },
+		.instances = {
+				{ .id = 0, .pp = 0, .dspp = 0,
+				  .caps = MDP_LM_CAP_DISPLAY, },
+				{ .id = 3, .pp = -1, .dspp = -1,
+				  .caps = MDP_LM_CAP_WB },
+			     },
 		.nb_stages = 8,
 		.max_width = 2048,
 		.max_height = 0xFFFF,
@@ -306,6 +355,7 @@ const struct mdp5_cfg_hw msm8x94_config = {
 	.mdp = {
 		.count = 1,
 		.caps = MDP_CAP_SMP |
+			MDP_CAP_SRC_SPLIT |
 			0,
 	},
 	.smp = {
@@ -350,6 +400,22 @@ const struct mdp5_cfg_hw msm8x94_config = {
 	.lm = {
 		.count = 6,
 		.base = { 0x44000, 0x45000, 0x46000, 0x47000, 0x48000, 0x49000 },
+		.instances = {
+				{ .id = 0, .pp = 0, .dspp = 0,
+				  .caps = MDP_LM_CAP_DISPLAY |
+					  MDP_LM_CAP_PAIR, },
+				{ .id = 1, .pp = 1, .dspp = 1,
+				  .caps = MDP_LM_CAP_DISPLAY, },
+				{ .id = 2, .pp = 2, .dspp = 2,
+				  .caps = MDP_LM_CAP_DISPLAY |
+					  MDP_LM_CAP_PAIR, },
+				{ .id = 3, .pp = -1, .dspp = -1,
+				  .caps = MDP_LM_CAP_WB, },
+				{ .id = 4, .pp = -1, .dspp = -1,
+				  .caps = MDP_LM_CAP_WB, },
+				{ .id = 5, .pp = 3, .dspp = 3,
+				  .caps = MDP_LM_CAP_DISPLAY, },
+			     },
 		.nb_stages = 8,
 		.max_width = 2048,
 		.max_height = 0xFFFF,
@@ -385,6 +451,7 @@ const struct mdp5_cfg_hw msm8x96_config = {
 		.count = 1,
 		.caps = MDP_CAP_DSC |
 			MDP_CAP_CDM |
+			MDP_CAP_SRC_SPLIT |
 			0,
 	},
 	.ctl = {
@@ -421,9 +488,35 @@ const struct mdp5_cfg_hw msm8x96_config = {
 			MDP_PIPE_CAP_SW_PIX_EXT	|
 			0,
 	},
+	.pipe_cursor = {
+		.count = 2,
+		.base = { 0x34000, 0x36000 },
+		.caps = MDP_PIPE_CAP_HFLIP	|
+			MDP_PIPE_CAP_VFLIP	|
+			MDP_PIPE_CAP_SW_PIX_EXT	|
+			MDP_PIPE_CAP_CURSOR	|
+			0,
+	},
+
 	.lm = {
 		.count = 6,
 		.base = { 0x44000, 0x45000, 0x46000, 0x47000, 0x48000, 0x49000 },
+		.instances = {
+				{ .id = 0, .pp = 0, .dspp = 0,
+				  .caps = MDP_LM_CAP_DISPLAY |
+					  MDP_LM_CAP_PAIR, },
+				{ .id = 1, .pp = 1, .dspp = 1,
+				  .caps = MDP_LM_CAP_DISPLAY, },
+				{ .id = 2, .pp = 2, .dspp = -1,
+				  .caps = MDP_LM_CAP_DISPLAY |
+					  MDP_LM_CAP_PAIR, },
+				{ .id = 3, .pp = -1, .dspp = -1,
+				  .caps = MDP_LM_CAP_WB, },
+				{ .id = 4, .pp = -1, .dspp = -1,
+				  .caps = MDP_LM_CAP_WB, },
+				{ .id = 5, .pp = 3, .dspp = -1,
+				  .caps = MDP_LM_CAP_DISPLAY, },
+			     },
 		.nb_stages = 8,
 		.max_width = 2560,
 		.max_height = 0xFFFF,
@@ -495,7 +588,7 @@ struct mdp5_cfg_handler *mdp5_cfg_init(struct mdp5_kms *mdp5_kms,
 		uint32_t major, uint32_t minor)
 {
 	struct drm_device *dev = mdp5_kms->dev;
-	struct platform_device *pdev = dev->platformdev;
+	struct platform_device *pdev = to_platform_device(dev->dev);
 	struct mdp5_cfg_handler *cfg_handler;
 	struct mdp5_cfg_platform *pconfig;
 	int i, ret = 0;
@@ -550,6 +643,10 @@ static struct mdp5_cfg_platform *mdp5_get_config(struct platform_device *dev)
 	static struct mdp5_cfg_platform config = {};
 
 	config.iommu = iommu_domain_alloc(&platform_bus_type);
+	if (config.iommu) {
+		config.iommu->geometry.aperture_start = 0x1000;
+		config.iommu->geometry.aperture_end = 0xffffffff;
+	}
 
 	return &config;
 }

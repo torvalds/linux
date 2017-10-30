@@ -40,7 +40,6 @@ show up in /proc/sys/kernel:
 - hung_task_warnings
 - kexec_load_disabled
 - kptr_restrict
-- kstack_depth_to_print       [ X86 only ]
 - l2cr                        [ PPC only ]
 - modprobe                    ==> Documentation/debugging-modules.txt
 - modules_disabled
@@ -62,6 +61,7 @@ show up in /proc/sys/kernel:
 - perf_cpu_time_max_percent
 - perf_event_paranoid
 - perf_event_max_stack
+- perf_event_mlock_kb
 - perf_event_max_contexts_per_stack
 - pid_max
 - powersave-nap               [ PPC only ]
@@ -71,10 +71,11 @@ show up in /proc/sys/kernel:
 - printk_ratelimit_burst
 - pty                         ==> Documentation/filesystems/devpts.txt
 - randomize_va_space
-- real-root-dev               ==> Documentation/initrd.txt
+- real-root-dev               ==> Documentation/admin-guide/initrd.rst
 - reboot-cmd                  [ SPARC only ]
 - rtsig-max
 - rtsig-nr
+- seccomp/                    ==> Documentation/userspace-api/seccomp_filter.rst
 - sem
 - sem_next_id		      [ sysv ipc ]
 - sg-big-buff                 [ generic SCSI device (sg) ]
@@ -86,7 +87,7 @@ show up in /proc/sys/kernel:
 - softlockup_all_cpu_backtrace
 - soft_watchdog
 - stop-a                      [ SPARC only ]
-- sysrq                       ==> Documentation/sysrq.txt
+- sysrq                       ==> Documentation/admin-guide/sysrq.rst
 - sysctl_writes_strict
 - tainted
 - threads-max
@@ -395,13 +396,6 @@ When kptr_restrict is set to (2), kernel pointers printed using
 
 ==============================================================
 
-kstack_depth_to_print: (X86 only)
-
-Controls the number of words to print when dumping the raw
-kernel stack.
-
-==============================================================
-
 l2cr: (PPC only)
 
 This flag controls the L2 cache of G3 processor boards. If
@@ -453,7 +447,7 @@ in a KVM virtual machine. This default can be overridden by adding
 
    nmi_watchdog=1
 
-to the guest kernel command line (see Documentation/kernel-parameters.txt).
+to the guest kernel command line (see Documentation/admin-guide/kernel-parameters.rst).
 
 ==============================================================
 
@@ -662,7 +656,9 @@ Controls use of the performance events system by unprivileged
 users (without CAP_SYS_ADMIN).  The default value is 2.
 
  -1: Allow use of (almost) all events by all users
->=0: Disallow raw tracepoint access by users without CAP_IOC_LOCK
+     Ignore mlock limit after perf_event_mlock_kb without CAP_IPC_LOCK
+>=0: Disallow ftrace function tracepoint by users without CAP_SYS_ADMIN
+     Disallow raw tracepoint access by users without CAP_SYS_ADMIN
 >=1: Disallow CPU event access by users without CAP_SYS_ADMIN
 >=2: Disallow kernel profiling by users without CAP_SYS_ADMIN
 
@@ -678,6 +674,14 @@ This can only be done when no events are in use that have callchains
 enabled, otherwise writing to this file will return -EBUSY.
 
 The default value is 127.
+
+==============================================================
+
+perf_event_mlock_kb:
+
+Control size of per-cpu ring buffer not counted agains mlock limit.
+
+The default value is 512 + 1 page
 
 ==============================================================
 

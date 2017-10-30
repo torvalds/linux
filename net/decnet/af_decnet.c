@@ -106,7 +106,7 @@ Version 0.0.6    2.1.110   07-aug-98   Eduardo Marcelo Serrat
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/timer.h>
 #include <linux/string.h>
 #include <linux/sockios.h>
@@ -132,6 +132,7 @@ Version 0.0.6    2.1.110   07-aug-98   Eduardo Marcelo Serrat
 #include <net/neighbour.h>
 #include <net/dst.h>
 #include <net/fib_rules.h>
+#include <net/tcp.h>
 #include <net/dn.h>
 #include <net/dn_nsp.h>
 #include <net/dn_dev.h>
@@ -446,7 +447,7 @@ static void dn_destruct(struct sock *sk)
 	dst_release(rcu_dereference_check(sk->sk_dst_cache, 1));
 }
 
-static int dn_memory_pressure;
+static unsigned long dn_memory_pressure;
 
 static void dn_enter_memory_pressure(struct sock *sk)
 {
@@ -1070,7 +1071,8 @@ static struct sk_buff *dn_wait_for_connect(struct sock *sk, long *timeo)
 	return skb == NULL ? ERR_PTR(err) : skb;
 }
 
-static int dn_accept(struct socket *sock, struct socket *newsock, int flags)
+static int dn_accept(struct socket *sock, struct socket *newsock, int flags,
+		     bool kern)
 {
 	struct sock *sk = sock->sk, *newsk;
 	struct sk_buff *skb = NULL;
@@ -1099,7 +1101,7 @@ static int dn_accept(struct socket *sock, struct socket *newsock, int flags)
 
 	cb = DN_SKB_CB(skb);
 	sk->sk_ack_backlog--;
-	newsk = dn_alloc_sock(sock_net(sk), newsock, sk->sk_allocation, 0);
+	newsk = dn_alloc_sock(sock_net(sk), newsock, sk->sk_allocation, kern);
 	if (newsk == NULL) {
 		release_sock(sk);
 		kfree_skb(skb);
@@ -1468,18 +1470,18 @@ static int __dn_setsockopt(struct socket *sock, int level,int optname, char __us
 	case DSO_NODELAY:
 		if (optlen != sizeof(int))
 			return -EINVAL;
-		if (scp->nonagle == 2)
+		if (scp->nonagle == TCP_NAGLE_CORK)
 			return -EINVAL;
-		scp->nonagle = (u.val == 0) ? 0 : 1;
+		scp->nonagle = (u.val == 0) ? 0 : TCP_NAGLE_OFF;
 		/* if (scp->nonagle == 1) { Push pending frames } */
 		break;
 
 	case DSO_CORK:
 		if (optlen != sizeof(int))
 			return -EINVAL;
-		if (scp->nonagle == 1)
+		if (scp->nonagle == TCP_NAGLE_OFF)
 			return -EINVAL;
-		scp->nonagle = (u.val == 0) ? 0 : 2;
+		scp->nonagle = (u.val == 0) ? 0 : TCP_NAGLE_CORK;
 		/* if (scp->nonagle == 0) { Push pending frames } */
 		break;
 
@@ -1607,14 +1609,14 @@ static int __dn_getsockopt(struct socket *sock, int level,int optname, char __us
 	case DSO_NODELAY:
 		if (r_len > sizeof(int))
 			r_len = sizeof(int);
-		val = (scp->nonagle == 1);
+		val = (scp->nonagle == TCP_NAGLE_OFF);
 		r_data = &val;
 		break;
 
 	case DSO_CORK:
 		if (r_len > sizeof(int))
 			r_len = sizeof(int);
-		val = (scp->nonagle == 2);
+		val = (scp->nonagle == TCP_NAGLE_CORK);
 		r_data = &val;
 		break;
 
@@ -1718,7 +1720,7 @@ static int dn_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	 * See if there is data ready to read, sleep if there isn't
 	 */
 	for(;;) {
-		DEFINE_WAIT(wait);
+		DEFINE_WAIT_FUNC(wait, woken_wake_function);
 
 		if (sk->sk_err)
 			goto out;
@@ -1749,11 +1751,11 @@ static int dn_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 			goto out;
 		}
 
-		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
+		add_wait_queue(sk_sleep(sk), &wait);
 		sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
-		sk_wait_event(sk, &timeo, dn_data_ready(sk, queue, flags, target));
+		sk_wait_event(sk, &timeo, dn_data_ready(sk, queue, flags, target), &wait);
 		sk_clear_bit(SOCKWQ_ASYNC_WAITDATA, sk);
-		finish_wait(sk_sleep(sk), &wait);
+		remove_wait_queue(sk_sleep(sk), &wait);
 	}
 
 	skb_queue_walk_safe(queue, skb, n) {
@@ -1999,19 +2001,19 @@ static int dn_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 		 * size.
 		 */
 		if (dn_queue_too_long(scp, queue, flags)) {
-			DEFINE_WAIT(wait);
+			DEFINE_WAIT_FUNC(wait, woken_wake_function);
 
 			if (flags & MSG_DONTWAIT) {
 				err = -EWOULDBLOCK;
 				goto out;
 			}
 
-			prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
+			add_wait_queue(sk_sleep(sk), &wait);
 			sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 			sk_wait_event(sk, &timeo,
-				      !dn_queue_too_long(scp, queue, flags));
+				      !dn_queue_too_long(scp, queue, flags), &wait);
 			sk_clear_bit(SOCKWQ_ASYNC_WAITDATA, sk);
-			finish_wait(sk_sleep(sk), &wait);
+			remove_wait_queue(sk_sleep(sk), &wait);
 			continue;
 		}
 
@@ -2359,7 +2361,8 @@ MODULE_AUTHOR("Linux DECnet Project Team");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NETPROTO(PF_DECnet);
 
-static char banner[] __initdata = KERN_INFO "NET4: DECnet for Linux: V.2.5.68s (C) 1995-2003 Linux DECnet Project Team\n";
+static const char banner[] __initconst = KERN_INFO
+"NET4: DECnet for Linux: V.2.5.68s (C) 1995-2003 Linux DECnet Project Team\n";
 
 static int __init decnet_init(void)
 {

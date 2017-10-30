@@ -55,7 +55,8 @@
 		simple-audio-card,bitclock-master = <&telephony_link_master>;
 		simple-audio-card,frame-master = <&telephony_link_master>;
 		simple-audio-card,format = "i2s";
-
+		simple-audio-card,bitclock-inversion;
+		simple-audio-card,frame-inversion;
 		simple-audio-card,cpu {
 			sound-dai = <&mcbsp4>;
 		};
@@ -418,7 +419,7 @@
 
 	/* RFID EEPROM */
 	m24lr64@50 {
-		compatible = "at,24c64";
+		compatible = "atmel,24c64";
 		reg = <0x50>;
 	};
 };

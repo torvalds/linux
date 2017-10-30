@@ -41,9 +41,6 @@
 
 #define VALIDATE_TID 1
 
-void *cxgb_alloc_mem(unsigned long size);
-void cxgb_free_mem(void *addr);
-
 /*
  * Map an ATID or STID to their entries in the corresponding TID tables.
  */

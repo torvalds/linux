@@ -1,7 +1,14 @@
 #!/usr/bin/python2
 
-from distutils.core import setup, Extension
 from os import getenv
+
+cc = getenv("CC")
+if cc == "clang":
+    from _sysconfigdata import build_time_vars
+    from re import sub
+    build_time_vars["CFLAGS"] = sub("-specs=[^ ]+", "", build_time_vars["CFLAGS"])
+
+from distutils.core import setup, Extension
 
 from distutils.command.build_ext   import build_ext   as _build_ext
 from distutils.command.install_lib import install_lib as _install_lib

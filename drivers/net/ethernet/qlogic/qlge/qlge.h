@@ -1162,8 +1162,8 @@ struct ob_mac_tso_iocb_rsp {
 struct ib_mac_iocb_rsp {
 	u8 opcode;		/* 0x20 */
 	u8 flags1;
-#define IB_MAC_IOCB_RSP_OI	0x01	/* Overide intr delay */
-#define IB_MAC_IOCB_RSP_I	0x02	/* Disble Intr Generation */
+#define IB_MAC_IOCB_RSP_OI	0x01	/* Override intr delay */
+#define IB_MAC_IOCB_RSP_I	0x02	/* Disable Intr Generation */
 #define IB_MAC_CSUM_ERR_MASK 0x1c	/* A mask to use for csum errs */
 #define IB_MAC_IOCB_RSP_TE	0x04	/* Checksum error */
 #define IB_MAC_IOCB_RSP_NU	0x08	/* No checksum rcvd */

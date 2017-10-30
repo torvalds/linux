@@ -216,7 +216,6 @@ static int wusb_ccm_mac(struct crypto_skcipher *tfm_cbc,
 	struct scatterlist sg[4], sg_dst;
 	void *dst_buf;
 	size_t dst_size;
-	const u8 bzero[16] = { 0 };
 	u8 iv[crypto_skcipher_ivsize(tfm_cbc)];
 	size_t zero_padding;
 
@@ -261,7 +260,7 @@ static int wusb_ccm_mac(struct crypto_skcipher *tfm_cbc,
 	sg_set_buf(&sg[1], &scratch->b1, sizeof(scratch->b1));
 	sg_set_buf(&sg[2], b, blen);
 	/* 0 if well behaved :) */
-	sg_set_buf(&sg[3], bzero, zero_padding);
+	sg_set_page(&sg[3], ZERO_PAGE(0), zero_padding, 0);
 	sg_init_one(&sg_dst, dst_buf, dst_size);
 
 	skcipher_request_set_tfm(req, tfm_cbc);

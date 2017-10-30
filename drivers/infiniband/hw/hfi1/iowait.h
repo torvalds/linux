@@ -64,6 +64,7 @@ struct sdma_engine;
 /**
  * struct iowait - linkage for delayed progress/waiting
  * @list: used to add/insert into QP/PQ wait lists
+ * @lock: uses to record the list head lock
  * @tx_head: overflow list of sdma_txreq's
  * @sleep: no space callback
  * @wakeup: space callback wakeup
@@ -91,6 +92,11 @@ struct sdma_engine;
  * so sleeping is not allowed.
  *
  * The wait_dma member along with the iow
+ *
+ * The lock field is used by waiters to record
+ * the seqlock_t that guards the list head.
+ * Waiters explicity know that, but the destroy
+ * code that unwaits QPs does not.
  */
 
 struct iowait {
@@ -100,9 +106,12 @@ struct iowait {
 		struct sdma_engine *sde,
 		struct iowait *wait,
 		struct sdma_txreq *tx,
-		unsigned seq);
+		uint seq,
+		bool pkts_sent
+		);
 	void (*wakeup)(struct iowait *wait, int reason);
 	void (*sdma_drained)(struct iowait *wait);
+	seqlock_t *lock;
 	struct work_struct iowork;
 	wait_queue_head_t wait_dma;
 	wait_queue_head_t wait_pio;
@@ -111,6 +120,7 @@ struct iowait {
 	u32 count;
 	u32 tx_limit;
 	u32 tx_count;
+	u8 starved_cnt;
 };
 
 #define SDMA_AVAIL_REASON 0
@@ -136,11 +146,13 @@ static inline void iowait_init(
 		struct sdma_engine *sde,
 		struct iowait *wait,
 		struct sdma_txreq *tx,
-		unsigned seq),
+		uint seq,
+		bool pkts_sent),
 	void (*wakeup)(struct iowait *wait, int reason),
 	void (*sdma_drained)(struct iowait *wait))
 {
 	wait->count = 0;
+	wait->lock = NULL;
 	INIT_LIST_HEAD(&wait->list);
 	INIT_LIST_HEAD(&wait->tx_head);
 	INIT_WORK(&wait->iowork, func);
@@ -295,6 +307,68 @@ static inline struct sdma_txreq *iowait_get_txhead(struct iowait *wait)
 		list_del_init(&tx->list);
 	}
 	return tx;
+}
+
+/**
+ * iowait_queue - Put the iowait on a wait queue
+ * @pkts_sent: have some packets been sent before queuing?
+ * @w: the iowait struct
+ * @wait_head: the wait queue
+ *
+ * This function is called to insert an iowait struct into a
+ * wait queue after a resource (eg, sdma decriptor or pio
+ * buffer) is run out.
+ */
+static inline void iowait_queue(bool pkts_sent, struct iowait *w,
+				struct list_head *wait_head)
+{
+	/*
+	 * To play fair, insert the iowait at the tail of the wait queue if it
+	 * has already sent some packets; Otherwise, put it at the head.
+	 */
+	if (pkts_sent) {
+		list_add_tail(&w->list, wait_head);
+		w->starved_cnt = 0;
+	} else {
+		list_add(&w->list, wait_head);
+		w->starved_cnt++;
+	}
+}
+
+/**
+ * iowait_starve_clear - clear the wait queue's starve count
+ * @pkts_sent: have some packets been sent?
+ * @w: the iowait struct
+ *
+ * This function is called to clear the starve count. If no
+ * packets have been sent, the starve count will not be cleared.
+ */
+static inline void iowait_starve_clear(bool pkts_sent, struct iowait *w)
+{
+	if (pkts_sent)
+		w->starved_cnt = 0;
+}
+
+/**
+ * iowait_starve_find_max - Find the maximum of the starve count
+ * @w: the iowait struct
+ * @max: a variable containing the max starve count
+ * @idx: the index of the current iowait in an array
+ * @max_idx: a variable containing the array index for the
+ *         iowait entry that has the max starve count
+ *
+ * This function is called to compare the starve count of a
+ * given iowait with the given max starve count. The max starve
+ * count and the index will be updated if the iowait's start
+ * count is larger.
+ */
+static inline void iowait_starve_find_max(struct iowait *w, u8 *max,
+					  uint idx, uint *max_idx)
+{
+	if (w->starved_cnt > *max) {
+		*max = w->starved_cnt;
+		*max_idx = idx;
+	}
 }
 
 #endif

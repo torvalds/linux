@@ -5,7 +5,15 @@
  * test source files.
  */
 #include "lkdtm.h"
+#include <linux/list.h>
 #include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/task_stack.h>
+#include <linux/uaccess.h>
+
+struct lkdtm_list {
+	struct list_head node;
+};
 
 /*
  * Make sure our attempts to over run the kernel stack doesn't trigger
@@ -61,7 +69,7 @@ void lkdtm_WARNING(void)
 
 void lkdtm_EXCEPTION(void)
 {
-	*((int *) 0) = 0;
+	*((volatile int *) 0) = 0;
 }
 
 void lkdtm_LOOP(void)
@@ -75,12 +83,33 @@ void lkdtm_OVERFLOW(void)
 	(void) recursive_loop(recur_count);
 }
 
+static noinline void __lkdtm_CORRUPT_STACK(void *stack)
+{
+	memset(stack, '\xff', 64);
+}
+
+/* This should trip the stack canary, not corrupt the return address. */
 noinline void lkdtm_CORRUPT_STACK(void)
 {
 	/* Use default char array length that triggers stack protection. */
-	char data[8];
+	char data[8] __aligned(sizeof(void *));
 
-	memset((void *)data, 0, 64);
+	__lkdtm_CORRUPT_STACK(&data);
+
+	pr_info("Corrupted stack containing char array ...\n");
+}
+
+/* Same as above but will only get a canary with -fstack-protector-strong */
+noinline void lkdtm_CORRUPT_STACK_STRONG(void)
+{
+	union {
+		unsigned short shorts[4];
+		unsigned long *ptr;
+	} data __aligned(sizeof(void *));
+
+	__lkdtm_CORRUPT_STACK(&data);
+
+	pr_info("Corrupted stack containing union ...\n");
 }
 
 void lkdtm_UNALIGNED_LOAD_STORE_WRITE(void)
@@ -123,26 +152,103 @@ void lkdtm_HUNG_TASK(void)
 	schedule();
 }
 
-void lkdtm_ATOMIC_UNDERFLOW(void)
+void lkdtm_CORRUPT_LIST_ADD(void)
 {
-	atomic_t under = ATOMIC_INIT(INT_MIN);
+	/*
+	 * Initially, an empty list via LIST_HEAD:
+	 *	test_head.next = &test_head
+	 *	test_head.prev = &test_head
+	 */
+	LIST_HEAD(test_head);
+	struct lkdtm_list good, bad;
+	void *target[2] = { };
+	void *redirection = &target;
 
-	pr_info("attempting good atomic increment\n");
-	atomic_inc(&under);
-	atomic_dec(&under);
+	pr_info("attempting good list addition\n");
 
-	pr_info("attempting bad atomic underflow\n");
-	atomic_dec(&under);
+	/*
+	 * Adding to the list performs these actions:
+	 *	test_head.next->prev = &good.node
+	 *	good.node.next = test_head.next
+	 *	good.node.prev = test_head
+	 *	test_head.next = good.node
+	 */
+	list_add(&good.node, &test_head);
+
+	pr_info("attempting corrupted list addition\n");
+	/*
+	 * In simulating this "write what where" primitive, the "what" is
+	 * the address of &bad.node, and the "where" is the address held
+	 * by "redirection".
+	 */
+	test_head.next = redirection;
+	list_add(&bad.node, &test_head);
+
+	if (target[0] == NULL && target[1] == NULL)
+		pr_err("Overwrite did not happen, but no BUG?!\n");
+	else
+		pr_err("list_add() corruption not detected!\n");
 }
 
-void lkdtm_ATOMIC_OVERFLOW(void)
+void lkdtm_CORRUPT_LIST_DEL(void)
 {
-	atomic_t over = ATOMIC_INIT(INT_MAX);
+	LIST_HEAD(test_head);
+	struct lkdtm_list item;
+	void *target[2] = { };
+	void *redirection = &target;
 
-	pr_info("attempting good atomic decrement\n");
-	atomic_dec(&over);
-	atomic_inc(&over);
+	list_add(&item.node, &test_head);
 
-	pr_info("attempting bad atomic overflow\n");
-	atomic_inc(&over);
+	pr_info("attempting good list removal\n");
+	list_del(&item.node);
+
+	pr_info("attempting corrupted list removal\n");
+	list_add(&item.node, &test_head);
+
+	/* As with the list_add() test above, this corrupts "next". */
+	item.node.next = redirection;
+	list_del(&item.node);
+
+	if (target[0] == NULL && target[1] == NULL)
+		pr_err("Overwrite did not happen, but no BUG?!\n");
+	else
+		pr_err("list_del() corruption not detected!\n");
+}
+
+/* Test if unbalanced set_fs(KERNEL_DS)/set_fs(USER_DS) check exists. */
+void lkdtm_CORRUPT_USER_DS(void)
+{
+	pr_info("setting bad task size limit\n");
+	set_fs(KERNEL_DS);
+
+	/* Make sure we do not keep running with a KERNEL_DS! */
+	force_sig(SIGKILL, current);
+}
+
+/* Test that VMAP_STACK is actually allocating with a leading guard page */
+void lkdtm_STACK_GUARD_PAGE_LEADING(void)
+{
+	const unsigned char *stack = task_stack_page(current);
+	const unsigned char *ptr = stack - 1;
+	volatile unsigned char byte;
+
+	pr_info("attempting bad read from page below current stack\n");
+
+	byte = *ptr;
+
+	pr_err("FAIL: accessed page before stack!\n");
+}
+
+/* Test that VMAP_STACK is actually allocating with a trailing guard page */
+void lkdtm_STACK_GUARD_PAGE_TRAILING(void)
+{
+	const unsigned char *stack = task_stack_page(current);
+	const unsigned char *ptr = stack + THREAD_SIZE;
+	volatile unsigned char byte;
+
+	pr_info("attempting bad read from page above current stack\n");
+
+	byte = *ptr;
+
+	pr_err("FAIL: accessed page after stack!\n");
 }

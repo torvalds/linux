@@ -170,8 +170,8 @@ config BINFMT_MISC
 
 	  You can do other nice things, too. Read the file
 	  <file:Documentation/binfmt_misc.txt> to learn how to use this
-	  feature, <file:Documentation/java.txt> for information about how
-	  to include Java support. and <file:Documentation/mono.txt> for
+	  feature, <file:Documentation/admin-guide/java.rst> for information about how
+	  to include Java support. and <file:Documentation/admin-guide/mono.rst> for
           information about how to include Mono-based .NET support.
 
           To use binfmt_misc, you will need to mount it:

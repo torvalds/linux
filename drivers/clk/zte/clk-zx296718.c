@@ -94,11 +94,34 @@
 
 static DEFINE_SPINLOCK(clk_lock);
 
-static struct zx_pll_config pll_cpu_table[] = {
+static const struct zx_pll_config pll_cpu_table[] = {
 	PLL_RATE(1312000000, 0x00103621, 0x04aaaaaa),
 	PLL_RATE(1407000000, 0x00103a21, 0x04aaaaaa),
 	PLL_RATE(1503000000, 0x00103e21, 0x04aaaaaa),
 	PLL_RATE(1600000000, 0x00104221, 0x04aaaaaa),
+};
+
+static const struct zx_pll_config pll_vga_table[] = {
+	PLL_RATE(36000000,  0x00102464, 0x04000000), /* 800x600@56 */
+	PLL_RATE(40000000,  0x00102864, 0x04000000), /* 800x600@60 */
+	PLL_RATE(49500000,  0x00103164, 0x04800000), /* 800x600@75 */
+	PLL_RATE(50000000,  0x00103264, 0x04000000), /* 800x600@72 */
+	PLL_RATE(56250000,  0x00103864, 0x04400000), /* 800x600@85 */
+	PLL_RATE(65000000,  0x00104164, 0x04000000), /* 1024x768@60 */
+	PLL_RATE(74375000,  0x00104a64, 0x04600000), /* 1280x720@60 */
+	PLL_RATE(75000000,  0x00104b64, 0x04800000), /* 1024x768@70 */
+	PLL_RATE(78750000,  0x00104e64, 0x04c00000), /* 1024x768@75 */
+	PLL_RATE(85500000,  0x00105564, 0x04800000), /* 1360x768@60 */
+	PLL_RATE(106500000, 0x00106a64, 0x04800000), /* 1440x900@60 */
+	PLL_RATE(108000000, 0x00106c64, 0x04000000), /* 1280x1024@60 */
+	PLL_RATE(110000000, 0x00106e64, 0x04000000), /* 1024x768@85 */
+	PLL_RATE(135000000, 0x00105a44, 0x04000000), /* 1280x1024@75 */
+	PLL_RATE(136750000, 0x00104462, 0x04600000), /* 1440x900@75 */
+	PLL_RATE(148500000, 0x00104a62, 0x04400000), /* 1920x1080@60 */
+	PLL_RATE(157000000, 0x00104e62, 0x04800000), /* 1440x900@85 */
+	PLL_RATE(157500000, 0x00104e62, 0x04c00000), /* 1280x1024@85 */
+	PLL_RATE(162000000, 0x00105162, 0x04000000), /* 1600x1200@60 */
+	PLL_RATE(193250000, 0x00106062, 0x04a00000), /* 1920x1200@60 */
 };
 
 PNAME(osc) = {
@@ -369,6 +392,7 @@ PNAME(wdt_ares_p) = {
 
 static struct clk_zx_pll zx296718_pll_clk[] = {
 	ZX296718_PLL("pll_cpu",	"osc24m",	PLL_CPU_REG,	pll_cpu_table),
+	ZX296718_PLL("pll_vga",	"osc24m",	PLL_VGA_REG,	pll_vga_table),
 };
 
 static struct zx_clk_fixed_factor top_ffactor_clk[] = {
@@ -409,7 +433,7 @@ static struct zx_clk_fixed_factor top_ffactor_clk[] = {
 	FFACTOR(0, "clk54m",		"pll_mm1", 1, 24, 0),
 	/* vga */
 	FFACTOR(0, "pll_vga_1800m",	"pll_vga", 1, 1, 0),
-	FFACTOR(0, "clk_vga",		"pll_vga", 1, 2, 0),
+	FFACTOR(0, "clk_vga",		"pll_vga", 1, 1, CLK_SET_RATE_PARENT),
 	/* pll ddr */
 	FFACTOR(0, "clk466m",		"pll_ddr", 1, 2, 0),
 
@@ -427,7 +451,7 @@ static struct zx_clk_fixed_factor top_ffactor_clk[] = {
 	FFACTOR(0, "emmc_mux_div2",	"emmc_mux", 1, 2, CLK_SET_RATE_PARENT),
 };
 
-static struct clk_div_table noc_div_table[] = {
+static const struct clk_div_table noc_div_table[] = {
 	{ .val = 1, .div = 2, },
 	{ .val = 3, .div = 4, },
 };
@@ -458,8 +482,8 @@ static struct zx_clk_mux top_mux_clk[] = {
 	MUX(0, "sappu_a_mux",	 sappu_aclk_p,	  TOP_CLK_MUX5,  4, 2),
 	MUX(0, "sappu_w_mux",	 sappu_wclk_p,	  TOP_CLK_MUX5,  8, 3),
 	MUX(0, "vou_a_mux",	 vou_aclk_p,	  TOP_CLK_MUX7,  0, 3),
-	MUX(0, "vou_main_w_mux", vou_main_wclk_p, TOP_CLK_MUX7,  4, 3),
-	MUX(0, "vou_aux_w_mux",	 vou_aux_wclk_p,  TOP_CLK_MUX7,  8, 3),
+	MUX_F(0, "vou_main_w_mux", vou_main_wclk_p, TOP_CLK_MUX7,  4, 3, CLK_SET_RATE_PARENT, 0),
+	MUX_F(0, "vou_aux_w_mux",  vou_aux_wclk_p,  TOP_CLK_MUX7,  8, 3, CLK_SET_RATE_PARENT, 0),
 	MUX(0, "vou_ppu_w_mux",	 vou_ppu_wclk_p,  TOP_CLK_MUX7, 12, 3),
 	MUX(0, "vga_i2c_mux",	 vga_i2c_wclk_p,  TOP_CLK_MUX7, 16, 1),
 	MUX(0, "viu_m0_a_mux",	 viu_m0_aclk_p,	  TOP_CLK_MUX6,  0, 3),
@@ -610,14 +634,17 @@ static int __init top_clocks_init(struct device_node *np)
 		}
 	}
 
-	if (of_clk_add_hw_provider(np, of_clk_hw_onecell_get, &top_hw_onecell_data))
-		panic("could not register clk provider\n");
-	pr_info("top clk init over, nr:%d\n", TOP_NR_CLKS);
+	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get,
+				     &top_hw_onecell_data);
+	if (ret) {
+		pr_err("failed to register top clk provider: %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }
 
-static struct clk_div_table common_even_div_table[] = {
+static const struct clk_div_table common_even_div_table[] = {
 	{ .val = 0, .div = 1, },
 	{ .val = 1, .div = 2, },
 	{ .val = 3, .div = 4, },
@@ -629,7 +656,7 @@ static struct clk_div_table common_even_div_table[] = {
 	{ .val = 15, .div = 16, },
 };
 
-static struct clk_div_table common_div_table[] = {
+static const struct clk_div_table common_div_table[] = {
 	{ .val = 0, .div = 1, },
 	{ .val = 1, .div = 2, },
 	{ .val = 2, .div = 3, },
@@ -776,9 +803,12 @@ static int __init lsp0_clocks_init(struct device_node *np)
 		}
 	}
 
-	if (of_clk_add_hw_provider(np, of_clk_hw_onecell_get, &lsp0_hw_onecell_data))
-		panic("could not register clk provider\n");
-	pr_info("lsp0-clk init over:%d\n", LSP0_NR_CLKS);
+	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get,
+				     &lsp0_hw_onecell_data);
+	if (ret) {
+		pr_err("failed to register lsp0 clk provider: %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }
@@ -881,9 +911,142 @@ static int __init lsp1_clocks_init(struct device_node *np)
 		}
 	}
 
-	if (of_clk_add_hw_provider(np, of_clk_hw_onecell_get, &lsp1_hw_onecell_data))
-		panic("could not register clk provider\n");
-	pr_info("lsp1-clk init over, nr:%d\n", LSP1_NR_CLKS);
+	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get,
+				     &lsp1_hw_onecell_data);
+	if (ret) {
+		pr_err("failed to register lsp1 clk provider: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+PNAME(audio_wclk_common_p) = {
+	"audio_99m",
+	"audio_24m",
+};
+
+PNAME(audio_timer_p) = {
+	"audio_24m",
+	"audio_32k",
+};
+
+static struct zx_clk_mux audio_mux_clk[] = {
+	MUX(I2S0_WCLK_MUX, "i2s0_wclk_mux", audio_wclk_common_p, AUDIO_I2S0_CLK, 0, 1),
+	MUX(I2S1_WCLK_MUX, "i2s1_wclk_mux", audio_wclk_common_p, AUDIO_I2S1_CLK, 0, 1),
+	MUX(I2S2_WCLK_MUX, "i2s2_wclk_mux", audio_wclk_common_p, AUDIO_I2S2_CLK, 0, 1),
+	MUX(I2S3_WCLK_MUX, "i2s3_wclk_mux", audio_wclk_common_p, AUDIO_I2S3_CLK, 0, 1),
+	MUX(0, "i2c0_wclk_mux", audio_wclk_common_p, AUDIO_I2C0_CLK, 0, 1),
+	MUX(0, "spdif0_wclk_mux", audio_wclk_common_p, AUDIO_SPDIF0_CLK, 0, 1),
+	MUX(0, "spdif1_wclk_mux", audio_wclk_common_p, AUDIO_SPDIF1_CLK, 0, 1),
+	MUX(0, "timer_wclk_mux", audio_timer_p, AUDIO_TIMER_CLK, 0, 1),
+};
+
+static struct clk_zx_audio_divider audio_adiv_clk[] = {
+	AUDIO_DIV(0, "i2s0_wclk_div", "i2s0_wclk_mux", AUDIO_I2S0_DIV_CFG1),
+	AUDIO_DIV(0, "i2s1_wclk_div", "i2s1_wclk_mux", AUDIO_I2S1_DIV_CFG1),
+	AUDIO_DIV(0, "i2s2_wclk_div", "i2s2_wclk_mux", AUDIO_I2S2_DIV_CFG1),
+	AUDIO_DIV(0, "i2s3_wclk_div", "i2s3_wclk_mux", AUDIO_I2S3_DIV_CFG1),
+	AUDIO_DIV(0, "spdif0_wclk_div", "spdif0_wclk_mux", AUDIO_SPDIF0_DIV_CFG1),
+	AUDIO_DIV(0, "spdif1_wclk_div", "spdif1_wclk_mux", AUDIO_SPDIF1_DIV_CFG1),
+};
+
+static struct zx_clk_div audio_div_clk[] = {
+	DIV_T(0, "tdm_wclk_div", "audio_16m384", AUDIO_TDM_CLK, 8, 4, 0, common_div_table),
+};
+
+static struct zx_clk_gate audio_gate_clk[] = {
+	GATE(AUDIO_I2S0_WCLK, "i2s0_wclk", "i2s0_wclk_div", AUDIO_I2S0_CLK, 9, CLK_SET_RATE_PARENT, 0),
+	GATE(AUDIO_I2S1_WCLK, "i2s1_wclk", "i2s1_wclk_div", AUDIO_I2S1_CLK, 9, CLK_SET_RATE_PARENT, 0),
+	GATE(AUDIO_I2S2_WCLK, "i2s2_wclk", "i2s2_wclk_div", AUDIO_I2S2_CLK, 9, CLK_SET_RATE_PARENT, 0),
+	GATE(AUDIO_I2S3_WCLK, "i2s3_wclk", "i2s3_wclk_div", AUDIO_I2S3_CLK, 9, CLK_SET_RATE_PARENT, 0),
+	GATE(AUDIO_I2S0_PCLK, "i2s0_pclk", "clk49m5", AUDIO_I2S0_CLK, 8, 0, 0),
+	GATE(AUDIO_I2S1_PCLK, "i2s1_pclk", "clk49m5", AUDIO_I2S1_CLK, 8, 0, 0),
+	GATE(AUDIO_I2S2_PCLK, "i2s2_pclk", "clk49m5", AUDIO_I2S2_CLK, 8, 0, 0),
+	GATE(AUDIO_I2S3_PCLK, "i2s3_pclk", "clk49m5", AUDIO_I2S3_CLK, 8, 0, 0),
+	GATE(AUDIO_I2C0_WCLK, "i2c0_wclk", "i2c0_wclk_mux", AUDIO_I2C0_CLK, 9, CLK_SET_RATE_PARENT, 0),
+	GATE(AUDIO_SPDIF0_WCLK, "spdif0_wclk", "spdif0_wclk_div", AUDIO_SPDIF0_CLK, 9, CLK_SET_RATE_PARENT, 0),
+	GATE(AUDIO_SPDIF1_WCLK, "spdif1_wclk", "spdif1_wclk_div", AUDIO_SPDIF1_CLK, 9, CLK_SET_RATE_PARENT, 0),
+	GATE(AUDIO_TDM_WCLK, "tdm_wclk", "tdm_wclk_div", AUDIO_TDM_CLK, 17, CLK_SET_RATE_PARENT, 0),
+	GATE(AUDIO_TS_PCLK, "tempsensor_pclk", "clk49m5", AUDIO_TS_CLK, 1, 0, 0),
+};
+
+static struct clk_hw_onecell_data audio_hw_onecell_data = {
+	.num = AUDIO_NR_CLKS,
+	.hws = {
+		[AUDIO_NR_CLKS - 1] = NULL,
+	},
+};
+
+static int __init audio_clocks_init(struct device_node *np)
+{
+	void __iomem *reg_base;
+	int i, ret;
+
+	reg_base = of_iomap(np, 0);
+	if (!reg_base) {
+		pr_err("%s: Unable to map audio clk base\n", __func__);
+		return -ENXIO;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(audio_mux_clk); i++) {
+		if (audio_mux_clk[i].id)
+			audio_hw_onecell_data.hws[audio_mux_clk[i].id] =
+					&audio_mux_clk[i].mux.hw;
+
+		audio_mux_clk[i].mux.reg += (uintptr_t)reg_base;
+		ret = clk_hw_register(NULL, &audio_mux_clk[i].mux.hw);
+		if (ret) {
+			pr_warn("audio clk %s init error!\n",
+				audio_mux_clk[i].mux.hw.init->name);
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(audio_adiv_clk); i++) {
+		if (audio_adiv_clk[i].id)
+			audio_hw_onecell_data.hws[audio_adiv_clk[i].id] =
+					&audio_adiv_clk[i].hw;
+
+		audio_adiv_clk[i].reg_base += (uintptr_t)reg_base;
+		ret = clk_hw_register(NULL, &audio_adiv_clk[i].hw);
+		if (ret) {
+			pr_warn("audio clk %s init error!\n",
+				audio_adiv_clk[i].hw.init->name);
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(audio_div_clk); i++) {
+		if (audio_div_clk[i].id)
+			audio_hw_onecell_data.hws[audio_div_clk[i].id] =
+					&audio_div_clk[i].div.hw;
+
+		audio_div_clk[i].div.reg += (uintptr_t)reg_base;
+		ret = clk_hw_register(NULL, &audio_div_clk[i].div.hw);
+		if (ret) {
+			pr_warn("audio clk %s init error!\n",
+				audio_div_clk[i].div.hw.init->name);
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(audio_gate_clk); i++) {
+		if (audio_gate_clk[i].id)
+			audio_hw_onecell_data.hws[audio_gate_clk[i].id] =
+					&audio_gate_clk[i].gate.hw;
+
+		audio_gate_clk[i].gate.reg += (uintptr_t)reg_base;
+		ret = clk_hw_register(NULL, &audio_gate_clk[i].gate.hw);
+		if (ret) {
+			pr_warn("audio clk %s init error!\n",
+				audio_gate_clk[i].gate.hw.init->name);
+		}
+	}
+
+	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get,
+				     &audio_hw_onecell_data);
+	if (ret) {
+		pr_err("failed to register audio clk provider: %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }
@@ -892,6 +1055,7 @@ static const struct of_device_id zx_clkc_match_table[] = {
 	{ .compatible = "zte,zx296718-topcrm", .data = &top_clocks_init },
 	{ .compatible = "zte,zx296718-lsp0crm", .data = &lsp0_clocks_init },
 	{ .compatible = "zte,zx296718-lsp1crm", .data = &lsp1_clocks_init },
+	{ .compatible = "zte,zx296718-audiocrm", .data = &audio_clocks_init },
 	{ }
 };
 

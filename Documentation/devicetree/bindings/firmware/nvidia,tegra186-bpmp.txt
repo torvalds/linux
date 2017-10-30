@@ -1,0 +1,108 @@
+NVIDIA Tegra Boot and Power Management Processor (BPMP)
+
+The BPMP is a specific processor in Tegra chip, which is designed for
+booting process handling and offloading the power management, clock
+management, and reset control tasks from the CPU. The binding document
+defines the resources that would be used by the BPMP firmware driver,
+which can create the interprocessor communication (IPC) between the CPU
+and BPMP.
+
+Required properties:
+- name : Should be bpmp
+- compatible
+    Array of strings
+    One of:
+    - "nvidia,tegra186-bpmp"
+- mboxes : The phandle of mailbox controller and the mailbox specifier.
+- shmem : List of the phandle of the TX and RX shared memory area that
+	  the IPC between CPU and BPMP is based on.
+- #clock-cells : Should be 1.
+- #power-domain-cells : Should be 1.
+- #reset-cells : Should be 1.
+
+This node is a mailbox consumer. See the following files for details of
+the mailbox subsystem, and the specifiers implemented by the relevant
+provider(s):
+
+- .../mailbox/mailbox.txt
+- .../mailbox/nvidia,tegra186-hsp.txt
+
+This node is a clock, power domain, and reset provider. See the following
+files for general documentation of those features, and the specifiers
+implemented by this node:
+
+- .../clock/clock-bindings.txt
+- <dt-bindings/clock/tegra186-clock.h>
+- ../power/power_domain.txt
+- <dt-bindings/power/tegra186-powergate.h>
+- .../reset/reset.txt
+- <dt-bindings/reset/tegra186-reset.h>
+
+The BPMP implements some services which must be represented by separate nodes.
+For example, it can provide access to certain I2C controllers, and the I2C
+bindings represent each I2C controller as a device tree node. Such nodes should
+be nested directly inside the main BPMP node.
+
+Software can determine whether a child node of the BPMP node represents a device
+by checking for a compatible property. Any node with a compatible property
+represents a device that can be instantiated. Nodes without a compatible
+property may be used to provide configuration information regarding the BPMP
+itself, although no such configuration nodes are currently defined by this
+binding.
+
+The BPMP firmware defines no single global name-/numbering-space for such
+services. Put another way, the numbering scheme for I2C buses is distinct from
+the numbering scheme for any other service the BPMP may provide (e.g. a future
+hypothetical SPI bus service). As such, child device nodes will have no reg
+property, and the BPMP node will have no #address-cells or #size-cells property.
+
+The shared memory bindings for BPMP
+-----------------------------------
+
+The shared memory area for the IPC TX and RX between CPU and BPMP are
+predefined and work on top of sysram, which is an SRAM inside the chip.
+
+See ".../sram/sram.txt" for the bindings.
+
+Example:
+
+hsp_top0: hsp@03c00000 {
+	...
+	#mbox-cells = <2>;
+};
+
+sysram@30000000 {
+	compatible = "nvidia,tegra186-sysram", "mmio-sram";
+	reg = <0x0 0x30000000 0x0 0x50000>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+	ranges = <0 0x0 0x0 0x30000000 0x0 0x50000>;
+
+	cpu_bpmp_tx: shmem@4e000 {
+		compatible = "nvidia,tegra186-bpmp-shmem";
+		reg = <0x0 0x4e000 0x0 0x1000>;
+		label = "cpu-bpmp-tx";
+		pool;
+	};
+
+	cpu_bpmp_rx: shmem@4f000 {
+		compatible = "nvidia,tegra186-bpmp-shmem";
+		reg = <0x0 0x4f000 0x0 0x1000>;
+		label = "cpu-bpmp-rx";
+		pool;
+	};
+};
+
+bpmp {
+	compatible = "nvidia,tegra186-bpmp";
+	mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB TEGRA_HSP_DB_MASTER_BPMP>;
+	shmem = <&cpu_bpmp_tx &cpu_bpmp_rx>;
+	#clock-cells = <1>;
+	#power-domain-cells = <1>;
+	#reset-cells = <1>;
+
+	i2c {
+		compatible = "...";
+		...
+	};
+};

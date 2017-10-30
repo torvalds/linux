@@ -23,7 +23,6 @@
 #define WLAN_HDR_A4_LEN		30
 #define WLAN_HDR_A3_QOS_LEN	26
 #define WLAN_HDR_A4_QOS_LEN	32
-#define WLAN_SSID_MAXLEN	32
 #define WLAN_DATA_MAXLEN	2312
 
 #define WLAN_A3_PN_OFFSET	24
@@ -480,30 +479,6 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 				Below is the definition for 802.11n
 ------------------------------------------------------------------------------*/
 
-#define SetOrderBit(pbuf)	\
-	do	{	\
-		*(unsigned short *)(pbuf) |= cpu_to_le16(_ORDER_); \
-	} while (0)
-
-#define GetOrderBit(pbuf)			\
-	(((*(unsigned short *)(pbuf)) & le16_to_cpu(_ORDER_)) != 0)
-
-
-/**
- * struct rtw_ieee80211_bar - HT Block Ack Request
- *
- * This structure refers to "HT BlockAckReq" as
- * described in 802.11n draft section 7.2.1.7.1
- */
-struct rtw_ieee80211_bar {
-	unsigned short frame_control;
-	unsigned short duration;
-	unsigned char ra[6];
-	unsigned char ta[6];
-	unsigned short control;
-	unsigned short start_seq_num;
-} __packed;
-
 /* 802.11 BAR control masks */
 #define IEEE80211_BAR_CTRL_ACK_POLICY_NORMAL     0x0000
 #define IEEE80211_BAR_CTRL_CBMTID_COMPRESSED_BA  0x0004
@@ -653,9 +628,6 @@ enum ht_cap_ampdu_factor {
 #define WPS_ATTR_VENDOR_EXT			0x1049
 #define WPS_ATTR_SELECTED_REGISTRAR		0x1041
 
-/*	Value of WPS attribute "WPS_ATTR_DEVICE_NAME */
-#define WPS_MAX_DEVICE_NAME_LEN			32
-
 /*	Value of WPS Request Type Attribute */
 #define WPS_REQ_TYPE_ENROLLEE_INFO_ONLY		0x00
 #define WPS_REQ_TYPE_ENROLLEE_OPEN_8021X	0x01
@@ -758,14 +730,6 @@ enum ht_cap_ampdu_factor {
 #define	P2P_STATUS_FAIL_USER_REJECT			0x0B
 
 /*	Value of Invitation Flags Attribute */
-#define	P2P_INVITATION_FLAGS_PERSISTENT			BIT(0)
-
-#define	DMP_P2P_DEVCAP_SUPPORT	(P2P_DEVCAP_SERVICE_DISCOVERY | \
-				P2P_DEVCAP_CLIENT_DISCOVERABILITY | \
-				P2P_DEVCAP_CONCURRENT_OPERATION | \
-				P2P_DEVCAP_INVITATION_PROC)
-
-#define	DMP_P2P_GRPCAP_SUPPORT	(P2P_GRPCAP_INTRABSS)
 
 /*	Value of Device Capability Bitmap */
 #define	P2P_DEVCAP_SERVICE_DISCOVERY		BIT(0)
@@ -804,12 +768,7 @@ enum ht_cap_ampdu_factor {
 #define	P2P_PRESENCE_RESPONSE			2
 #define	P2P_GO_DISC_REQUEST			3
 
-
-#define	P2P_MAX_PERSISTENT_GROUP_NUM		10
-
 #define	P2P_PROVISIONING_SCAN_CNT		3
-
-#define	P2P_WILDCARD_SSID_LEN			7
 
 /* default value, used when: (1)p2p disabled or (2)p2p enabled
  * but only do 1 scan phase */
@@ -839,8 +798,6 @@ enum ht_cap_ampdu_factor {
 #define	P2P_RESET_SCAN_CH		25000
 #define	P2P_MAX_INTENT			15
 
-#define	P2P_MAX_NOA_NUM			2
-
 /*	WPS Configuration Method */
 #define	WPS_CM_NONE			0x0000
 #define	WPS_CM_LABEL			0x0004
@@ -855,64 +812,6 @@ enum ht_cap_ampdu_factor {
 #define	WPS_CM_SW_DISPLAY_P		0x2008
 #define	WPS_CM_LCD_DISPLAY_P		0x4008
 
-enum P2P_ROLE {
-	P2P_ROLE_DISABLE = 0,
-	P2P_ROLE_DEVICE = 1,
-	P2P_ROLE_CLIENT = 2,
-	P2P_ROLE_GO = 3
-};
-
-enum P2P_STATE {
-	P2P_STATE_NONE = 0,			/* P2P disable */
-	/* P2P had enabled and do nothing */
-	P2P_STATE_IDLE = 1,
-	P2P_STATE_LISTEN = 2,			/* In pure listen state */
-	P2P_STATE_SCAN = 3,			/* In scan phase */
-	/* In the listen state of find phase */
-	P2P_STATE_FIND_PHASE_LISTEN = 4,
-	/* In the search state of find phase */
-	P2P_STATE_FIND_PHASE_SEARCH = 5,
-	/* In P2P provisioning discovery */
-	P2P_STATE_TX_PROVISION_DIS_REQ = 6,
-	P2P_STATE_RX_PROVISION_DIS_RSP = 7,
-	P2P_STATE_RX_PROVISION_DIS_REQ = 8,
-	/* Doing the group owner negotiation handshake */
-	P2P_STATE_GONEGO_ING = 9,
-	/* finish the group negotiation handshake with success */
-	P2P_STATE_GONEGO_OK = 10,
-	/* finish the group negotiation handshake with failure */
-	P2P_STATE_GONEGO_FAIL = 11,
-	/* receiving the P2P Invitation request and match with the profile. */
-	P2P_STATE_RECV_INVITE_REQ_MATCH = 12,
-	/* Doing the P2P WPS */
-	P2P_STATE_PROVISIONING_ING = 13,
-	/* Finish the P2P WPS */
-	P2P_STATE_PROVISIONING_DONE = 14,
-	/* Transmit the P2P Invitation request */
-	P2P_STATE_TX_INVITE_REQ = 15,
-	/* Receiving the P2P Invitation response */
-	P2P_STATE_RX_INVITE_RESP_OK = 16,
-	/* receiving the P2P Invitation request and dismatch with the profile. */
-	P2P_STATE_RECV_INVITE_REQ_DISMATCH = 17,
-	/* receiving the P2P Invitation request and this wifi is GO. */
-	P2P_STATE_RECV_INVITE_REQ_GO = 18,
-	/* receiving the P2P Invitation request to join an existing P2P Group. */
-	P2P_STATE_RECV_INVITE_REQ_JOIN = 19,
-	/* receiving the P2P Invitation response with failure */
-	P2P_STATE_RX_INVITE_RESP_FAIL = 20,
-	/* receiving p2p negotiation response with information is not available */
-	P2P_STATE_RX_INFOR_NOREADY = 21,
-	/* sending p2p negotiation response with information is not available */
-	P2P_STATE_TX_INFOR_NOREADY = 22,
-};
-
-enum P2P_WPSINFO {
-	P2P_NO_WPSINFO				= 0,
-	P2P_GOT_WPSINFO_PEER_DISPLAY_PIN	= 1,
-	P2P_GOT_WPSINFO_SELF_DISPLAY_PIN	= 2,
-	P2P_GOT_WPSINFO_PBC			= 3,
-};
-
 #define	P2P_PRIVATE_IOCTL_SET_LEN		64
 
 enum P2P_PROTO_WK_ID {
@@ -923,21 +822,6 @@ enum P2P_PROTO_WK_ID {
 	P2P_PRE_TX_INVITEREQ_PROCESS_WK = 4,
 	P2P_AP_P2P_CH_SWITCH_PROCESS_WK = 5,
 	P2P_RO_CH_WK = 6,
-};
-
-enum P2P_PS_STATE {
-	P2P_PS_DISABLE = 0,
-	P2P_PS_ENABLE = 1,
-	P2P_PS_SCAN = 2,
-	P2P_PS_SCAN_DONE = 3,
-	P2P_PS_ALLSTASLEEP = 4, /*  for P2P GO */
-};
-
-enum P2P_PS_MODE {
-	P2P_PS_NONE = 0,
-	P2P_PS_CTWINDOW = 1,
-	P2P_PS_NOA	 = 2,
-	P2P_PS_MIX = 3, /*  CTWindow and NoA */
 };
 
 /*	=====================WFD Section===================== */

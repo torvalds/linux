@@ -1,22 +1,14 @@
-# Generate the *.h.rst files from uAPI headers
+# Rules to convert a .h file to inline RST documentation
 
+SRC_DIR=$(srctree)/Documentation/media
 PARSER = $(srctree)/Documentation/sphinx/parse-headers.pl
 UAPI = $(srctree)/include/uapi/linux
 KAPI = $(srctree)/include/linux
-SRC_DIR=$(srctree)/Documentation/media
 
 FILES = audio.h.rst ca.h.rst dmx.h.rst frontend.h.rst net.h.rst video.h.rst \
 	  videodev2.h.rst media.h.rst cec.h.rst lirc.h.rst
 
 TARGETS := $(addprefix $(BUILDDIR)/, $(FILES))
-
-.PHONY: all
-all: $(BUILDDIR) ${TARGETS}
-
-$(BUILDDIR):
-	$(Q)mkdir -p $@
-
-# Rule to convert a .h file to inline RST documentation
 
 gen_rst = \
 	echo ${PARSER} $< $@ $(SRC_DIR)/$(notdir $@).exceptions; \
@@ -51,11 +43,25 @@ $(BUILDDIR)/videodev2.h.rst: ${UAPI}/videodev2.h ${PARSER} $(SRC_DIR)/videodev2.
 $(BUILDDIR)/media.h.rst: ${UAPI}/media.h ${PARSER} $(SRC_DIR)/media.h.rst.exceptions
 	@$($(quiet)gen_rst)
 
-$(BUILDDIR)/cec.h.rst: ${KAPI}/cec.h ${PARSER} $(SRC_DIR)/cec.h.rst.exceptions
+$(BUILDDIR)/cec.h.rst: ${UAPI}/cec.h ${PARSER} $(SRC_DIR)/cec.h.rst.exceptions
 	@$($(quiet)gen_rst)
 
 $(BUILDDIR)/lirc.h.rst: ${UAPI}/lirc.h ${PARSER} $(SRC_DIR)/lirc.h.rst.exceptions
 	@$($(quiet)gen_rst)
 
-cleandocs:
-	-rm ${TARGETS}
+# Media build rules
+
+.PHONY: all html epub xml latex
+
+all: $(IMGDOT) $(BUILDDIR) ${TARGETS}
+html: all
+epub: all
+xml: all
+latex: $(IMGPDF) all
+linkcheck:
+
+clean:
+	-rm -f $(DOTTGT) $(IMGTGT) ${TARGETS} 2>/dev/null
+
+$(BUILDDIR):
+	$(Q)mkdir -p $@

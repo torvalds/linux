@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2016 Intel Corporation.
+ * Copyright(c) 2016, 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -51,9 +51,51 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <rdma/ib_verbs.h>
+#include <rdma/ib_hdrs.h>
+#include <rdma/opa_addr.h>
 #include "qp.h"
 #include "vt.h"
 #include "trace.h"
+
+static void rvt_rc_timeout(unsigned long arg);
+
+/*
+ * Convert the AETH RNR timeout code into the number of microseconds.
+ */
+static const u32 ib_rvt_rnr_table[32] = {
+	655360, /* 00: 655.36 */
+	10,     /* 01:    .01 */
+	20,     /* 02     .02 */
+	30,     /* 03:    .03 */
+	40,     /* 04:    .04 */
+	60,     /* 05:    .06 */
+	80,     /* 06:    .08 */
+	120,    /* 07:    .12 */
+	160,    /* 08:    .16 */
+	240,    /* 09:    .24 */
+	320,    /* 0A:    .32 */
+	480,    /* 0B:    .48 */
+	640,    /* 0C:    .64 */
+	960,    /* 0D:    .96 */
+	1280,   /* 0E:   1.28 */
+	1920,   /* 0F:   1.92 */
+	2560,   /* 10:   2.56 */
+	3840,   /* 11:   3.84 */
+	5120,   /* 12:   5.12 */
+	7680,   /* 13:   7.68 */
+	10240,  /* 14:  10.24 */
+	15360,  /* 15:  15.36 */
+	20480,  /* 16:  20.48 */
+	30720,  /* 17:  30.72 */
+	40960,  /* 18:  40.96 */
+	61440,  /* 19:  61.44 */
+	81920,  /* 1A:  81.92 */
+	122880, /* 1B: 122.88 */
+	163840, /* 1C: 163.84 */
+	245760, /* 1D: 245.76 */
+	327680, /* 1E: 327.68 */
+	491520  /* 1F: 491.52 */
+};
 
 /*
  * Note that it is OK to post send work requests in the SQE and ERR
@@ -77,10 +119,9 @@ const int ib_rvt_state_ops[IB_QPS_ERR + 1] = {
 EXPORT_SYMBOL(ib_rvt_state_ops);
 
 static void get_map_page(struct rvt_qpn_table *qpt,
-			 struct rvt_qpn_map *map,
-			 gfp_t gfp)
+			 struct rvt_qpn_map *map)
 {
-	unsigned long page = get_zeroed_page(gfp);
+	unsigned long page = get_zeroed_page(GFP_KERNEL);
 
 	/*
 	 * Free the page if someone raced with us installing it.
@@ -132,7 +173,7 @@ static int init_qpn_table(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt)
 		    rdi->dparms.qpn_res_start, rdi->dparms.qpn_res_end);
 	for (i = rdi->dparms.qpn_res_start; i <= rdi->dparms.qpn_res_end; i++) {
 		if (!map->page) {
-			get_map_page(qpt, map, GFP_KERNEL);
+			get_map_page(qpt, map);
 			if (!map->page) {
 				ret = -ENOMEM;
 				break;
@@ -183,7 +224,8 @@ int rvt_driver_qp_init(struct rvt_dev_info *rdi)
 	if (!rdi->driver_f.free_all_qps ||
 	    !rdi->driver_f.qp_priv_alloc ||
 	    !rdi->driver_f.qp_priv_free ||
-	    !rdi->driver_f.notify_qp_reset)
+	    !rdi->driver_f.notify_qp_reset ||
+	    !rdi->driver_f.notify_restart_rc)
 		return -EINVAL;
 
 	/* allocate parent object */
@@ -300,14 +342,14 @@ static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
  * Return: The queue pair number
  */
 static int alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
-		     enum ib_qp_type type, u8 port_num, gfp_t gfp)
+		     enum ib_qp_type type, u8 port_num)
 {
 	u32 i, offset, max_scan, qpn;
 	struct rvt_qpn_map *map;
 	u32 ret;
 
 	if (rdi->driver_f.alloc_qpn)
-		return rdi->driver_f.alloc_qpn(rdi, qpt, type, port_num, gfp);
+		return rdi->driver_f.alloc_qpn(rdi, qpt, type, port_num);
 
 	if (type == IB_QPT_SMI || type == IB_QPT_GSI) {
 		unsigned n;
@@ -332,7 +374,7 @@ static int alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 	max_scan = qpt->nmaps - !offset;
 	for (i = 0;;) {
 		if (unlikely(!map->page)) {
-			get_map_page(qpt, map, gfp);
+			get_map_page(qpt, map);
 			if (unlikely(!map->page))
 				break;
 		}
@@ -380,15 +422,6 @@ bail:
 	return ret;
 }
 
-static void free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
-{
-	struct rvt_qpn_map *map;
-
-	map = qpt->map + qpn / RVT_BITS_PER_PAGE;
-	if (map->page)
-		clear_bit(qpn & RVT_BITS_PER_PAGE_MASK, map->page);
-}
-
 /**
  * rvt_clear_mr_refs - Drop help mr refs
  * @qp: rvt qp data structure
@@ -407,13 +440,9 @@ static void rvt_clear_mr_refs(struct rvt_qp *qp, int clr_sends)
 	if (clr_sends) {
 		while (qp->s_last != qp->s_head) {
 			struct rvt_swqe *wqe = rvt_get_swqe_ptr(qp, qp->s_last);
-			unsigned i;
 
-			for (i = 0; i < wqe->wr.num_sge; i++) {
-				struct rvt_sge *sge = &wqe->sg_list[i];
+			rvt_put_swqe(wqe);
 
-				rvt_put_mr(sge->mr);
-			}
 			if (qp->ibqp.qp_type == IB_QPT_UD ||
 			    qp->ibqp.qp_type == IB_QPT_SMI ||
 			    qp->ibqp.qp_type == IB_QPT_GSI)
@@ -429,16 +458,120 @@ static void rvt_clear_mr_refs(struct rvt_qp *qp, int clr_sends)
 		}
 	}
 
-	if (qp->ibqp.qp_type != IB_QPT_RC)
-		return;
-
-	for (n = 0; n < rvt_max_atomic(rdi); n++) {
+	for (n = 0; qp->s_ack_queue && n < rvt_max_atomic(rdi); n++) {
 		struct rvt_ack_entry *e = &qp->s_ack_queue[n];
 
 		if (e->rdma_sge.mr) {
 			rvt_put_mr(e->rdma_sge.mr);
 			e->rdma_sge.mr = NULL;
 		}
+	}
+}
+
+/**
+ * rvt_swqe_has_lkey - return true if lkey is used by swqe
+ * @wqe - the send wqe
+ * @lkey - the lkey
+ *
+ * Test the swqe for using lkey
+ */
+static bool rvt_swqe_has_lkey(struct rvt_swqe *wqe, u32 lkey)
+{
+	int i;
+
+	for (i = 0; i < wqe->wr.num_sge; i++) {
+		struct rvt_sge *sge = &wqe->sg_list[i];
+
+		if (rvt_mr_has_lkey(sge->mr, lkey))
+			return true;
+	}
+	return false;
+}
+
+/**
+ * rvt_qp_sends_has_lkey - return true is qp sends use lkey
+ * @qp - the rvt_qp
+ * @lkey - the lkey
+ */
+static bool rvt_qp_sends_has_lkey(struct rvt_qp *qp, u32 lkey)
+{
+	u32 s_last = qp->s_last;
+
+	while (s_last != qp->s_head) {
+		struct rvt_swqe *wqe = rvt_get_swqe_ptr(qp, s_last);
+
+		if (rvt_swqe_has_lkey(wqe, lkey))
+			return true;
+
+		if (++s_last >= qp->s_size)
+			s_last = 0;
+	}
+	if (qp->s_rdma_mr)
+		if (rvt_mr_has_lkey(qp->s_rdma_mr, lkey))
+			return true;
+	return false;
+}
+
+/**
+ * rvt_qp_acks_has_lkey - return true if acks have lkey
+ * @qp - the qp
+ * @lkey - the lkey
+ */
+static bool rvt_qp_acks_has_lkey(struct rvt_qp *qp, u32 lkey)
+{
+	int i;
+	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
+
+	for (i = 0; qp->s_ack_queue && i < rvt_max_atomic(rdi); i++) {
+		struct rvt_ack_entry *e = &qp->s_ack_queue[i];
+
+		if (rvt_mr_has_lkey(e->rdma_sge.mr, lkey))
+			return true;
+	}
+	return false;
+}
+
+/*
+ * rvt_qp_mr_clean - clean up remote ops for lkey
+ * @qp - the qp
+ * @lkey - the lkey that is being de-registered
+ *
+ * This routine checks if the lkey is being used by
+ * the qp.
+ *
+ * If so, the qp is put into an error state to elminate
+ * any references from the qp.
+ */
+void rvt_qp_mr_clean(struct rvt_qp *qp, u32 lkey)
+{
+	bool lastwqe = false;
+
+	if (qp->ibqp.qp_type == IB_QPT_SMI ||
+	    qp->ibqp.qp_type == IB_QPT_GSI)
+		/* avoid special QPs */
+		return;
+	spin_lock_irq(&qp->r_lock);
+	spin_lock(&qp->s_hlock);
+	spin_lock(&qp->s_lock);
+
+	if (qp->state == IB_QPS_ERR || qp->state == IB_QPS_RESET)
+		goto check_lwqe;
+
+	if (rvt_ss_has_lkey(&qp->r_sge, lkey) ||
+	    rvt_qp_sends_has_lkey(qp, lkey) ||
+	    rvt_qp_acks_has_lkey(qp, lkey))
+		lastwqe = rvt_error_qp(qp, IB_WC_LOC_PROT_ERR);
+check_lwqe:
+	spin_unlock(&qp->s_lock);
+	spin_unlock(&qp->s_hlock);
+	spin_unlock_irq(&qp->r_lock);
+	if (lastwqe) {
+		struct ib_event ev;
+
+		ev.device = qp->ibqp.device;
+		ev.element.qp = &qp->ibqp;
+		ev.event = IB_EVENT_QP_LAST_WQE_REACHED;
+		qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
 	}
 }
 
@@ -570,6 +703,7 @@ static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 
 		/* Let drivers flush their waitlist */
 		rdi->driver_f.flush_qp_waiters(qp);
+		rvt_stop_rc_timers(qp);
 		qp->s_flags &= ~(RVT_S_TIMER | RVT_S_ANY_WAIT);
 		spin_unlock(&qp->s_lock);
 		spin_unlock(&qp->s_hlock);
@@ -577,7 +711,7 @@ static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 
 		/* Stop the send queue and the retry timer */
 		rdi->driver_f.stop_send_queue(qp);
-
+		rvt_del_timers_sync(qp);
 		/* Wait for things to stop */
 		rdi->driver_f.quiesce_qp(qp);
 
@@ -601,6 +735,19 @@ static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 	lockdep_assert_held(&qp->r_lock);
 	lockdep_assert_held(&qp->s_hlock);
 	lockdep_assert_held(&qp->s_lock);
+}
+
+/** rvt_free_qpn - Free a qpn from the bit map
+ * @qpt: QP table
+ * @qpn: queue pair number to free
+ */
+static void rvt_free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
+{
+	struct rvt_qpn_map *map;
+
+	map = qpt->map + (qpn & RVT_QPN_MASK) / RVT_BITS_PER_PAGE;
+	if (map->page)
+		clear_bit(qpn & RVT_BITS_PER_PAGE_MASK, map->page);
 }
 
 /**
@@ -629,7 +776,6 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	struct ib_qp *ret = ERR_PTR(-ENOMEM);
 	struct rvt_dev_info *rdi = ib_to_rvt(ibpd->device);
 	void *priv = NULL;
-	gfp_t gfp;
 	size_t sqsize;
 
 	if (!rdi)
@@ -637,17 +783,8 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 
 	if (init_attr->cap.max_send_sge > rdi->dparms.props.max_sge ||
 	    init_attr->cap.max_send_wr > rdi->dparms.props.max_qp_wr ||
-	    init_attr->create_flags & ~(IB_QP_CREATE_USE_GFP_NOIO))
+	    init_attr->create_flags)
 		return ERR_PTR(-EINVAL);
-
-	/* GFP_NOIO is applicable to RC QP's only */
-
-	if (init_attr->create_flags & IB_QP_CREATE_USE_GFP_NOIO &&
-	    init_attr->qp_type != IB_QPT_RC)
-		return ERR_PTR(-EINVAL);
-
-	gfp = init_attr->create_flags & IB_QP_CREATE_USE_GFP_NOIO ?
-						GFP_NOIO : GFP_KERNEL;
 
 	/* Check receive queue parameters if no SRQ is specified. */
 	if (!init_attr->srq) {
@@ -676,14 +813,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		sz = sizeof(struct rvt_sge) *
 			init_attr->cap.max_send_sge +
 			sizeof(struct rvt_swqe);
-		if (gfp == GFP_NOIO)
-			swq = __vmalloc(
-				sqsize * sz,
-				gfp | __GFP_ZERO, PAGE_KERNEL);
-		else
-			swq = vzalloc_node(
-				sqsize * sz,
-				rdi->dparms.node);
+		swq = vzalloc_node(sqsize * sz, rdi->dparms.node);
 		if (!swq)
 			return ERR_PTR(-ENOMEM);
 
@@ -698,7 +828,8 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		} else if (init_attr->cap.max_recv_sge > 1)
 			sg_list_sz = sizeof(*qp->r_sg_list) *
 				(init_attr->cap.max_recv_sge - 1);
-		qp = kzalloc_node(sz + sg_list_sz, gfp, rdi->dparms.node);
+		qp = kzalloc_node(sz + sg_list_sz, GFP_KERNEL,
+				  rdi->dparms.node);
 		if (!qp)
 			goto bail_swq;
 
@@ -708,17 +839,22 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 				kzalloc_node(
 					sizeof(*qp->s_ack_queue) *
 					 rvt_max_atomic(rdi),
-					gfp,
+					GFP_KERNEL,
 					rdi->dparms.node);
 			if (!qp->s_ack_queue)
 				goto bail_qp;
 		}
+		/* initialize timers needed for rc qp */
+		setup_timer(&qp->s_timer, rvt_rc_timeout, (unsigned long)qp);
+		hrtimer_init(&qp->s_rnr_timer, CLOCK_MONOTONIC,
+			     HRTIMER_MODE_REL);
+		qp->s_rnr_timer.function = rvt_rc_rnr_retry;
 
 		/*
 		 * Driver needs to set up it's private QP structure and do any
 		 * initialization that is needed.
 		 */
-		priv = rdi->driver_f.qp_priv_alloc(rdi, qp, gfp);
+		priv = rdi->driver_f.qp_priv_alloc(rdi, qp);
 		if (IS_ERR(priv)) {
 			ret = priv;
 			goto bail_qp;
@@ -738,11 +874,6 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 				qp->r_rq.wq = vmalloc_user(
 						sizeof(struct rvt_rwq) +
 						qp->r_rq.size * sz);
-			else if (gfp == GFP_NOIO)
-				qp->r_rq.wq = __vmalloc(
-						sizeof(struct rvt_rwq) +
-						qp->r_rq.size * sz,
-						gfp | __GFP_ZERO, PAGE_KERNEL);
 			else
 				qp->r_rq.wq = vzalloc_node(
 						sizeof(struct rvt_rwq) +
@@ -776,7 +907,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 
 		err = alloc_qpn(rdi, &rdi->qp_dev->qpn_table,
 				init_attr->qp_type,
-				init_attr->port_num, gfp);
+				init_attr->port_num);
 		if (err < 0) {
 			ret = ERR_PTR(err);
 			goto bail_rq_wq;
@@ -884,10 +1015,11 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	return ret;
 
 bail_ip:
-	kref_put(&qp->ip->ref, rvt_release_mmap_info);
+	if (qp->ip)
+		kref_put(&qp->ip->ref, rvt_release_mmap_info);
 
 bail_qpn:
-	free_qpn(&rdi->qp_dev->qpn_table, qp->ibqp.qp_num);
+	rvt_free_qpn(&rdi->qp_dev->qpn_table, qp->ibqp.qp_num);
 
 bail_rq_wq:
 	if (!qp->ip)
@@ -1035,6 +1167,7 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	int mig = 0;
 	int pmtu = 0; /* for gcc warning only */
 	enum rdma_link_layer link;
+	int opa_ah;
 
 	link = rdma_port_get_link_layer(ibqp->device, qp->port_num);
 
@@ -1045,6 +1178,7 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	cur_state = attr_mask & IB_QP_CUR_STATE ?
 		attr->cur_qp_state : qp->state;
 	new_state = attr_mask & IB_QP_STATE ? attr->qp_state : cur_state;
+	opa_ah = rdma_cap_opa_ah(ibqp->device, qp->port_num);
 
 	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type,
 				attr_mask, link))
@@ -1055,16 +1189,31 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		goto inval;
 
 	if (attr_mask & IB_QP_AV) {
-		if (attr->ah_attr.dlid >= be16_to_cpu(IB_MULTICAST_LID_BASE))
-			goto inval;
+		if (opa_ah) {
+			if (rdma_ah_get_dlid(&attr->ah_attr) >=
+				opa_get_mcast_base(OPA_MCAST_NR))
+				goto inval;
+		} else {
+			if (rdma_ah_get_dlid(&attr->ah_attr) >=
+				be16_to_cpu(IB_MULTICAST_LID_BASE))
+				goto inval;
+		}
+
 		if (rvt_check_ah(qp->ibqp.device, &attr->ah_attr))
 			goto inval;
 	}
 
 	if (attr_mask & IB_QP_ALT_PATH) {
-		if (attr->alt_ah_attr.dlid >=
-		    be16_to_cpu(IB_MULTICAST_LID_BASE))
-			goto inval;
+		if (opa_ah) {
+			if (rdma_ah_get_dlid(&attr->alt_ah_attr) >=
+				opa_get_mcast_base(OPA_MCAST_NR))
+				goto inval;
+		} else {
+			if (rdma_ah_get_dlid(&attr->alt_ah_attr) >=
+				be16_to_cpu(IB_MULTICAST_LID_BASE))
+				goto inval;
+		}
+
 		if (rvt_check_ah(qp->ibqp.device, &attr->alt_ah_attr))
 			goto inval;
 		if (attr->alt_pkey_index >= rvt_get_npkeys(rdi))
@@ -1191,7 +1340,7 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (attr_mask & IB_QP_AV) {
 		qp->remote_ah_attr = attr->ah_attr;
-		qp->s_srate = attr->ah_attr.static_rate;
+		qp->s_srate = rdma_ah_get_static_rate(&attr->ah_attr);
 		qp->srate_mbps = ib_rate_to_mbps(qp->s_srate);
 	}
 
@@ -1204,14 +1353,13 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		qp->s_mig_state = attr->path_mig_state;
 		if (mig) {
 			qp->remote_ah_attr = qp->alt_ah_attr;
-			qp->port_num = qp->alt_ah_attr.port_num;
+			qp->port_num = rdma_ah_get_port_num(&qp->alt_ah_attr);
 			qp->s_pkey_index = qp->s_alt_pkey_index;
 		}
 	}
 
 	if (attr_mask & IB_QP_PATH_MTU) {
 		qp->pmtu = rdi->driver_f.mtu_from_qp(rdi, qp, pmtu);
-		qp->path_mtu = rdi->driver_f.mtu_to_path_mtu(qp->pmtu);
 		qp->log_pmtu = ilog2(qp->pmtu);
 	}
 
@@ -1230,9 +1378,7 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (attr_mask & IB_QP_TIMEOUT) {
 		qp->timeout = attr->timeout;
-		qp->timeout_jiffies =
-			usecs_to_jiffies((4096UL * (1UL << qp->timeout)) /
-				1000UL);
+		qp->timeout_jiffies = rvt_timeout_to_jiffies(qp->timeout);
 	}
 
 	if (attr_mask & IB_QP_QKEY)
@@ -1273,19 +1419,6 @@ inval:
 	spin_unlock(&qp->s_hlock);
 	spin_unlock_irq(&qp->r_lock);
 	return -EINVAL;
-}
-
-/** rvt_free_qpn - Free a qpn from the bit map
- * @qpt: QP table
- * @qpn: queue pair number to free
- */
-static void rvt_free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
-{
-	struct rvt_qpn_map *map;
-
-	map = qpt->map + qpn / RVT_BITS_PER_PAGE;
-	if (map->page)
-		clear_bit(qpn & RVT_BITS_PER_PAGE_MASK, map->page);
 }
 
 /**
@@ -1349,7 +1482,7 @@ int rvt_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	attr->qp_state = qp->state;
 	attr->cur_qp_state = attr->qp_state;
-	attr->path_mtu = qp->path_mtu;
+	attr->path_mtu = rdi->driver_f.mtu_to_path_mtu(qp->pmtu);
 	attr->path_mig_state = qp->s_mig_state;
 	attr->qkey = qp->qkey;
 	attr->rq_psn = qp->r_psn & rdi->dparms.psn_mask;
@@ -1375,7 +1508,8 @@ int rvt_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	attr->timeout = qp->timeout;
 	attr->retry_cnt = qp->s_retry_cnt;
 	attr->rnr_retry = qp->s_rnr_retry_cnt;
-	attr->alt_port_num = qp->alt_ah_attr.port_num;
+	attr->alt_port_num =
+		rdma_ah_get_port_num(&qp->alt_ah_attr);
 	attr->alt_timeout = qp->alt_timeout;
 
 	init_attr->event_handler = qp->ibqp.event_handler;
@@ -1668,22 +1802,23 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	wqe->length = 0;
 	j = 0;
 	if (wr->num_sge) {
+		struct rvt_sge *last_sge = NULL;
+
 		acc = wr->opcode >= IB_WR_RDMA_READ ?
 			IB_ACCESS_LOCAL_WRITE : 0;
 		for (i = 0; i < wr->num_sge; i++) {
 			u32 length = wr->sg_list[i].length;
-			int ok;
 
 			if (length == 0)
 				continue;
-			ok = rvt_lkey_ok(rkt, pd, &wqe->sg_list[j],
-					 &wr->sg_list[i], acc);
-			if (!ok) {
-				ret = -EINVAL;
+			ret = rvt_lkey_ok(rkt, pd, &wqe->sg_list[j], last_sge,
+					  &wr->sg_list[i], acc);
+			if (unlikely(ret < 0))
 				goto bail_inval_free;
-			}
 			wqe->length += length;
-			j++;
+			if (ret)
+				last_sge = &wqe->sg_list[j];
+			j += ret;
 		}
 		wqe->wr.num_sge = j;
 	}
@@ -1723,11 +1858,14 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 					0);
 		qp->s_next_psn = wqe->lpsn + 1;
 	}
-	trace_rvt_post_one_wr(qp, wqe);
-	if (unlikely(reserved_op))
+	if (unlikely(reserved_op)) {
+		wqe->wr.send_flags |= RVT_SEND_RESERVE_USED;
 		rvt_qp_wqe_reserve(qp, wqe);
-	else
+	} else {
+		wqe->wr.send_flags &= ~RVT_SEND_RESERVE_USED;
 		qp->s_avail--;
+	}
+	trace_rvt_post_one_wr(qp, wqe, wr->num_sge);
 	smp_wmb(); /* see request builders */
 	qp->s_head = next;
 
@@ -1850,3 +1988,332 @@ int rvt_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 	}
 	return 0;
 }
+
+/**
+ * qp_comm_est - handle trap with QP established
+ * @qp: the QP
+ */
+void rvt_comm_est(struct rvt_qp *qp)
+{
+	qp->r_flags |= RVT_R_COMM_EST;
+	if (qp->ibqp.event_handler) {
+		struct ib_event ev;
+
+		ev.device = qp->ibqp.device;
+		ev.element.qp = &qp->ibqp;
+		ev.event = IB_EVENT_COMM_EST;
+		qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
+	}
+}
+EXPORT_SYMBOL(rvt_comm_est);
+
+void rvt_rc_error(struct rvt_qp *qp, enum ib_wc_status err)
+{
+	unsigned long flags;
+	int lastwqe;
+
+	spin_lock_irqsave(&qp->s_lock, flags);
+	lastwqe = rvt_error_qp(qp, err);
+	spin_unlock_irqrestore(&qp->s_lock, flags);
+
+	if (lastwqe) {
+		struct ib_event ev;
+
+		ev.device = qp->ibqp.device;
+		ev.element.qp = &qp->ibqp;
+		ev.event = IB_EVENT_QP_LAST_WQE_REACHED;
+		qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
+	}
+}
+EXPORT_SYMBOL(rvt_rc_error);
+
+/*
+ *  rvt_rnr_tbl_to_usec - return index into ib_rvt_rnr_table
+ *  @index - the index
+ *  return usec from an index into ib_rvt_rnr_table
+ */
+unsigned long rvt_rnr_tbl_to_usec(u32 index)
+{
+	return ib_rvt_rnr_table[(index & IB_AETH_CREDIT_MASK)];
+}
+EXPORT_SYMBOL(rvt_rnr_tbl_to_usec);
+
+static inline unsigned long rvt_aeth_to_usec(u32 aeth)
+{
+	return ib_rvt_rnr_table[(aeth >> IB_AETH_CREDIT_SHIFT) &
+				  IB_AETH_CREDIT_MASK];
+}
+
+/*
+ *  rvt_add_retry_timer - add/start a retry timer
+ *  @qp - the QP
+ *  add a retry timer on the QP
+ */
+void rvt_add_retry_timer(struct rvt_qp *qp)
+{
+	struct ib_qp *ibqp = &qp->ibqp;
+	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
+
+	lockdep_assert_held(&qp->s_lock);
+	qp->s_flags |= RVT_S_TIMER;
+       /* 4.096 usec. * (1 << qp->timeout) */
+	qp->s_timer.expires = jiffies + qp->timeout_jiffies +
+			     rdi->busy_jiffies;
+	add_timer(&qp->s_timer);
+}
+EXPORT_SYMBOL(rvt_add_retry_timer);
+
+/**
+ * rvt_add_rnr_timer - add/start an rnr timer
+ * @qp - the QP
+ * @aeth - aeth of RNR timeout, simulated aeth for loopback
+ * add an rnr timer on the QP
+ */
+void rvt_add_rnr_timer(struct rvt_qp *qp, u32 aeth)
+{
+	u32 to;
+
+	lockdep_assert_held(&qp->s_lock);
+	qp->s_flags |= RVT_S_WAIT_RNR;
+	to = rvt_aeth_to_usec(aeth);
+	hrtimer_start(&qp->s_rnr_timer,
+		      ns_to_ktime(1000 * to), HRTIMER_MODE_REL);
+}
+EXPORT_SYMBOL(rvt_add_rnr_timer);
+
+/**
+ * rvt_stop_rc_timers - stop all timers
+ * @qp - the QP
+ * stop any pending timers
+ */
+void rvt_stop_rc_timers(struct rvt_qp *qp)
+{
+	lockdep_assert_held(&qp->s_lock);
+	/* Remove QP from all timers */
+	if (qp->s_flags & (RVT_S_TIMER | RVT_S_WAIT_RNR)) {
+		qp->s_flags &= ~(RVT_S_TIMER | RVT_S_WAIT_RNR);
+		del_timer(&qp->s_timer);
+		hrtimer_try_to_cancel(&qp->s_rnr_timer);
+	}
+}
+EXPORT_SYMBOL(rvt_stop_rc_timers);
+
+/**
+ * rvt_stop_rnr_timer - stop an rnr timer
+ * @qp - the QP
+ *
+ * stop an rnr timer and return if the timer
+ * had been pending.
+ */
+static int rvt_stop_rnr_timer(struct rvt_qp *qp)
+{
+	int rval = 0;
+
+	lockdep_assert_held(&qp->s_lock);
+	/* Remove QP from rnr timer */
+	if (qp->s_flags & RVT_S_WAIT_RNR) {
+		qp->s_flags &= ~RVT_S_WAIT_RNR;
+		rval = hrtimer_try_to_cancel(&qp->s_rnr_timer);
+	}
+	return rval;
+}
+
+/**
+ * rvt_del_timers_sync - wait for any timeout routines to exit
+ * @qp - the QP
+ */
+void rvt_del_timers_sync(struct rvt_qp *qp)
+{
+	del_timer_sync(&qp->s_timer);
+	hrtimer_cancel(&qp->s_rnr_timer);
+}
+EXPORT_SYMBOL(rvt_del_timers_sync);
+
+/**
+ * This is called from s_timer for missing responses.
+ */
+static void rvt_rc_timeout(unsigned long arg)
+{
+	struct rvt_qp *qp = (struct rvt_qp *)arg;
+	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
+	unsigned long flags;
+
+	spin_lock_irqsave(&qp->r_lock, flags);
+	spin_lock(&qp->s_lock);
+	if (qp->s_flags & RVT_S_TIMER) {
+		struct rvt_ibport *rvp = rdi->ports[qp->port_num - 1];
+
+		qp->s_flags &= ~RVT_S_TIMER;
+		rvp->n_rc_timeouts++;
+		del_timer(&qp->s_timer);
+		trace_rvt_rc_timeout(qp, qp->s_last_psn + 1);
+		if (rdi->driver_f.notify_restart_rc)
+			rdi->driver_f.notify_restart_rc(qp,
+							qp->s_last_psn + 1,
+							1);
+		rdi->driver_f.schedule_send(qp);
+	}
+	spin_unlock(&qp->s_lock);
+	spin_unlock_irqrestore(&qp->r_lock, flags);
+}
+
+/*
+ * This is called from s_timer for RNR timeouts.
+ */
+enum hrtimer_restart rvt_rc_rnr_retry(struct hrtimer *t)
+{
+	struct rvt_qp *qp = container_of(t, struct rvt_qp, s_rnr_timer);
+	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
+	unsigned long flags;
+
+	spin_lock_irqsave(&qp->s_lock, flags);
+	rvt_stop_rnr_timer(qp);
+	rdi->driver_f.schedule_send(qp);
+	spin_unlock_irqrestore(&qp->s_lock, flags);
+	return HRTIMER_NORESTART;
+}
+EXPORT_SYMBOL(rvt_rc_rnr_retry);
+
+/**
+ * rvt_qp_iter_init - initial for QP iteration
+ * @rdi - rvt devinfo
+ * @v - u64 value
+ *
+ * This returns an iterator suitable for iterating QPs
+ * in the system.
+ *
+ * The @cb is a user defined callback and @v is a 64
+ * bit value passed to and relevant for processing in the
+ * @cb.  An example use case would be to alter QP processing
+ * based on criteria not part of the rvt_qp.
+ *
+ * Use cases that require memory allocation to succeed
+ * must preallocate appropriately.
+ *
+ * Return: a pointer to an rvt_qp_iter or NULL
+ */
+struct rvt_qp_iter *rvt_qp_iter_init(struct rvt_dev_info *rdi,
+				     u64 v,
+				     void (*cb)(struct rvt_qp *qp, u64 v))
+{
+	struct rvt_qp_iter *i;
+
+	i = kzalloc(sizeof(*i), GFP_KERNEL);
+	if (!i)
+		return NULL;
+
+	i->rdi = rdi;
+	/* number of special QPs (SMI/GSI) for device */
+	i->specials = rdi->ibdev.phys_port_cnt * 2;
+	i->v = v;
+	i->cb = cb;
+
+	return i;
+}
+EXPORT_SYMBOL(rvt_qp_iter_init);
+
+/**
+ * rvt_qp_iter_next - return the next QP in iter
+ * @iter - the iterator
+ *
+ * Fine grained QP iterator suitable for use
+ * with debugfs seq_file mechanisms.
+ *
+ * Updates iter->qp with the current QP when the return
+ * value is 0.
+ *
+ * Return: 0 - iter->qp is valid 1 - no more QPs
+ */
+int rvt_qp_iter_next(struct rvt_qp_iter *iter)
+	__must_hold(RCU)
+{
+	int n = iter->n;
+	int ret = 1;
+	struct rvt_qp *pqp = iter->qp;
+	struct rvt_qp *qp;
+	struct rvt_dev_info *rdi = iter->rdi;
+
+	/*
+	 * The approach is to consider the special qps
+	 * as additional table entries before the
+	 * real hash table.  Since the qp code sets
+	 * the qp->next hash link to NULL, this works just fine.
+	 *
+	 * iter->specials is 2 * # ports
+	 *
+	 * n = 0..iter->specials is the special qp indices
+	 *
+	 * n = iter->specials..rdi->qp_dev->qp_table_size+iter->specials are
+	 * the potential hash bucket entries
+	 *
+	 */
+	for (; n <  rdi->qp_dev->qp_table_size + iter->specials; n++) {
+		if (pqp) {
+			qp = rcu_dereference(pqp->next);
+		} else {
+			if (n < iter->specials) {
+				struct rvt_ibport *rvp;
+				int pidx;
+
+				pidx = n % rdi->ibdev.phys_port_cnt;
+				rvp = rdi->ports[pidx];
+				qp = rcu_dereference(rvp->qp[n & 1]);
+			} else {
+				qp = rcu_dereference(
+					rdi->qp_dev->qp_table[
+						(n - iter->specials)]);
+			}
+		}
+		pqp = qp;
+		if (qp) {
+			iter->qp = qp;
+			iter->n = n;
+			return 0;
+		}
+	}
+	return ret;
+}
+EXPORT_SYMBOL(rvt_qp_iter_next);
+
+/**
+ * rvt_qp_iter - iterate all QPs
+ * @rdi - rvt devinfo
+ * @v - a 64 bit value
+ * @cb - a callback
+ *
+ * This provides a way for iterating all QPs.
+ *
+ * The @cb is a user defined callback and @v is a 64
+ * bit value passed to and relevant for processing in the
+ * cb.  An example use case would be to alter QP processing
+ * based on criteria not part of the rvt_qp.
+ *
+ * The code has an internal iterator to simplify
+ * non seq_file use cases.
+ */
+void rvt_qp_iter(struct rvt_dev_info *rdi,
+		 u64 v,
+		 void (*cb)(struct rvt_qp *qp, u64 v))
+{
+	int ret;
+	struct rvt_qp_iter i = {
+		.rdi = rdi,
+		.specials = rdi->ibdev.phys_port_cnt * 2,
+		.v = v,
+		.cb = cb
+	};
+
+	rcu_read_lock();
+	do {
+		ret = rvt_qp_iter_next(&i);
+		if (!ret) {
+			rvt_get_qp(i.qp);
+			rcu_read_unlock();
+			i.cb(i.qp, i.v);
+			rcu_read_lock();
+			rvt_put_qp(i.qp);
+		}
+	} while (!ret);
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(rvt_qp_iter);

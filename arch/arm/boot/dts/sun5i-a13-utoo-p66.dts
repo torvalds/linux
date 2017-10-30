@@ -80,23 +80,7 @@
 };
 
 &codec_pa_pin {
-	allwinner,pins = "PG3";
-};
-
-&i2c1 {
-	icn8318: touchscreen@40 {
-		compatible = "chipone,icn8318";
-		reg = <0x40>;
-		interrupt-parent = <&pio>;
-		interrupts = <6 9 IRQ_TYPE_EDGE_FALLING>; /* EINT9 (PG9) */
-		pinctrl-names = "default";
-		pinctrl-0 = <&ts_wake_pin_p66>;
-		wake-gpios = <&pio 1 3 GPIO_ACTIVE_HIGH>; /* PB3 */
-		touchscreen-size-x = <800>;
-		touchscreen-size-y = <480>;
-		touchscreen-inverted-x;
-		touchscreen-swapped-x-y;
-	};
+	pins = "PG3";
 };
 
 &mmc2 {
@@ -116,23 +100,28 @@
 
 &pio {
 	i2c_lcd_pins: i2c_lcd_pin@0 {
-		allwinner,pins = "PG10", "PG12";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PG10", "PG12";
+		function = "gpio_out";
+		bias-pull-up;
 	};
-
-	ts_wake_pin_p66: ts_wake_pin@0 {
-		allwinner,pins = "PB3";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-
 };
 
 &reg_usb0_vbus {
 	gpio = <&pio 1 4 GPIO_ACTIVE_HIGH>; /* PB4 */
+};
+
+&touchscreen {
+	compatible = "chipone,icn8318";
+	reg = <0x40>;
+	/* The P66 uses a different EINT then the reference design */
+	interrupts = <6 9 IRQ_TYPE_EDGE_FALLING>; /* EINT9 (PG9) */
+	/* The icn8318 binding expects wake-gpios instead of power-gpios */
+	wake-gpios = <&pio 1 3 GPIO_ACTIVE_HIGH>; /* PB3 */
+	touchscreen-size-x = <800>;
+	touchscreen-size-y = <480>;
+	touchscreen-inverted-x;
+	touchscreen-swapped-x-y;
+	status = "okay";
 };
 
 &uart1 {
@@ -141,5 +130,5 @@
 };
 
 &usb0_vbus_pin_a {
-	allwinner,pins = "PB4";
+	pins = "PB4";
 };

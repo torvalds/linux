@@ -51,6 +51,9 @@ struct nf_logger {
 	struct module		*me;
 };
 
+/* sysctl_nf_log_all_netns - allow LOG target in all network namespaces */
+extern int sysctl_nf_log_all_netns;
+
 /* Function to register/unregister log function. */
 int nf_log_register(u_int8_t pf, struct nf_logger *logger);
 void nf_log_unregister(struct nf_logger *logger);
@@ -109,5 +112,12 @@ void nf_log_dump_packet_common(struct nf_log_buf *m, u_int8_t pf,
 			       const struct net_device *out,
 			       const struct nf_loginfo *loginfo,
 			       const char *prefix);
+void nf_log_l2packet(struct net *net, u_int8_t pf,
+		     __be16 protocol,
+		     unsigned int hooknum,
+		     const struct sk_buff *skb,
+		     const struct net_device *in,
+		     const struct net_device *out,
+		     const struct nf_loginfo *loginfo, const char *prefix);
 
 #endif /* _NF_LOG_H */

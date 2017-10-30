@@ -727,7 +727,8 @@ memory_squeeze:
 					dma_sync_single_for_cpu(dev->dev.parent,
 								(dma_addr_t)SWAP32(rbd->b_data),
 								PKT_BUF_SZ, DMA_FROM_DEVICE);
-					memcpy(skb_put(skb, pkt_len), rbd->v_data, pkt_len);
+					skb_put_data(skb, rbd->v_data,
+						     pkt_len);
 					dma_sync_single_for_device(dev->dev.parent,
 								   (dma_addr_t)SWAP32(rbd->b_data),
 								   PKT_BUF_SZ, DMA_FROM_DEVICE);
@@ -1037,7 +1038,6 @@ static const struct net_device_ops i596_netdev_ops = {
 	.ndo_start_xmit		= i596_start_xmit,
 	.ndo_set_rx_mode	= set_multicast_list,
 	.ndo_tx_timeout		= i596_tx_timeout,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1063,8 +1063,9 @@ static int i82596_probe(struct net_device *dev)
 	if (!dev->base_addr || !dev->irq)
 		return -ENODEV;
 
-	dma = (struct i596_dma *) DMA_ALLOC(dev->dev.parent,
-		sizeof(struct i596_dma), &lp->dma_addr, GFP_KERNEL);
+	dma = dma_alloc_attrs(dev->dev.parent, sizeof(struct i596_dma),
+			      &lp->dma_addr, GFP_KERNEL,
+			      DMA_ATTR_NON_CONSISTENT);
 	if (!dma) {
 		printk(KERN_ERR "%s: Couldn't get shared memory\n", __FILE__);
 		return -ENOMEM;
@@ -1085,8 +1086,8 @@ static int i82596_probe(struct net_device *dev)
 
 	i = register_netdev(dev);
 	if (i) {
-		DMA_FREE(dev->dev.parent, sizeof(struct i596_dma),
-				    (void *)dma, lp->dma_addr);
+		dma_free_attrs(dev->dev.parent, sizeof(struct i596_dma),
+			       dma, lp->dma_addr, DMA_ATTR_NON_CONSISTENT);
 		return i;
 	}
 

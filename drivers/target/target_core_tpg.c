@@ -364,7 +364,7 @@ void core_tpg_del_initiator_node_acl(struct se_node_acl *acl)
 	mutex_lock(&tpg->acl_node_mutex);
 	if (acl->dynamic_node_acl)
 		acl->dynamic_node_acl = 0;
-	list_del(&acl->acl_list);
+	list_del_init(&acl->acl_list);
 	mutex_unlock(&tpg->acl_node_mutex);
 
 	target_shutdown_sessions(acl);
@@ -397,6 +397,13 @@ int core_tpg_set_initiator_node_queue_depth(
 {
 	struct se_portal_group *tpg = acl->se_tpg;
 
+	/*
+	 * Allow the setting of se_node_acl queue_depth to be idempotent,
+	 * and not force a session shutdown event if the value is not
+	 * changing.
+	 */
+	if (acl->queue_depth == queue_depth)
+		return 0;
 	/*
 	 * User has requested to change the queue depth for a Initiator Node.
 	 * Change the value in the Node's struct se_node_acl, and call
@@ -445,9 +452,10 @@ static void core_tpg_lun_ref_release(struct percpu_ref *ref)
 {
 	struct se_lun *lun = container_of(ref, struct se_lun, lun_ref);
 
-	complete(&lun->lun_ref_comp);
+	complete(&lun->lun_shutdown_comp);
 }
 
+/* Does not change se_wwn->priv. */
 int core_tpg_register(
 	struct se_wwn *se_wwn,
 	struct se_portal_group *se_tpg,
@@ -540,7 +548,7 @@ int core_tpg_deregister(struct se_portal_group *se_tpg)
 	 * in transport_deregister_session().
 	 */
 	list_for_each_entry_safe(nacl, nacl_tmp, &node_list, acl_list) {
-		list_del(&nacl->acl_list);
+		list_del_init(&nacl->acl_list);
 
 		core_tpg_wait_for_nacl_pr_ref(nacl);
 		core_free_device_list_for_node(nacl, se_tpg);
@@ -568,9 +576,9 @@ struct se_lun *core_tpg_alloc_lun(
 		return ERR_PTR(-ENOMEM);
 	}
 	lun->unpacked_lun = unpacked_lun;
-	lun->lun_link_magic = SE_LUN_LINK_MAGIC;
 	atomic_set(&lun->lun_acl_count, 0);
 	init_completion(&lun->lun_ref_comp);
+	init_completion(&lun->lun_shutdown_comp);
 	INIT_LIST_HEAD(&lun->lun_deve_list);
 	INIT_LIST_HEAD(&lun->lun_dev_link);
 	atomic_set(&lun->lun_tg_pt_secondary_offline, 0);
@@ -600,7 +608,8 @@ int core_tpg_add_lun(
 	if (ret)
 		goto out_kill_ref;
 
-	if (!(dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH) &&
+	if (!(dev->transport->transport_flags &
+	     TRANSPORT_FLAG_PASSTHROUGH_ALUA) &&
 	    !(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE))
 		target_attach_tg_pt_gp(lun, dev->t10_alua.default_tg_pt_gp);
 
@@ -639,6 +648,8 @@ void core_tpg_remove_lun(
 	 */
 	struct se_device *dev = rcu_dereference_raw(lun->lun_se_dev);
 
+	lun->lun_shutdown = true;
+
 	core_clear_lun_from_tpg(lun, tpg);
 	/*
 	 * Wait for any active I/O references to percpu se_lun->lun_ref to
@@ -660,6 +671,8 @@ void core_tpg_remove_lun(
 	}
 	if (!(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE))
 		hlist_del_rcu(&lun->link);
+
+	lun->lun_shutdown = false;
 	mutex_unlock(&tpg->tpg_lun_mutex);
 
 	percpu_ref_exit(&lun->lun_ref);

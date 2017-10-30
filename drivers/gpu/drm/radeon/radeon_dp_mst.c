@@ -223,7 +223,8 @@ radeon_dp_mst_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-struct drm_encoder *radeon_mst_best_encoder(struct drm_connector *connector)
+static struct
+drm_encoder *radeon_mst_best_encoder(struct drm_connector *connector)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 
@@ -299,9 +300,7 @@ static void radeon_dp_register_mst_connector(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct radeon_device *rdev = dev->dev_private;
 
-	drm_modeset_lock_all(dev);
 	radeon_fb_add_connector(rdev, connector);
-	drm_modeset_unlock_all(dev);
 
 	drm_connector_register(connector);
 }
@@ -314,13 +313,8 @@ static void radeon_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	struct radeon_device *rdev = dev->dev_private;
 
 	drm_connector_unregister(connector);
-	/* need to nuke the connector */
-	drm_modeset_lock_all(dev);
-	/* dpms off */
 	radeon_fb_remove_connector(rdev, connector);
-
 	drm_connector_cleanup(connector);
-	drm_modeset_unlock_all(dev);
 
 	kfree(connector);
 	DRM_DEBUG_KMS("\n");
@@ -341,7 +335,8 @@ const struct drm_dp_mst_topology_cbs mst_cbs = {
 	.hotplug = radeon_dp_mst_hotplug,
 };
 
-struct radeon_connector *radeon_mst_find_connector(struct drm_encoder *encoder)
+static struct
+radeon_connector *radeon_mst_find_connector(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_connector *connector;
@@ -451,9 +446,11 @@ radeon_mst_encoder_dpms(struct drm_encoder *encoder, int mode)
 		DRM_DEBUG_KMS("dig encoder is %d %d %d\n", dig_enc->dig_encoder,
 			      dig_enc->linkb, radeon_crtc->crtc_id);
 
+		slots = drm_dp_find_vcpi_slots(&radeon_connector->mst_port->mst_mgr,
+					       mst_enc->pbn);
 		ret = drm_dp_mst_allocate_vcpi(&radeon_connector->mst_port->mst_mgr,
 					       radeon_connector->port,
-					       mst_enc->pbn, &slots);
+					       mst_enc->pbn, slots);
 		ret = drm_dp_update_payload_part1(&radeon_connector->mst_port->mst_mgr);
 
 		radeon_dp_mst_set_be_cntl(primary, mst_enc,
@@ -597,7 +594,7 @@ static const struct drm_encoder_helper_funcs radeon_mst_helper_funcs = {
 	.commit = radeon_mst_encoder_commit,
 };
 
-void radeon_dp_mst_encoder_destroy(struct drm_encoder *encoder)
+static void radeon_dp_mst_encoder_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
 	kfree(encoder);
@@ -665,7 +662,7 @@ radeon_dp_mst_init(struct radeon_connector *radeon_connector)
 		return 0;
 
 	radeon_connector->mst_mgr.cbs = &mst_cbs;
-	return drm_dp_mst_topology_mgr_init(&radeon_connector->mst_mgr, dev->dev,
+	return drm_dp_mst_topology_mgr_init(&radeon_connector->mst_mgr, dev,
 					    &radeon_connector->ddc_bus->aux, 16, 6,
 					    radeon_connector->base.base.id);
 }

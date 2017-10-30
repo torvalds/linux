@@ -55,7 +55,6 @@ void snd_dma_program(unsigned long dma,
 		enable_dma(dma);
 	release_dma_lock(flags);
 }
-
 EXPORT_SYMBOL(snd_dma_program);
 
 /**
@@ -73,7 +72,6 @@ void snd_dma_disable(unsigned long dma)
 	disable_dma(dma);
 	release_dma_lock(flags);
 }
-
 EXPORT_SYMBOL(snd_dma_disable);
 
 /**
@@ -113,5 +111,4 @@ unsigned int snd_dma_pointer(unsigned long dma, unsigned int size)
 	else
 		return size - result;
 }
-
 EXPORT_SYMBOL(snd_dma_pointer);

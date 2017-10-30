@@ -417,7 +417,7 @@ static struct snd_soc_dai_driver ssm4567_dai = {
 	.ops = &ssm4567_dai_ops,
 };
 
-static struct snd_soc_codec_driver ssm4567_codec_driver = {
+static const struct snd_soc_codec_driver ssm4567_codec_driver = {
 	.set_bias_level = ssm4567_set_bias_level,
 	.idle_bias_off = true,
 
@@ -485,6 +485,14 @@ static const struct i2c_device_id ssm4567_i2c_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ssm4567_i2c_ids);
 
+#ifdef CONFIG_OF
+static const struct of_device_id ssm4567_of_match[] = {
+	{ .compatible = "adi,ssm4567", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ssm4567_of_match);
+#endif
+
 #ifdef CONFIG_ACPI
 
 static const struct acpi_device_id ssm4567_acpi_match[] = {
@@ -498,6 +506,7 @@ MODULE_DEVICE_TABLE(acpi, ssm4567_acpi_match);
 static struct i2c_driver ssm4567_driver = {
 	.driver = {
 		.name = "ssm4567",
+		.of_match_table = of_match_ptr(ssm4567_of_match),
 		.acpi_match_table = ACPI_PTR(ssm4567_acpi_match),
 	},
 	.probe = ssm4567_i2c_probe,

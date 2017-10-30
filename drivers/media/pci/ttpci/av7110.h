@@ -40,8 +40,11 @@
 
 extern int av7110_debug;
 
-#define dprintk(level,args...) \
-	    do { if ((av7110_debug & level)) { printk("dvb-ttpci: %s(): ", __func__); printk(args); } } while (0)
+#define dprintk(level, fmt, arg...) do {				\
+	if (level & av7110_debug)					\
+		printk(KERN_DEBUG KBUILD_MODNAME ": %s(): " fmt,	\
+		       __func__, ##arg);				\
+} while (0)
 
 #define MAXFILT 32
 
@@ -174,7 +177,7 @@ struct av7110 {
 
 	/* CA */
 
-	ca_slot_info_t		ci_slot[2];
+	struct ca_slot_info	ci_slot[2];
 
 	enum av7110_video_mode	vidmode;
 	struct dmxdev		dmxdev;

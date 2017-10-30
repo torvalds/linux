@@ -42,7 +42,7 @@ static int a370db_hw_params(struct snd_pcm_substream *substream,
 	return snd_soc_dai_set_sysclk(codec_dai, 0, freq, SND_SOC_CLOCK_IN);
 }
 
-static struct snd_soc_ops a370db_ops = {
+static const struct snd_soc_ops a370db_ops = {
 	.hw_params = a370db_hw_params,
 };
 

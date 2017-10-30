@@ -33,13 +33,13 @@ static int snd_emux_unuse(void *private_data, struct snd_seq_port_subscribe *inf
  * MIDI emulation operators
  */
 static struct snd_midi_op emux_ops = {
-	snd_emux_note_on,
-	snd_emux_note_off,
-	snd_emux_key_press,
-	snd_emux_terminate_note,
-	snd_emux_control,
-	snd_emux_nrpn,
-	snd_emux_sysex,
+	.note_on = snd_emux_note_on,
+	.note_off = snd_emux_note_off,
+	.key_press = snd_emux_key_press,
+	.note_terminate = snd_emux_terminate_note,
+	.control = snd_emux_control,
+	.nrpn = snd_emux_nrpn,
+	.sysex = snd_emux_sysex,
 };
 
 
@@ -99,7 +99,7 @@ snd_emux_init_seq(struct snd_emux *emu, struct snd_card *card, int index)
 		sprintf(tmpname, "%s Port %d", emu->name, i);
 		p = snd_emux_create_port(emu, tmpname, MIDI_CHANNELS,
 					 0, &pinfo);
-		if (p == NULL) {
+		if (!p) {
 			snd_printk(KERN_ERR "can't create port\n");
 			return -ENOMEM;
 		}
@@ -144,13 +144,13 @@ snd_emux_create_port(struct snd_emux *emu, char *name,
 	int i, type, cap;
 
 	/* Allocate structures for this channel */
-	if ((p = kzalloc(sizeof(*p), GFP_KERNEL)) == NULL) {
-		snd_printk(KERN_ERR "no memory\n");
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p)
 		return NULL;
-	}
-	p->chset.channels = kcalloc(max_channels, sizeof(struct snd_midi_channel), GFP_KERNEL);
-	if (p->chset.channels == NULL) {
-		snd_printk(KERN_ERR "no memory\n");
+
+	p->chset.channels = kcalloc(max_channels, sizeof(*p->chset.channels),
+				    GFP_KERNEL);
+	if (!p->chset.channels) {
 		kfree(p);
 		return NULL;
 	}
@@ -370,8 +370,8 @@ int snd_emux_init_virmidi(struct snd_emux *emu, struct snd_card *card)
 	if (emu->midi_ports <= 0)
 		return 0;
 
-	emu->vmidi = kcalloc(emu->midi_ports, sizeof(struct snd_rawmidi *), GFP_KERNEL);
-	if (emu->vmidi == NULL)
+	emu->vmidi = kcalloc(emu->midi_ports, sizeof(*emu->vmidi), GFP_KERNEL);
+	if (!emu->vmidi)
 		return -ENOMEM;
 
 	for (i = 0; i < emu->midi_ports; i++) {
@@ -403,7 +403,7 @@ int snd_emux_delete_virmidi(struct snd_emux *emu)
 {
 	int i;
 
-	if (emu->vmidi == NULL)
+	if (!emu->vmidi)
 		return 0;
 
 	for (i = 0; i < emu->midi_ports; i++) {

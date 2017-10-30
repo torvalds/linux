@@ -105,31 +105,36 @@ struct tcmu_cmd_entry {
 
 	union {
 		struct {
-			uint32_t iov_cnt;
-			uint32_t iov_bidi_cnt;
-			uint32_t iov_dif_cnt;
-			uint64_t cdb_off;
-			uint64_t __pad1;
-			uint64_t __pad2;
+			__u32 iov_cnt;
+			__u32 iov_bidi_cnt;
+			__u32 iov_dif_cnt;
+			__u64 cdb_off;
+			__u64 __pad1;
+			__u64 __pad2;
 			struct iovec iov[0];
 		} req;
 		struct {
-			uint8_t scsi_status;
-			uint8_t __pad1;
-			uint16_t __pad2;
-			uint32_t __pad3;
+			__u8 scsi_status;
+			__u8 __pad1;
+			__u16 __pad2;
+			__u32 __pad3;
 			char sense_buffer[TCMU_SENSE_BUFFERSIZE];
 		} rsp;
 	};
 
 } __packed;
 
-#define TCMU_OP_ALIGN_SIZE sizeof(uint64_t)
+#define TCMU_OP_ALIGN_SIZE sizeof(__u64)
 
 enum tcmu_genl_cmd {
 	TCMU_CMD_UNSPEC,
 	TCMU_CMD_ADDED_DEVICE,
 	TCMU_CMD_REMOVED_DEVICE,
+	TCMU_CMD_RECONFIG_DEVICE,
+	TCMU_CMD_ADDED_DEVICE_DONE,
+	TCMU_CMD_REMOVED_DEVICE_DONE,
+	TCMU_CMD_RECONFIG_DEVICE_DONE,
+	TCMU_CMD_SET_FEATURES,
 	__TCMU_CMD_MAX,
 };
 #define TCMU_CMD_MAX (__TCMU_CMD_MAX - 1)
@@ -138,6 +143,13 @@ enum tcmu_genl_attr {
 	TCMU_ATTR_UNSPEC,
 	TCMU_ATTR_DEVICE,
 	TCMU_ATTR_MINOR,
+	TCMU_ATTR_PAD,
+	TCMU_ATTR_DEV_CFG,
+	TCMU_ATTR_DEV_SIZE,
+	TCMU_ATTR_WRITECACHE,
+	TCMU_ATTR_CMD_STATUS,
+	TCMU_ATTR_DEVICE_ID,
+	TCMU_ATTR_SUPP_KERN_CMD_REPLY,
 	__TCMU_ATTR_MAX,
 };
 #define TCMU_ATTR_MAX (__TCMU_ATTR_MAX - 1)

@@ -145,6 +145,8 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
 	else
 		kvmppc_mmu_flush_icache(pfn);
 
+	rflags = (rflags & ~HPTE_R_WIMG) | orig_pte->wimg;
+
 	/*
 	 * Use 64K pages if possible; otherwise, on 64K page kernels,
 	 * we need to transfer 4 more bits from guest real to host real addr.
@@ -177,12 +179,15 @@ map_again:
 	ret = mmu_hash_ops.hpte_insert(hpteg, vpn, hpaddr, rflags, vflags,
 				       hpsize, hpsize, MMU_SEGSIZE_256M);
 
-	if (ret < 0) {
+	if (ret == -1) {
 		/* If we couldn't map a primary PTE, try a secondary */
 		hash = ~hash;
 		vflags ^= HPTE_V_SECONDARY;
 		attempt++;
 		goto map_again;
+	} else if (ret < 0) {
+		r = -EIO;
+		goto out_unlock;
 	} else {
 		trace_kvm_book3s_64_mmu_map(rflags, hpteg,
 					    vpn, hpaddr, orig_pte);
@@ -229,6 +234,7 @@ void kvmppc_mmu_unmap_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte)
 
 static struct kvmppc_sid_map *create_sid_map(struct kvm_vcpu *vcpu, u64 gvsid)
 {
+	unsigned long vsid_bits = VSID_BITS_65_256M;
 	struct kvmppc_sid_map *map;
 	struct kvmppc_vcpu_book3s *vcpu_book3s = to_book3s(vcpu);
 	u16 sid_map_mask;
@@ -257,7 +263,12 @@ static struct kvmppc_sid_map *create_sid_map(struct kvm_vcpu *vcpu, u64 gvsid)
 		kvmppc_mmu_pte_flush(vcpu, 0, 0);
 		kvmppc_mmu_flush_segments(vcpu);
 	}
-	map->host_vsid = vsid_scramble(vcpu_book3s->proto_vsid_next++, 256M);
+
+	if (mmu_has_feature(MMU_FTR_68_BIT_VA))
+		vsid_bits = VSID_BITS_256M;
+
+	map->host_vsid = vsid_scramble(vcpu_book3s->proto_vsid_next++,
+				       VSID_MULTIPLIER_256M, vsid_bits);
 
 	map->guest_vsid = gvsid;
 	map->valid = true;
@@ -390,7 +401,7 @@ int kvmppc_mmu_init(struct kvm_vcpu *vcpu)
 	struct kvmppc_vcpu_book3s *vcpu3s = to_book3s(vcpu);
 	int err;
 
-	err = __init_new_context();
+	err = hash__alloc_context_id();
 	if (err < 0)
 		return -1;
 	vcpu3s->context_id[0] = err;

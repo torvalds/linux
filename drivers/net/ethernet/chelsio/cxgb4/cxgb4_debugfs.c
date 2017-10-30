@@ -1416,7 +1416,7 @@ static unsigned int xdigit2int(unsigned char c)
  * <pattern data>[/<pattern mask>][@<anchor>]
  *
  * Up to 2 filter patterns can be specified.  If 2 are supplied the first one
- * must be anchored at 0.  An omited mask is taken as a mask of 1s, an omitted
+ * must be anchored at 0.  An omitted mask is taken as a mask of 1s, an omitted
  * anchor is taken as 0.
  */
 static ssize_t mps_trc_write(struct file *file, const char __user *buf,
@@ -2512,18 +2512,6 @@ do { \
 		RL("FLLow:", fl.low);
 		RL("FLStarving:", fl.starving);
 
-	} else if (ofld_idx < ofld_entries) {
-		const struct sge_ofld_txq *tx =
-			&adap->sge.ofldtxq[ofld_idx * 4];
-		int n = min(4, adap->sge.ofldqsets - 4 * ofld_idx);
-
-		S("QType:", "OFLD-Txq");
-		T("TxQ ID:", q.cntxt_id);
-		T("TxQ size:", q.size);
-		T("TxQ inuse:", q.in_use);
-		T("TxQ CIDX:", q.cidx);
-		T("TxQ PIDX:", q.pidx);
-
 	} else if (ctrl_idx < ctrl_entries) {
 		const struct sge_ctrl_txq *tx = &adap->sge.ctrlq[ctrl_idx * 4];
 		int n = min(4, adap->params.nports - 4 * ctrl_idx);
@@ -2646,7 +2634,7 @@ static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 	if (count > avail - pos)
 		count = avail - pos;
 
-	data = t4_alloc_mem(count);
+	data = kvzalloc(count, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -2654,12 +2642,12 @@ static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 	ret = t4_memory_rw(adap, 0, mem, pos, count, data, T4_MEMORY_READ);
 	spin_unlock(&adap->win0_lock);
 	if (ret) {
-		t4_free_mem(data);
+		kvfree(data);
 		return ret;
 	}
 	ret = copy_to_user(buf, data, count);
 
-	t4_free_mem(data);
+	kvfree(data);
 	if (ret)
 		return -EFAULT;
 
@@ -2681,6 +2669,8 @@ static int tid_info_show(struct seq_file *seq, void *v)
 
 	if (t4_read_reg(adap, LE_DB_CONFIG_A) & HASHEN_F) {
 		unsigned int sb;
+		seq_printf(seq, "Connections in use: %u\n",
+			   atomic_read(&t->conns_in_use));
 
 		if (chip <= CHELSIO_T5)
 			sb = t4_read_reg(adap, LE_DB_SERVER_INDEX_A) / 4;
@@ -2711,17 +2701,23 @@ static int tid_info_show(struct seq_file *seq, void *v)
 				   atomic_read(&t->hash_tids_in_use));
 		}
 	} else if (t->ntids) {
+		seq_printf(seq, "Connections in use: %u\n",
+			   atomic_read(&t->conns_in_use));
+
 		seq_printf(seq, "TID range: 0..%u", t->ntids - 1);
 		seq_printf(seq, ", in use: %u\n",
 			   atomic_read(&t->tids_in_use));
 	}
 
 	if (t->nstids)
-		seq_printf(seq, "STID range: %u..%u, in use: %u\n",
+		seq_printf(seq, "STID range: %u..%u, in use-IPv4/IPv6: %u/%u\n",
 			   (!t->stid_base &&
 			   (chip <= CHELSIO_T5)) ?
 			   t->stid_base + 1 : t->stid_base,
-			   t->stid_base + t->nstids - 1, t->stids_in_use);
+			   t->stid_base + t->nstids - 1,
+			   t->stids_in_use - t->v6_stids_in_use,
+			   t->v6_stids_in_use);
+
 	if (t->natids)
 		seq_printf(seq, "ATID range: 0..%u, in use: %u\n",
 			   t->natids - 1, t->atids_in_use);
@@ -2765,7 +2761,7 @@ static ssize_t blocked_fl_read(struct file *filp, char __user *ubuf,
 		       adap->sge.egr_sz, adap->sge.blocked_fl);
 	len += sprintf(buf + len, "\n");
 	size = simple_read_from_buffer(ubuf, count, ppos, buf, len);
-	t4_free_mem(buf);
+	kvfree(buf);
 	return size;
 }
 
@@ -2785,7 +2781,7 @@ static ssize_t blocked_fl_write(struct file *filp, const char __user *ubuf,
 		return err;
 
 	bitmap_copy(adap->sge.blocked_fl, t, adap->sge.egr_sz);
-	t4_free_mem(t);
+	kvfree(t);
 	return count;
 }
 
@@ -3081,6 +3077,40 @@ static const struct file_operations meminfo_fops = {
 	.llseek  = seq_lseek,
 	.release = single_release,
 };
+
+static int chcr_show(struct seq_file *seq, void *v)
+{
+	struct adapter *adap = seq->private;
+
+	seq_puts(seq, "Chelsio Crypto Accelerator Stats \n");
+	seq_printf(seq, "Cipher Ops: %10u \n",
+		   atomic_read(&adap->chcr_stats.cipher_rqst));
+	seq_printf(seq, "Digest Ops: %10u \n",
+		   atomic_read(&adap->chcr_stats.digest_rqst));
+	seq_printf(seq, "Aead Ops: %10u \n",
+		   atomic_read(&adap->chcr_stats.aead_rqst));
+	seq_printf(seq, "Completion: %10u \n",
+		   atomic_read(&adap->chcr_stats.complete));
+	seq_printf(seq, "Error: %10u \n",
+		   atomic_read(&adap->chcr_stats.error));
+	seq_printf(seq, "Fallback: %10u \n",
+		   atomic_read(&adap->chcr_stats.fallback));
+	return 0;
+}
+
+
+static int chcr_stats_open(struct inode *inode, struct file *file)
+{
+        return single_open(file, chcr_show, inode->i_private);
+}
+
+static const struct file_operations chcr_stats_debugfs_fops = {
+        .owner   = THIS_MODULE,
+        .open    = chcr_stats_open,
+        .read    = seq_read,
+        .llseek  = seq_lseek,
+        .release = single_release,
+};
 /* Add an array of Debug FS files.
  */
 void add_debugfs_files(struct adapter *adap,
@@ -3155,6 +3185,7 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "tids", &tid_info_debugfs_fops, S_IRUSR, 0},
 		{ "blocked_fl", &blocked_fl_fops, S_IRUSR | S_IWUSR, 0 },
 		{ "meminfo", &meminfo_fops, S_IRUSR, 0 },
+		{ "crypto", &chcr_stats_debugfs_fops, S_IRUSR, 0 },
 	};
 
 	/* Debug FS nodes common to all T5 and later adapters.

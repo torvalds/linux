@@ -4,7 +4,7 @@
  * Contact: support@cavium.com
  *          Please include "LiquidIO" in the subject.
  *
- * Copyright (c) 2003-2015 Cavium, Inc.
+ * Copyright (c) 2003-2016 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -13,13 +13,8 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium, Inc. for more information
- **********************************************************************/
-
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 /*! \file octeon_main.h
  *  \brief Host Driver: This file is included by all host driver source files
  *  to include common definitions.
@@ -27,6 +22,8 @@
 
 #ifndef _OCTEON_MAIN_H_
 #define  _OCTEON_MAIN_H_
+
+#include <linux/sched/signal.h>
 
 #if BITS_PER_LONG == 32
 #define CVM_CAST64(v) ((long long)(v))
@@ -37,6 +34,12 @@
 #endif
 
 #define DRV_NAME "LiquidIO"
+
+struct octeon_device_priv {
+	/** Tasklet structures for this device. */
+	struct tasklet_struct droq_tasklet;
+	unsigned long napi_mask;
+};
 
 /** This structure is used by NIC driver to store information required
  * to free the sk_buff when the packet has been fetched by Octeon.
@@ -66,7 +69,7 @@ void octeon_update_tx_completion_counters(void *buf, int reqtype,
 					  unsigned int *bytes_compl);
 void octeon_report_tx_completion_to_bql(void *txq, unsigned int pkts_compl,
 					unsigned int bytes_compl);
-
+void octeon_pf_changed_vf_macaddr(struct octeon_device *oct, u8 *mac);
 /** Swap 8B blocks */
 static inline void octeon_swap_8B_data(u64 *data, u32 blocks)
 {
@@ -78,10 +81,10 @@ static inline void octeon_swap_8B_data(u64 *data, u32 blocks)
 }
 
 /**
-  * \brief unmaps a PCI BAR
-  * @param oct Pointer to Octeon device
-  * @param baridx bar index
-  */
+ * \brief unmaps a PCI BAR
+ * @param oct Pointer to Octeon device
+ * @param baridx bar index
+ */
 static inline void octeon_unmap_pci_barx(struct octeon_device *oct, int baridx)
 {
 	dev_dbg(&oct->pci_dev->dev, "Freeing PCI mapped regions for Bar%d\n",
@@ -116,7 +119,7 @@ static inline int octeon_map_pci_barx(struct octeon_device *oct,
 
 	mapped_len = oct->mmio[baridx].len;
 	if (!mapped_len)
-		return 1;
+		goto err_release_region;
 
 	if (max_map_len && (mapped_len > max_map_len))
 		mapped_len = max_map_len;
@@ -132,60 +135,22 @@ static inline int octeon_map_pci_barx(struct octeon_device *oct,
 	if (!oct->mmio[baridx].hw_addr) {
 		dev_err(&oct->pci_dev->dev, "error ioremap for bar %d\n",
 			baridx);
-		return 1;
+		goto err_release_region;
 	}
 	oct->mmio[baridx].done = 1;
 
 	return 0;
+
+err_release_region:
+	pci_release_region(oct->pci_dev, baridx * 2);
+	return 1;
 }
-
-static inline void *
-cnnic_numa_alloc_aligned_dma(u32 size,
-			     u32 *alloc_size,
-			     size_t *orig_ptr,
-			     int numa_node)
-{
-	int retries = 0;
-	void *ptr = NULL;
-
-#define OCTEON_MAX_ALLOC_RETRIES     1
-	do {
-		struct page *page = NULL;
-
-		page = alloc_pages_node(numa_node,
-					GFP_KERNEL,
-					get_order(size));
-		if (!page)
-			page = alloc_pages(GFP_KERNEL,
-					   get_order(size));
-		ptr = (void *)page_address(page);
-		if ((unsigned long)ptr & 0x07) {
-			__free_pages(page, get_order(size));
-			ptr = NULL;
-			/* Increment the size required if the first
-			 * attempt failed.
-			 */
-			if (!retries)
-				size += 7;
-		}
-		retries++;
-	} while ((retries <= OCTEON_MAX_ALLOC_RETRIES) && !ptr);
-
-	*alloc_size = size;
-	*orig_ptr = (unsigned long)ptr;
-	if ((unsigned long)ptr & 0x07)
-		ptr = (void *)(((unsigned long)ptr + 7) & ~(7UL));
-	return ptr;
-}
-
-#define cnnic_free_aligned_dma(pci_dev, ptr, size, orig_ptr, dma_addr) \
-		free_pages(orig_ptr, get_order(size))
 
 static inline int
 sleep_cond(wait_queue_head_t *wait_queue, int *condition)
 {
 	int errno = 0;
-	wait_queue_t we;
+	wait_queue_entry_t we;
 
 	init_waitqueue_entry(&we, current);
 	add_wait_queue(wait_queue, &we);
@@ -203,24 +168,6 @@ out:
 	return errno;
 }
 
-static inline void
-sleep_atomic_cond(wait_queue_head_t *waitq, atomic_t *pcond)
-{
-	wait_queue_t we;
-
-	init_waitqueue_entry(&we, current);
-	add_wait_queue(waitq, &we);
-	while (!atomic_read(pcond)) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (signal_pending(current))
-			goto out;
-		schedule();
-	}
-out:
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(waitq, &we);
-}
-
 /* Gives up the CPU for a timeout period.
  * Check that the condition is not true before we go to sleep for a
  * timeout period.
@@ -230,7 +177,7 @@ sleep_timeout_cond(wait_queue_head_t *wait_queue,
 		   int *condition,
 		   int timeout)
 {
-	wait_queue_t we;
+	wait_queue_entry_t we;
 
 	init_waitqueue_entry(&we, current);
 	add_wait_queue(wait_queue, &we);

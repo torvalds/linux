@@ -8,8 +8,7 @@
 
 #define AM824_IN_PCM_FORMAT_BITS	SNDRV_PCM_FMTBIT_S32
 
-#define AM824_OUT_PCM_FORMAT_BITS	(SNDRV_PCM_FMTBIT_S16 | \
-					 SNDRV_PCM_FMTBIT_S32)
+#define AM824_OUT_PCM_FORMAT_BITS	SNDRV_PCM_FMTBIT_S32
 
 /*
  * This module supports maximum 64 PCM channels for one PCM stream
@@ -40,9 +39,6 @@ void amdtp_am824_set_midi_position(struct amdtp_stream *s,
 
 int amdtp_am824_add_pcm_hw_constraints(struct amdtp_stream *s,
 				       struct snd_pcm_runtime *runtime);
-
-void amdtp_am824_set_pcm_format(struct amdtp_stream *s,
-				snd_pcm_format_t format);
 
 void amdtp_am824_midi_trigger(struct amdtp_stream *s, unsigned int port,
 			      struct snd_rawmidi_substream *midi);

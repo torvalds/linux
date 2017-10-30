@@ -1070,7 +1070,7 @@ static int c_can_poll(struct napi_struct *napi, int quota)
 
 end:
 	if (work_done < quota) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		/* enable all IRQs if we are not in bus off state */
 		if (priv->can.state != CAN_STATE_BUS_OFF)
 			c_can_irq_control(priv, true);

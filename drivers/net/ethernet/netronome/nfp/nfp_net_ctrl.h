@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Netronome Systems, Inc.
+ * Copyright (C) 2015-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -50,7 +50,7 @@
 /**
  * Configuration BAR size.
  *
- * The configuration BAR is 8K in size, but on the NFP6000, due to
+ * The configuration BAR is 8K in size, but due to
  * THB-350, 32k needs to be reserved.
  */
 #define NFP_NET_CFG_BAR_SZ              (32 * 1024)
@@ -71,6 +71,10 @@
 #define NFP_NET_META_FIELD_SIZE		4
 #define NFP_NET_META_HASH		1 /* next field carries hash type */
 #define NFP_NET_META_MARK		2
+#define NFP_NET_META_PORTID		5
+#define NFP_NET_META_CSUM		6 /* checksum complete type */
+
+#define	NFP_META_PORT_ID_CTRL		~0U
 
 /**
  * Hash type pre-pended when a RSS hash was computed
@@ -119,9 +123,10 @@
 #define   NFP_NET_CFG_CTRL_TXVLAN         (0x1 <<  7) /* Enable VLAN insert */
 #define   NFP_NET_CFG_CTRL_SCATTER        (0x1 <<  8) /* Scatter DMA */
 #define   NFP_NET_CFG_CTRL_GATHER         (0x1 <<  9) /* Gather DMA */
-#define   NFP_NET_CFG_CTRL_LSO            (0x1 << 10) /* LSO/TSO */
+#define   NFP_NET_CFG_CTRL_LSO            (0x1 << 10) /* LSO/TSO (version 1) */
+#define   NFP_NET_CFG_CTRL_CTAG_FILTER	  (0x1 << 11) /* VLAN CTAG filtering */
 #define   NFP_NET_CFG_CTRL_RINGCFG        (0x1 << 16) /* Ring runtime changes */
-#define   NFP_NET_CFG_CTRL_RSS            (0x1 << 17) /* RSS */
+#define   NFP_NET_CFG_CTRL_RSS		  (0x1 << 17) /* RSS (version 1) */
 #define   NFP_NET_CFG_CTRL_IRQMOD         (0x1 << 18) /* Interrupt moderation */
 #define   NFP_NET_CFG_CTRL_RINGPRIO       (0x1 << 19) /* Ring priorities */
 #define   NFP_NET_CFG_CTRL_MSIXAUTO       (0x1 << 20) /* MSI-X auto-masking */
@@ -131,6 +136,20 @@
 #define   NFP_NET_CFG_CTRL_VXLAN	  (0x1 << 24) /* VXLAN tunnel support */
 #define   NFP_NET_CFG_CTRL_NVGRE	  (0x1 << 25) /* NVGRE tunnel support */
 #define   NFP_NET_CFG_CTRL_BPF		  (0x1 << 27) /* BPF offload capable */
+#define   NFP_NET_CFG_CTRL_LSO2		  (0x1 << 28) /* LSO/TSO (version 2) */
+#define   NFP_NET_CFG_CTRL_RSS2		  (0x1 << 29) /* RSS (version 2) */
+#define   NFP_NET_CFG_CTRL_CSUM_COMPLETE  (0x1 << 30) /* Checksum complete */
+#define   NFP_NET_CFG_CTRL_LIVE_ADDR	  (0x1 << 31) /* live MAC addr change */
+
+#define NFP_NET_CFG_CTRL_LSO_ANY	(NFP_NET_CFG_CTRL_LSO | \
+					 NFP_NET_CFG_CTRL_LSO2)
+#define NFP_NET_CFG_CTRL_RSS_ANY	(NFP_NET_CFG_CTRL_RSS | \
+					 NFP_NET_CFG_CTRL_RSS2)
+#define NFP_NET_CFG_CTRL_RXCSUM_ANY	(NFP_NET_CFG_CTRL_RXCSUM | \
+					 NFP_NET_CFG_CTRL_CSUM_COMPLETE)
+#define NFP_NET_CFG_CTRL_CHAIN_META	(NFP_NET_CFG_CTRL_RSS2 | \
+					 NFP_NET_CFG_CTRL_CSUM_COMPLETE)
+
 #define NFP_NET_CFG_UPDATE              0x0004
 #define   NFP_NET_CFG_UPDATE_GEN          (0x1 <<  0) /* General update */
 #define   NFP_NET_CFG_UPDATE_RING         (0x1 <<  1) /* Ring config change */
@@ -143,6 +162,9 @@
 #define   NFP_NET_CFG_UPDATE_IRQMOD       (0x1 <<  8) /* IRQ mod change */
 #define   NFP_NET_CFG_UPDATE_VXLAN	  (0x1 <<  9) /* VXLAN port change */
 #define   NFP_NET_CFG_UPDATE_BPF	  (0x1 << 10) /* BPF program load */
+#define   NFP_NET_CFG_UPDATE_MACADDR	  (0x1 << 11) /* MAC address change */
+#define   NFP_NET_CFG_UPDATE_MBOX	  (0x1 << 12) /* Mailbox update */
+#define   NFP_NET_CFG_UPDATE_VF		  (0x1 << 13) /* VF settings change */
 #define   NFP_NET_CFG_UPDATE_ERR          (0x1 << 31) /* A error occurred */
 #define NFP_NET_CFG_TXRS_ENABLE         0x0008
 #define NFP_NET_CFG_RXRS_ENABLE         0x0010
@@ -177,6 +199,19 @@
 #define   NFP_NET_CFG_VERSION_MINOR(x)    (((x) & 0xff) <<  0)
 #define NFP_NET_CFG_STS                 0x0034
 #define   NFP_NET_CFG_STS_LINK            (0x1 << 0) /* Link up or down */
+/* Link rate */
+#define   NFP_NET_CFG_STS_LINK_RATE_SHIFT 1
+#define   NFP_NET_CFG_STS_LINK_RATE_MASK  0xF
+#define   NFP_NET_CFG_STS_LINK_RATE       \
+	(NFP_NET_CFG_STS_LINK_RATE_MASK << NFP_NET_CFG_STS_LINK_RATE_SHIFT)
+#define   NFP_NET_CFG_STS_LINK_RATE_UNSUPPORTED   0
+#define   NFP_NET_CFG_STS_LINK_RATE_UNKNOWN       1
+#define   NFP_NET_CFG_STS_LINK_RATE_1G            2
+#define   NFP_NET_CFG_STS_LINK_RATE_10G           3
+#define   NFP_NET_CFG_STS_LINK_RATE_25G           4
+#define   NFP_NET_CFG_STS_LINK_RATE_40G           5
+#define   NFP_NET_CFG_STS_LINK_RATE_50G           6
+#define   NFP_NET_CFG_STS_LINK_RATE_100G          7
 #define NFP_NET_CFG_CAP                 0x0038
 #define NFP_NET_CFG_MAX_TXRINGS         0x003c
 #define NFP_NET_CFG_MAX_RXRINGS         0x0040
@@ -186,18 +221,21 @@
 #define NFP_NET_CFG_START_RXQ           0x004c
 
 /**
- * NFP-3200 workaround (0x0050 - 0x0058)
- * @NFP_NET_CFG_SPARE_ADDR:  DMA address for ME code to use (e.g. YDS-155 fix)
- */
-#define NFP_NET_CFG_SPARE_ADDR          0x0050
-/**
- * NFP6000/NFP4000 - Prepend configuration
+ * Prepend configuration
  */
 #define NFP_NET_CFG_RX_OFFSET		0x0050
 #define NFP_NET_CFG_RX_OFFSET_DYNAMIC		0	/* Prepend mode */
 
 /**
- * NFP6000/NFP4000 - VXLAN/UDP encap configuration
+ * RSS capabilities
+ * @NFP_NET_CFG_RSS_CAP_HFUNC:	supported hash functions (same bits as
+ *				@NFP_NET_CFG_RSS_HFUNC)
+ */
+#define NFP_NET_CFG_RSS_CAP		0x0054
+#define   NFP_NET_CFG_RSS_CAP_HFUNC	  0xff000000
+
+/**
+ * VXLAN/UDP encap configuration
  * @NFP_NET_CFG_VXLAN_PORT:	Base address of table of tunnels' UDP dst ports
  * @NFP_NET_CFG_VXLAN_SZ:	Size of the UDP port table in bytes
  */
@@ -205,7 +243,7 @@
 #define NFP_NET_CFG_VXLAN_SZ		  0x0008
 
 /**
- * NFP6000 - BPF section
+ * BPF section
  * @NFP_NET_CFG_BPF_ABI:	BPF ABI version
  * @NFP_NET_CFG_BPF_CAP:	BPF capabilities
  * @NFP_NET_CFG_BPF_MAX_LEN:	Maximum size of JITed BPF code in bytes
@@ -254,7 +292,11 @@
 #define   NFP_NET_CFG_RSS_IPV4_UDP        (1 << 11) /* RSS for IPv4/UDP */
 #define   NFP_NET_CFG_RSS_IPV6_TCP        (1 << 12) /* RSS for IPv6/TCP */
 #define   NFP_NET_CFG_RSS_IPV6_UDP        (1 << 13) /* RSS for IPv6/UDP */
+#define   NFP_NET_CFG_RSS_HFUNC		  0xff000000
 #define   NFP_NET_CFG_RSS_TOEPLITZ        (1 << 24) /* Use Toeplitz hash */
+#define   NFP_NET_CFG_RSS_XOR		  (1 << 25) /* Use XOR as hash */
+#define   NFP_NET_CFG_RSS_CRC32		  (1 << 26) /* Use CRC32 as hash */
+#define   NFP_NET_CFG_RSS_HFUNCS	  3
 #define NFP_NET_CFG_RSS_KEY             (NFP_NET_CFG_RSS_BASE + 0x4)
 #define NFP_NET_CFG_RSS_KEY_SZ          0x28
 #define NFP_NET_CFG_RSS_ITBL            (NFP_NET_CFG_RSS_BASE + 0x4 + \
@@ -360,5 +402,30 @@
 #define NFP_NET_CFG_RXR_STATS_BASE      0x1400
 #define NFP_NET_CFG_RXR_STATS(_x)       (NFP_NET_CFG_RXR_STATS_BASE + \
 					 ((_x) * 0x10))
+
+/**
+ * General use mailbox area (0x1800 - 0x19ff)
+ * 4B used for update command and 4B return code
+ * followed by a max of 504B of variable length value
+ */
+#define NFP_NET_CFG_MBOX_CMD		0x1800
+#define NFP_NET_CFG_MBOX_RET		0x1804
+#define NFP_NET_CFG_MBOX_VAL		0x1808
+#define NFP_NET_CFG_MBOX_VAL_MAX_SZ	0x1F8
+
+#define NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_ADD 1
+#define NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_KILL 2
+
+/**
+ * VLAN filtering using general use mailbox
+ * @NFP_NET_CFG_VLAN_FILTER:		Base address of VLAN filter mailbox
+ * @NFP_NET_CFG_VLAN_FILTER_VID:	VLAN ID to filter
+ * @NFP_NET_CFG_VLAN_FILTER_PROTO:	VLAN proto to filter
+ * @NFP_NET_CFG_VXLAN_SZ:		Size of the VLAN filter mailbox in bytes
+ */
+#define NFP_NET_CFG_VLAN_FILTER		NFP_NET_CFG_MBOX_VAL
+#define  NFP_NET_CFG_VLAN_FILTER_VID	NFP_NET_CFG_VLAN_FILTER
+#define  NFP_NET_CFG_VLAN_FILTER_PROTO	 (NFP_NET_CFG_VLAN_FILTER + 2)
+#define NFP_NET_CFG_VLAN_FILTER_SZ	 0x0004
 
 #endif /* _NFP_NET_CTRL_H_ */

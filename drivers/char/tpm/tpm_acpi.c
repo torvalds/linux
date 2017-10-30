@@ -6,10 +6,11 @@
  *	Stefan Berger <stefanb@us.ibm.com>
  *	Reiner Sailer <sailer@watson.ibm.com>
  *	Kylene Hall <kjhall@us.ibm.com>
+ *	Nayna Jain <nayna@linux.vnet.ibm.com>
  *
  * Maintained by: <tpmdd-devel@lists.sourceforge.net>
  *
- * Access to the eventlog extended by the TCG BIOS of PC platform
+ * Access to the event log extended by the TCG BIOS of PC platform
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -45,29 +46,31 @@ struct acpi_tcpa {
 };
 
 /* read binary bios log */
-int read_log(struct tpm_bios_log *log)
+int tpm_read_log_acpi(struct tpm_chip *chip)
 {
 	struct acpi_tcpa *buff;
 	acpi_status status;
 	void __iomem *virt;
 	u64 len, start;
+	struct tpm_bios_log *log;
 
-	if (log->bios_event_log != NULL) {
-		printk(KERN_ERR
-		       "%s: ERROR - Eventlog already initialized\n",
-		       __func__);
-		return -EFAULT;
-	}
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		return -ENODEV;
+
+	log = &chip->log;
+
+	/* Unfortuntely ACPI does not associate the event log with a specific
+	 * TPM, like PPI. Thus all ACPI TPMs will read the same log.
+	 */
+	if (!chip->acpi_dev_handle)
+		return -ENODEV;
 
 	/* Find TCPA entry in RSDT (ACPI_LOGICAL_ADDRESSING) */
 	status = acpi_get_table(ACPI_SIG_TCPA, 1,
 				(struct acpi_table_header **)&buff);
 
-	if (ACPI_FAILURE(status)) {
-		printk(KERN_ERR "%s: ERROR - Could not get TCPA table\n",
-		       __func__);
-		return -EIO;
-	}
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
 
 	switch(buff->platform_class) {
 	case BIOS_SERVER:
@@ -81,29 +84,29 @@ int read_log(struct tpm_bios_log *log)
 		break;
 	}
 	if (!len) {
-		printk(KERN_ERR "%s: ERROR - TCPA log area empty\n", __func__);
+		dev_warn(&chip->dev, "%s: TCPA log area empty\n", __func__);
 		return -EIO;
 	}
 
 	/* malloc EventLog space */
 	log->bios_event_log = kmalloc(len, GFP_KERNEL);
-	if (!log->bios_event_log) {
-		printk("%s: ERROR - Not enough  Memory for BIOS measurements\n",
-			__func__);
+	if (!log->bios_event_log)
 		return -ENOMEM;
-	}
 
 	log->bios_event_log_end = log->bios_event_log + len;
 
 	virt = acpi_os_map_iomem(start, len);
-	if (!virt) {
-		kfree(log->bios_event_log);
-		printk("%s: ERROR - Unable to map memory\n", __func__);
-		return -EIO;
-	}
+	if (!virt)
+		goto err;
 
 	memcpy_fromio(log->bios_event_log, virt, len);
 
 	acpi_os_unmap_iomem(virt, len);
 	return 0;
+
+err:
+	kfree(log->bios_event_log);
+	log->bios_event_log = NULL;
+	return -EIO;
+
 }

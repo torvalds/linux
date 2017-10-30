@@ -200,9 +200,7 @@ static void tgfx_attach(struct parport *pp)
 	mutex_init(&tgfx->sem);
 	tgfx->pd = pd;
 	tgfx->parportno = pp->number;
-	init_timer(&tgfx->timer);
-	tgfx->timer.data = (long) tgfx;
-	tgfx->timer.function = tgfx_timer;
+	setup_timer(&tgfx->timer, tgfx_timer, (long)tgfx);
 
 	for (i = 0; i < n_devs; i++) {
 		if (n_buttons[i] < 1)

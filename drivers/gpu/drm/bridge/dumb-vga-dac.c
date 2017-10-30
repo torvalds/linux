@@ -12,6 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/of_graph.h>
+#include <linux/regulator/consumer.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
@@ -23,6 +24,7 @@ struct dumb_vga {
 	struct drm_connector	connector;
 
 	struct i2c_adapter	*ddc;
+	struct regulator	*vdd;
 };
 
 static inline struct dumb_vga *
@@ -90,7 +92,6 @@ dumb_vga_connector_detect(struct drm_connector *connector, bool force)
 }
 
 static const struct drm_connector_funcs dumb_vga_con_funcs = {
-	.dpms			= drm_atomic_helper_connector_dpms,
 	.detect			= dumb_vga_connector_detect,
 	.fill_modes		= drm_helper_probe_single_connector_modes,
 	.destroy		= drm_connector_cleanup,
@@ -124,27 +125,40 @@ static int dumb_vga_attach(struct drm_bridge *bridge)
 	return 0;
 }
 
+static void dumb_vga_enable(struct drm_bridge *bridge)
+{
+	struct dumb_vga *vga = drm_bridge_to_dumb_vga(bridge);
+	int ret = 0;
+
+	if (vga->vdd)
+		ret = regulator_enable(vga->vdd);
+
+	if (ret)
+		DRM_ERROR("Failed to enable vdd regulator: %d\n", ret);
+}
+
+static void dumb_vga_disable(struct drm_bridge *bridge)
+{
+	struct dumb_vga *vga = drm_bridge_to_dumb_vga(bridge);
+
+	if (vga->vdd)
+		regulator_disable(vga->vdd);
+}
+
 static const struct drm_bridge_funcs dumb_vga_bridge_funcs = {
 	.attach		= dumb_vga_attach,
+	.enable		= dumb_vga_enable,
+	.disable	= dumb_vga_disable,
 };
 
 static struct i2c_adapter *dumb_vga_retrieve_ddc(struct device *dev)
 {
-	struct device_node *end_node, *phandle, *remote;
+	struct device_node *phandle, *remote;
 	struct i2c_adapter *ddc;
 
-	end_node = of_graph_get_endpoint_by_regs(dev->of_node, 1, -1);
-	if (!end_node) {
-		dev_err(dev, "Missing connector endpoint\n");
-		return ERR_PTR(-ENODEV);
-	}
-
-	remote = of_graph_get_remote_port_parent(end_node);
-	of_node_put(end_node);
-	if (!remote) {
-		dev_err(dev, "Enable to parse remote node\n");
+	remote = of_graph_get_remote_node(dev->of_node, 1, -1);
+	if (!remote)
 		return ERR_PTR(-EINVAL);
-	}
 
 	phandle = of_parse_phandle(remote, "ddc-i2c-bus", 0);
 	of_node_put(remote);
@@ -162,12 +176,20 @@ static struct i2c_adapter *dumb_vga_retrieve_ddc(struct device *dev)
 static int dumb_vga_probe(struct platform_device *pdev)
 {
 	struct dumb_vga *vga;
-	int ret;
 
 	vga = devm_kzalloc(&pdev->dev, sizeof(*vga), GFP_KERNEL);
 	if (!vga)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, vga);
+
+	vga->vdd = devm_regulator_get_optional(&pdev->dev, "vdd");
+	if (IS_ERR(vga->vdd)) {
+		int ret = PTR_ERR(vga->vdd);
+		if (ret == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		vga->vdd = NULL;
+		dev_dbg(&pdev->dev, "No vdd regulator found: %d\n", ret);
+	}
 
 	vga->ddc = dumb_vga_retrieve_ddc(&pdev->dev);
 	if (IS_ERR(vga->ddc)) {
@@ -183,11 +205,9 @@ static int dumb_vga_probe(struct platform_device *pdev)
 	vga->bridge.funcs = &dumb_vga_bridge_funcs;
 	vga->bridge.of_node = pdev->dev.of_node;
 
-	ret = drm_bridge_add(&vga->bridge);
-	if (ret && !IS_ERR(vga->ddc))
-		i2c_put_adapter(vga->ddc);
+	drm_bridge_add(&vga->bridge);
 
-	return ret;
+	return 0;
 }
 
 static int dumb_vga_remove(struct platform_device *pdev)
@@ -204,6 +224,8 @@ static int dumb_vga_remove(struct platform_device *pdev)
 
 static const struct of_device_id dumb_vga_match[] = {
 	{ .compatible = "dumb-vga-dac" },
+	{ .compatible = "adi,adv7123" },
+	{ .compatible = "ti,ths8135" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, dumb_vga_match);

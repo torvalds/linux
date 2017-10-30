@@ -67,7 +67,7 @@ static void *ieee80211_tkip_init(int key_idx)
 	struct ieee80211_tkip_data *priv;
 
 	priv = kzalloc(sizeof(*priv), GFP_ATOMIC);
-	if (priv == NULL)
+	if (!priv)
 		goto fail;
 	priv->key_idx = key_idx;
 
@@ -171,13 +171,6 @@ static inline u16 Mk16(u8 hi, u8 lo)
 	return lo | (((u16) hi) << 8);
 }
 
-
-static inline u16 Mk16_le(u16 *v)
-{
-	return le16_to_cpu(*v);
-}
-
-
 static const u16 Sbox[256] = {
 	0xC6A5, 0xF884, 0xEE99, 0xF68D, 0xFF0D, 0xD6BD, 0xDEB1, 0x9154,
 	0x6050, 0x0203, 0xCEA9, 0x567D, 0xE719, 0xB562, 0x4DE6, 0xEC9A,
@@ -264,15 +257,15 @@ static void tkip_mixing_phase2(u8 *WEPSeed, const u8 *TK, const u16 *TTAK,
 	PPK[5] = TTAK[4] + IV16;
 
 	/* Step 2 - 96-bit bijective mixing using S-box */
-	PPK[0] += _S_(PPK[5] ^ Mk16_le((u16 *) &TK[0]));
-	PPK[1] += _S_(PPK[0] ^ Mk16_le((u16 *) &TK[2]));
-	PPK[2] += _S_(PPK[1] ^ Mk16_le((u16 *) &TK[4]));
-	PPK[3] += _S_(PPK[2] ^ Mk16_le((u16 *) &TK[6]));
-	PPK[4] += _S_(PPK[3] ^ Mk16_le((u16 *) &TK[8]));
-	PPK[5] += _S_(PPK[4] ^ Mk16_le((u16 *) &TK[10]));
+	PPK[0] += _S_(PPK[5] ^ le16_to_cpu(*(__le16 *)(&TK[0])));
+	PPK[1] += _S_(PPK[0] ^ le16_to_cpu(*(__le16 *)(&TK[2])));
+	PPK[2] += _S_(PPK[1] ^ le16_to_cpu(*(__le16 *)(&TK[4])));
+	PPK[3] += _S_(PPK[2] ^ le16_to_cpu(*(__le16 *)(&TK[6])));
+	PPK[4] += _S_(PPK[3] ^ le16_to_cpu(*(__le16 *)(&TK[8])));
+	PPK[5] += _S_(PPK[4] ^ le16_to_cpu(*(__le16 *)(&TK[10])));
 
-	PPK[0] += RotR1(PPK[5] ^ Mk16_le((u16 *) &TK[12]));
-	PPK[1] += RotR1(PPK[0] ^ Mk16_le((u16 *) &TK[14]));
+	PPK[0] += RotR1(PPK[5] ^ le16_to_cpu(*(__le16 *)(&TK[12])));
+	PPK[1] += RotR1(PPK[0] ^ le16_to_cpu(*(__le16 *)(&TK[14])));
 	PPK[2] += RotR1(PPK[1]);
 	PPK[3] += RotR1(PPK[2]);
 	PPK[4] += RotR1(PPK[3]);
@@ -285,7 +278,7 @@ static void tkip_mixing_phase2(u8 *WEPSeed, const u8 *TK, const u16 *TTAK,
 	WEPSeed[0] = Hi8(IV16);
 	WEPSeed[1] = (Hi8(IV16) | 0x20) & 0x7F;
 	WEPSeed[2] = Lo8(IV16);
-	WEPSeed[3] = Lo8((PPK[5] ^ Mk16_le((u16 *) &TK[0])) >> 1);
+	WEPSeed[3] = Lo8((PPK[5] ^ le16_to_cpu(*(__le16 *)(&TK[0]))) >> 1);
 
 #ifdef __BIG_ENDIAN
 	{
@@ -304,7 +297,7 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	int len;
 	u8 *pos;
 	struct rtl_80211_hdr_4addr *hdr;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	int ret = 0;
 	u8 rc4key[16],  *icv;
 	u32 crc;
@@ -387,7 +380,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u32 iv32;
 	u16 iv16;
 	struct rtl_80211_hdr_4addr *hdr;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	u8 rc4key[16];
 	u8 icv[4];
 	u32 crc;
@@ -553,7 +546,7 @@ static void michael_mic_hdr(struct sk_buff *skb, u8 *hdr)
 		memcpy(hdr, hdr11->addr3, ETH_ALEN); /* DA */
 		memcpy(hdr + ETH_ALEN, hdr11->addr4, ETH_ALEN); /* SA */
 		break;
-	case 0:
+	default:
 		memcpy(hdr, hdr11->addr1, ETH_ALEN); /* DA */
 		memcpy(hdr + ETH_ALEN, hdr11->addr2, ETH_ALEN); /* SA */
 		break;

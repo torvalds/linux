@@ -76,12 +76,13 @@
  * an asynchronous event queue file is created and released when the
  * event file is closed.
  *
- * struct ib_uverbs_event_file: One reference is held by the VFS and
- * released when the file is closed.  For asynchronous event files,
- * another reference is held by the corresponding main context file
- * and released when that file is closed.  For completion event files,
- * a reference is taken when a CQ is created that uses the file, and
- * released when the CQ is destroyed.
+ * struct ib_uverbs_event_queue: Base structure for
+ * struct ib_uverbs_async_event_file and struct ib_uverbs_completion_event_file.
+ * One reference is held by the VFS and released when the file is closed.
+ * For asynchronous event files, another reference is held by the corresponding
+ * main context file and released when that file is closed.  For completion
+ * event files, a reference is taken when a CQ is created that uses the file,
+ * and released when the CQ is destroyed.
  */
 
 struct ib_uverbs_device {
@@ -99,18 +100,27 @@ struct ib_uverbs_device {
 	struct mutex				lists_mutex; /* protect lists */
 	struct list_head			uverbs_file_list;
 	struct list_head			uverbs_events_file_list;
+	struct uverbs_root_spec			*specs_root;
 };
 
-struct ib_uverbs_event_file {
-	struct kref				ref;
-	int					is_async;
-	struct ib_uverbs_file		       *uverbs_file;
+struct ib_uverbs_event_queue {
 	spinlock_t				lock;
 	int					is_closed;
 	wait_queue_head_t			poll_wait;
 	struct fasync_struct		       *async_queue;
 	struct list_head			event_list;
+};
+
+struct ib_uverbs_async_event_file {
+	struct ib_uverbs_event_queue		ev_queue;
+	struct ib_uverbs_file		       *uverbs_file;
+	struct kref				ref;
 	struct list_head			list;
+};
+
+struct ib_uverbs_completion_event_file {
+	struct ib_uobject_file			uobj_file;
+	struct ib_uverbs_event_queue		ev_queue;
 };
 
 struct ib_uverbs_file {
@@ -120,9 +130,13 @@ struct ib_uverbs_file {
 	struct ib_uverbs_device		       *device;
 	struct ib_ucontext		       *ucontext;
 	struct ib_event_handler			event_handler;
-	struct ib_uverbs_event_file	       *async_file;
+	struct ib_uverbs_async_event_file       *async_file;
 	struct list_head			list;
 	int					is_closed;
+
+	struct idr		idr;
+	/* spinlock protects write access to idr */
+	spinlock_t		idr_lock;
 };
 
 struct ib_uverbs_event {
@@ -159,6 +173,8 @@ struct ib_usrq_object {
 
 struct ib_uqp_object {
 	struct ib_uevent_object	uevent;
+	/* lock for mcast list */
+	struct mutex		mcast_lock;
 	struct list_head 	mcast_list;
 	struct ib_uxrcd_object *uxrcd;
 };
@@ -176,32 +192,18 @@ struct ib_ucq_object {
 	u32			async_events_reported;
 };
 
-extern spinlock_t ib_uverbs_idr_lock;
-extern struct idr ib_uverbs_pd_idr;
-extern struct idr ib_uverbs_mr_idr;
-extern struct idr ib_uverbs_mw_idr;
-extern struct idr ib_uverbs_ah_idr;
-extern struct idr ib_uverbs_cq_idr;
-extern struct idr ib_uverbs_qp_idr;
-extern struct idr ib_uverbs_srq_idr;
-extern struct idr ib_uverbs_xrcd_idr;
-extern struct idr ib_uverbs_rule_idr;
-extern struct idr ib_uverbs_wq_idr;
-extern struct idr ib_uverbs_rwq_ind_tbl_idr;
-
-void idr_remove_uobj(struct idr *idp, struct ib_uobject *uobj);
-
-struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
-					struct ib_device *ib_dev,
-					int is_async);
+extern const struct file_operations uverbs_event_fops;
+void ib_uverbs_init_event_queue(struct ib_uverbs_event_queue *ev_queue);
+struct file *ib_uverbs_alloc_async_event_file(struct ib_uverbs_file *uverbs_file,
+					      struct ib_device *ib_dev);
 void ib_uverbs_free_async_event_file(struct ib_uverbs_file *uverbs_file);
-struct ib_uverbs_event_file *ib_uverbs_lookup_comp_file(int fd);
 
 void ib_uverbs_release_ucq(struct ib_uverbs_file *file,
-			   struct ib_uverbs_event_file *ev_file,
+			   struct ib_uverbs_completion_event_file *ev_file,
 			   struct ib_ucq_object *uobj);
 void ib_uverbs_release_uevent(struct ib_uverbs_file *file,
 			      struct ib_uevent_object *uobj);
+void ib_uverbs_release_file(struct kref *ref);
 
 void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context);
 void ib_uverbs_cq_event_handler(struct ib_event *event, void *context_ptr);
@@ -210,9 +212,14 @@ void ib_uverbs_wq_event_handler(struct ib_event *event, void *context_ptr);
 void ib_uverbs_srq_event_handler(struct ib_event *event, void *context_ptr);
 void ib_uverbs_event_handler(struct ib_event_handler *handler,
 			     struct ib_event *event);
-void ib_uverbs_dealloc_xrcd(struct ib_uverbs_device *dev, struct ib_xrcd *xrcd);
+int ib_uverbs_dealloc_xrcd(struct ib_uverbs_device *dev, struct ib_xrcd *xrcd,
+			   enum rdma_remove_reason why);
 
 int uverbs_dealloc_mw(struct ib_mw *mw);
+void ib_uverbs_detach_umcast(struct ib_qp *qp,
+			     struct ib_uqp_object *uobj);
+
+long ib_uverbs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 
 struct ib_uverbs_flow_spec {
 	union {
@@ -228,6 +235,8 @@ struct ib_uverbs_flow_spec {
 		struct ib_uverbs_flow_spec_ipv4    ipv4;
 		struct ib_uverbs_flow_spec_tcp_udp tcp_udp;
 		struct ib_uverbs_flow_spec_ipv6    ipv6;
+		struct ib_uverbs_flow_spec_action_tag	flow_tag;
+		struct ib_uverbs_flow_spec_action_drop	drop;
 	};
 };
 
@@ -289,5 +298,6 @@ IB_UVERBS_DECLARE_EX_CMD(modify_wq);
 IB_UVERBS_DECLARE_EX_CMD(destroy_wq);
 IB_UVERBS_DECLARE_EX_CMD(create_rwq_ind_table);
 IB_UVERBS_DECLARE_EX_CMD(destroy_rwq_ind_table);
+IB_UVERBS_DECLARE_EX_CMD(modify_qp);
 
 #endif /* UVERBS_H */

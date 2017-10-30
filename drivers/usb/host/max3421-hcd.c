@@ -1811,7 +1811,7 @@ max3421_unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
 {
 }
 
-static struct hc_driver max3421_hcd_desc = {
+static const struct hc_driver max3421_hcd_desc = {
 	.description =		"max3421",
 	.product_desc =		DRIVER_DESC,
 	.hcd_priv_size =	sizeof(struct max3421_hcd),

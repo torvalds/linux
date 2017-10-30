@@ -1250,7 +1250,7 @@ static int isp1760_udc_stop(struct usb_gadget *gadget)
 	return 0;
 }
 
-static struct usb_gadget_ops isp1760_udc_ops = {
+static const struct usb_gadget_ops isp1760_udc_ops = {
 	.get_frame = isp1760_udc_get_frame,
 	.wakeup = isp1760_udc_wakeup,
 	.set_selfpowered = isp1760_udc_set_selfpowered,

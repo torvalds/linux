@@ -330,6 +330,15 @@ static int tw5864_enable_input(struct tw5864_input *input)
 	tw_indir_writeb(TW5864_INDIR_OUT_PIC_WIDTH(nr), input->width / 4);
 	tw_indir_writeb(TW5864_INDIR_OUT_PIC_HEIGHT(nr), input->height / 4);
 
+	/*
+	 * Crop width from 720 to 704.
+	 * Above register settings need value 720 involved.
+	 */
+	input->width = 704;
+	tw_indir_writeb(TW5864_INDIR_CROP_ETC,
+			tw_indir_readb(TW5864_INDIR_CROP_ETC) |
+			TW5864_INDIR_CROP_ETC_CROP_EN);
+
 	tw_writel(TW5864_DSP_PIC_MAX_MB,
 		  ((input->width / 16) << 8) | (input->height / 16));
 
@@ -532,10 +541,11 @@ static int tw5864_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct tw5864_input *input = video_drvdata(file);
 
-	f->fmt.pix.width = 720;
+	f->fmt.pix.width = 704;
 	switch (input->std) {
 	default:
 		WARN_ON_ONCE(1);
+		return -EINVAL;
 	case STD_NTSC:
 		f->fmt.pix.height = 480;
 		break;
@@ -655,15 +665,14 @@ static int tw5864_subscribe_event(struct v4l2_fh *fh,
 				  const struct v4l2_event_subscription *sub)
 {
 	switch (sub->type) {
-	case V4L2_EVENT_CTRL:
-		return v4l2_ctrl_subscribe_event(fh, sub);
 	case V4L2_EVENT_MOTION_DET:
 		/*
 		 * Allow for up to 30 events (1 second for NTSC) to be stored.
 		 */
 		return v4l2_event_subscribe(fh, sub, 30, NULL);
+	default:
+		return v4l2_ctrl_subscribe_event(fh, sub);
 	}
-	return -EINVAL;
 }
 
 static void tw5864_frame_interval_set(struct tw5864_input *input)
@@ -708,6 +717,8 @@ static void tw5864_frame_interval_set(struct tw5864_input *input)
 static int tw5864_frameinterval_get(struct tw5864_input *input,
 				    struct v4l2_fract *frameinterval)
 {
+	struct tw5864_dev *dev = input->root;
+
 	switch (input->std) {
 	case STD_NTSC:
 		frameinterval->numerator = 1001;
@@ -719,8 +730,8 @@ static int tw5864_frameinterval_get(struct tw5864_input *input,
 		frameinterval->denominator = 25;
 		break;
 	default:
-		WARN(1, "tw5864_frameinterval_get requested for unknown std %d\n",
-		     input->std);
+	        dev_warn(&dev->pci->dev, "tw5864_frameinterval_get requested for unknown std %d\n",
+			 input->std);
 		return -EINVAL;
 	}
 
@@ -738,7 +749,7 @@ static int tw5864_enum_framesizes(struct file *file, void *priv,
 		return -EINVAL;
 
 	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
-	fsize->discrete.width = 720;
+	fsize->discrete.width = 704;
 	fsize->discrete.height = input->std == STD_NTSC ? 480 : 576;
 
 	return 0;

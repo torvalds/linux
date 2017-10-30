@@ -115,6 +115,7 @@ enum xgene_enet_rm {
 #define BLOCK_ETH_CLKRST_CSR_OFFSET	0xc000
 #define BLOCK_ETH_DIAG_CSR_OFFSET	0xD000
 #define BLOCK_ETH_MAC_OFFSET		0x0000
+#define BLOCK_ETH_STATS_OFFSET		0x0000
 #define BLOCK_ETH_MAC_CSR_OFFSET	0x2800
 
 #define CLKEN_ADDR			0xc208
@@ -125,6 +126,12 @@ enum xgene_enet_rm {
 #define MAC_WRITE_REG_OFFSET		0x08
 #define MAC_READ_REG_OFFSET		0x0c
 #define MAC_COMMAND_DONE_REG_OFFSET	0x10
+
+#define STAT_ADDR_REG_OFFSET            0x14
+#define STAT_COMMAND_REG_OFFSET         0x18
+#define STAT_WRITE_REG_OFFSET           0x1c
+#define STAT_READ_REG_OFFSET            0x20
+#define STAT_COMMAND_DONE_REG_OFFSET    0x24
 
 #define PCS_ADDR_REG_OFFSET		0x00
 #define PCS_COMMAND_REG_OFFSET		0x04
@@ -163,14 +170,32 @@ enum xgene_enet_rm {
 #define CFG_RXCLK_MUXSEL0_SET(dst, val)	xgene_set_bits(dst, val, 26, 3)
 
 #define CFG_CLE_IP_PROTOCOL0_SET(dst, val)	xgene_set_bits(dst, val, 16, 2)
+#define CFG_CLE_IP_HDR_LEN_SET(dst, val)	xgene_set_bits(dst, val, 8, 5)
 #define CFG_CLE_DSTQID0_SET(dst, val)		xgene_set_bits(dst, val, 0, 12)
 #define CFG_CLE_FPSEL0_SET(dst, val)		xgene_set_bits(dst, val, 16, 4)
+#define CFG_CLE_NXTFPSEL0_SET(dst, val)		xgene_set_bits(dst, val, 20, 4)
 #define CFG_MACMODE_SET(dst, val)		xgene_set_bits(dst, val, 18, 2)
 #define CFG_WAITASYNCRD_SET(dst, val)		xgene_set_bits(dst, val, 0, 16)
-#define CFG_CLE_DSTQID0(val)		(val & GENMASK(11, 0))
-#define CFG_CLE_FPSEL0(val)		((val << 16) & GENMASK(19, 16))
+#define CFG_CLE_DSTQID0(val)		((val) & GENMASK(11, 0))
+#define CFG_CLE_FPSEL0(val)		(((val) << 16) & GENMASK(19, 16))
+#define CSR_ECM_CFG_0_ADDR		0x0220
+#define CSR_ECM_CFG_1_ADDR		0x0224
+#define CSR_MULTI_DPF0_ADDR		0x0230
+#define RXBUF_PAUSE_THRESH		0x0534
+#define RXBUF_PAUSE_OFF_THRESH		0x0540
+#define DEF_PAUSE_THRES			0x7d
+#define DEF_PAUSE_OFF_THRES		0x6d
+#define DEF_QUANTA			0x8000
+#define NORM_PAUSE_OPCODE		0x0001
+#define PAUSE_XON_EN			BIT(30)
+#define MULTI_DPF_AUTOCTRL		BIT(28)
+#define CFG_CLE_NXTFPSEL0(val)		(((val) << 20) & GENMASK(23, 20))
 #define ICM_CONFIG0_REG_0_ADDR		0x0400
 #define ICM_CONFIG2_REG_0_ADDR		0x0410
+#define ECM_CONFIG0_REG_0_ADDR		0x0500
+#define ECM_CONFIG0_REG_1_ADDR		0x0504
+#define ICM_ECM_DROP_COUNT_REG0_ADDR	0x0508
+#define ICM_ECM_DROP_COUNT_REG1_ADDR	0x050c
 #define RX_DV_GATE_REG_0_ADDR		0x05fc
 #define TX_DV_GATE_EN0			BIT(2)
 #define RX_DV_GATE_EN0			BIT(1)
@@ -196,16 +221,60 @@ enum xgene_enet_rm {
 #define SOFT_RESET1			BIT(31)
 #define TX_EN				BIT(0)
 #define RX_EN				BIT(2)
+#define TX_FLOW_EN			BIT(4)
+#define RX_FLOW_EN			BIT(5)
 #define ENET_LHD_MODE			BIT(25)
 #define ENET_GHD_MODE			BIT(26)
 #define FULL_DUPLEX2			BIT(0)
 #define PAD_CRC				BIT(2)
-#define SCAN_AUTO_INCR			BIT(5)
-#define TBYT_ADDR			0x38
-#define TPKT_ADDR			0x39
-#define TDRP_ADDR			0x45
-#define TFCS_ADDR			0x47
-#define TUND_ADDR			0x4a
+#define LENGTH_CHK			BIT(4)
+
+#define TR64_ADDR	0x20
+#define TR127_ADDR	0x21
+#define TR255_ADDR	0x22
+#define TR511_ADDR	0x23
+#define TR1K_ADDR	0x24
+#define TRMAX_ADDR	0x25
+#define TRMGV_ADDR	0x26
+
+#define RFCS_ADDR	0x29
+#define RMCA_ADDR	0x2a
+#define RBCA_ADDR	0x2b
+#define RXCF_ADDR	0x2c
+#define RXPF_ADDR	0x2d
+#define RXUO_ADDR	0x2e
+#define RALN_ADDR	0x2f
+#define RFLR_ADDR	0x30
+#define RCDE_ADDR	0x31
+#define RCSE_ADDR	0x32
+#define RUND_ADDR	0x33
+#define ROVR_ADDR	0x34
+#define RFRG_ADDR	0x35
+#define RJBR_ADDR	0x36
+#define RDRP_ADDR	0x37
+
+#define TMCA_ADDR	0x3a
+#define TBCA_ADDR	0x3b
+#define TXPF_ADDR	0x3c
+#define TDFR_ADDR	0x3d
+#define TEDF_ADDR	0x3e
+#define TSCL_ADDR	0x3f
+#define TMCL_ADDR	0x40
+#define TLCL_ADDR	0x41
+#define TXCL_ADDR	0x42
+#define TNCL_ADDR	0x43
+#define TPFH_ADDR	0x44
+#define TDRP_ADDR	0x45
+#define TJBR_ADDR	0x46
+#define TFCS_ADDR	0x47
+#define TXCF_ADDR	0x48
+#define TOVR_ADDR	0x49
+#define TUND_ADDR	0x4a
+#define TFRG_ADDR	0x4b
+#define DUMP_ADDR	0x27
+
+#define ECM_DROP_COUNT(src)	xgene_get_bits(src, 0, 15)
+#define ICM_DROP_COUNT(src)	xgene_get_bits(src, 16, 31)
 
 #define TSO_IPPROTO_TCP			1
 
@@ -346,6 +415,14 @@ static inline bool xgene_enet_is_bufpool(u16 id)
 	return ((id & RING_BUFNUM_MASK) >= 0x20) ? true : false;
 }
 
+static inline u8 xgene_enet_get_fpsel(u16 id)
+{
+	if (xgene_enet_is_bufpool(id))
+		return xgene_enet_ring_bufnum(id) - RING_BUFNUM_BUFPOOL;
+
+	return 0;
+}
+
 static inline u16 xgene_enet_get_numslots(u16 id, u32 size)
 {
 	bool is_bufpool = xgene_enet_is_bufpool(id);
@@ -355,14 +432,16 @@ static inline u16 xgene_enet_get_numslots(u16 id, u32 size)
 }
 
 void xgene_enet_parse_error(struct xgene_enet_desc_ring *ring,
-			    struct xgene_enet_pdata *pdata,
 			    enum xgene_enet_err_code status);
-
 int xgene_enet_mdio_config(struct xgene_enet_pdata *pdata);
 void xgene_enet_mdio_remove(struct xgene_enet_pdata *pdata);
 bool xgene_ring_mgr_init(struct xgene_enet_pdata *p);
 int xgene_enet_phy_connect(struct net_device *ndev);
 void xgene_enet_phy_disconnect(struct xgene_enet_pdata *pdata);
+u32 xgene_enet_rd_mac(struct xgene_enet_pdata *pdata, u32 rd_addr);
+void xgene_enet_wr_mac(struct xgene_enet_pdata *pdata, u32 wr_addr,
+		       u32 wr_data);
+u32 xgene_enet_rd_stat(struct xgene_enet_pdata *pdata, u32 rd_addr);
 
 extern const struct xgene_mac_ops xgene_gmac_ops;
 extern const struct xgene_port_ops xgene_gport_ops;

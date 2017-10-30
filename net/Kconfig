@@ -55,8 +55,10 @@ menu "Networking options"
 
 source "net/packet/Kconfig"
 source "net/unix/Kconfig"
+source "net/tls/Kconfig"
 source "net/xfrm/Kconfig"
 source "net/iucv/Kconfig"
+source "net/smc/Kconfig"
 
 config INET
 	bool "TCP/IP networking"
@@ -164,13 +166,6 @@ menuconfig NETFILTER
 
 if NETFILTER
 
-config NETFILTER_DEBUG
-	bool "Network packet filtering debugging"
-	depends on NETFILTER
-	help
-	  You can say Y here if you want to get additional messages useful in
-	  debugging the netfilter code.
-
 config NETFILTER_ADVANCED
 	bool "Advanced netfilter configuration"
 	depends on NETFILTER
@@ -233,6 +228,7 @@ source "net/openvswitch/Kconfig"
 source "net/vmw_vsock/Kconfig"
 source "net/netlink/Kconfig"
 source "net/mpls/Kconfig"
+source "net/nsh/Kconfig"
 source "net/hsr/Kconfig"
 source "net/switchdev/Kconfig"
 source "net/l3mdev/Kconfig"
@@ -257,10 +253,6 @@ config XPS
 
 config HWBM
        bool
-
-config SOCK_CGROUP_DATA
-	bool
-	default n
 
 config CGROUP_NET_PRIO
 	bool "Network priority cgroup"
@@ -300,7 +292,20 @@ config BPF_JIT
 
 	  Note, admin should enable this feature changing:
 	  /proc/sys/net/core/bpf_jit_enable
-	  /proc/sys/net/core/bpf_jit_harden (optional)
+	  /proc/sys/net/core/bpf_jit_harden   (optional)
+	  /proc/sys/net/core/bpf_jit_kallsyms (optional)
+
+config BPF_STREAM_PARSER
+	bool "enable BPF STREAM_PARSER"
+	depends on BPF_SYSCALL
+	select STREAM_PARSER
+	---help---
+	 Enabling this allows a stream parser to be used with
+	 BPF_MAP_TYPE_SOCKMAP.
+
+	 BPF_MAP_TYPE_SOCKMAP provides a map type to use with network sockets.
+	 It can be used to enforce socket policy, implement socket redirects,
+	 etc.
 
 config NET_FLOW_LIMIT
 	bool
@@ -365,7 +370,6 @@ endmenu
 
 source "net/ax25/Kconfig"
 source "net/can/Kconfig"
-source "net/irda/Kconfig"
 source "net/bluetooth/Kconfig"
 source "net/rxrpc/Kconfig"
 source "net/kcm/Kconfig"
@@ -393,6 +397,8 @@ source "net/9p/Kconfig"
 source "net/caif/Kconfig"
 source "net/ceph/Kconfig"
 source "net/nfc/Kconfig"
+source "net/psample/Kconfig"
+source "net/ife/Kconfig"
 
 config LWTUNNEL
 	bool "Network light weight tunnels"
@@ -402,7 +408,19 @@ config LWTUNNEL
 	  weight tunnel endpoint. Tunnel encapsulation parameters are stored
 	  with light weight tunnel state associated with fib routes.
 
+config LWTUNNEL_BPF
+	bool "Execute BPF program as route nexthop action"
+	depends on LWTUNNEL
+	default y if LWTUNNEL=y
+	---help---
+	  Allows to run BPF programs as a nexthop action following a route
+	  lookup for incoming and outgoing packets.
+
 config DST_CACHE
+	bool
+	default n
+
+config GRO_CELLS
 	bool
 	default n
 

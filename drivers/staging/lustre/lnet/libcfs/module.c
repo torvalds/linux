@@ -50,13 +50,12 @@
 
 # define DEBUG_SUBSYSTEM S_LNET
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 #include <asm/div64.h>
 
-#include "../../include/linux/libcfs/libcfs_crypto.h"
-#include "../../include/linux/lnet/lib-lnet.h"
-#include "../../include/linux/lnet/lib-dlc.h"
-#include "../../include/linux/lnet/lnet.h"
+#include <linux/libcfs/libcfs_crypto.h>
+#include <linux/lnet/lib-lnet.h>
+#include <uapi/linux/lnet/lnet-dlc.h>
 #include "tracefile.h"
 
 static struct dentry *lnet_debugfs_root;
@@ -183,12 +182,12 @@ EXPORT_SYMBOL(lprocfs_call_handler);
 static int __proc_dobitmasks(void *data, int write,
 			     loff_t pos, void __user *buffer, int nob)
 {
-	const int     tmpstrlen = 512;
-	char	 *tmpstr;
-	int	   rc;
+	const int tmpstrlen = 512;
+	char *tmpstr;
+	int rc;
 	unsigned int *mask = data;
-	int	   is_subsys = (mask == &libcfs_subsystem_debug) ? 1 : 0;
-	int	   is_printk = (mask == &libcfs_printk) ? 1 : 0;
+	int is_subsys = (mask == &libcfs_subsystem_debug) ? 1 : 0;
+	int is_printk = (mask == &libcfs_printk) ? 1 : 0;
 
 	rc = cfs_trace_allocate_string_buffer(&tmpstr, tmpstrlen);
 	if (rc < 0)
@@ -293,8 +292,8 @@ static int __proc_cpt_table(void *data, int write,
 			    loff_t pos, void __user *buffer, int nob)
 {
 	char *buf = NULL;
-	int   len = 4096;
-	int   rc  = 0;
+	int len = 4096;
+	int rc  = 0;
 
 	if (write)
 		return -EPERM;
@@ -364,14 +363,6 @@ static struct ctl_table lnet_table[] = {
 		.maxlen   = 128,
 		.mode     = 0444,
 		.proc_handler = &proc_cpt_table,
-	},
-
-	{
-		.procname = "upcall",
-		.data     = lnet_upcall,
-		.maxlen   = sizeof(lnet_upcall),
-		.mode     = 0644,
-		.proc_handler = &proc_dostring,
 	},
 	{
 		.procname = "debug_log_upcall",
@@ -496,10 +487,10 @@ static const struct file_operations lnet_debugfs_file_operations_wo = {
 
 static const struct file_operations *lnet_debugfs_fops_select(umode_t mode)
 {
-	if (!(mode & S_IWUGO))
+	if (!(mode & 0222))
 		return &lnet_debugfs_file_operations_ro;
 
-	if (!(mode & S_IRUGO))
+	if (!(mode & 0444))
 		return &lnet_debugfs_file_operations_wo;
 
 	return &lnet_debugfs_file_operations_rw;
@@ -547,7 +538,7 @@ static int libcfs_init(void)
 	}
 
 	rc = cfs_cpu_init();
-	if (rc != 0)
+	if (rc)
 		goto cleanup_debug;
 
 	rc = misc_register(&libcfs_dev);
@@ -566,7 +557,7 @@ static int libcfs_init(void)
 	rc = min(cfs_cpt_weight(cfs_cpt_table, CFS_CPT_ANY), 4);
 	rc = cfs_wi_sched_create("cfs_rh", cfs_cpt_table, CFS_CPT_ANY,
 				 rc, &cfs_sched_rehash);
-	if (rc != 0) {
+	if (rc) {
 		CERROR("Startup workitem scheduler: error: %d\n", rc);
 		goto cleanup_deregister;
 	}

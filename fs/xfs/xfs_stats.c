@@ -33,9 +33,9 @@ int xfs_stats_format(struct xfsstats __percpu *stats, char *buf)
 {
 	int		i, j;
 	int		len = 0;
-	__uint64_t	xs_xstrat_bytes = 0;
-	__uint64_t	xs_write_bytes = 0;
-	__uint64_t	xs_read_bytes = 0;
+	uint64_t	xs_xstrat_bytes = 0;
+	uint64_t	xs_write_bytes = 0;
+	uint64_t	xs_read_bytes = 0;
 
 	static const struct xstats_entry {
 		char	*desc;
@@ -80,9 +80,9 @@ int xfs_stats_format(struct xfsstats __percpu *stats, char *buf)
 	}
 	/* extra precision counters */
 	for_each_possible_cpu(i) {
-		xs_xstrat_bytes += per_cpu_ptr(stats, i)->xs_xstrat_bytes;
-		xs_write_bytes += per_cpu_ptr(stats, i)->xs_write_bytes;
-		xs_read_bytes += per_cpu_ptr(stats, i)->xs_read_bytes;
+		xs_xstrat_bytes += per_cpu_ptr(stats, i)->s.xs_xstrat_bytes;
+		xs_write_bytes += per_cpu_ptr(stats, i)->s.xs_write_bytes;
+		xs_read_bytes += per_cpu_ptr(stats, i)->s.xs_read_bytes;
 	}
 
 	len += snprintf(buf + len, PATH_MAX-len, "xpc %Lu %Lu %Lu\n",
@@ -100,15 +100,15 @@ int xfs_stats_format(struct xfsstats __percpu *stats, char *buf)
 void xfs_stats_clearall(struct xfsstats __percpu *stats)
 {
 	int		c;
-	__uint32_t	vn_active;
+	uint32_t	vn_active;
 
 	xfs_notice(NULL, "Clearing xfsstats");
 	for_each_possible_cpu(c) {
 		preempt_disable();
 		/* save vn_active, it's a universal truth! */
-		vn_active = per_cpu_ptr(stats, c)->vn_active;
+		vn_active = per_cpu_ptr(stats, c)->s.vn_active;
 		memset(per_cpu_ptr(stats, c), 0, sizeof(*stats));
-		per_cpu_ptr(stats, c)->vn_active = vn_active;
+		per_cpu_ptr(stats, c)->s.vn_active = vn_active;
 		preempt_enable();
 	}
 }

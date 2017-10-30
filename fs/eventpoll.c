@@ -13,7 +13,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/signal.h>
@@ -34,7 +34,7 @@
 #include <linux/mutex.h>
 #include <linux/anon_inodes.h>
 #include <linux/device.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/mman.h>
 #include <linux/atomic.h>
@@ -42,6 +42,7 @@
 #include <linux/seq_file.h>
 #include <linux/compat.h>
 #include <linux/rculist.h>
+#include <net/busy_poll.h>
 
 /*
  * LOCKING:
@@ -204,7 +205,7 @@ struct eventpoll {
 	struct list_head rdllist;
 
 	/* RB tree root used to store monitored fd structs */
-	struct rb_root rbr;
+	struct rb_root_cached rbr;
 
 	/*
 	 * This is a single linked list that chains all the "struct epitem" that
@@ -224,6 +225,11 @@ struct eventpoll {
 	/* used to optimize loop detection check */
 	int visited;
 	struct list_head visited_list_link;
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	/* used to track busy poll napi_id */
+	unsigned int napi_id;
+#endif
 };
 
 /* Wait structure used by the poll hooks */
@@ -238,7 +244,7 @@ struct eppoll_entry {
 	 * Wait queue item that will be linked to the target file wait
 	 * queue head.
 	 */
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 
 	/* The wait queue head that linked the "wait" wait queue item */
 	wait_queue_head_t *whead;
@@ -341,13 +347,13 @@ static inline int ep_is_linked(struct list_head *p)
 	return !list_empty(p);
 }
 
-static inline struct eppoll_entry *ep_pwq_from_wait(wait_queue_t *p)
+static inline struct eppoll_entry *ep_pwq_from_wait(wait_queue_entry_t *p)
 {
 	return container_of(p, struct eppoll_entry, wait);
 }
 
 /* Get the "struct epitem" from a wait queue pointer */
-static inline struct epitem *ep_item_from_wait(wait_queue_t *p)
+static inline struct epitem *ep_item_from_wait(wait_queue_entry_t *p)
 {
 	return container_of(p, struct eppoll_entry, wait)->base;
 }
@@ -382,6 +388,77 @@ static void ep_nested_calls_init(struct nested_calls *ncalls)
 static inline int ep_events_available(struct eventpoll *ep)
 {
 	return !list_empty(&ep->rdllist) || ep->ovflist != EP_UNACTIVE_PTR;
+}
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+static bool ep_busy_loop_end(void *p, unsigned long start_time)
+{
+	struct eventpoll *ep = p;
+
+	return ep_events_available(ep) || busy_loop_timeout(start_time);
+}
+#endif /* CONFIG_NET_RX_BUSY_POLL */
+
+/*
+ * Busy poll if globally on and supporting sockets found && no events,
+ * busy loop will return if need_resched or ep_events_available.
+ *
+ * we must do our busy polling with irqs enabled
+ */
+static void ep_busy_loop(struct eventpoll *ep, int nonblock)
+{
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	unsigned int napi_id = READ_ONCE(ep->napi_id);
+
+	if ((napi_id >= MIN_NAPI_ID) && net_busy_loop_on())
+		napi_busy_loop(napi_id, nonblock ? NULL : ep_busy_loop_end, ep);
+#endif
+}
+
+static inline void ep_reset_busy_poll_napi_id(struct eventpoll *ep)
+{
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	if (ep->napi_id)
+		ep->napi_id = 0;
+#endif
+}
+
+/*
+ * Set epoll busy poll NAPI ID from sk.
+ */
+static inline void ep_set_busy_poll_napi_id(struct epitem *epi)
+{
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	struct eventpoll *ep;
+	unsigned int napi_id;
+	struct socket *sock;
+	struct sock *sk;
+	int err;
+
+	if (!net_busy_loop_on())
+		return;
+
+	sock = sock_from_file(epi->ffd.file, &err);
+	if (!sock)
+		return;
+
+	sk = sock->sk;
+	if (!sk)
+		return;
+
+	napi_id = READ_ONCE(sk->sk_napi_id);
+	ep = epi->ep;
+
+	/* Non-NAPI IDs can be rejected
+	 *	or
+	 * Nothing to do if we already have this ID
+	 */
+	if (napi_id < MIN_NAPI_ID || napi_id == ep->napi_id)
+		return;
+
+	/* record NAPI ID for use in next busy poll */
+	ep->napi_id = napi_id;
+#endif
 }
 
 /**
@@ -523,8 +600,13 @@ static void ep_remove_wait_queue(struct eppoll_entry *pwq)
 	wait_queue_head_t *whead;
 
 	rcu_read_lock();
-	/* If it is cleared by POLLFREE, it should be rcu-safe */
-	whead = rcu_dereference(pwq->whead);
+	/*
+	 * If it is cleared by POLLFREE, it should be rcu-safe.
+	 * If we read NULL we need a barrier paired with
+	 * smp_store_release() in ep_poll_callback(), otherwise
+	 * we rely on whead->lock.
+	 */
+	whead = smp_load_acquire(&pwq->whead);
 	if (whead)
 		remove_wait_queue(whead, &pwq->wait);
 	rcu_read_unlock();
@@ -714,7 +796,7 @@ static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 	list_del_rcu(&epi->fllink);
 	spin_unlock(&file->f_lock);
 
-	rb_erase(&epi->rbn, &ep->rbr);
+	rb_erase_cached(&epi->rbn, &ep->rbr);
 
 	spin_lock_irqsave(&ep->lock, flags);
 	if (ep_is_linked(&epi->rdllink))
@@ -758,7 +840,7 @@ static void ep_free(struct eventpoll *ep)
 	/*
 	 * Walks through the whole tree by unregistering poll callbacks.
 	 */
-	for (rbp = rb_first(&ep->rbr); rbp; rbp = rb_next(rbp)) {
+	for (rbp = rb_first_cached(&ep->rbr); rbp; rbp = rb_next(rbp)) {
 		epi = rb_entry(rbp, struct epitem, rbn);
 
 		ep_unregister_pollwait(ep, epi);
@@ -774,7 +856,7 @@ static void ep_free(struct eventpoll *ep)
 	 * a lockdep warning.
 	 */
 	mutex_lock(&ep->mtx);
-	while ((rbp = rb_first(&ep->rbr)) != NULL) {
+	while ((rbp = rb_first_cached(&ep->rbr)) != NULL) {
 		epi = rb_entry(rbp, struct epitem, rbn);
 		ep_remove(ep, epi);
 		cond_resched();
@@ -881,12 +963,16 @@ static void ep_show_fdinfo(struct seq_file *m, struct file *f)
 	struct rb_node *rbp;
 
 	mutex_lock(&ep->mtx);
-	for (rbp = rb_first(&ep->rbr); rbp; rbp = rb_next(rbp)) {
+	for (rbp = rb_first_cached(&ep->rbr); rbp; rbp = rb_next(rbp)) {
 		struct epitem *epi = rb_entry(rbp, struct epitem, rbn);
+		struct inode *inode = file_inode(epi->ffd.file);
 
-		seq_printf(m, "tfd: %8d events: %8x data: %16llx\n",
+		seq_printf(m, "tfd: %8d events: %8x data: %16llx "
+			   " pos:%lli ino:%lx sdev:%x\n",
 			   epi->ffd.fd, epi->event.events,
-			   (long long)epi->event.data);
+			   (long long)epi->event.data,
+			   (long long)epi->ffd.file->f_pos,
+			   inode->i_ino, inode->i_sb->s_dev);
 		if (seq_has_overflowed(m))
 			break;
 	}
@@ -954,7 +1040,7 @@ static int ep_alloc(struct eventpoll **pep)
 	init_waitqueue_head(&ep->wq);
 	init_waitqueue_head(&ep->poll_wait);
 	INIT_LIST_HEAD(&ep->rdllist);
-	ep->rbr = RB_ROOT;
+	ep->rbr = RB_ROOT_CACHED;
 	ep->ovflist = EP_UNACTIVE_PTR;
 	ep->user = user;
 
@@ -980,7 +1066,7 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
 	struct epoll_filefd ffd;
 
 	ep_set_ffd(&ffd, file, fd);
-	for (rbp = ep->rbr.rb_node; rbp; ) {
+	for (rbp = ep->rbr.rb_root.rb_node; rbp; ) {
 		epi = rb_entry(rbp, struct epitem, rbn);
 		kcmp = ep_cmp_ffd(&ffd, &epi->ffd);
 		if (kcmp > 0)
@@ -996,12 +1082,56 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
 	return epir;
 }
 
+#ifdef CONFIG_CHECKPOINT_RESTORE
+static struct epitem *ep_find_tfd(struct eventpoll *ep, int tfd, unsigned long toff)
+{
+	struct rb_node *rbp;
+	struct epitem *epi;
+
+	for (rbp = rb_first_cached(&ep->rbr); rbp; rbp = rb_next(rbp)) {
+		epi = rb_entry(rbp, struct epitem, rbn);
+		if (epi->ffd.fd == tfd) {
+			if (toff == 0)
+				return epi;
+			else
+				toff--;
+		}
+		cond_resched();
+	}
+
+	return NULL;
+}
+
+struct file *get_epoll_tfile_raw_ptr(struct file *file, int tfd,
+				     unsigned long toff)
+{
+	struct file *file_raw;
+	struct eventpoll *ep;
+	struct epitem *epi;
+
+	if (!is_file_epoll(file))
+		return ERR_PTR(-EINVAL);
+
+	ep = file->private_data;
+
+	mutex_lock(&ep->mtx);
+	epi = ep_find_tfd(ep, tfd, toff);
+	if (epi)
+		file_raw = epi->ffd.file;
+	else
+		file_raw = ERR_PTR(-ENOENT);
+	mutex_unlock(&ep->mtx);
+
+	return file_raw;
+}
+#endif /* CONFIG_CHECKPOINT_RESTORE */
+
 /*
  * This is the callback that is passed to the wait queue wakeup
  * mechanism. It is called by the stored file descriptors when they
  * have events to report.
  */
-static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *key)
+static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 {
 	int pwake = 0;
 	unsigned long flags;
@@ -1009,18 +1139,9 @@ static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *k
 	struct eventpoll *ep = epi->ep;
 	int ewake = 0;
 
-	if ((unsigned long)key & POLLFREE) {
-		ep_pwq_from_wait(wait)->whead = NULL;
-		/*
-		 * whead = NULL above can race with ep_remove_wait_queue()
-		 * which can do another remove_wait_queue() after us, so we
-		 * can't use __remove_wait_queue(). whead->lock is held by
-		 * the caller.
-		 */
-		list_del_init(&wait->task_list);
-	}
-
 	spin_lock_irqsave(&ep->lock, flags);
+
+	ep_set_busy_poll_napi_id(epi);
 
 	/*
 	 * If the event mask does not contain any poll(2) event, we consider the
@@ -1101,10 +1222,26 @@ out_unlock:
 	if (pwake)
 		ep_poll_safewake(&ep->poll_wait);
 
-	if (epi->event.events & EPOLLEXCLUSIVE)
-		return ewake;
+	if (!(epi->event.events & EPOLLEXCLUSIVE))
+		ewake = 1;
 
-	return 1;
+	if ((unsigned long)key & POLLFREE) {
+		/*
+		 * If we race with ep_remove_wait_queue() it can miss
+		 * ->whead = NULL and do another remove_wait_queue() after
+		 * us, so we can't use __remove_wait_queue().
+		 */
+		list_del_init(&wait->entry);
+		/*
+		 * ->whead != NULL protects us from the race with ep_free()
+		 * or ep_remove(), ep_remove_wait_queue() takes whead->lock
+		 * held by the caller. Once we nullify it, nothing protects
+		 * ep/epi or even wait.
+		 */
+		smp_store_release(&ep_pwq_from_wait(wait)->whead, NULL);
+	}
+
+	return ewake;
 }
 
 /*
@@ -1136,20 +1273,22 @@ static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
 static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi)
 {
 	int kcmp;
-	struct rb_node **p = &ep->rbr.rb_node, *parent = NULL;
+	struct rb_node **p = &ep->rbr.rb_root.rb_node, *parent = NULL;
 	struct epitem *epic;
+	bool leftmost = true;
 
 	while (*p) {
 		parent = *p;
 		epic = rb_entry(parent, struct epitem, rbn);
 		kcmp = ep_cmp_ffd(&epi->ffd, &epic->ffd);
-		if (kcmp > 0)
+		if (kcmp > 0) {
 			p = &parent->rb_right;
-		else
+			leftmost = false;
+		} else
 			p = &parent->rb_left;
 	}
 	rb_link_node(&epi->rbn, parent, p);
-	rb_insert_color(&epi->rbn, &ep->rbr);
+	rb_insert_color_cached(&epi->rbn, &ep->rbr, leftmost);
 }
 
 
@@ -1363,6 +1502,9 @@ static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
 	/* We have to drop the new item inside our item list to keep track of it */
 	spin_lock_irqsave(&ep->lock, flags);
 
+	/* record NAPI ID of new item if present */
+	ep_set_busy_poll_napi_id(epi);
+
 	/* If the file is already "ready" we drop it inside the ready list */
 	if ((revents & event->events) && !ep_is_linked(&epi->rdllink)) {
 		list_add_tail(&epi->rdllink, &ep->rdllist);
@@ -1390,7 +1532,7 @@ error_remove_epi:
 	list_del_rcu(&epi->fllink);
 	spin_unlock(&tfile->f_lock);
 
-	rb_erase(&epi->rbn, &ep->rbr);
+	rb_erase_cached(&epi->rbn, &ep->rbr);
 
 error_unregister:
 	ep_unregister_pollwait(ep, epi);
@@ -1617,7 +1759,7 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 	int res = 0, eavail, timed_out = 0;
 	unsigned long flags;
 	u64 slack = 0;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	ktime_t expires, *to = NULL;
 
 	if (timeout > 0) {
@@ -1637,9 +1779,20 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 	}
 
 fetch_events:
+
+	if (!ep_events_available(ep))
+		ep_busy_loop(ep, timed_out);
+
 	spin_lock_irqsave(&ep->lock, flags);
 
 	if (!ep_events_available(ep)) {
+		/*
+		 * Busy poll timed out.  Drop NAPI ID for now, we can add
+		 * it back in when we have moved a socket with a valid NAPI
+		 * ID onto the ready list.
+		 */
+		ep_reset_busy_poll_napi_id(ep);
+
 		/*
 		 * We don't have any available event to return to the caller.
 		 * We need to sleep here, and we will be wake up by
@@ -1655,6 +1808,16 @@ fetch_events:
 			 * to TASK_INTERRUPTIBLE before doing the checks.
 			 */
 			set_current_state(TASK_INTERRUPTIBLE);
+			/*
+			 * Always short-circuit for fatal signals to allow
+			 * threads to make a timely exit without the chance of
+			 * finding more events available and fetching
+			 * repeatedly.
+			 */
+			if (fatal_signal_pending(current)) {
+				res = -EINTR;
+				break;
+			}
 			if (ep_events_available(ep) || timed_out)
 				break;
 			if (signal_pending(current)) {
@@ -1717,7 +1880,7 @@ static int ep_loop_check_proc(void *priv, void *cookie, int call_nests)
 	mutex_lock_nested(&ep->mtx, call_nests + 1);
 	ep->visited = 1;
 	list_add(&ep->visited_list_link, &visited_list);
-	for (rbp = rb_first(&ep->rbr); rbp; rbp = rb_next(rbp)) {
+	for (rbp = rb_first_cached(&ep->rbr); rbp; rbp = rb_next(rbp)) {
 		epi = rb_entry(rbp, struct epitem, rbn);
 		if (unlikely(is_file_epoll(epi->ffd.file))) {
 			ep_tovisit = epi->ffd.file->private_data;
@@ -1895,7 +2058,7 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 	 * so EPOLLEXCLUSIVE is not allowed for a EPOLL_CTL_MOD operation.
 	 * Also, we do not currently supported nested exclusive wakeups.
 	 */
-	if (epds.events & EPOLLEXCLUSIVE) {
+	if (ep_op_has_event(op) && (epds.events & EPOLLEXCLUSIVE)) {
 		if (op == EPOLL_CTL_MOD)
 			goto error_tgt_fput;
 		if (op == EPOLL_CTL_ADD && (is_file_epoll(tf.file) ||

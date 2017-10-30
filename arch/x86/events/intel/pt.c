@@ -28,6 +28,7 @@
 #include <asm/insn.h>
 #include <asm/io.h>
 #include <asm/intel_pt.h>
+#include <asm/intel-family.h>
 
 #include "../perf_event.h"
 #include "pt.h"
@@ -35,13 +36,6 @@
 static DEFINE_PER_CPU(struct pt, pt_ctx);
 
 static struct pt_pmu pt_pmu;
-
-enum cpuid_regs {
-	CR_EAX = 0,
-	CR_ECX,
-	CR_EDX,
-	CR_EBX
-};
 
 /*
  * Capabilities of Intel PT hardware, such as number of address bits or
@@ -64,21 +58,21 @@ static struct pt_cap_desc {
 	u8		reg;
 	u32		mask;
 } pt_caps[] = {
-	PT_CAP(max_subleaf,		0, CR_EAX, 0xffffffff),
-	PT_CAP(cr3_filtering,		0, CR_EBX, BIT(0)),
-	PT_CAP(psb_cyc,			0, CR_EBX, BIT(1)),
-	PT_CAP(ip_filtering,		0, CR_EBX, BIT(2)),
-	PT_CAP(mtc,			0, CR_EBX, BIT(3)),
-	PT_CAP(ptwrite,			0, CR_EBX, BIT(4)),
-	PT_CAP(power_event_trace,	0, CR_EBX, BIT(5)),
-	PT_CAP(topa_output,		0, CR_ECX, BIT(0)),
-	PT_CAP(topa_multiple_entries,	0, CR_ECX, BIT(1)),
-	PT_CAP(single_range_output,	0, CR_ECX, BIT(2)),
-	PT_CAP(payloads_lip,		0, CR_ECX, BIT(31)),
-	PT_CAP(num_address_ranges,	1, CR_EAX, 0x3),
-	PT_CAP(mtc_periods,		1, CR_EAX, 0xffff0000),
-	PT_CAP(cycle_thresholds,	1, CR_EBX, 0xffff),
-	PT_CAP(psb_periods,		1, CR_EBX, 0xffff0000),
+	PT_CAP(max_subleaf,		0, CPUID_EAX, 0xffffffff),
+	PT_CAP(cr3_filtering,		0, CPUID_EBX, BIT(0)),
+	PT_CAP(psb_cyc,			0, CPUID_EBX, BIT(1)),
+	PT_CAP(ip_filtering,		0, CPUID_EBX, BIT(2)),
+	PT_CAP(mtc,			0, CPUID_EBX, BIT(3)),
+	PT_CAP(ptwrite,			0, CPUID_EBX, BIT(4)),
+	PT_CAP(power_event_trace,	0, CPUID_EBX, BIT(5)),
+	PT_CAP(topa_output,		0, CPUID_ECX, BIT(0)),
+	PT_CAP(topa_multiple_entries,	0, CPUID_ECX, BIT(1)),
+	PT_CAP(single_range_output,	0, CPUID_ECX, BIT(2)),
+	PT_CAP(payloads_lip,		0, CPUID_ECX, BIT(31)),
+	PT_CAP(num_address_ranges,	1, CPUID_EAX, 0x3),
+	PT_CAP(mtc_periods,		1, CPUID_EAX, 0xffff0000),
+	PT_CAP(cycle_thresholds,	1, CPUID_EBX, 0xffff),
+	PT_CAP(psb_periods,		1, CPUID_EBX, 0xffff0000),
 };
 
 static u32 pt_cap_get(enum pt_capabilities cap)
@@ -105,19 +99,29 @@ static struct attribute_group pt_cap_group = {
 	.name	= "caps",
 };
 
+PMU_FORMAT_ATTR(pt,		"config:0"	);
 PMU_FORMAT_ATTR(cyc,		"config:1"	);
+PMU_FORMAT_ATTR(pwr_evt,	"config:4"	);
+PMU_FORMAT_ATTR(fup_on_ptw,	"config:5"	);
 PMU_FORMAT_ATTR(mtc,		"config:9"	);
 PMU_FORMAT_ATTR(tsc,		"config:10"	);
 PMU_FORMAT_ATTR(noretcomp,	"config:11"	);
+PMU_FORMAT_ATTR(ptw,		"config:12"	);
+PMU_FORMAT_ATTR(branch,		"config:13"	);
 PMU_FORMAT_ATTR(mtc_period,	"config:14-17"	);
 PMU_FORMAT_ATTR(cyc_thresh,	"config:19-22"	);
 PMU_FORMAT_ATTR(psb_period,	"config:24-27"	);
 
 static struct attribute *pt_formats_attr[] = {
+	&format_attr_pt.attr,
 	&format_attr_cyc.attr,
+	&format_attr_pwr_evt.attr,
+	&format_attr_fup_on_ptw.attr,
 	&format_attr_mtc.attr,
 	&format_attr_tsc.attr,
 	&format_attr_noretcomp.attr,
+	&format_attr_ptw.attr,
+	&format_attr_branch.attr,
 	&format_attr_mtc_period.attr,
 	&format_attr_cyc_thresh.attr,
 	&format_attr_psb_period.attr,
@@ -198,6 +202,19 @@ static int __init pt_pmu_hw_init(void)
 		pt_pmu.tsc_art_den = eax;
 	}
 
+	/* model-specific quirks */
+	switch (boot_cpu_data.x86_model) {
+	case INTEL_FAM6_BROADWELL_CORE:
+	case INTEL_FAM6_BROADWELL_XEON_D:
+	case INTEL_FAM6_BROADWELL_GT3E:
+	case INTEL_FAM6_BROADWELL_X:
+		/* not setting BRANCH_EN will #GP, erratum BDM106 */
+		pt_pmu.branch_en_always_on = true;
+		break;
+	default:
+		break;
+	}
+
 	if (boot_cpu_has(X86_FEATURE_VMX)) {
 		/*
 		 * Intel SDM, 36.5 "Tracing post-VMXON" says that
@@ -213,10 +230,10 @@ static int __init pt_pmu_hw_init(void)
 
 	for (i = 0; i < PT_CPUID_LEAVES; i++) {
 		cpuid_count(20, i,
-			    &pt_pmu.caps[CR_EAX + i*PT_CPUID_REGS_NUM],
-			    &pt_pmu.caps[CR_EBX + i*PT_CPUID_REGS_NUM],
-			    &pt_pmu.caps[CR_ECX + i*PT_CPUID_REGS_NUM],
-			    &pt_pmu.caps[CR_EDX + i*PT_CPUID_REGS_NUM]);
+			    &pt_pmu.caps[CPUID_EAX + i*PT_CPUID_REGS_NUM],
+			    &pt_pmu.caps[CPUID_EBX + i*PT_CPUID_REGS_NUM],
+			    &pt_pmu.caps[CPUID_ECX + i*PT_CPUID_REGS_NUM],
+			    &pt_pmu.caps[CPUID_EDX + i*PT_CPUID_REGS_NUM]);
 	}
 
 	ret = -ENOMEM;
@@ -264,8 +281,20 @@ fail:
 #define RTIT_CTL_PTW	(RTIT_CTL_PTW_EN	| \
 			 RTIT_CTL_FUP_ON_PTW)
 
-#define PT_CONFIG_MASK (RTIT_CTL_TSC_EN		| \
+/*
+ * Bit 0 (TraceEn) in the attr.config is meaningless as the
+ * corresponding bit in the RTIT_CTL can only be controlled
+ * by the driver; therefore, repurpose it to mean: pass
+ * through the bit that was previously assumed to be always
+ * on for PT, thereby allowing the user to *not* set it if
+ * they so wish. See also pt_event_valid() and pt_config().
+ */
+#define RTIT_CTL_PASSTHROUGH RTIT_CTL_TRACEEN
+
+#define PT_CONFIG_MASK (RTIT_CTL_TRACEEN	| \
+			RTIT_CTL_TSC_EN		| \
 			RTIT_CTL_DISRETC	| \
+			RTIT_CTL_BRANCH_EN	| \
 			RTIT_CTL_CYC_PSB	| \
 			RTIT_CTL_MTC		| \
 			RTIT_CTL_PWR_EVT_EN	| \
@@ -330,6 +359,33 @@ static bool pt_event_valid(struct perf_event *event)
 		/* FUPonPTW without PTW doesn't make sense */
 		if ((config & RTIT_CTL_FUP_ON_PTW) &&
 		    !(config & RTIT_CTL_PTW_EN))
+			return false;
+	}
+
+	/*
+	 * Setting bit 0 (TraceEn in RTIT_CTL MSR) in the attr.config
+	 * clears the assomption that BranchEn must always be enabled,
+	 * as was the case with the first implementation of PT.
+	 * If this bit is not set, the legacy behavior is preserved
+	 * for compatibility with the older userspace.
+	 *
+	 * Re-using bit 0 for this purpose is fine because it is never
+	 * directly set by the user; previous attempts at setting it in
+	 * the attr.config resulted in -EINVAL.
+	 */
+	if (config & RTIT_CTL_PASSTHROUGH) {
+		/*
+		 * Disallow not setting BRANCH_EN where BRANCH_EN is
+		 * always required.
+		 */
+		if (pt_pmu.branch_en_always_on &&
+		    !(config & RTIT_CTL_BRANCH_EN))
+			return false;
+	} else {
+		/*
+		 * Disallow BRANCH_EN without the PASSTHROUGH.
+		 */
+		if (config & RTIT_CTL_BRANCH_EN)
 			return false;
 	}
 
@@ -412,15 +468,30 @@ static u64 pt_config_filters(struct perf_event *event)
 
 static void pt_config(struct perf_event *event)
 {
+	struct pt *pt = this_cpu_ptr(&pt_ctx);
 	u64 reg;
 
-	if (!event->hw.itrace_started) {
-		event->hw.itrace_started = 1;
+	/* First round: clear STATUS, in particular the PSB byte counter. */
+	if (!event->hw.config) {
+		perf_event_itrace_started(event);
 		wrmsrl(MSR_IA32_RTIT_STATUS, 0);
 	}
 
 	reg = pt_config_filters(event);
-	reg |= RTIT_CTL_TOPA | RTIT_CTL_BRANCH_EN | RTIT_CTL_TRACEEN;
+	reg |= RTIT_CTL_TOPA | RTIT_CTL_TRACEEN;
+
+	/*
+	 * Previously, we had BRANCH_EN on by default, but now that PT has
+	 * grown features outside of branch tracing, it is useful to allow
+	 * the user to disable it. Setting bit 0 in the event's attr.config
+	 * allows BRANCH_EN to pass through instead of being always on. See
+	 * also the comment in pt_event_valid().
+	 */
+	if (event->attr.config & BIT(0)) {
+		reg |= event->attr.config & RTIT_CTL_BRANCH_EN;
+	} else {
+		reg |= RTIT_CTL_BRANCH_EN;
+	}
 
 	if (!event->attr.exclude_kernel)
 		reg |= RTIT_CTL_OS;
@@ -430,11 +501,15 @@ static void pt_config(struct perf_event *event)
 	reg |= (event->attr.config & PT_CONFIG_MASK);
 
 	event->hw.config = reg;
-	wrmsrl(MSR_IA32_RTIT_CTL, reg);
+	if (READ_ONCE(pt->vmx_on))
+		perf_aux_output_flag(&pt->handle, PERF_AUX_FLAG_PARTIAL);
+	else
+		wrmsrl(MSR_IA32_RTIT_CTL, reg);
 }
 
 static void pt_config_stop(struct perf_event *event)
 {
+	struct pt *pt = this_cpu_ptr(&pt_ctx);
 	u64 ctl = READ_ONCE(event->hw.config);
 
 	/* may be already stopped by a PMI */
@@ -442,7 +517,8 @@ static void pt_config_stop(struct perf_event *event)
 		return;
 
 	ctl &= ~RTIT_CTL_TRACEEN;
-	wrmsrl(MSR_IA32_RTIT_CTL, ctl);
+	if (!READ_ONCE(pt->vmx_on))
+		wrmsrl(MSR_IA32_RTIT_CTL, ctl);
 
 	WRITE_ONCE(event->hw.config, ctl);
 
@@ -754,7 +830,8 @@ static void pt_handle_status(struct pt *pt)
 		 */
 		if (!pt_cap_get(PT_CAP_topa_multiple_entries) ||
 		    buf->output_off == sizes(TOPA_ENTRY(buf->cur, buf->cur_idx)->size)) {
-			local_inc(&buf->lost);
+			perf_aux_output_flag(&pt->handle,
+			                     PERF_AUX_FLAG_TRUNCATED);
 			advance++;
 		}
 	}
@@ -847,8 +924,10 @@ static int pt_buffer_reset_markers(struct pt_buffer *buf,
 
 	/* can't stop in the middle of an output region */
 	if (buf->output_off + handle->size + 1 <
-	    sizes(TOPA_ENTRY(buf->cur, buf->cur_idx)->size))
+	    sizes(TOPA_ENTRY(buf->cur, buf->cur_idx)->size)) {
+		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
 		return -EINVAL;
+	}
 
 
 	/* single entry ToPA is handled by marking all regions STOP=1 INT=1 */
@@ -1172,12 +1251,6 @@ void intel_pt_interrupt(void)
 	if (!READ_ONCE(pt->handle_nmi))
 		return;
 
-	/*
-	 * If VMX is on and PT does not support it, don't touch anything.
-	 */
-	if (READ_ONCE(pt->vmx_on))
-		return;
-
 	if (!event)
 		return;
 
@@ -1193,8 +1266,7 @@ void intel_pt_interrupt(void)
 
 	pt_update_head(pt);
 
-	perf_aux_output_end(&pt->handle, local_xchg(&buf->data_size, 0),
-			    local_xchg(&buf->lost, 0));
+	perf_aux_output_end(&pt->handle, local_xchg(&buf->data_size, 0));
 
 	if (!event->hw.state) {
 		int ret;
@@ -1209,7 +1281,7 @@ void intel_pt_interrupt(void)
 		/* snapshot counters don't use PMI, so it's safe */
 		ret = pt_buffer_reset_markers(buf, &pt->handle);
 		if (ret) {
-			perf_aux_output_end(&pt->handle, 0, true);
+			perf_aux_output_end(&pt->handle, 0);
 			return;
 		}
 
@@ -1238,12 +1310,19 @@ void intel_pt_handle_vmx(int on)
 	local_irq_save(flags);
 	WRITE_ONCE(pt->vmx_on, on);
 
-	if (on) {
-		/* prevent pt_config_stop() from writing RTIT_CTL */
-		event = pt->handle.event;
-		if (event)
-			event->hw.config = 0;
-	}
+	/*
+	 * If an AUX transaction is in progress, it will contain
+	 * gap(s), so flag it PARTIAL to inform the user.
+	 */
+	event = pt->handle.event;
+	if (event)
+		perf_aux_output_flag(&pt->handle,
+		                     PERF_AUX_FLAG_PARTIAL);
+
+	/* Turn PTs back on */
+	if (!on && event)
+		wrmsrl(MSR_IA32_RTIT_CTL, event->hw.config);
+
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(intel_pt_handle_vmx);
@@ -1257,9 +1336,6 @@ static void pt_event_start(struct perf_event *event, int mode)
 	struct hw_perf_event *hwc = &event->hw;
 	struct pt *pt = this_cpu_ptr(&pt_ctx);
 	struct pt_buffer *buf;
-
-	if (READ_ONCE(pt->vmx_on))
-		return;
 
 	buf = perf_aux_output_begin(&pt->handle, event);
 	if (!buf)
@@ -1281,7 +1357,7 @@ static void pt_event_start(struct perf_event *event, int mode)
 	return;
 
 fail_end_stop:
-	perf_aux_output_end(&pt->handle, 0, true);
+	perf_aux_output_end(&pt->handle, 0);
 fail_stop:
 	hwc->state = PERF_HES_STOPPED;
 }
@@ -1322,8 +1398,7 @@ static void pt_event_stop(struct perf_event *event, int mode)
 			pt->handle.head =
 				local_xchg(&buf->data_size,
 					   buf->nr_pages << PAGE_SHIFT);
-		perf_aux_output_end(&pt->handle, local_xchg(&buf->data_size, 0),
-				    local_xchg(&buf->lost, 0));
+		perf_aux_output_end(&pt->handle, local_xchg(&buf->data_size, 0));
 	}
 }
 

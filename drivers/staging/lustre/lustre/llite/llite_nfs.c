@@ -84,7 +84,7 @@ struct inode *search_inode_for_lustre(struct super_block *sb,
 	struct  md_op_data    *op_data;
 	int		   rc;
 
-	CDEBUG(D_INFO, "searching inode for:(%lu,"DFID")\n", hash, PFID(fid));
+	CDEBUG(D_INFO, "searching inode for:(%lu," DFID ")\n", hash, PFID(fid));
 
 	inode = ilookup5(sb, hash, ll_test_inode_by_fid, (void *)fid);
 	if (inode)
@@ -109,7 +109,7 @@ struct inode *search_inode_for_lustre(struct super_block *sb,
 	rc = md_getattr(sbi->ll_md_exp, op_data, &req);
 	kfree(op_data);
 	if (rc) {
-		CDEBUG(D_INFO, "can't get object attrs, fid "DFID", rc %d\n",
+		CDEBUG(D_INFO, "can't get object attrs, fid " DFID ", rc %d\n",
 		       PFID(fid), rc);
 		return ERR_PTR(rc);
 	}
@@ -169,22 +169,12 @@ ll_iget_for_nfs(struct super_block *sb, struct lu_fid *fid, struct lu_fid *paren
 	/* N.B. d_obtain_alias() drops inode ref on error */
 	result = d_obtain_alias(inode);
 	if (!IS_ERR(result)) {
-		int rc;
-
-		rc = ll_d_init(result);
-		if (rc < 0) {
-			dput(result);
-			result = ERR_PTR(rc);
-		} else {
-			struct ll_dentry_data *ldd = ll_d2d(result);
-
-			/*
-			 * Need to signal to the ll_intent_file_open that
-			 * we came from NFS and so opencache needs to be
-			 * enabled for this one
-			 */
-			ldd->lld_nfs_dentry = 1;
-		}
+		/*
+		 * Need to signal to the ll_intent_file_open that
+		 * we came from NFS and so opencache needs to be
+		 * enabled for this one
+		 */
+		ll_d2d(result)->lld_nfs_dentry = 1;
 	}
 
 	return result;
@@ -205,7 +195,7 @@ static int ll_encode_fh(struct inode *inode, __u32 *fh, int *plen,
 	int fileid_len = sizeof(struct lustre_nfs_fid) / 4;
 	struct lustre_nfs_fid *nfs_fid = (void *)fh;
 
-	CDEBUG(D_INFO, "%s: encoding for ("DFID") maxlen=%d minlen=%d\n",
+	CDEBUG(D_INFO, "%s: encoding for (" DFID ") maxlen=%d minlen=%d\n",
 	       ll_get_fsname(inode->i_sb, NULL, 0),
 	       PFID(ll_inode2fid(inode)), *plen, fileid_len);
 
@@ -226,7 +216,7 @@ static int ll_encode_fh(struct inode *inode, __u32 *fh, int *plen,
 
 static int ll_nfs_get_name_filldir(struct dir_context *ctx, const char *name,
 				   int namelen, loff_t hash, u64 ino,
-				   unsigned type)
+				   unsigned int type)
 {
 	/* It is hack to access lde_fid for comparison with lgd_fid.
 	 * So the input 'name' must be part of the 'lu_dirent'.
@@ -322,7 +312,7 @@ int ll_dir_get_parent_fid(struct inode *dir, struct lu_fid *parent_fid)
 
 	sbi = ll_s2sbi(dir->i_sb);
 
-	CDEBUG(D_INFO, "%s: getting parent for ("DFID")\n",
+	CDEBUG(D_INFO, "%s: getting parent for (" DFID ")\n",
 	       ll_get_fsname(dir->i_sb, NULL, 0),
 	       PFID(ll_inode2fid(dir)));
 
@@ -339,7 +329,7 @@ int ll_dir_get_parent_fid(struct inode *dir, struct lu_fid *parent_fid)
 	rc = md_getattr_name(sbi->ll_md_exp, op_data, &req);
 	ll_finish_md_op_data(op_data);
 	if (rc) {
-		CERROR("%s: failure inode "DFID" get parent: rc = %d\n",
+		CERROR("%s: failure inode " DFID " get parent: rc = %d\n",
 		       ll_get_fsname(dir->i_sb, NULL, 0),
 		       PFID(ll_inode2fid(dir)), rc);
 		return rc;

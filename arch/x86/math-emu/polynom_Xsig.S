@@ -133,3 +133,4 @@ L_accum_done:
 	popl	%esi
 	leave
 	ret
+ENDPROC(polynomial_Xsig)

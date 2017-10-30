@@ -4,7 +4,7 @@
  * Contact: support@cavium.com
  *          Please include "LiquidIO" in the subject.
  *
- * Copyright (c) 2003-2015 Cavium, Inc.
+ * Copyright (c) 2003-2016 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -15,9 +15,6 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
  * NONINFRINGEMENT.  See the GNU General Public License for more
  * details.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium, Inc. for more information
  **********************************************************************/
 
 /*!  \file octeon_mem_ops.h
@@ -69,7 +66,7 @@ octeon_pci_read_core_mem(struct octeon_device *oct,
 void
 octeon_pci_write_core_mem(struct octeon_device *oct,
 			  u64 coreaddr,
-			  u8 *buf,
+			  const u8 *buf,
 			  u32 len);
 
 #endif

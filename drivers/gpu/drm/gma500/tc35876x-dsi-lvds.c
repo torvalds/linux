@@ -26,7 +26,7 @@
 #include "mdfld_output.h"
 #include "mdfld_dsi_pkg_sender.h"
 #include "tc35876x-dsi-lvds.h"
-#include <linux/i2c/tc35876x.h>
+#include <linux/platform_data/tc35876x.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <asm/intel_scu_ipc.h>

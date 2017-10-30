@@ -8,8 +8,9 @@ This driver provides a simple power button event via an Interrupt.
 Required properties:
 - compatible: should be "ti,tps65217-pwrbutton" or "ti,tps65218-pwrbutton"
 
-Required properties for TPS65218:
+Required properties:
 - interrupts: should be one of the following
+   - <2>: For controllers compatible with tps65217
    - <3 IRQ_TYPE_EDGE_BOTH>: For controllers compatible with tps65218
 
 Examples:
@@ -17,6 +18,7 @@ Examples:
 &tps {
 	tps65217-pwrbutton {
 		compatible = "ti,tps65217-pwrbutton";
+		interrupts = <2>;
 	};
 };
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2012-2016 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2012-2017  B.A.T.M.A.N. contributors:
  *
  * Edo Monticelli, Antonio Quartulli
  *
@@ -23,10 +23,11 @@
 #include <linux/byteorder/generic.h>
 #include <linux/cache.h>
 #include <linux/compiler.h>
-#include <linux/device.h>
+#include <linux/err.h>
 #include <linux/etherdevice.h>
 #include <linux/fs.h>
 #include <linux/if_ether.h>
+#include <linux/init.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/kref.h>
@@ -594,7 +595,7 @@ static int batadv_tp_send_msg(struct batadv_tp_vars *tp_vars, const u8 *src,
 		return BATADV_TP_REASON_MEMORY_ERROR;
 
 	skb_reserve(skb, ETH_HLEN);
-	icmp = (struct batadv_icmp_tp_packet *)skb_put(skb, sizeof(*icmp));
+	icmp = skb_put(skb, sizeof(*icmp));
 
 	/* fill the icmp header */
 	ether_addr_copy(icmp->dst, orig_node->orig);
@@ -611,13 +612,10 @@ static int batadv_tp_send_msg(struct batadv_tp_vars *tp_vars, const u8 *src,
 	icmp->timestamp = htonl(timestamp);
 
 	data_len = len - sizeof(*icmp);
-	data = (u8 *)skb_put(skb, data_len);
+	data = skb_put(skb, data_len);
 	batadv_tp_fill_prerandom(tp_vars, data, data_len);
 
 	r = batadv_send_skb_to_orig(skb, orig_node, NULL);
-	if (r == -1)
-		kfree_skb(skb);
-
 	if (r == NET_XMIT_SUCCESS)
 		return 0;
 
@@ -876,8 +874,8 @@ static int batadv_tp_send(void *arg)
 		/* something went wrong during the preparation/transmission */
 		if (unlikely(err && err != BATADV_TP_REASON_CANT_SEND)) {
 			batadv_dbg(BATADV_DBG_TP_METER, bat_priv,
-				   "Meter: batadv_tp_send() cannot send packets (%d)\n",
-				   err);
+				   "Meter: %s() cannot send packets (%d)\n",
+				   __func__, err);
 			/* ensure nobody else tries to stop the thread now */
 			if (atomic_dec_and_test(&tp_vars->sending))
 				tp_vars->reason = err;
@@ -982,7 +980,8 @@ void batadv_tp_start(struct batadv_priv *bat_priv, const u8 *dst,
 	if (!tp_vars) {
 		spin_unlock_bh(&bat_priv->tp_list_lock);
 		batadv_dbg(BATADV_DBG_TP_METER, bat_priv,
-			   "Meter: batadv_tp_start cannot allocate list elements\n");
+			   "Meter: %s cannot allocate list elements\n",
+			   __func__);
 		batadv_tp_batctl_error_notify(BATADV_TP_REASON_MEMORY_ERROR,
 					      dst, bat_priv, session_cookie);
 		return;
@@ -1191,7 +1190,7 @@ static int batadv_tp_send_ack(struct batadv_priv *bat_priv, const u8 *dst,
 	}
 
 	skb_reserve(skb, ETH_HLEN);
-	icmp = (struct batadv_icmp_tp_packet *)skb_put(skb, sizeof(*icmp));
+	icmp = skb_put(skb, sizeof(*icmp));
 	icmp->packet_type = BATADV_ICMP;
 	icmp->version = BATADV_COMPAT_VERSION;
 	icmp->ttl = BATADV_TTL;
@@ -1207,9 +1206,6 @@ static int batadv_tp_send_ack(struct batadv_priv *bat_priv, const u8 *dst,
 
 	/* send the ack */
 	r = batadv_send_skb_to_orig(skb, orig_node, NULL);
-	if (r == -1)
-		kfree_skb(skb);
-
 	if (unlikely(r < 0) || (r == NET_XMIT_DROP)) {
 		ret = BATADV_TP_REASON_DST_UNREACHABLE;
 		goto out;
@@ -1502,7 +1498,7 @@ void batadv_tp_meter_recv(struct batadv_priv *bat_priv, struct sk_buff *skb)
 /**
  * batadv_tp_meter_init - initialize global tp_meter structures
  */
-void batadv_tp_meter_init(void)
+void __init batadv_tp_meter_init(void)
 {
 	get_random_bytes(batadv_tp_prerandom, sizeof(batadv_tp_prerandom));
 }

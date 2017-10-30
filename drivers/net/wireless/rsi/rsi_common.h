@@ -20,8 +20,7 @@
 #include <linux/kthread.h>
 
 #define EVENT_WAIT_FOREVER              0
-#define TA_LOAD_ADDRESS                 0x00
-#define FIRMWARE_RSI9113                "rsi_91x.fw"
+#define FIRMWARE_RSI9113                "rs9113_wlan_qspi.rps"
 #define QUEUE_NOT_FULL                  1
 #define QUEUE_FULL                      0
 
@@ -84,4 +83,5 @@ u16 rsi_get_connected_channel(struct rsi_hw *adapter);
 struct rsi_hw *rsi_91x_init(void);
 void rsi_91x_deinit(struct rsi_hw *adapter);
 int rsi_read_pkt(struct rsi_common *common, s32 rcv_pkt_len);
+struct rsi_sta *rsi_find_sta(struct rsi_common *common, u8 *mac_addr);
 #endif

@@ -311,8 +311,6 @@ static int vf50_ts_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	platform_set_drvdata(pdev, touchdev);
-
 	input->name = DRIVER_NAME;
 	input->id.bustype = BUS_HOST;
 	input->dev.parent = dev;

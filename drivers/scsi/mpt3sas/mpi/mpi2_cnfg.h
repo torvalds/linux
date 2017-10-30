@@ -478,6 +478,13 @@ typedef struct _MPI2_CONFIG_REPLY {
 #define MPI26_MFGPAGE_DEVID_SAS3324_3               (0x00C2)
 #define MPI26_MFGPAGE_DEVID_SAS3324_4               (0x00C3)
 
+#define MPI26_MFGPAGE_DEVID_SAS3516                 (0x00AA)
+#define MPI26_MFGPAGE_DEVID_SAS3516_1               (0x00AB)
+#define MPI26_MFGPAGE_DEVID_SAS3416                 (0x00AC)
+#define MPI26_MFGPAGE_DEVID_SAS3508                 (0x00AD)
+#define MPI26_MFGPAGE_DEVID_SAS3508_1               (0x00AE)
+#define MPI26_MFGPAGE_DEVID_SAS3408                 (0x00AF)
+
 /*Manufacturing Page 0 */
 
 typedef struct _MPI2_CONFIG_PAGE_MAN_0 {

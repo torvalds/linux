@@ -66,13 +66,13 @@
 #include <linux/kref.h>
 #include <linux/interval_tree.h>
 #include <linux/hashtable.h>
-#include <linux/fence.h>
+#include <linux/dma-fence.h>
 
-#include <ttm/ttm_bo_api.h>
-#include <ttm/ttm_bo_driver.h>
-#include <ttm/ttm_placement.h>
-#include <ttm/ttm_module.h>
-#include <ttm/ttm_execbuf_util.h>
+#include <drm/ttm/ttm_bo_api.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_module.h>
+#include <drm/ttm/ttm_execbuf_util.h>
 
 #include <drm/drm_gem.h>
 
@@ -115,6 +115,8 @@ extern int radeon_auxch;
 extern int radeon_mst;
 extern int radeon_uvd;
 extern int radeon_vce;
+extern int radeon_si_support;
+extern int radeon_cik_support;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
@@ -367,7 +369,7 @@ struct radeon_fence_driver {
 };
 
 struct radeon_fence {
-	struct fence		base;
+	struct dma_fence		base;
 
 	struct radeon_device	*rdev;
 	uint64_t		seq;
@@ -375,7 +377,7 @@ struct radeon_fence {
 	unsigned		ring;
 	bool			is_vm_update;
 
-	wait_queue_t		fence_wake;
+	wait_queue_entry_t		fence_wake;
 };
 
 int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring);
@@ -462,7 +464,7 @@ struct radeon_bo_list {
 	struct radeon_bo		*robj;
 	struct ttm_validate_buffer	tv;
 	uint64_t			gpu_offset;
-	unsigned			prefered_domains;
+	unsigned			preferred_domains;
 	unsigned			allowed_domains;
 	uint32_t			tiling_flags;
 };
@@ -499,6 +501,7 @@ struct radeon_bo {
 	u32				tiling_flags;
 	u32				pitch;
 	int				surface_reg;
+	unsigned			prime_shared_count;
 	/* list of all virtual address to which this bo
 	 * is associated to
 	 */
@@ -746,7 +749,7 @@ struct radeon_flip_work {
 	uint64_t			base;
 	struct drm_pending_vblank_event *event;
 	struct radeon_bo		*old_rbo;
-	struct fence			*fence;
+	struct dma_fence		*fence;
 	bool				async;
 };
 
@@ -766,24 +769,9 @@ struct r600_irq_stat_regs {
 };
 
 struct evergreen_irq_stat_regs {
-	u32 disp_int;
-	u32 disp_int_cont;
-	u32 disp_int_cont2;
-	u32 disp_int_cont3;
-	u32 disp_int_cont4;
-	u32 disp_int_cont5;
-	u32 d1grph_int;
-	u32 d2grph_int;
-	u32 d3grph_int;
-	u32 d4grph_int;
-	u32 d5grph_int;
-	u32 d6grph_int;
-	u32 afmt_status1;
-	u32 afmt_status2;
-	u32 afmt_status3;
-	u32 afmt_status4;
-	u32 afmt_status5;
-	u32 afmt_status6;
+	u32 disp_int[6];
+	u32 grph_int[6];
+	u32 afmt_status[6];
 };
 
 struct cik_irq_stat_regs {
@@ -936,7 +924,7 @@ struct radeon_vm_id {
 struct radeon_vm {
 	struct mutex		mutex;
 
-	struct rb_root		va;
+	struct rb_root_cached	va;
 
 	/* protecting invalidated and freed */
 	spinlock_t		status_lock;
@@ -2339,7 +2327,7 @@ struct radeon_device {
 	uint8_t				*bios;
 	bool				is_atom_bios;
 	uint16_t			bios_header_start;
-	struct radeon_bo		*stollen_vga_memory;
+	struct radeon_bo		*stolen_vga_memory;
 	/* Register mmio */
 	resource_size_t			rmmio_base;
 	resource_size_t			rmmio_size;
@@ -2514,9 +2502,9 @@ void cik_mm_wdoorbell(struct radeon_device *rdev, u32 index, u32 v);
 /*
  * Cast helper
  */
-extern const struct fence_ops radeon_fence_ops;
+extern const struct dma_fence_ops radeon_fence_ops;
 
-static inline struct radeon_fence *to_radeon_fence(struct fence *f)
+static inline struct radeon_fence *to_radeon_fence(struct dma_fence *f)
 {
 	struct radeon_fence *__f = container_of(f, struct radeon_fence, base);
 
@@ -2535,7 +2523,8 @@ static inline struct radeon_fence *to_radeon_fence(struct fence *f)
 #define WREG16(reg, v) writew(v, (rdev->rmmio) + (reg))
 #define RREG32(reg) r100_mm_rreg(rdev, (reg), false)
 #define RREG32_IDX(reg) r100_mm_rreg(rdev, (reg), true)
-#define DREG32(reg) printk(KERN_INFO "REGISTER: " #reg " : 0x%08X\n", r100_mm_rreg(rdev, (reg), false))
+#define DREG32(reg) pr_info("REGISTER: " #reg " : 0x%08X\n",	\
+			    r100_mm_rreg(rdev, (reg), false))
 #define WREG32(reg, v) r100_mm_wreg(rdev, (reg), (v), false)
 #define WREG32_IDX(reg, v) r100_mm_wreg(rdev, (reg), (v), true)
 #define REG_SET(FIELD, v) (((v) << FIELD##_SHIFT) & FIELD##_MASK)
@@ -2973,6 +2962,12 @@ int radeon_cs_packet_next_reloc(struct radeon_cs_parser *p,
 int r600_cs_common_vline_parse(struct radeon_cs_parser *p,
 			       uint32_t *vline_start_end,
 			       uint32_t *vline_status);
+
+/* interrupt control register helpers */
+void radeon_irq_kms_set_irq_n_enabled(struct radeon_device *rdev,
+				      u32 reg, u32 mask,
+				      bool enable, const char *name,
+				      unsigned n);
 
 #include "radeon_object.h"
 

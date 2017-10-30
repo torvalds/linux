@@ -79,7 +79,7 @@
 # define sdc_readb(p)		gsc_readb(p)
 # define sdc_writeb(v,p)	gsc_writeb((v),(p))
 #elif defined(__mc68000__)
-# include <asm/uaccess.h>
+#include <linux/uaccess.h>
 # define sdc_readb(p)		in_8(p)
 # define sdc_writeb(v,p)	out_8((p),(v))
 #else
@@ -805,7 +805,7 @@ static void hp_sdc_kicker(unsigned long data)
 
 #if defined(__hppa__)
 
-static const struct parisc_device_id hp_sdc_tbl[] = {
+static const struct parisc_device_id hp_sdc_tbl[] __initconst = {
 	{
 		.hw_type =	HPHW_FIO,
 		.hversion_rev =	HVERSION_REV_ANY_ID,
@@ -820,7 +820,7 @@ MODULE_DEVICE_TABLE(parisc, hp_sdc_tbl);
 static int __init hp_sdc_init_hppa(struct parisc_device *d);
 static struct delayed_work moduleloader_work;
 
-static struct parisc_driver hp_sdc_driver = {
+static struct parisc_driver hp_sdc_driver __refdata = {
 	.name =		"hp_sdc",
 	.id_table =	hp_sdc_tbl,
 	.probe =	hp_sdc_init_hppa,
@@ -1001,7 +1001,6 @@ static int __init hp_sdc_register(void)
 	uint8_t tq_init_seq[5];
 	struct semaphore tq_init_sem;
 #if defined(__mc68000__)
-	mm_segment_t fs;
 	unsigned char i;
 #endif
 
@@ -1026,11 +1025,8 @@ static int __init hp_sdc_register(void)
 	hp_sdc.base_io	 = (unsigned long) 0xf0428000;
 	hp_sdc.data_io	 = (unsigned long) hp_sdc.base_io + 1;
 	hp_sdc.status_io = (unsigned long) hp_sdc.base_io + 3;
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-	if (!get_user(i, (unsigned char *)hp_sdc.data_io))
+	if (!probe_kernel_read(&i, (unsigned char *)hp_sdc.data_io, 1))
 		hp_sdc.dev = (void *)1;
-	set_fs(fs);
 	hp_sdc.dev_err   = hp_sdc_init();
 #endif
 	if (hp_sdc.dev == NULL) {

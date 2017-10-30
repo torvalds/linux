@@ -23,9 +23,9 @@
  */
 
 #include <linux/firmware.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "amdgpu.h"
-#include "si/sid.h"
+#include "sid.h"
 #include "ppsmc.h"
 #include "amdgpu_ucode.h"
 #include "sislands_smc.h"

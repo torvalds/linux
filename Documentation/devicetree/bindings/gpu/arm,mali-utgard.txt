@@ -1,0 +1,94 @@
+ARM Mali Utgard GPU
+===================
+
+Required properties:
+  - compatible
+    * Must be one of the following:
+      + "arm,mali-300"
+      + "arm,mali-400"
+      + "arm,mali-450"
+    * And, optionally, one of the vendor specific compatible:
+      + allwinner,sun4i-a10-mali
+      + allwinner,sun7i-a20-mali
+      + allwinner,sun50i-h5-mali
+      + amlogic,meson-gxbb-mali
+      + amlogic,meson-gxl-mali
+      + stericsson,db8500-mali
+
+  - reg: Physical base address and length of the GPU registers
+
+  - interrupts: an entry for each entry in interrupt-names.
+    See ../interrupt-controller/interrupts.txt for details.
+
+  - interrupt-names:
+    * ppX: Pixel Processor X interrupt (X from 0 to 7)
+    * ppmmuX: Pixel Processor X MMU interrupt (X from 0 to 7)
+    * pp: Pixel Processor broadcast interrupt (mali-450 only)
+    * gp: Geometry Processor interrupt
+    * gpmmu: Geometry Processor MMU interrupt
+
+  - clocks: an entry for each entry in clock-names
+  - clock-names:
+    * bus: bus clock for the GPU
+    * core: clock driving the GPU itself
+
+Optional properties:
+  - interrupt-names and interrupts:
+    * pmu: Power Management Unit interrupt, if implemented in hardware
+
+  - memory-region:
+    Memory region to allocate from, as defined in
+    Documentation/devicetree/bindi/reserved-memory/reserved-memory.txt
+
+  - operating-points-v2:
+    Operating Points for the GPU, as defined in
+    Documentation/devicetree/bindings/opp/opp.txt
+
+Vendor-specific bindings
+------------------------
+
+The Mali GPU is integrated very differently from one SoC to
+another. In order to accomodate those differences, you have the option
+to specify one more vendor-specific compatible, among:
+
+  - allwinner,sun4i-a10-mali
+    Required properties:
+      * resets: phandle to the reset line for the GPU
+
+  - allwinner,sun7i-a20-mali
+    Required properties:
+      * resets: phandle to the reset line for the GPU
+
+  - allwinner,sun50i-h5-mali
+    Required properties:
+      * resets: phandle to the reset line for the GPU
+
+  - stericsson,db8500-mali
+    Required properties:
+      * interrupt-names and interrupts:
+        + combined: combined interrupt of all of the above lines
+
+Example:
+
+mali: gpu@1c40000 {
+	compatible = "allwinner,sun7i-a20-mali", "arm,mali-400";
+	reg = <0x01c40000 0x10000>;
+	interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "gp",
+			  "gpmmu",
+			  "pp0",
+			  "ppmmu0",
+			  "pp1",
+			  "ppmmu1",
+			  "pmu";
+	clocks = <&ccu CLK_BUS_GPU>, <&ccu CLK_GPU>;
+	clock-names = "bus", "core";
+	resets = <&ccu RST_BUS_GPU>;
+};
+

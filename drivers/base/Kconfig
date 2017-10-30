@@ -140,13 +140,10 @@ config EXTRA_FIRMWARE
 config EXTRA_FIRMWARE_DIR
 	string "Firmware blobs root directory"
 	depends on EXTRA_FIRMWARE != ""
-	default "firmware"
+	default "/lib/firmware"
 	help
 	  This option controls the directory in which the kernel build system
 	  looks for the firmware files listed in the EXTRA_FIRMWARE option.
-	  The default is firmware/ in the kernel source tree, but by changing
-	  this option you can point it elsewhere, such as /lib/firmware/ or
-	  some other directory containing the firmware files.
 
 config FW_LOADER_USER_HELPER
 	bool
@@ -224,6 +221,8 @@ config DEBUG_TEST_DRIVER_REMOVE
 	  unusable. You should say N here unless you are explicitly looking to
 	  test this functionality.
 
+source "drivers/base/test/Kconfig"
+
 config SYS_HYPERVISOR
 	bool
 	default n
@@ -237,6 +236,7 @@ config GENERIC_CPU_AUTOPROBE
 
 config SOC_BUS
 	bool
+	select GLOB
 
 source "drivers/base/regmap/Kconfig"
 
@@ -250,11 +250,11 @@ config DMA_SHARED_BUFFER
 	  APIs extension; the file's descriptor can then be passed on to other
 	  driver.
 
-config FENCE_TRACE
-	bool "Enable verbose FENCE_TRACE messages"
+config DMA_FENCE_TRACE
+	bool "Enable verbose DMA_FENCE_TRACE messages"
 	depends on DMA_SHARED_BUFFER
 	help
-	  Enable the FENCE_TRACE printks. This will add extra
+	  Enable the DMA_FENCE_TRACE printks. This will add extra
 	  spam to the console log, but will make it easier to diagnose
 	  lockup related problems for dma-buffers shared across multiple
 	  devices.
@@ -335,5 +335,13 @@ config CMA_ALIGNMENT
 	  If unsure, leave the default value "8".
 
 endif
+
+config GENERIC_ARCH_TOPOLOGY
+	bool
+	help
+	  Enable support for architectures common topology code: e.g., parsing
+	  CPU capacity information from DT, usage of such information for
+	  appropriate scaling, sysfs interface for changing capacity values at
+	  runtime.
 
 endmenu

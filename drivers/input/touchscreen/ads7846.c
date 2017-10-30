@@ -499,7 +499,7 @@ static struct attribute *ads7846_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group ads7846_attr_group = {
+static const struct attribute_group ads7846_attr_group = {
 	.attrs = ads7846_attributes,
 	.is_visible = ads7846_is_visible,
 };
@@ -599,7 +599,7 @@ static struct attribute *ads784x_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group ads784x_attr_group = {
+static const struct attribute_group ads784x_attr_group = {
 	.attrs = ads784x_attributes,
 };
 
@@ -871,7 +871,7 @@ static irqreturn_t ads7846_irq(int irq, void *handle)
 				   msecs_to_jiffies(TS_POLL_PERIOD));
 	}
 
-	if (ts->pendown) {
+	if (ts->pendown && !ts->stopped) {
 		struct input_dev *input = ts->input;
 
 		input_report_key(input, BTN_TOUCH, 0);
@@ -1461,8 +1461,6 @@ static int ads7846_probe(struct spi_device *spi)
 static int ads7846_remove(struct spi_device *spi)
 {
 	struct ads7846 *ts = spi_get_drvdata(spi);
-
-	device_init_wakeup(&spi->dev, false);
 
 	sysfs_remove_group(&spi->dev.kobj, &ads784x_attr_group);
 

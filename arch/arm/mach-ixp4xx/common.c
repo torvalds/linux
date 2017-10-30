@@ -34,7 +34,7 @@
 #include <mach/udc.h>
 #include <mach/hardware.h>
 #include <mach/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/irq.h>
@@ -493,7 +493,7 @@ static u64 notrace ixp4xx_read_sched_clock(void)
  * clocksource
  */
 
-static cycle_t ixp4xx_clocksource_read(struct clocksource *c)
+static u64 ixp4xx_clocksource_read(struct clocksource *c)
 {
 	return *IXP4XX_OSTS;
 }

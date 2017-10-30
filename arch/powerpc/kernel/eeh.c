@@ -22,7 +22,6 @@
  */
 
 #include <linux/delay.h>
-#include <linux/debugfs.h>
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/list.h>
@@ -37,7 +36,7 @@
 #include <linux/of.h>
 
 #include <linux/atomic.h>
-#include <asm/debug.h>
+#include <asm/debugfs.h>
 #include <asm/eeh.h>
 #include <asm/eeh_event.h>
 #include <asm/io.h>
@@ -45,6 +44,7 @@
 #include <asm/machdep.h>
 #include <asm/ppc-pci.h>
 #include <asm/rtas.h>
+#include <asm/pte-walk.h>
 
 
 /** Overview:
@@ -170,10 +170,10 @@ static size_t eeh_dump_dev_log(struct eeh_dev *edev, char *buf, size_t len)
 	char buffer[128];
 
 	n += scnprintf(buf+n, len-n, "%04x:%02x:%02x.%01x\n",
-		       edev->phb->global_number, pdn->busno,
+		       pdn->phb->global_number, pdn->busno,
 		       PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn));
 	pr_warn("EEH: of node=%04x:%02x:%02x.%01x\n",
-		edev->phb->global_number, pdn->busno,
+		pdn->phb->global_number, pdn->busno,
 		PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn));
 
 	eeh_ops->read_config(pdn, PCI_VENDOR_ID, 4, &cfg);
@@ -298,9 +298,17 @@ void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
 	 *
 	 * For pHyp, we have to enable IO for log retrieval. Otherwise,
 	 * 0xFF's is always returned from PCI config space.
+	 *
+	 * When the @severity is EEH_LOG_PERM, the PE is going to be
+	 * removed. Prior to that, the drivers for devices included in
+	 * the PE will be closed. The drivers rely on working IO path
+	 * to bring the devices to quiet state. Otherwise, PCI traffic
+	 * from those devices after they are removed is like to cause
+	 * another unexpected EEH error.
 	 */
 	if (!(pe->type & EEH_PE_PHB)) {
-		if (eeh_has_flag(EEH_ENABLE_IO_FOR_LOG))
+		if (eeh_has_flag(EEH_ENABLE_IO_FOR_LOG) ||
+		    severity == EEH_LOG_PERM)
 			eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
 
 		/*
@@ -345,8 +353,7 @@ static inline unsigned long eeh_token_to_phys(unsigned long token)
 	 * worried about _PAGE_SPLITTING/collapse. Also we will not hit
 	 * page table free, because of init_mm.
 	 */
-	ptep = __find_linux_pte_or_hugepte(init_mm.pgd, token,
-					   NULL, &hugepage_shift);
+	ptep = find_init_mm_pte(token, &hugepage_shift);
 	if (!ptep)
 		return token;
 	WARN_ON(hugepage_shift);
@@ -372,7 +379,7 @@ static int eeh_phb_check_failure(struct eeh_pe *pe)
 	/* Find the PHB PE */
 	phb_pe = eeh_phb_pe_get(pe->phb);
 	if (!phb_pe) {
-		pr_warn("%s Can't find PE for PHB#%d\n",
+		pr_warn("%s Can't find PE for PHB#%x\n",
 			__func__, pe->phb->global_number);
 		return -EEXIST;
 	}
@@ -428,7 +435,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	int ret;
 	int active_flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 	unsigned long flags;
-	struct pci_dn *pdn;
+	struct device_node *dn;
 	struct pci_dev *dev;
 	struct eeh_pe *pe, *parent_pe, *phb_pe;
 	int rc = 0;
@@ -486,9 +493,10 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	if (pe->state & EEH_PE_ISOLATED) {
 		pe->check_count++;
 		if (pe->check_count % EEH_MAX_FAILS == 0) {
-			pdn = eeh_dev_to_pdn(edev);
-			if (pdn->node)
-				location = of_get_property(pdn->node, "ibm,loc-code", NULL);
+			dn = pci_device_to_OF_node(dev);
+			if (dn)
+				location = of_get_property(dn, "ibm,loc-code",
+						NULL);
 			printk(KERN_ERR "EEH: %d reads ignored for recovering device at "
 				"location=%s driver=%s pci addr=%s\n",
 				pe->check_count,
@@ -664,7 +672,7 @@ int eeh_pci_enable(struct eeh_pe *pe, int function)
 	rc = eeh_ops->set_option(pe, function);
 	if (rc)
 		pr_warn("%s: Unexpected state change %d on "
-			"PHB#%d-PE#%x, err=%d\n",
+			"PHB#%x-PE#%x, err=%d\n",
 			__func__, function, pe->phb->global_number,
 			pe->addr, rc);
 
@@ -808,76 +816,67 @@ static void *eeh_set_dev_freset(void *data, void *flag)
 }
 
 /**
- * eeh_reset_pe_once - Assert the pci #RST line for 1/4 second
+ * eeh_pe_reset_full - Complete a full reset process on the indicated PE
  * @pe: EEH PE
  *
- * Assert the PCI #RST line for 1/4 second.
+ * This function executes a full reset procedure on a PE, including setting
+ * the appropriate flags, performing a fundamental or hot reset, and then
+ * deactivating the reset status.  It is designed to be used within the EEH
+ * subsystem, as opposed to eeh_pe_reset which is exported to drivers and
+ * only performs a single operation at a time.
+ *
+ * This function will attempt to reset a PE three times before failing.
  */
-static void eeh_reset_pe_once(struct eeh_pe *pe)
+int eeh_pe_reset_full(struct eeh_pe *pe)
 {
+	int active_flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
+	int reset_state = (EEH_PE_RESET | EEH_PE_CFG_BLOCKED);
+	int type = EEH_RESET_HOT;
 	unsigned int freset = 0;
+	int i, state, ret;
 
-	/* Determine type of EEH reset required for
-	 * Partitionable Endpoint, a hot-reset (1)
-	 * or a fundamental reset (3).
-	 * A fundamental reset required by any device under
-	 * Partitionable Endpoint trumps hot-reset.
+	/*
+	 * Determine the type of reset to perform - hot or fundamental.
+	 * Hot reset is the default operation, unless any device under the
+	 * PE requires a fundamental reset.
 	 */
 	eeh_pe_dev_traverse(pe, eeh_set_dev_freset, &freset);
 
 	if (freset)
-		eeh_ops->reset(pe, EEH_RESET_FUNDAMENTAL);
-	else
-		eeh_ops->reset(pe, EEH_RESET_HOT);
+		type = EEH_RESET_FUNDAMENTAL;
 
-	eeh_ops->reset(pe, EEH_RESET_DEACTIVATE);
-}
+	/* Mark the PE as in reset state and block config space accesses */
+	eeh_pe_state_mark(pe, reset_state);
 
-/**
- * eeh_reset_pe - Reset the indicated PE
- * @pe: EEH PE
- *
- * This routine should be called to reset indicated device, including
- * PE. A PE might include multiple PCI devices and sometimes PCI bridges
- * might be involved as well.
- */
-int eeh_reset_pe(struct eeh_pe *pe)
-{
-	int flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
-	int i, state, ret;
-
-	/* Mark as reset and block config space */
-	eeh_pe_state_mark(pe, EEH_PE_RESET | EEH_PE_CFG_BLOCKED);
-
-	/* Take three shots at resetting the bus */
+	/* Make three attempts at resetting the bus */
 	for (i = 0; i < 3; i++) {
-		eeh_reset_pe_once(pe);
+		ret = eeh_pe_reset(pe, type);
+		if (ret)
+			break;
 
-		/*
-		 * EEH_PE_ISOLATED is expected to be removed after
-		 * BAR restore.
-		 */
+		ret = eeh_pe_reset(pe, EEH_RESET_DEACTIVATE);
+		if (ret)
+			break;
+
+		/* Wait until the PE is in a functioning state */
 		state = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
-		if ((state & flags) == flags) {
-			ret = 0;
-			goto out;
-		}
+		if ((state & active_flags) == active_flags)
+			break;
 
 		if (state < 0) {
-			pr_warn("%s: Unrecoverable slot failure on PHB#%d-PE#%x",
+			pr_warn("%s: Unrecoverable slot failure on PHB#%x-PE#%x",
 				__func__, pe->phb->global_number, pe->addr);
 			ret = -ENOTRECOVERABLE;
-			goto out;
+			break;
 		}
 
-		/* We might run out of credits */
+		/* Set error in case this is our last attempt */
 		ret = -EIO;
 		pr_warn("%s: Failure %d resetting PHB#%x-PE#%x\n (%d)\n",
 			__func__, state, pe->phb->global_number, pe->addr, (i + 1));
 	}
 
-out:
-	eeh_pe_state_clear(pe, EEH_PE_RESET | EEH_PE_CFG_BLOCKED);
+	eeh_pe_state_clear(pe, reset_state);
 	return ret;
 }
 
@@ -1020,6 +1019,10 @@ int eeh_init(void)
 	} else if ((ret = eeh_ops->init()))
 		return ret;
 
+	/* Initialize PHB PEs */
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
+		eeh_dev_phb_init_dynamic(hose);
+
 	/* Initialize EEH event */
 	ret = eeh_event_init();
 	if (ret)
@@ -1066,7 +1069,7 @@ core_initcall_sync(eeh_init);
  */
 void eeh_add_device_early(struct pci_dn *pdn)
 {
-	struct pci_controller *phb;
+	struct pci_controller *phb = pdn ? pdn->phb : NULL;
 	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 
 	if (!edev)
@@ -1076,7 +1079,6 @@ void eeh_add_device_early(struct pci_dn *pdn)
 		return;
 
 	/* USB Bus children of PCI devices will not have BUID's */
-	phb = edev->phb;
 	if (NULL == phb ||
 	    (eeh_has_flag(EEH_PROBE_MODE_DEVTREE) && 0 == phb->buid))
 		return;
@@ -1600,6 +1602,7 @@ static int eeh_pe_reenable_devices(struct eeh_pe *pe)
 	/* The PE is still in frozen state */
 	return eeh_unfreeze_pe(pe, true);
 }
+
 
 /**
  * eeh_pe_reset - Issue PE reset according to specified type

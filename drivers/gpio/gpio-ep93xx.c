@@ -291,15 +291,20 @@ static struct ep93xx_gpio_bank ep93xx_gpio_banks[] = {
 	EP93XX_GPIO_BANK("H", 0x40, 0x44, 56, false),
 };
 
-static int ep93xx_gpio_set_debounce(struct gpio_chip *chip,
-				    unsigned offset, unsigned debounce)
+static int ep93xx_gpio_set_config(struct gpio_chip *chip, unsigned offset,
+				  unsigned long config)
 {
 	int gpio = chip->base + offset;
 	int irq = gpio_to_irq(gpio);
+	u32 debounce;
+
+	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
+		return -ENOTSUPP;
 
 	if (irq < 0)
 		return -EINVAL;
 
+	debounce = pinconf_to_config_argument(config);
 	ep93xx_gpio_int_debounce(irq, debounce ? true : false);
 
 	return 0;
@@ -335,7 +340,7 @@ static int ep93xx_gpio_add_bank(struct gpio_chip *gc, struct device *dev,
 	gc->base = bank->base;
 
 	if (bank->has_debounce) {
-		gc->set_debounce = ep93xx_gpio_set_debounce;
+		gc->set_config = ep93xx_gpio_set_config;
 		gc->to_irq = ep93xx_gpio_to_irq;
 	}
 

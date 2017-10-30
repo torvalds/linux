@@ -25,10 +25,6 @@
 
 #include <linux/gpio.h>
 
-/* pinmux function number for pin as gpio output line */
-#define FUNC_INPUT	0x0
-#define FUNC_OUTPUT	0x1
-
 /**
  * enum pincfg_type - possible pin configuration types supported.
  * @PINCFG_TYPE_FUNC: Function configuration.
@@ -116,6 +112,7 @@ struct samsung_pin_bank_type {
  * struct samsung_pin_bank_data: represent a controller pin-bank (init data).
  * @type: type of the bank (register offsets and bitfield widths)
  * @pctl_offset: starting offset of the pin-bank registers.
+ * @pctl_res_idx: index of base address for pin-bank registers.
  * @nr_pins: number of pins included in this bank.
  * @eint_func: function to set in CON register to configure pin as EINT.
  * @eint_type: type of the external interrupt supported by the bank.
@@ -126,6 +123,7 @@ struct samsung_pin_bank_type {
 struct samsung_pin_bank_data {
 	const struct samsung_pin_bank_type *type;
 	u32		pctl_offset;
+	u8		pctl_res_idx;
 	u8		nr_pins;
 	u8		eint_func;
 	enum eint_type	eint_type;
@@ -137,8 +135,10 @@ struct samsung_pin_bank_data {
 /**
  * struct samsung_pin_bank: represent a controller pin-bank.
  * @type: type of the bank (register offsets and bitfield widths)
+ * @pctl_base: base address of the pin-bank registers
  * @pctl_offset: starting offset of the pin-bank registers.
  * @nr_pins: number of pins included in this bank.
+ * @eint_base: base address of the pin-bank EINT registers.
  * @eint_func: function to set in CON register to configure pin as EINT.
  * @eint_type: type of the external interrupt supported by the bank.
  * @eint_mask: bit mask of pins which support EINT function.
@@ -157,8 +157,10 @@ struct samsung_pin_bank_data {
  */
 struct samsung_pin_bank {
 	const struct samsung_pin_bank_type *type;
+	void __iomem	*pctl_base;
 	u32		pctl_offset;
 	u8		nr_pins;
+	void __iomem	*eint_base;
 	u8		eint_func;
 	enum eint_type	eint_type;
 	u32		eint_mask;
@@ -179,9 +181,48 @@ struct samsung_pin_bank {
 };
 
 /**
+ * struct samsung_retention_data: runtime pin-bank retention control data.
+ * @regs: array of PMU registers to control pad retention.
+ * @nr_regs: number of registers in @regs array.
+ * @value: value to store to registers to turn off retention.
+ * @refcnt: atomic counter if retention control affects more than one bank.
+ * @priv: retention control code private data
+ * @enable: platform specific callback to enter retention mode.
+ * @disable: platform specific callback to exit retention mode.
+ **/
+struct samsung_retention_ctrl {
+	const u32	*regs;
+	int		nr_regs;
+	u32		value;
+	atomic_t	*refcnt;
+	void		*priv;
+	void		(*enable)(struct samsung_pinctrl_drv_data *);
+	void		(*disable)(struct samsung_pinctrl_drv_data *);
+};
+
+/**
+ * struct samsung_retention_data: represent a pin-bank retention control data.
+ * @regs: array of PMU registers to control pad retention.
+ * @nr_regs: number of registers in @regs array.
+ * @value: value to store to registers to turn off retention.
+ * @refcnt: atomic counter if retention control affects more than one bank.
+ * @init: platform specific callback to initialize retention control.
+ **/
+struct samsung_retention_data {
+	const u32	*regs;
+	int		nr_regs;
+	u32		value;
+	atomic_t	*refcnt;
+	struct samsung_retention_ctrl *(*init)(struct samsung_pinctrl_drv_data *,
+					const struct samsung_retention_data *);
+};
+
+/**
  * struct samsung_pin_ctrl: represent a pin controller.
  * @pin_banks: list of pin banks included in this controller.
  * @nr_banks: number of pin banks.
+ * @nr_ext_resources: number of the extra base address for pin banks.
+ * @retention_data: configuration data for retention control.
  * @eint_gpio_init: platform specific callback to setup the external gpio
  *	interrupts for the controller.
  * @eint_wkup_init: platform specific callback to setup the external wakeup
@@ -189,7 +230,9 @@ struct samsung_pin_bank {
  */
 struct samsung_pin_ctrl {
 	const struct samsung_pin_bank_data *pin_banks;
-	u32		nr_banks;
+	unsigned int	nr_banks;
+	unsigned int	nr_ext_resources;
+	const struct samsung_retention_data *retention_data;
 
 	int		(*eint_gpio_init)(struct samsung_pinctrl_drv_data *);
 	int		(*eint_wkup_init)(struct samsung_pinctrl_drv_data *);
@@ -200,7 +243,10 @@ struct samsung_pin_ctrl {
 /**
  * struct samsung_pinctrl_drv_data: wrapper for holding driver data together.
  * @node: global list node
- * @virt_base: register base address of the controller.
+ * @virt_base: register base address of the controller; this will be equal
+ *             to each bank samsung_pin_bank->pctl_base and used on legacy
+ *             platforms (like S3C24XX or S3C64XX) which has to access the base
+ *             through samsung_pinctrl_drv_data, not samsung_pin_bank).
  * @dev: device instance representing the controller.
  * @irq: interrpt number used by the controller to notify gpio interrupts.
  * @ctrl: pin controller instance managed by the driver.
@@ -212,6 +258,7 @@ struct samsung_pin_ctrl {
  * @nr_function: number of such pin functions.
  * @pin_base: starting system wide pin number.
  * @nr_pins: number of pins supported by the controller.
+ * @retention_ctrl: retention control runtime data.
  */
 struct samsung_pinctrl_drv_data {
 	struct list_head		node;
@@ -228,9 +275,11 @@ struct samsung_pinctrl_drv_data {
 	unsigned int			nr_functions;
 
 	struct samsung_pin_bank		*pin_banks;
-	u32				nr_banks;
+	unsigned int			nr_banks;
 	unsigned int			pin_base;
 	unsigned int			nr_pins;
+
+	struct samsung_retention_ctrl	*retention_ctrl;
 
 	void (*suspend)(struct samsung_pinctrl_drv_data *);
 	void (*resume)(struct samsung_pinctrl_drv_data *);
@@ -267,7 +316,6 @@ struct samsung_pmx_func {
 extern const struct samsung_pin_ctrl exynos3250_pin_ctrl[];
 extern const struct samsung_pin_ctrl exynos4210_pin_ctrl[];
 extern const struct samsung_pin_ctrl exynos4x12_pin_ctrl[];
-extern const struct samsung_pin_ctrl exynos4415_pin_ctrl[];
 extern const struct samsung_pin_ctrl exynos5250_pin_ctrl[];
 extern const struct samsung_pin_ctrl exynos5260_pin_ctrl[];
 extern const struct samsung_pin_ctrl exynos5410_pin_ctrl[];

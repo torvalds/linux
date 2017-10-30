@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Netronome Systems, Inc.
+ * Copyright (C) 2015-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -40,12 +40,12 @@ static struct dentry *nfp_dir;
 
 static int nfp_net_debugfs_rx_q_read(struct seq_file *file, void *data)
 {
-	int fl_rd_p, fl_wr_p, rx_rd_p, rx_wr_p, rxd_cnt;
 	struct nfp_net_r_vector *r_vec = file->private;
 	struct nfp_net_rx_ring *rx_ring;
+	int fl_rd_p, fl_wr_p, rxd_cnt;
 	struct nfp_net_rx_desc *rxd;
-	struct sk_buff *skb;
 	struct nfp_net *nn;
+	void *frag;
 	int i;
 
 	rtnl_lock();
@@ -54,29 +54,27 @@ static int nfp_net_debugfs_rx_q_read(struct seq_file *file, void *data)
 		goto out;
 	nn = r_vec->nfp_net;
 	rx_ring = r_vec->rx_ring;
-	if (!netif_running(nn->netdev))
+	if (!nfp_net_running(nn))
 		goto out;
 
 	rxd_cnt = rx_ring->cnt;
 
 	fl_rd_p = nfp_qcp_rd_ptr_read(rx_ring->qcp_fl);
 	fl_wr_p = nfp_qcp_wr_ptr_read(rx_ring->qcp_fl);
-	rx_rd_p = nfp_qcp_rd_ptr_read(rx_ring->qcp_rx);
-	rx_wr_p = nfp_qcp_wr_ptr_read(rx_ring->qcp_rx);
 
-	seq_printf(file, "RX[%02d]: H_RD=%d H_WR=%d FL_RD=%d FL_WR=%d RX_RD=%d RX_WR=%d\n",
-		   rx_ring->idx, rx_ring->rd_p, rx_ring->wr_p,
-		   fl_rd_p, fl_wr_p, rx_rd_p, rx_wr_p);
+	seq_printf(file, "RX[%02d,%02d]: cnt=%u dma=%pad host=%p   H_RD=%u H_WR=%u FL_RD=%u FL_WR=%u\n",
+		   rx_ring->idx, rx_ring->fl_qcidx,
+		   rx_ring->cnt, &rx_ring->dma, rx_ring->rxds,
+		   rx_ring->rd_p, rx_ring->wr_p, fl_rd_p, fl_wr_p);
 
 	for (i = 0; i < rxd_cnt; i++) {
 		rxd = &rx_ring->rxds[i];
 		seq_printf(file, "%04d: 0x%08x 0x%08x", i,
 			   rxd->vals[0], rxd->vals[1]);
 
-		skb = READ_ONCE(rx_ring->rxbufs[i].skb);
-		if (skb)
-			seq_printf(file, " skb->head=%p skb->data=%p",
-				   skb->head, skb->data);
+		frag = READ_ONCE(rx_ring->rxbufs[i].frag);
+		if (frag)
+			seq_printf(file, " frag=%p", frag);
 
 		if (rx_ring->rxbufs[i].dma_addr)
 			seq_printf(file, " dma_addr=%pad",
@@ -90,10 +88,6 @@ static int nfp_net_debugfs_rx_q_read(struct seq_file *file, void *data)
 			seq_puts(file, " FL_RD");
 		if (i == fl_wr_p % rxd_cnt)
 			seq_puts(file, " FL_WR");
-		if (i == rx_rd_p % rxd_cnt)
-			seq_puts(file, " RX_RD");
-		if (i == rx_wr_p % rxd_cnt)
-			seq_puts(file, " RX_WR");
 
 		seq_putc(file, '\n');
 	}
@@ -115,23 +109,35 @@ static const struct file_operations nfp_rx_q_fops = {
 	.llseek = seq_lseek
 };
 
+static int nfp_net_debugfs_tx_q_open(struct inode *inode, struct file *f);
+
+static const struct file_operations nfp_tx_q_fops = {
+	.owner = THIS_MODULE,
+	.open = nfp_net_debugfs_tx_q_open,
+	.release = single_release,
+	.read = seq_read,
+	.llseek = seq_lseek
+};
+
 static int nfp_net_debugfs_tx_q_read(struct seq_file *file, void *data)
 {
 	struct nfp_net_r_vector *r_vec = file->private;
 	struct nfp_net_tx_ring *tx_ring;
 	struct nfp_net_tx_desc *txd;
 	int d_rd_p, d_wr_p, txd_cnt;
-	struct sk_buff *skb;
 	struct nfp_net *nn;
 	int i;
 
 	rtnl_lock();
 
-	if (!r_vec->nfp_net || !r_vec->tx_ring)
+	if (debugfs_real_fops(file->file) == &nfp_tx_q_fops)
+		tx_ring = r_vec->tx_ring;
+	else
+		tx_ring = r_vec->xdp_ring;
+	if (!r_vec->nfp_net || !tx_ring)
 		goto out;
 	nn = r_vec->nfp_net;
-	tx_ring = r_vec->tx_ring;
-	if (!netif_running(nn->netdev))
+	if (!nfp_net_running(nn))
 		goto out;
 
 	txd_cnt = tx_ring->cnt;
@@ -139,8 +145,11 @@ static int nfp_net_debugfs_tx_q_read(struct seq_file *file, void *data)
 	d_rd_p = nfp_qcp_rd_ptr_read(tx_ring->qcp_q);
 	d_wr_p = nfp_qcp_wr_ptr_read(tx_ring->qcp_q);
 
-	seq_printf(file, "TX[%02d]: H_RD=%d H_WR=%d D_RD=%d D_WR=%d\n",
-		   tx_ring->idx, tx_ring->rd_p, tx_ring->wr_p, d_rd_p, d_wr_p);
+	seq_printf(file, "TX[%02d,%02d%s]: cnt=%u dma=%pad host=%p   H_RD=%u H_WR=%u D_RD=%u D_WR=%u\n",
+		   tx_ring->idx, tx_ring->qcidx,
+		   tx_ring == r_vec->tx_ring ? "" : "xdp",
+		   tx_ring->cnt, &tx_ring->dma, tx_ring->txds,
+		   tx_ring->rd_p, tx_ring->wr_p, d_rd_p, d_wr_p);
 
 	for (i = 0; i < txd_cnt; i++) {
 		txd = &tx_ring->txds[i];
@@ -148,10 +157,17 @@ static int nfp_net_debugfs_tx_q_read(struct seq_file *file, void *data)
 			   txd->vals[0], txd->vals[1],
 			   txd->vals[2], txd->vals[3]);
 
-		skb = READ_ONCE(tx_ring->txbufs[i].skb);
-		if (skb)
-			seq_printf(file, " skb->head=%p skb->data=%p",
-				   skb->head, skb->data);
+		if (tx_ring == r_vec->tx_ring) {
+			struct sk_buff *skb = READ_ONCE(tx_ring->txbufs[i].skb);
+
+			if (skb)
+				seq_printf(file, " skb->head=%p skb->data=%p",
+					   skb->head, skb->data);
+		} else {
+			seq_printf(file, " frag=%p",
+				   READ_ONCE(tx_ring->txbufs[i].frag));
+		}
+
 		if (tx_ring->txbufs[i].dma_addr)
 			seq_printf(file, " dma_addr=%pad",
 				   &tx_ring->txbufs[i].dma_addr);
@@ -177,7 +193,7 @@ static int nfp_net_debugfs_tx_q_open(struct inode *inode, struct file *f)
 	return single_open(f, nfp_net_debugfs_tx_q_read, inode->i_private);
 }
 
-static const struct file_operations nfp_tx_q_fops = {
+static const struct file_operations nfp_xdp_q_fops = {
 	.owner = THIS_MODULE,
 	.open = nfp_net_debugfs_tx_q_open,
 	.release = single_release,
@@ -185,16 +201,20 @@ static const struct file_operations nfp_tx_q_fops = {
 	.llseek = seq_lseek
 };
 
-void nfp_net_debugfs_adapter_add(struct nfp_net *nn)
+void nfp_net_debugfs_vnic_add(struct nfp_net *nn, struct dentry *ddir, int id)
 {
-	struct dentry *queues, *tx, *rx;
-	char int_name[16];
+	struct dentry *queues, *tx, *rx, *xdp;
+	char name[20];
 	int i;
 
 	if (IS_ERR_OR_NULL(nfp_dir))
 		return;
 
-	nn->debugfs_dir = debugfs_create_dir(pci_name(nn->pdev), nfp_dir);
+	if (nfp_net_is_data_vnic(nn))
+		sprintf(name, "vnic%d", id);
+	else
+		strcpy(name, "ctrl-vnic");
+	nn->debugfs_dir = debugfs_create_dir(name, ddir);
 	if (IS_ERR_OR_NULL(nn->debugfs_dir))
 		return;
 
@@ -205,26 +225,43 @@ void nfp_net_debugfs_adapter_add(struct nfp_net *nn)
 
 	rx = debugfs_create_dir("rx", queues);
 	tx = debugfs_create_dir("tx", queues);
-	if (IS_ERR_OR_NULL(rx) || IS_ERR_OR_NULL(tx))
+	xdp = debugfs_create_dir("xdp", queues);
+	if (IS_ERR_OR_NULL(rx) || IS_ERR_OR_NULL(tx) || IS_ERR_OR_NULL(xdp))
 		return;
 
-	for (i = 0; i < nn->num_rx_rings; i++) {
-		sprintf(int_name, "%d", i);
-		debugfs_create_file(int_name, S_IRUSR, rx,
+	for (i = 0; i < min(nn->max_rx_rings, nn->max_r_vecs); i++) {
+		sprintf(name, "%d", i);
+		debugfs_create_file(name, S_IRUSR, rx,
 				    &nn->r_vecs[i], &nfp_rx_q_fops);
+		debugfs_create_file(name, S_IRUSR, xdp,
+				    &nn->r_vecs[i], &nfp_xdp_q_fops);
 	}
 
-	for (i = 0; i < nn->num_tx_rings; i++) {
-		sprintf(int_name, "%d", i);
-		debugfs_create_file(int_name, S_IRUSR, tx,
+	for (i = 0; i < min(nn->max_tx_rings, nn->max_r_vecs); i++) {
+		sprintf(name, "%d", i);
+		debugfs_create_file(name, S_IRUSR, tx,
 				    &nn->r_vecs[i], &nfp_tx_q_fops);
 	}
 }
 
-void nfp_net_debugfs_adapter_del(struct nfp_net *nn)
+struct dentry *nfp_net_debugfs_device_add(struct pci_dev *pdev)
 {
-	debugfs_remove_recursive(nn->debugfs_dir);
-	nn->debugfs_dir = NULL;
+	struct dentry *dev_dir;
+
+	if (IS_ERR_OR_NULL(nfp_dir))
+		return NULL;
+
+	dev_dir = debugfs_create_dir(pci_name(pdev), nfp_dir);
+	if (IS_ERR_OR_NULL(dev_dir))
+		return NULL;
+
+	return dev_dir;
+}
+
+void nfp_net_debugfs_dir_clean(struct dentry **dir)
+{
+	debugfs_remove_recursive(*dir);
+	*dir = NULL;
 }
 
 void nfp_net_debugfs_create(void)

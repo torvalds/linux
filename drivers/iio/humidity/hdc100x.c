@@ -13,6 +13,12 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
+ * Datasheets:
+ * http://www.ti.com/product/HDC1000/datasheet
+ * http://www.ti.com/product/HDC1008/datasheet
+ * http://www.ti.com/product/HDC1010/datasheet
+ * http://www.ti.com/product/HDC1050/datasheet
+ * http://www.ti.com/product/HDC1080/datasheet
  */
 
 #include <linux/delay.h>
@@ -22,11 +28,15 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/iio/buffer.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
 #define HDC100X_REG_TEMP			0x00
 #define HDC100X_REG_HUMIDITY			0x01
 
 #define HDC100X_REG_CONFIG			0x02
+#define HDC100X_REG_CONFIG_ACQ_MODE		BIT(12)
 #define HDC100X_REG_CONFIG_HEATER_EN		BIT(13)
 
 struct hdc100x_data {
@@ -75,7 +85,7 @@ static struct attribute *hdc100x_attributes[] = {
 	NULL
 };
 
-static struct attribute_group hdc100x_attribute_group = {
+static const struct attribute_group hdc100x_attribute_group = {
 	.attrs = hdc100x_attributes,
 };
 
@@ -87,21 +97,39 @@ static const struct iio_chan_spec hdc100x_channels[] = {
 			BIT(IIO_CHAN_INFO_SCALE) |
 			BIT(IIO_CHAN_INFO_INT_TIME) |
 			BIT(IIO_CHAN_INFO_OFFSET),
+		.scan_index = 0,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 16,
+			.storagebits = 16,
+			.endianness = IIO_BE,
+		},
 	},
 	{
 		.type = IIO_HUMIDITYRELATIVE,
 		.address = HDC100X_REG_HUMIDITY,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 			BIT(IIO_CHAN_INFO_SCALE) |
-			BIT(IIO_CHAN_INFO_INT_TIME)
+			BIT(IIO_CHAN_INFO_INT_TIME),
+		.scan_index = 1,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 16,
+			.storagebits = 16,
+			.endianness = IIO_BE,
+		},
 	},
 	{
 		.type = IIO_CURRENT,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.extend_name = "heater",
 		.output = 1,
+		.scan_index = -1,
 	},
+	IIO_CHAN_SOFT_TIMESTAMP(2),
 };
+
+static const unsigned long hdc100x_scan_masks[] = {0x3, 0};
 
 static int hdc100x_update_config(struct hdc100x_data *data, int mask, int val)
 {
@@ -183,7 +211,14 @@ static int hdc100x_read_raw(struct iio_dev *indio_dev,
 			*val = hdc100x_get_heater_status(data);
 			ret = IIO_VAL_INT;
 		} else {
+			ret = iio_device_claim_direct_mode(indio_dev);
+			if (ret) {
+				mutex_unlock(&data->lock);
+				return ret;
+			}
+
 			ret = hdc100x_get_measurement(data, chan);
+			iio_device_release_direct_mode(indio_dev);
 			if (ret >= 0) {
 				*val = ret;
 				ret = IIO_VAL_INT;
@@ -246,6 +281,78 @@ static int hdc100x_write_raw(struct iio_dev *indio_dev,
 	}
 }
 
+static int hdc100x_buffer_postenable(struct iio_dev *indio_dev)
+{
+	struct hdc100x_data *data = iio_priv(indio_dev);
+	int ret;
+
+	/* Buffer is enabled. First set ACQ Mode, then attach poll func */
+	mutex_lock(&data->lock);
+	ret = hdc100x_update_config(data, HDC100X_REG_CONFIG_ACQ_MODE,
+				    HDC100X_REG_CONFIG_ACQ_MODE);
+	mutex_unlock(&data->lock);
+	if (ret)
+		return ret;
+
+	return iio_triggered_buffer_postenable(indio_dev);
+}
+
+static int hdc100x_buffer_predisable(struct iio_dev *indio_dev)
+{
+	struct hdc100x_data *data = iio_priv(indio_dev);
+	int ret;
+
+	/* First detach poll func, then reset ACQ mode. OK to disable buffer */
+	ret = iio_triggered_buffer_predisable(indio_dev);
+	if (ret)
+		return ret;
+
+	mutex_lock(&data->lock);
+	ret = hdc100x_update_config(data, HDC100X_REG_CONFIG_ACQ_MODE, 0);
+	mutex_unlock(&data->lock);
+
+	return ret;
+}
+
+static const struct iio_buffer_setup_ops hdc_buffer_setup_ops = {
+	.postenable  = hdc100x_buffer_postenable,
+	.predisable  = hdc100x_buffer_predisable,
+};
+
+static irqreturn_t hdc100x_trigger_handler(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct hdc100x_data *data = iio_priv(indio_dev);
+	struct i2c_client *client = data->client;
+	int delay = data->adc_int_us[0] + data->adc_int_us[1];
+	int ret;
+	s16 buf[8];  /* 2x s16 + padding + 8 byte timestamp */
+
+	/* dual read starts at temp register */
+	mutex_lock(&data->lock);
+	ret = i2c_smbus_write_byte(client, HDC100X_REG_TEMP);
+	if (ret < 0) {
+		dev_err(&client->dev, "cannot start measurement\n");
+		goto err;
+	}
+	usleep_range(delay, delay + 1000);
+
+	ret = i2c_master_recv(client, (u8 *)buf, 4);
+	if (ret < 0) {
+		dev_err(&client->dev, "cannot read sensor data\n");
+		goto err;
+	}
+
+	iio_push_to_buffers_with_timestamp(indio_dev, buf,
+					   iio_get_time_ns(indio_dev));
+err:
+	mutex_unlock(&data->lock);
+	iio_trigger_notify_done(indio_dev->trig);
+
+	return IRQ_HANDLED;
+}
+
 static const struct iio_info hdc100x_info = {
 	.read_raw = hdc100x_read_raw,
 	.write_raw = hdc100x_write_raw,
@@ -258,6 +365,7 @@ static int hdc100x_probe(struct i2c_client *client,
 {
 	struct iio_dev *indio_dev;
 	struct hdc100x_data *data;
+	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA |
 				     I2C_FUNC_SMBUS_BYTE | I2C_FUNC_I2C))
@@ -279,25 +387,65 @@ static int hdc100x_probe(struct i2c_client *client,
 
 	indio_dev->channels = hdc100x_channels;
 	indio_dev->num_channels = ARRAY_SIZE(hdc100x_channels);
+	indio_dev->available_scan_masks = hdc100x_scan_masks;
 
 	/* be sure we are in a known state */
 	hdc100x_set_it_time(data, 0, hdc100x_int_time[0][0]);
 	hdc100x_set_it_time(data, 1, hdc100x_int_time[1][0]);
+	hdc100x_update_config(data, HDC100X_REG_CONFIG_ACQ_MODE, 0);
 
-	return devm_iio_device_register(&client->dev, indio_dev);
+	ret = iio_triggered_buffer_setup(indio_dev, NULL,
+					 hdc100x_trigger_handler,
+					 &hdc_buffer_setup_ops);
+	if (ret < 0) {
+		dev_err(&client->dev, "iio triggered buffer setup failed\n");
+		return ret;
+	}
+	ret = iio_device_register(indio_dev);
+	if (ret < 0)
+		iio_triggered_buffer_cleanup(indio_dev);
+
+	return ret;
+}
+
+static int hdc100x_remove(struct i2c_client *client)
+{
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+
+	iio_device_unregister(indio_dev);
+	iio_triggered_buffer_cleanup(indio_dev);
+
+	return 0;
 }
 
 static const struct i2c_device_id hdc100x_id[] = {
 	{ "hdc100x", 0 },
+	{ "hdc1000", 0 },
+	{ "hdc1008", 0 },
+	{ "hdc1010", 0 },
+	{ "hdc1050", 0 },
+	{ "hdc1080", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, hdc100x_id);
 
+static const struct of_device_id hdc100x_dt_ids[] = {
+	{ .compatible = "ti,hdc1000" },
+	{ .compatible = "ti,hdc1008" },
+	{ .compatible = "ti,hdc1010" },
+	{ .compatible = "ti,hdc1050" },
+	{ .compatible = "ti,hdc1080" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, hdc100x_dt_ids);
+
 static struct i2c_driver hdc100x_driver = {
 	.driver = {
 		.name	= "hdc100x",
+		.of_match_table = of_match_ptr(hdc100x_dt_ids),
 	},
 	.probe = hdc100x_probe,
+	.remove = hdc100x_remove,
 	.id_table = hdc100x_id,
 };
 module_i2c_driver(hdc100x_driver);

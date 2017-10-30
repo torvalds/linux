@@ -10,6 +10,7 @@
 #include <linux/seq_file.h>
 #include <linux/bootmem.h>
 #include <linux/debugfs.h>
+#include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/pfn_t.h>
 #include <linux/slab.h>
@@ -23,7 +24,7 @@
 #include <asm/x86_init.h>
 #include <asm/pgtable.h>
 #include <asm/fcntl.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/mtrr.h>
 #include <asm/page.h>
 #include <asm/msr.h>
@@ -36,14 +37,14 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "" fmt
 
-static bool boot_cpu_done;
-
-static int __read_mostly __pat_enabled = IS_ENABLED(CONFIG_X86_PAT);
-static void init_cache_modes(void);
+static bool __read_mostly boot_cpu_done;
+static bool __read_mostly pat_disabled = !IS_ENABLED(CONFIG_X86_PAT);
+static bool __read_mostly pat_initialized;
+static bool __read_mostly init_cm_done;
 
 void pat_disable(const char *reason)
 {
-	if (!__pat_enabled)
+	if (pat_disabled)
 		return;
 
 	if (boot_cpu_done) {
@@ -51,10 +52,8 @@ void pat_disable(const char *reason)
 		return;
 	}
 
-	__pat_enabled = 0;
+	pat_disabled = true;
 	pr_info("x86/PAT: %s\n", reason);
-
-	init_cache_modes();
 }
 
 static int __init nopat(char *str)
@@ -66,7 +65,7 @@ early_param("nopat", nopat);
 
 bool pat_enabled(void)
 {
-	return !!__pat_enabled;
+	return pat_initialized;
 }
 EXPORT_SYMBOL_GPL(pat_enabled);
 
@@ -204,6 +203,8 @@ static void __init_cache_modes(u64 pat)
 		update_cache_mode_entry(i, cache);
 	}
 	pr_info("x86/PAT: Configuration [0-7]: %s\n", pat_msg);
+
+	init_cm_done = true;
 }
 
 #define PAT(x, y)	((u64)PAT_ ## y << ((x)*8))
@@ -224,6 +225,7 @@ static void pat_bsp_init(u64 pat)
 	}
 
 	wrmsrl(MSR_IA32_CR_PAT, pat);
+	pat_initialized = true;
 
 	__init_cache_modes(pat);
 }
@@ -241,10 +243,9 @@ static void pat_ap_init(u64 pat)
 	wrmsrl(MSR_IA32_CR_PAT, pat);
 }
 
-static void init_cache_modes(void)
+void init_cache_modes(void)
 {
 	u64 pat = 0;
-	static int init_cm_done;
 
 	if (init_cm_done)
 		return;
@@ -286,15 +287,13 @@ static void init_cache_modes(void)
 	}
 
 	__init_cache_modes(pat);
-
-	init_cm_done = 1;
 }
 
 /**
  * pat_init - Initialize PAT MSR and PAT table
  *
  * This function initializes PAT MSR and PAT table with an OS-defined value
- * to enable additional cache attributes, WC and WT.
+ * to enable additional cache attributes, WC, WT and WP.
  *
  * This function must be called on all CPUs using the specific sequence of
  * operations defined in Intel SDM. mtrr_rendezvous_handler() provides this
@@ -305,10 +304,8 @@ void pat_init(void)
 	u64 pat;
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
-	if (!pat_enabled()) {
-		init_cache_modes();
+	if (pat_disabled)
 		return;
-	}
 
 	if ((c->x86_vendor == X86_VENDOR_INTEL) &&
 	    (((c->x86 == 0x6) && (c->x86_model <= 0xd)) ||
@@ -355,7 +352,7 @@ void pat_init(void)
 		 *      010    2    UC-: _PAGE_CACHE_MODE_UC_MINUS
 		 *      011    3    UC : _PAGE_CACHE_MODE_UC
 		 *      100    4    WB : Reserved
-		 *      101    5    WC : Reserved
+		 *      101    5    WP : _PAGE_CACHE_MODE_WP
 		 *      110    6    UC-: Reserved
 		 *      111    7    WT : _PAGE_CACHE_MODE_WT
 		 *
@@ -363,7 +360,7 @@ void pat_init(void)
 		 * corresponding types in the presence of PAT errata.
 		 */
 		pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
-		      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, WT);
+		      PAT(4, WB) | PAT(5, WP) | PAT(6, UC_MINUS) | PAT(7, WT);
 	}
 
 	if (!boot_cpu_done) {
@@ -747,6 +744,9 @@ EXPORT_SYMBOL(arch_io_free_memtype_wc);
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 				unsigned long size, pgprot_t vma_prot)
 {
+	if (!phys_mem_access_encrypted(pfn << PAGE_SHIFT, size))
+		vma_prot = pgprot_decrypted(vma_prot);
+
 	return vma_prot;
 }
 
@@ -986,20 +986,17 @@ int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
 	return 0;
 }
 
-int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
-		     pfn_t pfn)
+void track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot, pfn_t pfn)
 {
 	enum page_cache_mode pcm;
 
 	if (!pat_enabled())
-		return 0;
+		return;
 
 	/* Set prot based on lookup */
 	pcm = lookup_memtype(pfn_t_to_phys(pfn));
 	*prot = __pgprot((pgprot_val(*prot) & (~_PAGE_CACHE_MASK)) |
 			 cachemode2protval(pcm));
-
-	return 0;
 }
 
 /*

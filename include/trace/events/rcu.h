@@ -385,11 +385,11 @@ TRACE_EVENT(rcu_quiescent_state_report,
 
 /*
  * Tracepoint for quiescent states detected by force_quiescent_state().
- * These trace events include the type of RCU, the grace-period number
- * that was blocked by the CPU, the CPU itself, and the type of quiescent
- * state, which can be "dti" for dyntick-idle mode, "ofl" for CPU offline,
- * or "kick" when kicking a CPU that has been in dyntick-idle mode for
- * too long.
+ * These trace events include the type of RCU, the grace-period number that
+ * was blocked by the CPU, the CPU itself, and the type of quiescent state,
+ * which can be "dti" for dyntick-idle mode, "ofl" for CPU offline, "kick"
+ * when kicking a CPU that has been in dyntick-idle mode for too long, or
+ * "rqc" if the CPU got a quiescent state via its rcu_qs_ctr.
  */
 TRACE_EVENT(rcu_fqs,
 
@@ -698,8 +698,12 @@ TRACE_EVENT(rcu_batch_end,
 /*
  * Tracepoint for rcutorture readers.  The first argument is the name
  * of the RCU flavor from rcutorture's viewpoint and the second argument
- * is the callback address.
+ * is the callback address.  The third argument is the start time in
+ * seconds, and the last two arguments are the grace period numbers
+ * at the beginning and end of the read, respectively.  Note that the
+ * callback address can be NULL.
  */
+#define RCUTORTURENAME_LEN 8
 TRACE_EVENT(rcu_torture_read,
 
 	TP_PROTO(const char *rcutorturename, struct rcu_head *rhp,
@@ -708,7 +712,7 @@ TRACE_EVENT(rcu_torture_read,
 	TP_ARGS(rcutorturename, rhp, secs, c_old, c),
 
 	TP_STRUCT__entry(
-		__field(const char *, rcutorturename)
+		__field(char, rcutorturename[RCUTORTURENAME_LEN])
 		__field(struct rcu_head *, rhp)
 		__field(unsigned long, secs)
 		__field(unsigned long, c_old)
@@ -716,7 +720,9 @@ TRACE_EVENT(rcu_torture_read,
 	),
 
 	TP_fast_assign(
-		__entry->rcutorturename = rcutorturename;
+		strncpy(__entry->rcutorturename, rcutorturename,
+			RCUTORTURENAME_LEN);
+		__entry->rcutorturename[RCUTORTURENAME_LEN - 1] = 0;
 		__entry->rhp = rhp;
 		__entry->secs = secs;
 		__entry->c_old = c_old;
@@ -739,6 +745,7 @@ TRACE_EVENT(rcu_torture_read,
  *	"OnlineQ": _rcu_barrier() found online CPU with callbacks.
  *	"OnlineNQ": _rcu_barrier() found online CPU, no callbacks.
  *	"IRQ": An rcu_barrier_callback() callback posted on remote CPU.
+ *	"IRQNQ": An rcu_barrier_callback() callback found no callbacks.
  *	"CB": An rcu_barrier_callback() invoked a callback, not the last.
  *	"LastCB": An rcu_barrier_callback() invoked the last callback.
  *	"Inc2": _rcu_barrier() piggyback check counter incremented.

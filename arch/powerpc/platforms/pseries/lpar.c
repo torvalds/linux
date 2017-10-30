@@ -27,6 +27,8 @@
 #include <linux/console.h>
 #include <linux/export.h>
 #include <linux/jump_label.h>
+#include <linux/delay.h>
+#include <linux/stop_machine.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/page.h>
@@ -145,7 +147,7 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 			 hpte_group, vpn,  pa, rflags, vflags, psize);
 
 	hpte_v = hpte_encode_v(vpn, psize, apsize, ssize) | vflags | HPTE_V_VALID;
-	hpte_r = hpte_encode_r(pa, psize, apsize, ssize) | rflags;
+	hpte_r = hpte_encode_r(pa, psize, apsize) | rflags;
 
 	if (!(vflags & HPTE_V_BOLTED))
 		pr_devel(" hpte_v=%016lx, hpte_r=%016lx\n", hpte_v, hpte_r);
@@ -221,7 +223,7 @@ static long pSeries_lpar_hpte_remove(unsigned long hpte_group)
 	return -1;
 }
 
-static void pSeries_lpar_hptab_clear(void)
+static void manual_hpte_clear_all(void)
 {
 	unsigned long size_bytes = 1UL << ppc64_pft_size;
 	unsigned long hpte_count = size_bytes >> 4;
@@ -249,6 +251,26 @@ static void pSeries_lpar_hptab_clear(void)
 					&(ptes[j].pteh), &(ptes[j].ptel));
 		}
 	}
+}
+
+static int hcall_hpte_clear_all(void)
+{
+	int rc;
+
+	do {
+		rc = plpar_hcall_norets(H_CLEAR_HPT);
+	} while (rc == H_CONTINUE);
+
+	return rc;
+}
+
+static void pseries_hpte_clear_all(void)
+{
+	int rc;
+
+	rc = hcall_hpte_clear_all();
+	if (rc != H_SUCCESS)
+		manual_hpte_clear_all();
 
 #ifdef __LITTLE_ENDIAN__
 	/*
@@ -279,13 +301,18 @@ static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 				       int ssize, unsigned long inv_flags)
 {
 	unsigned long lpar_rc;
-	unsigned long flags = (newpp & 7) | H_AVPN;
+	unsigned long flags;
 	unsigned long want_v;
 
 	want_v = hpte_encode_avpn(vpn, psize, ssize);
 
 	pr_devel("    update: avpnv=%016lx, hash=%016lx, f=%lx, psize: %d ...",
 		 want_v, slot, flags, psize);
+
+	flags = (newpp & 7) | H_AVPN;
+	if (mmu_has_feature(MMU_FTR_KERNEL_RO))
+		/* Move pp0 into bit 8 (IBM 55) */
+		flags |= (newpp & HPTE_R_PP0) >> 55;
 
 	lpar_rc = plpar_pte_protect(flags, slot, want_v);
 
@@ -358,6 +385,10 @@ static void pSeries_lpar_hpte_updateboltedpp(unsigned long newpp,
 	BUG_ON(slot == -1);
 
 	flags = newpp & 7;
+	if (mmu_has_feature(MMU_FTR_KERNEL_RO))
+		/* Move pp0 into bit 8 (IBM 55) */
+		flags |= (newpp & HPTE_R_PP0) >> 55;
+
 	lpar_rc = plpar_pte_protect(flags, slot, 0);
 
 	BUG_ON(lpar_rc != H_SUCCESS);
@@ -589,6 +620,135 @@ static int __init disable_bulk_remove(char *str)
 
 __setup("bulk_remove=", disable_bulk_remove);
 
+#define HPT_RESIZE_TIMEOUT	10000 /* ms */
+
+struct hpt_resize_state {
+	unsigned long shift;
+	int commit_rc;
+};
+
+static int pseries_lpar_resize_hpt_commit(void *data)
+{
+	struct hpt_resize_state *state = data;
+
+	state->commit_rc = plpar_resize_hpt_commit(0, state->shift);
+	if (state->commit_rc != H_SUCCESS)
+		return -EIO;
+
+	/* Hypervisor has transitioned the HTAB, update our globals */
+	ppc64_pft_size = state->shift;
+	htab_size_bytes = 1UL << ppc64_pft_size;
+	htab_hash_mask = (htab_size_bytes >> 7) - 1;
+
+	return 0;
+}
+
+/* Must be called in user context */
+static int pseries_lpar_resize_hpt(unsigned long shift)
+{
+	struct hpt_resize_state state = {
+		.shift = shift,
+		.commit_rc = H_FUNCTION,
+	};
+	unsigned int delay, total_delay = 0;
+	int rc;
+	ktime_t t0, t1, t2;
+
+	might_sleep();
+
+	if (!firmware_has_feature(FW_FEATURE_HPT_RESIZE))
+		return -ENODEV;
+
+	printk(KERN_INFO "lpar: Attempting to resize HPT to shift %lu\n",
+	       shift);
+
+	t0 = ktime_get();
+
+	rc = plpar_resize_hpt_prepare(0, shift);
+	while (H_IS_LONG_BUSY(rc)) {
+		delay = get_longbusy_msecs(rc);
+		total_delay += delay;
+		if (total_delay > HPT_RESIZE_TIMEOUT) {
+			/* prepare with shift==0 cancels an in-progress resize */
+			rc = plpar_resize_hpt_prepare(0, 0);
+			if (rc != H_SUCCESS)
+				printk(KERN_WARNING
+				       "lpar: Unexpected error %d cancelling timed out HPT resize\n",
+				       rc);
+			return -ETIMEDOUT;
+		}
+		msleep(delay);
+		rc = plpar_resize_hpt_prepare(0, shift);
+	};
+
+	switch (rc) {
+	case H_SUCCESS:
+		/* Continue on */
+		break;
+
+	case H_PARAMETER:
+		return -EINVAL;
+	case H_RESOURCE:
+		return -EPERM;
+	default:
+		printk(KERN_WARNING
+		       "lpar: Unexpected error %d from H_RESIZE_HPT_PREPARE\n",
+		       rc);
+		return -EIO;
+	}
+
+	t1 = ktime_get();
+
+	rc = stop_machine(pseries_lpar_resize_hpt_commit, &state, NULL);
+
+	t2 = ktime_get();
+
+	if (rc != 0) {
+		switch (state.commit_rc) {
+		case H_PTEG_FULL:
+			printk(KERN_WARNING
+			       "lpar: Hash collision while resizing HPT\n");
+			return -ENOSPC;
+
+		default:
+			printk(KERN_WARNING
+			       "lpar: Unexpected error %d from H_RESIZE_HPT_COMMIT\n",
+			       state.commit_rc);
+			return -EIO;
+		};
+	}
+
+	printk(KERN_INFO
+	       "lpar: HPT resize to shift %lu complete (%lld ms / %lld ms)\n",
+	       shift, (long long) ktime_ms_delta(t1, t0),
+	       (long long) ktime_ms_delta(t2, t1));
+
+	return 0;
+}
+
+/* Actually only used for radix, so far */
+static int pseries_lpar_register_process_table(unsigned long base,
+			unsigned long page_size, unsigned long table_size)
+{
+	long rc;
+	unsigned long flags = PROC_TABLE_NEW;
+
+	if (radix_enabled())
+		flags |= PROC_TABLE_RADIX | PROC_TABLE_GTSE;
+	for (;;) {
+		rc = plpar_hcall_norets(H_REGISTER_PROC_TBL, flags, base,
+					page_size, table_size);
+		if (!H_IS_LONG_BUSY(rc))
+			break;
+		mdelay(get_longbusy_msecs(rc));
+	}
+	if (rc != H_SUCCESS) {
+		pr_err("Failed to register process table (rc=%ld)\n", rc);
+		BUG();
+	}
+	return rc;
+}
+
 void __init hpte_init_pseries(void)
 {
 	mmu_hash_ops.hpte_invalidate	 = pSeries_lpar_hpte_invalidate;
@@ -598,8 +758,17 @@ void __init hpte_init_pseries(void)
 	mmu_hash_ops.hpte_remove	 = pSeries_lpar_hpte_remove;
 	mmu_hash_ops.hpte_removebolted   = pSeries_lpar_hpte_removebolted;
 	mmu_hash_ops.flush_hash_range	 = pSeries_lpar_flush_hash_range;
-	mmu_hash_ops.hpte_clear_all      = pSeries_lpar_hptab_clear;
+	mmu_hash_ops.hpte_clear_all      = pseries_hpte_clear_all;
 	mmu_hash_ops.hugepage_invalidate = pSeries_lpar_hugepage_invalidate;
+
+	if (firmware_has_feature(FW_FEATURE_HPT_RESIZE))
+		mmu_hash_ops.resize_hpt = pseries_lpar_resize_hpt;
+}
+
+void radix_init_pseries(void)
+{
+	pr_info("Using radix MMU under hypervisor\n");
+	register_process_table = pseries_lpar_register_process_table;
 }
 
 #ifdef CONFIG_PPC_SMLPAR
@@ -661,9 +830,10 @@ EXPORT_SYMBOL(arch_free_page);
 #ifdef HAVE_JUMP_LABEL
 struct static_key hcall_tracepoint_key = STATIC_KEY_INIT;
 
-void hcall_tracepoint_regfunc(void)
+int hcall_tracepoint_regfunc(void)
 {
 	static_key_slow_inc(&hcall_tracepoint_key);
+	return 0;
 }
 
 void hcall_tracepoint_unregfunc(void)
@@ -680,9 +850,10 @@ void hcall_tracepoint_unregfunc(void)
 /* NB: reg/unreg are called while guarded with the tracepoints_mutex */
 extern long hcall_tracepoint_refcount;
 
-void hcall_tracepoint_regfunc(void)
+int hcall_tracepoint_regfunc(void)
 {
 	hcall_tracepoint_refcount++;
+	return 0;
 }
 
 void hcall_tracepoint_unregfunc(void)
@@ -796,3 +967,64 @@ int h_get_mpp_x(struct hvcall_mpp_x_data *mpp_x_data)
 
 	return rc;
 }
+
+static unsigned long vsid_unscramble(unsigned long vsid, int ssize)
+{
+	unsigned long protovsid;
+	unsigned long va_bits = VA_BITS;
+	unsigned long modinv, vsid_modulus;
+	unsigned long max_mod_inv, tmp_modinv;
+
+	if (!mmu_has_feature(MMU_FTR_68_BIT_VA))
+		va_bits = 65;
+
+	if (ssize == MMU_SEGSIZE_256M) {
+		modinv = VSID_MULINV_256M;
+		vsid_modulus = ((1UL << (va_bits - SID_SHIFT)) - 1);
+	} else {
+		modinv = VSID_MULINV_1T;
+		vsid_modulus = ((1UL << (va_bits - SID_SHIFT_1T)) - 1);
+	}
+
+	/*
+	 * vsid outside our range.
+	 */
+	if (vsid >= vsid_modulus)
+		return 0;
+
+	/*
+	 * If modinv is the modular multiplicate inverse of (x % vsid_modulus)
+	 * and vsid = (protovsid * x) % vsid_modulus, then we say:
+	 *   protovsid = (vsid * modinv) % vsid_modulus
+	 */
+
+	/* Check if (vsid * modinv) overflow (63 bits) */
+	max_mod_inv = 0x7fffffffffffffffull / vsid;
+	if (modinv < max_mod_inv)
+		return (vsid * modinv) % vsid_modulus;
+
+	tmp_modinv = modinv/max_mod_inv;
+	modinv %= max_mod_inv;
+
+	protovsid = (((vsid * max_mod_inv) % vsid_modulus) * tmp_modinv) % vsid_modulus;
+	protovsid = (protovsid + vsid * modinv) % vsid_modulus;
+
+	return protovsid;
+}
+
+static int __init reserve_vrma_context_id(void)
+{
+	unsigned long protovsid;
+
+	/*
+	 * Reserve context ids which map to reserved virtual addresses. For now
+	 * we only reserve the context id which maps to the VRMA VSID. We ignore
+	 * the addresses in "ibm,adjunct-virtual-addresses" because we don't
+	 * enable adjunct support via the "ibm,client-architecture-support"
+	 * interface.
+	 */
+	protovsid = vsid_unscramble(VRMA_VSID, MMU_SEGSIZE_1T);
+	hash__reserve_context_id(protovsid >> ESID_BITS_1T);
+	return 0;
+}
+machine_device_initcall(pseries, reserve_vrma_context_id);

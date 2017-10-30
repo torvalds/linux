@@ -38,8 +38,8 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/obd_support.h"
-#include "../include/lustre_dlm.h"
+#include <obd_support.h>
+#include <lustre_dlm.h>
 #include "llite_internal.h"
 
 #define SA_OMITTED_ENTRY_MAX 8ULL
@@ -79,6 +79,8 @@ struct sa_entry {
 	struct inode	   *se_inode;
 	/* entry name */
 	struct qstr	     se_qstr;
+	/* entry fid */
+	struct lu_fid		se_fid;
 };
 
 static unsigned int sai_generation;
@@ -169,7 +171,7 @@ static inline int is_omitted_entry(struct ll_statahead_info *sai, __u64 index)
 /* allocate sa_entry and hash it to allow scanner process to find it */
 static struct sa_entry *
 sa_alloc(struct dentry *parent, struct ll_statahead_info *sai, __u64 index,
-	 const char *name, int len)
+	 const char *name, int len, const struct lu_fid *fid)
 {
 	struct ll_inode_info *lli;
 	struct sa_entry   *entry;
@@ -194,6 +196,7 @@ sa_alloc(struct dentry *parent, struct ll_statahead_info *sai, __u64 index,
 	entry->se_qstr.hash = full_name_hash(parent, name, len);
 	entry->se_qstr.len = len;
 	entry->se_qstr.name = dname;
+	entry->se_fid = *fid;
 
 	lli = ll_i2info(sai->sai_dentry->d_inode);
 	spin_lock(&lli->lli_sa_lock);
@@ -525,7 +528,7 @@ static void ll_agl_trigger(struct inode *inode, struct ll_statahead_info *sai)
 	}
 
 	CDEBUG(D_READA, "Handling (init) async glimpse: inode = "
-	       DFID", idx = %llu\n", PFID(&lli->lli_fid), index);
+	       DFID ", idx = %llu\n", PFID(&lli->lli_fid), index);
 
 	cl_agl(inode);
 	lli->lli_agl_index = 0;
@@ -533,7 +536,7 @@ static void ll_agl_trigger(struct inode *inode, struct ll_statahead_info *sai)
 	up_write(&lli->lli_glimpse_sem);
 
 	CDEBUG(D_READA, "Handled (init) async glimpse: inode= "
-	       DFID", idx = %llu, rc = %d\n",
+	       DFID ", idx = %llu, rc = %d\n",
 	       PFID(&lli->lli_fid), index, rc);
 
 	iput(inode);
@@ -566,24 +569,8 @@ static void sa_instantiate(struct ll_statahead_info *sai,
 	}
 
 	child = entry->se_inode;
-	if (!child) {
-		/*
-		 * lookup.
-		 */
-		LASSERT(fid_is_zero(&minfo->mi_data.op_fid2));
-
-		/* XXX: No fid in reply, this is probably cross-ref case.
-		 * SA can't handle it yet.
-		 */
-		if (body->mbo_valid & OBD_MD_MDS) {
-			rc = -EAGAIN;
-			goto out;
-		}
-	} else {
-		/*
-		 * revalidate.
-		 */
-		/* unlinked and re-created with the same name */
+	if (child) {
+		/* revalidate; unlinked and re-created with the same name */
 		if (unlikely(!lu_fid_eq(&minfo->mi_data.op_fid2, &body->mbo_fid1))) {
 			entry->se_inode = NULL;
 			iput(child);
@@ -659,8 +646,8 @@ static int ll_statahead_interpret(struct ptlrpc_request *req,
 	struct ll_inode_info     *lli = ll_i2info(dir);
 	struct ll_statahead_info *sai = lli->lli_sai;
 	struct sa_entry *entry = (struct sa_entry *)minfo->mi_cbdata;
+	wait_queue_head_t *waitq = NULL;
 	__u64 handle = 0;
-	bool wakeup;
 
 	if (it_disposition(it, DISP_LOOKUP_NEG))
 		rc = -ENOENT;
@@ -693,7 +680,8 @@ static int ll_statahead_interpret(struct ptlrpc_request *req,
 
 	spin_lock(&lli->lli_sa_lock);
 	if (rc) {
-		wakeup = __sa_make_ready(sai, entry, rc);
+		if (__sa_make_ready(sai, entry, rc))
+			waitq = &sai->sai_waitq;
 	} else {
 		entry->se_minfo = minfo;
 		entry->se_req = ptlrpc_request_addref(req);
@@ -704,63 +692,57 @@ static int ll_statahead_interpret(struct ptlrpc_request *req,
 		 * with parent's lock held, for example: unlink.
 		 */
 		entry->se_handle = handle;
-		wakeup = !sa_has_callback(sai);
+		if (!sa_has_callback(sai))
+			waitq = &sai->sai_thread.t_ctl_waitq;
+
 		list_add_tail(&entry->se_list, &sai->sai_interim_entries);
 	}
 	sai->sai_replied++;
 
-	if (wakeup)
-		wake_up(&sai->sai_thread.t_ctl_waitq);
+	if (waitq)
+		wake_up(waitq);
 	spin_unlock(&lli->lli_sa_lock);
 
 	return rc;
 }
 
 /* finish async stat RPC arguments */
-static void sa_fini_data(struct md_enqueue_info *minfo,
-			 struct ldlm_enqueue_info *einfo)
+static void sa_fini_data(struct md_enqueue_info *minfo)
 {
-	LASSERT(minfo && einfo);
 	iput(minfo->mi_dir);
 	kfree(minfo);
-	kfree(einfo);
 }
 
 /**
  * prepare arguments for async stat RPC.
  */
-static int sa_prep_data(struct inode *dir, struct inode *child,
-			struct sa_entry *entry, struct md_enqueue_info **pmi,
-			struct ldlm_enqueue_info **pei)
+static struct md_enqueue_info *
+sa_prep_data(struct inode *dir, struct inode *child, struct sa_entry *entry)
 {
-	const struct qstr      *qstr = &entry->se_qstr;
 	struct md_enqueue_info   *minfo;
 	struct ldlm_enqueue_info *einfo;
 	struct md_op_data	*op_data;
 
-	einfo = kzalloc(sizeof(*einfo), GFP_NOFS);
-	if (!einfo)
-		return -ENOMEM;
-
 	minfo = kzalloc(sizeof(*minfo), GFP_NOFS);
-	if (!minfo) {
-		kfree(einfo);
-		return -ENOMEM;
+	if (!minfo)
+		return ERR_PTR(-ENOMEM);
+
+	op_data = ll_prep_md_op_data(&minfo->mi_data, dir, child, NULL, 0, 0,
+				     LUSTRE_OPC_ANY, NULL);
+	if (IS_ERR(op_data)) {
+		kfree(minfo);
+		return (struct md_enqueue_info *)op_data;
 	}
 
-	op_data = ll_prep_md_op_data(&minfo->mi_data, dir, child, qstr->name,
-				     qstr->len, 0, LUSTRE_OPC_ANY, NULL);
-	if (IS_ERR(op_data)) {
-		kfree(einfo);
-		kfree(minfo);
-		return PTR_ERR(op_data);
-	}
+	if (!child)
+		op_data->op_fid2 = entry->se_fid;
 
 	minfo->mi_it.it_op = IT_GETATTR;
 	minfo->mi_dir = igrab(dir);
 	minfo->mi_cb = ll_statahead_interpret;
 	minfo->mi_cbdata = entry;
 
+	einfo = &minfo->mi_einfo;
 	einfo->ei_type   = LDLM_IBITS;
 	einfo->ei_mode   = it_to_lock_mode(&minfo->mi_it);
 	einfo->ei_cb_bl  = ll_md_blocking_ast;
@@ -768,26 +750,22 @@ static int sa_prep_data(struct inode *dir, struct inode *child,
 	einfo->ei_cb_gl  = NULL;
 	einfo->ei_cbdata = NULL;
 
-	*pmi = minfo;
-	*pei = einfo;
-
-	return 0;
+	return minfo;
 }
 
 /* async stat for file not found in dcache */
 static int sa_lookup(struct inode *dir, struct sa_entry *entry)
 {
 	struct md_enqueue_info   *minfo;
-	struct ldlm_enqueue_info *einfo;
 	int		       rc;
 
-	rc = sa_prep_data(dir, NULL, entry, &minfo, &einfo);
-	if (rc)
-		return rc;
+	minfo = sa_prep_data(dir, NULL, entry);
+	if (IS_ERR(minfo))
+		return PTR_ERR(minfo);
 
-	rc = md_intent_getattr_async(ll_i2mdexp(dir), minfo, einfo);
+	rc = md_intent_getattr_async(ll_i2mdexp(dir), minfo);
 	if (rc)
-		sa_fini_data(minfo, einfo);
+		sa_fini_data(minfo);
 
 	return rc;
 }
@@ -806,7 +784,6 @@ static int sa_revalidate(struct inode *dir, struct sa_entry *entry,
 	struct lookup_intent      it = { .it_op = IT_GETATTR,
 					 .it_lock_handle = 0 };
 	struct md_enqueue_info   *minfo;
-	struct ldlm_enqueue_info *einfo;
 	int rc;
 
 	if (unlikely(!inode))
@@ -824,25 +801,26 @@ static int sa_revalidate(struct inode *dir, struct sa_entry *entry,
 		return 1;
 	}
 
-	rc = sa_prep_data(dir, inode, entry, &minfo, &einfo);
-	if (rc) {
+	minfo = sa_prep_data(dir, inode, entry);
+	if (IS_ERR(minfo)) {
 		entry->se_inode = NULL;
 		iput(inode);
-		return rc;
+		return PTR_ERR(minfo);
 	}
 
-	rc = md_intent_getattr_async(ll_i2mdexp(dir), minfo, einfo);
+	rc = md_intent_getattr_async(ll_i2mdexp(dir), minfo);
 	if (rc) {
 		entry->se_inode = NULL;
 		iput(inode);
-		sa_fini_data(minfo, einfo);
+		sa_fini_data(minfo);
 	}
 
 	return rc;
 }
 
 /* async stat for file with @name */
-static void sa_statahead(struct dentry *parent, const char *name, int len)
+static void sa_statahead(struct dentry *parent, const char *name, int len,
+			 const struct lu_fid *fid)
 {
 	struct inode	     *dir    = d_inode(parent);
 	struct ll_inode_info     *lli    = ll_i2info(dir);
@@ -851,7 +829,7 @@ static void sa_statahead(struct dentry *parent, const char *name, int len)
 	struct sa_entry *entry;
 	int		       rc;
 
-	entry = sa_alloc(parent, sai, sai->sai_index, name, len);
+	entry = sa_alloc(parent, sai, sai->sai_index, name, len, fid);
 	if (IS_ERR(entry))
 		return;
 
@@ -1030,7 +1008,7 @@ static int ll_statahead_thread(void *arg)
 		sai->sai_in_readpage = 0;
 		if (IS_ERR(page)) {
 			rc = PTR_ERR(page);
-			CDEBUG(D_READA, "error reading dir "DFID" at %llu/%llu: opendir_pid = %u: rc = %d\n",
+			CDEBUG(D_READA, "error reading dir " DFID " at %llu/%llu: opendir_pid = %u: rc = %d\n",
 			       PFID(ll_inode2fid(dir)), pos, sai->sai_index,
 			       lli->lli_opendir_pid, rc);
 			break;
@@ -1040,6 +1018,7 @@ static int ll_statahead_thread(void *arg)
 		for (ent = lu_dirent_start(dp);
 		     ent && thread_is_running(sa_thread) && !sa_low_hit(sai);
 		     ent = lu_dirent_next(ent)) {
+			struct lu_fid fid;
 			__u64 hash;
 			int namelen;
 			char *name;
@@ -1085,6 +1064,8 @@ static int ll_statahead_thread(void *arg)
 			if (unlikely(++first == 1))
 				continue;
 
+			fid_le_to_cpu(&fid, &ent->lde_fid);
+
 			/* wait for spare statahead window */
 			do {
 				l_wait_event(sa_thread->t_ctl_waitq,
@@ -1114,7 +1095,7 @@ static int ll_statahead_thread(void *arg)
 			} while (sa_sent_full(sai) &&
 				 thread_is_running(sa_thread));
 
-			sa_statahead(parent, name, namelen);
+			sa_statahead(parent, name, namelen, &fid);
 		}
 
 		pos = le64_to_cpu(dp->ldp_hash_end);
@@ -1124,7 +1105,7 @@ static int ll_statahead_thread(void *arg)
 		if (sa_low_hit(sai)) {
 			rc = -EFAULT;
 			atomic_inc(&sbi->ll_sa_wrong);
-			CDEBUG(D_READA, "Statahead for dir "DFID" hit ratio too low: hit/miss %llu/%llu, sent/replied %llu/%llu, stopping statahead thread: pid %d\n",
+			CDEBUG(D_READA, "Statahead for dir " DFID " hit ratio too low: hit/miss %llu/%llu, sent/replied %llu/%llu, stopping statahead thread: pid %d\n",
 			       PFID(&lli->lli_fid), sai->sai_hit,
 			       sai->sai_miss, sai->sai_sent,
 			       sai->sai_replied, current_pid());
@@ -1230,7 +1211,7 @@ void ll_deauthorize_statahead(struct inode *dir, void *key)
 	LASSERT(lli->lli_opendir_key == key);
 	LASSERT(lli->lli_opendir_pid);
 
-	CDEBUG(D_READA, "deauthorize statahead for "DFID"\n",
+	CDEBUG(D_READA, "deauthorize statahead for " DFID "\n",
 	       PFID(&lli->lli_fid));
 
 	spin_lock(&lli->lli_sa_lock);
@@ -1293,7 +1274,7 @@ static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 			struct ll_inode_info *lli = ll_i2info(dir);
 
 			rc = PTR_ERR(page);
-			CERROR("%s: error reading dir "DFID" at %llu: opendir_pid = %u : rc = %d\n",
+			CERROR("%s: error reading dir " DFID " at %llu: opendir_pid = %u : rc = %d\n",
 			       ll_get_fsname(dir->i_sb, NULL, 0),
 			       PFID(ll_inode2fid(dir)), pos,
 			       lli->lli_opendir_pid, rc);
@@ -1397,10 +1378,10 @@ static int revalidate_statahead_dentry(struct inode *dir,
 				       struct dentry **dentryp,
 				       bool unplug)
 {
+	struct ll_inode_info *lli = ll_i2info(dir);
 	struct sa_entry *entry = NULL;
 	struct l_wait_info lwi = { 0 };
 	struct ll_dentry_data *ldd;
-	struct ll_inode_info *lli;
 	int rc = 0;
 
 	if ((*dentryp)->d_name.name[0] == '.') {
@@ -1446,7 +1427,9 @@ static int revalidate_statahead_dentry(struct inode *dir,
 		sa_handle_callback(sai);
 
 	if (!sa_ready(entry)) {
+		spin_lock(&lli->lli_sa_lock);
 		sai->sai_index_wait = entry->se_index;
+		spin_unlock(&lli->lli_sa_lock);
 		lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(30), NULL,
 				       LWI_ON_SIGNAL_NOOP, NULL);
 		rc = l_wait_event(sai->sai_waitq, sa_ready(entry), &lwi);
@@ -1475,6 +1458,7 @@ static int revalidate_statahead_dentry(struct inode *dir,
 
 				alias = ll_splice_alias(inode, *dentryp);
 				if (IS_ERR(alias)) {
+					ll_intent_release(&it);
 					rc = PTR_ERR(alias);
 					goto out_unplug;
 				}
@@ -1487,12 +1471,13 @@ static int revalidate_statahead_dentry(struct inode *dir,
 			} else if ((*dentryp)->d_inode != inode) {
 				/* revalidate, but inode is recreated */
 				CDEBUG(D_READA,
-				       "%s: stale dentry %pd inode "DFID", statahead inode "DFID"\n",
+				       "%s: stale dentry %pd inode " DFID ", statahead inode " DFID "\n",
 				       ll_get_fsname((*dentryp)->d_inode->i_sb,
 						     NULL, 0),
 				       *dentryp,
 				       PFID(ll_inode2fid((*dentryp)->d_inode)),
 				       PFID(ll_inode2fid(inode)));
+				ll_intent_release(&it);
 				rc = -ESTALE;
 				goto out_unplug;
 			}
@@ -1512,10 +1497,7 @@ out_unplug:
 	 * dentry_may_statahead().
 	 */
 	ldd = ll_d2d(*dentryp);
-	lli = ll_i2info(dir);
-	/* ldd can be NULL if llite lookup failed. */
-	if (ldd)
-		ldd->lld_sa_generation = lli->lli_sa_generation;
+	ldd->lld_sa_generation = lli->lli_sa_generation;
 	sa_put(sai, entry);
 	return rc;
 }

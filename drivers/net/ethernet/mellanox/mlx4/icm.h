@@ -39,8 +39,8 @@
 #include <linux/mutex.h>
 
 #define MLX4_ICM_CHUNK_LEN						\
-	((256 - sizeof (struct list_head) - 2 * sizeof (int)) /		\
-	 (sizeof (struct scatterlist)))
+	((256 - sizeof(struct list_head) - 2 * sizeof(int)) /		\
+	 (sizeof(struct scatterlist)))
 
 enum {
 	MLX4_ICM_PAGE_SHIFT	= 12,
@@ -71,8 +71,7 @@ struct mlx4_icm *mlx4_alloc_icm(struct mlx4_dev *dev, int npages,
 				gfp_t gfp_mask, int coherent);
 void mlx4_free_icm(struct mlx4_dev *dev, struct mlx4_icm *icm, int coherent);
 
-int mlx4_table_get(struct mlx4_dev *dev, struct mlx4_icm_table *table, u32 obj,
-		   gfp_t gfp);
+int mlx4_table_get(struct mlx4_dev *dev, struct mlx4_icm_table *table, u32 obj);
 void mlx4_table_put(struct mlx4_dev *dev, struct mlx4_icm_table *table, u32 obj);
 int mlx4_table_get_range(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 			 u32 start, u32 end);

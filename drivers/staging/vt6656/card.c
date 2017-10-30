@@ -359,35 +359,18 @@ void vnt_update_ifs(struct vnt_private *priv)
 		priv->sifs = C_SIFS_A;
 		priv->difs = C_SIFS_A + 2 * C_SLOT_SHORT;
 		max_min = 4;
-	} else if (priv->packet_type == PK_TYPE_11B) {
-		priv->slot = C_SLOT_LONG;
-		priv->sifs = C_SIFS_BG;
-		priv->difs = C_SIFS_BG + 2 * C_SLOT_LONG;
-		max_min = 5;
-	} else {/* PK_TYPE_11GA & PK_TYPE_11GB */
-		bool ofdm_rate = false;
-		unsigned int ii = 0;
-
+	} else {
 		priv->sifs = C_SIFS_BG;
 
-		if (priv->short_slot_time)
+		if (priv->short_slot_time) {
 			priv->slot = C_SLOT_SHORT;
-		else
+			max_min = 4;
+		} else {
 			priv->slot = C_SLOT_LONG;
-
-		priv->difs = C_SIFS_BG + 2 * priv->slot;
-
-		for (ii = RATE_54M; ii >= RATE_6M; ii--) {
-			if (priv->basic_rates & ((u32)(0x1 << ii))) {
-				ofdm_rate = true;
-				break;
-			}
+			max_min = 5;
 		}
 
-		if (ofdm_rate)
-			max_min = 4;
-		else
-			max_min = 5;
+		priv->difs = C_SIFS_BG + 2 * priv->slot;
 	}
 
 	priv->eifs = C_EIFS;
@@ -501,16 +484,7 @@ u8 vnt_get_pkt_type(struct vnt_private *priv)
  */
 u64 vnt_get_tsf_offset(u8 rx_rate, u64 tsf1, u64 tsf2)
 {
-	u64 tsf_offset = 0;
-	u16 rx_bcn_offset;
-
-	rx_bcn_offset = cw_rxbcntsf_off[rx_rate % MAX_RATE];
-
-	tsf2 += (u64)rx_bcn_offset;
-
-	tsf_offset = tsf1 - tsf2;
-
-	return tsf_offset;
+	return tsf1 - tsf2 - (u64)cw_rxbcntsf_off[rx_rate % MAX_RATE];
 }
 
 /*
@@ -610,8 +584,8 @@ u64 vnt_get_next_tbtt(u64 tsf, u16 beacon_interval)
 	beacon_int = beacon_interval * 1024;
 
 	/* Next TBTT =
-	*	((local_current_TSF / beacon_interval) + 1) * beacon_interval
-	*/
+	 *	((local_current_TSF / beacon_interval) + 1) * beacon_interval
+	 */
 	if (beacon_int) {
 		do_div(tsf, beacon_int);
 		tsf += 1;

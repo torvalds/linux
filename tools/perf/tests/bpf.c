@@ -1,15 +1,21 @@
+#include <errno.h>
 #include <stdio.h>
 #include <sys/epoll.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <util/util.h>
 #include <util/bpf-loader.h>
 #include <util/evlist.h>
 #include <linux/bpf.h>
 #include <linux/filter.h>
+#include <linux/kernel.h>
+#include <api/fs/fs.h>
 #include <bpf/bpf.h>
 #include "tests.h"
 #include "llvm.h"
 #include "debug.h"
 #define NR_ITERS       111
+#define PERF_TEST_BPF_PATH "/sys/fs/bpf/perf_test"
 
 #ifdef HAVE_LIBBPF_SUPPORT
 
@@ -54,35 +60,49 @@ static struct {
 	const char *msg_load_fail;
 	int (*target_func)(void);
 	int expect_result;
+	bool	pin;
 } bpf_testcase_table[] = {
 	{
 		LLVM_TESTCASE_BASE,
-		"Test basic BPF filtering",
+		"Basic BPF filtering",
 		"[basic_bpf_test]",
 		"fix 'perf test LLVM' first",
 		"load bpf object failed",
 		&epoll_wait_loop,
 		(NR_ITERS + 1) / 2,
+		false,
+	},
+	{
+		LLVM_TESTCASE_BASE,
+		"BPF pinning",
+		"[bpf_pinning]",
+		"fix kbuild first",
+		"check your vmlinux setting?",
+		&epoll_wait_loop,
+		(NR_ITERS + 1) / 2,
+		true,
 	},
 #ifdef HAVE_BPF_PROLOGUE
 	{
 		LLVM_TESTCASE_BPF_PROLOGUE,
-		"Test BPF prologue generation",
+		"BPF prologue generation",
 		"[bpf_prologue_test]",
 		"fix kbuild first",
 		"check your vmlinux setting?",
 		&llseek_loop,
 		(NR_ITERS + 1) / 4,
+		false,
 	},
 #endif
 	{
 		LLVM_TESTCASE_BPF_RELOCATION,
-		"Test BPF relocation checker",
+		"BPF relocation checker",
 		"[bpf_relocation_test]",
 		"fix 'perf test LLVM' first",
 		"libbpf error when dealing with relocation",
 		NULL,
 		0,
+		false,
 	},
 };
 
@@ -104,16 +124,16 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	struct perf_evlist *evlist;
 	int i, ret = TEST_FAIL, err = 0, count = 0;
 
-	struct parse_events_evlist parse_evlist;
+	struct parse_events_state parse_state;
 	struct parse_events_error parse_error;
 
 	bzero(&parse_error, sizeof(parse_error));
-	bzero(&parse_evlist, sizeof(parse_evlist));
-	parse_evlist.error = &parse_error;
-	INIT_LIST_HEAD(&parse_evlist.list);
+	bzero(&parse_state, sizeof(parse_state));
+	parse_state.error = &parse_error;
+	INIT_LIST_HEAD(&parse_state.list);
 
-	err = parse_events_load_bpf_obj(&parse_evlist, &parse_evlist.list, obj, NULL);
-	if (err || list_empty(&parse_evlist.list)) {
+	err = parse_events_load_bpf_obj(&parse_state, &parse_state.list, obj, NULL);
+	if (err || list_empty(&parse_state.list)) {
 		pr_debug("Failed to add events selected by BPF\n");
 		return TEST_FAIL;
 	}
@@ -125,7 +145,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	/* Instead of perf_evlist__new_default, don't add default events */
 	evlist = perf_evlist__new();
 	if (!evlist) {
-		pr_debug("No enough memory to create evlist\n");
+		pr_debug("Not enough memory to create evlist\n");
 		return TEST_FAIL;
 	}
 
@@ -135,8 +155,8 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 		goto out_delete_evlist;
 	}
 
-	perf_evlist__splice_list_tail(evlist, &parse_evlist.list);
-	evlist->nr_groups = parse_evlist.nr_groups;
+	perf_evlist__splice_list_tail(evlist, &parse_state.list);
+	evlist->nr_groups = parse_state.nr_groups;
 
 	perf_evlist__config(evlist, &opts, NULL);
 
@@ -226,10 +246,34 @@ static int __test__bpf(int idx)
 		goto out;
 	}
 
-	if (obj)
+	if (obj) {
 		ret = do_test(obj,
 			      bpf_testcase_table[idx].target_func,
 			      bpf_testcase_table[idx].expect_result);
+		if (ret != TEST_OK)
+			goto out;
+		if (bpf_testcase_table[idx].pin) {
+			int err;
+
+			if (!bpf_fs__mount()) {
+				pr_debug("BPF filesystem not mounted\n");
+				ret = TEST_FAIL;
+				goto out;
+			}
+			err = mkdir(PERF_TEST_BPF_PATH, 0777);
+			if (err && errno != EEXIST) {
+				pr_debug("Failed to make perf_test dir: %s\n",
+					 strerror(errno));
+				ret = TEST_FAIL;
+				goto out;
+			}
+			if (bpf_object__pin(obj, PERF_TEST_BPF_PATH))
+				ret = TEST_FAIL;
+			if (rm_rf(PERF_TEST_BPF_PATH))
+				ret = TEST_FAIL;
+		}
+	}
+
 out:
 	bpf__clear();
 	return ret;
@@ -277,7 +321,7 @@ static int check_env(void)
 	return 0;
 }
 
-int test__bpf(int i)
+int test__bpf(struct test *test __maybe_unused, int i)
 {
 	int err;
 
@@ -307,7 +351,7 @@ const char *test__bpf_subtest_get_desc(int i __maybe_unused)
 	return NULL;
 }
 
-int test__bpf(int i __maybe_unused)
+int test__bpf(struct test *test __maybe_unused, int i __maybe_unused)
 {
 	pr_debug("Skip BPF test because BPF support is not compiled\n");
 	return TEST_SKIP;

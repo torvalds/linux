@@ -2250,7 +2250,7 @@ static void adv7842_cec_isr(struct v4l2_subdev *sd, bool *handled)
 
 static int adv7842_cec_adap_enable(struct cec_adapter *adap, bool enable)
 {
-	struct adv7842_state *state = adap->priv;
+	struct adv7842_state *state = cec_get_drvdata(adap);
 	struct v4l2_subdev *sd = &state->sd;
 
 	if (!state->cec_enabled_adap && enable) {
@@ -2279,7 +2279,7 @@ static int adv7842_cec_adap_enable(struct cec_adapter *adap, bool enable)
 
 static int adv7842_cec_adap_log_addr(struct cec_adapter *adap, u8 addr)
 {
-	struct adv7842_state *state = adap->priv;
+	struct adv7842_state *state = cec_get_drvdata(adap);
 	struct v4l2_subdev *sd = &state->sd;
 	unsigned int i, free_idx = ADV7842_MAX_ADDRS;
 
@@ -2334,7 +2334,7 @@ static int adv7842_cec_adap_log_addr(struct cec_adapter *adap, u8 addr)
 static int adv7842_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 				     u32 signal_free_time, struct cec_msg *msg)
 {
-	struct adv7842_state *state = adap->priv;
+	struct adv7842_state *state = cec_get_drvdata(adap);
 	struct v4l2_subdev *sd = &state->sd;
 	u8 len = msg->len;
 	unsigned int i;
@@ -3250,9 +3250,10 @@ static int adv7842_subscribe_event(struct v4l2_subdev *sd,
 static int adv7842_registered(struct v4l2_subdev *sd)
 {
 	struct adv7842_state *state = to_state(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int err;
 
-	err = cec_register_adapter(state->cec_adap);
+	err = cec_register_adapter(state->cec_adap, &client->dev);
 	if (err)
 		cec_delete_adapter(state->cec_adap);
 	return err;
@@ -3567,9 +3568,7 @@ static int adv7842_probe(struct i2c_client *client,
 #if IS_ENABLED(CONFIG_VIDEO_ADV7842_CEC)
 	state->cec_adap = cec_allocate_adapter(&adv7842_cec_adap_ops,
 		state, dev_name(&client->dev),
-		CEC_CAP_TRANSMIT | CEC_CAP_LOG_ADDRS |
-		CEC_CAP_PASSTHROUGH | CEC_CAP_RC, ADV7842_MAX_ADDRS,
-		&client->dev);
+		CEC_CAP_DEFAULTS, ADV7842_MAX_ADDRS);
 	err = PTR_ERR_OR_ZERO(state->cec_adap);
 	if (err)
 		goto err_entity;
@@ -3608,7 +3607,7 @@ static int adv7842_remove(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_device_id adv7842_id[] = {
+static const struct i2c_device_id adv7842_id[] = {
 	{ "adv7842", 0 },
 	{ }
 };

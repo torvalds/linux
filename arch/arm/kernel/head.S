@@ -22,7 +22,6 @@
 #include <asm/memory.h>
 #include <asm/thread_info.h>
 #include <asm/pgtable.h>
-#include <asm/export.h>
 
 #if defined(CONFIG_DEBUG_LL) && !defined(CONFIG_DEBUG_SEMIHOSTING)
 #include CONFIG_DEBUG_LL_INCLUDE
@@ -557,6 +556,7 @@ ENDPROC(__fixup_smp)
 	.word	__smpalt_end
 
 	.pushsection .data
+	.align	2
 	.globl	smp_on_up
 smp_on_up:
 	ALT_SMP(.long	1)
@@ -717,6 +717,7 @@ ENTRY(fixup_pv_table)
 ENDPROC(fixup_pv_table)
 
 	.data
+	.align	2
 	.globl	__pv_phys_pfn_offset
 	.type	__pv_phys_pfn_offset, %object
 __pv_phys_pfn_offset:
@@ -728,8 +729,6 @@ __pv_phys_pfn_offset:
 __pv_offset:
 	.quad	0
 	.size	__pv_offset, . -__pv_offset
-EXPORT_SYMBOL(__pv_phys_pfn_offset)
-EXPORT_SYMBOL(__pv_offset)
 #endif
 
 #include "head-common.S"

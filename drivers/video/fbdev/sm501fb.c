@@ -31,7 +31,7 @@
 #include <linux/console.h>
 #include <linux/io.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/div64.h>
 
 #ifdef CONFIG_PM
@@ -46,7 +46,7 @@
 static char *fb_mode = "640x480-16@60";
 static unsigned long default_bpp = 16;
 
-static struct fb_videomode sm501_default_mode = {
+static const struct fb_videomode sm501_default_mode = {
 	.refresh	= 60,
 	.xres		= 640,
 	.yres		= 480,
@@ -1600,6 +1600,7 @@ static int sm501fb_start(struct sm501fb_info *info,
 	info->fbmem = ioremap(res->start, resource_size(res));
 	if (info->fbmem == NULL) {
 		dev_err(dev, "cannot remap framebuffer\n");
+		ret = -ENXIO;
 		goto err_mem_res;
 	}
 

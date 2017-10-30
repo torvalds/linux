@@ -38,14 +38,14 @@
 
 #define DEBUG_SUBSYSTEM S_FID
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 #include <linux/module.h>
 
-#include "../include/obd.h"
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
-#include "../include/lustre_req_layout.h"
-#include "../include/lustre_fid.h"
+#include <obd.h>
+#include <obd_class.h>
+#include <obd_support.h>
+#include <lustre_req_layout.h>
+#include <lustre_fid.h>
 #include "fid_internal.h"
 
 /* Format: [0x64BIT_INT - 0x64BIT_INT] + 32 bytes just in case */
@@ -83,7 +83,7 @@ ldebugfs_fid_write_common(const char __user *buffer, size_t count,
 		    (unsigned long long *)&tmp.lsr_end);
 	if (rc != 2)
 		return -EINVAL;
-	if (!range_is_sane(&tmp) || range_is_zero(&tmp) ||
+	if (!lu_seq_range_is_sane(&tmp) || lu_seq_range_is_zero(&tmp) ||
 	    tmp.lsr_start < range->lsr_start || tmp.lsr_end > range->lsr_end)
 		return -EINVAL;
 	*range = tmp;
@@ -203,9 +203,13 @@ LPROC_SEQ_FOPS_RO(ldebugfs_fid_server);
 LPROC_SEQ_FOPS_RO(ldebugfs_fid_fid);
 
 struct lprocfs_vars seq_client_debugfs_list[] = {
-	{ "space", &ldebugfs_fid_space_fops },
-	{ "width", &ldebugfs_fid_width_fops },
-	{ "server", &ldebugfs_fid_server_fops },
-	{ "fid", &ldebugfs_fid_fid_fops },
+	{ .name =	"space",
+	  .fops =	&ldebugfs_fid_space_fops },
+	{ .name	=	"width",
+	  .fops =	&ldebugfs_fid_width_fops },
+	{ .name =	"server",
+	  .fops =	&ldebugfs_fid_server_fops },
+	{ .name	=	"fid",
+	  .fops =	&ldebugfs_fid_fid_fops },
 	{ NULL }
 };

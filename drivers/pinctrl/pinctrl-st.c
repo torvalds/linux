@@ -861,7 +861,7 @@ static void st_pctl_dt_free_map(struct pinctrl_dev *pctldev,
 {
 }
 
-static struct pinctrl_ops st_pctlops = {
+static const struct pinctrl_ops st_pctlops = {
 	.get_groups_count	= st_pctl_get_groups_count,
 	.get_group_pins		= st_pctl_get_group_pins,
 	.get_group_name		= st_pctl_get_group_name,
@@ -928,7 +928,7 @@ static int st_pmx_set_gpio_direction(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinmux_ops st_pmxops = {
+static const struct pinmux_ops st_pmxops = {
 	.get_functions_count	= st_pmx_get_funcs_count,
 	.get_function_name	= st_pmx_get_fname,
 	.get_function_groups	= st_pmx_get_groups,
@@ -1006,7 +1006,7 @@ static void st_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 
 	function = st_pctl_get_pin_function(pc, offset);
 	if (function)
-		snprintf(f, 10, "Alt Fn %d", function);
+		snprintf(f, 10, "Alt Fn %u", function);
 	else
 		snprintf(f, 5, "GPIO");
 
@@ -1025,7 +1025,7 @@ static void st_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 		ST_PINCONF_UNPACK_RT_DELAY(config));
 }
 
-static struct pinconf_ops st_confops = {
+static const struct pinconf_ops st_confops = {
 	.pin_config_get		= st_pinconf_get,
 	.pin_config_set		= st_pinconf_set,
 	.pin_config_dbg_show	= st_pinconf_dbg_show,
@@ -1181,7 +1181,7 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 		if (!strcmp(pp->name, "name"))
 			continue;
 
-		if (pp  && (pp->length/sizeof(__be32)) >= OF_GPIO_ARGS_MIN) {
+		if (pp->length / sizeof(__be32) >= OF_GPIO_ARGS_MIN) {
 			npins++;
 		} else {
 			pr_warn("Invalid st,pins in %s node\n", np->name);
@@ -1283,6 +1283,22 @@ static void st_gpio_irq_unmask(struct irq_data *d)
 	struct st_gpio_bank *bank = gpiochip_get_data(gc);
 
 	writel(BIT(d->hwirq), bank->base + REG_PIO_SET_PMASK);
+}
+
+static int st_gpio_irq_request_resources(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+
+	st_gpio_direction_input(gc, d->hwirq);
+
+	return gpiochip_lock_as_irq(gc, d->hwirq);
+}
+
+static void st_gpio_irq_release_resources(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+
+	gpiochip_unlock_as_irq(gc, d->hwirq);
 }
 
 static int st_gpio_irq_set_type(struct irq_data *d, unsigned type)
@@ -1426,7 +1442,7 @@ static void st_gpio_irqmux_handler(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static struct gpio_chip st_gpio_template = {
+static const struct gpio_chip st_gpio_template = {
 	.request		= gpiochip_generic_request,
 	.free			= gpiochip_generic_free,
 	.get			= st_gpio_get,
@@ -1438,12 +1454,14 @@ static struct gpio_chip st_gpio_template = {
 };
 
 static struct irq_chip st_gpio_irqchip = {
-	.name		= "GPIO",
-	.irq_disable	= st_gpio_irq_mask,
-	.irq_mask	= st_gpio_irq_mask,
-	.irq_unmask	= st_gpio_irq_unmask,
-	.irq_set_type	= st_gpio_irq_set_type,
-	.flags		= IRQCHIP_SKIP_SET_WAKE,
+	.name			= "GPIO",
+	.irq_request_resources	= st_gpio_irq_request_resources,
+	.irq_release_resources	= st_gpio_irq_release_resources,
+	.irq_disable		= st_gpio_irq_mask,
+	.irq_mask		= st_gpio_irq_mask,
+	.irq_unmask		= st_gpio_irq_unmask,
+	.irq_set_type		= st_gpio_irq_set_type,
+	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 
 static int st_gpiolib_register_bank(struct st_pinctrl *info,
@@ -1503,7 +1521,7 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 	 *	[irqN]----> [gpio-bank (n)]
 	 */
 
-	if (of_irq_to_resource(np, 0, &irq_res)) {
+	if (of_irq_to_resource(np, 0, &irq_res) > 0) {
 		gpio_irq = irq_res.start;
 		gpiochip_set_chained_irqchip(&bank->gpio_chip, &st_gpio_irqchip,
 					     gpio_irq, st_gpio_irq_handler);
@@ -1519,7 +1537,7 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 			return err;
 		}
 	} else {
-		dev_info(dev, "No IRQ support for %s bank\n", np->full_name);
+		dev_info(dev, "No IRQ support for %pOF bank\n", np);
 	}
 
 	return 0;

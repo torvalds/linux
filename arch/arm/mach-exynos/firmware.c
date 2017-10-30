@@ -41,7 +41,7 @@ static int exynos_do_idle(unsigned long mode)
 	case FW_DO_IDLE_AFTR:
 		if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9)
 			exynos_save_cp15();
-		writel_relaxed(virt_to_phys(exynos_cpu_resume_ns),
+		writel_relaxed(__pa_symbol(exynos_cpu_resume_ns),
 			       sysram_ns_base_addr + 0x24);
 		writel_relaxed(EXYNOS_AFTR_MAGIC, sysram_ns_base_addr + 0x20);
 		if (soc_is_exynos3250()) {
@@ -135,7 +135,7 @@ static int exynos_suspend(void)
 		exynos_save_cp15();
 
 	writel(EXYNOS_SLEEP_MAGIC, sysram_ns_base_addr + EXYNOS_BOOT_FLAG);
-	writel(virt_to_phys(exynos_cpu_resume_ns),
+	writel(__pa_symbol(exynos_cpu_resume_ns),
 		sysram_ns_base_addr + EXYNOS_BOOT_ADDR);
 
 	return cpu_suspend(0, exynos_cpu_suspend);

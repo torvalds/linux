@@ -22,8 +22,9 @@
 #define dsi_phy_write(offset, data) msm_writel((data), (offset))
 
 struct msm_dsi_phy_ops {
+	int (*init) (struct msm_dsi_phy *phy);
 	int (*enable)(struct msm_dsi_phy *phy, int src_pll_id,
-		const unsigned long bit_rate, const unsigned long esc_rate);
+			struct msm_dsi_phy_clk_request *clk_req);
 	void (*disable)(struct msm_dsi_phy *phy);
 };
 
@@ -46,6 +47,7 @@ extern const struct msm_dsi_phy_cfg dsi_phy_28nm_hpm_cfgs;
 extern const struct msm_dsi_phy_cfg dsi_phy_28nm_lp_cfgs;
 extern const struct msm_dsi_phy_cfg dsi_phy_20nm_cfgs;
 extern const struct msm_dsi_phy_cfg dsi_phy_28nm_8960_cfgs;
+extern const struct msm_dsi_phy_cfg dsi_phy_14nm_cfgs;
 
 struct msm_dsi_dphy_timing {
 	u32 clk_pre;
@@ -61,12 +63,22 @@ struct msm_dsi_dphy_timing {
 	u32 ta_go;
 	u32 ta_sure;
 	u32 ta_get;
+
+	struct msm_dsi_phy_shared_timings shared_timings;
+
+	/* For PHY v2 only */
+	u32 hs_rqst_ckln;
+	u32 hs_prep_dly;
+	u32 hs_prep_dly_ckln;
+	u8 hs_halfbyte_en;
+	u8 hs_halfbyte_en_ckln;
 };
 
 struct msm_dsi_phy {
 	struct platform_device *pdev;
 	void __iomem *base;
 	void __iomem *reg_base;
+	void __iomem *lane_base;
 	int id;
 
 	struct clk *ahb_clk;
@@ -75,6 +87,7 @@ struct msm_dsi_phy {
 	struct msm_dsi_dphy_timing timing;
 	const struct msm_dsi_phy_cfg *cfg;
 
+	enum msm_dsi_phy_usecase usecase;
 	bool regulator_ldo_mode;
 
 	struct msm_dsi_pll *pll;
@@ -84,9 +97,12 @@ struct msm_dsi_phy {
  * PHY internal functions
  */
 int msm_dsi_dphy_timing_calc(struct msm_dsi_dphy_timing *timing,
-	const unsigned long bit_rate, const unsigned long esc_rate);
+			     struct msm_dsi_phy_clk_request *clk_req);
+int msm_dsi_dphy_timing_calc_v2(struct msm_dsi_dphy_timing *timing,
+				struct msm_dsi_phy_clk_request *clk_req);
 void msm_dsi_phy_set_src_pll(struct msm_dsi_phy *phy, int pll_id, u32 reg,
 				u32 bit_mask);
+int msm_dsi_phy_init_common(struct msm_dsi_phy *phy);
 
 #endif /* __DSI_PHY_H__ */
 

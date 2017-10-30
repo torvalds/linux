@@ -48,6 +48,8 @@
 #include <linux/vmalloc.h>
 #include <linux/etherdevice.h>
 #include <linux/net_tstamp.h>
+#include <linux/ptp_clock_kernel.h>
+#include <linux/ptp_classify.h>
 #include <asm/io.h>
 #include "t4_chip_type.h"
 #include "cxgb4_uld.h"
@@ -102,10 +104,16 @@ enum dev_state {
 	DEV_STATE_ERR
 };
 
-enum {
+enum cc_pause {
 	PAUSE_RX      = 1 << 0,
 	PAUSE_TX      = 1 << 1,
 	PAUSE_AUTONEG = 1 << 2
+};
+
+enum cc_fec {
+	FEC_AUTO      = 1 << 0,	 /* IEEE 802.3 "automatic" */
+	FEC_RS        = 1 << 1,  /* Reed-Solomon */
+	FEC_BASER_RS  = 1 << 2   /* BaseR/Reed-Solomon */
 };
 
 struct port_stats {
@@ -263,6 +271,11 @@ struct tp_params {
 	u32 vlan_pri_map;               /* cached TP_VLAN_PRI_MAP */
 	u32 ingress_config;             /* cached TP_INGRESS_CONFIG */
 
+	/* cached TP_OUT_CONFIG compressed error vector
+	 * and passing outer header info for encapsulated packets.
+	 */
+	int rx_pkt_encap;
+
 	/* TP_VLAN_PRI_MAP Compressed Filter Tuple field offsets.  This is a
 	 * subset of the set of fields which may be present in the Compressed
 	 * Filter Tuple portion of filters and TCP TCB connections.  The
@@ -325,10 +338,12 @@ struct adapter_params {
 	unsigned int sf_nsec;             /* # of flash sectors */
 	unsigned int sf_fw_start;         /* start of FW image in flash */
 
-	unsigned int fw_vers;
-	unsigned int bs_vers;		/* bootstrap version */
-	unsigned int tp_vers;
-	unsigned int er_vers;		/* expansion ROM version */
+	unsigned int fw_vers;		  /* firmware version */
+	unsigned int bs_vers;		  /* bootstrap version */
+	unsigned int tp_vers;		  /* TP microcode version */
+	unsigned int er_vers;		  /* expansion ROM version */
+	unsigned int scfg_vers;		  /* Serial Configuration version */
+	unsigned int vpd_vers;		  /* VPD Version */
 	u8 api_vers[7];
 
 	unsigned short mtus[NMTUS];
@@ -351,6 +366,12 @@ struct adapter_params {
 	unsigned int max_ordird_qp;       /* Max read depth per RDMA QP */
 	unsigned int max_ird_adapter;     /* Max read depth per adapter */
 	bool fr_nsmr_tpte_wr_support;	  /* FW support for FR_NSMR_TPTE_WR */
+	u8 fw_caps_support;		/* 32-bit Port Capabilities */
+
+	/* MPS Buffer Group Map[per Port].  Bit i is set if buffer group i is
+	 * used by the Port
+	 */
+	u8 mps_bg_map[MAX_NPORTS];	/* MPS Buffer Group Map */
 };
 
 /* State needed to monitor the forward progress of SGE Ingress DMA activities
@@ -419,15 +440,34 @@ struct trace_params {
 	unsigned char port;
 };
 
+/* Firmware Port Capabilities types. */
+
+typedef u16 fw_port_cap16_t;	/* 16-bit Port Capabilities integral value */
+typedef u32 fw_port_cap32_t;	/* 32-bit Port Capabilities integral value */
+
+enum fw_caps {
+	FW_CAPS_UNKNOWN	= 0,	/* 0'ed out initial state */
+	FW_CAPS16	= 1,	/* old Firmware: 16-bit Port Capabilities */
+	FW_CAPS32	= 2,	/* new Firmware: 32-bit Port Capabilities */
+};
+
 struct link_config {
-	unsigned short supported;        /* link capabilities */
-	unsigned short advertising;      /* advertised capabilities */
-	unsigned short lp_advertising;   /* peer advertised capabilities */
-	unsigned int   requested_speed;  /* speed user has requested */
-	unsigned int   speed;            /* actual link speed */
-	unsigned char  requested_fc;     /* flow control user has requested */
-	unsigned char  fc;               /* actual link flow control */
+	fw_port_cap32_t pcaps;           /* link capabilities */
+	fw_port_cap32_t def_acaps;       /* default advertised capabilities */
+	fw_port_cap32_t acaps;           /* advertised capabilities */
+	fw_port_cap32_t lpacaps;         /* peer advertised capabilities */
+
+	fw_port_cap32_t speed_caps;      /* speed(s) user has requested */
+	unsigned int   speed;            /* actual link speed (Mb/s) */
+
+	enum cc_pause  requested_fc;     /* flow control user has requested */
+	enum cc_pause  fc;               /* actual link flow control */
+
+	enum cc_fec    requested_fec;	 /* Forward Error Correction: */
+	enum cc_fec    fec;		 /* requested and actual in use */
+
 	unsigned char  autoneg;          /* autonegotiating? */
+
 	unsigned char  link_ok;          /* link up? */
 	unsigned char  link_down_rc;     /* link down reason */
 };
@@ -491,6 +531,7 @@ struct port_info {
 #endif /* CONFIG_CHELSIO_T4_FCOE */
 	bool rxtstamp;  /* Enable TS */
 	struct hwtstamp_config tstamp_config;
+	bool ptp_enable;
 	struct sched_table *sched_tbl;
 };
 
@@ -507,6 +548,7 @@ enum {                                 /* adapter flags */
 	USING_SOFT_PARAMS  = (1 << 6),
 	MASTER_PF          = (1 << 7),
 	FW_OFLD_CONN       = (1 << 9),
+	ROOT_NO_RELAXED_ORDERING = (1 << 10),
 };
 
 enum {
@@ -581,22 +623,6 @@ struct sge_rspq {                   /* state for an SGE response queue */
 	rspq_handler_t handler;
 	rspq_flush_handler_t flush_handler;
 	struct t4_lro_mgr lro_mgr;
-#ifdef CONFIG_NET_RX_BUSY_POLL
-#define CXGB_POLL_STATE_IDLE		0
-#define CXGB_POLL_STATE_NAPI		BIT(0) /* NAPI owns this poll */
-#define CXGB_POLL_STATE_POLL		BIT(1) /* poll owns this poll */
-#define CXGB_POLL_STATE_NAPI_YIELD	BIT(2) /* NAPI yielded this poll */
-#define CXGB_POLL_STATE_POLL_YIELD	BIT(3) /* poll yielded this poll */
-#define CXGB_POLL_YIELD			(CXGB_POLL_STATE_NAPI_YIELD |   \
-					 CXGB_POLL_STATE_POLL_YIELD)
-#define CXGB_POLL_LOCKED		(CXGB_POLL_STATE_NAPI |         \
-					 CXGB_POLL_STATE_POLL)
-#define CXGB_POLL_USER_PEND		(CXGB_POLL_STATE_POLL |         \
-					 CXGB_POLL_STATE_POLL_YIELD)
-	unsigned int bpoll_state;
-	spinlock_t bpoll_lock;		/* lock for busy poll */
-#endif /* CONFIG_NET_RX_BUSY_POLL */
-
 };
 
 struct sge_eth_stats {              /* Ethernet queue statistics */
@@ -635,6 +661,7 @@ struct tx_sw_desc;
 
 struct sge_txq {
 	unsigned int  in_use;       /* # of in-use Tx descriptors */
+	unsigned int  q_type;	    /* Q type Eth/Ctrl/Ofld */
 	unsigned int  size;         /* # of descriptors */
 	unsigned int  cidx;         /* SW consumer index */
 	unsigned int  pidx;         /* producer index */
@@ -665,7 +692,7 @@ struct sge_eth_txq {                /* state for an SGE Ethernet Tx queue */
 	unsigned long mapping_err;  /* # of I/O MMU packet mapping errors */
 } ____cacheline_aligned_in_smp;
 
-struct sge_ofld_txq {               /* state for an SGE offload Tx queue */
+struct sge_uld_txq {               /* state for an SGE offload Tx queue */
 	struct sge_txq q;
 	struct adapter *adap;
 	struct sk_buff_head sendq;  /* list of backpressured packets */
@@ -693,14 +720,21 @@ struct sge_uld_rxq_info {
 	u8 uld;			/* uld type */
 };
 
+struct sge_uld_txq_info {
+	struct sge_uld_txq *uldtxq; /* Txq's for ULD */
+	atomic_t users;		/* num users */
+	u16 ntxq;		/* # of egress uld queues */
+};
+
 struct sge {
 	struct sge_eth_txq ethtxq[MAX_ETH_QSETS];
-	struct sge_ofld_txq ofldtxq[MAX_OFLD_QSETS];
+	struct sge_eth_txq ptptxq;
 	struct sge_ctrl_txq ctrlq[MAX_CTRL_QUEUES];
 
 	struct sge_eth_rxq ethrxq[MAX_ETH_QSETS];
 	struct sge_rspq fw_evtq ____cacheline_aligned_in_smp;
 	struct sge_uld_rxq_info **uld_rxq_info;
+	struct sge_uld_txq_info **uld_txq_info;
 
 	struct sge_rspq intrq ____cacheline_aligned_in_smp;
 	spinlock_t intrq_lock;
@@ -772,7 +806,12 @@ struct uld_msix_info {
 
 struct vf_info {
 	unsigned char vf_mac_addr[ETH_ALEN];
+	unsigned int tx_rate;
 	bool pf_set_mac;
+};
+
+struct mbox_list {
+	struct list_head list;
 };
 
 struct adapter {
@@ -837,6 +876,10 @@ struct adapter {
 	struct work_struct db_drop_task;
 	bool tid_release_task_busy;
 
+	/* lock for mailbox cmd list */
+	spinlock_t mbox_lock;
+	struct mbox_list mlist;
+
 	/* support for mailbox command/reply logging */
 #define T4_OS_LOG_MBOX_CMDS 256
 	struct mbox_cmd_log *mbox_log;
@@ -850,11 +893,17 @@ struct adapter {
 			 * used for all 4 filters.
 			 */
 
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info ptp_clock_info;
+	struct sk_buff *ptp_tx_skb;
+	/* ptp lock */
+	spinlock_t ptp_lock;
 	spinlock_t stats_lock;
 	spinlock_t win0_lock ____cacheline_aligned_in_smp;
 
 	/* TC u32 offload */
 	struct cxgb4_tc_u32_table *tc_u32;
+	struct chcr_stats_debug chcr_stats;
 };
 
 /* Support for "sched-class" command to allow a TX Scheduling Class to be
@@ -1153,102 +1202,6 @@ static inline struct adapter *netdev2adap(const struct net_device *dev)
 	return netdev2pinfo(dev)->adapter;
 }
 
-#ifdef CONFIG_NET_RX_BUSY_POLL
-static inline void cxgb_busy_poll_init_lock(struct sge_rspq *q)
-{
-	spin_lock_init(&q->bpoll_lock);
-	q->bpoll_state = CXGB_POLL_STATE_IDLE;
-}
-
-static inline bool cxgb_poll_lock_napi(struct sge_rspq *q)
-{
-	bool rc = true;
-
-	spin_lock(&q->bpoll_lock);
-	if (q->bpoll_state & CXGB_POLL_LOCKED) {
-		q->bpoll_state |= CXGB_POLL_STATE_NAPI_YIELD;
-		rc = false;
-	} else {
-		q->bpoll_state = CXGB_POLL_STATE_NAPI;
-	}
-	spin_unlock(&q->bpoll_lock);
-	return rc;
-}
-
-static inline bool cxgb_poll_unlock_napi(struct sge_rspq *q)
-{
-	bool rc = false;
-
-	spin_lock(&q->bpoll_lock);
-	if (q->bpoll_state & CXGB_POLL_STATE_POLL_YIELD)
-		rc = true;
-	q->bpoll_state = CXGB_POLL_STATE_IDLE;
-	spin_unlock(&q->bpoll_lock);
-	return rc;
-}
-
-static inline bool cxgb_poll_lock_poll(struct sge_rspq *q)
-{
-	bool rc = true;
-
-	spin_lock_bh(&q->bpoll_lock);
-	if (q->bpoll_state & CXGB_POLL_LOCKED) {
-		q->bpoll_state |= CXGB_POLL_STATE_POLL_YIELD;
-		rc = false;
-	} else {
-		q->bpoll_state |= CXGB_POLL_STATE_POLL;
-	}
-	spin_unlock_bh(&q->bpoll_lock);
-	return rc;
-}
-
-static inline bool cxgb_poll_unlock_poll(struct sge_rspq *q)
-{
-	bool rc = false;
-
-	spin_lock_bh(&q->bpoll_lock);
-	if (q->bpoll_state & CXGB_POLL_STATE_POLL_YIELD)
-		rc = true;
-	q->bpoll_state = CXGB_POLL_STATE_IDLE;
-	spin_unlock_bh(&q->bpoll_lock);
-	return rc;
-}
-
-static inline bool cxgb_poll_busy_polling(struct sge_rspq *q)
-{
-	return q->bpoll_state & CXGB_POLL_USER_PEND;
-}
-#else
-static inline void cxgb_busy_poll_init_lock(struct sge_rspq *q)
-{
-}
-
-static inline bool cxgb_poll_lock_napi(struct sge_rspq *q)
-{
-	return true;
-}
-
-static inline bool cxgb_poll_unlock_napi(struct sge_rspq *q)
-{
-	return false;
-}
-
-static inline bool cxgb_poll_lock_poll(struct sge_rspq *q)
-{
-	return false;
-}
-
-static inline bool cxgb_poll_unlock_poll(struct sge_rspq *q)
-{
-	return false;
-}
-
-static inline bool cxgb_poll_busy_polling(struct sge_rspq *q)
-{
-	return false;
-}
-#endif /* CONFIG_NET_RX_BUSY_POLL */
-
 /* Return a version number to identify the type of adapter.  The scheme is:
  * - bits 0..9: chip version
  * - bits 10..15: chip revision
@@ -1276,8 +1229,6 @@ extern const char cxgb4_driver_version[];
 void t4_os_portmod_changed(const struct adapter *adap, int port_id);
 void t4_os_link_changed(struct adapter *adap, int port_id, int link_stat);
 
-void *t4_alloc_mem(size_t size);
-
 void t4_free_sge_resources(struct adapter *adap);
 void t4_free_ofld_rxqs(struct adapter *adap, int n, struct sge_ofld_rxq *q);
 irq_handler_t t4_intr_handler(struct adapter *adap);
@@ -1298,13 +1249,13 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 			  unsigned int cmplqid);
 int t4_sge_mod_ctrl_txq(struct adapter *adap, unsigned int eqid,
 			unsigned int cmplqid);
-int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
-			  struct net_device *dev, unsigned int iqid);
+int t4_sge_alloc_uld_txq(struct adapter *adap, struct sge_uld_txq *txq,
+			 struct net_device *dev, unsigned int iqid,
+			 unsigned int uld_type);
 irqreturn_t t4_sge_intr_msix(int irq, void *cookie);
 int t4_sge_init(struct adapter *adap);
 void t4_sge_start(struct adapter *adap);
 void t4_sge_stop(struct adapter *adap);
-int cxgb_busy_poll(struct napi_struct *napi);
 void cxgb4_set_ethtool_ops(struct net_device *netdev);
 int cxgb4_write_rss(const struct port_info *pi, const u16 *queues);
 extern int dbfifo_int_thresh;
@@ -1472,14 +1423,20 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 int t4_fl_pkt_align(struct adapter *adap);
 unsigned int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_check_fw_version(struct adapter *adap);
+int t4_load_cfg(struct adapter *adapter, const u8 *cfg_data, unsigned int size);
 int t4_get_fw_version(struct adapter *adapter, u32 *vers);
 int t4_get_bs_version(struct adapter *adapter, u32 *vers);
 int t4_get_tp_version(struct adapter *adapter, u32 *vers);
 int t4_get_exprom_version(struct adapter *adapter, u32 *vers);
+int t4_get_scfg_version(struct adapter *adapter, u32 *vers);
+int t4_get_vpd_version(struct adapter *adapter, u32 *vers);
+int t4_get_version_info(struct adapter *adapter);
+void t4_dump_version_info(struct adapter *adapter);
 int t4_prep_fw(struct adapter *adap, struct fw_info *fw_info,
 	       const u8 *fw_data, unsigned int fw_size,
 	       struct fw_hdr *card_fw, enum dev_state state, int *reset);
 int t4_prep_adapter(struct adapter *adapter);
+int t4_shutdown_adapter(struct adapter *adapter);
 
 enum t4_bar2_qtype { T4_BAR2_QTYPE_EGRESS, T4_BAR2_QTYPE_INGRESS };
 int t4_bar2_sge_qregs(struct adapter *adapter,
@@ -1517,7 +1474,8 @@ void t4_read_rss_vf_config(struct adapter *adapter, unsigned int index,
 u32 t4_read_rss_pf_map(struct adapter *adapter);
 u32 t4_read_rss_pf_mask(struct adapter *adapter);
 
-unsigned int t4_get_mps_bg_map(struct adapter *adapter, int idx);
+unsigned int t4_get_mps_bg_map(struct adapter *adapter, int pidx);
+unsigned int t4_get_tp_ch_map(struct adapter *adapter, int pidx);
 void t4_pmtx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[]);
 void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[]);
 int t4_read_cim_ibq(struct adapter *adap, unsigned int qid, u32 *data,
@@ -1577,9 +1535,12 @@ int t4_fw_initialize(struct adapter *adap, unsigned int mbox);
 int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int nparams, const u32 *params,
 		    u32 *val);
+int t4_query_params_ns(struct adapter *adap, unsigned int mbox, unsigned int pf,
+		       unsigned int vf, unsigned int nparams, const u32 *params,
+		       u32 *val);
 int t4_query_params_rw(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		       unsigned int vf, unsigned int nparams, const u32 *params,
-		       u32 *val, int rw);
+		       u32 *val, int rw, bool sleep_ok);
 int t4_set_params_timeout(struct adapter *adap, unsigned int mbox,
 			  unsigned int pf, unsigned int vf,
 			  unsigned int nparams, const u32 *params,
@@ -1635,6 +1596,9 @@ int t4_ofld_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int eqid);
 int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox);
 void t4_handle_get_port_info(struct port_info *pi, const __be64 *rpl);
+int t4_update_port_info(struct port_info *pi);
+int t4_get_link_params(struct port_info *pi, unsigned int *link_okp,
+		       unsigned int *speedp, unsigned int *mtup);
 int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl);
 void t4_db_full(struct adapter *adapter);
 void t4_db_dropped(struct adapter *adapter);
@@ -1648,7 +1612,6 @@ int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
 		    int rateunit, int ratemode, int channel, int class,
 		    int minrate, int maxrate, int weight, int pktsize);
 void t4_sge_decode_idma_state(struct adapter *adapter, int state);
-void t4_free_mem(void *addr);
 void t4_idma_monitor_init(struct adapter *adapter,
 			  struct sge_idma_monitor_state *idma);
 void t4_idma_monitor(struct adapter *adapter,
@@ -1661,4 +1624,7 @@ int t4_uld_mem_alloc(struct adapter *adap);
 void t4_uld_clean_up(struct adapter *adap);
 void t4_register_netevent_notifier(void);
 void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq, struct sge_fl *fl);
+void free_tx_desc(struct adapter *adap, struct sge_txq *q,
+		  unsigned int n, bool unmap);
+void free_txq(struct adapter *adap, struct sge_txq *q);
 #endif /* __CXGB4_H__ */

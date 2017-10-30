@@ -35,6 +35,19 @@ static const match_table_t tokens = {
 
 uint64_t orangefs_features;
 
+static int orangefs_show_options(struct seq_file *m, struct dentry *root)
+{
+	struct orangefs_sb_info_s *orangefs_sb = ORANGEFS_SB(root->d_sb);
+
+	if (root->d_sb->s_flags & MS_POSIXACL)
+		seq_puts(m, ",acl");
+	if (orangefs_sb->flags & ORANGEFS_OPT_INTR)
+		seq_puts(m, ",intr");
+	if (orangefs_sb->flags & ORANGEFS_OPT_LOCAL_LOCK)
+		seq_puts(m, ",local_lock");
+	return 0;
+}
+
 static int parse_mount_options(struct super_block *sb, char *options,
 		int silent)
 {
@@ -94,10 +107,8 @@ static struct inode *orangefs_alloc_inode(struct super_block *sb)
 	struct orangefs_inode_s *orangefs_inode;
 
 	orangefs_inode = kmem_cache_alloc(orangefs_inode_cache, GFP_KERNEL);
-	if (orangefs_inode == NULL) {
-		gossip_err("Failed to allocate orangefs_inode\n");
+	if (!orangefs_inode)
 		return NULL;
-	}
 
 	/*
 	 * We want to clear everything except for rw_semaphore and the
@@ -115,6 +126,13 @@ static struct inode *orangefs_alloc_inode(struct super_block *sb)
 	return &orangefs_inode->vfs_inode;
 }
 
+static void orangefs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	kmem_cache_free(orangefs_inode_cache, orangefs_inode);
+}
+
 static void orangefs_destroy_inode(struct inode *inode)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
@@ -123,7 +141,7 @@ static void orangefs_destroy_inode(struct inode *inode)
 			"%s: deallocated %p destroying inode %pU\n",
 			__func__, orangefs_inode, get_khandle_from_ino(inode));
 
-	kmem_cache_free(orangefs_inode_cache, orangefs_inode);
+	call_rcu(&inode->i_rcu, orangefs_i_callback);
 }
 
 /*
@@ -256,8 +274,13 @@ int orangefs_remount(struct orangefs_sb_info_s *orangefs_sb)
 		if (!new_op)
 			return -ENOMEM;
 		new_op->upcall.req.features.features = 0;
-		ret = service_operation(new_op, "orangefs_features", 0);
-		orangefs_features = new_op->downcall.resp.features.features;
+		ret = service_operation(new_op, "orangefs_features",
+		    ORANGEFS_OP_PRIORITY | ORANGEFS_OP_NO_MUTEX);
+		if (!ret)
+			orangefs_features =
+			    new_op->downcall.resp.features.features;
+		else
+			orangefs_features = 0;
 		op_release(new_op);
 	} else {
 		orangefs_features = 0;
@@ -293,7 +316,7 @@ static const struct super_operations orangefs_s_ops = {
 	.drop_inode = generic_delete_inode,
 	.statfs = orangefs_statfs,
 	.remount_fs = orangefs_remount_fs,
-	.show_options = generic_show_options,
+	.show_options = orangefs_show_options,
 };
 
 static struct dentry *orangefs_fh_to_dentry(struct super_block *sb,
@@ -363,6 +386,25 @@ static const struct export_operations orangefs_export_ops = {
 	.encode_fh = orangefs_encode_fh,
 	.fh_to_dentry = orangefs_fh_to_dentry,
 };
+
+static int orangefs_unmount(int id, __s32 fs_id, const char *devname)
+{
+	struct orangefs_kernel_op_s *op;
+	int r;
+	op = op_alloc(ORANGEFS_VFS_OP_FS_UMOUNT);
+	if (!op)
+		return -ENOMEM;
+	op->upcall.req.fs_umount.id = id;
+	op->upcall.req.fs_umount.fs_id = fs_id;
+	strncpy(op->upcall.req.fs_umount.orangefs_config_server,
+	    devname, ORANGEFS_MAX_SERVER_ADDR_LEN);
+	r = service_operation(op, "orangefs_fs_umount", 0);
+	/* Not much to do about an error here. */
+	if (r)
+		gossip_err("orangefs_unmount: service_operation %d\n", r);
+	op_release(op);
+	return r;
+}
 
 static int orangefs_fill_sb(struct super_block *sb,
 		struct orangefs_fs_mount_response *fs_mount,
@@ -472,6 +514,8 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 
 	if (IS_ERR(sb)) {
 		d = ERR_CAST(sb);
+		orangefs_unmount(new_op->downcall.resp.fs_mount.id,
+		    new_op->downcall.resp.fs_mount.fs_id, devname);
 		goto free_op;
 	}
 
@@ -481,7 +525,7 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 
 	if (ret) {
 		d = ERR_PTR(ret);
-		goto free_op;
+		goto free_sb_and_op;
 	}
 
 	/*
@@ -507,6 +551,9 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 	spin_unlock(&orangefs_superblocks_lock);
 	op_release(new_op);
 
+	/* Must be removed from the list now. */
+	ORANGEFS_SB(sb)->no_list = 0;
+
 	if (orangefs_userspace_version >= 20906) {
 		new_op = op_alloc(ORANGEFS_VFS_OP_FEATURES);
 		if (!new_op)
@@ -521,6 +568,11 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 
 	return dget(sb->s_root);
 
+free_sb_and_op:
+	/* Will call orangefs_kill_sb with sb not in list. */
+	ORANGEFS_SB(sb)->no_list = 1;
+	/* ORANGEFS_VFS_OP_FS_UMOUNT is done by orangefs_kill_sb. */
+	deactivate_locked_super(sb);
 free_op:
 	gossip_err("orangefs_mount: mount request failed with %d\n", ret);
 	if (ret == -EINVAL) {
@@ -535,6 +587,7 @@ free_op:
 
 void orangefs_kill_sb(struct super_block *sb)
 {
+	int r;
 	gossip_debug(GOSSIP_SUPER_DEBUG, "orangefs_kill_sb: called\n");
 
 	/* provided sb cleanup */
@@ -544,14 +597,19 @@ void orangefs_kill_sb(struct super_block *sb)
 	 * issue the unmount to userspace to tell it to remove the
 	 * dynamic mount info it has for this superblock
 	 */
-	 orangefs_unmount_sb(sb);
+	r = orangefs_unmount(ORANGEFS_SB(sb)->id, ORANGEFS_SB(sb)->fs_id,
+	    ORANGEFS_SB(sb)->devname);
+	if (!r)
+		ORANGEFS_SB(sb)->mount_pending = 1;
 
-	/* remove the sb from our list of orangefs specific sb's */
-
-	spin_lock(&orangefs_superblocks_lock);
-	__list_del_entry(&ORANGEFS_SB(sb)->list);	/* not list_del_init */
-	ORANGEFS_SB(sb)->list.prev = NULL;
-	spin_unlock(&orangefs_superblocks_lock);
+	if (!ORANGEFS_SB(sb)->no_list) {
+		/* remove the sb from our list of orangefs specific sb's */
+		spin_lock(&orangefs_superblocks_lock);
+		/* not list_del_init */
+		__list_del_entry(&ORANGEFS_SB(sb)->list);
+		ORANGEFS_SB(sb)->list.prev = NULL;
+		spin_unlock(&orangefs_superblocks_lock);
+	}
 
 	/*
 	 * make sure that ORANGEFS_DEV_REMOUNT_ALL loop that might've seen us

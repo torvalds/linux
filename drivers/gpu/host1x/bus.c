@@ -40,11 +40,16 @@ struct host1x_subdev {
 
 /**
  * host1x_subdev_add() - add a new subdevice with an associated device node
+ * @device: host1x device to add the subdevice to
+ * @np: device node
  */
 static int host1x_subdev_add(struct host1x_device *device,
+			     struct host1x_driver *driver,
 			     struct device_node *np)
 {
 	struct host1x_subdev *subdev;
+	struct device_node *child;
+	int err;
 
 	subdev = kzalloc(sizeof(*subdev), GFP_KERNEL);
 	if (!subdev)
@@ -57,11 +62,25 @@ static int host1x_subdev_add(struct host1x_device *device,
 	list_add_tail(&subdev->list, &device->subdevs);
 	mutex_unlock(&device->subdevs_lock);
 
+	/* recursively add children */
+	for_each_child_of_node(np, child) {
+		if (of_match_node(driver->subdevs, child) &&
+		    of_device_is_available(child)) {
+			err = host1x_subdev_add(device, driver, child);
+			if (err < 0) {
+				/* XXX cleanup? */
+				of_node_put(child);
+				return err;
+			}
+		}
+	}
+
 	return 0;
 }
 
 /**
  * host1x_subdev_del() - remove subdevice
+ * @subdev: subdevice to remove
  */
 static void host1x_subdev_del(struct host1x_subdev *subdev)
 {
@@ -72,6 +91,8 @@ static void host1x_subdev_del(struct host1x_subdev *subdev)
 
 /**
  * host1x_device_parse_dt() - scan device tree and add matching subdevices
+ * @device: host1x logical device
+ * @driver: host1x driver
  */
 static int host1x_device_parse_dt(struct host1x_device *device,
 				  struct host1x_driver *driver)
@@ -82,7 +103,7 @@ static int host1x_device_parse_dt(struct host1x_device *device,
 	for_each_child_of_node(device->dev.parent->of_node, np) {
 		if (of_match_node(driver->subdevs, np) &&
 		    of_device_is_available(np)) {
-			err = host1x_subdev_add(device, np);
+			err = host1x_subdev_add(device, driver, np);
 			if (err < 0) {
 				of_node_put(np);
 				return err;
@@ -166,6 +187,16 @@ static void host1x_subdev_unregister(struct host1x_device *device,
 	mutex_unlock(&device->subdevs_lock);
 }
 
+/**
+ * host1x_device_init() - initialize a host1x logical device
+ * @device: host1x logical device
+ *
+ * The driver for the host1x logical device can call this during execution of
+ * its &host1x_driver.probe implementation to initialize each of its clients.
+ * The client drivers access the subsystem specific driver data using the
+ * &host1x_client.parent field and driver data associated with it (usually by
+ * calling dev_get_drvdata()).
+ */
 int host1x_device_init(struct host1x_device *device)
 {
 	struct host1x_client *client;
@@ -192,6 +223,15 @@ int host1x_device_init(struct host1x_device *device)
 }
 EXPORT_SYMBOL(host1x_device_init);
 
+/**
+ * host1x_device_exit() - uninitialize host1x logical device
+ * @device: host1x logical device
+ *
+ * When the driver for a host1x logical device is unloaded, it can call this
+ * function to tear down each of its clients. Typically this is done after a
+ * subsystem-specific data structure is removed and the functionality can no
+ * longer be used.
+ */
 int host1x_device_exit(struct host1x_device *device)
 {
 	struct host1x_client *client;
@@ -267,37 +307,6 @@ static int host1x_device_match(struct device *dev, struct device_driver *drv)
 	return strcmp(dev_name(dev), drv->name) == 0;
 }
 
-static int host1x_device_probe(struct device *dev)
-{
-	struct host1x_driver *driver = to_host1x_driver(dev->driver);
-	struct host1x_device *device = to_host1x_device(dev);
-
-	if (driver->probe)
-		return driver->probe(device);
-
-	return 0;
-}
-
-static int host1x_device_remove(struct device *dev)
-{
-	struct host1x_driver *driver = to_host1x_driver(dev->driver);
-	struct host1x_device *device = to_host1x_device(dev);
-
-	if (driver->remove)
-		return driver->remove(device);
-
-	return 0;
-}
-
-static void host1x_device_shutdown(struct device *dev)
-{
-	struct host1x_driver *driver = to_host1x_driver(dev->driver);
-	struct host1x_device *device = to_host1x_device(dev);
-
-	if (driver->shutdown)
-		driver->shutdown(device);
-}
-
 static const struct dev_pm_ops host1x_device_pm_ops = {
 	.suspend = pm_generic_suspend,
 	.resume = pm_generic_resume,
@@ -310,9 +319,6 @@ static const struct dev_pm_ops host1x_device_pm_ops = {
 struct bus_type host1x_bus_type = {
 	.name = "host1x",
 	.match = host1x_device_match,
-	.probe = host1x_device_probe,
-	.remove = host1x_device_remove,
-	.shutdown = host1x_device_shutdown,
 	.pm = &host1x_device_pm_ops,
 };
 
@@ -399,6 +405,7 @@ static int host1x_device_add(struct host1x *host1x,
 	dev_set_name(&device->dev, "%s", driver->driver.name);
 	of_dma_configure(&device->dev, host1x->dev->of_node);
 	device->dev.release = host1x_device_release;
+	device->dev.of_node = host1x->dev->of_node;
 	device->dev.bus = &host1x_bus_type;
 	device->dev.parent = host1x->dev;
 
@@ -479,6 +486,14 @@ static void host1x_detach_driver(struct host1x *host1x,
 	mutex_unlock(&host1x->devices_lock);
 }
 
+/**
+ * host1x_register() - register a host1x controller
+ * @host1x: host1x controller
+ *
+ * The host1x controller driver uses this to register a host1x controller with
+ * the infrastructure. Note that all Tegra SoC generations have only ever come
+ * with a single host1x instance, so this function is somewhat academic.
+ */
 int host1x_register(struct host1x *host1x)
 {
 	struct host1x_driver *driver;
@@ -497,6 +512,13 @@ int host1x_register(struct host1x *host1x)
 	return 0;
 }
 
+/**
+ * host1x_unregister() - unregister a host1x controller
+ * @host1x: host1x controller
+ *
+ * The host1x controller driver uses this to remove a host1x controller from
+ * the infrastructure.
+ */
 int host1x_unregister(struct host1x *host1x)
 {
 	struct host1x_driver *driver;
@@ -515,6 +537,47 @@ int host1x_unregister(struct host1x *host1x)
 	return 0;
 }
 
+static int host1x_device_probe(struct device *dev)
+{
+	struct host1x_driver *driver = to_host1x_driver(dev->driver);
+	struct host1x_device *device = to_host1x_device(dev);
+
+	if (driver->probe)
+		return driver->probe(device);
+
+	return 0;
+}
+
+static int host1x_device_remove(struct device *dev)
+{
+	struct host1x_driver *driver = to_host1x_driver(dev->driver);
+	struct host1x_device *device = to_host1x_device(dev);
+
+	if (driver->remove)
+		return driver->remove(device);
+
+	return 0;
+}
+
+static void host1x_device_shutdown(struct device *dev)
+{
+	struct host1x_driver *driver = to_host1x_driver(dev->driver);
+	struct host1x_device *device = to_host1x_device(dev);
+
+	if (driver->shutdown)
+		driver->shutdown(device);
+}
+
+/**
+ * host1x_driver_register_full() - register a host1x driver
+ * @driver: host1x driver
+ * @owner: owner module
+ *
+ * Drivers for host1x logical devices call this function to register a driver
+ * with the infrastructure. Note that since these drive logical devices, the
+ * registration of the driver actually triggers tho logical device creation.
+ * A logical device will be created for each host1x instance.
+ */
 int host1x_driver_register_full(struct host1x_driver *driver,
 				struct module *owner)
 {
@@ -535,11 +598,21 @@ int host1x_driver_register_full(struct host1x_driver *driver,
 
 	driver->driver.bus = &host1x_bus_type;
 	driver->driver.owner = owner;
+	driver->driver.probe = host1x_device_probe;
+	driver->driver.remove = host1x_device_remove;
+	driver->driver.shutdown = host1x_device_shutdown;
 
 	return driver_register(&driver->driver);
 }
 EXPORT_SYMBOL(host1x_driver_register_full);
 
+/**
+ * host1x_driver_unregister() - unregister a host1x driver
+ * @driver: host1x driver
+ *
+ * Unbinds the driver from each of the host1x logical devices that it is
+ * bound to, effectively removing the subsystem devices that they represent.
+ */
 void host1x_driver_unregister(struct host1x_driver *driver)
 {
 	driver_unregister(&driver->driver);
@@ -550,6 +623,17 @@ void host1x_driver_unregister(struct host1x_driver *driver)
 }
 EXPORT_SYMBOL(host1x_driver_unregister);
 
+/**
+ * host1x_client_register() - register a host1x client
+ * @client: host1x client
+ *
+ * Registers a host1x client with each host1x controller instance. Note that
+ * each client will only match their parent host1x controller and will only be
+ * associated with that instance. Once all clients have been registered with
+ * their parent host1x controller, the infrastructure will set up the logical
+ * device and call host1x_device_init(), which will in turn call each client's
+ * &host1x_client_ops.init implementation.
+ */
 int host1x_client_register(struct host1x_client *client)
 {
 	struct host1x *host1x;
@@ -575,6 +659,13 @@ int host1x_client_register(struct host1x_client *client)
 }
 EXPORT_SYMBOL(host1x_client_register);
 
+/**
+ * host1x_client_unregister() - unregister a host1x client
+ * @client: host1x client
+ *
+ * Removes a host1x client from its host1x controller instance. If a logical
+ * device has already been initialized, it will be torn down.
+ */
 int host1x_client_unregister(struct host1x_client *client)
 {
 	struct host1x_client *c;

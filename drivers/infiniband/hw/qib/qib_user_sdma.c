@@ -144,8 +144,8 @@ qib_user_sdma_rb_search(struct rb_root *root, pid_t pid)
 	struct rb_node *node = root->rb_node;
 
 	while (node) {
-		sdma_rb_node = container_of(node,
-			struct qib_user_sdma_rb_node, node);
+		sdma_rb_node = rb_entry(node, struct qib_user_sdma_rb_node,
+					node);
 		if (pid < sdma_rb_node->pid)
 			node = node->rb_left;
 		else if (pid > sdma_rb_node->pid)
@@ -164,7 +164,7 @@ qib_user_sdma_rb_insert(struct rb_root *root, struct qib_user_sdma_rb_node *new)
 	struct qib_user_sdma_rb_node *got;
 
 	while (*node) {
-		got = container_of(*node, struct qib_user_sdma_rb_node, node);
+		got = rb_entry(*node, struct qib_user_sdma_rb_node, node);
 		parent = *node;
 		if (new->pid < got->pid)
 			node = &((*node)->rb_left);

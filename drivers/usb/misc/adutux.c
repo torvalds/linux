@@ -21,6 +21,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -28,8 +29,6 @@
 #include <linux/mutex.h>
 #include <linux/uaccess.h>
 
-/* Version Information */
-#define DRIVER_VERSION "v0.0.13"
 #define DRIVER_AUTHOR "John Homppi"
 #define DRIVER_DESC "adutux (see www.ontrak.net)"
 
@@ -389,10 +388,6 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 			dev->secondary_head += (amount - i);
 			bytes_read += (amount - i);
 			bytes_to_read -= (amount - i);
-			if (i) {
-				retval = bytes_read ? bytes_read : -EFAULT;
-				goto exit;
-			}
 		} else {
 			/* we check the primary buffer */
 			spin_lock_irqsave (&dev->buflock, flags);
@@ -567,20 +562,20 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 			}
 
 			dev_dbg(&dev->udev->dev,
-				"%s : in progress, count = %Zd\n",
+				"%s : in progress, count = %zd\n",
 				__func__, count);
 		} else {
 			spin_unlock_irqrestore(&dev->buflock, flags);
 			set_current_state(TASK_RUNNING);
 			remove_wait_queue(&dev->write_wait, &waita);
-			dev_dbg(&dev->udev->dev, "%s : sending, count = %Zd\n",
+			dev_dbg(&dev->udev->dev, "%s : sending, count = %zd\n",
 				__func__, count);
 
 			/* write the data into interrupt_out_buffer from userspace */
 			buffer_size = usb_endpoint_maxp(dev->interrupt_out_endpoint);
 			bytes_to_write = count > buffer_size ? buffer_size : count;
 			dev_dbg(&dev->udev->dev,
-				"%s : buffer_size = %Zd, count = %Zd, bytes_to_write = %Zd\n",
+				"%s : buffer_size = %zd, count = %zd, bytes_to_write = %zd\n",
 				__func__, buffer_size, count, bytes_to_write);
 
 			if (copy_from_user(dev->interrupt_out_buffer, buffer, bytes_to_write) != 0) {
@@ -658,24 +653,15 @@ static int adu_probe(struct usb_interface *interface,
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct adu_device *dev = NULL;
-	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *endpoint;
-	int retval = -ENODEV;
+	int retval = -ENOMEM;
 	int in_end_size;
 	int out_end_size;
-	int i;
-
-	if (udev == NULL) {
-		dev_err(&interface->dev, "udev is NULL.\n");
-		goto exit;
-	}
+	int res;
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(struct adu_device), GFP_KERNEL);
-	if (!dev) {
-		retval = -ENOMEM;
-		goto exit;
-	}
+	if (!dev)
+		return -ENOMEM;
 
 	mutex_init(&dev->mtx);
 	spin_lock_init(&dev->buflock);
@@ -683,24 +669,13 @@ static int adu_probe(struct usb_interface *interface,
 	init_waitqueue_head(&dev->read_wait);
 	init_waitqueue_head(&dev->write_wait);
 
-	iface_desc = &interface->altsetting[0];
-
-	/* set up the endpoint information */
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-
-		if (usb_endpoint_is_int_in(endpoint))
-			dev->interrupt_in_endpoint = endpoint;
-
-		if (usb_endpoint_is_int_out(endpoint))
-			dev->interrupt_out_endpoint = endpoint;
-	}
-	if (dev->interrupt_in_endpoint == NULL) {
-		dev_err(&interface->dev, "interrupt in endpoint not found\n");
-		goto error;
-	}
-	if (dev->interrupt_out_endpoint == NULL) {
-		dev_err(&interface->dev, "interrupt out endpoint not found\n");
+	res = usb_find_common_endpoints_reverse(&interface->altsetting[0],
+			NULL, NULL,
+			&dev->interrupt_in_endpoint,
+			&dev->interrupt_out_endpoint);
+	if (res) {
+		dev_err(&interface->dev, "interrupt endpoints not found\n");
+		retval = res;
 		goto error;
 	}
 
@@ -708,10 +683,8 @@ static int adu_probe(struct usb_interface *interface,
 	out_end_size = usb_endpoint_maxp(dev->interrupt_out_endpoint);
 
 	dev->read_buffer_primary = kmalloc((4 * in_end_size), GFP_KERNEL);
-	if (!dev->read_buffer_primary) {
-		retval = -ENOMEM;
+	if (!dev->read_buffer_primary)
 		goto error;
-	}
 
 	/* debug code prime the buffer */
 	memset(dev->read_buffer_primary, 'a', in_end_size);
@@ -720,10 +693,8 @@ static int adu_probe(struct usb_interface *interface,
 	memset(dev->read_buffer_primary + (3 * in_end_size), 'd', in_end_size);
 
 	dev->read_buffer_secondary = kmalloc((4 * in_end_size), GFP_KERNEL);
-	if (!dev->read_buffer_secondary) {
-		retval = -ENOMEM;
+	if (!dev->read_buffer_secondary)
 		goto error;
-	}
 
 	/* debug code prime the buffer */
 	memset(dev->read_buffer_secondary, 'e', in_end_size);
@@ -751,6 +722,7 @@ static int adu_probe(struct usb_interface *interface,
 	if (!usb_string(udev, udev->descriptor.iSerialNumber, dev->serial_number,
 			sizeof(dev->serial_number))) {
 		dev_err(&interface->dev, "Could not retrieve serial number\n");
+		retval = -EIO;
 		goto error;
 	}
 	dev_dbg(&interface->dev,"serial_number=%s", dev->serial_number);
@@ -773,8 +745,8 @@ static int adu_probe(struct usb_interface *interface,
 	dev_info(&interface->dev, "ADU%d %s now attached to /dev/usb/adutux%d\n",
 		 le16_to_cpu(udev->descriptor.idProduct), dev->serial_number,
 		 (dev->minor - ADU_MINOR_BASE));
-exit:
-	return retval;
+
+	return 0;
 
 error:
 	adu_delete(dev);

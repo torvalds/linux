@@ -7,7 +7,7 @@ Required properties:
  - interrupts		: one EHCI interrupt should be described here
  - pinctrl-names	: a pinctrl state named "default" must be defined
  - pinctrl-0		: phandle referencing pin configuration of the USB controller
-See: Documentation/devicetree/bindings/pinctrl/pinctrl-binding.txt
+See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
  - clocks		: phandle list of usb clocks
  - clock-names		: should be "ic" for interconnect clock and "clk48"
 See: Documentation/devicetree/bindings/clock/clock-bindings.txt
@@ -31,7 +31,6 @@ Example:
 		clocks = <&clk_s_a1_ls 0>;
 		phys = <&usb2_phy>;
 		phy-names = "usb";
-		status = "okay";
 
 		resets = <&powerdown STIH416_USB1_POWERDOWN>,
 			 <&softreset STIH416_USB1_SOFTRESET>;

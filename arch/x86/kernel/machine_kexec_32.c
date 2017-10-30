@@ -23,20 +23,8 @@
 #include <asm/io_apic.h>
 #include <asm/cpufeature.h>
 #include <asm/desc.h>
-#include <asm/cacheflush.h>
+#include <asm/set_memory.h>
 #include <asm/debugreg.h>
-
-static void set_idt(void *newidt, __u16 limit)
-{
-	struct desc_ptr curidt;
-
-	/* ia32 supports unaliged loads & stores */
-	curidt.size    = limit;
-	curidt.address = (unsigned long)newidt;
-
-	load_idt(&curidt);
-}
-
 
 static void set_gdt(void *newgdt, __u16 limit)
 {
@@ -103,6 +91,7 @@ static void machine_kexec_page_table_set_one(
 	pgd_t *pgd, pmd_t *pmd, pte_t *pte,
 	unsigned long vaddr, unsigned long paddr)
 {
+	p4d_t *p4d;
 	pud_t *pud;
 
 	pgd += pgd_index(vaddr);
@@ -110,7 +99,8 @@ static void machine_kexec_page_table_set_one(
 	if (!(pgd_val(*pgd) & _PAGE_PRESENT))
 		set_pgd(pgd, __pgd(__pa(pmd) | _PAGE_PRESENT));
 #endif
-	pud = pud_offset(pgd, vaddr);
+	p4d = p4d_offset(pgd, vaddr);
+	pud = pud_offset(p4d, vaddr);
 	pmd = pmd_offset(pud, vaddr);
 	if (!(pmd_val(*pmd) & _PAGE_PRESENT))
 		set_pmd(pmd, __pmd(__pa(pte) | _PAGE_TABLE));
@@ -243,7 +233,7 @@ void machine_kexec(struct kimage *image)
 	 * If you want to load them you must set up your own idt & gdt.
 	 */
 	set_gdt(phys_to_virt(0), 0);
-	set_idt(phys_to_virt(0), 0);
+	idt_invalidate(phys_to_virt(0));
 
 	/* now call it */
 	image->start = relocate_kernel_ptr((unsigned long)image->head,

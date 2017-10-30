@@ -1,5 +1,8 @@
 Rockchip platforms device tree bindings
 ---------------------------------------
+- Asus Tinker board
+    Required root node properties:
+      - compatible = "asus,rk3288-tinker", "rockchip,rk3288";
 
 - Kylin RK3036 board:
     Required root node properties:
@@ -25,6 +28,10 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "radxa,rock2-square", "rockchip,rk3288";
 
+- Rikomagic MK808 v1 board:
+    Required root node properties:
+      - compatible = "rikomagic,mk808", "rockchip,rk3066a";
+
 - Firefly Firefly-RK3288 board:
     Required root node properties:
       - compatible = "firefly,firefly-rk3288", "rockchip,rk3288";
@@ -34,6 +41,10 @@ Rockchip platforms device tree bindings
 - Firefly Firefly-RK3288 Reload board:
     Required root node properties:
       - compatible = "firefly,firefly-rk3288-reload", "rockchip,rk3288";
+
+- Firefly Firefly-RK3399 board:
+    Required root node properties:
+      - compatible = "firefly,firefly-rk3399", "rockchip,rk3399";
 
 - ChipSPARK PopMetal-RK3288 board:
     Required root node properties:
@@ -52,6 +63,17 @@ Rockchip platforms device tree bindings
       - compatible = "google,veyron-brain-rev0", "google,veyron-brain",
 		     "google,veyron", "rockchip,rk3288";
 
+- Google Gru (dev-board):
+    Required root node properties:
+      - compatible = "google,gru-rev15", "google,gru-rev14",
+		     "google,gru-rev13", "google,gru-rev12",
+		     "google,gru-rev11", "google,gru-rev10",
+		     "google,gru-rev9", "google,gru-rev8",
+		     "google,gru-rev7", "google,gru-rev6",
+		     "google,gru-rev5", "google,gru-rev4",
+		     "google,gru-rev3", "google,gru-rev2",
+		     "google,gru", "rockchip,rk3399";
+
 - Google Jaq (Haier Chromebook 11 and more):
     Required root node properties:
       - compatible = "google,veyron-jaq-rev5", "google,veyron-jaq-rev4",
@@ -65,6 +87,15 @@ Rockchip platforms device tree bindings
 		     "google,veyron-jerry-rev5", "google,veyron-jerry-rev4",
 		     "google,veyron-jerry-rev3", "google,veyron-jerry",
 		     "google,veyron", "rockchip,rk3288";
+
+- Google Kevin (Samsung Chromebook Plus):
+    Required root node properties:
+      - compatible = "google,kevin-rev15", "google,kevin-rev14",
+		     "google,kevin-rev13", "google,kevin-rev12",
+		     "google,kevin-rev11", "google,kevin-rev10",
+		     "google,kevin-rev9", "google,kevin-rev8",
+		     "google,kevin-rev7", "google,kevin-rev6",
+		     "google,kevin", "google,gru", "rockchip,rk3399";
 
 - Google Mickey (Asus Chromebit CS10):
     Required root node properties:
@@ -99,6 +130,26 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "mqmaker,miqi", "rockchip,rk3288";
 
+- Phytec phyCORE-RK3288: Rapid Development Kit
+    Required root node properties:
+     - compatible = "phytec,rk3288-pcm-947", "phytec,rk3288-phycore-som", "rockchip,rk3288";
+
+- Pine64 Rock64 board:
+    Required root node properties:
+    - compatible = "pine64,rock64", "rockchip,rk3328";
+
+- Rockchip PX3 Evaluation board:
+    Required root node properties:
+      - compatible = "rockchip,px3-evb", "rockchip,px3", "rockchip,rk3188";
+
+- Rockchip PX5 Evaluation board:
+    Required root node properties:
+      - compatible = "rockchip,px5-evb", "rockchip,px5", "rockchip,rk3368";
+
+- Rockchip RV1108 Evaluation board
+    Required root node properties:
+      - compatible = "rockchip,rv1108-evb", "rockchip,rv1108";
+
 - Rockchip RK3368 evb:
     Required root node properties:
       - compatible = "rockchip,rk3368-evb-act8846", "rockchip,rk3368";
@@ -118,9 +169,21 @@ Rockchip platforms device tree bindings
     Required root node properties:
      - compatible = "rockchip,rk3288-fennec", "rockchip,rk3288";
 
+- Rockchip RK3328 evb:
+    Required root node properties:
+      - compatible = "rockchip,rk3328-evb", "rockchip,rk3328";
+
 - Rockchip RK3399 evb:
     Required root node properties:
       - compatible = "rockchip,rk3399-evb", "rockchip,rk3399";
+
+- Rockchip RK3399 Sapphire Excavator board:
+    Required root node properties:
+      - compatible = "rockchip,rk3399-sapphire-excavator", "rockchip,rk3399";
+
+- Theobroma Systems RK3399-Q7 Haikou Baseboard:
+    Required root node properties:
+      - compatible = "tsd,rk3399-q7-haikou", "rockchip,rk3399";
 
 - Tronsmart Orion R68 Meta
     Required root node properties:

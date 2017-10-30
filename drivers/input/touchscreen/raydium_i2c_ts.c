@@ -669,7 +669,7 @@ static int raydium_i2c_do_update_firmware(struct raydium_data *ts,
 
 		if (ts->boot_mode == RAYDIUM_TS_MAIN) {
 			dev_err(&client->dev,
-				"failied to jump to boot loader: %d\n",
+				"failed to jump to boot loader: %d\n",
 				error);
 			return -EIO;
 		}
@@ -939,7 +939,7 @@ static struct attribute *raydium_i2c_attributes[] = {
 	NULL
 };
 
-static struct attribute_group raydium_i2c_attribute_group = {
+static const struct attribute_group raydium_i2c_attribute_group = {
 	.attrs = raydium_i2c_attributes,
 };
 
@@ -1086,8 +1086,6 @@ static int raydium_i2c_probe(struct i2c_client *client,
 
 	ts->input->name = "Raydium Touchscreen";
 	ts->input->id.bustype = BUS_I2C;
-
-	input_set_drvdata(ts->input, ts);
 
 	input_set_abs_params(ts->input, ABS_MT_POSITION_X,
 			     0, le16_to_cpu(ts->info.x_max), 0, 0);

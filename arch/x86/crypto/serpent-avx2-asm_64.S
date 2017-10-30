@@ -20,13 +20,18 @@
 
 .file "serpent-avx2-asm_64.S"
 
-.data
+.section	.rodata.cst16.bswap128_mask, "aM", @progbits, 16
 .align 16
-
 .Lbswap128_mask:
 	.byte 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+
+.section	.rodata.cst16.xts_gf128mul_and_shl1_mask_0, "aM", @progbits, 16
+.align 16
 .Lxts_gf128mul_and_shl1_mask_0:
 	.byte 0x87, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0
+
+.section	.rodata.cst16.xts_gf128mul_and_shl1_mask_1, "aM", @progbits, 16
+.align 16
 .Lxts_gf128mul_and_shl1_mask_1:
 	.byte 0x0e, 1, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0
 

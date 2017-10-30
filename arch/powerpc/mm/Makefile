@@ -7,7 +7,8 @@ subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 ccflags-$(CONFIG_PPC64)	:= $(NO_MINIMAL_TOC)
 
 obj-y				:= fault.o mem.o pgtable.o mmap.o \
-				   init_$(BITS).o pgtable_$(BITS).o
+				   init_$(BITS).o pgtable_$(BITS).o \
+				   init-common.o mmu_context.o
 obj-$(CONFIG_PPC_MMU_NOHASH)	+= mmu_context_nohash.o tlb_nohash.o \
 				   tlb_nohash_low.o
 obj-$(CONFIG_PPC_BOOK3E)	+= tlb_low_$(BITS)e.o
@@ -21,8 +22,6 @@ ifeq ($(CONFIG_PPC_STD_MMU_64),y)
 obj-$(CONFIG_PPC_4K_PAGES)	+= hash64_4k.o
 obj-$(CONFIG_PPC_64K_PAGES)	+= hash64_64k.o
 endif
-obj-$(CONFIG_PPC_ICSWX)		+= icswx.o
-obj-$(CONFIG_PPC_ICSWX_PID)	+= icswx_pid.o
 obj-$(CONFIG_40x)		+= 40x_mmu.o
 obj-$(CONFIG_44x)		+= 44x_mmu.o
 obj-$(CONFIG_PPC_8xx)		+= 8xx_mmu.o
@@ -42,3 +41,5 @@ obj-$(CONFIG_NOT_COHERENT_CACHE) += dma-noncoherent.o
 obj-$(CONFIG_HIGHMEM)		+= highmem.o
 obj-$(CONFIG_PPC_COPRO_BASE)	+= copro_fault.o
 obj-$(CONFIG_SPAPR_TCE_IOMMU)	+= mmu_context_iommu.o
+obj-$(CONFIG_PPC_PTDUMP)	+= dump_linuxpagetables.o
+obj-$(CONFIG_PPC_HTDUMP)	+= dump_hashpagetable.o

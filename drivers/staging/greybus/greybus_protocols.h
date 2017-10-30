@@ -173,26 +173,6 @@ struct gb_control_disconnected_request {
 } __packed;
 /* Control protocol [dis]connected response has no payload */
 
-#define GB_TIMESYNC_MAX_STROBES			0x04
-
-struct gb_control_timesync_enable_request {
-	__u8	count;
-	__le64	frame_time;
-	__le32	strobe_delay;
-	__le32	refclk;
-} __packed;
-/* timesync enable response has no payload */
-
-struct gb_control_timesync_authoritative_request {
-	__le64	frame_time[GB_TIMESYNC_MAX_STROBES];
-} __packed;
-/* timesync authoritative response has no payload */
-
-/* timesync get_last_event_request has no payload */
-struct gb_control_timesync_get_last_event_response {
-	__le64	frame_time;
-} __packed;
-
 /*
  * All Bundle power management operations use the same request and response
  * layout and status codes.
@@ -1167,33 +1147,6 @@ struct gb_svc_intf_unipro_response {
 	/* 0x01 is reserved */
 #define GB_SVC_INTF_UNIPRO_FAIL				0x02
 #define GB_SVC_INTF_UNIPRO_NOT_OFF			0x03
-} __packed;
-
-struct gb_svc_timesync_enable_request {
-	__u8	count;
-	__le64	frame_time;
-	__le32	strobe_delay;
-	__le32	refclk;
-} __packed;
-/* timesync enable response has no payload */
-
-/* timesync authoritative request has no payload */
-struct gb_svc_timesync_authoritative_response {
-	__le64	frame_time[GB_TIMESYNC_MAX_STROBES];
-};
-
-struct gb_svc_timesync_wake_pins_acquire_request {
-	__le32	strobe_mask;
-};
-
-/* timesync wake pins acquire response has no payload */
-
-/* timesync wake pins release request has no payload */
-/* timesync wake pins release response has no payload */
-
-/* timesync svc ping request has no payload */
-struct gb_svc_timesync_ping_response {
-	__le64	frame_time;
 } __packed;
 
 #define GB_SVC_UNIPRO_FAST_MODE			0x01

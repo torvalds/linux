@@ -36,6 +36,7 @@ static const struct pci_device_id pciidlist[] = {
 	{ PCI_VENDOR_ID_MATROX, 0x533, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_EH },
 	{ PCI_VENDOR_ID_MATROX, 0x534, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_ER },
 	{ PCI_VENDOR_ID_MATROX, 0x536, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_EW3 },
+	{ PCI_VENDOR_ID_MATROX, 0x538, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_EH3 },
 	{0,}
 };
 
@@ -82,9 +83,7 @@ static const struct file_operations mgag200_driver_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = mgag200_mmap,
 	.poll = drm_poll,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.read = drm_read,
 };
 
@@ -92,7 +91,6 @@ static struct drm_driver driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET,
 	.load = mgag200_driver_load,
 	.unload = mgag200_driver_unload,
-	.set_busid = drm_pci_set_busid,
 	.fops = &mgag200_driver_fops,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
@@ -104,7 +102,6 @@ static struct drm_driver driver = {
 	.gem_free_object_unlocked = mgag200_gem_free_object,
 	.dumb_create = mgag200_dumb_create,
 	.dumb_map_offset = mgag200_dumb_mmap_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 };
 
 static struct pci_driver mgag200_pci_driver = {
@@ -121,12 +118,13 @@ static int __init mgag200_init(void)
 
 	if (mgag200_modeset == 0)
 		return -EINVAL;
-	return drm_pci_init(&driver, &mgag200_pci_driver);
+
+	return pci_register_driver(&mgag200_pci_driver);
 }
 
 static void __exit mgag200_exit(void)
 {
-	drm_pci_exit(&driver, &mgag200_pci_driver);
+	pci_unregister_driver(&mgag200_pci_driver);
 }
 
 module_init(mgag200_init);

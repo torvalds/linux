@@ -22,29 +22,32 @@
 #include <linux/bcd.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
+#include <linux/hwmon.h>
 
-#define DS3232_REG_SECONDS	0x00
-#define DS3232_REG_MINUTES	0x01
-#define DS3232_REG_HOURS	0x02
-#define DS3232_REG_AMPM		0x02
-#define DS3232_REG_DAY		0x03
-#define DS3232_REG_DATE		0x04
-#define DS3232_REG_MONTH	0x05
-#define DS3232_REG_CENTURY	0x05
-#define DS3232_REG_YEAR		0x06
-#define DS3232_REG_ALARM1         0x07	/* Alarm 1 BASE */
-#define DS3232_REG_ALARM2         0x0B	/* Alarm 2 BASE */
-#define DS3232_REG_CR		0x0E	/* Control register */
-#	define DS3232_REG_CR_nEOSC        0x80
-#       define DS3232_REG_CR_INTCN        0x04
-#       define DS3232_REG_CR_A2IE        0x02
-#       define DS3232_REG_CR_A1IE        0x01
+#define DS3232_REG_SECONDS      0x00
+#define DS3232_REG_MINUTES      0x01
+#define DS3232_REG_HOURS        0x02
+#define DS3232_REG_AMPM         0x02
+#define DS3232_REG_DAY          0x03
+#define DS3232_REG_DATE         0x04
+#define DS3232_REG_MONTH        0x05
+#define DS3232_REG_CENTURY      0x05
+#define DS3232_REG_YEAR         0x06
+#define DS3232_REG_ALARM1       0x07       /* Alarm 1 BASE */
+#define DS3232_REG_ALARM2       0x0B       /* Alarm 2 BASE */
+#define DS3232_REG_CR           0x0E       /* Control register */
+#       define DS3232_REG_CR_nEOSC   0x80
+#       define DS3232_REG_CR_INTCN   0x04
+#       define DS3232_REG_CR_A2IE    0x02
+#       define DS3232_REG_CR_A1IE    0x01
 
-#define DS3232_REG_SR	0x0F	/* control/status register */
-#	define DS3232_REG_SR_OSF   0x80
-#       define DS3232_REG_SR_BSY   0x04
-#       define DS3232_REG_SR_A2F   0x02
-#       define DS3232_REG_SR_A1F   0x01
+#define DS3232_REG_SR           0x0F       /* control/status register */
+#       define DS3232_REG_SR_OSF     0x80
+#       define DS3232_REG_SR_BSY     0x04
+#       define DS3232_REG_SR_A2F     0x02
+#       define DS3232_REG_SR_A1F     0x01
+
+#define DS3232_REG_TEMPERATURE	0x11
 
 struct ds3232 {
 	struct device *dev;
@@ -275,6 +278,120 @@ static int ds3232_update_alarm(struct device *dev, unsigned int enabled)
 	return ret;
 }
 
+/*
+ * Temperature sensor support for ds3232/ds3234 devices.
+ * A user-initiated temperature conversion is not started by this function,
+ * so the temperature is updated once every 64 seconds.
+ */
+static int ds3232_hwmon_read_temp(struct device *dev, long int *mC)
+{
+	struct ds3232 *ds3232 = dev_get_drvdata(dev);
+	u8 temp_buf[2];
+	s16 temp;
+	int ret;
+
+	ret = regmap_bulk_read(ds3232->regmap, DS3232_REG_TEMPERATURE, temp_buf,
+			       sizeof(temp_buf));
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Temperature is represented as a 10-bit code with a resolution of
+	 * 0.25 degree celsius and encoded in two's complement format.
+	 */
+	temp = (temp_buf[0] << 8) | temp_buf[1];
+	temp >>= 6;
+	*mC = temp * 250;
+
+	return 0;
+}
+
+static umode_t ds3232_hwmon_is_visible(const void *data,
+				       enum hwmon_sensor_types type,
+				       u32 attr, int channel)
+{
+	if (type != hwmon_temp)
+		return 0;
+
+	switch (attr) {
+	case hwmon_temp_input:
+		return 0444;
+	default:
+		return 0;
+	}
+}
+
+static int ds3232_hwmon_read(struct device *dev,
+			     enum hwmon_sensor_types type,
+			     u32 attr, int channel, long *temp)
+{
+	int err;
+
+	switch (attr) {
+	case hwmon_temp_input:
+		err = ds3232_hwmon_read_temp(dev, temp);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
+
+static u32 ds3232_hwmon_chip_config[] = {
+	HWMON_C_REGISTER_TZ,
+	0
+};
+
+static const struct hwmon_channel_info ds3232_hwmon_chip = {
+	.type = hwmon_chip,
+	.config = ds3232_hwmon_chip_config,
+};
+
+static u32 ds3232_hwmon_temp_config[] = {
+	HWMON_T_INPUT,
+	0
+};
+
+static const struct hwmon_channel_info ds3232_hwmon_temp = {
+	.type = hwmon_temp,
+	.config = ds3232_hwmon_temp_config,
+};
+
+static const struct hwmon_channel_info *ds3232_hwmon_info[] = {
+	&ds3232_hwmon_chip,
+	&ds3232_hwmon_temp,
+	NULL
+};
+
+static const struct hwmon_ops ds3232_hwmon_hwmon_ops = {
+	.is_visible = ds3232_hwmon_is_visible,
+	.read = ds3232_hwmon_read,
+};
+
+static const struct hwmon_chip_info ds3232_hwmon_chip_info = {
+	.ops = &ds3232_hwmon_hwmon_ops,
+	.info = ds3232_hwmon_info,
+};
+
+static void ds3232_hwmon_register(struct device *dev, const char *name)
+{
+	struct ds3232 *ds3232 = dev_get_drvdata(dev);
+	struct device *hwmon_dev;
+
+	if (!IS_ENABLED(CONFIG_RTC_DRV_DS3232_HWMON))
+		return;
+
+	hwmon_dev = devm_hwmon_device_register_with_info(dev, name, ds3232,
+							&ds3232_hwmon_chip_info,
+							NULL);
+	if (IS_ERR(hwmon_dev)) {
+		dev_err(dev, "unable to register hwmon device %ld\n",
+			PTR_ERR(hwmon_dev));
+	}
+}
+
 static int ds3232_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct ds3232 *ds3232 = dev_get_drvdata(dev);
@@ -363,6 +480,11 @@ static int ds3232_probe(struct device *dev, struct regmap *regmap, int irq,
 	if (ret)
 		return ret;
 
+	if (ds3232->irq > 0)
+		device_init_wakeup(dev, 1);
+
+	ds3232_hwmon_register(dev, name);
+
 	ds3232->rtc = devm_rtc_device_register(dev, name, &ds3232_rtc_ops,
 						THIS_MODULE);
 	if (IS_ERR(ds3232->rtc))
@@ -374,10 +496,10 @@ static int ds3232_probe(struct device *dev, struct regmap *regmap, int irq,
 						IRQF_SHARED | IRQF_ONESHOT,
 						name, dev);
 		if (ret) {
+			device_set_wakeup_capable(dev, 0);
 			ds3232->irq = 0;
 			dev_err(dev, "unable to request IRQ\n");
-		} else
-			device_init_wakeup(dev, 1);
+		}
 	}
 
 	return 0;
@@ -420,6 +542,7 @@ static int ds3232_i2c_probe(struct i2c_client *client,
 	static const struct regmap_config config = {
 		.reg_bits = 8,
 		.val_bits = 8,
+		.max_register = 0x13,
 	};
 
 	regmap = devm_regmap_init_i2c(client, &config);
@@ -438,9 +561,16 @@ static const struct i2c_device_id ds3232_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ds3232_id);
 
+static const struct of_device_id ds3232_of_match[] = {
+	{ .compatible = "dallas,ds3232" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ds3232_of_match);
+
 static struct i2c_driver ds3232_driver = {
 	.driver = {
 		.name = "rtc-ds3232",
+		.of_match_table = of_match_ptr(ds3232_of_match),
 		.pm	= &ds3232_pm_ops,
 	},
 	.probe = ds3232_i2c_probe,
@@ -479,6 +609,7 @@ static int ds3234_probe(struct spi_device *spi)
 	static const struct regmap_config config = {
 		.reg_bits = 8,
 		.val_bits = 8,
+		.max_register = 0x13,
 		.write_flag_mask = 0x80,
 	};
 	struct regmap *regmap;

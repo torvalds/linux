@@ -145,6 +145,7 @@ static void dispatch_bios(void *context, struct bio_list *bio_list)
 
 struct dm_raid1_bio_record {
 	struct mirror *m;
+	/* if details->bi_disk == NULL, details were not saved */
 	struct dm_bio_details details;
 	region_t write_region;
 };
@@ -260,7 +261,7 @@ static int mirror_flush(struct dm_target *ti)
 	struct mirror *m;
 	struct dm_io_request io_req = {
 		.bi_op = REQ_OP_WRITE,
-		.bi_op_flags = WRITE_FLUSH,
+		.bi_op_flags = REQ_PREFLUSH | REQ_SYNC,
 		.mem.type = DM_IO_KMEM,
 		.mem.ptr.addr = NULL,
 		.client = ms->io_client,
@@ -463,7 +464,7 @@ static sector_t map_sector(struct mirror *m, struct bio *bio)
 
 static void map_bio(struct mirror *m, struct bio *bio)
 {
-	bio->bi_bdev = m->dev->bdev;
+	bio_set_dev(bio, m->dev->bdev);
 	bio->bi_iter.bi_sector = map_sector(m, bio);
 }
 
@@ -490,9 +491,9 @@ static void hold_bio(struct mirror_set *ms, struct bio *bio)
 		 * If device is suspended, complete the bio.
 		 */
 		if (dm_noflush_suspending(ms->ti))
-			bio->bi_error = DM_ENDIO_REQUEUE;
+			bio->bi_status = BLK_STS_DM_REQUEUE;
 		else
-			bio->bi_error = -EIO;
+			bio->bi_status = BLK_STS_IOERR;
 
 		bio_endio(bio);
 		return;
@@ -626,7 +627,7 @@ static void write_callback(unsigned long error, void *context)
 	 * degrade the array.
 	 */
 	if (bio_op(bio) == REQ_OP_DISCARD) {
-		bio->bi_error = -EOPNOTSUPP;
+		bio->bi_status = BLK_STS_NOTSUPP;
 		bio_endio(bio);
 		return;
 	}
@@ -656,7 +657,7 @@ static void do_write(struct mirror_set *ms, struct bio *bio)
 	struct mirror *m;
 	struct dm_io_request io_req = {
 		.bi_op = REQ_OP_WRITE,
-		.bi_op_flags = bio->bi_opf & WRITE_FLUSH_FUA,
+		.bi_op_flags = bio->bi_opf & (REQ_FUA | REQ_PREFLUSH),
 		.mem.type = DM_IO_BIO,
 		.mem.ptr.bio = bio,
 		.notify.fn = write_callback,
@@ -1124,7 +1125,6 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ti->num_flush_bios = 1;
 	ti->num_discard_bios = 1;
 	ti->per_io_data_size = sizeof(struct dm_raid1_bio_record);
-	ti->discard_zeroes_data_unsupported = true;
 
 	ms->kmirrord_wq = alloc_workqueue("kmirrord", WQ_MEM_RECLAIM, 0);
 	if (!ms->kmirrord_wq) {
@@ -1199,6 +1199,8 @@ static int mirror_map(struct dm_target *ti, struct bio *bio)
 	struct dm_raid1_bio_record *bio_record =
 	  dm_per_bio_data(bio, sizeof(struct dm_raid1_bio_record));
 
+	bio_record->details.bi_disk = NULL;
+
 	if (rw == WRITE) {
 		/* Save region for mirror_end_io() handler */
 		bio_record->write_region = dm_rh_bio_to_region(ms->rh, bio);
@@ -1208,14 +1210,14 @@ static int mirror_map(struct dm_target *ti, struct bio *bio)
 
 	r = log->type->in_sync(log, dm_rh_bio_to_region(ms->rh, bio), 0);
 	if (r < 0 && r != -EWOULDBLOCK)
-		return r;
+		return DM_MAPIO_KILL;
 
 	/*
 	 * If region is not in-sync queue the bio.
 	 */
 	if (!r || (r == -EWOULDBLOCK)) {
 		if (bio->bi_opf & REQ_RAHEAD)
-			return -EWOULDBLOCK;
+			return DM_MAPIO_KILL;
 
 		queue_bio(ms, bio, rw);
 		return DM_MAPIO_SUBMITTED;
@@ -1227,7 +1229,7 @@ static int mirror_map(struct dm_target *ti, struct bio *bio)
 	 */
 	m = choose_mirror(ms, bio->bi_iter.bi_sector);
 	if (unlikely(!m))
-		return -EIO;
+		return DM_MAPIO_KILL;
 
 	dm_bio_record(&bio_record->details, bio);
 	bio_record->m = m;
@@ -1237,7 +1239,8 @@ static int mirror_map(struct dm_target *ti, struct bio *bio)
 	return DM_MAPIO_REMAPPED;
 }
 
-static int mirror_end_io(struct dm_target *ti, struct bio *bio, int error)
+static int mirror_end_io(struct dm_target *ti, struct bio *bio,
+		blk_status_t *error)
 {
 	int rw = bio_data_dir(bio);
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
@@ -1253,16 +1256,26 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio, int error)
 		if (!(bio->bi_opf & REQ_PREFLUSH) &&
 		    bio_op(bio) != REQ_OP_DISCARD)
 			dm_rh_dec(ms->rh, bio_record->write_region);
-		return error;
+		return DM_ENDIO_DONE;
 	}
 
-	if (error == -EOPNOTSUPP)
-		return error;
+	if (*error == BLK_STS_NOTSUPP)
+		goto out;
 
-	if ((error == -EWOULDBLOCK) && (bio->bi_opf & REQ_RAHEAD))
-		return error;
+	if (bio->bi_opf & REQ_RAHEAD)
+		goto out;
 
-	if (unlikely(error)) {
+	if (unlikely(*error)) {
+		if (!bio_record->details.bi_disk) {
+			/*
+			 * There wasn't enough memory to record necessary
+			 * information for a retry or there was no other
+			 * mirror in-sync.
+			 */
+			DMERR_LIMIT("Mirror read failed.");
+			return DM_ENDIO_DONE;
+		}
+
 		m = bio_record->m;
 
 		DMERR("Mirror read failed from %s. Trying alternative device.",
@@ -1278,7 +1291,8 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio, int error)
 			bd = &bio_record->details;
 
 			dm_bio_restore(bd, bio);
-			bio->bi_error = 0;
+			bio_record->details.bi_disk = NULL;
+			bio->bi_status = 0;
 
 			queue_bio(ms, bio, rw);
 			return DM_ENDIO_INCOMPLETE;
@@ -1286,7 +1300,10 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio, int error)
 		DMERR("All replicated volumes dead, failing I/O");
 	}
 
-	return error;
+out:
+	bio_record->details.bi_disk = NULL;
+
+	return DM_ENDIO_DONE;
 }
 
 static void mirror_presuspend(struct dm_target *ti)

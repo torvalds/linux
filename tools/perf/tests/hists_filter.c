@@ -3,12 +3,14 @@
 #include "util/symbol.h"
 #include "util/sort.h"
 #include "util/evsel.h"
+#include "util/event.h"
 #include "util/evlist.h"
 #include "util/machine.h"
 #include "util/thread.h"
 #include "util/parse-events.h"
 #include "tests/tests.h"
 #include "tests/hists_common.h"
+#include <linux/kernel.h>
 
 struct sample {
 	u32 pid;
@@ -99,7 +101,7 @@ out:
 	return TEST_FAIL;
 }
 
-int test__hists_filter(int subtest __maybe_unused)
+int test__hists_filter(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = TEST_FAIL;
 	struct machines machines;

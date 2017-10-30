@@ -11,7 +11,7 @@
 
 #include <crypto/algapi.h>
 #include <crypto/chacha20.h>
-#include <linux/crypto.h>
+#include <crypto/internal/skcipher.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <asm/fpu/api.h>
@@ -63,36 +63,37 @@ static void chacha20_dosimd(u32 *state, u8 *dst, const u8 *src,
 	}
 }
 
-static int chacha20_simd(struct blkcipher_desc *desc, struct scatterlist *dst,
-			 struct scatterlist *src, unsigned int nbytes)
+static int chacha20_simd(struct skcipher_request *req)
 {
-	u32 *state, state_buf[16 + (CHACHA20_STATE_ALIGN / sizeof(u32)) - 1];
-	struct blkcipher_walk walk;
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct chacha20_ctx *ctx = crypto_skcipher_ctx(tfm);
+	u32 *state, state_buf[16 + 2] __aligned(8);
+	struct skcipher_walk walk;
 	int err;
 
-	if (nbytes <= CHACHA20_BLOCK_SIZE || !may_use_simd())
-		return crypto_chacha20_crypt(desc, dst, src, nbytes);
+	BUILD_BUG_ON(CHACHA20_STATE_ALIGN != 16);
+	state = PTR_ALIGN(state_buf + 0, CHACHA20_STATE_ALIGN);
 
-	state = (u32 *)roundup((uintptr_t)state_buf, CHACHA20_STATE_ALIGN);
+	if (req->cryptlen <= CHACHA20_BLOCK_SIZE || !may_use_simd())
+		return crypto_chacha20_crypt(req);
 
-	blkcipher_walk_init(&walk, dst, src, nbytes);
-	err = blkcipher_walk_virt_block(desc, &walk, CHACHA20_BLOCK_SIZE);
+	err = skcipher_walk_virt(&walk, req, true);
 
-	crypto_chacha20_init(state, crypto_blkcipher_ctx(desc->tfm), walk.iv);
+	crypto_chacha20_init(state, ctx, walk.iv);
 
 	kernel_fpu_begin();
 
 	while (walk.nbytes >= CHACHA20_BLOCK_SIZE) {
 		chacha20_dosimd(state, walk.dst.virt.addr, walk.src.virt.addr,
 				rounddown(walk.nbytes, CHACHA20_BLOCK_SIZE));
-		err = blkcipher_walk_done(desc, &walk,
-					  walk.nbytes % CHACHA20_BLOCK_SIZE);
+		err = skcipher_walk_done(&walk,
+					 walk.nbytes % CHACHA20_BLOCK_SIZE);
 	}
 
 	if (walk.nbytes) {
 		chacha20_dosimd(state, walk.dst.virt.addr, walk.src.virt.addr,
 				walk.nbytes);
-		err = blkcipher_walk_done(desc, &walk, 0);
+		err = skcipher_walk_done(&walk, 0);
 	}
 
 	kernel_fpu_end();
@@ -100,27 +101,22 @@ static int chacha20_simd(struct blkcipher_desc *desc, struct scatterlist *dst,
 	return err;
 }
 
-static struct crypto_alg alg = {
-	.cra_name		= "chacha20",
-	.cra_driver_name	= "chacha20-simd",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
-	.cra_blocksize		= 1,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_ctxsize		= sizeof(struct chacha20_ctx),
-	.cra_alignmask		= sizeof(u32) - 1,
-	.cra_module		= THIS_MODULE,
-	.cra_u			= {
-		.blkcipher = {
-			.min_keysize	= CHACHA20_KEY_SIZE,
-			.max_keysize	= CHACHA20_KEY_SIZE,
-			.ivsize		= CHACHA20_IV_SIZE,
-			.geniv		= "seqiv",
-			.setkey		= crypto_chacha20_setkey,
-			.encrypt	= chacha20_simd,
-			.decrypt	= chacha20_simd,
-		},
-	},
+static struct skcipher_alg alg = {
+	.base.cra_name		= "chacha20",
+	.base.cra_driver_name	= "chacha20-simd",
+	.base.cra_priority	= 300,
+	.base.cra_blocksize	= 1,
+	.base.cra_ctxsize	= sizeof(struct chacha20_ctx),
+	.base.cra_alignmask	= sizeof(u32) - 1,
+	.base.cra_module	= THIS_MODULE,
+
+	.min_keysize		= CHACHA20_KEY_SIZE,
+	.max_keysize		= CHACHA20_KEY_SIZE,
+	.ivsize			= CHACHA20_IV_SIZE,
+	.chunksize		= CHACHA20_BLOCK_SIZE,
+	.setkey			= crypto_chacha20_setkey,
+	.encrypt		= chacha20_simd,
+	.decrypt		= chacha20_simd,
 };
 
 static int __init chacha20_simd_mod_init(void)
@@ -133,12 +129,12 @@ static int __init chacha20_simd_mod_init(void)
 			    boot_cpu_has(X86_FEATURE_AVX2) &&
 			    cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
 #endif
-	return crypto_register_alg(&alg);
+	return crypto_register_skcipher(&alg);
 }
 
 static void __exit chacha20_simd_mod_fini(void)
 {
-	crypto_unregister_alg(&alg);
+	crypto_unregister_skcipher(&alg);
 }
 
 module_init(chacha20_simd_mod_init);

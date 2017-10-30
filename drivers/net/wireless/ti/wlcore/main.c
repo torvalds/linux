@@ -1308,13 +1308,12 @@ static struct sk_buff *wl12xx_alloc_dummy_packet(struct wl1271 *wl)
 
 	skb_reserve(skb, sizeof(struct wl1271_tx_hw_descr));
 
-	hdr = (struct ieee80211_hdr_3addr *) skb_put(skb, sizeof(*hdr));
-	memset(hdr, 0, sizeof(*hdr));
+	hdr = skb_put_zero(skb, sizeof(*hdr));
 	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA |
 					 IEEE80211_STYPE_NULLFUNC |
 					 IEEE80211_FCTL_TODS);
 
-	memset(skb_put(skb, dummy_packet_size), 0, dummy_packet_size);
+	skb_put_zero(skb, dummy_packet_size);
 
 	/* Dummy packets require the TID to be management */
 	skb->priority = WL1271_TID_MGMT;
@@ -3201,6 +3200,21 @@ static void wl1271_op_configure_filter(struct ieee80211_hw *hw,
 							fp->mc_list_length);
 			if (ret < 0)
 				goto out_sleep;
+		}
+
+		/*
+		 * If interface in AP mode and created with allmulticast then disable
+		 * the firmware filters so that all multicast packets are passed
+		 * This is mandatory for MDNS based discovery protocols 
+		 */
+ 		if (wlvif->bss_type == BSS_TYPE_AP_BSS) {
+ 			if (*total & FIF_ALLMULTI) {
+				ret = wl1271_acx_group_address_tbl(wl, wlvif,
+							false,
+							NULL, 0);
+				if (ret < 0)
+					goto out_sleep;
+			}
 		}
 	}
 
@@ -5285,7 +5299,9 @@ static int wl1271_op_ampdu_action(struct ieee80211_hw *hw,
 		}
 
 		ret = wl12xx_acx_set_ba_receiver_session(wl, tid, *ssn, true,
-							 hlid);
+				hlid,
+				params->buf_size);
+
 		if (!ret) {
 			*ba_bitmap |= BIT(tid);
 			wl->ba_rx_session_count++;
@@ -5306,7 +5322,7 @@ static int wl1271_op_ampdu_action(struct ieee80211_hw *hw,
 		}
 
 		ret = wl12xx_acx_set_ba_receiver_session(wl, tid, 0, false,
-							 hlid);
+							 hlid, 0);
 		if (!ret) {
 			*ba_bitmap &= ~BIT(tid);
 			wl->ba_rx_session_count--;
@@ -6000,6 +6016,8 @@ static int wl1271_register_hw(struct wl1271 *wl)
 {
 	int ret;
 	u32 oui_addr = 0, nic_addr = 0;
+	struct platform_device *pdev = wl->pdev;
+	struct wlcore_platdev_data *pdev_data = dev_get_platdata(&pdev->dev);
 
 	if (wl->mac80211_registered)
 		return 0;
@@ -6022,6 +6040,27 @@ static int wl1271_register_hw(struct wl1271 *wl)
 		oui_addr = wl->fuse_oui_addr;
 		/* fuse has the BD_ADDR, the WLAN addresses are the next two */
 		nic_addr = wl->fuse_nic_addr + 1;
+	}
+
+	if (oui_addr == 0xdeadbe && nic_addr == 0xef0000) {
+		wl1271_warning("Detected unconfigured mac address in nvs, derive from fuse instead.\n");
+		if (!strcmp(pdev_data->family->name, "wl18xx")) {
+			wl1271_warning("This default nvs file can be removed from the file system\n");
+		} else {
+			wl1271_warning("Your device performance is not optimized.\n");
+			wl1271_warning("Please use the calibrator tool to configure your device.\n");
+		}
+
+		if (wl->fuse_oui_addr == 0 && wl->fuse_nic_addr == 0) {
+			wl1271_warning("Fuse mac address is zero. using random mac\n");
+			/* Use TI oui and a random nic */
+			oui_addr = WLCORE_TI_OUI_ADDRESS;
+			nic_addr = get_random_int();
+		} else {
+			oui_addr = wl->fuse_oui_addr;
+			/* fuse has the BD_ADDR, the WLAN addresses are the next two */
+			nic_addr = wl->fuse_nic_addr + 1;
+		}
 	}
 
 	wl12xx_derive_mac_addresses(wl, oui_addr, nic_addr);
@@ -6086,6 +6125,7 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 	ieee80211_hw_set(wl->hw, SUPPORTS_DYNAMIC_PS);
 	ieee80211_hw_set(wl->hw, SIGNAL_DBM);
 	ieee80211_hw_set(wl->hw, SUPPORTS_PS);
+	ieee80211_hw_set(wl->hw, SUPPORTS_TX_FRAG);
 
 	wl->hw->wiphy->cipher_suites = cipher_suites;
 	wl->hw->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
@@ -6110,6 +6150,7 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 	wl->hw->wiphy->max_scan_ie_len = WL1271_CMD_TEMPL_MAX_SIZE -
 			sizeof(struct ieee80211_header);
 
+	wl->hw->wiphy->max_sched_scan_reqs = 1;
 	wl->hw->wiphy->max_sched_scan_ie_len = WL1271_CMD_TEMPL_MAX_SIZE -
 		sizeof(struct ieee80211_header);
 
@@ -6117,8 +6158,9 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 
 	wl->hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD |
 				WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
-				WIPHY_FLAG_SUPPORTS_SCHED_SCAN |
 				WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+
+	wl->hw->wiphy->features |= NL80211_FEATURE_AP_SCAN;
 
 	/* make sure all our channels fit in the scanned_ch bitmask */
 	BUILD_BUG_ON(ARRAY_SIZE(wl1271_channels) +

@@ -238,13 +238,9 @@ via_lock_all_dma_pages(drm_via_sg_info_t *vsg,  drm_via_dmablit_t *xfer)
 	vsg->pages = vzalloc(sizeof(struct page *) * vsg->num_pages);
 	if (NULL == vsg->pages)
 		return -ENOMEM;
-	down_read(&current->mm->mmap_sem);
-	ret = get_user_pages((unsigned long)xfer->mem_addr,
-			     vsg->num_pages,
-			     (vsg->direction == DMA_FROM_DEVICE) ? FOLL_WRITE : 0,
-			     vsg->pages, NULL);
-
-	up_read(&current->mm->mmap_sem);
+	ret = get_user_pages_unlocked((unsigned long)xfer->mem_addr,
+			vsg->num_pages, vsg->pages,
+			(vsg->direction == DMA_FROM_DEVICE) ? FOLL_WRITE : 0);
 	if (ret != vsg->num_pages) {
 		if (ret < 0)
 			return ret;

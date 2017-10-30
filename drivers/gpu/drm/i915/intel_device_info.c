@@ -24,24 +24,62 @@
 
 #include "i915_drv.h"
 
+#define PLATFORM_NAME(x) [INTEL_##x] = #x
+static const char * const platform_names[] = {
+	PLATFORM_NAME(I830),
+	PLATFORM_NAME(I845G),
+	PLATFORM_NAME(I85X),
+	PLATFORM_NAME(I865G),
+	PLATFORM_NAME(I915G),
+	PLATFORM_NAME(I915GM),
+	PLATFORM_NAME(I945G),
+	PLATFORM_NAME(I945GM),
+	PLATFORM_NAME(G33),
+	PLATFORM_NAME(PINEVIEW),
+	PLATFORM_NAME(I965G),
+	PLATFORM_NAME(I965GM),
+	PLATFORM_NAME(G45),
+	PLATFORM_NAME(GM45),
+	PLATFORM_NAME(IRONLAKE),
+	PLATFORM_NAME(SANDYBRIDGE),
+	PLATFORM_NAME(IVYBRIDGE),
+	PLATFORM_NAME(VALLEYVIEW),
+	PLATFORM_NAME(HASWELL),
+	PLATFORM_NAME(BROADWELL),
+	PLATFORM_NAME(CHERRYVIEW),
+	PLATFORM_NAME(SKYLAKE),
+	PLATFORM_NAME(BROXTON),
+	PLATFORM_NAME(KABYLAKE),
+	PLATFORM_NAME(GEMINILAKE),
+	PLATFORM_NAME(COFFEELAKE),
+	PLATFORM_NAME(CANNONLAKE),
+};
+#undef PLATFORM_NAME
+
+const char *intel_platform_name(enum intel_platform platform)
+{
+	BUILD_BUG_ON(ARRAY_SIZE(platform_names) != INTEL_MAX_PLATFORMS);
+
+	if (WARN_ON_ONCE(platform >= ARRAY_SIZE(platform_names) ||
+			 platform_names[platform] == NULL))
+		return "<unknown>";
+
+	return platform_names[platform];
+}
+
 void intel_device_info_dump(struct drm_i915_private *dev_priv)
 {
 	const struct intel_device_info *info = &dev_priv->info;
 
-#define PRINT_S(name) "%s"
-#define SEP_EMPTY
-#define PRINT_FLAG(name) info->name ? #name "," : ""
-#define SEP_COMMA ,
-	DRM_DEBUG_DRIVER("i915 device info: gen=%i, pciid=0x%04x rev=0x%02x flags="
-			 DEV_INFO_FOR_EACH_FLAG(PRINT_S, SEP_EMPTY),
+	DRM_DEBUG_DRIVER("i915 device info: platform=%s gen=%i pciid=0x%04x rev=0x%02x",
+			 intel_platform_name(info->platform),
 			 info->gen,
 			 dev_priv->drm.pdev->device,
-			 dev_priv->drm.pdev->revision,
-			 DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG, SEP_COMMA));
-#undef PRINT_S
-#undef SEP_EMPTY
+			 dev_priv->drm.pdev->revision);
+#define PRINT_FLAG(name) \
+	DRM_DEBUG_DRIVER("i915 device info: " #name ": %s", yesno(info->name))
+	DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG);
 #undef PRINT_FLAG
-#undef SEP_COMMA
 }
 
 static void cherryview_sseu_info_init(struct drm_i915_private *dev_priv)
@@ -147,22 +185,23 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 				DIV_ROUND_UP(sseu->eu_total,
 					     sseu_subslice_total(sseu)) : 0;
 	/*
-	 * SKL supports slice power gating on devices with more than
+	 * SKL+ supports slice power gating on devices with more than
 	 * one slice, and supports EU power gating on devices with
-	 * more than one EU pair per subslice. BXT supports subslice
+	 * more than one EU pair per subslice. BXT+ supports subslice
 	 * power gating on devices with more than one subslice, and
 	 * supports EU power gating on devices with more than one EU
 	 * pair per subslice.
 	*/
 	sseu->has_slice_pg =
-		(IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) &&
-		hweight8(sseu->slice_mask) > 1;
+		!IS_GEN9_LP(dev_priv) && hweight8(sseu->slice_mask) > 1;
 	sseu->has_subslice_pg =
-		IS_BROXTON(dev_priv) && sseu_subslice_total(sseu) > 1;
+		IS_GEN9_LP(dev_priv) && sseu_subslice_total(sseu) > 1;
 	sseu->has_eu_pg = sseu->eu_per_subslice > 2;
 
-	if (IS_BROXTON(dev_priv)) {
+	if (IS_GEN9_LP(dev_priv)) {
 #define IS_SS_DISABLED(ss)	(!(sseu->subslice_mask & BIT(ss)))
+		info->has_pooled_eu = hweight8(sseu->subslice_mask) == 3;
+
 		/*
 		 * There is a HW issue in 2x6 fused down parts that requires
 		 * Pooled EU to be enabled as a WA. The pool configuration
@@ -170,9 +209,8 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 		 * doesn't affect if the device has all 3 subslices enabled.
 		 */
 		/* WaEnablePooledEuFor2x6:bxt */
-		info->has_pooled_eu = ((hweight8(sseu->subslice_mask) == 3) ||
-				       (hweight8(sseu->subslice_mask) == 2 &&
-					INTEL_REVID(dev_priv) < BXT_REVID_C0));
+		info->has_pooled_eu |= (hweight8(sseu->subslice_mask) == 2 &&
+					IS_BXT_REVID(dev_priv, 0, BXT_REVID_B_LAST));
 
 		sseu->min_eu_in_pool = 0;
 		if (info->has_pooled_eu) {
@@ -200,7 +238,7 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 	 * The subslice disable field is global, i.e. it applies
 	 * to each of the enabled slices.
 	 */
-	sseu->subslice_mask = BIT(ss_max) - 1;
+	sseu->subslice_mask = GENMASK(ss_max - 1, 0);
 	sseu->subslice_mask &= ~((fuse2 & GEN8_F2_SS_DIS_MASK) >>
 				 GEN8_F2_SS_DIS_SHIFT);
 
@@ -276,6 +314,12 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	struct intel_device_info *info = mkwrite_device_info(dev_priv);
 	enum pipe pipe;
 
+	if (INTEL_GEN(dev_priv) >= 9) {
+		info->num_scalers[PIPE_A] = 2;
+		info->num_scalers[PIPE_B] = 2;
+		info->num_scalers[PIPE_C] = 1;
+	}
+
 	/*
 	 * Skylake and Broxton currently don't expose the topmost plane as its
 	 * use is exclusive with the legacy cursor and we only want to expose
@@ -284,16 +328,20 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	 * we don't expose the topmost plane at all to prevent ABI breakage
 	 * down the line.
 	 */
-	if (IS_BROXTON(dev_priv)) {
+	if (IS_GEN10(dev_priv) || IS_GEMINILAKE(dev_priv))
+		for_each_pipe(dev_priv, pipe)
+			info->num_sprites[pipe] = 3;
+	else if (IS_BROXTON(dev_priv)) {
 		info->num_sprites[PIPE_A] = 2;
 		info->num_sprites[PIPE_B] = 2;
 		info->num_sprites[PIPE_C] = 1;
-	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 2;
-	else
+	} else if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv)) {
 		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 1;
+	}
 
 	if (i915.disable_display) {
 		DRM_INFO("Display disabled (module parameter)\n");
@@ -315,7 +363,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		 */
 		if (fuse_strap & ILK_INTERNAL_DISPLAY_DISABLE ||
 		    sfuse_strap & SFUSE_STRAP_DISPLAY_DISABLED ||
-		    (dev_priv->pch_type == PCH_CPT &&
+		    (HAS_PCH_CPT(dev_priv) &&
 		     !(sfuse_strap & SFUSE_STRAP_FUSE_LOCK))) {
 			DRM_INFO("Display fused off, disabling\n");
 			info->num_pipes = 0;
@@ -365,10 +413,6 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		gen9_sseu_info_init(dev_priv);
 
 	info->has_snoop = !info->has_llc;
-
-	/* Snooping is broken on BXT A stepping. */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
-		info->has_snoop = false;
 
 	DRM_DEBUG_DRIVER("slice mask: %04x\n", info->sseu.slice_mask);
 	DRM_DEBUG_DRIVER("slice total: %u\n", hweight8(info->sseu.slice_mask));

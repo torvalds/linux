@@ -1,18 +1,18 @@
 /*
-	This is part of rtl8187 OpenSource driver.
-	Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
-	Released under the terms of GPL (General Public Licence)
-
-	Parts of this driver are based on the GPL part of the
-	official Realtek driver.
-	Parts of this driver are based on the rtl8180 driver skeleton
-	from Patric Schenke & Andres Salomon.
-	Parts of this driver are based on the Intel Pro Wireless
-	2100 GPL driver.
-
-	We want to thank the Authors of those projects
-	and the Ndiswrapper project Authors.
-*/
+ *	This is part of rtl8187 OpenSource driver.
+ *	Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
+ *	Released under the terms of GPL (General Public Licence)
+ *
+ *	Parts of this driver are based on the GPL part of the
+ *	official Realtek driver.
+ *	Parts of this driver are based on the rtl8180 driver skeleton
+ *	from Patric Schenke & Andres Salomon.
+ *	Parts of this driver are based on the Intel Pro Wireless
+ *	2100 GPL driver.
+ *
+ *	We want to thank the Authors of those projects
+ *	and the Ndiswrapper project Authors.
+ */
 
 /* Mariusz Matuszek added full registers definition with Realtek's name */
 
@@ -20,25 +20,24 @@
 #ifndef R8192_HW
 #define R8192_HW
 
-typedef enum _VERSION_819xU{
+typedef enum _VERSION_819xU {
 	VERSION_819xU_A, // A-cut
 	VERSION_819xU_B, // B-cut
 	VERSION_819xU_C,// C-cut
 } VERSION_819xU, *PVERSION_819xU;
 //added for different RF type
-typedef enum _RT_RF_TYPE_DEF
-{
+typedef enum _RT_RF_TYPE_DEF {
 	RF_1T2R = 0,
 	RF_2T4R,
 
 	RF_819X_MAX_TYPE
-}RT_RF_TYPE_DEF;
+} RT_RF_TYPE_DEF;
 
 
-typedef enum _BaseBand_Config_Type{
+typedef enum _BaseBand_Config_Type {
 	BaseBand_Config_PHY_REG = 0,			//Radio Path A
 	BaseBand_Config_AGC_TAB = 1,			//Radio Path B
-}BaseBand_Config_Type, *PBaseBand_Config_Type;
+} BaseBand_Config_Type, *PBaseBand_Config_Type;
 #define	RTL8187_REQT_READ	0xc0
 #define	RTL8187_REQT_WRITE	0x40
 #define	RTL8187_REQ_GET_REGS	0x05

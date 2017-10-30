@@ -30,7 +30,6 @@
 #include <linux/of_fdt.h>
 #include <linux/io.h>
 
-#include <asm/prom.h>
 #include <asm/sections.h>
 
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
@@ -46,6 +45,13 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 {
 	return alloc_bootmem_align(size, align);
+}
+
+int __init early_init_dt_reserve_memory_arch(phys_addr_t base, phys_addr_t size,
+					     bool nomap)
+{
+	reserve_bootmem(base, size, BOOTMEM_DEFAULT);
+	return 0;
 }
 
 void __init early_init_devtree(void *params)
@@ -64,51 +70,3 @@ void __init early_init_devtree(void *params)
 
 	early_init_dt_scan(params);
 }
-
-#ifdef CONFIG_EARLY_PRINTK
-static int __init early_init_dt_scan_serial(unsigned long node,
-			const char *uname, int depth, void *data)
-{
-	u64 *addr64 = (u64 *) data;
-	const char *p;
-
-	/* only consider serial nodes */
-	if (strncmp(uname, "serial", 6) != 0)
-		return 0;
-
-	p = of_get_flat_dt_prop(node, "compatible", NULL);
-	if (!p)
-		return 0;
-
-	/*
-	 * We found an altera_jtaguart but it wasn't configured for console, so
-	 * skip it.
-	 */
-#ifndef CONFIG_SERIAL_ALTERA_JTAGUART_CONSOLE
-	if (strncmp(p, "altr,juart", 10) == 0)
-		return 0;
-#endif
-
-	/*
-	 * Same for altera_uart.
-	 */
-#ifndef CONFIG_SERIAL_ALTERA_UART_CONSOLE
-	if (strncmp(p, "altr,uart", 9) == 0)
-		return 0;
-#endif
-
-	*addr64 = of_flat_dt_translate_address(node);
-
-	return *addr64 == OF_BAD_ADDR ? 0 : 1;
-}
-
-unsigned long __init of_early_console(void)
-{
-	u64 base = 0;
-
-	if (of_scan_flat_dt(early_init_dt_scan_serial, &base))
-		return (u32)ioremap(base, 32);
-	else
-		return 0;
-}
-#endif /* CONFIG_EARLY_PRINTK */

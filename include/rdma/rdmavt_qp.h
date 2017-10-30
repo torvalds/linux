@@ -2,7 +2,7 @@
 #define DEF_RDMAVT_INCQP_H
 
 /*
- * Copyright(c) 2016 Intel Corporation.
+ * Copyright(c) 2016, 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -51,6 +51,7 @@
 #include <rdma/rdma_vt.h>
 #include <rdma/ib_pack.h>
 #include <rdma/ib_verbs.h>
+#include <rdma/rdmavt_cq.h>
 /*
  * Atomic bit definitions for r_aflags.
  */
@@ -143,6 +144,8 @@
 #define RVT_FLUSH_RECV			0x40
 #define RVT_PROCESS_OR_FLUSH_SEND \
 	(RVT_PROCESS_SEND_OK | RVT_FLUSH_SEND)
+#define RVT_SEND_OR_FLUSH_OR_RECV_OK \
+	(RVT_PROCESS_SEND_OK | RVT_FLUSH_SEND | RVT_PROCESS_RECV_OK)
 
 /*
  * Internal send flags
@@ -266,15 +269,14 @@ struct rvt_qp {
 	struct ib_qp ibqp;
 	void *priv; /* Driver private data */
 	/* read mostly fields above and below */
-	struct ib_ah_attr remote_ah_attr;
-	struct ib_ah_attr alt_ah_attr;
+	struct rdma_ah_attr remote_ah_attr;
+	struct rdma_ah_attr alt_ah_attr;
 	struct rvt_qp __rcu *next;           /* link list for QPN hash table */
 	struct rvt_swqe *s_wq;  /* send work queue */
 	struct rvt_mmap_info *ip;
 
 	unsigned long timeout_jiffies;  /* computed from timeout */
 
-	enum ib_mtu path_mtu;
 	int srate_mbps;		/* s_srate (below) converted to Mbit/s */
 	pid_t pid;		/* pid for user mode QPs */
 	u32 remote_qpn;
@@ -321,6 +323,7 @@ struct rvt_qp {
 	u8 r_state;             /* opcode of last packet received */
 	u8 r_flags;
 	u8 r_head_ack_queue;    /* index into s_ack_queue[] */
+	u8 r_adefered;          /* defered ack count */
 
 	struct list_head rspwait;       /* link for waiting to respond */
 
@@ -369,6 +372,7 @@ struct rvt_qp {
 
 	struct rvt_sge_state s_ack_rdma_sge;
 	struct timer_list s_timer;
+	struct hrtimer s_rnr_timer;
 
 	atomic_t local_ops_pending; /* number of fast_reg/local_inv reqs */
 
@@ -391,7 +395,7 @@ struct rvt_srq {
 #define RVT_QPNMAP_ENTRIES          (RVT_QPN_MAX / PAGE_SIZE / BITS_PER_BYTE)
 #define RVT_BITS_PER_PAGE           (PAGE_SIZE * BITS_PER_BYTE)
 #define RVT_BITS_PER_PAGE_MASK      (RVT_BITS_PER_PAGE - 1)
-#define RVT_QPN_MASK		    0xFFFFFF
+#define RVT_QPN_MASK		    IB_QPN_MASK
 
 /*
  * QPN-map pages start out as NULL, they get allocated upon
@@ -431,9 +435,14 @@ struct rvt_mcast_qp {
 	struct rvt_qp *qp;
 };
 
+struct rvt_mcast_addr {
+	union ib_gid mgid;
+	u16 lid;
+};
+
 struct rvt_mcast {
 	struct rb_node rb_node;
-	union ib_gid mgid;
+	struct rvt_mcast_addr mcast_addr;
 	struct list_head qp_list;
 	wait_queue_head_t wait;
 	atomic_t refcount;
@@ -466,6 +475,15 @@ static inline struct rvt_rwqe *rvt_get_rwqe_ptr(struct rvt_rq *rq, unsigned n)
 }
 
 /**
+ * rvt_is_user_qp - return if this is user mode QP
+ * @qp - the target QP
+ */
+static inline bool rvt_is_user_qp(struct rvt_qp *qp)
+{
+	return !!qp->pid;
+}
+
+/**
  * rvt_get_qp - get a QP reference
  * @qp - the QP to hold
  */
@@ -485,6 +503,23 @@ static inline void rvt_put_qp(struct rvt_qp *qp)
 }
 
 /**
+ * rvt_put_swqe - drop mr refs held by swqe
+ * @wqe - the send wqe
+ *
+ * This drops any mr references held by the swqe
+ */
+static inline void rvt_put_swqe(struct rvt_swqe *wqe)
+{
+	int i;
+
+	for (i = 0; i < wqe->wr.num_sge; i++) {
+		struct rvt_sge *sge = &wqe->sg_list[i];
+
+		rvt_put_mr(sge->mr);
+	}
+}
+
+/**
  * rvt_qp_wqe_reserve - reserve operation
  * @qp - the rvt qp
  * @wqe - the send wqe
@@ -496,7 +531,6 @@ static inline void rvt_qp_wqe_reserve(
 	struct rvt_qp *qp,
 	struct rvt_swqe *wqe)
 {
-	wqe->wr.send_flags |= RVT_SEND_RESERVE_USED;
 	atomic_inc(&qp->s_reserved_used);
 }
 
@@ -520,16 +554,153 @@ static inline void rvt_qp_wqe_unreserve(
 	struct rvt_swqe *wqe)
 {
 	if (unlikely(wqe->wr.send_flags & RVT_SEND_RESERVE_USED)) {
-		wqe->wr.send_flags &= ~RVT_SEND_RESERVE_USED;
 		atomic_dec(&qp->s_reserved_used);
 		/* insure no compiler re-order up to s_last change */
 		smp_mb__after_atomic();
 	}
 }
 
+extern const enum ib_wc_opcode ib_rvt_wc_opcode[];
+
+/**
+ * rvt_qp_swqe_complete() - insert send completion
+ * @qp - the qp
+ * @wqe - the send wqe
+ * @status - completion status
+ *
+ * Insert a send completion into the completion
+ * queue if the qp indicates it should be done.
+ *
+ * See IBTA 10.7.3.1 for info on completion
+ * control.
+ */
+static inline void rvt_qp_swqe_complete(
+	struct rvt_qp *qp,
+	struct rvt_swqe *wqe,
+	enum ib_wc_opcode opcode,
+	enum ib_wc_status status)
+{
+	if (unlikely(wqe->wr.send_flags & RVT_SEND_RESERVE_USED))
+		return;
+	if (!(qp->s_flags & RVT_S_SIGNAL_REQ_WR) ||
+	    (wqe->wr.send_flags & IB_SEND_SIGNALED) ||
+	     status != IB_WC_SUCCESS) {
+		struct ib_wc wc;
+
+		memset(&wc, 0, sizeof(wc));
+		wc.wr_id = wqe->wr.wr_id;
+		wc.status = status;
+		wc.opcode = opcode;
+		wc.qp = &qp->ibqp;
+		wc.byte_len = wqe->length;
+		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.send_cq), &wc,
+			     status != IB_WC_SUCCESS);
+	}
+}
+
+/*
+ * Compare the lower 24 bits of the msn values.
+ * Returns an integer <, ==, or > than zero.
+ */
+static inline int rvt_cmp_msn(u32 a, u32 b)
+{
+	return (((int)a) - ((int)b)) << 8;
+}
+
+/**
+ * rvt_compute_aeth - compute the AETH (syndrome + MSN)
+ * @qp: the queue pair to compute the AETH for
+ *
+ * Returns the AETH.
+ */
+__be32 rvt_compute_aeth(struct rvt_qp *qp);
+
+/**
+ * rvt_get_credit - flush the send work queue of a QP
+ * @qp: the qp who's send work queue to flush
+ * @aeth: the Acknowledge Extended Transport Header
+ *
+ * The QP s_lock should be held.
+ */
+void rvt_get_credit(struct rvt_qp *qp, u32 aeth);
+
+/**
+ * @qp - the qp pair
+ * @len - the length
+ *
+ * Perform a shift based mtu round up divide
+ */
+static inline u32 rvt_div_round_up_mtu(struct rvt_qp *qp, u32 len)
+{
+	return (len + qp->pmtu - 1) >> qp->log_pmtu;
+}
+
+/**
+ * @qp - the qp pair
+ * @len - the length
+ *
+ * Perform a shift based mtu divide
+ */
+static inline u32 rvt_div_mtu(struct rvt_qp *qp, u32 len)
+{
+	return len >> qp->log_pmtu;
+}
+
+/**
+ * rvt_timeout_to_jiffies - Convert a ULP timeout input into jiffies
+ * @timeout - timeout input(0 - 31).
+ *
+ * Return a timeout value in jiffies.
+ */
+static inline unsigned long rvt_timeout_to_jiffies(u8 timeout)
+{
+	if (timeout > 31)
+		timeout = 31;
+
+	return usecs_to_jiffies(1U << timeout) * 4096UL / 1000UL;
+}
+
 extern const int  ib_rvt_state_ops[];
 
 struct rvt_dev_info;
+void rvt_comm_est(struct rvt_qp *qp);
 int rvt_error_qp(struct rvt_qp *qp, enum ib_wc_status err);
+void rvt_rc_error(struct rvt_qp *qp, enum ib_wc_status err);
+unsigned long rvt_rnr_tbl_to_usec(u32 index);
+enum hrtimer_restart rvt_rc_rnr_retry(struct hrtimer *t);
+void rvt_add_rnr_timer(struct rvt_qp *qp, u32 aeth);
+void rvt_del_timers_sync(struct rvt_qp *qp);
+void rvt_stop_rc_timers(struct rvt_qp *qp);
+void rvt_add_retry_timer(struct rvt_qp *qp);
 
+/**
+ * struct rvt_qp_iter - the iterator for QPs
+ * @qp - the current QP
+ *
+ * This structure defines the current iterator
+ * state for sequenced access to all QPs relative
+ * to an rvt_dev_info.
+ */
+struct rvt_qp_iter {
+	struct rvt_qp *qp;
+	/* private: backpointer */
+	struct rvt_dev_info *rdi;
+	/* private: callback routine */
+	void (*cb)(struct rvt_qp *qp, u64 v);
+	/* private: for arg to callback routine */
+	u64 v;
+	/* private: number of SMI,GSI QPs for device */
+	int specials;
+	/* private: current iterator index */
+	int n;
+};
+
+struct rvt_qp_iter *rvt_qp_iter_init(struct rvt_dev_info *rdi,
+				     u64 v,
+				     void (*cb)(struct rvt_qp *qp, u64 v));
+int rvt_qp_iter_next(struct rvt_qp_iter *iter);
+void rvt_qp_iter(struct rvt_dev_info *rdi,
+		 u64 v,
+		 void (*cb)(struct rvt_qp *qp, u64 v));
+void rvt_qp_mr_clean(struct rvt_qp *qp, u32 lkey);
 #endif          /* DEF_RDMAVT_INCQP_H */

@@ -28,6 +28,7 @@
 #define tlb_start_vma(tlb, vma)	do { } while (0)
 #define tlb_end_vma(tlb, vma)	do { } while (0)
 #define __tlb_remove_tlb_entry	__tlb_remove_tlb_entry
+#define tlb_remove_check_page_size_change tlb_remove_check_page_size_change
 
 extern void tlb_flush(struct mmu_gather *tlb);
 
@@ -46,6 +47,21 @@ static inline void __tlb_remove_tlb_entry(struct mmu_gather *tlb, pte_t *ptep,
 #endif
 }
 
+static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
+						     unsigned int page_size)
+{
+	if (!tlb->page_size)
+		tlb->page_size = page_size;
+	else if (tlb->page_size != page_size) {
+		tlb_flush_mmu(tlb);
+		/*
+		 * update the page size after flush for the new
+		 * mmu_gather.
+		 */
+		tlb->page_size = page_size;
+	}
+}
+
 #ifdef CONFIG_SMP
 static inline int mm_is_core_local(struct mm_struct *mm)
 {
@@ -53,13 +69,22 @@ static inline int mm_is_core_local(struct mm_struct *mm)
 			      topology_sibling_cpumask(smp_processor_id()));
 }
 
+#ifdef CONFIG_PPC_BOOK3S_64
+static inline int mm_is_thread_local(struct mm_struct *mm)
+{
+	if (atomic_read(&mm->context.active_cpus) > 1)
+		return false;
+	return cpumask_test_cpu(smp_processor_id(), mm_cpumask(mm));
+}
+#else /* CONFIG_PPC_BOOK3S_64 */
 static inline int mm_is_thread_local(struct mm_struct *mm)
 {
 	return cpumask_equal(mm_cpumask(mm),
 			      cpumask_of(smp_processor_id()));
 }
+#endif /* !CONFIG_PPC_BOOK3S_64 */
 
-#else
+#else /* CONFIG_SMP */
 static inline int mm_is_core_local(struct mm_struct *mm)
 {
 	return 1;

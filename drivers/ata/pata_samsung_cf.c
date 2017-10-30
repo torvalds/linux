@@ -263,10 +263,10 @@ static u8 pata_s3c_check_altstatus(struct ata_port *ap)
 /*
  * pata_s3c_data_xfer - Transfer data by PIO
  */
-static unsigned int pata_s3c_data_xfer(struct ata_device *dev,
+static unsigned int pata_s3c_data_xfer(struct ata_queued_cmd *qc,
 				unsigned char *buf, unsigned int buflen, int rw)
 {
-	struct ata_port *ap = dev->link->ap;
+	struct ata_port *ap = qc->dev->link->ap;
 	struct s3c_ide_info *info = ap->host->private_data;
 	void __iomem *data_addr = ap->ioaddr.data_addr;
 	unsigned int words = buflen >> 1, i;
@@ -581,8 +581,6 @@ static int __init pata_s3c_probe(struct platform_device *pdev)
 
 	/* Set endianness and enable the interface */
 	pata_s3c_hwinit(info, pdata);
-
-	platform_set_drvdata(pdev, host);
 
 	ret = ata_host_activate(host, info->irq,
 				info->irq ? pata_s3c_irq : NULL,

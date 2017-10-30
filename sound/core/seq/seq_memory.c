@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 #include <linux/vmalloc.h>
 #include <sound/core.h>
 
@@ -117,7 +118,6 @@ int snd_seq_dump_var_event(const struct snd_seq_event *event,
 	}
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_seq_dump_var_event);
 
 
@@ -168,7 +168,6 @@ int snd_seq_expand_var_event(const struct snd_seq_event *event, int count, char 
 				     &buf);
 	return err < 0 ? err : newlen;
 }
-
 EXPORT_SYMBOL(snd_seq_expand_var_event);
 
 /*
@@ -226,7 +225,7 @@ static int snd_seq_cell_alloc(struct snd_seq_pool *pool,
 	struct snd_seq_event_cell *cell;
 	unsigned long flags;
 	int err = -EAGAIN;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 
 	if (pool == NULL)
 		return -EINVAL;
@@ -414,32 +413,33 @@ int snd_seq_pool_init(struct snd_seq_pool *pool)
 	return 0;
 }
 
+/* refuse the further insertion to the pool */
+void snd_seq_pool_mark_closing(struct snd_seq_pool *pool)
+{
+	unsigned long flags;
+
+	if (snd_BUG_ON(!pool))
+		return;
+	spin_lock_irqsave(&pool->lock, flags);
+	pool->closing = 1;
+	spin_unlock_irqrestore(&pool->lock, flags);
+}
+
 /* remove events */
 int snd_seq_pool_done(struct snd_seq_pool *pool)
 {
 	unsigned long flags;
 	struct snd_seq_event_cell *ptr;
-	int max_count = 5 * HZ;
 
 	if (snd_BUG_ON(!pool))
 		return -EINVAL;
 
 	/* wait for closing all threads */
-	spin_lock_irqsave(&pool->lock, flags);
-	pool->closing = 1;
-	spin_unlock_irqrestore(&pool->lock, flags);
-
 	if (waitqueue_active(&pool->output_sleep))
 		wake_up(&pool->output_sleep);
 
-	while (atomic_read(&pool->counter) > 0) {
-		if (max_count == 0) {
-			pr_warn("ALSA: snd_seq_pool_done timeout: %d cells remain\n", atomic_read(&pool->counter));
-			break;
-		}
+	while (atomic_read(&pool->counter) > 0)
 		schedule_timeout_uninterruptible(1);
-		max_count--;
-	}
 	
 	/* release all resources */
 	spin_lock_irqsave(&pool->lock, flags);
@@ -491,6 +491,7 @@ int snd_seq_pool_delete(struct snd_seq_pool **ppool)
 	*ppool = NULL;
 	if (pool == NULL)
 		return 0;
+	snd_seq_pool_mark_closing(pool);
 	snd_seq_pool_done(pool);
 	kfree(pool);
 	return 0;

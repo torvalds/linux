@@ -62,7 +62,8 @@ static int dts_version = 1;
 
 static void push_input_file(const char *filename);
 static bool pop_input_file(void);
-static void lexical_error(const char *fmt, ...);
+static void PRINTF(1, 2) lexical_error(const char *fmt, ...);
+
 %}
 
 %%
@@ -119,6 +120,11 @@ static void lexical_error(const char *fmt, ...);
 			dts_version = 1;
 			BEGIN_DEFAULT();
 			return DT_V1;
+		}
+
+<*>"/plugin/"	{
+			DPRINT("Keyword: /plugin/\n");
+			return DT_PLUGIN;
 		}
 
 <*>"/memreserve/"	{
@@ -184,16 +190,16 @@ static void lexical_error(const char *fmt, ...);
 			if (d.len == 1) {
 				lexical_error("Empty character literal");
 				yylval.integer = 0;
-				return DT_CHAR_LITERAL;
+			} else {
+				yylval.integer = (unsigned char)d.val[0];
+
+				if (d.len > 2)
+					lexical_error("Character literal has %d"
+						      " characters instead of 1",
+						      d.len - 1);
 			}
 
-			yylval.integer = (unsigned char)d.val[0];
-
-			if (d.len > 2)
-				lexical_error("Character literal has %d"
-					      " characters instead of 1",
-					      d.len - 1);
-
+			data_free(d);
 			return DT_CHAR_LITERAL;
 		}
 

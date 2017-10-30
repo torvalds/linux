@@ -22,7 +22,7 @@
 #define DRV_NAME "cs5535-clockevt"
 
 static int timer_irq;
-module_param_named(irq, timer_irq, int, 0644);
+module_param_hw_named(irq, timer_irq, int, irq, 0644);
 MODULE_PARM_DESC(irq, "Which IRQ to use for the clock source MFGPT ticks.");
 
 /*
@@ -117,7 +117,8 @@ static irqreturn_t mfgpt_tick(int irq, void *dev_id)
 	/* Turn off the clock (and clear the event) */
 	disable_timer(cs5535_event_clock);
 
-	if (clockevent_state_shutdown(&cs5535_clockevent))
+	if (clockevent_state_detached(&cs5535_clockevent) ||
+	    clockevent_state_shutdown(&cs5535_clockevent))
 		return IRQ_HANDLED;
 
 	/* Clear the counter */

@@ -3,6 +3,7 @@
 
 #include <linux/ioport.h>
 #include <linux/pci.h>
+#include <linux/refcount.h>
 
 struct amd_nb_bus_dev_range {
 	u8 bus;
@@ -20,6 +21,10 @@ extern void amd_flush_garts(void);
 extern int amd_numa_init(void);
 extern int amd_get_subcaches(int);
 extern int amd_set_subcaches(int, unsigned long);
+
+extern int amd_smn_read(u16 node, u32 address, u32 *value);
+extern int amd_smn_write(u16 node, u32 address, u32 value);
+extern int amd_df_indirect_read(u16 node, u8 func, u16 reg, u8 instance_id, u32 *lo);
 
 struct amd_l3_cache {
 	unsigned indices;
@@ -51,10 +56,11 @@ struct threshold_bank {
 	struct threshold_block	*blocks;
 
 	/* initialized to the number of CPUs on the node sharing this bank */
-	atomic_t		cpus;
+	refcount_t		cpus;
 };
 
 struct amd_northbridge {
+	struct pci_dev *root;
 	struct pci_dev *misc;
 	struct pci_dev *link;
 	struct amd_l3_cache l3_cache;
@@ -66,7 +72,6 @@ struct amd_northbridge_info {
 	u64 flags;
 	struct amd_northbridge *nb;
 };
-extern struct amd_northbridge_info amd_northbridges;
 
 #define AMD_NB_GART			BIT(0)
 #define AMD_NB_L3_INDEX_DISABLE		BIT(1)
@@ -74,20 +79,9 @@ extern struct amd_northbridge_info amd_northbridges;
 
 #ifdef CONFIG_AMD_NB
 
-static inline u16 amd_nb_num(void)
-{
-	return amd_northbridges.num;
-}
-
-static inline bool amd_nb_has_feature(unsigned feature)
-{
-	return ((amd_northbridges.flags & feature) == feature);
-}
-
-static inline struct amd_northbridge *node_to_amd_nb(int node)
-{
-	return (node < amd_northbridges.num) ? &amd_northbridges.nb[node] : NULL;
-}
+u16 amd_nb_num(void);
+bool amd_nb_has_feature(unsigned int feature);
+struct amd_northbridge *node_to_amd_nb(int node);
 
 static inline u16 amd_pci_dev_to_node_id(struct pci_dev *pdev)
 {

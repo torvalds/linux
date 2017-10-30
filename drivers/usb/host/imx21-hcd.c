@@ -1779,7 +1779,7 @@ static void imx21_hc_stop(struct usb_hcd *hcd)
 /* Driver glue		 			*/
 /* =========================================== */
 
-static struct hc_driver imx21_hc_driver = {
+static const struct hc_driver imx21_hc_driver = {
 	.description = hcd_name,
 	.product_desc = "IMX21 USB Host Controller",
 	.hcd_priv_size = sizeof(struct imx21),
@@ -1849,8 +1849,10 @@ static int imx21_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return -ENXIO;
+	if (irq < 0) {
+		dev_err(&pdev->dev, "Failed to get IRQ: %d\n", irq);
+		return irq;
+	}
 
 	hcd = usb_create_hcd(&imx21_hc_driver,
 		&pdev->dev, dev_name(&pdev->dev));

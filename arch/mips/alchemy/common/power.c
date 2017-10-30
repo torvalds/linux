@@ -33,7 +33,7 @@
 #include <linux/sysctl.h>
 #include <linux/jiffies.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mach-au1x00/au1000.h>
 
 /*

@@ -290,7 +290,7 @@ int of_node_to_nid(struct device_node *device)
 
 	return nid;
 }
-EXPORT_SYMBOL_GPL(of_node_to_nid);
+EXPORT_SYMBOL(of_node_to_nid);
 
 static int __init find_min_common_depth(void)
 {
@@ -786,14 +786,9 @@ new_range:
 		fake_numa_create_new_node(((start + size) >> PAGE_SHIFT), &nid);
 		node_set_online(nid);
 
-		if (!(size = numa_enforce_memory_limit(start, size))) {
-			if (--ranges)
-				goto new_range;
-			else
-				continue;
-		}
-
-		memblock_set_node(start, size, &memblock.memory, nid);
+		size = numa_enforce_memory_limit(start, size);
+		if (size)
+			memblock_set_node(start, size, &memblock.memory, nid);
 
 		if (--ranges)
 			goto new_range;
@@ -880,13 +875,6 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
 	void *nd;
 	int tnid;
 
-	if (spanned_pages)
-		pr_info("Initmem setup node %d [mem %#010Lx-%#010Lx]\n",
-			nid, start_pfn << PAGE_SHIFT,
-			(end_pfn << PAGE_SHIFT) - 1);
-	else
-		pr_info("Initmem setup node %d\n", nid);
-
 	nd_pa = memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
 	nd = __va(nd_pa);
 
@@ -944,7 +932,7 @@ void __init initmem_init(void)
 	 * _nocalls() + manual invocation is used because cpuhp is not yet
 	 * initialized for the boot CPU.
 	 */
-	cpuhp_setup_state_nocalls(CPUHP_POWER_NUMA_PREPARE, "POWER_NUMA_PREPARE",
+	cpuhp_setup_state_nocalls(CPUHP_POWER_NUMA_PREPARE, "powerpc/numa:prepare",
 				  ppc_numa_cpu_prepare, ppc_numa_cpu_dead);
 	for_each_present_cpu(cpu)
 		numa_setup_cpu(cpu);
@@ -1085,7 +1073,7 @@ static int hot_add_node_scn_to_nid(unsigned long scn_addr)
 int hot_add_scn_to_nid(unsigned long scn_addr)
 {
 	struct device_node *memory = NULL;
-	int nid, found = 0;
+	int nid;
 
 	if (!numa_enabled || (min_common_depth < 0))
 		return first_online_node;
@@ -1098,20 +1086,9 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
 		nid = hot_add_node_scn_to_nid(scn_addr);
 	}
 
-	if (nid < 0 || !node_online(nid))
+	if (nid < 0 || !node_possible(nid))
 		nid = first_online_node;
 
-	if (NODE_DATA(nid)->node_spanned_pages)
-		return nid;
-
-	for_each_online_node(nid) {
-		if (NODE_DATA(nid)->node_spanned_pages) {
-			found = 1;
-			break;
-		}
-	}
-
-	BUG_ON(!found);
 	return nid;
 }
 
@@ -1334,8 +1311,10 @@ static int update_lookup_table(void *data)
 /*
  * Update the node maps and sysfs entries for each cpu whose home node
  * has changed. Returns 1 when the topology has changed, and 0 otherwise.
+ *
+ * cpus_locked says whether we already hold cpu_hotplug_lock.
  */
-int arch_update_cpu_topology(void)
+int numa_update_cpu_topology(bool cpus_locked)
 {
 	unsigned int cpu, sibling, changed = 0;
 	struct topology_update_data *updates, *ud;
@@ -1423,15 +1402,23 @@ int arch_update_cpu_topology(void)
 	if (!cpumask_weight(&updated_cpus))
 		goto out;
 
-	stop_machine(update_cpu_topology, &updates[0], &updated_cpus);
+	if (cpus_locked)
+		stop_machine_cpuslocked(update_cpu_topology, &updates[0],
+					&updated_cpus);
+	else
+		stop_machine(update_cpu_topology, &updates[0], &updated_cpus);
 
 	/*
 	 * Update the numa-cpu lookup table with the new mappings, even for
 	 * offline CPUs. It is best to perform this update from the stop-
 	 * machine context.
 	 */
-	stop_machine(update_lookup_table, &updates[0],
+	if (cpus_locked)
+		stop_machine_cpuslocked(update_lookup_table, &updates[0],
 					cpumask_of(raw_smp_processor_id()));
+	else
+		stop_machine(update_lookup_table, &updates[0],
+			     cpumask_of(raw_smp_processor_id()));
 
 	for (ud = &updates[0]; ud; ud = ud->next) {
 		unregister_cpu_under_node(ud->cpu, ud->old_nid);
@@ -1447,6 +1434,11 @@ int arch_update_cpu_topology(void)
 out:
 	kfree(updates);
 	return changed;
+}
+
+int arch_update_cpu_topology(void)
+{
+	return numa_update_cpu_topology(true);
 }
 
 static void topology_work_fn(struct work_struct *work)

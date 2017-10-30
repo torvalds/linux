@@ -57,7 +57,6 @@ enum hw_variables {
 	HW_VAR_ACK_PREAMBLE,
 	HW_VAR_SEC_CFG,
 	HW_VAR_BCN_VALID,
-	HW_VAR_RF_TYPE,
 	HW_VAR_DM_FUNC_OP,
 	HW_VAR_DM_FUNC_SET,
 	HW_VAR_DM_FUNC_CLR,
@@ -190,6 +189,7 @@ void rtw_hal_set_odm_var(struct adapter *padapter,
 
 u32	rtw_hal_inirp_init(struct adapter *padapter);
 void	rtw_hal_inirp_deinit(struct adapter *padapter);
+void usb_intf_stop(struct adapter *padapter);
 
 s32	rtw_hal_xmit(struct adapter *padapter, struct xmit_frame *pxmitframe);
 s32	rtw_hal_mgnt_xmit(struct adapter *padapter,

@@ -11,7 +11,12 @@
 #include <linux/gfp.h>
 #include <linux/smp.h>
 #include <linux/suspend.h>
+#include <linux/scatterlist.h>
+#include <linux/kdebug.h>
 
+#include <crypto/hash.h>
+
+#include <asm/e820/api.h>
 #include <asm/init.h>
 #include <asm/proto.h>
 #include <asm/page.h>
@@ -45,6 +50,7 @@ static int set_up_temporary_text_mapping(pgd_t *pgd)
 {
 	pmd_t *pmd;
 	pud_t *pud;
+	p4d_t *p4d;
 
 	/*
 	 * The new mapping only has to cover the page containing the image
@@ -59,6 +65,13 @@ static int set_up_temporary_text_mapping(pgd_t *pgd)
 	 * the virtual address space after switching over to the original page
 	 * tables used by the image kernel.
 	 */
+
+	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+		p4d = (p4d_t *)get_safe_page(GFP_ATOMIC);
+		if (!p4d)
+			return -ENOMEM;
+	}
+
 	pud = (pud_t *)get_safe_page(GFP_ATOMIC);
 	if (!pud)
 		return -ENOMEM;
@@ -71,8 +84,13 @@ static int set_up_temporary_text_mapping(pgd_t *pgd)
 		__pmd((jump_address_phys & PMD_MASK) | __PAGE_KERNEL_LARGE_EXEC));
 	set_pud(pud + pud_index(restore_jump_address),
 		__pud(__pa(pmd) | _KERNPG_TABLE));
-	set_pgd(pgd + pgd_index(restore_jump_address),
-		__pgd(__pa(pud) | _KERNPG_TABLE));
+	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+		set_p4d(p4d + p4d_index(restore_jump_address), __p4d(__pa(pud) | _KERNPG_TABLE));
+		set_pgd(pgd + pgd_index(restore_jump_address), __pgd(__pa(p4d) | _KERNPG_TABLE));
+	} else {
+		/* No p4d for 4-level paging: point the pgd to the pud page table */
+		set_pgd(pgd + pgd_index(restore_jump_address), __pgd(__pa(pud) | _KERNPG_TABLE));
+	}
 
 	return 0;
 }
@@ -86,7 +104,7 @@ static int set_up_temporary_mappings(void)
 {
 	struct x86_mapping_info info = {
 		.alloc_pgt_page	= alloc_pgt_page,
-		.pmd_flag	= __PAGE_KERNEL_LARGE_EXEC,
+		.page_flag	= __PAGE_KERNEL_LARGE_EXEC,
 		.offset		= __PAGE_OFFSET,
 	};
 	unsigned long mstart, mend;
@@ -120,32 +138,39 @@ static int set_up_temporary_mappings(void)
 static int relocate_restore_code(void)
 {
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
 
 	relocated_restore_code = get_safe_page(GFP_ATOMIC);
 	if (!relocated_restore_code)
 		return -ENOMEM;
 
-	memcpy((void *)relocated_restore_code, &core_restore_code, PAGE_SIZE);
+	memcpy((void *)relocated_restore_code, core_restore_code, PAGE_SIZE);
 
 	/* Make the page containing the relocated code executable */
-	pgd = (pgd_t *)__va(read_cr3()) + pgd_index(relocated_restore_code);
-	pud = pud_offset(pgd, relocated_restore_code);
+	pgd = (pgd_t *)__va(read_cr3_pa()) +
+		pgd_index(relocated_restore_code);
+	p4d = p4d_offset(pgd, relocated_restore_code);
+	if (p4d_large(*p4d)) {
+		set_p4d(p4d, __p4d(p4d_val(*p4d) & ~_PAGE_NX));
+		goto out;
+	}
+	pud = pud_offset(p4d, relocated_restore_code);
 	if (pud_large(*pud)) {
 		set_pud(pud, __pud(pud_val(*pud) & ~_PAGE_NX));
-	} else {
-		pmd_t *pmd = pmd_offset(pud, relocated_restore_code);
-
-		if (pmd_large(*pmd)) {
-			set_pmd(pmd, __pmd(pmd_val(*pmd) & ~_PAGE_NX));
-		} else {
-			pte_t *pte = pte_offset_kernel(pmd, relocated_restore_code);
-
-			set_pte(pte, __pte(pte_val(*pte) & ~_PAGE_NX));
-		}
+		goto out;
 	}
+	pmd = pmd_offset(pud, relocated_restore_code);
+	if (pmd_large(*pmd)) {
+		set_pmd(pmd, __pmd(pmd_val(*pmd) & ~_PAGE_NX));
+		goto out;
+	}
+	pte = pte_offset_kernel(pmd, relocated_restore_code);
+	set_pte(pte, __pte(pte_val(*pte) & ~_PAGE_NX));
+out:
 	__flush_tlb_all();
-
 	return 0;
 }
 
@@ -177,14 +202,85 @@ int pfn_is_nosave(unsigned long pfn)
 	return (pfn >= nosave_begin_pfn) && (pfn < nosave_end_pfn);
 }
 
+#define MD5_DIGEST_SIZE 16
+
 struct restore_data_record {
 	unsigned long jump_address;
 	unsigned long jump_address_phys;
 	unsigned long cr3;
 	unsigned long magic;
+	u8 e820_digest[MD5_DIGEST_SIZE];
 };
 
-#define RESTORE_MAGIC	0x123456789ABCDEF0UL
+#define RESTORE_MAGIC	0x23456789ABCDEF01UL
+
+#if IS_BUILTIN(CONFIG_CRYPTO_MD5)
+/**
+ * get_e820_md5 - calculate md5 according to given e820 table
+ *
+ * @table: the e820 table to be calculated
+ * @buf: the md5 result to be stored to
+ */
+static int get_e820_md5(struct e820_table *table, void *buf)
+{
+	struct scatterlist sg;
+	struct crypto_ahash *tfm;
+	int size;
+	int ret = 0;
+
+	tfm = crypto_alloc_ahash("md5", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(tfm))
+		return -ENOMEM;
+
+	{
+		AHASH_REQUEST_ON_STACK(req, tfm);
+		size = offsetof(struct e820_table, entries) + sizeof(struct e820_entry) * table->nr_entries;
+		ahash_request_set_tfm(req, tfm);
+		sg_init_one(&sg, (u8 *)table, size);
+		ahash_request_set_callback(req, 0, NULL, NULL);
+		ahash_request_set_crypt(req, &sg, buf, size);
+
+		if (crypto_ahash_digest(req))
+			ret = -EINVAL;
+		ahash_request_zero(req);
+	}
+	crypto_free_ahash(tfm);
+
+	return ret;
+}
+
+static void hibernation_e820_save(void *buf)
+{
+	get_e820_md5(e820_table_firmware, buf);
+}
+
+static bool hibernation_e820_mismatch(void *buf)
+{
+	int ret;
+	u8 result[MD5_DIGEST_SIZE];
+
+	memset(result, 0, MD5_DIGEST_SIZE);
+	/* If there is no digest in suspend kernel, let it go. */
+	if (!memcmp(result, buf, MD5_DIGEST_SIZE))
+		return false;
+
+	ret = get_e820_md5(e820_table_firmware, result);
+	if (ret)
+		return true;
+
+	return memcmp(result, buf, MD5_DIGEST_SIZE) ? true : false;
+}
+#else
+static void hibernation_e820_save(void *buf)
+{
+}
+
+static bool hibernation_e820_mismatch(void *buf)
+{
+	/* If md5 is not builtin for restore kernel, let it go. */
+	return false;
+}
+#endif
 
 /**
  *	arch_hibernation_header_save - populate the architecture specific part
@@ -197,10 +293,32 @@ int arch_hibernation_header_save(void *addr, unsigned int max_size)
 
 	if (max_size < sizeof(struct restore_data_record))
 		return -EOVERFLOW;
-	rdr->jump_address = (unsigned long)&restore_registers;
-	rdr->jump_address_phys = __pa_symbol(&restore_registers);
-	rdr->cr3 = restore_cr3;
+	rdr->jump_address = (unsigned long)restore_registers;
+	rdr->jump_address_phys = __pa_symbol(restore_registers);
+
+	/*
+	 * The restore code fixes up CR3 and CR4 in the following sequence:
+	 *
+	 * [in hibernation asm]
+	 * 1. CR3 <= temporary page tables
+	 * 2. CR4 <= mmu_cr4_features (from the kernel that restores us)
+	 * 3. CR3 <= rdr->cr3
+	 * 4. CR4 <= mmu_cr4_features (from us, i.e. the image kernel)
+	 * [in restore_processor_state()]
+	 * 5. CR4 <= saved CR4
+	 * 6. CR3 <= saved CR3
+	 *
+	 * Our mmu_cr4_features has CR4.PCIDE=0, and toggling
+	 * CR4.PCIDE while CR3's PCID bits are nonzero is illegal, so
+	 * rdr->cr3 needs to point to valid page tables but must not
+	 * have any of the PCID bits set.
+	 */
+	rdr->cr3 = restore_cr3 & ~CR3_PCID_MASK;
+
 	rdr->magic = RESTORE_MAGIC;
+
+	hibernation_e820_save(rdr->e820_digest);
+
 	return 0;
 }
 
@@ -216,5 +334,16 @@ int arch_hibernation_header_restore(void *addr)
 	restore_jump_address = rdr->jump_address;
 	jump_address_phys = rdr->jump_address_phys;
 	restore_cr3 = rdr->cr3;
-	return (rdr->magic == RESTORE_MAGIC) ? 0 : -EINVAL;
+
+	if (rdr->magic != RESTORE_MAGIC) {
+		pr_crit("Unrecognized hibernate image header format!\n");
+		return -EINVAL;
+	}
+
+	if (hibernation_e820_mismatch(rdr->e820_digest)) {
+		pr_crit("Hibernate inconsistent memory map detected!\n");
+		return -ENODEV;
+	}
+
+	return 0;
 }

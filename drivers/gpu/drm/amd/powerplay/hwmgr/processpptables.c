@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "pp_debug.h"
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -27,7 +28,6 @@
 #include "processpptables.h"
 #include <atom-types.h>
 #include <atombios.h>
-#include "pp_debug.h"
 #include "pptable.h"
 #include "power_state.h"
 #include "hwmgr.h"
@@ -1015,6 +1015,10 @@ static int init_overdrive_limits(struct pp_hwmgr *hwmgr,
 	hwmgr->platform_descriptor.overdriveLimit.memoryClock = 0;
 	hwmgr->platform_descriptor.minOverdriveVDDC = 0;
 	hwmgr->platform_descriptor.maxOverdriveVDDC = 0;
+	hwmgr->platform_descriptor.overdriveVDDCStep = 0;
+
+	if (hwmgr->chip_id == CHIP_RAVEN)
+		return 0;
 
 	/* We assume here that fw_info is unchanged if this call fails.*/
 	fw_info = cgs_atom_get_data_table(hwmgr->device,
@@ -1507,7 +1511,7 @@ static int init_phase_shedding_table(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-int get_number_of_vce_state_table_entries(
+static int get_number_of_vce_state_table_entries(
 						  struct pp_hwmgr *hwmgr)
 {
 	const ATOM_PPLIB_POWERPLAYTABLE *table =
@@ -1521,9 +1525,9 @@ int get_number_of_vce_state_table_entries(
 	return 0;
 }
 
-int get_vce_state_table_entry(struct pp_hwmgr *hwmgr,
+static int get_vce_state_table_entry(struct pp_hwmgr *hwmgr,
 							unsigned long i,
-							struct pp_vce_state *vce_state,
+							struct amd_vce_state *vce_state,
 							void **clock_info,
 							unsigned long *flag)
 {
@@ -1558,6 +1562,9 @@ static int pp_tables_initialize(struct pp_hwmgr *hwmgr)
 {
 	int result;
 	const ATOM_PPLIB_POWERPLAYTABLE *powerplay_table;
+
+	if (hwmgr->chip_id == CHIP_RAVEN)
+		return 0;
 
 	hwmgr->need_pp_table_upload = true;
 
@@ -1605,6 +1612,9 @@ static int pp_tables_initialize(struct pp_hwmgr *hwmgr)
 
 static int pp_tables_uninitialize(struct pp_hwmgr *hwmgr)
 {
+	if (hwmgr->chip_id == CHIP_RAVEN)
+		return 0;
+
 	if (NULL != hwmgr->dyn_state.vddc_dependency_on_sclk) {
 		kfree(hwmgr->dyn_state.vddc_dependency_on_sclk);
 		hwmgr->dyn_state.vddc_dependency_on_sclk = NULL;

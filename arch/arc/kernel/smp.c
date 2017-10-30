@@ -13,7 +13,7 @@
  */
 
 #include <linux/spinlock.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/interrupt.h>
 #include <linux/profile.h>
 #include <linux/mm.h>
@@ -23,6 +23,8 @@
 #include <linux/cpumask.h>
 #include <linux/reboot.h>
 #include <linux/irqdomain.h>
+#include <linux/export.h>
+
 #include <asm/processor.h>
 #include <asm/setup.h>
 #include <asm/mach_desc.h>
@@ -30,6 +32,9 @@
 #ifndef CONFIG_ARC_HAS_LLSC
 arch_spinlock_t smp_atomic_ops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 arch_spinlock_t smp_bitops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
+
+EXPORT_SYMBOL_GPL(smp_atomic_ops_lock);
+EXPORT_SYMBOL_GPL(smp_bitops_lock);
 #endif
 
 struct plat_smp_ops  __weak plat_smp_ops;
@@ -90,21 +95,36 @@ void __init smp_cpus_done(unsigned int max_cpus)
  */
 static volatile int wake_flag;
 
+#ifdef CONFIG_ISA_ARCOMPACT
+
+#define __boot_read(f)		f
+#define __boot_write(f, v)	f = v
+
+#else
+
+#define __boot_read(f)		arc_read_uncached_32(&f)
+#define __boot_write(f, v)	arc_write_uncached_32(&f, v)
+
+#endif
+
 static void arc_default_smp_cpu_kick(int cpu, unsigned long pc)
 {
 	BUG_ON(cpu == 0);
-	wake_flag = cpu;
+
+	__boot_write(wake_flag, cpu);
 }
 
 void arc_platform_smp_wait_to_boot(int cpu)
 {
-	while (wake_flag != cpu)
+	/* for halt-on-reset, we've waited already */
+	if (IS_ENABLED(CONFIG_ARC_SMP_HALT_ON_RESET))
+		return;
+
+	while (__boot_read(wake_flag) != cpu)
 		;
 
-	wake_flag = 0;
-	__asm__ __volatile__("j @first_lines_of_secondary	\n");
+	__boot_write(wake_flag, 0);
 }
-
 
 const char *arc_platform_smp_cpuinfo(void)
 {
@@ -124,8 +144,8 @@ void start_kernel_secondary(void)
 	/* MMU, Caches, Vector Table, Interrupts etc */
 	setup_processor();
 
-	atomic_inc(&mm->mm_users);
-	atomic_inc(&mm->mm_count);
+	mmget(mm);
+	mmgrab(mm);
 	current->active_mm = mm;
 	cpumask_set_cpu(cpu, mm_cpumask(mm));
 

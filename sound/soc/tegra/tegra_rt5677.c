@@ -93,7 +93,7 @@ static int tegra_rt5677_event_hp(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static struct snd_soc_ops tegra_rt5677_ops = {
+static const struct snd_soc_ops tegra_rt5677_ops = {
 	.hw_params = tegra_rt5677_asoc_hw_params,
 };
 
@@ -169,23 +169,6 @@ static int tegra_rt5677_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static int tegra_rt5677_card_remove(struct snd_soc_card *card)
-{
-	struct tegra_rt5677 *machine = snd_soc_card_get_drvdata(card);
-
-	if (gpio_is_valid(machine->gpio_hp_det)) {
-		snd_soc_jack_free_gpios(&tegra_rt5677_hp_jack, 1,
-				&tegra_rt5677_hp_jack_gpio);
-	}
-
-	if (gpio_is_valid(machine->gpio_mic_present)) {
-		snd_soc_jack_free_gpios(&tegra_rt5677_mic_jack, 1,
-				&tegra_rt5677_mic_jack_gpio);
-	}
-
-	return 0;
-}
-
 static struct snd_soc_dai_link tegra_rt5677_dai = {
 	.name = "RT5677",
 	.stream_name = "RT5677 PCM",
@@ -199,7 +182,6 @@ static struct snd_soc_dai_link tegra_rt5677_dai = {
 static struct snd_soc_card snd_soc_tegra_rt5677 = {
 	.name = "tegra-rt5677",
 	.owner = THIS_MODULE,
-	.remove = tegra_rt5677_card_remove,
 	.dai_link = &tegra_rt5677_dai,
 	.num_links = 1,
 	.controls = tegra_rt5677_controls,
@@ -222,7 +204,6 @@ static int tegra_rt5677_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	card->dev = &pdev->dev;
-	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, machine);
 
 	machine->gpio_hp_det = of_get_named_gpio(np, "nvidia,hp-det-gpios", 0);

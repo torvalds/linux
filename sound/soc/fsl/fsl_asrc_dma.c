@@ -20,7 +20,7 @@
 
 #define FSL_ASRC_DMABUF_SIZE	(256 * 1024)
 
-static struct snd_pcm_hardware snd_imx_hardware = {
+static const struct snd_pcm_hardware snd_imx_hardware = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_MMAP |
@@ -76,7 +76,7 @@ static int fsl_asrc_dma_prepare_and_submit(struct snd_pcm_substream *substream)
 			pair->dma_chan[!dir], runtime->dma_addr,
 			snd_pcm_lib_buffer_bytes(substream),
 			snd_pcm_lib_period_bytes(substream),
-			dir == OUT ? DMA_TO_DEVICE : DMA_FROM_DEVICE, flags);
+			dir == OUT ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM, flags);
 	if (!pair->desc[!dir]) {
 		dev_err(dev, "failed to prepare slave DMA for Front-End\n");
 		return -ENOMEM;
@@ -279,10 +279,8 @@ static int fsl_asrc_dma_startup(struct snd_pcm_substream *substream)
 	struct fsl_asrc_pair *pair;
 
 	pair = kzalloc(sizeof(struct fsl_asrc_pair), GFP_KERNEL);
-	if (!pair) {
-		dev_err(dev, "failed to allocate pair\n");
+	if (!pair)
 		return -ENOMEM;
-	}
 
 	pair->asrc_priv = asrc_priv;
 

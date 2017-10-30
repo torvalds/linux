@@ -14,9 +14,7 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/edac.h>
-#include "edac_core.h"
-
-#define I3000_REVISION		"1.1"
+#include "edac_module.h"
 
 #define EDAC_MOD_STR		"i3000_edac"
 
@@ -375,7 +373,6 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->edac_cap = EDAC_FLAG_SECDED;
 
 	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = I3000_REVISION;
 	mci->ctl_name = i3000_devs[dev_idx].ctl_name;
 	mci->dev_name = pci_name(pdev);
 	mci->edac_check = i3000_check;

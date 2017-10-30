@@ -27,6 +27,9 @@ static struct clk_hw *uniphier_clk_register(struct device *dev,
 					const struct uniphier_clk_data *data)
 {
 	switch (data->type) {
+	case UNIPHIER_CLK_TYPE_CPUGEAR:
+		return uniphier_clk_register_cpugear(dev, regmap, data->name,
+						     &data->data.cpugear);
 	case UNIPHIER_CLK_TYPE_FIXED_FACTOR:
 		return uniphier_clk_register_fixed_factor(dev, data->name,
 							  &data->data.factor);
@@ -87,11 +90,8 @@ static int uniphier_clk_probe(struct platform_device *pdev)
 
 		dev_dbg(dev, "register %s (index=%d)\n", p->name, p->idx);
 		hw = uniphier_clk_register(dev, regmap, p);
-		if (IS_ERR(hw)) {
-			dev_err(dev, "failed to register %s (error %ld)\n",
-				p->name, PTR_ERR(hw));
-			return PTR_ERR(hw);
-		}
+		if (WARN(IS_ERR(hw), "failed to register %s", p->name))
+			continue;
 
 		if (p->idx >= 0)
 			hw_data->hws[p->idx] = hw;
@@ -110,10 +110,6 @@ static int uniphier_clk_remove(struct platform_device *pdev)
 
 static const struct of_device_id uniphier_clk_match[] = {
 	/* System clock */
-	{
-		.compatible = "socionext,uniphier-sld3-clock",
-		.data = uniphier_sld3_sys_clk_data,
-	},
 	{
 		.compatible = "socionext,uniphier-ld4-clock",
 		.data = uniphier_ld4_sys_clk_data,
@@ -142,22 +138,22 @@ static const struct of_device_id uniphier_clk_match[] = {
 		.compatible = "socionext,uniphier-ld20-clock",
 		.data = uniphier_ld20_sys_clk_data,
 	},
+	{
+		.compatible = "socionext,uniphier-pxs3-clock",
+		.data = uniphier_pxs3_sys_clk_data,
+	},
 	/* Media I/O clock, SD clock */
 	{
-		.compatible = "socionext,uniphier-sld3-mio-clock",
-		.data = uniphier_sld3_mio_clk_data,
-	},
-	{
 		.compatible = "socionext,uniphier-ld4-mio-clock",
-		.data = uniphier_sld3_mio_clk_data,
+		.data = uniphier_ld4_mio_clk_data,
 	},
 	{
 		.compatible = "socionext,uniphier-pro4-mio-clock",
-		.data = uniphier_sld3_mio_clk_data,
+		.data = uniphier_ld4_mio_clk_data,
 	},
 	{
 		.compatible = "socionext,uniphier-sld8-mio-clock",
-		.data = uniphier_sld3_mio_clk_data,
+		.data = uniphier_ld4_mio_clk_data,
 	},
 	{
 		.compatible = "socionext,uniphier-pro5-sd-clock",
@@ -169,10 +165,14 @@ static const struct of_device_id uniphier_clk_match[] = {
 	},
 	{
 		.compatible = "socionext,uniphier-ld11-mio-clock",
-		.data = uniphier_sld3_mio_clk_data,
+		.data = uniphier_ld4_mio_clk_data,
 	},
 	{
 		.compatible = "socionext,uniphier-ld20-sd-clock",
+		.data = uniphier_pro5_sd_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-pxs3-sd-clock",
 		.data = uniphier_pro5_sd_clk_data,
 	},
 	/* Peripheral clock */
@@ -202,6 +202,10 @@ static const struct of_device_id uniphier_clk_match[] = {
 	},
 	{
 		.compatible = "socionext,uniphier-ld20-peri-clock",
+		.data = uniphier_pro4_peri_clk_data,
+	},
+	{
+		.compatible = "socionext,uniphier-pxs3-peri-clock",
 		.data = uniphier_pro4_peri_clk_data,
 	},
 	{ /* sentinel */ }

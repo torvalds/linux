@@ -19,6 +19,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/platform_device.h>
 #include <linux/acpi.h>
 #include <linux/device.h>
@@ -56,37 +57,88 @@ enum {
 struct byt_rt5640_private {
 	struct clk *mclk;
 };
+static bool is_bytcr;
 
-static unsigned long byt_rt5640_quirk = BYT_RT5640_DMIC1_MAP |
-					BYT_RT5640_DMIC_EN |
-					BYT_RT5640_MCLK_EN;
+static unsigned long byt_rt5640_quirk = BYT_RT5640_MCLK_EN;
+static unsigned int quirk_override;
+module_param_named(quirk, quirk_override, uint, 0444);
+MODULE_PARM_DESC(quirk, "Board-specific quirk override");
 
 static void log_quirks(struct device *dev)
 {
-	if (BYT_RT5640_MAP(byt_rt5640_quirk) == BYT_RT5640_DMIC1_MAP)
-		dev_info(dev, "quirk DMIC1_MAP enabled");
-	if (BYT_RT5640_MAP(byt_rt5640_quirk) == BYT_RT5640_DMIC2_MAP)
-		dev_info(dev, "quirk DMIC2_MAP enabled");
-	if (BYT_RT5640_MAP(byt_rt5640_quirk) == BYT_RT5640_IN1_MAP)
-		dev_info(dev, "quirk IN1_MAP enabled");
-	if (BYT_RT5640_MAP(byt_rt5640_quirk) == BYT_RT5640_IN3_MAP)
-		dev_info(dev, "quirk IN3_MAP enabled");
-	if (byt_rt5640_quirk & BYT_RT5640_DMIC_EN)
-		dev_info(dev, "quirk DMIC enabled");
+	int map;
+	bool has_dmic = false;
+	bool has_mclk = false;
+	bool has_ssp0 = false;
+	bool has_ssp0_aif1 = false;
+	bool has_ssp0_aif2 = false;
+	bool has_ssp2_aif2 = false;
+
+	map = BYT_RT5640_MAP(byt_rt5640_quirk);
+	switch (map) {
+	case BYT_RT5640_DMIC1_MAP:
+		dev_info(dev, "quirk DMIC1_MAP enabled\n");
+		has_dmic = true;
+		break;
+	case BYT_RT5640_DMIC2_MAP:
+		dev_info(dev, "quirk DMIC2_MAP enabled\n");
+		has_dmic = true;
+		break;
+	case BYT_RT5640_IN1_MAP:
+		dev_info(dev, "quirk IN1_MAP enabled\n");
+		break;
+	case BYT_RT5640_IN3_MAP:
+		dev_info(dev, "quirk IN3_MAP enabled\n");
+		break;
+	default:
+		dev_err(dev, "quirk map 0x%x is not supported, microphone input will not work\n", map);
+		break;
+	}
+	if (byt_rt5640_quirk & BYT_RT5640_DMIC_EN) {
+		if (has_dmic)
+			dev_info(dev, "quirk DMIC enabled\n");
+		else
+			dev_err(dev, "quirk DMIC enabled but no DMIC input set, will be ignored\n");
+	}
 	if (byt_rt5640_quirk & BYT_RT5640_MONO_SPEAKER)
-		dev_info(dev, "quirk MONO_SPEAKER enabled");
-	if (byt_rt5640_quirk & BYT_RT5640_DIFF_MIC)
-		dev_info(dev, "quirk DIFF_MIC enabled");
-	if (byt_rt5640_quirk & BYT_RT5640_SSP2_AIF2)
-		dev_info(dev, "quirk SSP2_AIF2 enabled");
-	if (byt_rt5640_quirk & BYT_RT5640_SSP0_AIF1)
-		dev_info(dev, "quirk SSP0_AIF1 enabled");
-	if (byt_rt5640_quirk & BYT_RT5640_SSP0_AIF2)
-		dev_info(dev, "quirk SSP0_AIF2 enabled");
-	if (byt_rt5640_quirk & BYT_RT5640_MCLK_EN)
-		dev_info(dev, "quirk MCLK_EN enabled");
-	if (byt_rt5640_quirk & BYT_RT5640_MCLK_25MHZ)
-		dev_info(dev, "quirk MCLK_25MHZ enabled");
+		dev_info(dev, "quirk MONO_SPEAKER enabled\n");
+	if (byt_rt5640_quirk & BYT_RT5640_DIFF_MIC) {
+		if (!has_dmic)
+			dev_info(dev, "quirk DIFF_MIC enabled\n");
+		else
+			dev_info(dev, "quirk DIFF_MIC enabled but DMIC input selected, will be ignored\n");
+	}
+	if (byt_rt5640_quirk & BYT_RT5640_SSP0_AIF1) {
+		dev_info(dev, "quirk SSP0_AIF1 enabled\n");
+		has_ssp0 = true;
+		has_ssp0_aif1 = true;
+	}
+	if (byt_rt5640_quirk & BYT_RT5640_SSP0_AIF2) {
+		dev_info(dev, "quirk SSP0_AIF2 enabled\n");
+		has_ssp0 = true;
+		has_ssp0_aif2 = true;
+	}
+	if (byt_rt5640_quirk & BYT_RT5640_SSP2_AIF2) {
+		dev_info(dev, "quirk SSP2_AIF2 enabled\n");
+		has_ssp2_aif2 = true;
+	}
+	if (is_bytcr && !has_ssp0)
+		dev_err(dev, "Invalid routing, bytcr detected but no SSP0-based quirk, audio cannot work with SSP2 on bytcr\n");
+	if (has_ssp0_aif1 && has_ssp0_aif2)
+		dev_err(dev, "Invalid routing, SSP0 cannot be connected to both AIF1 and AIF2\n");
+	if (has_ssp0 && has_ssp2_aif2)
+		dev_err(dev, "Invalid routing, cannot have both SSP0 and SSP2 connected to codec\n");
+
+	if (byt_rt5640_quirk & BYT_RT5640_MCLK_EN) {
+		dev_info(dev, "quirk MCLK_EN enabled\n");
+		has_mclk = true;
+	}
+	if (byt_rt5640_quirk & BYT_RT5640_MCLK_25MHZ) {
+		if (has_mclk)
+			dev_info(dev, "quirk MCLK_25MHZ enabled\n");
+		else
+			dev_err(dev, "quirk MCLK_25MHZ enabled but quirk MCLK not selected, will be ignored\n");
+	}
 }
 
 
@@ -130,7 +182,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 			ret = clk_prepare_enable(priv->mclk);
 			if (ret < 0) {
 				dev_err(card->dev,
-					"could not configure MCLK state");
+					"could not configure MCLK state\n");
 				return ret;
 			}
 		}
@@ -144,7 +196,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 		 * for Jack detection and button press
 		 */
 		ret = snd_soc_dai_set_sysclk(codec_dai, RT5640_SCLK_S_RCCLK,
-					     0,
+					     48000 * 512,
 					     SND_SOC_CLOCK_IN);
 		if (!ret) {
 			if ((byt_rt5640_quirk & BYT_RT5640_MCLK_EN) && priv->mclk)
@@ -389,6 +441,16 @@ static const struct dmi_system_id byt_rt5640_quirk_table[] = {
 						 BYT_RT5640_SSP0_AIF1),
 
 	},
+	{
+		.callback = byt_rt5640_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
+		},
+		.driver_data = (unsigned long *)(BYT_RT5640_IN3_MAP |
+						 BYT_RT5640_MCLK_EN |
+						 BYT_RT5640_SSP0_AIF1),
+
+	},
 	{}
 };
 
@@ -548,7 +610,7 @@ static int byt_rt5640_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 		 */
 		ret = snd_soc_dai_set_fmt(rtd->cpu_dai,
 					SND_SOC_DAIFMT_I2S     |
-					SND_SOC_DAIFMT_NB_IF   |
+					SND_SOC_DAIFMT_NB_NF   |
 					SND_SOC_DAIFMT_CBS_CFS
 			);
 		if (ret < 0) {
@@ -574,7 +636,7 @@ static int byt_rt5640_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 		 */
 		ret = snd_soc_dai_set_fmt(rtd->cpu_dai,
 					SND_SOC_DAIFMT_I2S     |
-					SND_SOC_DAIFMT_NB_IF   |
+					SND_SOC_DAIFMT_NB_NF   |
 					SND_SOC_DAIFMT_CBS_CFS
 			);
 		if (ret < 0) {
@@ -597,11 +659,11 @@ static int byt_rt5640_aif1_startup(struct snd_pcm_substream *substream)
 			SNDRV_PCM_HW_PARAM_RATE, 48000);
 }
 
-static struct snd_soc_ops byt_rt5640_aif1_ops = {
+static const struct snd_soc_ops byt_rt5640_aif1_ops = {
 	.startup = byt_rt5640_aif1_startup,
 };
 
-static struct snd_soc_ops byt_rt5640_be_ssp2_ops = {
+static const struct snd_soc_ops byt_rt5640_be_ssp2_ops = {
 	.hw_params = byt_rt5640_aif1_hw_params,
 };
 
@@ -613,7 +675,7 @@ static struct snd_soc_dai_link byt_rt5640_dais[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 		.platform_name = "sst-mfld-platform",
-		.ignore_suspend = 1,
+		.nonatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
@@ -626,7 +688,6 @@ static struct snd_soc_dai_link byt_rt5640_dais[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 		.platform_name = "sst-mfld-platform",
-		.ignore_suspend = 1,
 		.nonatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
@@ -653,6 +714,7 @@ static struct snd_soc_dai_link byt_rt5640_dais[] = {
 						| SND_SOC_DAIFMT_CBS_CFS,
 		.be_hw_params_fixup = byt_rt5640_codec_fixup,
 		.ignore_suspend = 1,
+		.nonatomic = true,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.init = byt_rt5640_init,
@@ -689,6 +751,10 @@ static bool is_valleyview(void)
 	return true;
 }
 
+struct acpi_chan_package {   /* ACPICA seems to require 64 bit integers */
+	u64 aif_value;       /* 1: AIF1, 2: AIF2 */
+	u64 mclock_value;    /* usually 25MHz (0x17d7940), ignored */
+};
 
 static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 {
@@ -699,6 +765,7 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 	int dai_index;
 	struct byt_rt5640_private *priv;
 
+	is_bytcr = false;
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_ATOMIC);
 	if (!priv)
 		return -ENOMEM;
@@ -734,14 +801,70 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 		struct sst_platform_info *p_info = mach->pdata;
 		const struct sst_res_info *res_info = p_info->res_info;
 
-		/* TODO: use CHAN package info from BIOS to detect AIF1/AIF2 */
-		if (res_info->acpi_ipc_irq_index == 0) {
+		if (res_info->acpi_ipc_irq_index == 0)
+			is_bytcr = true;
+	}
+
+	if (is_bytcr) {
+		/*
+		 * Baytrail CR platforms may have CHAN package in BIOS, try
+		 * to find relevant routing quirk based as done on Windows
+		 * platforms. We have to read the information directly from the
+		 * BIOS, at this stage the card is not created and the links
+		 * with the codec driver/pdata are non-existent
+		 */
+
+		struct acpi_chan_package chan_package;
+
+		/* format specified: 2 64-bit integers */
+		struct acpi_buffer format = {sizeof("NN"), "NN"};
+		struct acpi_buffer state = {0, NULL};
+		struct sst_acpi_package_context pkg_ctx;
+		bool pkg_found = false;
+
+		state.length = sizeof(chan_package);
+		state.pointer = &chan_package;
+
+		pkg_ctx.name = "CHAN";
+		pkg_ctx.length = 2;
+		pkg_ctx.format = &format;
+		pkg_ctx.state = &state;
+		pkg_ctx.data_valid = false;
+
+		pkg_found = sst_acpi_find_package_from_hid(mach->id, &pkg_ctx);
+		if (pkg_found) {
+			if (chan_package.aif_value == 1) {
+				dev_info(&pdev->dev, "BIOS Routing: AIF1 connected\n");
+				byt_rt5640_quirk |= BYT_RT5640_SSP0_AIF1;
+			} else  if (chan_package.aif_value == 2) {
+				dev_info(&pdev->dev, "BIOS Routing: AIF2 connected\n");
+				byt_rt5640_quirk |= BYT_RT5640_SSP0_AIF2;
+			} else {
+				dev_info(&pdev->dev, "BIOS Routing isn't valid, ignored\n");
+				pkg_found = false;
+			}
+		}
+
+		if (!pkg_found) {
+			/* no BIOS indications, assume SSP0-AIF2 connection */
 			byt_rt5640_quirk |= BYT_RT5640_SSP0_AIF2;
 		}
+
+		/* change defaults for Baytrail-CR capture */
+		byt_rt5640_quirk |= BYT_RT5640_IN1_MAP;
+		byt_rt5640_quirk |= BYT_RT5640_DIFF_MIC;
+	} else {
+		byt_rt5640_quirk |= (BYT_RT5640_DMIC1_MAP |
+				BYT_RT5640_DMIC_EN);
 	}
 
 	/* check quirks before creating card */
 	dmi_check_system(byt_rt5640_quirk_table);
+	if (quirk_override) {
+		dev_info(&pdev->dev, "Overriding quirk 0x%x => 0x%x\n",
+			 (unsigned int)byt_rt5640_quirk, quirk_override);
+		byt_rt5640_quirk = quirk_override;
+	}
 	log_quirks(&pdev->dev);
 
 	if ((byt_rt5640_quirk & BYT_RT5640_SSP2_AIF2) ||
@@ -771,10 +894,20 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 	if ((byt_rt5640_quirk & BYT_RT5640_MCLK_EN) && (is_valleyview())) {
 		priv->mclk = devm_clk_get(&pdev->dev, "pmc_plt_clk_3");
 		if (IS_ERR(priv->mclk)) {
+			ret_val = PTR_ERR(priv->mclk);
+
 			dev_err(&pdev->dev,
-				"Failed to get MCLK from pmc_plt_clk_3: %ld\n",
-				PTR_ERR(priv->mclk));
-			return PTR_ERR(priv->mclk);
+				"Failed to get MCLK from pmc_plt_clk_3: %d\n",
+				ret_val);
+
+			/*
+			 * Fall back to bit clock usage for -ENOENT (clock not
+			 * available likely due to missing dependencies), bail
+			 * for all other errors, including -EPROBE_DEFER
+			 */
+			if (ret_val != -ENOENT)
+				return ret_val;
+			byt_rt5640_quirk &= ~BYT_RT5640_MCLK_EN;
 		}
 	}
 
@@ -792,7 +925,6 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 static struct platform_driver snd_byt_rt5640_mc_driver = {
 	.driver = {
 		.name = "bytcr_rt5640",
-		.pm = &snd_soc_pm_ops,
 	},
 	.probe = snd_byt_rt5640_mc_probe,
 };

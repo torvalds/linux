@@ -15,6 +15,9 @@
 
 #undef DEBUG_PROM
 
+/* we cannot use FORTIFY as it brings in new symbols */
+#define __NO_FORTIFY
+
 #include <stdarg.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -167,6 +170,15 @@ static int __initdata prom_iommu_off;
 static unsigned long __initdata prom_tce_alloc_start;
 static unsigned long __initdata prom_tce_alloc_end;
 #endif
+
+static bool __initdata prom_radix_disable;
+
+struct platform_support {
+	bool hash_mmu;
+	bool radix_mmu;
+	bool radix_gtse;
+	bool xive;
+};
 
 /* Platforms codes are now obsolete in the kernel. Now only used within this
  * file and ultimately gone too. Feel free to change them if you need, they
@@ -461,14 +473,14 @@ static int __init prom_next_node(phandle *nodep)
 	}
 }
 
-static int inline prom_getprop(phandle node, const char *pname,
+static inline int prom_getprop(phandle node, const char *pname,
 			       void *value, size_t valuelen)
 {
 	return call_prom("getprop", 4, 1, node, ADDR(pname),
 			 (u32)(unsigned long) value, (u32) valuelen);
 }
 
-static int inline prom_getproplen(phandle node, const char *pname)
+static inline int prom_getproplen(phandle node, const char *pname)
 {
 	return call_prom("getproplen", 2, 1, node, ADDR(pname));
 }
@@ -626,6 +638,12 @@ static void __init early_cmdline_parse(void)
 		prom_memory_limit = ALIGN(prom_memory_limit, 0x1000000);
 #endif
 	}
+
+	opt = strstr(prom_cmd_line, "disable_radix");
+	if (opt) {
+		prom_debug("Radix disabled from cmdline\n");
+		prom_radix_disable = true;
+	}
 }
 
 #if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
@@ -635,13 +653,7 @@ static void __init early_cmdline_parse(void)
  *
  * See prom.h for the definition of the bits specified in the
  * architecture vector.
- *
- * Because the description vector contains a mix of byte and word
- * values, we declare it as an unsigned char array, and use this
- * macro to put word values in.
  */
-#define W(x)	((x) >> 24) & 0xff, ((x) >> 16) & 0xff, \
-		((x) >> 8) & 0xff, (x) & 0xff
 
 /* Firmware expects the value to be n - 1, where n is the # of vectors */
 #define NUM_VECTORS(n)		((n) - 1)
@@ -652,92 +664,224 @@ static void __init early_cmdline_parse(void)
  */
 #define VECTOR_LENGTH(n)	(1 + (n) - 2)
 
-unsigned char ibm_architecture_vec[] = {
-	W(0xfffe0000), W(0x003a0000),	/* POWER5/POWER5+ */
-	W(0xffff0000), W(0x003e0000),	/* POWER6 */
-	W(0xffff0000), W(0x003f0000),	/* POWER7 */
-	W(0xffff0000), W(0x004b0000),	/* POWER8E */
-	W(0xffff0000), W(0x004c0000),   /* POWER8NVL */
-	W(0xffff0000), W(0x004d0000),	/* POWER8 */
-	W(0xffffffff), W(0x0f000004),	/* all 2.07-compliant */
-	W(0xffffffff), W(0x0f000003),	/* all 2.06-compliant */
-	W(0xffffffff), W(0x0f000002),	/* all 2.05-compliant */
-	W(0xfffffffe), W(0x0f000001),	/* all 2.04-compliant and earlier */
-	NUM_VECTORS(6),			/* 6 option vectors */
+struct option_vector1 {
+	u8 byte1;
+	u8 arch_versions;
+	u8 arch_versions3;
+} __packed;
 
-	/* option vector 1: processor architectures supported */
-	VECTOR_LENGTH(2),		/* length */
-	0,				/* don't ignore, don't halt */
-	OV1_PPC_2_00 | OV1_PPC_2_01 | OV1_PPC_2_02 | OV1_PPC_2_03 |
-	OV1_PPC_2_04 | OV1_PPC_2_05 | OV1_PPC_2_06 | OV1_PPC_2_07,
+struct option_vector2 {
+	u8 byte1;
+	__be16 reserved;
+	__be32 real_base;
+	__be32 real_size;
+	__be32 virt_base;
+	__be32 virt_size;
+	__be32 load_base;
+	__be32 min_rma;
+	__be32 min_load;
+	u8 min_rma_percent;
+	u8 max_pft_size;
+} __packed;
 
+struct option_vector3 {
+	u8 byte1;
+	u8 byte2;
+} __packed;
+
+struct option_vector4 {
+	u8 byte1;
+	u8 min_vp_cap;
+} __packed;
+
+struct option_vector5 {
+	u8 byte1;
+	u8 byte2;
+	u8 byte3;
+	u8 cmo;
+	u8 associativity;
+	u8 bin_opts;
+	u8 micro_checkpoint;
+	u8 reserved0;
+	__be32 max_cpus;
+	__be16 papr_level;
+	__be16 reserved1;
+	u8 platform_facilities;
+	u8 reserved2;
+	__be16 reserved3;
+	u8 subprocessors;
+	u8 byte22;
+	u8 intarch;
+	u8 mmu;
+	u8 hash_ext;
+	u8 radix_ext;
+} __packed;
+
+struct option_vector6 {
+	u8 reserved;
+	u8 secondary_pteg;
+	u8 os_name;
+} __packed;
+
+struct ibm_arch_vec {
+	struct { u32 mask, val; } pvrs[12];
+
+	u8 num_vectors;
+
+	u8 vec1_len;
+	struct option_vector1 vec1;
+
+	u8 vec2_len;
+	struct option_vector2 vec2;
+
+	u8 vec3_len;
+	struct option_vector3 vec3;
+
+	u8 vec4_len;
+	struct option_vector4 vec4;
+
+	u8 vec5_len;
+	struct option_vector5 vec5;
+
+	u8 vec6_len;
+	struct option_vector6 vec6;
+} __packed;
+
+struct ibm_arch_vec __cacheline_aligned ibm_architecture_vec = {
+	.pvrs = {
+		{
+			.mask = cpu_to_be32(0xfffe0000), /* POWER5/POWER5+ */
+			.val  = cpu_to_be32(0x003a0000),
+		},
+		{
+			.mask = cpu_to_be32(0xffff0000), /* POWER6 */
+			.val  = cpu_to_be32(0x003e0000),
+		},
+		{
+			.mask = cpu_to_be32(0xffff0000), /* POWER7 */
+			.val  = cpu_to_be32(0x003f0000),
+		},
+		{
+			.mask = cpu_to_be32(0xffff0000), /* POWER8E */
+			.val  = cpu_to_be32(0x004b0000),
+		},
+		{
+			.mask = cpu_to_be32(0xffff0000), /* POWER8NVL */
+			.val  = cpu_to_be32(0x004c0000),
+		},
+		{
+			.mask = cpu_to_be32(0xffff0000), /* POWER8 */
+			.val  = cpu_to_be32(0x004d0000),
+		},
+		{
+			.mask = cpu_to_be32(0xffff0000), /* POWER9 */
+			.val  = cpu_to_be32(0x004e0000),
+		},
+		{
+			.mask = cpu_to_be32(0xffffffff), /* all 3.00-compliant */
+			.val  = cpu_to_be32(0x0f000005),
+		},
+		{
+			.mask = cpu_to_be32(0xffffffff), /* all 2.07-compliant */
+			.val  = cpu_to_be32(0x0f000004),
+		},
+		{
+			.mask = cpu_to_be32(0xffffffff), /* all 2.06-compliant */
+			.val  = cpu_to_be32(0x0f000003),
+		},
+		{
+			.mask = cpu_to_be32(0xffffffff), /* all 2.05-compliant */
+			.val  = cpu_to_be32(0x0f000002),
+		},
+		{
+			.mask = cpu_to_be32(0xfffffffe), /* all 2.04-compliant and earlier */
+			.val  = cpu_to_be32(0x0f000001),
+		},
+	},
+
+	.num_vectors = NUM_VECTORS(6),
+
+	.vec1_len = VECTOR_LENGTH(sizeof(struct option_vector1)),
+	.vec1 = {
+		.byte1 = 0,
+		.arch_versions = OV1_PPC_2_00 | OV1_PPC_2_01 | OV1_PPC_2_02 | OV1_PPC_2_03 |
+				 OV1_PPC_2_04 | OV1_PPC_2_05 | OV1_PPC_2_06 | OV1_PPC_2_07,
+		.arch_versions3 = OV1_PPC_3_00,
+	},
+
+	.vec2_len = VECTOR_LENGTH(sizeof(struct option_vector2)),
 	/* option vector 2: Open Firmware options supported */
-	VECTOR_LENGTH(33),		/* length */
-	OV2_REAL_MODE,
-	0, 0,
-	W(0xffffffff),			/* real_base */
-	W(0xffffffff),			/* real_size */
-	W(0xffffffff),			/* virt_base */
-	W(0xffffffff),			/* virt_size */
-	W(0xffffffff),			/* load_base */
-	W(256),				/* 256MB min RMA */
-	W(0xffffffff),			/* full client load */
-	0,				/* min RMA percentage of total RAM */
-	48,				/* max log_2(hash table size) */
+	.vec2 = {
+		.byte1 = OV2_REAL_MODE,
+		.reserved = 0,
+		.real_base = cpu_to_be32(0xffffffff),
+		.real_size = cpu_to_be32(0xffffffff),
+		.virt_base = cpu_to_be32(0xffffffff),
+		.virt_size = cpu_to_be32(0xffffffff),
+		.load_base = cpu_to_be32(0xffffffff),
+		.min_rma = cpu_to_be32(512),		/* 512MB min RMA */
+		.min_load = cpu_to_be32(0xffffffff),	/* full client load */
+		.min_rma_percent = 0,	/* min RMA percentage of total RAM */
+		.max_pft_size = 48,	/* max log_2(hash table size) */
+	},
 
+	.vec3_len = VECTOR_LENGTH(sizeof(struct option_vector3)),
 	/* option vector 3: processor options supported */
-	VECTOR_LENGTH(2),		/* length */
-	0,				/* don't ignore, don't halt */
-	OV3_FP | OV3_VMX | OV3_DFP,
+	.vec3 = {
+		.byte1 = 0,			/* don't ignore, don't halt */
+		.byte2 = OV3_FP | OV3_VMX | OV3_DFP,
+	},
 
+	.vec4_len = VECTOR_LENGTH(sizeof(struct option_vector4)),
 	/* option vector 4: IBM PAPR implementation */
-	VECTOR_LENGTH(2),		/* length */
-	0,				/* don't halt */
-	OV4_MIN_ENT_CAP,		/* minimum VP entitled capacity */
+	.vec4 = {
+		.byte1 = 0,			/* don't halt */
+		.min_vp_cap = OV4_MIN_ENT_CAP,	/* minimum VP entitled capacity */
+	},
 
+	.vec5_len = VECTOR_LENGTH(sizeof(struct option_vector5)),
 	/* option vector 5: PAPR/OF options */
-	VECTOR_LENGTH(21),		/* length */
-	0,				/* don't ignore, don't halt */
-	OV5_FEAT(OV5_LPAR) | OV5_FEAT(OV5_SPLPAR) | OV5_FEAT(OV5_LARGE_PAGES) |
-	OV5_FEAT(OV5_DRCONF_MEMORY) | OV5_FEAT(OV5_DONATE_DEDICATE_CPU) |
+	.vec5 = {
+		.byte1 = 0,				/* don't ignore, don't halt */
+		.byte2 = OV5_FEAT(OV5_LPAR) | OV5_FEAT(OV5_SPLPAR) | OV5_FEAT(OV5_LARGE_PAGES) |
+		OV5_FEAT(OV5_DRCONF_MEMORY) | OV5_FEAT(OV5_DONATE_DEDICATE_CPU) |
 #ifdef CONFIG_PCI_MSI
-	/* PCIe/MSI support.  Without MSI full PCIe is not supported */
-	OV5_FEAT(OV5_MSI),
+		/* PCIe/MSI support.  Without MSI full PCIe is not supported */
+		OV5_FEAT(OV5_MSI),
 #else
-	0,
+		0,
 #endif
-	0,
+		.byte3 = 0,
+		.cmo =
 #ifdef CONFIG_PPC_SMLPAR
-	OV5_FEAT(OV5_CMO) | OV5_FEAT(OV5_XCMO),
+		OV5_FEAT(OV5_CMO) | OV5_FEAT(OV5_XCMO),
 #else
-	0,
+		0,
 #endif
-	OV5_FEAT(OV5_TYPE1_AFFINITY) | OV5_FEAT(OV5_PRRN),
-	0,
-	0,
-	0,
-	/* WARNING: The offset of the "number of cores" field below
-	 * must match by the macro below. Update the definition if
-	 * the structure layout changes.
-	 */
-#define IBM_ARCH_VEC_NRCORES_OFFSET	133
-	W(NR_CPUS),			/* number of cores supported */
-	0,
-	0,
-	0,
-	0,
-	OV5_FEAT(OV5_PFO_HW_RNG) | OV5_FEAT(OV5_PFO_HW_ENCR) |
-	OV5_FEAT(OV5_PFO_HW_842),				/* Byte 17 */
-	0,							/* Byte 18 */
-	0,							/* Byte 19 */
-	0,							/* Byte 20 */
-	OV5_FEAT(OV5_SUB_PROCESSORS),				/* Byte 21 */
+		.associativity = OV5_FEAT(OV5_TYPE1_AFFINITY) | OV5_FEAT(OV5_PRRN),
+		.bin_opts = OV5_FEAT(OV5_RESIZE_HPT) | OV5_FEAT(OV5_HP_EVT),
+		.micro_checkpoint = 0,
+		.reserved0 = 0,
+		.max_cpus = cpu_to_be32(NR_CPUS),	/* number of cores supported */
+		.papr_level = 0,
+		.reserved1 = 0,
+		.platform_facilities = OV5_FEAT(OV5_PFO_HW_RNG) | OV5_FEAT(OV5_PFO_HW_ENCR) | OV5_FEAT(OV5_PFO_HW_842),
+		.reserved2 = 0,
+		.reserved3 = 0,
+		.subprocessors = 1,
+		.intarch = 0,
+		.mmu = 0,
+		.hash_ext = 0,
+		.radix_ext = 0,
+	},
 
 	/* option vector 6: IBM PAPR hints */
-	VECTOR_LENGTH(3),		/* length */
-	0,
-	0,
-	OV6_LINUX,
+	.vec6_len = VECTOR_LENGTH(sizeof(struct option_vector6)),
+	.vec6 = {
+		.reserved = 0,
+		.secondary_pteg = 0,
+		.os_name = OV6_LINUX,
+	},
 };
 
 /* Old method - ELF header with PT_NOTE sections only works on BE */
@@ -867,13 +1011,132 @@ static int __init prom_count_smt_threads(void)
 
 }
 
+static void __init prom_parse_mmu_model(u8 val,
+					struct platform_support *support)
+{
+	switch (val) {
+	case OV5_FEAT(OV5_MMU_DYNAMIC):
+	case OV5_FEAT(OV5_MMU_EITHER): /* Either Available */
+		prom_debug("MMU - either supported\n");
+		support->radix_mmu = !prom_radix_disable;
+		support->hash_mmu = true;
+		break;
+	case OV5_FEAT(OV5_MMU_RADIX): /* Only Radix */
+		prom_debug("MMU - radix only\n");
+		if (prom_radix_disable) {
+			/*
+			 * If we __have__ to do radix, we're better off ignoring
+			 * the command line rather than not booting.
+			 */
+			prom_printf("WARNING: Ignoring cmdline option disable_radix\n");
+		}
+		support->radix_mmu = true;
+		break;
+	case OV5_FEAT(OV5_MMU_HASH):
+		prom_debug("MMU - hash only\n");
+		support->hash_mmu = true;
+		break;
+	default:
+		prom_debug("Unknown mmu support option: 0x%x\n", val);
+		break;
+	}
+}
+
+static void __init prom_parse_xive_model(u8 val,
+					 struct platform_support *support)
+{
+	switch (val) {
+	case OV5_FEAT(OV5_XIVE_EITHER): /* Either Available */
+		prom_debug("XIVE - either mode supported\n");
+		support->xive = true;
+		break;
+	case OV5_FEAT(OV5_XIVE_EXPLOIT): /* Only Exploitation mode */
+		prom_debug("XIVE - exploitation mode supported\n");
+		support->xive = true;
+		break;
+	case OV5_FEAT(OV5_XIVE_LEGACY): /* Only Legacy mode */
+		prom_debug("XIVE - legacy mode supported\n");
+		break;
+	default:
+		prom_debug("Unknown xive support option: 0x%x\n", val);
+		break;
+	}
+}
+
+static void __init prom_parse_platform_support(u8 index, u8 val,
+					       struct platform_support *support)
+{
+	switch (index) {
+	case OV5_INDX(OV5_MMU_SUPPORT): /* MMU Model */
+		prom_parse_mmu_model(val & OV5_FEAT(OV5_MMU_SUPPORT), support);
+		break;
+	case OV5_INDX(OV5_RADIX_GTSE): /* Radix Extensions */
+		if (val & OV5_FEAT(OV5_RADIX_GTSE)) {
+			prom_debug("Radix - GTSE supported\n");
+			support->radix_gtse = true;
+		}
+		break;
+	case OV5_INDX(OV5_XIVE_SUPPORT): /* Interrupt mode */
+		prom_parse_xive_model(val & OV5_FEAT(OV5_XIVE_SUPPORT),
+				      support);
+		break;
+	}
+}
+
+static void __init prom_check_platform_support(void)
+{
+	struct platform_support supported = {
+		.hash_mmu = false,
+		.radix_mmu = false,
+		.radix_gtse = false,
+		.xive = false
+	};
+	int prop_len = prom_getproplen(prom.chosen,
+				       "ibm,arch-vec-5-platform-support");
+	if (prop_len > 1) {
+		int i;
+		u8 vec[prop_len];
+		prom_debug("Found ibm,arch-vec-5-platform-support, len: %d\n",
+			   prop_len);
+		prom_getprop(prom.chosen, "ibm,arch-vec-5-platform-support",
+			     &vec, sizeof(vec));
+		for (i = 0; i < prop_len; i += 2) {
+			prom_debug("%d: index = 0x%x val = 0x%x\n", i / 2
+								  , vec[i]
+								  , vec[i + 1]);
+			prom_parse_platform_support(vec[i], vec[i + 1],
+						    &supported);
+		}
+	}
+
+	if (supported.radix_mmu && supported.radix_gtse) {
+		/* Radix preferred - but we require GTSE for now */
+		prom_debug("Asking for radix with GTSE\n");
+		ibm_architecture_vec.vec5.mmu = OV5_FEAT(OV5_MMU_RADIX);
+		ibm_architecture_vec.vec5.radix_ext = OV5_FEAT(OV5_RADIX_GTSE);
+	} else if (supported.hash_mmu) {
+		/* Default to hash mmu (if we can) */
+		prom_debug("Asking for hash\n");
+		ibm_architecture_vec.vec5.mmu = OV5_FEAT(OV5_MMU_HASH);
+	} else {
+		/* We're probably on a legacy hypervisor */
+		prom_debug("Assuming legacy hash support\n");
+	}
+
+	if (supported.xive) {
+		prom_debug("Asking for XIVE\n");
+		ibm_architecture_vec.vec5.intarch = OV5_FEAT(OV5_XIVE_EXPLOIT);
+	}
+}
 
 static void __init prom_send_capabilities(void)
 {
 	ihandle root;
 	prom_arg_t ret;
 	u32 cores;
-	unsigned char *ptcores;
+
+	/* Check ibm,arch-vec-5-platform-support and fixup vec5 if required */
+	prom_check_platform_support();
 
 	root = call_prom("open", 1, 1, ADDR("/"));
 	if (root != 0) {
@@ -884,37 +1147,18 @@ static void __init prom_send_capabilities(void)
 		 * divide NR_CPUS.
 		 */
 
-		/* The core value may start at an odd address. If such a word
-		 * access is made at a cache line boundary, this leads to an
-		 * exception which may not be handled at this time.
-		 * Forcing a per byte access to avoid exception.
-		 */
-		ptcores = &ibm_architecture_vec[IBM_ARCH_VEC_NRCORES_OFFSET];
-		cores = 0;
-		cores |= ptcores[0] << 24;
-		cores |= ptcores[1] << 16;
-		cores |= ptcores[2] << 8;
-		cores |= ptcores[3];
-		if (cores != NR_CPUS) {
-			prom_printf("WARNING ! "
-				    "ibm_architecture_vec structure inconsistent: %lu!\n",
-				    cores);
-		} else {
-			cores = DIV_ROUND_UP(NR_CPUS, prom_count_smt_threads());
-			prom_printf("Max number of cores passed to firmware: %lu (NR_CPUS = %lu)\n",
-				    cores, NR_CPUS);
-			ptcores[0] = (cores >> 24) & 0xff;
-			ptcores[1] = (cores >> 16) & 0xff;
-			ptcores[2] = (cores >> 8) & 0xff;
-			ptcores[3] = cores & 0xff;
-		}
+		cores = DIV_ROUND_UP(NR_CPUS, prom_count_smt_threads());
+		prom_printf("Max number of cores passed to firmware: %lu (NR_CPUS = %lu)\n",
+			    cores, NR_CPUS);
+
+		ibm_architecture_vec.vec5.max_cpus = cpu_to_be32(cores);
 
 		/* try calling the ibm,client-architecture-support method */
 		prom_printf("Calling ibm,client-architecture-support...");
 		if (call_prom_ret("call-method", 3, 2, &ret,
 				  ADDR("ibm,client-architecture-support"),
 				  root,
-				  ADDR(ibm_architecture_vec)) == 0) {
+				  ADDR(&ibm_architecture_vec)) == 0) {
 			/* the call exists... */
 			if (ret)
 				prom_printf("\nWARNING: ibm,client-architecture"
@@ -2747,6 +2991,9 @@ static void __init prom_find_boot_cpu(void)
 
 	cpu_pkg = call_prom("instance-to-package", 1, 1, prom_cpu);
 
+	if (!PHANDLE_VALID(cpu_pkg))
+		return;
+
 	prom_getprop(cpu_pkg, "reg", &rval, sizeof(rval));
 	prom.cpu = be32_to_cpu(rval);
 
@@ -2887,6 +3134,11 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 */
 	prom_check_initrd(r3, r4);
 
+	/*
+	 * Do early parsing of command line
+	 */
+	early_cmdline_parse();
+
 #if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
 	/*
 	 * On pSeries, inform the firmware about our capabilities
@@ -2901,11 +3153,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 */
 	if (of_platform != PLATFORM_POWERMAC)
 		copy_and_flush(0, kbase, 0x100, 0);
-
-	/*
-	 * Do early parsing of command line
-	 */
-	early_cmdline_parse();
 
 	/*
 	 * Initialize memory management within prom_init

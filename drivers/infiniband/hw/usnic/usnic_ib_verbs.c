@@ -46,6 +46,7 @@
 #include "usnic_log.h"
 #include "usnic_uiom.h"
 #include "usnic_transport.h"
+#include "usnic_ib_verbs.h"
 
 #define USNIC_DEFAULT_TRANSPORT USNIC_TRANSPORT_ROCE_CUSTOM
 
@@ -87,12 +88,12 @@ static int usnic_ib_fill_create_qp_resp(struct usnic_ib_qp_grp *qp_grp,
 	resp.bar_len = bar->len;
 
 	chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_RQ);
-	if (IS_ERR_OR_NULL(chunk)) {
+	if (IS_ERR(chunk)) {
 		usnic_err("Failed to get chunk %s for qp_grp %d with err %ld\n",
 			usnic_vnic_res_type_to_str(USNIC_VNIC_RES_TYPE_RQ),
 			qp_grp->grp_id,
 			PTR_ERR(chunk));
-		return chunk ? PTR_ERR(chunk) : -ENOMEM;
+		return PTR_ERR(chunk);
 	}
 
 	WARN_ON(chunk->type != USNIC_VNIC_RES_TYPE_RQ);
@@ -101,12 +102,12 @@ static int usnic_ib_fill_create_qp_resp(struct usnic_ib_qp_grp *qp_grp,
 		resp.rq_idx[i] = chunk->res[i]->vnic_idx;
 
 	chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_WQ);
-	if (IS_ERR_OR_NULL(chunk)) {
+	if (IS_ERR(chunk)) {
 		usnic_err("Failed to get chunk %s for qp_grp %d with err %ld\n",
 			usnic_vnic_res_type_to_str(USNIC_VNIC_RES_TYPE_WQ),
 			qp_grp->grp_id,
 			PTR_ERR(chunk));
-		return chunk ? PTR_ERR(chunk) : -ENOMEM;
+		return PTR_ERR(chunk);
 	}
 
 	WARN_ON(chunk->type != USNIC_VNIC_RES_TYPE_WQ);
@@ -115,12 +116,12 @@ static int usnic_ib_fill_create_qp_resp(struct usnic_ib_qp_grp *qp_grp,
 		resp.wq_idx[i] = chunk->res[i]->vnic_idx;
 
 	chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_CQ);
-	if (IS_ERR_OR_NULL(chunk)) {
+	if (IS_ERR(chunk)) {
 		usnic_err("Failed to get chunk %s for qp_grp %d with err %ld\n",
 			usnic_vnic_res_type_to_str(USNIC_VNIC_RES_TYPE_CQ),
 			qp_grp->grp_id,
 			PTR_ERR(chunk));
-		return chunk ? PTR_ERR(chunk) : -ENOMEM;
+		return PTR_ERR(chunk);
 	}
 
 	WARN_ON(chunk->type != USNIC_VNIC_RES_TYPE_CQ);
@@ -151,7 +152,7 @@ find_free_vf_and_create_qp_grp(struct usnic_ib_dev *us_ibdev,
 	struct usnic_vnic *vnic;
 	struct usnic_ib_qp_grp *qp_grp;
 	struct device *dev, **dev_list;
-	int i, found = 0;
+	int i;
 
 	BUG_ON(!mutex_is_locked(&us_ibdev->usdev_lock));
 
@@ -163,6 +164,8 @@ find_free_vf_and_create_qp_grp(struct usnic_ib_dev *us_ibdev,
 	if (usnic_ib_share_vf) {
 		/* Try to find resouces on a used vf which is in pd */
 		dev_list = usnic_uiom_get_dev_list(pd->umem_pd);
+		if (IS_ERR(dev_list))
+			return ERR_CAST(dev_list);
 		for (i = 0; dev_list[i]; i++) {
 			dev = dev_list[i];
 			vf = pci_get_drvdata(to_pci_dev(dev));
@@ -173,8 +176,13 @@ find_free_vf_and_create_qp_grp(struct usnic_ib_dev *us_ibdev,
 						us_ibdev->ib_dev.name,
 						pci_name(usnic_vnic_get_pdev(
 									vnic)));
-				found = 1;
-				break;
+				qp_grp = usnic_ib_qp_grp_create(us_ibdev->ufdev,
+								vf, pd,
+								res_spec,
+								trans_spec);
+
+				spin_unlock(&vf->lock);
+				goto qp_grp_check;
 			}
 			spin_unlock(&vf->lock);
 
@@ -182,34 +190,30 @@ find_free_vf_and_create_qp_grp(struct usnic_ib_dev *us_ibdev,
 		usnic_uiom_free_dev_list(dev_list);
 	}
 
-	if (!found) {
-		/* Try to find resources on an unused vf */
-		list_for_each_entry(vf, &us_ibdev->vf_dev_list, link) {
-			spin_lock(&vf->lock);
-			vnic = vf->vnic;
-			if (vf->qp_grp_ref_cnt == 0 &&
-				usnic_vnic_check_room(vnic, res_spec) == 0) {
-				found = 1;
-				break;
-			}
+	/* Try to find resources on an unused vf */
+	list_for_each_entry(vf, &us_ibdev->vf_dev_list, link) {
+		spin_lock(&vf->lock);
+		vnic = vf->vnic;
+		if (vf->qp_grp_ref_cnt == 0 &&
+		    usnic_vnic_check_room(vnic, res_spec) == 0) {
+			qp_grp = usnic_ib_qp_grp_create(us_ibdev->ufdev, vf,
+							pd, res_spec,
+							trans_spec);
+
 			spin_unlock(&vf->lock);
+			goto qp_grp_check;
 		}
+		spin_unlock(&vf->lock);
 	}
 
-	if (!found) {
-		usnic_info("No free qp grp found on %s\n",
-				us_ibdev->ib_dev.name);
-		return ERR_PTR(-ENOMEM);
-	}
+	usnic_info("No free qp grp found on %s\n", us_ibdev->ib_dev.name);
+	return ERR_PTR(-ENOMEM);
 
-	qp_grp = usnic_ib_qp_grp_create(us_ibdev->ufdev, vf, pd, res_spec,
-						trans_spec);
-	spin_unlock(&vf->lock);
+qp_grp_check:
 	if (IS_ERR_OR_NULL(qp_grp)) {
 		usnic_err("Failed to allocate qp_grp\n");
 		return ERR_PTR(qp_grp ? PTR_ERR(qp_grp) : -ENOMEM);
 	}
-
 	return qp_grp;
 }
 
@@ -222,27 +226,6 @@ static void qp_grp_destroy(struct usnic_ib_qp_grp *qp_grp)
 	spin_lock(&vf->lock);
 	usnic_ib_qp_grp_destroy(qp_grp);
 	spin_unlock(&vf->lock);
-}
-
-static void eth_speed_to_ib_speed(int speed, u8 *active_speed,
-					u8 *active_width)
-{
-	if (speed <= 10000) {
-		*active_width = IB_WIDTH_1X;
-		*active_speed = IB_SPEED_FDR10;
-	} else if (speed <= 20000) {
-		*active_width = IB_WIDTH_4X;
-		*active_speed = IB_SPEED_DDR;
-	} else if (speed <= 30000) {
-		*active_width = IB_WIDTH_4X;
-		*active_speed = IB_SPEED_QDR;
-	} else if (speed <= 40000) {
-		*active_width = IB_WIDTH_4X;
-		*active_speed = IB_SPEED_FDR10;
-	} else {
-		*active_width = IB_WIDTH_4X;
-		*active_speed = IB_SPEED_EDR;
-	}
 }
 
 static int create_qp_validate_user_data(struct usnic_ib_create_qp_cmd cmd)
@@ -291,11 +274,11 @@ int usnic_ib_query_device(struct ib_device *ibdev,
 	qp_per_vf = max(us_ibdev->vf_res_cnt[USNIC_VNIC_RES_TYPE_WQ],
 			us_ibdev->vf_res_cnt[USNIC_VNIC_RES_TYPE_RQ]);
 	props->max_qp = qp_per_vf *
-		atomic_read(&us_ibdev->vf_cnt.refcount);
+		kref_read(&us_ibdev->vf_cnt);
 	props->device_cap_flags = IB_DEVICE_PORT_ACTIVE_EVENT |
 		IB_DEVICE_SYS_IMAGE_GUID | IB_DEVICE_BLOCK_MULTICAST_LOOPBACK;
 	props->max_cq = us_ibdev->vf_res_cnt[USNIC_VNIC_RES_TYPE_CQ] *
-		atomic_read(&us_ibdev->vf_cnt.refcount);
+		kref_read(&us_ibdev->vf_cnt);
 	props->max_pd = USNIC_UIOM_MAX_PD_CNT;
 	props->max_mr = USNIC_UIOM_MAX_MR_CNT;
 	props->local_ca_ack_delay = 0;
@@ -324,13 +307,17 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 				struct ib_port_attr *props)
 {
 	struct usnic_ib_dev *us_ibdev = to_usdev(ibdev);
-	struct ethtool_link_ksettings cmd;
 
 	usnic_dbg("\n");
 
 	mutex_lock(&us_ibdev->usdev_lock);
-	__ethtool_get_link_ksettings(us_ibdev->netdev, &cmd);
-	memset(props, 0, sizeof(*props));
+	if (ib_get_eth_speed(ibdev, port, &props->active_speed,
+			     &props->active_width)) {
+		mutex_unlock(&us_ibdev->usdev_lock);
+		return -EINVAL;
+	}
+
+	/* props being zeroed by the caller, avoid zeroing it here */
 
 	props->lid = 0;
 	props->lmc = 1;
@@ -353,8 +340,6 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 	props->pkey_tbl_len = 1;
 	props->bad_pkey_cntr = 0;
 	props->qkey_viol_cntr = 0;
-	eth_speed_to_ib_speed(cmd.base.speed, &props->active_speed,
-			      &props->active_width);
 	props->max_mtu = IB_MTU_4096;
 	props->active_mtu = iboe_get_mtu(us_ibdev->ufdev->mtu);
 	/* Userspace will adjust for hdrs */
@@ -420,6 +405,16 @@ int usnic_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 	mutex_unlock(&us_ibdev->usdev_lock);
 
 	return 0;
+}
+
+struct net_device *usnic_get_netdev(struct ib_device *device, u8 port_num)
+{
+	struct usnic_ib_dev *us_ibdev = to_usdev(device);
+
+	if (us_ibdev->netdev)
+		dev_hold(us_ibdev->netdev);
+
+	return us_ibdev->netdev;
 }
 
 int usnic_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
@@ -738,7 +733,9 @@ int usnic_ib_mmap(struct ib_ucontext *context,
 
 /* In ib callbacks section -  Start of stub funcs */
 struct ib_ah *usnic_ib_create_ah(struct ib_pd *pd,
-					struct ib_ah_attr *ah_attr)
+				 struct rdma_ah_attr *ah_attr,
+				 struct ib_udata *udata)
+
 {
 	usnic_dbg("\n");
 	return ERR_PTR(-EPERM);

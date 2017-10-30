@@ -36,10 +36,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *
  * Hardware & software notes
@@ -527,8 +523,7 @@ static void ati_remote_input_report(struct urb *urb)
 	remote_num = (data[3] >> 4) & 0x0f;
 	if (channel_mask & (1 << (remote_num + 1))) {
 		dbginfo(&ati_remote->interface->dev,
-			"Masked input from channel 0x%02x: data %02x, "
-			"mask= 0x%02lx\n",
+			"Masked input from channel 0x%02x: data %02x, mask= 0x%02lx\n",
 			remote_num, data[2], channel_mask);
 		return;
 	}
@@ -627,7 +622,8 @@ static void ati_remote_input_report(struct urb *urb)
 				* it would cause ghost repeats which would be a
 				* regression for this driver.
 				*/
-				rc_keydown_notimeout(ati_remote->rdev, RC_TYPE_OTHER,
+				rc_keydown_notimeout(ati_remote->rdev,
+						     RC_PROTO_OTHER,
 						     scancode, data[2]);
 				rc_keyup(ati_remote->rdev);
 			}
@@ -765,14 +761,13 @@ static void ati_remote_rc_init(struct ati_remote *ati_remote)
 	struct rc_dev *rdev = ati_remote->rdev;
 
 	rdev->priv = ati_remote;
-	rdev->driver_type = RC_DRIVER_SCANCODE;
-	rdev->allowed_protocols = RC_BIT_OTHER;
+	rdev->allowed_protocols = RC_PROTO_BIT_OTHER;
 	rdev->driver_name = "ati_remote";
 
 	rdev->open = ati_remote_rc_open;
 	rdev->close = ati_remote_rc_close;
 
-	rdev->input_name = ati_remote->rc_name;
+	rdev->device_name = ati_remote->rc_name;
 	rdev->input_phys = ati_remote->rc_phys;
 
 	usb_to_input_id(ati_remote->udev, &rdev->input_id);
@@ -852,7 +847,7 @@ static int ati_remote_probe(struct usb_interface *interface,
 	}
 
 	ati_remote = kzalloc(sizeof (struct ati_remote), GFP_KERNEL);
-	rc_dev = rc_allocate_device();
+	rc_dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!ati_remote || !rc_dev)
 		goto exit_free_dev_rdev;
 
@@ -909,9 +904,6 @@ static int ati_remote_probe(struct usb_interface *interface,
 	err = rc_register_device(ati_remote->rdev);
 	if (err)
 		goto exit_kill_urbs;
-
-	/* use our delay for rc_dev */
-	ati_remote->rdev->input_dev->rep[REP_DELAY] = repeat_delay;
 
 	/* Set up and register mouse input device */
 	if (mouse) {

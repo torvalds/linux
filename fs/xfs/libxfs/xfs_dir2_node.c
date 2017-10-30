@@ -155,6 +155,42 @@ const struct xfs_buf_ops xfs_dir3_free_buf_ops = {
 	.verify_write = xfs_dir3_free_write_verify,
 };
 
+/* Everything ok in the free block header? */
+static bool
+xfs_dir3_free_header_check(
+	struct xfs_inode	*dp,
+	xfs_dablk_t		fbno,
+	struct xfs_buf		*bp)
+{
+	struct xfs_mount	*mp = dp->i_mount;
+	unsigned int		firstdb;
+	int			maxbests;
+
+	maxbests = dp->d_ops->free_max_bests(mp->m_dir_geo);
+	firstdb = (xfs_dir2_da_to_db(mp->m_dir_geo, fbno) -
+		   xfs_dir2_byte_to_db(mp->m_dir_geo, XFS_DIR2_FREE_OFFSET)) *
+			maxbests;
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		struct xfs_dir3_free_hdr *hdr3 = bp->b_addr;
+
+		if (be32_to_cpu(hdr3->firstdb) != firstdb)
+			return false;
+		if (be32_to_cpu(hdr3->nvalid) > maxbests)
+			return false;
+		if (be32_to_cpu(hdr3->nvalid) < be32_to_cpu(hdr3->nused))
+			return false;
+	} else {
+		struct xfs_dir2_free_hdr *hdr = bp->b_addr;
+
+		if (be32_to_cpu(hdr->firstdb) != firstdb)
+			return false;
+		if (be32_to_cpu(hdr->nvalid) > maxbests)
+			return false;
+		if (be32_to_cpu(hdr->nvalid) < be32_to_cpu(hdr->nused))
+			return false;
+	}
+	return true;
+}
 
 static int
 __xfs_dir3_free_read(
@@ -168,11 +204,22 @@ __xfs_dir3_free_read(
 
 	err = xfs_da_read_buf(tp, dp, fbno, mappedbno, bpp,
 				XFS_DATA_FORK, &xfs_dir3_free_buf_ops);
+	if (err || !*bpp)
+		return err;
+
+	/* Check things that we can't do in the verifier. */
+	if (!xfs_dir3_free_header_check(dp, fbno, *bpp)) {
+		xfs_buf_ioerror(*bpp, -EFSCORRUPTED);
+		xfs_verifier_error(*bpp);
+		xfs_trans_brelse(tp, *bpp);
+		return -EFSCORRUPTED;
+	}
 
 	/* try read returns without an error or *bpp if it lands in a hole */
-	if (!err && tp && *bpp)
+	if (tp)
 		xfs_trans_buf_set_type(tp, *bpp, XFS_BLFT_DIR_FREE_BUF);
-	return err;
+
+	return 0;
 }
 
 int
@@ -481,7 +528,7 @@ xfs_dir2_free_hdr_check(
  * Stale entries are ok.
  */
 xfs_dahash_t					/* hash value */
-xfs_dir2_leafn_lasthash(
+xfs_dir2_leaf_lasthash(
 	struct xfs_inode *dp,
 	struct xfs_buf	*bp,			/* leaf buffer */
 	int		*count)			/* count of entries in leaf */
@@ -493,7 +540,9 @@ xfs_dir2_leafn_lasthash(
 	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
 
 	ASSERT(leafhdr.magic == XFS_DIR2_LEAFN_MAGIC ||
-	       leafhdr.magic == XFS_DIR3_LEAFN_MAGIC);
+	       leafhdr.magic == XFS_DIR3_LEAFN_MAGIC ||
+	       leafhdr.magic == XFS_DIR2_LEAF1_MAGIC ||
+	       leafhdr.magic == XFS_DIR3_LEAF1_MAGIC);
 
 	if (count)
 		*count = leafhdr.count;
@@ -1358,8 +1407,8 @@ xfs_dir2_leafn_split(
 	/*
 	 * Update last hashval in each block since we added the name.
 	 */
-	oldblk->hashval = xfs_dir2_leafn_lasthash(dp, oldblk->bp, NULL);
-	newblk->hashval = xfs_dir2_leafn_lasthash(dp, newblk->bp, NULL);
+	oldblk->hashval = xfs_dir2_leaf_lasthash(dp, oldblk->bp, NULL);
+	newblk->hashval = xfs_dir2_leaf_lasthash(dp, newblk->bp, NULL);
 	xfs_dir3_leaf_check(dp, oldblk->bp);
 	xfs_dir3_leaf_check(dp, newblk->bp);
 	return error;

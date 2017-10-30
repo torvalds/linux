@@ -34,7 +34,7 @@ static int turn_off(struct gb_vibrator_device *vib)
 	int ret;
 
 	ret = gb_operation_sync(vib->connection, GB_VIBRATOR_TYPE_OFF,
-			NULL, 0, NULL, 0);
+				NULL, 0, NULL, 0);
 
 	gb_pm_runtime_put_autosuspend(bundle);
 
@@ -55,7 +55,7 @@ static int turn_on(struct gb_vibrator_device *vib, u16 timeout_ms)
 		turn_off(vib);
 
 	ret = gb_operation_sync(vib->connection, GB_VIBRATOR_TYPE_ON,
-			NULL, 0, NULL, 0);
+				NULL, 0, NULL, 0);
 	if (ret) {
 		gb_pm_runtime_put_autosuspend(bundle);
 		return ret;
@@ -70,7 +70,9 @@ static void gb_vibrator_worker(struct work_struct *work)
 {
 	struct delayed_work *delayed_work = to_delayed_work(work);
 	struct gb_vibrator_device *vib =
-		container_of(delayed_work, struct gb_vibrator_device, delayed_work);
+		container_of(delayed_work,
+			     struct gb_vibrator_device,
+			     delayed_work);
 
 	turn_off(vib);
 }
@@ -114,7 +116,7 @@ static struct class vibrator_class = {
 static DEFINE_IDA(minors);
 
 static int gb_vibrator_probe(struct gb_bundle *bundle,
-					const struct greybus_bundle_id *id)
+			     const struct greybus_bundle_id *id)
 {
 	struct greybus_descriptor_cport *cport_desc;
 	struct gb_connection *connection;
@@ -134,7 +136,7 @@ static int gb_vibrator_probe(struct gb_bundle *bundle,
 		return -ENOMEM;
 
 	connection = gb_connection_create(bundle, le16_to_cpu(cport_desc->id),
-						NULL);
+					  NULL);
 	if (IS_ERR(connection)) {
 		retval = PTR_ERR(connection);
 		goto err_free_vib;

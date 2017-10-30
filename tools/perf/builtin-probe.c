@@ -58,6 +58,7 @@ static struct {
 	struct line_range line_range;
 	char *target;
 	struct strfilter *filter;
+	struct nsinfo *nsi;
 } params;
 
 /* Parse an event definition. Note that any error must die. */
@@ -79,6 +80,9 @@ static int parse_probe_event(const char *str)
 			return -ENOMEM;
 		params.target_used = true;
 	}
+
+	if (params.nsi)
+		pev->nsi = nsinfo__get(params.nsi);
 
 	/* Parse a perf-probe command into event */
 	ret = parse_perf_probe_command(str, pev);
@@ -189,7 +193,7 @@ static int opt_set_target(const struct option *opt, const char *str,
 
 		/* Expand given path to absolute path, except for modulename */
 		if (params.uprobes || strchr(str, '/')) {
-			tmp = realpath(str, NULL);
+			tmp = nsinfo__realpath(str, params.nsi);
 			if (!tmp) {
 				pr_warning("Failed to get the absolute path of %s: %m\n", str);
 				return ret;
@@ -207,6 +211,34 @@ static int opt_set_target(const struct option *opt, const char *str,
 
 	return ret;
 }
+
+static int opt_set_target_ns(const struct option *opt __maybe_unused,
+			     const char *str, int unset __maybe_unused)
+{
+	int ret = -ENOENT;
+	pid_t ns_pid;
+	struct nsinfo *nsip;
+
+	if (str) {
+		errno = 0;
+		ns_pid = (pid_t)strtol(str, NULL, 10);
+		if (errno != 0) {
+			ret = -errno;
+			pr_warning("Failed to parse %s as a pid: %s\n", str,
+				   strerror(errno));
+			return ret;
+		}
+		nsip = nsinfo__new(ns_pid);
+		if (nsip && nsip->need_setns)
+			params.nsi = nsinfo__get(nsip);
+		nsinfo__put(nsip);
+
+		ret = 0;
+	}
+
+	return ret;
+}
+
 
 /* Command option callbacks */
 
@@ -299,6 +331,7 @@ static void cleanup_params(void)
 	line_range__clear(&params.line_range);
 	free(params.target);
 	strfilter__delete(params.filter);
+	nsinfo__put(params.nsi);
 	memset(&params, 0, sizeof(params));
 }
 
@@ -383,7 +416,7 @@ static int del_perf_probe_caches(struct strfilter *filter)
 	}
 
 	strlist__for_each_entry(nd, bidlist) {
-		cache = probe_cache__new(nd->s);
+		cache = probe_cache__new(nd->s, NULL);
 		if (!cache)
 			continue;
 		if (probe_cache__filter_purge(cache, filter) < 0 ||
@@ -442,9 +475,9 @@ static int perf_del_probe_events(struct strfilter *filter)
 	}
 
 	if (ret == -ENOENT && ret2 == -ENOENT)
-		pr_debug("\"%s\" does not hit any event.\n", str);
-		/* Note that this is silently ignored */
-	ret = 0;
+		pr_warning("\"%s\" does not hit any event.\n", str);
+	else
+		ret = 0;
 
 error:
 	if (kfd >= 0)
@@ -468,7 +501,7 @@ out:
 
 
 static int
-__cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
+__cmd_probe(int argc, const char **argv)
 {
 	const char * const probe_usage[] = {
 		"perf probe [<options>] 'PROBEDEF' ['PROBEDEF' ...]",
@@ -486,7 +519,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show parsed arguments, etc)"),
 	OPT_BOOLEAN('q', "quiet", &params.quiet,
-		    "be quiet (do not show any mesages)"),
+		    "be quiet (do not show any messages)"),
 	OPT_CALLBACK_DEFAULT('l', "list", NULL, "[GROUP:]EVENT",
 			     "list up probe events",
 			     opt_set_filter_with_command, DEFAULT_LIST_FILTER),
@@ -552,6 +585,10 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
 		    "Enable kernel symbol demangling"),
 	OPT_BOOLEAN(0, "cache", &probe_conf.cache, "Manipulate probe cache"),
+	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
+		   "Look for files with symbols relative to this directory"),
+	OPT_CALLBACK(0, "target-ns", NULL, "pid",
+		     "target pid for namespace contexts", opt_set_target_ns),
 	OPT_END()
 	};
 	int ret;
@@ -632,15 +669,15 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 			pr_err_with_code("  Error: Failed to show event list.", ret);
 		return ret;
 	case 'F':
-		ret = show_available_funcs(params.target, params.filter,
-					params.uprobes);
+		ret = show_available_funcs(params.target, params.nsi,
+					   params.filter, params.uprobes);
 		if (ret < 0)
 			pr_err_with_code("  Error: Failed to show functions.", ret);
 		return ret;
 #ifdef HAVE_DWARF_SUPPORT
 	case 'L':
 		ret = show_line_range(&params.line_range, params.target,
-				      params.uprobes);
+				      params.nsi, params.uprobes);
 		if (ret < 0)
 			pr_err_with_code("  Error: Failed to show lines.", ret);
 		return ret;
@@ -685,13 +722,13 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	return 0;
 }
 
-int cmd_probe(int argc, const char **argv, const char *prefix)
+int cmd_probe(int argc, const char **argv)
 {
 	int ret;
 
 	ret = init_params();
 	if (!ret) {
-		ret = __cmd_probe(argc, argv, prefix);
+		ret = __cmd_probe(argc, argv);
 		cleanup_params();
 	}
 

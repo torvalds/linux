@@ -21,6 +21,7 @@
  *
  */
 
+#include "pp_debug.h"
 #include "smumgr.h"
 #include "smu74.h"
 #include "smu_ucode_xfer_vi.h"
@@ -36,7 +37,6 @@
 #include "bif/bif_5_0_sh_mask.h"
 #include "polaris10_pwrvirus.h"
 #include "ppatomctrl.h"
-#include "pp_debug.h"
 #include "cgs_common.h"
 #include "polaris10_smc.h"
 #include "smu7_ppsmc.h"
@@ -60,16 +60,14 @@ static const SMU74_Discrete_GraphicsLevel avfs_graphics_level_polaris10[8] = {
 static const SMU74_Discrete_MemoryLevel avfs_memory_level_polaris10 = {
 	0x100ea446, 0, 0x30750000, 0x01, 0x01, 0x01, 0x00, 0x00, 0x64, 0x00, 0x00, 0x1f00, 0x00, 0x00};
 
-
 static int polaris10_setup_pwr_virus(struct pp_smumgr *smumgr)
 {
 	int i;
-	int result = -1;
+	int result = -EINVAL;
 	uint32_t reg, data;
 
 	const PWR_Command_Table *pvirus = pwr_virus_table;
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(smumgr->backend);
-
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(smumgr->backend);
 
 	for (i = 0; i < PWR_VIRUS_TABLE_SIZE; i++) {
 		switch (pvirus->command) {
@@ -84,9 +82,9 @@ static int polaris10_setup_pwr_virus(struct pp_smumgr *smumgr)
 			break;
 
 		default:
-			printk("Table Exit with Invalid Command!");
+			pr_info("Table Exit with Invalid Command!");
 			smu_data->avfs.avfs_btc_status = AVFS_BTC_VIRUS_FAIL;
-			result = -1;
+			result = -EINVAL;
 			break;
 		}
 		pvirus++;
@@ -98,11 +96,11 @@ static int polaris10_setup_pwr_virus(struct pp_smumgr *smumgr)
 static int polaris10_perform_btc(struct pp_smumgr *smumgr)
 {
 	int result = 0;
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(smumgr->backend);
 
 	if (0 != smu_data->avfs.avfs_btc_param) {
 		if (0 != smu7_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_PerformBtc, smu_data->avfs.avfs_btc_param)) {
-			printk("[AVFS][SmuPolaris10_PerformBtc] PerformBTC SMU msg failed");
+			pr_info("[AVFS][SmuPolaris10_PerformBtc] PerformBTC SMU msg failed");
 			result = -1;
 		}
 	}
@@ -118,7 +116,7 @@ static int polaris10_perform_btc(struct pp_smumgr *smumgr)
 }
 
 
-int polaris10_setup_graphics_level_structure(struct pp_smumgr *smumgr)
+static int polaris10_setup_graphics_level_structure(struct pp_smumgr *smumgr)
 {
 	uint32_t vr_config;
 	uint32_t dpm_table_start;
@@ -172,9 +170,11 @@ int polaris10_setup_graphics_level_structure(struct pp_smumgr *smumgr)
 	return 0;
 }
 
-int polaris10_avfs_event_mgr(struct pp_smumgr *smumgr, bool SMU_VFT_INTACT)
+
+static int
+polaris10_avfs_event_mgr(struct pp_smumgr *smumgr, bool SMU_VFT_INTACT)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(smumgr->backend);
 
 	switch (smu_data->avfs.avfs_btc_status) {
 	case AVFS_BTC_COMPLETED_PREVIOUSLY:
@@ -184,30 +184,31 @@ int polaris10_avfs_event_mgr(struct pp_smumgr *smumgr, bool SMU_VFT_INTACT)
 
 		smu_data->avfs.avfs_btc_status = AVFS_BTC_DPMTABLESETUP_FAILED;
 		PP_ASSERT_WITH_CODE(0 == polaris10_setup_graphics_level_structure(smumgr),
-		"[AVFS][Polaris10_AVFSEventMgr] Could not Copy Graphics Level table over to SMU",
-		return -1);
+			"[AVFS][Polaris10_AVFSEventMgr] Could not Copy Graphics Level table over to SMU",
+			return -EINVAL);
 
 		if (smu_data->avfs.avfs_btc_param > 1) {
-			printk("[AVFS][Polaris10_AVFSEventMgr] AC BTC has not been successfully verified on Fiji. There may be in this setting.");
+			pr_info("[AVFS][Polaris10_AVFSEventMgr] AC BTC has not been successfully verified on Fiji. There may be in this setting.");
 			smu_data->avfs.avfs_btc_status = AVFS_BTC_VIRUS_FAIL;
-			PP_ASSERT_WITH_CODE(-1 == polaris10_setup_pwr_virus(smumgr),
+			PP_ASSERT_WITH_CODE(0 == polaris10_setup_pwr_virus(smumgr),
 			"[AVFS][Polaris10_AVFSEventMgr] Could not setup Pwr Virus for AVFS ",
-			return -1);
+			return -EINVAL);
 		}
 
 		smu_data->avfs.avfs_btc_status = AVFS_BTC_FAILED;
 		PP_ASSERT_WITH_CODE(0 == polaris10_perform_btc(smumgr),
 					"[AVFS][Polaris10_AVFSEventMgr] Failure at SmuPolaris10_PerformBTC. AVFS Disabled",
-				 return -1);
-
+				 return -EINVAL);
+		smu_data->avfs.avfs_btc_status = AVFS_BTC_ENABLEAVFS;
 		break;
 
 	case AVFS_BTC_DISABLED:
+	case AVFS_BTC_ENABLEAVFS:
 	case AVFS_BTC_NOTSUPPORTED:
 		break;
 
 	default:
-		printk("[AVFS] Something is broken. See log!");
+		pr_err("AVFS failed status is %x!\n", smu_data->avfs.avfs_btc_status);
 		break;
 	}
 
@@ -327,6 +328,7 @@ static int polaris10_start_smu(struct pp_smumgr *smumgr)
 			/* If failed, try with different security Key. */
 			if (result != 0) {
 				smu_data->smu7_data.security_hard_key ^= 1;
+				cgs_rel_firmware(smumgr->device, CGS_UCODE_ID_SMU);
 				result = polaris10_start_smu_in_protection_mode(smumgr);
 			}
 		}
@@ -362,16 +364,17 @@ static bool polaris10_is_hw_avfs_present(struct pp_smumgr *smumgr)
 
 static int polaris10_smu_init(struct pp_smumgr *smumgr)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(smumgr->backend);
+	struct polaris10_smumgr *smu_data;
 	int i;
+
+	smu_data = kzalloc(sizeof(struct polaris10_smumgr), GFP_KERNEL);
+	if (smu_data == NULL)
+		return -ENOMEM;
+
+	smumgr->backend = smu_data;
 
 	if (smu7_init(smumgr))
 		return -EINVAL;
-
-	if (polaris10_is_hw_avfs_present(smumgr))
-		smu_data->avfs.avfs_btc_status = AVFS_BTC_BOOT;
-	else
-		smu_data->avfs.avfs_btc_status = AVFS_BTC_NOTSUPPORTED;
 
 	for (i = 0; i < SMU74_MAX_LEVELS_GRAPHICS; i++)
 		smu_data->activity_target[i] = PPPOLARIS10_TARGETACTIVITY_DFLT;
@@ -379,7 +382,7 @@ static int polaris10_smu_init(struct pp_smumgr *smumgr)
 	return 0;
 }
 
-static const struct pp_smumgr_func polaris10_smu_funcs = {
+const struct pp_smumgr_func polaris10_smu_funcs = {
 	.smu_init = polaris10_smu_init,
 	.smu_fini = smu7_smu_fini,
 	.start_smu = polaris10_start_smu,
@@ -401,19 +404,6 @@ static const struct pp_smumgr_func polaris10_smu_funcs = {
 	.populate_all_memory_levels = polaris10_populate_all_memory_levels,
 	.get_mac_definition = polaris10_get_mac_definition,
 	.is_dpm_running = polaris10_is_dpm_running,
+	.populate_requested_graphic_levels = polaris10_populate_requested_graphic_levels,
+	.is_hw_avfs_present = polaris10_is_hw_avfs_present,
 };
-
-int polaris10_smum_init(struct pp_smumgr *smumgr)
-{
-	struct polaris10_smumgr *polaris10_smu = NULL;
-
-	polaris10_smu = kzalloc(sizeof(struct polaris10_smumgr), GFP_KERNEL);
-
-	if (polaris10_smu == NULL)
-		return -EINVAL;
-
-	smumgr->backend = polaris10_smu;
-	smumgr->smumgr_funcs = &polaris10_smu_funcs;
-
-	return 0;
-}

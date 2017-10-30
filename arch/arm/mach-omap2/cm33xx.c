@@ -50,13 +50,13 @@
 /* Read a register in a CM instance */
 static inline u32 am33xx_cm_read_reg(u16 inst, u16 idx)
 {
-	return readl_relaxed(cm_base + inst + idx);
+	return readl_relaxed(cm_base.va + inst + idx);
 }
 
 /* Write into a register in a CM */
 static inline void am33xx_cm_write_reg(u32 val, u16 inst, u16 idx)
 {
-	writel_relaxed(val, cm_base + inst + idx);
+	writel_relaxed(val, cm_base.va + inst + idx);
 }
 
 /* Read-modify-write a register in CM */

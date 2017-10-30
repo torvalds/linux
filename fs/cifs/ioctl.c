@@ -34,71 +34,14 @@
 #include "cifs_ioctl.h"
 #include <linux/btrfs.h>
 
-static int cifs_file_clone_range(unsigned int xid, struct file *src_file,
-			  struct file *dst_file)
-{
-	struct inode *src_inode = file_inode(src_file);
-	struct inode *target_inode = file_inode(dst_file);
-	struct cifsFileInfo *smb_file_src;
-	struct cifsFileInfo *smb_file_target;
-	struct cifs_tcon *src_tcon;
-	struct cifs_tcon *target_tcon;
-	int rc;
-
-	cifs_dbg(FYI, "ioctl clone range\n");
-
-	if (!src_file->private_data || !dst_file->private_data) {
-		rc = -EBADF;
-		cifs_dbg(VFS, "missing cifsFileInfo on copy range src file\n");
-		goto out;
-	}
-
-	rc = -EXDEV;
-	smb_file_target = dst_file->private_data;
-	smb_file_src = src_file->private_data;
-	src_tcon = tlink_tcon(smb_file_src->tlink);
-	target_tcon = tlink_tcon(smb_file_target->tlink);
-
-	if (src_tcon->ses != target_tcon->ses) {
-		cifs_dbg(VFS, "source and target of copy not on same server\n");
-		goto out;
-	}
-
-	/*
-	 * Note: cifs case is easier than btrfs since server responsible for
-	 * checks for proper open modes and file type and if it wants
-	 * server could even support copy of range where source = target
-	 */
-	lock_two_nondirectories(target_inode, src_inode);
-
-	cifs_dbg(FYI, "about to flush pages\n");
-	/* should we flush first and last page first */
-	truncate_inode_pages(&target_inode->i_data, 0);
-
-	if (target_tcon->ses->server->ops->clone_range)
-		rc = target_tcon->ses->server->ops->clone_range(xid,
-			smb_file_src, smb_file_target, 0, src_inode->i_size, 0);
-	else
-		rc = -EOPNOTSUPP;
-
-	/* force revalidate of size and timestamps of target file now
-	   that target is updated on the server */
-	CIFS_I(target_inode)->time = 0;
-	/* although unlocking in the reverse order from locking is not
-	   strictly necessary here it is a little cleaner to be consistent */
-	unlock_two_nondirectories(src_inode, target_inode);
-out:
-	return rc;
-}
-
-static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
+static long cifs_ioctl_copychunk(unsigned int xid, struct file *dst_file,
 			unsigned long srcfd)
 {
 	int rc;
 	struct fd src_file;
 	struct inode *src_inode;
 
-	cifs_dbg(FYI, "ioctl clone range\n");
+	cifs_dbg(FYI, "ioctl copychunk range\n");
 	/* the destination must be opened for writing */
 	if (!(dst_file->f_mode & FMODE_WRITE)) {
 		cifs_dbg(FYI, "file target not open for write\n");
@@ -129,8 +72,10 @@ static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
 	if (S_ISDIR(src_inode->i_mode))
 		goto out_fput;
 
-	rc = cifs_file_clone_range(xid, src_file.file, dst_file);
-
+	rc = cifs_file_copychunk_range(xid, src_file.file, 0, dst_file, 0,
+					src_inode->i_size, 0);
+	if (rc > 0)
+		rc = 0;
 out_fput:
 	fdput(src_file);
 out_drop_write:
@@ -156,7 +101,6 @@ static long smb_mnt_get_fsinfo(unsigned int xid, struct cifs_tcon *tcon,
 	fsinf->fs_attributes = le32_to_cpu(tcon->fsAttrInfo.Attributes);
 	fsinf->max_path_component =
 		le32_to_cpu(tcon->fsAttrInfo.MaxPathNameComponentLength);
-#ifdef CONFIG_CIFS_SMB2
 	fsinf->vol_serial_number = tcon->vol_serial_number;
 	fsinf->vol_create_time = le64_to_cpu(tcon->vol_create_time);
 	fsinf->share_flags = tcon->share_flags;
@@ -165,7 +109,6 @@ static long smb_mnt_get_fsinfo(unsigned int xid, struct cifs_tcon *tcon,
 	fsinf->optimal_sector_size = tcon->perf_sector_size;
 	fsinf->max_bytes_chunk = tcon->max_bytes_chunk;
 	fsinf->maximal_access = tcon->maximal_access;
-#endif /* SMB2 */
 	fsinf->cifs_posix_caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
 
 	if (copy_to_user(arg, fsinf, sizeof(struct smb_mnt_fs_info)))
@@ -189,7 +132,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	xid = get_xid();
 
 	cifs_sb = CIFS_SB(inode->i_sb);
-	cifs_dbg(VFS, "cifs ioctl 0x%x\n", command);
+	cifs_dbg(FYI, "cifs ioctl 0x%x\n", command);
 	switch (command) {
 		case FS_IOC_GETFLAGS:
 			if (pSMBFile == NULL)
@@ -251,7 +194,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			}
 			break;
 		case CIFS_IOC_COPYCHUNK_FILE:
-			rc = cifs_ioctl_clone(xid, filep, arg);
+			rc = cifs_ioctl_copychunk(xid, filep, arg);
 			break;
 		case CIFS_IOC_SET_INTEGRITY:
 			if (pSMBFile == NULL)
@@ -264,10 +207,14 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				rc = -EOPNOTSUPP;
 			break;
 		case CIFS_IOC_GET_MNT_INFO:
+			if (pSMBFile == NULL)
+				break;
 			tcon = tlink_tcon(pSMBFile->tlink);
 			rc = smb_mnt_get_fsinfo(xid, tcon, (void __user *)arg);
 			break;
 		case CIFS_ENUMERATE_SNAPSHOTS:
+			if (pSMBFile == NULL)
+				break;
 			if (arg == 0) {
 				rc = -EINVAL;
 				goto cifs_ioc_exit;

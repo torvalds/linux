@@ -20,7 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_ih.h"
 #include "vid.h"
@@ -227,8 +227,9 @@ static void cz_ih_decode_iv(struct amdgpu_device *adev,
 	dw[2] = le32_to_cpu(adev->irq.ih.ring[ring_index + 2]);
 	dw[3] = le32_to_cpu(adev->irq.ih.ring[ring_index + 3]);
 
+	entry->client_id = AMDGPU_IH_CLIENTID_LEGACY;
 	entry->src_id = dw[0] & 0xff;
-	entry->src_data = dw[1] & 0xfffffff;
+	entry->src_data[0] = dw[1] & 0xfffffff;
 	entry->ring_id = dw[2] & 0xff;
 	entry->vm_id = (dw[2] >> 8) & 0xff;
 	entry->pas_id = (dw[2] >> 16) & 0xffff;
@@ -394,7 +395,7 @@ static int cz_ih_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs cz_ih_ip_funcs = {
+static const struct amd_ip_funcs cz_ih_ip_funcs = {
 	.name = "cz_ih",
 	.early_init = cz_ih_early_init,
 	.late_init = NULL,
@@ -423,3 +424,11 @@ static void cz_ih_set_interrupt_funcs(struct amdgpu_device *adev)
 		adev->irq.ih_funcs = &cz_ih_funcs;
 }
 
+const struct amdgpu_ip_block_version cz_ih_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_IH,
+	.major = 3,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &cz_ih_ip_funcs,
+};

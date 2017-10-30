@@ -24,5 +24,4 @@ Examples:
 		clocks = <&clks IMX27_CLK_UART1_IPG_GATE>,
 			 <&clks IMX27_CLK_PER1_GATE>;
 		clock-names = "ipg", "per";
-		status = "disabled";
 	};

@@ -12,7 +12,7 @@
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/fixmap.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 #include <asm/io.h>
@@ -26,6 +26,7 @@ unsigned int __VMALLOC_RESERVE = 128 << 20;
 void set_pte_vaddr(unsigned long vaddr, pte_t pteval)
 {
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
@@ -35,7 +36,12 @@ void set_pte_vaddr(unsigned long vaddr, pte_t pteval)
 		BUG();
 		return;
 	}
-	pud = pud_offset(pgd, vaddr);
+	p4d = p4d_offset(pgd, vaddr);
+	if (p4d_none(*p4d)) {
+		BUG();
+		return;
+	}
+	pud = pud_offset(p4d, vaddr);
 	if (pud_none(*pud)) {
 		BUG();
 		return;

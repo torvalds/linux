@@ -7,6 +7,8 @@
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
+#include <linux/sched/mm.h>
+
 #include "internal.h"
 
 /*
@@ -123,8 +125,7 @@ unsigned long task_statm(struct mm_struct *mm,
 	return size;
 }
 
-static int is_stack(struct proc_maps_private *priv,
-		    struct vm_area_struct *vma)
+static int is_stack(struct vm_area_struct *vma)
 {
 	struct mm_struct *mm = vma->vm_mm;
 
@@ -144,7 +145,6 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma,
 			  int is_pid)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	struct proc_maps_private *priv = m->private;
 	unsigned long ino = 0;
 	struct file *file;
 	dev_t dev = 0;
@@ -176,7 +176,7 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma,
 	if (file) {
 		seq_pad(m, ' ');
 		seq_file_path(m, file, "");
-	} else if (mm && is_stack(priv, vma)) {
+	} else if (mm && is_stack(vma)) {
 		seq_pad(m, ' ');
 		seq_printf(m, "[stack]");
 	}
@@ -219,7 +219,7 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 		return ERR_PTR(-ESRCH);
 
 	mm = priv->mm;
-	if (!mm || !atomic_inc_not_zero(&mm->mm_users))
+	if (!mm || !mmget_not_zero(mm))
 		return NULL;
 
 	down_read(&mm->mmap_sem);

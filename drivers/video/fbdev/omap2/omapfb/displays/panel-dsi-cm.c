@@ -19,7 +19,7 @@
 #include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/of_device.h>
@@ -100,7 +100,7 @@ static void hw_guard_wait(struct panel_drv_data *ddata)
 {
 	unsigned long wait = ddata->hw_guard_end - jiffies;
 
-	if ((long)wait > 0 && wait <= ddata->hw_guard_wait) {
+	if ((long)wait > 0 && time_before_eq(wait, ddata->hw_guard_wait)) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(wait);
 	}
@@ -559,7 +559,7 @@ static struct attribute *dsicm_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group dsicm_attr_group = {
+static const struct attribute_group dsicm_attr_group = {
 	.attrs = dsicm_attrs,
 };
 

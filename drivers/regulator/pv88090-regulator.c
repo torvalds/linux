@@ -43,7 +43,7 @@ enum {
 struct pv88090_regulator {
 	struct regulator_desc desc;
 	/* Current limiting */
-	unsigned	n_current_limits;
+	unsigned int n_current_limits;
 	const int	*current_limits;
 	unsigned int limit_mask;
 	unsigned int conf;
@@ -184,7 +184,7 @@ static int pv88090_get_current_limit(struct regulator_dev *rdev)
 	return info->current_limits[data];
 }
 
-static struct regulator_ops pv88090_buck_ops = {
+static const struct regulator_ops pv88090_buck_ops = {
 	.get_mode = pv88090_buck_get_mode,
 	.set_mode = pv88090_buck_set_mode,
 	.enable = regulator_enable_regmap,
@@ -197,7 +197,7 @@ static struct regulator_ops pv88090_buck_ops = {
 	.get_current_limit = pv88090_get_current_limit,
 };
 
-static struct regulator_ops pv88090_ldo_ops = {
+static const struct regulator_ops pv88090_ldo_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -398,9 +398,14 @@ static int pv88090_i2c_probe(struct i2c_client *i2c,
 				return ret;
 
 			range = (range >>
-				 (PV88080_BUCK_VRANGE_GAIN_SHIFT + i - 1)) &
-				PV88080_BUCK_VRANGE_GAIN_MASK;
+				 (PV88090_BUCK_VRANGE_GAIN_SHIFT + i - 1)) &
+				PV88090_BUCK_VRANGE_GAIN_MASK;
 			index = ((range << 1) | conf2);
+			if (index > PV88090_ID_BUCK3) {
+				dev_err(chip->dev,
+					"Invalid index(%d)\n", index);
+				return -EINVAL;
+			}
 
 			pv88090_regulator_info[i].desc.min_uV
 				= pv88090_buck_vol[index].min_uV;

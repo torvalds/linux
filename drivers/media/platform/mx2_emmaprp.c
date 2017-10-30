@@ -724,10 +724,10 @@ static int emmaprp_buf_prepare(struct vb2_buffer *vb)
 	q_data = get_q_data(ctx, vb->vb2_queue->type);
 
 	if (vb2_plane_size(vb, 0) < q_data->sizeimage) {
-		dprintk(ctx->dev, "%s data will not fit into plane"
-				  "(%lu < %lu)\n", __func__,
-				  vb2_plane_size(vb, 0),
-				  (long)q_data->sizeimage);
+		dprintk(ctx->dev,
+			"%s data will not fit into plane(%lu < %lu)\n",
+			__func__, vb2_plane_size(vb, 0),
+			(long)q_data->sizeimage);
 		return -EINVAL;
 	}
 
@@ -873,7 +873,7 @@ static const struct v4l2_file_operations emmaprp_fops = {
 	.mmap		= emmaprp_mmap,
 };
 
-static struct video_device emmaprp_videodev = {
+static const struct video_device emmaprp_videodev = {
 	.name		= MEM2MEM_NAME,
 	.fops		= &emmaprp_fops,
 	.ioctl_ops	= &emmaprp_ioctl_ops,
@@ -882,7 +882,7 @@ static struct video_device emmaprp_videodev = {
 	.vfl_dir	= VFL_DIR_M2M,
 };
 
-static struct v4l2_m2m_ops m2m_ops = {
+static const struct v4l2_m2m_ops m2m_ops = {
 	.device_run	= emmaprp_device_run,
 	.job_abort	= emmaprp_job_abort,
 	.lock		= emmaprp_lock,
@@ -937,11 +937,13 @@ static int emmaprp_probe(struct platform_device *pdev)
 	snprintf(vfd->name, sizeof(vfd->name), "%s", emmaprp_videodev.name);
 	pcdev->vfd = vfd;
 	v4l2_info(&pcdev->v4l2_dev, EMMAPRP_MODULE_NAME
-			" Device registered as /dev/video%d\n", vfd->num);
+		  " Device registered as /dev/video%d\n", vfd->num);
 
 	platform_set_drvdata(pdev, pcdev);
 
 	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 	ret = devm_request_irq(&pdev->dev, irq, emmaprp_irq, 0,
 			       dev_name(&pdev->dev), pcdev);
 	if (ret)

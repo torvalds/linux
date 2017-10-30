@@ -164,8 +164,21 @@ void copy_user_highpage(struct page *to, struct page *from,
 
 #define ARCH_PFN_OFFSET		(PHYS_OFFSET >> PAGE_SHIFT)
 
+#ifdef CONFIG_MMU
+static inline unsigned long ___pa(unsigned long va)
+{
+	unsigned long off = va - PAGE_OFFSET;
+
+	if (off >= XCHAL_KSEG_SIZE)
+		off -= XCHAL_KSEG_SIZE;
+
+	return off + PHYS_OFFSET;
+}
+#define __pa(x)	___pa((unsigned long)(x))
+#else
 #define __pa(x)	\
 	((unsigned long) (x) - PAGE_OFFSET + PHYS_OFFSET)
+#endif
 #define __va(x)	\
 	((void *)((unsigned long) (x) - PHYS_OFFSET + PAGE_OFFSET))
 #define pfn_valid(pfn) \

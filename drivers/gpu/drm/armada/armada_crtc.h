@@ -41,10 +41,18 @@ struct armada_plane_work {
 				      struct armada_plane_work *);
 };
 
+struct armada_plane_state {
+	u32 src_hw;
+	u32 dst_hw;
+	u32 dst_yx;
+	u32 ctrl0;
+};
+
 struct armada_plane {
 	struct drm_plane	base;
 	wait_queue_head_t	frame_wait;
 	struct armada_plane_work *work;
+	struct armada_plane_state state;
 };
 #define drm_to_armada_plane(p) container_of(p, struct armada_plane, base)
 
@@ -54,6 +62,8 @@ int armada_drm_plane_work_queue(struct armada_crtc *dcrtc,
 int armada_drm_plane_work_wait(struct armada_plane *plane, long timeout);
 struct armada_plane_work *armada_drm_plane_work_cancel(
 	struct armada_crtc *dcrtc, struct armada_plane *plane);
+void armada_drm_plane_calc_addrs(u32 *addrs, struct drm_framebuffer *fb,
+	int x, int y);
 
 struct armada_crtc {
 	struct drm_crtc		crtc;
@@ -92,10 +102,6 @@ struct armada_crtc {
 };
 #define drm_to_armada_crtc(c) container_of(c, struct armada_crtc, crtc)
 
-void armada_drm_crtc_gamma_set(struct drm_crtc *, u16, u16, u16, int);
-void armada_drm_crtc_gamma_get(struct drm_crtc *, u16 *, u16 *, u16 *, int);
-void armada_drm_crtc_disable_irq(struct armada_crtc *, u32);
-void armada_drm_crtc_enable_irq(struct armada_crtc *, u32);
 void armada_drm_crtc_update_regs(struct armada_crtc *, struct armada_regs *);
 
 void armada_drm_crtc_plane_disable(struct armada_crtc *dcrtc,

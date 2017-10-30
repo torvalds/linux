@@ -31,17 +31,17 @@
  */
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/lprocfs_status.h"
+#include <lprocfs_status.h>
 #include <linux/seq_file.h>
-#include "../include/obd_support.h"
+#include <obd_support.h>
 
 #include "llite_internal.h"
 #include "vvp_internal.h"
 
 /* debugfs llite mount point registration */
-static struct file_operations ll_rw_extents_stats_fops;
-static struct file_operations ll_rw_extents_stats_pp_fops;
-static struct file_operations ll_rw_offset_stats_fops;
+static const struct file_operations ll_rw_extents_stats_fops;
+static const struct file_operations ll_rw_extents_stats_pp_fops;
+static const struct file_operations ll_rw_offset_stats_fops;
 
 static ssize_t blocksize_show(struct kobject *kobj, struct attribute *attr,
 			      char *buf)
@@ -386,7 +386,7 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 	struct lu_env *env;
 	long diff = 0;
 	long nrpages = 0;
-	int refcheck;
+	u16 refcheck;
 	long pages_number;
 	int mult;
 	long rc;
@@ -924,27 +924,29 @@ static ssize_t ll_unstable_stats_seq_write(struct file *file,
 }
 LPROC_SEQ_FOPS(ll_unstable_stats);
 
-static ssize_t root_squash_show(struct kobject *kobj, struct attribute *attr,
-				char *buf)
+static int ll_root_squash_seq_show(struct seq_file *m, void *v)
 {
-	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
-					      ll_kobj);
+	struct super_block *sb = m->private;
+	struct ll_sb_info *sbi = ll_s2sbi(sb);
 	struct root_squash_info *squash = &sbi->ll_squash;
 
-	return sprintf(buf, "%u:%u\n", squash->rsi_uid, squash->rsi_gid);
+	seq_printf(m, "%u:%u\n", squash->rsi_uid, squash->rsi_gid);
+	return 0;
 }
 
-static ssize_t root_squash_store(struct kobject *kobj, struct attribute *attr,
-				 const char *buffer, size_t count)
+static ssize_t ll_root_squash_seq_write(struct file *file,
+					const char __user *buffer,
+					size_t count, loff_t *off)
 {
-	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
-					      ll_kobj);
+	struct seq_file *m = file->private_data;
+	struct super_block *sb = m->private;
+	struct ll_sb_info *sbi = ll_s2sbi(sb);
 	struct root_squash_info *squash = &sbi->ll_squash;
 
 	return lprocfs_wr_root_squash(buffer, count, squash,
-				      ll_get_fsname(sbi->ll_sb, NULL, 0));
+				      ll_get_fsname(sb, NULL, 0));
 }
-LUSTRE_RW_ATTR(root_squash);
+LPROC_SEQ_FOPS(ll_root_squash);
 
 static int ll_nosquash_nids_seq_show(struct seq_file *m, void *v)
 {
@@ -997,6 +999,8 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "statahead_stats",  &ll_statahead_stats_fops, NULL, 0 },
 	{ "unstable_stats",   &ll_unstable_stats_fops, NULL },
 	{ "sbi_flags",	      &ll_sbi_flags_fops, NULL, 0 },
+	{ .name =       "root_squash",
+	  .fops =       &ll_root_squash_fops			},
 	{ .name =		"nosquash_nids",
 	  .fops =		&ll_nosquash_nids_fops		},
 	{ NULL }
@@ -1027,7 +1031,6 @@ static struct attribute *llite_attrs[] = {
 	&lustre_attr_max_easize.attr,
 	&lustre_attr_default_easize.attr,
 	&lustre_attr_xattr_cache.attr,
-	&lustre_attr_root_squash.attr,
 	NULL,
 };
 
@@ -1060,10 +1063,6 @@ static const struct llite_file_opcode {
 				   "brw_read" },
 	{ LPROC_LL_BRW_WRITE,      LPROCFS_CNTR_AVGMINMAX | LPROCFS_TYPE_PAGES,
 				   "brw_write" },
-	{ LPROC_LL_OSC_READ,       LPROCFS_CNTR_AVGMINMAX | LPROCFS_TYPE_BYTES,
-				   "osc_read" },
-	{ LPROC_LL_OSC_WRITE,      LPROCFS_CNTR_AVGMINMAX | LPROCFS_TYPE_BYTES,
-				   "osc_write" },
 	{ LPROC_LL_IOCTL,	  LPROCFS_TYPE_REGS, "ioctl" },
 	{ LPROC_LL_OPEN,	   LPROCFS_TYPE_REGS, "open" },
 	{ LPROC_LL_RELEASE,	LPROCFS_TYPE_REGS, "close" },
@@ -1309,7 +1308,7 @@ static void ll_display_extents_info(struct ll_rw_extents_info *io_extents,
 			   r, pct(r, read_tot), pct(read_cum, read_tot),
 			   w, pct(w, write_tot), pct(write_cum, write_tot));
 		start = end;
-		if (start == 1 << 10) {
+		if (start == 1024) {
 			start = 1;
 			units += 10;
 			unitp++;

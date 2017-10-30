@@ -308,7 +308,7 @@ static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 	saa7146_dma_free(dev,q,buf);
 }
 
-static struct videobuf_queue_ops vbi_qops = {
+static const struct videobuf_queue_ops vbi_qops = {
 	.buf_setup    = buffer_setup,
 	.buf_prepare  = buffer_prepare,
 	.buf_queue    = buffer_queue,
@@ -365,9 +365,8 @@ static void vbi_init(struct saa7146_dev *dev, struct saa7146_vv *vv)
 
 	INIT_LIST_HEAD(&vv->vbi_dmaq.queue);
 
-	init_timer(&vv->vbi_dmaq.timeout);
-	vv->vbi_dmaq.timeout.function = saa7146_buffer_timeout;
-	vv->vbi_dmaq.timeout.data     = (unsigned long)(&vv->vbi_dmaq);
+	setup_timer(&vv->vbi_dmaq.timeout, saa7146_buffer_timeout,
+		    (unsigned long)(&vv->vbi_dmaq));
 	vv->vbi_dmaq.dev              = dev;
 
 	init_waitqueue_head(&vv->vbi_wq);

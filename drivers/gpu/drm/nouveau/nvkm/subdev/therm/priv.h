@@ -111,6 +111,7 @@ void g84_therm_fini(struct nvkm_therm *);
 
 int gt215_therm_fan_sense(struct nvkm_therm *);
 
+void g84_therm_init(struct nvkm_therm *);
 void gf119_therm_init(struct nvkm_therm *);
 
 int nvkm_fanpwm_create(struct nvkm_therm *, struct dcb_gpio_func *);

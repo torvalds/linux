@@ -11,7 +11,10 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/sched.h>
-#include <linux/module.h>
+#include <linux/sched/hotplug.h>
+#include <linux/sched/task_stack.h>
+#include <linux/init.h>
+#include <linux/export.h>
 
 #include <asm/mmu_context.h>
 #include <asm/time.h>
@@ -24,11 +27,16 @@
 volatile unsigned long octeon_processor_boot = 0xff;
 volatile unsigned long octeon_processor_sp;
 volatile unsigned long octeon_processor_gp;
+#ifdef CONFIG_RELOCATABLE
+volatile unsigned long octeon_processor_relocated_kernel_entry;
+#endif /* CONFIG_RELOCATABLE */
 
 #ifdef CONFIG_HOTPLUG_CPU
 uint64_t octeon_bootloader_entry_addr;
 EXPORT_SYMBOL(octeon_bootloader_entry_addr);
 #endif
+
+extern void kernel_entry(unsigned long arg1, ...);
 
 static void octeon_icache_flush(void)
 {
@@ -180,11 +188,24 @@ static void __init octeon_smp_setup(void)
 	octeon_smp_hotplug_setup();
 }
 
+
+#ifdef CONFIG_RELOCATABLE
+int plat_post_relocation(long offset)
+{
+	unsigned long entry = (unsigned long)kernel_entry;
+
+	/* Send secondaries into relocated kernel */
+	octeon_processor_relocated_kernel_entry = entry + offset;
+
+	return 0;
+}
+#endif /* CONFIG_RELOCATABLE */
+
 /**
  * Firmware CPU startup hook
  *
  */
-static void octeon_boot_secondary(int cpu, struct task_struct *idle)
+static int octeon_boot_secondary(int cpu, struct task_struct *idle)
 {
 	int count;
 
@@ -202,8 +223,12 @@ static void octeon_boot_secondary(int cpu, struct task_struct *idle)
 		udelay(1);
 		count--;
 	}
-	if (count == 0)
+	if (count == 0) {
 		pr_err("Secondary boot timeout\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
 }
 
 /**
@@ -272,7 +297,6 @@ static int octeon_cpu_disable(void)
 
 	set_cpu_online(cpu, false);
 	calculate_cpu_foreign_map();
-	cpumask_clear_cpu(cpu, &cpu_callin_map);
 	octeon_fixup_irqs();
 
 	__flush_cache_all();
@@ -333,8 +357,6 @@ void play_dead(void)
 		;
 }
 
-extern void kernel_entry(unsigned long arg1, ...);
-
 static void start_after_reset(void)
 {
 	kernel_entry(0, 0, 0);	/* set a2 = 0 for secondary core */
@@ -390,7 +412,7 @@ late_initcall(register_cavium_notifier);
 
 #endif	/* CONFIG_HOTPLUG_CPU */
 
-struct plat_smp_ops octeon_smp_ops = {
+const struct plat_smp_ops octeon_smp_ops = {
 	.send_ipi_single	= octeon_send_ipi_single,
 	.send_ipi_mask		= octeon_send_ipi_mask,
 	.init_secondary		= octeon_init_secondary,
@@ -467,7 +489,7 @@ static void octeon_78xx_send_ipi_mask(const struct cpumask *mask,
 		octeon_78xx_send_ipi_single(cpu, action);
 }
 
-static struct plat_smp_ops octeon_78xx_smp_ops = {
+static const struct plat_smp_ops octeon_78xx_smp_ops = {
 	.send_ipi_single	= octeon_78xx_send_ipi_single,
 	.send_ipi_mask		= octeon_78xx_send_ipi_mask,
 	.init_secondary		= octeon_init_secondary,
@@ -483,7 +505,7 @@ static struct plat_smp_ops octeon_78xx_smp_ops = {
 
 void __init octeon_setup_smp(void)
 {
-	struct plat_smp_ops *ops;
+	const struct plat_smp_ops *ops;
 
 	if (octeon_has_feature(OCTEON_FEATURE_CIU3))
 		ops = &octeon_78xx_smp_ops;

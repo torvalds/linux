@@ -78,8 +78,8 @@ struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 	ret = of_parse_phandle_with_args(np, propname, "#gpio-cells", index,
 					 &gpiospec);
 	if (ret) {
-		pr_debug("%s: can't parse '%s' property of node '%s[%d]'\n",
-			__func__, propname, np->full_name, index);
+		pr_debug("%s: can't parse '%s' property of node '%pOF[%d]'\n",
+			__func__, propname, np, index);
 		return ERR_PTR(ret);
 	}
 
@@ -93,8 +93,8 @@ struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 	if (IS_ERR(desc))
 		goto out;
 
-	pr_debug("%s: parsed '%s' property of node '%s[%d]' - status (%d)\n",
-		 __func__, propname, np->full_name, index,
+	pr_debug("%s: parsed '%s' property of node '%pOF[%d]' - status (%d)\n",
+		 __func__, propname, np, index,
 		 PTR_ERR_OR_ZERO(desc));
 
 out:
@@ -147,11 +147,14 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 		*flags |= GPIO_ACTIVE_LOW;
 
 	if (of_flags & OF_GPIO_SINGLE_ENDED) {
-		if (of_flags & OF_GPIO_ACTIVE_LOW)
+		if (of_flags & OF_GPIO_OPEN_DRAIN)
 			*flags |= GPIO_OPEN_DRAIN;
 		else
 			*flags |= GPIO_OPEN_SOURCE;
 	}
+
+	if (of_flags & OF_GPIO_SLEEP_MAY_LOOSE_VALUE)
+		*flags |= GPIO_SLEEP_MAY_LOOSE_VALUE;
 
 	return desc;
 }
@@ -160,6 +163,7 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
  * of_parse_own_gpio() - Get a GPIO hog descriptor, names and flags for GPIO API
  * @np:		device node to get GPIO from
  * @chip:	GPIO chip whose hog is parsed
+ * @idx:	Index of the GPIO to parse
  * @name:	GPIO line name
  * @lflags:	gpio_lookup_flags - returned from of_find_gpio() or
  *		of_parse_own_gpio()
@@ -170,7 +174,7 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
  */
 static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 					   struct gpio_chip *chip,
-					   const char **name,
+					   unsigned int idx, const char **name,
 					   enum gpio_lookup_flags *lflags,
 					   enum gpiod_flags *dflags)
 {
@@ -178,6 +182,7 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 	enum of_gpio_flags xlate_flags;
 	struct of_phandle_args gpiospec;
 	struct gpio_desc *desc;
+	unsigned int i;
 	u32 tmp;
 	int ret;
 
@@ -196,9 +201,12 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 	gpiospec.np = chip_np;
 	gpiospec.args_count = tmp;
 
-	ret = of_property_read_u32_array(np, "gpios", gpiospec.args, tmp);
-	if (ret)
-		return ERR_PTR(ret);
+	for (i = 0; i < tmp; i++) {
+		ret = of_property_read_u32_index(np, "gpios", idx * tmp + i,
+						 &gpiospec.args[i]);
+		if (ret)
+			return ERR_PTR(ret);
+	}
 
 	desc = of_xlate_and_get_gpiod_flags(chip, &gpiospec, &xlate_flags);
 	if (IS_ERR(desc))
@@ -226,57 +234,12 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 }
 
 /**
- * of_gpiochip_set_names() - set up the names of the lines
- * @chip: GPIO chip whose lines should be named, if possible
- */
-static void of_gpiochip_set_names(struct gpio_chip *gc)
-{
-	struct gpio_device *gdev = gc->gpiodev;
-	struct device_node *np = gc->of_node;
-	int i;
-	int nstrings;
-
-	nstrings = of_property_count_strings(np, "gpio-line-names");
-	if (nstrings <= 0)
-		/* Lines names not present */
-		return;
-
-	/* This is normally not what you want */
-	if (gdev->ngpio != nstrings)
-		dev_info(&gdev->dev, "gpio-line-names specifies %d line "
-			 "names but there are %d lines on the chip\n",
-			 nstrings, gdev->ngpio);
-
-	/*
-	 * Make sure to not index beyond the end of the number of descriptors
-	 * of the GPIO device.
-	 */
-	for (i = 0; i < gdev->ngpio; i++) {
-		const char *name;
-		int ret;
-
-		ret = of_property_read_string_index(np,
-						    "gpio-line-names",
-						    i,
-						    &name);
-		if (ret) {
-			if (ret != -ENODATA)
-                                dev_err(&gdev->dev,
-                                        "unable to name line %d: %d\n",
-                                        i, ret);
-			break;
-		}
-		gdev->descs[i].name = name;
-	}
-}
-
-/**
  * of_gpiochip_scan_gpios - Scan gpio-controller for gpio definitions
  * @chip:	gpio chip to act on
  *
  * This is only used by of_gpiochip_add to request/set GPIO initial
  * configuration.
- * It retures error if it fails otherwise 0 on success.
+ * It returns error if it fails otherwise 0 on success.
  */
 static int of_gpiochip_scan_gpios(struct gpio_chip *chip)
 {
@@ -285,33 +248,38 @@ static int of_gpiochip_scan_gpios(struct gpio_chip *chip)
 	const char *name;
 	enum gpio_lookup_flags lflags;
 	enum gpiod_flags dflags;
+	unsigned int i;
 	int ret;
 
 	for_each_available_child_of_node(chip->of_node, np) {
 		if (!of_property_read_bool(np, "gpio-hog"))
 			continue;
 
-		desc = of_parse_own_gpio(np, chip, &name, &lflags, &dflags);
-		if (IS_ERR(desc))
-			continue;
+		for (i = 0;; i++) {
+			desc = of_parse_own_gpio(np, chip, i, &name, &lflags,
+						 &dflags);
+			if (IS_ERR(desc))
+				break;
 
-		ret = gpiod_hog(desc, name, lflags, dflags);
-		if (ret < 0)
-			return ret;
+			ret = gpiod_hog(desc, name, lflags, dflags);
+			if (ret < 0) {
+				of_node_put(np);
+				return ret;
+			}
+		}
 	}
 
 	return 0;
 }
 
 /**
- * of_gpio_simple_xlate - translate gpio_spec to the GPIO number and flags
+ * of_gpio_simple_xlate - translate gpiospec to the GPIO number and flags
  * @gc:		pointer to the gpio_chip structure
- * @np:		device node of the GPIO chip
- * @gpio_spec:	gpio specifier as found in the device tree
+ * @gpiospec:	GPIO specifier as found in the device tree
  * @flags:	a flags pointer to fill in
  *
  * This is simple translation function, suitable for the most 1:1 mapped
- * gpio chips. This function performs only one sanity check: whether gpio
+ * GPIO chips. This function performs only one sanity check: whether GPIO
  * is less than ngpios (that is specified in the gpio_chip).
  */
 int of_gpio_simple_xlate(struct gpio_chip *gc,
@@ -368,7 +336,7 @@ int of_mm_gpiochip_add_data(struct device_node *np,
 	int ret = -ENOMEM;
 	struct gpio_chip *gc = &mm_gc->gc;
 
-	gc->label = kstrdup(np->full_name, GFP_KERNEL);
+	gc->label = kasprintf(GFP_KERNEL, "%pOF", np);
 	if (!gc->label)
 		goto err0;
 
@@ -393,8 +361,7 @@ err2:
 err1:
 	kfree(gc->label);
 err0:
-	pr_err("%s: GPIO chip registration failed with status %d\n",
-	       np->full_name, ret);
+	pr_err("%pOF: GPIO chip registration failed with status %d\n", np, ret);
 	return ret;
 }
 EXPORT_SYMBOL(of_mm_gpiochip_add_data);
@@ -449,8 +416,8 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 						group_names_propname,
 						index, &name);
 				if (strlen(name)) {
-					pr_err("%s: Group name of numeric GPIO ranges must be the empty string.\n",
-						np->full_name);
+					pr_err("%pOF: Group name of numeric GPIO ranges must be the empty string.\n",
+						np);
 					break;
 				}
 			}
@@ -465,14 +432,14 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 		} else {
 			/* npins == 0: special range */
 			if (pinspec.args[1]) {
-				pr_err("%s: Illegal gpio-range format.\n",
-					np->full_name);
+				pr_err("%pOF: Illegal gpio-range format.\n",
+					np);
 				break;
 			}
 
 			if (!group_names) {
-				pr_err("%s: GPIO group range requested but no %s property.\n",
-					np->full_name, group_names_propname);
+				pr_err("%pOF: GPIO group range requested but no %s property.\n",
+					np, group_names_propname);
 				break;
 			}
 
@@ -483,8 +450,8 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 				break;
 
 			if (!strlen(name)) {
-				pr_err("%s: Group name of GPIO group range cannot be the empty string.\n",
-				np->full_name);
+				pr_err("%pOF: Group name of GPIO group range cannot be the empty string.\n",
+				np);
 				break;
 			}
 
@@ -526,7 +493,7 @@ int of_gpiochip_add(struct gpio_chip *chip)
 
 	/* If the chip defines names itself, these take precedence */
 	if (!chip->names)
-		of_gpiochip_set_names(chip);
+		devprop_gpiochip_set_names(chip);
 
 	of_node_get(chip->of_node);
 

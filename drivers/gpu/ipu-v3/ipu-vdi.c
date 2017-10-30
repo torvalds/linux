@@ -88,9 +88,9 @@ void ipu_vdi_set_field_order(struct ipu_vdi *vdi, v4l2_std_id std, u32 field)
 
 	reg = ipu_vdi_read(vdi, VDI_C);
 	if (top_field_0)
-		reg &= ~VDI_C_TOP_FIELD_MAN_1;
+		reg &= ~(VDI_C_TOP_FIELD_MAN_1 | VDI_C_TOP_FIELD_AUTO_1);
 	else
-		reg |= VDI_C_TOP_FIELD_MAN_1;
+		reg |= VDI_C_TOP_FIELD_MAN_1 | VDI_C_TOP_FIELD_AUTO_1;
 	ipu_vdi_write(vdi, reg, VDI_C);
 
 	spin_unlock_irqrestore(&vdi->lock, flags);

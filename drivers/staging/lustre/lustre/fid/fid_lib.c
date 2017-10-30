@@ -39,10 +39,9 @@
 
 #define DEBUG_SUBSYSTEM S_FID
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 #include <linux/module.h>
-#include "../include/lustre/lustre_idl.h"
-#include "../include/lustre_fid.h"
+#include <lustre_fid.h>
 
 /**
  * A cluster-wide range from which fid-sequences are granted to servers and
@@ -60,14 +59,13 @@
  * FID_SEQ_START + 2 is for .lustre directory and its objects
  */
 const struct lu_seq_range LUSTRE_SEQ_SPACE_RANGE = {
-	FID_SEQ_NORMAL,
-	(__u64)~0ULL
+	.lsr_start	= FID_SEQ_NORMAL,
+	.lsr_end	= (__u64)~0ULL,
 };
 
 /* Zero range, used for init and other purposes. */
 const struct lu_seq_range LUSTRE_SEQ_ZERO_RANGE = {
-	0,
-	0
+	.lsr_start	= 0,
 };
 
 /* Lustre Big Fs Lock fid. */

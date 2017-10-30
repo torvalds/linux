@@ -32,9 +32,9 @@
 
 #define DEBUG_SUBSYSTEM S_LOV
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-#include "../include/obd_class.h"
+#include <obd_class.h>
 #include "lov_internal.h"
 
 /** Merge the lock value block(&lvb) attributes and KMS from each of the
@@ -57,7 +57,7 @@ int lov_merge_lvb_kms(struct lov_stripe_md *lsm,
 	assert_spin_locked(&lsm->lsm_lock);
 	LASSERT(lsm->lsm_lock_owner == current_pid());
 
-	CDEBUG(D_INODE, "MDT ID "DOSTID" initial value: s=%llu m=%llu a=%llu c=%llu b=%llu\n",
+	CDEBUG(D_INODE, "MDT ID " DOSTID " initial value: s=%llu m=%llu a=%llu c=%llu b=%llu\n",
 	       POSTID(&lsm->lsm_oi), lvb->lvb_size, lvb->lvb_mtime,
 	       lvb->lvb_atime, lvb->lvb_ctime, lvb->lvb_blocks);
 	for (i = 0; i < lsm->lsm_stripe_count; i++) {
@@ -89,7 +89,7 @@ int lov_merge_lvb_kms(struct lov_stripe_md *lsm,
 		if (loi->loi_lvb.lvb_ctime > current_ctime)
 			current_ctime = loi->loi_lvb.lvb_ctime;
 
-		CDEBUG(D_INODE, "MDT ID "DOSTID" on OST[%u]: s=%llu m=%llu a=%llu c=%llu b=%llu\n",
+		CDEBUG(D_INODE, "MDT ID " DOSTID " on OST[%u]: s=%llu m=%llu a=%llu c=%llu b=%llu\n",
 		       POSTID(&lsm->lsm_oi), loi->loi_ost_idx,
 		       loi->loi_lvb.lvb_size, loi->loi_lvb.lvb_mtime,
 		       loi->loi_lvb.lvb_atime, loi->loi_lvb.lvb_ctime,
@@ -103,54 +103,4 @@ int lov_merge_lvb_kms(struct lov_stripe_md *lsm,
 	lvb->lvb_atime = current_atime;
 	lvb->lvb_ctime = current_ctime;
 	return rc;
-}
-
-void lov_merge_attrs(struct obdo *tgt, struct obdo *src, u64 valid,
-		     struct lov_stripe_md *lsm, int stripeno, int *set)
-{
-	valid &= src->o_valid;
-
-	if (*set) {
-		tgt->o_valid &= valid;
-		if (valid & OBD_MD_FLSIZE) {
-			/* this handles sparse files properly */
-			u64 lov_size;
-
-			lov_size = lov_stripe_size(lsm, src->o_size, stripeno);
-			if (lov_size > tgt->o_size)
-				tgt->o_size = lov_size;
-		}
-		if (valid & OBD_MD_FLBLOCKS)
-			tgt->o_blocks += src->o_blocks;
-		if (valid & OBD_MD_FLBLKSZ)
-			tgt->o_blksize += src->o_blksize;
-		if (valid & OBD_MD_FLCTIME && tgt->o_ctime < src->o_ctime)
-			tgt->o_ctime = src->o_ctime;
-		if (valid & OBD_MD_FLMTIME && tgt->o_mtime < src->o_mtime)
-			tgt->o_mtime = src->o_mtime;
-		if (valid & OBD_MD_FLDATAVERSION)
-			tgt->o_data_version += src->o_data_version;
-
-		/* handle flags */
-		if (valid & OBD_MD_FLFLAGS)
-			tgt->o_flags &= src->o_flags;
-		else
-			tgt->o_flags = 0;
-	} else {
-		memcpy(tgt, src, sizeof(*tgt));
-		tgt->o_oi = lsm->lsm_oi;
-		tgt->o_valid = valid;
-		if (valid & OBD_MD_FLSIZE)
-			tgt->o_size = lov_stripe_size(lsm, src->o_size,
-						      stripeno);
-		tgt->o_flags = 0;
-		if (valid & OBD_MD_FLFLAGS)
-			tgt->o_flags = src->o_flags;
-	}
-
-	/* data_version needs to be valid on all stripes to be correct! */
-	if (!(valid & OBD_MD_FLDATAVERSION))
-		tgt->o_valid &= ~OBD_MD_FLDATAVERSION;
-
-	*set += 1;
 }

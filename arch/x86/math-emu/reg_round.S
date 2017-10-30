@@ -706,3 +706,5 @@ L_exception_exit:
 	mov	$-1,%eax
 	jmp	fpu_reg_round_special_exit
 #endif /* PARANOID */ 
+
+ENDPROC(FPU_round)

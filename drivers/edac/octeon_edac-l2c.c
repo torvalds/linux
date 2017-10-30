@@ -16,7 +16,6 @@
 
 #include <asm/octeon/cvmx.h>
 
-#include "edac_core.h"
 #include "edac_module.h"
 
 #define EDAC_MOD_STR "octeon-l2c"

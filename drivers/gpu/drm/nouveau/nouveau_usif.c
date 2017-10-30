@@ -103,7 +103,7 @@ usif_notify(const void *header, u32 length, const void *data, u32 size)
 	}
 		break;
 	default:
-		BUG_ON(1);
+		BUG();
 		break;
 	}
 
@@ -211,7 +211,6 @@ usif_notify_get(struct drm_file *f, void *data, u32 size, void *argv, u32 argc)
 		goto done;
 	ntfy->p->base.event = &ntfy->p->e.base;
 	ntfy->p->base.file_priv = f;
-	ntfy->p->base.pid = current->pid;
 	ntfy->p->e.base.type = DRM_NOUVEAU_EVENT_NVIF;
 	ntfy->p->e.base.length = sizeof(ntfy->p->e.base) + ntfy->reply;
 
@@ -313,7 +312,8 @@ usif_ioctl(struct drm_file *filp, void __user *user, u32 argc)
 	if (!(ret = nvif_unpack(-ENOSYS, &data, &size, argv->v0, 0, 0, true))) {
 		/* block access to objects not created via this interface */
 		owner = argv->v0.owner;
-		if (argv->v0.object == 0ULL)
+		if (argv->v0.object == 0ULL &&
+		    argv->v0.type != NVIF_IOCTL_V0_DEL)
 			argv->v0.owner = NVDRM_OBJECT_ANY; /* except client */
 		else
 			argv->v0.owner = NVDRM_OBJECT_USIF;

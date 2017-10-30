@@ -24,7 +24,7 @@
 #include <linux/firmware.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
 #include "amdgpu_ih.h"
@@ -964,62 +964,62 @@ static bool cik_read_bios_from_rom(struct amdgpu_device *adev,
 }
 
 static const struct amdgpu_allowed_register_entry cik_allowed_read_registers[] = {
-	{mmGRBM_STATUS, false},
-	{mmGB_ADDR_CONFIG, false},
-	{mmMC_ARB_RAMCFG, false},
-	{mmGB_TILE_MODE0, false},
-	{mmGB_TILE_MODE1, false},
-	{mmGB_TILE_MODE2, false},
-	{mmGB_TILE_MODE3, false},
-	{mmGB_TILE_MODE4, false},
-	{mmGB_TILE_MODE5, false},
-	{mmGB_TILE_MODE6, false},
-	{mmGB_TILE_MODE7, false},
-	{mmGB_TILE_MODE8, false},
-	{mmGB_TILE_MODE9, false},
-	{mmGB_TILE_MODE10, false},
-	{mmGB_TILE_MODE11, false},
-	{mmGB_TILE_MODE12, false},
-	{mmGB_TILE_MODE13, false},
-	{mmGB_TILE_MODE14, false},
-	{mmGB_TILE_MODE15, false},
-	{mmGB_TILE_MODE16, false},
-	{mmGB_TILE_MODE17, false},
-	{mmGB_TILE_MODE18, false},
-	{mmGB_TILE_MODE19, false},
-	{mmGB_TILE_MODE20, false},
-	{mmGB_TILE_MODE21, false},
-	{mmGB_TILE_MODE22, false},
-	{mmGB_TILE_MODE23, false},
-	{mmGB_TILE_MODE24, false},
-	{mmGB_TILE_MODE25, false},
-	{mmGB_TILE_MODE26, false},
-	{mmGB_TILE_MODE27, false},
-	{mmGB_TILE_MODE28, false},
-	{mmGB_TILE_MODE29, false},
-	{mmGB_TILE_MODE30, false},
-	{mmGB_TILE_MODE31, false},
-	{mmGB_MACROTILE_MODE0, false},
-	{mmGB_MACROTILE_MODE1, false},
-	{mmGB_MACROTILE_MODE2, false},
-	{mmGB_MACROTILE_MODE3, false},
-	{mmGB_MACROTILE_MODE4, false},
-	{mmGB_MACROTILE_MODE5, false},
-	{mmGB_MACROTILE_MODE6, false},
-	{mmGB_MACROTILE_MODE7, false},
-	{mmGB_MACROTILE_MODE8, false},
-	{mmGB_MACROTILE_MODE9, false},
-	{mmGB_MACROTILE_MODE10, false},
-	{mmGB_MACROTILE_MODE11, false},
-	{mmGB_MACROTILE_MODE12, false},
-	{mmGB_MACROTILE_MODE13, false},
-	{mmGB_MACROTILE_MODE14, false},
-	{mmGB_MACROTILE_MODE15, false},
-	{mmCC_RB_BACKEND_DISABLE, false, true},
-	{mmGC_USER_RB_BACKEND_DISABLE, false, true},
-	{mmGB_BACKEND_MAP, false, false},
-	{mmPA_SC_RASTER_CONFIG, false, true},
-	{mmPA_SC_RASTER_CONFIG_1, false, true},
+	{mmGRBM_STATUS},
+	{mmGB_ADDR_CONFIG},
+	{mmMC_ARB_RAMCFG},
+	{mmGB_TILE_MODE0},
+	{mmGB_TILE_MODE1},
+	{mmGB_TILE_MODE2},
+	{mmGB_TILE_MODE3},
+	{mmGB_TILE_MODE4},
+	{mmGB_TILE_MODE5},
+	{mmGB_TILE_MODE6},
+	{mmGB_TILE_MODE7},
+	{mmGB_TILE_MODE8},
+	{mmGB_TILE_MODE9},
+	{mmGB_TILE_MODE10},
+	{mmGB_TILE_MODE11},
+	{mmGB_TILE_MODE12},
+	{mmGB_TILE_MODE13},
+	{mmGB_TILE_MODE14},
+	{mmGB_TILE_MODE15},
+	{mmGB_TILE_MODE16},
+	{mmGB_TILE_MODE17},
+	{mmGB_TILE_MODE18},
+	{mmGB_TILE_MODE19},
+	{mmGB_TILE_MODE20},
+	{mmGB_TILE_MODE21},
+	{mmGB_TILE_MODE22},
+	{mmGB_TILE_MODE23},
+	{mmGB_TILE_MODE24},
+	{mmGB_TILE_MODE25},
+	{mmGB_TILE_MODE26},
+	{mmGB_TILE_MODE27},
+	{mmGB_TILE_MODE28},
+	{mmGB_TILE_MODE29},
+	{mmGB_TILE_MODE30},
+	{mmGB_TILE_MODE31},
+	{mmGB_MACROTILE_MODE0},
+	{mmGB_MACROTILE_MODE1},
+	{mmGB_MACROTILE_MODE2},
+	{mmGB_MACROTILE_MODE3},
+	{mmGB_MACROTILE_MODE4},
+	{mmGB_MACROTILE_MODE5},
+	{mmGB_MACROTILE_MODE6},
+	{mmGB_MACROTILE_MODE7},
+	{mmGB_MACROTILE_MODE8},
+	{mmGB_MACROTILE_MODE9},
+	{mmGB_MACROTILE_MODE10},
+	{mmGB_MACROTILE_MODE11},
+	{mmGB_MACROTILE_MODE12},
+	{mmGB_MACROTILE_MODE13},
+	{mmGB_MACROTILE_MODE14},
+	{mmGB_MACROTILE_MODE15},
+	{mmCC_RB_BACKEND_DISABLE, true},
+	{mmGC_USER_RB_BACKEND_DISABLE, true},
+	{mmGB_BACKEND_MAP, false},
+	{mmPA_SC_RASTER_CONFIG, true},
+	{mmPA_SC_RASTER_CONFIG_1, true},
 };
 
 static uint32_t cik_read_indexed_register(struct amdgpu_device *adev,
@@ -1050,11 +1050,10 @@ static int cik_read_register(struct amdgpu_device *adev, u32 se_num,
 		if (reg_offset != cik_allowed_read_registers[i].reg_offset)
 			continue;
 
-		if (!cik_allowed_read_registers[i].untouched)
-			*value = cik_allowed_read_registers[i].grbm_indexed ?
-				 cik_read_indexed_register(adev, se_num,
-							   sh_num, reg_offset) :
-				 RREG32(reg_offset);
+		*value = cik_allowed_read_registers[i].grbm_indexed ?
+			 cik_read_indexed_register(adev, se_num,
+						   sh_num, reg_offset) :
+			 RREG32(reg_offset);
 		return 0;
 	}
 	return -EINVAL;
@@ -1176,6 +1175,7 @@ static int cik_gpu_pci_config_reset(struct amdgpu_device *adev)
 		if (RREG32(mmCONFIG_MEMSIZE) != 0xffffffff) {
 			/* enable BM */
 			pci_set_master(adev->pdev);
+			adev->has_hw_reset = true;
 			r = 0;
 			break;
 		}
@@ -1187,18 +1187,6 @@ static int cik_gpu_pci_config_reset(struct amdgpu_device *adev)
 		kv_restore_regs_for_reset(adev, &kv_save);
 
 	return r;
-}
-
-static void cik_set_bios_scratch_engine_hung(struct amdgpu_device *adev, bool hung)
-{
-	u32 tmp = RREG32(mmBIOS_SCRATCH_3);
-
-	if (hung)
-		tmp |= ATOM_S3_ASIC_GUI_ENGINE_HUNG;
-	else
-		tmp &= ~ATOM_S3_ASIC_GUI_ENGINE_HUNG;
-
-	WREG32(mmBIOS_SCRATCH_3, tmp);
 }
 
 /**
@@ -1213,13 +1201,19 @@ static void cik_set_bios_scratch_engine_hung(struct amdgpu_device *adev, bool hu
 static int cik_asic_reset(struct amdgpu_device *adev)
 {
 	int r;
-	cik_set_bios_scratch_engine_hung(adev, true);
+
+	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
 
 	r = cik_gpu_pci_config_reset(adev);
 
-	cik_set_bios_scratch_engine_hung(adev, false);
+	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
 
 	return r;
+}
+
+static u32 cik_get_config_memsize(struct amdgpu_device *adev)
+{
+	return RREG32(mmCONFIG_MEMSIZE);
 }
 
 static int cik_set_uvd_clock(struct amdgpu_device *adev, u32 clock,
@@ -1638,759 +1632,20 @@ static uint32_t cik_get_rev_id(struct amdgpu_device *adev)
 static void cik_detect_hw_virtualization(struct amdgpu_device *adev)
 {
 	if (is_virtual_machine()) /* passthrough mode */
-		adev->virtualization.virtual_caps |= AMDGPU_PASSTHROUGH_MODE;
-}
-
-static const struct amdgpu_ip_block_version bonaire_ip_blocks[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 1,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gmc_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_DCE,
-		.major = 8,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &dce_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 7,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &gfx_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_sdma_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_UVD,
-		.major = 4,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &uvd_v4_2_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_VCE,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vce_v2_0_ip_funcs,
-	},
-};
-
-static const struct amdgpu_ip_block_version bonaire_ip_blocks_vd[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 1,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gmc_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_DCE,
-		.major = 8,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &dce_virtual_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 7,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &gfx_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_sdma_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_UVD,
-		.major = 4,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &uvd_v4_2_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_VCE,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vce_v2_0_ip_funcs,
-	},
-};
-
-static const struct amdgpu_ip_block_version hawaii_ip_blocks[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 1,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gmc_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_DCE,
-		.major = 8,
-		.minor = 5,
-		.rev = 0,
-		.funcs = &dce_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 7,
-		.minor = 3,
-		.rev = 0,
-		.funcs = &gfx_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_sdma_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_UVD,
-		.major = 4,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &uvd_v4_2_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_VCE,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vce_v2_0_ip_funcs,
-	},
-};
-
-static const struct amdgpu_ip_block_version hawaii_ip_blocks_vd[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 1,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gmc_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_DCE,
-		.major = 8,
-		.minor = 5,
-		.rev = 0,
-		.funcs = &dce_virtual_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 7,
-		.minor = 3,
-		.rev = 0,
-		.funcs = &gfx_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_sdma_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_UVD,
-		.major = 4,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &uvd_v4_2_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_VCE,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vce_v2_0_ip_funcs,
-	},
-};
-
-static const struct amdgpu_ip_block_version kabini_ip_blocks[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 1,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gmc_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_DCE,
-		.major = 8,
-		.minor = 3,
-		.rev = 0,
-		.funcs = &dce_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 7,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &gfx_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_sdma_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_UVD,
-		.major = 4,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &uvd_v4_2_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_VCE,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vce_v2_0_ip_funcs,
-	},
-};
-
-static const struct amdgpu_ip_block_version kabini_ip_blocks_vd[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 1,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gmc_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_DCE,
-		.major = 8,
-		.minor = 3,
-		.rev = 0,
-		.funcs = &dce_virtual_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 7,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &gfx_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_sdma_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_UVD,
-		.major = 4,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &uvd_v4_2_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_VCE,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vce_v2_0_ip_funcs,
-	},
-};
-
-static const struct amdgpu_ip_block_version mullins_ip_blocks[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 1,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gmc_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_DCE,
-		.major = 8,
-		.minor = 3,
-		.rev = 0,
-		.funcs = &dce_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 7,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &gfx_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_sdma_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_UVD,
-		.major = 4,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &uvd_v4_2_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_VCE,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vce_v2_0_ip_funcs,
-	},
-};
-
-static const struct amdgpu_ip_block_version mullins_ip_blocks_vd[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 1,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gmc_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_DCE,
-		.major = 8,
-		.minor = 3,
-		.rev = 0,
-		.funcs = &dce_virtual_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 7,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &gfx_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_sdma_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_UVD,
-		.major = 4,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &uvd_v4_2_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_VCE,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vce_v2_0_ip_funcs,
-	},
-};
-
-static const struct amdgpu_ip_block_version kaveri_ip_blocks[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 1,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gmc_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_DCE,
-		.major = 8,
-		.minor = 1,
-		.rev = 0,
-		.funcs = &dce_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 7,
-		.minor = 1,
-		.rev = 0,
-		.funcs = &gfx_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_sdma_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_UVD,
-		.major = 4,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &uvd_v4_2_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_VCE,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vce_v2_0_ip_funcs,
-	},
-};
-
-static const struct amdgpu_ip_block_version kaveri_ip_blocks_vd[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 1,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gmc_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 7,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_DCE,
-		.major = 8,
-		.minor = 1,
-		.rev = 0,
-		.funcs = &dce_virtual_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 7,
-		.minor = 1,
-		.rev = 0,
-		.funcs = &gfx_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cik_sdma_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_UVD,
-		.major = 4,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &uvd_v4_2_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_VCE,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vce_v2_0_ip_funcs,
-	},
-};
-
-int cik_set_ip_blocks(struct amdgpu_device *adev)
-{
-	if (adev->enable_virtual_display) {
-		switch (adev->asic_type) {
-		case CHIP_BONAIRE:
-			adev->ip_blocks = bonaire_ip_blocks_vd;
-			adev->num_ip_blocks = ARRAY_SIZE(bonaire_ip_blocks_vd);
-			break;
-		case CHIP_HAWAII:
-			adev->ip_blocks = hawaii_ip_blocks_vd;
-			adev->num_ip_blocks = ARRAY_SIZE(hawaii_ip_blocks_vd);
-			break;
-		case CHIP_KAVERI:
-			adev->ip_blocks = kaveri_ip_blocks_vd;
-			adev->num_ip_blocks = ARRAY_SIZE(kaveri_ip_blocks_vd);
-			break;
-		case CHIP_KABINI:
-			adev->ip_blocks = kabini_ip_blocks_vd;
-			adev->num_ip_blocks = ARRAY_SIZE(kabini_ip_blocks_vd);
-			break;
-		case CHIP_MULLINS:
-			adev->ip_blocks = mullins_ip_blocks_vd;
-			adev->num_ip_blocks = ARRAY_SIZE(mullins_ip_blocks_vd);
-			break;
-		default:
-			/* FIXME: not supported yet */
-			return -EINVAL;
-		}
-	} else {
-		switch (adev->asic_type) {
-		case CHIP_BONAIRE:
-			adev->ip_blocks = bonaire_ip_blocks;
-			adev->num_ip_blocks = ARRAY_SIZE(bonaire_ip_blocks);
-			break;
-		case CHIP_HAWAII:
-			adev->ip_blocks = hawaii_ip_blocks;
-			adev->num_ip_blocks = ARRAY_SIZE(hawaii_ip_blocks);
-			break;
-		case CHIP_KAVERI:
-			adev->ip_blocks = kaveri_ip_blocks;
-			adev->num_ip_blocks = ARRAY_SIZE(kaveri_ip_blocks);
-			break;
-		case CHIP_KABINI:
-			adev->ip_blocks = kabini_ip_blocks;
-			adev->num_ip_blocks = ARRAY_SIZE(kabini_ip_blocks);
-			break;
-		case CHIP_MULLINS:
-			adev->ip_blocks = mullins_ip_blocks;
-			adev->num_ip_blocks = ARRAY_SIZE(mullins_ip_blocks);
-			break;
-		default:
-			/* FIXME: not supported yet */
-			return -EINVAL;
-		}
-	}
-
-	return 0;
+		adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
 }
 
 static const struct amdgpu_asic_funcs cik_asic_funcs =
 {
 	.read_disabled_bios = &cik_read_disabled_bios,
 	.read_bios_from_rom = &cik_read_bios_from_rom,
-	.detect_hw_virtualization = cik_detect_hw_virtualization,
 	.read_register = &cik_read_register,
 	.reset = &cik_asic_reset,
 	.set_vga_state = &cik_vga_set_state,
 	.get_xclk = &cik_get_xclk,
 	.set_uvd_clocks = &cik_set_uvd_clocks,
 	.set_vce_clocks = &cik_set_vce_clocks,
+	.get_config_memsize = &cik_get_config_memsize,
 };
 
 static int cik_common_early_init(void *handle)
@@ -2473,8 +1728,8 @@ static int cik_common_early_init(void *handle)
 			  AMD_PG_SUPPORT_GFX_SMG |
 			  AMD_PG_SUPPORT_GFX_DMG |*/
 			AMD_PG_SUPPORT_UVD |
-			/*AMD_PG_SUPPORT_VCE |
-			  AMD_PG_SUPPORT_CP |
+			AMD_PG_SUPPORT_VCE |
+			/*  AMD_PG_SUPPORT_CP |
 			  AMD_PG_SUPPORT_GDS |
 			  AMD_PG_SUPPORT_RLC_SMU_HS |
 			  AMD_PG_SUPPORT_ACP |
@@ -2529,6 +1784,8 @@ static int cik_common_early_init(void *handle)
 		return -EINVAL;
 	}
 
+	adev->firmware.load_type = amdgpu_ucode_get_load_type(adev, amdgpu_fw_load_type);
+
 	amdgpu_get_pcie_info(adev);
 
 	return 0;
@@ -2567,21 +1824,14 @@ static int cik_common_suspend(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	amdgpu_amdkfd_suspend(adev);
-
 	return cik_common_hw_fini(adev);
 }
 
 static int cik_common_resume(void *handle)
 {
-	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = cik_common_hw_init(adev);
-	if (r)
-		return r;
-
-	return amdgpu_amdkfd_resume(adev);
+	return cik_common_hw_init(adev);
 }
 
 static bool cik_common_is_idle(void *handle)
@@ -2612,7 +1862,7 @@ static int cik_common_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs cik_common_ip_funcs = {
+static const struct amd_ip_funcs cik_common_ip_funcs = {
 	.name = "cik_common",
 	.early_init = cik_common_early_init,
 	.late_init = NULL,
@@ -2628,3 +1878,81 @@ const struct amd_ip_funcs cik_common_ip_funcs = {
 	.set_clockgating_state = cik_common_set_clockgating_state,
 	.set_powergating_state = cik_common_set_powergating_state,
 };
+
+static const struct amdgpu_ip_block_version cik_common_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_COMMON,
+	.major = 1,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &cik_common_ip_funcs,
+};
+
+int cik_set_ip_blocks(struct amdgpu_device *adev)
+{
+	cik_detect_hw_virtualization(adev);
+
+	switch (adev->asic_type) {
+	case CHIP_BONAIRE:
+		amdgpu_ip_block_add(adev, &cik_common_ip_block);
+		amdgpu_ip_block_add(adev, &gmc_v7_0_ip_block);
+		amdgpu_ip_block_add(adev, &cik_ih_ip_block);
+		amdgpu_ip_block_add(adev, &amdgpu_pp_ip_block);
+		if (adev->enable_virtual_display)
+			amdgpu_ip_block_add(adev, &dce_virtual_ip_block);
+		else
+			amdgpu_ip_block_add(adev, &dce_v8_2_ip_block);
+		amdgpu_ip_block_add(adev, &gfx_v7_2_ip_block);
+		amdgpu_ip_block_add(adev, &cik_sdma_ip_block);
+		amdgpu_ip_block_add(adev, &uvd_v4_2_ip_block);
+		amdgpu_ip_block_add(adev, &vce_v2_0_ip_block);
+		break;
+	case CHIP_HAWAII:
+		amdgpu_ip_block_add(adev, &cik_common_ip_block);
+		amdgpu_ip_block_add(adev, &gmc_v7_0_ip_block);
+		amdgpu_ip_block_add(adev, &cik_ih_ip_block);
+		amdgpu_ip_block_add(adev, &amdgpu_pp_ip_block);
+		if (adev->enable_virtual_display)
+			amdgpu_ip_block_add(adev, &dce_virtual_ip_block);
+		else
+			amdgpu_ip_block_add(adev, &dce_v8_5_ip_block);
+		amdgpu_ip_block_add(adev, &gfx_v7_3_ip_block);
+		amdgpu_ip_block_add(adev, &cik_sdma_ip_block);
+		amdgpu_ip_block_add(adev, &uvd_v4_2_ip_block);
+		amdgpu_ip_block_add(adev, &vce_v2_0_ip_block);
+		break;
+	case CHIP_KAVERI:
+		amdgpu_ip_block_add(adev, &cik_common_ip_block);
+		amdgpu_ip_block_add(adev, &gmc_v7_0_ip_block);
+		amdgpu_ip_block_add(adev, &cik_ih_ip_block);
+		amdgpu_ip_block_add(adev, &amdgpu_pp_ip_block);
+		if (adev->enable_virtual_display)
+			amdgpu_ip_block_add(adev, &dce_virtual_ip_block);
+		else
+			amdgpu_ip_block_add(adev, &dce_v8_1_ip_block);
+		amdgpu_ip_block_add(adev, &gfx_v7_1_ip_block);
+		amdgpu_ip_block_add(adev, &cik_sdma_ip_block);
+		amdgpu_ip_block_add(adev, &uvd_v4_2_ip_block);
+		amdgpu_ip_block_add(adev, &vce_v2_0_ip_block);
+		break;
+	case CHIP_KABINI:
+	case CHIP_MULLINS:
+		amdgpu_ip_block_add(adev, &cik_common_ip_block);
+		amdgpu_ip_block_add(adev, &gmc_v7_0_ip_block);
+		amdgpu_ip_block_add(adev, &cik_ih_ip_block);
+		amdgpu_ip_block_add(adev, &amdgpu_pp_ip_block);
+		if (adev->enable_virtual_display)
+			amdgpu_ip_block_add(adev, &dce_virtual_ip_block);
+		else
+			amdgpu_ip_block_add(adev, &dce_v8_3_ip_block);
+		amdgpu_ip_block_add(adev, &gfx_v7_2_ip_block);
+		amdgpu_ip_block_add(adev, &cik_sdma_ip_block);
+		amdgpu_ip_block_add(adev, &uvd_v4_2_ip_block);
+		amdgpu_ip_block_add(adev, &vce_v2_0_ip_block);
+		break;
+	default:
+		/* FIXME: not supported yet */
+		return -EINVAL;
+	}
+	return 0;
+}

@@ -11,10 +11,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/completion.h>
@@ -169,7 +165,7 @@ static int bcap_init_sensor_formats(struct bcap_device *bcap_dev)
 	if (!num_formats)
 		return -ENXIO;
 
-	sf = kzalloc(num_formats * sizeof(*sf), GFP_KERNEL);
+	sf = kcalloc(num_formats, sizeof(*sf), GFP_KERNEL);
 	if (!sf)
 		return -ENOMEM;
 
@@ -379,7 +375,7 @@ static void bcap_stop_streaming(struct vb2_queue *vq)
 	}
 }
 
-static struct vb2_ops bcap_video_qops = {
+static const struct vb2_ops bcap_video_qops = {
 	.queue_setup            = bcap_queue_setup,
 	.buf_prepare            = bcap_buffer_prepare,
 	.buf_cleanup            = bcap_buffer_cleanup,
@@ -773,7 +769,7 @@ static const struct v4l2_ioctl_ops bcap_ioctl_ops = {
 	.vidioc_log_status       = bcap_log_status,
 };
 
-static struct v4l2_file_operations bcap_fops = {
+static const struct v4l2_file_operations bcap_fops = {
 	.owner = THIS_MODULE,
 	.open = v4l2_fh_open,
 	.release = vb2_fop_release,
@@ -802,10 +798,8 @@ static int bcap_probe(struct platform_device *pdev)
 	}
 
 	bcap_dev = kzalloc(sizeof(*bcap_dev), GFP_KERNEL);
-	if (!bcap_dev) {
-		v4l2_err(pdev->dev.driver, "Unable to alloc bcap_dev\n");
+	if (!bcap_dev)
 		return -ENOMEM;
-	}
 
 	bcap_dev->cfg = config;
 

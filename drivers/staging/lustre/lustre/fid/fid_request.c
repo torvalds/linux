@@ -38,15 +38,15 @@
 
 #define DEBUG_SUBSYSTEM S_FID
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 #include <linux/module.h>
 
-#include "../include/obd.h"
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
-#include "../include/lustre_fid.h"
+#include <obd.h>
+#include <obd_class.h>
+#include <obd_support.h>
+#include <lustre_fid.h>
 /* mdc RPC locks */
-#include "../include/lustre_mdc.h"
+#include <lustre_mdc.h>
 #include "fid_internal.h"
 
 static struct dentry *seq_debugfs_dir;
@@ -74,7 +74,7 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 
 	/* Zero out input range, this is not recovery yet. */
 	in = req_capsule_client_get(&req->rq_pill, &RMF_SEQ_RANGE);
-	range_init(in);
+	lu_seq_range_init(in);
 
 	ptlrpc_request_set_replen(req);
 
@@ -112,25 +112,21 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 
 	ptlrpc_at_set_req_timeout(req);
 
-	if (opc != SEQ_ALLOC_SUPER && seq->lcs_type == LUSTRE_SEQ_METADATA)
-		mdc_get_rpc_lock(exp->exp_obd->u.cli.cl_rpc_lock, NULL);
 	rc = ptlrpc_queue_wait(req);
-	if (opc != SEQ_ALLOC_SUPER && seq->lcs_type == LUSTRE_SEQ_METADATA)
-		mdc_put_rpc_lock(exp->exp_obd->u.cli.cl_rpc_lock, NULL);
 	if (rc)
 		goto out_req;
 
 	out = req_capsule_server_get(&req->rq_pill, &RMF_SEQ_RANGE);
 	*output = *out;
 
-	if (!range_is_sane(output)) {
+	if (!lu_seq_range_is_sane(output)) {
 		CERROR("%s: Invalid range received from server: "
 		       DRANGE "\n", seq->lcs_name, PRANGE(output));
 		rc = -EINVAL;
 		goto out_req;
 	}
 
-	if (range_is_exhausted(output)) {
+	if (lu_seq_range_is_exhausted(output)) {
 		CERROR("%s: Range received from server is exhausted: "
 		       DRANGE "]\n", seq->lcs_name, PRANGE(output));
 		rc = -EINVAL;
@@ -170,9 +166,9 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 {
 	int rc;
 
-	LASSERT(range_is_sane(&seq->lcs_space));
+	LASSERT(lu_seq_range_is_sane(&seq->lcs_space));
 
-	if (range_is_exhausted(&seq->lcs_space)) {
+	if (lu_seq_range_is_exhausted(&seq->lcs_space)) {
 		rc = seq_client_alloc_meta(env, seq);
 		if (rc) {
 			CERROR("%s: Can't allocate new meta-sequence, rc %d\n",
@@ -185,7 +181,7 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 		rc = 0;
 	}
 
-	LASSERT(!range_is_exhausted(&seq->lcs_space));
+	LASSERT(!lu_seq_range_is_exhausted(&seq->lcs_space));
 	*seqnr = seq->lcs_space.lsr_start;
 	seq->lcs_space.lsr_start += 1;
 
@@ -196,7 +192,7 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 }
 
 static int seq_fid_alloc_prep(struct lu_client_seq *seq,
-			      wait_queue_t *link)
+			      wait_queue_entry_t *link)
 {
 	if (seq->lcs_update) {
 		add_wait_queue(&seq->lcs_waitq, link);
@@ -227,7 +223,7 @@ static void seq_fid_alloc_fini(struct lu_client_seq *seq)
 int seq_client_alloc_fid(const struct lu_env *env,
 			 struct lu_client_seq *seq, struct lu_fid *fid)
 {
-	wait_queue_t link;
+	wait_queue_entry_t link;
 	int rc;
 
 	LASSERT(seq);
@@ -263,7 +259,7 @@ int seq_client_alloc_fid(const struct lu_env *env,
 			return rc;
 		}
 
-		CDEBUG(D_INFO, "%s: Switch to sequence [0x%16.16Lx]\n",
+		CDEBUG(D_INFO, "%s: Switch to sequence [0x%16.16llx]\n",
 		       seq->lcs_name, seqnr);
 
 		seq->lcs_fid.f_oid = LUSTRE_FID_INIT_OID;
@@ -283,7 +279,7 @@ int seq_client_alloc_fid(const struct lu_env *env,
 	*fid = seq->lcs_fid;
 	mutex_unlock(&seq->lcs_mutex);
 
-	CDEBUG(D_INFO, "%s: Allocated FID "DFID"\n", seq->lcs_name,  PFID(fid));
+	CDEBUG(D_INFO, "%s: Allocated FID " DFID "\n", seq->lcs_name,  PFID(fid));
 	return rc;
 }
 EXPORT_SYMBOL(seq_client_alloc_fid);
@@ -294,7 +290,7 @@ EXPORT_SYMBOL(seq_client_alloc_fid);
  */
 void seq_client_flush(struct lu_client_seq *seq)
 {
-	wait_queue_t link;
+	wait_queue_entry_t link;
 
 	LASSERT(seq);
 	init_waitqueue_entry(&link, current);
@@ -320,7 +316,7 @@ void seq_client_flush(struct lu_client_seq *seq)
 
 	seq->lcs_space.lsr_index = -1;
 
-	range_init(&seq->lcs_space);
+	lu_seq_range_init(&seq->lcs_space);
 	mutex_unlock(&seq->lcs_mutex);
 }
 EXPORT_SYMBOL(seq_client_flush);

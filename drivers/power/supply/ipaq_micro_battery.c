@@ -313,4 +313,4 @@ module_platform_driver(micro_batt_device_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("driver for iPAQ Atmel micro battery");
-MODULE_ALIAS("platform:battery-ipaq-micro");
+MODULE_ALIAS("platform:ipaq-micro-battery");

@@ -70,7 +70,7 @@ const struct xfs_buf_ops xfs_rtbuf_ops = {
  * Get a buffer for the bitmap or summary file block specified.
  * The buffer is returned read and locked.
  */
-static int
+int
 xfs_rtbuf_get(
 	xfs_mount_t	*mp,		/* file system mount structure */
 	xfs_trans_t	*tp,		/* transaction pointer */
@@ -1011,9 +1011,78 @@ xfs_rtfree_extent(
 	    mp->m_sb.sb_rextents) {
 		if (!(mp->m_rbmip->i_d.di_flags & XFS_DIFLAG_NEWRTBM))
 			mp->m_rbmip->i_d.di_flags |= XFS_DIFLAG_NEWRTBM;
-		*(__uint64_t *)&VFS_I(mp->m_rbmip)->i_atime = 0;
+		*(uint64_t *)&VFS_I(mp->m_rbmip)->i_atime = 0;
 		xfs_trans_log_inode(tp, mp->m_rbmip, XFS_ILOG_CORE);
 	}
 	return 0;
 }
 
+/* Find all the free records within a given range. */
+int
+xfs_rtalloc_query_range(
+	struct xfs_trans		*tp,
+	struct xfs_rtalloc_rec		*low_rec,
+	struct xfs_rtalloc_rec		*high_rec,
+	xfs_rtalloc_query_range_fn	fn,
+	void				*priv)
+{
+	struct xfs_rtalloc_rec		rec;
+	struct xfs_mount		*mp = tp->t_mountp;
+	xfs_rtblock_t			rtstart;
+	xfs_rtblock_t			rtend;
+	xfs_rtblock_t			rem;
+	int				is_free;
+	int				error = 0;
+
+	if (low_rec->ar_startblock > high_rec->ar_startblock)
+		return -EINVAL;
+	else if (low_rec->ar_startblock == high_rec->ar_startblock)
+		return 0;
+
+	/* Iterate the bitmap, looking for discrepancies. */
+	rtstart = low_rec->ar_startblock;
+	rem = high_rec->ar_startblock - rtstart;
+	while (rem) {
+		/* Is the first block free? */
+		error = xfs_rtcheck_range(mp, tp, rtstart, 1, 1, &rtend,
+				&is_free);
+		if (error)
+			break;
+
+		/* How long does the extent go for? */
+		error = xfs_rtfind_forw(mp, tp, rtstart,
+				high_rec->ar_startblock - 1, &rtend);
+		if (error)
+			break;
+
+		if (is_free) {
+			rec.ar_startblock = rtstart;
+			rec.ar_blockcount = rtend - rtstart + 1;
+
+			error = fn(tp, &rec, priv);
+			if (error)
+				break;
+		}
+
+		rem -= rtend - rtstart + 1;
+		rtstart = rtend + 1;
+	}
+
+	return error;
+}
+
+/* Find all the free records. */
+int
+xfs_rtalloc_query_all(
+	struct xfs_trans		*tp,
+	xfs_rtalloc_query_range_fn	fn,
+	void				*priv)
+{
+	struct xfs_rtalloc_rec		keys[2];
+
+	keys[0].ar_startblock = 0;
+	keys[1].ar_startblock = tp->t_mountp->m_sb.sb_rblocks;
+	keys[0].ar_blockcount = keys[1].ar_blockcount = 0;
+
+	return xfs_rtalloc_query_range(tp, &keys[0], &keys[1], fn, priv);
+}

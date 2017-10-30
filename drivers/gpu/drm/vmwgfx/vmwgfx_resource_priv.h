@@ -30,6 +30,8 @@
 
 #include "vmwgfx_drv.h"
 
+#define VMW_IDA_ACC_SIZE 128
+
 enum vmw_cmdbuf_res_state {
 	VMW_CMDBUF_RES_COMMITTED,
 	VMW_CMDBUF_RES_ADD,
@@ -83,6 +85,35 @@ struct vmw_res_func {
 			      enum vmw_cmdbuf_res_state state);
 };
 
+/**
+ * struct vmw_simple_resource_func - members and functions common for the
+ * simple resource helpers.
+ * @res_func:  struct vmw_res_func as described above.
+ * @ttm_res_type:  TTM resource type used for handle recognition.
+ * @size:  Size of the simple resource information struct.
+ * @init:  Initialize the simple resource information.
+ * @hw_destroy:  A resource hw_destroy function.
+ * @set_arg_handle:  Set the handle output argument of the ioctl create struct.
+ */
+struct vmw_simple_resource_func {
+	const struct vmw_res_func res_func;
+	int ttm_res_type;
+	size_t size;
+	int (*init)(struct vmw_resource *res, void *data);
+	void (*hw_destroy)(struct vmw_resource *res);
+	void (*set_arg_handle)(void *data, u32 handle);
+};
+
+/**
+ * struct vmw_simple_resource - Kernel only side simple resource
+ * @res: The resource we derive from.
+ * @func: The method and member virtual table.
+ */
+struct vmw_simple_resource {
+	struct vmw_resource res;
+	const struct vmw_simple_resource_func *func;
+};
+
 int vmw_resource_alloc_id(struct vmw_resource *res);
 void vmw_resource_release_id(struct vmw_resource *res);
 int vmw_resource_init(struct vmw_private *dev_priv, struct vmw_resource *res,
@@ -91,4 +122,13 @@ int vmw_resource_init(struct vmw_private *dev_priv, struct vmw_resource *res,
 		      const struct vmw_res_func *func);
 void vmw_resource_activate(struct vmw_resource *res,
 			   void (*hw_destroy) (struct vmw_resource *));
+int
+vmw_simple_resource_create_ioctl(struct drm_device *dev,
+				 void *data,
+				 struct drm_file *file_priv,
+				 const struct vmw_simple_resource_func *func);
+struct vmw_resource *
+vmw_simple_resource_lookup(struct ttm_object_file *tfile,
+			   uint32_t handle,
+			   const struct vmw_simple_resource_func *func);
 #endif

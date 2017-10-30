@@ -34,9 +34,10 @@
 #define __LUSTRE_LU_OBJECT_H
 
 #include <stdarg.h>
-#include "../../include/linux/libcfs/libcfs.h"
-#include "lustre/lustre_idl.h"
-#include "lu_ref.h"
+#include <linux/percpu_counter.h>
+#include <linux/libcfs/libcfs.h>
+#include <uapi/linux/lustre/lustre_idl.h>
+#include <lu_ref.h>
 
 struct seq_file;
 struct lustre_cfg;
@@ -146,9 +147,9 @@ struct lu_device_operations {
 				     struct lu_device *);
 
 	/**
-	 * initialize local objects for device. this method called after layer has
-	 * been initialized (after LCFG_SETUP stage) and before it starts serving
-	 * user requests.
+	 * initialize local objects for device. this method called after layer
+	 * has been initialized (after LCFG_SETUP stage) and before it starts
+	 * serving user requests.
 	 */
 
 	int (*ldo_prepare)(const struct lu_env *,
@@ -580,7 +581,6 @@ enum {
 	LU_SS_CACHE_RACE,
 	LU_SS_CACHE_DEATH_RACE,
 	LU_SS_LRU_PURGED,
-	LU_SS_LRU_LEN,	/* # of objects in lsb_lru lists */
 	LU_SS_LAST_STAT
 };
 
@@ -635,6 +635,10 @@ struct lu_site {
 	 * XXX: a hack! fld has to find md_site via site, remove when possible
 	 */
 	struct seq_server_site	*ld_seq_site;
+	/**
+	 * Number of objects in lsb_lru_lists - used for shrinking
+	 */
+	struct percpu_counter	 ls_lru_len_counter;
 };
 
 static inline struct lu_site_bkt_data *
@@ -708,8 +712,14 @@ static inline int lu_object_is_dying(const struct lu_object_header *h)
 
 void lu_object_put(const struct lu_env *env, struct lu_object *o);
 void lu_object_unhash(const struct lu_env *env, struct lu_object *o);
+int lu_site_purge_objects(const struct lu_env *env, struct lu_site *s, int nr,
+			  bool canblock);
 
-int lu_site_purge(const struct lu_env *env, struct lu_site *s, int nr);
+static inline int lu_site_purge(const struct lu_env *env, struct lu_site *s,
+				int nr)
+{
+	return lu_site_purge_objects(env, s, nr, true);
+}
 
 void lu_site_print(const struct lu_env *env, struct lu_site *s, void *cookie,
 		   lu_printer_t printer);
@@ -781,7 +791,7 @@ int lu_cdebug_printer(const struct lu_env *env,
 #define LU_OBJECT_DEBUG(mask, env, object, format, ...)		   \
 do {								      \
 	if (cfs_cdebug_show(mask, DEBUG_SUBSYSTEM)) {		     \
-		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, mask, NULL);		\
+		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, mask, NULL);	\
 		lu_object_print(env, &msgdata, lu_cdebug_printer, object);\
 		CDEBUG(mask, format "\n", ## __VA_ARGS__);		    \
 	}								 \
@@ -793,7 +803,7 @@ do {								      \
 #define LU_OBJECT_HEADER(mask, env, object, format, ...)		\
 do {								    \
 	if (cfs_cdebug_show(mask, DEBUG_SUBSYSTEM)) {		   \
-		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, mask, NULL);		\
+		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, mask, NULL);	\
 		lu_object_header_print(env, &msgdata, lu_cdebug_printer,\
 				       (object)->lo_header);	    \
 		lu_cdebug_printer(env, &msgdata, "\n");		 \
@@ -958,11 +968,11 @@ struct lu_context {
 	 * Version counter used to skip calls to lu_context_refill() when no
 	 * keys were registered.
 	 */
-	unsigned	       lc_version;
+	unsigned int		lc_version;
 	/**
 	 * Debugging cookie.
 	 */
-	unsigned	       lc_cookie;
+	unsigned int		lc_cookie;
 };
 
 /**
@@ -1120,7 +1130,7 @@ struct lu_context_key {
 	{							 \
 		type *value;				      \
 								  \
-		CLASSERT(PAGE_SIZE >= sizeof(*value));        \
+		BUILD_BUG_ON(PAGE_SIZE < sizeof(*value));        \
 								  \
 		value = kzalloc(sizeof(*value), GFP_NOFS);	\
 		if (!value)				\
@@ -1325,6 +1335,9 @@ void lu_buf_realloc(struct lu_buf *buf, size_t size);
 
 int lu_buf_check_and_grow(struct lu_buf *buf, size_t len);
 struct lu_buf *lu_buf_check_and_alloc(struct lu_buf *buf, size_t len);
+
+extern __u32 lu_context_tags_default;
+extern __u32 lu_session_tags_default;
 
 /** @} lu */
 #endif /* __LUSTRE_LU_OBJECT_H */

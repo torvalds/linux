@@ -143,19 +143,12 @@ static const struct net_device_ops ax88172a_netdev_ops = {
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
 	.ndo_change_mtu		= usbnet_change_mtu,
+	.ndo_get_stats64	= usbnet_get_stats64,
 	.ndo_set_mac_address	= asix_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= ax88172a_ioctl,
 	.ndo_set_rx_mode        = asix_set_multicast,
 };
-
-static int ax88172a_nway_reset(struct net_device *net)
-{
-	if (!net->phydev)
-		return -ENODEV;
-
-	return phy_start_aneg(net->phydev);
-}
 
 static const struct ethtool_ops ax88172a_ethtool_ops = {
 	.get_drvinfo		= asix_get_drvinfo,
@@ -167,7 +160,7 @@ static const struct ethtool_ops ax88172a_ethtool_ops = {
 	.get_eeprom_len		= asix_get_eeprom_len,
 	.get_eeprom		= asix_get_eeprom,
 	.set_eeprom		= asix_set_eeprom,
-	.nway_reset		= ax88172a_nway_reset,
+	.nway_reset		= phy_ethtool_nway_reset,
 	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 };

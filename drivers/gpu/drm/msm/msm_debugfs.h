@@ -20,7 +20,6 @@
 
 #ifdef CONFIG_DEBUG_FS
 int msm_debugfs_init(struct drm_minor *minor);
-void msm_debugfs_cleanup(struct drm_minor *minor);
 #endif
 
 #endif /* __MSM_DEBUGFS_H__ */

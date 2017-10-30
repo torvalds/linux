@@ -182,10 +182,11 @@ static int hvt_op_release(struct inode *inode, struct file *file)
 	 * connects back.
 	 */
 	hvt_reset(hvt);
-	mutex_unlock(&hvt->lock);
 
 	if (mode_old == HVUTIL_TRANSPORT_DESTROY)
-		hvt_transport_free(hvt);
+		complete(&hvt->release);
+
+	mutex_unlock(&hvt->lock);
 
 	return 0;
 }
@@ -304,6 +305,7 @@ struct hvutil_transport *hvutil_transport_init(const char *name,
 
 	init_waitqueue_head(&hvt->outmsg_q);
 	mutex_init(&hvt->lock);
+	init_completion(&hvt->release);
 
 	spin_lock(&hvt_list_lock);
 	list_add(&hvt->list, &hvt_list);
@@ -351,6 +353,8 @@ void hvutil_transport_destroy(struct hvutil_transport *hvt)
 	if (hvt->cn_id.idx > 0 && hvt->cn_id.val > 0)
 		cn_del_callback(&hvt->cn_id);
 
-	if (mode_old != HVUTIL_TRANSPORT_CHARDEV)
-		hvt_transport_free(hvt);
+	if (mode_old == HVUTIL_TRANSPORT_CHARDEV)
+		wait_for_completion(&hvt->release);
+
+	hvt_transport_free(hvt);
 }

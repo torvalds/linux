@@ -18,6 +18,7 @@
 #include "dim2_errors.h"
 #include "dim2_reg.h"
 #include <linux/stddef.h>
+#include <linux/kernel.h>
 
 /*
  * Size factor for isochronous DBR buffer.
@@ -49,7 +50,7 @@
 #define DBR_SIZE  (16 * 1024) /* specified by IP */
 #define DBR_BLOCK_SIZE  (DBR_SIZE / 32 / DBR_MAP_SIZE)
 
-#define ROUND_UP_TO(x, d)  (((x) + (d) - 1) / (d) * (d))
+#define ROUND_UP_TO(x, d)  (DIV_ROUND_UP(x, (d)) * (d))
 
 /* -------------------------------------------------------------------------- */
 /* generic helper functions and macros */
@@ -117,7 +118,7 @@ static int alloc_dbr(u16 size)
 		return DBR_SIZE; /* out of memory */
 
 	for (i = 0; i < DBR_MAP_SIZE; i++) {
-		u32 const blocks = (size + DBR_BLOCK_SIZE - 1) / DBR_BLOCK_SIZE;
+		u32 const blocks = DIV_ROUND_UP(size, DBR_BLOCK_SIZE);
 		u32 mask = ~((~(u32)0) << blocks);
 
 		do {
@@ -137,7 +138,7 @@ static int alloc_dbr(u16 size)
 static void free_dbr(int offs, int size)
 {
 	int block_idx = offs / DBR_BLOCK_SIZE;
-	u32 const blocks = (size + DBR_BLOCK_SIZE - 1) / DBR_BLOCK_SIZE;
+	u32 const blocks = DIV_ROUND_UP(size, DBR_BLOCK_SIZE);
 	u32 mask = ~((~(u32)0) << blocks);
 
 	mask <<= block_idx % 32;
@@ -216,12 +217,15 @@ static inline void dim2_clear_ctr(u32 ctr_addr)
 }
 
 static void dim2_configure_cat(u8 cat_base, u8 ch_addr, u8 ch_type,
-			       bool read_not_write, bool sync_mfe)
+			       bool read_not_write)
 {
+	bool isoc_fce = ch_type == CAT_CT_VAL_ISOC;
+	bool sync_mfe = ch_type == CAT_CT_VAL_SYNC;
 	u16 const cat =
 		(read_not_write << CAT_RNW_BIT) |
 		(ch_type << CAT_CT_SHIFT) |
 		(ch_addr << CAT_CL_SHIFT) |
+		(isoc_fce << CAT_FCE_BIT) |
 		(sync_mfe << CAT_MFE_BIT) |
 		(false << CAT_MT_BIT) |
 		(true << CAT_CE_BIT);
@@ -349,13 +353,13 @@ static void dim2_clear_ctram(void)
 
 static void dim2_configure_channel(
 	u8 ch_addr, u8 type, u8 is_tx, u16 dbr_address, u16 hw_buffer_size,
-	u16 packet_length, bool sync_mfe)
+	u16 packet_length)
 {
 	dim2_configure_cdt(ch_addr, dbr_address, hw_buffer_size, packet_length);
-	dim2_configure_cat(MLB_CAT, ch_addr, type, is_tx ? 1 : 0, sync_mfe);
+	dim2_configure_cat(MLB_CAT, ch_addr, type, is_tx ? 1 : 0);
 
 	dim2_configure_adt(ch_addr);
-	dim2_configure_cat(AHB_CAT, ch_addr, type, is_tx ? 0 : 1, sync_mfe);
+	dim2_configure_cat(AHB_CAT, ch_addr, type, is_tx ? 0 : 1);
 
 	/* unmask interrupt for used channel, enable mlb_sys_int[0] interrupt */
 	dimcb_io_write(&g.dim2->ACMR0,
@@ -770,7 +774,7 @@ static u8 init_ctrl_async(struct dim_channel *ch, u8 type, u8 is_tx,
 	channel_init(ch, ch_address / 2);
 
 	dim2_configure_channel(ch->addr, type, is_tx,
-			       ch->dbr_addr, ch->dbr_size, 0, false);
+			       ch->dbr_addr, ch->dbr_size, 0);
 
 	return DIM_NO_ERROR;
 }
@@ -856,7 +860,7 @@ u8 dim_init_isoc(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 	isoc_init(ch, ch_address / 2, packet_length);
 
 	dim2_configure_channel(ch->addr, CAT_CT_VAL_ISOC, is_tx, ch->dbr_addr,
-			       ch->dbr_size, packet_length, false);
+			       ch->dbr_size, packet_length);
 
 	return DIM_NO_ERROR;
 }
@@ -884,7 +888,7 @@ u8 dim_init_sync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 
 	dim2_clear_dbr(ch->dbr_addr, ch->dbr_size);
 	dim2_configure_channel(ch->addr, CAT_CT_VAL_SYNC, is_tx,
-			       ch->dbr_addr, ch->dbr_size, 0, true);
+			       ch->dbr_addr, ch->dbr_size, 0);
 
 	return DIM_NO_ERROR;
 }

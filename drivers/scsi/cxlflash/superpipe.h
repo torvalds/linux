@@ -24,17 +24,14 @@ extern struct cxlflash_global global;
  */
 
 /* Chunk size parms: note sislite minimum chunk size is
-   0x10000 LBAs corresponding to a NMASK or 16.
-*/
+ * 0x10000 LBAs corresponding to a NMASK or 16.
+ */
 #define MC_CHUNK_SIZE     (1 << MC_RHT_NMASK)	/* in LBAs */
 
 #define CMD_TIMEOUT 30  /* 30 secs */
 #define CMD_RETRIES 5   /* 5 retries for scsi_execute */
 
 #define MAX_SECTOR_UNIT  512 /* max_sector is in 512 byte multiples */
-
-#define CHAN2PORT(_x)	((_x) + 1)
-#define PORT2CHAN(_x)	((_x) - 1)
 
 enum lun_mode {
 	MODE_NONE = 0,
@@ -59,7 +56,7 @@ struct glun_info {
 
 /* Local (per-adapter) lun_info structure */
 struct llun_info {
-	u64 lun_id[CXLFLASH_NUM_FC_PORTS]; /* from REPORT_LUNS */
+	u64 lun_id[MAX_FC_PORTS]; /* from REPORT_LUNS */
 	u32 lun_index;		/* Index in the LUN table */
 	u32 host_no;		/* host_no from Scsi_host */
 	u32 port_sel;		/* What port to use for this LUN */
@@ -92,7 +89,8 @@ enum ctx_ctrl {
 struct ctx_info {
 	struct sisl_ctrl_map __iomem *ctrl_map; /* initialized at startup */
 	struct sisl_rht_entry *rht_start; /* 1 page (req'd for alignment),
-					     alloc/free on attach/detach */
+					   * alloc/free on attach/detach
+					   */
 	u32 rht_out;		/* Number of checked out RHT entries */
 	u32 rht_perms;		/* User-defined permissions for RHT entries */
 	struct llun_info **rht_lun;       /* Mapping of RHT entries to LUNs */
@@ -120,34 +118,40 @@ struct cxlflash_global {
 	struct page *err_page; /* One page of all 0xF for error notification */
 };
 
-int cxlflash_vlun_resize(struct scsi_device *, struct dk_cxlflash_resize *);
-int _cxlflash_vlun_resize(struct scsi_device *, struct ctx_info *,
-			  struct dk_cxlflash_resize *);
+int cxlflash_vlun_resize(struct scsi_device *sdev,
+			 struct dk_cxlflash_resize *resize);
+int _cxlflash_vlun_resize(struct scsi_device *sdev, struct ctx_info *ctxi,
+			  struct dk_cxlflash_resize *resize);
 
-int cxlflash_disk_release(struct scsi_device *, struct dk_cxlflash_release *);
-int _cxlflash_disk_release(struct scsi_device *, struct ctx_info *,
-			   struct dk_cxlflash_release *);
+int cxlflash_disk_release(struct scsi_device *sdev,
+			  struct dk_cxlflash_release *release);
+int _cxlflash_disk_release(struct scsi_device *sdev, struct ctx_info *ctxi,
+			   struct dk_cxlflash_release *release);
 
-int cxlflash_disk_clone(struct scsi_device *, struct dk_cxlflash_clone *);
+int cxlflash_disk_clone(struct scsi_device *sdev,
+			struct dk_cxlflash_clone *clone);
 
-int cxlflash_disk_virtual_open(struct scsi_device *, void *);
+int cxlflash_disk_virtual_open(struct scsi_device *sdev, void *arg);
 
-int cxlflash_lun_attach(struct glun_info *, enum lun_mode, bool);
-void cxlflash_lun_detach(struct glun_info *);
+int cxlflash_lun_attach(struct glun_info *gli, enum lun_mode mode, bool locked);
+void cxlflash_lun_detach(struct glun_info *gli);
 
-struct ctx_info *get_context(struct cxlflash_cfg *, u64, void *, enum ctx_ctrl);
-void put_context(struct ctx_info *);
+struct ctx_info *get_context(struct cxlflash_cfg *cfg, u64 rctxit, void *arg,
+			     enum ctx_ctrl ctrl);
+void put_context(struct ctx_info *ctxi);
 
-struct sisl_rht_entry *get_rhte(struct ctx_info *, res_hndl_t,
-				struct llun_info *);
+struct sisl_rht_entry *get_rhte(struct ctx_info *ctxi, res_hndl_t rhndl,
+				struct llun_info *lli);
 
-struct sisl_rht_entry *rhte_checkout(struct ctx_info *, struct llun_info *);
-void rhte_checkin(struct ctx_info *, struct sisl_rht_entry *);
+struct sisl_rht_entry *rhte_checkout(struct ctx_info *ctxi,
+				     struct llun_info *lli);
+void rhte_checkin(struct ctx_info *ctxi, struct sisl_rht_entry *rhte);
 
-void cxlflash_ba_terminate(struct ba_lun *);
+void cxlflash_ba_terminate(struct ba_lun *ba_lun);
 
-int cxlflash_manage_lun(struct scsi_device *, struct dk_cxlflash_manage_lun *);
+int cxlflash_manage_lun(struct scsi_device *sdev,
+			struct dk_cxlflash_manage_lun *manage);
 
-int check_state(struct cxlflash_cfg *);
+int check_state(struct cxlflash_cfg *cfg);
 
 #endif /* ifndef _CXLFLASH_SUPERPIPE_H */

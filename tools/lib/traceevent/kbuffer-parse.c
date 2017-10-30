@@ -315,6 +315,7 @@ static unsigned int old_update_pointers(struct kbuffer *kbuf)
 		extend += delta;
 		delta = extend;
 		ptr += 4;
+		length = 0;
 		break;
 
 	case OLD_RINGBUF_TYPE_TIME_STAMP:

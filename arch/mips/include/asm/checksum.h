@@ -18,7 +18,7 @@
 
 #include <linux/in6.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * computes the checksum of a memory block at buff, length len,
@@ -50,7 +50,7 @@ __wsum csum_partial_copy_from_user(const void __user *src, void *dst, int len,
 				   __wsum sum, int *err_ptr)
 {
 	might_fault();
-	if (segment_eq(get_fs(), get_ds()))
+	if (uaccess_kernel())
 		return __csum_partial_copy_kernel((__force void *)src, dst,
 						  len, sum, err_ptr);
 	else
@@ -82,7 +82,7 @@ __wsum csum_and_copy_to_user(const void *src, void __user *dst, int len,
 {
 	might_fault();
 	if (access_ok(VERIFY_WRITE, dst, len)) {
-		if (segment_eq(get_fs(), get_ds()))
+		if (uaccess_kernel())
 			return __csum_partial_copy_kernel(src,
 							  (__force void *)dst,
 							  len, sum, err_ptr);
@@ -186,7 +186,9 @@ static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 	"	daddu	%0, %4		\n"
 	"	dsll32	$1, %0, 0	\n"
 	"	daddu	%0, $1		\n"
+	"	sltu	$1, %0, $1	\n"
 	"	dsra32	%0, %0, 0	\n"
+	"	addu	%0, $1		\n"
 #endif
 	"	.set	pop"
 	: "=r" (sum)

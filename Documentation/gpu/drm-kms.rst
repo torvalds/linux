@@ -15,8 +15,173 @@ be setup by initializing the following fields.
 -  struct drm_mode_config_funcs \*funcs;
    Mode setting functions.
 
+Overview
+========
+
+.. kernel-render:: DOT
+   :alt: KMS Display Pipeline
+   :caption: KMS Display Pipeline Overview
+
+   digraph "KMS" {
+      node [shape=box]
+
+      subgraph cluster_static {
+          style=dashed
+          label="Static Objects"
+
+          node [bgcolor=grey style=filled]
+          "drm_plane A" -> "drm_crtc"
+          "drm_plane B" -> "drm_crtc"
+          "drm_crtc" -> "drm_encoder A"
+          "drm_crtc" -> "drm_encoder B"
+      }
+
+      subgraph cluster_user_created {
+          style=dashed
+          label="Userspace-Created"
+
+          node [shape=oval]
+          "drm_framebuffer 1" -> "drm_plane A"
+          "drm_framebuffer 2" -> "drm_plane B"
+      }
+
+      subgraph cluster_connector {
+          style=dashed
+          label="Hotpluggable"
+
+          "drm_encoder A" -> "drm_connector A"
+          "drm_encoder B" -> "drm_connector B"
+      }
+   }
+
+The basic object structure KMS presents to userspace is fairly simple.
+Framebuffers (represented by :c:type:`struct drm_framebuffer <drm_framebuffer>`,
+see `Frame Buffer Abstraction`_) feed into planes. One or more (or even no)
+planes feed their pixel data into a CRTC (represented by :c:type:`struct
+drm_crtc <drm_crtc>`, see `CRTC Abstraction`_) for blending. The precise
+blending step is explained in more detail in `Plane Composition Properties`_ and
+related chapters.
+
+For the output routing the first step is encoders (represented by
+:c:type:`struct drm_encoder <drm_encoder>`, see `Encoder Abstraction`_). Those
+are really just internal artifacts of the helper libraries used to implement KMS
+drivers. Besides that they make it unecessarily more complicated for userspace
+to figure out which connections between a CRTC and a connector are possible, and
+what kind of cloning is supported, they serve no purpose in the userspace API.
+Unfortunately encoders have been exposed to userspace, hence can't remove them
+at this point.  Futhermore the exposed restrictions are often wrongly set by
+drivers, and in many cases not powerful enough to express the real restrictions.
+A CRTC can be connected to multiple encoders, and for an active CRTC there must
+be at least one encoder.
+
+The final, and real, endpoint in the display chain is the connector (represented
+by :c:type:`struct drm_connector <drm_connector>`, see `Connector
+Abstraction`_). Connectors can have different possible encoders, but the kernel
+driver selects which encoder to use for each connector. The use case is DVI,
+which could switch between an analog and a digital encoder. Encoders can also
+drive multiple different connectors. There is exactly one active connector for
+every active encoder.
+
+Internally the output pipeline is a bit more complex and matches today's
+hardware more closely:
+
+.. kernel-render:: DOT
+   :alt: KMS Output Pipeline
+   :caption: KMS Output Pipeline
+
+   digraph "Output Pipeline" {
+      node [shape=box]
+
+      subgraph {
+          "drm_crtc" [bgcolor=grey style=filled]
+      }
+
+      subgraph cluster_internal {
+          style=dashed
+          label="Internal Pipeline"
+          {
+              node [bgcolor=grey style=filled]
+              "drm_encoder A";
+              "drm_encoder B";
+              "drm_encoder C";
+          }
+
+          {
+              node [bgcolor=grey style=filled]
+              "drm_encoder B" -> "drm_bridge B"
+              "drm_encoder C" -> "drm_bridge C1"
+              "drm_bridge C1" -> "drm_bridge C2";
+          }
+      }
+
+      "drm_crtc" -> "drm_encoder A"
+      "drm_crtc" -> "drm_encoder B"
+      "drm_crtc" -> "drm_encoder C"
+
+
+      subgraph cluster_output {
+          style=dashed
+          label="Outputs"
+
+          "drm_encoder A" -> "drm_connector A";
+          "drm_bridge B" -> "drm_connector B";
+          "drm_bridge C2" -> "drm_connector C";
+
+          "drm_panel"
+      }
+   }
+
+Internally two additional helper objects come into play. First, to be able to
+share code for encoders (sometimes on the same SoC, sometimes off-chip) one or
+more :ref:`drm_bridges` (represented by :c:type:`struct drm_bridge
+<drm_bridge>`) can be linked to an encoder. This link is static and cannot be
+changed, which means the cross-bar (if there is any) needs to be mapped between
+the CRTC and any encoders. Often for drivers with bridges there's no code left
+at the encoder level. Atomic drivers can leave out all the encoder callbacks to
+essentially only leave a dummy routing object behind, which is needed for
+backwards compatibility since encoders are exposed to userspace.
+
+The second object is for panels, represented by :c:type:`struct drm_panel
+<drm_panel>`, see :ref:`drm_panel_helper`. Panels do not have a fixed binding
+point, but are generally linked to the driver private structure that embeds
+:c:type:`struct drm_connector <drm_connector>`.
+
+Note that currently the bridge chaining and interactions with connectors and
+panels are still in-flux and not really fully sorted out yet.
+
+KMS Core Structures and Functions
+=================================
+
+.. kernel-doc:: include/drm/drm_mode_config.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_mode_config.c
+   :export:
+
 Modeset Base Object Abstraction
 ===============================
+
+.. kernel-render:: DOT
+   :alt: Mode Objects and Properties
+   :caption: Mode Objects and Properties
+
+   digraph {
+      node [shape=box]
+
+      "drm_property A" -> "drm_mode_object A"
+      "drm_property A" -> "drm_mode_object B"
+      "drm_property B" -> "drm_mode_object A"
+   }
+
+The base structure for all KMS objects is :c:type:`struct drm_mode_object
+<drm_mode_object>`. One of the base services it provides is tracking properties,
+which are especially important for the atomic IOCTL (see `Atomic Mode
+Setting`_). The somewhat surprising part here is that properties are not
+directly instantiated on each object, but free-standing mode objects themselves,
+represented by :c:type:`struct drm_property <drm_property>`, which only specify
+the type and value range of a property. Any given property can be attached
+multiple times to different objects using :c:func:`drm_object_attach_property()
+<drm_object_attach_property>`.
 
 .. kernel-doc:: include/drm/drm_mode_object.h
    :internal:
@@ -24,26 +189,111 @@ Modeset Base Object Abstraction
 .. kernel-doc:: drivers/gpu/drm/drm_mode_object.c
    :export:
 
-KMS Data Structures
+Atomic Mode Setting
 ===================
 
-.. kernel-doc:: include/drm/drm_crtc.h
-   :internal:
 
-KMS API Functions
-=================
+.. kernel-render:: DOT
+   :alt: Mode Objects and Properties
+   :caption: Mode Objects and Properties
 
-.. kernel-doc:: drivers/gpu/drm/drm_crtc.c
-   :export:
+   digraph {
+      node [shape=box]
+
+      subgraph cluster_state {
+          style=dashed
+          label="Free-standing state"
+
+          "drm_atomic_state" -> "duplicated drm_plane_state A"
+          "drm_atomic_state" -> "duplicated drm_plane_state B"
+          "drm_atomic_state" -> "duplicated drm_crtc_state"
+          "drm_atomic_state" -> "duplicated drm_connector_state"
+          "drm_atomic_state" -> "duplicated driver private state"
+      }
+
+      subgraph cluster_current {
+          style=dashed
+          label="Current state"
+
+          "drm_device" -> "drm_plane A"
+          "drm_device" -> "drm_plane B"
+          "drm_device" -> "drm_crtc"
+          "drm_device" -> "drm_connector"
+          "drm_device" -> "driver private object"
+
+          "drm_plane A" -> "drm_plane_state A"
+          "drm_plane B" -> "drm_plane_state B"
+          "drm_crtc" -> "drm_crtc_state"
+          "drm_connector" -> "drm_connector_state"
+          "driver private object" -> "driver private state"
+      }
+
+      "drm_atomic_state" -> "drm_device" [label="atomic_commit"]
+      "duplicated drm_plane_state A" -> "drm_device"[style=invis]
+   }
+
+Atomic provides transactional modeset (including planes) updates, but a
+bit differently from the usual transactional approach of try-commit and
+rollback:
+
+- Firstly, no hardware changes are allowed when the commit would fail. This
+  allows us to implement the DRM_MODE_ATOMIC_TEST_ONLY mode, which allows
+  userspace to explore whether certain configurations would work or not.
+
+- This would still allow setting and rollback of just the software state,
+  simplifying conversion of existing drivers. But auditing drivers for
+  correctness of the atomic_check code becomes really hard with that: Rolling
+  back changes in data structures all over the place is hard to get right.
+
+- Lastly, for backwards compatibility and to support all use-cases, atomic
+  updates need to be incremental and be able to execute in parallel. Hardware
+  doesn't always allow it, but where possible plane updates on different CRTCs
+  should not interfere, and not get stalled due to output routing changing on
+  different CRTCs.
+
+Taken all together there's two consequences for the atomic design:
+
+- The overall state is split up into per-object state structures:
+  :c:type:`struct drm_plane_state <drm_plane_state>` for planes, :c:type:`struct
+  drm_crtc_state <drm_crtc_state>` for CRTCs and :c:type:`struct
+  drm_connector_state <drm_connector_state>` for connectors. These are the only
+  objects with userspace-visible and settable state. For internal state drivers
+  can subclass these structures through embeddeding, or add entirely new state
+  structures for their globally shared hardware functions.
+
+- An atomic update is assembled and validated as an entirely free-standing pile
+  of structures within the :c:type:`drm_atomic_state <drm_atomic_state>`
+  container. Again drivers can subclass that container for their own state
+  structure tracking needs. Only when a state is committed is it applied to the
+  driver and modeset objects. This way rolling back an update boils down to
+  releasing memory and unreferencing objects like framebuffers.
+
+Read on in this chapter, and also in :ref:`drm_atomic_helper` for more detailed
+coverage of specific topics.
 
 Atomic Mode Setting Function Reference
-======================================
+--------------------------------------
+
+.. kernel-doc:: include/drm/drm_atomic.h
+   :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_atomic.c
    :export:
 
-.. kernel-doc:: include/drm/drm_atomic.h
+CRTC Abstraction
+================
+
+.. kernel-doc:: drivers/gpu/drm/drm_crtc.c
+   :doc: overview
+
+CRTC Functions Reference
+--------------------------------
+
+.. kernel-doc:: include/drm/drm_crtc.h
    :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_crtc.c
+   :export:
 
 Frame Buffer Abstraction
 ========================
@@ -54,14 +304,17 @@ Frame Buffer Abstraction
 Frame Buffer Functions Reference
 --------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_framebuffer.c
-   :export:
-
 .. kernel-doc:: include/drm/drm_framebuffer.h
    :internal:
 
+.. kernel-doc:: drivers/gpu/drm/drm_framebuffer.c
+   :export:
+
 DRM Format Handling
 ===================
+
+.. kernel-doc:: include/drm/drm_fourcc.h
+   :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_fourcc.c
    :export:
@@ -69,46 +322,8 @@ DRM Format Handling
 Dumb Buffer Objects
 ===================
 
-The KMS API doesn't standardize backing storage object creation and
-leaves it to driver-specific ioctls. Furthermore actually creating a
-buffer object even for GEM-based drivers is done through a
-driver-specific ioctl - GEM only has a common userspace interface for
-sharing and destroying objects. While not an issue for full-fledged
-graphics stacks that include device-specific userspace components (in
-libdrm for instance), this limit makes DRM-based early boot graphics
-unnecessarily complex.
-
-Dumb objects partly alleviate the problem by providing a standard API to
-create dumb buffers suitable for scanout, which can then be used to
-create KMS frame buffers.
-
-To support dumb objects drivers must implement the dumb_create,
-dumb_destroy and dumb_map_offset operations.
-
--  int (\*dumb_create)(struct drm_file \*file_priv, struct
-   drm_device \*dev, struct drm_mode_create_dumb \*args);
-   The dumb_create operation creates a driver object (GEM or TTM
-   handle) suitable for scanout based on the width, height and depth
-   from the struct :c:type:`struct drm_mode_create_dumb
-   <drm_mode_create_dumb>` argument. It fills the argument's
-   handle, pitch and size fields with a handle for the newly created
-   object and its line pitch and size in bytes.
-
--  int (\*dumb_destroy)(struct drm_file \*file_priv, struct
-   drm_device \*dev, uint32_t handle);
-   The dumb_destroy operation destroys a dumb object created by
-   dumb_create.
-
--  int (\*dumb_map_offset)(struct drm_file \*file_priv, struct
-   drm_device \*dev, uint32_t handle, uint64_t \*offset);
-   The dumb_map_offset operation associates an mmap fake offset with
-   the object given by the handle and returns it. Drivers must use the
-   :c:func:`drm_gem_create_mmap_offset()` function to associate
-   the fake offset as described in ?.
-
-Note that dumb objects may not be used for gpu acceleration, as has been
-attempted on some ARM embedded platforms. Such drivers really must have
-a hardware-specific ioctl to allocate suitable buffer objects.
+.. kernel-doc:: drivers/gpu/drm/drm_dumb_buffers.c
+   :doc: overview
 
 Plane Abstraction
 =================
@@ -215,7 +430,7 @@ Connectors state change detection must be cleanup up with a call to
 Output discovery and initialization example
 -------------------------------------------
 
-::
+.. code-block:: c
 
     void intel_crt_init(struct drm_device *dev)
     {
@@ -287,6 +502,12 @@ Property Types and Blob Property Support
 .. kernel-doc:: drivers/gpu/drm/drm_property.c
    :export:
 
+Standard Connector Properties
+-----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_connector.c
+   :doc: standard connector properties
+
 Plane Composition Properties
 ----------------------------
 
@@ -302,11 +523,20 @@ Color Management Properties
 .. kernel-doc:: drivers/gpu/drm/drm_color_mgmt.c
    :doc: overview
 
-.. kernel-doc:: include/drm/drm_color_mgmt.h
-   :internal:
-
 .. kernel-doc:: drivers/gpu/drm/drm_color_mgmt.c
    :export:
+
+Tile Group Property
+-------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_connector.c
+   :doc: Tile group
+
+Explicit Fencing Properties
+---------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_atomic.c
+   :doc: explicit fencing properties
 
 Existing KMS Properties
 -----------------------
@@ -321,66 +551,14 @@ various modules/drivers.
 Vertical Blanking
 =================
 
-Vertical blanking plays a major role in graphics rendering. To achieve
-tear-free display, users must synchronize page flips and/or rendering to
-vertical blanking. The DRM API offers ioctls to perform page flips
-synchronized to vertical blanking and wait for vertical blanking.
-
-The DRM core handles most of the vertical blanking management logic,
-which involves filtering out spurious interrupts, keeping race-free
-blanking counters, coping with counter wrap-around and resets and
-keeping use counts. It relies on the driver to generate vertical
-blanking interrupts and optionally provide a hardware vertical blanking
-counter. Drivers must implement the following operations.
-
--  int (\*enable_vblank) (struct drm_device \*dev, int crtc); void
-   (\*disable_vblank) (struct drm_device \*dev, int crtc);
-   Enable or disable vertical blanking interrupts for the given CRTC.
-
--  u32 (\*get_vblank_counter) (struct drm_device \*dev, int crtc);
-   Retrieve the value of the vertical blanking counter for the given
-   CRTC. If the hardware maintains a vertical blanking counter its value
-   should be returned. Otherwise drivers can use the
-   :c:func:`drm_vblank_count()` helper function to handle this
-   operation.
-
-Drivers must initialize the vertical blanking handling core with a call
-to :c:func:`drm_vblank_init()` in their load operation.
-
-Vertical blanking interrupts can be enabled by the DRM core or by
-drivers themselves (for instance to handle page flipping operations).
-The DRM core maintains a vertical blanking use count to ensure that the
-interrupts are not disabled while a user still needs them. To increment
-the use count, drivers call :c:func:`drm_vblank_get()`. Upon
-return vertical blanking interrupts are guaranteed to be enabled.
-
-To decrement the use count drivers call
-:c:func:`drm_vblank_put()`. Only when the use count drops to zero
-will the DRM core disable the vertical blanking interrupts after a delay
-by scheduling a timer. The delay is accessible through the
-vblankoffdelay module parameter or the ``drm_vblank_offdelay`` global
-variable and expressed in milliseconds. Its default value is 5000 ms.
-Zero means never disable, and a negative value means disable
-immediately. Drivers may override the behaviour by setting the
-:c:type:`struct drm_device <drm_device>`
-vblank_disable_immediate flag, which when set causes vblank interrupts
-to be disabled immediately regardless of the drm_vblank_offdelay
-value. The flag should only be set if there's a properly working
-hardware vblank counter present.
-
-When a vertical blanking interrupt occurs drivers only need to call the
-:c:func:`drm_handle_vblank()` function to account for the
-interrupt.
-
-Resources allocated by :c:func:`drm_vblank_init()` must be freed
-with a call to :c:func:`drm_vblank_cleanup()` in the driver unload
-operation handler.
+.. kernel-doc:: drivers/gpu/drm/drm_vblank.c
+   :doc: vblank handling
 
 Vertical Blanking and Interrupt Handling Functions Reference
 ------------------------------------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_irq.c
-   :export:
-
-.. kernel-doc:: include/drm/drm_irq.h
+.. kernel-doc:: include/drm/drm_vblank.h
    :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_vblank.c
+   :export:

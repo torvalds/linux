@@ -409,7 +409,7 @@ static void __exit mon_exit(void)
 			printk(KERN_ERR TAG
 			    ": Outstanding opens (%d) on usb%d, leaking...\n",
 			    mbus->nreaders, mbus->u_bus->busnum);
-			atomic_set(&mbus->ref.refcount, 2);	/* Force leak */
+			kref_get(&mbus->ref); /* Force leak */
 		}
 
 		mon_dissolve(mbus, mbus->u_bus);

@@ -81,9 +81,9 @@ static struct snd_soc_jack_zone mfld_zones[] = {
 };
 
 /* sound card controls */
-static const char *headset_switch_text[] = {"Earpiece", "Headset"};
+static const char * const headset_switch_text[] = {"Earpiece", "Headset"};
 
-static const char *lo_text[] = {"Vibra", "Headset", "IHF", "None"};
+static const char * const lo_text[] = {"Vibra", "Headset", "IHF", "None"};
 
 static const struct soc_enum headset_enum =
 	SOC_ENUM_SINGLE_EXT(2, headset_switch_text);
@@ -376,10 +376,8 @@ static int snd_mfld_mc_probe(struct platform_device *pdev)
 	/* audio interrupt base of SRAM location where
 	 * interrupts are stored by System FW */
 	mc_drv_ctx = devm_kzalloc(&pdev->dev, sizeof(*mc_drv_ctx), GFP_ATOMIC);
-	if (!mc_drv_ctx) {
-		pr_err("allocation failed\n");
+	if (!mc_drv_ctx)
 		return -ENOMEM;
-	}
 
 	irq_mem = platform_get_resource_byname(
 				pdev, IORESOURCE_MEM, "IRQ_BASE");

@@ -5,7 +5,7 @@ that apply in on the generic device (independent from the bus).
 
 
 Required properties for the SPI bindings:
- - compatible: 		should be set to "st,lis3lv02d_spi"
+ - compatible: 		should be set to "st,lis3lv02d-spi"
  - reg:			the chipselect index
  - spi-max-frequency:	maximal bus speed, should be set to 1000000 unless
 			constrained by external circuitry

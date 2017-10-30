@@ -1796,7 +1796,7 @@ static int __init cci_platform_init(void)
 	int ret;
 
 	ret = cpuhp_setup_state_multi(CPUHP_AP_PERF_ARM_CCI_ONLINE,
-				      "AP_PERF_ARM_CCI_ONLINE", NULL,
+				      "perf/arm/cci:online", NULL,
 				      cci_pmu_offline_cpu);
 	if (ret)
 		return ret;
@@ -2124,8 +2124,8 @@ int notrace __cci_control_port_by_device(struct device_node *dn, bool enable)
 		return -ENODEV;
 
 	port = __cci_ace_get_port(dn, ACE_LITE_PORT);
-	if (WARN_ONCE(port < 0, "node %s ACE lite port look-up failure\n",
-				dn->full_name))
+	if (WARN_ONCE(port < 0, "node %pOF ACE lite port look-up failure\n",
+				dn))
 		return -ENODEV;
 	cci_port_control(port, enable);
 	return 0;
@@ -2190,6 +2190,9 @@ static int cci_probe_ports(struct device_node *np)
 		if (!of_match_node(arm_cci_ctrl_if_matches, cp))
 			continue;
 
+		if (!of_device_is_available(cp))
+			continue;
+
 		i = nb_ace + nb_ace_lite;
 
 		if (i >= nb_cci_ports)
@@ -2197,14 +2200,14 @@ static int cci_probe_ports(struct device_node *np)
 
 		if (of_property_read_string(cp, "interface-type",
 					&match_str)) {
-			WARN(1, "node %s missing interface-type property\n",
-				  cp->full_name);
+			WARN(1, "node %pOF missing interface-type property\n",
+				  cp);
 			continue;
 		}
 		is_ace = strcmp(match_str, "ace") == 0;
 		if (!is_ace && strcmp(match_str, "ace-lite")) {
-			WARN(1, "node %s containing invalid interface-type property, skipping it\n",
-					cp->full_name);
+			WARN(1, "node %pOF containing invalid interface-type property, skipping it\n",
+					cp);
 			continue;
 		}
 
@@ -2231,6 +2234,13 @@ static int cci_probe_ports(struct device_node *np)
 		}
 		ports[i].dn = cp;
 	}
+
+	/*
+	 * If there is no CCI port that is under kernel control
+	 * return early and report probe status.
+	 */
+	if (!nb_ace && !nb_ace_lite)
+		return -ENODEV;
 
 	 /* initialize a stashed array of ACE ports to speed-up look-up */
 	cci_ace_init_ports();

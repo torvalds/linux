@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,7 @@
 #include "accommon.h"
 #include "amlcode.h"
 #include "acdebug.h"
+#include "acinterp.h"
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
 ACPI_MODULE_NAME("dbxface")
@@ -125,7 +126,7 @@ error_exit:
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Called for AML_BREAK_POINT_OP
+ * DESCRIPTION: Called for AML_BREAKPOINT_OP
  *
  ******************************************************************************/
 
@@ -243,7 +244,7 @@ acpi_db_single_step(struct acpi_walk_state *walk_state,
 		if ((acpi_gbl_db_output_to_file) ||
 		    (acpi_dbg_level & ACPI_LV_PARSE)) {
 			acpi_os_printf
-			    ("\n[AmlDebug] Next AML Opcode to execute:\n");
+			    ("\nAML Debug: Next AML Opcode to execute:\n");
 		}
 
 		/*
@@ -368,7 +369,9 @@ acpi_db_single_step(struct acpi_walk_state *walk_state,
 		walk_state->method_breakpoint = 1;	/* Must be non-zero! */
 	}
 
+	acpi_ex_exit_interpreter();
 	status = acpi_db_start_command(walk_state, op);
+	acpi_ex_enter_interpreter();
 
 	/* User commands complete, continue execution of the interrupted method */
 
@@ -430,7 +433,7 @@ acpi_status acpi_initialize_debugger(void)
 
 		/* These were created with one unit, grab it */
 
-		status = acpi_os_initialize_command_signals();
+		status = acpi_os_initialize_debugger();
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf("Could not get debugger mutex\n");
 			return_ACPI_STATUS(status);
@@ -482,7 +485,7 @@ void acpi_terminate_debugger(void)
 			acpi_os_sleep(100);
 		}
 
-		acpi_os_terminate_command_signals();
+		acpi_os_terminate_debugger();
 	}
 
 	if (acpi_gbl_db_buffer) {

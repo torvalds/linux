@@ -19,12 +19,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  */
 
 /* FIXME - some of these can probably be removed */
@@ -122,7 +118,7 @@ static int ngene_i2c_master_xfer(struct i2c_adapter *adapter,
 		(struct ngene_channel *)i2c_get_adapdata(adapter);
 	struct ngene *dev = chan->dev;
 
-	down(&dev->i2c_switch_mutex);
+	mutex_lock(&dev->i2c_switch_mutex);
 	ngene_i2c_set_bus(dev, chan->number);
 
 	if (num == 2 && msg[1].flags & I2C_M_RD && !(msg[0].flags & I2C_M_RD))
@@ -140,11 +136,11 @@ static int ngene_i2c_master_xfer(struct i2c_adapter *adapter,
 					    msg[0].buf, msg[0].len, 0))
 			goto done;
 
-	up(&dev->i2c_switch_mutex);
+	mutex_unlock(&dev->i2c_switch_mutex);
 	return -EIO;
 
 done:
-	up(&dev->i2c_switch_mutex);
+	mutex_unlock(&dev->i2c_switch_mutex);
 	return num;
 }
 
@@ -154,7 +150,7 @@ static u32 ngene_i2c_functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm ngene_i2c_algo = {
+static const struct i2c_algorithm ngene_i2c_algo = {
 	.master_xfer = ngene_i2c_master_xfer,
 	.functionality = ngene_i2c_functionality,
 };

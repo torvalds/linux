@@ -1,18 +1,21 @@
-MediaTek mt65xx, mt67xx & mt81xx Platforms Device Tree Bindings
+MediaTek SoC based Platforms Device Tree Bindings
 
-Boards with a MediaTek mt65xx/mt67xx/mt81xx SoC shall have the
-following property:
+Boards with a MediaTek SoC shall have the following property:
 
 Required root node property:
 
 compatible: Must contain one of
    "mediatek,mt2701"
+   "mediatek,mt2712"
    "mediatek,mt6580"
    "mediatek,mt6589"
    "mediatek,mt6592"
    "mediatek,mt6755"
    "mediatek,mt6795"
-   "mediatek,mt7623"
+   "mediatek,mt6797"
+   "mediatek,mt7622"
+   "mediatek,mt7623" which is referred to MT7623N SoC
+   "mediatek,mt7623a"
    "mediatek,mt8127"
    "mediatek,mt8135"
    "mediatek,mt8173"
@@ -23,6 +26,9 @@ Supported boards:
 - Evaluation board for MT2701:
     Required root node properties:
       - compatible = "mediatek,mt2701-evb", "mediatek,mt2701";
+- Evaluation board for MT2712:
+    Required root node properties:
+      - compatible = "mediatek,mt2712-evb", "mediatek,mt2712";
 - Evaluation board for MT6580:
     Required root node properties:
       - compatible = "mediatek,mt6580-evbp1", "mediatek,mt6580";
@@ -38,9 +44,17 @@ Supported boards:
 - Evaluation board for MT6795(Helio X10):
     Required root node properties:
       - compatible = "mediatek,mt6795-evb", "mediatek,mt6795";
-- Evaluation board for MT7623:
+- Evaluation board for MT6797(Helio X20):
     Required root node properties:
-      - compatible = "mediatek,mt7623-evb", "mediatek,mt7623";
+      - compatible = "mediatek,mt6797-evb", "mediatek,mt6797";
+- Reference board variant 1 for MT7622:
+    Required root node properties:
+      - compatible = "mediatek,mt7622-rfb1", "mediatek,mt7622";
+- Reference  board for MT7623n with NAND:
+    Required root node properties:
+      - compatible = "mediatek,mt7623n-rfb-nand", "mediatek,mt7623";
+- Bananapi BPI-R2 board:
+      - compatible = "bananapi,bpi-r2", "mediatek,mt7623";
 - MTK mt8127 tablet moose EVB:
     Required root node properties:
       - compatible = "mediatek,mt8127-moose", "mediatek,mt8127";

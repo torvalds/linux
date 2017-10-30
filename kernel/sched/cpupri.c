@@ -103,11 +103,11 @@ int cpupri_find(struct cpupri *cp, struct task_struct *p,
 		if (skip)
 			continue;
 
-		if (cpumask_any_and(tsk_cpus_allowed(p), vec->mask) >= nr_cpu_ids)
+		if (cpumask_any_and(&p->cpus_allowed, vec->mask) >= nr_cpu_ids)
 			continue;
 
 		if (lowest_mask) {
-			cpumask_and(lowest_mask, tsk_cpus_allowed(p), vec->mask);
+			cpumask_and(lowest_mask, &p->cpus_allowed, vec->mask);
 
 			/*
 			 * We have to ensure that we have at least one bit
@@ -208,8 +208,6 @@ void cpupri_set(struct cpupri *cp, int cpu, int newpri)
 int cpupri_init(struct cpupri *cp)
 {
 	int i;
-
-	memset(cp, 0, sizeof(*cp));
 
 	for (i = 0; i < CPUPRI_NR_PRIORITIES; i++) {
 		struct cpupri_vec *vec = &cp->pri_to_cpu[i];

@@ -179,6 +179,8 @@ int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 		mlx5_core_dbg(dev, "failed adding CP 0x%x to debug file system\n",
 			      cq->cqn);
 
+	cq->uar = dev->priv.uar;
+
 	return 0;
 
 err_cmd:

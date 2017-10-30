@@ -14,7 +14,7 @@
 #include <asm/mpspec.h>
 #include <asm/setup.h>
 #include <asm/apic.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/time.h>
 #include <asm/irq.h>
 #include <asm/io_apic.h>
@@ -38,7 +38,7 @@ struct x86_init_ops x86_init __initdata = {
 	.resources = {
 		.probe_roms		= probe_roms,
 		.reserve_resources	= reserve_standard_io_resources,
-		.memory_setup		= default_machine_specific_memory_setup,
+		.memory_setup		= e820__memory_setup_default,
 	},
 
 	.mpparse = {
@@ -89,7 +89,6 @@ struct x86_cpuinit_ops x86_cpuinit = {
 };
 
 static void default_nmi_init(void) { };
-static int default_i8042_detect(void) { return 1; };
 
 struct x86_platform_ops x86_platform __ro_after_init = {
 	.calibrate_cpu			= native_calibrate_cpu,
@@ -100,7 +99,6 @@ struct x86_platform_ops x86_platform __ro_after_init = {
 	.is_untracked_pat_range		= is_ISA_range,
 	.nmi_init			= default_nmi_init,
 	.get_nmi_reason			= default_get_nmi_reason,
-	.i8042_detect			= default_i8042_detect,
 	.save_sched_clock_state 	= tsc_save_sched_clock_state,
 	.restore_sched_clock_state 	= tsc_restore_sched_clock_state,
 };

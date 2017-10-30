@@ -97,7 +97,7 @@ static void timrot_irq_acknowledge(void)
 		     HW_TIMROT_TIMCTRLn(0) + STMP_OFFSET_REG_CLR);
 }
 
-static cycle_t timrotv1_get_cycles(struct clocksource *cs)
+static u64 timrotv1_get_cycles(struct clocksource *cs)
 {
 	return ~((__raw_readl(mxs_timrot_base + HW_TIMROT_TIMCOUNTn(1))
 			& 0xffff0000) >> 16);
@@ -293,4 +293,4 @@ static int __init mxs_timer_init(struct device_node *np)
 
 	return setup_irq(irq, &mxs_timer_irq);
 }
-CLOCKSOURCE_OF_DECLARE(mxs, "fsl,timrot", mxs_timer_init);
+TIMER_OF_DECLARE(mxs, "fsl,timrot", mxs_timer_init);

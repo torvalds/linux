@@ -77,7 +77,7 @@ static int psbfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	    (transp << info->var.transp.offset);
 
 	if (regno < 16) {
-		switch (fb->bits_per_pixel) {
+		switch (fb->format->cpp[0] * 8) {
 		case 16:
 			((uint32_t *) info->pseudo_palette)[regno] = v;
 			break;
@@ -111,8 +111,9 @@ static int psbfb_pan(struct fb_var_screeninfo *var, struct fb_info *info)
         return 0;
 }
 
-static int psbfb_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int psbfb_vm_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct psb_framebuffer *psbfb = vma->vm_private_data;
 	struct drm_device *dev = psbfb->base.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
@@ -124,8 +125,8 @@ static int psbfb_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	unsigned long phys_addr = (unsigned long)dev_priv->stolen_base +
 				  psbfb->gtt->offset;
 
-	page_num = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
-	address = (unsigned long)vmf->virtual_address - (vmf->pgoff << PAGE_SHIFT);
+	page_num = vma_pages(vma);
+	address = vmf->address - (vmf->pgoff << PAGE_SHIFT);
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
@@ -185,9 +186,7 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 
 static struct fb_ops psbfb_ops = {
 	.owner = THIS_MODULE,
-	.fb_check_var = drm_fb_helper_check_var,
-	.fb_set_par = drm_fb_helper_set_par,
-	.fb_blank = drm_fb_helper_blank,
+	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_setcolreg = psbfb_setcolreg,
 	.fb_fillrect = drm_fb_helper_cfb_fillrect,
 	.fb_copyarea = psbfb_copyarea,
@@ -198,9 +197,7 @@ static struct fb_ops psbfb_ops = {
 
 static struct fb_ops psbfb_roll_ops = {
 	.owner = THIS_MODULE,
-	.fb_check_var = drm_fb_helper_check_var,
-	.fb_set_par = drm_fb_helper_set_par,
-	.fb_blank = drm_fb_helper_blank,
+	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_setcolreg = psbfb_setcolreg,
 	.fb_fillrect = drm_fb_helper_cfb_fillrect,
 	.fb_copyarea = drm_fb_helper_cfb_copyarea,
@@ -211,9 +208,7 @@ static struct fb_ops psbfb_roll_ops = {
 
 static struct fb_ops psbfb_unaccel_ops = {
 	.owner = THIS_MODULE,
-	.fb_check_var = drm_fb_helper_check_var,
-	.fb_set_par = drm_fb_helper_set_par,
-	.fb_blank = drm_fb_helper_blank,
+	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_setcolreg = psbfb_setcolreg,
 	.fb_fillrect = drm_fb_helper_cfb_fillrect,
 	.fb_copyarea = drm_fb_helper_cfb_copyarea,
@@ -236,23 +231,21 @@ static int psb_framebuffer_init(struct drm_device *dev,
 					const struct drm_mode_fb_cmd2 *mode_cmd,
 					struct gtt_range *gt)
 {
-	u32 bpp, depth;
+	const struct drm_format_info *info;
 	int ret;
 
-	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
+	/*
+	 * Reject unknown formats, YUV formats, and formats with more than
+	 * 4 bytes per pixel.
+	 */
+	info = drm_format_info(mode_cmd->pixel_format);
+	if (!info || !info->depth || info->cpp[0] > 4)
+		return -EINVAL;
 
 	if (mode_cmd->pitches[0] & 63)
 		return -EINVAL;
-	switch (bpp) {
-	case 8:
-	case 16:
-	case 24:
-	case 32:
-		break;
-	default:
-		return -EINVAL;
-	}
-	drm_helper_mode_fill_fb_struct(&fb->base, mode_cmd);
+
+	drm_helper_mode_fill_fb_struct(dev, &fb->base, mode_cmd);
 	fb->gtt = gt;
 	ret = drm_framebuffer_init(dev, &fb->base, &psb_fb_funcs);
 	if (ret) {
@@ -298,7 +291,6 @@ static struct drm_framebuffer *psb_framebuffer_create
  *	psbfb_alloc		-	allocate frame buffer memory
  *	@dev: the DRM device
  *	@aligned_size: space needed
- *	@force: fall back to GEM buffers if need be
  *
  *	Allocate the frame buffer. In the usual case we get a GTT range that
  *	is stolen memory backed and life is simple. If there isn't sufficient
@@ -401,7 +393,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	info = drm_fb_helper_alloc_fbi(&fbdev->psb_fb_helper);
 	if (IS_ERR(info)) {
 		ret = PTR_ERR(info);
-		goto err_free_range;
+		goto out;
 	}
 	info->par = fbdev;
 
@@ -409,14 +401,14 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 
 	ret = psb_framebuffer_init(dev, psbfb, &mode_cmd, backing);
 	if (ret)
-		goto err_release;
+		goto out;
 
 	fb = &psbfb->base;
 	psbfb->fbdev = info;
 
 	fbdev->psb_fb_helper.fb = fb;
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	strcpy(info->fix.id, "psbdrmfb");
 
 	info->flags = FBINFO_DEFAULT;
@@ -454,9 +446,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 					psbfb->base.width, psbfb->base.height);
 
 	return 0;
-err_release:
-	drm_fb_helper_release_fbi(&fbdev->psb_fb_helper);
-err_free_range:
+out:
 	psb_gtt_free_range(dev, backing);
 	return ret;
 }
@@ -489,26 +479,6 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 	return psb_framebuffer_create(dev, cmd, r);
 }
 
-static void psbfb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-							u16 blue, int regno)
-{
-	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
-
-	gma_crtc->lut_r[regno] = red >> 8;
-	gma_crtc->lut_g[regno] = green >> 8;
-	gma_crtc->lut_b[regno] = blue >> 8;
-}
-
-static void psbfb_gamma_get(struct drm_crtc *crtc, u16 *red,
-					u16 *green, u16 *blue, int regno)
-{
-	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
-
-	*red = gma_crtc->lut_r[regno] << 8;
-	*green = gma_crtc->lut_g[regno] << 8;
-	*blue = gma_crtc->lut_b[regno] << 8;
-}
-
 static int psbfb_probe(struct drm_fb_helper *helper,
 				struct drm_fb_helper_surface_size *sizes)
 {
@@ -535,8 +505,6 @@ static int psbfb_probe(struct drm_fb_helper *helper,
 }
 
 static const struct drm_fb_helper_funcs psb_fb_helper_funcs = {
-	.gamma_set = psbfb_gamma_set,
-	.gamma_get = psbfb_gamma_get,
 	.fb_probe = psbfb_probe,
 };
 
@@ -545,7 +513,6 @@ static int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 	struct psb_framebuffer *psbfb = &fbdev->pfb;
 
 	drm_fb_helper_unregister_fbi(&fbdev->psb_fb_helper);
-	drm_fb_helper_release_fbi(&fbdev->psb_fb_helper);
 
 	drm_fb_helper_fini(&fbdev->psb_fb_helper);
 	drm_framebuffer_unregister_private(&psbfb->base);
@@ -573,7 +540,7 @@ int psb_fbdev_init(struct drm_device *dev)
 	drm_fb_helper_prepare(dev, &fbdev->psb_fb_helper, &psb_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, &fbdev->psb_fb_helper,
-				 dev_priv->ops->crtcs, INTELFB_CONN_LIMIT);
+				 INTELFB_CONN_LIMIT);
 	if (ret)
 		goto free;
 

@@ -390,7 +390,8 @@ ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *msdu)
 		return ret;
 
 	/* FIXME There's no ACK event for Management Tx. This probably
-	 * shouldn't be called here either. */
+	 * shouldn't be called here either.
+	 */
 	info->flags |= IEEE80211_TX_STAT_ACK;
 	ieee80211_tx_status_irqsafe(ar->hw, msdu);
 
@@ -660,6 +661,9 @@ ath10k_wmi_vdev_spectral_conf(struct ath10k *ar,
 	struct sk_buff *skb;
 	u32 cmd_id;
 
+	if (!ar->wmi.ops->gen_vdev_spectral_conf)
+		return -EOPNOTSUPP;
+
 	skb = ar->wmi.ops->gen_vdev_spectral_conf(ar, arg);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
@@ -674,6 +678,9 @@ ath10k_wmi_vdev_spectral_enable(struct ath10k *ar, u32 vdev_id, u32 trigger,
 {
 	struct sk_buff *skb;
 	u32 cmd_id;
+
+	if (!ar->wmi.ops->gen_vdev_spectral_enable)
+		return -EOPNOTSUPP;
 
 	skb = ar->wmi.ops->gen_vdev_spectral_enable(ar, vdev_id, trigger,
 						    enable);

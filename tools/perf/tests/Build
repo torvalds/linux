@@ -34,14 +34,19 @@ perf-y += thread-map.o
 perf-y += llvm.o llvm-src-base.o llvm-src-kbuild.o llvm-src-prologue.o llvm-src-relocation.o
 perf-y += bpf.o
 perf-y += topology.o
+perf-y += mem.o
 perf-y += cpumap.o
 perf-y += stat.o
 perf-y += event_update.o
 perf-y += event-times.o
+perf-y += expr.o
 perf-y += backward-ring-buffer.o
 perf-y += sdt.o
 perf-y += is_printable_array.o
 perf-y += bitmap.o
+perf-y += perf-hooks.o
+perf-y += clang.o
+perf-y += unit_number__scnprintf.o
 
 $(OUTPUT)tests/llvm-src-base.c: tests/bpf-script-example.c tests/Build
 	$(call rule_mkdir)
@@ -71,7 +76,7 @@ $(OUTPUT)tests/llvm-src-relocation.c: tests/bpf-script-test-relocation.c tests/B
 	$(Q)sed -e 's/"/\\"/g' -e 's/\(.*\)/"\1\\n"/g' $< >> $@
 	$(Q)echo ';' >> $@
 
-ifeq ($(ARCH),$(filter $(ARCH),x86 arm arm64 powerpc))
+ifeq ($(SRCARCH),$(filter $(SRCARCH),x86 arm arm64 powerpc))
 perf-$(CONFIG_DWARF_UNWIND) += dwarf-unwind.o
 endif
 

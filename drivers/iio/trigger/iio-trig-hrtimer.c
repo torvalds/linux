@@ -63,7 +63,7 @@ ssize_t iio_hrtimer_store_sampling_frequency(struct device *dev,
 		return -EINVAL;
 
 	info->sampling_frequency = val;
-	info->period = ktime_set(0, NSEC_PER_SEC / val);
+	info->period = NSEC_PER_SEC / val;
 
 	return len;
 }
@@ -141,8 +141,7 @@ static struct iio_sw_trigger *iio_trig_hrtimer_probe(const char *name)
 	trig_info->timer.function = iio_hrtimer_trig_handler;
 
 	trig_info->sampling_frequency = HRTIMER_DEFAULT_SAMPLING_FREQUENCY;
-	trig_info->period = ktime_set(0, NSEC_PER_SEC /
-				      trig_info->sampling_frequency);
+	trig_info->period = NSEC_PER_SEC / trig_info->sampling_frequency;
 
 	ret = iio_trigger_register(trig_info->swt.trigger);
 	if (ret)

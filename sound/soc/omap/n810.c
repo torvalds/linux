@@ -124,7 +124,7 @@ static int n810_hw_params(struct snd_pcm_substream *substream,
 	return err;
 }
 
-static struct snd_soc_ops n810_ops = {
+static const struct snd_soc_ops n810_ops = {
 	.startup = n810_startup,
 	.hw_params = n810_hw_params,
 	.shutdown = n810_shutdown,

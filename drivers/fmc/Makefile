@@ -6,6 +6,7 @@ fmc-y += fmc-match.o
 fmc-y += fmc-sdb.o
 fmc-y += fru-parse.o
 fmc-y += fmc-dump.o
+fmc-y += fmc-debug.o
 
 obj-$(CONFIG_FMC_FAKEDEV) += fmc-fakedev.o
 obj-$(CONFIG_FMC_TRIVIAL) += fmc-trivial.o

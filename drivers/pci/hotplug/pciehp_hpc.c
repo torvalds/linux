@@ -586,6 +586,14 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 	events = status & (PCI_EXP_SLTSTA_ABP | PCI_EXP_SLTSTA_PFD |
 			   PCI_EXP_SLTSTA_PDC | PCI_EXP_SLTSTA_CC |
 			   PCI_EXP_SLTSTA_DLLSC);
+
+	/*
+	 * If we've already reported a power fault, don't report it again
+	 * until we've done something to handle it.
+	 */
+	if (ctrl->power_fault_detected)
+		events &= ~PCI_EXP_SLTSTA_PFD;
+
 	if (!events)
 		return IRQ_NONE;
 
@@ -620,8 +628,18 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 		pciehp_queue_interrupt_event(slot, INT_BUTTON_PRESS);
 	}
 
-	/* Check Presence Detect Changed */
-	if (events & PCI_EXP_SLTSTA_PDC) {
+	/*
+	 * Check Link Status Changed at higher precedence than Presence
+	 * Detect Changed.  The PDS value may be set to "card present" from
+	 * out-of-band detection, which may be in conflict with a Link Down
+	 * and cause the wrong event to queue.
+	 */
+	if (events & PCI_EXP_SLTSTA_DLLSC) {
+		ctrl_info(ctrl, "Slot(%s): Link %s\n", slot_name(slot),
+			  link ? "Up" : "Down");
+		pciehp_queue_interrupt_event(slot, link ? INT_LINK_UP :
+					     INT_LINK_DOWN);
+	} else if (events & PCI_EXP_SLTSTA_PDC) {
 		present = !!(status & PCI_EXP_SLTSTA_PDS);
 		ctrl_info(ctrl, "Slot(%s): Card %spresent\n", slot_name(slot),
 			  present ? "" : "not ");
@@ -634,13 +652,6 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 		ctrl->power_fault_detected = 1;
 		ctrl_err(ctrl, "Slot(%s): Power fault\n", slot_name(slot));
 		pciehp_queue_interrupt_event(slot, INT_POWER_FAULT);
-	}
-
-	if (events & PCI_EXP_SLTSTA_DLLSC) {
-		ctrl_info(ctrl, "Slot(%s): Link %s\n", slot_name(slot),
-			  link ? "Up" : "Down");
-		pciehp_queue_interrupt_event(slot, link ? INT_LINK_UP :
-					     INT_LINK_DOWN);
 	}
 
 	return IRQ_HANDLED;

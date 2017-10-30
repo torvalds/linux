@@ -15,6 +15,7 @@
 #include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/atomic.h>
+#include <linux/module.h>
 
 #ifdef CONFIG_X86
 #include <asm/cpufeature.h>	/* for boot_cpu_has below */
@@ -152,8 +153,10 @@ static __init void test_atomic64(void)
 	long long v0 = 0xaaa31337c001d00dLL;
 	long long v1 = 0xdeadbeefdeafcafeLL;
 	long long v2 = 0xfaceabadf00df001LL;
+	long long v3 = 0x8000000000000000LL;
 	long long onestwos = 0x1111111122222222LL;
 	long long one = 1LL;
+	int r_int;
 
 	atomic64_t v = ATOMIC64_INIT(v0);
 	long long r = v0;
@@ -239,9 +242,14 @@ static __init void test_atomic64(void)
 	BUG_ON(!atomic64_inc_not_zero(&v));
 	r += one;
 	BUG_ON(v.counter != r);
+
+	/* Confirm the return value fits in an int, even if the value doesn't */
+	INIT(v3);
+	r_int = atomic64_inc_not_zero(&v);
+	BUG_ON(!r_int);
 }
 
-static __init int test_atomics(void)
+static __init int test_atomics_init(void)
 {
 	test_atomic();
 	test_atomic64();
@@ -264,4 +272,9 @@ static __init int test_atomics(void)
 	return 0;
 }
 
-core_initcall(test_atomics);
+static __exit void test_atomics_exit(void) {}
+
+module_init(test_atomics_init);
+module_exit(test_atomics_exit);
+
+MODULE_LICENSE("GPL");

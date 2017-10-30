@@ -36,6 +36,8 @@
 #include <linux/memcontrol.h>
 #include <linux/mm_inline.h>
 #include <linux/slab.h>
+#include <uapi/linux/sched/types.h>
+#include <linux/sched/signal.h>
 #include <linux/pkt_sched.h>
 #define __KERNEL_SYSCALLS__
 #include <linux/unistd.h>
@@ -330,7 +332,7 @@ static void drbd_free_pages(struct drbd_device *device, struct page *page, int i
 	if (page == NULL)
 		return;
 
-	if (drbd_pp_vacant > (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * minor_count)
+	if (drbd_pp_vacant > (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * drbd_minor_count)
 		i = page_chain_free(page);
 	else {
 		struct page *tmp;
@@ -1098,7 +1100,10 @@ randomize:
 	idr_for_each_entry(&connection->peer_devices, peer_device, vnr)
 		mutex_lock(peer_device->device->state_mutex);
 
+	/* avoid a race with conn_request_state( C_DISCONNECTING ) */
+	spin_lock_irq(&connection->resource->req_lock);
 	set_bit(STATE_SENT, &connection->flags);
+	spin_unlock_irq(&connection->resource->req_lock);
 
 	idr_for_each_entry(&connection->peer_devices, peer_device, vnr)
 		mutex_unlock(peer_device->device->state_mutex);
@@ -1192,6 +1197,14 @@ static int decode_header(struct drbd_connection *connection, void *header, struc
 	return 0;
 }
 
+static void drbd_unplug_all_devices(struct drbd_connection *connection)
+{
+	if (current->plug == &connection->receiver_plug) {
+		blk_finish_plug(&connection->receiver_plug);
+		blk_start_plug(&connection->receiver_plug);
+	} /* else: maybe just schedule() ?? */
+}
+
 static int drbd_recv_header(struct drbd_connection *connection, struct packet_info *pi)
 {
 	void *buffer = connection->data.rbuf;
@@ -1207,6 +1220,36 @@ static int drbd_recv_header(struct drbd_connection *connection, struct packet_in
 	return err;
 }
 
+static int drbd_recv_header_maybe_unplug(struct drbd_connection *connection, struct packet_info *pi)
+{
+	void *buffer = connection->data.rbuf;
+	unsigned int size = drbd_header_size(connection);
+	int err;
+
+	err = drbd_recv_short(connection->data.socket, buffer, size, MSG_NOSIGNAL|MSG_DONTWAIT);
+	if (err != size) {
+		/* If we have nothing in the receive buffer now, to reduce
+		 * application latency, try to drain the backend queues as
+		 * quickly as possible, and let remote TCP know what we have
+		 * received so far. */
+		if (err == -EAGAIN) {
+			drbd_tcp_quickack(connection->data.socket);
+			drbd_unplug_all_devices(connection);
+		}
+		if (err > 0) {
+			buffer += err;
+			size -= err;
+		}
+		err = drbd_recv_all_warn(connection, buffer, size);
+		if (err)
+			return err;
+	}
+
+	err = decode_header(connection, connection->data.rbuf, pi);
+	connection->last_received = jiffies;
+
+	return err;
+}
 /* This is blkdev_issue_flush, but asynchronous.
  * We want to submit to all component volumes in parallel,
  * then wait for all completions.
@@ -1221,15 +1264,15 @@ struct one_flush_context {
 	struct issue_flush_context *ctx;
 };
 
-void one_flush_endio(struct bio *bio)
+static void one_flush_endio(struct bio *bio)
 {
 	struct one_flush_context *octx = bio->bi_private;
 	struct drbd_device *device = octx->device;
 	struct issue_flush_context *ctx = octx->ctx;
 
-	if (bio->bi_error) {
-		ctx->error = bio->bi_error;
-		drbd_info(device, "local disk FLUSH FAILED with status %d\n", bio->bi_error);
+	if (bio->bi_status) {
+		ctx->error = blk_status_to_errno(bio->bi_status);
+		drbd_info(device, "local disk FLUSH FAILED with status %d\n", bio->bi_status);
 	}
 	kfree(octx);
 	bio_put(bio);
@@ -1263,10 +1306,10 @@ static void submit_one_flush(struct drbd_device *device, struct issue_flush_cont
 
 	octx->device = device;
 	octx->ctx = ctx;
-	bio->bi_bdev = device->ldev->backing_bdev;
+	bio_set_dev(bio, device->ldev->backing_bdev);
 	bio->bi_private = octx;
 	bio->bi_end_io = one_flush_endio;
-	bio_set_op_attrs(bio, REQ_OP_FLUSH, WRITE_FLUSH);
+	bio->bi_opf = REQ_OP_FLUSH | REQ_PREFLUSH;
 
 	device->flush_jif = jiffies;
 	set_bit(FLUSH_PENDING, &device->flags);
@@ -1446,105 +1489,14 @@ void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backin
 		drbd_info(resource, "Method to ensure write ordering: %s\n", write_ordering_str[resource->write_ordering]);
 }
 
-/*
- * We *may* ignore the discard-zeroes-data setting, if so configured.
- *
- * Assumption is that it "discard_zeroes_data=0" is only because the backend
- * may ignore partial unaligned discards.
- *
- * LVM/DM thin as of at least
- *   LVM version:     2.02.115(2)-RHEL7 (2015-01-28)
- *   Library version: 1.02.93-RHEL7 (2015-01-28)
- *   Driver version:  4.29.0
- * still behaves this way.
- *
- * For unaligned (wrt. alignment and granularity) or too small discards,
- * we zero-out the initial (and/or) trailing unaligned partial chunks,
- * but discard all the aligned full chunks.
- *
- * At least for LVM/DM thin, the result is effectively "discard_zeroes_data=1".
- */
-int drbd_issue_discard_or_zero_out(struct drbd_device *device, sector_t start, unsigned int nr_sectors, bool discard)
-{
-	struct block_device *bdev = device->ldev->backing_bdev;
-	struct request_queue *q = bdev_get_queue(bdev);
-	sector_t tmp, nr;
-	unsigned int max_discard_sectors, granularity;
-	int alignment;
-	int err = 0;
-
-	if (!discard)
-		goto zero_out;
-
-	/* Zero-sector (unknown) and one-sector granularities are the same.  */
-	granularity = max(q->limits.discard_granularity >> 9, 1U);
-	alignment = (bdev_discard_alignment(bdev) >> 9) % granularity;
-
-	max_discard_sectors = min(q->limits.max_discard_sectors, (1U << 22));
-	max_discard_sectors -= max_discard_sectors % granularity;
-	if (unlikely(!max_discard_sectors))
-		goto zero_out;
-
-	if (nr_sectors < granularity)
-		goto zero_out;
-
-	tmp = start;
-	if (sector_div(tmp, granularity) != alignment) {
-		if (nr_sectors < 2*granularity)
-			goto zero_out;
-		/* start + gran - (start + gran - align) % gran */
-		tmp = start + granularity - alignment;
-		tmp = start + granularity - sector_div(tmp, granularity);
-
-		nr = tmp - start;
-		err |= blkdev_issue_zeroout(bdev, start, nr, GFP_NOIO, 0);
-		nr_sectors -= nr;
-		start = tmp;
-	}
-	while (nr_sectors >= granularity) {
-		nr = min_t(sector_t, nr_sectors, max_discard_sectors);
-		err |= blkdev_issue_discard(bdev, start, nr, GFP_NOIO, 0);
-		nr_sectors -= nr;
-		start += nr;
-	}
- zero_out:
-	if (nr_sectors) {
-		err |= blkdev_issue_zeroout(bdev, start, nr_sectors, GFP_NOIO, 0);
-	}
-	return err != 0;
-}
-
-static bool can_do_reliable_discards(struct drbd_device *device)
-{
-	struct request_queue *q = bdev_get_queue(device->ldev->backing_bdev);
-	struct disk_conf *dc;
-	bool can_do;
-
-	if (!blk_queue_discard(q))
-		return false;
-
-	if (q->limits.discard_zeroes_data)
-		return true;
-
-	rcu_read_lock();
-	dc = rcu_dereference(device->ldev->disk_conf);
-	can_do = dc->discard_zeroes_if_aligned;
-	rcu_read_unlock();
-	return can_do;
-}
-
 static void drbd_issue_peer_discard(struct drbd_device *device, struct drbd_peer_request *peer_req)
 {
-	/* If the backend cannot discard, or does not guarantee
-	 * read-back zeroes in discarded ranges, we fall back to
-	 * zero-out.  Unless configuration specifically requested
-	 * otherwise. */
-	if (!can_do_reliable_discards(device))
-		peer_req->flags |= EE_IS_TRIM_USE_ZEROOUT;
+	struct block_device *bdev = device->ldev->backing_bdev;
 
-	if (drbd_issue_discard_or_zero_out(device, peer_req->i.sector,
-	    peer_req->i.size >> 9, !(peer_req->flags & EE_IS_TRIM_USE_ZEROOUT)))
+	if (blkdev_issue_zeroout(bdev, peer_req->i.sector, peer_req->i.size >> 9,
+			GFP_NOIO, 0))
 		peer_req->flags |= EE_WAS_ERROR;
+
 	drbd_endio_write_sec_final(peer_req);
 }
 
@@ -1637,7 +1589,7 @@ next_bio:
 	}
 	/* > peer_req->i.sector, unless this is the first bio */
 	bio->bi_iter.bi_sector = sector;
-	bio->bi_bdev = device->ldev->backing_bdev;
+	bio_set_dev(bio, device->ldev->backing_bdev);
 	bio_set_op_attrs(bio, op, op_flags);
 	bio->bi_private = peer_req;
 	bio->bi_end_io = drbd_peer_request_endio;
@@ -1648,20 +1600,8 @@ next_bio:
 
 	page_chain_for_each(page) {
 		unsigned len = min_t(unsigned, data_size, PAGE_SIZE);
-		if (!bio_add_page(bio, page, len, 0)) {
-			/* A single page must always be possible!
-			 * But in case it fails anyways,
-			 * we deal with it, and complain (below). */
-			if (bio->bi_vcnt == 0) {
-				drbd_err(device,
-					"bio_add_page failed for len=%u, "
-					"bi_vcnt=0 (bi_sector=%llu)\n",
-					len, (uint64_t)bio->bi_iter.bi_sector);
-				err = -ENOSPC;
-				goto fail;
-			}
+		if (!bio_add_page(bio, page, len, 0))
 			goto next_bio;
-		}
 		data_size -= len;
 		sector += len >> 9;
 		--nr_pages;
@@ -2386,7 +2326,7 @@ static unsigned long wire_flags_to_bio_flags(u32 dpf)
 static unsigned long wire_flags_to_bio_op(u32 dpf)
 {
 	if (dpf & DP_DISCARD)
-		return REQ_OP_DISCARD;
+		return REQ_OP_WRITE_ZEROES;
 	else
 		return REQ_OP_WRITE;
 }
@@ -2577,7 +2517,7 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
 	op_flags = wire_flags_to_bio_flags(dp_flags);
 	if (pi->cmd == P_TRIM) {
 		D_ASSERT(peer_device, peer_req->i.size > 0);
-		D_ASSERT(peer_device, op == REQ_OP_DISCARD);
+		D_ASSERT(peer_device, op == REQ_OP_WRITE_ZEROES);
 		D_ASSERT(peer_device, peer_req->pages == NULL);
 	} else if (peer_req->pages == NULL) {
 		D_ASSERT(device, peer_req->i.size == 0);
@@ -4186,7 +4126,7 @@ static int receive_uuids(struct drbd_connection *connection, struct packet_info 
 		return config_unknown_volume(connection, pi);
 	device = peer_device->device;
 
-	p_uuid = kmalloc(sizeof(u64)*UI_EXTENDED_SIZE, GFP_NOIO);
+	p_uuid = kmalloc_array(UI_EXTENDED_SIZE, sizeof(*p_uuid), GFP_NOIO);
 	if (!p_uuid) {
 		drbd_err(device, "kmalloc of p_uuid failed\n");
 		return false;
@@ -4890,7 +4830,7 @@ static int receive_rs_deallocated(struct drbd_connection *connection, struct pac
 
 	if (get_ldev(device)) {
 		struct drbd_peer_request *peer_req;
-		const int op = REQ_OP_DISCARD;
+		const int op = REQ_OP_WRITE_ZEROES;
 
 		peer_req = drbd_alloc_peer_req(peer_device, ID_SYNCER, sector,
 					       size, 0, GFP_NOIO);
@@ -4983,8 +4923,8 @@ static void drbdd(struct drbd_connection *connection)
 		struct data_cmd const *cmd;
 
 		drbd_thread_current_set_cpu(&connection->receiver);
-		update_receiver_timing_details(connection, drbd_recv_header);
-		if (drbd_recv_header(connection, &pi))
+		update_receiver_timing_details(connection, drbd_recv_header_maybe_unplug);
+		if (drbd_recv_header_maybe_unplug(connection, &pi))
 			goto err_out;
 
 		cmd = &drbd_cmd_handler[pi.cmd];
@@ -5476,8 +5416,11 @@ int drbd_receiver(struct drbd_thread *thi)
 		}
 	} while (h == 0);
 
-	if (h > 0)
+	if (h > 0) {
+		blk_start_plug(&connection->receiver_plug);
 		drbdd(connection);
+		blk_finish_plug(&connection->receiver_plug);
+	}
 
 	conn_disconnect(connection);
 

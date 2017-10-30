@@ -100,14 +100,14 @@ knows what to do to handle the device).
   * If the suspend callback returns an error code different from -EBUSY and
     -EAGAIN, the PM core regards this as a fatal error and will refuse to run
     the helper functions described in Section 4 for the device until its status
-    is directly set to  either'active', or 'suspended' (the PM core provides
+    is directly set to  either 'active', or 'suspended' (the PM core provides
     special helper functions for this purpose).
 
 In particular, if the driver requires remote wakeup capability (i.e. hardware
 mechanism allowing the device to request a change of its power state, such as
-PCI PME) for proper functioning and device_run_wake() returns 'false' for the
+PCI PME) for proper functioning and device_can_wakeup() returns 'false' for the
 device, then ->runtime_suspend() should return -EBUSY.  On the other hand, if
-device_run_wake() returns 'true' for the device and the device is put into a
+device_can_wakeup() returns 'true' for the device and the device is put into a
 low-power state during the execution of the suspend callback, it is expected
 that remote wakeup will be enabled for the device.  Generally, remote wakeup
 should be enabled for all input devices put into low-power states at run time.
@@ -217,7 +217,7 @@ defined in include/linux/pm.h:
       one to complete
 
   spinlock_t lock;
-    - lock used for synchronisation
+    - lock used for synchronization
 
   atomic_t usage_count;
     - the usage counter of the device
@@ -252,9 +252,6 @@ defined in include/linux/pm.h:
     - set if ->runtime_resume() is about to be run while ->runtime_suspend() is
       being executed for that device and it is not practical to wait for the
       suspend to complete; means "start a resume as soon as you've suspended"
-
-  unsigned int run_wake;
-    - set if the device is capable of generating runtime wake-up events
 
   enum rpm_status runtime_status;
     - the runtime PM status of the device; this field's initial value is
@@ -438,7 +435,8 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       PM status to 'suspended' and update its parent's counter of 'active'
       children as appropriate (it is only valid to use this function if
       'power.runtime_error' is set or 'power.disable_depth' is greater than
-      zero)
+      zero); it will fail and return an error code if the device has a child
+      which is active and the 'power.ignore_children' flag is unset
 
   bool pm_runtime_active(struct device *dev);
     - return true if the device's runtime PM status is 'active' or its
@@ -478,15 +476,23 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
     - set the power.last_busy field to the current time
 
   void pm_runtime_use_autosuspend(struct device *dev);
-    - set the power.use_autosuspend flag, enabling autosuspend delays
+    - set the power.use_autosuspend flag, enabling autosuspend delays; call
+      pm_runtime_get_sync if the flag was previously cleared and
+      power.autosuspend_delay is negative
 
   void pm_runtime_dont_use_autosuspend(struct device *dev);
-    - clear the power.use_autosuspend flag, disabling autosuspend delays
+    - clear the power.use_autosuspend flag, disabling autosuspend delays;
+      decrement the device's usage counter if the flag was previously set and
+      power.autosuspend_delay is negative; call pm_runtime_idle
 
   void pm_runtime_set_autosuspend_delay(struct device *dev, int delay);
     - set the power.autosuspend_delay value to 'delay' (expressed in
       milliseconds); if 'delay' is negative then runtime suspends are
-      prevented
+      prevented; if power.use_autosuspend is set, pm_runtime_get_sync may be
+      called or the device's usage counter may be decremented and
+      pm_runtime_idle called depending on if power.autosuspend_delay is
+      changed to or from a negative value; if power.use_autosuspend is clear,
+      pm_runtime_idle is called
 
   unsigned long pm_runtime_autosuspend_expiration(struct device *dev);
     - calculate the time when the current autosuspend delay period will expire,
@@ -565,7 +571,7 @@ appropriate to ensure that the device is not put back to sleep during the
 probe. This can happen with systems such as the network device layer.
 
 It may be desirable to suspend the device once ->probe() has finished.
-Therefore the driver core uses the asyncronous pm_request_idle() to submit a
+Therefore the driver core uses the asynchronous pm_request_idle() to submit a
 request to execute the subsystem-level idle callback for the device at that
 time.  A driver that makes use of the runtime autosuspend feature, may want to
 update the last busy mark before returning from ->probe().
@@ -674,7 +680,7 @@ left in runtime suspend.  If that happens, the PM core will not execute any
 system suspend and resume callbacks for all of those devices, except for the
 complete callback, which is then entirely responsible for handling the device
 as appropriate.  This only applies to system suspend transitions that are not
-related to hibernation (see Documentation/power/devices.txt for more
+related to hibernation (see Documentation/power/admin-guide/devices.rst for more
 information).
 
 The PM core does its best to reduce the probability of race conditions between
@@ -836,9 +842,8 @@ of the non-autosuspend counterparts:
 	Instead of: pm_runtime_put_sync   use: pm_runtime_put_sync_autosuspend.
 
 Drivers may also continue to use the non-autosuspend helper functions; they
-will behave normally, not taking the autosuspend delay into account.
-Similarly, if the power.use_autosuspend field isn't set then the autosuspend
-helper functions will behave just like the non-autosuspend counterparts.
+will behave normally, which means sometimes taking the autosuspend delay into
+account (see pm_runtime_idle).
 
 Under some circumstances a driver or subsystem may want to prevent a device
 from autosuspending immediately, even though the usage counter is zero and the

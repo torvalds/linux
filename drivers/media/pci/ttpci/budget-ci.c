@@ -19,11 +19,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  *
  *
  * the project's page is at https://linuxtv.org
@@ -161,14 +158,15 @@ static void msp430_ir_interrupt(unsigned long data)
 		return;
 
 	if (budget_ci->ir.full_rc5) {
-		rc_keydown(dev, RC_TYPE_RC5,
+		rc_keydown(dev, RC_PROTO_RC5,
 			   RC_SCANCODE_RC5(budget_ci->ir.rc5_device, budget_ci->ir.ir_key),
 			   !!(command & 0x20));
 		return;
 	}
 
 	/* FIXME: We should generate complete scancodes for all devices */
-	rc_keydown(dev, RC_TYPE_UNKNOWN, budget_ci->ir.ir_key, !!(command & 0x20));
+	rc_keydown(dev, RC_PROTO_UNKNOWN, budget_ci->ir.ir_key,
+		   !!(command & 0x20));
 }
 
 static int msp430_ir_init(struct budget_ci *budget_ci)
@@ -177,7 +175,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	struct rc_dev *dev;
 	int error;
 
-	dev = rc_allocate_device();
+	dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!dev) {
 		printk(KERN_ERR "budget_ci: IR interface initialisation failed\n");
 		return -ENOMEM;
@@ -189,7 +187,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 		 "pci-%s/ir0", pci_name(saa->pci));
 
 	dev->driver_name = MODULE_NAME;
-	dev->input_name = budget_ci->ir.name;
+	dev->device_name = budget_ci->ir.name;
 	dev->input_phys = budget_ci->ir.phys;
 	dev->input_id.bustype = BUS_PCI;
 	dev->input_id.version = 1;
@@ -696,7 +694,7 @@ static int philips_su1278_tt_tuner_set_params(struct dvb_frontend *fe)
 	return 0;
 }
 
-static struct stv0299_config philips_su1278_tt_config = {
+static const struct stv0299_config philips_su1278_tt_config = {
 
 	.demod_address = 0x68,
 	.inittab = philips_su1278_tt_inittab,
@@ -1541,7 +1539,7 @@ MAKE_BUDGET_INFO(ttc1501, "TT-Budget C-1501 PCI", BUDGET_TT);
 MAKE_BUDGET_INFO(tt3200, "TT-Budget S2-3200 PCI", BUDGET_TT);
 MAKE_BUDGET_INFO(ttbs1500b, "TT-Budget S-1500B PCI", BUDGET_TT);
 
-static struct pci_device_id pci_tbl[] = {
+static const struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttbci, 0x13c2, 0x100c),
 	MAKE_EXTENSION_PCI(ttbci, 0x13c2, 0x100f),
 	MAKE_EXTENSION_PCI(ttbcci, 0x13c2, 0x1010),
@@ -1586,6 +1584,4 @@ module_exit(budget_ci_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Michael Hunold, Jack Thomasson, Andrew de Quincey, others");
-MODULE_DESCRIPTION("driver for the SAA7146 based so-called "
-		   "budget PCI DVB cards w/ CI-module produced by "
-		   "Siemens, Technotrend, Hauppauge");
+MODULE_DESCRIPTION("driver for the SAA7146 based so-called budget PCI DVB cards w/ CI-module produced by Siemens, Technotrend, Hauppauge");

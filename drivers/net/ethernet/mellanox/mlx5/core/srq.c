@@ -162,7 +162,7 @@ static int create_srq_cmd(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 
 	pas_size  = get_pas_size(in);
 	inlen	  = MLX5_ST_SZ_BYTES(create_srq_in) + pas_size;
-	create_in = mlx5_vzalloc(inlen);
+	create_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!create_in)
 		return -ENOMEM;
 
@@ -201,13 +201,13 @@ static int destroy_srq_cmd(struct mlx5_core_dev *dev,
 static int arm_srq_cmd(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 		       u16 lwm, int is_srq)
 {
-	/* arm_srq structs missing using identical xrc ones */
-	u32 srq_in[MLX5_ST_SZ_DW(arm_xrc_srq_in)] = {0};
-	u32 srq_out[MLX5_ST_SZ_DW(arm_xrc_srq_out)] = {0};
+	u32 srq_in[MLX5_ST_SZ_DW(arm_rq_in)] = {0};
+	u32 srq_out[MLX5_ST_SZ_DW(arm_rq_out)] = {0};
 
-	MLX5_SET(arm_xrc_srq_in, srq_in, opcode,   MLX5_CMD_OP_ARM_XRC_SRQ);
-	MLX5_SET(arm_xrc_srq_in, srq_in, xrc_srqn, srq->srqn);
-	MLX5_SET(arm_xrc_srq_in, srq_in, lwm,      lwm);
+	MLX5_SET(arm_rq_in, srq_in, opcode, MLX5_CMD_OP_ARM_RQ);
+	MLX5_SET(arm_rq_in, srq_in, op_mod, MLX5_ARM_RQ_IN_OP_MOD_SRQ);
+	MLX5_SET(arm_rq_in, srq_in, srq_number, srq->srqn);
+	MLX5_SET(arm_rq_in, srq_in, lwm,      lwm);
 
 	return  mlx5_cmd_exec(dev, srq_in, sizeof(srq_in),
 			      srq_out, sizeof(srq_out));
@@ -221,7 +221,7 @@ static int query_srq_cmd(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 	void *srqc;
 	int err;
 
-	srq_out = mlx5_vzalloc(MLX5_ST_SZ_BYTES(query_srq_out));
+	srq_out = kvzalloc(MLX5_ST_SZ_BYTES(query_srq_out), GFP_KERNEL);
 	if (!srq_out)
 		return -ENOMEM;
 
@@ -256,7 +256,7 @@ static int create_xrc_srq_cmd(struct mlx5_core_dev *dev,
 
 	pas_size  = get_pas_size(in);
 	inlen	  = MLX5_ST_SZ_BYTES(create_xrc_srq_in) + pas_size;
-	create_in = mlx5_vzalloc(inlen);
+	create_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!create_in)
 		return -ENOMEM;
 
@@ -320,7 +320,7 @@ static int query_xrc_srq_cmd(struct mlx5_core_dev *dev,
 	void *xrc_srqc;
 	int err;
 
-	xrcsrq_out = mlx5_vzalloc(MLX5_ST_SZ_BYTES(query_xrc_srq_out));
+	xrcsrq_out = kvzalloc(MLX5_ST_SZ_BYTES(query_xrc_srq_out), GFP_KERNEL);
 	if (!xrcsrq_out)
 		return -ENOMEM;
 	memset(xrcsrq_in, 0, sizeof(xrcsrq_in));
@@ -357,7 +357,7 @@ static int create_rmp_cmd(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 
 	pas_size = get_pas_size(in);
 	inlen = MLX5_ST_SZ_BYTES(create_rmp_in) + pas_size;
-	create_in = mlx5_vzalloc(inlen);
+	create_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!create_in)
 		return -ENOMEM;
 
@@ -390,7 +390,7 @@ static int arm_rmp_cmd(struct mlx5_core_dev *dev,
 	void *bitmask;
 	int err;
 
-	in = mlx5_vzalloc(MLX5_ST_SZ_BYTES(modify_rmp_in));
+	in = kvzalloc(MLX5_ST_SZ_BYTES(modify_rmp_in), GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
 
@@ -417,7 +417,7 @@ static int query_rmp_cmd(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 	void *rmpc;
 	int err;
 
-	rmp_out =  mlx5_vzalloc(MLX5_ST_SZ_BYTES(query_rmp_out));
+	rmp_out =  kvzalloc(MLX5_ST_SZ_BYTES(query_rmp_out), GFP_KERNEL);
 	if (!rmp_out)
 		return -ENOMEM;
 
@@ -435,16 +435,128 @@ out:
 	return err;
 }
 
+static int create_xrq_cmd(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
+			  struct mlx5_srq_attr *in)
+{
+	u32 create_out[MLX5_ST_SZ_DW(create_xrq_out)] = {0};
+	void *create_in;
+	void *xrqc;
+	void *wq;
+	int pas_size;
+	int inlen;
+	int err;
+
+	pas_size = get_pas_size(in);
+	inlen = MLX5_ST_SZ_BYTES(create_xrq_in) + pas_size;
+	create_in = kvzalloc(inlen, GFP_KERNEL);
+	if (!create_in)
+		return -ENOMEM;
+
+	xrqc = MLX5_ADDR_OF(create_xrq_in, create_in, xrq_context);
+	wq = MLX5_ADDR_OF(xrqc, xrqc, wq);
+
+	set_wq(wq, in);
+	memcpy(MLX5_ADDR_OF(xrqc, xrqc, wq.pas), in->pas, pas_size);
+
+	if (in->type == IB_SRQT_TM) {
+		MLX5_SET(xrqc, xrqc, topology, MLX5_XRQC_TOPOLOGY_TAG_MATCHING);
+		if (in->flags & MLX5_SRQ_FLAG_RNDV)
+			MLX5_SET(xrqc, xrqc, offload, MLX5_XRQC_OFFLOAD_RNDV);
+		MLX5_SET(xrqc, xrqc,
+			 tag_matching_topology_context.log_matching_list_sz,
+			 in->tm_log_list_size);
+	}
+	MLX5_SET(xrqc, xrqc, user_index, in->user_index);
+	MLX5_SET(xrqc, xrqc, cqn, in->cqn);
+	MLX5_SET(create_xrq_in, create_in, opcode, MLX5_CMD_OP_CREATE_XRQ);
+	err = mlx5_cmd_exec(dev, create_in, inlen, create_out,
+			    sizeof(create_out));
+	kvfree(create_in);
+	if (!err)
+		srq->srqn = MLX5_GET(create_xrq_out, create_out, xrqn);
+
+	return err;
+}
+
+static int destroy_xrq_cmd(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq)
+{
+	u32 in[MLX5_ST_SZ_DW(destroy_xrq_in)] = {0};
+	u32 out[MLX5_ST_SZ_DW(destroy_xrq_out)] = {0};
+
+	MLX5_SET(destroy_xrq_in, in, opcode, MLX5_CMD_OP_DESTROY_XRQ);
+	MLX5_SET(destroy_xrq_in, in, xrqn,   srq->srqn);
+
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
+
+static int arm_xrq_cmd(struct mlx5_core_dev *dev,
+		       struct mlx5_core_srq *srq,
+		       u16 lwm)
+{
+	u32 out[MLX5_ST_SZ_DW(arm_rq_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(arm_rq_in)] = {0};
+
+	MLX5_SET(arm_rq_in, in, opcode,     MLX5_CMD_OP_ARM_RQ);
+	MLX5_SET(arm_rq_in, in, op_mod,     MLX5_ARM_RQ_IN_OP_MOD_XRQ);
+	MLX5_SET(arm_rq_in, in, srq_number, srq->srqn);
+	MLX5_SET(arm_rq_in, in, lwm,	    lwm);
+
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
+
+static int query_xrq_cmd(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
+			 struct mlx5_srq_attr *out)
+{
+	u32 in[MLX5_ST_SZ_DW(query_xrq_in)] = {0};
+	u32 *xrq_out;
+	int outlen = MLX5_ST_SZ_BYTES(query_xrq_out);
+	void *xrqc;
+	int err;
+
+	xrq_out = kvzalloc(outlen, GFP_KERNEL);
+	if (!xrq_out)
+		return -ENOMEM;
+
+	MLX5_SET(query_xrq_in, in, opcode, MLX5_CMD_OP_QUERY_XRQ);
+	MLX5_SET(query_xrq_in, in, xrqn, srq->srqn);
+
+	err = mlx5_cmd_exec(dev, in, sizeof(in), xrq_out, outlen);
+	if (err)
+		goto out;
+
+	xrqc = MLX5_ADDR_OF(query_xrq_out, xrq_out, xrq_context);
+	get_wq(MLX5_ADDR_OF(xrqc, xrqc, wq), out);
+	if (MLX5_GET(xrqc, xrqc, state) != MLX5_XRQC_STATE_GOOD)
+		out->flags |= MLX5_SRQ_FLAG_ERR;
+	out->tm_next_tag =
+		MLX5_GET(xrqc, xrqc,
+			 tag_matching_topology_context.append_next_index);
+	out->tm_hw_phase_cnt =
+		MLX5_GET(xrqc, xrqc,
+			 tag_matching_topology_context.hw_phase_cnt);
+	out->tm_sw_phase_cnt =
+		MLX5_GET(xrqc, xrqc,
+			 tag_matching_topology_context.sw_phase_cnt);
+
+out:
+	kvfree(xrq_out);
+	return err;
+}
+
 static int create_srq_split(struct mlx5_core_dev *dev,
 			    struct mlx5_core_srq *srq,
 			    struct mlx5_srq_attr *in)
 {
 	if (!dev->issi)
 		return create_srq_cmd(dev, srq, in);
-	else if (srq->common.res == MLX5_RES_XSRQ)
+	switch (srq->common.res) {
+	case MLX5_RES_XSRQ:
 		return create_xrc_srq_cmd(dev, srq, in);
-	else
+	case MLX5_RES_XRQ:
+		return create_xrq_cmd(dev, srq, in);
+	default:
 		return create_rmp_cmd(dev, srq, in);
+	}
 }
 
 static int destroy_srq_split(struct mlx5_core_dev *dev,
@@ -452,10 +564,14 @@ static int destroy_srq_split(struct mlx5_core_dev *dev,
 {
 	if (!dev->issi)
 		return destroy_srq_cmd(dev, srq);
-	else if (srq->common.res == MLX5_RES_XSRQ)
+	switch (srq->common.res) {
+	case MLX5_RES_XSRQ:
 		return destroy_xrc_srq_cmd(dev, srq);
-	else
+	case MLX5_RES_XRQ:
+		return destroy_xrq_cmd(dev, srq);
+	default:
 		return destroy_rmp_cmd(dev, srq);
+	}
 }
 
 int mlx5_core_create_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
@@ -464,10 +580,16 @@ int mlx5_core_create_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 	int err;
 	struct mlx5_srq_table *table = &dev->priv.srq_table;
 
-	if (in->type == IB_SRQT_XRC)
+	switch (in->type) {
+	case IB_SRQT_XRC:
 		srq->common.res = MLX5_RES_XSRQ;
-	else
+		break;
+	case IB_SRQT_TM:
+		srq->common.res = MLX5_RES_XRQ;
+		break;
+	default:
 		srq->common.res = MLX5_RES_SRQ;
+	}
 
 	err = create_srq_split(dev, srq, in);
 	if (err)
@@ -528,10 +650,14 @@ int mlx5_core_query_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 {
 	if (!dev->issi)
 		return query_srq_cmd(dev, srq, out);
-	else if (srq->common.res == MLX5_RES_XSRQ)
+	switch (srq->common.res) {
+	case MLX5_RES_XSRQ:
 		return query_xrc_srq_cmd(dev, srq, out);
-	else
+	case MLX5_RES_XRQ:
+		return query_xrq_cmd(dev, srq, out);
+	default:
 		return query_rmp_cmd(dev, srq, out);
+	}
 }
 EXPORT_SYMBOL(mlx5_core_query_srq);
 
@@ -540,10 +666,14 @@ int mlx5_core_arm_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 {
 	if (!dev->issi)
 		return arm_srq_cmd(dev, srq, lwm, is_srq);
-	else if (srq->common.res == MLX5_RES_XSRQ)
+	switch (srq->common.res) {
+	case MLX5_RES_XSRQ:
 		return arm_xrc_srq_cmd(dev, srq, lwm);
-	else
+	case MLX5_RES_XRQ:
+		return arm_xrq_cmd(dev, srq, lwm);
+	default:
 		return arm_rmp_cmd(dev, srq, lwm);
+	}
 }
 EXPORT_SYMBOL(mlx5_core_arm_srq);
 

@@ -36,8 +36,8 @@
 #ifndef _RANGE_LOCK_H
 #define _RANGE_LOCK_H
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../include/interval_tree.h"
+#include <linux/libcfs/libcfs.h>
+#include <interval_tree.h>
 
 struct range_lock {
 	struct interval_node	rl_node;
@@ -76,7 +76,7 @@ struct range_lock_tree {
 };
 
 void range_lock_tree_init(struct range_lock_tree *tree);
-void range_lock_init(struct range_lock *lock, __u64 start, __u64 end);
+int range_lock_init(struct range_lock *lock, __u64 start, __u64 end);
 int  range_lock(struct range_lock_tree *tree, struct range_lock *lock);
 void range_unlock(struct range_lock_tree *tree, struct range_lock *lock);
 #endif

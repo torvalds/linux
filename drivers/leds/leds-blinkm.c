@@ -298,7 +298,7 @@ static struct attribute *blinkm_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group blinkm_group = {
+static const struct attribute_group blinkm_group = {
 	.name = "blinkm",
 	.attrs = blinkm_attrs,
 };

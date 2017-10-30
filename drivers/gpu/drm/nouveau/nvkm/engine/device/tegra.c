@@ -28,9 +28,11 @@ nvkm_device_tegra_power_up(struct nvkm_device_tegra *tdev)
 {
 	int ret;
 
-	ret = regulator_enable(tdev->vdd);
-	if (ret)
-		goto err_power;
+	if (tdev->vdd) {
+		ret = regulator_enable(tdev->vdd);
+		if (ret)
+			goto err_power;
+	}
 
 	ret = clk_prepare_enable(tdev->clk);
 	if (ret)
@@ -49,10 +51,12 @@ nvkm_device_tegra_power_up(struct nvkm_device_tegra *tdev)
 	reset_control_assert(tdev->rst);
 	udelay(10);
 
-	ret = tegra_powergate_remove_clamping(TEGRA_POWERGATE_3D);
-	if (ret)
-		goto err_clamp;
-	udelay(10);
+	if (!tdev->pdev->dev.pm_domain) {
+		ret = tegra_powergate_remove_clamping(TEGRA_POWERGATE_3D);
+		if (ret)
+			goto err_clamp;
+		udelay(10);
+	}
 
 	reset_control_deassert(tdev->rst);
 	udelay(10);
@@ -67,7 +71,8 @@ err_clk_pwr:
 err_clk_ref:
 	clk_disable_unprepare(tdev->clk);
 err_clk:
-	regulator_disable(tdev->vdd);
+	if (tdev->vdd)
+		regulator_disable(tdev->vdd);
 err_power:
 	return ret;
 }
@@ -75,8 +80,7 @@ err_power:
 static int
 nvkm_device_tegra_power_down(struct nvkm_device_tegra *tdev)
 {
-	reset_control_assert(tdev->rst);
-	udelay(10);
+	int ret;
 
 	clk_disable_unprepare(tdev->clk_pwr);
 	if (tdev->clk_ref)
@@ -84,7 +88,13 @@ nvkm_device_tegra_power_down(struct nvkm_device_tegra *tdev)
 	clk_disable_unprepare(tdev->clk);
 	udelay(10);
 
-	return regulator_disable(tdev->vdd);
+	if (tdev->vdd) {
+		ret = regulator_disable(tdev->vdd);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static void
@@ -102,7 +112,7 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 
 	if (iommu_present(&platform_bus_type)) {
 		tdev->iommu.domain = iommu_domain_alloc(&platform_bus_type);
-		if (IS_ERR(tdev->iommu.domain))
+		if (!tdev->iommu.domain)
 			goto error;
 
 		/*
@@ -264,10 +274,12 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 	tdev->func = func;
 	tdev->pdev = pdev;
 
-	tdev->vdd = devm_regulator_get(&pdev->dev, "vdd");
-	if (IS_ERR(tdev->vdd)) {
-		ret = PTR_ERR(tdev->vdd);
-		goto free;
+	if (func->require_vdd) {
+		tdev->vdd = devm_regulator_get(&pdev->dev, "vdd");
+		if (IS_ERR(tdev->vdd)) {
+			ret = PTR_ERR(tdev->vdd);
+			goto free;
+		}
 	}
 
 	tdev->rst = devm_reset_control_get(&pdev->dev, "gpu");

@@ -37,12 +37,10 @@
 			};
 
 			pinctrl@fffff200 {
-
-				board {
-					pinctrl_board_nand: nand0-board {
+				nand {
+					pinctrl_nand_rb: nand-rb-0 {
 						atmel,pins =
-							<AT91_PIOD 3 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP	/* PD3 gpio RDY pin pull_up*/
-							 AT91_PIOC 14 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;	/* PC14 gpio enable pin pull_up */
+							<AT91_PIOD 3 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;
 					};
 				};
 
@@ -71,50 +69,61 @@
 				phy-mode = "rmii";
 				status = "okay";
 			};
-
 		};
 
-		nand0: nand@40000000 {
-			nand-bus-width = <8>;
-			nand-ecc-mode = "soft";
-			nand-on-flash-bbt;
-			pinctrl-0 = <&pinctrl_board_nand>;
-
-			gpios = <&pioD 3 GPIO_ACTIVE_HIGH
-				 &pioC 14 GPIO_ACTIVE_HIGH
-				 0
-				>;
-
+		ebi: ebi@10000000 {
 			status = "okay";
 
-			at91bootstrap@0 {
-				label = "at91bootstrap";
-				reg = <0x0 0x20000>;
-			};
+			nand_controller: nand-controller {
+				status = "okay";
+				pinctrl-0 = <&pinctrl_nand_cs &pinctrl_nand_rb>;
+				pinctrl-names = "default";
 
-			barebox@20000 {
-				label = "barebox";
-				reg = <0x20000 0x40000>;
-			};
+				nand@3 {
+					reg = <0x3 0x0 0x800000>;
+					rb-gpios = <&pioD 3 GPIO_ACTIVE_HIGH>;
+					cs-gpios = <&pioC 14 GPIO_ACTIVE_HIGH>;
+					nand-bus-width = <8>;
+					nand-ecc-mode = "soft";
+					nand-on-flash-bbt;
+					label = "atmel_nand";
 
-			bareboxenv@60000 {
-				label = "bareboxenv";
-				reg = <0x60000 0x1A0000>;
-			};
+					partitions {
+						compatible = "fixed-partitions";
+						#address-cells = <1>;
+						#size-cells = <1>;
 
-			kernel@200000 {
-				label = "bareboxenv2";
-				reg = <0x200000 0x300000>;
-			};
+						at91bootstrap@0 {
+							label = "at91bootstrap";
+							reg = <0x0 0x20000>;
+						};
 
-			kernel@500000 {
-				label = "root";
-				reg = <0x500000 0x400000>;
-			};
+						barebox@20000 {
+							label = "barebox";
+							reg = <0x20000 0x40000>;
+						};
 
-			data@900000 {
-				label = "data";
-				reg = <0x900000 0x8340000>;
+						bareboxenv@60000 {
+							label = "bareboxenv";
+							reg = <0x60000 0x1A0000>;
+						};
+
+						kernel@200000 {
+							label = "bareboxenv2";
+							reg = <0x200000 0x300000>;
+						};
+
+						kernel@500000 {
+							label = "root";
+							reg = <0x500000 0x400000>;
+						};
+
+						data@900000 {
+							label = "data";
+							reg = <0x900000 0x8340000>;
+						};
+					};
+				};
 			};
 		};
 

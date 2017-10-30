@@ -79,31 +79,27 @@ bail:
  * smaller ip address, we recycle conns in RDS_CONN_ERROR on the passive side
  * by moving them to CONNECTING in this function.
  */
+static
 struct rds_tcp_connection *rds_tcp_accept_one_path(struct rds_connection *conn)
 {
 	int i;
-	bool peer_is_smaller = (conn->c_faddr < conn->c_laddr);
-	int npaths = conn->c_npaths;
+	bool peer_is_smaller = IS_CANONICAL(conn->c_faddr, conn->c_laddr);
+	int npaths = max_t(int, 1, conn->c_npaths);
 
-	if (npaths <= 1) {
-		struct rds_conn_path *cp = &conn->c_path[0];
-		int ret;
-
-		ret = rds_conn_path_transition(cp, RDS_CONN_DOWN,
-					       RDS_CONN_CONNECTING);
-		if (!ret)
-			rds_conn_path_transition(cp, RDS_CONN_ERROR,
-						 RDS_CONN_CONNECTING);
-		return cp->cp_transport_data;
-	}
-
-	/* for mprds, paths with cp_index > 0 MUST be initiated by the peer
+	/* for mprds, all paths MUST be initiated by the peer
 	 * with the smaller address.
 	 */
-	if (!peer_is_smaller)
+	if (!peer_is_smaller) {
+		/* Make sure we initiate at least one path if this
+		 * has not already been done; rds_start_mprds() will
+		 * take care of additional paths, if necessary.
+		 */
+		if (npaths == 1)
+			rds_conn_path_connect_if_down(&conn->c_path[0]);
 		return NULL;
+	}
 
-	for (i = 1; i < npaths; i++) {
+	for (i = 0; i < npaths; i++) {
 		struct rds_conn_path *cp = &conn->c_path[i];
 
 		if (rds_conn_path_transition(cp, RDS_CONN_DOWN,
@@ -114,6 +110,17 @@ struct rds_tcp_connection *rds_tcp_accept_one_path(struct rds_connection *conn)
 		}
 	}
 	return NULL;
+}
+
+void rds_tcp_set_linger(struct socket *sock)
+{
+	struct linger no_linger = {
+		.l_onoff = 1,
+		.l_linger = 0,
+	};
+
+	kernel_setsockopt(sock, SOL_SOCKET, SO_LINGER,
+			  (char *)&no_linger, sizeof(no_linger));
 }
 
 int rds_tcp_accept_one(struct socket *sock)
@@ -129,7 +136,7 @@ int rds_tcp_accept_one(struct socket *sock)
 	if (!sock) /* module unload or netns delete in progress */
 		return -ENETUNREACH;
 
-	ret = sock_create_kern(sock_net(sock->sk), sock->sk->sk_family,
+	ret = sock_create_lite(sock->sk->sk_family,
 			       sock->sk->sk_type, sock->sk->sk_protocol,
 			       &new_sock);
 	if (ret)
@@ -137,7 +144,7 @@ int rds_tcp_accept_one(struct socket *sock)
 
 	new_sock->type = sock->type;
 	new_sock->ops = sock->ops;
-	ret = sock->ops->accept(sock, new_sock, O_NONBLOCK);
+	ret = sock->ops->accept(sock, new_sock, O_NONBLOCK, true);
 	if (ret < 0)
 		goto out;
 
@@ -171,34 +178,31 @@ int rds_tcp_accept_one(struct socket *sock)
 	mutex_lock(&rs_tcp->t_conn_path_lock);
 	cp = rs_tcp->t_cpath;
 	conn_state = rds_conn_path_state(cp);
-	if (conn_state != RDS_CONN_CONNECTING && conn_state != RDS_CONN_UP &&
-	    conn_state != RDS_CONN_ERROR)
+	WARN_ON(conn_state == RDS_CONN_UP);
+	if (conn_state != RDS_CONN_CONNECTING && conn_state != RDS_CONN_ERROR)
 		goto rst_nsk;
 	if (rs_tcp->t_sock) {
-		/* Need to resolve a duelling SYN between peers.
-		 * We have an outstanding SYN to this peer, which may
-		 * potentially have transitioned to the RDS_CONN_UP state,
-		 * so we must quiesce any send threads before resetting
-		 * c_transport_data.
-		 */
-		if (ntohl(inet->inet_saddr) < ntohl(inet->inet_daddr) ||
-		    !cp->cp_outgoing) {
-			goto rst_nsk;
-		} else {
-			rds_tcp_reset_callbacks(new_sock, cp);
-			cp->cp_outgoing = 0;
-			/* rds_connect_path_complete() marks RDS_CONN_UP */
-			rds_connect_path_complete(cp, RDS_CONN_RESETTING);
-		}
+		/* Duelling SYN has been handled in rds_tcp_accept_one() */
+		rds_tcp_reset_callbacks(new_sock, cp);
+		/* rds_connect_path_complete() marks RDS_CONN_UP */
+		rds_connect_path_complete(cp, RDS_CONN_RESETTING);
 	} else {
 		rds_tcp_set_callbacks(new_sock, cp);
 		rds_connect_path_complete(cp, RDS_CONN_CONNECTING);
 	}
 	new_sock = NULL;
 	ret = 0;
+	if (conn->c_npaths == 0)
+		rds_send_ping(cp->cp_conn, cp->cp_index);
 	goto out;
 rst_nsk:
-	/* reset the newly returned accept sock and bail */
+	/* reset the newly returned accept sock and bail.
+	 * It is safe to set linger on new_sock because the RDS connection
+	 * has not been brought up on new_sock, so no RDS-level data could
+	 * be pending on it. By setting linger, we achieve the side-effect
+	 * of avoiding TIME_WAIT state on new_sock.
+	 */
+	rds_tcp_set_linger(new_sock);
 	kernel_sock_shutdown(new_sock, SHUT_RDWR);
 	ret = 0;
 out:
@@ -227,6 +231,9 @@ void rds_tcp_listen_data_ready(struct sock *sk)
 	 * before it has been accepted and the accepter has set up their
 	 * data_ready.. we only want to queue listen work for our listening
 	 * socket
+	 *
+	 * (*ready)() may be null if we are racing with netns delete, and
+	 * the listen socket is being torn down.
 	 */
 	if (sk->sk_state == TCP_LISTEN)
 		rds_tcp_accept_work(sk);
@@ -235,7 +242,8 @@ void rds_tcp_listen_data_ready(struct sock *sk)
 
 out:
 	read_unlock_bh(&sk->sk_callback_lock);
-	ready(sk);
+	if (ready)
+		ready(sk);
 }
 
 struct socket *rds_tcp_listen_init(struct net *net)
@@ -275,7 +283,7 @@ out:
 	return NULL;
 }
 
-void rds_tcp_listen_stop(struct socket *sock)
+void rds_tcp_listen_stop(struct socket *sock, struct work_struct *acceptor)
 {
 	struct sock *sk;
 
@@ -296,5 +304,6 @@ void rds_tcp_listen_stop(struct socket *sock)
 
 	/* wait for accepts to stop and close the socket */
 	flush_workqueue(rds_wq);
+	flush_work(acceptor);
 	sock_release(sock);
 }

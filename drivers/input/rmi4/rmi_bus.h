@@ -105,6 +105,18 @@ rmi_get_platform_data(struct rmi_device *d)
 bool rmi_is_physical_device(struct device *dev);
 
 /**
+ * rmi_reset - reset a RMI4 device
+ * @d: Pointer to an RMI device
+ *
+ * Calls for a reset of each function implemented by a specific device.
+ * Returns 0 on success or a negative error code.
+ */
+static inline int rmi_reset(struct rmi_device *d)
+{
+	return d->driver->reset_handler(d);
+}
+
+/**
  * rmi_read - read a single byte
  * @d: Pointer to an RMI device
  * @addr: The address to read from

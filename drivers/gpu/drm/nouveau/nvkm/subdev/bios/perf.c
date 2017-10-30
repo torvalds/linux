@@ -26,16 +26,16 @@
 #include <subdev/bios/perf.h>
 #include <subdev/pci.h>
 
-u16
+u32
 nvbios_perf_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr,
 		  u8 *cnt, u8 *len, u8 *snr, u8 *ssz)
 {
 	struct bit_entry bit_P;
-	u16 perf = 0x0000;
+	u32 perf = 0;
 
 	if (!bit_entry(bios, 'P', &bit_P)) {
 		if (bit_P.version <= 2) {
-			perf = nvbios_rd16(bios, bit_P.offset + 0);
+			perf = nvbios_rd32(bios, bit_P.offset + 0);
 			if (perf) {
 				*ver = nvbios_rd08(bios, perf + 0);
 				*hdr = nvbios_rd08(bios, perf + 1);
@@ -72,15 +72,15 @@ nvbios_perf_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr,
 		}
 	}
 
-	return 0x0000;
+	return 0;
 }
 
-u16
+u32
 nvbios_perf_entry(struct nvkm_bios *bios, int idx,
 		  u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	u8  snr, ssz;
-	u16 perf = nvbios_perf_table(bios, ver, hdr, cnt, len, &snr, &ssz);
+	u32 perf = nvbios_perf_table(bios, ver, hdr, cnt, len, &snr, &ssz);
 	if (perf && idx < *cnt) {
 		perf = perf + *hdr + (idx * (*len + (snr * ssz)));
 		*hdr = *len;
@@ -88,14 +88,14 @@ nvbios_perf_entry(struct nvkm_bios *bios, int idx,
 		*len = ssz;
 		return perf;
 	}
-	return 0x0000;
+	return 0;
 }
 
-u16
+u32
 nvbios_perfEp(struct nvkm_bios *bios, int idx,
 	      u8 *ver, u8 *hdr, u8 *cnt, u8 *len, struct nvbios_perfE *info)
 {
-	u16 perf = nvbios_perf_entry(bios, idx, ver, hdr, cnt, len);
+	u32 perf = nvbios_perf_entry(bios, idx, ver, hdr, cnt, len);
 	memset(info, 0x00, sizeof(*info));
 	info->pstate = nvbios_rd08(bios, perf + 0x00);
 	switch (!!perf * *ver) {
@@ -163,7 +163,7 @@ nvbios_perfEp(struct nvkm_bios *bios, int idx,
 		info->pcie_width = 0xff;
 		break;
 	default:
-		return 0x0000;
+		return 0;
 	}
 	return perf;
 }
@@ -202,7 +202,7 @@ nvbios_perf_fan_parse(struct nvkm_bios *bios,
 		      struct nvbios_perf_fan *fan)
 {
 	u8  ver, hdr, cnt, len, snr, ssz;
-	u16 perf = nvbios_perf_table(bios, &ver, &hdr, &cnt, &len, &snr, &ssz);
+	u32 perf = nvbios_perf_table(bios, &ver, &hdr, &cnt, &len, &snr, &ssz);
 	if (!perf)
 		return -ENODEV;
 

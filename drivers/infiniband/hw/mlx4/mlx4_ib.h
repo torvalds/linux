@@ -46,6 +46,7 @@
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>
+#include <linux/mlx4/qp.h>
 
 #define MLX4_IB_DRV_NAME	"mlx4_ib"
 
@@ -55,7 +56,7 @@
 #define pr_fmt(fmt)	"<" MLX4_IB_DRV_NAME "> %s: " fmt, __func__
 
 #define mlx4_ib_warn(ibdev, format, arg...) \
-	dev_warn((ibdev)->dma_device, MLX4_IB_DRV_NAME ": " format, ## arg)
+	dev_warn((ibdev)->dev.parent, MLX4_IB_DRV_NAME ": " format, ## arg)
 
 enum {
 	MLX4_IB_SQ_MIN_WQE_SHIFT = 6,
@@ -88,6 +89,8 @@ struct mlx4_ib_ucontext {
 	struct list_head	db_page_list;
 	struct mutex		db_page_mutex;
 	struct mlx4_ib_vma_private_data hw_bar_info[HW_BAR_COUNT];
+	struct list_head	wqn_ranges_list;
+	struct mutex		wqn_ranges_mutex; /* protect wqn_ranges_list */
 };
 
 struct mlx4_ib_pd {
@@ -185,7 +188,6 @@ enum mlx4_ib_qp_flags {
 	MLX4_IB_QP_LSO = IB_QP_CREATE_IPOIB_UD_LSO,
 	MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK = IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK,
 	MLX4_IB_QP_NETIF = IB_QP_CREATE_NETIF_QP,
-	MLX4_IB_QP_CREATE_USE_GFP_NOIO = IB_QP_CREATE_USE_GFP_NOIO,
 
 	/* Mellanox specific flags start from IB_QP_CREATE_RESERVED_START */
 	MLX4_IB_ROCE_V2_GSI_QP = MLX4_IB_QP_CREATE_ROCE_V2_GSI,
@@ -290,8 +292,25 @@ struct mlx4_roce_smac_vlan_info {
 	int update_vid;
 };
 
+struct mlx4_wqn_range {
+	int			base_wqn;
+	int			size;
+	int			refcount;
+	bool			dirty;
+	struct list_head	list;
+};
+
+struct mlx4_ib_rss {
+	unsigned int		base_qpn_tbl_sz;
+	u8			flags;
+	u8			rss_key[MLX4_EN_RSS_KEY_SIZE];
+};
+
 struct mlx4_ib_qp {
-	struct ib_qp		ibqp;
+	union {
+		struct ib_qp	ibqp;
+		struct ib_wq	ibwq;
+	};
 	struct mlx4_qp		mqp;
 	struct mlx4_buf		buf;
 
@@ -319,6 +338,7 @@ struct mlx4_ib_qp {
 	u8			sq_no_prefetch;
 	u8			state;
 	int			mlx_type;
+	u32			inl_recv_sz;
 	struct list_head	gid_list;
 	struct list_head	steering_rules;
 	struct mlx4_ib_buf	*sqp_proxy_rcv;
@@ -329,6 +349,10 @@ struct mlx4_ib_qp {
 	struct list_head	cq_recv_list;
 	struct list_head	cq_send_list;
 	struct counter_index	*counter_index;
+	struct mlx4_wqn_range	*wqn_range;
+	/* Number of RSS QP parents that uses this WQ */
+	u32			rss_usecnt;
+	struct mlx4_ib_rss	*rss_ctx;
 };
 
 struct mlx4_ib_srq {
@@ -624,6 +648,8 @@ struct mlx4_uverbs_ex_query_device_resp {
 	__u32 comp_mask;
 	__u32 response_length;
 	__u64 hca_core_clock_offset;
+	__u32 max_inl_recv_sz;
+	__u32 reserved;
 };
 
 static inline struct mlx4_ib_dev *to_mdev(struct ib_device *ibdev)
@@ -742,8 +768,9 @@ int mlx4_ib_arm_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags);
 void __mlx4_ib_cq_clean(struct mlx4_ib_cq *cq, u32 qpn, struct mlx4_ib_srq *srq);
 void mlx4_ib_cq_clean(struct mlx4_ib_cq *cq, u32 qpn, struct mlx4_ib_srq *srq);
 
-struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr);
-int mlx4_ib_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr);
+struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
+				struct ib_udata *udata);
+int mlx4_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr);
 int mlx4_ib_destroy_ah(struct ib_ah *ah);
 
 struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
@@ -832,7 +859,7 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 
 int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 			 enum ib_qp_type dest_qpt, u16 pkey_index, u32 remote_qpn,
-			 u32 qkey, struct ib_ah_attr *attr, u8 *s_mac,
+			 u32 qkey, struct rdma_ah_attr *attr, u8 *s_mac,
 			 u16 vlan_id, struct ib_mad *mad);
 
 __be64 mlx4_ib_get_new_demux_tid(struct mlx4_ib_demux_ctx *ctx);
@@ -889,5 +916,18 @@ void mlx4_sched_ib_sl2vl_update_work(struct mlx4_ib_dev *ibdev,
 				     int port);
 
 void mlx4_ib_sl2vl_update(struct mlx4_ib_dev *mdev, int port);
+
+struct ib_wq *mlx4_ib_create_wq(struct ib_pd *pd,
+				struct ib_wq_init_attr *init_attr,
+				struct ib_udata *udata);
+int mlx4_ib_destroy_wq(struct ib_wq *wq);
+int mlx4_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
+		      u32 wq_attr_mask, struct ib_udata *udata);
+
+struct ib_rwq_ind_table
+*mlx4_ib_create_rwq_ind_table(struct ib_device *device,
+			      struct ib_rwq_ind_table_init_attr *init_attr,
+			      struct ib_udata *udata);
+int mlx4_ib_destroy_rwq_ind_table(struct ib_rwq_ind_table *wq_ind_table);
 
 #endif /* MLX4_IB_H */

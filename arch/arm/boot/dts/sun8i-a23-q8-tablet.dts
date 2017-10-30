@@ -48,3 +48,16 @@
 	model = "Q8 A23 Tablet";
 	compatible = "allwinner,q8-a23", "allwinner,sun8i-a23";
 };
+
+&codec {
+	allwinner,pa-gpios = <&pio 7 9 GPIO_ACTIVE_HIGH>; /* PH9 */
+	allwinner,audio-routing =
+		"Headphone", "HP",
+		"Headphone", "HPCOM",
+		"Speaker", "HP",
+		"MIC1", "Mic",
+		"MIC2", "Headset Mic",
+		"Mic",  "MBIAS",
+		"Headset Mic", "HBIAS";
+	status = "okay";
+};

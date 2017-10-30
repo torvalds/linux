@@ -17,3 +17,11 @@ Description:
 			* 2 -> Dust Cleaning
 			* 4 -> Efficient Thermal Dissipation Mode
 
+What:		/sys/devices/platform/ideapad/touchpad
+Date:		May 2017
+KernelVersion:	4.13
+Contact:	"Ritesh Raj Sarraf <rrs@debian.org>"
+Description:
+		Control touchpad mode.
+			* 1 -> Switched On
+			* 0 -> Switched Off

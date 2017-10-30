@@ -35,18 +35,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
-#ifdef KTEST
 #include "../kselftest.h"
-#else
-static inline int ksft_exit_pass(void)
-{
-	exit(0);
-}
-static inline int ksft_exit_fail(void)
-{
-	exit(1);
-}
-#endif
 
 #define NSEC_PER_SEC 1000000000LL
 
@@ -57,7 +46,7 @@ int main(int argv, char **argc)
 	pid_t pid;
 
 
-	printf("Running Asyncrhonous Frequency Changing Tests...\n");
+	printf("Running Asynchronous Frequency Changing Tests...\n");
 
 	pid = fork();
 	if (!pid)

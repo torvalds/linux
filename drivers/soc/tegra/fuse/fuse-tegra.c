@@ -18,11 +18,13 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/kobject.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
+#include <linux/init.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/io.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
+#include <linux/sys_soc.h>
 
 #include <soc/tegra/common.h>
 #include <soc/tegra/fuse.h>
@@ -168,7 +170,7 @@ static struct platform_driver tegra_fuse_driver = {
 	},
 	.probe = tegra_fuse_probe,
 };
-module_platform_driver(tegra_fuse_driver);
+builtin_platform_driver(tegra_fuse_driver);
 
 bool __init tegra_fuse_read_spare(unsigned int spare)
 {
@@ -208,6 +210,31 @@ static void tegra_enable_fuse_clk(void __iomem *base)
 	reg = readl(base + 0x14);
 	reg |= 1 << 7;
 	writel(reg, base + 0x14);
+}
+
+struct device * __init tegra_soc_device_register(void)
+{
+	struct soc_device_attribute *attr;
+	struct soc_device *dev;
+
+	attr = kzalloc(sizeof(*attr), GFP_KERNEL);
+	if (!attr)
+		return NULL;
+
+	attr->family = kasprintf(GFP_KERNEL, "Tegra");
+	attr->revision = kasprintf(GFP_KERNEL, "%d", tegra_sku_info.revision);
+	attr->soc_id = kasprintf(GFP_KERNEL, "%u", tegra_get_chip_id());
+
+	dev = soc_device_register(attr);
+	if (IS_ERR(dev)) {
+		kfree(attr->soc_id);
+		kfree(attr->revision);
+		kfree(attr->family);
+		kfree(attr);
+		return ERR_CAST(dev);
+	}
+
+	return soc_device_to_device(dev);
 }
 
 static int __init tegra_init_fuse(void)
@@ -311,6 +338,31 @@ static int __init tegra_init_fuse(void)
 	pr_debug("Tegra CPU Speedo ID %d, SoC Speedo ID %d\n",
 		 tegra_sku_info.cpu_speedo_id, tegra_sku_info.soc_speedo_id);
 
+
 	return 0;
 }
 early_initcall(tegra_init_fuse);
+
+#ifdef CONFIG_ARM64
+static int __init tegra_init_soc(void)
+{
+	struct device_node *np;
+	struct device *soc;
+
+	/* make sure we're running on Tegra */
+	np = of_find_matching_node(NULL, tegra_fuse_match);
+	if (!np)
+		return 0;
+
+	of_node_put(np);
+
+	soc = tegra_soc_device_register();
+	if (IS_ERR(soc)) {
+		pr_err("failed to register SoC device: %ld\n", PTR_ERR(soc));
+		return PTR_ERR(soc);
+	}
+
+	return 0;
+}
+device_initcall(tegra_init_soc);
+#endif

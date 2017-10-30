@@ -128,6 +128,10 @@ enum qca9377_chip_id_rev {
 #define QCA4019_HW_1_0_BOARD_DATA_FILE "board.bin"
 #define QCA4019_HW_1_0_PATCH_LOAD_ADDR  0x1234
 
+#define ATH10K_FW_FILE_BASE		"firmware"
+#define ATH10K_FW_API_MAX		6
+#define ATH10K_FW_API_MIN		2
+
 #define ATH10K_FW_API2_FILE		"firmware-2.bin"
 #define ATH10K_FW_API3_FILE		"firmware-3.bin"
 
@@ -136,6 +140,9 @@ enum qca9377_chip_id_rev {
 
 /* HTT id conflict fix for management frames over HTT */
 #define ATH10K_FW_API5_FILE		"firmware-5.bin"
+
+/* the firmware-6.bin blob */
+#define ATH10K_FW_API6_FILE		"firmware-6.bin"
 
 #define ATH10K_FW_UTF_FILE		"utf.bin"
 #define ATH10K_FW_UTF_API2_FILE		"utf-2.bin"
@@ -224,12 +231,14 @@ enum ath10k_hw_rev {
 	ATH10K_HW_QCA9377,
 	ATH10K_HW_QCA4019,
 	ATH10K_HW_QCA9887,
+	ATH10K_HW_WCN3990,
 };
 
 struct ath10k_hw_regs {
 	u32 rtc_soc_base_address;
 	u32 rtc_wmac_base_address;
 	u32 soc_core_base_address;
+	u32 wlan_mac_base_address;
 	u32 ce_wrapper_base_address;
 	u32 ce0_base_address;
 	u32 ce1_base_address;
@@ -239,6 +248,10 @@ struct ath10k_hw_regs {
 	u32 ce5_base_address;
 	u32 ce6_base_address;
 	u32 ce7_base_address;
+	u32 ce8_base_address;
+	u32 ce9_base_address;
+	u32 ce10_base_address;
+	u32 ce11_base_address;
 	u32 soc_reset_control_si0_rst_mask;
 	u32 soc_reset_control_ce_rst_mask;
 	u32 soc_chip_id_address;
@@ -250,12 +263,96 @@ struct ath10k_hw_regs {
 	u32 pcie_intr_fw_mask;
 	u32 pcie_intr_ce_mask_all;
 	u32 pcie_intr_clr_address;
+	u32 cpu_pll_init_address;
+	u32 cpu_speed_address;
+	u32 core_clk_div_address;
 };
 
 extern const struct ath10k_hw_regs qca988x_regs;
 extern const struct ath10k_hw_regs qca6174_regs;
 extern const struct ath10k_hw_regs qca99x0_regs;
 extern const struct ath10k_hw_regs qca4019_regs;
+extern const struct ath10k_hw_regs wcn3990_regs;
+
+struct ath10k_hw_ce_regs_addr_map {
+	u32 msb;
+	u32 lsb;
+	u32 mask;
+};
+
+struct ath10k_hw_ce_ctrl1 {
+	u32 addr;
+	u32 hw_mask;
+	u32 sw_mask;
+	u32 hw_wr_mask;
+	u32 sw_wr_mask;
+	u32 reset_mask;
+	u32 reset;
+	struct ath10k_hw_ce_regs_addr_map *src_ring;
+	struct ath10k_hw_ce_regs_addr_map *dst_ring;
+	struct ath10k_hw_ce_regs_addr_map *dmax; };
+
+struct ath10k_hw_ce_cmd_halt {
+	u32 status_reset;
+	u32 msb;
+	u32 mask;
+	struct ath10k_hw_ce_regs_addr_map *status; };
+
+struct ath10k_hw_ce_host_ie {
+	u32 copy_complete_reset;
+	struct ath10k_hw_ce_regs_addr_map *copy_complete; };
+
+struct ath10k_hw_ce_host_wm_regs {
+	u32 dstr_lmask;
+	u32 dstr_hmask;
+	u32 srcr_lmask;
+	u32 srcr_hmask;
+	u32 cc_mask;
+	u32 wm_mask;
+	u32 addr;
+};
+
+struct ath10k_hw_ce_misc_regs {
+	u32 axi_err;
+	u32 dstr_add_err;
+	u32 srcr_len_err;
+	u32 dstr_mlen_vio;
+	u32 dstr_overflow;
+	u32 srcr_overflow;
+	u32 err_mask;
+	u32 addr;
+};
+
+struct ath10k_hw_ce_dst_src_wm_regs {
+	u32 addr;
+	u32 low_rst;
+	u32 high_rst;
+	struct ath10k_hw_ce_regs_addr_map *wm_low;
+	struct ath10k_hw_ce_regs_addr_map *wm_high; };
+
+struct ath10k_hw_ce_regs {
+	u32 sr_base_addr;
+	u32 sr_size_addr;
+	u32 dr_base_addr;
+	u32 dr_size_addr;
+	u32 ce_cmd_addr;
+	u32 misc_ie_addr;
+	u32 sr_wr_index_addr;
+	u32 dst_wr_index_addr;
+	u32 current_srri_addr;
+	u32 current_drri_addr;
+	u32 ddr_addr_for_rri_low;
+	u32 ddr_addr_for_rri_high;
+	u32 ce_rri_low;
+	u32 ce_rri_high;
+	u32 host_ie_addr;
+	struct ath10k_hw_ce_host_wm_regs *wm_regs;
+	struct ath10k_hw_ce_misc_regs *misc_regs;
+	struct ath10k_hw_ce_ctrl1 *ctrl1_regs;
+	struct ath10k_hw_ce_cmd_halt *cmd_halt;
+	struct ath10k_hw_ce_host_ie *host_ie;
+	struct ath10k_hw_ce_dst_src_wm_regs *wm_srcr;
+	struct ath10k_hw_ce_dst_src_wm_regs *wm_dstr; };
 
 struct ath10k_hw_values {
 	u32 rtc_state_val_on;
@@ -271,6 +368,9 @@ extern const struct ath10k_hw_values qca6174_values;
 extern const struct ath10k_hw_values qca99x0_values;
 extern const struct ath10k_hw_values qca9888_values;
 extern const struct ath10k_hw_values qca4019_values;
+extern const struct ath10k_hw_values wcn3990_values;
+extern struct ath10k_hw_ce_regs wcn3990_ce_regs;
+extern struct ath10k_hw_ce_regs qcax_ce_regs;
 
 void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 				u32 cc, u32 rcc, u32 cc_prev, u32 rcc_prev);
@@ -283,12 +383,14 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 #define QCA_REV_9984(ar) ((ar)->hw_rev == ATH10K_HW_QCA9984)
 #define QCA_REV_9377(ar) ((ar)->hw_rev == ATH10K_HW_QCA9377)
 #define QCA_REV_40XX(ar) ((ar)->hw_rev == ATH10K_HW_QCA4019)
+#define QCA_REV_WCN3990(ar) ((ar)->hw_rev == ATH10K_HW_WCN3990)
 
 /* Known peculiarities:
  *  - raw appears in nwifi decap, raw and nwifi appear in ethernet decap
  *  - raw have FCS, nwifi doesn't
  *  - ethernet frames have 802.11 header decapped and parts (base hdr, cipher
- *    param, llc/snap) are aligned to 4byte boundaries each */
+ *    param, llc/snap) are aligned to 4byte boundaries each
+ */
 enum ath10k_hw_txrx_mode {
 	ATH10K_HW_TXRX_RAW = 0,
 
@@ -358,6 +460,30 @@ enum ath10k_hw_cc_wraparound_type {
 	ATH10K_HW_CC_WRAP_SHIFTED_EACH = 2,
 };
 
+enum ath10k_hw_refclk_speed {
+	ATH10K_HW_REFCLK_UNKNOWN = -1,
+	ATH10K_HW_REFCLK_48_MHZ = 0,
+	ATH10K_HW_REFCLK_19_2_MHZ = 1,
+	ATH10K_HW_REFCLK_24_MHZ = 2,
+	ATH10K_HW_REFCLK_26_MHZ = 3,
+	ATH10K_HW_REFCLK_37_4_MHZ = 4,
+	ATH10K_HW_REFCLK_38_4_MHZ = 5,
+	ATH10K_HW_REFCLK_40_MHZ = 6,
+	ATH10K_HW_REFCLK_52_MHZ = 7,
+
+	/* must be the last one */
+	ATH10K_HW_REFCLK_COUNT,
+};
+
+struct ath10k_hw_clk_params {
+	u32 refclk;
+	u32 div;
+	u32 rnfrac;
+	u32 settle_time;
+	u32 refdiv;
+	u32 outdiv;
+};
+
 struct ath10k_hw_params {
 	u32 id;
 	u16 dev_id;
@@ -411,6 +537,19 @@ struct ath10k_hw_params {
 
 	/* Number of bytes used for alignment in rx_hdr_status of rx desc. */
 	int decap_align_bytes;
+
+	/* hw specific clock control parameters */
+	const struct ath10k_hw_clk_params *hw_clk;
+	int target_cpu_freq;
+
+	/* Number of bytes to be discarded for each FFT sample */
+	int spectral_bin_discard;
+
+	/* The board may have a restricted NSS for 160 or 80+80 vs what it
+	 * can do for 80Mhz.
+	 */
+	int vht160_mcs_rx_highest;
+	int vht160_mcs_tx_highest;
 };
 
 struct htt_rx_desc;
@@ -418,10 +557,15 @@ struct htt_rx_desc;
 /* Defines needed for Rx descriptor abstraction */
 struct ath10k_hw_ops {
 	int (*rx_desc_get_l3_pad_bytes)(struct htt_rx_desc *rxd);
+	void (*set_coverage_class)(struct ath10k *ar, s16 value);
+	int (*enable_pll_clk)(struct ath10k *ar);
 };
 
 extern const struct ath10k_hw_ops qca988x_ops;
 extern const struct ath10k_hw_ops qca99x0_ops;
+extern const struct ath10k_hw_ops qca6174_ops;
+
+extern const struct ath10k_hw_clk_params qca6174_clk[];
 
 static inline int
 ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
@@ -510,7 +654,7 @@ ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
 /* Target specific defines for WMI-TLV firmware */
 #define TARGET_TLV_NUM_VDEVS			4
 #define TARGET_TLV_NUM_STATIONS			32
-#define TARGET_TLV_NUM_PEERS			35
+#define TARGET_TLV_NUM_PEERS			33
 #define TARGET_TLV_NUM_TDLS_VDEVS		1
 #define TARGET_TLV_NUM_TIDS			((TARGET_TLV_NUM_PEERS) * 2)
 #define TARGET_TLV_NUM_MSDU_DESC		(1024 + 32)
@@ -576,6 +720,14 @@ ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
 #define TARGET_10_4_IPHDR_PAD_CONFIG		1
 #define TARGET_10_4_QWRAP_CONFIG		0
 
+/* TDLS config */
+#define TARGET_10_4_NUM_TDLS_VDEVS		1
+#define TARGET_10_4_NUM_TDLS_BUFFER_STA		1
+#define TARGET_10_4_NUM_TDLS_SLEEP_STA		1
+
+/* Maximum number of Copy Engine's supported */
+#define CE_COUNT_MAX 12
+
 /* Number of Copy Engines supported */
 #define CE_COUNT ar->hw_values->ce_count
 
@@ -614,7 +766,7 @@ ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
 #define WLAN_SI_BASE_ADDRESS			0x00010000
 #define WLAN_GPIO_BASE_ADDRESS			0x00014000
 #define WLAN_ANALOG_INTF_BASE_ADDRESS		0x0001c000
-#define WLAN_MAC_BASE_ADDRESS			0x00020000
+#define WLAN_MAC_BASE_ADDRESS			ar->regs->wlan_mac_base_address
 #define EFUSE_BASE_ADDRESS			0x00030000
 #define FPGA_REG_BASE_ADDRESS			0x00039000
 #define WLAN_UART2_BASE_ADDRESS			0x00054c00
@@ -812,6 +964,117 @@ ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
 #define QCA9887_EEPROM_ADDR_LO_MASK		0x00ff0000
 #define QCA9887_EEPROM_ADDR_LO_LSB		16
 
+#define MBOX_RESET_CONTROL_ADDRESS		0x00000000
+#define MBOX_HOST_INT_STATUS_ADDRESS		0x00000800
+#define MBOX_HOST_INT_STATUS_ERROR_LSB		7
+#define MBOX_HOST_INT_STATUS_ERROR_MASK		0x00000080
+#define MBOX_HOST_INT_STATUS_CPU_LSB		6
+#define MBOX_HOST_INT_STATUS_CPU_MASK		0x00000040
+#define MBOX_HOST_INT_STATUS_COUNTER_LSB	4
+#define MBOX_HOST_INT_STATUS_COUNTER_MASK	0x00000010
+#define MBOX_CPU_INT_STATUS_ADDRESS		0x00000801
+#define MBOX_ERROR_INT_STATUS_ADDRESS		0x00000802
+#define MBOX_ERROR_INT_STATUS_WAKEUP_LSB	2
+#define MBOX_ERROR_INT_STATUS_WAKEUP_MASK	0x00000004
+#define MBOX_ERROR_INT_STATUS_RX_UNDERFLOW_LSB	1
+#define MBOX_ERROR_INT_STATUS_RX_UNDERFLOW_MASK	0x00000002
+#define MBOX_ERROR_INT_STATUS_TX_OVERFLOW_LSB	0
+#define MBOX_ERROR_INT_STATUS_TX_OVERFLOW_MASK	0x00000001
+#define MBOX_COUNTER_INT_STATUS_ADDRESS		0x00000803
+#define MBOX_COUNTER_INT_STATUS_COUNTER_LSB	0
+#define MBOX_COUNTER_INT_STATUS_COUNTER_MASK	0x000000ff
+#define MBOX_RX_LOOKAHEAD_VALID_ADDRESS		0x00000805
+#define MBOX_INT_STATUS_ENABLE_ADDRESS		0x00000828
+#define MBOX_INT_STATUS_ENABLE_ERROR_LSB	7
+#define MBOX_INT_STATUS_ENABLE_ERROR_MASK	0x00000080
+#define MBOX_INT_STATUS_ENABLE_CPU_LSB		6
+#define MBOX_INT_STATUS_ENABLE_CPU_MASK		0x00000040
+#define MBOX_INT_STATUS_ENABLE_INT_LSB		5
+#define MBOX_INT_STATUS_ENABLE_INT_MASK		0x00000020
+#define MBOX_INT_STATUS_ENABLE_COUNTER_LSB	4
+#define MBOX_INT_STATUS_ENABLE_COUNTER_MASK	0x00000010
+#define MBOX_INT_STATUS_ENABLE_MBOX_DATA_LSB	0
+#define MBOX_INT_STATUS_ENABLE_MBOX_DATA_MASK	0x0000000f
+#define MBOX_CPU_INT_STATUS_ENABLE_ADDRESS	0x00000819
+#define MBOX_CPU_INT_STATUS_ENABLE_BIT_LSB	0
+#define MBOX_CPU_INT_STATUS_ENABLE_BIT_MASK	0x000000ff
+#define MBOX_ERROR_STATUS_ENABLE_ADDRESS	0x0000081a
+#define MBOX_ERROR_STATUS_ENABLE_RX_UNDERFLOW_LSB  1
+#define MBOX_ERROR_STATUS_ENABLE_RX_UNDERFLOW_MASK 0x00000002
+#define MBOX_ERROR_STATUS_ENABLE_TX_OVERFLOW_LSB   0
+#define MBOX_ERROR_STATUS_ENABLE_TX_OVERFLOW_MASK  0x00000001
+#define MBOX_COUNTER_INT_STATUS_ENABLE_ADDRESS	0x0000081b
+#define MBOX_COUNTER_INT_STATUS_ENABLE_BIT_LSB	0
+#define MBOX_COUNTER_INT_STATUS_ENABLE_BIT_MASK	0x000000ff
+#define MBOX_COUNT_ADDRESS			0x00000820
+#define MBOX_COUNT_DEC_ADDRESS			0x00000840
+#define MBOX_WINDOW_DATA_ADDRESS		0x00000874
+#define MBOX_WINDOW_WRITE_ADDR_ADDRESS		0x00000878
+#define MBOX_WINDOW_READ_ADDR_ADDRESS		0x0000087c
+#define MBOX_CPU_DBG_SEL_ADDRESS		0x00000883
+#define MBOX_CPU_DBG_ADDRESS			0x00000884
+#define MBOX_RTC_BASE_ADDRESS			0x00000000
+#define MBOX_GPIO_BASE_ADDRESS			0x00005000
+#define MBOX_MBOX_BASE_ADDRESS			0x00008000
+
 #define RTC_STATE_V_GET(x) (((x) & RTC_STATE_V_MASK) >> RTC_STATE_V_LSB)
+
+/* Register definitions for first generation ath10k cards. These cards include
+ * a mac thich has a register allocation similar to ath9k and at least some
+ * registers including the ones relevant for modifying the coverage class are
+ * identical to the ath9k definitions.
+ * These registers are usually managed by the ath10k firmware. However by
+ * overriding them it is possible to support coverage class modifications.
+ */
+#define WAVE1_PCU_ACK_CTS_TIMEOUT		0x8014
+#define WAVE1_PCU_ACK_CTS_TIMEOUT_MAX		0x00003FFF
+#define WAVE1_PCU_ACK_CTS_TIMEOUT_ACK_MASK	0x00003FFF
+#define WAVE1_PCU_ACK_CTS_TIMEOUT_ACK_LSB	0
+#define WAVE1_PCU_ACK_CTS_TIMEOUT_CTS_MASK	0x3FFF0000
+#define WAVE1_PCU_ACK_CTS_TIMEOUT_CTS_LSB	16
+
+#define WAVE1_PCU_GBL_IFS_SLOT			0x1070
+#define WAVE1_PCU_GBL_IFS_SLOT_MASK		0x0000FFFF
+#define WAVE1_PCU_GBL_IFS_SLOT_MAX		0x0000FFFF
+#define WAVE1_PCU_GBL_IFS_SLOT_LSB		0
+#define WAVE1_PCU_GBL_IFS_SLOT_RESV0		0xFFFF0000
+
+#define WAVE1_PHYCLK				0x801C
+#define WAVE1_PHYCLK_USEC_MASK			0x0000007F
+#define WAVE1_PHYCLK_USEC_LSB			0
+
+/* qca6174 PLL offset/mask */
+#define SOC_CORE_CLK_CTRL_OFFSET		0x00000114
+#define SOC_CORE_CLK_CTRL_DIV_LSB		0
+#define SOC_CORE_CLK_CTRL_DIV_MASK		0x00000007
+
+#define EFUSE_OFFSET				0x0000032c
+#define EFUSE_XTAL_SEL_LSB			8
+#define EFUSE_XTAL_SEL_MASK			0x00000700
+
+#define BB_PLL_CONFIG_OFFSET			0x000002f4
+#define BB_PLL_CONFIG_FRAC_LSB			0
+#define BB_PLL_CONFIG_FRAC_MASK			0x0003ffff
+#define BB_PLL_CONFIG_OUTDIV_LSB		18
+#define BB_PLL_CONFIG_OUTDIV_MASK		0x001c0000
+
+#define WLAN_PLL_SETTLE_OFFSET			0x0018
+#define WLAN_PLL_SETTLE_TIME_LSB		0
+#define WLAN_PLL_SETTLE_TIME_MASK		0x000007ff
+
+#define WLAN_PLL_CONTROL_OFFSET			0x0014
+#define WLAN_PLL_CONTROL_DIV_LSB		0
+#define WLAN_PLL_CONTROL_DIV_MASK		0x000003ff
+#define WLAN_PLL_CONTROL_REFDIV_LSB		10
+#define WLAN_PLL_CONTROL_REFDIV_MASK		0x00003c00
+#define WLAN_PLL_CONTROL_BYPASS_LSB		16
+#define WLAN_PLL_CONTROL_BYPASS_MASK		0x00010000
+#define WLAN_PLL_CONTROL_NOPWD_LSB		18
+#define WLAN_PLL_CONTROL_NOPWD_MASK		0x00040000
+
+#define RTC_SYNC_STATUS_OFFSET			0x0244
+#define RTC_SYNC_STATUS_PLL_CHANGING_LSB	5
+#define RTC_SYNC_STATUS_PLL_CHANGING_MASK	0x00000020
+/* qca6174 PLL offset/mask end */
 
 #endif /* _HW_H_ */

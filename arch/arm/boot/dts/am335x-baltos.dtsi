@@ -255,7 +255,7 @@
 	};
 
 	at24@50 {
-		compatible = "at24,24c02";
+		compatible = "atmel,24c02";
 		pagesize = <8>;
 		reg = <0x50>;
 	};
@@ -364,11 +364,16 @@
 };
 
 &davinci_mdio {
+	status = "okay";
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&davinci_mdio_default>;
 	pinctrl-1 = <&davinci_mdio_sleep>;
 
-	status = "okay";
+	phy1: ethernet-phy@1 {
+		reg = <7>;
+		eee-broken-100tx;
+		eee-broken-1000t;
+	};
 };
 
 &mmc1 {
@@ -404,5 +409,9 @@
 };
 
 &gpio0 {
+	ti,no-reset-on-init;
+};
+
+&gpio3 {
 	ti,no-reset-on-init;
 };

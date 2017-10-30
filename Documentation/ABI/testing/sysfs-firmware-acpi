@@ -44,16 +44,6 @@ Description:
 		or 0 (unset).  Attempts to write any other values to it will
 		cause -EINVAL to be returned.
 
-What:		/sys/firmware/acpi/hotplug/force_remove
-Date:		May 2013
-Contact:	Rafael J. Wysocki <rafael.j.wysocki@intel.com>
-Description:
-		The number in this file (0 or 1) determines whether (1) or not
-		(0) the ACPI subsystem will allow devices to be hot-removed even
-		if they cannot be put offline gracefully (from the kernel's
-		viewpoint).  That number can be changed by writing a boolean
-		value to this file.
-
 What:		/sys/firmware/acpi/interrupts/
 Date:		February 2008
 Contact:	Len Brown <lenb@kernel.org>

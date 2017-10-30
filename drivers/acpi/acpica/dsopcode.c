@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -84,7 +84,7 @@ acpi_status acpi_ds_initialize_region(acpi_handle obj_handle)
 
 	/* Namespace is NOT locked */
 
-	status = acpi_ev_initialize_region(obj_desc, FALSE);
+	status = acpi_ev_initialize_region(obj_desc);
 	return (status);
 }
 
@@ -227,13 +227,12 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 
 	/* Entire field must fit within the current length of the buffer */
 
-	if ((bit_offset + bit_count) > (8 * (u32) buffer_desc->buffer.length)) {
+	if ((bit_offset + bit_count) > (8 * (u32)buffer_desc->buffer.length)) {
 		ACPI_ERROR((AE_INFO,
-			    "Field [%4.4s] at %u exceeds Buffer [%4.4s] size %u (bits)",
-			    acpi_ut_get_node_name(result_desc),
-			    bit_offset + bit_count,
-			    acpi_ut_get_node_name(buffer_desc->buffer.node),
-			    8 * (u32) buffer_desc->buffer.length));
+			    "Field [%4.4s] at bit offset/length %u/%u "
+			    "exceeds size of target Buffer (%u bits)",
+			    acpi_ut_get_node_name(result_desc), bit_offset,
+			    bit_count, 8 * (u32)buffer_desc->buffer.length));
 		status = AE_AML_BUFFER_LIMIT;
 		goto cleanup;
 	}
@@ -600,6 +599,15 @@ acpi_ds_eval_data_object_operands(struct acpi_walk_state *walk_state,
 	 */
 	walk_state->operand_index = walk_state->num_operands;
 
+	/* Ignore if child is not valid */
+
+	if (!op->common.value.arg) {
+		ACPI_ERROR((AE_INFO,
+			    "Dispatch: Missing child while executing TermArg for %X",
+			    op->common.aml_opcode));
+		return_ACPI_STATUS(AE_OK);
+	}
+
 	status = acpi_ds_create_operand(walk_state, op->common.value.arg, 1);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -639,7 +647,7 @@ acpi_ds_eval_data_object_operands(struct acpi_walk_state *walk_state,
 		break;
 
 	case AML_PACKAGE_OP:
-	case AML_VAR_PACKAGE_OP:
+	case AML_VARIABLE_PACKAGE_OP:
 
 		status =
 		    acpi_ds_build_internal_package_obj(walk_state, op, length,
@@ -660,7 +668,7 @@ acpi_ds_eval_data_object_operands(struct acpi_walk_state *walk_state,
 		if ((!op->common.parent) ||
 		    ((op->common.parent->common.aml_opcode != AML_PACKAGE_OP) &&
 		     (op->common.parent->common.aml_opcode !=
-		      AML_VAR_PACKAGE_OP)
+		      AML_VARIABLE_PACKAGE_OP)
 		     && (op->common.parent->common.aml_opcode !=
 			 AML_NAME_OP))) {
 			walk_state->result_obj = obj_desc;

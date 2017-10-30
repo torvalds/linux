@@ -260,8 +260,7 @@ static const char * const bench_sched_message_usage[] = {
 	NULL
 };
 
-int bench_sched_messaging(int argc, const char **argv,
-		    const char *prefix __maybe_unused)
+int bench_sched_messaging(int argc, const char **argv)
 {
 	unsigned int i, total_children;
 	struct timeval start, stop, diff;

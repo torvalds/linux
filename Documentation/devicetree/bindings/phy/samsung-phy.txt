@@ -82,7 +82,6 @@ usbphy: phy@125b0000 {
 	reg = <0x125b0000 0x100>;
 	clocks = <&clock 305>, <&clock 2>;
 	clock-names = "phy", "ref";
-	status = "okay";
 	#phy-cells = <1>;
 	samsung,sysreg-phandle = <&sys_reg>;
 	samsung,pmureg-phandle = <&pmu_reg>;
@@ -190,4 +189,21 @@ Example:
 	aliases {
 		usbdrdphy0 = &usb3_phy0;
 		usbdrdphy1 = &usb3_phy1;
+	};
+
+Samsung Exynos SoC series PCIe PHY controller
+--------------------------------------------------
+Required properties:
+- compatible : Should be set to "samsung,exynos5440-pcie-phy"
+- #phy-cells : Must be zero
+- reg : a register used by phy driver.
+	- First is for phy register, second is for block register.
+- reg-names : Must be set to "phy" and "block".
+
+Example:
+	pcie_phy0: pcie-phy@270000 {
+		#phy-cells = <0>;
+		compatible = "samsung,exynos5440-pcie-phy";
+		reg = <0x270000 0x1000>, <0x271000 0x40>;
+		reg-names = "phy", "block";
 	};

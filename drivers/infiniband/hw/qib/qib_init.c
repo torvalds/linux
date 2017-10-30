@@ -133,11 +133,8 @@ int qib_create_ctxts(struct qib_devdata *dd)
 	 * cleanup iterates across all possible ctxts.
 	 */
 	dd->rcd = kcalloc(dd->ctxtcnt, sizeof(*dd->rcd), GFP_KERNEL);
-	if (!dd->rcd) {
-		qib_dev_err(dd,
-			"Unable to allocate ctxtdata array, failing\n");
+	if (!dd->rcd)
 		return -ENOMEM;
-	}
 
 	/* create (one or more) kctxt */
 	for (i = 0; i < dd->first_user_ctxt; ++i) {
@@ -236,9 +233,8 @@ int qib_init_pportdata(struct qib_pportdata *ppd, struct qib_devdata *dd,
 	spin_lock_init(&ppd->cc_shadow_lock);
 	init_waitqueue_head(&ppd->state_wait);
 
-	init_timer(&ppd->symerr_clear_timer);
-	ppd->symerr_clear_timer.function = qib_clear_symerror_on_linkup;
-	ppd->symerr_clear_timer.data = (unsigned long)ppd;
+	setup_timer(&ppd->symerr_clear_timer, qib_clear_symerror_on_linkup,
+		    (unsigned long)ppd);
 
 	ppd->qib_wq = NULL;
 	ppd->ibport_data.pmastats =
@@ -265,39 +261,23 @@ int qib_init_pportdata(struct qib_pportdata *ppd, struct qib_devdata *dd,
 	size = IB_CC_TABLE_CAP_DEFAULT * sizeof(struct ib_cc_table_entry)
 		* IB_CCT_ENTRIES;
 	ppd->ccti_entries = kzalloc(size, GFP_KERNEL);
-	if (!ppd->ccti_entries) {
-		qib_dev_err(dd,
-		  "failed to allocate congestion control table for port %d!\n",
-		  port);
+	if (!ppd->ccti_entries)
 		goto bail;
-	}
 
 	size = IB_CC_CCS_ENTRIES * sizeof(struct ib_cc_congestion_entry);
 	ppd->congestion_entries = kzalloc(size, GFP_KERNEL);
-	if (!ppd->congestion_entries) {
-		qib_dev_err(dd,
-		 "failed to allocate congestion setting list for port %d!\n",
-		 port);
+	if (!ppd->congestion_entries)
 		goto bail_1;
-	}
 
 	size = sizeof(struct cc_table_shadow);
 	ppd->ccti_entries_shadow = kzalloc(size, GFP_KERNEL);
-	if (!ppd->ccti_entries_shadow) {
-		qib_dev_err(dd,
-		 "failed to allocate shadow ccti list for port %d!\n",
-		 port);
+	if (!ppd->ccti_entries_shadow)
 		goto bail_2;
-	}
 
 	size = sizeof(struct ib_cc_congestion_setting_attr);
 	ppd->congestion_entries_shadow = kzalloc(size, GFP_KERNEL);
-	if (!ppd->congestion_entries_shadow) {
-		qib_dev_err(dd,
-		 "failed to allocate shadow congestion setting list for port %d!\n",
-		 port);
+	if (!ppd->congestion_entries_shadow)
 		goto bail_3;
-	}
 
 	return 0;
 
@@ -391,18 +371,12 @@ static void init_shadow_tids(struct qib_devdata *dd)
 	dma_addr_t *addrs;
 
 	pages = vzalloc(dd->cfgctxts * dd->rcvtidcnt * sizeof(struct page *));
-	if (!pages) {
-		qib_dev_err(dd,
-			"failed to allocate shadow page * array, no expected sends!\n");
+	if (!pages)
 		goto bail;
-	}
 
 	addrs = vzalloc(dd->cfgctxts * dd->rcvtidcnt * sizeof(dma_addr_t));
-	if (!addrs) {
-		qib_dev_err(dd,
-			"failed to allocate shadow dma handle array, no expected sends!\n");
+	if (!addrs)
 		goto bail_free;
-	}
 
 	dd->pageshadow = pages;
 	dd->physshadow = addrs;
@@ -425,7 +399,7 @@ static int loadtime_init(struct qib_devdata *dd)
 	if (((dd->revision >> QLOGIC_IB_R_SOFTWARE_SHIFT) &
 	     QLOGIC_IB_R_SOFTWARE_MASK) != QIB_CHIP_SWVERSION) {
 		qib_dev_err(dd,
-			"Driver only handles version %d, chip swversion is %d (%llx), failng\n",
+			"Driver only handles version %d, chip swversion is %d (%llx), failing\n",
 			QIB_CHIP_SWVERSION,
 			(int)(dd->revision >>
 				QLOGIC_IB_R_SOFTWARE_SHIFT) &
@@ -454,9 +428,8 @@ static int loadtime_init(struct qib_devdata *dd)
 	qib_get_eeprom_info(dd);
 
 	/* setup time (don't start yet) to verify we got interrupt */
-	init_timer(&dd->intrchk_timer);
-	dd->intrchk_timer.function = verify_interrupt;
-	dd->intrchk_timer.data = (unsigned long) dd;
+	setup_timer(&dd->intrchk_timer, verify_interrupt,
+		    (unsigned long)dd);
 done:
 	return ret;
 }
@@ -780,9 +753,8 @@ done:
 				continue;
 			if (dd->flags & QIB_HAS_SEND_DMA)
 				ret = qib_setup_sdma(ppd);
-			init_timer(&ppd->hol_timer);
-			ppd->hol_timer.function = qib_hol_event;
-			ppd->hol_timer.data = (unsigned long)ppd;
+			setup_timer(&ppd->hol_timer, qib_hol_event,
+				    (unsigned long)ppd);
 			ppd->hol_state = QIB_HOL_UP;
 		}
 
@@ -1026,11 +998,8 @@ static void qib_verify_pioperf(struct qib_devdata *dd)
 	cnt = 1024;
 
 	addr = vmalloc(cnt);
-	if (!addr) {
-		qib_devinfo(dd->pcidev,
-			 "Couldn't get memory for checking PIO perf, skipping\n");
+	if (!addr)
 		goto done;
-	}
 
 	preempt_disable();  /* we want reasonably accurate elapsed time */
 	msecs = 1 + jiffies_to_msecs(jiffies);
@@ -1172,9 +1141,6 @@ struct qib_devdata *qib_alloc_devdata(struct pci_dev *pdev, size_t extra)
 				      sizeof(long), GFP_KERNEL);
 		if (qib_cpulist)
 			qib_cpulist_count = count;
-		else
-			qib_early_err(&pdev->dev,
-				"Could not alloc cpulist info, cpu affinity might be wrong\n");
 	}
 #ifdef CONFIG_DEBUG_FS
 	qib_dbg_ibdev_init(&dd->verbs_dev);
@@ -1432,7 +1398,6 @@ static void cleanup_device_data(struct qib_devdata *dd)
 		qib_free_ctxtdata(dd, rcd);
 	}
 	kfree(tmp);
-	kfree(dd->boardname);
 }
 
 /*

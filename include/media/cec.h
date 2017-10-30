@@ -29,13 +29,15 @@
 #include <linux/timer.h>
 #include <linux/cec-funcs.h>
 #include <media/rc-core.h>
-#include <media/cec-edid.h>
+#include <media/cec-notifier.h>
+
+#define CEC_CAP_DEFAULTS (CEC_CAP_LOG_ADDRS | CEC_CAP_TRANSMIT | \
+			  CEC_CAP_PASSTHROUGH | CEC_CAP_RC)
 
 /**
  * struct cec_devnode - cec device node
  * @dev:	cec device
  * @cdev:	cec character device
- * @parent:	parent device
  * @minor:	device node minor number
  * @registered:	the device was correctly registered
  * @unregistered: the device was unregistered
@@ -51,7 +53,6 @@ struct cec_devnode {
 	/* sysfs */
 	struct device dev;
 	struct cdev cdev;
-	struct device *parent;
 
 	/* device info */
 	int minor;
@@ -63,6 +64,7 @@ struct cec_devnode {
 
 struct cec_adapter;
 struct cec_data;
+struct cec_pin;
 
 struct cec_data {
 	struct list_head list;
@@ -83,7 +85,13 @@ struct cec_msg_entry {
 	struct cec_msg		msg;
 };
 
-#define CEC_NUM_EVENTS		CEC_EVENT_LOST_MSGS
+struct cec_event_entry {
+	struct list_head	list;
+	struct cec_event	ev;
+};
+
+#define CEC_NUM_CORE_EVENTS 2
+#define CEC_NUM_EVENTS CEC_EVENT_PIN_CEC_HIGH
 
 struct cec_fh {
 	struct list_head	list;
@@ -94,9 +102,11 @@ struct cec_fh {
 
 	/* Events */
 	wait_queue_head_t	wait;
-	unsigned int		pending_events;
-	struct cec_event	events[CEC_NUM_EVENTS];
 	struct mutex		lock;
+	struct list_head	events[CEC_NUM_EVENTS]; /* queued events */
+	u8			queued_events[CEC_NUM_EVENTS];
+	unsigned int		total_queued_events;
+	struct cec_event_entry	core_events[CEC_NUM_CORE_EVENTS];
 	struct list_head	msgs; /* queued messages */
 	unsigned int		queued_msgs;
 };
@@ -116,6 +126,7 @@ struct cec_adap_ops {
 	int (*adap_transmit)(struct cec_adapter *adap, u8 attempts,
 			     u32 signal_free_time, struct cec_msg *msg);
 	void (*adap_status)(struct cec_adapter *adap, struct seq_file *file);
+	void (*adap_free)(struct cec_adapter *adap);
 
 	/* High-level CEC message callback */
 	int (*received)(struct cec_adapter *adap, struct cec_msg *msg);
@@ -166,14 +177,31 @@ struct cec_adapter {
 	u8 available_log_addrs;
 
 	u16 phys_addr;
+	bool needs_hpd;
 	bool is_configuring;
 	bool is_configured;
+	bool cec_pin_is_high;
 	u32 monitor_all_cnt;
+	u32 monitor_pin_cnt;
 	u32 follower_cnt;
 	struct cec_fh *cec_follower;
 	struct cec_fh *cec_initiator;
 	bool passthrough;
 	struct cec_log_addrs log_addrs;
+
+	u32 tx_timeouts;
+
+#ifdef CONFIG_MEDIA_CEC_RC
+	bool rc_repeating;
+	int rc_last_scancode;
+	u64 rc_last_keypress;
+#endif
+#ifdef CONFIG_CEC_NOTIFIER
+	struct cec_notifier *notifier;
+#endif
+#ifdef CONFIG_CEC_PIN
+	struct cec_pin *pin;
+#endif
 
 	struct dentry *cec_dir;
 	struct dentry *status_file;
@@ -181,10 +209,15 @@ struct cec_adapter {
 	u16 phys_addrs[15];
 	u32 sequence;
 
-	char input_name[32];
+	char device_name[32];
 	char input_phys[32];
 	char input_drv[32];
 };
+
+static inline void *cec_get_drvdata(const struct cec_adapter *adap)
+{
+	return adap->priv;
+}
 
 static inline bool cec_has_log_addr(const struct cec_adapter *adap, u8 log_addr)
 {
@@ -196,11 +229,15 @@ static inline bool cec_is_sink(const struct cec_adapter *adap)
 	return adap->phys_addr == 0;
 }
 
-#if IS_ENABLED(CONFIG_MEDIA_CEC)
+#define cec_phys_addr_exp(pa) \
+	((pa) >> 12), ((pa) >> 8) & 0xf, ((pa) >> 4) & 0xf, (pa) & 0xf
+
+struct edid;
+
+#if IS_REACHABLE(CONFIG_CEC_CORE)
 struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
-		void *priv, const char *name, u32 caps, u8 available_las,
-		struct device *parent);
-int cec_register_adapter(struct cec_adapter *adap);
+		void *priv, const char *name, u32 caps, u8 available_las);
+int cec_register_adapter(struct cec_adapter *adap, struct device *parent);
 void cec_unregister_adapter(struct cec_adapter *adap);
 void cec_delete_adapter(struct cec_adapter *adap);
 
@@ -208,17 +245,136 @@ int cec_s_log_addrs(struct cec_adapter *adap, struct cec_log_addrs *log_addrs,
 		    bool block);
 void cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr,
 		     bool block);
+void cec_s_phys_addr_from_edid(struct cec_adapter *adap,
+			       const struct edid *edid);
 int cec_transmit_msg(struct cec_adapter *adap, struct cec_msg *msg,
 		     bool block);
 
 /* Called by the adapter */
-void cec_transmit_done(struct cec_adapter *adap, u8 status, u8 arb_lost_cnt,
-		       u8 nack_cnt, u8 low_drive_cnt, u8 error_cnt);
-void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg);
+void cec_transmit_done_ts(struct cec_adapter *adap, u8 status,
+			  u8 arb_lost_cnt, u8 nack_cnt, u8 low_drive_cnt,
+			  u8 error_cnt, ktime_t ts);
+
+static inline void cec_transmit_done(struct cec_adapter *adap, u8 status,
+				     u8 arb_lost_cnt, u8 nack_cnt,
+				     u8 low_drive_cnt, u8 error_cnt)
+{
+	cec_transmit_done_ts(adap, status, arb_lost_cnt, nack_cnt,
+			     low_drive_cnt, error_cnt, ktime_get());
+}
+/*
+ * Simplified version of cec_transmit_done for hardware that doesn't retry
+ * failed transmits. So this is always just one attempt in which case
+ * the status is sufficient.
+ */
+void cec_transmit_attempt_done_ts(struct cec_adapter *adap,
+				  u8 status, ktime_t ts);
+
+static inline void cec_transmit_attempt_done(struct cec_adapter *adap,
+					     u8 status)
+{
+	cec_transmit_attempt_done_ts(adap, status, ktime_get());
+}
+
+void cec_received_msg_ts(struct cec_adapter *adap,
+			 struct cec_msg *msg, ktime_t ts);
+
+static inline void cec_received_msg(struct cec_adapter *adap,
+				    struct cec_msg *msg)
+{
+	cec_received_msg_ts(adap, msg, ktime_get());
+}
+
+/**
+ * cec_queue_pin_cec_event() - queue a CEC pin event with a given timestamp.
+ *
+ * @adap:	pointer to the cec adapter
+ * @is_high:	when true the CEC pin is high, otherwise it is low
+ * @ts:		the timestamp for this event
+ *
+ */
+void cec_queue_pin_cec_event(struct cec_adapter *adap,
+			     bool is_high, ktime_t ts);
+
+/**
+ * cec_get_edid_phys_addr() - find and return the physical address
+ *
+ * @edid:	pointer to the EDID data
+ * @size:	size in bytes of the EDID data
+ * @offset:	If not %NULL then the location of the physical address
+ *		bytes in the EDID will be returned here. This is set to 0
+ *		if there is no physical address found.
+ *
+ * Return: the physical address or CEC_PHYS_ADDR_INVALID if there is none.
+ */
+u16 cec_get_edid_phys_addr(const u8 *edid, unsigned int size,
+			   unsigned int *offset);
+
+/**
+ * cec_set_edid_phys_addr() - find and set the physical address
+ *
+ * @edid:	pointer to the EDID data
+ * @size:	size in bytes of the EDID data
+ * @phys_addr:	the new physical address
+ *
+ * This function finds the location of the physical address in the EDID
+ * and fills in the given physical address and updates the checksum
+ * at the end of the EDID block. It does nothing if the EDID doesn't
+ * contain a physical address.
+ */
+void cec_set_edid_phys_addr(u8 *edid, unsigned int size, u16 phys_addr);
+
+/**
+ * cec_phys_addr_for_input() - calculate the PA for an input
+ *
+ * @phys_addr:	the physical address of the parent
+ * @input:	the number of the input port, must be between 1 and 15
+ *
+ * This function calculates a new physical address based on the input
+ * port number. For example:
+ *
+ * PA = 0.0.0.0 and input = 2 becomes 2.0.0.0
+ *
+ * PA = 3.0.0.0 and input = 1 becomes 3.1.0.0
+ *
+ * PA = 3.2.1.0 and input = 5 becomes 3.2.1.5
+ *
+ * PA = 3.2.1.3 and input = 5 becomes f.f.f.f since it maxed out the depth.
+ *
+ * Return: the new physical address or CEC_PHYS_ADDR_INVALID.
+ */
+u16 cec_phys_addr_for_input(u16 phys_addr, u8 input);
+
+/**
+ * cec_phys_addr_validate() - validate a physical address from an EDID
+ *
+ * @phys_addr:	the physical address to validate
+ * @parent:	if not %NULL, then this is filled with the parents PA.
+ * @port:	if not %NULL, then this is filled with the input port.
+ *
+ * This validates a physical address as read from an EDID. If the
+ * PA is invalid (such as 1.0.1.0 since '0' is only allowed at the end),
+ * then it will return -EINVAL.
+ *
+ * The parent PA is passed into %parent and the input port is passed into
+ * %port. For example:
+ *
+ * PA = 0.0.0.0: has parent 0.0.0.0 and input port 0.
+ *
+ * PA = 1.0.0.0: has parent 0.0.0.0 and input port 1.
+ *
+ * PA = 3.2.0.0: has parent 3.0.0.0 and input port 2.
+ *
+ * PA = f.f.f.f: has parent f.f.f.f and input port 0.
+ *
+ * Return: 0 if the PA is valid, -EINVAL if not.
+ */
+int cec_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port);
 
 #else
 
-static inline int cec_register_adapter(struct cec_adapter *adap)
+static inline int cec_register_adapter(struct cec_adapter *adap,
+				       struct device *parent)
 {
 	return 0;
 }
@@ -236,6 +392,47 @@ static inline void cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr,
 {
 }
 
+static inline void cec_s_phys_addr_from_edid(struct cec_adapter *adap,
+					     const struct edid *edid)
+{
+}
+
+static inline u16 cec_get_edid_phys_addr(const u8 *edid, unsigned int size,
+					 unsigned int *offset)
+{
+	if (offset)
+		*offset = 0;
+	return CEC_PHYS_ADDR_INVALID;
+}
+
+static inline void cec_set_edid_phys_addr(u8 *edid, unsigned int size,
+					  u16 phys_addr)
+{
+}
+
+static inline u16 cec_phys_addr_for_input(u16 phys_addr, u8 input)
+{
+	return CEC_PHYS_ADDR_INVALID;
+}
+
+static inline int cec_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port)
+{
+	return 0;
+}
+
 #endif
+
+/**
+ * cec_phys_addr_invalidate() - set the physical address to INVALID
+ *
+ * @adap:	the CEC adapter
+ *
+ * This is a simple helper function to invalidate the physical
+ * address.
+ */
+static inline void cec_phys_addr_invalidate(struct cec_adapter *adap)
+{
+	cec_s_phys_addr(adap, CEC_PHYS_ADDR_INVALID, false);
+}
 
 #endif /* _MEDIA_CEC_H */

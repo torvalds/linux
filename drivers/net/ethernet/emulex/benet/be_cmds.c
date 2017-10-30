@@ -90,7 +90,8 @@ static struct be_cmd_priv_map cmd_priv_map[] = {
 	{
 		OPCODE_COMMON_SET_HSW_CONFIG,
 		CMD_SUBSYSTEM_COMMON,
-		BE_PRIV_DEVCFG | BE_PRIV_VHADM
+		BE_PRIV_DEVCFG | BE_PRIV_VHADM |
+		BE_PRIV_DEVSEC
 	},
 	{
 		OPCODE_COMMON_GET_EXT_FAT_CAPABILITIES,
@@ -1117,7 +1118,7 @@ int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
 err:
 	mutex_unlock(&adapter->mcc_lock);
 
-	 if (status == MCC_STATUS_UNAUTHORIZED_REQUEST)
+	 if (base_status(status) == MCC_STATUS_UNAUTHORIZED_REQUEST)
 		status = -EPERM;
 
 	return status;
@@ -4938,8 +4939,9 @@ static int
 __be_cmd_set_logical_link_config(struct be_adapter *adapter,
 				 int link_state, int version, u8 domain)
 {
-	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_set_ll_link *req;
+	struct be_mcc_wrb *wrb;
+	u32 link_config = 0;
 	int status;
 
 	mutex_lock(&adapter->mcc_lock);
@@ -4961,10 +4963,12 @@ __be_cmd_set_logical_link_config(struct be_adapter *adapter,
 
 	if (link_state == IFLA_VF_LINK_STATE_ENABLE ||
 	    link_state == IFLA_VF_LINK_STATE_AUTO)
-		req->link_config |= PLINK_ENABLE;
+		link_config |= PLINK_ENABLE;
 
 	if (link_state == IFLA_VF_LINK_STATE_AUTO)
-		req->link_config |= PLINK_TRACK;
+		link_config |= PLINK_TRACK;
+
+	req->link_config = cpu_to_le32(link_config);
 
 	status = be_mcc_notify_wait(adapter);
 err:

@@ -16,6 +16,7 @@
 	interrupt-parent = <&intc>;
 	#address-cells = <1>;
 	#size-cells = <1>;
+	chosen { };
 
 	aliases {
 		i2c0 = &i2c0;
@@ -35,6 +36,8 @@
 		phy1 = &usb1_phy;
 		ethernet0 = &cpsw_emac0;
 		ethernet1 = &cpsw_emac1;
+		spi0 = &spi0;
+		spi1 = &spi1;
 	};
 
 	cpus {
@@ -45,24 +48,85 @@
 			device_type = "cpu";
 			reg = <0>;
 
-			/*
-			 * To consider voltage drop between PMIC and SoC,
-			 * tolerance value is reduced to 2% from 4% and
-			 * voltage value is increased as a precaution.
-			 */
-			operating-points = <
-				/* kHz    uV */
-				720000  1285000
-				600000  1225000
-				500000  1125000
-				275000  1125000
-			>;
-			voltage-tolerance = <2>; /* 2 percentage */
+			operating-points-v2 = <&cpu0_opp_table>;
 
 			clocks = <&dpll_mpu_ck>;
 			clock-names = "cpu";
 
 			clock-latency = <300000>; /* From omap-cpufreq driver */
+		};
+	};
+
+	cpu0_opp_table: opp-table {
+		compatible = "operating-points-v2-ti-cpu";
+		syscon = <&scm_conf>;
+
+		/*
+		 * The three following nodes are marked with opp-suspend
+		 * because the can not be enabled simultaneously on a
+		 * single SoC.
+		 */
+		opp50-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <950000 931000 969000>;
+			opp-supported-hw = <0x06 0x0010>;
+			opp-suspend;
+		};
+
+		opp100-275000000 {
+			opp-hz = /bits/ 64 <275000000>;
+			opp-microvolt = <1100000 1078000 1122000>;
+			opp-supported-hw = <0x01 0x00FF>;
+			opp-suspend;
+		};
+
+		opp100-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <1100000 1078000 1122000>;
+			opp-supported-hw = <0x06 0x0020>;
+			opp-suspend;
+		};
+
+		opp100-500000000 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <1100000 1078000 1122000>;
+			opp-supported-hw = <0x01 0xFFFF>;
+		};
+
+		opp100-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <1100000 1078000 1122000>;
+			opp-supported-hw = <0x06 0x0040>;
+		};
+
+		opp120-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <1200000 1176000 1224000>;
+			opp-supported-hw = <0x01 0xFFFF>;
+		};
+
+		opp120-720000000 {
+			opp-hz = /bits/ 64 <720000000>;
+			opp-microvolt = <1200000 1176000 1224000>;
+			opp-supported-hw = <0x06 0x0080>;
+		};
+
+		oppturbo-720000000 {
+			opp-hz = /bits/ 64 <720000000>;
+			opp-microvolt = <1260000 1234800 1285200>;
+			opp-supported-hw = <0x01 0xFFFF>;
+		};
+
+		oppturbo-800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <1260000 1234800 1285200>;
+			opp-supported-hw = <0x06 0x0100>;
+		};
+
+		oppnitro-1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <1325000 1298500 1351500>;
+			opp-supported-hw = <0x04 0x0200>;
 		};
 	};
 
@@ -130,6 +194,7 @@
 				reg = <0x210000 0x2000>;
 				#address-cells = <1>;
 				#size-cells = <1>;
+				#pinctrl-cells = <1>;
 				ranges = <0 0x210000 0x2000>;
 
 				am33xx_pinmux: pinmux@800 {
@@ -137,15 +202,17 @@
 					reg = <0x800 0x238>;
 					#address-cells = <1>;
 					#size-cells = <0>;
+					#pinctrl-cells = <1>;
 					pinctrl-single,register-width = <32>;
 					pinctrl-single,function-mask = <0x7f>;
 				};
 
 				scm_conf: scm_conf@0 {
-					compatible = "syscon";
+					compatible = "syscon", "simple-bus";
 					reg = <0x0 0x800>;
 					#address-cells = <1>;
 					#size-cells = <1>;
+					ranges = <0 0 0x800>;
 
 					scm_clocks: clocks {
 						#address-cells = <1>;
@@ -366,7 +433,6 @@
 				&edma_xbar 25 0 0>;
 			dma-names = "tx", "rx";
 			interrupts = <64>;
-			interrupt-parent = <&intc>;
 			reg = <0x48060000 0x1000>;
 			status = "disabled";
 		};
@@ -379,7 +445,6 @@
 				&edma 3 0>;
 			dma-names = "tx", "rx";
 			interrupts = <28>;
-			interrupt-parent = <&intc>;
 			reg = <0x481d8000 0x1000>;
 			status = "disabled";
 		};
@@ -389,7 +454,6 @@
 			ti,hwmods = "mmc3";
 			ti,needs-special-reset;
 			interrupts = <29>;
-			interrupt-parent = <&intc>;
 			reg = <0x47810000 0x1000>;
 			status = "disabled";
 		};
@@ -505,6 +569,8 @@
 			interrupts = <75
 				      76>;
 			ti,hwmods = "rtc";
+			clocks = <&clkdiv32k_ick>;
+			clock-names = "int-clk";
 		};
 
 		spi0: spi@48030000 {
@@ -777,7 +843,6 @@
 			cpdma_channels = <8>;
 			ale_entries = <1024>;
 			bd_ram_size = <0x2000>;
-			no_bd_ram = <0>;
 			mac_control = <0x20>;
 			slaves = <2>;
 			active_slave = <0>;
@@ -787,7 +852,6 @@
 			       0x4a101200 0x100>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-			interrupt-parent = <&intc>;
 			/*
 			 * c0_rx_thresh_pend
 			 * c0_rx_pend
@@ -842,7 +906,6 @@
 		lcdc: lcdc@4830e000 {
 			compatible = "ti,am33xx-tilcdc";
 			reg = <0x4830e000 0x1000>;
-			interrupt-parent = <&intc>;
 			interrupts = <36>;
 			ti,hwmods = "lcdc";
 			status = "disabled";
@@ -851,10 +914,11 @@
 		tscadc: tscadc@44e0d000 {
 			compatible = "ti,am3359-tscadc";
 			reg = <0x44e0d000 0x1000>;
-			interrupt-parent = <&intc>;
 			interrupts = <16>;
 			ti,hwmods = "adc_tsc";
 			status = "disabled";
+			dmas = <&edma 53 0>, <&edma 57 0>;
+			dma-names = "fifo0", "fifo1";
 
 			tsc {
 				compatible = "ti,am3359-tsc";

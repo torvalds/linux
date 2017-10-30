@@ -35,6 +35,7 @@
 #include <linux/pm_runtime.h>
 #include <acpi/video.h>
 #include <linux/module.h>
+#include <asm/set_memory.h>
 
 static struct drm_driver driver;
 static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
@@ -159,7 +160,7 @@ static int psb_do_init(struct drm_device *dev)
 	return 0;
 }
 
-static int psb_driver_unload(struct drm_device *dev)
+static void psb_driver_unload(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
@@ -220,7 +221,6 @@ static int psb_driver_unload(struct drm_device *dev)
 		dev->dev_private = NULL;
 	}
 	gma_power_uninit(dev);
-	return 0;
 }
 
 static int psb_driver_load(struct drm_device *dev, unsigned long flags)
@@ -407,11 +407,6 @@ out_err:
 	return ret;
 }
 
-static int psb_driver_device_is_agp(struct drm_device *dev)
-{
-	return 0;
-}
-
 static inline void get_brightness(struct backlight_device *bd)
 {
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
@@ -473,6 +468,7 @@ static const struct file_operations psb_gem_fops = {
 	.open = drm_open,
 	.release = drm_release,
 	.unlocked_ioctl = psb_unlocked_ioctl,
+	.compat_ioctl = drm_compat_ioctl,
 	.mmap = drm_gem_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
@@ -484,10 +480,8 @@ static struct drm_driver driver = {
 	.load = psb_driver_load,
 	.unload = psb_driver_unload,
 	.lastclose = psb_driver_lastclose,
-	.set_busid = drm_pci_set_busid,
 
 	.num_ioctls = ARRAY_SIZE(psb_ioctls),
-	.device_is_agp = psb_driver_device_is_agp,
 	.irq_preinstall = psb_irq_preinstall,
 	.irq_postinstall = psb_irq_postinstall,
 	.irq_uninstall = psb_irq_uninstall,
@@ -500,8 +494,6 @@ static struct drm_driver driver = {
 	.gem_vm_ops = &psb_gem_vm_ops,
 
 	.dumb_create = psb_gem_dumb_create,
-	.dumb_map_offset = psb_gem_dumb_map_gtt,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.ioctls = psb_ioctls,
 	.fops = &psb_gem_fops,
 	.name = DRIVER_NAME,
@@ -522,12 +514,12 @@ static struct pci_driver psb_pci_driver = {
 
 static int __init psb_init(void)
 {
-	return drm_pci_init(&driver, &psb_pci_driver);
+	return pci_register_driver(&psb_pci_driver);
 }
 
 static void __exit psb_exit(void)
 {
-	drm_pci_exit(&driver, &psb_pci_driver);
+	pci_unregister_driver(&psb_pci_driver);
 }
 
 late_initcall(psb_init);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, NVIDIA Corporation.
+ * Copyright (c) 2012-2015, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -17,14 +17,17 @@
 #ifndef HOST1X_DEV_H
 #define HOST1X_DEV_H
 
-#include <linux/platform_device.h>
 #include <linux/device.h>
+#include <linux/iommu.h>
+#include <linux/iova.h>
+#include <linux/platform_device.h>
+#include <linux/reset.h>
 
-#include "channel.h"
-#include "syncpt.h"
-#include "intr.h"
 #include "cdma.h"
+#include "channel.h"
+#include "intr.h"
 #include "job.h"
+#include "syncpt.h"
 
 struct host1x_syncpt;
 struct host1x_syncpt_base;
@@ -107,6 +110,11 @@ struct host1x {
 	struct host1x_syncpt_base *bases;
 	struct device *dev;
 	struct clk *clk;
+	struct reset_control *rst;
+
+	struct iommu_domain *domain;
+	struct iova_domain iova;
+	dma_addr_t iova_end;
 
 	struct mutex intr_mutex;
 	int intr_syncpt_irq;
@@ -120,10 +128,9 @@ struct host1x {
 
 	struct host1x_syncpt *nop_sp;
 
-	struct mutex chlist_mutex;
-	struct host1x_channel chlist;
-	unsigned long allocated_channels;
-	unsigned int num_allocated_channels;
+	struct mutex syncpt_mutex;
+
+	struct host1x_channel_list channel_list;
 
 	struct dentry *debugfs;
 

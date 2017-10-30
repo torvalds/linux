@@ -24,7 +24,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 
-#include <linux/i2c/tps65010.h>
+#include <linux/mfd/tps65010.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -36,7 +36,7 @@
 #include <linux/platform_data/i2c-s3c2410.h>
 
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
@@ -238,6 +238,7 @@ static struct s3c2410_platform_nand __initdata osiris_nand_info = {
 	.nr_sets	= ARRAY_SIZE(osiris_nand_sets),
 	.sets		= osiris_nand_sets,
 	.select_chip	= osiris_nand_select,
+	.ecc_mode       = NAND_ECC_SOFT,
 };
 
 /* PCMCIA control and configuration */

@@ -1,5 +1,5 @@
 #include <linux/mtd/mtd.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 
 static inline int mtdtest_relax(void)
 {

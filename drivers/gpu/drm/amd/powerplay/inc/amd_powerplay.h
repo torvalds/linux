@@ -28,6 +28,12 @@
 #include <linux/errno.h>
 #include "amd_shared.h"
 #include "cgs_common.h"
+#include "dm_pp_interface.h"
+
+extern const struct amd_ip_funcs pp_ip_funcs;
+extern const struct amd_powerplay_funcs pp_dpm_funcs;
+
+#define PP_DPM_DISABLED 0xCCCC
 
 enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_GFX_SCLK = 0,
@@ -41,6 +47,7 @@ enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_GPU_TEMP,
 	AMDGPU_PP_SENSOR_VCE_POWER,
 	AMDGPU_PP_SENSOR_UVD_POWER,
+	AMDGPU_PP_SENSOR_GPU_POWER,
 };
 
 enum amd_pp_event {
@@ -133,17 +140,12 @@ enum amd_pp_event {
 	AMD_PP_EVENT_MAX
 };
 
-enum amd_dpm_forced_level {
-	AMD_DPM_FORCED_LEVEL_AUTO = 0,
-	AMD_DPM_FORCED_LEVEL_LOW = 1,
-	AMD_DPM_FORCED_LEVEL_HIGH = 2,
-	AMD_DPM_FORCED_LEVEL_MANUAL = 3,
-};
-
 struct amd_pp_init {
 	struct cgs_device *device;
 	uint32_t chip_family;
 	uint32_t chip_id;
+	bool pm_en;
+	uint32_t feature_mask;
 };
 
 enum amd_pp_display_config_type{
@@ -225,6 +227,8 @@ struct amd_pp_display_configuration {
 	 * higher latency not allowed.
 	 */
 	uint32_t dce_tolerable_mclk_in_active_latency;
+	uint32_t min_dcef_set_clk;
+	uint32_t min_dcef_deep_sleep_set_clk;
 };
 
 struct amd_pp_simple_clock_info {
@@ -265,7 +269,14 @@ struct amd_pp_clock_info {
 enum amd_pp_clock_type {
 	amd_pp_disp_clock = 1,
 	amd_pp_sys_clock,
-	amd_pp_mem_clock
+	amd_pp_mem_clock,
+	amd_pp_dcef_clock,
+	amd_pp_soc_clock,
+	amd_pp_pixel_clock,
+	amd_pp_phy_clock,
+	amd_pp_dcf_clock,
+	amd_pp_dpp_clock,
+	amd_pp_f_clock = amd_pp_dcef_clock,
 };
 
 #define MAX_NUM_CLOCKS 16
@@ -293,6 +304,18 @@ enum pp_clock_type {
 struct pp_states_info {
 	uint32_t nums;
 	uint32_t states[16];
+};
+
+struct pp_gpu_power {
+	uint32_t vddc_power;
+	uint32_t vddci_power;
+	uint32_t max_gpu_power;
+	uint32_t average_gpu_power;
+};
+
+struct pp_display_clock_request {
+	enum amd_pp_clock_type clock_type;
+	uint32_t clock_freq_in_khz;
 };
 
 #define PP_GROUP_MASK        0xF0000000
@@ -349,6 +372,7 @@ struct amd_powerplay_funcs {
 	int (*get_fan_control_mode)(void *handle);
 	int (*set_fan_speed_percent)(void *handle, uint32_t percent);
 	int (*get_fan_speed_percent)(void *handle, uint32_t *speed);
+	int (*get_fan_speed_rpm)(void *handle, uint32_t *rpm);
 	int (*get_pp_num_states)(void *handle, struct pp_states_info *data);
 	int (*get_pp_table)(void *handle, char **table);
 	int (*set_pp_table)(void *handle, const char *buf, size_t size);
@@ -358,7 +382,16 @@ struct amd_powerplay_funcs {
 	int (*set_sclk_od)(void *handle, uint32_t value);
 	int (*get_mclk_od)(void *handle);
 	int (*set_mclk_od)(void *handle, uint32_t value);
-	int (*read_sensor)(void *handle, int idx, int32_t *value);
+	int (*read_sensor)(void *handle, int idx, void *value, int *size);
+	struct amd_vce_state* (*get_vce_clock_state)(void *handle, unsigned idx);
+	int (*reset_power_profile_state)(void *handle,
+			struct amd_pp_profile *request);
+	int (*get_power_profile_state)(void *handle,
+			struct amd_pp_profile *query);
+	int (*set_power_profile_state)(void *handle,
+			struct amd_pp_profile *request);
+	int (*switch_power_profile)(void *handle,
+			enum amd_pp_profile_type type);
 };
 
 struct amd_powerplay {
@@ -367,10 +400,10 @@ struct amd_powerplay {
 	const struct amd_powerplay_funcs *pp_funcs;
 };
 
-int amd_powerplay_init(struct amd_pp_init *pp_init,
-		       struct amd_powerplay *amd_pp);
+int amd_powerplay_create(struct amd_pp_init *pp_init,
+				void **handle);
 
-int amd_powerplay_fini(void *handle);
+int amd_powerplay_destroy(void *handle);
 
 int amd_powerplay_reset(void *handle);
 
@@ -386,6 +419,20 @@ int amd_powerplay_get_current_clocks(void *handle,
 int amd_powerplay_get_clock_by_type(void *handle,
 		enum amd_pp_clock_type type,
 		struct amd_pp_clocks *clocks);
+
+int amd_powerplay_get_clock_by_type_with_latency(void *handle,
+		enum amd_pp_clock_type type,
+		struct pp_clock_levels_with_latency *clocks);
+
+int amd_powerplay_get_clock_by_type_with_voltage(void *handle,
+		enum amd_pp_clock_type type,
+		struct pp_clock_levels_with_voltage *clocks);
+
+int amd_powerplay_set_watermarks_for_clocks_ranges(void *handle,
+		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges);
+
+int amd_powerplay_display_clock_voltage_request(void *handle,
+		struct pp_display_clock_request *clock);
 
 int amd_powerplay_get_display_mode_validation_clocks(void *handle,
 		struct amd_pp_simple_clock_info *output);

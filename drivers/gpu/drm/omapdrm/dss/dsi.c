@@ -20,6 +20,8 @@
 #define DSS_SUBSYS_NAME "DSI"
 
 #include <linux/kernel.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -39,14 +41,15 @@
 #include <linux/debugfs.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/of_platform.h>
 #include <linux/component.h>
+#include <linux/sys_soc.h>
 
 #include <video/mipi_display.h>
 
 #include "omapdss.h"
 #include "dss.h"
-#include "dss_features.h"
 
 #define DSI_CATCH_MISSING_TE
 
@@ -227,6 +230,12 @@ static int dsi_vc_send_null(struct omap_dss_device *dssdev, int channel);
 #define DSI_MAX_NR_ISRS                2
 #define DSI_MAX_NR_LANES	5
 
+enum dsi_model {
+	DSI_MODEL_OMAP3,
+	DSI_MODEL_OMAP4,
+	DSI_MODEL_OMAP5,
+};
+
 enum dsi_lane_function {
 	DSI_LANE_UNUSED	= 0,
 	DSI_LANE_CLK,
@@ -289,7 +298,7 @@ struct dsi_clk_calc_ctx {
 	struct dss_pll_clock_info dsi_cinfo;
 	struct dispc_clock_info dispc_cinfo;
 
-	struct omap_video_timings dispc_vm;
+	struct videomode vm;
 	struct omap_dss_dsi_videomode_timings dsi_vm;
 };
 
@@ -298,12 +307,36 @@ struct dsi_lp_clock_info {
 	u16 lp_clk_div;
 };
 
+struct dsi_module_id_data {
+	u32 address;
+	int id;
+};
+
+enum dsi_quirks {
+	DSI_QUIRK_PLL_PWR_BUG = (1 << 0),	/* DSI-PLL power command 0x3 is not working */
+	DSI_QUIRK_DCS_CMD_CONFIG_VC = (1 << 1),
+	DSI_QUIRK_VC_OCP_WIDTH = (1 << 2),
+	DSI_QUIRK_REVERSE_TXCLKESC = (1 << 3),
+	DSI_QUIRK_GNQ = (1 << 4),
+	DSI_QUIRK_PHY_DCC = (1 << 5),
+};
+
+struct dsi_of_data {
+	enum dsi_model model;
+	const struct dss_pll_hw *pll_hw;
+	const struct dsi_module_id_data *modules;
+	unsigned int max_fck_freq;
+	unsigned int max_pll_lpdiv;
+	enum dsi_quirks quirks;
+};
+
 struct dsi_data {
 	struct platform_device *pdev;
 	void __iomem *proto_base;
 	void __iomem *phy_base;
 	void __iomem *pll_base;
 
+	const struct dsi_of_data *data;
 	int module_id;
 
 	int irq;
@@ -311,6 +344,7 @@ struct dsi_data {
 	bool is_enabled;
 
 	struct clk *dss_clk;
+	struct regmap *syscon;
 
 	struct dispc_clock_info user_dispc_cinfo;
 	struct dss_pll_clock_info user_dsi_cinfo;
@@ -383,7 +417,7 @@ struct dsi_data {
 	unsigned scp_clk_refcount;
 
 	struct dss_lcd_mgr_config mgr_config;
-	struct omap_video_timings timings;
+	struct videomode vm;
 	enum omap_dss_dsi_pixel_format pix_fmt;
 	enum omap_dss_dsi_mode mode;
 	struct omap_dss_dsi_videomode_timings vm_timings;
@@ -395,13 +429,6 @@ struct dsi_packet_sent_handler_data {
 	struct platform_device *dsidev;
 	struct completion *completion;
 };
-
-struct dsi_module_id_data {
-	u32 address;
-	int id;
-};
-
-static const struct of_device_id dsi_of_match[];
 
 #ifdef DSI_PERF_MEASURE
 static bool dsi_perf;
@@ -527,7 +554,7 @@ static inline int wait_for_bit_change(struct platform_device *dsidev,
 	return !value;
 }
 
-u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
+static u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
 {
 	switch (fmt) {
 	case OMAP_DSS_DSI_FMT_RGB888:
@@ -582,15 +609,14 @@ static void dsi_perf_show(struct platform_device *dsidev, const char *name)
 
 	total_bytes = dsi->update_bytes;
 
-	printk(KERN_INFO "DSI(%s): %u us + %u us = %u us (%uHz), "
-			"%u bytes, %u kbytes/sec\n",
-			name,
-			setup_us,
-			trans_us,
-			total_us,
-			1000*1000 / total_us,
-			total_bytes,
-			total_bytes * 1000 / total_us);
+	pr_info("DSI(%s): %u us + %u us = %u us (%uHz), %u bytes, %u kbytes/sec\n",
+		name,
+		setup_us,
+		trans_us,
+		total_us,
+		1000 * 1000 / total_us,
+		total_bytes,
+		total_bytes * 1000 / total_us);
 }
 #else
 static inline void dsi_perf_mark_setup(struct platform_device *dsidev)
@@ -1186,6 +1212,7 @@ static int dsi_regulator_init(struct platform_device *dsidev)
 
 static void _dsi_print_reset_status(struct platform_device *dsidev)
 {
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	u32 l;
 	int b0, b1, b2;
 
@@ -1194,7 +1221,7 @@ static void _dsi_print_reset_status(struct platform_device *dsidev)
 	 * I/O. */
 	l = dsi_read_reg(dsidev, DSI_DSIPHY_CFG5);
 
-	if (dss_has_feature(FEAT_DSI_REVERSE_TXCLKESC)) {
+	if (dsi->data->quirks & DSI_QUIRK_REVERSE_TXCLKESC) {
 		b0 = 28;
 		b1 = 27;
 		b2 = 26;
@@ -1297,7 +1324,7 @@ static int dsi_set_lp_clk_divisor(struct platform_device *dsidev)
 	unsigned long dsi_fclk;
 	unsigned lp_clk_div;
 	unsigned long lp_clk;
-	unsigned lpdiv_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_LPDIV);
+	unsigned lpdiv_max = dsi->data->max_pll_lpdiv;
 
 
 	lp_clk_div = dsi->user_lp_cinfo.lp_clk_div;
@@ -1349,11 +1376,12 @@ enum dsi_pll_power_state {
 static int dsi_pll_power(struct platform_device *dsidev,
 		enum dsi_pll_power_state state)
 {
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int t = 0;
 
 	/* DSI-PLL power command 0x3 is not working */
-	if (dss_has_feature(FEAT_DSI_PLL_PWR_BUG) &&
-			state == DSI_PLL_POWER_ON_DIV)
+	if ((dsi->data->quirks & DSI_QUIRK_PLL_PWR_BUG) &&
+	    state == DSI_PLL_POWER_ON_DIV)
 		state = DSI_PLL_POWER_ON_ALL;
 
 	/* PLL_PWR_CMD */
@@ -1373,11 +1401,12 @@ static int dsi_pll_power(struct platform_device *dsidev,
 }
 
 
-static void dsi_pll_calc_dsi_fck(struct dss_pll_clock_info *cinfo)
+static void dsi_pll_calc_dsi_fck(struct dsi_data *dsi,
+				 struct dss_pll_clock_info *cinfo)
 {
 	unsigned long max_dsi_fck;
 
-	max_dsi_fck = dss_feat_get_param_max(FEAT_PARAM_DSI_FCK);
+	max_dsi_fck = dsi->data->max_fck_freq;
 
 	cinfo->mX[HSDIV_DSI] = DIV_ROUND_UP(cinfo->clkdco, max_dsi_fck);
 	cinfo->clkout[HSDIV_DSI] = cinfo->clkdco / cinfo->mX[HSDIV_DSI];
@@ -1773,13 +1802,14 @@ static int dsi_cio_power(struct platform_device *dsidev,
 
 static unsigned dsi_get_line_buf_size(struct platform_device *dsidev)
 {
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int val;
 
 	/* line buffer on OMAP3 is 1024 x 24bits */
 	/* XXX: for some reason using full buffer size causes
 	 * considerable TX slowdown with update sizes that fill the
 	 * whole buffer */
-	if (!dss_has_feature(FEAT_DSI_GNQ))
+	if (!(dsi->data->quirks & DSI_QUIRK_GNQ))
 		return 1023 * 3;
 
 	val = REG_GET(dsidev, DSI_GNQ, 14, 12); /* VP1_LINE_BUFFER_SIZE */
@@ -1872,6 +1902,7 @@ static inline unsigned ddr2ns(struct platform_device *dsidev, unsigned ddr)
 
 static void dsi_cio_timings(struct platform_device *dsidev)
 {
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	u32 r;
 	u32 ths_prepare, ths_prepare_ths_zero, ths_trail, ths_exit;
 	u32 tlpx_half, tclk_trail, tclk_zero;
@@ -1934,7 +1965,7 @@ static void dsi_cio_timings(struct platform_device *dsidev)
 	r = FLD_MOD(r, tclk_trail, 15, 8);
 	r = FLD_MOD(r, tclk_zero, 7, 0);
 
-	if (dss_has_feature(FEAT_DSI_PHY_DCC)) {
+	if (dsi->data->quirks & DSI_QUIRK_PHY_DCC) {
 		r = FLD_MOD(r, 0, 21, 21);	/* DCCEN = disable */
 		r = FLD_MOD(r, 1, 22, 22);	/* CLKINP_DIVBY2EN = enable */
 		r = FLD_MOD(r, 1, 23, 23);	/* CLKINP_SEL = enable */
@@ -2006,7 +2037,7 @@ static int dsi_cio_wait_tx_clk_esc_reset(struct platform_device *dsidev)
 	static const u8 offsets_new[] = { 24, 25, 26, 27, 28 };
 	const u8 *offsets;
 
-	if (dss_has_feature(FEAT_DSI_REVERSE_TXCLKESC))
+	if (dsi->data->quirks & DSI_QUIRK_REVERSE_TXCLKESC)
 		offsets = offsets_old;
 	else
 		offsets = offsets_new;
@@ -2060,6 +2091,83 @@ static unsigned dsi_get_lane_mask(struct platform_device *dsidev)
 	return mask;
 }
 
+/* OMAP4 CONTROL_DSIPHY */
+#define OMAP4_DSIPHY_SYSCON_OFFSET			0x78
+
+#define OMAP4_DSI2_LANEENABLE_SHIFT			29
+#define OMAP4_DSI2_LANEENABLE_MASK			(0x7 << 29)
+#define OMAP4_DSI1_LANEENABLE_SHIFT			24
+#define OMAP4_DSI1_LANEENABLE_MASK			(0x1f << 24)
+#define OMAP4_DSI1_PIPD_SHIFT				19
+#define OMAP4_DSI1_PIPD_MASK				(0x1f << 19)
+#define OMAP4_DSI2_PIPD_SHIFT				14
+#define OMAP4_DSI2_PIPD_MASK				(0x1f << 14)
+
+static int dsi_omap4_mux_pads(struct dsi_data *dsi, unsigned int lanes)
+{
+	u32 enable_mask, enable_shift;
+	u32 pipd_mask, pipd_shift;
+
+	if (dsi->module_id == 0) {
+		enable_mask = OMAP4_DSI1_LANEENABLE_MASK;
+		enable_shift = OMAP4_DSI1_LANEENABLE_SHIFT;
+		pipd_mask = OMAP4_DSI1_PIPD_MASK;
+		pipd_shift = OMAP4_DSI1_PIPD_SHIFT;
+	} else if (dsi->module_id == 1) {
+		enable_mask = OMAP4_DSI2_LANEENABLE_MASK;
+		enable_shift = OMAP4_DSI2_LANEENABLE_SHIFT;
+		pipd_mask = OMAP4_DSI2_PIPD_MASK;
+		pipd_shift = OMAP4_DSI2_PIPD_SHIFT;
+	} else {
+		return -ENODEV;
+	}
+
+	return regmap_update_bits(dsi->syscon, OMAP4_DSIPHY_SYSCON_OFFSET,
+		enable_mask | pipd_mask,
+		(lanes << enable_shift) | (lanes << pipd_shift));
+}
+
+/* OMAP5 CONTROL_DSIPHY */
+
+#define OMAP5_DSIPHY_SYSCON_OFFSET	0x74
+
+#define OMAP5_DSI1_LANEENABLE_SHIFT	24
+#define OMAP5_DSI2_LANEENABLE_SHIFT	19
+#define OMAP5_DSI_LANEENABLE_MASK	0x1f
+
+static int dsi_omap5_mux_pads(struct dsi_data *dsi, unsigned int lanes)
+{
+	u32 enable_shift;
+
+	if (dsi->module_id == 0)
+		enable_shift = OMAP5_DSI1_LANEENABLE_SHIFT;
+	else if (dsi->module_id == 1)
+		enable_shift = OMAP5_DSI2_LANEENABLE_SHIFT;
+	else
+		return -ENODEV;
+
+	return regmap_update_bits(dsi->syscon, OMAP5_DSIPHY_SYSCON_OFFSET,
+		OMAP5_DSI_LANEENABLE_MASK << enable_shift,
+		lanes << enable_shift);
+}
+
+static int dsi_enable_pads(struct dsi_data *dsi, unsigned int lane_mask)
+{
+	if (dsi->data->model == DSI_MODEL_OMAP4)
+		return dsi_omap4_mux_pads(dsi, lane_mask);
+	if (dsi->data->model == DSI_MODEL_OMAP5)
+		return dsi_omap5_mux_pads(dsi, lane_mask);
+	return 0;
+}
+
+static void dsi_disable_pads(struct dsi_data *dsi)
+{
+	if (dsi->data->model == DSI_MODEL_OMAP4)
+		dsi_omap4_mux_pads(dsi, 0);
+	else if (dsi->data->model == DSI_MODEL_OMAP5)
+		dsi_omap5_mux_pads(dsi, 0);
+}
+
 static int dsi_cio_init(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
@@ -2068,7 +2176,7 @@ static int dsi_cio_init(struct platform_device *dsidev)
 
 	DSSDBG("DSI CIO init starts");
 
-	r = dss_dsi_enable_pads(dsi->module_id, dsi_get_lane_mask(dsidev));
+	r = dsi_enable_pads(dsi, dsi_get_lane_mask(dsidev));
 	if (r)
 		return r;
 
@@ -2178,7 +2286,7 @@ err_cio_pwr:
 		dsi_cio_disable_lane_override(dsidev);
 err_scp_clk_dom:
 	dsi_disable_scp_clk(dsidev);
-	dss_dsi_disable_pads(dsi->module_id, dsi_get_lane_mask(dsidev));
+	dsi_disable_pads(dsi);
 	return r;
 }
 
@@ -2191,7 +2299,7 @@ static void dsi_cio_uninit(struct platform_device *dsidev)
 
 	dsi_cio_power(dsidev, DSI_COMPLEXIO_POWER_OFF);
 	dsi_disable_scp_clk(dsidev);
-	dss_dsi_disable_pads(dsi->module_id, dsi_get_lane_mask(dsidev));
+	dsi_disable_pads(dsi);
 }
 
 static void dsi_config_tx_fifo(struct platform_device *dsidev,
@@ -2439,7 +2547,7 @@ static void dsi_vc_initial_config(struct platform_device *dsidev, int channel)
 	r = FLD_MOD(r, 1, 7, 7); /* CS_TX_EN */
 	r = FLD_MOD(r, 1, 8, 8); /* ECC_TX_EN */
 	r = FLD_MOD(r, 0, 9, 9); /* MODE_SPEED, high speed on/off */
-	if (dss_has_feature(FEAT_DSI_VC_OCP_WIDTH))
+	if (dsi->data->quirks & DSI_QUIRK_VC_OCP_WIDTH)
 		r = FLD_MOD(r, 3, 11, 10);	/* OCP_WIDTH = 32 bit */
 
 	r = FLD_MOD(r, 4, 29, 27); /* DMA_RX_REQ_NB = no dma */
@@ -2474,7 +2582,7 @@ static int dsi_vc_config_source(struct platform_device *dsidev, int channel,
 	REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), source, 1, 1);
 
 	/* DCS_CMD_ENABLE */
-	if (dss_has_feature(FEAT_DSI_DCS_CMD_CONFIG_VC)) {
+	if (dsi->data->quirks & DSI_QUIRK_DCS_CMD_CONFIG_VC) {
 		bool enable = source == DSI_VC_SOURCE_VP;
 		REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), enable, 30, 30);
 	}
@@ -3321,12 +3429,12 @@ static void dsi_config_vp_num_line_buffers(struct platform_device *dsidev)
 
 	if (dsi->mode == OMAP_DSS_DSI_VIDEO_MODE) {
 		int bpp = dsi_get_pixel_size(dsi->pix_fmt);
-		struct omap_video_timings *timings = &dsi->timings;
+		struct videomode *vm = &dsi->vm;
 		/*
 		 * Don't use line buffers if width is greater than the video
 		 * port's line buffer size
 		 */
-		if (dsi->line_buffer_size <= timings->x_res * bpp / 8)
+		if (dsi->line_buffer_size <= vm->hactive * bpp / 8)
 			num_line_buffers = 0;
 		else
 			num_line_buffers = 2;
@@ -3453,7 +3561,7 @@ static void dsi_config_cmd_mode_interleaving(struct platform_device *dsidev)
 	int ddr_clk_pre, ddr_clk_post, enter_hs_mode_lat, exit_hs_mode_lat;
 	int tclk_trail, ths_exit, exiths_clk;
 	bool ddr_alwon;
-	struct omap_video_timings *timings = &dsi->timings;
+	struct videomode *vm = &dsi->vm;
 	int bpp = dsi_get_pixel_size(dsi->pix_fmt);
 	int ndl = dsi->num_lanes_used - 1;
 	int dsi_fclk_hsdiv = dsi->user_dsi_cinfo.mX[HSDIV_DSI] + 1;
@@ -3494,7 +3602,7 @@ static void dsi_config_cmd_mode_interleaving(struct platform_device *dsidev)
 
 	exiths_clk = ths_exit + tclk_trail;
 
-	width_bytes = DIV_ROUND_UP(timings->x_res * bpp, 8);
+	width_bytes = DIV_ROUND_UP(vm->hactive * bpp, 8);
 	bllp = hbp + hfp + hsa + DIV_ROUND_UP(width_bytes + 6, ndl);
 
 	if (!hsa_blanking_mode) {
@@ -3607,7 +3715,7 @@ static int dsi_proto_config(struct platform_device *dsidev)
 	r = FLD_MOD(r, 0, 8, 8);	/* VP_CLK_POL */
 	r = FLD_MOD(r, 1, 14, 14);	/* TRIGGER_RESET_MODE */
 	r = FLD_MOD(r, 1, 19, 19);	/* EOT_ENABLE */
-	if (!dss_has_feature(FEAT_DSI_DCS_CMD_CONFIG_VC)) {
+	if (!(dsi->data->quirks & DSI_QUIRK_DCS_CMD_CONFIG_VC)) {
 		r = FLD_MOD(r, 1, 24, 24);	/* DCS_CMD_ENABLE */
 		/* DCS_CMD_CODE, 1=start, 0=continue */
 		r = FLD_MOD(r, 0, 25, 25);
@@ -3705,7 +3813,7 @@ static void dsi_proto_timings(struct platform_device *dsidev)
 		int vbp = dsi->vm_timings.vbp;
 		int window_sync = dsi->vm_timings.window_sync;
 		bool hsync_end;
-		struct omap_video_timings *timings = &dsi->timings;
+		struct videomode *vm = &dsi->vm;
 		int bpp = dsi_get_pixel_size(dsi->pix_fmt);
 		int tl, t_he, width_bytes;
 
@@ -3713,7 +3821,7 @@ static void dsi_proto_timings(struct platform_device *dsidev)
 		t_he = hsync_end ?
 			((hsa == 0 && ndl == 3) ? 1 : DIV_ROUND_UP(4, ndl)) : 0;
 
-		width_bytes = DIV_ROUND_UP(timings->x_res * bpp, 8);
+		width_bytes = DIV_ROUND_UP(vm->hactive * bpp, 8);
 
 		/* TL = t_HS + HSA + t_HE + HFP + ceil((WC + 6) / NDL) + HBP */
 		tl = DIV_ROUND_UP(4, ndl) + (hsync_end ? hsa : 0) + t_he + hfp +
@@ -3722,7 +3830,7 @@ static void dsi_proto_timings(struct platform_device *dsidev)
 		DSSDBG("HBP: %d, HFP: %d, HSA: %d, TL: %d TXBYTECLKHS\n", hbp,
 			hfp, hsync_end ? hsa : 0, tl);
 		DSSDBG("VBP: %d, VFP: %d, VSA: %d, VACT: %d lines\n", vbp, vfp,
-			vsa, timings->y_res);
+			vsa, vm->vactive);
 
 		r = dsi_read_reg(dsidev, DSI_VM_TIMING1);
 		r = FLD_MOD(r, hbp, 11, 0);	/* HBP */
@@ -3738,7 +3846,7 @@ static void dsi_proto_timings(struct platform_device *dsidev)
 		dsi_write_reg(dsidev, DSI_VM_TIMING2, r);
 
 		r = dsi_read_reg(dsidev, DSI_VM_TIMING3);
-		r = FLD_MOD(r, timings->y_res, 14, 0);	/* VACT */
+		r = FLD_MOD(r, vm->vactive, 14, 0);	/* VACT */
 		r = FLD_MOD(r, tl, 31, 16);		/* TL */
 		dsi_write_reg(dsidev, DSI_VM_TIMING3, r);
 	}
@@ -3856,7 +3964,7 @@ static int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 		/* MODE, 1 = video mode */
 		REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), 1, 4, 4);
 
-		word_count = DIV_ROUND_UP(dsi->timings.x_res * bpp, 8);
+		word_count = DIV_ROUND_UP(dsi->vm.hactive * bpp, 8);
 
 		dsi_vc_write_long_header(dsidev, channel, data_type,
 				word_count, 0);
@@ -3918,8 +4026,8 @@ static void dsi_update_screen_dispc(struct platform_device *dsidev)
 	int r;
 	const unsigned channel = dsi->update_channel;
 	const unsigned line_buf_size = dsi->line_buffer_size;
-	u16 w = dsi->timings.x_res;
-	u16 h = dsi->timings.y_res;
+	u16 w = dsi->vm.hactive;
+	u16 h = dsi->vm.vactive;
 
 	DSSDBG("dsi_update_screen_dispc(%dx%d)\n", w, h);
 
@@ -3969,7 +4077,7 @@ static void dsi_update_screen_dispc(struct platform_device *dsidev)
 		msecs_to_jiffies(250));
 	BUG_ON(r == 0);
 
-	dss_mgr_set_timings(dispc_channel, &dsi->timings);
+	dss_mgr_set_timings(dispc_channel, &dsi->vm);
 
 	dss_mgr_start_update(dispc_channel);
 
@@ -4056,8 +4164,8 @@ static int dsi_update(struct omap_dss_device *dssdev, int channel,
 	dsi->framedone_callback = callback;
 	dsi->framedone_data = data;
 
-	dw = dsi->timings.x_res;
-	dh = dsi->timings.y_res;
+	dw = dsi->vm.hactive;
+	dh = dsi->vm.vactive;
 
 #ifdef DSI_PERF_MEASURE
 	dsi->update_bytes = dw * dh *
@@ -4120,16 +4228,21 @@ static int dsi_display_init_dispc(struct platform_device *dsidev,
 
 	/*
 	 * override interlace, logic level and edge related parameters in
-	 * omap_video_timings with default values
+	 * videomode with default values
 	 */
-	dsi->timings.interlace = false;
-	dsi->timings.hsync_level = OMAPDSS_SIG_ACTIVE_HIGH;
-	dsi->timings.vsync_level = OMAPDSS_SIG_ACTIVE_HIGH;
-	dsi->timings.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
-	dsi->timings.de_level = OMAPDSS_SIG_ACTIVE_HIGH;
-	dsi->timings.sync_pclk_edge = OMAPDSS_DRIVE_SIG_FALLING_EDGE;
+	dsi->vm.flags &= ~DISPLAY_FLAGS_INTERLACED;
+	dsi->vm.flags &= ~DISPLAY_FLAGS_HSYNC_LOW;
+	dsi->vm.flags |= DISPLAY_FLAGS_HSYNC_HIGH;
+	dsi->vm.flags &= ~DISPLAY_FLAGS_VSYNC_LOW;
+	dsi->vm.flags |= DISPLAY_FLAGS_VSYNC_HIGH;
+	dsi->vm.flags &= ~DISPLAY_FLAGS_PIXDATA_NEGEDGE;
+	dsi->vm.flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
+	dsi->vm.flags &= ~DISPLAY_FLAGS_DE_LOW;
+	dsi->vm.flags |= DISPLAY_FLAGS_DE_HIGH;
+	dsi->vm.flags &= ~DISPLAY_FLAGS_SYNC_POSEDGE;
+	dsi->vm.flags |= DISPLAY_FLAGS_SYNC_NEGEDGE;
 
-	dss_mgr_set_timings(channel, &dsi->timings);
+	dss_mgr_set_timings(channel, &dsi->vm);
 
 	r = dsi_configure_dispc_clocks(dsidev);
 	if (r)
@@ -4356,13 +4469,13 @@ static void print_dsi_vm(const char *str,
 #undef TO_DSI_T
 }
 
-static void print_dispc_vm(const char *str, const struct omap_video_timings *t)
+static void print_dispc_vm(const char *str, const struct videomode *vm)
 {
-	unsigned long pck = t->pixelclock;
+	unsigned long pck = vm->pixelclock;
 	int hact, bl, tot;
 
-	hact = t->x_res;
-	bl = t->hsw + t->hbp + t->hfp;
+	hact = vm->hactive;
+	bl = vm->hsync_len + vm->hback_porch + vm->hfront_porch;
 	tot = hact + bl;
 
 #define TO_DISPC_T(x) ((u32)div64_u64((u64)x * 1000000000llu, pck))
@@ -4371,12 +4484,12 @@ static void print_dispc_vm(const char *str, const struct omap_video_timings *t)
 			"%u/%u/%u/%u = %u + %u = %u\n",
 			str,
 			pck,
-			t->hsw, t->hbp, hact, t->hfp,
+			vm->hsync_len, vm->hback_porch, hact, vm->hfront_porch,
 			bl, hact, tot,
-			TO_DISPC_T(t->hsw),
-			TO_DISPC_T(t->hbp),
+			TO_DISPC_T(vm->hsync_len),
+			TO_DISPC_T(vm->hback_porch),
 			TO_DISPC_T(hact),
-			TO_DISPC_T(t->hfp),
+			TO_DISPC_T(vm->hfront_porch),
 			TO_DISPC_T(bl),
 			TO_DISPC_T(hact),
 			TO_DISPC_T(tot));
@@ -4387,7 +4500,7 @@ static void print_dispc_vm(const char *str, const struct omap_video_timings *t)
 static void print_dsi_dispc_vm(const char *str,
 		const struct omap_dss_dsi_videomode_timings *t)
 {
-	struct omap_video_timings vm = { 0 };
+	struct videomode vm = { 0 };
 	unsigned long byteclk = t->hsclk / 4;
 	unsigned long pck;
 	u64 dsi_tput;
@@ -4399,10 +4512,10 @@ static void print_dsi_dispc_vm(const char *str,
 	dsi_htot = t->hss + t->hsa + t->hse + t->hbp + dsi_hact + t->hfp;
 
 	vm.pixelclock = pck;
-	vm.hsw = div64_u64((u64)(t->hsa + t->hse) * pck, byteclk);
-	vm.hbp = div64_u64((u64)t->hbp * pck, byteclk);
-	vm.hfp = div64_u64((u64)t->hfp * pck, byteclk);
-	vm.x_res = t->hact;
+	vm.hsync_len = div64_u64((u64)(t->hsa + t->hse) * pck, byteclk);
+	vm.hback_porch = div64_u64((u64)t->hbp * pck, byteclk);
+	vm.hfront_porch = div64_u64((u64)t->hfp * pck, byteclk);
+	vm.hactive = t->hact;
 
 	print_dispc_vm(str, &vm);
 }
@@ -4412,19 +4525,19 @@ static bool dsi_cm_calc_dispc_cb(int lckd, int pckd, unsigned long lck,
 		unsigned long pck, void *data)
 {
 	struct dsi_clk_calc_ctx *ctx = data;
-	struct omap_video_timings *t = &ctx->dispc_vm;
+	struct videomode *vm = &ctx->vm;
 
 	ctx->dispc_cinfo.lck_div = lckd;
 	ctx->dispc_cinfo.pck_div = pckd;
 	ctx->dispc_cinfo.lck = lck;
 	ctx->dispc_cinfo.pck = pck;
 
-	*t = *ctx->config->timings;
-	t->pixelclock = pck;
-	t->x_res = ctx->config->timings->x_res;
-	t->y_res = ctx->config->timings->y_res;
-	t->hsw = t->hfp = t->hbp = t->vsw = 1;
-	t->vfp = t->vbp = 0;
+	*vm = *ctx->config->vm;
+	vm->pixelclock = pck;
+	vm->hactive = ctx->config->vm->hactive;
+	vm->vactive = ctx->config->vm->vactive;
+	vm->hsync_len = vm->hfront_porch = vm->hback_porch = vm->vsync_len = 1;
+	vm->vfront_porch = vm->vback_porch = 0;
 
 	return true;
 }
@@ -4445,6 +4558,7 @@ static bool dsi_cm_calc_pll_cb(int n, int m, unsigned long fint,
 		unsigned long clkdco, void *data)
 {
 	struct dsi_clk_calc_ctx *ctx = data;
+	struct dsi_data *dsi = dsi_get_dsidrv_data(ctx->dsidev);
 
 	ctx->dsi_cinfo.n = n;
 	ctx->dsi_cinfo.m = m;
@@ -4452,7 +4566,7 @@ static bool dsi_cm_calc_pll_cb(int n, int m, unsigned long fint,
 	ctx->dsi_cinfo.clkdco = clkdco;
 
 	return dss_pll_hsdiv_calc_a(ctx->pll, clkdco, ctx->req_pck_min,
-			dss_feat_get_param_max(FEAT_PARAM_DSS_FCK),
+			dsi->data->max_fck_freq,
 			dsi_cm_calc_hsdiv_cb, ctx);
 }
 
@@ -4475,7 +4589,7 @@ static bool dsi_cm_calc(struct dsi_data *dsi,
 	 * especially as we go to LP between each pixel packet due to HW
 	 * "feature". So let's just estimate very roughly and multiply by 1.5.
 	 */
-	pck = cfg->timings->pixelclock;
+	pck = cfg->vm->pixelclock;
 	pck = pck * 3 / 2;
 	txbyteclk = pck * bitspp / 8 / ndl;
 
@@ -4510,14 +4624,14 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	int dispc_htot, dispc_hbl; /* pixels */
 	int dsi_htot, dsi_hact, dsi_hbl, hss, hse; /* byteclks */
 	int hfp, hsa, hbp;
-	const struct omap_video_timings *req_vm;
-	struct omap_video_timings *dispc_vm;
+	const struct videomode *req_vm;
+	struct videomode *dispc_vm;
 	struct omap_dss_dsi_videomode_timings *dsi_vm;
 	u64 dsi_tput, dispc_tput;
 
 	dsi_tput = (u64)byteclk * ndl * 8;
 
-	req_vm = cfg->timings;
+	req_vm = cfg->vm;
 	req_pck_min = ctx->req_pck_min;
 	req_pck_max = ctx->req_pck_max;
 	req_pck_nom = ctx->req_pck_nom;
@@ -4525,9 +4639,10 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	dispc_pck = ctx->dispc_cinfo.pck;
 	dispc_tput = (u64)dispc_pck * bitspp;
 
-	xres = req_vm->x_res;
+	xres = req_vm->hactive;
 
-	panel_hbl = req_vm->hfp + req_vm->hbp + req_vm->hsw;
+	panel_hbl = req_vm->hfront_porch + req_vm->hback_porch +
+		    req_vm->hsync_len;
 	panel_htot = xres + panel_hbl;
 
 	dsi_hact = DIV_ROUND_UP(DIV_ROUND_UP(xres * bitspp, 8) + 6, ndl);
@@ -4557,7 +4672,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	hss = DIV_ROUND_UP(4, ndl);
 
 	if (cfg->trans_mode == OMAP_DSS_DSI_PULSE_MODE) {
-		if (ndl == 3 && req_vm->hsw == 0)
+		if (ndl == 3 && req_vm->hsync_len == 0)
 			hse = 1;
 		else
 			hse = DIV_ROUND_UP(4, ndl);
@@ -4596,14 +4711,14 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 
 	if (cfg->trans_mode != OMAP_DSS_DSI_PULSE_MODE) {
 		hsa = 0;
-	} else if (ndl == 3 && req_vm->hsw == 0) {
+	} else if (ndl == 3 && req_vm->hsync_len == 0) {
 		hsa = 0;
 	} else {
-		hsa = div64_u64((u64)req_vm->hsw * byteclk, req_pck_nom);
+		hsa = div64_u64((u64)req_vm->hsync_len * byteclk, req_pck_nom);
 		hsa = max(hsa - hse, 1);
 	}
 
-	hbp = div64_u64((u64)req_vm->hbp * byteclk, req_pck_nom);
+	hbp = div64_u64((u64)req_vm->hback_porch * byteclk, req_pck_nom);
 	hbp = max(hbp, 1);
 
 	hfp = dsi_hbl - (hss + hsa + hse + hbp);
@@ -4633,10 +4748,10 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	dsi_vm->hact = xres;
 	dsi_vm->hfp = hfp;
 
-	dsi_vm->vsa = req_vm->vsw;
-	dsi_vm->vbp = req_vm->vbp;
-	dsi_vm->vact = req_vm->y_res;
-	dsi_vm->vfp = req_vm->vfp;
+	dsi_vm->vsa = req_vm->vsync_len;
+	dsi_vm->vbp = req_vm->vback_porch;
+	dsi_vm->vact = req_vm->vactive;
+	dsi_vm->vfp = req_vm->vfront_porch;
 
 	dsi_vm->trans_mode = cfg->trans_mode;
 
@@ -4650,19 +4765,19 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 
 	/* setup DISPC videomode */
 
-	dispc_vm = &ctx->dispc_vm;
+	dispc_vm = &ctx->vm;
 	*dispc_vm = *req_vm;
 	dispc_vm->pixelclock = dispc_pck;
 
 	if (cfg->trans_mode == OMAP_DSS_DSI_PULSE_MODE) {
-		hsa = div64_u64((u64)req_vm->hsw * dispc_pck,
+		hsa = div64_u64((u64)req_vm->hsync_len * dispc_pck,
 				req_pck_nom);
 		hsa = max(hsa, 1);
 	} else {
 		hsa = 1;
 	}
 
-	hbp = div64_u64((u64)req_vm->hbp * dispc_pck, req_pck_nom);
+	hbp = div64_u64((u64)req_vm->hback_porch * dispc_pck, req_pck_nom);
 	hbp = max(hbp, 1);
 
 	hfp = dispc_hbl - hsa - hbp;
@@ -4685,9 +4800,9 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 	if (hfp < 1)
 		return false;
 
-	dispc_vm->hfp = hfp;
-	dispc_vm->hsw = hsa;
-	dispc_vm->hbp = hbp;
+	dispc_vm->hfront_porch = hfp;
+	dispc_vm->hsync_len = hsa;
+	dispc_vm->hback_porch = hbp;
 
 	return true;
 }
@@ -4707,9 +4822,9 @@ static bool dsi_vm_calc_dispc_cb(int lckd, int pckd, unsigned long lck,
 		return false;
 
 #ifdef PRINT_VERBOSE_VM_TIMINGS
-	print_dispc_vm("dispc", &ctx->dispc_vm);
+	print_dispc_vm("dispc", &ctx->vm);
 	print_dsi_vm("dsi  ", &ctx->dsi_vm);
-	print_dispc_vm("req  ", ctx->config->timings);
+	print_dispc_vm("req  ", ctx->config->vm);
 	print_dsi_dispc_vm("act  ", &ctx->dsi_vm);
 #endif
 
@@ -4743,6 +4858,7 @@ static bool dsi_vm_calc_pll_cb(int n, int m, unsigned long fint,
 		unsigned long clkdco, void *data)
 {
 	struct dsi_clk_calc_ctx *ctx = data;
+	struct dsi_data *dsi = dsi_get_dsidrv_data(ctx->dsidev);
 
 	ctx->dsi_cinfo.n = n;
 	ctx->dsi_cinfo.m = m;
@@ -4750,7 +4866,7 @@ static bool dsi_vm_calc_pll_cb(int n, int m, unsigned long fint,
 	ctx->dsi_cinfo.clkdco = clkdco;
 
 	return dss_pll_hsdiv_calc_a(ctx->pll, clkdco, ctx->req_pck_min,
-			dss_feat_get_param_max(FEAT_PARAM_DSS_FCK),
+			dsi->data->max_fck_freq,
 			dsi_vm_calc_hsdiv_cb, ctx);
 }
 
@@ -4758,7 +4874,7 @@ static bool dsi_vm_calc(struct dsi_data *dsi,
 		const struct omap_dss_dsi_config *cfg,
 		struct dsi_clk_calc_ctx *ctx)
 {
-	const struct omap_video_timings *t = cfg->timings;
+	const struct videomode *vm = cfg->vm;
 	unsigned long clkin;
 	unsigned long pll_min;
 	unsigned long pll_max;
@@ -4774,9 +4890,9 @@ static bool dsi_vm_calc(struct dsi_data *dsi,
 	ctx->config = cfg;
 
 	/* these limits should come from the panel driver */
-	ctx->req_pck_min = t->pixelclock - 1000;
-	ctx->req_pck_nom = t->pixelclock;
-	ctx->req_pck_max = t->pixelclock + 1000;
+	ctx->req_pck_min = vm->pixelclock - 1000;
+	ctx->req_pck_nom = vm->pixelclock;
+	ctx->req_pck_max = vm->pixelclock + 1000;
 
 	byteclk_min = div64_u64((u64)ctx->req_pck_min * bitspp, ndl * 8);
 	pll_min = max(cfg->hs_clk_min * 4, byteclk_min * 4 * 4);
@@ -4821,7 +4937,7 @@ static int dsi_set_config(struct omap_dss_device *dssdev,
 		goto err;
 	}
 
-	dsi_pll_calc_dsi_fck(&ctx.dsi_cinfo);
+	dsi_pll_calc_dsi_fck(dsi, &ctx.dsi_cinfo);
 
 	r = dsi_lp_clock_calc(ctx.dsi_cinfo.clkout[HSDIV_DSI],
 		config->lp_clk_min, config->lp_clk_max, &dsi->user_lp_cinfo);
@@ -4833,7 +4949,7 @@ static int dsi_set_config(struct omap_dss_device *dssdev,
 	dsi->user_dsi_cinfo = ctx.dsi_cinfo;
 	dsi->user_dispc_cinfo = ctx.dispc_cinfo;
 
-	dsi->timings = ctx.dispc_vm;
+	dsi->vm = ctx.vm;
 	dsi->vm_timings = ctx.dsi_vm;
 
 	mutex_unlock(&dsi->lock);
@@ -4851,24 +4967,14 @@ err:
  * the channel in some more dynamic manner, or get the channel as a user
  * parameter.
  */
-static enum omap_channel dsi_get_channel(int module_id)
+static enum omap_channel dsi_get_channel(struct dsi_data *dsi)
 {
-	switch (omapdss_get_version()) {
-	case OMAPDSS_VER_OMAP24xx:
-	case OMAPDSS_VER_AM43xx:
-		DSSWARN("DSI not supported\n");
+	switch (dsi->data->model) {
+	case DSI_MODEL_OMAP3:
 		return OMAP_DSS_CHANNEL_LCD;
 
-	case OMAPDSS_VER_OMAP34xx_ES1:
-	case OMAPDSS_VER_OMAP34xx_ES3:
-	case OMAPDSS_VER_OMAP3630:
-	case OMAPDSS_VER_AM35xx:
-		return OMAP_DSS_CHANNEL_LCD;
-
-	case OMAPDSS_VER_OMAP4430_ES1:
-	case OMAPDSS_VER_OMAP4430_ES2:
-	case OMAPDSS_VER_OMAP4:
-		switch (module_id) {
+	case DSI_MODEL_OMAP4:
+		switch (dsi->module_id) {
 		case 0:
 			return OMAP_DSS_CHANNEL_LCD;
 		case 1:
@@ -4878,8 +4984,8 @@ static enum omap_channel dsi_get_channel(int module_id)
 			return OMAP_DSS_CHANNEL_LCD;
 		}
 
-	case OMAPDSS_VER_OMAP5:
-		switch (module_id) {
+	case DSI_MODEL_OMAP5:
+		switch (dsi->module_id) {
 		case 0:
 			return OMAP_DSS_CHANNEL_LCD;
 		case 1:
@@ -5059,7 +5165,7 @@ static void dsi_init_output(struct platform_device *dsidev)
 
 	out->output_type = OMAP_DISPLAY_TYPE_DSI;
 	out->name = dsi->module_id == 0 ? "dsi.0" : "dsi.1";
-	out->dispc_channel = dsi_get_channel(dsi->module_id);
+	out->dispc_channel = dsi_get_channel(dsi);
 	out->ops.dsi = &dsi_ops;
 	out->owner = THIS_MODULE;
 
@@ -5085,7 +5191,7 @@ static int dsi_probe_of(struct platform_device *pdev)
 	struct device_node *ep;
 	struct omap_dsi_pin_config pin_cfg;
 
-	ep = omapdss_of_get_first_endpoint(node);
+	ep = of_graph_get_endpoint_by_regs(node, 0, 0);
 	if (!ep)
 		return 0;
 
@@ -5234,29 +5340,7 @@ static int dsi_init_pll_data(struct platform_device *dsidev)
 	pll->id = dsi->module_id == 0 ? DSS_PLL_DSI1 : DSS_PLL_DSI2;
 	pll->clkin = clk;
 	pll->base = dsi->pll_base;
-
-	switch (omapdss_get_version()) {
-	case OMAPDSS_VER_OMAP34xx_ES1:
-	case OMAPDSS_VER_OMAP34xx_ES3:
-	case OMAPDSS_VER_OMAP3630:
-	case OMAPDSS_VER_AM35xx:
-		pll->hw = &dss_omap3_dsi_pll_hw;
-		break;
-
-	case OMAPDSS_VER_OMAP4430_ES1:
-	case OMAPDSS_VER_OMAP4430_ES2:
-	case OMAPDSS_VER_OMAP4:
-		pll->hw = &dss_omap4_dsi_pll_hw;
-		break;
-
-	case OMAPDSS_VER_OMAP5:
-		pll->hw = &dss_omap5_dsi_pll_hw;
-		break;
-
-	default:
-		return -ENODEV;
-	}
-
+	pll->hw = dsi->data->pll_hw;
 	pll->ops = &dsi_pll_ops;
 
 	r = dss_pll_register(pll);
@@ -5267,15 +5351,80 @@ static int dsi_init_pll_data(struct platform_device *dsidev)
 }
 
 /* DSI1 HW IP initialisation */
+static const struct dsi_of_data dsi_of_data_omap34xx = {
+	.model = DSI_MODEL_OMAP3,
+	.pll_hw = &dss_omap3_dsi_pll_hw,
+	.modules = (const struct dsi_module_id_data[]) {
+		{ .address = 0x4804fc00, .id = 0, },
+		{ },
+	},
+	.max_fck_freq = 173000000,
+	.max_pll_lpdiv = (1 << 13) - 1,
+	.quirks = DSI_QUIRK_REVERSE_TXCLKESC,
+};
+
+static const struct dsi_of_data dsi_of_data_omap36xx = {
+	.model = DSI_MODEL_OMAP3,
+	.pll_hw = &dss_omap3_dsi_pll_hw,
+	.modules = (const struct dsi_module_id_data[]) {
+		{ .address = 0x4804fc00, .id = 0, },
+		{ },
+	},
+	.max_fck_freq = 173000000,
+	.max_pll_lpdiv = (1 << 13) - 1,
+	.quirks = DSI_QUIRK_PLL_PWR_BUG,
+};
+
+static const struct dsi_of_data dsi_of_data_omap4 = {
+	.model = DSI_MODEL_OMAP4,
+	.pll_hw = &dss_omap4_dsi_pll_hw,
+	.modules = (const struct dsi_module_id_data[]) {
+		{ .address = 0x58004000, .id = 0, },
+		{ .address = 0x58005000, .id = 1, },
+		{ },
+	},
+	.max_fck_freq = 170000000,
+	.max_pll_lpdiv = (1 << 13) - 1,
+	.quirks = DSI_QUIRK_DCS_CMD_CONFIG_VC | DSI_QUIRK_VC_OCP_WIDTH
+		| DSI_QUIRK_GNQ,
+};
+
+static const struct dsi_of_data dsi_of_data_omap5 = {
+	.model = DSI_MODEL_OMAP5,
+	.pll_hw = &dss_omap5_dsi_pll_hw,
+	.modules = (const struct dsi_module_id_data[]) {
+		{ .address = 0x58004000, .id = 0, },
+		{ .address = 0x58009000, .id = 1, },
+		{ },
+	},
+	.max_fck_freq = 209250000,
+	.max_pll_lpdiv = (1 << 13) - 1,
+	.quirks = DSI_QUIRK_DCS_CMD_CONFIG_VC | DSI_QUIRK_VC_OCP_WIDTH
+		| DSI_QUIRK_GNQ | DSI_QUIRK_PHY_DCC,
+};
+
+static const struct of_device_id dsi_of_match[] = {
+	{ .compatible = "ti,omap3-dsi", .data = &dsi_of_data_omap36xx, },
+	{ .compatible = "ti,omap4-dsi", .data = &dsi_of_data_omap4, },
+	{ .compatible = "ti,omap5-dsi", .data = &dsi_of_data_omap5, },
+	{},
+};
+
+static const struct soc_device_attribute dsi_soc_devices[] = {
+	{ .machine = "OMAP3[45]*",	.data = &dsi_of_data_omap34xx },
+	{ .machine = "AM35*",		.data = &dsi_of_data_omap34xx },
+	{ /* sentinel */ }
+};
 static int dsi_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *dsidev = to_platform_device(dev);
+	const struct soc_device_attribute *soc;
+	const struct dsi_module_id_data *d;
 	u32 rev;
 	int r, i;
 	struct dsi_data *dsi;
 	struct resource *dsi_mem;
 	struct resource *res;
-	struct resource temp_res;
 
 	dsi = devm_kzalloc(&dsidev->dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
@@ -5305,67 +5454,20 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	dsi->te_timer.data = 0;
 #endif
 
-	res = platform_get_resource_byname(dsidev, IORESOURCE_MEM, "proto");
-	if (!res) {
-		res = platform_get_resource(dsidev, IORESOURCE_MEM, 0);
-		if (!res) {
-			DSSERR("can't get IORESOURCE_MEM DSI\n");
-			return -EINVAL;
-		}
-
-		temp_res.start = res->start;
-		temp_res.end = temp_res.start + DSI_PROTO_SZ - 1;
-		res = &temp_res;
-	}
-
-	dsi_mem = res;
-
-	dsi->proto_base = devm_ioremap(&dsidev->dev, res->start,
-		resource_size(res));
-	if (!dsi->proto_base) {
-		DSSERR("can't ioremap DSI protocol engine\n");
-		return -ENOMEM;
-	}
+	dsi_mem = platform_get_resource_byname(dsidev, IORESOURCE_MEM, "proto");
+	dsi->proto_base = devm_ioremap_resource(&dsidev->dev, dsi_mem);
+	if (IS_ERR(dsi->proto_base))
+		return PTR_ERR(dsi->proto_base);
 
 	res = platform_get_resource_byname(dsidev, IORESOURCE_MEM, "phy");
-	if (!res) {
-		res = platform_get_resource(dsidev, IORESOURCE_MEM, 0);
-		if (!res) {
-			DSSERR("can't get IORESOURCE_MEM DSI\n");
-			return -EINVAL;
-		}
-
-		temp_res.start = res->start + DSI_PHY_OFFSET;
-		temp_res.end = temp_res.start + DSI_PHY_SZ - 1;
-		res = &temp_res;
-	}
-
-	dsi->phy_base = devm_ioremap(&dsidev->dev, res->start,
-		resource_size(res));
-	if (!dsi->proto_base) {
-		DSSERR("can't ioremap DSI PHY\n");
-		return -ENOMEM;
-	}
+	dsi->phy_base = devm_ioremap_resource(&dsidev->dev, res);
+	if (IS_ERR(dsi->phy_base))
+		return PTR_ERR(dsi->phy_base);
 
 	res = platform_get_resource_byname(dsidev, IORESOURCE_MEM, "pll");
-	if (!res) {
-		res = platform_get_resource(dsidev, IORESOURCE_MEM, 0);
-		if (!res) {
-			DSSERR("can't get IORESOURCE_MEM DSI\n");
-			return -EINVAL;
-		}
-
-		temp_res.start = res->start + DSI_PLL_OFFSET;
-		temp_res.end = temp_res.start + DSI_PLL_SZ - 1;
-		res = &temp_res;
-	}
-
-	dsi->pll_base = devm_ioremap(&dsidev->dev, res->start,
-		resource_size(res));
-	if (!dsi->proto_base) {
-		DSSERR("can't ioremap DSI PLL\n");
-		return -ENOMEM;
-	}
+	dsi->pll_base = devm_ioremap_resource(&dsidev->dev, res);
+	if (IS_ERR(dsi->pll_base))
+		return PTR_ERR(dsi->pll_base);
 
 	dsi->irq = platform_get_irq(dsi->pdev, 0);
 	if (dsi->irq < 0) {
@@ -5380,29 +5482,39 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 		return r;
 	}
 
-	if (dsidev->dev.of_node) {
-		const struct of_device_id *match;
-		const struct dsi_module_id_data *d;
+	soc = soc_device_match(dsi_soc_devices);
+	if (soc)
+		dsi->data = soc->data;
+	else
+		dsi->data = of_match_node(dsi_of_match, dev->of_node)->data;
 
-		match = of_match_node(dsi_of_match, dsidev->dev.of_node);
-		if (!match) {
-			DSSERR("unsupported DSI module\n");
+	d = dsi->data->modules;
+	while (d->address != 0 && d->address != dsi_mem->start)
+		d++;
+
+	if (d->address == 0) {
+		DSSERR("unsupported DSI module\n");
+		return -ENODEV;
+	}
+
+	dsi->module_id = d->id;
+
+	if (dsi->data->model == DSI_MODEL_OMAP4 ||
+	    dsi->data->model == DSI_MODEL_OMAP5) {
+		struct device_node *np;
+
+		/*
+		 * The OMAP4/5 display DT bindings don't reference the padconf
+		 * syscon. Our only option to retrieve it is to find it by name.
+		 */
+		np = of_find_node_by_name(NULL,
+			dsi->data->model == DSI_MODEL_OMAP4 ?
+			"omap4_padconf_global" : "omap5_padconf_global");
+		if (!np)
 			return -ENODEV;
-		}
 
-		d = match->data;
-
-		while (d->address != 0 && d->address != dsi_mem->start)
-			d++;
-
-		if (d->address == 0) {
-			DSSERR("unsupported DSI module\n");
-			return -ENODEV;
-		}
-
-		dsi->module_id = d->id;
-	} else {
-		dsi->module_id = dsidev->id;
+		dsi->syscon = syscon_node_to_regmap(np);
+		of_node_put(np);
 	}
 
 	/* DSI VCs initialization */
@@ -5430,7 +5542,7 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 
 	/* DSI on OMAP3 doesn't have register DSI_GNQ, set number
 	 * of data to 3 by default */
-	if (dss_has_feature(FEAT_DSI_GNQ))
+	if (dsi->data->quirks & DSI_QUIRK_GNQ)
 		/* NB_DATA_LANES */
 		dsi->num_lanes_supported = 1 + REG_GET(dsidev, DSI_GNQ, 11, 9);
 	else
@@ -5440,18 +5552,15 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 
 	dsi_init_output(dsidev);
 
-	if (dsidev->dev.of_node) {
-		r = dsi_probe_of(dsidev);
-		if (r) {
-			DSSERR("Invalid DSI DT data\n");
-			goto err_probe_of;
-		}
-
-		r = of_platform_populate(dsidev->dev.of_node, NULL, NULL,
-			&dsidev->dev);
-		if (r)
-			DSSERR("Failed to populate DSI child devices: %d\n", r);
+	r = dsi_probe_of(dsidev);
+	if (r) {
+		DSSERR("Invalid DSI DT data\n");
+		goto err_probe_of;
 	}
+
+	r = of_platform_populate(dsidev->dev.of_node, NULL, NULL, &dsidev->dev);
+	if (r)
+		DSSERR("Failed to populate DSI child devices: %d\n", r);
 
 	dsi_runtime_put(dsidev);
 
@@ -5551,30 +5660,6 @@ static int dsi_runtime_resume(struct device *dev)
 static const struct dev_pm_ops dsi_pm_ops = {
 	.runtime_suspend = dsi_runtime_suspend,
 	.runtime_resume = dsi_runtime_resume,
-};
-
-static const struct dsi_module_id_data dsi_of_data_omap3[] = {
-	{ .address = 0x4804fc00, .id = 0, },
-	{ },
-};
-
-static const struct dsi_module_id_data dsi_of_data_omap4[] = {
-	{ .address = 0x58004000, .id = 0, },
-	{ .address = 0x58005000, .id = 1, },
-	{ },
-};
-
-static const struct dsi_module_id_data dsi_of_data_omap5[] = {
-	{ .address = 0x58004000, .id = 0, },
-	{ .address = 0x58009000, .id = 1, },
-	{ },
-};
-
-static const struct of_device_id dsi_of_match[] = {
-	{ .compatible = "ti,omap3-dsi", .data = dsi_of_data_omap3, },
-	{ .compatible = "ti,omap4-dsi", .data = dsi_of_data_omap4, },
-	{ .compatible = "ti,omap5-dsi", .data = dsi_of_data_omap5, },
-	{},
 };
 
 static struct platform_driver omap_dsihw_driver = {

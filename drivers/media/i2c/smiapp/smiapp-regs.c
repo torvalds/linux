@@ -268,8 +268,8 @@ int smiapp_write_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val)
 		if (r == 1) {
 			if (retries)
 				dev_err(&client->dev,
-					"sensor i2c stall encountered. "
-					"retries: %d\n", retries);
+					"sensor i2c stall encountered. retries: %d\n",
+					retries);
 			return 0;
 		}
 

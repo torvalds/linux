@@ -32,9 +32,9 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 
 #include <linux/statfs.h>
-#include "../include/obd_cksum.h"
-#include "../include/obd_class.h"
-#include "../include/lprocfs_status.h"
+#include <obd_cksum.h>
+#include <obd_class.h>
+#include <lprocfs_status.h>
 #include <linux/seq_file.h>
 #include "osc_internal.h"
 
@@ -162,7 +162,7 @@ static ssize_t max_dirty_mb_store(struct kobject *kobj,
 	pages_number *= 1 << (20 - PAGE_SHIFT); /* MB -> pages */
 
 	if (pages_number <= 0 ||
-	    pages_number > OSC_MAX_DIRTY_MB_MAX << (20 - PAGE_SHIFT) ||
+	    pages_number >= OSC_MAX_DIRTY_MB_MAX << (20 - PAGE_SHIFT) ||
 	    pages_number > totalram_pages / 4) /* 1/4 of RAM */
 		return -ERANGE;
 
@@ -183,10 +183,12 @@ static int osc_cached_mb_seq_show(struct seq_file *m, void *v)
 
 	seq_printf(m,
 		   "used_mb: %ld\n"
-		   "busy_cnt: %ld\n",
+		   "busy_cnt: %ld\n"
+		   "reclaim: %llu\n",
 		   (atomic_long_read(&cli->cl_lru_in_list) +
 		    atomic_long_read(&cli->cl_lru_busy)) >> shift,
-		   atomic_long_read(&cli->cl_lru_busy));
+		   atomic_long_read(&cli->cl_lru_busy),
+		   cli->cl_lru_reclaim);
 
 	return 0;
 }
@@ -227,7 +229,7 @@ static ssize_t osc_cached_mb_seq_write(struct file *file,
 	rc = atomic_long_read(&cli->cl_lru_in_list) - pages_number;
 	if (rc > 0) {
 		struct lu_env *env;
-		int refcheck;
+		u16 refcheck;
 
 		env = cl_env_get(&refcheck);
 		if (!IS_ERR(env)) {
@@ -585,7 +587,8 @@ static ssize_t max_pages_per_rpc_store(struct kobject *kobj,
 	chunk_mask = ~((1 << (cli->cl_chunkbits - PAGE_SHIFT)) - 1);
 	/* max_pages_per_rpc must be chunk aligned */
 	val = (val + ~chunk_mask) & chunk_mask;
-	if (val == 0 || val > ocd->ocd_brw_size >> PAGE_SHIFT) {
+	if (!val || (ocd->ocd_brw_size &&
+		     val > ocd->ocd_brw_size >> PAGE_SHIFT)) {
 		return -ERANGE;
 	}
 	spin_lock(&cli->cl_loi_list_lock);
@@ -828,7 +831,7 @@ static struct attribute *osc_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group osc_attr_group = {
+static const struct attribute_group osc_attr_group = {
 	.attrs = osc_attrs,
 };
 

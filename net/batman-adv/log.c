@@ -1,4 +1,4 @@
-/* Copyright (C) 2010-2016  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2010-2017  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -31,7 +31,6 @@
 #include <linux/sched.h> /* for linux/wait.h */
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/stat.h>
 #include <linux/stddef.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
@@ -212,8 +211,7 @@ int batadv_debug_log_setup(struct batadv_priv *bat_priv)
 	spin_lock_init(&bat_priv->debug_log->lock);
 	init_waitqueue_head(&bat_priv->debug_log->queue_wait);
 
-	d = debugfs_create_file("log", S_IFREG | S_IRUSR,
-				bat_priv->debug_dir, bat_priv,
+	d = debugfs_create_file("log", 0400, bat_priv->debug_dir, bat_priv,
 				&batadv_log_fops);
 	if (!d)
 		goto err;

@@ -112,7 +112,7 @@ void ath9k_hw_usb_gen_fill_eeprom(struct ath_hw *ah, u16 *eep_data,
 static bool ath9k_hw_nvram_read_array(u16 *blob, size_t blob_size,
 				      off_t offset, u16 *data)
 {
-	if (offset > blob_size)
+	if (offset >= blob_size)
 		return false;
 
 	*data =  blob[offset];
@@ -143,7 +143,7 @@ bool ath9k_hw_nvram_read(struct ath_hw *ah, u32 off, u16 *data)
 
 	if (ah->eeprom_blob)
 		ret = ath9k_hw_nvram_read_firmware(ah->eeprom_blob, off, data);
-	else if (pdata && !pdata->use_eeprom && pdata->eeprom_data)
+	else if (pdata && !pdata->use_eeprom)
 		ret = ath9k_hw_nvram_read_pdata(pdata, off, data);
 	else
 		ret = common->bus_ops->eeprom_read(common, off, data);
@@ -160,6 +160,7 @@ int ath9k_hw_nvram_swap_data(struct ath_hw *ah, bool *swap_needed, int size)
 	u16 magic;
 	u16 *eepdata;
 	int i;
+	bool needs_byteswap = false;
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	if (!ath9k_hw_nvram_read(ah, AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
@@ -167,31 +168,40 @@ int ath9k_hw_nvram_swap_data(struct ath_hw *ah, bool *swap_needed, int size)
 		return -EIO;
 	}
 
-	*swap_needed = false;
 	if (swab16(magic) == AR5416_EEPROM_MAGIC) {
+		needs_byteswap = true;
+		ath_dbg(common, EEPROM,
+			"EEPROM needs byte-swapping to correct endianness.\n");
+	} else if (magic != AR5416_EEPROM_MAGIC) {
+		if (ath9k_hw_use_flash(ah)) {
+			ath_dbg(common, EEPROM,
+				"Ignoring invalid EEPROM magic (0x%04x).\n",
+				magic);
+		} else {
+			ath_err(common,
+				"Invalid EEPROM magic (0x%04x).\n", magic);
+			return -EINVAL;
+		}
+	}
+
+	if (needs_byteswap) {
 		if (ah->ah_flags & AH_NO_EEP_SWAP) {
 			ath_info(common,
 				 "Ignoring endianness difference in EEPROM magic bytes.\n");
 		} else {
-			*swap_needed = true;
-		}
-	} else if (magic != AR5416_EEPROM_MAGIC) {
-		if (ath9k_hw_use_flash(ah))
-			return 0;
+			eepdata = (u16 *)(&ah->eeprom);
 
-		ath_err(common,
-			"Invalid EEPROM Magic (0x%04x).\n", magic);
-		return -EINVAL;
+			for (i = 0; i < size; i++)
+				eepdata[i] = swab16(eepdata[i]);
+		}
 	}
 
-	eepdata = (u16 *)(&ah->eeprom);
-
-	if (*swap_needed) {
+	if (ah->eep_ops->get_eepmisc(ah) & AR5416_EEPMISC_BIG_ENDIAN) {
+		*swap_needed = true;
 		ath_dbg(common, EEPROM,
-			"EEPROM Endianness is not native.. Changing.\n");
-
-		for (i = 0; i < size; i++)
-			eepdata[i] = swab16(eepdata[i]);
+			"Big Endian EEPROM detected according to EEPMISC register.\n");
+	} else {
+		*swap_needed = false;
 	}
 
 	return 0;

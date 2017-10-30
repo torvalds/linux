@@ -13,7 +13,6 @@
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
 #include <asm/cache.h>
-#include <asm/export.h>
 
 #define COPY_COUNT (PAGE_SZ / (2 * L1_CACHE_BYTES) PLD( -1 ))
 
@@ -46,4 +45,3 @@ ENTRY(copy_page)
 	PLD(	beq	2b			)
 		ldmfd	sp!, {r4, pc}			@	3
 ENDPROC(copy_page)
-EXPORT_SYMBOL(copy_page)

@@ -52,7 +52,7 @@ MODULE_LICENSE("GPL");
  * TYPEDEFS
  ********************************/
   /* hardware definition */
-static struct snd_pcm_hardware snd_aw2_playback_hw = {
+static const struct snd_pcm_hardware snd_aw2_playback_hw = {
 	.info = (SNDRV_PCM_INFO_MMAP |
 		 SNDRV_PCM_INFO_INTERLEAVED |
 		 SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_MMAP_VALID),
@@ -69,7 +69,7 @@ static struct snd_pcm_hardware snd_aw2_playback_hw = {
 	.periods_max = 1024,
 };
 
-static struct snd_pcm_hardware snd_aw2_capture_hw = {
+static const struct snd_pcm_hardware snd_aw2_capture_hw = {
 	.info = (SNDRV_PCM_INFO_MMAP |
 		 SNDRV_PCM_INFO_INTERLEAVED |
 		 SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_MMAP_VALID),
@@ -202,7 +202,7 @@ static const struct snd_pcm_ops snd_aw2_capture_ops = {
 	.pointer = snd_aw2_pcm_pointer_capture,
 };
 
-static struct snd_kcontrol_new aw2_control = {
+static const struct snd_kcontrol_new aw2_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "PCM Capture Route",
 	.index = 0,

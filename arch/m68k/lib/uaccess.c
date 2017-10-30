@@ -5,7 +5,7 @@
  */
 
 #include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 unsigned long __generic_copy_from_user(void *to, const void __user *from,
 				       unsigned long n)
@@ -30,19 +30,13 @@ unsigned long __generic_copy_from_user(void *to, const void __user *from,
 		"6:\n"
 		"	.section .fixup,\"ax\"\n"
 		"	.even\n"
-		"10:	move.l	%0,%3\n"
-		"7:	clr.l	(%2)+\n"
-		"	subq.l	#1,%3\n"
-		"	jne	7b\n"
-		"	lsl.l	#2,%0\n"
+		"10:	lsl.l	#2,%0\n"
 		"	btst	#1,%5\n"
 		"	jeq	8f\n"
-		"30:	clr.w	(%2)+\n"
-		"	addq.l	#2,%0\n"
+		"30:	addq.l	#2,%0\n"
 		"8:	btst	#0,%5\n"
 		"	jeq	6b\n"
-		"50:	clr.b	(%2)+\n"
-		"	addq.l	#1,%0\n"
+		"50:	addq.l	#1,%0\n"
 		"	jra	6b\n"
 		"	.previous\n"
 		"\n"

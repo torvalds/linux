@@ -19,6 +19,7 @@
  *
  */
 
+#include <inttypes.h>
 #include <sys/utsname.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -37,9 +38,11 @@
 #include "debug.h"
 #include "intlist.h"
 #include "util.h"
+#include "strlist.h"
 #include "symbol.h"
 #include "probe-finder.h"
 #include "probe-file.h"
+#include "string2.h"
 
 /* Kprobe tracer basic type is up to u64 */
 #define MAX_BASIC_TYPE_BITS	64
@@ -464,7 +467,7 @@ static int convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 		/* Verify it is a data structure  */
 		tag = dwarf_tag(&type);
 		if (tag != DW_TAG_structure_type && tag != DW_TAG_union_type) {
-			pr_warning("%s is not a data structure nor an union.\n",
+			pr_warning("%s is not a data structure nor a union.\n",
 				   varname);
 			return -EINVAL;
 		}
@@ -479,7 +482,7 @@ static int convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 	} else {
 		/* Verify it is a data structure  */
 		if (tag != DW_TAG_structure_type && tag != DW_TAG_union_type) {
-			pr_warning("%s is not a data structure nor an union.\n",
+			pr_warning("%s is not a data structure nor a union.\n",
 				   varname);
 			return -EINVAL;
 		}
@@ -1501,7 +1504,8 @@ int debuginfo__find_available_vars_at(struct debuginfo *dbg,
 }
 
 /* For the kernel module, we need a special code to get a DIE */
-static int debuginfo__get_text_offset(struct debuginfo *dbg, Dwarf_Addr *offs)
+int debuginfo__get_text_offset(struct debuginfo *dbg, Dwarf_Addr *offs,
+				bool adjust_offset)
 {
 	int n, i;
 	Elf32_Word shndx;
@@ -1530,6 +1534,8 @@ static int debuginfo__get_text_offset(struct debuginfo *dbg, Dwarf_Addr *offs)
 			if (!shdr)
 				return -ENOENT;
 			*offs = shdr->sh_addr;
+			if (adjust_offset)
+				*offs -= shdr->sh_offset;
 		}
 	}
 	return 0;
@@ -1543,16 +1549,12 @@ int debuginfo__find_probe_point(struct debuginfo *dbg, unsigned long addr,
 	Dwarf_Addr _addr = 0, baseaddr = 0;
 	const char *fname = NULL, *func = NULL, *basefunc = NULL, *tmp;
 	int baseline = 0, lineno = 0, ret = 0;
-	bool reloc = false;
 
-retry:
+	/* We always need to relocate the address for aranges */
+	if (debuginfo__get_text_offset(dbg, &baseaddr, false) == 0)
+		addr += baseaddr;
 	/* Find cu die */
 	if (!dwarf_addrdie(dbg->dbg, (Dwarf_Addr)addr, &cudie)) {
-		if (!reloc && debuginfo__get_text_offset(dbg, &baseaddr) == 0) {
-			addr += baseaddr;
-			reloc = true;
-			goto retry;
-		}
 		pr_warning("Failed to find debug information for address %lx\n",
 			   addr);
 		ret = -EINVAL;

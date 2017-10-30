@@ -36,14 +36,14 @@
  * Author: Liang Zhen <liang@whamcloud.com>
  */
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../../include/linux/lnet/lib-lnet.h"
+#include <linux/libcfs/libcfs.h>
+#include <linux/lnet/lib-lnet.h>
 #include "timer.h"
 #include "conrpc.h"
 #include "console.h"
 
 void lstcon_rpc_stat_reply(struct lstcon_rpc_trans *, struct srpc_msg *,
-			   struct lstcon_node *, lstcon_trans_stat_t *);
+			   struct lstcon_node *, struct lstcon_trans_stat *);
 
 static void
 lstcon_rpc_done(struct srpc_client_rpc *rpc)
@@ -86,8 +86,9 @@ lstcon_rpc_done(struct srpc_client_rpc *rpc)
 }
 
 static int
-lstcon_rpc_init(struct lstcon_node *nd, int service, unsigned feats,
-		int bulk_npg, int bulk_len, int embedded, struct lstcon_rpc *crpc)
+lstcon_rpc_init(struct lstcon_node *nd, int service, unsigned int feats,
+		int bulk_npg, int bulk_len, int embedded,
+		struct lstcon_rpc *crpc)
 {
 	crpc->crp_rpc = sfw_create_rpc(nd->nd_id, service,
 				       feats, bulk_npg, bulk_len,
@@ -111,7 +112,7 @@ lstcon_rpc_init(struct lstcon_node *nd, int service, unsigned feats,
 }
 
 static int
-lstcon_rpc_prep(struct lstcon_node *nd, int service, unsigned feats,
+lstcon_rpc_prep(struct lstcon_node *nd, int service, unsigned int feats,
 		int bulk_npg, int bulk_len, struct lstcon_rpc **crpcpp)
 {
 	struct lstcon_rpc *crpc = NULL;
@@ -292,8 +293,8 @@ lstcon_rpc_trans_abort(struct lstcon_rpc_trans *trans, int error)
 
 		spin_lock(&rpc->crpc_lock);
 
-		if (!crpc->crp_posted ||	/* not posted */
-		    crpc->crp_stamp) {		/* rpc done or aborted already */
+		if (!crpc->crp_posted || /* not posted */
+		    crpc->crp_stamp) {	 /* rpc done or aborted already */
 			if (!crpc->crp_stamp) {
 				crpc->crp_stamp = cfs_time_current();
 				crpc->crp_status = -EINTR;
@@ -419,7 +420,7 @@ lstcon_rpc_get_reply(struct lstcon_rpc *crpc, struct srpc_msg **msgpp)
 }
 
 void
-lstcon_rpc_trans_stat(struct lstcon_rpc_trans *trans, lstcon_trans_stat_t *stat)
+lstcon_rpc_trans_stat(struct lstcon_rpc_trans *trans, struct lstcon_trans_stat *stat)
 {
 	struct lstcon_rpc *crpc;
 	struct srpc_msg *rep;
@@ -468,7 +469,7 @@ lstcon_rpc_trans_interpreter(struct lstcon_rpc_trans *trans,
 {
 	struct list_head tmp;
 	struct list_head __user *next;
-	lstcon_rpc_ent_t *ent;
+	struct lstcon_rpc_ent *ent;
 	struct srpc_generic_reply *rep;
 	struct lstcon_rpc *crpc;
 	struct srpc_msg *msg;
@@ -486,12 +487,11 @@ lstcon_rpc_trans_interpreter(struct lstcon_rpc_trans *trans,
 				   sizeof(struct list_head)))
 			return -EFAULT;
 
-		if (tmp.next == head_up)
+		next = tmp.next;
+		if (next == head_up)
 			return 0;
 
-		next = tmp.next;
-
-		ent = list_entry(next, lstcon_rpc_ent_t, rpe_link);
+		ent = list_entry(next, struct lstcon_rpc_ent, rpe_link);
 
 		LASSERT(crpc->crp_stamp);
 
@@ -504,7 +504,7 @@ lstcon_rpc_trans_interpreter(struct lstcon_rpc_trans *trans,
 		jiffies_to_timeval(dur, &tv);
 
 		if (copy_to_user(&ent->rpe_peer, &nd->nd_id,
-				 sizeof(lnet_process_id_t)) ||
+				 sizeof(struct lnet_process_id)) ||
 		    copy_to_user(&ent->rpe_stamp, &tv, sizeof(tv)) ||
 		    copy_to_user(&ent->rpe_state, &nd->nd_state,
 				 sizeof(nd->nd_state)) ||
@@ -518,7 +518,7 @@ lstcon_rpc_trans_interpreter(struct lstcon_rpc_trans *trans,
 		/* RPC is done */
 		rep = (struct srpc_generic_reply *)&msg->msg_body.reply;
 
-		if (copy_to_user(&ent->rpe_sid, &rep->sid, sizeof(lst_sid_t)) ||
+		if (copy_to_user(&ent->rpe_sid, &rep->sid, sizeof(rep->sid)) ||
 		    copy_to_user(&ent->rpe_fwk_errno, &rep->status,
 				 sizeof(rep->status)))
 			return -EFAULT;
@@ -589,7 +589,7 @@ lstcon_rpc_trans_destroy(struct lstcon_rpc_trans *trans)
 
 int
 lstcon_sesrpc_prep(struct lstcon_node *nd, int transop,
-		   unsigned feats, struct lstcon_rpc **crpc)
+		   unsigned int feats, struct lstcon_rpc **crpc)
 {
 	struct srpc_mksn_reqst *msrq;
 	struct srpc_rmsn_reqst *rsrq;
@@ -627,7 +627,8 @@ lstcon_sesrpc_prep(struct lstcon_node *nd, int transop,
 }
 
 int
-lstcon_dbgrpc_prep(struct lstcon_node *nd, unsigned feats, struct lstcon_rpc **crpc)
+lstcon_dbgrpc_prep(struct lstcon_node *nd, unsigned int feats,
+		   struct lstcon_rpc **crpc)
 {
 	struct srpc_debug_reqst *drq;
 	int rc;
@@ -645,7 +646,7 @@ lstcon_dbgrpc_prep(struct lstcon_node *nd, unsigned feats, struct lstcon_rpc **c
 }
 
 int
-lstcon_batrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
+lstcon_batrpc_prep(struct lstcon_node *nd, int transop, unsigned int feats,
 		   struct lstcon_tsb_hdr *tsb, struct lstcon_rpc **crpc)
 {
 	struct lstcon_batch *batch;
@@ -678,7 +679,8 @@ lstcon_batrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
 }
 
 int
-lstcon_statrpc_prep(struct lstcon_node *nd, unsigned feats, struct lstcon_rpc **crpc)
+lstcon_statrpc_prep(struct lstcon_node *nd, unsigned int feats,
+		    struct lstcon_rpc **crpc)
 {
 	struct srpc_stat_reqst *srq;
 	int rc;
@@ -695,26 +697,26 @@ lstcon_statrpc_prep(struct lstcon_node *nd, unsigned feats, struct lstcon_rpc **
 	return 0;
 }
 
-static lnet_process_id_packed_t *
-lstcon_next_id(int idx, int nkiov, lnet_kiov_t *kiov)
+static struct lnet_process_id_packed *
+lstcon_next_id(int idx, int nkiov, struct bio_vec *kiov)
 {
-	lnet_process_id_packed_t *pid;
+	struct lnet_process_id_packed *pid;
 	int i;
 
 	i = idx / SFW_ID_PER_PAGE;
 
 	LASSERT(i < nkiov);
 
-	pid = (lnet_process_id_packed_t *)page_address(kiov[i].bv_page);
+	pid = (struct lnet_process_id_packed *)page_address(kiov[i].bv_page);
 
 	return &pid[idx % SFW_ID_PER_PAGE];
 }
 
 static int
 lstcon_dstnodes_prep(struct lstcon_group *grp, int idx,
-		     int dist, int span, int nkiov, lnet_kiov_t *kiov)
+		     int dist, int span, int nkiov, struct bio_vec *kiov)
 {
-	lnet_process_id_packed_t *pid;
+	struct lnet_process_id_packed *pid;
 	struct lstcon_ndlink *ndl;
 	struct lstcon_node *nd;
 	int start;
@@ -765,7 +767,7 @@ lstcon_dstnodes_prep(struct lstcon_group *grp, int idx,
 }
 
 static int
-lstcon_pingrpc_prep(lst_test_ping_param_t *param, struct srpc_test_reqst *req)
+lstcon_pingrpc_prep(struct lst_test_ping_param *param, struct srpc_test_reqst *req)
 {
 	struct test_ping_req *prq = &req->tsr_u.ping;
 
@@ -776,33 +778,34 @@ lstcon_pingrpc_prep(lst_test_ping_param_t *param, struct srpc_test_reqst *req)
 }
 
 static int
-lstcon_bulkrpc_v0_prep(lst_test_bulk_param_t *param, struct srpc_test_reqst *req)
+lstcon_bulkrpc_v0_prep(struct lst_test_bulk_param *param,
+		       struct srpc_test_reqst *req)
 {
 	struct test_bulk_req *brq = &req->tsr_u.bulk_v0;
 
 	brq->blk_opc = param->blk_opc;
-	brq->blk_npg = (param->blk_size + PAGE_SIZE - 1) /
-			PAGE_SIZE;
+	brq->blk_npg = DIV_ROUND_UP(param->blk_size, PAGE_SIZE);
 	brq->blk_flags = param->blk_flags;
 
 	return 0;
 }
 
 static int
-lstcon_bulkrpc_v1_prep(lst_test_bulk_param_t *param, struct srpc_test_reqst *req)
+lstcon_bulkrpc_v1_prep(struct lst_test_bulk_param *param, bool is_client,
+		       struct srpc_test_reqst *req)
 {
 	struct test_bulk_req_v1 *brq = &req->tsr_u.bulk_v1;
 
 	brq->blk_opc = param->blk_opc;
 	brq->blk_flags = param->blk_flags;
 	brq->blk_len = param->blk_size;
-	brq->blk_offset	= 0; /* reserved */
+	brq->blk_offset	= is_client ? param->blk_cli_off : param->blk_srv_off;
 
 	return 0;
 }
 
 int
-lstcon_testrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
+lstcon_testrpc_prep(struct lstcon_node *nd, int transop, unsigned int feats,
 		    struct lstcon_test *test, struct lstcon_rpc **crpc)
 {
 	struct lstcon_group *sgrp = test->tes_src_grp;
@@ -818,7 +821,7 @@ lstcon_testrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
 		npg = sfw_id_pages(test->tes_span);
 		nob = !(feats & LST_FEAT_BULK_LEN) ?
 		      npg * PAGE_SIZE :
-		      sizeof(lnet_process_id_packed_t) * test->tes_span;
+		      sizeof(struct lnet_process_id_packed) * test->tes_span;
 	}
 
 	rc = lstcon_rpc_prep(nd, SRPC_SERVICE_TEST, feats, npg, nob, crpc);
@@ -828,11 +831,9 @@ lstcon_testrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
 	trq = &(*crpc)->crp_rpc->crpc_reqstmsg.msg_body.tes_reqst;
 
 	if (transop == LST_TRANS_TSBSRVADD) {
-		int ndist = (sgrp->grp_nnode + test->tes_dist - 1) /
-			    test->tes_dist;
-		int nspan = (dgrp->grp_nnode + test->tes_span - 1) /
-			    test->tes_span;
-		int nmax = (ndist + nspan - 1) / nspan;
+		int ndist = DIV_ROUND_UP(sgrp->grp_nnode, test->tes_dist);
+		int nspan = DIV_ROUND_UP(dgrp->grp_nnode, test->tes_span);
+		int nmax = DIV_ROUND_UP(ndist, nspan);
 
 		trq->tsr_ndest = 0;
 		trq->tsr_loop = nmax * test->tes_dist * test->tes_concur;
@@ -886,18 +887,19 @@ lstcon_testrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
 	switch (test->tes_type) {
 	case LST_TEST_PING:
 		trq->tsr_service = SRPC_SERVICE_PING;
-		rc = lstcon_pingrpc_prep((lst_test_ping_param_t *)
+		rc = lstcon_pingrpc_prep((struct lst_test_ping_param *)
 					 &test->tes_param[0], trq);
 		break;
 
 	case LST_TEST_BULK:
 		trq->tsr_service = SRPC_SERVICE_BRW;
 		if (!(feats & LST_FEAT_BULK_LEN)) {
-			rc = lstcon_bulkrpc_v0_prep((lst_test_bulk_param_t *)
+			rc = lstcon_bulkrpc_v0_prep((struct lst_test_bulk_param *)
 						    &test->tes_param[0], trq);
 		} else {
-			rc = lstcon_bulkrpc_v1_prep((lst_test_bulk_param_t *)
-						    &test->tes_param[0], trq);
+			rc = lstcon_bulkrpc_v1_prep((struct lst_test_bulk_param *)
+						    &test->tes_param[0],
+						    trq->tsr_is_client, trq);
 		}
 
 		break;
@@ -958,7 +960,7 @@ lstcon_sesnew_stat_reply(struct lstcon_rpc_trans *trans,
 
 void
 lstcon_rpc_stat_reply(struct lstcon_rpc_trans *trans, struct srpc_msg *msg,
-		      struct lstcon_node *nd, lstcon_trans_stat_t *stat)
+		      struct lstcon_node *nd, struct lstcon_trans_stat *stat)
 {
 	struct srpc_rmsn_reply *rmsn_rep;
 	struct srpc_debug_reply *dbg_rep;
@@ -1084,7 +1086,7 @@ lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 	struct lstcon_ndlink *ndl;
 	struct lstcon_node *nd;
 	struct lstcon_rpc *rpc;
-	unsigned feats;
+	unsigned int feats;
 	int rc;
 
 	/* Creating session RPG for list of nodes */
@@ -1314,7 +1316,7 @@ lstcon_rpc_pinger_stop(void)
 	lstcon_rpc_trans_stat(console_session.ses_ping, lstcon_trans_stat());
 	lstcon_rpc_trans_destroy(console_session.ses_ping);
 
-	memset(lstcon_trans_stat(), 0, sizeof(lstcon_trans_stat_t));
+	memset(lstcon_trans_stat(), 0, sizeof(struct lstcon_trans_stat));
 
 	console_session.ses_ping = NULL;
 }

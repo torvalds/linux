@@ -114,7 +114,8 @@ static int rtsx_pre_handle_sdio_old(struct rtsx_chip *chip)
 		if (chip->asic_code) {
 			retval = rtsx_write_register(chip, CARD_PULL_CTL5,
 						     0xFF,
-						     MS_INS_PU | SD_WP_PU | SD_CD_PU | SD_CMD_PU);
+						     MS_INS_PU | SD_WP_PU |
+						     SD_CD_PU | SD_CMD_PU);
 			if (retval) {
 				rtsx_trace(chip);
 				return retval;
@@ -240,10 +241,10 @@ static int rtsx_pre_handle_sdio_new(struct rtsx_chip *chip)
 					return STATUS_FAIL;
 				}
 			} else {
-				retval = rtsx_write_register(chip,
-							     FPGA_PULL_CTL,
-							     FPGA_SD_PULL_CTL_BIT | 0x20,
-							     0);
+				retval = rtsx_write_register
+						(chip, FPGA_PULL_CTL,
+						 FPGA_SD_PULL_CTL_BIT | 0x20,
+						 0);
 				if (retval) {
 					rtsx_trace(chip);
 					return retval;
@@ -615,8 +616,8 @@ int rtsx_reset_chip(struct rtsx_chip *chip)
 		else
 			retval = rtsx_pre_handle_sdio_new(chip);
 
-		dev_dbg(rtsx_dev(chip), "chip->need_reset = 0x%x (rtsx_reset_chip)\n",
-			(unsigned int)(chip->need_reset));
+		dev_dbg(rtsx_dev(chip), "chip->need_reset = 0x%x (%s)\n",
+			(unsigned int)(chip->need_reset), __func__);
 #else  /* HW_AUTO_SWITCH_SD_BUS */
 		retval = rtsx_pre_handle_sdio_old(chip);
 #endif  /* HW_AUTO_SWITCH_SD_BUS */
@@ -713,7 +714,8 @@ nextcard:
 
 	if (chip->ft2_fast_mode) {
 		retval = rtsx_write_register(chip, CARD_PWR_CTL, 0xFF,
-					     MS_PARTIAL_POWER_ON | SD_PARTIAL_POWER_ON);
+					     MS_PARTIAL_POWER_ON |
+					     SD_PARTIAL_POWER_ON);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
@@ -1488,7 +1490,7 @@ int rtsx_write_register(struct rtsx_chip *chip, u16 addr, u8 mask, u8 data)
 
 	for (i = 0; i < MAX_RW_REG_CNT; i++) {
 		val = rtsx_readl(chip, RTSX_HAIMR);
-		if ((val & (1 << 31)) == 0) {
+		if ((val & BIT(31)) == 0) {
 			if (data != (u8)val) {
 				rtsx_trace(chip);
 				return STATUS_FAIL;
@@ -1516,7 +1518,7 @@ int rtsx_read_register(struct rtsx_chip *chip, u16 addr, u8 *data)
 
 	for (i = 0; i < MAX_RW_REG_CNT; i++) {
 		val = rtsx_readl(chip, RTSX_HAIMR);
-		if ((val & (1 << 31)) == 0)
+		if ((val & BIT(31)) == 0)
 			break;
 	}
 
@@ -1567,7 +1569,8 @@ int rtsx_write_cfg_dw(struct rtsx_chip *chip, u8 func_no, u16 addr, u32 mask,
 		}
 
 		retval = rtsx_write_register(chip, CFGRWCTL, 0xFF,
-					     0x80 | mode | ((func_no & 0x03) << 4));
+					     0x80 | mode |
+					     ((func_no & 0x03) << 4));
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;

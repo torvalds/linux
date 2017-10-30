@@ -12,10 +12,6 @@
 
 #define SRC_NAME "src"
 
-/* SRCx_STATUS */
-#define OUF_SRCO	((1 << 12) | (1 << 13))
-#define OUF_SRCI	((1 <<  9) | (1 <<  8))
-
 /* SCU_SYSTEM_STATUS0/1 */
 #define OUF_SRC(id)	((1 << (id + 16)) | (1 << id))
 
@@ -31,7 +27,6 @@ struct rsnd_src {
 #define RSND_SRC_NAME_SIZE 16
 
 #define rsnd_src_get(priv, id) ((struct rsnd_src *)(priv->src) + id)
-#define rsnd_src_to_dma(src) ((src)->dma)
 #define rsnd_src_nr(priv) ((priv)->src_nr)
 #define rsnd_src_sync_is_enabled(mod) (rsnd_mod_to_src(mod)->sen.val)
 
@@ -53,20 +48,6 @@ struct rsnd_src {
  * 44.1kHz <-> +-----+		+-----+		+-------+
  * ...
  *
- */
-
-/*
- * src.c is caring...
- *
- * Gen1
- *
- * [mem] -> [SRU] -> [SSI]
- *        |--------|
- *
- * Gen2
- *
- * [mem] -> [SRC] -> [SSIU] -> [SSI]
- *        |-----------------|
  */
 
 static void rsnd_src_activation(struct rsnd_mod *mod)
@@ -126,7 +107,6 @@ unsigned int rsnd_src_get_rate(struct rsnd_priv *priv,
 	int is_play = rsnd_io_is_play(io);
 
 	/*
-	 *
 	 * Playback
 	 * runtime_rate -> [SRC] -> convert_rate
 	 *
@@ -167,6 +147,7 @@ static int rsnd_src_hw_params(struct rsnd_mod *mod,
 	 *	dpcm_fe_dai_hw_params()
 	 *	dpcm_be_dai_hw_params()
 	 */
+	src->convert_rate = 0;
 	if (fe->dai_link->dynamic) {
 		int stream = substream->stream;
 		struct snd_soc_dpcm *dpcm;
@@ -189,10 +170,13 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	int is_play = rsnd_io_is_play(io);
+	int use_src = 0;
 	u32 fin, fout;
 	u32 ifscr, fsrate, adinr;
 	u32 cr, route;
 	u32 bsdsr, bsisr;
+	u32 i_busif, o_busif, tmp;
 	uint ratio;
 
 	if (!runtime)
@@ -214,18 +198,20 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 		return;
 	}
 
+	use_src = (fin != fout) | rsnd_src_sync_is_enabled(mod);
+
 	/*
-	 *	SRC_ADINR
+	 * SRC_ADINR
 	 */
 	adinr = rsnd_get_adinr_bit(mod, io) |
 		rsnd_runtime_channel_original(io);
 
 	/*
-	 *	SRC_IFSCR / SRC_IFSVR
+	 * SRC_IFSCR / SRC_IFSVR
 	 */
 	ifscr = 0;
 	fsrate = 0;
-	if (fin != fout) {
+	if (use_src) {
 		u64 n;
 
 		ifscr = 1;
@@ -235,11 +221,11 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	}
 
 	/*
-	 *	SRC_SRCCR / SRC_ROUTE_MODE0
+	 * SRC_SRCCR / SRC_ROUTE_MODE0
 	 */
 	cr	= 0x00011110;
 	route	= 0x0;
-	if (fin != fout) {
+	if (use_src) {
 		route	= 0x1;
 
 		if (rsnd_src_sync_is_enabled(mod)) {
@@ -266,6 +252,11 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 		break;
 	}
 
+	/* BUSIF_MODE */
+	tmp = rsnd_get_busif_shift(io, mod);
+	i_busif = ( is_play ? tmp : 0) | 1;
+	o_busif = (!is_play ? tmp : 0) | 1;
+
 	rsnd_mod_write(mod, SRC_ROUTE_MODE0, route);
 
 	rsnd_mod_write(mod, SRC_SRCIR, 1);	/* initialize */
@@ -277,8 +268,9 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	rsnd_mod_write(mod, SRC_BSISR, bsisr);
 	rsnd_mod_write(mod, SRC_SRCIR, 0);	/* cancel initialize */
 
-	rsnd_mod_write(mod, SRC_I_BUSIF_MODE, 1);
-	rsnd_mod_write(mod, SRC_O_BUSIF_MODE, 1);
+	rsnd_mod_write(mod, SRC_I_BUSIF_MODE, i_busif);
+	rsnd_mod_write(mod, SRC_O_BUSIF_MODE, o_busif);
+
 	rsnd_mod_write(mod, SRC_BUSIF_DALIGN, rsnd_get_dalign(mod, io));
 
 	rsnd_adg_set_src_timesel_gen2(mod, io, fin, fout);
@@ -327,8 +319,8 @@ static void rsnd_src_status_clear(struct rsnd_mod *mod)
 {
 	u32 val = OUF_SRC(rsnd_mod_id(mod));
 
-	rsnd_mod_bset(mod, SCU_SYS_STATUS0, val, val);
-	rsnd_mod_bset(mod, SCU_SYS_STATUS1, val, val);
+	rsnd_mod_write(mod, SCU_SYS_STATUS0, val);
+	rsnd_mod_write(mod, SCU_SYS_STATUS1, val);
 }
 
 static bool rsnd_src_error_occurred(struct rsnd_mod *mod)
@@ -387,6 +379,9 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
+	/* reset sync convert_rate */
+	src->sync.val = 0;
+
 	rsnd_mod_power_on(mod);
 
 	rsnd_src_activation(mod);
@@ -394,9 +389,6 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 	rsnd_src_set_convert_rate(io, mod);
 
 	rsnd_src_status_clear(mod);
-
-	/* reset sync convert_rate */
-	src->sync.val = 0;
 
 	return 0;
 }
@@ -410,8 +402,6 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 	rsnd_src_halt(mod);
 
 	rsnd_mod_power_off(mod);
-
-	src->convert_rate = 0;
 
 	/* reset sync convert_rate */
 	src->sync.val = 0;
@@ -475,7 +465,7 @@ static int rsnd_src_probe_(struct rsnd_mod *mod,
 			return ret;
 	}
 
-	ret = rsnd_dma_attach(io, mod, &src->dma, 0);
+	ret = rsnd_dma_attach(io, mod, &src->dma);
 
 	return ret;
 }
@@ -505,6 +495,7 @@ static int rsnd_src_pcm_new(struct rsnd_mod *mod,
 			       rsnd_io_is_play(io) ?
 			       "SRC Out Rate Switch" :
 			       "SRC In Rate Switch",
+			       rsnd_kctrl_accept_anytime,
 			       rsnd_src_set_convert_rate,
 			       &src->sen, 1);
 	if (ret < 0)
@@ -514,6 +505,7 @@ static int rsnd_src_pcm_new(struct rsnd_mod *mod,
 			       rsnd_io_is_play(io) ?
 			       "SRC Out Rate" :
 			       "SRC In Rate",
+			       rsnd_kctrl_accept_runtime,
 			       rsnd_src_set_convert_rate,
 			       &src->sync, 192000);
 
@@ -587,20 +579,24 @@ int rsnd_src_probe(struct rsnd_priv *priv)
 		src->irq = irq_of_parse_and_map(np, 0);
 		if (!src->irq) {
 			ret = -EINVAL;
+			of_node_put(np);
 			goto rsnd_src_probe_done;
 		}
 
 		clk = devm_clk_get(dev, name);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
+			of_node_put(np);
 			goto rsnd_src_probe_done;
 		}
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(src),
 				    &rsnd_src_ops, clk, rsnd_mod_get_status,
 				    RSND_MOD_SRC, i);
-		if (ret)
+		if (ret) {
+			of_node_put(np);
 			goto rsnd_src_probe_done;
+		}
 
 skip:
 		i++;

@@ -106,9 +106,11 @@ extern unsigned int sdhci_pltfm_clk_get_max_clock(struct sdhci_host *host);
 
 static inline void *sdhci_pltfm_priv(struct sdhci_pltfm_host *host)
 {
-	return (void *)host->private;
+	return host->private;
 }
 
+int sdhci_pltfm_suspend(struct device *dev);
+int sdhci_pltfm_resume(struct device *dev);
 extern const struct dev_pm_ops sdhci_pltfm_pmops;
 
 #endif /* _DRIVERS_MMC_SDHCI_PLTFM_H */

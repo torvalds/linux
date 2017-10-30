@@ -48,7 +48,7 @@
 #include <linux/module.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>
@@ -305,9 +305,9 @@ static int ftdi_elan_command_engine(struct usb_ftdi *ftdi);
 static int ftdi_elan_respond_engine(struct usb_ftdi *ftdi);
 static int ftdi_elan_hcd_init(struct usb_ftdi *ftdi)
 {
-	int result;
 	if (ftdi->platform_dev.dev.parent)
 		return -EBUSY;
+
 	ftdi_elan_get_kref(ftdi);
 	ftdi->platform_data.potpg = 100;
 	ftdi->platform_data.reset = NULL;
@@ -324,8 +324,8 @@ static int ftdi_elan_hcd_init(struct usb_ftdi *ftdi)
 	request_module("u132_hcd");
 	dev_info(&ftdi->udev->dev, "registering '%s'\n",
 		 ftdi->platform_dev.name);
-	result = platform_device_register(&ftdi->platform_dev);
-	return result;
+
+	return platform_device_register(&ftdi->platform_dev);
 }
 
 static void ftdi_elan_abandon_completions(struct usb_ftdi *ftdi)
@@ -857,7 +857,7 @@ static char *have_ed_set_response(struct usb_ftdi *ftdi,
 	target->actual = 0;
 	target->non_null = (ed_length >> 15) & 0x0001;
 	target->repeat_number = (ed_length >> 11) & 0x000F;
-	if (ed_type == 0x02) {
+	if (ed_type == 0x02 || ed_type == 0x03) {
 		if (payload == 0 || target->abandoning > 0) {
 			target->abandoning = 0;
 			mutex_unlock(&ftdi->u132_lock);
@@ -873,31 +873,6 @@ static char *have_ed_set_response(struct usb_ftdi *ftdi,
 			mutex_unlock(&ftdi->u132_lock);
 			return b;
 		}
-	} else if (ed_type == 0x03) {
-		if (payload == 0 || target->abandoning > 0) {
-			target->abandoning = 0;
-			mutex_unlock(&ftdi->u132_lock);
-			ftdi_elan_do_callback(ftdi, target, 4 + ftdi->response,
-					      payload);
-			ftdi->received = 0;
-			ftdi->expected = 4;
-			ftdi->ed_found = 0;
-			return ftdi->response;
-		} else {
-			ftdi->expected = 4 + payload;
-			ftdi->ed_found = 1;
-			mutex_unlock(&ftdi->u132_lock);
-			return b;
-		}
-	} else if (ed_type == 0x01) {
-		target->abandoning = 0;
-		mutex_unlock(&ftdi->u132_lock);
-		ftdi_elan_do_callback(ftdi, target, 4 + ftdi->response,
-				      payload);
-		ftdi->received = 0;
-		ftdi->expected = 4;
-		ftdi->ed_found = 0;
-		return ftdi->response;
 	} else {
 		target->abandoning = 0;
 		mutex_unlock(&ftdi->u132_lock);
@@ -2700,10 +2675,8 @@ static int ftdi_elan_probe(struct usb_interface *interface,
 			   const struct usb_device_id *id)
 {
 	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *endpoint;
-	size_t buffer_size;
-	int i;
-	int retval = -ENOMEM;
+	struct usb_endpoint_descriptor *bulk_in, *bulk_out;
+	int retval;
 	struct usb_ftdi *ftdi;
 
 	ftdi = kzalloc(sizeof(struct usb_ftdi), GFP_KERNEL);
@@ -2720,31 +2693,25 @@ static int ftdi_elan_probe(struct usb_interface *interface,
 	ftdi->interface = interface;
 	mutex_init(&ftdi->u132_lock);
 	ftdi->expected = 4;
+
 	iface_desc = interface->cur_altsetting;
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-		if (!ftdi->bulk_in_endpointAddr &&
-		    usb_endpoint_is_bulk_in(endpoint)) {
-			buffer_size = usb_endpoint_maxp(endpoint);
-			ftdi->bulk_in_size = buffer_size;
-			ftdi->bulk_in_endpointAddr = endpoint->bEndpointAddress;
-			ftdi->bulk_in_buffer = kmalloc(buffer_size, GFP_KERNEL);
-			if (!ftdi->bulk_in_buffer) {
-				retval = -ENOMEM;
-				goto error;
-			}
-		}
-		if (!ftdi->bulk_out_endpointAddr &&
-		    usb_endpoint_is_bulk_out(endpoint)) {
-			ftdi->bulk_out_endpointAddr =
-				endpoint->bEndpointAddress;
-		}
-	}
-	if (!(ftdi->bulk_in_endpointAddr && ftdi->bulk_out_endpointAddr)) {
+	retval = usb_find_common_endpoints(iface_desc,
+			&bulk_in, &bulk_out, NULL, NULL);
+	if (retval) {
 		dev_err(&ftdi->udev->dev, "Could not find both bulk-in and bulk-out endpoints\n");
-		retval = -ENODEV;
 		goto error;
 	}
+
+	ftdi->bulk_in_size = usb_endpoint_maxp(bulk_in);
+	ftdi->bulk_in_endpointAddr = bulk_in->bEndpointAddress;
+	ftdi->bulk_in_buffer = kmalloc(ftdi->bulk_in_size, GFP_KERNEL);
+	if (!ftdi->bulk_in_buffer) {
+		retval = -ENOMEM;
+		goto error;
+	}
+
+	ftdi->bulk_out_endpointAddr = bulk_out->bEndpointAddress;
+
 	dev_info(&ftdi->udev->dev, "interface %d has I=%02X O=%02X\n",
 		 iface_desc->desc.bInterfaceNumber, ftdi->bulk_in_endpointAddr,
 		 ftdi->bulk_out_endpointAddr);

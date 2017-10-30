@@ -27,6 +27,14 @@
 
 #include <subdev/fb.h>
 
+bool
+nvkm_engine_chsw_load(struct nvkm_engine *engine)
+{
+	if (engine->func->chsw_load)
+		return engine->func->chsw_load(engine);
+	return false;
+}
+
 void
 nvkm_engine_unref(struct nvkm_engine **pengine)
 {

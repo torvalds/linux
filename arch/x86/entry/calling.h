@@ -1,4 +1,5 @@
 #include <linux/jump_label.h>
+#include <asm/unwind_hints.h>
 
 /*
 
@@ -90,8 +91,8 @@ For 32-bit we have the following conventions - kernel is built with
 
 #define SIZEOF_PTREGS	21*8
 
-	.macro ALLOC_PT_GPREGS_ON_STACK addskip=0
-	addq	$-(15*8+\addskip), %rsp
+	.macro ALLOC_PT_GPREGS_ON_STACK
+	addq	$-(15*8), %rsp
 	.endm
 
 	.macro SAVE_C_REGS_HELPER offset=0 rax=1 rcx=1 r8910=1 r11=1
@@ -112,6 +113,7 @@ For 32-bit we have the following conventions - kernel is built with
 	movq %rdx, 12*8+\offset(%rsp)
 	movq %rsi, 13*8+\offset(%rsp)
 	movq %rdi, 14*8+\offset(%rsp)
+	UNWIND_HINT_REGS offset=\offset extra=0
 	.endm
 	.macro SAVE_C_REGS offset=0
 	SAVE_C_REGS_HELPER \offset, 1, 1, 1, 1
@@ -136,6 +138,7 @@ For 32-bit we have the following conventions - kernel is built with
 	movq %r12, 3*8+\offset(%rsp)
 	movq %rbp, 4*8+\offset(%rsp)
 	movq %rbx, 5*8+\offset(%rsp)
+	UNWIND_HINT_REGS offset=\offset
 	.endm
 
 	.macro RESTORE_EXTRA_REGS offset=0
@@ -145,15 +148,7 @@ For 32-bit we have the following conventions - kernel is built with
 	movq 3*8+\offset(%rsp), %r12
 	movq 4*8+\offset(%rsp), %rbp
 	movq 5*8+\offset(%rsp), %rbx
-	.endm
-
-	.macro ZERO_EXTRA_REGS
-	xorl	%r15d, %r15d
-	xorl	%r14d, %r14d
-	xorl	%r13d, %r13d
-	xorl	%r12d, %r12d
-	xorl	%ebp, %ebp
-	xorl	%ebx, %ebx
+	UNWIND_HINT_REGS offset=\offset extra=0
 	.endm
 
 	.macro RESTORE_C_REGS_HELPER rstor_rax=1, rstor_rcx=1, rstor_r11=1, rstor_r8910=1, rstor_rdx=1
@@ -176,6 +171,7 @@ For 32-bit we have the following conventions - kernel is built with
 	.endif
 	movq 13*8(%rsp), %rsi
 	movq 14*8(%rsp), %rdi
+	UNWIND_HINT_IRET_REGS offset=16*8
 	.endm
 	.macro RESTORE_C_REGS
 	RESTORE_C_REGS_HELPER 1,1,1,1,1
@@ -200,6 +196,26 @@ For 32-bit we have the following conventions - kernel is built with
 	.macro icebp
 	.byte 0xf1
 	.endm
+
+/*
+ * This is a sneaky trick to help the unwinder find pt_regs on the stack.  The
+ * frame pointer is replaced with an encoded pointer to pt_regs.  The encoding
+ * is just setting the LSB, which makes it an invalid stack address and is also
+ * a signal to the unwinder that it's a pt_regs pointer in disguise.
+ *
+ * NOTE: This macro must be used *after* SAVE_EXTRA_REGS because it corrupts
+ * the original rbp.
+ */
+.macro ENCODE_FRAME_POINTER ptregs_offset=0
+#ifdef CONFIG_FRAME_POINTER
+	.if \ptregs_offset
+		leaq \ptregs_offset(%rsp), %rbp
+	.else
+		mov %rsp, %rbp
+	.endif
+	orq	$0x1, %rbp
+#endif
+.endm
 
 #endif /* CONFIG_X86_64 */
 

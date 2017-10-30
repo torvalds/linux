@@ -29,6 +29,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/reboot.h>
+#include <linux/rational.h>
 #include "clk.h"
 
 /**
@@ -164,6 +165,40 @@ static int rockchip_clk_frac_notifier_cb(struct notifier_block *nb,
 	return notifier_from_errno(ret);
 }
 
+/**
+ * fractional divider must set that denominator is 20 times larger than
+ * numerator to generate precise clock frequency.
+ */
+static void rockchip_fractional_approximation(struct clk_hw *hw,
+		unsigned long rate, unsigned long *parent_rate,
+		unsigned long *m, unsigned long *n)
+{
+	struct clk_fractional_divider *fd = to_clk_fd(hw);
+	unsigned long p_rate, p_parent_rate;
+	struct clk_hw *p_parent;
+	unsigned long scale;
+
+	p_rate = clk_hw_get_rate(clk_hw_get_parent(hw));
+	if ((rate * 20 > p_rate) && (p_rate % rate != 0)) {
+		p_parent = clk_hw_get_parent(clk_hw_get_parent(hw));
+		p_parent_rate = clk_hw_get_rate(p_parent);
+		*parent_rate = p_parent_rate;
+	}
+
+	/*
+	 * Get rate closer to *parent_rate to guarantee there is no overflow
+	 * for m and n. In the result it will be the nearest rate left shifted
+	 * by (scale - fd->nwidth) bits.
+	 */
+	scale = fls_long(*parent_rate / rate - 1);
+	if (scale > fd->nwidth)
+		rate <<= scale - fd->nwidth;
+
+	rational_best_approximation(rate, *parent_rate,
+			GENMASK(fd->mwidth - 1, 0), GENMASK(fd->nwidth - 1, 0),
+			m, n);
+}
+
 static struct clk *rockchip_clk_register_frac_branch(
 		struct rockchip_clk_provider *ctx, const char *name,
 		const char *const *parent_names, u8 num_parents,
@@ -210,6 +245,7 @@ static struct clk *rockchip_clk_register_frac_branch(
 	div->nwidth = 16;
 	div->nmask = GENMASK(div->nwidth - 1, 0) << div->nshift;
 	div->lock = lock;
+	div->approximation = rockchip_fractional_approximation;
 	div_ops = &clk_fractional_divider_ops;
 
 	clk = clk_register_composite(NULL, name, parent_names, num_parents,
@@ -344,7 +380,6 @@ struct rockchip_clk_provider * __init rockchip_clk_init(struct device_node *np,
 	ctx->clk_data.clks = clk_table;
 	ctx->clk_data.clk_num = nr_clks;
 	ctx->cru_node = np;
-	ctx->grf = ERR_PTR(-EPROBE_DEFER);
 	spin_lock_init(&ctx->lock);
 
 	ctx->grf = syscon_regmap_lookup_by_phandle(ctx->cru_node,
@@ -416,6 +451,13 @@ void __init rockchip_clk_register_branches(
 				flags, ctx->reg_base + list->muxdiv_offset,
 				list->mux_shift, list->mux_width,
 				list->mux_flags, &ctx->lock);
+			break;
+		case branch_muxgrf:
+			clk = rockchip_clk_register_muxgrf(list->name,
+				list->parent_names, list->num_parents,
+				flags, ctx->grf, list->muxdiv_offset,
+				list->mux_shift, list->mux_width,
+				list->mux_flags);
 			break;
 		case branch_divider:
 			if (list->div_table)

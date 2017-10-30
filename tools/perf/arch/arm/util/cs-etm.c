@@ -17,6 +17,7 @@
 
 #include <api/fs/fs.h>
 #include <linux/bitops.h>
+#include <linux/compiler.h>
 #include <linux/coresight-pmu.h>
 #include <linux/kernel.h>
 #include <linux/log2.h>
@@ -33,6 +34,7 @@
 #include "../../util/cs-etm.h"
 
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #define ENABLE_SINK_MAX	128
 #define CS_BUS_DEVICE_PATH "/bus/coresight/devices/"
@@ -201,19 +203,18 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 		pr_debug2("%s snapshot size: %zu\n", CORESIGHT_ETM_PMU_NAME,
 			  opts->auxtrace_snapshot_size);
 
-	if (cs_etm_evsel) {
-		/*
-		 * To obtain the auxtrace buffer file descriptor, the auxtrace
-		 * event must come first.
-		 */
-		perf_evlist__to_front(evlist, cs_etm_evsel);
-		/*
-		 * In the case of per-cpu mmaps, we need the CPU on the
-		 * AUX event.
-		 */
-		if (!cpu_map__empty(cpus))
-			perf_evsel__set_sample_bit(cs_etm_evsel, CPU);
-	}
+	/*
+	 * To obtain the auxtrace buffer file descriptor, the auxtrace
+	 * event must come first.
+	 */
+	perf_evlist__to_front(evlist, cs_etm_evsel);
+
+	/*
+	 * In the case of per-cpu mmaps, we need the CPU on the
+	 * AUX event.
+	 */
+	if (!cpu_map__empty(cpus))
+		perf_evsel__set_sample_bit(cs_etm_evsel, CPU);
 
 	/* Add dummy event to keep tracking */
 	if (opts->full_auxtrace) {
@@ -261,6 +262,32 @@ static u64 cs_etm_get_config(struct auxtrace_record *itr)
 			break;
 		}
 	}
+
+	return config;
+}
+
+#ifndef BIT
+#define BIT(N) (1UL << (N))
+#endif
+
+static u64 cs_etmv4_get_config(struct auxtrace_record *itr)
+{
+	u64 config = 0;
+	u64 config_opts = 0;
+
+	/*
+	 * The perf event variable config bits represent both
+	 * the command line options and register programming
+	 * bits in ETMv3/PTM. For ETMv4 we must remap options
+	 * to real bits
+	 */
+	config_opts = cs_etm_get_config(itr);
+	if (config_opts & BIT(ETM_OPT_CYCACC))
+		config |= BIT(ETM4_CFG_BIT_CYCACC);
+	if (config_opts & BIT(ETM_OPT_TS))
+		config |= BIT(ETM4_CFG_BIT_TS);
+	if (config_opts & BIT(ETM_OPT_RETSTK))
+		config |= BIT(ETM4_CFG_BIT_RETSTK);
 
 	return config;
 }
@@ -362,7 +389,7 @@ static void cs_etm_get_metadata(int cpu, u32 *offset,
 		magic = __perf_cs_etmv4_magic;
 		/* Get trace configuration register */
 		info->priv[*offset + CS_ETMV4_TRCCONFIGR] =
-						cs_etm_get_config(itr);
+						cs_etmv4_get_config(itr);
 		/* Get traceID from the framework */
 		info->priv[*offset + CS_ETMV4_TRCTRACEIDR] =
 						coresight_get_trace_id(cpu);
@@ -575,8 +602,6 @@ static FILE *cs_device__open_file(const char *name)
 	snprintf(path, PATH_MAX,
 		 "%s" CS_BUS_DEVICE_PATH "%s", sysfs, name);
 
-	printf("path: %s\n", path);
-
 	if (stat(path, &st) < 0)
 		return NULL;
 
@@ -584,8 +609,7 @@ static FILE *cs_device__open_file(const char *name)
 
 }
 
-static __attribute__((format(printf, 2, 3)))
-int cs_device__print_file(const char *name, const char *fmt, ...)
+static int __printf(2, 3) cs_device__print_file(const char *name, const char *fmt, ...)
 {
 	va_list args;
 	FILE *file;

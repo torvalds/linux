@@ -32,7 +32,7 @@
 #include <linux/edac.h>
 #include <linux/mmzone.h>
 
-#include "edac_core.h"
+#include "edac_module.h"
 
 /*
  * Alter this version for the I5400 module when modifications are made
@@ -368,7 +368,7 @@ struct i5400_error_info {
 
 	/* These registers are input ONLY if there was a Non-Rec Error */
 	u16 nrecmema;		/* Non-Recoverable Mem log A */
-	u16 nrecmemb;		/* Non-Recoverable Mem log B */
+	u32 nrecmemb;		/* Non-Recoverable Mem log B */
 
 };
 
@@ -458,7 +458,7 @@ static void i5400_get_error_info(struct mem_ctl_info *mci,
 				NERR_FAT_FBD, &info->nerr_fat_fbd);
 		pci_read_config_word(pvt->branchmap_werrors,
 				NRECMEMA, &info->nrecmema);
-		pci_read_config_word(pvt->branchmap_werrors,
+		pci_read_config_dword(pvt->branchmap_werrors,
 				NRECMEMB, &info->nrecmemb);
 
 		/* Clear the error bits, by writing them back */
@@ -1207,13 +1207,14 @@ static int i5400_init_dimms(struct mem_ctl_info *mci)
 
 			dimm->nr_pages = size_mb << 8;
 			dimm->grain = 8;
-			dimm->dtype = MTR_DRAM_WIDTH(mtr) ? DEV_X8 : DEV_X4;
+			dimm->dtype = MTR_DRAM_WIDTH(mtr) == 8 ?
+				      DEV_X8 : DEV_X4;
 			dimm->mtype = MEM_FB_DDR2;
 			/*
 			 * The eccc mechanism is SDDC (aka SECC), with
 			 * is similar to Chipkill.
 			 */
-			dimm->edac_mode = MTR_DRAM_WIDTH(mtr) ?
+			dimm->edac_mode = MTR_DRAM_WIDTH(mtr) == 8 ?
 					  EDAC_S8ECD8ED : EDAC_S4ECD4ED;
 			ndimms++;
 		}
@@ -1314,7 +1315,6 @@ static int i5400_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->edac_ctl_cap = EDAC_FLAG_NONE;
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = "i5400_edac.c";
-	mci->mod_ver = I5400_REVISION;
 	mci->ctl_name = i5400_devs[dev_idx].ctl_name;
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;

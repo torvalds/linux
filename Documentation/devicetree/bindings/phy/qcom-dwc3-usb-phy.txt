@@ -25,7 +25,6 @@ Example:
 			clock-names = "ref";
 			#phy-cells = <0>;
 
-			status = "ok";
 		};
 
 		phy@100f8830 {
@@ -35,5 +34,4 @@ Example:
 			clock-names = "ref";
 			#phy-cells = <0>;
 
-			status = "ok";
 		};

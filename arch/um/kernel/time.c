@@ -65,7 +65,9 @@ static struct clock_event_device timer_clockevent = {
 	.set_next_event		= itimer_next_event,
 	.shift			= 0,
 	.max_delta_ns		= 0xffffffff,
-	.min_delta_ns		= TIMER_MIN_DELTA, //microsecond resolution should be enough for anyone, same as 640K RAM
+	.max_delta_ticks	= 0xffffffff,
+	.min_delta_ns		= TIMER_MIN_DELTA,
+	.min_delta_ticks	= TIMER_MIN_DELTA, // microsecond resolution should be enough for anyone, same as 640K RAM
 	.irq			= 0,
 	.mult			= 1,
 };
@@ -83,7 +85,7 @@ static irqreturn_t um_timer(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static cycle_t timer_read(struct clocksource *cs)
+static u64 timer_read(struct clocksource *cs)
 {
 	return os_nsecs() / TIMER_MULTIPLIER;
 }
@@ -96,7 +98,7 @@ static struct clocksource timer_clocksource = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static void __init timer_setup(void)
+static void __init um_timer_setup(void)
 {
 	int err;
 
@@ -130,5 +132,5 @@ void read_persistent_clock(struct timespec *ts)
 void __init time_init(void)
 {
 	timer_set_signal_handler();
-	late_time_init = timer_setup;
+	late_time_init = um_timer_setup;
 }

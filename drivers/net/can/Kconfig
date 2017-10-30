@@ -9,6 +9,24 @@ config CAN_VCAN
 	  This driver can also be built as a module.  If so, the module
 	  will be called vcan.
 
+config CAN_VXCAN
+	tristate "Virtual CAN Tunnel (vxcan)"
+	---help---
+	  Similar to the virtual ethernet driver veth, vxcan implements a
+	  local CAN traffic tunnel between two virtual CAN network devices.
+	  When creating a vxcan, two vxcan devices are created as pair.
+	  When one end receives the packet it appears on its pair and vice
+	  versa. The vxcan can be used for cross namespace communication.
+
+	  In opposite to vcan loopback devices the vxcan only forwards CAN
+	  frames to its pair and does *not* provide a local echo of sent
+	  CAN frames. To disable a potential echo in af_can.c the vxcan driver
+	  announces IFF_ECHO in the interface flags. To have a clean start
+	  in each namespace the CAN GW hop counter is set to zero.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called vxcan.
+
 config CAN_SLCAN
 	tristate "Serial / USB serial CAN Adaptors (slcan)"
 	depends on TTY
@@ -142,6 +160,7 @@ source "drivers/net/can/cc770/Kconfig"
 source "drivers/net/can/ifi_canfd/Kconfig"
 source "drivers/net/can/m_can/Kconfig"
 source "drivers/net/can/mscan/Kconfig"
+source "drivers/net/can/peak_canfd/Kconfig"
 source "drivers/net/can/rcar/Kconfig"
 source "drivers/net/can/sja1000/Kconfig"
 source "drivers/net/can/softing/Kconfig"

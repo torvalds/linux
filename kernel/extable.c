@@ -17,12 +17,15 @@
 */
 #include <linux/ftrace.h>
 #include <linux/memory.h>
+#include <linux/extable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/init.h>
+#include <linux/kprobes.h>
+#include <linux/filter.h>
 
 #include <asm/sections.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * mutex protecting text section modification (dynamic code patching).
@@ -52,7 +55,8 @@ const struct exception_table_entry *search_exception_tables(unsigned long addr)
 {
 	const struct exception_table_entry *e;
 
-	e = search_extable(__start___ex_table, __stop___ex_table-1, addr);
+	e = search_extable(__start___ex_table,
+			   __stop___ex_table - __start___ex_table, addr);
 	if (!e)
 		e = search_module_extables(addr);
 	return e;
@@ -66,13 +70,13 @@ static inline int init_kernel_text(unsigned long addr)
 	return 0;
 }
 
-int core_kernel_text(unsigned long addr)
+int notrace core_kernel_text(unsigned long addr)
 {
 	if (addr >= (unsigned long)_stext &&
 	    addr < (unsigned long)_etext)
 		return 1;
 
-	if (system_state == SYSTEM_BOOTING &&
+	if (system_state < SYSTEM_RUNNING &&
 	    init_kernel_text(addr))
 		return 1;
 	return 0;
@@ -98,11 +102,7 @@ int core_kernel_data(unsigned long addr)
 
 int __kernel_text_address(unsigned long addr)
 {
-	if (core_kernel_text(addr))
-		return 1;
-	if (is_module_text_address(addr))
-		return 1;
-	if (is_ftrace_trampoline(addr))
+	if (kernel_text_address(addr))
 		return 1;
 	/*
 	 * There might be init symbols in saved stacktraces.
@@ -119,11 +119,42 @@ int __kernel_text_address(unsigned long addr)
 
 int kernel_text_address(unsigned long addr)
 {
+	bool no_rcu;
+	int ret = 1;
+
 	if (core_kernel_text(addr))
 		return 1;
+
+	/*
+	 * If a stack dump happens while RCU is not watching, then
+	 * RCU needs to be notified that it requires to start
+	 * watching again. This can happen either by tracing that
+	 * triggers a stack trace, or a WARN() that happens during
+	 * coming back from idle, or cpu on or offlining.
+	 *
+	 * is_module_text_address() as well as the kprobe slots
+	 * and is_bpf_text_address() require RCU to be watching.
+	 */
+	no_rcu = !rcu_is_watching();
+
+	/* Treat this like an NMI as it can happen anywhere */
+	if (no_rcu)
+		rcu_nmi_enter();
+
 	if (is_module_text_address(addr))
-		return 1;
-	return is_ftrace_trampoline(addr);
+		goto out;
+	if (is_ftrace_trampoline(addr))
+		goto out;
+	if (is_kprobe_optinsn_slot(addr) || is_kprobe_insn_slot(addr))
+		goto out;
+	if (is_bpf_text_address(addr))
+		goto out;
+	ret = 0;
+out:
+	if (no_rcu)
+		rcu_nmi_exit();
+
+	return ret;
 }
 
 /*

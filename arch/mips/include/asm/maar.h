@@ -36,7 +36,7 @@ unsigned platform_maar_init(unsigned num_pairs);
  * @upper:	The highest address that the MAAR pair will affect. Must be
  *		aligned to one byte before a 2^16 byte boundary.
  * @attrs:	The accessibility attributes to program, eg. MIPS_MAAR_S. The
- *		MIPS_MAAR_V attribute will automatically be set.
+ *		MIPS_MAAR_VL attribute will automatically be set.
  *
  * Program the pair of MAAR registers specified by idx to apply the attributes
  * specified by attrs to the range of addresses from lower to higher.
@@ -49,10 +49,10 @@ static inline void write_maar_pair(unsigned idx, phys_addr_t lower,
 	BUG_ON(((upper & 0xffff) != 0xffff)
 		|| ((upper & ~0xffffull) & ~(MIPS_MAAR_ADDR << 4)));
 
-	/* Automatically set MIPS_MAAR_V */
-	attrs |= MIPS_MAAR_V;
+	/* Automatically set MIPS_MAAR_VL */
+	attrs |= MIPS_MAAR_VL;
 
-	/* Write the upper address & attributes (only MIPS_MAAR_V matters) */
+	/* Write the upper address & attributes (only MIPS_MAAR_VL matters) */
 	write_c0_maari(idx << 1);
 	back_to_back_c0_hazard();
 	write_c0_maar(((upper >> 4) & MIPS_MAAR_ADDR) | attrs);
@@ -81,7 +81,7 @@ extern void maar_init(void);
  * @upper:	The highest address that the MAAR pair will affect. Must be
  *		aligned to one byte before a 2^16 byte boundary.
  * @attrs:	The accessibility attributes to program, eg. MIPS_MAAR_S. The
- *		MIPS_MAAR_V attribute will automatically be set.
+ *		MIPS_MAAR_VL attribute will automatically be set.
  *
  * Describes the configuration of a pair of Memory Accessibility Attribute
  * Registers - applying attributes from attrs to the range of physical

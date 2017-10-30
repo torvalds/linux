@@ -33,10 +33,21 @@
 #ifndef __LIBCFS_LIBCFS_H__
 #define __LIBCFS_LIBCFS_H__
 
-#include "linux/libcfs.h"
 #include <linux/gfp.h>
+#include <linux/list.h>
 
-#include "curproc.h"
+#include <uapi/linux/lnet/libcfs_ioctl.h>
+#include <linux/libcfs/linux/libcfs.h>
+#include <linux/libcfs/libcfs_debug.h>
+#include <linux/libcfs/libcfs_private.h>
+#include <linux/libcfs/libcfs_cpu.h>
+#include <linux/libcfs/libcfs_prim.h>
+#include <linux/libcfs/libcfs_time.h>
+#include <linux/libcfs/libcfs_string.h>
+#include <linux/libcfs/libcfs_workitem.h>
+#include <linux/libcfs/libcfs_hash.h>
+#include <linux/libcfs/libcfs_fail.h>
+#include <linux/libcfs/curproc.h>
 
 #define LIBCFS_VERSION "0.7.0"
 
@@ -49,8 +60,6 @@
 #define LERRCHKSUM(hexnum) (((hexnum) & 0xf) ^ ((hexnum) >> 4 & 0xf) ^ \
 			   ((hexnum) >> 8 & 0xf))
 
-#include <linux/list.h>
-
 /* need both kernel and user-land acceptor */
 #define LNET_ACCEPTOR_MIN_RESERVED_PORT    512
 #define LNET_ACCEPTOR_MAX_RESERVED_PORT    1023
@@ -61,7 +70,7 @@
 sigset_t cfs_block_allsigs(void);
 sigset_t cfs_block_sigs(unsigned long sigs);
 sigset_t cfs_block_sigsinv(unsigned long sigs);
-void cfs_restore_sigs(sigset_t);
+void cfs_restore_sigs(sigset_t sigset);
 void cfs_clear_sigpending(void);
 
 /*
@@ -71,19 +80,8 @@ void cfs_clear_sigpending(void);
 /* returns a random 32-bit integer */
 unsigned int cfs_rand(void);
 /* seed the generator */
-void cfs_srand(unsigned int, unsigned int);
+void cfs_srand(unsigned int seed1, unsigned int seed2);
 void cfs_get_random_bytes(void *buf, int size);
-
-#include "libcfs_debug.h"
-#include "libcfs_cpu.h"
-#include "libcfs_private.h"
-#include "libcfs_ioctl.h"
-#include "libcfs_prim.h"
-#include "libcfs_time.h"
-#include "libcfs_string.h"
-#include "libcfs_workitem.h"
-#include "libcfs_hash.h"
-#include "libcfs_fail.h"
 
 struct libcfs_ioctl_handler {
 	struct list_head item;
@@ -125,7 +123,6 @@ extern struct miscdevice libcfs_dev;
 /**
  * The path of debug log dump upcall script.
  */
-extern char lnet_upcall[1024];
 extern char lnet_debug_log_upcall[1024];
 
 extern struct cfs_wi_sched *cfs_sched_rehash;

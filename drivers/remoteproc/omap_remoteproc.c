@@ -177,7 +177,7 @@ static int omap_rproc_stop(struct rproc *rproc)
 	return 0;
 }
 
-static struct rproc_ops omap_rproc_ops = {
+static const struct rproc_ops omap_rproc_ops = {
 	.start		= omap_rproc_start,
 	.stop		= omap_rproc_stop,
 	.kick		= omap_rproc_kick,

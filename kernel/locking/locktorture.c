@@ -32,6 +32,8 @@
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <uapi/linux/sched/types.h>
+#include <linux/rtmutex.h>
 #include <linux/atomic.h>
 #include <linux/moduleparam.h>
 #include <linux/delay.h>
@@ -370,6 +372,78 @@ static struct lock_torture_ops mutex_lock_ops = {
 	.read_delay     = NULL,
 	.readunlock     = NULL,
 	.name		= "mutex_lock"
+};
+
+#include <linux/ww_mutex.h>
+static DEFINE_WW_CLASS(torture_ww_class);
+static DEFINE_WW_MUTEX(torture_ww_mutex_0, &torture_ww_class);
+static DEFINE_WW_MUTEX(torture_ww_mutex_1, &torture_ww_class);
+static DEFINE_WW_MUTEX(torture_ww_mutex_2, &torture_ww_class);
+
+static int torture_ww_mutex_lock(void)
+__acquires(torture_ww_mutex_0)
+__acquires(torture_ww_mutex_1)
+__acquires(torture_ww_mutex_2)
+{
+	LIST_HEAD(list);
+	struct reorder_lock {
+		struct list_head link;
+		struct ww_mutex *lock;
+	} locks[3], *ll, *ln;
+	struct ww_acquire_ctx ctx;
+
+	locks[0].lock = &torture_ww_mutex_0;
+	list_add(&locks[0].link, &list);
+
+	locks[1].lock = &torture_ww_mutex_1;
+	list_add(&locks[1].link, &list);
+
+	locks[2].lock = &torture_ww_mutex_2;
+	list_add(&locks[2].link, &list);
+
+	ww_acquire_init(&ctx, &torture_ww_class);
+
+	list_for_each_entry(ll, &list, link) {
+		int err;
+
+		err = ww_mutex_lock(ll->lock, &ctx);
+		if (!err)
+			continue;
+
+		ln = ll;
+		list_for_each_entry_continue_reverse(ln, &list, link)
+			ww_mutex_unlock(ln->lock);
+
+		if (err != -EDEADLK)
+			return err;
+
+		ww_mutex_lock_slow(ll->lock, &ctx);
+		list_move(&ll->link, &list);
+	}
+
+	ww_acquire_fini(&ctx);
+	return 0;
+}
+
+static void torture_ww_mutex_unlock(void)
+__releases(torture_ww_mutex_0)
+__releases(torture_ww_mutex_1)
+__releases(torture_ww_mutex_2)
+{
+	ww_mutex_unlock(&torture_ww_mutex_0);
+	ww_mutex_unlock(&torture_ww_mutex_1);
+	ww_mutex_unlock(&torture_ww_mutex_2);
+}
+
+static struct lock_torture_ops ww_mutex_lock_ops = {
+	.writelock	= torture_ww_mutex_lock,
+	.write_delay	= torture_mutex_delay,
+	.task_boost     = torture_boost_dummy,
+	.writeunlock	= torture_ww_mutex_unlock,
+	.readlock       = NULL,
+	.read_delay     = NULL,
+	.readunlock     = NULL,
+	.name		= "ww_mutex_lock"
 };
 
 #ifdef CONFIG_RT_MUTEXES
@@ -780,6 +854,10 @@ static void lock_torture_cleanup(void)
 	else
 		lock_torture_print_module_parms(cxt.cur_ops,
 						"End of test: SUCCESS");
+
+	kfree(cxt.lwsa);
+	kfree(cxt.lrsa);
+
 end:
 	torture_cleanup_end();
 }
@@ -793,6 +871,7 @@ static int __init lock_torture_init(void)
 		&spin_lock_ops, &spin_lock_irq_ops,
 		&rw_lock_ops, &rw_lock_irq_ops,
 		&mutex_lock_ops,
+		&ww_mutex_lock_ops,
 #ifdef CONFIG_RT_MUTEXES
 		&rtmutex_lock_ops,
 #endif
@@ -924,6 +1003,8 @@ static int __init lock_torture_init(void)
 				       GFP_KERNEL);
 		if (reader_tasks == NULL) {
 			VERBOSE_TOROUT_ERRSTRING("reader_tasks: Out of memory");
+			kfree(writer_tasks);
+			writer_tasks = NULL;
 			firsterr = -ENOMEM;
 			goto unwind;
 		}

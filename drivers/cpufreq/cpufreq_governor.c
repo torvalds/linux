@@ -18,7 +18,6 @@
 
 #include <linux/export.h>
 #include <linux/kernel_stat.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 
 #include "cpufreq_governor.h"
@@ -48,20 +47,17 @@ ssize_t store_sampling_rate(struct gov_attr_set *attr_set, const char *buf,
 {
 	struct dbs_data *dbs_data = to_dbs_data(attr_set);
 	struct policy_dbs_info *policy_dbs;
-	unsigned int rate;
 	int ret;
-	ret = sscanf(buf, "%u", &rate);
+	ret = sscanf(buf, "%u", &dbs_data->sampling_rate);
 	if (ret != 1)
 		return -EINVAL;
-
-	dbs_data->sampling_rate = max(rate, dbs_data->min_sampling_rate);
 
 	/*
 	 * We are operating under dbs_data->mutex and so the list and its
 	 * entries can't be freed concurrently.
 	 */
 	list_for_each_entry(policy_dbs, &attr_set->policy_list, list) {
-		mutex_lock(&policy_dbs->timer_mutex);
+		mutex_lock(&policy_dbs->update_mutex);
 		/*
 		 * On 32-bit architectures this may race with the
 		 * sample_delay_ns read in dbs_update_util_handler(), but that
@@ -76,7 +72,7 @@ ssize_t store_sampling_rate(struct gov_attr_set *attr_set, const char *buf,
 		 * taken, so it shouldn't be significant.
 		 */
 		gov_update_sample_delay(policy_dbs, 0);
-		mutex_unlock(&policy_dbs->timer_mutex);
+		mutex_unlock(&policy_dbs->update_mutex);
 	}
 
 	return count;
@@ -117,7 +113,7 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	unsigned int ignore_nice = dbs_data->ignore_nice_load;
-	unsigned int max_load = 0;
+	unsigned int max_load = 0, idle_periods = UINT_MAX;
 	unsigned int sampling_rate, io_busy, j;
 
 	/*
@@ -152,7 +148,7 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 		if (ignore_nice) {
 			u64 cur_nice = kcpustat_cpu(j).cpustat[CPUTIME_NICE];
 
-			idle_time += cputime_to_usecs(cur_nice - j_cdbs->prev_cpu_nice);
+			idle_time += div_u64(cur_nice - j_cdbs->prev_cpu_nice, NSEC_PER_USEC);
 			j_cdbs->prev_cpu_nice = cur_nice;
 		}
 
@@ -215,9 +211,19 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 			j_cdbs->prev_load = load;
 		}
 
+		if (time_elapsed > 2 * sampling_rate) {
+			unsigned int periods = time_elapsed / sampling_rate;
+
+			if (periods < idle_periods)
+				idle_periods = periods;
+		}
+
 		if (load > max_load)
 			max_load = load;
 	}
+
+	policy_dbs->idle_periods = idle_periods;
+
 	return max_load;
 }
 EXPORT_SYMBOL_GPL(dbs_update);
@@ -236,9 +242,9 @@ static void dbs_work_handler(struct work_struct *work)
 	 * Make sure cpufreq_governor_limits() isn't evaluating load or the
 	 * ondemand governor isn't updating the sampling rate in parallel.
 	 */
-	mutex_lock(&policy_dbs->timer_mutex);
-	gov_update_sample_delay(policy_dbs, gov->gov_dbs_timer(policy));
-	mutex_unlock(&policy_dbs->timer_mutex);
+	mutex_lock(&policy_dbs->update_mutex);
+	gov_update_sample_delay(policy_dbs, gov->gov_dbs_update(policy));
+	mutex_unlock(&policy_dbs->update_mutex);
 
 	/* Allow the utilization update handler to queue up more work. */
 	atomic_set(&policy_dbs->work_count, 0);
@@ -265,6 +271,9 @@ static void dbs_update_util_handler(struct update_util_data *data, u64 time,
 	struct cpu_dbs_info *cdbs = container_of(data, struct cpu_dbs_info, update_util);
 	struct policy_dbs_info *policy_dbs = cdbs->policy_dbs;
 	u64 delta_ns, lst;
+
+	if (!cpufreq_can_do_remote_dvfs(policy_dbs->policy))
+		return;
 
 	/*
 	 * The work may not be allowed to be queued up right now.
@@ -348,7 +357,7 @@ static struct policy_dbs_info *alloc_policy_dbs_info(struct cpufreq_policy *poli
 		return NULL;
 
 	policy_dbs->policy = policy;
-	mutex_init(&policy_dbs->timer_mutex);
+	mutex_init(&policy_dbs->update_mutex);
 	atomic_set(&policy_dbs->work_count, 0);
 	init_irq_work(&policy_dbs->irq_work, dbs_irq_work);
 	INIT_WORK(&policy_dbs->work, dbs_work_handler);
@@ -367,7 +376,7 @@ static void free_policy_dbs_info(struct policy_dbs_info *policy_dbs,
 {
 	int j;
 
-	mutex_destroy(&policy_dbs->timer_mutex);
+	mutex_destroy(&policy_dbs->update_mutex);
 
 	for_each_cpu(j, policy_dbs->policy->related_cpus) {
 		struct cpu_dbs_info *j_cdbs = &per_cpu(cpu_dbs, j);
@@ -383,7 +392,6 @@ int cpufreq_dbs_governor_init(struct cpufreq_policy *policy)
 	struct dbs_governor *gov = dbs_governor_of(policy);
 	struct dbs_data *dbs_data;
 	struct policy_dbs_info *policy_dbs;
-	unsigned int latency;
 	int ret = 0;
 
 	/* State should be equivalent to EXIT */
@@ -422,16 +430,7 @@ int cpufreq_dbs_governor_init(struct cpufreq_policy *policy)
 	if (ret)
 		goto free_policy_dbs_info;
 
-	/* policy latency is in ns. Convert it to us first */
-	latency = policy->cpuinfo.transition_latency / 1000;
-	if (latency == 0)
-		latency = 1;
-
-	/* Bring kernel and HW constraints together */
-	dbs_data->min_sampling_rate = max(dbs_data->min_sampling_rate,
-					  MIN_LATENCY_MULTIPLIER * latency);
-	dbs_data->sampling_rate = max(dbs_data->min_sampling_rate,
-				      LATENCY_MULTIPLIER * latency);
+	dbs_data->sampling_rate = cpufreq_policy_transition_delay_us(policy);
 
 	if (!have_governor_per_policy())
 		gov->gdbs_data = dbs_data;
@@ -547,10 +546,10 @@ void cpufreq_dbs_governor_limits(struct cpufreq_policy *policy)
 {
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 
-	mutex_lock(&policy_dbs->timer_mutex);
+	mutex_lock(&policy_dbs->update_mutex);
 	cpufreq_policy_apply_limits(policy);
 	gov_update_sample_delay(policy_dbs, 0);
 
-	mutex_unlock(&policy_dbs->timer_mutex);
+	mutex_unlock(&policy_dbs->update_mutex);
 }
 EXPORT_SYMBOL_GPL(cpufreq_dbs_governor_limits);

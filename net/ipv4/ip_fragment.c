@@ -198,6 +198,7 @@ static void ip_expire(unsigned long arg)
 	qp = container_of((struct inet_frag_queue *) arg, struct ipq, q);
 	net = container_of(qp->q.net, struct net, ipv4.frags);
 
+	rcu_read_lock();
 	spin_lock(&qp->q.lock);
 
 	if (qp->q.flags & INET_FRAG_COMPLETE)
@@ -207,7 +208,7 @@ static void ip_expire(unsigned long arg)
 	__IP_INC_STATS(net, IPSTATS_MIB_REASMFAILS);
 
 	if (!inet_frag_evicting(&qp->q)) {
-		struct sk_buff *head = qp->q.fragments;
+		struct sk_buff *clone, *head = qp->q.fragments;
 		const struct iphdr *iph;
 		int err;
 
@@ -216,32 +217,40 @@ static void ip_expire(unsigned long arg)
 		if (!(qp->q.flags & INET_FRAG_FIRST_IN) || !qp->q.fragments)
 			goto out;
 
-		rcu_read_lock();
 		head->dev = dev_get_by_index_rcu(net, qp->iif);
 		if (!head->dev)
-			goto out_rcu_unlock;
+			goto out;
+
 
 		/* skb has no dst, perform route lookup again */
 		iph = ip_hdr(head);
 		err = ip_route_input_noref(head, iph->daddr, iph->saddr,
 					   iph->tos, head->dev);
 		if (err)
-			goto out_rcu_unlock;
+			goto out;
 
 		/* Only an end host needs to send an ICMP
 		 * "Fragment Reassembly Timeout" message, per RFC792.
 		 */
 		if (frag_expire_skip_icmp(qp->user) &&
 		    (skb_rtable(head)->rt_type != RTN_LOCAL))
-			goto out_rcu_unlock;
+			goto out;
+
+		clone = skb_clone(head, GFP_ATOMIC);
 
 		/* Send an ICMP "Fragment Reassembly Timeout" message. */
-		icmp_send(head, ICMP_TIME_EXCEEDED, ICMP_EXC_FRAGTIME, 0);
-out_rcu_unlock:
-		rcu_read_unlock();
+		if (clone) {
+			spin_unlock(&qp->q.lock);
+			icmp_send(clone, ICMP_TIME_EXCEEDED,
+				  ICMP_EXC_FRAGTIME, 0);
+			consume_skb(clone);
+			goto out_rcu_unlock;
+		}
 	}
 out:
 	spin_unlock(&qp->q.lock);
+out_rcu_unlock:
+	rcu_read_unlock();
 	ipq_put(qp);
 }
 
@@ -303,7 +312,7 @@ static int ip_frag_reinit(struct ipq *qp)
 	unsigned int sum_truesize = 0;
 
 	if (!mod_timer(&qp->q.timer, jiffies + qp->q.net->timeout)) {
-		atomic_inc(&qp->q.refcnt);
+		refcount_inc(&qp->q.refcnt);
 		return -ETIMEDOUT;
 	}
 
@@ -835,8 +844,6 @@ static void __init ip4_frags_ctl_register(void)
 
 static int __net_init ipv4_frags_init_net(struct net *net)
 {
-	int res;
-
 	/* Fragment cache limits.
 	 *
 	 * The fragment memory accounting code, (tries to) account for
@@ -862,13 +869,9 @@ static int __net_init ipv4_frags_init_net(struct net *net)
 
 	net->ipv4.frags.max_dist = 64;
 
-	res = inet_frags_init_net(&net->ipv4.frags);
-	if (res)
-		return res;
-	res = ip4_frags_ns_ctl_register(net);
-	if (res)
-		inet_frags_uninit_net(&net->ipv4.frags);
-	return res;
+	inet_frags_init_net(&net->ipv4.frags);
+
+	return ip4_frags_ns_ctl_register(net);
 }
 
 static void __net_exit ipv4_frags_exit_net(struct net *net)

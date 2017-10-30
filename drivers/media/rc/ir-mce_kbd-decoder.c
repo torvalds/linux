@@ -23,7 +23,7 @@
  * - MCIR-2 29-bit IR signals used for mouse movement and buttons
  * - MCIR-2 32-bit IR signals used for standard keyboard keys
  *
- * The media keys on the keyboard send RC-6 signals that are inditinguishable
+ * The media keys on the keyboard send RC-6 signals that are indistinguishable
  * from the keys of the same name on the stock MCE remote, and will be handled
  * by the standard RC-6 decoder, and be made available to the system via the
  * input device for the remote, rather than the keyboard/mouse one.
@@ -71,7 +71,7 @@ static unsigned char kbd_keycodes[256] = {
 	KEY_6,		KEY_7,		KEY_8,		KEY_9,		KEY_0,
 	KEY_ENTER,	KEY_ESC,	KEY_BACKSPACE,	KEY_TAB,	KEY_SPACE,
 	KEY_MINUS,	KEY_EQUAL,	KEY_LEFTBRACE,	KEY_RIGHTBRACE,	KEY_BACKSLASH,
-	KEY_RESERVED,	KEY_SEMICOLON,	KEY_APOSTROPHE,	KEY_GRAVE,	KEY_COMMA,
+	KEY_BACKSLASH,	KEY_SEMICOLON,	KEY_APOSTROPHE,	KEY_GRAVE,	KEY_COMMA,
 	KEY_DOT,	KEY_SLASH,	KEY_CAPSLOCK,	KEY_F1,		KEY_F2,
 	KEY_F3,		KEY_F4,		KEY_F5,		KEY_F6,		KEY_F7,
 	KEY_F8,		KEY_F9,		KEY_F10,	KEY_F11,	KEY_F12,
@@ -339,6 +339,7 @@ again:
 		}
 
 		data->state = STATE_INACTIVE;
+		input_event(data->idev, EV_MSC, MSC_SCAN, scancode);
 		input_sync(data->idev);
 		return 0;
 	}
@@ -356,6 +357,9 @@ static int ir_mce_kbd_register(struct rc_dev *dev)
 	struct mce_kbd_dec *mce_kbd = &dev->raw->mce_kbd;
 	struct input_dev *idev;
 	int i, ret;
+
+	if (dev->driver_type == RC_DRIVER_IR_RAW_TX)
+		return 0;
 
 	idev = input_allocate_device();
 	if (!idev)
@@ -412,15 +416,62 @@ static int ir_mce_kbd_unregister(struct rc_dev *dev)
 	struct mce_kbd_dec *mce_kbd = &dev->raw->mce_kbd;
 	struct input_dev *idev = mce_kbd->idev;
 
+	if (dev->driver_type == RC_DRIVER_IR_RAW_TX)
+		return 0;
+
 	del_timer_sync(&mce_kbd->rx_timeout);
 	input_unregister_device(idev);
 
 	return 0;
 }
 
+static const struct ir_raw_timings_manchester ir_mce_kbd_timings = {
+	.leader		= MCIR2_PREFIX_PULSE,
+	.invert		= 1,
+	.clock		= MCIR2_UNIT,
+	.trailer_space	= MCIR2_UNIT * 10,
+};
+
+/**
+ * ir_mce_kbd_encode() - Encode a scancode as a stream of raw events
+ *
+ * @protocol:   protocol to encode
+ * @scancode:   scancode to encode
+ * @events:     array of raw ir events to write into
+ * @max:        maximum size of @events
+ *
+ * Returns:     The number of events written.
+ *              -ENOBUFS if there isn't enough space in the array to fit the
+ *              encoding. In this case all @max events will have been written.
+ */
+static int ir_mce_kbd_encode(enum rc_proto protocol, u32 scancode,
+			     struct ir_raw_event *events, unsigned int max)
+{
+	struct ir_raw_event *e = events;
+	int len, ret;
+	u64 raw;
+
+	if (protocol == RC_PROTO_MCIR2_KBD) {
+		raw = scancode |
+		      ((u64)MCIR2_KEYBOARD_HEADER << MCIR2_KEYBOARD_NBITS);
+		len = MCIR2_KEYBOARD_NBITS + MCIR2_HEADER_NBITS + 1;
+	} else {
+		raw = scancode |
+		      ((u64)MCIR2_MOUSE_HEADER << MCIR2_MOUSE_NBITS);
+		len = MCIR2_MOUSE_NBITS + MCIR2_HEADER_NBITS + 1;
+	}
+
+	ret = ir_raw_gen_manchester(&e, max, &ir_mce_kbd_timings, len, raw);
+	if (ret < 0)
+		return ret;
+
+	return e - events;
+}
+
 static struct ir_raw_handler mce_kbd_handler = {
-	.protocols	= RC_BIT_MCE_KBD,
+	.protocols	= RC_PROTO_BIT_MCIR2_KBD | RC_PROTO_BIT_MCIR2_MSE,
 	.decode		= ir_mce_kbd_decode,
+	.encode		= ir_mce_kbd_encode,
 	.raw_register	= ir_mce_kbd_register,
 	.raw_unregister	= ir_mce_kbd_unregister,
 };

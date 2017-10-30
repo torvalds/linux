@@ -90,7 +90,6 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 		if (result)
 			return result;
 	}
-	st->chip_config.enable = enable;
 
 	return 0;
 }
@@ -103,7 +102,15 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 static int inv_mpu_data_rdy_trigger_set_state(struct iio_trigger *trig,
 					      bool state)
 {
-	return inv_mpu6050_set_enable(iio_trigger_get_drvdata(trig), state);
+	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
+	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+	int result;
+
+	mutex_lock(&st->lock);
+	result = inv_mpu6050_set_enable(indio_dev, state);
+	mutex_unlock(&st->lock);
+
+	return result;
 }
 
 static const struct iio_trigger_ops inv_mpu_trigger_ops = {

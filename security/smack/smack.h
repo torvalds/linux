@@ -114,6 +114,7 @@ struct inode_smack {
 	struct smack_known	*smk_mmap;	/* label of the mmap domain */
 	struct mutex		smk_lock;	/* initialization lock */
 	int			smk_flags;	/* smack inode flags */
+	struct rcu_head         smk_rcu;	/* for freeing inode_smack */
 };
 
 struct task_smack {
@@ -173,6 +174,8 @@ struct smk_port_label {
 	unsigned short		smk_port;	/* the port number */
 	struct smack_known	*smk_in;	/* inbound label */
 	struct smack_known	*smk_out;	/* outgoing label */
+	short			smk_sock_type;	/* Socket type */
+	short			smk_can_reuse;
 };
 #endif /* SMACK_IPV6_PORT_LABELING */
 
@@ -317,7 +320,7 @@ int smk_netlbl_mls(int, char *, struct netlbl_lsm_secattr *, int);
 struct smack_known *smk_import_entry(const char *, int);
 void smk_insert_entry(struct smack_known *skp);
 struct smack_known *smk_find_entry(const char *);
-int smack_privileged(int cap);
+bool smack_privileged(int cap);
 void smk_destroy_label_list(struct list_head *list);
 
 /*
@@ -336,7 +339,6 @@ extern int smack_ptrace_rule;
 extern struct smack_known smack_known_floor;
 extern struct smack_known smack_known_hat;
 extern struct smack_known smack_known_huh;
-extern struct smack_known smack_known_invalid;
 extern struct smack_known smack_known_star;
 extern struct smack_known smack_known_web;
 

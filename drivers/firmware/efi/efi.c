@@ -23,7 +23,10 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/io.h>
+#include <linux/kexec.h>
 #include <linux/platform_device.h>
+#include <linux/random.h>
+#include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/ucs2_string.h>
@@ -48,8 +51,28 @@ struct efi __read_mostly efi = {
 	.esrt			= EFI_INVALID_TABLE_ADDR,
 	.properties_table	= EFI_INVALID_TABLE_ADDR,
 	.mem_attr_table		= EFI_INVALID_TABLE_ADDR,
+	.rng_seed		= EFI_INVALID_TABLE_ADDR,
 };
 EXPORT_SYMBOL(efi);
+
+static unsigned long *efi_tables[] = {
+	&efi.mps,
+	&efi.acpi,
+	&efi.acpi20,
+	&efi.smbios,
+	&efi.smbios3,
+	&efi.sal_systab,
+	&efi.boot_info,
+	&efi.hcdp,
+	&efi.uga,
+	&efi.uv_systab,
+	&efi.fw_vendor,
+	&efi.runtime,
+	&efi.config_table,
+	&efi.esrt,
+	&efi.properties_table,
+	&efi.mem_attr_table,
+};
 
 static bool disable_runtime;
 static int __init setup_noefi(char *arg)
@@ -175,7 +198,7 @@ static umode_t efi_attr_is_visible(struct kobject *kobj,
 	return attr->mode;
 }
 
-static struct attribute_group efi_subsys_attr_group = {
+static const struct attribute_group efi_subsys_attr_group = {
 	.attrs = efi_subsys_attrs,
 	.is_visible = efi_attr_is_visible,
 };
@@ -259,8 +282,10 @@ static __init int efivar_ssdt_load(void)
 		}
 
 		data = kmalloc(size, GFP_KERNEL);
-		if (!data)
+		if (!data) {
+			ret = -ENOMEM;
 			goto free_entry;
+		}
 
 		ret = efivar_entry_get(entry, NULL, &size, data);
 		if (ret) {
@@ -383,7 +408,6 @@ int __init efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 			return 0;
 		}
 	}
-	pr_err_once("requested map not found.\n");
 	return -ENOENT;
 }
 
@@ -438,6 +462,7 @@ static __initdata efi_config_table_type_t common_tables[] = {
 	{EFI_SYSTEM_RESOURCE_TABLE_GUID, "ESRT", &efi.esrt},
 	{EFI_PROPERTIES_TABLE_GUID, "PROP", &efi.properties_table},
 	{EFI_MEMORY_ATTRIBUTES_TABLE_GUID, "MEMATTR", &efi.mem_attr_table},
+	{LINUX_EFI_RANDOM_SEED_TABLE_GUID, "RNG", &efi.rng_seed},
 	{NULL_GUID, NULL, NULL},
 };
 
@@ -498,6 +523,33 @@ int __init efi_config_parse_tables(void *config_tables, int count, int sz,
 	}
 	pr_cont("\n");
 	set_bit(EFI_CONFIG_TABLES, &efi.flags);
+
+	if (efi.rng_seed != EFI_INVALID_TABLE_ADDR) {
+		struct linux_efi_random_seed *seed;
+		u32 size = 0;
+
+		seed = early_memremap(efi.rng_seed, sizeof(*seed));
+		if (seed != NULL) {
+			size = seed->size;
+			early_memunmap(seed, sizeof(*seed));
+		} else {
+			pr_err("Could not map UEFI random seed!\n");
+		}
+		if (size > 0) {
+			seed = early_memremap(efi.rng_seed,
+					      sizeof(*seed) + size);
+			if (seed != NULL) {
+				add_device_randomness(seed->bits, seed->size);
+				early_memunmap(seed, sizeof(*seed) + size);
+				pr_notice("seeding entropy pool\n");
+			} else {
+				pr_err("Could not map UEFI random seed!\n");
+			}
+		}
+	}
+
+	if (efi_enabled(EFI_MEMMAP))
+		efi_memattr_init();
 
 	/* Parse the EFI Properties table if it exists */
 	if (efi.properties_table != EFI_INVALID_TABLE_ADDR) {
@@ -759,19 +811,19 @@ char * __init efi_md_typeattr_format(char *buf, size_t size,
 }
 
 /*
+ * IA64 has a funky EFI memory map that doesn't work the same way as
+ * other architectures.
+ */
+#ifndef CONFIG_IA64
+/*
  * efi_mem_attributes - lookup memmap attributes for physical address
  * @phys_addr: the physical address to lookup
  *
  * Search in the EFI memory map for the region covering
  * @phys_addr. Returns the EFI memory attributes if the region
  * was found in the memory map, 0 otherwise.
- *
- * Despite being marked __weak, most architectures should *not*
- * override this function. It is __weak solely for the benefit
- * of ia64 which has a funky EFI memory map that doesn't work
- * the same way as other architectures.
  */
-u64 __weak efi_mem_attributes(unsigned long phys_addr)
+u64 efi_mem_attributes(unsigned long phys_addr)
 {
 	efi_memory_desc_t *md;
 
@@ -786,6 +838,31 @@ u64 __weak efi_mem_attributes(unsigned long phys_addr)
 	}
 	return 0;
 }
+
+/*
+ * efi_mem_type - lookup memmap type for physical address
+ * @phys_addr: the physical address to lookup
+ *
+ * Search in the EFI memory map for the region covering @phys_addr.
+ * Returns the EFI memory type if the region was found in the memory
+ * map, EFI_RESERVED_TYPE (zero) otherwise.
+ */
+int efi_mem_type(unsigned long phys_addr)
+{
+	const efi_memory_desc_t *md;
+
+	if (!efi_enabled(EFI_MEMMAP))
+		return -ENOTSUPP;
+
+	for_each_efi_memory_desc(md) {
+		if ((md->phys_addr <= phys_addr) &&
+		    (phys_addr < (md->phys_addr +
+				  (md->num_pages << EFI_PAGE_SHIFT))))
+			return md->type;
+	}
+	return -EINVAL;
+}
+#endif
 
 int efi_status_to_err(efi_status_t status)
 {
@@ -822,3 +899,61 @@ int efi_status_to_err(efi_status_t status)
 
 	return err;
 }
+
+bool efi_is_table_address(unsigned long phys_addr)
+{
+	unsigned int i;
+
+	if (phys_addr == EFI_INVALID_TABLE_ADDR)
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(efi_tables); i++)
+		if (*(efi_tables[i]) == phys_addr)
+			return true;
+
+	return false;
+}
+
+#ifdef CONFIG_KEXEC
+static int update_efi_random_seed(struct notifier_block *nb,
+				  unsigned long code, void *unused)
+{
+	struct linux_efi_random_seed *seed;
+	u32 size = 0;
+
+	if (!kexec_in_progress)
+		return NOTIFY_DONE;
+
+	seed = memremap(efi.rng_seed, sizeof(*seed), MEMREMAP_WB);
+	if (seed != NULL) {
+		size = min(seed->size, EFI_RANDOM_SEED_SIZE);
+		memunmap(seed);
+	} else {
+		pr_err("Could not map UEFI random seed!\n");
+	}
+	if (size > 0) {
+		seed = memremap(efi.rng_seed, sizeof(*seed) + size,
+				MEMREMAP_WB);
+		if (seed != NULL) {
+			seed->size = size;
+			get_random_bytes(seed->bits, seed->size);
+			memunmap(seed);
+		} else {
+			pr_err("Could not map UEFI random seed!\n");
+		}
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block efi_random_seed_nb = {
+	.notifier_call = update_efi_random_seed,
+};
+
+static int register_update_efi_random_seed(void)
+{
+	if (efi.rng_seed == EFI_INVALID_TABLE_ADDR)
+		return 0;
+	return register_reboot_notifier(&efi_random_seed_nb);
+}
+late_initcall(register_update_efi_random_seed);
+#endif

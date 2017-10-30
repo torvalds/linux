@@ -99,9 +99,9 @@ the video sensor and the host image processing hardware.
 
 .. _pipeline-scaling:
 
-.. figure::  dev-subdev_files/pipeline.*
-    :alt:    pipeline.pdf / pipeline.png
-    :align:  center
+.. kernel-figure:: pipeline.dot
+    :alt:   pipeline.dot
+    :align: center
 
     Image Format Negotiation on Pipelines
 
@@ -204,9 +204,9 @@ list entity names and pad numbers).
 
 .. raw:: latex
 
-    \begin{adjustbox}{width=\columnwidth}
+    \tiny
 
-.. tabularcolumns:: |p{4.5cm}|p{4.5cm}|p{4.5cm}|p{4.5cm}|p{4.5cm}|p{4.5cm}|p{4.5cm}|
+.. tabularcolumns:: |p{2.0cm}|p{2.3cm}|p{2.3cm}|p{2.3cm}|p{2.3cm}|p{2.3cm}|p{2.3cm}|
 
 .. _sample-pipeline-config:
 
@@ -253,7 +253,7 @@ list entity names and pad numbers).
 
 .. raw:: latex
 
-    \end{adjustbox}\newline\newline
+    \normalsize
 
 1. Initial state. The sensor source pad format is set to its native 3MP
    size and V4L2_MBUS_FMT_SGRBG8_1X8 media bus code. Formats on the
@@ -370,7 +370,7 @@ circumstances. This may also cause the accessed rectangle to be adjusted
 by the driver, depending on the properties of the underlying hardware.
 
 The coordinates to a step always refer to the actual size of the
-previous step. The exception to this rule is the source compose
+previous step. The exception to this rule is the sink compose
 rectangle, which refers to the sink compose bounds rectangle --- if it
 is supported by the hardware.
 
@@ -404,9 +404,9 @@ selection will refer to the sink pad format dimensions instead.
 
 .. _subdev-image-processing-crop:
 
-.. figure::  dev-subdev_files/subdev-image-processing-crop.*
-    :alt:    subdev-image-processing-crop.svg
-    :align:  center
+.. kernel-figure:: subdev-image-processing-crop.svg
+    :alt:   subdev-image-processing-crop.svg
+    :align: center
 
     **Figure 4.5. Image processing in subdevs: simple crop example**
 
@@ -421,9 +421,9 @@ pad.
 
 .. _subdev-image-processing-scaling-multi-source:
 
-.. figure::  dev-subdev_files/subdev-image-processing-scaling-multi-source.*
-    :alt:    subdev-image-processing-scaling-multi-source.svg
-    :align:  center
+.. kernel-figure:: subdev-image-processing-scaling-multi-source.svg
+    :alt:   subdev-image-processing-scaling-multi-source.svg
+    :align: center
 
     **Figure 4.6. Image processing in subdevs: scaling with multiple sources**
 
@@ -437,7 +437,7 @@ an area at location specified by the source crop rectangle from it.
 
 .. _subdev-image-processing-full:
 
-.. figure::  dev-subdev_files/subdev-image-processing-full.*
+.. kernel-figure:: subdev-image-processing-full.svg
     :alt:    subdev-image-processing-full.svg
     :align:  center
 

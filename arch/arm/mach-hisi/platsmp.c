@@ -28,7 +28,7 @@ void hi3xxx_set_cpu_jump(int cpu, void *jump_addr)
 	cpu = cpu_logical_map(cpu);
 	if (!cpu || !ctrl_base)
 		return;
-	writel_relaxed(virt_to_phys(jump_addr), ctrl_base + ((cpu - 1) << 2));
+	writel_relaxed(__pa_symbol(jump_addr), ctrl_base + ((cpu - 1) << 2));
 }
 
 int hi3xxx_get_cpu_jump(int cpu)
@@ -109,7 +109,7 @@ static void hix5hd2_set_scu_boot_addr(phys_addr_t start_addr, phys_addr_t jump_a
 
 	virt = ioremap(start_addr, PAGE_SIZE);
 
-	writel_relaxed(0xe51ff004, virt);	/* ldr pc, [rc, #-4] */
+	writel_relaxed(0xe51ff004, virt);	/* ldr pc, [pc, #-4] */
 	writel_relaxed(jump_addr, virt + 4);	/* pc jump phy address */
 	iounmap(virt);
 }
@@ -118,7 +118,7 @@ static int hix5hd2_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	phys_addr_t jumpaddr;
 
-	jumpaddr = virt_to_phys(secondary_startup);
+	jumpaddr = __pa_symbol(secondary_startup);
 	hix5hd2_set_scu_boot_addr(HIX5HD2_BOOT_ADDRESS, jumpaddr);
 	hix5hd2_set_cpu(cpu, true);
 	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
@@ -156,7 +156,7 @@ static int hip01_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	struct device_node *node;
 
 
-	jumpaddr = virt_to_phys(secondary_startup);
+	jumpaddr = __pa_symbol(secondary_startup);
 	hip01_set_boot_addr(HIP01_BOOT_ADDRESS, jumpaddr);
 
 	node = of_find_compatible_node(NULL, NULL, "hisilicon,hip01-sysctrl");

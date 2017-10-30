@@ -50,9 +50,6 @@
 #define MLX5_BSF_APPTAG_ESCAPE	0x1
 #define MLX5_BSF_APPREF_ESCAPE	0x2
 
-#define MLX5_QPN_BITS		24
-#define MLX5_QPN_MASK		((1 << MLX5_QPN_BITS) - 1)
-
 enum mlx5_qp_optpar {
 	MLX5_QP_OPTPAR_ALT_ADDR_PATH		= 1 << 0,
 	MLX5_QP_OPTPAR_RRE			= 1 << 1,
@@ -223,14 +220,36 @@ enum {
 	MLX5_ETH_WQE_L4_CSUM            = 1 << 7,
 };
 
+enum {
+	MLX5_ETH_WQE_INSERT_VLAN        = 1 << 15,
+};
+
+enum {
+	MLX5_ETH_WQE_SWP_INNER_L3_IPV6  = 1 << 0,
+	MLX5_ETH_WQE_SWP_INNER_L4_UDP   = 1 << 1,
+	MLX5_ETH_WQE_SWP_OUTER_L3_IPV6  = 1 << 4,
+	MLX5_ETH_WQE_SWP_OUTER_L4_UDP   = 1 << 5,
+};
+
 struct mlx5_wqe_eth_seg {
-	u8              rsvd0[4];
+	u8              swp_outer_l4_offset;
+	u8              swp_outer_l3_offset;
+	u8              swp_inner_l4_offset;
+	u8              swp_inner_l3_offset;
 	u8              cs_flags;
-	u8              rsvd1;
+	u8              swp_flags;
 	__be16          mss;
 	__be32          rsvd2;
-	__be16          inline_hdr_sz;
-	u8              inline_hdr_start[2];
+	union {
+		struct {
+			__be16 sz;
+			u8     start[2];
+		} inline_hdr;
+		struct {
+			__be16 type;
+			__be16 vlan_tci;
+		} insert;
+	};
 };
 
 struct mlx5_wqe_xrc_seg {
@@ -243,6 +262,23 @@ struct mlx5_wqe_masked_atomic_seg {
 	__be64			compare;
 	__be64			swap_add_mask;
 	__be64			compare_mask;
+};
+
+struct mlx5_base_av {
+	union {
+		struct {
+			__be32	qkey;
+			__be32	reserved;
+		} qkey;
+		__be64	dc_key;
+	} key;
+	__be32	dqp_dct;
+	u8	stat_rate_sl;
+	u8	fl_mlid;
+	union {
+		__be16	rlid;
+		__be16  udp_sport;
+	};
 };
 
 struct mlx5_av {
@@ -268,6 +304,16 @@ struct mlx5_av {
 	u8	rgid[16];
 };
 
+struct mlx5_ib_ah {
+	struct ib_ah		ibah;
+	struct mlx5_av		av;
+};
+
+static inline struct mlx5_ib_ah *to_mah(struct ib_ah *ibah)
+{
+	return container_of(ibah, struct mlx5_ib_ah, ibah);
+}
+
 struct mlx5_wqe_datagram_seg {
 	struct mlx5_av	av;
 };
@@ -292,10 +338,14 @@ struct mlx5_wqe_data_seg {
 struct mlx5_wqe_umr_ctrl_seg {
 	u8		flags;
 	u8		rsvd0[3];
-	__be16		klm_octowords;
-	__be16		bsf_octowords;
+	__be16		xlt_octowords;
+	union {
+		__be16	xlt_offset;
+		__be16	bsf_octowords;
+	};
 	__be64		mkey_mask;
-	u8		rsvd1[32];
+	__be32		xlt_offset_47_16;
+	u8		rsvd1[28];
 };
 
 struct mlx5_seg_set_psv {
@@ -389,6 +439,10 @@ struct mlx5_bsf {
 	struct mlx5_bsf_inl	m_inl;
 };
 
+struct mlx5_mtt {
+	__be64		ptag;
+};
+
 struct mlx5_klm {
 	__be32		bcount;
 	__be32		key;
@@ -410,46 +464,9 @@ struct mlx5_stride_block_ctrl_seg {
 	__be16		num_entries;
 };
 
-enum mlx5_pagefault_flags {
-	MLX5_PFAULT_REQUESTOR = 1 << 0,
-	MLX5_PFAULT_WRITE     = 1 << 1,
-	MLX5_PFAULT_RDMA      = 1 << 2,
-};
-
-/* Contains the details of a pagefault. */
-struct mlx5_pagefault {
-	u32			bytes_committed;
-	u8			event_subtype;
-	enum mlx5_pagefault_flags flags;
-	union {
-		/* Initiator or send message responder pagefault details. */
-		struct {
-			/* Received packet size, only valid for responders. */
-			u32	packet_size;
-			/*
-			 * WQE index. Refers to either the send queue or
-			 * receive queue, according to event_subtype.
-			 */
-			u16	wqe_index;
-		} wqe;
-		/* RDMA responder pagefault details */
-		struct {
-			u32	r_key;
-			/*
-			 * Received packet size, minimal size page fault
-			 * resolution required for forward progress.
-			 */
-			u32	packet_size;
-			u32	rdma_op_len;
-			u64	rdma_va;
-		} rdma;
-	};
-};
-
 struct mlx5_core_qp {
 	struct mlx5_core_rsc_common	common; /* must be first */
 	void (*event)		(struct mlx5_core_qp *, int);
-	void (*pfault_handler)(struct mlx5_core_qp *, struct mlx5_pagefault *);
 	int			qpn;
 	struct mlx5_rsc_debug	*dbg;
 	int			pid;
@@ -543,16 +560,15 @@ int mlx5_core_destroy_qp(struct mlx5_core_dev *dev,
 int mlx5_core_qp_query(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,
 		       u32 *out, int outlen);
 
+int mlx5_core_set_delay_drop(struct mlx5_core_dev *dev,
+			     u32 timeout_usec);
+
 int mlx5_core_xrcd_alloc(struct mlx5_core_dev *dev, u32 *xrcdn);
 int mlx5_core_xrcd_dealloc(struct mlx5_core_dev *dev, u32 xrcdn);
 void mlx5_init_qp_table(struct mlx5_core_dev *dev);
 void mlx5_cleanup_qp_table(struct mlx5_core_dev *dev);
 int mlx5_debug_qp_add(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp);
 void mlx5_debug_qp_remove(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp);
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-int mlx5_core_page_fault_resume(struct mlx5_core_dev *dev, u32 qpn,
-				u8 context, int error);
-#endif
 int mlx5_core_create_rq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
 				struct mlx5_core_qp *rq);
 void mlx5_core_destroy_rq_tracked(struct mlx5_core_dev *dev,
@@ -565,8 +581,6 @@ int mlx5_core_alloc_q_counter(struct mlx5_core_dev *dev, u16 *counter_id);
 int mlx5_core_dealloc_q_counter(struct mlx5_core_dev *dev, u16 counter_id);
 int mlx5_core_query_q_counter(struct mlx5_core_dev *dev, u16 counter_id,
 			      int reset, void *out, int out_size);
-int mlx5_core_query_out_of_buffer(struct mlx5_core_dev *dev, u16 counter_id,
-				  u32 *out_of_buffer);
 
 static inline const char *mlx5_qp_type_str(int type)
 {

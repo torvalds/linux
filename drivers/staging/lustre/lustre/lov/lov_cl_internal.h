@@ -42,10 +42,10 @@
 #ifndef LOV_CL_INTERNAL_H
 #define LOV_CL_INTERNAL_H
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-#include "../include/obd.h"
-#include "../include/cl_object.h"
+#include <obd.h>
+#include <cl_object.h>
 #include "lov_internal.h"
 
 /** \defgroup lov lov
@@ -92,35 +92,6 @@ enum lov_device_flags {
  * Upper half.
  */
 
-/**
- * Resources that are used in memory-cleaning path, and whose allocation
- * cannot fail even when memory is tight. They are preallocated in sufficient
- * quantities in lov_device::ld_emerg[], and access to them is serialized
- * lov_device::ld_mutex.
- */
-struct lov_device_emerg {
-	/**
-	 * Page list used to submit IO when memory is in pressure.
-	 */
-	struct cl_page_list emrg_page_list;
-	/**
-	 * sub-io's shared by all threads accessing this device when memory is
-	 * too low to allocate sub-io's dynamically.
-	 */
-	struct cl_io	emrg_subio;
-	/**
-	 * Environments used by sub-io's in
-	 * lov_device_emerg::emrg_subio.
-	 */
-	struct lu_env      *emrg_env;
-	/**
-	 * Refchecks for lov_device_emerg::emrg_env.
-	 *
-	 * \see cl_env_get()
-	 */
-	int		 emrg_refcheck;
-};
-
 struct lov_device {
 	/*
 	 * XXX Locking of lov-private data is missing.
@@ -131,14 +102,6 @@ struct lov_device {
 	__u32		     ld_target_nr;
 	struct lovsub_device    **ld_target;
 	__u32		     ld_flags;
-
-	/** Emergency resources used in memory-cleansing paths. */
-	struct lov_device_emerg **ld_emrg;
-	/**
-	 * Serializes access to lov_device::ld_emrg in low-memory
-	 * conditions.
-	 */
-	struct mutex		  ld_mutex;
 };
 
 /**
@@ -217,7 +180,7 @@ struct lov_object {
 
 	union lov_layout_state {
 		struct lov_layout_raid0 {
-			unsigned	       lo_nr;
+			unsigned int	       lo_nr;
 			/**
 			 * When this is true, lov_object::lo_attr contains
 			 * valid up to date attributes for a top-level
@@ -299,8 +262,6 @@ struct lov_page {
 
 struct lovsub_device {
 	struct cl_device   acid_cl;
-	struct lov_device *acid_super;
-	int		acid_idx;
 	struct cl_device  *acid_next;
 };
 
@@ -312,42 +273,10 @@ struct lovsub_object {
 };
 
 /**
- * A link between a top-lock and a sub-lock. Separate data-structure is
- * necessary, because top-locks and sub-locks are in M:N relationship.
- *
- * \todo This can be optimized for a (by far) most frequent case of a single
- * top-lock per sub-lock.
- */
-struct lov_lock_link {
-	struct lov_lock *lll_super;
-	/** An index within parent lock. */
-	int	      lll_idx;
-	/**
-	 * A linkage into per sub-lock list of all corresponding top-locks,
-	 * hanging off lovsub_lock::lss_parents.
-	 */
-	struct list_head       lll_list;
-};
-
-/**
  * Lock state at lovsub layer.
  */
 struct lovsub_lock {
 	struct cl_lock_slice  lss_cl;
-	/**
-	 * List of top-locks that have given sub-lock as their part. Protected
-	 * by cl_lock::cll_guard mutex.
-	 */
-	struct list_head	    lss_parents;
-	/**
-	 * Top-lock that initiated current operation on this sub-lock. This is
-	 * only set during top-to-bottom lock operations like enqueue, and is
-	 * used to optimize state change notification. Protected by
-	 * cl_lock::cll_guard mutex.
-	 *
-	 * \see lovsub_lock_state_one().
-	 */
-	struct cl_lock       *lss_active;
 };
 
 /**
@@ -356,7 +285,6 @@ struct lovsub_lock {
 struct lov_sublock_env {
 	const struct lu_env *lse_env;
 	struct cl_io	*lse_io;
-	struct lov_io_sub   *lse_sub;
 };
 
 struct lovsub_page {
@@ -366,19 +294,38 @@ struct lovsub_page {
 struct lov_thread_info {
 	struct cl_object_conf   lti_stripe_conf;
 	struct lu_fid	   lti_fid;
-	struct cl_lock_descr    lti_ldescr;
 	struct ost_lvb	  lti_lvb;
 	struct cl_2queue	lti_cl2q;
 	struct cl_page_list     lti_plist;
-	wait_queue_t	  lti_waiter;
-	struct cl_attr          lti_attr;
+	wait_queue_entry_t	  lti_waiter;
 };
 
 /**
  * State that lov_io maintains for every sub-io.
  */
 struct lov_io_sub {
-	int		  sub_stripe;
+	u16		 sub_stripe;
+	/**
+	 * environment's refcheck.
+	 *
+	 * \see cl_env_get()
+	 */
+	u16			 sub_refcheck;
+	/**
+	 * true, iff cl_io_init() was successfully executed against
+	 * lov_io_sub::sub_io.
+	 */
+	u16			 sub_io_initialized:1,
+	/**
+	 * True, iff lov_io_sub::sub_io and lov_io_sub::sub_env weren't
+	 * allocated, but borrowed from a per-device emergency pool.
+	 */
+				 sub_borrowed:1;
+	/**
+	 * Linkage into a list (hanging off lov_io::lis_active) of all
+	 * sub-io's active for the current IO iteration.
+	 */
+	struct list_head	 sub_linkage;
 	/**
 	 * sub-io for a stripe. Ideally sub-io's can be stopped and resumed
 	 * independently, with lov acting as a scheduler to maximize overall
@@ -386,33 +333,9 @@ struct lov_io_sub {
 	 */
 	struct cl_io	*sub_io;
 	/**
-	 * Linkage into a list (hanging off lov_io::lis_active) of all
-	 * sub-io's active for the current IO iteration.
-	 */
-	struct list_head	   sub_linkage;
-	/**
-	 * true, iff cl_io_init() was successfully executed against
-	 * lov_io_sub::sub_io.
-	 */
-	int		  sub_io_initialized;
-	/**
-	 * True, iff lov_io_sub::sub_io and lov_io_sub::sub_env weren't
-	 * allocated, but borrowed from a per-device emergency pool.
-	 */
-	int		  sub_borrowed;
-	/**
 	 * environment, in which sub-io executes.
 	 */
 	struct lu_env *sub_env;
-	/**
-	 * environment's refcheck.
-	 *
-	 * \see cl_env_get()
-	 */
-	int		  sub_refcheck;
-	int		  sub_refcheck2;
-	int		  sub_reenter;
-	void		*sub_cookie;
 };
 
 /**
@@ -447,7 +370,6 @@ struct lov_io {
 	 */
 	u64	    lis_endpos;
 
-	int		lis_mem_frozen;
 	int		lis_stripe_count;
 	int		lis_active_subios;
 
@@ -473,20 +395,6 @@ struct lov_session {
 	struct lov_sublock_env ls_subenv;
 };
 
-/**
- * State of transfer for lov.
- */
-struct lov_req {
-	struct cl_req_slice lr_cl;
-};
-
-/**
- * State of transfer for lovsub.
- */
-struct lovsub_req {
-	struct cl_req_slice lsrq_cl;
-};
-
 extern struct lu_device_type lov_device_type;
 extern struct lu_device_type lovsub_device_type;
 
@@ -497,13 +405,9 @@ extern struct kmem_cache *lov_lock_kmem;
 extern struct kmem_cache *lov_object_kmem;
 extern struct kmem_cache *lov_thread_kmem;
 extern struct kmem_cache *lov_session_kmem;
-extern struct kmem_cache *lov_req_kmem;
 
 extern struct kmem_cache *lovsub_lock_kmem;
 extern struct kmem_cache *lovsub_object_kmem;
-extern struct kmem_cache *lovsub_req_kmem;
-
-extern struct kmem_cache *lov_lock_link_kmem;
 
 int lov_object_init(const struct lu_env *env, struct lu_object *obj,
 		    const struct lu_object_conf *conf);
@@ -526,15 +430,9 @@ int lov_io_init_empty(const struct lu_env *env, struct cl_object *obj,
 		      struct cl_io *io);
 int lov_io_init_released(const struct lu_env *env, struct cl_object *obj,
 			 struct cl_io *io);
-void lov_lock_unlink(const struct lu_env *env, struct lov_lock_link *link,
-		     struct lovsub_lock *sub);
 
 struct lov_io_sub *lov_sub_get(const struct lu_env *env, struct lov_io *lio,
 			       int stripe);
-void lov_sub_put(struct lov_io_sub *sub);
-int lov_sublock_modify(const struct lu_env *env, struct lov_lock *lov,
-		       struct lovsub_lock *sublock,
-		       const struct cl_lock_descr *d, int idx);
 
 int lov_page_init(const struct lu_env *env, struct cl_object *ob,
 		  struct cl_page *page, pgoff_t index);
@@ -550,12 +448,6 @@ struct lu_object *lov_object_alloc(const struct lu_env *env,
 struct lu_object *lovsub_object_alloc(const struct lu_env *env,
 				      const struct lu_object_header *hdr,
 				      struct lu_device *dev);
-
-struct lov_lock_link *lov_lock_link_find(const struct lu_env *env,
-					 struct lov_lock *lck,
-					 struct lovsub_lock *sub);
-struct lov_io_sub *lov_page_subio(const struct lu_env *env, struct lov_io *lio,
-				  const struct cl_page_slice *slice);
 
 struct lov_stripe_md *lov_lsm_addref(struct lov_object *lov);
 int lov_page_stripe(const struct cl_page *page);
@@ -700,21 +592,11 @@ static inline struct lov_page *cl2lov_page(const struct cl_page_slice *slice)
 	return container_of0(slice, struct lov_page, lps_cl);
 }
 
-static inline struct lov_req *cl2lov_req(const struct cl_req_slice *slice)
-{
-	return container_of0(slice, struct lov_req, lr_cl);
-}
-
 static inline struct lovsub_page *
 cl2lovsub_page(const struct cl_page_slice *slice)
 {
 	LINVRNT(lovsub_is_object(&slice->cpl_obj->co_lu));
 	return container_of0(slice, struct lovsub_page, lsb_cl);
-}
-
-static inline struct lovsub_req *cl2lovsub_req(const struct cl_req_slice *slice)
-{
-	return container_of0(slice, struct lovsub_req, lsrq_cl);
 }
 
 static inline struct lov_io *cl2lov_io(const struct lu_env *env,

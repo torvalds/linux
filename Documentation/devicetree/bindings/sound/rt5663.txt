@@ -1,10 +1,10 @@
-RT5663/RT5668 audio CODEC
+RT5663 audio CODEC
 
 This device supports I2C only.
 
 Required properties:
 
-- compatible : One of "realtek,rt5663" or "realtek,rt5668".
+- compatible : "realtek,rt5663".
 
 - reg : The I2C address of the device.
 
@@ -12,7 +12,15 @@ Required properties:
 
 Optional properties:
 
-Pins on the device (for linking into audio routes) for RT5663/RT5668:
+- "realtek,dc_offset_l_manual"
+- "realtek,dc_offset_r_manual"
+- "realtek,dc_offset_l_manual_mic"
+- "realtek,dc_offset_r_manual_mic"
+  Based on the different PCB layout, add the manual offset value to
+  compensate the DC offset for each L and R channel, and they are different
+  between headphone and headset.
+
+Pins on the device (for linking into audio routes) for RT5663:
 
   * IN1P
   * IN1N

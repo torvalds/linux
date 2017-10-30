@@ -248,14 +248,15 @@ static void ucma_copy_conn_event(struct rdma_ucm_conn_param *dst,
 	dst->qp_num = src->qp_num;
 }
 
-static void ucma_copy_ud_event(struct rdma_ucm_ud_param *dst,
+static void ucma_copy_ud_event(struct ib_device *device,
+			       struct rdma_ucm_ud_param *dst,
 			       struct rdma_ud_param *src)
 {
 	if (src->private_data_len)
 		memcpy(dst->private_data, src->private_data,
 		       src->private_data_len);
 	dst->private_data_len = src->private_data_len;
-	ib_copy_ah_attr_to_user(&dst->ah_attr, &src->ah_attr);
+	ib_copy_ah_attr_to_user(device, &dst->ah_attr, &src->ah_attr);
 	dst->qp_num = src->qp_num;
 	dst->qkey = src->qkey;
 }
@@ -335,7 +336,8 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 	uevent->resp.event = event->event;
 	uevent->resp.status = event->status;
 	if (cm_id->qp_type == IB_QPT_UD)
-		ucma_copy_ud_event(&uevent->resp.param.ud, &event->param.ud);
+		ucma_copy_ud_event(cm_id->device, &uevent->resp.param.ud,
+				   &event->param.ud);
 	else
 		ucma_copy_conn_event(&uevent->resp.param.conn,
 				     &event->param.conn);
@@ -898,11 +900,18 @@ static ssize_t ucma_query_path(struct ucma_context *ctx,
 	for (i = 0, out_len -= sizeof(*resp);
 	     i < resp->num_paths && out_len > sizeof(struct ib_path_rec_data);
 	     i++, out_len -= sizeof(struct ib_path_rec_data)) {
+		struct sa_path_rec *rec = &ctx->cm_id->route.path_rec[i];
 
 		resp->path_data[i].flags = IB_PATH_GMP | IB_PATH_PRIMARY |
 					   IB_PATH_BIDIRECTIONAL;
-		ib_sa_pack_path(&ctx->cm_id->route.path_rec[i],
-				&resp->path_data[i].path_rec);
+		if (rec->rec_type == SA_PATH_REC_TYPE_IB) {
+			ib_sa_pack_path(rec, &resp->path_data[i].path_rec);
+		} else {
+			struct sa_path_rec ib;
+
+			sa_convert_path_opa_to_ib(&ib, rec);
+			ib_sa_pack_path(&ib, &resp->path_data[i].path_rec);
+		}
 	}
 
 	if (copy_to_user(response, resp,
@@ -1150,7 +1159,7 @@ static ssize_t ucma_init_qp_attr(struct ucma_file *file,
 	if (ret)
 		goto out;
 
-	ib_copy_qp_attr_to_user(&resp, &qp_attr);
+	ib_copy_qp_attr_to_user(ctx->cm_id->device, &resp, &qp_attr);
 	if (copy_to_user((void __user *)(unsigned long)cmd.response,
 			 &resp, sizeof(resp)))
 		ret = -EFAULT;
@@ -1197,7 +1206,7 @@ static int ucma_set_option_id(struct ucma_context *ctx, int optname,
 static int ucma_set_ib_path(struct ucma_context *ctx,
 			    struct ib_path_rec_data *path_data, size_t optlen)
 {
-	struct ib_sa_path_rec sa_path;
+	struct sa_path_rec sa_path;
 	struct rdma_cm_event event;
 	int ret;
 
@@ -1215,8 +1224,17 @@ static int ucma_set_ib_path(struct ucma_context *ctx,
 
 	memset(&sa_path, 0, sizeof(sa_path));
 
+	sa_path.rec_type = SA_PATH_REC_TYPE_IB;
 	ib_sa_unpack_path(path_data->path_rec, &sa_path);
-	ret = rdma_set_ib_paths(ctx->cm_id, &sa_path, 1);
+
+	if (rdma_cap_opa_ah(ctx->cm_id->device, ctx->cm_id->port_num)) {
+		struct sa_path_rec opa;
+
+		sa_convert_path_ib_to_opa(&opa, &sa_path);
+		ret = rdma_set_ib_paths(ctx->cm_id, &opa, 1);
+	} else {
+		ret = rdma_set_ib_paths(ctx->cm_id, &sa_path, 1);
+	}
 	if (ret)
 		return ret;
 
@@ -1584,8 +1602,11 @@ static ssize_t ucma_write(struct file *filp, const char __user *buf,
 	struct rdma_ucm_cmd_hdr hdr;
 	ssize_t ret;
 
-	if (WARN_ON_ONCE(!ib_safe_file_access(filp)))
+	if (!ib_safe_file_access(filp)) {
+		pr_err_once("ucma_write: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
+			    task_tgid_vnr(current), current->comm);
 		return -EACCES;
+	}
 
 	if (len < sizeof(hdr))
 		return -EINVAL;

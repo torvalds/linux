@@ -15,11 +15,12 @@
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/notifier.h>
+#include <linux/spinlock.h>
 
 /* Defines used for the flags field in the struct generic_pm_domain */
 #define GENPD_FLAG_PM_CLK	(1U << 0) /* PM domain uses PM clk */
-
-#define GENPD_MAX_NUM_STATES	8 /* Number of possible low power states */
+#define GENPD_FLAG_IRQ_SAFE	(1U << 1) /* PM domain operates in atomic */
+#define GENPD_FLAG_ALWAYS_ON	(1U << 2) /* PM domain is always powered on */
 
 enum gpd_status {
 	GPD_STATE_ACTIVE = 0,	/* PM domain is active */
@@ -40,7 +41,12 @@ struct gpd_dev_ops {
 struct genpd_power_state {
 	s64 power_off_latency_ns;
 	s64 power_on_latency_ns;
+	s64 residency_ns;
+	struct fwnode_handle *fwnode;
+	ktime_t idle_time;
 };
+
+struct genpd_lock_ops;
 
 struct generic_pm_domain {
 	struct dev_pm_domain domain;	/* PM domain operations */
@@ -48,7 +54,6 @@ struct generic_pm_domain {
 	struct list_head master_links;	/* Links with PM domain as a master */
 	struct list_head slave_links;	/* Links with PM domain as a slave */
 	struct list_head dev_list;	/* List of devices */
-	struct mutex lock;
 	struct dev_power_governor *gov;
 	struct work_struct power_off_work;
 	struct fwnode_handle *provider;	/* Identity of the domain provider */
@@ -70,9 +75,20 @@ struct generic_pm_domain {
 	void (*detach_dev)(struct generic_pm_domain *domain,
 			   struct device *dev);
 	unsigned int flags;		/* Bit field of configs for genpd */
-	struct genpd_power_state states[GENPD_MAX_NUM_STATES];
+	struct genpd_power_state *states;
 	unsigned int state_count; /* number of states */
 	unsigned int state_idx; /* state that genpd will go to when off */
+	void *free; /* Free the state that was allocated for default */
+	ktime_t on_time;
+	ktime_t accounting_time;
+	const struct genpd_lock_ops *lock_ops;
+	union {
+		struct mutex mlock;
+		struct {
+			spinlock_t slock;
+			unsigned long lock_flags;
+		};
+	};
 
 };
 
@@ -105,6 +121,7 @@ struct generic_pm_domain_data {
 	struct pm_domain_data base;
 	struct gpd_timing_data td;
 	struct notifier_block nb;
+	void *data;
 };
 
 #ifdef CONFIG_PM_GENERIC_DOMAINS
@@ -170,6 +187,9 @@ static inline int pm_genpd_remove(struct generic_pm_domain *genpd)
 {
 	return -ENOTSUPP;
 }
+
+#define simple_qos_governor		(*(struct dev_power_governor *)(NULL))
+#define pm_domain_always_on_gov		(*(struct dev_power_governor *)(NULL))
 #endif
 
 static inline int pm_genpd_add_device(struct generic_pm_domain *genpd,
@@ -189,9 +209,13 @@ static inline void pm_genpd_syscore_poweron(struct device *dev) {}
 /* OF PM domain providers */
 struct of_device_id;
 
+typedef struct generic_pm_domain *(*genpd_xlate_t)(struct of_phandle_args *args,
+						   void *data);
+
 struct genpd_onecell_data {
 	struct generic_pm_domain **domains;
 	unsigned int num_domains;
+	genpd_xlate_t xlate;
 };
 
 #ifdef CONFIG_PM_GENERIC_DOMAINS_OF
@@ -205,6 +229,8 @@ extern int of_genpd_add_device(struct of_phandle_args *args,
 extern int of_genpd_add_subdomain(struct of_phandle_args *parent,
 				  struct of_phandle_args *new_subdomain);
 extern struct generic_pm_domain *of_genpd_remove_last(struct device_node *np);
+extern int of_genpd_parse_idle_states(struct device_node *dn,
+			struct genpd_power_state **states, int *n);
 
 int genpd_dev_pm_attach(struct device *dev);
 #else /* !CONFIG_PM_GENERIC_DOMAINS_OF */
@@ -230,6 +256,12 @@ static inline int of_genpd_add_device(struct of_phandle_args *args,
 
 static inline int of_genpd_add_subdomain(struct of_phandle_args *parent,
 					 struct of_phandle_args *new_subdomain)
+{
+	return -ENODEV;
+}
+
+static inline int of_genpd_parse_idle_states(struct device_node *dn,
+			struct genpd_power_state **states, int *n)
 {
 	return -ENODEV;
 }

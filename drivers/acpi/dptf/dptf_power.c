@@ -65,7 +65,7 @@ static struct attribute *dptf_power_attrs[] = {
 	NULL
 };
 
-static struct attribute_group dptf_power_attribute_group = {
+static const struct attribute_group dptf_power_attribute_group = {
 	.attrs = dptf_power_attrs,
 	.name = "dptf_power"
 };

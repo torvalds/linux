@@ -930,7 +930,7 @@ static int ip22zilog_verify_port(struct uart_port *port, struct serial_struct *s
 	return -EINVAL;
 }
 
-static struct uart_ops ip22zilog_pops = {
+static const struct uart_ops ip22zilog_pops = {
 	.tx_empty	=	ip22zilog_tx_empty,
 	.set_mctrl	=	ip22zilog_set_mctrl,
 	.get_mctrl	=	ip22zilog_get_mctrl,

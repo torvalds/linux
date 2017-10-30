@@ -52,15 +52,35 @@
 
 #define MAC_ERROR_BIT		0
 #define CHK_MAC_ERR_BIT(x)	(((x) >> MAC_ERROR_BIT) & 1)
+#define MAX_SALT                4
+#define WR_MIN_LEN (sizeof(struct chcr_wr) + \
+		    sizeof(struct cpl_rx_phys_dsgl) + \
+		    sizeof(struct ulptx_sgl))
+
+#define padap(dev) pci_get_drvdata(dev->u_ctx->lldi.pdev)
 
 struct uld_ctx;
 
+struct _key_ctx {
+	__be32 ctx_hdr;
+	u8 salt[MAX_SALT];
+	__be64 reserverd;
+	unsigned char key[0];
+};
+
+struct chcr_wr {
+	struct fw_crypto_lookaside_wr wreq;
+	struct ulp_txpkt ulptx;
+	struct ulptx_idata sc_imm;
+	struct cpl_tx_sec_pdu sec_cpl;
+	struct _key_ctx key_ctx;
+};
+
 struct chcr_dev {
-	/* Request submited to h/w and waiting for response. */
 	spinlock_t lock_chcr_dev;
-	struct crypto_queue pending_queue;
 	struct uld_ctx *u_ctx;
 	unsigned char tx_channel_id;
+	unsigned char rx_channel_id;
 };
 
 struct uld_ctx {
@@ -69,7 +89,7 @@ struct uld_ctx {
 	struct chcr_dev *dev;
 };
 
-int assign_chcr_device(struct chcr_dev **dev);
+struct uld_ctx * assign_chcr_device(void);
 int chcr_send_wr(struct sk_buff *skb);
 int start_crypto(void);
 int stop_crypto(void);

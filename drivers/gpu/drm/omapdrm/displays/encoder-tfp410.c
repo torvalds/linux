@@ -22,9 +22,8 @@ struct panel_drv_data {
 	struct omap_dss_device *in;
 
 	int pd_gpio;
-	int data_lines;
 
-	struct omap_video_timings timings;
+	struct videomode vm;
 };
 
 #define to_panel_data(x) container_of(x, struct panel_drv_data, dssdev)
@@ -81,9 +80,7 @@ static int tfp410_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	in->ops.dpi->set_timings(in, &ddata->timings);
-	if (ddata->data_lines)
-		in->ops.dpi->set_data_lines(in, ddata->data_lines);
+	in->ops.dpi->set_timings(in, &ddata->vm);
 
 	r = in->ops.dpi->enable(in);
 	if (r)
@@ -113,44 +110,43 @@ static void tfp410_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void tfp410_fix_timings(struct omap_video_timings *timings)
+static void tfp410_fix_timings(struct videomode *vm)
 {
-	timings->data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
-	timings->sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
-	timings->de_level = OMAPDSS_SIG_ACTIVE_HIGH;
+	vm->flags |= DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_POSEDGE |
+		     DISPLAY_FLAGS_SYNC_POSEDGE;
 }
 
 static void tfp410_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+			       struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	tfp410_fix_timings(timings);
+	tfp410_fix_timings(vm);
 
-	ddata->timings = *timings;
-	dssdev->panel.timings = *timings;
+	ddata->vm = *vm;
+	dssdev->panel.vm = *vm;
 
-	in->ops.dpi->set_timings(in, timings);
+	in->ops.dpi->set_timings(in, vm);
 }
 
 static void tfp410_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+			       struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*timings = ddata->timings;
+	*vm = ddata->vm;
 }
 
 static int tfp410_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+				struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	tfp410_fix_timings(timings);
+	tfp410_fix_timings(vm);
 
-	return in->ops.dpi->check_timings(in, timings);
+	return in->ops.dpi->check_timings(in, vm);
 }
 
 static const struct omapdss_dvi_ops tfp410_dvi_ops = {
@@ -227,7 +223,6 @@ static int tfp410_probe(struct platform_device *pdev)
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->output_type = OMAP_DISPLAY_TYPE_DVI;
 	dssdev->owner = THIS_MODULE;
-	dssdev->phy.dpi.data_lines = ddata->data_lines;
 	dssdev->port_num = 1;
 
 	r = omapdss_register_output(dssdev);

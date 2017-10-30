@@ -433,7 +433,7 @@ send_uframe(struct PStack *st, u_char cmd, u_char cr)
 		printk(KERN_WARNING "isdl2 can't alloc sbbuff for send_uframe\n");
 		return;
 	}
-	memcpy(skb_put(skb, i), tmp, i);
+	skb_put_data(skb, tmp, i);
 	enqueue_super(st, skb);
 }
 
@@ -894,7 +894,7 @@ enquiry_cr(struct PStack *st, u_char typ, u_char cr, u_char pf)
 		printk(KERN_WARNING "isdl2 can't alloc sbbuff for enquiry_cr\n");
 		return;
 	}
-	memcpy(skb_put(skb, i), tmp, i);
+	skb_put_data(skb, tmp, i);
 	enqueue_super(st, skb);
 }
 

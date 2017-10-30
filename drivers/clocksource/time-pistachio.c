@@ -67,7 +67,7 @@ static inline void gpt_writel(void __iomem *base, u32 value, u32 offset,
 	writel(value, base + 0x20 * gpt_id + offset);
 }
 
-static cycle_t notrace
+static u64 notrace
 pistachio_clocksource_read_cycles(struct clocksource *cs)
 {
 	struct pistachio_clocksource *pcs = to_pistachio_clocksource(cs);
@@ -84,7 +84,7 @@ pistachio_clocksource_read_cycles(struct clocksource *cs)
 	counter = gpt_readl(pcs->base, TIMER_CURRENT_VALUE, 0);
 	raw_spin_unlock_irqrestore(&pcs->lock, flags);
 
-	return (cycle_t)~counter;
+	return (u64)~counter;
 }
 
 static u64 notrace pistachio_read_sched_clock(void)
@@ -214,5 +214,5 @@ static int __init pistachio_clksrc_of_init(struct device_node *node)
 	sched_clock_register(pistachio_read_sched_clock, 32, rate);
 	return clocksource_register_hz(&pcs_gpt.cs, rate);
 }
-CLOCKSOURCE_OF_DECLARE(pistachio_gptimer, "img,pistachio-gptimer",
+TIMER_OF_DECLARE(pistachio_gptimer, "img,pistachio-gptimer",
 		       pistachio_clksrc_of_init);

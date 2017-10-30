@@ -1,0 +1,659 @@
+User Interface for Resource Allocation in Intel Resource Director Technology
+
+Copyright (C) 2016 Intel Corporation
+
+Fenghua Yu <fenghua.yu@intel.com>
+Tony Luck <tony.luck@intel.com>
+Vikas Shivappa <vikas.shivappa@intel.com>
+
+This feature is enabled by the CONFIG_INTEL_RDT Kconfig and the
+X86 /proc/cpuinfo flag bits "rdt", "cqm", "cat_l3" and "cdp_l3".
+
+To use the feature mount the file system:
+
+ # mount -t resctrl resctrl [-o cdp] /sys/fs/resctrl
+
+mount options are:
+
+"cdp": Enable code/data prioritization in L3 cache allocations.
+
+RDT features are orthogonal. A particular system may support only
+monitoring, only control, or both monitoring and control.
+
+The mount succeeds if either of allocation or monitoring is present, but
+only those files and directories supported by the system will be created.
+For more details on the behavior of the interface during monitoring
+and allocation, see the "Resource alloc and monitor groups" section.
+
+Info directory
+--------------
+
+The 'info' directory contains information about the enabled
+resources. Each resource has its own subdirectory. The subdirectory
+names reflect the resource names.
+
+Each subdirectory contains the following files with respect to
+allocation:
+
+Cache resource(L3/L2)  subdirectory contains the following files
+related to allocation:
+
+"num_closids":  	The number of CLOSIDs which are valid for this
+			resource. The kernel uses the smallest number of
+			CLOSIDs of all enabled resources as limit.
+
+"cbm_mask":     	The bitmask which is valid for this resource.
+			This mask is equivalent to 100%.
+
+"min_cbm_bits": 	The minimum number of consecutive bits which
+			must be set when writing a mask.
+
+"shareable_bits":	Bitmask of shareable resource with other executing
+			entities (e.g. I/O). User can use this when
+			setting up exclusive cache partitions. Note that
+			some platforms support devices that have their
+			own settings for cache use which can over-ride
+			these bits.
+
+Memory bandwitdh(MB) subdirectory contains the following files
+with respect to allocation:
+
+"min_bandwidth":	The minimum memory bandwidth percentage which
+			user can request.
+
+"bandwidth_gran":	The granularity in which the memory bandwidth
+			percentage is allocated. The allocated
+			b/w percentage is rounded off to the next
+			control step available on the hardware. The
+			available bandwidth control steps are:
+			min_bandwidth + N * bandwidth_gran.
+
+"delay_linear": 	Indicates if the delay scale is linear or
+			non-linear. This field is purely informational
+			only.
+
+If RDT monitoring is available there will be an "L3_MON" directory
+with the following files:
+
+"num_rmids":		The number of RMIDs available. This is the
+			upper bound for how many "CTRL_MON" + "MON"
+			groups can be created.
+
+"mon_features":	Lists the monitoring events if
+			monitoring is enabled for the resource.
+
+"max_threshold_occupancy":
+			Read/write file provides the largest value (in
+			bytes) at which a previously used LLC_occupancy
+			counter can be considered for re-use.
+
+
+Resource alloc and monitor groups
+---------------------------------
+
+Resource groups are represented as directories in the resctrl file
+system.  The default group is the root directory which, immediately
+after mounting, owns all the tasks and cpus in the system and can make
+full use of all resources.
+
+On a system with RDT control features additional directories can be
+created in the root directory that specify different amounts of each
+resource (see "schemata" below). The root and these additional top level
+directories are referred to as "CTRL_MON" groups below.
+
+On a system with RDT monitoring the root directory and other top level
+directories contain a directory named "mon_groups" in which additional
+directories can be created to monitor subsets of tasks in the CTRL_MON
+group that is their ancestor. These are called "MON" groups in the rest
+of this document.
+
+Removing a directory will move all tasks and cpus owned by the group it
+represents to the parent. Removing one of the created CTRL_MON groups
+will automatically remove all MON groups below it.
+
+All groups contain the following files:
+
+"tasks":
+	Reading this file shows the list of all tasks that belong to
+	this group. Writing a task id to the file will add a task to the
+	group. If the group is a CTRL_MON group the task is removed from
+	whichever previous CTRL_MON group owned the task and also from
+	any MON group that owned the task. If the group is a MON group,
+	then the task must already belong to the CTRL_MON parent of this
+	group. The task is removed from any previous MON group.
+
+
+"cpus":
+	Reading this file shows a bitmask of the logical CPUs owned by
+	this group. Writing a mask to this file will add and remove
+	CPUs to/from this group. As with the tasks file a hierarchy is
+	maintained where MON groups may only include CPUs owned by the
+	parent CTRL_MON group.
+
+
+"cpus_list":
+	Just like "cpus", only using ranges of CPUs instead of bitmasks.
+
+
+When control is enabled all CTRL_MON groups will also contain:
+
+"schemata":
+	A list of all the resources available to this group.
+	Each resource has its own line and format - see below for details.
+
+When monitoring is enabled all MON groups will also contain:
+
+"mon_data":
+	This contains a set of files organized by L3 domain and by
+	RDT event. E.g. on a system with two L3 domains there will
+	be subdirectories "mon_L3_00" and "mon_L3_01".	Each of these
+	directories have one file per event (e.g. "llc_occupancy",
+	"mbm_total_bytes", and "mbm_local_bytes"). In a MON group these
+	files provide a read out of the current value of the event for
+	all tasks in the group. In CTRL_MON groups these files provide
+	the sum for all tasks in the CTRL_MON group and all tasks in
+	MON groups. Please see example section for more details on usage.
+
+Resource allocation rules
+-------------------------
+When a task is running the following rules define which resources are
+available to it:
+
+1) If the task is a member of a non-default group, then the schemata
+   for that group is used.
+
+2) Else if the task belongs to the default group, but is running on a
+   CPU that is assigned to some specific group, then the schemata for the
+   CPU's group is used.
+
+3) Otherwise the schemata for the default group is used.
+
+Resource monitoring rules
+-------------------------
+1) If a task is a member of a MON group, or non-default CTRL_MON group
+   then RDT events for the task will be reported in that group.
+
+2) If a task is a member of the default CTRL_MON group, but is running
+   on a CPU that is assigned to some specific group, then the RDT events
+   for the task will be reported in that group.
+
+3) Otherwise RDT events for the task will be reported in the root level
+   "mon_data" group.
+
+
+Notes on cache occupancy monitoring and control
+-----------------------------------------------
+When moving a task from one group to another you should remember that
+this only affects *new* cache allocations by the task. E.g. you may have
+a task in a monitor group showing 3 MB of cache occupancy. If you move
+to a new group and immediately check the occupancy of the old and new
+groups you will likely see that the old group is still showing 3 MB and
+the new group zero. When the task accesses locations still in cache from
+before the move, the h/w does not update any counters. On a busy system
+you will likely see the occupancy in the old group go down as cache lines
+are evicted and re-used while the occupancy in the new group rises as
+the task accesses memory and loads into the cache are counted based on
+membership in the new group.
+
+The same applies to cache allocation control. Moving a task to a group
+with a smaller cache partition will not evict any cache lines. The
+process may continue to use them from the old partition.
+
+Hardware uses CLOSid(Class of service ID) and an RMID(Resource monitoring ID)
+to identify a control group and a monitoring group respectively. Each of
+the resource groups are mapped to these IDs based on the kind of group. The
+number of CLOSid and RMID are limited by the hardware and hence the creation of
+a "CTRL_MON" directory may fail if we run out of either CLOSID or RMID
+and creation of "MON" group may fail if we run out of RMIDs.
+
+max_threshold_occupancy - generic concepts
+------------------------------------------
+
+Note that an RMID once freed may not be immediately available for use as
+the RMID is still tagged the cache lines of the previous user of RMID.
+Hence such RMIDs are placed on limbo list and checked back if the cache
+occupancy has gone down. If there is a time when system has a lot of
+limbo RMIDs but which are not ready to be used, user may see an -EBUSY
+during mkdir.
+
+max_threshold_occupancy is a user configurable value to determine the
+occupancy at which an RMID can be freed.
+
+Schemata files - general concepts
+---------------------------------
+Each line in the file describes one resource. The line starts with
+the name of the resource, followed by specific values to be applied
+in each of the instances of that resource on the system.
+
+Cache IDs
+---------
+On current generation systems there is one L3 cache per socket and L2
+caches are generally just shared by the hyperthreads on a core, but this
+isn't an architectural requirement. We could have multiple separate L3
+caches on a socket, multiple cores could share an L2 cache. So instead
+of using "socket" or "core" to define the set of logical cpus sharing
+a resource we use a "Cache ID". At a given cache level this will be a
+unique number across the whole system (but it isn't guaranteed to be a
+contiguous sequence, there may be gaps).  To find the ID for each logical
+CPU look in /sys/devices/system/cpu/cpu*/cache/index*/id
+
+Cache Bit Masks (CBM)
+---------------------
+For cache resources we describe the portion of the cache that is available
+for allocation using a bitmask. The maximum value of the mask is defined
+by each cpu model (and may be different for different cache levels). It
+is found using CPUID, but is also provided in the "info" directory of
+the resctrl file system in "info/{resource}/cbm_mask". X86 hardware
+requires that these masks have all the '1' bits in a contiguous block. So
+0x3, 0x6 and 0xC are legal 4-bit masks with two bits set, but 0x5, 0x9
+and 0xA are not.  On a system with a 20-bit mask each bit represents 5%
+of the capacity of the cache. You could partition the cache into four
+equal parts with masks: 0x1f, 0x3e0, 0x7c00, 0xf8000.
+
+Memory bandwidth(b/w) percentage
+--------------------------------
+For Memory b/w resource, user controls the resource by indicating the
+percentage of total memory b/w.
+
+The minimum bandwidth percentage value for each cpu model is predefined
+and can be looked up through "info/MB/min_bandwidth". The bandwidth
+granularity that is allocated is also dependent on the cpu model and can
+be looked up at "info/MB/bandwidth_gran". The available bandwidth
+control steps are: min_bw + N * bw_gran. Intermediate values are rounded
+to the next control step available on the hardware.
+
+The bandwidth throttling is a core specific mechanism on some of Intel
+SKUs. Using a high bandwidth and a low bandwidth setting on two threads
+sharing a core will result in both threads being throttled to use the
+low bandwidth.
+
+L3 schemata file details (code and data prioritization disabled)
+----------------------------------------------------------------
+With CDP disabled the L3 schemata format is:
+
+	L3:<cache_id0>=<cbm>;<cache_id1>=<cbm>;...
+
+L3 schemata file details (CDP enabled via mount option to resctrl)
+------------------------------------------------------------------
+When CDP is enabled L3 control is split into two separate resources
+so you can specify independent masks for code and data like this:
+
+	L3data:<cache_id0>=<cbm>;<cache_id1>=<cbm>;...
+	L3code:<cache_id0>=<cbm>;<cache_id1>=<cbm>;...
+
+L2 schemata file details
+------------------------
+L2 cache does not support code and data prioritization, so the
+schemata format is always:
+
+	L2:<cache_id0>=<cbm>;<cache_id1>=<cbm>;...
+
+Memory b/w Allocation details
+-----------------------------
+
+Memory b/w domain is L3 cache.
+
+	MB:<cache_id0>=bandwidth0;<cache_id1>=bandwidth1;...
+
+Reading/writing the schemata file
+---------------------------------
+Reading the schemata file will show the state of all resources
+on all domains. When writing you only need to specify those values
+which you wish to change.  E.g.
+
+# cat schemata
+L3DATA:0=fffff;1=fffff;2=fffff;3=fffff
+L3CODE:0=fffff;1=fffff;2=fffff;3=fffff
+# echo "L3DATA:2=3c0;" > schemata
+# cat schemata
+L3DATA:0=fffff;1=fffff;2=3c0;3=fffff
+L3CODE:0=fffff;1=fffff;2=fffff;3=fffff
+
+Examples for RDT allocation usage:
+
+Example 1
+---------
+On a two socket machine (one L3 cache per socket) with just four bits
+for cache bit masks, minimum b/w of 10% with a memory bandwidth
+granularity of 10%
+
+# mount -t resctrl resctrl /sys/fs/resctrl
+# cd /sys/fs/resctrl
+# mkdir p0 p1
+# echo "L3:0=3;1=c\nMB:0=50;1=50" > /sys/fs/resctrl/p0/schemata
+# echo "L3:0=3;1=3\nMB:0=50;1=50" > /sys/fs/resctrl/p1/schemata
+
+The default resource group is unmodified, so we have access to all parts
+of all caches (its schemata file reads "L3:0=f;1=f").
+
+Tasks that are under the control of group "p0" may only allocate from the
+"lower" 50% on cache ID 0, and the "upper" 50% of cache ID 1.
+Tasks in group "p1" use the "lower" 50% of cache on both sockets.
+
+Similarly, tasks that are under the control of group "p0" may use a
+maximum memory b/w of 50% on socket0 and 50% on socket 1.
+Tasks in group "p1" may also use 50% memory b/w on both sockets.
+Note that unlike cache masks, memory b/w cannot specify whether these
+allocations can overlap or not. The allocations specifies the maximum
+b/w that the group may be able to use and the system admin can configure
+the b/w accordingly.
+
+Example 2
+---------
+Again two sockets, but this time with a more realistic 20-bit mask.
+
+Two real time tasks pid=1234 running on processor 0 and pid=5678 running on
+processor 1 on socket 0 on a 2-socket and dual core machine. To avoid noisy
+neighbors, each of the two real-time tasks exclusively occupies one quarter
+of L3 cache on socket 0.
+
+# mount -t resctrl resctrl /sys/fs/resctrl
+# cd /sys/fs/resctrl
+
+First we reset the schemata for the default group so that the "upper"
+50% of the L3 cache on socket 0 and 50% of memory b/w cannot be used by
+ordinary tasks:
+
+# echo "L3:0=3ff;1=fffff\nMB:0=50;1=100" > schemata
+
+Next we make a resource group for our first real time task and give
+it access to the "top" 25% of the cache on socket 0.
+
+# mkdir p0
+# echo "L3:0=f8000;1=fffff" > p0/schemata
+
+Finally we move our first real time task into this resource group. We
+also use taskset(1) to ensure the task always runs on a dedicated CPU
+on socket 0. Most uses of resource groups will also constrain which
+processors tasks run on.
+
+# echo 1234 > p0/tasks
+# taskset -cp 1 1234
+
+Ditto for the second real time task (with the remaining 25% of cache):
+
+# mkdir p1
+# echo "L3:0=7c00;1=fffff" > p1/schemata
+# echo 5678 > p1/tasks
+# taskset -cp 2 5678
+
+For the same 2 socket system with memory b/w resource and CAT L3 the
+schemata would look like(Assume min_bandwidth 10 and bandwidth_gran is
+10):
+
+For our first real time task this would request 20% memory b/w on socket
+0.
+
+# echo -e "L3:0=f8000;1=fffff\nMB:0=20;1=100" > p0/schemata
+
+For our second real time task this would request an other 20% memory b/w
+on socket 0.
+
+# echo -e "L3:0=f8000;1=fffff\nMB:0=20;1=100" > p0/schemata
+
+Example 3
+---------
+
+A single socket system which has real-time tasks running on core 4-7 and
+non real-time workload assigned to core 0-3. The real-time tasks share text
+and data, so a per task association is not required and due to interaction
+with the kernel it's desired that the kernel on these cores shares L3 with
+the tasks.
+
+# mount -t resctrl resctrl /sys/fs/resctrl
+# cd /sys/fs/resctrl
+
+First we reset the schemata for the default group so that the "upper"
+50% of the L3 cache on socket 0, and 50% of memory bandwidth on socket 0
+cannot be used by ordinary tasks:
+
+# echo "L3:0=3ff\nMB:0=50" > schemata
+
+Next we make a resource group for our real time cores and give it access
+to the "top" 50% of the cache on socket 0 and 50% of memory bandwidth on
+socket 0.
+
+# mkdir p0
+# echo "L3:0=ffc00\nMB:0=50" > p0/schemata
+
+Finally we move core 4-7 over to the new group and make sure that the
+kernel and the tasks running there get 50% of the cache. They should
+also get 50% of memory bandwidth assuming that the cores 4-7 are SMT
+siblings and only the real time threads are scheduled on the cores 4-7.
+
+# echo F0 > p0/cpus
+
+4) Locking between applications
+
+Certain operations on the resctrl filesystem, composed of read/writes
+to/from multiple files, must be atomic.
+
+As an example, the allocation of an exclusive reservation of L3 cache
+involves:
+
+  1. Read the cbmmasks from each directory
+  2. Find a contiguous set of bits in the global CBM bitmask that is clear
+     in any of the directory cbmmasks
+  3. Create a new directory
+  4. Set the bits found in step 2 to the new directory "schemata" file
+
+If two applications attempt to allocate space concurrently then they can
+end up allocating the same bits so the reservations are shared instead of
+exclusive.
+
+To coordinate atomic operations on the resctrlfs and to avoid the problem
+above, the following locking procedure is recommended:
+
+Locking is based on flock, which is available in libc and also as a shell
+script command
+
+Write lock:
+
+ A) Take flock(LOCK_EX) on /sys/fs/resctrl
+ B) Read/write the directory structure.
+ C) funlock
+
+Read lock:
+
+ A) Take flock(LOCK_SH) on /sys/fs/resctrl
+ B) If success read the directory structure.
+ C) funlock
+
+Example with bash:
+
+# Atomically read directory structure
+$ flock -s /sys/fs/resctrl/ find /sys/fs/resctrl
+
+# Read directory contents and create new subdirectory
+
+$ cat create-dir.sh
+find /sys/fs/resctrl/ > output.txt
+mask = function-of(output.txt)
+mkdir /sys/fs/resctrl/newres/
+echo mask > /sys/fs/resctrl/newres/schemata
+
+$ flock /sys/fs/resctrl/ ./create-dir.sh
+
+Example with C:
+
+/*
+ * Example code do take advisory locks
+ * before accessing resctrl filesystem
+ */
+#include <sys/file.h>
+#include <stdlib.h>
+
+void resctrl_take_shared_lock(int fd)
+{
+	int ret;
+
+	/* take shared lock on resctrl filesystem */
+	ret = flock(fd, LOCK_SH);
+	if (ret) {
+		perror("flock");
+		exit(-1);
+	}
+}
+
+void resctrl_take_exclusive_lock(int fd)
+{
+	int ret;
+
+	/* release lock on resctrl filesystem */
+	ret = flock(fd, LOCK_EX);
+	if (ret) {
+		perror("flock");
+		exit(-1);
+	}
+}
+
+void resctrl_release_lock(int fd)
+{
+	int ret;
+
+	/* take shared lock on resctrl filesystem */
+	ret = flock(fd, LOCK_UN);
+	if (ret) {
+		perror("flock");
+		exit(-1);
+	}
+}
+
+void main(void)
+{
+	int fd, ret;
+
+	fd = open("/sys/fs/resctrl", O_DIRECTORY);
+	if (fd == -1) {
+		perror("open");
+		exit(-1);
+	}
+	resctrl_take_shared_lock(fd);
+	/* code to read directory contents */
+	resctrl_release_lock(fd);
+
+	resctrl_take_exclusive_lock(fd);
+	/* code to read and write directory contents */
+	resctrl_release_lock(fd);
+}
+
+Examples for RDT Monitoring along with allocation usage:
+
+Reading monitored data
+----------------------
+Reading an event file (for ex: mon_data/mon_L3_00/llc_occupancy) would
+show the current snapshot of LLC occupancy of the corresponding MON
+group or CTRL_MON group.
+
+
+Example 1 (Monitor CTRL_MON group and subset of tasks in CTRL_MON group)
+---------
+On a two socket machine (one L3 cache per socket) with just four bits
+for cache bit masks
+
+# mount -t resctrl resctrl /sys/fs/resctrl
+# cd /sys/fs/resctrl
+# mkdir p0 p1
+# echo "L3:0=3;1=c" > /sys/fs/resctrl/p0/schemata
+# echo "L3:0=3;1=3" > /sys/fs/resctrl/p1/schemata
+# echo 5678 > p1/tasks
+# echo 5679 > p1/tasks
+
+The default resource group is unmodified, so we have access to all parts
+of all caches (its schemata file reads "L3:0=f;1=f").
+
+Tasks that are under the control of group "p0" may only allocate from the
+"lower" 50% on cache ID 0, and the "upper" 50% of cache ID 1.
+Tasks in group "p1" use the "lower" 50% of cache on both sockets.
+
+Create monitor groups and assign a subset of tasks to each monitor group.
+
+# cd /sys/fs/resctrl/p1/mon_groups
+# mkdir m11 m12
+# echo 5678 > m11/tasks
+# echo 5679 > m12/tasks
+
+fetch data (data shown in bytes)
+
+# cat m11/mon_data/mon_L3_00/llc_occupancy
+16234000
+# cat m11/mon_data/mon_L3_01/llc_occupancy
+14789000
+# cat m12/mon_data/mon_L3_00/llc_occupancy
+16789000
+
+The parent ctrl_mon group shows the aggregated data.
+
+# cat /sys/fs/resctrl/p1/mon_data/mon_l3_00/llc_occupancy
+31234000
+
+Example 2 (Monitor a task from its creation)
+---------
+On a two socket machine (one L3 cache per socket)
+
+# mount -t resctrl resctrl /sys/fs/resctrl
+# cd /sys/fs/resctrl
+# mkdir p0 p1
+
+An RMID is allocated to the group once its created and hence the <cmd>
+below is monitored from its creation.
+
+# echo $$ > /sys/fs/resctrl/p1/tasks
+# <cmd>
+
+Fetch the data
+
+# cat /sys/fs/resctrl/p1/mon_data/mon_l3_00/llc_occupancy
+31789000
+
+Example 3 (Monitor without CAT support or before creating CAT groups)
+---------
+
+Assume a system like HSW has only CQM and no CAT support. In this case
+the resctrl will still mount but cannot create CTRL_MON directories.
+But user can create different MON groups within the root group thereby
+able to monitor all tasks including kernel threads.
+
+This can also be used to profile jobs cache size footprint before being
+able to allocate them to different allocation groups.
+
+# mount -t resctrl resctrl /sys/fs/resctrl
+# cd /sys/fs/resctrl
+# mkdir mon_groups/m01
+# mkdir mon_groups/m02
+
+# echo 3478 > /sys/fs/resctrl/mon_groups/m01/tasks
+# echo 2467 > /sys/fs/resctrl/mon_groups/m02/tasks
+
+Monitor the groups separately and also get per domain data. From the
+below its apparent that the tasks are mostly doing work on
+domain(socket) 0.
+
+# cat /sys/fs/resctrl/mon_groups/m01/mon_L3_00/llc_occupancy
+31234000
+# cat /sys/fs/resctrl/mon_groups/m01/mon_L3_01/llc_occupancy
+34555
+# cat /sys/fs/resctrl/mon_groups/m02/mon_L3_00/llc_occupancy
+31234000
+# cat /sys/fs/resctrl/mon_groups/m02/mon_L3_01/llc_occupancy
+32789
+
+
+Example 4 (Monitor real time tasks)
+-----------------------------------
+
+A single socket system which has real time tasks running on cores 4-7
+and non real time tasks on other cpus. We want to monitor the cache
+occupancy of the real time threads on these cores.
+
+# mount -t resctrl resctrl /sys/fs/resctrl
+# cd /sys/fs/resctrl
+# mkdir p1
+
+Move the cpus 4-7 over to p1
+# echo f0 > p0/cpus
+
+View the llc occupancy snapshot
+
+# cat /sys/fs/resctrl/p1/mon_data/mon_L3_00/llc_occupancy
+11234000

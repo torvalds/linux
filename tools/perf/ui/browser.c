@@ -1,4 +1,5 @@
 #include "../util.h"
+#include "../string2.h"
 #include "../config.h"
 #include "../../perf.h"
 #include "libslang.h"
@@ -7,12 +8,14 @@
 #include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
+#include <linux/string.h>
 #include <stdlib.h>
 #include <sys/ttydefaults.h>
 #include "browser.h"
 #include "helpline.h"
 #include "keysyms.h"
 #include "../color.h"
+#include "sane_ctype.h"
 
 static int ui_browser__percent_color(struct ui_browser *browser,
 				     double percent, bool current)
@@ -561,7 +564,7 @@ static int ui_browser__color_config(const char *var, const char *value,
 	int i;
 
 	/* same dir for all commands */
-	if (prefixcmp(var, "colors.") != 0)
+	if (!strstarts(var, "colors.") != 0)
 		return 0;
 
 	for (i = 0; ui_browser__colorsets[i].name != NULL; ++i) {
@@ -579,7 +582,7 @@ static int ui_browser__color_config(const char *var, const char *value,
 			break;
 
 		*bg = '\0';
-		while (isspace(*++bg));
+		bg = ltrim(++bg);
 		ui_browser__colorsets[i].bg = bg;
 		ui_browser__colorsets[i].fg = fg;
 		return 0;
@@ -702,7 +705,7 @@ static void __ui_browser__line_arrow_down(struct ui_browser *browser,
 		ui_browser__gotorc(browser, row, column + 1);
 		SLsmg_draw_hline(2);
 
-		if (row++ == 0)
+		if (++row == 0)
 			goto out;
 	} else
 		row = 0;
@@ -734,6 +737,35 @@ void __ui_browser__line_arrow(struct ui_browser *browser, unsigned int column,
 		__ui_browser__line_arrow_up(browser, column, start, end);
 	else
 		__ui_browser__line_arrow_down(browser, column, start, end);
+}
+
+void ui_browser__mark_fused(struct ui_browser *browser, unsigned int column,
+			    unsigned int row, bool arrow_down)
+{
+	unsigned int end_row;
+
+	if (row >= browser->top_idx)
+		end_row = row - browser->top_idx;
+	else
+		return;
+
+	SLsmg_set_char_set(1);
+
+	if (arrow_down) {
+		ui_browser__gotorc(browser, end_row, column - 1);
+		SLsmg_write_char(SLSMG_ULCORN_CHAR);
+		ui_browser__gotorc(browser, end_row, column);
+		SLsmg_draw_hline(2);
+		ui_browser__gotorc(browser, end_row + 1, column - 1);
+		SLsmg_write_char(SLSMG_LTEE_CHAR);
+	} else {
+		ui_browser__gotorc(browser, end_row, column - 1);
+		SLsmg_write_char(SLSMG_LTEE_CHAR);
+		ui_browser__gotorc(browser, end_row, column);
+		SLsmg_draw_hline(2);
+	}
+
+	SLsmg_set_char_set(0);
 }
 
 void ui_browser__init(void)

@@ -9,7 +9,7 @@
  * Adapted for h8300 by Yoshinori Sato 2006
  */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * gzip declarations

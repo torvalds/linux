@@ -92,8 +92,8 @@ struct signature_v2_hdr {
 	uint8_t type;		/* xattr type */
 	uint8_t version;	/* signature format version */
 	uint8_t	hash_algo;	/* Digest algorithm [enum hash_algo] */
-	uint32_t keyid;		/* IMA key identifier - not X509/PGP specific */
-	uint16_t sig_size;	/* signature size */
+	__be32 keyid;		/* IMA key identifier - not X509/PGP specific */
+	__be16 sig_size;	/* signature size */
 	uint8_t sig[0];		/* signature payload */
 } __packed;
 
@@ -118,7 +118,8 @@ struct integrity_iint_cache {
 struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
 
 int integrity_kernel_read(struct file *file, loff_t offset,
-			  char *addr, unsigned long count);
+			  void *addr, unsigned long count);
+
 int __init integrity_read_file(const char *path, char **data);
 
 #define INTEGRITY_KEYRING_EVM		0

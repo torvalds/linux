@@ -7,6 +7,7 @@
 #include <linux/mm.h>
 #include <linux/err.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/random.h>
@@ -21,6 +22,7 @@
 #include <asm/page.h>
 #include <asm/desc.h>
 #include <asm/cpufeature.h>
+#include <asm/mshyperv.h>
 
 #if defined(CONFIG_X86_64)
 unsigned int __read_mostly vdso64_enabled = 1;
@@ -76,9 +78,6 @@ static int vdso_mremap(const struct vm_special_mapping *sm,
 	if (image->size != new_size)
 		return -EINVAL;
 
-	if (WARN_ON_ONCE(current->mm != new_vma->vm_mm))
-		return -EFAULT;
-
 	vdso_fix_landing(image, new_vma);
 	current->mm->context.vdso = (void __user *)new_vma->vm_start;
 
@@ -109,7 +108,7 @@ static int vvar_fault(const struct vm_special_mapping *sm,
 		return VM_FAULT_SIGBUS;
 
 	if (sym_offset == image->sym_vvar_page) {
-		ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address,
+		ret = vm_insert_pfn(vma, vmf->address,
 				    __pa_symbol(&__vvar_page) >> PAGE_SHIFT);
 	} else if (sym_offset == image->sym_pvclock_page) {
 		struct pvclock_vsyscall_time_info *pvti =
@@ -117,9 +116,15 @@ static int vvar_fault(const struct vm_special_mapping *sm,
 		if (pvti && vclock_was_used(VCLOCK_PVCLOCK)) {
 			ret = vm_insert_pfn(
 				vma,
-				(unsigned long)vmf->virtual_address,
+				vmf->address,
 				__pa(pvti) >> PAGE_SHIFT);
 		}
+	} else if (sym_offset == image->sym_hvclock_page) {
+		struct ms_hyperv_tsc_page *tsc_pg = hv_get_tsc_page();
+
+		if (tsc_pg && vclock_was_used(VCLOCK_HVCLOCK))
+			ret = vm_insert_pfn(vma, vmf->address,
+					    vmalloc_to_pfn(tsc_pg));
 	}
 
 	if (ret == 0 || ret == -EBUSY)
@@ -161,8 +166,6 @@ static int map_vdso(const struct vdso_image *image, unsigned long addr)
 	}
 
 	text_start = addr - image->sym_vvar_start;
-	current->mm->context.vdso = (void __user *)text_start;
-	current->mm->context.vdso_image = image;
 
 	/*
 	 * MAYWRITE to allow gdb to COW and set breakpoints
@@ -188,15 +191,13 @@ static int map_vdso(const struct vdso_image *image, unsigned long addr)
 
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
-		do_munmap(mm, text_start, image->size);
+		do_munmap(mm, text_start, image->size, NULL);
+	} else {
+		current->mm->context.vdso = (void __user *)text_start;
+		current->mm->context.vdso_image = image;
 	}
 
 up_fail:
-	if (ret) {
-		current->mm->context.vdso = NULL;
-		current->mm->context.vdso_image = NULL;
-	}
-
 	up_write(&mm->mmap_sem);
 	return ret;
 }
@@ -350,14 +351,14 @@ static void vgetcpu_cpu_init(void *arg)
 	 * and 8 bits for the node)
 	 */
 	d.limit0 = cpu | ((node & 0xf) << 12);
-	d.limit = node >> 4;
+	d.limit1 = node >> 4;
 	d.type = 5;		/* RO data, expand down, accessed */
 	d.dpl = 3;		/* Visible to user code */
 	d.s = 1;		/* Not a system segment */
 	d.p = 1;		/* Present */
 	d.d = 1;		/* 32-bit */
 
-	write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_PER_CPU, &d, DESCTYPE_S);
+	write_gdt_entry(get_cpu_gdt_rw(cpu), GDT_ENTRY_PER_CPU, &d, DESCTYPE_S);
 }
 
 static int vgetcpu_online(unsigned int cpu)
@@ -375,7 +376,7 @@ static int __init init_vdso(void)
 
 	/* notifier priority > KVM */
 	return cpuhp_setup_state(CPUHP_AP_X86_VDSO_VMA_ONLINE,
-				 "AP_X86_VDSO_VMA_ONLINE", vgetcpu_online, NULL);
+				 "x86/vdso/vma:online", vgetcpu_online, NULL);
 }
 subsys_initcall(init_vdso);
 #endif /* CONFIG_X86_64 */

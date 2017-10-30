@@ -2,7 +2,7 @@
 #
 # Build a kvm-ready Linux kernel from the tree in the current directory.
 #
-# Usage: kvm-build.sh config-template build-dir more-configs
+# Usage: kvm-build.sh config-template build-dir
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,24 +34,17 @@ then
 	echo "kvm-build.sh :$builddir: Not a writable directory, cannot build into it"
 	exit 1
 fi
-moreconfigs=${3}
-if test -z "$moreconfigs" -o ! -r "$moreconfigs"
-then
-	echo "kvm-build.sh :$moreconfigs: Not a readable file"
-	exit 1
-fi
 
 T=/tmp/test-linux.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
 
-grep -v 'CONFIG_[A-Z]*_TORTURE_TEST' < ${config_template} > $T/config
+cp ${config_template} $T/config
 cat << ___EOF___ >> $T/config
 CONFIG_INITRAMFS_SOURCE="$TORTURE_INITRD"
 CONFIG_VIRTIO_PCI=y
 CONFIG_VIRTIO_CONSOLE=y
 ___EOF___
-cat $moreconfigs >> $T/config
 
 configinit.sh $T/config O=$builddir
 retval=$?

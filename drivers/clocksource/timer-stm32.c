@@ -138,7 +138,7 @@ static int __init stm32_clockevent_init(struct device_node *np)
 	irq = irq_of_parse_and_map(np, 0);
 	if (!irq) {
 		ret = -EINVAL;
-		pr_err("%s: failed to get irq.\n", np->full_name);
+		pr_err("%pOF: failed to get irq.\n", np);
 		goto err_get_irq;
 	}
 
@@ -168,12 +168,12 @@ static int __init stm32_clockevent_init(struct device_node *np)
 	ret = request_irq(irq, stm32_clock_event_handler, IRQF_TIMER,
 			"stm32 clockevent", data);
 	if (ret) {
-		pr_err("%s: failed to request irq.\n", np->full_name);
+		pr_err("%pOF: failed to request irq.\n", np);
 		goto err_get_irq;
 	}
 
-	pr_info("%s: STM32 clockevent driver initialized (%d bits)\n",
-			np->full_name, bits);
+	pr_info("%pOF: STM32 clockevent driver initialized (%d bits)\n",
+			np, bits);
 
 	return ret;
 
@@ -187,4 +187,4 @@ err_clk_get:
 	return ret;
 }
 
-CLOCKSOURCE_OF_DECLARE(stm32, "st,stm32-timer", stm32_clockevent_init);
+TIMER_OF_DECLARE(stm32, "st,stm32-timer", stm32_clockevent_init);

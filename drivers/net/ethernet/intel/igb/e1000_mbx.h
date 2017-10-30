@@ -55,6 +55,10 @@
 
 #define E1000_VF_RESET		0x01 /* VF requests reset */
 #define E1000_VF_SET_MAC_ADDR	0x02 /* VF requests to set MAC addr */
+/* VF requests to clear all unicast MAC filters */
+#define E1000_VF_MAC_FILTER_CLR	(0x01 << E1000_VT_MSGINFO_SHIFT)
+/* VF requests to add unicast MAC filter */
+#define E1000_VF_MAC_FILTER_ADD	(0x02 << E1000_VT_MSGINFO_SHIFT)
 #define E1000_VF_SET_MULTICAST	0x03 /* VF requests to set MC addr */
 #define E1000_VF_SET_VLAN	0x04 /* VF requests to set VLAN */
 #define E1000_VF_SET_LPE	0x05 /* VF requests to set VMOLR.LPE */
@@ -63,11 +67,13 @@
 
 #define E1000_PF_CONTROL_MSG	0x0100 /* PF control message */
 
-s32 igb_read_mbx(struct e1000_hw *, u32 *, u16, u16);
-s32 igb_write_mbx(struct e1000_hw *, u32 *, u16, u16);
-s32 igb_check_for_msg(struct e1000_hw *, u16);
-s32 igb_check_for_ack(struct e1000_hw *, u16);
-s32 igb_check_for_rst(struct e1000_hw *, u16);
-s32 igb_init_mbx_params_pf(struct e1000_hw *);
+s32 igb_read_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id,
+		 bool unlock);
+s32 igb_write_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id);
+s32 igb_check_for_msg(struct e1000_hw *hw, u16 mbx_id);
+s32 igb_check_for_ack(struct e1000_hw *hw, u16 mbx_id);
+s32 igb_check_for_rst(struct e1000_hw *hw, u16 mbx_id);
+s32 igb_unlock_mbx(struct e1000_hw *hw, u16 mbx_id);
+s32 igb_init_mbx_params_pf(struct e1000_hw *hw);
 
 #endif /* _E1000_MBX_H_ */

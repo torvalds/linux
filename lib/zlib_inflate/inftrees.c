@@ -109,7 +109,7 @@ int zlib_inflate_table(codetype type, unsigned short *lens, unsigned codes,
         *bits = 1;
         return 0;     /* no symbols, but wait for decoding to report error */
     }
-    for (min = 1; min <= MAXBITS; min++)
+    for (min = 1; min < MAXBITS; min++)
         if (count[min] != 0) break;
     if (root < min) root = min;
 

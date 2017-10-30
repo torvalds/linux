@@ -58,27 +58,9 @@ static bool kernel_fpu_disabled(void)
 	return this_cpu_read(in_kernel_fpu);
 }
 
-/*
- * Were we in an interrupt that interrupted kernel mode?
- *
- * On others, we can do a kernel_fpu_begin/end() pair *ONLY* if that
- * pair does nothing at all: the thread must not have fpu (so
- * that we don't try to save the FPU state), and TS must
- * be set (so that the clts/stts pair does nothing that is
- * visible in the interrupted kernel thread).
- *
- * Except for the eagerfpu case when we return true; in the likely case
- * the thread has FPU but we are not going to set/clear TS.
- */
 static bool interrupted_kernel_fpu_idle(void)
 {
-	if (kernel_fpu_disabled())
-		return false;
-
-	if (use_eager_fpu())
-		return true;
-
-	return !current->thread.fpu.fpregs_active && (read_cr0() & X86_CR0_TS);
+	return !kernel_fpu_disabled();
 }
 
 /*
@@ -118,15 +100,14 @@ void __kernel_fpu_begin(void)
 
 	kernel_fpu_disable();
 
-	if (fpu->fpregs_active) {
+	if (fpu->initialized) {
 		/*
 		 * Ignore return value -- we don't care if reg state
 		 * is clobbered.
 		 */
 		copy_fpregs_to_fpstate(fpu);
 	} else {
-		this_cpu_write(fpu_fpregs_owner_ctx, NULL);
-		__fpregs_activate_hw();
+		__cpu_invalidate_fpregs_state();
 	}
 }
 EXPORT_SYMBOL(__kernel_fpu_begin);
@@ -135,10 +116,8 @@ void __kernel_fpu_end(void)
 {
 	struct fpu *fpu = &current->thread.fpu;
 
-	if (fpu->fpregs_active)
+	if (fpu->initialized)
 		copy_kernel_to_fpregs(&fpu->state);
-	else
-		__fpregs_deactivate_hw();
 
 	kernel_fpu_enable();
 }
@@ -159,35 +138,6 @@ void kernel_fpu_end(void)
 EXPORT_SYMBOL_GPL(kernel_fpu_end);
 
 /*
- * CR0::TS save/restore functions:
- */
-int irq_ts_save(void)
-{
-	/*
-	 * If in process context and not atomic, we can take a spurious DNA fault.
-	 * Otherwise, doing clts() in process context requires disabling preemption
-	 * or some heavy lifting like kernel_fpu_begin()
-	 */
-	if (!in_atomic())
-		return 0;
-
-	if (read_cr0() & X86_CR0_TS) {
-		clts();
-		return 1;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(irq_ts_save);
-
-void irq_ts_restore(int TS_state)
-{
-	if (TS_state)
-		stts();
-}
-EXPORT_SYMBOL_GPL(irq_ts_restore);
-
-/*
  * Save the FPU state (mark it for reload if necessary):
  *
  * This only ever gets called for the current task.
@@ -198,12 +148,9 @@ void fpu__save(struct fpu *fpu)
 
 	preempt_disable();
 	trace_x86_fpu_before_save(fpu);
-	if (fpu->fpregs_active) {
+	if (fpu->initialized) {
 		if (!copy_fpregs_to_fpstate(fpu)) {
-			if (use_eager_fpu())
-				copy_kernel_to_fpregs(&fpu->state);
-			else
-				fpregs_deactivate(fpu);
+			copy_kernel_to_fpregs(&fpu->state);
 		}
 	}
 	trace_x86_fpu_after_save(fpu);
@@ -231,13 +178,8 @@ void fpstate_init(union fpregs_state *state)
 
 	memset(state, 0, fpu_kernel_xstate_size);
 
-	/*
-	 * XRSTORS requires that this bit is set in xcomp_bv, or
-	 * it will #GP. Make sure it is replaced after the memset().
-	 */
 	if (static_cpu_has(X86_FEATURE_XSAVES))
-		state->xsave.header.xcomp_bv = XCOMP_BV_COMPACTED_FORMAT;
-
+		fpstate_init_xstate(&state->xsave);
 	if (static_cpu_has(X86_FEATURE_FXSR))
 		fpstate_init_fxstate(&state->fxsave);
 	else
@@ -247,11 +189,9 @@ EXPORT_SYMBOL_GPL(fpstate_init);
 
 int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 {
-	dst_fpu->counter = 0;
-	dst_fpu->fpregs_active = 0;
 	dst_fpu->last_cpu = -1;
 
-	if (!src_fpu->fpstate_active || !static_cpu_has(X86_FEATURE_FPU))
+	if (!src_fpu->initialized || !static_cpu_has(X86_FEATURE_FPU))
 		return 0;
 
 	WARN_ON_FPU(src_fpu != &current->thread.fpu);
@@ -260,35 +200,19 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 	 * Don't let 'init optimized' areas of the XSAVE area
 	 * leak into the child task:
 	 */
-	if (use_eager_fpu())
-		memset(&dst_fpu->state.xsave, 0, fpu_kernel_xstate_size);
+	memset(&dst_fpu->state.xsave, 0, fpu_kernel_xstate_size);
 
 	/*
 	 * Save current FPU registers directly into the child
 	 * FPU context, without any memory-to-memory copying.
-	 * In lazy mode, if the FPU context isn't loaded into
-	 * fpregs, CR0.TS will be set and do_device_not_available
-	 * will load the FPU context.
 	 *
-	 * We have to do all this with preemption disabled,
-	 * mostly because of the FNSAVE case, because in that
-	 * case we must not allow preemption in the window
-	 * between the FNSAVE and us marking the context lazy.
-	 *
-	 * It shouldn't be an issue as even FNSAVE is plenty
-	 * fast in terms of critical section length.
+	 * ( The function 'fails' in the FNSAVE case, which destroys
+	 *   register contents so we have to copy them back. )
 	 */
-	preempt_disable();
 	if (!copy_fpregs_to_fpstate(dst_fpu)) {
-		memcpy(&src_fpu->state, &dst_fpu->state,
-		       fpu_kernel_xstate_size);
-
-		if (use_eager_fpu())
-			copy_kernel_to_fpregs(&src_fpu->state);
-		else
-			fpregs_deactivate(src_fpu);
+		memcpy(&src_fpu->state, &dst_fpu->state, fpu_kernel_xstate_size);
+		copy_kernel_to_fpregs(&src_fpu->state);
 	}
-	preempt_enable();
 
 	trace_x86_fpu_copy_src(src_fpu);
 	trace_x86_fpu_copy_dst(dst_fpu);
@@ -300,45 +224,48 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
  * Activate the current task's in-memory FPU context,
  * if it has not been used before:
  */
-void fpu__activate_curr(struct fpu *fpu)
+void fpu__initialize(struct fpu *fpu)
 {
 	WARN_ON_FPU(fpu != &current->thread.fpu);
 
-	if (!fpu->fpstate_active) {
+	if (!fpu->initialized) {
 		fpstate_init(&fpu->state);
 		trace_x86_fpu_init_state(fpu);
 
 		trace_x86_fpu_activate_state(fpu);
 		/* Safe to do for the current task: */
-		fpu->fpstate_active = 1;
+		fpu->initialized = 1;
 	}
 }
-EXPORT_SYMBOL_GPL(fpu__activate_curr);
+EXPORT_SYMBOL_GPL(fpu__initialize);
 
 /*
  * This function must be called before we read a task's fpstate.
  *
- * If the task has not used the FPU before then initialize its
- * fpstate.
+ * There's two cases where this gets called:
+ *
+ * - for the current task (when coredumping), in which case we have
+ *   to save the latest FPU registers into the fpstate,
+ *
+ * - or it's called for stopped tasks (ptrace), in which case the
+ *   registers were already saved by the context-switch code when
+ *   the task scheduled out - we only have to initialize the registers
+ *   if they've never been initialized.
  *
  * If the task has used the FPU before then save it.
  */
-void fpu__activate_fpstate_read(struct fpu *fpu)
+void fpu__prepare_read(struct fpu *fpu)
 {
-	/*
-	 * If fpregs are active (in the current CPU), then
-	 * copy them to the fpstate:
-	 */
-	if (fpu->fpregs_active) {
+	if (fpu == &current->thread.fpu) {
 		fpu__save(fpu);
 	} else {
-		if (!fpu->fpstate_active) {
+		if (!fpu->initialized) {
 			fpstate_init(&fpu->state);
 			trace_x86_fpu_init_state(fpu);
 
 			trace_x86_fpu_activate_state(fpu);
 			/* Safe to do for current and for stopped child tasks: */
-			fpu->fpstate_active = 1;
+			fpu->initialized = 1;
 		}
 	}
 }
@@ -346,17 +273,17 @@ void fpu__activate_fpstate_read(struct fpu *fpu)
 /*
  * This function must be called before we write a task's fpstate.
  *
- * If the task has used the FPU before then unlazy it.
+ * If the task has used the FPU before then invalidate any cached FPU registers.
  * If the task has not used the FPU before then initialize its fpstate.
  *
  * After this function call, after registers in the fpstate are
  * modified and the child task has woken up, the child task will
  * restore the modified FPU state from the modified context. If we
- * didn't clear its lazy status here then the lazy in-registers
+ * didn't clear its cached status here then the cached in-registers
  * state pending on its former CPU could be restored, corrupting
  * the modifications.
  */
-void fpu__activate_fpstate_write(struct fpu *fpu)
+void fpu__prepare_write(struct fpu *fpu)
 {
 	/*
 	 * Only stopped child tasks can be used to modify the FPU
@@ -364,80 +291,17 @@ void fpu__activate_fpstate_write(struct fpu *fpu)
 	 */
 	WARN_ON_FPU(fpu == &current->thread.fpu);
 
-	if (fpu->fpstate_active) {
-		/* Invalidate any lazy state: */
-		fpu->last_cpu = -1;
+	if (fpu->initialized) {
+		/* Invalidate any cached state: */
+		__fpu_invalidate_fpregs_state(fpu);
 	} else {
 		fpstate_init(&fpu->state);
 		trace_x86_fpu_init_state(fpu);
 
 		trace_x86_fpu_activate_state(fpu);
 		/* Safe to do for stopped child tasks: */
-		fpu->fpstate_active = 1;
+		fpu->initialized = 1;
 	}
-}
-
-/*
- * This function must be called before we write the current
- * task's fpstate.
- *
- * This call gets the current FPU register state and moves
- * it in to the 'fpstate'.  Preemption is disabled so that
- * no writes to the 'fpstate' can occur from context
- * swiches.
- *
- * Must be followed by a fpu__current_fpstate_write_end().
- */
-void fpu__current_fpstate_write_begin(void)
-{
-	struct fpu *fpu = &current->thread.fpu;
-
-	/*
-	 * Ensure that the context-switching code does not write
-	 * over the fpstate while we are doing our update.
-	 */
-	preempt_disable();
-
-	/*
-	 * Move the fpregs in to the fpu's 'fpstate'.
-	 */
-	fpu__activate_fpstate_read(fpu);
-
-	/*
-	 * The caller is about to write to 'fpu'.  Ensure that no
-	 * CPU thinks that its fpregs match the fpstate.  This
-	 * ensures we will not be lazy and skip a XRSTOR in the
-	 * future.
-	 */
-	fpu->last_cpu = -1;
-}
-
-/*
- * This function must be paired with fpu__current_fpstate_write_begin()
- *
- * This will ensure that the modified fpstate gets placed back in
- * the fpregs if necessary.
- *
- * Note: This function may be called whether or not an _actual_
- * write to the fpstate occurred.
- */
-void fpu__current_fpstate_write_end(void)
-{
-	struct fpu *fpu = &current->thread.fpu;
-
-	/*
-	 * 'fpu' now has an updated copy of the state, but the
-	 * registers may still be out of date.  Update them with
-	 * an XRSTOR if they are active.
-	 */
-	if (fpregs_active())
-		copy_kernel_to_fpregs(&fpu->state);
-
-	/*
-	 * Our update is done and the fpregs/fpstate are in sync
-	 * if necessary.  Context switches can happen again.
-	 */
-	preempt_enable();
 }
 
 /*
@@ -452,14 +316,13 @@ void fpu__current_fpstate_write_end(void)
  */
 void fpu__restore(struct fpu *fpu)
 {
-	fpu__activate_curr(fpu);
+	fpu__initialize(fpu);
 
 	/* Avoid __kernel_fpu_begin() right after fpregs_activate() */
 	kernel_fpu_disable();
 	trace_x86_fpu_before_restore(fpu);
 	fpregs_activate(fpu);
 	copy_kernel_to_fpregs(&fpu->state);
-	fpu->counter++;
 	trace_x86_fpu_after_restore(fpu);
 	kernel_fpu_enable();
 }
@@ -477,17 +340,18 @@ EXPORT_SYMBOL_GPL(fpu__restore);
 void fpu__drop(struct fpu *fpu)
 {
 	preempt_disable();
-	fpu->counter = 0;
 
-	if (fpu->fpregs_active) {
-		/* Ignore delayed exceptions from user space */
-		asm volatile("1: fwait\n"
-			     "2:\n"
-			     _ASM_EXTABLE(1b, 2b));
-		fpregs_deactivate(fpu);
+	if (fpu == &current->thread.fpu) {
+		if (fpu->initialized) {
+			/* Ignore delayed exceptions from user space */
+			asm volatile("1: fwait\n"
+				     "2:\n"
+				     _ASM_EXTABLE(1b, 2b));
+			fpregs_deactivate(fpu);
+		}
 	}
 
-	fpu->fpstate_active = 0;
+	fpu->initialized = 0;
 
 	trace_x86_fpu_dropped(fpu);
 
@@ -521,15 +385,17 @@ void fpu__clear(struct fpu *fpu)
 {
 	WARN_ON_FPU(fpu != &current->thread.fpu); /* Almost certainly an anomaly */
 
-	if (!use_eager_fpu() || !static_cpu_has(X86_FEATURE_FPU)) {
-		/* FPU state will be reallocated lazily at the first use. */
-		fpu__drop(fpu);
-	} else {
-		if (!fpu->fpstate_active) {
-			fpu__activate_curr(fpu);
-			user_fpu_begin();
-		}
+	fpu__drop(fpu);
+
+	/*
+	 * Make sure fpstate is cleared and initialized.
+	 */
+	if (static_cpu_has(X86_FEATURE_FPU)) {
+		preempt_disable();
+		fpu__initialize(fpu);
+		user_fpu_begin();
 		copy_init_fpstate_to_fpregs();
+		preempt_enable();
 	}
 }
 

@@ -261,12 +261,6 @@ struct	xmit_priv {
 	uint free_xmitbuf_cnt;
 };
 
-static inline struct  __queue *get_free_xmit_queue(
-				struct xmit_priv *pxmitpriv)
-{
-	return &(pxmitpriv->free_xmit_queue);
-}
-
 int r8712_free_xmitbuf(struct xmit_priv *pxmitpriv,
 		       struct xmit_buf *pxmitbuf);
 struct xmit_buf *r8712_alloc_xmitbuf(struct xmit_priv *pxmitpriv);

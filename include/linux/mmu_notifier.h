@@ -95,17 +95,6 @@ struct mmu_notifier_ops {
 			   pte_t pte);
 
 	/*
-	 * Before this is invoked any secondary MMU is still ok to
-	 * read/write to the page previously pointed to by the Linux
-	 * pte because the page hasn't been freed yet and it won't be
-	 * freed until this returns. If required set_page_dirty has to
-	 * be called internally to this method.
-	 */
-	void (*invalidate_page)(struct mmu_notifier *mn,
-				struct mm_struct *mm,
-				unsigned long address);
-
-	/*
 	 * invalidate_range_start() and invalidate_range_end() must be
 	 * paired and are called only when the mmap_sem and/or the
 	 * locks protecting the reverse maps are held. If the subsystem
@@ -220,8 +209,6 @@ extern int __mmu_notifier_test_young(struct mm_struct *mm,
 				     unsigned long address);
 extern void __mmu_notifier_change_pte(struct mm_struct *mm,
 				      unsigned long address, pte_t pte);
-extern void __mmu_notifier_invalidate_page(struct mm_struct *mm,
-					  unsigned long address);
 extern void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
 				  unsigned long start, unsigned long end);
 extern void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
@@ -266,13 +253,6 @@ static inline void mmu_notifier_change_pte(struct mm_struct *mm,
 {
 	if (mm_has_notifiers(mm))
 		__mmu_notifier_change_pte(mm, address, pte);
-}
-
-static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,
-					  unsigned long address)
-{
-	if (mm_has_notifiers(mm))
-		__mmu_notifier_invalidate_page(mm, address);
 }
 
 static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
@@ -381,16 +361,17 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
 	___pmd;								\
 })
 
-#define pmdp_huge_get_and_clear_notify(__mm, __haddr, __pmd)		\
+#define pudp_huge_clear_flush_notify(__vma, __haddr, __pud)		\
 ({									\
-	unsigned long ___haddr = __haddr & HPAGE_PMD_MASK;		\
-	pmd_t ___pmd;							\
+	unsigned long ___haddr = __haddr & HPAGE_PUD_MASK;		\
+	struct mm_struct *___mm = (__vma)->vm_mm;			\
+	pud_t ___pud;							\
 									\
-	___pmd = pmdp_huge_get_and_clear(__mm, __haddr, __pmd);		\
-	mmu_notifier_invalidate_range(__mm, ___haddr,			\
-				      ___haddr + HPAGE_PMD_SIZE);	\
+	___pud = pudp_huge_clear_flush(__vma, __haddr, __pud);		\
+	mmu_notifier_invalidate_range(___mm, ___haddr,			\
+				      ___haddr + HPAGE_PUD_SIZE);	\
 									\
-	___pmd;								\
+	___pud;								\
 })
 
 /*
@@ -419,6 +400,11 @@ extern void mmu_notifier_synchronize(void);
 
 #else /* CONFIG_MMU_NOTIFIER */
 
+static inline int mm_has_notifiers(struct mm_struct *mm)
+{
+	return 0;
+}
+
 static inline void mmu_notifier_release(struct mm_struct *mm)
 {
 }
@@ -438,11 +424,6 @@ static inline int mmu_notifier_test_young(struct mm_struct *mm,
 
 static inline void mmu_notifier_change_pte(struct mm_struct *mm,
 					   unsigned long address, pte_t pte)
-{
-}
-
-static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,
-					  unsigned long address)
 {
 }
 
@@ -475,7 +456,7 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
 #define pmdp_clear_young_notify pmdp_test_and_clear_young
 #define	ptep_clear_flush_notify ptep_clear_flush
 #define pmdp_huge_clear_flush_notify pmdp_huge_clear_flush
-#define pmdp_huge_get_and_clear_notify pmdp_huge_get_and_clear
+#define pudp_huge_clear_flush_notify pudp_huge_clear_flush
 #define set_pte_at_notify set_pte_at
 
 #endif /* CONFIG_MMU_NOTIFIER */

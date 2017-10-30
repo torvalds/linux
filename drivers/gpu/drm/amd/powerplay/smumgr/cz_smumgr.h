@@ -95,8 +95,4 @@ struct cz_smumgr {
 	struct cz_buffer_entry scratch_buffer[MAX_NUM_SCRATCH];
 };
 
-struct pp_smumgr;
-
-extern int cz_smum_init(struct pp_smumgr *smumgr);
-
 #endif

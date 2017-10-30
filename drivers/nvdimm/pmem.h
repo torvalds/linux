@@ -5,8 +5,6 @@
 #include <linux/pfn_t.h>
 #include <linux/fs.h>
 
-long pmem_direct_access(struct block_device *bdev, sector_t sector,
-		      void **kaddr, pfn_t *pfn, long size);
 /* this definition is in it's own header for tools/testing/nvdimm to consume */
 struct pmem_device {
 	/* One contiguous memory region per device */
@@ -19,6 +17,12 @@ struct pmem_device {
 	size_t			size;
 	/* trim size when namespace capacity has been section aligned */
 	u32			pfn_pad;
+	struct kernfs_node	*bb_state;
 	struct badblocks	bb;
+	struct dax_device	*dax_dev;
+	struct gendisk		*disk;
 };
+
+long __pmem_direct_access(struct pmem_device *pmem, pgoff_t pgoff,
+		long nr_pages, void **kaddr, pfn_t *pfn);
 #endif /* __NVDIMM_PMEM_H__ */

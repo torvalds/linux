@@ -1,12 +1,11 @@
 Linux Media Subsystem Documentation
 ===================================
 
-.. Sphinx 1.4.x has a definition for DUrole that doesn't work on alltt blocks
-.. raw:: latex
+.. only:: html
 
-	\renewcommand*{\DUrole}[2]{ #2 }
+   .. class:: toc-title
 
-Contents:
+        Table of Contents
 
 .. toctree::
    :maxdepth: 2
@@ -15,6 +14,7 @@ Contents:
    media_kapi
    dvb-drivers/index
    v4l-drivers/index
+   cec-drivers/index
 
 .. only::  subproject
 

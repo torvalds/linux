@@ -9,6 +9,8 @@
 #define ETH_ALEN 6
 #endif
 
+#define ETHER_HDR_SIZE 20
+
 struct ether_hdr {
 	unsigned char h_dest[ETH_ALEN];	/* destination eth addr */
 	unsigned char h_source[ETH_ALEN];	/* source ether addr    */
@@ -16,7 +18,7 @@ struct ether_hdr {
 	unsigned char h_source_snap;
 	unsigned char h_command;
 	unsigned char h_vendor_id[3];
-	unsigned short h_proto;	/* packet type ID field */
+	__be16 h_proto;	/* packet type ID field */
 #define ETHER_PROTOCOL_TYPE_EAP		0x888e
 #define ETHER_PROTOCOL_TYPE_IP		0x0800
 #define ETHER_PROTOCOL_TYPE_ARP		0x0806
@@ -58,12 +60,15 @@ struct ieee802_1x_eapol_key {
 	 * encrypt the Key field; 64-bit NTP timestamp MAY be used here
 	 */
 	unsigned char replay_counter[IEEE8021X_REPLAY_COUNTER_LEN];
-	unsigned char key_iv[IEEE8021X_KEY_IV_LEN];	/* cryptographically random number */
+	unsigned char key_iv[IEEE8021X_KEY_IV_LEN]; /* cryptographically random
+						     * number
+						     */
 	unsigned char key_index;	/*
 					 * key flag in the most significant bit:
 					 * 0 = broadcast (default key),
-					 * 1 = unicast (key mapping key); key index is in the
-					 * 7 least significant bits
+					 * 1 = unicast (key mapping key);
+					 * key index is in the 7 least
+					 * significant bits
 					 */
 	/*
 	 * HMAC-MD5 message integrity check computed with MS-MPPE-Send-Key as
@@ -86,7 +91,7 @@ struct ieee802_1x_eapol_key {
 
 struct wpa_eapol_key {
 	unsigned char type;
-	unsigned short key_info;
+	__be16 key_info;
 	unsigned short key_length;
 	unsigned char replay_counter[WPA_REPLAY_COUNTER_LEN];
 	unsigned char key_nonce[WPA_NONCE_LEN];

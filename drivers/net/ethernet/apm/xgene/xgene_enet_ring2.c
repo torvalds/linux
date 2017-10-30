@@ -119,6 +119,7 @@ static void xgene_enet_set_ring_id(struct xgene_enet_desc_ring *ring)
 
 	ring_id_buf = (ring->num << 9) & GENMASK(18, 9);
 	ring_id_buf |= PREFETCH_BUF_EN;
+
 	if (is_bufpool)
 		ring_id_buf |= IS_BUFFER_POOL;
 

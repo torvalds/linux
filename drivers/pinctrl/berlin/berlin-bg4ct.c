@@ -18,7 +18,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -217,7 +217,7 @@ static const struct berlin_desc_group berlin4ct_soc_pinctrl_groups[] = {
 	BERLIN_PINCTRL_GROUP("SCRD0_CRD_PRES", 0xc, 0x3, 0x15,
 			BERLIN_PINCTRL_FUNCTION(0x0, "gpio"), /* GPIO20 */
 			BERLIN_PINCTRL_FUNCTION(0x1, "scrd0"), /* crd pres */
-			BERLIN_PINCTRL_FUNCTION(0x1, "sd1a")), /* DAT3 */
+			BERLIN_PINCTRL_FUNCTION(0x3, "sd1a")), /* DAT3 */
 	BERLIN_PINCTRL_GROUP("SPI1_SS0n", 0xc, 0x3, 0x18,
 			BERLIN_PINCTRL_FUNCTION(0x0, "spi1"), /* SS0n */
 			BERLIN_PINCTRL_FUNCTION(0x1, "gpio"), /* GPIO37 */
@@ -457,7 +457,6 @@ static const struct of_device_id berlin4ct_pinctrl_match[] = {
 	},
 	{}
 };
-MODULE_DEVICE_TABLE(of, berlin4ct_pinctrl_match);
 
 static int berlin4ct_pinctrl_probe(struct platform_device *pdev)
 {
@@ -496,8 +495,4 @@ static struct platform_driver berlin4ct_pinctrl_driver = {
 		.of_match_table = berlin4ct_pinctrl_match,
 	},
 };
-module_platform_driver(berlin4ct_pinctrl_driver);
-
-MODULE_AUTHOR("Jisheng Zhang <jszhang@marvell.com>");
-MODULE_DESCRIPTION("Marvell berlin4ct pinctrl driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(berlin4ct_pinctrl_driver);

@@ -22,13 +22,13 @@ notrace static unsigned int check_preemption_disabled(const char *what1,
 	 * Kernel threads bound to a single CPU can safely use
 	 * smp_processor_id():
 	 */
-	if (cpumask_equal(tsk_cpus_allowed(current), cpumask_of(this_cpu)))
+	if (cpumask_equal(&current->cpus_allowed, cpumask_of(this_cpu)))
 		goto out;
 
 	/*
 	 * It is valid to assume CPU-locality during early bootup:
 	 */
-	if (system_state != SYSTEM_RUNNING)
+	if (system_state < SYSTEM_SCHEDULING)
 		goto out;
 
 	/*

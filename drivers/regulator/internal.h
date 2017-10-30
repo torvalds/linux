@@ -29,7 +29,7 @@ struct regulator {
 	int uA_load;
 	int min_uV;
 	int max_uV;
-	char *supply_name;
+	const char *supply_name;
 	struct device_attribute dev_attr;
 	struct regulator_dev *rdev;
 	struct dentry *debugfs;
@@ -50,5 +50,15 @@ regulator_of_get_init_data(struct device *dev,
 	return NULL;
 }
 #endif
+
+enum regulator_get_type {
+	NORMAL_GET,
+	EXCLUSIVE_GET,
+	OPTIONAL_GET,
+	MAX_GET_TYPE
+};
+
+struct regulator *_regulator_get(struct device *dev, const char *id,
+				 enum regulator_get_type get_type);
 
 #endif

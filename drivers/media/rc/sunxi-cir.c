@@ -173,17 +173,12 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	}
 
 	/* Reset (optional) */
-	ir->rst = devm_reset_control_get_optional(dev, NULL);
-	if (IS_ERR(ir->rst)) {
-		ret = PTR_ERR(ir->rst);
-		if (ret == -EPROBE_DEFER)
-			return ret;
-		ir->rst = NULL;
-	} else {
-		ret = reset_control_deassert(ir->rst);
-		if (ret)
-			return ret;
-	}
+	ir->rst = devm_reset_control_get_optional_exclusive(dev, NULL);
+	if (IS_ERR(ir->rst))
+		return PTR_ERR(ir->rst);
+	ret = reset_control_deassert(ir->rst);
+	if (ret)
+		return ret;
 
 	ret = clk_set_rate(ir->clk, SUNXI_IR_BASE_CLK);
 	if (ret) {
@@ -212,7 +207,7 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 		goto exit_clkdisable_clk;
 	}
 
-	ir->rc = rc_allocate_device();
+	ir->rc = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!ir->rc) {
 		dev_err(dev, "failed to allocate device\n");
 		ret = -ENOMEM;
@@ -220,7 +215,7 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	}
 
 	ir->rc->priv = ir;
-	ir->rc->input_name = SUNXI_IR_DEV;
+	ir->rc->device_name = SUNXI_IR_DEV;
 	ir->rc->input_phys = "sunxi-ir/input0";
 	ir->rc->input_id.bustype = BUS_HOST;
 	ir->rc->input_id.vendor = 0x0001;
@@ -229,8 +224,7 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	ir->map_name = of_get_property(dn, "linux,rc-map-name", NULL);
 	ir->rc->map_name = ir->map_name ?: RC_MAP_EMPTY;
 	ir->rc->dev.parent = dev;
-	ir->rc->driver_type = RC_DRIVER_IR_RAW;
-	ir->rc->allowed_protocols = RC_BIT_ALL;
+	ir->rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	ir->rc->rx_resolution = SUNXI_IR_SAMPLE;
 	ir->rc->timeout = MS_TO_NS(SUNXI_IR_TIMEOUT);
 	ir->rc->driver_name = SUNXI_IR_DEV;
@@ -292,8 +286,7 @@ exit_clkdisable_clk:
 exit_clkdisable_apb_clk:
 	clk_disable_unprepare(ir->apb_clk);
 exit_reset_assert:
-	if (ir->rst)
-		reset_control_assert(ir->rst);
+	reset_control_assert(ir->rst);
 
 	return ret;
 }
@@ -305,8 +298,7 @@ static int sunxi_ir_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(ir->clk);
 	clk_disable_unprepare(ir->apb_clk);
-	if (ir->rst)
-		reset_control_assert(ir->rst);
+	reset_control_assert(ir->rst);
 
 	spin_lock_irqsave(&ir->ir_lock, flags);
 	/* disable IR IRQ */

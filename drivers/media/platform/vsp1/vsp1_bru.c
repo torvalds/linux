@@ -33,7 +33,7 @@
 static inline void vsp1_bru_write(struct vsp1_bru *bru, struct vsp1_dl_list *dl,
 				  u32 reg, u32 data)
 {
-	vsp1_dl_list_write(dl, reg, data);
+	vsp1_dl_list_write(dl, bru->base + reg, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -251,7 +251,8 @@ static int bru_set_selection(struct v4l2_subdev *subdev,
 	sel->r.left = clamp_t(unsigned int, sel->r.left, 0, format->width - 1);
 	sel->r.top = clamp_t(unsigned int, sel->r.top, 0, format->height - 1);
 
-	/* Scaling isn't supported, the compose rectangle size must be identical
+	/*
+	 * Scaling isn't supported, the compose rectangle size must be identical
 	 * to the sink format size.
 	 */
 	format = vsp1_entity_get_pad_format(&bru->entity, config, sel->pad);
@@ -300,13 +301,15 @@ static void bru_configure(struct vsp1_entity *entity,
 	format = vsp1_entity_get_pad_format(&bru->entity, bru->entity.config,
 					    bru->entity.source_pad);
 
-	/* The hardware is extremely flexible but we have no userspace API to
+	/*
+	 * The hardware is extremely flexible but we have no userspace API to
 	 * expose all the parameters, nor is it clear whether we would have use
 	 * cases for all the supported modes. Let's just harcode the parameters
 	 * to sane default values for now.
 	 */
 
-	/* Disable dithering and enable color data normalization unless the
+	/*
+	 * Disable dithering and enable color data normalization unless the
 	 * format at the pipeline output is premultiplied.
 	 */
 	flags = pipe->output ? pipe->output->format.flags : 0;
@@ -314,7 +317,8 @@ static void bru_configure(struct vsp1_entity *entity,
 		       flags & V4L2_PIX_FMT_FLAG_PREMUL_ALPHA ?
 		       0 : VI6_BRU_INCTRL_NRM);
 
-	/* Set the background position to cover the whole output image and
+	/*
+	 * Set the background position to cover the whole output image and
 	 * configure its color.
 	 */
 	vsp1_bru_write(bru, dl, VI6_BRU_VIRRPF_SIZE,
@@ -325,19 +329,24 @@ static void bru_configure(struct vsp1_entity *entity,
 	vsp1_bru_write(bru, dl, VI6_BRU_VIRRPF_COL, bru->bgcolor |
 		       (0xff << VI6_BRU_VIRRPF_COL_A_SHIFT));
 
-	/* Route BRU input 1 as SRC input to the ROP unit and configure the ROP
+	/*
+	 * Route BRU input 1 as SRC input to the ROP unit and configure the ROP
 	 * unit with a NOP operation to make BRU input 1 available as the
-	 * Blend/ROP unit B SRC input.
+	 * Blend/ROP unit B SRC input. Only needed for BRU, the BRS has no ROP
+	 * unit.
 	 */
-	vsp1_bru_write(bru, dl, VI6_BRU_ROP, VI6_BRU_ROP_DSTSEL_BRUIN(1) |
-		       VI6_BRU_ROP_CROP(VI6_ROP_NOP) |
-		       VI6_BRU_ROP_AROP(VI6_ROP_NOP));
+	if (entity->type == VSP1_ENTITY_BRU)
+		vsp1_bru_write(bru, dl, VI6_BRU_ROP,
+			       VI6_BRU_ROP_DSTSEL_BRUIN(1) |
+			       VI6_BRU_ROP_CROP(VI6_ROP_NOP) |
+			       VI6_BRU_ROP_AROP(VI6_ROP_NOP));
 
 	for (i = 0; i < bru->entity.source_pad; ++i) {
 		bool premultiplied = false;
 		u32 ctrl = 0;
 
-		/* Configure all Blend/ROP units corresponding to an enabled BRU
+		/*
+		 * Configure all Blend/ROP units corresponding to an enabled BRU
 		 * input for alpha blending. Blend/ROP units corresponding to
 		 * disabled BRU inputs are used in ROP NOP mode to ignore the
 		 * SRC input.
@@ -352,23 +361,27 @@ static void bru_configure(struct vsp1_entity *entity,
 			     |  VI6_BRU_CTRL_AROP(VI6_ROP_NOP);
 		}
 
-		/* Select the virtual RPF as the Blend/ROP unit A DST input to
+		/*
+		 * Select the virtual RPF as the Blend/ROP unit A DST input to
 		 * serve as a background color.
 		 */
 		if (i == 0)
 			ctrl |= VI6_BRU_CTRL_DSTSEL_VRPF;
 
-		/* Route BRU inputs 0 to 3 as SRC inputs to Blend/ROP units A to
-		 * D in that order. The Blend/ROP unit B SRC is hardwired to the
-		 * ROP unit output, the corresponding register bits must be set
-		 * to 0.
+		/*
+		 * Route inputs 0 to 3 as SRC inputs to Blend/ROP units A to D
+		 * in that order. In the BRU the Blend/ROP unit B SRC is
+		 * hardwired to the ROP unit output, the corresponding register
+		 * bits must be set to 0. The BRS has no ROP unit and doesn't
+		 * need any special processing.
 		 */
-		if (i != 1)
+		if (!(entity->type == VSP1_ENTITY_BRU && i == 1))
 			ctrl |= VI6_BRU_CTRL_SRCSEL_BRUIN(i);
 
 		vsp1_bru_write(bru, dl, VI6_BRU_CTRL(i), ctrl);
 
-		/* Harcode the blending formula to
+		/*
+		 * Harcode the blending formula to
 		 *
 		 *	DSTc = DSTc * (1 - SRCa) + SRCc * SRCa
 		 *	DSTa = DSTa * (1 - SRCa) + SRCa
@@ -398,20 +411,31 @@ static const struct vsp1_entity_operations bru_entity_ops = {
  * Initialization and Cleanup
  */
 
-struct vsp1_bru *vsp1_bru_create(struct vsp1_device *vsp1)
+struct vsp1_bru *vsp1_bru_create(struct vsp1_device *vsp1,
+				 enum vsp1_entity_type type)
 {
 	struct vsp1_bru *bru;
+	unsigned int num_pads;
+	const char *name;
 	int ret;
 
 	bru = devm_kzalloc(vsp1->dev, sizeof(*bru), GFP_KERNEL);
 	if (bru == NULL)
 		return ERR_PTR(-ENOMEM);
 
+	bru->base = type == VSP1_ENTITY_BRU ? VI6_BRU_BASE : VI6_BRS_BASE;
 	bru->entity.ops = &bru_entity_ops;
-	bru->entity.type = VSP1_ENTITY_BRU;
+	bru->entity.type = type;
 
-	ret = vsp1_entity_init(vsp1, &bru->entity, "bru",
-			       vsp1->info->num_bru_inputs + 1, &bru_ops,
+	if (type == VSP1_ENTITY_BRU) {
+		num_pads = vsp1->info->num_bru_inputs + 1;
+		name = "bru";
+	} else {
+		num_pads = 3;
+		name = "brs";
+	}
+
+	ret = vsp1_entity_init(vsp1, &bru->entity, name, num_pads, &bru_ops,
 			       MEDIA_ENT_F_PROC_VIDEO_COMPOSER);
 	if (ret < 0)
 		return ERR_PTR(ret);
@@ -426,7 +450,7 @@ struct vsp1_bru *vsp1_bru_create(struct vsp1_device *vsp1)
 	bru->entity.subdev.ctrl_handler = &bru->ctrls;
 
 	if (bru->ctrls.error) {
-		dev_err(vsp1->dev, "bru: failed to initialize controls\n");
+		dev_err(vsp1->dev, "%s: failed to initialize controls\n", name);
 		ret = bru->ctrls.error;
 		vsp1_entity_destroy(&bru->entity);
 		return ERR_PTR(ret);

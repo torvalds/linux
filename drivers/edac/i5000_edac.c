@@ -22,7 +22,7 @@
 #include <linux/edac.h>
 #include <asm/mmzone.h>
 
-#include "edac_core.h"
+#include "edac_module.h"
 
 /*
  * Alter this version for the I5000 module when modifications are made
@@ -227,7 +227,7 @@
 #define			NREC_RDWR(x)		(((x)>>11) & 1)
 #define			NREC_RANK(x)		(((x)>>8) & 0x7)
 #define		NRECMEMB		0xC0
-#define			NREC_CAS(x)		(((x)>>16) & 0xFFFFFF)
+#define			NREC_CAS(x)		(((x)>>16) & 0xFFF)
 #define			NREC_RAS(x)		((x) & 0x7FFF)
 #define		NRECFGLOG		0xC4
 #define		NREEECFBDA		0xC8
@@ -371,7 +371,7 @@ struct i5000_error_info {
 	/* These registers are input ONLY if there was a
 	 * Non-Recoverable Error */
 	u16 nrecmema;		/* Non-Recoverable Mem log A */
-	u16 nrecmemb;		/* Non-Recoverable Mem log B */
+	u32 nrecmemb;		/* Non-Recoverable Mem log B */
 
 };
 
@@ -407,7 +407,7 @@ static void i5000_get_error_info(struct mem_ctl_info *mci,
 				NERR_FAT_FBD, &info->nerr_fat_fbd);
 		pci_read_config_word(pvt->branchmap_werrors,
 				NRECMEMA, &info->nrecmema);
-		pci_read_config_word(pvt->branchmap_werrors,
+		pci_read_config_dword(pvt->branchmap_werrors,
 				NRECMEMB, &info->nrecmemb);
 
 		/* Clear the error bits, by writing them back */
@@ -1293,7 +1293,7 @@ static int i5000_init_csrows(struct mem_ctl_info *mci)
 			dimm->mtype = MEM_FB_DDR2;
 
 			/* ask what device type on this row */
-			if (MTR_DRAM_WIDTH(mtr))
+			if (MTR_DRAM_WIDTH(mtr) == 8)
 				dimm->dtype = DEV_X8;
 			else
 				dimm->dtype = DEV_X4;
@@ -1430,7 +1430,6 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->edac_ctl_cap = EDAC_FLAG_NONE;
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = "i5000_edac.c";
-	mci->mod_ver = I5000_REVISION;
 	mci->ctl_name = i5000_devs[dev_idx].ctl_name;
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;

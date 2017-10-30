@@ -78,7 +78,7 @@ void rxe_do_task(unsigned long data)
 
 	default:
 		spin_unlock_irqrestore(&task->state_lock, flags);
-		pr_warn("bad state = %d in rxe_do_task\n", task->state);
+		pr_warn("%s failed with bad state %d\n", __func__, task->state);
 		return;
 	}
 
@@ -105,7 +105,7 @@ void rxe_do_task(unsigned long data)
 			break;
 
 		default:
-			pr_warn("bad state = %d in rxe_do_task\n",
+			pr_warn("%s failed with bad state %d\n", __func__,
 				task->state);
 		}
 		spin_unlock_irqrestore(&task->state_lock, flags);
@@ -121,6 +121,7 @@ int rxe_init_task(void *obj, struct rxe_task *task,
 	task->arg	= arg;
 	task->func	= func;
 	snprintf(task->name, sizeof(task->name), "%s", name);
+	task->destroyed	= false;
 
 	tasklet_init(&task->tasklet, rxe_do_task, (unsigned long)task);
 
@@ -132,11 +133,29 @@ int rxe_init_task(void *obj, struct rxe_task *task,
 
 void rxe_cleanup_task(struct rxe_task *task)
 {
+	unsigned long flags;
+	bool idle;
+
+	/*
+	 * Mark the task, then wait for it to finish. It might be
+	 * running in a non-tasklet (direct call) context.
+	 */
+	task->destroyed = true;
+
+	do {
+		spin_lock_irqsave(&task->state_lock, flags);
+		idle = (task->state == TASK_STATE_START);
+		spin_unlock_irqrestore(&task->state_lock, flags);
+	} while (!idle);
+
 	tasklet_kill(&task->tasklet);
 }
 
 void rxe_run_task(struct rxe_task *task, int sched)
 {
+	if (task->destroyed)
+		return;
+
 	if (sched)
 		tasklet_schedule(&task->tasklet);
 	else

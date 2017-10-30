@@ -2523,7 +2523,7 @@ static int ab8500_codec_probe(struct snd_soc_codec *codec)
 	return status;
 }
 
-static struct snd_soc_codec_driver ab8500_codec_driver = {
+static const struct snd_soc_codec_driver ab8500_codec_driver = {
 	.probe =		ab8500_codec_probe,
 	.component_driver = {
 		.controls =		ab8500_ctrls,
@@ -2587,8 +2587,6 @@ static struct platform_driver ab8500_codec_platform_driver = {
 	},
 	.probe		= ab8500_codec_driver_probe,
 	.remove		= ab8500_codec_driver_remove,
-	.suspend	= NULL,
-	.resume		= NULL,
 };
 module_platform_driver(ab8500_codec_platform_driver);
 

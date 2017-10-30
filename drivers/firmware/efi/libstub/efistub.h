@@ -15,28 +15,30 @@
  */
 #undef __init
 
+/*
+ * Allow the platform to override the allocation granularity: this allows
+ * systems that have the capability to run with a larger page size to deal
+ * with the allocations for initrd and fdt more efficiently.
+ */
+#ifndef EFI_ALLOC_ALIGN
+#define EFI_ALLOC_ALIGN		EFI_PAGE_SIZE
+#endif
+
+extern int __pure nokaslr(void);
+extern int __pure is_quiet(void);
+
+#define pr_efi(sys_table, msg)		do {				\
+	if (!is_quiet()) efi_printk(sys_table, "EFI stub: "msg);	\
+} while (0)
+
+#define pr_efi_err(sys_table, msg) efi_printk(sys_table, "EFI stub: ERROR: "msg)
+
 void efi_char16_printk(efi_system_table_t *, efi_char16_t *);
 
 efi_status_t efi_open_volume(efi_system_table_t *sys_table_arg, void *__image,
 			     void **__fh);
 
-efi_status_t efi_file_size(efi_system_table_t *sys_table_arg, void *__fh,
-			   efi_char16_t *filename_16, void **handle,
-			   u64 *file_sz);
-
-efi_status_t efi_file_read(void *handle, unsigned long *size, void *addr);
-
-efi_status_t efi_file_close(void *handle);
-
 unsigned long get_dram_base(efi_system_table_t *sys_table_arg);
-
-efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
-			unsigned long orig_fdt_size,
-			void *fdt, int new_fdt_size, char *cmdline_ptr,
-			u64 initrd_addr, u64 initrd_size,
-			efi_memory_desc_t *memory_map,
-			unsigned long map_size, unsigned long desc_size,
-			u32 desc_ver);
 
 efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 					    void *handle,
@@ -61,5 +63,7 @@ efi_status_t efi_random_alloc(efi_system_table_t *sys_table_arg,
 			      unsigned long *addr, unsigned long random_seed);
 
 efi_status_t check_platform_features(efi_system_table_t *sys_table_arg);
+
+efi_status_t efi_random_get_seed(efi_system_table_t *sys_table_arg);
 
 #endif

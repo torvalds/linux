@@ -40,8 +40,8 @@
 #include <linux/syscalls.h>
 #include <net/sock.h>
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../../include/linux/lnet/lib-lnet.h"
+#include <linux/libcfs/libcfs.h>
+#include <linux/lnet/lib-lnet.h>
 
 static int
 kernel_sock_unlocked_ioctl(struct file *filp, int cmd, unsigned long arg)
@@ -89,7 +89,7 @@ lnet_ipif_query(char *name, int *up, __u32 *ip, __u32 *mask)
 	struct ifreq ifr;
 	int nob;
 	int rc;
-	__u32 val;
+	__be32 val;
 
 	nob = strnlen(name, IFNAMSIZ);
 	if (nob == IFNAMSIZ) {
@@ -97,7 +97,7 @@ lnet_ipif_query(char *name, int *up, __u32 *ip, __u32 *mask)
 		return -EINVAL;
 	}
 
-	CLASSERT(sizeof(ifr.ifr_name) >= IFNAMSIZ);
+	BUILD_BUG_ON(sizeof(ifr.ifr_name) < IFNAMSIZ);
 
 	if (strlen(name) > sizeof(ifr.ifr_name) - 1)
 		return -E2BIG;
@@ -393,8 +393,10 @@ lnet_sock_create(struct socket **sockp, int *fatal, __u32 local_ip,
 		memset(&locaddr, 0, sizeof(locaddr));
 		locaddr.sin_family = AF_INET;
 		locaddr.sin_port = htons(local_port);
-		locaddr.sin_addr.s_addr = !local_ip ?
-					  INADDR_ANY : htonl(local_ip);
+		if (!local_ip)
+			locaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+		else
+			locaddr.sin_addr.s_addr = htonl(local_ip);
 
 		rc = kernel_bind(sock, (struct sockaddr *)&locaddr,
 				 sizeof(locaddr));
@@ -514,7 +516,7 @@ lnet_sock_listen(struct socket **sockp, __u32 local_ip, int local_port,
 int
 lnet_sock_accept(struct socket **newsockp, struct socket *sock)
 {
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	struct socket *newsock;
 	int rc;
 
@@ -530,7 +532,7 @@ lnet_sock_accept(struct socket **newsockp, struct socket *sock)
 
 	newsock->ops = sock->ops;
 
-	rc = sock->ops->accept(sock, newsock, O_NONBLOCK);
+	rc = sock->ops->accept(sock, newsock, O_NONBLOCK, false);
 	if (rc == -EAGAIN) {
 		/* Nothing ready, so wait for activity */
 		init_waitqueue_entry(&wait, current);
@@ -538,7 +540,7 @@ lnet_sock_accept(struct socket **newsockp, struct socket *sock)
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule();
 		remove_wait_queue(sk_sleep(sock->sk), &wait);
-		rc = sock->ops->accept(sock, newsock, O_NONBLOCK);
+		rc = sock->ops->accept(sock, newsock, O_NONBLOCK, false);
 	}
 
 	if (rc)

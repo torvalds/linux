@@ -22,6 +22,7 @@
 #include <linux/platform_data/dma-mv_xor.h>
 #include <linux/platform_data/usb-ehci-orion.h>
 #include <plat/common.h>
+#include <linux/phy.h>
 
 /* Create a clkdev entry for a given device/clk */
 void __init orion_clkdev_add(const char *con_id, const char *dev_id,
@@ -467,19 +468,36 @@ void __init orion_ge11_init(struct mv643xx_eth_platform_data *eth_data,
 		    eth_data, &orion_ge11);
 }
 
+#ifdef CONFIG_ARCH_ORION5X
 /*****************************************************************************
  * Ethernet switch
  ****************************************************************************/
-void __init orion_ge00_switch_init(struct dsa_platform_data *d)
+static __initconst const char *orion_ge00_mvmdio_bus_name = "orion-mii";
+static __initdata struct mdio_board_info
+		  orion_ge00_switch_board_info;
+
+void __init orion_ge00_switch_init(struct dsa_chip_data *d)
 {
-	int i;
+	struct mdio_board_info *bd;
+	unsigned int i;
 
-	d->netdev = &orion_ge00.dev;
-	for (i = 0; i < d->nr_chips; i++)
-		d->chip[i].host_dev = &orion_ge_mvmdio.dev;
+	if (!IS_BUILTIN(CONFIG_PHYLIB))
+		return;
 
-	platform_device_register_data(NULL, "dsa", 0, d, sizeof(d));
+	for (i = 0; i < ARRAY_SIZE(d->port_names); i++)
+		if (!strcmp(d->port_names[i], "cpu"))
+			break;
+
+	bd = &orion_ge00_switch_board_info;
+	bd->bus_id = orion_ge00_mvmdio_bus_name;
+	bd->mdio_addr = d->sw_addr;
+	d->netdev[i] = &orion_ge00.dev;
+	strcpy(bd->modalias, "mv88e6085");
+	bd->platform_data = d;
+
+	mdiobus_register_board_info(&orion_ge00_switch_board_info, 1);
 }
+#endif
 
 /*****************************************************************************
  * I2C

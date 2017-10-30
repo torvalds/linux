@@ -469,3 +469,5 @@ L_exit:
 	leave
 	ret
 #endif /* PARANOID */ 
+
+ENDPROC(FPU_u_div)

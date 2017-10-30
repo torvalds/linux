@@ -1,6 +1,6 @@
 /* ldmvsw.c: Sun4v LDOM Virtual Switch Driver.
  *
- * Copyright (C) 2016 Oracle. All rights reserved.
+ * Copyright (C) 2016-2017 Oracle. All rights reserved.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -41,11 +41,11 @@
 static u8 vsw_port_hwaddr[ETH_ALEN] = {0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 #define DRV_MODULE_NAME		"ldmvsw"
-#define DRV_MODULE_VERSION	"1.0"
-#define DRV_MODULE_RELDATE	"Jan 15, 2016"
+#define DRV_MODULE_VERSION	"1.2"
+#define DRV_MODULE_RELDATE	"March 4, 2017"
 
 static char version[] =
-	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
+	DRV_MODULE_NAME " " DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")";
 MODULE_AUTHOR("Oracle");
 MODULE_DESCRIPTION("Sun4v LDOM Virtual Switch Driver");
 MODULE_LICENSE("GPL");
@@ -123,6 +123,20 @@ static void vsw_set_rx_mode(struct net_device *dev)
 	return sunvnet_set_rx_mode_common(dev, port->vp);
 }
 
+int ldmvsw_open(struct net_device *dev)
+{
+	struct vnet_port *port = netdev_priv(dev);
+	struct vio_driver_state *vio = &port->vio;
+
+	/* reset the channel */
+	vio_link_state_change(vio, LDC_EVENT_RESET);
+	vnet_port_reset(port);
+	vio_port_up(vio);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ldmvsw_open);
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void vsw_poll_controller(struct net_device *dev)
 {
@@ -133,13 +147,12 @@ static void vsw_poll_controller(struct net_device *dev)
 #endif
 
 static const struct net_device_ops vsw_ops = {
-	.ndo_open		= sunvnet_open_common,
+	.ndo_open		= ldmvsw_open,
 	.ndo_stop		= sunvnet_close_common,
 	.ndo_set_rx_mode	= vsw_set_rx_mode,
 	.ndo_set_mac_address	= sunvnet_set_mac_addr_common,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_tx_timeout		= sunvnet_tx_timeout_common,
-	.ndo_change_mtu		= sunvnet_change_mtu_common,
 	.ndo_start_xmit		= vsw_start_xmit,
 	.ndo_select_queue	= vsw_select_queue,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -235,9 +248,12 @@ static struct net_device *vsw_alloc_netdev(u8 hwaddr[],
 	dev->ethtool_ops = &vsw_ethtool_ops;
 	dev->watchdog_timeo = VSW_TX_TIMEOUT;
 
-	dev->hw_features = NETIF_F_TSO | NETIF_F_GSO | NETIF_F_GSO_SOFTWARE |
-			   NETIF_F_HW_CSUM | NETIF_F_SG;
+	dev->hw_features = NETIF_F_HW_CSUM | NETIF_F_SG;
 	dev->features = dev->hw_features;
+
+	/* MTU range: 68 - 65535 */
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = VNET_MAX_MTU;
 
 	SET_NETDEV_DEV(dev, &vdev->dev);
 
@@ -256,11 +272,6 @@ static struct vio_driver_ops vsw_vio_ops = {
 	.handshake_complete	= sunvnet_handshake_complete_common,
 };
 
-static void print_version(void)
-{
-	printk_once(KERN_INFO "%s", version);
-}
-
 static const char *remote_macaddr_prop = "remote-mac-address";
 static const char *id_prop = "id";
 
@@ -275,8 +286,6 @@ static int vsw_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	int len, i, err;
 	const u64 *port_id;
 	u64 handle;
-
-	print_version();
 
 	hp = mdesc_grab();
 
@@ -324,7 +333,7 @@ static int vsw_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	port->vp = vp;
 	port->dev = dev;
 	port->switch_port = 1;
-	port->tso = true;
+	port->tso = false; /* no tso in vsw, misbehaves in bridge */
 	port->tsolen = 0;
 
 	/* Mark the port as belonging to ldmvsw which directs the
@@ -370,6 +379,11 @@ static int vsw_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	napi_enable(&port->napi);
 	vio_port_up(&port->vio);
 
+	/* assure no carrier until we receive an LDC_EVENT_UP,
+	 * even if the vsw config script tries to force us up
+	 */
+	netif_carrier_off(dev);
+
 	netdev_info(dev, "LDOM vsw-port %pM\n", dev->dev_addr);
 
 	pr_info("%s: PORT ( remote-mac %pM%s )\n", dev->name,
@@ -397,13 +411,14 @@ static int vsw_port_remove(struct vio_dev *vdev)
 
 	if (port) {
 		del_timer_sync(&port->vio.timer);
+		del_timer_sync(&port->clean_timer);
 
 		napi_disable(&port->napi);
+		unregister_netdev(port->dev);
 
 		list_del_rcu(&port->list);
 
 		synchronize_rcu();
-		del_timer_sync(&port->clean_timer);
 		spin_lock_irqsave(&port->vp->lock, flags);
 		sunvnet_port_rm_txq_common(port);
 		spin_unlock_irqrestore(&port->vp->lock, flags);
@@ -413,7 +428,6 @@ static int vsw_port_remove(struct vio_dev *vdev)
 
 		dev_set_drvdata(&vdev->dev, NULL);
 
-		unregister_netdev(port->dev);
 		free_netdev(port->dev);
 	}
 
@@ -454,6 +468,7 @@ static struct vio_driver vsw_port_driver = {
 
 static int __init vsw_init(void)
 {
+	pr_info("%s\n", version);
 	return vio_register_driver(&vsw_port_driver);
 }
 

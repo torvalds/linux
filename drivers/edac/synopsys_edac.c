@@ -23,7 +23,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-#include "edac_core.h"
+#include "edac_module.h"
 
 /* Number of cs_rows needed per memory controller */
 #define SYNPS_EDAC_NR_CSROWS	1
@@ -413,7 +413,6 @@ static int synps_edac_mc_init(struct mem_ctl_info *mci,
 	mci->ctl_name = "synps_ddr_controller";
 	mci->dev_name = SYNPS_EDAC_MOD_STRING;
 	mci->mod_name = SYNPS_EDAC_MOD_VER;
-	mci->mod_ver = "1";
 
 	edac_op_state = EDAC_OPSTATE_POLL;
 	mci->edac_check = synps_edac_check;

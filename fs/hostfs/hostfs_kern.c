@@ -374,7 +374,7 @@ static int hostfs_fsync(struct file *file, loff_t start, loff_t end,
 	struct inode *inode = file->f_mapping->host;
 	int ret;
 
-	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	ret = file_write_and_wait_range(file, start, end);
 	if (ret)
 		return ret;
 
@@ -920,7 +920,6 @@ static const char *hostfs_get_link(struct dentry *dentry,
 }
 
 static const struct inode_operations hostfs_link_iops = {
-	.readlink	= generic_readlink,
 	.get_link	= hostfs_get_link,
 };
 

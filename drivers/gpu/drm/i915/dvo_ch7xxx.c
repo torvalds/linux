@@ -217,9 +217,8 @@ static bool ch7xxx_init(struct intel_dvo_device *dvo,
 
 	name = ch7xxx_get_id(vendor);
 	if (!name) {
-		DRM_DEBUG_KMS("ch7xxx not detected; got 0x%02x from %s "
-				"slave %d.\n",
-			  vendor, adapter->name, dvo->slave_addr);
+		DRM_DEBUG_KMS("ch7xxx not detected; got VID 0x%02x from %s slave %d.\n",
+			      vendor, adapter->name, dvo->slave_addr);
 		goto out;
 	}
 
@@ -229,9 +228,8 @@ static bool ch7xxx_init(struct intel_dvo_device *dvo,
 
 	devid = ch7xxx_get_did(device);
 	if (!devid) {
-		DRM_DEBUG_KMS("ch7xxx not detected; got 0x%02x from %s "
-				"slave %d.\n",
-			  vendor, adapter->name, dvo->slave_addr);
+		DRM_DEBUG_KMS("ch7xxx not detected; got DID 0x%02x from %s slave %d.\n",
+			      device, adapter->name, dvo->slave_addr);
 		goto out;
 	}
 

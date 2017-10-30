@@ -496,15 +496,12 @@ nv50_ram_tidy(struct nvkm_ram *base)
 void
 __nv50_ram_put(struct nvkm_ram *ram, struct nvkm_mem *mem)
 {
-	struct nvkm_mm_node *this;
-
-	while (!list_empty(&mem->regions)) {
-		this = list_first_entry(&mem->regions, typeof(*this), rl_entry);
-
-		list_del(&this->rl_entry);
-		nvkm_mm_free(&ram->vram, &this);
+	struct nvkm_mm_node *next = mem->mem;
+	struct nvkm_mm_node *node;
+	while ((node = next)) {
+		next = node->next;
+		nvkm_mm_free(&ram->vram, &node);
 	}
-
 	nvkm_mm_free(&ram->tags, &mem->tag);
 }
 
@@ -530,7 +527,7 @@ nv50_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 {
 	struct nvkm_mm *heap = &ram->vram;
 	struct nvkm_mm *tags = &ram->tags;
-	struct nvkm_mm_node *r;
+	struct nvkm_mm_node **node, *r;
 	struct nvkm_mem *mem;
 	int comp = (memtype & 0x300) >> 8;
 	int type = (memtype & 0x07f);
@@ -559,11 +556,11 @@ nv50_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 			comp = 0;
 	}
 
-	INIT_LIST_HEAD(&mem->regions);
 	mem->memtype = (comp << 7) | type;
 	mem->size = max;
 
 	type = nv50_fb_memtype[type];
+	node = &mem->mem;
 	do {
 		if (back)
 			ret = nvkm_mm_tail(heap, 0, type, max, min, align, &r);
@@ -575,13 +572,13 @@ nv50_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 			return ret;
 		}
 
-		list_add_tail(&r->rl_entry, &mem->regions);
+		*node = r;
+		node = &r->next;
 		max -= r->length;
 	} while (max);
 	mutex_unlock(&ram->fb->subdev.mutex);
 
-	r = list_first_entry(&mem->regions, struct nvkm_mm_node, rl_entry);
-	mem->offset = (u64)r->offset << NVKM_RAM_MM_SHIFT;
+	mem->offset = (u64)mem->mem->offset << NVKM_RAM_MM_SHIFT;
 	*pmem = mem;
 	return 0;
 }

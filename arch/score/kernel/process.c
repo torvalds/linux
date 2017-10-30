@@ -28,6 +28,8 @@
 #include <linux/elfcore.h>
 #include <linux/pm.h>
 #include <linux/rcupdate.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
@@ -97,11 +99,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 int dump_fpu(struct pt_regs *regs, elf_fpregset_t *r)
 {
 	return 1;
-}
-
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	return task_pt_regs(tsk)->cp0_epc;
 }
 
 unsigned long get_wchan(struct task_struct *task)

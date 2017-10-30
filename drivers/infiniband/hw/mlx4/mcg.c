@@ -209,7 +209,7 @@ static struct mcast_group *mcast_insert(struct mlx4_ib_demux_ctx *ctx,
 static int send_mad_to_wire(struct mlx4_ib_demux_ctx *ctx, struct ib_mad *mad)
 {
 	struct mlx4_ib_dev *dev = ctx->dev;
-	struct ib_ah_attr	ah_attr;
+	struct rdma_ah_attr	ah_attr;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->sm_lock, flags);
@@ -231,20 +231,20 @@ static int send_mad_to_slave(int slave, struct mlx4_ib_demux_ctx *ctx,
 	struct mlx4_ib_dev *dev = ctx->dev;
 	struct ib_mad_agent *agent = dev->send_agent[ctx->port - 1][1];
 	struct ib_wc wc;
-	struct ib_ah_attr ah_attr;
+	struct rdma_ah_attr ah_attr;
 
 	/* Our agent might not yet be registered when mads start to arrive */
 	if (!agent)
 		return -EAGAIN;
 
-	ib_query_ah(dev->sm_ah[ctx->port - 1], &ah_attr);
+	rdma_query_ah(dev->sm_ah[ctx->port - 1], &ah_attr);
 
 	if (ib_find_cached_pkey(&dev->ib_dev, ctx->port, IB_DEFAULT_PKEY_FULL, &wc.pkey_index))
 		return -EINVAL;
 	wc.sl = 0;
 	wc.dlid_path_bits = 0;
 	wc.port_num = ctx->port;
-	wc.slid = ah_attr.dlid;  /* opensm lid */
+	wc.slid = rdma_ah_get_dlid(&ah_attr);  /* opensm lid */
 	wc.src_qp = 1;
 	return mlx4_ib_send_to_slave(dev, slave, ctx->port, IB_QPT_GSI, &wc, NULL, mad);
 }
@@ -808,8 +808,7 @@ static ssize_t sysfs_show_group(struct device *dev,
 		struct device_attribute *attr, char *buf);
 
 static struct mcast_group *acquire_group(struct mlx4_ib_demux_ctx *ctx,
-					 union ib_gid *mgid, int create,
-					 gfp_t gfp_mask)
+					 union ib_gid *mgid, int create)
 {
 	struct mcast_group *group, *cur_group;
 	int is_mgid0;
@@ -825,7 +824,7 @@ static struct mcast_group *acquire_group(struct mlx4_ib_demux_ctx *ctx,
 	if (!create)
 		return ERR_PTR(-ENOENT);
 
-	group = kzalloc(sizeof *group, gfp_mask);
+	group = kzalloc(sizeof(*group), GFP_KERNEL);
 	if (!group)
 		return ERR_PTR(-ENOMEM);
 
@@ -892,7 +891,7 @@ int mlx4_ib_mcg_demux_handler(struct ib_device *ibdev, int port, int slave,
 	case IB_MGMT_METHOD_GET_RESP:
 	case IB_SA_METHOD_DELETE_RESP:
 		mutex_lock(&ctx->mcg_table_lock);
-		group = acquire_group(ctx, &rec->mgid, 0, GFP_KERNEL);
+		group = acquire_group(ctx, &rec->mgid, 0);
 		mutex_unlock(&ctx->mcg_table_lock);
 		if (IS_ERR(group)) {
 			if (mad->mad_hdr.method == IB_MGMT_METHOD_GET_RESP) {
@@ -954,7 +953,7 @@ int mlx4_ib_mcg_multiplex_handler(struct ib_device *ibdev, int port,
 		req->sa_mad = *sa_mad;
 
 		mutex_lock(&ctx->mcg_table_lock);
-		group = acquire_group(ctx, &rec->mgid, may_create, GFP_KERNEL);
+		group = acquire_group(ctx, &rec->mgid, may_create);
 		mutex_unlock(&ctx->mcg_table_lock);
 		if (IS_ERR(group)) {
 			kfree(req);
@@ -1091,7 +1090,7 @@ static void _mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy
 		if (!count)
 			break;
 
-		msleep(1);
+		usleep_range(1000, 2000);
 	} while (time_after(end, jiffies));
 
 	flush_workqueue(ctx->mcg_wq);
@@ -1102,7 +1101,8 @@ static void _mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy
 	while ((p = rb_first(&ctx->mcg_table)) != NULL) {
 		group = rb_entry(p, struct mcast_group, node);
 		if (atomic_read(&group->refcount))
-			mcg_warn_group(group, "group refcount %d!!! (pointer %p)\n", atomic_read(&group->refcount), group);
+			mcg_debug_group(group, "group refcount %d!!! (pointer %p)\n",
+					atomic_read(&group->refcount), group);
 
 		force_clean_group(group);
 	}
@@ -1142,7 +1142,6 @@ void mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy_wq)
 	work = kmalloc(sizeof *work, GFP_KERNEL);
 	if (!work) {
 		ctx->flushing = 0;
-		mcg_warn("failed allocating work for cleanup\n");
 		return;
 	}
 
@@ -1202,10 +1201,8 @@ static int push_deleteing_req(struct mcast_group *group, int slave)
 		return 0;
 
 	req = kzalloc(sizeof *req, GFP_KERNEL);
-	if (!req) {
-		mcg_warn_group(group, "failed allocation - may leave stall groups\n");
+	if (!req)
 		return -ENOMEM;
-	}
 
 	if (!list_empty(&group->func[slave].pending)) {
 		pend_req = list_entry(group->func[slave].pending.prev, struct mcast_req, group_list);

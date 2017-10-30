@@ -20,7 +20,6 @@
 #define ARC_REG_FP_V2_BCR	0xc8	/* ARCv2 FPU */
 #define ARC_REG_SLC_BCR		0xce
 #define ARC_REG_DCCM_BUILD	0x74	/* DCCM size (common) */
-#define ARC_REG_TIMERS_BCR	0x75
 #define ARC_REG_AP_BCR		0x76
 #define ARC_REG_ICCM_BUILD	0x78	/* ICCM size (common) */
 #define ARC_REG_XY_MEM_BCR	0x79
@@ -38,6 +37,9 @@
 #define ARC_REG_SMART_BCR	0xFF
 #define ARC_REG_CLUSTER_BCR	0xcf
 #define ARC_REG_AUX_ICCM	0x208	/* ICCM Base Addr (ARCv2) */
+
+/* Common for ARCompact and ARCv2 status register */
+#define ARC_REG_STATUS32	0x0A
 
 /* status32 Bits Positions */
 #define STATUS_AE_BIT		5	/* Exception active */
@@ -96,6 +98,7 @@
 
 /* Auxiliary registers */
 #define AUX_IDENTITY		4
+#define AUX_EXEC_CTRL		8
 #define AUX_INTR_VEC_BASE	0x25
 #define AUX_VOL			0x5e
 
@@ -112,90 +115,7 @@
 
 #ifndef __ASSEMBLY__
 
-/*
- ******************************************************************
- *      Inline ASM macros to read/write AUX Regs
- *      Essentially invocation of lr/sr insns from "C"
- */
-
-#if 1
-
-#define read_aux_reg(reg)	__builtin_arc_lr(reg)
-
-/* gcc builtin sr needs reg param to be long immediate */
-#define write_aux_reg(reg_immed, val)		\
-		__builtin_arc_sr((unsigned int)(val), reg_immed)
-
-#else
-
-#define read_aux_reg(reg)		\
-({					\
-	unsigned int __ret;		\
-	__asm__ __volatile__(		\
-	"	lr    %0, [%1]"		\
-	: "=r"(__ret)			\
-	: "i"(reg));			\
-	__ret;				\
-})
-
-/*
- * Aux Reg address is specified as long immediate by caller
- * e.g.
- *    write_aux_reg(0x69, some_val);
- * This generates tightest code.
- */
-#define write_aux_reg(reg_imm, val)	\
-({					\
-	__asm__ __volatile__(		\
-	"	sr   %0, [%1]	\n"	\
-	:				\
-	: "ir"(val), "i"(reg_imm));	\
-})
-
-/*
- * Aux Reg address is specified in a variable
- *  * e.g.
- *      reg_num = 0x69
- *      write_aux_reg2(reg_num, some_val);
- * This has to generate glue code to load the reg num from
- *  memory to a reg hence not recommended.
- */
-#define write_aux_reg2(reg_in_var, val)		\
-({						\
-	unsigned int tmp;			\
-						\
-	__asm__ __volatile__(			\
-	"	ld   %0, [%2]	\n\t"		\
-	"	sr   %1, [%0]	\n\t"		\
-	: "=&r"(tmp)				\
-	: "r"(val), "memory"(&reg_in_var));	\
-})
-
-#endif
-
-#define READ_BCR(reg, into)				\
-{							\
-	unsigned int tmp;				\
-	tmp = read_aux_reg(reg);			\
-	if (sizeof(tmp) == sizeof(into)) {		\
-		into = *((typeof(into) *)&tmp);		\
-	} else {					\
-		extern void bogus_undefined(void);	\
-		bogus_undefined();			\
-	}						\
-}
-
-#define WRITE_AUX(reg, into)				\
-{							\
-	unsigned int tmp;				\
-	if (sizeof(tmp) == sizeof(into)) {		\
-		tmp = (*(unsigned int *)&(into));	\
-		write_aux_reg(reg, tmp);		\
-	} else  {					\
-		extern void bogus_undefined(void);	\
-		bogus_undefined();			\
-	}						\
-}
+#include <soc/arc/aux.h>
 
 /* Helpers */
 #define TO_KB(bytes)		((bytes) >> 10)
@@ -216,12 +136,12 @@ struct bcr_identity {
 #endif
 };
 
-struct bcr_isa {
+struct bcr_isa_arcv2 {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	unsigned int div_rem:4, pad2:4, ldd:1, unalign:1, atomic:1, be:1,
-		     pad1:11, atomic1:1, ver:8;
+		     pad1:12, ver:8;
 #else
-	unsigned int ver:8, atomic1:1, pad1:11, be:1, atomic:1, unalign:1,
+	unsigned int ver:8, pad1:12, be:1, atomic:1, unalign:1,
 		     ldd:1, pad2:4, div_rem:4;
 #endif
 };
@@ -291,13 +211,7 @@ struct bcr_fp_arcv2 {
 #endif
 };
 
-struct bcr_timer {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int pad2:15, rtsc:1, pad1:5, rtc:1, t1:1, t0:1, ver:8;
-#else
-	unsigned int ver:8, t0:1, t1:1, rtc:1, pad1:5, rtsc:1, pad2:15;
-#endif
-};
+#include <soc/arc/timers.h>
 
 struct bcr_bpu_arcompact {
 #ifdef CONFIG_CPU_BIG_ENDIAN
@@ -334,7 +248,7 @@ struct cpuinfo_arc_mmu {
 };
 
 struct cpuinfo_arc_cache {
-	unsigned int sz_k:14, line_len:8, assoc:4, ver:4, alias:1, vipt:1;
+	unsigned int sz_k:14, line_len:8, assoc:4, alias:1, vipt:1, pad:4;
 };
 
 struct cpuinfo_arc_bpu {
@@ -350,13 +264,13 @@ struct cpuinfo_arc {
 	struct cpuinfo_arc_mmu mmu;
 	struct cpuinfo_arc_bpu bpu;
 	struct bcr_identity core;
-	struct bcr_isa isa;
+	struct bcr_isa_arcv2 isa;
 	const char *details, *name;
 	unsigned int vec_base;
 	struct cpuinfo_arc_ccm iccm, dccm;
 	struct {
 		unsigned int swap:1, norm:1, minmax:1, barrel:1, crc:1, swape:1, pad1:2,
-			     fpu_sp:1, fpu_dp:1, pad2:6,
+			     fpu_sp:1, fpu_dp:1, dual_iss_enb:1, dual_iss_exist:1, pad2:4,
 			     debug:1, ap:1, smart:1, rtt:1, pad3:4,
 			     timer0:1, timer1:1, rtc:1, gfrc:1, pad4:4;
 	} extn;

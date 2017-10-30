@@ -1,25 +1,20 @@
 /**********************************************************************
-* Author: Cavium, Inc.
-*
-* Contact: support@cavium.com
-*          Please include "LiquidIO" in the subject.
-*
-* Copyright (c) 2003-2015 Cavium, Inc.
-*
-* This file is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License, Version 2, as
-* published by the Free Software Foundation.
-*
-* This file is distributed in the hope that it will be useful, but
-* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
-* NONINFRINGEMENT.  See the GNU General Public License for more
-* details.
-*
-* This file may also be available under a different license from Cavium.
-* Contact Cavium, Inc. for more information
-**********************************************************************/
-
+ * Author: Cavium, Inc.
+ *
+ * Contact: support@cavium.com
+ *          Please include "LiquidIO" in the subject.
+ *
+ * Copyright (c) 2003-2016 Cavium, Inc.
+ *
+ * This file is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, Version 2, as
+ * published by the Free Software Foundation.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 /*!  \file  liquidio_common.h
  *   \brief Common: Structures and macros used in PCI-NIC package by core and
  *   host driver.
@@ -32,7 +27,7 @@
 
 #define LIQUIDIO_PACKAGE ""
 #define LIQUIDIO_BASE_MAJOR_VERSION 1
-#define LIQUIDIO_BASE_MINOR_VERSION 4
+#define LIQUIDIO_BASE_MINOR_VERSION 6
 #define LIQUIDIO_BASE_MICRO_VERSION 1
 #define LIQUIDIO_BASE_VERSION   __stringify(LIQUIDIO_BASE_MAJOR_VERSION) "." \
 				__stringify(LIQUIDIO_BASE_MINOR_VERSION)
@@ -68,12 +63,10 @@ enum octeon_tag_type {
  */
 #define OPCODE_CORE 0           /* used for generic core operations */
 #define OPCODE_NIC  1           /* used for NIC operations */
-#define OPCODE_LAST OPCODE_NIC
-
 /* Subcodes are used by host driver/apps to identify the sub-operation
  * for the core. They only need to by unique for a given subsystem.
  */
-#define OPCODE_SUBCODE(op, sub)       (((op & 0x0f) << 8) | ((sub) & 0x7f))
+#define OPCODE_SUBCODE(op, sub)       ((((op) & 0x0f) << 8) | ((sub) & 0x7f))
 
 /** OPCODE_CORE subcodes. For future use. */
 
@@ -89,12 +82,13 @@ enum octeon_tag_type {
 #define OPCODE_NIC_TIMESTAMP           0x07
 #define OPCODE_NIC_INTRMOD_CFG         0x08
 #define OPCODE_NIC_IF_CFG              0x09
+#define OPCODE_NIC_VF_DRV_NOTICE       0x0A
+#define OPCODE_NIC_INTRMOD_PARAMS      0x0B
+#define VF_DRV_LOADED                  1
+#define VF_DRV_REMOVED                -1
+#define VF_DRV_MACADDR_CHANGED         2
 
 #define CORE_DRV_TEST_SCATTER_OP    0xFFF5
-
-#define OPCODE_SLOW_PATH(rh)  \
-	(OPCODE_SUBCODE(rh->r.opcode, rh->r.subcode) != \
-		OPCODE_SUBCODE(OPCODE_NIC, OPCODE_NIC_NW_DATA))
 
 /* Application codes advertised by the core driver initialization packet. */
 #define CVM_DRV_APP_START           0x0
@@ -105,31 +99,24 @@ enum octeon_tag_type {
 #define CVM_DRV_INVALID_APP         (CVM_DRV_APP_START + 0x2)
 #define CVM_DRV_APP_END             (CVM_DRV_INVALID_APP - 1)
 
-/* Macro to increment index.
- * Index is incremented by count; if the sum exceeds
- * max, index is wrapped-around to the start.
- */
-#define INCR_INDEX(index, count, max)                \
-do {                                                 \
-	if (((index) + (count)) >= (max))            \
-		index = ((index) + (count)) - (max); \
-	else                                         \
-		index += (count);                    \
-} while (0)
+#define BYTES_PER_DHLEN_UNIT        8
+#define MAX_REG_CNT                 2000000U
+#define INTRNAMSIZ                  32
+#define IRQ_NAME_OFF(i)             ((i) * INTRNAMSIZ)
+#define MAX_IOQ_INTERRUPTS_PER_PF   (64 * 2)
+#define MAX_IOQ_INTERRUPTS_PER_VF   (8 * 2)
 
-#define INCR_INDEX_BY1(index, max)	\
-do {                                    \
-	if ((++(index)) == (max))       \
-		index = 0;	        \
-} while (0)
+#define SCR2_BIT_FW_LOADED	    63
 
-#define DECR_INDEX(index, count, max)                  \
-do {						       \
-	if ((count) > (index))                         \
-		index = ((max) - ((count - index)));   \
-	else                                           \
-		index -= count;			       \
-} while (0)
+static inline u32 incr_index(u32 index, u32 count, u32 max)
+{
+	if ((index + count) >= max)
+		index = index + count - max;
+	else
+		index += count;
+
+	return index;
+}
 
 #define OCT_BOARD_NAME 32
 #define OCT_SERIAL_LEN 64
@@ -187,6 +174,8 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 
 /*------------------------- End Scatter/Gather ---------------------------*/
 
+#define   OCTNET_FRM_LENGTH_SIZE      8
+
 #define   OCTNET_FRM_PTP_HEADER_SIZE  8
 
 #define   OCTNET_FRM_HEADER_SIZE     22 /* VLAN + Ethernet */
@@ -228,12 +217,17 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_VERBOSE_ENABLE   0x14
 #define   OCTNET_CMD_VERBOSE_DISABLE  0x15
 
-#define   OCTNET_CMD_ENABLE_VLAN_FILTER 0x16
+#define   OCTNET_CMD_VLAN_FILTER_CTL 0x16
 #define   OCTNET_CMD_ADD_VLAN_FILTER  0x17
 #define   OCTNET_CMD_DEL_VLAN_FILTER  0x18
 #define   OCTNET_CMD_VXLAN_PORT_CONFIG 0x19
 
 #define   OCTNET_CMD_ID_ACTIVE         0x1a
+
+#define   OCTNET_CMD_SET_UC_LIST       0x1b
+#define   OCTNET_CMD_SET_VF_LINKSTATE  0x1c
+
+#define   OCTNET_CMD_QUEUE_COUNT_CTL	0x1f
 
 #define   OCTNET_CMD_VXLAN_PORT_ADD    0x0
 #define   OCTNET_CMD_VXLAN_PORT_DEL    0x1
@@ -241,6 +235,10 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_RXCSUM_DISABLE    0x1
 #define   OCTNET_CMD_TXCSUM_ENABLE     0x0
 #define   OCTNET_CMD_TXCSUM_DISABLE    0x1
+#define   OCTNET_CMD_VLAN_FILTER_ENABLE 0x1
+#define   OCTNET_CMD_VLAN_FILTER_DISABLE 0x0
+
+#define   LIO_CMD_WAIT_TM 100
 
 /* RX(packets coming from wire) Checksum verification flags */
 /* TCP/UDP csum */
@@ -731,13 +729,15 @@ struct oct_link_info {
 
 #ifdef __BIG_ENDIAN_BITFIELD
 	u64 gmxport:16;
-	u64 rsvd:32;
+	u64 macaddr_is_admin_asgnd:1;
+	u64 rsvd:31;
 	u64 num_txpciq:8;
 	u64 num_rxpciq:8;
 #else
 	u64 num_rxpciq:8;
 	u64 num_txpciq:8;
-	u64 rsvd:32;
+	u64 rsvd:31;
+	u64 macaddr_is_admin_asgnd:1;
 	u64 gmxport:16;
 #endif
 
@@ -773,6 +773,7 @@ struct nic_rx_stats {
 	/* firmware stats */
 	u64 fw_total_rcvd;
 	u64 fw_total_fwd;
+	u64 fw_total_fwd_bytes;
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;
@@ -819,6 +820,7 @@ struct nic_tx_stats {
 	u64 fw_tso;		/* number of tso requests */
 	u64 fw_tso_fwd;		/* number of packets segmented in tso */
 	u64 fw_tx_vxlan;
+	u64 fw_err_pki;
 };
 
 struct oct_link_stats {
@@ -826,6 +828,16 @@ struct oct_link_stats {
 	struct nic_tx_stats fromhost;
 
 };
+
+static inline int opcode_slow_path(union octeon_rh *rh)
+{
+	u16 subcode1, subcode2;
+
+	subcode1 = OPCODE_SUBCODE((rh)->r.opcode, (rh)->r.subcode);
+	subcode2 = OPCODE_SUBCODE(OPCODE_NIC, OPCODE_NIC_NW_DATA);
+
+	return (subcode2 != subcode1);
+}
 
 #define LIO68XX_LED_CTRL_ADDR     0x3501
 #define LIO68XX_LED_CTRL_CFGON    0x1f
@@ -850,29 +862,6 @@ struct oct_mdio_cmd {
 };
 
 #define OCT_LINK_STATS_SIZE   (sizeof(struct oct_link_stats))
-
-/* intrmod: max. packet rate threshold */
-#define LIO_INTRMOD_MAXPKT_RATETHR	196608
-/* intrmod: min. packet rate threshold */
-#define LIO_INTRMOD_MINPKT_RATETHR	9216
-/* intrmod: max. packets to trigger interrupt */
-#define LIO_INTRMOD_RXMAXCNT_TRIGGER	384
-/* intrmod: min. packets to trigger interrupt */
-#define LIO_INTRMOD_RXMINCNT_TRIGGER	0
-/* intrmod: max. time to trigger interrupt */
-#define LIO_INTRMOD_RXMAXTMR_TRIGGER	128
-/* 66xx:intrmod: min. time to trigger interrupt
- * (value of 1 is optimum for TCP_RR)
- */
-#define LIO_INTRMOD_RXMINTMR_TRIGGER	1
-
-/* intrmod: max. packets to trigger interrupt */
-#define LIO_INTRMOD_TXMAXCNT_TRIGGER	64
-/* intrmod: min. packets to trigger interrupt */
-#define LIO_INTRMOD_TXMINCNT_TRIGGER	0
-
-/* intrmod: poll interval in seconds */
-#define LIO_INTRMOD_CHECK_INTERVAL  1
 
 struct oct_intrmod_cfg {
 	u64 rx_enable;

@@ -13,9 +13,11 @@
 #include <linux/mm.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/interrupt.h>
 #include <linux/extable.h>
 #include <linux/uaccess.h>
+#include <linux/hugetlb.h>
 
 #include <asm/traps.h>
 
@@ -27,8 +29,6 @@
 
 #define BITSSET		0x1c0	/* for identifying LDCW */
 
-
-DEFINE_PER_CPU(struct exception_data, exception_data);
 
 int show_unhandled_signals = 1;
 
@@ -142,12 +142,23 @@ int fixup_exception(struct pt_regs *regs)
 
 	fix = search_exception_tables(regs->iaoq[0]);
 	if (fix) {
-		struct exception_data *d;
-		d = this_cpu_ptr(&exception_data);
-		d->fault_ip = regs->iaoq[0];
-		d->fault_gp = regs->gr[27];
-		d->fault_space = regs->isr;
-		d->fault_addr = regs->ior;
+		/*
+		 * Fix up get_user() and put_user().
+		 * ASM_EXCEPTIONTABLE_ENTRY_EFAULT() sets the least-significant
+		 * bit in the relative address of the fixup routine to indicate
+		 * that %r8 should be loaded with -EFAULT to report a userspace
+		 * access error.
+		 */
+		if (fix->fixup & 1) {
+			regs->gr[8] = -EFAULT;
+
+			/* zero target register for get_user() */
+			if (parisc_acctyp(0, regs->iir) == VM_READ) {
+				int treg = regs->iir & 0x1f;
+				BUG_ON(treg == 0);
+				regs->gr[treg] = 0;
+			}
+		}
 
 		regs->iaoq[0] = (unsigned long)&fix->fixup + fix->fixup;
 		regs->iaoq[0] &= ~3;
@@ -234,12 +245,12 @@ show_signal_msg(struct pt_regs *regs, unsigned long code,
 	    tsk->comm, code, address);
 	print_vma_addr(KERN_CONT " in ", regs->iaoq[0]);
 
-	pr_cont(" trap #%lu: %s%c", code, trap_name(code),
+	pr_cont("\ntrap #%lu: %s%c", code, trap_name(code),
 		vma ? ',':'\n');
 
 	if (vma)
-		pr_warn(KERN_CONT " vm_start = 0x%08lx, vm_end = 0x%08lx\n",
-				vma->vm_start, vma->vm_end);
+		pr_cont(" vm_start = 0x%08lx, vm_end = 0x%08lx\n",
+			vma->vm_start, vma->vm_end);
 
 	show_regs(regs);
 }
@@ -251,7 +262,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	unsigned long acc_type;
-	int fault;
+	int fault = 0;
 	unsigned int flags;
 
 	if (faulthandler_disabled())
@@ -305,7 +316,8 @@ good_area:
 			goto out_of_memory;
 		else if (fault & VM_FAULT_SIGSEGV)
 			goto bad_area;
-		else if (fault & VM_FAULT_SIGBUS)
+		else if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|
+				  VM_FAULT_HWPOISON_LARGE))
 			goto bad_area;
 		BUG();
 	}
@@ -342,14 +354,13 @@ bad_area:
 
 	if (user_mode(regs)) {
 		struct siginfo si;
-
-		show_signal_msg(regs, code, address, tsk, vma);
+		unsigned int lsb = 0;
 
 		switch (code) {
 		case 15:	/* Data TLB miss fault/Data page fault */
 			/* send SIGSEGV when outside of vma */
 			if (!vma ||
-			    address < vma->vm_start || address > vma->vm_end) {
+			    address < vma->vm_start || address >= vma->vm_end) {
 				si.si_signo = SIGSEGV;
 				si.si_code = SEGV_MAPERR;
 				break;
@@ -376,6 +387,30 @@ bad_area:
 			si.si_code = (code == 26) ? SEGV_ACCERR : SEGV_MAPERR;
 			break;
 		}
+
+#ifdef CONFIG_MEMORY_FAILURE
+		if (fault & (VM_FAULT_HWPOISON|VM_FAULT_HWPOISON_LARGE)) {
+			printk(KERN_ERR
+	"MCE: Killing %s:%d due to hardware memory corruption fault at %08lx\n",
+			tsk->comm, tsk->pid, address);
+			si.si_signo = SIGBUS;
+			si.si_code = BUS_MCEERR_AR;
+		}
+#endif
+
+		/*
+		 * Either small page or large page may be poisoned.
+		 * In other words, VM_FAULT_HWPOISON_LARGE and
+		 * VM_FAULT_HWPOISON are mutually exclusive.
+		 */
+		if (fault & VM_FAULT_HWPOISON_LARGE)
+			lsb = hstate_index_to_shift(VM_FAULT_GET_HINDEX(fault));
+		else if (fault & VM_FAULT_HWPOISON)
+			lsb = PAGE_SHIFT;
+		else
+			show_signal_msg(regs, code, address, tsk, vma);
+		si.si_addr_lsb = lsb;
+
 		si.si_errno = 0;
 		si.si_addr = (void __user *) address;
 		force_sig_info(si.si_signo, &si, current);

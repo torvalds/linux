@@ -167,7 +167,6 @@ struct emac_error_stats {
 
 struct emac_instance {
 	struct net_device		*ndev;
-	struct resource			rsrc_regs;
 	struct emac_regs		__iomem *emacp;
 	struct platform_device		*ofdev;
 	struct device_node		**blist; /* bootlist entry */
@@ -198,6 +197,10 @@ struct emac_instance {
 	struct platform_device		*mdio_dev;
 	struct emac_instance		*mdio_instance;
 	struct mutex			mdio_lock;
+
+	/* Device-tree based phy configuration */
+	struct mii_bus			*mii_bus;
+	struct phy_device		*phy_dev;
 
 	/* ZMII infos if any */
 	u32				zmii_ph;
@@ -261,7 +264,6 @@ struct emac_instance {
 	/* Stats
 	 */
 	struct emac_error_stats		estats;
-	struct net_device_stats		nstats;
 	struct emac_stats 		stats;
 
 	/* Misc

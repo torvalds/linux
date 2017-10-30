@@ -16,7 +16,6 @@
 #ifndef __SKL_IPC_H
 #define __SKL_IPC_H
 
-#include <linux/kthread.h>
 #include <linux/irqreturn.h>
 #include "../common/sst-ipc.h"
 
@@ -45,12 +44,35 @@ struct skl_ipc_header {
 	u32 extension;
 };
 
-#define SKL_DSP_CORES_MAX  2
-
 struct skl_dsp_cores {
 	unsigned int count;
-	enum skl_dsp_states state[SKL_DSP_CORES_MAX];
-	int usage_count[SKL_DSP_CORES_MAX];
+	enum skl_dsp_states *state;
+	int *usage_count;
+};
+
+/**
+ * skl_d0i3_data: skl D0i3 counters data struct
+ *
+ * @streaming: Count of usecases that can attempt streaming D0i3
+ * @non_streaming: Count of usecases that can attempt non-streaming D0i3
+ * @non_d0i3: Count of usecases that cannot attempt D0i3
+ * @state: current state
+ * @work: D0i3 worker thread
+ */
+struct skl_d0i3_data {
+	int streaming;
+	int non_streaming;
+	int non_d0i3;
+	enum skl_dsp_d0i3_states state;
+	struct delayed_work work;
+};
+
+#define SKL_LIB_NAME_LENGTH 128
+#define SKL_MAX_LIB 16
+
+struct skl_lib_info {
+	char name[SKL_LIB_NAME_LENGTH];
+	const struct firmware *fw;
 };
 
 struct skl_sst {
@@ -60,6 +82,11 @@ struct skl_sst {
 	/* boot */
 	wait_queue_head_t boot_wait;
 	bool boot_complete;
+
+	/* module load */
+	wait_queue_head_t mod_load_wait;
+	bool mod_load_complete;
+	bool mod_load_status;
 
 	/* IPC messaging */
 	struct sst_generic_ipc ipc;
@@ -81,8 +108,16 @@ struct skl_sst {
 	/* multi-core */
 	struct skl_dsp_cores cores;
 
-	/* tplg manifest */
-	struct skl_dfw_manifest manifest;
+	/* library info */
+	struct skl_lib_info  lib_info[SKL_MAX_LIB];
+	int lib_count;
+
+	/* Callback to update D0i3C register */
+	void (*update_d0i3c)(struct device *dev, bool enable);
+
+	struct skl_d0i3_data d0i3;
+
+	const struct skl_dsp_ops *dsp_ops;
 };
 
 struct skl_ipc_init_instance_msg {
@@ -111,6 +146,13 @@ struct skl_ipc_large_config_msg {
 	u32 param_data_size;
 };
 
+struct skl_ipc_d0ix_msg {
+	u32 module_id;
+	u32 instance_id;
+	u8 streaming;
+	u8 wake;
+};
+
 #define SKL_IPC_BOOT_MSECS		3000
 
 #define SKL_IPC_D3_MASK	0
@@ -119,7 +161,7 @@ struct skl_ipc_large_config_msg {
 irqreturn_t skl_dsp_irq_thread_handler(int irq, void *context);
 
 int skl_ipc_create_pipeline(struct sst_generic_ipc *sst_ipc,
-		u16 ppl_mem_size, u8 ppl_type, u8 instance_id);
+		u16 ppl_mem_size, u8 ppl_type, u8 instance_id, u8 lp_mode);
 
 int skl_ipc_delete_pipeline(struct sst_generic_ipc *sst_ipc, u8 instance_id);
 
@@ -153,7 +195,12 @@ int skl_ipc_get_large_config(struct sst_generic_ipc *ipc,
 		struct skl_ipc_large_config_msg *msg, u32 *param);
 
 int skl_sst_ipc_load_library(struct sst_generic_ipc *ipc,
-			u8 dma_id, u8 table_id);
+			u8 dma_id, u8 table_id, bool wait);
+
+int skl_ipc_set_d0ix(struct sst_generic_ipc *ipc,
+		struct skl_ipc_d0ix_msg *msg);
+
+int skl_ipc_check_D0i0(struct sst_dsp *dsp, bool state);
 
 void skl_ipc_int_enable(struct sst_dsp *dsp);
 void skl_ipc_op_int_enable(struct sst_dsp *ctx);
@@ -165,4 +212,10 @@ void skl_ipc_free(struct sst_generic_ipc *ipc);
 int skl_ipc_init(struct device *dev, struct skl_sst *skl);
 void skl_clear_module_cnt(struct sst_dsp *ctx);
 
+void skl_ipc_process_reply(struct sst_generic_ipc *ipc,
+		struct skl_ipc_header header);
+int skl_ipc_process_notification(struct sst_generic_ipc *ipc,
+		struct skl_ipc_header header);
+void skl_ipc_tx_data_copy(struct ipc_message *msg, char *tx_data,
+		size_t tx_size);
 #endif /* __SKL_IPC_H */

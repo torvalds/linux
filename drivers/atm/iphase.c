@@ -21,7 +21,7 @@
       supports a variety of varients of Interphase ATM PCI (i)Chip adapter 
       card family (See www.iphase.com/products/ClassSheet.cfm?ClassID=ATM) 
       in terms of PHY type, the size of control memory and the size of 
-      packet memory. The followings are the change log and history:
+      packet memory. The following are the change log and history:
      
           Bugfix the Mona's UBR driver.
           Modify the basic memory allocation and dma logic.
@@ -58,7 +58,7 @@
 #include <linux/slab.h>
 #include <asm/io.h>  
 #include <linux/atomic.h>
-#include <asm/uaccess.h>  
+#include <linux/uaccess.h>  
 #include <asm/string.h>  
 #include <asm/byteorder.h>  
 #include <linux/vmalloc.h>
@@ -3266,7 +3266,7 @@ static void ia_remove_one(struct pci_dev *pdev)
       	kfree(iadev);
 }
 
-static struct pci_device_id ia_pci_tbl[] = {
+static const struct pci_device_id ia_pci_tbl[] = {
 	{ PCI_VENDOR_ID_IPHASE, 0x0008, PCI_ANY_ID, PCI_ANY_ID, },
 	{ PCI_VENDOR_ID_IPHASE, 0x0009, PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0,}

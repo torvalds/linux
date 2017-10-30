@@ -187,7 +187,7 @@ static int __maybe_unused amba_kmi_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(amba_kmi_dev_pm_ops, NULL, amba_kmi_resume);
 
-static struct amba_id amba_kmi_idtable[] = {
+static const struct amba_id amba_kmi_idtable[] = {
 	{
 		.id	= 0x00041050,
 		.mask	= 0x000fffff,

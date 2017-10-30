@@ -53,6 +53,8 @@
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
 #include <linux/tracehook.h>
+#include <linux/sched/task_stack.h>
+
 #include <asm/ucontext.h>
 
 struct rt_sigframe {

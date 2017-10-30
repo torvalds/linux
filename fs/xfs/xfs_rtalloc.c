@@ -810,7 +810,7 @@ xfs_growfs_rt_alloc(
 		/*
 		 * Free any blocks freed up in the transaction, then commit.
 		 */
-		error = xfs_defer_finish(&tp, &dfops, NULL);
+		error = xfs_defer_finish(&tp, &dfops);
 		if (error)
 			goto out_bmap_cancel;
 		error = xfs_trans_commit(tp);
@@ -1093,7 +1093,6 @@ xfs_rtallocate_extent(
 	xfs_extlen_t	minlen,		/* minimum length to allocate */
 	xfs_extlen_t	maxlen,		/* maximum length to allocate */
 	xfs_extlen_t	*len,		/* out: actual length allocated */
-	xfs_alloctype_t	type,		/* allocation type XFS_ALLOCTYPE... */
 	int		wasdel,		/* was a delayed allocation extent */
 	xfs_extlen_t	prod,		/* extent product factor */
 	xfs_rtblock_t	*rtblock)	/* out: start block allocated */
@@ -1123,27 +1122,16 @@ xfs_rtallocate_extent(
 		}
 	}
 
+retry:
 	sumbp = NULL;
-	/*
-	 * Allocate by size, or near another block, or exactly at some block.
-	 */
-	switch (type) {
-	case XFS_ALLOCTYPE_ANY_AG:
+	if (bno == 0) {
 		error = xfs_rtallocate_extent_size(mp, tp, minlen, maxlen, len,
 				&sumbp,	&sb, prod, &r);
-		break;
-	case XFS_ALLOCTYPE_NEAR_BNO:
+	} else {
 		error = xfs_rtallocate_extent_near(mp, tp, bno, minlen, maxlen,
 				len, &sumbp, &sb, prod, &r);
-		break;
-	case XFS_ALLOCTYPE_THIS_BNO:
-		error = xfs_rtallocate_extent_exact(mp, tp, bno, minlen, maxlen,
-				len, &sumbp, &sb, prod, &r);
-		break;
-	default:
-		error = -EIO;
-		ASSERT(0);
 	}
+
 	if (error)
 		return error;
 
@@ -1158,7 +1146,11 @@ xfs_rtallocate_extent(
 			xfs_trans_mod_sb(tp, XFS_TRANS_SB_RES_FREXTENTS, -slen);
 		else
 			xfs_trans_mod_sb(tp, XFS_TRANS_SB_FREXTENTS, -slen);
+	} else if (prod > 1) {
+		prod = 1;
+		goto retry;
 	}
+
 	*rtblock = r;
 	return 0;
 }
@@ -1264,13 +1256,13 @@ xfs_rtpick_extent(
 {
 	xfs_rtblock_t	b;		/* result block */
 	int		log2;		/* log of sequence number */
-	__uint64_t	resid;		/* residual after log removed */
-	__uint64_t	seq;		/* sequence number of file creation */
-	__uint64_t	*seqp;		/* pointer to seqno in inode */
+	uint64_t	resid;		/* residual after log removed */
+	uint64_t	seq;		/* sequence number of file creation */
+	uint64_t	*seqp;		/* pointer to seqno in inode */
 
 	ASSERT(xfs_isilocked(mp->m_rbmip, XFS_ILOCK_EXCL));
 
-	seqp = (__uint64_t *)&VFS_I(mp->m_rbmip)->i_atime;
+	seqp = (uint64_t *)&VFS_I(mp->m_rbmip)->i_atime;
 	if (!(mp->m_rbmip->i_d.di_flags & XFS_DIFLAG_NEWRTBM)) {
 		mp->m_rbmip->i_d.di_flags |= XFS_DIFLAG_NEWRTBM;
 		*seqp = 0;

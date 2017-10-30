@@ -31,6 +31,7 @@ struct rcar_du_lvdsenc {
 	bool enabled;
 
 	enum rcar_lvds_input input;
+	enum rcar_lvds_mode mode;
 };
 
 static void rcar_lvds_write(struct rcar_du_lvdsenc *lvds, u32 reg, u32 data)
@@ -58,10 +59,11 @@ static void rcar_du_lvdsenc_start_gen2(struct rcar_du_lvdsenc *lvds,
 
 	rcar_lvds_write(lvds, LVDPLLCR, pllcr);
 
-	/* Select the input, hardcode mode 0, enable LVDS operation and turn
+	/*
+	 * Select the input, hardcode mode 0, enable LVDS operation and turn
 	 * bias circuitry on.
 	 */
-	lvdcr0 = LVDCR0_BEN | LVDCR0_LVEN;
+	lvdcr0 = (lvds->mode << LVDCR0_LVMD_SHIFT) | LVDCR0_BEN | LVDCR0_LVEN;
 	if (rcrtc->index == 2)
 		lvdcr0 |= LVDCR0_DUSEL;
 	rcar_lvds_write(lvds, LVDCR0, lvdcr0);
@@ -72,7 +74,8 @@ static void rcar_du_lvdsenc_start_gen2(struct rcar_du_lvdsenc *lvds,
 			LVDCR1_CHSTBY_GEN2(1) | LVDCR1_CHSTBY_GEN2(0) |
 			LVDCR1_CLKSTBY_GEN2);
 
-	/* Turn the PLL on, wait for the startup delay, and turn the output
+	/*
+	 * Turn the PLL on, wait for the startup delay, and turn the output
 	 * on.
 	 */
 	lvdcr0 |= LVDCR0_PLLON;
@@ -104,10 +107,17 @@ static void rcar_du_lvdsenc_start_gen3(struct rcar_du_lvdsenc *lvds,
 
 	rcar_lvds_write(lvds, LVDPLLCR, pllcr);
 
-	/* Turn the PLL on, set it to LVDS normal mode, wait for the startup
+	/* Turn all the channels on. */
+	rcar_lvds_write(lvds, LVDCR1,
+			LVDCR1_CHSTBY_GEN3(3) | LVDCR1_CHSTBY_GEN3(2) |
+			LVDCR1_CHSTBY_GEN3(1) | LVDCR1_CHSTBY_GEN3(0) |
+			LVDCR1_CLKSTBY_GEN3);
+
+	/*
+	 * Turn the PLL on, set it to LVDS normal mode, wait for the startup
 	 * delay and turn the output on.
 	 */
-	lvdcr0 = LVDCR0_PLLON;
+	lvdcr0 = (lvds->mode << LVDCR0_LVMD_SHIFT) | LVDCR0_PLLON;
 	rcar_lvds_write(lvds, LVDCR0, lvdcr0);
 
 	lvdcr0 |= LVDCR0_PWD;
@@ -117,12 +127,6 @@ static void rcar_du_lvdsenc_start_gen3(struct rcar_du_lvdsenc *lvds,
 
 	lvdcr0 |= LVDCR0_LVRES;
 	rcar_lvds_write(lvds, LVDCR0, lvdcr0);
-
-	/* Turn all the channels on. */
-	rcar_lvds_write(lvds, LVDCR1,
-			LVDCR1_CHSTBY_GEN3(3) | LVDCR1_CHSTBY_GEN3(2) |
-			LVDCR1_CHSTBY_GEN3(1) | LVDCR1_CHSTBY_GEN3(0) |
-			LVDCR1_CLKSTBY_GEN3);
 }
 
 static int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
@@ -138,7 +142,8 @@ static int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
 	if (ret < 0)
 		return ret;
 
-	/* Hardcode the channels and control signals routing for now.
+	/*
+	 * Hardcode the channels and control signals routing for now.
 	 *
 	 * HSYNC -> CTRL0
 	 * VSYNC -> CTRL1
@@ -200,7 +205,8 @@ void rcar_du_lvdsenc_atomic_check(struct rcar_du_lvdsenc *lvds,
 {
 	struct rcar_du_device *rcdu = lvds->dev;
 
-	/* The internal LVDS encoder has a restricted clock frequency operating
+	/*
+	 * The internal LVDS encoder has a restricted clock frequency operating
 	 * range (30MHz to 150MHz on Gen2, 25.175MHz to 148.5MHz on Gen3). Clamp
 	 * the clock accordingly.
 	 */
@@ -208,6 +214,12 @@ void rcar_du_lvdsenc_atomic_check(struct rcar_du_lvdsenc *lvds,
 		mode->clock = clamp(mode->clock, 30000, 150000);
 	else
 		mode->clock = clamp(mode->clock, 25175, 148500);
+}
+
+void rcar_du_lvdsenc_set_mode(struct rcar_du_lvdsenc *lvds,
+			      enum rcar_lvds_mode mode)
+{
+	lvds->mode = mode;
 }
 
 static int rcar_du_lvdsenc_get_resources(struct rcar_du_lvdsenc *lvds,
@@ -241,10 +253,8 @@ int rcar_du_lvdsenc_init(struct rcar_du_device *rcdu)
 
 	for (i = 0; i < rcdu->info->num_lvds; ++i) {
 		lvds = devm_kzalloc(&pdev->dev, sizeof(*lvds), GFP_KERNEL);
-		if (lvds == NULL) {
-			dev_err(&pdev->dev, "failed to allocate private data\n");
+		if (lvds == NULL)
 			return -ENOMEM;
-		}
 
 		lvds->dev = rcdu;
 		lvds->index = i;

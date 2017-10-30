@@ -17,6 +17,7 @@
 #include <linux/file.h>
 #include <linux/fdtable.h>
 #include <linux/sched.h>
+#include <linux/cred.h>
 #include <linux/compat.h>
 #include <linux/syscalls.h>
 #include <linux/magic.h>
@@ -37,8 +38,6 @@
  * mounts (used for autofs lazy mount/umount of nested mount trees),
  * which have been left busy at at service shutdown.
  */
-
-#define AUTOFS_DEV_IOCTL_SIZE	sizeof(struct autofs_dev_ioctl)
 
 typedef int (*ioctl_fn)(struct file *, struct autofs_sb_info *,
 			struct autofs_dev_ioctl *);
@@ -94,17 +93,17 @@ static int check_dev_ioctl_version(int cmd, struct autofs_dev_ioctl *param)
  * at the end of the struct.
  */
 static struct autofs_dev_ioctl *
-		copy_dev_ioctl(struct autofs_dev_ioctl __user *in)
+copy_dev_ioctl(struct autofs_dev_ioctl __user *in)
 {
 	struct autofs_dev_ioctl tmp, *res;
 
-	if (copy_from_user(&tmp, in, sizeof(tmp)))
+	if (copy_from_user(&tmp, in, AUTOFS_DEV_IOCTL_SIZE))
 		return ERR_PTR(-EFAULT);
 
-	if (tmp.size < sizeof(tmp))
+	if (tmp.size < AUTOFS_DEV_IOCTL_SIZE)
 		return ERR_PTR(-EINVAL);
 
-	if (tmp.size > (PATH_MAX + sizeof(tmp)))
+	if (tmp.size > AUTOFS_DEV_IOCTL_SIZE + PATH_MAX)
 		return ERR_PTR(-ENAMETOOLONG);
 
 	res = memdup_user(in, tmp.size);
@@ -134,8 +133,8 @@ static int validate_dev_ioctl(int cmd, struct autofs_dev_ioctl *param)
 		goto out;
 	}
 
-	if (param->size > sizeof(*param)) {
-		err = invalid_str(param->path, param->size - sizeof(*param));
+	if (param->size > AUTOFS_DEV_IOCTL_SIZE) {
+		err = invalid_str(param->path, param->size - AUTOFS_DEV_IOCTL_SIZE);
 		if (err) {
 			pr_warn(
 			  "path string terminator missing for cmd(0x%08x)\n",
@@ -204,7 +203,7 @@ static int autofs_dev_ioctl_protosubver(struct file *fp,
 /* Find the topmost mount satisfying test() */
 static int find_autofs_mount(const char *pathname,
 			     struct path *res,
-			     int test(struct path *path, void *data),
+			     int test(const struct path *path, void *data),
 			     void *data)
 {
 	struct path path;
@@ -230,12 +229,12 @@ static int find_autofs_mount(const char *pathname,
 	return err;
 }
 
-static int test_by_dev(struct path *path, void *p)
+static int test_by_dev(const struct path *path, void *p)
 {
 	return path->dentry->d_sb->s_dev == *(dev_t *)p;
 }
 
-static int test_by_type(struct path *path, void *p)
+static int test_by_type(const struct path *path, void *p)
 {
 	struct autofs_info *ino = autofs4_dentry_ino(path->dentry);
 
@@ -258,11 +257,6 @@ static int autofs_dev_ioctl_open_mountpoint(const char *name, dev_t devid)
 		err = find_autofs_mount(name, &path, test_by_dev, &devid);
 		if (err)
 			goto out;
-
-		/*
-		 * Find autofs super block that has the device number
-		 * corresponding to the autofs fs we want to open.
-		 */
 
 		filp = dentry_open(&path, O_RDONLY, current_cred());
 		path_put(&path);
@@ -345,7 +339,7 @@ static int autofs_dev_ioctl_fail(struct file *fp,
 	int status;
 
 	token = (autofs_wqt_t) param->fail.token;
-	status = param->fail.status ? param->fail.status : -ENOENT;
+	status = param->fail.status < 0 ? param->fail.status : -ENOENT;
 	return autofs4_wait_release(sbi, token, status);
 }
 
@@ -452,7 +446,7 @@ static int autofs_dev_ioctl_requester(struct file *fp,
 	dev_t devid;
 	int err = -ENOENT;
 
-	if (param->size <= sizeof(*param)) {
+	if (param->size <= AUTOFS_DEV_IOCTL_SIZE) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -468,7 +462,7 @@ static int autofs_dev_ioctl_requester(struct file *fp,
 	ino = autofs4_dentry_ino(path.dentry);
 	if (ino) {
 		err = 0;
-		autofs4_expire_wait(path.dentry, 0);
+		autofs4_expire_wait(&path, 0);
 		spin_lock(&sbi->fs_lock);
 		param->requester.uid =
 			from_kuid_munged(current_user_ns(), ino->uid);
@@ -540,7 +534,7 @@ static int autofs_dev_ioctl_ismountpoint(struct file *fp,
 	unsigned int devid, magic;
 	int err = -ENOENT;
 
-	if (param->size <= sizeof(*param)) {
+	if (param->size <= AUTOFS_DEV_IOCTL_SIZE) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -575,7 +569,7 @@ static int autofs_dev_ioctl_ismountpoint(struct file *fp,
 
 		devid = new_encode_dev(dev);
 
-		err = have_submounts(path.dentry);
+		err = path_has_submounts(&path);
 
 		if (follow_down_one(&path))
 			magic = path.dentry->d_sb->s_magic;
@@ -629,10 +623,6 @@ static int _autofs_dev_ioctl(unsigned int command,
 	ioctl_fn fn = NULL;
 	int err = 0;
 
-	/* only root can play with this */
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
 	cmd_first = _IOC_NR(AUTOFS_DEV_IOCTL_IOC_FIRST);
 	cmd = _IOC_NR(command);
 
@@ -640,6 +630,14 @@ static int _autofs_dev_ioctl(unsigned int command,
 	    cmd - cmd_first > AUTOFS_DEV_IOCTL_IOC_COUNT) {
 		return -ENOTTY;
 	}
+
+	/* Only root can use ioctls other than AUTOFS_DEV_IOCTL_VERSION_CMD
+	 * and AUTOFS_DEV_IOCTL_ISMOUNTPOINT_CMD
+	 */
+	if (cmd != AUTOFS_DEV_IOCTL_VERSION_CMD &&
+	    cmd != AUTOFS_DEV_IOCTL_ISMOUNTPOINT_CMD &&
+	    !capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	/* Copy the parameters into kernel space. */
 	param = copy_dev_ioctl(user);
@@ -707,7 +705,8 @@ out:
 	return err;
 }
 
-static long autofs_dev_ioctl(struct file *file, uint command, ulong u)
+static long autofs_dev_ioctl(struct file *file, unsigned int command,
+			     unsigned long u)
 {
 	int err;
 
@@ -716,9 +715,10 @@ static long autofs_dev_ioctl(struct file *file, uint command, ulong u)
 }
 
 #ifdef CONFIG_COMPAT
-static long autofs_dev_ioctl_compat(struct file *file, uint command, ulong u)
+static long autofs_dev_ioctl_compat(struct file *file, unsigned int command,
+				    unsigned long u)
 {
-	return (long) autofs_dev_ioctl(file, command, (ulong) compat_ptr(u));
+	return autofs_dev_ioctl(file, command, (unsigned long) compat_ptr(u));
 }
 #else
 #define autofs_dev_ioctl_compat NULL
@@ -734,7 +734,8 @@ static const struct file_operations _dev_ioctl_fops = {
 static struct miscdevice _autofs_dev_ioctl_misc = {
 	.minor		= AUTOFS_MINOR,
 	.name		= AUTOFS_DEVICE_NAME,
-	.fops		= &_dev_ioctl_fops
+	.fops		= &_dev_ioctl_fops,
+	.mode           = 0644,
 };
 
 MODULE_ALIAS_MISCDEV(AUTOFS_MINOR);

@@ -60,11 +60,23 @@ void rds_tcp_state_change(struct sock *sk)
 	case TCP_SYN_RECV:
 		break;
 	case TCP_ESTABLISHED:
-		rds_connect_path_complete(cp, RDS_CONN_CONNECTING);
+		/* Force the peer to reconnect so that we have the
+		 * TCP ports going from <smaller-ip>.<transient> to
+		 * <larger-ip>.<RDS_TCP_PORT>. We avoid marking the
+		 * RDS connection as RDS_CONN_UP until the reconnect,
+		 * to avoid RDS datagram loss.
+		 */
+		if (!IS_CANONICAL(cp->cp_conn->c_laddr, cp->cp_conn->c_faddr) &&
+		    rds_conn_path_transition(cp, RDS_CONN_CONNECTING,
+					     RDS_CONN_ERROR)) {
+			rds_conn_path_drop(cp, false);
+		} else {
+			rds_connect_path_complete(cp, RDS_CONN_CONNECTING);
+		}
 		break;
 	case TCP_CLOSE_WAIT:
 	case TCP_CLOSE:
-		rds_conn_path_drop(cp);
+		rds_conn_path_drop(cp, false);
 	default:
 		break;
 	}
@@ -123,7 +135,6 @@ int rds_tcp_conn_path_connect(struct rds_conn_path *cp)
 	ret = sock->ops->connect(sock, (struct sockaddr *)&dest, sizeof(dest),
 				 O_NONBLOCK);
 
-	cp->cp_outgoing = 1;
 	rdsdebug("connect to address %pI4 returned %d\n", &conn->c_faddr, ret);
 	if (ret == -EINPROGRESS)
 		ret = 0;
@@ -159,6 +170,8 @@ void rds_tcp_conn_path_shutdown(struct rds_conn_path *cp)
 		 cp->cp_conn, tc, sock);
 
 	if (sock) {
+		if (cp->cp_conn->c_destroy_in_prog)
+			rds_tcp_set_linger(sock);
 		sock->ops->shutdown(sock, RCV_SHUTDOWN | SEND_SHUTDOWN);
 		lock_sock(sock->sk);
 		rds_tcp_restore_callbacks(sock, tc); /* tc->tc_sock = NULL */

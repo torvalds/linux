@@ -52,7 +52,9 @@ SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
 		goto out;
 	}
 
-	if (IS_DAX(inode)) {
+	bdi = inode_to_bdi(mapping->host);
+
+	if (IS_DAX(inode) || (bdi == &noop_backing_dev_info)) {
 		switch (advice) {
 		case POSIX_FADV_NORMAL:
 		case POSIX_FADV_RANDOM:
@@ -74,8 +76,6 @@ SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
 		endbyte = -1;
 	else
 		endbyte--;		/* inclusive */
-
-	bdi = inode_to_bdi(mapping->host);
 
 	switch (advice) {
 	case POSIX_FADV_NORMAL:
@@ -139,7 +139,20 @@ SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
 		}
 
 		if (end_index >= start_index) {
-			unsigned long count = invalidate_mapping_pages(mapping,
+			unsigned long count;
+
+			/*
+			 * It's common to FADV_DONTNEED right after
+			 * the read or write that instantiates the
+			 * pages, in which case there will be some
+			 * sitting on the local LRU cache. Try to
+			 * avoid the expensive remote drain and the
+			 * second cache tree walk below by flushing
+			 * them out right away.
+			 */
+			lru_add_drain();
+
+			count = invalidate_mapping_pages(mapping,
 						start_index, end_index);
 
 			/*

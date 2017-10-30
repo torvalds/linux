@@ -33,7 +33,8 @@ static const struct nla_policy hsr_policy[IFLA_HSR_MAX + 1] = {
  * hsr_dev_setup routine has been executed. Nice!
  */
 static int hsr_newlink(struct net *src_net, struct net_device *dev,
-		       struct nlattr *tb[], struct nlattr *data[])
+		       struct nlattr *tb[], struct nlattr *data[],
+		       struct netlink_ext_ack *extack)
 {
 	struct net_device *link[2];
 	unsigned char multicast_spec, hsr_version;
@@ -131,13 +132,7 @@ static const struct nla_policy hsr_genl_policy[HSR_A_MAX + 1] = {
 	[HSR_A_IF2_SEQ] = { .type = NLA_U16 },
 };
 
-static struct genl_family hsr_genl_family = {
-	.id = GENL_ID_GENERATE,
-	.hdrsize = 0,
-	.name = "HSR",
-	.version = 1,
-	.maxattr = HSR_A_MAX,
-};
+static struct genl_family hsr_genl_family;
 
 static const struct genl_multicast_group hsr_mcgrps[] = {
 	{ .name = "hsr-network", },
@@ -356,7 +351,7 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 	return 0;
 
 invalid:
-	netlink_ack(skb_in, nlmsg_hdr(skb_in), -EINVAL);
+	netlink_ack(skb_in, nlmsg_hdr(skb_in), -EINVAL, NULL);
 	return 0;
 
 nla_put_failure:
@@ -438,7 +433,7 @@ static int hsr_get_node_list(struct sk_buff *skb_in, struct genl_info *info)
 	return 0;
 
 invalid:
-	netlink_ack(skb_in, nlmsg_hdr(skb_in), -EINVAL);
+	netlink_ack(skb_in, nlmsg_hdr(skb_in), -EINVAL, NULL);
 	return 0;
 
 nla_put_failure:
@@ -467,6 +462,18 @@ static const struct genl_ops hsr_ops[] = {
 	},
 };
 
+static struct genl_family hsr_genl_family __ro_after_init = {
+	.hdrsize = 0,
+	.name = "HSR",
+	.version = 1,
+	.maxattr = HSR_A_MAX,
+	.module = THIS_MODULE,
+	.ops = hsr_ops,
+	.n_ops = ARRAY_SIZE(hsr_ops),
+	.mcgrps = hsr_mcgrps,
+	.n_mcgrps = ARRAY_SIZE(hsr_mcgrps),
+};
+
 int __init hsr_netlink_init(void)
 {
 	int rc;
@@ -475,8 +482,7 @@ int __init hsr_netlink_init(void)
 	if (rc)
 		goto fail_rtnl_link_register;
 
-	rc = genl_register_family_with_ops_groups(&hsr_genl_family, hsr_ops,
-						  hsr_mcgrps);
+	rc = genl_register_family(&hsr_genl_family);
 	if (rc)
 		goto fail_genl_register_family;
 

@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/nsc_gpio.h>
 #include <linux/platform_device.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 
 #define NAME "nsc_gpio"

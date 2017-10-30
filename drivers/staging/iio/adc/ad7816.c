@@ -139,7 +139,7 @@ static ssize_t ad7816_store_mode(struct device *dev,
 	return len;
 }
 
-static IIO_DEVICE_ATTR(mode, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(mode, 0644,
 		ad7816_show_mode,
 		ad7816_store_mode,
 		0);
@@ -151,7 +151,7 @@ static ssize_t ad7816_show_available_modes(struct device *dev,
 	return sprintf(buf, "full\npower-save\n");
 }
 
-static IIO_DEVICE_ATTR(available_modes, S_IRUGO, ad7816_show_available_modes,
+static IIO_DEVICE_ATTR(available_modes, 0444, ad7816_show_available_modes,
 			NULL, 0);
 
 static ssize_t ad7816_show_channel(struct device *dev,
@@ -197,7 +197,7 @@ static ssize_t ad7816_store_channel(struct device *dev,
 	return len;
 }
 
-static IIO_DEVICE_ATTR(channel, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(channel, 0644,
 		ad7816_show_channel,
 		ad7816_store_channel,
 		0);
@@ -228,7 +228,7 @@ static ssize_t ad7816_show_value(struct device *dev,
 	return sprintf(buf, "%u\n", data);
 }
 
-static IIO_DEVICE_ATTR(value, S_IRUGO, ad7816_show_value, NULL, 0);
+static IIO_DEVICE_ATTR(value, 0444, ad7816_show_value, NULL, 0);
 
 static struct attribute *ad7816_attributes[] = {
 	&iio_dev_attr_available_modes.dev_attr.attr,
@@ -319,7 +319,7 @@ static inline ssize_t ad7816_set_oti(struct device *dev,
 	return len;
 }
 
-static IIO_DEVICE_ATTR(oti, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(oti, 0644,
 		       ad7816_show_oti, ad7816_set_oti, 0);
 
 static struct attribute *ad7816_event_attributes[] = {
@@ -327,7 +327,7 @@ static struct attribute *ad7816_event_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group ad7816_event_attribute_group = {
+static const struct attribute_group ad7816_event_attribute_group = {
 	.attrs = ad7816_event_attributes,
 	.name = "events",
 };

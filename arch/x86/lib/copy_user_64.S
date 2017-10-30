@@ -16,53 +16,6 @@
 #include <asm/smap.h>
 #include <asm/export.h>
 
-/* Standard copy_to_user with segment limit checking */
-ENTRY(_copy_to_user)
-	mov PER_CPU_VAR(current_task), %rax
-	movq %rdi,%rcx
-	addq %rdx,%rcx
-	jc bad_to_user
-	cmpq TASK_addr_limit(%rax),%rcx
-	ja bad_to_user
-	ALTERNATIVE_2 "jmp copy_user_generic_unrolled",		\
-		      "jmp copy_user_generic_string",		\
-		      X86_FEATURE_REP_GOOD,			\
-		      "jmp copy_user_enhanced_fast_string",	\
-		      X86_FEATURE_ERMS
-ENDPROC(_copy_to_user)
-EXPORT_SYMBOL(_copy_to_user)
-
-/* Standard copy_from_user with segment limit checking */
-ENTRY(_copy_from_user)
-	mov PER_CPU_VAR(current_task), %rax
-	movq %rsi,%rcx
-	addq %rdx,%rcx
-	jc bad_from_user
-	cmpq TASK_addr_limit(%rax),%rcx
-	ja bad_from_user
-	ALTERNATIVE_2 "jmp copy_user_generic_unrolled",		\
-		      "jmp copy_user_generic_string",		\
-		      X86_FEATURE_REP_GOOD,			\
-		      "jmp copy_user_enhanced_fast_string",	\
-		      X86_FEATURE_ERMS
-ENDPROC(_copy_from_user)
-EXPORT_SYMBOL(_copy_from_user)
-
-
-	.section .fixup,"ax"
-	/* must zero dest */
-ENTRY(bad_from_user)
-bad_from_user:
-	movl %edx,%ecx
-	xorl %eax,%eax
-	rep
-	stosb
-bad_to_user:
-	movl %edx,%eax
-	ret
-ENDPROC(bad_from_user)
-	.previous
-
 /*
  * copy_user_generic_unrolled - memory copy with exception handling.
  * This version is for CPUs like P4 that don't have efficient micro
@@ -84,7 +37,7 @@ ENTRY(copy_user_generic_unrolled)
 	movl %edx,%ecx
 	andl $63,%edx
 	shrl $6,%ecx
-	jz 17f
+	jz .L_copy_short_string
 1:	movq (%rsi),%r8
 2:	movq 1*8(%rsi),%r9
 3:	movq 2*8(%rsi),%r10
@@ -105,7 +58,8 @@ ENTRY(copy_user_generic_unrolled)
 	leaq 64(%rdi),%rdi
 	decl %ecx
 	jnz 1b
-17:	movl %edx,%ecx
+.L_copy_short_string:
+	movl %edx,%ecx
 	andl $7,%edx
 	shrl $3,%ecx
 	jz 20f
@@ -221,6 +175,8 @@ EXPORT_SYMBOL(copy_user_generic_string)
  */
 ENTRY(copy_user_enhanced_fast_string)
 	ASM_STAC
+	cmpl $64,%edx
+	jb .L_copy_short_string	/* less then 64 bytes, avoid the costly 'rep' */
 	movl %edx,%ecx
 1:	rep
 	movsb

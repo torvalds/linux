@@ -78,6 +78,18 @@ config MOUSE_PS2_SYNAPTICS
 
 	  If unsure, say Y.
 
+config MOUSE_PS2_SYNAPTICS_SMBUS
+	bool "Synaptics PS/2 SMbus companion" if EXPERT
+	default y
+	depends on MOUSE_PS2
+	depends on I2C=y || I2C=MOUSE_PS2
+	select MOUSE_PS2_SMBUS
+	help
+	  Say Y here if you have a Synaptics RMI4 touchpad connected to
+	  to an SMBus, but enumerated through PS/2.
+
+	  If unsure, say Y.
+
 config MOUSE_PS2_CYPRESS
        bool "Cypress PS/2 mouse protocol extension" if EXPERT
        default y
@@ -170,6 +182,10 @@ config MOUSE_PS2_VMMOUSE
 	  load in the presence of an in-kernel vmmouse driver.
 
 	  If unsure, say N.
+
+config MOUSE_PS2_SMBUS
+	bool
+	depends on MOUSE_PS2
 
 config MOUSE_SERIAL
 	tristate "Serial mouse"

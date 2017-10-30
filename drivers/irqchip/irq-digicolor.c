@@ -71,14 +71,14 @@ static void __init digicolor_set_gc(void __iomem *reg_base, unsigned irq_base,
 static int __init digicolor_of_init(struct device_node *node,
 				struct device_node *parent)
 {
-	static void __iomem *reg_base;
+	void __iomem *reg_base;
 	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
 	struct regmap *ucregs;
 	int ret;
 
 	reg_base = of_iomap(node, 0);
 	if (!reg_base) {
-		pr_err("%s: unable to map IC registers\n", node->full_name);
+		pr_err("%pOF: unable to map IC registers\n", node);
 		return -ENXIO;
 	}
 
@@ -88,7 +88,7 @@ static int __init digicolor_of_init(struct device_node *node,
 
 	ucregs = syscon_regmap_lookup_by_phandle(node, "syscon");
 	if (IS_ERR(ucregs)) {
-		pr_err("%s: unable to map UC registers\n", node->full_name);
+		pr_err("%pOF: unable to map UC registers\n", node);
 		return PTR_ERR(ucregs);
 	}
 	/* channel 1, regular IRQs */
@@ -97,7 +97,7 @@ static int __init digicolor_of_init(struct device_node *node,
 	digicolor_irq_domain =
 		irq_domain_add_linear(node, 64, &irq_generic_chip_ops, NULL);
 	if (!digicolor_irq_domain) {
-		pr_err("%s: unable to create IRQ domain\n", node->full_name);
+		pr_err("%pOF: unable to create IRQ domain\n", node);
 		return -ENOMEM;
 	}
 
@@ -105,7 +105,7 @@ static int __init digicolor_of_init(struct device_node *node,
 					     "digicolor_irq", handle_level_irq,
 					     clr, 0, 0);
 	if (ret) {
-		pr_err("%s: unable to allocate IRQ gc\n", node->full_name);
+		pr_err("%pOF: unable to allocate IRQ gc\n", node);
 		return ret;
 	}
 

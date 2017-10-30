@@ -54,8 +54,8 @@ static int macio_do_gpio_write(PMF_STD_ARGS, u8 value, u8 mask)
 	raw_spin_lock_irqsave(&feature_lock, flags);
 	tmp = readb(addr);
 	tmp = (tmp & ~mask) | (value & mask);
-	DBG("Do write 0x%02x to GPIO %s (%p)\n",
-	    tmp, func->node->full_name, addr);
+	DBG("Do write 0x%02x to GPIO %pOF (%p)\n",
+	    tmp, func->node, addr);
 	writeb(tmp, addr);
 	raw_spin_unlock_irqrestore(&feature_lock, flags);
 
@@ -107,8 +107,8 @@ static void macio_gpio_init_one(struct macio_chip *macio)
 	if (gparent == NULL)
 		return;
 
-	DBG("Installing GPIO functions for macio %s\n",
-	    macio->of_node->full_name);
+	DBG("Installing GPIO functions for macio %pOF\n",
+	    macio->of_node);
 
 	/*
 	 * Ok, got one, we dont need anything special to track them down, so
@@ -129,8 +129,8 @@ static void macio_gpio_init_one(struct macio_chip *macio)
 		pmf_register_driver(gp, &macio_gpio_handlers, (void *)offset);
 	}
 
-	DBG("Calling initial GPIO functions for macio %s\n",
-	    macio->of_node->full_name);
+	DBG("Calling initial GPIO functions for macio %pOF\n",
+	    macio->of_node);
 
 	/* And now we run all the init ones */
 	for (gp = NULL; (gp = of_get_next_child(gparent, gp)) != NULL;)
@@ -267,8 +267,8 @@ static struct pmf_handlers macio_mmio_handlers = {
 
 static void macio_mmio_init_one(struct macio_chip *macio)
 {
-	DBG("Installing MMIO functions for macio %s\n",
-	    macio->of_node->full_name);
+	DBG("Installing MMIO functions for macio %pOF\n",
+	    macio->of_node);
 
 	pmf_register_driver(macio->of_node, &macio_mmio_handlers, macio);
 }
@@ -298,8 +298,8 @@ static void uninorth_install_pfunc(void)
 {
 	struct device_node *np;
 
-	DBG("Installing functions for UniN %s\n",
-	    uninorth_node->full_name);
+	DBG("Installing functions for UniN %pOF\n",
+	    uninorth_node);
 
 	/*
 	 * Install handlers for the bridge itself
@@ -317,8 +317,8 @@ static void uninorth_install_pfunc(void)
 			break;
 		}
 	if (unin_hwclock) {
-		DBG("Installing functions for UniN clock %s\n",
-		    unin_hwclock->full_name);
+		DBG("Installing functions for UniN clock %pOF\n",
+		    unin_hwclock);
 		pmf_register_driver(unin_hwclock, &unin_mmio_handlers, NULL);
 		pmf_do_functions(unin_hwclock, NULL, 0, PMF_FLAGS_ON_INIT,
 				 NULL);

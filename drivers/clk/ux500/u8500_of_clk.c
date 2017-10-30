@@ -206,6 +206,9 @@ static void u8500_clk_init(struct device_node *np)
 	clk = clk_reg_prcmu_gate("timclk", NULL, PRCMU_TIMCLK, 0);
 	prcmu_clk[PRCMU_TIMCLK] = clk;
 
+	clk = clk_reg_prcmu_gate("ab8500_sysclk", NULL, PRCMU_SYSCLK, 0);
+	prcmu_clk[PRCMU_SYSCLK] = clk;
+
 	clk = clk_reg_prcmu_opp_volt_scalable("sdmmcclk", NULL, PRCMU_SDMMCCLK,
 					100000000, CLK_SET_RATE_GATE);
 	prcmu_clk[PRCMU_SDMMCCLK] = clk;

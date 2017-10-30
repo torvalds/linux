@@ -157,6 +157,7 @@ static int usbtmc_open(struct inode *inode, struct file *filp)
 	}
 
 	data = usb_get_intfdata(intf);
+	/* Protect reference to data from file structure until release */
 	kref_get(&data->kref);
 
 	/* Store pointer in file structure's private data field */
@@ -531,7 +532,7 @@ static int usbtmc488_ioctl_simple(struct usbtmc_device_data *data,
 }
 
 /*
- * Sends a REQUEST_DEV_DEP_MSG_IN message on the Bulk-IN endpoint.
+ * Sends a REQUEST_DEV_DEP_MSG_IN message on the Bulk-OUT endpoint.
  * @transfer_size: number of bytes to request from the device.
  *
  * See the USBTMC specification, Table 4.
@@ -1084,7 +1085,7 @@ static struct attribute *capability_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group capability_attr_grp = {
+static const struct attribute_group capability_attr_grp = {
 	.attrs = capability_attrs,
 };
 
@@ -1150,7 +1151,7 @@ static struct attribute *data_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group data_attr_grp = {
+static const struct attribute_group data_attr_grp = {
 	.attrs = data_attrs,
 };
 
@@ -1374,13 +1375,13 @@ static int usbtmc_probe(struct usb_interface *intf,
 {
 	struct usbtmc_device_data *data;
 	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *endpoint;
+	struct usb_endpoint_descriptor *bulk_in, *bulk_out, *int_in;
 	int n;
 	int retcode;
 
 	dev_dbg(&intf->dev, "%s called\n", __func__);
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -1420,42 +1421,29 @@ static int usbtmc_probe(struct usb_interface *intf,
 	iface_desc = data->intf->cur_altsetting;
 	data->ifnum = iface_desc->desc.bInterfaceNumber;
 
-	/* Find bulk in endpoint */
-	for (n = 0; n < iface_desc->desc.bNumEndpoints; n++) {
-		endpoint = &iface_desc->endpoint[n].desc;
-
-		if (usb_endpoint_is_bulk_in(endpoint)) {
-			data->bulk_in = endpoint->bEndpointAddress;
-			dev_dbg(&intf->dev, "Found bulk in endpoint at %u\n",
-				data->bulk_in);
-			break;
-		}
+	/* Find bulk endpoints */
+	retcode = usb_find_common_endpoints(iface_desc,
+			&bulk_in, &bulk_out, NULL, NULL);
+	if (retcode) {
+		dev_err(&intf->dev, "bulk endpoints not found\n");
+		goto err_put;
 	}
 
-	/* Find bulk out endpoint */
-	for (n = 0; n < iface_desc->desc.bNumEndpoints; n++) {
-		endpoint = &iface_desc->endpoint[n].desc;
+	data->bulk_in = bulk_in->bEndpointAddress;
+	dev_dbg(&intf->dev, "Found bulk in endpoint at %u\n", data->bulk_in);
 
-		if (usb_endpoint_is_bulk_out(endpoint)) {
-			data->bulk_out = endpoint->bEndpointAddress;
-			dev_dbg(&intf->dev, "Found Bulk out endpoint at %u\n",
-				data->bulk_out);
-			break;
-		}
-	}
+	data->bulk_out = bulk_out->bEndpointAddress;
+	dev_dbg(&intf->dev, "Found Bulk out endpoint at %u\n", data->bulk_out);
+
 	/* Find int endpoint */
-	for (n = 0; n < iface_desc->desc.bNumEndpoints; n++) {
-		endpoint = &iface_desc->endpoint[n].desc;
-
-		if (usb_endpoint_is_int_in(endpoint)) {
-			data->iin_ep_present = 1;
-			data->iin_ep = endpoint->bEndpointAddress;
-			data->iin_wMaxPacketSize = usb_endpoint_maxp(endpoint);
-			data->iin_interval = endpoint->bInterval;
-			dev_dbg(&intf->dev, "Found Int in endpoint at %u\n",
+	retcode = usb_find_int_in_endpoint(iface_desc, &int_in);
+	if (!retcode) {
+		data->iin_ep_present = 1;
+		data->iin_ep = int_in->bEndpointAddress;
+		data->iin_wMaxPacketSize = usb_endpoint_maxp(int_in);
+		data->iin_interval = int_in->bInterval;
+		dev_dbg(&intf->dev, "Found Int in endpoint at %u\n",
 				data->iin_ep);
-			break;
-		}
 	}
 
 	retcode = get_capabilities(data);
@@ -1468,17 +1456,21 @@ static int usbtmc_probe(struct usb_interface *intf,
 	if (data->iin_ep_present) {
 		/* allocate int urb */
 		data->iin_urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!data->iin_urb)
+		if (!data->iin_urb) {
+			retcode = -ENOMEM;
 			goto error_register;
+		}
 
-		/* will reference data in int urb */
+		/* Protect interrupt in endpoint data until iin_urb is freed */
 		kref_get(&data->kref);
 
 		/* allocate buffer for interrupt in */
 		data->iin_buffer = kmalloc(data->iin_wMaxPacketSize,
 					GFP_KERNEL);
-		if (!data->iin_buffer)
+		if (!data->iin_buffer) {
+			retcode = -ENOMEM;
 			goto error_register;
+		}
 
 		/* fill interrupt urb */
 		usb_fill_int_urb(data->iin_urb, data->usb_dev,
@@ -1511,6 +1503,7 @@ error_register:
 	sysfs_remove_group(&intf->dev.kobj, &capability_attr_grp);
 	sysfs_remove_group(&intf->dev.kobj, &data_attr_grp);
 	usbtmc_free_int(data);
+err_put:
 	kref_put(&data->kref, usbtmc_delete);
 	return retcode;
 }

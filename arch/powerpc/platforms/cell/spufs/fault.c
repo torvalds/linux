@@ -19,7 +19,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/mm.h>
 
 #include <asm/spu.h>

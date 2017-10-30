@@ -200,7 +200,7 @@ priority messages to the console. You can change this at runtime using:
 or by specifying "debug" on the kernel command line at boot, to send
 all kernel messages to the console. A specific value for this parameter
 can also be set using the "loglevel" kernel boot option. See the
-dmesg(8) man page and Documentation/kernel-parameters.txt for details.
+dmesg(8) man page and Documentation/admin-guide/kernel-parameters.rst for details.
 
 Netconsole was designed to be as instantaneous as possible, to
 enable the logging of even the most critical kernel bugs. It works

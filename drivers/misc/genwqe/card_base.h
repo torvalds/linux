@@ -41,7 +41,6 @@
 #include "genwqe_driver.h"
 
 #define GENWQE_MSI_IRQS			4  /* Just one supported, no MSIx */
-#define GENWQE_FLAG_MSI_ENABLED		(1 << 0)
 
 #define GENWQE_MAX_VFS			15 /* maximum 15 VFs are possible */
 #define GENWQE_MAX_FUNCS		16 /* 1 PF and 15 VFs */

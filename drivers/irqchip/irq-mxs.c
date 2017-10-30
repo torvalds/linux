@@ -131,12 +131,16 @@ static struct irq_chip mxs_icoll_chip = {
 	.irq_ack = icoll_ack_irq,
 	.irq_mask = icoll_mask_irq,
 	.irq_unmask = icoll_unmask_irq,
+	.flags = IRQCHIP_MASK_ON_SUSPEND |
+		 IRQCHIP_SKIP_SET_WAKE,
 };
 
 static struct irq_chip asm9260_icoll_chip = {
 	.irq_ack = icoll_ack_irq,
 	.irq_mask = asm9260_mask_irq,
 	.irq_unmask = asm9260_unmask_irq,
+	.flags = IRQCHIP_MASK_ON_SUSPEND |
+		 IRQCHIP_SKIP_SET_WAKE,
 };
 
 asmlinkage void __exception_irq_entry icoll_handle_irq(struct pt_regs *regs)
@@ -175,7 +179,7 @@ static void __init icoll_add_domain(struct device_node *np,
 					     &icoll_irq_domain_ops, NULL);
 
 	if (!icoll_domain)
-		panic("%s: unable to create irq domain", np->full_name);
+		panic("%pOF: unable to create irq domain", np);
 }
 
 static void __iomem * __init icoll_init_iobase(struct device_node *np)
@@ -184,7 +188,7 @@ static void __iomem * __init icoll_init_iobase(struct device_node *np)
 
 	icoll_base = of_io_request_and_map(np, 0, np->name);
 	if (IS_ERR(icoll_base))
-		panic("%s: unable to map resource", np->full_name);
+		panic("%pOF: unable to map resource", np);
 	return icoll_base;
 }
 

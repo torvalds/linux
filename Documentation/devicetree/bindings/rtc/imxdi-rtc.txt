@@ -8,10 +8,13 @@ Required properties:
   region.
 - interrupts: rtc alarm interrupt
 
+Optional properties:
+- interrupts: dryice security violation interrupt
+
 Example:
 
 rtc@80056000 {
 	compatible = "fsl,imx53-rtc", "fsl,imx25-rtc";
 	reg = <0x80056000 2000>;
-	interrupts = <29>;
+	interrupts = <29 56>;
 };

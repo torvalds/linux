@@ -3,7 +3,7 @@
  *
  * Fibre Channel related functions for the zfcp device driver.
  *
- * Copyright IBM Corp. 2008, 2010
+ * Copyright IBM Corp. 2008, 2017
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/utsname.h>
 #include <linux/random.h>
+#include <linux/bsg-lib.h>
 #include <scsi/fc/fc_els.h>
 #include <scsi/libfc.h>
 #include "zfcp_ext.h"
@@ -28,7 +29,7 @@ static u32 zfcp_fc_rscn_range_mask[] = {
 };
 
 static bool no_auto_port_rescan;
-module_param_named(no_auto_port_rescan, no_auto_port_rescan, bool, 0600);
+module_param(no_auto_port_rescan, bool, 0600);
 MODULE_PARM_DESC(no_auto_port_rescan,
 		 "no automatic port_rescan (default off)");
 
@@ -259,7 +260,8 @@ static void zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req)
 	page = (struct fc_els_rscn_page *) head;
 
 	/* see FC-FS */
-	no_entries = head->rscn_plen / sizeof(struct fc_els_rscn_page);
+	no_entries = be16_to_cpu(head->rscn_plen) /
+		sizeof(struct fc_els_rscn_page);
 
 	for (i = 1; i < no_entries; i++) {
 		/* skip head and start with 1st element */
@@ -295,7 +297,7 @@ static void zfcp_fc_incoming_plogi(struct zfcp_fsf_req *req)
 
 	status_buffer = (struct fsf_status_read_buffer *) req->data;
 	plogi = (struct fc_els_flogi *) status_buffer->payload.data;
-	zfcp_fc_incoming_wwpn(req, plogi->fl_wwpn);
+	zfcp_fc_incoming_wwpn(req, be64_to_cpu(plogi->fl_wwpn));
 }
 
 static void zfcp_fc_incoming_logo(struct zfcp_fsf_req *req)
@@ -305,7 +307,7 @@ static void zfcp_fc_incoming_logo(struct zfcp_fsf_req *req)
 	struct fc_els_logo *logo =
 		(struct fc_els_logo *) status_buffer->payload.data;
 
-	zfcp_fc_incoming_wwpn(req, logo->fl_n_port_wwn);
+	zfcp_fc_incoming_wwpn(req, be64_to_cpu(logo->fl_n_port_wwn));
 }
 
 /**
@@ -334,7 +336,7 @@ static void zfcp_fc_ns_gid_pn_eval(struct zfcp_fc_req *fc_req)
 
 	if (ct_els->status)
 		return;
-	if (gid_pn_rsp->ct_hdr.ct_cmd != FC_FS_ACC)
+	if (gid_pn_rsp->ct_hdr.ct_cmd != cpu_to_be16(FC_FS_ACC))
 		return;
 
 	/* looks like a valid d_id */
@@ -351,8 +353,8 @@ static void zfcp_fc_ct_ns_init(struct fc_ct_hdr *ct_hdr, u16 cmd, u16 mr_size)
 	ct_hdr->ct_rev = FC_CT_REV;
 	ct_hdr->ct_fs_type = FC_FST_DIR;
 	ct_hdr->ct_fs_subtype = FC_NS_SUBTYPE;
-	ct_hdr->ct_cmd = cmd;
-	ct_hdr->ct_mr_size = mr_size / 4;
+	ct_hdr->ct_cmd = cpu_to_be16(cmd);
+	ct_hdr->ct_mr_size = cpu_to_be16(mr_size / 4);
 }
 
 static int zfcp_fc_ns_gid_pn_request(struct zfcp_port *port,
@@ -375,7 +377,7 @@ static int zfcp_fc_ns_gid_pn_request(struct zfcp_port *port,
 
 	zfcp_fc_ct_ns_init(&gid_pn_req->ct_hdr,
 			   FC_NS_GID_PN, ZFCP_FC_CT_SIZE_PAGE);
-	gid_pn_req->gid_pn.fn_wwpn = port->wwpn;
+	gid_pn_req->gid_pn.fn_wwpn = cpu_to_be64(port->wwpn);
 
 	ret = zfcp_fsf_send_ct(&adapter->gs->ds, &fc_req->ct_els,
 			       adapter->pool.gid_pn_req,
@@ -459,26 +461,26 @@ void zfcp_fc_trigger_did_lookup(struct zfcp_port *port)
  */
 void zfcp_fc_plogi_evaluate(struct zfcp_port *port, struct fc_els_flogi *plogi)
 {
-	if (plogi->fl_wwpn != port->wwpn) {
+	if (be64_to_cpu(plogi->fl_wwpn) != port->wwpn) {
 		port->d_id = 0;
 		dev_warn(&port->adapter->ccw_device->dev,
 			 "A port opened with WWPN 0x%016Lx returned data that "
 			 "identifies it as WWPN 0x%016Lx\n",
 			 (unsigned long long) port->wwpn,
-			 (unsigned long long) plogi->fl_wwpn);
+			 (unsigned long long) be64_to_cpu(plogi->fl_wwpn));
 		return;
 	}
 
-	port->wwnn = plogi->fl_wwnn;
-	port->maxframe_size = plogi->fl_csp.sp_bb_data;
+	port->wwnn = be64_to_cpu(plogi->fl_wwnn);
+	port->maxframe_size = be16_to_cpu(plogi->fl_csp.sp_bb_data);
 
-	if (plogi->fl_cssp[0].cp_class & FC_CPC_VALID)
+	if (plogi->fl_cssp[0].cp_class & cpu_to_be16(FC_CPC_VALID))
 		port->supported_classes |= FC_COS_CLASS1;
-	if (plogi->fl_cssp[1].cp_class & FC_CPC_VALID)
+	if (plogi->fl_cssp[1].cp_class & cpu_to_be16(FC_CPC_VALID))
 		port->supported_classes |= FC_COS_CLASS2;
-	if (plogi->fl_cssp[2].cp_class & FC_CPC_VALID)
+	if (plogi->fl_cssp[2].cp_class & cpu_to_be16(FC_CPC_VALID))
 		port->supported_classes |= FC_COS_CLASS3;
-	if (plogi->fl_cssp[3].cp_class & FC_CPC_VALID)
+	if (plogi->fl_cssp[3].cp_class & cpu_to_be16(FC_CPC_VALID))
 		port->supported_classes |= FC_COS_CLASS4;
 }
 
@@ -496,9 +498,9 @@ static void zfcp_fc_adisc_handler(void *data)
 	}
 
 	if (!port->wwnn)
-		port->wwnn = adisc_resp->adisc_wwnn;
+		port->wwnn = be64_to_cpu(adisc_resp->adisc_wwnn);
 
-	if ((port->wwpn != adisc_resp->adisc_wwpn) ||
+	if ((port->wwpn != be64_to_cpu(adisc_resp->adisc_wwpn)) ||
 	    !(atomic_read(&port->status) & ZFCP_STATUS_COMMON_OPEN)) {
 		zfcp_erp_port_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED,
 				     "fcadh_2");
@@ -537,8 +539,8 @@ static int zfcp_fc_adisc(struct zfcp_port *port)
 
 	/* acc. to FC-FS, hard_nport_id in ADISC should not be set for ports
 	   without FC-AL-2 capability, so we don't set it */
-	fc_req->u.adisc.req.adisc_wwpn = fc_host_port_name(shost);
-	fc_req->u.adisc.req.adisc_wwnn = fc_host_node_name(shost);
+	fc_req->u.adisc.req.adisc_wwpn = cpu_to_be64(fc_host_port_name(shost));
+	fc_req->u.adisc.req.adisc_wwnn = cpu_to_be64(fc_host_node_name(shost));
 	fc_req->u.adisc.req.adisc_cmd = ELS_ADISC;
 	hton24(fc_req->u.adisc.req.adisc_port_id, fc_host_port_id(shost));
 
@@ -665,8 +667,8 @@ static int zfcp_fc_eval_gpn_ft(struct zfcp_fc_req *fc_req,
 	if (ct_els->status)
 		return -EIO;
 
-	if (hdr->ct_cmd != FC_FS_ACC) {
-		if (hdr->ct_reason == FC_BA_RJT_UNABLE)
+	if (hdr->ct_cmd != cpu_to_be16(FC_FS_ACC)) {
+		if (hdr->ct_reason == FC_FS_RJT_UNABL)
 			return -EAGAIN; /* might be a temporary condition */
 		return -EIO;
 	}
@@ -692,10 +694,11 @@ static int zfcp_fc_eval_gpn_ft(struct zfcp_fc_req *fc_req,
 		if (d_id >= FC_FID_WELL_KNOWN_BASE)
 			continue;
 		/* skip the adapter's port and known remote ports */
-		if (acc->fp_wwpn == fc_host_port_name(adapter->scsi_host))
+		if (be64_to_cpu(acc->fp_wwpn) ==
+		    fc_host_port_name(adapter->scsi_host))
 			continue;
 
-		port = zfcp_port_enqueue(adapter, acc->fp_wwpn,
+		port = zfcp_port_enqueue(adapter, be64_to_cpu(acc->fp_wwpn),
 					 ZFCP_STATUS_COMMON_NOESC, d_id);
 		if (!IS_ERR(port))
 			zfcp_erp_port_reopen(port, 0, "fcegpf1");
@@ -885,26 +888,30 @@ out_free:
 
 static void zfcp_fc_ct_els_job_handler(void *data)
 {
-	struct fc_bsg_job *job = data;
+	struct bsg_job *job = data;
 	struct zfcp_fsf_ct_els *zfcp_ct_els = job->dd_data;
 	struct fc_bsg_reply *jr = job->reply;
 
 	jr->reply_payload_rcv_len = job->reply_payload.payload_len;
 	jr->reply_data.ctels_reply.status = FC_CTELS_STATUS_OK;
 	jr->result = zfcp_ct_els->status ? -EIO : 0;
-	job->job_done(job);
+	bsg_job_done(job, jr->result, jr->reply_payload_rcv_len);
 }
 
-static struct zfcp_fc_wka_port *zfcp_fc_job_wka_port(struct fc_bsg_job *job)
+static struct zfcp_fc_wka_port *zfcp_fc_job_wka_port(struct bsg_job *job)
 {
 	u32 preamble_word1;
 	u8 gs_type;
 	struct zfcp_adapter *adapter;
+	struct fc_bsg_request *bsg_request = job->request;
+	struct fc_rport *rport = fc_bsg_to_rport(job);
+	struct Scsi_Host *shost;
 
-	preamble_word1 = job->request->rqst_data.r_ct.preamble_word1;
+	preamble_word1 = bsg_request->rqst_data.r_ct.preamble_word1;
 	gs_type = (preamble_word1 & 0xff000000) >> 24;
 
-	adapter = (struct zfcp_adapter *) job->shost->hostdata[0];
+	shost = rport ? rport_to_shost(rport) : fc_bsg_to_shost(job);
+	adapter = (struct zfcp_adapter *) shost->hostdata[0];
 
 	switch (gs_type) {
 	case FC_FST_ALIAS:
@@ -924,7 +931,7 @@ static struct zfcp_fc_wka_port *zfcp_fc_job_wka_port(struct fc_bsg_job *job)
 
 static void zfcp_fc_ct_job_handler(void *data)
 {
-	struct fc_bsg_job *job = data;
+	struct bsg_job *job = data;
 	struct zfcp_fc_wka_port *wka_port;
 
 	wka_port = zfcp_fc_job_wka_port(job);
@@ -933,11 +940,12 @@ static void zfcp_fc_ct_job_handler(void *data)
 	zfcp_fc_ct_els_job_handler(data);
 }
 
-static int zfcp_fc_exec_els_job(struct fc_bsg_job *job,
+static int zfcp_fc_exec_els_job(struct bsg_job *job,
 				struct zfcp_adapter *adapter)
 {
 	struct zfcp_fsf_ct_els *els = job->dd_data;
-	struct fc_rport *rport = job->rport;
+	struct fc_rport *rport = fc_bsg_to_rport(job);
+	struct fc_bsg_request *bsg_request = job->request;
 	struct zfcp_port *port;
 	u32 d_id;
 
@@ -949,13 +957,13 @@ static int zfcp_fc_exec_els_job(struct fc_bsg_job *job,
 		d_id = port->d_id;
 		put_device(&port->dev);
 	} else
-		d_id = ntoh24(job->request->rqst_data.h_els.port_id);
+		d_id = ntoh24(bsg_request->rqst_data.h_els.port_id);
 
 	els->handler = zfcp_fc_ct_els_job_handler;
 	return zfcp_fsf_send_els(adapter, d_id, els, job->req->timeout / HZ);
 }
 
-static int zfcp_fc_exec_ct_job(struct fc_bsg_job *job,
+static int zfcp_fc_exec_ct_job(struct bsg_job *job,
 			       struct zfcp_adapter *adapter)
 {
 	int ret;
@@ -978,13 +986,15 @@ static int zfcp_fc_exec_ct_job(struct fc_bsg_job *job,
 	return ret;
 }
 
-int zfcp_fc_exec_bsg_job(struct fc_bsg_job *job)
+int zfcp_fc_exec_bsg_job(struct bsg_job *job)
 {
 	struct Scsi_Host *shost;
 	struct zfcp_adapter *adapter;
 	struct zfcp_fsf_ct_els *ct_els = job->dd_data;
+	struct fc_bsg_request *bsg_request = job->request;
+	struct fc_rport *rport = fc_bsg_to_rport(job);
 
-	shost = job->rport ? rport_to_shost(job->rport) : job->shost;
+	shost = rport ? rport_to_shost(rport) : fc_bsg_to_shost(job);
 	adapter = (struct zfcp_adapter *)shost->hostdata[0];
 
 	if (!(atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_OPEN))
@@ -994,7 +1004,7 @@ int zfcp_fc_exec_bsg_job(struct fc_bsg_job *job)
 	ct_els->resp = job->reply_payload.sg_list;
 	ct_els->handler_data = job;
 
-	switch (job->request->msgcode) {
+	switch (bsg_request->msgcode) {
 	case FC_BSG_RPT_ELS:
 	case FC_BSG_HST_ELS_NOLOGIN:
 		return zfcp_fc_exec_els_job(job, adapter);
@@ -1006,7 +1016,7 @@ int zfcp_fc_exec_bsg_job(struct fc_bsg_job *job)
 	}
 }
 
-int zfcp_fc_timeout_bsg_job(struct fc_bsg_job *job)
+int zfcp_fc_timeout_bsg_job(struct bsg_job *job)
 {
 	/* hardware tracks timeout, reset bsg timeout to not interfere */
 	return -EAGAIN;

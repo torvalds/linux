@@ -30,7 +30,7 @@ Arguments
 
 ``request``
     CEC ioctl request code as defined in the cec.h header file, for
-    example :c:func:`CEC_ADAP_G_CAPS`.
+    example :ref:`CEC_ADAP_G_CAPS <CEC_ADAP_G_CAPS>`.
 
 ``argp``
     Pointer to a request-specific structure.
@@ -39,12 +39,7 @@ Arguments
 Description
 ===========
 
-.. note::
-
-   This documents the proposed CEC API. This API is not yet finalized
-   and is currently only available as a staging kernel module.
-
-The :c:func:`ioctl()` function manipulates cec device parameters. The
+The :c:func:`ioctl() <cec-ioctl>` function manipulates cec device parameters. The
 argument ``fd`` must be an open file descriptor.
 
 The ioctl ``request`` code specifies the cec function to be called. It

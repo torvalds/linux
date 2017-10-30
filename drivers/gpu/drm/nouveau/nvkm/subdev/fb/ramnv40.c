@@ -150,16 +150,8 @@ nv40_ram_prog(struct nvkm_ram *base)
 	udelay(100);
 
 	/* execute memory reset script from vbios */
-	if (!bit_entry(bios, 'M', &M)) {
-		struct nvbios_init init = {
-			.subdev = subdev,
-			.bios = bios,
-			.offset = nvbios_rd16(bios, M.offset + 0x00),
-			.execute = 1,
-		};
-
-		nvbios_exec(&init);
-	}
+	if (!bit_entry(bios, 'M', &M))
+		nvbios_init(subdev, nvbios_rd16(bios, M.offset + 0x00));
 
 	/* make sure we're in vblank (hopefully the same one as before), and
 	 * then re-enable crtc memory access

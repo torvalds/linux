@@ -40,7 +40,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "cpqphp.h"
 #include "cpqphp_nvram.h"
@@ -867,7 +867,8 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	if ((pdev->revision <= 2) && (vendor_id != PCI_VENDOR_ID_INTEL)) {
 		err(msg_HPC_not_supported);
-		return -ENODEV;
+		rc = -ENODEV;
+		goto err_disable_device;
 	}
 
 	/* TODO: This code can be made to support non-Compaq or Intel
@@ -1416,7 +1417,7 @@ static void __exit unload_cpqphpd(void)
 		iounmap(smbios_start);
 }
 
-static struct pci_device_id hpcd_pci_tbl[] = {
+static const struct pci_device_id hpcd_pci_tbl[] = {
 	{
 	/* handle any PCI Hotplug controller */
 	.class =        ((PCI_CLASS_SYSTEM_PCI_HOTPLUG << 8) | 0x00),

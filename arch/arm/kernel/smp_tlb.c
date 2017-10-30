@@ -9,6 +9,7 @@
  */
 #include <linux/preempt.h>
 #include <linux/smp.h>
+#include <linux/uaccess.h>
 
 #include <asm/smp_plat.h>
 #include <asm/tlbflush.h>
@@ -40,8 +41,11 @@ static inline void ipi_flush_tlb_mm(void *arg)
 static inline void ipi_flush_tlb_page(void *arg)
 {
 	struct tlb_args *ta = (struct tlb_args *)arg;
+	unsigned int __ua_flags = uaccess_save_and_enable();
 
 	local_flush_tlb_page(ta->ta_vma, ta->ta_start);
+
+	uaccess_restore(__ua_flags);
 }
 
 static inline void ipi_flush_tlb_kernel_page(void *arg)
@@ -54,8 +58,11 @@ static inline void ipi_flush_tlb_kernel_page(void *arg)
 static inline void ipi_flush_tlb_range(void *arg)
 {
 	struct tlb_args *ta = (struct tlb_args *)arg;
+	unsigned int __ua_flags = uaccess_save_and_enable();
 
 	local_flush_tlb_range(ta->ta_vma, ta->ta_start, ta->ta_end);
+
+	uaccess_restore(__ua_flags);
 }
 
 static inline void ipi_flush_tlb_kernel_range(void *arg)

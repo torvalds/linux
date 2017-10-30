@@ -130,16 +130,20 @@
 #define PRDCT_REV_LEN           4               /* Product LOT Length       */
 
 /* Dynamic flag definitions: used in set_bit() etc. */
-#define RTSX_FLIDX_TRANS_ACTIVE		18  /* 0x00040000 transfer is active	 */
-#define RTSX_FLIDX_ABORTING		20  /* 0x00100000 abort is in progress	 */
-#define RTSX_FLIDX_DISCONNECTING	21  /* 0x00200000 disconnect in progress */
+/* 0x00040000 transfer is active */
+#define RTSX_FLIDX_TRANS_ACTIVE		18
+/* 0x00100000 abort is in progress */
+#define RTSX_FLIDX_ABORTING		20
+/* 0x00200000 disconnect in progress */
+#define RTSX_FLIDX_DISCONNECTING	21
 
 #define ABORTING_OR_DISCONNECTING	((1UL << US_FLIDX_ABORTING) | \
 					 (1UL << US_FLIDX_DISCONNECTING))
 
-#define RTSX_FLIDX_RESETTING		22  /* 0x00400000 device reset in progress */
-#define RTSX_FLIDX_TIMED_OUT		23  /* 0x00800000 SCSI midlayer timed out  */
-
+/* 0x00400000 device reset in progress */
+#define RTSX_FLIDX_RESETTING		22
+/* 0x00800000 SCSI midlayer timed out  */
+#define RTSX_FLIDX_TIMED_OUT		23
 #define DRCT_ACCESS_DEV         0x00    /* Direct Access Device      */
 #define RMB_DISC                0x80    /* The Device is Removable   */
 #define ANSI_SCSI2              0x02    /* Based on ANSI-SCSI2       */
@@ -285,23 +289,24 @@ struct sense_data_t {
 
 #define CARD_INT		(XD_INT | MS_INT | SD_INT)
 #define NEED_COMPLETE_INT	(DATA_DONE_INT | TRANS_OK_INT | TRANS_FAIL_INT)
-#define RTSX_INT		(CMD_DONE_INT | NEED_COMPLETE_INT | CARD_INT | GPIO0_INT | OC_INT)
+#define RTSX_INT		(CMD_DONE_INT | NEED_COMPLETE_INT | CARD_INT | \
+				 GPIO0_INT | OC_INT)
 
 #define CARD_EXIST		(XD_EXIST | MS_EXIST | SD_EXIST)
 
 /* Bus interrupt enable register */
-#define CMD_DONE_INT_EN		(1 << 31)
-#define DATA_DONE_INT_EN	(1 << 30)
-#define TRANS_OK_INT_EN		(1 << 29)
-#define TRANS_FAIL_INT_EN	(1 << 28)
-#define XD_INT_EN		(1 << 27)
-#define MS_INT_EN		(1 << 26)
-#define SD_INT_EN		(1 << 25)
-#define GPIO0_INT_EN		(1 << 24)
-#define OC_INT_EN		(1 << 23)
+#define CMD_DONE_INT_EN		BIT(31)
+#define DATA_DONE_INT_EN	BIT(30)
+#define TRANS_OK_INT_EN		BIT(29)
+#define TRANS_FAIL_INT_EN	BIT(28)
+#define XD_INT_EN		BIT(27)
+#define MS_INT_EN		BIT(26)
+#define SD_INT_EN		BIT(25)
+#define GPIO0_INT_EN		BIT(24)
+#define OC_INT_EN		BIT(23)
 #define DELINK_INT_EN		GPIO0_INT_EN
-#define MS_OC_INT_EN		(1 << 23)
-#define SD_OC_INT_EN		(1 << 22)
+#define MS_OC_INT_EN		BIT(23)
+#define SD_OC_INT_EN		BIT(22)
 
 #define READ_REG_CMD		0
 #define WRITE_REG_CMD		1
@@ -318,10 +323,10 @@ struct sense_data_t {
 #define MS_NR		3
 #define XD_NR		4
 #define SPI_NR		7
-#define SD_CARD		(1 << SD_NR)
-#define MS_CARD		(1 << MS_NR)
-#define XD_CARD		(1 << XD_NR)
-#define SPI_CARD	(1 << SPI_NR)
+#define SD_CARD		BIT(SD_NR)
+#define MS_CARD		BIT(MS_NR)
+#define XD_CARD		BIT(XD_NR)
+#define SPI_CARD	BIT(SPI_NR)
 
 #define MAX_ALLOWED_LUN_CNT	8
 
@@ -393,14 +398,23 @@ struct zone_entry {
 
 /* SD card */
 #define CHK_SD(sd_card)			(((sd_card)->sd_type & 0xFF) == TYPE_SD)
-#define CHK_SD_HS(sd_card)		(CHK_SD(sd_card) && ((sd_card)->sd_type & SD_HS))
-#define CHK_SD_SDR50(sd_card)		(CHK_SD(sd_card) && ((sd_card)->sd_type & SD_SDR50))
-#define CHK_SD_DDR50(sd_card)		(CHK_SD(sd_card) && ((sd_card)->sd_type & SD_DDR50))
-#define CHK_SD_SDR104(sd_card)		(CHK_SD(sd_card) && ((sd_card)->sd_type & SD_SDR104))
-#define CHK_SD_HCXC(sd_card)		(CHK_SD(sd_card) && ((sd_card)->sd_type & SD_HCXC))
-#define CHK_SD_HC(sd_card)		(CHK_SD_HCXC(sd_card) && ((sd_card)->capacity <= 0x4000000))
-#define CHK_SD_XC(sd_card)		(CHK_SD_HCXC(sd_card) && ((sd_card)->capacity > 0x4000000))
-#define CHK_SD30_SPEED(sd_card)		(CHK_SD_SDR50(sd_card) || CHK_SD_DDR50(sd_card) || CHK_SD_SDR104(sd_card))
+#define CHK_SD_HS(sd_card)		(CHK_SD(sd_card) && \
+					 ((sd_card)->sd_type & SD_HS))
+#define CHK_SD_SDR50(sd_card)		(CHK_SD(sd_card) && \
+					 ((sd_card)->sd_type & SD_SDR50))
+#define CHK_SD_DDR50(sd_card)		(CHK_SD(sd_card) && \
+					 ((sd_card)->sd_type & SD_DDR50))
+#define CHK_SD_SDR104(sd_card)		(CHK_SD(sd_card) && \
+					 ((sd_card)->sd_type & SD_SDR104))
+#define CHK_SD_HCXC(sd_card)		(CHK_SD(sd_card) && \
+					 ((sd_card)->sd_type & SD_HCXC))
+#define CHK_SD_HC(sd_card)		(CHK_SD_HCXC(sd_card) && \
+					 ((sd_card)->capacity <= 0x4000000))
+#define CHK_SD_XC(sd_card)		(CHK_SD_HCXC(sd_card) && \
+					 ((sd_card)->capacity > 0x4000000))
+#define CHK_SD30_SPEED(sd_card)		(CHK_SD_SDR50(sd_card) || \
+					 CHK_SD_DDR50(sd_card) || \
+					 CHK_SD_SDR104(sd_card))
 
 #define SET_SD(sd_card)			((sd_card)->sd_type = TYPE_SD)
 #define SET_SD_HS(sd_card)		((sd_card)->sd_type |= SD_HS)
@@ -416,13 +430,20 @@ struct zone_entry {
 #define CLR_SD_HCXC(sd_card)		((sd_card)->sd_type &= ~SD_HCXC)
 
 /* MMC card */
-#define CHK_MMC(sd_card)		(((sd_card)->sd_type & 0xFF) == TYPE_MMC)
-#define CHK_MMC_26M(sd_card)		(CHK_MMC(sd_card) && ((sd_card)->sd_type & MMC_26M))
-#define CHK_MMC_52M(sd_card)		(CHK_MMC(sd_card) && ((sd_card)->sd_type & MMC_52M))
-#define CHK_MMC_4BIT(sd_card)		(CHK_MMC(sd_card) && ((sd_card)->sd_type & MMC_4BIT))
-#define CHK_MMC_8BIT(sd_card)		(CHK_MMC(sd_card) && ((sd_card)->sd_type & MMC_8BIT))
-#define CHK_MMC_SECTOR_MODE(sd_card)	(CHK_MMC(sd_card) && ((sd_card)->sd_type & MMC_SECTOR_MODE))
-#define CHK_MMC_DDR52(sd_card)		(CHK_MMC(sd_card) && ((sd_card)->sd_type & MMC_DDR52))
+#define CHK_MMC(sd_card)		(((sd_card)->sd_type & 0xFF) == \
+					 TYPE_MMC)
+#define CHK_MMC_26M(sd_card)		(CHK_MMC(sd_card) && \
+					 ((sd_card)->sd_type & MMC_26M))
+#define CHK_MMC_52M(sd_card)		(CHK_MMC(sd_card) && \
+					 ((sd_card)->sd_type & MMC_52M))
+#define CHK_MMC_4BIT(sd_card)		(CHK_MMC(sd_card) && \
+					 ((sd_card)->sd_type & MMC_4BIT))
+#define CHK_MMC_8BIT(sd_card)		(CHK_MMC(sd_card) && \
+					 ((sd_card)->sd_type & MMC_8BIT))
+#define CHK_MMC_SECTOR_MODE(sd_card)	(CHK_MMC(sd_card) && \
+					 ((sd_card)->sd_type & MMC_SECTOR_MODE))
+#define CHK_MMC_DDR52(sd_card)		(CHK_MMC(sd_card) && \
+					 ((sd_card)->sd_type & MMC_DDR52))
 
 #define SET_MMC(sd_card)		((sd_card)->sd_type = TYPE_MMC)
 #define SET_MMC_26M(sd_card)		((sd_card)->sd_type |= MMC_26M)
@@ -439,7 +460,8 @@ struct zone_entry {
 #define CLR_MMC_SECTOR_MODE(sd_card)	((sd_card)->sd_type &= ~MMC_SECTOR_MODE)
 #define CLR_MMC_DDR52(sd_card)		((sd_card)->sd_type &= ~MMC_DDR52)
 
-#define CHK_MMC_HS(sd_card)		(CHK_MMC_52M(sd_card) && CHK_MMC_26M(sd_card))
+#define CHK_MMC_HS(sd_card)		(CHK_MMC_52M(sd_card) && \
+					 CHK_MMC_26M(sd_card))
 #define CLR_MMC_HS(sd_card)			\
 do {						\
 	CLR_MMC_DDR52(sd_card);			\
@@ -450,12 +472,18 @@ do {						\
 #define SD_SUPPORT_CLASS_TEN		0x01
 #define SD_SUPPORT_1V8			0x02
 
-#define SD_SET_CLASS_TEN(sd_card)	((sd_card)->sd_setting |= SD_SUPPORT_CLASS_TEN)
-#define SD_CHK_CLASS_TEN(sd_card)	((sd_card)->sd_setting & SD_SUPPORT_CLASS_TEN)
-#define SD_CLR_CLASS_TEN(sd_card)	((sd_card)->sd_setting &= ~SD_SUPPORT_CLASS_TEN)
-#define SD_SET_1V8(sd_card)		((sd_card)->sd_setting |= SD_SUPPORT_1V8)
-#define SD_CHK_1V8(sd_card)		((sd_card)->sd_setting & SD_SUPPORT_1V8)
-#define SD_CLR_1V8(sd_card)		((sd_card)->sd_setting &= ~SD_SUPPORT_1V8)
+#define SD_SET_CLASS_TEN(sd_card)	((sd_card)->sd_setting |= \
+					 SD_SUPPORT_CLASS_TEN)
+#define SD_CHK_CLASS_TEN(sd_card)	((sd_card)->sd_setting & \
+					 SD_SUPPORT_CLASS_TEN)
+#define SD_CLR_CLASS_TEN(sd_card)	((sd_card)->sd_setting &= \
+					 ~SD_SUPPORT_CLASS_TEN)
+#define SD_SET_1V8(sd_card)		((sd_card)->sd_setting |= \
+					 SD_SUPPORT_1V8)
+#define SD_CHK_1V8(sd_card)		((sd_card)->sd_setting & \
+					 SD_SUPPORT_1V8)
+#define SD_CLR_1V8(sd_card)		((sd_card)->sd_setting &= \
+					 ~SD_SUPPORT_1V8)
 
 struct sd_info {
 	u16 sd_type;
@@ -544,9 +572,12 @@ struct xd_info {
 #define HG8BIT			(MS_HG | MS_8BIT)
 
 #define CHK_MSPRO(ms_card)	(((ms_card)->ms_type & 0xFF) == TYPE_MSPRO)
-#define CHK_HG8BIT(ms_card)	(CHK_MSPRO(ms_card) && (((ms_card)->ms_type & HG8BIT) == HG8BIT))
-#define CHK_MSXC(ms_card)	(CHK_MSPRO(ms_card) && ((ms_card)->ms_type & MS_XC))
-#define CHK_MSHG(ms_card)	(CHK_MSPRO(ms_card) && ((ms_card)->ms_type & MS_HG))
+#define CHK_HG8BIT(ms_card)	(CHK_MSPRO(ms_card) && \
+				 (((ms_card)->ms_type & HG8BIT) == HG8BIT))
+#define CHK_MSXC(ms_card)	(CHK_MSPRO(ms_card) && \
+				 ((ms_card)->ms_type & MS_XC))
+#define CHK_MSHG(ms_card)	(CHK_MSPRO(ms_card) && \
+				 ((ms_card)->ms_type & MS_HG))
 
 #define CHK_MS8BIT(ms_card)	(((ms_card)->ms_type & MS_8BIT))
 #define CHK_MS4BIT(ms_card)	(((ms_card)->ms_type & MS_4BIT))
@@ -679,8 +710,10 @@ struct trace_msg_t {
 #define CLR_SDIO_EXIST(chip)		((chip)->sdio_func_exist &= ~SDIO_EXIST)
 
 #define CHK_SDIO_IGNORED(chip)		((chip)->sdio_func_exist & SDIO_IGNORED)
-#define SET_SDIO_IGNORED(chip)		((chip)->sdio_func_exist |= SDIO_IGNORED)
-#define CLR_SDIO_IGNORED(chip)		((chip)->sdio_func_exist &= ~SDIO_IGNORED)
+#define SET_SDIO_IGNORED(chip)		((chip)->sdio_func_exist |= \
+					 SDIO_IGNORED)
+#define CLR_SDIO_IGNORED(chip)		((chip)->sdio_func_exist &= \
+					 ~SDIO_IGNORED)
 
 struct rtsx_chip {
 	struct rtsx_dev	*rtsx;
@@ -957,12 +990,12 @@ void rtsx_stop_cmd(struct rtsx_chip *chip, int card);
 int rtsx_write_register(struct rtsx_chip *chip, u16 addr, u8 mask, u8 data);
 int rtsx_read_register(struct rtsx_chip *chip, u16 addr, u8 *data);
 int rtsx_write_cfg_dw(struct rtsx_chip *chip,
-		u8 func_no, u16 addr, u32 mask, u32 val);
+		      u8 func_no, u16 addr, u32 mask, u32 val);
 int rtsx_read_cfg_dw(struct rtsx_chip *chip, u8 func_no, u16 addr, u32 *val);
 int rtsx_write_cfg_seq(struct rtsx_chip *chip,
-		u8 func, u16 addr, u8 *buf, int len);
+		       u8 func, u16 addr, u8 *buf, int len);
 int rtsx_read_cfg_seq(struct rtsx_chip *chip,
-		u8 func, u16 addr, u8 *buf, int len);
+		      u8 func, u16 addr, u8 *buf, int len);
 int rtsx_write_phy_register(struct rtsx_chip *chip, u8 addr, u16 val);
 int rtsx_read_phy_register(struct rtsx_chip *chip, u8 addr, u16 *val);
 int rtsx_read_efuse(struct rtsx_chip *chip, u8 addr, u8 *val);

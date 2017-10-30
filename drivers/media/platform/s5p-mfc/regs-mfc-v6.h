@@ -386,7 +386,8 @@
 			((w) * 144 + 8192 * (h) + 49216 + 1048576)
 #define S5P_FIMV_SCRATCH_BUF_SIZE_VC1_DEC_V6(w, h) \
 						(2096 * ((w) + (h) + 1))
-#define S5P_FIMV_SCRATCH_BUF_SIZE_H263_DEC_V6(w, h)	((w) * 400)
+#define S5P_FIMV_SCRATCH_BUF_SIZE_H263_DEC_V6(w, h)	\
+			S5P_FIMV_SCRATCH_BUF_SIZE_MPEG4_DEC_V6(w, h)
 #define S5P_FIMV_SCRATCH_BUF_SIZE_VP8_DEC_V6(w, h) \
 			((w) * 32 + (h) * 128 + (((w) + 1) / 2) * 64 + 2112)
 #define S5P_FIMV_SCRATCH_BUF_SIZE_H264_ENC_V6(w, h) \
@@ -402,7 +403,7 @@
 #define MFC_OTHER_ENC_CTX_BUF_SIZE_V6	(12 * SZ_1K)	/*  12KB */
 
 /* MFCv6 variant defines */
-#define MAX_FW_SIZE_V6			(SZ_1M)		/* 1MB */
+#define MAX_FW_SIZE_V6			(SZ_512K)	/* 512KB */
 #define MAX_CPB_SIZE_V6			(3 * SZ_1M)	/* 3MB */
 #define MFC_VERSION_V6			0x61
 #define MFC_NUM_PORTS_V6		1

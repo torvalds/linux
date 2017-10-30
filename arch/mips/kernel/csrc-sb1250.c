@@ -30,7 +30,7 @@
  * The HPT is free running from SB1250_HPT_VALUE down to 0 then starts over
  * again.
  */
-static inline cycle_t sb1250_hpt_get_cycles(void)
+static inline u64 sb1250_hpt_get_cycles(void)
 {
 	unsigned int count;
 	void __iomem *addr;
@@ -41,7 +41,7 @@ static inline cycle_t sb1250_hpt_get_cycles(void)
 	return SB1250_HPT_VALUE - count;
 }
 
-static cycle_t sb1250_hpt_read(struct clocksource *cs)
+static u64 sb1250_hpt_read(struct clocksource *cs)
 {
 	return sb1250_hpt_get_cycles();
 }

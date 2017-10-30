@@ -96,7 +96,8 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.pnmr = PnMR_SPIM_TP_OFF | PnMR_DDDF_YC,
 		.edf = PnDDCR4_EDF_NONE,
 	},
-	/* The following formats are not supported on Gen2 and thus have no
+	/*
+	 * The following formats are not supported on Gen2 and thus have no
 	 * associated .pnmr or .edf settings.
 	 */
 	{
@@ -153,7 +154,8 @@ int rcar_du_dumb_create(struct drm_file *file, struct drm_device *dev,
 	unsigned int min_pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
 	unsigned int align;
 
-	/* The R8A7779 DU requires a 16 pixels pitch alignment as documented,
+	/*
+	 * The R8A7779 DU requires a 16 pixels pitch alignment as documented,
 	 * but the R8A7790 DU seems to require a 128 bytes pitch alignment.
 	 */
 	if (rcar_du_needs(rcdu, RCAR_DU_QUIRK_ALIGN_128B))
@@ -249,132 +251,41 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 	return rcar_du_atomic_check_planes(dev, state);
 }
 
-struct rcar_du_commit {
-	struct work_struct work;
-	struct drm_device *dev;
-	struct drm_atomic_state *state;
-	u32 crtcs;
-};
-
-static void rcar_du_atomic_complete(struct rcar_du_commit *commit)
+static void rcar_du_atomic_commit_tail(struct drm_atomic_state *old_state)
 {
-	struct drm_device *dev = commit->dev;
-	struct rcar_du_device *rcdu = dev->dev_private;
-	struct drm_atomic_state *old_state = commit->state;
+	struct drm_device *dev = old_state->dev;
 
 	/* Apply the atomic update. */
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
-	drm_atomic_helper_commit_modeset_enables(dev, old_state);
 	drm_atomic_helper_commit_planes(dev, old_state,
 					DRM_PLANE_COMMIT_ACTIVE_ONLY);
+	drm_atomic_helper_commit_modeset_enables(dev, old_state);
 
-	drm_atomic_helper_wait_for_vblanks(dev, old_state);
+	drm_atomic_helper_commit_hw_done(old_state);
+	drm_atomic_helper_wait_for_flip_done(dev, old_state);
 
 	drm_atomic_helper_cleanup_planes(dev, old_state);
-
-	drm_atomic_state_free(old_state);
-
-	/* Complete the commit, wake up any waiter. */
-	spin_lock(&rcdu->commit.wait.lock);
-	rcdu->commit.pending &= ~commit->crtcs;
-	wake_up_all_locked(&rcdu->commit.wait);
-	spin_unlock(&rcdu->commit.wait.lock);
-
-	kfree(commit);
-}
-
-static void rcar_du_atomic_work(struct work_struct *work)
-{
-	struct rcar_du_commit *commit =
-		container_of(work, struct rcar_du_commit, work);
-
-	rcar_du_atomic_complete(commit);
-}
-
-static int rcar_du_atomic_commit(struct drm_device *dev,
-				 struct drm_atomic_state *state,
-				 bool nonblock)
-{
-	struct rcar_du_device *rcdu = dev->dev_private;
-	struct rcar_du_commit *commit;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
-	unsigned int i;
-	int ret;
-
-	ret = drm_atomic_helper_prepare_planes(dev, state);
-	if (ret)
-		return ret;
-
-	/* Allocate the commit object. */
-	commit = kzalloc(sizeof(*commit), GFP_KERNEL);
-	if (commit == NULL) {
-		ret = -ENOMEM;
-		goto error;
-	}
-
-	INIT_WORK(&commit->work, rcar_du_atomic_work);
-	commit->dev = dev;
-	commit->state = state;
-
-	/* Wait until all affected CRTCs have completed previous commits and
-	 * mark them as pending.
-	 */
-	for_each_crtc_in_state(state, crtc, crtc_state, i)
-		commit->crtcs |= drm_crtc_mask(crtc);
-
-	spin_lock(&rcdu->commit.wait.lock);
-	ret = wait_event_interruptible_locked(rcdu->commit.wait,
-			!(rcdu->commit.pending & commit->crtcs));
-	if (ret == 0)
-		rcdu->commit.pending |= commit->crtcs;
-	spin_unlock(&rcdu->commit.wait.lock);
-
-	if (ret) {
-		kfree(commit);
-		goto error;
-	}
-
-	/* Swap the state, this is the point of no return. */
-	drm_atomic_helper_swap_state(state, true);
-
-	if (nonblock)
-		schedule_work(&commit->work);
-	else
-		rcar_du_atomic_complete(commit);
-
-	return 0;
-
-error:
-	drm_atomic_helper_cleanup_planes(dev, state);
-	return ret;
 }
 
 /* -----------------------------------------------------------------------------
  * Initialization
  */
 
+static const struct drm_mode_config_helper_funcs rcar_du_mode_config_helper = {
+	.atomic_commit_tail = rcar_du_atomic_commit_tail,
+};
+
 static const struct drm_mode_config_funcs rcar_du_mode_config_funcs = {
 	.fb_create = rcar_du_fb_create,
 	.output_poll_changed = rcar_du_output_poll_changed,
 	.atomic_check = rcar_du_atomic_check,
-	.atomic_commit = rcar_du_atomic_commit,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 				     enum rcar_du_output output,
 				     struct of_endpoint *ep)
 {
-	static const struct {
-		const char *compatible;
-		enum rcar_du_encoder_type type;
-	} encoders[] = {
-		{ "adi,adv7123", RCAR_DU_ENCODER_VGA },
-		{ "adi,adv7511w", RCAR_DU_ENCODER_HDMI },
-		{ "thine,thc63lvdm83d", RCAR_DU_ENCODER_LVDS },
-	};
-
-	enum rcar_du_encoder_type enc_type = RCAR_DU_ENCODER_NONE;
 	struct device_node *connector = NULL;
 	struct device_node *encoder = NULL;
 	struct device_node *ep_node = NULL;
@@ -388,12 +299,19 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 	 */
 	entity = of_graph_get_remote_port_parent(ep->local_node);
 	if (!entity) {
-		dev_dbg(rcdu->dev, "unconnected endpoint %s, skipping\n",
-			ep->local_node->full_name);
+		dev_dbg(rcdu->dev, "unconnected endpoint %pOF, skipping\n",
+			ep->local_node);
 		return -ENODEV;
 	}
 
-	entity_ep_node = of_parse_phandle(ep->local_node, "remote-endpoint", 0);
+	if (!of_device_is_available(entity)) {
+		dev_dbg(rcdu->dev,
+			"connected entity %pOF is disabled, skipping\n",
+			entity);
+		return -ENODEV;
+	}
+
+	entity_ep_node = of_graph_get_remote_endpoint(ep->local_node);
 
 	for_each_endpoint_of_node(entity, ep_node) {
 		if (ep_node == entity_ep_node)
@@ -409,8 +327,8 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 
 		if (!connector) {
 			dev_warn(rcdu->dev,
-				 "no connector for encoder %s, skipping\n",
-				 encoder->full_name);
+				 "no connector for encoder %pOF, skipping\n",
+				 encoder);
 			of_node_put(entity_ep_node);
 			of_node_put(encoder);
 			return -ENODEV;
@@ -421,30 +339,7 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 
 	of_node_put(entity_ep_node);
 
-	if (encoder) {
-		/*
-		 * If an encoder has been found, get its type based on its
-		 * compatible string.
-		 */
-		unsigned int i;
-
-		for (i = 0; i < ARRAY_SIZE(encoders); ++i) {
-			if (of_device_is_compatible(encoder,
-						    encoders[i].compatible)) {
-				enc_type = encoders[i].type;
-				break;
-			}
-		}
-
-		if (i == ARRAY_SIZE(encoders)) {
-			dev_warn(rcdu->dev,
-				 "unknown encoder type for %s, skipping\n",
-				 encoder->full_name);
-			of_node_put(encoder);
-			of_node_put(connector);
-			return -EINVAL;
-		}
-	} else {
+	if (!encoder) {
 		/*
 		 * If no encoder has been found the entity must be the
 		 * connector.
@@ -452,14 +347,14 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 		connector = entity;
 	}
 
-	ret = rcar_du_encoder_init(rcdu, enc_type, output, encoder, connector);
-	of_node_put(encoder);
-	of_node_put(connector);
-
+	ret = rcar_du_encoder_init(rcdu, output, encoder, connector);
 	if (ret && ret != -EPROBE_DEFER)
 		dev_warn(rcdu->dev,
-			 "failed to initialize encoder %s (%d), skipping\n",
-			 encoder->full_name, ret);
+			 "failed to initialize encoder %pOF on output %u (%d), skipping\n",
+			 encoder, output, ret);
+
+	of_node_put(encoder);
+	of_node_put(connector);
 
 	return ret;
 }
@@ -526,7 +421,8 @@ static int rcar_du_properties_init(struct rcar_du_device *rcdu)
 	if (rcdu->props.alpha == NULL)
 		return -ENOMEM;
 
-	/* The color key is expressed as an RGB888 triplet stored in a 32-bit
+	/*
+	 * The color key is expressed as an RGB888 triplet stored in a 32-bit
 	 * integer in XRGB8888 format. Bit 24 is used as a flag to disable (0)
 	 * or enable source color keying (1).
 	 */
@@ -537,6 +433,81 @@ static int rcar_du_properties_init(struct rcar_du_device *rcdu)
 		return -ENOMEM;
 
 	return 0;
+}
+
+static int rcar_du_vsps_init(struct rcar_du_device *rcdu)
+{
+	const struct device_node *np = rcdu->dev->of_node;
+	struct of_phandle_args args;
+	struct {
+		struct device_node *np;
+		unsigned int crtcs_mask;
+	} vsps[RCAR_DU_MAX_VSPS] = { { 0, }, };
+	unsigned int vsps_count = 0;
+	unsigned int cells;
+	unsigned int i;
+	int ret;
+
+	/*
+	 * First parse the DT vsps property to populate the list of VSPs. Each
+	 * entry contains a pointer to the VSP DT node and a bitmask of the
+	 * connected DU CRTCs.
+	 */
+	cells = of_property_count_u32_elems(np, "vsps") / rcdu->num_crtcs - 1;
+	if (cells > 1)
+		return -EINVAL;
+
+	for (i = 0; i < rcdu->num_crtcs; ++i) {
+		unsigned int j;
+
+		ret = of_parse_phandle_with_fixed_args(np, "vsps", cells, i,
+						       &args);
+		if (ret < 0)
+			goto error;
+
+		/*
+		 * Add the VSP to the list or update the corresponding existing
+		 * entry if the VSP has already been added.
+		 */
+		for (j = 0; j < vsps_count; ++j) {
+			if (vsps[j].np == args.np)
+				break;
+		}
+
+		if (j < vsps_count)
+			of_node_put(args.np);
+		else
+			vsps[vsps_count++].np = args.np;
+
+		vsps[j].crtcs_mask |= BIT(i);
+
+		/* Store the VSP pointer and pipe index in the CRTC. */
+		rcdu->crtcs[i].vsp = &rcdu->vsps[j];
+		rcdu->crtcs[i].vsp_pipe = cells >= 1 ? args.args[0] : 0;
+	}
+
+	/*
+	 * Then initialize all the VSPs from the node pointers and CRTCs bitmask
+	 * computed previously.
+	 */
+	for (i = 0; i < vsps_count; ++i) {
+		struct rcar_du_vsp *vsp = &rcdu->vsps[i];
+
+		vsp->index = i;
+		vsp->dev = rcdu;
+
+		ret = rcar_du_vsp_init(vsp, vsps[i].np, vsps[i].crtcs_mask);
+		if (ret < 0)
+			goto error;
+	}
+
+	return 0;
+
+error:
+	for (i = 0; i < ARRAY_SIZE(vsps); ++i)
+		of_node_put(vsps[i].np);
+
+	return ret;
 }
 
 int rcar_du_modeset_init(struct rcar_du_device *rcdu)
@@ -560,10 +531,19 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	dev->mode_config.max_width = 4095;
 	dev->mode_config.max_height = 2047;
 	dev->mode_config.funcs = &rcar_du_mode_config_funcs;
+	dev->mode_config.helper_private = &rcar_du_mode_config_helper;
 
 	rcdu->num_crtcs = rcdu->info->num_crtcs;
 
 	ret = rcar_du_properties_init(rcdu);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Initialize vertical blanking interrupts handling. Start with vblank
+	 * disabled for all CRTCs.
+	 */
+	ret = drm_vblank_init(dev, (1 << rcdu->info->num_crtcs) - 1);
 	if (ret < 0)
 		return ret;
 
@@ -580,7 +560,8 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		rgrp->index = i;
 		rgrp->num_crtcs = min(rcdu->num_crtcs - 2 * i, 2U);
 
-		/* If we have more than one CRTCs in this group pre-associate
+		/*
+		 * If we have more than one CRTCs in this group pre-associate
 		 * the low-order planes with CRTC 0 and the high-order planes
 		 * with CRTC 1 to minimize flicker occurring when the
 		 * association is changed.
@@ -598,17 +579,9 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 
 	/* Initialize the compositors. */
 	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_VSP1_SOURCE)) {
-		for (i = 0; i < rcdu->num_crtcs; ++i) {
-			struct rcar_du_vsp *vsp = &rcdu->vsps[i];
-
-			vsp->index = i;
-			vsp->dev = rcdu;
-			rcdu->crtcs[i].vsp = vsp;
-
-			ret = rcar_du_vsp_init(vsp);
-			if (ret < 0)
-				return ret;
-		}
+		ret = rcar_du_vsps_init(rcdu);
+		if (ret < 0)
+			return ret;
 	}
 
 	/* Create the CRTCs. */
@@ -636,7 +609,8 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 
 	num_encoders = ret;
 
-	/* Set the possible CRTCs and possible clones. There's always at least
+	/*
+	 * Set the possible CRTCs and possible clones. There's always at least
 	 * one way for all encoders to clone each other, set all bits in the
 	 * possible clones field.
 	 */
@@ -654,7 +628,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	drm_kms_helper_poll_init(dev);
 
 	if (dev->mode_config.num_connector) {
-		fbdev = drm_fbdev_cma_init(dev, 32, dev->mode_config.num_crtc,
+		fbdev = drm_fbdev_cma_init(dev, 32,
 					   dev->mode_config.num_connector);
 		if (IS_ERR(fbdev))
 			return PTR_ERR(fbdev);

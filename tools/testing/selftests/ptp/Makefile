@@ -1,3 +1,4 @@
+CFLAGS += -I../../../../usr/include/
 TEST_PROGS := testptp
 LDLIBS += -lrt
 all: $(TEST_PROGS)

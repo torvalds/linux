@@ -78,7 +78,7 @@ output devices is available. [#f1]_
 The :ref:`VIDIOC_ENUM_FMT` ioctl must be supported
 by all drivers exchanging image data with applications.
 
-    **Important**
+.. important::
 
     Drivers are not supposed to convert image formats in kernel space.
     They must enumerate only formats directly supported by the hardware.

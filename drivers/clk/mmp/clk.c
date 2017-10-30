@@ -9,7 +9,7 @@
 void mmp_clk_init(struct device_node *np, struct mmp_clk_unit *unit,
 		int nr_clks)
 {
-	static struct clk **clk_table;
+	struct clk **clk_table;
 
 	clk_table = kcalloc(nr_clks, sizeof(struct clk *), GFP_KERNEL);
 	if (!clk_table)

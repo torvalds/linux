@@ -38,11 +38,10 @@
 
 #define LNET_ONLY
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../../include/linux/lnet/lnet.h"
-#include "../../include/linux/lnet/lib-lnet.h"
-#include "../../include/linux/lnet/lib-types.h"
-#include "../../include/linux/lnet/lnetst.h"
+#include <linux/libcfs/libcfs.h>
+#include <linux/lnet/lib-lnet.h>
+#include <linux/lnet/lib-types.h>
+#include <uapi/linux/lnet/lnetst.h>
 
 #include "rpc.h"
 #include "timer.h"
@@ -131,7 +130,8 @@ srpc_service2reply(int service)
 
 enum srpc_event_type {
 	SRPC_BULK_REQ_RCVD   = 1, /* passive bulk request(PUT sink/GET source)
-				   * received */
+				   * received
+				   */
 	SRPC_BULK_PUT_SENT   = 2, /* active bulk PUT sent (source) */
 	SRPC_BULK_GET_RPLD   = 3, /* active bulk GET replied (sink) */
 	SRPC_REPLY_RCVD      = 4, /* incoming reply received */
@@ -143,7 +143,7 @@ enum srpc_event_type {
 /* RPC event */
 struct srpc_event {
 	enum srpc_event_type	ev_type;	/* what's up */
-	lnet_event_kind_t ev_lnet;   /* LNet event type */
+	enum lnet_event_kind	ev_lnet;	/* LNet event type */
 	int		  ev_fired;  /* LNet event fired? */
 	int		  ev_status; /* LNet event status */
 	void		  *ev_data;  /* owning server/client RPC */
@@ -152,19 +152,19 @@ struct srpc_event {
 /* bulk descriptor */
 struct srpc_bulk {
 	int		 bk_len;     /* len of bulk data */
-	lnet_handle_md_t bk_mdh;
+	struct lnet_handle_md	bk_mdh;
 	int		 bk_sink;    /* sink/source */
 	int		 bk_niov;    /* # iov in bk_iovs */
-	lnet_kiov_t	 bk_iovs[0];
+	struct bio_vec		bk_iovs[0];
 };
 
 /* message buffer descriptor */
 struct srpc_buffer {
 	struct list_head  buf_list; /* chain on srpc_service::*_msgq */
 	struct srpc_msg	  buf_msg;
-	lnet_handle_md_t  buf_mdh;
+	struct lnet_handle_md	buf_mdh;
 	lnet_nid_t	  buf_self;
-	lnet_process_id_t buf_peer;
+	struct lnet_process_id	buf_peer;
 };
 
 struct swi_workitem;
@@ -185,9 +185,9 @@ struct srpc_server_rpc {
 	struct swi_workitem	srpc_wi;
 	struct srpc_event	srpc_ev;	/* bulk/reply event */
 	lnet_nid_t	       srpc_self;
-	lnet_process_id_t      srpc_peer;
+	struct lnet_process_id	srpc_peer;
 	struct srpc_msg		srpc_replymsg;
-	lnet_handle_md_t       srpc_replymdh;
+	struct lnet_handle_md	srpc_replymdh;
 	struct srpc_buffer	*srpc_reqstbuf;
 	struct srpc_bulk	*srpc_bulk;
 
@@ -205,7 +205,7 @@ struct srpc_client_rpc {
 	int		  crpc_timeout;   /* # seconds to wait for reply */
 	struct stt_timer       crpc_timer;
 	struct swi_workitem	crpc_wi;
-	lnet_process_id_t crpc_dest;
+	struct lnet_process_id	crpc_dest;
 
 	void		  (*crpc_done)(struct srpc_client_rpc *);
 	void		  (*crpc_fini)(struct srpc_client_rpc *);
@@ -224,8 +224,8 @@ struct srpc_client_rpc {
 	/* bulk, request(reqst), and reply exchanged on wire */
 	struct srpc_msg		crpc_reqstmsg;
 	struct srpc_msg		crpc_replymsg;
-	lnet_handle_md_t  crpc_reqstmdh;
-	lnet_handle_md_t  crpc_replymdh;
+	struct lnet_handle_md	crpc_reqstmdh;
+	struct lnet_handle_md	crpc_replymdh;
 	struct srpc_bulk	crpc_bulk;
 };
 
@@ -295,7 +295,8 @@ struct srpc_service_cd {
 #define SFW_TEST_WI_MIN		256
 #define SFW_TEST_WI_MAX		2048
 /* extra buffers for tolerating buggy peers, or unbalanced number
- * of peers between partitions	*/
+ * of peers between partitions
+ */
 #define SFW_TEST_WI_EXTRA	64
 
 /* number of server workitems (mini-thread) for framework service */
@@ -320,7 +321,7 @@ struct srpc_service {
 
 struct sfw_session {
 	struct list_head sn_list;    /* chain on fw_zombie_sessions */
-	lst_sid_t	 sn_id;      /* unique identifier */
+	struct lst_sid	 sn_id;      /* unique identifier */
 	unsigned int	 sn_timeout; /* # seconds' inactivity to expire */
 	int		 sn_timer_active;
 	unsigned int	 sn_features;
@@ -338,7 +339,7 @@ struct sfw_session {
 
 struct sfw_batch {
 	struct list_head bat_list;	/* chain on sn_batches */
-	lst_bid_t	 bat_id;	/* batch id */
+	struct lst_bid	 bat_id;	/* batch id */
 	int		 bat_error;	/* error code of batch */
 	struct sfw_session	*bat_session;	/* batch's session */
 	atomic_t	 bat_nactive;	/* # of active tests */
@@ -347,11 +348,13 @@ struct sfw_batch {
 
 struct sfw_test_client_ops {
 	int  (*tso_init)(struct sfw_test_instance *tsi); /* initialize test
-							  * client */
+							  * client
+							  */
 	void (*tso_fini)(struct sfw_test_instance *tsi); /* finalize test
-							  * client */
+							  * client
+							  */
 	int  (*tso_prep_rpc)(struct sfw_test_unit *tsu,
-			     lnet_process_id_t dest,
+			     struct lnet_process_id dest,
 			     struct srpc_client_rpc **rpc);	/* prep a tests rpc */
 	void (*tso_done_rpc)(struct sfw_test_unit *tsu,
 			     struct srpc_client_rpc *rpc);	/* done a test rpc */
@@ -374,7 +377,8 @@ struct sfw_test_instance {
 	spinlock_t		   tsi_lock;		/* serialize */
 	unsigned int		   tsi_stopping:1;	/* test is stopping */
 	atomic_t		   tsi_nactive;		/* # of active test
-							 * unit */
+							 * unit
+							 */
 	struct list_head	   tsi_units;		/* test units */
 	struct list_head	   tsi_free_rpcs;	/* free rpcs */
 	struct list_head	   tsi_active_rpcs;	/* active rpcs */
@@ -386,16 +390,18 @@ struct sfw_test_instance {
 	} tsi_u;
 };
 
-/* XXX: trailing (PAGE_SIZE % sizeof(lnet_process_id_t)) bytes at the end of
- * pages are not used */
+/*
+ * XXX: trailing (PAGE_SIZE % sizeof(struct lnet_process_id)) bytes at the end
+ * of pages are not used
+ */
 #define SFW_MAX_CONCUR	   LST_MAX_CONCUR
-#define SFW_ID_PER_PAGE    (PAGE_SIZE / sizeof(lnet_process_id_packed_t))
+#define SFW_ID_PER_PAGE    (PAGE_SIZE / sizeof(struct lnet_process_id_packed))
 #define SFW_MAX_NDESTS	   (LNET_MAX_IOV * SFW_ID_PER_PAGE)
 #define sfw_id_pages(n)    (((n) + SFW_ID_PER_PAGE - 1) / SFW_ID_PER_PAGE)
 
 struct sfw_test_unit {
 	struct list_head    tsu_list;	   /* chain on lst_test_instance */
-	lnet_process_id_t   tsu_dest;	   /* id of dest node */
+	struct lnet_process_id		tsu_dest;	/* id of dest node */
 	int		    tsu_loop;	   /* loop count of the test */
 	struct sfw_test_instance	*tsu_instance; /* pointer to test instance */
 	void		    *tsu_private;  /* private data */
@@ -409,11 +415,11 @@ struct sfw_test_case {
 };
 
 struct srpc_client_rpc *
-sfw_create_rpc(lnet_process_id_t peer, int service,
-	       unsigned features, int nbulkiov, int bulklen,
+sfw_create_rpc(struct lnet_process_id peer, int service,
+	       unsigned int features, int nbulkiov, int bulklen,
 	       void (*done)(struct srpc_client_rpc *), void *priv);
 int sfw_create_test_rpc(struct sfw_test_unit *tsu,
-			lnet_process_id_t peer, unsigned features,
+			struct lnet_process_id peer, unsigned int features,
 			int nblk, int blklen, struct srpc_client_rpc **rpc);
 void sfw_abort_rpc(struct srpc_client_rpc *rpc);
 void sfw_post_rpc(struct srpc_client_rpc *rpc);
@@ -427,15 +433,16 @@ int sfw_make_session(struct srpc_mksn_reqst *request,
 		     struct srpc_mksn_reply *reply);
 
 struct srpc_client_rpc *
-srpc_create_client_rpc(lnet_process_id_t peer, int service,
+srpc_create_client_rpc(struct lnet_process_id peer, int service,
 		       int nbulkiov, int bulklen,
 		       void (*rpc_done)(struct srpc_client_rpc *),
 		       void (*rpc_fini)(struct srpc_client_rpc *), void *priv);
 void srpc_post_rpc(struct srpc_client_rpc *rpc);
 void srpc_abort_rpc(struct srpc_client_rpc *rpc, int why);
 void srpc_free_bulk(struct srpc_bulk *bk);
-struct srpc_bulk *srpc_alloc_bulk(int cpt, unsigned bulk_npg,
-				  unsigned bulk_len, int sink);
+struct srpc_bulk *srpc_alloc_bulk(int cpt, unsigned int off,
+				  unsigned int bulk_npg, unsigned int bulk_len,
+				  int sink);
 int srpc_send_rpc(struct swi_workitem *wi);
 int srpc_send_reply(struct srpc_server_rpc *rpc);
 int srpc_add_service(struct srpc_service *sv);
@@ -445,8 +452,8 @@ void srpc_abort_service(struct srpc_service *sv);
 int srpc_finish_service(struct srpc_service *sv);
 int srpc_service_add_buffers(struct srpc_service *sv, int nbuffer);
 void srpc_service_remove_buffers(struct srpc_service *sv, int nbuffer);
-void srpc_get_counters(srpc_counters_t *cnt);
-void srpc_set_counters(const srpc_counters_t *cnt);
+void srpc_get_counters(struct srpc_counters *cnt);
+void srpc_set_counters(const struct srpc_counters *cnt);
 
 extern struct cfs_wi_sched *lst_sched_serial;
 extern struct cfs_wi_sched **lst_sched_test;
@@ -514,7 +521,7 @@ srpc_destroy_client_rpc(struct srpc_client_rpc *rpc)
 }
 
 static inline void
-srpc_init_client_rpc(struct srpc_client_rpc *rpc, lnet_process_id_t peer,
+srpc_init_client_rpc(struct srpc_client_rpc *rpc, struct lnet_process_id peer,
 		     int service, int nbulkiov, int bulklen,
 		     void (*rpc_done)(struct srpc_client_rpc *),
 		     void (*rpc_fini)(struct srpc_client_rpc *), void *priv)
@@ -537,9 +544,9 @@ srpc_init_client_rpc(struct srpc_client_rpc *rpc, lnet_process_id_t peer,
 	rpc->crpc_bulk.bk_niov = nbulkiov;
 	rpc->crpc_done = rpc_done;
 	rpc->crpc_fini = rpc_fini;
-	LNetInvalidateHandle(&rpc->crpc_reqstmdh);
-	LNetInvalidateHandle(&rpc->crpc_replymdh);
-	LNetInvalidateHandle(&rpc->crpc_bulk.bk_mdh);
+	LNetInvalidateMDHandle(&rpc->crpc_reqstmdh);
+	LNetInvalidateMDHandle(&rpc->crpc_replymdh);
+	LNetInvalidateMDHandle(&rpc->crpc_bulk.bk_mdh);
 
 	/* no event is expected at this point */
 	rpc->crpc_bulkev.ev_fired = 1;

@@ -8,7 +8,10 @@
 
 #include <linux/workqueue.h>
 #include <linux/kthread.h>
+#include <linux/sched/signal.h>
+
 #include <asm/unaligned.h>
+#include <net/tcp.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
 #include "cxgbit.h"
@@ -133,7 +136,7 @@ cxgbit_cpl_tx_data_iso(struct sk_buff *skb, struct cxgbit_iso_info *iso_info)
 	unsigned int fslice = !!(iso_info->flags & CXGBIT_ISO_FSLICE);
 	unsigned int lslice = !!(iso_info->flags & CXGBIT_ISO_LSLICE);
 
-	cpl = (struct cpl_tx_data_iso *)__skb_push(skb, sizeof(*cpl));
+	cpl = __skb_push(skb, sizeof(*cpl));
 
 	cpl->op_to_scsi = htonl(CPL_TX_DATA_ISO_OP_V(CPL_TX_DATA_ISO) |
 			CPL_TX_DATA_ISO_FIRST_V(fslice) |
@@ -161,12 +164,14 @@ cxgbit_tx_data_wr(struct cxgbit_sock *csk, struct sk_buff *skb, u32 dlen,
 		  u32 len, u32 credits, u32 compl)
 {
 	struct fw_ofld_tx_data_wr *req;
+	const struct cxgb4_lld_info *lldi = &csk->com.cdev->lldi;
 	u32 submode = cxgbit_skcb_submode(skb);
 	u32 wr_ulp_mode = 0;
 	u32 hdr_size = sizeof(*req);
 	u32 opcode = FW_OFLD_TX_DATA_WR;
 	u32 immlen = 0;
-	u32 force = TX_FORCE_V(!submode);
+	u32 force = is_t5(lldi->adapter_type) ? TX_FORCE_V(!submode) :
+		    T6_TX_FORCE_F;
 
 	if (cxgbit_skcb_flags(skb) & SKCBF_TX_ISO) {
 		opcode = FW_ISCSI_TX_DATA_WR;
@@ -178,8 +183,7 @@ cxgbit_tx_data_wr(struct cxgbit_sock *csk, struct sk_buff *skb, u32 dlen,
 	if (cxgbit_is_ofld_imm(skb))
 		immlen += dlen;
 
-	req = (struct fw_ofld_tx_data_wr *)__skb_push(skb,
-							hdr_size);
+	req = __skb_push(skb, hdr_size);
 	req->op_to_immdlen = cpu_to_be32(FW_WR_OP_V(opcode) |
 					FW_WR_COMPL_V(compl) |
 					FW_WR_IMMDLEN_V(immlen));
@@ -242,7 +246,7 @@ void cxgbit_push_tx_frames(struct cxgbit_sock *csk)
 		}
 		__skb_unlink(skb, &csk->txq);
 		set_wr_txq(skb, CPL_PRIORITY_DATA, csk->txq_idx);
-		skb->csum = credits_needed + flowclen16;
+		skb->csum = (__force __wsum)(credits_needed + flowclen16);
 		csk->wr_cred -= credits_needed;
 		csk->wr_una_cred += credits_needed;
 
@@ -650,26 +654,6 @@ static int cxgbit_set_iso_npdu(struct cxgbit_sock *csk)
 	u32 max_npdu, max_iso_npdu;
 
 	if (conn->login->leading_connection) {
-		param = iscsi_find_param_from_key(DATASEQUENCEINORDER,
-						  conn->param_list);
-		if (!param) {
-			pr_err("param not found key %s\n", DATASEQUENCEINORDER);
-			return -1;
-		}
-
-		if (strcmp(param->value, YES))
-			return 0;
-
-		param = iscsi_find_param_from_key(DATAPDUINORDER,
-						  conn->param_list);
-		if (!param) {
-			pr_err("param not found key %s\n", DATAPDUINORDER);
-			return -1;
-		}
-
-		if (strcmp(param->value, YES))
-			return 0;
-
 		param = iscsi_find_param_from_key(MAXBURSTLENGTH,
 						  conn->param_list);
 		if (!param) {
@@ -680,11 +664,6 @@ static int cxgbit_set_iso_npdu(struct cxgbit_sock *csk)
 		if (kstrtou32(param->value, 0, &mbl) < 0)
 			return -1;
 	} else {
-		if (!conn->sess->sess_ops->DataSequenceInOrder)
-			return 0;
-		if (!conn->sess->sess_ops->DataPDUInOrder)
-			return 0;
-
 		mbl = conn->sess->sess_ops->MaxBurstLength;
 	}
 
@@ -699,6 +678,53 @@ static int cxgbit_set_iso_npdu(struct cxgbit_sock *csk)
 
 	if (csk->max_iso_npdu <= 1)
 		csk->max_iso_npdu = 0;
+
+	return 0;
+}
+
+/*
+ * cxgbit_seq_pdu_inorder()
+ * @csk: pointer to cxgbit socket structure
+ *
+ * This function checks whether data sequence and data
+ * pdu are in order.
+ *
+ * Return: returns -1 on error, 0 if data sequence and
+ * data pdu are in order, 1 if data sequence or data pdu
+ * is not in order.
+ */
+static int cxgbit_seq_pdu_inorder(struct cxgbit_sock *csk)
+{
+	struct iscsi_conn *conn = csk->conn;
+	struct iscsi_param *param;
+
+	if (conn->login->leading_connection) {
+		param = iscsi_find_param_from_key(DATASEQUENCEINORDER,
+						  conn->param_list);
+		if (!param) {
+			pr_err("param not found key %s\n", DATASEQUENCEINORDER);
+			return -1;
+		}
+
+		if (strcmp(param->value, YES))
+			return 1;
+
+		param = iscsi_find_param_from_key(DATAPDUINORDER,
+						  conn->param_list);
+		if (!param) {
+			pr_err("param not found key %s\n", DATAPDUINORDER);
+			return -1;
+		}
+
+		if (strcmp(param->value, YES))
+			return 1;
+
+	} else {
+		if (!conn->sess->sess_ops->DataSequenceInOrder)
+			return 1;
+		if (!conn->sess->sess_ops->DataPDUInOrder)
+			return 1;
+	}
 
 	return 0;
 }
@@ -729,11 +755,24 @@ static int cxgbit_set_params(struct iscsi_conn *conn)
 	}
 
 	if (!erl) {
+		int ret;
+
+		ret = cxgbit_seq_pdu_inorder(csk);
+		if (ret < 0) {
+			return -1;
+		} else if (ret > 0) {
+			if (is_t5(cdev->lldi.adapter_type))
+				goto enable_ddp;
+			else
+				goto enable_digest;
+		}
+
 		if (test_bit(CDEV_ISO_ENABLE, &cdev->flags)) {
 			if (cxgbit_set_iso_npdu(csk))
 				return -1;
 		}
 
+enable_ddp:
 		if (test_bit(CDEV_DDP_ENABLE, &cdev->flags)) {
 			if (cxgbit_setup_conn_pgidx(csk,
 						    ppm->tformat.pgsz_idx_dflt))
@@ -742,6 +781,7 @@ static int cxgbit_set_params(struct iscsi_conn *conn)
 		}
 	}
 
+enable_digest:
 	if (cxgbit_set_digest(csk))
 		return -1;
 
@@ -787,7 +827,7 @@ cxgbit_put_login_tx(struct iscsi_conn *conn, struct iscsi_login *login,
 
 static void
 cxgbit_skb_copy_to_sg(struct sk_buff *skb, struct scatterlist *sg,
-		      unsigned int nents)
+		      unsigned int nents, u32 skip)
 {
 	struct skb_seq_state st;
 	const u8 *buf;
@@ -806,7 +846,7 @@ cxgbit_skb_copy_to_sg(struct sk_buff *skb, struct scatterlist *sg,
 		}
 
 		consumed += sg_pcopy_from_buffer(sg, nents, (void *)buf,
-						 buf_len, consumed);
+						 buf_len, skip + consumed);
 	}
 }
 
@@ -872,7 +912,7 @@ cxgbit_handle_immediate_data(struct iscsi_cmd *cmd, struct iscsi_scsi_req *hdr,
 		struct scatterlist *sg = &cmd->se_cmd.t_data_sg[0];
 		u32 sg_nents = max(1UL, DIV_ROUND_UP(pdu_cb->dlen, PAGE_SIZE));
 
-		cxgbit_skb_copy_to_sg(csk->skb, sg, sg_nents);
+		cxgbit_skb_copy_to_sg(csk->skb, sg, sg_nents, 0);
 	}
 
 	cmd->write_data_done += pdu_cb->dlen;
@@ -982,11 +1022,36 @@ static int cxgbit_handle_iscsi_dataout(struct cxgbit_sock *csk)
 	int rc, sg_nents, sg_off;
 	bool dcrc_err = false;
 
-	rc = iscsit_check_dataout_hdr(conn, (unsigned char *)hdr, &cmd);
-	if (rc < 0)
-		return rc;
-	else if (!cmd)
-		return 0;
+	if (pdu_cb->flags & PDUCBF_RX_DDP_CMP) {
+		u32 offset = be32_to_cpu(hdr->offset);
+		u32 ddp_data_len;
+		u32 payload_length = ntoh24(hdr->dlength);
+		bool success = false;
+
+		cmd = iscsit_find_cmd_from_itt_or_dump(conn, hdr->itt, 0);
+		if (!cmd)
+			return 0;
+
+		ddp_data_len = offset - cmd->write_data_done;
+		atomic_long_add(ddp_data_len, &conn->sess->rx_data_octets);
+
+		cmd->write_data_done = offset;
+		cmd->next_burst_len = ddp_data_len;
+		cmd->data_sn = be32_to_cpu(hdr->datasn);
+
+		rc = __iscsit_check_dataout_hdr(conn, (unsigned char *)hdr,
+						cmd, payload_length, &success);
+		if (rc < 0)
+			return rc;
+		else if (!success)
+			return 0;
+	} else {
+		rc = iscsit_check_dataout_hdr(conn, (unsigned char *)hdr, &cmd);
+		if (rc < 0)
+			return rc;
+		else if (!cmd)
+			return 0;
+	}
 
 	if (pdu_cb->flags & PDUCBF_RX_DCRC_ERR) {
 		pr_err("ITT: 0x%08x, Offset: %u, Length: %u,"
@@ -1004,11 +1069,13 @@ static int cxgbit_handle_iscsi_dataout(struct cxgbit_sock *csk)
 		  cmd->se_cmd.data_length);
 
 	if (!(pdu_cb->flags & PDUCBF_RX_DATA_DDPD)) {
+		u32 skip = data_offset % PAGE_SIZE;
+
 		sg_off = data_offset / PAGE_SIZE;
 		sg_start = &cmd->se_cmd.t_data_sg[sg_off];
-		sg_nents = max(1UL, DIV_ROUND_UP(data_len, PAGE_SIZE));
+		sg_nents = max(1UL, DIV_ROUND_UP(skip + data_len, PAGE_SIZE));
 
-		cxgbit_skb_copy_to_sg(csk->skb, sg_start, sg_nents);
+		cxgbit_skb_copy_to_sg(csk->skb, sg_start, sg_nents, skip);
 	}
 
 check_payload:
@@ -1350,6 +1417,9 @@ static void cxgbit_lro_hskb_reset(struct cxgbit_sock *csk)
 	for (i = 0; i < ssi->nr_frags; i++)
 		put_page(skb_frag_page(&ssi->frags[i]));
 	ssi->nr_frags = 0;
+	skb->data_len = 0;
+	skb->truesize -= skb->len;
+	skb->len = 0;
 }
 
 static void
@@ -1363,39 +1433,42 @@ cxgbit_lro_skb_merge(struct cxgbit_sock *csk, struct sk_buff *skb, u8 pdu_idx)
 	unsigned int len = 0;
 
 	if (pdu_cb->flags & PDUCBF_RX_HDR) {
-		hpdu_cb->flags = pdu_cb->flags;
+		u8 hfrag_idx = hssi->nr_frags;
+
+		hpdu_cb->flags |= pdu_cb->flags;
 		hpdu_cb->seq = pdu_cb->seq;
 		hpdu_cb->hdr = pdu_cb->hdr;
 		hpdu_cb->hlen = pdu_cb->hlen;
 
-		memcpy(&hssi->frags[0], &ssi->frags[pdu_cb->hfrag_idx],
+		memcpy(&hssi->frags[hfrag_idx], &ssi->frags[pdu_cb->hfrag_idx],
 		       sizeof(skb_frag_t));
 
-		get_page(skb_frag_page(&hssi->frags[0]));
-		hssi->nr_frags = 1;
-		hpdu_cb->frags = 1;
-		hpdu_cb->hfrag_idx = 0;
+		get_page(skb_frag_page(&hssi->frags[hfrag_idx]));
+		hssi->nr_frags++;
+		hpdu_cb->frags++;
+		hpdu_cb->hfrag_idx = hfrag_idx;
 
-		len = hssi->frags[0].size;
-		hskb->len = len;
-		hskb->data_len = len;
-		hskb->truesize = len;
+		len = hssi->frags[hfrag_idx].size;
+		hskb->len += len;
+		hskb->data_len += len;
+		hskb->truesize += len;
 	}
 
 	if (pdu_cb->flags & PDUCBF_RX_DATA) {
-		u8 hfrag_idx = 1, i;
+		u8 dfrag_idx = hssi->nr_frags, i;
 
 		hpdu_cb->flags |= pdu_cb->flags;
+		hpdu_cb->dfrag_idx = dfrag_idx;
 
 		len = 0;
-		for (i = 0; i < pdu_cb->nr_dfrags; hfrag_idx++, i++) {
-			memcpy(&hssi->frags[hfrag_idx],
+		for (i = 0; i < pdu_cb->nr_dfrags; dfrag_idx++, i++) {
+			memcpy(&hssi->frags[dfrag_idx],
 			       &ssi->frags[pdu_cb->dfrag_idx + i],
 			       sizeof(skb_frag_t));
 
-			get_page(skb_frag_page(&hssi->frags[hfrag_idx]));
+			get_page(skb_frag_page(&hssi->frags[dfrag_idx]));
 
-			len += hssi->frags[hfrag_idx].size;
+			len += hssi->frags[dfrag_idx].size;
 
 			hssi->nr_frags++;
 			hpdu_cb->frags++;
@@ -1404,7 +1477,6 @@ cxgbit_lro_skb_merge(struct cxgbit_sock *csk, struct sk_buff *skb, u8 pdu_idx)
 		hpdu_cb->dlen = pdu_cb->dlen;
 		hpdu_cb->doffset = hpdu_cb->hlen;
 		hpdu_cb->nr_dfrags = pdu_cb->nr_dfrags;
-		hpdu_cb->dfrag_idx = 1;
 		hskb->len += len;
 		hskb->data_len += len;
 		hskb->truesize += len;
@@ -1489,10 +1561,15 @@ static int cxgbit_rx_lro_skb(struct cxgbit_sock *csk, struct sk_buff *skb)
 
 static int cxgbit_rx_skb(struct cxgbit_sock *csk, struct sk_buff *skb)
 {
+	struct cxgb4_lld_info *lldi = &csk->com.cdev->lldi;
 	int ret = -1;
 
-	if (likely(cxgbit_skcb_flags(skb) & SKCBF_RX_LRO))
-		ret = cxgbit_rx_lro_skb(csk, skb);
+	if (likely(cxgbit_skcb_flags(skb) & SKCBF_RX_LRO)) {
+		if (is_t5(lldi->adapter_type))
+			ret = cxgbit_rx_lro_skb(csk, skb);
+		else
+			ret = cxgbit_process_lro_skb(csk, skb);
+	}
 
 	__kfree_skb(skb);
 	return ret;

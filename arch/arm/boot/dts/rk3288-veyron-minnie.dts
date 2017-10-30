@@ -55,7 +55,7 @@
 	backlight_regulator: backlight-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio2 12 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio2 RK_PB4 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&bl_pwr_en>;
 		regulator-name = "backlight_regulator";
@@ -66,7 +66,7 @@
 	panel_regulator: panel-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio7 14 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio7 RK_PB6 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&lcd_enable_h>;
 		regulator-name = "panel_regulator";
@@ -77,7 +77,7 @@
 	vcc18_lcd: vcc18-lcd {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio2 13 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&avdd_1v8_disp_en>;
 		regulator-name = "vcc18_lcd";
@@ -134,14 +134,14 @@
 
 	volum_down {
 		label = "Volum_down";
-		gpios = <&gpio5 11 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio5 RK_PB3 GPIO_ACTIVE_LOW>;
 		linux,code = <KEY_VOLUMEDOWN>;
 		debounce-interval = <100>;
 	};
 
 	volum_up {
 		label = "Volum_up";
-		gpios = <&gpio5 10 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio5 RK_PB2 GPIO_ACTIVE_LOW>;
 		linux,code = <KEY_VOLUMEUP>;
 		debounce-interval = <100>;
 	};
@@ -165,10 +165,10 @@
 		compatible = "elan,ekth3500";
 		reg = <0x10>;
 		interrupt-parent = <&gpio2>;
-		interrupts = <14 IRQ_TYPE_EDGE_FALLING>;
+		interrupts = <RK_PB6 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&touch_int &touch_rst>;
-		reset-gpios = <&gpio2 15 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio2 RK_PB7 GPIO_ACTIVE_LOW>;
 		vcc33-supply = <&vcc33_touch>;
 		vccio-supply = <&vcc33_touch>;
 	};
@@ -211,14 +211,14 @@
 
 &vcc_5v {
 	enable-active-high;
-	gpio = <&gpio7 21 GPIO_ACTIVE_HIGH>;
+	gpio = <&gpio7 RK_PC5 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&drv_5v>;
 };
 
 &vcc50_hdmi {
 	enable-active-high;
-	gpio = <&gpio5 19 GPIO_ACTIVE_HIGH>;
+	gpio = <&gpio5 RK_PC3 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&vcc50_hdmi_en>;
 };

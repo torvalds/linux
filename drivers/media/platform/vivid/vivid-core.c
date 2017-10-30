@@ -30,6 +30,7 @@
 #include <linux/videodev2.h>
 #include <linux/v4l2-dv-timings.h>
 #include <media/videobuf2-vmalloc.h>
+#include <media/videobuf2-dma-contig.h>
 #include <media/v4l2-dv-timings.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-fh.h>
@@ -151,6 +152,12 @@ static bool no_error_inj;
 module_param(no_error_inj, bool, 0444);
 MODULE_PARM_DESC(no_error_inj, " if set disable the error injecting controls");
 
+static unsigned int allocators[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = 0 };
+module_param_array(allocators, uint, NULL, 0444);
+MODULE_PARM_DESC(allocators, " memory allocator selection, default is 0.\n"
+			     "\t\t    0 == vmalloc\n"
+			     "\t\t    1 == dma-contig");
+
 static struct vivid_dev *vivid_devs[VIVID_MAX_DEVS];
 
 const struct v4l2_rect vivid_min_rect = {
@@ -183,7 +190,7 @@ static const u8 vivid_hdmi_edid[256] = {
 	0x5e, 0x5d, 0x10, 0x1f, 0x04, 0x13, 0x22, 0x21,
 	0x20, 0x05, 0x14, 0x02, 0x11, 0x01, 0x23, 0x09,
 	0x07, 0x07, 0x83, 0x01, 0x00, 0x00, 0x6d, 0x03,
-	0x0c, 0x00, 0x10, 0x00, 0x00, 0x78, 0x21, 0x00,
+	0x0c, 0x00, 0x10, 0x00, 0x00, 0x3c, 0x21, 0x00,
 	0x60, 0x01, 0x02, 0x03, 0x67, 0xd8, 0x5d, 0xc4,
 	0x01, 0x78, 0x00, 0x00, 0xe2, 0x00, 0xea, 0xe3,
 	0x05, 0x00, 0x00, 0xe3, 0x06, 0x01, 0x00, 0x4d,
@@ -194,7 +201,7 @@ static const u8 vivid_hdmi_edid[256] = {
 	0x00, 0x00, 0x1a, 0x1a, 0x1d, 0x00, 0x80, 0x51,
 	0xd0, 0x1c, 0x20, 0x40, 0x80, 0x35, 0x00, 0xc0,
 	0x1c, 0x32, 0x00, 0x00, 0x1c, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x27,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x63,
 };
 
 static int vidioc_querycap(struct file *file, void  *priv,
@@ -636,6 +643,10 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 {
 	static const struct v4l2_dv_timings def_dv_timings =
 					V4L2_DV_BT_CEA_1280X720P60;
+	static const struct vb2_mem_ops * const vivid_mem_ops[2] = {
+		&vb2_vmalloc_memops,
+		&vb2_dma_contig_memops,
+	};
 	unsigned in_type_counter[4] = { 0, 0, 0, 0 };
 	unsigned out_type_counter[4] = { 0, 0, 0, 0 };
 	int ccs_cap = ccs_cap_mode[inst];
@@ -646,6 +657,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	struct video_device *vfd;
 	struct vb2_queue *q;
 	unsigned node_type = node_types[inst];
+	unsigned int allocator = allocators[inst];
 	v4l2_std_id tvnorms_cap = 0, tvnorms_out = 0;
 	int ret;
 	int i;
@@ -1039,6 +1051,11 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		goto unreg_dev;
 	}
 
+	if (allocator == 1)
+		dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	else if (allocator >= ARRAY_SIZE(vivid_mem_ops))
+		allocator = 0;
+
 	/* start creating the vb2 queues */
 	if (dev->has_vid_cap) {
 		/* initialize vid_cap queue */
@@ -1049,10 +1066,11 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->drv_priv = dev;
 		q->buf_struct_size = sizeof(struct vivid_buffer);
 		q->ops = &vivid_vid_cap_qops;
-		q->mem_ops = &vb2_vmalloc_memops;
+		q->mem_ops = vivid_mem_ops[allocator];
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
 		q->lock = &dev->mutex;
+		q->dev = dev->v4l2_dev.dev;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1068,10 +1086,11 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->drv_priv = dev;
 		q->buf_struct_size = sizeof(struct vivid_buffer);
 		q->ops = &vivid_vid_out_qops;
-		q->mem_ops = &vb2_vmalloc_memops;
+		q->mem_ops = vivid_mem_ops[allocator];
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
 		q->lock = &dev->mutex;
+		q->dev = dev->v4l2_dev.dev;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1087,10 +1106,11 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->drv_priv = dev;
 		q->buf_struct_size = sizeof(struct vivid_buffer);
 		q->ops = &vivid_vbi_cap_qops;
-		q->mem_ops = &vb2_vmalloc_memops;
+		q->mem_ops = vivid_mem_ops[allocator];
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
 		q->lock = &dev->mutex;
+		q->dev = dev->v4l2_dev.dev;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1106,10 +1126,11 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->drv_priv = dev;
 		q->buf_struct_size = sizeof(struct vivid_buffer);
 		q->ops = &vivid_vbi_out_qops;
-		q->mem_ops = &vb2_vmalloc_memops;
+		q->mem_ops = vivid_mem_ops[allocator];
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
 		q->lock = &dev->mutex;
+		q->dev = dev->v4l2_dev.dev;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1124,10 +1145,11 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->drv_priv = dev;
 		q->buf_struct_size = sizeof(struct vivid_buffer);
 		q->ops = &vivid_sdr_cap_qops;
-		q->mem_ops = &vb2_vmalloc_memops;
+		q->mem_ops = vivid_mem_ops[allocator];
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 8;
 		q->lock = &dev->mutex;
+		q->dev = dev->v4l2_dev.dev;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1167,20 +1189,20 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		if (in_type_counter[HDMI]) {
 			struct cec_adapter *adap;
 
-			adap = vivid_cec_alloc_adap(dev, 0, &pdev->dev, false);
+			adap = vivid_cec_alloc_adap(dev, 0, false);
 			ret = PTR_ERR_OR_ZERO(adap);
 			if (ret < 0)
 				goto unreg_dev;
 			dev->cec_rx_adap = adap;
-			ret = cec_register_adapter(adap);
+			ret = cec_register_adapter(adap, &pdev->dev);
 			if (ret < 0) {
 				cec_delete_adapter(adap);
 				dev->cec_rx_adap = NULL;
 				goto unreg_dev;
 			}
 			cec_s_phys_addr(adap, 0, false);
-			v4l2_info(&dev->v4l2_dev, "CEC adapter %s registered for HDMI input %d\n",
-				  dev_name(&adap->devnode.dev), i);
+			v4l2_info(&dev->v4l2_dev, "CEC adapter %s registered for HDMI input 0\n",
+				  dev_name(&adap->devnode.dev));
 		}
 #endif
 
@@ -1222,25 +1244,24 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 			if (dev->output_type[i] != HDMI)
 				continue;
 			dev->cec_output2bus_map[i] = bus_cnt;
-			adap = vivid_cec_alloc_adap(dev, bus_cnt,
-						     &pdev->dev, true);
+			adap = vivid_cec_alloc_adap(dev, bus_cnt, true);
 			ret = PTR_ERR_OR_ZERO(adap);
 			if (ret < 0)
 				goto unreg_dev;
 			dev->cec_tx_adap[bus_cnt] = adap;
-			ret = cec_register_adapter(adap);
+			ret = cec_register_adapter(adap, &pdev->dev);
 			if (ret < 0) {
 				cec_delete_adapter(adap);
 				dev->cec_tx_adap[bus_cnt] = NULL;
 				goto unreg_dev;
 			}
+			v4l2_info(&dev->v4l2_dev, "CEC adapter %s registered for HDMI output %d\n",
+				  dev_name(&adap->devnode.dev), bus_cnt);
 			bus_cnt++;
 			if (bus_cnt <= out_type_counter[HDMI])
 				cec_s_phys_addr(adap, bus_cnt << 12, false);
 			else
 				cec_s_phys_addr(adap, 0x1000, false);
-			v4l2_info(&dev->v4l2_dev, "CEC adapter %s registered for HDMI output %d\n",
-				  dev_name(&adap->devnode.dev), i);
 		}
 #endif
 

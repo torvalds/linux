@@ -107,7 +107,7 @@ static const struct snd_kcontrol_new mt2701_cs42448_controls[] = {
 
 static const unsigned int mt2701_cs42448_sampling_rates[] = {48000};
 
-static struct snd_pcm_hw_constraint_list mt2701_cs42448_constraints_rates = {
+static const struct snd_pcm_hw_constraint_list mt2701_cs42448_constraints_rates = {
 		.count = ARRAY_SIZE(mt2701_cs42448_sampling_rates),
 		.list = mt2701_cs42448_sampling_rates,
 		.mask = 0,
@@ -129,7 +129,7 @@ static int mt2701_cs42448_fe_ops_startup(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_soc_ops mt2701_cs42448_48k_fe_ops = {
+static const struct snd_soc_ops mt2701_cs42448_48k_fe_ops = {
 	.startup = mt2701_cs42448_fe_ops_startup,
 };
 

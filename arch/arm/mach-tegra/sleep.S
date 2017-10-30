@@ -30,8 +30,6 @@
 #include <asm/hardware/cache-l2x0.h>
 
 #include "iomap.h"
-
-#include "flowctrl.h"
 #include "sleep.h"
 
 #define CLK_RESET_CCLK_BURST	0x20

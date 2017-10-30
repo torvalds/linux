@@ -67,6 +67,8 @@ void __init setup_cpuinfo(void)
 	cpuinfo.has_div = of_property_read_bool(cpu, "altr,has-div");
 	cpuinfo.has_mul = of_property_read_bool(cpu, "altr,has-mul");
 	cpuinfo.has_mulx = of_property_read_bool(cpu, "altr,has-mulx");
+	cpuinfo.has_bmx = of_property_read_bool(cpu, "altr,has-bmx");
+	cpuinfo.has_cdx = of_property_read_bool(cpu, "altr,has-cdx");
 	cpuinfo.mmu = of_property_read_bool(cpu, "altr,has-mmu");
 
 	if (IS_ENABLED(CONFIG_NIOS2_HW_DIV_SUPPORT) && !cpuinfo.has_div)
@@ -77,6 +79,12 @@ void __init setup_cpuinfo(void)
 
 	if (IS_ENABLED(CONFIG_NIOS2_HW_MULX_SUPPORT) && !cpuinfo.has_mulx)
 		err_cpu("MULX");
+
+	if (IS_ENABLED(CONFIG_NIOS2_BMX_SUPPORT) && !cpuinfo.has_bmx)
+		err_cpu("BMX");
+
+	if (IS_ENABLED(CONFIG_NIOS2_CDX_SUPPORT) && !cpuinfo.has_cdx)
+		err_cpu("CDX");
 
 	cpuinfo.tlb_num_ways = fcpu(cpu, "altr,tlb-num-ways");
 	if (!cpuinfo.tlb_num_ways)
@@ -125,12 +133,14 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	seq_printf(m,
 		   "CPU:\t\tNios II/%s\n"
+		   "REV:\t\t%i\n"
 		   "MMU:\t\t%s\n"
 		   "FPU:\t\tnone\n"
 		   "Clocking:\t%u.%02u MHz\n"
 		   "BogoMips:\t%lu.%02lu\n"
 		   "Calibration:\t%lu loops\n",
 		   cpuinfo.cpu_impl,
+		   CONFIG_NIOS2_ARCH_REVISION,
 		   cpuinfo.mmu ? "present" : "none",
 		   clockfreq / 1000000, (clockfreq / 100000) % 10,
 		   (loops_per_jiffy * HZ) / 500000,
@@ -141,10 +151,14 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   "HW:\n"
 		   " MUL:\t\t%s\n"
 		   " MULX:\t\t%s\n"
-		   " DIV:\t\t%s\n",
+		   " DIV:\t\t%s\n"
+		   " BMX:\t\t%s\n"
+		   " CDX:\t\t%s\n",
 		   cpuinfo.has_mul ? "yes" : "no",
 		   cpuinfo.has_mulx ? "yes" : "no",
-		   cpuinfo.has_div ? "yes" : "no");
+		   cpuinfo.has_div ? "yes" : "no",
+		   cpuinfo.has_bmx ? "yes" : "no",
+		   cpuinfo.has_cdx ? "yes" : "no");
 
 	seq_printf(m,
 		   "Icache:\t\t%ukB, line length: %u\n",

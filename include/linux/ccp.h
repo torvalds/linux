@@ -1,7 +1,7 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) driver
  *
- * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
+ * Copyright (C) 2013,2017 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  * Author: Gary R Hook <gary.hook@amd.com>
@@ -11,8 +11,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __CPP_H__
-#define __CPP_H__
+#ifndef __CCP_H__
+#define __CCP_H__
 
 #include <linux/scatterlist.h>
 #include <linux/workqueue.h>
@@ -20,12 +20,10 @@
 #include <crypto/aes.h>
 #include <crypto/sha.h>
 
-
 struct ccp_device;
 struct ccp_cmd;
 
-#if defined(CONFIG_CRYPTO_DEV_CCP_DD) || \
-	defined(CONFIG_CRYPTO_DEV_CCP_DD_MODULE)
+#if defined(CONFIG_CRYPTO_DEV_SP_CCP)
 
 /**
  * ccp_present - check if a CCP device is present
@@ -71,7 +69,7 @@ unsigned int ccp_version(void);
  */
 int ccp_enqueue_cmd(struct ccp_cmd *cmd);
 
-#else /* CONFIG_CRYPTO_DEV_CCP_DD is not enabled */
+#else /* CONFIG_CRYPTO_DEV_CCP_SP_DEV is not enabled */
 
 static inline int ccp_present(void)
 {
@@ -88,7 +86,7 @@ static inline int ccp_enqueue_cmd(struct ccp_cmd *cmd)
 	return -ENODEV;
 }
 
-#endif /* CONFIG_CRYPTO_DEV_CCP_DD */
+#endif /* CONFIG_CRYPTO_DEV_SP_CCP */
 
 
 /***** AES engine *****/
@@ -123,6 +121,10 @@ enum ccp_aes_mode {
 	CCP_AES_MODE_CFB,
 	CCP_AES_MODE_CTR,
 	CCP_AES_MODE_CMAC,
+	CCP_AES_MODE_GHASH,
+	CCP_AES_MODE_GCTR,
+	CCP_AES_MODE_GCM,
+	CCP_AES_MODE_GMAC,
 	CCP_AES_MODE__LAST,
 };
 
@@ -137,6 +139,9 @@ enum ccp_aes_action {
 	CCP_AES_ACTION_ENCRYPT,
 	CCP_AES_ACTION__LAST,
 };
+/* Overloaded field */
+#define	CCP_AES_GHASHAAD	CCP_AES_ACTION_DECRYPT
+#define	CCP_AES_GHASHFINAL	CCP_AES_ACTION_ENCRYPT
 
 /**
  * struct ccp_aes_engine - CCP AES operation
@@ -181,6 +186,8 @@ struct ccp_aes_engine {
 	struct scatterlist *cmac_key;	/* K1/K2 cmac key required for
 					 * final cmac cmd */
 	u32 cmac_key_len;	/* In bytes */
+
+	u32 aad_len;		/* In bytes */
 };
 
 /***** XTS-AES engine *****/
@@ -222,6 +229,7 @@ enum ccp_xts_aes_unit_size {
  * AES operation the new IV overwrites the old IV.
  */
 struct ccp_xts_aes_engine {
+	enum ccp_aes_type type;
 	enum ccp_aes_action action;
 	enum ccp_xts_aes_unit_size unit_size;
 
@@ -249,6 +257,8 @@ enum ccp_sha_type {
 	CCP_SHA_TYPE_1 = 1,
 	CCP_SHA_TYPE_224,
 	CCP_SHA_TYPE_256,
+	CCP_SHA_TYPE_384,
+	CCP_SHA_TYPE_512,
 	CCP_SHA_TYPE__LAST,
 };
 
@@ -288,6 +298,60 @@ struct ccp_sha_engine {
 	u32 final;		/* Indicates final sha cmd */
 	u64 msg_bits;		/* Message length in bits required for
 				 * final sha cmd */
+};
+
+/***** 3DES engine *****/
+enum ccp_des3_mode {
+	CCP_DES3_MODE_ECB = 0,
+	CCP_DES3_MODE_CBC,
+	CCP_DES3_MODE_CFB,
+	CCP_DES3_MODE__LAST,
+};
+
+enum ccp_des3_type {
+	CCP_DES3_TYPE_168 = 1,
+	CCP_DES3_TYPE__LAST,
+	};
+
+enum ccp_des3_action {
+	CCP_DES3_ACTION_DECRYPT = 0,
+	CCP_DES3_ACTION_ENCRYPT,
+	CCP_DES3_ACTION__LAST,
+};
+
+/**
+ * struct ccp_des3_engine - CCP SHA operation
+ * @type: Type of 3DES operation
+ * @mode: cipher mode
+ * @action: 3DES operation (decrypt/encrypt)
+ * @key: key to be used for this 3DES operation
+ * @key_len: length of key (in bytes)
+ * @iv: IV to be used for this AES operation
+ * @iv_len: length in bytes of iv
+ * @src: input data to be used for this operation
+ * @src_len: length of input data used for this operation (in bytes)
+ * @dst: output data produced by this operation
+ *
+ * Variables required to be set when calling ccp_enqueue_cmd():
+ *   - type, mode, action, key, key_len, src, dst, src_len
+ *   - iv, iv_len for any mode other than ECB
+ *
+ * The iv variable is used as both input and output. On completion of the
+ * 3DES operation the new IV overwrites the old IV.
+ */
+struct ccp_des3_engine {
+	enum ccp_des3_type type;
+	enum ccp_des3_mode mode;
+	enum ccp_des3_action action;
+
+	struct scatterlist *key;
+	u32 key_len;	    /* In bytes */
+
+	struct scatterlist *iv;
+	u32 iv_len;	     /* In bytes */
+
+	struct scatterlist *src, *dst;
+	u64 src_len;	    /* In bytes */
 };
 
 /***** RSA engine *****/
@@ -539,7 +603,7 @@ struct ccp_ecc_engine {
 enum ccp_engine {
 	CCP_ENGINE_AES = 0,
 	CCP_ENGINE_XTS_AES_128,
-	CCP_ENGINE_RSVD1,
+	CCP_ENGINE_DES3,
 	CCP_ENGINE_SHA,
 	CCP_ENGINE_RSA,
 	CCP_ENGINE_PASSTHRU,
@@ -553,10 +617,10 @@ enum ccp_engine {
 #define CCP_CMD_PASSTHRU_NO_DMA_MAP	0x00000002
 
 /**
- * struct ccp_cmd - CPP operation request
+ * struct ccp_cmd - CCP operation request
  * @entry: list element (ccp driver use only)
  * @work: work element used for callbacks (ccp driver use only)
- * @ccp: CCP device to be run on (ccp driver use only)
+ * @ccp: CCP device to be run on
  * @ret: operation return code (ccp driver use only)
  * @flags: cmd processing flags
  * @engine: CCP operation to perform
@@ -587,6 +651,7 @@ struct ccp_cmd {
 	union {
 		struct ccp_aes_engine aes;
 		struct ccp_xts_aes_engine xts;
+		struct ccp_des3_engine des3;
 		struct ccp_sha_engine sha;
 		struct ccp_rsa_engine rsa;
 		struct ccp_passthru_engine passthru;

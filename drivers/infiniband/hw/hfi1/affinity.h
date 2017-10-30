@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -70,37 +70,31 @@ struct cpu_mask_set {
 	uint gen;
 };
 
-struct hfi1_affinity {
-	struct cpu_mask_set def_intr;
-	struct cpu_mask_set rcv_intr;
-	struct cpumask real_cpu_mask;
-	/* spin lock to protect affinity struct */
-	spinlock_t lock;
-};
-
 struct hfi1_msix_entry;
 
 /* Initialize non-HT cpu cores mask */
 void init_real_cpu_mask(void);
 /* Initialize driver affinity data */
-int hfi1_dev_affinity_init(struct hfi1_devdata *);
+int hfi1_dev_affinity_init(struct hfi1_devdata *dd);
 /*
  * Set IRQ affinity to a CPU. The function will determine the
  * CPU and set the affinity to it.
  */
-int hfi1_get_irq_affinity(struct hfi1_devdata *, struct hfi1_msix_entry *);
+int hfi1_get_irq_affinity(struct hfi1_devdata *dd,
+			  struct hfi1_msix_entry *msix);
 /*
  * Remove the IRQ's CPU affinity. This function also updates
  * any internal CPU tracking data
  */
-void hfi1_put_irq_affinity(struct hfi1_devdata *, struct hfi1_msix_entry *);
+void hfi1_put_irq_affinity(struct hfi1_devdata *dd,
+			   struct hfi1_msix_entry *msix);
 /*
  * Determine a CPU affinity for a user process, if the process does not
  * have an affinity set yet.
  */
-int hfi1_get_proc_affinity(int);
+int hfi1_get_proc_affinity(int node);
 /* Release a CPU used by a user process. */
-void hfi1_put_proc_affinity(int);
+void hfi1_put_proc_affinity(int cpu);
 
 struct hfi1_affinity_node {
 	int node;
@@ -115,6 +109,7 @@ struct hfi1_affinity_node_list {
 	struct cpumask real_cpu_mask;
 	struct cpu_mask_set proc;
 	int num_core_siblings;
+	int num_possible_nodes;
 	int num_online_nodes;
 	int num_online_cpus;
 	struct mutex lock; /* protects affinity nodes */

@@ -550,10 +550,6 @@ void via_irq_enable(int irq) {
 	int irq_src	= IRQ_SRC(irq);
 	int irq_idx	= IRQ_IDX(irq);
 
-#ifdef DEBUG_IRQUSE
-	printk(KERN_DEBUG "via_irq_enable(%d)\n", irq);
-#endif
-
 	if (irq_src == 1) {
 		via1[vIER] = IER_SET_BIT(irq_idx);
 	} else if (irq_src == 2) {
@@ -581,10 +577,6 @@ void via_irq_enable(int irq) {
 void via_irq_disable(int irq) {
 	int irq_src	= IRQ_SRC(irq);
 	int irq_idx	= IRQ_IDX(irq);
-
-#ifdef DEBUG_IRQUSE
-	printk(KERN_DEBUG "via_irq_disable(%d)\n", irq);
-#endif
 
 	if (irq_src == 1) {
 		via1[vIER] = IER_CLR_BIT(irq_idx);

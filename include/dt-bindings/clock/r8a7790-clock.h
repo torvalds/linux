@@ -82,6 +82,7 @@
 
 /* MSTP4 */
 #define R8A7790_CLK_IRQC		7
+#define R8A7790_CLK_INTC_SYS		8
 
 /* MSTP5 */
 #define R8A7790_CLK_AUDIO_DMAC1		1

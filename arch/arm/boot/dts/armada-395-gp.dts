@@ -139,7 +139,7 @@
 			};
 		};
 
-		pcie-controller {
+		pcie {
 			status = "okay";
 
 			/*

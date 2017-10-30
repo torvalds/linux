@@ -47,7 +47,6 @@ long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 
 		flags = REISERFS_I(inode)->i_attrs;
-		i_attrs_to_sd_attrs(inode, (__u16 *) & flags);
 		err = put_user(flags, (int __user *)arg);
 		break;
 	case REISERFS_IOC_SETFLAGS:{

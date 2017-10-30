@@ -75,7 +75,7 @@ do {									\
 
 #define KLASSERT(e) LASSERT(e)
 
-void __noreturn lbug_with_loc(struct libcfs_debug_msg_data *);
+void __noreturn lbug_with_loc(struct libcfs_debug_msg_data *msg);
 
 #define LBUG()							  \
 do {								    \
@@ -87,16 +87,13 @@ do {								    \
 #define LIBCFS_VMALLOC_SIZE	(2 << PAGE_SHIFT) /* 2 pages */
 #endif
 
-#define LIBCFS_ALLOC_PRE(size, mask)					    \
-do {									    \
-	LASSERT(!in_interrupt() ||					    \
-		((size) <= LIBCFS_VMALLOC_SIZE &&			    \
-		 !gfpflags_allow_blocking(mask)));			    \
-} while (0)
+#define LIBCFS_ALLOC_PRE(size, mask)					\
+	LASSERT(!in_interrupt() || ((size) <= LIBCFS_VMALLOC_SIZE &&	\
+				    !gfpflags_allow_blocking(mask)))
 
 #define LIBCFS_ALLOC_POST(ptr, size)					    \
 do {									    \
-	if (unlikely((ptr) == NULL)) {					    \
+	if (unlikely(!(ptr))) {						    \
 		CERROR("LNET: out of memory at %s:%d (tried to alloc '"	    \
 		       #ptr "' = %d)\n", __FILE__, __LINE__, (int)(size));  \
 	} else {							    \
@@ -147,7 +144,7 @@ do {									    \
 
 #define LIBCFS_FREE(ptr, size)					  \
 do {								    \
-	if (unlikely((ptr) == NULL)) {				  \
+	if (unlikely(!(ptr))) {						\
 		CERROR("LIBCFS: free NULL '" #ptr "' (%d bytes) at "    \
 		       "%s:%d\n", (int)(size), __FILE__, __LINE__);	\
 		break;						  \
@@ -157,20 +154,6 @@ do {								    \
 
 /******************************************************************************/
 
-/* htonl hack - either this, or compile with -O2. Stupid byteorder/generic.h */
-#if defined(__GNUC__) && (__GNUC__ >= 2) && !defined(__OPTIMIZE__)
-#define ___htonl(x) __cpu_to_be32(x)
-#define ___htons(x) __cpu_to_be16(x)
-#define ___ntohl(x) __be32_to_cpu(x)
-#define ___ntohs(x) __be16_to_cpu(x)
-#define htonl(x) ___htonl(x)
-#define ntohl(x) ___ntohl(x)
-#define htons(x) ___htons(x)
-#define ntohs(x) ___ntohs(x)
-#endif
-
-void libcfs_run_upcall(char **argv);
-void libcfs_run_lbug_upcall(struct libcfs_debug_msg_data *);
 void libcfs_debug_dumplog(void);
 int libcfs_debug_init(unsigned long bufsize);
 int libcfs_debug_cleanup(void);
@@ -189,46 +172,28 @@ void  cfs_array_free(void *vars);
 #if LASSERT_ATOMIC_ENABLED
 
 /** assert value of @a is equal to @v */
-#define LASSERT_ATOMIC_EQ(a, v)				 \
-do {							    \
-	LASSERTF(atomic_read(a) == v,		       \
-		 "value: %d\n", atomic_read((a)));	  \
-} while (0)
+#define LASSERT_ATOMIC_EQ(a, v)			\
+	LASSERTF(atomic_read(a) == v, "value: %d\n", atomic_read((a)))
 
 /** assert value of @a is unequal to @v */
-#define LASSERT_ATOMIC_NE(a, v)				 \
-do {							    \
-	LASSERTF(atomic_read(a) != v,		       \
-		 "value: %d\n", atomic_read((a)));	  \
-} while (0)
+#define LASSERT_ATOMIC_NE(a, v)		\
+	LASSERTF(atomic_read(a) != v, "value: %d\n", atomic_read((a)))
 
 /** assert value of @a is little than @v */
-#define LASSERT_ATOMIC_LT(a, v)				 \
-do {							    \
-	LASSERTF(atomic_read(a) < v,			\
-		 "value: %d\n", atomic_read((a)));	  \
-} while (0)
+#define LASSERT_ATOMIC_LT(a, v)		\
+	LASSERTF(atomic_read(a) < v, "value: %d\n", atomic_read((a)))
 
 /** assert value of @a is little/equal to @v */
-#define LASSERT_ATOMIC_LE(a, v)				 \
-do {							    \
-	LASSERTF(atomic_read(a) <= v,		       \
-		 "value: %d\n", atomic_read((a)));	  \
-} while (0)
+#define LASSERT_ATOMIC_LE(a, v)		\
+	LASSERTF(atomic_read(a) <= v, "value: %d\n", atomic_read((a)))
 
 /** assert value of @a is great than @v */
-#define LASSERT_ATOMIC_GT(a, v)				 \
-do {							    \
-	LASSERTF(atomic_read(a) > v,			\
-		 "value: %d\n", atomic_read((a)));	  \
-} while (0)
+#define LASSERT_ATOMIC_GT(a, v)		\
+	LASSERTF(atomic_read(a) > v, "value: %d\n", atomic_read((a)))
 
 /** assert value of @a is great/equal to @v */
-#define LASSERT_ATOMIC_GE(a, v)				 \
-do {							    \
-	LASSERTF(atomic_read(a) >= v,		       \
-		 "value: %d\n", atomic_read((a)));	  \
-} while (0)
+#define LASSERT_ATOMIC_GE(a, v)		\
+	LASSERTF(atomic_read(a) >= v, "value: %d\n", atomic_read((a)))
 
 /** assert value of @a is great than @v1 and little than @v2 */
 #define LASSERT_ATOMIC_GT_LT(a, v1, v2)			 \
@@ -279,22 +244,6 @@ do {							    \
 #define CFS_ALLOC_PTR(ptr)      LIBCFS_ALLOC(ptr, sizeof(*(ptr)))
 #define CFS_FREE_PTR(ptr)       LIBCFS_FREE(ptr, sizeof(*(ptr)))
 
-/** Compile-time assertion.
-
- * Check an invariant described by a constant expression at compile time by
- * forcing a compiler error if it does not hold.  \a cond must be a constant
- * expression as defined by the ISO C Standard:
- *
- *       6.8.4.2  The switch statement
- *       ....
- *       [#3] The expression of each case label shall be  an  integer
- *       constant   expression  and  no  two  of  the  case  constant
- *       expressions in the same switch statement shall have the same
- *       value  after  conversion...
- *
- */
-#define CLASSERT(cond) do {switch (42) {case (cond): case 0: break; } } while (0)
-
 /* max value for numeric network address */
 #define MAX_NUMERIC_VALUE 0xffffffff
 
@@ -306,7 +255,8 @@ do {							    \
 /* --------------------------------------------------------------------
  * Light-weight trace
  * Support for temporary event tracing with minimal Heisenberg effect.
- * -------------------------------------------------------------------- */
+ * --------------------------------------------------------------------
+ */
 
 #define MKSTR(ptr) ((ptr)) ? (ptr) : ""
 
@@ -345,19 +295,5 @@ static inline size_t cfs_round_strlen(char *fset)
 {
 	return cfs_size_round((int)strlen(fset) + 1);
 }
-
-#define LOGL(var, len, ptr)				       \
-do {							    \
-	if (var)						\
-		memcpy((char *)ptr, (const char *)var, len);    \
-	ptr += cfs_size_round(len);			     \
-} while (0)
-
-#define LOGU(var, len, ptr)				       \
-do {							    \
-	if (var)						\
-		memcpy((char *)var, (const char *)ptr, len);    \
-	ptr += cfs_size_round(len);			     \
-} while (0)
 
 #endif

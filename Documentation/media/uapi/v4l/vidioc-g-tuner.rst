@@ -29,6 +29,7 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
+    Pointer to struct :c:type:`v4l2_tuner`.
 
 
 Description
@@ -201,10 +202,10 @@ To change the radio frequency the
     * - ``V4L2_TUNER_SDR``
       - 4
       - Tuner controls the A/D and/or D/A block of a
-	Sofware Digital Radio (SDR)
+	Software Digital Radio (SDR)
     * - ``V4L2_TUNER_RF``
       - 5
-      - Tuner controls the RF part of a Sofware Digital Radio (SDR)
+      - Tuner controls the RF part of a Software Digital Radio (SDR)
 
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
@@ -392,22 +393,25 @@ To change the radio frequency the
 
 .. raw:: latex
 
-    \begin{adjustbox}{width=\columnwidth}
+    \scriptsize
+
+.. tabularcolumns:: |p{1.5cm}|p{1.5cm}|p{2.9cm}|p{2.9cm}|p{2.9cm}|p{2.9cm}|
 
 .. _tuner-matrix:
 
 .. flat-table:: Tuner Audio Matrix
     :header-rows:  2
     :stub-columns: 0
+    :widths: 7 7 14 14 14 14
 
     * -
-      - :cspan:`5` Selected ``V4L2_TUNER_MODE_``
+      - :cspan:`4` Selected ``V4L2_TUNER_MODE_``
     * - Received ``V4L2_TUNER_SUB_``
       - ``MONO``
       - ``STEREO``
       - ``LANG1``
       - ``LANG2 = SAP``
-      - ``LANG1_LANG2``\  [#f1]_
+      - ``LANG1_LANG2``\ [#f1]_
     * - ``MONO``
       - Mono
       - Mono/Mono
@@ -434,14 +438,14 @@ To change the radio frequency the
       - L+R/SAP (preferred) or L/R or L+R/L+R
     * - ``LANG1 | LANG2``
       - Language 1
-      - Lang1/Lang2 (deprecated [#f2]_) or Lang1/Lang1
+      - Lang1/Lang2 (deprecated\ [#f2]_) or Lang1/Lang1
       - Language 1
       - Language 2
       - Lang1/Lang2 (preferred) or Lang1/Lang1
 
 .. raw:: latex
 
-    \end{adjustbox}\newline\newline
+    \normalsize
 
 Return Value
 ============

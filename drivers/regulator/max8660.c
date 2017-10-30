@@ -194,7 +194,7 @@ static int max8660_ldo5_set_voltage_sel(struct regulator_dev *rdev,
 	return max8660_write(max8660, MAX8660_VCC1, 0xff, 0xc0);
 }
 
-static struct regulator_ops max8660_ldo5_ops = {
+static const struct regulator_ops max8660_ldo5_ops = {
 	.list_voltage = regulator_list_voltage_linear,
 	.map_voltage = regulator_map_voltage_linear,
 	.set_voltage_sel = max8660_ldo5_set_voltage_sel,
@@ -252,7 +252,7 @@ static int max8660_ldo67_set_voltage_sel(struct regulator_dev *rdev,
 				     selector << 4);
 }
 
-static struct regulator_ops max8660_ldo67_ops = {
+static const struct regulator_ops max8660_ldo67_ops = {
 	.is_enabled = max8660_ldo67_is_enabled,
 	.enable = max8660_ldo67_enable,
 	.disable = max8660_ldo67_disable,

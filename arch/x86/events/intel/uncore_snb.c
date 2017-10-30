@@ -130,7 +130,7 @@ static struct attribute *snb_uncore_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group snb_uncore_format_group = {
+static const struct attribute_group snb_uncore_format_group = {
 	.name		= "format",
 	.attrs		= snb_uncore_formats_attr,
 };
@@ -289,7 +289,7 @@ static struct attribute *snb_uncore_imc_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group snb_uncore_imc_format_group = {
+static const struct attribute_group snb_uncore_imc_format_group = {
 	.name = "format",
 	.attrs = snb_uncore_imc_formats_attr,
 };
@@ -490,24 +490,12 @@ static int snb_uncore_imc_event_add(struct perf_event *event, int flags)
 
 	snb_uncore_imc_event_start(event, 0);
 
-	box->n_events++;
-
 	return 0;
 }
 
 static void snb_uncore_imc_event_del(struct perf_event *event, int flags)
 {
-	struct intel_uncore_box *box = uncore_event_to_box(event);
-	int i;
-
 	snb_uncore_imc_event_stop(event, PERF_EF_UPDATE);
-
-	for (i = 0; i < box->n_events; i++) {
-		if (event == box->event_list[i]) {
-			--box->n_events;
-			break;
-		}
-	}
 }
 
 int snb_pci2phy_map_init(int devid)
@@ -781,7 +769,7 @@ static struct attribute *nhm_uncore_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group nhm_uncore_format_group = {
+static const struct attribute_group nhm_uncore_format_group = {
 	.name = "format",
 	.attrs = nhm_uncore_formats_attr,
 };

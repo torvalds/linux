@@ -35,13 +35,8 @@ int
 xfs_calc_dquots_per_chunk(
 	unsigned int		nbblks)	/* basic block units */
 {
-	unsigned int	ndquots;
-
 	ASSERT(nbblks > 0);
-	ndquots = BBTOB(nbblks);
-	do_div(ndquots, sizeof(xfs_dqblk_t));
-
-	return ndquots;
+	return BBTOB(nbblks) / sizeof(xfs_dqblk_t);
 }
 
 /*

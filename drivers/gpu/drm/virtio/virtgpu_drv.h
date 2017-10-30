@@ -35,10 +35,11 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_crtc_helper.h>
-#include <ttm/ttm_bo_api.h>
-#include <ttm/ttm_bo_driver.h>
-#include <ttm/ttm_placement.h>
-#include <ttm/ttm_module.h>
+#include <drm/drm_encoder.h>
+#include <drm/ttm/ttm_bo_api.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_module.h>
 
 #define DRIVER_NAME "virtio_gpu"
 #define DRIVER_DESC "virtio GPU"
@@ -49,7 +50,6 @@
 #define DRIVER_PATCHLEVEL 1
 
 /* virtgpu_drm_bus.c */
-int drm_virtio_set_busid(struct drm_device *dev, struct drm_master *master);
 int drm_virtio_init(struct drm_driver *driver, struct virtio_device *vdev);
 
 struct virtio_gpu_object {
@@ -82,7 +82,7 @@ struct virtio_gpu_fence_driver {
 };
 
 struct virtio_gpu_fence {
-	struct fence f;
+	struct dma_fence f;
 	struct virtio_gpu_fence_driver *drv;
 	struct list_head node;
 	uint64_t seq;
@@ -178,9 +178,7 @@ struct virtio_gpu_device {
 
 	struct virtio_gpu_queue ctrlq;
 	struct virtio_gpu_queue cursorq;
-	struct list_head free_vbufs;
-	spinlock_t free_vbufs_lock;
-	void *vbufs;
+	struct kmem_cache *vbufs;
 	bool vqs_ready;
 
 	struct idr	resource_idr;
@@ -215,7 +213,7 @@ extern struct drm_ioctl_desc virtio_gpu_ioctls[DRM_VIRTIO_NUM_IOCTLS];
 
 /* virtio_kms.c */
 int virtio_gpu_driver_load(struct drm_device *dev, unsigned long flags);
-int virtio_gpu_driver_unload(struct drm_device *dev);
+void virtio_gpu_driver_unload(struct drm_device *dev);
 int virtio_gpu_driver_open(struct drm_device *dev, struct drm_file *file);
 void virtio_gpu_driver_postclose(struct drm_device *dev, struct drm_file *file);
 
@@ -238,9 +236,6 @@ struct virtio_gpu_object *virtio_gpu_alloc_object(struct drm_device *dev,
 int virtio_gpu_mode_dumb_create(struct drm_file *file_priv,
 				struct drm_device *dev,
 				struct drm_mode_create_dumb *args);
-int virtio_gpu_mode_dumb_destroy(struct drm_file *file_priv,
-				 struct drm_device *dev,
-				 uint32_t handle);
 int virtio_gpu_mode_dumb_mmap(struct drm_file *file_priv,
 			      struct drm_device *dev,
 			      uint32_t handle, uint64_t *offset_p);
@@ -336,6 +331,7 @@ int virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev);
 void virtio_gpu_modeset_fini(struct virtio_gpu_device *vgdev);
 
 /* virtio_gpu_plane.c */
+uint32_t virtio_gpu_translate_format(uint32_t drm_fourcc);
 struct drm_plane *virtio_gpu_plane_init(struct virtio_gpu_device *vgdev,
 					enum drm_plane_type type,
 					int index);
@@ -422,6 +418,5 @@ static inline void virtio_gpu_object_unreserve(struct virtio_gpu_object *bo)
 
 /* virgl debufs */
 int virtio_gpu_debugfs_init(struct drm_minor *minor);
-void virtio_gpu_debugfs_takedown(struct drm_minor *minor);
 
 #endif

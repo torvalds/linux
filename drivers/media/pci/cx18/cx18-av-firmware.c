@@ -13,11 +13,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- *  02110-1301, USA.
  */
 
 #include "cx18-driver.h"
@@ -61,8 +56,7 @@ static int cx18_av_verifyfw(struct cx18 *cx, const struct firmware *fw)
 		dl_control &= 0xffff3fff; /* ignore top 2 bits of address */
 		expected = 0x0f000000 | ((u32)data[addr] << 16) | addr;
 		if (expected != dl_control) {
-			CX18_ERR_DEV(sd, "verification of %s firmware load "
-				     "failed: expected %#010x got %#010x\n",
+			CX18_ERR_DEV(sd, "verification of %s firmware load failed: expected %#010x got %#010x\n",
 				     FWFILE, expected, dl_control);
 			ret = -EIO;
 			break;

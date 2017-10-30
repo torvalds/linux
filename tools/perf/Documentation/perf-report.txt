@@ -25,6 +25,10 @@ OPTIONS
 --verbose::
         Be more verbose. (show symbol address, etc)
 
+-q::
+--quiet::
+	Do not show any message.  (Suppress -v)
+
 -n::
 --show-nr-samples::
 	Show the number of samples for each symbol
@@ -68,7 +72,8 @@ OPTIONS
 --sort=::
 	Sort histogram entries by given key(s) - multiple keys can be specified
 	in CSV format.  Following sort keys are available:
-	pid, comm, dso, symbol, parent, cpu, socket, srcline, weight, local_weight.
+	pid, comm, dso, symbol, parent, cpu, socket, srcline, weight,
+	local_weight, cgroup_id.
 
 	Each key has following meaning:
 
@@ -76,6 +81,7 @@ OPTIONS
 	- pid: command and tid of the task
 	- dso: name of library or module executed at the time of sample
 	- symbol: name of function executed at the time of sample
+	- symbol_size: size of function executed at the time of sample
 	- parent: name of function matched to the parent regex filter. Unmatched
 	entries are displayed as "[other]".
 	- cpu: cpu number the task ran at the time of sample
@@ -87,6 +93,7 @@ OPTIONS
 	- weight: Event specific weight, e.g. memory latency or transaction
 	abort cost. This is the global weight.
 	- local_weight: Local weight version of the weight above.
+	- cgroup_id: ID derived from cgroup namespace device and inode numbers.
 	- transaction: Transaction abort flags.
 	- overhead: Overhead percentage of sample
 	- overhead_sys: Overhead percentage of sample running in system mode
@@ -130,6 +137,7 @@ OPTIONS
 	- mem: type of memory access for the data at the time of the sample
 	- snoop: type of snoop (if any) for the data at the time of the sample
 	- dcacheline: the cacheline the data address is on at the time of the sample
+	- phys_daddr: physical address of data being executed on at the time of sample
 
 	And the default sort keys are changed to local_weight, mem, sym, dso,
 	symbol_daddr, dso_daddr, snoop, tlb, locked, see '--mem-mode'.
@@ -168,11 +176,14 @@ OPTIONS
 	By default, every sort keys not specified in -F will be appended
 	automatically.
 
+	If the keys starts with a prefix '+', then it will append the specified
+        field(s) to the default field order. For example: perf report -F +period,sample.
+
 -p::
 --parent=<regex>::
         A regex filter to identify parent. The parent is a caller of this
 	function and searched through the callchain, thus it requires callchain
-	information recorded. The pattern is in the exteneded regex format and
+	information recorded. The pattern is in the extended regex format and
 	defaults to "\^sys_|^do_page_fault", see '--sort parent'.
 
 -x::
@@ -197,8 +208,8 @@ OPTIONS
 -g::
 --call-graph=<print_type,threshold[,print_limit],order,sort_key[,branch],value>::
         Display call chains using type, min percent threshold, print limit,
-	call order, sort key, optional branch and value.  Note that ordering of
-	parameters is not fixed so any parement can be given in an arbitraty order.
+	call order, sort key, optional branch and value.  Note that ordering
+	is not fixed so any parameter can be given in an arbitrary order.
 	One exception is the print_limit which should be preceded by threshold.
 
 	print_type can be either:
@@ -225,6 +236,7 @@ OPTIONS
 	sort_key can be:
 	- function: compare on functions (default)
 	- address: compare on individual code addresses
+	- srcline: compare on source filename and line number
 
 	branch can be:
 	- branch: include last branch information in callgraph when available.
@@ -239,7 +251,8 @@ OPTIONS
 	Accumulate callchain of children to parent entry so that then can
 	show up in the output.  The output will have a new "Children" column
 	and will be sorted on the data.  It requires callchains are recorded.
-	See the `overhead calculation' section for more details.
+	See the `overhead calculation' section for more details. Enabled by
+	default, disable with --no-children.
 
 --max-stack::
 	Set the stack depth limit when parsing the callchain, anything
@@ -382,6 +395,13 @@ OPTIONS
 --header-only::
 	Show only perf.data header (forces --stdio).
 
+--time::
+	Only analyze samples within given time window: <start>,<stop>. Times
+	have the format seconds.microseconds. If start is not given (i.e., time
+	string is ',x.y') then analysis starts at the beginning of the file. If
+	stop time is not given (i.e, time string is 'x.y,') then analysis goes
+	to end of file.
+
 --itrace::
 	Options for decoding instruction tracing data. The options are:
 
@@ -411,6 +431,10 @@ include::itrace.txt[]
 
 --hierarchy::
 	Enable hierarchical output.
+
+--inline::
+	If a callgraph address belongs to an inlined function, the inline stack
+	will be printed. Each entry is function name or file/line.
 
 include::callchain-overhead-calculation.txt[]
 

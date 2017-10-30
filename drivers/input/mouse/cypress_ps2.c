@@ -107,7 +107,7 @@ static int cypress_ps2_read_cmd_status(struct psmouse *psmouse,
 	enum psmouse_state old_state;
 	int pktsize;
 
-	ps2_begin_command(&psmouse->ps2dev);
+	ps2_begin_command(ps2dev);
 
 	old_state = psmouse->state;
 	psmouse->state = PSMOUSE_CMD_MODE;
@@ -133,7 +133,7 @@ out:
 	psmouse->state = old_state;
 	psmouse->pktcnt = 0;
 
-	ps2_end_command(&psmouse->ps2dev);
+	ps2_end_command(ps2dev);
 
 	return rc;
 }
@@ -413,8 +413,6 @@ static int cypress_set_input_params(struct input_dev *input,
 	__set_bit(BTN_LEFT, input->keybit);
 	__set_bit(BTN_RIGHT, input->keybit);
 	__set_bit(BTN_MIDDLE, input->keybit);
-
-	input_set_drvdata(input, cytp);
 
 	return 0;
 }

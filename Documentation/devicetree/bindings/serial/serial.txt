@@ -23,7 +23,8 @@ Optional properties:
     they are available for use (wired and enabled by pinmux configuration).
     This depends on both the UART hardware and the board wiring.
     Note that this property is mutually-exclusive with "cts-gpios" and
-    "rts-gpios" above.
+    "rts-gpios" above, unless support is provided to switch between modes
+    dynamically.
 
 
 Examples:
@@ -42,7 +43,6 @@ Examples:
 		rng-gpios = <&gpio2 25 GPIO_ACTIVE_LOW>;
 		cts-gpios = <&gpio0 12 GPIO_ACTIVE_LOW>;
 		rts-gpios = <&gpio0 13 GPIO_ACTIVE_LOW>;
-		status = "okay";
 	};
 
 	scifa4: serial@e6c80000 {
@@ -53,5 +53,4 @@ Examples:
 		clock-names = "fck";
 		power-domains = <&pd_a3sp>;
 		uart-has-rtscts;
-		status = "okay";
 	};

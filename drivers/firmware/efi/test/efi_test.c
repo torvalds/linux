@@ -8,7 +8,6 @@
  *
  */
 
-#include <linux/version.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -72,17 +71,12 @@ copy_ucs2_from_user_len(efi_char16_t **dst, efi_char16_t __user *src,
 	if (!access_ok(VERIFY_READ, src, 1))
 		return -EFAULT;
 
-	buf = kmalloc(len, GFP_KERNEL);
-	if (!buf) {
+	buf = memdup_user(src, len);
+	if (IS_ERR(buf)) {
 		*dst = NULL;
-		return -ENOMEM;
+		return PTR_ERR(buf);
 	}
 	*dst = buf;
-
-	if (copy_from_user(*dst, src, len)) {
-		kfree(buf);
-		return -EFAULT;
-	}
 
 	return 0;
 }
@@ -156,7 +150,7 @@ static long efi_runtime_get_variable(unsigned long arg)
 {
 	struct efi_getvariable __user *getvariable_user;
 	struct efi_getvariable getvariable;
-	unsigned long datasize, prev_datasize, *dz;
+	unsigned long datasize = 0, prev_datasize, *dz;
 	efi_guid_t vendor_guid, *vd = NULL;
 	efi_status_t status;
 	efi_char16_t *name = NULL;
@@ -266,14 +260,10 @@ static long efi_runtime_set_variable(unsigned long arg)
 			return rv;
 	}
 
-	data = kmalloc(setvariable.data_size, GFP_KERNEL);
-	if (!data) {
+	data = memdup_user(setvariable.data, setvariable.data_size);
+	if (IS_ERR(data)) {
 		kfree(name);
-		return -ENOMEM;
-	}
-	if (copy_from_user(data, setvariable.data, setvariable.data_size)) {
-		rv = -EFAULT;
-		goto out;
+		return PTR_ERR(data);
 	}
 
 	status = efi.set_variable(name, &vendor_guid,
@@ -429,7 +419,7 @@ static long efi_runtime_get_nextvariablename(unsigned long arg)
 	efi_guid_t *vd = NULL;
 	efi_guid_t vendor_guid;
 	efi_char16_t *name = NULL;
-	int rv;
+	int rv = 0;
 
 	getnextvariablename_user = (struct efi_getnextvariablename __user *)arg;
 
@@ -602,6 +592,9 @@ static long efi_runtime_query_capsulecaps(unsigned long arg)
 
 	if (copy_from_user(&qcaps, qcaps_user, sizeof(qcaps)))
 		return -EFAULT;
+
+	if (qcaps.capsule_count == ULONG_MAX)
+		return -EINVAL;
 
 	capsules = kcalloc(qcaps.capsule_count + 1,
 			   sizeof(efi_capsule_header_t), GFP_KERNEL);

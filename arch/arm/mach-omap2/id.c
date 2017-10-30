@@ -223,7 +223,15 @@ static void __init omap3_cpuinfo(void)
 	 * and CPU class bits.
 	 */
 	if (soc_is_omap3630()) {
-		cpu_name = "OMAP3630";
+		if (omap3_has_iva() && omap3_has_sgx()) {
+			cpu_name = (omap3_has_isp()) ? "OMAP3630/DM3730" : "OMAP3621";
+		} else if (omap3_has_iva()) {
+			cpu_name = "DM3725";
+		} else if (omap3_has_sgx()) {
+			cpu_name = "OMAP3615/AM3715";
+		} else {
+			cpu_name = (omap3_has_isp()) ? "AM3703" : "OMAP3611";
+		}
 	} else if (soc_is_am35xx()) {
 		cpu_name = (omap3_has_sgx()) ? "AM3517" : "AM3505";
 	} else if (soc_is_ti816x()) {
@@ -655,6 +663,15 @@ void __init dra7xxx_check_revision(void)
 	hawkeye = (idcode >> 12) & 0xffff;
 	rev = (idcode >> 28) & 0xff;
 	switch (hawkeye) {
+	case 0xbb50:
+		switch (rev) {
+		case 0:
+		default:
+			omap_revision = DRA762_REV_ES1_0;
+			break;
+		}
+		break;
+
 	case 0xb990:
 		switch (rev) {
 		case 0:

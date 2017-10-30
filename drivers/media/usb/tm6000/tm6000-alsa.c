@@ -58,9 +58,7 @@ MODULE_PARM_DESC(index, "Index value for tm6000x capture interface(s).");
 MODULE_DESCRIPTION("ALSA driver module for tm5600/tm6000/tm6010 based TV cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Trident,tm5600},"
-			"{{Trident,tm6000},"
-			"{{Trident,tm6010}");
+MODULE_SUPPORTED_DEVICE("{{Trident,tm5600},{{Trident,tm6000},{{Trident,tm6010}");
 static unsigned int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
@@ -145,7 +143,7 @@ static int dsp_buffer_alloc(struct snd_pcm_substream *substream, int size)
  */
 #define DEFAULT_FIFO_SIZE	4096
 
-static struct snd_pcm_hardware snd_tm6000_digital_hw = {
+static const struct snd_pcm_hardware snd_tm6000_digital_hw = {
 	.info = SNDRV_PCM_INFO_BATCH |
 		SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_INTERLEAVED |

@@ -180,7 +180,7 @@ static enum hrtimer_restart profile_spus(struct hrtimer *timer)
 	smp_wmb();	/* insure spu event buffer updates are written */
 			/* don't want events intermingled... */
 
-	kt = ktime_set(0, profiling_interval);
+	kt = profiling_interval;
 	if (!spu_prof_running)
 		goto stop;
 	hrtimer_forward(timer, timer->base->get_time(), kt);
@@ -204,7 +204,7 @@ int start_spu_profiling_cycles(unsigned int cycles_reset)
 	ktime_t kt;
 
 	pr_debug("timer resolution: %lu\n", TICK_NSEC);
-	kt = ktime_set(0, profiling_interval);
+	kt = profiling_interval;
 	hrtimer_init(&timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hrtimer_set_expires(&timer, kt);
 	timer.function = profile_spus;

@@ -1,7 +1,7 @@
 /*
  * Ralink MT7621/MT7628 built-in hardware watchdog timer
  *
- * Copyright (C) 2014 John Crispin <blogic@openwrt.org>
+ * Copyright (C) 2014 John Crispin <john@phrozen.org>
  *
  * This driver was based on: drivers/watchdog/rt2880_wdt.c
  *
@@ -105,12 +105,12 @@ static int mt7621_wdt_bootcause(void)
 	return 0;
 }
 
-static struct watchdog_info mt7621_wdt_info = {
+static const struct watchdog_info mt7621_wdt_info = {
 	.identity = "Mediatek Watchdog",
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 };
 
-static struct watchdog_ops mt7621_wdt_ops = {
+static const struct watchdog_ops mt7621_wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = mt7621_wdt_start,
 	.stop = mt7621_wdt_stop,
@@ -135,7 +135,7 @@ static int mt7621_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(mt7621_wdt_base))
 		return PTR_ERR(mt7621_wdt_base);
 
-	mt7621_wdt_reset = devm_reset_control_get(&pdev->dev, NULL);
+	mt7621_wdt_reset = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (!IS_ERR(mt7621_wdt_reset))
 		reset_control_deassert(mt7621_wdt_reset);
 
@@ -181,5 +181,5 @@ static struct platform_driver mt7621_wdt_driver = {
 module_platform_driver(mt7621_wdt_driver);
 
 MODULE_DESCRIPTION("MediaTek MT762x hardware watchdog driver");
-MODULE_AUTHOR("John Crispin <blogic@openwrt.org");
+MODULE_AUTHOR("John Crispin <john@phrozen.org");
 MODULE_LICENSE("GPL v2");

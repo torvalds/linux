@@ -1,4 +1,6 @@
 /*
+ * Socfpga Reset Controller Driver
+ *
  * Copyright 2014 Steffen Trumtrar <s.trumtrar@pengutronix.de>
  *
  * based on
@@ -16,14 +18,15 @@
 
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
-#define NR_BANKS		4
+#define BANK_INCREMENT		4
+#define NR_BANKS		8
 
 struct socfpga_reset_data {
 	spinlock_t			lock;
@@ -37,15 +40,16 @@ static int socfpga_reset_assert(struct reset_controller_dev *rcdev,
 	struct socfpga_reset_data *data = container_of(rcdev,
 						     struct socfpga_reset_data,
 						     rcdev);
-	int bank = id / BITS_PER_LONG;
-	int offset = id % BITS_PER_LONG;
+	int reg_width = sizeof(u32);
+	int bank = id / (reg_width * BITS_PER_BYTE);
+	int offset = id % (reg_width * BITS_PER_BYTE);
 	unsigned long flags;
 	u32 reg;
 
 	spin_lock_irqsave(&data->lock, flags);
 
-	reg = readl(data->membase + (bank * NR_BANKS));
-	writel(reg | BIT(offset), data->membase + (bank * NR_BANKS));
+	reg = readl(data->membase + (bank * BANK_INCREMENT));
+	writel(reg | BIT(offset), data->membase + (bank * BANK_INCREMENT));
 	spin_unlock_irqrestore(&data->lock, flags);
 
 	return 0;
@@ -58,15 +62,16 @@ static int socfpga_reset_deassert(struct reset_controller_dev *rcdev,
 						     struct socfpga_reset_data,
 						     rcdev);
 
-	int bank = id / BITS_PER_LONG;
-	int offset = id % BITS_PER_LONG;
+	int reg_width = sizeof(u32);
+	int bank = id / (reg_width * BITS_PER_BYTE);
+	int offset = id % (reg_width * BITS_PER_BYTE);
 	unsigned long flags;
 	u32 reg;
 
 	spin_lock_irqsave(&data->lock, flags);
 
-	reg = readl(data->membase + (bank * NR_BANKS));
-	writel(reg & ~BIT(offset), data->membase + (bank * NR_BANKS));
+	reg = readl(data->membase + (bank * BANK_INCREMENT));
+	writel(reg & ~BIT(offset), data->membase + (bank * BANK_INCREMENT));
 
 	spin_unlock_irqrestore(&data->lock, flags);
 
@@ -78,11 +83,12 @@ static int socfpga_reset_status(struct reset_controller_dev *rcdev,
 {
 	struct socfpga_reset_data *data = container_of(rcdev,
 						struct socfpga_reset_data, rcdev);
-	int bank = id / BITS_PER_LONG;
-	int offset = id % BITS_PER_LONG;
+	int reg_width = sizeof(u32);
+	int bank = id / (reg_width * BITS_PER_BYTE);
+	int offset = id % (reg_width * BITS_PER_BYTE);
 	u32 reg;
 
-	reg = readl(data->membase + (bank * NR_BANKS));
+	reg = readl(data->membase + (bank * BANK_INCREMENT));
 
 	return !(reg & BIT(offset));
 }
@@ -106,8 +112,8 @@ static int socfpga_reset_probe(struct platform_device *pdev)
 	 * Do not continue, when we encounter an old DT.
 	 */
 	if (!of_find_property(pdev->dev.of_node, "#reset-cells", NULL)) {
-		dev_err(&pdev->dev, "%s missing #reset-cells property\n",
-			pdev->dev.of_node->full_name);
+		dev_err(&pdev->dev, "%pOF missing #reset-cells property\n",
+			pdev->dev.of_node);
 		return -EINVAL;
 	}
 
@@ -129,7 +135,7 @@ static int socfpga_reset_probe(struct platform_device *pdev)
 	spin_lock_init(&data->lock);
 
 	data->rcdev.owner = THIS_MODULE;
-	data->rcdev.nr_resets = NR_BANKS * BITS_PER_LONG;
+	data->rcdev.nr_resets = NR_BANKS * (sizeof(u32) * BITS_PER_BYTE);
 	data->rcdev.ops = &socfpga_reset_ops;
 	data->rcdev.of_node = pdev->dev.of_node;
 
@@ -148,8 +154,4 @@ static struct platform_driver socfpga_reset_driver = {
 		.of_match_table	= socfpga_reset_dt_ids,
 	},
 };
-module_platform_driver(socfpga_reset_driver);
-
-MODULE_AUTHOR("Steffen Trumtrar <s.trumtrar@pengutronix.de");
-MODULE_DESCRIPTION("Socfpga Reset Controller Driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(socfpga_reset_driver);

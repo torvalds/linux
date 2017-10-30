@@ -66,7 +66,6 @@ MODULE_PARM_DESC(compat_ddr_negotiate,
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Intel <ibsupport@intel.com>");
 MODULE_DESCRIPTION("Intel IB driver");
-MODULE_VERSION(QIB_DRIVER_VERSION);
 
 /*
  * QIB_PIO_MAXIBHDR is the max IB header size allowed for in our
@@ -420,8 +419,7 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 						if (list_empty(&qp->rspwait)) {
 							qp->r_flags |=
 								RVT_R_RSP_NAK;
-							atomic_inc(
-								&qp->refcount);
+							rvt_get_qp(qp);
 							list_add_tail(
 							 &qp->rspwait,
 							 &rcd->qp_wait_list);

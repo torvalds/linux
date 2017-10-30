@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <math.h>
 #include <linux/compiler.h>
 
@@ -209,6 +210,8 @@ static int __hpp__sort_acc(struct hist_entry *a, struct hist_entry *b,
 			return 0;
 
 		ret = b->callchain->max_depth - a->callchain->max_depth;
+		if (callchain_param.order == ORDER_CALLER)
+			ret = -ret;
 	}
 	return ret;
 }
@@ -521,9 +524,15 @@ void perf_hpp_list__register_sort_field(struct perf_hpp_list *list,
 	list_add_tail(&format->sort_list, &list->sorts);
 }
 
+void perf_hpp_list__prepend_sort_field(struct perf_hpp_list *list,
+				       struct perf_hpp_fmt *format)
+{
+	list_add(&format->sort_list, &list->sorts);
+}
+
 void perf_hpp__column_unregister(struct perf_hpp_fmt *format)
 {
-	list_del(&format->list);
+	list_del_init(&format->list);
 }
 
 void perf_hpp__cancel_cumulate(void)
@@ -560,6 +569,10 @@ void perf_hpp__setup_output_field(struct perf_hpp_list *list)
 	perf_hpp_list__for_each_sort_list(list, fmt) {
 		struct perf_hpp_fmt *pos;
 
+		/* skip sort-only fields ("sort_compute" in perf diff) */
+		if (!fmt->entry && !fmt->color)
+			continue;
+
 		perf_hpp_list__for_each_format(list, pos) {
 			if (fmt_equal(fmt, pos))
 				goto next;
@@ -593,6 +606,13 @@ next:
 
 static void fmt_free(struct perf_hpp_fmt *fmt)
 {
+	/*
+	 * At this point fmt should be completely
+	 * unhooked, if not it's a bug.
+	 */
+	BUG_ON(!list_empty(&fmt->list));
+	BUG_ON(!list_empty(&fmt->sort_list));
+
 	if (fmt->free)
 		fmt->free(fmt);
 }
@@ -638,7 +658,7 @@ unsigned int hists__sort_list_width(struct hists *hists)
 		ret += fmt->width(fmt, &dummy_hpp, hists);
 	}
 
-	if (verbose && hists__has(hists, sym)) /* Addr + origin */
+	if (verbose > 0 && hists__has(hists, sym)) /* Addr + origin */
 		ret += 3 + BITS_PER_LONG / 4;
 
 	return ret;

@@ -36,10 +36,15 @@
  * "DEGAMMA_LUT”:
  *	Blob property to set the degamma lookup table (LUT) mapping pixel data
  *	from the framebuffer before it is given to the transformation matrix.
- *	The data is interpreted as an array of struct &drm_color_lut elements.
+ *	The data is interpreted as an array of &struct drm_color_lut elements.
  *	Hardware might choose not to use the full precision of the LUT elements
  *	nor use all the elements of the LUT (for example the hardware might
  *	choose to interpolate between LUT[0] and LUT[4]).
+ *
+ *	Setting this to NULL (blob property value set to 0) means a
+ *	linear/pass-thru gamma table should be used. This is generally the
+ *	driver boot-up state too. Drivers can access this blob through
+ *	&drm_crtc_state.degamma_lut.
  *
  * “DEGAMMA_LUT_SIZE”:
  *	Unsinged range property to give the size of the lookup table to be set
@@ -54,13 +59,23 @@
  *	lookup through the gamma LUT. The data is interpreted as a struct
  *	&drm_color_ctm.
  *
+ *	Setting this to NULL (blob property value set to 0) means a
+ *	unit/pass-thru matrix should be used. This is generally the driver
+ *	boot-up state too. Drivers can access the blob for the color conversion
+ *	matrix through &drm_crtc_state.ctm.
+ *
  * “GAMMA_LUT”:
  *	Blob property to set the gamma lookup table (LUT) mapping pixel data
  *	after the transformation matrix to data sent to the connector. The
- *	data is interpreted as an array of struct &drm_color_lut elements.
+ *	data is interpreted as an array of &struct drm_color_lut elements.
  *	Hardware might choose not to use the full precision of the LUT elements
  *	nor use all the elements of the LUT (for example the hardware might
  *	choose to interpolate between LUT[0] and LUT[4]).
+ *
+ *	Setting this to NULL (blob property value set to 0) means a
+ *	linear/pass-thru gamma table should be used. This is generally the
+ *	driver boot-up state too. Drivers can access this blob through
+ *	&drm_crtc_state.gamma_lut.
  *
  * “GAMMA_LUT_SIZE”:
  *	Unsigned range property to give the size of the lookup table to be set
@@ -76,6 +91,30 @@
  */
 
 /**
+ * drm_color_lut_extract - clamp and round LUT entries
+ * @user_input: input value
+ * @bit_precision: number of bits the hw LUT supports
+ *
+ * Extract a degamma/gamma LUT value provided by user (in the form of
+ * &drm_color_lut entries) and round it to the precision supported by the
+ * hardware.
+ */
+uint32_t drm_color_lut_extract(uint32_t user_input, uint32_t bit_precision)
+{
+	uint32_t val = user_input;
+	uint32_t max = 0xffff >> (16 - bit_precision);
+
+	/* Round only if we're not using full precision. */
+	if (bit_precision < 16) {
+		val += 1UL << (16 - bit_precision - 1);
+		val >>= 16 - bit_precision;
+	}
+
+	return clamp_val(val, 0, max);
+}
+EXPORT_SYMBOL(drm_color_lut_extract);
+
+/**
  * drm_crtc_enable_color_mgmt - enable color management properties
  * @crtc: DRM CRTC
  * @degamma_lut_size: the size of the degamma lut (before CSC)
@@ -89,6 +128,9 @@
  * optional. The gamma and degamma properties are only attached if
  * their size is not 0 and ctm_property is only attached if has_ctm is
  * true.
+ *
+ * Drivers should use drm_atomic_helper_legacy_gamma_set() to implement the
+ * legacy &drm_crtc_funcs.gamma_set callback.
  */
 void drm_crtc_enable_color_mgmt(struct drm_crtc *crtc,
 				uint degamma_lut_size,
@@ -182,28 +224,28 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	void *r_base, *g_base, *b_base;
 	int size;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
 	crtc = drm_crtc_find(dev, crtc_lut->crtc_id);
-	if (!crtc) {
-		ret = -ENOENT;
-		goto out;
-	}
+	if (!crtc)
+		return -ENOENT;
 
-	if (crtc->funcs->gamma_set == NULL) {
-		ret = -ENOSYS;
-		goto out;
-	}
+	if (crtc->funcs->gamma_set == NULL)
+		return -ENOSYS;
 
 	/* memcpy into gamma store */
-	if (crtc_lut->gamma_size != crtc->gamma_size) {
-		ret = -EINVAL;
+	if (crtc_lut->gamma_size != crtc->gamma_size)
+		return -EINVAL;
+
+	drm_modeset_acquire_init(&ctx, 0);
+retry:
+	ret = drm_modeset_lock_all_ctx(dev, &ctx);
+	if (ret)
 		goto out;
-	}
 
 	size = crtc_lut->gamma_size * (sizeof(uint16_t));
 	r_base = crtc->gamma_store;
@@ -224,10 +266,17 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 		goto out;
 	}
 
-	ret = crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, crtc->gamma_size);
+	ret = crtc->funcs->gamma_set(crtc, r_base, g_base, b_base,
+				     crtc->gamma_size, &ctx);
 
 out:
-	drm_modeset_unlock_all(dev);
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	}
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
 	return ret;
 
 }
@@ -259,19 +308,15 @@ int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
 	crtc = drm_crtc_find(dev, crtc_lut->crtc_id);
-	if (!crtc) {
-		ret = -ENOENT;
-		goto out;
-	}
+	if (!crtc)
+		return -ENOENT;
 
 	/* memcpy into gamma store */
-	if (crtc_lut->gamma_size != crtc->gamma_size) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (crtc_lut->gamma_size != crtc->gamma_size)
+		return -EINVAL;
 
+	drm_modeset_lock(&crtc->mutex, NULL);
 	size = crtc_lut->gamma_size * (sizeof(uint16_t));
 	r_base = crtc->gamma_store;
 	if (copy_to_user((void __user *)(unsigned long)crtc_lut->red, r_base, size)) {
@@ -291,6 +336,6 @@ int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 		goto out;
 	}
 out:
-	drm_modeset_unlock_all(dev);
+	drm_modeset_unlock(&crtc->mutex);
 	return ret;
 }

@@ -96,10 +96,10 @@ static void vb2_common_vm_open(struct vm_area_struct *vma)
 	struct vb2_vmarea_handler *h = vma->vm_private_data;
 
 	pr_debug("%s: %p, refcount: %d, vma: %08lx-%08lx\n",
-	       __func__, h, atomic_read(h->refcount), vma->vm_start,
+	       __func__, h, refcount_read(h->refcount), vma->vm_start,
 	       vma->vm_end);
 
-	atomic_inc(h->refcount);
+	refcount_inc(h->refcount);
 }
 
 /**
@@ -114,7 +114,7 @@ static void vb2_common_vm_close(struct vm_area_struct *vma)
 	struct vb2_vmarea_handler *h = vma->vm_private_data;
 
 	pr_debug("%s: %p, refcount: %d, vma: %08lx-%08lx\n",
-	       __func__, h, atomic_read(h->refcount), vma->vm_start,
+	       __func__, h, refcount_read(h->refcount), vma->vm_start,
 	       vma->vm_end);
 
 	h->put(h->arg);

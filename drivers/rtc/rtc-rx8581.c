@@ -308,9 +308,16 @@ static const struct i2c_device_id rx8581_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rx8581_id);
 
+static const struct of_device_id rx8581_of_match[] = {
+	{ .compatible = "epson,rx8581" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, rx8581_of_match);
+
 static struct i2c_driver rx8581_driver = {
 	.driver		= {
 		.name	= "rtc-rx8581",
+		.of_match_table = of_match_ptr(rx8581_of_match),
 	},
 	.probe		= rx8581_probe,
 	.id_table	= rx8581_id,

@@ -549,7 +549,7 @@ ii.	Reduced by 1 max cmds sent to FW from Driver to make the reply_q_sz same
 3 Older Version   : 00.00.03.02
 
 i.	Send stop adapter to FW & Dump pending FW cmds before declaring adapter dead.
-	New varible added to set dbg level.
+	New variable added to set dbg level.
 ii.	Disable interrupt made as fn pointer as they are different for 1068 / 1078
 iii.	Frame count optimization. Main frame can contain 2 SGE for 64 bit SGLs and
 	3 SGE for 32 bit SGL

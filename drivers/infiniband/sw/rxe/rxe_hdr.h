@@ -53,8 +53,16 @@ struct rxe_pkt_info {
 };
 
 /* Macros should be used only for received skb */
-#define SKB_TO_PKT(skb) ((struct rxe_pkt_info *)(skb)->cb)
-#define PKT_TO_SKB(pkt) container_of((void *)(pkt), struct sk_buff, cb)
+static inline struct rxe_pkt_info *SKB_TO_PKT(struct sk_buff *skb)
+{
+	BUILD_BUG_ON(sizeof(struct rxe_pkt_info) > sizeof(skb->cb));
+	return (void *)skb->cb;
+}
+
+static inline struct sk_buff *PKT_TO_SKB(struct rxe_pkt_info *pkt)
+{
+	return container_of((void *)pkt, struct sk_buff, cb);
+}
 
 /*
  * IBA header types and methods

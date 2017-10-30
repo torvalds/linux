@@ -29,7 +29,7 @@ void synchronise_count_master(int cpu)
 	int i;
 	unsigned long flags;
 
-	printk(KERN_INFO "Synchronize counters for CPU %u: ", cpu);
+	pr_info("Synchronize counters for CPU %u: ", cpu);
 
 	local_irq_save(flags);
 
@@ -83,7 +83,7 @@ void synchronise_count_master(int cpu)
 	 * count registers were almost certainly out of sync
 	 * so no point in alarming people
 	 */
-	printk("done.\n");
+	pr_cont("done.\n");
 }
 
 void synchronise_count_slave(int cpu)

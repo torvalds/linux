@@ -752,7 +752,8 @@ void _cxgbit_free_csk(struct kref *kref)
 				   &sin6->sin6_addr.s6_addr, 1);
 	}
 
-	cxgb4_remove_tid(csk->com.cdev->lldi.tids, 0, csk->tid);
+	cxgb4_remove_tid(csk->com.cdev->lldi.tids, 0, csk->tid,
+			 csk->com.local_addr.ss_family);
 	dst_release(csk->dst);
 	cxgb4_l2t_release(csk->l2t);
 
@@ -872,7 +873,8 @@ cxgbit_offload_init(struct cxgbit_sock *csk, int iptype, __u8 *peer_ip,
 			goto out;
 		csk->mtu = ndev->mtu;
 		csk->tx_chan = cxgb4_port_chan(ndev);
-		csk->smac_idx = (cxgb4_port_viid(ndev) & 0x7F) << 1;
+		csk->smac_idx = cxgb4_tp_smt_idx(cdev->lldi.adapter_type,
+						 cxgb4_port_viid(ndev));
 		step = cdev->lldi.ntxq /
 			cdev->lldi.nchan;
 		csk->txq_idx = cxgb4_port_idx(ndev) * step;
@@ -907,7 +909,8 @@ cxgbit_offload_init(struct cxgbit_sock *csk, int iptype, __u8 *peer_ip,
 		port_id = cxgb4_port_idx(ndev);
 		csk->mtu = dst_mtu(dst);
 		csk->tx_chan = cxgb4_port_chan(ndev);
-		csk->smac_idx = (cxgb4_port_viid(ndev) & 0x7F) << 1;
+		csk->smac_idx = cxgb4_tp_smt_idx(cdev->lldi.adapter_type,
+						 cxgb4_port_viid(ndev));
 		step = cdev->lldi.ntxq /
 			cdev->lldi.nports;
 		csk->txq_idx = (port_id * step) +
@@ -1066,6 +1069,7 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 	struct sk_buff *skb;
 	const struct tcphdr *tcph;
 	struct cpl_t5_pass_accept_rpl *rpl5;
+	struct cxgb4_lld_info *lldi = &csk->com.cdev->lldi;
 	unsigned int len = roundup(sizeof(*rpl5), 16);
 	unsigned int mtu_idx;
 	u64 opt0;
@@ -1081,8 +1085,7 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 		return;
 	}
 
-	rpl5 = (struct cpl_t5_pass_accept_rpl *)__skb_put(skb, len);
-	memset(rpl5, 0, len);
+	rpl5 = __skb_put_zero(skb, len);
 
 	INIT_TP_WR(rpl5, csk->tid);
 	OPCODE_TID(rpl5) = cpu_to_be32(MK_OPCODE_TID(CPL_PASS_ACCEPT_RPL,
@@ -1111,6 +1114,9 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 	opt2 = RX_CHANNEL_V(0) |
 		RSS_QUEUE_VALID_F | RSS_QUEUE_V(csk->rss_qid);
 
+	if (!is_t5(lldi->adapter_type))
+		opt2 |= RX_FC_DISABLE_F;
+
 	if (req->tcpopt.tstamp)
 		opt2 |= TSTAMPS_EN_F;
 	if (req->tcpopt.sack)
@@ -1119,8 +1125,13 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 		opt2 |= WND_SCALE_EN_F;
 
 	hlen = ntohl(req->hdr_len);
-	tcph = (const void *)(req + 1) + ETH_HDR_LEN_G(hlen) +
-		IP_HDR_LEN_G(hlen);
+
+	if (is_t5(lldi->adapter_type))
+		tcph = (struct tcphdr *)((u8 *)(req + 1) +
+		       ETH_HDR_LEN_G(hlen) + IP_HDR_LEN_G(hlen));
+	else
+		tcph = (struct tcphdr *)((u8 *)(req + 1) +
+		       T6_ETH_HDR_LEN_G(hlen) + T6_IP_HDR_LEN_G(hlen));
 
 	if (tcph->ece && tcph->cwr)
 		opt2 |= CCTRL_ECN_V(1);
@@ -1302,8 +1313,7 @@ cxgbit_pass_accept_req(struct cxgbit_device *cdev, struct sk_buff *skb)
 	spin_lock(&cdev->cskq.lock);
 	list_add_tail(&csk->list, &cdev->cskq.list);
 	spin_unlock(&cdev->cskq.lock);
-
-	cxgb4_insert_tid(t, csk, tid);
+	cxgb4_insert_tid(t, csk, tid, csk->com.local_addr.ss_family);
 	cxgbit_pass_accept_rpl(csk, req);
 	goto rel_skb;
 
@@ -1356,8 +1366,7 @@ u32 cxgbit_send_tx_flowc_wr(struct cxgbit_sock *csk)
 	flowclen16 = cxgbit_tx_flowc_wr_credits(csk, &nparams, &flowclen);
 
 	skb = __skb_dequeue(&csk->skbq);
-	flowc = (struct fw_flowc_wr *)__skb_put(skb, flowclen);
-	memset(flowc, 0, flowclen);
+	flowc = __skb_put_zero(skb, flowclen);
 
 	flowc->op_to_nparams = cpu_to_be32(FW_WR_OP_V(FW_FLOWC_WR) |
 					   FW_FLOWC_WR_NPARAMS_V(nparams));
@@ -1428,8 +1437,7 @@ int cxgbit_setup_conn_digest(struct cxgbit_sock *csk)
 		return -ENOMEM;
 
 	/*  set up ulp submode */
-	req = (struct cpl_set_tcb_field *)__skb_put(skb, len);
-	memset(req, 0, len);
+	req = __skb_put_zero(skb, len);
 
 	INIT_TP_WR(req, csk->tid);
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, csk->tid));
@@ -1465,8 +1473,7 @@ int cxgbit_setup_conn_pgidx(struct cxgbit_sock *csk, u32 pg_idx)
 	if (!skb)
 		return -ENOMEM;
 
-	req = (struct cpl_set_tcb_field *)__skb_put(skb, len);
-	memset(req, 0, len);
+	req = __skb_put_zero(skb, len);
 
 	INIT_TP_WR(req, csk->tid);
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, csk->tid));
@@ -1503,11 +1510,13 @@ cxgbit_pass_open_rpl(struct cxgbit_device *cdev, struct sk_buff *skb)
 
 	if (!cnp) {
 		pr_info("%s stid %d lookup failure\n", __func__, stid);
-		return;
+		goto rel_skb;
 	}
 
 	cxgbit_wake_up(&cnp->com.wr_wait, __func__, rpl->status);
 	cxgbit_put_cnp(cnp);
+rel_skb:
+	__kfree_skb(skb);
 }
 
 static void
@@ -1523,11 +1532,13 @@ cxgbit_close_listsrv_rpl(struct cxgbit_device *cdev, struct sk_buff *skb)
 
 	if (!cnp) {
 		pr_info("%s stid %d lookup failure\n", __func__, stid);
-		return;
+		goto rel_skb;
 	}
 
 	cxgbit_wake_up(&cnp->com.wr_wait, __func__, rpl->status);
 	cxgbit_put_cnp(cnp);
+rel_skb:
+	__kfree_skb(skb);
 }
 
 static void
@@ -1726,7 +1737,7 @@ static bool cxgbit_credit_err(const struct cxgbit_sock *csk)
 	}
 
 	while (skb) {
-		credit += skb->csum;
+		credit += (__force u32)skb->csum;
 		skb = cxgbit_skcb_tx_wr_next(skb);
 	}
 
@@ -1753,6 +1764,7 @@ static void cxgbit_fw4_ack(struct cxgbit_sock *csk, struct sk_buff *skb)
 
 	while (credits) {
 		struct sk_buff *p = cxgbit_sock_peek_wr(csk);
+		const u32 csum = (__force u32)p->csum;
 
 		if (unlikely(!p)) {
 			pr_err("csk 0x%p,%u, cr %u,%u+%u, empty.\n",
@@ -1761,17 +1773,17 @@ static void cxgbit_fw4_ack(struct cxgbit_sock *csk, struct sk_buff *skb)
 			break;
 		}
 
-		if (unlikely(credits < p->csum)) {
+		if (unlikely(credits < csum)) {
 			pr_warn("csk 0x%p,%u, cr %u,%u+%u, < %u.\n",
 				csk,  csk->tid,
 				credits, csk->wr_cred, csk->wr_una_cred,
-				p->csum);
-			p->csum -= credits;
+				csum);
+			p->csum = (__force __wsum)(csum - credits);
 			break;
 		}
 
 		cxgbit_sock_dequeue_wr(csk);
-		credits -= p->csum;
+		credits -= csum;
 		kfree_skb(p);
 	}
 
@@ -1811,12 +1823,16 @@ static void cxgbit_set_tcb_rpl(struct cxgbit_device *cdev, struct sk_buff *skb)
 	struct tid_info *t = lldi->tids;
 
 	csk = lookup_tid(t, tid);
-	if (unlikely(!csk))
+	if (unlikely(!csk)) {
 		pr_err("can't find connection for tid %u.\n", tid);
-	else
+		goto rel_skb;
+	} else {
 		cxgbit_wake_up(&csk->com.wr_wait, __func__, rpl->status);
+	}
 
 	cxgbit_put_csk(csk);
+rel_skb:
+	__kfree_skb(skb);
 }
 
 static void cxgbit_rx_data(struct cxgbit_device *cdev, struct sk_buff *skb)

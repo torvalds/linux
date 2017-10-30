@@ -321,7 +321,7 @@ static void intel_mid_irq_init_hw(struct intel_mid_gpio *priv)
 	}
 }
 
-static int intel_gpio_runtime_idle(struct device *dev)
+static int __maybe_unused intel_gpio_runtime_idle(struct device *dev)
 {
 	int err = pm_schedule_suspend(dev, 500);
 	return err ?: -EBUSY;
@@ -421,9 +421,4 @@ static struct pci_driver intel_gpio_driver = {
 	},
 };
 
-static int __init intel_gpio_init(void)
-{
-	return pci_register_driver(&intel_gpio_driver);
-}
-
-device_initcall(intel_gpio_init);
+builtin_pci_driver(intel_gpio_driver);

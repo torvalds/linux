@@ -65,6 +65,7 @@ struct verbs_txreq {
 	struct sdma_engine     *sde;
 	struct send_context     *psc;
 	u16                     hdr_dwords;
+	u16			s_cur_size;
 };
 
 struct hfi1_ibdev;

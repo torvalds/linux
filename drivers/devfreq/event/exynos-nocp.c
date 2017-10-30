@@ -190,6 +190,7 @@ static const struct of_device_id exynos_nocp_id_match[] = {
 	{ .compatible = "samsung,exynos5420-nocp", },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, exynos_nocp_id_match);
 
 static struct regmap_config exynos_nocp_regmap_config = {
 	.reg_bits = 32,
@@ -266,7 +267,11 @@ static int exynos_nocp_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, nocp);
 
-	clk_prepare_enable(nocp->clk);
+	ret = clk_prepare_enable(nocp->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to prepare ppmu clock\n");
+		return ret;
+	}
 
 	pr_info("exynos-nocp: new NoC Probe device registered: %s\n",
 			dev_name(dev));

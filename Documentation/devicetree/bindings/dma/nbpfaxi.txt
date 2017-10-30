@@ -23,6 +23,14 @@ Required properties
 #define NBPF_SLAVE_RQ_LEVEL	4
 
 Optional properties:
+- max-burst-mem-read:	limit burst size for memory reads
+  (DMA_MEM_TO_MEM/DMA_MEM_TO_DEV) to this value, specified in bytes, rather
+  than using the maximum burst size allowed by the hardware's buffer size.
+- max-burst-mem-write:	limit burst size for memory writes
+  (DMA_DEV_TO_MEM/DMA_MEM_TO_MEM) to this value, specified in bytes, rather
+  than using the maximum burst size allowed by the hardware's buffer size.
+  If both max-burst-mem-read and max-burst-mem-write are set, DMA_MEM_TO_MEM
+  will use the lower value.
 
 You can use dma-channels and dma-requests as described in dma.txt, although they
 won't be used, this information is derived from the compatibility string.

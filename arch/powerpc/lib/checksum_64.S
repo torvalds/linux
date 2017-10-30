@@ -36,7 +36,7 @@ _GLOBAL(__csum_partial)
 	 * work to calculate the correct checksum, we ignore that case
 	 * and take the potential slowdown of unaligned loads.
 	 */
-	rldicl. r6,r3,64-1,64-2		/* r6 = (r3 & 0x3) >> 1 */
+	rldicl. r6,r3,64-1,64-2		/* r6 = (r3 >> 1) & 0x3 */
 	beq	.Lcsum_aligned
 
 	li	r7,4
@@ -168,8 +168,12 @@ _GLOBAL(__csum_partial)
 	beq	.Lcsum_finish
 
 	lbz	r6,0(r3)
+#ifdef __BIG_ENDIAN__
 	sldi	r9,r6,8			/* Pad the byte out to 16 bits */
 	adde	r0,r0,r9
+#else
+	adde	r0,r0,r6
+#endif
 
 .Lcsum_finish:
 	addze	r0,r0			/* add in final carry */
@@ -182,34 +186,22 @@ EXPORT_SYMBOL(__csum_partial)
 
 	.macro srcnr
 100:
-	.section __ex_table,"a"
-	.align 3
-	.llong 100b,.Lsrc_error_nr
-	.previous
+	EX_TABLE(100b,.Lsrc_error_nr)
 	.endm
 
 	.macro source
 150:
-	.section __ex_table,"a"
-	.align 3
-	.llong 150b,.Lsrc_error
-	.previous
+	EX_TABLE(150b,.Lsrc_error)
 	.endm
 
 	.macro dstnr
 200:
-	.section __ex_table,"a"
-	.align 3
-	.llong 200b,.Ldest_error_nr
-	.previous
+	EX_TABLE(200b,.Ldest_error_nr)
 	.endm
 
 	.macro dest
 250:
-	.section __ex_table,"a"
-	.align 3
-	.llong 250b,.Ldest_error
-	.previous
+	EX_TABLE(250b,.Ldest_error)
 	.endm
 
 /*
@@ -236,7 +228,7 @@ _GLOBAL(csum_partial_copy_generic)
 	 * If the source and destination are relatively unaligned we only
 	 * align the source. This keeps things simple.
 	 */
-	rldicl. r6,r3,64-1,64-2		/* r6 = (r3 & 0x3) >> 1 */
+	rldicl. r6,r3,64-1,64-2		/* r6 = (r3 >> 1) & 0x3 */
 	beq	.Lcopy_aligned
 
 	li	r9,4
@@ -398,8 +390,12 @@ dstnr;	sth	r6,0(r4)
 	beq	.Lcopy_finish
 
 srcnr;	lbz	r6,0(r3)
+#ifdef __BIG_ENDIAN__
 	sldi	r9,r6,8			/* Pad the byte out to 16 bits */
 	adde	r0,r0,r9
+#else
+	adde	r0,r0,r6
+#endif
 dstnr;	stb	r6,0(r4)
 
 .Lcopy_finish:

@@ -20,7 +20,7 @@
 #include <linux/if_arcnet.h>
 
 #ifdef __KERNEL__
-#include  <linux/irqreturn.h>
+#include <linux/interrupt.h>
 
 /*
  * RECON_THRESHOLD is the maximum number of RECON messages to receive
@@ -268,6 +268,10 @@ struct arcnet_local {
 	char recon_led_trig_name[ARCNET_LED_NAME_SZ];
 
 	struct timer_list	timer;
+
+	struct net_device *dev;
+	int reply_status;
+	struct tasklet_struct reply_tasklet;
 
 	/*
 	 * Buffer management: an ARCnet card has 4 x 512-byte buffers, each of

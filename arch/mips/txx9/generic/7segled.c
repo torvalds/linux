@@ -55,8 +55,8 @@ static ssize_t raw_store(struct device *dev,
 	return size;
 }
 
-static DEVICE_ATTR(ascii, 0200, NULL, ascii_store);
-static DEVICE_ATTR(raw, 0200, NULL, raw_store);
+static DEVICE_ATTR_WO(ascii);
+static DEVICE_ATTR_WO(raw);
 
 static ssize_t map_seg7_show(struct device *dev,
 			     struct device_attribute *attr,

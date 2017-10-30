@@ -13,7 +13,7 @@
 #include <linux/device.h>
 #undef DEBUG
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/rslib.h>
 #include <linux/pci.h>
@@ -654,6 +654,8 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 	cafe->nand.read_buf = cafe_read_buf;
 	cafe->nand.write_buf = cafe_write_buf;
 	cafe->nand.select_chip = cafe_select_chip;
+	cafe->nand.onfi_set_features = nand_onfi_get_set_features_notsupp;
+	cafe->nand.onfi_get_features = nand_onfi_get_set_features_notsupp;
 
 	cafe->nand.chip_delay = 0;
 
@@ -725,10 +727,9 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 	usedma = 0;
 
 	/* Scan to find existence of the device */
-	if (nand_scan_ident(mtd, 2, NULL)) {
-		err = -ENXIO;
+	err = nand_scan_ident(mtd, 2, NULL);
+	if (err)
 		goto out_irq;
-	}
 
 	cafe->dmabuf = dma_alloc_coherent(&cafe->pdev->dev,
 				2112 + sizeof(struct nand_buffers) +

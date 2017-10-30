@@ -7,6 +7,7 @@
 
 #define __SANE_USERSPACE_TYPES__	/* For PPC64, to get LL64 types */
 #include <asm/types.h>
+#include <asm/posix_types.h>
 
 struct page;
 struct kmem_cache;
@@ -42,11 +43,7 @@ typedef __s8  s8;
 #else
 #define __bitwise__
 #endif
-#ifdef __CHECK_ENDIAN__
 #define __bitwise __bitwise__
-#else
-#define __bitwise
-#endif
 
 #define __force
 #define __user

@@ -2,6 +2,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/timer.h>
@@ -50,115 +51,34 @@ static u32 art_to_tsc_denominator;
 static u64 art_to_tsc_offset;
 struct clocksource *art_related_clocksource;
 
-/*
- * Use a ring-buffer like data structure, where a writer advances the head by
- * writing a new data entry and a reader advances the tail when it observes a
- * new entry.
- *
- * Writers are made to wait on readers until there's space to write a new
- * entry.
- *
- * This means that we can always use an {offset, mul} pair to compute a ns
- * value that is 'roughly' in the right direction, even if we're writing a new
- * {offset, mul} pair during the clock read.
- *
- * The down-side is that we can no longer guarantee strict monotonicity anymore
- * (assuming the TSC was that to begin with), because while we compute the
- * intersection point of the two clock slopes and make sure the time is
- * continuous at the point of switching; we can no longer guarantee a reader is
- * strictly before or after the switch point.
- *
- * It does mean a reader no longer needs to disable IRQs in order to avoid
- * CPU-Freq updates messing with his times, and similarly an NMI reader will
- * no longer run the risk of hitting half-written state.
- */
-
 struct cyc2ns {
-	struct cyc2ns_data data[2];	/*  0 + 2*24 = 48 */
-	struct cyc2ns_data *head;	/* 48 + 8    = 56 */
-	struct cyc2ns_data *tail;	/* 56 + 8    = 64 */
-}; /* exactly fits one cacheline */
+	struct cyc2ns_data data[2];	/*  0 + 2*16 = 32 */
+	seqcount_t	   seq;		/* 32 + 4    = 36 */
+
+}; /* fits one cacheline */
 
 static DEFINE_PER_CPU_ALIGNED(struct cyc2ns, cyc2ns);
 
-struct cyc2ns_data *cyc2ns_read_begin(void)
+void cyc2ns_read_begin(struct cyc2ns_data *data)
 {
-	struct cyc2ns_data *head;
+	int seq, idx;
 
-	preempt_disable();
+	preempt_disable_notrace();
 
-	head = this_cpu_read(cyc2ns.head);
-	/*
-	 * Ensure we observe the entry when we observe the pointer to it.
-	 * matches the wmb from cyc2ns_write_end().
-	 */
-	smp_read_barrier_depends();
-	head->__count++;
-	barrier();
+	do {
+		seq = this_cpu_read(cyc2ns.seq.sequence);
+		idx = seq & 1;
 
-	return head;
+		data->cyc2ns_offset = this_cpu_read(cyc2ns.data[idx].cyc2ns_offset);
+		data->cyc2ns_mul    = this_cpu_read(cyc2ns.data[idx].cyc2ns_mul);
+		data->cyc2ns_shift  = this_cpu_read(cyc2ns.data[idx].cyc2ns_shift);
+
+	} while (unlikely(seq != this_cpu_read(cyc2ns.seq.sequence)));
 }
 
-void cyc2ns_read_end(struct cyc2ns_data *head)
+void cyc2ns_read_end(void)
 {
-	barrier();
-	/*
-	 * If we're the outer most nested read; update the tail pointer
-	 * when we're done. This notifies possible pending writers
-	 * that we've observed the head pointer and that the other
-	 * entry is now free.
-	 */
-	if (!--head->__count) {
-		/*
-		 * x86-TSO does not reorder writes with older reads;
-		 * therefore once this write becomes visible to another
-		 * cpu, we must be finished reading the cyc2ns_data.
-		 *
-		 * matches with cyc2ns_write_begin().
-		 */
-		this_cpu_write(cyc2ns.tail, head);
-	}
-	preempt_enable();
-}
-
-/*
- * Begin writing a new @data entry for @cpu.
- *
- * Assumes some sort of write side lock; currently 'provided' by the assumption
- * that cpufreq will call its notifiers sequentially.
- */
-static struct cyc2ns_data *cyc2ns_write_begin(int cpu)
-{
-	struct cyc2ns *c2n = &per_cpu(cyc2ns, cpu);
-	struct cyc2ns_data *data = c2n->data;
-
-	if (data == c2n->head)
-		data++;
-
-	/* XXX send an IPI to @cpu in order to guarantee a read? */
-
-	/*
-	 * When we observe the tail write from cyc2ns_read_end(),
-	 * the cpu must be done with that entry and its safe
-	 * to start writing to it.
-	 */
-	while (c2n->tail == data)
-		cpu_relax();
-
-	return data;
-}
-
-static void cyc2ns_write_end(int cpu, struct cyc2ns_data *data)
-{
-	struct cyc2ns *c2n = &per_cpu(cyc2ns, cpu);
-
-	/*
-	 * Ensure the @data writes are visible before we publish the
-	 * entry. Matches the data-depencency in cyc2ns_read_begin().
-	 */
-	smp_wmb();
-
-	ACCESS_ONCE(c2n->head) = data;
+	preempt_enable_notrace();
 }
 
 /*
@@ -190,7 +110,6 @@ static void cyc2ns_data_init(struct cyc2ns_data *data)
 	data->cyc2ns_mul = 0;
 	data->cyc2ns_shift = 0;
 	data->cyc2ns_offset = 0;
-	data->__count = 0;
 }
 
 static void cyc2ns_init(int cpu)
@@ -200,51 +119,29 @@ static void cyc2ns_init(int cpu)
 	cyc2ns_data_init(&c2n->data[0]);
 	cyc2ns_data_init(&c2n->data[1]);
 
-	c2n->head = c2n->data;
-	c2n->tail = c2n->data;
+	seqcount_init(&c2n->seq);
 }
 
 static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 {
-	struct cyc2ns_data *data, *tail;
+	struct cyc2ns_data data;
 	unsigned long long ns;
 
-	/*
-	 * See cyc2ns_read_*() for details; replicated in order to avoid
-	 * an extra few instructions that came with the abstraction.
-	 * Notable, it allows us to only do the __count and tail update
-	 * dance when its actually needed.
-	 */
+	cyc2ns_read_begin(&data);
 
-	preempt_disable_notrace();
-	data = this_cpu_read(cyc2ns.head);
-	tail = this_cpu_read(cyc2ns.tail);
+	ns = data.cyc2ns_offset;
+	ns += mul_u64_u32_shr(cyc, data.cyc2ns_mul, data.cyc2ns_shift);
 
-	if (likely(data == tail)) {
-		ns = data->cyc2ns_offset;
-		ns += mul_u64_u32_shr(cyc, data->cyc2ns_mul, data->cyc2ns_shift);
-	} else {
-		data->__count++;
-
-		barrier();
-
-		ns = data->cyc2ns_offset;
-		ns += mul_u64_u32_shr(cyc, data->cyc2ns_mul, data->cyc2ns_shift);
-
-		barrier();
-
-		if (!--data->__count)
-			this_cpu_write(cyc2ns.tail, data);
-	}
-	preempt_enable_notrace();
+	cyc2ns_read_end();
 
 	return ns;
 }
 
-static void set_cyc2ns_scale(unsigned long khz, int cpu)
+static void set_cyc2ns_scale(unsigned long khz, int cpu, unsigned long long tsc_now)
 {
-	unsigned long long tsc_now, ns_now;
-	struct cyc2ns_data *data;
+	unsigned long long ns_now;
+	struct cyc2ns_data data;
+	struct cyc2ns *c2n;
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -253,9 +150,6 @@ static void set_cyc2ns_scale(unsigned long khz, int cpu)
 	if (!khz)
 		goto done;
 
-	data = cyc2ns_write_begin(cpu);
-
-	tsc_now = rdtsc();
 	ns_now = cycles_2_ns(tsc_now);
 
 	/*
@@ -263,7 +157,7 @@ static void set_cyc2ns_scale(unsigned long khz, int cpu)
 	 * time function is continuous; see the comment near struct
 	 * cyc2ns_data.
 	 */
-	clocks_calc_mult_shift(&data->cyc2ns_mul, &data->cyc2ns_shift, khz,
+	clocks_calc_mult_shift(&data.cyc2ns_mul, &data.cyc2ns_shift, khz,
 			       NSEC_PER_MSEC, 0);
 
 	/*
@@ -272,20 +166,26 @@ static void set_cyc2ns_scale(unsigned long khz, int cpu)
 	 * conversion algorithm shifting a 32-bit value (now specifies a 64-bit
 	 * value) - refer perf_event_mmap_page documentation in perf_event.h.
 	 */
-	if (data->cyc2ns_shift == 32) {
-		data->cyc2ns_shift = 31;
-		data->cyc2ns_mul >>= 1;
+	if (data.cyc2ns_shift == 32) {
+		data.cyc2ns_shift = 31;
+		data.cyc2ns_mul >>= 1;
 	}
 
-	data->cyc2ns_offset = ns_now -
-		mul_u64_u32_shr(tsc_now, data->cyc2ns_mul, data->cyc2ns_shift);
+	data.cyc2ns_offset = ns_now -
+		mul_u64_u32_shr(tsc_now, data.cyc2ns_mul, data.cyc2ns_shift);
 
-	cyc2ns_write_end(cpu, data);
+	c2n = per_cpu_ptr(&cyc2ns, cpu);
+
+	raw_write_seqcount_latch(&c2n->seq);
+	c2n->data[0] = data;
+	raw_write_seqcount_latch(&c2n->seq);
+	c2n->data[1] = data;
 
 done:
-	sched_clock_idle_wakeup_event(0);
+	sched_clock_idle_wakeup_event();
 	local_irq_restore(flags);
 }
+
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
@@ -326,9 +226,16 @@ unsigned long long sched_clock(void)
 {
 	return paravirt_sched_clock();
 }
+
+bool using_native_sched_clock(void)
+{
+	return pv_time_ops.sched_clock == native_sched_clock;
+}
 #else
 unsigned long long
 sched_clock(void) __attribute__((alias("native_sched_clock")));
+
+bool using_native_sched_clock(void) { return true; }
 #endif
 
 int check_tsc_unstable(void)
@@ -366,6 +273,8 @@ static int __init tsc_setup(char *str)
 		tsc_clocksource_reliable = 1;
 	if (!strncmp(str, "noirqtime", 9))
 		no_sched_irq_time = 1;
+	if (!strcmp(str, "unstable"))
+		mark_tsc_unstable("boot parameter");
 	return 1;
 }
 
@@ -694,6 +603,7 @@ unsigned long native_calibrate_tsc(void)
 			crystal_khz = 24000;	/* 24.0 MHz */
 			break;
 		case INTEL_FAM6_SKYLAKE_X:
+		case INTEL_FAM6_ATOM_DENVERTON:
 			crystal_khz = 25000;	/* 25.0 MHz */
 			break;
 		case INTEL_FAM6_ATOM_GOLDMONT:
@@ -701,6 +611,20 @@ unsigned long native_calibrate_tsc(void)
 			break;
 		}
 	}
+
+	/*
+	 * TSC frequency determined by CPUID is a "hardware reported"
+	 * frequency and is the most accurate one so far we have. This
+	 * is considered a known frequency.
+	 */
+	setup_force_cpu_cap(X86_FEATURE_TSC_KNOWN_FREQ);
+
+	/*
+	 * For Atom SoCs TSC is the only reliable clocksource.
+	 * Mark TSC reliable so no watchdog on it.
+	 */
+	if (boot_cpu_data.x86_model == INTEL_FAM6_ATOM_GOLDMONT)
+		setup_force_cpu_cap(X86_FEATURE_TSC_RELIABLE);
 
 	return crystal_khz * ebx_numerator / eax_denominator;
 }
@@ -963,7 +887,6 @@ void tsc_restore_sched_clock_state(void)
 }
 
 #ifdef CONFIG_CPU_FREQ
-
 /* Frequency scaling support. Adjust the TSC based timer when the cpu frequency
  * changes.
  *
@@ -1004,7 +927,7 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 		if (!(freq->flags & CPUFREQ_CONST_LOOPS))
 			mark_tsc_unstable("cpufreq changes");
 
-		set_cyc2ns_scale(tsc_khz, freq->cpu);
+		set_cyc2ns_scale(tsc_khz, freq->cpu, rdtsc());
 	}
 
 	return 0;
@@ -1043,17 +966,19 @@ static void detect_art(void)
 	if (boot_cpu_data.cpuid_level < ART_CPUID_LEAF)
 		return;
 
+	/* Don't enable ART in a VM, non-stop TSC and TSC_ADJUST required */
+	if (boot_cpu_has(X86_FEATURE_HYPERVISOR) ||
+	    !boot_cpu_has(X86_FEATURE_NONSTOP_TSC) ||
+	    !boot_cpu_has(X86_FEATURE_TSC_ADJUST))
+		return;
+
 	cpuid(ART_CPUID_LEAF, &art_to_tsc_denominator,
 	      &art_to_tsc_numerator, unused, unused+1);
 
-	/* Don't enable ART in a VM, non-stop TSC required */
-	if (boot_cpu_has(X86_FEATURE_HYPERVISOR) ||
-	    !boot_cpu_has(X86_FEATURE_NONSTOP_TSC) ||
-	    art_to_tsc_denominator < ART_MIN_DENOMINATOR)
+	if (art_to_tsc_denominator < ART_MIN_DENOMINATOR)
 		return;
 
-	if (rdmsrl_safe(MSR_IA32_TSC_ADJUST, &art_to_tsc_offset))
-		return;
+	rdmsrl(MSR_IA32_TSC_ADJUST, art_to_tsc_offset);
 
 	/* Make this sticky over multiple CPU init calls */
 	setup_force_cpu_cap(X86_FEATURE_ART);
@@ -1063,6 +988,11 @@ static void detect_art(void)
 /* clocksource code */
 
 static struct clocksource clocksource_tsc;
+
+static void tsc_resume(struct clocksource *cs)
+{
+	tsc_verify_tsc_adjust(true);
+}
 
 /*
  * We used to compare the TSC to the cycle_last value in the clocksource
@@ -1080,9 +1010,30 @@ static struct clocksource clocksource_tsc;
  * checking the result of read_tsc() - cycle_last for being negative.
  * That works because CLOCKSOURCE_MASK(64) does not mask out any bit.
  */
-static cycle_t read_tsc(struct clocksource *cs)
+static u64 read_tsc(struct clocksource *cs)
 {
-	return (cycle_t)rdtsc_ordered();
+	return (u64)rdtsc_ordered();
+}
+
+static void tsc_cs_mark_unstable(struct clocksource *cs)
+{
+	if (tsc_unstable)
+		return;
+
+	tsc_unstable = 1;
+	if (using_native_sched_clock())
+		clear_sched_clock_stable();
+	disable_sched_clock_irqtime();
+	pr_info("Marking TSC unstable due to clocksource watchdog\n");
+}
+
+static void tsc_cs_tick_stable(struct clocksource *cs)
+{
+	if (tsc_unstable)
+		return;
+
+	if (using_native_sched_clock())
+		sched_clock_tick_stable();
 }
 
 /*
@@ -1096,22 +1047,27 @@ static struct clocksource clocksource_tsc = {
 	.flags                  = CLOCK_SOURCE_IS_CONTINUOUS |
 				  CLOCK_SOURCE_MUST_VERIFY,
 	.archdata               = { .vclock_mode = VCLOCK_TSC },
+	.resume			= tsc_resume,
+	.mark_unstable		= tsc_cs_mark_unstable,
+	.tick_stable		= tsc_cs_tick_stable,
 };
 
 void mark_tsc_unstable(char *reason)
 {
-	if (!tsc_unstable) {
-		tsc_unstable = 1;
+	if (tsc_unstable)
+		return;
+
+	tsc_unstable = 1;
+	if (using_native_sched_clock())
 		clear_sched_clock_stable();
-		disable_sched_clock_irqtime();
-		pr_info("Marking TSC unstable due to %s\n", reason);
-		/* Change only the rating, when not registered */
-		if (clocksource_tsc.mult)
-			clocksource_mark_unstable(&clocksource_tsc);
-		else {
-			clocksource_tsc.flags |= CLOCK_SOURCE_UNSTABLE;
-			clocksource_tsc.rating = 0;
-		}
+	disable_sched_clock_irqtime();
+	pr_info("Marking TSC unstable due to %s\n", reason);
+	/* Change only the rating, when not registered */
+	if (clocksource_tsc.mult) {
+		clocksource_mark_unstable(&clocksource_tsc);
+	} else {
+		clocksource_tsc.flags |= CLOCK_SOURCE_UNSTABLE;
+		clocksource_tsc.rating = 0;
 	}
 }
 
@@ -1170,7 +1126,7 @@ int unsynchronized_tsc(void)
 /*
  * Convert ART to TSC given numerator/denominator found in detect_art()
  */
-struct system_counterval_t convert_art_to_tsc(cycle_t art)
+struct system_counterval_t convert_art_to_tsc(u64 art)
 {
 	u64 tmp, res, rem;
 
@@ -1209,6 +1165,7 @@ static void tsc_refine_calibration_work(struct work_struct *work)
 	static int hpet;
 	u64 tsc_stop, ref_stop, delta;
 	unsigned long freq;
+	int cpu;
 
 	/* Don't bother refining TSC on unstable systems */
 	if (check_tsc_unstable())
@@ -1259,6 +1216,10 @@ static void tsc_refine_calibration_work(struct work_struct *work)
 	/* Inform the TSC deadline clockevent devices about the recalibration */
 	lapic_update_tsc_freq();
 
+	/* Update the sched_clock() rate to match the clocksource one */
+	for_each_possible_cpu(cpu)
+		set_cyc2ns_scale(tsc_khz, cpu, tsc_stop);
+
 out:
 	if (boot_cpu_has(X86_FEATURE_ART))
 		art_related_clocksource = &clocksource_tsc;
@@ -1283,10 +1244,12 @@ static int __init init_tsc_clocksource(void)
 		clocksource_tsc.flags |= CLOCK_SOURCE_SUSPEND_NONSTOP;
 
 	/*
-	 * Trust the results of the earlier calibration on systems
-	 * exporting a reliable TSC.
+	 * When TSC frequency is known (retrieved via MSR or CPUID), we skip
+	 * the refined calibration and directly register it as a clocksource.
 	 */
-	if (boot_cpu_has(X86_FEATURE_TSC_RELIABLE)) {
+	if (boot_cpu_has(X86_FEATURE_TSC_KNOWN_FREQ)) {
+		if (boot_cpu_has(X86_FEATURE_ART))
+			art_related_clocksource = &clocksource_tsc;
 		clocksource_register_khz(&clocksource_tsc, tsc_khz);
 		return 0;
 	}
@@ -1302,7 +1265,7 @@ device_initcall(init_tsc_clocksource);
 
 void __init tsc_init(void)
 {
-	u64 lpj;
+	u64 lpj, cyc;
 	int cpu;
 
 	if (!boot_cpu_has(X86_FEATURE_TSC)) {
@@ -1333,15 +1296,19 @@ void __init tsc_init(void)
 		(unsigned long)cpu_khz / 1000,
 		(unsigned long)cpu_khz % 1000);
 
+	/* Sanitize TSC ADJUST before cyc2ns gets initialized */
+	tsc_store_and_check_tsc_adjust(true);
+
 	/*
 	 * Secondary CPUs do not run through tsc_init(), so set up
 	 * all the scale factors for all CPUs, assuming the same
 	 * speed as the bootup CPU. (cpufreq notifiers will fix this
 	 * up if their speed diverges)
 	 */
+	cyc = rdtsc();
 	for_each_possible_cpu(cpu) {
 		cyc2ns_init(cpu);
-		set_cyc2ns_scale(tsc_khz, cpu);
+		set_cyc2ns_scale(tsc_khz, cpu, cyc);
 	}
 
 	if (tsc_disabled > 0)
@@ -1361,10 +1328,10 @@ void __init tsc_init(void)
 
 	use_tsc_delay();
 
+	check_system_tsc_reliable();
+
 	if (unsynchronized_tsc())
 		mark_tsc_unstable("TSCs unsynchronized");
-
-	check_system_tsc_reliable();
 
 	detect_art();
 }

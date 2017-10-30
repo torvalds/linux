@@ -4,7 +4,7 @@
  * Contact: support@cavium.com
  *          Please include "LiquidIO" in the subject.
  *
- * Copyright (c) 2003-2015 Cavium, Inc.
+ * Copyright (c) 2003-2016 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -15,9 +15,6 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
  * NONINFRINGEMENT.  See the GNU General Public License for more
  * details.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium, Inc. for more information
  **********************************************************************/
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -72,53 +69,53 @@ int lio_process_ordered_list(struct octeon_device *octeon_dev,
 	int resp_to_process = MAX_ORD_REQS_TO_PROCESS;
 	u32 status;
 	u64 status64;
-	struct octeon_instr_rdp *rdp;
-	u64 rptr;
 
 	ordered_sc_list = &octeon_dev->response_list[OCTEON_ORDERED_SC_LIST];
 
 	do {
 		spin_lock_bh(&ordered_sc_list->lock);
 
-		if (ordered_sc_list->head.next == &ordered_sc_list->head) {
-			/* ordered_sc_list is empty; there is
-			 * nothing to process
-			 */
-			spin_unlock_bh
-			    (&ordered_sc_list->lock);
+		if (list_empty(&ordered_sc_list->head)) {
+			spin_unlock_bh(&ordered_sc_list->lock);
 			return 1;
 		}
 
-		sc = (struct octeon_soft_command *)ordered_sc_list->
-		    head.next;
-		if (OCTEON_CN23XX_PF(octeon_dev)) {
-			rdp = (struct octeon_instr_rdp *)&sc->cmd.cmd3.rdp;
-			rptr = sc->cmd.cmd3.rptr;
-		} else {
-			rdp = (struct octeon_instr_rdp *)&sc->cmd.cmd2.rdp;
-			rptr = sc->cmd.cmd2.rptr;
-		}
+		sc = list_first_entry(&ordered_sc_list->head,
+				      struct octeon_soft_command, node);
 
 		status = OCTEON_REQUEST_PENDING;
 
 		/* check if octeon has finished DMA'ing a response
 		 * to where rptr is pointing to
 		 */
-		dma_sync_single_for_cpu(&octeon_dev->pci_dev->dev,
-					rptr, rdp->rlen,
-					DMA_FROM_DEVICE);
 		status64 = *sc->status_word;
 
 		if (status64 != COMPLETION_WORD_INIT) {
+			/* This logic ensures that all 64b have been written.
+			 * 1. check byte 0 for non-FF
+			 * 2. if non-FF, then swap result from BE to host order
+			 * 3. check byte 7 (swapped to 0) for non-FF
+			 * 4. if non-FF, use the low 32-bit status code
+			 * 5. if either byte 0 or byte 7 is FF, don't use status
+			 */
 			if ((status64 & 0xff) != 0xff) {
 				octeon_swap_8B_data(&status64, 1);
 				if (((status64 & 0xff) != 0xff)) {
-					status = (u32)(status64 &
-						       0xffffffffULL);
+					/* retrieve 16-bit firmware status */
+					status = (u32)(status64 & 0xffffULL);
+					if (status) {
+						status =
+						  FIRMWARE_STATUS_CODE(status);
+					} else {
+						/* i.e. no error */
+						status = OCTEON_REQUEST_DONE;
+					}
 				}
 			}
 		} else if (force_quit || (sc->timeout &&
 			time_after(jiffies, (unsigned long)sc->timeout))) {
+			dev_err(&octeon_dev->pci_dev->dev, "%s: cmd failed, timeout (%ld, %ld)\n",
+				__func__, (long)jiffies, (long)sc->timeout);
 			status = OCTEON_REQUEST_TIMEOUT;
 		}
 

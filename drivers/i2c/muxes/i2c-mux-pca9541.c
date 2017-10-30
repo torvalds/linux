@@ -16,15 +16,14 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/module.h>
-#include <linux/jiffies.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
-
-#include <linux/i2c/pca954x.h>
+#include <linux/jiffies.h>
+#include <linux/module.h>
+#include <linux/platform_data/pca954x.h>
+#include <linux/slab.h>
 
 /*
  * The PCA9541 is a bus master selector. It supports two I2C masters connected
@@ -90,6 +89,7 @@ static const struct of_device_id pca9541_of_match[] = {
 	{ .compatible = "nxp,pca9541" },
 	{}
 };
+MODULE_DEVICE_TABLE(of, pca9541_of_match);
 #endif
 
 /*
@@ -368,10 +368,8 @@ static int pca9541_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, muxc);
 
 	ret = i2c_mux_add_adapter(muxc, force, 0, 0);
-	if (ret) {
-		dev_err(&client->dev, "failed to register master selector\n");
+	if (ret)
 		return ret;
-	}
 
 	dev_info(&client->dev, "registered master selector for I2C %s\n",
 		 client->name);

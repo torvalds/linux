@@ -12,18 +12,9 @@ menuconfig MMC
 	  If you want MMC/SD/SDIO support, you should say Y here and
 	  also to your specific host controller driver.
 
-config MMC_DEBUG
-	bool "MMC debugging"
-	depends on MMC != n
-	help
-	  This is an option for use by developers; most people should
-	  say N here.  This enables MMC core and driver debugging.
-
 if MMC
 
 source "drivers/mmc/core/Kconfig"
-
-source "drivers/mmc/card/Kconfig"
 
 source "drivers/mmc/host/Kconfig"
 

@@ -32,7 +32,7 @@
 #include <linux/kallsyms.h>
 #include <asm/pgtable.h>
 #include <linux/mmiotrace.h>
-#include <asm/e820.h> /* for ISA_START_ADDRESS */
+#include <asm/e820/api.h> /* for ISA_START_ADDRESS */
 #include <linux/atomic.h>
 #include <linux/percpu.h>
 #include <linux/cpu.h>

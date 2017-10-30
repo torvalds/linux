@@ -117,7 +117,7 @@ destroy_stream(struct snd_efw *efw, struct amdtp_stream *stream)
 		conn = &efw->in_conn;
 
 	amdtp_stream_destroy(stream);
-	cmp_connection_destroy(&efw->out_conn);
+	cmp_connection_destroy(conn);
 }
 
 static int

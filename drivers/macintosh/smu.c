@@ -39,6 +39,7 @@
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <linux/memblock.h>
+#include <linux/sched/signal.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -47,7 +48,7 @@
 #include <asm/pmac_feature.h>
 #include <asm/smu.h>
 #include <asm/sections.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define VERSION "0.7"
 #define AUTHOR  "(c) 2005 Benjamin Herrenschmidt, IBM Corp."
@@ -588,14 +589,14 @@ static int smu_late_init(void)
 	if (smu->db_node) {
 		smu->db_irq = irq_of_parse_and_map(smu->db_node, 0);
 		if (!smu->db_irq)
-			printk(KERN_ERR "smu: failed to map irq for node %s\n",
-			       smu->db_node->full_name);
+			printk(KERN_ERR "smu: failed to map irq for node %pOF\n",
+			       smu->db_node);
 	}
 	if (smu->msg_node) {
 		smu->msg_irq = irq_of_parse_and_map(smu->msg_node, 0);
 		if (!smu->msg_irq)
-			printk(KERN_ERR "smu: failed to map irq for node %s\n",
-			       smu->msg_node->full_name);
+			printk(KERN_ERR "smu: failed to map irq for node %pOF\n",
+			       smu->msg_node);
 	}
 
 	/*

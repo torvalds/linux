@@ -25,7 +25,7 @@ static long ceph_ioctl_get_layout(struct file *file, void __user *arg)
 		l.stripe_count = ci->i_layout.stripe_count;
 		l.object_size = ci->i_layout.object_size;
 		l.data_pool = ci->i_layout.pool_id;
-		l.preferred_osd = (s32)-1;
+		l.preferred_osd = -1;
 		if (copy_to_user(arg, &l, sizeof(l)))
 			return -EFAULT;
 	}
@@ -97,7 +97,7 @@ static long ceph_ioctl_set_layout(struct file *file, void __user *arg)
 		nl.data_pool = ci->i_layout.pool_id;
 
 	/* this is obsolete, and always -1 */
-	nl.preferred_osd = le64_to_cpu(-1);
+	nl.preferred_osd = -1;
 
 	err = __validate_layout(mdsc, &nl);
 	if (err)

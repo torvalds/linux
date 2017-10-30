@@ -40,8 +40,6 @@ struct tcf_police {
 
 #define to_police(pc) ((struct tcf_police *)pc)
 
-#define POL_TAB_MASK     15
-
 /* old policer structure from before tc actions */
 struct tc_police_compat {
 	u32			index;
@@ -55,7 +53,7 @@ struct tc_police_compat {
 
 /* Each policer is serialized by its individual spinlock */
 
-static int police_net_id;
+static unsigned int police_net_id;
 static struct tc_action_ops act_police_ops;
 
 static int tcf_act_police_walker(struct net *net, struct sk_buff *skb,
@@ -90,7 +88,7 @@ static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_POLICE_MAX, nla, police_policy);
+	err = nla_parse_nested(tb, TCA_POLICE_MAX, nla, police_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -101,18 +99,18 @@ static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 
 	parm = nla_data(tb[TCA_POLICE_TBF]);
-	exists = tcf_hash_check(tn, parm->index, a, bind);
+	exists = tcf_idr_check(tn, parm->index, a, bind);
 	if (exists && bind)
 		return 0;
 
 	if (!exists) {
-		ret = tcf_hash_create(tn, parm->index, NULL, a,
-				      &act_police_ops, bind, false);
+		ret = tcf_idr_create(tn, parm->index, NULL, a,
+				     &act_police_ops, bind, false);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
 	} else {
-		tcf_hash_release(*a, bind);
+		tcf_idr_release(*a, bind);
 		if (!ovr)
 			return -EEXIST;
 	}
@@ -132,22 +130,21 @@ static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 		}
 	}
 
-	spin_lock_bh(&police->tcf_lock);
 	if (est) {
 		err = gen_replace_estimator(&police->tcf_bstats, NULL,
 					    &police->tcf_rate_est,
 					    &police->tcf_lock,
 					    NULL, est);
 		if (err)
-			goto failure_unlock;
+			goto failure;
 	} else if (tb[TCA_POLICE_AVRATE] &&
 		   (ret == ACT_P_CREATED ||
-		    !gen_estimator_active(&police->tcf_bstats,
-					  &police->tcf_rate_est))) {
+		    !gen_estimator_active(&police->tcf_rate_est))) {
 		err = -EINVAL;
-		goto failure_unlock;
+		goto failure;
 	}
 
+	spin_lock_bh(&police->tcf_lock);
 	/* No failure allowed after this point */
 	police->tcfp_mtu = parm->mtu;
 	if (police->tcfp_mtu == 0) {
@@ -189,17 +186,15 @@ static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 		return ret;
 
 	police->tcfp_t_c = ktime_get_ns();
-	tcf_hash_insert(tn, *a);
+	tcf_idr_insert(tn, *a);
 
 	return ret;
 
-failure_unlock:
-	spin_unlock_bh(&police->tcf_lock);
 failure:
 	qdisc_put_rtab(P_tab);
 	qdisc_put_rtab(R_tab);
 	if (ret == ACT_P_CREATED)
-		tcf_hash_cleanup(*a, est);
+		tcf_idr_cleanup(*a, est);
 	return err;
 }
 
@@ -216,13 +211,17 @@ static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
 	bstats_update(&police->tcf_bstats, skb);
 	tcf_lastuse_update(&police->tcf_tm);
 
-	if (police->tcfp_ewma_rate &&
-	    police->tcf_rate_est.bps >= police->tcfp_ewma_rate) {
-		police->tcf_qstats.overlimits++;
-		if (police->tcf_action == TC_ACT_SHOT)
-			police->tcf_qstats.drops++;
-		spin_unlock(&police->tcf_lock);
-		return police->tcf_action;
+	if (police->tcfp_ewma_rate) {
+		struct gnet_stats_rate_est64 sample;
+
+		if (!gen_estimator_read(&police->tcf_rate_est, &sample) ||
+		    sample.bps >= police->tcfp_ewma_rate) {
+			police->tcf_qstats.overlimits++;
+			if (police->tcf_action == TC_ACT_SHOT)
+				police->tcf_qstats.drops++;
+			spin_unlock(&police->tcf_lock);
+			return police->tcf_action;
+		}
 	}
 
 	if (qdisc_pkt_len(skb) <= police->tcfp_mtu) {
@@ -309,7 +308,7 @@ static int tcf_police_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, police_net_id);
 
-	return tcf_hash_search(tn, a, index);
+	return tcf_idr_search(tn, a, index);
 }
 
 MODULE_AUTHOR("Alexey Kuznetsov");
@@ -332,7 +331,7 @@ static __net_init int police_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, police_net_id);
 
-	return tc_action_net_init(tn, &act_police_ops, POL_TAB_MASK);
+	return tc_action_net_init(tn, &act_police_ops);
 }
 
 static void __net_exit police_exit_net(struct net *net)

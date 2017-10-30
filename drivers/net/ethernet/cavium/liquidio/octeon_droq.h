@@ -4,7 +4,7 @@
  * Contact: support@cavium.com
  *          Please include "LiquidIO" in the subject.
  *
- * Copyright (c) 2003-2015 Cavium, Inc.
+ * Copyright (c) 2003-2016 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -13,13 +13,8 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium, Inc. for more information
- **********************************************************************/
-
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 /*!  \file  octeon_droq.h
  *   \brief Implementation of Octeon Output queues. "Output" is with
  *   respect to the Octeon device on the NIC. From this driver's point of
@@ -56,11 +51,11 @@ struct octeon_droq_desc {
  *  about the packet.
  */
 struct octeon_droq_info {
-	/** The Output Receive Header. */
-	union octeon_rh rh;
-
 	/** The Length of the packet. */
 	u64 length;
+
+	/** The Output Receive Header. */
+	union octeon_rh rh;
 };
 
 #define OCT_DROQ_INFO_SIZE   (sizeof(struct octeon_droq_info))
@@ -81,7 +76,7 @@ struct octeon_skb_page_info {
  *  the Octeon device. Since the descriptor ring keeps physical (bus)
  *  addresses, this field is required for the driver to keep track of
  *  the virtual address pointers.
-*/
+ */
 struct octeon_recv_buffer {
 	/** Packet buffer, including metadata. */
 	void *buffer;
@@ -121,7 +116,6 @@ struct oct_droq_stats {
 	/** Num of Packets dropped due to receive path failures. */
 	u64 rx_dropped;
 
-	/** Num of vxlan packets received; */
 	u64 rx_vxlan;
 
 	/** Num of failures of recv_buffer_alloc() */
@@ -300,9 +294,6 @@ struct octeon_droq {
 	 */
 	u32 max_empty_descs;
 
-	/** The 8B aligned info ptrs begin from this address. */
-	struct octeon_droq_info *info_list;
-
 	/** The receive buffer list. This list has the virtual addresses of the
 	 * buffers.
 	 */
@@ -330,15 +321,6 @@ struct octeon_droq {
 	/** DMA mapped address of the DROQ descriptor ring. */
 	size_t desc_ring_dma;
 
-	/** Info ptr list are allocated at this virtual address. */
-	size_t info_base_addr;
-
-	/** DMA mapped address of the info list */
-	size_t info_list_dma;
-
-	/** Allocated size of info list. */
-	u32 info_alloc_size;
-
 	/** application context */
 	void *app_ctx;
 
@@ -346,7 +328,7 @@ struct octeon_droq {
 
 	u32 cpu_id;
 
-	struct call_single_data csd;
+	call_single_data_t csd;
 };
 
 #define OCT_DROQ_SIZE   (sizeof(struct octeon_droq))
@@ -359,7 +341,7 @@ struct octeon_droq {
  * @param  q_no       - droq no. ranges from 0 - 3.
  * @param app_ctx     - pointer to application context
  * @return Success: 0    Failure: 1
-*/
+ */
 int octeon_init_droq(struct octeon_device *oct_dev,
 		     u32 q_no,
 		     u32 num_descs,
@@ -372,7 +354,7 @@ int octeon_init_droq(struct octeon_device *oct_dev,
  *  @param oct_dev - pointer to the octeon device structure
  *  @param q_no    - droq no. ranges from 0 - 3.
  *  @return:    Success: 0    Failure: 1
-*/
+ */
 int octeon_delete_droq(struct octeon_device *oct_dev, u32 q_no);
 
 /** Register a change in droq operations. The ops field has a pointer to a
@@ -431,5 +413,7 @@ int octeon_droq_process_packets(struct octeon_device *oct,
 
 int octeon_process_droq_poll_cmd(struct octeon_device *oct, u32 q_no,
 				 int cmd, u32 arg);
+
+void octeon_droq_check_oom(struct octeon_droq *droq);
 
 #endif	/*__OCTEON_DROQ_H__ */

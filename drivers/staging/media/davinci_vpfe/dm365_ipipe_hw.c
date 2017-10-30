@@ -1003,8 +1003,8 @@ void ipipe_set_car_regs(void __iomem *base_addr, struct vpfe_ipipe_car *car)
 		ipipe_set_mf(base_addr);
 		ipipe_set_gain_ctrl(base_addr, car);
 		/* Set the threshold for switching between
-		  * the two Here we overwrite the MF SW0 value
-		  */
+		 * the two Here we overwrite the MF SW0 value
+		 */
 		regw_ip(base_addr, VPFE_IPIPE_CAR_DYN_SWITCH, CAR_TYP);
 		val = car->sw1;
 		val <<= CAR_SW1_SHIFT;

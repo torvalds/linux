@@ -63,6 +63,7 @@ enum mtk_dpi_out_color_format {
 struct mtk_dpi {
 	struct mtk_ddp_comp ddp_comp;
 	struct drm_encoder encoder;
+	struct drm_bridge *bridge;
 	void __iomem *regs;
 	struct device *dev;
 	struct clk *engine_clk;
@@ -604,8 +605,8 @@ static int mtk_dpi_bind(struct device *dev, struct device *master, void *data)
 
 	ret = mtk_ddp_comp_register(drm_dev, &dpi->ddp_comp);
 	if (ret < 0) {
-		dev_err(dev, "Failed to register component %s: %d\n",
-			dev->of_node->full_name, ret);
+		dev_err(dev, "Failed to register component %pOF: %d\n",
+			dev->of_node, ret);
 		return ret;
 	}
 
@@ -620,8 +621,7 @@ static int mtk_dpi_bind(struct device *dev, struct device *master, void *data)
 	/* Currently DPI0 is fixed to be driven by OVL1 */
 	dpi->encoder.possible_crtcs = BIT(1);
 
-	dpi->encoder.bridge->encoder = &dpi->encoder;
-	ret = drm_bridge_attach(dpi->encoder.dev, dpi->encoder.bridge);
+	ret = drm_bridge_attach(&dpi->encoder, dpi->bridge, NULL);
 	if (ret) {
 		dev_err(dev, "Failed to attach bridge: %d\n", ret);
 		goto err_cleanup;
@@ -661,7 +661,7 @@ static int mtk_dpi_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mtk_dpi *dpi;
 	struct resource *mem;
-	struct device_node *ep, *bridge_node = NULL;
+	struct device_node *bridge_node;
 	int comp_id;
 	int ret;
 
@@ -706,21 +706,15 @@ static int mtk_dpi_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ep = of_graph_get_next_endpoint(dev->of_node, NULL);
-	if (ep) {
-		bridge_node = of_graph_get_remote_port_parent(ep);
-		of_node_put(ep);
-	}
-	if (!bridge_node) {
-		dev_err(dev, "Failed to find bridge node\n");
+	bridge_node = of_graph_get_remote_node(dev->of_node, 0, 0);
+	if (!bridge_node)
 		return -ENODEV;
-	}
 
-	dev_info(dev, "Found bridge node: %s\n", bridge_node->full_name);
+	dev_info(dev, "Found bridge node: %pOF\n", bridge_node);
 
-	dpi->encoder.bridge = of_drm_find_bridge(bridge_node);
+	dpi->bridge = of_drm_find_bridge(bridge_node);
 	of_node_put(bridge_node);
-	if (!dpi->encoder.bridge)
+	if (!dpi->bridge)
 		return -EPROBE_DEFER;
 
 	comp_id = mtk_ddp_comp_get_id(dev->of_node, MTK_DPI);

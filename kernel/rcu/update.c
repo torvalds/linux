@@ -36,7 +36,8 @@
 #include <linux/spinlock.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
 #include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/percpu.h>
@@ -49,6 +50,7 @@
 #include <linux/moduleparam.h>
 #include <linux/kthread.h>
 #include <linux/tick.h>
+#include <linux/rcupdate_wait.h>
 
 #define CREATE_TRACE_POINTS
 
@@ -60,7 +62,9 @@
 #define MODULE_PARAM_PREFIX "rcupdate."
 
 #ifndef CONFIG_TINY_RCU
+extern int rcu_expedited; /* from sysctl */
 module_param(rcu_expedited, int, 0);
+extern int rcu_normal; /* from sysctl */
 module_param(rcu_normal, int, 0);
 static int rcu_normal_after_boot;
 module_param(rcu_normal_after_boot, int, 0);
@@ -121,27 +125,30 @@ EXPORT_SYMBOL(rcu_read_lock_sched_held);
  * Should expedited grace-period primitives always fall back to their
  * non-expedited counterparts?  Intended for use within RCU.  Note
  * that if the user specifies both rcu_expedited and rcu_normal, then
- * rcu_normal wins.
+ * rcu_normal wins.  (Except during the time period during boot from
+ * when the first task is spawned until the rcu_set_runtime_mode()
+ * core_initcall() is invoked, at which point everything is expedited.)
  */
 bool rcu_gp_is_normal(void)
 {
-	return READ_ONCE(rcu_normal);
+	return READ_ONCE(rcu_normal) &&
+	       rcu_scheduler_active != RCU_SCHEDULER_INIT;
 }
 EXPORT_SYMBOL_GPL(rcu_gp_is_normal);
 
-static atomic_t rcu_expedited_nesting =
-	ATOMIC_INIT(IS_ENABLED(CONFIG_RCU_EXPEDITE_BOOT) ? 1 : 0);
+static atomic_t rcu_expedited_nesting = ATOMIC_INIT(1);
 
 /*
  * Should normal grace-period primitives be expedited?  Intended for
  * use within RCU.  Note that this function takes the rcu_expedited
- * sysfs/boot variable into account as well as the rcu_expedite_gp()
- * nesting.  So looping on rcu_unexpedite_gp() until rcu_gp_is_expedited()
- * returns false is a -really- bad idea.
+ * sysfs/boot variable and rcu_scheduler_active into account as well
+ * as the rcu_expedite_gp() nesting.  So looping on rcu_unexpedite_gp()
+ * until rcu_gp_is_expedited() returns false is a -really- bad idea.
  */
 bool rcu_gp_is_expedited(void)
 {
-	return rcu_expedited || atomic_read(&rcu_expedited_nesting);
+	return rcu_expedited || atomic_read(&rcu_expedited_nesting) ||
+	       rcu_scheduler_active == RCU_SCHEDULER_INIT;
 }
 EXPORT_SYMBOL_GPL(rcu_gp_is_expedited);
 
@@ -178,13 +185,45 @@ EXPORT_SYMBOL_GPL(rcu_unexpedite_gp);
  */
 void rcu_end_inkernel_boot(void)
 {
-	if (IS_ENABLED(CONFIG_RCU_EXPEDITE_BOOT))
-		rcu_unexpedite_gp();
+	rcu_unexpedite_gp();
 	if (rcu_normal_after_boot)
 		WRITE_ONCE(rcu_normal, 1);
 }
 
 #endif /* #ifndef CONFIG_TINY_RCU */
+
+/*
+ * Test each non-SRCU synchronous grace-period wait API.  This is
+ * useful just after a change in mode for these primitives, and
+ * during early boot.
+ */
+void rcu_test_sync_prims(void)
+{
+	if (!IS_ENABLED(CONFIG_PROVE_RCU))
+		return;
+	synchronize_rcu();
+	synchronize_rcu_bh();
+	synchronize_sched();
+	synchronize_rcu_expedited();
+	synchronize_rcu_bh_expedited();
+	synchronize_sched_expedited();
+}
+
+#if !defined(CONFIG_TINY_RCU) || defined(CONFIG_SRCU)
+
+/*
+ * Switch to run-time mode once RCU has fully initialized.
+ */
+static int __init rcu_set_runtime_mode(void)
+{
+	rcu_test_sync_prims();
+	rcu_scheduler_active = RCU_SCHEDULER_RUNNING;
+	rcu_test_sync_prims();
+	return 0;
+}
+core_initcall(rcu_set_runtime_mode);
+
+#endif /* #if !defined(CONFIG_TINY_RCU) || defined(CONFIG_SRCU) */
 
 #ifdef CONFIG_PREEMPT_RCU
 
@@ -257,7 +296,7 @@ EXPORT_SYMBOL_GPL(rcu_callback_map);
 
 int notrace debug_lockdep_rcu_enabled(void)
 {
-	return rcu_scheduler_active && debug_locks &&
+	return rcu_scheduler_active != RCU_SCHEDULER_INACTIVE && debug_locks &&
 	       current->lockdep_recursion == 0;
 }
 EXPORT_SYMBOL_GPL(debug_lockdep_rcu_enabled);
@@ -342,6 +381,7 @@ void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
 		   struct rcu_synchronize *rs_array)
 {
 	int i;
+	int j;
 
 	/* Initialize and register callbacks for each flavor specified. */
 	for (i = 0; i < n; i++) {
@@ -353,7 +393,11 @@ void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
 		}
 		init_rcu_head_on_stack(&rs_array[i].head);
 		init_completion(&rs_array[i].completion);
-		(crcu_array[i])(&rs_array[i].head, wakeme_after_rcu);
+		for (j = 0; j < i; j++)
+			if (crcu_array[j] == crcu_array[i])
+				break;
+		if (j == i)
+			(crcu_array[i])(&rs_array[i].head, wakeme_after_rcu);
 	}
 
 	/* Wait for all callbacks to be invoked. */
@@ -362,7 +406,11 @@ void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
 		    (crcu_array[i] == call_rcu ||
 		     crcu_array[i] == call_rcu_bh))
 			continue;
-		wait_for_completion(&rs_array[i].completion);
+		for (j = 0; j < i; j++)
+			if (crcu_array[j] == crcu_array[i])
+				break;
+		if (j == i)
+			wait_for_completion(&rs_array[i].completion);
 		destroy_rcu_head_on_stack(&rs_array[i].head);
 	}
 }
@@ -520,18 +568,33 @@ static DECLARE_WAIT_QUEUE_HEAD(rcu_tasks_cbs_wq);
 static DEFINE_RAW_SPINLOCK(rcu_tasks_cbs_lock);
 
 /* Track exiting tasks in order to allow them to be waited for. */
-DEFINE_SRCU(tasks_rcu_exit_srcu);
+DEFINE_STATIC_SRCU(tasks_rcu_exit_srcu);
 
 /* Control stall timeouts.  Disable with <= 0, otherwise jiffies till stall. */
-static int rcu_task_stall_timeout __read_mostly = HZ * 60 * 10;
+#define RCU_TASK_STALL_TIMEOUT (HZ * 60 * 10)
+static int rcu_task_stall_timeout __read_mostly = RCU_TASK_STALL_TIMEOUT;
 module_param(rcu_task_stall_timeout, int, 0644);
 
 static void rcu_spawn_tasks_kthread(void);
 static struct task_struct *rcu_tasks_kthread_ptr;
 
-/*
- * Post an RCU-tasks callback.  First call must be from process context
- * after the scheduler if fully operational.
+/**
+ * call_rcu_tasks() - Queue an RCU for invocation task-based grace period
+ * @rhp: structure to be used for queueing the RCU updates.
+ * @func: actual callback function to be invoked after the grace period
+ *
+ * The callback function will be invoked some time after a full grace
+ * period elapses, in other words after all currently executing RCU
+ * read-side critical sections have completed. call_rcu_tasks() assumes
+ * that the read-side critical sections end at a voluntary context
+ * switch (not a preemption!), entry into idle, or transition to usermode
+ * execution.  As such, there are no read-side primitives analogous to
+ * rcu_read_lock() and rcu_read_unlock() because this primitive is intended
+ * to determine that all tasks have passed through a safe state, not so
+ * much for data-strcuture synchronization.
+ *
+ * See the description of call_rcu() for more detailed information on
+ * memory ordering guarantees.
  */
 void call_rcu_tasks(struct rcu_head *rhp, rcu_callback_t func)
 {
@@ -591,7 +654,7 @@ EXPORT_SYMBOL_GPL(call_rcu_tasks);
 void synchronize_rcu_tasks(void)
 {
 	/* Complain if the scheduler has not started.  */
-	RCU_LOCKDEP_WARN(!rcu_scheduler_active,
+	RCU_LOCKDEP_WARN(rcu_scheduler_active == RCU_SCHEDULER_INACTIVE,
 			 "synchronize_rcu_tasks called too soon");
 
 	/* Wait for the grace period. */
@@ -628,6 +691,7 @@ static void check_holdout_task(struct task_struct *t,
 		put_task_struct(t);
 		return;
 	}
+	rcu_request_urgent_qs_task(t);
 	if (!needreport)
 		return;
 	if (*firstreport) {
@@ -811,7 +875,40 @@ static void rcu_spawn_tasks_kthread(void)
 	mutex_unlock(&rcu_tasks_kthread_mutex);
 }
 
+/* Do the srcu_read_lock() for the above synchronize_srcu().  */
+void exit_tasks_rcu_start(void)
+{
+	preempt_disable();
+	current->rcu_tasks_idx = __srcu_read_lock(&tasks_rcu_exit_srcu);
+	preempt_enable();
+}
+
+/* Do the srcu_read_unlock() for the above synchronize_srcu().  */
+void exit_tasks_rcu_finish(void)
+{
+	preempt_disable();
+	__srcu_read_unlock(&tasks_rcu_exit_srcu, current->rcu_tasks_idx);
+	preempt_enable();
+}
+
 #endif /* #ifdef CONFIG_TASKS_RCU */
+
+#ifndef CONFIG_TINY_RCU
+
+/*
+ * Print any non-default Tasks RCU settings.
+ */
+static void __init rcu_tasks_bootup_oddness(void)
+{
+#ifdef CONFIG_TASKS_RCU
+	if (rcu_task_stall_timeout != RCU_TASK_STALL_TIMEOUT)
+		pr_info("\tTasks-RCU CPU stall warnings timeout set to %d (rcu_task_stall_timeout).\n", rcu_task_stall_timeout);
+	else
+		pr_info("\tTasks RCU enabled.\n");
+#endif /* #ifdef CONFIG_TASKS_RCU */
+}
+
+#endif /* #ifndef CONFIG_TINY_RCU */
 
 #ifdef CONFIG_PROVE_RCU
 
@@ -865,6 +962,7 @@ void rcu_early_boot_tests(void)
 		early_boot_test_call_rcu_bh();
 	if (rcu_self_test_sched)
 		early_boot_test_call_rcu_sched();
+	rcu_test_sync_prims();
 }
 
 static int rcu_verify_early_boot_tests(void)
@@ -896,3 +994,25 @@ late_initcall(rcu_verify_early_boot_tests);
 #else
 void rcu_early_boot_tests(void) {}
 #endif /* CONFIG_PROVE_RCU */
+
+#ifndef CONFIG_TINY_RCU
+
+/*
+ * Print any significant non-default boot-time settings.
+ */
+void __init rcupdate_announce_bootup_oddness(void)
+{
+	if (rcu_normal)
+		pr_info("\tNo expedited grace period (rcu_normal).\n");
+	else if (rcu_normal_after_boot)
+		pr_info("\tNo expedited grace period (rcu_normal_after_boot).\n");
+	else if (rcu_expedited)
+		pr_info("\tAll grace periods are expedited (rcu_expedited).\n");
+	if (rcu_cpu_stall_suppress)
+		pr_info("\tRCU CPU stall warnings suppressed (rcu_cpu_stall_suppress).\n");
+	if (rcu_cpu_stall_timeout != CONFIG_RCU_CPU_STALL_TIMEOUT)
+		pr_info("\tRCU CPU stall warnings timeout set to %d (rcu_cpu_stall_timeout).\n", rcu_cpu_stall_timeout);
+	rcu_tasks_bootup_oddness();
+}
+
+#endif /* #ifndef CONFIG_TINY_RCU */

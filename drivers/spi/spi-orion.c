@@ -22,6 +22,7 @@
 #include <linux/of_device.h>
 #include <linux/clk.h>
 #include <linux/sizes.h>
+#include <linux/gpio.h>
 #include <asm/unaligned.h>
 
 #define DRIVER_NAME			"orion_spi"
@@ -39,6 +40,8 @@
 
 #define ORION_SPI_IF_CTRL_REG		0x00
 #define ORION_SPI_IF_CONFIG_REG		0x04
+#define ORION_SPI_IF_RXLSBF		BIT(14)
+#define ORION_SPI_IF_TXLSBF		BIT(13)
 #define ORION_SPI_DATA_OUT_REG		0x08
 #define ORION_SPI_DATA_IN_REG		0x0c
 #define ORION_SPI_INT_CAUSE_REG		0x10
@@ -138,37 +141,62 @@ static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 	tclk_hz = clk_get_rate(orion_spi->clk);
 
 	if (devdata->typ == ARMADA_SPI) {
-		unsigned int clk, spr, sppr, sppr2, err;
-		unsigned int best_spr, best_sppr, best_err;
+		/*
+		 * Given the core_clk (tclk_hz) and the target rate (speed) we
+		 * determine the best values for SPR (in [0 .. 15]) and SPPR (in
+		 * [0..7]) such that
+		 *
+		 * 	core_clk / (SPR * 2 ** SPPR)
+		 *
+		 * is as big as possible but not bigger than speed.
+		 */
 
-		best_err = speed;
-		best_spr = 0;
-		best_sppr = 0;
+		/* best integer divider: */
+		unsigned divider = DIV_ROUND_UP(tclk_hz, speed);
+		unsigned spr, sppr;
 
-		/* Iterate over the valid range looking for best fit */
-		for (sppr = 0; sppr < 8; sppr++) {
-			sppr2 = 0x1 << sppr;
+		if (divider < 16) {
+			/* This is the easy case, divider is less than 16 */
+			spr = divider;
+			sppr = 0;
 
-			spr = tclk_hz / sppr2;
-			spr = DIV_ROUND_UP(spr, speed);
-			if ((spr == 0) || (spr > 15))
-				continue;
+		} else {
+			unsigned two_pow_sppr;
+			/*
+			 * Find the highest bit set in divider. This and the
+			 * three next bits define SPR (apart from rounding).
+			 * SPPR is then the number of zero bits that must be
+			 * appended:
+			 */
+			sppr = fls(divider) - 4;
 
-			clk = tclk_hz / (spr * sppr2);
-			err = speed - clk;
+			/*
+			 * As SPR only has 4 bits, we have to round divider up
+			 * to the next multiple of 2 ** sppr.
+			 */
+			two_pow_sppr = 1 << sppr;
+			divider = (divider + two_pow_sppr - 1) & -two_pow_sppr;
 
-			if (err < best_err) {
-				best_spr = spr;
-				best_sppr = sppr;
-				best_err = err;
-			}
+			/*
+			 * recalculate sppr as rounding up divider might have
+			 * increased it enough to change the position of the
+			 * highest set bit. In this case the bit that now
+			 * doesn't make it into SPR is 0, so there is no need to
+			 * round again.
+			 */
+			sppr = fls(divider) - 4;
+			spr = divider >> sppr;
+
+			/*
+			 * Now do range checking. SPR is constructed to have a
+			 * width of 4 bits, so this is fine for sure. So we
+			 * still need to check for sppr to fit into 3 bits:
+			 */
+			if (sppr > 7)
+				return -EINVAL;
 		}
 
-		if ((best_sppr == 0) && (best_spr == 0))
-			return -EINVAL;
-
-		prescale = ((best_sppr & 0x6) << 5) |
-			((best_sppr & 0x1) << 4) | best_spr;
+		prescale = ((sppr & 0x6) << 5) | ((sppr & 0x1) << 4) | spr;
 	} else {
 		/*
 		 * the supported rates are: 4,6,8...30
@@ -209,6 +237,11 @@ orion_spi_mode_set(struct spi_device *spi)
 		reg |= ORION_SPI_MODE_CPOL;
 	if (spi->mode & SPI_CPHA)
 		reg |= ORION_SPI_MODE_CPHA;
+	if (spi->mode & SPI_LSB_FIRST)
+		reg |= ORION_SPI_IF_RXLSBF | ORION_SPI_IF_TXLSBF;
+	else
+		reg &= ~(ORION_SPI_IF_RXLSBF | ORION_SPI_IF_TXLSBF);
+
 	writel(reg, spi_reg(orion_spi, ORION_SPI_IF_CONFIG_REG));
 }
 
@@ -288,12 +321,18 @@ orion_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 static void orion_spi_set_cs(struct spi_device *spi, bool enable)
 {
 	struct orion_spi *orion_spi;
+	int cs;
+
+	if (gpio_is_valid(spi->cs_gpio))
+		cs = 0;
+	else
+		cs = spi->chip_select;
 
 	orion_spi = spi_master_get_devdata(spi->master);
 
 	orion_spi_clrbits(orion_spi, ORION_SPI_IF_CTRL_REG, ORION_SPI_CS_MASK);
 	orion_spi_setbits(orion_spi, ORION_SPI_IF_CTRL_REG,
-				ORION_SPI_CS(spi->chip_select));
+				ORION_SPI_CS(cs));
 
 	/* Chip select logic is inverted from spi_set_cs */
 	if (!enable)
@@ -566,14 +605,15 @@ static int orion_spi_probe(struct platform_device *pdev)
 			master->bus_num = cell_index;
 	}
 
-	/* we support only mode 0, and no options */
-	master->mode_bits = SPI_CPHA | SPI_CPOL;
+	/* we support all 4 SPI modes and LSB first option */
+	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_LSB_FIRST;
 	master->set_cs = orion_spi_set_cs;
 	master->transfer_one = orion_spi_transfer_one;
 	master->num_chipselect = ORION_NUM_CHIPSELECTS;
 	master->setup = orion_spi_setup;
 	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
 	master->auto_runtime_pm = true;
+	master->flags = SPI_MASTER_GPIO_SS;
 
 	platform_set_drvdata(pdev, master);
 
@@ -629,8 +669,8 @@ static int orion_spi_probe(struct platform_device *pdev)
 		status = of_property_read_u32(np, "reg", &cs);
 		if (status) {
 			dev_err(&pdev->dev,
-				"%s has no valid 'reg' property (%d)\n",
-				np->full_name, status);
+				"%pOF has no valid 'reg' property (%d)\n",
+				np, status);
 			status = 0;
 			continue;
 		}

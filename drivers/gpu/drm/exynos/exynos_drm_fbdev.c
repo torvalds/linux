@@ -18,6 +18,8 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/exynos_drm.h>
 
+#include <linux/console.h>
+
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_fbdev.h"
@@ -63,15 +65,11 @@ static int exynos_drm_fb_mmap(struct fb_info *info,
 
 static struct fb_ops exynos_drm_fb_ops = {
 	.owner		= THIS_MODULE,
+	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_mmap        = exynos_drm_fb_mmap,
 	.fb_fillrect	= drm_fb_helper_cfb_fillrect,
 	.fb_copyarea	= drm_fb_helper_cfb_copyarea,
 	.fb_imageblit	= drm_fb_helper_cfb_imageblit,
-	.fb_check_var	= drm_fb_helper_check_var,
-	.fb_set_par	= drm_fb_helper_set_par,
-	.fb_blank	= drm_fb_helper_blank,
-	.fb_pan_display	= drm_fb_helper_pan_display,
-	.fb_setcmap	= drm_fb_helper_setcmap,
 };
 
 static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
@@ -80,7 +78,7 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 {
 	struct fb_info *fbi;
 	struct drm_framebuffer *fb = helper->fb;
-	unsigned int size = fb->width * fb->height * (fb->bits_per_pixel >> 3);
+	unsigned int size = fb->width * fb->height * fb->format->cpp[0];
 	unsigned int nr_pages;
 	unsigned long offset;
 
@@ -94,7 +92,7 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	fbi->flags = FBINFO_FLAG_DEFAULT;
 	fbi->fbops = &exynos_drm_fb_ops;
 
-	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
 
 	nr_pages = exynos_gem->size >> PAGE_SHIFT;
@@ -103,11 +101,10 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 				VM_MAP, pgprot_writecombine(PAGE_KERNEL));
 	if (!exynos_gem->kvaddr) {
 		DRM_ERROR("failed to map pages to kernel space.\n");
-		drm_fb_helper_release_fbi(helper);
 		return -EIO;
 	}
 
-	offset = fbi->var.xoffset * (fb->bits_per_pixel >> 3);
+	offset = fbi->var.xoffset * fb->format->cpp[0];
 	offset += fbi->var.yoffset * fb->pitches[0];
 
 	fbi->screen_base = exynos_gem->kvaddr + offset;
@@ -124,7 +121,6 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	struct exynos_drm_gem *exynos_gem;
 	struct drm_device *dev = helper->dev;
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
-	struct platform_device *pdev = dev->platformdev;
 	unsigned long size;
 	int ret;
 
@@ -147,7 +143,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	 * memory area.
 	 */
 	if (IS_ERR(exynos_gem) && is_drm_iommu_supported(dev)) {
-		dev_warn(&pdev->dev, "contiguous FB allocation failed, falling back to non-contiguous\n");
+		dev_warn(dev->dev, "contiguous FB allocation failed, falling back to non-contiguous\n");
 		exynos_gem = exynos_drm_gem_create(dev, EXYNOS_BO_NONCONTIG,
 						   size);
 	}
@@ -189,36 +185,14 @@ static const struct drm_fb_helper_funcs exynos_drm_fb_helper_funcs = {
 	.fb_probe =	exynos_drm_fbdev_create,
 };
 
-static bool exynos_drm_fbdev_is_anything_connected(struct drm_device *dev)
-{
-	struct drm_connector *connector;
-	bool ret = false;
-
-	mutex_lock(&dev->mode_config.mutex);
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (connector->status != connector_status_connected)
-			continue;
-
-		ret = true;
-		break;
-	}
-	mutex_unlock(&dev->mode_config.mutex);
-
-	return ret;
-}
-
 int exynos_drm_fbdev_init(struct drm_device *dev)
 {
 	struct exynos_drm_fbdev *fbdev;
 	struct exynos_drm_private *private = dev->dev_private;
 	struct drm_fb_helper *helper;
-	unsigned int num_crtc;
 	int ret;
 
 	if (!dev->mode_config.num_crtc || !dev->mode_config.num_connector)
-		return 0;
-
-	if (!exynos_drm_fbdev_is_anything_connected(dev))
 		return 0;
 
 	fbdev = kzalloc(sizeof(*fbdev), GFP_KERNEL);
@@ -229,9 +203,7 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, helper, &exynos_drm_fb_helper_funcs);
 
-	num_crtc = dev->mode_config.num_crtc;
-
-	ret = drm_fb_helper_init(dev, helper, num_crtc, MAX_CONNECTOR);
+	ret = drm_fb_helper_init(dev, helper, MAX_CONNECTOR);
 	if (ret < 0) {
 		DRM_ERROR("failed to initialize drm fb helper.\n");
 		goto err_init;
@@ -274,14 +246,11 @@ static void exynos_drm_fbdev_destroy(struct drm_device *dev,
 	/* release drm framebuffer and real buffer */
 	if (fb_helper->fb && fb_helper->fb->funcs) {
 		fb = fb_helper->fb;
-		if (fb) {
-			drm_framebuffer_unregister_private(fb);
+		if (fb)
 			drm_framebuffer_remove(fb);
-		}
 	}
 
 	drm_fb_helper_unregister_fbi(fb_helper);
-	drm_fb_helper_release_fbi(fb_helper);
 
 	drm_fb_helper_fini(fb_helper);
 }
@@ -316,8 +285,23 @@ void exynos_drm_output_poll_changed(struct drm_device *dev)
 	struct exynos_drm_private *private = dev->dev_private;
 	struct drm_fb_helper *fb_helper = private->fb_helper;
 
-	if (fb_helper)
-		drm_fb_helper_hotplug_event(fb_helper);
-	else
-		exynos_drm_fbdev_init(dev);
+	drm_fb_helper_hotplug_event(fb_helper);
+}
+
+void exynos_drm_fbdev_suspend(struct drm_device *dev)
+{
+	struct exynos_drm_private *private = dev->dev_private;
+
+	console_lock();
+	drm_fb_helper_set_suspend(private->fb_helper, 1);
+	console_unlock();
+}
+
+void exynos_drm_fbdev_resume(struct drm_device *dev)
+{
+	struct exynos_drm_private *private = dev->dev_private;
+
+	console_lock();
+	drm_fb_helper_set_suspend(private->fb_helper, 0);
+	console_unlock();
 }

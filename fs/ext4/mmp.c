@@ -35,7 +35,7 @@ static void ext4_mmp_csum_set(struct super_block *sb, struct mmp_struct *mmp)
 }
 
 /*
- * Write the MMP block using WRITE_SYNC to try to get the block on-disk
+ * Write the MMP block using REQ_SYNC to try to get the block on-disk
  * faster.
  */
 static int write_mmp_block(struct super_block *sb, struct buffer_head *bh)
@@ -52,7 +52,7 @@ static int write_mmp_block(struct super_block *sb, struct buffer_head *bh)
 	lock_buffer(bh);
 	bh->b_end_io = end_buffer_write_sync;
 	get_bh(bh);
-	submit_bh(REQ_OP_WRITE, WRITE_SYNC | REQ_META | REQ_PRIO, bh);
+	submit_bh(REQ_OP_WRITE, REQ_SYNC | REQ_META | REQ_PRIO, bh);
 	wait_on_buffer(bh);
 	sb_end_write(sb);
 	if (unlikely(!buffer_uptodate(bh)))
@@ -88,7 +88,7 @@ static int read_mmp_block(struct super_block *sb, struct buffer_head **bh,
 	get_bh(*bh);
 	lock_buffer(*bh);
 	(*bh)->b_end_io = end_buffer_read_sync;
-	submit_bh(REQ_OP_READ, READ_SYNC | REQ_META | REQ_PRIO, *bh);
+	submit_bh(REQ_OP_READ, REQ_META | REQ_PRIO, *bh);
 	wait_on_buffer(*bh);
 	if (!buffer_uptodate(*bh)) {
 		ret = -EIO;
@@ -185,7 +185,7 @@ static int kmmpd(void *data)
 			goto exit_thread;
 		}
 
-		if (sb->s_flags & MS_RDONLY) {
+		if (sb_rdonly(sb)) {
 			ext4_warning(sb, "kmmpd being stopped since filesystem "
 				     "has been remounted as readonly.");
 			goto exit_thread;
@@ -367,7 +367,7 @@ skip:
 		goto failed;
 	}
 
-	mmpd_data = kmalloc(sizeof(struct mmpd_data), GFP_KERNEL);
+	mmpd_data = kmalloc(sizeof(*mmpd_data), GFP_KERNEL);
 	if (!mmpd_data) {
 		ext4_warning(sb, "not enough memory for mmpd_data");
 		goto failed;

@@ -337,7 +337,7 @@ static const char *HFC_NT_LAYER1_STATES[HFC_MAX_NT_LAYER1_STATE + 1] = {
 };
 
 /* supported devices */
-static struct usb_device_id hfcsusb_idtab[] = {
+static const struct usb_device_id hfcsusb_idtab[] = {
 	{
 		USB_DEVICE(0x0959, 0x2bd0),
 		.driver_info = (unsigned long) &((struct hfcsusb_vdata)

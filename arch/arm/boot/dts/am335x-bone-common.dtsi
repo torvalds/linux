@@ -207,6 +207,8 @@
 &usb0 {
 	status = "okay";
 	dr_mode = "peripheral";
+	interrupts-extended = <&intc 18 &tps 0>;
+	interrupt-names = "mc", "vbus";
 };
 
 &usb1 {
@@ -230,7 +232,7 @@
 	};
 
 	baseboard_eeprom: baseboard_eeprom@50 {
-		compatible = "at,24c256";
+		compatible = "atmel,24c256";
 		reg = <0x50>;
 
 		#address-cells = <1>;
@@ -249,7 +251,7 @@
 	clock-frequency = <100000>;
 
 	cape_eeprom0: cape_eeprom0@54 {
-		compatible = "at,24c256";
+		compatible = "atmel,24c256";
 		reg = <0x54>;
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -259,7 +261,7 @@
 	};
 
 	cape_eeprom1: cape_eeprom1@55 {
-		compatible = "at,24c256";
+		compatible = "atmel,24c256";
 		reg = <0x55>;
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -269,7 +271,7 @@
 	};
 
 	cape_eeprom2: cape_eeprom2@56 {
-		compatible = "at,24c256";
+		compatible = "atmel,24c256";
 		reg = <0x56>;
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -279,7 +281,7 @@
 	};
 
 	cape_eeprom3: cape_eeprom3@57 {
-		compatible = "at,24c256";
+		compatible = "atmel,24c256";
 		reg = <0x57>;
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -310,7 +312,19 @@
 	 * by the hardware problems. (Tip: double-check by performing a current
 	 * measurement after shutdown: it should be less than 1 mA.)
 	 */
+
+	interrupts = <7>; /* NMI */
+	interrupt-parent = <&intc>;
+
 	ti,pmic-shutdown-controller;
+
+	charger {
+		status = "okay";
+	};
+
+	pwrbutton {
+		status = "okay";
+	};
 
 	regulators {
 		dcdc1_reg: regulator@0 {
@@ -392,4 +406,9 @@
 
 &sham {
 	status = "okay";
+};
+
+&rtc {
+	clocks = <&clk_32768_ck>, <&clkdiv32k_ick>;
+	clock-names = "ext-clk", "int-clk";
 };

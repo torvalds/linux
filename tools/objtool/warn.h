@@ -18,6 +18,13 @@
 #ifndef _WARN_H
 #define _WARN_H
 
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include "elf.h"
+
 extern const char *objname;
 
 static inline char *offstr(struct section *sec, unsigned long offset)
@@ -56,5 +63,8 @@ static inline char *offstr(struct section *sec, unsigned long offset)
 	WARN("%s: " format, _str, ##__VA_ARGS__);	\
 	free(_str);					\
 })
+
+#define WARN_ELF(format, ...)				\
+	WARN(format ": %s", ##__VA_ARGS__, elf_errmsg(-1))
 
 #endif /* _WARN_H */

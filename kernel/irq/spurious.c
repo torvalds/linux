@@ -175,7 +175,9 @@ out:
 
 static inline int bad_action_ret(irqreturn_t action_ret)
 {
-	if (likely(action_ret <= (IRQ_HANDLED | IRQ_WAKE_THREAD)))
+	unsigned int r = action_ret;
+
+	if (likely(r <= (IRQ_HANDLED | IRQ_WAKE_THREAD)))
 		return 0;
 	return 1;
 }

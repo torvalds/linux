@@ -5,6 +5,7 @@
 menuconfig IPMI_HANDLER
        tristate 'IPMI top-level message handler'
        depends on HAS_IOMEM
+       select IPMI_DMI_DECODE if DMI
        help
          This enables the central IPMI message handler, required for IPMI
 	 to work.
@@ -15,6 +16,9 @@ menuconfig IPMI_HANDLER
          See <file:Documentation/IPMI.txt> for more details on the driver.
 
 	 If unsure, say N.
+
+config IPMI_DMI_DECODE
+       bool
 
 if IPMI_HANDLER
 
@@ -78,7 +82,8 @@ config IPMI_POWEROFF
 endif # IPMI_HANDLER
 
 config ASPEED_BT_IPMI_BMC
-	depends on ARCH_ASPEED
+	depends on ARCH_ASPEED || COMPILE_TEST
+       depends on REGMAP && REGMAP_MMIO && MFD_SYSCON
 	tristate "BT IPMI bmc driver"
 	help
 	  Provides a driver for the BT (Block Transfer) IPMI interface

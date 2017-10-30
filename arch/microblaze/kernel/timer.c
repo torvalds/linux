@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/sched_clock.h>
 #include <linux/clk.h>
 #include <linux/clockchips.h>
@@ -177,8 +178,10 @@ static __init int xilinx_clockevent_init(void)
 				clockevent_xilinx_timer.shift);
 	clockevent_xilinx_timer.max_delta_ns =
 		clockevent_delta2ns((u32)~0, &clockevent_xilinx_timer);
+	clockevent_xilinx_timer.max_delta_ticks = (u32)~0;
 	clockevent_xilinx_timer.min_delta_ns =
 		clockevent_delta2ns(1, &clockevent_xilinx_timer);
+	clockevent_xilinx_timer.min_delta_ticks = 1;
 	clockevent_xilinx_timer.cpumask = cpumask_of(0);
 	clockevents_register_device(&clockevent_xilinx_timer);
 
@@ -190,17 +193,17 @@ static u64 xilinx_clock_read(void)
 	return read_fn(timer_baseaddr + TCR1);
 }
 
-static cycle_t xilinx_read(struct clocksource *cs)
+static u64 xilinx_read(struct clocksource *cs)
 {
 	/* reading actual value of timer 1 */
-	return (cycle_t)xilinx_clock_read();
+	return (u64)xilinx_clock_read();
 }
 
 static struct timecounter xilinx_tc = {
 	.cc = NULL,
 };
 
-static cycle_t xilinx_cc_read(const struct cyclecounter *cc)
+static u64 xilinx_cc_read(const struct cyclecounter *cc)
 {
 	return xilinx_read(NULL);
 }
@@ -259,7 +262,7 @@ static int __init xilinx_timer_init(struct device_node *timer)
 	int ret;
 
 	if (initialized)
-		return;
+		return -EINVAL;
 
 	initialized = 1;
 
@@ -290,7 +293,7 @@ static int __init xilinx_timer_init(struct device_node *timer)
 		return -EINVAL;
 	}
 
-	pr_info("%s: irq=%d\n", timer->full_name, irq);
+	pr_info("%pOF: irq=%d\n", timer, irq);
 
 	clk = of_clk_get(timer, 0);
 	if (IS_ERR(clk)) {
@@ -332,5 +335,5 @@ static int __init xilinx_timer_init(struct device_node *timer)
 	return 0;
 }
 
-CLOCKSOURCE_OF_DECLARE(xilinx_timer, "xlnx,xps-timer-1.00.a",
+TIMER_OF_DECLARE(xilinx_timer, "xlnx,xps-timer-1.00.a",
 		       xilinx_timer_init);

@@ -21,24 +21,56 @@
 #include "vsp1.h"
 #include "vsp1_dl.h"
 #include "vsp1_entity.h"
+#include "vsp1_pipe.h"
+#include "vsp1_rwpf.h"
 
-static inline struct vsp1_entity *
-media_entity_to_vsp1_entity(struct media_entity *entity)
-{
-	return container_of(entity, struct vsp1_entity, subdev.entity);
-}
-
-void vsp1_entity_route_setup(struct vsp1_entity *source,
+void vsp1_entity_route_setup(struct vsp1_entity *entity,
+			     struct vsp1_pipeline *pipe,
 			     struct vsp1_dl_list *dl)
 {
-	struct vsp1_entity *sink;
+	struct vsp1_entity *source;
+	u32 route;
 
+	if (entity->type == VSP1_ENTITY_HGO) {
+		u32 smppt;
+
+		/*
+		 * The HGO is a special case, its routing is configured on the
+		 * sink pad.
+		 */
+		source = entity->sources[0];
+		smppt = (pipe->output->entity.index << VI6_DPR_SMPPT_TGW_SHIFT)
+		      | (source->route->output << VI6_DPR_SMPPT_PT_SHIFT);
+
+		vsp1_dl_list_write(dl, VI6_DPR_HGO_SMPPT, smppt);
+		return;
+	} else if (entity->type == VSP1_ENTITY_HGT) {
+		u32 smppt;
+
+		/*
+		 * The HGT is a special case, its routing is configured on the
+		 * sink pad.
+		 */
+		source = entity->sources[0];
+		smppt = (pipe->output->entity.index << VI6_DPR_SMPPT_TGW_SHIFT)
+		      | (source->route->output << VI6_DPR_SMPPT_PT_SHIFT);
+
+		vsp1_dl_list_write(dl, VI6_DPR_HGT_SMPPT, smppt);
+		return;
+	}
+
+	source = entity;
 	if (source->route->reg == 0)
 		return;
 
-	sink = media_entity_to_vsp1_entity(source->sink);
-	vsp1_dl_list_write(dl, source->route->reg,
-			   sink->route->inputs[source->sink_pad]);
+	route = source->sink->route->inputs[source->sink_pad];
+	/*
+	 * The ILV and BRS share the same data path route. The extra BRSSEL bit
+	 * selects between the ILV and BRS.
+	 */
+	if (source->type == VSP1_ENTITY_BRS)
+		route |= VI6_DPR_ROUTE_BRSSEL;
+	vsp1_dl_list_write(dl, source->route->reg, route);
 }
 
 /* -----------------------------------------------------------------------------
@@ -199,7 +231,8 @@ int vsp1_subdev_enum_mbus_code(struct v4l2_subdev *subdev,
 		struct v4l2_subdev_pad_config *config;
 		struct v4l2_mbus_framefmt *format;
 
-		/* The entity can't perform format conversion, the sink format
+		/*
+		 * The entity can't perform format conversion, the sink format
 		 * is always identical to the source format.
 		 */
 		if (code->index)
@@ -263,7 +296,8 @@ int vsp1_subdev_enum_frame_size(struct v4l2_subdev *subdev,
 		fse->min_height = min_height;
 		fse->max_height = max_height;
 	} else {
-		/* The size on the source pad are fixed and always identical to
+		/*
+		 * The size on the source pad are fixed and always identical to
 		 * the size on the sink pad.
 		 */
 		fse->min_width = format->width;
@@ -281,31 +315,125 @@ done:
  * Media Operations
  */
 
-int vsp1_entity_link_setup(struct media_entity *entity,
-			   const struct media_pad *local,
-			   const struct media_pad *remote, u32 flags)
+static inline struct vsp1_entity *
+media_entity_to_vsp1_entity(struct media_entity *entity)
+{
+	return container_of(entity, struct vsp1_entity, subdev.entity);
+}
+
+static int vsp1_entity_link_setup_source(const struct media_pad *source_pad,
+					 const struct media_pad *sink_pad,
+					 u32 flags)
 {
 	struct vsp1_entity *source;
 
-	if (!(local->flags & MEDIA_PAD_FL_SOURCE))
-		return 0;
-
-	source = media_entity_to_vsp1_entity(local->entity);
+	source = media_entity_to_vsp1_entity(source_pad->entity);
 
 	if (!source->route)
 		return 0;
 
 	if (flags & MEDIA_LNK_FL_ENABLED) {
-		if (source->sink)
-			return -EBUSY;
-		source->sink = remote->entity;
-		source->sink_pad = remote->index;
+		struct vsp1_entity *sink
+			= media_entity_to_vsp1_entity(sink_pad->entity);
+
+		/*
+		 * Fan-out is limited to one for the normal data path plus
+		 * optional HGO and HGT. We ignore the HGO and HGT here.
+		 */
+		if (sink->type != VSP1_ENTITY_HGO &&
+		    sink->type != VSP1_ENTITY_HGT) {
+			if (source->sink)
+				return -EBUSY;
+			source->sink = sink;
+			source->sink_pad = sink_pad->index;
+		}
 	} else {
 		source->sink = NULL;
 		source->sink_pad = 0;
 	}
 
 	return 0;
+}
+
+static int vsp1_entity_link_setup_sink(const struct media_pad *source_pad,
+				       const struct media_pad *sink_pad,
+				       u32 flags)
+{
+	struct vsp1_entity *sink;
+	struct vsp1_entity *source;
+
+	sink = media_entity_to_vsp1_entity(sink_pad->entity);
+	source = media_entity_to_vsp1_entity(source_pad->entity);
+
+	if (flags & MEDIA_LNK_FL_ENABLED) {
+		/* Fan-in is limited to one. */
+		if (sink->sources[sink_pad->index])
+			return -EBUSY;
+
+		sink->sources[sink_pad->index] = source;
+	} else {
+		sink->sources[sink_pad->index] = NULL;
+	}
+
+	return 0;
+}
+
+int vsp1_entity_link_setup(struct media_entity *entity,
+			   const struct media_pad *local,
+			   const struct media_pad *remote, u32 flags)
+{
+	if (local->flags & MEDIA_PAD_FL_SOURCE)
+		return vsp1_entity_link_setup_source(local, remote, flags);
+	else
+		return vsp1_entity_link_setup_sink(remote, local, flags);
+}
+
+/**
+ * vsp1_entity_remote_pad - Find the pad at the remote end of a link
+ * @pad: Pad at the local end of the link
+ *
+ * Search for a remote pad connected to the given pad by iterating over all
+ * links originating or terminating at that pad until an enabled link is found.
+ *
+ * Our link setup implementation guarantees that the output fan-out will not be
+ * higher than one for the data pipelines, except for the links to the HGO and
+ * HGT that can be enabled in addition to a regular data link. When traversing
+ * outgoing links this function ignores HGO and HGT entities and should thus be
+ * used in place of the generic media_entity_remote_pad() function to traverse
+ * data pipelines.
+ *
+ * Return a pointer to the pad at the remote end of the first found enabled
+ * link, or NULL if no enabled link has been found.
+ */
+struct media_pad *vsp1_entity_remote_pad(struct media_pad *pad)
+{
+	struct media_link *link;
+
+	list_for_each_entry(link, &pad->entity->links, list) {
+		struct vsp1_entity *entity;
+
+		if (!(link->flags & MEDIA_LNK_FL_ENABLED))
+			continue;
+
+		/* If we're the sink the source will never be an HGO or HGT. */
+		if (link->sink == pad)
+			return link->source;
+
+		if (link->source != pad)
+			continue;
+
+		/* If the sink isn't a subdevice it can't be an HGO or HGT. */
+		if (!is_media_entity_v4l2_subdev(link->sink->entity))
+			return link->sink;
+
+		entity = media_entity_to_vsp1_entity(link->sink->entity);
+		if (entity->type != VSP1_ENTITY_HGO &&
+		    entity->type != VSP1_ENTITY_HGT)
+			return link->sink;
+	}
+
+	return NULL;
+
 }
 
 /* -----------------------------------------------------------------------------
@@ -329,14 +457,19 @@ int vsp1_entity_link_setup(struct media_entity *entity,
 	  { VI6_DPR_NODE_WPF(idx) }, VI6_DPR_NODE_WPF(idx) }
 
 static const struct vsp1_route vsp1_routes[] = {
+	{ VSP1_ENTITY_BRS, 0, VI6_DPR_ILV_BRS_ROUTE,
+	  { VI6_DPR_NODE_BRS_IN(0), VI6_DPR_NODE_BRS_IN(1) }, 0 },
 	{ VSP1_ENTITY_BRU, 0, VI6_DPR_BRU_ROUTE,
 	  { VI6_DPR_NODE_BRU_IN(0), VI6_DPR_NODE_BRU_IN(1),
 	    VI6_DPR_NODE_BRU_IN(2), VI6_DPR_NODE_BRU_IN(3),
 	    VI6_DPR_NODE_BRU_IN(4) }, VI6_DPR_NODE_BRU_OUT },
 	VSP1_ENTITY_ROUTE(CLU),
+	{ VSP1_ENTITY_HGO, 0, 0, { 0, }, 0 },
+	{ VSP1_ENTITY_HGT, 0, 0, { 0, }, 0 },
 	VSP1_ENTITY_ROUTE(HSI),
 	VSP1_ENTITY_ROUTE(HST),
-	{ VSP1_ENTITY_LIF, 0, 0, { VI6_DPR_NODE_LIF, }, VI6_DPR_NODE_LIF },
+	{ VSP1_ENTITY_LIF, 0, 0, { 0, }, 0 },
+	{ VSP1_ENTITY_LIF, 1, 0, { 0, }, 0 },
 	VSP1_ENTITY_ROUTE(LUT),
 	VSP1_ENTITY_ROUTE_RPF(0),
 	VSP1_ENTITY_ROUTE_RPF(1),
@@ -386,7 +519,14 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 	for (i = 0; i < num_pads - 1; ++i)
 		entity->pads[i].flags = MEDIA_PAD_FL_SINK;
 
-	entity->pads[num_pads - 1].flags = MEDIA_PAD_FL_SOURCE;
+	entity->sources = devm_kcalloc(vsp1->dev, max(num_pads - 1, 1U),
+				       sizeof(*entity->sources), GFP_KERNEL);
+	if (entity->sources == NULL)
+		return -ENOMEM;
+
+	/* Single-pad entities only have a sink. */
+	entity->pads[num_pads - 1].flags = num_pads > 1 ? MEDIA_PAD_FL_SOURCE
+					 : MEDIA_PAD_FL_SINK;
 
 	/* Initialize the media entity. */
 	ret = media_entity_pads_init(&entity->subdev.entity, num_pads,
@@ -407,7 +547,8 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 
 	vsp1_entity_init_cfg(subdev, NULL);
 
-	/* Allocate the pad configuration to store formats and selection
+	/*
+	 * Allocate the pad configuration to store formats and selection
 	 * rectangles.
 	 */
 	entity->config = v4l2_subdev_alloc_pad_config(&entity->subdev);

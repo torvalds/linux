@@ -90,15 +90,22 @@
 };
 
 &ecspi1 {
-	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio4 10 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1 &pinctrl_ecspi1cs>;
 	status = "okay";
+
+	fpga: fpga@0 {
+		compatible = "altr,fpga-passive-serial";
+		spi-max-frequency = <20000000>;
+		reg = <0>;
+		pinctrl-0 = <&pinctrl_fpgaspi>;
+		nconfig-gpios = <&gpio4 9 GPIO_ACTIVE_LOW>;
+		nstat-gpios = <&gpio4 11 GPIO_ACTIVE_LOW>;
+	};
 };
 
 &ecspi3 {
-	fsl,spi-num-chipselects = <3>;
 	cs-gpios = <&gpio4 24 GPIO_ACTIVE_LOW>,
 		<&gpio4 25 GPIO_ACTIVE_LOW>,
 		<&gpio4 26 GPIO_ACTIVE_LOW>;
@@ -108,7 +115,6 @@
 };
 
 &ecspi5 {
-	fsl,spi-num-chipselects = <4>;
 	cs-gpios = <&gpio1 14 GPIO_ACTIVE_LOW>,
 		<&gpio1 13 GPIO_ACTIVE_LOW>,
 		<&gpio1 12 GPIO_ACTIVE_LOW>,
@@ -138,7 +144,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
 	phy-mode = "rgmii";
-	phy-reset-gpios = <&gpio1 25 0>;
+	phy-reset-gpios = <&gpio1 25 GPIO_ACTIVE_LOW>;
 	interrupts-extended = <&gpio1 6 IRQ_TYPE_LEVEL_HIGH>,
 			      <&intc 0 119 IRQ_TYPE_LEVEL_HIGH>;
 	fsl,err006687-workaround-present;
@@ -232,10 +238,7 @@
 };
 
 &weim {
-	#address-cells = <2>;
-	#size-cells = <1>;
 	ranges = <0 0 0x08000000 0x08000000>;
-	fsl,weim-cs-gpr = <&gpr>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_weimfpga &pinctrl_weimcs>;
 	status = "okay";
@@ -322,6 +325,13 @@
 			MX6QDL_PAD_ENET_TX_EN__ENET_TX_EN 0x4001b0a8
 			MX6QDL_PAD_ENET_CRS_DV__GPIO1_IO25 0x1b0b0
 			MX6QDL_PAD_GPIO_6__ENET_IRQ 0x000b1
+		>;
+	};
+
+	pinctrl_fpgaspi: fpgaspigrp {
+		fsl,pins = <
+			MX6QDL_PAD_KEY_ROW1__GPIO4_IO09 0x1b0b0
+			MX6QDL_PAD_KEY_ROW2__GPIO4_IO11 0x1b0b0
 		>;
 	};
 

@@ -8,8 +8,8 @@ Required property:
 
 Optional properties:
   LM3632 has external enable pins for two LDOs.
-  - ti,lcm-en1-gpio: A GPIO specifier for Vpos control pin.
-  - ti,lcm-en2-gpio: A GPIO specifier for Vneg control pin.
+  - enable-gpios: Two GPIO specifiers for Vpos and Vneg control pins.
+                  The first entry is Vpos, the second is Vneg enable pin.
 
 Child nodes:
   LM3631
@@ -29,6 +29,80 @@ Child nodes:
   Please refer to [1].
 
 Examples: Please refer to ti-lmu dt-bindings [2].
+
+lm3631@29 {
+	compatible = "ti,lm3631";
+	reg = <0x29>;
+
+	regulators {
+		compatible = "ti,lm363x-regulator";
+
+		vboost {
+			regulator-name = "lcd_boost";
+			regulator-min-microvolt = <4500000>;
+			regulator-max-microvolt = <6350000>;
+			regulator-always-on;
+		};
+
+		vcont {
+			regulator-name = "lcd_vcont";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3300000>;
+		};
+
+		voref {
+			regulator-name = "lcd_voref";
+			regulator-min-microvolt = <4000000>;
+			regulator-max-microvolt = <6000000>;
+		};
+
+		vpos {
+			regulator-name = "lcd_vpos";
+			regulator-min-microvolt = <4000000>;
+			regulator-max-microvolt = <6000000>;
+			regulator-boot-on;
+		};
+
+		vneg {
+			regulator-name = "lcd_vneg";
+			regulator-min-microvolt = <4000000>;
+			regulator-max-microvolt = <6000000>;
+			regulator-boot-on;
+		};
+	};
+};
+
+lm3632@11 {
+	compatible = "ti,lm3632";
+	reg = <0x11>;
+
+	regulators {
+		compatible = "ti,lm363x-regulator";
+
+		/* GPIO1_16 for Vpos, GPIO1_28 is for Vneg */
+		enable-gpios = <&gpio1 16 GPIO_ACTIVE_HIGH>,
+				<&gpio1 28 GPIO_ACTIVE_HIGH>;
+
+		vboost {
+			regulator-name = "lcd_boost";
+			regulator-min-microvolt = <4500000>;
+			regulator-max-microvolt = <6400000>;
+			regulator-always-on;
+		};
+
+		vpos {
+			regulator-name = "lcd_vpos";
+			regulator-min-microvolt = <4000000>;
+			regulator-max-microvolt = <6000000>;
+		};
+
+		vneg {
+			regulator-name = "lcd_vneg";
+			regulator-min-microvolt = <4000000>;
+			regulator-max-microvolt = <6000000>;
+		};
+	};
+};
 
 [1] ../regulator/regulator.txt
 [2] ../mfd/ti-lmu.txt

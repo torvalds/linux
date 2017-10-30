@@ -34,6 +34,8 @@
  */
 
 #include <linux/export.h>
+#include <linux/sched/signal.h>
+
 #include <drm/drmP.h>
 #include "drm_legacy.h"
 #include "drm_internal.h"
@@ -176,7 +178,8 @@ int drm_legacy_lock(struct drm_device *dev, void *data,
 
 	DRM_DEBUG("%d (pid %d) requests lock (0x%08x), flags = 0x%08x\n",
 		  lock->context, task_pid_nr(current),
-		  master->lock.hw_lock->lock, lock->flags);
+		  master->lock.hw_lock ? master->lock.hw_lock->lock : -1,
+		  lock->flags);
 
 	add_wait_queue(&master->lock.lock_queue, &entry);
 	spin_lock_bh(&master->lock.spinlock);

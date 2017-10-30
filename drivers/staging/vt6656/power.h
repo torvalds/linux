@@ -28,8 +28,8 @@
 
 #define C_PWBT	1000 /* micro sec. power up before TBTT */
 
-void vnt_disable_power_saving(struct vnt_private *);
-void vnt_enable_power_saving(struct vnt_private *, u16);
-int vnt_next_tbtt_wakeup(struct vnt_private *);
+void vnt_disable_power_saving(struct vnt_private *priv);
+void vnt_enable_power_saving(struct vnt_private *priv, u16 listen_interval);
+int vnt_next_tbtt_wakeup(struct vnt_private *priv);
 
 #endif /* __POWER_H__ */

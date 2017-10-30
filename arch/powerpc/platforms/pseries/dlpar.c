@@ -24,7 +24,7 @@
 
 #include <asm/prom.h>
 #include <asm/machdep.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/rtas.h>
 
 static struct workqueue_struct *pseries_hp_wq;
@@ -254,22 +254,18 @@ cc_error:
 	return first_dn;
 }
 
-int dlpar_attach_node(struct device_node *dn)
+int dlpar_attach_node(struct device_node *dn, struct device_node *parent)
 {
 	int rc;
 
-	dn->parent = pseries_of_derive_parent(dn->full_name);
-	if (IS_ERR(dn->parent))
-		return PTR_ERR(dn->parent);
+	dn->parent = parent;
 
 	rc = of_attach_node(dn);
 	if (rc) {
-		printk(KERN_ERR "Failed to add device node %s\n",
-		       dn->full_name);
+		printk(KERN_ERR "Failed to add device node %pOF\n", dn);
 		return rc;
 	}
 
-	of_node_put(dn->parent);
 	return 0;
 }
 
@@ -288,7 +284,6 @@ int dlpar_detach_node(struct device_node *dn)
 	if (rc)
 		return rc;
 
-	of_node_put(dn); /* Must decrement the refcount */
 	return 0;
 }
 
@@ -354,11 +349,17 @@ static int handle_dlpar_errorlog(struct pseries_hp_errorlog *hp_elog)
 	switch (hp_elog->id_type) {
 	case PSERIES_HP_ELOG_ID_DRC_COUNT:
 		hp_elog->_drc_u.drc_count =
-					be32_to_cpu(hp_elog->_drc_u.drc_count);
+				be32_to_cpu(hp_elog->_drc_u.drc_count);
 		break;
 	case PSERIES_HP_ELOG_ID_DRC_INDEX:
 		hp_elog->_drc_u.drc_index =
-					be32_to_cpu(hp_elog->_drc_u.drc_index);
+				be32_to_cpu(hp_elog->_drc_u.drc_index);
+		break;
+	case PSERIES_HP_ELOG_ID_DRC_IC:
+		hp_elog->_drc_u.ic.count =
+				be32_to_cpu(hp_elog->_drc_u.ic.count);
+		hp_elog->_drc_u.ic.index =
+				be32_to_cpu(hp_elog->_drc_u.ic.index);
 	}
 
 	switch (hp_elog->resource) {
@@ -418,88 +419,172 @@ void queue_hotplug_event(struct pseries_hp_errorlog *hp_errlog,
 	}
 }
 
+static int dlpar_parse_resource(char **cmd, struct pseries_hp_errorlog *hp_elog)
+{
+	char *arg;
+
+	arg = strsep(cmd, " ");
+	if (!arg)
+		return -EINVAL;
+
+	if (sysfs_streq(arg, "memory")) {
+		hp_elog->resource = PSERIES_HP_ELOG_RESOURCE_MEM;
+	} else if (sysfs_streq(arg, "cpu")) {
+		hp_elog->resource = PSERIES_HP_ELOG_RESOURCE_CPU;
+	} else {
+		pr_err("Invalid resource specified.\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int dlpar_parse_action(char **cmd, struct pseries_hp_errorlog *hp_elog)
+{
+	char *arg;
+
+	arg = strsep(cmd, " ");
+	if (!arg)
+		return -EINVAL;
+
+	if (sysfs_streq(arg, "add")) {
+		hp_elog->action = PSERIES_HP_ELOG_ACTION_ADD;
+	} else if (sysfs_streq(arg, "remove")) {
+		hp_elog->action = PSERIES_HP_ELOG_ACTION_REMOVE;
+	} else {
+		pr_err("Invalid action specified.\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int dlpar_parse_id_type(char **cmd, struct pseries_hp_errorlog *hp_elog)
+{
+	char *arg;
+	u32 count, index;
+
+	arg = strsep(cmd, " ");
+	if (!arg)
+		return -EINVAL;
+
+	if (sysfs_streq(arg, "indexed-count")) {
+		hp_elog->id_type = PSERIES_HP_ELOG_ID_DRC_IC;
+		arg = strsep(cmd, " ");
+		if (!arg) {
+			pr_err("No DRC count specified.\n");
+			return -EINVAL;
+		}
+
+		if (kstrtou32(arg, 0, &count)) {
+			pr_err("Invalid DRC count specified.\n");
+			return -EINVAL;
+		}
+
+		arg = strsep(cmd, " ");
+		if (!arg) {
+			pr_err("No DRC Index specified.\n");
+			return -EINVAL;
+		}
+
+		if (kstrtou32(arg, 0, &index)) {
+			pr_err("Invalid DRC Index specified.\n");
+			return -EINVAL;
+		}
+
+		hp_elog->_drc_u.ic.count = cpu_to_be32(count);
+		hp_elog->_drc_u.ic.index = cpu_to_be32(index);
+	} else if (sysfs_streq(arg, "index")) {
+		hp_elog->id_type = PSERIES_HP_ELOG_ID_DRC_INDEX;
+		arg = strsep(cmd, " ");
+		if (!arg) {
+			pr_err("No DRC Index specified.\n");
+			return -EINVAL;
+		}
+
+		if (kstrtou32(arg, 0, &index)) {
+			pr_err("Invalid DRC Index specified.\n");
+			return -EINVAL;
+		}
+
+		hp_elog->_drc_u.drc_index = cpu_to_be32(index);
+	} else if (sysfs_streq(arg, "count")) {
+		hp_elog->id_type = PSERIES_HP_ELOG_ID_DRC_COUNT;
+		arg = strsep(cmd, " ");
+		if (!arg) {
+			pr_err("No DRC count specified.\n");
+			return -EINVAL;
+		}
+
+		if (kstrtou32(arg, 0, &count)) {
+			pr_err("Invalid DRC count specified.\n");
+			return -EINVAL;
+		}
+
+		hp_elog->_drc_u.drc_count = cpu_to_be32(count);
+	} else {
+		pr_err("Invalid id_type specified.\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static ssize_t dlpar_store(struct class *class, struct class_attribute *attr,
 			   const char *buf, size_t count)
 {
 	struct pseries_hp_errorlog *hp_elog;
 	struct completion hotplug_done;
-	const char *arg;
+	char *argbuf;
+	char *args;
 	int rc;
 
+	args = argbuf = kstrdup(buf, GFP_KERNEL);
 	hp_elog = kzalloc(sizeof(*hp_elog), GFP_KERNEL);
-	if (!hp_elog) {
-		rc = -ENOMEM;
-		goto dlpar_store_out;
+	if (!hp_elog || !argbuf) {
+		pr_info("Could not allocate resources for DLPAR operation\n");
+		kfree(argbuf);
+		kfree(hp_elog);
+		return -ENOMEM;
 	}
 
-	/* Parse out the request from the user, this will be in the form
+	/*
+	 * Parse out the request from the user, this will be in the form:
 	 * <resource> <action> <id_type> <id>
 	 */
-	arg = buf;
-	if (!strncmp(arg, "memory", 6)) {
-		hp_elog->resource = PSERIES_HP_ELOG_RESOURCE_MEM;
-		arg += strlen("memory ");
-	} else if (!strncmp(arg, "cpu", 3)) {
-		hp_elog->resource = PSERIES_HP_ELOG_RESOURCE_CPU;
-		arg += strlen("cpu ");
-	} else {
-		pr_err("Invalid resource specified: \"%s\"\n", buf);
-		rc = -EINVAL;
+	rc = dlpar_parse_resource(&args, hp_elog);
+	if (rc)
 		goto dlpar_store_out;
-	}
 
-	if (!strncmp(arg, "add", 3)) {
-		hp_elog->action = PSERIES_HP_ELOG_ACTION_ADD;
-		arg += strlen("add ");
-	} else if (!strncmp(arg, "remove", 6)) {
-		hp_elog->action = PSERIES_HP_ELOG_ACTION_REMOVE;
-		arg += strlen("remove ");
-	} else {
-		pr_err("Invalid action specified: \"%s\"\n", buf);
-		rc = -EINVAL;
+	rc = dlpar_parse_action(&args, hp_elog);
+	if (rc)
 		goto dlpar_store_out;
-	}
 
-	if (!strncmp(arg, "index", 5)) {
-		u32 index;
-
-		hp_elog->id_type = PSERIES_HP_ELOG_ID_DRC_INDEX;
-		arg += strlen("index ");
-		if (kstrtou32(arg, 0, &index)) {
-			rc = -EINVAL;
-			pr_err("Invalid drc_index specified: \"%s\"\n", buf);
-			goto dlpar_store_out;
-		}
-
-		hp_elog->_drc_u.drc_index = cpu_to_be32(index);
-	} else if (!strncmp(arg, "count", 5)) {
-		u32 count;
-
-		hp_elog->id_type = PSERIES_HP_ELOG_ID_DRC_COUNT;
-		arg += strlen("count ");
-		if (kstrtou32(arg, 0, &count)) {
-			rc = -EINVAL;
-			pr_err("Invalid count specified: \"%s\"\n", buf);
-			goto dlpar_store_out;
-		}
-
-		hp_elog->_drc_u.drc_count = cpu_to_be32(count);
-	} else {
-		pr_err("Invalid id_type specified: \"%s\"\n", buf);
-		rc = -EINVAL;
+	rc = dlpar_parse_id_type(&args, hp_elog);
+	if (rc)
 		goto dlpar_store_out;
-	}
 
 	init_completion(&hotplug_done);
 	queue_hotplug_event(hp_elog, &hotplug_done, &rc);
 	wait_for_completion(&hotplug_done);
 
 dlpar_store_out:
+	kfree(argbuf);
 	kfree(hp_elog);
+
+	if (rc)
+		pr_err("Could not handle DLPAR request \"%s\"\n", buf);
+
 	return rc ? rc : count;
 }
 
-static CLASS_ATTR(dlpar, S_IWUSR, NULL, dlpar_store);
+static ssize_t dlpar_show(struct class *class, struct class_attribute *attr,
+			  char *buf)
+{
+	return sprintf(buf, "%s\n", "memory,cpu");
+}
+
+static CLASS_ATTR_RW(dlpar);
 
 static int __init pseries_dlpar_init(void)
 {

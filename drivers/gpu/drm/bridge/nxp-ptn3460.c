@@ -20,15 +20,13 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
-#include <linux/of_graph.h>
-
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_of.h>
 #include <drm/drm_panel.h>
-
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
-#include "drm_atomic_helper.h"
-#include "drm_edid.h"
-#include "drmP.h"
+#include <drm/drmP.h>
 
 #define PTN3460_EDID_ADDR			0x0
 #define PTN3460_EDID_EMULATION_ADDR		0x84
@@ -239,16 +237,8 @@ static const struct drm_connector_helper_funcs ptn3460_connector_helper_funcs = 
 	.get_modes = ptn3460_get_modes,
 };
 
-static enum drm_connector_status ptn3460_detect(struct drm_connector *connector,
-		bool force)
-{
-	return connector_status_connected;
-}
-
 static const struct drm_connector_funcs ptn3460_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.detect = ptn3460_detect,
 	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -299,7 +289,6 @@ static int ptn3460_probe(struct i2c_client *client,
 {
 	struct device *dev = &client->dev;
 	struct ptn3460_bridge *ptn_bridge;
-	struct device_node *endpoint, *panel_node;
 	int ret;
 
 	ptn_bridge = devm_kzalloc(dev, sizeof(*ptn_bridge), GFP_KERNEL);
@@ -307,16 +296,9 @@ static int ptn3460_probe(struct i2c_client *client,
 		return -ENOMEM;
 	}
 
-	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
-	if (endpoint) {
-		panel_node = of_graph_get_remote_port_parent(endpoint);
-		if (panel_node) {
-			ptn_bridge->panel = of_drm_find_panel(panel_node);
-			of_node_put(panel_node);
-			if (!ptn_bridge->panel)
-				return -EPROBE_DEFER;
-		}
-	}
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0, &ptn_bridge->panel, NULL);
+	if (ret)
+		return ret;
 
 	ptn_bridge->client = client;
 
@@ -349,11 +331,7 @@ static int ptn3460_probe(struct i2c_client *client,
 
 	ptn_bridge->bridge.funcs = &ptn3460_bridge_funcs;
 	ptn_bridge->bridge.of_node = dev->of_node;
-	ret = drm_bridge_add(&ptn_bridge->bridge);
-	if (ret) {
-		DRM_ERROR("Failed to add bridge\n");
-		return ret;
-	}
+	drm_bridge_add(&ptn_bridge->bridge);
 
 	i2c_set_clientdata(client, ptn_bridge);
 

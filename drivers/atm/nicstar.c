@@ -50,7 +50,7 @@
 #include <linux/slab.h>
 #include <linux/idr.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/atomic.h>
 #include <linux/etherdevice.h>
 #include "nicstar.h"
@@ -154,7 +154,7 @@ static unsigned char ns_phy_get(struct atm_dev *dev, unsigned long addr);
 
 static struct ns_dev *cards[NS_MAX_CARDS];
 static unsigned num_cards;
-static struct atmdev_ops atm_ops = {
+static const struct atmdev_ops atm_ops = {
 	.open = ns_open,
 	.close = ns_close,
 	.ioctl = ns_ioctl,
@@ -253,7 +253,7 @@ static void nicstar_remove_one(struct pci_dev *pcidev)
 	kfree(card);
 }
 
-static struct pci_device_id nicstar_pci_tbl[] = {
+static const struct pci_device_id nicstar_pci_tbl[] = {
 	{ PCI_VDEVICE(IDT, PCI_DEVICE_ID_IDT_IDT77201), 0 },
 	{0,}			/* terminate list */
 };
@@ -1980,13 +1980,12 @@ static void dequeue_rx(ns_dev * card, ns_rsqe * rsqe)
 	card->lbfqc = ns_stat_lfbqc_get(stat);
 
 	id = le32_to_cpu(rsqe->buffer_handle);
-	skb = idr_find(&card->idr, id);
+	skb = idr_remove(&card->idr, id);
 	if (!skb) {
 		RXPRINTK(KERN_ERR
-			 "nicstar%d: idr_find() failed!\n", card->index);
+			 "nicstar%d: skb not found!\n", card->index);
 		return;
 	}
-	idr_remove(&card->idr, id);
 	dma_sync_single_for_cpu(&card->pcidev->dev,
 				NS_PRV_DMA(skb),
 				(NS_PRV_BUFTYPE(skb) == BUF_SM

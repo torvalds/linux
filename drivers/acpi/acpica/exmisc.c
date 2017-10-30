@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -249,14 +249,14 @@ acpi_ex_do_logical_numeric_op(u16 opcode,
 	ACPI_FUNCTION_TRACE(ex_do_logical_numeric_op);
 
 	switch (opcode) {
-	case AML_LAND_OP:	/* LAnd (Integer0, Integer1) */
+	case AML_LOGICAL_AND_OP:	/* LAnd (Integer0, Integer1) */
 
 		if (integer0 && integer1) {
 			local_result = TRUE;
 		}
 		break;
 
-	case AML_LOR_OP:	/* LOr (Integer0, Integer1) */
+	case AML_LOGICAL_OR_OP:	/* LOr (Integer0, Integer1) */
 
 		if (integer0 || integer1) {
 			local_result = TRUE;
@@ -265,6 +265,8 @@ acpi_ex_do_logical_numeric_op(u16 opcode,
 
 	default:
 
+		ACPI_ERROR((AE_INFO,
+			    "Invalid numeric logical opcode: %X", opcode));
 		status = AE_AML_INTERNAL;
 		break;
 	}
@@ -345,6 +347,9 @@ acpi_ex_do_logical_op(u16 opcode,
 
 	default:
 
+		ACPI_ERROR((AE_INFO,
+			    "Invalid object type for logical operator: %X",
+			    operand0->common.type));
 		status = AE_AML_INTERNAL;
 		break;
 	}
@@ -365,21 +370,21 @@ acpi_ex_do_logical_op(u16 opcode,
 		integer1 = local_operand1->integer.value;
 
 		switch (opcode) {
-		case AML_LEQUAL_OP:	/* LEqual (Operand0, Operand1) */
+		case AML_LOGICAL_EQUAL_OP:	/* LEqual (Operand0, Operand1) */
 
 			if (integer0 == integer1) {
 				local_result = TRUE;
 			}
 			break;
 
-		case AML_LGREATER_OP:	/* LGreater (Operand0, Operand1) */
+		case AML_LOGICAL_GREATER_OP:	/* LGreater (Operand0, Operand1) */
 
 			if (integer0 > integer1) {
 				local_result = TRUE;
 			}
 			break;
 
-		case AML_LLESS_OP:	/* LLess (Operand0, Operand1) */
+		case AML_LOGICAL_LESS_OP:	/* LLess (Operand0, Operand1) */
 
 			if (integer0 < integer1) {
 				local_result = TRUE;
@@ -388,6 +393,8 @@ acpi_ex_do_logical_op(u16 opcode,
 
 		default:
 
+			ACPI_ERROR((AE_INFO,
+				    "Invalid comparison opcode: %X", opcode));
 			status = AE_AML_INTERNAL;
 			break;
 		}
@@ -408,7 +415,7 @@ acpi_ex_do_logical_op(u16 opcode,
 				 (length0 > length1) ? length1 : length0);
 
 		switch (opcode) {
-		case AML_LEQUAL_OP:	/* LEqual (Operand0, Operand1) */
+		case AML_LOGICAL_EQUAL_OP:	/* LEqual (Operand0, Operand1) */
 
 			/* Length and all bytes must be equal */
 
@@ -420,7 +427,7 @@ acpi_ex_do_logical_op(u16 opcode,
 			}
 			break;
 
-		case AML_LGREATER_OP:	/* LGreater (Operand0, Operand1) */
+		case AML_LOGICAL_GREATER_OP:	/* LGreater (Operand0, Operand1) */
 
 			if (compare > 0) {
 				local_result = TRUE;
@@ -437,7 +444,7 @@ acpi_ex_do_logical_op(u16 opcode,
 			}
 			break;
 
-		case AML_LLESS_OP:	/* LLess (Operand0, Operand1) */
+		case AML_LOGICAL_LESS_OP:	/* LLess (Operand0, Operand1) */
 
 			if (compare > 0) {
 				goto cleanup;	/* FALSE */
@@ -456,6 +463,8 @@ acpi_ex_do_logical_op(u16 opcode,
 
 		default:
 
+			ACPI_ERROR((AE_INFO,
+				    "Invalid comparison opcode: %X", opcode));
 			status = AE_AML_INTERNAL;
 			break;
 		}

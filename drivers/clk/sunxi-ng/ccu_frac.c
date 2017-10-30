@@ -14,7 +14,7 @@
 #include "ccu_frac.h"
 
 bool ccu_frac_helper_is_enabled(struct ccu_common *common,
-				struct _ccu_frac *cf)
+				struct ccu_frac_internal *cf)
 {
 	if (!(common->features & CCU_FEATURE_FRACTIONAL))
 		return false;
@@ -23,7 +23,7 @@ bool ccu_frac_helper_is_enabled(struct ccu_common *common,
 }
 
 void ccu_frac_helper_enable(struct ccu_common *common,
-			    struct _ccu_frac *cf)
+			    struct ccu_frac_internal *cf)
 {
 	unsigned long flags;
 	u32 reg;
@@ -38,7 +38,7 @@ void ccu_frac_helper_enable(struct ccu_common *common,
 }
 
 void ccu_frac_helper_disable(struct ccu_common *common,
-			     struct _ccu_frac *cf)
+			     struct ccu_frac_internal *cf)
 {
 	unsigned long flags;
 	u32 reg;
@@ -53,7 +53,7 @@ void ccu_frac_helper_disable(struct ccu_common *common,
 }
 
 bool ccu_frac_helper_has_rate(struct ccu_common *common,
-			      struct _ccu_frac *cf,
+			      struct ccu_frac_internal *cf,
 			      unsigned long rate)
 {
 	if (!(common->features & CCU_FEATURE_FRACTIONAL))
@@ -63,29 +63,29 @@ bool ccu_frac_helper_has_rate(struct ccu_common *common,
 }
 
 unsigned long ccu_frac_helper_read_rate(struct ccu_common *common,
-					struct _ccu_frac *cf)
+					struct ccu_frac_internal *cf)
 {
 	u32 reg;
 
-	printk("%s: Read fractional\n", clk_hw_get_name(&common->hw));
+	pr_debug("%s: Read fractional\n", clk_hw_get_name(&common->hw));
 
 	if (!(common->features & CCU_FEATURE_FRACTIONAL))
 		return 0;
 
-	printk("%s: clock is fractional (rates %lu and %lu)\n",
-	       clk_hw_get_name(&common->hw), cf->rates[0], cf->rates[1]);
+	pr_debug("%s: clock is fractional (rates %lu and %lu)\n",
+		 clk_hw_get_name(&common->hw), cf->rates[0], cf->rates[1]);
 
 	reg = readl(common->base + common->reg);
 
-	printk("%s: clock reg is 0x%x (select is 0x%x)\n",
-	       clk_hw_get_name(&common->hw), reg, cf->select);
+	pr_debug("%s: clock reg is 0x%x (select is 0x%x)\n",
+		 clk_hw_get_name(&common->hw), reg, cf->select);
 
 	return (reg & cf->select) ? cf->rates[1] : cf->rates[0];
 }
 
 int ccu_frac_helper_set_rate(struct ccu_common *common,
-			     struct _ccu_frac *cf,
-			     unsigned long rate)
+			     struct ccu_frac_internal *cf,
+			     unsigned long rate, u32 lock)
 {
 	unsigned long flags;
 	u32 reg, sel;
@@ -105,6 +105,8 @@ int ccu_frac_helper_set_rate(struct ccu_common *common,
 	reg &= ~cf->select;
 	writel(reg | sel, common->base + common->reg);
 	spin_unlock_irqrestore(common->lock, flags);
+
+	ccu_helper_wait_for_lock(common, lock);
 
 	return 0;
 }

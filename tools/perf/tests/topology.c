@@ -65,7 +65,9 @@ static int check_cpu_topology(char *path, struct cpu_map *map)
 	session = perf_session__new(&file, false, NULL);
 	TEST_ASSERT_VAL("can't get session", session);
 
-	for (i = 0; i < session->header.env.nr_cpus_online; i++) {
+	for (i = 0; i < session->header.env.nr_cpus_avail; i++) {
+		if (!cpu_map__has(map, i))
+			continue;
 		pr_debug("CPU %d, core %d, socket %d\n", i,
 			 session->header.env.cpu[i].core_id,
 			 session->header.env.cpu[i].socket_id);
@@ -84,7 +86,7 @@ static int check_cpu_topology(char *path, struct cpu_map *map)
 	return 0;
 }
 
-int test_session_topology(int subtest __maybe_unused)
+int test__session_topology(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	char path[PATH_MAX];
 	struct cpu_map *map;

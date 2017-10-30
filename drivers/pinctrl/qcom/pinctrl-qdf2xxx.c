@@ -35,10 +35,14 @@ static struct msm_pinctrl_soc_data qdf2xxx_pinctrl;
 /* A reasonable limit to the number of GPIOS */
 #define MAX_GPIOS	256
 
+/* maximum size of each gpio name (enough room for "gpioXXX" + null) */
+#define NAME_SIZE	8
+
 static int qdf2xxx_pinctrl_probe(struct platform_device *pdev)
 {
 	struct pinctrl_pin_desc *pins;
 	struct msm_pingroup *groups;
+	char (*names)[NAME_SIZE];
 	unsigned int i;
 	u32 num_gpios;
 	int ret;
@@ -59,15 +63,21 @@ static int qdf2xxx_pinctrl_probe(struct platform_device *pdev)
 		sizeof(struct pinctrl_pin_desc), GFP_KERNEL);
 	groups = devm_kcalloc(&pdev->dev, num_gpios,
 		sizeof(struct msm_pingroup), GFP_KERNEL);
+	names = devm_kcalloc(&pdev->dev, num_gpios, NAME_SIZE, GFP_KERNEL);
 
-	if (!pins || !groups)
+	if (!pins || !groups || !names)
 		return -ENOMEM;
 
 	for (i = 0; i < num_gpios; i++) {
-		pins[i].number = i;
+		snprintf(names[i], NAME_SIZE, "gpio%u", i);
 
-		groups[i].npins = 1,
+		pins[i].number = i;
+		pins[i].name = names[i];
+
+		groups[i].npins = 1;
+		groups[i].name = names[i];
 		groups[i].pins = &pins[i].number;
+
 		groups[i].ctl_reg = 0x10000 * i;
 		groups[i].io_reg = 0x04 + 0x10000 * i;
 		groups[i].intr_cfg_reg = 0x08 + 0x10000 * i;

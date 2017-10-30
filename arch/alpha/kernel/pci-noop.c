@@ -42,11 +42,7 @@ alloc_pci_controller(void)
 struct resource * __init
 alloc_resource(void)
 {
-	struct resource *res;
-
-	res = alloc_bootmem(sizeof(*res));
-
-	return res;
+	return alloc_bootmem(sizeof(struct resource));
 }
 
 asmlinkage long
@@ -128,7 +124,7 @@ static int alpha_noop_supported(struct device *dev, u64 mask)
 	return mask < 0x00ffffffUL ? 0 : 1;
 }
 
-struct dma_map_ops alpha_noop_ops = {
+const struct dma_map_ops alpha_noop_ops = {
 	.alloc			= alpha_noop_alloc_coherent,
 	.free			= dma_noop_free_coherent,
 	.map_page		= dma_noop_map_page,
@@ -137,5 +133,5 @@ struct dma_map_ops alpha_noop_ops = {
 	.dma_supported		= alpha_noop_supported,
 };
 
-struct dma_map_ops *dma_ops = &alpha_noop_ops;
+const struct dma_map_ops *dma_ops = &alpha_noop_ops;
 EXPORT_SYMBOL(dma_ops);

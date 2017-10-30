@@ -48,7 +48,7 @@ static int check(const struct ebt_table_info *info, unsigned int valid_hooks)
 	return 0;
 }
 
-static struct ebt_table frame_nat = {
+static const struct ebt_table frame_nat = {
 	.name		= "nat",
 	.table		= &initial_table,
 	.valid_hooks	= NAT_VALID_HOOKS,
@@ -70,7 +70,7 @@ ebt_nat_out(void *priv, struct sk_buff *skb,
 	return ebt_do_table(skb, state, state->net->xt.frame_nat);
 }
 
-static struct nf_hook_ops ebt_ops_nat[] __read_mostly = {
+static const struct nf_hook_ops ebt_ops_nat[] = {
 	{
 		.hook		= ebt_nat_out,
 		.pf		= NFPROTO_BRIDGE,
@@ -93,13 +93,13 @@ static struct nf_hook_ops ebt_ops_nat[] __read_mostly = {
 
 static int __net_init frame_nat_net_init(struct net *net)
 {
-	net->xt.frame_nat = ebt_register_table(net, &frame_nat);
-	return PTR_ERR_OR_ZERO(net->xt.frame_nat);
+	return ebt_register_table(net, &frame_nat, ebt_ops_nat,
+				  &net->xt.frame_nat);
 }
 
 static void __net_exit frame_nat_net_exit(struct net *net)
 {
-	ebt_unregister_table(net, net->xt.frame_nat);
+	ebt_unregister_table(net, net->xt.frame_nat, ebt_ops_nat);
 }
 
 static struct pernet_operations frame_nat_net_ops = {
@@ -109,20 +109,11 @@ static struct pernet_operations frame_nat_net_ops = {
 
 static int __init ebtable_nat_init(void)
 {
-	int ret;
-
-	ret = register_pernet_subsys(&frame_nat_net_ops);
-	if (ret < 0)
-		return ret;
-	ret = nf_register_hooks(ebt_ops_nat, ARRAY_SIZE(ebt_ops_nat));
-	if (ret < 0)
-		unregister_pernet_subsys(&frame_nat_net_ops);
-	return ret;
+	return register_pernet_subsys(&frame_nat_net_ops);
 }
 
 static void __exit ebtable_nat_fini(void)
 {
-	nf_unregister_hooks(ebt_ops_nat, ARRAY_SIZE(ebt_ops_nat));
 	unregister_pernet_subsys(&frame_nat_net_ops);
 }
 

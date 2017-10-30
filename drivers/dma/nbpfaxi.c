@@ -225,6 +225,8 @@ struct nbpf_channel {
 struct nbpf_device {
 	struct dma_device dma_dev;
 	void __iomem *base;
+	u32 max_burst_mem_read;
+	u32 max_burst_mem_write;
 	struct clk *clk;
 	const struct nbpf_config *config;
 	unsigned int eirq;
@@ -425,10 +427,33 @@ static void nbpf_chan_configure(struct nbpf_channel *chan)
 	nbpf_chan_write(chan, NBPF_CHAN_CFG, NBPF_CHAN_CFG_DMS | chan->dmarq_cfg);
 }
 
-static u32 nbpf_xfer_ds(struct nbpf_device *nbpf, size_t size)
+static u32 nbpf_xfer_ds(struct nbpf_device *nbpf, size_t size,
+			enum dma_transfer_direction direction)
 {
+	int max_burst = nbpf->config->buffer_size * 8;
+
+	if (nbpf->max_burst_mem_read || nbpf->max_burst_mem_write) {
+		switch (direction) {
+		case DMA_MEM_TO_MEM:
+			max_burst = min_not_zero(nbpf->max_burst_mem_read,
+						 nbpf->max_burst_mem_write);
+			break;
+		case DMA_MEM_TO_DEV:
+			if (nbpf->max_burst_mem_read)
+				max_burst = nbpf->max_burst_mem_read;
+			break;
+		case DMA_DEV_TO_MEM:
+			if (nbpf->max_burst_mem_write)
+				max_burst = nbpf->max_burst_mem_write;
+			break;
+		case DMA_DEV_TO_DEV:
+		default:
+			break;
+		}
+	}
+
 	/* Maximum supported bursts depend on the buffer size */
-	return min_t(int, __ffs(size), ilog2(nbpf->config->buffer_size * 8));
+	return min_t(int, __ffs(size), ilog2(max_burst));
 }
 
 static size_t nbpf_xfer_size(struct nbpf_device *nbpf,
@@ -458,7 +483,7 @@ static size_t nbpf_xfer_size(struct nbpf_device *nbpf,
 		size = burst;
 	}
 
-	return nbpf_xfer_ds(nbpf, size);
+	return nbpf_xfer_ds(nbpf, size, DMA_TRANS_NONE);
 }
 
 /*
@@ -507,7 +532,7 @@ static int nbpf_prep_one(struct nbpf_link_desc *ldesc,
 	 * transfers we enable the SBE bit and terminate the transfer in our
 	 * .device_pause handler.
 	 */
-	mem_xfer = nbpf_xfer_ds(chan->nbpf, size);
+	mem_xfer = nbpf_xfer_ds(chan->nbpf, size, direction);
 
 	switch (direction) {
 	case DMA_DEV_TO_MEM:
@@ -980,21 +1005,6 @@ static struct dma_async_tx_descriptor *nbpf_prep_memcpy(
 			    DMA_MEM_TO_MEM, flags);
 }
 
-static struct dma_async_tx_descriptor *nbpf_prep_memcpy_sg(
-	struct dma_chan *dchan,
-	struct scatterlist *dst_sg, unsigned int dst_nents,
-	struct scatterlist *src_sg, unsigned int src_nents,
-	unsigned long flags)
-{
-	struct nbpf_channel *chan = nbpf_to_chan(dchan);
-
-	if (dst_nents != src_nents)
-		return NULL;
-
-	return nbpf_prep_sg(chan, src_sg, dst_sg, src_nents,
-			    DMA_MEM_TO_MEM, flags);
-}
-
 static struct dma_async_tx_descriptor *nbpf_prep_slave_sg(
 	struct dma_chan *dchan, struct scatterlist *sgl, unsigned int sg_len,
 	enum dma_transfer_direction direction, unsigned long flags, void *context)
@@ -1313,6 +1323,11 @@ static int nbpf_probe(struct platform_device *pdev)
 	if (IS_ERR(nbpf->clk))
 		return PTR_ERR(nbpf->clk);
 
+	of_property_read_u32(np, "max-burst-mem-read",
+			     &nbpf->max_burst_mem_read);
+	of_property_read_u32(np, "max-burst-mem-write",
+			     &nbpf->max_burst_mem_write);
+
 	nbpf->config = cfg;
 
 	for (i = 0; irqs < ARRAY_SIZE(irqbuf); i++) {
@@ -1387,13 +1402,11 @@ static int nbpf_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_MEMCPY, dma_dev->cap_mask);
 	dma_cap_set(DMA_SLAVE, dma_dev->cap_mask);
 	dma_cap_set(DMA_PRIVATE, dma_dev->cap_mask);
-	dma_cap_set(DMA_SG, dma_dev->cap_mask);
 
 	/* Common and MEMCPY operations */
 	dma_dev->device_alloc_chan_resources
 		= nbpf_alloc_chan_resources;
 	dma_dev->device_free_chan_resources = nbpf_free_chan_resources;
-	dma_dev->device_prep_dma_sg = nbpf_prep_memcpy_sg;
 	dma_dev->device_prep_dma_memcpy = nbpf_prep_memcpy;
 	dma_dev->device_tx_status = nbpf_tx_status;
 	dma_dev->device_issue_pending = nbpf_issue_pending;

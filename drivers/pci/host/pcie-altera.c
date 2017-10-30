@@ -57,22 +57,24 @@
 #define TLP_WRITE_TAG			0x10
 #define RP_DEVFN			0
 #define TLP_REQ_ID(bus, devfn)		(((bus) << 8) | (devfn))
-#define TLP_CFG_DW0(pcie, bus)						\
+#define TLP_CFGRD_DW0(pcie, bus)					\
     ((((bus == pcie->root_bus_nr) ? TLP_FMTTYPE_CFGRD0			\
 				    : TLP_FMTTYPE_CFGRD1) << 24) |	\
+     TLP_PAYLOAD_SIZE)
+#define TLP_CFGWR_DW0(pcie, bus)					\
+    ((((bus == pcie->root_bus_nr) ? TLP_FMTTYPE_CFGWR0			\
+				    : TLP_FMTTYPE_CFGWR1) << 24) |	\
      TLP_PAYLOAD_SIZE)
 #define TLP_CFG_DW1(pcie, tag, be)	\
     (((TLP_REQ_ID(pcie->root_bus_nr,  RP_DEVFN)) << 16) | (tag << 8) | (be))
 #define TLP_CFG_DW2(bus, devfn, offset)	\
 				(((bus) << 24) | ((devfn) << 16) | (offset))
-#define TLP_COMP_STATUS(s)		(((s) >> 12) & 7)
+#define TLP_COMP_STATUS(s)		(((s) >> 13) & 7)
 #define TLP_HDR_SIZE			3
 #define TLP_LOOP			500
 
 #define LINK_UP_TIMEOUT			HZ
 #define LINK_RETRAIN_TIMEOUT		HZ
-
-#define INTX_NUM			4
 
 #define DWORD_MASK			3
 
@@ -222,7 +224,7 @@ static int tlp_cfg_dword_read(struct altera_pcie *pcie, u8 bus, u32 devfn,
 {
 	u32 headers[TLP_HDR_SIZE];
 
-	headers[0] = TLP_CFG_DW0(pcie, bus);
+	headers[0] = TLP_CFGRD_DW0(pcie, bus);
 	headers[1] = TLP_CFG_DW1(pcie, TLP_READ_TAG, byte_en);
 	headers[2] = TLP_CFG_DW2(bus, devfn, where);
 
@@ -237,7 +239,7 @@ static int tlp_cfg_dword_write(struct altera_pcie *pcie, u8 bus, u32 devfn,
 	u32 headers[TLP_HDR_SIZE];
 	int ret;
 
-	headers[0] = TLP_CFG_DW0(pcie, bus);
+	headers[0] = TLP_CFGWR_DW0(pcie, bus);
 	headers[1] = TLP_CFG_DW1(pcie, TLP_WRITE_TAG, byte_en);
 	headers[2] = TLP_CFG_DW2(bus, devfn, where);
 
@@ -460,6 +462,7 @@ static int altera_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
 
 static const struct irq_domain_ops intx_domain_ops = {
 	.map = altera_pcie_intx_map,
+	.xlate = pci_irqd_intx_xlate,
 };
 
 static void altera_pcie_isr(struct irq_desc *desc)
@@ -477,11 +480,11 @@ static void altera_pcie_isr(struct irq_desc *desc)
 
 	while ((status = cra_readl(pcie, P2A_INT_STATUS)
 		& P2A_INT_STS_ALL) != 0) {
-		for_each_set_bit(bit, &status, INTX_NUM) {
+		for_each_set_bit(bit, &status, PCI_NUM_INTX) {
 			/* clear interrupts */
 			cra_writel(pcie, 1 << bit, P2A_INT_STATUS);
 
-			virq = irq_find_mapping(pcie->irq_domain, bit + 1);
+			virq = irq_find_mapping(pcie->irq_domain, bit);
 			if (virq)
 				generic_handle_irq(virq);
 			else
@@ -532,7 +535,7 @@ static int altera_pcie_init_irq_domain(struct altera_pcie *pcie)
 	struct device_node *node = dev->of_node;
 
 	/* Setup INTx */
-	pcie->irq_domain = irq_domain_add_linear(node, INTX_NUM + 1,
+	pcie->irq_domain = irq_domain_add_linear(node, PCI_NUM_INTX,
 					&intx_domain_ops, pcie);
 	if (!pcie->irq_domain) {
 		dev_err(dev, "Failed to get a INTx IRQ domain\n");
@@ -550,16 +553,14 @@ static int altera_pcie_parse_dt(struct altera_pcie *pcie)
 
 	cra = platform_get_resource_byname(pdev, IORESOURCE_MEM, "Cra");
 	pcie->cra_base = devm_ioremap_resource(dev, cra);
-	if (IS_ERR(pcie->cra_base)) {
-		dev_err(dev, "failed to map cra memory\n");
+	if (IS_ERR(pcie->cra_base))
 		return PTR_ERR(pcie->cra_base);
-	}
 
 	/* setup IRQ */
 	pcie->irq = platform_get_irq(pdev, 0);
-	if (pcie->irq <= 0) {
+	if (pcie->irq < 0) {
 		dev_err(dev, "failed to get IRQ: %d\n", pcie->irq);
-		return -EINVAL;
+		return pcie->irq;
 	}
 
 	irq_set_chained_handler_and_data(pcie->irq, altera_pcie_isr, pcie);
@@ -577,12 +578,14 @@ static int altera_pcie_probe(struct platform_device *pdev)
 	struct altera_pcie *pcie;
 	struct pci_bus *bus;
 	struct pci_bus *child;
+	struct pci_host_bridge *bridge;
 	int ret;
 
-	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
-	if (!pcie)
+	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
+	if (!bridge)
 		return -ENOMEM;
 
+	pcie = pci_host_bridge_priv(bridge);
 	pcie->pdev = pdev;
 
 	ret = altera_pcie_parse_dt(pcie);
@@ -611,12 +614,20 @@ static int altera_pcie_probe(struct platform_device *pdev)
 	cra_writel(pcie, P2A_INT_ENA_ALL, P2A_INT_ENABLE);
 	altera_pcie_host_init(pcie);
 
-	bus = pci_scan_root_bus(dev, pcie->root_bus_nr, &altera_pcie_ops,
-				pcie, &pcie->resources);
-	if (!bus)
-		return -ENOMEM;
+	list_splice_init(&pcie->resources, &bridge->windows);
+	bridge->dev.parent = dev;
+	bridge->sysdata = pcie;
+	bridge->busnr = pcie->root_bus_nr;
+	bridge->ops = &altera_pcie_ops;
+	bridge->map_irq = of_irq_parse_and_map_pci;
+	bridge->swizzle_irq = pci_common_swizzle;
 
-	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
+	ret = pci_scan_root_bus_bridge(bridge);
+	if (ret < 0)
+		return ret;
+
+	bus = bridge->bus;
+
 	pci_assign_unassigned_bus_resources(bus);
 
 	/* Configure PCI Express setting. */
@@ -641,8 +652,4 @@ static struct platform_driver altera_pcie_driver = {
 	},
 };
 
-static int altera_pcie_init(void)
-{
-	return platform_driver_register(&altera_pcie_driver);
-}
-device_initcall(altera_pcie_init);
+builtin_platform_driver(altera_pcie_driver);

@@ -10,6 +10,7 @@
  * for more details.
  */
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -25,7 +26,7 @@
 #include <linux/sysctl.h>
 #include <linux/module.h>
 #include <linux/perf_event.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/alignment.h>
 #include <asm/processor.h>

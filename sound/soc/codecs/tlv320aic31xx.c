@@ -1185,7 +1185,7 @@ static int aic31xx_codec_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_driver_aic31xx = {
+static const struct snd_soc_codec_driver soc_codec_driver_aic31xx = {
 	.probe			= aic31xx_codec_probe,
 	.remove			= aic31xx_codec_remove,
 	.set_bias_level		= aic31xx_set_bias_level,
@@ -1210,7 +1210,7 @@ static const struct snd_soc_dai_ops aic31xx_dai_ops = {
 
 static struct snd_soc_dai_driver dac31xx_dai_driver[] = {
 	{
-		.name = "tlv32dac31xx-hifi",
+		.name = "tlv320dac31xx-hifi",
 		.playback = {
 			.stream_name	 = "Playback",
 			.channels_min	 = 2,
@@ -1253,6 +1253,8 @@ static const struct of_device_id tlv320aic31xx_of_match[] = {
 	{ .compatible = "ti,tlv320aic3110" },
 	{ .compatible = "ti,tlv320aic3120" },
 	{ .compatible = "ti,tlv320aic3111" },
+	{ .compatible = "ti,tlv320dac3100" },
+	{ .compatible = "ti,tlv320dac3101" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, tlv320aic31xx_of_match);
@@ -1379,6 +1381,7 @@ static const struct i2c_device_id aic31xx_i2c_id[] = {
 	{ "tlv320aic3120", AIC3120 },
 	{ "tlv320aic3111", AIC3111 },
 	{ "tlv320dac3100", DAC3100 },
+	{ "tlv320dac3101", DAC3101 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, aic31xx_i2c_id);

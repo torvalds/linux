@@ -1,0 +1,41 @@
+* Device Tree Bindings for IBM Virtual Trusted Platform Module(vtpm)
+
+Required properties:
+
+- compatible            : property name that conveys the platform architecture
+                          identifiers, as 'IBM,vtpm'
+- device_type           : specifies type of virtual device
+- interrupts            : property specifying the interrupt source number and
+                          sense code associated with this virtual I/O Adapters
+- ibm,my-drc-index      : integer index for the connector between the device
+                          and its parent - present only if Dynamic
+                          Reconfiguration(DR) Connector is enabled
+- ibm,#dma-address-cells: specifies the number of cells that are used to
+                          encode the physical address field of dma-window
+                          properties
+- ibm,#dma-size-cells   : specifies the number of cells that are used to
+                          encode the size field of dma-window properties
+- ibm,my-dma-window     : specifies DMA window associated with this virtual
+                          IOA
+- ibm,loc-code          : specifies the unique and persistent location code
+                          associated with this virtual I/O Adapters
+- linux,sml-base        : 64-bit base address of the reserved memory allocated
+                          for the firmware event log
+- linux,sml-size        : size of the memory allocated for the firmware event log
+
+Example (IBM Virtual Trusted Platform Module)
+---------------------------------------------
+
+                vtpm@30000003 {
+                        ibm,#dma-size-cells = <0x2>;
+                        compatible = "IBM,vtpm";
+                        device_type = "IBM,vtpm";
+                        ibm,my-drc-index = <0x30000003>;
+                        ibm,#dma-address-cells = <0x2>;
+                        linux,sml-base = <0xc60e 0x0>;
+                        interrupts = <0xa0003 0x0>;
+                        ibm,my-dma-window = <0x10000003 0x0 0x0 0x0 0x10000000>;
+                        ibm,loc-code = "U8286.41A.10082DV-V3-C3";
+                        reg = <0x30000003>;
+                        linux,sml-size = <0xbce10200>;
+                };

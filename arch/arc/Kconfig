@@ -8,9 +8,10 @@
 
 config ARC
 	def_bool y
+	select ARC_TIMERS
+	select ARCH_HAS_SG_CHAIN
 	select ARCH_SUPPORTS_ATOMIC_RMW if ARC_HAS_LLSC
 	select BUILDTIME_EXTABLE_SORT
-	select CLKSRC_OF
 	select CLONE_BACKWARDS
 	select COMMON_CLK
 	select GENERIC_ATOMIC64 if !ISA_ARCV2 || !(ARC_HAS_LL64 && ARC_HAS_LLSC)
@@ -23,12 +24,12 @@ config ARC
 	select GENERIC_SMP_IDLE_THREAD
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
-	select HAVE_FUTEX_CMPXCHG
+	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select HAVE_IOREMAP_PROT
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_MEMBLOCK
-	select HAVE_MOD_ARCH_SPECIFIC if ARC_DW2_UNWIND
+	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
 	select HANDLE_DOMAIN_IRQ
@@ -95,11 +96,11 @@ menu "ARC Architecture Configuration"
 
 menu "ARC Platform/SoC/Board"
 
-source "arch/arc/plat-sim/Kconfig"
 source "arch/arc/plat-tb10x/Kconfig"
 source "arch/arc/plat-axs10x/Kconfig"
 #New platform adds here
 source "arch/arc/plat-eznps/Kconfig"
+source "arch/arc/plat-hsdk/Kconfig"
 
 endmenu
 
@@ -115,6 +116,7 @@ config ISA_ARCOMPACT
 
 config ISA_ARCV2
 	bool "ARC ISA v2"
+	select ARC_TIMERS_64BIT
 	help
 	  ISA for the Next Generation ARC-HS cores
 
@@ -178,15 +180,11 @@ config CPU_BIG_ENDIAN
 config SMP
 	bool "Symmetric Multi-Processing"
 	default n
-	select ARC_HAS_COH_CACHES if ISA_ARCV2
 	select ARC_MCIP if ISA_ARCV2
 	help
 	  This enables support for systems with more than one CPU.
 
 if SMP
-
-config ARC_HAS_COH_CACHES
-	def_bool n
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-4096)"
@@ -217,8 +215,6 @@ config ARC_MCIP
 menuconfig ARC_CACHE
 	bool "Enable Cache Support"
 	default y
-	# if SMP, cache enabled ONLY if ARC implementation has cache coherency
-	depends on !SMP || ARC_HAS_COH_CACHES
 
 if ARC_CACHE
 
@@ -410,33 +406,20 @@ config ARC_HAS_DIV_REM
 	bool "Insn: div, divu, rem, remu"
 	default y
 
-config ARC_HAS_RTC
-	bool "Local 64-bit r/o cycle counter"
+config ARC_HAS_ACCL_REGS
+	bool "Reg Pair ACCL:ACCH (FPU and/or MPY > 6)"
 	default n
-	depends on !SMP
-
-config ARC_HAS_GFRC
-	bool "SMP synchronized 64-bit cycle counter"
-	default y
-	depends on SMP
-
-config ARC_NUMBER_OF_INTERRUPTS
-	int "Number of interrupts"
-	range 8 240
-	default 32
 	help
-	  This defines the number of interrupts on the ARCv2HS core.
-	  It affects the size of vector table.
-	  The initial 8 IRQs are fixed (Timer, ICI etc) and although configurable
-	  in hardware, it keep things simple for Linux to assume they are always
-	  present.
+	  Depending on the configuration, CPU can contain accumulator reg-pair
+	  (also referred to as r58:r59). These can also be used by gcc as GPR so
+	  kernel needs to save/restore per process
 
 endif	# ISA_ARCV2
 
 endmenu   # "ARC CPU Configuration"
 
 config LINUX_LINK_BASE
-	hex "Linux Link Address"
+	hex "Kernel link address"
 	default "0x80000000"
 	help
 	  ARC700 divides the 32 bit phy address space into two equal halves
@@ -448,6 +431,14 @@ config LINUX_LINK_BASE
 	  Linux needs to be scooted a bit.
 	  If you don't know what the above means, leave this setting alone.
 	  This needs to match memory start address specified in Device Tree
+
+config LINUX_RAM_BASE
+	hex "RAM base address"
+	default LINUX_LINK_BASE
+	help
+	  By default Linux is linked at base of RAM. However in some special
+	  cases (such as HSDK), Linux can't be linked at start of DDR, hence
+	  this option.
 
 config HIGHMEM
 	bool "High Memory Support"
@@ -461,6 +452,7 @@ config ARC_HAS_PAE40
 	bool "Support for the 40-bit Physical Address Extension"
 	default n
 	depends on ISA_ARCV2
+	select HIGHMEM
 	help
 	  Enable access to physical memory beyond 4G, only supported on
 	  ARC cores with 40 bit Physical Addressing support

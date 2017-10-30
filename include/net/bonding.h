@@ -153,7 +153,8 @@ struct slave {
 	unsigned long last_link_up;
 	unsigned long last_rx;
 	unsigned long target_last_arp_rx[BOND_MAX_ARP_TARGETS];
-	s8     link;    /* one of BOND_LINK_XXXX */
+	s8     link;		/* one of BOND_LINK_XXXX */
+	s8     link_new_state;	/* one of BOND_LINK_XXXX */
 	s8     new_link;
 	u8     backup:1,   /* indicates backup slave. Value corresponds with
 			      BOND_STATE_ACTIVE and BOND_STATE_BACKUP */
@@ -165,7 +166,7 @@ struct slave {
 	u32    link_failure_count;
 	u32    speed;
 	u16    queue_id;
-	u8     perm_hwaddr[ETH_ALEN];
+	u8     perm_hwaddr[MAX_ADDR_LEN];
 	struct ad_slave_info *ad_info;
 	struct tlb_slave_info tlb_info;
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -274,6 +275,11 @@ static inline bool bond_is_lb(const struct bonding *bond)
 {
 	return BOND_MODE(bond) == BOND_MODE_TLB ||
 	       BOND_MODE(bond) == BOND_MODE_ALB;
+}
+
+static inline bool bond_needs_speed_duplex(const struct bonding *bond)
+{
+	return BOND_MODE(bond) == BOND_MODE_8023AD || bond_is_lb(bond);
 }
 
 static inline bool bond_is_nondyn_tlb(const struct bonding *bond)
@@ -401,6 +407,16 @@ static inline bool bond_slave_can_tx(struct slave *slave)
 	       bond_is_active_slave(slave);
 }
 
+static inline void bond_hw_addr_copy(u8 *dst, const u8 *src, unsigned int len)
+{
+	if (len == ETH_ALEN) {
+		ether_addr_copy(dst, src);
+		return;
+	}
+
+	memcpy(dst, src, len);
+}
+
 #define BOND_PRI_RESELECT_ALWAYS	0
 #define BOND_PRI_RESELECT_BETTER	1
 #define BOND_PRI_RESELECT_FAILURE	2
@@ -504,13 +520,17 @@ static inline bool bond_is_slave_inactive(struct slave *slave)
 	return slave->inactive;
 }
 
-static inline void bond_set_slave_link_state(struct slave *slave, int state,
-					     bool notify)
+static inline void bond_propose_link_state(struct slave *slave, int state)
 {
-	if (slave->link == state)
+	slave->link_new_state = state;
+}
+
+static inline void bond_commit_link_state(struct slave *slave, bool notify)
+{
+	if (slave->link == slave->link_new_state)
 		return;
 
-	slave->link = state;
+	slave->link = slave->link_new_state;
 	if (notify) {
 		bond_queue_slave_event(slave);
 		bond_lower_state_changed(slave);
@@ -521,6 +541,13 @@ static inline void bond_set_slave_link_state(struct slave *slave, int state,
 		else
 			slave->should_notify_link = 1;
 	}
+}
+
+static inline void bond_set_slave_link_state(struct slave *slave, int state,
+					     bool notify)
+{
+	bond_propose_link_state(slave, state);
+	bond_commit_link_state(slave, notify);
 }
 
 static inline void bond_slave_link_notify(struct bonding *bond)
@@ -592,6 +619,7 @@ struct bond_vlan_tag *bond_verify_device_path(struct net_device *start_dev,
 					      int level);
 int bond_update_slave_arr(struct bonding *bond, struct slave *skipslave);
 void bond_slave_arr_work_rearm(struct bonding *bond, unsigned long delay);
+void bond_work_init_all(struct bonding *bond);
 
 #ifdef CONFIG_PROC_FS
 void bond_create_proc_entry(struct bonding *bond);
@@ -681,7 +709,7 @@ static inline int bond_get_targets_ip(__be32 *targets, __be32 ip)
 }
 
 /* exported from bond_main.c */
-extern int bond_net_id;
+extern unsigned int bond_net_id;
 extern const struct bond_parm_tbl bond_lacp_tbl[];
 extern const struct bond_parm_tbl xmit_hashtype_tbl[];
 extern const struct bond_parm_tbl arp_validate_tbl[];

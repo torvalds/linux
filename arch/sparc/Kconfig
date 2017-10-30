@@ -31,7 +31,8 @@ config SPARC
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select GENERIC_PCI_IOMAP
 	select HAVE_NMI_WATCHDOG if SPARC64
-	select HAVE_CBPF_JIT
+	select HAVE_CBPF_JIT if SPARC32
+	select HAVE_EBPF_JIT if SPARC64
 	select HAVE_DEBUG_BUGVERBOSE
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_CLOCKEVENTS
@@ -42,8 +43,7 @@ config SPARC
 	select OLD_SIGSUSPEND
 	select ARCH_HAS_SG_CHAIN
 	select CPU_NO_EFFICIENT_FFS
-	select HAVE_ARCH_HARDENED_USERCOPY
-	select PROVE_LOCKING_SMALL if PROVE_LOCKING
+	select LOCKDEP_SMALL if LOCKDEP
 
 config SPARC32
 	def_bool !64BIT
@@ -81,6 +81,9 @@ config SPARC64
 	select HAVE_ARCH_AUDITSYSCALL
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select HAVE_NMI
+	select HAVE_REGS_AND_STACK_ACCESS_API
+	select ARCH_USE_QUEUED_RWLOCKS
+	select ARCH_USE_QUEUED_SPINLOCKS
 
 config ARCH_DEFCONFIG
 	string
@@ -88,6 +91,12 @@ config ARCH_DEFCONFIG
 	default "arch/sparc/configs/sparc64_defconfig" if SPARC64
 
 config ARCH_PROC_KCORE_TEXT
+	def_bool y
+
+config CPU_BIG_ENDIAN
+	def_bool y
+
+config CPU_BIG_ENDIAN
 	def_bool y
 
 config ARCH_ATU
@@ -155,6 +164,9 @@ config PGTABLE_LEVELS
 	default 4 if 64BIT
 	default 3
 
+config ARCH_SUPPORTS_UPROBES
+	def_bool y if SPARC64
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -187,9 +199,9 @@ config NR_CPUS
 	int "Maximum number of CPUs"
 	depends on SMP
 	range 2 32 if SPARC32
-	range 2 1024 if SPARC64
+	range 2 4096 if SPARC64
 	default 32 if SPARC32
-	default 64 if SPARC64
+	default 4096 if SPARC64
 
 source kernel/Kconfig.hz
 
@@ -290,9 +302,13 @@ config NUMA
 	depends on SPARC64 && SMP
 
 config NODES_SHIFT
-	int
-	default "4"
+	int "Maximum NUMA Nodes (as a power of 2)"
+	range 4 5 if SPARC64
+	default "5"
 	depends on NEED_MULTIPLE_NODES
+	help
+	  Specify the maximum number of NUMA Nodes available on the target
+	  system.  Increases memory reserved to accommodate various tables.
 
 # Some NUMA nodes have memory ranges that span
 # other nodes.  Even though a pfn is valid and
@@ -567,9 +583,6 @@ config SYSVIPC_COMPAT
 	bool
 	depends on COMPAT && SYSVIPC
 	default y
-
-config KEYS_COMPAT
-	def_bool y if COMPAT && KEYS
 
 endmenu
 

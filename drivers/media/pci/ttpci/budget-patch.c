@@ -20,11 +20,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  *
  *
  * the project's page is at https://linuxtv.org
@@ -48,7 +45,7 @@ static struct saa7146_extension budget_extension;
 MAKE_BUDGET_INFO(ttbp, "TT-Budget/Patch DVB-S 1.x PCI", BUDGET_PATCH);
 //MAKE_BUDGET_INFO(satel,"TT-Budget/Patch SATELCO PCI", BUDGET_TT_HW_DISEQC);
 
-static struct pci_device_id pci_tbl[] = {
+static const struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttbp,0x13c2, 0x0000),
 //        MAKE_EXTENSION_PCI(satel, 0x13c2, 0x1013),
 	{
@@ -679,5 +676,4 @@ module_exit(budget_patch_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Emard, Roberto Deza, Holger Waechtler, Michael Hunold, others");
-MODULE_DESCRIPTION("Driver for full TS modified DVB-S SAA7146+AV7110 "
-		   "based so-called Budget Patch cards");
+MODULE_DESCRIPTION("Driver for full TS modified DVB-S SAA7146+AV7110 based so-called Budget Patch cards");

@@ -73,8 +73,7 @@ static int pdiag_put_ring(struct packet_ring_buffer *ring, int ver, int nl_type,
 {
 	struct packet_diag_ring pdr;
 
-	if (!ring->pg_vec || ((ver > TPACKET_V2) &&
-				(nl_type == PACKET_DIAG_TX_RING)))
+	if (!ring->pg_vec)
 		return 0;
 
 	pdr.pdr_block_size = ring->pg_vec_pages << PAGE_SHIFT;

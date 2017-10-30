@@ -27,6 +27,7 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/regmap.h>
+#include <linux/delay.h>
 #include "bmg160.h"
 
 #define BMG160_IRQ_NAME		"bmg160_event"
@@ -51,6 +52,9 @@
 #define BMG160_NO_FILTER		0
 #define BMG160_DEF_BW			100
 #define BMG160_REG_PMU_BW_RES		BIT(7)
+
+#define BMG160_GYRO_REG_RESET		0x14
+#define BMG160_GYRO_RESET_VAL		0xb6
 
 #define BMG160_REG_INT_MAP_0		0x17
 #define BMG160_INT_MAP_0_BIT_ANY	BIT(1)
@@ -235,6 +239,14 @@ static int bmg160_chip_init(struct bmg160_data *data)
 	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 	unsigned int val;
+
+	/*
+	 * Reset chip to get it in a known good state. A delay of 30ms after
+	 * reset is required according to the datasheet.
+	 */
+	regmap_write(data->regmap, BMG160_GYRO_REG_RESET,
+		     BMG160_GYRO_RESET_VAL);
+	usleep_range(30000, 30700);
 
 	ret = regmap_read(data->regmap, BMG160_REG_CHIP_ID, &val);
 	if (ret < 0) {

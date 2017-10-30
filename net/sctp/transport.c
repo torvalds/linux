@@ -72,7 +72,7 @@ static struct sctp_transport *sctp_transport_init(struct net *net,
 	 */
 	peer->rto = msecs_to_jiffies(net->sctp.rto_initial);
 
-	peer->last_time_heard = ktime_set(0, 0);
+	peer->last_time_heard = 0;
 	peer->last_time_ecne_reduced = jiffies;
 
 	peer->param_flags = SPP_HB_DISABLE |
@@ -88,16 +88,18 @@ static struct sctp_transport *sctp_transport_init(struct net *net,
 	INIT_LIST_HEAD(&peer->transports);
 
 	setup_timer(&peer->T3_rtx_timer, sctp_generate_t3_rtx_event,
-			(unsigned long)peer);
+		    (unsigned long)peer);
 	setup_timer(&peer->hb_timer, sctp_generate_heartbeat_event,
-			(unsigned long)peer);
+		    (unsigned long)peer);
+	setup_timer(&peer->reconf_timer, sctp_generate_reconf_event,
+		    (unsigned long)peer);
 	setup_timer(&peer->proto_unreach_timer,
 		    sctp_generate_proto_unreach_event, (unsigned long)peer);
 
 	/* Initialize the 64-bit random nonce sent with heartbeat. */
 	get_random_bytes(&peer->hb_nonce, sizeof(peer->hb_nonce));
 
-	atomic_set(&peer->refcnt, 1);
+	refcount_set(&peer->refcnt, 1);
 
 	return peer;
 }
@@ -144,6 +146,9 @@ void sctp_transport_free(struct sctp_transport *transport)
 	if (del_timer(&transport->T3_rtx_timer))
 		sctp_transport_put(transport);
 
+	if (del_timer(&transport->reconf_timer))
+		sctp_transport_put(transport);
+
 	/* Delete the ICMP proto unreachable timer if it's active. */
 	if (del_timer(&transport->proto_unreach_timer))
 		sctp_association_put(transport->asoc);
@@ -167,7 +172,7 @@ static void sctp_transport_destroy_rcu(struct rcu_head *head)
  */
 static void sctp_transport_destroy(struct sctp_transport *transport)
 {
-	if (unlikely(atomic_read(&transport->refcnt))) {
+	if (unlikely(refcount_read(&transport->refcnt))) {
 		WARN(1, "Attempt to destroy undead transport %p!\n", transport);
 		return;
 	}
@@ -211,6 +216,14 @@ void sctp_transport_reset_hb_timer(struct sctp_transport *transport)
 		sctp_transport_hold(transport);
 }
 
+void sctp_transport_reset_reconf_timer(struct sctp_transport *transport)
+{
+	if (!timer_pending(&transport->reconf_timer))
+		if (!mod_timer(&transport->reconf_timer,
+			       jiffies + transport->rto))
+			sctp_transport_hold(transport);
+}
+
 /* This transport has been assigned to an association.
  * Initialize fields from the association or from the sock itself.
  * Register the reference count in the association.
@@ -227,7 +240,7 @@ void sctp_transport_pmtu(struct sctp_transport *transport, struct sock *sk)
 {
 	/* If we don't have a fresh route, look one up */
 	if (!transport->dst || transport->dst->obsolete) {
-		dst_release(transport->dst);
+		sctp_transport_dst_release(transport);
 		transport->af_specific->get_dst(transport, &transport->saddr,
 						&transport->fl, sk);
 	}
@@ -238,14 +251,13 @@ void sctp_transport_pmtu(struct sctp_transport *transport, struct sock *sk)
 		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
 }
 
-void sctp_transport_update_pmtu(struct sock *sk, struct sctp_transport *t, u32 pmtu)
+void sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
 {
-	struct dst_entry *dst;
+	struct dst_entry *dst = sctp_transport_dst_check(t);
 
 	if (unlikely(pmtu < SCTP_DEFAULT_MINSEGMENT)) {
 		pr_warn("%s: Reported pmtu %d too low, using default minimum of %d\n",
-			__func__, pmtu,
-			SCTP_DEFAULT_MINSEGMENT);
+			__func__, pmtu, SCTP_DEFAULT_MINSEGMENT);
 		/* Use default minimum segment size and disable
 		 * pmtu discovery on this transport.
 		 */
@@ -254,17 +266,13 @@ void sctp_transport_update_pmtu(struct sock *sk, struct sctp_transport *t, u32 p
 		t->pathmtu = pmtu;
 	}
 
-	dst = sctp_transport_dst_check(t);
-	if (!dst)
-		t->af_specific->get_dst(t, &t->saddr, &t->fl, sk);
-
 	if (dst) {
-		dst->ops->update_pmtu(dst, sk, NULL, pmtu);
-
+		dst->ops->update_pmtu(dst, t->asoc->base.sk, NULL, pmtu);
 		dst = sctp_transport_dst_check(t);
-		if (!dst)
-			t->af_specific->get_dst(t, &t->saddr, &t->fl, sk);
 	}
+
+	if (!dst)
+		t->af_specific->get_dst(t, &t->saddr, &t->fl, t->asoc->base.sk);
 }
 
 /* Caches the dst entry and source address for a transport's destination
@@ -303,7 +311,7 @@ void sctp_transport_route(struct sctp_transport *transport,
 /* Hold a reference to a transport.  */
 int sctp_transport_hold(struct sctp_transport *transport)
 {
-	return atomic_add_unless(&transport->refcnt, 1, 0);
+	return refcount_inc_not_zero(&transport->refcnt);
 }
 
 /* Release a reference to a transport and clean up
@@ -311,7 +319,7 @@ int sctp_transport_hold(struct sctp_transport *transport)
  */
 void sctp_transport_put(struct sctp_transport *transport)
 {
-	if (atomic_dec_and_test(&transport->refcnt))
+	if (refcount_dec_and_test(&transport->refcnt))
 		sctp_transport_destroy(transport);
 }
 
@@ -397,14 +405,6 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 	    TSN_lte(asoc->fast_recovery_exit, sack_ctsn))
 		asoc->fast_recovery = 0;
 
-	/* The appropriate cwnd increase algorithm is performed if, and only
-	 * if the cumulative TSN whould advanced and the congestion window is
-	 * being fully utilized.
-	 */
-	if (TSN_lte(sack_ctsn, transport->asoc->ctsn_ack_point) ||
-	    (flight_size < cwnd))
-		return;
-
 	ssthresh = transport->ssthresh;
 	pba = transport->partial_bytes_acked;
 	pmtu = transport->asoc->pathmtu;
@@ -427,6 +427,14 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 		if (asoc->fast_recovery)
 			return;
 
+		/* The appropriate cwnd increase algorithm is performed
+		 * if, and only if the congestion window is being fully
+		 * utilized.  Note that RFC4960 Errata 3.22 removed the
+		 * other condition on ctsn moving.
+		 */
+		if (flight_size < cwnd)
+			return;
+
 		if (bytes_acked > pmtu)
 			cwnd += pmtu;
 		else
@@ -438,23 +446,33 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 			 flight_size, pba);
 	} else {
 		/* RFC 2960 7.2.2 Whenever cwnd is greater than ssthresh,
-		 * upon each SACK arrival that advances the Cumulative TSN Ack
-		 * Point, increase partial_bytes_acked by the total number of
-		 * bytes of all new chunks acknowledged in that SACK including
-		 * chunks acknowledged by the new Cumulative TSN Ack and by
-		 * Gap Ack Blocks.
+		 * upon each SACK arrival, increase partial_bytes_acked
+		 * by the total number of bytes of all new chunks
+		 * acknowledged in that SACK including chunks
+		 * acknowledged by the new Cumulative TSN Ack and by Gap
+		 * Ack Blocks. (updated by RFC4960 Errata 3.22)
 		 *
-		 * When partial_bytes_acked is equal to or greater than cwnd
-		 * and before the arrival of the SACK the sender had cwnd or
-		 * more bytes of data outstanding (i.e., before arrival of the
-		 * SACK, flightsize was greater than or equal to cwnd),
-		 * increase cwnd by MTU, and reset partial_bytes_acked to
-		 * (partial_bytes_acked - cwnd).
+		 * When partial_bytes_acked is greater than cwnd and
+		 * before the arrival of the SACK the sender had less
+		 * bytes of data outstanding than cwnd (i.e., before
+		 * arrival of the SACK, flightsize was less than cwnd),
+		 * reset partial_bytes_acked to cwnd. (RFC 4960 Errata
+		 * 3.26)
+		 *
+		 * When partial_bytes_acked is equal to or greater than
+		 * cwnd and before the arrival of the SACK the sender
+		 * had cwnd or more bytes of data outstanding (i.e.,
+		 * before arrival of the SACK, flightsize was greater
+		 * than or equal to cwnd), partial_bytes_acked is reset
+		 * to (partial_bytes_acked - cwnd). Next, cwnd is
+		 * increased by MTU. (RFC 4960 Errata 3.12)
 		 */
 		pba += bytes_acked;
-		if (pba >= cwnd) {
+		if (pba > cwnd && flight_size < cwnd)
+			pba = cwnd;
+		if (pba >= cwnd && flight_size >= cwnd) {
+			pba = pba - cwnd;
 			cwnd += pmtu;
-			pba = ((cwnd < pba) ? (pba - cwnd) : 0);
 		}
 
 		pr_debug("%s: congestion avoidance: transport:%p, "
@@ -472,7 +490,7 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
  * detected.
  */
 void sctp_transport_lower_cwnd(struct sctp_transport *transport,
-			       sctp_lower_cwnd_t reason)
+			       enum sctp_lower_cwnd reason)
 {
 	struct sctp_association *asoc = transport->asoc;
 
@@ -551,6 +569,8 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 		 */
 		transport->cwnd = max(transport->cwnd/2,
 					 4*asoc->pathmtu);
+		/* RFC 4960 Errata 3.27.2: also adjust sshthresh */
+		transport->ssthresh = transport->cwnd;
 		break;
 	}
 
@@ -630,9 +650,7 @@ void sctp_transport_reset(struct sctp_transport *t)
 	t->srtt = 0;
 	t->rttvar = 0;
 
-	/* Reset these additional varibles so that we have a clean
-	 * slate.
-	 */
+	/* Reset these additional variables so that we have a clean slate. */
 	t->partial_bytes_acked = 0;
 	t->flight_size = 0;
 	t->error_count = 0;
@@ -658,4 +676,18 @@ void sctp_transport_immediate_rtx(struct sctp_transport *t)
 		if (!mod_timer(&t->T3_rtx_timer, jiffies + t->rto))
 			sctp_transport_hold(t);
 	}
+}
+
+/* Drop dst */
+void sctp_transport_dst_release(struct sctp_transport *t)
+{
+	dst_release(t->dst);
+	t->dst = NULL;
+	t->dst_pending_confirm = 0;
+}
+
+/* Schedule neighbour confirm */
+void sctp_transport_dst_confirm(struct sctp_transport *t)
+{
+	t->dst_pending_confirm = 1;
 }

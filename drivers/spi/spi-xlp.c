@@ -393,8 +393,8 @@ static int xlp_spi_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "no IRQ resource found\n");
-		return -EINVAL;
+		dev_err(&pdev->dev, "no IRQ resource found: %d\n", irq);
+		return irq;
 	}
 	err = devm_request_irq(&pdev->dev, irq, xlp_spi_interrupt, 0,
 			pdev->name, xspi);
@@ -442,6 +442,7 @@ static int xlp_spi_probe(struct platform_device *pdev)
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id xlp_spi_acpi_match[] = {
 	{ "BRCM900D", 0 },
+	{ "CAV900D",  0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, xlp_spi_acpi_match);
@@ -451,6 +452,7 @@ static const struct of_device_id xlp_spi_dt_id[] = {
 	{ .compatible = "netlogic,xlp832-spi" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, xlp_spi_dt_id);
 
 static struct platform_driver xlp_spi_driver = {
 	.probe	= xlp_spi_probe,

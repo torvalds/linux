@@ -490,7 +490,7 @@ int omap3isp_csi2_reset(struct isp_csi2_device *csi2)
 	if (!csi2->available)
 		return -ENODEV;
 
-	if (csi2->phy->phy_in_use)
+	if (csi2->phy->entity)
 		return -EBUSY;
 
 	isp_reg_set(isp, csi2->regs1, ISPCSI2_SYSCONFIG,
@@ -566,7 +566,7 @@ static int csi2_configure(struct isp_csi2_device *csi2)
 
 	pad = media_entity_remote_pad(&csi2->pads[CSI2_PAD_SINK]);
 	sensor = media_entity_to_v4l2_subdev(pad->entity);
-	buscfg = sensor->host_priv;
+	buscfg = v4l2_subdev_to_bus_cfg(pipe->external);
 
 	csi2->frame_skip = 0;
 	v4l2_subdev_call(sensor, sensor, g_skip_frames, &csi2->frame_skip);
@@ -753,8 +753,8 @@ void omap3isp_csi2_isr(struct isp_csi2_device *csi2)
 						 ISPCSI2_PHY_IRQSTATUS);
 		isp_reg_writel(isp, cpxio1_irqstatus,
 			       csi2->regs1, ISPCSI2_PHY_IRQSTATUS);
-		dev_dbg(isp->dev, "CSI2: ComplexIO Error IRQ "
-			"%x\n", cpxio1_irqstatus);
+		dev_dbg(isp->dev, "CSI2: ComplexIO Error IRQ %x\n",
+			cpxio1_irqstatus);
 		pipe->error = true;
 	}
 
@@ -763,13 +763,8 @@ void omap3isp_csi2_isr(struct isp_csi2_device *csi2)
 			      ISPCSI2_IRQSTATUS_ECC_NO_CORRECTION_IRQ |
 			      ISPCSI2_IRQSTATUS_COMPLEXIO2_ERR_IRQ |
 			      ISPCSI2_IRQSTATUS_FIFO_OVF_IRQ)) {
-		dev_dbg(isp->dev, "CSI2 Err:"
-			" OCP:%d,"
-			" Short_pack:%d,"
-			" ECC:%d,"
-			" CPXIO2:%d,"
-			" FIFO_OVF:%d,"
-			"\n",
+		dev_dbg(isp->dev,
+			"CSI2 Err: OCP:%d, Short_pack:%d, ECC:%d, CPXIO2:%d, FIFO_OVF:%d,\n",
 			(csi2_irqstatus &
 			 ISPCSI2_IRQSTATUS_OCP_ERR_IRQ) ? 1 : 0,
 			(csi2_irqstatus &
@@ -1058,7 +1053,7 @@ static int csi2_set_stream(struct v4l2_subdev *sd, int enable)
 
 	switch (enable) {
 	case ISP_PIPELINE_STREAM_CONTINUOUS:
-		if (omap3isp_csiphy_acquire(csi2->phy) < 0)
+		if (omap3isp_csiphy_acquire(csi2->phy, &sd->entity) < 0)
 			return -ENODEV;
 		if (csi2->output & CSI2_OUTPUT_MEMORY)
 			omap3isp_sbl_enable(isp, OMAP3_ISP_SBL_CSI2A_WRITE);

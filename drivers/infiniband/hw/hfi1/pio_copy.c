@@ -129,8 +129,8 @@ void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
 				dest += sizeof(u64);
 			}
 
-			dest -= pbuf->size;
-			dend -= pbuf->size;
+			dest -= pbuf->sc->size;
+			dend -= pbuf->sc->size;
 		}
 
 		/* write 8-byte non-SOP, non-wrap chunk data */
@@ -361,8 +361,8 @@ void seg_pio_copy_start(struct pio_buf *pbuf, u64 pbc,
 				dest += sizeof(u64);
 			}
 
-			dest -= pbuf->size;
-			dend -= pbuf->size;
+			dest -= pbuf->sc->size;
+			dend -= pbuf->sc->size;
 		}
 
 		/* write 8-byte non-SOP, non-wrap chunk data */
@@ -458,8 +458,8 @@ static void mid_copy_mix(struct pio_buf *pbuf, const void *from, size_t nbytes)
 			dest += sizeof(u64);
 		}
 
-		dest -= pbuf->size;
-		dend -= pbuf->size;
+		dest -= pbuf->sc->size;
+		dend -= pbuf->sc->size;
 	}
 
 	/* write 8-byte non-SOP, non-wrap chunk data */
@@ -492,7 +492,7 @@ static void mid_copy_mix(struct pio_buf *pbuf, const void *from, size_t nbytes)
 		 */
 		/* adjust if we have wrapped */
 		if (dest >= pbuf->end)
-			dest -= pbuf->size;
+			dest -= pbuf->sc->size;
 		/* jump to the SOP range if within the first block */
 		else if (pbuf->qw_written < PIO_BLOCK_QWS)
 			dest += SOP_DISTANCE;
@@ -584,8 +584,8 @@ static void mid_copy_straight(struct pio_buf *pbuf,
 			dest += sizeof(u64);
 		}
 
-		dest -= pbuf->size;
-		dend -= pbuf->size;
+		dest -= pbuf->sc->size;
+		dend -= pbuf->sc->size;
 	}
 
 	/* write 8-byte non-SOP, non-wrap chunk data */
@@ -666,7 +666,7 @@ void seg_pio_copy_mid(struct pio_buf *pbuf, const void *from, size_t nbytes)
 			 */
 			/* adjust if we've wrapped */
 			if (dest >= pbuf->end)
-				dest -= pbuf->size;
+				dest -= pbuf->sc->size;
 			/* jump to SOP range if within the first block */
 			else if (pbuf->qw_written < PIO_BLOCK_QWS)
 				dest += SOP_DISTANCE;
@@ -719,7 +719,7 @@ void seg_pio_copy_end(struct pio_buf *pbuf)
 	 */
 	/* adjust if we have wrapped */
 	if (dest >= pbuf->end)
-		dest -= pbuf->size;
+		dest -= pbuf->sc->size;
 	/* jump to the SOP range if within the first block */
 	else if (pbuf->qw_written < PIO_BLOCK_QWS)
 		dest += SOP_DISTANCE;

@@ -34,8 +34,6 @@
 #define DP_MAX_PORTS           USHRT_MAX
 #define DP_VPORT_HASH_BUCKETS  1024
 
-#define SAMPLE_ACTION_DEPTH 3
-
 /**
  * struct dp_stats_percpu - per-cpu packet processing statistics for a given
  * datapath.
@@ -100,12 +98,14 @@ struct datapath {
  * @input_vport: The original vport packet came in on. This value is cached
  * when a packet is received by OVS.
  * @mru: The maximum received fragement size; 0 if the packet is not
- * @cutlen: The number of bytes from the packet end to be removed.
  * fragmented.
+ * @acts_origlen: The netlink size of the flow actions applied to this skb.
+ * @cutlen: The number of bytes from the packet end to be removed.
  */
 struct ovs_skb_cb {
 	struct vport		*input_vport;
 	u16			mru;
+	u16			acts_origlen;
 	u32			cutlen;
 };
 #define OVS_CB(skb) ((struct ovs_skb_cb *)(skb)->cb)
@@ -144,7 +144,7 @@ struct ovs_net {
 	bool xt_label;
 };
 
-extern int ovs_net_id;
+extern unsigned int ovs_net_id;
 void ovs_lock(void);
 void ovs_unlock(void);
 

@@ -33,6 +33,9 @@ static const struct of_device_id ath10k_ahb_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, ath10k_ahb_of_match);
 
+#define QCA4019_SRAM_ADDR      0x000C0000
+#define QCA4019_SRAM_LEN       0x00040000 /* 256 kb */
+
 static inline struct ath10k_ahb *ath10k_ahb_priv(struct ath10k *ar)
 {
 	return &((struct ath10k_pci *)ar->drv_priv)->ahb[0];
@@ -194,35 +197,40 @@ static int ath10k_ahb_rst_ctrl_init(struct ath10k *ar)
 
 	dev = &ar_ahb->pdev->dev;
 
-	ar_ahb->core_cold_rst = devm_reset_control_get(dev, "wifi_core_cold");
+	ar_ahb->core_cold_rst = devm_reset_control_get_exclusive(dev,
+								 "wifi_core_cold");
 	if (IS_ERR(ar_ahb->core_cold_rst)) {
 		ath10k_err(ar, "failed to get core cold rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->core_cold_rst));
 		return PTR_ERR(ar_ahb->core_cold_rst);
 	}
 
-	ar_ahb->radio_cold_rst = devm_reset_control_get(dev, "wifi_radio_cold");
+	ar_ahb->radio_cold_rst = devm_reset_control_get_exclusive(dev,
+								  "wifi_radio_cold");
 	if (IS_ERR(ar_ahb->radio_cold_rst)) {
 		ath10k_err(ar, "failed to get radio cold rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->radio_cold_rst));
 		return PTR_ERR(ar_ahb->radio_cold_rst);
 	}
 
-	ar_ahb->radio_warm_rst = devm_reset_control_get(dev, "wifi_radio_warm");
+	ar_ahb->radio_warm_rst = devm_reset_control_get_exclusive(dev,
+								  "wifi_radio_warm");
 	if (IS_ERR(ar_ahb->radio_warm_rst)) {
 		ath10k_err(ar, "failed to get radio warm rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->radio_warm_rst));
 		return PTR_ERR(ar_ahb->radio_warm_rst);
 	}
 
-	ar_ahb->radio_srif_rst = devm_reset_control_get(dev, "wifi_radio_srif");
+	ar_ahb->radio_srif_rst = devm_reset_control_get_exclusive(dev,
+								  "wifi_radio_srif");
 	if (IS_ERR(ar_ahb->radio_srif_rst)) {
 		ath10k_err(ar, "failed to get radio srif rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->radio_srif_rst));
 		return PTR_ERR(ar_ahb->radio_srif_rst);
 	}
 
-	ar_ahb->cpu_init_rst = devm_reset_control_get(dev, "wifi_cpu_init");
+	ar_ahb->cpu_init_rst = devm_reset_control_get_exclusive(dev,
+								"wifi_cpu_init");
 	if (IS_ERR(ar_ahb->cpu_init_rst)) {
 		ath10k_err(ar, "failed to get cpu init rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->cpu_init_rst));
@@ -637,6 +645,7 @@ static int ath10k_ahb_hif_start(struct ath10k *ar)
 {
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot ahb hif start\n");
 
+	napi_enable(&ar->napi);
 	ath10k_ce_enable_interrupts(ar);
 	ath10k_pci_enable_legacy_irq(ar);
 
@@ -689,7 +698,6 @@ static int ath10k_ahb_hif_power_up(struct ath10k *ar)
 		ath10k_err(ar, "could not wake up target CPU: %d\n", ret);
 		goto err_ce_deinit;
 	}
-	napi_enable(&ar->napi);
 
 	return 0;
 
@@ -697,6 +705,25 @@ err_ce_deinit:
 	ath10k_pci_ce_deinit(ar);
 out:
 	return ret;
+}
+
+static u32 ath10k_ahb_qca4019_targ_cpu_to_ce_addr(struct ath10k *ar, u32 addr)
+{
+	u32 val = 0, region = addr & 0xfffff;
+
+	val = ath10k_pci_read32(ar, PCIE_BAR_REG_ADDRESS);
+
+	if (region >= QCA4019_SRAM_ADDR && region <=
+	    (QCA4019_SRAM_ADDR + QCA4019_SRAM_LEN)) {
+		/* SRAM contents for QCA4019 can be directly accessed and
+		 * no conversions are required
+		 */
+		val |= region;
+	} else {
+		val |= 0x100000 | region;
+	}
+
+	return val;
 }
 
 static const struct ath10k_hif_ops ath10k_ahb_hif_ops = {
@@ -765,7 +792,9 @@ static int ath10k_ahb_probe(struct platform_device *pdev)
 	ar_pci->mem = ar_ahb->mem;
 	ar_pci->mem_len = ar_ahb->mem_len;
 	ar_pci->ar = ar;
-	ar_pci->bus_ops = &ath10k_ahb_bus_ops;
+	ar_pci->ce.bus_ops = &ath10k_ahb_bus_ops;
+	ar_pci->targ_cpu_to_ce_addr = ath10k_ahb_qca4019_targ_cpu_to_ce_addr;
+	ar->ce_priv = &ar_pci->ce;
 
 	ret = ath10k_pci_setup_resource(ar);
 	if (ret) {

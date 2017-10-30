@@ -48,36 +48,6 @@ int psb_gem_get_aperture(struct drm_device *dev, void *data,
 }
 
 /**
- *	psb_gem_dumb_map_gtt	-	buffer mapping for dumb interface
- *	@file: our drm client file
- *	@dev: drm device
- *	@handle: GEM handle to the object (from dumb_create)
- *
- *	Do the necessary setup to allow the mapping of the frame buffer
- *	into user memory. We don't have to do much here at the moment.
- */
-int psb_gem_dumb_map_gtt(struct drm_file *file, struct drm_device *dev,
-			 uint32_t handle, uint64_t *offset)
-{
-	int ret = 0;
-	struct drm_gem_object *obj;
-
-	/* GEM does all our handle to object mapping */
-	obj = drm_gem_object_lookup(file, handle);
-	if (obj == NULL)
-		return -ENOENT;
-
-	/* Make it mmapable */
-	ret = drm_gem_create_mmap_offset(obj);
-	if (ret)
-		goto out;
-	*offset = drm_vma_node_offset_addr(&obj->vma_node);
-out:
-	drm_gem_object_unreference_unlocked(obj);
-	return ret;
-}
-
-/**
  *	psb_gem_create		-	create a mappable object
  *	@file: the DRM file of the client
  *	@dev: our device
@@ -164,8 +134,9 @@ int psb_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
  *	vma->vm_private_data points to the GEM object that is backing this
  *	mapping.
  */
-int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+int psb_gem_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj;
 	struct gtt_range *r;
 	int ret;
@@ -197,15 +168,14 @@ int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	/* Page relative to the VMA start - we must calculate this ourselves
 	   because vmf->pgoff is the fake GEM offset */
-	page_offset = ((unsigned long) vmf->virtual_address - vma->vm_start)
-				>> PAGE_SHIFT;
+	page_offset = (vmf->address - vma->vm_start) >> PAGE_SHIFT;
 
 	/* CPU view of the page, don't go via the GART for CPU writes */
 	if (r->stolen)
 		pfn = (dev_priv->stolen_base + r->offset) >> PAGE_SHIFT;
 	else
 		pfn = page_to_pfn(r->pages[page_offset]);
-	ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address, pfn);
+	ret = vm_insert_pfn(vma, vmf->address, pfn);
 
 fail:
 	mutex_unlock(&dev_priv->mmap_mutex);

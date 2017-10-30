@@ -37,7 +37,7 @@
 #include "be_hw.h"
 #include "be_roce.h"
 
-#define DRV_VER			"11.1.0.0"
+#define DRV_VER			"11.4.0.0"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"Emulex BladeEngine2"
 #define BE3_NAME		"Emulex BladeEngine3"
@@ -65,7 +65,7 @@
 /* Number of bytes of an RX frame that are copied to skb->data */
 #define BE_HDR_LEN		((u16) 64)
 /* allocate extra space to allow tunneling decapsulation without head reallocation */
-#define BE_RX_SKB_ALLOC_SIZE (BE_HDR_LEN + 64)
+#define BE_RX_SKB_ALLOC_SIZE	256
 
 #define BE_MAX_JUMBO_FRAME_SIZE	9018
 #define BE_MIN_MTU		256
@@ -224,11 +224,6 @@ struct be_aic_obj {		/* Adaptive interrupt coalescing (AIC) info */
 	ulong jiffies;
 	u64 rx_pkts_prev;	/* Used to calculate RX pps */
 	u64 tx_reqs_prev;	/* Used to calculate TX pps */
-};
-
-enum {
-	NAPI_POLLING,
-	BUSY_POLLING
 };
 
 struct be_mcc_obj {
@@ -572,6 +567,12 @@ struct be_error_recovery {
 /* Ethtool priv_flags */
 #define	BE_DISABLE_TPE_RECOVERY	0x1
 
+struct be_vxlan_port {
+	struct list_head list;
+	__be16 port;		/* VxLAN UDP dst port */
+	int port_aliases;	/* alias count */
+};
+
 struct be_adapter {
 	struct pci_dev *pdev;
 	struct net_device *netdev;
@@ -676,9 +677,9 @@ struct be_adapter {
 	u32 sli_family;
 	u8 hba_port_num;
 	u16 pvid;
-	__be16 vxlan_port;
-	int vxlan_port_count;
-	int vxlan_port_aliases;
+	__be16 vxlan_port;		/* offloaded vxlan port num */
+	int vxlan_port_count;		/* active vxlan port count */
+	struct list_head vxlan_port_list;	/* vxlan port list */
 	struct phy_info phy;
 	u8 wol_cap;
 	bool wol_en;
@@ -927,6 +928,14 @@ static inline u8 is_udp_pkt(struct sk_buff *skb)
 static inline bool is_ipv4_pkt(struct sk_buff *skb)
 {
 	return skb->protocol == htons(ETH_P_IP) && ip_hdr(skb)->version == 4;
+}
+
+static inline bool is_ipv6_ext_hdr(struct sk_buff *skb)
+{
+	if (ip_hdr(skb)->version == 6)
+		return ipv6_ext_hdr(ipv6_hdr(skb)->nexthdr);
+	else
+		return false;
 }
 
 #define be_error_recovering(adapter)	\

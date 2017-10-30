@@ -79,6 +79,7 @@ struct amd_nb {
 
 /* The maximal number of PEBS events: */
 #define MAX_PEBS_EVENTS		8
+#define PEBS_COUNTER_MASK	((1ULL << MAX_PEBS_EVENTS) - 1)
 
 /*
  * Flags PEBS can handle without an PMI.
@@ -90,7 +91,7 @@ struct amd_nb {
 	(PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_ADDR | \
 	PERF_SAMPLE_ID | PERF_SAMPLE_CPU | PERF_SAMPLE_STREAM_ID | \
 	PERF_SAMPLE_DATA_SRC | PERF_SAMPLE_IDENTIFIER | \
-	PERF_SAMPLE_TRANSACTION)
+	PERF_SAMPLE_TRANSACTION | PERF_SAMPLE_PHYS_ADDR)
 
 /*
  * A debug store configuration.
@@ -113,7 +114,7 @@ struct debug_store {
  * Per register state.
  */
 struct er_account {
-	raw_spinlock_t		lock;	/* per-core: protect structure */
+	raw_spinlock_t      lock;	/* per-core: protect structure */
 	u64                 config;	/* extra MSR config */
 	u64                 reg;	/* extra MSR number */
 	atomic_t            ref;	/* reference count */
@@ -557,9 +558,13 @@ struct x86_pmu {
 	int		attr_rdpmc;
 	struct attribute **format_attrs;
 	struct attribute **event_attrs;
+	struct attribute **caps_attrs;
 
 	ssize_t		(*events_sysfs_show)(char *page, u64 config);
 	struct attribute **cpu_events;
+
+	unsigned long	attr_freeze_on_smi;
+	struct attribute **attrs;
 
 	/*
 	 * CPU Hotplug hooks
@@ -587,7 +592,8 @@ struct x86_pmu {
 			pebs		:1,
 			pebs_active	:1,
 			pebs_broken	:1,
-			pebs_prec_dist	:1;
+			pebs_prec_dist	:1,
+			pebs_no_tlb	:1;
 	int		pebs_record_size;
 	int		pebs_buffer_size;
 	void		(*drain_pebs)(struct pt_regs *regs);
@@ -604,7 +610,7 @@ struct x86_pmu {
 	u64		lbr_sel_mask;		   /* LBR_SELECT valid bits */
 	const int	*lbr_sel_map;		   /* lbr_select mappings */
 	bool		lbr_double_abort;	   /* duplicated lbr aborts */
-	bool		lbr_pt_coexist;		   /* LBR may coexist with PT */
+	bool		lbr_pt_coexist;		   /* (LBR|BTS) may coexist with PT */
 
 	/*
 	 * Intel PT/LBR/BTS are exclusive
@@ -736,6 +742,8 @@ void x86_del_exclusive(unsigned int what);
 int x86_reserve_hardware(void);
 
 void x86_release_hardware(void);
+
+int x86_pmu_max_precise(void);
 
 void hw_perf_lbr_event_destroy(struct perf_event *event);
 
@@ -875,6 +883,8 @@ extern struct event_constraint intel_slm_pebs_event_constraints[];
 
 extern struct event_constraint intel_glm_pebs_event_constraints[];
 
+extern struct event_constraint intel_glp_pebs_event_constraints[];
+
 extern struct event_constraint intel_nehalem_pebs_event_constraints[];
 
 extern struct event_constraint intel_westmere_pebs_event_constraints[];
@@ -940,6 +950,8 @@ void intel_pmu_lbr_init_skl(void);
 void intel_pmu_lbr_init_knl(void);
 
 void intel_pmu_pebs_data_source_nhm(void);
+
+void intel_pmu_pebs_data_source_skl(bool pmem);
 
 int intel_pmu_setup_lbr_filter(struct perf_event *event);
 

@@ -45,6 +45,12 @@
 #define DA9052_ADC_TJUNC	8
 #define DA9052_ADC_VBBAT	9
 
+/* TSI channel has its own 4 channel mux */
+#define DA9052_ADC_TSI_XP	70
+#define DA9052_ADC_TSI_XN	71
+#define DA9052_ADC_TSI_YP	72
+#define DA9052_ADC_TSI_YN	73
+
 #define DA9052_IRQ_DCIN	0
 #define DA9052_IRQ_VBUS	1
 #define DA9052_IRQ_DCINREM	2

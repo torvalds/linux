@@ -36,7 +36,7 @@ There are several variants of perf script:
 
   'perf script report <script> [args]' to run and display the results
   of <script>.  <script> is the name displayed in the output of 'perf
-  trace --list' i.e. the actual script name minus any language
+  script --list' i.e. the actual script name minus any language
   extension.  The perf.data output from a previous run of 'perf script
   record <script>' is used and should be present for this command to
   succeed.  [args] refers to the (mainly optional) args expected by
@@ -76,7 +76,7 @@ OPTIONS
 	Any command you can specify in a shell.
 
 -D::
---dump-raw-script=::
+--dump-raw-trace=::
         Display verbose dump of the trace data.
 
 -L::
@@ -116,8 +116,9 @@ OPTIONS
 --fields::
         Comma separated list of fields to print. Options are:
         comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff,
-        srcline, period, iregs, brstack, brstacksym, flags, bpf-output,
-        callindent. Field list can be prepended with the type, trace, sw or hw,
+        srcline, period, iregs, brstack, brstacksym, flags, bpf-output, brstackinsn, brstackoff,
+        callindent, insn, insnlen, synth, phys_addr.
+        Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
         e.g., -F sw:comm,tid,time,ip,sym  and -F trace:time,cpu,trace
 
@@ -129,6 +130,14 @@ OPTIONS
 
 	i.e., the specified fields apply to all event types if the type string
 	is not given.
+
+	In addition to overriding fields, it is also possible to add or remove
+	fields from the defaults. For example
+
+		-F -cpu,+insn
+
+	removes the cpu field and adds the insn field. Adding/removing fields
+	cannot be mixed with normal overriding.
 
 	The arguments are processed in the order received. A later usage can
 	reset a prior request. e.g.:
@@ -181,18 +190,32 @@ OPTIONS
 	Instruction Trace decoding. For calls and returns, it will display the
 	name of the symbol indented with spaces to reflect the stack depth.
 
+	When doing instruction trace decoding insn and insnlen give the
+	instruction bytes and the instruction length of the current
+	instruction.
+
+	The synth field is used by synthesized events which may be created when
+	Instruction Trace decoding.
+
 	Finally, a user may not set fields to none for all event types.
 	i.e., -F "" is not allowed.
 
 	The brstack output includes branch related information with raw addresses using the
-	/v/v/v/v/ syntax in the following order:
+	/v/v/v/v/cycles syntax in the following order:
 	FROM: branch source instruction
 	TO  : branch target instruction
         M/P/-: M=branch target mispredicted or branch direction was mispredicted, P=target predicted or direction predicted, -=not supported
 	X/- : X=branch inside a transactional region, -=not in transaction region or not supported
 	A/- : A=TSX abort entry, -=not aborted region or not supported
+	cycles
 
 	The brstacksym is identical to brstack, except that the FROM and TO addresses are printed in a symbolic form if possible.
+
+	When brstackinsn is specified the full assembler sequences of branch sequences for each sample
+	is printed. This is the full execution path leading to the sample. This is only supported when the
+	sample was recorded with perf record -b or -j any.
+
+	The brstackoff field will print an offset into a specific dso/binary.
 
 -k::
 --vmlinux=<file>::
@@ -207,6 +230,9 @@ OPTIONS
 -G::
 --hide-call-graph::
         When printing symbols do not display call chain.
+
+--stop-bt::
+        Stop display of callgraph at these symbols
 
 -C::
 --cpu:: Only report samples for the list of CPUs provided. Multiple CPUs can
@@ -240,6 +266,9 @@ OPTIONS
 
 --show-mmap-events
 	Display mmap related events (e.g. MMAP, MMAP2).
+
+--show-namespace-events
+	Display namespace events i.e. events of type PERF_RECORD_NAMESPACES.
 
 --show-switch-events
 	Display context switch events i.e. events of type PERF_RECORD_SWITCH or
@@ -284,6 +313,21 @@ include::itrace.txt[]
 -f::
 --force::
 	Don't do ownership validation.
+
+--time::
+	Only analyze samples within given time window: <start>,<stop>. Times
+	have the format seconds.microseconds. If start is not given (i.e., time
+	string is ',x.y') then analysis starts at the beginning of the file. If
+	stop time is not given (i.e, time string is 'x.y,') then analysis goes
+	to end of file.
+
+--max-blocks::
+	Set the maximum number of program blocks to print with brstackasm for
+	each sample.
+
+--inline::
+	If a callgraph address belongs to an inlined function, the inline stack
+	will be printed. Each entry has function name and file/line.
 
 SEE ALSO
 --------

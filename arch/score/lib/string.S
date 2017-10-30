@@ -104,34 +104,6 @@ ENTRY(__strnlen_user)
 	.previous
 
 	.align 2
-ENTRY(__strlen_user)
-0:	lb	r6, [r4]
-	mv	r7, r4
-	extsb	r6, r6
-	cmpi.c	r6, 0
-	mv	r4, r6
-	beq	.L27
-.L28:
-1:	lb	r6, [r7, 1]+
-	addi	r6, 1
-	cmpi.c	r6, 0
-	bne	.L28
-.L27:
-	br	r3
-	.section .fixup, "ax"
-	ldi	r4, 0x0
-	br	r3
-99:
-	ldi	r4, 0
-	br	r3
-	.previous
-	.section __ex_table, "a"
-	.align	2
-	.word	0b ,99b
-	.word	1b ,99b
-	.previous
-
-	.align 2
 ENTRY(__copy_tofrom_user)
 	cmpi.c	r6, 0
 	mv	r10,r6

@@ -253,6 +253,7 @@ xfs_attr3_leaf_verify(
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_attr_leafblock *leaf = bp->b_addr;
+	struct xfs_perag *pag = bp->b_pag;
 	struct xfs_attr3_icleaf_hdr ichdr;
 
 	xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo, &ichdr, leaf);
@@ -273,7 +274,12 @@ xfs_attr3_leaf_verify(
 		if (ichdr.magic != XFS_ATTR_LEAF_MAGIC)
 			return false;
 	}
-	if (ichdr.count == 0)
+	/*
+	 * In recovery there is a transient state where count == 0 is valid
+	 * because we may have transitioned an empty shortform attr to a leaf
+	 * if the attr didn't fit in shortform.
+	 */
+	if (pag && pag->pagf_init && ichdr.count == 0)
 		return false;
 
 	/* XXX: need to range check rest of attr header values */
@@ -345,7 +351,7 @@ xfs_attr3_leaf_read(
 
 	err = xfs_da_read_buf(tp, dp, bno, mappedbno, bpp,
 				XFS_ATTR_FORK, &xfs_attr3_leaf_buf_ops);
-	if (!err && tp)
+	if (!err && tp && *bpp)
 		xfs_trans_buf_set_type(tp, *bpp, XFS_BLFT_ATTR_LEAF_BUF);
 	return err;
 }
@@ -2602,7 +2608,7 @@ xfs_attr3_leaf_clearflag(
 	/*
 	 * Commit the flag value change and start the next trans in series.
 	 */
-	return xfs_trans_roll(&args->trans, args->dp);
+	return xfs_trans_roll_inode(&args->trans, args->dp);
 }
 
 /*
@@ -2653,7 +2659,7 @@ xfs_attr3_leaf_setflag(
 	/*
 	 * Commit the flag value change and start the next trans in series.
 	 */
-	return xfs_trans_roll(&args->trans, args->dp);
+	return xfs_trans_roll_inode(&args->trans, args->dp);
 }
 
 /*
@@ -2771,7 +2777,7 @@ xfs_attr3_leaf_flipflags(
 	/*
 	 * Commit the flag value change and start the next trans in series.
 	 */
-	error = xfs_trans_roll(&args->trans, args->dp);
+	error = xfs_trans_roll_inode(&args->trans, args->dp);
 
 	return error;
 }

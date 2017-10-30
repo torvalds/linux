@@ -24,9 +24,9 @@
 #include <linux/pci.h>
 #include <linux/ctype.h>
 #include <linux/timer.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static int wep_on_off;
 #define	WEP_OFF		0
@@ -50,10 +50,10 @@ static const long frequency_list[] = { 2412, 2417, 2422, 2427, 2432, 2437, 2442,
 /* A few details needed for WEP (Wireless Equivalent Privacy) */
 #define MAX_KEY_SIZE 13	/* 128 (?) bits */
 #define MIN_KEY_SIZE  5	/* 40 bits RC4 - WEP */
-typedef struct wep_key_t {
+struct wep_key {
 	u16 len;
 	u8 key[16];	/* 40-bit and 104-bit keys */
-} wep_key_t;
+};
 
 /* Backward compatibility */
 #ifndef IW_ENCODE_NOKEY
@@ -88,11 +88,11 @@ int ks_wlan_update_phy_information(struct ks_wlan_private *priv)
 
 	DPRINTK(4, "in_interrupt = %ld\n", in_interrupt());
 
-	if (priv->dev_state < DEVICE_STATE_READY) {
-		return -1;	/* not finished initialize */
-	}
+	if (priv->dev_state < DEVICE_STATE_READY)
+		return -EBUSY;	/* not finished initialize */
+
 	if (atomic_read(&update_phyinfo))
-		return 1;
+		return -EPERM;
 
 	/* The status */
 	wstats->status = priv->reg.operation_mode;	/* Operation mode */
@@ -173,45 +173,37 @@ int ks_wlan_setup_parameter(struct ks_wlan_private *priv,
  * would not work at all... - Jean II
  */
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get protocol name */
 static int ks_wlan_get_name(struct net_device *dev,
 			    struct iw_request_info *info, char *cwrq,
 			    char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
-	if (priv->dev_state < DEVICE_STATE_READY) {
+	if (priv->dev_state < DEVICE_STATE_READY)
 		strcpy(cwrq, "NOT READY!");
-	} else if (priv->reg.phy_type == D_11B_ONLY_MODE) {
+	else if (priv->reg.phy_type == D_11B_ONLY_MODE)
 		strcpy(cwrq, "IEEE 802.11b");
-	} else if (priv->reg.phy_type == D_11G_ONLY_MODE) {
+	else if (priv->reg.phy_type == D_11G_ONLY_MODE)
 		strcpy(cwrq, "IEEE 802.11g");
-	} else {
+	else
 		strcpy(cwrq, "IEEE 802.11b/g");
-	}
 
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set frequency */
 static int ks_wlan_set_freq(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_freq *fwrq,
 			    char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
-	int rc = -EINPROGRESS;	/* Call commit handler */
+	struct ks_wlan_private *priv = netdev_priv(dev);
+	int channel;
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 
 	/* for SLEEP MODE */
 	/* If setting by frequency, convert to a channel */
@@ -219,6 +211,7 @@ static int ks_wlan_set_freq(struct net_device *dev,
 	    (fwrq->m >= (int)2.412e8) && (fwrq->m <= (int)2.487e8)) {
 		int f = fwrq->m / 100000;
 		int c = 0;
+
 		while ((c < 14) && (f != frequency_list[c]))
 			c++;
 		/* Hack to fall through... */
@@ -227,69 +220,62 @@ static int ks_wlan_set_freq(struct net_device *dev,
 	}
 	/* Setting by channel number */
 	if ((fwrq->m > 1000) || (fwrq->e > 0))
-		rc = -EOPNOTSUPP;
-	else {
-		int channel = fwrq->m;
-		/* We should do a better check than that,
-		 * based on the card capability !!! */
-		if ((channel < 1) || (channel > 14)) {
-			netdev_dbg(dev,
-				   "%s: New channel value of %d is invalid!\n",
-				   dev->name, fwrq->m);
-			rc = -EINVAL;
-		} else {
-			/* Yes ! We can set it !!! */
-			priv->reg.channel = (u8) (channel);
-			priv->need_commit |= SME_MODE_SET;
-		}
+		return -EOPNOTSUPP;
+
+	channel = fwrq->m;
+	/* We should do a better check than that,
+	 * based on the card capability !!!
+	 */
+	if ((channel < 1) || (channel > 14)) {
+		netdev_dbg(dev, "%s: New channel value of %d is invalid!\n",
+			   dev->name, fwrq->m);
+		return -EINVAL;
 	}
 
-	return rc;
+	/* Yes ! We can set it !!! */
+	priv->reg.channel = (u8)(channel);
+	priv->need_commit |= SME_MODE_SET;
+
+	return -EINPROGRESS;	/* Call commit handler */
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get frequency */
 static int ks_wlan_get_freq(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_freq *fwrq,
 			    char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 	int f;
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
-	if ((priv->connect_status & CONNECT_STATUS_MASK) == CONNECT_STATUS) {
+	if (is_connect_status(priv->connect_status))
 		f = (int)priv->current_ap.channel;
-	} else
+	else
 		f = (int)priv->reg.channel;
+
 	fwrq->m = frequency_list[f - 1] * 100000;
 	fwrq->e = 1;
 
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set ESSID */
 static int ks_wlan_set_essid(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_point *dwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 	size_t len;
 
 	DPRINTK(2, " %d\n", dwrq->flags);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 
 	/* for SLEEP MODE */
 	/* Check if we asked for `any' */
-	if (dwrq->flags == 0) {
+	if (!dwrq->flags) {
 		/* Just send an empty SSID list */
 		memset(priv->reg.ssid.body, 0, sizeof(priv->reg.ssid.body));
 		priv->reg.ssid.size = 0;
@@ -301,14 +287,14 @@ static int ks_wlan_set_essid(struct net_device *dev,
 			len--;
 
 		/* Check the size of the string */
-		if (len > IW_ESSID_MAX_SIZE) {
+		if (len > IW_ESSID_MAX_SIZE)
 			return -EINVAL;
-		}
+
 #else
 		/* Check the size of the string */
-		if (dwrq->length > IW_ESSID_MAX_SIZE + 1) {
+		if (dwrq->length > IW_ESSID_MAX_SIZE + 1)
 			return -E2BIG;
-		}
+
 #endif
 
 		/* Set the SSID */
@@ -331,79 +317,60 @@ static int ks_wlan_set_essid(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get ESSID */
 static int ks_wlan_get_essid(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_point *dwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 
 	/* for SLEEP MODE */
 	/* Note : if dwrq->flags != 0, we should
-	 * get the relevant SSID from the SSID list... */
-	if (priv->reg.ssid.size) {
+	 * get the relevant SSID from the SSID list...
+	 */
+	if (priv->reg.ssid.size != 0) {
 		/* Get the current SSID */
 		memcpy(extra, priv->reg.ssid.body, priv->reg.ssid.size);
-#if 0
-		extra[priv->reg.ssid.size] = '\0';
-#endif
+
 		/* If none, we may want to get the one that was set */
 
 		/* Push it out ! */
-#if 1
 		dwrq->length = priv->reg.ssid.size;
-#else
-		dwrq->length = priv->reg.ssid.size + 1;
-#endif
 		dwrq->flags = 1;	/* active */
 	} else {
-#if 1
 		dwrq->length = 0;
-#else
-		extra[0] = '\0';
-		dwrq->length = 1;
-#endif
 		dwrq->flags = 0;	/* ANY */
 	}
 
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set AP address */
 static int ks_wlan_set_wap(struct net_device *dev, struct iw_request_info *info,
 			   struct sockaddr *ap_addr, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
 	DPRINTK(2, "\n");
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
 	if (priv->reg.operation_mode == MODE_ADHOC ||
 	    priv->reg.operation_mode == MODE_INFRASTRUCTURE) {
-		memcpy(priv->reg.bssid, (u8 *) & ap_addr->sa_data, ETH_ALEN);
+		memcpy(priv->reg.bssid, &ap_addr->sa_data, ETH_ALEN);
 
-		if (is_valid_ether_addr((u8 *) priv->reg.bssid)) {
+		if (is_valid_ether_addr((u8 *)priv->reg.bssid))
 			priv->need_commit |= SME_MODE_SET;
-		}
+
 	} else {
 		eth_zero_addr(priv->reg.bssid);
 		return -EOPNOTSUPP;
 	}
 
-	DPRINTK(2, "bssid = %02x:%02x:%02x:%02x:%02x:%02x\n",
-		priv->reg.bssid[0], priv->reg.bssid[1], priv->reg.bssid[2],
-		priv->reg.bssid[3], priv->reg.bssid[4], priv->reg.bssid[5]);
+	DPRINTK(2, "bssid = %pM\n", priv->reg.bssid);
 
 	/* Write it to the card */
 	if (priv->need_commit) {
@@ -413,65 +380,54 @@ static int ks_wlan_set_wap(struct net_device *dev, struct iw_request_info *info,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get AP address */
 static int ks_wlan_get_wap(struct net_device *dev, struct iw_request_info *info,
 			   struct sockaddr *awrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
-	if ((priv->connect_status & CONNECT_STATUS_MASK) == CONNECT_STATUS) {
-		memcpy(awrq->sa_data, &(priv->current_ap.bssid[0]), ETH_ALEN);
-	} else {
+	if (is_connect_status(priv->connect_status))
+		memcpy(awrq->sa_data, priv->current_ap.bssid, ETH_ALEN);
+	else
 		eth_zero_addr(awrq->sa_data);
-	}
 
 	awrq->sa_family = ARPHRD_ETHER;
 
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set Nickname */
 static int ks_wlan_set_nick(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_point *dwrq,
 			    char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 
 	/* for SLEEP MODE */
 	/* Check the size of the string */
-	if (dwrq->length > 16 + 1) {
+	if (dwrq->length > 16 + 1)
 		return -E2BIG;
-	}
+
 	memset(priv->nick, 0, sizeof(priv->nick));
 	memcpy(priv->nick, extra, dwrq->length);
 
 	return -EINPROGRESS;	/* Call commit handler */
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get Nickname */
 static int ks_wlan_get_nick(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_point *dwrq,
 			    char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
 	strncpy(extra, priv->nick, 16);
 	extra[16] = '\0';
@@ -480,19 +436,16 @@ static int ks_wlan_get_nick(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set Bit-Rate */
 static int ks_wlan_set_rate(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_param *vwrq,
 			    char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 	int i = 0;
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
 	if (priv->reg.phy_type == D_11B_ONLY_MODE) {
 		if (vwrq->fixed == 1) {
@@ -500,12 +453,12 @@ static int ks_wlan_set_rate(struct net_device *dev,
 			case 11000000:
 			case 5500000:
 				priv->reg.rate_set.body[0] =
-				    (uint8_t) (vwrq->value / 500000);
+				    (uint8_t)(vwrq->value / 500000);
 				break;
 			case 2000000:
 			case 1000000:
 				priv->reg.rate_set.body[0] =
-				    ((uint8_t) (vwrq->value / 500000)) |
+				    ((uint8_t)(vwrq->value / 500000)) |
 				    BASIC_RATE;
 				break;
 			default:
@@ -557,7 +510,7 @@ static int ks_wlan_set_rate(struct net_device *dev,
 			case 18000000:
 			case 9000000:
 				priv->reg.rate_set.body[0] =
-				    (uint8_t) (vwrq->value / 500000);
+				    (uint8_t)(vwrq->value / 500000);
 				break;
 			case 24000000:
 			case 12000000:
@@ -567,7 +520,7 @@ static int ks_wlan_set_rate(struct net_device *dev,
 			case 2000000:
 			case 1000000:
 				priv->reg.rate_set.body[0] =
-				    ((uint8_t) (vwrq->value / 500000)) |
+				    ((uint8_t)(vwrq->value / 500000)) |
 				    BASIC_RATE;
 				break;
 			default:
@@ -715,25 +668,22 @@ static int ks_wlan_set_rate(struct net_device *dev,
 	return -EINPROGRESS;	/* Call commit handler */
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get Bit-Rate */
 static int ks_wlan_get_rate(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_param *vwrq,
 			    char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
 	DPRINTK(2, "in_interrupt = %ld update_phyinfo = %d\n",
 		in_interrupt(), atomic_read(&update_phyinfo));
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
-	if (!atomic_read(&update_phyinfo)) {
+	if (!atomic_read(&update_phyinfo))
 		ks_wlan_update_phy_information(priv);
-	}
+
 	vwrq->value = ((priv->current_rate) & RATE_MASK) * 500000;
 	if (priv->reg.tx_rate == TX_RATE_FIXED)
 		vwrq->fixed = 1;
@@ -743,41 +693,35 @@ static int ks_wlan_get_rate(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set RTS threshold */
 static int ks_wlan_set_rts(struct net_device *dev, struct iw_request_info *info,
 			   struct iw_param *vwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 	int rthr = vwrq->value;
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
 	if (vwrq->disabled)
 		rthr = 2347;
-	if ((rthr < 0) || (rthr > 2347)) {
+	if ((rthr < 0) || (rthr > 2347))
 		return -EINVAL;
-	}
+
 	priv->reg.rts = rthr;
 	priv->need_commit |= SME_RTS;
 
 	return -EINPROGRESS;	/* Call commit handler */
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get RTS threshold */
 static int ks_wlan_get_rts(struct net_device *dev, struct iw_request_info *info,
 			   struct iw_param *vwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
 	vwrq->value = priv->reg.rts;
 	vwrq->disabled = (vwrq->value >= 2347);
@@ -786,25 +730,22 @@ static int ks_wlan_get_rts(struct net_device *dev, struct iw_request_info *info,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set Fragmentation threshold */
 static int ks_wlan_set_frag(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_param *vwrq,
 			    char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 	int fthr = vwrq->value;
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
 	if (vwrq->disabled)
 		fthr = 2346;
-	if ((fthr < 256) || (fthr > 2346)) {
+	if ((fthr < 256) || (fthr > 2346))
 		return -EINVAL;
-	}
+
 	fthr &= ~0x1;	/* Get an even value - is it really needed ??? */
 	priv->reg.fragment = fthr;
 	priv->need_commit |= SME_FRAG;
@@ -812,18 +753,15 @@ static int ks_wlan_set_frag(struct net_device *dev,
 	return -EINPROGRESS;	/* Call commit handler */
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get Fragmentation threshold */
 static int ks_wlan_get_frag(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_param *vwrq,
 			    char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
 	vwrq->value = priv->reg.fragment;
 	vwrq->disabled = (vwrq->value >= 2346);
@@ -832,20 +770,17 @@ static int ks_wlan_get_frag(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set Mode of Operation */
 static int ks_wlan_set_mode(struct net_device *dev,
-			    struct iw_request_info *info, __u32 * uwrq,
+			    struct iw_request_info *info, __u32 *uwrq,
 			    char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
 	DPRINTK(2, "mode=%d\n", *uwrq);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
 	switch (*uwrq) {
 	case IW_MODE_ADHOC:
@@ -868,18 +803,14 @@ static int ks_wlan_set_mode(struct net_device *dev,
 	return -EINPROGRESS;	/* Call commit handler */
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get Mode of Operation */
 static int ks_wlan_get_mode(struct net_device *dev,
-			    struct iw_request_info *info, __u32 * uwrq,
+			    struct iw_request_info *info, __u32 *uwrq,
 			    char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 
 	/* for SLEEP MODE */
 	/* If not managed, assume it's ad-hoc */
@@ -897,25 +828,21 @@ static int ks_wlan_get_mode(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set Encryption Key */
 static int ks_wlan_set_encode(struct net_device *dev,
 			      struct iw_request_info *info,
 			      struct iw_point *dwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	wep_key_t key;
+	struct wep_key key;
 	int index = (dwrq->flags & IW_ENCODE_INDEX);
 	int current_index = priv->reg.wep_index;
 	int i;
 
 	DPRINTK(2, "flags=%04X\n", dwrq->flags);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 
 	/* for SLEEP MODE */
 	/* index check */
@@ -959,9 +886,9 @@ static int ks_wlan_set_encode(struct net_device *dev,
 			}
 			/* Send the key to the card */
 			priv->reg.wep_key[index].size = key.len;
-			for (i = 0; i < (priv->reg.wep_key[index].size); i++) {
+			for (i = 0; i < (priv->reg.wep_key[index].size); i++)
 				priv->reg.wep_key[index].val[i] = key.key[i];
-			}
+
 			priv->need_commit |= (SME_WEP_VAL1 << index);
 			priv->reg.wep_index = index;
 			priv->need_commit |= SME_WEP_INDEX;
@@ -973,9 +900,9 @@ static int ks_wlan_set_encode(struct net_device *dev,
 			priv->reg.wep_key[2].size = 0;
 			priv->reg.wep_key[3].size = 0;
 			priv->reg.privacy_invoked = 0x00;
-			if (priv->reg.authenticate_type == AUTH_TYPE_SHARED_KEY) {
+			if (priv->reg.authenticate_type == AUTH_TYPE_SHARED_KEY)
 				priv->need_commit |= SME_MODE_SET;
-			}
+
 			priv->reg.authenticate_type = AUTH_TYPE_OPEN_SYSTEM;
 			wep_on_off = WEP_OFF;
 			priv->need_commit |= SME_WEP_FLAG;
@@ -983,11 +910,12 @@ static int ks_wlan_set_encode(struct net_device *dev,
 			/* Do we want to just set the transmit key index ? */
 			if ((index >= 0) && (index < 4)) {
 				/* set_wep_key(priv, index, 0, 0, 1);   xxx */
-				if (priv->reg.wep_key[index].size) {
+				if (priv->reg.wep_key[index].size != 0) {
 					priv->reg.wep_index = index;
 					priv->need_commit |= SME_WEP_INDEX;
-				} else
+				} else {
 					return -EINVAL;
+				}
 			}
 		}
 	}
@@ -997,14 +925,14 @@ static int ks_wlan_set_encode(struct net_device *dev,
 		priv->need_commit |= SME_WEP_FLAG;
 
 	if (dwrq->flags & IW_ENCODE_OPEN) {
-		if (priv->reg.authenticate_type == AUTH_TYPE_SHARED_KEY) {
+		if (priv->reg.authenticate_type == AUTH_TYPE_SHARED_KEY)
 			priv->need_commit |= SME_MODE_SET;
-		}
+
 		priv->reg.authenticate_type = AUTH_TYPE_OPEN_SYSTEM;
 	} else if (dwrq->flags & IW_ENCODE_RESTRICTED) {
-		if (priv->reg.authenticate_type == AUTH_TYPE_OPEN_SYSTEM) {
+		if (priv->reg.authenticate_type == AUTH_TYPE_OPEN_SYSTEM)
 			priv->need_commit |= SME_MODE_SET;
-		}
+
 		priv->reg.authenticate_type = AUTH_TYPE_SHARED_KEY;
 	}
 //      return -EINPROGRESS;            /* Call commit handler */
@@ -1015,20 +943,17 @@ static int ks_wlan_set_encode(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get Encryption Key */
 static int ks_wlan_get_encode(struct net_device *dev,
 			      struct iw_request_info *info,
 			      struct iw_point *dwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 	char zeros[16];
 	int index = (dwrq->flags & IW_ENCODE_INDEX) - 1;
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
 	dwrq->flags = IW_ENCODE_DISABLED;
 
@@ -1056,23 +981,21 @@ static int ks_wlan_get_encode(struct net_device *dev,
 	/* Copy the key to the user buffer */
 	if ((index >= 0) && (index < 4))
 		dwrq->length = priv->reg.wep_key[index].size;
-	if (dwrq->length > 16) {
+	if (dwrq->length > 16)
 		dwrq->length = 0;
-	}
 #if 1	/* IW_ENCODE_NOKEY; */
 	if (dwrq->length) {
 		if ((index >= 0) && (index < 4))
 			memcpy(extra, priv->reg.wep_key[index].val,
 			       dwrq->length);
-	} else
+	} else {
 		memcpy(extra, zeros, dwrq->length);
+	}
 #endif
 	return 0;
 }
 
 #ifndef KSC_OPNOTSUPP
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set Tx-Power */
 static int ks_wlan_set_txpow(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_param *vwrq, char *extra)
@@ -1080,15 +1003,12 @@ static int ks_wlan_set_txpow(struct net_device *dev,
 	return -EOPNOTSUPP;	/* Not Support */
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get Tx-Power */
 static int ks_wlan_get_txpow(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_param *vwrq, char *extra)
 {
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 
 	/* for SLEEP MODE */
 	/* Not Support */
@@ -1098,8 +1018,6 @@ static int ks_wlan_get_txpow(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set Retry limits */
 static int ks_wlan_set_retry(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_param *vwrq, char *extra)
@@ -1107,15 +1025,12 @@ static int ks_wlan_set_retry(struct net_device *dev,
 	return -EOPNOTSUPP;	/* Not Support */
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get Retry limits */
 static int ks_wlan_get_retry(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_param *vwrq, char *extra)
 {
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 
 	/* for SLEEP MODE */
 	/* Not Support */
@@ -1126,22 +1041,19 @@ static int ks_wlan_get_retry(struct net_device *dev,
 }
 #endif /* KSC_OPNOTSUPP */
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get range info */
 static int ks_wlan_get_range(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_point *dwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 	struct iw_range *range = (struct iw_range *)extra;
 	int i, k;
 
 	DPRINTK(2, "\n");
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
 	dwrq->length = sizeof(struct iw_range);
 	memset(range, 0, sizeof(*range));
@@ -1149,7 +1061,8 @@ static int ks_wlan_get_range(struct net_device *dev,
 	range->max_nwid = 0x0000;
 	range->num_channels = 14;
 	/* Should be based on cap_rid.country to give only
-	 * what the current card support */
+	 * what the current card support
+	 */
 	k = 0;
 	for (i = 0; i < 13; i++) {	/* channel 1 -- 13 */
 		range->freq[k].i = i + 1;	/* List index */
@@ -1201,7 +1114,8 @@ static int ks_wlan_get_range(struct net_device *dev,
 
 	/* Set an indication of the max TCP throughput
 	 * in bit/s that we can expect using this interface.
-	 * May be use for QoS stuff... Jean II */
+	 * May be use for QoS stuff... Jean II
+	 */
 	if (i > 2)
 		range->throughput = 5000 * 1000;
 	else
@@ -1235,9 +1149,11 @@ static int ks_wlan_get_range(struct net_device *dev,
 	range->retry_flags = IW_RETRY_ON;
 	range->r_time_flags = IW_RETRY_ON;
 
-	/* Experimental measurements - boundary 11/5.5 Mb/s */
-	/* Note : with or without the (local->rssi), results
-	 * are somewhat different. - Jean II */
+	/* Experimental measurements - boundary 11/5.5 Mb/s
+	 *
+	 * Note : with or without the (local->rssi), results
+	 * are somewhat different. - Jean II
+	 */
 	range->avg_qual.qual = 50;
 	range->avg_qual.level = 186;	/* -70 dBm */
 	range->avg_qual.noise = 0;
@@ -1257,55 +1173,39 @@ static int ks_wlan_get_range(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set Power Management */
 static int ks_wlan_set_power(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_param *vwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
-	short enabled;
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
+
+	if (vwrq->disabled) {
+		priv->reg.power_mgmt = POWER_MGMT_ACTIVE;
+	} else {
+		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE)
+			priv->reg.power_mgmt = POWER_MGMT_SAVE1;
+		else
+			return -EINVAL;
 	}
-	/* for SLEEP MODE */
-	enabled = vwrq->disabled ? 0 : 1;
-	if (enabled == 0) {	/* 0 */
-		priv->reg.powermgt = POWMGT_ACTIVE_MODE;
-	} else if (enabled) {	/* 1 */
-		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE)
-			priv->reg.powermgt = POWMGT_SAVE1_MODE;
-		else
-			return -EINVAL;
-	} else if (enabled) {	/* 2 */
-		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE)
-			priv->reg.powermgt = POWMGT_SAVE2_MODE;
-		else
-			return -EINVAL;
-	} else
-		return -EINVAL;
 
 	hostif_sme_enqueue(priv, SME_POW_MNGMT_REQUEST);
 
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get Power Management */
 static int ks_wlan_get_power(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_param *vwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
-	if (priv->reg.powermgt > 0)
+	if (priv->reg.power_mgmt > 0)
 		vwrq->disabled = 0;
 	else
 		vwrq->disabled = 1;
@@ -1313,18 +1213,14 @@ static int ks_wlan_get_power(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get wirless statistics */
 static int ks_wlan_get_iwstats(struct net_device *dev,
 			       struct iw_request_info *info,
 			       struct iw_quality *vwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
 	vwrq->qual = 0;	/* not supported */
 	vwrq->level = priv->wstats.qual.level;
@@ -1335,8 +1231,7 @@ static int ks_wlan_get_iwstats(struct net_device *dev,
 }
 
 #ifndef KSC_OPNOTSUPP
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set Sensitivity */
+
 static int ks_wlan_set_sens(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_param *vwrq,
 			    char *extra)
@@ -1344,8 +1239,6 @@ static int ks_wlan_set_sens(struct net_device *dev,
 	return -EOPNOTSUPP;	/* Not Support */
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get Sensitivity */
 static int ks_wlan_get_sens(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_param *vwrq,
 			    char *extra)
@@ -1358,23 +1251,19 @@ static int ks_wlan_get_sens(struct net_device *dev,
 }
 #endif /* KSC_OPNOTSUPP */
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get AP List */
 /* Note : this is deprecated in favor of IWSCAN */
 static int ks_wlan_get_aplist(struct net_device *dev,
 			      struct iw_request_info *info,
 			      struct iw_point *dwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 	struct sockaddr *address = (struct sockaddr *)extra;
 	struct iw_quality qual[LOCAL_APLIST_MAX];
 
 	int i;
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
 	for (i = 0; i < priv->aplist.size; i++) {
 		memcpy(address[i].sa_data, &(priv->aplist.ap[i].bssid[0]),
@@ -1395,25 +1284,22 @@ static int ks_wlan_get_aplist(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : Initiate Scan */
 static int ks_wlan_set_scan(struct net_device *dev,
 			    struct iw_request_info *info,
 			    union iwreq_data *wrqu, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 	struct iw_scan_req *req = NULL;
+
 	DPRINTK(2, "\n");
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 
 	/* for SLEEP MODE */
 	/* specified SSID SCAN */
-	if (wrqu->data.length == sizeof(struct iw_scan_req)
-	    && wrqu->data.flags & IW_SCAN_THIS_ESSID) {
+	if (wrqu->data.length == sizeof(struct iw_scan_req) &&
+	    wrqu->data.flags & IW_SCAN_THIS_ESSID) {
 		req = (struct iw_scan_req *)extra;
 		priv->scan_ssid_len = req->essid_len;
 		memcpy(priv->scan_ssid, req->essid, priv->scan_ssid_len);
@@ -1429,7 +1315,6 @@ static int ks_wlan_set_scan(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
 /*
  * Translate scan data returned from the card to a card independent
  * format that the Wireless Tools will understand - Jean II
@@ -1467,11 +1352,11 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 	iwe.u.data.flags = 1;
 	current_ev =
 	    iwe_stream_add_point(info, current_ev, end_buf, &iwe,
-				 &(ap->ssid.body[0]));
+				 ap->ssid.body);
 
 	/* Add mode */
 	iwe.cmd = SIOCGIWMODE;
-	capabilities = le16_to_cpu(ap->capability);
+	capabilities = ap->capability;
 	if (capabilities & (BSS_CAP_ESS | BSS_CAP_IBSS)) {
 		if (capabilities & BSS_CAP_ESS)
 			iwe.u.mode = IW_MODE_INFRA;
@@ -1509,15 +1394,18 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 	iwe.u.data.length = 0;
 	current_ev =
 	    iwe_stream_add_point(info, current_ev, end_buf, &iwe,
-				 &(ap->ssid.body[0]));
+				 ap->ssid.body);
 
 	/* Rate : stuffing multiple values in a single event require a bit
-	 * more of magic - Jean II */
+	 * more of magic - Jean II
+	 */
 	current_val = current_ev + IW_EV_LCP_LEN;
 
 	iwe.cmd = SIOCGIWRATE;
-	/* Those two flags are ignored... */
-	iwe.u.bitrate.fixed = iwe.u.bitrate.disabled = 0;
+
+	/* These two flags are ignored... */
+	iwe.u.bitrate.fixed = 0;
+	iwe.u.bitrate.disabled = 0;
 
 	/* Max 16 values */
 	for (i = 0; i < 16; i++) {
@@ -1584,25 +1472,23 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 	}
 
 	/* The other data in the scan result are not really
-	 * interesting, so for now drop it - Jean II */
+	 * interesting, so for now drop it - Jean II
+	 */
 	return current_ev;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : Read Scan Results */
 static int ks_wlan_get_scan(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_point *dwrq,
 			    char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 	int i;
 	char *current_ev = extra;
+
 	DPRINTK(2, "\n");
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
 	if (priv->sme_i.sme_flag & SME_AP_SCAN) {
 		DPRINTK(2, "flag AP_SCAN\n");
@@ -1611,23 +1497,12 @@ static int ks_wlan_get_scan(struct net_device *dev,
 
 	if (priv->aplist.size == 0) {
 		/* Client error, no scan results...
-		 * The caller need to restart the scan. */
+		 * The caller need to restart the scan.
+		 */
 		DPRINTK(2, "aplist 0\n");
 		return -ENODATA;
 	}
-#if 0
-	/* current connect ap */
-	if ((priv->connect_status & CONNECT_STATUS_MASK) == CONNECT_STATUS) {
-		if ((extra + dwrq->length) - current_ev <= IW_EV_ADDR_LEN) {
-			dwrq->length = 0;
-			return -E2BIG;
-		}
-		current_ev = ks_wlan_translate_scan(dev, current_ev,
-//                                                  extra + IW_SCAN_MAX_DATA,
-						    extra + dwrq->length,
-						    &(priv->current_ap));
-	}
-#endif
+
 	/* Read and parse all entries */
 	for (i = 0; i < priv->aplist.size; i++) {
 		if ((extra + dwrq->length) - current_ev <= IW_EV_ADDR_LEN) {
@@ -1636,9 +1511,8 @@ static int ks_wlan_get_scan(struct net_device *dev,
 		}
 		/* Translate to WE format this entry */
 		current_ev = ks_wlan_translate_scan(dev, info, current_ev,
-//                                                  extra + IW_SCAN_MAX_DATA,
 						    extra + dwrq->length,
-						    &(priv->aplist.ap[i]));
+						    &priv->aplist.ap[i]);
 	}
 	/* Length of data */
 	dwrq->length = (current_ev - extra);
@@ -1647,14 +1521,12 @@ static int ks_wlan_get_scan(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Commit handler : called after a bunch of SET operations */
+/* called after a bunch of SET operations */
 static int ks_wlan_config_commit(struct net_device *dev,
 				 struct iw_request_info *info, void *zwrq,
 				 char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
 	if (!priv->need_commit)
 		return 0;
@@ -1664,58 +1536,49 @@ static int ks_wlan_config_commit(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless handler : set association ie params */
+/* set association ie params */
 static int ks_wlan_set_genie(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_point *dwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
 	DPRINTK(2, "\n");
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
 	return 0;
 //      return -EOPNOTSUPP;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless handler : set authentication mode params */
 static int ks_wlan_set_auth_mode(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct iw_param *vwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 	int index = (vwrq->flags & IW_AUTH_INDEX);
 	int value = vwrq->value;
 
 	DPRINTK(2, "index=%d:value=%08X\n", index, value);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
 	switch (index) {
 	case IW_AUTH_WPA_VERSION:	/* 0 */
 		switch (value) {
 		case IW_AUTH_WPA_VERSION_DISABLED:
 			priv->wpa.version = value;
-			if (priv->wpa.rsn_enabled) {
+			if (priv->wpa.rsn_enabled)
 				priv->wpa.rsn_enabled = 0;
-			}
 			priv->need_commit |= SME_RSN;
 			break;
 		case IW_AUTH_WPA_VERSION_WPA:
 		case IW_AUTH_WPA_VERSION_WPA2:
 			priv->wpa.version = value;
-			if (!(priv->wpa.rsn_enabled)) {
+			if (!(priv->wpa.rsn_enabled))
 				priv->wpa.rsn_enabled = 1;
-			}
 			priv->need_commit |= SME_RSN;
 			break;
 		default:
@@ -1823,20 +1686,17 @@ static int ks_wlan_set_auth_mode(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless handler : get authentication mode params */
 static int ks_wlan_get_auth_mode(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct iw_param *vwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 	int index = (vwrq->flags & IW_AUTH_INDEX);
+
 	DPRINTK(2, "index=%d\n", index);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 
 	/* for SLEEP MODE */
 	/*  WPA (not used ?? wpa_supplicant) */
@@ -1869,101 +1729,89 @@ static int ks_wlan_get_auth_mode(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set encoding token & mode (WPA)*/
+/* set encoding token & mode (WPA)*/
 static int ks_wlan_set_encode_ext(struct net_device *dev,
 				  struct iw_request_info *info,
 				  struct iw_point *dwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 	struct iw_encode_ext *enc;
 	int index = dwrq->flags & IW_ENCODE_INDEX;
 	unsigned int commit = 0;
+	struct wpa_key_t *key;
 
 	enc = (struct iw_encode_ext *)extra;
+	if (!enc)
+		return -EINVAL;
 
 	DPRINTK(2, "flags=%04X:: ext_flags=%08X\n", dwrq->flags,
 		enc->ext_flags);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
 	if (index < 1 || index > 4)
 		return -EINVAL;
-	else
-		index--;
+	index--;
+	key = &priv->wpa.key[index];
 
-	if (dwrq->flags & IW_ENCODE_DISABLED) {
-		priv->wpa.key[index].key_len = 0;
+	if (dwrq->flags & IW_ENCODE_DISABLED)
+		key->key_len = 0;
+
+	key->ext_flags = enc->ext_flags;
+	if (enc->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
+		priv->wpa.txkey = index;
+		commit |= SME_WEP_INDEX;
+	} else if (enc->ext_flags & IW_ENCODE_EXT_RX_SEQ_VALID) {
+		memcpy(&key->rx_seq[0], &enc->rx_seq[0], IW_ENCODE_SEQ_MAX_SIZE);
 	}
 
-	if (enc) {
-		priv->wpa.key[index].ext_flags = enc->ext_flags;
-		if (enc->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
-			priv->wpa.txkey = index;
-			commit |= SME_WEP_INDEX;
-		} else if (enc->ext_flags & IW_ENCODE_EXT_RX_SEQ_VALID) {
-			memcpy(&priv->wpa.key[index].rx_seq[0],
-			       enc->rx_seq, IW_ENCODE_SEQ_MAX_SIZE);
+	memcpy(&key->addr.sa_data[0], &enc->addr.sa_data[0], ETH_ALEN);
+
+	switch (enc->alg) {
+	case IW_ENCODE_ALG_NONE:
+		if (priv->reg.privacy_invoked) {
+			priv->reg.privacy_invoked = 0x00;
+			commit |= SME_WEP_FLAG;
 		}
+		key->key_len = 0;
 
-		memcpy(&priv->wpa.key[index].addr.sa_data[0],
-		       &enc->addr.sa_data[0], ETH_ALEN);
-
-		switch (enc->alg) {
-		case IW_ENCODE_ALG_NONE:
-			if (priv->reg.privacy_invoked) {
-				priv->reg.privacy_invoked = 0x00;
-				commit |= SME_WEP_FLAG;
-			}
-			priv->wpa.key[index].key_len = 0;
-
-			break;
-		case IW_ENCODE_ALG_WEP:
-		case IW_ENCODE_ALG_CCMP:
-			if (!priv->reg.privacy_invoked) {
-				priv->reg.privacy_invoked = 0x01;
-				commit |= SME_WEP_FLAG;
-			}
-			if (enc->key_len) {
-				memcpy(&priv->wpa.key[index].key_val[0],
-				       &enc->key[0], enc->key_len);
-				priv->wpa.key[index].key_len = enc->key_len;
-				commit |= (SME_WEP_VAL1 << index);
-			}
-			break;
-		case IW_ENCODE_ALG_TKIP:
-			if (!priv->reg.privacy_invoked) {
-				priv->reg.privacy_invoked = 0x01;
-				commit |= SME_WEP_FLAG;
-			}
-			if (enc->key_len == 32) {
-				memcpy(&priv->wpa.key[index].key_val[0],
-				       &enc->key[0], enc->key_len - 16);
-				priv->wpa.key[index].key_len =
-				    enc->key_len - 16;
-				if (priv->wpa.key_mgmt_suite == 4) {	/* WPA_NONE */
-					memcpy(&priv->wpa.key[index].
-					       tx_mic_key[0], &enc->key[16], 8);
-					memcpy(&priv->wpa.key[index].
-					       rx_mic_key[0], &enc->key[16], 8);
-				} else {
-					memcpy(&priv->wpa.key[index].
-					       tx_mic_key[0], &enc->key[16], 8);
-					memcpy(&priv->wpa.key[index].
-					       rx_mic_key[0], &enc->key[24], 8);
-				}
-				commit |= (SME_WEP_VAL1 << index);
-			}
-			break;
-		default:
-			return -EINVAL;
+		break;
+	case IW_ENCODE_ALG_WEP:
+	case IW_ENCODE_ALG_CCMP:
+		if (!priv->reg.privacy_invoked) {
+			priv->reg.privacy_invoked = 0x01;
+			commit |= SME_WEP_FLAG;
 		}
-		priv->wpa.key[index].alg = enc->alg;
-	} else
+		if (enc->key_len) {
+			memcpy(&key->key_val[0], &enc->key[0], enc->key_len);
+			key->key_len = enc->key_len;
+			commit |= (SME_WEP_VAL1 << index);
+		}
+		break;
+	case IW_ENCODE_ALG_TKIP:
+		if (!priv->reg.privacy_invoked) {
+			priv->reg.privacy_invoked = 0x01;
+			commit |= SME_WEP_FLAG;
+		}
+		if (enc->key_len == 32) {
+			memcpy(&key->key_val[0], &enc->key[0], enc->key_len - 16);
+			key->key_len = enc->key_len - 16;
+			if (priv->wpa.key_mgmt_suite == 4) {	/* WPA_NONE */
+				memcpy(&key->tx_mic_key[0], &enc->key[16], 8);
+				memcpy(&key->rx_mic_key[0], &enc->key[16], 8);
+			} else {
+				memcpy(&key->tx_mic_key[0], &enc->key[16], 8);
+				memcpy(&key->rx_mic_key[0], &enc->key[24], 8);
+			}
+			commit |= (SME_WEP_VAL1 << index);
+		}
+		break;
+	default:
 		return -EINVAL;
+	}
+	key->alg = enc->alg;
 
 	if (commit) {
 		if (commit & SME_WEP_INDEX)
@@ -1977,37 +1825,32 @@ static int ks_wlan_set_encode_ext(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get encoding token & mode (WPA)*/
+/* get encoding token & mode (WPA)*/
 static int ks_wlan_get_encode_ext(struct net_device *dev,
 				  struct iw_request_info *info,
 				  struct iw_point *dwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 
 	/* for SLEEP MODE */
-	/*  WPA (not used ?? wpa_supplicant)
-	   struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
-	   struct iw_encode_ext *enc;
-	   enc = (struct iw_encode_ext *)extra;
-	   int index = dwrq->flags & IW_ENCODE_INDEX;
-	   WPA (not used ?? wpa_supplicant) */
+	/* WPA (not used ?? wpa_supplicant)
+	 * struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
+	 * struct iw_encode_ext *enc;
+	 * enc = (struct iw_encode_ext *)extra;
+	 * int index = dwrq->flags & IW_ENCODE_INDEX;
+	 * WPA (not used ?? wpa_supplicant)
+	 */
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : PMKSA cache operation (WPA2) */
 static int ks_wlan_set_pmksa(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_point *dwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 	struct iw_pmksa *pmksa;
 	int i;
 	struct pmk_t *pmk;
@@ -2015,13 +1858,13 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 
 	DPRINTK(2, "\n");
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
-	if (!extra) {
+	if (!extra)
 		return -EINVAL;
-	}
+
 	pmksa = (struct iw_pmksa *)extra;
 	DPRINTK(2, "cmd=%d\n", pmksa->cmd);
 
@@ -2030,76 +1873,68 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 		if (list_empty(&priv->pmklist.head)) {	/* new list */
 			for (i = 0; i < PMK_LIST_MAX; i++) {
 				pmk = &priv->pmklist.pmk[i];
-				if (!memcmp
-				    ("\x00\x00\x00\x00\x00\x00", pmk->bssid,
-				     ETH_ALEN))
-					break;
+				if (memcmp("\x00\x00\x00\x00\x00\x00",
+					   pmk->bssid, ETH_ALEN) == 0)
+					break; /* loop */
 			}
 			memcpy(pmk->bssid, pmksa->bssid.sa_data, ETH_ALEN);
 			memcpy(pmk->pmkid, pmksa->pmkid, IW_PMKID_LEN);
 			list_add(&pmk->list, &priv->pmklist.head);
 			priv->pmklist.size++;
-		} else {	/* search cache data */
-			list_for_each(ptr, &priv->pmklist.head) {
-				pmk = list_entry(ptr, struct pmk_t, list);
-				if (!memcmp(pmksa->bssid.sa_data, pmk->bssid, ETH_ALEN)) {	/* match address! list move to head. */
-					memcpy(pmk->pmkid, pmksa->pmkid,
-					       IW_PMKID_LEN);
-					list_move(&pmk->list,
-						  &priv->pmklist.head);
-					break;
-				}
+			break;	/* case */
+		}
+		/* search cache data */
+		list_for_each(ptr, &priv->pmklist.head) {
+			pmk = list_entry(ptr, struct pmk_t, list);
+			if (memcmp(pmksa->bssid.sa_data, pmk->bssid, ETH_ALEN) == 0) {
+				memcpy(pmk->pmkid, pmksa->pmkid, IW_PMKID_LEN);
+				list_move(&pmk->list, &priv->pmklist.head);
+				break; /* list_for_each */
 			}
-			if (ptr == &priv->pmklist.head) {	/* not find address. */
-				if (PMK_LIST_MAX > priv->pmklist.size) {	/* new cache data */
-					for (i = 0; i < PMK_LIST_MAX; i++) {
-						pmk = &priv->pmklist.pmk[i];
-						if (!memcmp
-						    ("\x00\x00\x00\x00\x00\x00",
-						     pmk->bssid, ETH_ALEN))
-							break;
-					}
-					memcpy(pmk->bssid, pmksa->bssid.sa_data,
-					       ETH_ALEN);
-					memcpy(pmk->pmkid, pmksa->pmkid,
-					       IW_PMKID_LEN);
-					list_add(&pmk->list,
-						 &priv->pmklist.head);
-					priv->pmklist.size++;
-				} else {	/* overwrite old cache data */
-					pmk =
-					    list_entry(priv->pmklist.head.prev,
-						       struct pmk_t, list);
-					memcpy(pmk->bssid, pmksa->bssid.sa_data,
-					       ETH_ALEN);
-					memcpy(pmk->pmkid, pmksa->pmkid,
-					       IW_PMKID_LEN);
-					list_move(&pmk->list,
-						  &priv->pmklist.head);
-				}
+		}
+		if (ptr != &priv->pmklist.head)	/* not find address. */
+			break;	/* case */
+
+		if (priv->pmklist.size < PMK_LIST_MAX) {	/* new cache data */
+			for (i = 0; i < PMK_LIST_MAX; i++) {
+				pmk = &priv->pmklist.pmk[i];
+				if (memcmp("\x00\x00\x00\x00\x00\x00",
+					   pmk->bssid, ETH_ALEN) == 0)
+					break; /* loop */
 			}
+			memcpy(pmk->bssid, pmksa->bssid.sa_data, ETH_ALEN);
+			memcpy(pmk->pmkid, pmksa->pmkid, IW_PMKID_LEN);
+			list_add(&pmk->list, &priv->pmklist.head);
+			priv->pmklist.size++;
+		} else {	/* overwrite old cache data */
+			pmk = list_entry(priv->pmklist.head.prev, struct pmk_t,
+					 list);
+			memcpy(pmk->bssid, pmksa->bssid.sa_data, ETH_ALEN);
+			memcpy(pmk->pmkid, pmksa->pmkid, IW_PMKID_LEN);
+			list_move(&pmk->list, &priv->pmklist.head);
 		}
 		break;
 	case IW_PMKSA_REMOVE:
 		if (list_empty(&priv->pmklist.head)) {	/* list empty */
 			return -EINVAL;
-		} else {	/* search cache data */
-			list_for_each(ptr, &priv->pmklist.head) {
-				pmk = list_entry(ptr, struct pmk_t, list);
-				if (!memcmp(pmksa->bssid.sa_data, pmk->bssid, ETH_ALEN)) {	/* match address! list del. */
-					eth_zero_addr(pmk->bssid);
-					memset(pmk->pmkid, 0, IW_PMKID_LEN);
-					list_del_init(&pmk->list);
-					break;
-				}
-			}
-			if (ptr == &priv->pmklist.head) {	/* not find address. */
-				return 0;
+		}
+		/* search cache data */
+		list_for_each(ptr, &priv->pmklist.head) {
+			pmk = list_entry(ptr, struct pmk_t, list);
+			if (memcmp(pmksa->bssid.sa_data, pmk->bssid, ETH_ALEN) == 0) {
+				eth_zero_addr(pmk->bssid);
+				memset(pmk->pmkid, 0, IW_PMKID_LEN);
+				list_del_init(&pmk->list);
+				break;
 			}
 		}
+		if (ptr == &priv->pmklist.head) {	/* not find address. */
+			return 0;
+		}
+
 		break;
 	case IW_PMKSA_FLUSH:
-		memset(&(priv->pmklist), 0, sizeof(priv->pmklist));
+		memset(&priv->pmklist, 0, sizeof(priv->pmklist));
 		INIT_LIST_HEAD(&priv->pmklist.head);
 		for (i = 0; i < PMK_LIST_MAX; i++)
 			INIT_LIST_HEAD(&priv->pmklist.pmk[i].list);
@@ -2114,9 +1949,7 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 
 static struct iw_statistics *ks_get_wireless_stats(struct net_device *dev)
 {
-
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 	struct iw_statistics *wstats = &priv->wstats;
 
 	if (!atomic_read(&update_phyinfo)) {
@@ -2127,7 +1960,8 @@ static struct iw_statistics *ks_get_wireless_stats(struct net_device *dev)
 	}
 
 	/* Packets discarded in the wireless adapter due to wireless
-	 * specific problems */
+	 * specific problems
+	 */
 	wstats->discard.nwid = 0;	/* Rx invalid nwid      */
 	wstats->discard.code = 0;	/* Rx invalid crypt     */
 	wstats->discard.fragment = 0;	/* Rx invalid frag      */
@@ -2138,19 +1972,17 @@ static struct iw_statistics *ks_get_wireless_stats(struct net_device *dev)
 	return wstats;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : set stop request */
 static int ks_wlan_set_stop_request(struct net_device *dev,
-				    struct iw_request_info *info, __u32 * uwrq,
+				    struct iw_request_info *info, __u32 *uwrq,
 				    char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
+
 	DPRINTK(2, "\n");
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
 	if (!(*uwrq))
 		return -EINVAL;
@@ -2159,29 +1991,25 @@ static int ks_wlan_set_stop_request(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set MLME */
 #include <linux/ieee80211.h>
 static int ks_wlan_set_mlme(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_point *dwrq,
 			    char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 	struct iw_mlme *mlme = (struct iw_mlme *)extra;
 	__u32 mode;
 
 	DPRINTK(2, ":%d :%d\n", mlme->cmd, mlme->reason_code);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
 	switch (mlme->cmd) {
 	case IW_MLME_DEAUTH:
-		if (mlme->reason_code == WLAN_REASON_MIC_FAILURE) {
+		if (mlme->reason_code == WLAN_REASON_MIC_FAILURE)
 			return 0;
-		}
 	case IW_MLME_DISASSOC:
 		mode = 1;
 		return ks_wlan_set_stop_request(dev, NULL, &mode, NULL);
@@ -2190,398 +2018,174 @@ static int ks_wlan_set_mlme(struct net_device *dev,
 	}
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get firemware version */
 static int ks_wlan_get_firmware_version(struct net_device *dev,
 					struct iw_request_info *info,
 					struct iw_point *dwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
-	strcpy(extra, &(priv->firmware_version[0]));
+	struct ks_wlan_private *priv = netdev_priv(dev);
+
+	strcpy(extra, priv->firmware_version);
 	dwrq->length = priv->version_size + 1;
 	return 0;
 }
 
-#if 0
-/*------------------------------------------------------------------*/
-/* Private handler : set force disconnect status */
-static int ks_wlan_set_detach(struct net_device *dev,
-			      struct iw_request_info *info, __u32 * uwrq,
-			      char *extra)
-{
-	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
-
-	if (priv->sleep_mode == SLP_SLEEP) {
-		return -EPERM;
-	}
-	/* for SLEEP MODE */
-	if (*uwrq == CONNECT_STATUS) {	/* 0 */
-		priv->connect_status &= ~FORCE_DISCONNECT;
-		if ((priv->connect_status & CONNECT_STATUS_MASK) ==
-		    CONNECT_STATUS)
-			netif_carrier_on(dev);
-	} else if (*uwrq == DISCONNECT_STATUS) {	/* 1 */
-		priv->connect_status |= FORCE_DISCONNECT;
-		netif_carrier_off(dev);
-	} else
-		return -EINVAL;
-	return 0;
-}
-
-/*------------------------------------------------------------------*/
-/* Private handler : get force disconnect status */
-static int ks_wlan_get_detach(struct net_device *dev,
-			      struct iw_request_info *info, __u32 * uwrq,
-			      char *extra)
-{
-	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
-
-	if (priv->sleep_mode == SLP_SLEEP) {
-		return -EPERM;
-	}
-	/* for SLEEP MODE */
-	*uwrq = ((priv->connect_status & FORCE_DISCONNECT) ? 1 : 0);
-	return 0;
-}
-
-/*------------------------------------------------------------------*/
-/* Private handler : get connect status */
-static int ks_wlan_get_connect(struct net_device *dev,
-			       struct iw_request_info *info, __u32 * uwrq,
-			       char *extra)
-{
-	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
-
-	if (priv->sleep_mode == SLP_SLEEP) {
-		return -EPERM;
-	}
-	/* for SLEEP MODE */
-	*uwrq = (priv->connect_status & CONNECT_STATUS_MASK);
-	return 0;
-}
-#endif
-
-/*------------------------------------------------------------------*/
-/* Private handler : set preamble */
 static int ks_wlan_set_preamble(struct net_device *dev,
-				struct iw_request_info *info, __u32 * uwrq,
+				struct iw_request_info *info, __u32 *uwrq,
 				char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
 	if (*uwrq == LONG_PREAMBLE) {	/* 0 */
 		priv->reg.preamble = LONG_PREAMBLE;
 	} else if (*uwrq == SHORT_PREAMBLE) {	/* 1 */
 		priv->reg.preamble = SHORT_PREAMBLE;
-	} else
+	} else {
 		return -EINVAL;
+	}
 
 	priv->need_commit |= SME_MODE_SET;
 	return -EINPROGRESS;	/* Call commit handler */
-
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get preamble */
 static int ks_wlan_get_preamble(struct net_device *dev,
-				struct iw_request_info *info, __u32 * uwrq,
+				struct iw_request_info *info, __u32 *uwrq,
 				char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
 	*uwrq = priv->reg.preamble;
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : set power save mode */
-static int ks_wlan_set_powermgt(struct net_device *dev,
-				struct iw_request_info *info, __u32 * uwrq,
-				char *extra)
+static int ks_wlan_set_power_mgmt(struct net_device *dev,
+				  struct iw_request_info *info, __u32 *uwrq,
+				  char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
-	if (*uwrq == POWMGT_ACTIVE_MODE) {	/* 0 */
-		priv->reg.powermgt = POWMGT_ACTIVE_MODE;
-	} else if (*uwrq == POWMGT_SAVE1_MODE) {	/* 1 */
+	if (*uwrq == POWER_MGMT_ACTIVE) {	/* 0 */
+		priv->reg.power_mgmt = POWER_MGMT_ACTIVE;
+	} else if (*uwrq == POWER_MGMT_SAVE1) {	/* 1 */
 		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE)
-			priv->reg.powermgt = POWMGT_SAVE1_MODE;
+			priv->reg.power_mgmt = POWER_MGMT_SAVE1;
 		else
 			return -EINVAL;
-	} else if (*uwrq == POWMGT_SAVE2_MODE) {	/* 2 */
+	} else if (*uwrq == POWER_MGMT_SAVE2) {	/* 2 */
 		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE)
-			priv->reg.powermgt = POWMGT_SAVE2_MODE;
+			priv->reg.power_mgmt = POWER_MGMT_SAVE2;
 		else
 			return -EINVAL;
-	} else
+	} else {
 		return -EINVAL;
+	}
 
 	hostif_sme_enqueue(priv, SME_POW_MNGMT_REQUEST);
 
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get power save made */
-static int ks_wlan_get_powermgt(struct net_device *dev,
-				struct iw_request_info *info, __u32 * uwrq,
-				char *extra)
+static int ks_wlan_get_power_mgmt(struct net_device *dev,
+				  struct iw_request_info *info, __u32 *uwrq,
+				  char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
+
 	/* for SLEEP MODE */
-	*uwrq = priv->reg.powermgt;
+	*uwrq = priv->reg.power_mgmt;
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : set scan type */
 static int ks_wlan_set_scan_type(struct net_device *dev,
-				 struct iw_request_info *info, __u32 * uwrq,
+				 struct iw_request_info *info, __u32 *uwrq,
 				 char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
 	if (*uwrq == ACTIVE_SCAN) {	/* 0 */
 		priv->reg.scan_type = ACTIVE_SCAN;
 	} else if (*uwrq == PASSIVE_SCAN) {	/* 1 */
 		priv->reg.scan_type = PASSIVE_SCAN;
-	} else
+	} else {
 		return -EINVAL;
+	}
 
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get scan type */
 static int ks_wlan_get_scan_type(struct net_device *dev,
-				 struct iw_request_info *info, __u32 * uwrq,
+				 struct iw_request_info *info, __u32 *uwrq,
 				 char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
 	*uwrq = priv->reg.scan_type;
 	return 0;
 }
 
-#if 0
-/*------------------------------------------------------------------*/
-/* Private handler : write raw data to device */
-static int ks_wlan_data_write(struct net_device *dev,
-			      struct iw_request_info *info,
-			      struct iw_point *dwrq, char *extra)
-{
-	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
-	unsigned char *wbuff = NULL;
-
-	if (priv->sleep_mode == SLP_SLEEP) {
-		return -EPERM;
-	}
-	/* for SLEEP MODE */
-	wbuff = (unsigned char *)kmalloc(dwrq->length, GFP_ATOMIC);
-	if (!wbuff)
-		return -EFAULT;
-	memcpy(wbuff, extra, dwrq->length);
-
-	/* write to device */
-	ks_wlan_hw_tx(priv, wbuff, dwrq->length, NULL, NULL, NULL);
-
-	return 0;
-}
-
-/*------------------------------------------------------------------*/
-/* Private handler : read raw data form device */
-static int ks_wlan_data_read(struct net_device *dev,
-			     struct iw_request_info *info,
-			     struct iw_point *dwrq, char *extra)
-{
-	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
-	unsigned short read_length;
-
-	if (priv->sleep_mode == SLP_SLEEP) {
-		return -EPERM;
-	}
-	/* for SLEEP MODE */
-	if (!atomic_read(&priv->event_count)) {
-		if (priv->dev_state < DEVICE_STATE_BOOT) {	/* Remove device */
-			read_length = 4;
-			memset(extra, 0xff, read_length);
-			dwrq->length = read_length;
-			return 0;
-		}
-		read_length = 0;
-		memset(extra, 0, 1);
-		dwrq->length = 0;
-		return 0;
-	}
-
-	if (atomic_read(&priv->event_count) > 0)
-		atomic_dec(&priv->event_count);
-
-	spin_lock(&priv->dev_read_lock);	/* request spin lock */
-
-	/* Copy length max size 0x07ff */
-	if (priv->dev_size[priv->dev_count] > 2047)
-		read_length = 2047;
-	else
-		read_length = priv->dev_size[priv->dev_count];
-
-	/* Copy data */
-	memcpy(extra, &(priv->dev_data[priv->dev_count][0]), read_length);
-
-	spin_unlock(&priv->dev_read_lock);	/* release spin lock */
-
-	/* Initialize */
-	priv->dev_data[priv->dev_count] = 0;
-	priv->dev_size[priv->dev_count] = 0;
-
-	priv->dev_count++;
-	if (priv->dev_count == DEVICE_STOCK_COUNT)
-		priv->dev_count = 0;
-
-	/* Set read size */
-	dwrq->length = read_length;
-
-	return 0;
-}
-#endif
-
-#if 0
-/*------------------------------------------------------------------*/
-/* Private handler : get wep string */
-#define WEP_ASCII_BUFF_SIZE (17+64*4+1)
-static int ks_wlan_get_wep_ascii(struct net_device *dev,
-				 struct iw_request_info *info,
-				 struct iw_point *dwrq, char *extra)
-{
-	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
-	int i, j, len = 0;
-	char tmp[WEP_ASCII_BUFF_SIZE];
-
-	if (priv->sleep_mode == SLP_SLEEP) {
-		return -EPERM;
-	}
-	/* for SLEEP MODE */
-	strcpy(tmp, " WEP keys ASCII \n");
-	len += strlen(" WEP keys ASCII \n");
-
-	for (i = 0; i < 4; i++) {
-		strcpy(tmp + len, "\t[");
-		len += strlen("\t[");
-		tmp[len] = '1' + i;
-		len++;
-		strcpy(tmp + len, "] ");
-		len += strlen("] ");
-		if (priv->reg.wep_key[i].size) {
-			strcpy(tmp + len,
-			       (priv->reg.wep_key[i].size <
-				6 ? "(40bits) [" : "(104bits) ["));
-			len +=
-			    strlen((priv->reg.wep_key[i].size <
-				    6 ? "(40bits) [" : "(104bits) ["));
-			for (j = 0; j < priv->reg.wep_key[i].size; j++, len++)
-				tmp[len] =
-				    (isprint(priv->reg.wep_key[i].val[j]) ?
-				     priv->reg.wep_key[i].val[j] : ' ');
-
-			strcpy(tmp + len, "]\n");
-			len += strlen("]\n");
-		} else {
-			strcpy(tmp + len, "off\n");
-			len += strlen("off\n");
-		}
-	}
-
-	memcpy(extra, tmp, len);
-	dwrq->length = len + 1;
-	return 0;
-}
-#endif
-
-/*------------------------------------------------------------------*/
-/* Private handler : set beacon lost count */
 static int ks_wlan_set_beacon_lost(struct net_device *dev,
-				   struct iw_request_info *info, __u32 * uwrq,
+				   struct iw_request_info *info, __u32 *uwrq,
 				   char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
-	if (*uwrq >= BEACON_LOST_COUNT_MIN && *uwrq <= BEACON_LOST_COUNT_MAX) {
+	if (*uwrq >= BEACON_LOST_COUNT_MIN && *uwrq <= BEACON_LOST_COUNT_MAX)
 		priv->reg.beacon_lost_count = *uwrq;
-	} else
+	else
 		return -EINVAL;
 
 	if (priv->reg.operation_mode == MODE_INFRASTRUCTURE) {
 		priv->need_commit |= SME_MODE_SET;
 		return -EINPROGRESS;	/* Call commit handler */
-	} else
+	} else {
 		return 0;
+	}
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get beacon lost count */
 static int ks_wlan_get_beacon_lost(struct net_device *dev,
-				   struct iw_request_info *info, __u32 * uwrq,
+				   struct iw_request_info *info, __u32 *uwrq,
 				   char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
 	*uwrq = priv->reg.beacon_lost_count;
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : set phy type */
 static int ks_wlan_set_phy_type(struct net_device *dev,
-				struct iw_request_info *info, __u32 * uwrq,
+				struct iw_request_info *info, __u32 *uwrq,
 				char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
 	if (*uwrq == D_11B_ONLY_MODE) {	/* 0 */
 		priv->reg.phy_type = D_11B_ONLY_MODE;
@@ -2589,83 +2193,71 @@ static int ks_wlan_set_phy_type(struct net_device *dev,
 		priv->reg.phy_type = D_11G_ONLY_MODE;
 	} else if (*uwrq == D_11BG_COMPATIBLE_MODE) {	/* 2 */
 		priv->reg.phy_type = D_11BG_COMPATIBLE_MODE;
-	} else
+	} else {
 		return -EINVAL;
+	}
 
 	priv->need_commit |= SME_MODE_SET;
 	return -EINPROGRESS;	/* Call commit handler */
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get phy type */
 static int ks_wlan_get_phy_type(struct net_device *dev,
-				struct iw_request_info *info, __u32 * uwrq,
+				struct iw_request_info *info, __u32 *uwrq,
 				char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
 	*uwrq = priv->reg.phy_type;
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : set cts mode */
 static int ks_wlan_set_cts_mode(struct net_device *dev,
-				struct iw_request_info *info, __u32 * uwrq,
+				struct iw_request_info *info, __u32 *uwrq,
 				char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
 	if (*uwrq == CTS_MODE_FALSE) {	/* 0 */
 		priv->reg.cts_mode = CTS_MODE_FALSE;
 	} else if (*uwrq == CTS_MODE_TRUE) {	/* 1 */
 		if (priv->reg.phy_type == D_11G_ONLY_MODE ||
-		    priv->reg.phy_type == D_11BG_COMPATIBLE_MODE)
+		    priv->reg.phy_type == D_11BG_COMPATIBLE_MODE) {
 			priv->reg.cts_mode = CTS_MODE_TRUE;
-		else
+		} else {
 			priv->reg.cts_mode = CTS_MODE_FALSE;
-	} else
+		}
+	} else {
 		return -EINVAL;
+	}
 
 	priv->need_commit |= SME_MODE_SET;
 	return -EINPROGRESS;	/* Call commit handler */
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get cts mode */
 static int ks_wlan_get_cts_mode(struct net_device *dev,
-				struct iw_request_info *info, __u32 * uwrq,
+				struct iw_request_info *info, __u32 *uwrq,
 				char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
 	*uwrq = priv->reg.cts_mode;
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : set sleep mode */
 static int ks_wlan_set_sleep_mode(struct net_device *dev,
 				  struct iw_request_info *info,
-				  __u32 * uwrq, char *extra)
+				  __u32 *uwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
 	DPRINTK(2, "\n");
 
@@ -2681,21 +2273,18 @@ static int ks_wlan_set_sleep_mode(struct net_device *dev,
 		netdev_info(dev, "SET_SLEEP_MODE %d\n", priv->sleep_mode);
 		hostif_sme_enqueue(priv, SME_SLEEP_REQUEST);
 	} else {
-		netdev_err(dev, "SET_SLEEP_MODE %d errror\n", *uwrq);
+		netdev_err(dev, "SET_SLEEP_MODE %d error\n", *uwrq);
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get sleep mode */
 static int ks_wlan_get_sleep_mode(struct net_device *dev,
 				  struct iw_request_info *info,
-				  __u32 * uwrq, char *extra)
+				  __u32 *uwrq, char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
 	DPRINTK(2, "GET_SLEEP_MODE %d\n", priv->sleep_mode);
 	*uwrq = priv->sleep_mode;
@@ -2703,60 +2292,18 @@ static int ks_wlan_get_sleep_mode(struct net_device *dev,
 	return 0;
 }
 
-#if 0
-/*------------------------------------------------------------------*/
-/* Private handler : set phy information timer */
-static int ks_wlan_set_phy_information_timer(struct net_device *dev,
-					     struct iw_request_info *info,
-					     __u32 * uwrq, char *extra)
-{
-	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
-
-	if (priv->sleep_mode == SLP_SLEEP) {
-		return -EPERM;
-	}
-	/* for SLEEP MODE */
-	if (*uwrq >= 0 && *uwrq <= 0xFFFF)	/* 0-65535 */
-		priv->reg.phy_info_timer = (uint16_t) * uwrq;
-	else
-		return -EINVAL;
-
-	hostif_sme_enqueue(priv, SME_PHY_INFO_REQUEST);
-
-	return 0;
-}
-
-/*------------------------------------------------------------------*/
-/* Private handler : get phy information timer */
-static int ks_wlan_get_phy_information_timer(struct net_device *dev,
-					     struct iw_request_info *info,
-					     __u32 * uwrq, char *extra)
-{
-	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
-
-	if (priv->sleep_mode == SLP_SLEEP) {
-		return -EPERM;
-	}
-	/* for SLEEP MODE */
-	*uwrq = priv->reg.phy_info_timer;
-	return 0;
-}
-#endif
-
 #ifdef WPS
-/*------------------------------------------------------------------*/
-/* Private handler : set WPS enable */
+
 static int ks_wlan_set_wps_enable(struct net_device *dev,
-				  struct iw_request_info *info, __u32 * uwrq,
+				  struct iw_request_info *info, __u32 *uwrq,
 				  char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
+
 	DPRINTK(2, "\n");
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
 	if (*uwrq == 0 || *uwrq == 1)
 		priv->wps.wps_enabled = *uwrq;
@@ -2768,19 +2315,16 @@ static int ks_wlan_set_wps_enable(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get WPS enable */
 static int ks_wlan_get_wps_enable(struct net_device *dev,
-				  struct iw_request_info *info, __u32 * uwrq,
+				  struct iw_request_info *info, __u32 *uwrq,
 				  char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
+
 	DPRINTK(2, "\n");
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
 	*uwrq = priv->wps.wps_enabled;
 	netdev_info(dev, "return=%d\n", *uwrq);
@@ -2788,29 +2332,24 @@ static int ks_wlan_get_wps_enable(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : set WPS probe req */
 static int ks_wlan_set_wps_probe_req(struct net_device *dev,
 				     struct iw_request_info *info,
 				     struct iw_point *dwrq, char *extra)
 {
-	uint8_t *p = extra;
+	u8 *p = extra;
 	unsigned char len;
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
 	DPRINTK(2, "\n");
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
 	DPRINTK(2, "dwrq->length=%d\n", dwrq->length);
 
 	/* length check */
-	if (p[1] + 2 != dwrq->length || dwrq->length > 256) {
+	if (p[1] + 2 != dwrq->length || dwrq->length > 256)
 		return -EINVAL;
-	}
 
 	priv->wps.ielen = p[1] + 2 + 1;	/* IE header + IE + sizeof(len) */
 	len = p[1] + 2;	/* IE header + IE */
@@ -2827,147 +2366,87 @@ static int ks_wlan_set_wps_probe_req(struct net_device *dev,
 
 	return 0;
 }
-
-#if 0
-/*------------------------------------------------------------------*/
-/* Private handler : get WPS probe req */
-static int ks_wlan_get_wps_probe_req(struct net_device *dev,
-				     struct iw_request_info *info,
-				     __u32 * uwrq, char *extra)
-{
-	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
-	DPRINTK(2, "\n");
-
-	if (priv->sleep_mode == SLP_SLEEP) {
-		return -EPERM;
-	}
-	/* for SLEEP MODE */
-	return 0;
-}
-#endif
 #endif /* WPS */
 
-/*------------------------------------------------------------------*/
-/* Private handler : set tx gain control value */
 static int ks_wlan_set_tx_gain(struct net_device *dev,
-			       struct iw_request_info *info, __u32 * uwrq,
+			       struct iw_request_info *info, __u32 *uwrq,
 			       char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
 	if (*uwrq >= 0 && *uwrq <= 0xFF)	/* 0-255 */
-		priv->gain.TxGain = (uint8_t) * uwrq;
+		priv->gain.tx_gain = (uint8_t)*uwrq;
 	else
 		return -EINVAL;
 
-	if (priv->gain.TxGain < 0xFF)
-		priv->gain.TxMode = 1;
+	if (priv->gain.tx_gain < 0xFF)
+		priv->gain.tx_mode = 1;
 	else
-		priv->gain.TxMode = 0;
+		priv->gain.tx_mode = 0;
 
 	hostif_sme_enqueue(priv, SME_SET_GAIN);
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get tx gain control value */
 static int ks_wlan_get_tx_gain(struct net_device *dev,
-			       struct iw_request_info *info, __u32 * uwrq,
+			       struct iw_request_info *info, __u32 *uwrq,
 			       char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
-	*uwrq = priv->gain.TxGain;
+	*uwrq = priv->gain.tx_gain;
 	hostif_sme_enqueue(priv, SME_GET_GAIN);
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : set rx gain control value */
 static int ks_wlan_set_rx_gain(struct net_device *dev,
-			       struct iw_request_info *info, __u32 * uwrq,
+			       struct iw_request_info *info, __u32 *uwrq,
 			       char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
 	if (*uwrq >= 0 && *uwrq <= 0xFF)	/* 0-255 */
-		priv->gain.RxGain = (uint8_t) * uwrq;
+		priv->gain.rx_gain = (uint8_t)*uwrq;
 	else
 		return -EINVAL;
 
-	if (priv->gain.RxGain < 0xFF)
-		priv->gain.RxMode = 1;
+	if (priv->gain.rx_gain < 0xFF)
+		priv->gain.rx_mode = 1;
 	else
-		priv->gain.RxMode = 0;
+		priv->gain.rx_mode = 0;
 
 	hostif_sme_enqueue(priv, SME_SET_GAIN);
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get rx gain control value */
 static int ks_wlan_get_rx_gain(struct net_device *dev,
-			       struct iw_request_info *info, __u32 * uwrq,
+			       struct iw_request_info *info, __u32 *uwrq,
 			       char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->sleep_mode == SLP_SLEEP) {
+	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
-	}
 	/* for SLEEP MODE */
-	*uwrq = priv->gain.RxGain;
+	*uwrq = priv->gain.rx_gain;
 	hostif_sme_enqueue(priv, SME_GET_GAIN);
 	return 0;
 }
 
-#if 0
-/*------------------------------------------------------------------*/
-/* Private handler : set region value */
-static int ks_wlan_set_region(struct net_device *dev,
-			      struct iw_request_info *info, __u32 * uwrq,
-			      char *extra)
-{
-	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
-
-	if (priv->sleep_mode == SLP_SLEEP) {
-		return -EPERM;
-	}
-	/* for SLEEP MODE */
-	if (*uwrq >= 0x9 && *uwrq <= 0xF)	/* 0x9-0xf */
-		priv->region = (uint8_t) * uwrq;
-	else
-		return -EINVAL;
-
-	hostif_sme_enqueue(priv, SME_SET_REGION);
-	return 0;
-}
-#endif
-
-/*------------------------------------------------------------------*/
-/* Private handler : get eeprom checksum result */
 static int ks_wlan_get_eeprom_cksum(struct net_device *dev,
-				    struct iw_request_info *info, __u32 * uwrq,
+				    struct iw_request_info *info, __u32 *uwrq,
 				    char *extra)
 {
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
 	*uwrq = priv->eeprom_checksum;
 	return 0;
@@ -2975,7 +2454,6 @@ static int ks_wlan_get_eeprom_cksum(struct net_device *dev,
 
 static void print_hif_event(struct net_device *dev, int event)
 {
-
 	switch (event) {
 	case HIF_DATA_REQ:
 		netdev_info(dev, "HIF_DATA_REQ\n");
@@ -2995,11 +2473,11 @@ static void print_hif_event(struct net_device *dev, int event)
 	case HIF_MIB_SET_CONF:
 		netdev_info(dev, "HIF_MIB_SET_CONF\n");
 		break;
-	case HIF_POWERMGT_REQ:
-		netdev_info(dev, "HIF_POWERMGT_REQ\n");
+	case HIF_POWER_MGMT_REQ:
+		netdev_info(dev, "HIF_POWER_MGMT_REQ\n");
 		break;
-	case HIF_POWERMGT_CONF:
-		netdev_info(dev, "HIF_POWERMGT_CONF\n");
+	case HIF_POWER_MGMT_CONF:
+		netdev_info(dev, "HIF_POWER_MGMT_CONF\n");
 		break;
 	case HIF_START_REQ:
 		netdev_info(dev, "HIF_START_REQ\n");
@@ -3087,14 +2565,12 @@ static void print_hif_event(struct net_device *dev, int event)
 	}
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get host command history */
+/* get host command history */
 static int ks_wlan_hostt(struct net_device *dev, struct iw_request_info *info,
-			 __u32 * uwrq, char *extra)
+			 __u32 *uwrq, char *extra)
 {
 	int i, event;
-	struct ks_wlan_private *priv =
-	    (struct ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
 	for (i = 63; i >= 0; i--) {
 		event =
@@ -3162,119 +2638,119 @@ static const struct iw_priv_args ks_wlan_private_args[] = {
 };
 
 static const iw_handler ks_wlan_handler[] = {
-	(iw_handler) ks_wlan_config_commit,	/* SIOCSIWCOMMIT */
-	(iw_handler) ks_wlan_get_name,	/* SIOCGIWNAME */
-	(iw_handler) NULL,	/* SIOCSIWNWID */
-	(iw_handler) NULL,	/* SIOCGIWNWID */
-	(iw_handler) ks_wlan_set_freq,	/* SIOCSIWFREQ */
-	(iw_handler) ks_wlan_get_freq,	/* SIOCGIWFREQ */
-	(iw_handler) ks_wlan_set_mode,	/* SIOCSIWMODE */
-	(iw_handler) ks_wlan_get_mode,	/* SIOCGIWMODE */
+	(iw_handler)ks_wlan_config_commit,	/* SIOCSIWCOMMIT */
+	(iw_handler)ks_wlan_get_name,	/* SIOCGIWNAME */
+	(iw_handler)NULL,	/* SIOCSIWNWID */
+	(iw_handler)NULL,	/* SIOCGIWNWID */
+	(iw_handler)ks_wlan_set_freq,	/* SIOCSIWFREQ */
+	(iw_handler)ks_wlan_get_freq,	/* SIOCGIWFREQ */
+	(iw_handler)ks_wlan_set_mode,	/* SIOCSIWMODE */
+	(iw_handler)ks_wlan_get_mode,	/* SIOCGIWMODE */
 #ifndef KSC_OPNOTSUPP
-	(iw_handler) ks_wlan_set_sens,	/* SIOCSIWSENS */
-	(iw_handler) ks_wlan_get_sens,	/* SIOCGIWSENS */
+	(iw_handler)ks_wlan_set_sens,	/* SIOCSIWSENS */
+	(iw_handler)ks_wlan_get_sens,	/* SIOCGIWSENS */
 #else /* KSC_OPNOTSUPP */
-	(iw_handler) NULL,	/* SIOCSIWSENS */
-	(iw_handler) NULL,	/* SIOCGIWSENS */
+	(iw_handler)NULL,	/* SIOCSIWSENS */
+	(iw_handler)NULL,	/* SIOCGIWSENS */
 #endif /* KSC_OPNOTSUPP */
-	(iw_handler) NULL,	/* SIOCSIWRANGE */
-	(iw_handler) ks_wlan_get_range,	/* SIOCGIWRANGE */
-	(iw_handler) NULL,	/* SIOCSIWPRIV */
-	(iw_handler) NULL,	/* SIOCGIWPRIV */
-	(iw_handler) NULL,	/* SIOCSIWSTATS */
-	(iw_handler) ks_wlan_get_iwstats,	/* SIOCGIWSTATS */
-	(iw_handler) NULL,	/* SIOCSIWSPY */
-	(iw_handler) NULL,	/* SIOCGIWSPY */
-	(iw_handler) NULL,	/* SIOCSIWTHRSPY */
-	(iw_handler) NULL,	/* SIOCGIWTHRSPY */
-	(iw_handler) ks_wlan_set_wap,	/* SIOCSIWAP */
-	(iw_handler) ks_wlan_get_wap,	/* SIOCGIWAP */
-//      (iw_handler) NULL,                      /* SIOCSIWMLME */
-	(iw_handler) ks_wlan_set_mlme,	/* SIOCSIWMLME */
-	(iw_handler) ks_wlan_get_aplist,	/* SIOCGIWAPLIST */
-	(iw_handler) ks_wlan_set_scan,	/* SIOCSIWSCAN */
-	(iw_handler) ks_wlan_get_scan,	/* SIOCGIWSCAN */
-	(iw_handler) ks_wlan_set_essid,	/* SIOCSIWESSID */
-	(iw_handler) ks_wlan_get_essid,	/* SIOCGIWESSID */
-	(iw_handler) ks_wlan_set_nick,	/* SIOCSIWNICKN */
-	(iw_handler) ks_wlan_get_nick,	/* SIOCGIWNICKN */
-	(iw_handler) NULL,	/* -- hole -- */
-	(iw_handler) NULL,	/* -- hole -- */
-	(iw_handler) ks_wlan_set_rate,	/* SIOCSIWRATE */
-	(iw_handler) ks_wlan_get_rate,	/* SIOCGIWRATE */
-	(iw_handler) ks_wlan_set_rts,	/* SIOCSIWRTS */
-	(iw_handler) ks_wlan_get_rts,	/* SIOCGIWRTS */
-	(iw_handler) ks_wlan_set_frag,	/* SIOCSIWFRAG */
-	(iw_handler) ks_wlan_get_frag,	/* SIOCGIWFRAG */
+	(iw_handler)NULL,	/* SIOCSIWRANGE */
+	(iw_handler)ks_wlan_get_range,	/* SIOCGIWRANGE */
+	(iw_handler)NULL,	/* SIOCSIWPRIV */
+	(iw_handler)NULL,	/* SIOCGIWPRIV */
+	(iw_handler)NULL,	/* SIOCSIWSTATS */
+	(iw_handler)ks_wlan_get_iwstats,	/* SIOCGIWSTATS */
+	(iw_handler)NULL,	/* SIOCSIWSPY */
+	(iw_handler)NULL,	/* SIOCGIWSPY */
+	(iw_handler)NULL,	/* SIOCSIWTHRSPY */
+	(iw_handler)NULL,	/* SIOCGIWTHRSPY */
+	(iw_handler)ks_wlan_set_wap,	/* SIOCSIWAP */
+	(iw_handler)ks_wlan_get_wap,	/* SIOCGIWAP */
+//      (iw_handler)NULL,                      /* SIOCSIWMLME */
+	(iw_handler)ks_wlan_set_mlme,	/* SIOCSIWMLME */
+	(iw_handler)ks_wlan_get_aplist,	/* SIOCGIWAPLIST */
+	(iw_handler)ks_wlan_set_scan,	/* SIOCSIWSCAN */
+	(iw_handler)ks_wlan_get_scan,	/* SIOCGIWSCAN */
+	(iw_handler)ks_wlan_set_essid,	/* SIOCSIWESSID */
+	(iw_handler)ks_wlan_get_essid,	/* SIOCGIWESSID */
+	(iw_handler)ks_wlan_set_nick,	/* SIOCSIWNICKN */
+	(iw_handler)ks_wlan_get_nick,	/* SIOCGIWNICKN */
+	(iw_handler)NULL,	/* -- hole -- */
+	(iw_handler)NULL,	/* -- hole -- */
+	(iw_handler)ks_wlan_set_rate,	/* SIOCSIWRATE */
+	(iw_handler)ks_wlan_get_rate,	/* SIOCGIWRATE */
+	(iw_handler)ks_wlan_set_rts,	/* SIOCSIWRTS */
+	(iw_handler)ks_wlan_get_rts,	/* SIOCGIWRTS */
+	(iw_handler)ks_wlan_set_frag,	/* SIOCSIWFRAG */
+	(iw_handler)ks_wlan_get_frag,	/* SIOCGIWFRAG */
 #ifndef KSC_OPNOTSUPP
-	(iw_handler) ks_wlan_set_txpow,	/* SIOCSIWTXPOW */
-	(iw_handler) ks_wlan_get_txpow,	/* SIOCGIWTXPOW */
-	(iw_handler) ks_wlan_set_retry,	/* SIOCSIWRETRY */
-	(iw_handler) ks_wlan_get_retry,	/* SIOCGIWRETRY */
+	(iw_handler)ks_wlan_set_txpow,	/* SIOCSIWTXPOW */
+	(iw_handler)ks_wlan_get_txpow,	/* SIOCGIWTXPOW */
+	(iw_handler)ks_wlan_set_retry,	/* SIOCSIWRETRY */
+	(iw_handler)ks_wlan_get_retry,	/* SIOCGIWRETRY */
 #else /* KSC_OPNOTSUPP */
-	(iw_handler) NULL,	/* SIOCSIWTXPOW */
-	(iw_handler) NULL,	/* SIOCGIWTXPOW */
-	(iw_handler) NULL,	/* SIOCSIWRETRY */
-	(iw_handler) NULL,	/* SIOCGIWRETRY */
+	(iw_handler)NULL,	/* SIOCSIWTXPOW */
+	(iw_handler)NULL,	/* SIOCGIWTXPOW */
+	(iw_handler)NULL,	/* SIOCSIWRETRY */
+	(iw_handler)NULL,	/* SIOCGIWRETRY */
 #endif /* KSC_OPNOTSUPP */
-	(iw_handler) ks_wlan_set_encode,	/* SIOCSIWENCODE */
-	(iw_handler) ks_wlan_get_encode,	/* SIOCGIWENCODE */
-	(iw_handler) ks_wlan_set_power,	/* SIOCSIWPOWER */
-	(iw_handler) ks_wlan_get_power,	/* SIOCGIWPOWER */
-	(iw_handler) NULL,	/* -- hole -- */
-	(iw_handler) NULL,	/* -- hole -- */
-//      (iw_handler) NULL,                      /* SIOCSIWGENIE */
-	(iw_handler) ks_wlan_set_genie,	/* SIOCSIWGENIE */
-	(iw_handler) NULL,	/* SIOCGIWGENIE */
-	(iw_handler) ks_wlan_set_auth_mode,	/* SIOCSIWAUTH */
-	(iw_handler) ks_wlan_get_auth_mode,	/* SIOCGIWAUTH */
-	(iw_handler) ks_wlan_set_encode_ext,	/* SIOCSIWENCODEEXT */
-	(iw_handler) ks_wlan_get_encode_ext,	/* SIOCGIWENCODEEXT */
-	(iw_handler) ks_wlan_set_pmksa,	/* SIOCSIWPMKSA */
-	(iw_handler) NULL,	/* -- hole -- */
+	(iw_handler)ks_wlan_set_encode,	/* SIOCSIWENCODE */
+	(iw_handler)ks_wlan_get_encode,	/* SIOCGIWENCODE */
+	(iw_handler)ks_wlan_set_power,	/* SIOCSIWPOWER */
+	(iw_handler)ks_wlan_get_power,	/* SIOCGIWPOWER */
+	(iw_handler)NULL,	/* -- hole -- */
+	(iw_handler)NULL,	/* -- hole -- */
+//      (iw_handler)NULL,                      /* SIOCSIWGENIE */
+	(iw_handler)ks_wlan_set_genie,	/* SIOCSIWGENIE */
+	(iw_handler)NULL,	/* SIOCGIWGENIE */
+	(iw_handler)ks_wlan_set_auth_mode,	/* SIOCSIWAUTH */
+	(iw_handler)ks_wlan_get_auth_mode,	/* SIOCGIWAUTH */
+	(iw_handler)ks_wlan_set_encode_ext,	/* SIOCSIWENCODEEXT */
+	(iw_handler)ks_wlan_get_encode_ext,	/* SIOCGIWENCODEEXT */
+	(iw_handler)ks_wlan_set_pmksa,	/* SIOCSIWPMKSA */
+	(iw_handler)NULL,	/* -- hole -- */
 };
 
 /* private_handler */
 static const iw_handler ks_wlan_private_handler[] = {
-	(iw_handler) NULL,	/*  0 */
-	(iw_handler) NULL,	/*  1, used to be: KS_WLAN_GET_DRIVER_VERSION */
-	(iw_handler) NULL,	/*  2 */
-	(iw_handler) ks_wlan_get_firmware_version,	/*  3 KS_WLAN_GET_FIRM_VERSION */
+	(iw_handler)NULL,	/*  0 */
+	(iw_handler)NULL,	/*  1, used to be: KS_WLAN_GET_DRIVER_VERSION */
+	(iw_handler)NULL,	/*  2 */
+	(iw_handler)ks_wlan_get_firmware_version,	/*  3 KS_WLAN_GET_FIRM_VERSION */
 #ifdef WPS
-	(iw_handler) ks_wlan_set_wps_enable,	/*  4 KS_WLAN_SET_WPS_ENABLE  */
-	(iw_handler) ks_wlan_get_wps_enable,	/*  5 KS_WLAN_GET_WPS_ENABLE  */
-	(iw_handler) ks_wlan_set_wps_probe_req,	/*  6 KS_WLAN_SET_WPS_PROBE_REQ */
+	(iw_handler)ks_wlan_set_wps_enable,	/*  4 KS_WLAN_SET_WPS_ENABLE  */
+	(iw_handler)ks_wlan_get_wps_enable,	/*  5 KS_WLAN_GET_WPS_ENABLE  */
+	(iw_handler)ks_wlan_set_wps_probe_req,	/*  6 KS_WLAN_SET_WPS_PROBE_REQ */
 #else
-	(iw_handler) NULL,	/*  4 */
-	(iw_handler) NULL,	/*  5 */
-	(iw_handler) NULL,	/*  6 */
+	(iw_handler)NULL,	/*  4 */
+	(iw_handler)NULL,	/*  5 */
+	(iw_handler)NULL,	/*  6 */
 #endif /* WPS */
 
-	(iw_handler) ks_wlan_get_eeprom_cksum,	/*  7 KS_WLAN_GET_CONNECT */
-	(iw_handler) ks_wlan_set_preamble,	/*  8 KS_WLAN_SET_PREAMBLE */
-	(iw_handler) ks_wlan_get_preamble,	/*  9 KS_WLAN_GET_PREAMBLE */
-	(iw_handler) ks_wlan_set_powermgt,	/* 10 KS_WLAN_SET_POWER_SAVE */
-	(iw_handler) ks_wlan_get_powermgt,	/* 11 KS_WLAN_GET_POWER_SAVE */
-	(iw_handler) ks_wlan_set_scan_type,	/* 12 KS_WLAN_SET_SCAN_TYPE */
-	(iw_handler) ks_wlan_get_scan_type,	/* 13 KS_WLAN_GET_SCAN_TYPE */
-	(iw_handler) ks_wlan_set_rx_gain,	/* 14 KS_WLAN_SET_RX_GAIN */
-	(iw_handler) ks_wlan_get_rx_gain,	/* 15 KS_WLAN_GET_RX_GAIN */
-	(iw_handler) ks_wlan_hostt,	/* 16 KS_WLAN_HOSTT */
-	(iw_handler) NULL,	/* 17 */
-	(iw_handler) ks_wlan_set_beacon_lost,	/* 18 KS_WLAN_SET_BECAN_LOST */
-	(iw_handler) ks_wlan_get_beacon_lost,	/* 19 KS_WLAN_GET_BECAN_LOST */
-	(iw_handler) ks_wlan_set_tx_gain,	/* 20 KS_WLAN_SET_TX_GAIN */
-	(iw_handler) ks_wlan_get_tx_gain,	/* 21 KS_WLAN_GET_TX_GAIN */
-	(iw_handler) ks_wlan_set_phy_type,	/* 22 KS_WLAN_SET_PHY_TYPE */
-	(iw_handler) ks_wlan_get_phy_type,	/* 23 KS_WLAN_GET_PHY_TYPE */
-	(iw_handler) ks_wlan_set_cts_mode,	/* 24 KS_WLAN_SET_CTS_MODE */
-	(iw_handler) ks_wlan_get_cts_mode,	/* 25 KS_WLAN_GET_CTS_MODE */
-	(iw_handler) NULL,	/* 26 */
-	(iw_handler) NULL,	/* 27 */
-	(iw_handler) ks_wlan_set_sleep_mode,	/* 28 KS_WLAN_SET_SLEEP_MODE */
-	(iw_handler) ks_wlan_get_sleep_mode,	/* 29 KS_WLAN_GET_SLEEP_MODE */
-	(iw_handler) NULL,	/* 30 */
-	(iw_handler) NULL,	/* 31 */
+	(iw_handler)ks_wlan_get_eeprom_cksum,	/*  7 KS_WLAN_GET_CONNECT */
+	(iw_handler)ks_wlan_set_preamble,	/*  8 KS_WLAN_SET_PREAMBLE */
+	(iw_handler)ks_wlan_get_preamble,	/*  9 KS_WLAN_GET_PREAMBLE */
+	(iw_handler)ks_wlan_set_power_mgmt,	/* 10 KS_WLAN_SET_POWER_SAVE */
+	(iw_handler)ks_wlan_get_power_mgmt,	/* 11 KS_WLAN_GET_POWER_SAVE */
+	(iw_handler)ks_wlan_set_scan_type,	/* 12 KS_WLAN_SET_SCAN_TYPE */
+	(iw_handler)ks_wlan_get_scan_type,	/* 13 KS_WLAN_GET_SCAN_TYPE */
+	(iw_handler)ks_wlan_set_rx_gain,	/* 14 KS_WLAN_SET_RX_GAIN */
+	(iw_handler)ks_wlan_get_rx_gain,	/* 15 KS_WLAN_GET_RX_GAIN */
+	(iw_handler)ks_wlan_hostt,	/* 16 KS_WLAN_HOSTT */
+	(iw_handler)NULL,	/* 17 */
+	(iw_handler)ks_wlan_set_beacon_lost,	/* 18 KS_WLAN_SET_BECAN_LOST */
+	(iw_handler)ks_wlan_get_beacon_lost,	/* 19 KS_WLAN_GET_BECAN_LOST */
+	(iw_handler)ks_wlan_set_tx_gain,	/* 20 KS_WLAN_SET_TX_GAIN */
+	(iw_handler)ks_wlan_get_tx_gain,	/* 21 KS_WLAN_GET_TX_GAIN */
+	(iw_handler)ks_wlan_set_phy_type,	/* 22 KS_WLAN_SET_PHY_TYPE */
+	(iw_handler)ks_wlan_get_phy_type,	/* 23 KS_WLAN_GET_PHY_TYPE */
+	(iw_handler)ks_wlan_set_cts_mode,	/* 24 KS_WLAN_SET_CTS_MODE */
+	(iw_handler)ks_wlan_get_cts_mode,	/* 25 KS_WLAN_GET_CTS_MODE */
+	(iw_handler)NULL,	/* 26 */
+	(iw_handler)NULL,	/* 27 */
+	(iw_handler)ks_wlan_set_sleep_mode,	/* 28 KS_WLAN_SET_SLEEP_MODE */
+	(iw_handler)ks_wlan_get_sleep_mode,	/* 29 KS_WLAN_GET_SLEEP_MODE */
+	(iw_handler)NULL,	/* 30 */
+	(iw_handler)NULL,	/* 31 */
 };
 
 static const struct iw_handler_def ks_wlan_handler_def = {
@@ -3282,8 +2758,8 @@ static const struct iw_handler_def ks_wlan_handler_def = {
 	.num_private = sizeof(ks_wlan_private_handler) / sizeof(iw_handler),
 	.num_private_args =
 	    sizeof(ks_wlan_private_args) / sizeof(struct iw_priv_args),
-	.standard = (iw_handler *) ks_wlan_handler,
-	.private = (iw_handler *) ks_wlan_private_handler,
+	.standard = (iw_handler *)ks_wlan_handler,
+	.private = (iw_handler *)ks_wlan_private_handler,
 	.private_args = (struct iw_priv_args *)ks_wlan_private_args,
 	.get_wireless_stats = ks_get_wireless_stats,
 };
@@ -3291,19 +2767,20 @@ static const struct iw_handler_def ks_wlan_handler_def = {
 static int ks_wlan_netdev_ioctl(struct net_device *dev, struct ifreq *rq,
 				int cmd)
 {
-	int rc = 0;
+	int ret;
 	struct iwreq *wrq = (struct iwreq *)rq;
+
 	switch (cmd) {
 	case SIOCIWFIRSTPRIV + 20:	/* KS_WLAN_SET_STOP_REQ */
-		rc = ks_wlan_set_stop_request(dev, NULL, &(wrq->u.mode), NULL);
+		ret = ks_wlan_set_stop_request(dev, NULL, &wrq->u.mode, NULL);
 		break;
 		// All other calls are currently unsupported
 	default:
-		rc = -EOPNOTSUPP;
+		ret = -EOPNOTSUPP;
 	}
 
-	DPRINTK(5, "return=%d\n", rc);
-	return rc;
+	DPRINTK(5, "return=%d\n", ret);
+	return ret;
 }
 
 static
@@ -3311,9 +2788,8 @@ struct net_device_stats *ks_wlan_get_stats(struct net_device *dev)
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	if (priv->dev_state < DEVICE_STATE_READY) {
+	if (priv->dev_state < DEVICE_STATE_READY)
 		return NULL;	/* not finished initialize */
-	}
 
 	return &priv->nstats;
 }
@@ -3323,6 +2799,7 @@ int ks_wlan_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
 	struct sockaddr *mac_addr = (struct sockaddr *)addr;
+
 	if (netif_running(dev))
 		return -EBUSY;
 	memcpy(dev->dev_addr, mac_addr->sa_data, dev->addr_len);
@@ -3330,10 +2807,7 @@ int ks_wlan_set_mac_address(struct net_device *dev, void *addr)
 
 	priv->mac_address_valid = 0;
 	hostif_sme_enqueue(priv, SME_MACADDRESS_SET_REQUEST);
-	netdev_info(dev,
-	       "ks_wlan: MAC ADDRESS = %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       priv->eth_addr[0], priv->eth_addr[1], priv->eth_addr[2],
-	       priv->eth_addr[3], priv->eth_addr[4], priv->eth_addr[5]);
+	netdev_info(dev, "ks_wlan:  MAC ADDRESS = %pM\n", priv->eth_addr);
 	return 0;
 }
 
@@ -3344,9 +2818,8 @@ void ks_wlan_tx_timeout(struct net_device *dev)
 
 	DPRINTK(1, "head(%d) tail(%d)!!\n", priv->tx_dev.qhead,
 		priv->tx_dev.qtail);
-	if (!netif_queue_stopped(dev)) {
+	if (!netif_queue_stopped(dev))
 		netif_stop_queue(dev);
-	}
 	priv->nstats.tx_errors++;
 	netif_wake_queue(dev);
 }
@@ -3355,7 +2828,7 @@ static
 int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
-	int rc = 0;
+	int ret;
 
 	DPRINTK(3, "in_interrupt()=%ld\n", in_interrupt());
 
@@ -3371,22 +2844,17 @@ int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (netif_running(dev))
 		netif_stop_queue(dev);
 
-	rc = hostif_data_request(priv, skb);
+	ret = hostif_data_request(priv, skb);
 	netif_trans_update(dev);
 
-	DPRINTK(4, "rc=%d\n", rc);
-	if (rc) {
-		rc = 0;
-	}
+	if (ret)
+		DPRINTK(4, "hostif_data_request error: =%d\n", ret);
 
-	return rc;
+	return 0;
 }
 
-void send_packet_complete(void *arg1, void *arg2)
+void send_packet_complete(struct ks_wlan_private *priv, struct sk_buff *skb)
 {
-	struct ks_wlan_private *priv = (struct ks_wlan_private *)arg1;
-	struct sk_buff *packet = (struct sk_buff *)arg2;
-
 	DPRINTK(3, "\n");
 
 	priv->nstats.tx_packets++;
@@ -3394,25 +2862,24 @@ void send_packet_complete(void *arg1, void *arg2)
 	if (netif_queue_stopped(priv->net_dev))
 		netif_wake_queue(priv->net_dev);
 
-	if (packet) {
-		priv->nstats.tx_bytes += packet->len;
-		dev_kfree_skb(packet);
-		packet = NULL;
+	if (skb) {
+		priv->nstats.tx_bytes += skb->len;
+		dev_kfree_skb(skb);
 	}
-
 }
 
-/* Set or clear the multicast filter for this adaptor.
-   This routine is not state sensitive and need not be SMP locked. */
+/*
+ * Set or clear the multicast filter for this adaptor.
+ * This routine is not state sensitive and need not be SMP locked.
+ */
 static
 void ks_wlan_set_multicast_list(struct net_device *dev)
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
 
 	DPRINTK(4, "\n");
-	if (priv->dev_state < DEVICE_STATE_READY) {
+	if (priv->dev_state < DEVICE_STATE_READY)
 		return;	/* not finished initialize */
-	}
 	hostif_sme_enqueue(priv, SME_MULTICAST_REQUEST);
 }
 
@@ -3426,8 +2893,8 @@ int ks_wlan_open(struct net_device *dev)
 	if (!priv->mac_address_valid) {
 		netdev_err(dev, "ks_wlan : %s Not READY !!\n", dev->name);
 		return -EBUSY;
-	} else
-		netif_start_queue(dev);
+	}
+	netif_start_queue(dev);
 
 	return 0;
 }
@@ -3435,7 +2902,6 @@ int ks_wlan_open(struct net_device *dev)
 static
 int ks_wlan_close(struct net_device *dev)
 {
-
 	netif_stop_queue(dev);
 
 	DPRINTK(4, "%s: Shutting down ethercard, status was 0x%4.4x.\n",
@@ -3446,9 +2912,10 @@ int ks_wlan_close(struct net_device *dev)
 
 /* Operational parameters that usually are not changed. */
 /* Time in jiffies before concluding the transmitter is hung. */
-#define TX_TIMEOUT  (3*HZ)
-static const unsigned char dummy_addr[] =
-    { 0x00, 0x0b, 0xe3, 0x00, 0x00, 0x00 };
+#define TX_TIMEOUT  (3 * HZ)
+static const unsigned char dummy_addr[] = {
+	0x00, 0x0b, 0xe3, 0x00, 0x00, 0x00
+};
 
 static const struct net_device_ops ks_wlan_netdev_ops = {
 	.ndo_start_xmit = ks_wlan_start_xmit,
@@ -3474,9 +2941,8 @@ int ks_wlan_net_start(struct net_device *dev)
 
 	/* phy information update timer */
 	atomic_set(&update_phyinfo, 0);
-	init_timer(&update_phyinfo_timer);
-	update_phyinfo_timer.function = ks_wlan_update_phyinfo_timeout;
-	update_phyinfo_timer.data = (unsigned long)priv;
+	setup_timer(&update_phyinfo_timer, ks_wlan_update_phyinfo_timeout,
+		    (unsigned long)priv);
 
 	/* dummy address set */
 	memcpy(priv->eth_addr, dummy_addr, ETH_ALEN);
@@ -3510,4 +2976,24 @@ int ks_wlan_net_stop(struct net_device *dev)
 		netif_stop_queue(dev);
 
 	return 0;
+}
+
+/**
+ * is_connect_status() - return true if status is 'connected'
+ * @status: high bit is used as FORCE_DISCONNECT, low bits used for
+ * 	connect status.
+ */
+bool is_connect_status(u32 status)
+{
+	return (status & CONNECT_STATUS_MASK) == CONNECT_STATUS;
+}
+
+/**
+ * is_disconnect_status() - return true if status is 'disconnected'
+ * @status: high bit is used as FORCE_DISCONNECT, low bits used for
+ * 	disconnect status.
+ */
+bool is_disconnect_status(u32 status)
+{
+	return (status & CONNECT_STATUS_MASK) == DISCONNECT_STATUS;
 }

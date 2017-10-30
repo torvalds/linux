@@ -228,8 +228,13 @@ mv_chan_clean_completed_slots(struct mv_xor_chan *mv_chan)
 	list_for_each_entry_safe(iter, _iter, &mv_chan->completed_slots,
 				 node) {
 
-		if (async_tx_test_ack(&iter->async_tx))
+		if (async_tx_test_ack(&iter->async_tx)) {
 			list_move_tail(&iter->node, &mv_chan->free_slots);
+			if (!list_empty(&iter->sg_tx_list)) {
+				list_splice_tail_init(&iter->sg_tx_list,
+							&mv_chan->free_slots);
+			}
+		}
 	}
 	return 0;
 }
@@ -244,11 +249,20 @@ mv_desc_clean_slot(struct mv_xor_desc_slot *desc,
 	/* the client is allowed to attach dependent operations
 	 * until 'ack' is set
 	 */
-	if (!async_tx_test_ack(&desc->async_tx))
+	if (!async_tx_test_ack(&desc->async_tx)) {
 		/* move this slot to the completed_slots */
 		list_move_tail(&desc->node, &mv_chan->completed_slots);
-	else
+		if (!list_empty(&desc->sg_tx_list)) {
+			list_splice_tail_init(&desc->sg_tx_list,
+					      &mv_chan->completed_slots);
+		}
+	} else {
 		list_move_tail(&desc->node, &mv_chan->free_slots);
+		if (!list_empty(&desc->sg_tx_list)) {
+			list_splice_tail_init(&desc->sg_tx_list,
+					      &mv_chan->free_slots);
+		}
+	}
 
 	return 0;
 }
@@ -450,6 +464,7 @@ static int mv_xor_alloc_chan_resources(struct dma_chan *chan)
 		dma_async_tx_descriptor_init(&slot->async_tx, chan);
 		slot->async_tx.tx_submit = mv_xor_tx_submit;
 		INIT_LIST_HEAD(&slot->node);
+		INIT_LIST_HEAD(&slot->sg_tx_list);
 		dma_desc = mv_chan->dma_desc_pool;
 		slot->async_tx.phys = dma_desc + idx * MV_XOR_SLOT_SIZE;
 		slot->idx = idx++;
@@ -789,7 +804,7 @@ static int mv_chan_memcpy_self_test(struct mv_xor_chan *mv_chan)
 	}
 
 	src_dma = dma_map_page(dma_chan->device->dev, virt_to_page(src),
-			       (size_t)src & ~PAGE_MASK, PAGE_SIZE,
+			       offset_in_page(src), PAGE_SIZE,
 			       DMA_TO_DEVICE);
 	unmap->addr[0] = src_dma;
 
@@ -801,7 +816,7 @@ static int mv_chan_memcpy_self_test(struct mv_xor_chan *mv_chan)
 	unmap->to_cnt = 1;
 
 	dest_dma = dma_map_page(dma_chan->device->dev, virt_to_page(dest),
-				(size_t)dest & ~PAGE_MASK, PAGE_SIZE,
+				offset_in_page(dest), PAGE_SIZE,
 				DMA_FROM_DEVICE);
 	unmap->addr[1] = dest_dma;
 
@@ -1405,11 +1420,6 @@ static int mv_xor_probe(struct platform_device *pdev)
 			int irq;
 
 			cd = &pdata->channels[i];
-			if (!cd) {
-				ret = -ENODEV;
-				goto err_channel_add;
-			}
-
 			irq = platform_get_irq(pdev, i);
 			if (irq < 0) {
 				ret = irq;
@@ -1455,12 +1465,7 @@ static struct platform_driver mv_xor_driver = {
 	},
 };
 
-
-static int __init mv_xor_init(void)
-{
-	return platform_driver_register(&mv_xor_driver);
-}
-device_initcall(mv_xor_init);
+builtin_platform_driver(mv_xor_driver);
 
 /*
 MODULE_AUTHOR("Saeed Bishara <saeed@marvell.com>");

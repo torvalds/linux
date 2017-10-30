@@ -63,6 +63,7 @@
 #define TTM_PL_FLAG_CACHED      (1 << 16)
 #define TTM_PL_FLAG_UNCACHED    (1 << 17)
 #define TTM_PL_FLAG_WC          (1 << 18)
+#define TTM_PL_FLAG_CONTIGUOUS  (1 << 19)
 #define TTM_PL_FLAG_NO_EVICT    (1 << 21)
 #define TTM_PL_FLAG_TOPDOWN     (1 << 22)
 

@@ -249,7 +249,6 @@ struct& cdrom_device_ops\ \{ \hidewidth\cr
         unsigned\ long);\cr
 \noalign{\medskip}
   &const\ int& capability;& capability flags \cr
-  &int& n_minors;& number of active minor devices \cr
 \};\cr
 }
 $$
@@ -258,13 +257,7 @@ it should add a function pointer to this $struct$. When a particular
 function is not implemented, however, this $struct$ should contain a
 NULL instead. The $capability$ flags specify the capabilities of the
 \cdrom\ hardware and/or low-level \cdrom\ driver when a \cdrom\ drive
-is registered with the \UCD. The value $n_minors$ should be a positive
-value indicating the number of minor devices that are supported by
-the low-level device driver, normally~1. Although these two variables
-are `informative' rather than `operational,' they are included in
-$cdrom_device_ops$ because they describe the capability of the {\em
-driver\/} rather than the {\em drive}. Nomenclature has always been
-difficult in computer programming.
+is registered with the \UCD.
 
 Note that most functions have fewer parameters than their
 $blkdev_fops$ counterparts. This is because very little of the

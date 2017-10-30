@@ -34,7 +34,7 @@ static int dummy_timer_starting_cpu(unsigned int cpu)
 static int __init dummy_timer_register(void)
 {
 	return cpuhp_setup_state(CPUHP_AP_DUMMY_TIMER_STARTING,
-				 "AP_DUMMY_TIMER_STARTING",
+				 "clockevents/dummy_timer:starting",
 				 dummy_timer_starting_cpu, NULL);
 }
 early_initcall(dummy_timer_register);

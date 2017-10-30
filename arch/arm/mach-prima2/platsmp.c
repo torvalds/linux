@@ -65,7 +65,7 @@ static int sirfsoc_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * waiting for. This would wake up the secondary core from WFE
 	 */
 #define SIRFSOC_CPU1_JUMPADDR_OFFSET 0x2bc
-	__raw_writel(virt_to_phys(sirfsoc_secondary_startup),
+	__raw_writel(__pa_symbol(sirfsoc_secondary_startup),
 		clk_base + SIRFSOC_CPU1_JUMPADDR_OFFSET);
 
 #define SIRFSOC_CPU1_WAKEMAGIC_OFFSET 0x2b8

@@ -32,11 +32,6 @@
 
 #define SMC_RAM_END 0x40000
 
-struct polaris10_avfs {
-	enum AVFS_BTC_STATUS avfs_btc_status;
-	uint32_t           avfs_btc_param;
-};
-
 struct polaris10_pt_defaults {
 	uint8_t   SviLoadLineEn;
 	uint8_t   SviLoadLineVddC;
@@ -51,8 +46,6 @@ struct polaris10_pt_defaults {
 	uint16_t  BAPMTI_RC[SMU74_DTE_ITERATIONS * SMU74_DTE_SOURCES * SMU74_DTE_SINKS];
 };
 
-
-
 struct polaris10_range_table {
 	uint32_t trans_lower_frequency; /* in 10khz */
 	uint32_t trans_upper_frequency;
@@ -61,14 +54,13 @@ struct polaris10_range_table {
 struct polaris10_smumgr {
 	struct smu7_smumgr smu7_data;
 	uint8_t protected_mode;
-	struct polaris10_avfs  avfs;
 	SMU74_Discrete_DpmTable              smc_state_table;
 	struct SMU74_Discrete_Ulv            ulv_setting;
 	struct SMU74_Discrete_PmFuses  power_tune_table;
 	struct polaris10_range_table                range_table[NUM_SCLK_RANGE];
 	const struct polaris10_pt_defaults       *power_tune_defaults;
-	uint32_t                   activity_target[SMU74_MAX_LEVELS_GRAPHICS];
-	uint32_t                   bif_sclk_table[SMU74_MAX_LEVELS_LINK];
+	uint32_t               activity_target[SMU74_MAX_LEVELS_GRAPHICS];
+	uint32_t               bif_sclk_table[SMU74_MAX_LEVELS_LINK];
 };
 
 

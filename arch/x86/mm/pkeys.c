@@ -18,7 +18,6 @@
 
 #include <asm/cpufeature.h>             /* boot_cpu_has, ...            */
 #include <asm/mmu_context.h>            /* vma_pkey()                   */
-#include <asm/fpu/internal.h>           /* fpregs_active()              */
 
 int __execute_only_pkey(struct mm_struct *mm)
 {
@@ -45,7 +44,7 @@ int __execute_only_pkey(struct mm_struct *mm)
 	 */
 	preempt_disable();
 	if (!need_to_set_mm_pkey &&
-	    fpregs_active() &&
+	    current->thread.fpu.initialized &&
 	    !__pkru_allows_read(read_pkru(), execute_only_pkey)) {
 		preempt_enable();
 		return execute_only_pkey;
@@ -141,8 +140,7 @@ u32 init_pkru_value = PKRU_AD_KEY( 1) | PKRU_AD_KEY( 2) | PKRU_AD_KEY( 3) |
  * Called from the FPU code when creating a fresh set of FPU
  * registers.  This is called from a very specific context where
  * we know the FPU regstiers are safe for use and we can use PKRU
- * directly.  The fact that PKRU is only available when we are
- * using eagerfpu mode makes this possible.
+ * directly.
  */
 void copy_init_pkru_to_fpregs(void)
 {

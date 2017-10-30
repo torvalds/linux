@@ -13,6 +13,7 @@
 #include <asm/unaligned.h>
 
 #include <linux/iio/iio.h>
+#include <linux/iio/buffer.h>
 #include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger_consumer.h>
 #include "ade7758.h"

@@ -45,7 +45,8 @@
 	(MLXSW_SP_KVD_LINEAR_SIZE - MLXSW_SP_KVDL_CHUNKS_BASE)
 #define MLXSW_SP_CHUNK_MAX 32
 
-int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, unsigned int entry_count)
+int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, unsigned int entry_count,
+			u32 *p_entry_index)
 {
 	int entry_index;
 	int size;
@@ -72,7 +73,8 @@ int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, unsigned int entry_count)
 
 		for (i = 0; i < type_entries; i++)
 			set_bit(entry_index + i, mlxsw_sp->kvdl.usage);
-		return entry_index;
+		*p_entry_index = entry_index;
+		return 0;
 	}
 	return -ENOBUFS;
 }

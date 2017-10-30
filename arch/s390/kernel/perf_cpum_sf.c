@@ -823,9 +823,12 @@ static int cpumsf_pmu_event_init(struct perf_event *event)
 	}
 
 	/* Check online status of the CPU to which the event is pinned */
-	if (event->cpu >= nr_cpumask_bits ||
-	    (event->cpu >= 0 && !cpu_online(event->cpu)))
-		return -ENODEV;
+	if (event->cpu >= 0) {
+		if ((unsigned int)event->cpu >= nr_cpumask_bits)
+			return -ENODEV;
+		if (!cpu_online(event->cpu))
+			return -ENODEV;
+	}
 
 	/* Force reset of idle/hv excludes regardless of what the
 	 * user requested.
@@ -995,39 +998,35 @@ static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
 	regs.int_parm = CPU_MF_INT_SF_PRA;
 	sde_regs = (struct perf_sf_sde_regs *) &regs.int_parm_long;
 
-	regs.psw.addr = sfr->basic.ia;
-	if (sfr->basic.T)
-		regs.psw.mask |= PSW_MASK_DAT;
-	if (sfr->basic.W)
-		regs.psw.mask |= PSW_MASK_WAIT;
-	if (sfr->basic.P)
-		regs.psw.mask |= PSW_MASK_PSTATE;
-	switch (sfr->basic.AS) {
-	case 0x0:
-		regs.psw.mask |= PSW_ASC_PRIMARY;
-		break;
-	case 0x1:
-		regs.psw.mask |= PSW_ASC_ACCREG;
-		break;
-	case 0x2:
-		regs.psw.mask |= PSW_ASC_SECONDARY;
-		break;
-	case 0x3:
-		regs.psw.mask |= PSW_ASC_HOME;
-		break;
-	}
+	psw_bits(regs.psw).ia	= sfr->basic.ia;
+	psw_bits(regs.psw).dat	= sfr->basic.T;
+	psw_bits(regs.psw).wait = sfr->basic.W;
+	psw_bits(regs.psw).pstate = sfr->basic.P;
+	psw_bits(regs.psw).as	= sfr->basic.AS;
 
 	/*
-	 * A non-zero guest program parameter indicates a guest
-	 * sample.
-	 * Note that some early samples or samples from guests without
+	 * Use the hardware provided configuration level to decide if the
+	 * sample belongs to a guest or host. If that is not available,
+	 * fall back to the following heuristics:
+	 * A non-zero guest program parameter always indicates a guest
+	 * sample. Some early samples or samples from guests without
 	 * lpp usage would be misaccounted to the host. We use the asn
-	 * value as a heuristic to detect most of these guest samples.
-	 * If the value differs from the host hpp value, we assume
-	 * it to be a KVM guest.
+	 * value as an addon heuristic to detect most of these guest samples.
+	 * If the value differs from 0xffff (the host value), we assume to
+	 * be a KVM guest.
 	 */
-	if (sfr->basic.gpp || sfr->basic.prim_asn != (u16) sfr->basic.hpp)
+	switch (sfr->basic.CL) {
+	case 1: /* logical partition */
+		sde_regs->in_guest = 0;
+		break;
+	case 2: /* virtual machine */
 		sde_regs->in_guest = 1;
+		break;
+	default: /* old machine, use heuristics */
+		if (sfr->basic.gpp || sfr->basic.prim_asn != 0xffff)
+			sde_regs->in_guest = 1;
+		break;
+	}
 
 	overflow = 0;
 	if (perf_exclude_event(event, &regs, sde_regs))
@@ -1626,7 +1625,7 @@ static int __init init_cpum_sampling_pmu(void)
 		goto out;
 	}
 
-	cpuhp_setup_state(CPUHP_AP_PERF_S390_SF_ONLINE, "AP_PERF_S390_SF_ONLINE",
+	cpuhp_setup_state(CPUHP_AP_PERF_S390_SF_ONLINE, "perf/s390/sf:online",
 			  s390_pmu_sf_online_cpu, s390_pmu_sf_offline_cpu);
 out:
 	return err;

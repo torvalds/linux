@@ -38,6 +38,10 @@ enum ath10k_debug_mask {
 	ATH10K_DBG_WMI_PRINT	= 0x00002000,
 	ATH10K_DBG_PCI_PS	= 0x00004000,
 	ATH10K_DBG_AHB		= 0x00008000,
+	ATH10K_DBG_SDIO		= 0x00010000,
+	ATH10K_DBG_SDIO_DUMP	= 0x00020000,
+	ATH10K_DBG_USB		= 0x00040000,
+	ATH10K_DBG_USB_BULK	= 0x00080000,
 	ATH10K_DBG_ANY		= 0xffffffff,
 };
 
@@ -84,6 +88,9 @@ struct ath10k_fw_crash_data *
 ath10k_debug_get_new_fw_crash_data(struct ath10k *ar);
 
 void ath10k_debug_dbglog_add(struct ath10k *ar, u8 *buffer, int len);
+
+int ath10k_debug_fw_devcoredump(struct ath10k *ar);
+
 #define ATH10K_DFS_STAT_INC(ar, c) (ar->debug.dfs_stats.c++)
 
 void ath10k_debug_get_et_strings(struct ieee80211_hw *hw,
@@ -94,7 +101,19 @@ int ath10k_debug_get_et_sset_count(struct ieee80211_hw *hw,
 void ath10k_debug_get_et_stats(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       struct ethtool_stats *stats, u64 *data);
+
+static inline u64 ath10k_debug_get_fw_dbglog_mask(struct ath10k *ar)
+{
+	return ar->debug.fw_dbglog_mask;
+}
+
+static inline u32 ath10k_debug_get_fw_dbglog_level(struct ath10k *ar)
+{
+	return ar->debug.fw_dbglog_level;
+}
+
 #else
+
 static inline int ath10k_debug_start(struct ath10k *ar)
 {
 	return 0;
@@ -142,6 +161,21 @@ static inline struct ath10k_fw_crash_data *
 ath10k_debug_get_new_fw_crash_data(struct ath10k *ar)
 {
 	return NULL;
+}
+
+static inline u64 ath10k_debug_get_fw_dbglog_mask(struct ath10k *ar)
+{
+	return 0;
+}
+
+static inline u32 ath10k_debug_get_fw_dbglog_level(struct ath10k *ar)
+{
+	return 0;
+}
+
+static inline int ath10k_debug_fw_devcoredump(struct ath10k *ar)
+{
+	return 0;
 }
 
 #define ATH10K_DFS_STAT_INC(ar, c) do { } while (0)

@@ -289,15 +289,10 @@ static
 struct s3c24xx_dma_phy *s3c24xx_dma_get_phy(struct s3c24xx_dma_chan *s3cchan)
 {
 	struct s3c24xx_dma_engine *s3cdma = s3cchan->host;
-	const struct s3c24xx_dma_platdata *pdata = s3cdma->pdata;
-	struct s3c24xx_dma_channel *cdata;
 	struct s3c24xx_dma_phy *phy = NULL;
 	unsigned long flags;
 	int i;
 	int ret;
-
-	if (s3cchan->slave)
-		cdata = &pdata->channels[s3cchan->id];
 
 	for (i = 0; i < s3cdma->pdata->num_phy_channels; i++) {
 		phy = &s3cdma->phy_chans[i];

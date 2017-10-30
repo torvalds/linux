@@ -1,31 +1,28 @@
 /**********************************************************************
-* Author: Cavium, Inc.
-*
-* Contact: support@cavium.com
-*          Please include "LiquidIO" in the subject.
-*
-* Copyright (c) 2003-2015 Cavium, Inc.
-*
-* This file is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License, Version 2, as
-* published by the Free Software Foundation.
-*
-* This file is distributed in the hope that it will be useful, but
-* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
-* NONINFRINGEMENT.  See the GNU General Public License for more
-* details.
-*
-* This file may also be available under a different license from Cavium.
-* Contact Cavium, Inc. for more information
-**********************************************************************/
-
+ * Author: Cavium, Inc.
+ *
+ * Contact: support@cavium.com
+ *          Please include "LiquidIO" in the subject.
+ *
+ * Copyright (c) 2003-2016 Cavium, Inc.
+ *
+ * This file is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, Version 2, as
+ * published by the Free Software Foundation.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 /*! \file octeon_device.h
  *  \brief Host Driver: This file defines the octeon device structure.
  */
 
 #ifndef _OCTEON_DEVICE_H_
 #define  _OCTEON_DEVICE_H_
+
+#include <linux/interrupt.h>
 
 /** PCI VendorId Device Id */
 #define  OCTEON_CN68XX_PCIID          0x91177d
@@ -38,6 +35,7 @@
 #define  OCTEON_CN68XX                0x0091
 #define  OCTEON_CN66XX                0x0092
 #define  OCTEON_CN23XX_PF_VID         0x9702
+#define  OCTEON_CN23XX_VF_VID         0x9712
 
 /**RevisionId for the chips */
 #define  OCTEON_CN23XX_REV_1_0        0x00
@@ -52,7 +50,14 @@ enum octeon_pci_swap_mode {
 	OCTEON_PCI_32BIT_LW_SWAP = 3
 };
 
+enum {
+	OCTEON_CONFIG_TYPE_DEFAULT = 0,
+	NUM_OCTEON_CONFS,
+};
+
+#define  OCTEON_INPUT_INTR    (1)
 #define  OCTEON_OUTPUT_INTR   (2)
+#define  OCTEON_MBOX_INTR     (4)
 #define  OCTEON_ALL_INTR      0xff
 
 /*---------------   PCI BAR1 index registers -------------*/
@@ -70,26 +75,30 @@ enum octeon_pci_swap_mode {
  *  as it is initialized.
  */
 #define    OCT_DEV_BEGIN_STATE            0x0
-#define    OCT_DEV_PCI_MAP_DONE           0x1
-#define    OCT_DEV_DISPATCH_INIT_DONE     0x2
-#define    OCT_DEV_INSTR_QUEUE_INIT_DONE  0x3
-#define    OCT_DEV_SC_BUFF_POOL_INIT_DONE 0x4
-#define    OCT_DEV_RESP_LIST_INIT_DONE    0x5
-#define    OCT_DEV_DROQ_INIT_DONE         0x6
-#define    OCT_DEV_IO_QUEUES_DONE         0x7
-#define    OCT_DEV_CONSOLE_INIT_DONE      0x8
-#define    OCT_DEV_HOST_OK                0x9
-#define    OCT_DEV_CORE_OK                0xa
-#define    OCT_DEV_RUNNING                0xb
-#define    OCT_DEV_IN_RESET               0xc
-#define    OCT_DEV_STATE_INVALID          0xd
+#define    OCT_DEV_PCI_ENABLE_DONE        0x1
+#define    OCT_DEV_PCI_MAP_DONE           0x2
+#define    OCT_DEV_DISPATCH_INIT_DONE     0x3
+#define    OCT_DEV_INSTR_QUEUE_INIT_DONE  0x4
+#define    OCT_DEV_SC_BUFF_POOL_INIT_DONE 0x5
+#define    OCT_DEV_RESP_LIST_INIT_DONE    0x6
+#define    OCT_DEV_DROQ_INIT_DONE         0x7
+#define    OCT_DEV_MBOX_SETUP_DONE        0x8
+#define    OCT_DEV_MSIX_ALLOC_VECTOR_DONE 0x9
+#define    OCT_DEV_INTR_SET_DONE          0xa
+#define    OCT_DEV_IO_QUEUES_DONE         0xb
+#define    OCT_DEV_CONSOLE_INIT_DONE      0xc
+#define    OCT_DEV_HOST_OK                0xd
+#define    OCT_DEV_CORE_OK                0xe
+#define    OCT_DEV_RUNNING                0xf
+#define    OCT_DEV_IN_RESET               0x10
+#define    OCT_DEV_STATE_INVALID          0x11
 
 #define    OCT_DEV_STATES                 OCT_DEV_STATE_INVALID
 
 /** Octeon Device interrupts
-  *  These interrupt bits are set in int_status filed of
-  *  octeon_device structure
-  */
+ * These interrupt bits are set in int_status filed of
+ * octeon_device structure
+ */
 #define	   OCT_DEV_INTR_DMA0_FORCE	  0x01
 #define	   OCT_DEV_INTR_DMA1_FORCE	  0x02
 #define	   OCT_DEV_INTR_PKT_DATA	  0x04
@@ -185,6 +194,8 @@ struct octeon_reg_list {
 };
 
 #define OCTEON_CONSOLE_MAX_READ_BYTES 512
+typedef int (*octeon_console_print_fn)(struct octeon_device *oct,
+				       u32 num, char *pre, char *suf);
 struct octeon_console {
 	u32 active;
 	u32 waiting;
@@ -192,6 +203,7 @@ struct octeon_console {
 	u32 buffer_size;
 	u64 input_base_addr;
 	u64 output_base_addr;
+	octeon_console_print_fn print;
 	char leftover[OCTEON_CONSOLE_MAX_READ_BYTES];
 };
 
@@ -208,6 +220,10 @@ struct octeon_fn_list {
 
 	irqreturn_t (*process_interrupt_regs)(void *);
 	u64 (*msix_interrupt_handler)(void *);
+
+	int (*setup_mbox)(struct octeon_device *);
+	int (*free_mbox)(struct octeon_device *);
+
 	int (*soft_reset)(struct octeon_device *);
 	int (*setup_device_regs)(struct octeon_device *);
 	void (*bar1_idx_setup)(struct octeon_device *, u64, u32, int);
@@ -284,6 +300,7 @@ struct octdev_props {
 #define LIO_FLAG_MSIX_ENABLED	0x1
 #define MSIX_PO_INT		0x1
 #define MSIX_PI_INT		0x2
+#define MSIX_MBOX_INT		0x4
 
 struct octeon_pf_vf_hs_word {
 #ifdef __LITTLE_ENDIAN_BITFIELD
@@ -322,14 +339,39 @@ struct octeon_pf_vf_hs_word {
 };
 
 struct octeon_sriov_info {
+	/* Number of rings assigned to VF */
+	u32	rings_per_vf;
+
+	/** Max Number of VF devices that can be enabled. This variable can
+	 *  specified during load time or it will be derived after allocating
+	 *  PF queues. When max_vfs is derived then each VF will get one queue
+	 **/
+	u32	max_vfs;
+
+	/** Number of VF devices enabled using sysfs. */
+	u32	num_vfs_alloced;
+
 	/* Actual rings left for PF device */
 	u32	num_pf_rings;
 
-	/* SRN of PF usable IO queues   */
+	/* SRN of PF usable IO queues */
 	u32	pf_srn;
+
 	/* total pf rings */
 	u32	trs;
 
+	u32	sriov_enabled;
+
+	/*lookup table that maps DPI ring number to VF pci_dev struct pointer*/
+	struct pci_dev *dpiring_to_vfpcidev_lut[MAX_POSSIBLE_VFS];
+
+	u64	vf_macaddr[MAX_POSSIBLE_VFS];
+
+	u16	vf_vlantci[MAX_POSSIBLE_VFS];
+
+	int	vf_linkstate[MAX_POSSIBLE_VFS];
+
+	u64	vf_drv_loaded_mask;
 };
 
 struct octeon_ioq_vector {
@@ -337,6 +379,7 @@ struct octeon_ioq_vector {
 	int		        iq_index;
 	int		        droq_index;
 	int			vector;
+	struct octeon_mbox     *mbox;
 	struct cpumask		affinity_mask;
 	u32			ioq_num;
 };
@@ -365,8 +408,13 @@ struct octeon_device {
 
 	/** Octeon Chip type. */
 	u16 chip_id;
+
 	u16 rev_id;
+
 	u16 pf_num;
+
+	u16 vf_num;
+
 	/** This device's id - set by the driver. */
 	u32 octeon_id;
 
@@ -410,9 +458,6 @@ struct octeon_device {
 	/** List of dispatch functions */
 	struct octeon_dispatch_list dispatch;
 
-	/* Interrupt Moderation */
-	struct oct_intrmod_cfg intrmod;
-
 	u32 int_status;
 
 	u64 droq_intr;
@@ -433,6 +478,12 @@ struct octeon_device {
 
 	/* Console caches */
 	struct octeon_console console[MAX_OCTEON_MAPS];
+
+	/* Console named block info */
+	struct {
+		u64 dram_region_base;
+		int bar1_index;
+	} console_nb_info;
 
 	/* Coprocessor clock rate. */
 	u64 coproc_clock_rate;
@@ -468,11 +519,17 @@ struct octeon_device {
 
 	void *msix_entries;
 
+	/* when requesting IRQs, the names are stored here */
+	void *irq_name_storage;
+
 	struct octeon_sriov_info sriov_info;
 
 	struct octeon_pf_vf_hs_word pfvf_hsword;
 
 	int msix_on;
+
+	/** Mail Box details of each octeon queue. */
+	struct octeon_mbox  *mbox[MAX_POSSIBLE_VFS];
 
 	/** IOq information of it's corresponding MSI-X interrupt. */
 	struct octeon_ioq_vector    *ioq_vector;
@@ -486,21 +543,35 @@ struct octeon_device {
 	u32 priv_flags;
 
 	void *watchdog_task;
+
+	u32 rx_coalesce_usecs;
+	u32 rx_max_coalesced_frames;
+	u32 tx_max_coalesced_frames;
+
+	bool cores_crashed;
+
+	struct {
+		int bus;
+		int dev;
+		int func;
+	} loc;
+
+	atomic_t *adapter_refcount; /* reference count of adapter */
+	bool ptp_enable;
 };
 
 #define  OCT_DRV_ONLINE 1
 #define  OCT_DRV_OFFLINE 2
-#define  OCTEON_CN6XXX(oct)           ((oct->chip_id == OCTEON_CN66XX) || \
-				       (oct->chip_id == OCTEON_CN68XX))
-#define  OCTEON_CN23XX_PF(oct)        (oct->chip_id == OCTEON_CN23XX_PF_VID)
-#define CHIP_FIELD(oct, TYPE, field)             \
-	(((struct octeon_ ## TYPE  *)(oct->chip))->field)
+#define  OCTEON_CN6XXX(oct)	({					\
+				 typeof(oct) _oct = (oct);		\
+				 ((_oct->chip_id == OCTEON_CN66XX) ||	\
+				  (_oct->chip_id == OCTEON_CN68XX));	})
+#define  OCTEON_CN23XX_PF(oct)        ((oct)->chip_id == OCTEON_CN23XX_PF_VID)
+#define  OCTEON_CN23XX_VF(oct)        ((oct)->chip_id == OCTEON_CN23XX_VF_VID)
+#define CHIP_CONF(oct, TYPE)             \
+	(((struct octeon_ ## TYPE  *)((oct)->chip))->conf)
 
-struct oct_intrmod_cmd {
-	struct octeon_device *oct_dev;
-	struct octeon_soft_command *sc;
-	struct oct_intrmod_cfg *cfg;
-};
+#define MAX_IO_PENDING_PKT_COUNT 100
 
 /*------------------ Function Prototypes ----------------------*/
 
@@ -508,7 +579,7 @@ struct oct_intrmod_cmd {
 void octeon_init_device_list(int conf_type);
 
 /** Free memory for Input and Output queue structures for a octeon device */
-void octeon_free_device_mem(struct octeon_device *);
+void octeon_free_device_mem(struct octeon_device *oct);
 
 /* Look up a free entry in the octeon_device table and allocate resources
  * for the octeon_device structure for an octeon device. Called at init
@@ -516,6 +587,23 @@ void octeon_free_device_mem(struct octeon_device *);
  */
 struct octeon_device *octeon_allocate_device(u32 pci_id,
 					     u32 priv_size);
+
+/** Register a device's bus location at initialization time.
+ *  @param octeon_dev - pointer to the octeon device structure.
+ *  @param bus        - PCIe bus #
+ *  @param dev        - PCIe device #
+ *  @param func       - PCIe function #
+ *  @param is_pf      - TRUE for PF, FALSE for VF
+ *  @return reference count of device's adapter
+ */
+int octeon_register_device(struct octeon_device *oct,
+			   int bus, int dev, int func, int is_pf);
+
+/** Deregister a device at de-initialization time.
+ *  @param octeon_dev - pointer to the octeon device structure.
+ *  @return reference count of device's adapter
+ */
+int octeon_deregister_device(struct octeon_device *oct);
 
 /**  Initialize the driver's dispatch list which is a mix of a hash table
  *  and a linked list. This is done at driver load time.
@@ -606,16 +694,16 @@ void lio_pci_writeq(struct octeon_device *oct, u64 val, u64 addr);
 
 /* Routines for reading and writing CSRs */
 #define   octeon_write_csr(oct_dev, reg_off, value) \
-		writel(value, oct_dev->mmio[0].hw_addr + reg_off)
+		writel(value, (oct_dev)->mmio[0].hw_addr + (reg_off))
 
 #define   octeon_write_csr64(oct_dev, reg_off, val64) \
-		writeq(val64, oct_dev->mmio[0].hw_addr + reg_off)
+		writeq(val64, (oct_dev)->mmio[0].hw_addr + (reg_off))
 
 #define   octeon_read_csr(oct_dev, reg_off)         \
-		readl(oct_dev->mmio[0].hw_addr + reg_off)
+		readl((oct_dev)->mmio[0].hw_addr + (reg_off))
 
 #define   octeon_read_csr64(oct_dev, reg_off)         \
-		readq(oct_dev->mmio[0].hw_addr + reg_off)
+		readq((oct_dev)->mmio[0].hw_addr + (reg_off))
 
 /**
  * Checks if memory access is okay
@@ -660,11 +748,17 @@ int octeon_init_consoles(struct octeon_device *oct);
 /**
  * Adds access to a console to the device.
  *
- * @param oct which octeon to add to
- * @param console_num which console
+ * @param oct:          which octeon to add to
+ * @param console_num:  which console
+ * @param dbg_enb:      ptr to debug enablement string, one of:
+ *                    * NULL for no debug output (i.e. disabled)
+ *                    * empty string enables debug output (via default method)
+ *                    * specific string to enable debug console output
+ *
  * @return Zero on success, negative on failure.
  */
-int octeon_add_console(struct octeon_device *oct, u32 console_num);
+int octeon_add_console(struct octeon_device *oct, u32 console_num,
+		       char *dbg_enb);
 
 /** write or read from a console */
 int octeon_console_write(struct octeon_device *oct, u32 console_num,
@@ -724,7 +818,7 @@ int octeon_get_rx_qsize(struct octeon_device *oct, u32 q_no);
 /** Turns off the input and output queues for the device
  *  @param oct which octeon to disable
  */
-void octeon_set_io_queues_off(struct octeon_device *oct);
+int octeon_set_io_queues_off(struct octeon_device *oct);
 
 /** Turns on or off the given output queue for the device
  *  @param oct which octeon to change

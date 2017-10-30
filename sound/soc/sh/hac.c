@@ -315,6 +315,8 @@ static const struct snd_soc_component_driver sh4_hac_component = {
 
 static int hac_soc_platform_probe(struct platform_device *pdev)
 {
+	int ret;
+
 	ret = snd_soc_set_ac97_ops(&hac_ac97_ops);
 	if (ret != 0)
 		return ret;

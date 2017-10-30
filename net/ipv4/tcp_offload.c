@@ -152,7 +152,7 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 		swap(gso_skb->sk, skb->sk);
 		swap(gso_skb->destructor, skb->destructor);
 		sum_truesize += skb->truesize;
-		atomic_add(sum_truesize - gso_skb->truesize,
+		refcount_add(sum_truesize - gso_skb->truesize,
 			   &skb->sk->sk_wmem_alloc);
 	}
 

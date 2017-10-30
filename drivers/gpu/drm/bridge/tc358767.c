@@ -908,7 +908,7 @@ static int tc_main_link_setup(struct tc_data *tc)
 			goto err_dpcd_read;
 
 		if (tmp[0] != tc->assr) {
-			dev_warn(dev, "Failed to switch display ASSR to %d, falling back to unscrambled mode\n",
+			dev_dbg(dev, "Failed to switch display ASSR to %d, falling back to unscrambled mode\n",
 				 tc->assr);
 			/* trying with disabled scrambler */
 			tc->link.scrambler_dis = 1;
@@ -1038,12 +1038,6 @@ err:
 	return ret;
 }
 
-static enum drm_connector_status
-tc_connector_detect(struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static void tc_bridge_pre_enable(struct drm_bridge *bridge)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
@@ -1166,9 +1160,7 @@ static const struct drm_connector_helper_funcs tc_connector_helper_funcs = {
 };
 
 static const struct drm_connector_funcs tc_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.detect = tc_connector_detect,
 	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -1251,7 +1243,6 @@ static const struct regmap_config tc_regmap_config = {
 static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
-	struct device_node *ep;
 	struct tc_data *tc;
 	int ret;
 
@@ -1262,29 +1253,9 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	tc->dev = dev;
 
 	/* port@2 is the output port */
-	ep = of_graph_get_endpoint_by_regs(dev->of_node, 2, -1);
-	if (ep) {
-		struct device_node *remote;
-
-		remote = of_graph_get_remote_port_parent(ep);
-		if (!remote) {
-			dev_warn(dev, "endpoint %s not connected\n",
-				 ep->full_name);
-			of_node_put(ep);
-			return -ENODEV;
-		}
-		of_node_put(ep);
-		tc->panel = of_drm_find_panel(remote);
-		if (tc->panel) {
-			dev_dbg(dev, "found panel %s\n", remote->full_name);
-		} else {
-			dev_dbg(dev, "waiting for panel %s\n",
-				remote->full_name);
-			of_node_put(remote);
-			return -EPROBE_DEFER;
-		}
-		of_node_put(remote);
-	}
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 2, 0, &tc->panel, NULL);
+	if (ret && ret != -ENODEV)
+		return ret;
 
 	/* Shut down GPIO is optional */
 	tc->sd_gpio = devm_gpiod_get_optional(dev, "shutdown", GPIOD_OUT_HIGH);
@@ -1353,11 +1324,7 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	tc->bridge.funcs = &tc_bridge_funcs;
 	tc->bridge.of_node = dev->of_node;
-	ret = drm_bridge_add(&tc->bridge);
-	if (ret) {
-		dev_err(dev, "Failed to add drm_bridge: %d\n", ret);
-		goto err_unregister_aux;
-	}
+	drm_bridge_add(&tc->bridge);
 
 	i2c_set_clientdata(client, tc);
 

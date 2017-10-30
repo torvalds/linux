@@ -34,6 +34,16 @@ config PINCTRL_PFC_R8A7740
 	depends on ARCH_R8A7740
 	select PINCTRL_SH_PFC_GPIO
 
+config PINCTRL_PFC_R8A7743
+	def_bool y
+	depends on ARCH_R8A7743
+	select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A7745
+        def_bool y
+        depends on ARCH_R8A7745
+        select PINCTRL_SH_PFC
+
 config PINCTRL_PFC_R8A7778
 	def_bool y
 	depends on ARCH_R8A7778
@@ -77,6 +87,11 @@ config PINCTRL_PFC_R8A7795
 config PINCTRL_PFC_R8A7796
         def_bool y
         depends on ARCH_R8A7796
+        select PINCTRL_SH_PFC
+
+config PINCTRL_PFC_R8A77995
+        def_bool y
+        depends on ARCH_R8A77995
         select PINCTRL_SH_PFC
 
 config PINCTRL_PFC_SH7203

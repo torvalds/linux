@@ -136,7 +136,7 @@ static void fq_flow_set_throttled(struct fq_sched_data *q, struct fq_flow *f)
 		struct fq_flow *aux;
 
 		parent = *p;
-		aux = container_of(parent, struct fq_flow, rate_node);
+		aux = rb_entry(parent, struct fq_flow, rate_node);
 		if (f->time_next_packet >= aux->time_next_packet)
 			p = &parent->rb_right;
 		else
@@ -188,7 +188,7 @@ static void fq_gc(struct fq_sched_data *q,
 	while (*p) {
 		parent = *p;
 
-		f = container_of(parent, struct fq_flow, fq_node);
+		f = rb_entry(parent, struct fq_flow, fq_node);
 		if (f->sk == sk)
 			break;
 
@@ -245,7 +245,7 @@ static struct fq_flow *fq_classify(struct sk_buff *skb, struct fq_sched_data *q)
 		skb_orphan(skb);
 	}
 
-	root = &q->fq_root[hash_32((u32)(long)sk, q->fq_trees_log)];
+	root = &q->fq_root[hash_ptr(sk, q->fq_trees_log)];
 
 	if (q->flows >= (2U << q->fq_trees_log) &&
 	    q->inactive_flows > q->flows/2)
@@ -256,7 +256,7 @@ static struct fq_flow *fq_classify(struct sk_buff *skb, struct fq_sched_data *q)
 	while (*p) {
 		parent = *p;
 
-		f = container_of(parent, struct fq_flow, fq_node);
+		f = rb_entry(parent, struct fq_flow, fq_node);
 		if (f->sk == sk) {
 			/* socket might have been reallocated, so check
 			 * if its sk_hash is the same.
@@ -390,9 +390,17 @@ static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		q->stat_tcp_retrans++;
 	qdisc_qstats_backlog_inc(sch, skb);
 	if (fq_flow_is_detached(f)) {
+		struct sock *sk = skb->sk;
+
 		fq_flow_add_tail(&q->new_flows, f);
 		if (time_after(jiffies, f->age + q->flow_refill_delay))
 			f->credit = max_t(u32, f->credit, q->quantum);
+		if (sk && q->rate_enable) {
+			if (unlikely(smp_load_acquire(&sk->sk_pacing_status) !=
+				     SK_PACING_FQ))
+				smp_store_release(&sk->sk_pacing_status,
+						  SK_PACING_FQ);
+		}
 		q->inactive_flows--;
 	}
 
@@ -424,7 +432,7 @@ static void fq_check_throttled(struct fq_sched_data *q, u64 now)
 
 	q->time_next_delayed_flow = ~0ULL;
 	while ((p = rb_first(&q->delayed)) != NULL) {
-		struct fq_flow *f = container_of(p, struct fq_flow, rate_node);
+		struct fq_flow *f = rb_entry(p, struct fq_flow, rate_node);
 
 		if (f->time_next_packet > now) {
 			q->time_next_delayed_flow = f->time_next_packet;
@@ -563,7 +571,7 @@ static void fq_reset(struct Qdisc *sch)
 	for (idx = 0; idx < (1U << q->fq_trees_log); idx++) {
 		root = &q->fq_root[idx];
 		while ((p = rb_first(root)) != NULL) {
-			f = container_of(p, struct fq_flow, fq_node);
+			f = rb_entry(p, struct fq_flow, fq_node);
 			rb_erase(p, root);
 
 			fq_flow_purge(f);
@@ -593,20 +601,20 @@ static void fq_rehash(struct fq_sched_data *q,
 		oroot = &old_array[idx];
 		while ((op = rb_first(oroot)) != NULL) {
 			rb_erase(op, oroot);
-			of = container_of(op, struct fq_flow, fq_node);
+			of = rb_entry(op, struct fq_flow, fq_node);
 			if (fq_gc_candidate(of)) {
 				fcnt++;
 				kmem_cache_free(fq_flow_cachep, of);
 				continue;
 			}
-			nroot = &new_array[hash_32((u32)(long)of->sk, new_log)];
+			nroot = &new_array[hash_ptr(of->sk, new_log)];
 
 			np = &nroot->rb_node;
 			parent = NULL;
 			while (*np) {
 				parent = *np;
 
-				nf = container_of(parent, struct fq_flow, fq_node);
+				nf = rb_entry(parent, struct fq_flow, fq_node);
 				BUG_ON(nf->sk == of->sk);
 
 				if (nf->sk > of->sk)
@@ -622,16 +630,6 @@ static void fq_rehash(struct fq_sched_data *q,
 	q->flows -= fcnt;
 	q->inactive_flows -= fcnt;
 	q->stat_gc_flows += fcnt;
-}
-
-static void *fq_alloc_node(size_t sz, int node)
-{
-	void *ptr;
-
-	ptr = kmalloc_node(sz, GFP_KERNEL | __GFP_REPEAT | __GFP_NOWARN, node);
-	if (!ptr)
-		ptr = vmalloc_node(sz, node);
-	return ptr;
 }
 
 static void fq_free(void *addr)
@@ -650,7 +648,7 @@ static int fq_resize(struct Qdisc *sch, u32 log)
 		return 0;
 
 	/* If XPS was setup, we can allocate memory on right NUMA node */
-	array = fq_alloc_node(sizeof(struct rb_root) << log,
+	array = kvmalloc_node(sizeof(struct rb_root) << log, GFP_KERNEL | __GFP_RETRY_MAYFAIL,
 			      netdev_queue_numa_node_read(sch->dev_queue));
 	if (!array)
 		return -ENOMEM;
@@ -698,7 +696,7 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt)
 	if (!opt)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_FQ_MAX, opt, fq_policy);
+	err = nla_parse_nested(tb, TCA_FQ_MAX, opt, fq_policy, NULL);
 	if (err < 0)
 		return err;
 

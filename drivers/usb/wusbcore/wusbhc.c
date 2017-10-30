@@ -84,8 +84,7 @@ static ssize_t wusb_trust_timeout_store(struct device *dev,
 out:
 	return result < 0 ? result : size;
 }
-static DEVICE_ATTR(wusb_trust_timeout, 0644, wusb_trust_timeout_show,
-					     wusb_trust_timeout_store);
+static DEVICE_ATTR_RW(wusb_trust_timeout);
 
 /*
  * Show the current WUSB CHID.
@@ -145,7 +144,7 @@ static ssize_t wusb_chid_store(struct device *dev,
 	result = wusbhc_chid_set(wusbhc, &chid);
 	return result < 0 ? result : size;
 }
-static DEVICE_ATTR(wusb_chid, 0644, wusb_chid_show, wusb_chid_store);
+static DEVICE_ATTR_RW(wusb_chid);
 
 
 static ssize_t wusb_phy_rate_show(struct device *dev,
@@ -174,8 +173,7 @@ static ssize_t wusb_phy_rate_store(struct device *dev,
 	wusbhc->phy_rate = phy_rate;
 	return size;
 }
-static DEVICE_ATTR(wusb_phy_rate, 0644, wusb_phy_rate_show,
-			wusb_phy_rate_store);
+static DEVICE_ATTR_RW(wusb_phy_rate);
 
 static ssize_t wusb_dnts_show(struct device *dev,
 				  struct device_attribute *attr,
@@ -205,7 +203,7 @@ static ssize_t wusb_dnts_store(struct device *dev,
 
 	return size;
 }
-static DEVICE_ATTR(wusb_dnts, 0644, wusb_dnts_show, wusb_dnts_store);
+static DEVICE_ATTR_RW(wusb_dnts);
 
 static ssize_t wusb_retry_count_show(struct device *dev,
 				  struct device_attribute *attr,
@@ -234,8 +232,7 @@ static ssize_t wusb_retry_count_store(struct device *dev,
 
 	return size;
 }
-static DEVICE_ATTR(wusb_retry_count, 0644, wusb_retry_count_show,
-	wusb_retry_count_store);
+static DEVICE_ATTR_RW(wusb_retry_count);
 
 /* Group all the WUSBHC attributes */
 static struct attribute *wusbhc_attrs[] = {
@@ -247,7 +244,7 @@ static struct attribute *wusbhc_attrs[] = {
 		NULL,
 };
 
-static struct attribute_group wusbhc_attr_group = {
+static const struct attribute_group wusbhc_attr_group = {
 	.name = NULL,	/* we want them in the same directory */
 	.attrs = wusbhc_attrs,
 };

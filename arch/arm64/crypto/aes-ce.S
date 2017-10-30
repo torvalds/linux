@@ -2,7 +2,7 @@
  * linux/arch/arm64/crypto/aes-ce.S - AES cipher for ARMv8 with
  *                                    Crypto Extensions
  *
- * Copyright (C) 2013 Linaro Ltd <ard.biesheuvel@linaro.org>
+ * Copyright (C) 2013 - 2017 Linaro Ltd <ard.biesheuvel@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -10,6 +10,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/assembler.h>
 
 #define AES_ENTRY(func)		ENTRY(ce_ ## func)
 #define AES_ENDPROC(func)	ENDPROC(ce_ ## func)
@@ -21,11 +22,11 @@
 	cmp		\rounds, #12
 	blo		2222f		/* 128 bits */
 	beq		1111f		/* 192 bits */
-	ld1		{v17.16b-v18.16b}, [\rk], #32
-1111:	ld1		{v19.16b-v20.16b}, [\rk], #32
-2222:	ld1		{v21.16b-v24.16b}, [\rk], #64
-	ld1		{v25.16b-v28.16b}, [\rk], #64
-	ld1		{v29.16b-v31.16b}, [\rk]
+	ld1		{v17.4s-v18.4s}, [\rk], #32
+1111:	ld1		{v19.4s-v20.4s}, [\rk], #32
+2222:	ld1		{v21.4s-v24.4s}, [\rk], #64
+	ld1		{v25.4s-v28.4s}, [\rk], #64
+	ld1		{v29.4s-v31.4s}, [\rk]
 	.endm
 
 	/* prepare for encryption with key in rk[] */

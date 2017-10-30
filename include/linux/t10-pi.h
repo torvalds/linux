@@ -33,10 +33,12 @@ struct t10_pi_tuple {
 	__be32 ref_tag;		/* Target LBA or indirect LBA */
 };
 
+#define T10_PI_APP_ESCAPE cpu_to_be16(0xffff)
+#define T10_PI_REF_ESCAPE cpu_to_be32(0xffffffff)
 
-extern struct blk_integrity_profile t10_pi_type1_crc;
-extern struct blk_integrity_profile t10_pi_type1_ip;
-extern struct blk_integrity_profile t10_pi_type3_crc;
-extern struct blk_integrity_profile t10_pi_type3_ip;
+extern const struct blk_integrity_profile t10_pi_type1_crc;
+extern const struct blk_integrity_profile t10_pi_type1_ip;
+extern const struct blk_integrity_profile t10_pi_type3_crc;
+extern const struct blk_integrity_profile t10_pi_type3_ip;
 
 #endif

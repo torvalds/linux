@@ -451,8 +451,7 @@ context_derive_keys_rc4(struct krb5_ctx *ctx)
 		goto out_err_free_hmac;
 
 
-	desc = kmalloc(sizeof(*desc) + crypto_shash_descsize(hmac),
-		       GFP_KERNEL);
+	desc = kmalloc(sizeof(*desc) + crypto_shash_descsize(hmac), GFP_NOFS);
 	if (!desc) {
 		dprintk("%s: failed to allocate hash descriptor for '%s'\n",
 			__func__, ctx->gk5e->cksum_name);

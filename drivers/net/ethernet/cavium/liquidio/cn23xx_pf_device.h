@@ -1,28 +1,23 @@
 /**********************************************************************
-* Author: Cavium, Inc.
-*
-* Contact: support@cavium.com
-*          Please include "LiquidIO" in the subject.
-*
-* Copyright (c) 2003-2015 Cavium, Inc.
-*
-* This file is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License, Version 2, as
-* published by the Free Software Foundation.
-*
-* This file is distributed in the hope that it will be useful, but
-* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
-* NONINFRINGEMENT.  See the GNU General Public License for more
-* details.
-*
-* This file may also be available under a different license from Cavium.
-* Contact Cavium, Inc. for more information
-**********************************************************************/
-
+ * Author: Cavium, Inc.
+ *
+ * Contact: support@cavium.com
+ *          Please include "LiquidIO" in the subject.
+ *
+ * Copyright (c) 2003-2016 Cavium, Inc.
+ *
+ * This file is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, Version 2, as
+ * published by the Free Software Foundation.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 /*! \file  cn23xx_device.h
  * \brief Host Driver: Routines that perform CN23XX specific operations.
-*/
+ */
 
 #ifndef __CN23XX_PF_DEVICE_H__
 #define __CN23XX_PF_DEVICE_H__
@@ -46,6 +41,8 @@ struct octeon_cn23xx_pf {
 	struct octeon_config *conf;
 };
 
+#define CN23XX_SLI_DEF_BP			0x40
+
 int setup_cn23xx_octeon_pf_device(struct octeon_device *oct);
 
 int validate_cn23xx_pf_config_info(struct octeon_device *oct,
@@ -56,4 +53,7 @@ u32 cn23xx_pf_get_oq_ticks(struct octeon_device *oct, u32 time_intr_in_us);
 void cn23xx_dump_pf_initialized_regs(struct octeon_device *oct);
 
 int cn23xx_fw_loaded(struct octeon_device *oct);
+
+void cn23xx_tell_vf_its_macaddr_changed(struct octeon_device *oct, int vfidx,
+					u8 *mac);
 #endif

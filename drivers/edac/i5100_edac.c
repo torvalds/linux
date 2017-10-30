@@ -29,7 +29,6 @@
 #include <linux/mmzone.h>
 #include <linux/debugfs.h>
 
-#include "edac_core.h"
 #include "edac_module.h"
 
 /* register addresses */
@@ -1109,7 +1108,6 @@ static int i5100_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	mci->edac_ctl_cap = EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = "i5100_edac.c";
-	mci->mod_ver = "not versioned";
 	mci->ctl_name = "i5100";
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;

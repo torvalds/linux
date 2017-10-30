@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2012 - 2017 Intel Corporation.  All rights reserved.
  * Copyright (c) 2006 - 2012 QLogic Corporation.  * All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
@@ -61,43 +61,6 @@ static inline unsigned find_next_offset(struct rvt_qpn_table *qpt,
 	return off;
 }
 
-/*
- * Convert the AETH credit code into the number of credits.
- */
-static u32 credit_table[31] = {
-	0,                      /* 0 */
-	1,                      /* 1 */
-	2,                      /* 2 */
-	3,                      /* 3 */
-	4,                      /* 4 */
-	6,                      /* 5 */
-	8,                      /* 6 */
-	12,                     /* 7 */
-	16,                     /* 8 */
-	24,                     /* 9 */
-	32,                     /* A */
-	48,                     /* B */
-	64,                     /* C */
-	96,                     /* D */
-	128,                    /* E */
-	192,                    /* F */
-	256,                    /* 10 */
-	384,                    /* 11 */
-	512,                    /* 12 */
-	768,                    /* 13 */
-	1024,                   /* 14 */
-	1536,                   /* 15 */
-	2048,                   /* 16 */
-	3072,                   /* 17 */
-	4096,                   /* 18 */
-	6144,                   /* 19 */
-	8192,                   /* 1A */
-	12288,                  /* 1B */
-	16384,                  /* 1C */
-	24576,                  /* 1D */
-	32768                   /* 1E */
-};
-
 const struct rvt_operation_params qib_post_parms[RVT_OPERATION_MAX] = {
 [IB_WR_RDMA_WRITE] = {
 	.length = sizeof(struct ib_rdma_wr),
@@ -141,10 +104,9 @@ const struct rvt_operation_params qib_post_parms[RVT_OPERATION_MAX] = {
 
 };
 
-static void get_map_page(struct rvt_qpn_table *qpt, struct rvt_qpn_map *map,
-			 gfp_t gfp)
+static void get_map_page(struct rvt_qpn_table *qpt, struct rvt_qpn_map *map)
 {
-	unsigned long page = get_zeroed_page(gfp);
+	unsigned long page = get_zeroed_page(GFP_KERNEL);
 
 	/*
 	 * Free the page if someone raced with us installing it.
@@ -163,7 +125,7 @@ static void get_map_page(struct rvt_qpn_table *qpt, struct rvt_qpn_map *map,
  * zero/one for QP type IB_QPT_SMI/IB_QPT_GSI.
  */
 int qib_alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
-		  enum ib_qp_type type, u8 port, gfp_t gfp)
+		  enum ib_qp_type type, u8 port)
 {
 	u32 i, offset, max_scan, qpn;
 	struct rvt_qpn_map *map;
@@ -197,7 +159,7 @@ int qib_alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 	max_scan = qpt->nmaps - !offset;
 	for (i = 0;;) {
 		if (unlikely(!map->page)) {
-			get_map_page(qpt, map, gfp);
+			get_map_page(qpt, map);
 			if (unlikely(!map->page))
 				break;
 		}
@@ -354,76 +316,16 @@ u32 qib_mtu_from_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp, u32 pmtu)
 	return ib_mtu_enum_to_int(pmtu);
 }
 
-/**
- * qib_compute_aeth - compute the AETH (syndrome + MSN)
- * @qp: the queue pair to compute the AETH for
- *
- * Returns the AETH.
- */
-__be32 qib_compute_aeth(struct rvt_qp *qp)
-{
-	u32 aeth = qp->r_msn & QIB_MSN_MASK;
-
-	if (qp->ibqp.srq) {
-		/*
-		 * Shared receive queues don't generate credits.
-		 * Set the credit field to the invalid value.
-		 */
-		aeth |= QIB_AETH_CREDIT_INVAL << QIB_AETH_CREDIT_SHIFT;
-	} else {
-		u32 min, max, x;
-		u32 credits;
-		struct rvt_rwq *wq = qp->r_rq.wq;
-		u32 head;
-		u32 tail;
-
-		/* sanity check pointers before trusting them */
-		head = wq->head;
-		if (head >= qp->r_rq.size)
-			head = 0;
-		tail = wq->tail;
-		if (tail >= qp->r_rq.size)
-			tail = 0;
-		/*
-		 * Compute the number of credits available (RWQEs).
-		 * XXX Not holding the r_rq.lock here so there is a small
-		 * chance that the pair of reads are not atomic.
-		 */
-		credits = head - tail;
-		if ((int)credits < 0)
-			credits += qp->r_rq.size;
-		/*
-		 * Binary search the credit table to find the code to
-		 * use.
-		 */
-		min = 0;
-		max = 31;
-		for (;;) {
-			x = (min + max) / 2;
-			if (credit_table[x] == credits)
-				break;
-			if (credit_table[x] > credits)
-				max = x;
-			else if (min == x)
-				break;
-			else
-				min = x;
-		}
-		aeth |= x << QIB_AETH_CREDIT_SHIFT;
-	}
-	return cpu_to_be32(aeth);
-}
-
-void *qib_qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp, gfp_t gfp)
+void *qib_qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 {
 	struct qib_qp_priv *priv;
 
-	priv = kzalloc(sizeof(*priv), gfp);
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 	priv->owner = qp;
 
-	priv->s_hdr = kzalloc(sizeof(*priv->s_hdr), gfp);
+	priv->s_hdr = kzalloc(sizeof(*priv->s_hdr), GFP_KERNEL);
 	if (!priv->s_hdr) {
 		kfree(priv);
 		return ERR_PTR(-ENOMEM);
@@ -448,7 +350,6 @@ void qib_stop_send_queue(struct rvt_qp *qp)
 	struct qib_qp_priv *priv = qp->priv;
 
 	cancel_work_sync(&priv->s_work);
-	del_timer_sync(&qp->s_timer);
 }
 
 void qib_quiesce_qp(struct rvt_qp *qp)
@@ -471,43 +372,6 @@ void qib_flush_qp_waiters(struct rvt_qp *qp)
 	if (!list_empty(&priv->iowait))
 		list_del_init(&priv->iowait);
 	spin_unlock(&dev->rdi.pending_lock);
-}
-
-/**
- * qib_get_credit - flush the send work queue of a QP
- * @qp: the qp who's send work queue to flush
- * @aeth: the Acknowledge Extended Transport Header
- *
- * The QP s_lock should be held.
- */
-void qib_get_credit(struct rvt_qp *qp, u32 aeth)
-{
-	u32 credit = (aeth >> QIB_AETH_CREDIT_SHIFT) & QIB_AETH_CREDIT_MASK;
-
-	/*
-	 * If the credit is invalid, we can send
-	 * as many packets as we like.  Otherwise, we have to
-	 * honor the credit field.
-	 */
-	if (credit == QIB_AETH_CREDIT_INVAL) {
-		if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT)) {
-			qp->s_flags |= RVT_S_UNLIMITED_CREDIT;
-			if (qp->s_flags & RVT_S_WAIT_SSN_CREDIT) {
-				qp->s_flags &= ~RVT_S_WAIT_SSN_CREDIT;
-				qib_schedule_send(qp);
-			}
-		}
-	} else if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT)) {
-		/* Compute new LSN (i.e., MSN + credit) */
-		credit = (aeth + credit_table[credit]) & QIB_MSN_MASK;
-		if (qib_cmp24(credit, qp->s_lsn) > 0) {
-			qp->s_lsn = credit;
-			if (qp->s_flags & RVT_S_WAIT_SSN_CREDIT) {
-				qp->s_flags &= ~RVT_S_WAIT_SSN_CREDIT;
-				qib_schedule_send(qp);
-			}
-		}
-	}
 }
 
 /**
@@ -551,53 +415,16 @@ int qib_check_send_wqe(struct rvt_qp *qp,
 
 #ifdef CONFIG_DEBUG_FS
 
-struct qib_qp_iter {
-	struct qib_ibdev *dev;
-	struct rvt_qp *qp;
-	int n;
-};
-
-struct qib_qp_iter *qib_qp_iter_init(struct qib_ibdev *dev)
-{
-	struct qib_qp_iter *iter;
-
-	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
-	if (!iter)
-		return NULL;
-
-	iter->dev = dev;
-
-	return iter;
-}
-
-int qib_qp_iter_next(struct qib_qp_iter *iter)
-{
-	struct qib_ibdev *dev = iter->dev;
-	int n = iter->n;
-	int ret = 1;
-	struct rvt_qp *pqp = iter->qp;
-	struct rvt_qp *qp;
-
-	for (; n < dev->rdi.qp_dev->qp_table_size; n++) {
-		if (pqp)
-			qp = rcu_dereference(pqp->next);
-		else
-			qp = rcu_dereference(dev->rdi.qp_dev->qp_table[n]);
-		pqp = qp;
-		if (qp) {
-			iter->qp = qp;
-			iter->n = n;
-			return 0;
-		}
-	}
-	return ret;
-}
-
 static const char * const qp_type_str[] = {
 	"SMI", "GSI", "RC", "UC", "UD",
 };
 
-void qib_qp_iter_print(struct seq_file *s, struct qib_qp_iter *iter)
+/**
+ * qib_qp_iter_print - print information to seq_file
+ * @s - the seq_file
+ * @iter - the iterator
+ */
+void qib_qp_iter_print(struct seq_file *s, struct rvt_qp_iter *iter)
 {
 	struct rvt_swqe *wqe;
 	struct rvt_qp *qp = iter->qp;
@@ -624,7 +451,7 @@ void qib_qp_iter_print(struct seq_file *s, struct qib_qp_iter *iter)
 		   qp->s_last, qp->s_acked, qp->s_cur,
 		   qp->s_tail, qp->s_head, qp->s_size,
 		   qp->remote_qpn,
-		   qp->remote_ah_attr.dlid);
+		   rdma_ah_get_dlid(&qp->remote_ah_attr));
 }
 
 #endif

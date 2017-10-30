@@ -98,10 +98,16 @@ int page_key_alloc(unsigned long pages)
  */
 void page_key_read(unsigned long *pfn)
 {
+	struct page *page;
 	unsigned long addr;
+	unsigned char key;
 
-	addr = (unsigned long) page_address(pfn_to_page(*pfn));
-	*(unsigned char *) pfn = (unsigned char) page_get_storage_key(addr);
+	page = pfn_to_page(*pfn);
+	addr = (unsigned long) page_address(page);
+	key = (unsigned char) page_get_storage_key(addr) & 0x7f;
+	if (arch_test_page_nodat(page))
+		key |= 0x80;
+	*(unsigned char *) pfn = key;
 }
 
 /*
@@ -126,8 +132,16 @@ void page_key_memorize(unsigned long *pfn)
  */
 void page_key_write(void *address)
 {
-	page_set_storage_key((unsigned long) address,
-			     page_key_rp->data[page_key_rx], 0);
+	struct page *page;
+	unsigned char key;
+
+	key = page_key_rp->data[page_key_rx];
+	page_set_storage_key((unsigned long) address, key & 0x7f, 0);
+	page = virt_to_page(address);
+	if (key & 0x80)
+		arch_set_page_nodat(page, 0);
+	else
+		arch_set_page_dat(page, 0);
 	if (++page_key_rx >= PAGE_KEY_DATA_SIZE)
 		return;
 	page_key_rp = page_key_rp->next;

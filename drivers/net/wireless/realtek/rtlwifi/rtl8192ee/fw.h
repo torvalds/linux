@@ -37,7 +37,7 @@
 #define USE_OLD_WOWLAN_DEBUG_FW 0
 
 #define H2C_92E_RSVDPAGE_LOC_LEN		5
-#define H2C_92E_PWEMODE_LENGTH			5
+#define H2C_92E_PWEMODE_LENGTH			7
 #define H2C_92E_JOINBSSRPT_LENGTH		1
 #define H2C_92E_AP_OFFLOAD_LENGTH		3
 #define H2C_92E_WOWLAN_LENGTH			3
@@ -154,6 +154,8 @@ enum rtl8192e_c2h_evt {
 	SET_BITS_TO_LE_1BYTE((__cmd)+3, 0, 8, __val)
 #define SET_H2CCMD_PWRMODE_PARM_PWR_STATE(__cmd, __val)		\
 	SET_BITS_TO_LE_1BYTE((__cmd)+4, 0, 8, __val)
+#define SET_H2CCMD_PWRMODE_PARM_BYTE5(__cmd, __val)		\
+	SET_BITS_TO_LE_1BYTE((__cmd) + 5, 0, 8, __val)
 #define GET_92E_H2CCMD_PWRMODE_PARM_MODE(__cmd)			\
 	LE_BITS_TO_1BYTE(__cmd, 0, 8)
 
@@ -165,6 +167,10 @@ enum rtl8192e_c2h_evt {
 	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+1, 0, 8, __val)
 #define SET_H2CCMD_RSVDPAGE_LOC_NULL_DATA(__ph2ccmd, __val)		\
 	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+2, 0, 8, __val)
+#define SET_H2CCMD_RSVDPAGE_LOC_QOS_NULL_DATA(__ph2ccmd, __val)		\
+	SET_BITS_TO_LE_1BYTE((__ph2ccmd) + 3, 0, 8, __val)
+#define SET_H2CCMD_RSVDPAGE_LOC_BT_QOS_NULL_DATA(__ph2ccmd, __val)	\
+	SET_BITS_TO_LE_1BYTE((__ph2ccmd) + 4, 0, 8, __val)
 
 /* _MEDIA_STATUS_RPT_PARM_CMD1 */
 #define SET_H2CCMD_MSRRPT_PARM_OPMODE(__cmd, __val)		\
@@ -185,5 +191,6 @@ void rtl92ee_set_fw_media_status_rpt_cmd(struct ieee80211_hw *hw, u8 mstatus);
 void rtl92ee_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished);
 void rtl92ee_set_p2p_ps_offload_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state);
 void rtl92ee_c2h_packet_handler(struct ieee80211_hw *hw, u8 *buffer, u8 len);
-
+void rtl92ee_c2h_content_parsing(struct ieee80211_hw *hw, u8 c2h_cmd_id,
+				 u8 c2h_cmd_len, u8 *tmp_buf);
 #endif

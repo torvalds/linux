@@ -14,6 +14,7 @@
 #include <dt-bindings/mfd/dbx500-prcmu.h>
 #include <dt-bindings/arm/ux500_pm_domains.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/clock/ste-ab8500.h>
 #include "skeleton.dtsi"
 
 / {
@@ -36,6 +37,14 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0x300>;
+			/* cpufreq controls */
+			operating-points = <998400 0
+					    800000 0
+					    400000 0
+					    200000 0>;
+			clocks = <&prcmu_clk PRCMU_ARMSS>;
+			clock-names = "cpu";
+			clock-latency = <20000>;
 		};
 		CPU1: cpu@301 {
 			device_type = "cpu";
@@ -493,13 +502,6 @@
 				reg = <0x80157450 0xC>;
 			};
 
-			cpufreq {
-				compatible = "stericsson,cpufreq-ux500";
-				clocks = <&prcmu_clk PRCMU_ARMSS>;
-				clock-names = "armss";
-				status = "disabled";
-			};
-
 			thermal@801573c0 {
 				compatible = "stericsson,db8500-thermal";
 				reg = <0x801573c0 0x40>;
@@ -603,6 +605,11 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 
+				ab8500_clock: clock-controller {
+					compatible = "stericsson,ab8500-clk";
+					#clock-cells = <1>;
+				};
+
 				ab8500_gpio: ab8500-gpio {
 					compatible = "stericsson,ab8500-gpio";
 					gpio-controller;
@@ -669,6 +676,8 @@
 					vddulpivio18-supply = <&ab8500_ldo_intcore_reg>;
 					v-ape-supply = <&db8500_vape_reg>;
 					musb_1v8-supply = <&db8500_vsmps2_reg>;
+					clocks = <&prcmu_clk PRCMU_SYSCLK>;
+					clock-names = "sysclk";
 				};
 
 				ab8500-ponkey {
@@ -684,6 +693,8 @@
 
 				ab8500-pwm {
 					compatible = "stericsson,ab8500-pwm";
+					clocks = <&ab8500_clock AB8500_SYSCLK_INT>;
+					clock-names = "intclk";
 				};
 
 				ab8500-debugfs {
@@ -697,6 +708,9 @@
 					V-AMIC1-supply = <&ab8500_ldo_anamic1_reg>;
 					V-AMIC2-supply = <&ab8500_ldo_anamic2_reg>;
 					V-DMIC-supply = <&ab8500_ldo_dmic_reg>;
+
+					clocks = <&ab8500_clock AB8500_SYSCLK_AUDIO>;
+					clock-names = "audioclk";
 
 					stericsson,earpeice-cmv = <950>; /* Units in mV. */
 				};
@@ -1093,6 +1107,14 @@
 			status = "disabled";
 		};
 
+		sound {
+			compatible = "stericsson,snd-soc-mop500";
+			stericsson,cpu-dai = <&msp1 &msp3>;
+			stericsson,audio-codec = <&codec>;
+			clocks = <&prcmu_clk PRCMU_SYSCLK>, <&ab8500_clock AB8500_SYSCLK_ULP>, <&ab8500_clock AB8500_SYSCLK_INT>;
+			clock-names = "sysclk", "ulpclk", "intclk";
+		};
+
 		msp0: msp@80123000 {
 			compatible = "stericsson,ux500-msp-i2s";
 			reg = <0x80123000 0x1000>;
@@ -1165,11 +1187,6 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x50000000 0x4000000>;
-			status = "disabled";
-		};
-
-		cpufreq-cooling {
-			compatible = "stericsson,db8500-cpufreq-cooling";
 			status = "disabled";
 		};
 

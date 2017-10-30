@@ -26,8 +26,19 @@
 #include "../../codecs/hdac_hdmi.h"
 #include "../../codecs/rt298.h"
 
-static struct snd_soc_jack broxton_headset;
 /* Headset jack detection DAPM pins */
+static struct snd_soc_jack broxton_headset;
+static struct snd_soc_jack broxton_hdmi[3];
+
+struct bxt_hdmi_pcm {
+	struct list_head head;
+	struct snd_soc_dai *codec_dai;
+	int device;
+};
+
+struct bxt_rt286_private {
+	struct list_head hdmi_pcm_list;
+};
 
 enum {
 	BXT_DPCM_AUDIO_PB = 0,
@@ -82,9 +93,9 @@ static const struct snd_soc_dapm_route broxton_rt298_map[] = {
 	{"DMIC1 Pin", NULL, "DMIC2"},
 	{"DMic", NULL, "SoC DMIC"},
 
-	{"HDMI1", NULL, "hif5 Output"},
-	{"HDMI2", NULL, "hif6 Output"},
-	{"HDMI3", NULL, "hif7 Output"},
+	{"HDMI1", NULL, "hif5-0 Output"},
+	{"HDMI2", NULL, "hif6-0 Output"},
+	{"HDMI2", NULL, "hif7-0 Output"},
 
 	/* CODEC BE connections */
 	{ "AIF1 Playback", NULL, "ssp5 Tx"},
@@ -103,7 +114,44 @@ static const struct snd_soc_dapm_route broxton_rt298_map[] = {
 	{ "iDisp2 Tx", NULL, "iDisp2_out"},
 	{ "hifi1", NULL, "iDisp1 Tx"},
 	{ "iDisp1 Tx", NULL, "iDisp1_out"},
+};
 
+static const struct snd_soc_dapm_route geminilake_rt298_map[] = {
+	/* speaker */
+	{"Speaker", NULL, "SPOR"},
+	{"Speaker", NULL, "SPOL"},
+
+	/* HP jack connectors - unknown if we have jack detect */
+	{"Headphone Jack", NULL, "HPO Pin"},
+
+	/* other jacks */
+	{"MIC1", NULL, "Mic Jack"},
+
+	/* digital mics */
+	{"DMIC1 Pin", NULL, "DMIC2"},
+	{"DMic", NULL, "SoC DMIC"},
+
+	{"HDMI1", NULL, "hif5-0 Output"},
+	{"HDMI2", NULL, "hif6-0 Output"},
+	{"HDMI2", NULL, "hif7-0 Output"},
+
+	/* CODEC BE connections */
+	{ "AIF1 Playback", NULL, "ssp2 Tx"},
+	{ "ssp2 Tx", NULL, "codec0_out"},
+	{ "ssp2 Tx", NULL, "codec1_out"},
+
+	{ "codec0_in", NULL, "ssp2 Rx" },
+	{ "ssp2 Rx", NULL, "AIF1 Capture" },
+
+	{ "dmic01_hifi", NULL, "DMIC01 Rx" },
+	{ "DMIC01 Rx", NULL, "Capture" },
+
+	{ "hifi3", NULL, "iDisp3 Tx"},
+	{ "iDisp3 Tx", NULL, "iDisp3_out"},
+	{ "hifi2", NULL, "iDisp2 Tx"},
+	{ "iDisp2 Tx", NULL, "iDisp2_out"},
+	{ "hifi1", NULL, "iDisp1 Tx"},
+	{ "iDisp1 Tx", NULL, "iDisp1_out"},
 };
 
 static int broxton_rt298_fe_init(struct snd_soc_pcm_runtime *rtd)
@@ -139,9 +187,20 @@ static int broxton_rt298_codec_init(struct snd_soc_pcm_runtime *rtd)
 
 static int broxton_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct bxt_rt286_private *ctx = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *dai = rtd->codec_dai;
+	struct bxt_hdmi_pcm *pcm;
 
-	return hdac_hdmi_jack_init(dai, BXT_DPCM_AUDIO_HDMI1_PB + dai->id);
+	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
+	if (!pcm)
+		return -ENOMEM;
+
+	pcm->device = BXT_DPCM_AUDIO_HDMI1_PB + dai->id;
+	pcm->codec_dai = dai;
+
+	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
+
+	return 0;
 }
 
 static int broxton_ssp5_fixup(struct snd_soc_pcm_runtime *rtd,
@@ -181,15 +240,15 @@ static int broxton_rt298_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static struct snd_soc_ops broxton_rt298_ops = {
+static const struct snd_soc_ops broxton_rt298_ops = {
 	.hw_params = broxton_rt298_hw_params,
 };
 
-static unsigned int rates[] = {
+static const unsigned int rates[] = {
 	48000,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_rates = {
+static const struct snd_pcm_hw_constraint_list constraints_rates = {
 	.count = ARRAY_SIZE(rates),
 	.list  = rates,
 	.mask = 0,
@@ -200,19 +259,16 @@ static int broxton_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
 {
 	struct snd_interval *channels = hw_param_interval(params,
 						SNDRV_PCM_HW_PARAM_CHANNELS);
-	if (params_channels(params) == 2)
-		channels->min = channels->max = 2;
-	else
-		channels->min = channels->max = 4;
+	channels->min = channels->max = 4;
 
 	return 0;
 }
 
-static unsigned int channels_dmic[] = {
-	2, 4,
+static const unsigned int channels_dmic[] = {
+	1, 2, 3, 4,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_dmic_channels = {
+static const struct snd_pcm_hw_constraint_list constraints_dmic_channels = {
 	.count = ARRAY_SIZE(channels_dmic),
 	.list = channels_dmic,
 	.mask = 0,
@@ -230,15 +286,15 @@ static int broxton_dmic_startup(struct snd_pcm_substream *substream)
 				SNDRV_PCM_HW_PARAM_RATE, &constraints_rates);
 }
 
-static struct snd_soc_ops broxton_dmic_ops = {
+static const struct snd_soc_ops broxton_dmic_ops = {
 	.startup = broxton_dmic_startup,
 };
 
-static unsigned int channels[] = {
+static const unsigned int channels[] = {
 	2,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_channels = {
+static const struct snd_pcm_hw_constraint_list constraints_channels = {
 	.count = ARRAY_SIZE(channels),
 	.list = channels,
 	.mask = 0,
@@ -252,12 +308,15 @@ static int bxt_fe_startup(struct snd_pcm_substream *substream)
 	 * on this platform for PCM device we support:
 	 *      48Khz
 	 *      stereo
+	 *	16-bit audio
 	 */
 
 	runtime->hw.channels_max = 2;
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
 				&constraints_channels);
 
+	runtime->hw.formats = SNDRV_PCM_FMTBIT_S16_LE;
+	snd_pcm_hw_constraint_msbits(runtime, 0, 16, 16);
 	snd_pcm_hw_constraint_list(runtime, 0,
 				SNDRV_PCM_HW_PARAM_RATE, &constraints_rates);
 
@@ -432,10 +491,44 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 	},
 };
 
+#define NAME_SIZE	32
+static int bxt_card_late_probe(struct snd_soc_card *card)
+{
+	struct bxt_rt286_private *ctx = snd_soc_card_get_drvdata(card);
+	struct bxt_hdmi_pcm *pcm;
+	struct snd_soc_codec *codec = NULL;
+	int err, i = 0;
+	char jack_name[NAME_SIZE];
+
+	list_for_each_entry(pcm, &ctx->hdmi_pcm_list, head) {
+		codec = pcm->codec_dai->codec;
+		snprintf(jack_name, sizeof(jack_name),
+			"HDMI/DP, pcm=%d Jack", pcm->device);
+		err = snd_soc_card_jack_new(card, jack_name,
+					SND_JACK_AVOUT, &broxton_hdmi[i],
+					NULL, 0);
+
+		if (err)
+			return err;
+
+		err = hdac_hdmi_jack_init(pcm->codec_dai, pcm->device,
+						&broxton_hdmi[i]);
+		if (err < 0)
+			return err;
+
+		i++;
+	}
+
+	if (!codec)
+		return -EINVAL;
+
+	return hdac_hdmi_jack_port_init(codec, &card->dapm);
+}
+
+
 /* broxton audio machine driver for SPT + RT298S */
 static struct snd_soc_card broxton_rt298 = {
 	.name = "broxton-rt298",
-	.owner = THIS_MODULE,
 	.dai_link = broxton_rt298_dais,
 	.num_links = ARRAY_SIZE(broxton_rt298_dais),
 	.controls = broxton_controls,
@@ -445,14 +538,65 @@ static struct snd_soc_card broxton_rt298 = {
 	.dapm_routes = broxton_rt298_map,
 	.num_dapm_routes = ARRAY_SIZE(broxton_rt298_map),
 	.fully_routed = true,
+	.late_probe = bxt_card_late_probe,
+
+};
+
+static struct snd_soc_card geminilake_rt298 = {
+	.name = "geminilake-rt298",
+	.dai_link = broxton_rt298_dais,
+	.num_links = ARRAY_SIZE(broxton_rt298_dais),
+	.controls = broxton_controls,
+	.num_controls = ARRAY_SIZE(broxton_controls),
+	.dapm_widgets = broxton_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(broxton_widgets),
+	.dapm_routes = geminilake_rt298_map,
+	.num_dapm_routes = ARRAY_SIZE(geminilake_rt298_map),
+	.fully_routed = true,
+	.late_probe = bxt_card_late_probe,
 };
 
 static int broxton_audio_probe(struct platform_device *pdev)
 {
-	broxton_rt298.dev = &pdev->dev;
+	struct bxt_rt286_private *ctx;
+	struct snd_soc_card *card =
+			(struct snd_soc_card *)pdev->id_entry->driver_data;
+	int i;
 
-	return devm_snd_soc_register_card(&pdev->dev, &broxton_rt298);
+	for (i = 0; i < ARRAY_SIZE(broxton_rt298_dais); i++) {
+		if (!strncmp(card->dai_link[i].codec_name, "i2c-INT343A:00",
+						I2C_NAME_SIZE)) {
+			if (!strncmp(card->name, "broxton-rt298",
+						PLATFORM_NAME_SIZE)) {
+				card->dai_link[i].name = "SSP5-Codec";
+				card->dai_link[i].cpu_dai_name = "SSP5 Pin";
+			} else if (!strncmp(card->name, "geminilake-rt298",
+						PLATFORM_NAME_SIZE)) {
+				card->dai_link[i].name = "SSP2-Codec";
+				card->dai_link[i].cpu_dai_name = "SSP2 Pin";
+			}
+		}
+	}
+
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_ATOMIC);
+	if (!ctx)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
+
+	card->dev = &pdev->dev;
+	snd_soc_card_set_drvdata(card, ctx);
+
+	return devm_snd_soc_register_card(&pdev->dev, card);
 }
+
+static const struct platform_device_id bxt_board_ids[] = {
+	{ .name = "bxt_alc298s_i2s", .driver_data =
+				(unsigned long)&broxton_rt298 },
+	{ .name = "glk_alc298s_i2s", .driver_data =
+				(unsigned long)&geminilake_rt298 },
+	{}
+};
 
 static struct platform_driver broxton_audio = {
 	.probe = broxton_audio_probe,
@@ -460,6 +604,7 @@ static struct platform_driver broxton_audio = {
 		.name = "bxt_alc298s_i2s",
 		.pm = &snd_soc_pm_ops,
 	},
+	.id_table = bxt_board_ids,
 };
 module_platform_driver(broxton_audio)
 
@@ -469,3 +614,4 @@ MODULE_AUTHOR("Senthilnathan Veppur <senthilnathanx.veppur@intel.com>");
 MODULE_DESCRIPTION("Intel SST Audio for Broxton");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:bxt_alc298s_i2s");
+MODULE_ALIAS("platform:glk_alc298s_i2s");

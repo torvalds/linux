@@ -218,7 +218,14 @@ static ssize_t pm_qos_resume_latency_show(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	return sprintf(buf, "%d\n", dev_pm_qos_requested_resume_latency(dev));
+	s32 value = dev_pm_qos_requested_resume_latency(dev);
+
+	if (value == 0)
+		return sprintf(buf, "n/a\n");
+	else if (value == PM_QOS_RESUME_LATENCY_NO_CONSTRAINT)
+		value = 0;
+
+	return sprintf(buf, "%d\n", value);
 }
 
 static ssize_t pm_qos_resume_latency_store(struct device *dev,
@@ -228,11 +235,21 @@ static ssize_t pm_qos_resume_latency_store(struct device *dev,
 	s32 value;
 	int ret;
 
-	if (kstrtos32(buf, 0, &value))
-		return -EINVAL;
+	if (!kstrtos32(buf, 0, &value)) {
+		/*
+		 * Prevent users from writing negative or "no constraint" values
+		 * directly.
+		 */
+		if (value < 0 || value == PM_QOS_RESUME_LATENCY_NO_CONSTRAINT)
+			return -EINVAL;
 
-	if (value < 0)
+		if (value == 0)
+			value = PM_QOS_RESUME_LATENCY_NO_CONSTRAINT;
+	} else if (!strcmp(buf, "n/a") || !strcmp(buf, "n/a\n")) {
+		value = 0;
+	} else {
 		return -EINVAL;
+	}
 
 	ret = dev_pm_qos_update_request(dev->power.qos->resume_latency_req,
 					value);
@@ -263,11 +280,17 @@ static ssize_t pm_qos_latency_tolerance_store(struct device *dev,
 	s32 value;
 	int ret;
 
-	if (kstrtos32(buf, 0, &value)) {
+	if (kstrtos32(buf, 0, &value) == 0) {
+		/* Users can't write negative values directly */
+		if (value < 0)
+			return -EINVAL;
+	} else {
 		if (!strcmp(buf, "auto") || !strcmp(buf, "auto\n"))
 			value = PM_QOS_LATENCY_TOLERANCE_NO_CONSTRAINT;
 		else if (!strcmp(buf, "any") || !strcmp(buf, "any\n"))
 			value = PM_QOS_LATENCY_ANY;
+		else
+			return -EINVAL;
 	}
 	ret = dev_pm_qos_update_user_latency_tolerance(dev, value);
 	return ret < 0 ? ret : n;
@@ -603,7 +626,7 @@ static struct attribute *power_attrs[] = {
 #endif /* CONFIG_PM_ADVANCED_DEBUG */
 	NULL,
 };
-static struct attribute_group pm_attr_group = {
+static const struct attribute_group pm_attr_group = {
 	.name	= power_group_name,
 	.attrs	= power_attrs,
 };
@@ -625,7 +648,7 @@ static struct attribute *wakeup_attrs[] = {
 #endif
 	NULL,
 };
-static struct attribute_group pm_wakeup_attr_group = {
+static const struct attribute_group pm_wakeup_attr_group = {
 	.name	= power_group_name,
 	.attrs	= wakeup_attrs,
 };
@@ -640,7 +663,7 @@ static struct attribute *runtime_attrs[] = {
 	&dev_attr_autosuspend_delay_ms.attr,
 	NULL,
 };
-static struct attribute_group pm_runtime_attr_group = {
+static const struct attribute_group pm_runtime_attr_group = {
 	.name	= power_group_name,
 	.attrs	= runtime_attrs,
 };
@@ -649,7 +672,7 @@ static struct attribute *pm_qos_resume_latency_attrs[] = {
 	&dev_attr_pm_qos_resume_latency_us.attr,
 	NULL,
 };
-static struct attribute_group pm_qos_resume_latency_attr_group = {
+static const struct attribute_group pm_qos_resume_latency_attr_group = {
 	.name	= power_group_name,
 	.attrs	= pm_qos_resume_latency_attrs,
 };
@@ -658,7 +681,7 @@ static struct attribute *pm_qos_latency_tolerance_attrs[] = {
 	&dev_attr_pm_qos_latency_tolerance_us.attr,
 	NULL,
 };
-static struct attribute_group pm_qos_latency_tolerance_attr_group = {
+static const struct attribute_group pm_qos_latency_tolerance_attr_group = {
 	.name	= power_group_name,
 	.attrs	= pm_qos_latency_tolerance_attrs,
 };
@@ -668,7 +691,7 @@ static struct attribute *pm_qos_flags_attrs[] = {
 	&dev_attr_pm_qos_remote_wakeup.attr,
 	NULL,
 };
-static struct attribute_group pm_qos_flags_attr_group = {
+static const struct attribute_group pm_qos_flags_attr_group = {
 	.name	= power_group_name,
 	.attrs	= pm_qos_flags_attrs,
 };

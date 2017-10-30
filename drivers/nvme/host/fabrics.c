@@ -22,7 +22,7 @@
 #include "fabrics.h"
 
 static LIST_HEAD(nvmf_transports);
-static DEFINE_MUTEX(nvmf_transports_mutex);
+static DECLARE_RWSEM(nvmf_transports_rwsem);
 
 static LIST_HEAD(nvmf_hosts);
 static DEFINE_MUTEX(nvmf_hosts_mutex);
@@ -58,7 +58,6 @@ static struct nvmf_host *nvmf_host_add(const char *hostnqn)
 
 	kref_init(&host->ref);
 	memcpy(host->nqn, hostnqn, NVMF_NQN_SIZE);
-	uuid_be_gen(&host->id);
 
 	list_add_tail(&host->list, &nvmf_hosts);
 out_unlock:
@@ -75,9 +74,8 @@ static struct nvmf_host *nvmf_host_default(void)
 		return NULL;
 
 	kref_init(&host->ref);
-	uuid_be_gen(&host->id);
 	snprintf(host->nqn, NVMF_NQN_SIZE,
-		"nqn.2014-08.org.nvmexpress:NVMf:uuid:%pUb", &host->id);
+		"nqn.2014-08.org.nvmexpress:uuid:%pUb", &host->id);
 
 	mutex_lock(&nvmf_hosts_mutex);
 	list_add_tail(&host->list, &nvmf_hosts);
@@ -128,16 +126,6 @@ int nvmf_get_address(struct nvme_ctrl *ctrl, char *buf, int size)
 EXPORT_SYMBOL_GPL(nvmf_get_address);
 
 /**
- * nvmf_get_subsysnqn() - Get subsystem NQN
- * @ctrl:	Host NVMe controller instance which we got the NQN
- */
-const char *nvmf_get_subsysnqn(struct nvme_ctrl *ctrl)
-{
-	return ctrl->opts->subsysnqn;
-}
-EXPORT_SYMBOL_GPL(nvmf_get_subsysnqn);
-
-/**
  * nvmf_reg_read32() -  NVMe Fabrics "Property Get" API function.
  * @ctrl:	Host NVMe controller instance maintaining the admin
  *		queue used to submit the property read command to
@@ -161,7 +149,7 @@ EXPORT_SYMBOL_GPL(nvmf_get_subsysnqn);
 int nvmf_reg_read32(struct nvme_ctrl *ctrl, u32 off, u32 *val)
 {
 	struct nvme_command cmd;
-	struct nvme_completion cqe;
+	union nvme_result res;
 	int ret;
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -169,11 +157,11 @@ int nvmf_reg_read32(struct nvme_ctrl *ctrl, u32 off, u32 *val)
 	cmd.prop_get.fctype = nvme_fabrics_type_property_get;
 	cmd.prop_get.offset = cpu_to_le32(off);
 
-	ret = __nvme_submit_sync_cmd(ctrl->admin_q, &cmd, &cqe, NULL, 0, 0,
+	ret = __nvme_submit_sync_cmd(ctrl->admin_q, &cmd, &res, NULL, 0, 0,
 			NVME_QID_ANY, 0, 0);
 
 	if (ret >= 0)
-		*val = le64_to_cpu(cqe.result64);
+		*val = le64_to_cpu(res.u64);
 	if (unlikely(ret != 0))
 		dev_err(ctrl->device,
 			"Property Get error: %d, offset %#x\n",
@@ -207,7 +195,7 @@ EXPORT_SYMBOL_GPL(nvmf_reg_read32);
 int nvmf_reg_read64(struct nvme_ctrl *ctrl, u32 off, u64 *val)
 {
 	struct nvme_command cmd;
-	struct nvme_completion cqe;
+	union nvme_result res;
 	int ret;
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -216,11 +204,11 @@ int nvmf_reg_read64(struct nvme_ctrl *ctrl, u32 off, u64 *val)
 	cmd.prop_get.attrib = 1;
 	cmd.prop_get.offset = cpu_to_le32(off);
 
-	ret = __nvme_submit_sync_cmd(ctrl->admin_q, &cmd, &cqe, NULL, 0, 0,
+	ret = __nvme_submit_sync_cmd(ctrl->admin_q, &cmd, &res, NULL, 0, 0,
 			NVME_QID_ANY, 0, 0);
 
 	if (ret >= 0)
-		*val = le64_to_cpu(cqe.result64);
+		*val = le64_to_cpu(res.u64);
 	if (unlikely(ret != 0))
 		dev_err(ctrl->device,
 			"Property Get error: %d, offset %#x\n",
@@ -337,6 +325,24 @@ static void nvmf_log_connect_error(struct nvme_ctrl *ctrl,
 			}
 		}
 		break;
+
+	case NVME_SC_CONNECT_INVALID_HOST:
+		dev_err(ctrl->device,
+			"Connect for subsystem %s is not allowed, hostnqn: %s\n",
+			data->subsysnqn, data->hostnqn);
+		break;
+
+	case NVME_SC_CONNECT_CTRL_BUSY:
+		dev_err(ctrl->device,
+			"Connect command failed: controller is busy or not available\n");
+		break;
+
+	case NVME_SC_CONNECT_FORMAT:
+		dev_err(ctrl->device,
+			"Connect incompatible format: %d",
+			cmd->connect.recfmt);
+		break;
+
 	default:
 		dev_err(ctrl->device,
 			"Connect command failed, error wo/DNR bit: %d\n",
@@ -368,7 +374,7 @@ static void nvmf_log_connect_error(struct nvme_ctrl *ctrl,
 int nvmf_connect_admin_queue(struct nvme_ctrl *ctrl)
 {
 	struct nvme_command cmd;
-	struct nvme_completion cqe;
+	union nvme_result res;
 	struct nvmf_connect_data *data;
 	int ret;
 
@@ -376,13 +382,7 @@ int nvmf_connect_admin_queue(struct nvme_ctrl *ctrl)
 	cmd.connect.opcode = nvme_fabrics_command;
 	cmd.connect.fctype = nvme_fabrics_type_connect;
 	cmd.connect.qid = 0;
-
-	/*
-	 * fabrics spec sets a minimum of depth 32 for admin queue,
-	 * so set the queue with this depth always until
-	 * justification otherwise.
-	 */
-	cmd.connect.sqsize = cpu_to_le16(NVMF_AQ_DEPTH - 1);
+	cmd.connect.sqsize = cpu_to_le16(NVME_AQ_DEPTH - 1);
 
 	/*
 	 * Set keep-alive timeout in seconds granularity (ms * 1000)
@@ -395,21 +395,21 @@ int nvmf_connect_admin_queue(struct nvme_ctrl *ctrl)
 	if (!data)
 		return -ENOMEM;
 
-	memcpy(&data->hostid, &ctrl->opts->host->id, sizeof(uuid_be));
+	uuid_copy(&data->hostid, &ctrl->opts->host->id);
 	data->cntlid = cpu_to_le16(0xffff);
 	strncpy(data->subsysnqn, ctrl->opts->subsysnqn, NVMF_NQN_SIZE);
 	strncpy(data->hostnqn, ctrl->opts->host->nqn, NVMF_NQN_SIZE);
 
-	ret = __nvme_submit_sync_cmd(ctrl->admin_q, &cmd, &cqe,
+	ret = __nvme_submit_sync_cmd(ctrl->admin_q, &cmd, &res,
 			data, sizeof(*data), 0, NVME_QID_ANY, 1,
 			BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT);
 	if (ret) {
-		nvmf_log_connect_error(ctrl, ret, le32_to_cpu(cqe.result),
+		nvmf_log_connect_error(ctrl, ret, le32_to_cpu(res.u32),
 				       &cmd, data);
 		goto out_free_data;
 	}
 
-	ctrl->cntlid = le16_to_cpu(cqe.result16);
+	ctrl->cntlid = le16_to_cpu(res.u16);
 
 out_free_data:
 	kfree(data);
@@ -441,7 +441,7 @@ int nvmf_connect_io_queue(struct nvme_ctrl *ctrl, u16 qid)
 {
 	struct nvme_command cmd;
 	struct nvmf_connect_data *data;
-	struct nvme_completion cqe;
+	union nvme_result res;
 	int ret;
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -454,22 +454,32 @@ int nvmf_connect_io_queue(struct nvme_ctrl *ctrl, u16 qid)
 	if (!data)
 		return -ENOMEM;
 
-	memcpy(&data->hostid, &ctrl->opts->host->id, sizeof(uuid_be));
+	uuid_copy(&data->hostid, &ctrl->opts->host->id);
 	data->cntlid = cpu_to_le16(ctrl->cntlid);
 	strncpy(data->subsysnqn, ctrl->opts->subsysnqn, NVMF_NQN_SIZE);
 	strncpy(data->hostnqn, ctrl->opts->host->nqn, NVMF_NQN_SIZE);
 
-	ret = __nvme_submit_sync_cmd(ctrl->connect_q, &cmd, &cqe,
+	ret = __nvme_submit_sync_cmd(ctrl->connect_q, &cmd, &res,
 			data, sizeof(*data), 0, qid, 1,
 			BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT);
 	if (ret) {
-		nvmf_log_connect_error(ctrl, ret, le32_to_cpu(cqe.result),
+		nvmf_log_connect_error(ctrl, ret, le32_to_cpu(res.u32),
 				       &cmd, data);
 	}
 	kfree(data);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nvmf_connect_io_queue);
+
+bool nvmf_should_reconnect(struct nvme_ctrl *ctrl)
+{
+	if (ctrl->opts->max_reconnects != -1 &&
+	    ctrl->nr_reconnects < ctrl->opts->max_reconnects)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(nvmf_should_reconnect);
 
 /**
  * nvmf_register_transport() - NVMe Fabrics Library registration function.
@@ -480,11 +490,16 @@ EXPORT_SYMBOL_GPL(nvmf_connect_io_queue);
  * being implemented to the common NVMe fabrics library. Part of
  * the overall init sequence of starting up a fabrics driver.
  */
-void nvmf_register_transport(struct nvmf_transport_ops *ops)
+int nvmf_register_transport(struct nvmf_transport_ops *ops)
 {
-	mutex_lock(&nvmf_transports_mutex);
+	if (!ops->create_ctrl)
+		return -EINVAL;
+
+	down_write(&nvmf_transports_rwsem);
 	list_add_tail(&ops->entry, &nvmf_transports);
-	mutex_unlock(&nvmf_transports_mutex);
+	up_write(&nvmf_transports_rwsem);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(nvmf_register_transport);
 
@@ -499,9 +514,9 @@ EXPORT_SYMBOL_GPL(nvmf_register_transport);
  */
 void nvmf_unregister_transport(struct nvmf_transport_ops *ops)
 {
-	mutex_lock(&nvmf_transports_mutex);
+	down_write(&nvmf_transports_rwsem);
 	list_del(&ops->entry);
-	mutex_unlock(&nvmf_transports_mutex);
+	up_write(&nvmf_transports_rwsem);
 }
 EXPORT_SYMBOL_GPL(nvmf_unregister_transport);
 
@@ -510,7 +525,7 @@ static struct nvmf_transport_ops *nvmf_lookup_transport(
 {
 	struct nvmf_transport_ops *ops;
 
-	lockdep_assert_held(&nvmf_transports_mutex);
+	lockdep_assert_held(&nvmf_transports_rwsem);
 
 	list_for_each_entry(ops, &nvmf_transports, entry) {
 		if (strcmp(ops->name, opts->transport) == 0)
@@ -528,9 +543,11 @@ static const match_table_t opt_tokens = {
 	{ NVMF_OPT_QUEUE_SIZE,		"queue_size=%d"		},
 	{ NVMF_OPT_NR_IO_QUEUES,	"nr_io_queues=%d"	},
 	{ NVMF_OPT_RECONNECT_DELAY,	"reconnect_delay=%d"	},
+	{ NVMF_OPT_CTRL_LOSS_TMO,	"ctrl_loss_tmo=%d"	},
 	{ NVMF_OPT_KATO,		"keep_alive_tmo=%d"	},
 	{ NVMF_OPT_HOSTNQN,		"hostnqn=%s"		},
 	{ NVMF_OPT_HOST_TRADDR,		"host_traddr=%s"	},
+	{ NVMF_OPT_HOST_ID,		"hostid=%s"		},
 	{ NVMF_OPT_ERR,			NULL			}
 };
 
@@ -541,15 +558,20 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 	char *options, *o, *p;
 	int token, ret = 0;
 	size_t nqnlen  = 0;
+	int ctrl_loss_tmo = NVMF_DEF_CTRL_LOSS_TMO;
+	uuid_t hostid;
 
 	/* Set defaults */
 	opts->queue_size = NVMF_DEF_QUEUE_SIZE;
 	opts->nr_io_queues = num_online_cpus();
 	opts->reconnect_delay = NVMF_DEF_RECONNECT_DELAY;
+	opts->kato = NVME_DEFAULT_KATO;
 
 	options = o = kstrdup(buf, GFP_KERNEL);
 	if (!options)
 		return -ENOMEM;
+
+	uuid_gen(&hostid);
 
 	while ((p = strsep(&o, ",\n")) != NULL) {
 		if (!*p)
@@ -576,7 +598,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 			nqnlen = strlen(opts->subsysnqn);
 			if (nqnlen >= NVMF_NQN_SIZE) {
 				pr_err("%s needs to be < %d bytes\n",
-				opts->subsysnqn, NVMF_NQN_SIZE);
+					opts->subsysnqn, NVMF_NQN_SIZE);
 				ret = -EINVAL;
 				goto out;
 			}
@@ -634,21 +656,32 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 				goto out;
 			}
 
-			if (opts->discovery_nqn) {
-				pr_err("Discovery controllers cannot accept keep_alive_tmo != 0\n");
-				ret = -EINVAL;
-				goto out;
-			}
-
 			if (token < 0) {
 				pr_err("Invalid keep_alive_tmo %d\n", token);
 				ret = -EINVAL;
 				goto out;
-			} else if (token == 0) {
+			} else if (token == 0 && !opts->discovery_nqn) {
 				/* Allowed for debug */
 				pr_warn("keep_alive_tmo 0 won't execute keep alives!!!\n");
 			}
 			opts->kato = token;
+
+			if (opts->discovery_nqn && opts->kato) {
+				pr_err("Discovery controllers cannot accept KATO != 0\n");
+				ret = -EINVAL;
+				goto out;
+			}
+
+			break;
+		case NVMF_OPT_CTRL_LOSS_TMO:
+			if (match_int(args, &token)) {
+				ret = -EINVAL;
+				goto out;
+			}
+
+			if (token < 0)
+				pr_warn("ctrl_loss_tmo < 0 will reconnect forever\n");
+			ctrl_loss_tmo = token;
 			break;
 		case NVMF_OPT_HOSTNQN:
 			if (opts->host) {
@@ -666,10 +699,12 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 			if (nqnlen >= NVMF_NQN_SIZE) {
 				pr_err("%s needs to be < %d bytes\n",
 					p, NVMF_NQN_SIZE);
+				kfree(p);
 				ret = -EINVAL;
 				goto out;
 			}
 			opts->host = nvmf_host_add(p);
+			kfree(p);
 			if (!opts->host) {
 				ret = -ENOMEM;
 				goto out;
@@ -695,6 +730,18 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 			}
 			opts->host_traddr = p;
 			break;
+		case NVMF_OPT_HOST_ID:
+			p = match_strdup(args);
+			if (!p) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			if (uuid_parse(p, &hostid)) {
+				pr_err("Invalid hostid %s\n", p);
+				ret = -EINVAL;
+				goto out;
+			}
+			break;
 		default:
 			pr_warn("unknown parameter or missing value '%s' in ctrl creation request\n",
 				p);
@@ -703,14 +750,20 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 		}
 	}
 
+	if (ctrl_loss_tmo < 0)
+		opts->max_reconnects = -1;
+	else
+		opts->max_reconnects = DIV_ROUND_UP(ctrl_loss_tmo,
+						opts->reconnect_delay);
+
 	if (!opts->host) {
 		kref_get(&nvmf_default_host->ref);
 		opts->host = nvmf_default_host;
 	}
 
+	uuid_copy(&opts->host->id, &hostid);
+
 out:
-	if (!opts->discovery_nqn && !opts->kato)
-		opts->kato = NVME_DEFAULT_KATO;
 	kfree(options);
 	return ret;
 }
@@ -742,7 +795,8 @@ static int nvmf_check_allowed_opts(struct nvmf_ctrl_options *opts,
 		int i;
 
 		for (i = 0; i < ARRAY_SIZE(opt_tokens); i++) {
-			if (opt_tokens[i].token & ~allowed_opts) {
+			if ((opt_tokens[i].token & opts->mask) &&
+			    (opt_tokens[i].token & ~allowed_opts)) {
 				pr_warn("invalid parameter '%s'\n",
 					opt_tokens[i].pattern);
 			}
@@ -768,7 +822,8 @@ EXPORT_SYMBOL_GPL(nvmf_free_options);
 
 #define NVMF_REQUIRED_OPTS	(NVMF_OPT_TRANSPORT | NVMF_OPT_NQN)
 #define NVMF_ALLOWED_OPTS	(NVMF_OPT_QUEUE_SIZE | NVMF_OPT_NR_IO_QUEUES | \
-				 NVMF_OPT_KATO | NVMF_OPT_HOSTNQN)
+				 NVMF_OPT_KATO | NVMF_OPT_HOSTNQN | \
+				 NVMF_OPT_HOST_ID)
 
 static struct nvme_ctrl *
 nvmf_create_ctrl(struct device *dev, const char *buf, size_t count)
@@ -796,7 +851,7 @@ nvmf_create_ctrl(struct device *dev, const char *buf, size_t count)
 		goto out_free_opts;
 	opts->mask &= ~NVMF_REQUIRED_OPTS;
 
-	mutex_lock(&nvmf_transports_mutex);
+	down_read(&nvmf_transports_rwsem);
 	ops = nvmf_lookup_transport(opts);
 	if (!ops) {
 		pr_info("no handler found for transport %s.\n",
@@ -819,14 +874,22 @@ nvmf_create_ctrl(struct device *dev, const char *buf, size_t count)
 		goto out_unlock;
 	}
 
-	mutex_unlock(&nvmf_transports_mutex);
+	if (strcmp(ctrl->subnqn, opts->subsysnqn)) {
+		dev_warn(ctrl->device,
+			"controller returned incorrect NQN: \"%s\".\n",
+			ctrl->subnqn);
+		up_read(&nvmf_transports_rwsem);
+		ctrl->ops->delete_ctrl(ctrl);
+		return ERR_PTR(-EINVAL);
+	}
+
+	up_read(&nvmf_transports_rwsem);
 	return ctrl;
 
 out_unlock:
-	mutex_unlock(&nvmf_transports_mutex);
+	up_read(&nvmf_transports_rwsem);
 out_free_opts:
-	nvmf_host_put(opts->host);
-	kfree(opts);
+	nvmf_free_options(opts);
 	return ERR_PTR(ret);
 }
 

@@ -33,8 +33,8 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nftl.h>
 #include <linux/mtd/inftl.h>
-#include <linux/mtd/nand.h>
-#include <asm/uaccess.h>
+#include <linux/mtd/rawnand.h>
+#include <linux/uaccess.h>
 #include <asm/errno.h>
 #include <asm/io.h>
 

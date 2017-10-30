@@ -516,7 +516,7 @@ static int radeon_audio_set_avi_packet(struct drm_encoder *encoder,
 	if (!connector)
 		return -EINVAL;
 
-	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
+	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode, false);
 	if (err < 0) {
 		DRM_ERROR("failed to setup AVI infoframe: %d\n", err);
 		return err;
@@ -576,9 +576,9 @@ static void radeon_audio_calc_cts(unsigned int clock, int *CTS, int *N, int freq
 
 	/* Check that we are in spec (not always possible) */
 	if (n < (128*freq/1500))
-		printk(KERN_WARNING "Calculated ACR N value is too small. You may experience audio problems.\n");
+		pr_warn("Calculated ACR N value is too small. You may experience audio problems.\n");
 	if (n > (128*freq/300))
-		printk(KERN_WARNING "Calculated ACR N value is too large. You may experience audio problems.\n");
+		pr_warn("Calculated ACR N value is too large. You may experience audio problems.\n");
 
 	*N = n;
 	*CTS = cts;

@@ -22,6 +22,8 @@
 #include <asm/cacheflush.h>
 #include <asm/smp.h>
 #include <linux/compiler.h>
+#include <linux/mm_types.h>
+
 #include <asm/udbg.h>
 #include <asm/code-patching.h>
 
@@ -31,15 +33,7 @@ enum slb_index {
 	KSTACK_INDEX	= 2, /* Kernel stack map */
 };
 
-extern void slb_allocate_realmode(unsigned long ea);
-
-static void slb_allocate(unsigned long ea)
-{
-	/* Currently, we do real mode for all SLBs including user, but
-	 * that will change if we bring back dynamic VSIDs
-	 */
-	slb_allocate_realmode(ea);
-}
+extern void slb_allocate(unsigned long ea);
 
 #define slb_esid_mask(ssize)	\
 	(((ssize) == MMU_SEGSIZE_256M)? ESID_MASK: ESID_MASK_1T)
@@ -129,7 +123,7 @@ static void __slb_flush_and_rebolt(void)
 		     "slbmte	%2,%3\n"
 		     "isync"
 		     :: "r"(mk_vsid_data(VMALLOC_START, mmu_kernel_ssize, vflags)),
-		        "r"(mk_esid_data(VMALLOC_START, mmu_kernel_ssize, 1)),
+		        "r"(mk_esid_data(VMALLOC_START, mmu_kernel_ssize, VMALLOC_INDEX)),
 		        "r"(ksp_vsid_data),
 		        "r"(ksp_esid_data)
 		     : "memory");
@@ -227,7 +221,7 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 		asm volatile("slbie %0" : : "r" (slbie_data));
 
 	get_paca()->slb_cache_ptr = 0;
-	copy_mm_to_paca(&mm->context);
+	copy_mm_to_paca(mm);
 
 	/*
 	 * preload some userspace segments into the SLB.

@@ -105,7 +105,7 @@ static const struct watchdog_info atlas7_wdt_ident = {
 	.identity = "atlas7 Watchdog",
 };
 
-static struct watchdog_ops atlas7_wdt_ops = {
+static const struct watchdog_ops atlas7_wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = atlas7_wdt_enable,
 	.stop = atlas7_wdt_disable,

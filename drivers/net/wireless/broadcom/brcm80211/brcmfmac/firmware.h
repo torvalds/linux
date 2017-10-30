@@ -73,13 +73,13 @@ void brcmf_fw_nvram_free(void *nvram);
  */
 int brcmf_fw_get_firmwares_pcie(struct device *dev, u16 flags,
 				const char *code, const char *nvram,
-				void (*fw_cb)(struct device *dev,
+				void (*fw_cb)(struct device *dev, int err,
 					      const struct firmware *fw,
 					      void *nvram_image, u32 nvram_len),
 				u16 domain_nr, u16 bus_nr);
 int brcmf_fw_get_firmwares(struct device *dev, u16 flags,
 			   const char *code, const char *nvram,
-			   void (*fw_cb)(struct device *dev,
+			   void (*fw_cb)(struct device *dev, int err,
 					 const struct firmware *fw,
 					 void *nvram_image, u32 nvram_len));
 

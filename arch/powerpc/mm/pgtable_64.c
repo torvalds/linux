@@ -47,11 +47,13 @@
 #include <asm/smp.h>
 #include <asm/machdep.h>
 #include <asm/tlb.h>
+#include <asm/trace.h>
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/sections.h>
 #include <asm/firmware.h>
 #include <asm/dma.h>
+#include <asm/powernv.h>
 
 #include "mmu_decl.h"
 
@@ -102,6 +104,8 @@ unsigned long __vmalloc_start;
 EXPORT_SYMBOL(__vmalloc_start);
 unsigned long __vmalloc_end;
 EXPORT_SYMBOL(__vmalloc_end);
+unsigned long __kernel_io_start;
+EXPORT_SYMBOL(__kernel_io_start);
 struct page *vmemmap;
 EXPORT_SYMBOL(vmemmap);
 unsigned long __pte_frag_nr;
@@ -322,7 +326,7 @@ struct page *pud_page(pud_t pud)
  */
 struct page *pmd_page(pmd_t pmd)
 {
-	if (pmd_trans_huge(pmd) || pmd_huge(pmd))
+	if (pmd_trans_huge(pmd) || pmd_huge(pmd) || pmd_devmap(pmd))
 		return pte_page(pmd_pte(pmd));
 	return virt_to_page(pmd_page_vaddr(pmd));
 }
@@ -350,12 +354,20 @@ static pte_t *get_from_cache(struct mm_struct *mm)
 static pte_t *__alloc_for_cache(struct mm_struct *mm, int kernel)
 {
 	void *ret = NULL;
-	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO);
-	if (!page)
-		return NULL;
-	if (!kernel && !pgtable_page_ctor(page)) {
-		__free_page(page);
-		return NULL;
+	struct page *page;
+
+	if (!kernel) {
+		page = alloc_page(PGALLOC_GFP | __GFP_ACCOUNT);
+		if (!page)
+			return NULL;
+		if (!pgtable_page_ctor(page)) {
+			__free_page(page);
+			return NULL;
+		}
+	} else {
+		page = alloc_page(PGALLOC_GFP);
+		if (!page)
+			return NULL;
 	}
 
 	ret = page_address(page);
@@ -429,5 +441,78 @@ void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int shift)
 		BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
 		kmem_cache_free(PGT_CACHE(shift), table);
 	}
+}
+#endif
+
+#ifdef CONFIG_PPC_BOOK3S_64
+void __init mmu_partition_table_init(void)
+{
+	unsigned long patb_size = 1UL << PATB_SIZE_SHIFT;
+	unsigned long ptcr;
+
+	BUILD_BUG_ON_MSG((PATB_SIZE_SHIFT > 36), "Partition table size too large.");
+	partition_tb = __va(memblock_alloc_base(patb_size, patb_size,
+						MEMBLOCK_ALLOC_ANYWHERE));
+
+	/* Initialize the Partition Table with no entries */
+	memset((void *)partition_tb, 0, patb_size);
+
+	/*
+	 * update partition table control register,
+	 * 64 K size.
+	 */
+	ptcr = __pa(partition_tb) | (PATB_SIZE_SHIFT - 12);
+	mtspr(SPRN_PTCR, ptcr);
+	powernv_set_nmmu_ptcr(ptcr);
+}
+
+void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
+				   unsigned long dw1)
+{
+	unsigned long old = be64_to_cpu(partition_tb[lpid].patb0);
+
+	partition_tb[lpid].patb0 = cpu_to_be64(dw0);
+	partition_tb[lpid].patb1 = cpu_to_be64(dw1);
+
+	/*
+	 * Global flush of TLBs and partition table caches for this lpid.
+	 * The type of flush (hash or radix) depends on what the previous
+	 * use of this partition ID was, not the new use.
+	 */
+	asm volatile("ptesync" : : : "memory");
+	if (old & PATB_HR) {
+		asm volatile(PPC_TLBIE_5(%0,%1,2,0,1) : :
+			     "r" (TLBIEL_INVAL_SET_LPID), "r" (lpid));
+		trace_tlbie(lpid, 0, TLBIEL_INVAL_SET_LPID, lpid, 2, 0, 1);
+	} else {
+		asm volatile(PPC_TLBIE_5(%0,%1,2,0,0) : :
+			     "r" (TLBIEL_INVAL_SET_LPID), "r" (lpid));
+		trace_tlbie(lpid, 0, TLBIEL_INVAL_SET_LPID, lpid, 2, 0, 0);
+	}
+	asm volatile("eieio; tlbsync; ptesync" : : : "memory");
+}
+EXPORT_SYMBOL_GPL(mmu_partition_table_set_entry);
+#endif /* CONFIG_PPC_BOOK3S_64 */
+
+#ifdef CONFIG_STRICT_KERNEL_RWX
+void mark_rodata_ro(void)
+{
+	if (!mmu_has_feature(MMU_FTR_KERNEL_RO)) {
+		pr_warn("Warning: Unable to mark rodata read only on this CPU.\n");
+		return;
+	}
+
+	if (radix_enabled())
+		radix__mark_rodata_ro();
+	else
+		hash__mark_rodata_ro();
+}
+
+void mark_initmem_nx(void)
+{
+	if (radix_enabled())
+		radix__mark_initmem_nx();
+	else
+		hash__mark_initmem_nx();
 }
 #endif

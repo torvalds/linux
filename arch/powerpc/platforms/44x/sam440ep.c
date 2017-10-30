@@ -70,7 +70,7 @@ static struct i2c_board_info sam440ep_rtc_info = {
 	.irq = -1,
 };
 
-static int sam440ep_setup_rtc(void)
+static int __init sam440ep_setup_rtc(void)
 {
 	return i2c_register_board_info(0, &sam440ep_rtc_info, 1);
 }

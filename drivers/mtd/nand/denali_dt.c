@@ -21,7 +21,6 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/slab.h>
 
 #include "denali.h"
 
@@ -30,73 +29,106 @@ struct denali_dt {
 	struct clk		*clk;
 };
 
-static const struct of_device_id denali_nand_dt_ids[] = {
-		{ .compatible = "denali,denali-nand-dt" },
-		{ /* sentinel */ }
-	};
+struct denali_dt_data {
+	unsigned int revision;
+	unsigned int caps;
+	const struct nand_ecc_caps *ecc_caps;
+};
 
+NAND_ECC_CAPS_SINGLE(denali_socfpga_ecc_caps, denali_calc_ecc_bytes,
+		     512, 8, 15);
+static const struct denali_dt_data denali_socfpga_data = {
+	.caps = DENALI_CAP_HW_ECC_FIXUP,
+	.ecc_caps = &denali_socfpga_ecc_caps,
+};
+
+NAND_ECC_CAPS_SINGLE(denali_uniphier_v5a_ecc_caps, denali_calc_ecc_bytes,
+		     1024, 8, 16, 24);
+static const struct denali_dt_data denali_uniphier_v5a_data = {
+	.caps = DENALI_CAP_HW_ECC_FIXUP |
+		DENALI_CAP_DMA_64BIT,
+	.ecc_caps = &denali_uniphier_v5a_ecc_caps,
+};
+
+NAND_ECC_CAPS_SINGLE(denali_uniphier_v5b_ecc_caps, denali_calc_ecc_bytes,
+		     1024, 8, 16);
+static const struct denali_dt_data denali_uniphier_v5b_data = {
+	.revision = 0x0501,
+	.caps = DENALI_CAP_HW_ECC_FIXUP |
+		DENALI_CAP_DMA_64BIT,
+	.ecc_caps = &denali_uniphier_v5b_ecc_caps,
+};
+
+static const struct of_device_id denali_nand_dt_ids[] = {
+	{
+		.compatible = "altr,socfpga-denali-nand",
+		.data = &denali_socfpga_data,
+	},
+	{
+		.compatible = "socionext,uniphier-denali-nand-v5a",
+		.data = &denali_uniphier_v5a_data,
+	},
+	{
+		.compatible = "socionext,uniphier-denali-nand-v5b",
+		.data = &denali_uniphier_v5b_data,
+	},
+	{ /* sentinel */ }
+};
 MODULE_DEVICE_TABLE(of, denali_nand_dt_ids);
 
-static u64 denali_dma_mask;
-
-static int denali_dt_probe(struct platform_device *ofdev)
+static int denali_dt_probe(struct platform_device *pdev)
 {
-	struct resource *denali_reg, *nand_data;
+	struct resource *res;
 	struct denali_dt *dt;
+	const struct denali_dt_data *data;
 	struct denali_nand_info *denali;
 	int ret;
-	const struct of_device_id *of_id;
 
-	of_id = of_match_device(denali_nand_dt_ids, &ofdev->dev);
-	if (of_id) {
-		ofdev->id_entry = of_id->data;
-	} else {
-		pr_err("Failed to find the right device id.\n");
-		return -ENOMEM;
-	}
-
-	dt = devm_kzalloc(&ofdev->dev, sizeof(*dt), GFP_KERNEL);
+	dt = devm_kzalloc(&pdev->dev, sizeof(*dt), GFP_KERNEL);
 	if (!dt)
 		return -ENOMEM;
 	denali = &dt->denali;
 
-	denali->platform = DT;
-	denali->dev = &ofdev->dev;
-	denali->irq = platform_get_irq(ofdev, 0);
+	data = of_device_get_match_data(&pdev->dev);
+	if (data) {
+		denali->revision = data->revision;
+		denali->caps = data->caps;
+		denali->ecc_caps = data->ecc_caps;
+	}
+
+	denali->dev = &pdev->dev;
+	denali->irq = platform_get_irq(pdev, 0);
 	if (denali->irq < 0) {
-		dev_err(&ofdev->dev, "no irq defined\n");
+		dev_err(&pdev->dev, "no irq defined\n");
 		return denali->irq;
 	}
 
-	denali_reg = platform_get_resource_byname(ofdev, IORESOURCE_MEM, "denali_reg");
-	denali->flash_reg = devm_ioremap_resource(&ofdev->dev, denali_reg);
-	if (IS_ERR(denali->flash_reg))
-		return PTR_ERR(denali->flash_reg);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "denali_reg");
+	denali->reg = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(denali->reg))
+		return PTR_ERR(denali->reg);
 
-	nand_data = platform_get_resource_byname(ofdev, IORESOURCE_MEM, "nand_data");
-	denali->flash_mem = devm_ioremap_resource(&ofdev->dev, nand_data);
-	if (IS_ERR(denali->flash_mem))
-		return PTR_ERR(denali->flash_mem);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_data");
+	denali->host = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(denali->host))
+		return PTR_ERR(denali->host);
 
-	if (!of_property_read_u32(ofdev->dev.of_node,
-		"dma-mask", (u32 *)&denali_dma_mask)) {
-		denali->dev->dma_mask = &denali_dma_mask;
-	} else {
-		denali->dev->dma_mask = NULL;
-	}
-
-	dt->clk = devm_clk_get(&ofdev->dev, NULL);
+	dt->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dt->clk)) {
-		dev_err(&ofdev->dev, "no clk available\n");
+		dev_err(&pdev->dev, "no clk available\n");
 		return PTR_ERR(dt->clk);
 	}
-	clk_prepare_enable(dt->clk);
+	ret = clk_prepare_enable(dt->clk);
+	if (ret)
+		return ret;
+
+	denali->clk_x_rate = clk_get_rate(dt->clk);
 
 	ret = denali_init(denali);
 	if (ret)
 		goto out_disable_clk;
 
-	platform_set_drvdata(ofdev, dt);
+	platform_set_drvdata(pdev, dt);
 	return 0;
 
 out_disable_clk:
@@ -105,12 +137,12 @@ out_disable_clk:
 	return ret;
 }
 
-static int denali_dt_remove(struct platform_device *ofdev)
+static int denali_dt_remove(struct platform_device *pdev)
 {
-	struct denali_dt *dt = platform_get_drvdata(ofdev);
+	struct denali_dt *dt = platform_get_drvdata(pdev);
 
 	denali_remove(&dt->denali);
-	clk_disable(dt->clk);
+	clk_disable_unprepare(dt->clk);
 
 	return 0;
 }

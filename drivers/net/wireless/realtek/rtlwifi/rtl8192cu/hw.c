@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -397,12 +393,11 @@ exit:
 static void _rtl92cu_hal_customized_behavior(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_usb_priv *usb_priv = rtl_usbpriv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 
 	switch (rtlhal->oem_id) {
 	case RT_CID_819X_HP:
-		usb_priv->ledctl.led_opendrain = true;
+		rtlpriv->ledctl.led_opendrain = true;
 		break;
 	case RT_CID_819X_LENOVO:
 	case RT_CID_DEFAULT:
@@ -456,8 +451,7 @@ static int _rtl92cu_init_power_on(struct ieee80211_hw *hw)
 			break;
 		}
 		if (pollingCount++ > 100) {
-			RT_TRACE(rtlpriv, COMP_INIT, DBG_EMERG,
-				 "Failed to polling REG_APS_FSMCO[PFM_ALDN] done!\n");
+			pr_err("Failed to polling REG_APS_FSMCO[PFM_ALDN] done!\n");
 			return -ENODEV;
 		}
 	} while (true);
@@ -490,8 +484,7 @@ static int _rtl92cu_init_power_on(struct ieee80211_hw *hw)
 			break;
 		}
 		if (pollingCount++ > 1000) {
-			RT_TRACE(rtlpriv, COMP_INIT, DBG_EMERG,
-				 "Failed to polling REG_APS_FSMCO[APFM_ONMAC] done!\n");
+			pr_err("Failed to polling REG_APS_FSMCO[APFM_ONMAC] done!\n");
 			return -ENODEV;
 		}
 	} while (true);
@@ -691,7 +684,6 @@ static void _rtl92cu_init_chipN_three_out_ep_priority(struct ieee80211_hw *hw,
 						      u8 queue_sel)
 {
 	u16 beQ, bkQ, viQ, voQ, mgtQ, hiQ;
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	if (!wmm_enable) { /* typical setting */
 		beQ	= QUEUE_LOW;
@@ -709,8 +701,7 @@ static void _rtl92cu_init_chipN_three_out_ep_priority(struct ieee80211_hw *hw,
 		hiQ	= QUEUE_HIGH;
 	}
 	_rtl92c_init_chipN_reg_priority(hw, beQ, bkQ, viQ, voQ, mgtQ, hiQ);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_EMERG, "Tx queue select :0x%02x..\n",
-		 queue_sel);
+	pr_info("Tx queue select :0x%02x..\n", queue_sel);
 }
 
 static void _rtl92cu_init_chipN_queue_priority(struct ieee80211_hw *hw,
@@ -769,8 +760,7 @@ static void _rtl92cu_init_chipT_queue_priority(struct ieee80211_hw *hw,
 		break;
 	}
 	rtl_write_byte(rtlpriv, (REG_TRXDMA_CTRL+1), hq_sele);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_EMERG, "Tx queue select :0x%02x..\n",
-		 hq_sele);
+	pr_info("Tx queue select :0x%02x..\n", hq_sele);
 }
 
 static void _rtl92cu_init_queue_priority(struct ieee80211_hw *hw,
@@ -785,10 +775,6 @@ static void _rtl92cu_init_queue_priority(struct ieee80211_hw *hw,
 	else
 		_rtl92cu_init_chipT_queue_priority(hw, wmm_enable, out_ep_num,
 						   queue_sel);
-}
-
-static void _rtl92cu_init_usb_aggregation(struct ieee80211_hw *hw)
-{
 }
 
 static void _rtl92cu_init_wmac_setting(struct ieee80211_hw *hw)
@@ -852,8 +838,7 @@ static int _rtl92cu_init_mac(struct ieee80211_hw *hw)
 	err = _rtl92cu_init_power_on(hw);
 
 	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Failed to init power on!\n");
+		pr_err("Failed to init power on!\n");
 		return err;
 	}
 	if (!wmm_enable) {
@@ -864,8 +849,7 @@ static int _rtl92cu_init_mac(struct ieee80211_hw *hw)
 					: WMM_CHIP_A_TX_PAGE_BOUNDARY;
 	}
 	if (false == rtl92c_init_llt_table(hw, boundary)) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Failed to init LLT Table!\n");
+		pr_err("Failed to init LLT Table!\n");
 		return -EINVAL;
 	}
 	_rtl92cu_init_queue_reserved_page(hw, wmm_enable, out_ep_nums,
@@ -882,7 +866,6 @@ static int _rtl92cu_init_mac(struct ieee80211_hw *hw)
 	rtl92c_init_edca(hw);
 	rtl92c_init_rate_fallback(hw);
 	rtl92c_init_retry_function(hw);
-	_rtl92cu_init_usb_aggregation(hw);
 	rtlpriv->cfg->ops->set_bw_mode(hw, NL80211_CHAN_HT20);
 	rtl92c_set_min_space(hw, IS_92C_SERIAL(rtlhal->version));
 	_rtl92cu_init_beacon_parameters(hw);
@@ -990,7 +973,7 @@ int rtl92cu_hw_init(struct ieee80211_hw *hw)
 	rtlhal->hw_type = HARDWARE_TYPE_RTL8192CU;
 	err = _rtl92cu_init_mac(hw);
 	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "init mac failed!\n");
+		pr_err("init mac failed!\n");
 		goto exit;
 	}
 	err = rtl92c_download_fw(hw);
@@ -1103,8 +1086,7 @@ static void  _ResetDigitalProcedure1(struct ieee80211_hw *hw, bool bWithoutHWSM)
 				udelay(50);
 			}
 			if (retry_cnts >= 100) {
-				RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-					 "#####=> 8051 reset failed!.........................\n");
+				pr_err("8051 reset failed!.........................\n");
 				/* if 8051 reset fail, reset MAC. */
 				rtl_write_byte(rtlpriv,
 					       REG_SYS_FUNC_EN + 1,
@@ -1344,8 +1326,7 @@ static int _rtl92cu_set_media_status(struct ieee80211_hw *hw,
 			 "Set Network type to AP!\n");
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Network type %d not supported!\n", type);
+		pr_err("Network type %d not supported!\n", type);
 		goto error_out;
 	}
 	rtl_write_byte(rtlpriv, MSR, bt_msr);
@@ -1559,8 +1540,7 @@ void rtl92cu_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HAL_DEF_WOWLAN:
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case %#x not processed\n", variable);
+		pr_err("switch case %#x not processed\n", variable);
 		break;
 	}
 }
@@ -1794,7 +1774,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 						u4b_ac_param);
 				break;
 			default:
-				RT_ASSERT(false, "invalid aci: %d !\n",
+				WARN_ONCE(true, "rtl8192cu: invalid aci: %d !\n",
 					  e_aci);
 				break;
 			}
@@ -1930,8 +1910,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			break;
 		}
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case %#x not processed\n", variable);
+		pr_err("switch case %#x not processed\n", variable);
 		break;
 	}
 }

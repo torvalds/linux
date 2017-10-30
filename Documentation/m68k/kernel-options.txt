@@ -139,7 +139,7 @@ follows:
   PARTUUID=00112233-4455-6677-8899-AABBCCDDEEFF/PARTNROFF=-2
 
 Authoritative information can be found in
-"Documentation/kernel-parameters.txt".
+"Documentation/admin-guide/kernel-parameters.rst".
 
 
 2.2) ro, rw

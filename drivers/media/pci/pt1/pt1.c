@@ -15,13 +15,10 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -282,13 +279,12 @@ static int pt1_filter(struct pt1 *pt1, struct pt1_buffer_page *page)
 			continue;
 
 		if (upacket >> 24 & 1)
-			printk_ratelimited(KERN_INFO "earth-pt1: device "
-				"buffer overflowing. table[%d] buf[%d]\n",
+			printk_ratelimited(KERN_INFO "earth-pt1: device buffer overflowing. table[%d] buf[%d]\n",
 				pt1->table_index, pt1->buf_index);
 		sc = upacket >> 26 & 0x7;
 		if (adap->st_count != -1 && sc != ((adap->st_count + 1) & 0x7))
-			printk_ratelimited(KERN_INFO "earth-pt1: data loss"
-				" in streamID(adapter)[%d]\n", index);
+			printk_ratelimited(KERN_INFO "earth-pt1: data loss in streamID(adapter)[%d]\n",
+					   index);
 		adap->st_count = sc;
 
 		buf = adap->buf;
@@ -1206,7 +1202,7 @@ err:
 
 }
 
-static struct pci_device_id pt1_id_table[] = {
+static const struct pci_device_id pt1_id_table[] = {
 	{ PCI_DEVICE(0x10ee, 0x211a) },
 	{ PCI_DEVICE(0x10ee, 0x222a) },
 	{ },

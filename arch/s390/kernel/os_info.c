@@ -26,7 +26,7 @@ static struct os_info os_info __page_aligned_data;
 u32 os_info_csum(struct os_info *os_info)
 {
 	int size = sizeof(*os_info) - offsetof(struct os_info, version_major);
-	return csum_partial(&os_info->version_major, size, 0);
+	return (__force u32)csum_partial(&os_info->version_major, size, 0);
 }
 
 /*
@@ -46,7 +46,7 @@ void os_info_entry_add(int nr, void *ptr, u64 size)
 {
 	os_info.entry[nr].addr = (u64)(unsigned long)ptr;
 	os_info.entry[nr].size = size;
-	os_info.entry[nr].csum = csum_partial(ptr, size, 0);
+	os_info.entry[nr].csum = (__force u32)csum_partial(ptr, size, 0);
 	os_info.csum = os_info_csum(&os_info);
 }
 
@@ -93,7 +93,7 @@ static void os_info_old_alloc(int nr, int align)
 		msg = "copy failed";
 		goto fail_free;
 	}
-	csum = csum_partial(buf_align, size, 0);
+	csum = (__force u32)csum_partial(buf_align, size, 0);
 	if (csum != os_info_old->entry[nr].csum) {
 		msg = "checksum failed";
 		goto fail_free;

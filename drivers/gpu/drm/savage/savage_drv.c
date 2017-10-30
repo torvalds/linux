@@ -42,9 +42,7 @@ static const struct file_operations savage_driver_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = drm_legacy_mmap,
 	.poll = drm_poll,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.llseek = noop_llseek,
 };
 
@@ -57,7 +55,6 @@ static struct drm_driver driver = {
 	.preclose = savage_reclaim_buffers,
 	.lastclose = savage_driver_lastclose,
 	.unload = savage_driver_unload,
-	.set_busid = drm_pci_set_busid,
 	.ioctls = savage_ioctls,
 	.dma_ioctl = savage_bci_buffers,
 	.fops = &savage_driver_fops,
@@ -77,12 +74,12 @@ static struct pci_driver savage_pci_driver = {
 static int __init savage_init(void)
 {
 	driver.num_ioctls = savage_max_ioctl;
-	return drm_pci_init(&driver, &savage_pci_driver);
+	return drm_legacy_pci_init(&driver, &savage_pci_driver);
 }
 
 static void __exit savage_exit(void)
 {
-	drm_pci_exit(&driver, &savage_pci_driver);
+	drm_legacy_pci_exit(&driver, &savage_pci_driver);
 }
 
 module_init(savage_init);

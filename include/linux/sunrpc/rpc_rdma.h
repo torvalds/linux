@@ -110,6 +110,15 @@ struct rpcrdma_msg {
 };
 
 /*
+ * XDR sizes, in quads
+ */
+enum {
+	rpcrdma_fixed_maxsz	= 4,
+	rpcrdma_segment_maxsz	= 4,
+	rpcrdma_readchunk_maxsz	= 2 + rpcrdma_segment_maxsz,
+};
+
+/*
  * Smallest RPC/RDMA header: rm_xid through rm_type, then rm_nochunks
  */
 #define RPCRDMA_HDRLEN_MIN	(sizeof(__be32) * 7)
@@ -133,6 +142,9 @@ enum rpcrdma_proc {
 #define rdma_msgp	cpu_to_be32(RDMA_MSGP)
 #define rdma_done	cpu_to_be32(RDMA_DONE)
 #define rdma_error	cpu_to_be32(RDMA_ERROR)
+
+#define err_vers	cpu_to_be32(ERR_VERS)
+#define err_chunk	cpu_to_be32(ERR_CHUNK)
 
 /*
  * Private extension to RPC-over-RDMA Version One.

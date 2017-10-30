@@ -143,7 +143,7 @@ static ssize_t chp_measurement_chars_read(struct file *filp,
 				       sizeof(chp->cmg_chars));
 }
 
-static struct bin_attribute chp_measurement_chars_attr = {
+static const struct bin_attribute chp_measurement_chars_attr = {
 	.attr = {
 		.name = "measurement_chars",
 		.mode = S_IRUSR,
@@ -197,7 +197,7 @@ static ssize_t chp_measurement_read(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute chp_measurement_attr = {
+static const struct bin_attribute chp_measurement_attr = {
 	.attr = {
 		.name = "measurement",
 		.mode = S_IRUSR,
@@ -444,6 +444,7 @@ int chp_update_desc(struct channel_path *chp)
  */
 int chp_new(struct chp_id chpid)
 {
+	struct channel_subsystem *css = css_by_id(chpid.cssid);
 	struct channel_path *chp;
 	int ret;
 
@@ -456,7 +457,7 @@ int chp_new(struct chp_id chpid)
 	/* fill in status, etc. */
 	chp->chpid = chpid;
 	chp->state = 1;
-	chp->dev.parent = &channel_subsystems[chpid.cssid]->device;
+	chp->dev.parent = &css->device;
 	chp->dev.groups = chp_attr_groups;
 	chp->dev.release = chp_release;
 	mutex_init(&chp->lock);
@@ -479,17 +480,17 @@ int chp_new(struct chp_id chpid)
 		put_device(&chp->dev);
 		goto out;
 	}
-	mutex_lock(&channel_subsystems[chpid.cssid]->mutex);
-	if (channel_subsystems[chpid.cssid]->cm_enabled) {
+	mutex_lock(&css->mutex);
+	if (css->cm_enabled) {
 		ret = chp_add_cmg_attr(chp);
 		if (ret) {
 			device_unregister(&chp->dev);
-			mutex_unlock(&channel_subsystems[chpid.cssid]->mutex);
+			mutex_unlock(&css->mutex);
 			goto out;
 		}
 	}
-	channel_subsystems[chpid.cssid]->chps[chpid.id] = chp;
-	mutex_unlock(&channel_subsystems[chpid.cssid]->mutex);
+	css->chps[chpid.id] = chp;
+	mutex_unlock(&css->mutex);
 	goto out;
 out_free:
 	kfree(chp);
@@ -558,6 +559,7 @@ static void chp_process_crw(struct crw *crw0, struct crw *crw1,
 	chpid.id = crw0->rsid;
 	switch (crw0->erc) {
 	case CRW_ERC_IPARM: /* Path has come. */
+	case CRW_ERC_INIT:
 		if (!chp_is_registered(chpid))
 			chp_new(chpid);
 		chsc_chp_online(chpid);

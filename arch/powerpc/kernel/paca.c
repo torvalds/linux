@@ -10,6 +10,7 @@
 #include <linux/smp.h>
 #include <linux/export.h>
 #include <linux/memblock.h>
+#include <linux/sched/task.h>
 
 #include <asm/lppaca.h>
 #include <asm/paca.h>
@@ -98,18 +99,27 @@ static inline void free_lppacas(void) { }
  * If you make the number of persistent SLB entries dynamic, please also
  * update PR KVM to flush and restore them accordingly.
  */
-static struct slb_shadow *slb_shadow;
+static struct slb_shadow * __initdata slb_shadow;
 
 static void __init allocate_slb_shadows(int nr_cpus, int limit)
 {
 	int size = PAGE_ALIGN(sizeof(struct slb_shadow) * nr_cpus);
+
+	if (early_radix_enabled())
+		return;
+
 	slb_shadow = __va(memblock_alloc_base(size, PAGE_SIZE, limit));
 	memset(slb_shadow, 0, size);
 }
 
 static struct slb_shadow * __init init_slb_shadow(int cpu)
 {
-	struct slb_shadow *s = &slb_shadow[cpu];
+	struct slb_shadow *s;
+
+	if (early_radix_enabled())
+		return NULL;
+
+	s = &slb_shadow[cpu];
 
 	/*
 	 * When we come through here to initialise boot_paca, the slb_shadow
@@ -214,7 +224,7 @@ void __init allocate_pacas(void)
 	paca = __va(memblock_alloc_base(paca_size, PAGE_SIZE, limit));
 	memset(paca, 0, paca_size);
 
-	printk(KERN_DEBUG "Allocated %u bytes for %d pacas at %p\n",
+	printk(KERN_DEBUG "Allocated %u bytes for %u pacas at %p\n",
 		paca_size, nr_cpu_ids, paca);
 
 	allocate_lppacas(nr_cpu_ids, limit);
@@ -243,4 +253,25 @@ void __init free_unused_pacas(void)
 	paca_size = new_size;
 
 	free_lppacas();
+}
+
+void copy_mm_to_paca(struct mm_struct *mm)
+{
+#ifdef CONFIG_PPC_BOOK3S
+	mm_context_t *context = &mm->context;
+
+	get_paca()->mm_ctx_id = context->id;
+#ifdef CONFIG_PPC_MM_SLICES
+	VM_BUG_ON(!mm->context.addr_limit);
+	get_paca()->addr_limit = mm->context.addr_limit;
+	get_paca()->mm_ctx_low_slices_psize = context->low_slices_psize;
+	memcpy(&get_paca()->mm_ctx_high_slices_psize,
+	       &context->high_slices_psize, TASK_SLICE_ARRAY_SZ(mm));
+#else /* CONFIG_PPC_MM_SLICES */
+	get_paca()->mm_ctx_user_psize = context->user_psize;
+	get_paca()->mm_ctx_sllp = context->sllp;
+#endif
+#else /* CONFIG_PPC_BOOK3S */
+	return;
+#endif
 }

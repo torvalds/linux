@@ -26,16 +26,28 @@
 
 #define MUSB_DMA_NUM_CHANNELS 15
 
+#define DA8XX_USB_MODE		0x10
+#define DA8XX_USB_AUTOREQ	0x14
+#define DA8XX_USB_TEARDOWN	0x1c
+
+#define DA8XX_DMA_NUM_CHANNELS 4
+
 struct cppi41_dma_controller {
 	struct dma_controller controller;
-	struct cppi41_dma_channel rx_channel[MUSB_DMA_NUM_CHANNELS];
-	struct cppi41_dma_channel tx_channel[MUSB_DMA_NUM_CHANNELS];
-	struct musb *musb;
+	struct cppi41_dma_channel *rx_channel;
+	struct cppi41_dma_channel *tx_channel;
 	struct hrtimer early_tx;
 	struct list_head early_tx_list;
 	u32 rx_mode;
 	u32 tx_mode;
 	u32 auto_req;
+
+	u32 tdown_reg;
+	u32 autoreq_reg;
+
+	void (*set_dma_mode)(struct cppi41_dma_channel *cppi41_channel,
+			     unsigned int mode);
+	u8 num_channels;
 };
 
 static void save_rx_toggle(struct cppi41_dma_channel *cppi41_channel)
@@ -45,7 +57,7 @@ static void save_rx_toggle(struct cppi41_dma_channel *cppi41_channel)
 
 	if (cppi41_channel->is_tx)
 		return;
-	if (!is_host_active(cppi41_channel->controller->musb))
+	if (!is_host_active(cppi41_channel->controller->controller.musb))
 		return;
 
 	csr = musb_readw(cppi41_channel->hw_ep->regs, MUSB_RXCSR);
@@ -78,8 +90,7 @@ static void update_rx_toggle(struct cppi41_dma_channel *cppi41_channel)
 	if (!toggle && toggle == cppi41_channel->usb_toggle) {
 		csr |= MUSB_RXCSR_H_DATATOGGLE | MUSB_RXCSR_H_WR_DATATOGGLE;
 		musb_writew(cppi41_channel->hw_ep->regs, MUSB_RXCSR, csr);
-		musb_dbg(cppi41_channel->controller->musb,
-				"Restoring DATA1 toggle.");
+		musb_dbg(musb, "Restoring DATA1 toggle.");
 	}
 
 	cppi41_channel->usb_toggle = toggle;
@@ -99,7 +110,8 @@ static bool musb_is_tx_fifo_empty(struct musb_hw_ep *hw_ep)
 	return true;
 }
 
-static void cppi41_dma_callback(void *private_data);
+static void cppi41_dma_callback(void *private_data,
+				const struct dmaengine_result *result);
 
 static void cppi41_trans_done(struct cppi41_dma_channel *cppi41_channel)
 {
@@ -154,7 +166,7 @@ static void cppi41_trans_done(struct cppi41_dma_channel *cppi41_channel)
 		if (WARN_ON(!dma_desc))
 			return;
 
-		dma_desc->callback = cppi41_dma_callback;
+		dma_desc->callback_result = cppi41_dma_callback;
 		dma_desc->callback_param = &cppi41_channel->channel;
 		cppi41_channel->cookie = dma_desc->tx_submit(dma_desc);
 		trace_musb_cppi41_cont(cppi41_channel);
@@ -179,7 +191,7 @@ static enum hrtimer_restart cppi41_recheck_tx_req(struct hrtimer *timer)
 
 	controller = container_of(timer, struct cppi41_dma_controller,
 			early_tx);
-	musb = controller->musb;
+	musb = controller->controller.musb;
 
 	spin_lock_irqsave(&musb->lock, flags);
 	list_for_each_entry_safe(cppi41_channel, n, &controller->early_tx_list,
@@ -197,15 +209,15 @@ static enum hrtimer_restart cppi41_recheck_tx_req(struct hrtimer *timer)
 	if (!list_empty(&controller->early_tx_list) &&
 	    !hrtimer_is_queued(&controller->early_tx)) {
 		ret = HRTIMER_RESTART;
-		hrtimer_forward_now(&controller->early_tx,
-				ktime_set(0, 20 * NSEC_PER_USEC));
+		hrtimer_forward_now(&controller->early_tx, 20 * NSEC_PER_USEC);
 	}
 
 	spin_unlock_irqrestore(&musb->lock, flags);
 	return ret;
 }
 
-static void cppi41_dma_callback(void *private_data)
+static void cppi41_dma_callback(void *private_data,
+				const struct dmaengine_result *result)
 {
 	struct dma_channel *channel = private_data;
 	struct cppi41_dma_channel *cppi41_channel = channel->private_data;
@@ -217,6 +229,13 @@ static void cppi41_dma_callback(void *private_data)
 	u32 transferred;
 	int is_hs = 0;
 	bool empty;
+
+	controller = cppi41_channel->controller;
+	if (controller->controller.dma_callback)
+		controller->controller.dma_callback(&controller->controller);
+
+	if (result->result == DMA_TRANS_ABORTED)
+		return;
 
 	spin_lock_irqsave(&musb->lock, flags);
 
@@ -232,8 +251,27 @@ static void cppi41_dma_callback(void *private_data)
 			transferred < cppi41_channel->packet_sz)
 		cppi41_channel->prog_len = 0;
 
-	if (cppi41_channel->is_tx)
-		empty = musb_is_tx_fifo_empty(hw_ep);
+	if (cppi41_channel->is_tx) {
+		u8 type;
+
+		if (is_host_active(musb))
+			type = hw_ep->out_qh->type;
+		else
+			type = hw_ep->ep_in.type;
+
+		if (type == USB_ENDPOINT_XFER_ISOC)
+			/*
+			 * Don't use the early-TX-interrupt workaround below
+			 * for Isoch transfter. Since Isoch are periodic
+			 * transfer, by the time the next transfer is
+			 * scheduled, the current one should be done already.
+			 *
+			 * This avoids audio playback underrun issue.
+			 */
+			empty = true;
+		else
+			empty = musb_is_tx_fifo_empty(hw_ep);
+	}
 
 	if (!cppi41_channel->is_tx || empty) {
 		cppi41_trans_done(cppi41_channel);
@@ -250,8 +288,6 @@ static void cppi41_dma_callback(void *private_data)
 	 * We spin on HS (no longer than than 25us and setup a timer on
 	 * FS to check for the bit and complete the transfer.
 	 */
-	controller = cppi41_channel->controller;
-
 	if (is_host_active(musb)) {
 		if (musb->port1_status & USB_PORT_STAT_HIGH_SPEED)
 			is_hs = 1;
@@ -280,9 +316,9 @@ static void cppi41_dma_callback(void *private_data)
 		unsigned long usecs = cppi41_channel->total_len / 10;
 
 		hrtimer_start_range_ns(&controller->early_tx,
-				ktime_set(0, usecs * NSEC_PER_USEC),
-				20 * NSEC_PER_USEC,
-				HRTIMER_MODE_REL);
+				       usecs * NSEC_PER_USEC,
+				       20 * NSEC_PER_USEC,
+				       HRTIMER_MODE_REL);
 	}
 
 out:
@@ -303,6 +339,7 @@ static void cppi41_set_dma_mode(struct cppi41_dma_channel *cppi41_channel,
 		unsigned mode)
 {
 	struct cppi41_dma_controller *controller = cppi41_channel->controller;
+	struct musb *musb = controller->controller.musb;
 	u32 port;
 	u32 new_mode;
 	u32 old_mode;
@@ -318,14 +355,38 @@ static void cppi41_set_dma_mode(struct cppi41_dma_channel *cppi41_channel,
 		return;
 	if (cppi41_channel->is_tx) {
 		controller->tx_mode = new_mode;
-		musb_writel(controller->musb->ctrl_base, USB_CTRL_TX_MODE,
-				new_mode);
+		musb_writel(musb->ctrl_base, USB_CTRL_TX_MODE, new_mode);
 	} else {
 		controller->rx_mode = new_mode;
-		musb_writel(controller->musb->ctrl_base, USB_CTRL_RX_MODE,
-				new_mode);
+		musb_writel(musb->ctrl_base, USB_CTRL_RX_MODE, new_mode);
 	}
 }
+
+static void da8xx_set_dma_mode(struct cppi41_dma_channel *cppi41_channel,
+		unsigned int mode)
+{
+	struct cppi41_dma_controller *controller = cppi41_channel->controller;
+	struct musb *musb = controller->controller.musb;
+	unsigned int shift;
+	u32 port;
+	u32 new_mode;
+	u32 old_mode;
+
+	old_mode = controller->tx_mode;
+	port = cppi41_channel->port_num;
+
+	shift = (port - 1) * 4;
+	if (!cppi41_channel->is_tx)
+		shift += 16;
+	new_mode = old_mode & ~(3 << shift);
+	new_mode |= mode << shift;
+
+	if (new_mode == old_mode)
+		return;
+	controller->tx_mode = new_mode;
+	musb_writel(musb->ctrl_base, DA8XX_USB_MODE, new_mode);
+}
+
 
 static void cppi41_set_autoreq_mode(struct cppi41_dma_channel *cppi41_channel,
 		unsigned mode)
@@ -342,7 +403,8 @@ static void cppi41_set_autoreq_mode(struct cppi41_dma_channel *cppi41_channel,
 	if (new_mode == old_mode)
 		return;
 	controller->auto_req = new_mode;
-	musb_writel(controller->musb->ctrl_base, USB_CTRL_AUTOREQ, new_mode);
+	musb_writel(controller->controller.musb->ctrl_base,
+		    controller->autoreq_reg, new_mode);
 }
 
 static bool cppi41_configure_channel(struct dma_channel *channel,
@@ -350,10 +412,11 @@ static bool cppi41_configure_channel(struct dma_channel *channel,
 				dma_addr_t dma_addr, u32 len)
 {
 	struct cppi41_dma_channel *cppi41_channel = channel->private_data;
+	struct cppi41_dma_controller *controller = cppi41_channel->controller;
 	struct dma_chan *dc = cppi41_channel->dc;
 	struct dma_async_tx_descriptor *dma_desc;
 	enum dma_transfer_direction direction;
-	struct musb *musb = cppi41_channel->controller->musb;
+	struct musb *musb = cppi41_channel->controller->controller.musb;
 	unsigned use_gen_rndis = 0;
 
 	cppi41_channel->buf_addr = dma_addr;
@@ -375,7 +438,7 @@ static bool cppi41_configure_channel(struct dma_channel *channel,
 			musb_writel(musb->ctrl_base,
 				RNDIS_REG(cppi41_channel->port_num), len);
 			/* gen rndis */
-			cppi41_set_dma_mode(cppi41_channel,
+			controller->set_dma_mode(cppi41_channel,
 					EP_MODE_DMA_GEN_RNDIS);
 
 			/* auto req */
@@ -384,14 +447,15 @@ static bool cppi41_configure_channel(struct dma_channel *channel,
 		} else {
 			musb_writel(musb->ctrl_base,
 					RNDIS_REG(cppi41_channel->port_num), 0);
-			cppi41_set_dma_mode(cppi41_channel,
+			controller->set_dma_mode(cppi41_channel,
 					EP_MODE_DMA_TRANSPARENT);
 			cppi41_set_autoreq_mode(cppi41_channel,
 					EP_MODE_AUTOREQ_NONE);
 		}
 	} else {
 		/* fallback mode */
-		cppi41_set_dma_mode(cppi41_channel, EP_MODE_DMA_TRANSPARENT);
+		controller->set_dma_mode(cppi41_channel,
+				EP_MODE_DMA_TRANSPARENT);
 		cppi41_set_autoreq_mode(cppi41_channel, EP_MODE_AUTOREQ_NONE);
 		len = min_t(u32, packet_sz, len);
 	}
@@ -402,7 +466,7 @@ static bool cppi41_configure_channel(struct dma_channel *channel,
 	if (!dma_desc)
 		return false;
 
-	dma_desc->callback = cppi41_dma_callback;
+	dma_desc->callback_result = cppi41_dma_callback;
 	dma_desc->callback_param = channel;
 	cppi41_channel->cookie = dma_desc->tx_submit(dma_desc);
 	cppi41_channel->channel.rx_packet_done = false;
@@ -422,7 +486,7 @@ static struct dma_channel *cppi41_dma_channel_allocate(struct dma_controller *c,
 	struct cppi41_dma_channel *cppi41_channel = NULL;
 	u8 ch_num = hw_ep->epnum - 1;
 
-	if (ch_num >= MUSB_DMA_NUM_CHANNELS)
+	if (ch_num >= controller->num_channels)
 		return NULL;
 
 	if (is_tx)
@@ -466,7 +530,7 @@ static int cppi41_dma_channel_program(struct dma_channel *channel,
 	BUG_ON(channel->status == MUSB_DMA_STATUS_UNKNOWN ||
 		channel->status == MUSB_DMA_STATUS_BUSY);
 
-	if (is_host_active(cppi41_channel->controller->musb)) {
+	if (is_host_active(cppi41_channel->controller->controller.musb)) {
 		if (cppi41_channel->is_tx)
 			hb_mult = cppi41_channel->hw_ep->out_qh->hb_mult;
 		else
@@ -491,7 +555,7 @@ static int cppi41_is_compatible(struct dma_channel *channel, u16 maxpacket,
 {
 	struct cppi41_dma_channel *cppi41_channel = channel->private_data;
 	struct cppi41_dma_controller *controller = cppi41_channel->controller;
-	struct musb *musb = controller->musb;
+	struct musb *musb = controller->controller.musb;
 
 	if (is_host_active(musb)) {
 		WARN_ON(1);
@@ -509,7 +573,7 @@ static int cppi41_dma_channel_abort(struct dma_channel *channel)
 {
 	struct cppi41_dma_channel *cppi41_channel = channel->private_data;
 	struct cppi41_dma_controller *controller = cppi41_channel->controller;
-	struct musb *musb = controller->musb;
+	struct musb *musb = controller->controller.musb;
 	void __iomem *epio = cppi41_channel->hw_ep->regs;
 	int tdbit;
 	int ret;
@@ -548,18 +612,23 @@ static int cppi41_dma_channel_abort(struct dma_channel *channel)
 		}
 	}
 
+	/* DA8xx Advisory 2.3.27: wait 250 ms before to start the teardown */
+	if (musb->io.quirks & MUSB_DA8XX)
+		mdelay(250);
+
 	tdbit = 1 << cppi41_channel->port_num;
 	if (is_tx)
 		tdbit <<= 16;
 
 	do {
 		if (is_tx)
-			musb_writel(musb->ctrl_base, USB_TDOWN, tdbit);
+			musb_writel(musb->ctrl_base, controller->tdown_reg,
+				    tdbit);
 		ret = dmaengine_terminate_all(cppi41_channel->dc);
 	} while (ret == -EAGAIN);
 
 	if (is_tx) {
-		musb_writel(musb->ctrl_base, USB_TDOWN, tdbit);
+		musb_writel(musb->ctrl_base, controller->tdown_reg, tdbit);
 
 		csr = musb_readw(epio, MUSB_TXCSR);
 		if (csr & MUSB_TXCSR_TXPKTRDY) {
@@ -577,7 +646,7 @@ static void cppi41_release_all_dma_chans(struct cppi41_dma_controller *ctrl)
 	struct dma_chan *dc;
 	int i;
 
-	for (i = 0; i < MUSB_DMA_NUM_CHANNELS; i++) {
+	for (i = 0; i < ctrl->num_channels; i++) {
 		dc = ctrl->tx_channel[i].dc;
 		if (dc)
 			dma_release_channel(dc);
@@ -594,7 +663,7 @@ static void cppi41_dma_controller_stop(struct cppi41_dma_controller *controller)
 
 static int cppi41_dma_controller_start(struct cppi41_dma_controller *controller)
 {
-	struct musb *musb = controller->musb;
+	struct musb *musb = controller->controller.musb;
 	struct device *dev = musb->controller;
 	struct device_node *np = dev->parent->of_node;
 	struct cppi41_dma_channel *cppi41_channel;
@@ -629,7 +698,7 @@ static int cppi41_dma_controller_start(struct cppi41_dma_controller *controller)
 			goto err;
 
 		ret = -EINVAL;
-		if (port > MUSB_DMA_NUM_CHANNELS || !port)
+		if (port > controller->num_channels || !port)
 			goto err;
 		if (is_tx)
 			cppi41_channel = &controller->tx_channel[port - 1];
@@ -646,12 +715,15 @@ static int cppi41_dma_controller_start(struct cppi41_dma_controller *controller)
 		musb_dma->status = MUSB_DMA_STATUS_FREE;
 		musb_dma->max_len = SZ_4M;
 
-		dc = dma_request_slave_channel(dev->parent, str);
-		if (!dc) {
-			dev_err(dev, "Failed to request %s.\n", str);
-			ret = -EPROBE_DEFER;
+		dc = dma_request_chan(dev->parent, str);
+		if (IS_ERR(dc)) {
+			ret = PTR_ERR(dc);
+			if (ret != -EPROBE_DEFER)
+				dev_err(dev, "Failed to request %s: %d.\n",
+					str, ret);
 			goto err;
 		}
+
 		cppi41_channel->dc = dc;
 	}
 	return 0;
@@ -667,6 +739,8 @@ void cppi41_dma_controller_destroy(struct dma_controller *c)
 
 	hrtimer_cancel(&controller->early_tx);
 	cppi41_dma_controller_stop(controller);
+	kfree(controller->rx_channel);
+	kfree(controller->tx_channel);
 	kfree(controller);
 }
 EXPORT_SYMBOL_GPL(cppi41_dma_controller_destroy);
@@ -675,6 +749,7 @@ struct dma_controller *
 cppi41_dma_controller_create(struct musb *musb, void __iomem *base)
 {
 	struct cppi41_dma_controller *controller;
+	int channel_size;
 	int ret = 0;
 
 	if (!musb->controller->parent->of_node) {
@@ -689,13 +764,34 @@ cppi41_dma_controller_create(struct musb *musb, void __iomem *base)
 	hrtimer_init(&controller->early_tx, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	controller->early_tx.function = cppi41_recheck_tx_req;
 	INIT_LIST_HEAD(&controller->early_tx_list);
-	controller->musb = musb;
 
 	controller->controller.channel_alloc = cppi41_dma_channel_allocate;
 	controller->controller.channel_release = cppi41_dma_channel_release;
 	controller->controller.channel_program = cppi41_dma_channel_program;
 	controller->controller.channel_abort = cppi41_dma_channel_abort;
 	controller->controller.is_compatible = cppi41_is_compatible;
+	controller->controller.musb = musb;
+
+	if (musb->io.quirks & MUSB_DA8XX) {
+		controller->tdown_reg = DA8XX_USB_TEARDOWN;
+		controller->autoreq_reg = DA8XX_USB_AUTOREQ;
+		controller->set_dma_mode = da8xx_set_dma_mode;
+		controller->num_channels = DA8XX_DMA_NUM_CHANNELS;
+	} else {
+		controller->tdown_reg = USB_TDOWN;
+		controller->autoreq_reg = USB_CTRL_AUTOREQ;
+		controller->set_dma_mode = cppi41_set_dma_mode;
+		controller->num_channels = MUSB_DMA_NUM_CHANNELS;
+	}
+
+	channel_size = controller->num_channels *
+			sizeof(struct cppi41_dma_channel);
+	controller->rx_channel = kzalloc(channel_size, GFP_KERNEL);
+	if (!controller->rx_channel)
+		goto rx_channel_alloc_fail;
+	controller->tx_channel = kzalloc(channel_size, GFP_KERNEL);
+	if (!controller->tx_channel)
+		goto tx_channel_alloc_fail;
 
 	ret = cppi41_dma_controller_start(controller);
 	if (ret)
@@ -703,6 +799,10 @@ cppi41_dma_controller_create(struct musb *musb, void __iomem *base)
 	return &controller->controller;
 
 plat_get_fail:
+	kfree(controller->tx_channel);
+tx_channel_alloc_fail:
+	kfree(controller->rx_channel);
+rx_channel_alloc_fail:
 	kfree(controller);
 kzalloc_fail:
 	if (ret == -EPROBE_DEFER)

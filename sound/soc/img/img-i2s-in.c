@@ -443,7 +443,7 @@ static int img_i2s_in_probe(struct platform_device *pdev)
 		SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE;
 	i2s->dai_driver.ops = &img_i2s_in_dai_ops;
 
-	rst = devm_reset_control_get(dev, "rst");
+	rst = devm_reset_control_get_exclusive(dev, "rst");
 	if (IS_ERR(rst)) {
 		if (PTR_ERR(rst) == -EPROBE_DEFER) {
 			ret = -EPROBE_DEFER;

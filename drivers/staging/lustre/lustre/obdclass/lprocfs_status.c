@@ -36,9 +36,9 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include "../include/obd_class.h"
-#include "../include/lprocfs_status.h"
-#include "../include/lustre/lustre_idl.h"
+#include <obd_class.h>
+#include <lprocfs_status.h>
+#include <uapi/linux/lustre/lustre_idl.h>
 #include <linux/seq_file.h>
 #include <linux/ctype.h>
 
@@ -100,9 +100,13 @@ static const char * const obd_connect_names[] = {
 	"lfsck",
 	"unknown",
 	"unlink_close",
-	"unknown",
+	"multi_mod_rpcs",
 	"dir_stripe",
-	"unknown",
+	"subtree",
+	"lock_ahead",
+	"bulk_mbits",
+	"compact_obdo",
+	"second_flags",
 	NULL
 };
 
@@ -127,7 +131,7 @@ EXPORT_SYMBOL(obd_connect_flags2str);
 static void obd_connect_data_seqprint(struct seq_file *m,
 				      struct obd_connect_data *ocd)
 {
-	int flags;
+	u64 flags;
 
 	LASSERT(ocd);
 	flags = ocd->ocd_connect_flags;
@@ -172,6 +176,9 @@ static void obd_connect_data_seqprint(struct seq_file *m,
 	if (flags & OBD_CONNECT_MAXBYTES)
 		seq_printf(m, "       max_object_bytes: %llx\n",
 			   ocd->ocd_maxbytes);
+	if (flags & OBD_CONNECT_MULTIMODRPCS)
+		seq_printf(m, "       max_mod_rpcs: %hu\n",
+			   ocd->ocd_maxmodrpcs);
 }
 
 int lprocfs_read_frac_helper(char *buffer, unsigned long count, long val,
@@ -294,7 +301,7 @@ EXPORT_SYMBOL(lprocfs_seq_release);
 
 struct dentry *ldebugfs_add_simple(struct dentry *root,
 				   char *name, void *data,
-				   struct file_operations *fops)
+				   const struct file_operations *fops)
 {
 	struct dentry *entry;
 	umode_t mode = 0;
@@ -382,33 +389,6 @@ out:
 EXPORT_SYMBOL_GPL(ldebugfs_register);
 
 /* Generic callbacks */
-int lprocfs_rd_uint(struct seq_file *m, void *data)
-{
-	seq_printf(m, "%u\n", *(unsigned int *)data);
-	return 0;
-}
-EXPORT_SYMBOL(lprocfs_rd_uint);
-
-int lprocfs_wr_uint(struct file *file, const char __user *buffer,
-		    unsigned long count, void *data)
-{
-	unsigned *p = data;
-	char dummy[MAX_STRING_SIZE + 1], *end;
-	unsigned long tmp;
-
-	dummy[MAX_STRING_SIZE] = '\0';
-	if (copy_from_user(dummy, buffer, MAX_STRING_SIZE))
-		return -EFAULT;
-
-	tmp = simple_strtoul(dummy, &end, 0);
-	if (dummy == end)
-		return -EINVAL;
-
-	*p = (unsigned int)tmp;
-	return count;
-}
-EXPORT_SYMBOL(lprocfs_wr_uint);
-
 static ssize_t uuid_show(struct kobject *kobj, struct attribute *attr,
 			 char *buf)
 {
@@ -584,6 +564,93 @@ int lprocfs_rd_conn_uuid(struct seq_file *m, void *data)
 }
 EXPORT_SYMBOL(lprocfs_rd_conn_uuid);
 
+/**
+ * Lock statistics structure for access, possibly only on this CPU.
+ *
+ * The statistics struct may be allocated with per-CPU structures for
+ * efficient concurrent update (usually only on server-wide stats), or
+ * as a single global struct (e.g. for per-client or per-job statistics),
+ * so the required locking depends on the type of structure allocated.
+ *
+ * For per-CPU statistics, pin the thread to the current cpuid so that
+ * will only access the statistics for that CPU.  If the stats structure
+ * for the current CPU has not been allocated (or previously freed),
+ * allocate it now.  The per-CPU statistics do not need locking since
+ * the thread is pinned to the CPU during update.
+ *
+ * For global statistics, lock the stats structure to prevent concurrent update.
+ *
+ * \param[in] stats    statistics structure to lock
+ * \param[in] opc      type of operation:
+ *                     LPROCFS_GET_SMP_ID: "lock" and return current CPU index
+ *                             for incrementing statistics for that CPU
+ *                     LPROCFS_GET_NUM_CPU: "lock" and return number of used
+ *                             CPU indices to iterate over all indices
+ * \param[out] flags   CPU interrupt saved state for IRQ-safe locking
+ *
+ * \retval cpuid of current thread or number of allocated structs
+ * \retval negative on error (only for opc LPROCFS_GET_SMP_ID + per-CPU stats)
+ */
+int lprocfs_stats_lock(struct lprocfs_stats *stats,
+		       enum lprocfs_stats_lock_ops opc,
+		       unsigned long *flags)
+{
+	if (stats->ls_flags & LPROCFS_STATS_FLAG_NOPERCPU) {
+		if (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE)
+			spin_lock_irqsave(&stats->ls_lock, *flags);
+		else
+			spin_lock(&stats->ls_lock);
+		return opc == LPROCFS_GET_NUM_CPU ? 1 : 0;
+	}
+
+	switch (opc) {
+	case LPROCFS_GET_SMP_ID: {
+		unsigned int cpuid = get_cpu();
+
+		if (unlikely(!stats->ls_percpu[cpuid])) {
+			int rc = lprocfs_stats_alloc_one(stats, cpuid);
+
+			if (rc < 0) {
+				put_cpu();
+				return rc;
+			}
+		}
+		return cpuid;
+	}
+	case LPROCFS_GET_NUM_CPU:
+		return stats->ls_biggest_alloc_num;
+	default:
+		LBUG();
+	}
+}
+
+/**
+ * Unlock statistics structure after access.
+ *
+ * Unlock the lock acquired via lprocfs_stats_lock() for global statistics,
+ * or unpin this thread from the current cpuid for per-CPU statistics.
+ *
+ * This function must be called using the same arguments as used when calling
+ * lprocfs_stats_lock() so that the correct operation can be performed.
+ *
+ * \param[in] stats    statistics structure to unlock
+ * \param[in] opc      type of operation (current cpuid or number of structs)
+ * \param[in] flags    CPU interrupt saved state for IRQ-safe locking
+ */
+void lprocfs_stats_unlock(struct lprocfs_stats *stats,
+			  enum lprocfs_stats_lock_ops opc,
+			  unsigned long *flags)
+{
+	if (stats->ls_flags & LPROCFS_STATS_FLAG_NOPERCPU) {
+		if (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE)
+			spin_unlock_irqrestore(&stats->ls_lock, *flags);
+		else
+			spin_unlock(&stats->ls_lock);
+	} else if (opc == LPROCFS_GET_SMP_ID) {
+		put_cpu();
+	}
+}
+
 /** add up per-cpu counters */
 void lprocfs_stats_collect(struct lprocfs_stats *stats, int idx,
 			   struct lprocfs_counter *cnt)
@@ -635,7 +702,7 @@ static int obd_import_flags2str(struct obd_import *imp, struct seq_file *m)
 	bool first = true;
 
 	if (imp->imp_obd->obd_no_recov) {
-		seq_printf(m, "no_recov");
+		seq_puts(m, "no_recov");
 		first = false;
 	}
 
@@ -701,15 +768,15 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 		   imp->imp_connect_data.ocd_instance);
 	obd_connect_seq_flags2str(m, imp->imp_connect_data.ocd_connect_flags,
 				  ", ");
-	seq_printf(m, " ]\n");
+	seq_puts(m, " ]\n");
 	obd_connect_data_seqprint(m, ocd);
-	seq_printf(m, "    import_flags: [ ");
+	seq_puts(m, "    import_flags: [ ");
 	obd_import_flags2str(imp, m);
 
-	seq_printf(m,
-		   " ]\n"
-		   "    connection:\n"
-		   "       failover_nids: [ ");
+	seq_puts(m,
+		 " ]\n"
+		 "    connection:\n"
+		 "       failover_nids: [ ");
 	spin_lock(&imp->imp_lock);
 	j = 0;
 	list_for_each_entry(conn, &imp->imp_conn_list, oic_item) {
@@ -842,7 +909,7 @@ int lprocfs_rd_state(struct seq_file *m, void *data)
 
 	seq_printf(m, "current_state: %s\n",
 		   ptlrpc_import_state_name(imp->imp_state));
-	seq_printf(m, "state_history:\n");
+	seq_puts(m, "state_history:\n");
 	k = imp->imp_state_hist_idx;
 	for (j = 0; j < IMP_STATE_HIST_LEN; j++) {
 		struct import_state_hist *ish =
@@ -864,7 +931,7 @@ int lprocfs_at_hist_helper(struct seq_file *m, struct adaptive_timeout *at)
 
 	for (i = 0; i < AT_BINS; i++)
 		seq_printf(m, "%3u ", at->at_hist[i]);
-	seq_printf(m, "\n");
+	seq_puts(m, "\n");
 	return 0;
 }
 EXPORT_SYMBOL(lprocfs_at_hist_helper);
@@ -932,7 +999,7 @@ int lprocfs_rd_connect_flags(struct seq_file *m, void *data)
 	flags = obd->u.cli.cl_import->imp_connect_data.ocd_connect_flags;
 	seq_printf(m, "flags=%#llx\n", flags);
 	obd_connect_seq_flags2str(m, flags, "\n");
-	seq_printf(m, "\n");
+	seq_puts(m, "\n");
 	up_read(&obd->u.cli.cl_sem);
 	return 0;
 }
@@ -964,7 +1031,7 @@ static struct kobj_type obd_ktype = {
 };
 
 int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list,
-		      struct attribute_group *attrs)
+		      const struct attribute_group *attrs)
 {
 	int rc = 0;
 
@@ -1132,6 +1199,30 @@ void lprocfs_free_stats(struct lprocfs_stats **statsh)
 }
 EXPORT_SYMBOL(lprocfs_free_stats);
 
+__u64 lprocfs_stats_collector(struct lprocfs_stats *stats, int idx,
+			      enum lprocfs_fields_flags field)
+{
+	unsigned int i;
+	unsigned int  num_cpu;
+	unsigned long flags     = 0;
+	__u64         ret       = 0;
+
+	LASSERT(stats);
+
+	num_cpu = lprocfs_stats_lock(stats, LPROCFS_GET_NUM_CPU, &flags);
+	for (i = 0; i < num_cpu; i++) {
+		if (!stats->ls_percpu[i])
+			continue;
+		ret += lprocfs_read_helper(
+				lprocfs_stats_counter_get(stats, i, idx),
+				&stats->ls_cnt_header[idx], stats->ls_flags,
+				field);
+	}
+	lprocfs_stats_unlock(stats, LPROCFS_GET_NUM_CPU, &flags);
+	return ret;
+}
+EXPORT_SYMBOL(lprocfs_stats_collector);
+
 void lprocfs_clear_stats(struct lprocfs_stats *stats)
 {
 	struct lprocfs_counter		*percpu_cntr;
@@ -1275,7 +1366,8 @@ int ldebugfs_register_stats(struct dentry *parent, const char *name,
 EXPORT_SYMBOL_GPL(ldebugfs_register_stats);
 
 void lprocfs_counter_init(struct lprocfs_stats *stats, int index,
-			  unsigned conf, const char *name, const char *units)
+			  unsigned int conf, const char *name,
+			  const char *units)
 {
 	struct lprocfs_counter_header	*header;
 	struct lprocfs_counter		*percpu_cntr;

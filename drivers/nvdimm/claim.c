@@ -12,8 +12,8 @@
  */
 #include <linux/device.h>
 #include <linux/sizes.h>
-#include <linux/pmem.h>
 #include "nd-core.h"
+#include "pmem.h"
 #include "pfn.h"
 #include "btt.h"
 #include "nd.h"
@@ -21,10 +21,14 @@
 void __nd_detach_ndns(struct device *dev, struct nd_namespace_common **_ndns)
 {
 	struct nd_namespace_common *ndns = *_ndns;
+	struct nvdimm_bus *nvdimm_bus;
 
-	dev_WARN_ONCE(dev, !mutex_is_locked(&ndns->dev.mutex)
-			|| ndns->claim != dev,
-			"%s: invalid claim\n", __func__);
+	if (!ndns)
+		return;
+
+	nvdimm_bus = walk_to_nvdimm_bus(&ndns->dev);
+	lockdep_assert_held(&nvdimm_bus->reconfig_mutex);
+	dev_WARN_ONCE(dev, ndns->claim != dev, "%s: invalid claim\n", __func__);
 	ndns->claim = NULL;
 	*_ndns = NULL;
 	put_device(&ndns->dev);
@@ -38,20 +42,21 @@ void nd_detach_ndns(struct device *dev,
 	if (!ndns)
 		return;
 	get_device(&ndns->dev);
-	device_lock(&ndns->dev);
+	nvdimm_bus_lock(&ndns->dev);
 	__nd_detach_ndns(dev, _ndns);
-	device_unlock(&ndns->dev);
+	nvdimm_bus_unlock(&ndns->dev);
 	put_device(&ndns->dev);
 }
 
 bool __nd_attach_ndns(struct device *dev, struct nd_namespace_common *attach,
 		struct nd_namespace_common **_ndns)
 {
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(&attach->dev);
+
 	if (attach->claim)
 		return false;
-	dev_WARN_ONCE(dev, !mutex_is_locked(&attach->dev.mutex)
-			|| *_ndns,
-			"%s: invalid claim\n", __func__);
+	lockdep_assert_held(&nvdimm_bus->reconfig_mutex);
+	dev_WARN_ONCE(dev, *_ndns, "%s: invalid claim\n", __func__);
 	attach->claim = dev;
 	*_ndns = attach;
 	get_device(&attach->dev);
@@ -63,9 +68,9 @@ bool nd_attach_ndns(struct device *dev, struct nd_namespace_common *attach,
 {
 	bool claimed;
 
-	device_lock(&attach->dev);
+	nvdimm_bus_lock(&attach->dev);
 	claimed = __nd_attach_ndns(dev, attach, _ndns);
-	device_unlock(&attach->dev);
+	nvdimm_bus_unlock(&attach->dev);
 	return claimed;
 }
 
@@ -116,7 +121,7 @@ static void nd_detach_and_reset(struct device *dev,
 		struct nd_namespace_common **_ndns)
 {
 	/* detach the namespace and destroy / reset the device */
-	nd_detach_ndns(dev, _ndns);
+	__nd_detach_ndns(dev, _ndns);
 	if (is_idle(dev, *_ndns)) {
 		nd_device_unregister(dev, ND_ASYNC);
 	} else if (is_nd_btt(dev)) {
@@ -179,6 +184,35 @@ ssize_t nd_namespace_store(struct device *dev,
 	}
 
 	ndns = to_ndns(found);
+
+	switch (ndns->claim_class) {
+	case NVDIMM_CCLASS_NONE:
+		break;
+	case NVDIMM_CCLASS_BTT:
+	case NVDIMM_CCLASS_BTT2:
+		if (!is_nd_btt(dev)) {
+			len = -EBUSY;
+			goto out_attach;
+		}
+		break;
+	case NVDIMM_CCLASS_PFN:
+		if (!is_nd_pfn(dev)) {
+			len = -EBUSY;
+			goto out_attach;
+		}
+		break;
+	case NVDIMM_CCLASS_DAX:
+		if (!is_nd_dax(dev)) {
+			len = -EBUSY;
+			goto out_attach;
+		}
+		break;
+	default:
+		len = -EBUSY;
+		goto out_attach;
+		break;
+	}
+
 	if (__nvdimm_namespace_capacity(ndns) < SZ_16M) {
 		dev_dbg(dev, "%s too small to host\n", name);
 		len = -ENXIO;
@@ -186,7 +220,7 @@ ssize_t nd_namespace_store(struct device *dev,
 	}
 
 	WARN_ON_ONCE(!is_nvdimm_bus_locked(dev));
-	if (!nd_attach_ndns(dev, ndns, _ndns)) {
+	if (!__nd_attach_ndns(dev, ndns, _ndns)) {
 		dev_dbg(dev, "%s already claimed\n",
 				dev_name(&ndns->dev));
 		len = -EBUSY;
@@ -223,9 +257,16 @@ u64 nd_sb_checksum(struct nd_gen_sb *nd_gen_sb)
 EXPORT_SYMBOL(nd_sb_checksum);
 
 static int nsio_rw_bytes(struct nd_namespace_common *ndns,
-		resource_size_t offset, void *buf, size_t size, int rw)
+		resource_size_t offset, void *buf, size_t size, int rw,
+		unsigned long flags)
 {
 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
+	unsigned int sz_align = ALIGN(size + (offset & (512 - 1)), 512);
+	sector_t sector = offset >> 9;
+	int rc = 0;
+
+	if (unlikely(!size))
+		return 0;
 
 	if (unlikely(offset + size > nsio->size)) {
 		dev_WARN_ONCE(&ndns->dev, 1, "request out of range\n");
@@ -233,17 +274,34 @@ static int nsio_rw_bytes(struct nd_namespace_common *ndns,
 	}
 
 	if (rw == READ) {
-		unsigned int sz_align = ALIGN(size + (offset & (512 - 1)), 512);
-
-		if (unlikely(is_bad_pmem(&nsio->bb, offset / 512, sz_align)))
+		if (unlikely(is_bad_pmem(&nsio->bb, sector, sz_align)))
 			return -EIO;
-		return memcpy_from_pmem(buf, nsio->addr + offset, size);
-	} else {
-		memcpy_to_pmem(nsio->addr + offset, buf, size);
-		nvdimm_flush(to_nd_region(ndns->dev.parent));
+		return memcpy_mcsafe(buf, nsio->addr + offset, size);
 	}
 
-	return 0;
+	if (unlikely(is_bad_pmem(&nsio->bb, sector, sz_align))) {
+		if (IS_ALIGNED(offset, 512) && IS_ALIGNED(size, 512)
+				&& !(flags & NVDIMM_IO_ATOMIC)) {
+			long cleared;
+
+			might_sleep();
+			cleared = nvdimm_clear_poison(&ndns->dev,
+					nsio->res.start + offset, size);
+			if (cleared < size)
+				rc = -EIO;
+			if (cleared > 0 && cleared / 512) {
+				cleared /= 512;
+				badblocks_clear(&nsio->bb, sector, cleared);
+			}
+			arch_invalidate_pmem(nsio->addr + offset, size);
+		} else
+			rc = -EIO;
+	}
+
+	memcpy_flushcache(nsio->addr + offset, buf, size);
+	nvdimm_flush(to_nd_region(ndns->dev.parent));
+
+	return rc;
 }
 
 int devm_nsio_enable(struct device *dev, struct nd_namespace_io *nsio)
@@ -253,7 +311,7 @@ int devm_nsio_enable(struct device *dev, struct nd_namespace_io *nsio)
 
 	nsio->size = resource_size(res);
 	if (!devm_request_mem_region(dev, res->start, resource_size(res),
-				dev_name(dev))) {
+				dev_name(&ndns->dev))) {
 		dev_warn(dev, "could not reserve region %pR\n", res);
 		return -EBUSY;
 	}

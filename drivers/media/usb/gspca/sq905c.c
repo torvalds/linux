@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 /*
@@ -210,8 +206,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	int ret;
 
 	PDEBUG(D_PROBE,
-		"SQ9050 camera detected"
-		" (vid/pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
+	       "SQ9050 camera detected (vid/pid 0x%04X:0x%04X)",
+	       id->idVendor, id->idProduct);
 
 	ret = sq905c_command(gspca_dev, SQ905C_GET_ID, 0);
 	if (ret < 0) {
@@ -257,11 +253,8 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
-	int ret;
-
 	/* connect to the camera and reset it. */
-	ret = sq905c_command(gspca_dev, SQ905C_CLEAR, 0);
-	return ret;
+	return sq905c_command(gspca_dev, SQ905C_CLEAR, 0);
 }
 
 /* Set up for getting frames. */

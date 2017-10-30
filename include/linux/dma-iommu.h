@@ -20,6 +20,7 @@
 #include <asm/errno.h>
 
 #ifdef CONFIG_IOMMU_DMA
+#include <linux/dma-mapping.h>
 #include <linux/iommu.h>
 #include <linux/msi.h>
 
@@ -27,6 +28,7 @@ int iommu_dma_init(void);
 
 /* Domain management interface for IOMMU drivers */
 int iommu_get_dma_cookie(struct iommu_domain *domain);
+int iommu_get_msi_cookie(struct iommu_domain *domain, dma_addr_t base);
 void iommu_put_dma_cookie(struct iommu_domain *domain);
 
 /* Setup call for arch DMA mapping code */
@@ -34,7 +36,8 @@ int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 		u64 size, struct device *dev);
 
 /* General helpers for DMA-API <-> IOMMU-API interaction */
-int dma_direction_to_prot(enum dma_data_direction dir, bool coherent);
+int dma_info_to_prot(enum dma_data_direction dir, bool coherent,
+		     unsigned long attrs);
 
 /*
  * These implement the bulk of the relevant DMA mapping callbacks, but require
@@ -61,16 +64,21 @@ void iommu_dma_unmap_page(struct device *dev, dma_addr_t handle, size_t size,
 		enum dma_data_direction dir, unsigned long attrs);
 void iommu_dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
 		enum dma_data_direction dir, unsigned long attrs);
-int iommu_dma_supported(struct device *dev, u64 mask);
+dma_addr_t iommu_dma_map_resource(struct device *dev, phys_addr_t phys,
+		size_t size, enum dma_data_direction dir, unsigned long attrs);
+void iommu_dma_unmap_resource(struct device *dev, dma_addr_t handle,
+		size_t size, enum dma_data_direction dir, unsigned long attrs);
 int iommu_dma_mapping_error(struct device *dev, dma_addr_t dma_addr);
 
 /* The DMA API isn't _quite_ the whole story, though... */
 void iommu_dma_map_msi_msg(int irq, struct msi_msg *msg);
+void iommu_dma_get_resv_regions(struct device *dev, struct list_head *list);
 
 #else
 
 struct iommu_domain;
 struct msi_msg;
+struct device;
 
 static inline int iommu_dma_init(void)
 {
@@ -82,11 +90,20 @@ static inline int iommu_get_dma_cookie(struct iommu_domain *domain)
 	return -ENODEV;
 }
 
+static inline int iommu_get_msi_cookie(struct iommu_domain *domain, dma_addr_t base)
+{
+	return -ENODEV;
+}
+
 static inline void iommu_put_dma_cookie(struct iommu_domain *domain)
 {
 }
 
 static inline void iommu_dma_map_msi_msg(int irq, struct msi_msg *msg)
+{
+}
+
+static inline void iommu_dma_get_resv_regions(struct device *dev, struct list_head *list)
 {
 }
 

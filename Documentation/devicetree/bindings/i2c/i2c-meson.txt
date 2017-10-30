@@ -8,6 +8,8 @@ Required properties:
  - #address-cells: should be <1>
  - #size-cells: should be <0>
 
+For details regarding the following core I2C bindings see also i2c.txt.
+
 Optional properties:
 - clock-frequency: the desired I2C bus clock frequency in Hz; in
   absence of this property the default value is used (100 kHz).

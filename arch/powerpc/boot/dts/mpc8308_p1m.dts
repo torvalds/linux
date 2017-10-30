@@ -123,7 +123,7 @@
 			interrupt-parent = <&ipic>;
 			dfsrr;
 			fram@50 {
-				compatible = "ramtron,24c64";
+				compatible = "ramtron,24c64", "atmel,24c64";
 				reg = <0x50>;
 			};
 		};

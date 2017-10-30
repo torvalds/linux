@@ -97,7 +97,7 @@ int orinoco_wiphy_register(struct wiphy *wiphy)
 }
 
 static int orinoco_change_vif(struct wiphy *wiphy, struct net_device *dev,
-			      enum nl80211_iftype type, u32 *flags,
+			      enum nl80211_iftype type,
 			      struct vif_params *params)
 {
 	struct orinoco_private *priv = wiphy_priv(wiphy);

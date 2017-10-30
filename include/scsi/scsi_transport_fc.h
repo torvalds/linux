@@ -28,9 +28,11 @@
 #define SCSI_TRANSPORT_FC_H
 
 #include <linux/sched.h>
+#include <linux/bsg-lib.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_netlink.h>
+#include <scsi/scsi_host.h>
 
 struct scsi_transport_template;
 
@@ -160,6 +162,7 @@ enum fc_tgtid_binding_type  {
 #define FC_PORT_ROLE_FCP_TARGET			0x01
 #define FC_PORT_ROLE_FCP_INITIATOR		0x02
 #define FC_PORT_ROLE_IP_PORT			0x04
+#define FC_PORT_ROLE_FCP_DUMMY_INITIATOR	0x08
 
 /* The following are for compatibility */
 #define FC_RPORT_ROLE_UNKNOWN			FC_PORT_ROLE_UNKNOWN
@@ -624,48 +627,6 @@ struct fc_host_attrs {
 #define fc_host_dev_loss_tmo(x) \
 	(((struct fc_host_attrs *)(x)->shost_data)->dev_loss_tmo)
 
-
-struct fc_bsg_buffer {
-	unsigned int payload_len;
-	int sg_cnt;
-	struct scatterlist *sg_list;
-};
-
-/* Values for fc_bsg_job->state_flags (bitflags) */
-#define FC_RQST_STATE_INPROGRESS	0
-#define FC_RQST_STATE_DONE		1
-
-struct fc_bsg_job {
-	struct Scsi_Host *shost;
-	struct fc_rport *rport;
-	struct device *dev;
-	struct request *req;
-	spinlock_t job_lock;
-	unsigned int state_flags;
-	unsigned int ref_cnt;
-	void (*job_done)(struct fc_bsg_job *);
-
-	struct fc_bsg_request *request;
-	struct fc_bsg_reply *reply;
-	unsigned int request_len;
-	unsigned int reply_len;
-	/*
-	 * On entry : reply_len indicates the buffer size allocated for
-	 * the reply.
-	 *
-	 * Upon completion : the message handler must set reply_len
-	 *  to indicates the size of the reply to be returned to the
-	 *  caller.
-	 */
-
-	/* DMA payloads for the request/response */
-	struct fc_bsg_buffer request_payload;
-	struct fc_bsg_buffer reply_payload;
-
-	void *dd_data;			/* Used for driver-specific storage */
-};
-
-
 /* The functions by which the transport class and the driver communicate */
 struct fc_function_template {
 	void    (*get_rport_dev_loss_tmo)(struct fc_rport *);
@@ -697,13 +658,9 @@ struct fc_function_template {
 	int	(*vport_disable)(struct fc_vport *, bool);
 	int  	(*vport_delete)(struct fc_vport *);
 
-	/* target-mode drivers' functions */
-	int     (* tsk_mgmt_response)(struct Scsi_Host *, u64, u64, int);
-	int     (* it_nexus_response)(struct Scsi_Host *, u64, int);
-
 	/* bsg support */
-	int	(*bsg_request)(struct fc_bsg_job *);
-	int	(*bsg_timeout)(struct fc_bsg_job *);
+	int	(*bsg_request)(struct bsg_job *);
+	int	(*bsg_timeout)(struct bsg_job *);
 
 	/* allocation lengths for host-specific data */
 	u32	 			dd_fcrport_size;
@@ -847,6 +804,22 @@ void fc_host_post_vendor_event(struct Scsi_Host *shost, u32 event_number,
 struct fc_vport *fc_vport_create(struct Scsi_Host *shost, int channel,
 		struct fc_vport_identifiers *);
 int fc_vport_terminate(struct fc_vport *vport);
+int fc_block_rport(struct fc_rport *rport);
 int fc_block_scsi_eh(struct scsi_cmnd *cmnd);
+enum blk_eh_timer_return fc_eh_timed_out(struct scsi_cmnd *scmd);
+
+static inline struct Scsi_Host *fc_bsg_to_shost(struct bsg_job *job)
+{
+	if (scsi_is_host_device(job->dev))
+		return dev_to_shost(job->dev);
+	return rport_to_shost(dev_to_rport(job->dev));
+}
+
+static inline struct fc_rport *fc_bsg_to_rport(struct bsg_job *job)
+{
+	if (scsi_is_fc_rport(job->dev))
+		return dev_to_rport(job->dev);
+	return NULL;
+}
 
 #endif /* SCSI_TRANSPORT_FC_H */

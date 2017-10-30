@@ -166,10 +166,18 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	davinci_wdt->clk = devm_clk_get(dev, NULL);
-	if (WARN_ON(IS_ERR(davinci_wdt->clk)))
-		return PTR_ERR(davinci_wdt->clk);
 
-	clk_prepare_enable(davinci_wdt->clk);
+	if (IS_ERR(davinci_wdt->clk)) {
+		if (PTR_ERR(davinci_wdt->clk) != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to get clock node\n");
+		return PTR_ERR(davinci_wdt->clk);
+	}
+
+	ret = clk_prepare_enable(davinci_wdt->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to prepare clock\n");
+		return ret;
+	}
 
 	platform_set_drvdata(pdev, davinci_wdt);
 
@@ -194,8 +202,10 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 		return PTR_ERR(davinci_wdt->base);
 
 	ret = watchdog_register_device(wdd);
-	if (ret < 0)
+	if (ret < 0) {
+		clk_disable_unprepare(davinci_wdt->clk);
 		dev_err(dev, "cannot register watchdog device\n");
+	}
 
 	return ret;
 }

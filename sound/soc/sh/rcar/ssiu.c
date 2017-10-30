@@ -33,6 +33,26 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 	u32 mask1, val1;
 	u32 mask2, val2;
 
+	/* clear status */
+	switch (id) {
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+	case 4:
+		rsnd_mod_write(mod, SSI_SYS_STATUS0, 0xf << (id * 4));
+		rsnd_mod_write(mod, SSI_SYS_STATUS2, 0xf << (id * 4));
+		rsnd_mod_write(mod, SSI_SYS_STATUS4, 0xf << (id * 4));
+		rsnd_mod_write(mod, SSI_SYS_STATUS6, 0xf << (id * 4));
+		break;
+	case 9:
+		rsnd_mod_write(mod, SSI_SYS_STATUS1, 0xf << 4);
+		rsnd_mod_write(mod, SSI_SYS_STATUS3, 0xf << 4);
+		rsnd_mod_write(mod, SSI_SYS_STATUS5, 0xf << 4);
+		rsnd_mod_write(mod, SSI_SYS_STATUS7, 0xf << 4);
+		break;
+	}
+
 	/*
 	 * SSI_MODE0
 	 */
@@ -44,7 +64,11 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 	mask1 = (1 << 4) | (1 << 20);	/* mask sync bit */
 	mask2 = (1 << 4);		/* mask sync bit */
 	val1  = val2  = 0;
-	if (rsnd_ssi_is_pin_sharing(io)) {
+	if (id == 8) {
+		/*
+		 * SSI8 pin is sharing with SSI7, nothing to do.
+		 */
+	} else if (rsnd_ssi_is_pin_sharing(io)) {
 		int shift = -1;
 
 		switch (id) {
@@ -99,6 +123,7 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 			       struct rsnd_dai_stream *io,
 			       struct rsnd_priv *priv)
 {
+	int hdmi = rsnd_ssi_hdmi_port(io);
 	int ret;
 
 	ret = rsnd_ssiu_init(mod, io, priv);
@@ -120,9 +145,46 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 			       (rsnd_io_is_play(io) ?
 				rsnd_runtime_channel_after_ctu(io) :
 				rsnd_runtime_channel_original(io)));
-		rsnd_mod_write(mod, SSI_BUSIF_MODE,  1);
+		rsnd_mod_write(mod, SSI_BUSIF_MODE,
+			       rsnd_get_busif_shift(io, mod) | 1);
 		rsnd_mod_write(mod, SSI_BUSIF_DALIGN,
 			       rsnd_get_dalign(mod, io));
+	}
+
+	if (hdmi) {
+		enum rsnd_mod_type rsnd_ssi_array[] = {
+			RSND_MOD_SSIM1,
+			RSND_MOD_SSIM2,
+			RSND_MOD_SSIM3,
+		};
+		struct rsnd_mod *ssi_mod = rsnd_io_to_mod_ssi(io);
+		struct rsnd_mod *pos;
+		u32 val;
+		int i, shift;
+
+		i = rsnd_mod_id(ssi_mod);
+
+		/* output all same SSI as default */
+		val =	i << 16 |
+			i << 20 |
+			i << 24 |
+			i << 28 |
+			i;
+
+		for_each_rsnd_mod_array(i, pos, io, rsnd_ssi_array) {
+			shift	= (i * 4) + 16;
+			val	= (val & ~(0xF << shift)) |
+				rsnd_mod_id(pos) << shift;
+		}
+
+		switch (hdmi) {
+		case RSND_SSI_HDMI_PORT0:
+			rsnd_mod_write(mod, HDMI0_SEL, val);
+			break;
+		case RSND_SSI_HDMI_PORT1:
+			rsnd_mod_write(mod, HDMI1_SEL, val);
+			break;
+		}
 	}
 
 	return 0;
@@ -188,7 +250,7 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_ssiu *ssiu;
-	static struct rsnd_mod_ops *ops;
+	struct rsnd_mod_ops *ops;
 	int i, nr, ret;
 
 	/* same number to SSI */

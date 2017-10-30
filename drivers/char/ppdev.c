@@ -58,7 +58,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/device.h>
 #include <linux/ioctl.h>
 #include <linux/parport.h>
@@ -84,7 +84,13 @@ struct pp_struct {
 	struct ieee1284_info state;
 	struct ieee1284_info saved_state;
 	long default_inactivity;
+	int index;
 };
+
+/* should we use PARDEVICE_MAX here? */
+static struct device *devices[PARPORT_MAX];
+
+static DEFINE_IDA(ida_index);
 
 /* pp_struct.flags bitfields */
 #define PP_CLAIMED    (1<<0)
@@ -94,9 +100,6 @@ struct pp_struct {
 #define PP_INTERRUPT_TIMEOUT (10 * HZ) /* 10s */
 #define PP_BUFFER_SIZE 1024
 #define PARDEVICE_MAX 8
-
-/* ROUND_UP macro from fs/select.c */
-#define ROUND_UP(x,y) (((x)+(y)-1)/(y))
 
 static DEFINE_MUTEX(pp_do_mutex);
 
@@ -287,6 +290,7 @@ static int register_device(int minor, struct pp_struct *pp)
 	struct pardevice *pdev = NULL;
 	char *name;
 	struct pardev_cb ppdev_cb;
+	int rc = 0, index;
 
 	name = kasprintf(GFP_KERNEL, CHRDEV "%x", minor);
 	if (name == NULL)
@@ -294,27 +298,32 @@ static int register_device(int minor, struct pp_struct *pp)
 
 	port = parport_find_number(minor);
 	if (!port) {
-		printk(KERN_WARNING "%s: no associated port!\n", name);
-		kfree(name);
-		return -ENXIO;
+		pr_warn("%s: no associated port!\n", name);
+		rc = -ENXIO;
+		goto err;
 	}
 
+	index = ida_simple_get(&ida_index, 0, 0, GFP_KERNEL);
 	memset(&ppdev_cb, 0, sizeof(ppdev_cb));
 	ppdev_cb.irq_func = pp_irq;
 	ppdev_cb.flags = (pp->flags & PP_EXCL) ? PARPORT_FLAG_EXCL : 0;
 	ppdev_cb.private = pp;
-	pdev = parport_register_dev_model(port, name, &ppdev_cb, minor);
+	pdev = parport_register_dev_model(port, name, &ppdev_cb, index);
 	parport_put_port(port);
 
 	if (!pdev) {
-		printk(KERN_WARNING "%s: failed to register device!\n", name);
-		kfree(name);
-		return -ENXIO;
+		pr_warn("%s: failed to register device!\n", name);
+		rc = -ENXIO;
+		ida_simple_remove(&ida_index, index);
+		goto err;
 	}
 
 	pp->pdev = pdev;
+	pp->index = index;
 	dev_dbg(&pdev->dev, "registered pardevice\n");
-	return 0;
+err:
+	kfree(name);
+	return rc;
 }
 
 static enum ieee1284_phase init_phase(int mode)
@@ -749,6 +758,7 @@ static int pp_release(struct inode *inode, struct file *file)
 
 	if (pp->pdev) {
 		parport_unregister_device(pp->pdev);
+		ida_simple_remove(&ida_index, pp->index);
 		pp->pdev = NULL;
 		pr_debug(CHRDEV "%x: unregistered pardevice\n", minor);
 	}
@@ -789,13 +799,29 @@ static const struct file_operations pp_fops = {
 
 static void pp_attach(struct parport *port)
 {
-	device_create(ppdev_class, port->dev, MKDEV(PP_MAJOR, port->number),
-		      NULL, "parport%d", port->number);
+	struct device *ret;
+
+	if (devices[port->number])
+		return;
+
+	ret = device_create(ppdev_class, port->dev,
+			    MKDEV(PP_MAJOR, port->number), NULL,
+			    "parport%d", port->number);
+	if (IS_ERR(ret)) {
+		pr_err("Failed to create device parport%d\n",
+		       port->number);
+		return;
+	}
+	devices[port->number] = ret;
 }
 
 static void pp_detach(struct parport *port)
 {
+	if (!devices[port->number])
+		return;
+
 	device_destroy(ppdev_class, MKDEV(PP_MAJOR, port->number));
+	devices[port->number] = NULL;
 }
 
 static int pp_probe(struct pardevice *par_dev)
@@ -822,8 +848,7 @@ static int __init ppdev_init(void)
 	int err = 0;
 
 	if (register_chrdev(PP_MAJOR, CHRDEV, &pp_fops)) {
-		printk(KERN_WARNING CHRDEV ": unable to get major %d\n",
-		       PP_MAJOR);
+		pr_warn(CHRDEV ": unable to get major %d\n", PP_MAJOR);
 		return -EIO;
 	}
 	ppdev_class = class_create(THIS_MODULE, CHRDEV);
@@ -833,11 +858,11 @@ static int __init ppdev_init(void)
 	}
 	err = parport_register_driver(&pp_driver);
 	if (err < 0) {
-		printk(KERN_WARNING CHRDEV ": unable to register with parport\n");
+		pr_warn(CHRDEV ": unable to register with parport\n");
 		goto out_class;
 	}
 
-	printk(KERN_INFO PP_VERSION "\n");
+	pr_info(PP_VERSION "\n");
 	goto out;
 
 out_class:

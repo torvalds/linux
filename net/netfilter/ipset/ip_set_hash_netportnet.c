@@ -154,7 +154,7 @@ hash_netportnet4_kadt(struct ip_set *set, const struct sk_buff *skb,
 		      const struct xt_action_param *par,
 		      enum ipset_adt adt, struct ip_set_adt_opt *opt)
 {
-	const struct hash_netportnet *h = set->data;
+	const struct hash_netportnet4 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netportnet4_elem e = { };
 	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
@@ -180,7 +180,7 @@ static int
 hash_netportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 		      enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
 {
-	const struct hash_netportnet *h = set->data;
+	const struct hash_netportnet4 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netportnet4_elem e = { };
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
@@ -291,7 +291,7 @@ hash_netportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (retried)
 		ip = ntohl(h->next.ip[0]);
 
-	while (!after(ip, ip_to)) {
+	while (ip <= ip_to) {
 		e.ip[0] = htonl(ip);
 		ip_last = ip_set_range_to_cidr(ip, ip_to, &e.cidr[0]);
 		p = retried && ip == ntohl(h->next.ip[0]) ? ntohs(h->next.port)
@@ -301,7 +301,7 @@ hash_netportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 			ip2 = (retried && ip == ntohl(h->next.ip[0]) &&
 			       p == ntohs(h->next.port)) ? ntohl(h->next.ip[1])
 							 : ip2_from;
-			while (!after(ip2, ip2_to)) {
+			while (ip2 <= ip2_to) {
 				e.ip[1] = htonl(ip2);
 				ip2_last = ip_set_range_to_cidr(ip2, ip2_to,
 								&e.cidr[1]);
@@ -406,7 +406,7 @@ nla_put_failure:
 }
 
 static inline void
-hash_netportnet6_data_next(struct hash_netportnet4_elem *next,
+hash_netportnet6_data_next(struct hash_netportnet6_elem *next,
 			   const struct hash_netportnet6_elem *d)
 {
 	next->port = d->port;
@@ -432,7 +432,7 @@ hash_netportnet6_kadt(struct ip_set *set, const struct sk_buff *skb,
 		      const struct xt_action_param *par,
 		      enum ipset_adt adt, struct ip_set_adt_opt *opt)
 {
-	const struct hash_netportnet *h = set->data;
+	const struct hash_netportnet6 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netportnet6_elem e = { };
 	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
@@ -458,7 +458,7 @@ static int
 hash_netportnet6_uadt(struct ip_set *set, struct nlattr *tb[],
 		      enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
 {
-	const struct hash_netportnet *h = set->data;
+	const struct hash_netportnet6 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netportnet6_elem e = { };
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);

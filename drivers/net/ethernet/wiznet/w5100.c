@@ -915,7 +915,7 @@ static int w5100_napi_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (rx_count < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, rx_count);
 		w5100_enable_intr(priv);
 	}
 
@@ -1045,7 +1045,6 @@ static const struct net_device_ops w5100_netdev_ops = {
 	.ndo_set_rx_mode	= w5100_set_rx_mode,
 	.ndo_set_mac_address	= w5100_set_macaddr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static int w5100_mmio_probe(struct platform_device *pdev)
@@ -1153,7 +1152,8 @@ int w5100_probe(struct device *dev, const struct w5100_ops *ops,
 	if (err < 0)
 		goto err_register;
 
-	priv->xfer_wq = alloc_workqueue(netdev_name(ndev), WQ_MEM_RECLAIM, 0);
+	priv->xfer_wq = alloc_workqueue("%s", WQ_MEM_RECLAIM, 0,
+					netdev_name(ndev));
 	if (!priv->xfer_wq) {
 		err = -ENOMEM;
 		goto err_wq;

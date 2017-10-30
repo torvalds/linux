@@ -128,11 +128,11 @@
 		.ops		= &axp20x_ops_range,				\
 	}
 
-static struct regulator_ops axp20x_ops_fixed = {
+static const struct regulator_ops axp20x_ops_fixed = {
 	.list_voltage		= regulator_list_voltage_linear,
 };
 
-static struct regulator_ops axp20x_ops_range = {
+static const struct regulator_ops axp20x_ops_range = {
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.list_voltage		= regulator_list_voltage_linear_range,
@@ -141,7 +141,7 @@ static struct regulator_ops axp20x_ops_range = {
 	.is_enabled		= regulator_is_enabled_regmap,
 };
 
-static struct regulator_ops axp20x_ops = {
+static const struct regulator_ops axp20x_ops = {
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.list_voltage		= regulator_list_voltage_linear,
@@ -150,7 +150,7 @@ static struct regulator_ops axp20x_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 };
 
-static struct regulator_ops axp20x_ops_sw = {
+static const struct regulator_ops axp20x_ops_sw = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -244,6 +244,82 @@ static const struct regulator_desc axp22x_drivevbus_regulator = {
 	.ops		= &axp20x_ops_sw,
 };
 
+static const struct regulator_linear_range axp803_dcdc234_ranges[] = {
+	REGULATOR_LINEAR_RANGE(500000, 0x0, 0x46, 10000),
+	REGULATOR_LINEAR_RANGE(1220000, 0x47, 0x4b, 20000),
+};
+
+static const struct regulator_linear_range axp803_dcdc5_ranges[] = {
+	REGULATOR_LINEAR_RANGE(800000, 0x0, 0x20, 10000),
+	REGULATOR_LINEAR_RANGE(1140000, 0x21, 0x44, 20000),
+};
+
+static const struct regulator_linear_range axp803_dcdc6_ranges[] = {
+	REGULATOR_LINEAR_RANGE(600000, 0x0, 0x32, 10000),
+	REGULATOR_LINEAR_RANGE(1120000, 0x33, 0x47, 20000),
+};
+
+/* AXP806's CLDO2 and AXP809's DLDO1 shares the same range */
+static const struct regulator_linear_range axp803_dldo2_ranges[] = {
+	REGULATOR_LINEAR_RANGE(700000, 0x0, 0x1a, 100000),
+	REGULATOR_LINEAR_RANGE(3400000, 0x1b, 0x1f, 200000),
+};
+
+static const struct regulator_desc axp803_regulators[] = {
+	AXP_DESC(AXP803, DCDC1, "dcdc1", "vin1", 1600, 3400, 100,
+		 AXP803_DCDC1_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL1, BIT(0)),
+	AXP_DESC_RANGES(AXP803, DCDC2, "dcdc2", "vin2", axp803_dcdc234_ranges,
+			76, AXP803_DCDC2_V_OUT, 0x7f, AXP22X_PWR_OUT_CTRL1,
+			BIT(1)),
+	AXP_DESC_RANGES(AXP803, DCDC3, "dcdc3", "vin3", axp803_dcdc234_ranges,
+			76, AXP803_DCDC3_V_OUT, 0x7f, AXP22X_PWR_OUT_CTRL1,
+			BIT(2)),
+	AXP_DESC_RANGES(AXP803, DCDC4, "dcdc4", "vin4", axp803_dcdc234_ranges,
+			76, AXP803_DCDC4_V_OUT, 0x7f, AXP22X_PWR_OUT_CTRL1,
+			BIT(3)),
+	AXP_DESC_RANGES(AXP803, DCDC5, "dcdc5", "vin5", axp803_dcdc5_ranges,
+			68, AXP803_DCDC5_V_OUT, 0x7f, AXP22X_PWR_OUT_CTRL1,
+			BIT(4)),
+	AXP_DESC_RANGES(AXP803, DCDC6, "dcdc6", "vin6", axp803_dcdc6_ranges,
+			72, AXP803_DCDC6_V_OUT, 0x7f, AXP22X_PWR_OUT_CTRL1,
+			BIT(5)),
+	/* secondary switchable output of DCDC1 */
+	AXP_DESC_SW(AXP803, DC1SW, "dc1sw", NULL, AXP22X_PWR_OUT_CTRL2,
+		    BIT(7)),
+	AXP_DESC(AXP803, ALDO1, "aldo1", "aldoin", 700, 3300, 100,
+		 AXP22X_ALDO1_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL3, BIT(5)),
+	AXP_DESC(AXP803, ALDO2, "aldo2", "aldoin", 700, 3300, 100,
+		 AXP22X_ALDO2_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL3, BIT(6)),
+	AXP_DESC(AXP803, ALDO3, "aldo3", "aldoin", 700, 3300, 100,
+		 AXP22X_ALDO3_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL3, BIT(7)),
+	AXP_DESC(AXP803, DLDO1, "dldo1", "dldoin", 700, 3300, 100,
+		 AXP22X_DLDO1_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2, BIT(3)),
+	AXP_DESC_RANGES(AXP803, DLDO2, "dldo2", "dldoin", axp803_dldo2_ranges,
+			32, AXP22X_DLDO2_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2,
+			BIT(4)),
+	AXP_DESC(AXP803, DLDO3, "dldo3", "dldoin", 700, 3300, 100,
+		 AXP22X_DLDO3_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2, BIT(5)),
+	AXP_DESC(AXP803, DLDO4, "dldo4", "dldoin", 700, 3300, 100,
+		 AXP22X_DLDO4_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2, BIT(6)),
+	AXP_DESC(AXP803, ELDO1, "eldo1", "eldoin", 700, 1900, 50,
+		 AXP22X_ELDO1_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2, BIT(0)),
+	AXP_DESC(AXP803, ELDO2, "eldo2", "eldoin", 700, 1900, 50,
+		 AXP22X_ELDO2_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2, BIT(1)),
+	AXP_DESC(AXP803, ELDO3, "eldo3", "eldoin", 700, 1900, 50,
+		 AXP22X_ELDO3_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2, BIT(2)),
+	AXP_DESC(AXP803, FLDO1, "fldo1", "fldoin", 700, 1450, 50,
+		 AXP803_FLDO1_V_OUT, 0x0f, AXP22X_PWR_OUT_CTRL3, BIT(2)),
+	AXP_DESC(AXP803, FLDO2, "fldo2", "fldoin", 700, 1450, 50,
+		 AXP803_FLDO2_V_OUT, 0x0f, AXP22X_PWR_OUT_CTRL3, BIT(3)),
+	AXP_DESC_IO(AXP803, LDO_IO0, "ldo-io0", "ips", 700, 3300, 100,
+		    AXP22X_LDO_IO0_V_OUT, 0x1f, AXP20X_GPIO0_CTRL, 0x07,
+		    AXP22X_IO_ENABLED, AXP22X_IO_DISABLED),
+	AXP_DESC_IO(AXP803, LDO_IO1, "ldo-io1", "ips", 700, 3300, 100,
+		    AXP22X_LDO_IO1_V_OUT, 0x1f, AXP20X_GPIO1_CTRL, 0x07,
+		    AXP22X_IO_ENABLED, AXP22X_IO_DISABLED),
+	AXP_DESC_FIXED(AXP803, RTC_LDO, "rtc-ldo", "ips", 3000),
+};
+
 static const struct regulator_linear_range axp806_dcdca_ranges[] = {
 	REGULATOR_LINEAR_RANGE(600000, 0x0, 0x32, 10000),
 	REGULATOR_LINEAR_RANGE(1120000, 0x33, 0x47, 20000),
@@ -252,11 +328,6 @@ static const struct regulator_linear_range axp806_dcdca_ranges[] = {
 static const struct regulator_linear_range axp806_dcdcd_ranges[] = {
 	REGULATOR_LINEAR_RANGE(600000, 0x0, 0x2d, 20000),
 	REGULATOR_LINEAR_RANGE(1600000, 0x2e, 0x3f, 100000),
-};
-
-static const struct regulator_linear_range axp806_cldo2_ranges[] = {
-	REGULATOR_LINEAR_RANGE(700000, 0x0, 0x1a, 100000),
-	REGULATOR_LINEAR_RANGE(3400000, 0x1b, 0x1f, 200000),
 };
 
 static const struct regulator_desc axp806_regulators[] = {
@@ -272,7 +343,7 @@ static const struct regulator_desc axp806_regulators[] = {
 			64, AXP806_DCDCD_V_CTRL, 0x3f, AXP806_PWR_OUT_CTRL1,
 			BIT(3)),
 	AXP_DESC(AXP806, DCDCE, "dcdce", "vine", 1100, 3400, 100,
-		 AXP806_DCDCB_V_CTRL, 0x1f, AXP806_PWR_OUT_CTRL1, BIT(4)),
+		 AXP806_DCDCE_V_CTRL, 0x1f, AXP806_PWR_OUT_CTRL1, BIT(4)),
 	AXP_DESC(AXP806, ALDO1, "aldo1", "aldoin", 700, 3300, 100,
 		 AXP806_ALDO1_V_CTRL, 0x1f, AXP806_PWR_OUT_CTRL1, BIT(5)),
 	AXP_DESC(AXP806, ALDO2, "aldo2", "aldoin", 700, 3400, 100,
@@ -289,7 +360,7 @@ static const struct regulator_desc axp806_regulators[] = {
 		 AXP806_BLDO4_V_CTRL, 0x0f, AXP806_PWR_OUT_CTRL2, BIT(3)),
 	AXP_DESC(AXP806, CLDO1, "cldo1", "cldoin", 700, 3300, 100,
 		 AXP806_CLDO1_V_CTRL, 0x1f, AXP806_PWR_OUT_CTRL2, BIT(4)),
-	AXP_DESC_RANGES(AXP806, CLDO2, "cldo2", "cldoin", axp806_cldo2_ranges,
+	AXP_DESC_RANGES(AXP806, CLDO2, "cldo2", "cldoin", axp803_dldo2_ranges,
 			32, AXP806_CLDO2_V_CTRL, 0x1f, AXP806_PWR_OUT_CTRL2,
 			BIT(5)),
 	AXP_DESC(AXP806, CLDO3, "cldo3", "cldoin", 700, 3300, 100,
@@ -326,7 +397,7 @@ static const struct regulator_desc axp809_regulators[] = {
 		 AXP22X_ALDO2_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL1, BIT(7)),
 	AXP_DESC(AXP809, ALDO3, "aldo3", "aldoin", 700, 3300, 100,
 		 AXP22X_ALDO3_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2, BIT(5)),
-	AXP_DESC_RANGES(AXP809, DLDO1, "dldo1", "dldoin", axp806_cldo2_ranges,
+	AXP_DESC_RANGES(AXP809, DLDO1, "dldo1", "dldoin", axp803_dldo2_ranges,
 			32, AXP22X_DLDO1_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2,
 			BIT(3)),
 	AXP_DESC(AXP809, DLDO2, "dldo2", "dldoin", 700, 3300, 100,
@@ -337,10 +408,18 @@ static const struct regulator_desc axp809_regulators[] = {
 		 AXP22X_ELDO2_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2, BIT(1)),
 	AXP_DESC(AXP809, ELDO3, "eldo3", "eldoin", 700, 3300, 100,
 		 AXP22X_ELDO3_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2, BIT(2)),
-	AXP_DESC_IO(AXP809, LDO_IO0, "ldo_io0", "ips", 700, 3300, 100,
+	/*
+	 * Note the datasheet only guarantees reliable operation up to
+	 * 3.3V, this needs to be enforced via dts provided constraints
+	 */
+	AXP_DESC_IO(AXP809, LDO_IO0, "ldo_io0", "ips", 700, 3800, 100,
 		    AXP22X_LDO_IO0_V_OUT, 0x1f, AXP20X_GPIO0_CTRL, 0x07,
 		    AXP22X_IO_ENABLED, AXP22X_IO_DISABLED),
-	AXP_DESC_IO(AXP809, LDO_IO1, "ldo_io1", "ips", 700, 3300, 100,
+	/*
+	 * Note the datasheet only guarantees reliable operation up to
+	 * 3.3V, this needs to be enforced via dts provided constraints
+	 */
+	AXP_DESC_IO(AXP809, LDO_IO1, "ldo_io1", "ips", 700, 3800, 100,
 		    AXP22X_LDO_IO1_V_OUT, 0x1f, AXP20X_GPIO1_CTRL, 0x07,
 		    AXP22X_IO_ENABLED, AXP22X_IO_DISABLED),
 	AXP_DESC_FIXED(AXP809, RTC_LDO, "rtc_ldo", "ips", 1800),
@@ -361,14 +440,21 @@ static int axp20x_set_dcdc_freq(struct platform_device *pdev, u32 dcdcfreq)
 		def = 1500;
 		step = 75;
 		break;
-	case AXP806_ID:
+	case AXP803_ID:
 		/*
-		 * AXP806 DCDC work frequency setting has the same range and
+		 * AXP803 DCDC work frequency setting has the same range and
 		 * step as AXP22X, but at a different register.
 		 * Fall through to the check below.
 		 * (See include/linux/mfd/axp20x.h)
 		 */
-		reg = AXP806_DCDC_FREQ_CTRL;
+		reg = AXP803_DCDC_FREQ_CTRL;
+	case AXP806_ID:
+		/*
+		 * AXP806 also have DCDC work frequency setting register at a
+		 * different position.
+		 */
+		if (axp20x->variant == AXP806_ID)
+			reg = AXP806_DCDC_FREQ_CTRL;
 	case AXP221_ID:
 	case AXP223_ID:
 	case AXP809_ID:
@@ -467,6 +553,14 @@ static int axp20x_set_dcdc_workmode(struct regulator_dev *rdev, int id, u32 work
 		workmode <<= id - AXP22X_DCDC1;
 		break;
 
+	case AXP803_ID:
+		if (id < AXP803_DCDC1 || id > AXP803_DCDC6)
+			return -EINVAL;
+
+		mask = AXP22X_WORKMODE_DCDCX_MASK(id - AXP803_DCDC1);
+		workmode <<= id - AXP803_DCDC1;
+		break;
+
 	default:
 		/* should not happen */
 		WARN_ON(1);
@@ -484,20 +578,38 @@ static bool axp20x_is_polyphase_slave(struct axp20x_dev *axp20x, int id)
 {
 	u32 reg = 0;
 
-	/* Only AXP806 has poly-phase outputs */
-	if (axp20x->variant != AXP806_ID)
+	/*
+	 * Currently in our supported AXP variants, only AXP803 and AXP806
+	 * have polyphase regulators.
+	 */
+	switch (axp20x->variant) {
+	case AXP803_ID:
+		regmap_read(axp20x->regmap, AXP803_POLYPHASE_CTRL, &reg);
+
+		switch (id) {
+		case AXP803_DCDC3:
+			return !!(reg & BIT(6));
+		case AXP803_DCDC6:
+			return !!(reg & BIT(5));
+		}
+		break;
+
+	case AXP806_ID:
+		regmap_read(axp20x->regmap, AXP806_DCDC_MODE_CTRL2, &reg);
+
+		switch (id) {
+		case AXP806_DCDCB:
+			return (((reg & GENMASK(7, 6)) == BIT(6)) ||
+				((reg & GENMASK(7, 6)) == BIT(7)));
+		case AXP806_DCDCC:
+			return ((reg & GENMASK(7, 6)) == BIT(7));
+		case AXP806_DCDCE:
+			return !!(reg & BIT(5));
+		}
+		break;
+
+	default:
 		return false;
-
-	regmap_read(axp20x->regmap, AXP806_DCDC_MODE_CTRL2, &reg);
-
-	switch (id) {
-	case AXP806_DCDCB:
-		return (((reg & GENMASK(7, 6)) == BIT(6)) ||
-			((reg & GENMASK(7, 6)) == BIT(7)));
-	case AXP806_DCDCC:
-		return ((reg & GENMASK(7, 6)) == BIT(7));
-	case AXP806_DCDCE:
-		return !!(reg & BIT(5));
 	}
 
 	return false;
@@ -531,6 +643,10 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 		nregulators = AXP22X_REG_ID_MAX;
 		drivevbus = of_property_read_bool(pdev->dev.parent->of_node,
 						  "x-powers,drive-vbus-en");
+		break;
+	case AXP803_ID:
+		regulators = axp803_regulators;
+		nregulators = AXP803_REG_ID_MAX;
 		break;
 	case AXP806_ID:
 		regulators = axp806_regulators;
@@ -571,9 +687,13 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 		 * name.
 		 */
 		if ((regulators == axp22x_regulators && i == AXP22X_DC1SW) ||
+		    (regulators == axp803_regulators && i == AXP803_DC1SW) ||
 		    (regulators == axp809_regulators && i == AXP809_DC1SW)) {
 			new_desc = devm_kzalloc(&pdev->dev, sizeof(*desc),
 						GFP_KERNEL);
+			if (!new_desc)
+				return -ENOMEM;
+
 			*new_desc = regulators[i];
 			new_desc->supply_name = dcdc1_name;
 			desc = new_desc;
@@ -583,6 +703,9 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 		    (regulators == axp809_regulators && i == AXP809_DC5LDO)) {
 			new_desc = devm_kzalloc(&pdev->dev, sizeof(*desc),
 						GFP_KERNEL);
+			if (!new_desc)
+				return -ENOMEM;
+
 			*new_desc = regulators[i];
 			new_desc->supply_name = dcdc5_name;
 			desc = new_desc;

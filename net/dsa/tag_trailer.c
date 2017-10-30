@@ -11,6 +11,7 @@
 #include <linux/etherdevice.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+
 #include "dsa_priv.h"
 
 static struct sk_buff *trailer_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -31,78 +32,55 @@ static struct sk_buff *trailer_xmit(struct sk_buff *skb, struct net_device *dev)
 		padlen = 60 - skb->len;
 
 	nskb = alloc_skb(NET_IP_ALIGN + skb->len + padlen + 4, GFP_ATOMIC);
-	if (nskb == NULL) {
-		kfree_skb(skb);
+	if (!nskb)
 		return NULL;
-	}
 	skb_reserve(nskb, NET_IP_ALIGN);
 
 	skb_reset_mac_header(nskb);
 	skb_set_network_header(nskb, skb_network_header(skb) - skb->head);
 	skb_set_transport_header(nskb, skb_transport_header(skb) - skb->head);
 	skb_copy_and_csum_dev(skb, skb_put(nskb, skb->len));
-	kfree_skb(skb);
+	consume_skb(skb);
 
 	if (padlen) {
-		u8 *pad = skb_put(nskb, padlen);
-		memset(pad, 0, padlen);
+		skb_put_zero(nskb, padlen);
 	}
 
 	trailer = skb_put(nskb, 4);
 	trailer[0] = 0x80;
-	trailer[1] = 1 << p->port;
+	trailer[1] = 1 << p->dp->index;
 	trailer[2] = 0x10;
 	trailer[3] = 0x00;
 
 	return nskb;
 }
 
-static int trailer_rcv(struct sk_buff *skb, struct net_device *dev,
-		       struct packet_type *pt, struct net_device *orig_dev)
+static struct sk_buff *trailer_rcv(struct sk_buff *skb, struct net_device *dev,
+				   struct packet_type *pt)
 {
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_switch *ds;
+	struct dsa_port *cpu_dp = dsa_get_cpu_port(dst);
+	struct dsa_switch *ds = cpu_dp->ds;
 	u8 *trailer;
 	int source_port;
 
-	if (unlikely(dst == NULL))
-		goto out_drop;
-	ds = dst->ds[0];
-
-	skb = skb_unshare(skb, GFP_ATOMIC);
-	if (skb == NULL)
-		goto out;
-
 	if (skb_linearize(skb))
-		goto out_drop;
+		return NULL;
 
 	trailer = skb_tail_pointer(skb) - 4;
 	if (trailer[0] != 0x80 || (trailer[1] & 0xf8) != 0x00 ||
 	    (trailer[2] & 0xef) != 0x00 || trailer[3] != 0x00)
-		goto out_drop;
+		return NULL;
 
 	source_port = trailer[1] & 7;
-	if (source_port >= DSA_MAX_PORTS || !ds->ports[source_port].netdev)
-		goto out_drop;
+	if (source_port >= ds->num_ports || !ds->ports[source_port].netdev)
+		return NULL;
 
 	pskb_trim_rcsum(skb, skb->len - 4);
 
 	skb->dev = ds->ports[source_port].netdev;
-	skb_push(skb, ETH_HLEN);
-	skb->pkt_type = PACKET_HOST;
-	skb->protocol = eth_type_trans(skb, skb->dev);
 
-	skb->dev->stats.rx_packets++;
-	skb->dev->stats.rx_bytes += skb->len;
-
-	netif_receive_skb(skb);
-
-	return 0;
-
-out_drop:
-	kfree_skb(skb);
-out:
-	return 0;
+	return skb;
 }
 
 const struct dsa_device_ops trailer_netdev_ops = {

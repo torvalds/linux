@@ -1,5 +1,5 @@
 /**
- * OMAP and TWL PMIC specific intializations.
+ * OMAP and TWL PMIC specific initializations.
  *
  * Copyright (C) 2010 Texas Instruments Incorporated.
  * Thara Gopinath
@@ -16,7 +16,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 
 #include "soc.h"
 #include "voltage.h"

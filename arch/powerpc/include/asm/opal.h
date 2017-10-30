@@ -29,6 +29,11 @@ extern struct device_node *opal_node;
 
 /* API functions */
 int64_t opal_invalid_call(void);
+int64_t opal_npu_destroy_context(uint64_t phb_id, uint64_t pid, uint64_t bdf);
+int64_t opal_npu_init_context(uint64_t phb_id, int pasid, uint64_t msr,
+			uint64_t bdf);
+int64_t opal_npu_map_lpar(uint64_t phb_id, uint64_t bdf, uint64_t lparid,
+			uint64_t lpcr);
 int64_t opal_console_write(int64_t term_number, __be64 *length,
 			   const uint8_t *buffer);
 int64_t opal_console_read(int64_t term_number, __be64 *length,
@@ -45,7 +50,7 @@ int64_t opal_tpo_write(uint64_t token, uint32_t year_mon_day,
 		       uint32_t hour_min);
 int64_t opal_cec_power_down(uint64_t request);
 int64_t opal_cec_reboot(void);
-int64_t opal_cec_reboot2(uint32_t reboot_type, char *diag);
+int64_t opal_cec_reboot2(uint32_t reboot_type, const char *diag);
 int64_t opal_read_nvram(uint64_t buffer, uint64_t size, uint64_t offset);
 int64_t opal_write_nvram(uint64_t buffer, uint64_t size, uint64_t offset);
 int64_t opal_handle_interrupt(uint64_t isn, __be64 *outstanding_event_mask);
@@ -67,7 +72,6 @@ int64_t opal_pci_config_write_half_word(uint64_t phb_id, uint64_t bus_dev_func,
 int64_t opal_pci_config_write_word(uint64_t phb_id, uint64_t bus_dev_func,
 				   uint64_t offset, uint32_t data);
 int64_t opal_set_xive(uint32_t isn, uint16_t server, uint8_t priority);
-int64_t opal_rm_set_xive(uint32_t isn, uint16_t server, uint8_t priority);
 int64_t opal_get_xive(uint32_t isn, __be16 *server, uint8_t *priority);
 int64_t opal_register_exception_handler(uint64_t opal_exception,
 					uint64_t handler_address,
@@ -226,9 +230,56 @@ int64_t opal_int_set_mfrr(uint32_t cpu, uint8_t mfrr);
 int64_t opal_pci_tce_kill(uint64_t phb_id, uint32_t kill_type,
 			  uint32_t pe_num, uint32_t tce_size,
 			  uint64_t dma_addr, uint32_t npages);
-int64_t opal_rm_pci_tce_kill(uint64_t phb_id, uint32_t kill_type,
-			     uint32_t pe_num, uint32_t tce_size,
-			     uint64_t dma_addr, uint32_t npages);
+int64_t opal_nmmu_set_ptcr(uint64_t chip_id, uint64_t ptcr);
+int64_t opal_xive_reset(uint64_t version);
+int64_t opal_xive_get_irq_info(uint32_t girq,
+			       __be64 *out_flags,
+			       __be64 *out_eoi_page,
+			       __be64 *out_trig_page,
+			       __be32 *out_esb_shift,
+			       __be32 *out_src_chip);
+int64_t opal_xive_get_irq_config(uint32_t girq, __be64 *out_vp,
+				 uint8_t *out_prio, __be32 *out_lirq);
+int64_t opal_xive_set_irq_config(uint32_t girq, uint64_t vp, uint8_t prio,
+				 uint32_t lirq);
+int64_t opal_xive_get_queue_info(uint64_t vp, uint32_t prio,
+				 __be64 *out_qpage,
+				 __be64 *out_qsize,
+				 __be64 *out_qeoi_page,
+				 __be32 *out_escalate_irq,
+				 __be64 *out_qflags);
+int64_t opal_xive_set_queue_info(uint64_t vp, uint32_t prio,
+				 uint64_t qpage,
+				 uint64_t qsize,
+				 uint64_t qflags);
+int64_t opal_xive_donate_page(uint32_t chip_id, uint64_t addr);
+int64_t opal_xive_alloc_vp_block(uint32_t alloc_order);
+int64_t opal_xive_free_vp_block(uint64_t vp);
+int64_t opal_xive_get_vp_info(uint64_t vp,
+			      __be64 *out_flags,
+			      __be64 *out_cam_value,
+			      __be64 *out_report_cl_pair,
+			      __be32 *out_chip_id);
+int64_t opal_xive_set_vp_info(uint64_t vp,
+			      uint64_t flags,
+			      uint64_t report_cl_pair);
+int64_t opal_xive_allocate_irq(uint32_t chip_id);
+int64_t opal_xive_free_irq(uint32_t girq);
+int64_t opal_xive_sync(uint32_t type, uint32_t id);
+int64_t opal_xive_dump(uint32_t type, uint32_t id);
+int64_t opal_pci_set_p2p(uint64_t phb_init, uint64_t phb_target,
+			uint64_t desc, uint16_t pe_number);
+
+int64_t opal_imc_counters_init(uint32_t type, uint64_t address,
+							uint64_t cpu_pir);
+int64_t opal_imc_counters_start(uint32_t type, uint64_t cpu_pir);
+int64_t opal_imc_counters_stop(uint32_t type, uint64_t cpu_pir);
+
+int opal_get_powercap(u32 handle, int token, u32 *pcap);
+int opal_set_powercap(u32 handle, int token, u32 pcap);
+int opal_get_power_shift_ratio(u32 handle, int token, u32 *psr);
+int opal_set_power_shift_ratio(u32 handle, int token, u32 psr);
+int opal_sensor_group_clear(u32 group_hndl, int token);
 
 /* Internal functions */
 extern int early_init_dt_scan_opal(unsigned long node, const char *uname,
@@ -306,6 +357,10 @@ static inline int opal_get_async_rc(struct opal_msg msg)
 }
 
 void opal_wake_poller(void);
+
+void opal_powercap_init(void);
+void opal_psr_init(void);
+void opal_sensor_groups_init(void);
 
 #endif /* __ASSEMBLY__ */
 

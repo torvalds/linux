@@ -107,8 +107,10 @@ static int slave_configure(struct scsi_device *sdev)
 	 * the actual value or the modified one, depending on where the
 	 * data comes from.
 	 */
-	if (sdev->scsi_level < SCSI_2)
-		sdev->scsi_level = sdev->sdev_target->scsi_level = SCSI_2;
+	if (sdev->scsi_level < SCSI_2) {
+		sdev->scsi_level = SCSI_2;
+		sdev->sdev_target->scsi_level = SCSI_2;
+	}
 
 	return 0;
 }
@@ -120,12 +122,15 @@ static int slave_configure(struct scsi_device *sdev)
 /* we use this macro to help us write into the buffer */
 #undef SPRINTF
 #define SPRINTF(args...) \
-	do { if (pos < buffer+length) pos += sprintf(pos, ## args); } while (0)
+	do { \
+		if (pos < buffer + length) \
+			pos += sprintf(pos, ## args); \
+	} while (0)
 
 /* queue a command */
 /* This is always called with scsi_lock(host) held */
 static int queuecommand_lck(struct scsi_cmnd *srb,
-			void (*done)(struct scsi_cmnd *))
+			    void (*done)(struct scsi_cmnd *))
 {
 	struct rtsx_dev *dev = host_to_rtsx(srb->device->host);
 	struct rtsx_chip *chip = dev->chip;
@@ -193,23 +198,11 @@ static int command_abort(struct scsi_cmnd *srb)
  */
 static int device_reset(struct scsi_cmnd *srb)
 {
-	int result = 0;
 	struct rtsx_dev *dev = host_to_rtsx(srb->device->host);
 
 	dev_info(&dev->pci->dev, "%s called\n", __func__);
 
-	return result < 0 ? FAILED : SUCCESS;
-}
-
-/* Simulate a SCSI bus reset by resetting the device's USB port. */
-static int bus_reset(struct scsi_cmnd *srb)
-{
-	int result = 0;
-	struct rtsx_dev *dev = host_to_rtsx(srb->device->host);
-
-	dev_info(&dev->pci->dev, "%s called\n", __func__);
-
-	return result < 0 ? FAILED : SUCCESS;
+	return SUCCESS;
 }
 
 /*
@@ -228,7 +221,6 @@ static struct scsi_host_template rtsx_host_template = {
 	/* error and abort handlers */
 	.eh_abort_handler =		command_abort,
 	.eh_device_reset_handler =	device_reset,
-	.eh_bus_reset_handler =		bus_reset,
 
 	/* queue commands only, only one command per LUN */
 	.can_queue =			1,
@@ -313,7 +305,7 @@ static int rtsx_suspend(struct pci_dev *pci, pm_message_t state)
 		return 0;
 
 	/* lock the device pointers */
-	mutex_lock(&(dev->dev_mutex));
+	mutex_lock(&dev->dev_mutex);
 
 	chip = dev->chip;
 
@@ -349,7 +341,7 @@ static int rtsx_resume(struct pci_dev *pci)
 	chip = dev->chip;
 
 	/* lock the device pointers */
-	mutex_lock(&(dev->dev_mutex));
+	mutex_lock(&dev->dev_mutex);
 
 	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
@@ -418,7 +410,7 @@ static int rtsx_control_thread(void *__dev)
 			break;
 
 		/* lock the device pointers */
-		mutex_lock(&(dev->dev_mutex));
+		mutex_lock(&dev->dev_mutex);
 
 		/* if the device has disconnected, we are free to exit */
 		if (rtsx_chk_stat(chip, RTSX_STAT_DISCONNECT)) {
@@ -433,7 +425,7 @@ static int rtsx_control_thread(void *__dev)
 		/* has the command aborted ? */
 		if (rtsx_chk_stat(chip, RTSX_STAT_ABORT)) {
 			chip->srb->result = DID_ABORT << 16;
-			goto SkipForAbort;
+			goto skip_for_abort;
 		}
 
 		scsi_unlock(host);
@@ -480,12 +472,12 @@ static int rtsx_control_thread(void *__dev)
 		else if (chip->srb->result != DID_ABORT << 16) {
 			chip->srb->scsi_done(chip->srb);
 		} else {
-SkipForAbort:
+skip_for_abort:
 			dev_err(&dev->pci->dev, "scsi command aborted\n");
 		}
 
 		if (rtsx_chk_stat(chip, RTSX_STAT_ABORT)) {
-			complete(&(dev->notify));
+			complete(&dev->notify);
 
 			rtsx_set_stat(chip, RTSX_STAT_IDLE);
 		}
@@ -519,9 +511,9 @@ static int rtsx_polling_thread(void *__dev)
 {
 	struct rtsx_dev *dev = __dev;
 	struct rtsx_chip *chip = dev->chip;
-	struct sd_info *sd_card = &(chip->sd_card);
-	struct xd_info *xd_card = &(chip->xd_card);
-	struct ms_info *ms_card = &(chip->ms_card);
+	struct sd_info *sd_card = &chip->sd_card;
+	struct xd_info *xd_card = &chip->xd_card;
+	struct ms_info *ms_card = &chip->ms_card;
 
 	sd_card->cleanup_counter = 0;
 	xd_card->cleanup_counter = 0;
@@ -531,12 +523,11 @@ static int rtsx_polling_thread(void *__dev)
 	wait_timeout((delay_use + 5) * 1000);
 
 	for (;;) {
-
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(msecs_to_jiffies(POLLING_INTERVAL));
 
 		/* lock the device pointers */
-		mutex_lock(&(dev->dev_mutex));
+		mutex_lock(&dev->dev_mutex);
 
 		/* if the device has disconnected, we are free to exit */
 		if (rtsx_chk_stat(chip, RTSX_STAT_DISCONNECT)) {
@@ -550,7 +541,7 @@ static int rtsx_polling_thread(void *__dev)
 		mspro_polling_format_status(chip);
 
 		/* lock the device pointers */
-		mutex_lock(&(dev->dev_mutex));
+		mutex_lock(&dev->dev_mutex);
 
 		rtsx_polling_func(chip);
 
@@ -597,7 +588,7 @@ static irqreturn_t rtsx_interrupt(int irq, void *dev_id)
 			dev->trans_result = TRANS_RESULT_FAIL;
 			if (dev->done)
 				complete(dev->done);
-			goto Exit;
+			goto exit;
 		}
 	}
 
@@ -619,7 +610,7 @@ static irqreturn_t rtsx_interrupt(int irq, void *dev_id)
 		}
 	}
 
-Exit:
+exit:
 	spin_unlock(&dev->reg_lock);
 	return IRQ_HANDLED;
 }
@@ -724,9 +715,10 @@ static int rtsx_scan_thread(void *__dev)
 		dev_info(&dev->pci->dev,
 			 "%s: waiting for device to settle before scanning\n",
 			 CR_DRIVER_NAME);
-		wait_event_interruptible_timeout(dev->delay_wait,
-				rtsx_chk_stat(chip, RTSX_STAT_DISCONNECT),
-				delay_use * HZ);
+		wait_event_interruptible_timeout
+			(dev->delay_wait,
+			 rtsx_chk_stat(chip, RTSX_STAT_DISCONNECT),
+			 delay_use * HZ);
 	}
 
 	/* If the device is still connected, perform the scanning */
@@ -844,7 +836,7 @@ static void rtsx_init_options(struct rtsx_chip *chip)
 }
 
 static int rtsx_probe(struct pci_dev *pci,
-				const struct pci_device_id *pci_id)
+		      const struct pci_device_id *pci_id)
 {
 	struct Scsi_Host *host;
 	struct rtsx_dev *dev;
@@ -879,18 +871,18 @@ static int rtsx_probe(struct pci_dev *pci,
 	dev = host_to_rtsx(host);
 	memset(dev, 0, sizeof(struct rtsx_dev));
 
-	dev->chip = kzalloc(sizeof(struct rtsx_chip), GFP_KERNEL);
+	dev->chip = kzalloc(sizeof(*dev->chip), GFP_KERNEL);
 	if (!dev->chip) {
 		err = -ENOMEM;
 		goto errout;
 	}
 
 	spin_lock_init(&dev->reg_lock);
-	mutex_init(&(dev->dev_mutex));
+	mutex_init(&dev->dev_mutex);
 	init_completion(&dev->cmnd_ready);
 	init_completion(&dev->control_exit);
 	init_completion(&dev->polling_exit);
-	init_completion(&(dev->notify));
+	init_completion(&dev->notify);
 	init_completion(&dev->scanning_done);
 	init_waitqueue_head(&dev->delay_wait);
 
@@ -996,7 +988,7 @@ static int rtsx_probe(struct pci_dev *pci,
 
 	/* We come here if there are any problems */
 errout:
-	dev_err(&pci->dev, "rtsx_probe() failed\n");
+	dev_err(&pci->dev, "%s failed\n", __func__);
 	release_everything(dev);
 
 	return err;
@@ -1006,7 +998,7 @@ static void rtsx_remove(struct pci_dev *pci)
 {
 	struct rtsx_dev *dev = pci_get_drvdata(pci);
 
-	dev_info(&pci->dev, "rtsx_remove() called\n");
+	dev_info(&pci->dev, "%s called\n", __func__);
 
 	quiesce_and_remove_host(dev);
 	release_everything(dev);

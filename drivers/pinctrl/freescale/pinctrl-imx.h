@@ -15,10 +15,15 @@
 #ifndef __DRIVERS_PINCTRL_IMX_H
 #define __DRIVERS_PINCTRL_IMX_H
 
+#include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pinctrl/pinmux.h>
+
 struct platform_device;
 
+extern struct pinmux_ops imx_pmx_ops;
+
 /**
- * struct imx_pin_group - describes a single i.MX pin
+ * struct imx_pin - describes a single i.MX pin
  * @pin: the pin_id of this pin
  * @mux_mode: the mux mode for this pin.
  * @input_reg: the select input register offset for this pin if any
@@ -35,33 +40,6 @@ struct imx_pin {
 };
 
 /**
- * struct imx_pin_group - describes an IMX pin group
- * @name: the name of this specific pin group
- * @npins: the number of pins in this group array, i.e. the number of
- *	elements in .pins so we can iterate over that array
- * @pin_ids: array of pin_ids. pinctrl forces us to maintain such an array
- * @pins: array of pins
- */
-struct imx_pin_group {
-	const char *name;
-	unsigned npins;
-	unsigned int *pin_ids;
-	struct imx_pin *pins;
-};
-
-/**
- * struct imx_pmx_func - describes IMX pinmux functions
- * @name: the name of this specific function
- * @groups: corresponding pin groups
- * @num_groups: the number of groups
- */
-struct imx_pmx_func {
-	const char *name;
-	const char **groups;
-	unsigned num_groups;
-};
-
-/**
  * struct imx_pin_reg - describe a pin reg map
  * @mux_reg: mux register offset
  * @conf_reg: config register offset
@@ -71,19 +49,60 @@ struct imx_pin_reg {
 	s16 conf_reg;
 };
 
+/* decode a generic config into raw register value */
+struct imx_cfg_params_decode {
+	enum pin_config_param param;
+	u32 mask;
+	u8 shift;
+	bool invert;
+};
+
 struct imx_pinctrl_soc_info {
 	struct device *dev;
 	const struct pinctrl_pin_desc *pins;
 	unsigned int npins;
 	struct imx_pin_reg *pin_regs;
-	struct imx_pin_group *groups;
-	unsigned int ngroups;
 	unsigned int group_index;
-	struct imx_pmx_func *functions;
-	unsigned int nfunctions;
 	unsigned int flags;
 	const char *gpr_compatible;
+	struct mutex mutex;
+
+	/* MUX_MODE shift and mask in case SHARE_MUX_CONF_REG */
+	unsigned int mux_mask;
+	u8 mux_shift;
+
+	/* generic pinconf */
+	bool generic_pinconf;
+	const struct pinconf_generic_params *custom_params;
+	unsigned int num_custom_params;
+	struct imx_cfg_params_decode *decodes;
+	unsigned int num_decodes;
+	void (*fixup)(unsigned long *configs, unsigned int num_configs,
+		      u32 *raw_config);
+
+	int (*gpio_set_direction)(struct pinctrl_dev *pctldev,
+				  struct pinctrl_gpio_range *range,
+				  unsigned offset,
+				  bool input);
 };
+
+/**
+ * @dev: a pointer back to containing device
+ * @base: the offset to the controller in virtual memory
+ */
+struct imx_pinctrl {
+	struct device *dev;
+	struct pinctrl_dev *pctl;
+	void __iomem *base;
+	void __iomem *input_sel_base;
+	struct imx_pinctrl_soc_info *info;
+};
+
+#define IMX_CFG_PARAMS_DECODE(p, m, o) \
+	{ .param = p, .mask = m, .shift = o, .invert = false, }
+
+#define IMX_CFG_PARAMS_DECODE_INVERT(p, m, o) \
+	{ .param = p, .mask = m, .shift = o, .invert = true, }
 
 #define SHARE_MUX_CONF_REG	0x1
 #define ZERO_OFFSET_VALID	0x2

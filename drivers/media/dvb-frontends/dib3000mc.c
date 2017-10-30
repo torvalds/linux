@@ -11,6 +11,8 @@
  *	published by the Free Software Foundation, version 2.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
@@ -27,7 +29,11 @@ static int buggy_sfn_workaround;
 module_param(buggy_sfn_workaround, int, 0644);
 MODULE_PARM_DESC(buggy_sfn_workaround, "Enable work-around for buggy SFNs (default: 0)");
 
-#define dprintk(args...) do { if (debug) { printk(KERN_DEBUG "DiB3000MC/P:"); printk(args); printk("\n"); } } while (0)
+#define dprintk(fmt, arg...) do {					\
+	if (debug)							\
+		printk(KERN_DEBUG pr_fmt("%s: " fmt),			\
+		       __func__, ##arg);				\
+} while (0)
 
 struct dib3000mc_state {
 	struct dvb_frontend demod;
@@ -49,29 +55,57 @@ struct dib3000mc_state {
 
 static u16 dib3000mc_read_word(struct dib3000mc_state *state, u16 reg)
 {
-	u8 wb[2] = { (reg >> 8) | 0x80, reg & 0xff };
-	u8 rb[2];
 	struct i2c_msg msg[2] = {
-		{ .addr = state->i2c_addr >> 1, .flags = 0,        .buf = wb, .len = 2 },
-		{ .addr = state->i2c_addr >> 1, .flags = I2C_M_RD, .buf = rb, .len = 2 },
+		{ .addr = state->i2c_addr >> 1, .flags = 0,        .len = 2 },
+		{ .addr = state->i2c_addr >> 1, .flags = I2C_M_RD, .len = 2 },
 	};
+	u16 word;
+	u8 *b;
+
+	b = kmalloc(4, GFP_KERNEL);
+	if (!b)
+		return 0;
+
+	b[0] = (reg >> 8) | 0x80;
+	b[1] = reg;
+	b[2] = 0;
+	b[3] = 0;
+
+	msg[0].buf = b;
+	msg[1].buf = b + 2;
 
 	if (i2c_transfer(state->i2c_adap, msg, 2) != 2)
 		dprintk("i2c read error on %d\n",reg);
 
-	return (rb[0] << 8) | rb[1];
+	word = (b[2] << 8) | b[3];
+	kfree(b);
+
+	return word;
 }
 
 static int dib3000mc_write_word(struct dib3000mc_state *state, u16 reg, u16 val)
 {
-	u8 b[4] = {
-		(reg >> 8) & 0xff, reg & 0xff,
-		(val >> 8) & 0xff, val & 0xff,
-	};
 	struct i2c_msg msg = {
-		.addr = state->i2c_addr >> 1, .flags = 0, .buf = b, .len = 4
+		.addr = state->i2c_addr >> 1, .flags = 0, .len = 4
 	};
-	return i2c_transfer(state->i2c_adap, &msg, 1) != 1 ? -EREMOTEIO : 0;
+	int rc;
+	u8 *b;
+
+	b = kmalloc(4, GFP_KERNEL);
+	if (!b)
+		return -ENOMEM;
+
+	b[0] = reg >> 8;
+	b[1] = reg;
+	b[2] = val >> 8;
+	b[3] = val;
+
+	msg.buf = b;
+
+	rc = i2c_transfer(state->i2c_adap, &msg, 1) != 1 ? -EREMOTEIO : 0;
+	kfree(b);
+
+	return rc;
 }
 
 static int dib3000mc_identify(struct dib3000mc_state *state)
@@ -873,7 +907,7 @@ int dib3000mc_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defa
 }
 EXPORT_SYMBOL(dib3000mc_i2c_enumeration);
 
-static struct dvb_frontend_ops dib3000mc_ops;
+static const struct dvb_frontend_ops dib3000mc_ops;
 
 struct dvb_frontend * dib3000mc_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib3000mc_config *cfg)
 {
@@ -906,7 +940,7 @@ error:
 }
 EXPORT_SYMBOL(dib3000mc_attach);
 
-static struct dvb_frontend_ops dib3000mc_ops = {
+static const struct dvb_frontend_ops dib3000mc_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "DiBcom 3000MC/P",

@@ -720,4 +720,17 @@
 			};
 		};
 	};
+
+	wcnss_pin_a: wcnss-active {
+		pinmux {
+			pins = "gpio40", "gpio41", "gpio42", "gpio43", "gpio44";
+			function = "wcss_wlan";
+		};
+
+		pinconf {
+			pins = "gpio40", "gpio41", "gpio42", "gpio43", "gpio44";
+			drive-strength = <6>;
+			bias-pull-up;
+		};
+	};
 };

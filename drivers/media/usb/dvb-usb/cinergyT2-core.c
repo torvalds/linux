@@ -21,10 +21,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include "cinergyT2.h"
@@ -34,8 +30,7 @@
 int dvb_usb_cinergyt2_debug;
 
 module_param_named(debug, dvb_usb_cinergyt2_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info, xfer=2, rc=4 "
-		"(or-able)).");
+MODULE_PARM_DESC(debug, "set debugging level (1=info, xfer=2, rc=4 (or-able)).");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -93,8 +88,7 @@ static int cinergyt2_frontend_attach(struct dvb_usb_adapter *adap)
 
 	ret = dvb_usb_generic_rw(d, st->data, 1, st->data, 3, 0);
 	if (ret < 0) {
-		deb_rc("cinergyt2_power_ctrl() Failed to retrieve sleep "
-			"state info\n");
+		deb_rc("cinergyt2_power_ctrl() Failed to retrieve sleep state info\n");
 	}
 	mutex_unlock(&d->data_mutex);
 

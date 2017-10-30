@@ -54,7 +54,7 @@ DEFINE_EVENT(ppc64_interrupt_class, timer_interrupt_exit,
 );
 
 #ifdef CONFIG_PPC_PSERIES
-extern void hcall_tracepoint_regfunc(void);
+extern int hcall_tracepoint_regfunc(void);
 extern void hcall_tracepoint_unregfunc(void);
 
 TRACE_EVENT_FN_COND(hcall_entry,
@@ -104,7 +104,7 @@ TRACE_EVENT_FN_COND(hcall_exit,
 #endif
 
 #ifdef CONFIG_PPC_POWERNV
-extern void opal_tracepoint_regfunc(void);
+extern int opal_tracepoint_regfunc(void);
 extern void opal_tracepoint_unregfunc(void);
 
 TRACE_EVENT_FN(opal_entry,
@@ -166,6 +166,39 @@ TRACE_EVENT(hash_fault,
 
 	    TP_printk("hash fault with addr 0x%lx and access = 0x%lx trap = 0x%lx",
 		      __entry->addr, __entry->access, __entry->trap)
+);
+
+
+TRACE_EVENT(tlbie,
+
+	TP_PROTO(unsigned long lpid, unsigned long local, unsigned long rb,
+		unsigned long rs, unsigned long ric, unsigned long prs,
+		unsigned long r),
+	TP_ARGS(lpid, local, rb, rs, ric, prs, r),
+	TP_STRUCT__entry(
+		__field(unsigned long, lpid)
+		__field(unsigned long, local)
+		__field(unsigned long, rb)
+		__field(unsigned long, rs)
+		__field(unsigned long, ric)
+		__field(unsigned long, prs)
+		__field(unsigned long, r)
+		),
+
+	TP_fast_assign(
+		__entry->lpid = lpid;
+		__entry->local = local;
+		__entry->rb = rb;
+		__entry->rs = rs;
+		__entry->ric = ric;
+		__entry->prs = prs;
+		__entry->r = r;
+		),
+
+	TP_printk("lpid=%ld, local=%ld, rb=0x%lx, rs=0x%lx, ric=0x%lx, "
+		"prs=0x%lx, r=0x%lx", __entry->lpid, __entry->local,
+		__entry->rb, __entry->rs, __entry->ric, __entry->prs,
+		__entry->r)
 );
 
 #endif /* _TRACE_POWERPC_H */

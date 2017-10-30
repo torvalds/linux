@@ -12,6 +12,7 @@
 	interrupt-parent = <&intc>;
 	#address-cells = <1>;
 	#size-cells = <1>;
+	chosen { };
 
 	aliases {
 		i2c0 = &i2c1;
@@ -83,6 +84,7 @@
 			reg = <0x48140000 0x21000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			#pinctrl-cells = <1>;
 			ranges = <0 0x48140000 0x21000>;
 
 			dm816x_pinmux: pinmux@800 {
@@ -90,6 +92,7 @@
 				reg = <0x800 0x50a>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+				#pinctrl-cells = <1>;
 				pinctrl-single,register-width = <16>;
 				pinctrl-single,function-mask = <0xf>;
 			};
@@ -142,7 +145,7 @@
 		};
 
 		elm: elm@48080000 {
-			compatible = "ti,816-elm";
+			compatible = "ti,am3352-elm";
 			ti,hwmods = "elm";
 			reg = <0x48080000 0x2000>;
 			interrupts = <4>;
@@ -290,6 +293,13 @@
 			phy-handle = <&phy1>;
 		};
 
+		sata: sata@4a140000 {
+			compatible = "ti,dm816-ahci";
+			reg = <0x4a140000 0x10000>;
+			interrupts = <16>;
+			ti,hwmods = "sata";
+		};
+
 		mcspi1: spi@48030000 {
 			compatible = "ti,omap4-mcspi";
 			reg = <0x48030000 0x1000>;
@@ -370,7 +380,7 @@
 		};
 
 		uart1: uart@48020000 {
-			compatible = "ti,omap3-uart";
+			compatible = "ti,am3352-uart", "ti,omap3-uart";
 			ti,hwmods = "uart1";
 			reg = <0x48020000 0x2000>;
 			clock-frequency = <48000000>;
@@ -380,7 +390,7 @@
 		};
 
 		uart2: uart@48022000 {
-			compatible = "ti,omap3-uart";
+			compatible = "ti,am3352-uart", "ti,omap3-uart";
 			ti,hwmods = "uart2";
 			reg = <0x48022000 0x2000>;
 			clock-frequency = <48000000>;
@@ -390,7 +400,7 @@
 		};
 
 		uart3: uart@48024000 {
-			compatible = "ti,omap3-uart";
+			compatible = "ti,am3352-uart", "ti,omap3-uart";
 			ti,hwmods = "uart3";
 			reg = <0x48024000 0x2000>;
 			clock-frequency = <48000000>;

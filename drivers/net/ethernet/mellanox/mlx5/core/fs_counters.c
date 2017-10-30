@@ -38,6 +38,8 @@
 #include "fs_cmd.h"
 
 #define MLX5_FC_STATS_PERIOD msecs_to_jiffies(1000)
+/* Max number of counters to query in bulk read is 32K */
+#define MLX5_SW_MAX_COUNTERS_BULK BIT(15)
 
 /* locking scheme:
  *
@@ -75,7 +77,7 @@ static void mlx5_fc_stats_insert(struct rb_root *root, struct mlx5_fc *counter)
 	struct rb_node *parent = NULL;
 
 	while (*new) {
-		struct mlx5_fc *this = container_of(*new, struct mlx5_fc, node);
+		struct mlx5_fc *this = rb_entry(*new, struct mlx5_fc, node);
 		int result = counter->id - this->id;
 
 		parent = *new;
@@ -90,16 +92,21 @@ static void mlx5_fc_stats_insert(struct rb_root *root, struct mlx5_fc *counter)
 	rb_insert_color(&counter->node, root);
 }
 
+/* The function returns the last node that was queried so the caller
+ * function can continue calling it till all counters are queried.
+ */
 static struct rb_node *mlx5_fc_stats_query(struct mlx5_core_dev *dev,
 					   struct mlx5_fc *first,
-					   u16 last_id)
+					   u32 last_id)
 {
 	struct mlx5_cmd_fc_bulk *b;
 	struct rb_node *node = NULL;
-	u16 afirst_id;
+	u32 afirst_id;
 	int num;
 	int err;
-	int max_bulk = 1 << MLX5_CAP_GEN(dev, log_max_flow_counter_bulk);
+
+	int max_bulk = min_t(int, MLX5_SW_MAX_COUNTERS_BULK,
+			     (1 << MLX5_CAP_GEN(dev, log_max_flow_counter_bulk)));
 
 	/* first id must be aligned to 4 when using bulk query */
 	afirst_id = first->id & ~0x3;
@@ -165,7 +172,8 @@ static void mlx5_fc_stats_work(struct work_struct *work)
 	list_splice_tail_init(&fc_stats->addlist, &tmplist);
 
 	if (!list_empty(&tmplist) || !RB_EMPTY_ROOT(&fc_stats->counters))
-		queue_delayed_work(fc_stats->wq, &fc_stats->work, MLX5_FC_STATS_PERIOD);
+		queue_delayed_work(fc_stats->wq, &fc_stats->work,
+				   fc_stats->sampling_interval);
 
 	spin_unlock(&fc_stats->addlist_lock);
 
@@ -200,7 +208,7 @@ static void mlx5_fc_stats_work(struct work_struct *work)
 		node = mlx5_fc_stats_query(dev, counter, last->id);
 	}
 
-	fc_stats->next_query = now + MLX5_FC_STATS_PERIOD;
+	fc_stats->next_query = now + fc_stats->sampling_interval;
 }
 
 struct mlx5_fc *mlx5_fc_create(struct mlx5_core_dev *dev, bool aging)
@@ -265,6 +273,7 @@ int mlx5_init_fc_stats(struct mlx5_core_dev *dev)
 	if (!fc_stats->wq)
 		return -ENOMEM;
 
+	fc_stats->sampling_interval = MLX5_FC_STATS_PERIOD;
 	INIT_DELAYED_WORK(&fc_stats->work, mlx5_fc_stats_work);
 
 	return 0;
@@ -316,4 +325,22 @@ void mlx5_fc_query_cached(struct mlx5_fc *counter,
 
 	counter->lastbytes = c.bytes;
 	counter->lastpackets = c.packets;
+}
+
+void mlx5_fc_queue_stats_work(struct mlx5_core_dev *dev,
+			      struct delayed_work *dwork,
+			      unsigned long delay)
+{
+	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
+
+	queue_delayed_work(fc_stats->wq, dwork, delay);
+}
+
+void mlx5_fc_update_sampling_interval(struct mlx5_core_dev *dev,
+				      unsigned long interval)
+{
+	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
+
+	fc_stats->sampling_interval = min_t(unsigned long, interval,
+					    fc_stats->sampling_interval);
 }

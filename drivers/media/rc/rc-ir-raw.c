@@ -17,7 +17,6 @@
 #include <linux/mutex.h>
 #include <linux/kmod.h>
 #include <linux/sched.h>
-#include <linux/freezer.h>
 #include "rc-core-priv.h"
 
 /* Used to keep track of IR raw clients, protected by ir_raw_handler_lock */
@@ -26,8 +25,7 @@ static LIST_HEAD(ir_raw_client_list);
 /* Used to handle IR raw handler extensions */
 static DEFINE_MUTEX(ir_raw_handler_lock);
 static LIST_HEAD(ir_raw_handler_list);
-static DEFINE_MUTEX(available_protocols_lock);
-static u64 available_protocols;
+static atomic64_t available_protocols = ATOMIC64_INIT(0);
 
 static int ir_raw_event_thread(void *data)
 {
@@ -35,32 +33,26 @@ static int ir_raw_event_thread(void *data)
 	struct ir_raw_handler *handler;
 	struct ir_raw_event_ctrl *raw = (struct ir_raw_event_ctrl *)data;
 
-	while (!kthread_should_stop()) {
-
-		spin_lock_irq(&raw->lock);
-
-		if (!kfifo_len(&raw->kfifo)) {
-			set_current_state(TASK_INTERRUPTIBLE);
-
-			if (kthread_should_stop())
-				set_current_state(TASK_RUNNING);
-
-			spin_unlock_irq(&raw->lock);
-			schedule();
-			continue;
-		}
-
-		if(!kfifo_out(&raw->kfifo, &ev, 1))
-			dev_err(&raw->dev->dev, "IR event FIFO is empty!\n");
-		spin_unlock_irq(&raw->lock);
-
+	while (1) {
 		mutex_lock(&ir_raw_handler_lock);
-		list_for_each_entry(handler, &ir_raw_handler_list, list)
-			if (raw->dev->enabled_protocols & handler->protocols ||
-			    !handler->protocols)
-				handler->decode(raw->dev, ev);
-		raw->prev_ev = ev;
+		while (kfifo_out(&raw->kfifo, &ev, 1)) {
+			list_for_each_entry(handler, &ir_raw_handler_list, list)
+				if (raw->dev->enabled_protocols &
+				    handler->protocols || !handler->protocols)
+					handler->decode(raw->dev, ev);
+			raw->prev_ev = ev;
+		}
 		mutex_unlock(&ir_raw_handler_lock);
+
+		set_current_state(TASK_INTERRUPTIBLE);
+
+		if (kthread_should_stop()) {
+			__set_current_state(TASK_RUNNING);
+			break;
+		} else if (!kfifo_is_empty(&raw->kfifo))
+			set_current_state(TASK_RUNNING);
+
+		schedule();
 	}
 
 	return 0;
@@ -96,7 +88,7 @@ EXPORT_SYMBOL_GPL(ir_raw_event_store);
 /**
  * ir_raw_event_store_edge() - notify raw ir decoders of the start of a pulse/space
  * @dev:	the struct rc_dev device descriptor
- * @type:	the type of the event that has occurred
+ * @pulse:	true for pulse, false for space
  *
  * This routine (which may be called from an interrupt context) is used to
  * store the beginning of an ir pulse or space (or the start/end of ir
@@ -104,43 +96,31 @@ EXPORT_SYMBOL_GPL(ir_raw_event_store);
  * hardware which does not provide durations directly but only interrupts
  * (or similar events) on state change.
  */
-int ir_raw_event_store_edge(struct rc_dev *dev, enum raw_event_type type)
+int ir_raw_event_store_edge(struct rc_dev *dev, bool pulse)
 {
 	ktime_t			now;
-	s64			delta; /* ns */
 	DEFINE_IR_RAW_EVENT(ev);
 	int			rc = 0;
-	int			delay;
 
 	if (!dev->raw)
 		return -EINVAL;
 
 	now = ktime_get();
-	delta = ktime_to_ns(ktime_sub(now, dev->raw->last_event));
-	delay = MS_TO_NS(dev->input_dev->rep[REP_DELAY]);
+	ev.duration = ktime_to_ns(ktime_sub(now, dev->raw->last_event));
+	ev.pulse = !pulse;
 
-	/* Check for a long duration since last event or if we're
-	 * being called for the first time, note that delta can't
-	 * possibly be negative.
-	 */
-	if (delta > delay || !dev->raw->last_type)
-		type |= IR_START_EVENT;
-	else
-		ev.duration = delta;
-
-	if (type & IR_START_EVENT)
-		ir_raw_event_reset(dev);
-	else if (dev->raw->last_type & IR_SPACE) {
-		ev.pulse = false;
-		rc = ir_raw_event_store(dev, &ev);
-	} else if (dev->raw->last_type & IR_PULSE) {
-		ev.pulse = true;
-		rc = ir_raw_event_store(dev, &ev);
-	} else
-		return 0;
+	rc = ir_raw_event_store(dev, &ev);
 
 	dev->raw->last_event = now;
-	dev->raw->last_type = type;
+
+	/* timer could be set to timeout (125ms by default) */
+	if (!timer_pending(&dev->raw->edge_handle) ||
+	    time_after(dev->raw->edge_handle.expires,
+		       jiffies + msecs_to_jiffies(15))) {
+		mod_timer(&dev->raw->edge_handle,
+			  jiffies + msecs_to_jiffies(15));
+	}
+
 	return rc;
 }
 EXPORT_SYMBOL_GPL(ir_raw_event_store_edge);
@@ -219,14 +199,10 @@ EXPORT_SYMBOL_GPL(ir_raw_event_set_idle);
  */
 void ir_raw_event_handle(struct rc_dev *dev)
 {
-	unsigned long flags;
-
-	if (!dev->raw)
+	if (!dev->raw || !dev->raw->thread)
 		return;
 
-	spin_lock_irqsave(&dev->raw->lock, flags);
 	wake_up_process(dev->raw->thread);
-	spin_unlock_irqrestore(&dev->raw->lock, flags);
 }
 EXPORT_SYMBOL_GPL(ir_raw_event_handle);
 
@@ -234,14 +210,10 @@ EXPORT_SYMBOL_GPL(ir_raw_event_handle);
 u64
 ir_raw_get_allowed_protocols(void)
 {
-	u64 protocols;
-	mutex_lock(&available_protocols_lock);
-	protocols = available_protocols;
-	mutex_unlock(&available_protocols_lock);
-	return protocols;
+	return atomic64_read(&available_protocols);
 }
 
-static int change_protocol(struct rc_dev *dev, u64 *rc_type)
+static int change_protocol(struct rc_dev *dev, u64 *rc_proto)
 {
 	/* the caller will update dev->enabled_protocols */
 	return 0;
@@ -251,20 +223,289 @@ static void ir_raw_disable_protocols(struct rc_dev *dev, u64 protocols)
 {
 	mutex_lock(&dev->lock);
 	dev->enabled_protocols &= ~protocols;
-	dev->enabled_wakeup_protocols &= ~protocols;
 	mutex_unlock(&dev->lock);
+}
+
+/**
+ * ir_raw_gen_manchester() - Encode data with Manchester (bi-phase) modulation.
+ * @ev:		Pointer to pointer to next free event. *@ev is incremented for
+ *		each raw event filled.
+ * @max:	Maximum number of raw events to fill.
+ * @timings:	Manchester modulation timings.
+ * @n:		Number of bits of data.
+ * @data:	Data bits to encode.
+ *
+ * Encodes the @n least significant bits of @data using Manchester (bi-phase)
+ * modulation with the timing characteristics described by @timings, writing up
+ * to @max raw IR events using the *@ev pointer.
+ *
+ * Returns:	0 on success.
+ *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		full encoded data. In this case all @max events will have been
+ *		written.
+ */
+int ir_raw_gen_manchester(struct ir_raw_event **ev, unsigned int max,
+			  const struct ir_raw_timings_manchester *timings,
+			  unsigned int n, u64 data)
+{
+	bool need_pulse;
+	u64 i;
+	int ret = -ENOBUFS;
+
+	i = BIT_ULL(n - 1);
+
+	if (timings->leader) {
+		if (!max--)
+			return ret;
+		if (timings->pulse_space_start) {
+			init_ir_raw_event_duration((*ev)++, 1, timings->leader);
+
+			if (!max--)
+				return ret;
+			init_ir_raw_event_duration((*ev), 0, timings->leader);
+		} else {
+			init_ir_raw_event_duration((*ev), 1, timings->leader);
+		}
+		i >>= 1;
+	} else {
+		/* continue existing signal */
+		--(*ev);
+	}
+	/* from here on *ev will point to the last event rather than the next */
+
+	while (n && i > 0) {
+		need_pulse = !(data & i);
+		if (timings->invert)
+			need_pulse = !need_pulse;
+		if (need_pulse == !!(*ev)->pulse) {
+			(*ev)->duration += timings->clock;
+		} else {
+			if (!max--)
+				goto nobufs;
+			init_ir_raw_event_duration(++(*ev), need_pulse,
+						   timings->clock);
+		}
+
+		if (!max--)
+			goto nobufs;
+		init_ir_raw_event_duration(++(*ev), !need_pulse,
+					   timings->clock);
+		i >>= 1;
+	}
+
+	if (timings->trailer_space) {
+		if (!(*ev)->pulse)
+			(*ev)->duration += timings->trailer_space;
+		else if (!max--)
+			goto nobufs;
+		else
+			init_ir_raw_event_duration(++(*ev), 0,
+						   timings->trailer_space);
+	}
+
+	ret = 0;
+nobufs:
+	/* point to the next event rather than last event before returning */
+	++(*ev);
+	return ret;
+}
+EXPORT_SYMBOL(ir_raw_gen_manchester);
+
+/**
+ * ir_raw_gen_pd() - Encode data to raw events with pulse-distance modulation.
+ * @ev:		Pointer to pointer to next free event. *@ev is incremented for
+ *		each raw event filled.
+ * @max:	Maximum number of raw events to fill.
+ * @timings:	Pulse distance modulation timings.
+ * @n:		Number of bits of data.
+ * @data:	Data bits to encode.
+ *
+ * Encodes the @n least significant bits of @data using pulse-distance
+ * modulation with the timing characteristics described by @timings, writing up
+ * to @max raw IR events using the *@ev pointer.
+ *
+ * Returns:	0 on success.
+ *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		full encoded data. In this case all @max events will have been
+ *		written.
+ */
+int ir_raw_gen_pd(struct ir_raw_event **ev, unsigned int max,
+		  const struct ir_raw_timings_pd *timings,
+		  unsigned int n, u64 data)
+{
+	int i;
+	int ret;
+	unsigned int space;
+
+	if (timings->header_pulse) {
+		ret = ir_raw_gen_pulse_space(ev, &max, timings->header_pulse,
+					     timings->header_space);
+		if (ret)
+			return ret;
+	}
+
+	if (timings->msb_first) {
+		for (i = n - 1; i >= 0; --i) {
+			space = timings->bit_space[(data >> i) & 1];
+			ret = ir_raw_gen_pulse_space(ev, &max,
+						     timings->bit_pulse,
+						     space);
+			if (ret)
+				return ret;
+		}
+	} else {
+		for (i = 0; i < n; ++i, data >>= 1) {
+			space = timings->bit_space[data & 1];
+			ret = ir_raw_gen_pulse_space(ev, &max,
+						     timings->bit_pulse,
+						     space);
+			if (ret)
+				return ret;
+		}
+	}
+
+	ret = ir_raw_gen_pulse_space(ev, &max, timings->trailer_pulse,
+				     timings->trailer_space);
+	return ret;
+}
+EXPORT_SYMBOL(ir_raw_gen_pd);
+
+/**
+ * ir_raw_gen_pl() - Encode data to raw events with pulse-length modulation.
+ * @ev:		Pointer to pointer to next free event. *@ev is incremented for
+ *		each raw event filled.
+ * @max:	Maximum number of raw events to fill.
+ * @timings:	Pulse distance modulation timings.
+ * @n:		Number of bits of data.
+ * @data:	Data bits to encode.
+ *
+ * Encodes the @n least significant bits of @data using space-distance
+ * modulation with the timing characteristics described by @timings, writing up
+ * to @max raw IR events using the *@ev pointer.
+ *
+ * Returns:	0 on success.
+ *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		full encoded data. In this case all @max events will have been
+ *		written.
+ */
+int ir_raw_gen_pl(struct ir_raw_event **ev, unsigned int max,
+		  const struct ir_raw_timings_pl *timings,
+		  unsigned int n, u64 data)
+{
+	int i;
+	int ret = -ENOBUFS;
+	unsigned int pulse;
+
+	if (!max--)
+		return ret;
+
+	init_ir_raw_event_duration((*ev)++, 1, timings->header_pulse);
+
+	if (timings->msb_first) {
+		for (i = n - 1; i >= 0; --i) {
+			if (!max--)
+				return ret;
+			init_ir_raw_event_duration((*ev)++, 0,
+						   timings->bit_space);
+			if (!max--)
+				return ret;
+			pulse = timings->bit_pulse[(data >> i) & 1];
+			init_ir_raw_event_duration((*ev)++, 1, pulse);
+		}
+	} else {
+		for (i = 0; i < n; ++i, data >>= 1) {
+			if (!max--)
+				return ret;
+			init_ir_raw_event_duration((*ev)++, 0,
+						   timings->bit_space);
+			if (!max--)
+				return ret;
+			pulse = timings->bit_pulse[data & 1];
+			init_ir_raw_event_duration((*ev)++, 1, pulse);
+		}
+	}
+
+	if (!max--)
+		return ret;
+
+	init_ir_raw_event_duration((*ev)++, 0, timings->trailer_space);
+
+	return 0;
+}
+EXPORT_SYMBOL(ir_raw_gen_pl);
+
+/**
+ * ir_raw_encode_scancode() - Encode a scancode as raw events
+ *
+ * @protocol:		protocol
+ * @scancode:		scancode filter describing a single scancode
+ * @events:		array of raw events to write into
+ * @max:		max number of raw events
+ *
+ * Attempts to encode the scancode as raw events.
+ *
+ * Returns:	The number of events written.
+ *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		encoding. In this case all @max events will have been written.
+ *		-EINVAL if the scancode is ambiguous or invalid, or if no
+ *		compatible encoder was found.
+ */
+int ir_raw_encode_scancode(enum rc_proto protocol, u32 scancode,
+			   struct ir_raw_event *events, unsigned int max)
+{
+	struct ir_raw_handler *handler;
+	int ret = -EINVAL;
+	u64 mask = 1ULL << protocol;
+
+	mutex_lock(&ir_raw_handler_lock);
+	list_for_each_entry(handler, &ir_raw_handler_list, list) {
+		if (handler->protocols & mask && handler->encode) {
+			ret = handler->encode(protocol, scancode, events, max);
+			if (ret >= 0 || ret == -ENOBUFS)
+				break;
+		}
+	}
+	mutex_unlock(&ir_raw_handler_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(ir_raw_encode_scancode);
+
+static void edge_handle(unsigned long arg)
+{
+	struct rc_dev *dev = (struct rc_dev *)arg;
+	ktime_t interval = ktime_sub(ktime_get(), dev->raw->last_event);
+
+	if (ktime_to_ns(interval) >= dev->timeout) {
+		DEFINE_IR_RAW_EVENT(ev);
+
+		ev.timeout = true;
+		ev.duration = ktime_to_ns(interval);
+
+		ir_raw_event_store(dev, &ev);
+	} else {
+		mod_timer(&dev->raw->edge_handle,
+			  jiffies + nsecs_to_jiffies(dev->timeout -
+						     ktime_to_ns(interval)));
+	}
+
+	ir_raw_event_handle(dev);
 }
 
 /*
  * Used to (un)register raw event clients
  */
-int ir_raw_event_register(struct rc_dev *dev)
+int ir_raw_event_prepare(struct rc_dev *dev)
 {
-	int rc;
-	struct ir_raw_handler *handler;
+	static bool raw_init; /* 'false' default value, raw decoders loaded? */
 
 	if (!dev)
 		return -EINVAL;
+
+	if (!raw_init) {
+		request_module("ir-lirc-codec");
+		raw_init = true;
+	}
 
 	dev->raw = kzalloc(sizeof(*dev->raw), GFP_KERNEL);
 	if (!dev->raw)
@@ -272,15 +513,30 @@ int ir_raw_event_register(struct rc_dev *dev)
 
 	dev->raw->dev = dev;
 	dev->change_protocol = change_protocol;
+	setup_timer(&dev->raw->edge_handle, edge_handle,
+		    (unsigned long)dev);
 	INIT_KFIFO(dev->raw->kfifo);
 
-	spin_lock_init(&dev->raw->lock);
-	dev->raw->thread = kthread_run(ir_raw_event_thread, dev->raw,
-				       "rc%u", dev->minor);
+	return 0;
+}
 
-	if (IS_ERR(dev->raw->thread)) {
-		rc = PTR_ERR(dev->raw->thread);
-		goto out;
+int ir_raw_event_register(struct rc_dev *dev)
+{
+	struct ir_raw_handler *handler;
+	struct task_struct *thread;
+
+	/*
+	 * raw transmitters do not need any event registration
+	 * because the event is coming from userspace
+	 */
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
+		thread = kthread_run(ir_raw_event_thread, dev->raw, "rc%u",
+				     dev->minor);
+
+		if (IS_ERR(thread))
+			return PTR_ERR(thread);
+
+		dev->raw->thread = thread;
 	}
 
 	mutex_lock(&ir_raw_handler_lock);
@@ -291,11 +547,15 @@ int ir_raw_event_register(struct rc_dev *dev)
 	mutex_unlock(&ir_raw_handler_lock);
 
 	return 0;
+}
 
-out:
+void ir_raw_event_free(struct rc_dev *dev)
+{
+	if (!dev)
+		return;
+
 	kfree(dev->raw);
 	dev->raw = NULL;
-	return rc;
 }
 
 void ir_raw_event_unregister(struct rc_dev *dev)
@@ -306,6 +566,7 @@ void ir_raw_event_unregister(struct rc_dev *dev)
 		return;
 
 	kthread_stop(dev->raw->thread);
+	del_timer_sync(&dev->raw->edge_handle);
 
 	mutex_lock(&ir_raw_handler_lock);
 	list_del(&dev->raw->list);
@@ -314,8 +575,7 @@ void ir_raw_event_unregister(struct rc_dev *dev)
 			handler->raw_unregister(dev);
 	mutex_unlock(&ir_raw_handler_lock);
 
-	kfree(dev->raw);
-	dev->raw = NULL;
+	ir_raw_event_free(dev);
 }
 
 /*
@@ -331,9 +591,7 @@ int ir_raw_handler_register(struct ir_raw_handler *ir_raw_handler)
 	if (ir_raw_handler->raw_register)
 		list_for_each_entry(raw, &ir_raw_client_list, list)
 			ir_raw_handler->raw_register(raw->dev);
-	mutex_lock(&available_protocols_lock);
-	available_protocols |= ir_raw_handler->protocols;
-	mutex_unlock(&available_protocols_lock);
+	atomic64_or(ir_raw_handler->protocols, &available_protocols);
 	mutex_unlock(&ir_raw_handler_lock);
 
 	return 0;
@@ -352,9 +610,7 @@ void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler)
 		if (ir_raw_handler->raw_unregister)
 			ir_raw_handler->raw_unregister(raw->dev);
 	}
-	mutex_lock(&available_protocols_lock);
-	available_protocols &= ~protocols;
-	mutex_unlock(&available_protocols_lock);
+	atomic64_andnot(protocols, &available_protocols);
 	mutex_unlock(&ir_raw_handler_lock);
 }
 EXPORT_SYMBOL(ir_raw_handler_unregister);

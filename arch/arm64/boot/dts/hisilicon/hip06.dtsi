@@ -318,11 +318,17 @@
 		#size-cells = <2>;
 		ranges;
 
+		refclk: refclk {
+			compatible = "fixed-clock";
+			clock-frequency = <50000000>;
+			#clock-cells = <0>;
+		};
+
 		usb_ohci: ohci@a7030000 {
 			compatible = "generic-ohci";
 			reg = <0x0 0xa7030000 0x0 0x10000>;
 			interrupt-parent = <&mbigen_usb>;
-			interrupts = <64 4>;
+			interrupts = <640 4>;
 			dma-coherent;
 			status = "disabled";
 		};
@@ -331,7 +337,7 @@
 			compatible = "generic-ehci";
 			reg = <0x0 0xa7020000 0x0 0x10000>;
 			interrupt-parent = <&mbigen_usb>;
-			interrupts = <65 4>;
+			interrupts = <641 4>;
 			dma-coherent;
 			status = "disabled";
 		};
@@ -508,7 +514,7 @@
 			};
 		};
 
-		eth0: ethernet@4{
+		eth0: ethernet-4{
 			compatible = "hisilicon,hns-nic-v2";
 			ae-handle = <&dsaf0>;
 			port-idx-in-ae = <4>;
@@ -517,7 +523,7 @@
 			dma-coherent;
 		};
 
-		eth1: ethernet@5{
+		eth1: ethernet-5{
 			compatible = "hisilicon,hns-nic-v2";
 			ae-handle = <&dsaf0>;
 			port-idx-in-ae = <5>;
@@ -526,7 +532,7 @@
 			dma-coherent;
 		};
 
-		eth2: ethernet@0{
+		eth2: ethernet-0{
 			compatible = "hisilicon,hns-nic-v2";
 			ae-handle = <&dsaf0>;
 			port-idx-in-ae = <0>;
@@ -535,7 +541,7 @@
 			dma-coherent;
 		};
 
-		eth3: ethernet@1{
+		eth3: ethernet-1{
 			compatible = "hisilicon,hns-nic-v2";
 			ae-handle = <&dsaf0>;
 			port-idx-in-ae = <1>;
@@ -552,6 +558,7 @@
 			ctrl-reset-reg = <0xa60>;
 			ctrl-reset-sts-reg = <0x5a30>;
 			ctrl-clock-ena-reg = <0x338>;
+			clocks = <&refclk 0>;
 			queue-count = <16>;
 			phy-count = <8>;
 			dma-coherent;
@@ -590,10 +597,11 @@
 			reg = <0 0xa2000000 0 0x10000>;
 			sas-addr = [50 01 88 20 16 00 00 00];
 			hisilicon,sas-syscon = <&pcie_subctl>;
-			am-max-trans;
+			hip06-sas-v2-quirk-amt;
 			ctrl-reset-reg = <0xa18>;
 			ctrl-reset-sts-reg = <0x5a0c>;
 			ctrl-clock-ena-reg = <0x318>;
+			clocks = <&refclk 0>;
 			queue-count = <16>;
 			phy-count = <8>;
 			dma-coherent;
@@ -635,6 +643,7 @@
 			ctrl-reset-reg = <0xae0>;
 			ctrl-reset-sts-reg = <0x5a70>;
 			ctrl-clock-ena-reg = <0x3a8>;
+			clocks = <&refclk 0>;
 			queue-count = <16>;
 			phy-count = <9>;
 			dma-coherent;

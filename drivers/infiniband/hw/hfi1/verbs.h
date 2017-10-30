@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -73,7 +73,6 @@ struct hfi1_packet;
 #include "iowait.h"
 
 #define HFI1_MAX_RDMA_ATOMIC     16
-#define HFI1_GUIDS_PER_PORT	5
 
 /*
  * Increment this value if any changes that break userspace ABI
@@ -96,6 +95,7 @@ struct hfi1_packet;
 #define HFI1_VENDOR_IPG		cpu_to_be16(0xFFA0)
 
 #define IB_DEFAULT_GID_PREFIX	cpu_to_be64(0xfe80000000000000ULL)
+#define OPA_BTH_MIG_REQ		BIT(31)
 
 #define RC_OP(x) IB_OPCODE_RC_##x
 #define UC_OP(x) IB_OPCODE_UC_##x
@@ -104,6 +104,25 @@ struct hfi1_packet;
 enum {
 	HFI1_HAS_GRH = (1 << 0),
 };
+
+struct hfi1_16b_header {
+	u32 lrh[4];
+	union {
+		struct {
+			struct ib_grh grh;
+			struct ib_other_headers oth;
+		} l;
+		struct ib_other_headers oth;
+	} u;
+} __packed;
+
+struct hfi1_opa_header {
+	union {
+		struct ib_header ibh; /* 9B header */
+		struct hfi1_16b_header opah; /* 16B header */
+	};
+	u8 hdr_type; /* 9B or 16B */
+} __packed;
 
 struct hfi1_ahg_info {
 	u32 ahgdesc[2];
@@ -114,7 +133,7 @@ struct hfi1_ahg_info {
 
 struct hfi1_sdma_header {
 	__le64 pbc;
-	struct ib_header hdr;
+	struct hfi1_opa_header hdr;
 } __packed;
 
 /*
@@ -126,10 +145,9 @@ struct hfi1_qp_priv {
 	struct sdma_engine *s_sde;                /* current sde */
 	struct send_context *s_sendcontext;       /* current sendcontext */
 	u8 s_sc;		                  /* SC[0..4] for next packet */
-	u8 r_adefered;                            /* number of acks defered */
 	struct iowait s_iowait;
-	struct timer_list s_rnr_timer;
 	struct rvt_qp *owner;
+	u8 hdr_type; /* 9B or 16B */
 };
 
 /*
@@ -142,6 +160,12 @@ struct hfi1_pkt_state {
 	struct hfi1_pportdata *ppd;
 	struct verbs_txreq *s_txreq;
 	unsigned long flags;
+	unsigned long timeout;
+	unsigned long timeout_int;
+	int cpu;
+	u8 opcode;
+	bool in_thread;
+	bool pkts_sent;
 };
 
 #define HFI1_PSN_CREDIT  16
@@ -169,8 +193,6 @@ struct hfi1_ibport {
 	struct rvt_qp __rcu *qp[2];
 	struct rvt_ibport rvp;
 
-	__be64 guids[HFI1_GUIDS_PER_PORT	- 1];	/* writable GUIDs */
-
 	/* the first 16 entries are sl_to_vl for !OPA */
 	u8 sl_to_sc[32];
 	u8 sc_to_sl[32];
@@ -180,24 +202,30 @@ struct hfi1_ibdev {
 	struct rvt_dev_info rdi; /* Must be first */
 
 	/* QP numbers are shared by all IB ports */
-	/* protect wait lists */
-	seqlock_t iowait_lock;
+	/* protect txwait list */
+	seqlock_t txwait_lock ____cacheline_aligned_in_smp;
 	struct list_head txwait;        /* list for wait verbs_txreq */
 	struct list_head memwait;       /* list for wait kernel memory */
-	struct list_head txreq_free;
 	struct kmem_cache *verbs_txreq_cache;
-	struct timer_list mem_timer;
-
-	u64 n_piowait;
-	u64 n_piodrain;
 	u64 n_txwait;
 	u64 n_kmem_wait;
+
+	/* protect iowait lists */
+	seqlock_t iowait_lock ____cacheline_aligned_in_smp;
+	u64 n_piowait;
+	u64 n_piodrain;
+	struct timer_list mem_timer;
 
 #ifdef CONFIG_DEBUG_FS
 	/* per HFI debugfs */
 	struct dentry *hfi1_ibdev_dbg;
 	/* per HFI symlinks to above */
 	struct dentry *hfi1_ibdev_link;
+#ifdef CONFIG_FAULT_INJECTION
+	struct fault_opcode *fault_opcode;
+	struct fault_packet *fault_packet;
+	bool fault_suppress_err;
+#endif
 #endif
 };
 
@@ -231,8 +259,8 @@ static inline int hfi1_send_ok(struct rvt_qp *qp)
 /*
  * This must be called with s_lock held.
  */
-void hfi1_bad_pqkey(struct hfi1_ibport *ibp, __be16 trap_num, u32 key, u32 sl,
-		    u32 qp1, u32 qp2, u16 lid1, u16 lid2);
+void hfi1_bad_pkey(struct hfi1_ibport *ibp, u32 key, u32 sl,
+		   u32 qp1, u32 qp2, u32 lid1, u32 lid2);
 void hfi1_cap_mask_chg(struct rvt_dev_info *rdi, u8 port_num);
 void hfi1_sys_guid_chg(struct hfi1_ibport *ibp);
 void hfi1_node_desc_chg(struct hfi1_ibport *ibp);
@@ -252,23 +280,9 @@ int hfi1_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
  * necessarily be at least one bit less than
  * the container holding the PSN.
  */
-#ifndef CONFIG_HFI1_VERBS_31BIT_PSN
-#define PSN_MASK 0xFFFFFF
-#define PSN_SHIFT 8
-#else
 #define PSN_MASK 0x7FFFFFFF
 #define PSN_SHIFT 1
-#endif
 #define PSN_MODIFY_MASK 0xFFFFFF
-
-/*
- * Compare the lower 24 bits of the msn values.
- * Returns an integer <, ==, or > than zero.
- */
-static inline int cmp_msn(u32 a, u32 b)
-{
-	return (((int)a) - ((int)b)) << 8;
-}
 
 /*
  * Compare two PSNs
@@ -301,9 +315,7 @@ void hfi1_put_txreq(struct verbs_txreq *tx);
 int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
 
 void hfi1_copy_sge(struct rvt_sge_state *ss, void *data, u32 length,
-		   int release, int copy_last);
-
-void hfi1_skip_sge(struct rvt_sge_state *ss, u32 length, int release);
+		   bool release, bool copy_last);
 
 void hfi1_cnp_rcv(struct hfi1_packet *packet);
 
@@ -313,23 +325,12 @@ void hfi1_rc_rcv(struct hfi1_packet *packet);
 
 void hfi1_rc_hdrerr(
 	struct hfi1_ctxtdata *rcd,
-	struct ib_header *hdr,
-	u32 rcv_flags,
+	struct hfi1_packet *packet,
 	struct rvt_qp *qp);
 
-u8 ah_to_sc(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
+u8 ah_to_sc(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr);
 
-struct ib_ah *hfi1_create_qp0_ah(struct hfi1_ibport *ibp, u16 dlid);
-
-void hfi1_rc_rnr_retry(unsigned long arg);
-void hfi1_add_rnr_timer(struct rvt_qp *qp, u32 to);
-void hfi1_rc_timeout(unsigned long arg);
-void hfi1_del_timers_sync(struct rvt_qp *qp);
-void hfi1_stop_rc_timers(struct rvt_qp *qp);
-
-void hfi1_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr);
-
-void hfi1_rc_error(struct rvt_qp *qp, enum ib_wc_status err);
+void hfi1_rc_send_complete(struct rvt_qp *qp, struct hfi1_opa_header *opah);
 
 void hfi1_ud_rcv(struct hfi1_packet *packet);
 
@@ -344,27 +345,16 @@ int hfi1_check_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 
 void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 		    int attr_mask, struct ib_udata *udata);
-
+void hfi1_restart_rc(struct rvt_qp *qp, u32 psn, int wait);
 int hfi1_check_send_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe);
 
 extern const u32 rc_only_opcode;
 extern const u32 uc_only_opcode;
 
-static inline u8 get_opcode(struct ib_header *h)
-{
-	u16 lnh = be16_to_cpu(h->lrh[0]) & 3;
-
-	if (lnh == IB_LNH_IBA_LOCAL)
-		return be32_to_cpu(h->u.oth.bth[0]) >> 24;
-	else
-		return be32_to_cpu(h->u.l.oth.bth[0]) >> 24;
-}
-
-int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct ib_header *hdr,
-		       int has_grh, struct rvt_qp *qp, u32 bth0);
+int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_packet *packet);
 
 u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
-		  struct ib_global_route *grh, u32 hwords, u32 nwords);
+		  const struct ib_global_route *grh, u32 hwords, u32 nwords);
 
 void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 			  u32 bth0, u32 bth2, int middle,
@@ -372,12 +362,15 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 
 void _hfi1_do_send(struct work_struct *work);
 
-void hfi1_do_send(struct rvt_qp *qp);
+void hfi1_do_send_from_rvt(struct rvt_qp *qp);
+
+void hfi1_do_send(struct rvt_qp *qp, bool in_thread);
 
 void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 			enum ib_wc_status status);
 
-void hfi1_send_rc_ack(struct hfi1_ctxtdata *, struct rvt_qp *qp, int is_fecn);
+void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp,
+		      bool is_fecn);
 
 int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
 
@@ -390,6 +383,8 @@ int hfi1_register_ib_device(struct hfi1_devdata *);
 void hfi1_unregister_ib_device(struct hfi1_devdata *);
 
 void hfi1_ib_rcv(struct hfi1_packet *packet);
+
+void hfi1_16B_rcv(struct hfi1_packet *packet);
 
 unsigned hfi1_get_npkeys(struct hfi1_devdata *);
 

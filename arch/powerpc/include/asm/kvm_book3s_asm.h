@@ -81,7 +81,7 @@ struct kvm_split_mode {
 	u8		subcore_size;
 	u8		do_nap;
 	u8		napped[MAX_SMT_THREADS];
-	struct kvmppc_vcore *master_vcs[MAX_SUBCORES];
+	struct kvmppc_vcore *vc[MAX_SUBCORES];
 };
 
 /*
@@ -104,13 +104,19 @@ struct kvmppc_host_state {
 	u8 napping;
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	/*
+	 * hwthread_req/hwthread_state pair is used to pull sibling threads
+	 * out of guest on pre-ISAv3.0B CPUs where threads share MMU.
+	 */
 	u8 hwthread_req;
 	u8 hwthread_state;
 	u8 host_ipi;
 	u8 ptid;
 	struct kvm_vcpu *kvm_vcpu;
 	struct kvmppc_vcore *kvm_vcore;
-	unsigned long xics_phys;
+	void __iomem *xics_phys;
+	void __iomem *xive_tima_phys;
+	void __iomem *xive_tima_virt;
 	u32 saved_xirr;
 	u64 dabr;
 	u64 host_mmcr[7];	/* MMCR 0,1,A, SIAR, SDAR, MMCR2, SIER */

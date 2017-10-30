@@ -13,6 +13,7 @@
  *
  */
 
+#include <errno.h>
 #include <stdbool.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -38,10 +39,6 @@
 #define MiB(x) ((x) * 1024 * 1024)
 #define KiB_MASK(x) (KiB(x) - 1)
 #define MiB_MASK(x) (MiB(x) - 1)
-
-#define INTEL_PT_DEFAULT_SAMPLE_SIZE	KiB(4)
-
-#define INTEL_PT_MAX_SAMPLE_SIZE	KiB(60)
 
 #define INTEL_PT_PSB_PERIOD_NEAR	256
 
@@ -195,6 +192,7 @@ static u64 intel_pt_default_config(struct perf_pmu *intel_pt_pmu)
 	int psb_cyc, psb_periods, psb_period;
 	int pos = 0;
 	u64 config;
+	char c;
 
 	pos += scnprintf(buf + pos, sizeof(buf) - pos, "tsc");
 
@@ -227,6 +225,10 @@ static u64 intel_pt_default_config(struct perf_pmu *intel_pt_pmu)
 					 ",psb_period=%d", psb_period);
 		}
 	}
+
+	if (perf_pmu__scan_file(intel_pt_pmu, "format/pt", "%c", &c) == 1 &&
+	    perf_pmu__scan_file(intel_pt_pmu, "format/branch", "%c", &c) == 1)
+		pos += scnprintf(buf + pos, sizeof(buf) - pos, ",pt,branch");
 
 	pr_debug2("%s default config: %s\n", intel_pt_pmu->name, buf);
 
@@ -699,6 +701,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 				perf_evsel__set_sample_bit(switch_evsel, TID);
 				perf_evsel__set_sample_bit(switch_evsel, TIME);
 				perf_evsel__set_sample_bit(switch_evsel, CPU);
+				perf_evsel__reset_sample_bit(switch_evsel, BRANCH_STACK);
 
 				opts->record_switch_events = false;
 				ptr->have_sched_switch = 3;
@@ -750,6 +753,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		tracking_evsel->attr.freq = 0;
 		tracking_evsel->attr.sample_period = 1;
 
+		tracking_evsel->no_aux_samples = true;
 		if (need_immediate)
 			tracking_evsel->immediate = true;
 
@@ -759,6 +763,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 			/* And the CPU for switch events */
 			perf_evsel__set_sample_bit(tracking_evsel, CPU);
 		}
+		perf_evsel__reset_sample_bit(tracking_evsel, BRANCH_STACK);
 	}
 
 	/*

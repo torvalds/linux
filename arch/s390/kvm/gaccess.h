@@ -57,9 +57,9 @@ static inline unsigned long kvm_s390_logical_to_effective(struct kvm_vcpu *vcpu,
 {
 	psw_t *psw = &vcpu->arch.sie_block->gpsw;
 
-	if (psw_bits(*psw).eaba == PSW_AMODE_64BIT)
+	if (psw_bits(*psw).eaba == PSW_BITS_AMODE_64BIT)
 		return ga;
-	if (psw_bits(*psw).eaba == PSW_AMODE_31BIT)
+	if (psw_bits(*psw).eaba == PSW_BITS_AMODE_31BIT)
 		return ga & ((1UL << 31) - 1);
 	return ga & ((1UL << 24) - 1);
 }
@@ -162,11 +162,11 @@ enum gacc_mode {
 };
 
 int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva,
-			    ar_t ar, unsigned long *gpa, enum gacc_mode mode);
-int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, ar_t ar,
+			    u8 ar, unsigned long *gpa, enum gacc_mode mode);
+int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
 		    unsigned long length, enum gacc_mode mode);
 
-int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
+int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
 		 unsigned long len, enum gacc_mode mode);
 
 int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
@@ -218,7 +218,7 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
  *	 if data has been changed in guest space in case of an exception.
  */
 static inline __must_check
-int write_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
+int write_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
 		unsigned long len)
 {
 	return access_guest(vcpu, ga, ar, data, len, GACC_STORE);
@@ -238,7 +238,7 @@ int write_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
  * data will be copied from guest space to kernel space.
  */
 static inline __must_check
-int read_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
+int read_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
 	       unsigned long len)
 {
 	return access_guest(vcpu, ga, ar, data, len, GACC_FETCH);
@@ -247,10 +247,11 @@ int read_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
 /**
  * read_guest_instr - copy instruction data from guest space to kernel space
  * @vcpu: virtual cpu
+ * @ga: guest address
  * @data: destination address in kernel space
  * @len: number of bytes to copy
  *
- * Copy @len bytes from the current psw address (guest space) to @data (kernel
+ * Copy @len bytes from the given address (guest space) to @data (kernel
  * space).
  *
  * The behaviour of read_guest_instr is identical to read_guest, except that
@@ -258,10 +259,10 @@ int read_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
  * address-space mode.
  */
 static inline __must_check
-int read_guest_instr(struct kvm_vcpu *vcpu, void *data, unsigned long len)
+int read_guest_instr(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
+		     unsigned long len)
 {
-	return access_guest(vcpu, vcpu->arch.sie_block->gpsw.addr, 0, data, len,
-			    GACC_IFETCH);
+	return access_guest(vcpu, ga, 0, data, len, GACC_IFETCH);
 }
 
 /**

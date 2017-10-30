@@ -314,7 +314,7 @@ struct ubi_volume_desc *ubi_open_volume_path(const char *pathname, int mode)
 	if (error)
 		return ERR_PTR(error);
 
-	error = vfs_getattr(&path, &stat);
+	error = vfs_getattr(&path, &stat, STATX_TYPE, AT_STATX_SYNC_AS_STAT);
 	path_put(&path);
 	if (error)
 		return ERR_PTR(error);

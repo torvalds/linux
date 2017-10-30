@@ -23,7 +23,7 @@
  *
  * drm_simple_display_pipe_init() initializes a simple display pipeline
  * which has only one full-screen scanout buffer feeding one output. The
- * pipeline is represented by struct &drm_simple_display_pipe and binds
+ * pipeline is represented by &struct drm_simple_display_pipe and binds
  * together &drm_plane, &drm_crtc and &drm_encoder structures into one fixed
  * entity. Some flexibility for code reuse is provided through a separately
  * allocated &drm_connector object and supporting optional &drm_bridge
@@ -37,10 +37,18 @@ static const struct drm_encoder_funcs drm_simple_kms_encoder_funcs = {
 static int drm_simple_kms_crtc_check(struct drm_crtc *crtc,
 				     struct drm_crtc_state *state)
 {
+	bool has_primary = state->plane_mask &
+			   BIT(drm_plane_index(crtc->primary));
+
+	/* We always want to have an active plane with an active CRTC */
+	if (has_primary != state->enable)
+		return -EINVAL;
+
 	return drm_atomic_add_affected_planes(state->state, crtc);
 }
 
-static void drm_simple_kms_crtc_enable(struct drm_crtc *crtc)
+static void drm_simple_kms_crtc_enable(struct drm_crtc *crtc,
+				       struct drm_crtc_state *old_state)
 {
 	struct drm_simple_display_pipe *pipe;
 
@@ -51,7 +59,8 @@ static void drm_simple_kms_crtc_enable(struct drm_crtc *crtc)
 	pipe->funcs->enable(pipe, crtc->state);
 }
 
-static void drm_simple_kms_crtc_disable(struct drm_crtc *crtc)
+static void drm_simple_kms_crtc_disable(struct drm_crtc *crtc,
+					struct drm_crtc_state *old_state)
 {
 	struct drm_simple_display_pipe *pipe;
 
@@ -64,8 +73,8 @@ static void drm_simple_kms_crtc_disable(struct drm_crtc *crtc)
 
 static const struct drm_crtc_helper_funcs drm_simple_kms_crtc_helper_funcs = {
 	.atomic_check = drm_simple_kms_crtc_check,
-	.disable = drm_simple_kms_crtc_disable,
-	.enable = drm_simple_kms_crtc_enable,
+	.atomic_enable = drm_simple_kms_crtc_enable,
+	.atomic_disable = drm_simple_kms_crtc_disable,
 };
 
 static const struct drm_crtc_funcs drm_simple_kms_crtc_funcs = {
@@ -86,11 +95,8 @@ static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 	int ret;
 
 	pipe = container_of(plane, struct drm_simple_display_pipe, plane);
-	crtc_state = drm_atomic_get_existing_crtc_state(plane_state->state,
-							&pipe->crtc);
-	if (crtc_state->enable != !!plane_state->crtc)
-		return -EINVAL; /* plane must match crtc enable state */
-
+	crtc_state = drm_atomic_get_new_crtc_state(plane_state->state,
+						   &pipe->crtc);
 	if (!crtc_state->enable)
 		return 0; /* nothing to check when disabling or disabled */
 
@@ -114,7 +120,7 @@ static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void drm_simple_kms_plane_atomic_update(struct drm_plane *plane,
-					struct drm_plane_state *pstate)
+					struct drm_plane_state *old_pstate)
 {
 	struct drm_simple_display_pipe *pipe;
 
@@ -122,7 +128,7 @@ static void drm_simple_kms_plane_atomic_update(struct drm_plane *plane,
 	if (!pipe->funcs || !pipe->funcs->update)
 		return;
 
-	pipe->funcs->update(pipe, pstate);
+	pipe->funcs->update(pipe, old_pstate);
 }
 
 static int drm_simple_kms_plane_prepare_fb(struct drm_plane *plane,
@@ -182,28 +188,9 @@ static const struct drm_plane_funcs drm_simple_kms_plane_funcs = {
 int drm_simple_display_pipe_attach_bridge(struct drm_simple_display_pipe *pipe,
 					  struct drm_bridge *bridge)
 {
-	bridge->encoder = &pipe->encoder;
-	pipe->encoder.bridge = bridge;
-	return drm_bridge_attach(pipe->encoder.dev, bridge);
+	return drm_bridge_attach(&pipe->encoder, bridge, NULL);
 }
 EXPORT_SYMBOL(drm_simple_display_pipe_attach_bridge);
-
-/**
- * drm_simple_display_pipe_detach_bridge - Detach the bridge from the display pipe
- * @pipe: simple display pipe object
- *
- * Detaches the drm bridge previously attached with
- * drm_simple_display_pipe_attach_bridge()
- */
-void drm_simple_display_pipe_detach_bridge(struct drm_simple_display_pipe *pipe)
-{
-	if (WARN_ON(!pipe->encoder.bridge))
-		return;
-
-	drm_bridge_detach(pipe->encoder.bridge);
-	pipe->encoder.bridge = NULL;
-}
-EXPORT_SYMBOL(drm_simple_display_pipe_detach_bridge);
 
 /**
  * drm_simple_display_pipe_init - Initialize a simple display pipeline
@@ -212,6 +199,7 @@ EXPORT_SYMBOL(drm_simple_display_pipe_detach_bridge);
  * @funcs: callbacks for the display pipe (optional)
  * @formats: array of supported formats (DRM_FORMAT\_\*)
  * @format_count: number of elements in @formats
+ * @format_modifiers: array of formats modifiers
  * @connector: connector to attach and register (optional)
  *
  * Sets up a display pipeline which consist of a really simple
@@ -232,6 +220,7 @@ int drm_simple_display_pipe_init(struct drm_device *dev,
 			struct drm_simple_display_pipe *pipe,
 			const struct drm_simple_display_pipe_funcs *funcs,
 			const uint32_t *formats, unsigned int format_count,
+			const uint64_t *format_modifiers,
 			struct drm_connector *connector)
 {
 	struct drm_encoder *encoder = &pipe->encoder;
@@ -246,6 +235,7 @@ int drm_simple_display_pipe_init(struct drm_device *dev,
 	ret = drm_universal_plane_init(dev, plane, 0,
 				       &drm_simple_kms_plane_funcs,
 				       formats, format_count,
+				       format_modifiers,
 				       DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (ret)
 		return ret;

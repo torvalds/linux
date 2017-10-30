@@ -102,7 +102,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/parport.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/stddef.h>
@@ -138,7 +138,7 @@ static unsigned int features =	~0U;
 static bool verbose_probing =	DEFAULT_VERBOSE_PROBING;
 
 /* We do not support more than one port. */
-static struct parport *this_port = NULL;
+static struct parport *this_port;
 
 /* Timing constants for FIFO modes.  */
 #define FIFO_NFAULT_TIMEOUT	100	/* milliseconds */

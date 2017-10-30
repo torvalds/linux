@@ -914,13 +914,12 @@ int call_commit_handler(struct net_device *dev)
  * Main IOCTl dispatcher.
  * Check the type of IOCTL and call the appropriate wrapper...
  */
-static int wireless_process_ioctl(struct net *net, struct ifreq *ifr,
+static int wireless_process_ioctl(struct net *net, struct iwreq *iwr,
 				  unsigned int cmd,
 				  struct iw_request_info *info,
 				  wext_ioctl_func standard,
 				  wext_ioctl_func private)
 {
-	struct iwreq *iwr = (struct iwreq *) ifr;
 	struct net_device *dev;
 	iw_handler	handler;
 
@@ -928,7 +927,7 @@ static int wireless_process_ioctl(struct net *net, struct ifreq *ifr,
 	 * The copy_to/from_user() of ifr is also dealt with in there */
 
 	/* Make sure the device exist */
-	if ((dev = __dev_get_by_name(net, ifr->ifr_name)) == NULL)
+	if ((dev = __dev_get_by_name(net, iwr->ifr_name)) == NULL)
 		return -ENODEV;
 
 	/* A bunch of special cases, then the generic case...
@@ -957,9 +956,6 @@ static int wireless_process_ioctl(struct net *net, struct ifreq *ifr,
 		else if (private)
 			return private(dev, iwr, cmd, info, handler);
 	}
-	/* Old driver API : call driver ioctl handler */
-	if (dev->netdev_ops->ndo_do_ioctl)
-		return dev->netdev_ops->ndo_do_ioctl(dev, ifr, cmd);
 	return -EOPNOTSUPP;
 }
 
@@ -977,7 +973,7 @@ static int wext_permission_check(unsigned int cmd)
 }
 
 /* entry point from dev ioctl */
-static int wext_ioctl_dispatch(struct net *net, struct ifreq *ifr,
+static int wext_ioctl_dispatch(struct net *net, struct iwreq *iwr,
 			       unsigned int cmd, struct iw_request_info *info,
 			       wext_ioctl_func standard,
 			       wext_ioctl_func private)
@@ -987,9 +983,9 @@ static int wext_ioctl_dispatch(struct net *net, struct ifreq *ifr,
 	if (ret)
 		return ret;
 
-	dev_load(net, ifr->ifr_name);
+	dev_load(net, iwr->ifr_name);
 	rtnl_lock();
-	ret = wireless_process_ioctl(net, ifr, cmd, info, standard, private);
+	ret = wireless_process_ioctl(net, iwr, cmd, info, standard, private);
 	rtnl_unlock();
 
 	return ret;
@@ -1039,18 +1035,18 @@ static int ioctl_standard_call(struct net_device *	dev,
 }
 
 
-int wext_handle_ioctl(struct net *net, struct ifreq *ifr, unsigned int cmd,
+int wext_handle_ioctl(struct net *net, struct iwreq *iwr, unsigned int cmd,
 		      void __user *arg)
 {
 	struct iw_request_info info = { .cmd = cmd, .flags = 0 };
 	int ret;
 
-	ret = wext_ioctl_dispatch(net, ifr, cmd, &info,
+	ret = wext_ioctl_dispatch(net, iwr, cmd, &info,
 				  ioctl_standard_call,
 				  ioctl_private_call);
 	if (ret >= 0 &&
 	    IW_IS_GET(cmd) &&
-	    copy_to_user(arg, ifr, sizeof(struct iwreq)))
+	    copy_to_user(arg, iwr, sizeof(struct iwreq)))
 		return -EFAULT;
 
 	return ret;
@@ -1107,7 +1103,7 @@ int compat_wext_handle_ioctl(struct net *net, unsigned int cmd,
 	info.cmd = cmd;
 	info.flags = IW_REQUEST_FLAG_COMPAT;
 
-	ret = wext_ioctl_dispatch(net, (struct ifreq *) &iwr, cmd, &info,
+	ret = wext_ioctl_dispatch(net, &iwr, cmd, &info,
 				  compat_standard_call,
 				  compat_private_call);
 
@@ -1119,3 +1115,70 @@ int compat_wext_handle_ioctl(struct net *net, unsigned int cmd,
 	return ret;
 }
 #endif
+
+char *iwe_stream_add_event(struct iw_request_info *info, char *stream,
+			   char *ends, struct iw_event *iwe, int event_len)
+{
+	int lcp_len = iwe_stream_lcp_len(info);
+
+	event_len = iwe_stream_event_len_adjust(info, event_len);
+
+	/* Check if it's possible */
+	if (likely((stream + event_len) < ends)) {
+		iwe->len = event_len;
+		/* Beware of alignement issues on 64 bits */
+		memcpy(stream, (char *) iwe, IW_EV_LCP_PK_LEN);
+		memcpy(stream + lcp_len, &iwe->u,
+		       event_len - lcp_len);
+		stream += event_len;
+	}
+
+	return stream;
+}
+EXPORT_SYMBOL(iwe_stream_add_event);
+
+char *iwe_stream_add_point(struct iw_request_info *info, char *stream,
+			   char *ends, struct iw_event *iwe, char *extra)
+{
+	int event_len = iwe_stream_point_len(info) + iwe->u.data.length;
+	int point_len = iwe_stream_point_len(info);
+	int lcp_len   = iwe_stream_lcp_len(info);
+
+	/* Check if it's possible */
+	if (likely((stream + event_len) < ends)) {
+		iwe->len = event_len;
+		memcpy(stream, (char *) iwe, IW_EV_LCP_PK_LEN);
+		memcpy(stream + lcp_len,
+		       ((char *) &iwe->u) + IW_EV_POINT_OFF,
+		       IW_EV_POINT_PK_LEN - IW_EV_LCP_PK_LEN);
+		if (iwe->u.data.length && extra)
+			memcpy(stream + point_len, extra, iwe->u.data.length);
+		stream += event_len;
+	}
+
+	return stream;
+}
+EXPORT_SYMBOL(iwe_stream_add_point);
+
+char *iwe_stream_add_value(struct iw_request_info *info, char *event,
+			   char *value, char *ends, struct iw_event *iwe,
+			   int event_len)
+{
+	int lcp_len = iwe_stream_lcp_len(info);
+
+	/* Don't duplicate LCP */
+	event_len -= IW_EV_LCP_LEN;
+
+	/* Check if it's possible */
+	if (likely((value + event_len) < ends)) {
+		/* Add new value */
+		memcpy(value, &iwe->u, event_len);
+		value += event_len;
+		/* Patch LCP */
+		iwe->len = value - event;
+		memcpy(event, (char *) iwe, lcp_len);
+	}
+
+	return value;
+}
+EXPORT_SYMBOL(iwe_stream_add_value);

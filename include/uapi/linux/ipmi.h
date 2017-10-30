@@ -355,7 +355,7 @@ struct ipmi_cmdspec {
 #define IPMICTL_REGISTER_FOR_CMD	_IOR(IPMI_IOC_MAGIC, 14,	\
 					     struct ipmi_cmdspec)
 /*
- * Unregister a regsitered command.  error values:
+ * Unregister a registered command.  error values:
  *  - EFAULT - an address supplied was invalid.
  *  - ENOENT - The netfn/cmd was not found registered for this user.
  */

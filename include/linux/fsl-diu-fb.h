@@ -73,7 +73,7 @@ struct diu_ad {
 	/* Word 0(32-bit) in DDR memory */
 /* 	__u16 comp; */
 /* 	__u16 pixel_s:2; */
-/* 	__u16 pallete:1; */
+/* 	__u16 palette:1; */
 /* 	__u16 red_c:2; */
 /* 	__u16 green_c:2; */
 /* 	__u16 blue_c:2; */
@@ -142,7 +142,7 @@ struct diu_ad {
 struct diu {
 	__be32 desc[3];
 	__be32 gamma;
-	__be32 pallete;
+	__be32 palette;
 	__be32 cursor;
 	__be32 curs_pos;
 	__be32 diu_mode;

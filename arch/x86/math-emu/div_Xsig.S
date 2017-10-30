@@ -363,3 +363,4 @@ L_bugged_2:
 	pop	%ebx
 	jmp	L_exit
 #endif /* PARANOID */ 
+ENDPROC(div_Xsig)

@@ -98,12 +98,27 @@ xfs_init_security(
 static void
 xfs_dentry_to_name(
 	struct xfs_name	*namep,
+	struct dentry	*dentry)
+{
+	namep->name = dentry->d_name.name;
+	namep->len = dentry->d_name.len;
+	namep->type = XFS_DIR3_FT_UNKNOWN;
+}
+
+static int
+xfs_dentry_mode_to_name(
+	struct xfs_name	*namep,
 	struct dentry	*dentry,
 	int		mode)
 {
 	namep->name = dentry->d_name.name;
 	namep->len = dentry->d_name.len;
-	namep->type = xfs_mode_to_ftype[(mode & S_IFMT) >> S_SHIFT];
+	namep->type = xfs_mode_to_ftype(mode);
+
+	if (unlikely(namep->type == XFS_DIR3_FT_UNKNOWN))
+		return -EFSCORRUPTED;
+
+	return 0;
 }
 
 STATIC void
@@ -119,7 +134,7 @@ xfs_cleanup_inode(
 	 * xfs_init_security we must back out.
 	 * ENOSPC can hit here, among other things.
 	 */
-	xfs_dentry_to_name(&teardown, dentry, 0);
+	xfs_dentry_to_name(&teardown, dentry);
 
 	xfs_remove(XFS_I(dir), &teardown, XFS_I(inode));
 }
@@ -154,8 +169,12 @@ xfs_generic_create(
 	if (error)
 		return error;
 
+	/* Verify mode is valid also for tmpfile case */
+	error = xfs_dentry_mode_to_name(&name, dentry, mode);
+	if (unlikely(error))
+		goto out_free_acl;
+
 	if (!tmpfile) {
-		xfs_dentry_to_name(&name, dentry, mode);
 		error = xfs_create(XFS_I(dir), &name, mode, rdev, &ip);
 	} else {
 		error = xfs_create_tmpfile(XFS_I(dir), dentry, mode, &ip);
@@ -171,12 +190,12 @@ xfs_generic_create(
 
 #ifdef CONFIG_XFS_POSIX_ACL
 	if (default_acl) {
-		error = xfs_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
+		error = __xfs_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
 		if (error)
 			goto out_cleanup_inode;
 	}
 	if (acl) {
-		error = xfs_set_acl(inode, acl, ACL_TYPE_ACCESS);
+		error = __xfs_set_acl(inode, acl, ACL_TYPE_ACCESS);
 		if (error)
 			goto out_cleanup_inode;
 	}
@@ -248,7 +267,7 @@ xfs_vn_lookup(
 	if (dentry->d_name.len >= MAXNAMELEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	xfs_dentry_to_name(&name, dentry, 0);
+	xfs_dentry_to_name(&name, dentry);
 	error = xfs_lookup(XFS_I(dir), &name, &cip, NULL);
 	if (unlikely(error)) {
 		if (unlikely(error != -ENOENT))
@@ -275,7 +294,7 @@ xfs_vn_ci_lookup(
 	if (dentry->d_name.len >= MAXNAMELEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	xfs_dentry_to_name(&xname, dentry, 0);
+	xfs_dentry_to_name(&xname, dentry);
 	error = xfs_lookup(XFS_I(dir), &xname, &ip, &ci_name);
 	if (unlikely(error)) {
 		if (unlikely(error != -ENOENT))
@@ -310,7 +329,9 @@ xfs_vn_link(
 	struct xfs_name	name;
 	int		error;
 
-	xfs_dentry_to_name(&name, dentry, inode->i_mode);
+	error = xfs_dentry_mode_to_name(&name, dentry, inode->i_mode);
+	if (unlikely(error))
+		return error;
 
 	error = xfs_link(XFS_I(dir), XFS_I(inode), &name);
 	if (unlikely(error))
@@ -329,7 +350,7 @@ xfs_vn_unlink(
 	struct xfs_name	name;
 	int		error;
 
-	xfs_dentry_to_name(&name, dentry, 0);
+	xfs_dentry_to_name(&name, dentry);
 
 	error = xfs_remove(XFS_I(dir), &name, XFS_I(d_inode(dentry)));
 	if (error)
@@ -359,7 +380,9 @@ xfs_vn_symlink(
 
 	mode = S_IFLNK |
 		(irix_symlink_mode ? 0777 & ~current_umask() : S_IRWXUGO);
-	xfs_dentry_to_name(&name, dentry, mode);
+	error = xfs_dentry_mode_to_name(&name, dentry, mode);
+	if (unlikely(error))
+		goto out;
 
 	error = xfs_symlink(XFS_I(dir), &name, symname, mode, &cip);
 	if (unlikely(error))
@@ -395,6 +418,7 @@ xfs_vn_rename(
 {
 	struct inode	*new_inode = d_inode(ndentry);
 	int		omode = 0;
+	int		error;
 	struct xfs_name	oname;
 	struct xfs_name	nname;
 
@@ -405,8 +429,14 @@ xfs_vn_rename(
 	if (flags & RENAME_EXCHANGE)
 		omode = d_inode(ndentry)->i_mode;
 
-	xfs_dentry_to_name(&oname, odentry, omode);
-	xfs_dentry_to_name(&nname, ndentry, d_inode(odentry)->i_mode);
+	error = xfs_dentry_mode_to_name(&oname, odentry, omode);
+	if (omode && unlikely(error))
+		return error;
+
+	error = xfs_dentry_mode_to_name(&nname, ndentry,
+					d_inode(odentry)->i_mode);
+	if (unlikely(error))
+		return error;
 
 	return xfs_rename(XFS_I(odir), &oname, XFS_I(d_inode(odentry)),
 			  XFS_I(ndir), &nname,
@@ -430,7 +460,7 @@ xfs_vn_get_link(
 	if (!dentry)
 		return ERR_PTR(-ECHILD);
 
-	link = kmalloc(MAXPATHLEN+1, GFP_KERNEL);
+	link = kmalloc(XFS_SYMLINK_MAXLEN+1, GFP_KERNEL);
 	if (!link)
 		goto out_err;
 
@@ -459,11 +489,12 @@ xfs_vn_get_link_inline(
 
 STATIC int
 xfs_vn_getattr(
-	struct vfsmount		*mnt,
-	struct dentry		*dentry,
-	struct kstat		*stat)
+	const struct path	*path,
+	struct kstat		*stat,
+	u32			request_mask,
+	unsigned int		query_flags)
 {
-	struct inode		*inode = d_inode(dentry);
+	struct inode		*inode = d_inode(path->dentry);
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 
@@ -485,6 +516,20 @@ xfs_vn_getattr(
 	stat->blocks =
 		XFS_FSB_TO_BB(mp, ip->i_d.di_nblocks + ip->i_delayed_blks);
 
+	if (ip->i_d.di_version == 3) {
+		if (request_mask & STATX_BTIME) {
+			stat->result_mask |= STATX_BTIME;
+			stat->btime.tv_sec = ip->i_d.di_crtime.t_sec;
+			stat->btime.tv_nsec = ip->i_d.di_crtime.t_nsec;
+		}
+	}
+
+	if (ip->i_d.di_flags & XFS_DIFLAG_IMMUTABLE)
+		stat->attributes |= STATX_ATTR_IMMUTABLE;
+	if (ip->i_d.di_flags & XFS_DIFLAG_APPEND)
+		stat->attributes |= STATX_ATTR_APPEND;
+	if (ip->i_d.di_flags & XFS_DIFLAG_NODUMP)
+		stat->attributes |= STATX_ATTR_NODUMP;
 
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFBLK:
@@ -772,7 +817,7 @@ xfs_vn_setattr_nonsize(
  * Caution: The caller of this function is responsible for calling
  * setattr_prepare() or otherwise verifying the change is fine.
  */
-int
+STATIC int
 xfs_setattr_size(
 	struct xfs_inode	*ip,
 	struct iattr		*iattr)
@@ -983,15 +1028,13 @@ xfs_vn_setattr(
 		struct xfs_inode	*ip = XFS_I(d_inode(dentry));
 		uint			iolock = XFS_IOLOCK_EXCL;
 
-		xfs_ilock(ip, iolock);
-		error = xfs_break_layouts(d_inode(dentry), &iolock, true);
-		if (!error) {
-			xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
-			iolock |= XFS_MMAPLOCK_EXCL;
+		error = xfs_break_layouts(d_inode(dentry), &iolock);
+		if (error)
+			return error;
 
-			error = xfs_vn_setattr_size(dentry, iattr);
-		}
-		xfs_iunlock(ip, iolock);
+		xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
+		error = xfs_vn_setattr_size(dentry, iattr);
+		xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
 	} else {
 		error = xfs_vn_setattr_nonsize(dentry, iattr);
 	}
@@ -1122,7 +1165,6 @@ static const struct inode_operations xfs_dir_ci_inode_operations = {
 };
 
 static const struct inode_operations xfs_symlink_inode_operations = {
-	.readlink		= generic_readlink,
 	.get_link		= xfs_vn_get_link,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
@@ -1131,7 +1173,6 @@ static const struct inode_operations xfs_symlink_inode_operations = {
 };
 
 static const struct inode_operations xfs_inline_symlink_inode_operations = {
-	.readlink		= generic_readlink,
 	.get_link		= xfs_vn_get_link_inline,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,

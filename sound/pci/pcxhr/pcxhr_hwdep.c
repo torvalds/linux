@@ -292,7 +292,7 @@ static int pcxhr_dsp_load(struct pcxhr_mgr *mgr, int index,
 	int err, card_index;
 
 	dev_dbg(&mgr->pci->dev,
-		"loading dsp [%d] size = %Zd\n", index, dsp->size);
+		"loading dsp [%d] size = %zd\n", index, dsp->size);
 
 	switch (index) {
 	case PCXHR_FIRMWARE_XLX_INT_INDEX:

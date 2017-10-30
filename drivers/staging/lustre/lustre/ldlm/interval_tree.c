@@ -34,9 +34,9 @@
  * Author: Huang Wei <huangwei@clusterfs.com>
  * Author: Jay Xiong <jinshan.xiong@sun.com>
  */
-#include "../include/lustre_dlm.h"
-#include "../include/obd_support.h"
-#include "../include/interval_tree.h"
+#include <lustre_dlm.h>
+#include <obd_support.h>
+#include <interval_tree.h>
 
 enum {
 	INTERVAL_RED = 0,
@@ -101,17 +101,21 @@ static inline int node_equal(struct interval_node *n1, struct interval_node *n2)
 	return extent_equal(&n1->in_extent, &n2->in_extent);
 }
 
-static inline __u64 max_u64(__u64 x, __u64 y)
-{
-	return x > y ? x : y;
-}
-
 static struct interval_node *interval_first(struct interval_node *node)
 {
 	if (!node)
 		return NULL;
 	while (node->in_left)
 		node = node->in_left;
+	return node;
+}
+
+static struct interval_node *interval_last(struct interval_node *node)
+{
+	if (!node)
+		return NULL;
+	while (node->in_right)
+		node = node->in_right;
 	return node;
 }
 
@@ -126,6 +130,37 @@ static struct interval_node *interval_next(struct interval_node *node)
 	return node->in_parent;
 }
 
+static struct interval_node *interval_prev(struct interval_node *node)
+{
+	if (!node)
+		return NULL;
+
+	if (node->in_left)
+		return interval_last(node->in_left);
+
+	while (node->in_parent && node_is_left_child(node))
+		node = node->in_parent;
+
+	return node->in_parent;
+}
+
+enum interval_iter interval_iterate_reverse(struct interval_node *root,
+					    interval_callback_t func,
+					    void *data)
+{
+	enum interval_iter rc = INTERVAL_ITER_CONT;
+	struct interval_node *node;
+
+	for (node = interval_last(root); node; node = interval_prev(node)) {
+		rc = func(node, data);
+		if (rc == INTERVAL_ITER_STOP)
+			break;
+	}
+
+	return rc;
+}
+EXPORT_SYMBOL(interval_iterate_reverse);
+
 static void __rotate_change_maxhigh(struct interval_node *node,
 				    struct interval_node *rotate)
 {
@@ -134,8 +169,8 @@ static void __rotate_change_maxhigh(struct interval_node *node,
 	rotate->in_max_high = node->in_max_high;
 	left_max = node->in_left ? node->in_left->in_max_high : 0;
 	right_max = node->in_right ? node->in_right->in_max_high : 0;
-	node->in_max_high  = max_u64(interval_high(node),
-				     max_u64(left_max, right_max));
+	node->in_max_high  = max(interval_high(node),
+				 max(left_max, right_max));
 }
 
 /* The left rotation "pivots" around the link from node to node->right, and
@@ -394,8 +429,8 @@ static void update_maxhigh(struct interval_node *node,
 	while (node) {
 		left_max = node->in_left ? node->in_left->in_max_high : 0;
 		right_max = node->in_right ? node->in_right->in_max_high : 0;
-		node->in_max_high = max_u64(interval_high(node),
-					    max_u64(left_max, right_max));
+		node->in_max_high = max(interval_high(node),
+					max(left_max, right_max));
 
 		if (node->in_max_high >= old_maxhigh)
 			break;

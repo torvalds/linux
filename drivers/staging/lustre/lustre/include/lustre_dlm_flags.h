@@ -121,6 +121,9 @@
 #define ldlm_set_test_lock(_l)          LDLM_SET_FLAG((_l), 1ULL << 19)
 #define ldlm_clear_test_lock(_l)        LDLM_CLEAR_FLAG((_l), 1ULL << 19)
 
+/** match lock only */
+#define LDLM_FL_MATCH_LOCK		0x0000000000100000ULL /* bit  20 */
+
 /**
  * Immediately cancel such locks when they block some other locks. Send
  * cancel notification to original lock holder, but expect no reply. This

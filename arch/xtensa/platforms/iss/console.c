@@ -20,7 +20,7 @@
 #include <linux/seq_file.h>
 #include <linux/serial.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/irq.h>
 
 #include <platform/simcall.h>

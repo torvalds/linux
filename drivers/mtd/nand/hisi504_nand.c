@@ -26,7 +26,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/partitions.h>
@@ -764,6 +764,8 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	chip->write_buf		= hisi_nfc_write_buf;
 	chip->read_buf		= hisi_nfc_read_buf;
 	chip->chip_delay	= HINFC504_CHIP_DELAY;
+	chip->onfi_set_features	= nand_onfi_get_set_features_notsupp;
+	chip->onfi_get_features	= nand_onfi_get_set_features_notsupp;
 
 	hisi_nfc_host_init(host);
 
@@ -774,10 +776,8 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	}
 
 	ret = nand_scan_ident(mtd, max_chips, NULL);
-	if (ret) {
-		ret = -ENODEV;
+	if (ret)
 		goto err_res;
-	}
 
 	host->buffer = dmam_alloc_coherent(dev, mtd->writesize + mtd->oobsize,
 		&host->dma_buffer, GFP_KERNEL);

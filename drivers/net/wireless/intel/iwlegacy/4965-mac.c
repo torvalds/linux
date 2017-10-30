@@ -606,7 +606,7 @@ il4965_pass_packet_to_mac80211(struct il_priv *il, struct ieee80211_hdr *hdr,
 	}
 
 	if (len <= SMALL_PACKET_SIZE) {
-		memcpy(skb_put(skb, len), hdr, len);
+		skb_put_data(skb, hdr, len);
 	} else {
 		skb_add_rx_frag(skb, 0, rxb->page, (void *)hdr - rxb_addr(rxb),
 				len, PAGE_SIZE << il->hw_params.rx_page_order);
@@ -728,15 +728,17 @@ il4965_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 
 	/* set the preamble flag if appropriate */
 	if (phy_res->phy_flags & RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK)
-		rx_status.flag |= RX_FLAG_SHORTPRE;
+		rx_status.enc_flags |= RX_ENC_FLAG_SHORTPRE;
 
 	/* Set up the HT phy flags */
 	if (rate_n_flags & RATE_MCS_HT_MSK)
-		rx_status.flag |= RX_FLAG_HT;
+		rx_status.encoding = RX_ENC_HT;
 	if (rate_n_flags & RATE_MCS_HT40_MSK)
-		rx_status.flag |= RX_FLAG_40MHZ;
+		rx_status.bw = RATE_INFO_BW_40;
+	else
+		rx_status.bw = RATE_INFO_BW_20;
 	if (rate_n_flags & RATE_MCS_SGI_MSK)
-		rx_status.flag |= RX_FLAG_SHORT_GI;
+		rx_status.enc_flags |= RX_ENC_FLAG_SHORT_GI;
 
 	if (phy_res->phy_flags & RX_RES_PHY_FLAGS_AGG_MSK) {
 		/* We know which subframes of an A-MPDU belong
@@ -4652,7 +4654,7 @@ static struct attribute *il_sysfs_entries[] = {
 	NULL
 };
 
-static struct attribute_group il_attribute_group = {
+static const struct attribute_group il_attribute_group = {
 	.name = NULL,		/* put in device directory */
 	.attrs = il_sysfs_entries,
 };
@@ -4855,39 +4857,39 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 	 */
 
 	D_INFO("f/w package hdr ucode version raw = 0x%x\n", il->ucode_ver);
-	D_INFO("f/w package hdr runtime inst size = %Zd\n", pieces.inst_size);
-	D_INFO("f/w package hdr runtime data size = %Zd\n", pieces.data_size);
-	D_INFO("f/w package hdr init inst size = %Zd\n", pieces.init_size);
-	D_INFO("f/w package hdr init data size = %Zd\n", pieces.init_data_size);
-	D_INFO("f/w package hdr boot inst size = %Zd\n", pieces.boot_size);
+	D_INFO("f/w package hdr runtime inst size = %zd\n", pieces.inst_size);
+	D_INFO("f/w package hdr runtime data size = %zd\n", pieces.data_size);
+	D_INFO("f/w package hdr init inst size = %zd\n", pieces.init_size);
+	D_INFO("f/w package hdr init data size = %zd\n", pieces.init_data_size);
+	D_INFO("f/w package hdr boot inst size = %zd\n", pieces.boot_size);
 
 	/* Verify that uCode images will fit in card's SRAM */
 	if (pieces.inst_size > il->hw_params.max_inst_size) {
-		IL_ERR("uCode instr len %Zd too large to fit in\n",
+		IL_ERR("uCode instr len %zd too large to fit in\n",
 		       pieces.inst_size);
 		goto try_again;
 	}
 
 	if (pieces.data_size > il->hw_params.max_data_size) {
-		IL_ERR("uCode data len %Zd too large to fit in\n",
+		IL_ERR("uCode data len %zd too large to fit in\n",
 		       pieces.data_size);
 		goto try_again;
 	}
 
 	if (pieces.init_size > il->hw_params.max_inst_size) {
-		IL_ERR("uCode init instr len %Zd too large to fit in\n",
+		IL_ERR("uCode init instr len %zd too large to fit in\n",
 		       pieces.init_size);
 		goto try_again;
 	}
 
 	if (pieces.init_data_size > il->hw_params.max_data_size) {
-		IL_ERR("uCode init data len %Zd too large to fit in\n",
+		IL_ERR("uCode init data len %zd too large to fit in\n",
 		       pieces.init_data_size);
 		goto try_again;
 	}
 
 	if (pieces.boot_size > il->hw_params.max_bsm_size) {
-		IL_ERR("uCode boot instr len %Zd too large to fit in\n",
+		IL_ERR("uCode boot instr len %zd too large to fit in\n",
 		       pieces.boot_size);
 		goto try_again;
 	}
@@ -4938,7 +4940,7 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 	/* Copy images into buffers for card's bus-master reads ... */
 
 	/* Runtime instructions (first block of data in file) */
-	D_INFO("Copying (but not loading) uCode instr len %Zd\n",
+	D_INFO("Copying (but not loading) uCode instr len %zd\n",
 	       pieces.inst_size);
 	memcpy(il->ucode_code.v_addr, pieces.inst, pieces.inst_size);
 
@@ -4949,28 +4951,28 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 	 * Runtime data
 	 * NOTE:  Copy into backup buffer will be done in il_up()
 	 */
-	D_INFO("Copying (but not loading) uCode data len %Zd\n",
+	D_INFO("Copying (but not loading) uCode data len %zd\n",
 	       pieces.data_size);
 	memcpy(il->ucode_data.v_addr, pieces.data, pieces.data_size);
 	memcpy(il->ucode_data_backup.v_addr, pieces.data, pieces.data_size);
 
 	/* Initialization instructions */
 	if (pieces.init_size) {
-		D_INFO("Copying (but not loading) init instr len %Zd\n",
+		D_INFO("Copying (but not loading) init instr len %zd\n",
 		       pieces.init_size);
 		memcpy(il->ucode_init.v_addr, pieces.init, pieces.init_size);
 	}
 
 	/* Initialization data */
 	if (pieces.init_data_size) {
-		D_INFO("Copying (but not loading) init data len %Zd\n",
+		D_INFO("Copying (but not loading) init data len %zd\n",
 		       pieces.init_data_size);
 		memcpy(il->ucode_init_data.v_addr, pieces.init_data,
 		       pieces.init_data_size);
 	}
 
 	/* Bootstrap instructions */
-	D_INFO("Copying (but not loading) boot instr len %Zd\n",
+	D_INFO("Copying (but not loading) boot instr len %zd\n",
 	       pieces.boot_size);
 	memcpy(il->ucode_boot.v_addr, pieces.boot, pieces.boot_size);
 
@@ -5798,6 +5800,8 @@ il4965_mac_setup_register(struct il_priv *il, u32 max_probe_length)
 		    &il->bands[NL80211_BAND_5GHZ];
 
 	il_leds_init(il);
+
+	wiphy_ext_feature_set(il->hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
 	ret = ieee80211_register_hw(il->hw);
 	if (ret) {

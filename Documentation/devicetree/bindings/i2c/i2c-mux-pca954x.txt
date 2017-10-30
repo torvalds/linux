@@ -19,7 +19,14 @@ Optional Properties:
   - i2c-mux-idle-disconnect: Boolean; if defined, forces mux to disconnect all
     children in idle state. This is necessary for example, if there are several
     multiplexers on the bus and the devices behind them use same I2C addresses.
-
+  - interrupt-parent: Phandle for the interrupt controller that services
+    interrupts for this device.
+  - interrupts: Interrupt mapping for IRQ.
+  - interrupt-controller: Marks the device node as an interrupt controller.
+  - #interrupt-cells : Should be two.
+    - first cell is the pin number
+    - second cell is used to specify flags.
+    See also Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 
 Example:
 
@@ -28,6 +35,11 @@ Example:
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x74>;
+
+		interrupt-parent = <&ipic>;
+		interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
 
 		i2c@2 {
 			#address-cells = <1>;

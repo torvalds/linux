@@ -391,8 +391,7 @@ void handler(int signum, siginfo_t *si, void *vucontext)
 		br_count++;
 		dprintf1("#BR 0x%jx (total seen: %d)\n", status, br_count);
 
-#define __SI_FAULT      (3 << 16)
-#define SEGV_BNDERR     (__SI_FAULT|3)  /* failed address bound checks */
+#define SEGV_BNDERR     3  /* failed address bound checks */
 
 		dprintf2("Saw a #BR! status 0x%jx at %016lx br_reason: %jx\n",
 				status, ip, br_reason);
@@ -404,8 +403,6 @@ void handler(int signum, siginfo_t *si, void *vucontext)
 		dprintf2("info->si_lower: %p\n", __si_bounds_lower(si));
 		dprintf2("info->si_upper: %p\n", __si_bounds_upper(si));
 
-		check_siginfo_vs_shadow(si);
-
 		for (i = 0; i < 8; i++)
 			dprintf3("[%d]: %p\n", i, si_addr_ptr[i]);
 		switch (br_reason) {
@@ -416,6 +413,9 @@ void handler(int signum, siginfo_t *si, void *vucontext)
 			exit(5);
 		case 1: /* #BR MPX bounds exception */
 			/* these are normal and we expect to see them */
+
+			check_siginfo_vs_shadow(si);
+
 			dprintf1("bounds exception (normal): status 0x%jx at %p si_addr: %p\n",
 				status, (void *)ip, si->si_addr);
 			num_bnd_chk++;

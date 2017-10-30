@@ -221,6 +221,7 @@ void
 xfs_cui_release(
 	struct xfs_cui_log_item	*cuip)
 {
+	ASSERT(atomic_read(&cuip->cui_refcount) > 0);
 	if (atomic_dec_and_test(&cuip->cui_refcount)) {
 		xfs_trans_ail_remove(&cuip->cui_item, SHUTDOWN_LOG_IO_ERROR);
 		xfs_cui_item_free(cuip);
@@ -524,15 +525,16 @@ xfs_cui_recover(
 	}
 
 	xfs_refcount_finish_one_cleanup(tp, rcur, error);
-	error = xfs_defer_finish(&tp, &dfops, NULL);
+	error = xfs_defer_finish(&tp, &dfops);
 	if (error)
-		goto abort_error;
+		goto abort_defer;
 	set_bit(XFS_CUI_RECOVERED, &cuip->cui_flags);
 	error = xfs_trans_commit(tp);
 	return error;
 
 abort_error:
 	xfs_refcount_finish_one_cleanup(tp, rcur, error);
+abort_defer:
 	xfs_defer_cancel(&dfops);
 	xfs_trans_cancel(tp);
 	return error;

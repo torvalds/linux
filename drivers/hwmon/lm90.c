@@ -92,6 +92,7 @@
 #include <linux/hwmon.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/of_device.h>
 #include <linux/sysfs.h>
 #include <linux/interrupt.h>
 #include <linux/regulator/consumer.h>
@@ -234,6 +235,99 @@ static const struct i2c_device_id lm90_id[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm90_id);
+
+static const struct of_device_id lm90_of_match[] = {
+	{
+		.compatible = "adi,adm1032",
+		.data = (void *)adm1032
+	},
+	{
+		.compatible = "adi,adt7461",
+		.data = (void *)adt7461
+	},
+	{
+		.compatible = "adi,adt7461a",
+		.data = (void *)adt7461
+	},
+	{
+		.compatible = "gmt,g781",
+		.data = (void *)g781
+	},
+	{
+		.compatible = "national,lm90",
+		.data = (void *)lm90
+	},
+	{
+		.compatible = "national,lm86",
+		.data = (void *)lm86
+	},
+	{
+		.compatible = "national,lm89",
+		.data = (void *)lm86
+	},
+	{
+		.compatible = "national,lm99",
+		.data = (void *)lm99
+	},
+	{
+		.compatible = "dallas,max6646",
+		.data = (void *)max6646
+	},
+	{
+		.compatible = "dallas,max6647",
+		.data = (void *)max6646
+	},
+	{
+		.compatible = "dallas,max6649",
+		.data = (void *)max6646
+	},
+	{
+		.compatible = "dallas,max6657",
+		.data = (void *)max6657
+	},
+	{
+		.compatible = "dallas,max6658",
+		.data = (void *)max6657
+	},
+	{
+		.compatible = "dallas,max6659",
+		.data = (void *)max6659
+	},
+	{
+		.compatible = "dallas,max6680",
+		.data = (void *)max6680
+	},
+	{
+		.compatible = "dallas,max6681",
+		.data = (void *)max6680
+	},
+	{
+		.compatible = "dallas,max6695",
+		.data = (void *)max6696
+	},
+	{
+		.compatible = "dallas,max6696",
+		.data = (void *)max6696
+	},
+	{
+		.compatible = "onnn,nct1008",
+		.data = (void *)adt7461
+	},
+	{
+		.compatible = "winbond,w83l771",
+		.data = (void *)w83l771
+	},
+	{
+		.compatible = "nxp,sa56004",
+		.data = (void *)sa56004
+	},
+	{
+		.compatible = "ti,tmp451",
+		.data = (void *)tmp451
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, lm90_of_match);
 
 /*
  * chip type specific parameters
@@ -830,7 +924,7 @@ static u16 temp_to_u16_adt7461(struct lm90_data *data, long val)
 }
 
 /* pec used for ADM1032 only */
-static ssize_t show_pec(struct device *dev, struct device_attribute *dummy,
+static ssize_t pec_show(struct device *dev, struct device_attribute *dummy,
 			char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -838,8 +932,8 @@ static ssize_t show_pec(struct device *dev, struct device_attribute *dummy,
 	return sprintf(buf, "%d\n", !!(client->flags & I2C_CLIENT_PEC));
 }
 
-static ssize_t set_pec(struct device *dev, struct device_attribute *dummy,
-		       const char *buf, size_t count)
+static ssize_t pec_store(struct device *dev, struct device_attribute *dummy,
+			 const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	long val;
@@ -863,7 +957,7 @@ static ssize_t set_pec(struct device *dev, struct device_attribute *dummy,
 	return count;
 }
 
-static DEVICE_ATTR(pec, S_IWUSR | S_IRUGO, show_pec, set_pec);
+static DEVICE_ATTR_RW(pec);
 
 static int lm90_get_temp11(struct lm90_data *data, int index)
 {
@@ -1036,7 +1130,7 @@ static const u8 lm90_temp_emerg_index[3] = {
 };
 
 static const u8 lm90_min_alarm_bits[3] = { 5, 3, 11 };
-static const u8 lm90_max_alarm_bits[3] = { 0, 4, 12 };
+static const u8 lm90_max_alarm_bits[3] = { 6, 4, 12 };
 static const u8 lm90_crit_alarm_bits[3] = { 0, 1, 9 };
 static const u8 lm90_emergency_alarm_bits[3] = { 15, 13, 14 };
 static const u8 lm90_fault_bits[3] = { 0, 2, 10 };
@@ -1677,7 +1771,10 @@ static int lm90_probe(struct i2c_client *client,
 	mutex_init(&data->update_lock);
 
 	/* Set the device type */
-	data->kind = id->driver_data;
+	if (client->dev.of_node)
+		data->kind = (enum chips)of_device_get_match_data(&client->dev);
+	else
+		data->kind = id->driver_data;
 	if (data->kind == adm1032) {
 		if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
 			client->flags &= ~I2C_CLIENT_PEC;
@@ -1816,6 +1913,7 @@ static struct i2c_driver lm90_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "lm90",
+		.of_match_table = of_match_ptr(lm90_of_match),
 	},
 	.probe		= lm90_probe,
 	.alert		= lm90_alert,

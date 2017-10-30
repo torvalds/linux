@@ -454,6 +454,8 @@ tegra_xusb_find_port_node(struct tegra_xusb_padctl *padctl, const char *type,
 		char *name;
 
 		name = kasprintf(GFP_KERNEL, "%s-%u", type, index);
+		if (!name)
+			return ERR_PTR(-ENOMEM);
 		np = of_find_node_by_name(np, name);
 		kfree(name);
 	}
@@ -561,10 +563,7 @@ static int tegra_xusb_usb2_port_parse_dt(struct tegra_xusb_usb2_port *usb2)
 	usb2->internal = of_property_read_bool(np, "nvidia,internal");
 
 	usb2->supply = devm_regulator_get(&port->dev, "vbus");
-	if (IS_ERR(usb2->supply))
-		return PTR_ERR(usb2->supply);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(usb2->supply);
 }
 
 static int tegra_xusb_add_usb2_port(struct tegra_xusb_padctl *padctl,
@@ -731,10 +730,7 @@ static int tegra_xusb_usb3_port_parse_dt(struct tegra_xusb_usb3_port *usb3)
 	usb3->internal = of_property_read_bool(np, "nvidia,internal");
 
 	usb3->supply = devm_regulator_get(&port->dev, "vbus");
-	if (IS_ERR(usb3->supply))
-		return PTR_ERR(usb3->supply);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(usb3->supply);
 }
 
 static int tegra_xusb_add_usb3_port(struct tegra_xusb_padctl *padctl,

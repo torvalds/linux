@@ -10,6 +10,7 @@
 #define __LINUX_UIO_H
 
 #include <linux/kernel.h>
+#include <linux/thread_info.h>
 #include <uapi/linux/uio.h>
 
 struct page;
@@ -39,7 +40,10 @@ struct iov_iter {
 	};
 	union {
 		unsigned long nr_segs;
-		int idx;
+		struct {
+			int idx;
+			int start_idx;
+		};
 	};
 };
 
@@ -81,15 +85,86 @@ unsigned long iov_shorten(struct iovec *iov, unsigned long nr_segs, size_t to);
 size_t iov_iter_copy_from_user_atomic(struct page *page,
 		struct iov_iter *i, unsigned long offset, size_t bytes);
 void iov_iter_advance(struct iov_iter *i, size_t bytes);
+void iov_iter_revert(struct iov_iter *i, size_t bytes);
 int iov_iter_fault_in_readable(struct iov_iter *i, size_t bytes);
 size_t iov_iter_single_seg_count(const struct iov_iter *i);
 size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i);
 size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i);
-size_t copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i);
-size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i);
-size_t copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i);
+
+size_t _copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i);
+size_t _copy_from_iter(void *addr, size_t bytes, struct iov_iter *i);
+bool _copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i);
+size_t _copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i);
+bool _copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i);
+
+static __always_inline __must_check
+size_t copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
+{
+	if (unlikely(!check_copy_size(addr, bytes, true)))
+		return 0;
+	else
+		return _copy_to_iter(addr, bytes, i);
+}
+
+static __always_inline __must_check
+size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
+{
+	if (unlikely(!check_copy_size(addr, bytes, false)))
+		return 0;
+	else
+		return _copy_from_iter(addr, bytes, i);
+}
+
+static __always_inline __must_check
+bool copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i)
+{
+	if (unlikely(!check_copy_size(addr, bytes, false)))
+		return false;
+	else
+		return _copy_from_iter_full(addr, bytes, i);
+}
+
+static __always_inline __must_check
+size_t copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
+{
+	if (unlikely(!check_copy_size(addr, bytes, false)))
+		return 0;
+	else
+		return _copy_from_iter_nocache(addr, bytes, i);
+}
+
+static __always_inline __must_check
+bool copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i)
+{
+	if (unlikely(!check_copy_size(addr, bytes, false)))
+		return false;
+	else
+		return _copy_from_iter_full_nocache(addr, bytes, i);
+}
+
+#ifdef CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE
+/*
+ * Note, users like pmem that depend on the stricter semantics of
+ * copy_from_iter_flushcache() than copy_from_iter_nocache() must check for
+ * IS_ENABLED(CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE) before assuming that the
+ * destination is flushed from the cache on return.
+ */
+size_t _copy_from_iter_flushcache(void *addr, size_t bytes, struct iov_iter *i);
+#else
+#define _copy_from_iter_flushcache _copy_from_iter_nocache
+#endif
+
+static __always_inline __must_check
+size_t copy_from_iter_flushcache(void *addr, size_t bytes, struct iov_iter *i)
+{
+	if (unlikely(!check_copy_size(addr, bytes, false)))
+		return 0;
+	else
+		return _copy_from_iter_flushcache(addr, bytes, i);
+}
+
 size_t iov_iter_zero(size_t bytes, struct iov_iter *);
 unsigned long iov_iter_alignment(const struct iov_iter *i);
 unsigned long iov_iter_gap_alignment(const struct iov_iter *i);
@@ -125,7 +200,7 @@ static inline bool iter_is_iovec(const struct iov_iter *i)
  *
  * The ?: is just for type safety.
  */
-#define iov_iter_rw(i) ((0 ? (struct iov_iter *)0 : (i))->type & RW_MASK)
+#define iov_iter_rw(i) ((0 ? (struct iov_iter *)0 : (i))->type & (READ | WRITE))
 
 /*
  * Cap the iov_iter by given limit; note that the second argument is
@@ -155,6 +230,7 @@ static inline void iov_iter_reexpand(struct iov_iter *i, size_t count)
 }
 size_t csum_and_copy_to_iter(const void *addr, size_t bytes, __wsum *csum, struct iov_iter *i);
 size_t csum_and_copy_from_iter(void *addr, size_t bytes, __wsum *csum, struct iov_iter *i);
+bool csum_and_copy_from_iter_full(void *addr, size_t bytes, __wsum *csum, struct iov_iter *i);
 
 int import_iovec(int type, const struct iovec __user * uvector,
 		 unsigned nr_segs, unsigned fast_segs,

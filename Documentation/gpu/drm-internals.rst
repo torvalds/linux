@@ -98,6 +98,9 @@ DRIVER_ATOMIC
     implement appropriate obj->atomic_get_property() vfuncs for any
     modeset objects with driver specific properties.
 
+DRIVER_SYNCOBJ
+    Driver support drm sync objects.
+
 Major, Minor and Patchlevel
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -140,66 +143,24 @@ Device Instance and Driver Handling
 .. kernel-doc:: drivers/gpu/drm/drm_drv.c
    :doc: driver instance overview
 
+.. kernel-doc:: include/drm/drm_drv.h
+   :internal:
+
 .. kernel-doc:: drivers/gpu/drm/drm_drv.c
    :export:
 
 Driver Load
 -----------
 
-IRQ Registration
-~~~~~~~~~~~~~~~~
 
-The DRM core tries to facilitate IRQ handler registration and
-unregistration by providing :c:func:`drm_irq_install()` and
-:c:func:`drm_irq_uninstall()` functions. Those functions only
-support a single interrupt per device, devices that use more than one
-IRQs need to be handled manually.
+IRQ Helper Library
+~~~~~~~~~~~~~~~~~~
 
-Managed IRQ Registration
-''''''''''''''''''''''''
+.. kernel-doc:: drivers/gpu/drm/drm_irq.c
+   :doc: irq helpers
 
-:c:func:`drm_irq_install()` starts by calling the irq_preinstall
-driver operation. The operation is optional and must make sure that the
-interrupt will not get fired by clearing all pending interrupt flags or
-disabling the interrupt.
-
-The passed-in IRQ will then be requested by a call to
-:c:func:`request_irq()`. If the DRIVER_IRQ_SHARED driver feature
-flag is set, a shared (IRQF_SHARED) IRQ handler will be requested.
-
-The IRQ handler function must be provided as the mandatory irq_handler
-driver operation. It will get passed directly to
-:c:func:`request_irq()` and thus has the same prototype as all IRQ
-handlers. It will get called with a pointer to the DRM device as the
-second argument.
-
-Finally the function calls the optional irq_postinstall driver
-operation. The operation usually enables interrupts (excluding the
-vblank interrupt, which is enabled separately), but drivers may choose
-to enable/disable interrupts at a different time.
-
-:c:func:`drm_irq_uninstall()` is similarly used to uninstall an
-IRQ handler. It starts by waking up all processes waiting on a vblank
-interrupt to make sure they don't hang, and then calls the optional
-irq_uninstall driver operation. The operation must disable all hardware
-interrupts. Finally the function frees the IRQ by calling
-:c:func:`free_irq()`.
-
-Manual IRQ Registration
-'''''''''''''''''''''''
-
-Drivers that require multiple interrupt handlers can't use the managed
-IRQ registration functions. In that case IRQs must be registered and
-unregistered manually (usually with the :c:func:`request_irq()` and
-:c:func:`free_irq()` functions, or their :c:func:`devm_request_irq()` and
-:c:func:`devm_free_irq()` equivalents).
-
-When manually registering IRQs, drivers must not set the
-DRIVER_HAVE_IRQ driver feature flag, and must not provide the
-irq_handler driver operation. They must set the :c:type:`struct
-drm_device <drm_device>` irq_enabled field to 1 upon
-registration of the IRQs, and clear it to 0 after unregistering the
-IRQs.
+.. kernel-doc:: drivers/gpu/drm/drm_irq.c
+   :export:
 
 Memory Manager Initialization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -237,118 +198,38 @@ drivers.
 .. kernel-doc:: drivers/gpu/drm/drm_pci.c
    :export:
 
-.. kernel-doc:: drivers/gpu/drm/drm_platform.c
-   :export:
-
 Open/Close, File Operations and IOCTLs
 ======================================
 
-Open and Close
---------------
-
-Open and close handlers. None of those methods are mandatory::
-
-    int (*firstopen) (struct drm_device *);
-    void (*lastclose) (struct drm_device *);
-    int (*open) (struct drm_device *, struct drm_file *);
-    void (*preclose) (struct drm_device *, struct drm_file *);
-    void (*postclose) (struct drm_device *, struct drm_file *);
-
-The firstopen method is called by the DRM core for legacy UMS (User Mode
-Setting) drivers only when an application opens a device that has no
-other opened file handle. UMS drivers can implement it to acquire device
-resources. KMS drivers can't use the method and must acquire resources
-in the load method instead.
-
-Similarly the lastclose method is called when the last application
-holding a file handle opened on the device closes it, for both UMS and
-KMS drivers. Additionally, the method is also called at module unload
-time or, for hot-pluggable devices, when the device is unplugged. The
-firstopen and lastclose calls can thus be unbalanced.
-
-The open method is called every time the device is opened by an
-application. Drivers can allocate per-file private data in this method
-and store them in the struct :c:type:`struct drm_file
-<drm_file>` driver_priv field. Note that the open method is
-called before firstopen.
-
-The close operation is split into preclose and postclose methods.
-Drivers must stop and cleanup all per-file operations in the preclose
-method. For instance pending vertical blanking and page flip events must
-be cancelled. No per-file operation is allowed on the file handle after
-returning from the preclose method.
-
-Finally the postclose method is called as the last step of the close
-operation, right before calling the lastclose method if no other open
-file handle exists for the device. Drivers that have allocated per-file
-private data in the open method should free it here.
-
-The lastclose method should restore CRTC and plane properties to default
-value, so that a subsequent open of the device will not inherit state
-from the previous user. It can also be used to execute delayed power
-switching state changes, e.g. in conjunction with the :ref:`vga_switcheroo`
-infrastructure. Beyond that KMS drivers should not do any
-further cleanup. Only legacy UMS drivers might need to clean up device
-state so that the vga console or an independent fbdev driver could take
-over.
+.. _drm_driver_fops:
 
 File Operations
 ---------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_fops.c
+.. kernel-doc:: drivers/gpu/drm/drm_file.c
    :doc: file operations
 
-.. kernel-doc:: drivers/gpu/drm/drm_fops.c
+.. kernel-doc:: include/drm/drm_file.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_file.c
    :export:
 
-IOCTLs
-------
+Misc Utilities
+==============
 
-struct drm_ioctl_desc \*ioctls; int num_ioctls;
-    Driver-specific ioctls descriptors table.
+Printer
+-------
 
-Driver-specific ioctls numbers start at DRM_COMMAND_BASE. The ioctls
-descriptors table is indexed by the ioctl number offset from the base
-value. Drivers can use the DRM_IOCTL_DEF_DRV() macro to initialize
-the table entries.
+.. kernel-doc:: include/drm/drm_print.h
+   :doc: print
 
-::
+.. kernel-doc:: include/drm/drm_print.h
+   :internal:
 
-    DRM_IOCTL_DEF_DRV(ioctl, func, flags)
-
-``ioctl`` is the ioctl name. Drivers must define the DRM_##ioctl and
-DRM_IOCTL_##ioctl macros to the ioctl number offset from
-DRM_COMMAND_BASE and the ioctl number respectively. The first macro is
-private to the device while the second must be exposed to userspace in a
-public header.
-
-``func`` is a pointer to the ioctl handler function compatible with the
-``drm_ioctl_t`` type.
-
-::
-
-    typedef int drm_ioctl_t(struct drm_device *dev, void *data,
-            struct drm_file *file_priv);
-
-``flags`` is a bitmask combination of the following values. It restricts
-how the ioctl is allowed to be called.
-
--  DRM_AUTH - Only authenticated callers allowed
-
--  DRM_MASTER - The ioctl can only be called on the master file handle
-
--  DRM_ROOT_ONLY - Only callers with the SYSADMIN capability allowed
-
--  DRM_CONTROL_ALLOW - The ioctl can only be called on a control
-   device
-
--  DRM_UNLOCKED - The ioctl handler will be called without locking the
-   DRM global mutex. This is the enforced default for kms drivers (i.e.
-   using the DRIVER_MODESET flag) and hence shouldn't be used any more
-   for new drivers.
-
-.. kernel-doc:: drivers/gpu/drm/drm_ioctl.c
+.. kernel-doc:: drivers/gpu/drm/drm_print.c
    :export:
+
 
 Legacy Support Code
 ===================

@@ -268,14 +268,11 @@ static int tmp102_probe(struct i2c_client *client,
 		return err;
 	}
 
-	tmp102->ready_time = jiffies;
-	if (tmp102->config_orig & TMP102_CONF_SD) {
-		/*
-		 * Mark that we are not ready with data until the first
-		 * conversion is complete
-		 */
-		tmp102->ready_time += msecs_to_jiffies(CONVERSION_TIME_MS);
-	}
+	/*
+	 * Mark that we are not ready with data until the first
+	 * conversion is complete
+	 */
+	tmp102->ready_time = jiffies + msecs_to_jiffies(CONVERSION_TIME_MS);
 
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name,
 							 tmp102,
@@ -323,8 +320,15 @@ static const struct i2c_device_id tmp102_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tmp102_id);
 
+static const struct of_device_id tmp102_of_match[] = {
+	{ .compatible = "ti,tmp102" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, tmp102_of_match);
+
 static struct i2c_driver tmp102_driver = {
 	.driver.name	= DRIVER_NAME,
+	.driver.of_match_table = of_match_ptr(tmp102_of_match),
 	.driver.pm	= &tmp102_dev_pm_ops,
 	.probe		= tmp102_probe,
 	.id_table	= tmp102_id,

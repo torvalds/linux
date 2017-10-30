@@ -5,7 +5,7 @@ the GPMC controller with a name of "onenand".
 
 All timing relevant properties as well as generic gpmc child properties are
 explained in a separate documents - please refer to
-Documentation/devicetree/bindings/bus/ti-gpmc.txt
+Documentation/devicetree/bindings/memory-controllers/omap-gpmc.txt
 
 Required properties:
 

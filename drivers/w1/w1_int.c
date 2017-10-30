@@ -1,8 +1,5 @@
 /*
- *	w1_int.c
- *
  * Copyright (c) 2004 Evgeniy Polyakov <zbr@ioremap.net>
- *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/kernel.h>
@@ -24,13 +17,12 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 #include <linux/export.h>
 #include <linux/moduleparam.h>
 
-#include "w1.h"
-#include "w1_log.h"
+#include "w1_internal.h"
 #include "w1_netlink.h"
-#include "w1_int.h"
 
 static int w1_search_count = -1; /* Default is continual scan */
 module_param_named(search_count, w1_search_count, int, 0);
@@ -186,6 +178,7 @@ err_out_free_dev:
 
 	return retval;
 }
+EXPORT_SYMBOL(w1_add_master_device);
 
 void __w1_remove_master_device(struct w1_master *dev)
 {
@@ -258,6 +251,4 @@ void w1_remove_master_device(struct w1_bus_master *bm)
 
 	__w1_remove_master_device(found);
 }
-
-EXPORT_SYMBOL(w1_add_master_device);
 EXPORT_SYMBOL(w1_remove_master_device);

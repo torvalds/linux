@@ -1,6 +1,6 @@
 / {
 	aliases {
-		ethernet = &ethernet;
+		ethernet0 = &ethernet;
 	};
 };
 

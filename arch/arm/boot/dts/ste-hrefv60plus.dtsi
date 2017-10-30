@@ -146,6 +146,7 @@
 		vmmci: regulator-gpio {
 			gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
 			enable-gpio = <&gpio5 9 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
 		};
 
 		pinctrl {

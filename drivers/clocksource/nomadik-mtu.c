@@ -260,29 +260,29 @@ static int __init nmdk_timer_of_init(struct device_node *node)
 
 	base = of_iomap(node, 0);
 	if (!base) {
-		pr_err("Can't remap registers");
+		pr_err("Can't remap registers\n");
 		return -ENXIO;
 	}
 
 	pclk = of_clk_get_by_name(node, "apb_pclk");
 	if (IS_ERR(pclk)) {
-		pr_err("could not get apb_pclk");
+		pr_err("could not get apb_pclk\n");
 		return PTR_ERR(pclk);
 	}
 
 	clk = of_clk_get_by_name(node, "timclk");
 	if (IS_ERR(clk)) {
-		pr_err("could not get timclk");
+		pr_err("could not get timclk\n");
 		return PTR_ERR(clk);
 	}
 
 	irq = irq_of_parse_and_map(node, 0);
 	if (irq <= 0) {
-		pr_err("Can't parse IRQ");
+		pr_err("Can't parse IRQ\n");
 		return -EINVAL;
 	}
 
 	return nmdk_timer_init(base, irq, pclk, clk);
 }
-CLOCKSOURCE_OF_DECLARE(nomadik_mtu, "st,nomadik-mtu",
+TIMER_OF_DECLARE(nomadik_mtu, "st,nomadik-mtu",
 		       nmdk_timer_of_init);

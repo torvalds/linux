@@ -20,10 +20,10 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_ih.h"
-#include "si/sid.h"
+#include "sid.h"
 #include "si_ih.h"
 
 static void si_ih_set_interrupt_funcs(struct amdgpu_device *adev);
@@ -129,8 +129,9 @@ static void si_ih_decode_iv(struct amdgpu_device *adev,
 	dw[2] = le32_to_cpu(adev->irq.ih.ring[ring_index + 2]);
 	dw[3] = le32_to_cpu(adev->irq.ih.ring[ring_index + 3]);
 
+	entry->client_id = AMDGPU_IH_CLIENTID_LEGACY;
 	entry->src_id = dw[0] & 0xff;
-	entry->src_data = dw[1] & 0xfffffff;
+	entry->src_data[0] = dw[1] & 0xfffffff;
 	entry->ring_id = dw[2] & 0xff;
 	entry->vm_id = (dw[2] >> 8) & 0xff;
 
@@ -268,7 +269,7 @@ static int si_ih_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs si_ih_ip_funcs = {
+static const struct amd_ip_funcs si_ih_ip_funcs = {
 	.name = "si_ih",
 	.early_init = si_ih_early_init,
 	.late_init = NULL,
@@ -297,3 +298,11 @@ static void si_ih_set_interrupt_funcs(struct amdgpu_device *adev)
 		adev->irq.ih_funcs = &si_ih_funcs;
 }
 
+const struct amdgpu_ip_block_version si_ih_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_IH,
+	.major = 1,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &si_ih_ip_funcs,
+};

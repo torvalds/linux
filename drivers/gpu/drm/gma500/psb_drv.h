@@ -750,13 +750,7 @@ extern int psb_gem_get_aperture(struct drm_device *dev, void *data,
 			struct drm_file *file);
 extern int psb_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 			struct drm_mode_create_dumb *args);
-extern int psb_gem_dumb_map_gtt(struct drm_file *file, struct drm_device *dev,
-			uint32_t handle, uint64_t *offset);
-extern int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
-extern int psb_gem_create_ioctl(struct drm_device *dev, void *data,
-			struct drm_file *file);
-extern int psb_gem_mmap_ioctl(struct drm_device *dev, void *data,
-					struct drm_file *file);
+extern int psb_gem_fault(struct vm_fault *vmf);
 
 /* psb_device.c */
 extern const struct psb_ops psb_chip_ops;
@@ -909,9 +903,8 @@ static inline void REGISTER_WRITE8(struct drm_device *dev,
 #define PSB_RSGX32(_offs)						\
 ({									\
 	if (inl(dev_priv->apm_base + PSB_APM_STS) & 0x3) {		\
-		printk(KERN_ERR						\
-			"access sgx when it's off!! (READ) %s, %d\n",	\
-	       __FILE__, __LINE__);					\
+		pr_err("access sgx when it's off!! (READ) %s, %d\n",	\
+		       __FILE__, __LINE__);				\
 		melay(1000);						\
 	}								\
 	ioread32(dev_priv->sgx_reg + (_offs));				\

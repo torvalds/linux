@@ -14,7 +14,7 @@
 #include "zfcp_ext.h"
 #include "zfcp_qdio.h"
 
-static bool enable_multibuffer = 1;
+static bool enable_multibuffer = true;
 module_param_named(datarouter, enable_multibuffer, bool, 0400);
 MODULE_PARM_DESC(datarouter, "Enable hardware data router support (default on)");
 

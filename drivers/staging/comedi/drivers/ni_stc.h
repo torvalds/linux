@@ -1031,7 +1031,6 @@ struct ni_private {
 
 	unsigned short ai_fifo_buffer[0x2000];
 	u8 eeprom_buffer[M_SERIES_EEPROM_SIZE];
-	__be32 serial_number;
 
 	struct mite *mite;
 	struct mite_channel *ai_mite_chan;
@@ -1053,6 +1052,20 @@ struct ni_private {
 	unsigned int is_67xx:1;
 	unsigned int is_6711:1;
 	unsigned int is_6713:1;
+
+	/*
+	 * Boolean value of whether device needs to be armed.
+	 *
+	 * Currently, only NI AO devices are known to be needing arming, since
+	 * the DAC registers must be preloaded before triggering.
+	 * This variable should only be set true during a command operation
+	 * (e.g ni_ao_cmd) and should then be set false by the arming
+	 * function (e.g. ni_ao_arm).
+	 *
+	 * This variable helps to ensure that multiple DMA allocations are not
+	 * possible.
+	 */
+	unsigned int ao_needs_arming:1;
 };
 
 static const struct comedi_lrange range_ni_E_ao_ext;

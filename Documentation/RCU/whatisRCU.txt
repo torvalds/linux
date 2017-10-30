@@ -237,7 +237,7 @@ rcu_dereference()
 
 	The reader uses rcu_dereference() to fetch an RCU-protected
 	pointer, which returns a value that may then be safely
-	dereferenced.  Note that rcu_deference() does not actually
+	dereferenced.  Note that rcu_dereference() does not actually
 	dereference the pointer, instead, it protects the pointer for
 	later dereferencing.  It also executes any needed memory-barrier
 	instructions for a given CPU architecture.  Currently, only Alpha
@@ -562,7 +562,9 @@ This section presents a "toy" RCU implementation that is based on
 familiar locking primitives.  Its overhead makes it a non-starter for
 real-life use, as does its lack of scalability.  It is also unsuitable
 for realtime use, since it allows scheduling latency to "bleed" from
-one read-side critical section to another.
+one read-side critical section to another.  It also assumes recursive
+reader-writer locks:  If you try this with non-recursive locks, and
+you allow nested rcu_read_lock() calls, you can deadlock.
 
 However, it is probably the easiest implementation to relate to, so is
 a good starting point.
@@ -587,20 +589,21 @@ It is extremely simple:
 		write_unlock(&rcu_gp_mutex);
 	}
 
-[You can ignore rcu_assign_pointer() and rcu_dereference() without
-missing much.  But here they are anyway.  And whatever you do, don't
-forget about them when submitting patches making use of RCU!]
+[You can ignore rcu_assign_pointer() and rcu_dereference() without missing
+much.  But here are simplified versions anyway.  And whatever you do,
+don't forget about them when submitting patches making use of RCU!]
 
-	#define rcu_assign_pointer(p, v)	({ \
-							smp_wmb(); \
-							(p) = (v); \
-						})
+	#define rcu_assign_pointer(p, v) \
+	({ \
+		smp_store_release(&(p), (v)); \
+	})
 
-	#define rcu_dereference(p)     ({ \
-					typeof(p) _________p1 = p; \
-					smp_read_barrier_depends(); \
-					(_________p1); \
-					})
+	#define rcu_dereference(p) \
+	({ \
+		typeof(p) _________p1 = p; \
+		smp_read_barrier_depends(); \
+		(_________p1); \
+	})
 
 
 The rcu_read_lock() and rcu_read_unlock() primitive read-acquire
@@ -887,6 +890,8 @@ SRCU:	Critical sections	Grace period		Barrier
 	srcu_read_lock_held
 
 SRCU:	Initialization/cleanup
+	DEFINE_SRCU
+	DEFINE_STATIC_SRCU
 	init_srcu_struct
 	cleanup_srcu_struct
 
@@ -910,7 +915,8 @@ a.	Will readers need to block?  If so, you need SRCU.
 b.	What about the -rt patchset?  If readers would need to block
 	in an non-rt kernel, you need SRCU.  If readers would block
 	in a -rt kernel, but not in a non-rt kernel, SRCU is not
-	necessary.
+	necessary.  (The -rt patchset turns spinlocks into sleeplocks,
+	hence this distinction.)
 
 c.	Do you need to treat NMI handlers, hardirq handlers,
 	and code segments with preemption disabled (whether
@@ -925,7 +931,8 @@ d.	Do you need RCU grace periods to complete even in the face
 
 e.	Is your workload too update-intensive for normal use of
 	RCU, but inappropriate for other synchronization mechanisms?
-	If so, consider SLAB_DESTROY_BY_RCU.  But please be careful!
+	If so, consider SLAB_TYPESAFE_BY_RCU (which was originally
+	named SLAB_DESTROY_BY_RCU).  But please be careful!
 
 f.	Do you need read-side critical sections that are respected
 	even though they are in the middle of the idle loop, during

@@ -17,6 +17,15 @@
 
 #include "cxl.h"
 
+#define dsisr_psl9_flags(flags) \
+	__print_flags(flags, "|", \
+		{ CXL_PSL9_DSISR_An_CO_MASK,	"FR" }, \
+		{ CXL_PSL9_DSISR_An_TF,		"TF" }, \
+		{ CXL_PSL9_DSISR_An_PE,		"PE" }, \
+		{ CXL_PSL9_DSISR_An_AE,		"AE" }, \
+		{ CXL_PSL9_DSISR_An_OC,		"OC" }, \
+		{ CXL_PSL9_DSISR_An_S,		"S" })
+
 #define DSISR_FLAGS \
 	{ CXL_PSL_DSISR_An_DS,	"DS" }, \
 	{ CXL_PSL_DSISR_An_DM,	"DM" }, \
@@ -151,6 +160,40 @@ TRACE_EVENT(cxl_afu_irq,
 		__entry->afu_irq,
 		__entry->virq,
 		__entry->hwirq
+	)
+);
+
+TRACE_EVENT(cxl_psl9_irq,
+	TP_PROTO(struct cxl_context *ctx, int irq, u64 dsisr, u64 dar),
+
+	TP_ARGS(ctx, irq, dsisr, dar),
+
+	TP_STRUCT__entry(
+		__field(u8, card)
+		__field(u8, afu)
+		__field(u16, pe)
+		__field(int, irq)
+		__field(u64, dsisr)
+		__field(u64, dar)
+	),
+
+	TP_fast_assign(
+		__entry->card = ctx->afu->adapter->adapter_num;
+		__entry->afu = ctx->afu->slice;
+		__entry->pe = ctx->pe;
+		__entry->irq = irq;
+		__entry->dsisr = dsisr;
+		__entry->dar = dar;
+	),
+
+	TP_printk("afu%i.%i pe=%i irq=%i dsisr=0x%016llx dsisr=%s dar=0x%016llx",
+		__entry->card,
+		__entry->afu,
+		__entry->pe,
+		__entry->irq,
+		__entry->dsisr,
+		dsisr_psl9_flags(__entry->dsisr),
+		__entry->dar
 	)
 );
 

@@ -138,8 +138,6 @@ struct mtdswap_dev {
 
 	char *page_buf;
 	char *oob_buf;
-
-	struct dentry *debugfs_root;
 };
 
 struct mtdswap_oobdata {
@@ -587,7 +585,7 @@ retry:
 	ret = wait_event_interruptible(wq, erase.state == MTD_ERASE_DONE ||
 					   erase.state == MTD_ERASE_FAILED);
 	if (ret) {
-		dev_err(d->dev, "Interrupted erase block %#llx erassure on %s",
+		dev_err(d->dev, "Interrupted erase block %#llx erasure on %s\n",
 			erase.addr, mtd->name);
 		return -EINTR;
 	}
@@ -1235,10 +1233,8 @@ static int mtdswap_show(struct seq_file *s, void *data)
 
 		if (root->rb_node) {
 			count[i] = d->trees[i].count;
-			min[i] = rb_entry(rb_first(root), struct swap_eb,
-					rb)->erase_count;
-			max[i] = rb_entry(rb_last(root), struct swap_eb,
-					rb)->erase_count;
+			min[i] = MTDSWAP_ECNT_MIN(root);
+			max[i] = MTDSWAP_ECNT_MAX(root);
 		} else
 			count[i] = 0;
 	}
@@ -1317,29 +1313,19 @@ static const struct file_operations mtdswap_fops = {
 
 static int mtdswap_add_debugfs(struct mtdswap_dev *d)
 {
-	struct gendisk *gd = d->mbd_dev->disk;
-	struct device *dev = disk_to_dev(gd);
-
-	struct dentry *root;
+	struct dentry *root = d->mtd->dbg.dfs_dir;
 	struct dentry *dent;
 
-	root = debugfs_create_dir(gd->disk_name, NULL);
-	if (IS_ERR(root))
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
 		return 0;
 
-	if (!root) {
-		dev_err(dev, "failed to initialize debugfs\n");
+	if (IS_ERR_OR_NULL(root))
 		return -1;
-	}
 
-	d->debugfs_root = root;
-
-	dent = debugfs_create_file("stats", S_IRUSR, root, d,
+	dent = debugfs_create_file("mtdswap_stats", S_IRUSR, root, d,
 				&mtdswap_fops);
 	if (!dent) {
 		dev_err(d->dev, "debugfs_create_file failed\n");
-		debugfs_remove_recursive(root);
-		d->debugfs_root = NULL;
 		return -1;
 	}
 
@@ -1542,7 +1528,6 @@ static void mtdswap_remove_dev(struct mtd_blktrans_dev *dev)
 {
 	struct mtdswap_dev *d = MTDSWAP_MBD_TO_MTDSWAP(dev);
 
-	debugfs_remove_recursive(d->debugfs_root);
 	del_mtd_blktrans_dev(dev);
 	mtdswap_cleanup(d);
 	kfree(d);

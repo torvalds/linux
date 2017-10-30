@@ -19,7 +19,6 @@
 #include <linux/gfp.h>
 #include <linux/highmem.h>
 #include <linux/hugetlb.h>
-#include <linux/export.h>
 #include <asm/current.h>
 #include <asm/page.h>
 
@@ -91,7 +90,7 @@ __copy_to_user_memcpy(void __user *to, const void *from, unsigned long n)
 	unsigned long ua_flags;
 	int atomic;
 
-	if (unlikely(segment_eq(get_fs(), KERNEL_DS))) {
+	if (uaccess_kernel()) {
 		memcpy((void *)to, from, n);
 		return 0;
 	}
@@ -157,14 +156,13 @@ arm_copy_to_user(void __user *to, const void *from, unsigned long n)
 	}
 	return n;
 }
-EXPORT_SYMBOL(arm_copy_to_user);
 	
 static unsigned long noinline
 __clear_user_memset(void __user *addr, unsigned long n)
 {
 	unsigned long ua_flags;
 
-	if (unlikely(segment_eq(get_fs(), KERNEL_DS))) {
+	if (uaccess_kernel()) {
 		memset((void *)addr, 0, n);
 		return 0;
 	}
@@ -215,7 +213,6 @@ unsigned long arm_clear_user(void __user *addr, unsigned long n)
 	}
 	return n;
 }
-EXPORT_SYMBOL(arm_clear_user);
 
 #if 0
 

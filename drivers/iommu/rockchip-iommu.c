@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-iommu.h>
+#include <linux/dma-mapping.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -89,7 +90,10 @@ struct rk_iommu {
 	struct device *dev;
 	void __iomem **bases;
 	int num_mmu;
-	int irq;
+	int *irq;
+	int num_irq;
+	bool reset_disabled;
+	struct iommu_device iommu;
 	struct list_head node; /* entry in rk_iommu_domain.iommus */
 	struct iommu_domain *domain; /* domain to which iommu is attached */
 };
@@ -411,6 +415,9 @@ static int rk_iommu_force_reset(struct rk_iommu *iommu)
 {
 	int ret, i;
 	u32 dte_addr;
+
+	if (iommu->reset_disabled)
+		return 0;
 
 	/*
 	 * Check if register DTE_ADDR is working by writing DTE_ADDR_DUMMY
@@ -823,10 +830,12 @@ static int rk_iommu_attach_device(struct iommu_domain *domain,
 
 	iommu->domain = domain;
 
-	ret = devm_request_irq(iommu->dev, iommu->irq, rk_iommu_irq,
-			       IRQF_SHARED, dev_name(dev), iommu);
-	if (ret)
-		return ret;
+	for (i = 0; i < iommu->num_irq; i++) {
+		ret = devm_request_irq(iommu->dev, iommu->irq[i], rk_iommu_irq,
+				       IRQF_SHARED, dev_name(dev), iommu);
+		if (ret)
+			return ret;
+	}
 
 	for (i = 0; i < iommu->num_mmu; i++) {
 		rk_iommu_write(iommu->bases[i], RK_MMU_DTE_ADDR,
@@ -876,7 +885,8 @@ static void rk_iommu_detach_device(struct iommu_domain *domain,
 	}
 	rk_iommu_disable_stall(iommu);
 
-	devm_free_irq(iommu->dev, iommu->irq, iommu);
+	for (i = 0; i < iommu->num_irq; i++)
+		devm_free_irq(iommu->dev, iommu->irq[i], iommu);
 
 	iommu->domain = NULL;
 
@@ -1006,20 +1016,20 @@ static int rk_iommu_group_set_iommudata(struct iommu_group *group,
 	ret = of_parse_phandle_with_args(np, "iommus", "#iommu-cells", 0,
 					 &args);
 	if (ret) {
-		dev_err(dev, "of_parse_phandle_with_args(%s) => %d\n",
-			np->full_name, ret);
+		dev_err(dev, "of_parse_phandle_with_args(%pOF) => %d\n",
+			np, ret);
 		return ret;
 	}
 	if (args.args_count != 0) {
-		dev_err(dev, "incorrect number of iommu params found for %s (found %d, expected 0)\n",
-			args.np->full_name, args.args_count);
+		dev_err(dev, "incorrect number of iommu params found for %pOF (found %d, expected 0)\n",
+			args.np, args.args_count);
 		return -EINVAL;
 	}
 
 	pd = of_find_device_by_node(args.np);
 	of_node_put(args.np);
 	if (!pd) {
-		dev_err(dev, "iommu %s not found\n", args.np->full_name);
+		dev_err(dev, "iommu %pOF not found\n", args.np);
 		return -EPROBE_DEFER;
 	}
 
@@ -1032,6 +1042,7 @@ static int rk_iommu_group_set_iommudata(struct iommu_group *group,
 static int rk_iommu_add_device(struct device *dev)
 {
 	struct iommu_group *group;
+	struct rk_iommu *iommu;
 	int ret;
 
 	if (!rk_iommu_is_dev_iommu_master(dev))
@@ -1054,6 +1065,10 @@ static int rk_iommu_add_device(struct device *dev)
 	if (ret)
 		goto err_remove_device;
 
+	iommu = rk_iommu_from_dev(dev);
+	if (iommu)
+		iommu_device_link(&iommu->iommu, dev);
+
 	iommu_group_put(group);
 
 	return 0;
@@ -1067,8 +1082,14 @@ err_put_group:
 
 static void rk_iommu_remove_device(struct device *dev)
 {
+	struct rk_iommu *iommu;
+
 	if (!rk_iommu_is_dev_iommu_master(dev))
 		return;
+
+	iommu = rk_iommu_from_dev(dev);
+	if (iommu)
+		iommu_device_unlink(&iommu->iommu, dev);
 
 	iommu_group_remove_device(dev);
 }
@@ -1117,7 +1138,7 @@ static int rk_iommu_probe(struct platform_device *pdev)
 	struct rk_iommu *iommu;
 	struct resource *res;
 	int num_res = pdev->num_resources;
-	int i;
+	int err, i;
 
 	iommu = devm_kzalloc(dev, sizeof(*iommu), GFP_KERNEL);
 	if (!iommu)
@@ -1144,17 +1165,47 @@ static int rk_iommu_probe(struct platform_device *pdev)
 	if (iommu->num_mmu == 0)
 		return PTR_ERR(iommu->bases[0]);
 
-	iommu->irq = platform_get_irq(pdev, 0);
-	if (iommu->irq < 0) {
-		dev_err(dev, "Failed to get IRQ, %d\n", iommu->irq);
+	iommu->num_irq = platform_irq_count(pdev);
+	if (iommu->num_irq < 0)
+		return iommu->num_irq;
+	if (iommu->num_irq == 0)
 		return -ENXIO;
+
+	iommu->irq = devm_kcalloc(dev, iommu->num_irq, sizeof(*iommu->irq),
+				  GFP_KERNEL);
+	if (!iommu->irq)
+		return -ENOMEM;
+
+	for (i = 0; i < iommu->num_irq; i++) {
+		iommu->irq[i] = platform_get_irq(pdev, i);
+		if (iommu->irq[i] < 0) {
+			dev_err(dev, "Failed to get IRQ, %d\n", iommu->irq[i]);
+			return -ENXIO;
+		}
 	}
 
-	return 0;
+	iommu->reset_disabled = device_property_read_bool(dev,
+					"rockchip,disable-mmu-reset");
+
+	err = iommu_device_sysfs_add(&iommu->iommu, dev, NULL, dev_name(dev));
+	if (err)
+		return err;
+
+	iommu_device_set_ops(&iommu->iommu, &rk_iommu_ops);
+	err = iommu_device_register(&iommu->iommu);
+
+	return err;
 }
 
 static int rk_iommu_remove(struct platform_device *pdev)
 {
+	struct rk_iommu *iommu = platform_get_drvdata(pdev);
+
+	if (iommu) {
+		iommu_device_sysfs_remove(&iommu->iommu);
+		iommu_device_unregister(&iommu->iommu);
+	}
+
 	return 0;
 }
 

@@ -402,7 +402,7 @@ int ps2pp_detect(struct psmouse *psmouse, bool set_properties)
 				psmouse->set_resolution = ps2pp_set_resolution;
 				psmouse->disconnect = ps2pp_disconnect;
 
-				error = device_create_file(&psmouse->ps2dev.serio->dev,
+				error = device_create_file(&ps2dev->serio->dev,
 							   &psmouse_attr_smartscroll.dattr);
 				if (error) {
 					psmouse_err(psmouse,

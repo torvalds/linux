@@ -37,6 +37,8 @@ static inline int atomic_set(atomic_t *v, int i)
 	return i;
 }
 
+#define atomic_set_release(v, i) atomic_set((v), (i))
+
 #define ATOMIC_OP(op, c_op)						\
 static inline void atomic_##op(int i, atomic_t *v)			\
 {									\

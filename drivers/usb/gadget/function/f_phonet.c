@@ -261,19 +261,10 @@ out:
 	return NETDEV_TX_OK;
 }
 
-static int pn_net_mtu(struct net_device *dev, int new_mtu)
-{
-	if ((new_mtu < PHONET_MIN_MTU) || (new_mtu > PHONET_MAX_MTU))
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-
 static const struct net_device_ops pn_netdev_ops = {
 	.ndo_open	= pn_net_open,
 	.ndo_stop	= pn_net_close,
 	.ndo_start_xmit	= pn_net_xmit,
-	.ndo_change_mtu	= pn_net_mtu,
 };
 
 static void pn_net_setup(struct net_device *dev)
@@ -282,13 +273,15 @@ static void pn_net_setup(struct net_device *dev)
 	dev->type		= ARPHRD_PHONET;
 	dev->flags		= IFF_POINTOPOINT | IFF_NOARP;
 	dev->mtu		= PHONET_DEV_MTU;
+	dev->min_mtu		= PHONET_MIN_MTU;
+	dev->max_mtu		= PHONET_MAX_MTU;
 	dev->hard_header_len	= 1;
 	dev->dev_addr[0]	= PN_MEDIA_USB;
 	dev->addr_len		= 1;
 	dev->tx_queue_len	= 1;
 
 	dev->netdev_ops		= &pn_netdev_ops;
-	dev->destructor		= free_netdev;
+	dev->needs_free_netdev	= true;
 	dev->header_ops		= &phonet_header_ops;
 }
 
@@ -343,7 +336,7 @@ static void pn_rx_complete(struct usb_ep *ep, struct usb_request *req)
 			skb->protocol = htons(ETH_P_PHONET);
 			skb_reset_mac_header(skb);
 			/* Can't use pskb_pull() on page in IRQ */
-			memcpy(skb_put(skb, 1), page_address(page), 1);
+			skb_put_data(skb, page_address(page), 1);
 		}
 
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,

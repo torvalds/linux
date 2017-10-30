@@ -34,7 +34,7 @@
  * Author: Bobi Jam <bobijam.xu@intel.com>
  */
 #include "range_lock.h"
-#include "../include/lustre/lustre_user.h"
+#include <uapi/linux/lustre/lustre_idl.h>
 
 /**
  * Initialize a range lock tree
@@ -61,17 +61,23 @@ void range_lock_tree_init(struct range_lock_tree *tree)
  * Pre:  Caller should have allocated the range lock node.
  * Post: The range lock node is meant to cover [start, end] region
  */
-void range_lock_init(struct range_lock *lock, __u64 start, __u64 end)
+int range_lock_init(struct range_lock *lock, __u64 start, __u64 end)
 {
+	int rc;
+
 	memset(&lock->rl_node, 0, sizeof(lock->rl_node));
 	if (end != LUSTRE_EOF)
 		end >>= PAGE_SHIFT;
-	interval_set(&lock->rl_node, start >> PAGE_SHIFT, end);
+	rc = interval_set(&lock->rl_node, start >> PAGE_SHIFT, end);
+	if (rc)
+		return rc;
+
 	INIT_LIST_HEAD(&lock->rl_next_lock);
 	lock->rl_task = NULL;
 	lock->rl_lock_count = 0;
 	lock->rl_blocking_ranges = 0;
 	lock->rl_sequence = 0;
+	return rc;
 }
 
 static inline struct range_lock *next_lock(struct range_lock *lock)
@@ -168,7 +174,7 @@ void range_unlock(struct range_lock_tree *tree, struct range_lock *lock)
  */
 static enum interval_iter range_lock_cb(struct interval_node *node, void *arg)
 {
-	struct range_lock *lock = (struct range_lock *)arg;
+	struct range_lock *lock = arg;
 	struct range_lock *overlap = node2rangelock(node);
 
 	lock->rl_blocking_ranges += overlap->rl_lock_count + 1;

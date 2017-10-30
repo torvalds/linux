@@ -32,22 +32,22 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 # ifdef __mips64__
 #  include <linux/kernel.h>
 # endif
 
-#include "../include/obd_class.h"
-#include "../include/lustre_net.h"
-#include "../include/lustre_sec.h"
+#include <obd_class.h>
+#include <lustre_net.h>
+#include <lustre_sec.h>
 #include "ptlrpc_internal.h"
 
-lnet_handle_eq_t   ptlrpc_eq_h;
+struct lnet_handle_eq ptlrpc_eq_h;
 
 /*
  *  Client's outgoing request callback
  */
-void request_out_callback(lnet_event_t *ev)
+void request_out_callback(struct lnet_event *ev)
 {
 	struct ptlrpc_cb_id *cbid = ev->md.user_ptr;
 	struct ptlrpc_request *req = cbid->cbid_arg;
@@ -86,7 +86,7 @@ void request_out_callback(lnet_event_t *ev)
 /*
  * Client's incoming reply callback
  */
-void reply_in_callback(lnet_event_t *ev)
+void reply_in_callback(struct lnet_event *ev)
 {
 	struct ptlrpc_cb_id *cbid = ev->md.user_ptr;
 	struct ptlrpc_request *req = cbid->cbid_arg;
@@ -176,15 +176,15 @@ out_wake:
 /*
  * Client's bulk has been written/read
  */
-void client_bulk_callback(lnet_event_t *ev)
+void client_bulk_callback(struct lnet_event *ev)
 {
 	struct ptlrpc_cb_id *cbid = ev->md.user_ptr;
 	struct ptlrpc_bulk_desc *desc = cbid->cbid_arg;
 	struct ptlrpc_request *req;
 
-	LASSERT((desc->bd_type == BULK_PUT_SINK &&
+	LASSERT((ptlrpc_is_bulk_put_sink(desc->bd_type) &&
 		 ev->type == LNET_EVENT_PUT) ||
-		(desc->bd_type == BULK_GET_SOURCE &&
+		(ptlrpc_is_bulk_get_source(desc->bd_type) &&
 		 ev->type == LNET_EVENT_GET) ||
 		ev->type == LNET_EVENT_UNLINK);
 	LASSERT(ev->unlinked);
@@ -277,7 +277,7 @@ static void ptlrpc_req_add_history(struct ptlrpc_service_part *svcpt,
 		 * then we hope there will be less RPCs per bucket at some
 		 * point, and sequence will catch up again
 		 */
-		svcpt->scp_hist_seq += (1U << REQS_SEQ_SHIFT(svcpt));
+		svcpt->scp_hist_seq += (1ULL << REQS_SEQ_SHIFT(svcpt));
 		new_seq = svcpt->scp_hist_seq;
 	}
 
@@ -289,7 +289,7 @@ static void ptlrpc_req_add_history(struct ptlrpc_service_part *svcpt,
 /*
  * Server's incoming request callback
  */
-void request_in_callback(lnet_event_t *ev)
+void request_in_callback(struct lnet_event *ev)
 {
 	struct ptlrpc_cb_id *cbid = ev->md.user_ptr;
 	struct ptlrpc_request_buffer_desc *rqbd = cbid->cbid_arg;
@@ -389,7 +389,7 @@ void request_in_callback(lnet_event_t *ev)
 /*
  *  Server's outgoing reply callback
  */
-void reply_out_callback(lnet_event_t *ev)
+void reply_out_callback(struct lnet_event *ev)
 {
 	struct ptlrpc_cb_id *cbid = ev->md.user_ptr;
 	struct ptlrpc_reply_state *rs = cbid->cbid_arg;
@@ -420,7 +420,8 @@ void reply_out_callback(lnet_event_t *ev)
 		rs->rs_on_net = 0;
 		if (!rs->rs_no_ack ||
 		    rs->rs_transno <=
-		    rs->rs_export->exp_obd->obd_last_committed)
+		    rs->rs_export->exp_obd->obd_last_committed ||
+		    list_empty(&rs->rs_obd_list))
 			ptlrpc_schedule_difficult_reply(rs);
 
 		spin_unlock(&rs->rs_lock);
@@ -428,10 +429,10 @@ void reply_out_callback(lnet_event_t *ev)
 	}
 }
 
-static void ptlrpc_master_callback(lnet_event_t *ev)
+static void ptlrpc_master_callback(struct lnet_event *ev)
 {
 	struct ptlrpc_cb_id *cbid = ev->md.user_ptr;
-	void (*callback)(lnet_event_t *ev) = cbid->cbid_fn;
+	void (*callback)(struct lnet_event *ev) = cbid->cbid_fn;
 
 	/* Honestly, it's best to find out early. */
 	LASSERT(cbid->cbid_arg != LP_POISON);
@@ -445,7 +446,7 @@ static void ptlrpc_master_callback(lnet_event_t *ev)
 }
 
 int ptlrpc_uuid_to_peer(struct obd_uuid *uuid,
-			lnet_process_id_t *peer, lnet_nid_t *self)
+			struct lnet_process_id *peer, lnet_nid_t *self)
 {
 	int best_dist = 0;
 	__u32 best_order = 0;

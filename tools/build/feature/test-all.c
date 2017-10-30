@@ -117,6 +117,10 @@
 # include "test-pthread-attr-setaffinity-np.c"
 #undef main
 
+#define main main_test_sched_getcpu
+# include "test-sched_getcpu.c"
+#undef main
+
 # if 0
 /*
  * Disable libbabeltrace check for test-all, because the requested
@@ -147,6 +151,10 @@
 
 #define main main_test_sdt
 # include "test-sdt.c"
+#undef main
+
+#define main main_test_setns
+# include "test-setns.c"
 #undef main
 
 int main(int argc, char *argv[])
@@ -182,7 +190,9 @@ int main(int argc, char *argv[])
 	main_test_get_cpuid();
 	main_test_bpf();
 	main_test_libcrypto();
+	main_test_sched_getcpu();
 	main_test_sdt();
+	main_test_setns();
 
 	return 0;
 }

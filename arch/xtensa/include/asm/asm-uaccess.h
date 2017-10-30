@@ -19,9 +19,6 @@
 #include <linux/errno.h>
 #include <asm/types.h>
 
-#define VERIFY_READ    0
-#define VERIFY_WRITE   1
-
 #include <asm/current.h>
 #include <asm/asm-offsets.h>
 #include <asm/processor.h>

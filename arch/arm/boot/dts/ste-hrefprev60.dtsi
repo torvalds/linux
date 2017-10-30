@@ -30,7 +30,7 @@
 
 		i2c@80004000 {
 			tps61052@33 {
-				compatible = "tps61052";
+				compatible = "ti,tps61052";
 				reg = <0x33>;
 			};
 
@@ -74,6 +74,7 @@
 		vmmci: regulator-gpio {
 			gpios = <&tc3589x_gpio 18 GPIO_ACTIVE_HIGH>;
 			enable-gpio = <&tc3589x_gpio 17 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
 		};
 
 		pinctrl {

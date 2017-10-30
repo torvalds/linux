@@ -1031,7 +1031,7 @@ GLOBAL_ENTRY(ia64_native_sched_clock)
 END(ia64_native_sched_clock)
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
-GLOBAL_ENTRY(cycle_to_cputime)
+GLOBAL_ENTRY(cycle_to_nsec)
 	alloc r16=ar.pfs,1,0,0,0
 	addl r8=THIS_CPU(ia64_cpu_info) + IA64_CPUINFO_NSEC_PER_CYC_OFFSET,r0
 	;;
@@ -1047,7 +1047,7 @@ GLOBAL_ENTRY(cycle_to_cputime)
 	;;
 	shrp r8=r9,r8,IA64_NSEC_PER_CYC_SHIFT
 	br.ret.sptk.many rp
-END(cycle_to_cputime)
+END(cycle_to_nsec)
 #endif /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 
 #ifdef CONFIG_IA64_BRL_EMU

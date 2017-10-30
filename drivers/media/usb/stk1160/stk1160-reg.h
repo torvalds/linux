@@ -26,6 +26,14 @@
 /* Remote Wakup Control */
 #define STK1160_RMCTL			0x00c
 
+/* Power-on Strapping Data */
+#define STK1160_POSVA			0x010
+#define STK1160_POSV_L			0x010
+#define STK1160_POSV_M			0x011
+#define STK1160_POSV_H			0x012
+#define  STK1160_POSV_L_ACDOUT		BIT(3)
+#define  STK1160_POSV_L_ACSYNC		BIT(2)
+
 /*
  * Decoder Control Register:
  * This byte controls capture start/stop
@@ -114,6 +122,8 @@
 /* AC97 Audio Control */
 #define STK1160_AC97CTL_0		0x500
 #define STK1160_AC97CTL_1		0x504
+#define  STK1160_AC97CTL_0_CR		BIT(1)
+#define  STK1160_AC97CTL_0_CW		BIT(2)
 
 /* Use [0:6] bits of register 0x504 to set codec command address */
 #define STK1160_AC97_ADDR		0x504

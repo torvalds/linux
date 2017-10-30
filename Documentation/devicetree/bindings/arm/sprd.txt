@@ -1,11 +1,14 @@
 Spreadtrum SoC Platforms Device Tree Bindings
 ----------------------------------------------------
 
-Sharkl64 is a Spreadtrum's SoC Platform which is based
-on ARM 64-bit processor.
-
-SC9836 openphone board with SC9836 SoC based on the
-Sharkl64 Platform shall have the following properties.
-
+SC9836 openphone Board
 Required root node properties:
-        - compatible = "sprd,sc9836-openphone", "sprd,sc9836";
+	- compatible = "sprd,sc9836-openphone", "sprd,sc9836";
+
+SC9860 SoC
+Required root node properties:
+	- compatible = "sprd,sc9860"
+
+SP9860G 3GFHD Board
+Required root node properties:
+	- compatible = "sprd,sp9860g-1h10", "sprd,sc9860";

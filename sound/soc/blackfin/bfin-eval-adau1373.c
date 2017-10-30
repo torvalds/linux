@@ -119,7 +119,7 @@ static int bfin_eval_adau1373_codec_init(struct snd_soc_pcm_runtime *rtd)
 
 	return ret;
 }
-static struct snd_soc_ops bfin_eval_adau1373_ops = {
+static const struct snd_soc_ops bfin_eval_adau1373_ops = {
 	.hw_params = bfin_eval_adau1373_hw_params,
 };
 

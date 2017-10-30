@@ -28,8 +28,6 @@
 #include <pp_endian.h>
 
 #define SMC_RAM_END 0x40000
-#define mmSMC_IND_INDEX_11                              0x01AC
-#define mmSMC_IND_DATA_11                               0x01AD
 
 struct smu7_buffer_entry {
 	uint32_t data_size;
@@ -37,6 +35,11 @@ struct smu7_buffer_entry {
 	uint32_t mc_addr_high;
 	void *kaddr;
 	unsigned long  handle;
+};
+
+struct smu7_avfs {
+	enum AVFS_BTC_STATUS avfs_btc_status;
+	uint32_t           avfs_btc_param;
 };
 
 struct smu7_smumgr {
@@ -52,7 +55,8 @@ struct smu7_smumgr {
 	uint32_t                             arb_table_start;
 	uint32_t                             ulv_setting_starts;
 	uint8_t                              security_hard_key;
-	uint32_t acpi_optimization;
+	uint32_t                             acpi_optimization;
+	struct smu7_avfs                     avfs;
 };
 
 

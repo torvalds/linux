@@ -5,9 +5,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-smbus.h>
 #include <linux/io.h>
-#include <linux/iopoll.h>
 #include <linux/kernel.h>
-#include <linux/pci.h>
 
 /* Controller command patterns */
 #define SW_TWSI_V		BIT_ULL(63)	/* Valid bit */
@@ -119,9 +117,6 @@ struct octeon_i2c {
 	void (*hlc_int_disable)(struct octeon_i2c *);
 	atomic_t int_enable_cnt;
 	atomic_t hlc_int_enable_cnt;
-#if IS_ENABLED(CONFIG_I2C_THUNDERX)
-	struct msix_entry i2c_msix;
-#endif
 	struct i2c_smbus_alert_setup alert_data;
 	struct i2c_client *ara;
 };
@@ -142,12 +137,15 @@ static inline void octeon_i2c_writeq_flush(u64 val, void __iomem *addr)
  */
 static inline void octeon_i2c_reg_write(struct octeon_i2c *i2c, u64 eop_reg, u8 data)
 {
+	int tries = 1000;
 	u64 tmp;
 
 	__raw_writeq(SW_TWSI_V | eop_reg | data, i2c->twsi_base + SW_TWSI(i2c));
-
-	readq_poll_timeout(i2c->twsi_base + SW_TWSI(i2c), tmp, tmp & SW_TWSI_V,
-			   I2C_OCTEON_EVENT_WAIT, i2c->adap.timeout);
+	do {
+		tmp = __raw_readq(i2c->twsi_base + SW_TWSI(i2c));
+		if (--tries < 0)
+			return;
+	} while ((tmp & SW_TWSI_V) != 0);
 }
 
 #define octeon_i2c_ctl_write(i2c, val)					\
@@ -167,16 +165,20 @@ static inline void octeon_i2c_reg_write(struct octeon_i2c *i2c, u64 eop_reg, u8 
 static inline int octeon_i2c_reg_read(struct octeon_i2c *i2c, u64 eop_reg,
 				      int *error)
 {
+	int tries = 1000;
 	u64 tmp;
-	int ret;
 
 	__raw_writeq(SW_TWSI_V | eop_reg | SW_TWSI_R, i2c->twsi_base + SW_TWSI(i2c));
+	do {
+		tmp = __raw_readq(i2c->twsi_base + SW_TWSI(i2c));
+		if (--tries < 0) {
+			/* signal that the returned data is invalid */
+			if (error)
+				*error = -EIO;
+			return 0;
+		}
+	} while ((tmp & SW_TWSI_V) != 0);
 
-	ret = readq_poll_timeout(i2c->twsi_base + SW_TWSI(i2c), tmp,
-				 tmp & SW_TWSI_V, I2C_OCTEON_EVENT_WAIT,
-				 i2c->adap.timeout);
-	if (error)
-		*error = ret;
 	return tmp & 0xFF;
 }
 

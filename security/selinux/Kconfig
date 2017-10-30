@@ -40,6 +40,7 @@ config SECURITY_SELINUX_BOOTPARAM_VALUE
 config SECURITY_SELINUX_DISABLE
 	bool "NSA SELinux runtime disable"
 	depends on SECURITY_SELINUX
+	select SECURITY_WRITABLE_HOOKS
 	default n
 	help
 	  This option enables writing to a selinuxfs node 'disable', which
@@ -49,6 +50,11 @@ config SECURITY_SELINUX_DISABLE
 	  support runtime disabling of SELinux, e.g. from /sbin/init, for
 	  portability across platforms where boot parameters are difficult
 	  to employ.
+
+	  NOTE: selecting this option will disable the '__ro_after_init'
+	  kernel hardening feature for security hooks.   Please consider
+	  using the selinux=0 boot parameter instead of enabling this
+	  option.
 
 	  If you are unsure how to answer this question, answer N.
 

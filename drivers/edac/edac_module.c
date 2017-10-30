@@ -12,7 +12,7 @@
  */
 #include <linux/edac.h>
 
-#include "edac_core.h"
+#include "edac_mc.h"
 #include "edac_module.h"
 
 #define EDAC_VERSION "Ver: 3.0.0"

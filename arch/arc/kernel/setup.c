@@ -10,6 +10,9 @@
 #include <linux/fs.h>
 #include <linux/delay.h>
 #include <linux/root_dev.h>
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
+#include <linux/clocksource.h>
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/cpu.h>
@@ -48,6 +51,7 @@ static const struct id_to_str arc_cpu_rel[] = {
 	{ 0x51, "R2.0" },
 	{ 0x52, "R2.1" },
 	{ 0x53, "R3.0" },
+	{ 0x54, "R4.0" },
 #endif
 	{ 0x00, NULL   }
 };
@@ -59,6 +63,7 @@ static const struct id_to_str arc_cpu_nm[] = {
 #else
 	{ 0x40, "ARC EM"  },
 	{ 0x50, "ARC HS38"  },
+	{ 0x54, "ARC HS48"  },
 #endif
 	{ 0x00, "Unknown"   }
 };
@@ -116,11 +121,11 @@ static void read_arc_build_cfg_regs(void)
 	struct bcr_generic bcr;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
 	const struct id_to_str *tbl;
+	struct bcr_isa_arcv2 isa;
 
 	FIX_PTR(cpu);
 
 	READ_BCR(AUX_IDENTITY, cpu->core);
-	READ_BCR(ARC_REG_ISA_CFG_BCR, cpu->isa);
 
 	for (tbl = &arc_cpu_rel[0]; tbl->id != 0; tbl++) {
 		if (cpu->core.family == tbl->id) {
@@ -130,7 +135,7 @@ static void read_arc_build_cfg_regs(void)
 	}
 
 	for (tbl = &arc_cpu_nm[0]; tbl->id != 0; tbl++) {
-		if ((cpu->core.family & 0xF0) == tbl->id)
+		if ((cpu->core.family & 0xF4) == tbl->id)
 			break;
 	}
 	cpu->name = tbl->str;
@@ -189,6 +194,14 @@ static void read_arc_build_cfg_regs(void)
 		cpu->bpu.full = bpu.ft;
 		cpu->bpu.num_cache = 256 << bpu.bce;
 		cpu->bpu.num_pred = 2048 << bpu.pte;
+
+		if (cpu->core.family >= 0x54) {
+			unsigned int exec_ctrl;
+
+			READ_BCR(AUX_EXEC_CTRL, exec_ctrl);
+			cpu->extn.dual_iss_exist = 1;
+			cpu->extn.dual_iss_enb = exec_ctrl & 1;
+		}
 	}
 
 	READ_BCR(ARC_REG_AP_BCR, bcr);
@@ -202,18 +215,25 @@ static void read_arc_build_cfg_regs(void)
 
 	cpu->extn.debug = cpu->extn.ap | cpu->extn.smart | cpu->extn.rtt;
 
+	READ_BCR(ARC_REG_ISA_CFG_BCR, isa);
+
 	/* some hacks for lack of feature BCR info in old ARC700 cores */
 	if (is_isa_arcompact()) {
-		if (!cpu->isa.ver)	/* ISA BCR absent, use Kconfig info */
+		if (!isa.ver)	/* ISA BCR absent, use Kconfig info */
 			cpu->isa.atomic = IS_ENABLED(CONFIG_ARC_HAS_LLSC);
-		else
-			cpu->isa.atomic = cpu->isa.atomic1;
+		else {
+			/* ARC700_BUILD only has 2 bits of isa info */
+			struct bcr_generic bcr = *(struct bcr_generic *)&isa;
+			cpu->isa.atomic = bcr.info & 1;
+		}
 
 		cpu->isa.be = IS_ENABLED(CONFIG_CPU_BIG_ENDIAN);
 
 		 /* there's no direct way to distinguish 750 vs. 770 */
 		if (unlikely(cpu->core.family < 0x34 || cpu->mmu.ver < 3))
 			cpu->name = "ARC750";
+	} else {
+		cpu->isa = isa;
 	}
 }
 
@@ -229,16 +249,17 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 		       "\nIDENTITY\t: ARCVER [%#02x] ARCNUM [%#02x] CHIPID [%#4x]\n",
 		       core->family, core->cpu_id, core->chip_id);
 
-	n += scnprintf(buf + n, len - n, "processor [%d]\t: %s %s (%s ISA) %s\n",
+	n += scnprintf(buf + n, len - n, "processor [%d]\t: %s %s (%s ISA) %s%s%s\n",
 		       cpu_id, cpu->name, cpu->details,
 		       is_isa_arcompact() ? "ARCompact" : "ARCv2",
-		       IS_AVAIL1(cpu->isa.be, "[Big-Endian]"));
+		       IS_AVAIL1(cpu->isa.be, "[Big-Endian]"),
+		       IS_AVAIL3(cpu->extn.dual_iss_exist, cpu->extn.dual_iss_enb, " Dual-Issue"));
 
-	n += scnprintf(buf + n, len - n, "Timers\t\t: %s%s%s%s\nISA Extn\t: ",
+	n += scnprintf(buf + n, len - n, "Timers\t\t: %s%s%s%s%s%s\nISA Extn\t: ",
 		       IS_AVAIL1(cpu->extn.timer0, "Timer0 "),
 		       IS_AVAIL1(cpu->extn.timer1, "Timer1 "),
-		       IS_AVAIL2(cpu->extn.rtc, "Local-64-bit-Ctr ",
-				 CONFIG_ARC_HAS_RTC));
+		       IS_AVAIL2(cpu->extn.rtc, "RTC [UP 64-bit] ", CONFIG_ARC_TIMERS_64BIT),
+		       IS_AVAIL2(cpu->extn.gfrc, "GFRC [SMP 64-bit] ", CONFIG_ARC_TIMERS_64BIT));
 
 	n += i = scnprintf(buf + n, len - n, "%s%s%s%s%s",
 			   IS_AVAIL2(cpu->isa.atomic, "atomic ", CONFIG_ARC_HAS_LLSC),
@@ -316,7 +337,8 @@ static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 static void arc_chk_core_config(void)
 {
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
-	int fpu_enabled;
+	int saved = 0, present = 0;
+	char *opt_nm = NULL;;
 
 	if (!cpu->extn.timer0)
 		panic("Timer0 is not present!\n");
@@ -343,17 +365,28 @@ static void arc_chk_core_config(void)
 
 	/*
 	 * FP hardware/software config sanity
-	 * -If hardware contains DPFP, kernel needs to save/restore FPU state
+	 * -If hardware present, kernel needs to save/restore FPU state
 	 * -If not, it will crash trying to save/restore the non-existant regs
-	 *
-	 * (only DPDP checked since SP has no arch visible regs)
 	 */
-	fpu_enabled = IS_ENABLED(CONFIG_ARC_FPU_SAVE_RESTORE);
 
-	if (cpu->extn.fpu_dp && !fpu_enabled)
-		pr_warn("CONFIG_ARC_FPU_SAVE_RESTORE needed for working apps\n");
-	else if (!cpu->extn.fpu_dp && fpu_enabled)
-		panic("FPU non-existent, disable CONFIG_ARC_FPU_SAVE_RESTORE\n");
+	if (is_isa_arcompact()) {
+		opt_nm = "CONFIG_ARC_FPU_SAVE_RESTORE";
+		saved = IS_ENABLED(CONFIG_ARC_FPU_SAVE_RESTORE);
+
+		/* only DPDP checked since SP has no arch visible regs */
+		present = cpu->extn.fpu_dp;
+	} else {
+		opt_nm = "CONFIG_ARC_HAS_ACCL_REGS";
+		saved = IS_ENABLED(CONFIG_ARC_HAS_ACCL_REGS);
+
+		/* Accumulator Low:High pair (r58:59) present if DSP MPY or FPU */
+		present = cpu->extn_mpy.dsp | cpu->extn.fpu_sp | cpu->extn.fpu_dp;
+	}
+
+	if (present && !saved)
+		pr_warn("Enable %s for working apps\n", opt_nm);
+	else if (!present && saved)
+		panic("Disable %s, hardware NOT present\n", opt_nm);
 }
 
 /*
@@ -370,13 +403,13 @@ void setup_processor(void)
 	read_arc_build_cfg_regs();
 	arc_init_IRQ();
 
-	printk(arc_cpu_mumbojumbo(cpu_id, str, sizeof(str)));
+	pr_info("%s", arc_cpu_mumbojumbo(cpu_id, str, sizeof(str)));
 
 	arc_mmu_init();
 	arc_cache_init();
 
-	printk(arc_extn_mumbojumbo(cpu_id, str, sizeof(str)));
-	printk(arc_platform_smp_cpuinfo());
+	pr_info("%s", arc_extn_mumbojumbo(cpu_id, str, sizeof(str)));
+	pr_info("%s", arc_platform_smp_cpuinfo());
 
 	arc_chk_core_config();
 }
@@ -449,6 +482,15 @@ void __init setup_arch(char **cmdline_p)
 	arc_unwind_init();
 }
 
+/*
+ * Called from start_kernel() - boot CPU only
+ */
+void __init time_init(void)
+{
+	of_clk_init(NULL);
+	timer_probe();
+}
+
 static int __init customize_machine(void)
 {
 	if (machine_desc->init_machine)
@@ -477,23 +519,30 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	char *str;
 	int cpu_id = ptr_to_cpu(v);
-	struct device_node *core_clk = of_find_node_by_name(NULL, "core_clk");
-	u32 freq = 0;
+	struct device *cpu_dev = get_cpu_device(cpu_id);
+	struct clk *cpu_clk;
+	unsigned long freq = 0;
 
 	if (!cpu_online(cpu_id)) {
 		seq_printf(m, "processor [%d]\t: Offline\n", cpu_id);
 		goto done;
 	}
 
-	str = (char *)__get_free_page(GFP_TEMPORARY);
+	str = (char *)__get_free_page(GFP_KERNEL);
 	if (!str)
 		goto done;
 
 	seq_printf(m, arc_cpu_mumbojumbo(cpu_id, str, PAGE_SIZE));
 
-	of_property_read_u32(core_clk, "clock-frequency", &freq);
+	cpu_clk = clk_get(cpu_dev, NULL);
+	if (IS_ERR(cpu_clk)) {
+		seq_printf(m, "CPU speed \t: Cannot get clock for processor [%d]\n",
+			   cpu_id);
+	} else {
+		freq = clk_get_rate(cpu_clk);
+	}
 	if (freq)
-		seq_printf(m, "CPU speed\t: %u.%02u Mhz\n",
+		seq_printf(m, "CPU speed\t: %lu.%02lu Mhz\n",
 			   freq / 1000000, (freq / 10000) % 100);
 
 	seq_printf(m, "Bogo MIPS\t: %lu.%02lu\n",

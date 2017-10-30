@@ -59,10 +59,10 @@ static struct rc_map_table digittrade[] = {
 
 static struct rc_map_list digittrade_map = {
 	.map = {
-		.scan    = digittrade,
-		.size    = ARRAY_SIZE(digittrade),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_DIGITTRADE,
+		.scan     = digittrade,
+		.size     = ARRAY_SIZE(digittrade),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_DIGITTRADE,
 	}
 };
 

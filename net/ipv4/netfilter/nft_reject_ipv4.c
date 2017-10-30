@@ -27,10 +27,10 @@ static void nft_reject_ipv4_eval(const struct nft_expr *expr,
 
 	switch (priv->type) {
 	case NFT_REJECT_ICMP_UNREACH:
-		nf_send_unreach(pkt->skb, priv->icmp_code, pkt->hook);
+		nf_send_unreach(pkt->skb, priv->icmp_code, nft_hook(pkt));
 		break;
 	case NFT_REJECT_TCP_RST:
-		nf_send_reset(pkt->net, pkt->skb, pkt->hook);
+		nf_send_reset(nft_net(pkt), pkt->skb, nft_hook(pkt));
 		break;
 	default:
 		break;

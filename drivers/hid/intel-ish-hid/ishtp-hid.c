@@ -208,7 +208,7 @@ int ishtp_hid_probe(unsigned int cur_hid_dev,
 	hid->version = le16_to_cpu(ISH_HID_VERSION);
 	hid->vendor = le16_to_cpu(ISH_HID_VENDOR);
 	hid->product = le16_to_cpu(ISH_HID_PRODUCT);
-	snprintf(hid->name, sizeof(hid->name), "%s %04hX:%04hX", "hid-ishtp",
+	snprintf(hid->name, sizeof(hid->name), "%s %04X:%04X", "hid-ishtp",
 		hid->vendor, hid->product);
 
 	rv = hid_add_device(hid);

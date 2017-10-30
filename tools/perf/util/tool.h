@@ -34,12 +34,19 @@ typedef int (*event_oe)(struct perf_tool *tool, union perf_event *event,
 typedef s64 (*event_op3)(struct perf_tool *tool, union perf_event *event,
 			 struct perf_session *session);
 
+enum show_feature_header {
+	SHOW_FEAT_NO_HEADER = 0,
+	SHOW_FEAT_HEADER,
+	SHOW_FEAT_HEADER_FULL_INFO,
+};
+
 struct perf_tool {
 	event_sample	sample,
 			read;
 	event_op	mmap,
 			mmap2,
 			comm,
+			namespaces,
 			fork,
 			exit,
 			lost,
@@ -62,10 +69,13 @@ struct perf_tool {
 			cpu_map,
 			stat_config,
 			stat,
-			stat_round;
+			stat_round,
+			feature;
 	event_op3	auxtrace;
 	bool		ordered_events;
 	bool		ordering_requires_timestamps;
+	bool		namespace_events;
+	enum show_feature_header show_feat_hdr;
 };
 
 #endif /* __PERF_TOOL_H */

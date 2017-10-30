@@ -175,12 +175,10 @@ u64 *i40iw_qp_get_next_send_wqe(struct i40iw_qp_uk *qp,
 		if (!*wqe_idx)
 			qp->swqe_polarity = !qp->swqe_polarity;
 	}
-
-	for (i = 0; i < wqe_size / I40IW_QP_WQE_MIN_SIZE; i++) {
-		I40IW_RING_MOVE_HEAD(qp->sq_ring, ret_code);
-		if (ret_code)
-			return NULL;
-	}
+	I40IW_RING_MOVE_HEAD_BY_COUNT(qp->sq_ring,
+				      wqe_size / I40IW_QP_WQE_MIN_SIZE, ret_code);
+	if (ret_code)
+		return NULL;
 
 	wqe = qp->sq_base[*wqe_idx].elem;
 
@@ -430,14 +428,14 @@ static enum i40iw_status_code i40iw_inline_rdma_write(struct i40iw_qp_uk *qp,
 	struct i40iw_inline_rdma_write *op_info;
 	u64 *push;
 	u64 header = 0;
-	u32 i, wqe_idx;
+	u32 wqe_idx;
 	enum i40iw_status_code ret_code;
 	bool read_fence = false;
 	u8 wqe_size;
 
 	op_info = &info->op.inline_rdma_write;
 	if (op_info->len > I40IW_MAX_INLINE_DATA_SIZE)
-		return I40IW_ERR_INVALID_IMM_DATA_SIZE;
+		return I40IW_ERR_INVALID_INLINE_DATA_SIZE;
 
 	ret_code = i40iw_inline_data_size_to_wqesize(op_info->len, &wqe_size);
 	if (ret_code)
@@ -465,14 +463,12 @@ static enum i40iw_status_code i40iw_inline_rdma_write(struct i40iw_qp_uk *qp,
 	src = (u8 *)(op_info->data);
 
 	if (op_info->len <= 16) {
-		for (i = 0; i < op_info->len; i++, src++, dest++)
-			*dest = *src;
+		memcpy(dest, src, op_info->len);
 	} else {
-		for (i = 0; i < 16; i++, src++, dest++)
-			*dest = *src;
+		memcpy(dest, src, 16);
+		src += 16;
 		dest = (u8 *)wqe + 32;
-		for (; i < op_info->len; i++, src++, dest++)
-			*dest = *src;
+		memcpy(dest, src, op_info->len - 16);
 	}
 
 	wmb(); /* make sure WQE is populated before valid bit is set */
@@ -507,7 +503,7 @@ static enum i40iw_status_code i40iw_inline_send(struct i40iw_qp_uk *qp,
 	u8 *dest, *src;
 	struct i40iw_post_inline_send *op_info;
 	u64 header;
-	u32 wqe_idx, i;
+	u32 wqe_idx;
 	enum i40iw_status_code ret_code;
 	bool read_fence = false;
 	u8 wqe_size;
@@ -515,7 +511,7 @@ static enum i40iw_status_code i40iw_inline_send(struct i40iw_qp_uk *qp,
 
 	op_info = &info->op.inline_send;
 	if (op_info->len > I40IW_MAX_INLINE_DATA_SIZE)
-		return I40IW_ERR_INVALID_IMM_DATA_SIZE;
+		return I40IW_ERR_INVALID_INLINE_DATA_SIZE;
 
 	ret_code = i40iw_inline_data_size_to_wqesize(op_info->len, &wqe_size);
 	if (ret_code)
@@ -540,14 +536,12 @@ static enum i40iw_status_code i40iw_inline_send(struct i40iw_qp_uk *qp,
 	src = (u8 *)(op_info->data);
 
 	if (op_info->len <= 16) {
-		for (i = 0; i < op_info->len; i++, src++, dest++)
-			*dest = *src;
+		memcpy(dest, src, op_info->len);
 	} else {
-		for (i = 0; i < 16; i++, src++, dest++)
-			*dest = *src;
+		memcpy(dest, src, 16);
+		src += 16;
 		dest = (u8 *)wqe + 32;
-		for (; i < op_info->len; i++, src++, dest++)
-			*dest = *src;
+		memcpy(dest, src, op_info->len - 16);
 	}
 
 	wmb(); /* make sure WQE is populated before valid bit is set */
@@ -790,7 +784,7 @@ static enum i40iw_status_code i40iw_cq_poll_completion(struct i40iw_cq_uk *cq,
 	get_64bit_val(cqe, 0, &qword0);
 	get_64bit_val(cqe, 16, &qword2);
 
-	info->tcp_seq_num = (u8)RS_64(qword0, I40IWCQ_TCPSEQNUM);
+	info->tcp_seq_num = (u32)RS_64(qword0, I40IWCQ_TCPSEQNUM);
 
 	info->qp_id = (u32)RS_64(qword2, I40IWCQ_QPID);
 
@@ -918,30 +912,30 @@ enum i40iw_status_code i40iw_get_wqe_shift(u32 wqdepth, u32 sge, u32 inline_data
 	return 0;
 }
 
-static struct i40iw_qp_uk_ops iw_qp_uk_ops = {
-	i40iw_qp_post_wr,
-	i40iw_qp_ring_push_db,
-	i40iw_rdma_write,
-	i40iw_rdma_read,
-	i40iw_send,
-	i40iw_inline_rdma_write,
-	i40iw_inline_send,
-	i40iw_stag_local_invalidate,
-	i40iw_mw_bind,
-	i40iw_post_receive,
-	i40iw_nop
+static const struct i40iw_qp_uk_ops iw_qp_uk_ops = {
+	.iw_qp_post_wr = i40iw_qp_post_wr,
+	.iw_qp_ring_push_db = i40iw_qp_ring_push_db,
+	.iw_rdma_write = i40iw_rdma_write,
+	.iw_rdma_read = i40iw_rdma_read,
+	.iw_send = i40iw_send,
+	.iw_inline_rdma_write = i40iw_inline_rdma_write,
+	.iw_inline_send = i40iw_inline_send,
+	.iw_stag_local_invalidate = i40iw_stag_local_invalidate,
+	.iw_mw_bind = i40iw_mw_bind,
+	.iw_post_receive = i40iw_post_receive,
+	.iw_post_nop = i40iw_nop
 };
 
-static struct i40iw_cq_ops iw_cq_ops = {
-	i40iw_cq_request_notification,
-	i40iw_cq_poll_completion,
-	i40iw_cq_post_entries,
-	i40iw_clean_cq
+static const struct i40iw_cq_ops iw_cq_ops = {
+	.iw_cq_request_notification = i40iw_cq_request_notification,
+	.iw_cq_poll_completion = i40iw_cq_poll_completion,
+	.iw_cq_post_entries = i40iw_cq_post_entries,
+	.iw_cq_clean = i40iw_clean_cq
 };
 
-static struct i40iw_device_uk_ops iw_device_uk_ops = {
-	i40iw_cq_uk_init,
-	i40iw_qp_uk_init,
+static const struct i40iw_device_uk_ops iw_device_uk_ops = {
+	.iwarp_cq_uk_init = i40iw_cq_uk_init,
+	.iwarp_qp_uk_init = i40iw_qp_uk_init,
 };
 
 /**
@@ -969,10 +963,6 @@ enum i40iw_status_code i40iw_qp_uk_init(struct i40iw_qp_uk *qp,
 	if (info->max_rq_frag_cnt > I40IW_MAX_WQ_FRAGMENT_COUNT)
 		return I40IW_ERR_INVALID_FRAG_COUNT;
 	ret_code = i40iw_get_wqe_shift(info->sq_size, info->max_sq_frag_cnt, info->max_inline_data, &sqshift);
-	if (ret_code)
-		return ret_code;
-
-	ret_code = i40iw_get_wqe_shift(info->rq_size, info->max_rq_frag_cnt, 0, &rqshift);
 	if (ret_code)
 		return ret_code;
 
@@ -1004,8 +994,19 @@ enum i40iw_status_code i40iw_qp_uk_init(struct i40iw_qp_uk *qp,
 	if (!qp->use_srq) {
 		qp->rq_size = info->rq_size;
 		qp->max_rq_frag_cnt = info->max_rq_frag_cnt;
-		qp->rq_wqe_size = rqshift;
 		I40IW_RING_INIT(qp->rq_ring, qp->rq_size);
+		switch (info->abi_ver) {
+		case 4:
+			ret_code = i40iw_get_wqe_shift(info->rq_size, info->max_rq_frag_cnt, 0, &rqshift);
+			if (ret_code)
+				return ret_code;
+			break;
+		case 5: /* fallthrough until next ABI version */
+		default:
+			rqshift = I40IW_MAX_RQ_WQE_SHIFT;
+			break;
+		}
+		qp->rq_wqe_size = rqshift;
 		qp->rq_wqe_size_multiplier = 4 << rqshift;
 	}
 	qp->ops = iw_qp_uk_ops;
@@ -1186,16 +1187,12 @@ enum i40iw_status_code i40iw_inline_data_size_to_wqesize(u32 data_size,
 							 u8 *wqe_size)
 {
 	if (data_size > I40IW_MAX_INLINE_DATA_SIZE)
-		return I40IW_ERR_INVALID_IMM_DATA_SIZE;
+		return I40IW_ERR_INVALID_INLINE_DATA_SIZE;
 
 	if (data_size <= 16)
 		*wqe_size = I40IW_QP_WQE_MIN_SIZE;
-	else if (data_size <= 48)
-		*wqe_size = 64;
-	else if (data_size <= 80)
-		*wqe_size = 96;
 	else
-		*wqe_size = 128;
+		*wqe_size = 64;
 
 	return 0;
 }

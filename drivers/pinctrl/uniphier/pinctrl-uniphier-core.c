@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2015 Masahiro Yamada <yamada.masahiro@socionext.com>
+ * Copyright (C) 2015-2017 Socionext Inc.
+ *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -12,7 +13,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/export.h>
+#include <linux/list.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of.h>
 #include <linux/pinctrl/pinconf.h>
@@ -26,12 +27,27 @@
 #include "../pinctrl-utils.h"
 #include "pinctrl-uniphier.h"
 
+#define UNIPHIER_PINCTRL_PINMUX_BASE	0x1000
+#define UNIPHIER_PINCTRL_LOAD_PINMUX	0x1700
+#define UNIPHIER_PINCTRL_DRVCTRL_BASE	0x1800
+#define UNIPHIER_PINCTRL_DRV2CTRL_BASE	0x1900
+#define UNIPHIER_PINCTRL_DRV3CTRL_BASE	0x1980
+#define UNIPHIER_PINCTRL_PUPDCTRL_BASE	0x1a00
+#define UNIPHIER_PINCTRL_IECTRL_BASE	0x1d00
+
+struct uniphier_pinctrl_reg_region {
+	struct list_head node;
+	unsigned int base;
+	unsigned int nregs;
+	u32 vals[0];
+};
+
 struct uniphier_pinctrl_priv {
 	struct pinctrl_desc pctldesc;
 	struct pinctrl_dev *pctldev;
 	struct regmap *regmap;
-	unsigned int regbase;
 	struct uniphier_pinctrl_socdata *socdata;
+	struct list_head reg_regions;
 };
 
 static int uniphier_pctl_get_groups_count(struct pinctrl_dev *pctldev)
@@ -131,10 +147,11 @@ static const struct pinctrl_ops uniphier_pctlops = {
 };
 
 static int uniphier_conf_pin_bias_get(struct pinctrl_dev *pctldev,
-				      const struct pin_desc *desc,
+				      unsigned int pin,
 				      enum pin_config_param param)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
+	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
 	enum uniphier_pin_pull_dir pull_dir =
 				uniphier_pin_get_pull_dir(desc->drv_data);
 	unsigned int pupdctrl, reg, shift, val;
@@ -171,7 +188,7 @@ static int uniphier_conf_pin_bias_get(struct pinctrl_dev *pctldev,
 	reg = UNIPHIER_PINCTRL_PUPDCTRL_BASE + pupdctrl / 32 * 4;
 	shift = pupdctrl % 32;
 
-	ret = regmap_read(priv->regmap, priv->regbase + reg, &val);
+	ret = regmap_read(priv->regmap, reg, &val);
 	if (ret)
 		return ret;
 
@@ -181,10 +198,10 @@ static int uniphier_conf_pin_bias_get(struct pinctrl_dev *pctldev,
 }
 
 static int uniphier_conf_pin_drive_get(struct pinctrl_dev *pctldev,
-				       const struct pin_desc *desc,
-				       u16 *strength)
+				       unsigned int pin, u32 *strength)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
+	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
 	enum uniphier_pin_drv_type type =
 				uniphier_pin_get_drv_type(desc->drv_data);
 	const unsigned int strength_1bit[] = {4, 8};
@@ -231,7 +248,7 @@ static int uniphier_conf_pin_drive_get(struct pinctrl_dev *pctldev,
 	shift = drvctrl % 32;
 	mask = (1U << width) - 1;
 
-	ret = regmap_read(priv->regmap, priv->regbase + reg, &val);
+	ret = regmap_read(priv->regmap, reg, &val);
 	if (ret)
 		return ret;
 
@@ -241,47 +258,52 @@ static int uniphier_conf_pin_drive_get(struct pinctrl_dev *pctldev,
 }
 
 static int uniphier_conf_pin_input_enable_get(struct pinctrl_dev *pctldev,
-					      const struct pin_desc *desc)
+					      unsigned int pin)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
+	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
 	unsigned int iectrl = uniphier_pin_get_iectrl(desc->drv_data);
-	unsigned int val;
+	unsigned int reg, mask, val;
 	int ret;
 
 	if (iectrl == UNIPHIER_PIN_IECTRL_NONE)
 		/* This pin is always input-enabled. */
 		return 0;
 
-	ret = regmap_read(priv->regmap,
-			  priv->regbase + UNIPHIER_PINCTRL_IECTRL, &val);
+	if (priv->socdata->caps & UNIPHIER_PINCTRL_CAPS_PERPIN_IECTRL)
+		iectrl = pin;
+
+	reg = UNIPHIER_PINCTRL_IECTRL_BASE + iectrl / 32 * 4;
+	mask = BIT(iectrl % 32);
+
+	ret = regmap_read(priv->regmap, reg, &val);
 	if (ret)
 		return ret;
 
-	return val & BIT(iectrl) ? 0 : -EINVAL;
+	return val & mask ? 0 : -EINVAL;
 }
 
 static int uniphier_conf_pin_config_get(struct pinctrl_dev *pctldev,
 					unsigned pin,
 					unsigned long *configs)
 {
-	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
 	enum pin_config_param param = pinconf_to_config_param(*configs);
 	bool has_arg = false;
-	u16 arg;
+	u32 arg;
 	int ret;
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
 	case PIN_CONFIG_BIAS_PULL_UP:
 	case PIN_CONFIG_BIAS_PULL_DOWN:
-		ret = uniphier_conf_pin_bias_get(pctldev, desc, param);
+		ret = uniphier_conf_pin_bias_get(pctldev, pin, param);
 		break;
 	case PIN_CONFIG_DRIVE_STRENGTH:
-		ret = uniphier_conf_pin_drive_get(pctldev, desc, &arg);
+		ret = uniphier_conf_pin_drive_get(pctldev, pin, &arg);
 		has_arg = true;
 		break;
 	case PIN_CONFIG_INPUT_ENABLE:
-		ret = uniphier_conf_pin_input_enable_get(pctldev, desc);
+		ret = uniphier_conf_pin_input_enable_get(pctldev, pin);
 		break;
 	default:
 		/* unsupported parameter */
@@ -296,10 +318,11 @@ static int uniphier_conf_pin_config_get(struct pinctrl_dev *pctldev,
 }
 
 static int uniphier_conf_pin_bias_set(struct pinctrl_dev *pctldev,
-				      const struct pin_desc *desc,
-				      enum pin_config_param param, u16 arg)
+				      unsigned int pin,
+				      enum pin_config_param param, u32 arg)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
+	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
 	enum uniphier_pin_pull_dir pull_dir =
 				uniphier_pin_get_pull_dir(desc->drv_data);
 	unsigned int pupdctrl, reg, shift;
@@ -366,15 +389,14 @@ static int uniphier_conf_pin_bias_set(struct pinctrl_dev *pctldev,
 	reg = UNIPHIER_PINCTRL_PUPDCTRL_BASE + pupdctrl / 32 * 4;
 	shift = pupdctrl % 32;
 
-	return regmap_update_bits(priv->regmap, priv->regbase + reg,
-				  1 << shift, val << shift);
+	return regmap_update_bits(priv->regmap, reg, 1 << shift, val << shift);
 }
 
 static int uniphier_conf_pin_drive_set(struct pinctrl_dev *pctldev,
-				       const struct pin_desc *desc,
-				       u16 strength)
+				       unsigned int pin, u32 strength)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
+	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
 	enum uniphier_pin_drv_type type =
 				uniphier_pin_get_drv_type(desc->drv_data);
 	const unsigned int strength_1bit[] = {4, 8, -1};
@@ -427,15 +449,15 @@ static int uniphier_conf_pin_drive_set(struct pinctrl_dev *pctldev,
 	shift = drvctrl % 32;
 	mask = (1U << width) - 1;
 
-	return regmap_update_bits(priv->regmap, priv->regbase + reg,
+	return regmap_update_bits(priv->regmap, reg,
 				  mask << shift, val << shift);
 }
 
 static int uniphier_conf_pin_input_enable(struct pinctrl_dev *pctldev,
-					  const struct pin_desc *desc,
-					  u16 enable)
+					  unsigned int pin, u32 enable)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
+	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
 	unsigned int iectrl = uniphier_pin_get_iectrl(desc->drv_data);
 	unsigned int reg, mask;
 
@@ -451,7 +473,10 @@ static int uniphier_conf_pin_input_enable(struct pinctrl_dev *pctldev,
 	if (iectrl == UNIPHIER_PIN_IECTRL_NONE)
 		return enable ? 0 : -EINVAL;
 
-	reg = priv->regbase + UNIPHIER_PINCTRL_IECTRL + iectrl / 32 * 4;
+	if (priv->socdata->caps & UNIPHIER_PINCTRL_CAPS_PERPIN_IECTRL)
+		iectrl = pin;
+
+	reg = UNIPHIER_PINCTRL_IECTRL_BASE + iectrl / 32 * 4;
 	mask = BIT(iectrl % 32);
 
 	return regmap_update_bits(priv->regmap, reg, mask, enable ? mask : 0);
@@ -462,28 +487,26 @@ static int uniphier_conf_pin_config_set(struct pinctrl_dev *pctldev,
 					unsigned long *configs,
 					unsigned num_configs)
 {
-	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
 	int i, ret;
 
 	for (i = 0; i < num_configs; i++) {
 		enum pin_config_param param =
 					pinconf_to_config_param(configs[i]);
-		u16 arg = pinconf_to_config_argument(configs[i]);
+		u32 arg = pinconf_to_config_argument(configs[i]);
 
 		switch (param) {
 		case PIN_CONFIG_BIAS_DISABLE:
 		case PIN_CONFIG_BIAS_PULL_UP:
 		case PIN_CONFIG_BIAS_PULL_DOWN:
 		case PIN_CONFIG_BIAS_PULL_PIN_DEFAULT:
-			ret = uniphier_conf_pin_bias_set(pctldev, desc,
+			ret = uniphier_conf_pin_bias_set(pctldev, pin,
 							 param, arg);
 			break;
 		case PIN_CONFIG_DRIVE_STRENGTH:
-			ret = uniphier_conf_pin_drive_set(pctldev, desc, arg);
+			ret = uniphier_conf_pin_drive_set(pctldev, pin, arg);
 			break;
 		case PIN_CONFIG_INPUT_ENABLE:
-			ret = uniphier_conf_pin_input_enable(pctldev, desc,
-							     arg);
+			ret = uniphier_conf_pin_input_enable(pctldev, pin, arg);
 			break;
 		default:
 			dev_err(pctldev->dev,
@@ -563,8 +586,7 @@ static int uniphier_pmx_set_one_mux(struct pinctrl_dev *pctldev, unsigned pin,
 	int ret;
 
 	/* some pins need input-enabling */
-	ret = uniphier_conf_pin_input_enable(pctldev,
-					     pin_desc_get(pctldev, pin), 1);
+	ret = uniphier_conf_pin_input_enable(pctldev, pin, 1);
 	if (ret)
 		return ret;
 
@@ -601,7 +623,7 @@ static int uniphier_pmx_set_one_mux(struct pinctrl_dev *pctldev, unsigned pin,
 	 * stored in the offset+4.
 	 */
 	for (; reg < reg_end; reg += 4) {
-		ret = regmap_update_bits(priv->regmap, priv->regbase + reg,
+		ret = regmap_update_bits(priv->regmap, reg,
 					 mask << shift, muxval << shift);
 		if (ret)
 			return ret;
@@ -610,8 +632,7 @@ static int uniphier_pmx_set_one_mux(struct pinctrl_dev *pctldev, unsigned pin,
 
 	if (load_pinctrl) {
 		ret = regmap_write(priv->regmap,
-				   priv->regbase + UNIPHIER_PINCTRL_LOAD_PINMUX,
-				   1);
+				   UNIPHIER_PINCTRL_LOAD_PINMUX, 1);
 		if (ret)
 			return ret;
 	}
@@ -644,30 +665,27 @@ static int uniphier_pmx_gpio_request_enable(struct pinctrl_dev *pctldev,
 					    unsigned offset)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
-	const struct uniphier_pinctrl_group *groups = priv->socdata->groups;
-	int groups_count = priv->socdata->groups_count;
-	enum uniphier_pinmux_gpio_range_type range_type;
-	int i, j;
+	unsigned int gpio_offset;
+	int muxval, i;
 
-	if (strstr(range->name, "irq"))
-		range_type = UNIPHIER_PINMUX_GPIO_RANGE_IRQ;
-	else
-		range_type = UNIPHIER_PINMUX_GPIO_RANGE_PORT;
+	if (range->pins) {
+		for (i = 0; i < range->npins; i++)
+			if (range->pins[i] == offset)
+				break;
 
-	for (i = 0; i < groups_count; i++) {
-		if (groups[i].range_type != range_type)
-			continue;
+		if (WARN_ON(i == range->npins))
+			return -EINVAL;
 
-		for (j = 0; j < groups[i].num_pins; j++)
-			if (groups[i].pins[j] == offset)
-				goto found;
+		gpio_offset = i;
+	} else {
+		gpio_offset = offset - range->pin_base;
 	}
 
-	dev_err(pctldev->dev, "pin %u does not support GPIO\n", offset);
-	return -EINVAL;
+	gpio_offset += range->id;
 
-found:
-	return uniphier_pmx_set_one_mux(pctldev, offset, groups[i].muxvals[j]);
+	muxval = priv->socdata->get_gpio_muxval(offset, gpio_offset);
+
+	return uniphier_pmx_set_one_mux(pctldev, offset, muxval);
 }
 
 static const struct pinmux_ops uniphier_pmxops = {
@@ -679,12 +697,177 @@ static const struct pinmux_ops uniphier_pmxops = {
 	.strict = true,
 };
 
+#ifdef CONFIG_PM_SLEEP
+static int uniphier_pinctrl_suspend(struct device *dev)
+{
+	struct uniphier_pinctrl_priv *priv = dev_get_drvdata(dev);
+	struct uniphier_pinctrl_reg_region *r;
+	int ret;
+
+	list_for_each_entry(r, &priv->reg_regions, node) {
+		ret = regmap_bulk_read(priv->regmap, r->base, r->vals,
+				       r->nregs);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int uniphier_pinctrl_resume(struct device *dev)
+{
+	struct uniphier_pinctrl_priv *priv = dev_get_drvdata(dev);
+	struct uniphier_pinctrl_reg_region *r;
+	int ret;
+
+	list_for_each_entry(r, &priv->reg_regions, node) {
+		ret = regmap_bulk_write(priv->regmap, r->base, r->vals,
+					r->nregs);
+		if (ret)
+			return ret;
+	}
+
+	if (priv->socdata->caps & UNIPHIER_PINCTRL_CAPS_DBGMUX_SEPARATE) {
+		ret = regmap_write(priv->regmap,
+				   UNIPHIER_PINCTRL_LOAD_PINMUX, 1);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int uniphier_pinctrl_add_reg_region(struct device *dev,
+					   struct uniphier_pinctrl_priv *priv,
+					   unsigned int base,
+					   unsigned int count,
+					   unsigned int width)
+{
+	struct uniphier_pinctrl_reg_region *region;
+	unsigned int nregs;
+
+	if (!count)
+		return 0;
+
+	nregs = DIV_ROUND_UP(count * width, 32);
+
+	region = devm_kzalloc(dev,
+			      sizeof(*region) + sizeof(region->vals[0]) * nregs,
+			      GFP_KERNEL);
+	if (!region)
+		return -ENOMEM;
+
+	region->base = base;
+	region->nregs = nregs;
+
+	list_add_tail(&region->node, &priv->reg_regions);
+
+	return 0;
+}
+#endif
+
+static int uniphier_pinctrl_pm_init(struct device *dev,
+				    struct uniphier_pinctrl_priv *priv)
+{
+#ifdef CONFIG_PM_SLEEP
+	const struct uniphier_pinctrl_socdata *socdata = priv->socdata;
+	unsigned int num_drvctrl = 0;
+	unsigned int num_drv2ctrl = 0;
+	unsigned int num_drv3ctrl = 0;
+	unsigned int num_pupdctrl = 0;
+	unsigned int num_iectrl = 0;
+	unsigned int iectrl, drvctrl, pupdctrl;
+	enum uniphier_pin_drv_type drv_type;
+	enum uniphier_pin_pull_dir pull_dir;
+	int i, ret;
+
+	for (i = 0; i < socdata->npins; i++) {
+		void *drv_data = socdata->pins[i].drv_data;
+
+		drvctrl = uniphier_pin_get_drvctrl(drv_data);
+		drv_type = uniphier_pin_get_drv_type(drv_data);
+		pupdctrl = uniphier_pin_get_pupdctrl(drv_data);
+		pull_dir = uniphier_pin_get_pull_dir(drv_data);
+		iectrl = uniphier_pin_get_iectrl(drv_data);
+
+		switch (drv_type) {
+		case UNIPHIER_PIN_DRV_1BIT:
+			num_drvctrl = max(num_drvctrl, drvctrl + 1);
+			break;
+		case UNIPHIER_PIN_DRV_2BIT:
+			num_drv2ctrl = max(num_drv2ctrl, drvctrl + 1);
+			break;
+		case UNIPHIER_PIN_DRV_3BIT:
+			num_drv3ctrl = max(num_drv3ctrl, drvctrl + 1);
+			break;
+		default:
+			break;
+		}
+
+		if (pull_dir == UNIPHIER_PIN_PULL_UP ||
+		    pull_dir == UNIPHIER_PIN_PULL_DOWN)
+			num_pupdctrl = max(num_pupdctrl, pupdctrl + 1);
+
+		if (iectrl != UNIPHIER_PIN_IECTRL_NONE) {
+			if (socdata->caps & UNIPHIER_PINCTRL_CAPS_PERPIN_IECTRL)
+				iectrl = i;
+			num_iectrl = max(num_iectrl, iectrl + 1);
+		}
+	}
+
+	INIT_LIST_HEAD(&priv->reg_regions);
+
+	ret = uniphier_pinctrl_add_reg_region(dev, priv,
+					      UNIPHIER_PINCTRL_PINMUX_BASE,
+					      socdata->npins, 8);
+	if (ret)
+		return ret;
+
+	ret = uniphier_pinctrl_add_reg_region(dev, priv,
+					      UNIPHIER_PINCTRL_DRVCTRL_BASE,
+					      num_drvctrl, 1);
+	if (ret)
+		return ret;
+
+	ret = uniphier_pinctrl_add_reg_region(dev, priv,
+					      UNIPHIER_PINCTRL_DRV2CTRL_BASE,
+					      num_drv2ctrl, 2);
+	if (ret)
+		return ret;
+
+	ret = uniphier_pinctrl_add_reg_region(dev, priv,
+					      UNIPHIER_PINCTRL_DRV3CTRL_BASE,
+					      num_drv3ctrl, 3);
+	if (ret)
+		return ret;
+
+	ret = uniphier_pinctrl_add_reg_region(dev, priv,
+					      UNIPHIER_PINCTRL_PUPDCTRL_BASE,
+					      num_pupdctrl, 1);
+	if (ret)
+		return ret;
+
+	ret = uniphier_pinctrl_add_reg_region(dev, priv,
+					      UNIPHIER_PINCTRL_IECTRL_BASE,
+					      num_iectrl, 1);
+	if (ret)
+		return ret;
+#endif
+	return 0;
+}
+
+const struct dev_pm_ops uniphier_pinctrl_pm_ops = {
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(uniphier_pinctrl_suspend,
+				     uniphier_pinctrl_resume)
+};
+
 int uniphier_pinctrl_probe(struct platform_device *pdev,
 			   struct uniphier_pinctrl_socdata *socdata)
 {
 	struct device *dev = &pdev->dev;
 	struct uniphier_pinctrl_priv *priv;
 	struct device_node *parent;
+	int ret;
 
 	if (!socdata ||
 	    !socdata->pins || !socdata->npins ||
@@ -698,20 +881,9 @@ int uniphier_pinctrl_probe(struct platform_device *pdev,
 	if (!priv)
 		return -ENOMEM;
 
-	if (of_device_is_compatible(dev->of_node, "socionext,ph1-ld4-pinctrl") ||
-	    of_device_is_compatible(dev->of_node, "socionext,ph1-pro4-pinctrl") ||
-	    of_device_is_compatible(dev->of_node, "socionext,ph1-sld8-pinctrl") ||
-	    of_device_is_compatible(dev->of_node, "socionext,ph1-pro5-pinctrl") ||
-	    of_device_is_compatible(dev->of_node, "socionext,proxstream2-pinctrl") ||
-	    of_device_is_compatible(dev->of_node, "socionext,ph1-ld6b-pinctrl")) {
-		/* old binding */
-		priv->regmap = syscon_node_to_regmap(dev->of_node);
-	} else {
-		priv->regbase = 0x1000;
-		parent = of_get_parent(dev->of_node);
-		priv->regmap = syscon_node_to_regmap(parent);
-		of_node_put(parent);
-	}
+	parent = of_get_parent(dev->of_node);
+	priv->regmap = syscon_node_to_regmap(parent);
+	of_node_put(parent);
 
 	if (IS_ERR(priv->regmap)) {
 		dev_err(dev, "failed to get regmap\n");
@@ -727,6 +899,10 @@ int uniphier_pinctrl_probe(struct platform_device *pdev,
 	priv->pctldesc.confops = &uniphier_confops;
 	priv->pctldesc.owner = dev->driver->owner;
 
+	ret = uniphier_pinctrl_pm_init(dev, priv);
+	if (ret)
+		return ret;
+
 	priv->pctldev = devm_pinctrl_register(dev, &priv->pctldesc, priv);
 	if (IS_ERR(priv->pctldev)) {
 		dev_err(dev, "failed to register UniPhier pinctrl driver\n");
@@ -737,4 +913,3 @@ int uniphier_pinctrl_probe(struct platform_device *pdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(uniphier_pinctrl_probe);

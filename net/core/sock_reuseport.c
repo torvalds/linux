@@ -13,9 +13,9 @@
 
 static DEFINE_SPINLOCK(reuseport_lock);
 
-static struct sock_reuseport *__reuseport_alloc(u16 max_socks)
+static struct sock_reuseport *__reuseport_alloc(unsigned int max_socks)
 {
-	size_t size = sizeof(struct sock_reuseport) +
+	unsigned int size = sizeof(struct sock_reuseport) +
 		      sizeof(struct sock *) * max_socks;
 	struct sock_reuseport *reuse = kzalloc(size, GFP_ATOMIC);
 
@@ -36,9 +36,14 @@ int reuseport_alloc(struct sock *sk)
 	 * soft irq of receive path or setsockopt from process context
 	 */
 	spin_lock_bh(&reuseport_lock);
-	WARN_ONCE(rcu_dereference_protected(sk->sk_reuseport_cb,
-					    lockdep_is_held(&reuseport_lock)),
-		  "multiple allocations for the same socket");
+
+	/* Allocation attempts can occur concurrently via the setsockopt path
+	 * and the bind/hash path.  Nothing to do when we lose the race.
+	 */
+	if (rcu_dereference_protected(sk->sk_reuseport_cb,
+				      lockdep_is_held(&reuseport_lock)))
+		goto out;
+
 	reuse = __reuseport_alloc(INIT_SOCKS);
 	if (!reuse) {
 		spin_unlock_bh(&reuseport_lock);
@@ -49,6 +54,7 @@ int reuseport_alloc(struct sock *sk)
 	reuse->num_socks = 1;
 	rcu_assign_pointer(sk->sk_reuseport_cb, reuse);
 
+out:
 	spin_unlock_bh(&reuseport_lock);
 
 	return 0;

@@ -334,7 +334,7 @@ static u32 xlp9xx_i2c_functionality(struct i2c_adapter *adapter)
 		I2C_FUNC_10BIT_ADDR;
 }
 
-static struct i2c_algorithm xlp9xx_i2c_algo = {
+static const struct i2c_algorithm xlp9xx_i2c_algo = {
 	.master_xfer = xlp9xx_i2c_xfer,
 	.functionality = xlp9xx_i2c_functionality,
 };
@@ -393,6 +393,8 @@ static int xlp9xx_i2c_probe(struct platform_device *pdev)
 	init_completion(&priv->msg_complete);
 	priv->adapter.dev.parent = &pdev->dev;
 	priv->adapter.algo = &xlp9xx_i2c_algo;
+	priv->adapter.class = I2C_CLASS_HWMON;
+	ACPI_COMPANION_SET(&priv->adapter.dev, ACPI_COMPANION(&pdev->dev));
 	priv->adapter.dev.of_node = pdev->dev.of_node;
 	priv->dev = &pdev->dev;
 
@@ -431,6 +433,7 @@ MODULE_DEVICE_TABLE(of, xlp9xx_i2c_of_match);
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id xlp9xx_i2c_acpi_ids[] = {
 	{"BRCM9007", 0},
+	{"CAV9007",  0},
 	{}
 };
 MODULE_DEVICE_TABLE(acpi, xlp9xx_i2c_acpi_ids);

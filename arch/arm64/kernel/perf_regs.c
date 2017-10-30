@@ -2,6 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/perf_event.h>
 #include <linux/bug.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/compat.h>
 #include <asm/perf_regs.h>

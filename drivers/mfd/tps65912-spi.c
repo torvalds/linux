@@ -49,9 +49,9 @@ static int tps65912_spi_probe(struct spi_device *spi)
 	return tps65912_device_init(tps);
 }
 
-static int tps65912_spi_remove(struct spi_device *client)
+static int tps65912_spi_remove(struct spi_device *spi)
 {
-	struct tps65912 *tps = spi_get_drvdata(client);
+	struct tps65912 *tps = spi_get_drvdata(spi);
 
 	return tps65912_device_exit(tps);
 }

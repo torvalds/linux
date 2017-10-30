@@ -10,7 +10,7 @@
 	compatible = "nvidia,tegra30";
 	interrupt-parent = <&lic>;
 
-	pcie-controller@00003000 {
+	pcie@3000 {
 		compatible = "nvidia,tegra30-pcie";
 		device_type = "pci";
 		reg = <0x00003000 0x00000800   /* PADS registers */
@@ -51,6 +51,7 @@
 			device_type = "pci";
 			assigned-addresses = <0x82000800 0 0x00000000 0 0x1000>;
 			reg = <0x000800 0 0 0 0>;
+			bus-range = <0x00 0xff>;
 			status = "disabled";
 
 			#address-cells = <3>;
@@ -64,6 +65,7 @@
 			device_type = "pci";
 			assigned-addresses = <0x82001000 0 0x00001000 0 0x1000>;
 			reg = <0x001000 0 0 0 0>;
+			bus-range = <0x00 0xff>;
 			status = "disabled";
 
 			#address-cells = <3>;
@@ -77,6 +79,7 @@
 			device_type = "pci";
 			assigned-addresses = <0x82001800 0 0x00004000 0 0x1000>;
 			reg = <0x001800 0 0 0 0>;
+			bus-range = <0x00 0xff>;
 			status = "disabled";
 
 			#address-cells = <3>;
@@ -436,6 +439,19 @@
 		reset-names = "serial";
 		dmas = <&apbdma 20>, <&apbdma 20>;
 		dma-names = "rx", "tx";
+		status = "disabled";
+	};
+
+	gmi@70009000 {
+		compatible = "nvidia,tegra30-gmi";
+		reg = <0x70009000 0x1000>;
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges = <0 0 0x48000000 0x7ffffff>;
+		clocks = <&tegra_car TEGRA30_CLK_NOR>;
+		clock-names = "gmi";
+		resets = <&tegra_car 42>;
+		reset-names = "gmi";
 		status = "disabled";
 	};
 

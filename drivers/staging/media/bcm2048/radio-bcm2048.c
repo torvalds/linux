@@ -17,10 +17,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 /*
@@ -52,7 +48,6 @@
 /* driver definitions */
 #define BCM2048_DRIVER_AUTHOR	"Eero Nurkkala <ext-eero.nurkkala@nokia.com>"
 #define BCM2048_DRIVER_NAME	BCM2048_NAME
-#define BCM2048_DRIVER_VERSION	KERNEL_VERSION(0, 0, 1)
 #define BCM2048_DRIVER_CARD	"Broadcom bcm2048 FM Radio Receiver"
 #define BCM2048_DRIVER_DESC	"I2C driver for BCM2048 FM Radio Receiver"
 
@@ -181,12 +176,12 @@
 
 #define BCM2048_FREQDEV_UNIT		10000
 #define BCM2048_FREQV4L2_MULTI		625
-#define dev_to_v4l2(f)	((f * BCM2048_FREQDEV_UNIT) / BCM2048_FREQV4L2_MULTI)
-#define v4l2_to_dev(f)	((f * BCM2048_FREQV4L2_MULTI) / BCM2048_FREQDEV_UNIT)
+#define dev_to_v4l2(f)	(((f) * BCM2048_FREQDEV_UNIT) / BCM2048_FREQV4L2_MULTI)
+#define v4l2_to_dev(f)	(((f) * BCM2048_FREQV4L2_MULTI) / BCM2048_FREQDEV_UNIT)
 
-#define msb(x)                  ((u8)((u16)x >> 8))
-#define lsb(x)                  ((u8)((u16)x &  0x00FF))
-#define compose_u16(msb, lsb)	(((u16)msb << 8) | lsb)
+#define msb(x)                  ((u8)((u16)(x) >> 8))
+#define lsb(x)                  ((u8)((u16)(x) &  0x00FF))
+#define compose_u16(msb, lsb)	(((u16)(msb) << 8) | (lsb))
 
 #define BCM2048_DEFAULT_POWERING_DELAY	20
 #define BCM2048_DEFAULT_REGION		0x02
@@ -304,7 +299,7 @@ struct bcm2048_device {
 };
 
 static int radio_nr = -1;	/* radio device minor (-1 ==> auto assign) */
-module_param(radio_nr, int, 0);
+module_param(radio_nr, int, 0000);
 MODULE_PARM_DESC(radio_nr,
 		 "Minor number for radio device (-1 ==> auto assign)");
 
@@ -999,7 +994,7 @@ static int bcm2048_set_fm_search_tune_mode(struct bcm2048_device *bdev,
 		timeout = BCM2048_AUTO_SEARCH_TIMEOUT;
 
 	if (!wait_for_completion_timeout(&bdev->compl,
-		msecs_to_jiffies(timeout)))
+					 msecs_to_jiffies(timeout)))
 		dev_err(&bdev->client->dev, "IRQ timeout.\n");
 
 	if (value)
@@ -1538,7 +1533,11 @@ static int bcm2048_parse_rt_match_c(struct bcm2048_device *bdev, int i,
 	if (crc == BCM2048_RDS_CRC_UNRECOVARABLE)
 		return 0;
 
-	BUG_ON((index+2) >= BCM2048_MAX_RDS_RT);
+	if ((index + 2) >= BCM2048_MAX_RDS_RT) {
+		dev_err(&bdev->client->dev,
+			"Incorrect index = %d\n", index);
+		return 0;
+	}
 
 	if ((bdev->rds_info.radio_text[i] & BCM2048_RDS_BLOCK_MASK) ==
 		BCM2048_RDS_BLOCK_C) {
@@ -1561,7 +1560,11 @@ static void bcm2048_parse_rt_match_d(struct bcm2048_device *bdev, int i,
 	if (crc == BCM2048_RDS_CRC_UNRECOVARABLE)
 		return;
 
-	BUG_ON((index+4) >= BCM2048_MAX_RDS_RT);
+	if ((index + 4) >= BCM2048_MAX_RDS_RT) {
+		dev_err(&bdev->client->dev,
+			"Incorrect index = %d\n", index);
+		return;
+	}
 
 	if ((bdev->rds_info.radio_text[i] & BCM2048_RDS_BLOCK_MASK) ==
 	    BCM2048_RDS_BLOCK_D)
@@ -2012,7 +2015,7 @@ static ssize_t bcm2048_##prop##_read(struct device *dev,		\
 	if (!bdev)							\
 		return -ENODEV;						\
 									\
-	out = kzalloc(size + 1, GFP_KERNEL);				\
+	out = kzalloc((size) + 1, GFP_KERNEL);				\
 	if (!out)							\
 		return -ENOMEM;						\
 									\
@@ -2059,67 +2062,67 @@ property_signed_read(fm_rssi, int, "%d")
 DEFINE_SYSFS_PROPERTY(region, unsigned, int, "%u", 0)
 
 static struct device_attribute attrs[] = {
-	__ATTR(power_state, S_IRUGO | S_IWUSR, bcm2048_power_state_read,
+	__ATTR(power_state, 0644, bcm2048_power_state_read,
 	       bcm2048_power_state_write),
-	__ATTR(mute, S_IRUGO | S_IWUSR, bcm2048_mute_read,
+	__ATTR(mute, 0644, bcm2048_mute_read,
 	       bcm2048_mute_write),
-	__ATTR(audio_route, S_IRUGO | S_IWUSR, bcm2048_audio_route_read,
+	__ATTR(audio_route, 0644, bcm2048_audio_route_read,
 	       bcm2048_audio_route_write),
-	__ATTR(dac_output, S_IRUGO | S_IWUSR, bcm2048_dac_output_read,
+	__ATTR(dac_output, 0644, bcm2048_dac_output_read,
 	       bcm2048_dac_output_write),
-	__ATTR(fm_hi_lo_injection, S_IRUGO | S_IWUSR,
+	__ATTR(fm_hi_lo_injection, 0644,
 	       bcm2048_fm_hi_lo_injection_read,
 	       bcm2048_fm_hi_lo_injection_write),
-	__ATTR(fm_frequency, S_IRUGO | S_IWUSR, bcm2048_fm_frequency_read,
+	__ATTR(fm_frequency, 0644, bcm2048_fm_frequency_read,
 	       bcm2048_fm_frequency_write),
-	__ATTR(fm_af_frequency, S_IRUGO | S_IWUSR,
+	__ATTR(fm_af_frequency, 0644,
 	       bcm2048_fm_af_frequency_read,
 	       bcm2048_fm_af_frequency_write),
-	__ATTR(fm_deemphasis, S_IRUGO | S_IWUSR, bcm2048_fm_deemphasis_read,
+	__ATTR(fm_deemphasis, 0644, bcm2048_fm_deemphasis_read,
 	       bcm2048_fm_deemphasis_write),
-	__ATTR(fm_rds_mask, S_IRUGO | S_IWUSR, bcm2048_fm_rds_mask_read,
+	__ATTR(fm_rds_mask, 0644, bcm2048_fm_rds_mask_read,
 	       bcm2048_fm_rds_mask_write),
-	__ATTR(fm_best_tune_mode, S_IRUGO | S_IWUSR,
+	__ATTR(fm_best_tune_mode, 0644,
 	       bcm2048_fm_best_tune_mode_read,
 	       bcm2048_fm_best_tune_mode_write),
-	__ATTR(fm_search_rssi_threshold, S_IRUGO | S_IWUSR,
+	__ATTR(fm_search_rssi_threshold, 0644,
 	       bcm2048_fm_search_rssi_threshold_read,
 	       bcm2048_fm_search_rssi_threshold_write),
-	__ATTR(fm_search_mode_direction, S_IRUGO | S_IWUSR,
+	__ATTR(fm_search_mode_direction, 0644,
 	       bcm2048_fm_search_mode_direction_read,
 	       bcm2048_fm_search_mode_direction_write),
-	__ATTR(fm_search_tune_mode, S_IRUGO | S_IWUSR,
+	__ATTR(fm_search_tune_mode, 0644,
 	       bcm2048_fm_search_tune_mode_read,
 	       bcm2048_fm_search_tune_mode_write),
-	__ATTR(rds, S_IRUGO | S_IWUSR, bcm2048_rds_read,
+	__ATTR(rds, 0644, bcm2048_rds_read,
 	       bcm2048_rds_write),
-	__ATTR(rds_b_block_mask, S_IRUGO | S_IWUSR,
+	__ATTR(rds_b_block_mask, 0644,
 	       bcm2048_rds_b_block_mask_read,
 	       bcm2048_rds_b_block_mask_write),
-	__ATTR(rds_b_block_match, S_IRUGO | S_IWUSR,
+	__ATTR(rds_b_block_match, 0644,
 	       bcm2048_rds_b_block_match_read,
 	       bcm2048_rds_b_block_match_write),
-	__ATTR(rds_pi_mask, S_IRUGO | S_IWUSR, bcm2048_rds_pi_mask_read,
+	__ATTR(rds_pi_mask, 0644, bcm2048_rds_pi_mask_read,
 	       bcm2048_rds_pi_mask_write),
-	__ATTR(rds_pi_match, S_IRUGO | S_IWUSR, bcm2048_rds_pi_match_read,
+	__ATTR(rds_pi_match, 0644, bcm2048_rds_pi_match_read,
 	       bcm2048_rds_pi_match_write),
-	__ATTR(rds_wline, S_IRUGO | S_IWUSR, bcm2048_rds_wline_read,
+	__ATTR(rds_wline, 0644, bcm2048_rds_wline_read,
 	       bcm2048_rds_wline_write),
-	__ATTR(rds_pi, S_IRUGO, bcm2048_rds_pi_read, NULL),
-	__ATTR(rds_rt, S_IRUGO, bcm2048_rds_rt_read, NULL),
-	__ATTR(rds_ps, S_IRUGO, bcm2048_rds_ps_read, NULL),
-	__ATTR(fm_rds_flags, S_IRUGO, bcm2048_fm_rds_flags_read, NULL),
-	__ATTR(region_bottom_frequency, S_IRUGO,
+	__ATTR(rds_pi, 0444, bcm2048_rds_pi_read, NULL),
+	__ATTR(rds_rt, 0444, bcm2048_rds_rt_read, NULL),
+	__ATTR(rds_ps, 0444, bcm2048_rds_ps_read, NULL),
+	__ATTR(fm_rds_flags, 0444, bcm2048_fm_rds_flags_read, NULL),
+	__ATTR(region_bottom_frequency, 0444,
 	       bcm2048_region_bottom_frequency_read, NULL),
-	__ATTR(region_top_frequency, S_IRUGO,
+	__ATTR(region_top_frequency, 0444,
 	       bcm2048_region_top_frequency_read, NULL),
-	__ATTR(fm_carrier_error, S_IRUGO,
+	__ATTR(fm_carrier_error, 0444,
 	       bcm2048_fm_carrier_error_read, NULL),
-	__ATTR(fm_rssi, S_IRUGO,
+	__ATTR(fm_rssi, 0444,
 	       bcm2048_fm_rssi_read, NULL),
-	__ATTR(region, S_IRUGO | S_IWUSR, bcm2048_region_read,
+	__ATTR(region, 0644, bcm2048_region_read,
 	       bcm2048_region_write),
-	__ATTR(rds_data, S_IRUGO, bcm2048_rds_data_read, NULL),
+	__ATTR(rds_data, 0444, bcm2048_rds_data_read, NULL),
 };
 
 static int bcm2048_sysfs_unregister_properties(struct bcm2048_device *bdev,
@@ -2204,7 +2207,7 @@ static ssize_t bcm2048_fops_read(struct file *file, char __user *buf,
 		}
 		/* interruptible_sleep_on(&bdev->read_queue); */
 		if (wait_event_interruptible(bdev->read_queue,
-		    bdev->rds_data_available) < 0) {
+					     bdev->rds_data_available) < 0) {
 			retval = -EINTR;
 			goto done;
 		}
@@ -2542,7 +2545,7 @@ static int bcm2048_vidioc_s_hw_freq_seek(struct file *file, void *priv,
 	return err;
 }
 
-static struct v4l2_ioctl_ops bcm2048_ioctl_ops = {
+static const struct v4l2_ioctl_ops bcm2048_ioctl_ops = {
 	.vidioc_querycap	= bcm2048_vidioc_querycap,
 	.vidioc_g_input		= bcm2048_vidioc_g_input,
 	.vidioc_s_input		= bcm2048_vidioc_s_input,
@@ -2561,7 +2564,7 @@ static struct v4l2_ioctl_ops bcm2048_ioctl_ops = {
 /*
  * bcm2048_viddev_template - video device interface
  */
-static struct video_device bcm2048_viddev_template = {
+static const struct video_device bcm2048_viddev_template = {
 	.fops			= &bcm2048_fops,
 	.name			= BCM2048_DRIVER_NAME,
 	.release		= video_device_release_empty,
@@ -2638,7 +2641,7 @@ exit:
 	return err;
 }
 
-static int __exit bcm2048_i2c_driver_remove(struct i2c_client *client)
+static int bcm2048_i2c_driver_remove(struct i2c_client *client)
 {
 	struct bcm2048_device *bdev = i2c_get_clientdata(client);
 
@@ -2677,7 +2680,7 @@ static struct i2c_driver bcm2048_i2c_driver = {
 		.name	= BCM2048_DRIVER_NAME,
 	},
 	.probe		= bcm2048_i2c_driver_probe,
-	.remove		= __exit_p(bcm2048_i2c_driver_remove),
+	.remove		= bcm2048_i2c_driver_remove,
 	.id_table	= bcm2048_id,
 };
 

@@ -17,7 +17,6 @@
 #define R8A7792_CLK_PLL3		3
 #define R8A7792_CLK_LB			4
 #define R8A7792_CLK_QSPI		5
-#define R8A7792_CLK_Z			6
 
 /* MSTP0 */
 #define R8A7792_CLK_MSIOF0		0
@@ -45,6 +44,7 @@
 
 /* MSTP4 */
 #define R8A7792_CLK_IRQC		7
+#define R8A7792_CLK_INTC_SYS		8
 
 /* MSTP5 */
 #define R8A7792_CLK_AUDIO_DMAC0		2

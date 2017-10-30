@@ -7,13 +7,12 @@
 
 #define NR_NODE_MEMBLKS		(MAX_NUMNODES * 2)
 
-/* currently, arm64 implements flat NUMA topology */
-#define parent_node(node)	(node)
-
 int __node_distance(int from, int to);
 #define node_distance(a, b) __node_distance(a, b)
 
 extern nodemask_t numa_nodes_parsed __initdata;
+
+extern bool numa_off;
 
 /* Mappings between node number and cpus on that node. */
 extern cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];

@@ -37,12 +37,12 @@
  * rotation or Z-position. All these properties are stored in &drm_plane_state.
  *
  * To create a plane, a KMS drivers allocates and zeroes an instances of
- * struct &drm_plane (possibly as part of a larger structure) and registers it
+ * &struct drm_plane (possibly as part of a larger structure) and registers it
  * with a call to drm_universal_plane_init().
  *
  * Cursor and overlay planes are optional. All drivers should provide one
  * primary plane per CRTC to avoid surprising userspace too much. See enum
- * &drm_plane_type for a more in-depth discussion of these special uapi-relevant
+ * drm_plane_type for a more in-depth discussion of these special uapi-relevant
  * plane types. Special planes are associated with their CRTC by calling
  * drm_crtc_init_with_planes().
  *
@@ -62,6 +62,87 @@ static unsigned int drm_num_planes(struct drm_device *dev)
 	return num;
 }
 
+static inline u32 *
+formats_ptr(struct drm_format_modifier_blob *blob)
+{
+	return (u32 *)(((char *)blob) + blob->formats_offset);
+}
+
+static inline struct drm_format_modifier *
+modifiers_ptr(struct drm_format_modifier_blob *blob)
+{
+	return (struct drm_format_modifier *)(((char *)blob) + blob->modifiers_offset);
+}
+
+static int create_in_format_blob(struct drm_device *dev, struct drm_plane *plane)
+{
+	const struct drm_mode_config *config = &dev->mode_config;
+	struct drm_property_blob *blob;
+	struct drm_format_modifier *mod;
+	size_t blob_size, formats_size, modifiers_size;
+	struct drm_format_modifier_blob *blob_data;
+	unsigned int i, j;
+
+	formats_size = sizeof(__u32) * plane->format_count;
+	if (WARN_ON(!formats_size)) {
+		/* 0 formats are never expected */
+		return 0;
+	}
+
+	modifiers_size =
+		sizeof(struct drm_format_modifier) * plane->modifier_count;
+
+	blob_size = sizeof(struct drm_format_modifier_blob);
+	/* Modifiers offset is a pointer to a struct with a 64 bit field so it
+	 * should be naturally aligned to 8B.
+	 */
+	BUILD_BUG_ON(sizeof(struct drm_format_modifier_blob) % 8);
+	blob_size += ALIGN(formats_size, 8);
+	blob_size += modifiers_size;
+
+	blob = drm_property_create_blob(dev, blob_size, NULL);
+	if (IS_ERR(blob))
+		return -1;
+
+	blob_data = (struct drm_format_modifier_blob *)blob->data;
+	blob_data->version = FORMAT_BLOB_CURRENT;
+	blob_data->count_formats = plane->format_count;
+	blob_data->formats_offset = sizeof(struct drm_format_modifier_blob);
+	blob_data->count_modifiers = plane->modifier_count;
+
+	blob_data->modifiers_offset =
+		ALIGN(blob_data->formats_offset + formats_size, 8);
+
+	memcpy(formats_ptr(blob_data), plane->format_types, formats_size);
+
+	/* If we can't determine support, just bail */
+	if (!plane->funcs->format_mod_supported)
+		goto done;
+
+	mod = modifiers_ptr(blob_data);
+	for (i = 0; i < plane->modifier_count; i++) {
+		for (j = 0; j < plane->format_count; j++) {
+			if (plane->funcs->format_mod_supported(plane,
+							       plane->format_types[j],
+							       plane->modifiers[i])) {
+
+				mod->formats |= 1ULL << j;
+			}
+		}
+
+		mod->modifier = plane->modifiers[i];
+		mod->offset = 0;
+		mod->pad = 0;
+		mod++;
+	}
+
+done:
+	drm_object_attach_property(&plane->base, config->modifiers_property,
+				   blob->base.id);
+
+	return 0;
+}
+
 /**
  * drm_universal_plane_init - Initialize a new universal plane object
  * @dev: DRM device
@@ -70,6 +151,8 @@ static unsigned int drm_num_planes(struct drm_device *dev)
  * @funcs: callbacks for the new plane
  * @formats: array of supported formats (DRM_FORMAT\_\*)
  * @format_count: number of elements in @formats
+ * @format_modifiers: array of struct drm_format modifiers terminated by
+ *                    DRM_FORMAT_MOD_INVALID
  * @type: type of plane (overlay, primary, cursor)
  * @name: printf style format string for the plane name, or NULL for default name
  *
@@ -79,16 +162,18 @@ static unsigned int drm_num_planes(struct drm_device *dev)
  * Zero on success, error code on failure.
  */
 int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
-			     unsigned long possible_crtcs,
+			     uint32_t possible_crtcs,
 			     const struct drm_plane_funcs *funcs,
 			     const uint32_t *formats, unsigned int format_count,
+			     const uint64_t *format_modifiers,
 			     enum drm_plane_type type,
 			     const char *name, ...)
 {
 	struct drm_mode_config *config = &dev->mode_config;
+	unsigned int format_modifier_count = 0;
 	int ret;
 
-	ret = drm_mode_object_get(dev, &plane->base, DRM_MODE_OBJECT_PLANE);
+	ret = drm_mode_object_add(dev, &plane->base, DRM_MODE_OBJECT_PLANE);
 	if (ret)
 		return ret;
 
@@ -105,6 +190,31 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		return -ENOMEM;
 	}
 
+	/*
+	 * First driver to need more than 64 formats needs to fix this. Each
+	 * format is encoded as a bit and the current code only supports a u64.
+	 */
+	if (WARN_ON(format_count > 64))
+		return -EINVAL;
+
+	if (format_modifiers) {
+		const uint64_t *temp_modifiers = format_modifiers;
+		while (*temp_modifiers++ != DRM_FORMAT_MOD_INVALID)
+			format_modifier_count++;
+	}
+
+	plane->modifier_count = format_modifier_count;
+	plane->modifiers = kmalloc_array(format_modifier_count,
+					 sizeof(format_modifiers[0]),
+					 GFP_KERNEL);
+
+	if (format_modifier_count && !plane->modifiers) {
+		DRM_DEBUG_KMS("out of memory when allocating plane\n");
+		kfree(plane->format_types);
+		drm_mode_object_unregister(dev, &plane->base);
+		return -ENOMEM;
+	}
+
 	if (name) {
 		va_list ap;
 
@@ -117,12 +227,15 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	}
 	if (!plane->name) {
 		kfree(plane->format_types);
+		kfree(plane->modifiers);
 		drm_mode_object_unregister(dev, &plane->base);
 		return -ENOMEM;
 	}
 
 	memcpy(plane->format_types, formats, format_count * sizeof(uint32_t));
 	plane->format_count = format_count;
+	memcpy(plane->modifiers, format_modifiers,
+	       format_modifier_count * sizeof(format_modifiers[0]));
 	plane->possible_crtcs = possible_crtcs;
 	plane->type = type;
 
@@ -137,6 +250,7 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 
 	if (drm_core_check_feature(dev, DRIVER_ATOMIC)) {
 		drm_object_attach_property(&plane->base, config->prop_fb_id, 0);
+		drm_object_attach_property(&plane->base, config->prop_in_fence_fd, -1);
 		drm_object_attach_property(&plane->base, config->prop_crtc_id, 0);
 		drm_object_attach_property(&plane->base, config->prop_crtc_x, 0);
 		drm_object_attach_property(&plane->base, config->prop_crtc_y, 0);
@@ -147,6 +261,9 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		drm_object_attach_property(&plane->base, config->prop_src_w, 0);
 		drm_object_attach_property(&plane->base, config->prop_src_h, 0);
 	}
+
+	if (config->allow_fb_modifiers)
+		create_in_format_blob(dev, plane);
 
 	return 0;
 }
@@ -195,7 +312,7 @@ void drm_plane_unregister_all(struct drm_device *dev)
  * Zero on success, error code on failure.
  */
 int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
-		   unsigned long possible_crtcs,
+		   uint32_t possible_crtcs,
 		   const struct drm_plane_funcs *funcs,
 		   const uint32_t *formats, unsigned int format_count,
 		   bool is_primary)
@@ -204,7 +321,8 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 
 	type = is_primary ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
 	return drm_universal_plane_init(dev, plane, possible_crtcs, funcs,
-					formats, format_count, type, NULL);
+					formats, format_count,
+					NULL, type, NULL);
 }
 EXPORT_SYMBOL(drm_plane_init);
 
@@ -220,8 +338,10 @@ void drm_plane_cleanup(struct drm_plane *plane)
 {
 	struct drm_device *dev = plane->dev;
 
-	drm_modeset_lock_all(dev);
+	drm_modeset_lock_fini(&plane->mutex);
+
 	kfree(plane->format_types);
+	kfree(plane->modifiers);
 	drm_mode_object_unregister(dev, &plane->base);
 
 	BUG_ON(list_empty(&plane->head));
@@ -235,7 +355,6 @@ void drm_plane_cleanup(struct drm_plane *plane)
 	dev->mode_config.num_total_plane--;
 	if (plane->type == DRM_PLANE_TYPE_OVERLAY)
 		dev->mode_config.num_overlay_plane--;
-	drm_modeset_unlock_all(dev);
 
 	WARN_ON(plane->state && !plane->funcs->atomic_destroy_state);
 	if (plane->state && plane->funcs->atomic_destroy_state)
@@ -253,7 +372,7 @@ EXPORT_SYMBOL(drm_plane_cleanup);
  * @idx: index of registered plane to find for
  *
  * Given a plane index, return the registered plane from DRM device's
- * list of planes with matching index.
+ * list of planes with matching index. This is the inverse of drm_plane_index().
  */
 struct drm_plane *
 drm_plane_from_index(struct drm_device *dev, int idx)
@@ -276,6 +395,12 @@ EXPORT_SYMBOL(drm_plane_from_index);
  *
  * Used when the plane's current framebuffer is destroyed,
  * and when restoring fbdev mode.
+ *
+ * Note that this function is not suitable for atomic drivers, since it doesn't
+ * wire through the lock acquisition context properly and hence can't handle
+ * retries or driver private locks. You probably want to use
+ * drm_atomic_helper_disable_plane() or
+ * drm_atomic_helper_disable_planes_on_crtc() instead.
  */
 void drm_plane_force_disable(struct drm_plane *plane)
 {
@@ -284,15 +409,17 @@ void drm_plane_force_disable(struct drm_plane *plane)
 	if (!plane->fb)
 		return;
 
+	WARN_ON(drm_drv_uses_atomic_modeset(plane->dev));
+
 	plane->old_fb = plane->fb;
-	ret = plane->funcs->disable_plane(plane);
+	ret = plane->funcs->disable_plane(plane, NULL);
 	if (ret) {
 		DRM_ERROR("failed to disable plane with busy fb\n");
 		plane->old_fb = NULL;
 		return;
 	}
 	/* disconnect the plane from the fb and crtc: */
-	drm_framebuffer_unreference(plane->old_fb);
+	drm_framebuffer_put(plane->old_fb);
 	plane->old_fb = NULL;
 	plane->fb = NULL;
 	plane->crtc = NULL;
@@ -391,12 +518,16 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 		return -ENOENT;
 
 	drm_modeset_lock(&plane->mutex, NULL);
-	if (plane->crtc)
+	if (plane->state && plane->state->crtc)
+		plane_resp->crtc_id = plane->state->crtc->base.id;
+	else if (!plane->state && plane->crtc)
 		plane_resp->crtc_id = plane->crtc->base.id;
 	else
 		plane_resp->crtc_id = 0;
 
-	if (plane->fb)
+	if (plane->state && plane->state->fb)
+		plane_resp->fb_id = plane->state->fb->base.id;
+	else if (!plane->state && plane->fb)
 		plane_resp->fb_id = plane->fb->base.id;
 	else
 		plane_resp->fb_id = 0;
@@ -452,14 +583,15 @@ static int __setplane_internal(struct drm_plane *plane,
 			       uint32_t crtc_w, uint32_t crtc_h,
 			       /* src_{x,y,w,h} values are 16.16 fixed point */
 			       uint32_t src_x, uint32_t src_y,
-			       uint32_t src_w, uint32_t src_h)
+			       uint32_t src_w, uint32_t src_h,
+			       struct drm_modeset_acquire_ctx *ctx)
 {
 	int ret = 0;
 
 	/* No fb means shut it down */
 	if (!fb) {
 		plane->old_fb = plane->fb;
-		ret = plane->funcs->disable_plane(plane);
+		ret = plane->funcs->disable_plane(plane, ctx);
 		if (!ret) {
 			plane->crtc = NULL;
 			plane->fb = NULL;
@@ -477,11 +609,12 @@ static int __setplane_internal(struct drm_plane *plane,
 	}
 
 	/* Check whether this plane supports the fb pixel format. */
-	ret = drm_plane_check_pixel_format(plane, fb->pixel_format);
+	ret = drm_plane_check_pixel_format(plane, fb->format->format);
 	if (ret) {
-		char *format_name = drm_get_format_name(fb->pixel_format);
-		DRM_DEBUG_KMS("Invalid pixel format %s\n", format_name);
-		kfree(format_name);
+		struct drm_format_name_buf format_name;
+		DRM_DEBUG_KMS("Invalid pixel format %s\n",
+		              drm_get_format_name(fb->format->format,
+		                                  &format_name));
 		goto out;
 	}
 
@@ -503,7 +636,7 @@ static int __setplane_internal(struct drm_plane *plane,
 	plane->old_fb = plane->fb;
 	ret = plane->funcs->update_plane(plane, crtc, fb,
 					 crtc_x, crtc_y, crtc_w, crtc_h,
-					 src_x, src_y, src_w, src_h);
+					 src_x, src_y, src_w, src_h, ctx);
 	if (!ret) {
 		plane->crtc = crtc;
 		plane->fb = fb;
@@ -514,9 +647,9 @@ static int __setplane_internal(struct drm_plane *plane,
 
 out:
 	if (fb)
-		drm_framebuffer_unreference(fb);
+		drm_framebuffer_put(fb);
 	if (plane->old_fb)
-		drm_framebuffer_unreference(plane->old_fb);
+		drm_framebuffer_put(plane->old_fb);
 	plane->old_fb = NULL;
 
 	return ret;
@@ -531,13 +664,25 @@ static int setplane_internal(struct drm_plane *plane,
 			     uint32_t src_x, uint32_t src_y,
 			     uint32_t src_w, uint32_t src_h)
 {
+	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
-	drm_modeset_lock_all(plane->dev);
+	drm_modeset_acquire_init(&ctx, 0);
+retry:
+	ret = drm_modeset_lock_all_ctx(plane->dev, &ctx);
+	if (ret)
+		goto fail;
 	ret = __setplane_internal(plane, crtc, fb,
 				  crtc_x, crtc_y, crtc_w, crtc_h,
-				  src_x, src_y, src_w, src_h);
-	drm_modeset_unlock_all(plane->dev);
+				  src_x, src_y, src_w, src_h, &ctx);
+
+fail:
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	}
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
 
 	return ret;
 }
@@ -574,6 +719,7 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 
 		crtc = drm_crtc_find(dev, plane_req->crtc_id);
 		if (!crtc) {
+			drm_framebuffer_put(fb);
 			DRM_DEBUG_KMS("Unknown crtc ID %d\n",
 				      plane_req->crtc_id);
 			return -ENOENT;
@@ -593,7 +739,8 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 
 static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 				     struct drm_mode_cursor2 *req,
-				     struct drm_file *file_priv)
+				     struct drm_file *file_priv,
+				     struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_framebuffer *fb = NULL;
@@ -632,7 +779,7 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 	} else {
 		fb = crtc->cursor->fb;
 		if (fb)
-			drm_framebuffer_reference(fb);
+			drm_framebuffer_get(fb);
 	}
 
 	if (req->flags & DRM_MODE_CURSOR_MOVE) {
@@ -656,7 +803,7 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 	 */
 	ret = __setplane_internal(crtc->cursor, crtc, fb,
 				crtc_x, crtc_y, crtc_w, crtc_h,
-				0, 0, src_w, src_h);
+				0, 0, src_w, src_h, ctx);
 
 	/* Update successful; save new cursor position, if necessary */
 	if (ret == 0 && req->flags & DRM_MODE_CURSOR_MOVE) {
@@ -672,6 +819,7 @@ static int drm_mode_cursor_common(struct drm_device *dev,
 				  struct drm_file *file_priv)
 {
 	struct drm_crtc *crtc;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
@@ -686,13 +834,21 @@ static int drm_mode_cursor_common(struct drm_device *dev,
 		return -ENOENT;
 	}
 
+	drm_modeset_acquire_init(&ctx, 0);
+retry:
+	ret = drm_modeset_lock(&crtc->mutex, &ctx);
+	if (ret)
+		goto out;
 	/*
 	 * If this crtc has a universal cursor plane, call that plane's update
 	 * handler rather than using legacy cursor handlers.
 	 */
-	drm_modeset_lock_crtc(crtc, crtc->cursor);
 	if (crtc->cursor) {
-		ret = drm_mode_cursor_universal(crtc, req, file_priv);
+		ret = drm_modeset_lock(&crtc->cursor->mutex, &ctx);
+		if (ret)
+			goto out;
+
+		ret = drm_mode_cursor_universal(crtc, req, file_priv, &ctx);
 		goto out;
 	}
 
@@ -719,7 +875,13 @@ static int drm_mode_cursor_common(struct drm_device *dev,
 		}
 	}
 out:
-	drm_modeset_unlock_crtc(crtc);
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	}
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
 
 	return ret;
 
@@ -759,6 +921,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	struct drm_framebuffer *fb = NULL;
 	struct drm_pending_vblank_event *e = NULL;
 	u32 target_vblank = page_flip->sequence;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret = -EINVAL;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
@@ -822,7 +985,15 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	drm_modeset_lock_crtc(crtc, crtc->primary);
+	drm_modeset_acquire_init(&ctx, 0);
+retry:
+	ret = drm_modeset_lock(&crtc->mutex, &ctx);
+	if (ret)
+		goto out;
+	ret = drm_modeset_lock(&crtc->primary->mutex, &ctx);
+	if (ret)
+		goto out;
+
 	if (crtc->primary->fb == NULL) {
 		/* The framebuffer is currently unbound, presumably
 		 * due to a hotplug event, that userspace has not
@@ -852,7 +1023,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	if (ret)
 		goto out;
 
-	if (crtc->primary->fb->pixel_format != fb->pixel_format) {
+	if (crtc->primary->fb->format != fb->format) {
 		DRM_DEBUG_KMS("Page flip is not allowed to change frame buffer format.\n");
 		ret = -EINVAL;
 		goto out;
@@ -870,6 +1041,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		ret = drm_event_reserve_init(dev, file_priv, &e->base, &e->event.base);
 		if (ret) {
 			kfree(e);
+			e = NULL;
 			goto out;
 		}
 	}
@@ -878,9 +1050,11 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	if (crtc->funcs->page_flip_target)
 		ret = crtc->funcs->page_flip_target(crtc, fb, e,
 						    page_flip->flags,
-						    target_vblank);
+						    target_vblank,
+						    &ctx);
 	else
-		ret = crtc->funcs->page_flip(crtc, fb, e, page_flip->flags);
+		ret = crtc->funcs->page_flip(crtc, fb, e, page_flip->flags,
+					     &ctx);
 	if (ret) {
 		if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT)
 			drm_event_cancel_free(dev, &e->base);
@@ -893,14 +1067,22 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	}
 
 out:
+	if (fb)
+		drm_framebuffer_put(fb);
+	if (crtc->primary->old_fb)
+		drm_framebuffer_put(crtc->primary->old_fb);
+	crtc->primary->old_fb = NULL;
+
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	}
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
 	if (ret && crtc->funcs->page_flip_target)
 		drm_crtc_vblank_put(crtc);
-	if (fb)
-		drm_framebuffer_unreference(fb);
-	if (crtc->primary->old_fb)
-		drm_framebuffer_unreference(crtc->primary->old_fb);
-	crtc->primary->old_fb = NULL;
-	drm_modeset_unlock_crtc(crtc);
 
 	return ret;
 }

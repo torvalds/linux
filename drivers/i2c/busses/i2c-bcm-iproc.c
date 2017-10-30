@@ -395,7 +395,7 @@ static const struct i2c_algorithm bcm_iproc_algo = {
 	.functionality = bcm_iproc_i2c_functionality,
 };
 
-static struct i2c_adapter_quirks bcm_iproc_i2c_quirks = {
+static const struct i2c_adapter_quirks bcm_iproc_i2c_quirks = {
 	/* need to reserve one byte in the FIFO for the slave address */
 	.max_read_len = M_TX_RX_FIFO_SIZE - 1,
 };
@@ -510,8 +510,7 @@ static int bcm_iproc_i2c_remove(struct platform_device *pdev)
 
 static int bcm_iproc_i2c_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct bcm_iproc_i2c_dev *iproc_i2c = platform_get_drvdata(pdev);
+	struct bcm_iproc_i2c_dev *iproc_i2c = dev_get_drvdata(dev);
 
 	/* make sure there's no pending interrupt when we go into suspend */
 	writel(0, iproc_i2c->base + IE_OFFSET);
@@ -526,8 +525,7 @@ static int bcm_iproc_i2c_suspend(struct device *dev)
 
 static int bcm_iproc_i2c_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct bcm_iproc_i2c_dev *iproc_i2c = platform_get_drvdata(pdev);
+	struct bcm_iproc_i2c_dev *iproc_i2c = dev_get_drvdata(dev);
 	int ret;
 	u32 val;
 
