@@ -42,8 +42,6 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "skeleton64.dtsi"
-
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 #include <dt-bindings/clock/sun9i-a80-ccu.h>
@@ -54,6 +52,8 @@
 #include <dt-bindings/reset/sun9i-a80-usb.h>
 
 / {
+	#address-cells = <2>;
+	#size-cells = <2>;
 	interrupt-parent = <&gic>;
 
 	cpus {
@@ -109,11 +109,6 @@
 		};
 	};
 
-	memory {
-		/* 8GB max. with LPAE */
-		reg = <0 0x20000000 0x02 0>;
-	};
-
 	timer {
 		compatible = "arm,armv7-timer";
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
@@ -144,7 +139,7 @@
 		 * would also throw all the PLL clock rates off, or just the
 		 * downstream clocks in the PRCM.
 		 */
-		osc24M: osc24M_clk {
+		osc24M: clk-24M {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <24000000>;
@@ -156,7 +151,7 @@
 		 * AC100 codec/RTC chip. This serves as a placeholder for
 		 * board dts files to specify the source.
 		 */
-		osc32k: osc32k_clk {
+		osc32k: clk-32k {
 			#clock-cells = <0>;
 			compatible = "fixed-factor-clock";
 			clock-div = <1>;
@@ -174,7 +169,7 @@
 			clock-output-names = "cpus";
 		};
 
-		ahbs: ahbs_clk {
+		ahbs: clk-ahbs {
 			compatible = "fixed-factor-clock";
 			#clock-cells = <0>;
 			clock-div = <1>;
@@ -494,12 +489,12 @@
 			#size-cells = <0>;
 			#gpio-cells = <3>;
 
-			i2c3_pins_a: i2c3@0 {
+			i2c3_pins: i2c3-pins {
 				pins = "PG10", "PG11";
 				function = "i2c3";
 			};
 
-			mmc0_pins: mmc0 {
+			mmc0_pins: mmc0-pins {
 				pins = "PF0", "PF1" ,"PF2", "PF3",
 				       "PF4", "PF5";
 				function = "mmc0";
@@ -507,7 +502,7 @@
 				bias-pull-up;
 			};
 
-			mmc1_pins: mmc1 {
+			mmc1_pins: mmc1-pins {
 				pins = "PG0", "PG1" ,"PG2", "PG3",
 						 "PG4", "PG5";
 				function = "mmc1";
@@ -515,7 +510,7 @@
 				bias-pull-up;
 			};
 
-			mmc2_8bit_pins: mmc2_8bit {
+			mmc2_8bit_pins: mmc2-8bit-pins {
 				pins = "PC6", "PC7", "PC8", "PC9",
 				       "PC10", "PC11", "PC12",
 				       "PC13", "PC14", "PC15",
@@ -525,12 +520,12 @@
 				bias-pull-up;
 			};
 
-			uart0_pins_a: uart0@0 {
+			uart0_ph_pins: uart0-ph-pins {
 				pins = "PH12", "PH13";
 				function = "uart0";
 			};
 
-			uart4_pins_a: uart4@0 {
+			uart4_pins: uart4-pins {
 				pins = "PG12", "PG13", "PG14", "PG15";
 				function = "uart4";
 			};
@@ -713,12 +708,12 @@
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
-			r_ir_pins: r_ir {
+			r_ir_pins: r-ir-pins {
 				pins = "PL6";
 				function = "s_cir_rx";
 			};
 
-			r_rsb_pins: r_rsb {
+			r_rsb_pins: r-rsb-pins {
 				pins = "PN0", "PN1";
 				function = "s_rsb";
 				drive-strength = <20>;

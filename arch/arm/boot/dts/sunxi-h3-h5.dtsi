@@ -310,7 +310,7 @@
 				function = "i2c2";
 			};
 
-			mmc0_pins_a: mmc0@0 {
+			mmc0_pins_a: mmc0 {
 				pins = "PF0", "PF1", "PF2", "PF3",
 				       "PF4", "PF5";
 				function = "mmc0";
@@ -318,13 +318,13 @@
 				bias-pull-up;
 			};
 
-			mmc0_cd_pin: mmc0_cd_pin@0 {
+			mmc0_cd_pin: mmc0_cd_pin {
 				pins = "PF6";
 				function = "gpio_in";
 				bias-pull-up;
 			};
 
-			mmc1_pins_a: mmc1@0 {
+			mmc1_pins_a: mmc1 {
 				pins = "PG0", "PG1", "PG2", "PG3",
 				       "PG4", "PG5";
 				function = "mmc1";
@@ -342,7 +342,7 @@
 				bias-pull-up;
 			};
 
-			spdif_tx_pins_a: spdif@0 {
+			spdif_tx_pins_a: spdif {
 				pins = "PA17";
 				function = "spdif";
 			};
@@ -357,7 +357,7 @@
 				function = "spi1";
 			};
 
-			uart0_pins_a: uart0@0 {
+			uart0_pins_a: uart0 {
 				pins = "PA4", "PA5";
 				function = "uart0";
 			};
@@ -379,6 +379,11 @@
 
 			uart3_pins: uart3 {
 				pins = "PA13", "PA14";
+				function = "uart3";
+			};
+
+			uart3_rts_cts_pins: uart3_rts_cts {
+				pins = "PA15", "PA16";
 				function = "uart3";
 			};
 		};
@@ -447,6 +452,32 @@
 			reg = <0x01c21400 0x8>;
 			clocks = <&osc24M>;
 			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		i2s0: i2s@1c22000 {
+			#sound-dai-cells = <0>;
+			compatible = "allwinner,sun8i-h3-i2s";
+			reg = <0x01c22000 0x400>;
+			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_I2S0>, <&ccu CLK_I2S0>;
+			clock-names = "apb", "mod";
+			dmas = <&dma 3>, <&dma 3>;
+			resets = <&ccu RST_BUS_I2S0>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
+		i2s1: i2s@1c22400 {
+			#sound-dai-cells = <0>;
+			compatible = "allwinner,sun8i-h3-i2s";
+			reg = <0x01c22400 0x400>;
+			interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_I2S1>, <&ccu CLK_I2S1>;
+			clock-names = "apb", "mod";
+			dmas = <&dma 4>, <&dma 4>;
+			resets = <&ccu RST_BUS_I2S1>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -544,7 +575,7 @@
 
 		i2c2: i2c@1c2b400 {
 			compatible = "allwinner,sun6i-a31-i2c";
-			reg = <0x01c2b000 0x400>;
+			reg = <0x01c2b400 0x400>;
 			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_BUS_I2C2>;
 			resets = <&ccu RST_BUS_I2C2>;
@@ -609,7 +640,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 
-			ir_pins_a: ir@0 {
+			ir_pins_a: ir {
 				pins = "PL11";
 				function = "s_cir_rx";
 			};
