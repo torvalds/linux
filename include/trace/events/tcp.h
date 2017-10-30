@@ -237,6 +237,62 @@ TRACE_EVENT(tcp_set_state,
 		  show_tcp_state_name(__entry->newstate))
 );
 
+TRACE_EVENT(tcp_retransmit_synack,
+
+	TP_PROTO(const struct sock *sk, const struct request_sock *req),
+
+	TP_ARGS(sk, req),
+
+	TP_STRUCT__entry(
+		__field(const void *, skaddr)
+		__field(const void *, req)
+		__field(__u16, sport)
+		__field(__u16, dport)
+		__array(__u8, saddr, 4)
+		__array(__u8, daddr, 4)
+		__array(__u8, saddr_v6, 16)
+		__array(__u8, daddr_v6, 16)
+	),
+
+	TP_fast_assign(
+		struct inet_request_sock *ireq = inet_rsk(req);
+		struct in6_addr *pin6;
+		__be32 *p32;
+
+		__entry->skaddr = sk;
+		__entry->req = req;
+
+		__entry->sport = ireq->ir_num;
+		__entry->dport = ntohs(ireq->ir_rmt_port);
+
+		p32 = (__be32 *) __entry->saddr;
+		*p32 = ireq->ir_loc_addr;
+
+		p32 = (__be32 *) __entry->daddr;
+		*p32 = ireq->ir_rmt_addr;
+
+#if IS_ENABLED(CONFIG_IPV6)
+		if (sk->sk_family == AF_INET6) {
+			pin6 = (struct in6_addr *)__entry->saddr_v6;
+			*pin6 = ireq->ir_v6_loc_addr;
+			pin6 = (struct in6_addr *)__entry->daddr_v6;
+			*pin6 = ireq->ir_v6_rmt_addr;
+		} else
+#endif
+		{
+			pin6 = (struct in6_addr *)__entry->saddr_v6;
+			ipv6_addr_set_v4mapped(ireq->ir_loc_addr, pin6);
+			pin6 = (struct in6_addr *)__entry->daddr_v6;
+			ipv6_addr_set_v4mapped(ireq->ir_rmt_addr, pin6);
+		}
+	),
+
+	TP_printk("sport=%hu dport=%hu saddr=%pI4 daddr=%pI4 saddrv6=%pI6c daddrv6=%pI6c",
+		  __entry->sport, __entry->dport,
+		  __entry->saddr, __entry->daddr,
+		  __entry->saddr_v6, __entry->daddr_v6)
+);
+
 #endif /* _TRACE_TCP_H */
 
 /* This part must be outside protection */
