@@ -3471,7 +3471,7 @@ EXPORT_SYMBOL(devm_pci_remap_cfgspace);
  * All operations are managed and will be undone on driver detach.
  *
  * Returns a pointer to the remapped memory or an ERR_PTR() encoded error code
- * on failure. Usage example:
+ * on failure. Usage example::
  *
  *	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
  *	base = devm_pci_remap_cfg_resource(&pdev->dev, res);
