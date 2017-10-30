@@ -39,4 +39,11 @@ config DEVFREQ_EVENT_ROCKCHIP_DFI
 	  This add the devfreq-event driver for Rockchip SoC. It provides DFI
 	  (DDR Monitor Module) driver to count ddr load.
 
+config DEVFREQ_EVENT_ROCKCHIP_NOCP
+	tristate "ROCKCHIP NoC (Network On Chip) Probe DEVFREQ event Driver"
+	depends on ARCH_ROCKCHIP
+	help
+	  This add the devfreq-event driver for Rockchip SoC. It provides NoC
+	  (Network on Chip) Probe counters to monitor traffic statistics.
+
 endif # PM_DEVFREQ_EVENT
