@@ -742,6 +742,8 @@ static void dcn10_init_hw(struct dc *dc)
 		hwss_wait_for_blank_complete(tg);
 
 		dcn10_power_down_fe(dc, i);
+
+		tg->funcs->tg_init(tg);
 	}
 
 	for (i = 0; i < dc->res_pool->audio_count; i++) {

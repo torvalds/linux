@@ -184,6 +184,8 @@ struct timing_generator_funcs {
 	bool (*is_stereo_left_eye)(struct timing_generator *tg);
 
 	void (*set_blank_data_double_buffer)(struct timing_generator *tg, bool enable);
+
+	void (*tg_init)(struct timing_generator *tg);
 };
 
 #endif

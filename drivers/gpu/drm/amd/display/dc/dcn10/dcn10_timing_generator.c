@@ -1213,6 +1213,13 @@ void tgn10_read_otg_state(struct dcn10_timing_generator *tgn10,
 			OPTC_UNDERFLOW_OCCURRED_STATUS, &s->underflow_occurred_status);
 }
 
+static void tgn10_tg_init(struct timing_generator *tg)
+{
+	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
+
+	tgn10_set_blank_data_double_buffer(tg, true);
+	REG_UPDATE(OPTC_INPUT_GLOBAL_CONTROL, OPTC_UNDERFLOW_CLEAR, 1);
+}
 
 static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.validate_timing = tgn10_validate_timing,
@@ -1243,7 +1250,8 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.set_test_pattern = tgn10_set_test_pattern,
 		.program_stereo = tgn10_program_stereo,
 		.is_stereo_left_eye = tgn10_is_stereo_left_eye,
-		.set_blank_data_double_buffer = tgn10_set_blank_data_double_buffer
+		.set_blank_data_double_buffer = tgn10_set_blank_data_double_buffer,
+		.tg_init = tgn10_tg_init,
 };
 
 void dcn10_timing_generator_init(struct dcn10_timing_generator *tgn10)
