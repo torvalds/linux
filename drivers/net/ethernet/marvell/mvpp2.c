@@ -493,6 +493,13 @@
 /* Maximum number of TXQs used by single port */
 #define MVPP2_MAX_TXQ			8
 
+/* MVPP2_MAX_TSO_SEGS is the maximum number of fragments to allow in the GSO
+ * skb. As we need a maxium of two descriptors per fragments (1 header, 1 data),
+ * multiply this value by two to count the maximum number of skb descs needed.
+ */
+#define MVPP2_MAX_TSO_SEGS		300
+#define MVPP2_MAX_SKB_DESCS		(MVPP2_MAX_TSO_SEGS * 2 + MAX_SKB_FRAGS)
+
 /* Dfault number of RXQs in use */
 #define MVPP2_DEFAULT_RXQ		4
 
@@ -1044,6 +1051,9 @@ struct mvpp2_txq_pcpu {
 	 * descriptor ring
 	 */
 	int count;
+
+	int wake_threshold;
+	int stop_threshold;
 
 	/* Number of Tx DMA descriptors reserved for each CPU */
 	int reserved_num;
@@ -5393,7 +5403,7 @@ static void mvpp2_txq_done(struct mvpp2_port *port, struct mvpp2_tx_queue *txq,
 	txq_pcpu->count -= tx_done;
 
 	if (netif_tx_queue_stopped(nq))
-		if (txq_pcpu->size - txq_pcpu->count >= MAX_SKB_FRAGS + 1)
+		if (txq_pcpu->count <= txq_pcpu->wake_threshold)
 			netif_tx_wake_queue(nq);
 }
 
@@ -5635,6 +5645,9 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 		txq_pcpu->reserved_num = 0;
 		txq_pcpu->txq_put_index = 0;
 		txq_pcpu->txq_get_index = 0;
+
+		txq_pcpu->stop_threshold = txq->size - MVPP2_MAX_SKB_DESCS;
+		txq_pcpu->wake_threshold = txq_pcpu->stop_threshold / 2;
 
 		txq_pcpu->tso_headers =
 			dma_alloc_coherent(port->dev->dev.parent,
@@ -6508,7 +6521,7 @@ out:
 		wmb();
 		mvpp2_aggr_txq_pend_desc_add(port, frags);
 
-		if (txq_pcpu->size - txq_pcpu->count < MAX_SKB_FRAGS + 1)
+		if (txq_pcpu->count >= txq_pcpu->stop_threshold)
 			netif_tx_stop_queue(nq);
 
 		u64_stats_update_begin(&stats->syncp);
@@ -7732,6 +7745,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	dev->features = features | NETIF_F_RXCSUM;
 	dev->hw_features |= features | NETIF_F_RXCSUM | NETIF_F_GRO;
 	dev->vlan_features |= features;
+	dev->gso_max_segs = MVPP2_MAX_TSO_SEGS;
 
 	/* MTU range: 68 - 9676 */
 	dev->min_mtu = ETH_MIN_MTU;
