@@ -5055,7 +5055,7 @@ static void mvpp2_aggr_txq_pend_desc_add(struct mvpp2_port *port, int pending)
 static int mvpp2_aggr_desc_num_check(struct mvpp2 *priv,
 				     struct mvpp2_tx_queue *aggr_txq, int num)
 {
-	if ((aggr_txq->count + num) > aggr_txq->size) {
+	if ((aggr_txq->count + num) > MVPP2_AGGR_TXQ_SIZE) {
 		/* Update number of occupied aggregated Tx descriptors */
 		int cpu = smp_processor_id();
 		u32 val = mvpp2_read(priv, MVPP2_AGGR_TXQ_STATUS_REG(cpu));
@@ -5063,7 +5063,7 @@ static int mvpp2_aggr_desc_num_check(struct mvpp2 *priv,
 		aggr_txq->count = val & MVPP2_AGGR_TXQ_PENDING_MASK;
 	}
 
-	if ((aggr_txq->count + num) > aggr_txq->size)
+	if ((aggr_txq->count + num) > MVPP2_AGGR_TXQ_SIZE)
 		return -ENOMEM;
 
 	return 0;
@@ -5447,7 +5447,7 @@ static int mvpp2_aggr_txq_init(struct platform_device *pdev,
 	if (!aggr_txq->descs)
 		return -ENOMEM;
 
-	aggr_txq->last_desc = aggr_txq->size - 1;
+	aggr_txq->last_desc = MVPP2_AGGR_TXQ_SIZE - 1;
 
 	/* Aggr TXQ no reset WA */
 	aggr_txq->next_desc_to_proc = mvpp2_read(priv,
