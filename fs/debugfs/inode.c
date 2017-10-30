@@ -374,6 +374,7 @@ static struct dentry *__debugfs_create_file(const char *name, umode_t mode,
 
 	inode->i_fop = proxy_fops;
 	fsd->real_fops = real_fops;
+	refcount_set(&fsd->active_users, 1);
 	dentry->d_fsdata = fsd;
 
 	d_instantiate(dentry, inode);
@@ -631,18 +632,34 @@ struct dentry *debugfs_create_symlink(const char *name, struct dentry *parent,
 }
 EXPORT_SYMBOL_GPL(debugfs_create_symlink);
 
+static void __debugfs_remove_file(struct dentry *dentry, struct dentry *parent)
+{
+	struct debugfs_fsdata *fsd;
+
+	simple_unlink(d_inode(parent), dentry);
+	d_delete(dentry);
+	fsd = dentry->d_fsdata;
+	init_completion(&fsd->active_users_drained);
+	if (!refcount_dec_and_test(&fsd->active_users))
+		wait_for_completion(&fsd->active_users_drained);
+}
+
 static int __debugfs_remove(struct dentry *dentry, struct dentry *parent)
 {
 	int ret = 0;
 
 	if (simple_positive(dentry)) {
 		dget(dentry);
-		if (d_is_dir(dentry))
-			ret = simple_rmdir(d_inode(parent), dentry);
-		else
-			simple_unlink(d_inode(parent), dentry);
-		if (!ret)
-			d_delete(dentry);
+		if (!d_is_reg(dentry)) {
+			if (d_is_dir(dentry))
+				ret = simple_rmdir(d_inode(parent), dentry);
+			else
+				simple_unlink(d_inode(parent), dentry);
+			if (!ret)
+				d_delete(dentry);
+		} else {
+			__debugfs_remove_file(dentry, parent);
+		}
 		dput(dentry);
 	}
 	return ret;

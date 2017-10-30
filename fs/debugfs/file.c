@@ -109,6 +109,54 @@ const struct file_operations *debugfs_real_fops(const struct file *filp)
 }
 EXPORT_SYMBOL_GPL(debugfs_real_fops);
 
+/**
+ * debugfs_file_get - mark the beginning of file data access
+ * @dentry: the dentry object whose data is being accessed.
+ *
+ * Up to a matching call to debugfs_file_put(), any successive call
+ * into the file removing functions debugfs_remove() and
+ * debugfs_remove_recursive() will block. Since associated private
+ * file data may only get freed after a successful return of any of
+ * the removal functions, you may safely access it after a successful
+ * call to debugfs_file_get() without worrying about lifetime issues.
+ *
+ * If -%EIO is returned, the file has already been removed and thus,
+ * it is not safe to access any of its data. If, on the other hand,
+ * it is allowed to access the file data, zero is returned.
+ */
+int debugfs_file_get(struct dentry *dentry)
+{
+	struct debugfs_fsdata *fsd = dentry->d_fsdata;
+
+	/* Avoid starvation of removers. */
+	if (d_unlinked(dentry))
+		return -EIO;
+
+	if (!refcount_inc_not_zero(&fsd->active_users))
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(debugfs_file_get);
+
+/**
+ * debugfs_file_put - mark the end of file data access
+ * @dentry: the dentry object formerly passed to
+ *          debugfs_file_get().
+ *
+ * Allow any ongoing concurrent call into debugfs_remove() or
+ * debugfs_remove_recursive() blocked by a former call to
+ * debugfs_file_get() to proceed and return to its caller.
+ */
+void debugfs_file_put(struct dentry *dentry)
+{
+	struct debugfs_fsdata *fsd = dentry->d_fsdata;
+
+	if (refcount_dec_and_test(&fsd->active_users))
+		complete(&fsd->active_users_drained);
+}
+EXPORT_SYMBOL_GPL(debugfs_file_put);
+
 static int open_proxy_open(struct inode *inode, struct file *filp)
 {
 	const struct dentry *dentry = F_DENTRY(filp);
