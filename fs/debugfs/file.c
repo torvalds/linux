@@ -144,13 +144,13 @@ const struct file_operations debugfs_open_proxy_file_operations = {
 static ret_type full_proxy_ ## name(proto)				\
 {									\
 	struct dentry *dentry = F_DENTRY(filp);			\
-	const struct file_operations *real_fops =			\
-		debugfs_real_fops(filp);				\
+	const struct file_operations *real_fops;			\
 	ret_type r;							\
 									\
 	r = debugfs_file_get(dentry);					\
 	if (unlikely(r))						\
 		return r;						\
+	real_fops = debugfs_real_fops(filp);				\
 	r = real_fops->name(args);					\
 	debugfs_file_put(dentry);					\
 	return r;							\
@@ -177,13 +177,14 @@ FULL_PROXY_FUNC(unlocked_ioctl, long, filp,
 static unsigned int full_proxy_poll(struct file *filp,
 				struct poll_table_struct *wait)
 {
-	const struct file_operations *real_fops = debugfs_real_fops(filp);
 	struct dentry *dentry = F_DENTRY(filp);
 	unsigned int r = 0;
+	const struct file_operations *real_fops;
 
 	if (debugfs_file_get(dentry))
 		return POLLHUP;
 
+	real_fops = debugfs_real_fops(filp);
 	r = real_fops->poll(filp, wait);
 	debugfs_file_put(dentry);
 	return r;
