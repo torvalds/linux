@@ -250,6 +250,9 @@ static int __init renesas_soc_init(void)
 	if (chipid) {
 		product = readl(chipid);
 		iounmap(chipid);
+		/* R-Car M3-W ES1.1 incorrectly identifies as ES2.0 */
+		if ((product & 0x7fff) == 0x5210)
+			product ^= 0x11;
 		if (soc->id && ((product >> 8) & 0xff) != soc->id) {
 			pr_warn("SoC mismatch (product = 0x%x)\n", product);
 			return -ENODEV;
