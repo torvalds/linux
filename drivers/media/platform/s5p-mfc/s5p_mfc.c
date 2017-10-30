@@ -1043,12 +1043,9 @@ end:
 static int s5p_mfc_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(file->private_data);
-	struct s5p_mfc_dev *dev = ctx->dev;
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
 	int ret;
 
-	if (mutex_lock_interruptible(&dev->mfc_mutex))
-		return -ERESTARTSYS;
 	if (offset < DST_QUEUE_OFF_BASE) {
 		mfc_debug(2, "mmaping source\n");
 		ret = vb2_mmap(&ctx->vq_src, vma);
@@ -1057,7 +1054,6 @@ static int s5p_mfc_mmap(struct file *file, struct vm_area_struct *vma)
 		vma->vm_pgoff -= (DST_QUEUE_OFF_BASE >> PAGE_SHIFT);
 		ret = vb2_mmap(&ctx->vq_dst, vma);
 	}
-	mutex_unlock(&dev->mfc_mutex);
 	return ret;
 }
 
