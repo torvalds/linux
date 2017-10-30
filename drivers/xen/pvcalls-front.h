@@ -10,5 +10,8 @@ int pvcalls_front_bind(struct socket *sock,
 		       struct sockaddr *addr,
 		       int addr_len);
 int pvcalls_front_listen(struct socket *sock, int backlog);
+int pvcalls_front_accept(struct socket *sock,
+			 struct socket *newsock,
+			 int flags);
 
 #endif

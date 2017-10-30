@@ -76,6 +76,16 @@ struct sock_mapping {
 #define PVCALLS_STATUS_BIND          1
 #define PVCALLS_STATUS_LISTEN        2
 			uint8_t status;
+		/*
+		 * Internal state-machine flags.
+		 * Only one accept operation can be inflight for a socket.
+		 * Only one poll operation can be inflight for a given socket.
+		 */
+#define PVCALLS_FLAG_ACCEPT_INFLIGHT 0
+			uint8_t flags;
+			uint32_t inflight_req_id;
+			struct sock_mapping *accept_map;
+			wait_queue_head_t inflight_accept_req;
 		} passive;
 	};
 };
@@ -391,6 +401,8 @@ int pvcalls_front_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 	memcpy(req->u.bind.addr, addr, sizeof(*addr));
 	req->u.bind.len = addr_len;
 
+	init_waitqueue_head(&map->passive.inflight_accept_req);
+
 	map->active_socket = false;
 
 	bedata->ring.req_prod_pvt++;
@@ -465,6 +477,139 @@ int pvcalls_front_listen(struct socket *sock, int backlog)
 	bedata->rsp[req_id].req_id = PVCALLS_INVALID_ID;
 
 	map->passive.status = PVCALLS_STATUS_LISTEN;
+	pvcalls_exit();
+	return ret;
+}
+
+int pvcalls_front_accept(struct socket *sock, struct socket *newsock, int flags)
+{
+	struct pvcalls_bedata *bedata;
+	struct sock_mapping *map;
+	struct sock_mapping *map2 = NULL;
+	struct xen_pvcalls_request *req;
+	int notify, req_id, ret, evtchn, nonblock;
+
+	pvcalls_enter();
+	if (!pvcalls_front_dev) {
+		pvcalls_exit();
+		return -ENOTCONN;
+	}
+	bedata = dev_get_drvdata(&pvcalls_front_dev->dev);
+
+	map = (struct sock_mapping *) sock->sk->sk_send_head;
+	if (!map) {
+		pvcalls_exit();
+		return -ENOTSOCK;
+	}
+
+	if (map->passive.status != PVCALLS_STATUS_LISTEN) {
+		pvcalls_exit();
+		return -EINVAL;
+	}
+
+	nonblock = flags & SOCK_NONBLOCK;
+	/*
+	 * Backend only supports 1 inflight accept request, will return
+	 * errors for the others
+	 */
+	if (test_and_set_bit(PVCALLS_FLAG_ACCEPT_INFLIGHT,
+			     (void *)&map->passive.flags)) {
+		req_id = READ_ONCE(map->passive.inflight_req_id);
+		if (req_id != PVCALLS_INVALID_ID &&
+		    READ_ONCE(bedata->rsp[req_id].req_id) == req_id) {
+			map2 = map->passive.accept_map;
+			goto received;
+		}
+		if (nonblock) {
+			pvcalls_exit();
+			return -EAGAIN;
+		}
+		if (wait_event_interruptible(map->passive.inflight_accept_req,
+			!test_and_set_bit(PVCALLS_FLAG_ACCEPT_INFLIGHT,
+					  (void *)&map->passive.flags))) {
+			pvcalls_exit();
+			return -EINTR;
+		}
+	}
+
+	spin_lock(&bedata->socket_lock);
+	ret = get_request(bedata, &req_id);
+	if (ret < 0) {
+		clear_bit(PVCALLS_FLAG_ACCEPT_INFLIGHT,
+			  (void *)&map->passive.flags);
+		spin_unlock(&bedata->socket_lock);
+		pvcalls_exit();
+		return ret;
+	}
+	map2 = kzalloc(sizeof(*map2), GFP_KERNEL);
+	if (map2 == NULL) {
+		clear_bit(PVCALLS_FLAG_ACCEPT_INFLIGHT,
+			  (void *)&map->passive.flags);
+		spin_unlock(&bedata->socket_lock);
+		pvcalls_exit();
+		return -ENOMEM;
+	}
+	ret = create_active(map2, &evtchn);
+	if (ret < 0) {
+		kfree(map2);
+		clear_bit(PVCALLS_FLAG_ACCEPT_INFLIGHT,
+			  (void *)&map->passive.flags);
+		spin_unlock(&bedata->socket_lock);
+		pvcalls_exit();
+		return ret;
+	}
+	list_add_tail(&map2->list, &bedata->socket_mappings);
+
+	req = RING_GET_REQUEST(&bedata->ring, req_id);
+	req->req_id = req_id;
+	req->cmd = PVCALLS_ACCEPT;
+	req->u.accept.id = (uintptr_t) map;
+	req->u.accept.ref = map2->active.ref;
+	req->u.accept.id_new = (uintptr_t) map2;
+	req->u.accept.evtchn = evtchn;
+	map->passive.accept_map = map2;
+
+	bedata->ring.req_prod_pvt++;
+	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, notify);
+	spin_unlock(&bedata->socket_lock);
+	if (notify)
+		notify_remote_via_irq(bedata->irq);
+	/* We could check if we have received a response before returning. */
+	if (nonblock) {
+		WRITE_ONCE(map->passive.inflight_req_id, req_id);
+		pvcalls_exit();
+		return -EAGAIN;
+	}
+
+	if (wait_event_interruptible(bedata->inflight_req,
+		READ_ONCE(bedata->rsp[req_id].req_id) == req_id)) {
+		pvcalls_exit();
+		return -EINTR;
+	}
+	/* read req_id, then the content */
+	smp_rmb();
+
+received:
+	map2->sock = newsock;
+	newsock->sk = kzalloc(sizeof(*newsock->sk), GFP_KERNEL);
+	if (!newsock->sk) {
+		bedata->rsp[req_id].req_id = PVCALLS_INVALID_ID;
+		map->passive.inflight_req_id = PVCALLS_INVALID_ID;
+		clear_bit(PVCALLS_FLAG_ACCEPT_INFLIGHT,
+			  (void *)&map->passive.flags);
+		pvcalls_front_free_map(bedata, map2);
+		pvcalls_exit();
+		return -ENOMEM;
+	}
+	newsock->sk->sk_send_head = (void *)map2;
+
+	ret = bedata->rsp[req_id].ret;
+	bedata->rsp[req_id].req_id = PVCALLS_INVALID_ID;
+	map->passive.inflight_req_id = PVCALLS_INVALID_ID;
+
+	clear_bit(PVCALLS_FLAG_ACCEPT_INFLIGHT, (void *)&map->passive.flags);
+	wake_up(&map->passive.inflight_accept_req);
+
 	pvcalls_exit();
 	return ret;
 }
