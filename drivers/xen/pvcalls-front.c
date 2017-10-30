@@ -13,12 +13,18 @@
  */
 
 #include <linux/module.h>
+#include <linux/net.h>
+#include <linux/socket.h>
+
+#include <net/sock.h>
 
 #include <xen/events.h>
 #include <xen/grant_table.h>
 #include <xen/xen.h>
 #include <xen/xenbus.h>
 #include <xen/interface/io/pvcalls.h>
+
+#include "pvcalls-front.h"
 
 #define PVCALLS_INVALID_ID UINT_MAX
 #define PVCALLS_RING_ORDER XENBUS_MAX_RING_GRANT_ORDER
@@ -55,14 +61,139 @@ struct sock_mapping {
 	struct socket *sock;
 };
 
+static inline int get_request(struct pvcalls_bedata *bedata, int *req_id)
+{
+	*req_id = bedata->ring.req_prod_pvt & (RING_SIZE(&bedata->ring) - 1);
+	if (RING_FULL(&bedata->ring) ||
+	    bedata->rsp[*req_id].req_id != PVCALLS_INVALID_ID)
+		return -EAGAIN;
+	return 0;
+}
+
 static irqreturn_t pvcalls_front_event_handler(int irq, void *dev_id)
 {
+	struct xenbus_device *dev = dev_id;
+	struct pvcalls_bedata *bedata;
+	struct xen_pvcalls_response *rsp;
+	uint8_t *src, *dst;
+	int req_id = 0, more = 0, done = 0;
+
+	if (dev == NULL)
+		return IRQ_HANDLED;
+
+	pvcalls_enter();
+	bedata = dev_get_drvdata(&dev->dev);
+	if (bedata == NULL) {
+		pvcalls_exit();
+		return IRQ_HANDLED;
+	}
+
+again:
+	while (RING_HAS_UNCONSUMED_RESPONSES(&bedata->ring)) {
+		rsp = RING_GET_RESPONSE(&bedata->ring, bedata->ring.rsp_cons);
+
+		req_id = rsp->req_id;
+		dst = (uint8_t *)&bedata->rsp[req_id] + sizeof(rsp->req_id);
+		src = (uint8_t *)rsp + sizeof(rsp->req_id);
+		memcpy(dst, src, sizeof(*rsp) - sizeof(rsp->req_id));
+		/*
+		 * First copy the rest of the data, then req_id. It is
+		 * paired with the barrier when accessing bedata->rsp.
+		 */
+		smp_wmb();
+		bedata->rsp[req_id].req_id = rsp->req_id;
+
+		done = 1;
+		bedata->ring.rsp_cons++;
+	}
+
+	RING_FINAL_CHECK_FOR_RESPONSES(&bedata->ring, more);
+	if (more)
+		goto again;
+	if (done)
+		wake_up(&bedata->inflight_req);
+	pvcalls_exit();
 	return IRQ_HANDLED;
 }
 
 static void pvcalls_front_free_map(struct pvcalls_bedata *bedata,
 				   struct sock_mapping *map)
 {
+}
+
+int pvcalls_front_socket(struct socket *sock)
+{
+	struct pvcalls_bedata *bedata;
+	struct sock_mapping *map = NULL;
+	struct xen_pvcalls_request *req;
+	int notify, req_id, ret;
+
+	/*
+	 * PVCalls only supports domain AF_INET,
+	 * type SOCK_STREAM and protocol 0 sockets for now.
+	 *
+	 * Check socket type here, AF_INET and protocol checks are done
+	 * by the caller.
+	 */
+	if (sock->type != SOCK_STREAM)
+		return -EOPNOTSUPP;
+
+	pvcalls_enter();
+	if (!pvcalls_front_dev) {
+		pvcalls_exit();
+		return -EACCES;
+	}
+	bedata = dev_get_drvdata(&pvcalls_front_dev->dev);
+
+	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	if (map == NULL) {
+		pvcalls_exit();
+		return -ENOMEM;
+	}
+
+	spin_lock(&bedata->socket_lock);
+
+	ret = get_request(bedata, &req_id);
+	if (ret < 0) {
+		kfree(map);
+		spin_unlock(&bedata->socket_lock);
+		pvcalls_exit();
+		return ret;
+	}
+
+	/*
+	 * sock->sk->sk_send_head is not used for ip sockets: reuse the
+	 * field to store a pointer to the struct sock_mapping
+	 * corresponding to the socket. This way, we can easily get the
+	 * struct sock_mapping from the struct socket.
+	 */
+	sock->sk->sk_send_head = (void *)map;
+	list_add_tail(&map->list, &bedata->socket_mappings);
+
+	req = RING_GET_REQUEST(&bedata->ring, req_id);
+	req->req_id = req_id;
+	req->cmd = PVCALLS_SOCKET;
+	req->u.socket.id = (uintptr_t) map;
+	req->u.socket.domain = AF_INET;
+	req->u.socket.type = SOCK_STREAM;
+	req->u.socket.protocol = IPPROTO_IP;
+
+	bedata->ring.req_prod_pvt++;
+	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, notify);
+	spin_unlock(&bedata->socket_lock);
+	if (notify)
+		notify_remote_via_irq(bedata->irq);
+
+	wait_event(bedata->inflight_req,
+		   READ_ONCE(bedata->rsp[req_id].req_id) == req_id);
+
+	/* read req_id, then the content */
+	smp_rmb();
+	ret = bedata->rsp[req_id].ret;
+	bedata->rsp[req_id].req_id = PVCALLS_INVALID_ID;
+
+	pvcalls_exit();
+	return ret;
 }
 
 static const struct xenbus_device_id pvcalls_front_ids[] = {
