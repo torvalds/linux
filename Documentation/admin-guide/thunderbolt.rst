@@ -3,7 +3,7 @@
 =============
 The interface presented here is not meant for end users. Instead there
 should be a userspace tool that handles all the low-level details, keeps
-database of the authorized devices and prompts user for new connections.
+the database of the authorized devices and prompts the user for new connections.
 
 More details about the sysfs interface for Thunderbolt devices can be
 found in ``Documentation/ABI/testing/sysfs-bus-thunderbolt``.
