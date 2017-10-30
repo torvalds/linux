@@ -3357,7 +3357,7 @@ static int __maybe_unused cgroup_extra_stat_show(struct seq_file *seq,
 
 static int cpu_stat_show(struct seq_file *seq, void *v)
 {
-	struct cgroup *cgrp = seq_css(seq)->cgroup;
+	struct cgroup __maybe_unused *cgrp = seq_css(seq)->cgroup;
 	int ret = 0;
 
 	cgroup_stat_show_cputime(seq);
