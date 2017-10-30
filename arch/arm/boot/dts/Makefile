@@ -100,6 +100,8 @@ dtb-$(CONFIG_ARCH_BCM_5301X) += \
 	bcm4709-tplink-archer-c9-v1.dtb \
 	bcm47094-dlink-dir-885l.dtb \
 	bcm47094-linksys-panamera.dtb \
+	bcm47094-luxul-abr-4500.dtb \
+	bcm47094-luxul-xbr-4500.dtb \
 	bcm47094-luxul-xwr-3100.dtb \
 	bcm47094-netgear-r8500.dtb \
 	bcm94708.dtb \
@@ -108,6 +110,8 @@ dtb-$(CONFIG_ARCH_BCM_5301X) += \
 	bcm953012hr.dtb \
 	bcm953012k.dtb
 dtb-$(CONFIG_ARCH_BCM_53573) += \
+	bcm47189-luxul-xap-1440.dtb \
+	bcm47189-luxul-xap-810.dtb \
 	bcm47189-tenda-ac9.dtb \
 	bcm947189acdbmr.dtb
 dtb-$(CONFIG_ARCH_BCM_63XX) += \
@@ -117,6 +121,8 @@ dtb-$(CONFIG_ARCH_BCM_CYGNUS) += \
 	bcm911360k.dtb \
 	bcm958300k.dtb \
 	bcm958305k.dtb
+dtb-$(CONFIG_ARCH_BCM_HR2) += \
+	bcm53340-ubnt-unifi-switch8.dtb
 dtb-$(CONFIG_ARCH_BCM_MOBILE) += \
 	bcm28155-ap.dtb \
 	bcm21664-garnet.dtb \
