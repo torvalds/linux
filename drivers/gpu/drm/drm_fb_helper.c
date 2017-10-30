@@ -799,8 +799,10 @@ int drm_fb_helper_init(struct drm_device *dev,
 	struct drm_mode_config *config = &dev->mode_config;
 	int i;
 
-	if (!drm_fbdev_emulation)
+	if (!drm_fbdev_emulation) {
+		dev->fb_helper = fb_helper;
 		return 0;
+	}
 
 	if (!max_conn_count)
 		return -EINVAL;
@@ -834,6 +836,8 @@ int drm_fb_helper_init(struct drm_device *dev,
 		fb_helper->crtc_info[i].mode_set.crtc = crtc;
 		i++;
 	}
+
+	dev->fb_helper = fb_helper;
 
 	return 0;
 out_free:
@@ -913,7 +917,12 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 {
 	struct fb_info *info;
 
-	if (!drm_fbdev_emulation || !fb_helper)
+	if (!fb_helper)
+		return;
+
+	fb_helper->dev->fb_helper = NULL;
+
+	if (!drm_fbdev_emulation)
 		return;
 
 	cancel_work_sync(&fb_helper->resume_work);
