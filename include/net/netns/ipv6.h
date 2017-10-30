@@ -37,6 +37,10 @@ struct netns_sysctl_ipv6 {
 	int idgen_delay;
 	int flowlabel_state_ranges;
 	int flowlabel_reflect;
+	int max_dst_opts_cnt;
+	int max_hbh_opts_cnt;
+	int max_dst_opts_len;
+	int max_hbh_opts_len;
 };
 
 struct netns_ipv6 {
