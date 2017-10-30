@@ -145,12 +145,6 @@ rdmab_lkey(struct rpcrdma_regbuf *rb)
 	return rb->rg_iov.lkey;
 }
 
-static inline struct rpcrdma_msg *
-rdmab_to_msg(struct rpcrdma_regbuf *rb)
-{
-	return (struct rpcrdma_msg *)rb->rg_base;
-}
-
 static inline struct ib_device *
 rdmab_device(struct rpcrdma_regbuf *rb)
 {
