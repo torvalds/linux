@@ -558,13 +558,15 @@ void dcn10_verify_allow_pstate_change_high(struct dc *dc)
 }
 
 /* trigger HW to start disconnect plane from stream on the next vsync */
-static void plane_atomic_disconnect(struct dc *dc,
-		int fe_idx)
+static void plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
+	int fe_idx = pipe_ctx->pipe_idx;
 	struct hubp *hubp = dc->res_pool->hubps[fe_idx];
 	struct mpc *mpc = dc->res_pool->mpc;
 	int opp_id, z_idx;
 	int mpcc_id = -1;
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+	struct dce_hwseq *hws = dc->hwseq;
 
 	/* look at tree rather than mi here to know if we already reset */
 	for (opp_id = 0; opp_id < dc->res_pool->pipe_count; opp_id++) {
@@ -583,28 +585,55 @@ static void plane_atomic_disconnect(struct dc *dc,
 	if (opp_id == dc->res_pool->pipe_count)
 		return;
 
-	if (dc->debug.sanity_checks)
-		dcn10_verify_allow_pstate_change_high(dc);
-	hubp->funcs->dcc_control(hubp, false, false);
+	mpc->funcs->remove(mpc, &(dc->res_pool->opps[opp_id]->mpc_tree),
+					   dc->res_pool->opps[opp_id]->inst, fe_idx);
+
+	if (hubp->funcs->hubp_disconnect)
+		hubp->funcs->hubp_disconnect(hubp);
+
 	if (dc->debug.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
 
-	mpc->funcs->remove(mpc, &(dc->res_pool->opps[opp_id]->mpc_tree),
-			dc->res_pool->opps[opp_id]->inst, fe_idx);
+	if (pipe_ctx->top_pipe) {
+		pipe_ctx->top_pipe->bottom_pipe = NULL;
+		pipe_ctx->top_pipe = NULL;
+		pipe_ctx->stream = NULL;
+		memset(&pipe_ctx->stream_res, 0, sizeof(pipe_ctx->stream_res));
+		memset(&pipe_ctx->plane_res, 0, sizeof(pipe_ctx->plane_res));
+	}
+
+	if (pipe_ctx->bottom_pipe) {
+		pipe_ctx->bottom_pipe->top_pipe = NULL;
+		pipe_ctx->bottom_pipe = NULL;
+	}
+	pipe_ctx->plane_state = NULL;
+
+	/* TODO: Move to tg. */
+	REG_UPDATE(OTG_GLOBAL_SYNC_STATUS[tg->inst],
+			VUPDATE_NO_LOCK_EVENT_CLEAR, 1);
 }
 
 /* disable HW used by plane.
  * note:  cannot disable until disconnect is complete */
-static void plane_atomic_disable(struct dc *dc,
-		int fe_idx)
+static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
+	int fe_idx = pipe_ctx->pipe_idx;
 	struct dce_hwseq *hws = dc->hwseq;
 	struct hubp *hubp = dc->res_pool->hubps[fe_idx];
 	struct mpc *mpc = dc->res_pool->mpc;
 	int opp_id = hubp->opp_id;
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+
+	if (tg == NULL)
+		return;
 
 	if (opp_id == 0xf)
 		return;
+
+	if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
+		REG_WAIT(OTG_GLOBAL_SYNC_STATUS[tg->inst],
+				VUPDATE_NO_LOCK_EVENT_OCCURRED, 1,
+				1, 100000);
 
 	mpc->funcs->wait_for_idle(mpc, hubp->mpcc_id);
 	dc->res_pool->opps[hubp->opp_id]->mpcc_disconnect_pending[hubp->mpcc_id] = false;
@@ -630,60 +659,50 @@ static void plane_atomic_disable(struct dc *dc,
 		dcn10_verify_allow_pstate_change_high(dc);
 }
 
-static void reset_front_end(
-		struct dc *dc,
-		int fe_idx)
-{
-	struct dce_hwseq *hws = dc->hwseq;
-	struct timing_generator *tg;
-	int opp_id = dc->res_pool->hubps[fe_idx]->opp_id;
-
-	/*Already reset*/
-	if (opp_id == 0xf)
-		return;
-
-	tg = dc->res_pool->timing_generators[opp_id];
-	tg->funcs->lock(tg);
-
-	plane_atomic_disconnect(dc, fe_idx);
-
-	REG_UPDATE(OTG_GLOBAL_SYNC_STATUS[tg->inst], VUPDATE_NO_LOCK_EVENT_CLEAR, 1);
-	tg->funcs->unlock(tg);
-
-	if (dc->debug.sanity_checks)
-		dcn10_verify_allow_pstate_change_high(dc);
-
-	if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
-		REG_WAIT(OTG_GLOBAL_SYNC_STATUS[tg->inst],
-				VUPDATE_NO_LOCK_EVENT_OCCURRED, 1,
-				1, 100000);
-
-	plane_atomic_disable(dc, fe_idx);
-
-	dm_logger_write(dc->ctx->logger, LOG_DC,
-					"Reset front end %d\n",
-					fe_idx);
-}
-
-static void dcn10_power_down_fe(struct dc *dc, int fe_idx)
+/* kill power to plane hw
+ * note: cannot power down until plane is disable
+ */
+static void plane_atomic_power_down(struct dc *dc, int fe_idx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct dpp *dpp = dc->res_pool->dpps[fe_idx];
 
-	reset_front_end(dc, fe_idx);
+	if (REG(DC_IP_REQUEST_CNTL)) {
+		REG_SET(DC_IP_REQUEST_CNTL, 0,
+				IP_REQUEST_EN, 1);
+		dpp_pg_control(hws, fe_idx, false);
+		hubp_pg_control(hws, fe_idx, false);
+		dpp->funcs->dpp_reset(dpp);
+		REG_SET(DC_IP_REQUEST_CNTL, 0,
+				IP_REQUEST_EN, 0);
+		dm_logger_write(dc->ctx->logger, LOG_DEBUG,
+				"Power gated front end %d\n", fe_idx);
+	}
+}
 
-	REG_SET(DC_IP_REQUEST_CNTL, 0,
-			IP_REQUEST_EN, 1);
-	dpp_pg_control(hws, fe_idx, false);
-	hubp_pg_control(hws, fe_idx, false);
-	dpp->funcs->dpp_reset(dpp);
-	REG_SET(DC_IP_REQUEST_CNTL, 0,
-			IP_REQUEST_EN, 0);
-	dm_logger_write(dc->ctx->logger, LOG_DEBUG,
-			"Power gated front end %d\n", fe_idx);
+static void dcn10_power_down_fe(struct dc *dc, struct pipe_ctx *pipe_ctx)
+{
+	int fe_idx = pipe_ctx->pipe_idx;
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
 
-	if (dc->debug.sanity_checks)
-		dcn10_verify_allow_pstate_change_high(dc);
+	if (tg != NULL) {
+		tg->funcs->lock(tg);
+
+		plane_atomic_disconnect(dc, pipe_ctx);
+
+		tg->funcs->unlock(tg);
+
+		if (dc->debug.sanity_checks)
+			dcn10_verify_allow_pstate_change_high(dc);
+
+		plane_atomic_disable(dc, pipe_ctx);
+	}
+
+	plane_atomic_power_down(dc, fe_idx);
+
+	dm_logger_write(dc->ctx->logger, LOG_DC,
+					"Reset front end %d\n",
+					fe_idx);
 }
 
 static void dcn10_init_hw(struct dc *dc)
@@ -744,7 +763,7 @@ static void dcn10_init_hw(struct dc *dc)
 		tg->funcs->set_blank(tg, true);
 		hwss_wait_for_blank_complete(tg);
 
-		dcn10_power_down_fe(dc, i);
+		plane_atomic_power_down(dc, i);
 
 		tg->funcs->tg_init(tg);
 	}
@@ -1988,8 +2007,6 @@ static void program_all_pipe_in_tree(
 			dcn10_verify_allow_pstate_change_high(dc);
 		}
 
-		pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
-
 		pipe_ctx->stream_res.tg->dlg_otg_param.vready_offset = pipe_ctx->pipe_dlg_param.vready_offset;
 		pipe_ctx->stream_res.tg->dlg_otg_param.vstartup_start = pipe_ctx->pipe_dlg_param.vstartup_start;
 		pipe_ctx->stream_res.tg->dlg_otg_param.vupdate_offset = pipe_ctx->pipe_dlg_param.vupdate_offset;
@@ -2097,62 +2114,75 @@ static void ready_shared_resources(struct dc *dc, struct dc_state *context)
 		dcn10_pplib_apply_display_requirements(dc, context);
 }
 
+static struct pipe_ctx *find_top_pipe_for_stream(
+		struct dc *dc,
+		struct dc_state *context,
+		const struct dc_stream_state *stream)
+{
+	int i;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *old_pipe_ctx =
+				&dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (!pipe_ctx->plane_state && !old_pipe_ctx->plane_state)
+			continue;
+
+		if (pipe_ctx->stream != stream)
+			continue;
+
+		if (!pipe_ctx->top_pipe)
+			return pipe_ctx;
+	}
+	return NULL;
+}
+
 static void dcn10_apply_ctx_for_surface(
 		struct dc *dc,
 		const struct dc_stream_state *stream,
 		int num_planes,
 		struct dc_state *context)
 {
-	int i, be_idx;
+	int i;
+	struct timing_generator *tg;
+	bool removed_pipe[4] = { false };
+
+	struct pipe_ctx *top_pipe_to_program =
+			find_top_pipe_for_stream(dc, context, stream);
+
+	if (!top_pipe_to_program)
+		return;
+
+	tg = top_pipe_to_program->stream_res.tg;
 
 	if (dc->debug.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
 
-	be_idx = -1;
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		if (stream == context->res_ctx.pipe_ctx[i].stream) {
-			be_idx = context->res_ctx.pipe_ctx[i].stream_res.tg->inst;
-			break;
-		}
-	}
-
-	ASSERT(be_idx != -1);
+	tg->funcs->lock(tg);
 
 	if (num_planes == 0) {
-		for (i = dc->res_pool->pipe_count - 1; i >= 0 ; i--) {
-			struct pipe_ctx *old_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
 
-			if (old_pipe_ctx->stream_res.tg && old_pipe_ctx->stream_res.tg->inst == be_idx) {
-				old_pipe_ctx->stream_res.tg->funcs->set_blank(old_pipe_ctx->stream_res.tg, true);
-				dcn10_power_down_fe(dc, old_pipe_ctx->pipe_idx);
-			}
-		}
-		return;
+		/* OTG blank before remove all front end */
+		tg->funcs->set_blank(tg, true);
 	}
 
-	/* reset unused mpcc */
+	/* Disconnect unused mpcc */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *old_pipe_ctx =
 				&dc->current_state->res_ctx.pipe_ctx[i];
-		struct hubp *hubp = dc->res_pool->hubps[i];
-
-		if (!pipe_ctx->plane_state && !old_pipe_ctx->plane_state)
-			continue;
-
-		if (pipe_ctx->stream_res.tg &&
-			pipe_ctx->stream_res.tg->inst == be_idx &&
-			!pipe_ctx->top_pipe)
-			pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
-
 		/*
 		 * Powergate reused pipes that are not powergated
 		 * fairly hacky right now, using opp_id as indicator
+		 * TODO: After move dc_post to dc_update, this will
+		 * be removed.
 		 */
-
 		if (pipe_ctx->plane_state && !old_pipe_ctx->plane_state) {
-			if (pipe_ctx->plane_res.hubp->opp_id != 0xf && pipe_ctx->stream_res.tg->inst == be_idx) {
-				dcn10_power_down_fe(dc, pipe_ctx->pipe_idx);
+			if (old_pipe_ctx->stream_res.tg == tg &&
+				old_pipe_ctx->plane_res.hubp &&
+				old_pipe_ctx->plane_res.hubp->opp_id != 0xf) {
+				dcn10_power_down_fe(dc, pipe_ctx);
 				/*
 				 * power down fe will unlock when calling reset, need
 				 * to lock it back here. Messy, need rework.
@@ -2161,39 +2191,12 @@ static void dcn10_apply_ctx_for_surface(
 			}
 		}
 
+		if (!pipe_ctx->plane_state &&
+			old_pipe_ctx->plane_state &&
+			old_pipe_ctx->stream_res.tg == tg) {
 
-		if ((!pipe_ctx->plane_state && old_pipe_ctx->plane_state)
-				|| (!pipe_ctx->stream && old_pipe_ctx->stream)) {
-			if (old_pipe_ctx->stream_res.tg->inst != be_idx)
-				continue;
-
-			if (!old_pipe_ctx->top_pipe) {
-				ASSERT(0);
-				continue;
-			}
-
-			/* reset mpc */
-			dc->res_pool->mpc->funcs->remove(
-					dc->res_pool->mpc,
-					&(old_pipe_ctx->stream_res.opp->mpc_tree),
-					old_pipe_ctx->stream_res.opp->inst,
-					old_pipe_ctx->pipe_idx);
-			old_pipe_ctx->stream_res.opp->mpcc_disconnect_pending[old_pipe_ctx->plane_res.hubp->mpcc_id] = true;
-
-			/*dm_logger_write(dc->ctx->logger, LOG_ERROR,
-					"[debug_mpo: apply_ctx disconnect pending on mpcc %d]\n",
-					old_pipe_ctx->mpcc->inst);*/
-
-			if (hubp->funcs->hubp_disconnect)
-				hubp->funcs->hubp_disconnect(hubp);
-
-			if (dc->debug.sanity_checks)
-				dcn10_verify_allow_pstate_change_high(dc);
-
-			old_pipe_ctx->top_pipe = NULL;
-			old_pipe_ctx->bottom_pipe = NULL;
-			old_pipe_ctx->plane_state = NULL;
-			old_pipe_ctx->stream = NULL;
+			plane_atomic_disconnect(dc, old_pipe_ctx);
+			removed_pipe[i] = true;
 
 			dm_logger_write(dc->ctx->logger, LOG_DC,
 					"Reset mpcc for pipe %d\n",
@@ -2201,22 +2204,23 @@ static void dcn10_apply_ctx_for_surface(
 		}
 	}
 
+	if (num_planes > 0)
+		program_all_pipe_in_tree(dc, top_pipe_to_program, context);
+
+	tg->funcs->unlock(tg);
+
+
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-		struct pipe_ctx *old_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *old_pipe_ctx =
+				&dc->current_state->res_ctx.pipe_ctx[i];
 
-		if (pipe_ctx->stream != stream)
-			continue;
-
-		/* looking for top pipe to program */
-		if (!pipe_ctx->top_pipe) {
-			program_all_pipe_in_tree(dc, pipe_ctx, context);
-			if (pipe_ctx->stream_res.tg &&
-				pipe_ctx->stream_res.tg->inst == be_idx &&
-				(pipe_ctx->plane_state || old_pipe_ctx->plane_state))
-				pipe_ctx->stream_res.tg->funcs->unlock(pipe_ctx->stream_res.tg);
+		if (removed_pipe[i]) {
+			plane_atomic_disable(dc, old_pipe_ctx);
+			if (num_planes == 0)
+				plane_atomic_power_down(dc, i);
 		}
 	}
+
 
 	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
 			"\n============== Watermark parameters ==============\n"

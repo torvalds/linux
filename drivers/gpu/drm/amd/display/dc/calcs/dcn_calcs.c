@@ -1064,6 +1064,9 @@ bool dcn_validate_bandwidth(
 					hsplit_pipe->stream = NULL;
 					hsplit_pipe->top_pipe = NULL;
 					hsplit_pipe->bottom_pipe = NULL;
+					/* Clear plane_res and stream_res */
+					memset(&hsplit_pipe->plane_res, 0, sizeof(hsplit_pipe->plane_res));
+					memset(&hsplit_pipe->stream_res, 0, sizeof(hsplit_pipe->stream_res));
 					resource_build_scaling_params(pipe);
 				}
 				/* for now important to do this after pipe split for building e2e params */

@@ -1464,7 +1464,9 @@ static void disable_vga_and_power_gate_all_controllers(
 		enable_display_pipe_clock_gating(ctx,
 				true);
 
-		dc->hwss.power_down_front_end(dc, i);
+		dc->current_state->res_ctx.pipe_ctx[i].pipe_idx = i;
+		dc->hwss.power_down_front_end(dc,
+			&dc->current_state->res_ctx.pipe_ctx[i]);
 	}
 }
 
@@ -1890,7 +1892,7 @@ static void dce110_reset_hw_ctx_wrap(
 			if (old_clk)
 				old_clk->funcs->cs_power_down(old_clk);
 
-			dc->hwss.power_down_front_end(dc, pipe_ctx_old->pipe_idx);
+			dc->hwss.power_down_front_end(dc, pipe_ctx_old);
 
 			pipe_ctx_old->stream = NULL;
 		}
@@ -2950,8 +2952,10 @@ static void dce110_apply_ctx_for_surface(
 	}
 }
 
-static void dce110_power_down_fe(struct dc *dc, int fe_idx)
+static void dce110_power_down_fe(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
+	int fe_idx = pipe_ctx->pipe_idx;
+
 	/* Do not power down fe when stream is active on dce*/
 	if (dc->current_state->res_ctx.pipe_ctx[fe_idx].stream)
 		return;

@@ -963,9 +963,11 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 	post_surface_trace(dc);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
-		if (context->res_ctx.pipe_ctx[i].stream == NULL
-				|| context->res_ctx.pipe_ctx[i].plane_state == NULL)
-			dc->hwss.power_down_front_end(dc, i);
+		if (context->res_ctx.pipe_ctx[i].stream == NULL ||
+		    context->res_ctx.pipe_ctx[i].plane_state == NULL) {
+			context->res_ctx.pipe_ctx[i].pipe_idx = i;
+			dc->hwss.power_down_front_end(dc, &context->res_ctx.pipe_ctx[i]);
+		}
 
 	/* 3rd param should be true, temp w/a for RV*/
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
@@ -1339,8 +1341,11 @@ static void commit_planes_for_stream(struct dc *dc,
 		if (update_type != UPDATE_TYPE_FULL || !pipe_ctx->plane_state)
 			continue;
 
-		if (!pipe_ctx->top_pipe && pipe_ctx->stream) {
-			struct dc_stream_status *stream_status = stream_get_status(context, pipe_ctx->stream);
+		if (!pipe_ctx->top_pipe &&
+		    pipe_ctx->stream &&
+		    pipe_ctx->stream == stream) {
+			struct dc_stream_status *stream_status =
+					stream_get_status(context, pipe_ctx->stream);
 
 			dc->hwss.apply_ctx_for_surface(
 					dc, pipe_ctx->stream, stream_status->plane_count, context);

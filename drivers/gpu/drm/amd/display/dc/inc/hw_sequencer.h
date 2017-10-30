@@ -129,7 +129,7 @@ struct hw_sequencer_funcs {
 					struct dc_bios *dcb,
 					enum pipe_gating_control power_gating);
 
-	void (*power_down_front_end)(struct dc *dc, int fe_idx);
+	void (*power_down_front_end)(struct dc *dc, struct pipe_ctx *pipe_ctx);
 
 	void (*power_on_front_end)(struct dc *dc,
 			struct pipe_ctx *pipe,
