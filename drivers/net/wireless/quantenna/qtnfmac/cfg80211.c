@@ -956,7 +956,10 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 
 	ether_addr_copy(wiphy->perm_addr, mac->macaddr);
 
-	if (hw_info->hw_capab & QLINK_HW_SUPPORTS_REG_UPDATE) {
+	if (hw_info->hw_capab & QLINK_HW_CAPAB_STA_INACT_TIMEOUT)
+		wiphy->features |= NL80211_FEATURE_INACTIVITY_TIMER;
+
+	if (hw_info->hw_capab & QLINK_HW_CAPAB_REG_UPDATE) {
 		wiphy->regulatory_flags |= REGULATORY_STRICT_REG |
 			REGULATORY_CUSTOM_REG;
 		wiphy->reg_notifier = qtnf_cfg80211_reg_notifier;
