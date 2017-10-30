@@ -2370,6 +2370,8 @@ static void arm_smmu_setup_unique_irqs(struct arm_smmu_device *smmu)
 						"arm-smmu-v3-evtq", smmu);
 		if (ret < 0)
 			dev_warn(smmu->dev, "failed to enable evtq irq\n");
+	} else {
+		dev_warn(smmu->dev, "no evtq irq - events will not be reported!\n");
 	}
 
 	irq = smmu->gerr_irq;
@@ -2378,6 +2380,8 @@ static void arm_smmu_setup_unique_irqs(struct arm_smmu_device *smmu)
 				       0, "arm-smmu-v3-gerror", smmu);
 		if (ret < 0)
 			dev_warn(smmu->dev, "failed to enable gerror irq\n");
+	} else {
+		dev_warn(smmu->dev, "no gerr irq - errors will not be reported!\n");
 	}
 
 	if (smmu->features & ARM_SMMU_FEAT_PRI) {
@@ -2391,6 +2395,8 @@ static void arm_smmu_setup_unique_irqs(struct arm_smmu_device *smmu)
 			if (ret < 0)
 				dev_warn(smmu->dev,
 					 "failed to enable priq irq\n");
+		} else {
+			dev_warn(smmu->dev, "no priq irq - PRI will be broken\n");
 		}
 	}
 }
