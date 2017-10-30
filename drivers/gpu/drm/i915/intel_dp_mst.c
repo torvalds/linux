@@ -149,7 +149,8 @@ static void intel_mst_disable_dp(struct intel_encoder *encoder,
 		DRM_ERROR("failed to update payload %d\n", ret);
 	}
 	if (old_crtc_state->has_audio)
-		intel_audio_codec_disable(encoder);
+		intel_audio_codec_disable(encoder,
+					  old_crtc_state, old_conn_state);
 }
 
 static void intel_mst_post_disable_dp(struct intel_encoder *encoder,

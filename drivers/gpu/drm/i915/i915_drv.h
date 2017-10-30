@@ -726,10 +726,12 @@ struct drm_i915_display_funcs {
 	void (*crtc_disable)(struct intel_crtc_state *old_crtc_state,
 			     struct drm_atomic_state *old_state);
 	void (*update_crtcs)(struct drm_atomic_state *state);
-	void (*audio_codec_enable)(struct drm_connector *connector,
-				   struct intel_encoder *encoder,
-				   const struct drm_display_mode *adjusted_mode);
-	void (*audio_codec_disable)(struct intel_encoder *encoder);
+	void (*audio_codec_enable)(struct intel_encoder *encoder,
+				   const struct intel_crtc_state *crtc_state,
+				   const struct drm_connector_state *conn_state);
+	void (*audio_codec_disable)(struct intel_encoder *encoder,
+				    const struct intel_crtc_state *old_crtc_state,
+				    const struct drm_connector_state *old_conn_state);
 	void (*fdi_link_train)(struct intel_crtc *crtc,
 			       const struct intel_crtc_state *crtc_state);
 	void (*init_clock_gating)(struct drm_i915_private *dev_priv);
