@@ -1656,6 +1656,7 @@ static struct omap_hwmod omap3xxx_mmc3_hwmod = {
 	.main_clk	= "mmchs3_fck",
 	.prcm		= {
 		.omap2 = {
+			.module_offs = CORE_MOD,
 			.prcm_reg_id = 1,
 			.module_bit = OMAP3430_EN_MMC3_SHIFT,
 			.idlest_reg_id = 1,
