@@ -380,6 +380,7 @@
 };
 
 &uart0 {
+	pinctrl-0 = <&uart0_xfer>, <&uart0_cts>;
 	status = "okay";
 };
 
