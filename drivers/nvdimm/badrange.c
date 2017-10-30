@@ -114,7 +114,6 @@ void badrange_forget(struct badrange *badrange, phys_addr_t start,
 	struct badrange_entry *bre, *next;
 
 	spin_lock(&badrange->lock);
-	WARN_ON_ONCE(list_empty(badrange_list));
 
 	/*
 	 * [start, clr_end] is the badrange interval being cleared.
