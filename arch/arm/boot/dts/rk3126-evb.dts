@@ -440,6 +440,10 @@
 	status = "okay";
 };
 
+&rga {
+	status = "okay";
+};
+
 &saradc {
 	status = "okay";
 	vref-supply = <&vccadc_ref>;
