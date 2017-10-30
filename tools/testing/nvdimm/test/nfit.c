@@ -344,7 +344,8 @@ static int nfit_test_cmd_ars_status(struct ars_state *ars_state,
 	return 0;
 }
 
-static int nfit_test_cmd_clear_error(struct nd_cmd_clear_error *clear_err,
+static int nfit_test_cmd_clear_error(struct nfit_test *t,
+		struct nd_cmd_clear_error *clear_err,
 		unsigned int buf_len, int *cmd_rc)
 {
 	const u64 mask = NFIT_TEST_CLEAR_ERR_UNIT - 1;
@@ -354,12 +355,7 @@ static int nfit_test_cmd_clear_error(struct nd_cmd_clear_error *clear_err,
 	if ((clear_err->address & mask) || (clear_err->length & mask))
 		return -EINVAL;
 
-	/*
-	 * Report 'all clear' success for all commands even though a new
-	 * scrub will find errors again.  This is enough to have the
-	 * error removed from the 'badblocks' tracking in the pmem
-	 * driver.
-	 */
+	badrange_forget(&t->badrange, clear_err->address, clear_err->length);
 	clear_err->status = 0;
 	clear_err->cleared = clear_err->length;
 	*cmd_rc = 0;
@@ -687,7 +683,7 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 					cmd_rc);
 			break;
 		case ND_CMD_CLEAR_ERROR:
-			rc = nfit_test_cmd_clear_error(buf, buf_len, cmd_rc);
+			rc = nfit_test_cmd_clear_error(t, buf, buf_len, cmd_rc);
 			break;
 		default:
 			return -ENOTTY;
