@@ -6723,6 +6723,7 @@ static int select_energy_cpu_brute(struct task_struct *p, int prev_cpu, int sync
 			/* No energy saving for target_cpu, try backup */
 			target_cpu = tmp_backup;
 			eenv.dst_cpu = target_cpu;
+			eenv.trg_cpu = target_cpu;
 			if (tmp_backup < 0 ||
 			    tmp_backup == prev_cpu ||
 			    energy_diff(&eenv) >= 0) {
