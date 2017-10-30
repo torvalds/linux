@@ -199,6 +199,21 @@ again:
 static void pvcalls_front_free_map(struct pvcalls_bedata *bedata,
 				   struct sock_mapping *map)
 {
+	int i;
+
+	unbind_from_irqhandler(map->active.irq, map);
+
+	spin_lock(&bedata->socket_lock);
+	if (!list_empty(&map->list))
+		list_del_init(&map->list);
+	spin_unlock(&bedata->socket_lock);
+
+	for (i = 0; i < (1 << PVCALLS_RING_ORDER); i++)
+		gnttab_end_foreign_access(map->active.ring->ref[i], 0, 0);
+	gnttab_end_foreign_access(map->active.ref, 0, 0);
+	free_page((unsigned long)map->active.ring);
+
+	kfree(map);
 }
 
 static irqreturn_t pvcalls_front_conn_handler(int irq, void *sock_map)
@@ -970,6 +985,89 @@ unsigned int pvcalls_front_poll(struct file *file, struct socket *sock,
 		ret = pvcalls_front_poll_passive(file, bedata, map, wait);
 	pvcalls_exit();
 	return ret;
+}
+
+int pvcalls_front_release(struct socket *sock)
+{
+	struct pvcalls_bedata *bedata;
+	struct sock_mapping *map;
+	int req_id, notify, ret;
+	struct xen_pvcalls_request *req;
+
+	if (sock->sk == NULL)
+		return 0;
+
+	pvcalls_enter();
+	if (!pvcalls_front_dev) {
+		pvcalls_exit();
+		return -EIO;
+	}
+
+	bedata = dev_get_drvdata(&pvcalls_front_dev->dev);
+
+	map = (struct sock_mapping *) sock->sk->sk_send_head;
+	if (map == NULL) {
+		pvcalls_exit();
+		return 0;
+	}
+
+	spin_lock(&bedata->socket_lock);
+	ret = get_request(bedata, &req_id);
+	if (ret < 0) {
+		spin_unlock(&bedata->socket_lock);
+		pvcalls_exit();
+		return ret;
+	}
+	sock->sk->sk_send_head = NULL;
+
+	req = RING_GET_REQUEST(&bedata->ring, req_id);
+	req->req_id = req_id;
+	req->cmd = PVCALLS_RELEASE;
+	req->u.release.id = (uintptr_t)map;
+
+	bedata->ring.req_prod_pvt++;
+	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, notify);
+	spin_unlock(&bedata->socket_lock);
+	if (notify)
+		notify_remote_via_irq(bedata->irq);
+
+	wait_event(bedata->inflight_req,
+		   READ_ONCE(bedata->rsp[req_id].req_id) == req_id);
+
+	if (map->active_socket) {
+		/*
+		 * Set in_error and wake up inflight_conn_req to force
+		 * recvmsg waiters to exit.
+		 */
+		map->active.ring->in_error = -EBADF;
+		wake_up_interruptible(&map->active.inflight_conn_req);
+
+		/*
+		 * Wait until there are no more waiters on the mutexes.
+		 * We know that no new waiters can be added because sk_send_head
+		 * is set to NULL -- we only need to wait for the existing
+		 * waiters to return.
+		 */
+		while (!mutex_trylock(&map->active.in_mutex) ||
+			   !mutex_trylock(&map->active.out_mutex))
+			cpu_relax();
+
+		pvcalls_front_free_map(bedata, map);
+	} else {
+		spin_lock(&bedata->socket_lock);
+		list_del(&map->list);
+		spin_unlock(&bedata->socket_lock);
+		if (READ_ONCE(map->passive.inflight_req_id) !=
+		    PVCALLS_INVALID_ID) {
+			pvcalls_front_free_map(bedata,
+					       map->passive.accept_map);
+		}
+		kfree(map);
+	}
+	WRITE_ONCE(bedata->rsp[req_id].req_id, PVCALLS_INVALID_ID);
+
+	pvcalls_exit();
+	return 0;
 }
 
 static const struct xenbus_device_id pvcalls_front_ids[] = {

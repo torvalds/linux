@@ -23,5 +23,6 @@ int pvcalls_front_recvmsg(struct socket *sock,
 unsigned int pvcalls_front_poll(struct file *file,
 				struct socket *sock,
 				poll_table *wait);
+int pvcalls_front_release(struct socket *sock);
 
 #endif
