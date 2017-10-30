@@ -2339,8 +2339,12 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 		if (err)
 			return err;
 		memcpy(path->rmac, ah->roce.dmac, sizeof(ah->roce.dmac));
-		path->udp_sport = mlx5_get_roce_udp_sport(dev, port,
-							  grh->sgid_index);
+		if (qp->ibqp.qp_type == IB_QPT_RC ||
+		    qp->ibqp.qp_type == IB_QPT_UC ||
+		    qp->ibqp.qp_type == IB_QPT_XRC_INI ||
+		    qp->ibqp.qp_type == IB_QPT_XRC_TGT)
+			path->udp_sport = mlx5_get_roce_udp_sport(dev, port,
+								  grh->sgid_index);
 		path->dci_cfi_prio_sl = (sl & 0x7) << 4;
 		if (gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP)
 			path->ecn_dscp = (grh->traffic_class >> 2) & 0x3f;
