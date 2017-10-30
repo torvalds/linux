@@ -2424,15 +2424,17 @@ static void __update_nat_bits(struct f2fs_sb_info *sbi, nid_t start_nid,
 	unsigned int nat_index = start_nid / NAT_ENTRY_PER_BLOCK;
 	struct f2fs_nat_block *nat_blk = page_address(page);
 	int valid = 0;
-	int i;
+	int i = 0;
 
 	if (!enabled_nat_bits(sbi, NULL))
 		return;
 
-	for (i = 0; i < NAT_ENTRY_PER_BLOCK; i++) {
-		if (start_nid == 0 && i == 0)
-			valid++;
-		if (nat_blk->entries[i].block_addr)
+	if (nat_index == 0) {
+		valid = 1;
+		i = 1;
+	}
+	for (; i < NAT_ENTRY_PER_BLOCK; i++) {
+		if (nat_blk->entries[i].block_addr != NULL_ADDR)
 			valid++;
 	}
 	if (valid == 0) {
