@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/mtdram.h>
@@ -69,6 +70,27 @@ static int ram_point(struct mtd_info *mtd, loff_t from, size_t len,
 {
 	*virt = mtd->priv + from;
 	*retlen = len;
+
+	if (phys) {
+		/* limit retlen to the number of contiguous physical pages */
+		unsigned long page_ofs = offset_in_page(*virt);
+		void *addr = *virt - page_ofs;
+		unsigned long pfn1, pfn0 = vmalloc_to_pfn(addr);
+
+		*phys = __pfn_to_phys(pfn0) + page_ofs;
+		len += page_ofs;
+		while (len > PAGE_SIZE) {
+			len -= PAGE_SIZE;
+			addr += PAGE_SIZE;
+			pfn0++;
+			pfn1 = vmalloc_to_pfn(addr);
+			if (pfn1 != pfn0) {
+				*retlen = addr - *virt;
+				break;
+			}
+		}
+	}
+
 	return 0;
 }
 
