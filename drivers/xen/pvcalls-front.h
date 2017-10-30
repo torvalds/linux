@@ -13,5 +13,8 @@ int pvcalls_front_listen(struct socket *sock, int backlog);
 int pvcalls_front_accept(struct socket *sock,
 			 struct socket *newsock,
 			 int flags);
+int pvcalls_front_sendmsg(struct socket *sock,
+			  struct msghdr *msg,
+			  size_t len);
 
 #endif

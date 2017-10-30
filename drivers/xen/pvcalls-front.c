@@ -29,6 +29,7 @@
 #define PVCALLS_INVALID_ID UINT_MAX
 #define PVCALLS_RING_ORDER XENBUS_MAX_RING_GRANT_ORDER
 #define PVCALLS_NR_RSP_PER_RING __CONST_RING_SIZE(xen_pvcalls, XEN_PAGE_SIZE)
+#define PVCALLS_FRONT_MAX_SPIN 5000
 
 struct pvcalls_bedata {
 	struct xen_pvcalls_front_ring ring;
@@ -97,6 +98,23 @@ static inline int get_request(struct pvcalls_bedata *bedata, int *req_id)
 	    bedata->rsp[*req_id].req_id != PVCALLS_INVALID_ID)
 		return -EAGAIN;
 	return 0;
+}
+
+static bool pvcalls_front_write_todo(struct sock_mapping *map)
+{
+	struct pvcalls_data_intf *intf = map->active.ring;
+	RING_IDX cons, prod, size = XEN_FLEX_RING_SIZE(PVCALLS_RING_ORDER);
+	int32_t error;
+
+	error = intf->out_error;
+	if (error == -ENOTCONN)
+		return false;
+	if (error != 0)
+		return true;
+
+	cons = intf->out_cons;
+	prod = intf->out_prod;
+	return !!(size - pvcalls_queued(prod, cons, size));
 }
 
 static irqreturn_t pvcalls_front_event_handler(int irq, void *dev_id)
@@ -361,6 +379,109 @@ int pvcalls_front_connect(struct socket *sock, struct sockaddr *addr,
 	bedata->rsp[req_id].req_id = PVCALLS_INVALID_ID;
 	pvcalls_exit();
 	return ret;
+}
+
+static int __write_ring(struct pvcalls_data_intf *intf,
+			struct pvcalls_data *data,
+			struct iov_iter *msg_iter,
+			int len)
+{
+	RING_IDX cons, prod, size, masked_prod, masked_cons;
+	RING_IDX array_size = XEN_FLEX_RING_SIZE(PVCALLS_RING_ORDER);
+	int32_t error;
+
+	error = intf->out_error;
+	if (error < 0)
+		return error;
+	cons = intf->out_cons;
+	prod = intf->out_prod;
+	/* read indexes before continuing */
+	virt_mb();
+
+	size = pvcalls_queued(prod, cons, array_size);
+	if (size >= array_size)
+		return -EINVAL;
+	if (len > array_size - size)
+		len = array_size - size;
+
+	masked_prod = pvcalls_mask(prod, array_size);
+	masked_cons = pvcalls_mask(cons, array_size);
+
+	if (masked_prod < masked_cons) {
+		len = copy_from_iter(data->out + masked_prod, len, msg_iter);
+	} else {
+		if (len > array_size - masked_prod) {
+			int ret = copy_from_iter(data->out + masked_prod,
+				       array_size - masked_prod, msg_iter);
+			if (ret != array_size - masked_prod) {
+				len = ret;
+				goto out;
+			}
+			len = ret + copy_from_iter(data->out, len - ret, msg_iter);
+		} else {
+			len = copy_from_iter(data->out + masked_prod, len, msg_iter);
+		}
+	}
+out:
+	/* write to ring before updating pointer */
+	virt_wmb();
+	intf->out_prod += len;
+
+	return len;
+}
+
+int pvcalls_front_sendmsg(struct socket *sock, struct msghdr *msg,
+			  size_t len)
+{
+	struct pvcalls_bedata *bedata;
+	struct sock_mapping *map;
+	int sent, tot_sent = 0;
+	int count = 0, flags;
+
+	flags = msg->msg_flags;
+	if (flags & (MSG_CONFIRM|MSG_DONTROUTE|MSG_EOR|MSG_OOB))
+		return -EOPNOTSUPP;
+
+	pvcalls_enter();
+	if (!pvcalls_front_dev) {
+		pvcalls_exit();
+		return -ENOTCONN;
+	}
+	bedata = dev_get_drvdata(&pvcalls_front_dev->dev);
+
+	map = (struct sock_mapping *) sock->sk->sk_send_head;
+	if (!map) {
+		pvcalls_exit();
+		return -ENOTSOCK;
+	}
+
+	mutex_lock(&map->active.out_mutex);
+	if ((flags & MSG_DONTWAIT) && !pvcalls_front_write_todo(map)) {
+		mutex_unlock(&map->active.out_mutex);
+		pvcalls_exit();
+		return -EAGAIN;
+	}
+	if (len > INT_MAX)
+		len = INT_MAX;
+
+again:
+	count++;
+	sent = __write_ring(map->active.ring,
+			    &map->active.data, &msg->msg_iter,
+			    len);
+	if (sent > 0) {
+		len -= sent;
+		tot_sent += sent;
+		notify_remote_via_irq(map->active.irq);
+	}
+	if (sent >= 0 && len > 0 && count < PVCALLS_FRONT_MAX_SPIN)
+		goto again;
+	if (sent < 0)
+		tot_sent = sent;
+
+	mutex_unlock(&map->active.out_mutex);
+	pvcalls_exit();
+	return tot_sent;
 }
 
 int pvcalls_front_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
