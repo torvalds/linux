@@ -13,6 +13,9 @@
 # Cygnus
 obj-$(CONFIG_ARCH_BCM_CYGNUS) +=  bcm_cygnus.o
 
+# Hurricane 2
+obj-$(CONFIG_ARCH_BCM_HR2)	+= bcm_hr2.o
+
 # Northstar Plus
 obj-$(CONFIG_ARCH_BCM_NSP)	+= bcm_nsp.o
 
