@@ -125,7 +125,7 @@ static void tipc_sock_destruct(struct sock *sk);
 static int tipc_release(struct socket *sock);
 static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags,
 		       bool kern);
-static void tipc_sk_timeout(unsigned long data);
+static void tipc_sk_timeout(struct timer_list *t);
 static int tipc_sk_publish(struct tipc_sock *tsk, uint scope,
 			   struct tipc_name_seq const *seq);
 static int tipc_sk_withdraw(struct tipc_sock *tsk, uint scope,
@@ -464,7 +464,7 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 		      NAMED_H_SIZE, 0);
 
 	msg_set_origport(msg, tsk->portid);
-	setup_timer(&sk->sk_timer, tipc_sk_timeout, (unsigned long)tsk);
+	timer_setup(&sk->sk_timer, tipc_sk_timeout, 0);
 	sk->sk_shutdown = 0;
 	sk->sk_backlog_rcv = tipc_sk_backlog_rcv;
 	sk->sk_rcvbuf = sysctl_tipc_rmem[1];
@@ -2530,14 +2530,14 @@ static int tipc_shutdown(struct socket *sock, int how)
 	return res;
 }
 
-static void tipc_sk_timeout(unsigned long data)
+static void tipc_sk_timeout(struct timer_list *t)
 {
-	struct tipc_sock *tsk = (struct tipc_sock *)data;
+	struct sock *sk = from_timer(sk, t, sk_timer);
+	struct tipc_sock *tsk = tipc_sk(sk);
 	u32 peer_port = tsk_peer_port(tsk);
 	u32 peer_node = tsk_peer_node(tsk);
 	u32 own_node = tsk_own_node(tsk);
 	u32 own_port = tsk->portid;
-	struct sock *sk = &tsk->sk;
 	struct net *net = sock_net(sk);
 	struct sk_buff *skb = NULL;
 

@@ -153,7 +153,7 @@ static void tipc_node_link_down(struct tipc_node *n, int bearer_id,
 				bool delete);
 static void node_lost_contact(struct tipc_node *n, struct sk_buff_head *inputq);
 static void tipc_node_delete(struct tipc_node *node);
-static void tipc_node_timeout(unsigned long data);
+static void tipc_node_timeout(struct timer_list *t);
 static void tipc_node_fsm_evt(struct tipc_node *n, int evt);
 static struct tipc_node *tipc_node_find(struct net *net, u32 addr);
 static void tipc_node_put(struct tipc_node *node);
@@ -361,7 +361,7 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr, u16 capabilities)
 		goto exit;
 	}
 	tipc_node_get(n);
-	setup_timer(&n->timer, tipc_node_timeout, (unsigned long)n);
+	timer_setup(&n->timer, tipc_node_timeout, 0);
 	n->keepalive_intv = U32_MAX;
 	hlist_add_head_rcu(&n->hash, &tn->node_htable[tipc_hashfn(addr)]);
 	list_for_each_entry_rcu(temp_node, &tn->node_list, list) {
@@ -500,9 +500,9 @@ void tipc_node_remove_conn(struct net *net, u32 dnode, u32 port)
 
 /* tipc_node_timeout - handle expiration of node timer
  */
-static void tipc_node_timeout(unsigned long data)
+static void tipc_node_timeout(struct timer_list *t)
 {
-	struct tipc_node *n = (struct tipc_node *)data;
+	struct tipc_node *n = from_timer(n, t, timer);
 	struct tipc_link_entry *le;
 	struct sk_buff_head xmitq;
 	int bearer_id;
