@@ -209,7 +209,7 @@ static void load_mocs(struct intel_vgpu *vgpu, int ring_id)
 	offset.reg = regs[ring_id];
 	for (i = 0; i < 64; i++) {
 		gen9_render_mocs[ring_id][i] = I915_READ_FW(offset);
-		I915_WRITE(offset, vgpu_vreg(vgpu, offset));
+		I915_WRITE_FW(offset, vgpu_vreg(vgpu, offset));
 		offset.reg += 4;
 	}
 
