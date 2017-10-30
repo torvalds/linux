@@ -19,4 +19,8 @@ extern const struct file_operations debugfs_noop_file_operations;
 extern const struct file_operations debugfs_open_proxy_file_operations;
 extern const struct file_operations debugfs_full_proxy_file_operations;
 
+struct debugfs_fsdata {
+	const struct file_operations *real_fops;
+};
+
 #endif /* _DEBUGFS_INTERNAL_H_ */
