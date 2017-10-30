@@ -442,6 +442,11 @@ out:
 		b->prio = INITIAL_PRIO;
 	}
 
+	if (ca->set->avail_nbuckets > 0) {
+		ca->set->avail_nbuckets--;
+		bch_update_bucket_in_use(ca->set, &ca->set->gc_stats);
+	}
+
 	return r;
 }
 
@@ -449,6 +454,11 @@ void __bch_bucket_free(struct cache *ca, struct bucket *b)
 {
 	SET_GC_MARK(b, 0);
 	SET_GC_SECTORS_USED(b, 0);
+
+	if (ca->set->avail_nbuckets < ca->set->nbuckets) {
+		ca->set->avail_nbuckets++;
+		bch_update_bucket_in_use(ca->set, &ca->set->gc_stats);
+	}
 }
 
 void bch_bucket_free(struct cache_set *c, struct bkey *k)

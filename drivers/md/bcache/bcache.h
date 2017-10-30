@@ -581,6 +581,7 @@ struct cache_set {
 	uint8_t			need_gc;
 	struct gc_stat		gc_stats;
 	size_t			nbuckets;
+	size_t			avail_nbuckets;
 
 	struct task_struct	*gc_thread;
 	/* Where in the btree gc currently is */
