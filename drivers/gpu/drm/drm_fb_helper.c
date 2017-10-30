@@ -150,6 +150,9 @@ int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper,
 {
 	int err;
 
+	if (!fb_helper)
+		return 0;
+
 	mutex_lock(&fb_helper->lock);
 	err = __drm_fb_helper_add_one_connector(fb_helper, connector);
 	mutex_unlock(&fb_helper->lock);
@@ -161,7 +164,7 @@ EXPORT_SYMBOL(drm_fb_helper_add_one_connector);
 /**
  * drm_fb_helper_single_add_all_connectors() - add all connectors to fbdev
  * 					       emulation helper
- * @fb_helper: fbdev initialized with drm_fb_helper_init
+ * @fb_helper: fbdev initialized with drm_fb_helper_init, can be NULL
  *
  * This functions adds all the available connectors for use with the given
  * fb_helper. This is a separate step to allow drivers to freely assign
@@ -179,7 +182,7 @@ int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 	struct drm_connector_list_iter conn_iter;
 	int i, ret = 0;
 
-	if (!drm_fbdev_emulation)
+	if (!drm_fbdev_emulation || !fb_helper)
 		return 0;
 
 	mutex_lock(&fb_helper->lock);
@@ -244,6 +247,9 @@ int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 				       struct drm_connector *connector)
 {
 	int err;
+
+	if (!fb_helper)
+		return 0;
 
 	mutex_lock(&fb_helper->lock);
 	err = __drm_fb_helper_remove_one_connector(fb_helper, connector);
@@ -484,7 +490,7 @@ static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 
 /**
  * drm_fb_helper_restore_fbdev_mode_unlocked - restore fbdev configuration
- * @fb_helper: fbcon to restore
+ * @fb_helper: driver-allocated fbdev helper, can be NULL
  *
  * This should be called from driver's drm &drm_driver.lastclose callback
  * when implementing an fbcon on top of kms using this helper. This ensures that
@@ -498,7 +504,7 @@ int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
 	bool do_delayed;
 	int ret;
 
-	if (!drm_fbdev_emulation)
+	if (!drm_fbdev_emulation || !fb_helper)
 		return -ENODEV;
 
 	if (READ_ONCE(fb_helper->deferred_setup))
@@ -883,7 +889,7 @@ EXPORT_SYMBOL(drm_fb_helper_alloc_fbi);
 
 /**
  * drm_fb_helper_unregister_fbi - unregister fb_info framebuffer device
- * @fb_helper: driver-allocated fbdev helper
+ * @fb_helper: driver-allocated fbdev helper, can be NULL
  *
  * A wrapper around unregister_framebuffer, to release the fb_info
  * framebuffer device. This must be called before releasing all resources for
@@ -898,7 +904,7 @@ EXPORT_SYMBOL(drm_fb_helper_unregister_fbi);
 
 /**
  * drm_fb_helper_fini - finialize a &struct drm_fb_helper
- * @fb_helper: driver-allocated fbdev helper
+ * @fb_helper: driver-allocated fbdev helper, can be NULL
  *
  * This cleans up all remaining resources associated with @fb_helper. Must be
  * called after drm_fb_helper_unlink_fbi() was called.
@@ -937,7 +943,7 @@ EXPORT_SYMBOL(drm_fb_helper_fini);
 
 /**
  * drm_fb_helper_unlink_fbi - wrapper around unlink_framebuffer
- * @fb_helper: driver-allocated fbdev helper
+ * @fb_helper: driver-allocated fbdev helper, can be NULL
  *
  * A wrapper around unlink_framebuffer implemented by fbdev core
  */
@@ -1138,7 +1144,7 @@ EXPORT_SYMBOL(drm_fb_helper_cfb_imageblit);
 
 /**
  * drm_fb_helper_set_suspend - wrapper around fb_set_suspend
- * @fb_helper: driver-allocated fbdev helper
+ * @fb_helper: driver-allocated fbdev helper, can be NULL
  * @suspend: whether to suspend or resume
  *
  * A wrapper around fb_set_suspend implemented by fbdev core.
@@ -1155,7 +1161,7 @@ EXPORT_SYMBOL(drm_fb_helper_set_suspend);
 /**
  * drm_fb_helper_set_suspend_unlocked - wrapper around fb_set_suspend that also
  *                                      takes the console lock
- * @fb_helper: driver-allocated fbdev helper
+ * @fb_helper: driver-allocated fbdev helper, can be NULL
  * @suspend: whether to suspend or resume
  *
  * A wrapper around fb_set_suspend() that takes the console lock. If the lock
@@ -2568,7 +2574,7 @@ EXPORT_SYMBOL(drm_fb_helper_initial_config);
 /**
  * drm_fb_helper_hotplug_event - respond to a hotplug notification by
  *                               probing all the outputs attached to the fb
- * @fb_helper: the drm_fb_helper
+ * @fb_helper: driver-allocated fbdev helper, can be NULL
  *
  * Scan the connectors attached to the fb_helper and try to put together a
  * setup after notification of a change in output configuration.
@@ -2590,7 +2596,7 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 {
 	int err = 0;
 
-	if (!drm_fbdev_emulation)
+	if (!drm_fbdev_emulation || !fb_helper)
 		return 0;
 
 	mutex_lock(&fb_helper->lock);
