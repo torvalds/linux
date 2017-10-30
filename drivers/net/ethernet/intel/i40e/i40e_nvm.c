@@ -298,7 +298,7 @@ static i40e_status i40e_read_nvm_word_aq(struct i40e_hw *hw, u16 offset,
 }
 
 /**
- * __i40e_read_nvm_word - Reads nvm word, assumes called does the locking
+ * __i40e_read_nvm_word - Reads nvm word, assumes caller does the locking
  * @hw: pointer to the HW structure
  * @offset: offset of the Shadow RAM word to read (0x000000 - 0x001FFF)
  * @data: word read from the Shadow RAM

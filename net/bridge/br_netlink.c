@@ -573,7 +573,7 @@ static int br_process_vlan_info(struct net_bridge *br,
 		}
 		*vinfo_last = NULL;
 
-		return 0;
+		return err;
 	}
 
 	return br_vlan_info(br, p, cmd, vinfo_curr);

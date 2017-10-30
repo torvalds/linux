@@ -1033,7 +1033,7 @@ endif
 
 choice
 	prompt "Compiler optimization level"
-	default CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
+	default CC_OPTIMIZE_FOR_PERFORMANCE
 
 config CC_OPTIMIZE_FOR_PERFORMANCE
 	bool "Optimize for performance"

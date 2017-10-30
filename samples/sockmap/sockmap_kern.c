@@ -62,7 +62,7 @@ int bpf_prog2(struct __sk_buff *skb)
 		ret = 1;
 
 	bpf_printk("sockmap: %d -> %d @ %d\n", lport, bpf_ntohl(rport), ret);
-	return bpf_sk_redirect_map(&sock_map, ret, 0);
+	return bpf_sk_redirect_map(skb, &sock_map, ret, 0);
 }
 
 SEC("sockops")

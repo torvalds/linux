@@ -714,22 +714,8 @@ static ssize_t iomap_dio_complete(struct iomap_dio *dio)
 {
 	struct kiocb *iocb = dio->iocb;
 	struct inode *inode = file_inode(iocb->ki_filp);
+	loff_t offset = iocb->ki_pos;
 	ssize_t ret;
-
-	/*
-	 * Try again to invalidate clean pages which might have been cached by
-	 * non-direct readahead, or faulted in by get_user_pages() if the source
-	 * of the write was an mmap'ed region of the file we're writing.  Either
-	 * one is a pretty crazy thing to do, so we don't support it 100%.  If
-	 * this invalidation fails, tough, the write still worked...
-	 */
-	if (!dio->error &&
-	    (dio->flags & IOMAP_DIO_WRITE) && inode->i_mapping->nrpages) {
-		ret = invalidate_inode_pages2_range(inode->i_mapping,
-				iocb->ki_pos >> PAGE_SHIFT,
-				(iocb->ki_pos + dio->size - 1) >> PAGE_SHIFT);
-		WARN_ON_ONCE(ret);
-	}
 
 	if (dio->end_io) {
 		ret = dio->end_io(iocb,
@@ -742,10 +728,31 @@ static ssize_t iomap_dio_complete(struct iomap_dio *dio)
 	if (likely(!ret)) {
 		ret = dio->size;
 		/* check for short read */
-		if (iocb->ki_pos + ret > dio->i_size &&
+		if (offset + ret > dio->i_size &&
 		    !(dio->flags & IOMAP_DIO_WRITE))
-			ret = dio->i_size - iocb->ki_pos;
+			ret = dio->i_size - offset;
 		iocb->ki_pos += ret;
+	}
+
+	/*
+	 * Try again to invalidate clean pages which might have been cached by
+	 * non-direct readahead, or faulted in by get_user_pages() if the source
+	 * of the write was an mmap'ed region of the file we're writing.  Either
+	 * one is a pretty crazy thing to do, so we don't support it 100%.  If
+	 * this invalidation fails, tough, the write still worked...
+	 *
+	 * And this page cache invalidation has to be after dio->end_io(), as
+	 * some filesystems convert unwritten extents to real allocations in
+	 * end_io() when necessary, otherwise a racing buffer read would cache
+	 * zeros from unwritten extents.
+	 */
+	if (!dio->error &&
+	    (dio->flags & IOMAP_DIO_WRITE) && inode->i_mapping->nrpages) {
+		int err;
+		err = invalidate_inode_pages2_range(inode->i_mapping,
+				offset >> PAGE_SHIFT,
+				(offset + dio->size - 1) >> PAGE_SHIFT);
+		WARN_ON_ONCE(err);
 	}
 
 	inode_dio_end(file_inode(iocb->ki_filp));

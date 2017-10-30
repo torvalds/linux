@@ -5896,11 +5896,20 @@ static void mlxsw_sp_rifs_fini(struct mlxsw_sp *mlxsw_sp)
 	kfree(mlxsw_sp->router->rifs);
 }
 
+static int
+mlxsw_sp_ipip_config_tigcr(struct mlxsw_sp *mlxsw_sp)
+{
+	char tigcr_pl[MLXSW_REG_TIGCR_LEN];
+
+	mlxsw_reg_tigcr_pack(tigcr_pl, true, 0);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(tigcr), tigcr_pl);
+}
+
 static int mlxsw_sp_ipips_init(struct mlxsw_sp *mlxsw_sp)
 {
 	mlxsw_sp->router->ipip_ops_arr = mlxsw_sp_ipip_ops_arr;
 	INIT_LIST_HEAD(&mlxsw_sp->router->ipip_list);
-	return 0;
+	return mlxsw_sp_ipip_config_tigcr(mlxsw_sp);
 }
 
 static void mlxsw_sp_ipips_fini(struct mlxsw_sp *mlxsw_sp)
