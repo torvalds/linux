@@ -391,10 +391,8 @@ omap_device_copy_resources(struct omap_hwmod *oh,
 	const char *name;
 	int error, irq = 0;
 
-	if (!oh || !oh->od || !oh->od->pdev) {
-		error = -EINVAL;
-		goto error;
-	}
+	if (!oh || !oh->od || !oh->od->pdev)
+		return -EINVAL;
 
 	np = oh->od->pdev->dev.of_node;
 	if (!np) {
