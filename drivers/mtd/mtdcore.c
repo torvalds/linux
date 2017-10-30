@@ -1022,11 +1022,18 @@ EXPORT_SYMBOL_GPL(mtd_unpoint);
 unsigned long mtd_get_unmapped_area(struct mtd_info *mtd, unsigned long len,
 				    unsigned long offset, unsigned long flags)
 {
-	if (!mtd->_get_unmapped_area)
-		return -EOPNOTSUPP;
-	if (offset >= mtd->size || len > mtd->size - offset)
-		return -EINVAL;
-	return mtd->_get_unmapped_area(mtd, len, offset, flags);
+	size_t retlen;
+	void *virt;
+	int ret;
+
+	ret = mtd_point(mtd, offset, len, &retlen, &virt, NULL);
+	if (ret)
+		return ret;
+	if (retlen != len) {
+		mtd_unpoint(mtd, offset, retlen);
+		return -ENOSYS;
+	}
+	return (unsigned long)virt;
 }
 EXPORT_SYMBOL_GPL(mtd_get_unmapped_area);
 
