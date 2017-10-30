@@ -255,23 +255,20 @@ void fsnotify_put_mark(struct fsnotify_mark *mark)
  */
 static bool fsnotify_get_mark_safe(struct fsnotify_mark *mark)
 {
-	struct fsnotify_group *group;
-
 	if (!mark)
 		return true;
 
-	group = mark->group;
-	/*
-	 * Since acquisition of mark reference is an atomic op as well, we can
-	 * be sure this inc is seen before any effect of refcount increment.
-	 */
-	atomic_inc(&group->user_waits);
-	if (atomic_inc_not_zero(&mark->refcnt))
-		return true;
-
-	if (atomic_dec_and_test(&group->user_waits) && group->shutdown)
-		wake_up(&group->notification_waitq);
-
+	if (atomic_inc_not_zero(&mark->refcnt)) {
+		spin_lock(&mark->lock);
+		if (mark->flags & FSNOTIFY_MARK_FLAG_ATTACHED) {
+			/* mark is attached, group is still alive then */
+			atomic_inc(&mark->group->user_waits);
+			spin_unlock(&mark->lock);
+			return true;
+		}
+		spin_unlock(&mark->lock);
+		fsnotify_put_mark(mark);
+	}
 	return false;
 }
 
