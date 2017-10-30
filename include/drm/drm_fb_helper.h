@@ -310,6 +310,9 @@ drm_pick_cmdline_mode(struct drm_fb_helper_connector *fb_helper_conn);
 int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper, struct drm_connector *connector);
 int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 				       struct drm_connector *connector);
+
+void drm_fb_helper_lastclose(struct drm_device *dev);
+void drm_fb_helper_output_poll_changed(struct drm_device *dev);
 #else
 static inline void drm_fb_helper_prepare(struct drm_device *dev,
 					struct drm_fb_helper *helper,
@@ -505,6 +508,14 @@ drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 				   struct drm_connector *connector)
 {
 	return 0;
+}
+
+static inline void drm_fb_helper_lastclose(struct drm_device *dev)
+{
+}
+
+static inline void drm_fb_helper_output_poll_changed(struct drm_device *dev)
+{
 }
 
 #endif

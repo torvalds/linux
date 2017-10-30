@@ -2633,6 +2633,34 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 }
 EXPORT_SYMBOL(drm_fb_helper_hotplug_event);
 
+/**
+ * drm_fb_helper_lastclose - DRM driver lastclose helper for fbdev emulation
+ * @dev: DRM device
+ *
+ * This function can be used as the &drm_driver->lastclose callback for drivers
+ * that only need to call drm_fb_helper_restore_fbdev_mode_unlocked().
+ */
+void drm_fb_helper_lastclose(struct drm_device *dev)
+{
+	drm_fb_helper_restore_fbdev_mode_unlocked(dev->fb_helper);
+}
+EXPORT_SYMBOL(drm_fb_helper_lastclose);
+
+/**
+ * drm_fb_helper_output_poll_changed - DRM mode config \.output_poll_changed
+ *                                     helper for fbdev emulation
+ * @dev: DRM device
+ *
+ * This function can be used as the
+ * &drm_mode_config_funcs.output_poll_changed callback for drivers that only
+ * need to call drm_fb_helper_hotplug_event().
+ */
+void drm_fb_helper_output_poll_changed(struct drm_device *dev)
+{
+	drm_fb_helper_hotplug_event(dev->fb_helper);
+}
+EXPORT_SYMBOL(drm_fb_helper_output_poll_changed);
+
 /* The Kconfig DRM_KMS_HELPER selects FRAMEBUFFER_CONSOLE (if !EXPERT)
  * but the module doesn't depend on any fb console symbols.  At least
  * attempt to load fbcon to avoid leaving the system without a usable console.
