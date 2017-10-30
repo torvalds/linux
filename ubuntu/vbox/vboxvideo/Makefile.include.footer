@@ -18,8 +18,6 @@
 override MODULE = $(MOD_NAME)
 OBJS   = $(MOD_OBJS)
 
-ifneq ($(MAKECMDGOALS),clean)
-
 KBUILD_VERBOSE ?= 1
 
 #
@@ -43,6 +41,11 @@ ifeq ($(KERN_VERSION), 24)
 # 2.4
 #
 
+# Note: while 2.4 kernels could also do "proper" builds from kbuild, the make
+# script needed to support it was somewhat different from 2.6.  Since this
+# script works and 2.4 is not a moving target we will not try do do things the
+# "proper" way.
+
 ifeq ($(BUILD_TARGET_ARCH),amd64)
  KFLAGS  += -mcmodel=kernel
 endif
@@ -58,7 +61,16 @@ $(MODULE).o: $(OBJS)
 all: $(MODULE)
 $(MODULE): $(MODULE).o
 
-else
+install: $(MODULE)
+	@mkdir -p $(MODULE_DIR); \
+	install -m 0644 -o root -g root $(MODULE).$(MODULE_EXT) $(MODULE_DIR); \
+	PATH="$(PATH):/bin:/sbin" depmod -a;
+
+clean:
+	for f in $(sort $(dir $(OBJS))); do rm -f $$f/*.o $$f/.*.cmd $$f/.*.flags; done
+	rm -rf .$(MOD_NAME)* .tmp_ver* $(MOD_NAME).* Modules.symvers modules.order
+
+else  # ! $(KERN_VERSION), 24
 #
 # 2.6 and later
 #
@@ -84,18 +96,13 @@ endif
 $(MODULE):
 	$(MAKE) KBUILD_VERBOSE=$(KBUILD_VERBOSE) CONFIG_MODULE_SIG= -C $(KERN_DIR) SUBDIRS=$(CURDIR) SRCROOT=$(CURDIR) -j$(JOBS) modules
 
-modules_install:
-	$(MAKE) KBUILD_VERBOSE=$(KBUILD_VERBOSE) CONFIG_MODULE_SIG= -C $(KERN_DIR) SUBDIRS=$(CURDIR) SRCROOT=$(CURDIR) modules_install
-
-endif
-
 install: $(MODULE)
-	@mkdir -p $(MODULE_DIR); \
-	install -m 0644 -o root -g root $(MODULE).$(MODULE_EXT) $(MODULE_DIR); \
-	PATH="$(PATH):/bin:/sbin" depmod -a;
+	$(MAKE) KBUILD_VERBOSE=$(KBUILD_VERBOSE) CONFIG_MODULE_SIG= -C $(KERN_DIR) SUBDIRS=$(CURDIR) SRCROOT=$(CURDIR) INSTALL_MOD_PATH=$(INSTALL_MOD_PATH) INSTALL_MOD_DIR=$(INSTALL_MOD_DIR) modules_install
 
-endif # eq($(MAKECMDGOALS),clean)
+modules_install: install
 
 clean:
-	for f in $(MOD_CLEAN); do rm -f $$f/*.o $$f/.*.cmd $$f/.*.flags; done
-	rm -rf .$(MOD_NAME)* .tmp_ver* $(MOD_NAME).* Modules.symvers modules.order
+	$(MAKE) KBUILD_VERBOSE=$(KBUILD_VERBOSE) CONFIG_MODULE_SIG= -C $(KERN_DIR) SUBDIRS=$(CURDIR) SRCROOT=$(CURDIR) clean
+
+.PHONY: $(MODULE) install modules_install clean
+endif

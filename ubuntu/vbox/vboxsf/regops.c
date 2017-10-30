@@ -232,16 +232,8 @@ static ssize_t sf_reg_write(struct file *file, const char *buf, size_t size, lof
             goto fail;
         }
 
-#if 1
-        if (VbglR0CanUsePhysPageList())
-        {
-            err = VbglR0SfWritePhysCont(&client_handle, &sf_g->map, sf_r->handle,
-                                        pos, &nwritten, tmp_phys);
-            err = RT_FAILURE(err) ? -EPROTO : 0;
-        }
-        else
-#endif
-            err = sf_reg_write_aux(__func__, sf_g, sf_r, tmp, &nwritten, pos);
+        err = VbglR0SfWritePhysCont(&client_handle, &sf_g->map, sf_r->handle,
+                                    pos, &nwritten, tmp_phys);
         if (err)
             goto fail;
 

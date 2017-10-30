@@ -46,7 +46,7 @@
  * The mouse notification callback can cause preemption and must not be invoked
  * while holding a high-level spinlock.
  */
-#if defined(RT_OS_SOLARIS) || defined(DOXYGEN_RUNNING)
+#if defined(RT_OS_SOLARIS) || defined(RT_OS_WINDOWS) || defined(DOXYGEN_RUNNING)
 # define VBOXGUEST_MOUSE_NOTIFY_CAN_PREEMPT
 #endif
 
@@ -193,8 +193,10 @@ typedef struct VBOXGUESTDEVEXT
     bool                        fLoggingEnabled;
     /** Memory balloon information for RTR0MemObjAllocPhysNC(). */
     VBOXGUESTMEMBALLOON         MemBalloon;
-    /** Callback and user data for a kernel mouse handler. */
-    VBoxGuestMouseSetNotifyCallback MouseNotifyCallback;
+    /** Mouse notification callback function. */
+    PFNVBOXGUESTMOUSENOTIFY     pfnMouseNotifyCallback;
+    /** The callback argument for the mouse ntofication callback. */
+    void                       *pvMouseNotifyCallbackArg;
 
     /** @name Host Event Filtering
      * @{ */
@@ -334,9 +336,9 @@ int  VGDrvCommonCreateUserSession(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION *p
 int  VGDrvCommonCreateKernelSession(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION *ppSession);
 void VGDrvCommonCloseSession(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION pSession);
 
-int  VGDrvCommonIoCtlFast(unsigned iFunction, PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION pSession);
-int  VGDrvCommonIoCtl(unsigned iFunction, PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION pSession,
-                      void *pvData, size_t cbData, size_t *pcbDataReturned);
+int  VGDrvCommonIoCtlFast(uintptr_t iFunction, PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION pSession);
+int  VGDrvCommonIoCtl(uintptr_t iFunction, PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION pSession,
+                      PVBGLREQHDR pReqHdr, size_t cbReq);
 
 /**
  * ISR callback for notifying threads polling for mouse events.
@@ -354,7 +356,7 @@ int VGDrvNtIOCtl_DpcLatencyChecker(void);
 #endif
 
 #ifdef VBOXGUEST_MOUSE_NOTIFY_CAN_PREEMPT
-int VGDrvNativeSetMouseNotifyCallback(PVBOXGUESTDEVEXT pDevExt, VBoxGuestMouseSetNotifyCallback *pNotify);
+int VGDrvNativeSetMouseNotifyCallback(PVBOXGUESTDEVEXT pDevExt, PVBGLIOCSETMOUSENOTIFYCALLBACK pNotify);
 #endif
 
 RT_C_DECLS_END

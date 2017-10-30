@@ -1,5 +1,5 @@
 KBUILD_EXTMOD=${srctree}/ubuntu/vbox
-# $Revision: 115996 $
+# $Revision: 117871 $
 ## @file
 # VirtualBox Guest Additions Module Makefile.
 #
@@ -25,12 +25,11 @@ MOD_NAME = vboxguest
 MOD_OBJS   = \
 	VBoxGuest-linux.o \
 	VBoxGuest.o \
-	GenericRequest.o \
-	HGCMInternal.o \
-	Init.o \
-	PhysHeap.o \
-	SysHlp.o \
-	VMMDev.o \
+	VBoxGuestR0LibGenericRequest.o \
+	VBoxGuestR0LibHGCMInternal.o \
+	VBoxGuestR0LibInit.o \
+	VBoxGuestR0LibPhysHeap.o \
+	VBoxGuestR0LibVMMDev.o \
 	r0drv/alloc-r0drv.o \
 	r0drv/initterm-r0drv.o \
 	r0drv/memobj-r0drv.o \
@@ -148,3 +147,4 @@ check: $(MOD_NAME)
 	    echo "error: Some exported IPRT symbols was not properly renamed! See above." >&2; \
 	    false; \
 	 fi
+

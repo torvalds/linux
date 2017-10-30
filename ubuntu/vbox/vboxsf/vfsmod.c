@@ -32,13 +32,14 @@
 #include "version-generated.h"
 #include "revision-generated.h"
 #include "product-generated.h"
+#include "VBoxGuestR0LibInternal.h"
 
 MODULE_DESCRIPTION(VBOX_PRODUCT " VFS Module for Host File System Access");
 MODULE_AUTHOR(VBOX_VENDOR);
 MODULE_LICENSE("GPL");
 #ifdef MODULE_ALIAS_FS
 MODULE_ALIAS_FS("vboxsf");
-#endif   
+#endif
 #ifdef MODULE_VERSION
 MODULE_VERSION(VBOX_VERSION_STRING " r" RT_XSTR(VBOX_SVN_REV));
 #endif
@@ -601,10 +602,10 @@ static int __init init(void)
         return err;
     }
 
-    rcVBox = VbglR0SfInit();
+    rcVBox = VbglR0HGCMInit();
     if (RT_FAILURE(rcVBox))
     {
-        LogRelFunc(("VbglR0SfInit failed, rc=%d\n", rcVBox));
+        LogRelFunc(("VbglR0HGCMInit failed, rc=%d\n", rcVBox));
         rcRet = -EPROTO;
         goto fail0;
     }
@@ -648,7 +649,7 @@ fail2:
     VbglR0SfDisconnect(&client_handle);
 
 fail1:
-    VbglR0SfTerm();
+    VbglR0HGCMTerminate();
 
 fail0:
     unregister_filesystem(&vboxsf_fs_type);
@@ -660,7 +661,7 @@ static void __exit fini(void)
     TRACE();
 
     VbglR0SfDisconnect(&client_handle);
-    VbglR0SfTerm();
+    VbglR0HGCMTerminate();
     unregister_filesystem(&vboxsf_fs_type);
 }
 

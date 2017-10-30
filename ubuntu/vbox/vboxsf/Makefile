@@ -26,14 +26,10 @@ MOD_OBJS   = \
 	lnkops.o \
 	regops.o \
 	utils.o \
-	GenericRequest.o \
-	SysHlp.o \
-	PhysHeap.o \
-	Init.o \
-	VMMDev.o \
-	HGCM.o \
-	VBoxGuestR0LibSharedFolders.o \
-	VbglR0CanUsePhysPageList.o
+	VBoxGuestR0LibHGCM.o \
+	VBoxGuestR0LibIdc.o \
+	VBoxGuestR0LibIdc-unix.o \
+	VBoxGuestR0LibSharedFolders.o
 ifeq ($(BUILD_TARGET_ARCH),x86)
 MOD_OBJS  += \
 	divdi3.o \

@@ -15,9 +15,7 @@
 #
 
 # Testing:
-# * Building with KERN_VER set to an installed but non-current kernel works and
-#   installs to the right location.
-# * Building with KERN_DIR and/or MODULE_DIR set uses the value specified and
+# * Building with KERN_DIR set uses the value specified and
 #   the default value for the unspecified one if any.
 
 #
@@ -34,7 +32,6 @@
 # MOD_DEFS = <any additional defines which this module needs>
 # MOD_INCL = <any additional include paths which this module needs>
 # MOD_CFLAGS = <any additional CFLAGS which this module needs>
-# MOD_CLEAN = <list of directories that the clean target should look at>
 # include $(obj)/Makefile.include.footer
 #
 # The kmk kBuild define KBUILD_TARGET_ARCH is available.
@@ -46,7 +43,7 @@
 # (We have to support basic cross building (ARCH=i386|x86_64).)
 # While at it, warn about BUILD_* vars found to help with user problems.
 #
-ifeq ($(filter-out x86_64 amd64 AMD64,$(shell uname -m)),)
+ifeq ($(filter-out x86_64 amd64 AMD64,$(shell dpkg-architecture -qDEB_HOST_GNU_CPU)),)
  BUILD_TARGET_ARCH_DEF := amd64
 else
  BUILD_TARGET_ARCH_DEF := x86
@@ -60,21 +57,9 @@ ifeq ($(BUILD_TARGET_ARCH),)
   BUILD_TARGET_ARCH := amd64
  else
   ifeq ($(ARCH),i386)
-   ifeq ($(CONFIG_X86_32),y)
-     BUILD_TARGET_ARCH := x86
-   else
-     BUILD_TARGET_ARCH := amd64
-   endif
+   BUILD_TARGET_ARCH := x86
   else
-    ifeq ($(ARCH),x86)
-      ifeq ($(CONFIG_X86_32),y)
-        BUILD_TARGET_ARCH := x86
-      else
-        BUILD_TARGET_ARCH := amd64
-      endif
-    else
-      BUILD_TARGET_ARCH := $(BUILD_TARGET_ARCH_DEF)
-    endif
+   BUILD_TARGET_ARCH := $(BUILD_TARGET_ARCH_DEF)
   endif
  endif
 else
@@ -98,65 +83,17 @@ ifeq ($(USERNAME),)
  USERNAME := noname
 endif
 
-ifneq ($(MAKECMDGOALS),clean)
-
 ifeq ($(KERNELRELEASE),)
 
  #
  # building from this directory
  #
 
- # target kernel version
- ifndef KERN_VER
-  KERN_VER := $(shell uname -r)
- else
-  ifneq ($(shell if test -d /lib/modules/$(KERN_VER)/build; then echo yes; fi),yes)
-   KERN_VER := $(shell uname -r)
-  endif
- endif
-
  # kernel base directory
- ifndef KERN_DIR
-  KERN_DIR := /lib/modules/$(KERN_VER)/build
-  ifneq ($(shell if test -d $(KERN_DIR); then echo yes; fi),yes)
-   KERN_DIR := /usr/src/linux
-   ifneq ($(shell if test -d $(KERN_DIR); then echo yes; fi),yes)
-    $(error Error: unable to find the sources of your current Linux kernel. \
-	           Specify KERN_DIR=<directory> and run Make again)
-   endif
-   $(warning Warning: using /usr/src/linux as the source directory of your \
-                      Linux kernel. If this is not correct, specify \
-		      KERN_DIR=<directory> and run Make again.)
-  endif
- else
-  ifneq ($(shell if test -d $(KERN_DIR); then echo yes; fi),yes)
-   $(error Error: KERN_DIR does not point to a directory)
-  endif
- endif
+ KERN_VER ?= $(shell uname -r)
 
- # includes
- ifndef KERN_INCL
-  KERN_INCL = $(KERN_DIR)/include
- endif
- ifneq ($(shell if test -d $(KERN_INCL); then echo yes; fi),yes)
-  $(error Error: unable to find the include directory for your current Linux \
-                 kernel. Specify KERN_INCL=<directory> and run Make again)
- endif
-
- # module install dir, only for current kernel
- ifneq ($(filter install install_rpm,$(MAKECMDGOALS)),)
-  ifndef MODULE_DIR
-   MODULE_DIR_TST := /lib/modules/$(KERN_VER)
-   ifeq ($(shell if test -d $(MODULE_DIR_TST); then echo yes; fi),yes)
-    MODULE_DIR := $(MODULE_DIR_TST)/misc
-   else
-    $(error Unable to find the folder to install the module to)
-   endif
-  endif # MODULE_DIR unspecified
- endif
-
- # guess kernel version (24 or 26)
- ifeq ($(shell if grep '"2\.4\.' $(KERN_INCL)/linux/version.h > /dev/null; then echo yes; fi),yes)
+ # guess kernel major version (24 or later)
+ ifeq ($(shell if grep '"2\.4\.' /lib/modules/$(KERN_VER)/build/include/linux/version.h > /dev/null 2>&1; then echo yes; fi),yes)
   KERN_VERSION := 24
  else
   KERN_VERSION := 26
@@ -175,14 +112,28 @@ else # neq($(KERNELRELEASE),)
   KERN_VERSION := 26
  endif
 
+ KERN_VER := $(KERNELRELEASE)
+
 endif # neq($(KERNELRELEASE),)
+
+# Kernel build folder
+KERN_DIR := $(srctree)
+ifneq ($(shell if test -d $(KERN_DIR); then echo yes; fi),yes)
+ $(error Error: unable to find the headers of the Linux kernel to build against. \
+          Specify KERN_VER=<version> and run Make again)
+endif
+# Kernel include folder
+KERN_INCL := $(KERN_DIR)/include
+# module install folder
+INSTALL_MOD_DIR ?= misc
+MODULE_DIR := $(INSTALL_MOD_PATH)/lib/modules/$(KERN_VER)/$(INSTALL_MOD_DIR)
 
 # debug - show guesses.
 ifdef DEBUG
-$(warning dbg: KERN_DIR     = $(KERN_DIR))
-$(warning dbg: KERN_INCL    = $(KERN_INCL))
-$(warning dbg: MODULE_DIR   = $(MODULE_DIR))
-$(warning dbg: KERN_VERSION = $(KERN_VERSION))
+$(warning dbg: INSTALL_MOD_PATH = $(INSTALL_MOD_PATH))
+$(warning dbg: INSTALL_MOD_DIR  = $(INSTALL_MOD_DIR))
+$(warning dbg: KERN_DIR         = $(KERN_DIR))
+$(warning dbg: KERN_INCL        = $(KERN_INCL))
+$(warning dbg: KERN_VERSION     = $(KERN_VERSION))
+$(warning dbg: MODULE_DIR       = $(MODULE_DIR))
 endif
-
-endif # eq($(MAKECMDGOALS),clean)

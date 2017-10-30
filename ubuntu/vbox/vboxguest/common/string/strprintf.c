@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (C) 2006-2016 Oracle Corporation
+ * Copyright (C) 2006-2017 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -79,14 +79,14 @@ static DECLCALLBACK(size_t) strbufoutput(void *pvArg, const char *pachChars, siz
             default:
                 memcpy(pszCur, pachChars, cbChars);
                 break;
-            case 8: pszCur[7] = pachChars[7]; /* fall thru */
-            case 7: pszCur[6] = pachChars[6]; /* fall thru */
-            case 6: pszCur[5] = pachChars[5]; /* fall thru */
-            case 5: pszCur[4] = pachChars[4]; /* fall thru */
-            case 4: pszCur[3] = pachChars[3]; /* fall thru */
-            case 3: pszCur[2] = pachChars[2]; /* fall thru */
-            case 2: pszCur[1] = pachChars[1]; /* fall thru */
-            case 1: pszCur[0] = pachChars[0]; /* fall thru */
+            case 8: pszCur[7] = pachChars[7]; RT_FALL_THRU();
+            case 7: pszCur[6] = pachChars[6]; RT_FALL_THRU();
+            case 6: pszCur[5] = pachChars[5]; RT_FALL_THRU();
+            case 5: pszCur[4] = pachChars[4]; RT_FALL_THRU();
+            case 4: pszCur[3] = pachChars[3]; RT_FALL_THRU();
+            case 3: pszCur[2] = pachChars[2]; RT_FALL_THRU();
+            case 2: pszCur[1] = pachChars[1]; RT_FALL_THRU();
+            case 1: pszCur[0] = pachChars[0]; RT_FALL_THRU();
             case 0:
                 break;
         }

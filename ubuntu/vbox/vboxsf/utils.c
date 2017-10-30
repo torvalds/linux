@@ -805,7 +805,7 @@ int sf_dir_read_all(struct sf_glob_info *sf_g, struct sf_inode_info *sf_i,
         switch (rc)
         {
             case VINF_SUCCESS:
-                /* fallthrough */
+                RT_FALL_THRU();
             case VERR_NO_MORE_FILES:
                 break;
             case VERR_NO_TRANSLATION:

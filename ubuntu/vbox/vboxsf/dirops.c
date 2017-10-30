@@ -686,8 +686,7 @@ static int sf_unlink_aux(struct inode *parent, struct dentry *dentry, int fDirec
         goto fail0;
 
     fFlags = fDirectory ? SHFL_REMOVE_DIR : SHFL_REMOVE_FILE;
-    if (   dentry
-        && dentry->d_inode
+    if (   dentry->d_inode
         && ((dentry->d_inode->i_mode & S_IFLNK) == S_IFLNK))
         fFlags |= SHFL_REMOVE_SYMLINK;
     rc = VbglR0SfRemove(&client_handle, &sf_g->map, path, fFlags);
