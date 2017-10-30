@@ -60,3 +60,7 @@
 &i2c3 {
 	status = "okay";
 };
+
+&nand {
+	status = "okay";
+};
