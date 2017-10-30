@@ -22,6 +22,9 @@ static void mapram_nop (struct mtd_info *);
 static struct mtd_info *map_ram_probe(struct map_info *map);
 static unsigned long mapram_unmapped_area(struct mtd_info *, unsigned long,
 					  unsigned long, unsigned long);
+static int mapram_point (struct mtd_info *mtd, loff_t from, size_t len,
+			 size_t *retlen, void **virt, resource_size_t *phys);
+static int mapram_unpoint(struct mtd_info *mtd, loff_t from, size_t len);
 
 
 static struct mtd_chip_driver mapram_chipdrv = {
@@ -69,7 +72,9 @@ static struct mtd_info *map_ram_probe(struct map_info *map)
 	mtd->_read = mapram_read;
 	mtd->_write = mapram_write;
 	mtd->_panic_write = mapram_write;
+	mtd->_point = mapram_point;
 	mtd->_sync = mapram_nop;
+	mtd->_unpoint = mapram_unpoint;
 	mtd->flags = MTD_CAP_RAM;
 	mtd->writesize = 1;
 
@@ -94,6 +99,25 @@ static unsigned long mapram_unmapped_area(struct mtd_info *mtd,
 {
 	struct map_info *map = mtd->priv;
 	return (unsigned long) map->virt + offset;
+}
+
+static int mapram_point(struct mtd_info *mtd, loff_t from, size_t len,
+			size_t *retlen, void **virt, resource_size_t *phys)
+{
+	struct map_info *map = mtd->priv;
+
+	if (!map->virt)
+		return -EINVAL;
+	*virt = map->virt + from;
+	if (phys)
+		*phys = map->phys + from;
+	*retlen = len;
+	return 0;
+}
+
+static int mapram_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
+{
+	return 0;
 }
 
 static int mapram_read (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf)
