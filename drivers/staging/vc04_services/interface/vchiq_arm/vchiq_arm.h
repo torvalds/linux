@@ -83,6 +83,7 @@ typedef struct vchiq_arm_state_struct {
 
 	unsigned int wake_address;
 
+	VCHIQ_STATE_T *state;
 	struct timer_list suspend_timer;
 	int suspend_timer_timeout;
 	int suspend_timer_running;

@@ -109,7 +109,7 @@ static const char *const resume_state_names[] = {
  * requested */
 #define FORCE_SUSPEND_TIMEOUT_MS 200
 
-static void suspend_timer_callback(unsigned long context);
+static void suspend_timer_callback(struct timer_list *t);
 
 typedef struct user_service_struct {
 	VCHIQ_SERVICE_T *service;
@@ -2184,8 +2184,9 @@ vchiq_arm_init_state(VCHIQ_STATE_T *state, VCHIQ_ARM_STATE_T *arm_state)
 
 		arm_state->suspend_timer_timeout = SUSPEND_TIMER_TIMEOUT_MS;
 		arm_state->suspend_timer_running = 0;
-		setup_timer(&arm_state->suspend_timer, suspend_timer_callback,
-			    (unsigned long)(state));
+		arm_state->state = state;
+		timer_setup(&arm_state->suspend_timer, suspend_timer_callback,
+			    0);
 
 		arm_state->first_connect = 0;
 
@@ -3017,18 +3018,14 @@ vchiq_instance_set_trace(VCHIQ_INSTANCE_T instance, int trace)
 	instance->trace = (trace != 0);
 }
 
-static void suspend_timer_callback(unsigned long context)
+static void suspend_timer_callback(struct timer_list *t)
 {
-	VCHIQ_STATE_T *state = (VCHIQ_STATE_T *)context;
-	VCHIQ_ARM_STATE_T *arm_state = vchiq_platform_get_arm_state(state);
+	VCHIQ_ARM_STATE_T *arm_state = from_timer(arm_state, t, suspend_timer);
+	VCHIQ_STATE_T *state = arm_state->state;
 
-	if (!arm_state)
-		goto out;
 	vchiq_log_info(vchiq_susp_log_level,
 		"%s - suspend timer expired - check suspend", __func__);
 	vchiq_check_suspend(state);
-out:
-	return;
 }
 
 VCHIQ_STATUS_T
