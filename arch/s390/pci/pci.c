@@ -368,7 +368,8 @@ static void zpci_irq_handler(struct airq_struct *airq)
 				/* End of second scan with interrupts on. */
 				break;
 			/* First scan complete, reenable interrupts. */
-			zpci_set_irq_ctrl(SIC_IRQ_MODE_SINGLE, NULL, PCI_ISC);
+			if (zpci_set_irq_ctrl(SIC_IRQ_MODE_SINGLE, NULL, PCI_ISC))
+				break;
 			si = 0;
 			continue;
 		}
@@ -956,7 +957,7 @@ static int __init pci_base_init(void)
 	if (!s390_pci_probe)
 		return 0;
 
-	if (!test_facility(69) || !test_facility(71) || !test_facility(72))
+	if (!test_facility(69) || !test_facility(71))
 		return 0;
 
 	rc = zpci_debug_init();
