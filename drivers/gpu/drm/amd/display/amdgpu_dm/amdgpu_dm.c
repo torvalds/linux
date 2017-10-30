@@ -451,6 +451,14 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	else
 		init_data.log_mask = DC_MIN_LOG_MASK;
 
+	/*
+	 * TODO debug why this doesn't work on Raven
+	 */
+	if (adev->flags & AMD_IS_APU &&
+	    adev->asic_type >= CHIP_CARRIZO &&
+	    adev->asic_type < CHIP_RAVEN)
+		init_data.flags.gpu_vm_support = true;
+
 	/* Display Core create. */
 	adev->dm.dc = dc_create(&init_data);
 
