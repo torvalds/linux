@@ -1,0 +1,23 @@
+
+* Rockchip NoC (Network on Chip) Probe device
+
+The Rockchip SoCs have NoC (Network on Chip) Probe for NoC bus.
+NoC provides the primitive values to get the performance data, The
+packets that the Network on Chip (NoC) probes detects are transported
+over the network infrastructure to observer units. For example, RK3399
+has multiple NoC probes to monitor traffic statistics for analyzing the
+transaction flow.
+
+Required properties:
+- compatible: Should be one of the following.
+  - "rockchip,rk3288-nocp" - for RK3288 SoC.
+  - "rockchip,rk3368-nocp" - for RK3368 SoC.
+  - "rockchip,rk3399-nocp" - for RK3399 SoC.
+- reg: physical base address of each NoC Probe and length of memory mapped region.
+
+Example : NoC Probe nodes in Device Tree are listed below.
+
+	nocp_cci_msch0: nocp-cci-msch0@ffa86000 {
+		compatible = "rockchip,rk3399-nocp";
+		reg = <0xffa86000 0x400>;
+	};
