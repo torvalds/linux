@@ -12,15 +12,15 @@
 # will most likely get a sudden build breakage... Hopefully we will fix
 # new warnings before CI updates!
 subdir-ccflags-y := -Wall -Wextra
-subdir-ccflags-y += $(call cc-option,-Wno-unused-parameter,)
-subdir-ccflags-y += $(call cc-option,-Wno-type-limits,)
-subdir-ccflags-y += $(call cc-option,-Wno-missing-field-initializers,)
-subdir-ccflags-y += $(call cc-option,-Wno-implicit-fallthrough,)
+subdir-ccflags-y += $(call cc-disable-warning, unused-parameter)
+subdir-ccflags-y += $(call cc-disable-warning, type-limits)
+subdir-ccflags-y += $(call cc-disable-warning, missing-field-initializers)
+subdir-ccflags-y += $(call cc-disable-warning, implicit-fallthrough)
 subdir-ccflags-$(CONFIG_DRM_I915_WERROR) += -Werror
 
 # Fine grained warnings disable
-CFLAGS_i915_pci.o = $(call cc-option,-Wno-override-init,)
-CFLAGS_intel_fbdev.o = $(call cc-option,-Wno-override-init,)
+CFLAGS_i915_pci.o = $(call cc-disable-warning, override-init)
+CFLAGS_intel_fbdev.o = $(call cc-disable-warning, override-init)
 
 subdir-ccflags-y += \
 	$(call as-instr,movntdqa (%eax)$(comma)%xmm0,-DCONFIG_AS_MOVNTDQA)
