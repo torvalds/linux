@@ -1987,7 +1987,7 @@ static int addrconf_dad_end(struct inet6_ifaddr *ifp)
 	return err;
 }
 
-void addrconf_dad_failure(struct inet6_ifaddr *ifp)
+void addrconf_dad_failure(struct sk_buff *skb, struct inet6_ifaddr *ifp)
 {
 	struct inet6_dev *idev = ifp->idev;
 	struct net *net = dev_net(ifp->idev->dev);
@@ -1997,8 +1997,8 @@ void addrconf_dad_failure(struct inet6_ifaddr *ifp)
 		return;
 	}
 
-	net_info_ratelimited("%s: IPv6 duplicate address %pI6c detected!\n",
-			     ifp->idev->dev->name, &ifp->addr);
+	net_info_ratelimited("%s: IPv6 duplicate address %pI6c used by %pM detected!\n",
+			     ifp->idev->dev->name, &ifp->addr, eth_hdr(skb)->h_source);
 
 	spin_lock_bh(&ifp->lock);
 
