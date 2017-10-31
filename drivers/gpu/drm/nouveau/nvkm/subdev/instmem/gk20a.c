@@ -558,7 +558,6 @@ static const struct nvkm_instmem_func
 gk20a_instmem = {
 	.dtor = gk20a_instmem_dtor,
 	.memory_new = gk20a_instobj_new,
-	.persistent = true,
 	.zero = false,
 };
 

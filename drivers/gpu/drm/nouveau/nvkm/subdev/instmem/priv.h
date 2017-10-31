@@ -11,7 +11,6 @@ struct nvkm_instmem_func {
 	void (*wr32)(struct nvkm_instmem *, u32 addr, u32 data);
 	int (*memory_new)(struct nvkm_instmem *, u32 size, u32 align,
 			  bool zero, struct nvkm_memory **);
-	bool persistent;
 	bool zero;
 };
 
@@ -22,11 +21,8 @@ void nvkm_instmem_ctor(const struct nvkm_instmem_func *, struct nvkm_device *,
 
 struct nvkm_instobj {
 	struct nvkm_memory memory;
-	struct nvkm_memory *parent;
-	struct nvkm_instmem *imem;
 	struct list_head head;
 	u32 *suspend;
-	void __iomem *map;
 };
 
 void nvkm_instobj_ctor(const struct nvkm_memory_func *func,

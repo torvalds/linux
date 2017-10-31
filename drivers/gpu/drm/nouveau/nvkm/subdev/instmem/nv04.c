@@ -214,7 +214,6 @@ nv04_instmem = {
 	.rd32 = nv04_instmem_rd32,
 	.wr32 = nv04_instmem_wr32,
 	.memory_new = nv04_instobj_new,
-	.persistent = true,
 	.zero = false,
 };
 

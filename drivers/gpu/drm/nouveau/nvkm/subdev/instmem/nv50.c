@@ -374,7 +374,6 @@ static const struct nvkm_instmem_func
 nv50_instmem = {
 	.fini = nv50_instmem_fini,
 	.memory_new = nv50_instobj_new,
-	.persistent = true,
 	.zero = false,
 };
 
