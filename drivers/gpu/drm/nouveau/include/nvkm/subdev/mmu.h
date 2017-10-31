@@ -98,6 +98,7 @@ int nvkm_vmm_map(struct nvkm_vmm *, struct nvkm_vma *, void *argv, u32 argc,
 		 struct nvkm_vmm_map *);
 void nvkm_vmm_unmap(struct nvkm_vmm *, struct nvkm_vma *);
 
+struct nvkm_memory *nvkm_umem_search(struct nvkm_client *, u64);
 struct nvkm_vmm *nvkm_uvmm_search(struct nvkm_client *, u64 handle);
 
 struct nvkm_mmu {

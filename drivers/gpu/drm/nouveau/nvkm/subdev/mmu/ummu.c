@@ -20,9 +20,29 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "ummu.h"
+#include "umem.h"
+
+#include <core/client.h>
 
 #include <nvif/if0008.h>
 #include <nvif/unpack.h>
+
+static int
+nvkm_ummu_sclass(struct nvkm_object *object, int index,
+		 struct nvkm_oclass *oclass)
+{
+	struct nvkm_mmu *mmu = nvkm_ummu(object)->mmu;
+
+	if (mmu->func->mem.user.oclass && oclass->client->super) {
+		if (index-- == 0) {
+			oclass->base = mmu->func->mem.user;
+			oclass->ctor = nvkm_umem_new;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
 
 static int
 nvkm_ummu_heap(struct nvkm_ummu *ummu, void *argv, u32 argc)
@@ -115,6 +135,7 @@ nvkm_ummu_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 static const struct nvkm_object_func
 nvkm_ummu = {
 	.mthd = nvkm_ummu_mthd,
+	.sclass = nvkm_ummu_sclass,
 };
 
 int

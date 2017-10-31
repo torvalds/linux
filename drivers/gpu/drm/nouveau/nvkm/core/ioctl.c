@@ -53,7 +53,7 @@ nvkm_ioctl_sclass(struct nvkm_client *client,
 	union {
 		struct nvif_ioctl_sclass_v0 v0;
 	} *args = data;
-	struct nvkm_oclass oclass;
+	struct nvkm_oclass oclass = { .client = client };
 	int ret = -ENOSYS, i = 0;
 
 	nvif_ioctl(object, "sclass size %d\n", size);
