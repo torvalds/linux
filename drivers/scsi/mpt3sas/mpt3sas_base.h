@@ -1464,6 +1464,10 @@ struct _sas_device *mpt3sas_get_sdev_by_addr(
 	 struct MPT3SAS_ADAPTER *ioc, u64 sas_address);
 struct _sas_device *__mpt3sas_get_sdev_by_addr(
 	 struct MPT3SAS_ADAPTER *ioc, u64 sas_address);
+struct _sas_device *mpt3sas_get_sdev_by_handle(struct MPT3SAS_ADAPTER *ioc,
+	u16 handle);
+struct _pcie_device *mpt3sas_get_pdev_by_handle(struct MPT3SAS_ADAPTER *ioc,
+	u16 handle);
 
 void mpt3sas_port_enable_complete(struct MPT3SAS_ADAPTER *ioc);
 struct _raid_device *
@@ -1501,6 +1505,12 @@ int mpt3sas_config_get_sas_device_pg0(struct MPT3SAS_ADAPTER *ioc,
 	u32 form, u32 handle);
 int mpt3sas_config_get_sas_device_pg1(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2ConfigReply_t *mpi_reply, Mpi2SasDevicePage1_t *config_page,
+	u32 form, u32 handle);
+int mpt3sas_config_get_pcie_device_pg0(struct MPT3SAS_ADAPTER *ioc,
+	Mpi2ConfigReply_t *mpi_reply, Mpi26PCIeDevicePage0_t *config_page,
+	u32 form, u32 handle);
+int mpt3sas_config_get_pcie_device_pg2(struct MPT3SAS_ADAPTER *ioc,
+	Mpi2ConfigReply_t *mpi_reply, Mpi26PCIeDevicePage2_t *config_page,
 	u32 form, u32 handle);
 int mpt3sas_config_get_sas_iounit_pg0(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2ConfigReply_t *mpi_reply, Mpi2SasIOUnitPage0_t *config_page,
