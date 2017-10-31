@@ -395,11 +395,10 @@ int qtnf_cmd_send_mgmt_set_appie(struct qtnf_vif *vif, u8 frame_type,
 				 const u8 *buf, size_t len)
 {
 	struct sk_buff *cmd_skb;
-	struct qlink_cmd_mgmt_append_ie *cmd;
 	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret;
 
-	if (sizeof(*cmd) + len > QTNF_MAX_CMD_BUF_SIZE) {
+	if (len > QTNF_MAX_CMD_BUF_SIZE) {
 		pr_warn("VIF%u.%u: %u frame is too big: %zu\n", vif->mac->macid,
 			vif->vifid, frame_type, len);
 		return -E2BIG;
@@ -407,21 +406,13 @@ int qtnf_cmd_send_mgmt_set_appie(struct qtnf_vif *vif, u8 frame_type,
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_MGMT_SET_APPIE,
-					    sizeof(*cmd));
+					    sizeof(struct qlink_cmd));
 	if (unlikely(!cmd_skb))
 		return -ENOMEM;
 
+	qtnf_cmd_tlv_ie_set_add(cmd_skb, frame_type, buf, len);
+
 	qtnf_bus_lock(vif->mac->bus);
-
-	cmd = (struct qlink_cmd_mgmt_append_ie *)cmd_skb->data;
-	cmd->type = frame_type;
-	cmd->flags = 0;
-
-	/* If len == 0 then IE buf for specified frame type
-	 * should be cleared on EP.
-	 */
-	if (len && buf)
-		qtnf_cmd_skb_put_buffer(cmd_skb, buf, len);
 
 	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
 

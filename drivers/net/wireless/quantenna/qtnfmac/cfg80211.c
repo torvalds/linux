@@ -217,10 +217,10 @@ static int qtnf_mgmt_set_appie(struct qtnf_vif *vif,
 	int ret = 0;
 
 	if (!info->beacon_ies || !info->beacon_ies_len) {
-		ret = qtnf_cmd_send_mgmt_set_appie(vif, QLINK_MGMT_FRAME_BEACON,
+		ret = qtnf_cmd_send_mgmt_set_appie(vif, QLINK_IE_SET_BEACON_IES,
 						   NULL, 0);
 	} else {
-		ret = qtnf_cmd_send_mgmt_set_appie(vif, QLINK_MGMT_FRAME_BEACON,
+		ret = qtnf_cmd_send_mgmt_set_appie(vif, QLINK_IE_SET_BEACON_IES,
 						   info->beacon_ies,
 						   info->beacon_ies_len);
 	}
@@ -230,11 +230,11 @@ static int qtnf_mgmt_set_appie(struct qtnf_vif *vif,
 
 	if (!info->proberesp_ies || !info->proberesp_ies_len) {
 		ret = qtnf_cmd_send_mgmt_set_appie(vif,
-						   QLINK_MGMT_FRAME_PROBE_RESP,
+						   QLINK_IE_SET_PROBE_RESP_IES,
 						   NULL, 0);
 	} else {
 		ret = qtnf_cmd_send_mgmt_set_appie(vif,
-						   QLINK_MGMT_FRAME_PROBE_RESP,
+						   QLINK_IE_SET_PROBE_RESP_IES,
 						   info->proberesp_ies,
 						   info->proberesp_ies_len);
 	}
@@ -244,11 +244,11 @@ static int qtnf_mgmt_set_appie(struct qtnf_vif *vif,
 
 	if (!info->assocresp_ies || !info->assocresp_ies_len) {
 		ret = qtnf_cmd_send_mgmt_set_appie(vif,
-						   QLINK_MGMT_FRAME_ASSOC_RESP,
+						   QLINK_IE_SET_ASSOC_RESP,
 						   NULL, 0);
 	} else {
 		ret = qtnf_cmd_send_mgmt_set_appie(vif,
-						   QLINK_MGMT_FRAME_ASSOC_RESP,
+						   QLINK_IE_SET_ASSOC_RESP,
 						   info->assocresp_ies,
 						   info->assocresp_ies_len);
 	}

@@ -299,21 +299,6 @@ struct qlink_cmd_mgmt_frame_tx {
 } __packed;
 
 /**
- * struct qlink_cmd_mgmt_append_ie - data for QLINK_CMD_MGMT_SET_APPIE command
- *
- * @type: type of MGMT frame to appent requested IEs to, one of
- *	&enum qlink_mgmt_frame_type.
- * @flags: for future use.
- * @ie_data: IEs data to append.
- */
-struct qlink_cmd_mgmt_append_ie {
-	struct qlink_cmd chdr;
-	u8 type;
-	u8 flags;
-	u8 ie_data[0];
-} __packed;
-
-/**
  * struct qlink_cmd_get_sta_info - data for QLINK_CMD_GET_STA_INFO command
  *
  * @sta_addr: MAC address of the STA statistics is requested for.
