@@ -40,6 +40,10 @@
 #include "nouveau_mem.h"
 #include "nouveau_vmm.h"
 
+#include <nvif/class.h>
+#include <nvif/if500b.h>
+#include <nvif/if900b.h>
+
 /*
  * NV10-NV40 tiling helpers
  */
@@ -1034,21 +1038,18 @@ nouveau_bo_move_prep(struct nouveau_drm *drm, struct ttm_buffer_object *bo,
 {
 	struct nouveau_mem *old_mem = nouveau_mem(&bo->mem);
 	struct nouveau_mem *new_mem = nouveau_mem(reg);
-	struct nvkm_vm *vmm = drm->client.vm;
-	u64 size = (u64)reg->num_pages << PAGE_SHIFT;
+	struct nvif_vmm *vmm = &drm->client.vmm.vmm;
 	int ret;
 
-	ret = nvkm_vm_get(vmm, size, old_mem->mem.page, NV_MEM_ACCESS_RW,
-			  &old_mem->vma[0]);
+	ret = nvif_vmm_get(vmm, LAZY, false, old_mem->mem.page, 0,
+			   old_mem->mem.size, &old_mem->vma[0]);
 	if (ret)
 		return ret;
 
-	ret = nvkm_vm_get(vmm, size, new_mem->mem.page, NV_MEM_ACCESS_RW,
-			  &old_mem->vma[1]);
-	if (ret) {
-		nvkm_vm_put(&old_mem->vma[0]);
-		return ret;
-	}
+	ret = nvif_vmm_get(vmm, LAZY, false, new_mem->mem.page, 0,
+			   new_mem->mem.size, &old_mem->vma[1]);
+	if (ret)
+		goto done;
 
 	ret = nouveau_mem_map(old_mem, vmm, &old_mem->vma[0]);
 	if (ret)
@@ -1057,8 +1058,8 @@ nouveau_bo_move_prep(struct nouveau_drm *drm, struct ttm_buffer_object *bo,
 	ret = nouveau_mem_map(new_mem, vmm, &old_mem->vma[1]);
 done:
 	if (ret) {
-		nvkm_vm_put(&old_mem->vma[1]);
-		nvkm_vm_put(&old_mem->vma[0]);
+		nvif_vmm_put(vmm, &old_mem->vma[1]);
+		nvif_vmm_put(vmm, &old_mem->vma[0]);
 	}
 	return 0;
 }
@@ -1374,7 +1375,6 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
 	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	struct nouveau_mem *mem = nouveau_mem(reg);
-	int ret;
 
 	reg->bus.addr = NULL;
 	reg->bus.offset = 0;
@@ -1395,7 +1395,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 			reg->bus.is_iomem = !drm->agp.cma;
 		}
 #endif
-		if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA || !mem->kind)
+		if (drm->client.mem->oclass < NVIF_CLASS_MEM_NV50 || !mem->kind)
 			/* untiled */
 			break;
 		/* fallthrough, tiled memory */
@@ -1403,20 +1403,40 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 		reg->bus.offset = reg->start << PAGE_SHIFT;
 		reg->bus.base = device->func->resource_addr(device, 1);
 		reg->bus.is_iomem = true;
-		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-			struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
-			int page_shift = 12;
-			if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_FERMI)
-				page_shift = mem->mem.page;
+		if (drm->client.mem->oclass >= NVIF_CLASS_MEM_NV50) {
+			union {
+				struct nv50_mem_map_v0 nv50;
+				struct gf100_mem_map_v0 gf100;
+			} args;
+			u64 handle, length;
+			u32 argc = 0;
+			int ret;
 
-			ret = nvkm_vm_get(bar, mem->_mem->size << 12,
-					  page_shift, NV_MEM_ACCESS_RW,
-					  &mem->bar_vma);
-			if (ret)
-				return ret;
+			switch (mem->mem.object.oclass) {
+			case NVIF_CLASS_MEM_NV50:
+				args.nv50.version = 0;
+				args.nv50.ro = 0;
+				args.nv50.kind = mem->kind;
+				args.nv50.comp = mem->comp;
+				break;
+			case NVIF_CLASS_MEM_GF100:
+				args.gf100.version = 0;
+				args.gf100.ro = 0;
+				args.gf100.kind = mem->kind;
+				break;
+			default:
+				WARN_ON(1);
+				break;
+			}
 
-			nvkm_vm_map(&mem->bar_vma, mem->_mem);
-			reg->bus.offset = mem->bar_vma.offset;
+			ret = nvif_object_map_handle(&mem->mem.object,
+						     &argc, argc,
+						     &handle, &length);
+			if (ret != 1)
+				return ret ? ret : -EINVAL;
+
+			reg->bus.base = 0;
+			reg->bus.offset = handle;
 		}
 		break;
 	default:
@@ -1428,12 +1448,22 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 static void
 nouveau_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 {
+	struct nouveau_drm *drm = nouveau_bdev(bdev);
 	struct nouveau_mem *mem = nouveau_mem(reg);
 
-	if (!mem->bar_vma.node)
-		return;
-
-	nvkm_vm_put(&mem->bar_vma);
+	if (drm->client.mem->oclass >= NVIF_CLASS_MEM_NV50) {
+		switch (reg->mem_type) {
+		case TTM_PL_TT:
+			if (mem->kind)
+				nvif_object_unmap_handle(&mem->mem.object);
+			break;
+		case TTM_PL_VRAM:
+			nvif_object_unmap_handle(&mem->mem.object);
+			break;
+		default:
+			break;
+		}
+	}
 }
 
 static int

@@ -28,7 +28,7 @@ void
 nouveau_vma_unmap(struct nouveau_vma *vma)
 {
 	if (vma->mem) {
-		nvkm_vm_unmap(&vma->_vma);
+		nvif_vmm_unmap(&vma->vmm->vmm, vma->addr);
 		vma->mem = NULL;
 	}
 }
@@ -36,7 +36,8 @@ nouveau_vma_unmap(struct nouveau_vma *vma)
 int
 nouveau_vma_map(struct nouveau_vma *vma, struct nouveau_mem *mem)
 {
-	int ret = nouveau_mem_map(mem, vma->vmm->vm, &vma->_vma);
+	struct nvif_vma tmp = { .addr = vma->addr };
+	int ret = nouveau_mem_map(mem, &vma->vmm->vmm, &tmp);
 	if (ret)
 		return ret;
 	vma->mem = mem;
@@ -61,8 +62,10 @@ nouveau_vma_del(struct nouveau_vma **pvma)
 {
 	struct nouveau_vma *vma = *pvma;
 	if (vma && --vma->refs <= 0) {
-		if (likely(vma->addr != ~0ULL))
-			nvkm_vm_put(&vma->_vma);
+		if (likely(vma->addr != ~0ULL)) {
+			struct nvif_vma tmp = { .addr = vma->addr, .size = 1 };
+			nvif_vmm_put(&vma->vmm->vmm, &tmp);
+		}
 		list_del(&vma->head);
 		*pvma = NULL;
 		kfree(*pvma);
@@ -75,6 +78,7 @@ nouveau_vma_new(struct nouveau_bo *nvbo, struct nouveau_vmm *vmm,
 {
 	struct nouveau_mem *mem = nouveau_mem(&nvbo->bo.mem);
 	struct nouveau_vma *vma;
+	struct nvif_vma tmp;
 	int ret;
 
 	if ((vma = *pvma = nouveau_vma_find(nvbo, vmm))) {
@@ -92,17 +96,17 @@ nouveau_vma_new(struct nouveau_bo *nvbo, struct nouveau_vmm *vmm,
 
 	if (nvbo->bo.mem.mem_type != TTM_PL_SYSTEM &&
 	    mem->mem.page == nvbo->page) {
-		ret = nvkm_vm_get(vmm->vm, mem->_mem->size << 12, mem->mem.page,
-				  NV_MEM_ACCESS_RW, &vma->_vma);
+		ret = nvif_vmm_get(&vmm->vmm, LAZY, false, mem->mem.page, 0,
+				   mem->mem.size, &tmp);
 		if (ret)
 			goto done;
 
-		vma->addr = vma->_vma.offset;
+		vma->addr = tmp.addr;
 		ret = nouveau_vma_map(vma, mem);
 	} else {
-		ret = nvkm_vm_get(vmm->vm, mem->_mem->size << 12, mem->mem.page,
-				  NV_MEM_ACCESS_RW, &vma->_vma);
-		vma->addr = vma->_vma.offset;
+		ret = nvif_vmm_get(&vmm->vmm, PTES, false, mem->mem.page, 0,
+				   mem->mem.size, &tmp);
+		vma->addr = tmp.addr;
 	}
 
 done:

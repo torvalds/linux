@@ -38,7 +38,6 @@ u64  nvif_device_time(struct nvif_device *);
 /*XXX*/
 #include <subdev/bios.h>
 #include <subdev/fb.h>
-#include <subdev/mmu.h>
 #include <subdev/bar.h>
 #include <subdev/gpio.h>
 #include <subdev/clk.h>
@@ -57,7 +56,6 @@ u64  nvif_device_time(struct nvif_device *);
 })
 #define nvxx_bios(a) nvxx_device(a)->bios
 #define nvxx_fb(a) nvxx_device(a)->fb
-#define nvxx_mmu(a) nvxx_device(a)->mmu
 #define nvxx_gpio(a) nvxx_device(a)->gpio
 #define nvxx_clk(a) nvxx_device(a)->clk
 #define nvxx_i2c(a) nvxx_device(a)->i2c

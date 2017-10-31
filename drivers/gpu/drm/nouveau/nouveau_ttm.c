@@ -56,15 +56,6 @@ nouveau_manager_debug(struct ttm_mem_type_manager *man,
 {
 }
 
-static void
-nouveau_vram_manager_del(struct ttm_mem_type_manager *man,
-			 struct ttm_mem_reg *reg)
-{
-	struct nvkm_memory *memory = nouveau_mem(reg)->_mem->memory;
-	nouveau_mem_del(reg);
-	nvkm_memory_unref(&memory);
-}
-
 static int
 nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_buffer_object *bo,
@@ -101,7 +92,7 @@ const struct ttm_mem_type_manager_func nouveau_vram_manager = {
 	.init = nouveau_manager_init,
 	.takedown = nouveau_manager_fini,
 	.get_node = nouveau_vram_manager_new,
-	.put_node = nouveau_vram_manager_del,
+	.put_node = nouveau_manager_del,
 	.debug = nouveau_manager_debug,
 };
 
@@ -121,7 +112,6 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 	if (ret)
 		return ret;
 
-	mem->_mem = &mem->__mem;
 	reg->start = 0;
 	return 0;
 }
@@ -143,7 +133,6 @@ nv04_gart_manager_new(struct ttm_mem_type_manager *man,
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_drm *drm = nvbo->cli->drm;
 	struct nouveau_mem *mem;
-	struct nvkm_mmu *mmu = nvxx_mmu(&drm->client.device);
 	int ret;
 
 	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
@@ -151,8 +140,8 @@ nv04_gart_manager_new(struct ttm_mem_type_manager *man,
 	if (ret)
 		return ret;
 
-	ret = nvkm_vm_get(mmu->vmm, reg->num_pages << 12, 12,
-			  NV_MEM_ACCESS_RW, &mem->vma[0]);
+	ret = nvif_vmm_get(&mem->cli->vmm.vmm, PTES, false, 12, 0,
+			   reg->num_pages << PAGE_SHIFT, &mem->vma[0]);
 	if (ret) {
 		nouveau_mem_del(reg);
 		if (ret == -ENOSPC) {
@@ -162,7 +151,6 @@ nv04_gart_manager_new(struct ttm_mem_type_manager *man,
 		return ret;
 	}
 
-	mem->_mem = &mem->__mem;
 	reg->start = mem->vma[0].addr >> PAGE_SHIFT;
 	return 0;
 }

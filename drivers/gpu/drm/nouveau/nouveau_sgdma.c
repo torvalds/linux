@@ -35,7 +35,7 @@ nv04_sgdma_bind(struct ttm_tt *ttm, struct ttm_mem_reg *reg)
 	if (ret)
 		return ret;
 
-	ret = nouveau_mem_map(mem, mem->cli->vm, &mem->vma[0]);
+	ret = nouveau_mem_map(mem, &mem->cli->vmm.vmm, &mem->vma[0]);
 	if (ret) {
 		nouveau_mem_fini(mem);
 		return ret;

@@ -31,6 +31,7 @@
 
 #include "nouveau_ttm.h"
 #include "nouveau_gem.h"
+#include "nouveau_mem.h"
 #include "nouveau_vmm.h"
 
 #include <nvif/class.h>

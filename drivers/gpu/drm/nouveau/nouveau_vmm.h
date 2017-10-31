@@ -12,8 +12,6 @@ struct nouveau_vma {
 	u64 addr;
 
 	struct nouveau_mem *mem;
-
-	struct nvkm_vma _vma;
 };
 
 struct nouveau_vma *nouveau_vma_find(struct nouveau_bo *, struct nouveau_vmm *);

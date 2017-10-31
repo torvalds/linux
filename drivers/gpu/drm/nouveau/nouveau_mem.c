@@ -25,19 +25,70 @@
 
 #include <drm/ttm/ttm_bo_driver.h>
 
+#include <nvif/class.h>
+#include <nvif/if000a.h>
+#include <nvif/if500b.h>
+#include <nvif/if500d.h>
+#include <nvif/if900b.h>
+#include <nvif/if900d.h>
+
 int
 nouveau_mem_map(struct nouveau_mem *mem,
-		struct nvkm_vmm *vmm, struct nvkm_vma *vma)
+		struct nvif_vmm *vmm, struct nvif_vma *vma)
 {
-	nvkm_vm_map(vma, mem->_mem);
-	return 0;
+	union {
+		struct nv50_vmm_map_v0 nv50;
+		struct gf100_vmm_map_v0 gf100;
+	} args;
+	u32 argc = 0;
+	bool super;
+	int ret;
+
+	switch (vmm->object.oclass) {
+	case NVIF_CLASS_VMM_NV04:
+		break;
+	case NVIF_CLASS_VMM_NV50:
+		args.nv50.version = 0;
+		args.nv50.ro = 0;
+		args.nv50.priv = 0;
+		args.nv50.kind = mem->kind;
+		args.nv50.comp = mem->comp;
+		argc = sizeof(args.nv50);
+		break;
+	case NVIF_CLASS_VMM_GF100:
+	case NVIF_CLASS_VMM_GM200:
+	case NVIF_CLASS_VMM_GP100:
+		args.gf100.version = 0;
+		if (mem->mem.type & NVIF_MEM_VRAM)
+			args.gf100.vol = 0;
+		else
+			args.gf100.vol = 1;
+		args.gf100.ro = 0;
+		args.gf100.priv = 0;
+		args.gf100.kind = mem->kind;
+		argc = sizeof(args.gf100);
+		break;
+	default:
+		WARN_ON(1);
+		return -ENOSYS;
+	}
+
+	super = vmm->object.client->super;
+	vmm->object.client->super = true;
+	ret = nvif_vmm_map(vmm, vma->addr, mem->mem.size, &args, argc,
+			   &mem->mem, 0);
+	vmm->object.client->super = super;
+	return ret;
 }
 
 void
 nouveau_mem_fini(struct nouveau_mem *mem)
 {
-	nvkm_vm_put(&mem->vma[1]);
-	nvkm_vm_put(&mem->vma[0]);
+	nvif_vmm_put(&mem->cli->drm->client.vmm.vmm, &mem->vma[1]);
+	nvif_vmm_put(&mem->cli->drm->client.vmm.vmm, &mem->vma[0]);
+	mutex_lock(&mem->cli->drm->master.lock);
+	nvif_mem_fini(&mem->mem);
+	mutex_unlock(&mem->cli->drm->master.lock);
 }
 
 int
@@ -45,67 +96,79 @@ nouveau_mem_host(struct ttm_mem_reg *reg, struct ttm_dma_tt *tt)
 {
 	struct nouveau_mem *mem = nouveau_mem(reg);
 	struct nouveau_cli *cli = mem->cli;
+	struct nouveau_drm *drm = cli->drm;
+	struct nvif_mmu *mmu = &cli->mmu;
+	struct nvif_mem_ram_v0 args = {};
+	bool super = cli->base.super;
+	u8 type;
+	int ret;
 
-	if (mem->kind && cli->device.info.chipset == 0x50)
+	if (mmu->type[drm->ttm.type_host].type & NVIF_MEM_UNCACHED)
+		type = drm->ttm.type_ncoh;
+	else
+		type = drm->ttm.type_host;
+
+	if (mem->kind && !(mmu->type[type].type & NVIF_MEM_KIND))
 		mem->comp = mem->kind = 0;
-	if (mem->comp) {
-		if (cli->device.info.chipset >= 0xc0)
-			mem->kind = gf100_pte_storage_type_map[mem->kind];
+	if (mem->comp && !(mmu->type[type].type & NVIF_MEM_COMP)) {
+		if (mmu->object.oclass >= NVIF_CLASS_MMU_GF100)
+			mem->kind = mmu->kind[mem->kind];
 		mem->comp = 0;
 	}
 
-	mem->__mem.size = (reg->num_pages << PAGE_SHIFT) >> 12;
-	mem->__mem.memtype = (mem->comp << 7) | mem->kind;
-	if (tt->ttm.sg) mem->__mem.sg    = tt->ttm.sg;
-	else            mem->__mem.pages = tt->dma_address;
-	mem->_mem = &mem->__mem;
-	mem->mem.page = 12;
-	mem->_mem->memory = &mem->memory;
-	return 0;
+	if (tt->ttm.sg) args.sgl = tt->ttm.sg->sgl;
+	else            args.dma = tt->dma_address;
+
+	mutex_lock(&drm->master.lock);
+	cli->base.super = true;
+	ret = nvif_mem_init_type(mmu, cli->mem->oclass, type, PAGE_SHIFT,
+				 reg->num_pages << PAGE_SHIFT,
+				 &args, sizeof(args), &mem->mem);
+	cli->base.super = super;
+	mutex_unlock(&drm->master.lock);
+	return ret;
 }
-
-#include <subdev/fb/nv50.h>
-
-struct nvkm_vram {
-	struct nvkm_memory memory;
-	struct nvkm_ram *ram;
-	u8 page;
-	struct nvkm_mm_node *mn;
-};
 
 int
 nouveau_mem_vram(struct ttm_mem_reg *reg, bool contig, u8 page)
 {
 	struct nouveau_mem *mem = nouveau_mem(reg);
 	struct nouveau_cli *cli = mem->cli;
-	struct nvkm_device *device = nvxx_device(&cli->device);
+	struct nouveau_drm *drm = cli->drm;
+	struct nvif_mmu *mmu = &cli->mmu;
+	bool super = cli->base.super;
 	u64 size = ALIGN(reg->num_pages << PAGE_SHIFT, 1 << page);
-	u8  type;
 	int ret;
 
-	mem->mem.page = page;
-	mem->_mem = &mem->__mem;
-
-	if (cli->device.info.chipset < 0xc0) {
-		type = nv50_fb_memtype[mem->kind];
-	} else {
-		if (!mem->comp)
-			mem->kind = gf100_pte_storage_type_map[mem->kind];
-		mem->comp = 0;
-		type = 0x01;
+	mutex_lock(&drm->master.lock);
+	cli->base.super = true;
+	switch (cli->mem->oclass) {
+	case NVIF_CLASS_MEM_GF100:
+		ret = nvif_mem_init_type(mmu, cli->mem->oclass,
+					 drm->ttm.type_vram, page, size,
+					 &(struct gf100_mem_v0) {
+						.contig = contig,
+					 }, sizeof(struct gf100_mem_v0),
+					 &mem->mem);
+		break;
+	case NVIF_CLASS_MEM_NV50:
+		ret = nvif_mem_init_type(mmu, cli->mem->oclass,
+					 drm->ttm.type_vram, page, size,
+					 &(struct nv50_mem_v0) {
+						.bankswz = mmu->kind[mem->kind] == 2,
+						.contig = contig,
+					 }, sizeof(struct nv50_mem_v0),
+					 &mem->mem);
+		break;
+	default:
+		ret = -ENOSYS;
+		WARN_ON(1);
+		break;
 	}
+	cli->base.super = super;
+	mutex_unlock(&drm->master.lock);
 
-	ret = nvkm_ram_get(device, NVKM_RAM_MM_NORMAL, type, page, size,
-			   contig, false, &mem->_mem->memory);
-	if (ret)
-		return ret;
-
-	mem->_mem->size = size >> NVKM_RAM_MM_SHIFT;
-	mem->_mem->offset = nvkm_memory_addr(mem->_mem->memory);
-	mem->_mem->mem = ((struct nvkm_vram *)mem->_mem->memory)->mn;
-	mem->_mem->memtype = (mem->comp << 7) | mem->kind;
-
-	reg->start = mem->_mem->offset >> PAGE_SHIFT;
+	reg->start = mem->mem.addr >> PAGE_SHIFT;
 	return ret;
 }
 
@@ -118,36 +181,6 @@ nouveau_mem_del(struct ttm_mem_reg *reg)
 	reg->mm_node = NULL;
 }
 
-static enum nvkm_memory_target
-nouveau_mem_memory_target(struct nvkm_memory *memory)
-{
-	struct nouveau_mem *mem = container_of(memory, typeof(*mem), memory);
-	if (mem->_mem->mem)
-		return NVKM_MEM_TARGET_VRAM;
-	return NVKM_MEM_TARGET_HOST;
-};
-
-static u8
-nouveau_mem_memory_page(struct nvkm_memory *memory)
-{
-	struct nouveau_mem *mem = container_of(memory, typeof(*mem), memory);
-	return mem->mem.page;
-};
-
-static u64
-nouveau_mem_memory_size(struct nvkm_memory *memory)
-{
-	struct nouveau_mem *mem = container_of(memory, typeof(*mem), memory);
-	return mem->_mem->size << 12;
-}
-
-static const struct nvkm_memory_func
-nouveau_mem_memory = {
-	.target = nouveau_mem_memory_target,
-	.page = nouveau_mem_memory_page,
-	.size = nouveau_mem_memory_size,
-};
-
 int
 nouveau_mem_new(struct nouveau_cli *cli, u8 kind, u8 comp,
 		struct ttm_mem_reg *reg)
@@ -159,7 +192,6 @@ nouveau_mem_new(struct nouveau_cli *cli, u8 kind, u8 comp,
 	mem->cli = cli;
 	mem->kind = kind;
 	mem->comp = comp;
-	nvkm_memory_ctor(&nouveau_mem_memory, &mem->memory);
 
 	reg->mm_node = mem;
 	return 0;

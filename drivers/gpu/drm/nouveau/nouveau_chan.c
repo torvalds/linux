@@ -84,6 +84,14 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 {
 	struct nouveau_channel *chan = *pchan;
 	if (chan) {
+		struct nouveau_cli *cli = (void *)chan->user.client;
+		bool super;
+
+		if (cli) {
+			super = cli->base.super;
+			cli->base.super = true;
+		}
+
 		if (chan->fence)
 			nouveau_fence(chan->drm)->context_del(chan);
 		nvif_object_fini(&chan->nvsw);
@@ -98,6 +106,9 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 			nouveau_bo_unpin(chan->push.buffer);
 		nouveau_bo_ref(NULL, &chan->push.buffer);
 		kfree(chan);
+
+		if (cli)
+			cli->base.super = super;
 	}
 	*pchan = NULL;
 }
