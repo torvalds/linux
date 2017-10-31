@@ -42,6 +42,7 @@
 #include <nvif/client.h>
 #include <nvif/device.h>
 #include <nvif/ioctl.h>
+#include <nvif/mmu.h>
 
 #include <drm/drmP.h>
 
@@ -91,6 +92,7 @@ struct nouveau_cli {
 	struct mutex mutex;
 
 	struct nvif_device device;
+	struct nvif_mmu mmu;
 	struct nouveau_vmm vmm;
 
 	struct nvkm_vm *vm;

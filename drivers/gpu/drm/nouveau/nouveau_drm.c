@@ -116,6 +116,7 @@ nouveau_cli_fini(struct nouveau_cli *cli)
 {
 	usif_client_fini(cli);
 	nouveau_vmm_fini(&cli->vmm);
+	nvif_mmu_fini(&cli->mmu);
 	nvif_device_fini(&cli->device);
 	mutex_lock(&cli->drm->master.lock);
 	nvif_client_fini(&cli->base);
@@ -126,6 +127,13 @@ static int
 nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 		 struct nouveau_cli *cli)
 {
+	static const struct nvif_mclass
+	mmus[] = {
+		{ NVIF_CLASS_MMU_GF100, -1 },
+		{ NVIF_CLASS_MMU_NV50 , -1 },
+		{ NVIF_CLASS_MMU_NV04 , -1 },
+		{}
+	};
 	u64 device = nouveau_name(drm->dev);
 	int ret;
 
@@ -157,6 +165,18 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 			       &cli->device);
 	if (ret) {
 		NV_ERROR(drm, "Device allocation failed: %d\n", ret);
+		goto done;
+	}
+
+	ret = nvif_mclass(&cli->device.object, mmus);
+	if (ret < 0) {
+		NV_ERROR(drm, "No supported MMU class\n");
+		goto done;
+	}
+
+	ret = nvif_mmu_init(&cli->device.object, mmus[ret].oclass, &cli->mmu);
+	if (ret) {
+		NV_ERROR(drm, "MMU allocation failed: %d\n", ret);
 		goto done;
 	}
 
