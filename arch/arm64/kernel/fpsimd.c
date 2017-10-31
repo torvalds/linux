@@ -300,6 +300,32 @@ static void fpsimd_to_sve(struct task_struct *task)
 		       sizeof(fst->vregs[i]));
 }
 
+/*
+ * Transfer the SVE state in task->thread.sve_state to
+ * task->thread.fpsimd_state.
+ *
+ * Task can be a non-runnable task, or current.  In the latter case,
+ * softirqs (and preemption) must be disabled.
+ * task->thread.sve_state must point to at least sve_state_size(task)
+ * bytes of allocated kernel memory.
+ * task->thread.sve_state must be up to date before calling this function.
+ */
+static void sve_to_fpsimd(struct task_struct *task)
+{
+	unsigned int vq;
+	void const *sst = task->thread.sve_state;
+	struct fpsimd_state *fst = &task->thread.fpsimd_state;
+	unsigned int i;
+
+	if (!system_supports_sve())
+		return;
+
+	vq = sve_vq_from_vl(task->thread.sve_vl);
+	for (i = 0; i < 32; ++i)
+		memcpy(&fst->vregs[i], ZREG(sst, vq, i),
+		       sizeof(fst->vregs[i]));
+}
+
 #ifdef CONFIG_ARM64_SVE
 
 /*
@@ -501,9 +527,6 @@ void fpsimd_flush_thread(void)
 /*
  * Save the userland FPSIMD state of 'current' to memory, but only if the state
  * currently held in the registers does in fact belong to 'current'
- *
- * Currently, SVE tasks can't exist, so just WARN in that case.
- * Subsequent patches will add full SVE support here.
  */
 void fpsimd_preserve_current_state(void)
 {
@@ -511,13 +534,20 @@ void fpsimd_preserve_current_state(void)
 		return;
 
 	local_bh_disable();
-
-	if (!test_thread_flag(TIF_FOREIGN_FPSTATE))
-		fpsimd_save_state(&current->thread.fpsimd_state);
-
-	WARN_ON_ONCE(test_and_clear_thread_flag(TIF_SVE));
-
+	task_fpsimd_save();
 	local_bh_enable();
+}
+
+/*
+ * Like fpsimd_preserve_current_state(), but ensure that
+ * current->thread.fpsimd_state is updated so that it can be copied to
+ * the signal frame.
+ */
+void fpsimd_signal_preserve_current_state(void)
+{
+	fpsimd_preserve_current_state();
+	if (system_supports_sve() && test_thread_flag(TIF_SVE))
+		sve_to_fpsimd(current);
 }
 
 /*
@@ -555,7 +585,12 @@ void fpsimd_update_current_state(struct fpsimd_state *state)
 
 	local_bh_disable();
 
-	fpsimd_load_state(state);
+	if (system_supports_sve() && test_thread_flag(TIF_SVE)) {
+		current->thread.fpsimd_state = *state;
+		fpsimd_to_sve(current);
+	}
+	task_fpsimd_load();
+
 	if (test_and_clear_thread_flag(TIF_FOREIGN_FPSTATE)) {
 		struct fpsimd_state *st = &current->thread.fpsimd_state;
 
