@@ -266,6 +266,24 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 				s->beacon.assocresp_ies,
 				s->beacon.assocresp_ies_len);
 
+	if (s->ht_cap) {
+		struct qlink_tlv_hdr *tlv = (struct qlink_tlv_hdr *)
+			skb_put(cmd_skb, sizeof(*tlv) + sizeof(*s->ht_cap));
+
+		tlv->type = cpu_to_le16(WLAN_EID_HT_CAPABILITY);
+		tlv->len = cpu_to_le16(sizeof(*s->ht_cap));
+		memcpy(tlv->val, s->ht_cap, sizeof(*s->ht_cap));
+	}
+
+	if (s->vht_cap) {
+		struct qlink_tlv_hdr *tlv = (struct qlink_tlv_hdr *)
+			skb_put(cmd_skb, sizeof(*tlv) + sizeof(*s->vht_cap));
+
+		tlv->type = cpu_to_le16(WLAN_EID_VHT_CAPABILITY);
+		tlv->len = cpu_to_le16(sizeof(*s->vht_cap));
+		memcpy(tlv->val, s->vht_cap, sizeof(*s->vht_cap));
+	}
+
 	qtnf_bus_lock(vif->mac->bus);
 
 	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
