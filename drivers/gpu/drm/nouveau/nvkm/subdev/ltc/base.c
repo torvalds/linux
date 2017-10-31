@@ -28,7 +28,8 @@
 int
 nvkm_ltc_tags_alloc(struct nvkm_ltc *ltc, u32 n, struct nvkm_mm_node **pnode)
 {
-	int ret = nvkm_mm_head(&ltc->tags, 0, 1, n, n, 1, pnode);
+	struct nvkm_fb *fb = ltc->subdev.device->fb;
+	int ret = nvkm_mm_head(&fb->tags, 0, 1, n, n, 1, pnode);
 	if (ret)
 		*pnode = NULL;
 	return ret;
@@ -37,7 +38,8 @@ nvkm_ltc_tags_alloc(struct nvkm_ltc *ltc, u32 n, struct nvkm_mm_node **pnode)
 void
 nvkm_ltc_tags_free(struct nvkm_ltc *ltc, struct nvkm_mm_node **pnode)
 {
-	nvkm_mm_free(&ltc->tags, pnode);
+	struct nvkm_fb *fb = ltc->subdev.device->fb;
+	nvkm_mm_free(&fb->tags, pnode);
 }
 
 void
@@ -118,7 +120,6 @@ nvkm_ltc_dtor(struct nvkm_subdev *subdev)
 {
 	struct nvkm_ltc *ltc = nvkm_ltc(subdev);
 	struct nvkm_ram *ram = ltc->subdev.device->fb->ram;
-	nvkm_mm_fini(&ltc->tags);
 	if (ram)
 		nvkm_mm_free(&ram->vram, &ltc->tag_ram);
 	return ltc;

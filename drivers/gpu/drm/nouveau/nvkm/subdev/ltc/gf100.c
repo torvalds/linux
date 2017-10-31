@@ -152,7 +152,8 @@ gf100_ltc_flush(struct nvkm_ltc *ltc)
 int
 gf100_ltc_oneinit_tag_ram(struct nvkm_ltc *ltc)
 {
-	struct nvkm_ram *ram = ltc->subdev.device->fb->ram;
+	struct nvkm_fb *fb = ltc->subdev.device->fb;
+	struct nvkm_ram *ram = fb->ram;
 	u32 tag_size, tag_margin, tag_align;
 	int ret;
 
@@ -197,7 +198,8 @@ gf100_ltc_oneinit_tag_ram(struct nvkm_ltc *ltc)
 	}
 
 mm_init:
-	return nvkm_mm_init(&ltc->tags, 0, 0, ltc->num_tags, 1);
+	nvkm_mm_fini(&fb->tags);
+	return nvkm_mm_init(&fb->tags, 0, 0, ltc->num_tags, 1);
 }
 
 int
