@@ -1437,8 +1437,8 @@ _base_build_nvme_prp(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	size_t data_in_sz)
 {
 	int		prp_size = NVME_PRP_SIZE;
-	u64		*prp_entry, *prp1_entry, *prp2_entry, *prp_entry_phys;
-	u64		*prp_page, *prp_page_phys;
+	__le64		*prp_entry, *prp1_entry, *prp2_entry, *prp_entry_phys;
+	__le64		*prp_page, *prp_page_phys;
 	u32		offset, entry_len;
 	u32		page_mask_result, page_mask;
 	dma_addr_t	paddr;
@@ -1455,17 +1455,17 @@ _base_build_nvme_prp(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	 * PRP1 is located at a 24 byte offset from the start of the NVMe
 	 * command.  Then set the current PRP entry pointer to PRP1.
 	 */
-	prp1_entry = (u64 *)(nvme_encap_request->NVMe_Command +
+	prp1_entry = (__le64 *)(nvme_encap_request->NVMe_Command +
 	    NVME_CMD_PRP1_OFFSET);
-	prp2_entry = (u64 *)(nvme_encap_request->NVMe_Command +
+	prp2_entry = (__le64 *)(nvme_encap_request->NVMe_Command +
 	    NVME_CMD_PRP2_OFFSET);
 	prp_entry = prp1_entry;
 	/*
 	 * For the PRP entries, use the specially allocated buffer of
 	 * contiguous memory.
 	 */
-	prp_page = (u64 *)mpt3sas_base_get_pcie_sgl(ioc, smid);
-	prp_page_phys = (u64 *)mpt3sas_base_get_pcie_sgl_dma(ioc, smid);
+	prp_page = (__le64 *)mpt3sas_base_get_pcie_sgl(ioc, smid);
+	prp_page_phys = (__le64 *)mpt3sas_base_get_pcie_sgl_dma(ioc, smid);
 
 	/*
 	 * Check if we are within 1 entry of a page boundary we don't
@@ -1475,8 +1475,8 @@ _base_build_nvme_prp(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	page_mask_result = (uintptr_t)((u8 *)prp_page + prp_size) & page_mask;
 	if (!page_mask_result) {
 		/* Bump up to next page boundary. */
-		prp_page = (u64 *)((u8 *)prp_page + prp_size);
-		prp_page_phys = (u64 *)((u8 *)prp_page_phys + prp_size);
+		prp_page = (__le64 *)((u8 *)prp_page + prp_size);
+		prp_page_phys = (__le64 *)((u8 *)prp_page_phys + prp_size);
 	}
 
 	/*
@@ -1604,7 +1604,7 @@ _base_build_nvme_prp(struct MPT3SAS_ADAPTER *ioc, u16 smid,
  * Returns:		true: PRPs are built
  *			false: IEEE SGLs needs to be built
  */
-void
+static void
 base_make_prp_nvme(struct MPT3SAS_ADAPTER *ioc,
 		struct scsi_cmnd *scmd,
 		Mpi25SCSIIORequest_t *mpi_request,
@@ -1612,7 +1612,7 @@ base_make_prp_nvme(struct MPT3SAS_ADAPTER *ioc,
 {
 	int sge_len, offset, num_prp_in_chain = 0;
 	Mpi25IeeeSgeChain64_t *main_chain_element, *ptr_first_sgl;
-	u64 *curr_buff;
+	__le64 *curr_buff;
 	dma_addr_t msg_phys;
 	u64 sge_addr;
 	u32 page_mask, page_mask_result;
@@ -1740,7 +1740,7 @@ base_is_prp_possible(struct MPT3SAS_ADAPTER *ioc,
 	struct scatterlist *sg_scmd;
 	bool build_prp = true;
 
-	data_length = cpu_to_le32(scsi_bufflen(scmd));
+	data_length = scsi_bufflen(scmd);
 	sg_scmd = scsi_sglist(scmd);
 
 	/* If Datalenth is <= 16K and number of SGE’s entries are <= 2

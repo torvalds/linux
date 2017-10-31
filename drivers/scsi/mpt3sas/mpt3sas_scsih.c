@@ -599,7 +599,7 @@ __mpt3sas_get_pdev_from_target(struct MPT3SAS_ADAPTER *ioc,
  *
  * This searches for pcie_device from target, then return pcie_device object.
  */
-struct _pcie_device *
+static struct _pcie_device *
 mpt3sas_get_pdev_from_target(struct MPT3SAS_ADAPTER *ioc,
 	struct MPT3SAS_TARGET *tgt_priv)
 {
@@ -942,7 +942,7 @@ _scsih_sas_device_init_add(struct MPT3SAS_ADAPTER *ioc,
 }
 
 
-struct _pcie_device *
+static struct _pcie_device *
 __mpt3sas_get_pdev_by_wwid(struct MPT3SAS_ADAPTER *ioc, u64 wwid)
 {
 	struct _pcie_device *pcie_device;
@@ -975,7 +975,7 @@ found_device:
  *
  * This searches for pcie_device based on wwid, then return pcie_device object.
  */
-struct _pcie_device *
+static struct _pcie_device *
 mpt3sas_get_pdev_by_wwid(struct MPT3SAS_ADAPTER *ioc, u64 wwid)
 {
 	struct _pcie_device *pcie_device;
@@ -989,7 +989,7 @@ mpt3sas_get_pdev_by_wwid(struct MPT3SAS_ADAPTER *ioc, u64 wwid)
 }
 
 
-struct _pcie_device *
+static struct _pcie_device *
 __mpt3sas_get_pdev_by_idchannel(struct MPT3SAS_ADAPTER *ioc, int id,
 	int channel)
 {
@@ -1012,34 +1012,7 @@ found_device:
 	return pcie_device;
 }
 
-
-/**
- * mpt3sas_get_pdev_by_idchannel - pcie device search
- * @ioc: per adapter object
- * @id: Target ID
- * @channel: Channel ID
- *
- * Context: This function will acquire ioc->pcie_device_lock and will release
- * before returning the pcie_device object.
- *
- * This searches for pcie_device based on id and channel, then return
- * pcie_device object.
- */
-struct _pcie_device *
-mpt3sas_get_pdev_by_idchannel(struct MPT3SAS_ADAPTER *ioc, int id, int channel)
-{
-	struct _pcie_device *pcie_device;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ioc->pcie_device_lock, flags);
-	pcie_device = __mpt3sas_get_pdev_by_idchannel(ioc, id, channel);
-	spin_unlock_irqrestore(&ioc->pcie_device_lock, flags);
-
-	return pcie_device;
-}
-
-
-struct _pcie_device *
+static struct _pcie_device *
 __mpt3sas_get_pdev_by_handle(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 {
 	struct _pcie_device *pcie_device;
