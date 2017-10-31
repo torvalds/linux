@@ -134,6 +134,15 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 		{ NVIF_CLASS_MMU_NV04 , -1 },
 		{}
 	};
+	static const struct nvif_mclass
+	vmms[] = {
+		{ NVIF_CLASS_VMM_GP100, -1 },
+		{ NVIF_CLASS_VMM_GM200, -1 },
+		{ NVIF_CLASS_VMM_GF100, -1 },
+		{ NVIF_CLASS_VMM_NV50 , -1 },
+		{ NVIF_CLASS_VMM_NV04 , -1 },
+		{}
+	};
 	u64 device = nouveau_name(drm->dev);
 	int ret;
 
@@ -178,6 +187,23 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 	if (ret) {
 		NV_ERROR(drm, "MMU allocation failed: %d\n", ret);
 		goto done;
+	}
+
+	ret = nvif_mclass(&cli->mmu.object, vmms);
+	if (ret < 0) {
+		NV_ERROR(drm, "No supported VMM class\n");
+		goto done;
+	}
+
+	ret = nouveau_vmm_init(cli, vmms[ret].oclass, &cli->vmm);
+	if (ret) {
+		NV_ERROR(drm, "VMM allocation failed: %d\n", ret);
+		goto done;
+	}
+
+	if (1) {
+		cli->vm = cli->vmm.vm;
+		nvxx_client(&cli->base)->vm = cli->vm;
 	}
 
 done:
@@ -486,20 +512,6 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 
 	nouveau_vga_init(drm);
 
-	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		if (!nvxx_device(&drm->client.device)->mmu) {
-			ret = -ENOSYS;
-			goto fail_device;
-		}
-
-		ret = nouveau_vmm_init(&drm->client, 0, &drm->client.vmm);
-		if (ret)
-			goto fail_device;
-
-		drm->client.vm = drm->client.vmm.vm;
-		nvxx_client(&drm->client.base)->vm = drm->client.vm;
-	}
-
 	ret = nouveau_ttm_init(drm);
 	if (ret)
 		goto fail_ttm;
@@ -545,7 +557,6 @@ fail_bios:
 	nouveau_ttm_fini(drm);
 fail_ttm:
 	nouveau_vga_fini(drm);
-fail_device:
 	nouveau_cli_fini(&drm->client);
 	nouveau_cli_fini(&drm->master);
 	kfree(drm);
@@ -880,15 +891,6 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 		goto done;
 
 	cli->base.super = false;
-
-	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_vmm_init(cli, 0, &cli->vmm);
-		if (ret)
-			goto done;
-
-		cli->vm = cli->vmm.vm;
-		nvxx_client(&cli->base)->vm = cli->vm;
-	}
 
 	fpriv->driver_priv = cli;
 

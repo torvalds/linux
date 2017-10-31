@@ -1,6 +1,7 @@
 #ifndef __NOUVEAU_VMA_H__
 #define __NOUVEAU_VMA_H__
-#include <subdev/mmu.h>
+#include <subdev/mmu/uvmm.h>
+#include <nvif/vmm.h>
 struct nouveau_bo;
 struct nouveau_mem;
 
@@ -24,6 +25,7 @@ void nouveau_vma_unmap(struct nouveau_vma *);
 
 struct nouveau_vmm {
 	struct nouveau_cli *cli;
+	struct nvif_vmm vmm;
 	struct nvkm_vm *vm;
 };
 

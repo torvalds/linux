@@ -29,11 +29,6 @@ struct nouveau_mem {
 	struct nvkm_memory memory;
 };
 
-enum nvif_vmm_get {
-	PTES,
-	LAZY,
-};
-
 int nouveau_mem_new(struct nouveau_cli *, u8 kind, u8 comp,
 		    struct ttm_mem_reg *);
 void nouveau_mem_del(struct ttm_mem_reg *);

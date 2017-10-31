@@ -114,13 +114,19 @@ done:
 void
 nouveau_vmm_fini(struct nouveau_vmm *vmm)
 {
-	nvkm_vm_ref(NULL, &vmm->vm, NULL);
+	nvif_vmm_fini(&vmm->vmm);
+	vmm->cli = NULL;
 }
 
 int
 nouveau_vmm_init(struct nouveau_cli *cli, s32 oclass, struct nouveau_vmm *vmm)
 {
+	int ret = nvif_vmm_init(&cli->mmu, oclass, PAGE_SIZE, 0, NULL, 0,
+				&vmm->vmm);
+	if (ret)
+		return ret;
+
 	vmm->cli = cli;
-	return nvkm_vm_new(nvxx_device(&cli->device), 0, (1ULL << 40),
-			   0x1000, NULL, &vmm->vm);
+	vmm->vm = nvkm_uvmm(vmm->vmm.object.priv)->vmm;
+	return 0;
 }

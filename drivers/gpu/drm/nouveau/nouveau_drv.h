@@ -43,6 +43,7 @@
 #include <nvif/device.h>
 #include <nvif/ioctl.h>
 #include <nvif/mmu.h>
+#include <nvif/vmm.h>
 
 #include <drm/drmP.h>
 

@@ -33,6 +33,8 @@
 #include "nouveau_gem.h"
 #include "nouveau_vmm.h"
 
+#include <nvif/class.h>
+
 void
 nouveau_gem_object_del(struct drm_gem_object *gem)
 {
@@ -69,7 +71,7 @@ nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 	struct nouveau_vma *vma;
 	int ret;
 
-	if (!cli->vm)
+	if (cli->vmm.vmm.object.oclass < NVIF_CLASS_VMM_NV50)
 		return 0;
 
 	ret = ttm_bo_reserve(&nvbo->bo, false, false, NULL);
@@ -131,7 +133,7 @@ nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 	struct nouveau_vma *vma;
 	int ret;
 
-	if (!cli->vm)
+	if (cli->vmm.vmm.object.oclass < NVIF_CLASS_VMM_NV50)
 		return;
 
 	ret = ttm_bo_reserve(&nvbo->bo, false, false, NULL);
@@ -214,7 +216,7 @@ nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 	else
 		rep->domain = NOUVEAU_GEM_DOMAIN_VRAM;
 	rep->offset = nvbo->bo.offset;
-	if (cli->vm) {
+	if (cli->vmm.vmm.object.oclass >= NVIF_CLASS_VMM_NV50) {
 		vma = nouveau_vma_find(nvbo, &cli->vmm);
 		if (!vma)
 			return -EINVAL;
