@@ -32,7 +32,6 @@
 #include <subdev/bios/timing.h>
 #include <subdev/clk.h>
 #include <subdev/clk/pll.h>
-#include <subdev/ltc.h>
 
 struct gf100_ramfuc {
 	struct ramfuc base;
@@ -423,7 +422,6 @@ gf100_ram_tidy(struct nvkm_ram *base)
 void
 gf100_ram_put(struct nvkm_ram *ram, struct nvkm_mem **pmem)
 {
-	struct nvkm_ltc *ltc = ram->fb->subdev.device->ltc;
 	struct nvkm_mem *mem = *pmem;
 
 	*pmem = NULL;
@@ -431,8 +429,6 @@ gf100_ram_put(struct nvkm_ram *ram, struct nvkm_mem **pmem)
 		return;
 
 	mutex_lock(&ram->fb->subdev.mutex);
-	if (mem->tag)
-		nvkm_ltc_tags_free(ltc, &mem->tag);
 	__nv50_ram_put(ram, mem);
 	mutex_unlock(&ram->fb->subdev.mutex);
 
@@ -443,14 +439,11 @@ int
 gf100_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 	      u32 memtype, struct nvkm_mem **pmem)
 {
-	struct nvkm_device *device = ram->fb->subdev.device;
-	struct nvkm_ltc *ltc = ram->fb->subdev.device->ltc;
 	struct nvkm_mm *mm = &ram->vram;
 	struct nvkm_mm_node **node, *r;
 	struct nvkm_mem *mem;
 	int type = (memtype & 0x0ff);
 	int back = (memtype & 0x800);
-	const bool comp = gf100_pte_storage_type_map[type] != type;
 	int ret;
 
 	size  >>= NVKM_RAM_MM_SHIFT;
@@ -466,19 +459,6 @@ gf100_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 	mem->size = size;
 
 	mutex_lock(&ram->fb->subdev.mutex);
-	if (comp) {
-		/* compression only works with lpages */
-		if (align == (1 << (17 - NVKM_RAM_MM_SHIFT))) {
-			int n = size >> 5;
-			if (!nvkm_ltc_tags_alloc(ltc, n, &mem->tag)) {
-				nvkm_ltc_tags_clear(device, mem->tag->offset,
-							    mem->tag->length);
-			}
-		}
-
-		if (unlikely(!mem->tag))
-			type = gf100_pte_storage_type_map[type];
-	}
 	mem->memtype = type;
 
 	node = &mem->mem;

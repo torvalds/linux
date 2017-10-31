@@ -24,24 +24,6 @@
 #include "priv.h"
 
 #include <core/memory.h>
-#include <subdev/fb.h>
-
-int
-nvkm_ltc_tags_alloc(struct nvkm_ltc *ltc, u32 n, struct nvkm_mm_node **pnode)
-{
-	struct nvkm_fb *fb = ltc->subdev.device->fb;
-	int ret = nvkm_mm_head(&fb->tags, 0, 1, n, n, 1, pnode);
-	if (ret)
-		*pnode = NULL;
-	return ret;
-}
-
-void
-nvkm_ltc_tags_free(struct nvkm_ltc *ltc, struct nvkm_mm_node **pnode)
-{
-	struct nvkm_fb *fb = ltc->subdev.device->fb;
-	nvkm_mm_free(&fb->tags, pnode);
-}
 
 void
 nvkm_ltc_tags_clear(struct nvkm_device *device, u32 first, u32 count)

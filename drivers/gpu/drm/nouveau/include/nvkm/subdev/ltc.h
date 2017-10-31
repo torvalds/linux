@@ -22,8 +22,6 @@ struct nvkm_ltc {
 	u32 zbc_depth[NVKM_LTC_MAX_ZBC_CNT];
 };
 
-int nvkm_ltc_tags_alloc(struct nvkm_ltc *, u32 count, struct nvkm_mm_node **);
-void nvkm_ltc_tags_free(struct nvkm_ltc *, struct nvkm_mm_node **);
 void nvkm_ltc_tags_clear(struct nvkm_device *, u32 first, u32 count);
 
 int nvkm_ltc_zbc_color_get(struct nvkm_ltc *, int index, const u32[4]);

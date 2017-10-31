@@ -25,6 +25,7 @@ struct nouveau_mem {
 	struct nvkm_vma bar_vma;
 
 	struct nvkm_memory memory;
+	struct nvkm_tags *tags;
 };
 
 enum nvif_vmm_get {
