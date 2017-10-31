@@ -67,6 +67,7 @@ nv40_instobj_ptrs = {
 static void
 nv40_instobj_release(struct nvkm_memory *memory)
 {
+	wmb();
 }
 
 static void __iomem *
@@ -253,8 +254,8 @@ nv40_instmem_new(struct nvkm_device *device, int index,
 	else
 		bar = 3;
 
-	imem->iomem = ioremap(device->func->resource_addr(device, bar),
-			      device->func->resource_size(device, bar));
+	imem->iomem = ioremap_wc(device->func->resource_addr(device, bar),
+				 device->func->resource_size(device, bar));
 	if (!imem->iomem) {
 		nvkm_error(&imem->base.subdev, "unable to map PRAMIN BAR\n");
 		return -EFAULT;
