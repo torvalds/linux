@@ -52,8 +52,8 @@ static int gic_shared_intrs;
 static unsigned int gic_cpu_pin;
 static unsigned int timer_cpu_pin;
 static struct irq_chip gic_level_irq_controller, gic_edge_irq_controller;
-DECLARE_BITMAP(ipi_resrv, GIC_MAX_INTRS);
-DECLARE_BITMAP(ipi_available, GIC_MAX_INTRS);
+static DECLARE_BITMAP(ipi_resrv, GIC_MAX_INTRS);
+static DECLARE_BITMAP(ipi_available, GIC_MAX_INTRS);
 
 static struct gic_all_vpes_chip_data {
 	u32	map;
