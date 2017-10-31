@@ -32,12 +32,8 @@ gm20b_mmu = {
 	.pgt_bits  = 27 - 12,
 	.spg_shift = 12,
 	.lpg_shift = 17,
-	.map_pgt = gf100_vm_map_pgt,
-	.map = gf100_vm_map,
-	.map_sg = gf100_vm_map_sg,
-	.unmap = gf100_vm_unmap,
-	.flush = gf100_vm_flush,
 	.vmm = {{ -1,  0, NVIF_CLASS_VMM_GM200}, gm20b_vmm_new },
+	.kind = gm200_mmu_kind,
 };
 
 static const struct nvkm_mmu_func
@@ -47,12 +43,8 @@ gm20b_mmu_fixed = {
 	.pgt_bits  = 27 - 12,
 	.spg_shift = 12,
 	.lpg_shift = 17,
-	.map_pgt = gf100_vm_map_pgt,
-	.map = gf100_vm_map,
-	.map_sg = gf100_vm_map_sg,
-	.unmap = gf100_vm_unmap,
-	.flush = gf100_vm_flush,
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GM200}, gm20b_vmm_new_fixed },
+	.kind = gm200_mmu_kind,
 };
 
 int
