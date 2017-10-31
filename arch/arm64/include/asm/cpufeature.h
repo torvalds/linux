@@ -262,6 +262,11 @@ static inline bool system_uses_ttbr0_pan(void)
 		!cpus_have_const_cap(ARM64_HAS_PAN);
 }
 
+static inline bool system_supports_sve(void)
+{
+	return false;
+}
+
 #endif /* __ASSEMBLY__ */
 
 #endif
