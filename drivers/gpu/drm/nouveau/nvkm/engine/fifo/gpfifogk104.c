@@ -117,7 +117,7 @@ gk104_fifo_gpfifo_engine_init(struct nvkm_fifo_chan *base,
 	u32 offset = gk104_fifo_gpfifo_engine_addr(engine);
 
 	if (offset) {
-		u64   addr = chan->engn[engine->subdev.index].vma.offset;
+		u64   addr = chan->engn[engine->subdev.index].vma->addr;
 		u32 datalo = lower_32_bits(addr) | 0x00000004;
 		u32 datahi = upper_32_bits(addr);
 		nvkm_kmap(inst);
@@ -138,11 +138,7 @@ gk104_fifo_gpfifo_engine_dtor(struct nvkm_fifo_chan *base,
 			      struct nvkm_engine *engine)
 {
 	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
-	struct nvkm_vma *vma = &chan->engn[engine->subdev.index].vma;
-	if (vma->vm) {
-		nvkm_vm_unmap(vma);
-		nvkm_vm_put(vma);
-	}
+	nvkm_vmm_put(chan->base.vmm, &chan->engn[engine->subdev.index].vma);
 	nvkm_gpuobj_del(&chan->engn[engine->subdev.index].inst);
 }
 
@@ -162,13 +158,13 @@ gk104_fifo_gpfifo_engine_ctor(struct nvkm_fifo_chan *base,
 	if (ret)
 		return ret;
 
-	ret = nvkm_vm_get(chan->base.vmm, chan->engn[engn].inst->size, 12,
-			  NV_MEM_ACCESS_RW, &chan->engn[engn].vma);
+	ret = nvkm_vmm_get(chan->base.vmm, 12, chan->engn[engn].inst->size,
+			   &chan->engn[engn].vma);
 	if (ret)
 		return ret;
 
 	return nvkm_memory_map(chan->engn[engn].inst, 0, chan->base.vmm,
-			       &chan->engn[engn].vma, NULL, 0);
+			       chan->engn[engn].vma, NULL, 0);
 }
 
 static void
@@ -291,7 +287,7 @@ gk104_fifo_gpfifo_new_(const struct gk104_fifo_chan_func *func,
 
 	ret = nvkm_fifo_chan_ctor(&gk104_fifo_gpfifo_func, &fifo->base,
 				  0x1000, 0x1000, true, vm, 0, subdevs,
-				  1, fifo->user.bar.offset, 0x200,
+				  1, fifo->user.bar->addr, 0x200,
 				  oclass, &chan->base);
 	if (ret)
 		return ret;

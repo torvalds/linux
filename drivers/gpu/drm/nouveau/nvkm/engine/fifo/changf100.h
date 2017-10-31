@@ -13,7 +13,7 @@ struct gf100_fifo_chan {
 
 	struct {
 		struct nvkm_gpuobj *inst;
-		struct nvkm_vma vma;
+		struct nvkm_vma *vma;
 	} engn[NVKM_SUBDEV_NR];
 };
 
