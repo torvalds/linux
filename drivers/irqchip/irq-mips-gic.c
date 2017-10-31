@@ -199,46 +199,46 @@ static void gic_ack_irq(struct irq_data *d)
 
 static int gic_set_type(struct irq_data *d, unsigned int type)
 {
-	unsigned int irq = GIC_HWIRQ_TO_SHARED(d->hwirq);
+	unsigned int irq, pol, trig, dual;
 	unsigned long flags;
-	bool is_edge;
+
+	irq = GIC_HWIRQ_TO_SHARED(d->hwirq);
 
 	spin_lock_irqsave(&gic_lock, flags);
 	switch (type & IRQ_TYPE_SENSE_MASK) {
 	case IRQ_TYPE_EDGE_FALLING:
-		change_gic_pol(irq, GIC_POL_FALLING_EDGE);
-		change_gic_trig(irq, GIC_TRIG_EDGE);
-		change_gic_dual(irq, GIC_DUAL_SINGLE);
-		is_edge = true;
+		pol = GIC_POL_FALLING_EDGE;
+		trig = GIC_TRIG_EDGE;
+		dual = GIC_DUAL_SINGLE;
 		break;
 	case IRQ_TYPE_EDGE_RISING:
-		change_gic_pol(irq, GIC_POL_RISING_EDGE);
-		change_gic_trig(irq, GIC_TRIG_EDGE);
-		change_gic_dual(irq, GIC_DUAL_SINGLE);
-		is_edge = true;
+		pol = GIC_POL_RISING_EDGE;
+		trig = GIC_TRIG_EDGE;
+		dual = GIC_DUAL_SINGLE;
 		break;
 	case IRQ_TYPE_EDGE_BOTH:
-		/* polarity is irrelevant in this case */
-		change_gic_trig(irq, GIC_TRIG_EDGE);
-		change_gic_dual(irq, GIC_DUAL_DUAL);
-		is_edge = true;
+		pol = 0; /* Doesn't matter */
+		trig = GIC_TRIG_EDGE;
+		dual = GIC_DUAL_DUAL;
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
-		change_gic_pol(irq, GIC_POL_ACTIVE_LOW);
-		change_gic_trig(irq, GIC_TRIG_LEVEL);
-		change_gic_dual(irq, GIC_DUAL_SINGLE);
-		is_edge = false;
+		pol = GIC_POL_ACTIVE_LOW;
+		trig = GIC_TRIG_LEVEL;
+		dual = GIC_DUAL_SINGLE;
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
 	default:
-		change_gic_pol(irq, GIC_POL_ACTIVE_HIGH);
-		change_gic_trig(irq, GIC_TRIG_LEVEL);
-		change_gic_dual(irq, GIC_DUAL_SINGLE);
-		is_edge = false;
+		pol = GIC_POL_ACTIVE_HIGH;
+		trig = GIC_TRIG_LEVEL;
+		dual = GIC_DUAL_SINGLE;
 		break;
 	}
 
-	if (is_edge)
+	change_gic_pol(irq, pol);
+	change_gic_trig(irq, trig);
+	change_gic_dual(irq, dual);
+
+	if (trig == GIC_TRIG_EDGE)
 		irq_set_chip_handler_name_locked(d, &gic_edge_irq_controller,
 						 handle_edge_irq, NULL);
 	else
