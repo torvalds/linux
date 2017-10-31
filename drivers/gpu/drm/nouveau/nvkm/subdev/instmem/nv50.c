@@ -46,7 +46,7 @@ struct nv50_instobj {
 	struct nvkm_instobj base;
 	struct nv50_instmem *imem;
 	struct nvkm_memory *ram;
-	struct nvkm_vma bar;
+	struct nvkm_vma *bar;
 	refcount_t maps;
 	void *map;
 	struct list_head lru;
@@ -124,7 +124,7 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 	struct nvkm_memory *memory = &iobj->base.memory;
 	struct nvkm_subdev *subdev = &imem->base.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_vma bar = {}, ebar;
+	struct nvkm_vma *bar = NULL, *ebar;
 	u64 size = nvkm_memory_size(memory);
 	void *emap;
 	int ret;
@@ -134,7 +134,7 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 	 * to the possibility of recursion for page table allocation.
 	 */
 	mutex_unlock(&subdev->mutex);
-	while ((ret = nvkm_vm_get(vmm, size, 12, NV_MEM_ACCESS_RW, &bar))) {
+	while ((ret = nvkm_vmm_get(vmm, 12, size, &bar))) {
 		/* Evict unused mappings, and keep retrying until we either
 		 * succeed,or there's no more objects left on the LRU.
 		 */
@@ -144,10 +144,10 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 			nvkm_debug(subdev, "evict %016llx %016llx @ %016llx\n",
 				   nvkm_memory_addr(&eobj->base.memory),
 				   nvkm_memory_size(&eobj->base.memory),
-				   eobj->bar.offset);
+				   eobj->bar->addr);
 			list_del_init(&eobj->lru);
 			ebar = eobj->bar;
-			eobj->bar.node = NULL;
+			eobj->bar = NULL;
 			emap = eobj->map;
 			eobj->map = NULL;
 		}
@@ -155,16 +155,16 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 		if (!eobj)
 			break;
 		iounmap(emap);
-		nvkm_vm_put(&ebar);
+		nvkm_vmm_put(vmm, &ebar);
 	}
 
 	if (ret == 0)
-		ret = nvkm_memory_map(memory, 0, vmm, &bar, NULL, 0);
+		ret = nvkm_memory_map(memory, 0, vmm, bar, NULL, 0);
 	mutex_lock(&subdev->mutex);
-	if (ret || iobj->bar.node) {
+	if (ret || iobj->bar) {
 		/* We either failed, or another thread beat us. */
 		mutex_unlock(&subdev->mutex);
-		nvkm_vm_put(&bar);
+		nvkm_vmm_put(vmm, &bar);
 		mutex_lock(&subdev->mutex);
 		return;
 	}
@@ -172,10 +172,10 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 	/* Make the mapping visible to the host. */
 	iobj->bar = bar;
 	iobj->map = ioremap_wc(device->func->resource_addr(device, 3) +
-			       (u32)iobj->bar.offset, size);
+			       (u32)iobj->bar->addr, size);
 	if (!iobj->map) {
 		nvkm_warn(subdev, "PRAMIN ioremap failed\n");
-		nvkm_vm_put(&iobj->bar);
+		nvkm_vmm_put(vmm, &iobj->bar);
 	}
 }
 
@@ -299,7 +299,7 @@ nv50_instobj_dtor(struct nvkm_memory *memory)
 {
 	struct nv50_instobj *iobj = nv50_instobj(memory);
 	struct nvkm_instmem *imem = &iobj->imem->base;
-	struct nvkm_vma bar;
+	struct nvkm_vma *bar;
 	void *map = map;
 
 	mutex_lock(&imem->subdev.mutex);
@@ -310,8 +310,10 @@ nv50_instobj_dtor(struct nvkm_memory *memory)
 	mutex_unlock(&imem->subdev.mutex);
 
 	if (map) {
+		struct nvkm_vmm *vmm = nvkm_bar_bar2_vmm(imem->subdev.device);
 		iounmap(map);
-		nvkm_vm_put(&bar);
+		if (likely(vmm)) /* Can be NULL during BAR destructor. */
+			nvkm_vmm_put(vmm, &bar);
 	}
 
 	nvkm_memory_unref(&iobj->ram);
