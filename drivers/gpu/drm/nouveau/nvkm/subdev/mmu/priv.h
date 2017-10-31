@@ -9,7 +9,6 @@ int nvkm_mmu_new_(const struct nvkm_mmu_func *, struct nvkm_device *,
 		  int index, struct nvkm_mmu **);
 
 struct nvkm_mmu_func {
-	void *(*dtor)(struct nvkm_mmu *);
 	int (*oneinit)(struct nvkm_mmu *);
 	void (*init)(struct nvkm_mmu *);
 

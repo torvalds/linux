@@ -48,6 +48,9 @@ struct nvkm_vm {
 
 	bool bootstrapped;
 	atomic_t engref[NVKM_SUBDEV_NR];
+
+	dma_addr_t null;
+	void *nullp;
 };
 
 int  nvkm_vm_new(struct nvkm_device *, u64 offset, u64 length, u64 mm_offset,

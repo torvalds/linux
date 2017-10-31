@@ -110,4 +110,6 @@ int nv04_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		 struct lock_class_key *, const char *, struct nvkm_vmm **);
 int nv41_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		 struct lock_class_key *, const char *, struct nvkm_vmm **);
+int nv44_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
+		 struct lock_class_key *, const char *, struct nvkm_vmm **);
 #endif

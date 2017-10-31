@@ -21,7 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv04.h"
 #include "vmm.h"
 
 #include <nvif/class.h>
@@ -78,32 +77,6 @@ nv04_mmu_oneinit(struct nvkm_mmu *mmu)
 {
 	mmu->vmm->pgt[0].mem[0] = mmu->vmm->pd->pt[0]->memory;
 	mmu->vmm->pgt[0].refcount[0] = 1;
-	return 0;
-}
-
-void *
-nv04_mmu_dtor(struct nvkm_mmu *base)
-{
-	struct nv04_mmu *mmu = nv04_mmu(base);
-	struct nvkm_device *device = mmu->base.subdev.device;
-	if (mmu->base.vmm)
-		nvkm_memory_unref(&mmu->base.vmm->pgt[0].mem[0]);
-	if (mmu->nullp) {
-		dma_free_coherent(device->dev, 16 * 1024,
-				  mmu->nullp, mmu->null);
-	}
-	return mmu;
-}
-
-int
-nv04_mmu_new_(const struct nvkm_mmu_func *func, struct nvkm_device *device,
-	      int index, struct nvkm_mmu **pmmu)
-{
-	struct nv04_mmu *mmu;
-	if (!(mmu = kzalloc(sizeof(*mmu), GFP_KERNEL)))
-		return -ENOMEM;
-	*pmmu = &mmu->base;
-	nvkm_mmu_ctor(func, device, index, &mmu->base);
 	return 0;
 }
 

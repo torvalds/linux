@@ -786,14 +786,11 @@ static void *
 nvkm_mmu_dtor(struct nvkm_subdev *subdev)
 {
 	struct nvkm_mmu *mmu = nvkm_mmu(subdev);
-	void *data = mmu;
 
-	if (mmu->func->dtor)
-		data = mmu->func->dtor(mmu);
 	nvkm_vm_ref(NULL, &mmu->vmm, NULL);
 
 	nvkm_mmu_ptc_fini(mmu);
-	return data;
+	return mmu;
 }
 
 static const struct nvkm_subdev_func

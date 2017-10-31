@@ -70,6 +70,11 @@ nvkm_vmm_pt_new(const struct nvkm_vmm_desc *desc, bool sparse,
 void
 nvkm_vmm_dtor(struct nvkm_vmm *vmm)
 {
+	if (vmm->nullp) {
+		dma_free_coherent(vmm->mmu->subdev.device->dev, 16 * 1024,
+				  vmm->nullp, vmm->null);
+	}
+
 	if (vmm->pd) {
 		nvkm_mmu_ptc_put(vmm->mmu, true, &vmm->pd->pt[0]);
 		nvkm_vmm_pt_del(&vmm->pd);

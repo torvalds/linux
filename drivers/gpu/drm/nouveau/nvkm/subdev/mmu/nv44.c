@@ -21,11 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv04.h"
+#include "vmm.h"
 
-#include <core/gpuobj.h>
 #include <core/option.h>
 #include <subdev/timer.h>
+
+#include <nvif/class.h>
 
 #define NV44_GART_SIZE (512 * 1024 * 1024)
 #define NV44_GART_PAGE (  4 * 1024)
@@ -84,7 +85,6 @@ static void
 nv44_vm_map_sg(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 	       struct nvkm_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
 {
-	struct nv04_mmu *mmu = nv04_mmu(vma->vm->mmu);
 	u32 tmp[4];
 	int i;
 
@@ -92,7 +92,7 @@ nv44_vm_map_sg(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 	if (pte & 3) {
 		u32  max = 4 - (pte & 3);
 		u32 part = (cnt > max) ? max : cnt;
-		nv44_vm_fill(pgt, mmu->null, list, pte, part);
+		nv44_vm_fill(pgt, vma->vm->null, list, pte, part);
 		pte  += part;
 		list += part;
 		cnt  -= part;
@@ -109,20 +109,18 @@ nv44_vm_map_sg(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 	}
 
 	if (cnt)
-		nv44_vm_fill(pgt, mmu->null, list, pte, cnt);
+		nv44_vm_fill(pgt, vma->vm->null, list, pte, cnt);
 	nvkm_done(pgt);
 }
 
 static void
 nv44_vm_unmap(struct nvkm_vma *vma, struct nvkm_memory *pgt, u32 pte, u32 cnt)
 {
-	struct nv04_mmu *mmu = nv04_mmu(vma->vm->mmu);
-
 	nvkm_kmap(pgt);
 	if (pte & 3) {
 		u32  max = 4 - (pte & 3);
 		u32 part = (cnt > max) ? max : cnt;
-		nv44_vm_fill(pgt, mmu->null, NULL, pte, part);
+		nv44_vm_fill(pgt, vma->vm->null, NULL, pte, part);
 		pte  += part;
 		cnt  -= part;
 	}
@@ -136,16 +134,15 @@ nv44_vm_unmap(struct nvkm_vma *vma, struct nvkm_memory *pgt, u32 pte, u32 cnt)
 	}
 
 	if (cnt)
-		nv44_vm_fill(pgt, mmu->null, NULL, pte, cnt);
+		nv44_vm_fill(pgt, vma->vm->null, NULL, pte, cnt);
 	nvkm_done(pgt);
 }
 
 static void
 nv44_vm_flush(struct nvkm_vm *vm)
 {
-	struct nv04_mmu *mmu = nv04_mmu(vm->mmu);
-	struct nvkm_device *device = mmu->base.subdev.device;
-	nvkm_wr32(device, 0x100814, mmu->base.limit - NV44_GART_PAGE);
+	struct nvkm_device *device = vm->mmu->subdev.device;
+	nvkm_wr32(device, 0x100814, vm->mmu->limit - NV44_GART_PAGE);
 	nvkm_wr32(device, 0x100808, 0x00000020);
 	nvkm_msec(device, 2000,
 		if (nvkm_rd32(device, 0x100808) & 0x00000001)
@@ -159,38 +156,18 @@ nv44_vm_flush(struct nvkm_vm *vm)
  ******************************************************************************/
 
 static int
-nv44_mmu_oneinit(struct nvkm_mmu *base)
+nv44_mmu_oneinit(struct nvkm_mmu *mmu)
 {
-	struct nv04_mmu *mmu = nv04_mmu(base);
-	struct nvkm_device *device = mmu->base.subdev.device;
-	int ret;
-
-	mmu->nullp = dma_alloc_coherent(device->dev, 16 * 1024,
-					&mmu->null, GFP_KERNEL);
-	if (!mmu->nullp) {
-		nvkm_warn(&mmu->base.subdev, "unable to allocate dummy pages\n");
-		mmu->null = 0;
-	}
-
-	ret = nvkm_vm_create(&mmu->base, 0, NV44_GART_SIZE, 0, 4096, NULL,
-			     &mmu->base.vmm);
-	if (ret)
-		return ret;
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
-			      (NV44_GART_SIZE / NV44_GART_PAGE) * 4,
-			      512 * 1024, true,
-			      &mmu->base.vmm->pgt[0].mem[0]);
-	mmu->base.vmm->pgt[0].refcount[0] = 1;
-	return ret;
+	mmu->vmm->pgt[0].mem[0] = mmu->vmm->pd->pt[0]->memory;
+	mmu->vmm->pgt[0].refcount[0] = 1;
+	return 0;
 }
 
 static void
-nv44_mmu_init(struct nvkm_mmu *base)
+nv44_mmu_init(struct nvkm_mmu *mmu)
 {
-	struct nv04_mmu *mmu = nv04_mmu(base);
-	struct nvkm_device *device = mmu->base.subdev.device;
-	struct nvkm_memory *gart = mmu->base.vmm->pgt[0].mem[0];
+	struct nvkm_device *device = mmu->subdev.device;
+	struct nvkm_memory *gart = mmu->vmm->pgt[0].mem[0];
 	u32 addr;
 
 	/* calculate vram address of this PRAMIN block, object must be
@@ -201,7 +178,7 @@ nv44_mmu_init(struct nvkm_mmu *base)
 	addr -= ((nvkm_memory_addr(gart) >> 19) + 1) << 19;
 
 	nvkm_wr32(device, 0x100850, 0x80000000);
-	nvkm_wr32(device, 0x100818, mmu->null);
+	nvkm_wr32(device, 0x100818, mmu->vmm->null);
 	nvkm_wr32(device, 0x100804, NV44_GART_SIZE);
 	nvkm_wr32(device, 0x100850, 0x00008000);
 	nvkm_mask(device, 0x10008c, 0x00000200, 0x00000200);
@@ -212,7 +189,6 @@ nv44_mmu_init(struct nvkm_mmu *base)
 
 static const struct nvkm_mmu_func
 nv44_mmu = {
-	.dtor = nv04_mmu_dtor,
 	.oneinit = nv44_mmu_oneinit,
 	.init = nv44_mmu_init,
 	.limit = NV44_GART_SIZE,
@@ -223,6 +199,7 @@ nv44_mmu = {
 	.map_sg = nv44_vm_map_sg,
 	.unmap = nv44_vm_unmap,
 	.flush = nv44_vm_flush,
+	.vmm = {{ -1, -1, NVIF_CLASS_VMM_NV04}, nv44_vmm_new, true },
 };
 
 int
@@ -232,5 +209,5 @@ nv44_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
 	    !nvkm_boolopt(device->cfgopt, "NvPCIE", true))
 		return nv04_mmu_new(device, index, pmmu);
 
-	return nv04_mmu_new_(&nv44_mmu, device, index, pmmu);
+	return nvkm_mmu_new_(&nv44_mmu, device, index, pmmu);
 }
