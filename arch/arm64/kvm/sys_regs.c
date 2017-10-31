@@ -23,6 +23,7 @@
 #include <linux/bsearch.h>
 #include <linux/kvm_host.h>
 #include <linux/mm.h>
+#include <linux/printk.h>
 #include <linux/uaccess.h>
 
 #include <asm/cacheflush.h>
@@ -897,8 +898,17 @@ static u64 read_id_reg(struct sys_reg_desc const *r, bool raz)
 {
 	u32 id = sys_reg((u32)r->Op0, (u32)r->Op1,
 			 (u32)r->CRn, (u32)r->CRm, (u32)r->Op2);
+	u64 val = raz ? 0 : read_sanitised_ftr_reg(id);
 
-	return raz ? 0 : read_sanitised_ftr_reg(id);
+	if (id == SYS_ID_AA64PFR0_EL1) {
+		if (val & (0xfUL << ID_AA64PFR0_SVE_SHIFT))
+			pr_err_once("kvm [%i]: SVE unsupported for guests, suppressing\n",
+				    task_pid_nr(current));
+
+		val &= ~(0xfUL << ID_AA64PFR0_SVE_SHIFT);
+	}
+
+	return val;
 }
 
 /* cpufeature ID register access trap handlers */
