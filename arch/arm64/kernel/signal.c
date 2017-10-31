@@ -344,6 +344,10 @@ static int parse_user_sigframe(struct user_ctxs *user,
 			 */
 			offset = 0;
 			limit = extra_size;
+
+			if (!access_ok(VERIFY_READ, base, limit))
+				goto invalid;
+
 			continue;
 
 		default:
