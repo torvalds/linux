@@ -393,19 +393,9 @@ static void tgn10_enable_optc_clock(struct timing_generator *tg, bool enable)
 				OTG_CLOCK_GATE_DIS, 0,
 				OTG_CLOCK_EN, 0);
 
-		if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
-			REG_WAIT(OTG_CLOCK_CONTROL,
-					OTG_CLOCK_ON, 0,
-					1, 1000);
-
 		REG_UPDATE_2(OPTC_INPUT_CLOCK_CONTROL,
 				OPTC_INPUT_CLK_GATE_DIS, 0,
 				OPTC_INPUT_CLK_EN, 0);
-
-		if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
-			REG_WAIT(OPTC_INPUT_CLOCK_CONTROL,
-					OPTC_INPUT_CLK_ON, 0,
-					1, 1000);
 	}
 }
 
@@ -568,10 +558,11 @@ static void tgn10_lock(struct timing_generator *tg)
 	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
 			OTG_MASTER_UPDATE_LOCK, 1);
 
+	/* Should be fast, status does not update on maximus */
 	if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
 		REG_WAIT(OTG_MASTER_UPDATE_LOCK,
 				UPDATE_LOCK_STATUS, 1,
-				1, 100);
+				1, 10);
 }
 
 static void tgn10_unlock(struct timing_generator *tg)

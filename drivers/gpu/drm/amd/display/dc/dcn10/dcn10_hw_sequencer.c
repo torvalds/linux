@@ -565,8 +565,6 @@ static void plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	struct mpc *mpc = dc->res_pool->mpc;
 	int opp_id, z_idx;
 	int mpcc_id = -1;
-	struct timing_generator *tg = pipe_ctx->stream_res.tg;
-	struct dce_hwseq *hws = dc->hwseq;
 
 	/* look at tree rather than mi here to know if we already reset */
 	for (opp_id = 0; opp_id < dc->res_pool->pipe_count; opp_id++) {
@@ -586,7 +584,7 @@ static void plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		return;
 
 	mpc->funcs->remove(mpc, &(dc->res_pool->opps[opp_id]->mpc_tree),
-					   dc->res_pool->opps[opp_id]->inst, fe_idx);
+					dc->res_pool->opps[opp_id]->inst, fe_idx);
 
 	if (hubp->funcs->hubp_disconnect)
 		hubp->funcs->hubp_disconnect(hubp);
@@ -607,10 +605,6 @@ static void plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		pipe_ctx->bottom_pipe = NULL;
 	}
 	pipe_ctx->plane_state = NULL;
-
-	/* TODO: Move to tg. */
-	REG_UPDATE(OTG_GLOBAL_SYNC_STATUS[tg->inst],
-			VUPDATE_NO_LOCK_EVENT_CLEAR, 1);
 }
 
 /* disable HW used by plane.
@@ -629,11 +623,6 @@ static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 
 	if (opp_id == 0xf)
 		return;
-
-	if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
-		REG_WAIT(OTG_GLOBAL_SYNC_STATUS[tg->inst],
-				VUPDATE_NO_LOCK_EVENT_OCCURRED, 1,
-				1, 100000);
 
 	mpc->funcs->wait_for_idle(mpc, hubp->mpcc_id);
 	dc->res_pool->opps[hubp->opp_id]->mpcc_disconnect_pending[hubp->mpcc_id] = false;
