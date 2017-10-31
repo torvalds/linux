@@ -5,6 +5,11 @@ struct nvkm_device;
 struct nvkm_vma;
 struct nvkm_vm;
 
+struct nvkm_tags {
+	struct nvkm_mm_node *mn;
+	refcount_t refcount;
+};
+
 enum nvkm_memory_target {
 	NVKM_MEM_TARGET_INST, /* instance memory */
 	NVKM_MEM_TARGET_VRAM, /* video memory */
@@ -15,6 +20,7 @@ enum nvkm_memory_target {
 struct nvkm_memory {
 	const struct nvkm_memory_func *func;
 	const struct nvkm_memory_ptrs *ptrs;
+	struct nvkm_tags *tags;
 };
 
 struct nvkm_memory_func {
@@ -37,6 +43,12 @@ void nvkm_memory_ctor(const struct nvkm_memory_func *, struct nvkm_memory *);
 int nvkm_memory_new(struct nvkm_device *, enum nvkm_memory_target,
 		    u64 size, u32 align, bool zero, struct nvkm_memory **);
 void nvkm_memory_del(struct nvkm_memory **);
+int nvkm_memory_tags_get(struct nvkm_memory *, struct nvkm_device *, u32 tags,
+			 void (*clear)(struct nvkm_device *, u32, u32),
+			 struct nvkm_tags **);
+void nvkm_memory_tags_put(struct nvkm_memory *, struct nvkm_device *,
+			  struct nvkm_tags **);
+
 #define nvkm_memory_target(p) (p)->func->target(p)
 #define nvkm_memory_addr(p) (p)->func->addr(p)
 #define nvkm_memory_size(p) (p)->func->size(p)
