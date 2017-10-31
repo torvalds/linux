@@ -157,6 +157,7 @@ void nvkm_vmm_ptes_unmap(struct nvkm_vmm *, const struct nvkm_vmm_page *,
 int nv04_vmm_new_(const struct nvkm_vmm_func *, struct nvkm_mmu *, u32,
 		  u64, u64, void *, u32, struct lock_class_key *,
 		  const char *, struct nvkm_vmm **);
+int nv04_vmm_valid(struct nvkm_vmm *, void *, u32, struct nvkm_vmm_map *);
 
 int gf100_vmm_new_(const struct nvkm_vmm_func *, const struct nvkm_vmm_func *,
 		   struct nvkm_mmu *, u64, u64, void *, u32,

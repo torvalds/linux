@@ -24,8 +24,50 @@
 #include <nvif/if000d.h>
 #include <nvif/unpack.h>
 
+static inline void
+nv04_vmm_pgt_pte(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
+		 u32 ptei, u32 ptes, struct nvkm_vmm_map *map, u64 addr)
+{
+	u32 data = addr | 0x00000003; /* PRESENT, RW. */
+	while (ptes--) {
+		VMM_WO032(pt, vmm, 8 + ptei++ * 4, data);
+		data += 0x00001000;
+	}
+}
+
+static void
+nv04_vmm_pgt_sgl(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
+		 u32 ptei, u32 ptes, struct nvkm_vmm_map *map)
+{
+	VMM_MAP_ITER_SGL(vmm, pt, ptei, ptes, map, nv04_vmm_pgt_pte);
+}
+
+static void
+nv04_vmm_pgt_dma(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
+		 u32 ptei, u32 ptes, struct nvkm_vmm_map *map)
+{
+#if PAGE_SHIFT == 12
+	nvkm_kmap(pt->memory);
+	while (ptes--)
+		VMM_WO032(pt, vmm, 8 + (ptei++ * 4), *map->dma++ | 0x00000003);
+	nvkm_done(pt->memory);
+#else
+	VMM_MAP_ITER_DMA(vmm, pt, ptei, ptes, map, nv04_vmm_pgt_pte);
+#endif
+}
+
+static void
+nv04_vmm_pgt_unmap(struct nvkm_vmm *vmm,
+		   struct nvkm_mmu_pt *pt, u32 ptei, u32 ptes)
+{
+	VMM_FO032(pt, vmm, 8 + (ptei * 4), 0, ptes);
+}
+
 static const struct nvkm_vmm_desc_func
 nv04_vmm_desc_pgt = {
+	.unmap = nv04_vmm_pgt_unmap,
+	.dma = nv04_vmm_pgt_dma,
+	.sgl = nv04_vmm_pgt_sgl,
 };
 
 static const struct nvkm_vmm_desc
@@ -34,8 +76,22 @@ nv04_vmm_desc_12[] = {
 	{}
 };
 
+int
+nv04_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
+	       struct nvkm_vmm_map *map)
+{
+	union {
+		struct nv04_vmm_map_vn vn;
+	} *args = argv;
+	int ret = -ENOSYS;
+	if ((ret = nvif_unvers(ret, &argv, &argc, args->vn)))
+		VMM_DEBUG(vmm, "args");
+	return ret;
+}
+
 static const struct nvkm_vmm_func
 nv04_vmm = {
+	.valid = nv04_vmm_valid,
 	.page = {
 		{ 12, &nv04_vmm_desc_12[0], NVKM_VMM_PAGE_HOST },
 		{}
@@ -65,8 +121,8 @@ nv04_vmm_new(struct nvkm_mmu *mmu, u64 addr, u64 size, void *argv, u32 argc,
 	     struct lock_class_key *key, const char *name,
 	     struct nvkm_vmm **pvmm)
 {
-	struct nvkm_vmm *vmm;
 	struct nvkm_memory *mem;
+	struct nvkm_vmm *vmm;
 	int ret;
 
 	ret = nv04_vmm_new_(&nv04_vmm, mmu, 8, addr, size,
