@@ -17,4 +17,19 @@ struct nvkm_instmem_func {
 
 void nvkm_instmem_ctor(const struct nvkm_instmem_func *, struct nvkm_device *,
 		       int index, struct nvkm_instmem *);
+
+#include <core/memory.h>
+
+struct nvkm_instobj {
+	struct nvkm_memory memory;
+	struct nvkm_memory *parent;
+	struct nvkm_instmem *imem;
+	struct list_head head;
+	u32 *suspend;
+	void __iomem *map;
+};
+
+void nvkm_instobj_ctor(const struct nvkm_memory_func *func,
+		       struct nvkm_instmem *, struct nvkm_instobj *);
+void nvkm_instobj_dtor(struct nvkm_instmem *, struct nvkm_instobj *);
 #endif

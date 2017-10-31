@@ -23,22 +23,12 @@
  */
 #include "priv.h"
 
-#include <core/memory.h>
 #include <subdev/bar.h>
 
 /******************************************************************************
  * instmem object base implementation
  *****************************************************************************/
 #define nvkm_instobj(p) container_of((p), struct nvkm_instobj, memory)
-
-struct nvkm_instobj {
-	struct nvkm_memory memory;
-	struct nvkm_memory *parent;
-	struct nvkm_instmem *imem;
-	struct list_head head;
-	u32 *suspend;
-	void __iomem *map;
-};
 
 static enum nvkm_memory_target
 nvkm_instobj_target(struct nvkm_memory *memory)
@@ -94,7 +84,7 @@ nvkm_instobj_map(struct nvkm_memory *memory, struct nvkm_vma *vma, u64 offset)
 }
 
 static void *
-nvkm_instobj_dtor(struct nvkm_memory *memory)
+nvkm_instobj_dtor_old(struct nvkm_memory *memory)
 {
 	struct nvkm_instobj *iobj = nvkm_instobj(memory);
 	spin_lock(&iobj->imem->lock);
@@ -106,7 +96,7 @@ nvkm_instobj_dtor(struct nvkm_memory *memory)
 
 static const struct nvkm_memory_func
 nvkm_instobj_func = {
-	.dtor = nvkm_instobj_dtor,
+	.dtor = nvkm_instobj_dtor_old,
 	.target = nvkm_instobj_target,
 	.addr = nvkm_instobj_addr,
 	.size = nvkm_instobj_size,
@@ -164,7 +154,7 @@ nvkm_instobj_wr32_slow(struct nvkm_memory *memory, u64 offset, u32 data)
 
 static const struct nvkm_memory_func
 nvkm_instobj_func_slow = {
-	.dtor = nvkm_instobj_dtor,
+	.dtor = nvkm_instobj_dtor_old,
 	.target = nvkm_instobj_target,
 	.addr = nvkm_instobj_addr,
 	.size = nvkm_instobj_size,
@@ -179,6 +169,26 @@ nvkm_instobj_ptrs_slow = {
 	.rd32 = nvkm_instobj_rd32_slow,
 	.wr32 = nvkm_instobj_wr32_slow,
 };
+
+void
+nvkm_instobj_dtor(struct nvkm_instmem *imem, struct nvkm_instobj *iobj)
+{
+	spin_lock(&imem->lock);
+	list_del(&iobj->head);
+	spin_unlock(&imem->lock);
+}
+
+void
+nvkm_instobj_ctor(const struct nvkm_memory_func *func,
+		  struct nvkm_instmem *imem, struct nvkm_instobj *iobj)
+{
+	nvkm_memory_ctor(func, &iobj->memory);
+	iobj->parent = &iobj->memory;
+	iobj->suspend = NULL;
+	spin_lock(&imem->lock);
+	list_add_tail(&iobj->head, &imem->list);
+	spin_unlock(&imem->lock);
+}
 
 int
 nvkm_instobj_new(struct nvkm_instmem *imem, u32 size, u32 align, bool zero,
