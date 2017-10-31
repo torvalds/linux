@@ -179,15 +179,20 @@ def has_blank_ids(idlist):
 
 def load_from_file(filename):
     """
-    Open the JSON file containing the test cases and return them as an
-    ordered dictionary object.
+    Open the JSON file containing the test cases and return them
+    as list of ordered dictionary objects.
     """
-    with open(filename) as test_data:
-        testlist = json.load(test_data, object_pairs_hook=OrderedDict)
-    idlist = get_id_list(testlist)
-    if (has_blank_ids(idlist)):
-        for k in testlist:
-            k['filename'] = filename
+    try:
+        with open(filename) as test_data:
+            testlist = json.load(test_data, object_pairs_hook=OrderedDict)
+    except json.JSONDecodeError as jde:
+        print('IGNORING test case file {}\n\tBECAUSE:  {}'.format(filename, jde))
+        testlist = list()
+    else:
+        idlist = get_id_list(testlist)
+        if (has_blank_ids(idlist)):
+            for k in testlist:
+                k['filename'] = filename
     return testlist
 
 
