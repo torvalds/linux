@@ -173,7 +173,7 @@ void input_system_get_state(
 			&(state->ctrl_unit_state[sub_id - CTRL_UNIT0_ID]));
 	}
 
-return;
+	return;
 }
 
 void receiver_get_state(
@@ -245,7 +245,7 @@ void receiver_get_state(
 	state->be_irq_clear = receiver_reg_load(ID,
 		_HRT_CSS_RECEIVER_BE_IRQ_CLEAR_REG_IDX);
 
-return;
+	return;
 }
 
 bool is_mipi_format_yuv420(
@@ -258,7 +258,7 @@ bool is_mipi_format_yuv420(
 		(mipi_format == MIPI_FORMAT_YUV420_10_SHIFT));
 /* MIPI_FORMAT_YUV420_8_LEGACY is not YUV420 */
 
-return is_yuv420;
+	return is_yuv420;
 }
 
 void receiver_set_compression(
@@ -300,7 +300,7 @@ void receiver_set_compression(
 	reg = ((field_id < 6)?(val << (field_id * 5)):(val << ((field_id - 6) * 5)));
 	receiver_reg_store(ID, addr, reg);
 
-return;
+	return;
 }
 
 void receiver_port_enable(
@@ -319,7 +319,7 @@ void receiver_port_enable(
 
 	receiver_port_reg_store(ID, port_ID,
 		_HRT_CSS_RECEIVER_DEVICE_READY_REG_IDX, reg);
-return;
+	return;
 }
 
 bool is_receiver_port_enabled(
@@ -328,7 +328,7 @@ bool is_receiver_port_enabled(
 {
 	hrt_data	reg = receiver_port_reg_load(ID, port_ID,
 		_HRT_CSS_RECEIVER_DEVICE_READY_REG_IDX);
-return ((reg & 0x01) != 0);
+	return ((reg & 0x01) != 0);
 }
 
 void receiver_irq_enable(
@@ -338,14 +338,14 @@ void receiver_irq_enable(
 {
 	receiver_port_reg_store(ID,
 		port_ID, _HRT_CSS_RECEIVER_IRQ_ENABLE_REG_IDX, irq_info);
-return;
+	return;
 }
 
 rx_irq_info_t receiver_get_irq_info(
 	const rx_ID_t			ID,
 	const mipi_port_ID_t		port_ID)
 {
-return receiver_port_reg_load(ID,
+	return receiver_port_reg_load(ID,
 	port_ID, _HRT_CSS_RECEIVER_IRQ_STATUS_REG_IDX);
 }
 
@@ -356,7 +356,7 @@ void receiver_irq_clear(
 {
 	receiver_port_reg_store(ID,
 		port_ID, _HRT_CSS_RECEIVER_IRQ_STATUS_REG_IDX, irq_info);
-return;
+	return;
 }
 
 STORAGE_CLASS_INLINE void capture_unit_get_state(
@@ -418,7 +418,7 @@ STORAGE_CLASS_INLINE void capture_unit_get_state(
 		sub_id,
 		CAPT_FSM_STATE_INFO_REG_ID);
 
-return;
+	return;
 }
 
 STORAGE_CLASS_INLINE void acquisition_unit_get_state(
@@ -468,7 +468,7 @@ STORAGE_CLASS_INLINE void acquisition_unit_get_state(
 		sub_id,
 		ACQ_INT_CNTR_INFO_REG_ID);
 
-return;
+	return;
 }
 
 STORAGE_CLASS_INLINE void ctrl_unit_get_state(
@@ -551,7 +551,7 @@ STORAGE_CLASS_INLINE void ctrl_unit_get_state(
 		sub_id,
 		ISYS_CTRL_CAPT_RESERVE_ONE_MEM_REGION_REG_ID);
 
-return;
+	return;
 }
 
 STORAGE_CLASS_INLINE void mipi_port_get_state(
@@ -587,7 +587,7 @@ STORAGE_CLASS_INLINE void mipi_port_get_state(
 		state->lane_rx_count[i] = (uint8_t)((state->rx_count)>>(i*8));
 	}
 
-return;
+	return;
 }
 
 STORAGE_CLASS_INLINE void rx_channel_get_state(
@@ -640,7 +640,7 @@ STORAGE_CLASS_INLINE void rx_channel_get_state(
 		state->pred[i] = (mipi_predictor_t)((val & 0x18) >> 3);
 	}
 
-return;
+	return;
 }
 
 // MW: "2400" in the name is not good, but this is to avoid a naming conflict

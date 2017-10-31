@@ -104,5 +104,5 @@ void gp_device_get_state(
 		_REG_GP_SYNCGEN_FRAME_CNT_ADDR);
 	state->soft_reset = gp_device_reg_load(ID,
 		_REG_GP_SOFT_RESET_ADDR);
-return;
+	return;
 }
