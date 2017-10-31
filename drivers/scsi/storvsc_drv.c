@@ -487,6 +487,8 @@ struct hv_host_device {
 	unsigned char path;
 	unsigned char target;
 	struct workqueue_struct *handle_error_wq;
+	struct work_struct host_scan_work;
+	struct Scsi_Host *host;
 };
 
 struct storvsc_scan_work {
@@ -515,13 +517,12 @@ done:
 
 static void storvsc_host_scan(struct work_struct *work)
 {
-	struct storvsc_scan_work *wrk;
 	struct Scsi_Host *host;
 	struct scsi_device *sdev;
+	struct hv_host_device *host_device =
+		container_of(work, struct hv_host_device, host_scan_work);
 
-	wrk = container_of(work, struct storvsc_scan_work, work);
-	host = wrk->host;
-
+	host = host_device->host;
 	/*
 	 * Before scanning the host, first check to see if any of the
 	 * currrently known devices have been hot removed. We issue a
@@ -541,8 +542,6 @@ static void storvsc_host_scan(struct work_struct *work)
 	 * Now scan the host to discover LUNs that may have been added.
 	 */
 	scsi_scan_host(host);
-
-	kfree(wrk);
 }
 
 static void storvsc_remove_lun(struct work_struct *work)
@@ -1118,8 +1117,7 @@ static void storvsc_on_receive(struct storvsc_device *stor_device,
 			     struct vstor_packet *vstor_packet,
 			     struct storvsc_cmd_request *request)
 {
-	struct storvsc_scan_work *work;
-
+	struct hv_host_device *host_dev;
 	switch (vstor_packet->operation) {
 	case VSTOR_OPERATION_COMPLETE_IO:
 		storvsc_on_io_completion(stor_device, vstor_packet, request);
@@ -1127,13 +1125,9 @@ static void storvsc_on_receive(struct storvsc_device *stor_device,
 
 	case VSTOR_OPERATION_REMOVE_DEVICE:
 	case VSTOR_OPERATION_ENUMERATE_BUS:
-		work = kmalloc(sizeof(struct storvsc_scan_work), GFP_ATOMIC);
-		if (!work)
-			return;
-
-		INIT_WORK(&work->work, storvsc_host_scan);
-		work->host = stor_device->host;
-		schedule_work(&work->work);
+		host_dev = shost_priv(stor_device->host);
+		queue_work(
+			host_dev->handle_error_wq, &host_dev->host_scan_work);
 		break;
 
 	case VSTOR_OPERATION_FCHBA_DATA:
@@ -1746,6 +1740,7 @@ static int storvsc_probe(struct hv_device *device,
 
 	host_dev->port = host->host_no;
 	host_dev->dev = device;
+	host_dev->host = host;
 
 
 	stor_device = kzalloc(sizeof(struct storvsc_device), GFP_KERNEL);
@@ -1814,6 +1809,7 @@ static int storvsc_probe(struct hv_device *device,
 						host->host_no);
 	if (!host_dev->handle_error_wq)
 		goto err_out2;
+	INIT_WORK(&host_dev->host_scan_work, storvsc_host_scan);
 	/* Register the HBA and start the scsi bus scan */
 	ret = scsi_add_host(host, &device->device);
 	if (ret != 0)
