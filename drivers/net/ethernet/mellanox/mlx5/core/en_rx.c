@@ -1175,7 +1175,9 @@ static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 					 u32 cqe_bcnt,
 					 struct sk_buff *skb)
 {
+	struct hwtstamp_config *tstamp;
 	struct net_device *netdev;
+	struct mlx5e_priv *priv;
 	char *pseudo_header;
 	u32 qpn;
 	u8 *dgid;
@@ -1193,6 +1195,9 @@ static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 		pr_warn_once("Unable to map QPN %u to dev - dropping skb\n", qpn);
 		return;
 	}
+
+	priv = mlx5i_epriv(netdev);
+	tstamp = &priv->tstamp;
 
 	g = (be32_to_cpu(cqe->flags_rqpn) >> 28) & 3;
 	dgid = skb->data + MLX5_IB_GRH_DGID_OFFSET;
@@ -1214,7 +1219,7 @@ static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 	skb->ip_summed = CHECKSUM_COMPLETE;
 	skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
 
-	if (unlikely(mlx5e_rx_hw_stamp(rq->tstamp)))
+	if (unlikely(mlx5e_rx_hw_stamp(tstamp)))
 		skb_hwtstamps(skb)->hwtstamp =
 				mlx5_timecounter_cyc2time(rq->clock, get_cqe_ts(cqe));
 
