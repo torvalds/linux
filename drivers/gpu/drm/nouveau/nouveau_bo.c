@@ -1414,7 +1414,6 @@ nouveau_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 	if (!mem->bar_vma.node)
 		return;
 
-	nvkm_vm_unmap(&mem->bar_vma);
 	nvkm_vm_put(&mem->bar_vma);
 }
 

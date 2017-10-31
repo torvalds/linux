@@ -61,10 +61,8 @@ nouveau_vma_del(struct nouveau_vma **pvma)
 {
 	struct nouveau_vma *vma = *pvma;
 	if (vma && --vma->refs <= 0) {
-		if (likely(vma->addr != ~0ULL)) {
-			nouveau_vma_unmap(vma);
+		if (likely(vma->addr != ~0ULL))
 			nvkm_vm_put(&vma->_vma);
-		}
 		list_del(&vma->head);
 		*pvma = NULL;
 		kfree(*pvma);

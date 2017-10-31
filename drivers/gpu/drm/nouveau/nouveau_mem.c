@@ -36,14 +36,8 @@ nouveau_mem_map(struct nouveau_mem *mem,
 void
 nouveau_mem_fini(struct nouveau_mem *mem)
 {
-	if (mem->vma[1].node) {
-		nvkm_vm_unmap(&mem->vma[1]);
-		nvkm_vm_put(&mem->vma[1]);
-	}
-	if (mem->vma[0].node) {
-		nvkm_vm_unmap(&mem->vma[0]);
-		nvkm_vm_put(&mem->vma[0]);
-	}
+	nvkm_vm_put(&mem->vma[1]);
+	nvkm_vm_put(&mem->vma[0]);
 }
 
 int
