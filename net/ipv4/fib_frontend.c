@@ -73,6 +73,11 @@ fail:
 	fib_free_table(main_table);
 	return -ENOMEM;
 }
+
+static bool fib4_has_custom_rules(struct net *net)
+{
+	return false;
+}
 #else
 
 struct fib_table *fib_new_table(struct net *net, u32 id)
@@ -127,6 +132,11 @@ struct fib_table *fib_get_table(struct net *net, u32 id)
 			return tb;
 	}
 	return NULL;
+}
+
+static bool fib4_has_custom_rules(struct net *net)
+{
+	return net->ipv4.fib_has_custom_rules;
 }
 #endif /* CONFIG_IP_MULTIPLE_TABLES */
 
@@ -405,10 +415,12 @@ int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	    (dev->ifindex != oif || !IN_DEV_TX_REDIRECTS(idev))) {
 		if (IN_DEV_ACCEPT_LOCAL(idev))
 			goto ok;
-		/* if no local routes are added from user space we can check
-		 * for local addresses looking-up the ifaddr table
+		/* with custom local routes in place, checking local addresses
+		 * only will be too optimistic, with custom rules, checking
+		 * local addresses only can be too strict, e.g. due to vrf
 		 */
-		if (net->ipv4.fib_has_custom_local_routes)
+		if (net->ipv4.fib_has_custom_local_routes ||
+		    fib4_has_custom_rules(net))
 			goto full_check;
 		if (inet_lookup_ifaddr_rcu(net, src))
 			return -EINVAL;
