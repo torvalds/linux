@@ -2315,8 +2315,11 @@ static int efx_set_features(struct net_device *net_dev, netdev_features_t data)
 			return rc;
 	}
 
-	/* If Rx VLAN filter is changed, update filters via mac_reconfigure */
-	if ((net_dev->features ^ data) & NETIF_F_HW_VLAN_CTAG_FILTER) {
+	/* If Rx VLAN filter is changed, update filters via mac_reconfigure.
+	 * If rx-fcs is changed, mac_reconfigure updates that too.
+	 */
+	if ((net_dev->features ^ data) & (NETIF_F_HW_VLAN_CTAG_FILTER |
+					  NETIF_F_RXFCS)) {
 		/* efx_set_rx_mode() will schedule MAC work to update filters
 		 * when a new features are finally set in net_dev.
 		 */
@@ -3242,7 +3245,7 @@ static int efx_pci_probe_post_io(struct efx_nic *efx)
 
 	/* Determine netdevice features */
 	net_dev->features |= (efx->type->offload_features | NETIF_F_SG |
-			      NETIF_F_TSO | NETIF_F_RXCSUM);
+			      NETIF_F_TSO | NETIF_F_RXCSUM | NETIF_F_RXALL);
 	if (efx->type->offload_features & (NETIF_F_IPV6_CSUM | NETIF_F_HW_CSUM))
 		net_dev->features |= NETIF_F_TSO6;
 	/* Check whether device supports TSO */
@@ -3253,7 +3256,10 @@ static int efx_pci_probe_post_io(struct efx_nic *efx)
 				   NETIF_F_HIGHDMA | NETIF_F_ALL_TSO |
 				   NETIF_F_RXCSUM);
 
-	net_dev->hw_features = net_dev->features & ~efx->fixed_features;
+	net_dev->hw_features |= net_dev->features & ~efx->fixed_features;
+
+	/* Disable receiving frames with bad FCS, by default. */
+	net_dev->features &= ~NETIF_F_RXALL;
 
 	/* Disable VLAN filtering by default.  It may be enforced if
 	 * the feature is fixed (i.e. VLAN filters are required to
