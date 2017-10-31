@@ -21,22 +21,26 @@
  */
 #include "vmm.h"
 
-#include <core/option.h>
-
-#include <nvif/class.h>
-
-static const struct nvkm_mmu_func
-gp10b_mmu = {
-	.limit = (1ULL << 49),
-	.dma_bits = 47,
-	.lpg_shift = 16,
-	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GP100}, gp10b_vmm_new },
+static const struct nvkm_vmm_func
+gp10b_vmm = {
+	.join = gp100_vmm_join,
+	.part = gf100_vmm_part,
+	.page = {
+		{ 47, &gp100_vmm_desc_16[4], NVKM_VMM_PAGE_Sxxx },
+		{ 38, &gp100_vmm_desc_16[3], NVKM_VMM_PAGE_Sxxx },
+		{ 29, &gp100_vmm_desc_16[2], NVKM_VMM_PAGE_Sxxx },
+		{ 21, &gp100_vmm_desc_16[1], NVKM_VMM_PAGE_SxHC },
+		{ 16, &gp100_vmm_desc_16[0], NVKM_VMM_PAGE_SxHC },
+		{ 12, &gp100_vmm_desc_12[0], NVKM_VMM_PAGE_SxHx },
+		{}
+	}
 };
 
 int
-gp10b_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
+gp10b_vmm_new(struct nvkm_mmu *mmu, u64 addr, u64 size, void *argv, u32 argc,
+	      struct lock_class_key *key, const char *name,
+	      struct nvkm_vmm **pvmm)
 {
-	if (!nvkm_boolopt(device->cfgopt, "GP100MmuLayout", false))
-		return gm20b_mmu_new(device, index, pmmu);
-	return nvkm_mmu_new_(&gp10b_mmu, device, index, pmmu);
+	return nv04_vmm_new_(&gp10b_vmm, mmu, 0, addr, size,
+			     argv, argc, key, name, pvmm);
 }

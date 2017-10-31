@@ -19,25 +19,24 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "priv.h"
+#include "vmm.h"
+
+#include <core/option.h>
+
+#include <nvif/class.h>
 
 static const struct nvkm_mmu_func
 gp100_mmu = {
-	.limit = (1ULL << 40),
-	.dma_bits = 40,
-	.pgt_bits  = 27 - 12,
-	.spg_shift = 12,
-	.lpg_shift = 17,
-	.create = gf100_vm_create,
-	.map_pgt = gf100_vm_map_pgt,
-	.map = gf100_vm_map,
-	.map_sg = gf100_vm_map_sg,
-	.unmap = gf100_vm_unmap,
-	.flush = gf100_vm_flush,
+	.limit = (1ULL << 49),
+	.dma_bits = 47,
+	.lpg_shift = 16,
+	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GP100}, gp100_vmm_new },
 };
 
 int
 gp100_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
 {
+	if (!nvkm_boolopt(device->cfgopt, "GP100MmuLayout", false))
+		return gm200_mmu_new(device, index, pmmu);
 	return nvkm_mmu_new_(&gp100_mmu, device, index, pmmu);
 }

@@ -19,6 +19,7 @@
 #define NVIF_CLASS_VMM_NV50                          /* if500d.h */  0x8000500d
 #define NVIF_CLASS_VMM_GF100                         /* if900d.h */  0x8000900d
 #define NVIF_CLASS_VMM_GM200                         /* ifb00d.h */  0x8000b00d
+#define NVIF_CLASS_VMM_GP100                         /* ifc00d.h */  0x8000c00d
 
 /* the below match nvidia-assigned (either in hw, or sw) class numbers */
 #define NV_NULL_CLASS                                                0x00000030
