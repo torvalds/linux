@@ -2,7 +2,7 @@
 #define __NVKM_MMU_H__
 #include <core/subdev.h>
 #include <core/mm.h>
-struct nvkm_device;
+struct nvkm_gpuobj;
 struct nvkm_mem;
 
 struct nvkm_vm_pgt {

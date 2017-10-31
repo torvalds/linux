@@ -3,6 +3,7 @@
 #define nvkm_falcon(p) container_of((p), struct nvkm_falcon, engine)
 #include <core/engine.h>
 struct nvkm_fifo_chan;
+struct nvkm_gpuobj;
 
 enum nvkm_falcon_dmaidx {
 	FALCON_DMAIDX_UCODE		= 0,

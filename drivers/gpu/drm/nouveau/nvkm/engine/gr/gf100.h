@@ -156,6 +156,7 @@ int gp100_gr_init(struct gf100_gr *);
 void gp100_gr_init_rop_active_fbps(struct gf100_gr *);
 
 #define gf100_gr_chan(p) container_of((p), struct gf100_gr_chan, object)
+#include <core/object.h>
 
 struct gf100_gr_chan {
 	struct nvkm_object object;

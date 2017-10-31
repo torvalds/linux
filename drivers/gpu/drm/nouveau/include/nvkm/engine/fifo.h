@@ -1,6 +1,7 @@
 #ifndef __NVKM_FIFO_H__
 #define __NVKM_FIFO_H__
 #include <core/engine.h>
+#include <core/object.h>
 #include <core/event.h>
 
 #define NVKM_FIFO_CHID_NR 4096
