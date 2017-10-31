@@ -41,8 +41,9 @@ nvkm_ltc_tags_free(struct nvkm_ltc *ltc, struct nvkm_mm_node **pnode)
 }
 
 void
-nvkm_ltc_tags_clear(struct nvkm_ltc *ltc, u32 first, u32 count)
+nvkm_ltc_tags_clear(struct nvkm_device *device, u32 first, u32 count)
 {
+	struct nvkm_ltc *ltc = device->ltc;
 	const u32 limit = first + count - 1;
 
 	BUG_ON((first > limit) || (limit >= ltc->num_tags));

@@ -24,7 +24,6 @@
 #include "priv.h"
 
 #include <subdev/fb.h>
-#include <subdev/ltc.h>
 #include <subdev/timer.h>
 
 #include <core/gpuobj.h>
@@ -109,11 +108,9 @@ gf100_vm_map(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 	pte <<= 3;
 
 	if (mem->tag) {
-		struct nvkm_ltc *ltc = vma->vm->mmu->subdev.device->ltc;
 		u32 tag = mem->tag->offset + (delta >> 17);
 		phys |= (u64)tag << (32 + 12);
 		next |= (u64)1   << (32 + 12);
-		nvkm_ltc_tags_clear(ltc, tag, cnt);
 	}
 
 	nvkm_kmap(pgt);

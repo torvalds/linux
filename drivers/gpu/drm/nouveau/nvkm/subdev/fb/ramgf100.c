@@ -443,6 +443,7 @@ int
 gf100_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 	      u32 memtype, struct nvkm_mem **pmem)
 {
+	struct nvkm_device *device = ram->fb->subdev.device;
 	struct nvkm_ltc *ltc = ram->fb->subdev.device->ltc;
 	struct nvkm_mm *mm = &ram->vram;
 	struct nvkm_mm_node **node, *r;
@@ -469,7 +470,10 @@ gf100_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 		/* compression only works with lpages */
 		if (align == (1 << (17 - NVKM_RAM_MM_SHIFT))) {
 			int n = size >> 5;
-			nvkm_ltc_tags_alloc(ltc, n, &mem->tag);
+			if (!nvkm_ltc_tags_alloc(ltc, n, &mem->tag)) {
+				nvkm_ltc_tags_clear(device, mem->tag->offset,
+							    mem->tag->length);
+			}
 		}
 
 		if (unlikely(!mem->tag))
