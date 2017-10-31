@@ -313,45 +313,9 @@ static u32 map_id_range_down(struct uid_gid_map *map, u32 id, u32 count)
 	return id;
 }
 
-/**
- * map_id_down_base - Find idmap via binary search in static extent array.
- * Can only be called if number of mappings is equal or less than
- * UID_GID_MAP_MAX_BASE_EXTENTS.
- */
-static struct uid_gid_extent *
-map_id_down_base(unsigned extents, struct uid_gid_map *map, u32 id)
-{
-	unsigned idx;
-	u32 first, last;
-
-	/* Find the matching extent */
-	for (idx = 0; idx < extents; idx++) {
-		first = map->extent[idx].first;
-		last = first + map->extent[idx].count - 1;
-		if (id >= first && id <= last)
-			return &map->extent[idx];
-	}
-	return NULL;
-}
-
 static u32 map_id_down(struct uid_gid_map *map, u32 id)
 {
-	struct uid_gid_extent *extent;
-	unsigned extents = map->nr_extents;
-	smp_rmb();
-
-	if (extents <= UID_GID_MAP_MAX_BASE_EXTENTS)
-		extent = map_id_down_base(extents, map, id);
-	else
-		extent = map_id_range_down_max(extents, map, id, 1);
-
-	/* Map the id or note failure */
-	if (extent)
-		id = (id - extent->first) + extent->lower_first;
-	else
-		id = (u32) -1;
-
-	return id;
+	return map_id_range_down(map, id, 1);
 }
 
 /**
