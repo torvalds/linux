@@ -45,34 +45,11 @@ struct nv40_instobj {
 	struct nvkm_mm_node *node;
 };
 
-static enum nvkm_memory_target
-nv40_instobj_target(struct nvkm_memory *memory)
-{
-	return NVKM_MEM_TARGET_INST;
-}
-
-static u64
-nv40_instobj_addr(struct nvkm_memory *memory)
-{
-	return nv40_instobj(memory)->node->offset;
-}
-
-static u64
-nv40_instobj_size(struct nvkm_memory *memory)
-{
-	return nv40_instobj(memory)->node->length;
-}
-
-static void __iomem *
-nv40_instobj_acquire(struct nvkm_memory *memory)
+static void
+nv40_instobj_wr32(struct nvkm_memory *memory, u64 offset, u32 data)
 {
 	struct nv40_instobj *iobj = nv40_instobj(memory);
-	return iobj->imem->iomem + iobj->node->offset;
-}
-
-static void
-nv40_instobj_release(struct nvkm_memory *memory)
-{
+	iowrite32_native(data, iobj->imem->iomem + iobj->node->offset + offset);
 }
 
 static u32
@@ -82,11 +59,40 @@ nv40_instobj_rd32(struct nvkm_memory *memory, u64 offset)
 	return ioread32_native(iobj->imem->iomem + iobj->node->offset + offset);
 }
 
+static const struct nvkm_memory_ptrs
+nv40_instobj_ptrs = {
+	.rd32 = nv40_instobj_rd32,
+	.wr32 = nv40_instobj_wr32,
+};
+
 static void
-nv40_instobj_wr32(struct nvkm_memory *memory, u64 offset, u32 data)
+nv40_instobj_release(struct nvkm_memory *memory)
+{
+}
+
+static void __iomem *
+nv40_instobj_acquire(struct nvkm_memory *memory)
 {
 	struct nv40_instobj *iobj = nv40_instobj(memory);
-	iowrite32_native(data, iobj->imem->iomem + iobj->node->offset + offset);
+	return iobj->imem->iomem + iobj->node->offset;
+}
+
+static u64
+nv40_instobj_size(struct nvkm_memory *memory)
+{
+	return nv40_instobj(memory)->node->length;
+}
+
+static u64
+nv40_instobj_addr(struct nvkm_memory *memory)
+{
+	return nv40_instobj(memory)->node->offset;
+}
+
+static enum nvkm_memory_target
+nv40_instobj_target(struct nvkm_memory *memory)
+{
+	return NVKM_MEM_TARGET_INST;
 }
 
 static void *
@@ -107,8 +113,6 @@ nv40_instobj_func = {
 	.addr = nv40_instobj_addr,
 	.acquire = nv40_instobj_acquire,
 	.release = nv40_instobj_release,
-	.rd32 = nv40_instobj_rd32,
-	.wr32 = nv40_instobj_wr32,
 };
 
 static int
@@ -124,6 +128,7 @@ nv40_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 	*pmemory = &iobj->memory;
 
 	nvkm_memory_ctor(&nv40_instobj_func, &iobj->memory);
+	iobj->memory.ptrs = &nv40_instobj_ptrs;
 	iobj->imem = imem;
 
 	mutex_lock(&imem->base.subdev.mutex);

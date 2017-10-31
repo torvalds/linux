@@ -346,8 +346,6 @@ gk20a_instobj_func_dma = {
 	.size = gk20a_instobj_size,
 	.acquire = gk20a_instobj_acquire_dma,
 	.release = gk20a_instobj_release_dma,
-	.rd32 = gk20a_instobj_rd32,
-	.wr32 = gk20a_instobj_wr32,
 	.map = gk20a_instobj_map,
 };
 
@@ -359,9 +357,13 @@ gk20a_instobj_func_iommu = {
 	.size = gk20a_instobj_size,
 	.acquire = gk20a_instobj_acquire_iommu,
 	.release = gk20a_instobj_release_iommu,
+	.map = gk20a_instobj_map,
+};
+
+static const struct nvkm_memory_ptrs
+gk20a_instobj_ptrs = {
 	.rd32 = gk20a_instobj_rd32,
 	.wr32 = gk20a_instobj_wr32,
-	.map = gk20a_instobj_map,
 };
 
 static int
@@ -377,6 +379,7 @@ gk20a_instobj_ctor_dma(struct gk20a_instmem *imem, u32 npages, u32 align,
 	*_node = &node->base;
 
 	nvkm_memory_ctor(&gk20a_instobj_func_dma, &node->base.memory);
+	node->base.memory.ptrs = &gk20a_instobj_ptrs;
 
 	node->base.vaddr = dma_alloc_attrs(dev, npages << PAGE_SHIFT,
 					   &node->handle, GFP_KERNEL,
@@ -424,6 +427,7 @@ gk20a_instobj_ctor_iommu(struct gk20a_instmem *imem, u32 npages, u32 align,
 	node->dma_addrs = (void *)(node->pages + npages);
 
 	nvkm_memory_ctor(&gk20a_instobj_func_iommu, &node->base.memory);
+	node->base.memory.ptrs = &gk20a_instobj_ptrs;
 
 	/* Allocate backing memory */
 	for (i = 0; i < npages; i++) {

@@ -112,9 +112,13 @@ nvkm_instobj_func = {
 	.size = nvkm_instobj_size,
 	.acquire = nvkm_instobj_acquire,
 	.release = nvkm_instobj_release,
+	.map = nvkm_instobj_map,
+};
+
+static const struct nvkm_memory_ptrs
+nvkm_instobj_ptrs = {
 	.rd32 = nvkm_instobj_rd32,
 	.wr32 = nvkm_instobj_wr32,
-	.map = nvkm_instobj_map,
 };
 
 static void
@@ -137,8 +141,10 @@ nvkm_instobj_acquire_slow(struct nvkm_memory *memory)
 {
 	struct nvkm_instobj *iobj = nvkm_instobj(memory);
 	iobj->map = nvkm_kmap(iobj->parent);
-	if (iobj->map)
+	if (iobj->map) {
 		memory->func = &nvkm_instobj_func;
+		memory->ptrs = &nvkm_instobj_ptrs;
+	}
 	return iobj->map;
 }
 
@@ -165,9 +171,13 @@ nvkm_instobj_func_slow = {
 	.boot = nvkm_instobj_boot,
 	.acquire = nvkm_instobj_acquire_slow,
 	.release = nvkm_instobj_release_slow,
+	.map = nvkm_instobj_map,
+};
+
+static const struct nvkm_memory_ptrs
+nvkm_instobj_ptrs_slow = {
 	.rd32 = nvkm_instobj_rd32_slow,
 	.wr32 = nvkm_instobj_wr32_slow,
-	.map = nvkm_instobj_map,
 };
 
 int
@@ -196,6 +206,7 @@ nvkm_instobj_new(struct nvkm_instmem *imem, u32 size, u32 align, bool zero,
 		}
 
 		nvkm_memory_ctor(&nvkm_instobj_func_slow, &iobj->memory);
+		iobj->memory.ptrs = &nvkm_instobj_ptrs_slow;
 		iobj->parent = memory;
 		iobj->imem = imem;
 		spin_lock(&iobj->imem->lock);

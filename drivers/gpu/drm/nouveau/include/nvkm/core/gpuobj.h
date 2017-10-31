@@ -9,7 +9,10 @@ struct nvkm_vm;
 #define NVOBJ_FLAG_HEAP       0x00000004
 
 struct nvkm_gpuobj {
-	const struct nvkm_gpuobj_func *func;
+	union {
+		const struct nvkm_gpuobj_func *func;
+		const struct nvkm_gpuobj_func *ptrs;
+	};
 	struct nvkm_gpuobj *parent;
 	struct nvkm_memory *memory;
 	struct nvkm_mm_node *node;

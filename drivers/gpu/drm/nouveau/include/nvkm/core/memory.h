@@ -14,6 +14,7 @@ enum nvkm_memory_target {
 
 struct nvkm_memory {
 	const struct nvkm_memory_func *func;
+	const struct nvkm_memory_ptrs *ptrs;
 };
 
 struct nvkm_memory_func {
@@ -24,9 +25,12 @@ struct nvkm_memory_func {
 	void (*boot)(struct nvkm_memory *, struct nvkm_vm *);
 	void __iomem *(*acquire)(struct nvkm_memory *);
 	void (*release)(struct nvkm_memory *);
+	void (*map)(struct nvkm_memory *, struct nvkm_vma *, u64 offset);
+};
+
+struct nvkm_memory_ptrs {
 	u32 (*rd32)(struct nvkm_memory *, u64 offset);
 	void (*wr32)(struct nvkm_memory *, u64 offset, u32 data);
-	void (*map)(struct nvkm_memory *, struct nvkm_vma *, u64 offset);
 };
 
 void nvkm_memory_ctor(const struct nvkm_memory_func *, struct nvkm_memory *);
@@ -43,8 +47,8 @@ void nvkm_memory_del(struct nvkm_memory **);
  * macros to guarantee correct behaviour across all chipsets
  */
 #define nvkm_kmap(o)     (o)->func->acquire(o)
-#define nvkm_ro32(o,a)   (o)->func->rd32((o), (a))
-#define nvkm_wo32(o,a,d) (o)->func->wr32((o), (a), (d))
+#define nvkm_ro32(o,a)   (o)->ptrs->rd32((o), (a))
+#define nvkm_wo32(o,a,d) (o)->ptrs->wr32((o), (a), (d))
 #define nvkm_mo32(o,a,m,d) ({                                                  \
 	u32 _addr = (a), _data = nvkm_ro32((o), _addr);                        \
 	nvkm_wo32((o), _addr, (_data & ~(m)) | (d));                           \
