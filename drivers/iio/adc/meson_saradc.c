@@ -600,7 +600,7 @@ static int meson_sar_adc_clk_init(struct iio_dev *indio_dev,
 	init.num_parents = 1;
 
 	priv->clk_gate.reg = base + MESON_SAR_ADC_REG3;
-	priv->clk_gate.bit_idx = fls(MESON_SAR_ADC_REG3_CLK_EN);
+	priv->clk_gate.bit_idx = __ffs(MESON_SAR_ADC_REG3_CLK_EN);
 	priv->clk_gate.hw.init = &init;
 
 	priv->adc_clk = devm_clk_register(&indio_dev->dev, &priv->clk_gate.hw);
