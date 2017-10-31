@@ -869,23 +869,23 @@ static bool dcn10_set_input_transfer_func(
 		tf = plane_state->in_transfer_func;
 
 	if (plane_state->gamma_correction && dce_use_lut(plane_state))
-		dpp_base->funcs->ipp_program_input_lut(dpp_base,
+		dpp_base->funcs->dpp_program_input_lut(dpp_base,
 				plane_state->gamma_correction);
 
 	if (tf == NULL)
-		dpp_base->funcs->ipp_set_degamma(dpp_base, IPP_DEGAMMA_MODE_BYPASS);
+		dpp_base->funcs->dpp_set_degamma(dpp_base, IPP_DEGAMMA_MODE_BYPASS);
 	else if (tf->type == TF_TYPE_PREDEFINED) {
 		switch (tf->tf) {
 		case TRANSFER_FUNCTION_SRGB:
-			dpp_base->funcs->ipp_set_degamma(dpp_base,
+			dpp_base->funcs->dpp_set_degamma(dpp_base,
 					IPP_DEGAMMA_MODE_HW_sRGB);
 			break;
 		case TRANSFER_FUNCTION_BT709:
-			dpp_base->funcs->ipp_set_degamma(dpp_base,
+			dpp_base->funcs->dpp_set_degamma(dpp_base,
 					IPP_DEGAMMA_MODE_HW_xvYCC);
 			break;
 		case TRANSFER_FUNCTION_LINEAR:
-			dpp_base->funcs->ipp_set_degamma(dpp_base,
+			dpp_base->funcs->dpp_set_degamma(dpp_base,
 					IPP_DEGAMMA_MODE_BYPASS);
 			break;
 		case TRANSFER_FUNCTION_PQ:
@@ -896,7 +896,7 @@ static bool dcn10_set_input_transfer_func(
 			break;
 		}
 	} else if (tf->type == TF_TYPE_BYPASS) {
-		dpp_base->funcs->ipp_set_degamma(dpp_base, IPP_DEGAMMA_MODE_BYPASS);
+		dpp_base->funcs->dpp_set_degamma(dpp_base, IPP_DEGAMMA_MODE_BYPASS);
 	} else {
 		/*TF_TYPE_DISTRIBUTED_POINTS*/
 		result = false;
@@ -1235,12 +1235,12 @@ static bool dcn10_set_output_transfer_func(
 			TF_TYPE_PREDEFINED &&
 		stream->out_transfer_func->tf ==
 			TRANSFER_FUNCTION_SRGB) {
-		dpp->funcs->opp_program_regamma_pwl(dpp, NULL, OPP_REGAMMA_SRGB);
+		dpp->funcs->dpp_program_regamma_pwl(dpp, NULL, OPP_REGAMMA_SRGB);
 	} else if (dcn10_translate_regamma_to_hw_format(
 				stream->out_transfer_func, &dpp->regamma_params)) {
-			dpp->funcs->opp_program_regamma_pwl(dpp, &dpp->regamma_params, OPP_REGAMMA_USER);
+			dpp->funcs->dpp_program_regamma_pwl(dpp, &dpp->regamma_params, OPP_REGAMMA_USER);
 	} else {
-		dpp->funcs->opp_program_regamma_pwl(dpp, NULL, OPP_REGAMMA_BYPASS);
+		dpp->funcs->dpp_program_regamma_pwl(dpp, NULL, OPP_REGAMMA_BYPASS);
 	}
 
 	return true;
@@ -1607,9 +1607,10 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 
 			tbl_entry.color_space = color_space;
 			//tbl_entry.regval = matrix;
-			pipe_ctx->plane_res.dpp->funcs->opp_set_csc_adjustment(pipe_ctx->plane_res.dpp, &tbl_entry);
+
+			pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment(pipe_ctx->plane_res.dpp, &tbl_entry);
 	} else {
-		pipe_ctx->plane_res.dpp->funcs->opp_set_csc_default(pipe_ctx->plane_res.dpp, colorspace);
+		pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_default(pipe_ctx->plane_res.dpp, colorspace);
 	}
 }
 
@@ -1901,7 +1902,7 @@ static void update_dchubp_dpp(
 				);
 
 	// program the input csc
-	dpp->funcs->ipp_setup(dpp,
+	dpp->funcs->dpp_setup(dpp,
 			plane_state->format,
 			EXPANSION_MODE_ZERO,
 			plane_state->input_csc_color_matrix,
@@ -1909,8 +1910,8 @@ static void update_dchubp_dpp(
 
 	//set scale and bias registers
 	build_prescale_params(&bns_params, plane_state);
-	if (dpp->funcs->ipp_program_bias_and_scale)
-		dpp->funcs->ipp_program_bias_and_scale(dpp, &bns_params);
+	if (dpp->funcs->dpp_program_bias_and_scale)
+		dpp->funcs->dpp_program_bias_and_scale(dpp, &bns_params);
 
 	mpcc_cfg.dpp_id = hubp->inst;
 	mpcc_cfg.opp_id = pipe_ctx->stream_res.opp->inst;
