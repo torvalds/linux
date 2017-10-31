@@ -1181,7 +1181,6 @@ static void program_pwl(
 	struct dce_transform *xfm_dce,
 	const struct pwl_params *params)
 {
-	uint32_t value;
 	int retval;
 	uint8_t max_tries = 10;
 	uint8_t counter = 0;
@@ -1198,7 +1197,6 @@ static void program_pwl(
 
 	while (counter < max_tries) {
 		if (REG(DCFE_MEM_PWR_STATUS)) {
-			value = REG_READ(DCFE_MEM_PWR_STATUS);
 			REG_GET(DCFE_MEM_PWR_STATUS,
 				DCP_REGAMMA_MEM_PWR_STATE,
 				&retval);
@@ -1207,7 +1205,6 @@ static void program_pwl(
 				break;
 			++counter;
 		} else {
-			value = REG_READ(DCFE_MEM_LIGHT_SLEEP_CNTL);
 			REG_GET(DCFE_MEM_LIGHT_SLEEP_CNTL,
 				REGAMMA_LUT_MEM_PWR_STATE,
 				&retval);
