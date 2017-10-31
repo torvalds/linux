@@ -17,6 +17,10 @@ struct nvkm_mmu_func {
 
 	struct {
 		struct nvkm_sclass user;
+	} mmu;
+
+	struct {
+		struct nvkm_sclass user;
 		int (*vram)(struct nvkm_mmu *, int type, u8 page, u64 size,
 			    void *argv, u32 argc, struct nvkm_memory **);
 		int (*umap)(struct nvkm_mmu *, struct nvkm_memory *, void *argv,

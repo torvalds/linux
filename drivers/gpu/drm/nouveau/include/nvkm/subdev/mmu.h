@@ -134,6 +134,8 @@ struct nvkm_mmu {
 		struct mutex mutex;
 		struct list_head list;
 	} ptc, ptp;
+
+	struct nvkm_device_oclass user;
 };
 
 int nv04_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);

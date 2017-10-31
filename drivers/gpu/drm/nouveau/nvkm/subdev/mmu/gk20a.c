@@ -29,6 +29,7 @@ gk20a_mmu = {
 	.limit = (1ULL << 40),
 	.dma_bits = 40,
 	.lpg_shift = 17,
+	.mmu = {{ -1, -1, NVIF_CLASS_MMU_GF100}},
 	.mem = {{ -1, -1, NVIF_CLASS_MEM_GF100}, .umap = gf100_mem_map },
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GF100}, gk20a_vmm_new },
 	.kind = gf100_mmu_kind,

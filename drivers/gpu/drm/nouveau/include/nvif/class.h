@@ -14,6 +14,11 @@
 #define NVIF_CLASS_SW_NV50                           /* if0005.h */ -0x00000006
 #define NVIF_CLASS_SW_GF100                          /* if0005.h */ -0x00000007
 
+#define NVIF_CLASS_MMU                               /* if0008.h */  0x80000008
+#define NVIF_CLASS_MMU_NV04                          /* if0008.h */  0x80000009
+#define NVIF_CLASS_MMU_NV50                          /* if0008.h */  0x80005009
+#define NVIF_CLASS_MMU_GF100                         /* if0008.h */  0x80009009
+
 #define NVIF_CLASS_MEM                               /* if000a.h */  0x8000000a
 #define NVIF_CLASS_MEM_NV04                          /* if000b.h */  0x8000000b
 #define NVIF_CLASS_MEM_NV50                          /* if500b.h */  0x8000500b

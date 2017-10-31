@@ -31,6 +31,7 @@ gp100_mmu = {
 	.limit = (1ULL << 49),
 	.dma_bits = 47,
 	.lpg_shift = 16,
+	.mmu = {{ -1, -1, NVIF_CLASS_MMU_GF100}},
 	.mem = {{ -1,  0, NVIF_CLASS_MEM_GF100}, gf100_mem_new, gf100_mem_map },
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GP100}, gp100_vmm_new },
 	.kind = gm200_mmu_kind,

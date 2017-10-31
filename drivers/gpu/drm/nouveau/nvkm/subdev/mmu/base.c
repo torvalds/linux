@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "priv.h"
+#include "ummu.h"
 #include "vmm.h"
 
 #include <subdev/bar.h>
@@ -615,6 +615,8 @@ nvkm_mmu_ctor(const struct nvkm_mmu_func *func, struct nvkm_device *device,
 	mmu->dma_bits = func->dma_bits;
 	mmu->lpg_shift = func->lpg_shift;
 	nvkm_mmu_ptc_init(mmu);
+	mmu->user.ctor = nvkm_ummu_new;
+	mmu->user.base = func->mmu.user;
 }
 
 int
