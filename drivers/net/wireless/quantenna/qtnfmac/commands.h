@@ -30,8 +30,8 @@ int qtnf_cmd_send_add_intf(struct qtnf_vif *vif, enum nl80211_iftype iftype,
 int qtnf_cmd_send_change_intf_type(struct qtnf_vif *vif,
 				   enum nl80211_iftype iftype, u8 *mac_addr);
 int qtnf_cmd_send_del_intf(struct qtnf_vif *vif);
-int qtnf_cmd_get_mac_chan_info(struct qtnf_wmac *mac,
-			       struct ieee80211_supported_band *band);
+int qtnf_cmd_band_info_get(struct qtnf_wmac *mac,
+			   struct ieee80211_supported_band *band);
 int qtnf_cmd_send_regulatory_config(struct qtnf_wmac *mac, const char *alpha2);
 int qtnf_cmd_send_config_ap(struct qtnf_vif *vif,
 			    const struct cfg80211_ap_settings *s);

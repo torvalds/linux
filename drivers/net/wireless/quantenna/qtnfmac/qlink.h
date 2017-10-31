@@ -168,11 +168,12 @@ struct qlink_auth_encr {
  * Commands are QLINK messages of type @QLINK_MSG_TYPE_CMD, sent by driver to
  * wireless network device for processing. Device is expected to send back a
  * reply message of type &QLINK_MSG_TYPE_CMDRSP, containing at least command
- * execution status (one of &enum qlink_cmd_result) at least. Reply message
+ * execution status (one of &enum qlink_cmd_result). Reply message
  * may also contain data payload specific to the command type.
  *
- * @QLINK_CMD_CHANS_INFO_GET: for the specified MAC and specified band, get
- *	number of operational channels and information on each of the channel.
+ * @QLINK_CMD_BAND_INFO_GET: for the specified MAC and specified band, get
+ *	the band's description including number of operational channels and
+ *	info on each channel, HT/VHT capabilities, supported rates etc.
  *	This command is generic to a specified MAC, interface index must be set
  *	to QLINK_VIFID_RSVD in command header.
  * @QLINK_CMD_REG_NOTIFY: notify device about regulatory domain change. This
@@ -194,7 +195,7 @@ enum qlink_cmd_type {
 	QLINK_CMD_CHANGE_INTF		= 0x0017,
 	QLINK_CMD_UPDOWN_INTF		= 0x0018,
 	QLINK_CMD_REG_NOTIFY		= 0x0019,
-	QLINK_CMD_CHANS_INFO_GET	= 0x001A,
+	QLINK_CMD_BAND_INFO_GET		= 0x001A,
 	QLINK_CMD_CHAN_SWITCH		= 0x001B,
 	QLINK_CMD_CHAN_GET		= 0x001C,
 	QLINK_CMD_CONFIG_AP		= 0x0020,
@@ -477,11 +478,11 @@ enum qlink_band {
 };
 
 /**
- * struct qlink_cmd_chans_info_get - data for QLINK_CMD_CHANS_INFO_GET command
+ * struct qlink_cmd_band_info_get - data for QLINK_CMD_BAND_INFO_GET command
  *
- * @band: a PHY band for which channels info is needed, one of @enum qlink_band
+ * @band: a PHY band for which information is queried, one of @enum qlink_band
  */
-struct qlink_cmd_chans_info_get {
+struct qlink_cmd_band_info_get {
 	struct qlink_cmd chdr;
 	u8 band;
 } __packed;
@@ -730,17 +731,19 @@ struct qlink_resp_get_sta_info {
 } __packed;
 
 /**
- * struct qlink_resp_get_chan_info - response for QLINK_CMD_CHANS_INFO_GET cmd
+ * struct qlink_resp_band_info_get - response for QLINK_CMD_BAND_INFO_GET cmd
  *
- * @band: frequency band to which channels belong to, one of @enum qlink_band.
- * @num_chans: total number of channels info data contained in reply data.
- * @info: variable-length channels info.
+ * @band: frequency band that the response describes, one of @enum qlink_band.
+ * @num_chans: total number of channels info TLVs contained in reply.
+ * @num_bitrates: total number of bitrate TLVs contained in reply.
+ * @info: variable-length info portion.
  */
-struct qlink_resp_get_chan_info {
+struct qlink_resp_band_info_get {
 	struct qlink_resp rhdr;
 	u8 band;
 	u8 num_chans;
-	u8 rsvd[2];
+	u8 num_bitrates;
+	u8 rsvd[1];
 	u8 info[0];
 } __packed;
 

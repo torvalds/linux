@@ -823,39 +823,11 @@ static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
 			if (!wiphy->bands[band])
 				continue;
 
-			ret = qtnf_cmd_get_mac_chan_info(mac,
-							 wiphy->bands[band]);
+			ret = qtnf_cmd_band_info_get(mac, wiphy->bands[band]);
 			if (ret)
 				pr_err("failed to get chan info for mac %u band %u\n",
 				       mac_idx, band);
 		}
-	}
-}
-
-void qtnf_band_setup_htvht_caps(struct qtnf_mac_info *macinfo,
-				struct ieee80211_supported_band *band)
-{
-	struct ieee80211_sta_ht_cap *ht_cap;
-	struct ieee80211_sta_vht_cap *vht_cap;
-
-	ht_cap = &band->ht_cap;
-	ht_cap->ht_supported = true;
-	memcpy(&ht_cap->cap, &macinfo->ht_cap.cap_info,
-	       sizeof(u16));
-	ht_cap->ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
-	ht_cap->ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE;
-	memcpy(&ht_cap->mcs, &macinfo->ht_cap.mcs,
-	       sizeof(ht_cap->mcs));
-
-	if (macinfo->phymode_cap & QLINK_PHYMODE_AC) {
-		vht_cap = &band->vht_cap;
-		vht_cap->vht_supported = true;
-		memcpy(&vht_cap->cap,
-		       &macinfo->vht_cap.vht_cap_info, sizeof(u32));
-		/* Update MCS support for VHT */
-		memcpy(&vht_cap->vht_mcs,
-		       &macinfo->vht_cap.supp_mcs,
-		       sizeof(struct ieee80211_vht_mcs_info));
 	}
 }
 
