@@ -175,7 +175,7 @@ static void regamma_config_regions_and_segments(
 		value = 0;
 		set_reg_field_value(
 			value,
-			params->arr_points[2].custom_float_slope,
+			params->arr_points[1].custom_float_slope,
 			GAMMA_CORR_CNTLA_END_CNTL2,
 			GAMMA_CORR_CNTLA_EXP_REGION_END_BASE);
 

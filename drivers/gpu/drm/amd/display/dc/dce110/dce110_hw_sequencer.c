@@ -539,8 +539,6 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 			dal_fixed31_32_from_int(segment_start));
 	arr_points[1].x = dal_fixed31_32_pow(dal_fixed31_32_from_int(2),
 			dal_fixed31_32_from_int(segment_end));
-	arr_points[2].x = dal_fixed31_32_pow(dal_fixed31_32_from_int(2),
-			dal_fixed31_32_from_int(segment_end));
 
 	y_r = rgb_resulted[0].red;
 	y_g = rgb_resulted[0].green;
@@ -563,10 +561,8 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 	y3_max = dal_fixed31_32_max(y_r, dal_fixed31_32_max(y_g, y_b));
 
 	arr_points[1].y = y3_max;
-	arr_points[2].y = y3_max;
 
 	arr_points[1].slope = dal_fixed31_32_zero;
-	arr_points[2].slope = dal_fixed31_32_zero;
 
 	if (output_tf->tf == TRANSFER_FUNCTION_PQ) {
 		/* for PQ, we want to have a straight line from last HW X point,
@@ -576,9 +572,6 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 				dal_fixed31_32_from_int(125);
 
 		arr_points[1].slope = dal_fixed31_32_div(
-			dal_fixed31_32_sub(dal_fixed31_32_one, arr_points[1].y),
-			dal_fixed31_32_sub(end_value, arr_points[1].x));
-		arr_points[2].slope = dal_fixed31_32_div(
 			dal_fixed31_32_sub(dal_fixed31_32_one, arr_points[1].y),
 			dal_fixed31_32_sub(end_value, arr_points[1].x));
 	}

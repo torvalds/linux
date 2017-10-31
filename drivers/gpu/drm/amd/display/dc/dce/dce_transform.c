@@ -1277,7 +1277,7 @@ static void regamma_config_regions_and_segments(struct dce_transform *xfm_dce,
 
 	REG_SET_2(REGAMMA_CNTLA_END_CNTL2, 0,
 		  REGAMMA_CNTLA_EXP_REGION_END_BASE, params->arr_points[1].custom_float_y,
-		  REGAMMA_CNTLA_EXP_REGION_END_SLOPE, params->arr_points[2].custom_float_slope);
+		  REGAMMA_CNTLA_EXP_REGION_END_SLOPE, params->arr_points[1].custom_float_slope);
 
 	curve = params->arr_curve_points;
 
