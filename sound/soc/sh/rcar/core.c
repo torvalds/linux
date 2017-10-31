@@ -199,7 +199,10 @@ void rsnd_mod_interrupt(struct rsnd_mod *mod,
 int rsnd_io_is_working(struct rsnd_dai_stream *io)
 {
 	/* see rsnd_dai_stream_init/quit() */
-	return !!io->substream;
+	if (io->substream)
+		return snd_pcm_running(io->substream);
+
+	return 0;
 }
 
 int rsnd_runtime_channel_original(struct rsnd_dai_stream *io)
