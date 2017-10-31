@@ -665,16 +665,15 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 		}
 	} else {
 		struct acpi_pcct_hw_reduced *cppc_ss;
-		int version = XGENE_HWMON_V1;
-#ifdef CONFIG_ACPI
 		const struct acpi_device_id *acpi_id;
+		int version;
 
-		acpi_id = acpi_match_device(xgene_hwmon_acpi_match, &pdev->dev);
+		acpi_id = acpi_match_device(pdev->dev.driver->acpi_match_table,
+					    &pdev->dev);
 		if (!acpi_id)
 			return -EINVAL;
 
 		version = (int)acpi_id->driver_data;
-#endif
 
 		if (device_property_read_u32(&pdev->dev, "pcc-channel",
 					     &ctx->mbox_idx)) {
