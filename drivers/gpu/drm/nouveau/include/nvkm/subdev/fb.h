@@ -145,6 +145,10 @@ struct nvkm_ram {
 	struct nvkm_ram_data target;
 };
 
+int
+nvkm_ram_get(struct nvkm_device *, u8 heap, u8 type, u8 page, u64 size,
+	     bool contig, bool back, struct nvkm_memory **);
+
 struct nvkm_ram_func {
 	u64 upper;
 	u32 (*probe_fbp)(const struct nvkm_ram_func *, struct nvkm_device *,

@@ -21,7 +21,129 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
+#define nvkm_vram(p) container_of((p), struct nvkm_vram, memory)
 #include "ram.h"
+
+#include <core/memory.h>
+#include <subdev/mmu.h>
+
+struct nvkm_vram {
+	struct nvkm_memory memory;
+	struct nvkm_ram *ram;
+	u8 page;
+	struct nvkm_mm_node *mn;
+};
+
+static int
+nvkm_vram_map(struct nvkm_memory *memory, u64 offset, struct nvkm_vmm *vmm,
+	      struct nvkm_vma *vma, void *argv, u32 argc)
+{
+	struct nvkm_vram *vram = nvkm_vram(memory);
+	struct nvkm_mem mem = {
+		.mem = vram->mn,
+	};
+	nvkm_vm_map_at(vma, offset, &mem);
+	return 0;
+}
+
+static u64
+nvkm_vram_size(struct nvkm_memory *memory)
+{
+	return (u64)nvkm_mm_size(nvkm_vram(memory)->mn) << NVKM_RAM_MM_SHIFT;
+}
+
+static u64
+nvkm_vram_addr(struct nvkm_memory *memory)
+{
+	struct nvkm_vram *vram = nvkm_vram(memory);
+	if (!nvkm_mm_contiguous(vram->mn))
+		return ~0ULL;
+	return (u64)nvkm_mm_addr(vram->mn) << NVKM_RAM_MM_SHIFT;
+}
+
+static u8
+nvkm_vram_page(struct nvkm_memory *memory)
+{
+	return nvkm_vram(memory)->page;
+}
+
+static enum nvkm_memory_target
+nvkm_vram_target(struct nvkm_memory *memory)
+{
+	return NVKM_MEM_TARGET_VRAM;
+}
+
+static void *
+nvkm_vram_dtor(struct nvkm_memory *memory)
+{
+	struct nvkm_vram *vram = nvkm_vram(memory);
+	struct nvkm_mm_node *next = vram->mn;
+	struct nvkm_mm_node *node;
+	mutex_lock(&vram->ram->fb->subdev.mutex);
+	while ((node = next)) {
+		next = node->next;
+		nvkm_mm_free(&vram->ram->vram, &node);
+	}
+	mutex_unlock(&vram->ram->fb->subdev.mutex);
+	return vram;
+}
+
+static const struct nvkm_memory_func
+nvkm_vram = {
+	.dtor = nvkm_vram_dtor,
+	.target = nvkm_vram_target,
+	.page = nvkm_vram_page,
+	.addr = nvkm_vram_addr,
+	.size = nvkm_vram_size,
+	.map = nvkm_vram_map,
+};
+
+int
+nvkm_ram_get(struct nvkm_device *device, u8 heap, u8 type, u8 rpage, u64 size,
+	     bool contig, bool back, struct nvkm_memory **pmemory)
+{
+	struct nvkm_ram *ram;
+	struct nvkm_mm *mm;
+	struct nvkm_mm_node **node, *r;
+	struct nvkm_vram *vram;
+	u8   page = max(rpage, (u8)NVKM_RAM_MM_SHIFT);
+	u32 align = (1 << page) >> NVKM_RAM_MM_SHIFT;
+	u32   max = ALIGN(size, 1 << page) >> NVKM_RAM_MM_SHIFT;
+	u32   min = contig ? max : align;
+	int ret;
+
+	if (!device->fb || !(ram = device->fb->ram))
+		return -ENODEV;
+	ram = device->fb->ram;
+	mm = &ram->vram;
+
+	if (!(vram = kzalloc(sizeof(*vram), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_memory_ctor(&nvkm_vram, &vram->memory);
+	vram->ram = ram;
+	vram->page = page;
+	*pmemory = &vram->memory;
+
+	mutex_lock(&ram->fb->subdev.mutex);
+	node = &vram->mn;
+	do {
+		if (back)
+			ret = nvkm_mm_tail(mm, heap, type, max, min, align, &r);
+		else
+			ret = nvkm_mm_head(mm, heap, type, max, min, align, &r);
+		if (ret) {
+			mutex_unlock(&ram->fb->subdev.mutex);
+			nvkm_memory_unref(pmemory);
+			return ret;
+		}
+
+		*node = r;
+		node = &r->next;
+		max -= r->length;
+	} while (max);
+	mutex_unlock(&ram->fb->subdev.mutex);
+	return 0;
+}
 
 int
 nvkm_ram_init(struct nvkm_ram *ram)
