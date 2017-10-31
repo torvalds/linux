@@ -17,6 +17,7 @@
 #define __ASM_FP_H
 
 #include <asm/ptrace.h>
+#include <asm/errno.h>
 
 #ifndef __ASSEMBLY__
 
@@ -98,6 +99,9 @@ extern void sve_sync_from_fpsimd_zeropad(struct task_struct *task);
 extern int sve_set_vector_length(struct task_struct *task,
 				 unsigned long vl, unsigned long flags);
 
+extern int sve_set_current_vl(unsigned long arg);
+extern int sve_get_current_vl(void);
+
 /*
  * Probing and setup functions.
  * Calls to these functions must be serialised with one another.
@@ -113,6 +117,16 @@ static inline void sve_alloc(struct task_struct *task) { }
 static inline void fpsimd_release_task(struct task_struct *task) { }
 static inline void sve_sync_to_fpsimd(struct task_struct *task) { }
 static inline void sve_sync_from_fpsimd_zeropad(struct task_struct *task) { }
+
+static inline int sve_set_current_vl(unsigned long arg)
+{
+	return -EINVAL;
+}
+
+static inline int sve_get_current_vl(void)
+{
+	return -EINVAL;
+}
 
 static inline void sve_init_vq_map(void) { }
 static inline void sve_update_vq_map(void) { }

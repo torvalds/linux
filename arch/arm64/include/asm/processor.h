@@ -217,5 +217,9 @@ static inline void spin_lock_prefetch(const void *ptr)
 int cpu_enable_pan(void *__unused);
 int cpu_enable_cache_maint_trap(void *__unused);
 
+/* Userspace interface for PR_SVE_{SET,GET}_VL prctl()s: */
+#define SVE_SET_VL(arg)	sve_set_current_vl(arg)
+#define SVE_GET_VL()	sve_get_current_vl()
+
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_PROCESSOR_H */

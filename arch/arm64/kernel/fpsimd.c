@@ -29,6 +29,7 @@
 #include <linux/irqflags.h>
 #include <linux/init.h>
 #include <linux/percpu.h>
+#include <linux/prctl.h>
 #include <linux/preempt.h>
 #include <linux/prctl.h>
 #include <linux/ptrace.h>
@@ -556,6 +557,55 @@ out:
 		clear_tsk_thread_flag(task, TIF_SVE_VL_INHERIT);
 
 	return 0;
+}
+
+/*
+ * Encode the current vector length and flags for return.
+ * This is only required for prctl(): ptrace has separate fields
+ *
+ * flags are as for sve_set_vector_length().
+ */
+static int sve_prctl_status(unsigned long flags)
+{
+	int ret;
+
+	if (flags & PR_SVE_SET_VL_ONEXEC)
+		ret = current->thread.sve_vl_onexec;
+	else
+		ret = current->thread.sve_vl;
+
+	if (test_thread_flag(TIF_SVE_VL_INHERIT))
+		ret |= PR_SVE_VL_INHERIT;
+
+	return ret;
+}
+
+/* PR_SVE_SET_VL */
+int sve_set_current_vl(unsigned long arg)
+{
+	unsigned long vl, flags;
+	int ret;
+
+	vl = arg & PR_SVE_VL_LEN_MASK;
+	flags = arg & ~vl;
+
+	if (!system_supports_sve())
+		return -EINVAL;
+
+	ret = sve_set_vector_length(current, vl, flags);
+	if (ret)
+		return ret;
+
+	return sve_prctl_status(flags);
+}
+
+/* PR_SVE_GET_VL */
+int sve_get_current_vl(void)
+{
+	if (!system_supports_sve())
+		return -EINVAL;
+
+	return sve_prctl_status(0);
 }
 
 /*
