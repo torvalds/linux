@@ -46,7 +46,7 @@ nv50_bar_flush(struct nvkm_bar *base)
 struct nvkm_vmm *
 nv50_bar_bar1_vmm(struct nvkm_bar *base)
 {
-	return nv50_bar(base)->bar1_vm;
+	return nv50_bar(base)->bar1_vmm;
 }
 
 void
@@ -72,7 +72,7 @@ nv50_bar_bar1_init(struct nvkm_bar *base)
 struct nvkm_vmm *
 nv50_bar_bar2_vmm(struct nvkm_bar *base)
 {
-	return nv50_bar(base)->bar2_vm;
+	return nv50_bar(base)->bar2_vmm;
 }
 
 void
@@ -109,7 +109,6 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 	struct nvkm_device *device = bar->base.subdev.device;
 	static struct lock_class_key bar1_lock;
 	static struct lock_class_key bar2_lock;
-	struct nvkm_vm *vm;
 	u64 start, limit;
 	int ret;
 
@@ -130,18 +129,19 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 	start = 0x0100000000ULL;
 	limit = start + device->func->resource_size(device, 3);
 
-	ret = nvkm_vm_new(device, start, limit - start, start, &bar2_lock, &vm);
+	ret = nvkm_vmm_new(device, start, limit-- - start, NULL, 0,
+			   &bar2_lock, "bar2", &bar->bar2_vmm);
 	if (ret)
 		return ret;
 
-	atomic_inc(&vm->engref[NVKM_SUBDEV_BAR]);
+	atomic_inc(&bar->bar2_vmm->engref[NVKM_SUBDEV_BAR]);
+	bar->bar2_vmm->debug = bar->base.subdev.debug;
 
-	ret = nvkm_vm_boot(vm, limit-- - start);
+	ret = nvkm_vmm_boot(bar->bar2_vmm);
 	if (ret)
 		return ret;
 
-	ret = nvkm_vm_ref(vm, &bar->bar2_vm, bar->mem->memory);
-	nvkm_vm_ref(NULL, &vm, NULL);
+	ret = nvkm_vmm_join(bar->bar2_vmm, bar->mem->memory);
 	if (ret)
 		return ret;
 
@@ -166,14 +166,13 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 	start = 0x0000000000ULL;
 	limit = start + device->func->resource_size(device, 1);
 
-	ret = nvkm_vm_new(device, start, limit-- - start, start, &bar1_lock, &vm);
-	if (ret)
-		return ret;
+	ret = nvkm_vmm_new(device, start, limit-- - start, NULL, 0,
+			   &bar1_lock, "bar1", &bar->bar1_vmm);
 
-	atomic_inc(&vm->engref[NVKM_SUBDEV_BAR]);
+	atomic_inc(&bar->bar1_vmm->engref[NVKM_SUBDEV_BAR]);
+	bar->bar1_vmm->debug = bar->base.subdev.debug;
 
-	ret = nvkm_vm_ref(vm, &bar->bar1_vm, bar->mem->memory);
-	nvkm_vm_ref(NULL, &vm, NULL);
+	ret = nvkm_vmm_join(bar->bar1_vmm, bar->mem->memory);
 	if (ret)
 		return ret;
 
@@ -199,9 +198,11 @@ nv50_bar_dtor(struct nvkm_bar *base)
 	struct nv50_bar *bar = nv50_bar(base);
 	if (bar->mem) {
 		nvkm_gpuobj_del(&bar->bar1);
-		nvkm_vm_ref(NULL, &bar->bar1_vm, bar->mem->memory);
+		nvkm_vmm_part(bar->bar1_vmm, bar->mem->memory);
+		nvkm_vmm_unref(&bar->bar1_vmm);
 		nvkm_gpuobj_del(&bar->bar2);
-		nvkm_vm_ref(NULL, &bar->bar2_vm, bar->mem->memory);
+		nvkm_vmm_part(bar->bar2_vmm, bar->mem->memory);
+		nvkm_vmm_unref(&bar->bar2_vmm);
 		nvkm_gpuobj_del(&bar->pgd);
 		nvkm_gpuobj_del(&bar->pad);
 		nvkm_gpuobj_del(&bar->mem);

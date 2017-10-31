@@ -9,9 +9,9 @@ struct nv50_bar {
 	struct nvkm_gpuobj *mem;
 	struct nvkm_gpuobj *pad;
 	struct nvkm_gpuobj *pgd;
-	struct nvkm_vm *bar1_vm;
+	struct nvkm_vmm *bar1_vmm;
 	struct nvkm_gpuobj *bar1;
-	struct nvkm_vm *bar2_vm;
+	struct nvkm_vmm *bar2_vmm;
 	struct nvkm_gpuobj *bar2;
 };
 
