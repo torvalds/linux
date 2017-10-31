@@ -236,6 +236,22 @@ static const struct kfd_device_info vega10_vf_device_info = {
 	.num_sdma_queues_per_engine = 2,
 };
 
+static const struct kfd_device_info vega20_device_info = {
+	.asic_family = CHIP_VEGA20,
+	.max_pasid_bits = 16,
+	.max_no_of_hqd	= 24,
+	.doorbell_size	= 8,
+	.ih_ring_entry_size = 8 * sizeof(uint32_t),
+	.event_interrupt_class = &event_interrupt_class_v9,
+	.num_of_watch_points = 4,
+	.mqd_size_aligned = MQD_SIZE_ALIGNED,
+	.supports_cwsr = true,
+	.needs_iommu_device = false,
+	.needs_pci_atomics = true,
+	.num_sdma_engines = 2,
+	.num_sdma_queues_per_engine = 8,
+};
+
 struct kfd_deviceid {
 	unsigned short did;
 	const struct kfd_device_info *device_info;
@@ -323,6 +339,12 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x6868, &vega10_device_info },	/* Vega10 */
 	{ 0x686C, &vega10_vf_device_info },	/* Vega10  vf*/
 	{ 0x687F, &vega10_device_info },	/* Vega10 */
+	{ 0x66a0, &vega20_device_info },	/* Vega20 */
+	{ 0x66a1, &vega20_device_info },	/* Vega20 */
+	{ 0x66a2, &vega20_device_info },	/* Vega20 */
+	{ 0x66a3, &vega20_device_info },	/* Vega20 */
+	{ 0x66a7, &vega20_device_info },	/* Vega20 */
+	{ 0x66af, &vega20_device_info }		/* Vega20 */
 };
 
 static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
