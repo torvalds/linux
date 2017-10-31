@@ -119,6 +119,12 @@ gk20a_instobj_target(struct nvkm_memory *memory)
 	return NVKM_MEM_TARGET_NCOH;
 }
 
+static u8
+gk20a_instobj_page(struct nvkm_memory *memory)
+{
+	return 12;
+}
+
 static u64
 gk20a_instobj_addr(struct nvkm_memory *memory)
 {
@@ -343,6 +349,7 @@ static const struct nvkm_memory_func
 gk20a_instobj_func_dma = {
 	.dtor = gk20a_instobj_dtor_dma,
 	.target = gk20a_instobj_target,
+	.page = gk20a_instobj_page,
 	.addr = gk20a_instobj_addr,
 	.size = gk20a_instobj_size,
 	.acquire = gk20a_instobj_acquire_dma,
@@ -354,6 +361,7 @@ static const struct nvkm_memory_func
 gk20a_instobj_func_iommu = {
 	.dtor = gk20a_instobj_dtor_iommu,
 	.target = gk20a_instobj_target,
+	.page = gk20a_instobj_page,
 	.addr = gk20a_instobj_addr,
 	.size = gk20a_instobj_size,
 	.acquire = gk20a_instobj_acquire_iommu,
@@ -531,6 +539,7 @@ gk20a_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 	/* present memory for being mapped using small pages */
 	node->mem.size = size >> 12;
 	node->mem.memtype = 0;
+	node->mem.memory = &node->memory;
 
 	nvkm_debug(subdev, "alloc size: 0x%x, align: 0x%x, gaddr: 0x%llx\n",
 		   size, align, node->mem.offset);

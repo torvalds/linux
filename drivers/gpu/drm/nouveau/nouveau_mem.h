@@ -23,6 +23,13 @@ struct nouveau_mem {
 	struct nvkm_mem __mem;
 	struct nvkm_mem *_mem;
 	struct nvkm_vma bar_vma;
+
+	struct nvkm_memory memory;
+};
+
+enum nvif_vmm_get {
+	PTES,
+	LAZY,
 };
 
 int nouveau_mem_new(struct nouveau_cli *, u8 kind, u8 comp,

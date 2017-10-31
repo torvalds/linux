@@ -41,6 +41,7 @@ nvkm_vram_map(struct nvkm_memory *memory, u64 offset, struct nvkm_vmm *vmm,
 	struct nvkm_vram *vram = nvkm_vram(memory);
 	struct nvkm_mem mem = {
 		.mem = vram->mn,
+		.memory = &vram->memory,
 	};
 	nvkm_vm_map_at(vma, offset, &mem);
 	return 0;

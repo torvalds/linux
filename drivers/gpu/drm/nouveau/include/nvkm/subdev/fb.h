@@ -1,6 +1,7 @@
 #ifndef __NVKM_FB_H__
 #define __NVKM_FB_H__
 #include <core/subdev.h>
+#include <core/memory.h>
 
 #include <subdev/mmu.h>
 
@@ -29,6 +30,8 @@ struct nvkm_mem {
 	u64 offset;
 	u64 size;
 	struct sg_table *sg;
+
+	struct nvkm_memory *memory;
 };
 
 struct nvkm_fb_tile {

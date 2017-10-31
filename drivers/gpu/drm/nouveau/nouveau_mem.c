@@ -66,6 +66,7 @@ nouveau_mem_host(struct ttm_mem_reg *reg, struct ttm_dma_tt *tt)
 	else            mem->__mem.pages = tt->dma_address;
 	mem->_mem = &mem->__mem;
 	mem->mem.page = 12;
+	mem->_mem->memory = &mem->memory;
 	return 0;
 }
 
@@ -78,6 +79,7 @@ nouveau_mem_vram(struct ttm_mem_reg *reg, bool contig, u8 page)
 	int ret;
 
 	mem->mem.page = page;
+	mem->_mem->memory = &mem->memory;
 
 	ret = ram->func->get(ram, size, 1 << page, contig ? 0 : 1 << page,
 			     (mem->comp << 8) | mem->kind, &mem->_mem);
@@ -97,6 +99,36 @@ nouveau_mem_del(struct ttm_mem_reg *reg)
 	reg->mm_node = NULL;
 }
 
+static enum nvkm_memory_target
+nouveau_mem_memory_target(struct nvkm_memory *memory)
+{
+	struct nouveau_mem *mem = container_of(memory, typeof(*mem), memory);
+	if (mem->_mem->mem)
+		return NVKM_MEM_TARGET_VRAM;
+	return NVKM_MEM_TARGET_HOST;
+};
+
+static u8
+nouveau_mem_memory_page(struct nvkm_memory *memory)
+{
+	struct nouveau_mem *mem = container_of(memory, typeof(*mem), memory);
+	return mem->mem.page;
+};
+
+static u64
+nouveau_mem_memory_size(struct nvkm_memory *memory)
+{
+	struct nouveau_mem *mem = container_of(memory, typeof(*mem), memory);
+	return mem->_mem->size << 12;
+}
+
+static const struct nvkm_memory_func
+nouveau_mem_memory = {
+	.target = nouveau_mem_memory_target,
+	.page = nouveau_mem_memory_page,
+	.size = nouveau_mem_memory_size,
+};
+
 int
 nouveau_mem_new(struct nouveau_cli *cli, u8 kind, u8 comp,
 		struct ttm_mem_reg *reg)
@@ -108,6 +140,7 @@ nouveau_mem_new(struct nouveau_cli *cli, u8 kind, u8 comp,
 	mem->cli = cli;
 	mem->kind = kind;
 	mem->comp = comp;
+	nvkm_memory_ctor(&nouveau_mem_memory, &mem->memory);
 
 	reg->mm_node = mem;
 	return 0;
