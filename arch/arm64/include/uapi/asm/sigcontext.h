@@ -133,6 +133,9 @@ struct sve_context {
  * The SVE architecture leaves space for future expansion of the
  * vector length beyond its initial architectural limit of 2048 bits
  * (16 quadwords).
+ *
+ * See linux/Documentation/arm64/sve.txt for a description of the VL/VQ
+ * terminology.
  */
 #define SVE_VQ_BYTES		16	/* number of bytes per quadword */
 
