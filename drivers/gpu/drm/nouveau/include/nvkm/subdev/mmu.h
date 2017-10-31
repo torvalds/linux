@@ -63,6 +63,11 @@ struct nvkm_mmu {
 	u8  lpg_shift;
 
 	struct nvkm_vmm *vmm;
+
+	struct {
+		struct mutex mutex;
+		struct list_head list;
+	} ptc;
 };
 
 int nv04_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);

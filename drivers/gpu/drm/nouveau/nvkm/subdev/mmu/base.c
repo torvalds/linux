@@ -26,6 +26,129 @@
 #include <core/gpuobj.h>
 #include <subdev/fb.h>
 
+struct nvkm_mmu_ptc {
+	struct list_head head;
+	struct list_head item;
+	u32 size;
+	u32 refs;
+};
+
+static inline struct nvkm_mmu_ptc *
+nvkm_mmu_ptc_find(struct nvkm_mmu *mmu, u32 size)
+{
+	struct nvkm_mmu_ptc *ptc;
+
+	list_for_each_entry(ptc, &mmu->ptc.list, head) {
+		if (ptc->size == size)
+			return ptc;
+	}
+
+	ptc = kmalloc(sizeof(*ptc), GFP_KERNEL);
+	if (ptc) {
+		INIT_LIST_HEAD(&ptc->item);
+		ptc->size = size;
+		ptc->refs = 0;
+		list_add(&ptc->head, &mmu->ptc.list);
+	}
+
+	return ptc;
+}
+
+void
+nvkm_mmu_ptc_put(struct nvkm_mmu *mmu, bool force, struct nvkm_mmu_pt **ppt)
+{
+	struct nvkm_mmu_pt *pt = *ppt;
+	if (pt) {
+		/* Either cache or free the object. */
+		mutex_lock(&mmu->ptc.mutex);
+		if (pt->ptc->refs < 8 /* Heuristic. */ && !force) {
+			list_add_tail(&pt->head, &pt->ptc->item);
+			pt->ptc->refs++;
+		} else {
+			nvkm_memory_unref(&pt->memory);
+			kfree(pt);
+		}
+		mutex_unlock(&mmu->ptc.mutex);
+	}
+}
+
+struct nvkm_mmu_pt *
+nvkm_mmu_ptc_get(struct nvkm_mmu *mmu, u32 size, u32 align, bool zero)
+{
+	struct nvkm_mmu_ptc *ptc;
+	struct nvkm_mmu_pt *pt;
+	int ret;
+
+	/* Lookup cache for this page table size. */
+	mutex_lock(&mmu->ptc.mutex);
+	ptc = nvkm_mmu_ptc_find(mmu, size);
+	if (!ptc) {
+		mutex_unlock(&mmu->ptc.mutex);
+		return NULL;
+	}
+
+	/* If there's a free PT in the cache, reuse it. */
+	pt = list_first_entry_or_null(&ptc->item, typeof(*pt), head);
+	if (pt) {
+		if (zero)
+			nvkm_fo64(pt->memory, 0, 0, size >> 3);
+		list_del(&pt->head);
+		ptc->refs--;
+		mutex_unlock(&mmu->ptc.mutex);
+		return pt;
+	}
+	mutex_unlock(&mmu->ptc.mutex);
+
+	/* No such luck, we need to allocate. */
+	if (!(pt = kmalloc(sizeof(*pt), GFP_KERNEL)))
+		return NULL;
+	pt->ptc = ptc;
+
+	ret = nvkm_memory_new(mmu->subdev.device, NVKM_MEM_TARGET_INST,
+			      size, align, zero, &pt->memory);
+	if (ret) {
+		kfree(pt);
+		return NULL;
+	}
+
+	pt->base = 0;
+	pt->addr = nvkm_memory_addr(pt->memory);
+	return pt;
+}
+
+void
+nvkm_mmu_ptc_dump(struct nvkm_mmu *mmu)
+{
+	struct nvkm_mmu_ptc *ptc;
+	list_for_each_entry(ptc, &mmu->ptc.list, head) {
+		struct nvkm_mmu_pt *pt, *tt;
+		list_for_each_entry_safe(pt, tt, &ptc->item, head) {
+			nvkm_memory_unref(&pt->memory);
+			list_del(&pt->head);
+			kfree(pt);
+		}
+	}
+}
+
+static void
+nvkm_mmu_ptc_fini(struct nvkm_mmu *mmu)
+{
+	struct nvkm_mmu_ptc *ptc, *ptct;
+
+	list_for_each_entry_safe(ptc, ptct, &mmu->ptc.list, head) {
+		WARN_ON(!list_empty(&ptc->item));
+		list_del(&ptc->head);
+		kfree(ptc);
+	}
+}
+
+static void
+nvkm_mmu_ptc_init(struct nvkm_mmu *mmu)
+{
+	mutex_init(&mmu->ptc.mutex);
+	INIT_LIST_HEAD(&mmu->ptc.list);
+}
+
 void
 nvkm_vm_map_at(struct nvkm_vma *vma, u64 delta, struct nvkm_mem *node)
 {
@@ -514,9 +637,13 @@ static void *
 nvkm_mmu_dtor(struct nvkm_subdev *subdev)
 {
 	struct nvkm_mmu *mmu = nvkm_mmu(subdev);
+	void *data = mmu;
+
 	if (mmu->func->dtor)
-		return mmu->func->dtor(mmu);
-	return mmu;
+		data = mmu->func->dtor(mmu);
+
+	nvkm_mmu_ptc_fini(mmu);
+	return data;
 }
 
 static const struct nvkm_subdev_func
@@ -535,6 +662,7 @@ nvkm_mmu_ctor(const struct nvkm_mmu_func *func, struct nvkm_device *device,
 	mmu->limit = func->limit;
 	mmu->dma_bits = func->dma_bits;
 	mmu->lpg_shift = func->lpg_shift;
+	nvkm_mmu_ptc_init(mmu);
 }
 
 int

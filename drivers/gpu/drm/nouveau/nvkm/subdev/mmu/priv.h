@@ -56,4 +56,19 @@ void gf100_vm_map_sg(struct nvkm_vma *, struct nvkm_memory *, struct nvkm_mem *,
 		     u32, u32, dma_addr_t *);
 void gf100_vm_unmap(struct nvkm_vma *, struct nvkm_memory *, u32, u32);
 void gf100_vm_flush(struct nvkm_vm *);
+
+struct nvkm_mmu_pt {
+	union {
+		struct nvkm_mmu_ptc *ptc;
+	};
+	struct nvkm_memory *memory;
+	u16 base;
+	u64 addr;
+	struct list_head head;
+};
+
+void nvkm_mmu_ptc_dump(struct nvkm_mmu *);
+struct nvkm_mmu_pt *
+nvkm_mmu_ptc_get(struct nvkm_mmu *, u32 size, u32 align, bool zero);
+void nvkm_mmu_ptc_put(struct nvkm_mmu *, bool force, struct nvkm_mmu_pt **);
 #endif
