@@ -284,6 +284,12 @@ struct opp_funcs {
 	void (*opp_set_test_pattern)(
 			struct output_pixel_processor *opp,
 			bool enable);
+
+	void (*opp_dpg_blank_enable)(
+			struct output_pixel_processor *opp,
+			bool enable,
+			int width,
+			int height);
 };
 
 #endif

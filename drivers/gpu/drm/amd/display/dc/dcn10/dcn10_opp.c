@@ -38,6 +38,24 @@
 	oppn10->base.ctx
 
 
+enum dpg_mode {
+	/* RGB colour block mode */
+	DPG_MODE_RGB_COLOUR_BLOCK,
+	/* YCbCr-601 colour block mode */
+	DPG_MODE_YCBCR_601_COLOUR_BLOCK,
+	/* YCbCr-709 colour block mode */
+	DPG_MODE_YCBCR_709_COLOUR_BLOCK,
+	/* Vertical bar mode */
+	DPG_MODE_VERTICAL_BAR,
+	/* Horizontal bar mode */
+	DPG_MODE_HORIZONTAL_BAR,
+	/* Single ramp mode */
+	DPG_MODE_RGB_SINGLE_RAMP,
+	/* Dual ramp mode */
+	DPG_MODE_RGB_DUAL_RAMP,
+	/* RGB XR BIAS mode */
+	DPG_MODE_RGB_XR_BIAS
+};
 
 /************* FORMATTER ************/
 
@@ -47,7 +65,7 @@
  *	2) enable truncation
  *	3) HW remove 12bit FMT support for DCE11 power saving reason.
  */
-static void set_truncation(
+static void opp1_set_truncation(
 		struct dcn10_opp *oppn10,
 		const struct bit_depth_reduction_params *params)
 {
@@ -57,7 +75,7 @@ static void set_truncation(
 		FMT_TRUNCATE_MODE, params->flags.TRUNCATE_MODE);
 }
 
-static void set_spatial_dither(
+static void opp1_set_spatial_dither(
 	struct dcn10_opp *oppn10,
 	const struct bit_depth_reduction_params *params)
 {
@@ -136,14 +154,14 @@ static void set_spatial_dither(
 			FMT_RGB_RANDOM_ENABLE, params->flags.RGB_RANDOM);
 }
 
-static void oppn10_program_bit_depth_reduction(
+static void opp1_program_bit_depth_reduction(
 	struct output_pixel_processor *opp,
 	const struct bit_depth_reduction_params *params)
 {
 	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
 
-	set_truncation(oppn10, params);
-	set_spatial_dither(oppn10, params);
+	opp1_set_truncation(oppn10, params);
+	opp1_set_spatial_dither(oppn10, params);
 	/* TODO
 	 * set_temporal_dither(oppn10, params);
 	 */
@@ -156,7 +174,7 @@ static void oppn10_program_bit_depth_reduction(
  *		0: RGB 4:4:4 or YCbCr 4:4:4 or YOnly
  *		1: YCbCr 4:2:2
  */
-static void set_pixel_encoding(
+static void opp1_set_pixel_encoding(
 	struct dcn10_opp *oppn10,
 	const struct clamping_and_pixel_encoding_params *params)
 {
@@ -186,7 +204,7 @@ static void set_pixel_encoding(
  *		7 for programable
  *	2) Enable clamp if Limited range requested
  */
-static void opp_set_clamping(
+static void opp1_set_clamping(
 	struct dcn10_opp *oppn10,
 	const struct clamping_and_pixel_encoding_params *params)
 {
@@ -224,7 +242,7 @@ static void opp_set_clamping(
 
 }
 
-static void oppn10_set_dyn_expansion(
+static void opp1_set_dyn_expansion(
 	struct output_pixel_processor *opp,
 	enum dc_color_space color_sp,
 	enum dc_color_depth color_dpth,
@@ -264,17 +282,17 @@ static void oppn10_set_dyn_expansion(
 	}
 }
 
-static void opp_program_clamping_and_pixel_encoding(
+static void opp1_program_clamping_and_pixel_encoding(
 	struct output_pixel_processor *opp,
 	const struct clamping_and_pixel_encoding_params *params)
 {
 	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
 
-	opp_set_clamping(oppn10, params);
-	set_pixel_encoding(oppn10, params);
+	opp1_set_clamping(oppn10, params);
+	opp1_set_pixel_encoding(oppn10, params);
 }
 
-static void oppn10_program_fmt(
+static void opp1_program_fmt(
 	struct output_pixel_processor *opp,
 	struct bit_depth_reduction_params *fmt_bit_depth,
 	struct clamping_and_pixel_encoding_params *clamping)
@@ -286,20 +304,18 @@ static void oppn10_program_fmt(
 
 	/* dithering is affected by <CrtcSourceSelect>, hence should be
 	 * programmed afterwards */
-	oppn10_program_bit_depth_reduction(
+	opp1_program_bit_depth_reduction(
 		opp,
 		fmt_bit_depth);
 
-	opp_program_clamping_and_pixel_encoding(
+	opp1_program_clamping_and_pixel_encoding(
 		opp,
 		clamping);
 
 	return;
 }
 
-
-
-static void oppn10_set_stereo_polarity(
+static void opp1_set_stereo_polarity(
 		struct output_pixel_processor *opp,
 		bool enable, bool rightEyePolarity)
 {
@@ -312,18 +328,18 @@ static void oppn10_set_stereo_polarity(
 /* Constructor, Destructor               */
 /*****************************************/
 
-static void dcn10_opp_destroy(struct output_pixel_processor **opp)
+static void opp1_destroy(struct output_pixel_processor **opp)
 {
 	kfree(TO_DCN10_OPP(*opp));
 	*opp = NULL;
 }
 
 static struct opp_funcs dcn10_opp_funcs = {
-		.opp_set_dyn_expansion = oppn10_set_dyn_expansion,
-		.opp_program_fmt = oppn10_program_fmt,
-		.opp_program_bit_depth_reduction = oppn10_program_bit_depth_reduction,
-		.opp_set_stereo_polarity = oppn10_set_stereo_polarity,
-		.opp_destroy = dcn10_opp_destroy
+		.opp_set_dyn_expansion = opp1_set_dyn_expansion,
+		.opp_program_fmt = opp1_program_fmt,
+		.opp_program_bit_depth_reduction = opp1_program_bit_depth_reduction,
+		.opp_set_stereo_polarity = opp1_set_stereo_polarity,
+		.opp_destroy = opp1_destroy
 };
 
 void dcn10_opp_construct(struct dcn10_opp *oppn10,
