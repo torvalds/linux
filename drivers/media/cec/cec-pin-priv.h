@@ -28,14 +28,30 @@ enum cec_pin_state {
 	CEC_ST_TX_START_BIT_LOW,
 	/* Drive CEC high for the start bit */
 	CEC_ST_TX_START_BIT_HIGH,
+	/* Generate a start bit period that is too short */
+	CEC_ST_TX_START_BIT_HIGH_SHORT,
+	/* Generate a start bit period that is too long */
+	CEC_ST_TX_START_BIT_HIGH_LONG,
+	/* Drive CEC low for the start bit using the custom timing */
+	CEC_ST_TX_START_BIT_LOW_CUSTOM,
+	/* Drive CEC high for the start bit using the custom timing */
+	CEC_ST_TX_START_BIT_HIGH_CUSTOM,
 	/* Drive CEC low for the 0 bit */
 	CEC_ST_TX_DATA_BIT_0_LOW,
 	/* Drive CEC high for the 0 bit */
 	CEC_ST_TX_DATA_BIT_0_HIGH,
+	/* Generate a bit period that is too short */
+	CEC_ST_TX_DATA_BIT_0_HIGH_SHORT,
+	/* Generate a bit period that is too long */
+	CEC_ST_TX_DATA_BIT_0_HIGH_LONG,
 	/* Drive CEC low for the 1 bit */
 	CEC_ST_TX_DATA_BIT_1_LOW,
 	/* Drive CEC high for the 1 bit */
 	CEC_ST_TX_DATA_BIT_1_HIGH,
+	/* Generate a bit period that is too short */
+	CEC_ST_TX_DATA_BIT_1_HIGH_SHORT,
+	/* Generate a bit period that is too long */
+	CEC_ST_TX_DATA_BIT_1_HIGH_LONG,
 	/*
 	 * Wait for start of sample time to check for Ack bit or first
 	 * four initiator bits to check for Arbitration Lost.
@@ -43,6 +59,20 @@ enum cec_pin_state {
 	CEC_ST_TX_DATA_BIT_1_HIGH_PRE_SAMPLE,
 	/* Wait for end of bit period after sampling */
 	CEC_ST_TX_DATA_BIT_1_HIGH_POST_SAMPLE,
+	/* Generate a bit period that is too short */
+	CEC_ST_TX_DATA_BIT_1_HIGH_POST_SAMPLE_SHORT,
+	/* Generate a bit period that is too long */
+	CEC_ST_TX_DATA_BIT_1_HIGH_POST_SAMPLE_LONG,
+	/* Drive CEC low for a data bit using the custom timing */
+	CEC_ST_TX_DATA_BIT_LOW_CUSTOM,
+	/* Drive CEC high for a data bit using the custom timing */
+	CEC_ST_TX_DATA_BIT_HIGH_CUSTOM,
+	/* Drive CEC low for a standalone pulse using the custom timing */
+	CEC_ST_TX_PULSE_LOW_CUSTOM,
+	/* Drive CEC high for a standalone pulse using the custom timing */
+	CEC_ST_TX_PULSE_HIGH_CUSTOM,
+	/* Start low drive */
+	CEC_ST_TX_LOW_DRIVE,
 
 	/* Rx states */
 
@@ -54,8 +84,8 @@ enum cec_pin_state {
 	CEC_ST_RX_DATA_SAMPLE,
 	/* Wait for earliest end of bit period after sampling */
 	CEC_ST_RX_DATA_POST_SAMPLE,
-	/* Wait for CEC to go high (i.e. end of bit period */
-	CEC_ST_RX_DATA_HIGH,
+	/* Wait for CEC to go low (i.e. end of bit period) */
+	CEC_ST_RX_DATA_WAIT_FOR_LOW,
 	/* Drive CEC low to send 0 Ack bit */
 	CEC_ST_RX_ACK_LOW,
 	/* End of 0 Ack time, wait for earliest end of bit period */
@@ -64,9 +94,9 @@ enum cec_pin_state {
 	CEC_ST_RX_ACK_HIGH_POST,
 	/* Wait for earliest end of bit period and end of message */
 	CEC_ST_RX_ACK_FINISH,
-
 	/* Start low drive */
-	CEC_ST_LOW_DRIVE,
+	CEC_ST_RX_LOW_DRIVE,
+
 	/* Monitor pin using interrupts */
 	CEC_ST_RX_IRQ,
 
