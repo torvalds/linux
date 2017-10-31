@@ -1897,7 +1897,6 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 {
 	struct isc_device *isc = container_of(notifier->v4l2_dev,
 					      struct isc_device, v4l2_dev);
-	struct isc_subdev_entity *sd_entity;
 	struct video_device *vdev = &isc->video_dev;
 	struct vb2_queue *q = &isc->vb2_vidq;
 	int ret;
@@ -1910,8 +1909,6 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 
 	isc->current_subdev = container_of(notifier,
 					   struct isc_subdev_entity, notifier);
-	sd_entity = isc->current_subdev;
-
 	mutex_init(&isc->lock);
 	init_completion(&isc->comp);
 
