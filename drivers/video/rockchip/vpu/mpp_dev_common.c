@@ -171,11 +171,6 @@ int mpp_dev_common_ctx_init(struct rockchip_mpp_dev *mpp, struct mpp_ctx *cfg)
 	return 0;
 }
 
-struct mpp_request {
-	u32 *req;
-	u32 size;
-};
-
 #ifdef CONFIG_COMPAT
 struct compat_mpp_request {
 	compat_uptr_t req;
@@ -482,66 +477,60 @@ static long mpp_dev_ioctl(struct file *filp, unsigned int cmd,
 		return -EINVAL;
 
 	switch (cmd) {
-	case MPP_IOC_SET_CLIENT_TYPE:
+	case VPU_IOC_SET_CLIENT_TYPE:
 		break;
-	case MPP_IOC_SET_REG:
-		{
-			struct mpp_request req;
-			struct mpp_ctx *ctx;
+	case VPU_IOC_SET_REG: {
+		struct vpu_request req;
+		struct mpp_ctx *ctx;
 
-			mpp_debug(DEBUG_IOCTL, "pid %d set reg\n",
-				  session->pid);
-			if (copy_from_user(&req, (void __user *)arg,
-					   sizeof(struct mpp_request))) {
-				mpp_err("error: set reg copy_from_user failed\n");
-				return -EFAULT;
-			}
-			ctx = ctx_init(mpp, session, (void __user *)req.req,
-				       req.size);
-			if (!ctx)
-				return -EFAULT;
+		mpp_debug(DEBUG_IOCTL, "pid %d set reg\n",
+			  session->pid);
+		if (copy_from_user(&req, (void __user *)arg,
+				   sizeof(struct vpu_request))) {
+			mpp_err("error: set reg copy_from_user failed\n");
+			return -EFAULT;
+		}
+		ctx = ctx_init(mpp, session, (void __user *)req.req,
+			       req.size);
+		if (!ctx)
+			return -EFAULT;
 
-			mpp_srv_lock(mpp->srv);
-			rockchip_mpp_try_run(mpp);
-			mpp_srv_unlock(mpp->srv);
+		mpp_srv_lock(mpp->srv);
+		rockchip_mpp_try_run(mpp);
+		mpp_srv_unlock(mpp->srv);
+	} break;
+	case VPU_IOC_GET_REG: {
+		struct vpu_request req;
+
+		mpp_debug(DEBUG_IOCTL, "pid %d get reg\n",
+			  session->pid);
+		if (copy_from_user(&req, (void __user *)arg,
+				   sizeof(struct vpu_request))) {
+			mpp_err("error: get reg copy_from_user failed\n");
+			return -EFAULT;
+		}
+
+		return mpp_dev_wait_result(session, mpp, req.req);
+	} break;
+	case VPU_IOC_PROBE_IOMMU_STATUS: {
+		int iommu_enable = 1;
+
+		mpp_debug(DEBUG_IOCTL, "VPU_IOC_PROBE_IOMMU_STATUS\n");
+
+		if (copy_to_user((void __user *)arg,
+				 &iommu_enable, sizeof(int))) {
+			mpp_err("error: iommu status copy_to_user failed\n");
+			return -EFAULT;
 		}
 		break;
-	case MPP_IOC_GET_REG:
-		{
-			struct mpp_request req;
+	}
+	default: {
+		if (mpp->ops->ioctl)
+			return mpp->ops->ioctl(session, cmd, arg);
 
-			mpp_debug(DEBUG_IOCTL, "pid %d get reg\n",
-				  session->pid);
-			if (copy_from_user(&req, (void __user *)arg,
-					   sizeof(struct mpp_request))) {
-				mpp_err("error: get reg copy_from_user failed\n");
-				return -EFAULT;
-			}
-
-			return mpp_dev_wait_result(session, mpp, req.req);
-		}
-		break;
-	case MPP_IOC_PROBE_IOMMU_STATUS:
-		{
-			int iommu_enable = 1;
-
-			mpp_debug(DEBUG_IOCTL, "VPU_IOC_PROBE_IOMMU_STATUS\n");
-
-			if (copy_to_user((void __user *)arg,
-					 &iommu_enable, sizeof(int))) {
-				mpp_err("error: iommu status copy_to_user failed\n");
-				return -EFAULT;
-			}
-		}
-		break;
-	default:
-		{
-			if (mpp->ops->ioctl)
-				return mpp->ops->ioctl(session, cmd, arg);
-
-			mpp_err("unknown mpp ioctl cmd %x\n", cmd);
-		}
-		break;
+		mpp_err("unknown mpp ioctl cmd %x\n", cmd);
+		return -ENOIOCTLCMD;
+	} break;
 	}
 
 	mpp_debug_leave();
@@ -549,84 +538,86 @@ static long mpp_dev_ioctl(struct file *filp, unsigned int cmd,
 }
 
 #ifdef CONFIG_COMPAT
-static long compat_mpp_dev_ioctl(struct file *filp, unsigned int cmd,
-				 unsigned long arg)
+#define VPU_IOC_SET_CLIENT_TYPE32          _IOW(VPU_IOC_MAGIC, 1, u32)
+#define VPU_IOC_GET_HW_FUSE_STATUS32       _IOW(VPU_IOC_MAGIC, 2, \
+						compat_ulong_t)
+#define VPU_IOC_SET_REG32                  _IOW(VPU_IOC_MAGIC, 3, \
+						compat_ulong_t)
+#define VPU_IOC_GET_REG32                  _IOW(VPU_IOC_MAGIC, 4, \
+						compat_ulong_t)
+#define VPU_IOC_PROBE_IOMMU_STATUS32       _IOR(VPU_IOC_MAGIC, 5, u32)
+
+static long native_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct rockchip_mpp_dev *mpp =
-			container_of(filp->f_path.dentry->d_inode->i_cdev,
-				     struct rockchip_mpp_dev, cdev);
-	struct mpp_session *session = (struct mpp_session *)filp->private_data;
+	long ret = -ENOIOCTLCMD;
+
+	if (file->f_op->unlocked_ioctl)
+		ret = file->f_op->unlocked_ioctl(file, cmd, arg);
+
+	return ret;
+}
+
+static long compat_mpp_dev_ioctl(struct file *file, unsigned int cmd,
+				     unsigned long arg)
+{
+	struct vpu_request req;
+	void __user *up = compat_ptr(arg);
+	int compatible_arg = 1;
+	long err = 0;
 
 	mpp_debug_enter();
-
-	if (!session)
-		return -EINVAL;
-
+	mpp_debug(DEBUG_IOCTL, "cmd %x, VPU_IOC_SET_CLIENT_TYPE32 %x\n", cmd,
+		  (u32)VPU_IOC_SET_CLIENT_TYPE32);
+	/* First, convert the command. */
 	switch (cmd) {
-	case MPP_IOC_SET_CLIENT_TYPE:
+	case VPU_IOC_SET_CLIENT_TYPE32:
+		cmd = VPU_IOC_SET_CLIENT_TYPE;
 		break;
-	case MPP_IOC_SET_REG:
-		{
-			struct compat_mpp_request req;
-			struct mpp_ctx *ctx;
-
-			mpp_debug(DEBUG_IOCTL, "compat set reg\n");
-			if (copy_from_user(&req, compat_ptr((compat_uptr_t)arg),
-					   sizeof(struct compat_mpp_request))) {
-				mpp_err("compat set_reg copy_from_user failed\n");
-				return -EFAULT;
-			}
-			ctx = ctx_init(mpp, session,
-				       compat_ptr((compat_uptr_t)req.req),
-				       req.size);
-			if (!ctx)
-				return -EFAULT;
-
-			mpp_srv_lock(mpp->srv);
-			rockchip_mpp_try_run(mpp);
-			mpp_srv_unlock(mpp->srv);
-		}
+	case VPU_IOC_GET_HW_FUSE_STATUS32:
+		cmd = VPU_IOC_GET_HW_FUSE_STATUS;
 		break;
-	case MPP_IOC_GET_REG:
-		{
-			struct compat_mpp_request req;
-
-			mpp_debug(DEBUG_IOCTL, "compat get reg\n");
-			if (copy_from_user(&req, compat_ptr((compat_uptr_t)arg),
-					   sizeof(struct compat_mpp_request))) {
-				mpp_err("compat get reg copy_from_user failed\n");
-				return -EFAULT;
-			}
-
-			return mpp_dev_wait_result(session,
-						   mpp,
-						   compat_ptr((compat_uptr_t)req.req));
-		}
+	case VPU_IOC_SET_REG32:
+		cmd = VPU_IOC_SET_REG;
 		break;
-	case MPP_IOC_PROBE_IOMMU_STATUS:
-		{
-			int iommu_enable = 1;
-
-			mpp_debug(DEBUG_IOCTL, "COMPAT_VPU_IOC_PROBE_IOMMU_STATUS\n");
-
-			if (copy_to_user(compat_ptr((compat_uptr_t)arg),
-					 &iommu_enable, sizeof(int))) {
-				mpp_err("error: VPU_IOC_PROBE_IOMMU_STATUS failed\n");
-				return -EFAULT;
-			}
-		}
+	case VPU_IOC_GET_REG32:
+		cmd = VPU_IOC_GET_REG;
 		break;
-	default:
-		{
-			if (mpp->ops->ioctl)
-				return mpp->ops->ioctl(session, cmd, arg);
-
-			mpp_err("unknown mpp ioctl cmd %x\n", cmd);
-		}
+	case VPU_IOC_PROBE_IOMMU_STATUS32:
+		cmd = VPU_IOC_PROBE_IOMMU_STATUS;
 		break;
 	}
+	switch (cmd) {
+	case VPU_IOC_SET_REG:
+	case VPU_IOC_GET_REG:
+	case VPU_IOC_GET_HW_FUSE_STATUS: {
+		compat_uptr_t req_ptr;
+		struct compat_mpp_request __user *req32 = NULL;
+
+		req32 = (struct compat_mpp_request __user *)up;
+		memset(&req, 0, sizeof(req));
+
+		if (get_user(req_ptr, &req32->req) ||
+		    get_user(req.size, &req32->size)) {
+			mpp_err("error: compat get hw status copy_from_user failed\n");
+			return -EFAULT;
+		}
+		req.req = compat_ptr(req_ptr);
+		compatible_arg = 0;
+	} break;
+	}
+
+	if (compatible_arg) {
+		err = native_ioctl(file, cmd, (unsigned long)up);
+	} else {
+		mm_segment_t old_fs = get_fs();
+
+		set_fs(KERNEL_DS);
+		err = native_ioctl(file, cmd, (unsigned long)&req);
+		set_fs(old_fs);
+	}
+
 	mpp_debug_leave();
-	return 0;
+	return err;
 }
 #endif
 

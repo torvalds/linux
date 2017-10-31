@@ -25,22 +25,10 @@
 #include <linux/workqueue.h>
 #include <linux/wakelock.h>
 
+#include <video/rk_vpu_service.h>
+
 extern int mpp_dev_debug;
 
-/*
- * Ioctl definitions
- */
-
-/* Use 'l' as magic number */
-#define MPP_IOC_MAGIC			'l'
-
-#define MPP_IOC_SET_CLIENT_TYPE		_IOW(MPP_IOC_MAGIC, 1, u32)
-#define MPP_IOC_GET_HW_FUSE_STATUS	_IOW(MPP_IOC_MAGIC, 2, u32)
-
-#define MPP_IOC_SET_REG			_IOW(MPP_IOC_MAGIC, 3, u32)
-#define MPP_IOC_GET_REG			_IOW(MPP_IOC_MAGIC, 4, u32)
-
-#define MPP_IOC_PROBE_IOMMU_STATUS	_IOR(MPP_IOC_MAGIC, 5, u32)
 #define MPP_IOC_CUSTOM_BASE			0x1000
 
 /*

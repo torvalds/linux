@@ -33,7 +33,7 @@ struct rkvenc_osd_palette {
 };
 
 #define MPP_DEV_RKVENC_SET_COLOR_PALETTE	\
-			_IOW(MPP_IOC_MAGIC, MPP_IOC_CUSTOM_BASE + 1,	\
+			_IOW(VPU_IOC_MAGIC, MPP_IOC_CUSTOM_BASE + 1,	\
 			struct rkvenc_osd_palette)
 
 struct rkvenc_config_elem {
