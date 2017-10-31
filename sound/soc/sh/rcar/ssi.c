@@ -598,15 +598,18 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 	if (rsnd_ssi_is_parent(mod, io))
 		return 0;
 
-	/*
-	 * disable all IRQ,
-	 * and, wait all data was sent
-	 */
 	cr  =	ssi->cr_own	|
 		ssi->cr_clk;
 
-	rsnd_mod_write(mod, SSICR, cr | EN);
-	rsnd_ssi_status_check(mod, DIRQ);
+	/*
+	 * disable all IRQ,
+	 * Playback: Wait all data was sent
+	 * Capture:  It might not receave data. Do nothing
+	 */
+	if (rsnd_io_is_play(io)) {
+		rsnd_mod_write(mod, SSICR, cr | EN);
+		rsnd_ssi_status_check(mod, DIRQ);
+	}
 
 	/*
 	 * disable SSI,
