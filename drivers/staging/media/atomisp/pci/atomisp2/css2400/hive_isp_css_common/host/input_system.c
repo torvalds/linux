@@ -602,30 +602,30 @@ STORAGE_CLASS_INLINE void rx_channel_get_state(
 	assert(state != NULL);
 
 	switch (ch_id) {
-		case 0:
-			state->comp_scheme0 = receiver_reg_load(ID,
+	case 0:
+		state->comp_scheme0 = receiver_reg_load(ID,
 				_HRT_CSS_RECEIVER_2400_COMP_SCHEME_VC0_REG0_IDX);
-			state->comp_scheme1 = receiver_reg_load(ID,
+		state->comp_scheme1 = receiver_reg_load(ID,
 				_HRT_CSS_RECEIVER_2400_COMP_SCHEME_VC0_REG1_IDX);
-	break;
-		case 1:
-			state->comp_scheme0 = receiver_reg_load(ID,
+		break;
+	case 1:
+		state->comp_scheme0 = receiver_reg_load(ID,
 				_HRT_CSS_RECEIVER_2400_COMP_SCHEME_VC1_REG0_IDX);
-			state->comp_scheme1 = receiver_reg_load(ID,
+		state->comp_scheme1 = receiver_reg_load(ID,
 				_HRT_CSS_RECEIVER_2400_COMP_SCHEME_VC1_REG1_IDX);
-	break;
-		case 2:
-			state->comp_scheme0 = receiver_reg_load(ID,
+		break;
+	case 2:
+		state->comp_scheme0 = receiver_reg_load(ID,
 				_HRT_CSS_RECEIVER_2400_COMP_SCHEME_VC2_REG0_IDX);
-			state->comp_scheme1 = receiver_reg_load(ID,
+		state->comp_scheme1 = receiver_reg_load(ID,
 				_HRT_CSS_RECEIVER_2400_COMP_SCHEME_VC2_REG1_IDX);
-	break;
-		case 3:
-			state->comp_scheme0 = receiver_reg_load(ID,
+		break;
+	case 3:
+		state->comp_scheme0 = receiver_reg_load(ID,
 				_HRT_CSS_RECEIVER_2400_COMP_SCHEME_VC3_REG0_IDX);
-			state->comp_scheme1 = receiver_reg_load(ID,
+		state->comp_scheme1 = receiver_reg_load(ID,
 				_HRT_CSS_RECEIVER_2400_COMP_SCHEME_VC3_REG1_IDX);
-	break;
+		break;
 	}
 
 /* See Table 7.1.17,..., 7.1.24 */
