@@ -1861,8 +1861,12 @@ gf100_gr_ctor_fw(struct gf100_gr *gr, const char *fwname,
 	int ret;
 
 	ret = nvkm_firmware_get(device, fwname, &fw);
-	if (ret)
-		return gf100_gr_ctor_fw_legacy(gr, fwname, fuc, ret);
+	if (ret) {
+		ret = gf100_gr_ctor_fw_legacy(gr, fwname, fuc, ret);
+		if (ret)
+			return -ENODEV;
+		return 0;
+	}
 
 	fuc->size = fw->size;
 	fuc->data = kmemdup(fw->data, fuc->size, GFP_KERNEL);
