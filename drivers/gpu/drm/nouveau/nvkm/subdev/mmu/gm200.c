@@ -74,6 +74,7 @@ gm200_mmu = {
 	.lpg_shift = 17,
 	.vmm = {{ -1,  0, NVIF_CLASS_VMM_GM200}, gm200_vmm_new },
 	.kind = gm200_mmu_kind,
+	.kind_sys = true,
 };
 
 static const struct nvkm_mmu_func
@@ -83,6 +84,7 @@ gm200_mmu_fixed = {
 	.lpg_shift = 17,
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GM200}, gm200_vmm_new_fixed },
 	.kind = gm200_mmu_kind,
+	.kind_sys = true,
 };
 
 int

@@ -108,6 +108,26 @@ struct nvkm_mmu {
 	u8  dma_bits;
 	u8  lpg_shift;
 
+	int heap_nr;
+	struct {
+#define NVKM_MEM_VRAM                                                      0x01
+#define NVKM_MEM_HOST                                                      0x02
+#define NVKM_MEM_COMP                                                      0x04
+#define NVKM_MEM_DISP                                                      0x08
+		u8  type;
+		u64 size;
+	} heap[4];
+
+	int type_nr;
+	struct {
+#define NVKM_MEM_KIND                                                      0x10
+#define NVKM_MEM_MAPPABLE                                                  0x20
+#define NVKM_MEM_COHERENT                                                  0x40
+#define NVKM_MEM_UNCACHED                                                  0x80
+		u8 type;
+		u8 heap;
+	} type[16];
+
 	struct nvkm_vmm *vmm;
 
 	struct {

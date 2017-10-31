@@ -25,6 +25,7 @@ struct nvkm_mmu_func {
 	} vmm;
 
 	const u8 *(*kind)(struct nvkm_mmu *, int *count);
+	bool kind_sys;
 };
 
 extern const struct nvkm_mmu_func nv04_mmu;

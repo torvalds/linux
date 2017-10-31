@@ -78,6 +78,7 @@ gf100_mmu = {
 	.lpg_shift = 17,
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GF100}, gf100_vmm_new },
 	.kind = gf100_mmu_kind,
+	.kind_sys = true,
 };
 
 int

@@ -24,6 +24,7 @@
 #include "priv.h"
 #include "vmm.h"
 
+#include <subdev/bar.h>
 #include <subdev/fb.h>
 
 #include <nvif/if500d.h>
@@ -443,10 +444,129 @@ nvkm_vm_ref(struct nvkm_vm *ref, struct nvkm_vm **ptr, struct nvkm_memory *inst)
 	return 0;
 }
 
+static void
+nvkm_mmu_type(struct nvkm_mmu *mmu, int heap, u8 type)
+{
+	if (heap >= 0 && !WARN_ON(mmu->type_nr == ARRAY_SIZE(mmu->type))) {
+		mmu->type[mmu->type_nr].type = type | mmu->heap[heap].type;
+		mmu->type[mmu->type_nr].heap = heap;
+		mmu->type_nr++;
+	}
+}
+
+static int
+nvkm_mmu_heap(struct nvkm_mmu *mmu, u8 type, u64 size)
+{
+	if (size) {
+		if (!WARN_ON(mmu->heap_nr == ARRAY_SIZE(mmu->heap))) {
+			mmu->heap[mmu->heap_nr].type = type;
+			mmu->heap[mmu->heap_nr].size = size;
+			return mmu->heap_nr++;
+		}
+	}
+	return -EINVAL;
+}
+
+static void
+nvkm_mmu_host(struct nvkm_mmu *mmu)
+{
+	struct nvkm_device *device = mmu->subdev.device;
+	u8 type = NVKM_MEM_KIND * !!mmu->func->kind_sys;
+	int heap;
+
+	/* Non-mappable system memory. */
+	heap = nvkm_mmu_heap(mmu, NVKM_MEM_HOST, ~0ULL);
+	nvkm_mmu_type(mmu, heap, type);
+
+	/* Non-coherent, cached, system memory.
+	 *
+	 * Block-linear mappings of system memory must be done through
+	 * BAR1, and cannot be supported on systems where we're unable
+	 * to map BAR1 with write-combining.
+	 */
+	type |= NVKM_MEM_MAPPABLE;
+	if (!device->bar || device->bar->iomap_uncached)
+		nvkm_mmu_type(mmu, heap, type & ~NVKM_MEM_KIND);
+	else
+		nvkm_mmu_type(mmu, heap, type);
+
+	/* Coherent, cached, system memory.
+	 *
+	 * Unsupported on systems that aren't able to support snooped
+	 * mappings, and also for block-linear mappings which must be
+	 * done through BAR1.
+	 */
+	type |= NVKM_MEM_COHERENT;
+	if (device->func->cpu_coherent)
+		nvkm_mmu_type(mmu, heap, type & ~NVKM_MEM_KIND);
+
+	/* Uncached system memory. */
+	nvkm_mmu_type(mmu, heap, type |= NVKM_MEM_UNCACHED);
+}
+
+static void
+nvkm_mmu_vram(struct nvkm_mmu *mmu)
+{
+	struct nvkm_device *device = mmu->subdev.device;
+	struct nvkm_mm *mm = &device->fb->ram->vram;
+	const u32 sizeN = nvkm_mm_heap_size(mm, NVKM_RAM_MM_NORMAL);
+	const u32 sizeU = nvkm_mm_heap_size(mm, NVKM_RAM_MM_NOMAP);
+	const u32 sizeM = nvkm_mm_heap_size(mm, NVKM_RAM_MM_MIXED);
+	u8 type = NVKM_MEM_KIND * !!mmu->func->kind;
+	u8 heap = NVKM_MEM_VRAM;
+	int heapM, heapN, heapU;
+
+	/* Mixed-memory doesn't support compression or display. */
+	heapM = nvkm_mmu_heap(mmu, heap, sizeM << NVKM_RAM_MM_SHIFT);
+
+	heap |= NVKM_MEM_COMP;
+	heap |= NVKM_MEM_DISP;
+	heapN = nvkm_mmu_heap(mmu, heap, sizeN << NVKM_RAM_MM_SHIFT);
+	heapU = nvkm_mmu_heap(mmu, heap, sizeU << NVKM_RAM_MM_SHIFT);
+
+	/* Add non-mappable VRAM types first so that they're preferred
+	 * over anything else.  Mixed-memory will be slower than other
+	 * heaps, it's prioritised last.
+	 */
+	nvkm_mmu_type(mmu, heapU, type);
+	nvkm_mmu_type(mmu, heapN, type);
+	nvkm_mmu_type(mmu, heapM, type);
+
+	/* Add host memory types next, under the assumption that users
+	 * wanting mappable memory want to use them as staging buffers
+	 * or the like.
+	 */
+	nvkm_mmu_host(mmu);
+
+	/* Mappable VRAM types go last, as they're basically the worst
+	 * possible type to ask for unless there's no other choice.
+	 */
+	if (device->bar) {
+		/* Write-combined BAR1 access. */
+		type |= NVKM_MEM_MAPPABLE;
+		if (!device->bar->iomap_uncached) {
+			nvkm_mmu_type(mmu, heapN, type);
+			nvkm_mmu_type(mmu, heapM, type);
+		}
+
+		/* Uncached BAR1 access. */
+		type |= NVKM_MEM_COHERENT;
+		type |= NVKM_MEM_UNCACHED;
+		nvkm_mmu_type(mmu, heapN, type);
+		nvkm_mmu_type(mmu, heapM, type);
+	}
+}
+
 static int
 nvkm_mmu_oneinit(struct nvkm_subdev *subdev)
 {
 	struct nvkm_mmu *mmu = nvkm_mmu(subdev);
+
+	/* Determine available memory types. */
+	if (mmu->subdev.device->fb && mmu->subdev.device->fb->ram)
+		nvkm_mmu_vram(mmu);
+	else
+		nvkm_mmu_host(mmu);
 
 	if (mmu->func->vmm.global) {
 		int ret = nvkm_vmm_new(subdev->device, 0, 0, NULL, 0, NULL,

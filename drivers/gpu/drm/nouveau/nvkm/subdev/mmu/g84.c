@@ -30,6 +30,7 @@ g84_mmu = {
 	.lpg_shift = 16,
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_NV50}, nv50_vmm_new, false, 0x0200 },
 	.kind = nv50_mmu_kind,
+	.kind_sys = true,
 };
 
 int

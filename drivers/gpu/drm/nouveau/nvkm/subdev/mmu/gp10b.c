@@ -32,6 +32,7 @@ gp10b_mmu = {
 	.lpg_shift = 16,
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GP100}, gp10b_vmm_new },
 	.kind = gm200_mmu_kind,
+	.kind_sys = true,
 };
 
 int
