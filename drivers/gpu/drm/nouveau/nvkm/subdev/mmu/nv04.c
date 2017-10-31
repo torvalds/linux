@@ -22,8 +22,9 @@
  * Authors: Ben Skeggs
  */
 #include "nv04.h"
+#include "vmm.h"
 
-#include <core/gpuobj.h>
+#include <nvif/class.h>
 
 #define NV04_PDMA_SIZE (128 * 1024 * 1024)
 #define NV04_PDMA_PAGE (  4 * 1024)
@@ -73,30 +74,10 @@ nv04_vm_flush(struct nvkm_vm *vm)
  ******************************************************************************/
 
 static int
-nv04_mmu_oneinit(struct nvkm_mmu *base)
+nv04_mmu_oneinit(struct nvkm_mmu *mmu)
 {
-	struct nv04_mmu *mmu = nv04_mmu(base);
-	struct nvkm_device *device = mmu->base.subdev.device;
-	struct nvkm_memory *dma;
-	int ret;
-
-	ret = nvkm_vm_create(&mmu->base, 0, NV04_PDMA_SIZE, 0, 4096, NULL,
-			     &mmu->base.vmm);
-	if (ret)
-		return ret;
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
-			      (NV04_PDMA_SIZE / NV04_PDMA_PAGE) * 4 + 8,
-			      16, true, &dma);
-	mmu->base.vmm->pgt[0].mem[0] = dma;
-	mmu->base.vmm->pgt[0].refcount[0] = 1;
-	if (ret)
-		return ret;
-
-	nvkm_kmap(dma);
-	nvkm_wo32(dma, 0x00000, 0x0002103d); /* PCI, RW, PT, !LN */
-	nvkm_wo32(dma, 0x00004, NV04_PDMA_SIZE - 1);
-	nvkm_done(dma);
+	mmu->vmm->pgt[0].mem[0] = mmu->vmm->pd->pt[0]->memory;
+	mmu->vmm->pgt[0].refcount[0] = 1;
 	return 0;
 }
 
@@ -129,7 +110,6 @@ nv04_mmu_new_(const struct nvkm_mmu_func *func, struct nvkm_device *device,
 const struct nvkm_mmu_func
 nv04_mmu = {
 	.oneinit = nv04_mmu_oneinit,
-	.dtor = nv04_mmu_dtor,
 	.limit = NV04_PDMA_SIZE,
 	.dma_bits = 32,
 	.pgt_bits = 32 - 12,
@@ -138,10 +118,11 @@ nv04_mmu = {
 	.map_sg = nv04_vm_map_sg,
 	.unmap = nv04_vm_unmap,
 	.flush = nv04_vm_flush,
+	.vmm = {{ -1, -1, NVIF_CLASS_VMM_NV04}, nv04_vmm_new, true },
 };
 
 int
 nv04_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
 {
-	return nv04_mmu_new_(&nv04_mmu, device, index, pmmu);
+	return nvkm_mmu_new_(&nv04_mmu, device, index, pmmu);
 }

@@ -34,7 +34,7 @@ struct nvkm_mmu_func {
 	void (*flush)(struct nvkm_vm *);
 
 	struct {
-		struct nvkm_sclass base;
+		struct nvkm_sclass user;
 		int (*ctor)(struct nvkm_mmu *, u64 addr, u64 size,
 			    void *argv, u32 argc, struct lock_class_key *,
 			    const char *name, struct nvkm_vmm **);
@@ -44,6 +44,8 @@ struct nvkm_mmu_func {
 
 int nvkm_vm_create(struct nvkm_mmu *, u64, u64, u64, u32,
 		   struct lock_class_key *, struct nvkm_vm **);
+
+extern const struct nvkm_mmu_func nv04_mmu;
 
 int nv50_vm_create(struct nvkm_mmu *, u64, u64, u64, struct lock_class_key *,
 		   struct nvkm_vm **);
