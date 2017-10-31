@@ -1633,7 +1633,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 			if (ret) {
 				dev_err(&pdev->dev, "Can't get CS GPIO %i\n",
 					master->cs_gpios[i]);
-				goto out_clk_put;
+				goto out_spi_bitbang;
 			}
 		}
 	}
@@ -1650,6 +1650,8 @@ static int spi_imx_probe(struct platform_device *pdev)
 	clk_disable(spi_imx->clk_per);
 	return ret;
 
+out_spi_bitbang:
+	spi_bitbang_stop(&spi_imx->bitbang);
 out_clk_put:
 	clk_disable_unprepare(spi_imx->clk_ipg);
 out_put_per:
