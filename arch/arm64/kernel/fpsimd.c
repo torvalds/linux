@@ -115,19 +115,19 @@
 static DEFINE_PER_CPU(struct fpsimd_state *, fpsimd_last_state);
 
 /* Default VL for tasks that don't set it explicitly: */
-static int sve_default_vl = SVE_VL_MIN;
+static int sve_default_vl = -1;
 
 #ifdef CONFIG_ARM64_SVE
 
 /* Maximum supported vector length across all CPUs (initially poisoned) */
 int __ro_after_init sve_max_vl = -1;
 /* Set of available vector lengths, as vq_to_bit(vq): */
-static DECLARE_BITMAP(sve_vq_map, SVE_VQ_MAX);
+static __ro_after_init DECLARE_BITMAP(sve_vq_map, SVE_VQ_MAX);
 
 #else /* ! CONFIG_ARM64_SVE */
 
 /* Dummy declaration for code that will be optimised out: */
-extern DECLARE_BITMAP(sve_vq_map, SVE_VQ_MAX);
+extern __ro_after_init DECLARE_BITMAP(sve_vq_map, SVE_VQ_MAX);
 
 #endif /* ! CONFIG_ARM64_SVE */
 
@@ -497,6 +497,111 @@ out:
 }
 
 /*
+ * Bitmap for temporary storage of the per-CPU set of supported vector lengths
+ * during secondary boot.
+ */
+static DECLARE_BITMAP(sve_secondary_vq_map, SVE_VQ_MAX);
+
+static void sve_probe_vqs(DECLARE_BITMAP(map, SVE_VQ_MAX))
+{
+	unsigned int vq, vl;
+	unsigned long zcr;
+
+	bitmap_zero(map, SVE_VQ_MAX);
+
+	zcr = ZCR_ELx_LEN_MASK;
+	zcr = read_sysreg_s(SYS_ZCR_EL1) & ~zcr;
+
+	for (vq = SVE_VQ_MAX; vq >= SVE_VQ_MIN; --vq) {
+		write_sysreg_s(zcr | (vq - 1), SYS_ZCR_EL1); /* self-syncing */
+		vl = sve_get_vl();
+		vq = sve_vq_from_vl(vl); /* skip intervening lengths */
+		set_bit(vq_to_bit(vq), map);
+	}
+}
+
+void __init sve_init_vq_map(void)
+{
+	sve_probe_vqs(sve_vq_map);
+}
+
+/*
+ * If we haven't committed to the set of supported VQs yet, filter out
+ * those not supported by the current CPU.
+ */
+void sve_update_vq_map(void)
+{
+	sve_probe_vqs(sve_secondary_vq_map);
+	bitmap_and(sve_vq_map, sve_vq_map, sve_secondary_vq_map, SVE_VQ_MAX);
+}
+
+/* Check whether the current CPU supports all VQs in the committed set */
+int sve_verify_vq_map(void)
+{
+	int ret = 0;
+
+	sve_probe_vqs(sve_secondary_vq_map);
+	bitmap_andnot(sve_secondary_vq_map, sve_vq_map, sve_secondary_vq_map,
+		      SVE_VQ_MAX);
+	if (!bitmap_empty(sve_secondary_vq_map, SVE_VQ_MAX)) {
+		pr_warn("SVE: cpu%d: Required vector length(s) missing\n",
+			smp_processor_id());
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+/*
+ * Enable SVE for EL1.
+ * Intended for use by the cpufeatures code during CPU boot.
+ */
+int sve_kernel_enable(void *__always_unused p)
+{
+	write_sysreg(read_sysreg(CPACR_EL1) | CPACR_EL1_ZEN_EL1EN, CPACR_EL1);
+	isb();
+
+	return 0;
+}
+
+void __init sve_setup(void)
+{
+	u64 zcr;
+
+	if (!system_supports_sve())
+		return;
+
+	/*
+	 * The SVE architecture mandates support for 128-bit vectors,
+	 * so sve_vq_map must have at least SVE_VQ_MIN set.
+	 * If something went wrong, at least try to patch it up:
+	 */
+	if (WARN_ON(!test_bit(vq_to_bit(SVE_VQ_MIN), sve_vq_map)))
+		set_bit(vq_to_bit(SVE_VQ_MIN), sve_vq_map);
+
+	zcr = read_sanitised_ftr_reg(SYS_ZCR_EL1);
+	sve_max_vl = sve_vl_from_vq((zcr & ZCR_ELx_LEN_MASK) + 1);
+
+	/*
+	 * Sanity-check that the max VL we determined through CPU features
+	 * corresponds properly to sve_vq_map.  If not, do our best:
+	 */
+	if (WARN_ON(sve_max_vl != find_supported_vector_length(sve_max_vl)))
+		sve_max_vl = find_supported_vector_length(sve_max_vl);
+
+	/*
+	 * For the default VL, pick the maximum supported value <= 64.
+	 * VL == 64 is guaranteed not to grow the signal frame.
+	 */
+	sve_default_vl = find_supported_vector_length(64);
+
+	pr_info("SVE: maximum available vector length %u bytes per vector\n",
+		sve_max_vl);
+	pr_info("SVE: default vector length %u bytes per vector\n",
+		sve_default_vl);
+}
+
+/*
  * Called from the put_task_struct() path, which cannot get here
  * unless dead_task is really dead and not schedulable.
  */
@@ -631,6 +736,9 @@ void fpsimd_flush_thread(void)
 		 * This is where we ensure that all user tasks have a valid
 		 * vector length configured: no kernel task can become a user
 		 * task without an exec and hence a call to this function.
+		 * By the time the first call to this function is made, all
+		 * early hardware probing is complete, so sve_default_vl
+		 * should be valid.
 		 * If a bug causes this to go wrong, we make some noise and
 		 * try to fudge thread.sve_vl to a safe value here.
 		 */

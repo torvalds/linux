@@ -78,6 +78,7 @@ extern void sve_save_state(void *state, u32 *pfpsr);
 extern void sve_load_state(void const *state, u32 const *pfpsr,
 			   unsigned long vq_minus_1);
 extern unsigned int sve_get_vl(void);
+extern int sve_kernel_enable(void *);
 
 extern int __ro_after_init sve_max_vl;
 
@@ -90,10 +91,23 @@ extern void fpsimd_release_task(struct task_struct *task);
 extern int sve_set_vector_length(struct task_struct *task,
 				 unsigned long vl, unsigned long flags);
 
+/*
+ * Probing and setup functions.
+ * Calls to these functions must be serialised with one another.
+ */
+extern void __init sve_init_vq_map(void);
+extern void sve_update_vq_map(void);
+extern int sve_verify_vq_map(void);
+extern void __init sve_setup(void);
+
 #else /* ! CONFIG_ARM64_SVE */
 
 static inline void sve_alloc(struct task_struct *task) { }
 static inline void fpsimd_release_task(struct task_struct *task) { }
+static inline void sve_init_vq_map(void) { }
+static inline void sve_update_vq_map(void) { }
+static inline int sve_verify_vq_map(void) { return 0; }
+static inline void sve_setup(void) { }
 
 #endif /* ! CONFIG_ARM64_SVE */
 
