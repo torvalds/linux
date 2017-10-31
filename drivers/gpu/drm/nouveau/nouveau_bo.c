@@ -1219,11 +1219,13 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, bool evict,
 	if (bo->destroy != nouveau_bo_del_ttm)
 		return;
 
-	list_for_each_entry(vma, &nvbo->vma_list, head) {
-		if (mem && new_reg->mem_type != TTM_PL_SYSTEM &&
-		    mem->page_shift == nvbo->page) {
+	if (mem && new_reg->mem_type != TTM_PL_SYSTEM &&
+	    mem->page_shift == nvbo->page) {
+		list_for_each_entry(vma, &nvbo->vma_list, head) {
 			nvkm_vm_map(vma, mem);
-		} else {
+		}
+	} else {
+		list_for_each_entry(vma, &nvbo->vma_list, head) {
 			WARN_ON(ttm_bo_wait(bo, false, false));
 			nvkm_vm_unmap(vma);
 		}
