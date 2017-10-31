@@ -2567,6 +2567,8 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.wait_for_mpcc_disconnect = dcn10_wait_for_mpcc_disconnect,
 	.ready_shared_resources = ready_shared_resources,
 	.optimize_shared_resources = optimize_shared_resources,
+	.pplib_apply_display_requirements =
+			dcn10_pplib_apply_display_requirements,
 	.edp_backlight_control = hwss_edp_backlight_control,
 	.edp_power_control = hwss_edp_power_control
 };

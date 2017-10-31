@@ -389,11 +389,19 @@ void set_dpms(
 
 	if (stream->dpms_off != dpms_off) {
 		stream->dpms_off = dpms_off;
-		if (dpms_off)
+
+		if (dpms_off) {
 			core_link_disable_stream(pipe_ctx,
 					KEEP_ACQUIRED_RESOURCE);
-		else
+
+			dc->hwss.pplib_apply_display_requirements(
+					dc, dc->current_state);
+		} else {
+			dc->hwss.pplib_apply_display_requirements(
+					dc, dc->current_state);
+
 			core_link_enable_stream(dc->current_state, pipe_ctx);
+		}
 	}
 }
 

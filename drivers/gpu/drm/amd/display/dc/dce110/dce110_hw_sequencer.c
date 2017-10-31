@@ -2595,6 +2595,10 @@ void dce110_fill_display_configs(
 
 		ASSERT(pipe_ctx != NULL);
 
+		/* only notify active stream */
+		if (stream->dpms_off)
+			continue;
+
 		num_cfgs++;
 		cfg->signal = pipe_ctx->stream->signal;
 		cfg->pipe_idx = pipe_ctx->pipe_idx;
@@ -3024,6 +3028,7 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.wait_for_mpcc_disconnect = dce110_wait_for_mpcc_disconnect,
 	.ready_shared_resources = ready_shared_resources,
 	.optimize_shared_resources = optimize_shared_resources,
+	.pplib_apply_display_requirements = pplib_apply_display_requirements,
 	.edp_backlight_control = hwss_edp_backlight_control,
 	.edp_power_control = hwss_edp_power_control,
 };
