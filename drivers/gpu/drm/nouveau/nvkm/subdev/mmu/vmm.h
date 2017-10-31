@@ -68,6 +68,11 @@ struct nvkm_vmm_desc {
 	const struct nvkm_vmm_desc_func *func;
 };
 
+extern const struct nvkm_vmm_desc gk104_vmm_desc_16_12[];
+extern const struct nvkm_vmm_desc gk104_vmm_desc_16_16[];
+extern const struct nvkm_vmm_desc gk104_vmm_desc_17_12[];
+extern const struct nvkm_vmm_desc gk104_vmm_desc_17_17[];
+
 struct nvkm_vmm_page {
 	u8 shift;
 	const struct nvkm_vmm_desc *desc;
@@ -132,5 +137,9 @@ int nv50_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 int g84_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		struct lock_class_key *, const char *, struct nvkm_vmm **);
 int gf100_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
+		  struct lock_class_key *, const char *, struct nvkm_vmm **);
+int gk104_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
+		  struct lock_class_key *, const char *, struct nvkm_vmm **);
+int gk20a_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		  struct lock_class_key *, const char *, struct nvkm_vmm **);
 #endif

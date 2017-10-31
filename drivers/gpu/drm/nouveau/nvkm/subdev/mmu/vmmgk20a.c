@@ -21,26 +21,33 @@
  */
 #include "vmm.h"
 
-#include <nvif/class.h>
+static const struct nvkm_vmm_func
+gk20a_vmm_17 = {
+	.join = gf100_vmm_join,
+	.part = gf100_vmm_part,
+	.page = {
+		{ 17, &gk104_vmm_desc_17_17[0], NVKM_VMM_PAGE_xxHC },
+		{ 12, &gk104_vmm_desc_17_12[0], NVKM_VMM_PAGE_xxHx },
+		{}
+	}
+};
 
-static const struct nvkm_mmu_func
-gk104_mmu = {
-	.limit = (1ULL << 40),
-	.dma_bits = 40,
-	.pgt_bits  = 27 - 12,
-	.spg_shift = 12,
-	.lpg_shift = 17,
-	.create = gf100_vm_create,
-	.map_pgt = gf100_vm_map_pgt,
-	.map = gf100_vm_map,
-	.map_sg = gf100_vm_map_sg,
-	.unmap = gf100_vm_unmap,
-	.flush = gf100_vm_flush,
-	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GF100}, gk104_vmm_new },
+static const struct nvkm_vmm_func
+gk20a_vmm_16 = {
+	.join = gf100_vmm_join,
+	.part = gf100_vmm_part,
+	.page = {
+		{ 16, &gk104_vmm_desc_16_16[0], NVKM_VMM_PAGE_xxHC },
+		{ 12, &gk104_vmm_desc_16_12[0], NVKM_VMM_PAGE_xxHx },
+		{}
+	}
 };
 
 int
-gk104_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
+gk20a_vmm_new(struct nvkm_mmu *mmu, u64 addr, u64 size, void *argv, u32 argc,
+	      struct lock_class_key *key, const char *name,
+	      struct nvkm_vmm **pvmm)
 {
-	return nvkm_mmu_new_(&gk104_mmu, device, index, pmmu);
+	return gf100_vmm_new_(&gk20a_vmm_16, &gk20a_vmm_17, mmu, addr,
+			      size, argv, argc, key, name, pvmm);
 }

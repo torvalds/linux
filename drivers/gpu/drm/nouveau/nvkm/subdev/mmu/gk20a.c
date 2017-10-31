@@ -19,7 +19,9 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "priv.h"
+#include "vmm.h"
+
+#include <nvif/class.h>
 
 static const struct nvkm_mmu_func
 gk20a_mmu = {
@@ -34,6 +36,7 @@ gk20a_mmu = {
 	.map_sg = gf100_vm_map_sg,
 	.unmap = gf100_vm_unmap,
 	.flush = gf100_vm_flush,
+	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GF100}, gk20a_vmm_new },
 };
 
 int
