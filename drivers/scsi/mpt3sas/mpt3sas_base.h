@@ -161,6 +161,7 @@
 #define MPT_TARGET_FLAGS_VOLUME		0x02
 #define MPT_TARGET_FLAGS_DELETED	0x04
 #define MPT_TARGET_FASTPATH_IO		0x08
+#define MPT_TARGET_FLAGS_PCIE_DEVICE	0x10
 
 #define SAS2_PCI_DEVICE_B0_REVISION	(0x01)
 #define SAS3_PCI_DEVICE_C0_REVISION	(0x02)
@@ -359,7 +360,8 @@ struct Mpi2ManufacturingPage11_t {
  * @flags: MPT_TARGET_FLAGS_XXX flags
  * @deleted: target flaged for deletion
  * @tm_busy: target is busy with TM request.
- * @sdev: The sas_device associated with this target
+ * @sas_dev: The sas_device associated with this target
+ * @pcie_dev: The pcie device associated with this target
  */
 struct MPT3SAS_TARGET {
 	struct scsi_target *starget;
@@ -370,7 +372,8 @@ struct MPT3SAS_TARGET {
 	u32	flags;
 	u8	deleted;
 	u8	tm_busy;
-	struct _sas_device *sdev;
+	struct _sas_device *sas_dev;
+	struct _pcie_device *pcie_dev;
 };
 
 
@@ -514,6 +517,89 @@ static inline void sas_device_put(struct _sas_device *s)
 	kref_put(&s->refcount, sas_device_free);
 }
 
+/*
+ * struct _pcie_device - attached PCIe device information
+ * @list: pcie device list
+ * @starget: starget object
+ * @wwid: device WWID
+ * @handle: device handle
+ * @device_info: bitfield provides detailed info about the device
+ * @id: target id
+ * @channel: target channel
+ * @slot: slot number
+ * @port_num: port number
+ * @responding: used in _scsih_pcie_device_mark_responding
+ * @fast_path: fast path feature enable bit
+ * @nvme_mdts: MaximumDataTransferSize from PCIe Device Page 2 for
+ *		NVMe device only
+ * @enclosure_handle: enclosure handle
+ * @enclosure_logical_id: enclosure logical identifier
+ * @enclosure_level: The level of device's enclosure from the controller
+ * @connector_name: ASCII value of the Connector's name
+ * @serial_number: pointer of serial number string allocated runtime
+ * @refcount: reference count for deletion
+ */
+struct _pcie_device {
+	struct list_head list;
+	struct scsi_target *starget;
+	u64	wwid;
+	u16	handle;
+	u32	device_info;
+	int	id;
+	int	channel;
+	u16	slot;
+	u8	port_num;
+	u8	responding;
+	u8	fast_path;
+	u32	nvme_mdts;
+	u16	enclosure_handle;
+	u64	enclosure_logical_id;
+	u8	enclosure_level;
+	u8	connector_name[4];
+	u8	*serial_number;
+	struct kref refcount;
+};
+/**
+ * pcie_device_get - Increment the pcie device reference count
+ *
+ * @p: pcie_device object
+ *
+ * When ever this function called it will increment the
+ * reference count of the pcie device for which this function called.
+ *
+ */
+static inline void pcie_device_get(struct _pcie_device *p)
+{
+	kref_get(&p->refcount);
+}
+
+/**
+ * pcie_device_free - Release the pcie device object
+ * @r - kref object
+ *
+ * Free's the pcie device object. It will be called when reference count
+ * reaches to zero.
+ */
+static inline void pcie_device_free(struct kref *r)
+{
+	kfree(container_of(r, struct _pcie_device, refcount));
+}
+
+/**
+ * pcie_device_put - Decrement the pcie device reference count
+ *
+ * @p: pcie_device object
+ *
+ * When ever this function called it will decrement the
+ * reference count of the pcie device for which this function called.
+ *
+ * When refernce count reaches to Zero, this will call pcie_device_free to the
+ * pcie_device object.
+ */
+static inline void pcie_device_put(struct _pcie_device *p)
+{
+	kref_put(&p->refcount, pcie_device_free);
+}
 /**
  * struct _raid_device - raid volume link list
  * @list: sas device list
@@ -562,12 +648,13 @@ struct _raid_device {
 
 /**
  * struct _boot_device - boot device info
- * @is_raid: flag to indicate whether this is volume
- * @device: holds pointer for either struct _sas_device or
- *     struct _raid_device
+ *
+ * @channel: sas, raid, or pcie channel
+ * @device: holds pointer for struct _sas_device, struct _raid_device or
+ *     struct _pcie_device
  */
 struct _boot_device {
-	u8 is_raid;
+	int channel;
 	void *device;
 };
 
@@ -831,6 +918,8 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @bars: bitmask of BAR's that must be configured
  * @mask_interrupts: ignore interrupt
  * @dma_mask: used to set the consistent dma mask
+ * @pci_access_mutex: Mutex to synchronize ioctl, sysfs show path and
+ *			pci resource handling
  * @fault_reset_work_q_name: fw fault work queue
  * @fault_reset_work_q: ""
  * @fault_reset_work: ""
@@ -894,9 +983,13 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @sas_device_list: sas device object list
  * @sas_device_init_list: sas device object list (used only at init time)
  * @sas_device_lock:
+ * @pcie_device_list: pcie device object list
+ * @pcie_device_init_list: pcie device object list (used only at init time)
+ * @pcie_device_lock:
  * @io_missing_delay: time for IO completed by fw when PDR enabled
  * @device_missing_delay: time for device missing by fw when PDR enabled
  * @sas_id : used for setting volume target IDs
+ * @pcie_target_id: used for setting pcie target IDs
  * @blocking_handles: bitmask used to identify which devices need blocking
  * @pd_handles : bitmask for PD handles
  * @pd_handles_sz : size of pd_handle bitmask
@@ -1092,11 +1185,16 @@ struct MPT3SAS_ADAPTER {
 	struct list_head sas_device_list;
 	struct list_head sas_device_init_list;
 	spinlock_t	sas_device_lock;
+	struct list_head pcie_device_list;
+	struct list_head pcie_device_init_list;
+	spinlock_t      pcie_device_lock;
+
 	struct list_head raid_device_list;
 	spinlock_t	raid_device_lock;
 	u8		io_missing_delay;
 	u16		device_missing_delay;
 	int		sas_id;
+	int		pcie_target_id;
 
 	void		*blocking_handles;
 	void		*pd_handles;
