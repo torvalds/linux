@@ -432,8 +432,9 @@ static bool convert_to_custom_float(
 	return true;
 }
 
-static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
-		*output_tf, struct pwl_params *regamma_params)
+static bool
+dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
+				      struct pwl_params *regamma_params)
 {
 	struct curve_points *arr_points;
 	struct pwl_result_data *rgb_resulted;
@@ -448,8 +449,7 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 	int32_t segment_start, segment_end;
 	uint32_t i, j, k, seg_distr[16], increment, start_index, hw_points;
 
-	if (output_tf == NULL || regamma_params == NULL ||
-			output_tf->type == TF_TYPE_BYPASS)
+	if (output_tf == NULL || regamma_params == NULL || output_tf->type == TF_TYPE_BYPASS)
 		return false;
 
 	arr_points = regamma_params->arr_points;
@@ -528,17 +528,14 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 
 	/* last point */
 	start_index = (segment_end + 25) * 32;
-	rgb_resulted[hw_points - 1].red =
-			output_tf->tf_pts.red[start_index];
-	rgb_resulted[hw_points - 1].green =
-			output_tf->tf_pts.green[start_index];
-	rgb_resulted[hw_points - 1].blue =
-			output_tf->tf_pts.blue[start_index];
+	rgb_resulted[hw_points - 1].red = output_tf->tf_pts.red[start_index];
+	rgb_resulted[hw_points - 1].green = output_tf->tf_pts.green[start_index];
+	rgb_resulted[hw_points - 1].blue = output_tf->tf_pts.blue[start_index];
 
 	arr_points[0].x = dal_fixed31_32_pow(dal_fixed31_32_from_int(2),
-			dal_fixed31_32_from_int(segment_start));
+					     dal_fixed31_32_from_int(segment_start));
 	arr_points[1].x = dal_fixed31_32_pow(dal_fixed31_32_from_int(2),
-			dal_fixed31_32_from_int(segment_end));
+					     dal_fixed31_32_from_int(segment_end));
 
 	y_r = rgb_resulted[0].red;
 	y_g = rgb_resulted[0].green;
@@ -547,9 +544,8 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 	y1_min = dal_fixed31_32_min(y_r, dal_fixed31_32_min(y_g, y_b));
 
 	arr_points[0].y = y1_min;
-	arr_points[0].slope = dal_fixed31_32_div(
-					arr_points[0].y,
-					arr_points[0].x);
+	arr_points[0].slope = dal_fixed31_32_div(arr_points[0].y,
+						 arr_points[0].x);
 
 	y_r = rgb_resulted[hw_points - 1].red;
 	y_g = rgb_resulted[hw_points - 1].green;
@@ -568,12 +564,11 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 		/* for PQ, we want to have a straight line from last HW X point,
 		 * and the slope to be such that we hit 1.0 at 10000 nits.
 		 */
-		const struct fixed31_32 end_value =
-				dal_fixed31_32_from_int(125);
+		const struct fixed31_32 end_value = dal_fixed31_32_from_int(125);
 
 		arr_points[1].slope = dal_fixed31_32_div(
-			dal_fixed31_32_sub(dal_fixed31_32_one, arr_points[1].y),
-			dal_fixed31_32_sub(end_value, arr_points[1].x));
+				dal_fixed31_32_sub(dal_fixed31_32_one, arr_points[1].y),
+				dal_fixed31_32_sub(end_value, arr_points[1].x));
 	}
 
 	regamma_params->hw_points_num = hw_points;
@@ -581,18 +576,15 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 	i = 1;
 	for (k = 0; k < 16 && i < 16; k++) {
 		if (seg_distr[k] != -1) {
-			regamma_params->arr_curve_points[k].segments_num =
-					seg_distr[k];
+			regamma_params->arr_curve_points[k].segments_num = seg_distr[k];
 			regamma_params->arr_curve_points[i].offset =
-					regamma_params->arr_curve_points[k].
-					offset + (1 << seg_distr[k]);
+					regamma_params->arr_curve_points[k].offset + (1 << seg_distr[k]);
 		}
 		i++;
 	}
 
 	if (seg_distr[k] != -1)
-		regamma_params->arr_curve_points[k].segments_num =
-				seg_distr[k];
+		regamma_params->arr_curve_points[k].segments_num = seg_distr[k];
 
 	rgb = rgb_resulted;
 	rgb_plus_1 = rgb_resulted + 1;
@@ -607,15 +599,9 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 		if (dal_fixed31_32_lt(rgb_plus_1->blue, rgb->blue))
 			rgb_plus_1->blue = rgb->blue;
 
-		rgb->delta_red = dal_fixed31_32_sub(
-			rgb_plus_1->red,
-			rgb->red);
-		rgb->delta_green = dal_fixed31_32_sub(
-			rgb_plus_1->green,
-			rgb->green);
-		rgb->delta_blue = dal_fixed31_32_sub(
-			rgb_plus_1->blue,
-			rgb->blue);
+		rgb->delta_red = dal_fixed31_32_sub(rgb_plus_1->red, rgb->red);
+		rgb->delta_green = dal_fixed31_32_sub(rgb_plus_1->green, rgb->green);
+		rgb->delta_blue = dal_fixed31_32_sub(rgb_plus_1->blue, rgb->blue);
 
 		++rgb_plus_1;
 		++rgb;

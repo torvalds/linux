@@ -1183,81 +1183,75 @@ static void program_pwl(
 {
 	uint32_t value;
 	int retval;
+	uint8_t max_tries = 10;
+	uint8_t counter = 0;
+	uint32_t i = 0;
+	const struct pwl_result_data *rgb = params->rgb_resulted;
 
-	{
-		uint8_t max_tries = 10;
-		uint8_t counter = 0;
+	/* Power on LUT memory */
+	if (REG(DCFE_MEM_PWR_CTRL))
+		REG_UPDATE(DCFE_MEM_PWR_CTRL,
+			   DCP_REGAMMA_MEM_PWR_DIS, 1);
+	else
+		REG_UPDATE(DCFE_MEM_LIGHT_SLEEP_CNTL,
+			   REGAMMA_LUT_LIGHT_SLEEP_DIS, 1);
 
-		/* Power on LUT memory */
-		if (REG(DCFE_MEM_PWR_CTRL))
-			REG_UPDATE(DCFE_MEM_PWR_CTRL,
-				DCP_REGAMMA_MEM_PWR_DIS, 1);
-		else
-			REG_UPDATE(DCFE_MEM_LIGHT_SLEEP_CNTL,
-				REGAMMA_LUT_LIGHT_SLEEP_DIS, 1);
+	while (counter < max_tries) {
+		if (REG(DCFE_MEM_PWR_STATUS)) {
+			value = REG_READ(DCFE_MEM_PWR_STATUS);
+			REG_GET(DCFE_MEM_PWR_STATUS,
+				DCP_REGAMMA_MEM_PWR_STATE,
+				&retval);
 
-		while (counter < max_tries) {
-			if (REG(DCFE_MEM_PWR_STATUS)) {
-				value = REG_READ(DCFE_MEM_PWR_STATUS);
-				REG_GET(DCFE_MEM_PWR_STATUS,
-						DCP_REGAMMA_MEM_PWR_STATE,
-						&retval);
+			if (retval == 0)
+				break;
+			++counter;
+		} else {
+			value = REG_READ(DCFE_MEM_LIGHT_SLEEP_CNTL);
+			REG_GET(DCFE_MEM_LIGHT_SLEEP_CNTL,
+				REGAMMA_LUT_MEM_PWR_STATE,
+				&retval);
 
-				if (retval == 0)
-						break;
-				++counter;
-			} else {
-				value = REG_READ(DCFE_MEM_LIGHT_SLEEP_CNTL);
-				REG_GET(DCFE_MEM_LIGHT_SLEEP_CNTL,
-						REGAMMA_LUT_MEM_PWR_STATE,
-						&retval);
-
-				if (retval == 0)
-						break;
-				++counter;
-			}
+			if (retval == 0)
+				break;
+			++counter;
 		}
+	}
 
-		if (counter == max_tries) {
-			dm_logger_write(xfm_dce->base.ctx->logger, LOG_WARNING,
+	if (counter == max_tries) {
+		dm_logger_write(xfm_dce->base.ctx->logger, LOG_WARNING,
 				"%s: regamma lut was not powered on "
 				"in a timely manner,"
 				" programming still proceeds\n",
 				__func__);
-		}
 	}
 
 	REG_UPDATE(REGAMMA_LUT_WRITE_EN_MASK,
-			REGAMMA_LUT_WRITE_EN_MASK, 7);
+		   REGAMMA_LUT_WRITE_EN_MASK, 7);
 
 	REG_WRITE(REGAMMA_LUT_INDEX, 0);
 
 	/* Program REGAMMA_LUT_DATA */
-	{
-		uint32_t i = 0;
-		const struct pwl_result_data *rgb = params->rgb_resulted;
+	while (i != params->hw_points_num) {
 
-		while (i != params->hw_points_num) {
+		REG_WRITE(REGAMMA_LUT_DATA, rgb->red_reg);
+		REG_WRITE(REGAMMA_LUT_DATA, rgb->green_reg);
+		REG_WRITE(REGAMMA_LUT_DATA, rgb->blue_reg);
+		REG_WRITE(REGAMMA_LUT_DATA, rgb->delta_red_reg);
+		REG_WRITE(REGAMMA_LUT_DATA, rgb->delta_green_reg);
+		REG_WRITE(REGAMMA_LUT_DATA, rgb->delta_blue_reg);
 
-			REG_WRITE(REGAMMA_LUT_DATA, rgb->red_reg);
-			REG_WRITE(REGAMMA_LUT_DATA, rgb->green_reg);
-			REG_WRITE(REGAMMA_LUT_DATA, rgb->blue_reg);
-			REG_WRITE(REGAMMA_LUT_DATA, rgb->delta_red_reg);
-			REG_WRITE(REGAMMA_LUT_DATA, rgb->delta_green_reg);
-			REG_WRITE(REGAMMA_LUT_DATA, rgb->delta_blue_reg);
-
-			++rgb;
-			++i;
-		}
+		++rgb;
+		++i;
 	}
 
 	/*  we are done with DCP LUT memory; re-enable low power mode */
 	if (REG(DCFE_MEM_PWR_CTRL))
 		REG_UPDATE(DCFE_MEM_PWR_CTRL,
-			DCP_REGAMMA_MEM_PWR_DIS, 0);
+			   DCP_REGAMMA_MEM_PWR_DIS, 0);
 	else
 		REG_UPDATE(DCFE_MEM_LIGHT_SLEEP_CNTL,
-			REGAMMA_LUT_LIGHT_SLEEP_DIS, 0);
+			   REGAMMA_LUT_LIGHT_SLEEP_DIS, 0);
 }
 
 static void regamma_config_regions_and_segments(struct dce_transform *xfm_dce,
@@ -1358,12 +1352,12 @@ void dce110_opp_power_on_regamma_lut(struct transform *xfm,
 
 	if (REG(DCFE_MEM_PWR_CTRL))
 		REG_UPDATE_2(DCFE_MEM_PWR_CTRL,
-			DCP_REGAMMA_MEM_PWR_DIS, power_on,
-			DCP_LUT_MEM_PWR_DIS, power_on);
+			     DCP_REGAMMA_MEM_PWR_DIS, power_on,
+			     DCP_LUT_MEM_PWR_DIS, power_on);
 	else
 		REG_UPDATE_2(DCFE_MEM_LIGHT_SLEEP_CNTL,
-			REGAMMA_LUT_LIGHT_SLEEP_DIS, power_on,
-			DCP_LUT_LIGHT_SLEEP_DIS, power_on);
+			    REGAMMA_LUT_LIGHT_SLEEP_DIS, power_on,
+			    DCP_LUT_LIGHT_SLEEP_DIS, power_on);
 
 }
 
