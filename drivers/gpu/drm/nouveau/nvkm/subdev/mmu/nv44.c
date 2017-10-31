@@ -173,15 +173,15 @@ nv44_mmu_oneinit(struct nvkm_mmu *base)
 	}
 
 	ret = nvkm_vm_create(&mmu->base, 0, NV44_GART_SIZE, 0, 4096, NULL,
-			     &mmu->vm);
+			     &mmu->base.vmm);
 	if (ret)
 		return ret;
 
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
 			      (NV44_GART_SIZE / NV44_GART_PAGE) * 4,
 			      512 * 1024, true,
-			      &mmu->vm->pgt[0].mem[0]);
-	mmu->vm->pgt[0].refcount[0] = 1;
+			      &mmu->base.vmm->pgt[0].mem[0]);
+	mmu->base.vmm->pgt[0].refcount[0] = 1;
 	return ret;
 }
 
@@ -190,7 +190,7 @@ nv44_mmu_init(struct nvkm_mmu *base)
 {
 	struct nv04_mmu *mmu = nv04_mmu(base);
 	struct nvkm_device *device = mmu->base.subdev.device;
-	struct nvkm_memory *gart = mmu->vm->pgt[0].mem[0];
+	struct nvkm_memory *gart = mmu->base.vmm->pgt[0].mem[0];
 	u32 addr;
 
 	/* calculate vram address of this PRAMIN block, object must be

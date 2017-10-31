@@ -49,8 +49,7 @@ nv04_dmaobj_bind(struct nvkm_dmaobj *base, struct nvkm_gpuobj *parent,
 	int ret;
 
 	if (dmaobj->clone) {
-		struct nv04_mmu *mmu = nv04_mmu(device->mmu);
-		struct nvkm_memory *pgt = mmu->vm->pgt[0].mem[0];
+		struct nvkm_memory *pgt = device->mmu->vmm->pgt[0].mem[0];
 		if (!dmaobj->base.start)
 			return nvkm_gpuobj_wrap(pgt, pgpuobj);
 		nvkm_kmap(pgt);

@@ -81,15 +81,15 @@ nv04_mmu_oneinit(struct nvkm_mmu *base)
 	int ret;
 
 	ret = nvkm_vm_create(&mmu->base, 0, NV04_PDMA_SIZE, 0, 4096, NULL,
-			     &mmu->vm);
+			     &mmu->base.vmm);
 	if (ret)
 		return ret;
 
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
 			      (NV04_PDMA_SIZE / NV04_PDMA_PAGE) * 4 + 8,
 			      16, true, &dma);
-	mmu->vm->pgt[0].mem[0] = dma;
-	mmu->vm->pgt[0].refcount[0] = 1;
+	mmu->base.vmm->pgt[0].mem[0] = dma;
+	mmu->base.vmm->pgt[0].refcount[0] = 1;
 	if (ret)
 		return ret;
 
@@ -105,9 +105,9 @@ nv04_mmu_dtor(struct nvkm_mmu *base)
 {
 	struct nv04_mmu *mmu = nv04_mmu(base);
 	struct nvkm_device *device = mmu->base.subdev.device;
-	if (mmu->vm) {
-		nvkm_memory_del(&mmu->vm->pgt[0].mem[0]);
-		nvkm_vm_ref(NULL, &mmu->vm, NULL);
+	if (mmu->base.vmm) {
+		nvkm_memory_del(&mmu->base.vmm->pgt[0].mem[0]);
+		nvkm_vm_ref(NULL, &mmu->base.vmm, NULL);
 	}
 	if (mmu->nullp) {
 		dma_free_coherent(device->dev, 16 * 1024,

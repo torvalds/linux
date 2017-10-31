@@ -58,6 +58,8 @@ struct nvkm_mmu {
 	u64 limit;
 	u8  dma_bits;
 	u8  lpg_shift;
+
+	struct nvkm_vmm *vmm;
 };
 
 int nv04_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);

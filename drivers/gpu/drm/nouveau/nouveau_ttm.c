@@ -192,16 +192,13 @@ const struct ttm_mem_type_manager_func nouveau_gart_manager = {
 	.debug = nouveau_gart_manager_debug
 };
 
-/*XXX*/
-#include <subdev/mmu/nv04.h>
 static int
 nv04_gart_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
 	struct nvkm_mmu *mmu = nvxx_mmu(&drm->client.device);
-	struct nv04_mmu *priv = (void *)mmu;
 	struct nvkm_vm *vm = NULL;
-	nvkm_vm_ref(priv->vm, &vm, NULL);
+	nvkm_vm_ref(mmu->vmm, &vm, NULL);
 	man->priv = vm;
 	return 0;
 }

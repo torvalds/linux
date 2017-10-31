@@ -5,7 +5,6 @@
 
 struct nv04_mmu {
 	struct nvkm_mmu base;
-	struct nvkm_vm *vm;
 	dma_addr_t null;
 	void *nullp;
 };
