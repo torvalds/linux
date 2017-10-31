@@ -253,7 +253,6 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	struct nvkm_pci *pci = device->pci;
 	struct drm_device *dev = drm->dev;
-	u8 bits;
 	int ret;
 
 	if (pci && pci->agp.bridge) {
@@ -262,34 +261,6 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 		drm->agp.size = pci->agp.size;
 		drm->agp.cma = pci->agp.cma;
 	}
-
-	bits = nvxx_mmu(&drm->client.device)->dma_bits;
-	if (nvxx_device(&drm->client.device)->func->pci) {
-		if (drm->agp.bridge)
-			bits = 32;
-	} else if (device->func->tegra) {
-		struct nvkm_device_tegra *tegra = device->func->tegra(device);
-
-		/*
-		 * If the platform can use a IOMMU, then the addressable DMA
-		 * space is constrained by the IOMMU bit
-		 */
-		if (tegra->func->iommu_bit)
-			bits = min(bits, tegra->func->iommu_bit);
-
-	}
-
-	ret = dma_set_mask(dev->dev, DMA_BIT_MASK(bits));
-	if (ret && bits != 32) {
-		bits = 32;
-		ret = dma_set_mask(dev->dev, DMA_BIT_MASK(bits));
-	}
-	if (ret)
-		return ret;
-
-	ret = dma_set_coherent_mask(dev->dev, DMA_BIT_MASK(bits));
-	if (ret)
-		dma_set_coherent_mask(dev->dev, DMA_BIT_MASK(32));
 
 	ret = nouveau_ttm_global_init(drm);
 	if (ret)
@@ -300,7 +271,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 				  &nouveau_bo_driver,
 				  dev->anon_inode->i_mapping,
 				  DRM_FILE_PAGE_OFFSET,
-				  bits <= 32 ? true : false);
+				  drm->client.mmu.dmabits <= 32 ? true : false);
 	if (ret) {
 		NV_ERROR(drm, "error initialising bo driver, %d\n", ret);
 		return ret;
