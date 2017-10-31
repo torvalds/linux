@@ -9,3 +9,4 @@ nvkm-y += nvkm/subdev/mmu/gk104.o
 nvkm-y += nvkm/subdev/mmu/gk20a.o
 nvkm-y += nvkm/subdev/mmu/gm200.o
 nvkm-y += nvkm/subdev/mmu/gm20b.o
+nvkm-y += nvkm/subdev/mmu/gp100.o

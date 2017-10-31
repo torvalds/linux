@@ -73,4 +73,5 @@ int gk104_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
 int gk20a_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
 int gm200_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
 int gm20b_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
+int gp100_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
 #endif
