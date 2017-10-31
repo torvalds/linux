@@ -758,12 +758,7 @@ static bool mappings_overlap(struct uid_gid_map *new_map,
  */
 static int insert_extent(struct uid_gid_map *map, struct uid_gid_extent *extent)
 {
-	if (map->nr_extents < UID_GID_MAP_MAX_BASE_EXTENTS) {
-		map->extent[map->nr_extents].first = extent->first;
-		map->extent[map->nr_extents].lower_first = extent->lower_first;
-		map->extent[map->nr_extents].count = extent->count;
-		return 0;
-	}
+	struct uid_gid_extent *dest;
 
 	if (map->nr_extents == UID_GID_MAP_MAX_BASE_EXTENTS) {
 		struct uid_gid_extent *forward;
@@ -784,9 +779,13 @@ static int insert_extent(struct uid_gid_map *map, struct uid_gid_extent *extent)
 		map->reverse = NULL;
 	}
 
-	map->forward[map->nr_extents].first = extent->first;
-	map->forward[map->nr_extents].lower_first = extent->lower_first;
-	map->forward[map->nr_extents].count = extent->count;
+	if (map->nr_extents < UID_GID_MAP_MAX_BASE_EXTENTS)
+		dest = &map->extent[map->nr_extents];
+	else
+		dest = &map->forward[map->nr_extents];
+
+	*dest = *extent;
+	map->nr_extents++;
 	return 0;
 }
 
@@ -968,8 +967,6 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 		if (ret < 0)
 			goto out;
 		ret = -EINVAL;
-
-		new_map.nr_extents++;
 	}
 	/* Be very certaint the new map actually exists */
 	if (new_map.nr_extents == 0)
