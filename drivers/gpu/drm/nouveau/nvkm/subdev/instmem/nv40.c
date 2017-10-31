@@ -24,7 +24,6 @@
 #define nv40_instmem(p) container_of((p), struct nv40_instmem, base)
 #include "priv.h"
 
-#include <core/memory.h>
 #include <core/ramht.h>
 #include <engine/gr/nv40.h>
 
@@ -37,10 +36,10 @@ struct nv40_instmem {
 /******************************************************************************
  * instmem object implementation
  *****************************************************************************/
-#define nv40_instobj(p) container_of((p), struct nv40_instobj, memory)
+#define nv40_instobj(p) container_of((p), struct nv40_instobj, base.memory)
 
 struct nv40_instobj {
-	struct nvkm_memory memory;
+	struct nvkm_instobj base;
 	struct nv40_instmem *imem;
 	struct nvkm_mm_node *node;
 };
@@ -102,6 +101,7 @@ nv40_instobj_dtor(struct nvkm_memory *memory)
 	mutex_lock(&iobj->imem->base.subdev.mutex);
 	nvkm_mm_free(&iobj->imem->heap, &iobj->node);
 	mutex_unlock(&iobj->imem->base.subdev.mutex);
+	nvkm_instobj_dtor(&iobj->imem->base, &iobj->base);
 	return iobj;
 }
 
@@ -125,10 +125,10 @@ nv40_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 
 	if (!(iobj = kzalloc(sizeof(*iobj), GFP_KERNEL)))
 		return -ENOMEM;
-	*pmemory = &iobj->memory;
+	*pmemory = &iobj->base.memory;
 
-	nvkm_memory_ctor(&nv40_instobj_func, &iobj->memory);
-	iobj->memory.ptrs = &nv40_instobj_ptrs;
+	nvkm_instobj_ctor(&nv40_instobj_func, &imem->base, &iobj->base);
+	iobj->base.memory.ptrs = &nv40_instobj_ptrs;
 	iobj->imem = imem;
 
 	mutex_lock(&imem->base.subdev.mutex);
@@ -231,7 +231,7 @@ nv40_instmem = {
 	.rd32 = nv40_instmem_rd32,
 	.wr32 = nv40_instmem_wr32,
 	.memory_new = nv40_instobj_new,
-	.persistent = false,
+	.persistent = true,
 	.zero = false,
 };
 
