@@ -408,10 +408,8 @@ struct rsnd_mod *rsnd_mod_next(int *iterator,
 	for (; *iterator < max; (*iterator)++) {
 		type = (array) ? array[*iterator] : *iterator;
 		mod = rsnd_io_to_mod(io, type);
-		if (!mod)
-			continue;
-
-		return mod;
+		if (mod)
+			return mod;
 	}
 
 	return NULL;
