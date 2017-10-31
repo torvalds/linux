@@ -206,7 +206,8 @@ void *
 nv50_fifo_chan_dtor(struct nvkm_fifo_chan *base)
 {
 	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
-	nvkm_vm_ref(NULL, &chan->vm, chan->pgd);
+	if (chan->base.inst)
+		nvkm_vm_ref(NULL, &chan->vm, chan->base.inst->memory);
 	nvkm_ramht_del(&chan->ramht);
 	nvkm_gpuobj_del(&chan->pgd);
 	nvkm_gpuobj_del(&chan->eng);
@@ -266,5 +267,5 @@ nv50_fifo_chan_ctor(struct nv50_fifo *fifo, u64 vm, u64 push,
 	if (ret)
 		return ret;
 
-	return nvkm_vm_ref(chan->base.vm, &chan->vm, chan->pgd);
+	return nvkm_vm_ref(chan->base.vm, &chan->vm, chan->base.inst->memory);
 }

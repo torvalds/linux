@@ -18,7 +18,7 @@ struct nvkm_mmu_func {
 	u8  spg_shift;
 	u8  lpg_shift;
 
-	void (*map_pgt)(struct nvkm_gpuobj *pgd, u32 pde,
+	void (*map_pgt)(struct nvkm_vmm *, u32 pde,
 			struct nvkm_memory *pgt[2]);
 	void (*map)(struct nvkm_vma *, struct nvkm_memory *,
 		    struct nvkm_mem *, u32 pte, u32 cnt,
@@ -41,7 +41,7 @@ struct nvkm_mmu_func {
 
 extern const struct nvkm_mmu_func nv04_mmu;
 
-void nv50_vm_map_pgt(struct nvkm_gpuobj *, u32, struct nvkm_memory **);
+void nv50_vm_map_pgt(struct nvkm_vmm *, u32, struct nvkm_memory **);
 void nv50_vm_map(struct nvkm_vma *, struct nvkm_memory *, struct nvkm_mem *,
 		 u32, u32, u64, u64);
 void nv50_vm_map_sg(struct nvkm_vma *, struct nvkm_memory *, struct nvkm_mem *,
@@ -49,7 +49,7 @@ void nv50_vm_map_sg(struct nvkm_vma *, struct nvkm_memory *, struct nvkm_mem *,
 void nv50_vm_unmap(struct nvkm_vma *, struct nvkm_memory *, u32, u32);
 void nv50_vm_flush(struct nvkm_vm *);
 
-void gf100_vm_map_pgt(struct nvkm_gpuobj *, u32, struct nvkm_memory **);
+void gf100_vm_map_pgt(struct nvkm_vmm *, u32, struct nvkm_memory **);
 void gf100_vm_map(struct nvkm_vma *, struct nvkm_memory *, struct nvkm_mem *,
 		  u32, u32, u64, u64);
 void gf100_vm_map_sg(struct nvkm_vma *, struct nvkm_memory *, struct nvkm_mem *,

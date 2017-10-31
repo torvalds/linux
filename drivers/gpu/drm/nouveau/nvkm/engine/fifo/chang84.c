@@ -281,5 +281,5 @@ g84_fifo_chan_ctor(struct nv50_fifo *fifo, u64 vm, u64 push,
 	if (ret)
 		return ret;
 
-	return nvkm_vm_ref(chan->base.vm, &chan->vm, chan->pgd);
+	return nvkm_vm_ref(chan->base.vm, &chan->vm, chan->base.inst->memory);
 }

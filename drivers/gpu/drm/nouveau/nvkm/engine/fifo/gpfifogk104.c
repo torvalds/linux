@@ -213,8 +213,8 @@ static void *
 gk104_fifo_gpfifo_dtor(struct nvkm_fifo_chan *base)
 {
 	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
-	nvkm_vm_ref(NULL, &chan->vm, chan->pgd);
-	nvkm_gpuobj_del(&chan->pgd);
+	if (chan->base.inst)
+		nvkm_vm_ref(NULL, &chan->vm, chan->base.inst->memory);
 	return chan;
 }
 
@@ -242,7 +242,6 @@ gk104_fifo_gpfifo_new_(const struct gk104_fifo_chan_func *func,
 		       const struct nvkm_oclass *oclass,
 		       struct nvkm_object **pobject)
 {
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	struct gk104_fifo_chan *chan;
 	int runlist = -1, ret = -ENOSYS, i, j;
 	u32 engines = 0, present = 0;
@@ -302,19 +301,7 @@ gk104_fifo_gpfifo_new_(const struct gk104_fifo_chan_func *func,
 
 	*chid = chan->base.chid;
 
-	/* Page directory. */
-	ret = nvkm_gpuobj_new(device, 0x10000, 0x1000, false, NULL, &chan->pgd);
-	if (ret)
-		return ret;
-
-	nvkm_kmap(chan->base.inst);
-	nvkm_wo32(chan->base.inst, 0x0200, lower_32_bits(chan->pgd->addr));
-	nvkm_wo32(chan->base.inst, 0x0204, upper_32_bits(chan->pgd->addr));
-	nvkm_wo32(chan->base.inst, 0x0208, 0xffffffff);
-	nvkm_wo32(chan->base.inst, 0x020c, 0x000000ff);
-	nvkm_done(chan->base.inst);
-
-	ret = nvkm_vm_ref(chan->base.vm, &chan->vm, chan->pgd);
+	ret = nvkm_vm_ref(chan->base.vm, &chan->vm, chan->base.inst->memory);
 	if (ret)
 		return ret;
 

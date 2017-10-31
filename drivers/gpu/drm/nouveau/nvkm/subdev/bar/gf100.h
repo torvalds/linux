@@ -4,8 +4,7 @@
 #include "priv.h"
 
 struct gf100_barN {
-	struct nvkm_memory *mem;
-	struct nvkm_gpuobj *pgd;
+	struct nvkm_memory *inst;
 	struct nvkm_vm *vm;
 };
 

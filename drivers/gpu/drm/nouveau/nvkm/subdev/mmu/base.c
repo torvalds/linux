@@ -446,7 +446,6 @@ static void
 nvkm_vm_unmap_pgt(struct nvkm_vm *vm, int big, u32 fpde, u32 lpde)
 {
 	struct nvkm_mmu *mmu = vm->mmu;
-	struct nvkm_vm_pgd *vpgd;
 	struct nvkm_vm_pgt *vpgt;
 	struct nvkm_memory *pgt;
 	u32 pde;
@@ -459,9 +458,8 @@ nvkm_vm_unmap_pgt(struct nvkm_vm *vm, int big, u32 fpde, u32 lpde)
 		pgt = vpgt->mem[big];
 		vpgt->mem[big] = NULL;
 
-		list_for_each_entry(vpgd, &vm->pgd_list, head) {
-			mmu->func->map_pgt(vpgd->obj, pde, vpgt->mem);
-		}
+		if (mmu->func->map_pgt)
+			mmu->func->map_pgt(vm, pde, vpgt->mem);
 
 		mmu->func->flush(vm);
 
@@ -474,7 +472,6 @@ nvkm_vm_map_pgt(struct nvkm_vm *vm, u32 pde, u32 type)
 {
 	struct nvkm_mmu *mmu = vm->mmu;
 	struct nvkm_vm_pgt *vpgt = &vm->pgt[pde - vm->fpde];
-	struct nvkm_vm_pgd *vpgd;
 	int big = (type != mmu->func->spg_shift);
 	u32 pgt_size;
 	int ret;
@@ -487,9 +484,8 @@ nvkm_vm_map_pgt(struct nvkm_vm *vm, u32 pde, u32 type)
 	if (unlikely(ret))
 		return ret;
 
-	list_for_each_entry(vpgd, &vm->pgd_list, head) {
-		mmu->func->map_pgt(vpgd->obj, pde, vpgt->mem);
-	}
+	if (mmu->func->map_pgt)
+		mmu->func->map_pgt(vm, pde, vpgt->mem);
 
 	vpgt->refcount[big]++;
 	return 0;
@@ -592,7 +588,6 @@ nvkm_vm_legacy(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
 	u64 mm_length = (offset + length) - mm_offset;
 	int ret;
 
-	INIT_LIST_HEAD(&vm->pgd_list);
 	kref_init(&vm->refcount);
 	vm->fpde = offset >> (mmu->func->pgt_bits + 12);
 	vm->lpde = (offset + length - 1) >> (mmu->func->pgt_bits + 12);
@@ -644,58 +639,10 @@ nvkm_vm_new(struct nvkm_device *device, u64 offset, u64 length, u64 mm_offset,
 	return -EINVAL;
 }
 
-static int
-nvkm_vm_link(struct nvkm_vm *vm, struct nvkm_gpuobj *pgd)
-{
-	struct nvkm_mmu *mmu = vm->mmu;
-	struct nvkm_vm_pgd *vpgd;
-	int i;
-
-	if (!pgd)
-		return 0;
-
-	vpgd = kzalloc(sizeof(*vpgd), GFP_KERNEL);
-	if (!vpgd)
-		return -ENOMEM;
-
-	vpgd->obj = pgd;
-
-	mutex_lock(&vm->mutex);
-	for (i = vm->fpde; i <= vm->lpde; i++)
-		mmu->func->map_pgt(pgd, i, vm->pgt[i - vm->fpde].mem);
-	list_add(&vpgd->head, &vm->pgd_list);
-	mutex_unlock(&vm->mutex);
-	return 0;
-}
-
-static void
-nvkm_vm_unlink(struct nvkm_vm *vm, struct nvkm_gpuobj *mpgd)
-{
-	struct nvkm_vm_pgd *vpgd, *tmp;
-
-	if (!mpgd)
-		return;
-
-	mutex_lock(&vm->mutex);
-	list_for_each_entry_safe(vpgd, tmp, &vm->pgd_list, head) {
-		if (vpgd->obj == mpgd) {
-			list_del(&vpgd->head);
-			kfree(vpgd);
-			break;
-		}
-	}
-	mutex_unlock(&vm->mutex);
-}
-
 static void
 nvkm_vm_del(struct kref *kref)
 {
 	struct nvkm_vm *vm = container_of(kref, typeof(*vm), refcount);
-	struct nvkm_vm_pgd *vpgd, *tmp;
-
-	list_for_each_entry_safe(vpgd, tmp, &vm->pgd_list, head) {
-		nvkm_vm_unlink(vm, vpgd->obj);
-	}
 
 	nvkm_mm_fini(&vm->mm);
 	vfree(vm->pgt);
@@ -705,20 +652,28 @@ nvkm_vm_del(struct kref *kref)
 }
 
 int
-nvkm_vm_ref(struct nvkm_vm *ref, struct nvkm_vm **ptr, struct nvkm_gpuobj *pgd)
+nvkm_vm_ref(struct nvkm_vm *ref, struct nvkm_vm **ptr, struct nvkm_memory *inst)
 {
 	if (ref) {
-		int ret = nvkm_vm_link(ref, pgd);
-		if (ret)
-			return ret;
+		if (ref->func->join && inst) {
+			int ret = ref->func->join(ref, inst), i;
+			if (ret)
+				return ret;
+
+			if (ref->mmu->func->map_pgt) {
+				for (i = ref->fpde; i <= ref->lpde; i++)
+					ref->mmu->func->map_pgt(ref, i, ref->pgt[i - ref->fpde].mem);
+			}
+		}
 
 		kref_get(&ref->refcount);
 	}
 
 	if (*ptr) {
-		if ((*ptr)->bootstrapped && pgd)
+		if ((*ptr)->func->part && inst)
+			(*ptr)->func->part(*ptr, inst);
+		if ((*ptr)->bootstrapped && inst)
 			nvkm_memory_unref(&(*ptr)->pgt[0].mem[0]);
-		nvkm_vm_unlink(*ptr, pgd);
 		kref_put(&(*ptr)->refcount, nvkm_vm_del);
 	}
 

@@ -10,11 +10,6 @@ struct nvkm_vm_pgt {
 	u32 refcount[2];
 };
 
-struct nvkm_vm_pgd {
-	struct list_head head;
-	struct nvkm_gpuobj *obj;
-};
-
 struct nvkm_vma {
 	struct nvkm_vm *vm;
 	struct nvkm_mm_node *node;
@@ -40,7 +35,6 @@ struct nvkm_vm {
 
 	struct nvkm_mm mm;
 	struct kref refcount;
-	struct list_head pgd_list;
 	struct nvkm_vm_pgt *pgt;
 	u32 fpde;
 	u32 lpde;
@@ -54,7 +48,7 @@ struct nvkm_vm {
 
 int  nvkm_vm_new(struct nvkm_device *, u64 offset, u64 length, u64 mm_offset,
 		 struct lock_class_key *, struct nvkm_vm **);
-int  nvkm_vm_ref(struct nvkm_vm *, struct nvkm_vm **, struct nvkm_gpuobj *pgd);
+int  nvkm_vm_ref(struct nvkm_vm *, struct nvkm_vm **, struct nvkm_memory *inst);
 int  nvkm_vm_boot(struct nvkm_vm *, u64 size);
 int  nvkm_vm_get(struct nvkm_vm *, u64 size, u32 page_shift, u32 access,
 		 struct nvkm_vma *);

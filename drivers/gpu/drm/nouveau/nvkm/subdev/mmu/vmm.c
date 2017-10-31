@@ -131,7 +131,7 @@ nvkm_vmm_ctor(const struct nvkm_vmm_func *func, struct nvkm_mmu *mmu,
 	/* ... and the GPU storage for it, except on Tesla-class GPUs that
 	 * have the PD embedded in the instance structure.
 	 */
-	if (desc->size && mmu->func->vmm.global) {
+	if (desc->size) {
 		const u32 size = pd_header + desc->size * (1 << desc->bits);
 		vmm->pd->pt[0] = nvkm_mmu_ptc_get(mmu, size, desc->align, true);
 		if (!vmm->pd->pt[0])

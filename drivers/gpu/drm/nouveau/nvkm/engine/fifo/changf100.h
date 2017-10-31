@@ -11,7 +11,6 @@ struct gf100_fifo_chan {
 	struct list_head head;
 	bool killed;
 
-	struct nvkm_gpuobj *pgd;
 	struct nvkm_vm *vm;
 
 	struct {

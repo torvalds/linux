@@ -112,11 +112,8 @@ gm200_secboot_oneinit(struct nvkm_secboot *sb)
 	int ret;
 
 	/* Allocate instance block and VM */
-	ret = nvkm_gpuobj_new(device, 0x1000, 0, true, NULL, &gsb->inst);
-	if (ret)
-		return ret;
-
-	ret = nvkm_gpuobj_new(device, 0x8000, 0, true, NULL, &gsb->pgd);
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0, true,
+			      &gsb->inst);
 	if (ret)
 		return ret;
 
@@ -126,17 +123,10 @@ gm200_secboot_oneinit(struct nvkm_secboot *sb)
 
 	atomic_inc(&vm->engref[NVKM_SUBDEV_PMU]);
 
-	ret = nvkm_vm_ref(vm, &gsb->vm, gsb->pgd);
+	ret = nvkm_vm_ref(vm, &gsb->vm, gsb->inst);
 	nvkm_vm_ref(NULL, &vm, NULL);
 	if (ret)
 		return ret;
-
-	nvkm_kmap(gsb->inst);
-	nvkm_wo32(gsb->inst, 0x200, lower_32_bits(gsb->pgd->addr));
-	nvkm_wo32(gsb->inst, 0x204, upper_32_bits(gsb->pgd->addr));
-	nvkm_wo32(gsb->inst, 0x208, lower_32_bits(vm_area_len - 1));
-	nvkm_wo32(gsb->inst, 0x20c, upper_32_bits(vm_area_len - 1));
-	nvkm_done(gsb->inst);
 
 	if (sb->acr->func->oneinit) {
 		ret = sb->acr->func->oneinit(sb->acr, sb);
@@ -165,9 +155,8 @@ gm200_secboot_dtor(struct nvkm_secboot *sb)
 
 	sb->acr->func->dtor(sb->acr);
 
-	nvkm_vm_ref(NULL, &gsb->vm, gsb->pgd);
-	nvkm_gpuobj_del(&gsb->pgd);
-	nvkm_gpuobj_del(&gsb->inst);
+	nvkm_vm_ref(NULL, &gsb->vm, gsb->inst);
+	nvkm_memory_unref(&gsb->inst);
 
 	return gsb;
 }
