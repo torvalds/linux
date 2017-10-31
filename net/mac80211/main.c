@@ -619,7 +619,8 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	spin_lock_init(&local->rx_path_lock);
 	spin_lock_init(&local->queue_stop_reason_lock);
 
-	INIT_LIST_HEAD(&local->active_txqs);
+	INIT_LIST_HEAD(&local->active_txqs_new);
+	INIT_LIST_HEAD(&local->active_txqs_old);
 	spin_lock_init(&local->active_txq_lock);
 
 	INIT_LIST_HEAD(&local->chanctx_list);
