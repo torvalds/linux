@@ -21,46 +21,44 @@
  */
 #include "vmm.h"
 
-#include <subdev/fb.h>
-
-#include <nvif/class.h>
-
-static const struct nvkm_mmu_func
-gm20b_mmu = {
-	.limit = (1ULL << 40),
-	.dma_bits = 40,
-	.pgt_bits  = 27 - 12,
-	.spg_shift = 12,
-	.lpg_shift = 17,
-	.create = gf100_vm_create,
-	.map_pgt = gf100_vm_map_pgt,
-	.map = gf100_vm_map,
-	.map_sg = gf100_vm_map_sg,
-	.unmap = gf100_vm_unmap,
-	.flush = gf100_vm_flush,
-	.vmm = {{ -1,  0, NVIF_CLASS_VMM_GM200}, gm20b_vmm_new },
+static const struct nvkm_vmm_func
+gm20b_vmm_17 = {
+	.join = gm200_vmm_join,
+	.part = gf100_vmm_part,
+	.page = {
+		{ 27, &gm200_vmm_desc_17_17[1], NVKM_VMM_PAGE_Sxxx },
+		{ 17, &gm200_vmm_desc_17_17[0], NVKM_VMM_PAGE_SxHC },
+		{ 12, &gm200_vmm_desc_17_12[0], NVKM_VMM_PAGE_SxHx },
+		{}
+	}
 };
 
-static const struct nvkm_mmu_func
-gm20b_mmu_fixed = {
-	.limit = (1ULL << 40),
-	.dma_bits = 40,
-	.pgt_bits  = 27 - 12,
-	.spg_shift = 12,
-	.lpg_shift = 17,
-	.create = gf100_vm_create,
-	.map_pgt = gf100_vm_map_pgt,
-	.map = gf100_vm_map,
-	.map_sg = gf100_vm_map_sg,
-	.unmap = gf100_vm_unmap,
-	.flush = gf100_vm_flush,
-	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GM200}, gm20b_vmm_new_fixed },
+static const struct nvkm_vmm_func
+gm20b_vmm_16 = {
+	.join = gm200_vmm_join,
+	.part = gf100_vmm_part,
+	.page = {
+		{ 27, &gm200_vmm_desc_16_16[1], NVKM_VMM_PAGE_Sxxx },
+		{ 16, &gm200_vmm_desc_16_16[0], NVKM_VMM_PAGE_SxHC },
+		{ 12, &gm200_vmm_desc_16_12[0], NVKM_VMM_PAGE_SxHx },
+		{}
+	}
 };
 
 int
-gm20b_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
+gm20b_vmm_new(struct nvkm_mmu *mmu, u64 addr, u64 size, void *argv, u32 argc,
+	      struct lock_class_key *key, const char *name,
+	      struct nvkm_vmm **pvmm)
 {
-	if (device->fb->page)
-		return nvkm_mmu_new_(&gm20b_mmu_fixed, device, index, pmmu);
-	return nvkm_mmu_new_(&gm20b_mmu, device, index, pmmu);
+	return gm200_vmm_new_(&gm20b_vmm_16, &gm20b_vmm_17, mmu, addr,
+			      size, argv, argc, key, name, pvmm);
+}
+
+int
+gm20b_vmm_new_fixed(struct nvkm_mmu *mmu, u64 addr, u64 size,
+		    void *argv, u32 argc, struct lock_class_key *key,
+		    const char *name, struct nvkm_vmm **pvmm)
+{
+	return gf100_vmm_new_(&gm20b_vmm_16, &gm20b_vmm_17, mmu, addr,
+			      size, argv, argc, key, name, pvmm);
 }

@@ -19,7 +19,11 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "priv.h"
+#include "vmm.h"
+
+#include <subdev/fb.h>
+
+#include <nvif/class.h>
 
 static const struct nvkm_mmu_func
 gm200_mmu = {
@@ -34,10 +38,29 @@ gm200_mmu = {
 	.map_sg = gf100_vm_map_sg,
 	.unmap = gf100_vm_unmap,
 	.flush = gf100_vm_flush,
+	.vmm = {{ -1,  0, NVIF_CLASS_VMM_GM200}, gm200_vmm_new },
+};
+
+static const struct nvkm_mmu_func
+gm200_mmu_fixed = {
+	.limit = (1ULL << 40),
+	.dma_bits = 40,
+	.pgt_bits  = 27 - 12,
+	.spg_shift = 12,
+	.lpg_shift = 17,
+	.create = gf100_vm_create,
+	.map_pgt = gf100_vm_map_pgt,
+	.map = gf100_vm_map,
+	.map_sg = gf100_vm_map_sg,
+	.unmap = gf100_vm_unmap,
+	.flush = gf100_vm_flush,
+	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GM200}, gm200_vmm_new_fixed },
 };
 
 int
 gm200_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
 {
+	if (device->fb->page)
+		return nvkm_mmu_new_(&gm200_mmu_fixed, device, index, pmmu);
 	return nvkm_mmu_new_(&gm200_mmu, device, index, pmmu);
 }

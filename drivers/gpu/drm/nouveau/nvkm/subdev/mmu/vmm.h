@@ -73,6 +73,11 @@ extern const struct nvkm_vmm_desc gk104_vmm_desc_16_16[];
 extern const struct nvkm_vmm_desc gk104_vmm_desc_17_12[];
 extern const struct nvkm_vmm_desc gk104_vmm_desc_17_17[];
 
+extern const struct nvkm_vmm_desc gm200_vmm_desc_16_12[];
+extern const struct nvkm_vmm_desc gm200_vmm_desc_16_16[];
+extern const struct nvkm_vmm_desc gm200_vmm_desc_17_12[];
+extern const struct nvkm_vmm_desc gm200_vmm_desc_17_17[];
+
 struct nvkm_vmm_page {
 	u8 shift;
 	const struct nvkm_vmm_desc *desc;
@@ -126,6 +131,12 @@ int gf100_vmm_join_(struct nvkm_vmm *, struct nvkm_memory *, u64 base);
 int gf100_vmm_join(struct nvkm_vmm *, struct nvkm_memory *);
 void gf100_vmm_part(struct nvkm_vmm *, struct nvkm_memory *);
 
+int gm200_vmm_new_(const struct nvkm_vmm_func *, const struct nvkm_vmm_func *,
+		   struct nvkm_mmu *, u64, u64, void *, u32,
+		   struct lock_class_key *, const char *, struct nvkm_vmm **);
+int gm200_vmm_join_(struct nvkm_vmm *, struct nvkm_memory *, u64 base);
+int gm200_vmm_join(struct nvkm_vmm *, struct nvkm_memory *);
+
 int nv04_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		 struct lock_class_key *, const char *, struct nvkm_vmm **);
 int nv41_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
@@ -142,4 +153,16 @@ int gk104_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		  struct lock_class_key *, const char *, struct nvkm_vmm **);
 int gk20a_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		  struct lock_class_key *, const char *, struct nvkm_vmm **);
+int gm200_vmm_new_fixed(struct nvkm_mmu *, u64, u64, void *, u32,
+			struct lock_class_key *, const char *,
+			struct nvkm_vmm **);
+int gm200_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
+		  struct lock_class_key *, const char *,
+		  struct nvkm_vmm **);
+int gm20b_vmm_new_fixed(struct nvkm_mmu *, u64, u64, void *, u32,
+			struct lock_class_key *, const char *,
+			struct nvkm_vmm **);
+int gm20b_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
+		  struct lock_class_key *, const char *,
+		  struct nvkm_vmm **);
 #endif
