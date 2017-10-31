@@ -38,6 +38,8 @@ struct nvkm_vm {
 	struct nvkm_vm_pgt *pgt;
 	u32 fpde;
 	u32 lpde;
+
+	bool bootstrapped;
 };
 
 int  nvkm_vm_new(struct nvkm_device *, u64 offset, u64 length, u64 mm_offset,

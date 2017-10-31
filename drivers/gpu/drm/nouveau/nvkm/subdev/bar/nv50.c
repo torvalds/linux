@@ -200,10 +200,7 @@ nv50_bar_dtor(struct nvkm_bar *base)
 	nvkm_gpuobj_del(&bar->bar1);
 	nvkm_vm_ref(NULL, &bar->bar1_vm, bar->pgd);
 	nvkm_gpuobj_del(&bar->bar2);
-	if (bar->bar2_vm) {
-		nvkm_memory_unref(&bar->bar2_vm->pgt[0].mem[0]);
-		nvkm_vm_ref(NULL, &bar->bar2_vm, bar->pgd);
-	}
+	nvkm_vm_ref(NULL, &bar->bar2_vm, bar->pgd);
 	nvkm_gpuobj_del(&bar->pgd);
 	nvkm_gpuobj_del(&bar->pad);
 	nvkm_gpuobj_del(&bar->mem);

@@ -357,6 +357,7 @@ nvkm_vm_boot(struct nvkm_vm *vm, u64 size)
 		vm->pgt[0].refcount[0] = 1;
 		vm->pgt[0].mem[0] = pgt;
 		nvkm_memory_boot(pgt, vm);
+		vm->bootstrapped = true;
 	}
 
 	return ret;
@@ -481,6 +482,8 @@ nvkm_vm_ref(struct nvkm_vm *ref, struct nvkm_vm **ptr, struct nvkm_gpuobj *pgd)
 	}
 
 	if (*ptr) {
+		if ((*ptr)->bootstrapped && pgd)
+			nvkm_memory_unref(&(*ptr)->pgt[0].mem[0]);
 		nvkm_vm_unlink(*ptr, pgd);
 		kref_put(&(*ptr)->refcount, nvkm_vm_del);
 	}
