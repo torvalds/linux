@@ -32,3 +32,4 @@ nvkm-y += nvkm/subdev/mmu/vmmgp10b.o
 
 nvkm-y += nvkm/subdev/mmu/umem.o
 nvkm-y += nvkm/subdev/mmu/ummu.o
+nvkm-y += nvkm/subdev/mmu/uvmm.o

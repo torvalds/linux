@@ -21,6 +21,7 @@
  */
 #include "ummu.h"
 #include "umem.h"
+#include "uvmm.h"
 
 #include <core/client.h>
 
@@ -37,6 +38,14 @@ nvkm_ummu_sclass(struct nvkm_object *object, int index,
 		if (index-- == 0) {
 			oclass->base = mmu->func->mem.user;
 			oclass->ctor = nvkm_umem_new;
+			return 0;
+		}
+	}
+
+	if (mmu->func->vmm.user.oclass) {
+		if (index-- == 0) {
+			oclass->base = mmu->func->vmm.user;
+			oclass->ctor = nvkm_uvmm_new;
 			return 0;
 		}
 	}
