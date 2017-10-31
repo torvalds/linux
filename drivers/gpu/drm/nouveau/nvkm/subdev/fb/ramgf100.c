@@ -419,71 +419,6 @@ gf100_ram_tidy(struct nvkm_ram *base)
 	ram_exec(&ram->fuc, false);
 }
 
-void
-gf100_ram_put(struct nvkm_ram *ram, struct nvkm_mem **pmem)
-{
-	struct nvkm_mem *mem = *pmem;
-
-	*pmem = NULL;
-	if (unlikely(mem == NULL))
-		return;
-
-	mutex_lock(&ram->fb->subdev.mutex);
-	__nv50_ram_put(ram, mem);
-	mutex_unlock(&ram->fb->subdev.mutex);
-
-	kfree(mem);
-}
-
-int
-gf100_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
-	      u32 memtype, struct nvkm_mem **pmem)
-{
-	struct nvkm_mm *mm = &ram->vram;
-	struct nvkm_mm_node **node, *r;
-	struct nvkm_mem *mem;
-	int type = (memtype & 0x0ff);
-	int back = (memtype & 0x800);
-	int ret;
-
-	size  >>= NVKM_RAM_MM_SHIFT;
-	align >>= NVKM_RAM_MM_SHIFT;
-	ncmin >>= NVKM_RAM_MM_SHIFT;
-	if (!ncmin)
-		ncmin = size;
-
-	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
-	if (!mem)
-		return -ENOMEM;
-
-	mem->size = size;
-
-	mutex_lock(&ram->fb->subdev.mutex);
-	mem->memtype = type;
-
-	node = &mem->mem;
-	do {
-		if (back)
-			ret = nvkm_mm_tail(mm, 0, 1, size, ncmin, align, &r);
-		else
-			ret = nvkm_mm_head(mm, 0, 1, size, ncmin, align, &r);
-		if (ret) {
-			mutex_unlock(&ram->fb->subdev.mutex);
-			ram->func->put(ram, &mem);
-			return ret;
-		}
-
-		*node = r;
-		node = &r->next;
-		size -= r->length;
-	} while (size);
-	mutex_unlock(&ram->fb->subdev.mutex);
-
-	mem->offset = (u64)mem->mem->offset << NVKM_RAM_MM_SHIFT;
-	*pmem = mem;
-	return 0;
-}
-
 int
 gf100_ram_init(struct nvkm_ram *base)
 {
@@ -725,8 +660,6 @@ gf100_ram = {
 	.probe_fbp_amount = gf100_ram_probe_fbp_amount,
 	.probe_fbpa_amount = gf100_ram_probe_fbpa_amount,
 	.init = gf100_ram_init,
-	.get = gf100_ram_get,
-	.put = gf100_ram_put,
 	.calc = gf100_ram_calc,
 	.prog = gf100_ram_prog,
 	.tidy = gf100_ram_tidy,

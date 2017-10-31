@@ -493,85 +493,8 @@ nv50_ram_tidy(struct nvkm_ram *base)
 	ram_exec(&ram->hwsq, false);
 }
 
-void
-__nv50_ram_put(struct nvkm_ram *ram, struct nvkm_mem *mem)
-{
-	struct nvkm_mm_node *next = mem->mem;
-	struct nvkm_mm_node *node;
-	while ((node = next)) {
-		next = node->next;
-		nvkm_mm_free(&ram->vram, &node);
-	}
-}
-
-void
-nv50_ram_put(struct nvkm_ram *ram, struct nvkm_mem **pmem)
-{
-	struct nvkm_mem *mem = *pmem;
-
-	*pmem = NULL;
-	if (unlikely(mem == NULL))
-		return;
-
-	mutex_lock(&ram->fb->subdev.mutex);
-	__nv50_ram_put(ram, mem);
-	mutex_unlock(&ram->fb->subdev.mutex);
-
-	kfree(mem);
-}
-
-int
-nv50_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
-	     u32 memtype, struct nvkm_mem **pmem)
-{
-	struct nvkm_mm *heap = &ram->vram;
-	struct nvkm_mm_node **node, *r;
-	struct nvkm_mem *mem;
-	int comp = (memtype & 0x300) >> 8;
-	int type = (memtype & 0x07f);
-	int back = (memtype & 0x800);
-	int min, max, ret;
-
-	max = (size >> NVKM_RAM_MM_SHIFT);
-	min = ncmin ? (ncmin >> NVKM_RAM_MM_SHIFT) : max;
-	align >>= NVKM_RAM_MM_SHIFT;
-
-	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
-	if (!mem)
-		return -ENOMEM;
-
-	mutex_lock(&ram->fb->subdev.mutex);
-	mem->memtype = (comp << 7) | type;
-	mem->size = max;
-
-	type = nv50_fb_memtype[type];
-	node = &mem->mem;
-	do {
-		if (back)
-			ret = nvkm_mm_tail(heap, 0, type, max, min, align, &r);
-		else
-			ret = nvkm_mm_head(heap, 0, type, max, min, align, &r);
-		if (ret) {
-			mutex_unlock(&ram->fb->subdev.mutex);
-			ram->func->put(ram, &mem);
-			return ret;
-		}
-
-		*node = r;
-		node = &r->next;
-		max -= r->length;
-	} while (max);
-	mutex_unlock(&ram->fb->subdev.mutex);
-
-	mem->offset = (u64)mem->mem->offset << NVKM_RAM_MM_SHIFT;
-	*pmem = mem;
-	return 0;
-}
-
 static const struct nvkm_ram_func
 nv50_ram_func = {
-	.get = nv50_ram_get,
-	.put = nv50_ram_put,
 	.calc = nv50_ram_calc,
 	.prog = nv50_ram_prog,
 	.tidy = nv50_ram_tidy,

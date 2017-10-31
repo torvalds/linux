@@ -162,10 +162,6 @@ struct nvkm_ram_func {
 	void *(*dtor)(struct nvkm_ram *);
 	int (*init)(struct nvkm_ram *);
 
-	int (*get)(struct nvkm_ram *, u64 size, u32 align, u32 size_nc,
-		   u32 type, struct nvkm_mem **);
-	void (*put)(struct nvkm_ram *, struct nvkm_mem **);
-
 	int (*calc)(struct nvkm_ram *, u32 freq);
 	int (*prog)(struct nvkm_ram *);
 	void (*tidy)(struct nvkm_ram *);

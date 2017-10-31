@@ -931,8 +931,6 @@ static const struct nvkm_ram_func
 gt215_ram_func = {
 	.dtor = gt215_ram_dtor,
 	.init = gt215_ram_init,
-	.get = nv50_ram_get,
-	.put = nv50_ram_put,
 	.calc = gt215_ram_calc,
 	.prog = gt215_ram_prog,
 	.tidy = gt215_ram_tidy,

@@ -53,8 +53,6 @@ mcp77_ram_init(struct nvkm_ram *base)
 static const struct nvkm_ram_func
 mcp77_ram_func = {
 	.init = mcp77_ram_init,
-	.get = nv50_ram_get,
-	.put = nv50_ram_put,
 };
 
 int
