@@ -277,9 +277,5 @@ g84_fifo_chan_ctor(struct nv50_fifo *fifo, u64 vm, u64 push,
 	if (ret)
 		return ret;
 
-	ret = nvkm_ramht_new(device, 0x8000, 16, chan->base.inst, &chan->ramht);
-	if (ret)
-		return ret;
-
-	return nvkm_vm_ref(chan->base.vm, &chan->vm, chan->base.inst->memory);
+	return nvkm_ramht_new(device, 0x8000, 16, chan->base.inst, &chan->ramht);
 }

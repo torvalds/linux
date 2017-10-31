@@ -398,12 +398,12 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 	if (ret)
 		return ret;
 
-	ret = nvkm_vm_get(fifoch->vm, 0x1000, 12, NV_MEM_ACCESS_RW |
+	ret = nvkm_vm_get(fifoch->vmm, 0x1000, 12, NV_MEM_ACCESS_RW |
 			  NV_MEM_ACCESS_SYS, &chan->mmio_vma);
 	if (ret)
 		return ret;
 
-	ret = nvkm_memory_map(chan->mmio, 0, fifoch->vm,
+	ret = nvkm_memory_map(chan->mmio, 0, fifoch->vmm,
 			      &chan->mmio_vma, NULL, 0);
 	if (ret)
 		return ret;
@@ -416,13 +416,13 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 		if (ret)
 			return ret;
 
-		ret = nvkm_vm_get(fifoch->vm,
+		ret = nvkm_vm_get(fifoch->vmm,
 				  nvkm_memory_size(chan->data[i].mem), 12,
 				  data->access, &chan->data[i].vma);
 		if (ret)
 			return ret;
 
-		ret = nvkm_memory_map(chan->data[i].mem, 0, fifoch->vm,
+		ret = nvkm_memory_map(chan->data[i].mem, 0, fifoch->vmm,
 				      &chan->data[i].vma, NULL, 0);
 		if (ret)
 			return ret;

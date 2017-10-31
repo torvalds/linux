@@ -13,7 +13,6 @@ struct nv50_fifo_chan {
 	struct nvkm_gpuobj *eng;
 	struct nvkm_gpuobj *pgd;
 	struct nvkm_ramht *ramht;
-	struct nvkm_vm *vm;
 
 	struct nvkm_gpuobj *engn[NVKM_SUBDEV_NR];
 };

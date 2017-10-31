@@ -162,12 +162,12 @@ gk104_fifo_gpfifo_engine_ctor(struct nvkm_fifo_chan *base,
 	if (ret)
 		return ret;
 
-	ret = nvkm_vm_get(chan->vm, chan->engn[engn].inst->size, 12,
+	ret = nvkm_vm_get(chan->base.vmm, chan->engn[engn].inst->size, 12,
 			  NV_MEM_ACCESS_RW, &chan->engn[engn].vma);
 	if (ret)
 		return ret;
 
-	return nvkm_memory_map(chan->engn[engn].inst, 0, chan->vm,
+	return nvkm_memory_map(chan->engn[engn].inst, 0, chan->base.vmm,
 			       &chan->engn[engn].vma, NULL, 0);
 }
 
@@ -212,10 +212,7 @@ gk104_fifo_gpfifo_init(struct nvkm_fifo_chan *base)
 static void *
 gk104_fifo_gpfifo_dtor(struct nvkm_fifo_chan *base)
 {
-	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
-	if (chan->base.inst)
-		nvkm_vm_ref(NULL, &chan->vm, chan->base.inst->memory);
-	return chan;
+	return gk104_fifo_chan(base);
 }
 
 static const struct nvkm_fifo_chan_func
@@ -300,10 +297,6 @@ gk104_fifo_gpfifo_new_(const struct gk104_fifo_chan_func *func,
 		return ret;
 
 	*chid = chan->base.chid;
-
-	ret = nvkm_vm_ref(chan->base.vm, &chan->vm, chan->base.inst->memory);
-	if (ret)
-		return ret;
 
 	/* Clear channel control registers. */
 	usermem = chan->base.chid * 0x200;

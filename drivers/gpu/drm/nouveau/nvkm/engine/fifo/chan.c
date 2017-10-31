@@ -27,6 +27,7 @@
 #include <core/gpuobj.h>
 #include <core/oproxy.h>
 #include <subdev/mmu.h>
+#include <subdev/mmu/priv.h>
 #include <engine/dma.h>
 
 struct nvkm_fifo_chan_object {
@@ -117,8 +118,8 @@ nvkm_fifo_chan_child_del(struct nvkm_oproxy *base)
 		if (chan->func->engine_dtor)
 			chan->func->engine_dtor(chan, engine);
 		nvkm_object_del(&engn->object);
-		if (chan->vm)
-			atomic_dec(&chan->vm->engref[engine->subdev.index]);
+		if (chan->vmm)
+			atomic_dec(&chan->vmm->engref[engine->subdev.index]);
 	}
 }
 
@@ -151,8 +152,8 @@ nvkm_fifo_chan_child_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 			.engine = oclass->engine,
 		};
 
-		if (chan->vm)
-			atomic_inc(&chan->vm->engref[engine->subdev.index]);
+		if (chan->vmm)
+			atomic_inc(&chan->vmm->engref[engine->subdev.index]);
 
 		if (engine->func->fifo.cclass) {
 			ret = engine->func->fifo.cclass(chan, &cclass,
@@ -327,7 +328,10 @@ nvkm_fifo_chan_dtor(struct nvkm_object *object)
 	if (chan->user)
 		iounmap(chan->user);
 
-	nvkm_vm_ref(NULL, &chan->vm, NULL);
+	if (chan->vmm) {
+		nvkm_vmm_part(chan->vmm, chan->inst->memory);
+		nvkm_vmm_unref(&chan->vmm);
+	}
 
 	nvkm_gpuobj_del(&chan->push);
 	nvkm_gpuobj_del(&chan->inst);
@@ -355,7 +359,6 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *func,
 {
 	struct nvkm_client *client = oclass->client;
 	struct nvkm_device *device = fifo->engine.subdev.device;
-	struct nvkm_mmu *mmu = device->mmu;
 	struct nvkm_dmaobj *dmaobj;
 	unsigned long flags;
 	int ret;
@@ -384,16 +387,16 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *func,
 	}
 
 	/* channel address space */
-	if (!vm && mmu) {
-		if (!client->vm || client->vm->mmu == mmu) {
-			ret = nvkm_vm_ref(client->vm, &chan->vm, NULL);
-			if (ret)
-				return ret;
-		} else {
+	if (!device->mmu->func->vmm.global) {
+		struct nvkm_vmm *vmm = client->vm;
+		if (vmm->mmu != device->mmu)
 			return -EINVAL;
-		}
-	} else {
-		return -ENOENT;
+
+		ret = nvkm_vmm_join(vmm, chan->inst->memory);
+		if (ret)
+			return ret;
+
+		chan->vmm = nvkm_vmm_ref(vmm);
 	}
 
 	/* allocate channel id */
