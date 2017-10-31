@@ -1697,7 +1697,7 @@ static struct mapped_device *alloc_dev(int minor)
 	struct mapped_device *md;
 	void *old_md;
 
-	md = kzalloc_node(sizeof(*md), GFP_KERNEL, numa_node_id);
+	md = kvzalloc_node(sizeof(*md), GFP_KERNEL, numa_node_id);
 	if (!md) {
 		DMWARN("unable to allocate device, out of memory.");
 		return NULL;
@@ -1797,7 +1797,7 @@ bad_io_barrier:
 bad_minor:
 	module_put(THIS_MODULE);
 bad_module_get:
-	kfree(md);
+	kvfree(md);
 	return NULL;
 }
 
@@ -1816,7 +1816,7 @@ static void free_dev(struct mapped_device *md)
 	free_minor(minor);
 
 	module_put(THIS_MODULE);
-	kfree(md);
+	kvfree(md);
 }
 
 static void __bind_mempools(struct mapped_device *md, struct dm_table *t)
