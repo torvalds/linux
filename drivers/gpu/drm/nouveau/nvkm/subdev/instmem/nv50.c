@@ -32,6 +32,9 @@
 struct nv50_instmem {
 	struct nvkm_instmem base;
 	u64 addr;
+
+	/* Mappings that can be evicted when BAR2 space has been exhausted. */
+	struct list_head lru;
 };
 
 /******************************************************************************
@@ -46,6 +49,7 @@ struct nv50_instobj {
 	struct nvkm_vma bar;
 	refcount_t maps;
 	void *map;
+	struct list_head lru;
 };
 
 static void
@@ -116,11 +120,13 @@ static void
 nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 {
 	struct nv50_instmem *imem = iobj->imem;
+	struct nv50_instobj *eobj;
 	struct nvkm_memory *memory = &iobj->base.memory;
 	struct nvkm_subdev *subdev = &imem->base.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_vma bar = {};
+	struct nvkm_vma bar = {}, ebar;
 	u64 size = nvkm_memory_size(memory);
+	void *emap;
 	int ret;
 
 	/* Attempt to allocate BAR2 address-space and map the object
@@ -128,7 +134,30 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 	 * to the possibility of recursion for page table allocation.
 	 */
 	mutex_unlock(&subdev->mutex);
-	ret = nvkm_vm_get(vmm, size, 12, NV_MEM_ACCESS_RW, &bar);
+	while ((ret = nvkm_vm_get(vmm, size, 12, NV_MEM_ACCESS_RW, &bar))) {
+		/* Evict unused mappings, and keep retrying until we either
+		 * succeed,or there's no more objects left on the LRU.
+		 */
+		mutex_lock(&subdev->mutex);
+		eobj = list_first_entry_or_null(&imem->lru, typeof(*eobj), lru);
+		if (eobj) {
+			nvkm_debug(subdev, "evict %016llx %016llx @ %016llx\n",
+				   nvkm_memory_addr(&eobj->base.memory),
+				   nvkm_memory_size(&eobj->base.memory),
+				   eobj->bar.offset);
+			list_del_init(&eobj->lru);
+			ebar = eobj->bar;
+			eobj->bar.node = NULL;
+			emap = eobj->map;
+			eobj->map = NULL;
+		}
+		mutex_unlock(&subdev->mutex);
+		if (!eobj)
+			break;
+		iounmap(emap);
+		nvkm_vm_put(&ebar);
+	}
+
 	if (ret == 0)
 		nvkm_memory_map(memory, &bar, 0);
 	mutex_lock(&subdev->mutex);
@@ -168,6 +197,14 @@ nv50_instobj_release(struct nvkm_memory *memory)
 	nvkm_bar_flush(subdev->device->bar);
 
 	if (refcount_dec_and_mutex_lock(&iobj->maps, &subdev->mutex)) {
+		/* Add the now-unused mapping to the LRU instead of directly
+		 * unmapping it here, in case we need to map it again later.
+		 */
+		if (likely(iobj->lru.next) && iobj->map) {
+			BUG_ON(!list_empty(&iobj->lru));
+			list_add_tail(&iobj->lru, &imem->lru);
+		}
+
 		/* Switch back to NULL accessors when last map is gone. */
 		iobj->base.memory.ptrs = &nv50_instobj_slow;
 		mutex_unlock(&subdev->mutex);
@@ -203,6 +240,10 @@ nv50_instobj_acquire(struct nvkm_memory *memory)
 	}
 
 	if (!refcount_inc_not_zero(&iobj->maps)) {
+		/* Exclude object from eviction while it's being accessed. */
+		if (likely(iobj->lru.next))
+			list_del_init(&iobj->lru);
+
 		if (map)
 			iobj->base.memory.ptrs = &nv50_instobj_fast;
 		else
@@ -220,7 +261,15 @@ nv50_instobj_boot(struct nvkm_memory *memory, struct nvkm_vmm *vmm)
 	struct nv50_instobj *iobj = nv50_instobj(memory);
 	struct nvkm_instmem *imem = &iobj->imem->base;
 
+	/* Exclude bootstrapped objects (ie. the page tables for the
+	 * instmem BAR itself) from eviction.
+	 */
 	mutex_lock(&imem->subdev.mutex);
+	if (likely(iobj->lru.next)) {
+		list_del_init(&iobj->lru);
+		iobj->lru.next = NULL;
+	}
+
 	nv50_instobj_kmap(iobj, vmm);
 	mutex_unlock(&imem->subdev.mutex);
 }
@@ -249,10 +298,21 @@ nv50_instobj_dtor(struct nvkm_memory *memory)
 	struct nv50_instobj *iobj = nv50_instobj(memory);
 	struct nvkm_instmem *imem = &iobj->imem->base;
 	struct nvkm_ram *ram = imem->subdev.device->fb->ram;
-	if (iobj->map) {
-		iounmap(iobj->map);
-		nvkm_vm_put(&iobj->bar);
+	struct nvkm_vma bar;
+	void *map = map;
+
+	mutex_lock(&imem->subdev.mutex);
+	if (likely(iobj->lru.next))
+		list_del(&iobj->lru);
+	map = iobj->map;
+	bar = iobj->bar;
+	mutex_unlock(&imem->subdev.mutex);
+
+	if (map) {
+		iounmap(map);
+		nvkm_vm_put(&bar);
 	}
+
 	ram->func->put(ram, &iobj->mem);
 	nvkm_instobj_dtor(imem, &iobj->base);
 	return iobj;
@@ -287,6 +347,7 @@ nv50_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 	iobj->base.memory.ptrs = &nv50_instobj_slow;
 	iobj->imem = imem;
 	refcount_set(&iobj->maps, 0);
+	INIT_LIST_HEAD(&iobj->lru);
 
 	size  = max((size  + 4095) & ~4095, (u32)4096);
 	align = max((align + 4095) & ~4095, (u32)4096);
@@ -326,6 +387,7 @@ nv50_instmem_new(struct nvkm_device *device, int index,
 	if (!(imem = kzalloc(sizeof(*imem), GFP_KERNEL)))
 		return -ENOMEM;
 	nvkm_instmem_ctor(&nv50_instmem, device, index, &imem->base);
+	INIT_LIST_HEAD(&imem->lru);
 	*pimem = &imem->base;
 	return 0;
 }
