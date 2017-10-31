@@ -1699,13 +1699,9 @@ max3421_hub_control(struct usb_hcd *hcd, u16 type_req, u16 value, u16 index,
 	unsigned long flags;
 	int retval = 0;
 
-	spin_lock_irqsave(&max3421_hcd->lock, flags);
-
 	pdata = spi->dev.platform_data;
-	if (!pdata) {
-		dev_err(&spi->dev, "Device platform data is missing\n");
-		return -EFAULT;
-	}
+
+	spin_lock_irqsave(&max3421_hcd->lock, flags);
 
 	switch (type_req) {
 	case ClearHubFeature:
@@ -1882,7 +1878,6 @@ max3421_probe(struct spi_device *spi)
 	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
 		pdata = devm_kzalloc(&spi->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata) {
-			dev_err(&spi->dev, "failed to allocate memory for private data\n");
 			retval = -ENOMEM;
 			goto error;
 		}
@@ -1994,12 +1989,6 @@ max3421_remove(struct spi_device *spi)
 	*prev = max3421_hcd->next;
 
 	spin_unlock_irqrestore(&max3421_hcd->lock, flags);
-
-	if (IS_ENABLED(CONFIG_OF) && spi->dev.platform_data) {
-		dev_dbg(&spi->dev, "Freeing platform data structure\n");
-		devm_kfree(&spi->dev, spi->dev.platform_data);
-		spi->dev.platform_data = NULL;
-	}
 
 	free_irq(spi->irq, hcd);
 
