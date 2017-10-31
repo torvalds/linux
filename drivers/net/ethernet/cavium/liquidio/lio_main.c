@@ -21,6 +21,7 @@
 #include <linux/firmware.h>
 #include <net/vxlan.h>
 #include <linux/kthread.h>
+#include <net/switchdev.h>
 #include "liquidio_common.h"
 #include "octeon_droq.h"
 #include "octeon_iq.h"
@@ -3309,6 +3310,29 @@ static int liquidio_set_vf_link_state(struct net_device *netdev, int vfidx,
 	return 0;
 }
 
+static int
+lio_pf_switchdev_attr_get(struct net_device *dev, struct switchdev_attr *attr)
+{
+	struct lio *lio = GET_LIO(dev);
+
+	switch (attr->id) {
+	case SWITCHDEV_ATTR_ID_PORT_PARENT_ID:
+		attr->u.ppid.id_len = ETH_ALEN;
+		ether_addr_copy(attr->u.ppid.id,
+				(void *)&lio->linfo.hw_addr + 2);
+		break;
+
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static const struct switchdev_ops lio_pf_switchdev_ops = {
+	.switchdev_port_attr_get = lio_pf_switchdev_attr_get,
+};
+
 static const struct net_device_ops lionetdevops = {
 	.ndo_open		= liquidio_open,
 	.ndo_stop		= liquidio_stop,
@@ -3583,6 +3607,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		 * netdev tasks.
 		 */
 		netdev->netdev_ops = &lionetdevops;
+		SWITCHDEV_SET_OPS(netdev, &lio_pf_switchdev_ops);
 
 		lio = GET_LIO(netdev);
 

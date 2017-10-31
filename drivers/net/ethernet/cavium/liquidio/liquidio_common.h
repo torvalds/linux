@@ -89,6 +89,9 @@ enum octeon_tag_type {
 #define VF_DRV_REMOVED                -1
 #define VF_DRV_MACADDR_CHANGED         2
 
+#define OPCODE_NIC_VF_REP_PKT          0x15
+#define OPCODE_NIC_VF_REP_CMD          0x16
+
 #define CORE_DRV_TEST_SCATTER_OP    0xFFF5
 
 /* Application codes advertised by the core driver initialization packet. */
@@ -908,5 +911,51 @@ union oct_nic_if_cfg {
 struct lio_time {
 	s64 sec;   /* seconds */
 	s64 nsec;  /* nanoseconds */
+};
+
+struct lio_vf_rep_stats {
+	u64 tx_packets;
+	u64 tx_bytes;
+	u64 tx_dropped;
+
+	u64 rx_packets;
+	u64 rx_bytes;
+	u64 rx_dropped;
+};
+
+enum lio_vf_rep_req_type {
+	LIO_VF_REP_REQ_NONE,
+	LIO_VF_REP_REQ_STATE,
+	LIO_VF_REP_REQ_MTU,
+	LIO_VF_REP_REQ_STATS
+};
+
+enum {
+	LIO_VF_REP_STATE_DOWN,
+	LIO_VF_REP_STATE_UP
+};
+
+struct lio_vf_rep_req {
+	u8 req_type;
+	u8 ifidx;
+	u8 rsvd[6];
+
+	union {
+		struct lio_vf_rep_mtu {
+			u32 mtu;
+			u32 rsvd;
+		} rep_mtu;
+
+		struct lio_vf_rep_state {
+			u8 state;
+			u8 rsvd[7];
+		} rep_state;
+	};
+};
+
+struct lio_vf_rep_resp {
+	u64 rh;
+	u8  status;
+	u8  rsvd[7];
 };
 #endif

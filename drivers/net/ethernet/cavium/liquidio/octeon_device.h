@@ -391,6 +391,11 @@ struct octeon_ioq_vector {
 	u32			ioq_num;
 };
 
+struct lio_vf_rep_list {
+	int num_vfs;
+	struct net_device *ndev[CN23XX_MAX_VFS_PER_PF];
+};
+
 /** The Octeon device.
  *  Each Octeon device has this structure to represent all its
  *  components.
@@ -568,6 +573,8 @@ struct octeon_device {
 	atomic_t *adapter_fw_state; /* per-adapter, lio_fw_state */
 
 	bool ptp_enable;
+
+	struct lio_vf_rep_list vf_rep_list;
 };
 
 #define  OCT_DRV_ONLINE 1
