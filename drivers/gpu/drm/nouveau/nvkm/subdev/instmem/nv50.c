@@ -206,7 +206,7 @@ nv50_instobj_release(struct nvkm_memory *memory)
 		}
 
 		/* Switch back to NULL accessors when last map is gone. */
-		iobj->base.memory.ptrs = &nv50_instobj_slow;
+		iobj->base.memory.ptrs = NULL;
 		mutex_unlock(&subdev->mutex);
 	}
 }
@@ -345,7 +345,6 @@ nv50_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 	*pmemory = &iobj->base.memory;
 
 	nvkm_instobj_ctor(&nv50_instobj_func, &imem->base, &iobj->base);
-	iobj->base.memory.ptrs = &nv50_instobj_slow;
 	iobj->imem = imem;
 	refcount_set(&iobj->maps, 0);
 	INIT_LIST_HEAD(&iobj->lru);

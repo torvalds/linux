@@ -33,10 +33,17 @@ nvkm_instobj_load(struct nvkm_instobj *iobj)
 {
 	struct nvkm_memory *memory = &iobj->memory;
 	const u64 size = nvkm_memory_size(memory);
+	void __iomem *map;
 	int i;
 
-	for (i = 0; i < size; i += 4)
-		nvkm_wo32(memory, i, iobj->suspend[i / 4]);
+	if (!(map = nvkm_kmap(memory))) {
+		for (i = 0; i < size; i += 4)
+			nvkm_wo32(memory, i, iobj->suspend[i / 4]);
+	} else {
+		memcpy_toio(map, iobj->suspend, size);
+	}
+	nvkm_done(memory);
+
 	kvfree(iobj->suspend);
 	iobj->suspend = NULL;
 }
@@ -187,6 +194,8 @@ nvkm_instmem_init(struct nvkm_subdev *subdev)
 		if (iobj->suspend)
 			nvkm_instobj_load(iobj);
 	}
+
+	nvkm_bar_bar2_init(subdev->device);
 
 	list_for_each_entry(iobj, &imem->list, head) {
 		if (iobj->suspend)
