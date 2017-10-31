@@ -28,6 +28,36 @@
 /******************************************************************************
  * instmem object base implementation
  *****************************************************************************/
+static void
+nvkm_instobj_load(struct nvkm_instobj *iobj)
+{
+	struct nvkm_memory *memory = &iobj->memory;
+	const u64 size = nvkm_memory_size(memory);
+	int i;
+
+	for (i = 0; i < size; i += 4)
+		nvkm_wo32(memory, i, iobj->suspend[i / 4]);
+	vfree(iobj->suspend);
+	iobj->suspend = NULL;
+}
+
+static int
+nvkm_instobj_save(struct nvkm_instobj *iobj)
+{
+	struct nvkm_memory *memory = &iobj->memory;
+	const u64 size = nvkm_memory_size(memory);
+	int i;
+
+	iobj->suspend = vmalloc(size);
+	if (!iobj->suspend)
+		return -ENOMEM;
+
+	for (i = 0; i < size; i += 4)
+		iobj->suspend[i / 4] = nvkm_ro32(memory, i);
+
+	return 0;
+}
+
 void
 nvkm_instobj_dtor(struct nvkm_instmem *imem, struct nvkm_instobj *iobj)
 {
@@ -104,23 +134,30 @@ nvkm_instmem_fini(struct nvkm_subdev *subdev, bool suspend)
 {
 	struct nvkm_instmem *imem = nvkm_instmem(subdev);
 	struct nvkm_instobj *iobj;
-	int i;
+
+	if (suspend) {
+		list_for_each_entry(iobj, &imem->list, head) {
+			int ret = nvkm_instobj_save(iobj);
+			if (ret)
+				return ret;
+		}
+	}
 
 	if (imem->func->fini)
 		imem->func->fini(imem);
 
-	if (suspend) {
-		list_for_each_entry(iobj, &imem->list, head) {
-			struct nvkm_memory *memory = &iobj->memory;
-			u64 size = nvkm_memory_size(memory);
+	return 0;
+}
 
-			iobj->suspend = vmalloc(size);
-			if (!iobj->suspend)
-				return -ENOMEM;
+static int
+nvkm_instmem_init(struct nvkm_subdev *subdev)
+{
+	struct nvkm_instmem *imem = nvkm_instmem(subdev);
+	struct nvkm_instobj *iobj;
 
-			for (i = 0; i < size; i += 4)
-				iobj->suspend[i / 4] = nvkm_ro32(memory, i);
-		}
+	list_for_each_entry(iobj, &imem->list, head) {
+		if (iobj->suspend)
+			nvkm_instobj_load(iobj);
 	}
 
 	return 0;
@@ -132,27 +169,6 @@ nvkm_instmem_oneinit(struct nvkm_subdev *subdev)
 	struct nvkm_instmem *imem = nvkm_instmem(subdev);
 	if (imem->func->oneinit)
 		return imem->func->oneinit(imem);
-	return 0;
-}
-
-static int
-nvkm_instmem_init(struct nvkm_subdev *subdev)
-{
-	struct nvkm_instmem *imem = nvkm_instmem(subdev);
-	struct nvkm_instobj *iobj;
-	int i;
-
-	list_for_each_entry(iobj, &imem->list, head) {
-		if (iobj->suspend) {
-			struct nvkm_memory *memory = &iobj->memory;
-			u64 size = nvkm_memory_size(memory);
-			for (i = 0; i < size; i += 4)
-				nvkm_wo32(memory, i, iobj->suspend[i / 4]);
-			vfree(iobj->suspend);
-			iobj->suspend = NULL;
-		}
-	}
-
 	return 0;
 }
 
