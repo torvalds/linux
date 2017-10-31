@@ -48,6 +48,7 @@
 #include <core/tegra.h>
 #include <subdev/fb.h>
 #include <subdev/ltc.h>
+#include <subdev/mmu.h>
 
 struct gk20a_instobj {
 	struct nvkm_memory memory;

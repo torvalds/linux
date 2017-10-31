@@ -1,9 +1,7 @@
 #ifndef __NVKM_FB_H__
 #define __NVKM_FB_H__
 #include <core/subdev.h>
-#include <core/memory.h>
-
-#include <subdev/mmu.h>
+#include <core/mm.h>
 
 /* memory type/access flags, do not match hardware values */
 #define NV_MEM_ACCESS_RO  1

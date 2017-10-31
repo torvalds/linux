@@ -1,9 +1,6 @@
 #ifndef __NVKM_MMU_H__
 #define __NVKM_MMU_H__
 #include <core/subdev.h>
-#include <core/memory.h>
-#include <core/mm.h>
-struct nvkm_gpuobj;
 struct nvkm_mem;
 
 struct nvkm_vm_pgt {
@@ -12,14 +9,25 @@ struct nvkm_vm_pgt {
 };
 
 struct nvkm_vma {
-	struct nvkm_memory *memory;
-	struct nvkm_tags *tags;
+	struct list_head head;
+	struct rb_node tree;
+	u64 addr;
+	u64 size:50;
+	bool mapref:1; /* PTs (de)referenced on (un)map (vs pre-allocated). */
+	bool sparse:1; /* Unmapped PDEs/PTEs will not trigger MMU faults. */
+#define NVKM_VMA_PAGE_NONE 7
+	u8   page:3; /* Requested page type (index, or NONE for automatic). */
+	u8   refd:3; /* Current page type (index, or NONE for unreferenced). */
+	bool used:1; /* Region allocated. */
+	bool part:1; /* Region was split from an allocated region by map(). */
+	bool user:1; /* Region user-allocated. */
+	bool busy:1; /* Region busy (for temporarily preventing user access). */
+	struct nvkm_memory *memory; /* Memory currently mapped into VMA. */
+	struct nvkm_tags *tags; /* Compression tag reference. */
+
+	struct nvkm_vma *node;
 	struct nvkm_vm *vm;
-	struct nvkm_mm_node *node;
-	union {
-		u64 offset;
-		u64 addr;
-	};
+	u64 offset;
 	u32 access;
 };
 
@@ -37,8 +45,9 @@ struct nvkm_vm {
 	struct nvkm_vmm_pt *pd;
 	struct list_head join;
 
-	struct nvkm_mm mm;
-	struct kref refcount;
+	struct list_head list;
+	struct rb_root free;
+	struct rb_root root;
 
 	bool bootstrapped;
 	atomic_t engref[NVKM_SUBDEV_NR];
@@ -57,9 +66,16 @@ void nvkm_vm_put(struct nvkm_vma *);
 void nvkm_vm_map(struct nvkm_vma *, struct nvkm_mem *);
 void nvkm_vm_map_at(struct nvkm_vma *, u64 offset, struct nvkm_mem *);
 void nvkm_vm_unmap(struct nvkm_vma *);
-void nvkm_vm_unmap_at(struct nvkm_vma *, u64 offset, u64 length);
 
+int nvkm_vmm_new(struct nvkm_device *, u64 addr, u64 size, void *argv, u32 argc,
+		 struct lock_class_key *, const char *name, struct nvkm_vmm **);
+struct nvkm_vmm *nvkm_vmm_ref(struct nvkm_vmm *);
+void nvkm_vmm_unref(struct nvkm_vmm **);
 int nvkm_vmm_boot(struct nvkm_vmm *);
+int nvkm_vmm_join(struct nvkm_vmm *, struct nvkm_memory *inst);
+void nvkm_vmm_part(struct nvkm_vmm *, struct nvkm_memory *inst);
+int nvkm_vmm_get(struct nvkm_vmm *, u8 page, u64 size, struct nvkm_vma **);
+void nvkm_vmm_put(struct nvkm_vmm *, struct nvkm_vma **);
 
 struct nvkm_vmm_map {
 	struct nvkm_memory *memory;
@@ -77,6 +93,12 @@ struct nvkm_vmm_map {
 	u64 type;
 	u64 ctag;
 };
+
+int nvkm_vmm_map(struct nvkm_vmm *, struct nvkm_vma *, void *argv, u32 argc,
+		 struct nvkm_vmm_map *);
+void nvkm_vmm_unmap(struct nvkm_vmm *, struct nvkm_vma *);
+
+struct nvkm_vmm *nvkm_uvmm_search(struct nvkm_client *, u64 handle);
 
 struct nvkm_mmu {
 	const struct nvkm_mmu_func *func;
