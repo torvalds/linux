@@ -382,39 +382,6 @@ static void gic_irq_dispatch(struct irq_desc *desc)
 	gic_handle_shared_int(true);
 }
 
-static int gic_local_irq_domain_map(struct irq_domain *d, unsigned int virq,
-				    irq_hw_number_t hw)
-{
-	int intr = GIC_HWIRQ_TO_LOCAL(hw);
-	int i;
-	unsigned long flags;
-	u32 val;
-
-	if (!gic_local_irq_is_routable(intr))
-		return -EPERM;
-
-	if (intr > GIC_LOCAL_INT_FDC) {
-		pr_err("Invalid local IRQ %d\n", intr);
-		return -EINVAL;
-	}
-
-	if (intr == GIC_LOCAL_INT_TIMER) {
-		/* CONFIG_MIPS_CMP workaround (see __gic_init) */
-		val = GIC_MAP_PIN_MAP_TO_PIN | timer_cpu_pin;
-	} else {
-		val = GIC_MAP_PIN_MAP_TO_PIN | gic_cpu_pin;
-	}
-
-	spin_lock_irqsave(&gic_lock, flags);
-	for (i = 0; i < gic_vpes; i++) {
-		write_gic_vl_other(mips_cm_vp_id(i));
-		write_gic_vo_map(intr, val);
-	}
-	spin_unlock_irqrestore(&gic_lock, flags);
-
-	return 0;
-}
-
 static int gic_shared_irq_domain_map(struct irq_domain *d, unsigned int virq,
 				     irq_hw_number_t hw, unsigned int cpu)
 {
@@ -457,7 +424,10 @@ static int gic_irq_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
 static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 			      irq_hw_number_t hwirq)
 {
-	int err;
+	unsigned long flags;
+	unsigned int intr;
+	int err, i;
+	u32 map;
 
 	if (hwirq >= GIC_SHARED_HWIRQ_BASE) {
 		/* verify that shared irqs don't conflict with an IPI irq */
@@ -474,8 +444,14 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 		return gic_shared_irq_domain_map(d, virq, hwirq, 0);
 	}
 
-	switch (GIC_HWIRQ_TO_LOCAL(hwirq)) {
+	intr = GIC_HWIRQ_TO_LOCAL(hwirq);
+	map = GIC_MAP_PIN_MAP_TO_PIN | gic_cpu_pin;
+
+	switch (intr) {
 	case GIC_LOCAL_INT_TIMER:
+		/* CONFIG_MIPS_CMP workaround (see __gic_init) */
+		map = GIC_MAP_PIN_MAP_TO_PIN | timer_cpu_pin;
+		/* fall-through */
 	case GIC_LOCAL_INT_PERFCTR:
 	case GIC_LOCAL_INT_FDC:
 		/*
@@ -504,7 +480,17 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 		break;
 	}
 
-	return gic_local_irq_domain_map(d, virq, hwirq);
+	if (!gic_local_irq_is_routable(intr))
+		return -EPERM;
+
+	spin_lock_irqsave(&gic_lock, flags);
+	for (i = 0; i < gic_vpes; i++) {
+		write_gic_vl_other(mips_cm_vp_id(i));
+		write_gic_vo_map(intr, map);
+	}
+	spin_unlock_irqrestore(&gic_lock, flags);
+
+	return 0;
 }
 
 static int gic_irq_domain_alloc(struct irq_domain *d, unsigned int virq,
