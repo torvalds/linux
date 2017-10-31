@@ -23,10 +23,10 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 #include "nouveau_drv.h"
-#include "nouveau_ttm.h"
 #include "nouveau_gem.h"
+#include "nouveau_mem.h"
+#include "nouveau_ttm.h"
 
 #include <drm/drm_legacy.h>
 
@@ -45,23 +45,15 @@ nouveau_manager_fini(struct ttm_mem_type_manager *man)
 }
 
 static void
+nouveau_manager_del(struct ttm_mem_type_manager *man, struct ttm_mem_reg *reg)
+{
+	nouveau_mem_del(reg);
+}
+
+static void
 nouveau_manager_debug(struct ttm_mem_type_manager *man,
 		      struct drm_printer *printer)
 {
-}
-
-static inline void
-nvkm_mem_node_cleanup(struct nvkm_mem *node)
-{
-	if (node->vma[0].node) {
-		nvkm_vm_unmap(&node->vma[0]);
-		nvkm_vm_put(&node->vma[0]);
-	}
-
-	if (node->vma[1].node) {
-		nvkm_vm_unmap(&node->vma[1]);
-		nvkm_vm_put(&node->vma[1]);
-	}
 }
 
 static void
@@ -70,8 +62,9 @@ nouveau_vram_manager_del(struct ttm_mem_type_manager *man,
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
 	struct nvkm_ram *ram = nvxx_fb(&drm->client.device)->ram;
-	nvkm_mem_node_cleanup(reg->mm_node);
-	ram->func->put(ram, (struct nvkm_mem **)&reg->mm_node);
+	struct nvkm_mem *mem = nouveau_mem(reg)->_mem;
+	nouveau_mem_del(reg);
+	ram->func->put(ram, &mem);
 }
 
 static int
@@ -80,31 +73,29 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 			 const struct ttm_place *place,
 			 struct ttm_mem_reg *reg)
 {
-	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nvkm_ram *ram = nvxx_fb(&drm->client.device)->ram;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nvkm_mem *node;
-	u32 size_nc = 0;
+	struct nouveau_drm *drm = nvbo->cli->drm;
+	struct nouveau_mem *mem;
 	int ret;
 
 	if (drm->client.device.info.ram_size == 0)
 		return -ENOMEM;
 
-	if (!nvbo->contig)
-		size_nc = 1 << nvbo->page;
+	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
+	mem = nouveau_mem(reg);
+	if (ret)
+		return ret;
 
-	ret = ram->func->get(ram, reg->num_pages << PAGE_SHIFT,
-			     reg->page_alignment << PAGE_SHIFT, size_nc,
-			     nvbo->comp << 8 | nvbo->kind, &node);
+	ret = nouveau_mem_vram(reg, nvbo->contig, nvbo->page);
 	if (ret) {
-		reg->mm_node = NULL;
-		return (ret == -ENOSPC) ? 0 : ret;
+		nouveau_mem_del(reg);
+		if (ret == -ENOSPC) {
+			reg->mm_node = NULL;
+			return 0;
+		}
+		return ret;
 	}
 
-	node->page_shift = nvbo->page;
-
-	reg->mm_node = node;
-	reg->start   = node->offset >> PAGE_SHIFT;
 	return 0;
 }
 
@@ -116,54 +107,24 @@ const struct ttm_mem_type_manager_func nouveau_vram_manager = {
 	.debug = nouveau_manager_debug,
 };
 
-static void
-nouveau_gart_manager_del(struct ttm_mem_type_manager *man,
-			 struct ttm_mem_reg *reg)
-{
-	nvkm_mem_node_cleanup(reg->mm_node);
-	kfree(reg->mm_node);
-	reg->mm_node = NULL;
-}
-
 static int
 nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_buffer_object *bo,
 			 const struct ttm_place *place,
 			 struct ttm_mem_reg *reg)
 {
-	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nvkm_mem *node;
+	struct nouveau_drm *drm = nvbo->cli->drm;
+	struct nouveau_mem *mem;
+	int ret;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
+	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
+	mem = nouveau_mem(reg);
+	if (ret)
+		return ret;
 
-	node->page_shift = 12;
-
-	switch (drm->client.device.info.family) {
-	case NV_DEVICE_INFO_V0_TNT:
-	case NV_DEVICE_INFO_V0_CELSIUS:
-	case NV_DEVICE_INFO_V0_KELVIN:
-	case NV_DEVICE_INFO_V0_RANKINE:
-	case NV_DEVICE_INFO_V0_CURIE:
-		break;
-	case NV_DEVICE_INFO_V0_TESLA:
-	case NV_DEVICE_INFO_V0_FERMI:
-	case NV_DEVICE_INFO_V0_KEPLER:
-	case NV_DEVICE_INFO_V0_MAXWELL:
-	case NV_DEVICE_INFO_V0_PASCAL:
-		if (drm->client.device.info.chipset != 0x50)
-			node->memtype = nvbo->kind;
-		break;
-	default:
-		NV_WARN(drm, "%s: unhandled family type %x\n", __func__,
-			drm->client.device.info.family);
-		break;
-	}
-
-	reg->mm_node = node;
-	reg->start   = 0;
+	mem->_mem = &mem->__mem;
+	reg->start = 0;
 	return 0;
 }
 
@@ -171,19 +132,9 @@ const struct ttm_mem_type_manager_func nouveau_gart_manager = {
 	.init = nouveau_manager_init,
 	.takedown = nouveau_manager_fini,
 	.get_node = nouveau_gart_manager_new,
-	.put_node = nouveau_gart_manager_del,
+	.put_node = nouveau_manager_del,
 	.debug = nouveau_manager_debug
 };
-
-static void
-nv04_gart_manager_del(struct ttm_mem_type_manager *man, struct ttm_mem_reg *reg)
-{
-	struct nvkm_mem *node = reg->mm_node;
-	if (node->vma[0].node)
-		nvkm_vm_put(&node->vma[0]);
-	kfree(reg->mm_node);
-	reg->mm_node = NULL;
-}
 
 static int
 nv04_gart_manager_new(struct ttm_mem_type_manager *man,
@@ -191,30 +142,30 @@ nv04_gart_manager_new(struct ttm_mem_type_manager *man,
 		      const struct ttm_place *place,
 		      struct ttm_mem_reg *reg)
 {
-	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+	struct nouveau_drm *drm = nvbo->cli->drm;
+	struct nouveau_mem *mem;
 	struct nvkm_mmu *mmu = nvxx_mmu(&drm->client.device);
-	struct nvkm_mem *node;
 	int ret;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
+	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
+	mem = nouveau_mem(reg);
+	if (ret)
+		return ret;
 
-	node->page_shift = 12;
-
-	ret = nvkm_vm_get(mmu->vmm, reg->num_pages << 12, node->page_shift,
-			  NV_MEM_ACCESS_RW, &node->vma[0]);
+	ret = nvkm_vm_get(mmu->vmm, reg->num_pages << 12, 12,
+			  NV_MEM_ACCESS_RW, &mem->vma[0]);
 	if (ret) {
+		nouveau_mem_del(reg);
 		if (ret == -ENOSPC) {
 			reg->mm_node = NULL;
-			ret = 0;
+			return 0;
 		}
-		kfree(node);
 		return ret;
 	}
 
-	reg->mm_node = node;
-	reg->start   = node->vma[0].offset >> PAGE_SHIFT;
+	mem->_mem = &mem->__mem;
+	reg->start = mem->vma[0].addr >> PAGE_SHIFT;
 	return 0;
 }
 
@@ -222,7 +173,7 @@ const struct ttm_mem_type_manager_func nv04_gart_manager = {
 	.init = nouveau_manager_init,
 	.takedown = nouveau_manager_fini,
 	.get_node = nv04_gart_manager_new,
-	.put_node = nv04_gart_manager_del,
+	.put_node = nouveau_manager_del,
 	.debug = nouveau_manager_debug
 };
 

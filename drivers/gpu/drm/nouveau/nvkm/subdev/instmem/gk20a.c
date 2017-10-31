@@ -530,7 +530,6 @@ gk20a_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 	/* present memory for being mapped using small pages */
 	node->mem.size = size >> 12;
 	node->mem.memtype = 0;
-	node->mem.page_shift = 12;
 
 	nvkm_debug(subdev, "alloc size: 0x%x, align: 0x%x, gaddr: 0x%llx\n",
 		   size, align, node->mem.offset);

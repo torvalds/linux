@@ -356,7 +356,6 @@ nv50_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 	if (ret)
 		return ret;
 
-	iobj->mem->page_shift = 12;
 	return 0;
 }
 

@@ -20,7 +20,10 @@ struct nvkm_vma {
 	int refcount;
 	struct nvkm_vm *vm;
 	struct nvkm_mm_node *node;
-	u64 offset;
+	union {
+		u64 offset;
+		u64 addr;
+	};
 	u32 access;
 };
 

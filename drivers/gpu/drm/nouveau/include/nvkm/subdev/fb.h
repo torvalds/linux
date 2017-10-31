@@ -22,12 +22,6 @@
 #define NV_MEM_COMP_VM 0x03
 
 struct nvkm_mem {
-	struct drm_device *dev;
-
-	struct nvkm_vma bar_vma;
-	struct nvkm_vma vma[2];
-	u8  page_shift;
-
 	struct nvkm_mm_node *tag;
 	struct nvkm_mm_node *mem;
 	dma_addr_t *pages;
