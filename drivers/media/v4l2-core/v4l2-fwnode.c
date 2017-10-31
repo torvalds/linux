@@ -455,8 +455,7 @@ static int __v4l2_async_notifier_parse_fwnode_endpoints(
 		dev_fwnode = fwnode_graph_get_port_parent(fwnode);
 		is_available = fwnode_device_is_available(dev_fwnode);
 		fwnode_handle_put(dev_fwnode);
-
-		if (!fwnode_device_is_available(dev_fwnode))
+		if (!is_available)
 			continue;
 
 		if (WARN_ON(notifier->num_subdevs >= notifier->max_subdevs)) {
