@@ -135,7 +135,7 @@ static bool edp_panel_vdd_on(struct intel_dp *intel_dp);
 static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync);
 static void vlv_init_panel_power_sequencer(struct intel_encoder *encoder,
 					   const struct intel_crtc_state *crtc_state);
-static void vlv_steal_power_sequencer(struct drm_device *dev,
+static void vlv_steal_power_sequencer(struct drm_i915_private *dev_priv,
 				      enum pipe pipe);
 static void intel_dp_unset_edid(struct intel_dp *intel_dp);
 
@@ -429,14 +429,12 @@ static void intel_dp_unpack_aux(uint32_t src, uint8_t *dst, int dst_bytes)
 }
 
 static void
-intel_dp_init_panel_power_sequencer(struct drm_device *dev,
-				    struct intel_dp *intel_dp);
+intel_dp_init_panel_power_sequencer(struct intel_dp *intel_dp);
 static void
-intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
-					      struct intel_dp *intel_dp,
+intel_dp_init_panel_power_sequencer_registers(struct intel_dp *intel_dp,
 					      bool force_disable_vdd);
 static void
-intel_dp_pps_init(struct drm_device *dev, struct intel_dp *intel_dp);
+intel_dp_pps_init(struct intel_dp *intel_dp);
 
 static void pps_lock(struct intel_dp *intel_dp)
 {
@@ -580,9 +578,8 @@ static enum pipe vlv_find_free_pps(struct drm_i915_private *dev_priv)
 static enum pipe
 vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 {
+	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_device *dev = intel_dig_port->base.base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum pipe pipe;
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
@@ -605,7 +602,7 @@ vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 	if (WARN_ON(pipe == INVALID_PIPE))
 		pipe = PIPE_A;
 
-	vlv_steal_power_sequencer(dev, pipe);
+	vlv_steal_power_sequencer(dev_priv, pipe);
 	intel_dp->pps_pipe = pipe;
 
 	DRM_DEBUG_KMS("picked pipe %c power sequencer for port %c\n",
@@ -613,8 +610,8 @@ vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 		      port_name(intel_dig_port->base.port));
 
 	/* init power sequencer on this pipe and port */
-	intel_dp_init_panel_power_sequencer(dev, intel_dp);
-	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp, true);
+	intel_dp_init_panel_power_sequencer(intel_dp);
+	intel_dp_init_panel_power_sequencer_registers(intel_dp, true);
 
 	/*
 	 * Even vdd force doesn't work until we've made
@@ -628,9 +625,7 @@ vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 static int
 bxt_power_sequencer_idx(struct intel_dp *intel_dp)
 {
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_device *dev = intel_dig_port->base.base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
@@ -651,7 +646,7 @@ bxt_power_sequencer_idx(struct intel_dp *intel_dp)
 	 * Only the HW needs to be reprogrammed, the SW state is fixed and
 	 * has been setup during connector init.
 	 */
-	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp, false);
+	intel_dp_init_panel_power_sequencer_registers(intel_dp, false);
 
 	return 0;
 }
@@ -703,9 +698,8 @@ vlv_initial_pps_pipe(struct drm_i915_private *dev_priv,
 static void
 vlv_initial_power_sequencer_setup(struct intel_dp *intel_dp)
 {
+	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_device *dev = intel_dig_port->base.base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum port port = intel_dig_port->base.port;
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
@@ -733,8 +727,8 @@ vlv_initial_power_sequencer_setup(struct intel_dp *intel_dp)
 	DRM_DEBUG_KMS("initial power sequencer for port %c: pipe %c\n",
 		      port_name(port), pipe_name(intel_dp->pps_pipe));
 
-	intel_dp_init_panel_power_sequencer(dev, intel_dp);
-	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp, false);
+	intel_dp_init_panel_power_sequencer(intel_dp);
+	intel_dp_init_panel_power_sequencer_registers(intel_dp, false);
 }
 
 void intel_power_sequencer_reset(struct drm_i915_private *dev_priv)
@@ -790,10 +784,10 @@ struct pps_registers {
 	i915_reg_t pp_div;
 };
 
-static void intel_pps_get_registers(struct drm_i915_private *dev_priv,
-				    struct intel_dp *intel_dp,
+static void intel_pps_get_registers(struct intel_dp *intel_dp,
 				    struct pps_registers *regs)
 {
+	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
 	int pps_idx = 0;
 
 	memset(regs, 0, sizeof(*regs));
@@ -816,8 +810,7 @@ _pp_ctrl_reg(struct intel_dp *intel_dp)
 {
 	struct pps_registers regs;
 
-	intel_pps_get_registers(to_i915(intel_dp_to_dev(intel_dp)), intel_dp,
-				&regs);
+	intel_pps_get_registers(intel_dp, &regs);
 
 	return regs.pp_ctrl;
 }
@@ -827,8 +820,7 @@ _pp_stat_reg(struct intel_dp *intel_dp)
 {
 	struct pps_registers regs;
 
-	intel_pps_get_registers(to_i915(intel_dp_to_dev(intel_dp)), intel_dp,
-				&regs);
+	intel_pps_get_registers(intel_dp, &regs);
 
 	return regs.pp_stat;
 }
@@ -1947,8 +1939,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 #define IDLE_CYCLE_MASK		(PP_ON | PP_SEQUENCE_MASK | PP_CYCLE_DELAY_ACTIVE | PP_SEQUENCE_STATE_MASK)
 #define IDLE_CYCLE_VALUE	(0     | PP_SEQUENCE_NONE | 0                     | PP_SEQUENCE_STATE_OFF_IDLE)
 
-static void intel_pps_verify_state(struct drm_i915_private *dev_priv,
-				   struct intel_dp *intel_dp);
+static void intel_pps_verify_state(struct intel_dp *intel_dp);
 
 static void wait_panel_status(struct intel_dp *intel_dp,
 				       u32 mask,
@@ -1960,7 +1951,7 @@ static void wait_panel_status(struct intel_dp *intel_dp,
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
-	intel_pps_verify_state(dev_priv, intel_dp);
+	intel_pps_verify_state(intel_dp);
 
 	pp_stat_reg = _pp_stat_reg(intel_dp);
 	pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
@@ -3009,15 +3000,14 @@ static void vlv_detach_power_sequencer(struct intel_dp *intel_dp)
 	intel_dp->pps_pipe = INVALID_PIPE;
 }
 
-static void vlv_steal_power_sequencer(struct drm_device *dev,
+static void vlv_steal_power_sequencer(struct drm_i915_private *dev_priv,
 				      enum pipe pipe)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_encoder *encoder;
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
-	for_each_intel_encoder(dev, encoder) {
+	for_each_intel_encoder(&dev_priv->drm, encoder) {
 		struct intel_dp *intel_dp;
 		enum port port;
 
@@ -3046,9 +3036,8 @@ static void vlv_steal_power_sequencer(struct drm_device *dev,
 static void vlv_init_panel_power_sequencer(struct intel_encoder *encoder,
 					   const struct intel_crtc_state *crtc_state)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
@@ -3069,7 +3058,7 @@ static void vlv_init_panel_power_sequencer(struct intel_encoder *encoder,
 	 * We may be stealing the power
 	 * sequencer from another port.
 	 */
-	vlv_steal_power_sequencer(dev, crtc->pipe);
+	vlv_steal_power_sequencer(dev_priv, crtc->pipe);
 
 	intel_dp->active_pipe = crtc->pipe;
 
@@ -3083,8 +3072,8 @@ static void vlv_init_panel_power_sequencer(struct intel_encoder *encoder,
 		      pipe_name(intel_dp->pps_pipe), port_name(encoder->port));
 
 	/* init power sequencer on this pipe and port */
-	intel_dp_init_panel_power_sequencer(dev, intel_dp);
-	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp, true);
+	intel_dp_init_panel_power_sequencer(intel_dp);
+	intel_dp_init_panel_power_sequencer_registers(intel_dp, true);
 }
 
 static void vlv_pre_enable_dp(struct intel_encoder *encoder,
@@ -5062,7 +5051,7 @@ void intel_dp_encoder_reset(struct drm_encoder *encoder)
 
 	if (intel_dp_is_edp(intel_dp)) {
 		/* Reinit the power sequencer, in case BIOS did something with it. */
-		intel_dp_pps_init(encoder->dev, intel_dp);
+		intel_dp_pps_init(intel_dp);
 		intel_edp_panel_vdd_sanitize(intel_dp);
 	}
 
@@ -5202,13 +5191,13 @@ static void intel_dp_init_panel_power_timestamps(struct intel_dp *intel_dp)
 }
 
 static void
-intel_pps_readout_hw_state(struct drm_i915_private *dev_priv,
-			   struct intel_dp *intel_dp, struct edp_power_seq *seq)
+intel_pps_readout_hw_state(struct intel_dp *intel_dp, struct edp_power_seq *seq)
 {
+	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
 	u32 pp_on, pp_off, pp_div = 0, pp_ctl = 0;
 	struct pps_registers regs;
 
-	intel_pps_get_registers(dev_priv, intel_dp, &regs);
+	intel_pps_get_registers(intel_dp, &regs);
 
 	/* Workaround: Need to write PP_CONTROL with the unlock key as
 	 * the very first thing. */
@@ -5252,13 +5241,12 @@ intel_pps_dump_state(const char *state_name, const struct edp_power_seq *seq)
 }
 
 static void
-intel_pps_verify_state(struct drm_i915_private *dev_priv,
-		       struct intel_dp *intel_dp)
+intel_pps_verify_state(struct intel_dp *intel_dp)
 {
 	struct edp_power_seq hw;
 	struct edp_power_seq *sw = &intel_dp->pps_delays;
 
-	intel_pps_readout_hw_state(dev_priv, intel_dp, &hw);
+	intel_pps_readout_hw_state(intel_dp, &hw);
 
 	if (hw.t1_t3 != sw->t1_t3 || hw.t8 != sw->t8 || hw.t9 != sw->t9 ||
 	    hw.t10 != sw->t10 || hw.t11_t12 != sw->t11_t12) {
@@ -5269,10 +5257,9 @@ intel_pps_verify_state(struct drm_i915_private *dev_priv,
 }
 
 static void
-intel_dp_init_panel_power_sequencer(struct drm_device *dev,
-				    struct intel_dp *intel_dp)
+intel_dp_init_panel_power_sequencer(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
 	struct edp_power_seq cur, vbt, spec,
 		*final = &intel_dp->pps_delays;
 
@@ -5282,7 +5269,7 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 	if (final->t11_t12 != 0)
 		return;
 
-	intel_pps_readout_hw_state(dev_priv, intel_dp, &cur);
+	intel_pps_readout_hw_state(intel_dp, &cur);
 
 	intel_pps_dump_state("cur", &cur);
 
@@ -5356,11 +5343,10 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 }
 
 static void
-intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
-					      struct intel_dp *intel_dp,
+intel_dp_init_panel_power_sequencer_registers(struct intel_dp *intel_dp,
 					      bool force_disable_vdd)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
 	u32 pp_on, pp_off, pp_div, port_sel = 0;
 	int div = dev_priv->rawclk_freq / 1000;
 	struct pps_registers regs;
@@ -5369,7 +5355,7 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
-	intel_pps_get_registers(dev_priv, intel_dp, &regs);
+	intel_pps_get_registers(intel_dp, &regs);
 
 	/*
 	 * On some VLV machines the BIOS can leave the VDD
@@ -5441,16 +5427,15 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 		      I915_READ(regs.pp_div));
 }
 
-static void intel_dp_pps_init(struct drm_device *dev,
-			      struct intel_dp *intel_dp)
+static void intel_dp_pps_init(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		vlv_initial_power_sequencer_setup(intel_dp);
 	} else {
-		intel_dp_init_panel_power_sequencer(dev, intel_dp);
-		intel_dp_init_panel_power_sequencer_registers(dev, intel_dp, false);
+		intel_dp_init_panel_power_sequencer(intel_dp);
+		intel_dp_init_panel_power_sequencer_registers(intel_dp, false);
 	}
 }
 
@@ -5864,7 +5849,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	pps_lock(intel_dp);
 
 	intel_dp_init_panel_power_timestamps(intel_dp);
-	intel_dp_pps_init(dev, intel_dp);
+	intel_dp_pps_init(intel_dp);
 	intel_edp_panel_vdd_sanitize(intel_dp);
 
 	pps_unlock(intel_dp);
