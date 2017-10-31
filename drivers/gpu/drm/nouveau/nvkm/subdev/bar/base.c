@@ -74,7 +74,6 @@ nvkm_bar_fini(struct nvkm_subdev *subdev, bool suspend)
 {
 	struct nvkm_bar *bar = nvkm_bar(subdev);
 	bar->func->bar1.fini(bar);
-	nvkm_bar_bar2_fini(subdev->device);
 	return 0;
 }
 
@@ -101,6 +100,7 @@ static void *
 nvkm_bar_dtor(struct nvkm_subdev *subdev)
 {
 	struct nvkm_bar *bar = nvkm_bar(subdev);
+	nvkm_bar_bar2_fini(subdev->device);
 	return bar->func->dtor(bar);
 }
 

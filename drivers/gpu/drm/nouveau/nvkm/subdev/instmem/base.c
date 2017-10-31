@@ -46,15 +46,20 @@ nvkm_instobj_save(struct nvkm_instobj *iobj)
 {
 	struct nvkm_memory *memory = &iobj->memory;
 	const u64 size = nvkm_memory_size(memory);
+	void __iomem *map;
 	int i;
 
 	iobj->suspend = kvmalloc(size, GFP_KERNEL);
 	if (!iobj->suspend)
 		return -ENOMEM;
 
-	for (i = 0; i < size; i += 4)
-		iobj->suspend[i / 4] = nvkm_ro32(memory, i);
-
+	if (!(map = nvkm_kmap(memory))) {
+		for (i = 0; i < size; i += 4)
+			iobj->suspend[i / 4] = nvkm_ro32(memory, i);
+	} else {
+		memcpy_fromio(iobj->suspend, map, size);
+	}
+	nvkm_done(memory);
 	return 0;
 }
 
@@ -156,6 +161,8 @@ nvkm_instmem_fini(struct nvkm_subdev *subdev, bool suspend)
 			if (ret)
 				return ret;
 		}
+
+		nvkm_bar_bar2_fini(subdev->device);
 
 		list_for_each_entry(iobj, &imem->boot, head) {
 			int ret = nvkm_instobj_save(iobj);
