@@ -19,6 +19,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+#include "mem.h"
 #include "vmm.h"
 
 #include <nvif/class.h>
@@ -28,6 +29,7 @@ g84_mmu = {
 	.limit = (1ULL << 40),
 	.dma_bits = 40,
 	.lpg_shift = 16,
+	.mem = {{ -1,  0, NVIF_CLASS_MEM_NV50}, nv50_mem_new, nv50_mem_map },
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_NV50}, nv50_vmm_new, false, 0x0200 },
 	.kind = nv50_mmu_kind,
 	.kind_sys = true,

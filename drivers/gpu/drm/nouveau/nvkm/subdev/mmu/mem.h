@@ -10,4 +10,9 @@ int nv04_mem_new(struct nvkm_mmu *, int, u8, u64, void *, u32,
 		 struct nvkm_memory **);
 int nv04_mem_map(struct nvkm_mmu *, struct nvkm_memory *, void *, u32,
 		 u64 *, u64 *, struct nvkm_vma **);
+
+int nv50_mem_new(struct nvkm_mmu *, int, u8, u64, void *, u32,
+		 struct nvkm_memory **);
+int nv50_mem_map(struct nvkm_mmu *, struct nvkm_memory *, void *, u32,
+		 u64 *, u64 *, struct nvkm_vma **);
 #endif
