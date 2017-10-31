@@ -611,7 +611,8 @@ static int ppc_core_imc_cpu_online(unsigned int cpu)
 
 static int ppc_core_imc_cpu_offline(unsigned int cpu)
 {
-	unsigned int ncpu, core_id;
+	unsigned int core_id;
+	int ncpu;
 	struct imc_pmu_ref *ref;
 
 	/*
