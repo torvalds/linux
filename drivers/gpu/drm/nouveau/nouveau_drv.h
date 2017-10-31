@@ -97,6 +97,8 @@ struct nouveau_cli {
 	struct list_head objects;
 	struct list_head notifys;
 	char name[32];
+
+	struct mutex lock;
 };
 
 static inline struct nouveau_cli *
@@ -109,6 +111,7 @@ nouveau_cli(struct drm_file *fpriv)
 #include <nvif/device.h>
 
 struct nouveau_drm {
+	struct nouveau_cli master;
 	struct nouveau_cli client;
 	struct drm_device *dev;
 

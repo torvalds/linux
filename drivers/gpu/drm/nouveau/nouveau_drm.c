@@ -117,7 +117,9 @@ nouveau_cli_fini(struct nouveau_cli *cli)
 	nvkm_vm_ref(NULL, &nvxx_client(&cli->base)->vm, NULL);
 	usif_client_fini(cli);
 	nvif_device_fini(&cli->device);
+	mutex_lock(&cli->drm->master.lock);
 	nvif_client_fini(&cli->base);
+	mutex_unlock(&cli->drm->master.lock);
 }
 
 static int
@@ -132,12 +134,16 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 	mutex_init(&cli->mutex);
 	usif_client_init(cli);
 
-	if (cli == &drm->client) {
+	mutex_init(&cli->lock);
+
+	if (cli == &drm->master) {
 		ret = nvif_driver_init(NULL, nouveau_config, nouveau_debug,
 				       cli->name, device, &cli->base);
 	} else {
-		ret = nvif_client_init(&drm->client.base, cli->name, device,
+		mutex_lock(&drm->master.lock);
+		ret = nvif_client_init(&drm->master.base, cli->name, device,
 				       &cli->base);
+		mutex_unlock(&drm->master.lock);
 	}
 	if (ret) {
 		NV_ERROR(drm, "Client allocation failed: %d\n", ret);
@@ -433,6 +439,10 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = drm;
 	drm->dev = dev;
 
+	ret = nouveau_cli_init(drm, "DRM-master", &drm->master);
+	if (ret)
+		return ret;
+
 	ret = nouveau_cli_init(drm, "DRM", &drm->client);
 	if (ret)
 		return ret;
@@ -518,6 +528,7 @@ fail_ttm:
 	nouveau_vga_fini(drm);
 fail_device:
 	nouveau_cli_fini(&drm->client);
+	nouveau_cli_fini(&drm->master);
 	kfree(drm);
 	return ret;
 }
@@ -550,6 +561,7 @@ nouveau_drm_unload(struct drm_device *dev)
 	if (drm->hdmi_device)
 		pci_dev_put(drm->hdmi_device);
 	nouveau_cli_fini(&drm->client);
+	nouveau_cli_fini(&drm->master);
 	kfree(drm);
 }
 
@@ -618,7 +630,7 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 	}
 
 	NV_DEBUG(drm, "suspending object tree...\n");
-	ret = nvif_client_suspend(&drm->client.base);
+	ret = nvif_client_suspend(&drm->master.base);
 	if (ret)
 		goto fail_client;
 
@@ -642,7 +654,7 @@ nouveau_do_resume(struct drm_device *dev, bool runtime)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	NV_DEBUG(drm, "resuming object tree...\n");
-	nvif_client_resume(&drm->client.base);
+	nvif_client_resume(&drm->master.base);
 
 	NV_DEBUG(drm, "resuming fence...\n");
 	if (drm->fence && nouveau_fence(drm)->resume)
