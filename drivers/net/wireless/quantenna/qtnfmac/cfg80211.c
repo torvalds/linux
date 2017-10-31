@@ -925,6 +925,8 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	wiphy->available_antennas_rx = mac->macinfo.num_rx_chain;
 
 	wiphy->max_ap_assoc_sta = mac->macinfo.max_ap_assoc_sta;
+	wiphy->ht_capa_mod_mask = &mac->macinfo.ht_cap_mod_mask;
+	wiphy->vht_capa_mod_mask = &mac->macinfo.vht_cap_mod_mask;
 
 	ether_addr_copy(wiphy->perm_addr, mac->macaddr);
 

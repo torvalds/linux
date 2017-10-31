@@ -636,8 +636,8 @@ struct qlink_resp {
  *	specified WMAC).
  * @num_tx_chain: Number of transmit chains used by WMAC.
  * @num_rx_chain: Number of receive chains used by WMAC.
- * @vht_cap: VHT capabilities.
- * @ht_cap: HT capabilities.
+ * @vht_cap_mod_mask: mask specifying which VHT capabilities can be altered.
+ * @ht_cap_mod_mask: mask specifying which HT capabilities can be altered.
  * @bands_cap: wireless bands WMAC can operate in, bitmap of &enum qlink_band.
  * @phymode_cap: PHY modes WMAC can operate in, bitmap of &enum qlink_phy_mode.
  * @max_ap_assoc_sta: Maximum number of associations supported by WMAC.
@@ -649,8 +649,8 @@ struct qlink_resp_get_mac_info {
 	u8 dev_mac[ETH_ALEN];
 	u8 num_tx_chain;
 	u8 num_rx_chain;
-	struct ieee80211_vht_cap vht_cap;
-	struct ieee80211_ht_cap ht_cap;
+	struct ieee80211_vht_cap vht_cap_mod_mask;
+	struct ieee80211_ht_cap ht_cap_mod_mask;
 	u8 bands_cap;
 	u8 phymode_cap;
 	__le16 max_ap_assoc_sta;

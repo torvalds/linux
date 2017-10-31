@@ -1110,9 +1110,10 @@ qtnf_cmd_resp_proc_mac_info(struct qtnf_wmac *mac,
 			qlink_chan_width_mask_to_nl(le16_to_cpu(
 					resp_info->radar_detect_widths));
 
-	memcpy(&mac_info->ht_cap, &resp_info->ht_cap, sizeof(mac_info->ht_cap));
-	memcpy(&mac_info->vht_cap, &resp_info->vht_cap,
-	       sizeof(mac_info->vht_cap));
+	memcpy(&mac_info->ht_cap_mod_mask, &resp_info->ht_cap_mod_mask,
+	       sizeof(mac_info->ht_cap_mod_mask));
+	memcpy(&mac_info->vht_cap_mod_mask, &resp_info->vht_cap_mod_mask,
+	       sizeof(mac_info->vht_cap_mod_mask));
 }
 
 static void qtnf_cmd_resp_band_fill_htcap(const u8 *info,

@@ -103,8 +103,8 @@ struct qtnf_mac_info {
 	u8 sretry_limit;
 	u8 coverage_class;
 	u8 radar_detect_widths;
-	struct ieee80211_ht_cap ht_cap;
-	struct ieee80211_vht_cap vht_cap;
+	struct ieee80211_ht_cap ht_cap_mod_mask;
+	struct ieee80211_vht_cap vht_cap_mod_mask;
 	struct ieee80211_iface_limit *limits;
 	size_t n_limits;
 };
