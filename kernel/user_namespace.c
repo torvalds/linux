@@ -683,11 +683,13 @@ static void *m_start(struct seq_file *seq, loff_t *ppos,
 		     struct uid_gid_map *map)
 {
 	loff_t pos = *ppos;
+	unsigned extents = map->nr_extents;
+	smp_rmb();
 
-	if (pos >= map->nr_extents)
+	if (pos >= extents)
 		return NULL;
 
-	if (map->nr_extents <= UID_GID_MAP_MAX_BASE_EXTENTS)
+	if (extents <= UID_GID_MAP_MAX_BASE_EXTENTS)
 		return &map->extent[pos];
 
 	return &map->forward[pos];
