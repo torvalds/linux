@@ -196,9 +196,11 @@ nv50_instobj_acquire(struct nvkm_memory *memory)
 	}
 
 	/* Attempt to get a direct CPU mapping of the object. */
-	if (!iobj->map && (vmm = nvkm_bar_bar2_vmm(imem->subdev.device)))
-		nv50_instobj_kmap(iobj, vmm);
-	map = iobj->map;
+	if ((vmm = nvkm_bar_bar2_vmm(imem->subdev.device))) {
+		if (!iobj->map)
+			nv50_instobj_kmap(iobj, vmm);
+		map = iobj->map;
+	}
 
 	if (!refcount_inc_not_zero(&iobj->maps)) {
 		if (map)
