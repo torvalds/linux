@@ -59,7 +59,7 @@ void *
 nv20_gr_chan_dtor(struct nvkm_object *object)
 {
 	struct nv20_gr_chan *chan = nv20_gr_chan(object);
-	nvkm_memory_del(&chan->inst);
+	nvkm_memory_unref(&chan->inst);
 	return chan;
 }
 
@@ -323,7 +323,7 @@ void *
 nv20_gr_dtor(struct nvkm_gr *base)
 {
 	struct nv20_gr *gr = nv20_gr(base);
-	nvkm_memory_del(&gr->ctxtab);
+	nvkm_memory_unref(&gr->ctxtab);
 	return gr;
 }
 

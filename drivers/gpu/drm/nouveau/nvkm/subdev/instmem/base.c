@@ -120,7 +120,7 @@ nvkm_instobj_new(struct nvkm_instmem *imem, u32 size, u32 align, bool zero,
 
 done:
 	if (ret)
-		nvkm_memory_del(&memory);
+		nvkm_memory_unref(&memory);
 	*pmemory = memory;
 	return ret;
 }

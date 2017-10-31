@@ -354,14 +354,14 @@ gf100_gr_chan_dtor(struct nvkm_object *object)
 			nvkm_vm_unmap(&chan->data[i].vma);
 			nvkm_vm_put(&chan->data[i].vma);
 		}
-		nvkm_memory_del(&chan->data[i].mem);
+		nvkm_memory_unref(&chan->data[i].mem);
 	}
 
 	if (chan->mmio_vma.node) {
 		nvkm_vm_unmap(&chan->mmio_vma);
 		nvkm_vm_put(&chan->mmio_vma);
 	}
-	nvkm_memory_del(&chan->mmio);
+	nvkm_memory_unref(&chan->mmio);
 	return chan;
 }
 

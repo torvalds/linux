@@ -1380,7 +1380,7 @@ gf100_grctx_generate(struct gf100_gr *gr)
 	}
 
 done:
-	nvkm_memory_del(&chan);
+	nvkm_memory_unref(&chan);
 	return ret;
 }
 

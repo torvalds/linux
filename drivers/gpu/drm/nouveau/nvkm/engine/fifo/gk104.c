@@ -880,11 +880,11 @@ gk104_fifo_dtor(struct nvkm_fifo *base)
 	int i;
 
 	nvkm_vm_put(&fifo->user.bar);
-	nvkm_memory_del(&fifo->user.mem);
+	nvkm_memory_unref(&fifo->user.mem);
 
 	for (i = 0; i < fifo->runlist_nr; i++) {
-		nvkm_memory_del(&fifo->runlist[i].mem[1]);
-		nvkm_memory_del(&fifo->runlist[i].mem[0]);
+		nvkm_memory_unref(&fifo->runlist[i].mem[1]);
+		nvkm_memory_unref(&fifo->runlist[i].mem[0]);
 	}
 
 	return fifo;

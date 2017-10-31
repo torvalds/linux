@@ -20,6 +20,7 @@ enum nvkm_memory_target {
 struct nvkm_memory {
 	const struct nvkm_memory_func *func;
 	const struct nvkm_memory_ptrs *ptrs;
+	struct kref kref;
 	struct nvkm_tags *tags;
 };
 
@@ -44,7 +45,8 @@ struct nvkm_memory_ptrs {
 void nvkm_memory_ctor(const struct nvkm_memory_func *, struct nvkm_memory *);
 int nvkm_memory_new(struct nvkm_device *, enum nvkm_memory_target,
 		    u64 size, u32 align, bool zero, struct nvkm_memory **);
-void nvkm_memory_del(struct nvkm_memory **);
+struct nvkm_memory *nvkm_memory_ref(struct nvkm_memory *);
+void nvkm_memory_unref(struct nvkm_memory **);
 int nvkm_memory_tags_get(struct nvkm_memory *, struct nvkm_device *, u32 tags,
 			 void (*clear)(struct nvkm_device *, u32, u32),
 			 struct nvkm_tags **);

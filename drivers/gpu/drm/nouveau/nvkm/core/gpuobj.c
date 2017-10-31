@@ -219,7 +219,7 @@ nvkm_gpuobj_del(struct nvkm_gpuobj **pgpuobj)
 		if (gpuobj->parent)
 			nvkm_mm_free(&gpuobj->parent->heap, &gpuobj->node);
 		nvkm_mm_fini(&gpuobj->heap);
-		nvkm_memory_del(&gpuobj->memory);
+		nvkm_memory_unref(&gpuobj->memory);
 		kfree(*pgpuobj);
 		*pgpuobj = NULL;
 	}

@@ -163,8 +163,8 @@ nvkm_fb_dtor(struct nvkm_subdev *subdev)
 	struct nvkm_fb *fb = nvkm_fb(subdev);
 	int i;
 
-	nvkm_memory_del(&fb->mmu_wr);
-	nvkm_memory_del(&fb->mmu_rd);
+	nvkm_memory_unref(&fb->mmu_wr);
+	nvkm_memory_unref(&fb->mmu_rd);
 
 	for (i = 0; i < fb->tile.regions; i++)
 		fb->func->tile.fini(fb, i, &fb->tile.region[i]);

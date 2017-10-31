@@ -100,18 +100,36 @@ nvkm_memory_ctor(const struct nvkm_memory_func *func,
 		 struct nvkm_memory *memory)
 {
 	memory->func = func;
+	kref_init(&memory->kref);
+}
+
+static void
+nvkm_memory_del(struct kref *kref)
+{
+	struct nvkm_memory *memory = container_of(kref, typeof(*memory), kref);
+	if (!WARN_ON(!memory->func)) {
+		if (memory->func->dtor)
+			memory = memory->func->dtor(memory);
+		kfree(memory);
+	}
 }
 
 void
-nvkm_memory_del(struct nvkm_memory **pmemory)
+nvkm_memory_unref(struct nvkm_memory **pmemory)
 {
 	struct nvkm_memory *memory = *pmemory;
-	if (memory && !WARN_ON(!memory->func)) {
-		if (memory->func->dtor)
-			*pmemory = memory->func->dtor(memory);
-		kfree(*pmemory);
+	if (memory) {
+		kref_put(&memory->kref, nvkm_memory_del);
 		*pmemory = NULL;
 	}
+}
+
+struct nvkm_memory *
+nvkm_memory_ref(struct nvkm_memory *memory)
+{
+	if (memory)
+		kref_get(&memory->kref);
+	return memory;
 }
 
 int

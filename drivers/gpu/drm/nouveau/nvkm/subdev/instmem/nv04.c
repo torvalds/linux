@@ -199,10 +199,10 @@ static void *
 nv04_instmem_dtor(struct nvkm_instmem *base)
 {
 	struct nv04_instmem *imem = nv04_instmem(base);
-	nvkm_memory_del(&imem->base.ramfc);
-	nvkm_memory_del(&imem->base.ramro);
+	nvkm_memory_unref(&imem->base.ramfc);
+	nvkm_memory_unref(&imem->base.ramro);
 	nvkm_ramht_del(&imem->base.ramht);
-	nvkm_memory_del(&imem->base.vbios);
+	nvkm_memory_unref(&imem->base.vbios);
 	nvkm_mm_fini(&imem->heap);
 	return imem;
 }

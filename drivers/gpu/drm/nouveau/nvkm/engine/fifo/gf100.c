@@ -642,9 +642,9 @@ gf100_fifo_dtor(struct nvkm_fifo *base)
 {
 	struct gf100_fifo *fifo = gf100_fifo(base);
 	nvkm_vm_put(&fifo->user.bar);
-	nvkm_memory_del(&fifo->user.mem);
-	nvkm_memory_del(&fifo->runlist.mem[0]);
-	nvkm_memory_del(&fifo->runlist.mem[1]);
+	nvkm_memory_unref(&fifo->user.mem);
+	nvkm_memory_unref(&fifo->runlist.mem[0]);
+	nvkm_memory_unref(&fifo->runlist.mem[1]);
 	return fifo;
 }
 
