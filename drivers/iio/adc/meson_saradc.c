@@ -96,8 +96,8 @@
 	#define MESON_SAR_ADC_FIFO_RD_SAMPLE_VALUE_MASK		GENMASK(11, 0)
 
 #define MESON_SAR_ADC_AUX_SW					0x1c
-	#define MESON_SAR_ADC_AUX_SW_MUX_SEL_CHAN_MASK(_chan)	\
-					(GENMASK(10, 8) << (((_chan) - 2) * 2))
+	#define MESON_SAR_ADC_AUX_SW_MUX_SEL_CHAN_SHIFT(_chan)	\
+					(8 + (((_chan) - 2) * 3))
 	#define MESON_SAR_ADC_AUX_SW_VREF_P_MUX			BIT(6)
 	#define MESON_SAR_ADC_AUX_SW_VREF_N_MUX			BIT(5)
 	#define MESON_SAR_ADC_AUX_SW_MODE_SEL			BIT(4)
@@ -622,7 +622,7 @@ static int meson_sar_adc_clk_init(struct iio_dev *indio_dev,
 static int meson_sar_adc_init(struct iio_dev *indio_dev)
 {
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
-	int regval, ret;
+	int regval, i, ret;
 
 	/*
 	 * make sure we start at CH7 input since the other muxes are only used
@@ -676,6 +676,32 @@ static int meson_sar_adc_init(struct iio_dev *indio_dev)
 			   MESON_SAR_ADC_DELAY_INPUT_DLY_SEL_MASK,
 			   FIELD_PREP(MESON_SAR_ADC_DELAY_INPUT_DLY_SEL_MASK,
 				      1));
+
+	/*
+	 * set up the input channel muxes in MESON_SAR_ADC_CHAN_10_SW
+	 * (0 = SAR_ADC_CH0, 1 = SAR_ADC_CH1)
+	 */
+	regval = FIELD_PREP(MESON_SAR_ADC_CHAN_10_SW_CHAN0_MUX_SEL_MASK, 0);
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_CHAN_10_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN0_MUX_SEL_MASK,
+			   regval);
+	regval = FIELD_PREP(MESON_SAR_ADC_CHAN_10_SW_CHAN1_MUX_SEL_MASK, 1);
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_CHAN_10_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN1_MUX_SEL_MASK,
+			   regval);
+
+	/*
+	 * set up the input channel muxes in MESON_SAR_ADC_AUX_SW
+	 * (2 = SAR_ADC_CH2, 3 = SAR_ADC_CH3, ...) and enable
+	 * MESON_SAR_ADC_AUX_SW_YP_DRIVE_SW and
+	 * MESON_SAR_ADC_AUX_SW_XP_DRIVE_SW like the vendor driver.
+	 */
+	regval = 0;
+	for (i = 2; i <= 7; i++)
+		regval |= i << MESON_SAR_ADC_AUX_SW_MUX_SEL_CHAN_SHIFT(i);
+	regval |= MESON_SAR_ADC_AUX_SW_YP_DRIVE_SW;
+	regval |= MESON_SAR_ADC_AUX_SW_XP_DRIVE_SW;
+	regmap_write(priv->regmap, MESON_SAR_ADC_AUX_SW, regval);
 
 	ret = clk_set_parent(priv->adc_sel_clk, priv->clkin);
 	if (ret) {
