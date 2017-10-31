@@ -1414,8 +1414,11 @@ void dc_commit_updates_for_stream(struct dc *dc,
 		/* TODO: On flip we don't build the state, so it still has the
 		 * old address. Which is why we are updating the address here
 		 */
-		if (srf_updates[i].flip_addr)
+		if (srf_updates[i].flip_addr) {
 			surface->address = srf_updates[i].flip_addr->address;
+			surface->flip_immediate = srf_updates[i].flip_addr->flip_immediate;
+
+		}
 
 		if (update_type >= UPDATE_TYPE_MED) {
 			for (j = 0; j < dc->res_pool->pipe_count; j++) {
