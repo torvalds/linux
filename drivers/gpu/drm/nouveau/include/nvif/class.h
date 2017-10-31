@@ -15,6 +15,7 @@
 #define NVIF_CLASS_SW_GF100                          /* if0005.h */ -0x00000007
 
 #define NVIF_CLASS_MEM                               /* if000a.h */  0x8000000a
+#define NVIF_CLASS_MEM_NV04                          /* if000b.h */  0x8000000b
 
 #define NVIF_CLASS_VMM                               /* if000c.h */  0x8000000c
 #define NVIF_CLASS_VMM_NV04                          /* if000d.h */  0x8000000d
