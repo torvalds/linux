@@ -252,13 +252,12 @@ qtnf_event_handle_scan_results(struct qtnf_vif *vif,
 	struct cfg80211_bss *bss;
 	struct ieee80211_channel *channel;
 	struct wiphy *wiphy = priv_to_wiphy(vif->mac);
-	enum cfg80211_bss_frame_type frame_type;
+	enum cfg80211_bss_frame_type frame_type = CFG80211_BSS_FTYPE_UNKNOWN;
 	size_t payload_len;
 	u16 tlv_type;
 	u16 tlv_value_len;
 	size_t tlv_full_len;
 	const struct qlink_tlv_hdr *tlv;
-
 	const u8 *ies = NULL;
 	size_t ies_len = 0;
 
@@ -273,17 +272,6 @@ qtnf_event_handle_scan_results(struct qtnf_vif *vif,
 		pr_err("VIF%u.%u: channel at %u MHz not found\n",
 		       vif->mac->macid, vif->vifid, le16_to_cpu(sr->freq));
 		return -EINVAL;
-	}
-
-	switch (sr->frame_type) {
-	case QLINK_BSS_FTYPE_BEACON:
-		frame_type = CFG80211_BSS_FTYPE_BEACON;
-		break;
-	case QLINK_BSS_FTYPE_PRESP:
-		frame_type = CFG80211_BSS_FTYPE_PRESP;
-		break;
-	default:
-		frame_type = CFG80211_BSS_FTYPE_UNKNOWN;
 	}
 
 	payload_len = len - sizeof(*sr);
@@ -307,6 +295,17 @@ qtnf_event_handle_scan_results(struct qtnf_vif *vif,
 			ie_set = (const struct qlink_tlv_ie_set *)tlv;
 			ie_len = tlv_value_len -
 				(sizeof(*ie_set) - sizeof(ie_set->hdr));
+
+			switch (ie_set->type) {
+			case QLINK_IE_SET_BEACON_IES:
+				frame_type = CFG80211_BSS_FTYPE_BEACON;
+				break;
+			case QLINK_IE_SET_PROBE_RESP_IES:
+				frame_type = CFG80211_BSS_FTYPE_PRESP;
+				break;
+			default:
+				frame_type = CFG80211_BSS_FTYPE_UNKNOWN;
+			}
 
 			if (ie_len) {
 				ies = ie_set->ie_data;

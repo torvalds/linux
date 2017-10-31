@@ -881,12 +881,6 @@ struct qlink_event_rxmgmt {
 	u8 frame_data[0];
 } __packed;
 
-enum qlink_frame_type {
-	QLINK_BSS_FTYPE_UNKNOWN,
-	QLINK_BSS_FTYPE_BEACON,
-	QLINK_BSS_FTYPE_PRESP,
-};
-
 /**
  * struct qlink_event_scan_result - data for QLINK_EVENT_SCAN_RESULTS event
  *
@@ -896,7 +890,6 @@ enum qlink_frame_type {
  * @capab: capabilities field.
  * @bintval: beacon interval announced by discovered BSS.
  * @signal: signal strength.
- * @frame_type: frame type used to get scan result, see &enum qlink_frame_type.
  * @bssid: BSSID announced by discovered BSS.
  * @ssid_len: length of SSID announced by BSS.
  * @ssid: SSID announced by discovered BSS.
@@ -909,10 +902,10 @@ struct qlink_event_scan_result {
 	__le16 capab;
 	__le16 bintval;
 	s8 signal;
-	u8 frame_type;
-	u8 bssid[ETH_ALEN];
 	u8 ssid_len;
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	u8 bssid[ETH_ALEN];
+	u8 rsvd[2];
 	u8 payload[0];
 } __packed;
 
