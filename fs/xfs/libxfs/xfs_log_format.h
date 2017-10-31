@@ -264,7 +264,7 @@ typedef struct xfs_trans_header {
  * (if any) is indicated in the ilf_dsize field.  Changes to this structure
  * must be added on to the end.
  */
-typedef struct xfs_inode_log_format {
+struct xfs_inode_log_format {
 	uint16_t		ilf_type;	/* inode log item type */
 	uint16_t		ilf_size;	/* size of this item */
 	uint32_t		ilf_fields;	/* flags for fields logged */
@@ -279,7 +279,7 @@ typedef struct xfs_inode_log_format {
 	int64_t			ilf_blkno;	/* blkno of inode buffer */
 	int32_t			ilf_len;	/* len of inode buffer */
 	int32_t			ilf_boffset;	/* off of inode in buffer */
-} xfs_inode_log_format_t;
+};
 
 /*
  * Old 32 bit systems will log in this format without the 64 bit

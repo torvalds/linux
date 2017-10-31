@@ -2985,7 +2985,7 @@ xlog_recover_inode_pass2(
 	struct xlog_recover_item	*item,
 	xfs_lsn_t			current_lsn)
 {
-	xfs_inode_log_format_t	*in_f;
+	struct xfs_inode_log_format	*in_f;
 	xfs_mount_t		*mp = log->l_mp;
 	xfs_buf_t		*bp;
 	xfs_dinode_t		*dip;
@@ -2999,10 +2999,10 @@ xlog_recover_inode_pass2(
 	uint			isize;
 	int			need_free = 0;
 
-	if (item->ri_buf[0].i_len == sizeof(xfs_inode_log_format_t)) {
+	if (item->ri_buf[0].i_len == sizeof(struct xfs_inode_log_format)) {
 		in_f = item->ri_buf[0].i_addr;
 	} else {
-		in_f = kmem_alloc(sizeof(xfs_inode_log_format_t), KM_SLEEP);
+		in_f = kmem_alloc(sizeof(struct xfs_inode_log_format), KM_SLEEP);
 		need_free = 1;
 		error = xfs_inode_item_format_convert(&item->ri_buf[0], in_f);
 		if (error)
@@ -4299,7 +4299,7 @@ xlog_recover_add_to_trans(
 	char			*dp,
 	int			len)
 {
-	xfs_inode_log_format_t	*in_f;			/* any will do */
+	struct xfs_inode_log_format	*in_f;			/* any will do */
 	xlog_recover_item_t	*item;
 	char			*ptr;
 
@@ -4333,7 +4333,7 @@ xlog_recover_add_to_trans(
 
 	ptr = kmem_alloc(len, KM_SLEEP);
 	memcpy(ptr, dp, len);
-	in_f = (xfs_inode_log_format_t *)ptr;
+	in_f = (struct xfs_inode_log_format *)ptr;
 
 	/* take the tail entry */
 	item = list_entry(trans->r_itemq.prev, xlog_recover_item_t, ri_list);
