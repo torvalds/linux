@@ -66,7 +66,7 @@ nvkm_vm_map_at(struct nvkm_vma *vma, u64 delta, struct nvkm_mem *node)
 			delta += (u64)len << vma->node->type;
 		}
 		r = r->next;
-	};
+	}
 
 	mmu->func->flush(vm);
 }

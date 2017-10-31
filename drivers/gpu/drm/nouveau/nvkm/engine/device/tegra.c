@@ -216,7 +216,7 @@ nvkm_device_tegra_fini(struct nvkm_device *device, bool suspend)
 	if (tdev->irq) {
 		free_irq(tdev->irq, tdev);
 		tdev->irq = 0;
-	};
+	}
 }
 
 static int
