@@ -156,6 +156,7 @@ gf100_ltc_oneinit_tag_ram(struct nvkm_ltc *ltc)
 	struct nvkm_device *device = ltc->subdev.device;
 	struct nvkm_fb *fb = device->fb;
 	struct nvkm_ram *ram = fb->ram;
+	u32 bits = (nvkm_rd32(device, 0x100c80) & 0x00001000) ? 16 : 17;
 	u32 tag_size, tag_margin, tag_align;
 	int ret;
 
@@ -167,8 +168,8 @@ gf100_ltc_oneinit_tag_ram(struct nvkm_ltc *ltc)
 
 	/* tags for 1/4 of VRAM should be enough (8192/4 per GiB of VRAM) */
 	ltc->num_tags = (ram->size >> 17) / 4;
-	if (ltc->num_tags > (1 << 17))
-		ltc->num_tags = 1 << 17; /* we have 17 bits in PTE */
+	if (ltc->num_tags > (1 << bits))
+		ltc->num_tags = 1 << bits; /* we have 16/17 bits in PTE */
 	ltc->num_tags = (ltc->num_tags + 63) & ~63; /* round up to 64 */
 
 	tag_align = ltc->ltc_nr * 0x800;
