@@ -118,4 +118,6 @@ struct cec_pin {
 	u32				timer_sum_overrun;
 };
 
+void cec_pin_start_timer(struct cec_pin *pin);
+
 #endif

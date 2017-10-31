@@ -680,6 +680,18 @@ static int cec_pin_adap_log_addr(struct cec_adapter *adap, u8 log_addr)
 	return 0;
 }
 
+void cec_pin_start_timer(struct cec_pin *pin)
+{
+	if (pin->state != CEC_ST_RX_IRQ)
+		return;
+
+	atomic_set(&pin->work_irq_change, CEC_PIN_IRQ_UNCHANGED);
+	pin->ops->disable_irq(pin->adap);
+	cec_pin_high(pin);
+	cec_pin_to_idle(pin);
+	hrtimer_start(&pin->timer, ns_to_ktime(0), HRTIMER_MODE_REL);
+}
+
 static int cec_pin_adap_transmit(struct cec_adapter *adap, u8 attempts,
 				      u32 signal_free_time, struct cec_msg *msg)
 {
@@ -689,14 +701,7 @@ static int cec_pin_adap_transmit(struct cec_adapter *adap, u8 attempts,
 	pin->tx_msg = *msg;
 	pin->work_tx_status = 0;
 	pin->tx_bit = 0;
-	if (pin->state == CEC_ST_RX_IRQ) {
-		atomic_set(&pin->work_irq_change, CEC_PIN_IRQ_UNCHANGED);
-		pin->ops->disable_irq(adap);
-		cec_pin_high(pin);
-		cec_pin_to_idle(pin);
-		hrtimer_start(&pin->timer, ns_to_ktime(0),
-			      HRTIMER_MODE_REL);
-	}
+	cec_pin_start_timer(pin);
 	return 0;
 }
 
