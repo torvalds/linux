@@ -300,7 +300,6 @@ static struct dentry *ovl_check_empty_and_clear(struct dentry *dentry)
 {
 	int err;
 	struct dentry *ret = NULL;
-	enum ovl_path_type type = ovl_path_type(dentry);
 	LIST_HEAD(list);
 
 	err = ovl_check_empty_dir(dentry, &list);
@@ -313,13 +312,13 @@ static struct dentry *ovl_check_empty_and_clear(struct dentry *dentry)
 	 * When removing an empty opaque directory, then it makes no sense to
 	 * replace it with an exact replica of itself.
 	 *
-	 * If no upperdentry then skip clearing whiteouts.
+	 * If upperdentry has whiteouts, clear them.
 	 *
 	 * Can race with copy-up, since we don't hold the upperdir mutex.
 	 * Doesn't matter, since copy-up can't create a non-empty directory
 	 * from an empty one.
 	 */
-	if (OVL_TYPE_UPPER(type) && OVL_TYPE_MERGE(type))
+	if (!list_empty(&list))
 		ret = ovl_clear_empty(dentry, &list);
 
 out_free:
