@@ -393,7 +393,7 @@ int sctp_send_add_streams(struct sctp_association *asoc,
 {
 	struct sctp_stream *stream = &asoc->stream;
 	struct sctp_chunk *chunk = NULL;
-	int retval = -ENOMEM;
+	int retval;
 	__u32 outcnt, incnt;
 	__u16 out, in;
 
@@ -425,8 +425,10 @@ int sctp_send_add_streams(struct sctp_association *asoc,
 	}
 
 	chunk = sctp_make_strreset_addstrm(asoc, out, in);
-	if (!chunk)
+	if (!chunk) {
+		retval = -ENOMEM;
 		goto out;
+	}
 
 	asoc->strreset_chunk = chunk;
 	sctp_chunk_hold(asoc->strreset_chunk);
