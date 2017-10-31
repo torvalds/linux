@@ -174,14 +174,20 @@ int
 nvkm_instobj_new(struct nvkm_instmem *imem, u32 size, u32 align, bool zero,
 		 struct nvkm_memory **pmemory)
 {
+	struct nvkm_subdev *subdev = &imem->subdev;
 	struct nvkm_memory *memory = NULL;
 	struct nvkm_instobj *iobj;
 	u32 offset;
 	int ret;
 
 	ret = imem->func->memory_new(imem, size, align, zero, &memory);
-	if (ret)
+	if (ret) {
+		nvkm_error(subdev, "OOM: %08x %08x %d\n", size, align, ret);
 		goto done;
+	}
+
+	nvkm_trace(subdev, "new %08x %08x %d: %010llx %010llx\n", size, align,
+		   zero, nvkm_memory_addr(memory), nvkm_memory_size(memory));
 
 	if (!imem->func->persistent) {
 		if (!(iobj = kzalloc(sizeof(*iobj), GFP_KERNEL))) {
