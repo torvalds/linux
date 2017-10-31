@@ -2781,7 +2781,7 @@ static void chv_post_disable_dp(struct intel_encoder *encoder,
 	mutex_lock(&dev_priv->sb_lock);
 
 	/* Assert data lane reset */
-	chv_data_lane_soft_reset(encoder, true);
+	chv_data_lane_soft_reset(encoder, old_crtc_state, true);
 
 	mutex_unlock(&dev_priv->sb_lock);
 }
@@ -3091,7 +3091,7 @@ static void vlv_pre_enable_dp(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config,
 			      const struct drm_connector_state *conn_state)
 {
-	vlv_phy_pre_encoder_enable(encoder);
+	vlv_phy_pre_encoder_enable(encoder, pipe_config);
 
 	intel_enable_dp(encoder, pipe_config, conn_state);
 }
@@ -3102,14 +3102,14 @@ static void vlv_dp_pre_pll_enable(struct intel_encoder *encoder,
 {
 	intel_dp_prepare(encoder, pipe_config);
 
-	vlv_phy_pre_pll_enable(encoder);
+	vlv_phy_pre_pll_enable(encoder, pipe_config);
 }
 
 static void chv_pre_enable_dp(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config,
 			      const struct drm_connector_state *conn_state)
 {
-	chv_phy_pre_encoder_enable(encoder);
+	chv_phy_pre_encoder_enable(encoder, pipe_config);
 
 	intel_enable_dp(encoder, pipe_config, conn_state);
 
@@ -3123,14 +3123,14 @@ static void chv_dp_pre_pll_enable(struct intel_encoder *encoder,
 {
 	intel_dp_prepare(encoder, pipe_config);
 
-	chv_phy_pre_pll_enable(encoder);
+	chv_phy_pre_pll_enable(encoder, pipe_config);
 }
 
 static void chv_dp_post_pll_disable(struct intel_encoder *encoder,
-				    const struct intel_crtc_state *pipe_config,
-				    const struct drm_connector_state *conn_state)
+				    const struct intel_crtc_state *old_crtc_state,
+				    const struct drm_connector_state *old_conn_state)
 {
-	chv_phy_post_pll_disable(encoder);
+	chv_phy_post_pll_disable(encoder, old_crtc_state);
 }
 
 /*

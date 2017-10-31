@@ -1683,10 +1683,9 @@ static void vlv_hdmi_pre_enable(struct intel_encoder *encoder,
 				const struct drm_connector_state *conn_state)
 {
 	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	vlv_phy_pre_encoder_enable(encoder);
+	vlv_phy_pre_encoder_enable(encoder, pipe_config);
 
 	/* HDMI 1.0V-2dB */
 	vlv_set_phy_signal_level(encoder, 0x2b245f5f, 0x00002000, 0x5578b83a,
@@ -1707,7 +1706,7 @@ static void vlv_hdmi_pre_pll_enable(struct intel_encoder *encoder,
 {
 	intel_hdmi_prepare(encoder, pipe_config);
 
-	vlv_phy_pre_pll_enable(encoder);
+	vlv_phy_pre_pll_enable(encoder, pipe_config);
 }
 
 static void chv_hdmi_pre_pll_enable(struct intel_encoder *encoder,
@@ -1716,14 +1715,14 @@ static void chv_hdmi_pre_pll_enable(struct intel_encoder *encoder,
 {
 	intel_hdmi_prepare(encoder, pipe_config);
 
-	chv_phy_pre_pll_enable(encoder);
+	chv_phy_pre_pll_enable(encoder, pipe_config);
 }
 
 static void chv_hdmi_post_pll_disable(struct intel_encoder *encoder,
 				      const struct intel_crtc_state *old_crtc_state,
 				      const struct drm_connector_state *old_conn_state)
 {
-	chv_phy_post_pll_disable(encoder);
+	chv_phy_post_pll_disable(encoder, old_crtc_state);
 }
 
 static void vlv_hdmi_post_disable(struct intel_encoder *encoder,
@@ -1731,7 +1730,7 @@ static void vlv_hdmi_post_disable(struct intel_encoder *encoder,
 				  const struct drm_connector_state *old_conn_state)
 {
 	/* Reset lanes to avoid HDMI flicker (VLV w/a) */
-	vlv_phy_reset_lanes(encoder);
+	vlv_phy_reset_lanes(encoder, old_crtc_state);
 }
 
 static void chv_hdmi_post_disable(struct intel_encoder *encoder,
@@ -1744,7 +1743,7 @@ static void chv_hdmi_post_disable(struct intel_encoder *encoder,
 	mutex_lock(&dev_priv->sb_lock);
 
 	/* Assert data lane reset */
-	chv_data_lane_soft_reset(encoder, true);
+	chv_data_lane_soft_reset(encoder, old_crtc_state, true);
 
 	mutex_unlock(&dev_priv->sb_lock);
 }
@@ -1757,7 +1756,7 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	chv_phy_pre_encoder_enable(encoder);
+	chv_phy_pre_encoder_enable(encoder, pipe_config);
 
 	/* FIXME: Program the support xxx V-dB */
 	/* Use 800mV-0dB */
