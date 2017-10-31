@@ -271,26 +271,11 @@ static int qtnf_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 	int ret;
 
-	ret = qtnf_cmd_send_config_ap(vif, settings);
-	if (ret) {
-		pr_err("VIF%u.%u: failed to push config to FW\n",
-		       vif->mac->macid, vif->vifid);
-		goto out;
-	}
-
-	ret = qtnf_mgmt_set_appie(vif, &settings->beacon);
-	if (ret) {
-		pr_err("VIF%u.%u: failed to add IEs to beacon\n",
-		       vif->mac->macid, vif->vifid);
-		goto out;
-	}
-
-	ret = qtnf_cmd_send_start_ap(vif);
+	ret = qtnf_cmd_send_start_ap(vif, settings);
 	if (ret)
 		pr_err("VIF%u.%u: failed to start AP\n", vif->mac->macid,
 		       vif->vifid);
 
-out:
 	return ret;
 }
 

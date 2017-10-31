@@ -162,56 +162,51 @@ static void qtnf_cmd_tlv_ie_set_add(struct sk_buff *cmd_skb, u8 frame_type,
 		memcpy(tlv->ie_data, buf, len);
 }
 
-int qtnf_cmd_send_start_ap(struct qtnf_vif *vif)
+static bool qtnf_cmd_start_ap_can_fit(const struct qtnf_vif *vif,
+				      const struct cfg80211_ap_settings *s)
 {
-	struct sk_buff *cmd_skb;
-	u16 res_code = QLINK_CMD_RESULT_OK;
-	int ret;
+	unsigned int len = sizeof(struct qlink_cmd_start_ap);
 
-	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
-					    QLINK_CMD_START_AP,
-					    sizeof(struct qlink_cmd));
-	if (unlikely(!cmd_skb))
-		return -ENOMEM;
+	len += s->ssid_len;
+	len += s->beacon.head_len;
+	len += s->beacon.tail_len;
+	len += s->beacon.beacon_ies_len;
+	len += s->beacon.proberesp_ies_len;
+	len += s->beacon.assocresp_ies_len;
+	len += s->beacon.probe_resp_len;
 
-	qtnf_bus_lock(vif->mac->bus);
+	if (cfg80211_chandef_valid(&s->chandef))
+		len += sizeof(struct qlink_tlv_chandef);
 
-	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
-
-	if (unlikely(ret))
-		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("VIF%u.%u: CMD failed: %u\n", vif->mac->macid,
-		       vif->vifid, res_code);
-		ret = -EFAULT;
-		goto out;
+	if (len > (sizeof(struct qlink_cmd) + QTNF_MAX_CMD_BUF_SIZE)) {
+		pr_err("VIF%u.%u: can not fit AP settings: %u\n",
+		       vif->mac->macid, vif->vifid, len);
+		return false;
 	}
 
-	netif_carrier_on(vif->netdev);
-
-out:
-	qtnf_bus_unlock(vif->mac->bus);
-	return ret;
+	return true;
 }
 
-int qtnf_cmd_send_config_ap(struct qtnf_vif *vif,
-			    const struct cfg80211_ap_settings *s)
+int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
+			   const struct cfg80211_ap_settings *s)
 {
 	struct sk_buff *cmd_skb;
-	struct qlink_cmd_config_ap *cmd;
+	struct qlink_cmd_start_ap *cmd;
 	struct qlink_auth_encr *aen;
 	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret;
 	int i;
 
+	if (!qtnf_cmd_start_ap_can_fit(vif, s))
+		return -E2BIG;
+
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
-					    QLINK_CMD_CONFIG_AP,
+					    QLINK_CMD_START_AP,
 					    sizeof(*cmd));
 	if (unlikely(!cmd_skb))
 		return -ENOMEM;
 
-	cmd = (struct qlink_cmd_config_ap *)cmd_skb->data;
+	cmd = (struct qlink_cmd_start_ap *)cmd_skb->data;
 	cmd->dtim_period = s->dtim_period;
 	cmd->beacon_interval = cpu_to_le16(s->beacon_interval);
 	cmd->hidden_ssid = qlink_hidden_ssid_nl2q(s->hidden_ssid);
@@ -256,6 +251,21 @@ int qtnf_cmd_send_config_ap(struct qtnf_vif *vif,
 		qlink_chandef_cfg2q(&s->chandef, &chtlv->chan);
 	}
 
+	qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_BEACON_HEAD,
+				s->beacon.head, s->beacon.head_len);
+	qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_BEACON_TAIL,
+				s->beacon.tail, s->beacon.tail_len);
+	qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_BEACON_IES,
+				s->beacon.beacon_ies, s->beacon.beacon_ies_len);
+	qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_PROBE_RESP,
+				s->beacon.probe_resp, s->beacon.probe_resp_len);
+	qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_PROBE_RESP_IES,
+				s->beacon.proberesp_ies,
+				s->beacon.proberesp_ies_len);
+	qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_ASSOC_RESP,
+				s->beacon.assocresp_ies,
+				s->beacon.assocresp_ies_len);
+
 	qtnf_bus_lock(vif->mac->bus);
 
 	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
@@ -269,6 +279,8 @@ int qtnf_cmd_send_config_ap(struct qtnf_vif *vif,
 		ret = -EFAULT;
 		goto out;
 	}
+
+	netif_carrier_on(vif->netdev);
 
 out:
 	qtnf_bus_unlock(vif->mac->bus);

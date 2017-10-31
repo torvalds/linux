@@ -192,7 +192,6 @@ enum qlink_cmd_type {
 	QLINK_CMD_BAND_INFO_GET		= 0x001A,
 	QLINK_CMD_CHAN_SWITCH		= 0x001B,
 	QLINK_CMD_CHAN_GET		= 0x001C,
-	QLINK_CMD_CONFIG_AP		= 0x0020,
 	QLINK_CMD_START_AP		= 0x0021,
 	QLINK_CMD_STOP_AP		= 0x0022,
 	QLINK_CMD_GET_STA_INFO		= 0x0030,
@@ -542,7 +541,7 @@ enum qlink_hidden_ssid {
 };
 
 /**
- * struct qlink_cmd_config_ap - data for QLINK_CMD_CONFIG_AP command
+ * struct qlink_cmd_start_ap - data for QLINK_CMD_START_AP command
  *
  * @beacon_interval: beacon interval
  * @inactivity_timeout: station's inactivity period in seconds
@@ -554,7 +553,7 @@ enum qlink_hidden_ssid {
  * @aen: encryption info
  * @info: variable configurations
  */
-struct qlink_cmd_config_ap {
+struct qlink_cmd_start_ap {
 	struct qlink_cmd chdr;
 	__le16 beacon_interval;
 	__le16 inactivity_timeout;
