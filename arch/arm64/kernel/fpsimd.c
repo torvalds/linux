@@ -17,8 +17,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/bitmap.h>
 #include <linux/bottom_half.h>
 #include <linux/bug.h>
+#include <linux/cache.h>
 #include <linux/compat.h>
 #include <linux/cpu.h>
 #include <linux/cpu_pm.h>
@@ -28,6 +30,7 @@
 #include <linux/init.h>
 #include <linux/percpu.h>
 #include <linux/preempt.h>
+#include <linux/prctl.h>
 #include <linux/ptrace.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/task_stack.h>
@@ -113,6 +116,20 @@ static DEFINE_PER_CPU(struct fpsimd_state *, fpsimd_last_state);
 
 /* Default VL for tasks that don't set it explicitly: */
 static int sve_default_vl = SVE_VL_MIN;
+
+#ifdef CONFIG_ARM64_SVE
+
+/* Maximum supported vector length across all CPUs (initially poisoned) */
+int __ro_after_init sve_max_vl = -1;
+/* Set of available vector lengths, as vq_to_bit(vq): */
+static DECLARE_BITMAP(sve_vq_map, SVE_VQ_MAX);
+
+#else /* ! CONFIG_ARM64_SVE */
+
+/* Dummy declaration for code that will be optimised out: */
+extern DECLARE_BITMAP(sve_vq_map, SVE_VQ_MAX);
+
+#endif /* ! CONFIG_ARM64_SVE */
 
 /*
  * Call __sve_free() directly only if you know task can't be scheduled
@@ -271,6 +288,50 @@ static void task_fpsimd_save(void)
 	}
 }
 
+/*
+ * Helpers to translate bit indices in sve_vq_map to VQ values (and
+ * vice versa).  This allows find_next_bit() to be used to find the
+ * _maximum_ VQ not exceeding a certain value.
+ */
+
+static unsigned int vq_to_bit(unsigned int vq)
+{
+	return SVE_VQ_MAX - vq;
+}
+
+static unsigned int bit_to_vq(unsigned int bit)
+{
+	if (WARN_ON(bit >= SVE_VQ_MAX))
+		bit = SVE_VQ_MAX - 1;
+
+	return SVE_VQ_MAX - bit;
+}
+
+/*
+ * All vector length selection from userspace comes through here.
+ * We're on a slow path, so some sanity-checks are included.
+ * If things go wrong there's a bug somewhere, but try to fall back to a
+ * safe choice.
+ */
+static unsigned int find_supported_vector_length(unsigned int vl)
+{
+	int bit;
+	int max_vl = sve_max_vl;
+
+	if (WARN_ON(!sve_vl_valid(vl)))
+		vl = SVE_VL_MIN;
+
+	if (WARN_ON(!sve_vl_valid(max_vl)))
+		max_vl = SVE_VL_MIN;
+
+	if (vl > max_vl)
+		vl = max_vl;
+
+	bit = find_next_bit(sve_vq_map, SVE_VQ_MAX,
+			    vq_to_bit(sve_vq_from_vl(vl)));
+	return sve_vl_from_vq(bit_to_vq(bit));
+}
+
 #define ZREG(sve_state, vq, n) ((char *)(sve_state) +		\
 	(SVE_SIG_ZREG_OFFSET(vq, n) - SVE_SIG_REGS_OFFSET))
 
@@ -363,6 +424,76 @@ void sve_alloc(struct task_struct *task)
 	 * this may cease to be true:
 	 */
 	BUG_ON(!task->thread.sve_state);
+}
+
+int sve_set_vector_length(struct task_struct *task,
+			  unsigned long vl, unsigned long flags)
+{
+	if (flags & ~(unsigned long)(PR_SVE_VL_INHERIT |
+				     PR_SVE_SET_VL_ONEXEC))
+		return -EINVAL;
+
+	if (!sve_vl_valid(vl))
+		return -EINVAL;
+
+	/*
+	 * Clamp to the maximum vector length that VL-agnostic SVE code can
+	 * work with.  A flag may be assigned in the future to allow setting
+	 * of larger vector lengths without confusing older software.
+	 */
+	if (vl > SVE_VL_ARCH_MAX)
+		vl = SVE_VL_ARCH_MAX;
+
+	vl = find_supported_vector_length(vl);
+
+	if (flags & (PR_SVE_VL_INHERIT |
+		     PR_SVE_SET_VL_ONEXEC))
+		task->thread.sve_vl_onexec = vl;
+	else
+		/* Reset VL to system default on next exec: */
+		task->thread.sve_vl_onexec = 0;
+
+	/* Only actually set the VL if not deferred: */
+	if (flags & PR_SVE_SET_VL_ONEXEC)
+		goto out;
+
+	if (vl == task->thread.sve_vl)
+		goto out;
+
+	/*
+	 * To ensure the FPSIMD bits of the SVE vector registers are preserved,
+	 * write any live register state back to task_struct, and convert to a
+	 * non-SVE thread.
+	 */
+	if (task == current) {
+		local_bh_disable();
+
+		task_fpsimd_save();
+		set_thread_flag(TIF_FOREIGN_FPSTATE);
+	}
+
+	fpsimd_flush_task_state(task);
+	if (test_and_clear_tsk_thread_flag(task, TIF_SVE))
+		sve_to_fpsimd(task);
+
+	if (task == current)
+		local_bh_enable();
+
+	/*
+	 * Force reallocation of task SVE state to the correct size
+	 * on next use:
+	 */
+	sve_free(task);
+
+	task->thread.sve_vl = vl;
+
+out:
+	if (flags & PR_SVE_VL_INHERIT)
+		set_tsk_thread_flag(task, TIF_SVE_VL_INHERIT);
+	else
+		clear_tsk_thread_flag(task, TIF_SVE_VL_INHERIT);
+
+	return 0;
 }
 
 /*
@@ -481,7 +612,7 @@ void fpsimd_thread_switch(struct task_struct *next)
 
 void fpsimd_flush_thread(void)
 {
-	int vl;
+	int vl, supported_vl;
 
 	if (!system_supports_fpsimd())
 		return;
@@ -508,6 +639,10 @@ void fpsimd_flush_thread(void)
 
 		if (WARN_ON(!sve_vl_valid(vl)))
 			vl = SVE_VL_MIN;
+
+		supported_vl = find_supported_vector_length(vl);
+		if (WARN_ON(supported_vl != vl))
+			vl = supported_vl;
 
 		current->thread.sve_vl = vl;
 
