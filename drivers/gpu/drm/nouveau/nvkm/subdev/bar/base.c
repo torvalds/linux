@@ -45,11 +45,23 @@ nvkm_bar_umap(struct nvkm_bar *bar, u64 size, int type, struct nvkm_vma *vma)
 	return bar->func->umap(bar, size, type, vma);
 }
 
+void
+nvkm_bar_bar2_init(struct nvkm_device *device)
+{
+	struct nvkm_bar *bar = device->bar;
+	if (bar && bar->subdev.oneinit && !bar->bar2 && bar->func->bar2.init) {
+		bar->func->bar2.init(bar);
+		bar->func->bar2.wait(bar);
+		bar->bar2 = true;
+	}
+}
+
 static int
 nvkm_bar_fini(struct nvkm_subdev *subdev, bool suspend)
 {
 	struct nvkm_bar *bar = nvkm_bar(subdev);
 	bar->func->bar1.fini(bar);
+	bar->bar2 = false;
 	return 0;
 }
 
@@ -57,9 +69,11 @@ static int
 nvkm_bar_init(struct nvkm_subdev *subdev)
 {
 	struct nvkm_bar *bar = nvkm_bar(subdev);
+	nvkm_bar_bar2_init(subdev->device);
 	bar->func->bar1.init(bar);
 	bar->func->bar1.wait(bar);
-	bar->func->init(bar);
+	if (bar->func->init)
+		bar->func->init(bar);
 	return 0;
 }
 

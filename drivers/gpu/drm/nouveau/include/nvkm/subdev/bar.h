@@ -8,11 +8,13 @@ struct nvkm_bar {
 	struct nvkm_subdev subdev;
 
 	spinlock_t lock;
+	bool bar2;
 
 	/* whether the BAR supports to be ioremapped WC or should be uncached */
 	bool iomap_uncached;
 };
 
+void nvkm_bar_bar2_init(struct nvkm_device *);
 void nvkm_bar_flush(struct nvkm_bar *);
 struct nvkm_vm *nvkm_bar_kmap(struct nvkm_bar *);
 int nvkm_bar_umap(struct nvkm_bar *, u64 size, int type, struct nvkm_vma *);
