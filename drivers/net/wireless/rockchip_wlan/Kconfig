@@ -7,6 +7,8 @@ if WL_ROCKCHIP
 
 config WIFI_BUILD_MODULE
 	bool "build wifi ko modules"
+	select CFG80211
+	select MAC80211
 	default n
 	---help---
 	  Wifi drivers will compile as ko module
