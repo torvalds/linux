@@ -50,8 +50,7 @@ nv10_bo_update_tile_region(struct drm_device *dev, struct nouveau_drm_tile *reg,
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	int i = reg - drm->tile.reg;
-	struct nvkm_device *device = nvxx_device(&drm->client.device);
-	struct nvkm_fb *fb = device->fb;
+	struct nvkm_fb *fb = nvxx_fb(&drm->client.device);
 	struct nvkm_fb_tile *tile = &fb->tile.region[i];
 
 	nouveau_fence_unref(&reg->fence);
@@ -459,7 +458,6 @@ void
 nouveau_bo_sync_for_device(struct nouveau_bo *nvbo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	struct ttm_dma_tt *ttm_dma = (struct ttm_dma_tt *)nvbo->bo.ttm;
 	int i;
 
@@ -471,7 +469,8 @@ nouveau_bo_sync_for_device(struct nouveau_bo *nvbo)
 		return;
 
 	for (i = 0; i < ttm_dma->ttm.num_pages; i++)
-		dma_sync_single_for_device(device->dev, ttm_dma->dma_address[i],
+		dma_sync_single_for_device(drm->dev->dev,
+					   ttm_dma->dma_address[i],
 					   PAGE_SIZE, DMA_TO_DEVICE);
 }
 
@@ -479,7 +478,6 @@ void
 nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	struct ttm_dma_tt *ttm_dma = (struct ttm_dma_tt *)nvbo->bo.ttm;
 	int i;
 
@@ -491,7 +489,7 @@ nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo)
 		return;
 
 	for (i = 0; i < ttm_dma->ttm.num_pages; i++)
-		dma_sync_single_for_cpu(device->dev, ttm_dma->dma_address[i],
+		dma_sync_single_for_cpu(drm->dev->dev, ttm_dma->dma_address[i],
 					PAGE_SIZE, DMA_FROM_DEVICE);
 }
 
@@ -1468,9 +1466,7 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 {
 	struct ttm_dma_tt *ttm_dma = (void *)ttm;
 	struct nouveau_drm *drm;
-	struct nvkm_device *device;
-	struct drm_device *dev;
-	struct device *pdev;
+	struct device *dev;
 	unsigned i;
 	int r;
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
@@ -1487,9 +1483,7 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 	}
 
 	drm = nouveau_bdev(ttm->bdev);
-	device = nvxx_device(&drm->client.device);
-	dev = drm->dev;
-	pdev = device->dev;
+	dev = drm->dev->dev;
 
 #if IS_ENABLED(CONFIG_AGP)
 	if (drm->agp.bridge) {
@@ -1499,7 +1493,7 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 
 #if IS_ENABLED(CONFIG_SWIOTLB) && IS_ENABLED(CONFIG_X86)
 	if (swiotlb_nr_tbl()) {
-		return ttm_dma_populate((void *)ttm, dev->dev);
+		return ttm_dma_populate((void *)ttm, dev);
 	}
 #endif
 
@@ -1511,12 +1505,12 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 	for (i = 0; i < ttm->num_pages; i++) {
 		dma_addr_t addr;
 
-		addr = dma_map_page(pdev, ttm->pages[i], 0, PAGE_SIZE,
+		addr = dma_map_page(dev, ttm->pages[i], 0, PAGE_SIZE,
 				    DMA_BIDIRECTIONAL);
 
-		if (dma_mapping_error(pdev, addr)) {
+		if (dma_mapping_error(dev, addr)) {
 			while (i--) {
-				dma_unmap_page(pdev, ttm_dma->dma_address[i],
+				dma_unmap_page(dev, ttm_dma->dma_address[i],
 					       PAGE_SIZE, DMA_BIDIRECTIONAL);
 				ttm_dma->dma_address[i] = 0;
 			}
@@ -1534,9 +1528,7 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 {
 	struct ttm_dma_tt *ttm_dma = (void *)ttm;
 	struct nouveau_drm *drm;
-	struct nvkm_device *device;
-	struct drm_device *dev;
-	struct device *pdev;
+	struct device *dev;
 	unsigned i;
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
 
@@ -1544,9 +1536,7 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 		return;
 
 	drm = nouveau_bdev(ttm->bdev);
-	device = nvxx_device(&drm->client.device);
-	dev = drm->dev;
-	pdev = device->dev;
+	dev = drm->dev->dev;
 
 #if IS_ENABLED(CONFIG_AGP)
 	if (drm->agp.bridge) {
@@ -1557,14 +1547,14 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 
 #if IS_ENABLED(CONFIG_SWIOTLB) && IS_ENABLED(CONFIG_X86)
 	if (swiotlb_nr_tbl()) {
-		ttm_dma_unpopulate((void *)ttm, dev->dev);
+		ttm_dma_unpopulate((void *)ttm, dev);
 		return;
 	}
 #endif
 
 	for (i = 0; i < ttm->num_pages; i++) {
 		if (ttm_dma->dma_address[i]) {
-			dma_unmap_page(pdev, ttm_dma->dma_address[i], PAGE_SIZE,
+			dma_unmap_page(dev, ttm_dma->dma_address[i], PAGE_SIZE,
 				       DMA_BIDIRECTIONAL);
 		}
 	}

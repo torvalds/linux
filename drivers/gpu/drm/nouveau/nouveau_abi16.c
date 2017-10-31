@@ -185,29 +185,33 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 		getparam->value = device->info.chipset;
 		break;
 	case NOUVEAU_GETPARAM_PCI_VENDOR:
-		if (nvxx_device(device)->func->pci)
+		if (device->info.platform != NV_DEVICE_INFO_V0_SOC)
 			getparam->value = dev->pdev->vendor;
 		else
 			getparam->value = 0;
 		break;
 	case NOUVEAU_GETPARAM_PCI_DEVICE:
-		if (nvxx_device(device)->func->pci)
+		if (device->info.platform != NV_DEVICE_INFO_V0_SOC)
 			getparam->value = dev->pdev->device;
 		else
 			getparam->value = 0;
 		break;
 	case NOUVEAU_GETPARAM_BUS_TYPE:
-		if (!nvxx_device(device)->func->pci)
-			getparam->value = 3;
-		else
-		if (pci_find_capability(dev->pdev, PCI_CAP_ID_AGP))
-			getparam->value = 0;
-		else
-		if (!pci_is_pcie(dev->pdev))
-			getparam->value = 1;
-		else
-			getparam->value = 2;
-		break;
+		switch (device->info.platform) {
+		case NV_DEVICE_INFO_V0_AGP : getparam->value = 0; break;
+		case NV_DEVICE_INFO_V0_PCI : getparam->value = 1; break;
+		case NV_DEVICE_INFO_V0_PCIE: getparam->value = 2; break;
+		case NV_DEVICE_INFO_V0_SOC : getparam->value = 3; break;
+		case NV_DEVICE_INFO_V0_IGP :
+			if (!pci_is_pcie(dev->pdev))
+				getparam->value = 1;
+			else
+				getparam->value = 2;
+			break;
+		default:
+			WARN_ON(1);
+			break;
+		}
 	case NOUVEAU_GETPARAM_FB_SIZE:
 		getparam->value = drm->gem.vram_available;
 		break;
