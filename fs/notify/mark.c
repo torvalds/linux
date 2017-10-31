@@ -599,9 +599,11 @@ int fsnotify_add_mark_locked(struct fsnotify_mark *mark, struct inode *inode,
 
 	return ret;
 err:
+	spin_lock(&mark->lock);
 	mark->flags &= ~(FSNOTIFY_MARK_FLAG_ALIVE |
 			 FSNOTIFY_MARK_FLAG_ATTACHED);
 	list_del_init(&mark->g_list);
+	spin_unlock(&mark->lock);
 	atomic_dec(&group->num_marks);
 
 	fsnotify_put_mark(mark);
