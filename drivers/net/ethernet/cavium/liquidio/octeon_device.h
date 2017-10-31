@@ -23,6 +23,7 @@
 #define  _OCTEON_DEVICE_H_
 
 #include <linux/interrupt.h>
+#include <net/devlink.h>
 
 /** PCI VendorId Device Id */
 #define  OCTEON_CN68XX_PCIID          0x91177d
@@ -396,6 +397,10 @@ struct lio_vf_rep_list {
 	struct net_device *ndev[CN23XX_MAX_VFS_PER_PF];
 };
 
+struct lio_devlink_priv {
+	struct octeon_device *oct;
+};
+
 /** The Octeon device.
  *  Each Octeon device has this structure to represent all its
  *  components.
@@ -575,6 +580,8 @@ struct octeon_device {
 	bool ptp_enable;
 
 	struct lio_vf_rep_list vf_rep_list;
+	struct devlink *devlink;
+	enum devlink_eswitch_mode eswitch_mode;
 };
 
 #define  OCT_DRV_ONLINE 1

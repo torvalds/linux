@@ -35,6 +35,7 @@
 #include "cn68xx_device.h"
 #include "cn23xx_pf_device.h"
 #include "liquidio_image.h"
+#include "lio_vf_rep.h"
 
 MODULE_AUTHOR("Cavium Networks, <support@cavium.com>");
 MODULE_DESCRIPTION("Cavium LiquidIO Intelligent Server Adapter Driver");
@@ -1603,6 +1604,8 @@ static int liquidio_stop_nic_module(struct octeon_device *oct)
 	oct->cmd_resp_state = OCT_DRV_OFFLINE;
 	spin_unlock_bh(&oct->cmd_resp_wqlock);
 
+	lio_vf_rep_destroy(oct);
+
 	for (i = 0; i < oct->ifcount; i++) {
 		lio = GET_LIO(oct->props[i].netdev);
 		for (j = 0; j < oct->num_oqs; j++)
@@ -1612,6 +1615,12 @@ static int liquidio_stop_nic_module(struct octeon_device *oct)
 
 	for (i = 0; i < oct->ifcount; i++)
 		liquidio_destroy_nic_device(oct, i);
+
+	if (oct->devlink) {
+		devlink_unregister(oct->devlink);
+		devlink_free(oct->devlink);
+		oct->devlink = NULL;
+	}
 
 	dev_dbg(&oct->pci_dev->dev, "Network interfaces stopped\n");
 	return 0;
@@ -3311,9 +3320,66 @@ static int liquidio_set_vf_link_state(struct net_device *netdev, int vfidx,
 }
 
 static int
+liquidio_eswitch_mode_get(struct devlink *devlink, u16 *mode)
+{
+	struct lio_devlink_priv *priv;
+	struct octeon_device *oct;
+
+	priv = devlink_priv(devlink);
+	oct = priv->oct;
+
+	*mode = oct->eswitch_mode;
+
+	return 0;
+}
+
+static int
+liquidio_eswitch_mode_set(struct devlink *devlink, u16 mode)
+{
+	struct lio_devlink_priv *priv;
+	struct octeon_device *oct;
+	int ret = 0;
+
+	priv = devlink_priv(devlink);
+	oct = priv->oct;
+
+	if (!(oct->fw_info.app_cap_flags & LIQUIDIO_SWITCHDEV_CAP))
+		return -EINVAL;
+
+	if (oct->eswitch_mode == mode)
+		return 0;
+
+	switch (mode) {
+	case DEVLINK_ESWITCH_MODE_SWITCHDEV:
+		oct->eswitch_mode = mode;
+		ret = lio_vf_rep_create(oct);
+		break;
+
+	case DEVLINK_ESWITCH_MODE_LEGACY:
+		lio_vf_rep_destroy(oct);
+		oct->eswitch_mode = mode;
+		break;
+
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static const struct devlink_ops liquidio_devlink_ops = {
+	.eswitch_mode_get = liquidio_eswitch_mode_get,
+	.eswitch_mode_set = liquidio_eswitch_mode_set,
+};
+
+static int
 lio_pf_switchdev_attr_get(struct net_device *dev, struct switchdev_attr *attr)
 {
 	struct lio *lio = GET_LIO(dev);
+	struct octeon_device *oct = lio->oct_dev;
+
+	if (oct->eswitch_mode != DEVLINK_ESWITCH_MODE_SWITCHDEV)
+		return -EOPNOTSUPP;
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_ID_PORT_PARENT_ID:
@@ -3462,6 +3528,8 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 	u32 resp_size, ctx_size, data_size;
 	u32 ifidx_or_pfnum;
 	struct lio_version *vdata;
+	struct devlink *devlink;
+	struct lio_devlink_priv *lio_devlink;
 
 	/* This is to handle link status changes */
 	octeon_register_dispatch_fn(octeon_dev, OPCODE_NIC,
@@ -3794,6 +3862,26 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		octeon_free_soft_command(octeon_dev, sc);
 	}
 
+	devlink = devlink_alloc(&liquidio_devlink_ops,
+				sizeof(struct lio_devlink_priv));
+	if (!devlink) {
+		dev_err(&octeon_dev->pci_dev->dev, "devlink alloc failed\n");
+		goto setup_nic_wait_intr;
+	}
+
+	lio_devlink = devlink_priv(devlink);
+	lio_devlink->oct = octeon_dev;
+
+	if (devlink_register(devlink, &octeon_dev->pci_dev->dev)) {
+		devlink_free(devlink);
+		dev_err(&octeon_dev->pci_dev->dev,
+			"devlink registration failed\n");
+		goto setup_nic_wait_intr;
+	}
+
+	octeon_dev->devlink = devlink;
+	octeon_dev->eswitch_mode = DEVLINK_ESWITCH_MODE_LEGACY;
+
 	return 0;
 
 setup_nic_dev_fail:
@@ -3888,6 +3976,7 @@ static int liquidio_enable_sriov(struct pci_dev *dev, int num_vfs)
 	}
 
 	if (!num_vfs) {
+		lio_vf_rep_destroy(oct);
 		ret = lio_pci_sriov_disable(oct);
 	} else if (num_vfs > oct->sriov_info.max_vfs) {
 		dev_err(&oct->pci_dev->dev,
@@ -3899,6 +3988,10 @@ static int liquidio_enable_sriov(struct pci_dev *dev, int num_vfs)
 		ret = octeon_enable_sriov(oct);
 		dev_info(&oct->pci_dev->dev, "oct->pf_num:%d num_vfs:%d\n",
 			 oct->pf_num, num_vfs);
+		ret = lio_vf_rep_create(oct);
+		if (ret)
+			dev_info(&oct->pci_dev->dev,
+				 "vf representor create failed");
 	}
 
 	return ret;

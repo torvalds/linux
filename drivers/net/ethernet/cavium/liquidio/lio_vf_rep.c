@@ -515,6 +515,9 @@ lio_vf_rep_create(struct octeon_device *oct)
 	struct net_device *ndev;
 	int i, num_vfs;
 
+	if (oct->eswitch_mode != DEVLINK_ESWITCH_MODE_SWITCHDEV)
+		return 0;
+
 	if (!oct->sriov_info.sriov_enabled)
 		return 0;
 
@@ -598,6 +601,9 @@ lio_vf_rep_destroy(struct octeon_device *oct)
 	struct lio_vf_rep_desc *vf_rep;
 	struct net_device *ndev;
 	int i;
+
+	if (oct->eswitch_mode != DEVLINK_ESWITCH_MODE_SWITCHDEV)
+		return;
 
 	if (!oct->sriov_info.sriov_enabled)
 		return;

@@ -114,6 +114,7 @@ enum octeon_tag_type {
 
 /* App specific capabilities from firmware to pf driver */
 #define LIQUIDIO_TIME_SYNC_CAP 0x1
+#define LIQUIDIO_SWITCHDEV_CAP 0x2
 
 static inline u32 incr_index(u32 index, u32 count, u32 max)
 {
