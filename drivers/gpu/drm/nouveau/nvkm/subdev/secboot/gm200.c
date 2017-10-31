@@ -39,7 +39,7 @@ gm200_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob,
 {
 	struct gm200_secboot *gsb = gm200_secboot(sb);
 	struct nvkm_subdev *subdev = &gsb->base.subdev;
-	struct nvkm_vma vma;
+	struct nvkm_vma *vma = NULL;
 	u32 start_address;
 	int ret;
 
@@ -48,13 +48,13 @@ gm200_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob,
 		return ret;
 
 	/* Map the HS firmware so the HS bootloader can see it */
-	ret = nvkm_vm_get(gsb->vmm, blob->size, 12, NV_MEM_ACCESS_RW, &vma);
+	ret = nvkm_vmm_get(gsb->vmm, 12, blob->size, &vma);
 	if (ret) {
 		nvkm_falcon_put(falcon, subdev);
 		return ret;
 	}
 
-	ret = nvkm_memory_map(blob, 0, gsb->vmm, &vma, NULL, 0);
+	ret = nvkm_memory_map(blob, 0, gsb->vmm, vma, NULL, 0);
 	if (ret)
 		goto end;
 
@@ -65,7 +65,7 @@ gm200_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob,
 	nvkm_falcon_bind_context(falcon, gsb->inst);
 
 	/* Load the HS bootloader into the falcon's IMEM/DMEM */
-	ret = sb->acr->func->load(sb->acr, falcon, blob, vma.offset);
+	ret = sb->acr->func->load(sb->acr, falcon, blob, vma->addr);
 	if (ret < 0)
 		goto end;
 
@@ -95,8 +95,7 @@ end:
 	nvkm_mc_intr_mask(sb->subdev.device, falcon->owner->index, true);
 
 	/* We don't need the ACR firmware anymore */
-	nvkm_vm_unmap(&vma);
-	nvkm_vm_put(&vma);
+	nvkm_vmm_put(gsb->vmm, &vma);
 	nvkm_falcon_put(falcon, subdev);
 
 	return ret;
