@@ -1243,7 +1243,7 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 	struct btrfs_root *root;
 	struct btrfs_key key;
 	int ret = 0;
-	uuid_le uuid;
+	uuid_le uuid = NULL_UUID_LE;
 
 	root = btrfs_alloc_root(fs_info, GFP_KERNEL);
 	if (!root)
@@ -1284,7 +1284,8 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 	btrfs_set_root_used(&root->root_item, leaf->len);
 	btrfs_set_root_last_snapshot(&root->root_item, 0);
 	btrfs_set_root_dirid(&root->root_item, 0);
-	uuid_le_gen(&uuid);
+	if (is_fstree(objectid))
+		uuid_le_gen(&uuid);
 	memcpy(root->root_item.uuid, uuid.b, BTRFS_UUID_SIZE);
 	root->root_item.drop_level = 0;
 
