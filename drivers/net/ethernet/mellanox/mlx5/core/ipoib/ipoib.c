@@ -41,7 +41,6 @@
 static int mlx5i_open(struct net_device *netdev);
 static int mlx5i_close(struct net_device *netdev);
 static int mlx5i_change_mtu(struct net_device *netdev, int new_mtu);
-static int mlx5i_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 
 static const struct net_device_ops mlx5i_netdev_ops = {
 	.ndo_open                = mlx5i_open,
@@ -396,7 +395,7 @@ int mlx5i_dev_init(struct net_device *dev)
 	return 0;
 }
 
-static int mlx5i_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+int mlx5i_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(dev);
 
