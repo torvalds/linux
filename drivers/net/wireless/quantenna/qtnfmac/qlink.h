@@ -74,12 +74,6 @@ enum qlink_hw_capab {
 	QLINK_HW_CAPAB_STA_INACT_TIMEOUT = BIT(1),
 };
 
-enum qlink_phy_mode {
-	QLINK_PHYMODE_BGN	= BIT(0),
-	QLINK_PHYMODE_AN	= BIT(1),
-	QLINK_PHYMODE_AC	= BIT(2),
-};
-
 enum qlink_iface_type {
 	QLINK_IFTYPE_AP		= 1,
 	QLINK_IFTYPE_STATION	= 2,
@@ -639,7 +633,6 @@ struct qlink_resp {
  * @vht_cap_mod_mask: mask specifying which VHT capabilities can be altered.
  * @ht_cap_mod_mask: mask specifying which HT capabilities can be altered.
  * @bands_cap: wireless bands WMAC can operate in, bitmap of &enum qlink_band.
- * @phymode_cap: PHY modes WMAC can operate in, bitmap of &enum qlink_phy_mode.
  * @max_ap_assoc_sta: Maximum number of associations supported by WMAC.
  * @radar_detect_widths: bitmask of channels BW for which WMAC can detect radar.
  * @var_info: variable-length WMAC info data.
@@ -651,10 +644,10 @@ struct qlink_resp_get_mac_info {
 	u8 num_rx_chain;
 	struct ieee80211_vht_cap vht_cap_mod_mask;
 	struct ieee80211_ht_cap ht_cap_mod_mask;
-	u8 bands_cap;
-	u8 phymode_cap;
 	__le16 max_ap_assoc_sta;
 	__le16 radar_detect_widths;
+	u8 bands_cap;
+	u8 rsvd[1];
 	u8 var_info[0];
 } __packed;
 

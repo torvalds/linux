@@ -1090,7 +1090,6 @@ qtnf_cmd_resp_proc_mac_info(struct qtnf_wmac *mac,
 	mac_info = &mac->macinfo;
 
 	mac_info->bands_cap = resp_info->bands_cap;
-	mac_info->phymode_cap = resp_info->phymode_cap;
 	memcpy(&mac_info->dev_mac, &resp_info->dev_mac,
 	       sizeof(mac_info->dev_mac));
 

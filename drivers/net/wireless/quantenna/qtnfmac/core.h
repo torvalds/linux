@@ -92,7 +92,6 @@ struct qtnf_vif {
 
 struct qtnf_mac_info {
 	u8 bands_cap;
-	u8 phymode_cap;
 	u8 dev_mac[ETH_ALEN];
 	u8 num_tx_chain;
 	u8 num_rx_chain;
