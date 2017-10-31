@@ -8,6 +8,7 @@
  */
 #include <linux/bitmap.h>
 #include <linux/clocksource.h>
+#include <linux/cpuhotplug.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -54,6 +55,11 @@ static unsigned int timer_cpu_pin;
 static struct irq_chip gic_level_irq_controller, gic_edge_irq_controller;
 DECLARE_BITMAP(ipi_resrv, GIC_MAX_INTRS);
 DECLARE_BITMAP(ipi_available, GIC_MAX_INTRS);
+
+static struct gic_all_vpes_chip_data {
+	u32	map;
+	bool	mask;
+} gic_all_vpes_chip_data[GIC_NUM_LOCAL_INTRS];
 
 static void gic_clear_pcpu_masks(unsigned int intr)
 {
@@ -338,13 +344,17 @@ static struct irq_chip gic_local_irq_controller = {
 
 static void gic_mask_local_irq_all_vpes(struct irq_data *d)
 {
-	int intr = GIC_HWIRQ_TO_LOCAL(d->hwirq);
-	int i;
+	struct gic_all_vpes_chip_data *cd;
 	unsigned long flags;
+	int intr, cpu;
+
+	intr = GIC_HWIRQ_TO_LOCAL(d->hwirq);
+	cd = irq_data_get_irq_chip_data(d);
+	cd->mask = false;
 
 	spin_lock_irqsave(&gic_lock, flags);
-	for (i = 0; i < gic_vpes; i++) {
-		write_gic_vl_other(mips_cm_vp_id(i));
+	for_each_online_cpu(cpu) {
+		write_gic_vl_other(mips_cm_vp_id(cpu));
 		write_gic_vo_rmask(BIT(intr));
 	}
 	spin_unlock_irqrestore(&gic_lock, flags);
@@ -352,22 +362,40 @@ static void gic_mask_local_irq_all_vpes(struct irq_data *d)
 
 static void gic_unmask_local_irq_all_vpes(struct irq_data *d)
 {
-	int intr = GIC_HWIRQ_TO_LOCAL(d->hwirq);
-	int i;
+	struct gic_all_vpes_chip_data *cd;
 	unsigned long flags;
+	int intr, cpu;
+
+	intr = GIC_HWIRQ_TO_LOCAL(d->hwirq);
+	cd = irq_data_get_irq_chip_data(d);
+	cd->mask = true;
 
 	spin_lock_irqsave(&gic_lock, flags);
-	for (i = 0; i < gic_vpes; i++) {
-		write_gic_vl_other(mips_cm_vp_id(i));
+	for_each_online_cpu(cpu) {
+		write_gic_vl_other(mips_cm_vp_id(cpu));
 		write_gic_vo_smask(BIT(intr));
 	}
 	spin_unlock_irqrestore(&gic_lock, flags);
 }
 
+static void gic_all_vpes_irq_cpu_online(struct irq_data *d)
+{
+	struct gic_all_vpes_chip_data *cd;
+	unsigned int intr;
+
+	intr = GIC_HWIRQ_TO_LOCAL(d->hwirq);
+	cd = irq_data_get_irq_chip_data(d);
+
+	write_gic_vl_map(intr, cd->map);
+	if (cd->mask)
+		write_gic_vl_smask(BIT(intr));
+}
+
 static struct irq_chip gic_all_vpes_local_irq_controller = {
-	.name			=	"MIPS GIC Local",
-	.irq_mask		=	gic_mask_local_irq_all_vpes,
-	.irq_unmask		=	gic_unmask_local_irq_all_vpes,
+	.name			= "MIPS GIC Local",
+	.irq_mask		= gic_mask_local_irq_all_vpes,
+	.irq_unmask		= gic_unmask_local_irq_all_vpes,
+	.irq_cpu_online		= gic_all_vpes_irq_cpu_online,
 };
 
 static void __gic_irq_dispatch(void)
@@ -424,9 +452,10 @@ static int gic_irq_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
 static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 			      irq_hw_number_t hwirq)
 {
+	struct gic_all_vpes_chip_data *cd;
 	unsigned long flags;
 	unsigned int intr;
-	int err, i;
+	int err, cpu;
 	u32 map;
 
 	if (hwirq >= GIC_SHARED_HWIRQ_BASE) {
@@ -459,9 +488,11 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 		 * the rest of the MIPS kernel code does not use the
 		 * percpu IRQ API for them.
 		 */
+		cd = &gic_all_vpes_chip_data[intr];
+		cd->map = map;
 		err = irq_domain_set_hwirq_and_chip(d, virq, hwirq,
 						    &gic_all_vpes_local_irq_controller,
-						    NULL);
+						    cd);
 		if (err)
 			return err;
 
@@ -484,8 +515,8 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 		return -EPERM;
 
 	spin_lock_irqsave(&gic_lock, flags);
-	for (i = 0; i < gic_vpes; i++) {
-		write_gic_vl_other(mips_cm_vp_id(i));
+	for_each_online_cpu(cpu) {
+		write_gic_vl_other(mips_cm_vp_id(cpu));
 		write_gic_vo_map(intr, map);
 	}
 	spin_unlock_irqrestore(&gic_lock, flags);
@@ -622,6 +653,13 @@ static const struct irq_domain_ops gic_ipi_domain_ops = {
 	.match = gic_ipi_domain_match,
 };
 
+static int gic_cpu_startup(unsigned int cpu)
+{
+	/* Invoke irq_cpu_online callbacks to enable desired interrupts */
+	irq_cpu_online();
+
+	return 0;
+}
 
 static int __init gic_of_init(struct device_node *node,
 			      struct device_node *parent)
@@ -768,6 +806,8 @@ static int __init gic_of_init(struct device_node *node,
 		}
 	}
 
-	return 0;
+	return cpuhp_setup_state(CPUHP_AP_IRQ_MIPS_GIC_STARTING,
+				 "irqchip/mips/gic:starting",
+				 gic_cpu_startup, NULL);
 }
 IRQCHIP_DECLARE(mips_gic, "mti,gic", gic_of_init);
