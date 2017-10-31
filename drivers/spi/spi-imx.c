@@ -1523,6 +1523,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	spi_imx->devtype_data = devtype_data;
 
+	/* Get number of chip selects, either platform data or OF */
 	if (mxc_platform_info) {
 		master->num_chipselect = mxc_platform_info->num_chipselect;
 		master->cs_gpios = devm_kzalloc(&master->dev,
@@ -1532,7 +1533,13 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 		for (i = 0; i < master->num_chipselect; i++)
 			master->cs_gpios[i] = mxc_platform_info->chipselect[i];
- 	}
+	} else {
+		u32 num_cs;
+
+		if (!of_property_read_u32(np, "num-cs", &num_cs))
+			master->num_chipselect = num_cs;
+		/* If not preset, default value of 1 is used */
+	}
 
 	spi_imx->bitbang.chipselect = spi_imx_chipselect;
 	spi_imx->bitbang.setup_transfer = spi_imx_setupxfer;
@@ -1614,13 +1621,8 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	master->dev.of_node = pdev->dev.of_node;
 
-	if (!spi_imx->slave_mode) {
-		if (!master->cs_gpios) {
-			dev_err(&pdev->dev, "No CS GPIOs available\n");
-			ret = -EINVAL;
-			goto out_clk_put;
-		}
-
+	/* Request GPIO CS lines, if any */
+	if (!spi_imx->slave_mode && master->cs_gpios) {
 		for (i = 0; i < master->num_chipselect; i++) {
 			if (!gpio_is_valid(master->cs_gpios[i]))
 				continue;
