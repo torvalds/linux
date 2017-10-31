@@ -33,15 +33,21 @@
 #include <core/tegra.h>
 
 static int
-nouveau_vram_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
+nouveau_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
 {
 	return 0;
 }
 
 static int
-nouveau_vram_manager_fini(struct ttm_mem_type_manager *man)
+nouveau_manager_fini(struct ttm_mem_type_manager *man)
 {
 	return 0;
+}
+
+static void
+nouveau_manager_debug(struct ttm_mem_type_manager *man,
+		      struct drm_printer *printer)
+{
 }
 
 static inline void
@@ -103,23 +109,12 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 }
 
 const struct ttm_mem_type_manager_func nouveau_vram_manager = {
-	.init = nouveau_vram_manager_init,
-	.takedown = nouveau_vram_manager_fini,
+	.init = nouveau_manager_init,
+	.takedown = nouveau_manager_fini,
 	.get_node = nouveau_vram_manager_new,
 	.put_node = nouveau_vram_manager_del,
+	.debug = nouveau_manager_debug,
 };
-
-static int
-nouveau_gart_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
-{
-	return 0;
-}
-
-static int
-nouveau_gart_manager_fini(struct ttm_mem_type_manager *man)
-{
-	return 0;
-}
 
 static void
 nouveau_gart_manager_del(struct ttm_mem_type_manager *man,
@@ -172,31 +167,13 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 	return 0;
 }
 
-static void
-nouveau_gart_manager_debug(struct ttm_mem_type_manager *man,
-			   struct drm_printer *printer)
-{
-}
-
 const struct ttm_mem_type_manager_func nouveau_gart_manager = {
-	.init = nouveau_gart_manager_init,
-	.takedown = nouveau_gart_manager_fini,
+	.init = nouveau_manager_init,
+	.takedown = nouveau_manager_fini,
 	.get_node = nouveau_gart_manager_new,
 	.put_node = nouveau_gart_manager_del,
-	.debug = nouveau_gart_manager_debug
+	.debug = nouveau_manager_debug
 };
-
-static int
-nv04_gart_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
-{
-	return 0;
-}
-
-static int
-nv04_gart_manager_fini(struct ttm_mem_type_manager *man)
-{
-	return 0;
-}
 
 static void
 nv04_gart_manager_del(struct ttm_mem_type_manager *man, struct ttm_mem_reg *reg)
@@ -241,18 +218,12 @@ nv04_gart_manager_new(struct ttm_mem_type_manager *man,
 	return 0;
 }
 
-static void
-nv04_gart_manager_debug(struct ttm_mem_type_manager *man,
-			struct drm_printer *printer)
-{
-}
-
 const struct ttm_mem_type_manager_func nv04_gart_manager = {
-	.init = nv04_gart_manager_init,
-	.takedown = nv04_gart_manager_fini,
+	.init = nouveau_manager_init,
+	.takedown = nouveau_manager_fini,
 	.get_node = nv04_gart_manager_new,
 	.put_node = nv04_gart_manager_del,
-	.debug = nv04_gart_manager_debug
+	.debug = nouveau_manager_debug
 };
 
 int
