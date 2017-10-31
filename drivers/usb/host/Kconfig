@@ -222,18 +222,6 @@ config USB_EHCI_HCD_AT91
           Enables support for the on-chip EHCI controller on
           Atmel chips.
 
-config USB_EHCI_MSM
-	tristate "Support for Qualcomm QSD/MSM on-chip EHCI USB controller"
-	depends on ARCH_QCOM
-	select USB_EHCI_ROOT_HUB_TT
-	---help---
-	  Enables support for the USB Host controller present on the
-	  Qualcomm chipsets. Root Hub has inbuilt TT.
-	  This driver depends on OTG driver for PHY initialization,
-	  clock management, powering up VBUS, and power management.
-	  This driver is not supported on boards like trout which
-	  has an external PHY.
-
 config USB_EHCI_TEGRA
        tristate "NVIDIA Tegra HCD support"
        depends on ARCH_TEGRA
