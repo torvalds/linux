@@ -31,8 +31,6 @@
 
 struct nv50_instmem {
 	struct nvkm_instmem base;
-	unsigned long lock_flags;
-	spinlock_t lock;
 	u64 addr;
 };
 
@@ -57,12 +55,15 @@ nv50_instobj_wr32_slow(struct nvkm_memory *memory, u64 offset, u32 data)
 	struct nvkm_device *device = imem->base.subdev.device;
 	u64 base = (iobj->mem->offset + offset) & 0xffffff00000ULL;
 	u64 addr = (iobj->mem->offset + offset) & 0x000000fffffULL;
+	unsigned long flags;
 
+	spin_lock_irqsave(&imem->base.lock, flags);
 	if (unlikely(imem->addr != base)) {
 		nvkm_wr32(device, 0x001700, base >> 16);
 		imem->addr = base;
 	}
 	nvkm_wr32(device, 0x700000 + addr, data);
+	spin_unlock_irqrestore(&imem->base.lock, flags);
 }
 
 static u32
@@ -74,12 +75,15 @@ nv50_instobj_rd32_slow(struct nvkm_memory *memory, u64 offset)
 	u64 base = (iobj->mem->offset + offset) & 0xffffff00000ULL;
 	u64 addr = (iobj->mem->offset + offset) & 0x000000fffffULL;
 	u32 data;
+	unsigned long flags;
 
+	spin_lock_irqsave(&imem->base.lock, flags);
 	if (unlikely(imem->addr != base)) {
 		nvkm_wr32(device, 0x001700, base >> 16);
 		imem->addr = base;
 	}
 	data = nvkm_rd32(device, 0x700000 + addr);
+	spin_unlock_irqrestore(&imem->base.lock, flags);
 	return data;
 }
 
@@ -127,8 +131,6 @@ nv50_instobj_map(struct nvkm_memory *memory, struct nvkm_vma *vma, u64 offset)
 static void
 nv50_instobj_release(struct nvkm_memory *memory)
 {
-	struct nv50_instmem *imem = nv50_instobj(memory)->imem;
-	spin_unlock_irqrestore(&imem->lock, imem->lock_flags);
 }
 
 static void __iomem *
@@ -137,15 +139,12 @@ nv50_instobj_acquire(struct nvkm_memory *memory)
 	struct nv50_instobj *iobj = nv50_instobj(memory);
 	struct nv50_instmem *imem = iobj->imem;
 	struct nvkm_vm *vm;
-	unsigned long flags;
 
 	if (!iobj->map && (vm = nvkm_bar_bar2_vmm(imem->base.subdev.device)))
 		nv50_instobj_kmap(iobj, vm);
 	if (!IS_ERR_OR_NULL(iobj->map))
 		return iobj->map;
 
-	spin_lock_irqsave(&imem->lock, flags);
-	imem->lock_flags = flags;
 	return NULL;
 }
 
@@ -254,7 +253,6 @@ nv50_instmem_new(struct nvkm_device *device, int index,
 	if (!(imem = kzalloc(sizeof(*imem), GFP_KERNEL)))
 		return -ENOMEM;
 	nvkm_instmem_ctor(&nv50_instmem, device, index, &imem->base);
-	spin_lock_init(&imem->lock);
 	*pimem = &imem->base;
 	return 0;
 }
