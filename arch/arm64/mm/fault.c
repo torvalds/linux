@@ -698,7 +698,8 @@ asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
 
 	mem_abort_decode(esr);
 
-	show_pte(addr);
+	if (!user_mode(regs))
+		show_pte(addr);
 
 	info.si_signo = inf->sig;
 	info.si_errno = 0;
