@@ -617,31 +617,6 @@ nvkm_vm_legacy(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
 }
 
 int
-nvkm_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
-	       u32 block, struct lock_class_key *key, struct nvkm_vm **pvm)
-{
-	static struct lock_class_key _key;
-	struct nvkm_vm *vm;
-	int ret;
-
-	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
-	if (!vm)
-		return -ENOMEM;
-
-	__mutex_init(&vm->mutex, "&vm->mutex", key ? key : &_key);
-	vm->mmu = mmu;
-
-	ret = nvkm_vm_legacy(mmu, offset, length, mm_offset, block, vm);
-	if (ret) {
-		kfree(vm);
-		return ret;
-	}
-
-	*pvm = vm;
-	return 0;
-}
-
-int
 nvkm_vm_new(struct nvkm_device *device, u64 offset, u64 length, u64 mm_offset,
 	    struct lock_class_key *key, struct nvkm_vm **pvm)
 {
@@ -666,10 +641,7 @@ nvkm_vm_new(struct nvkm_device *device, u64 offset, u64 length, u64 mm_offset,
 		return ret;
 	}
 
-	if (!mmu->func->create)
-		return -EINVAL;
-
-	return mmu->func->create(mmu, offset, length, mm_offset, key, pvm);
+	return -EINVAL;
 }
 
 static int

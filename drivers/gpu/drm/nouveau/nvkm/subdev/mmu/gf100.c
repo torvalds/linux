@@ -190,13 +190,6 @@ gf100_vm_flush(struct nvkm_vm *vm)
 	mutex_unlock(&mmu->subdev.mutex);
 }
 
-int
-gf100_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
-		struct lock_class_key *key, struct nvkm_vm **pvm)
-{
-	return nvkm_vm_create(mmu, offset, length, mm_offset, 4096, key, pvm);
-}
-
 static const struct nvkm_mmu_func
 gf100_mmu = {
 	.limit = (1ULL << 40),
@@ -204,7 +197,6 @@ gf100_mmu = {
 	.pgt_bits  = 27 - 12,
 	.spg_shift = 12,
 	.lpg_shift = 17,
-	.create = gf100_vm_create,
 	.map_pgt = gf100_vm_map_pgt,
 	.map = gf100_vm_map,
 	.map_sg = gf100_vm_map_sg,

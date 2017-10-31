@@ -30,7 +30,6 @@ gk20a_mmu = {
 	.pgt_bits  = 27 - 12,
 	.spg_shift = 12,
 	.lpg_shift = 17,
-	.create = gf100_vm_create,
 	.map_pgt = gf100_vm_map_pgt,
 	.map = gf100_vm_map,
 	.map_sg = gf100_vm_map_sg,

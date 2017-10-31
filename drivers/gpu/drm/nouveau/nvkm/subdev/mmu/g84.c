@@ -30,7 +30,6 @@ g84_mmu = {
 	.pgt_bits  = 29 - 12,
 	.spg_shift = 12,
 	.lpg_shift = 16,
-	.create = nv50_vm_create,
 	.map_pgt = nv50_vm_map_pgt,
 	.map = nv50_vm_map,
 	.map_sg = nv50_vm_map_sg,

@@ -200,16 +200,6 @@ nv50_vm_flush(struct nvkm_vm *vm)
 	mutex_unlock(&subdev->mutex);
 }
 
-int
-nv50_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
-	       struct lock_class_key *key, struct nvkm_vm **pvm)
-{
-	u32 block = (1 << (mmu->func->pgt_bits + 12));
-	if (block > length)
-		block = length;
-	return nvkm_vm_create(mmu, offset, length, mm_offset, block, key, pvm);
-}
-
 static const struct nvkm_mmu_func
 nv50_mmu = {
 	.limit = (1ULL << 40),
@@ -217,7 +207,6 @@ nv50_mmu = {
 	.pgt_bits  = 29 - 12,
 	.spg_shift = 12,
 	.lpg_shift = 16,
-	.create = nv50_vm_create,
 	.map_pgt = nv50_vm_map_pgt,
 	.map = nv50_vm_map,
 	.map_sg = nv50_vm_map_sg,
