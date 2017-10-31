@@ -225,10 +225,8 @@ static void adv748x_unregister_clients(struct adv748x_state *state)
 {
 	unsigned int i;
 
-	for (i = 1; i < ARRAY_SIZE(state->i2c_clients); ++i) {
-		if (state->i2c_clients[i])
-			i2c_unregister_device(state->i2c_clients[i]);
-	}
+	for (i = 1; i < ARRAY_SIZE(state->i2c_clients); ++i)
+		i2c_unregister_device(state->i2c_clients[i]);
 }
 
 static int adv748x_initialise_clients(struct adv748x_state *state)
