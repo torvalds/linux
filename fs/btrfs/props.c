@@ -423,11 +423,11 @@ static const char *prop_compression_extract(struct inode *inode)
 {
 	switch (BTRFS_I(inode)->prop_compress) {
 	case BTRFS_COMPRESS_ZLIB:
-		return "zlib";
 	case BTRFS_COMPRESS_LZO:
-		return "lzo";
 	case BTRFS_COMPRESS_ZSTD:
-		return "zstd";
+		return btrfs_compress_type2str(BTRFS_I(inode)->prop_compress);
+	default:
+		break;
 	}
 
 	return NULL;
