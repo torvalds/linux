@@ -219,7 +219,8 @@ void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
 
 	spin_lock(&b->irq_lock);
 	first = fetch_and_zero(&b->irq_wait);
-	__intel_engine_disarm_breadcrumbs(engine);
+	if (b->irq_armed)
+		__intel_engine_disarm_breadcrumbs(engine);
 	spin_unlock(&b->irq_lock);
 
 	rbtree_postorder_for_each_entry_safe(wait, n, &b->waiters, node) {
