@@ -3084,7 +3084,6 @@ F:	arch/c6x/
 
 CA8210 IEEE-802.15.4 RADIO DRIVER
 M:	Harry Morris <h.morris@cascoda.com>
-M:	linuxdev@cascoda.com
 L:	linux-wpan@vger.kernel.org
 W:	https://github.com/Cascoda/ca8210-linux.git
 S:	Maintained
