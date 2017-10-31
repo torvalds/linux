@@ -57,7 +57,7 @@ def print_sll(items):
 def print_test_case(tcase):
     """ Pretty-printing of a given test case. """
     for k in tcase.keys():
-        if (type(tcase[k]) == list):
+        if (isinstance(tcase[k], list)):
             print(k + ":")
             print_list(tcase[k])
         else:
