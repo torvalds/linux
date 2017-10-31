@@ -15,7 +15,7 @@ def get_categorized_testlist(alltests, ucat):
 
 
 def get_unique_item(lst):
-    """ For a list, return a set of the unique items in the list. """
+    """ For a list, return a list of the unique items in the list. """
     return list(set(lst))
 
 
