@@ -60,8 +60,10 @@ void gf100_vm_flush(struct nvkm_vm *);
 struct nvkm_mmu_pt {
 	union {
 		struct nvkm_mmu_ptc *ptc;
+		struct nvkm_mmu_ptp *ptp;
 	};
 	struct nvkm_memory *memory;
+	bool sub;
 	u16 base;
 	u64 addr;
 	struct list_head head;

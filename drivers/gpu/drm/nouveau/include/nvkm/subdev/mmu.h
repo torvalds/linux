@@ -67,7 +67,7 @@ struct nvkm_mmu {
 	struct {
 		struct mutex mutex;
 		struct list_head list;
-	} ptc;
+	} ptc, ptp;
 };
 
 int nv04_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);

@@ -26,6 +26,85 @@
 #include <core/gpuobj.h>
 #include <subdev/fb.h>
 
+struct nvkm_mmu_ptp {
+	struct nvkm_mmu_pt *pt;
+	struct list_head head;
+	u8  shift;
+	u16 mask;
+	u16 free;
+};
+
+static void
+nvkm_mmu_ptp_put(struct nvkm_mmu *mmu, bool force, struct nvkm_mmu_pt *pt)
+{
+	const int slot = pt->base >> pt->ptp->shift;
+	struct nvkm_mmu_ptp *ptp = pt->ptp;
+
+	/* If there were no free slots in the parent allocation before,
+	 * there will be now, so return PTP to the cache.
+	 */
+	if (!ptp->free)
+		list_add(&ptp->head, &mmu->ptp.list);
+	ptp->free |= BIT(slot);
+
+	/* If there's no more sub-allocations, destroy PTP. */
+	if (ptp->free == ptp->mask) {
+		nvkm_mmu_ptc_put(mmu, force, &ptp->pt);
+		list_del(&ptp->head);
+		kfree(ptp);
+	}
+
+	kfree(pt);
+}
+
+struct nvkm_mmu_pt *
+nvkm_mmu_ptp_get(struct nvkm_mmu *mmu, u32 size, bool zero)
+{
+	struct nvkm_mmu_pt *pt;
+	struct nvkm_mmu_ptp *ptp;
+	int slot;
+
+	if (!(pt = kzalloc(sizeof(*pt), GFP_KERNEL)))
+		return NULL;
+
+	ptp = list_first_entry_or_null(&mmu->ptp.list, typeof(*ptp), head);
+	if (!ptp) {
+		/* Need to allocate a new parent to sub-allocate from. */
+		if (!(ptp = kmalloc(sizeof(*ptp), GFP_KERNEL))) {
+			kfree(pt);
+			return NULL;
+		}
+
+		ptp->pt = nvkm_mmu_ptc_get(mmu, 0x1000, 0x1000, false);
+		if (!ptp->pt) {
+			kfree(ptp);
+			kfree(pt);
+			return NULL;
+		}
+
+		ptp->shift = order_base_2(size);
+		slot = nvkm_memory_size(ptp->pt->memory) >> ptp->shift;
+		ptp->mask = (1 << slot) - 1;
+		ptp->free = ptp->mask;
+		list_add(&ptp->head, &mmu->ptp.list);
+	}
+	pt->ptp = ptp;
+	pt->sub = true;
+
+	/* Sub-allocate from parent object, removing PTP from cache
+	 * if there's no more free slots left.
+	 */
+	slot = __ffs(ptp->free);
+	ptp->free &= ~BIT(slot);
+	if (!ptp->free)
+		list_del(&ptp->head);
+
+	pt->memory = pt->ptp->pt->memory;
+	pt->base = slot << ptp->shift;
+	pt->addr = pt->ptp->pt->addr + pt->base;
+	return pt;
+}
+
 struct nvkm_mmu_ptc {
 	struct list_head head;
 	struct list_head item;
@@ -59,6 +138,14 @@ nvkm_mmu_ptc_put(struct nvkm_mmu *mmu, bool force, struct nvkm_mmu_pt **ppt)
 {
 	struct nvkm_mmu_pt *pt = *ppt;
 	if (pt) {
+		/* Handle sub-allocated page tables. */
+		if (pt->sub) {
+			mutex_lock(&mmu->ptp.mutex);
+			nvkm_mmu_ptp_put(mmu, force, pt);
+			mutex_unlock(&mmu->ptp.mutex);
+			return;
+		}
+
 		/* Either cache or free the object. */
 		mutex_lock(&mmu->ptc.mutex);
 		if (pt->ptc->refs < 8 /* Heuristic. */ && !force) {
@@ -78,6 +165,14 @@ nvkm_mmu_ptc_get(struct nvkm_mmu *mmu, u32 size, u32 align, bool zero)
 	struct nvkm_mmu_ptc *ptc;
 	struct nvkm_mmu_pt *pt;
 	int ret;
+
+	/* Sub-allocated page table (ie. GP100 LPT). */
+	if (align < 0x1000) {
+		mutex_lock(&mmu->ptp.mutex);
+		pt = nvkm_mmu_ptp_get(mmu, align, zero);
+		mutex_unlock(&mmu->ptp.mutex);
+		return pt;
+	}
 
 	/* Lookup cache for this page table size. */
 	mutex_lock(&mmu->ptc.mutex);
@@ -103,6 +198,7 @@ nvkm_mmu_ptc_get(struct nvkm_mmu *mmu, u32 size, u32 align, bool zero)
 	if (!(pt = kmalloc(sizeof(*pt), GFP_KERNEL)))
 		return NULL;
 	pt->ptc = ptc;
+	pt->sub = false;
 
 	ret = nvkm_memory_new(mmu->subdev.device, NVKM_MEM_TARGET_INST,
 			      size, align, zero, &pt->memory);
@@ -147,6 +243,8 @@ nvkm_mmu_ptc_init(struct nvkm_mmu *mmu)
 {
 	mutex_init(&mmu->ptc.mutex);
 	INIT_LIST_HEAD(&mmu->ptc.list);
+	mutex_init(&mmu->ptp.mutex);
+	INIT_LIST_HEAD(&mmu->ptp.list);
 }
 
 void
