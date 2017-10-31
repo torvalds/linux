@@ -1958,7 +1958,7 @@ nv108_chipset = {
 static const struct nvkm_device_chip
 nv117_chipset = {
 	.name = "GM107",
-	.bar = gf100_bar_new,
+	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gk104_clk_new,
@@ -1992,7 +1992,7 @@ nv117_chipset = {
 static const struct nvkm_device_chip
 nv118_chipset = {
 	.name = "GM108",
-	.bar = gf100_bar_new,
+	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.clk = gk104_clk_new,
@@ -2026,7 +2026,7 @@ nv118_chipset = {
 static const struct nvkm_device_chip
 nv120_chipset = {
 	.name = "GM200",
-	.bar = gf100_bar_new,
+	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
@@ -2061,7 +2061,7 @@ nv120_chipset = {
 static const struct nvkm_device_chip
 nv124_chipset = {
 	.name = "GM204",
-	.bar = gf100_bar_new,
+	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
@@ -2096,7 +2096,7 @@ nv124_chipset = {
 static const struct nvkm_device_chip
 nv126_chipset = {
 	.name = "GM206",
-	.bar = gf100_bar_new,
+	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
@@ -2131,7 +2131,7 @@ nv126_chipset = {
 static const struct nvkm_device_chip
 nv12b_chipset = {
 	.name = "GM20B",
-	.bar = gk20a_bar_new,
+	.bar = gm20b_bar_new,
 	.bus = gf100_bus_new,
 	.clk = gm20b_clk_new,
 	.fb = gm20b_fb_new,
@@ -2156,7 +2156,7 @@ nv12b_chipset = {
 static const struct nvkm_device_chip
 nv130_chipset = {
 	.name = "GP100",
-	.bar = gf100_bar_new,
+	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
@@ -2191,7 +2191,7 @@ nv130_chipset = {
 static const struct nvkm_device_chip
 nv132_chipset = {
 	.name = "GP102",
-	.bar = gf100_bar_new,
+	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
@@ -2226,7 +2226,7 @@ nv132_chipset = {
 static const struct nvkm_device_chip
 nv134_chipset = {
 	.name = "GP104",
-	.bar = gf100_bar_new,
+	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
@@ -2261,7 +2261,7 @@ nv134_chipset = {
 static const struct nvkm_device_chip
 nv136_chipset = {
 	.name = "GP106",
-	.bar = gf100_bar_new,
+	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
@@ -2296,7 +2296,7 @@ nv136_chipset = {
 static const struct nvkm_device_chip
 nv137_chipset = {
 	.name = "GP107",
-	.bar = gf100_bar_new,
+	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
@@ -2331,7 +2331,7 @@ nv137_chipset = {
 static const struct nvkm_device_chip
 nv138_chipset = {
 	.name = "GP108",
-	.bar = gf100_bar_new,
+	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
@@ -2361,7 +2361,7 @@ nv138_chipset = {
 static const struct nvkm_device_chip
 nv13b_chipset = {
 	.name = "GP10B",
-	.bar = gk20a_bar_new,
+	.bar = gm20b_bar_new,
 	.bus = gf100_bus_new,
 	.fb = gp10b_fb_new,
 	.fuse = gm107_fuse_new,

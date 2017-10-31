@@ -28,4 +28,6 @@ void g84_bar_flush(struct nvkm_bar *);
 
 void gf100_bar_bar1_fini(struct nvkm_bar *);
 void gf100_bar_bar2_fini(struct nvkm_bar *);
+
+void gm107_bar_bar1_wait(struct nvkm_bar *);
 #endif
