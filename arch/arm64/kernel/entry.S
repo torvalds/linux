@@ -867,9 +867,10 @@ el0_svc:
 	mov	wscno, w8			// syscall number in w8
 	mov	wsc_nr, #__NR_syscalls
 
-#ifndef CONFIG_ARM64_SVE
+#ifdef CONFIG_ARM64_SVE
+alternative_if_not ARM64_SVE
 	b	el0_svc_naked
-#else
+alternative_else_nop_endif
 	tbz	x16, #TIF_SVE, el0_svc_naked	// Skip unless TIF_SVE set:
 	bic	x16, x16, #_TIF_SVE		// discard SVE state
 	str	x16, [tsk, #TSK_TI_FLAGS]
@@ -884,7 +885,7 @@ el0_svc:
 	mrs	x9, cpacr_el1
 	bic	x9, x9, #CPACR_EL1_ZEN_EL0EN	// disable SVE for el0
 	msr	cpacr_el1, x9			// synchronised by eret to el0
-#endif /* CONFIG_ARM64_SVE */
+#endif
 
 el0_svc_naked:					// compat entry point
 	stp	x0, xscno, [sp, #S_ORIG_X0]	// save the original x0 and syscall number
