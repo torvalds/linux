@@ -35,16 +35,12 @@
 static int
 nouveau_vram_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
 {
-	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nvkm_fb *fb = nvxx_fb(&drm->client.device);
-	man->priv = fb;
 	return 0;
 }
 
 static int
 nouveau_vram_manager_fini(struct ttm_mem_type_manager *man)
 {
-	man->priv = NULL;
 	return 0;
 }
 
@@ -193,20 +189,12 @@ const struct ttm_mem_type_manager_func nouveau_gart_manager = {
 static int
 nv04_gart_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
 {
-	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nvkm_mmu *mmu = nvxx_mmu(&drm->client.device);
-	struct nvkm_vm *vm = NULL;
-	nvkm_vm_ref(mmu->vmm, &vm, NULL);
-	man->priv = vm;
 	return 0;
 }
 
 static int
 nv04_gart_manager_fini(struct ttm_mem_type_manager *man)
 {
-	struct nvkm_vm *vm = man->priv;
-	nvkm_vm_ref(NULL, &vm, NULL);
-	man->priv = NULL;
 	return 0;
 }
 
@@ -226,6 +214,8 @@ nv04_gart_manager_new(struct ttm_mem_type_manager *man,
 		      const struct ttm_place *place,
 		      struct ttm_mem_reg *reg)
 {
+	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
+	struct nvkm_mmu *mmu = nvxx_mmu(&drm->client.device);
 	struct nvkm_mem *node;
 	int ret;
 
@@ -235,7 +225,7 @@ nv04_gart_manager_new(struct ttm_mem_type_manager *man,
 
 	node->page_shift = 12;
 
-	ret = nvkm_vm_get(man->priv, reg->num_pages << 12, node->page_shift,
+	ret = nvkm_vm_get(mmu->vmm, reg->num_pages << 12, node->page_shift,
 			  NV_MEM_ACCESS_RW, &node->vma[0]);
 	if (ret) {
 		if (ret == -ENOSPC) {
