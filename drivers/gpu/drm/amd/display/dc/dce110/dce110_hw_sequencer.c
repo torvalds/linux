@@ -650,13 +650,11 @@ static bool dce110_set_output_transfer_func(
 	xfm->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
 
 	if (stream->out_transfer_func &&
-		stream->out_transfer_func->type ==
-			TF_TYPE_PREDEFINED &&
-		stream->out_transfer_func->tf ==
-			TRANSFER_FUNCTION_SRGB) {
+	    stream->out_transfer_func->type == TF_TYPE_PREDEFINED &&
+	    stream->out_transfer_func->tf == TRANSFER_FUNCTION_SRGB) {
 		xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_SRGB);
-	} else if (dce110_translate_regamma_to_hw_format(
-				stream->out_transfer_func, &xfm->regamma_params)) {
+	} else if (dce110_translate_regamma_to_hw_format(stream->out_transfer_func,
+							 &xfm->regamma_params)) {
 		xfm->funcs->opp_program_regamma_pwl(xfm, &xfm->regamma_params);
 		xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_USER);
 	} else {

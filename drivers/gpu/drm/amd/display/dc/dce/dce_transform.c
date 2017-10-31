@@ -1260,124 +1260,87 @@ static void program_pwl(
 			REGAMMA_LUT_LIGHT_SLEEP_DIS, 0);
 }
 
-static void regamma_config_regions_and_segments(
-	struct dce_transform *xfm_dce,
-	const struct pwl_params *params)
+static void regamma_config_regions_and_segments(struct dce_transform *xfm_dce,
+						const struct pwl_params *params)
 {
 	const struct gamma_curve *curve;
 
-	{
-		REG_SET_2(REGAMMA_CNTLA_START_CNTL, 0,
-			REGAMMA_CNTLA_EXP_REGION_START, params->arr_points[0].custom_float_x,
-			REGAMMA_CNTLA_EXP_REGION_START_SEGMENT, 0);
-	}
-	{
-		REG_SET(REGAMMA_CNTLA_SLOPE_CNTL, 0,
-			REGAMMA_CNTLA_EXP_REGION_LINEAR_SLOPE, params->arr_points[0].custom_float_slope);
+	REG_SET_2(REGAMMA_CNTLA_START_CNTL, 0,
+		  REGAMMA_CNTLA_EXP_REGION_START, params->arr_points[0].custom_float_x,
+		  REGAMMA_CNTLA_EXP_REGION_START_SEGMENT, 0);
 
-	}
-	{
-		REG_SET(REGAMMA_CNTLA_END_CNTL1, 0,
-			REGAMMA_CNTLA_EXP_REGION_END, params->arr_points[1].custom_float_x);
-	}
-	{
-		REG_SET_2(REGAMMA_CNTLA_END_CNTL2, 0,
-			REGAMMA_CNTLA_EXP_REGION_END_BASE, params->arr_points[1].custom_float_y,
-			REGAMMA_CNTLA_EXP_REGION_END_SLOPE, params->arr_points[2].custom_float_slope);
-	}
+	REG_SET(REGAMMA_CNTLA_SLOPE_CNTL, 0,
+		REGAMMA_CNTLA_EXP_REGION_LINEAR_SLOPE, params->arr_points[0].custom_float_slope);
+
+	REG_SET(REGAMMA_CNTLA_END_CNTL1, 0,
+		REGAMMA_CNTLA_EXP_REGION_END, params->arr_points[1].custom_float_x);
+
+	REG_SET_2(REGAMMA_CNTLA_END_CNTL2, 0,
+		  REGAMMA_CNTLA_EXP_REGION_END_BASE, params->arr_points[1].custom_float_y,
+		  REGAMMA_CNTLA_EXP_REGION_END_SLOPE, params->arr_points[2].custom_float_slope);
 
 	curve = params->arr_curve_points;
 
-	{
-		REG_SET_4(REGAMMA_CNTLA_REGION_0_1, 0,
-			REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-			REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-			REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
-			REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-	}
-
+	REG_SET_4(REGAMMA_CNTLA_REGION_0_1, 0,
+		  REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
+		  REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
+		  REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
+		  REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
 	curve += 2;
 
-	{
-		REG_SET_4(REGAMMA_CNTLA_REGION_2_3, 0,
-			REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-			REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-			REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
-			REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-
-	}
-
+	REG_SET_4(REGAMMA_CNTLA_REGION_2_3, 0,
+		  REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
+		  REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
+		  REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
+		  REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
 	curve += 2;
 
-	{
-		REG_SET_4(REGAMMA_CNTLA_REGION_4_5, 0,
-			REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-			REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-			REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
-			REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-
-	}
-
+	REG_SET_4(REGAMMA_CNTLA_REGION_4_5, 0,
+		  REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
+		  REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
+		  REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
+		  REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
 	curve += 2;
 
-	{
-		REG_SET_4(REGAMMA_CNTLA_REGION_6_7, 0,
-			REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-			REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-			REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
-			REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-
-	}
-
+	REG_SET_4(REGAMMA_CNTLA_REGION_6_7, 0,
+		  REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
+		  REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
+		  REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
+		  REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
 	curve += 2;
 
-	{
-		REG_SET_4(REGAMMA_CNTLA_REGION_8_9, 0,
-			REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-			REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-			REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
-			REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-
-	}
-
+	REG_SET_4(REGAMMA_CNTLA_REGION_8_9, 0,
+		  REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
+		  REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
+		  REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
+		  REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
 	curve += 2;
 
-	{
-		REG_SET_4(REGAMMA_CNTLA_REGION_10_11, 0,
-			REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-			REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-			REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
-			REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-
-	}
-
+	REG_SET_4(REGAMMA_CNTLA_REGION_10_11, 0,
+		  REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
+		  REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
+		  REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
+		  REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
 	curve += 2;
 
-	{
-		REG_SET_4(REGAMMA_CNTLA_REGION_12_13, 0,
-			REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-			REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-			REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
-			REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-
-	}
-
+	REG_SET_4(REGAMMA_CNTLA_REGION_12_13, 0,
+		  REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
+		  REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
+		  REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
+		  REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
 	curve += 2;
 
-	{
-		REG_SET_4(REGAMMA_CNTLA_REGION_14_15, 0,
-			REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-			REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-			REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
-			REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-	}
+	REG_SET_4(REGAMMA_CNTLA_REGION_14_15, 0,
+		  REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
+		  REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
+		  REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
+		  REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
 }
 
 
 
-void dce110_opp_program_regamma_pwl(
-	struct transform *xfm,
-	const struct pwl_params *params)
+void dce110_opp_program_regamma_pwl(struct transform *xfm,
+				    const struct pwl_params *params)
 {
 	struct dce_transform *xfm_dce = TO_DCE_TRANSFORM(xfm);
 
@@ -1388,9 +1351,8 @@ void dce110_opp_program_regamma_pwl(
 	program_pwl(xfm_dce, params);
 }
 
-void dce110_opp_power_on_regamma_lut(
-	struct transform *xfm,
-	bool power_on)
+void dce110_opp_power_on_regamma_lut(struct transform *xfm,
+				     bool power_on)
 {
 	struct dce_transform *xfm_dce = TO_DCE_TRANSFORM(xfm);
 
@@ -1406,29 +1368,25 @@ void dce110_opp_power_on_regamma_lut(
 }
 
 void dce110_opp_set_regamma_mode(struct transform *xfm,
-		enum opp_regamma mode)
+				 enum opp_regamma mode)
 {
 	struct dce_transform *xfm_dce = TO_DCE_TRANSFORM(xfm);
 
 	REG_SET(REGAMMA_CONTROL, 0,
-			GRPH_REGAMMA_MODE, mode);
+		GRPH_REGAMMA_MODE, mode);
 }
 
 static const struct transform_funcs dce_transform_funcs = {
 	.transform_reset = dce_transform_reset,
-	.transform_set_scaler =
-		dce_transform_set_scaler,
-	.transform_set_gamut_remap =
-		dce_transform_set_gamut_remap,
+	.transform_set_scaler = dce_transform_set_scaler,
+	.transform_set_gamut_remap = dce_transform_set_gamut_remap,
 	.opp_set_csc_adjustment = dce110_opp_set_csc_adjustment,
 	.opp_set_csc_default = dce110_opp_set_csc_default,
 	.opp_power_on_regamma_lut = dce110_opp_power_on_regamma_lut,
 	.opp_program_regamma_pwl = dce110_opp_program_regamma_pwl,
 	.opp_set_regamma_mode = dce110_opp_set_regamma_mode,
-	.transform_set_pixel_storage_depth =
-		dce_transform_set_pixel_storage_depth,
-	.transform_get_optimal_number_of_taps =
-		dce_transform_get_optimal_number_of_taps
+	.transform_set_pixel_storage_depth = dce_transform_set_pixel_storage_depth,
+	.transform_get_optimal_number_of_taps = dce_transform_get_optimal_number_of_taps
 };
 
 /*****************************************/
