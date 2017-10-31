@@ -147,6 +147,21 @@ static struct sk_buff *qtnf_cmd_alloc_new_cmdskb(u8 macid, u8 vifid, u16 cmd_no,
 	return cmd_skb;
 }
 
+static void qtnf_cmd_tlv_ie_set_add(struct sk_buff *cmd_skb, u8 frame_type,
+				    const u8 *buf, size_t len)
+{
+	struct qlink_tlv_ie_set *tlv;
+
+	tlv = (struct qlink_tlv_ie_set *)skb_put(cmd_skb, sizeof(*tlv) + len);
+	tlv->hdr.type = cpu_to_le16(QTN_TLV_ID_IE_SET);
+	tlv->hdr.len = cpu_to_le16(len + sizeof(*tlv) - sizeof(tlv->hdr));
+	tlv->type = frame_type;
+	tlv->flags = 0;
+
+	if (len && buf)
+		memcpy(tlv->ie_data, buf, len);
+}
+
 int qtnf_cmd_send_start_ap(struct qtnf_vif *vif)
 {
 	struct sk_buff *cmd_skb;
@@ -2028,9 +2043,8 @@ int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 	}
 
 	if (scan_req->ie_len != 0)
-		qtnf_cmd_skb_put_tlv_arr(cmd_skb, QTN_TLV_ID_IE_SET,
-					 scan_req->ie,
-					 scan_req->ie_len);
+		qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_PROBE_REQ,
+					scan_req->ie, scan_req->ie_len);
 
 	if (scan_req->n_channels) {
 		n_channels = scan_req->n_channels;
@@ -2154,9 +2168,8 @@ int qtnf_cmd_send_connect(struct qtnf_vif *vif,
 				 sme->ssid_len);
 
 	if (sme->ie_len != 0)
-		qtnf_cmd_skb_put_tlv_arr(cmd_skb, QTN_TLV_ID_IE_SET,
-					 sme->ie,
-					 sme->ie_len);
+		qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_ASSOC_REQ,
+					sme->ie, sme->ie_len);
 
 	qtnf_bus_lock(vif->mac->bus);
 

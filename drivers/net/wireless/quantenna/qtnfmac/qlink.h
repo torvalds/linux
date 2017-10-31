@@ -1147,6 +1147,33 @@ struct qlink_tlv_chandef {
 	struct qlink_chandef chan;
 } __packed;
 
+enum qlink_ie_set_type {
+	QLINK_IE_SET_UNKNOWN,
+	QLINK_IE_SET_ASSOC_REQ,
+	QLINK_IE_SET_ASSOC_RESP,
+	QLINK_IE_SET_PROBE_REQ,
+	QLINK_IE_SET_SCAN,
+	QLINK_IE_SET_BEACON_HEAD,
+	QLINK_IE_SET_BEACON_TAIL,
+	QLINK_IE_SET_BEACON_IES,
+	QLINK_IE_SET_PROBE_RESP,
+	QLINK_IE_SET_PROBE_RESP_IES,
+};
+
+/**
+ * struct qlink_tlv_ie_set - data for QTN_TLV_ID_IE_SET
+ *
+ * @type: type of MGMT frame IEs belong to, one of &enum qlink_ie_set_type.
+ * @flags: for future use.
+ * @ie_data: IEs data.
+ */
+struct qlink_tlv_ie_set {
+	struct qlink_tlv_hdr hdr;
+	u8 type;
+	u8 flags;
+	u8 ie_data[0];
+} __packed;
+
 struct qlink_chan_stats {
 	__le32 chan_num;
 	__le32 cca_tx;
