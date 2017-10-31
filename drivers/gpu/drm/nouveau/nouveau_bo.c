@@ -589,6 +589,7 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 			 struct ttm_mem_type_manager *man)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
+	struct nvif_mmu *mmu = &drm->client.mmu;
 
 	switch (type) {
 	case TTM_PL_SYSTEM:
@@ -605,7 +606,8 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 
 		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 			/* Some BARs do not support being ioremapped WC */
-			if (nvxx_bar(&drm->client.device)->iomap_uncached) {
+			const u8 type = mmu->type[drm->ttm.type_vram].type;
+			if (type & NVIF_MEM_UNCACHED) {
 				man->available_caching = TTM_PL_FLAG_UNCACHED;
 				man->default_caching = TTM_PL_FLAG_UNCACHED;
 			}
