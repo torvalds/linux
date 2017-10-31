@@ -27,6 +27,8 @@
 #include <core/gpuobj.h>
 #include <subdev/fb.h>
 
+#include <nvif/if500d.h>
+
 struct nvkm_mmu_ptp {
 	struct nvkm_mmu_pt *pt;
 	struct list_head head;
@@ -218,6 +220,9 @@ nvkm_vm_map_(const struct nvkm_vmm_page *page, struct nvkm_vma *vma, u64 delta,
 	     struct nvkm_mem *mem, nvkm_vmm_pte_func fn,
 	     struct nvkm_vmm_map *map)
 {
+	union {
+		struct nv50_vmm_map_v0 nv50;
+	} args;
 	struct nvkm_vmm *vmm = vma->vm;
 	void *argv = NULL;
 	u32 argc = 0;
@@ -227,6 +232,20 @@ nvkm_vm_map_(const struct nvkm_vmm_page *page, struct nvkm_vma *vma, u64 delta,
 	map->page = page;
 
 	if (vmm->func->valid) {
+		switch (vmm->mmu->subdev.device->card_type) {
+		case NV_50:
+			args.nv50.version = 0;
+			args.nv50.ro = !(vma->access & NV_MEM_ACCESS_WO);
+			args.nv50.priv = !!(vma->access & NV_MEM_ACCESS_SYS);
+			args.nv50.kind = (mem->memtype & 0x07f);
+			args.nv50.comp = (mem->memtype & 0x180) >> 7;
+			argv = &args.nv50;
+			argc = sizeof(args.nv50);
+			break;
+		default:
+			break;
+		}
+
 		ret = vmm->func->valid(vmm, argv, argc, map);
 		if (WARN_ON(ret))
 			return;

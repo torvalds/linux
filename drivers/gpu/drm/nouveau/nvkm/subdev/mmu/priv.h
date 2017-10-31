@@ -37,17 +37,13 @@ struct nvkm_mmu_func {
 		bool global;
 		u32 pd_offset;
 	} vmm;
+
+	const u8 *(*kind)(struct nvkm_mmu *, int *count);
 };
 
 extern const struct nvkm_mmu_func nv04_mmu;
 
-void nv50_vm_map_pgt(struct nvkm_vmm *, u32, struct nvkm_memory **);
-void nv50_vm_map(struct nvkm_vma *, struct nvkm_memory *, struct nvkm_mem *,
-		 u32, u32, u64, u64);
-void nv50_vm_map_sg(struct nvkm_vma *, struct nvkm_memory *, struct nvkm_mem *,
-		    u32, u32, dma_addr_t *);
-void nv50_vm_unmap(struct nvkm_vma *, struct nvkm_memory *, u32, u32);
-void nv50_vm_flush(struct nvkm_vm *);
+const u8 *nv50_mmu_kind(struct nvkm_mmu *, int *count);
 
 void gf100_vm_map_pgt(struct nvkm_vmm *, u32, struct nvkm_memory **);
 void gf100_vm_map(struct nvkm_vma *, struct nvkm_memory *, struct nvkm_mem *,
