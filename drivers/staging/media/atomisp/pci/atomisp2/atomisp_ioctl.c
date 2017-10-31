@@ -2933,13 +2933,15 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 #else
 		if (isp->motor)
 #endif
-			err = v4l2_subdev_call(
 #ifndef ISP2401
+			err = v4l2_subdev_call(
 					isp->inputs[asd->input_curr].motor,
-#else
-					isp->motor,
-#endif
 					core, ioctl, cmd, arg);
+#else
+			err = v4l2_subdev_call(
+					isp->motor,
+					core, ioctl, cmd, arg);
+#endif
 		else
 			err = v4l2_subdev_call(
 					isp->inputs[asd->input_curr].camera,
