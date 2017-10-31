@@ -26,13 +26,9 @@
 
 #include <nvif/class.h>
 
-#define NV04_PDMA_SIZE (128 * 1024 * 1024)
-
 const struct nvkm_mmu_func
 nv04_mmu = {
-	.limit = NV04_PDMA_SIZE,
 	.dma_bits = 32,
-	.lpg_shift = 12,
 	.mmu = {{ -1, -1, NVIF_CLASS_MMU_NV04}},
 	.mem = {{ -1, -1, NVIF_CLASS_MEM_NV04}, nv04_mem_new, nv04_mem_map },
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_NV04}, nv04_vmm_new, true },

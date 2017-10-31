@@ -27,15 +27,6 @@
 #include <core/memory.h>
 #include <core/option.h>
 
-extern const u8 gf100_pte_storage_type_map[256];
-
-bool
-gf100_fb_memtype_valid(struct nvkm_fb *fb, u32 tile_flags)
-{
-	u8 memtype = (tile_flags & 0x0000ff00) >> 8;
-	return likely((gf100_pte_storage_type_map[memtype] != 0xff));
-}
-
 void
 gf100_fb_intr(struct nvkm_fb *base)
 {
@@ -140,7 +131,6 @@ gf100_fb = {
 	.init_page = gf100_fb_init_page,
 	.intr = gf100_fb_intr,
 	.ram_new = gf100_ram_new,
-	.memtype_valid = gf100_fb_memtype_valid,
 	.default_bigpage = 17,
 };
 

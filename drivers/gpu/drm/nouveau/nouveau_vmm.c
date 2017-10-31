@@ -131,6 +131,5 @@ nouveau_vmm_init(struct nouveau_cli *cli, s32 oclass, struct nouveau_vmm *vmm)
 		return ret;
 
 	vmm->cli = cli;
-	vmm->vm = nvkm_uvmm(vmm->vmm.object.priv)->vmm;
 	return 0;
 }

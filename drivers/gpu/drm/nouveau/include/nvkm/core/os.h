@@ -1,7 +1,6 @@
 #ifndef __NVKM_OS_H__
 #define __NVKM_OS_H__
 #include <nvif/os.h>
-#define nvkm_vmm nvkm_vm
 
 #ifdef __BIG_ENDIAN
 #define ioread16_native ioread16be
@@ -21,5 +20,4 @@
 	iowrite32_native(lower_32_bits(_v), &_p[0]);			       \
 	iowrite32_native(upper_32_bits(_v), &_p[1]);			       \
 } while(0)
-
 #endif

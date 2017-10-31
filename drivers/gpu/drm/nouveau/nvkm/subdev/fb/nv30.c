@@ -124,7 +124,6 @@ nv30_fb = {
 	.tile.fini = nv20_fb_tile_fini,
 	.tile.prog = nv20_fb_tile_prog,
 	.ram_new = nv20_ram_new,
-	.memtype_valid = nv04_fb_memtype_valid,
 };
 
 int

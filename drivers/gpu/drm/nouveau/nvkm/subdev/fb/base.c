@@ -31,12 +31,6 @@
 #include <engine/gr.h>
 #include <engine/mpeg.h>
 
-bool
-nvkm_fb_memtype_valid(struct nvkm_fb *fb, u32 memtype)
-{
-	return fb->func->memtype_valid(fb, memtype);
-}
-
 void
 nvkm_fb_tile_fini(struct nvkm_fb *fb, int region, struct nvkm_fb_tile *tile)
 {

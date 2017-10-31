@@ -70,9 +70,7 @@ gm200_mmu_kind(struct nvkm_mmu *mmu, int *count)
 
 static const struct nvkm_mmu_func
 gm200_mmu = {
-	.limit = (1ULL << 40),
 	.dma_bits = 40,
-	.lpg_shift = 17,
 	.mmu = {{ -1, -1, NVIF_CLASS_MMU_GF100}},
 	.mem = {{ -1,  0, NVIF_CLASS_MEM_GF100}, gf100_mem_new, gf100_mem_map },
 	.vmm = {{ -1,  0, NVIF_CLASS_VMM_GM200}, gm200_vmm_new },
@@ -82,9 +80,7 @@ gm200_mmu = {
 
 static const struct nvkm_mmu_func
 gm200_mmu_fixed = {
-	.limit = (1ULL << 40),
 	.dma_bits = 40,
-	.lpg_shift = 17,
 	.mmu = {{ -1, -1, NVIF_CLASS_MMU_GF100}},
 	.mem = {{ -1,  0, NVIF_CLASS_MEM_GF100}, gf100_mem_new, gf100_mem_map },
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GM200}, gm200_vmm_new_fixed },

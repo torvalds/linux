@@ -97,7 +97,6 @@ struct nouveau_cli {
 	struct nouveau_vmm vmm;
 	const struct nvif_mclass *mem;
 
-	struct nvkm_vm *vm;
 	struct list_head head;
 	void *abi16;
 	struct list_head objects;

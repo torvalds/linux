@@ -28,29 +28,11 @@
 #include <core/enum.h>
 #include <engine/fifo.h>
 
-int
-nv50_fb_memtype[0x80] = {
-	1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	1, 1, 1, 1, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0,
-	1, 1, 1, 1, 1, 1, 1, 0, 2, 2, 2, 2, 2, 2, 2, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 0, 0,
-	0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 2, 2, 2, 2,
-	1, 0, 2, 0, 1, 0, 2, 0, 1, 1, 2, 2, 1, 1, 0, 0
-};
-
 static int
 nv50_fb_ram_new(struct nvkm_fb *base, struct nvkm_ram **pram)
 {
 	struct nv50_fb *fb = nv50_fb(base);
 	return fb->func->ram_new(&fb->base, pram);
-}
-
-static bool
-nv50_fb_memtype_valid(struct nvkm_fb *fb, u32 memtype)
-{
-	return nv50_fb_memtype[(memtype & 0xff00) >> 8] != 0;
 }
 
 static const struct nvkm_enum vm_dispatch_subclients[] = {
@@ -276,7 +258,6 @@ nv50_fb_ = {
 	.init = nv50_fb_init,
 	.intr = nv50_fb_intr,
 	.ram_new = nv50_fb_ram_new,
-	.memtype_valid = nv50_fb_memtype_valid,
 };
 
 int

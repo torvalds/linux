@@ -28,8 +28,6 @@
 
 #include <nvif/class.h>
 
-#define NV44_GART_SIZE (512 * 1024 * 1024)
-
 static void
 nv44_mmu_init(struct nvkm_mmu *mmu)
 {
@@ -57,9 +55,7 @@ nv44_mmu_init(struct nvkm_mmu *mmu)
 static const struct nvkm_mmu_func
 nv44_mmu = {
 	.init = nv44_mmu_init,
-	.limit = NV44_GART_SIZE,
 	.dma_bits = 39,
-	.lpg_shift = 12,
 	.mmu = {{ -1, -1, NVIF_CLASS_MMU_NV04}},
 	.mem = {{ -1, -1, NVIF_CLASS_MEM_NV04}, nv04_mem_new, nv04_mem_map },
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_NV04}, nv44_vmm_new, true },

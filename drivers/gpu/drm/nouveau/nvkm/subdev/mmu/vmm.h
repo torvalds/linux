@@ -160,9 +160,6 @@ int nvkm_vmm_get_locked(struct nvkm_vmm *, bool getref, bool mapref,
 void nvkm_vmm_put_locked(struct nvkm_vmm *, struct nvkm_vma *);
 void nvkm_vmm_unmap_locked(struct nvkm_vmm *, struct nvkm_vma *);
 void nvkm_vmm_unmap_region(struct nvkm_vmm *vmm, struct nvkm_vma *vma);
-void nvkm_vmm_ptes_map(struct nvkm_vmm *, const struct nvkm_vmm_page *,
-		       u64 addr, u64 size, struct nvkm_vmm_map *,
-		       nvkm_vmm_pte_func);
 
 struct nvkm_vma *nvkm_vma_tail(struct nvkm_vma *, u64 tail);
 void nvkm_vmm_node_insert(struct nvkm_vmm *, struct nvkm_vma *);

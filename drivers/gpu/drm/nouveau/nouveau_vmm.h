@@ -1,6 +1,5 @@
 #ifndef __NOUVEAU_VMA_H__
 #define __NOUVEAU_VMA_H__
-#include <subdev/mmu/uvmm.h>
 #include <nvif/vmm.h>
 struct nouveau_bo;
 struct nouveau_mem;

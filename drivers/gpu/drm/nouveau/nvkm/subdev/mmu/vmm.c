@@ -700,7 +700,7 @@ nvkm_vmm_ptes_unmap(struct nvkm_vmm *vmm, const struct nvkm_vmm_page *page,
 							      func->unmap);
 }
 
-void
+static void
 nvkm_vmm_ptes_map(struct nvkm_vmm *vmm, const struct nvkm_vmm_page *page,
 		  u64 addr, u64 size, struct nvkm_vmm_map *map,
 		  nvkm_vmm_pte_func func)

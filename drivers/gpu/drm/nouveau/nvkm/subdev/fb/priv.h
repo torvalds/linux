@@ -25,8 +25,6 @@ struct nvkm_fb_func {
 
 	int (*ram_new)(struct nvkm_fb *, struct nvkm_ram **);
 
-	bool (*memtype_valid)(struct nvkm_fb *, u32 memtype);
-
 	u8 default_bigpage;
 };
 
@@ -35,8 +33,6 @@ void nvkm_fb_ctor(const struct nvkm_fb_func *, struct nvkm_device *device,
 int nvkm_fb_new_(const struct nvkm_fb_func *, struct nvkm_device *device,
 		 int index, struct nvkm_fb **);
 int nvkm_fb_bios_memtype(struct nvkm_bios *);
-
-bool nv04_fb_memtype_valid(struct nvkm_fb *, u32 memtype);
 
 void nv10_fb_tile_init(struct nvkm_fb *, int i, u32 addr, u32 size,
 		       u32 pitch, u32 flags, struct nvkm_fb_tile *);
@@ -67,7 +63,6 @@ void nv46_fb_tile_init(struct nvkm_fb *, int i, u32 addr, u32 size,
 
 int gf100_fb_oneinit(struct nvkm_fb *);
 int gf100_fb_init_page(struct nvkm_fb *);
-bool gf100_fb_memtype_valid(struct nvkm_fb *, u32);
 
 int gm200_fb_init_page(struct nvkm_fb *);
 #endif

@@ -44,9 +44,7 @@
 #include "priv.h"
 
 #include <core/memory.h>
-#include <core/mm.h>
 #include <core/tegra.h>
-#include <subdev/fb.h>
 #include <subdev/ltc.h>
 #include <subdev/mmu.h>
 
@@ -289,15 +287,6 @@ gk20a_instobj_map(struct nvkm_memory *memory, u64 offset, struct nvkm_vmm *vmm,
 		.offset = offset,
 		.mem = node->mn,
 	};
-
-	if (vma->vm) {
-		struct nvkm_mem mem = {
-			.mem = node->mn,
-			.memory = &node->memory,
-		};
-		nvkm_vm_map_at(vma, 0, &mem);
-		return 0;
-	}
 
 	return nvkm_vmm_map(vmm, vma, argv, argc, &map);
 }

@@ -63,10 +63,8 @@ u64  nvif_device_time(struct nvif_device *);
 #define nvxx_therm(a) nvxx_device(a)->therm
 #define nvxx_volt(a) nvxx_device(a)->volt
 
-#include <core/device.h>
 #include <engine/fifo.h>
 #include <engine/gr.h>
-#include <engine/sw.h>
 
 #define nvxx_fifo(a) nvxx_device(a)->fifo
 #define nvxx_gr(a) nvxx_device(a)->gr

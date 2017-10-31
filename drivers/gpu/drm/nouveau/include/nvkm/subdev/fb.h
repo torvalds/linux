@@ -20,17 +20,6 @@
 #define NVKM_RAM_TYPE_VM 0x7f
 #define NV_MEM_COMP_VM 0x03
 
-struct nvkm_mem {
-	struct nvkm_mm_node *mem;
-	dma_addr_t *pages;
-	u32 memtype;
-	u64 offset;
-	u64 size;
-	struct sg_table *sg;
-
-	struct nvkm_memory *memory;
-};
-
 struct nvkm_fb_tile {
 	struct nvkm_mm_node *tag;
 	u32 addr;
@@ -57,7 +46,6 @@ struct nvkm_fb {
 	struct nvkm_memory *mmu_wr;
 };
 
-bool nvkm_fb_memtype_valid(struct nvkm_fb *, u32 memtype);
 void nvkm_fb_tile_init(struct nvkm_fb *, int region, u32 addr, u32 size,
 		       u32 pitch, u32 flags, struct nvkm_fb_tile *);
 void nvkm_fb_tile_fini(struct nvkm_fb *, int region, struct nvkm_fb_tile *);
@@ -163,6 +151,4 @@ struct nvkm_ram_func {
 	int (*prog)(struct nvkm_ram *);
 	void (*tidy)(struct nvkm_ram *);
 };
-
-extern const u8 gf100_pte_storage_type_map[256];
 #endif

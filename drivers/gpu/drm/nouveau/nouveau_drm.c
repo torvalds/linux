@@ -271,12 +271,6 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 	}
 
 	cli->mem = &mems[ret];
-
-	if (1) {
-		cli->vm = cli->vmm.vm;
-		nvxx_client(&cli->base)->vm = cli->vm;
-	}
-
 	return 0;
 done:
 	if (ret)
