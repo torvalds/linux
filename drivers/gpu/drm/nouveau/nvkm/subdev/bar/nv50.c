@@ -34,13 +34,6 @@ nv50_bar_kmap(struct nvkm_bar *base)
 	return nv50_bar(base)->bar2_vm;
 }
 
-int
-nv50_bar_umap(struct nvkm_bar *base, u64 size, int type, struct nvkm_vma *vma)
-{
-	struct nv50_bar *bar = nv50_bar(base);
-	return nvkm_vm_get(bar->bar1_vm, size, type, NV_MEM_ACCESS_RW, vma);
-}
-
 static void
 nv50_bar_flush(struct nvkm_bar *base)
 {
@@ -54,6 +47,12 @@ nv50_bar_flush(struct nvkm_bar *base)
 			break;
 	);
 	spin_unlock_irqrestore(&bar->base.lock, flags);
+}
+
+struct nvkm_vmm *
+nv50_bar_bar1_vmm(struct nvkm_bar *base)
+{
+	return nv50_bar(base)->bar1_vm;
 }
 
 void
@@ -229,11 +228,11 @@ nv50_bar_func = {
 	.bar1.init = nv50_bar_bar1_init,
 	.bar1.fini = nv50_bar_bar1_fini,
 	.bar1.wait = nv50_bar_bar1_wait,
+	.bar1.vmm = nv50_bar_bar1_vmm,
 	.bar2.init = nv50_bar_bar2_init,
 	.bar2.fini = nv50_bar_bar2_fini,
 	.bar2.wait = nv50_bar_bar1_wait,
 	.kmap = nv50_bar_kmap,
-	.umap = nv50_bar_umap,
 	.flush = nv50_bar_flush,
 };
 

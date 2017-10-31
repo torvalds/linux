@@ -15,10 +15,10 @@ struct nvkm_bar_func {
 		void (*init)(struct nvkm_bar *);
 		void (*fini)(struct nvkm_bar *);
 		void (*wait)(struct nvkm_bar *);
+		struct nvkm_vmm *(*vmm)(struct nvkm_bar *);
 	} bar1, bar2;
 
 	struct nvkm_vm *(*kmap)(struct nvkm_bar *);
-	int  (*umap)(struct nvkm_bar *, u64 size, int type, struct nvkm_vma *);
 	void (*flush)(struct nvkm_bar *);
 };
 

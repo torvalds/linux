@@ -1362,13 +1362,13 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 		reg->bus.base = device->func->resource_addr(device, 1);
 		reg->bus.is_iomem = true;
 		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-			struct nvkm_bar *bar = nvxx_bar(&drm->client.device);
+			struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
 			int page_shift = 12;
 			if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_FERMI)
 				page_shift = mem->page_shift;
 
-			ret = nvkm_bar_umap(bar, mem->size << 12, page_shift,
-					    &mem->bar_vma);
+			ret = nvkm_vm_get(bar, mem->size << 12, page_shift,
+					  NV_MEM_ACCESS_RW, &mem->bar_vma);
 			if (ret)
 				return ret;
 

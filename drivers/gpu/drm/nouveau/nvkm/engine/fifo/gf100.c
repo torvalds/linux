@@ -28,6 +28,7 @@
 #include <core/enum.h>
 #include <core/gpuobj.h>
 #include <subdev/bar.h>
+#include <subdev/fb.h>
 #include <engine/sw.h>
 
 #include <nvif/class.h>
@@ -559,6 +560,7 @@ gf100_fifo_oneinit(struct nvkm_fifo *base)
 	struct gf100_fifo *fifo = gf100_fifo(base);
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
+	struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
 	int ret;
 
 	/* Determine number of PBDMAs by checking valid enable bits. */
@@ -584,7 +586,8 @@ gf100_fifo_oneinit(struct nvkm_fifo *base)
 	if (ret)
 		return ret;
 
-	ret = nvkm_bar_umap(device->bar, 128 * 0x1000, 12, &fifo->user.bar);
+	ret = nvkm_vm_get(bar, nvkm_memory_size(fifo->user.mem), 12,
+			  NV_MEM_ACCESS_RW, &fifo->user.bar);
 	if (ret)
 		return ret;
 

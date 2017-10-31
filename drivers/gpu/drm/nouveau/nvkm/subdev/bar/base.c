@@ -39,10 +39,10 @@ nvkm_bar_kmap(struct nvkm_bar *bar)
 	return NULL;
 }
 
-int
-nvkm_bar_umap(struct nvkm_bar *bar, u64 size, int type, struct nvkm_vma *vma)
+struct nvkm_vmm *
+nvkm_bar_bar1_vmm(struct nvkm_device *device)
 {
-	return bar->func->umap(bar, size, type, vma);
+	return device->bar->func->bar1.vmm(device->bar);
 }
 
 void

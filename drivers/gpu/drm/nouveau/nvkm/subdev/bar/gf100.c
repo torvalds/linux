@@ -34,11 +34,10 @@ gf100_bar_kmap(struct nvkm_bar *base)
 	return gf100_bar(base)->bar[0].vm;
 }
 
-int
-gf100_bar_umap(struct nvkm_bar *base, u64 size, int type, struct nvkm_vma *vma)
+struct nvkm_vmm *
+gf100_bar_bar1_vmm(struct nvkm_bar *base)
 {
-	struct gf100_bar *bar = gf100_bar(base);
-	return nvkm_vm_get(bar->bar[1].vm, size, type, NV_MEM_ACCESS_RW, vma);
+	return gf100_bar(base)->bar[1].vm;
 }
 
 void
@@ -195,11 +194,11 @@ gf100_bar_func = {
 	.bar1.init = gf100_bar_bar1_init,
 	.bar1.fini = gf100_bar_bar1_fini,
 	.bar1.wait = gf100_bar_bar1_wait,
+	.bar1.vmm = gf100_bar_bar1_vmm,
 	.bar2.init = gf100_bar_bar2_init,
 	.bar2.fini = gf100_bar_bar2_fini,
 	.bar2.wait = gf100_bar_bar1_wait,
 	.kmap = gf100_bar_kmap,
-	.umap = gf100_bar_umap,
 	.flush = g84_bar_flush,
 };
 

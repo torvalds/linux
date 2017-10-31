@@ -28,7 +28,7 @@ gk20a_bar_func = {
 	.bar1.init = gf100_bar_bar1_init,
 	.bar1.fini = gf100_bar_bar1_fini,
 	.bar1.wait = gf100_bar_bar1_wait,
-	.umap = gf100_bar_umap,
+	.bar1.vmm = gf100_bar_bar1_vmm,
 	.flush = g84_bar_flush,
 };
 

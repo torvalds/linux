@@ -21,6 +21,6 @@ void *gf100_bar_dtor(struct nvkm_bar *);
 int gf100_bar_oneinit(struct nvkm_bar *);
 void gf100_bar_bar1_init(struct nvkm_bar *);
 void gf100_bar_bar1_wait(struct nvkm_bar *);
+struct nvkm_vmm *gf100_bar_bar1_vmm(struct nvkm_bar *);
 void gf100_bar_bar2_init(struct nvkm_bar *);
-int gf100_bar_umap(struct nvkm_bar *, u64, int, struct nvkm_vma *);
 #endif

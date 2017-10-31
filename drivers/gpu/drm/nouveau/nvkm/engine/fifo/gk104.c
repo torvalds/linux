@@ -27,6 +27,7 @@
 #include <core/client.h>
 #include <core/gpuobj.h>
 #include <subdev/bar.h>
+#include <subdev/fb.h>
 #include <subdev/timer.h>
 #include <subdev/top.h>
 #include <engine/sw.h>
@@ -771,6 +772,7 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	struct gk104_fifo *fifo = gk104_fifo(base);
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
+	struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
 	int engn, runl, pbid, ret, i, j;
 	enum nvkm_devidx engidx;
 	u32 *map;
@@ -834,8 +836,8 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	if (ret)
 		return ret;
 
-	ret = nvkm_bar_umap(device->bar, fifo->base.nr * 0x200, 12,
-			    &fifo->user.bar);
+	ret = nvkm_vm_get(bar, nvkm_memory_size(fifo->user.mem), 12,
+			  NV_MEM_ACCESS_RW, &fifo->user.bar);
 	if (ret)
 		return ret;
 
