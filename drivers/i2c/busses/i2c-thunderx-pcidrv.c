@@ -143,8 +143,7 @@ static int thunder_i2c_smbus_setup(struct octeon_i2c *i2c,
 
 static void thunder_i2c_smbus_remove(struct octeon_i2c *i2c)
 {
-	if (i2c->ara)
-		i2c_unregister_device(i2c->ara);
+	i2c_unregister_device(i2c->ara);
 }
 
 static int thunder_i2c_probe_pci(struct pci_dev *pdev,
