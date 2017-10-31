@@ -38,7 +38,6 @@ nvkm_ram_del(struct nvkm_ram **pram)
 	if (ram && !WARN_ON(!ram->func)) {
 		if (ram->func->dtor)
 			*pram = ram->func->dtor(ram);
-		nvkm_mm_fini(&ram->tags);
 		nvkm_mm_fini(&ram->vram);
 		kfree(*pram);
 		*pram = NULL;
@@ -79,8 +78,8 @@ nvkm_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 			return ret;
 	}
 
-	if (!nvkm_mm_initialised(&ram->tags)) {
-		ret = nvkm_mm_init(&ram->tags, 0, 0, tags ? ++tags : 0, 1);
+	if (!nvkm_mm_initialised(&fb->tags)) {
+		ret = nvkm_mm_init(&fb->tags, 0, 0, tags ? ++tags : 0, 1);
 		if (ret)
 			return ret;
 

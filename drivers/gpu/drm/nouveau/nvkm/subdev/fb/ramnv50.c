@@ -502,7 +502,7 @@ __nv50_ram_put(struct nvkm_ram *ram, struct nvkm_mem *mem)
 		next = node->next;
 		nvkm_mm_free(&ram->vram, &node);
 	}
-	nvkm_mm_free(&ram->tags, &mem->tag);
+	nvkm_mm_free(&ram->fb->tags, &mem->tag);
 }
 
 void
@@ -526,7 +526,7 @@ nv50_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 	     u32 memtype, struct nvkm_mem **pmem)
 {
 	struct nvkm_mm *heap = &ram->vram;
-	struct nvkm_mm *tags = &ram->tags;
+	struct nvkm_mm *tags = &ram->fb->tags;
 	struct nvkm_mm_node **node, *r;
 	struct nvkm_mem *mem;
 	int comp = (memtype & 0x300) >> 8;

@@ -44,6 +44,7 @@ struct nvkm_fb {
 	struct nvkm_subdev subdev;
 
 	struct nvkm_ram *ram;
+	struct nvkm_mm tags;
 
 	struct {
 		struct nvkm_fb_tile region[16];
@@ -128,7 +129,6 @@ struct nvkm_ram {
 #define NVKM_RAM_MM_NOMAP  (NVKM_MM_HEAP_ANY + 2)
 #define NVKM_RAM_MM_MIXED  (NVKM_MM_HEAP_ANY + 3)
 	struct nvkm_mm vram;
-	struct nvkm_mm tags;
 	u64 stolen;
 
 	int ranks;

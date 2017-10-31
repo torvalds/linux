@@ -159,6 +159,7 @@ nvkm_fb_dtor(struct nvkm_subdev *subdev)
 	for (i = 0; i < fb->tile.regions; i++)
 		fb->func->tile.fini(fb, i, &fb->tile.region[i]);
 
+	nvkm_mm_fini(&fb->tags);
 	nvkm_ram_del(&fb->ram);
 
 	if (fb->func->dtor)
