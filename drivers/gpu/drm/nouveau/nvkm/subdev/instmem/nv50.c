@@ -142,8 +142,8 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 
 	/* Make the mapping visible to the host. */
 	iobj->bar = bar;
-	iobj->map = ioremap(device->func->resource_addr(device, 3) +
-			    (u32)iobj->bar.offset, size);
+	iobj->map = ioremap_wc(device->func->resource_addr(device, 3) +
+			       (u32)iobj->bar.offset, size);
 	if (!iobj->map) {
 		nvkm_warn(subdev, "PRAMIN ioremap failed\n");
 		nvkm_vm_put(&iobj->bar);
@@ -164,6 +164,7 @@ nv50_instobj_release(struct nvkm_memory *memory)
 	struct nv50_instmem *imem = iobj->imem;
 	struct nvkm_subdev *subdev = &imem->base.subdev;
 
+	wmb();
 	nvkm_bar_flush(subdev->device->bar);
 
 	if (refcount_dec_and_mutex_lock(&iobj->maps, &subdev->mutex)) {
