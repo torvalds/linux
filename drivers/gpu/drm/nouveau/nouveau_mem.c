@@ -74,18 +74,44 @@ nouveau_mem_host(struct ttm_mem_reg *reg, struct ttm_dma_tt *tt)
 	return 0;
 }
 
+#include <subdev/fb/nv50.h>
+
+struct nvkm_vram {
+	struct nvkm_memory memory;
+	struct nvkm_ram *ram;
+	u8 page;
+	struct nvkm_mm_node *mn;
+};
+
 int
 nouveau_mem_vram(struct ttm_mem_reg *reg, bool contig, u8 page)
 {
 	struct nouveau_mem *mem = nouveau_mem(reg);
 	struct nouveau_cli *cli = mem->cli;
 	struct nvkm_device *device = nvxx_device(&cli->device);
-	struct nvkm_ram *ram = nvxx_fb(&cli->device)->ram;
 	u64 size = ALIGN(reg->num_pages << PAGE_SHIFT, 1 << page);
+	u8  type;
 	int ret;
 
 	mem->mem.page = page;
-	mem->_mem->memory = &mem->memory;
+	mem->_mem = &mem->__mem;
+
+	if (cli->device.info.chipset < 0xc0) {
+		type = nv50_fb_memtype[mem->kind];
+	} else {
+		if (!mem->comp)
+			mem->kind = gf100_pte_storage_type_map[mem->kind];
+		mem->comp = 0;
+		type = 0x01;
+	}
+
+	ret = nvkm_ram_get(device, NVKM_RAM_MM_NORMAL, type, page, size,
+			   contig, false, &mem->_mem->memory);
+	if (ret)
+		return ret;
+
+	mem->_mem->size = size >> NVKM_RAM_MM_SHIFT;
+	mem->_mem->offset = nvkm_memory_addr(mem->_mem->memory);
 
 	if (cli->device.info.chipset < 0xc0 && mem->comp) {
 		if (page == 16) {
@@ -110,15 +136,10 @@ nouveau_mem_vram(struct ttm_mem_reg *reg, bool contig, u8 page)
 			mem->kind = gf100_pte_storage_type_map[mem->kind];
 	}
 
-	ret = ram->func->get(ram, size, 1 << page, contig ? 0 : 1 << page,
-			     (mem->comp << 8) | mem->kind, &mem->_mem);
-	if (ret) {
-		nvkm_memory_tags_put(mem->_mem->memory, device, &mem->tags);
-		return ret;
-	}
-
 	if (mem->tags && mem->tags->mn)
 		mem->_mem->tag = mem->tags->mn;
+	mem->_mem->mem = ((struct nvkm_vram *)mem->_mem->memory)->mn;
+	mem->_mem->memtype = (mem->comp << 7) | mem->kind;
 
 	reg->start = mem->_mem->offset >> PAGE_SHIFT;
 	return ret;

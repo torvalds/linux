@@ -60,11 +60,9 @@ static void
 nouveau_vram_manager_del(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *reg)
 {
-	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nvkm_ram *ram = nvxx_fb(&drm->client.device)->ram;
-	struct nvkm_mem *mem = nouveau_mem(reg)->_mem;
+	struct nvkm_memory *memory = nouveau_mem(reg)->_mem->memory;
 	nouveau_mem_del(reg);
-	ram->func->put(ram, &mem);
+	nvkm_memory_unref(&memory);
 }
 
 static int
