@@ -28,12 +28,6 @@
 #include <subdev/mmu.h>
 #include <subdev/timer.h>
 
-struct nvkm_vm *
-nv50_bar_kmap(struct nvkm_bar *base)
-{
-	return nv50_bar(base)->bar2_vm;
-}
-
 static void
 nv50_bar_flush(struct nvkm_bar *base)
 {
@@ -73,6 +67,12 @@ nv50_bar_bar1_init(struct nvkm_bar *base)
 	struct nvkm_device *device = base->subdev.device;
 	struct nv50_bar *bar = nv50_bar(base);
 	nvkm_wr32(device, 0x001708, 0x80000000 | bar->bar1->node->offset >> 4);
+}
+
+struct nvkm_vmm *
+nv50_bar_bar2_vmm(struct nvkm_bar *base)
+{
+	return nv50_bar(base)->bar2_vm;
 }
 
 void
@@ -232,7 +232,7 @@ nv50_bar_func = {
 	.bar2.init = nv50_bar_bar2_init,
 	.bar2.fini = nv50_bar_bar2_fini,
 	.bar2.wait = nv50_bar_bar1_wait,
-	.kmap = nv50_bar_kmap,
+	.bar2.vmm = nv50_bar_bar2_vmm,
 	.flush = nv50_bar_flush,
 };
 

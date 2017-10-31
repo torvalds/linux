@@ -107,11 +107,10 @@ nv50_instobj_acquire(struct nvkm_memory *memory)
 {
 	struct nv50_instobj *iobj = nv50_instobj(memory);
 	struct nv50_instmem *imem = iobj->imem;
-	struct nvkm_bar *bar = imem->base.subdev.device->bar;
 	struct nvkm_vm *vm;
 	unsigned long flags;
 
-	if (!iobj->map && (vm = nvkm_bar_kmap(bar)))
+	if (!iobj->map && (vm = nvkm_bar_bar2_vmm(imem->base.subdev.device)))
 		nvkm_memory_boot(memory, vm);
 	if (!IS_ERR_OR_NULL(iobj->map))
 		return iobj->map;

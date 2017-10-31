@@ -18,7 +18,6 @@ struct nvkm_bar_func {
 		struct nvkm_vmm *(*vmm)(struct nvkm_bar *);
 	} bar1, bar2;
 
-	struct nvkm_vm *(*kmap)(struct nvkm_bar *);
 	void (*flush)(struct nvkm_bar *);
 };
 

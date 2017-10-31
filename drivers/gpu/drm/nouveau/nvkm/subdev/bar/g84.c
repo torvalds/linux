@@ -51,7 +51,7 @@ g84_bar_func = {
 	.bar2.init = nv50_bar_bar2_init,
 	.bar2.fini = nv50_bar_bar2_fini,
 	.bar2.wait = nv50_bar_bar1_wait,
-	.kmap = nv50_bar_kmap,
+	.bar2.vmm = nv50_bar_bar2_vmm,
 	.flush = g84_bar_flush,
 };
 

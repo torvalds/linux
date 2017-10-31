@@ -28,12 +28,6 @@
 #include <subdev/fb.h>
 #include <subdev/mmu.h>
 
-static struct nvkm_vm *
-gf100_bar_kmap(struct nvkm_bar *base)
-{
-	return gf100_bar(base)->bar[0].vm;
-}
-
 struct nvkm_vmm *
 gf100_bar_bar1_vmm(struct nvkm_bar *base)
 {
@@ -61,6 +55,12 @@ gf100_bar_bar1_init(struct nvkm_bar *base)
 	struct gf100_bar *bar = gf100_bar(base);
 	const u32 addr = nvkm_memory_addr(bar->bar[1].mem) >> 12;
 	nvkm_wr32(device, 0x001704, 0x80000000 | addr);
+}
+
+struct nvkm_vmm *
+gf100_bar_bar2_vmm(struct nvkm_bar *base)
+{
+	return gf100_bar(base)->bar[0].vm;
 }
 
 void
@@ -142,7 +142,7 @@ gf100_bar_oneinit(struct nvkm_bar *base)
 	int ret;
 
 	/* BAR2 */
-	if (bar->base.func->kmap) {
+	if (bar->base.func->bar2.init) {
 		ret = gf100_bar_oneinit_bar(bar, &bar->bar[0], &bar2_lock, 3);
 		if (ret)
 			return ret;
@@ -198,7 +198,7 @@ gf100_bar_func = {
 	.bar2.init = gf100_bar_bar2_init,
 	.bar2.fini = gf100_bar_bar2_fini,
 	.bar2.wait = gf100_bar_bar1_wait,
-	.kmap = gf100_bar_kmap,
+	.bar2.vmm = gf100_bar_bar2_vmm,
 	.flush = g84_bar_flush,
 };
 

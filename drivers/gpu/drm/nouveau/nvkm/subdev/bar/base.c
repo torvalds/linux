@@ -30,19 +30,22 @@ nvkm_bar_flush(struct nvkm_bar *bar)
 		bar->func->flush(bar);
 }
 
-struct nvkm_vm *
-nvkm_bar_kmap(struct nvkm_bar *bar)
-{
-	/* disallow kmap() until after vm has been bootstrapped */
-	if (bar && bar->func->kmap && bar->subdev.oneinit)
-		return bar->func->kmap(bar);
-	return NULL;
-}
-
 struct nvkm_vmm *
 nvkm_bar_bar1_vmm(struct nvkm_device *device)
 {
 	return device->bar->func->bar1.vmm(device->bar);
+}
+
+struct nvkm_vmm *
+nvkm_bar_bar2_vmm(struct nvkm_device *device)
+{
+	/* Denies access to BAR2 when it's not initialised, used by INSTMEM
+	 * to know when object access needs to go through the BAR0 window.
+	 */
+	struct nvkm_bar *bar = device->bar;
+	if (bar && bar->func->bar2.vmm && bar->subdev.oneinit)
+		return bar->func->bar2.vmm(bar);
+	return NULL;
 }
 
 void

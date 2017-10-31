@@ -24,6 +24,5 @@ void nv50_bar_bar1_init(struct nvkm_bar *);
 void nv50_bar_bar1_wait(struct nvkm_bar *);
 struct nvkm_vmm *nv50_bar_bar1_vmm(struct nvkm_bar *);
 void nv50_bar_bar2_init(struct nvkm_bar *);
-struct nvkm_vm *nv50_bar_kmap(struct nvkm_bar *);
-void nv50_bar_unmap(struct nvkm_bar *, struct nvkm_vma *);
+struct nvkm_vmm *nv50_bar_bar2_vmm(struct nvkm_bar *);
 #endif

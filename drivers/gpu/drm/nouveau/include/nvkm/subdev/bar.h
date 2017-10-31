@@ -17,8 +17,8 @@ struct nvkm_bar {
 struct nvkm_vmm *nvkm_bar_bar1_vmm(struct nvkm_device *);
 void nvkm_bar_bar2_init(struct nvkm_device *);
 void nvkm_bar_bar2_fini(struct nvkm_device *);
+struct nvkm_vmm *nvkm_bar_bar2_vmm(struct nvkm_device *);
 void nvkm_bar_flush(struct nvkm_bar *);
-struct nvkm_vm *nvkm_bar_kmap(struct nvkm_bar *);
 
 int nv50_bar_new(struct nvkm_device *, int, struct nvkm_bar **);
 int g84_bar_new(struct nvkm_device *, int, struct nvkm_bar **);
