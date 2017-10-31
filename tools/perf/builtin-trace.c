@@ -988,6 +988,23 @@ size_t syscall_arg__scnprintf_fd(char *bf, size_t size, struct syscall_arg *arg)
 	return printed;
 }
 
+size_t pid__scnprintf_fd(struct trace *trace, pid_t pid, int fd, char *bf, size_t size)
+{
+        size_t printed = scnprintf(bf, size, "%d", fd);
+	struct thread *thread = machine__find_thread(trace->host, pid, pid);
+
+	if (thread) {
+		const char *path = thread__fd_path(thread, fd, trace);
+
+		if (path)
+			printed += scnprintf(bf + printed, size - printed, "<%s>", path);
+
+		thread__put(thread);
+	}
+
+        return printed;
+}
+
 static size_t syscall_arg__scnprintf_close_fd(char *bf, size_t size,
 					      struct syscall_arg *arg)
 {

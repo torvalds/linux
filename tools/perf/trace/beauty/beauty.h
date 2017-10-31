@@ -3,6 +3,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <sys/types.h>
 
 struct strarray {
 	int	    offset;
@@ -25,6 +26,8 @@ size_t strarray__scnprintf(struct strarray *sa, char *bf, size_t size, const cha
 
 struct trace;
 struct thread;
+
+size_t pid__scnprintf_fd(struct trace *trace, pid_t pid, int fd, char *bf, size_t size);
 
 /**
  * @val: value of syscall argument being formatted
