@@ -127,6 +127,32 @@ static struct rga_addr_offset *rga_lookup_draw_pos(struct
 	return NULL;
 }
 
+static unsigned int rga_get_quantization(u32 format, u32 colorspace,
+					 u32 quantization)
+{
+	/*
+	 * The default for R'G'B' quantization is full range by default.
+	 * For Y'CbCr the quantization is limited range by default.
+	 */
+	if (format >= RGA_COLOR_FMT_YUV422SP &&
+		quantization == V4L2_QUANTIZATION_DEFAULT) {
+		quantization = V4L2_QUANTIZATION_LIM_RANGE;
+	} else if (format < RGA_COLOR_FMT_YUV422SP &&
+		quantization == V4L2_QUANTIZATION_DEFAULT) {
+		quantization = V4L2_QUANTIZATION_FULL_RANGE;
+	}
+
+	if (colorspace == V4L2_COLORSPACE_REC709)
+		return RGA_CSC_MODE_BT709_R0;
+
+	if (quantization == V4L2_QUANTIZATION_LIM_RANGE)
+		return RGA_CSC_MODE_BT601_R0;
+	else if (quantization == V4L2_QUANTIZATION_FULL_RANGE)
+		return RGA_CSC_MODE_BT601_R1;
+
+	return RGA_CSC_MODE_BYPASS;
+}
+
 static void rga_cmd_set_src_addr(struct rga_ctx *ctx, void *mmu_pages)
 {
 	struct rockchip_rga *rga = ctx->rga;
@@ -208,33 +234,18 @@ static void rga_cmd_set_trans_info(struct rga_ctx *ctx)
 	dst_info.data.format = ctx->out.fmt->hw_format;
 	dst_info.data.swap = ctx->out.fmt->color_swap;
 
-	if (ctx->in.fmt->hw_format >= RGA_COLOR_FMT_YUV422SP) {
-		if (ctx->out.fmt->hw_format < RGA_COLOR_FMT_YUV422SP) {
-			switch (ctx->in.colorspace) {
-			case V4L2_COLORSPACE_REC709:
-				src_info.data.csc_mode =
-					RGA_SRC_CSC_MODE_BT709_R0;
-				break;
-			default:
-				src_info.data.csc_mode =
-					RGA_SRC_CSC_MODE_BT601_R0;
-				break;
-			}
-		}
-	}
+	/* yuv -> rgb */
+	if (ctx->in.fmt->hw_format >= RGA_COLOR_FMT_YUV422SP &&
+		ctx->out.fmt->hw_format < RGA_COLOR_FMT_YUV422SP)
+		src_info.data.csc_mode =
+			rga_get_quantization(ctx->in.fmt->hw_format,
+				ctx->in.colorspace, ctx->in.quantization);
 
-	if (ctx->out.fmt->hw_format >= RGA_COLOR_FMT_YUV422SP) {
-		switch (ctx->out.colorspace) {
-		case V4L2_COLORSPACE_REC709:
-			dst_info.data.csc_mode =
-				RGA_SRC_CSC_MODE_BT709_R0;
-			break;
-		default:
-			dst_info.data.csc_mode =
-				RGA_DST_CSC_MODE_BT601_R0;
-			break;
-		}
-	}
+	/* (yuv -> rgb) -> yuv or rgb -> yuv */
+	if (ctx->out.fmt->hw_format >= RGA_COLOR_FMT_YUV422SP)
+		dst_info.data.csc_mode =
+			rga_get_quantization(ctx->in.fmt->hw_format,
+				ctx->out.colorspace, ctx->out.quantization);
 
 	if (ctx->op == V4L2_PORTER_DUFF_CLEAR) {
 		/*

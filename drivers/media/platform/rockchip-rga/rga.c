@@ -376,6 +376,7 @@ static struct rga_frame def_frame = {
 	.width = DEFAULT_WIDTH,
 	.height = DEFAULT_HEIGHT,
 	.colorspace = V4L2_COLORSPACE_DEFAULT,
+	.quantization = V4L2_QUANTIZATION_DEFAULT,
 	.crop.left = 0,
 	.crop.top = 0,
 	.crop.width = DEFAULT_WIDTH,
@@ -510,6 +511,7 @@ static int vidioc_g_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	f->fmt.pix.bytesperline = frm->stride;
 	f->fmt.pix.sizeimage = frm->size;
 	f->fmt.pix.colorspace = frm->colorspace;
+	f->fmt.pix.quantization = frm->quantization;
 
 	return 0;
 }
@@ -579,6 +581,7 @@ static int vidioc_s_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	frm->fmt = fmt;
 	frm->stride = f->fmt.pix.bytesperline;
 	frm->colorspace = f->fmt.pix.colorspace;
+	frm->quantization = f->fmt.pix.colorspace;
 
 	/* Reset crop settings */
 	frm->crop.left = 0;

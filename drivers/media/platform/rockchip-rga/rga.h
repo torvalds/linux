@@ -36,6 +36,7 @@ struct rga_frame {
 	u32 width;
 	u32 height;
 	u32 colorspace;
+	u32 quantization;
 
 	/* Crop */
 	struct v4l2_rect crop;
