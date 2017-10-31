@@ -420,6 +420,13 @@ sndrv_pcm_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/sndrv_pcm_ioctl.sh
 $(sndrv_pcm_ioctl_array): $(sndrv_pcm_hdr_dir)/asound.h $(sndrv_pcm_ioctl_tbl)
 	$(Q)$(SHELL) '$(sndrv_pcm_ioctl_tbl)' $(sndrv_pcm_hdr_dir) > $@
 
+kcmp_type_array := $(beauty_outdir)/kcmp_type_array.c
+kcmp_hdr_dir := $(srctree)/tools/include/uapi/linux/
+kcmp_type_tbl := $(srctree)/tools/perf/trace/beauty/kcmp_type.sh
+
+$(kcmp_type_array): $(kcmp_hdr_dir)/kcmp.h $(kcmp_type_tbl)
+	$(Q)$(SHELL) '$(kcmp_type_tbl)' $(kcmp_hdr_dir) > $@
+
 kvm_ioctl_array := $(beauty_ioctl_outdir)/kvm_ioctl_array.c
 kvm_hdr_dir := $(srctree)/tools/include/uapi/linux
 kvm_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/kvm_ioctl.sh
@@ -553,6 +560,7 @@ prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders $(drm_ioc
 	$(pkey_alloc_access_rights_array) \
 	$(sndrv_pcm_ioctl_array) \
 	$(sndrv_ctl_ioctl_array) \
+	$(kcmp_type_array) \
 	$(kvm_ioctl_array) \
 	$(vhost_virtio_ioctl_array) \
 	$(madvise_behavior_array) \
@@ -836,6 +844,7 @@ clean:: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clea
 		$(OUTPUT)$(sndrv_ctl_ioctl_array) \
 		$(OUTPUT)$(sndrv_pcm_ioctl_array) \
 		$(OUTPUT)$(kvm_ioctl_array) \
+		$(OUTPUT)$(kcmp_type_array) \
 		$(OUTPUT)$(vhost_virtio_ioctl_array) \
 		$(OUTPUT)$(perf_ioctl_array) \
 		$(OUTPUT)$(prctl_option_array)

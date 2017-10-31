@@ -633,6 +633,12 @@ static struct syscall_fmt {
 #else
 		   [2] = { .scnprintf = SCA_HEX, /* arg */ }, }, },
 #endif
+	{ .name	    = "kcmp",	    .nr_args = 5,
+	  .arg = { [0] = { .name = "pid1",	.scnprintf = SCA_PID, },
+		   [1] = { .name = "pid2",	.scnprintf = SCA_PID, },
+		   [2] = { .name = "type",	.scnprintf = SCA_KCMP_TYPE, },
+		   [3] = { .name = "idx1",	.scnprintf = SCA_KCMP_IDX, },
+		   [4] = { .name = "idx2",	.scnprintf = SCA_KCMP_IDX, }, }, },
 	{ .name	    = "keyctl",
 	  .arg = { [0] = STRARRAY(option, keyctl_options), }, },
 	{ .name	    = "kill",
