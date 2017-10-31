@@ -31,12 +31,13 @@ gp100_mmu = {
 	.dma_bits = 47,
 	.lpg_shift = 16,
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GP100}, gp100_vmm_new },
+	.kind = gm200_mmu_kind,
 };
 
 int
 gp100_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
 {
-	if (!nvkm_boolopt(device->cfgopt, "GP100MmuLayout", false))
+	if (!nvkm_boolopt(device->cfgopt, "GP100MmuLayout", true))
 		return gm200_mmu_new(device, index, pmmu);
 	return nvkm_mmu_new_(&gp100_mmu, device, index, pmmu);
 }

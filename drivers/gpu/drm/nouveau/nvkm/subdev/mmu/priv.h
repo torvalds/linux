@@ -45,13 +45,6 @@ extern const struct nvkm_mmu_func nv04_mmu;
 
 const u8 *nv50_mmu_kind(struct nvkm_mmu *, int *count);
 
-void gf100_vm_map_pgt(struct nvkm_vmm *, u32, struct nvkm_memory **);
-void gf100_vm_map(struct nvkm_vma *, struct nvkm_memory *, struct nvkm_mem *,
-		  u32, u32, u64, u64);
-void gf100_vm_map_sg(struct nvkm_vma *, struct nvkm_memory *, struct nvkm_mem *,
-		     u32, u32, dma_addr_t *);
-void gf100_vm_unmap(struct nvkm_vma *, struct nvkm_memory *, u32, u32);
-void gf100_vm_flush(struct nvkm_vm *);
 const u8 *gf100_mmu_kind(struct nvkm_mmu *, int *count);
 
 const u8 *gm200_mmu_kind(struct nvkm_mmu *, int *);

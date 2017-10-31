@@ -23,10 +23,6 @@
  */
 #include "vmm.h"
 
-#include <core/gpuobj.h>
-#include <subdev/fb.h>
-#include <subdev/timer.h>
-
 #include <nvif/class.h>
 
 /* Map from compressed to corresponding uncompressed storage type.
@@ -73,125 +69,6 @@ gf100_mmu_kind(struct nvkm_mmu *mmu, int *count)
 {
 	*count = ARRAY_SIZE(gf100_pte_storage_type_map);
 	return gf100_pte_storage_type_map;
-}
-
-void
-gf100_vm_map_pgt(struct nvkm_vmm *vmm, u32 index, struct nvkm_memory *pgt[2])
-{
-	struct nvkm_memory *pgd = vmm->pd->pt[0]->memory;
-	u32 pde[2] = { 0, 0 };
-
-	if (pgt[0])
-		pde[1] = 0x00000001 | (nvkm_memory_addr(pgt[0]) >> 8);
-	if (pgt[1])
-		pde[0] = 0x00000001 | (nvkm_memory_addr(pgt[1]) >> 8);
-
-	nvkm_kmap(pgd);
-	nvkm_wo32(pgd, (index * 8) + 0, pde[0]);
-	nvkm_wo32(pgd, (index * 8) + 4, pde[1]);
-	nvkm_done(pgd);
-}
-
-static inline u64
-gf100_vm_addr(struct nvkm_vma *vma, u64 phys, u32 memtype, u32 target)
-{
-	phys >>= 8;
-
-	phys |= 0x00000001; /* present */
-	if (vma->access & NV_MEM_ACCESS_SYS)
-		phys |= 0x00000002;
-
-	phys |= ((u64)target  << 32);
-	phys |= ((u64)memtype << 36);
-	return phys;
-}
-
-void
-gf100_vm_map(struct nvkm_vma *vma, struct nvkm_memory *pgt,
-	     struct nvkm_mem *mem, u32 pte, u32 cnt, u64 phys, u64 delta)
-{
-	u64 next = 1 << (vma->node->type - 8);
-
-	phys  = gf100_vm_addr(vma, phys, mem->memtype, 0);
-	pte <<= 3;
-
-	if (mem->tag) {
-		u32 tag = mem->tag->offset + (delta >> 17);
-		phys |= (u64)tag << (32 + 12);
-		next |= (u64)1   << (32 + 12);
-	}
-
-	nvkm_kmap(pgt);
-	while (cnt--) {
-		nvkm_wo32(pgt, pte + 0, lower_32_bits(phys));
-		nvkm_wo32(pgt, pte + 4, upper_32_bits(phys));
-		phys += next;
-		pte  += 8;
-	}
-	nvkm_done(pgt);
-}
-
-void
-gf100_vm_map_sg(struct nvkm_vma *vma, struct nvkm_memory *pgt,
-		struct nvkm_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
-{
-	u32 target = (vma->access & NV_MEM_ACCESS_NOSNOOP) ? 7 : 5;
-	/* compressed storage types are invalid for system memory */
-	u32 memtype = gf100_pte_storage_type_map[mem->memtype & 0xff];
-
-	nvkm_kmap(pgt);
-	pte <<= 3;
-	while (cnt--) {
-		u64 phys = gf100_vm_addr(vma, *list++, memtype, target);
-		nvkm_wo32(pgt, pte + 0, lower_32_bits(phys));
-		nvkm_wo32(pgt, pte + 4, upper_32_bits(phys));
-		pte += 8;
-	}
-	nvkm_done(pgt);
-}
-
-void
-gf100_vm_unmap(struct nvkm_vma *vma, struct nvkm_memory *pgt, u32 pte, u32 cnt)
-{
-	nvkm_kmap(pgt);
-	pte <<= 3;
-	while (cnt--) {
-		nvkm_wo32(pgt, pte + 0, 0x00000000);
-		nvkm_wo32(pgt, pte + 4, 0x00000000);
-		pte += 8;
-	}
-	nvkm_done(pgt);
-}
-
-void
-gf100_vm_flush(struct nvkm_vm *vm)
-{
-	struct nvkm_mmu *mmu = vm->mmu;
-	struct nvkm_device *device = mmu->subdev.device;
-	u32 type;
-
-	type = 0x00000001; /* PAGE_ALL */
-	if (atomic_read(&vm->engref[NVKM_SUBDEV_BAR]))
-		type |= 0x00000004; /* HUB_ONLY */
-
-	mutex_lock(&mmu->subdev.mutex);
-	/* looks like maybe a "free flush slots" counter, the
-	 * faster you write to 0x100cbc to more it decreases
-	 */
-	nvkm_msec(device, 2000,
-		if (nvkm_rd32(device, 0x100c80) & 0x00ff0000)
-			break;
-	);
-
-	nvkm_wr32(device, 0x100cb8, vm->pd->pt[0]->addr >> 8);
-	nvkm_wr32(device, 0x100cbc, 0x80000000 | type);
-
-	/* wait for flush to be queued? */
-	nvkm_msec(device, 2000,
-		if (nvkm_rd32(device, 0x100c80) & 0x00008000)
-			break;
-	);
-	mutex_unlock(&mmu->subdev.mutex);
 }
 
 static const struct nvkm_mmu_func

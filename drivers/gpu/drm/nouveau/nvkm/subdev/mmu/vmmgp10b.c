@@ -25,6 +25,9 @@ static const struct nvkm_vmm_func
 gp10b_vmm = {
 	.join = gp100_vmm_join,
 	.part = gf100_vmm_part,
+	.aper = gk20a_vmm_aper,
+	.valid = gp100_vmm_valid,
+	.flush = gp100_vmm_flush,
 	.page = {
 		{ 47, &gp100_vmm_desc_16[4], NVKM_VMM_PAGE_Sxxx },
 		{ 38, &gp100_vmm_desc_16[3], NVKM_VMM_PAGE_Sxxx },
