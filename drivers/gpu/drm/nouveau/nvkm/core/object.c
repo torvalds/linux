@@ -111,6 +111,14 @@ nvkm_object_map(struct nvkm_object *object, void *argv, u32 argc,
 }
 
 int
+nvkm_object_unmap(struct nvkm_object *object)
+{
+	if (likely(object->func->unmap))
+		return object->func->unmap(object);
+	return -ENODEV;
+}
+
+int
 nvkm_object_rd08(struct nvkm_object *object, u64 addr, u8 *data)
 {
 	if (likely(object->func->rd08))
@@ -260,6 +268,7 @@ nvkm_object_dtor(struct nvkm_object *object)
 	}
 
 	nvif_debug(object, "destroy running...\n");
+	nvkm_object_unmap(object);
 	if (object->func->dtor)
 		data = object->func->dtor(object);
 	nvkm_engine_unref(&object->engine);

@@ -287,6 +287,7 @@ nvkm_ioctl_unmap(struct nvkm_client *client,
 	nvif_ioctl(object, "unmap size %d\n", size);
 	if (!(ret = nvif_unvers(ret, &data, &size, args->none))) {
 		nvif_ioctl(object, "unmap\n");
+		ret = nvkm_object_unmap(object);
 	}
 
 	return ret;
