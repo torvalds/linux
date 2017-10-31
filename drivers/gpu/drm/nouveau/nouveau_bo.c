@@ -211,8 +211,17 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 	nvbo->bo.bdev = &drm->ttm.bdev;
 	nvbo->cli = cli;
 
-	if (!nvxx_device(&drm->client.device)->func->cpu_coherent)
-		nvbo->force_coherent = flags & TTM_PL_FLAG_UNCACHED;
+	/* This is confusing, and doesn't actually mean we want an uncached
+	 * mapping, but is what NOUVEAU_GEM_DOMAIN_COHERENT gets translated
+	 * into in nouveau_gem_new().
+	 */
+	if (flags & TTM_PL_FLAG_UNCACHED) {
+		/* Determine if we can get a cache-coherent map, forcing
+		 * uncached mapping if we can't.
+		 */
+		if (mmu->type[drm->ttm.type_host].type & NVIF_MEM_UNCACHED)
+			nvbo->force_coherent = true;
+	}
 
 	if (cli->device.info.family >= NV_DEVICE_INFO_V0_FERMI) {
 		nvbo->kind = (tile_flags & 0x0000ff00) >> 8;
