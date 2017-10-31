@@ -128,7 +128,7 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 	int ret;
 
 	snprintf(cli->name, sizeof(cli->name), "%s", sname);
-	cli->dev = drm->dev;
+	cli->drm = drm;
 	mutex_init(&cli->mutex);
 	usif_client_init(cli);
 

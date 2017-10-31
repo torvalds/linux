@@ -187,7 +187,7 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 	       struct sg_table *sg, struct reservation_object *robj,
 	       struct nouveau_bo **pnvbo)
 {
-	struct nouveau_drm *drm = nouveau_drm(cli->dev);
+	struct nouveau_drm *drm = cli->drm;
 	struct nouveau_bo *nvbo;
 	size_t acc_size;
 	int ret;

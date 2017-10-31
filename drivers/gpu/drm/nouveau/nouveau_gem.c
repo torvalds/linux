@@ -179,7 +179,7 @@ nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
 		uint32_t tile_mode, uint32_t tile_flags,
 		struct nouveau_bo **pnvbo)
 {
-	struct nouveau_drm *drm = nouveau_drm(cli->dev);
+	struct nouveau_drm *drm = cli->drm;
 	struct nouveau_bo *nvbo;
 	u32 flags = 0;
 	int ret;

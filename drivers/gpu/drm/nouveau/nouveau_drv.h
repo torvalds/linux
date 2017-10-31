@@ -86,7 +86,7 @@ enum nouveau_drm_handle {
 
 struct nouveau_cli {
 	struct nvif_client base;
-	struct drm_device *dev;
+	struct nouveau_drm *drm;
 	struct mutex mutex;
 
 	struct nvif_device device;
@@ -204,7 +204,7 @@ void nouveau_drm_device_remove(struct drm_device *dev);
 
 #define NV_PRINTK(l,c,f,a...) do {                                             \
 	struct nouveau_cli *_cli = (c);                                        \
-	dev_##l(_cli->dev->dev, "%s: "f, _cli->name, ##a);                     \
+	dev_##l(_cli->drm->dev->dev, "%s: "f, _cli->name, ##a);                \
 } while(0)
 #define NV_FATAL(drm,f,a...) NV_PRINTK(crit, &(drm)->client, f, ##a)
 #define NV_ERROR(drm,f,a...) NV_PRINTK(err, &(drm)->client, f, ##a)
