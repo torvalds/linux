@@ -189,6 +189,7 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 {
 	struct nouveau_drm *drm = cli->drm;
 	struct nouveau_bo *nvbo;
+	struct nvif_mmu *mmu = &cli->mmu;
 	size_t acc_size;
 	int ret;
 	int type = ttm_bo_type_device;
@@ -215,11 +216,20 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 
 	if (cli->device.info.family >= NV_DEVICE_INFO_V0_FERMI) {
 		nvbo->kind = (tile_flags & 0x0000ff00) >> 8;
-		nvbo->comp = gf100_pte_storage_type_map[nvbo->kind] != nvbo->kind;
+		if (!nvif_mmu_kind_valid(mmu, nvbo->kind)) {
+			kfree(nvbo);
+			return -EINVAL;
+		}
+
+		nvbo->comp = mmu->kind[nvbo->kind] != nvbo->kind;
 	} else
 	if (cli->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		nvbo->kind = (tile_flags & 0x00007f00) >> 8;
 		nvbo->comp = (tile_flags & 0x00030000) >> 16;
+		if (!nvif_mmu_kind_valid(mmu, nvbo->kind)) {
+			kfree(nvbo);
+			return -EINVAL;
+		}
 	} else {
 		nvbo->zeta = (tile_flags & 0x00000007);
 	}
@@ -232,7 +242,7 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 			nvbo->page = drm->client.vm->mmu->lpg_shift;
 		else {
 			if (cli->device.info.family >= NV_DEVICE_INFO_V0_FERMI)
-				nvbo->kind = gf100_pte_storage_type_map[nvbo->kind];
+				nvbo->kind = mmu->kind[nvbo->kind];
 			nvbo->comp = 0;
 		}
 	}
