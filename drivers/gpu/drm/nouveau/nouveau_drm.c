@@ -111,9 +111,63 @@ nouveau_name(struct drm_device *dev)
 		return nouveau_platform_name(to_platform_device(dev->dev));
 }
 
+static inline bool
+nouveau_cli_work_ready(struct dma_fence *fence, bool wait)
+{
+	if (!dma_fence_is_signaled(fence)) {
+		if (!wait)
+			return false;
+		WARN_ON(dma_fence_wait_timeout(fence, false, 2 * HZ) <= 0);
+	}
+	dma_fence_put(fence);
+	return true;
+}
+
+static void
+nouveau_cli_work_flush(struct nouveau_cli *cli, bool wait)
+{
+	struct nouveau_cli_work *work, *wtmp;
+	mutex_lock(&cli->lock);
+	list_for_each_entry_safe(work, wtmp, &cli->worker, head) {
+		if (!work->fence || nouveau_cli_work_ready(work->fence, wait)) {
+			list_del(&work->head);
+			work->func(work);
+		}
+	}
+	mutex_unlock(&cli->lock);
+}
+
+static void
+nouveau_cli_work_fence(struct dma_fence *fence, struct dma_fence_cb *cb)
+{
+	struct nouveau_cli_work *work = container_of(cb, typeof(*work), cb);
+	schedule_work(&work->cli->work);
+}
+
+void
+nouveau_cli_work_queue(struct nouveau_cli *cli, struct dma_fence *fence,
+		       struct nouveau_cli_work *work)
+{
+	work->fence = dma_fence_get(fence);
+	work->cli = cli;
+	mutex_lock(&cli->lock);
+	list_add_tail(&work->head, &cli->worker);
+	mutex_unlock(&cli->lock);
+	if (dma_fence_add_callback(fence, &work->cb, nouveau_cli_work_fence))
+		nouveau_cli_work_fence(fence, &work->cb);
+}
+
+static void
+nouveau_cli_work(struct work_struct *w)
+{
+	struct nouveau_cli *cli = container_of(w, typeof(*cli), work);
+	nouveau_cli_work_flush(cli, false);
+}
+
 static void
 nouveau_cli_fini(struct nouveau_cli *cli)
 {
+	nouveau_cli_work_flush(cli, true);
 	usif_client_fini(cli);
 	nouveau_vmm_fini(&cli->vmm);
 	nvif_mmu_fini(&cli->mmu);
@@ -158,6 +212,8 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 	mutex_init(&cli->mutex);
 	usif_client_init(cli);
 
+	INIT_WORK(&cli->work, nouveau_cli_work);
+	INIT_LIST_HEAD(&cli->worker);
 	mutex_init(&cli->lock);
 
 	if (cli == &drm->master) {

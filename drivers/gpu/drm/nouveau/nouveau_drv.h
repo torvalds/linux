@@ -104,8 +104,22 @@ struct nouveau_cli {
 	struct list_head notifys;
 	char name[32];
 
+	struct work_struct work;
+	struct list_head worker;
 	struct mutex lock;
 };
+
+struct nouveau_cli_work {
+	void (*func)(struct nouveau_cli_work *);
+	struct nouveau_cli *cli;
+	struct list_head head;
+
+	struct dma_fence *fence;
+	struct dma_fence_cb cb;
+};
+
+void nouveau_cli_work_queue(struct nouveau_cli *, struct dma_fence *,
+			    struct nouveau_cli_work *);
 
 static inline struct nouveau_cli *
 nouveau_cli(struct drm_file *fpriv)
