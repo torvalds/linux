@@ -228,15 +228,7 @@ ret:
 	return ret;
 }
 
-static struct ctl_table ctl_abi[] = {
-	{
-		.procname = "abi",
-		.mode = 0555,
-	},
-	{ }
-};
-
-static void __init register_insn_emulation_sysctl(struct ctl_table *table)
+static void __init register_insn_emulation_sysctl(void)
 {
 	unsigned long flags;
 	int i = 0;
@@ -262,8 +254,7 @@ static void __init register_insn_emulation_sysctl(struct ctl_table *table)
 	}
 	raw_spin_unlock_irqrestore(&insn_emulation_lock, flags);
 
-	table->child = insns_sysctl;
-	register_sysctl_table(table);
+	register_sysctl("abi", insns_sysctl);
 }
 
 /*
@@ -644,7 +635,7 @@ static int __init armv8_deprecated_init(void)
 	cpuhp_setup_state_nocalls(CPUHP_AP_ARM64_ISNDEP_STARTING,
 				  "arm64/isndep:starting",
 				  run_all_insn_set_hw_mode, NULL);
-	register_insn_emulation_sysctl(ctl_abi);
+	register_insn_emulation_sysctl();
 
 	return 0;
 }
