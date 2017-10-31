@@ -19,6 +19,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+#include "mem.h"
 #include "vmm.h"
 
 #include <subdev/fb.h>
@@ -30,6 +31,7 @@ gm20b_mmu = {
 	.limit = (1ULL << 40),
 	.dma_bits = 40,
 	.lpg_shift = 17,
+	.mem = {{ -1, -1, NVIF_CLASS_MEM_GF100}, .umap = gf100_mem_map },
 	.vmm = {{ -1,  0, NVIF_CLASS_VMM_GM200}, gm20b_vmm_new },
 	.kind = gm200_mmu_kind,
 	.kind_sys = true,
@@ -40,6 +42,7 @@ gm20b_mmu_fixed = {
 	.limit = (1ULL << 40),
 	.dma_bits = 40,
 	.lpg_shift = 17,
+	.mem = {{ -1, -1, NVIF_CLASS_MEM_GF100}, .umap = gf100_mem_map },
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GM200}, gm20b_vmm_new_fixed },
 	.kind = gm200_mmu_kind,
 	.kind_sys = true,

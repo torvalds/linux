@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#include "mem.h"
 #include "vmm.h"
 
 #include <nvif/class.h>
@@ -76,6 +77,7 @@ gf100_mmu = {
 	.limit = (1ULL << 40),
 	.dma_bits = 40,
 	.lpg_shift = 17,
+	.mem = {{ -1,  0, NVIF_CLASS_MEM_GF100}, gf100_mem_new, gf100_mem_map },
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GF100}, gf100_vmm_new },
 	.kind = gf100_mmu_kind,
 	.kind_sys = true,
