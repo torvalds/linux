@@ -31,9 +31,9 @@ gm200_fb_init_page(struct nvkm_fb *fb)
 {
 	struct nvkm_device *device = fb->subdev.device;
 	switch (fb->page) {
-	case 16: nvkm_mask(device, 0x100c80, 0x00000801, 0x00000001); break;
-	case 17: nvkm_mask(device, 0x100c80, 0x00000801, 0x00000000); break;
-	case  0: nvkm_mask(device, 0x100c80, 0x00000800, 0x00000800); break;
+	case 16: nvkm_mask(device, 0x100c80, 0x00001801, 0x00001001); break;
+	case 17: nvkm_mask(device, 0x100c80, 0x00001801, 0x00000000); break;
+	case  0: nvkm_mask(device, 0x100c80, 0x00001800, 0x00001800); break;
 	default:
 		return -EINVAL;
 	}
