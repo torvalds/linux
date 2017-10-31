@@ -37,7 +37,7 @@ nvkm_instobj_load(struct nvkm_instobj *iobj)
 
 	for (i = 0; i < size; i += 4)
 		nvkm_wo32(memory, i, iobj->suspend[i / 4]);
-	vfree(iobj->suspend);
+	kvfree(iobj->suspend);
 	iobj->suspend = NULL;
 }
 
@@ -48,7 +48,7 @@ nvkm_instobj_save(struct nvkm_instobj *iobj)
 	const u64 size = nvkm_memory_size(memory);
 	int i;
 
-	iobj->suspend = vmalloc(size);
+	iobj->suspend = kvmalloc(size, GFP_KERNEL);
 	if (!iobj->suspend)
 		return -ENOMEM;
 
