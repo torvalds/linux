@@ -48,11 +48,15 @@ gm200_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob,
 		return ret;
 
 	/* Map the HS firmware so the HS bootloader can see it */
-	ret = nvkm_gpuobj_map(blob, gsb->vm, NV_MEM_ACCESS_RW, &vma);
+	ret = nvkm_vm_get(gsb->vm, blob->size, 12, NV_MEM_ACCESS_RW, &vma);
 	if (ret) {
 		nvkm_falcon_put(falcon, subdev);
 		return ret;
 	}
+
+	ret = nvkm_memory_map(blob, 0, gsb->vm, &vma, NULL, 0);
+	if (ret)
+		goto end;
 
 	/* Reset and set the falcon up */
 	ret = nvkm_falcon_reset(falcon);
@@ -91,7 +95,8 @@ end:
 	nvkm_mc_intr_mask(sb->subdev.device, falcon->owner->index, true);
 
 	/* We don't need the ACR firmware anymore */
-	nvkm_gpuobj_unmap(&vma);
+	nvkm_vm_unmap(&vma);
+	nvkm_vm_put(&vma);
 	nvkm_falcon_put(falcon, subdev);
 
 	return ret;

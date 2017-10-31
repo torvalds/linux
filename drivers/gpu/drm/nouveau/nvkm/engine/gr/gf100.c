@@ -403,7 +403,10 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 	if (ret)
 		return ret;
 
-	nvkm_memory_map(chan->mmio, &chan->mmio_vma, 0);
+	ret = nvkm_memory_map(chan->mmio, 0, fifoch->vm,
+			      &chan->mmio_vma, NULL, 0);
+	if (ret)
+		return ret;
 
 	/* allocate buffers referenced by mmio list */
 	for (i = 0; data->size && i < ARRAY_SIZE(gr->mmio_data); i++) {
@@ -419,7 +422,11 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 		if (ret)
 			return ret;
 
-		nvkm_memory_map(chan->data[i].mem, &chan->data[i].vma, 0);
+		ret = nvkm_memory_map(chan->data[i].mem, 0, fifoch->vm,
+				      &chan->data[i].vma, NULL, 0);
+		if (ret)
+			return ret;
+
 		data++;
 	}
 

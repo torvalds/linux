@@ -3,7 +3,7 @@
 #include <core/os.h>
 struct nvkm_device;
 struct nvkm_vma;
-struct nvkm_vm;
+struct nvkm_vmm;
 
 struct nvkm_tags {
 	struct nvkm_mm_node *mn;
@@ -28,10 +28,11 @@ struct nvkm_memory_func {
 	enum nvkm_memory_target (*target)(struct nvkm_memory *);
 	u64 (*addr)(struct nvkm_memory *);
 	u64 (*size)(struct nvkm_memory *);
-	void (*boot)(struct nvkm_memory *, struct nvkm_vm *);
+	void (*boot)(struct nvkm_memory *, struct nvkm_vmm *);
 	void __iomem *(*acquire)(struct nvkm_memory *);
 	void (*release)(struct nvkm_memory *);
-	void (*map)(struct nvkm_memory *, struct nvkm_vma *, u64 offset);
+	int (*map)(struct nvkm_memory *, u64 offset, struct nvkm_vmm *,
+		   struct nvkm_vma *, void *argv, u32 argc);
 };
 
 struct nvkm_memory_ptrs {
@@ -53,7 +54,8 @@ void nvkm_memory_tags_put(struct nvkm_memory *, struct nvkm_device *,
 #define nvkm_memory_addr(p) (p)->func->addr(p)
 #define nvkm_memory_size(p) (p)->func->size(p)
 #define nvkm_memory_boot(p,v) (p)->func->boot((p),(v))
-#define nvkm_memory_map(p,v,o) (p)->func->map((p),(v),(o))
+#define nvkm_memory_map(p,o,vm,va,av,ac)                                       \
+	(p)->func->map((p),(o),(vm),(va),(av),(ac))
 
 /* accessor macros - kmap()/done() must bracket use of the other accessor
  * macros to guarantee correct behaviour across all chipsets

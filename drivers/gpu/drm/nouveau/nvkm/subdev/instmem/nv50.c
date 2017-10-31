@@ -159,7 +159,7 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 	}
 
 	if (ret == 0)
-		nvkm_memory_map(memory, &bar, 0);
+		ret = nvkm_memory_map(memory, 0, vmm, &bar, NULL, 0);
 	mutex_lock(&subdev->mutex);
 	if (ret || iobj->bar.node) {
 		/* We either failed, or another thread beat us. */
@@ -179,11 +179,13 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 	}
 }
 
-static void
-nv50_instobj_map(struct nvkm_memory *memory, struct nvkm_vma *vma, u64 offset)
+static int
+nv50_instobj_map(struct nvkm_memory *memory, u64 offset, struct nvkm_vmm *vmm,
+		 struct nvkm_vma *vma, void *argv, u32 argc)
 {
 	struct nv50_instobj *iobj = nv50_instobj(memory);
 	nvkm_vm_map_at(vma, offset, iobj->mem);
+	return 0;
 }
 
 static void

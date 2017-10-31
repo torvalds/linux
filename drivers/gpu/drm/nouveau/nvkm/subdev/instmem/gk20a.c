@@ -272,12 +272,13 @@ gk20a_instobj_wr32(struct nvkm_memory *memory, u64 offset, u32 data)
 	node->vaddr[offset / 4] = data;
 }
 
-static void
-gk20a_instobj_map(struct nvkm_memory *memory, struct nvkm_vma *vma, u64 offset)
+static int
+gk20a_instobj_map(struct nvkm_memory *memory, u64 offset, struct nvkm_vmm *vmm,
+		  struct nvkm_vma *vma, void *argv, u32 argc)
 {
 	struct gk20a_instobj *node = gk20a_instobj(memory);
-
-	nvkm_vm_map_at(vma, offset, &node->mem);
+	nvkm_vm_map_at(vma, 0, &node->mem);
+	return 0;
 }
 
 static void *

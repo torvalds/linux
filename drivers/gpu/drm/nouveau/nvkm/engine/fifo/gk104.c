@@ -841,8 +841,7 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	if (ret)
 		return ret;
 
-	nvkm_memory_map(fifo->user.mem, &fifo->user.bar, 0);
-	return 0;
+	return nvkm_memory_map(fifo->user.mem, 0, bar, &fifo->user.bar, NULL, 0);
 }
 
 static void

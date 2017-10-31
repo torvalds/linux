@@ -138,7 +138,11 @@ gk104_fifo_gpfifo_engine_dtor(struct nvkm_fifo_chan *base,
 			      struct nvkm_engine *engine)
 {
 	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
-	nvkm_gpuobj_unmap(&chan->engn[engine->subdev.index].vma);
+	struct nvkm_vma *vma = &chan->engn[engine->subdev.index].vma;
+	if (vma->vm) {
+		nvkm_vm_unmap(vma);
+		nvkm_vm_put(vma);
+	}
 	nvkm_gpuobj_del(&chan->engn[engine->subdev.index].inst);
 }
 
@@ -158,8 +162,13 @@ gk104_fifo_gpfifo_engine_ctor(struct nvkm_fifo_chan *base,
 	if (ret)
 		return ret;
 
-	return nvkm_gpuobj_map(chan->engn[engn].inst, chan->vm,
-			       NV_MEM_ACCESS_RW, &chan->engn[engn].vma);
+	ret = nvkm_vm_get(chan->vm, chan->engn[engn].inst->size, 12,
+			  NV_MEM_ACCESS_RW, &chan->engn[engn].vma);
+	if (ret)
+		return ret;
+
+	return nvkm_memory_map(chan->engn[engn].inst, 0, chan->vm,
+			       &chan->engn[engn].vma, NULL, 0);
 }
 
 static void
