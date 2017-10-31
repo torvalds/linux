@@ -832,6 +832,7 @@ struct txq_info {
 	struct codel_vars def_cvars;
 	struct codel_stats cstats;
 	struct sk_buff_head frags;
+	struct list_head schedule_order;
 	unsigned long flags;
 
 	/* keep last! */
@@ -1121,6 +1122,10 @@ struct ieee80211_local {
 	struct fq fq;
 	struct codel_vars *cvars;
 	struct codel_params cparams;
+
+	/* protects active_txqs and txqi->schedule_order */
+	spinlock_t active_txq_lock;
+	struct list_head active_txqs;
 
 	const struct ieee80211_ops *ops;
 
