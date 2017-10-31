@@ -81,11 +81,17 @@ static void __hyp_text __activate_traps(struct kvm_vcpu *vcpu)
 	 * it will cause an exception.
 	 */
 	val = vcpu->arch.hcr_el2;
+
 	if (!(val & HCR_RW) && system_supports_fpsimd()) {
 		write_sysreg(1 << 30, fpexc32_el2);
 		isb();
 	}
+
+	if (val & HCR_RW) /* for AArch64 only: */
+		val |= HCR_TID3; /* TID3: trap feature register accesses */
+
 	write_sysreg(val, hcr_el2);
+
 	/* Trap on AArch32 cp15 c15 accesses (EL1 or EL0) */
 	write_sysreg(1 << 15, hstr_el2);
 	/*
