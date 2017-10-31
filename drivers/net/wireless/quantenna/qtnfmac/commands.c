@@ -221,7 +221,6 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 	aen = &cmd->aen;
 	aen->auth_type = s->auth_type;
 	aen->privacy = !!s->privacy;
-	aen->mfp = 0;
 	aen->wpa_versions = cpu_to_le32(s->crypto.wpa_versions);
 	aen->cipher_group = cpu_to_le32(s->crypto.cipher_group);
 	aen->n_ciphers_pairwise = cpu_to_le32(s->crypto.n_ciphers_pairwise);
@@ -2029,17 +2028,36 @@ out:
 	return ret;
 }
 
+static void qtnf_cmd_channel_tlv_add(struct sk_buff *cmd_skb,
+				     const struct ieee80211_channel *sc)
+{
+	struct qlink_tlv_channel *qchan;
+	u32 flags = 0;
+
+	qchan = skb_put_zero(cmd_skb, sizeof(*qchan));
+	qchan->hdr.type = cpu_to_le16(QTN_TLV_ID_CHANNEL);
+	qchan->hdr.len = cpu_to_le16(sizeof(*qchan) - sizeof(qchan->hdr));
+	qchan->center_freq = cpu_to_le16(sc->center_freq);
+	qchan->hw_value = cpu_to_le16(sc->hw_value);
+
+	if (sc->flags & IEEE80211_CHAN_NO_IR)
+		flags |= QLINK_CHAN_NO_IR;
+
+	if (sc->flags & IEEE80211_CHAN_RADAR)
+		flags |= QLINK_CHAN_RADAR;
+
+	qchan->flags = cpu_to_le32(flags);
+}
+
 int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 {
 	struct sk_buff *cmd_skb;
 	u16 res_code = QLINK_CMD_RESULT_OK;
 	struct ieee80211_channel *sc;
 	struct cfg80211_scan_request *scan_req = mac->scan_req;
-	struct qlink_tlv_channel *qchan;
 	int n_channels;
 	int count = 0;
 	int ret;
-	u32 flags;
 
 	if (scan_req->n_ssids > QTNF_MAX_SSID_LIST_LENGTH) {
 		pr_err("MAC%u: too many SSIDs in scan request\n", mac->macid);
@@ -2081,22 +2099,8 @@ int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 			pr_debug("MAC%u: scan chan=%d, freq=%d, flags=%#x\n",
 				 mac->macid, sc->hw_value, sc->center_freq,
 				 sc->flags);
-			qchan = skb_put_zero(cmd_skb, sizeof(*qchan));
-			flags = 0;
 
-			qchan->hdr.type = cpu_to_le16(QTN_TLV_ID_CHANNEL);
-			qchan->hdr.len = cpu_to_le16(sizeof(*qchan) -
-					sizeof(struct qlink_tlv_hdr));
-			qchan->center_freq = cpu_to_le16(sc->center_freq);
-			qchan->hw_value = cpu_to_le16(sc->hw_value);
-
-			if (sc->flags & IEEE80211_CHAN_NO_IR)
-				flags |= QLINK_CHAN_NO_IR;
-
-			if (sc->flags & IEEE80211_CHAN_RADAR)
-				flags |= QLINK_CHAN_RADAR;
-
-			qchan->flags = cpu_to_le32(flags);
+			qtnf_cmd_channel_tlv_add(cmd_skb, sc);
 			n_channels--;
 			count++;
 		}
@@ -2140,10 +2144,15 @@ int qtnf_cmd_send_connect(struct qtnf_vif *vif,
 
 	ether_addr_copy(cmd->bssid, vif->bssid);
 
-	if (sme->channel)
-		cmd->channel = cpu_to_le16(sme->channel->hw_value);
+	if (sme->bssid_hint)
+		ether_addr_copy(cmd->bssid_hint, sme->bssid_hint);
 	else
-		cmd->channel = 0;
+		eth_zero_addr(cmd->bssid_hint);
+
+	if (sme->prev_bssid)
+		ether_addr_copy(cmd->prev_bssid, sme->prev_bssid);
+	else
+		eth_zero_addr(cmd->prev_bssid);
 
 	if ((sme->bg_scan_period > 0) &&
 	    (sme->bg_scan_period <= QTNF_MAX_BG_SCAN_PERIOD))
@@ -2161,11 +2170,18 @@ int qtnf_cmd_send_connect(struct qtnf_vif *vif,
 		connect_flags |= QLINK_STA_CONNECT_USE_RRM;
 
 	cmd->flags = cpu_to_le32(connect_flags);
+	memcpy(&cmd->ht_capa, &sme->ht_capa, sizeof(cmd->ht_capa));
+	memcpy(&cmd->ht_capa_mask, &sme->ht_capa_mask,
+	       sizeof(cmd->ht_capa_mask));
+	memcpy(&cmd->vht_capa, &sme->vht_capa, sizeof(cmd->vht_capa));
+	memcpy(&cmd->vht_capa_mask, &sme->vht_capa_mask,
+	       sizeof(cmd->vht_capa_mask));
+	cmd->pbss = sme->pbss;
 
 	aen = &cmd->aen;
 	aen->auth_type = sme->auth_type;
 	aen->privacy = !!sme->privacy;
-	aen->mfp = sme->mfp;
+	cmd->mfp = sme->mfp;
 	aen->wpa_versions = cpu_to_le32(sme->crypto.wpa_versions);
 	aen->cipher_group = cpu_to_le32(sme->crypto.cipher_group);
 	aen->n_ciphers_pairwise = cpu_to_le32(sme->crypto.n_ciphers_pairwise);
@@ -2191,6 +2207,9 @@ int qtnf_cmd_send_connect(struct qtnf_vif *vif,
 	if (sme->ie_len != 0)
 		qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_ASSOC_REQ,
 					sme->ie, sme->ie_len);
+
+	if (sme->channel)
+		qtnf_cmd_channel_tlv_add(cmd_skb, sme->channel);
 
 	qtnf_bus_lock(vif->mac->bus);
 

@@ -19,7 +19,7 @@
 
 #include <linux/ieee80211.h>
 
-#define QLINK_PROTO_VER		5
+#define QLINK_PROTO_VER		6
 
 #define QLINK_MACID_RSVD		0xFF
 #define QLINK_VIFID_RSVD		0xFF
@@ -148,9 +148,9 @@ struct qlink_auth_encr {
 	__le16 control_port_ethertype;
 	u8 auth_type;
 	u8 privacy;
-	u8 mfp;
 	u8 control_port;
 	u8 control_port_no_encrypt;
+	u8 rsvd[2];
 } __packed;
 
 /* QLINK Command messages related definitions
@@ -404,20 +404,36 @@ enum qlink_sta_connect_flags {
 /**
  * struct qlink_cmd_connect - data for QLINK_CMD_CONNECT command
  *
- * @flags: for future use.
- * @channel: channel which should be used to connect.
- * @bg_scan_period: period of background scan.
- * @aen: authentication information.
  * @bssid: BSSID of the BSS to connect to.
+ * @bssid_hint: recommended AP BSSID for initial connection to the BSS or
+ *	00:00:00:00:00:00 if not specified.
+ * @prev_bssid: previous BSSID, if specified (not 00:00:00:00:00:00) indicates
+ *	a request to reassociate.
+ * @bg_scan_period: period of background scan.
+ * @flags: one of &enum qlink_sta_connect_flags.
+ * @ht_capa: HT Capabilities overrides.
+ * @ht_capa_mask: The bits of ht_capa which are to be used.
+ * @vht_capa: VHT Capability overrides
+ * @vht_capa_mask: The bits of vht_capa which are to be used.
+ * @aen: authentication information.
+ * @mfp: whether to use management frame protection.
  * @payload: variable portion of connection request.
  */
 struct qlink_cmd_connect {
 	struct qlink_cmd chdr;
-	__le32 flags;
-	__le16 channel;
-	__le16 bg_scan_period;
-	struct qlink_auth_encr aen;
 	u8 bssid[ETH_ALEN];
+	u8 bssid_hint[ETH_ALEN];
+	u8 prev_bssid[ETH_ALEN];
+	__le16 bg_scan_period;
+	__le32 flags;
+	struct ieee80211_ht_cap ht_capa;
+	struct ieee80211_ht_cap ht_capa_mask;
+	struct ieee80211_vht_cap vht_capa;
+	struct ieee80211_vht_cap vht_capa_mask;
+	struct qlink_auth_encr aen;
+	u8 mfp;
+	u8 pbss;
+	u8 rsvd[2];
 	u8 payload[0];
 } __packed;
 
