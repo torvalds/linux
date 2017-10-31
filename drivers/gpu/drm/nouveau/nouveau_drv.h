@@ -95,6 +95,7 @@ struct nouveau_cli {
 	struct nvif_device device;
 	struct nvif_mmu mmu;
 	struct nouveau_vmm vmm;
+	const struct nvif_mclass *mem;
 
 	struct nvkm_vm *vm;
 	struct list_head head;

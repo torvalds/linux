@@ -128,6 +128,13 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 		 struct nouveau_cli *cli)
 {
 	static const struct nvif_mclass
+	mems[] = {
+		{ NVIF_CLASS_MEM_GF100, -1 },
+		{ NVIF_CLASS_MEM_NV50 , -1 },
+		{ NVIF_CLASS_MEM_NV04 , -1 },
+		{}
+	};
+	static const struct nvif_mclass
 	mmus[] = {
 		{ NVIF_CLASS_MMU_GF100, -1 },
 		{ NVIF_CLASS_MMU_NV50 , -1 },
@@ -201,11 +208,20 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 		goto done;
 	}
 
+	ret = nvif_mclass(&cli->mmu.object, mems);
+	if (ret < 0) {
+		NV_ERROR(drm, "No supported MEM class\n");
+		goto done;
+	}
+
+	cli->mem = &mems[ret];
+
 	if (1) {
 		cli->vm = cli->vmm.vm;
 		nvxx_client(&cli->base)->vm = cli->vm;
 	}
 
+	return 0;
 done:
 	if (ret)
 		nouveau_cli_fini(cli);
