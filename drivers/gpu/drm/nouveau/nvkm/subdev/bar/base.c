@@ -46,6 +46,14 @@ nvkm_bar_umap(struct nvkm_bar *bar, u64 size, int type, struct nvkm_vma *vma)
 }
 
 static int
+nvkm_bar_fini(struct nvkm_subdev *subdev, bool suspend)
+{
+	struct nvkm_bar *bar = nvkm_bar(subdev);
+	bar->func->bar1.fini(bar);
+	return 0;
+}
+
+static int
 nvkm_bar_init(struct nvkm_subdev *subdev)
 {
 	struct nvkm_bar *bar = nvkm_bar(subdev);
@@ -74,6 +82,7 @@ nvkm_bar = {
 	.dtor = nvkm_bar_dtor,
 	.oneinit = nvkm_bar_oneinit,
 	.init = nvkm_bar_init,
+	.fini = nvkm_bar_fini,
 };
 
 void

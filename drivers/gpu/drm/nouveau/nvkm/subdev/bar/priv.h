@@ -13,6 +13,7 @@ struct nvkm_bar_func {
 
 	struct {
 		void (*init)(struct nvkm_bar *);
+		void (*fini)(struct nvkm_bar *);
 		void (*wait)(struct nvkm_bar *);
 	} bar1;
 
@@ -21,5 +22,9 @@ struct nvkm_bar_func {
 	void (*flush)(struct nvkm_bar *);
 };
 
+void nv50_bar_bar1_fini(struct nvkm_bar *);
+
 void g84_bar_flush(struct nvkm_bar *);
+
+void gf100_bar_bar1_fini(struct nvkm_bar *);
 #endif

@@ -50,6 +50,12 @@ gf100_bar_bar1_wait(struct nvkm_bar *base)
 }
 
 void
+gf100_bar_bar1_fini(struct nvkm_bar *bar)
+{
+	nvkm_mask(bar->subdev.device, 0x001704, 0x80000000, 0x00000000);
+}
+
+void
 gf100_bar_bar1_init(struct nvkm_bar *base)
 {
 	struct nvkm_device *device = base->subdev.device;
@@ -186,6 +192,7 @@ gf100_bar_func = {
 	.oneinit = gf100_bar_oneinit,
 	.init = gf100_bar_init,
 	.bar1.init = gf100_bar_bar1_init,
+	.bar1.fini = gf100_bar_bar1_fini,
 	.bar1.wait = gf100_bar_bar1_wait,
 	.kmap = gf100_bar_kmap,
 	.umap = gf100_bar_umap,
