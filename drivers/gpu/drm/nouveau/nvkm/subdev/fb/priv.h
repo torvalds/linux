@@ -6,6 +6,7 @@ struct nvkm_bios;
 
 struct nvkm_fb_func {
 	void *(*dtor)(struct nvkm_fb *);
+	u32 (*tags)(struct nvkm_fb *);
 	int (*oneinit)(struct nvkm_fb *);
 	void (*init)(struct nvkm_fb *);
 	int (*init_page)(struct nvkm_fb *);
@@ -42,6 +43,7 @@ void nv10_fb_tile_init(struct nvkm_fb *, int i, u32 addr, u32 size,
 void nv10_fb_tile_fini(struct nvkm_fb *, int i, struct nvkm_fb_tile *);
 void nv10_fb_tile_prog(struct nvkm_fb *, int, struct nvkm_fb_tile *);
 
+u32 nv20_fb_tags(struct nvkm_fb *);
 void nv20_fb_tile_init(struct nvkm_fb *, int i, u32 addr, u32 size,
 		       u32 pitch, u32 flags, struct nvkm_fb_tile *);
 void nv20_fb_tile_fini(struct nvkm_fb *, int i, struct nvkm_fb_tile *);

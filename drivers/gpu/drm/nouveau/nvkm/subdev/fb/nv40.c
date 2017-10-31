@@ -51,6 +51,7 @@ nv40_fb_init(struct nvkm_fb *fb)
 
 static const struct nvkm_fb_func
 nv40_fb = {
+	.tags = nv20_fb_tags,
 	.init = nv40_fb_init,
 	.tile.regions = 8,
 	.tile.init = nv30_fb_tile_init,

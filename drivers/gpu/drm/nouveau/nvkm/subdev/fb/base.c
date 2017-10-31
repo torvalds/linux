@@ -100,6 +100,7 @@ static int
 nvkm_fb_oneinit(struct nvkm_subdev *subdev)
 {
 	struct nvkm_fb *fb = nvkm_fb(subdev);
+	u32 tags = 0;
 
 	if (fb->func->ram_new) {
 		int ret = fb->func->ram_new(fb, &fb->ram);
@@ -115,7 +116,16 @@ nvkm_fb_oneinit(struct nvkm_subdev *subdev)
 			return ret;
 	}
 
-	return 0;
+	/* Initialise compression tag allocator.
+	 *
+	 * LTC oneinit() will override this on Fermi and newer.
+	 */
+	if (fb->func->tags) {
+		tags = fb->func->tags(fb);
+		nvkm_debug(subdev, "%d comptags\n", tags);
+	}
+
+	return nvkm_mm_init(&fb->tags, 0, 0, tags, 1);
 }
 
 static int

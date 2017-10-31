@@ -244,6 +244,15 @@ nv50_fb_init(struct nvkm_fb *base)
 	nvkm_wr32(device, 0x100c90, fb->func->trap);
 }
 
+static u32
+nv50_fb_tags(struct nvkm_fb *base)
+{
+	struct nv50_fb *fb = nv50_fb(base);
+	if (fb->func->tags)
+		return fb->func->tags(&fb->base);
+	return 0;
+}
+
 static void *
 nv50_fb_dtor(struct nvkm_fb *base)
 {
@@ -262,6 +271,7 @@ nv50_fb_dtor(struct nvkm_fb *base)
 static const struct nvkm_fb_func
 nv50_fb_ = {
 	.dtor = nv50_fb_dtor,
+	.tags = nv50_fb_tags,
 	.oneinit = nv50_fb_oneinit,
 	.init = nv50_fb_init,
 	.intr = nv50_fb_intr,
@@ -287,6 +297,7 @@ nv50_fb_new_(const struct nv50_fb_func *func, struct nvkm_device *device,
 static const struct nv50_fb_func
 nv50_fb = {
 	.ram_new = nv50_ram_new,
+	.tags = nv20_fb_tags,
 	.trap = 0x000707ff,
 };
 

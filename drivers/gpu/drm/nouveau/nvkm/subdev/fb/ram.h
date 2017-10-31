@@ -3,11 +3,9 @@
 #include "priv.h"
 
 int  nvkm_ram_ctor(const struct nvkm_ram_func *, struct nvkm_fb *,
-		   enum nvkm_ram_type, u64 size, u32 tags,
-		   struct nvkm_ram *);
+		   enum nvkm_ram_type, u64 size, struct nvkm_ram *);
 int  nvkm_ram_new_(const struct nvkm_ram_func *, struct nvkm_fb *,
-		   enum nvkm_ram_type, u64 size, u32 tags,
-		   struct nvkm_ram **);
+		   enum nvkm_ram_type, u64 size, struct nvkm_ram **);
 void nvkm_ram_del(struct nvkm_ram **);
 int  nvkm_ram_init(struct nvkm_ram *);
 

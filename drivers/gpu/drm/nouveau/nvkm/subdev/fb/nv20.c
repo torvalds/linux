@@ -77,8 +77,16 @@ nv20_fb_tile_prog(struct nvkm_fb *fb, int i, struct nvkm_fb_tile *tile)
 	nvkm_wr32(device, 0x100300 + (i * 0x04), tile->zcomp);
 }
 
+u32
+nv20_fb_tags(struct nvkm_fb *fb)
+{
+	const u32 tags = nvkm_rd32(fb->subdev.device, 0x100320);
+	return tags ? tags + 1 : 0;
+}
+
 static const struct nvkm_fb_func
 nv20_fb = {
+	.tags = nv20_fb_tags,
 	.tile.regions = 8,
 	.tile.init = nv20_fb_tile_init,
 	.tile.comp = nv20_fb_tile_comp,

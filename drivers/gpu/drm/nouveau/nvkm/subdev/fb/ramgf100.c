@@ -604,7 +604,7 @@ gf100_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	nvkm_debug(subdev, "Upper: %4lld MiB @ %010llx\n", usize >> 20, ubase);
 	nvkm_debug(subdev, "Total: %4lld MiB\n", total >> 20);
 
-	ret = nvkm_ram_ctor(func, fb, type, total, 0, ram);
+	ret = nvkm_ram_ctor(func, fb, type, total, ram);
 	if (ret)
 		return ret;
 

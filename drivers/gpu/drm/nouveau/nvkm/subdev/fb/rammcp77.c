@@ -73,7 +73,7 @@ mcp77_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	*pram = &ram->base;
 
 	ret = nvkm_ram_ctor(&mcp77_ram_func, fb, NVKM_RAM_TYPE_STOLEN,
-			    size, 0, &ram->base);
+			    size, &ram->base);
 	if (ret)
 		return ret;
 

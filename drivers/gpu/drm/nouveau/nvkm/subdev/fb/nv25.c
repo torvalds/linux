@@ -44,6 +44,7 @@ nv25_fb_tile_comp(struct nvkm_fb *fb, int i, u32 size, u32 flags,
 
 static const struct nvkm_fb_func
 nv25_fb = {
+	.tags = nv20_fb_tags,
 	.tile.regions = 8,
 	.tile.init = nv20_fb_tile_init,
 	.tile.comp = nv25_fb_tile_comp,

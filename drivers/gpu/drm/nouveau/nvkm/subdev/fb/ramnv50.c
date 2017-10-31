@@ -639,7 +639,6 @@ nv50_ram_ctor(const struct nvkm_ram_func *func,
 	const u32 rsvd_head = ( 256 * 1024); /* vga memory */
 	const u32 rsvd_tail = (1024 * 1024); /* vbios etc */
 	u64 size = nvkm_rd32(device, 0x10020c);
-	u32 tags = nvkm_rd32(device, 0x100320);
 	enum nvkm_ram_type type = NVKM_RAM_TYPE_UNKNOWN;
 	int ret;
 
@@ -660,7 +659,7 @@ nv50_ram_ctor(const struct nvkm_ram_func *func,
 
 	size = (size & 0x000000ff) << 32 | (size & 0xffffff00);
 
-	ret = nvkm_ram_ctor(func, fb, type, size, tags, ram);
+	ret = nvkm_ram_ctor(func, fb, type, size, ram);
 	if (ret)
 		return ret;
 
