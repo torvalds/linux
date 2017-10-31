@@ -1050,6 +1050,33 @@ void fpsimd_flush_task_state(struct task_struct *t)
 	t->thread.fpsimd_state.cpu = NR_CPUS;
 }
 
+static inline void fpsimd_flush_cpu_state(void)
+{
+	__this_cpu_write(fpsimd_last_state, NULL);
+}
+
+/*
+ * Invalidate any task SVE state currently held in this CPU's regs.
+ *
+ * This is used to prevent the kernel from trying to reuse SVE register data
+ * that is detroyed by KVM guest enter/exit.  This function should go away when
+ * KVM SVE support is implemented.  Don't use it for anything else.
+ */
+#ifdef CONFIG_ARM64_SVE
+void sve_flush_cpu_state(void)
+{
+	struct fpsimd_state *const fpstate = __this_cpu_read(fpsimd_last_state);
+	struct task_struct *tsk;
+
+	if (!fpstate)
+		return;
+
+	tsk = container_of(fpstate, struct task_struct, thread.fpsimd_state);
+	if (test_tsk_thread_flag(tsk, TIF_SVE))
+		fpsimd_flush_cpu_state();
+}
+#endif /* CONFIG_ARM64_SVE */
+
 #ifdef CONFIG_KERNEL_MODE_NEON
 
 DEFINE_PER_CPU(bool, kernel_neon_busy);
@@ -1090,7 +1117,7 @@ void kernel_neon_begin(void)
 	}
 
 	/* Invalidate any task state remaining in the fpsimd regs: */
-	__this_cpu_write(fpsimd_last_state, NULL);
+	fpsimd_flush_cpu_state();
 
 	preempt_disable();
 
@@ -1211,7 +1238,7 @@ static int fpsimd_cpu_pm_notifier(struct notifier_block *self,
 	case CPU_PM_ENTER:
 		if (current->mm)
 			task_fpsimd_save();
-		this_cpu_write(fpsimd_last_state, NULL);
+		fpsimd_flush_cpu_state();
 		break;
 	case CPU_PM_EXIT:
 		if (current->mm)
