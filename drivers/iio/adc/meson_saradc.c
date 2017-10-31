@@ -224,6 +224,7 @@ struct meson_sar_adc_data {
 	u32					bandgap_reg;
 	unsigned int				resolution;
 	const char				*name;
+	const struct regmap_config		*regmap_config;
 };
 
 struct meson_sar_adc_priv {
@@ -243,11 +244,18 @@ struct meson_sar_adc_priv {
 	int					calibscale;
 };
 
-static const struct regmap_config meson_sar_adc_regmap_config = {
+static const struct regmap_config meson_sar_adc_regmap_config_gxbb = {
 	.reg_bits = 8,
 	.val_bits = 32,
 	.reg_stride = 4,
 	.max_register = MESON_SAR_ADC_REG13,
+};
+
+static const struct regmap_config meson_sar_adc_regmap_config_meson8 = {
+	.reg_bits = 8,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.max_register = MESON_SAR_ADC_DELTA_10,
 };
 
 static unsigned int meson_sar_adc_get_fifo_count(struct iio_dev *indio_dev)
@@ -859,6 +867,7 @@ static const struct iio_info meson_sar_adc_iio_info = {
 static const struct meson_sar_adc_data meson_sar_adc_meson8_data = {
 	.has_bl30_integration = false,
 	.bandgap_reg = MESON_SAR_ADC_DELTA_10,
+	.regmap_config = &meson_sar_adc_regmap_config_meson8,
 	.resolution = 10,
 	.name = "meson-meson8-saradc",
 };
@@ -866,6 +875,7 @@ static const struct meson_sar_adc_data meson_sar_adc_meson8_data = {
 static const struct meson_sar_adc_data meson_sar_adc_meson8b_data = {
 	.has_bl30_integration = false,
 	.bandgap_reg = MESON_SAR_ADC_DELTA_10,
+	.regmap_config = &meson_sar_adc_regmap_config_meson8,
 	.resolution = 10,
 	.name = "meson-meson8b-saradc",
 };
@@ -873,6 +883,7 @@ static const struct meson_sar_adc_data meson_sar_adc_meson8b_data = {
 static const struct meson_sar_adc_data meson_sar_adc_gxbb_data = {
 	.has_bl30_integration = true,
 	.bandgap_reg = MESON_SAR_ADC_REG11,
+	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.resolution = 10,
 	.name = "meson-gxbb-saradc",
 };
@@ -880,6 +891,7 @@ static const struct meson_sar_adc_data meson_sar_adc_gxbb_data = {
 static const struct meson_sar_adc_data meson_sar_adc_gxl_data = {
 	.has_bl30_integration = true,
 	.bandgap_reg = MESON_SAR_ADC_REG11,
+	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.resolution = 12,
 	.name = "meson-gxl-saradc",
 };
@@ -887,6 +899,7 @@ static const struct meson_sar_adc_data meson_sar_adc_gxl_data = {
 static const struct meson_sar_adc_data meson_sar_adc_gxm_data = {
 	.has_bl30_integration = true,
 	.bandgap_reg = MESON_SAR_ADC_REG11,
+	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.resolution = 12,
 	.name = "meson-gxm-saradc",
 };
@@ -964,7 +977,7 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 		return ret;
 
 	priv->regmap = devm_regmap_init_mmio(&pdev->dev, base,
-					     &meson_sar_adc_regmap_config);
+					     priv->data->regmap_config);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
