@@ -5,7 +5,7 @@
 #define DRIVER_EMAIL		"nouveau@lists.freedesktop.org"
 
 #define DRIVER_NAME		"nouveau"
-#define DRIVER_DESC		"nVidia Riva/TNT/GeForce/Quadro/Tesla"
+#define DRIVER_DESC		"nVidia Riva/TNT/GeForce/Quadro/Tesla/Tegra K1+"
 #define DRIVER_DATE		"20120801"
 
 #define DRIVER_MAJOR		1
