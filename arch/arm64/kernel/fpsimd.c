@@ -37,6 +37,7 @@
 #include <linux/sched/task_stack.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
+#include <linux/sysctl.h>
 
 #include <asm/fpsimd.h>
 #include <asm/cputype.h>
@@ -334,6 +335,65 @@ static unsigned int find_supported_vector_length(unsigned int vl)
 			    vq_to_bit(sve_vq_from_vl(vl)));
 	return sve_vl_from_vq(bit_to_vq(bit));
 }
+
+#ifdef CONFIG_SYSCTL
+
+static int sve_proc_do_default_vl(struct ctl_table *table, int write,
+				  void __user *buffer, size_t *lenp,
+				  loff_t *ppos)
+{
+	int ret;
+	int vl = sve_default_vl;
+	struct ctl_table tmp_table = {
+		.data = &vl,
+		.maxlen = sizeof(vl),
+	};
+
+	ret = proc_dointvec(&tmp_table, write, buffer, lenp, ppos);
+	if (ret || !write)
+		return ret;
+
+	/* Writing -1 has the special meaning "set to max": */
+	if (vl == -1) {
+		/* Fail safe if sve_max_vl wasn't initialised */
+		if (WARN_ON(!sve_vl_valid(sve_max_vl)))
+			vl = SVE_VL_MIN;
+		else
+			vl = sve_max_vl;
+
+		goto chosen;
+	}
+
+	if (!sve_vl_valid(vl))
+		return -EINVAL;
+
+	vl = find_supported_vector_length(vl);
+chosen:
+	sve_default_vl = vl;
+	return 0;
+}
+
+static struct ctl_table sve_default_vl_table[] = {
+	{
+		.procname	= "sve_default_vector_length",
+		.mode		= 0644,
+		.proc_handler	= sve_proc_do_default_vl,
+	},
+	{ }
+};
+
+static int __init sve_sysctl_init(void)
+{
+	if (system_supports_sve())
+		if (!register_sysctl("abi", sve_default_vl_table))
+			return -EINVAL;
+
+	return 0;
+}
+
+#else /* ! CONFIG_SYSCTL */
+static int __init sve_sysctl_init(void) { return 0; }
+#endif /* ! CONFIG_SYSCTL */
 
 #define ZREG(sve_state, vq, n) ((char *)(sve_state) +		\
 	(SVE_SIG_ZREG_OFFSET(vq, n) - SVE_SIG_REGS_OFFSET))
@@ -1209,6 +1269,6 @@ static int __init fpsimd_init(void)
 	if (!(elf_hwcap & HWCAP_ASIMD))
 		pr_notice("Advanced SIMD is not implemented\n");
 
-	return 0;
+	return sve_sysctl_init();
 }
 late_initcall(fpsimd_init);
