@@ -146,6 +146,9 @@ gf100_bar_oneinit(struct nvkm_bar *base)
 		ret = gf100_bar_oneinit_bar(bar, &bar->bar[0], &bar2_lock, 3);
 		if (ret)
 			return ret;
+
+		bar->base.subdev.oneinit = true;
+		nvkm_bar_bar2_init(bar->base.subdev.device);
 	}
 
 	/* BAR1 */

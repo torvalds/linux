@@ -159,6 +159,9 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 	nvkm_wo32(bar->bar2, 0x14, 0x00000000);
 	nvkm_done(bar->bar2);
 
+	bar->base.subdev.oneinit = true;
+	nvkm_bar_bar2_init(device);
+
 	/* BAR1 */
 	start = 0x0000000000ULL;
 	limit = start + device->func->resource_size(device, 1);
