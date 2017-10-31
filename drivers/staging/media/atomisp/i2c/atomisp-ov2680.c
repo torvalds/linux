@@ -252,8 +252,8 @@ static int ov2680_write_reg_array(struct i2c_client *client,
 			if (!__ov2680_write_reg_is_consecutive(client, &ctrl,
 								next)) {
 				err = __ov2680_flush_reg_array(client, &ctrl);
-			if (err)
-				return err;
+				if (err)
+					return err;
 			}
 			err = __ov2680_buf_reg_array(client, &ctrl, next);
 			if (err) {
@@ -398,7 +398,9 @@ static long __ov2680_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 	u16 vts,hts;
 	int ret,exp_val;
 
-       dev_dbg(&client->dev, "+++++++__ov2680_set_exposure coarse_itg %d, gain %d, digitgain %d++\n",coarse_itg, gain, digitgain);
+	dev_dbg(&client->dev,
+		"+++++++__ov2680_set_exposure coarse_itg %d, gain %d, digitgain %d++\n",
+		coarse_itg, gain, digitgain);
 
 	hts = ov2680_res[dev->fmt_idx].pixels_per_line;
 	vts = ov2680_res[dev->fmt_idx].lines_per_frame;

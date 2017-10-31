@@ -386,8 +386,8 @@ static int ov5693_write_reg_array(struct i2c_client *client,
 			if (!__ov5693_write_reg_is_consecutive(client, &ctrl,
 								next)) {
 				err = __ov5693_flush_reg_array(client, &ctrl);
-			if (err)
-				return err;
+				if (err)
+					return err;
 			}
 			err = __ov5693_buf_reg_array(client, &ctrl, next);
 			if (err) {

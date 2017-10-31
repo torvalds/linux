@@ -1004,7 +1004,7 @@ csi_and_subdev_probe_failed:
 	v4l2_device_unregister(&isp->v4l2_dev);
 v4l2_device_failed:
 	media_device_unregister(&isp->media_dev);
-    media_device_cleanup(&isp->media_dev);
+	media_device_cleanup(&isp->media_dev);
 	return ret;
 }
 
