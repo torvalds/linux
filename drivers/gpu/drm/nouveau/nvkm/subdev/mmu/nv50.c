@@ -28,7 +28,7 @@
 #include <subdev/timer.h>
 #include <engine/gr.h>
 
-static void
+void
 nv50_vm_map_pgt(struct nvkm_gpuobj *pgd, u32 pde, struct nvkm_memory *pgt[2])
 {
 	u64 phys = 0xdeadcafe00000000ULL;
@@ -73,7 +73,7 @@ vm_addr(struct nvkm_vma *vma, u64 phys, u32 memtype, u32 target)
 	return phys;
 }
 
-static void
+void
 nv50_vm_map(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 	    struct nvkm_mem *mem, u32 pte, u32 cnt, u64 phys, u64 delta)
 {
@@ -123,7 +123,7 @@ nv50_vm_map(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 	nvkm_done(pgt);
 }
 
-static void
+void
 nv50_vm_map_sg(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 	       struct nvkm_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
 {
@@ -139,7 +139,7 @@ nv50_vm_map_sg(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 	nvkm_done(pgt);
 }
 
-static void
+void
 nv50_vm_unmap(struct nvkm_vma *vma, struct nvkm_memory *pgt, u32 pte, u32 cnt)
 {
 	pte <<= 3;
@@ -152,7 +152,7 @@ nv50_vm_unmap(struct nvkm_vma *vma, struct nvkm_memory *pgt, u32 pte, u32 cnt)
 	nvkm_done(pgt);
 }
 
-static void
+void
 nv50_vm_flush(struct nvkm_vm *vm)
 {
 	struct nvkm_mmu *mmu = vm->mmu;
@@ -198,7 +198,7 @@ nv50_vm_flush(struct nvkm_vm *vm)
 	mutex_unlock(&subdev->mutex);
 }
 
-static int
+int
 nv50_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
 	       struct lock_class_key *key, struct nvkm_vm **pvm)
 {

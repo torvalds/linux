@@ -36,4 +36,14 @@ struct nvkm_mmu_func {
 
 int nvkm_vm_create(struct nvkm_mmu *, u64, u64, u64, u32,
 		   struct lock_class_key *, struct nvkm_vm **);
+
+int nv50_vm_create(struct nvkm_mmu *, u64, u64, u64, struct lock_class_key *,
+		   struct nvkm_vm **);
+void nv50_vm_map_pgt(struct nvkm_gpuobj *, u32, struct nvkm_memory **);
+void nv50_vm_map(struct nvkm_vma *, struct nvkm_memory *, struct nvkm_mem *,
+		 u32, u32, u64, u64);
+void nv50_vm_map_sg(struct nvkm_vma *, struct nvkm_memory *, struct nvkm_mem *,
+		    u32, u32, dma_addr_t *);
+void nv50_vm_unmap(struct nvkm_vma *, struct nvkm_memory *, u32, u32);
+void nv50_vm_flush(struct nvkm_vm *);
 #endif
