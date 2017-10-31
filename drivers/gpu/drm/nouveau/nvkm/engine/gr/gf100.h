@@ -254,6 +254,7 @@ extern const struct gf100_gr_init gf100_gr_init_mpc_0[];
 extern const struct gf100_gr_init gf100_gr_init_be_0[];
 extern const struct gf100_gr_init gf100_gr_init_fe_1[];
 extern const struct gf100_gr_init gf100_gr_init_pe_1[];
+void gf100_gr_init_gpc_mmu(struct gf100_gr *);
 
 extern const struct gf100_gr_init gf104_gr_init_ds_0[];
 extern const struct gf100_gr_init gf104_gr_init_tex_0[];
