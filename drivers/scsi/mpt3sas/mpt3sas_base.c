@@ -663,6 +663,26 @@ _base_display_event_data(struct MPT3SAS_ADAPTER *ioc,
 	case MPI2_EVENT_ACTIVE_CABLE_EXCEPTION:
 		desc = "Cable Event";
 		break;
+	case MPI2_EVENT_PCIE_DEVICE_STATUS_CHANGE:
+		desc = "PCIE Device Status Change";
+		break;
+	case MPI2_EVENT_PCIE_ENUMERATION:
+	{
+		Mpi26EventDataPCIeEnumeration_t *event_data =
+			(Mpi26EventDataPCIeEnumeration_t *)mpi_reply->EventData;
+		pr_info(MPT3SAS_FMT "PCIE Enumeration: (%s)", ioc->name,
+			   (event_data->ReasonCode ==
+				MPI26_EVENT_PCIE_ENUM_RC_STARTED) ?
+				"start" : "stop");
+		if (event_data->EnumerationStatus)
+			pr_info("enumeration_status(0x%08x)",
+				   le32_to_cpu(event_data->EnumerationStatus));
+		pr_info("\n");
+		return;
+	}
+	case MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST:
+		desc = "PCIE Topology Change List";
+		break;
 	}
 
 	if (!desc)
@@ -6125,7 +6145,15 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 	_base_unmask_events(ioc, MPI2_EVENT_LOG_ENTRY_ADDED);
 	_base_unmask_events(ioc, MPI2_EVENT_TEMP_THRESHOLD);
 	_base_unmask_events(ioc, MPI2_EVENT_ACTIVE_CABLE_EXCEPTION);
-
+	if (ioc->hba_mpi_version_belonged == MPI26_VERSION) {
+		if (ioc->is_gen35_ioc) {
+			_base_unmask_events(ioc,
+				MPI2_EVENT_PCIE_DEVICE_STATUS_CHANGE);
+			_base_unmask_events(ioc, MPI2_EVENT_PCIE_ENUMERATION);
+			_base_unmask_events(ioc,
+				MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST);
+		}
+	}
 	r = _base_make_ioc_operational(ioc);
 	if (r)
 		goto out_free_resources;
