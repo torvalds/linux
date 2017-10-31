@@ -31,6 +31,7 @@
 
 #include "nouveau_ttm.h"
 #include "nouveau_gem.h"
+#include "nouveau_vmm.h"
 
 void
 nouveau_gem_object_del(struct drm_gem_object *gem)
@@ -64,8 +65,8 @@ nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-	struct nvkm_vma *vma;
 	struct device *dev = drm->dev->dev;
+	struct nouveau_vma *vma;
 	int ret;
 
 	if (!cli->vm)
@@ -75,30 +76,13 @@ nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 	if (ret)
 		return ret;
 
-	vma = nouveau_bo_vma_find(nvbo, cli->vm);
-	if (!vma) {
-		vma = kzalloc(sizeof(*vma), GFP_KERNEL);
-		if (!vma) {
-			ret = -ENOMEM;
-			goto out;
-		}
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0 && ret != -EACCES)
+		goto out;
 
-		ret = pm_runtime_get_sync(dev);
-		if (ret < 0 && ret != -EACCES) {
-			kfree(vma);
-			goto out;
-		}
-
-		ret = nouveau_bo_vma_add(nvbo, cli->vm, vma);
-		if (ret)
-			kfree(vma);
-
-		pm_runtime_mark_last_busy(dev);
-		pm_runtime_put_autosuspend(dev);
-	} else {
-		vma->refcount++;
-	}
-
+	ret = nouveau_vma_new(nvbo, &cli->vmm, &vma);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 out:
 	ttm_bo_unreserve(&nvbo->bo);
 	return ret;
@@ -107,14 +91,12 @@ out:
 static void
 nouveau_gem_object_delete(void *data)
 {
-	struct nvkm_vma *vma = data;
-	nvkm_vm_unmap(vma);
-	nvkm_vm_put(vma);
-	kfree(vma);
+	struct nouveau_vma *vma = data;
+	nouveau_vma_del(&vma);
 }
 
 static void
-nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nvkm_vma *vma)
+nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nouveau_vma *vma)
 {
 	const bool mapped = nvbo->bo.mem.mem_type != TTM_PL_SYSTEM;
 	struct reservation_object *resv = nvbo->bo.resv;
@@ -123,7 +105,7 @@ nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nvkm_vma *vma)
 
 	fobj = reservation_object_get_list(resv);
 
-	list_del(&vma->head);
+	list_del_init(&vma->head);
 
 	if (fobj && fobj->shared_count > 1)
 		ttm_bo_wait(&nvbo->bo, false, false);
@@ -133,14 +115,10 @@ nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nvkm_vma *vma)
 	else
 		fence = reservation_object_get_excl(nvbo->bo.resv);
 
-	if (fence && mapped) {
+	if (fence && mapped)
 		nouveau_fence_work(fence, nouveau_gem_object_delete, vma);
-	} else {
-		if (mapped)
-			nvkm_vm_unmap(vma);
-		nvkm_vm_put(vma);
-		kfree(vma);
-	}
+	else
+		nouveau_vma_del(&vma);
 }
 
 void
@@ -150,7 +128,7 @@ nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct device *dev = drm->dev->dev;
-	struct nvkm_vma *vma;
+	struct nouveau_vma *vma;
 	int ret;
 
 	if (!cli->vm)
@@ -160,9 +138,9 @@ nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 	if (ret)
 		return;
 
-	vma = nouveau_bo_vma_find(nvbo, cli->vm);
+	vma = nouveau_vma_find(nvbo, &cli->vmm);
 	if (vma) {
-		if (--vma->refcount == 0) {
+		if (--vma->refs == 0) {
 			ret = pm_runtime_get_sync(dev);
 			if (!WARN_ON(ret < 0 && ret != -EACCES)) {
 				nouveau_gem_object_unmap(nvbo, vma);
@@ -227,7 +205,7 @@ nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
-	struct nvkm_vma *vma;
+	struct nouveau_vma *vma;
 
 	if (is_power_of_2(nvbo->valid_domains))
 		rep->domain = nvbo->valid_domains;
@@ -237,11 +215,11 @@ nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 		rep->domain = NOUVEAU_GEM_DOMAIN_VRAM;
 	rep->offset = nvbo->bo.offset;
 	if (cli->vm) {
-		vma = nouveau_bo_vma_find(nvbo, cli->vm);
+		vma = nouveau_vma_find(nvbo, &cli->vmm);
 		if (!vma)
 			return -EINVAL;
 
-		rep->offset = vma->offset;
+		rep->offset = vma->addr;
 	}
 
 	rep->size = nvbo->bo.mem.num_pages << PAGE_SHIFT;
@@ -798,7 +776,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 				bo[push[i].bo_index].user_priv;
 			uint32_t cmd;
 
-			cmd = chan->push.vma.offset + ((chan->dma.cur + 2) << 2);
+			cmd = chan->push.addr + ((chan->dma.cur + 2) << 2);
 			cmd |= 0x20000000;
 			if (unlikely(cmd != req->suffix0)) {
 				if (!nvbo->kmap.virtual) {
@@ -850,7 +828,7 @@ out_next:
 		req->suffix1 = 0x00000000;
 	} else {
 		req->suffix0 = 0x20000000 |
-			      (chan->push.vma.offset + ((chan->dma.cur + 2) << 2));
+			      (chan->push.addr + ((chan->dma.cur + 2) << 2));
 		req->suffix1 = 0x00000000;
 	}
 

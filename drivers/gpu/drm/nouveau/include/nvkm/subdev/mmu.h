@@ -16,8 +16,6 @@ struct nvkm_vm_pgd {
 };
 
 struct nvkm_vma {
-	struct list_head head;
-	int refcount;
 	struct nvkm_vm *vm;
 	struct nvkm_mm_node *node;
 	union {

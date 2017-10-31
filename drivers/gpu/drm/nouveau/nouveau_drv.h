@@ -61,6 +61,7 @@ struct platform_device;
 
 #include "nouveau_fence.h"
 #include "nouveau_bios.h"
+#include "nouveau_vmm.h"
 
 struct nouveau_drm_tile {
 	struct nouveau_fence *fence;
@@ -90,8 +91,9 @@ struct nouveau_cli {
 	struct mutex mutex;
 
 	struct nvif_device device;
+	struct nouveau_vmm vmm;
 
-	struct nvkm_vm *vm; /*XXX*/
+	struct nvkm_vm *vm;
 	struct list_head head;
 	void *abi16;
 	struct list_head objects;

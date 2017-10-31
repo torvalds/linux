@@ -88,7 +88,7 @@ int nouveau_flip_complete(struct nvif_notify *);
 
 struct nv84_fence_chan {
 	struct nouveau_fence_chan base;
-	struct nvkm_vma vma;
+	struct nouveau_vma *vma;
 };
 
 struct nv84_fence_priv {

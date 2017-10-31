@@ -25,6 +25,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
+#include "nouveau_vmm.h"
 
 #include "nv50_display.h"
 
@@ -68,7 +69,7 @@ nv84_fence_emit(struct nouveau_fence *fence)
 {
 	struct nouveau_channel *chan = fence->channel;
 	struct nv84_fence_chan *fctx = chan->fence;
-	u64 addr = fctx->vma.offset + chan->chid * 16;
+	u64 addr = fctx->vma->addr + chan->chid * 16;
 
 	return fctx->base.emit32(chan, addr, fence->base.seqno);
 }
@@ -78,7 +79,7 @@ nv84_fence_sync(struct nouveau_fence *fence,
 		struct nouveau_channel *prev, struct nouveau_channel *chan)
 {
 	struct nv84_fence_chan *fctx = chan->fence;
-	u64 addr = fctx->vma.offset + prev->chid * 16;
+	u64 addr = fctx->vma->addr + prev->chid * 16;
 
 	return fctx->base.sync32(chan, addr, fence->base.seqno);
 }
@@ -98,7 +99,7 @@ nv84_fence_context_del(struct nouveau_channel *chan)
 
 	nouveau_bo_wr32(priv->bo, chan->chid * 16 / 4, fctx->base.sequence);
 	mutex_lock(&priv->mutex);
-	nouveau_bo_vma_del(priv->bo, &fctx->vma);
+	nouveau_vma_del(&fctx->vma);
 	mutex_unlock(&priv->mutex);
 	nouveau_fence_context_del(&fctx->base);
 	chan->fence = NULL;
@@ -126,7 +127,7 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 	fctx->base.sequence = nv84_fence_read(chan);
 
 	mutex_lock(&priv->mutex);
-	ret = nouveau_bo_vma_add(priv->bo, cli->vm, &fctx->vma);
+	ret = nouveau_vma_new(priv->bo, &cli->vmm, &fctx->vma);
 	mutex_unlock(&priv->mutex);
 
 	if (ret)

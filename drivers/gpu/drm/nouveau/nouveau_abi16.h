@@ -23,7 +23,7 @@ struct nouveau_abi16_chan {
 	struct nouveau_channel *chan;
 	struct list_head notifiers;
 	struct nouveau_bo *ntfy;
-	struct nvkm_vma ntfy_vma;
+	struct nouveau_vma *ntfy_vma;
 	struct nvkm_mm  heap;
 };
 

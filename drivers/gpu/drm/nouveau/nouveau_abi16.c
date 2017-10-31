@@ -34,6 +34,7 @@
 #include "nouveau_gem.h"
 #include "nouveau_chan.h"
 #include "nouveau_abi16.h"
+#include "nouveau_vmm.h"
 
 static struct nouveau_abi16 *
 nouveau_abi16(struct drm_file *file_priv)
@@ -134,7 +135,7 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 	}
 
 	if (chan->ntfy) {
-		nouveau_bo_vma_del(chan->ntfy, &chan->ntfy_vma);
+		nouveau_vma_del(&chan->ntfy_vma);
 		nouveau_bo_unpin(chan->ntfy);
 		drm_gem_object_unreference_unlocked(&chan->ntfy->gem);
 	}
@@ -329,8 +330,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 		goto done;
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_bo_vma_add(chan->ntfy, cli->vm,
-					&chan->ntfy_vma);
+		ret = nouveau_vma_new(chan->ntfy, &cli->vmm, &chan->ntfy_vma);
 		if (ret)
 			goto done;
 	}
@@ -548,8 +548,8 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		args.target = NV_DMA_V0_TARGET_VM;
 		args.access = NV_DMA_V0_ACCESS_VM;
-		args.start += chan->ntfy_vma.offset;
-		args.limit += chan->ntfy_vma.offset;
+		args.start += chan->ntfy_vma->addr;
+		args.limit += chan->ntfy_vma->addr;
 	} else
 	if (drm->agp.bridge) {
 		args.target = NV_DMA_V0_TARGET_AGP;

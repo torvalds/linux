@@ -114,8 +114,8 @@ nouveau_name(struct drm_device *dev)
 static void
 nouveau_cli_fini(struct nouveau_cli *cli)
 {
-	nvkm_vm_ref(NULL, &nvxx_client(&cli->base)->vm, NULL);
 	usif_client_fini(cli);
+	nouveau_vmm_fini(&cli->vmm);
 	nvif_device_fini(&cli->device);
 	mutex_lock(&cli->drm->master.lock);
 	nvif_client_fini(&cli->base);
@@ -472,12 +472,11 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 			goto fail_device;
 		}
 
-		ret = nvkm_vm_new(nvxx_device(&drm->client.device),
-				  0, (1ULL << 40), 0x1000, NULL,
-				  &drm->client.vm);
+		ret = nouveau_vmm_init(&drm->client, 0, &drm->client.vmm);
 		if (ret)
 			goto fail_device;
 
+		drm->client.vm = drm->client.vmm.vm;
 		nvxx_client(&drm->client.base)->vm = drm->client.vm;
 	}
 
@@ -863,11 +862,11 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 	cli->base.super = false;
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nvkm_vm_new(nvxx_device(&drm->client.device), 0,
-				  (1ULL << 40), 0x1000, NULL, &cli->vm);
+		ret = nouveau_vmm_init(cli, 0, &cli->vmm);
 		if (ret)
 			goto done;
 
+		cli->vm = cli->vmm.vm;
 		nvxx_client(&cli->base)->vm = cli->vm;
 	}
 

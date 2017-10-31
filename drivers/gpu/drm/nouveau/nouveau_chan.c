@@ -40,6 +40,7 @@
 #include "nouveau_chan.h"
 #include "nouveau_fence.h"
 #include "nouveau_abi16.h"
+#include "nouveau_vmm.h"
 
 MODULE_PARM_DESC(vram_pushbuf, "Create DMA push buffers in VRAM");
 int nouveau_vram_pushbuf;
@@ -91,7 +92,7 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 		nvif_notify_fini(&chan->kill);
 		nvif_object_fini(&chan->user);
 		nvif_object_fini(&chan->push.ctxdma);
-		nouveau_bo_vma_del(chan->push.buffer, &chan->push.vma);
+		nouveau_vma_del(&chan->push.vma);
 		nouveau_bo_unmap(chan->push.buffer);
 		if (chan->push.buffer && chan->push.buffer->pin_refcnt)
 			nouveau_bo_unpin(chan->push.buffer);
@@ -142,11 +143,11 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 	 * pushbuf lives in, this is because the GEM code requires that
 	 * we be able to call out to other (indirect) push buffers
 	 */
-	chan->push.vma.offset = chan->push.buffer->bo.offset;
+	chan->push.addr = chan->push.buffer->bo.offset;
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_bo_vma_add(chan->push.buffer, cli->vm,
-					&chan->push.vma);
+		ret = nouveau_vma_new(chan->push.buffer, &cli->vmm,
+				      &chan->push.vma);
 		if (ret) {
 			nouveau_channel_del(pchan);
 			return ret;
@@ -156,6 +157,8 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 		args.access = NV_DMA_V0_ACCESS_VM;
 		args.start = 0;
 		args.limit = cli->vm->mmu->limit - 1;
+
+		chan->push.addr = chan->push.vma->addr;
 	} else
 	if (chan->push.buffer->bo.mem.mem_type == TTM_PL_VRAM) {
 		if (device->info.family == NV_DEVICE_INFO_V0_TNT) {
@@ -233,20 +236,20 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 			args.kepler.version = 0;
 			args.kepler.engines = engine;
 			args.kepler.ilength = 0x02000;
-			args.kepler.ioffset = 0x10000 + chan->push.vma.offset;
+			args.kepler.ioffset = 0x10000 + chan->push.addr;
 			args.kepler.vm = 0;
 			size = sizeof(args.kepler);
 		} else
 		if (oclass[0] >= FERMI_CHANNEL_GPFIFO) {
 			args.fermi.version = 0;
 			args.fermi.ilength = 0x02000;
-			args.fermi.ioffset = 0x10000 + chan->push.vma.offset;
+			args.fermi.ioffset = 0x10000 + chan->push.addr;
 			args.fermi.vm = 0;
 			size = sizeof(args.fermi);
 		} else {
 			args.nv50.version = 0;
 			args.nv50.ilength = 0x02000;
-			args.nv50.ioffset = 0x10000 + chan->push.vma.offset;
+			args.nv50.ioffset = 0x10000 + chan->push.addr;
 			args.nv50.pushbuf = nvif_handle(&chan->push.ctxdma);
 			args.nv50.vm = 0;
 			size = sizeof(args.nv50);
@@ -293,7 +296,7 @@ nouveau_channel_dma(struct nouveau_drm *drm, struct nvif_device *device,
 	/* create channel object */
 	args.version = 0;
 	args.pushbuf = nvif_handle(&chan->push.ctxdma);
-	args.offset = chan->push.vma.offset;
+	args.offset = chan->push.addr;
 
 	do {
 		ret = nvif_object_init(&device->object, 0, *oclass++,

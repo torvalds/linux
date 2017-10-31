@@ -26,6 +26,7 @@
 
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
+#include "nouveau_vmm.h"
 
 void
 OUT_RINGp(struct nouveau_channel *chan, const void *data, unsigned nr_dwords)
@@ -71,11 +72,11 @@ READ_GET(struct nouveau_channel *chan, uint64_t *prev_get, int *timeout)
 			return -EBUSY;
 	}
 
-	if (val < chan->push.vma.offset ||
-	    val > chan->push.vma.offset + (chan->dma.max << 2))
+	if (val < chan->push.addr ||
+	    val > chan->push.addr + (chan->dma.max << 2))
 		return -EINVAL;
 
-	return (val - chan->push.vma.offset) >> 2;
+	return (val - chan->push.addr) >> 2;
 }
 
 void
@@ -84,13 +85,13 @@ nv50_dma_push(struct nouveau_channel *chan, struct nouveau_bo *bo,
 {
 	struct nouveau_cli *cli = (void *)chan->user.client;
 	struct nouveau_bo *pb = chan->push.buffer;
-	struct nvkm_vma *vma;
+	struct nouveau_vma *vma;
 	int ip = (chan->dma.ib_put * 2) + chan->dma.ib_base;
 	u64 offset;
 
-	vma = nouveau_bo_vma_find(bo, cli->vm);
+	vma = nouveau_vma_find(bo, &cli->vmm);
 	BUG_ON(!vma);
-	offset = vma->offset + delta;
+	offset = vma->addr + delta;
 
 	BUG_ON(chan->dma.ib_free < 1);
 
@@ -224,7 +225,7 @@ nouveau_dma_wait(struct nouveau_channel *chan, int slots, int size)
 			 * instruct the GPU to jump back to the start right
 			 * after processing the currently pending commands.
 			 */
-			OUT_RING(chan, chan->push.vma.offset | 0x20000000);
+			OUT_RING(chan, chan->push.addr | 0x20000000);
 
 			/* wait for GET to depart from the skips area.
 			 * prevents writing GET==PUT and causing a race

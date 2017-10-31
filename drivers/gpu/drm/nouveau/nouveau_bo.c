@@ -38,6 +38,7 @@
 #include "nouveau_ttm.h"
 #include "nouveau_gem.h"
 #include "nouveau_mem.h"
+#include "nouveau_vmm.h"
 
 /*
  * NV10-NV40 tiling helpers
@@ -1223,7 +1224,7 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, bool evict,
 {
 	struct nouveau_mem *mem = new_reg ? nouveau_mem(new_reg) : NULL;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nvkm_vma *vma;
+	struct nouveau_vma *vma;
 
 	/* ttm can now (stupidly) pass the driver bos it didn't create... */
 	if (bo->destroy != nouveau_bo_del_ttm)
@@ -1232,12 +1233,12 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, bool evict,
 	if (mem && new_reg->mem_type != TTM_PL_SYSTEM &&
 	    mem->mem.page == nvbo->page) {
 		list_for_each_entry(vma, &nvbo->vma_list, head) {
-			nvkm_vm_map(vma, mem->_mem);
+			nouveau_vma_map(vma, mem);
 		}
 	} else {
 		list_for_each_entry(vma, &nvbo->vma_list, head) {
 			WARN_ON(ttm_bo_wait(bo, false, false));
-			nvkm_vm_unmap(vma);
+			nouveau_vma_unmap(vma);
 		}
 	}
 }
@@ -1599,47 +1600,3 @@ struct ttm_bo_driver nouveau_bo_driver = {
 	.io_mem_free = &nouveau_ttm_io_mem_free,
 	.io_mem_pfn = ttm_bo_default_io_mem_pfn,
 };
-
-struct nvkm_vma *
-nouveau_bo_vma_find(struct nouveau_bo *nvbo, struct nvkm_vm *vm)
-{
-	struct nvkm_vma *vma;
-	list_for_each_entry(vma, &nvbo->vma_list, head) {
-		if (vma->vm == vm)
-			return vma;
-	}
-
-	return NULL;
-}
-
-int
-nouveau_bo_vma_add(struct nouveau_bo *nvbo, struct nvkm_vm *vm,
-		   struct nvkm_vma *vma)
-{
-	const u32 size = nvbo->bo.mem.num_pages << PAGE_SHIFT;
-	struct nouveau_mem *mem = nouveau_mem(&nvbo->bo.mem);
-	int ret;
-
-	ret = nvkm_vm_get(vm, size, nvbo->page, NV_MEM_ACCESS_RW, vma);
-	if (ret)
-		return ret;
-
-	if (nvbo->bo.mem.mem_type != TTM_PL_SYSTEM &&
-	    mem->mem.page == nvbo->page)
-		nvkm_vm_map(vma, mem->_mem);
-
-	list_add_tail(&vma->head, &nvbo->vma_list);
-	vma->refcount = 1;
-	return 0;
-}
-
-void
-nouveau_bo_vma_del(struct nouveau_bo *nvbo, struct nvkm_vma *vma)
-{
-	if (vma->node) {
-		if (nvbo->bo.mem.mem_type != TTM_PL_SYSTEM)
-			nvkm_vm_unmap(vma);
-		nvkm_vm_put(vma);
-		list_del(&vma->head);
-	}
-}
