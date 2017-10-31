@@ -10,7 +10,7 @@
 #include "util/debug.h"
 #include "util/callchain.h"
 #include "srcline.h"
-
+#include "string2.h"
 #include "symbol.h"
 
 bool srcline_full_filename;
@@ -75,6 +75,41 @@ static char *srcline_from_fileline(const char *file, unsigned int line)
 		return NULL;
 
 	return srcline;
+}
+
+static struct symbol *new_inline_sym(struct dso *dso,
+				     struct symbol *base_sym,
+				     const char *funcname)
+{
+	struct symbol *inline_sym;
+	char *demangled = NULL;
+
+	if (dso) {
+		demangled = dso__demangle_sym(dso, 0, funcname);
+		if (demangled)
+			funcname = demangled;
+	}
+
+	if (base_sym && strcmp(funcname, base_sym->name) == 0) {
+		/* reuse the real, existing symbol */
+		inline_sym = base_sym;
+		/* ensure that we don't alias an inlined symbol, which could
+		 * lead to double frees in inline_node__delete
+		 */
+		assert(!base_sym->inlined);
+	} else {
+		/* create a fake symbol for the inline frame */
+		inline_sym = symbol__new(base_sym ? base_sym->start : 0,
+					 base_sym ? base_sym->end : 0,
+					 base_sym ? base_sym->binding : 0,
+					 funcname);
+		if (inline_sym)
+			inline_sym->inlined = 1;
+	}
+
+	free(demangled);
+
+	return inline_sym;
 }
 
 #ifdef HAVE_LIBBFD_SUPPORT
@@ -218,41 +253,6 @@ static void addr2line_cleanup(struct a2l_data *a2l)
 }
 
 #define MAX_INLINE_NEST 1024
-
-static struct symbol *new_inline_sym(struct dso *dso,
-				     struct symbol *base_sym,
-				     const char *funcname)
-{
-	struct symbol *inline_sym;
-	char *demangled = NULL;
-
-	if (dso) {
-		demangled = dso__demangle_sym(dso, 0, funcname);
-		if (demangled)
-			funcname = demangled;
-	}
-
-	if (base_sym && strcmp(funcname, base_sym->name) == 0) {
-		/* reuse the real, existing symbol */
-		inline_sym = base_sym;
-		/* ensure that we don't alias an inlined symbol, which could
-		 * lead to double frees in inline_node__delete
-		 */
-		assert(!base_sym->inlined);
-	} else {
-		/* create a fake symbol for the inline frame */
-		inline_sym = symbol__new(base_sym ? base_sym->start : 0,
-					 base_sym ? base_sym->end : 0,
-					 base_sym ? base_sym->binding : 0,
-					 funcname);
-		if (inline_sym)
-			inline_sym->inlined = 1;
-	}
-
-	free(demangled);
-
-	return inline_sym;
-}
 
 static int inline_list__append_dso_a2l(struct dso *dso,
 				       struct inline_node *node,
@@ -432,10 +432,11 @@ static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
 	char cmd[PATH_MAX];
 	struct inline_node *node;
 	char *filename = NULL;
-	size_t len;
+	char *funcname = NULL;
+	size_t filelen, funclen;
 	unsigned int line_nr = 0;
 
-	scnprintf(cmd, sizeof(cmd), "addr2line -e %s -i %016"PRIx64,
+	scnprintf(cmd, sizeof(cmd), "addr2line -e %s -i -f %016"PRIx64,
 		  dso_name, addr);
 
 	fp = popen(cmd, "r");
@@ -453,20 +454,34 @@ static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
 	INIT_LIST_HEAD(&node->val);
 	node->addr = addr;
 
-	while (getline(&filename, &len, fp) != -1) {
+	/* addr2line -f generates two lines for each inlined functions */
+	while (getline(&funcname, &funclen, fp) != -1) {
 		char *srcline;
+		struct symbol *inline_sym;
+
+		rtrim(funcname);
+
+		if (getline(&filename, &filelen, fp) == -1)
+			goto out;
 
 		if (filename_split(filename, &line_nr) != 1)
 			goto out;
 
 		srcline = srcline_from_fileline(filename, line_nr);
-		if (inline_list__append(sym, srcline, node) != 0)
+		inline_sym = new_inline_sym(dso, sym, funcname);
+
+		if (inline_list__append(inline_sym, srcline, node) != 0) {
+			free(srcline);
+			if (inline_sym && inline_sym->inlined)
+				symbol__delete(inline_sym);
 			goto out;
+		}
 	}
 
 out:
 	pclose(fp);
 	free(filename);
+	free(funcname);
 
 	return node;
 }
