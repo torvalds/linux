@@ -97,7 +97,7 @@ nv10_bo_put_tile_region(struct drm_device *dev, struct nouveau_drm_tile *tile,
 
 static struct nouveau_drm_tile *
 nv10_bo_set_tiling(struct drm_device *dev, u32 addr,
-		   u32 size, u32 pitch, u32 flags)
+		   u32 size, u32 pitch, u32 zeta)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvkm_fb *fb = nvxx_fb(&drm->client.device);
@@ -120,8 +120,7 @@ nv10_bo_set_tiling(struct drm_device *dev, u32 addr,
 	}
 
 	if (found)
-		nv10_bo_update_tile_region(dev, found, addr, size,
-					    pitch, flags);
+		nv10_bo_update_tile_region(dev, found, addr, size, pitch, zeta);
 	return found;
 }
 
@@ -155,27 +154,27 @@ nouveau_bo_fixup_align(struct nouveau_bo *nvbo, u32 flags,
 	struct nvif_device *device = &drm->client.device;
 
 	if (device->info.family < NV_DEVICE_INFO_V0_TESLA) {
-		if (nvbo->tile_mode) {
+		if (nvbo->mode) {
 			if (device->info.chipset >= 0x40) {
 				*align = 65536;
-				*size = roundup_64(*size, 64 * nvbo->tile_mode);
+				*size = roundup_64(*size, 64 * nvbo->mode);
 
 			} else if (device->info.chipset >= 0x30) {
 				*align = 32768;
-				*size = roundup_64(*size, 64 * nvbo->tile_mode);
+				*size = roundup_64(*size, 64 * nvbo->mode);
 
 			} else if (device->info.chipset >= 0x20) {
 				*align = 16384;
-				*size = roundup_64(*size, 64 * nvbo->tile_mode);
+				*size = roundup_64(*size, 64 * nvbo->mode);
 
 			} else if (device->info.chipset >= 0x10) {
 				*align = 16384;
-				*size = roundup_64(*size, 32 * nvbo->tile_mode);
+				*size = roundup_64(*size, 32 * nvbo->mode);
 			}
 		}
 	} else {
-		*size = roundup_64(*size, (1 << nvbo->page_shift));
-		*align = max((1 <<  nvbo->page_shift), *align);
+		*size = roundup_64(*size, (1 << nvbo->page));
+		*align = max((1 <<  nvbo->page), *align);
 	}
 
 	*size = roundup_64(*size, PAGE_SIZE);
@@ -207,18 +206,34 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 	INIT_LIST_HEAD(&nvbo->head);
 	INIT_LIST_HEAD(&nvbo->entry);
 	INIT_LIST_HEAD(&nvbo->vma_list);
-	nvbo->tile_mode = tile_mode;
-	nvbo->tile_flags = tile_flags;
 	nvbo->bo.bdev = &drm->ttm.bdev;
 	nvbo->cli = cli;
 
 	if (!nvxx_device(&drm->client.device)->func->cpu_coherent)
 		nvbo->force_coherent = flags & TTM_PL_FLAG_UNCACHED;
 
-	nvbo->page_shift = 12;
+	if (cli->device.info.family >= NV_DEVICE_INFO_V0_FERMI) {
+		nvbo->kind = (tile_flags & 0x0000ff00) >> 8;
+		nvbo->comp = gf100_pte_storage_type_map[nvbo->kind] != nvbo->kind;
+	} else
+	if (cli->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+		nvbo->kind = (tile_flags & 0x00007f00) >> 8;
+		nvbo->comp = (tile_flags & 0x00030000) >> 16;
+	} else {
+		nvbo->zeta = (tile_flags & 0x00000007);
+	}
+	nvbo->mode = tile_mode;
+	nvbo->contig = !(tile_flags & NOUVEAU_GEM_TILE_NONCONTIG);
+
+	nvbo->page = 12;
 	if (drm->client.vm) {
 		if (!(flags & TTM_PL_FLAG_TT) && size > 256 * 1024)
-			nvbo->page_shift = drm->client.vm->mmu->lpg_shift;
+			nvbo->page = drm->client.vm->mmu->lpg_shift;
+		else {
+			if (cli->device.info.family >= NV_DEVICE_INFO_V0_FERMI)
+				nvbo->kind = gf100_pte_storage_type_map[nvbo->kind];
+			nvbo->comp = 0;
+		}
 	}
 
 	nouveau_bo_fixup_align(nvbo, flags, &align, &size);
@@ -262,7 +277,7 @@ set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
 	unsigned i, fpfn, lpfn;
 
 	if (drm->client.device.info.family == NV_DEVICE_INFO_V0_CELSIUS &&
-	    nvbo->tile_mode && (type & TTM_PL_FLAG_VRAM) &&
+	    nvbo->mode && (type & TTM_PL_FLAG_VRAM) &&
 	    nvbo->bo.mem.num_pages < vram_pages / 4) {
 		/*
 		 * Make sure that the color and depth buffers are handled
@@ -270,7 +285,7 @@ set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
 		 * speed up when alpha-blending and depth-test are enabled
 		 * at the same time.
 		 */
-		if (nvbo->tile_flags & NOUVEAU_GEM_TILE_ZETA) {
+		if (nvbo->zeta) {
 			fpfn = vram_pages / 2;
 			lpfn = ~0;
 		} else {
@@ -321,14 +336,10 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype, bool contig)
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA &&
 	    memtype == TTM_PL_FLAG_VRAM && contig) {
-		if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG) {
-			if (bo->mem.mem_type == TTM_PL_VRAM) {
-				struct nvkm_mem *mem = bo->mem.mm_node;
-				if (!nvkm_mm_contiguous(mem->mem))
-					evict = true;
-			}
-			nvbo->tile_flags &= ~NOUVEAU_GEM_TILE_NONCONTIG;
+		if (!nvbo->contig) {
+			nvbo->contig = true;
 			force = true;
+			evict = true;
 		}
 	}
 
@@ -376,7 +387,7 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype, bool contig)
 
 out:
 	if (force && ret)
-		nvbo->tile_flags |= NOUVEAU_GEM_TILE_NONCONTIG;
+		nvbo->contig = false;
 	ttm_bo_unreserve(bo);
 	return ret;
 }
@@ -1210,7 +1221,7 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, bool evict,
 	list_for_each_entry(vma, &nvbo->vma_list, head) {
 		if (new_reg && new_reg->mem_type != TTM_PL_SYSTEM &&
 			      (new_reg->mem_type == TTM_PL_VRAM ||
-			       nvbo->page_shift != vma->vm->mmu->lpg_shift)) {
+			       nvbo->page != vma->vm->mmu->lpg_shift)) {
 			nvkm_vm_map(vma, new_reg->mm_node);
 		} else {
 			WARN_ON(ttm_bo_wait(bo, false, false));
@@ -1234,8 +1245,7 @@ nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_reg,
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_CELSIUS) {
 		*new_tile = nv10_bo_set_tiling(dev, offset, new_reg->size,
-						nvbo->tile_mode,
-						nvbo->tile_flags);
+					       nvbo->mode, nvbo->zeta);
 	}
 
 	return 0;
@@ -1408,7 +1418,7 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	 */
 	if (bo->mem.mem_type != TTM_PL_VRAM) {
 		if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA ||
-		    !nouveau_bo_tile_layout(nvbo))
+		    !nvbo->kind)
 			return 0;
 
 		if (bo->mem.mem_type == TTM_PL_SYSTEM) {
@@ -1596,14 +1606,13 @@ nouveau_bo_vma_add(struct nouveau_bo *nvbo, struct nvkm_vm *vm,
 	const u32 size = nvbo->bo.mem.num_pages << PAGE_SHIFT;
 	int ret;
 
-	ret = nvkm_vm_get(vm, size, nvbo->page_shift,
-			     NV_MEM_ACCESS_RW, vma);
+	ret = nvkm_vm_get(vm, size, nvbo->page, NV_MEM_ACCESS_RW, vma);
 	if (ret)
 		return ret;
 
 	if ( nvbo->bo.mem.mem_type != TTM_PL_SYSTEM &&
 	    (nvbo->bo.mem.mem_type == TTM_PL_VRAM ||
-	     nvbo->page_shift != vma->vm->mmu->lpg_shift))
+	     nvbo->page != vma->vm->mmu->lpg_shift))
 		nvkm_vm_map(vma, nvbo->bo.mem.mm_node);
 
 	list_add_tail(&vma->head, &nvbo->vma_list);

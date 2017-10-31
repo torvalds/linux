@@ -88,18 +88,18 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 	if (drm->client.device.info.ram_size == 0)
 		return -ENOMEM;
 
-	if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG)
-		size_nc = 1 << nvbo->page_shift;
+	if (!nvbo->contig)
+		size_nc = 1 << nvbo->page;
 
 	ret = ram->func->get(ram, reg->num_pages << PAGE_SHIFT,
 			     reg->page_alignment << PAGE_SHIFT, size_nc,
-			     (nvbo->tile_flags >> 8) & 0x3ff, &node);
+			     nvbo->comp << 8 | nvbo->kind, &node);
 	if (ret) {
 		reg->mm_node = NULL;
 		return (ret == -ENOSPC) ? 0 : ret;
 	}
 
-	node->page_shift = nvbo->page_shift;
+	node->page_shift = nvbo->page;
 
 	reg->mm_node = node;
 	reg->start   = node->offset >> PAGE_SHIFT;
@@ -158,14 +158,12 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 	case NV_DEVICE_INFO_V0_CURIE:
 		break;
 	case NV_DEVICE_INFO_V0_TESLA:
-		if (drm->client.device.info.chipset != 0x50)
-			node->memtype = (nvbo->tile_flags & 0x7f00) >> 8;
-		break;
 	case NV_DEVICE_INFO_V0_FERMI:
 	case NV_DEVICE_INFO_V0_KEPLER:
 	case NV_DEVICE_INFO_V0_MAXWELL:
 	case NV_DEVICE_INFO_V0_PASCAL:
-		node->memtype = (nvbo->tile_flags & 0xff00) >> 8;
+		if (drm->client.device.info.chipset != 0x50)
+			node->memtype = nvbo->kind;
 		break;
 	default:
 		NV_WARN(drm, "%s: unhandled family type %x\n", __func__,

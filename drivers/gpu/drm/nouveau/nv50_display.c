@@ -424,7 +424,7 @@ nv50_dmac_ctxdma_new(struct nv50_dmac *dmac, struct nouveau_framebuffer *fb)
 {
 	struct nouveau_drm *drm = nouveau_drm(fb->base.dev);
 	struct nv50_dmac_ctxdma *ctxdma;
-	const u8    kind = (fb->nvbo->tile_flags & 0x0000ff00) >> 8;
+	const u8    kind = fb->nvbo->kind;
 	const u32 handle = 0xfb000000 | kind;
 	struct {
 		struct nv_dma_v0 base;
@@ -847,7 +847,7 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw,
 
 	asyw->image.w = fb->base.width;
 	asyw->image.h = fb->base.height;
-	asyw->image.kind = (fb->nvbo->tile_flags & 0x0000ff00) >> 8;
+	asyw->image.kind = fb->nvbo->kind;
 
 	if (asyh->state.pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC)
 		asyw->interval = 0;
@@ -857,9 +857,9 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw,
 	if (asyw->image.kind) {
 		asyw->image.layout = 0;
 		if (drm->client.device.info.chipset >= 0xc0)
-			asyw->image.block = fb->nvbo->tile_mode >> 4;
+			asyw->image.block = fb->nvbo->mode >> 4;
 		else
-			asyw->image.block = fb->nvbo->tile_mode;
+			asyw->image.block = fb->nvbo->mode;
 		asyw->image.pitch = (fb->base.pitches[0] / 4) << 4;
 	} else {
 		asyw->image.layout = 1;

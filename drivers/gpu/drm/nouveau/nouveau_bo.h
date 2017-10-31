@@ -24,12 +24,16 @@ struct nouveau_bo {
 	bool validate_mapped;
 
 	struct list_head vma_list;
-	unsigned page_shift;
 
 	struct nouveau_cli *cli;
 
-	u32 tile_mode;
-	u32 tile_flags;
+	unsigned contig:1;
+	unsigned page:5;
+	unsigned kind:8;
+	unsigned comp:3;
+	unsigned zeta:3;
+	unsigned mode;
+
 	struct nouveau_drm_tile *tile;
 
 	/* Only valid if allocated via nouveau_gem_new() and iff you hold a
