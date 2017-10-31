@@ -21,10 +21,25 @@
  */
 #include "vmm.h"
 
+#include <core/memory.h>
+
+int
+gk20a_vmm_aper(enum nvkm_memory_target target)
+{
+	switch (target) {
+	case NVKM_MEM_TARGET_NCOH: return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct nvkm_vmm_func
 gk20a_vmm_17 = {
 	.join = gf100_vmm_join,
 	.part = gf100_vmm_part,
+	.aper = gf100_vmm_aper,
+	.valid = gf100_vmm_valid,
+	.flush = gf100_vmm_flush,
 	.page = {
 		{ 17, &gk104_vmm_desc_17_17[0], NVKM_VMM_PAGE_xxHC },
 		{ 12, &gk104_vmm_desc_17_12[0], NVKM_VMM_PAGE_xxHx },
@@ -36,6 +51,9 @@ static const struct nvkm_vmm_func
 gk20a_vmm_16 = {
 	.join = gf100_vmm_join,
 	.part = gf100_vmm_part,
+	.aper = gf100_vmm_aper,
+	.valid = gf100_vmm_valid,
+	.flush = gf100_vmm_flush,
 	.page = {
 		{ 16, &gk104_vmm_desc_16_16[0], NVKM_VMM_PAGE_xxHC },
 		{ 12, &gk104_vmm_desc_16_12[0], NVKM_VMM_PAGE_xxHx },

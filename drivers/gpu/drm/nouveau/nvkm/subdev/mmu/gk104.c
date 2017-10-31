@@ -30,12 +30,8 @@ gk104_mmu = {
 	.pgt_bits  = 27 - 12,
 	.spg_shift = 12,
 	.lpg_shift = 17,
-	.map_pgt = gf100_vm_map_pgt,
-	.map = gf100_vm_map,
-	.map_sg = gf100_vm_map_sg,
-	.unmap = gf100_vm_unmap,
-	.flush = gf100_vm_flush,
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GF100}, gk104_vmm_new },
+	.kind = gf100_mmu_kind,
 };
 
 int

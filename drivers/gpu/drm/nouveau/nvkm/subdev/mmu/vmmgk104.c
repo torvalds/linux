@@ -21,8 +21,19 @@
  */
 #include "vmm.h"
 
+void
+gk104_vmm_lpt_invalid(struct nvkm_vmm *vmm,
+		      struct nvkm_mmu_pt *pt, u32 ptei, u32 ptes)
+{
+	/* VALID_FALSE + PRIV tells the MMU to ignore corresponding SPTEs. */
+	VMM_FO064(pt, vmm, ptei * 8, BIT_ULL(1) /* PRIV. */, ptes);
+}
+
 static const struct nvkm_vmm_desc_func
 gk104_vmm_lpt = {
+	.invalid = gk104_vmm_lpt_invalid,
+	.unmap = gf100_vmm_pgt_unmap,
+	.mem = gf100_vmm_pgt_mem,
 };
 
 const struct nvkm_vmm_desc
@@ -57,6 +68,9 @@ static const struct nvkm_vmm_func
 gk104_vmm_17 = {
 	.join = gf100_vmm_join,
 	.part = gf100_vmm_part,
+	.aper = gf100_vmm_aper,
+	.valid = gf100_vmm_valid,
+	.flush = gf100_vmm_flush,
 	.page = {
 		{ 17, &gk104_vmm_desc_17_17[0], NVKM_VMM_PAGE_xVxC },
 		{ 12, &gk104_vmm_desc_17_12[0], NVKM_VMM_PAGE_xVHx },
@@ -68,6 +82,9 @@ static const struct nvkm_vmm_func
 gk104_vmm_16 = {
 	.join = gf100_vmm_join,
 	.part = gf100_vmm_part,
+	.aper = gf100_vmm_aper,
+	.valid = gf100_vmm_valid,
+	.flush = gf100_vmm_flush,
 	.page = {
 		{ 16, &gk104_vmm_desc_16_16[0], NVKM_VMM_PAGE_xVxC },
 		{ 12, &gk104_vmm_desc_16_12[0], NVKM_VMM_PAGE_xVHx },

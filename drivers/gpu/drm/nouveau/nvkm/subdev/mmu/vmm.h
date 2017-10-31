@@ -80,6 +80,8 @@ void gf100_vmm_pgt_dma(struct nvkm_vmm *, struct nvkm_mmu_pt *, u32, u32,
 void gf100_vmm_pgt_sgl(struct nvkm_vmm *, struct nvkm_mmu_pt *, u32, u32,
 		       struct nvkm_vmm_map *);
 
+void gk104_vmm_lpt_invalid(struct nvkm_vmm *, struct nvkm_mmu_pt *, u32, u32);
+
 struct nvkm_vmm_desc {
 	enum {
 		PGD,
@@ -177,6 +179,8 @@ int gf100_vmm_aper(enum nvkm_memory_target);
 int gf100_vmm_valid(struct nvkm_vmm *, void *, u32, struct nvkm_vmm_map *);
 void gf100_vmm_flush_(struct nvkm_vmm *, int);
 void gf100_vmm_flush(struct nvkm_vmm *, int);
+
+int gk20a_vmm_aper(enum nvkm_memory_target);
 
 int gm200_vmm_new_(const struct nvkm_vmm_func *, const struct nvkm_vmm_func *,
 		   struct nvkm_mmu *, u64, u64, void *, u32,
