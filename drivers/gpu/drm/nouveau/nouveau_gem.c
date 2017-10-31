@@ -90,11 +90,24 @@ out:
 	return ret;
 }
 
+struct nouveau_gem_object_unmap {
+	struct nouveau_cli_work work;
+	struct nouveau_vma *vma;
+};
+
 static void
-nouveau_gem_object_delete(void *data)
+nouveau_gem_object_delete(struct nouveau_vma *vma)
 {
-	struct nouveau_vma *vma = data;
 	nouveau_vma_del(&vma);
+}
+
+static void
+nouveau_gem_object_delete_work(struct nouveau_cli_work *w)
+{
+	struct nouveau_gem_object_unmap *work =
+		container_of(w, typeof(*work), work);
+	nouveau_gem_object_delete(work->vma);
+	kfree(work);
 }
 
 static void
@@ -103,6 +116,7 @@ nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nouveau_vma *vma)
 	const bool mapped = nvbo->bo.mem.mem_type != TTM_PL_SYSTEM;
 	struct reservation_object *resv = nvbo->bo.resv;
 	struct reservation_object_list *fobj;
+	struct nouveau_gem_object_unmap *work;
 	struct dma_fence *fence = NULL;
 
 	fobj = reservation_object_get_list(resv);
@@ -117,10 +131,20 @@ nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nouveau_vma *vma)
 	else
 		fence = reservation_object_get_excl(nvbo->bo.resv);
 
-	if (fence && mapped)
-		nouveau_fence_work(fence, nouveau_gem_object_delete, vma);
-	else
-		nouveau_vma_del(&vma);
+	if (!fence || !mapped) {
+		nouveau_gem_object_delete(vma);
+		return;
+	}
+
+	if (!(work = kmalloc(sizeof(*work), GFP_KERNEL))) {
+		WARN_ON(dma_fence_wait_timeout(fence, false, 2 * HZ) <= 0);
+		nouveau_gem_object_delete(vma);
+		return;
+	}
+
+	work->work.func = nouveau_gem_object_delete_work;
+	work->vma = vma;
+	nouveau_cli_work_queue(vma->vmm->cli, fence, &work->work);
 }
 
 void
