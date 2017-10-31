@@ -1243,7 +1243,7 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 {
 	struct btrfs_fs_info *info = btrfs_sb(dentry->d_sb);
-	char *compress_type;
+	const char *compress_type;
 
 	if (btrfs_test_opt(info, DEGRADED))
 		seq_puts(seq, ",degraded");
@@ -1259,12 +1259,7 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 					     num_online_cpus() + 2, 8))
 		seq_printf(seq, ",thread_pool=%d", info->thread_pool_size);
 	if (btrfs_test_opt(info, COMPRESS)) {
-		if (info->compress_type == BTRFS_COMPRESS_ZLIB)
-			compress_type = "zlib";
-		else if (info->compress_type == BTRFS_COMPRESS_LZO)
-			compress_type = "lzo";
-		else
-			compress_type = "zstd";
+		compress_type = btrfs_compress_type2str(info->compress_type);
 		if (btrfs_test_opt(info, FORCE_COMPRESS))
 			seq_printf(seq, ",compress-force=%s", compress_type);
 		else
