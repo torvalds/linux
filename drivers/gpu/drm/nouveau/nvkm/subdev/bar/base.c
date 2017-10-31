@@ -43,7 +43,7 @@ nvkm_bar_bar2_vmm(struct nvkm_device *device)
 	 * to know when object access needs to go through the BAR0 window.
 	 */
 	struct nvkm_bar *bar = device->bar;
-	if (bar && bar->func->bar2.vmm && bar->subdev.oneinit)
+	if (bar && bar->bar2)
 		return bar->func->bar2.vmm(bar);
 	return NULL;
 }
