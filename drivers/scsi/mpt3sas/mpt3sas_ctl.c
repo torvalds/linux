@@ -299,6 +299,7 @@ mpt3sas_ctl_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 			}
 		}
 	}
+
 	_ctl_display_some_debug(ioc, smid, "ctl_done", mpi_reply);
 	ioc->ctl_cmds.status &= ~MPT3_CMD_PENDING;
 	complete(&ioc->ctl_cmds.done);

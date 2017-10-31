@@ -4255,7 +4255,7 @@ _scsih_flush_running_cmds(struct MPT3SAS_ADAPTER *ioc)
  */
 static void
 _scsih_setup_eedp(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
-	Mpi2SCSIIORequest_t *mpi_request)
+	Mpi25SCSIIORequest_t *mpi_request)
 {
 	u16 eedp_flags;
 	unsigned char prot_op = scsi_get_prot_op(scmd);
@@ -4358,7 +4358,8 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 	struct _raid_device *raid_device;
 	struct request *rq = scmd->request;
 	int class;
-	Mpi2SCSIIORequest_t *mpi_request;
+	Mpi25SCSIIORequest_t *mpi_request;
+	struct _pcie_device *pcie_device = NULL;
 	u32 mpi_control;
 	u16 smid;
 	u16 handle;
@@ -4446,7 +4447,7 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 		goto out;
 	}
 	mpi_request = mpt3sas_base_get_msg_frame(ioc, smid);
-	memset(mpi_request, 0, sizeof(Mpi2SCSIIORequest_t));
+	memset(mpi_request, 0, ioc->request_sz);
 	_scsih_setup_eedp(ioc, scmd, mpi_request);
 
 	if (scmd->cmd_len == 32)
@@ -4465,13 +4466,14 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 	mpi_request->SenseBufferLength = SCSI_SENSE_BUFFERSIZE;
 	mpi_request->SenseBufferLowAddress =
 	    mpt3sas_base_get_sense_buffer_dma(ioc, smid);
-	mpi_request->SGLOffset0 = offsetof(Mpi2SCSIIORequest_t, SGL) / 4;
+	mpi_request->SGLOffset0 = offsetof(Mpi25SCSIIORequest_t, SGL) / 4;
 	int_to_scsilun(sas_device_priv_data->lun, (struct scsi_lun *)
 	    mpi_request->LUN);
 	memcpy(mpi_request->CDB.CDB32, scmd->cmnd, scmd->cmd_len);
 
 	if (mpi_request->DataLength) {
-		if (ioc->build_sg_scmd(ioc, scmd, smid)) {
+		pcie_device = sas_target_priv_data->pcie_dev;
+		if (ioc->build_sg_scmd(ioc, scmd, smid, pcie_device)) {
 			mpt3sas_base_free_smid(ioc, smid);
 			goto out;
 		}
@@ -4924,7 +4926,7 @@ out_unlock:
 static u8
 _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 {
-	Mpi2SCSIIORequest_t *mpi_request;
+	Mpi25SCSIIORequest_t *mpi_request;
 	Mpi2SCSIIOReply_t *mpi_reply;
 	struct scsi_cmnd *scmd;
 	u16 ioc_status;
