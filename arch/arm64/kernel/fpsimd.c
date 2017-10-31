@@ -18,19 +18,28 @@
  */
 
 #include <linux/bottom_half.h>
+#include <linux/bug.h>
+#include <linux/compat.h>
 #include <linux/cpu.h>
 #include <linux/cpu_pm.h>
 #include <linux/kernel.h>
 #include <linux/linkage.h>
+#include <linux/irqflags.h>
 #include <linux/init.h>
 #include <linux/percpu.h>
 #include <linux/preempt.h>
+#include <linux/ptrace.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/task_stack.h>
 #include <linux/signal.h>
+#include <linux/slab.h>
 
 #include <asm/fpsimd.h>
 #include <asm/cputype.h>
 #include <asm/simd.h>
+#include <asm/sigcontext.h>
+#include <asm/sysreg.h>
+#include <asm/traps.h>
 
 #define FPEXC_IOF	(1 << 0)
 #define FPEXC_DZF	(1 << 1)
@@ -40,6 +49,8 @@
 #define FPEXC_IDF	(1 << 7)
 
 /*
+ * (Note: in this discussion, statements about FPSIMD apply equally to SVE.)
+ *
  * In order to reduce the number of times the FPSIMD state is needlessly saved
  * and restored, we need to keep track of two things:
  * (a) for each task, we need to remember which CPU was the last one to have
@@ -101,6 +112,279 @@
 static DEFINE_PER_CPU(struct fpsimd_state *, fpsimd_last_state);
 
 /*
+ * Call __sve_free() directly only if you know task can't be scheduled
+ * or preempted.
+ */
+static void __sve_free(struct task_struct *task)
+{
+	kfree(task->thread.sve_state);
+	task->thread.sve_state = NULL;
+}
+
+static void sve_free(struct task_struct *task)
+{
+	WARN_ON(test_tsk_thread_flag(task, TIF_SVE));
+
+	__sve_free(task);
+}
+
+
+/* Offset of FFR in the SVE register dump */
+static size_t sve_ffr_offset(int vl)
+{
+	return SVE_SIG_FFR_OFFSET(sve_vq_from_vl(vl)) - SVE_SIG_REGS_OFFSET;
+}
+
+static void *sve_pffr(struct task_struct *task)
+{
+	return (char *)task->thread.sve_state +
+		sve_ffr_offset(task->thread.sve_vl);
+}
+
+static void change_cpacr(u64 val, u64 mask)
+{
+	u64 cpacr = read_sysreg(CPACR_EL1);
+	u64 new = (cpacr & ~mask) | val;
+
+	if (new != cpacr)
+		write_sysreg(new, CPACR_EL1);
+}
+
+static void sve_user_disable(void)
+{
+	change_cpacr(0, CPACR_EL1_ZEN_EL0EN);
+}
+
+static void sve_user_enable(void)
+{
+	change_cpacr(CPACR_EL1_ZEN_EL0EN, CPACR_EL1_ZEN_EL0EN);
+}
+
+/*
+ * TIF_SVE controls whether a task can use SVE without trapping while
+ * in userspace, and also the way a task's FPSIMD/SVE state is stored
+ * in thread_struct.
+ *
+ * The kernel uses this flag to track whether a user task is actively
+ * using SVE, and therefore whether full SVE register state needs to
+ * be tracked.  If not, the cheaper FPSIMD context handling code can
+ * be used instead of the more costly SVE equivalents.
+ *
+ *  * TIF_SVE set:
+ *
+ *    The task can execute SVE instructions while in userspace without
+ *    trapping to the kernel.
+ *
+ *    When stored, Z0-Z31 (incorporating Vn in bits[127:0] or the
+ *    corresponding Zn), P0-P15 and FFR are encoded in in
+ *    task->thread.sve_state, formatted appropriately for vector
+ *    length task->thread.sve_vl.
+ *
+ *    task->thread.sve_state must point to a valid buffer at least
+ *    sve_state_size(task) bytes in size.
+ *
+ *    During any syscall, the kernel may optionally clear TIF_SVE and
+ *    discard the vector state except for the FPSIMD subset.
+ *
+ *  * TIF_SVE clear:
+ *
+ *    An attempt by the user task to execute an SVE instruction causes
+ *    do_sve_acc() to be called, which does some preparation and then
+ *    sets TIF_SVE.
+ *
+ *    When stored, FPSIMD registers V0-V31 are encoded in
+ *    task->fpsimd_state; bits [max : 128] for each of Z0-Z31 are
+ *    logically zero but not stored anywhere; P0-P15 and FFR are not
+ *    stored and have unspecified values from userspace's point of
+ *    view.  For hygiene purposes, the kernel zeroes them on next use,
+ *    but userspace is discouraged from relying on this.
+ *
+ *    task->thread.sve_state does not need to be non-NULL, valid or any
+ *    particular size: it must not be dereferenced.
+ *
+ *  * FPSR and FPCR are always stored in task->fpsimd_state irrespctive of
+ *    whether TIF_SVE is clear or set, since these are not vector length
+ *    dependent.
+ */
+
+/*
+ * Update current's FPSIMD/SVE registers from thread_struct.
+ *
+ * This function should be called only when the FPSIMD/SVE state in
+ * thread_struct is known to be up to date, when preparing to enter
+ * userspace.
+ *
+ * Softirqs (and preemption) must be disabled.
+ */
+static void task_fpsimd_load(void)
+{
+	WARN_ON(!in_softirq() && !irqs_disabled());
+
+	if (system_supports_sve() && test_thread_flag(TIF_SVE))
+		sve_load_state(sve_pffr(current),
+			       &current->thread.fpsimd_state.fpsr,
+			       sve_vq_from_vl(current->thread.sve_vl) - 1);
+	else
+		fpsimd_load_state(&current->thread.fpsimd_state);
+
+	if (system_supports_sve()) {
+		/* Toggle SVE trapping for userspace if needed */
+		if (test_thread_flag(TIF_SVE))
+			sve_user_enable();
+		else
+			sve_user_disable();
+
+		/* Serialised by exception return to user */
+	}
+}
+
+/*
+ * Ensure current's FPSIMD/SVE storage in thread_struct is up to date
+ * with respect to the CPU registers.
+ *
+ * Softirqs (and preemption) must be disabled.
+ */
+static void task_fpsimd_save(void)
+{
+	WARN_ON(!in_softirq() && !irqs_disabled());
+
+	if (!test_thread_flag(TIF_FOREIGN_FPSTATE)) {
+		if (system_supports_sve() && test_thread_flag(TIF_SVE)) {
+			if (WARN_ON(sve_get_vl() != current->thread.sve_vl)) {
+				/*
+				 * Can't save the user regs, so current would
+				 * re-enter user with corrupt state.
+				 * There's no way to recover, so kill it:
+				 */
+				force_signal_inject(
+					SIGKILL, 0, current_pt_regs(), 0);
+				return;
+			}
+
+			sve_save_state(sve_pffr(current),
+				       &current->thread.fpsimd_state.fpsr);
+		} else
+			fpsimd_save_state(&current->thread.fpsimd_state);
+	}
+}
+
+#define ZREG(sve_state, vq, n) ((char *)(sve_state) +		\
+	(SVE_SIG_ZREG_OFFSET(vq, n) - SVE_SIG_REGS_OFFSET))
+
+/*
+ * Transfer the FPSIMD state in task->thread.fpsimd_state to
+ * task->thread.sve_state.
+ *
+ * Task can be a non-runnable task, or current.  In the latter case,
+ * softirqs (and preemption) must be disabled.
+ * task->thread.sve_state must point to at least sve_state_size(task)
+ * bytes of allocated kernel memory.
+ * task->thread.fpsimd_state must be up to date before calling this function.
+ */
+static void fpsimd_to_sve(struct task_struct *task)
+{
+	unsigned int vq;
+	void *sst = task->thread.sve_state;
+	struct fpsimd_state const *fst = &task->thread.fpsimd_state;
+	unsigned int i;
+
+	if (!system_supports_sve())
+		return;
+
+	vq = sve_vq_from_vl(task->thread.sve_vl);
+	for (i = 0; i < 32; ++i)
+		memcpy(ZREG(sst, vq, i), &fst->vregs[i],
+		       sizeof(fst->vregs[i]));
+}
+
+#ifdef CONFIG_ARM64_SVE
+
+/*
+ * Return how many bytes of memory are required to store the full SVE
+ * state for task, given task's currently configured vector length.
+ */
+size_t sve_state_size(struct task_struct const *task)
+{
+	return SVE_SIG_REGS_SIZE(sve_vq_from_vl(task->thread.sve_vl));
+}
+
+/*
+ * Ensure that task->thread.sve_state is allocated and sufficiently large.
+ *
+ * This function should be used only in preparation for replacing
+ * task->thread.sve_state with new data.  The memory is always zeroed
+ * here to prevent stale data from showing through: this is done in
+ * the interest of testability and predictability: except in the
+ * do_sve_acc() case, there is no ABI requirement to hide stale data
+ * written previously be task.
+ */
+void sve_alloc(struct task_struct *task)
+{
+	if (task->thread.sve_state) {
+		memset(task->thread.sve_state, 0, sve_state_size(current));
+		return;
+	}
+
+	/* This is a small allocation (maximum ~8KB) and Should Not Fail. */
+	task->thread.sve_state =
+		kzalloc(sve_state_size(task), GFP_KERNEL);
+
+	/*
+	 * If future SVE revisions can have larger vectors though,
+	 * this may cease to be true:
+	 */
+	BUG_ON(!task->thread.sve_state);
+}
+
+/*
+ * Called from the put_task_struct() path, which cannot get here
+ * unless dead_task is really dead and not schedulable.
+ */
+void fpsimd_release_task(struct task_struct *dead_task)
+{
+	__sve_free(dead_task);
+}
+
+#endif /* CONFIG_ARM64_SVE */
+
+/*
+ * Trapped SVE access
+ *
+ * Storage is allocated for the full SVE state, the current FPSIMD
+ * register contents are migrated across, and TIF_SVE is set so that
+ * the SVE access trap will be disabled the next time this task
+ * reaches ret_to_user.
+ *
+ * TIF_SVE should be clear on entry: otherwise, task_fpsimd_load()
+ * would have disabled the SVE access trap for userspace during
+ * ret_to_user, making an SVE access trap impossible in that case.
+ */
+asmlinkage void do_sve_acc(unsigned int esr, struct pt_regs *regs)
+{
+	/* Even if we chose not to use SVE, the hardware could still trap: */
+	if (unlikely(!system_supports_sve()) || WARN_ON(is_compat_task())) {
+		force_signal_inject(SIGILL, ILL_ILLOPC, regs, 0);
+		return;
+	}
+
+	sve_alloc(current);
+
+	local_bh_disable();
+
+	task_fpsimd_save();
+	fpsimd_to_sve(current);
+
+	/* Force ret_to_user to reload the registers: */
+	fpsimd_flush_task_state(current);
+	set_thread_flag(TIF_FOREIGN_FPSTATE);
+
+	if (test_and_set_thread_flag(TIF_SVE))
+		WARN_ON(1); /* SVE access shouldn't have trapped */
+
+	local_bh_enable();
+}
+
+/*
  * Trapped FP/ASIMD access.
  */
 asmlinkage void do_fpsimd_acc(unsigned int esr, struct pt_regs *regs)
@@ -145,8 +429,8 @@ void fpsimd_thread_switch(struct task_struct *next)
 	 * the registers is in fact the most recent userland FPSIMD state of
 	 * 'current'.
 	 */
-	if (current->mm && !test_thread_flag(TIF_FOREIGN_FPSTATE))
-		fpsimd_save_state(&current->thread.fpsimd_state);
+	if (current->mm)
+		task_fpsimd_save();
 
 	if (next->mm) {
 		/*
@@ -168,6 +452,8 @@ void fpsimd_thread_switch(struct task_struct *next)
 
 void fpsimd_flush_thread(void)
 {
+	int vl;
+
 	if (!system_supports_fpsimd())
 		return;
 
@@ -175,6 +461,30 @@ void fpsimd_flush_thread(void)
 
 	memset(&current->thread.fpsimd_state, 0, sizeof(struct fpsimd_state));
 	fpsimd_flush_task_state(current);
+
+	if (system_supports_sve()) {
+		clear_thread_flag(TIF_SVE);
+		sve_free(current);
+
+		/*
+		 * Reset the task vector length as required.
+		 * This is where we ensure that all user tasks have a valid
+		 * vector length configured: no kernel task can become a user
+		 * task without an exec and hence a call to this function.
+		 * If a bug causes this to go wrong, we make some noise and
+		 * try to fudge thread.sve_vl to a safe value here.
+		 */
+		vl = current->thread.sve_vl;
+
+		if (vl == 0)
+			vl = SVE_VL_MIN;
+
+		if (WARN_ON(!sve_vl_valid(vl)))
+			vl = SVE_VL_MIN;
+
+		current->thread.sve_vl = vl;
+	}
+
 	set_thread_flag(TIF_FOREIGN_FPSTATE);
 
 	local_bh_enable();
@@ -183,6 +493,9 @@ void fpsimd_flush_thread(void)
 /*
  * Save the userland FPSIMD state of 'current' to memory, but only if the state
  * currently held in the registers does in fact belong to 'current'
+ *
+ * Currently, SVE tasks can't exist, so just WARN in that case.
+ * Subsequent patches will add full SVE support here.
  */
 void fpsimd_preserve_current_state(void)
 {
@@ -193,6 +506,8 @@ void fpsimd_preserve_current_state(void)
 
 	if (!test_thread_flag(TIF_FOREIGN_FPSTATE))
 		fpsimd_save_state(&current->thread.fpsimd_state);
+
+	WARN_ON_ONCE(test_and_clear_thread_flag(TIF_SVE));
 
 	local_bh_enable();
 }
@@ -212,7 +527,7 @@ void fpsimd_restore_current_state(void)
 	if (test_and_clear_thread_flag(TIF_FOREIGN_FPSTATE)) {
 		struct fpsimd_state *st = &current->thread.fpsimd_state;
 
-		fpsimd_load_state(st);
+		task_fpsimd_load();
 		__this_cpu_write(fpsimd_last_state, st);
 		st->cpu = smp_processor_id();
 	}
@@ -381,8 +696,8 @@ static int fpsimd_cpu_pm_notifier(struct notifier_block *self,
 {
 	switch (cmd) {
 	case CPU_PM_ENTER:
-		if (current->mm && !test_thread_flag(TIF_FOREIGN_FPSTATE))
-			fpsimd_save_state(&current->thread.fpsimd_state);
+		if (current->mm)
+			task_fpsimd_save();
 		this_cpu_write(fpsimd_last_state, NULL);
 		break;
 	case CPU_PM_EXIT:

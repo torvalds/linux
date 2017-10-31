@@ -20,6 +20,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/stddef.h>
+
 /*
  * FP/SIMD storage area has:
  *  - FPSR and FPCR
@@ -71,6 +73,20 @@ extern void sve_save_state(void *state, u32 *pfpsr);
 extern void sve_load_state(void const *state, u32 const *pfpsr,
 			   unsigned long vq_minus_1);
 extern unsigned int sve_get_vl(void);
+
+#ifdef CONFIG_ARM64_SVE
+
+extern size_t sve_state_size(struct task_struct const *task);
+
+extern void sve_alloc(struct task_struct *task);
+extern void fpsimd_release_task(struct task_struct *task);
+
+#else /* ! CONFIG_ARM64_SVE */
+
+static inline void sve_alloc(struct task_struct *task) { }
+static inline void fpsimd_release_task(struct task_struct *task) { }
+
+#endif /* ! CONFIG_ARM64_SVE */
 
 /* For use by EFI runtime services calls only */
 extern void __efi_fpsimd_begin(void);

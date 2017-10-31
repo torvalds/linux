@@ -49,6 +49,7 @@
 #include <linux/notifier.h>
 #include <trace/events/power.h>
 #include <linux/percpu.h>
+#include <linux/thread_info.h>
 
 #include <asm/alternative.h>
 #include <asm/compat.h>
@@ -273,11 +274,27 @@ void release_thread(struct task_struct *dead_task)
 {
 }
 
+void arch_release_task_struct(struct task_struct *tsk)
+{
+	fpsimd_release_task(tsk);
+}
+
+/*
+ * src and dst may temporarily have aliased sve_state after task_struct
+ * is copied.  We cannot fix this properly here, because src may have
+ * live SVE state and dst's thread_info may not exist yet, so tweaking
+ * either src's or dst's TIF_SVE is not safe.
+ *
+ * The unaliasing is done in copy_thread() instead.  This works because
+ * dst is not schedulable or traceable until both of these functions
+ * have been called.
+ */
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
 	if (current->mm)
 		fpsimd_preserve_current_state();
 	*dst = *src;
+
 	return 0;
 }
 
@@ -289,6 +306,13 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	struct pt_regs *childregs = task_pt_regs(p);
 
 	memset(&p->thread.cpu_context, 0, sizeof(struct cpu_context));
+
+	/*
+	 * Unalias p->thread.sve_state (if any) from the parent task
+	 * and disable discard SVE state for p:
+	 */
+	clear_tsk_thread_flag(p, TIF_SVE);
+	p->thread.sve_state = NULL;
 
 	if (likely(!(p->flags & PF_KTHREAD))) {
 		*childregs = *current_pt_regs();
