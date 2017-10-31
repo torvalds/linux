@@ -48,13 +48,13 @@ gm200_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob,
 		return ret;
 
 	/* Map the HS firmware so the HS bootloader can see it */
-	ret = nvkm_vm_get(gsb->vm, blob->size, 12, NV_MEM_ACCESS_RW, &vma);
+	ret = nvkm_vm_get(gsb->vmm, blob->size, 12, NV_MEM_ACCESS_RW, &vma);
 	if (ret) {
 		nvkm_falcon_put(falcon, subdev);
 		return ret;
 	}
 
-	ret = nvkm_memory_map(blob, 0, gsb->vm, &vma, NULL, 0);
+	ret = nvkm_memory_map(blob, 0, gsb->vmm, &vma, NULL, 0);
 	if (ret)
 		goto end;
 
@@ -107,8 +107,6 @@ gm200_secboot_oneinit(struct nvkm_secboot *sb)
 {
 	struct gm200_secboot *gsb = gm200_secboot(sb);
 	struct nvkm_device *device = sb->subdev.device;
-	struct nvkm_vm *vm;
-	const u64 vm_area_len = 600 * 1024;
 	int ret;
 
 	/* Allocate instance block and VM */
@@ -117,14 +115,15 @@ gm200_secboot_oneinit(struct nvkm_secboot *sb)
 	if (ret)
 		return ret;
 
-	ret = nvkm_vm_new(device, 0, vm_area_len, 0, NULL, &vm);
+	ret = nvkm_vmm_new(device, 0, 600 * 1024, NULL, 0, NULL, "acr",
+			   &gsb->vmm);
 	if (ret)
 		return ret;
 
-	atomic_inc(&vm->engref[NVKM_SUBDEV_PMU]);
+	atomic_inc(&gsb->vmm->engref[NVKM_SUBDEV_PMU]);
+	gsb->vmm->debug = gsb->base.subdev.debug;
 
-	ret = nvkm_vm_ref(vm, &gsb->vm, gsb->inst);
-	nvkm_vm_ref(NULL, &vm, NULL);
+	ret = nvkm_vmm_join(gsb->vmm, gsb->inst);
 	if (ret)
 		return ret;
 
@@ -155,7 +154,8 @@ gm200_secboot_dtor(struct nvkm_secboot *sb)
 
 	sb->acr->func->dtor(sb->acr);
 
-	nvkm_vm_ref(NULL, &gsb->vm, gsb->inst);
+	nvkm_vmm_part(gsb->vmm, gsb->inst);
+	nvkm_vmm_unref(&gsb->vmm);
 	nvkm_memory_unref(&gsb->inst);
 
 	return gsb;

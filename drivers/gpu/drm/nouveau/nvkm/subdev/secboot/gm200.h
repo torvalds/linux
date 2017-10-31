@@ -30,7 +30,7 @@ struct gm200_secboot {
 
 	/* Instance block & address space used for HS FW execution */
 	struct nvkm_memory *inst;
-	struct nvkm_vm *vm;
+	struct nvkm_vmm *vmm;
 };
 #define gm200_secboot(sb) container_of(sb, struct gm200_secboot, base)
 
