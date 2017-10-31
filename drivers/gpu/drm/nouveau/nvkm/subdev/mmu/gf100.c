@@ -21,12 +21,13 @@
  *
  * Authors: Ben Skeggs
  */
-#include "priv.h"
+#include "vmm.h"
 
+#include <core/gpuobj.h>
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 
-#include <core/gpuobj.h>
+#include <nvif/class.h>
 
 /* Map from compressed to corresponding uncompressed storage type.
  * The value 0xff represents an invalid storage type.
@@ -209,6 +210,7 @@ gf100_mmu = {
 	.map_sg = gf100_vm_map_sg,
 	.unmap = gf100_vm_unmap,
 	.flush = gf100_vm_flush,
+	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GF100}, gf100_vmm_new },
 };
 
 int

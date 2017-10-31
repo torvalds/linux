@@ -52,6 +52,9 @@ struct nvkm_vmm_pt {
 struct nvkm_vmm_desc_func {
 };
 
+extern const struct nvkm_vmm_desc_func gf100_vmm_pgd;
+extern const struct nvkm_vmm_desc_func gf100_vmm_pgt;
+
 struct nvkm_vmm_desc {
 	enum {
 		PGD,
@@ -111,6 +114,13 @@ int nv04_vmm_new_(const struct nvkm_vmm_func *, struct nvkm_mmu *, u32,
 		  u64, u64, void *, u32, struct lock_class_key *,
 		  const char *, struct nvkm_vmm **);
 
+int gf100_vmm_new_(const struct nvkm_vmm_func *, const struct nvkm_vmm_func *,
+		   struct nvkm_mmu *, u64, u64, void *, u32,
+		   struct lock_class_key *, const char *, struct nvkm_vmm **);
+int gf100_vmm_join_(struct nvkm_vmm *, struct nvkm_memory *, u64 base);
+int gf100_vmm_join(struct nvkm_vmm *, struct nvkm_memory *);
+void gf100_vmm_part(struct nvkm_vmm *, struct nvkm_memory *);
+
 int nv04_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		 struct lock_class_key *, const char *, struct nvkm_vmm **);
 int nv41_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
@@ -121,4 +131,6 @@ int nv50_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		 struct lock_class_key *, const char *, struct nvkm_vmm **);
 int g84_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		struct lock_class_key *, const char *, struct nvkm_vmm **);
+int gf100_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
+		  struct lock_class_key *, const char *, struct nvkm_vmm **);
 #endif
