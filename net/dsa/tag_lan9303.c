@@ -126,6 +126,8 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
 	skb_pull_rcsum(skb, 2 + 2);
 	memmove(skb->data - ETH_HLEN, skb->data - (ETH_HLEN + LAN9303_TAG_LEN),
 		2 * ETH_ALEN);
+	skb->offload_fwd_mark = !ether_addr_equal(skb->data - ETH_HLEN,
+						  eth_stp_addr);
 
 	return skb;
 }
