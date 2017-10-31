@@ -165,7 +165,7 @@ nv04_instmem_oneinit(struct nvkm_instmem *base)
 	/* PRAMIN aperture maps over the end of VRAM, reserve it */
 	imem->base.reserved = 512 * 1024;
 
-	ret = nvkm_mm_init(&imem->heap, 0, imem->base.reserved, 1);
+	ret = nvkm_mm_init(&imem->heap, 0, 0, imem->base.reserved, 1);
 	if (ret)
 		return ret;
 

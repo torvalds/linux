@@ -73,13 +73,14 @@ nvkm_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	ram->size = size;
 
 	if (!nvkm_mm_initialised(&ram->vram)) {
-		ret = nvkm_mm_init(&ram->vram, 0, size >> NVKM_RAM_MM_SHIFT, 1);
+		ret = nvkm_mm_init(&ram->vram, NVKM_RAM_MM_NORMAL, 0,
+				   size >> NVKM_RAM_MM_SHIFT, 1);
 		if (ret)
 			return ret;
 	}
 
 	if (!nvkm_mm_initialised(&ram->tags)) {
-		ret = nvkm_mm_init(&ram->tags, 0, tags ? ++tags : 0, 1);
+		ret = nvkm_mm_init(&ram->tags, 0, 0, tags ? ++tags : 0, 1);
 		if (ret)
 			return ret;
 

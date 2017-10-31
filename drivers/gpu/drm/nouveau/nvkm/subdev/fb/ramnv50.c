@@ -669,7 +669,8 @@ nv50_ram_ctor(const struct nvkm_ram_func *func,
 	ram->ranks = (nvkm_rd32(device, 0x100200) & 0x4) ? 2 : 1;
 	nvkm_mm_fini(&ram->vram);
 
-	return nvkm_mm_init(&ram->vram, rsvd_head >> NVKM_RAM_MM_SHIFT,
+	return nvkm_mm_init(&ram->vram, NVKM_RAM_MM_NORMAL,
+			    rsvd_head >> NVKM_RAM_MM_SHIFT,
 			    (size - rsvd_head - rsvd_tail) >> NVKM_RAM_MM_SHIFT,
 			    nv50_fb_vram_rblock(ram) >> NVKM_RAM_MM_SHIFT);
 }

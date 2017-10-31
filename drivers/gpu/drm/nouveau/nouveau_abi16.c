@@ -340,7 +340,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	if (ret)
 		goto done;
 
-	ret = nvkm_mm_init(&chan->heap, 0, PAGE_SIZE, 1);
+	ret = nvkm_mm_init(&chan->heap, 0, 0, PAGE_SIZE, 1);
 done:
 	if (ret)
 		nouveau_abi16_chan_fini(abi16, chan);

@@ -136,7 +136,7 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 		if (ret)
 			goto free_domain;
 
-		ret = nvkm_mm_init(&tdev->iommu.mm, 0,
+		ret = nvkm_mm_init(&tdev->iommu.mm, 0, 0,
 				   (1ULL << tdev->func->iommu_bit) >>
 				   tdev->iommu.pgshift, 1);
 		if (ret)

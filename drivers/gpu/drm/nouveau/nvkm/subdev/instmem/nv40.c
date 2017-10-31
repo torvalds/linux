@@ -177,7 +177,7 @@ nv40_instmem_oneinit(struct nvkm_instmem *base)
 	imem->base.reserved += 512 * 1024;	/* object storage */
 	imem->base.reserved = round_up(imem->base.reserved, 4096);
 
-	ret = nvkm_mm_init(&imem->heap, 0, imem->base.reserved, 1);
+	ret = nvkm_mm_init(&imem->heap, 0, 0, imem->base.reserved, 1);
 	if (ret)
 		return ret;
 

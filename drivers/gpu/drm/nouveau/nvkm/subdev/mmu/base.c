@@ -388,7 +388,7 @@ nvkm_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
 		return -ENOMEM;
 	}
 
-	ret = nvkm_mm_init(&vm->mm, mm_offset >> 12, mm_length >> 12,
+	ret = nvkm_mm_init(&vm->mm, 0, mm_offset >> 12, mm_length >> 12,
 			   block >> 12);
 	if (ret) {
 		vfree(vm->pgt);

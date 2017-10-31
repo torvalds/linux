@@ -123,6 +123,10 @@ struct nvkm_ram {
 	u64 size;
 
 #define NVKM_RAM_MM_SHIFT 12
+#define NVKM_RAM_MM_ANY    (NVKM_MM_HEAP_ANY + 0)
+#define NVKM_RAM_MM_NORMAL (NVKM_MM_HEAP_ANY + 1)
+#define NVKM_RAM_MM_NOMAP  (NVKM_MM_HEAP_ANY + 2)
+#define NVKM_RAM_MM_MIXED  (NVKM_MM_HEAP_ANY + 3)
 	struct nvkm_mm vram;
 	struct nvkm_mm tags;
 	u64 stolen;

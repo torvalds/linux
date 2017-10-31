@@ -617,7 +617,8 @@ gf100_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	 */
 	if (lower != total) {
 		/* The common memory amount is addressed normally. */
-		ret = nvkm_mm_init(&ram->vram, rsvd_head >> NVKM_RAM_MM_SHIFT,
+		ret = nvkm_mm_init(&ram->vram, NVKM_RAM_MM_NORMAL,
+				   rsvd_head >> NVKM_RAM_MM_SHIFT,
 				   (lower - rsvd_head) >> NVKM_RAM_MM_SHIFT, 1);
 		if (ret)
 			return ret;
@@ -625,13 +626,15 @@ gf100_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 		/* And the rest is much higher in the physical address
 		 * space, and may not be usable for certain operations.
 		 */
-		ret = nvkm_mm_init(&ram->vram, ubase >> NVKM_RAM_MM_SHIFT,
+		ret = nvkm_mm_init(&ram->vram, NVKM_RAM_MM_MIXED,
+				   ubase >> NVKM_RAM_MM_SHIFT,
 				   (usize - rsvd_tail) >> NVKM_RAM_MM_SHIFT, 1);
 		if (ret)
 			return ret;
 	} else {
 		/* GPUs without mixed-memory are a lot nicer... */
-		ret = nvkm_mm_init(&ram->vram, rsvd_head >> NVKM_RAM_MM_SHIFT,
+		ret = nvkm_mm_init(&ram->vram, NVKM_RAM_MM_NORMAL,
+				   rsvd_head >> NVKM_RAM_MM_SHIFT,
 				   (total - rsvd_head - rsvd_tail) >>
 				   NVKM_RAM_MM_SHIFT, 1);
 		if (ret)

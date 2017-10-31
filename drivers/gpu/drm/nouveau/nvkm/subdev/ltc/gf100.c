@@ -183,8 +183,8 @@ gf100_ltc_oneinit_tag_ram(struct nvkm_ltc *ltc)
 	tag_size += tag_align;
 	tag_size  = (tag_size + 0xfff) >> 12; /* round up */
 
-	ret = nvkm_mm_tail(&ram->vram, 1, 1, tag_size, tag_size, 1,
-			   &ltc->tag_ram);
+	ret = nvkm_mm_tail(&ram->vram, NVKM_RAM_MM_NORMAL, 1, tag_size,
+			   tag_size, 1, &ltc->tag_ram);
 	if (ret) {
 		ltc->num_tags = 0;
 	} else {
@@ -197,7 +197,7 @@ gf100_ltc_oneinit_tag_ram(struct nvkm_ltc *ltc)
 	}
 
 mm_init:
-	return nvkm_mm_init(&ltc->tags, 0, ltc->num_tags, 1);
+	return nvkm_mm_init(&ltc->tags, 0, 0, ltc->num_tags, 1);
 }
 
 int

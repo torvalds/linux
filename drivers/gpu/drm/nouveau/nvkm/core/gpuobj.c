@@ -185,7 +185,7 @@ nvkm_gpuobj_ctor(struct nvkm_device *device, u32 size, int align, bool zero,
 		gpuobj->size = nvkm_memory_size(gpuobj->memory);
 	}
 
-	return nvkm_mm_init(&gpuobj->heap, 0, gpuobj->size, 1);
+	return nvkm_mm_init(&gpuobj->heap, 0, 0, gpuobj->size, 1);
 }
 
 void
