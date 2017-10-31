@@ -31,7 +31,7 @@
 struct nvkm_vmm *
 gf100_bar_bar1_vmm(struct nvkm_bar *base)
 {
-	return gf100_bar(base)->bar[1].vm;
+	return gf100_bar(base)->bar[1].vmm;
 }
 
 void
@@ -60,7 +60,7 @@ gf100_bar_bar1_init(struct nvkm_bar *base)
 struct nvkm_vmm *
 gf100_bar_bar2_vmm(struct nvkm_bar *base)
 {
-	return gf100_bar(base)->bar[0].vm;
+	return gf100_bar(base)->bar[0].vmm;
 }
 
 void
@@ -85,7 +85,6 @@ gf100_bar_oneinit_bar(struct gf100_bar *bar, struct gf100_barN *bar_vm,
 		      struct lock_class_key *key, int bar_nr)
 {
 	struct nvkm_device *device = bar->base.subdev.device;
-	struct nvkm_vm *vm;
 	resource_size_t bar_len;
 	int ret;
 
@@ -98,29 +97,24 @@ gf100_bar_oneinit_bar(struct gf100_bar *bar, struct gf100_barN *bar_vm,
 	if (bar_nr == 3 && bar->bar2_halve)
 		bar_len >>= 1;
 
-	ret = nvkm_vm_new(device, 0, bar_len, 0, key, &vm);
+	ret = nvkm_vmm_new(device, 0, bar_len, NULL, 0, key,
+			   (bar_nr == 3) ? "bar2" : "bar1", &bar_vm->vmm);
 	if (ret)
 		return ret;
 
-	atomic_inc(&vm->engref[NVKM_SUBDEV_BAR]);
+	atomic_inc(&bar_vm->vmm->engref[NVKM_SUBDEV_BAR]);
+	bar_vm->vmm->debug = bar->base.subdev.debug;
 
 	/*
 	 * Bootstrap page table lookup.
 	 */
 	if (bar_nr == 3) {
-		ret = nvkm_vm_boot(vm, bar_len);
-		if (ret) {
-			nvkm_vm_ref(NULL, &vm, NULL);
+		ret = nvkm_vmm_boot(bar_vm->vmm);
+		if (ret)
 			return ret;
-		}
 	}
 
-	ret = nvkm_vm_ref(vm, &bar_vm->vm, bar_vm->inst);
-	nvkm_vm_ref(NULL, &vm, NULL);
-	if (ret)
-		return ret;
-
-	return 0;
+	return nvkm_vmm_join(bar_vm->vmm, bar_vm->inst);
 }
 
 int
@@ -154,10 +148,12 @@ gf100_bar_dtor(struct nvkm_bar *base)
 {
 	struct gf100_bar *bar = gf100_bar(base);
 
-	nvkm_vm_ref(NULL, &bar->bar[1].vm, bar->bar[1].inst);
+	nvkm_vmm_part(bar->bar[1].vmm, bar->bar[1].inst);
+	nvkm_vmm_unref(&bar->bar[1].vmm);
 	nvkm_memory_unref(&bar->bar[1].inst);
 
-	nvkm_vm_ref(NULL, &bar->bar[0].vm, bar->bar[0].inst);
+	nvkm_vmm_part(bar->bar[0].vmm, bar->bar[0].inst);
+	nvkm_vmm_unref(&bar->bar[0].vmm);
 	nvkm_memory_unref(&bar->bar[0].inst);
 	return bar;
 }
