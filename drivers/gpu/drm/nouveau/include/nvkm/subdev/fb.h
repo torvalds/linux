@@ -23,7 +23,6 @@
 #define NV_MEM_COMP_VM 0x03
 
 struct nvkm_mem {
-	struct nvkm_mm_node *tag;
 	struct nvkm_mm_node *mem;
 	dma_addr_t *pages;
 	u32 memtype;

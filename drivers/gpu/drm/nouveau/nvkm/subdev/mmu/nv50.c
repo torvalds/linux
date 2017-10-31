@@ -63,8 +63,6 @@ static const struct nvkm_mmu_func
 nv50_mmu = {
 	.limit = (1ULL << 40),
 	.dma_bits = 40,
-	.pgt_bits  = 29 - 12,
-	.spg_shift = 12,
 	.lpg_shift = 16,
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_NV50}, nv50_vmm_new, false, 0x1400 },
 	.kind = nv50_mmu_kind,

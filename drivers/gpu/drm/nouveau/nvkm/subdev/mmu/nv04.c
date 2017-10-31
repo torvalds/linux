@@ -31,8 +31,6 @@ const struct nvkm_mmu_func
 nv04_mmu = {
 	.limit = NV04_PDMA_SIZE,
 	.dma_bits = 32,
-	.pgt_bits = 32 - 12,
-	.spg_shift = 12,
 	.lpg_shift = 12,
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_NV04}, nv04_vmm_new, true },
 };

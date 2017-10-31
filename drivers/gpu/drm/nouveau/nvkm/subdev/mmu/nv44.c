@@ -58,8 +58,6 @@ nv44_mmu = {
 	.init = nv44_mmu_init,
 	.limit = NV44_GART_SIZE,
 	.dma_bits = 39,
-	.pgt_bits = 32 - 12,
-	.spg_shift = 12,
 	.lpg_shift = 12,
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_NV04}, nv44_vmm_new, true },
 };

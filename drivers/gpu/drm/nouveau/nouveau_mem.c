@@ -23,8 +23,6 @@
 #include "nouveau_drv.h"
 #include "nouveau_bo.h"
 
-#include <subdev/ltc.h>
-
 #include <drm/ttm/ttm_bo_driver.h>
 
 int
@@ -46,8 +44,6 @@ nouveau_mem_fini(struct nouveau_mem *mem)
 		nvkm_vm_unmap(&mem->vma[0]);
 		nvkm_vm_put(&mem->vma[0]);
 	}
-	nvkm_memory_tags_put(&mem->memory, nvxx_device(&mem->cli->device),
-			     &mem->tags);
 }
 
 int
@@ -112,32 +108,6 @@ nouveau_mem_vram(struct ttm_mem_reg *reg, bool contig, u8 page)
 
 	mem->_mem->size = size >> NVKM_RAM_MM_SHIFT;
 	mem->_mem->offset = nvkm_memory_addr(mem->_mem->memory);
-
-	if (cli->device.info.chipset < 0xc0 && mem->comp) {
-		if (page == 16) {
-			ret = nvkm_memory_tags_get(mem->_mem->memory, device,
-						   size >> page, NULL,
-						   &mem->tags);
-			WARN_ON(ret);
-		}
-		if (!mem->tags || !mem->tags->mn)
-			mem->comp = 0;
-	} else
-	if (cli->device.info.chipset >= 0xc0 &&
-	    gf100_pte_storage_type_map[mem->kind] != mem->kind) {
-		if (page == 17) {
-			ret = nvkm_memory_tags_get(mem->_mem->memory, device,
-						   size >> page,
-						   nvkm_ltc_tags_clear,
-						   &mem->tags);
-			WARN_ON(ret);
-		}
-		if (!mem->tags || !mem->tags->mn)
-			mem->kind = gf100_pte_storage_type_map[mem->kind];
-	}
-
-	if (mem->tags && mem->tags->mn)
-		mem->_mem->tag = mem->tags->mn;
 	mem->_mem->mem = ((struct nvkm_vram *)mem->_mem->memory)->mn;
 	mem->_mem->memtype = (mem->comp << 7) | mem->kind;
 

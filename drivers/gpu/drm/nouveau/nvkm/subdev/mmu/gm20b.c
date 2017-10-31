@@ -29,8 +29,6 @@ static const struct nvkm_mmu_func
 gm20b_mmu = {
 	.limit = (1ULL << 40),
 	.dma_bits = 40,
-	.pgt_bits  = 27 - 12,
-	.spg_shift = 12,
 	.lpg_shift = 17,
 	.vmm = {{ -1,  0, NVIF_CLASS_VMM_GM200}, gm20b_vmm_new },
 	.kind = gm200_mmu_kind,
@@ -40,8 +38,6 @@ static const struct nvkm_mmu_func
 gm20b_mmu_fixed = {
 	.limit = (1ULL << 40),
 	.dma_bits = 40,
-	.pgt_bits  = 27 - 12,
-	.spg_shift = 12,
 	.lpg_shift = 17,
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GM200}, gm20b_vmm_new_fixed },
 	.kind = gm200_mmu_kind,

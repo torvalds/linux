@@ -43,8 +43,6 @@ nv41_mmu = {
 	.init = nv41_mmu_init,
 	.limit = NV41_GART_SIZE,
 	.dma_bits = 39,
-	.pgt_bits = 32 - 12,
-	.spg_shift = 12,
 	.lpg_shift = 12,
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_NV04}, nv41_vmm_new, true },
 };

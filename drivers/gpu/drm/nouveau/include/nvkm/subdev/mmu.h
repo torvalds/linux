@@ -39,9 +39,6 @@ struct nvkm_vm {
 
 	struct nvkm_mm mm;
 	struct kref refcount;
-	struct nvkm_vm_pgt *pgt;
-	u32 fpde;
-	u32 lpde;
 
 	bool bootstrapped;
 	atomic_t engref[NVKM_SUBDEV_NR];
