@@ -2,6 +2,7 @@
 #define __NVKM_VMM_H__
 #include "priv.h"
 #include <core/memory.h>
+enum nvkm_memory_target;
 
 struct nvkm_vmm_pt {
 	/* Some GPUs have a mapping level with a dual page tables to
@@ -49,7 +50,23 @@ struct nvkm_vmm_pt {
 	u8 pte[];
 };
 
+typedef void (*nvkm_vmm_pxe_func)(struct nvkm_vmm *,
+				  struct nvkm_mmu_pt *, u32 ptei, u32 ptes);
+typedef void (*nvkm_vmm_pde_func)(struct nvkm_vmm *,
+				  struct nvkm_vmm_pt *, u32 pdei);
+typedef void (*nvkm_vmm_pte_func)(struct nvkm_vmm *, struct nvkm_mmu_pt *,
+				  u32 ptei, u32 ptes, struct nvkm_vmm_map *);
+
 struct nvkm_vmm_desc_func {
+	nvkm_vmm_pxe_func invalid;
+	nvkm_vmm_pxe_func unmap;
+	nvkm_vmm_pxe_func sparse;
+
+	nvkm_vmm_pde_func pde;
+
+	nvkm_vmm_pte_func mem;
+	nvkm_vmm_pte_func dma;
+	nvkm_vmm_pte_func sgl;
 };
 
 extern const struct nvkm_vmm_desc_func gf100_vmm_pgd;
@@ -106,6 +123,11 @@ struct nvkm_vmm_func {
 	int (*join)(struct nvkm_vmm *, struct nvkm_memory *inst);
 	void (*part)(struct nvkm_vmm *, struct nvkm_memory *inst);
 
+	int (*aper)(enum nvkm_memory_target);
+	int (*valid)(struct nvkm_vmm *, void *argv, u32 argc,
+		     struct nvkm_vmm_map *);
+	void (*flush)(struct nvkm_vmm *, int depth);
+
 	u64 page_block;
 	const struct nvkm_vmm_page page[];
 };
@@ -122,6 +144,15 @@ int nvkm_vmm_ctor(const struct nvkm_vmm_func *, struct nvkm_mmu *,
 		  u32 pd_header, u64 addr, u64 size, struct lock_class_key *,
 		  const char *name, struct nvkm_vmm *);
 void nvkm_vmm_dtor(struct nvkm_vmm *);
+void nvkm_vmm_ptes_put(struct nvkm_vmm *, const struct nvkm_vmm_page *,
+		       u64 addr, u64 size);
+int nvkm_vmm_ptes_get(struct nvkm_vmm *, const struct nvkm_vmm_page *,
+		      u64 addr, u64 size);
+void nvkm_vmm_ptes_map(struct nvkm_vmm *, const struct nvkm_vmm_page *,
+		       u64 addr, u64 size, struct nvkm_vmm_map *,
+		       nvkm_vmm_pte_func);
+void nvkm_vmm_ptes_unmap(struct nvkm_vmm *, const struct nvkm_vmm_page *,
+			 u64 addr, u64 size, bool sparse);
 
 int nv04_vmm_new_(const struct nvkm_vmm_func *, struct nvkm_mmu *, u32,
 		  u64, u64, void *, u32, struct lock_class_key *,
@@ -176,4 +207,85 @@ int gp100_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 int gp10b_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		  struct lock_class_key *, const char *,
 		  struct nvkm_vmm **);
+
+#define VMM_PRINT(l,v,p,f,a...) do {                                           \
+	struct nvkm_vmm *_vmm = (v);                                           \
+	if (CONFIG_NOUVEAU_DEBUG >= (l) && _vmm->debug >= (l)) {               \
+		nvkm_printk_(&_vmm->mmu->subdev, 0, p, "%s: "f"\n",            \
+			     _vmm->name, ##a);                                 \
+	}                                                                      \
+} while(0)
+#define VMM_DEBUG(v,f,a...) VMM_PRINT(NV_DBG_DEBUG, (v), info, f, ##a)
+#define VMM_TRACE(v,f,a...) VMM_PRINT(NV_DBG_TRACE, (v), info, f, ##a)
+#define VMM_SPAM(v,f,a...)  VMM_PRINT(NV_DBG_SPAM , (v),  dbg, f, ##a)
+
+#define VMM_MAP_ITER(VMM,PT,PTEI,PTEN,MAP,FILL,BASE,SIZE,NEXT) do {            \
+	nvkm_kmap((PT)->memory);                                               \
+	while (PTEN) {                                                         \
+		u64 _ptes = ((SIZE) - MAP->off) >> MAP->page->shift;           \
+		u64 _addr = ((BASE) + MAP->off);                               \
+                                                                               \
+		if (_ptes > PTEN) {                                            \
+			MAP->off += PTEN << MAP->page->shift;                  \
+			_ptes = PTEN;                                          \
+		} else {                                                       \
+			MAP->off = 0;                                          \
+			NEXT;                                                  \
+		}                                                              \
+                                                                               \
+		VMM_SPAM(VMM, "ITER %08x %08x PTE(s)", PTEI, (u32)_ptes);      \
+                                                                               \
+		FILL(VMM, PT, PTEI, _ptes, MAP, _addr);                        \
+		PTEI += _ptes;                                                 \
+		PTEN -= _ptes;                                                 \
+	};                                                                     \
+	nvkm_done((PT)->memory);                                               \
+} while(0)
+
+#define VMM_MAP_ITER_MEM(VMM,PT,PTEI,PTEN,MAP,FILL)                            \
+	VMM_MAP_ITER(VMM,PT,PTEI,PTEN,MAP,FILL,                                \
+		     ((u64)MAP->mem->offset << NVKM_RAM_MM_SHIFT),             \
+		     ((u64)MAP->mem->length << NVKM_RAM_MM_SHIFT),             \
+		     (MAP->mem = MAP->mem->next))
+#define VMM_MAP_ITER_DMA(VMM,PT,PTEI,PTEN,MAP,FILL)                            \
+	VMM_MAP_ITER(VMM,PT,PTEI,PTEN,MAP,FILL,                                \
+		     *MAP->dma, PAGE_SIZE, MAP->dma++)
+#define VMM_MAP_ITER_SGL(VMM,PT,PTEI,PTEN,MAP,FILL)                            \
+	VMM_MAP_ITER(VMM,PT,PTEI,PTEN,MAP,FILL,                                \
+		     sg_dma_address(MAP->sgl), sg_dma_len(MAP->sgl),           \
+		     (MAP->sgl = sg_next(MAP->sgl)))
+
+#define VMM_FO(m,o,d,c,b) nvkm_fo##b((m)->memory, (o), (d), (c))
+#define VMM_WO(m,o,d,c,b) nvkm_wo##b((m)->memory, (o), (d))
+#define VMM_XO(m,v,o,d,c,b,fn,f,a...) do {                                     \
+	const u32 _pteo = (o); u##b _data = (d);                               \
+	VMM_SPAM((v), "   %010llx "f, (m)->addr + _pteo, _data, ##a);          \
+	VMM_##fn((m), (m)->base + _pteo, _data, (c), b);                       \
+} while(0)
+
+#define VMM_WO032(m,v,o,d) VMM_XO((m),(v),(o),(d),  1, 32, WO, "%08x")
+#define VMM_FO032(m,v,o,d,c)                                                   \
+	VMM_XO((m),(v),(o),(d),(c), 32, FO, "%08x %08x", (c))
+
+#define VMM_WO064(m,v,o,d) VMM_XO((m),(v),(o),(d),  1, 64, WO, "%016llx")
+#define VMM_FO064(m,v,o,d,c)                                                   \
+	VMM_XO((m),(v),(o),(d),(c), 64, FO, "%016llx %08x", (c))
+
+#define VMM_XO128(m,v,o,lo,hi,c,f,a...) do {                                   \
+	u32 _pteo = (o), _ptes = (c);                                          \
+	const u64 _addr = (m)->addr + _pteo;                                   \
+	VMM_SPAM((v), "   %010llx %016llx%016llx"f, _addr, (hi), (lo), ##a);   \
+	while (_ptes--) {                                                      \
+		nvkm_wo64((m)->memory, (m)->base + _pteo + 0, (lo));           \
+		nvkm_wo64((m)->memory, (m)->base + _pteo + 8, (hi));           \
+		_pteo += 0x10;                                                 \
+	}                                                                      \
+} while(0)
+
+#define VMM_WO128(m,v,o,lo,hi) VMM_XO128((m),(v),(o),(lo),(hi), 1, "")
+#define VMM_FO128(m,v,o,lo,hi,c) do {                                          \
+	nvkm_kmap((m)->memory);                                                \
+	VMM_XO128((m),(v),(o),(lo),(hi),(c), " %08x", (c));                    \
+	nvkm_done((m)->memory);                                                \
+} while(0)
 #endif

@@ -1,6 +1,7 @@
 #ifndef __NVKM_MMU_H__
 #define __NVKM_MMU_H__
 #include <core/subdev.h>
+#include <core/memory.h>
 #include <core/mm.h>
 struct nvkm_gpuobj;
 struct nvkm_mem;
@@ -11,6 +12,8 @@ struct nvkm_vm_pgt {
 };
 
 struct nvkm_vma {
+	struct nvkm_memory *memory;
+	struct nvkm_tags *tags;
 	struct nvkm_vm *vm;
 	struct nvkm_mm_node *node;
 	union {
@@ -24,6 +27,7 @@ struct nvkm_vm {
 	const struct nvkm_vmm_func *func;
 	struct nvkm_mmu *mmu;
 	const char *name;
+	u32 debug;
 	struct kref kref;
 	struct mutex mutex;
 
@@ -57,6 +61,25 @@ void nvkm_vm_map(struct nvkm_vma *, struct nvkm_mem *);
 void nvkm_vm_map_at(struct nvkm_vma *, u64 offset, struct nvkm_mem *);
 void nvkm_vm_unmap(struct nvkm_vma *);
 void nvkm_vm_unmap_at(struct nvkm_vma *, u64 offset, u64 length);
+
+int nvkm_vmm_boot(struct nvkm_vmm *);
+
+struct nvkm_vmm_map {
+	struct nvkm_memory *memory;
+	u64 offset;
+
+	struct nvkm_mm_node *mem;
+	struct scatterlist *sgl;
+	dma_addr_t *dma;
+	u64 off;
+
+	const struct nvkm_vmm_page *page;
+
+	struct nvkm_tags *tags;
+	u64 next;
+	u64 type;
+	u64 ctag;
+};
 
 struct nvkm_mmu {
 	const struct nvkm_mmu_func *func;
