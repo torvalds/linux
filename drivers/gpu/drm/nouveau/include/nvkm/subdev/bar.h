@@ -15,6 +15,7 @@ struct nvkm_bar {
 };
 
 void nvkm_bar_bar2_init(struct nvkm_device *);
+void nvkm_bar_bar2_fini(struct nvkm_device *);
 void nvkm_bar_flush(struct nvkm_bar *);
 struct nvkm_vm *nvkm_bar_kmap(struct nvkm_bar *);
 int nvkm_bar_umap(struct nvkm_bar *, u64 size, int type, struct nvkm_vma *);

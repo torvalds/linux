@@ -77,6 +77,12 @@ nv50_bar_bar1_init(struct nvkm_bar *base)
 }
 
 void
+nv50_bar_bar2_fini(struct nvkm_bar *bar)
+{
+	nvkm_wr32(bar->subdev.device, 0x00170c, 0x00000000);
+}
+
+void
 nv50_bar_bar2_init(struct nvkm_bar *base)
 {
 	struct nvkm_device *device = base->subdev.device;
@@ -224,6 +230,7 @@ nv50_bar_func = {
 	.bar1.fini = nv50_bar_bar1_fini,
 	.bar1.wait = nv50_bar_bar1_wait,
 	.bar2.init = nv50_bar_bar2_init,
+	.bar2.fini = nv50_bar_bar2_fini,
 	.bar2.wait = nv50_bar_bar1_wait,
 	.kmap = nv50_bar_kmap,
 	.umap = nv50_bar_umap,

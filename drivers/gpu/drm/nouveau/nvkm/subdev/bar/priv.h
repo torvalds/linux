@@ -23,8 +23,10 @@ struct nvkm_bar_func {
 };
 
 void nv50_bar_bar1_fini(struct nvkm_bar *);
+void nv50_bar_bar2_fini(struct nvkm_bar *);
 
 void g84_bar_flush(struct nvkm_bar *);
 
 void gf100_bar_bar1_fini(struct nvkm_bar *);
+void gf100_bar_bar2_fini(struct nvkm_bar *);
 #endif

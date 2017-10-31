@@ -48,6 +48,7 @@ g84_bar_func = {
 	.bar1.fini = nv50_bar_bar1_fini,
 	.bar1.wait = nv50_bar_bar1_wait,
 	.bar2.init = nv50_bar_bar2_init,
+	.bar2.fini = nv50_bar_bar2_fini,
 	.bar2.wait = nv50_bar_bar1_wait,
 	.kmap = nv50_bar_kmap,
 	.umap = nv50_bar_umap,
