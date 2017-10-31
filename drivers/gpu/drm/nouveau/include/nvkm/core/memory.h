@@ -65,6 +65,8 @@ void nvkm_memory_tags_put(struct nvkm_memory *, struct nvkm_device *,
  * macros to guarantee correct behaviour across all chipsets
  */
 #define nvkm_kmap(o)     (o)->func->acquire(o)
+#define nvkm_done(o)     (o)->func->release(o)
+
 #define nvkm_ro32(o,a)   (o)->ptrs->rd32((o), (a))
 #define nvkm_wo32(o,a,d) (o)->ptrs->wr32((o), (a), (d))
 #define nvkm_mo32(o,a,m,d) ({                                                  \
@@ -72,5 +74,29 @@ void nvkm_memory_tags_put(struct nvkm_memory *, struct nvkm_device *,
 	nvkm_wo32((o), _addr, (_data & ~(m)) | (d));                           \
 	_data;                                                                 \
 })
-#define nvkm_done(o)     (o)->func->release(o)
+
+#define nvkm_wo64(o,a,d) do {                                                  \
+	u64 __a = (a), __d = (d);                                              \
+	nvkm_wo32((o), __a + 0, lower_32_bits(__d));                           \
+	nvkm_wo32((o), __a + 4, upper_32_bits(__d));                           \
+} while(0)
+
+#define nvkm_fill(t,s,o,a,d,c) do {                                            \
+	u64 _a = (a), _c = (c), _d = (d), _o = _a >> s, _s = _c << s;          \
+	u##t __iomem *_m = nvkm_kmap(o);                                       \
+	if (likely(_m)) {                                                      \
+		if (_d) {                                                      \
+			while (_c--)                                           \
+				iowrite##t##_native(_d, &_m[_o++]);            \
+		} else {                                                       \
+			memset_io(&_m[_o], _d, _s);                            \
+		}                                                              \
+	} else {                                                               \
+		for (; _c; _c--, _a += BIT(s))                                 \
+			nvkm_wo##t((o), _a, _d);                               \
+	}                                                                      \
+	nvkm_done(o);                                                          \
+} while(0)
+#define nvkm_fo32(o,a,d,c) nvkm_fill(32, 2, (o), (a), (d), (c))
+#define nvkm_fo64(o,a,d,c) nvkm_fill(64, 3, (o), (a), (d), (c))
 #endif
