@@ -252,8 +252,36 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 {
 	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	struct nvkm_pci *pci = device->pci;
+	struct nvif_mmu *mmu = &drm->client.mmu;
 	struct drm_device *dev = drm->dev;
-	int ret;
+	int typei, ret;
+
+	typei = nvif_mmu_type(mmu, NVIF_MEM_HOST | NVIF_MEM_MAPPABLE |
+						   NVIF_MEM_COHERENT);
+	if (typei < 0)
+		return -ENOSYS;
+
+	drm->ttm.type_host = typei;
+
+	typei = nvif_mmu_type(mmu, NVIF_MEM_HOST | NVIF_MEM_MAPPABLE);
+	if (typei < 0)
+		return -ENOSYS;
+
+	drm->ttm.type_ncoh = typei;
+
+	if (drm->client.device.info.platform != NV_DEVICE_INFO_V0_SOC &&
+	    drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+		typei = nvif_mmu_type(mmu, NVIF_MEM_VRAM | NVIF_MEM_MAPPABLE |
+					   NVIF_MEM_KIND |
+					   NVIF_MEM_COMP |
+					   NVIF_MEM_DISP);
+		if (typei < 0)
+			return -ENOSYS;
+
+		drm->ttm.type_vram = typei;
+	} else {
+		drm->ttm.type_vram = -1;
+	}
 
 	if (pci && pci->agp.bridge) {
 		drm->agp.bridge = pci->agp.bridge;

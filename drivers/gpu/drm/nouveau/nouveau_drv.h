@@ -140,6 +140,9 @@ struct nouveau_drm {
 		struct nouveau_channel *chan;
 		struct nvif_object copy;
 		int mtrr;
+		int type_vram;
+		int type_host;
+		int type_ncoh;
 	} ttm;
 
 	/* GEM interface support */
