@@ -45,7 +45,7 @@ struct nv50_instmem {
 struct nv50_instobj {
 	struct nvkm_instobj base;
 	struct nv50_instmem *imem;
-	struct nvkm_mem *mem;
+	struct nvkm_memory *ram;
 	struct nvkm_vma bar;
 	refcount_t maps;
 	void *map;
@@ -58,8 +58,8 @@ nv50_instobj_wr32_slow(struct nvkm_memory *memory, u64 offset, u32 data)
 	struct nv50_instobj *iobj = nv50_instobj(memory);
 	struct nv50_instmem *imem = iobj->imem;
 	struct nvkm_device *device = imem->base.subdev.device;
-	u64 base = (iobj->mem->offset + offset) & 0xffffff00000ULL;
-	u64 addr = (iobj->mem->offset + offset) & 0x000000fffffULL;
+	u64 base = (nvkm_memory_addr(iobj->ram) + offset) & 0xffffff00000ULL;
+	u64 addr = (nvkm_memory_addr(iobj->ram) + offset) & 0x000000fffffULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&imem->base.lock, flags);
@@ -77,8 +77,8 @@ nv50_instobj_rd32_slow(struct nvkm_memory *memory, u64 offset)
 	struct nv50_instobj *iobj = nv50_instobj(memory);
 	struct nv50_instmem *imem = iobj->imem;
 	struct nvkm_device *device = imem->base.subdev.device;
-	u64 base = (iobj->mem->offset + offset) & 0xffffff00000ULL;
-	u64 addr = (iobj->mem->offset + offset) & 0x000000fffffULL;
+	u64 base = (nvkm_memory_addr(iobj->ram) + offset) & 0xffffff00000ULL;
+	u64 addr = (nvkm_memory_addr(iobj->ram) + offset) & 0x000000fffffULL;
 	u32 data;
 	unsigned long flags;
 
@@ -183,9 +183,8 @@ static int
 nv50_instobj_map(struct nvkm_memory *memory, u64 offset, struct nvkm_vmm *vmm,
 		 struct nvkm_vma *vma, void *argv, u32 argc)
 {
-	struct nv50_instobj *iobj = nv50_instobj(memory);
-	nvkm_vm_map_at(vma, offset, iobj->mem);
-	return 0;
+	memory = nv50_instobj(memory)->ram;
+	return nvkm_memory_map(memory, offset, vmm, vma, argv, argc);
 }
 
 static void
@@ -280,19 +279,19 @@ nv50_instobj_boot(struct nvkm_memory *memory, struct nvkm_vmm *vmm)
 static u64
 nv50_instobj_size(struct nvkm_memory *memory)
 {
-	return (u64)nv50_instobj(memory)->mem->size << NVKM_RAM_MM_SHIFT;
+	return nvkm_memory_size(nv50_instobj(memory)->ram);
 }
 
 static u64
 nv50_instobj_addr(struct nvkm_memory *memory)
 {
-	return nv50_instobj(memory)->mem->offset;
+	return nvkm_memory_addr(nv50_instobj(memory)->ram);
 }
 
 static enum nvkm_memory_target
 nv50_instobj_target(struct nvkm_memory *memory)
 {
-	return NVKM_MEM_TARGET_VRAM;
+	return nvkm_memory_target(nv50_instobj(memory)->ram);
 }
 
 static void *
@@ -300,7 +299,6 @@ nv50_instobj_dtor(struct nvkm_memory *memory)
 {
 	struct nv50_instobj *iobj = nv50_instobj(memory);
 	struct nvkm_instmem *imem = &iobj->imem->base;
-	struct nvkm_ram *ram = imem->subdev.device->fb->ram;
 	struct nvkm_vma bar;
 	void *map = map;
 
@@ -316,7 +314,7 @@ nv50_instobj_dtor(struct nvkm_memory *memory)
 		nvkm_vm_put(&bar);
 	}
 
-	ram->func->put(ram, &iobj->mem);
+	nvkm_memory_unref(&iobj->ram);
 	nvkm_instobj_dtor(imem, &iobj->base);
 	return iobj;
 }
@@ -339,8 +337,8 @@ nv50_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 {
 	struct nv50_instmem *imem = nv50_instmem(base);
 	struct nv50_instobj *iobj;
-	struct nvkm_ram *ram = imem->base.subdev.device->fb->ram;
-	int ret;
+	struct nvkm_device *device = imem->base.subdev.device;
+	u8 page = max(order_base_2(align), 12);
 
 	if (!(iobj = kzalloc(sizeof(*iobj), GFP_KERNEL)))
 		return -ENOMEM;
@@ -351,14 +349,7 @@ nv50_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 	refcount_set(&iobj->maps, 0);
 	INIT_LIST_HEAD(&iobj->lru);
 
-	size  = max((size  + 4095) & ~4095, (u32)4096);
-	align = max((align + 4095) & ~4095, (u32)4096);
-
-	ret = ram->func->get(ram, size, align, 0, 0x800, &iobj->mem);
-	if (ret)
-		return ret;
-
-	return 0;
+	return nvkm_ram_get(device, 0, 1, page, size, true, true, &iobj->ram);
 }
 
 /******************************************************************************
