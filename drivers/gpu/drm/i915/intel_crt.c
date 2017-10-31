@@ -219,11 +219,9 @@ static void hsw_disable_crt(struct intel_encoder *encoder,
 			    const struct intel_crtc_state *old_crtc_state,
 			    const struct drm_connector_state *old_conn_state)
 {
-	struct drm_crtc *crtc = old_crtc_state->base.crtc;
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	WARN_ON(!intel_crtc->config->has_pch_encoder);
+	WARN_ON(!old_crtc_state->has_pch_encoder);
 
 	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
 }
@@ -247,46 +245,42 @@ static void hsw_post_disable_crt(struct intel_encoder *encoder,
 }
 
 static void hsw_pre_pll_enable_crt(struct intel_encoder *encoder,
-				   const struct intel_crtc_state *pipe_config,
+				   const struct intel_crtc_state *crtc_state,
 				   const struct drm_connector_state *conn_state)
 {
-	struct drm_crtc *crtc = pipe_config->base.crtc;
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	WARN_ON(!intel_crtc->config->has_pch_encoder);
+	WARN_ON(!crtc_state->has_pch_encoder);
 
 	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
 }
 
 static void hsw_pre_enable_crt(struct intel_encoder *encoder,
-			       const struct intel_crtc_state *pipe_config,
+			       const struct intel_crtc_state *crtc_state,
 			       const struct drm_connector_state *conn_state)
 {
-	struct drm_crtc *crtc = pipe_config->base.crtc;
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	enum pipe pipe = crtc->pipe;
 
-	WARN_ON(!intel_crtc->config->has_pch_encoder);
+	WARN_ON(!crtc_state->has_pch_encoder);
 
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 
-	dev_priv->display.fdi_link_train(intel_crtc, pipe_config);
+	dev_priv->display.fdi_link_train(crtc, crtc_state);
 }
 
 static void hsw_enable_crt(struct intel_encoder *encoder,
-			   const struct intel_crtc_state *pipe_config,
+			   const struct intel_crtc_state *crtc_state,
 			   const struct drm_connector_state *conn_state)
 {
-	struct drm_crtc *crtc = pipe_config->base.crtc;
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	enum pipe pipe = crtc->pipe;
 
-	WARN_ON(!intel_crtc->config->has_pch_encoder);
+	WARN_ON(!crtc_state->has_pch_encoder);
 
-	intel_crt_set_dpms(encoder, pipe_config, DRM_MODE_DPMS_ON);
+	intel_crt_set_dpms(encoder, crtc_state, DRM_MODE_DPMS_ON);
 
 	intel_wait_for_vblank(dev_priv, pipe);
 	intel_wait_for_vblank(dev_priv, pipe);
@@ -295,10 +289,10 @@ static void hsw_enable_crt(struct intel_encoder *encoder,
 }
 
 static void intel_enable_crt(struct intel_encoder *encoder,
-			     const struct intel_crtc_state *pipe_config,
+			     const struct intel_crtc_state *crtc_state,
 			     const struct drm_connector_state *conn_state)
 {
-	intel_crt_set_dpms(encoder, pipe_config, DRM_MODE_DPMS_ON);
+	intel_crt_set_dpms(encoder, crtc_state, DRM_MODE_DPMS_ON);
 }
 
 static enum drm_mode_status
