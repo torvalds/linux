@@ -216,12 +216,10 @@ struct l2tp_tunnel *l2tp_tunnel_get(const struct net *net, u32 tunnel_id)
 }
 EXPORT_SYMBOL_GPL(l2tp_tunnel_get);
 
-/* Lookup a session. A new reference is held on the returned session.
- * Optionally calls session->ref() too if do_ref is true.
- */
+/* Lookup a session. A new reference is held on the returned session. */
 struct l2tp_session *l2tp_session_get(const struct net *net,
 				      struct l2tp_tunnel *tunnel,
-				      u32 session_id, bool do_ref)
+				      u32 session_id)
 {
 	struct hlist_head *session_list;
 	struct l2tp_session *session;
@@ -235,8 +233,6 @@ struct l2tp_session *l2tp_session_get(const struct net *net,
 		hlist_for_each_entry_rcu(session, session_list, global_hlist) {
 			if (session->session_id == session_id) {
 				l2tp_session_inc_refcount(session);
-				if (do_ref && session->ref)
-					session->ref(session);
 				rcu_read_unlock_bh();
 
 				return session;
@@ -252,8 +248,6 @@ struct l2tp_session *l2tp_session_get(const struct net *net,
 	hlist_for_each_entry(session, session_list, hlist) {
 		if (session->session_id == session_id) {
 			l2tp_session_inc_refcount(session);
-			if (do_ref && session->ref)
-				session->ref(session);
 			read_unlock_bh(&tunnel->hlist_lock);
 
 			return session;
@@ -265,8 +259,7 @@ struct l2tp_session *l2tp_session_get(const struct net *net,
 }
 EXPORT_SYMBOL_GPL(l2tp_session_get);
 
-struct l2tp_session *l2tp_session_get_nth(struct l2tp_tunnel *tunnel, int nth,
-					  bool do_ref)
+struct l2tp_session *l2tp_session_get_nth(struct l2tp_tunnel *tunnel, int nth)
 {
 	int hash;
 	struct l2tp_session *session;
@@ -277,8 +270,6 @@ struct l2tp_session *l2tp_session_get_nth(struct l2tp_tunnel *tunnel, int nth,
 		hlist_for_each_entry(session, &tunnel->session_hlist[hash], hlist) {
 			if (++count > nth) {
 				l2tp_session_inc_refcount(session);
-				if (do_ref && session->ref)
-					session->ref(session);
 				read_unlock_bh(&tunnel->hlist_lock);
 				return session;
 			}
@@ -295,8 +286,7 @@ EXPORT_SYMBOL_GPL(l2tp_session_get_nth);
  * This is very inefficient but is only used by management interfaces.
  */
 struct l2tp_session *l2tp_session_get_by_ifname(const struct net *net,
-						const char *ifname,
-						bool do_ref)
+						const char *ifname)
 {
 	struct l2tp_net *pn = l2tp_pernet(net);
 	int hash;
@@ -307,8 +297,6 @@ struct l2tp_session *l2tp_session_get_by_ifname(const struct net *net,
 		hlist_for_each_entry_rcu(session, &pn->l2tp_session_hlist[hash], global_hlist) {
 			if (!strcmp(session->ifname, ifname)) {
 				l2tp_session_inc_refcount(session);
-				if (do_ref && session->ref)
-					session->ref(session);
 				rcu_read_unlock_bh();
 
 				return session;
@@ -489,9 +477,6 @@ static void l2tp_recv_dequeue_skb(struct l2tp_session *session, struct sk_buff *
 		(*session->recv_skb)(session, skb, L2TP_SKB_CB(skb)->length);
 	else
 		kfree_skb(skb);
-
-	if (session->deref)
-		(*session->deref)(session);
 }
 
 /* Dequeue skbs from the session's reorder_q, subject to packet order.
@@ -520,8 +505,6 @@ start:
 			session->reorder_skip = 1;
 			__skb_unlink(skb, &session->reorder_q);
 			kfree_skb(skb);
-			if (session->deref)
-				(*session->deref)(session);
 			continue;
 		}
 
@@ -694,9 +677,6 @@ discard:
  * a data (not control) frame before coming here. Fields up to the
  * session-id have already been parsed and ptr points to the data
  * after the session-id.
- *
- * session->ref() must have been called prior to l2tp_recv_common().
- * session->deref() will be called automatically after skb is processed.
  */
 void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		      unsigned char *ptr, unsigned char *optr, u16 hdrflags,
@@ -863,9 +843,6 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 discard:
 	atomic_long_inc(&session->stats.rx_errors);
 	kfree_skb(skb);
-
-	if (session->deref)
-		(*session->deref)(session);
 }
 EXPORT_SYMBOL(l2tp_recv_common);
 
@@ -879,8 +856,6 @@ int l2tp_session_queue_purge(struct l2tp_session *session)
 	while ((skb = skb_dequeue(&session->reorder_q))) {
 		atomic_long_inc(&session->stats.rx_errors);
 		kfree_skb(skb);
-		if (session->deref)
-			(*session->deref)(session);
 	}
 	return 0;
 }
@@ -972,13 +947,10 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb,
 	}
 
 	/* Find the session context */
-	session = l2tp_session_get(tunnel->l2tp_net, tunnel, session_id, true);
+	session = l2tp_session_get(tunnel->l2tp_net, tunnel, session_id);
 	if (!session || !session->recv_skb) {
-		if (session) {
-			if (session->deref)
-				session->deref(session);
+		if (session)
 			l2tp_session_dec_refcount(session);
-		}
 
 		/* Not found? Pass to userspace to deal with */
 		l2tp_info(tunnel, L2TP_MSG_DATA,
@@ -1322,9 +1294,6 @@ again:
 			if (test_and_set_bit(0, &session->dead))
 				goto again;
 
-			if (session->ref != NULL)
-				(*session->ref)(session);
-
 			write_unlock_bh(&tunnel->hlist_lock);
 
 			__l2tp_session_unhash(session);
@@ -1332,9 +1301,6 @@ again:
 
 			if (session->session_close != NULL)
 				(*session->session_close)(session);
-
-			if (session->deref != NULL)
-				(*session->deref)(session);
 
 			l2tp_session_dec_refcount(session);
 
@@ -1759,15 +1725,13 @@ int l2tp_session_delete(struct l2tp_session *session)
 	if (test_and_set_bit(0, &session->dead))
 		return 0;
 
-	if (session->ref)
-		(*session->ref)(session);
 	__l2tp_session_unhash(session);
 	l2tp_session_queue_purge(session);
 	if (session->session_close != NULL)
 		(*session->session_close)(session);
-	if (session->deref)
-		(*session->deref)(session);
+
 	l2tp_session_dec_refcount(session);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(l2tp_session_delete);

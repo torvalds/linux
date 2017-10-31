@@ -129,8 +129,6 @@ struct l2tp_session {
 	int (*build_header)(struct l2tp_session *session, void *buf);
 	void (*recv_skb)(struct l2tp_session *session, struct sk_buff *skb, int data_len);
 	void (*session_close)(struct l2tp_session *session);
-	void (*ref)(struct l2tp_session *session);
-	void (*deref)(struct l2tp_session *session);
 #if IS_ENABLED(CONFIG_L2TP_DEBUGFS)
 	void (*show)(struct seq_file *m, void *priv);
 #endif
@@ -245,12 +243,10 @@ struct l2tp_tunnel *l2tp_tunnel_get(const struct net *net, u32 tunnel_id);
 
 struct l2tp_session *l2tp_session_get(const struct net *net,
 				      struct l2tp_tunnel *tunnel,
-				      u32 session_id, bool do_ref);
-struct l2tp_session *l2tp_session_get_nth(struct l2tp_tunnel *tunnel, int nth,
-					  bool do_ref);
+				      u32 session_id);
+struct l2tp_session *l2tp_session_get_nth(struct l2tp_tunnel *tunnel, int nth);
 struct l2tp_session *l2tp_session_get_by_ifname(const struct net *net,
-						const char *ifname,
-						bool do_ref);
+						const char *ifname);
 struct l2tp_tunnel *l2tp_tunnel_find(const struct net *net, u32 tunnel_id);
 struct l2tp_tunnel *l2tp_tunnel_find_nth(const struct net *net, int nth);
 
