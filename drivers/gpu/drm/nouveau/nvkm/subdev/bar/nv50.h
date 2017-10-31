@@ -11,8 +11,8 @@ struct nv50_bar {
 	struct nvkm_gpuobj *pgd;
 	struct nvkm_vm *bar1_vm;
 	struct nvkm_gpuobj *bar1;
-	struct nvkm_vm *bar3_vm;
-	struct nvkm_gpuobj *bar3;
+	struct nvkm_vm *bar2_vm;
+	struct nvkm_gpuobj *bar2;
 };
 
 int nv50_bar_new_(const struct nvkm_bar_func *, struct nvkm_device *,

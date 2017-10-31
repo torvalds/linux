@@ -41,9 +41,27 @@ gf100_bar_umap(struct nvkm_bar *base, u64 size, int type, struct nvkm_vma *vma)
 	return nvkm_vm_get(bar->bar[1].vm, size, type, NV_MEM_ACCESS_RW, vma);
 }
 
+void
+gf100_bar_init(struct nvkm_bar *base)
+{
+	struct gf100_bar *bar = gf100_bar(base);
+	struct nvkm_device *device = bar->base.subdev.device;
+	u32 addr;
+
+	addr = nvkm_memory_addr(bar->bar[1].mem) >> 12;
+	nvkm_wr32(device, 0x001704, 0x80000000 | addr);
+
+	if (bar->bar[0].mem) {
+		addr = nvkm_memory_addr(bar->bar[0].mem) >> 12;
+		if (bar->bar2_halve)
+			addr |= 0x40000000;
+		nvkm_wr32(device, 0x001714, 0x80000000 | addr);
+	}
+}
+
 static int
-gf100_bar_ctor_vm(struct gf100_bar *bar, struct gf100_bar_vm *bar_vm,
-		  struct lock_class_key *key, int bar_nr)
+gf100_bar_oneinit_bar(struct gf100_bar *bar, struct gf100_barN *bar_vm,
+		      struct lock_class_key *key, int bar_nr)
 {
 	struct nvkm_device *device = bar->base.subdev.device;
 	struct nvkm_vm *vm;
@@ -98,41 +116,23 @@ int
 gf100_bar_oneinit(struct nvkm_bar *base)
 {
 	static struct lock_class_key bar1_lock;
-	static struct lock_class_key bar3_lock;
+	static struct lock_class_key bar2_lock;
 	struct gf100_bar *bar = gf100_bar(base);
 	int ret;
 
-	/* BAR3 */
+	/* BAR2 */
 	if (bar->base.func->kmap) {
-		ret = gf100_bar_ctor_vm(bar, &bar->bar[0], &bar3_lock, 3);
+		ret = gf100_bar_oneinit_bar(bar, &bar->bar[0], &bar2_lock, 3);
 		if (ret)
 			return ret;
 	}
 
 	/* BAR1 */
-	ret = gf100_bar_ctor_vm(bar, &bar->bar[1], &bar1_lock, 1);
+	ret = gf100_bar_oneinit_bar(bar, &bar->bar[1], &bar1_lock, 1);
 	if (ret)
 		return ret;
 
 	return 0;
-}
-
-void
-gf100_bar_init(struct nvkm_bar *base)
-{
-	struct gf100_bar *bar = gf100_bar(base);
-	struct nvkm_device *device = bar->base.subdev.device;
-	u32 addr;
-
-	addr = nvkm_memory_addr(bar->bar[1].mem) >> 12;
-	nvkm_wr32(device, 0x001704, 0x80000000 | addr);
-
-	if (bar->bar[0].mem) {
-		addr = nvkm_memory_addr(bar->bar[0].mem) >> 12;
-		if (bar->bar2_halve)
-			addr |= 0x40000000;
-		nvkm_wr32(device, 0x001714, 0x80000000 | addr);
-	}
 }
 
 void *

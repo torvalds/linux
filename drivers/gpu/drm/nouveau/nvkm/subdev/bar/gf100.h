@@ -3,7 +3,7 @@
 #define gf100_bar(p) container_of((p), struct gf100_bar, base)
 #include "priv.h"
 
-struct gf100_bar_vm {
+struct gf100_barN {
 	struct nvkm_memory *mem;
 	struct nvkm_gpuobj *pgd;
 	struct nvkm_vm *vm;
@@ -12,7 +12,7 @@ struct gf100_bar_vm {
 struct gf100_bar {
 	struct nvkm_bar base;
 	bool bar2_halve;
-	struct gf100_bar_vm bar[2];
+	struct gf100_barN bar[2];
 };
 
 int gf100_bar_new_(const struct nvkm_bar_func *, struct nvkm_device *,

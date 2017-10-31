@@ -46,18 +46,18 @@ nvkm_bar_umap(struct nvkm_bar *bar, u64 size, int type, struct nvkm_vma *vma)
 }
 
 static int
-nvkm_bar_oneinit(struct nvkm_subdev *subdev)
-{
-	struct nvkm_bar *bar = nvkm_bar(subdev);
-	return bar->func->oneinit(bar);
-}
-
-static int
 nvkm_bar_init(struct nvkm_subdev *subdev)
 {
 	struct nvkm_bar *bar = nvkm_bar(subdev);
 	bar->func->init(bar);
 	return 0;
+}
+
+static int
+nvkm_bar_oneinit(struct nvkm_subdev *subdev)
+{
+	struct nvkm_bar *bar = nvkm_bar(subdev);
+	return bar->func->oneinit(bar);
 }
 
 static void *

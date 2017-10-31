@@ -31,7 +31,7 @@
 struct nvkm_vm *
 nv50_bar_kmap(struct nvkm_bar *base)
 {
-	return nv50_bar(base)->bar3_vm;
+	return nv50_bar(base)->bar2_vm;
 }
 
 int
@@ -56,13 +56,28 @@ nv50_bar_flush(struct nvkm_bar *base)
 	spin_unlock_irqrestore(&bar->base.lock, flags);
 }
 
+void
+nv50_bar_init(struct nvkm_bar *base)
+{
+	struct nv50_bar *bar = nv50_bar(base);
+	struct nvkm_device *device = bar->base.subdev.device;
+	int i;
+
+	nvkm_wr32(device, 0x001704, 0x00000000 | bar->mem->addr >> 12);
+	nvkm_wr32(device, 0x001704, 0x40000000 | bar->mem->addr >> 12);
+	nvkm_wr32(device, 0x001708, 0x80000000 | bar->bar1->node->offset >> 4);
+	nvkm_wr32(device, 0x00170c, 0x80000000 | bar->bar2->node->offset >> 4);
+	for (i = 0; i < 8; i++)
+		nvkm_wr32(device, 0x001900 + (i * 4), 0x00000000);
+}
+
 int
 nv50_bar_oneinit(struct nvkm_bar *base)
 {
 	struct nv50_bar *bar = nv50_bar(base);
 	struct nvkm_device *device = bar->base.subdev.device;
 	static struct lock_class_key bar1_lock;
-	static struct lock_class_key bar3_lock;
+	static struct lock_class_key bar2_lock;
 	struct nvkm_vm *vm;
 	u64 start, limit;
 	int ret;
@@ -80,11 +95,11 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 	if (ret)
 		return ret;
 
-	/* BAR3 */
+	/* BAR2 */
 	start = 0x0100000000ULL;
 	limit = start + device->func->resource_size(device, 3);
 
-	ret = nvkm_vm_new(device, start, limit - start, start, &bar3_lock, &vm);
+	ret = nvkm_vm_new(device, start, limit - start, start, &bar2_lock, &vm);
 	if (ret)
 		return ret;
 
@@ -94,24 +109,24 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 	if (ret)
 		return ret;
 
-	ret = nvkm_vm_ref(vm, &bar->bar3_vm, bar->pgd);
+	ret = nvkm_vm_ref(vm, &bar->bar2_vm, bar->pgd);
 	nvkm_vm_ref(NULL, &vm, NULL);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(device, 24, 16, false, bar->mem, &bar->bar3);
+	ret = nvkm_gpuobj_new(device, 24, 16, false, bar->mem, &bar->bar2);
 	if (ret)
 		return ret;
 
-	nvkm_kmap(bar->bar3);
-	nvkm_wo32(bar->bar3, 0x00, 0x7fc00000);
-	nvkm_wo32(bar->bar3, 0x04, lower_32_bits(limit));
-	nvkm_wo32(bar->bar3, 0x08, lower_32_bits(start));
-	nvkm_wo32(bar->bar3, 0x0c, upper_32_bits(limit) << 24 |
+	nvkm_kmap(bar->bar2);
+	nvkm_wo32(bar->bar2, 0x00, 0x7fc00000);
+	nvkm_wo32(bar->bar2, 0x04, lower_32_bits(limit));
+	nvkm_wo32(bar->bar2, 0x08, lower_32_bits(start));
+	nvkm_wo32(bar->bar2, 0x0c, upper_32_bits(limit) << 24 |
 				   upper_32_bits(start));
-	nvkm_wo32(bar->bar3, 0x10, 0x00000000);
-	nvkm_wo32(bar->bar3, 0x14, 0x00000000);
-	nvkm_done(bar->bar3);
+	nvkm_wo32(bar->bar2, 0x10, 0x00000000);
+	nvkm_wo32(bar->bar2, 0x14, 0x00000000);
+	nvkm_done(bar->bar2);
 
 	/* BAR1 */
 	start = 0x0000000000ULL;
@@ -144,31 +159,16 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 	return 0;
 }
 
-void
-nv50_bar_init(struct nvkm_bar *base)
-{
-	struct nv50_bar *bar = nv50_bar(base);
-	struct nvkm_device *device = bar->base.subdev.device;
-	int i;
-
-	nvkm_wr32(device, 0x001704, 0x00000000 | bar->mem->addr >> 12);
-	nvkm_wr32(device, 0x001704, 0x40000000 | bar->mem->addr >> 12);
-	nvkm_wr32(device, 0x001708, 0x80000000 | bar->bar1->node->offset >> 4);
-	nvkm_wr32(device, 0x00170c, 0x80000000 | bar->bar3->node->offset >> 4);
-	for (i = 0; i < 8; i++)
-		nvkm_wr32(device, 0x001900 + (i * 4), 0x00000000);
-}
-
 void *
 nv50_bar_dtor(struct nvkm_bar *base)
 {
 	struct nv50_bar *bar = nv50_bar(base);
 	nvkm_gpuobj_del(&bar->bar1);
 	nvkm_vm_ref(NULL, &bar->bar1_vm, bar->pgd);
-	nvkm_gpuobj_del(&bar->bar3);
-	if (bar->bar3_vm) {
-		nvkm_memory_del(&bar->bar3_vm->pgt[0].mem[0]);
-		nvkm_vm_ref(NULL, &bar->bar3_vm, bar->pgd);
+	nvkm_gpuobj_del(&bar->bar2);
+	if (bar->bar2_vm) {
+		nvkm_memory_del(&bar->bar2_vm->pgt[0].mem[0]);
+		nvkm_vm_ref(NULL, &bar->bar2_vm, bar->pgd);
 	}
 	nvkm_gpuobj_del(&bar->pgd);
 	nvkm_gpuobj_del(&bar->pad);
