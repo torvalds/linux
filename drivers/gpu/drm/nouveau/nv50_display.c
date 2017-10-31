@@ -510,6 +510,7 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	int ret;
 
 	mutex_init(&dmac->lock);
+	INIT_LIST_HEAD(&dmac->ctxdma);
 
 	dmac->ptr = dma_alloc_coherent(nvxx_device(device)->dev, PAGE_SIZE,
 				       &dmac->handle, GFP_KERNEL);
@@ -556,7 +557,6 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	if (ret)
 		return ret;
 
-	INIT_LIST_HEAD(&dmac->ctxdma);
 	return ret;
 }
 
