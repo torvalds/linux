@@ -172,8 +172,7 @@ int rsnd_mod_init(struct rsnd_priv *priv,
 
 void rsnd_mod_quit(struct rsnd_mod *mod)
 {
-	if (mod->clk)
-		clk_unprepare(mod->clk);
+	clk_unprepare(mod->clk);
 	mod->clk = NULL;
 }
 
