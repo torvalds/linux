@@ -1,6 +1,5 @@
 #ifndef __NVKM_GPUOBJ_H__
 #define __NVKM_GPUOBJ_H__
-#include <core/object.h>
 #include <core/memory.h>
 #include <core/mm.h>
 struct nvkm_vma;
@@ -10,7 +9,6 @@ struct nvkm_vm;
 #define NVOBJ_FLAG_HEAP       0x00000004
 
 struct nvkm_gpuobj {
-	struct nvkm_object object;
 	const struct nvkm_gpuobj_func *func;
 	struct nvkm_gpuobj *parent;
 	struct nvkm_memory *memory;
