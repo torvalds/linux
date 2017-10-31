@@ -194,9 +194,10 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 	struct nouveau_drm *drm = cli->drm;
 	struct nouveau_bo *nvbo;
 	struct nvif_mmu *mmu = &cli->mmu;
+	struct nvif_vmm *vmm = &cli->vmm.vmm;
 	size_t acc_size;
-	int ret;
 	int type = ttm_bo_type_device;
+	int ret, i, pi = -1;
 
 	if (!size) {
 		NV_WARN(drm, "skipped size %016llx\n", size);
@@ -249,16 +250,43 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 	nvbo->mode = tile_mode;
 	nvbo->contig = !(tile_flags & NOUVEAU_GEM_TILE_NONCONTIG);
 
-	nvbo->page = 12;
-	if (drm->client.vm) {
-		if (!(flags & TTM_PL_FLAG_TT) && size > 256 * 1024)
-			nvbo->page = drm->client.vm->mmu->lpg_shift;
-		else {
-			if (cli->device.info.family >= NV_DEVICE_INFO_V0_FERMI)
-				nvbo->kind = mmu->kind[nvbo->kind];
-			nvbo->comp = 0;
-		}
+	/* Determine the desirable target GPU page size for the buffer. */
+	for (i = 0; i < vmm->page_nr; i++) {
+		/* Because we cannot currently allow VMM maps to fail
+		 * during buffer migration, we need to determine page
+		 * size for the buffer up-front, and pre-allocate its
+		 * page tables.
+		 *
+		 * Skip page sizes that can't support needed domains.
+		 */
+		if (cli->device.info.family > NV_DEVICE_INFO_V0_CURIE &&
+		    (flags & TTM_PL_FLAG_VRAM) && !vmm->page[i].vram)
+			continue;
+		if ((flags & TTM_PL_FLAG_TT  ) && !vmm->page[i].host)
+			continue;
+
+		/* Select this page size if it's the first that supports
+		 * the potential memory domains, or when it's compatible
+		 * with the requested compression settings.
+		 */
+		if (pi < 0 || !nvbo->comp || vmm->page[i].comp)
+			pi = i;
+
+		/* Stop once the buffer is larger than the current page size. */
+		if (size >= 1ULL << vmm->page[i].shift)
+			break;
 	}
+
+	if (WARN_ON(pi < 0))
+		return -EINVAL;
+
+	/* Disable compression if suitable settings couldn't be found. */
+	if (nvbo->comp && !vmm->page[pi].comp) {
+		if (mmu->object.oclass >= NVIF_CLASS_MMU_GF100)
+			nvbo->kind = mmu->kind[nvbo->kind];
+		nvbo->comp = 0;
+	}
+	nvbo->page = vmm->page[pi].shift;
 
 	nouveau_bo_fixup_align(nvbo, flags, &align, &size);
 	nvbo->bo.mem.num_pages = size >> PAGE_SHIFT;
