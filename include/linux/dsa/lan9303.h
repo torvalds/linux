@@ -34,3 +34,5 @@ struct lan9303 {
 	 **/
 	struct lan9303_alr_cache_entry alr_cache[LAN9303_NUM_ALR_RECORDS];
 };
+
+#define eth_stp_addr eth_reserved_addr_base

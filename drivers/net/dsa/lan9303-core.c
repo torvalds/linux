@@ -773,6 +773,7 @@ static int lan9303_separate_ports(struct lan9303 *chip)
 {
 	int ret;
 
+	lan9303_alr_del_port(chip, eth_stp_addr, 0);
 	ret = lan9303_write_switch_reg(chip, LAN9303_SWE_PORT_MIRROR,
 				LAN9303_SWE_PORT_MIRROR_SNIFFER_PORT0 |
 				LAN9303_SWE_PORT_MIRROR_MIRRORED_PORT1 |
@@ -797,6 +798,7 @@ static void lan9303_bridge_ports(struct lan9303 *chip)
 
 	lan9303_write_switch_reg(chip, LAN9303_SWE_PORT_STATE,
 				 chip->swe_port_state);
+	lan9303_alr_add_port(chip, eth_stp_addr, 0, true);
 }
 
 static int lan9303_handle_reset(struct lan9303 *chip)
