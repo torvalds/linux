@@ -67,7 +67,6 @@ static void transport_complete_task_attr(struct se_cmd *cmd);
 static int translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason);
 static void transport_handle_queue_full(struct se_cmd *cmd,
 		struct se_device *dev, int err, bool write_pending);
-static int transport_put_cmd(struct se_cmd *cmd);
 static void target_complete_ok_work(struct work_struct *work);
 
 int init_se_kmem_caches(void)
@@ -668,7 +667,7 @@ int transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
 	if (transport_cmd_check_stop_to_fabric(cmd))
 		return 1;
 	if (remove && ack_kref)
-		ret = transport_put_cmd(cmd);
+		ret = target_put_sess_cmd(cmd);
 
 	return ret;
 }
@@ -2354,22 +2353,6 @@ static inline void transport_free_pages(struct se_cmd *cmd)
 	cmd->t_bidi_data_nents = 0;
 }
 
-/**
- * transport_put_cmd - release a reference to a command
- * @cmd:       command to release
- *
- * This routine releases our reference to the command and frees it if possible.
- */
-static int transport_put_cmd(struct se_cmd *cmd)
-{
-	BUG_ON(!cmd->se_tfo);
-	/*
-	 * If this cmd has been setup with target_get_sess_cmd(), drop
-	 * the kref and call ->release_cmd() in kref callback.
-	 */
-	return target_put_sess_cmd(cmd);
-}
-
 void *transport_kmap_data_sg(struct se_cmd *cmd)
 {
 	struct scatterlist *sg = cmd->t_data_sg;
@@ -2605,7 +2588,7 @@ int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 			target_wait_free_cmd(cmd, &aborted, &tas);
 
 		if (!aborted || tas)
-			ret = transport_put_cmd(cmd);
+			ret = target_put_sess_cmd(cmd);
 	} else {
 		if (wait_for_tasks)
 			target_wait_free_cmd(cmd, &aborted, &tas);
@@ -2621,7 +2604,7 @@ int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 			transport_lun_remove_cmd(cmd);
 
 		if (!aborted || tas)
-			ret = transport_put_cmd(cmd);
+			ret = target_put_sess_cmd(cmd);
 	}
 	/*
 	 * If the task has been internally aborted due to TMR ABORT_TASK
