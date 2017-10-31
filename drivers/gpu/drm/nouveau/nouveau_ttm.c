@@ -323,7 +323,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 
 	/* GART init */
 	if (!drm->agp.bridge) {
-		drm->gem.gart_available = nvxx_mmu(&drm->client.device)->limit;
+		drm->gem.gart_available = drm->client.vmm.vmm.limit;
 	} else {
 		drm->gem.gart_available = drm->agp.size;
 	}
