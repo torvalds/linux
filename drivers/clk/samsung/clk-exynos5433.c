@@ -5450,7 +5450,7 @@ struct exynos5433_cmu_data {
 	struct samsung_clk_provider ctx;
 };
 
-static int exynos5433_cmu_suspend(struct device *dev)
+static int __maybe_unused exynos5433_cmu_suspend(struct device *dev)
 {
 	struct exynos5433_cmu_data *data = dev_get_drvdata(dev);
 	int i;
@@ -5473,7 +5473,7 @@ static int exynos5433_cmu_suspend(struct device *dev)
 	return 0;
 }
 
-static int exynos5433_cmu_resume(struct device *dev)
+static int __maybe_unused exynos5433_cmu_resume(struct device *dev)
 {
 	struct exynos5433_cmu_data *data = dev_get_drvdata(dev);
 	int i;
