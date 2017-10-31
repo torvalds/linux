@@ -257,9 +257,9 @@ static void build_prescale_params(struct ipp_prescale_params *prescale_params,
 	}
 }
 
-static bool dce110_set_input_transfer_func(
-	struct pipe_ctx *pipe_ctx,
-	const struct dc_plane_state *plane_state)
+static bool
+dce110_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
+			       const struct dc_plane_state *plane_state)
 {
 	struct input_pixel_processor *ipp = pipe_ctx->plane_res.ipp;
 	const struct dc_transfer_func *tf = NULL;
@@ -280,25 +280,19 @@ static bool dce110_set_input_transfer_func(
 
 	if (tf == NULL) {
 		/* Default case if no input transfer function specified */
-		ipp->funcs->ipp_set_degamma(ipp,
-				IPP_DEGAMMA_MODE_HW_sRGB);
+		ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_HW_sRGB);
 	} else if (tf->type == TF_TYPE_PREDEFINED) {
 		switch (tf->tf) {
 		case TRANSFER_FUNCTION_SRGB:
-			ipp->funcs->ipp_set_degamma(ipp,
-					IPP_DEGAMMA_MODE_HW_sRGB);
+			ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_HW_sRGB);
 			break;
 		case TRANSFER_FUNCTION_BT709:
-			ipp->funcs->ipp_set_degamma(ipp,
-					IPP_DEGAMMA_MODE_HW_xvYCC);
+			ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_HW_xvYCC);
 			break;
 		case TRANSFER_FUNCTION_LINEAR:
-			ipp->funcs->ipp_set_degamma(ipp,
-					IPP_DEGAMMA_MODE_BYPASS);
+			ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_BYPASS);
 			break;
 		case TRANSFER_FUNCTION_PQ:
-			result = false;
-			break;
 		default:
 			result = false;
 			break;
@@ -640,9 +634,9 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 	return true;
 }
 
-static bool dce110_set_output_transfer_func(
-	struct pipe_ctx *pipe_ctx,
-	const struct dc_stream_state *stream)
+static bool
+dce110_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
+				const struct dc_stream_state *stream)
 {
 	struct transform *xfm = pipe_ctx->plane_res.xfm;
 
@@ -2756,8 +2750,7 @@ static void dce110_program_front_end_for_pipe(
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct xfm_grph_csc_adjustment adjust;
 	struct out_csc_color_matrix tbl_entry;
-	struct pipe_ctx *cur_pipe_ctx =
-					&dc->current_state->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
+	struct pipe_ctx *cur_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
 	unsigned int i;
 
 	memset(&tbl_entry, 0, sizeof(tbl_entry));
@@ -2850,10 +2843,8 @@ static void dce110_program_front_end_for_pipe(
 
 	/* Moved programming gamma from dc to hwss */
 	if (cur_pipe_ctx->plane_state != pipe_ctx->plane_state) {
-		dc->hwss.set_input_transfer_func(
-				pipe_ctx, pipe_ctx->plane_state);
-		dc->hwss.set_output_transfer_func(
-				pipe_ctx, pipe_ctx->stream);
+		dc->hwss.set_input_transfer_func(pipe_ctx, pipe_ctx->plane_state);
+		dc->hwss.set_output_transfer_func(pipe_ctx, pipe_ctx->stream);
 	}
 
 	dm_logger_write(dc->ctx->logger, LOG_SURFACE,

@@ -2142,6 +2142,7 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 					     const struct drm_connector *connector)
 {
 	struct dc_crtc_timing *timing_out = &stream->timing;
+	struct dc_transfer_func *tf = dc_create_transfer_func();
 
 	memset(timing_out, 0, sizeof(struct dc_crtc_timing));
 
@@ -2185,13 +2186,9 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 
 	stream->output_color_space = get_output_color_space(timing_out);
 
-	{
-		struct dc_transfer_func *tf = dc_create_transfer_func();
-
-		tf->type = TF_TYPE_PREDEFINED;
-		tf->tf = TRANSFER_FUNCTION_SRGB;
-		stream->out_transfer_func = tf;
-	}
+	tf->type = TF_TYPE_PREDEFINED;
+	tf->tf = TRANSFER_FUNCTION_SRGB;
+	stream->out_transfer_func = tf;
 }
 
 static void fill_audio_info(struct audio_info *audio_info,

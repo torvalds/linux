@@ -874,8 +874,8 @@ static void dcn10_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_c
 		pipe_ctx->plane_state->address.grph_stereo.left_addr = addr;
 }
 
-static bool dcn10_set_input_transfer_func(
-	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state)
+static bool dcn10_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
+					  const struct dc_plane_state *plane_state)
 {
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	const struct dc_transfer_func *tf = NULL;
@@ -888,28 +888,22 @@ static bool dcn10_set_input_transfer_func(
 		tf = plane_state->in_transfer_func;
 
 	if (plane_state->gamma_correction && dce_use_lut(plane_state))
-		dpp_base->funcs->dpp_program_input_lut(dpp_base,
-				plane_state->gamma_correction);
+		dpp_base->funcs->dpp_program_input_lut(dpp_base, plane_state->gamma_correction);
 
 	if (tf == NULL)
 		dpp_base->funcs->dpp_set_degamma(dpp_base, IPP_DEGAMMA_MODE_BYPASS);
 	else if (tf->type == TF_TYPE_PREDEFINED) {
 		switch (tf->tf) {
 		case TRANSFER_FUNCTION_SRGB:
-			dpp_base->funcs->dpp_set_degamma(dpp_base,
-					IPP_DEGAMMA_MODE_HW_sRGB);
+			dpp_base->funcs->dpp_set_degamma(dpp_base, IPP_DEGAMMA_MODE_HW_sRGB);
 			break;
 		case TRANSFER_FUNCTION_BT709:
-			dpp_base->funcs->dpp_set_degamma(dpp_base,
-					IPP_DEGAMMA_MODE_HW_xvYCC);
+			dpp_base->funcs->dpp_set_degamma(dpp_base, IPP_DEGAMMA_MODE_HW_xvYCC);
 			break;
 		case TRANSFER_FUNCTION_LINEAR:
-			dpp_base->funcs->dpp_set_degamma(dpp_base,
-					IPP_DEGAMMA_MODE_BYPASS);
+			dpp_base->funcs->dpp_set_degamma(dpp_base, IPP_DEGAMMA_MODE_BYPASS);
 			break;
 		case TRANSFER_FUNCTION_PQ:
-			result = false;
-			break;
 		default:
 			result = false;
 			break;
@@ -1238,9 +1232,9 @@ static bool dcn10_translate_regamma_to_hw_format(const struct dc_transfer_func
 	return true;
 }
 
-static bool dcn10_set_output_transfer_func(
-	struct pipe_ctx *pipe_ctx,
-	const struct dc_stream_state *stream)
+static bool
+dcn10_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
+			       const struct dc_stream_state *stream)
 {
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 
@@ -1250,17 +1244,13 @@ static bool dcn10_set_output_transfer_func(
 	dpp->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
 
 	if (stream->out_transfer_func &&
-		stream->out_transfer_func->type ==
-			TF_TYPE_PREDEFINED &&
-		stream->out_transfer_func->tf ==
-			TRANSFER_FUNCTION_SRGB) {
+	    stream->out_transfer_func->type == TF_TYPE_PREDEFINED &&
+	    stream->out_transfer_func->tf == TRANSFER_FUNCTION_SRGB)
 		dpp->funcs->dpp_program_regamma_pwl(dpp, NULL, OPP_REGAMMA_SRGB);
-	} else if (dcn10_translate_regamma_to_hw_format(
-				stream->out_transfer_func, &dpp->regamma_params)) {
-			dpp->funcs->dpp_program_regamma_pwl(dpp, &dpp->regamma_params, OPP_REGAMMA_USER);
-	} else {
+	else if (dcn10_translate_regamma_to_hw_format(stream->out_transfer_func, &dpp->regamma_params))
+		dpp->funcs->dpp_program_regamma_pwl(dpp, &dpp->regamma_params, OPP_REGAMMA_USER);
+	else
 		dpp->funcs->dpp_program_regamma_pwl(dpp, NULL, OPP_REGAMMA_BYPASS);
-	}
 
 	return true;
 }
@@ -2047,10 +2037,8 @@ static void program_all_pipe_in_tree(
 		}
 
 		if (cur_pipe_ctx->plane_state != pipe_ctx->plane_state) {
-			dc->hwss.set_input_transfer_func(
-					pipe_ctx, pipe_ctx->plane_state);
-			dc->hwss.set_output_transfer_func(
-					pipe_ctx, pipe_ctx->stream);
+			dc->hwss.set_input_transfer_func(pipe_ctx, pipe_ctx->plane_state);
+			dc->hwss.set_output_transfer_func(pipe_ctx, pipe_ctx->stream);
 		}
 	}
 
