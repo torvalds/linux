@@ -70,7 +70,15 @@ struct nvkm_vmm_desc_func {
 };
 
 extern const struct nvkm_vmm_desc_func gf100_vmm_pgd;
+void gf100_vmm_pgd_pde(struct nvkm_vmm *, struct nvkm_vmm_pt *, u32);
 extern const struct nvkm_vmm_desc_func gf100_vmm_pgt;
+void gf100_vmm_pgt_unmap(struct nvkm_vmm *, struct nvkm_mmu_pt *, u32, u32);
+void gf100_vmm_pgt_mem(struct nvkm_vmm *, struct nvkm_mmu_pt *, u32, u32,
+		       struct nvkm_vmm_map *);
+void gf100_vmm_pgt_dma(struct nvkm_vmm *, struct nvkm_mmu_pt *, u32, u32,
+		       struct nvkm_vmm_map *);
+void gf100_vmm_pgt_sgl(struct nvkm_vmm *, struct nvkm_mmu_pt *, u32, u32,
+		       struct nvkm_vmm_map *);
 
 struct nvkm_vmm_desc {
 	enum {
@@ -165,6 +173,10 @@ int gf100_vmm_new_(const struct nvkm_vmm_func *, const struct nvkm_vmm_func *,
 int gf100_vmm_join_(struct nvkm_vmm *, struct nvkm_memory *, u64 base);
 int gf100_vmm_join(struct nvkm_vmm *, struct nvkm_memory *);
 void gf100_vmm_part(struct nvkm_vmm *, struct nvkm_memory *);
+int gf100_vmm_aper(enum nvkm_memory_target);
+int gf100_vmm_valid(struct nvkm_vmm *, void *, u32, struct nvkm_vmm_map *);
+void gf100_vmm_flush_(struct nvkm_vmm *, int);
+void gf100_vmm_flush(struct nvkm_vmm *, int);
 
 int gm200_vmm_new_(const struct nvkm_vmm_func *, const struct nvkm_vmm_func *,
 		   struct nvkm_mmu *, u64, u64, void *, u32,

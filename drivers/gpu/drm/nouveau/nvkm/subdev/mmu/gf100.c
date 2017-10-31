@@ -68,6 +68,12 @@ const u8 gf100_pte_storage_type_map[256] =
 	0xfe, 0xfe, 0xfe, 0xfe, 0xff, 0xfd, 0xfe, 0xff
 };
 
+const u8 *
+gf100_mmu_kind(struct nvkm_mmu *mmu, int *count)
+{
+	*count = ARRAY_SIZE(gf100_pte_storage_type_map);
+	return gf100_pte_storage_type_map;
+}
 
 void
 gf100_vm_map_pgt(struct nvkm_vmm *vmm, u32 index, struct nvkm_memory *pgt[2])
@@ -195,12 +201,8 @@ gf100_mmu = {
 	.pgt_bits  = 27 - 12,
 	.spg_shift = 12,
 	.lpg_shift = 17,
-	.map_pgt = gf100_vm_map_pgt,
-	.map = gf100_vm_map,
-	.map_sg = gf100_vm_map_sg,
-	.unmap = gf100_vm_unmap,
-	.flush = gf100_vm_flush,
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GF100}, gf100_vmm_new },
+	.kind = gf100_mmu_kind,
 };
 
 int

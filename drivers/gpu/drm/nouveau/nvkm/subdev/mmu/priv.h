@@ -52,6 +52,7 @@ void gf100_vm_map_sg(struct nvkm_vma *, struct nvkm_memory *, struct nvkm_mem *,
 		     u32, u32, dma_addr_t *);
 void gf100_vm_unmap(struct nvkm_vma *, struct nvkm_memory *, u32, u32);
 void gf100_vm_flush(struct nvkm_vm *);
+const u8 *gf100_mmu_kind(struct nvkm_mmu *, int *count);
 
 struct nvkm_mmu_pt {
 	union {

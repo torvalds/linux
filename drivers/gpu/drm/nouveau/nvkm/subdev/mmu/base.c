@@ -28,6 +28,7 @@
 #include <subdev/fb.h>
 
 #include <nvif/if500d.h>
+#include <nvif/if900d.h>
 
 struct nvkm_mmu_ptp {
 	struct nvkm_mmu_pt *pt;
@@ -222,6 +223,7 @@ nvkm_vm_map_(const struct nvkm_vmm_page *page, struct nvkm_vma *vma, u64 delta,
 {
 	union {
 		struct nv50_vmm_map_v0 nv50;
+		struct gf100_vmm_map_v0 gf100;
 	} args;
 	struct nvkm_vmm *vmm = vma->vm;
 	void *argv = NULL;
@@ -241,6 +243,19 @@ nvkm_vm_map_(const struct nvkm_vmm_page *page, struct nvkm_vma *vma, u64 delta,
 			args.nv50.comp = (mem->memtype & 0x180) >> 7;
 			argv = &args.nv50;
 			argc = sizeof(args.nv50);
+			break;
+		case NV_C0:
+		case NV_E0:
+		case GM100:
+		case GP100: {
+			args.gf100.version = 0;
+			args.gf100.vol = (nvkm_memory_target(map->memory) != NVKM_MEM_TARGET_VRAM);
+			args.gf100.ro = !(vma->access & NV_MEM_ACCESS_WO);
+			args.gf100.priv = !!(vma->access & NV_MEM_ACCESS_SYS);
+			args.gf100.kind = (mem->memtype & 0x0ff);
+			argv = &args.gf100;
+			argc = sizeof(args.gf100);
+		}
 			break;
 		default:
 			break;
