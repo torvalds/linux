@@ -456,20 +456,17 @@ static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
 	while (getline(&filename, &len, fp) != -1) {
 		char *srcline;
 
-		if (filename_split(filename, &line_nr) != 1) {
-			free(filename);
+		if (filename_split(filename, &line_nr) != 1)
 			goto out;
-		}
 
 		srcline = srcline_from_fileline(filename, line_nr);
 		if (inline_list__append(sym, srcline, node) != 0)
 			goto out;
-
-		filename = NULL;
 	}
 
 out:
 	pclose(fp);
+	free(filename);
 
 	return node;
 }
