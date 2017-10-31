@@ -94,6 +94,11 @@ struct nvkm_vmm_func {
 	const struct nvkm_vmm_page page[];
 };
 
+struct nvkm_vmm_join {
+	struct nvkm_memory *inst;
+	struct list_head head;
+};
+
 int nvkm_vmm_new_(const struct nvkm_vmm_func *, struct nvkm_mmu *,
 		  u32 pd_header, u64 addr, u64 size, struct lock_class_key *,
 		  const char *name, struct nvkm_vmm **);
@@ -112,4 +117,8 @@ int nv41_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		 struct lock_class_key *, const char *, struct nvkm_vmm **);
 int nv44_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		 struct lock_class_key *, const char *, struct nvkm_vmm **);
+int nv50_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
+		 struct lock_class_key *, const char *, struct nvkm_vmm **);
+int g84_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
+		struct lock_class_key *, const char *, struct nvkm_vmm **);
 #endif

@@ -38,6 +38,7 @@ struct nvkm_mmu_func {
 			    void *argv, u32 argc, struct lock_class_key *,
 			    const char *name, struct nvkm_vmm **);
 		bool global;
+		u32 pd_offset;
 	} vmm;
 };
 

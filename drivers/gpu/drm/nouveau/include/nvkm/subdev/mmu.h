@@ -36,7 +36,6 @@ struct nvkm_vm {
 	u64 limit;
 
 	struct nvkm_vmm_pt *pd;
-	u16 pd_offset;
 	struct list_head join;
 
 	struct nvkm_mm mm;

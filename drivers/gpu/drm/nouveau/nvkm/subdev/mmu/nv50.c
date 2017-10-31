@@ -21,12 +21,14 @@
  *
  * Authors: Ben Skeggs
  */
-#include "priv.h"
+#include "vmm.h"
 
 #include <core/gpuobj.h>
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 #include <engine/gr.h>
+
+#include <nvif/class.h>
 
 void
 nv50_vm_map_pgt(struct nvkm_gpuobj *pgd, u32 pde, struct nvkm_memory *pgt[2])
@@ -205,7 +207,6 @@ nv50_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
 	u32 block = (1 << (mmu->func->pgt_bits + 12));
 	if (block > length)
 		block = length;
-
 	return nvkm_vm_create(mmu, offset, length, mm_offset, block, key, pvm);
 }
 
@@ -222,6 +223,7 @@ nv50_mmu = {
 	.map_sg = nv50_vm_map_sg,
 	.unmap = nv50_vm_unmap,
 	.flush = nv50_vm_flush,
+	.vmm = {{ -1, -1, NVIF_CLASS_VMM_NV50}, nv50_vmm_new, false, 0x1400 },
 };
 
 int

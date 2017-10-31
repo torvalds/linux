@@ -19,7 +19,9 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "priv.h"
+#include "vmm.h"
+
+#include <nvif/class.h>
 
 static const struct nvkm_mmu_func
 g84_mmu = {
@@ -34,6 +36,7 @@ g84_mmu = {
 	.map_sg = nv50_vm_map_sg,
 	.unmap = nv50_vm_unmap,
 	.flush = nv50_vm_flush,
+	.vmm = {{ -1, -1, NVIF_CLASS_VMM_NV50}, nv50_vmm_new, false, 0x0200 },
 };
 
 int

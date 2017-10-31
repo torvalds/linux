@@ -727,7 +727,6 @@ nvkm_vm_del(struct kref *kref)
 
 	nvkm_mm_fini(&vm->mm);
 	vfree(vm->pgt);
-
 	if (vm->func)
 		nvkm_vmm_dtor(vm);
 	kfree(vm);
