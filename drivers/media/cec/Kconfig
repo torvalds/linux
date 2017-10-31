@@ -4,3 +4,9 @@ config MEDIA_CEC_RC
 	depends on CEC_CORE=m || RC_CORE=y
 	---help---
 	  Pass on CEC remote control messages to the RC framework.
+
+config CEC_PIN_ERROR_INJ
+	bool "Enable CEC error injection support"
+	depends on CEC_PIN && DEBUG_FS
+	---help---
+	  This option enables CEC error injection using debugfs.

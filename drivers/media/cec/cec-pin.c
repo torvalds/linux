@@ -771,6 +771,10 @@ static const struct cec_adap_ops cec_pin_adap_ops = {
 	.adap_transmit = cec_pin_adap_transmit,
 	.adap_status = cec_pin_adap_status,
 	.adap_free = cec_pin_adap_free,
+#ifdef CONFIG_CEC_PIN_ERROR_INJ
+	.error_inj_parse_line = cec_pin_error_inj_parse_line,
+	.error_inj_show = cec_pin_error_inj_show,
+#endif
 };
 
 struct cec_adapter *cec_pin_allocate_adapter(const struct cec_pin_ops *pin_ops,
@@ -785,6 +789,8 @@ struct cec_adapter *cec_pin_allocate_adapter(const struct cec_pin_ops *pin_ops,
 	hrtimer_init(&pin->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	pin->timer.function = cec_pin_timer;
 	init_waitqueue_head(&pin->kthread_waitq);
+	pin->tx_custom_low_usecs = CEC_TIM_CUSTOM_DEFAULT;
+	pin->tx_custom_high_usecs = CEC_TIM_CUSTOM_DEFAULT;
 
 	adap = cec_allocate_adapter(&cec_pin_adap_ops, priv, name,
 			    caps | CEC_CAP_MONITOR_ALL | CEC_CAP_MONITOR_PIN,

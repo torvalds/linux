@@ -74,6 +74,55 @@ enum cec_pin_state {
 	CEC_PIN_STATES
 };
 
+/* Error Injection */
+
+/* Error injection modes */
+#define CEC_ERROR_INJ_MODE_OFF				0
+#define CEC_ERROR_INJ_MODE_ONCE				1
+#define CEC_ERROR_INJ_MODE_ALWAYS			2
+#define CEC_ERROR_INJ_MODE_TOGGLE			3
+#define CEC_ERROR_INJ_MODE_MASK				3ULL
+
+/* Receive error injection options */
+#define CEC_ERROR_INJ_RX_NACK_OFFSET			0
+#define CEC_ERROR_INJ_RX_LOW_DRIVE_OFFSET		2
+#define CEC_ERROR_INJ_RX_ADD_BYTE_OFFSET		4
+#define CEC_ERROR_INJ_RX_REMOVE_BYTE_OFFSET		6
+#define CEC_ERROR_INJ_RX_ARB_LOST_OFFSET		8
+#define CEC_ERROR_INJ_RX_MASK				0xffffULL
+
+/* Transmit error injection options */
+#define CEC_ERROR_INJ_TX_NO_EOM_OFFSET			16
+#define CEC_ERROR_INJ_TX_EARLY_EOM_OFFSET		18
+#define CEC_ERROR_INJ_TX_SHORT_BIT_OFFSET		20
+#define CEC_ERROR_INJ_TX_LONG_BIT_OFFSET		22
+#define CEC_ERROR_INJ_TX_CUSTOM_BIT_OFFSET		24
+#define CEC_ERROR_INJ_TX_SHORT_START_OFFSET		26
+#define CEC_ERROR_INJ_TX_LONG_START_OFFSET		28
+#define CEC_ERROR_INJ_TX_CUSTOM_START_OFFSET		30
+#define CEC_ERROR_INJ_TX_LAST_BIT_OFFSET		32
+#define CEC_ERROR_INJ_TX_ADD_BYTES_OFFSET		34
+#define CEC_ERROR_INJ_TX_REMOVE_BYTE_OFFSET		36
+#define CEC_ERROR_INJ_TX_LOW_DRIVE_OFFSET		38
+#define CEC_ERROR_INJ_TX_MASK				0xffffffffffff0000ULL
+
+#define CEC_ERROR_INJ_RX_LOW_DRIVE_ARG_IDX		0
+#define CEC_ERROR_INJ_RX_ARB_LOST_ARG_IDX		1
+
+#define CEC_ERROR_INJ_TX_ADD_BYTES_ARG_IDX		2
+#define CEC_ERROR_INJ_TX_SHORT_BIT_ARG_IDX		3
+#define CEC_ERROR_INJ_TX_LONG_BIT_ARG_IDX		4
+#define CEC_ERROR_INJ_TX_CUSTOM_BIT_ARG_IDX		5
+#define CEC_ERROR_INJ_TX_LAST_BIT_ARG_IDX		6
+#define CEC_ERROR_INJ_TX_LOW_DRIVE_ARG_IDX		7
+#define CEC_ERROR_INJ_NUM_ARGS				8
+
+/* Special CEC op values */
+#define CEC_ERROR_INJ_OP_ANY				0x00000100
+
+/* The default for the low/high time of the custom pulse */
+#define CEC_TIM_CUSTOM_DEFAULT				1000
+
 #define CEC_NUM_PIN_EVENTS 128
 
 #define CEC_PIN_IRQ_UNCHANGED	0
@@ -98,8 +147,10 @@ struct cec_pin {
 	u32				tx_bit;
 	bool				tx_nacked;
 	u32				tx_signal_free_time;
+	bool				tx_toggle;
 	struct cec_msg			rx_msg;
 	u32				rx_bit;
+	bool				rx_toggle;
 
 	struct cec_msg			work_rx_msg;
 	u8				work_tx_status;
@@ -116,8 +167,28 @@ struct cec_pin {
 	u32				timer_300ms_overruns;
 	u32				timer_max_overrun;
 	u32				timer_sum_overrun;
+
+	u32				tx_custom_low_usecs;
+	u32				tx_custom_high_usecs;
+	bool				tx_ignore_nack_until_eom;
+	bool				tx_custom_pulse;
+	bool				tx_generated_poll;
+	bool				tx_post_eom;
+	u8				tx_extra_bytes;
+#ifdef CONFIG_CEC_PIN_ERROR_INJ
+	u64				error_inj[CEC_ERROR_INJ_OP_ANY + 1];
+	u8				error_inj_args[CEC_ERROR_INJ_OP_ANY + 1][CEC_ERROR_INJ_NUM_ARGS];
+#endif
 };
 
 void cec_pin_start_timer(struct cec_pin *pin);
+
+#ifdef CONFIG_CEC_PIN_ERROR_INJ
+bool cec_pin_error_inj_parse_line(struct cec_adapter *adap, char *line);
+int cec_pin_error_inj_show(struct cec_adapter *adap, struct seq_file *sf);
+
+u16 cec_pin_rx_error_inj(struct cec_pin *pin);
+u16 cec_pin_tx_error_inj(struct cec_pin *pin);
+#endif
 
 #endif
