@@ -557,6 +557,11 @@ _base_sas_ioc_info(struct MPT3SAS_ADAPTER *ioc, MPI2DefaultReply_t *mpi_reply,
 		frame_sz = sizeof(Mpi2SmpPassthroughRequest_t) + ioc->sge_size;
 		func_str = "smp_passthru";
 		break;
+	case MPI2_FUNCTION_NVME_ENCAPSULATED:
+		frame_sz = sizeof(Mpi26NVMeEncapsulatedRequest_t) +
+		    ioc->sge_size;
+		func_str = "nvme_encapsulated";
+		break;
 	default:
 		frame_sz = 32;
 		func_str = "unknown";
@@ -985,7 +990,9 @@ _base_interrupt(int irq, void *bus_id)
 		if (request_desript_type ==
 		    MPI25_RPY_DESCRIPT_FLAGS_FAST_PATH_SCSI_IO_SUCCESS ||
 		    request_desript_type ==
-		    MPI2_RPY_DESCRIPT_FLAGS_SCSI_IO_SUCCESS) {
+		    MPI2_RPY_DESCRIPT_FLAGS_SCSI_IO_SUCCESS ||
+		    request_desript_type ==
+		    MPI26_RPY_DESCRIPT_FLAGS_PCIE_ENCAPSULATED_SUCCESS) {
 			cb_idx = _base_get_cb_idx(ioc, smid);
 			if ((likely(cb_idx < MPT_MAX_CALLBACKS)) &&
 			    (likely(mpt_callbacks[cb_idx] != NULL))) {
@@ -1342,6 +1349,225 @@ _base_build_sg(struct MPT3SAS_ADAPTER *ioc, void *psge,
 		sgl_flags = sgl_flags << MPI2_SGE_FLAGS_SHIFT;
 		ioc->base_add_sg_single(psge, sgl_flags |
 		    data_in_sz, data_in_dma);
+	}
+}
+
+/* IEEE format sgls */
+
+/**
+ * _base_build_nvme_prp - This function is called for NVMe end devices to build
+ * a native SGL (NVMe PRP). The native SGL is built starting in the first PRP
+ * entry of the NVMe message (PRP1).  If the data buffer is small enough to be
+ * described entirely using PRP1, then PRP2 is not used.  If needed, PRP2 is
+ * used to describe a larger data buffer.  If the data buffer is too large to
+ * describe using the two PRP entriess inside the NVMe message, then PRP1
+ * describes the first data memory segment, and PRP2 contains a pointer to a PRP
+ * list located elsewhere in memory to describe the remaining data memory
+ * segments.  The PRP list will be contiguous.
+
+ * The native SGL for NVMe devices is a Physical Region Page (PRP).  A PRP
+ * consists of a list of PRP entries to describe a number of noncontigous
+ * physical memory segments as a single memory buffer, just as a SGL does.  Note
+ * however, that this function is only used by the IOCTL call, so the memory
+ * given will be guaranteed to be contiguous.  There is no need to translate
+ * non-contiguous SGL into a PRP in this case.  All PRPs will describe
+ * contiguous space that is one page size each.
+ *
+ * Each NVMe message contains two PRP entries.  The first (PRP1) either contains
+ * a PRP list pointer or a PRP element, depending upon the command.  PRP2
+ * contains the second PRP element if the memory being described fits within 2
+ * PRP entries, or a PRP list pointer if the PRP spans more than two entries.
+ *
+ * A PRP list pointer contains the address of a PRP list, structured as a linear
+ * array of PRP entries.  Each PRP entry in this list describes a segment of
+ * physical memory.
+ *
+ * Each 64-bit PRP entry comprises an address and an offset field.  The address
+ * always points at the beginning of a 4KB physical memory page, and the offset
+ * describes where within that 4KB page the memory segment begins.  Only the
+ * first element in a PRP list may contain a non-zero offest, implying that all
+ * memory segments following the first begin at the start of a 4KB page.
+ *
+ * Each PRP element normally describes 4KB of physical memory, with exceptions
+ * for the first and last elements in the list.  If the memory being described
+ * by the list begins at a non-zero offset within the first 4KB page, then the
+ * first PRP element will contain a non-zero offset indicating where the region
+ * begins within the 4KB page.  The last memory segment may end before the end
+ * of the 4KB segment, depending upon the overall size of the memory being
+ * described by the PRP list.
+ *
+ * Since PRP entries lack any indication of size, the overall data buffer length
+ * is used to determine where the end of the data memory buffer is located, and
+ * how many PRP entries are required to describe it.
+ *
+ * @ioc: per adapter object
+ * @smid: system request message index for getting asscociated SGL
+ * @nvme_encap_request: the NVMe request msg frame pointer
+ * @data_out_dma: physical address for WRITES
+ * @data_out_sz: data xfer size for WRITES
+ * @data_in_dma: physical address for READS
+ * @data_in_sz: data xfer size for READS
+ *
+ * Returns nothing.
+ */
+static void
+_base_build_nvme_prp(struct MPT3SAS_ADAPTER *ioc, u16 smid,
+	Mpi26NVMeEncapsulatedRequest_t *nvme_encap_request,
+	dma_addr_t data_out_dma, size_t data_out_sz, dma_addr_t data_in_dma,
+	size_t data_in_sz)
+{
+	int		prp_size = NVME_PRP_SIZE;
+	u64		*prp_entry, *prp1_entry, *prp2_entry, *prp_entry_phys;
+	u64		*prp_page, *prp_page_phys;
+	u32		offset, entry_len;
+	u32		page_mask_result, page_mask;
+	dma_addr_t	paddr;
+	size_t		length;
+
+	/*
+	 * Not all commands require a data transfer. If no data, just return
+	 * without constructing any PRP.
+	 */
+	if (!data_in_sz && !data_out_sz)
+		return;
+	/*
+	 * Set pointers to PRP1 and PRP2, which are in the NVMe command.
+	 * PRP1 is located at a 24 byte offset from the start of the NVMe
+	 * command.  Then set the current PRP entry pointer to PRP1.
+	 */
+	prp1_entry = (u64 *)(nvme_encap_request->NVMe_Command +
+	    NVME_CMD_PRP1_OFFSET);
+	prp2_entry = (u64 *)(nvme_encap_request->NVMe_Command +
+	    NVME_CMD_PRP2_OFFSET);
+	prp_entry = prp1_entry;
+	/*
+	 * For the PRP entries, use the specially allocated buffer of
+	 * contiguous memory.
+	 */
+	prp_page = (u64 *)mpt3sas_base_get_pcie_sgl(ioc, smid);
+	prp_page_phys = (u64 *)mpt3sas_base_get_pcie_sgl_dma(ioc, smid);
+
+	/*
+	 * Check if we are within 1 entry of a page boundary we don't
+	 * want our first entry to be a PRP List entry.
+	 */
+	page_mask = ioc->page_size - 1;
+	page_mask_result = (uintptr_t)((u8 *)prp_page + prp_size) & page_mask;
+	if (!page_mask_result) {
+		/* Bump up to next page boundary. */
+		prp_page = (u64 *)((u8 *)prp_page + prp_size);
+		prp_page_phys = (u64 *)((u8 *)prp_page_phys + prp_size);
+	}
+
+	/*
+	 * Set PRP physical pointer, which initially points to the current PRP
+	 * DMA memory page.
+	 */
+	prp_entry_phys = prp_page_phys;
+
+	/* Get physical address and length of the data buffer. */
+	if (data_in_sz) {
+		paddr = data_in_dma;
+		length = data_in_sz;
+	} else {
+		paddr = data_out_dma;
+		length = data_out_sz;
+	}
+
+	/* Loop while the length is not zero. */
+	while (length) {
+		/*
+		 * Check if we need to put a list pointer here if we are at
+		 * page boundary - prp_size (8 bytes).
+		 */
+		page_mask_result =
+		    (uintptr_t)((u8 *)prp_entry_phys + prp_size) & page_mask;
+		if (!page_mask_result) {
+			/*
+			 * This is the last entry in a PRP List, so we need to
+			 * put a PRP list pointer here.  What this does is:
+			 *   - bump the current memory pointer to the next
+			 *     address, which will be the next full page.
+			 *   - set the PRP Entry to point to that page.  This
+			 *     is now the PRP List pointer.
+			 *   - bump the PRP Entry pointer the start of the
+			 *     next page.  Since all of this PRP memory is
+			 *     contiguous, no need to get a new page - it's
+			 *     just the next address.
+			 */
+			prp_entry_phys++;
+			*prp_entry = cpu_to_le64((uintptr_t)prp_entry_phys);
+			prp_entry++;
+		}
+
+		/* Need to handle if entry will be part of a page. */
+		offset = (u32)paddr & page_mask;
+		entry_len = ioc->page_size - offset;
+
+		if (prp_entry == prp1_entry) {
+			/*
+			 * Must fill in the first PRP pointer (PRP1) before
+			 * moving on.
+			 */
+			*prp1_entry = cpu_to_le64((u64)paddr);
+
+			/*
+			 * Now point to the second PRP entry within the
+			 * command (PRP2).
+			 */
+			prp_entry = prp2_entry;
+		} else if (prp_entry == prp2_entry) {
+			/*
+			 * Should the PRP2 entry be a PRP List pointer or just
+			 * a regular PRP pointer?  If there is more than one
+			 * more page of data, must use a PRP List pointer.
+			 */
+			if (length > ioc->page_size) {
+				/*
+				 * PRP2 will contain a PRP List pointer because
+				 * more PRP's are needed with this command. The
+				 * list will start at the beginning of the
+				 * contiguous buffer.
+				 */
+				*prp2_entry =
+				    cpu_to_le64((uintptr_t)prp_entry_phys);
+
+				/*
+				 * The next PRP Entry will be the start of the
+				 * first PRP List.
+				 */
+				prp_entry = prp_page;
+			} else {
+				/*
+				 * After this, the PRP Entries are complete.
+				 * This command uses 2 PRP's and no PRP list.
+				 */
+				*prp2_entry = cpu_to_le64((u64)paddr);
+			}
+		} else {
+			/*
+			 * Put entry in list and bump the addresses.
+			 *
+			 * After PRP1 and PRP2 are filled in, this will fill in
+			 * all remaining PRP entries in a PRP List, one per
+			 * each time through the loop.
+			 */
+			*prp_entry = cpu_to_le64((u64)paddr);
+			prp_entry++;
+			prp_entry_phys++;
+		}
+
+		/*
+		 * Bump the phys address of the command's data buffer by the
+		 * entry_len.
+		 */
+		paddr += entry_len;
+
+		/* Decrement length accounting for last partial page. */
+		if (entry_len > length)
+			length = 0;
+		else
+			length -= entry_len;
 	}
 }
 
@@ -2794,6 +3020,30 @@ _base_put_smid_hi_priority(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 }
 
 /**
+ * _base_put_smid_nvme_encap - send NVMe encapsulated request to
+ *  firmware
+ * @ioc: per adapter object
+ * @smid: system request message index
+ *
+ * Return nothing.
+ */
+static void
+_base_put_smid_nvme_encap(struct MPT3SAS_ADAPTER *ioc, u16 smid)
+{
+	Mpi2RequestDescriptorUnion_t descriptor;
+	u64 *request = (u64 *)&descriptor;
+
+	descriptor.Default.RequestFlags =
+		MPI26_REQ_DESCRIPT_FLAGS_PCIE_ENCAPSULATED;
+	descriptor.Default.MSIxIndex =  _base_get_msix_index(ioc);
+	descriptor.Default.SMID = cpu_to_le16(smid);
+	descriptor.Default.LMID = 0;
+	descriptor.Default.DescriptorTypeDependent = 0;
+	_base_writeq(*request, &ioc->chip->RequestDescriptorPostLow,
+	    &ioc->scsi_lookup_lock);
+}
+
+/**
  * _base_put_smid_default - Default, primarily used for config pages
  * @ioc: per adapter object
  * @smid: system request message index
@@ -2878,6 +3128,27 @@ _base_put_smid_hi_priority_atomic(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 
 	descriptor.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
 	descriptor.MSIxIndex = msix_task;
+	descriptor.SMID = cpu_to_le16(smid);
+
+	writel(cpu_to_le32(*request), &ioc->chip->AtomicRequestDescriptorPost);
+}
+
+/**
+ * _base_put_smid_nvme_encap_atomic - send NVMe encapsulated request to
+ *   firmware using Atomic Request Descriptor
+ * @ioc: per adapter object
+ * @smid: system request message index
+ *
+ * Return nothing.
+ */
+static void
+_base_put_smid_nvme_encap_atomic(struct MPT3SAS_ADAPTER *ioc, u16 smid)
+{
+	Mpi26AtomicRequestDescriptor_t descriptor;
+	u32 *request = (u32 *)&descriptor;
+
+	descriptor.RequestFlags = MPI26_REQ_DESCRIPT_FLAGS_PCIE_ENCAPSULATED;
+	descriptor.MSIxIndex = _base_get_msix_index(ioc);
 	descriptor.SMID = cpu_to_le16(smid);
 
 	writel(cpu_to_le32(*request), &ioc->chip->AtomicRequestDescriptorPost);
@@ -5707,6 +5978,7 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 		 */
 		ioc->build_sg_scmd = &_base_build_sg_scmd_ieee;
 		ioc->build_sg = &_base_build_sg_ieee;
+		ioc->build_nvme_prp = &_base_build_nvme_prp;
 		ioc->build_zero_len_sge = &_base_build_zero_len_sge_ieee;
 		ioc->sge_size_ieee = sizeof(Mpi2IeeeSgeSimple64_t);
 
@@ -5718,11 +5990,13 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 		ioc->put_smid_scsi_io = &_base_put_smid_scsi_io_atomic;
 		ioc->put_smid_fast_path = &_base_put_smid_fast_path_atomic;
 		ioc->put_smid_hi_priority = &_base_put_smid_hi_priority_atomic;
+		ioc->put_smid_nvme_encap = &_base_put_smid_nvme_encap_atomic;
 	} else {
 		ioc->put_smid_default = &_base_put_smid_default;
 		ioc->put_smid_scsi_io = &_base_put_smid_scsi_io;
 		ioc->put_smid_fast_path = &_base_put_smid_fast_path;
 		ioc->put_smid_hi_priority = &_base_put_smid_hi_priority;
+		ioc->put_smid_nvme_encap = &_base_put_smid_nvme_encap;
 	}
 
 
