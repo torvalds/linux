@@ -42,14 +42,28 @@ gf100_bar_umap(struct nvkm_bar *base, u64 size, int type, struct nvkm_vma *vma)
 }
 
 void
+gf100_bar_bar1_wait(struct nvkm_bar *base)
+{
+	/* NFI why it's twice. */
+	nvkm_bar_flush(base);
+	nvkm_bar_flush(base);
+}
+
+void
+gf100_bar_bar1_init(struct nvkm_bar *base)
+{
+	struct nvkm_device *device = base->subdev.device;
+	struct gf100_bar *bar = gf100_bar(base);
+	const u32 addr = nvkm_memory_addr(bar->bar[1].mem) >> 12;
+	nvkm_wr32(device, 0x001704, 0x80000000 | addr);
+}
+
+void
 gf100_bar_init(struct nvkm_bar *base)
 {
 	struct gf100_bar *bar = gf100_bar(base);
 	struct nvkm_device *device = bar->base.subdev.device;
 	u32 addr;
-
-	addr = nvkm_memory_addr(bar->bar[1].mem) >> 12;
-	nvkm_wr32(device, 0x001704, 0x80000000 | addr);
 
 	if (bar->bar[0].mem) {
 		addr = nvkm_memory_addr(bar->bar[0].mem) >> 12;
@@ -171,6 +185,8 @@ gf100_bar_func = {
 	.dtor = gf100_bar_dtor,
 	.oneinit = gf100_bar_oneinit,
 	.init = gf100_bar_init,
+	.bar1.init = gf100_bar_bar1_init,
+	.bar1.wait = gf100_bar_bar1_wait,
 	.kmap = gf100_bar_kmap,
 	.umap = gf100_bar_umap,
 	.flush = g84_bar_flush,

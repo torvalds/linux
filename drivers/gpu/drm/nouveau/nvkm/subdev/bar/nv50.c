@@ -57,6 +57,20 @@ nv50_bar_flush(struct nvkm_bar *base)
 }
 
 void
+nv50_bar_bar1_wait(struct nvkm_bar *base)
+{
+	nvkm_bar_flush(base);
+}
+
+void
+nv50_bar_bar1_init(struct nvkm_bar *base)
+{
+	struct nvkm_device *device = base->subdev.device;
+	struct nv50_bar *bar = nv50_bar(base);
+	nvkm_wr32(device, 0x001708, 0x80000000 | bar->bar1->node->offset >> 4);
+}
+
+void
 nv50_bar_init(struct nvkm_bar *base)
 {
 	struct nv50_bar *bar = nv50_bar(base);
@@ -65,7 +79,6 @@ nv50_bar_init(struct nvkm_bar *base)
 
 	nvkm_wr32(device, 0x001704, 0x00000000 | bar->mem->addr >> 12);
 	nvkm_wr32(device, 0x001704, 0x40000000 | bar->mem->addr >> 12);
-	nvkm_wr32(device, 0x001708, 0x80000000 | bar->bar1->node->offset >> 4);
 	nvkm_wr32(device, 0x00170c, 0x80000000 | bar->bar2->node->offset >> 4);
 	for (i = 0; i < 8; i++)
 		nvkm_wr32(device, 0x001900 + (i * 4), 0x00000000);
@@ -194,6 +207,8 @@ nv50_bar_func = {
 	.dtor = nv50_bar_dtor,
 	.oneinit = nv50_bar_oneinit,
 	.init = nv50_bar_init,
+	.bar1.init = nv50_bar_bar1_init,
+	.bar1.wait = nv50_bar_bar1_wait,
 	.kmap = nv50_bar_kmap,
 	.umap = nv50_bar_umap,
 	.flush = nv50_bar_flush,

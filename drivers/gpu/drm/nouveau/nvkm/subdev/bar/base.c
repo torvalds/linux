@@ -49,6 +49,8 @@ static int
 nvkm_bar_init(struct nvkm_subdev *subdev)
 {
 	struct nvkm_bar *bar = nvkm_bar(subdev);
+	bar->func->bar1.init(bar);
+	bar->func->bar1.wait(bar);
 	bar->func->init(bar);
 	return 0;
 }

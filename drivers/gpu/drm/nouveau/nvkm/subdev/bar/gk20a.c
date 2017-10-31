@@ -25,7 +25,8 @@ static const struct nvkm_bar_func
 gk20a_bar_func = {
 	.dtor = gf100_bar_dtor,
 	.oneinit = gf100_bar_oneinit,
-	.init = gf100_bar_init,
+	.bar1.init = gf100_bar_bar1_init,
+	.bar1.wait = gf100_bar_bar1_wait,
 	.umap = gf100_bar_umap,
 	.flush = g84_bar_flush,
 };

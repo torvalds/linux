@@ -10,6 +10,12 @@ struct nvkm_bar_func {
 	void *(*dtor)(struct nvkm_bar *);
 	int (*oneinit)(struct nvkm_bar *);
 	void (*init)(struct nvkm_bar *);
+
+	struct {
+		void (*init)(struct nvkm_bar *);
+		void (*wait)(struct nvkm_bar *);
+	} bar1;
+
 	struct nvkm_vm *(*kmap)(struct nvkm_bar *);
 	int  (*umap)(struct nvkm_bar *, u64 size, int type, struct nvkm_vma *);
 	void (*flush)(struct nvkm_bar *);
