@@ -478,13 +478,14 @@ struct rproc {
  * struct rproc_subdev - subdevice tied to a remoteproc
  * @node: list node related to the rproc subdevs list
  * @probe: probe function, called as the rproc is started
- * @remove: remove function, called as the rproc is stopped
+ * @remove: remove function, called as the rproc is being stopped, the @crashed
+ *	    parameter indicates if this originates from the a recovery
  */
 struct rproc_subdev {
 	struct list_head node;
 
 	int (*probe)(struct rproc_subdev *subdev);
-	void (*remove)(struct rproc_subdev *subdev);
+	void (*remove)(struct rproc_subdev *subdev, bool crashed);
 };
 
 /* we currently support only two vrings per rvdev */
@@ -568,7 +569,7 @@ static inline struct rproc *vdev_to_rproc(struct virtio_device *vdev)
 void rproc_add_subdev(struct rproc *rproc,
 		      struct rproc_subdev *subdev,
 		      int (*probe)(struct rproc_subdev *subdev),
-		      void (*remove)(struct rproc_subdev *subdev));
+		      void (*remove)(struct rproc_subdev *subdev, bool graceful));
 
 void rproc_remove_subdev(struct rproc *rproc, struct rproc_subdev *subdev);
 
