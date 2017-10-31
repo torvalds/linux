@@ -205,6 +205,7 @@ static int
 nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 		    u32 engine, struct nouveau_channel **pchan)
 {
+	struct nouveau_cli *cli = (void *)device->object.client;
 	static const u16 oclasses[] = { PASCAL_CHANNEL_GPFIFO_A,
 					MAXWELL_CHANNEL_GPFIFO_A,
 					KEPLER_CHANNEL_GPFIFO_B,
@@ -236,21 +237,21 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 			args.kepler.engines = engine;
 			args.kepler.ilength = 0x02000;
 			args.kepler.ioffset = 0x10000 + chan->push.addr;
-			args.kepler.vm = 0;
+			args.kepler.vmm = nvif_handle(&cli->vmm.vmm.object);
 			size = sizeof(args.kepler);
 		} else
 		if (oclass[0] >= FERMI_CHANNEL_GPFIFO) {
 			args.fermi.version = 0;
 			args.fermi.ilength = 0x02000;
 			args.fermi.ioffset = 0x10000 + chan->push.addr;
-			args.fermi.vm = 0;
+			args.fermi.vmm = nvif_handle(&cli->vmm.vmm.object);
 			size = sizeof(args.fermi);
 		} else {
 			args.nv50.version = 0;
 			args.nv50.ilength = 0x02000;
 			args.nv50.ioffset = 0x10000 + chan->push.addr;
 			args.nv50.pushbuf = nvif_handle(&chan->push.ctxdma);
-			args.nv50.vm = 0;
+			args.nv50.vmm = nvif_handle(&cli->vmm.vmm.object);
 			size = sizeof(args.nv50);
 		}
 

@@ -225,10 +225,12 @@ gf100_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 
 	nvif_ioctl(parent, "create channel gpfifo size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(parent, "create channel gpfifo vers %d vm %llx "
+		nvif_ioctl(parent, "create channel gpfifo vers %d vmm %llx "
 				   "ioffset %016llx ilength %08x\n",
-			   args->v0.version, args->v0.vm, args->v0.ioffset,
+			   args->v0.version, args->v0.vmm, args->v0.ioffset,
 			   args->v0.ilength);
+		if (!args->v0.vmm)
+			return -EINVAL;
 	} else
 		return ret;
 
@@ -240,7 +242,7 @@ gf100_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 	INIT_LIST_HEAD(&chan->head);
 
 	ret = nvkm_fifo_chan_ctor(&gf100_fifo_gpfifo_func, &fifo->base,
-				  0x1000, 0x1000, true, args->v0.vm, 0,
+				  0x1000, 0x1000, true, args->v0.vmm, 0,
 				  (1ULL << NVKM_ENGINE_CE0) |
 				  (1ULL << NVKM_ENGINE_CE1) |
 				  (1ULL << NVKM_ENGINE_GR) |

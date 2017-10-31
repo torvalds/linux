@@ -228,15 +228,18 @@ nv50_fifo_chan_func = {
 };
 
 int
-nv50_fifo_chan_ctor(struct nv50_fifo *fifo, u64 vm, u64 push,
+nv50_fifo_chan_ctor(struct nv50_fifo *fifo, u64 vmm, u64 push,
 		    const struct nvkm_oclass *oclass,
 		    struct nv50_fifo_chan *chan)
 {
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	int ret;
 
+	if (!vmm)
+		return -EINVAL;
+
 	ret = nvkm_fifo_chan_ctor(&nv50_fifo_chan_func, &fifo->base,
-				  0x10000, 0x1000, false, vm, push,
+				  0x10000, 0x1000, false, vmm, push,
 				  (1ULL << NVKM_ENGINE_DMAOBJ) |
 				  (1ULL << NVKM_ENGINE_SW) |
 				  (1ULL << NVKM_ENGINE_GR) |

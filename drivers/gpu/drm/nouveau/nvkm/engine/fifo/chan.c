@@ -27,7 +27,6 @@
 #include <core/gpuobj.h>
 #include <core/oproxy.h>
 #include <subdev/mmu.h>
-#include <subdev/mmu/priv.h>
 #include <engine/dma.h>
 
 struct nvkm_fifo_chan_object {
@@ -353,8 +352,8 @@ nvkm_fifo_chan_func = {
 int
 nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *func,
 		    struct nvkm_fifo *fifo, u32 size, u32 align, bool zero,
-		    u64 vm, u64 push, u64 engines, int bar, u32 base, u32 user,
-		    const struct nvkm_oclass *oclass,
+		    u64 hvmm, u64 push, u64 engines, int bar, u32 base,
+		    u32 user, const struct nvkm_oclass *oclass,
 		    struct nvkm_fifo_chan *chan)
 {
 	struct nvkm_client *client = oclass->client;
@@ -387,8 +386,11 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *func,
 	}
 
 	/* channel address space */
-	if (!device->mmu->func->vmm.global) {
-		struct nvkm_vmm *vmm = client->vm;
+	if (hvmm) {
+		struct nvkm_vmm *vmm = nvkm_uvmm_search(client, hvmm);
+		if (IS_ERR(vmm))
+			return PTR_ERR(vmm);
+
 		if (vmm->mmu != device->mmu)
 			return -EINVAL;
 
