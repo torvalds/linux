@@ -68,7 +68,7 @@ const u8 gf100_pte_storage_type_map[256] =
 };
 
 
-static void
+void
 gf100_vm_map_pgt(struct nvkm_gpuobj *pgd, u32 index, struct nvkm_memory *pgt[2])
 {
 	u32 pde[2] = { 0, 0 };
@@ -98,7 +98,7 @@ gf100_vm_addr(struct nvkm_vma *vma, u64 phys, u32 memtype, u32 target)
 	return phys;
 }
 
-static void
+void
 gf100_vm_map(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 	     struct nvkm_mem *mem, u32 pte, u32 cnt, u64 phys, u64 delta)
 {
@@ -123,7 +123,7 @@ gf100_vm_map(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 	nvkm_done(pgt);
 }
 
-static void
+void
 gf100_vm_map_sg(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 		struct nvkm_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
 {
@@ -142,7 +142,7 @@ gf100_vm_map_sg(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 	nvkm_done(pgt);
 }
 
-static void
+void
 gf100_vm_unmap(struct nvkm_vma *vma, struct nvkm_memory *pgt, u32 pte, u32 cnt)
 {
 	nvkm_kmap(pgt);
@@ -155,7 +155,7 @@ gf100_vm_unmap(struct nvkm_vma *vma, struct nvkm_memory *pgt, u32 pte, u32 cnt)
 	nvkm_done(pgt);
 }
 
-static void
+void
 gf100_vm_flush(struct nvkm_vm *vm)
 {
 	struct nvkm_mmu *mmu = vm->mmu;
@@ -189,7 +189,7 @@ gf100_vm_flush(struct nvkm_vm *vm)
 	mutex_unlock(&mmu->subdev.mutex);
 }
 
-static int
+int
 gf100_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
 		struct lock_class_key *key, struct nvkm_vm **pvm)
 {
