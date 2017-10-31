@@ -474,8 +474,6 @@ nouveau_fence_new(struct nouveau_channel *chan, bool sysmem,
 	if (!fence)
 		return -ENOMEM;
 
-	fence->sysmem = sysmem;
-
 	ret = nouveau_fence_emit(fence, chan);
 	if (ret)
 		nouveau_fence_unref(&fence);
