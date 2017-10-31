@@ -571,11 +571,6 @@ static void tgn10_unlock(struct timing_generator *tg)
 
 	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
 			OTG_MASTER_UPDATE_LOCK, 0);
-
-	/* why are we waiting here? */
-	REG_WAIT(OTG_DOUBLE_BUFFER_CONTROL,
-			OTG_UPDATE_PENDING, 0,
-			1, 100000);
 }
 
 static void tgn10_get_position(struct timing_generator *tg,
