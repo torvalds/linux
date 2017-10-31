@@ -111,6 +111,9 @@
  */
 static DEFINE_PER_CPU(struct fpsimd_state *, fpsimd_last_state);
 
+/* Default VL for tasks that don't set it explicitly: */
+static int sve_default_vl = SVE_VL_MIN;
+
 /*
  * Call __sve_free() directly only if you know task can't be scheduled
  * or preempted.
@@ -474,15 +477,20 @@ void fpsimd_flush_thread(void)
 		 * If a bug causes this to go wrong, we make some noise and
 		 * try to fudge thread.sve_vl to a safe value here.
 		 */
-		vl = current->thread.sve_vl;
-
-		if (vl == 0)
-			vl = SVE_VL_MIN;
+		vl = current->thread.sve_vl_onexec ?
+			current->thread.sve_vl_onexec : sve_default_vl;
 
 		if (WARN_ON(!sve_vl_valid(vl)))
 			vl = SVE_VL_MIN;
 
 		current->thread.sve_vl = vl;
+
+		/*
+		 * If the task is not set to inherit, ensure that the vector
+		 * length will be reset by a subsequent exec:
+		 */
+		if (!test_thread_flag(TIF_SVE_VL_INHERIT))
+			current->thread.sve_vl_onexec = 0;
 	}
 
 	set_thread_flag(TIF_FOREIGN_FPSTATE);
