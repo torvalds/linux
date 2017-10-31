@@ -28,6 +28,7 @@ struct xfs_scrub_da_btree {
 	int				maxrecs[XFS_DA_NODE_MAXDEPTH];
 	struct xfs_da_state		*state;
 	struct xfs_scrub_context	*sc;
+	void				*private;
 
 	/*
 	 * Lowest and highest directory block address in which we expect
@@ -53,6 +54,6 @@ void xfs_scrub_da_set_corrupt(struct xfs_scrub_da_btree *ds, int level);
 int xfs_scrub_da_btree_hash(struct xfs_scrub_da_btree *ds, int level,
 			    __be32 *hashp);
 int xfs_scrub_da_btree(struct xfs_scrub_context *sc, int whichfork,
-		       xfs_scrub_da_btree_rec_fn scrub_fn);
+		       xfs_scrub_da_btree_rec_fn scrub_fn, void *private);
 
 #endif /* __XFS_SCRUB_DABTREE_H__ */

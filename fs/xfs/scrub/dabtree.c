@@ -467,7 +467,8 @@ int
 xfs_scrub_da_btree(
 	struct xfs_scrub_context	*sc,
 	int				whichfork,
-	xfs_scrub_da_btree_rec_fn	scrub_fn)
+	xfs_scrub_da_btree_rec_fn	scrub_fn,
+	void				*private)
 {
 	struct xfs_scrub_da_btree	ds = {};
 	struct xfs_mount		*mp = sc->mp;
@@ -492,6 +493,7 @@ xfs_scrub_da_btree(
 	ds.state->args = &ds.dargs;
 	ds.state->mp = mp;
 	ds.sc = sc;
+	ds.private = private;
 	if (whichfork == XFS_ATTR_FORK) {
 		ds.dargs.geo = mp->m_attr_geo;
 		ds.lowest = 0;

@@ -770,7 +770,7 @@ xfs_scrub_directory(
 	}
 
 	/* Check directory tree structure */
-	error = xfs_scrub_da_btree(sc, XFS_DATA_FORK, xfs_scrub_dir_rec);
+	error = xfs_scrub_da_btree(sc, XFS_DATA_FORK, xfs_scrub_dir_rec, NULL);
 	if (error)
 		return error;
 
