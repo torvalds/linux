@@ -14,7 +14,7 @@ struct nvkm_ltc {
 
 	u32 num_tags;
 	u32 tag_base;
-	struct nvkm_mm_node *tag_ram;
+	struct nvkm_memory *tag_ram;
 
 	int zbc_min;
 	int zbc_max;

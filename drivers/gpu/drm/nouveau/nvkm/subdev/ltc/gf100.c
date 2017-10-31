@@ -23,6 +23,7 @@
  */
 #include "priv.h"
 
+#include <core/memory.h>
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 
@@ -152,7 +153,8 @@ gf100_ltc_flush(struct nvkm_ltc *ltc)
 int
 gf100_ltc_oneinit_tag_ram(struct nvkm_ltc *ltc)
 {
-	struct nvkm_fb *fb = ltc->subdev.device->fb;
+	struct nvkm_device *device = ltc->subdev.device;
+	struct nvkm_fb *fb = device->fb;
 	struct nvkm_ram *ram = fb->ram;
 	u32 tag_size, tag_margin, tag_align;
 	int ret;
@@ -182,14 +184,13 @@ gf100_ltc_oneinit_tag_ram(struct nvkm_ltc *ltc)
 	 */
 	tag_size  = (ltc->num_tags / 64) * 0x6000 + tag_margin;
 	tag_size += tag_align;
-	tag_size  = (tag_size + 0xfff) >> 12; /* round up */
 
-	ret = nvkm_mm_tail(&ram->vram, NVKM_RAM_MM_NORMAL, 1, tag_size,
-			   tag_size, 1, &ltc->tag_ram);
+	ret = nvkm_ram_get(device, NVKM_RAM_MM_NORMAL, 0x01, 12, tag_size,
+			   true, true, &ltc->tag_ram);
 	if (ret) {
 		ltc->num_tags = 0;
 	} else {
-		u64 tag_base = ((u64)ltc->tag_ram->offset << 12) + tag_margin;
+		u64 tag_base = nvkm_memory_addr(ltc->tag_ram) + tag_margin;
 
 		tag_base += tag_align - 1;
 		do_div(tag_base, tag_align);

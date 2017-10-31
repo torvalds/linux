@@ -23,6 +23,7 @@
  */
 #include "priv.h"
 
+#include <core/memory.h>
 #include <subdev/fb.h>
 
 int
@@ -119,9 +120,7 @@ static void *
 nvkm_ltc_dtor(struct nvkm_subdev *subdev)
 {
 	struct nvkm_ltc *ltc = nvkm_ltc(subdev);
-	struct nvkm_ram *ram = ltc->subdev.device->fb->ram;
-	if (ram)
-		nvkm_mm_free(&ram->vram, &ltc->tag_ram);
+	nvkm_memory_unref(&ltc->tag_ram);
 	return ltc;
 }
 
