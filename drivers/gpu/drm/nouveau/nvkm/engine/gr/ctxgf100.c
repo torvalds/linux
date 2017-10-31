@@ -986,14 +986,14 @@ gf100_grctx_pack_tpc[] = {
  ******************************************************************************/
 
 int
-gf100_grctx_mmio_data(struct gf100_grctx *info, u32 size, u32 align, u32 access)
+gf100_grctx_mmio_data(struct gf100_grctx *info, u32 size, u32 align, bool priv)
 {
 	if (info->data) {
 		info->buffer[info->buffer_nr] = round_up(info->addr, align);
 		info->addr = info->buffer[info->buffer_nr] + size;
 		info->data->size = size;
 		info->data->align = align;
-		info->data->access = access;
+		info->data->priv = priv;
 		info->data++;
 		return info->buffer_nr++;
 	}
@@ -1028,9 +1028,8 @@ void
 gf100_grctx_generate_bundle(struct gf100_grctx *info)
 {
 	const struct gf100_grctx_func *grctx = info->gr->func->grctx;
-	const u32 access = NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS;
 	const int s = 8;
-	const int b = mmio_vram(info, grctx->bundle_size, (1 << s), access);
+	const int b = mmio_vram(info, grctx->bundle_size, (1 << s), true);
 	mmio_refn(info, 0x408004, 0x00000000, s, b);
 	mmio_wr32(info, 0x408008, 0x80000000 | (grctx->bundle_size >> s));
 	mmio_refn(info, 0x418808, 0x00000000, s, b);
@@ -1041,9 +1040,8 @@ void
 gf100_grctx_generate_pagepool(struct gf100_grctx *info)
 {
 	const struct gf100_grctx_func *grctx = info->gr->func->grctx;
-	const u32 access = NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS;
 	const int s = 8;
-	const int b = mmio_vram(info, grctx->pagepool_size, (1 << s), access);
+	const int b = mmio_vram(info, grctx->pagepool_size, (1 << s), true);
 	mmio_refn(info, 0x40800c, 0x00000000, s, b);
 	mmio_wr32(info, 0x408010, 0x80000000);
 	mmio_refn(info, 0x419004, 0x00000000, s, b);
@@ -1057,9 +1055,8 @@ gf100_grctx_generate_attrib(struct gf100_grctx *info)
 	const struct gf100_grctx_func *grctx = gr->func->grctx;
 	const u32 attrib = grctx->attrib_nr;
 	const u32   size = 0x20 * (grctx->attrib_nr_max + grctx->alpha_nr_max);
-	const u32 access = NV_MEM_ACCESS_RW;
 	const int s = 12;
-	const int b = mmio_vram(info, size * gr->tpc_total, (1 << s), access);
+	const int b = mmio_vram(info, size * gr->tpc_total, (1 << s), false);
 	int gpc, tpc;
 	u32 bo = 0;
 

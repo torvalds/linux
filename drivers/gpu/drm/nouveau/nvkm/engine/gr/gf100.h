@@ -45,7 +45,7 @@
 struct gf100_gr_data {
 	u32 size;
 	u32 align;
-	u32 access;
+	bool priv;
 };
 
 struct gf100_gr_mmio {
@@ -161,14 +161,15 @@ void gp100_gr_init_rop_active_fbps(struct gf100_gr *);
 struct gf100_gr_chan {
 	struct nvkm_object object;
 	struct gf100_gr *gr;
+	struct nvkm_vmm *vmm;
 
 	struct nvkm_memory *mmio;
-	struct nvkm_vma mmio_vma;
+	struct nvkm_vma *mmio_vma;
 	int mmio_nr;
 
 	struct {
 		struct nvkm_memory *mem;
-		struct nvkm_vma vma;
+		struct nvkm_vma *vma;
 	} data[4];
 };
 

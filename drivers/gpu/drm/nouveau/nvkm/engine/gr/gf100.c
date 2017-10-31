@@ -37,6 +37,7 @@
 
 #include <nvif/class.h>
 #include <nvif/cl9097.h>
+#include <nvif/if900d.h>
 #include <nvif/unpack.h>
 
 /*******************************************************************************
@@ -327,13 +328,13 @@ gf100_gr_chan_bind(struct nvkm_object *object, struct nvkm_gpuobj *parent,
 
 	if (!gr->firmware) {
 		nvkm_wo32(*pgpuobj, 0x00, chan->mmio_nr / 2);
-		nvkm_wo32(*pgpuobj, 0x04, chan->mmio_vma.offset >> 8);
+		nvkm_wo32(*pgpuobj, 0x04, chan->mmio_vma->addr >> 8);
 	} else {
 		nvkm_wo32(*pgpuobj, 0xf4, 0);
 		nvkm_wo32(*pgpuobj, 0xf8, 0);
 		nvkm_wo32(*pgpuobj, 0x10, chan->mmio_nr / 2);
-		nvkm_wo32(*pgpuobj, 0x14, lower_32_bits(chan->mmio_vma.offset));
-		nvkm_wo32(*pgpuobj, 0x18, upper_32_bits(chan->mmio_vma.offset));
+		nvkm_wo32(*pgpuobj, 0x14, lower_32_bits(chan->mmio_vma->addr));
+		nvkm_wo32(*pgpuobj, 0x18, upper_32_bits(chan->mmio_vma->addr));
 		nvkm_wo32(*pgpuobj, 0x1c, 1);
 		nvkm_wo32(*pgpuobj, 0x20, 0);
 		nvkm_wo32(*pgpuobj, 0x28, 0);
@@ -350,18 +351,13 @@ gf100_gr_chan_dtor(struct nvkm_object *object)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(chan->data); i++) {
-		if (chan->data[i].vma.node) {
-			nvkm_vm_unmap(&chan->data[i].vma);
-			nvkm_vm_put(&chan->data[i].vma);
-		}
+		nvkm_vmm_put(chan->vmm, &chan->data[i].vma);
 		nvkm_memory_unref(&chan->data[i].mem);
 	}
 
-	if (chan->mmio_vma.node) {
-		nvkm_vm_unmap(&chan->mmio_vma);
-		nvkm_vm_put(&chan->mmio_vma);
-	}
+	nvkm_vmm_put(chan->vmm, &chan->mmio_vma);
 	nvkm_memory_unref(&chan->mmio);
+	nvkm_vmm_unref(&chan->vmm);
 	return chan;
 }
 
@@ -380,6 +376,7 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 	struct gf100_gr_data *data = gr->mmio_data;
 	struct gf100_gr_mmio *mmio = gr->mmio_list;
 	struct gf100_gr_chan *chan;
+	struct gf100_vmm_map_v0 args = { .priv = 1 };
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	int ret, i;
 
@@ -387,6 +384,7 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 		return -ENOMEM;
 	nvkm_object_ctor(&gf100_gr_chan, oclass, &chan->object);
 	chan->gr = gr;
+	chan->vmm = nvkm_vmm_ref(fifoch->vmm);
 	*pobject = &chan->object;
 
 	/* allocate memory for a "mmio list" buffer that's used by the HUB
@@ -398,13 +396,12 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 	if (ret)
 		return ret;
 
-	ret = nvkm_vm_get(fifoch->vmm, 0x1000, 12, NV_MEM_ACCESS_RW |
-			  NV_MEM_ACCESS_SYS, &chan->mmio_vma);
+	ret = nvkm_vmm_get(fifoch->vmm, 12, 0x1000, &chan->mmio_vma);
 	if (ret)
 		return ret;
 
 	ret = nvkm_memory_map(chan->mmio, 0, fifoch->vmm,
-			      &chan->mmio_vma, NULL, 0);
+			      chan->mmio_vma, &args, sizeof(args));
 	if (ret)
 		return ret;
 
@@ -416,14 +413,16 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 		if (ret)
 			return ret;
 
-		ret = nvkm_vm_get(fifoch->vmm,
-				  nvkm_memory_size(chan->data[i].mem), 12,
-				  data->access, &chan->data[i].vma);
+		ret = nvkm_vmm_get(fifoch->vmm, 12,
+				   nvkm_memory_size(chan->data[i].mem),
+				   &chan->data[i].vma);
 		if (ret)
 			return ret;
 
-		ret = nvkm_memory_map(chan->data[i].mem, 0, fifoch->vmm,
-				      &chan->data[i].vma, NULL, 0);
+		args.priv = data->priv;
+
+		ret = nvkm_memory_map(chan->data[i].mem, 0, chan->vmm,
+				      chan->data[i].vma, &args, sizeof(args));
 		if (ret)
 			return ret;
 
@@ -437,7 +436,7 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 		u32 data = mmio->data;
 
 		if (mmio->buffer >= 0) {
-			u64 info = chan->data[mmio->buffer].vma.offset;
+			u64 info = chan->data[mmio->buffer].vma->addr;
 			data |= info >> mmio->shift;
 		}
 
