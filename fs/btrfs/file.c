@@ -1519,7 +1519,7 @@ lock_and_cleanup_extent_if_need(struct btrfs_inode *inode, struct page **pages,
 		clear_extent_bit(&inode->io_tree, start_pos, last_pos,
 				 EXTENT_DIRTY | EXTENT_DELALLOC |
 				 EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG,
-				 0, 0, cached_state, GFP_NOFS);
+				 0, 0, cached_state);
 		*lockstart = start_pos;
 		*lockend = last_pos;
 		ret = 1;

@@ -300,7 +300,7 @@ int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 		unsigned bits, struct extent_changeset *changeset);
 int clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		     unsigned bits, int wake, int delete,
-		     struct extent_state **cached, gfp_t mask);
+		     struct extent_state **cached);
 int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		     unsigned bits, int wake, int delete,
 		     struct extent_state **cached, gfp_t mask,
@@ -308,8 +308,7 @@ int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 
 static inline int unlock_extent(struct extent_io_tree *tree, u64 start, u64 end)
 {
-	return clear_extent_bit(tree, start, end, EXTENT_LOCKED, 1, 0, NULL,
-				GFP_NOFS);
+	return clear_extent_bit(tree, start, end, EXTENT_LOCKED, 1, 0, NULL);
 }
 
 static inline int unlock_extent_cached(struct extent_io_tree *tree, u64 start,
@@ -327,8 +326,7 @@ static inline int clear_extent_bits(struct extent_io_tree *tree, u64 start,
 	if (bits & EXTENT_LOCKED)
 		wake = 1;
 
-	return clear_extent_bit(tree, start, end, bits, wake, 0, NULL,
-			GFP_NOFS);
+	return clear_extent_bit(tree, start, end, bits, wake, 0, NULL);
 }
 
 int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
@@ -362,7 +360,7 @@ static inline int clear_extent_dirty(struct extent_io_tree *tree, u64 start,
 {
 	return clear_extent_bit(tree, start, end,
 				EXTENT_DIRTY | EXTENT_DELALLOC |
-				EXTENT_DO_ACCOUNTING, 0, 0, NULL, GFP_NOFS);
+				EXTENT_DO_ACCOUNTING, 0, 0, NULL);
 }
 
 int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,

@@ -1295,10 +1295,10 @@ int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 
 int clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		     unsigned bits, int wake, int delete,
-		     struct extent_state **cached, gfp_t mask)
+		     struct extent_state **cached)
 {
 	return __clear_extent_bit(tree, start, end, bits, wake, delete,
-				  cached, mask, NULL);
+				  cached, GFP_NOFS, NULL);
 }
 
 int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
@@ -1348,7 +1348,7 @@ int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end)
 	if (err == -EEXIST) {
 		if (failed_start > start)
 			clear_extent_bit(tree, start, failed_start - 1,
-					 EXTENT_LOCKED, 1, 0, NULL, GFP_NOFS);
+					 EXTENT_LOCKED, 1, 0, NULL);
 		return 0;
 	}
 	return 1;
@@ -1744,7 +1744,7 @@ void extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
 				 unsigned long page_ops)
 {
 	clear_extent_bit(&BTRFS_I(inode)->io_tree, start, end, clear_bits, 1, 0,
-			 NULL, GFP_NOFS);
+			 NULL);
 
 	__process_pages_contig(inode->i_mapping, locked_page,
 			       start >> PAGE_SHIFT, end >> PAGE_SHIFT,
@@ -4207,7 +4207,7 @@ int extent_invalidatepage(struct extent_io_tree *tree,
 	clear_extent_bit(tree, start, end,
 			 EXTENT_LOCKED | EXTENT_DIRTY | EXTENT_DELALLOC |
 			 EXTENT_DO_ACCOUNTING,
-			 1, 1, &cached_state, GFP_NOFS);
+			 1, 1, &cached_state);
 	return 0;
 }
 

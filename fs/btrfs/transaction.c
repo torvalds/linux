@@ -1016,8 +1016,7 @@ static int __btrfs_wait_marked_extents(struct btrfs_fs_info *fs_info,
 		 * it's safe to do it (through clear_btree_io_tree()).
 		 */
 		err = clear_extent_bit(dirty_pages, start, end,
-				       EXTENT_NEED_WAIT,
-				       0, 0, &cached_state, GFP_NOFS);
+				       EXTENT_NEED_WAIT, 0, 0, &cached_state);
 		if (err == -ENOMEM)
 			err = 0;
 		if (!err)
