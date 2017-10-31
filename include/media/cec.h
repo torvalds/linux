@@ -117,6 +117,10 @@ struct cec_adap_ops {
 	void (*adap_status)(struct cec_adapter *adap, struct seq_file *file);
 	void (*adap_free)(struct cec_adapter *adap);
 
+	/* Error injection callbacks */
+	int (*error_inj_show)(struct cec_adapter *adap, struct seq_file *sf);
+	bool (*error_inj_parse_line)(struct cec_adapter *adap, char *line);
+
 	/* High-level CEC message callback */
 	int (*received)(struct cec_adapter *adap, struct cec_msg *msg);
 };
@@ -189,6 +193,7 @@ struct cec_adapter {
 
 	struct dentry *cec_dir;
 	struct dentry *status_file;
+	struct dentry *error_inj_file;
 
 	u16 phys_addrs[15];
 	u32 sequence;
