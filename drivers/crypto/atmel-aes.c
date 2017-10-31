@@ -77,12 +77,11 @@
 				 AES_FLAGS_ENCRYPT |		\
 				 AES_FLAGS_GTAGEN)
 
-#define AES_FLAGS_INIT		BIT(2)
 #define AES_FLAGS_BUSY		BIT(3)
 #define AES_FLAGS_DUMP_REG	BIT(4)
 #define AES_FLAGS_OWN_SHA	BIT(5)
 
-#define AES_FLAGS_PERSISTENT	(AES_FLAGS_INIT | AES_FLAGS_BUSY)
+#define AES_FLAGS_PERSISTENT	AES_FLAGS_BUSY
 
 #define ATMEL_AES_QUEUE_LENGTH	50
 
@@ -451,11 +450,8 @@ static int atmel_aes_hw_init(struct atmel_aes_dev *dd)
 	if (err)
 		return err;
 
-	if (!(dd->flags & AES_FLAGS_INIT)) {
-		atmel_aes_write(dd, AES_CR, AES_CR_SWRST);
-		atmel_aes_write(dd, AES_MR, 0xE << AES_MR_CKEY_OFFSET);
-		dd->flags |= AES_FLAGS_INIT;
-	}
+	atmel_aes_write(dd, AES_CR, AES_CR_SWRST);
+	atmel_aes_write(dd, AES_MR, 0xE << AES_MR_CKEY_OFFSET);
 
 	return 0;
 }
