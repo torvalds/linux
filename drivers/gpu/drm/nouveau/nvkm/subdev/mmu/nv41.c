@@ -21,11 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv04.h"
+#include "vmm.h"
 
-#include <core/gpuobj.h>
 #include <core/option.h>
 #include <subdev/timer.h>
+
+#include <nvif/class.h>
 
 #define NV41_GART_SIZE (512 * 1024 * 1024)
 #define NV41_GART_PAGE (  4 * 1024)
@@ -68,17 +69,17 @@ nv41_vm_unmap(struct nvkm_vma *vma, struct nvkm_memory *pgt, u32 pte, u32 cnt)
 static void
 nv41_vm_flush(struct nvkm_vm *vm)
 {
-	struct nv04_mmu *mmu = nv04_mmu(vm->mmu);
-	struct nvkm_device *device = mmu->base.subdev.device;
+	struct nvkm_subdev *subdev = &vm->mmu->subdev;
+	struct nvkm_device *device = subdev->device;
 
-	mutex_lock(&mmu->base.subdev.mutex);
+	mutex_lock(&subdev->mutex);
 	nvkm_wr32(device, 0x100810, 0x00000022);
 	nvkm_msec(device, 2000,
 		if (nvkm_rd32(device, 0x100810) & 0x00000020)
 			break;
 	);
 	nvkm_wr32(device, 0x100810, 0x00000000);
-	mutex_unlock(&mmu->base.subdev.mutex);
+	mutex_unlock(&subdev->mutex);
 }
 
 /*******************************************************************************
@@ -86,38 +87,24 @@ nv41_vm_flush(struct nvkm_vm *vm)
  ******************************************************************************/
 
 static int
-nv41_mmu_oneinit(struct nvkm_mmu *base)
+nv41_mmu_oneinit(struct nvkm_mmu *mmu)
 {
-	struct nv04_mmu *mmu = nv04_mmu(base);
-	struct nvkm_device *device = mmu->base.subdev.device;
-	int ret;
-
-	ret = nvkm_vm_create(&mmu->base, 0, NV41_GART_SIZE, 0, 4096, NULL,
-			     &mmu->base.vmm);
-	if (ret)
-		return ret;
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
-			      (NV41_GART_SIZE / NV41_GART_PAGE) * 4, 16, true,
-			      &mmu->base.vmm->pgt[0].mem[0]);
-	mmu->base.vmm->pgt[0].refcount[0] = 1;
-	return ret;
+	mmu->vmm->pgt[0].mem[0] = mmu->vmm->pd->pt[0]->memory;
+	mmu->vmm->pgt[0].refcount[0] = 1;
+	return 0;
 }
 
 static void
-nv41_mmu_init(struct nvkm_mmu *base)
+nv41_mmu_init(struct nvkm_mmu *mmu)
 {
-	struct nv04_mmu *mmu = nv04_mmu(base);
-	struct nvkm_device *device = mmu->base.subdev.device;
-	struct nvkm_memory *dma = mmu->base.vmm->pgt[0].mem[0];
-	nvkm_wr32(device, 0x100800, 0x00000002 | nvkm_memory_addr(dma));
+	struct nvkm_device *device = mmu->subdev.device;
+	nvkm_wr32(device, 0x100800, 0x00000002 | mmu->vmm->pd->pt[0]->addr);
 	nvkm_mask(device, 0x10008c, 0x00000100, 0x00000100);
 	nvkm_wr32(device, 0x100820, 0x00000000);
 }
 
 static const struct nvkm_mmu_func
 nv41_mmu = {
-	.dtor = nv04_mmu_dtor,
 	.oneinit = nv41_mmu_oneinit,
 	.init = nv41_mmu_init,
 	.limit = NV41_GART_SIZE,
@@ -128,6 +115,7 @@ nv41_mmu = {
 	.map_sg = nv41_vm_map_sg,
 	.unmap = nv41_vm_unmap,
 	.flush = nv41_vm_flush,
+	.vmm = {{ -1, -1, NVIF_CLASS_VMM_NV04}, nv41_vmm_new, true },
 };
 
 int
@@ -137,5 +125,5 @@ nv41_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
 	    !nvkm_boolopt(device->cfgopt, "NvPCIE", true))
 		return nv04_mmu_new(device, index, pmmu);
 
-	return nv04_mmu_new_(&nv41_mmu, device, index, pmmu);
+	return nvkm_mmu_new_(&nv41_mmu, device, index, pmmu);
 }

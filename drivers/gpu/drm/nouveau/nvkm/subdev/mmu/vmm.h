@@ -105,6 +105,9 @@ void nvkm_vmm_dtor(struct nvkm_vmm *);
 int nv04_vmm_new_(const struct nvkm_vmm_func *, struct nvkm_mmu *, u32,
 		  u64, u64, void *, u32, struct lock_class_key *,
 		  const char *, struct nvkm_vmm **);
+
 int nv04_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
+		 struct lock_class_key *, const char *, struct nvkm_vmm **);
+int nv41_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		 struct lock_class_key *, const char *, struct nvkm_vmm **);
 #endif
