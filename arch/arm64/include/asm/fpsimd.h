@@ -38,12 +38,15 @@ struct fpsimd_state {
 			__uint128_t vregs[32];
 			u32 fpsr;
 			u32 fpcr;
+			/*
+			 * For ptrace compatibility, pad to next 128-bit
+			 * boundary here if extending this struct.
+			 */
 		};
 	};
 	/* the id of the last cpu to have restored this state */
 	unsigned int cpu;
 };
-
 
 #if defined(__KERNEL__) && defined(CONFIG_COMPAT)
 /* Masks for extracting the FPSR and FPCR from the FPSCR */
@@ -88,6 +91,10 @@ extern size_t sve_state_size(struct task_struct const *task);
 
 extern void sve_alloc(struct task_struct *task);
 extern void fpsimd_release_task(struct task_struct *task);
+extern void fpsimd_sync_to_sve(struct task_struct *task);
+extern void sve_sync_to_fpsimd(struct task_struct *task);
+extern void sve_sync_from_fpsimd_zeropad(struct task_struct *task);
+
 extern int sve_set_vector_length(struct task_struct *task,
 				 unsigned long vl, unsigned long flags);
 
@@ -104,6 +111,9 @@ extern void __init sve_setup(void);
 
 static inline void sve_alloc(struct task_struct *task) { }
 static inline void fpsimd_release_task(struct task_struct *task) { }
+static inline void sve_sync_to_fpsimd(struct task_struct *task) { }
+static inline void sve_sync_from_fpsimd_zeropad(struct task_struct *task) { }
+
 static inline void sve_init_vq_map(void) { }
 static inline void sve_update_vq_map(void) { }
 static inline int sve_verify_vq_map(void) { return 0; }
