@@ -90,6 +90,34 @@ nv50_instobj_slow = {
 };
 
 static void
+nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
+{
+	struct nvkm_memory *memory = &iobj->memory;
+	struct nvkm_subdev *subdev = &iobj->imem->base.subdev;
+	struct nvkm_device *device = subdev->device;
+	u64 size = nvkm_memory_size(memory);
+	void __iomem *map;
+	int ret;
+
+	iobj->map = ERR_PTR(-ENOMEM);
+
+	ret = nvkm_vm_get(vmm, size, 12, NV_MEM_ACCESS_RW, &iobj->bar);
+	if (ret == 0) {
+		map = ioremap(device->func->resource_addr(device, 3) +
+			      (u32)iobj->bar.offset, size);
+		if (map) {
+			nvkm_memory_map(memory, &iobj->bar, 0);
+			iobj->map = map;
+		} else {
+			nvkm_warn(subdev, "PRAMIN ioremap failed\n");
+			nvkm_vm_put(&iobj->bar);
+		}
+	} else {
+		nvkm_warn(subdev, "PRAMIN exhausted\n");
+	}
+}
+
+static void
 nv50_instobj_map(struct nvkm_memory *memory, struct nvkm_vma *vma, u64 offset)
 {
 	struct nv50_instobj *iobj = nv50_instobj(memory);
@@ -112,7 +140,7 @@ nv50_instobj_acquire(struct nvkm_memory *memory)
 	unsigned long flags;
 
 	if (!iobj->map && (vm = nvkm_bar_bar2_vmm(imem->base.subdev.device)))
-		nvkm_memory_boot(memory, vm);
+		nv50_instobj_kmap(iobj, vm);
 	if (!IS_ERR_OR_NULL(iobj->map))
 		return iobj->map;
 
@@ -122,31 +150,10 @@ nv50_instobj_acquire(struct nvkm_memory *memory)
 }
 
 static void
-nv50_instobj_boot(struct nvkm_memory *memory, struct nvkm_vm *vm)
+nv50_instobj_boot(struct nvkm_memory *memory, struct nvkm_vmm *vmm)
 {
 	struct nv50_instobj *iobj = nv50_instobj(memory);
-	struct nvkm_subdev *subdev = &iobj->imem->base.subdev;
-	struct nvkm_device *device = subdev->device;
-	u64 size = nvkm_memory_size(memory);
-	void __iomem *map;
-	int ret;
-
-	iobj->map = ERR_PTR(-ENOMEM);
-
-	ret = nvkm_vm_get(vm, size, 12, NV_MEM_ACCESS_RW, &iobj->bar);
-	if (ret == 0) {
-		map = ioremap(device->func->resource_addr(device, 3) +
-			      (u32)iobj->bar.offset, size);
-		if (map) {
-			nvkm_memory_map(memory, &iobj->bar, 0);
-			iobj->map = map;
-		} else {
-			nvkm_warn(subdev, "PRAMIN ioremap failed\n");
-			nvkm_vm_put(&iobj->bar);
-		}
-	} else {
-		nvkm_warn(subdev, "PRAMIN exhausted\n");
-	}
+	nv50_instobj_kmap(iobj, vmm);
 }
 
 static u64
@@ -173,8 +180,8 @@ nv50_instobj_dtor(struct nvkm_memory *memory)
 	struct nv50_instobj *iobj = nv50_instobj(memory);
 	struct nvkm_ram *ram = iobj->imem->base.subdev.device->fb->ram;
 	if (!IS_ERR_OR_NULL(iobj->map)) {
-		nvkm_vm_put(&iobj->bar);
 		iounmap(iobj->map);
+		nvkm_vm_put(&iobj->bar);
 	}
 	ram->func->put(ram, &iobj->mem);
 	return iobj;
