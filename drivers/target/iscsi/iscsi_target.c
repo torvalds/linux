@@ -1460,9 +1460,9 @@ __iscsit_check_dataout_hdr(struct iscsi_conn *conn, void *buf,
 	iscsit_mod_dataout_timer(cmd);
 
 	if ((be32_to_cpu(hdr->offset) + payload_length) > cmd->se_cmd.data_length) {
-		pr_err("DataOut Offset: %u, Length %u greater than"
-			" iSCSI Command EDTL %u, protocol error.\n",
-			hdr->offset, payload_length, cmd->se_cmd.data_length);
+		pr_err("DataOut Offset: %u, Length %u greater than iSCSI Command EDTL %u, protocol error.\n",
+		       be32_to_cpu(hdr->offset), payload_length,
+		       cmd->se_cmd.data_length);
 		return iscsit_reject_cmd(cmd, ISCSI_REASON_BOOKMARK_INVALID, buf);
 	}
 
