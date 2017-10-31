@@ -232,11 +232,7 @@ static int cmp_map_id(const void *k, const void *e)
 	const struct idmap_key *key = k;
 	const struct uid_gid_extent *el = e;
 
-	/* handle map_id_range_down() */
-	if (key->count)
-		id2 = key->id + key->count - 1;
-	else
-		id2 = key->id;
+	id2 = key->id + key->count - 1;
 
 	/* handle map_id_{down,up}() */
 	if (key->map_up)
@@ -362,7 +358,7 @@ static u32 map_id_down(struct uid_gid_map *map, u32 id)
 	if (extents <= UID_GID_MAP_MAX_BASE_EXTENTS)
 		return map_id_down_base(map, id);
 
-	return map_id_range_down_max(map, id, 0);
+	return map_id_range_down_max(map, id, 1);
 }
 
 /**
@@ -404,7 +400,7 @@ static u32 map_id_up_max(struct uid_gid_map *map, u32 id)
 	struct idmap_key key;
 
 	key.map_up = true;
-	key.count = 0;
+	key.count = 1;
 	key.id = id;
 
 	extents = map->nr_extents;
