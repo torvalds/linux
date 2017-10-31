@@ -129,6 +129,21 @@ nvkm_instmem_wr32(struct nvkm_instmem *imem, u32 addr, u32 data)
 	return imem->func->wr32(imem, addr, data);
 }
 
+void
+nvkm_instmem_boot(struct nvkm_instmem *imem)
+{
+	/* Separate bootstrapped objects from normal list, as we need
+	 * to make sure they're accessed with the slowpath on suspend
+	 * and resume.
+	 */
+	struct nvkm_instobj *iobj, *itmp;
+	spin_lock(&imem->lock);
+	list_for_each_entry_safe(iobj, itmp, &imem->list, head) {
+		list_move_tail(&iobj->head, &imem->boot);
+	}
+	spin_unlock(&imem->lock);
+}
+
 static int
 nvkm_instmem_fini(struct nvkm_subdev *subdev, bool suspend)
 {
@@ -137,6 +152,12 @@ nvkm_instmem_fini(struct nvkm_subdev *subdev, bool suspend)
 
 	if (suspend) {
 		list_for_each_entry(iobj, &imem->list, head) {
+			int ret = nvkm_instobj_save(iobj);
+			if (ret)
+				return ret;
+		}
+
+		list_for_each_entry(iobj, &imem->boot, head) {
 			int ret = nvkm_instobj_save(iobj);
 			if (ret)
 				return ret;
@@ -154,6 +175,11 @@ nvkm_instmem_init(struct nvkm_subdev *subdev)
 {
 	struct nvkm_instmem *imem = nvkm_instmem(subdev);
 	struct nvkm_instobj *iobj;
+
+	list_for_each_entry(iobj, &imem->boot, head) {
+		if (iobj->suspend)
+			nvkm_instobj_load(iobj);
+	}
 
 	list_for_each_entry(iobj, &imem->list, head) {
 		if (iobj->suspend)
@@ -198,4 +224,5 @@ nvkm_instmem_ctor(const struct nvkm_instmem_func *func,
 	imem->func = func;
 	spin_lock_init(&imem->lock);
 	INIT_LIST_HEAD(&imem->list);
+	INIT_LIST_HEAD(&imem->boot);
 }

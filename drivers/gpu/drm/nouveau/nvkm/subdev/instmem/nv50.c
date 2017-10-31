@@ -271,6 +271,7 @@ nv50_instobj_boot(struct nvkm_memory *memory, struct nvkm_vmm *vmm)
 	}
 
 	nv50_instobj_kmap(iobj, vmm);
+	nvkm_instmem_boot(imem);
 	mutex_unlock(&imem->subdev.mutex);
 }
 
