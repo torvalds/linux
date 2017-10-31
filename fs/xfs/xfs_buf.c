@@ -42,6 +42,7 @@
 #include "xfs_mount.h"
 #include "xfs_trace.h"
 #include "xfs_log.h"
+#include "xfs_errortag.h"
 #include "xfs_error.h"
 
 static kmem_zone_t *xfs_buf_zone;
