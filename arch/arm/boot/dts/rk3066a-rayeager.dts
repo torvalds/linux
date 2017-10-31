@@ -173,6 +173,7 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	disable-wp;
+	supports-emmc;
 	non-removable;
 	num-slots = <1>;
 	pinctrl-names = "default";
@@ -326,6 +327,7 @@
 	bus-width = <4>;
 	disable-wp;
 	num-slots = <1>;
+	supports-sd;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd0_clk>, <&sd0_cmd>, <&sd0_cd>, <&sd0_bus4>;
 	vmmc-supply = <&vcc_sd>;
@@ -339,6 +341,7 @@
 	disable-wp;
 	non-removable;
 	num-slots = <1>;
+	supports-sdio;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd1_clk>, <&sd1_cmd>, <&sd1_bus4>;
 	vmmc-supply = <&vccio_wl>;
