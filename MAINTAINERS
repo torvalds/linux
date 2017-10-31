@@ -2713,6 +2713,7 @@ L:	linux-kernel@vger.kernel.org
 S:	Supported
 F:	arch/x86/net/bpf_jit*
 F:	Documentation/networking/filter.txt
+F:	Documentation/bpf/
 F:	include/linux/bpf*
 F:	include/linux/filter.h
 F:	include/uapi/linux/bpf*
