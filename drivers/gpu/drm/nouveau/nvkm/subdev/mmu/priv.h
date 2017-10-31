@@ -32,6 +32,14 @@ struct nvkm_mmu_func {
 	void (*unmap)(struct nvkm_vma *, struct nvkm_memory *pgt,
 		      u32 pte, u32 cnt);
 	void (*flush)(struct nvkm_vm *);
+
+	struct {
+		struct nvkm_sclass base;
+		int (*ctor)(struct nvkm_mmu *, u64 addr, u64 size,
+			    void *argv, u32 argc, struct lock_class_key *,
+			    const char *name, struct nvkm_vmm **);
+		bool global;
+	} vmm;
 };
 
 int nvkm_vm_create(struct nvkm_mmu *, u64, u64, u64, u32,

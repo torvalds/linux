@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "priv.h"
+#include "vmm.h"
 
 #include <core/gpuobj.h>
 #include <subdev/fb.h>
@@ -584,22 +585,14 @@ nvkm_vm_boot(struct nvkm_vm *vm, u64 size)
 	return ret;
 }
 
-int
-nvkm_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
-	       u32 block, struct lock_class_key *key, struct nvkm_vm **pvm)
+static int
+nvkm_vm_legacy(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
+	       u32 block, struct nvkm_vm *vm)
 {
-	static struct lock_class_key _key;
-	struct nvkm_vm *vm;
 	u64 mm_length = (offset + length) - mm_offset;
 	int ret;
 
-	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
-	if (!vm)
-		return -ENOMEM;
-
-	__mutex_init(&vm->mutex, "&vm->mutex", key ? key : &_key);
 	INIT_LIST_HEAD(&vm->pgd_list);
-	vm->mmu = mmu;
 	kref_init(&vm->refcount);
 	vm->fpde = offset >> (mmu->func->pgt_bits + 12);
 	vm->lpde = (offset + length - 1) >> (mmu->func->pgt_bits + 12);
@@ -610,16 +603,41 @@ nvkm_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
 		return -ENOMEM;
 	}
 
+	if (block > length)
+		block = length;
+
 	ret = nvkm_mm_init(&vm->mm, 0, mm_offset >> 12, mm_length >> 12,
 			   block >> 12);
 	if (ret) {
 		vfree(vm->pgt);
+		return ret;
+	}
+
+	return 0;
+}
+
+int
+nvkm_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
+	       u32 block, struct lock_class_key *key, struct nvkm_vm **pvm)
+{
+	static struct lock_class_key _key;
+	struct nvkm_vm *vm;
+	int ret;
+
+	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
+	if (!vm)
+		return -ENOMEM;
+
+	__mutex_init(&vm->mutex, "&vm->mutex", key ? key : &_key);
+	vm->mmu = mmu;
+
+	ret = nvkm_vm_legacy(mmu, offset, length, mm_offset, block, vm);
+	if (ret) {
 		kfree(vm);
 		return ret;
 	}
 
 	*pvm = vm;
-
 	return 0;
 }
 
@@ -628,8 +646,29 @@ nvkm_vm_new(struct nvkm_device *device, u64 offset, u64 length, u64 mm_offset,
 	    struct lock_class_key *key, struct nvkm_vm **pvm)
 {
 	struct nvkm_mmu *mmu = device->mmu;
+
+	*pvm = NULL;
+	if (mmu->func->vmm.ctor) {
+		int ret = mmu->func->vmm.ctor(mmu, mm_offset,
+					      offset + length - mm_offset,
+					      NULL, 0, key, "legacy", pvm);
+		if (ret) {
+			nvkm_vm_ref(NULL, pvm, NULL);
+			return ret;
+		}
+
+		ret = nvkm_vm_legacy(mmu, offset, length, mm_offset,
+				     (*pvm)->func->page_block ?
+				     (*pvm)->func->page_block : 4096, *pvm);
+		if (ret)
+			nvkm_vm_ref(NULL, pvm, NULL);
+
+		return ret;
+	}
+
 	if (!mmu->func->create)
 		return -EINVAL;
+
 	return mmu->func->create(mmu, offset, length, mm_offset, key, pvm);
 }
 
@@ -688,6 +727,9 @@ nvkm_vm_del(struct kref *kref)
 
 	nvkm_mm_fini(&vm->mm);
 	vfree(vm->pgt);
+
+	if (vm->func)
+		nvkm_vmm_dtor(vm);
 	kfree(vm);
 }
 
@@ -717,8 +759,17 @@ static int
 nvkm_mmu_oneinit(struct nvkm_subdev *subdev)
 {
 	struct nvkm_mmu *mmu = nvkm_mmu(subdev);
+
+	if (mmu->func->vmm.global) {
+		int ret = nvkm_vm_new(subdev->device, 0, mmu->limit, 0,
+				      NULL, &mmu->vmm);
+		if (ret)
+			return ret;
+	}
+
 	if (mmu->func->oneinit)
 		return mmu->func->oneinit(mmu);
+
 	return 0;
 }
 
@@ -739,6 +790,7 @@ nvkm_mmu_dtor(struct nvkm_subdev *subdev)
 
 	if (mmu->func->dtor)
 		data = mmu->func->dtor(mmu);
+	nvkm_vm_ref(NULL, &mmu->vmm, NULL);
 
 	nvkm_mmu_ptc_fini(mmu);
 	return data;

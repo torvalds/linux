@@ -26,20 +26,28 @@ struct nvkm_vma {
 };
 
 struct nvkm_vm {
+	const struct nvkm_vmm_func *func;
 	struct nvkm_mmu *mmu;
-
+	const char *name;
+	struct kref kref;
 	struct mutex mutex;
+
+	u64 start;
+	u64 limit;
+
+	struct nvkm_vmm_pt *pd;
+	u16 pd_offset;
+	struct list_head join;
+
 	struct nvkm_mm mm;
 	struct kref refcount;
-
 	struct list_head pgd_list;
-	atomic_t engref[NVKM_SUBDEV_NR];
-
 	struct nvkm_vm_pgt *pgt;
 	u32 fpde;
 	u32 lpde;
 
 	bool bootstrapped;
+	atomic_t engref[NVKM_SUBDEV_NR];
 };
 
 int  nvkm_vm_new(struct nvkm_device *, u64 offset, u64 length, u64 mm_offset,

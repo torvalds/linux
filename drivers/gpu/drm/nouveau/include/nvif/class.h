@@ -14,6 +14,8 @@
 #define NVIF_CLASS_SW_NV50                           /* if0005.h */ -0x00000006
 #define NVIF_CLASS_SW_GF100                          /* if0005.h */ -0x00000007
 
+#define NVIF_CLASS_VMM                               /* if000c.h */  0x0000000c
+
 /* the below match nvidia-assigned (either in hw, or sw) class numbers */
 #define NV_NULL_CLASS                                                0x00000030
 

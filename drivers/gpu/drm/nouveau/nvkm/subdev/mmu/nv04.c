@@ -105,10 +105,8 @@ nv04_mmu_dtor(struct nvkm_mmu *base)
 {
 	struct nv04_mmu *mmu = nv04_mmu(base);
 	struct nvkm_device *device = mmu->base.subdev.device;
-	if (mmu->base.vmm) {
+	if (mmu->base.vmm)
 		nvkm_memory_unref(&mmu->base.vmm->pgt[0].mem[0]);
-		nvkm_vm_ref(NULL, &mmu->base.vmm, NULL);
-	}
 	if (mmu->nullp) {
 		dma_free_coherent(device->dev, 16 * 1024,
 				  mmu->nullp, mmu->null);
