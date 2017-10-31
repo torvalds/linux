@@ -19,6 +19,6 @@ int gf100_bar_new_(const struct nvkm_bar_func *, struct nvkm_device *,
 		   int, struct nvkm_bar **);
 void *gf100_bar_dtor(struct nvkm_bar *);
 int gf100_bar_oneinit(struct nvkm_bar *);
-int gf100_bar_init(struct nvkm_bar *);
+void gf100_bar_init(struct nvkm_bar *);
 int gf100_bar_umap(struct nvkm_bar *, u64, int, struct nvkm_vma *);
 #endif

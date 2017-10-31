@@ -144,7 +144,7 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 	return 0;
 }
 
-int
+void
 nv50_bar_init(struct nvkm_bar *base)
 {
 	struct nv50_bar *bar = nv50_bar(base);
@@ -153,12 +153,6 @@ nv50_bar_init(struct nvkm_bar *base)
 
 	nvkm_mask(device, 0x000200, 0x00000100, 0x00000000);
 	nvkm_mask(device, 0x000200, 0x00000100, 0x00000100);
-	nvkm_wr32(device, 0x100c80, 0x00060001);
-	if (nvkm_msec(device, 2000,
-		if (!(nvkm_rd32(device, 0x100c80) & 0x00000001))
-			break;
-	) < 0)
-		return -EBUSY;
 
 	nvkm_wr32(device, 0x001704, 0x00000000 | bar->mem->addr >> 12);
 	nvkm_wr32(device, 0x001704, 0x40000000 | bar->mem->addr >> 12);
@@ -166,7 +160,6 @@ nv50_bar_init(struct nvkm_bar *base)
 	nvkm_wr32(device, 0x00170c, 0x80000000 | bar->bar3->node->offset >> 4);
 	for (i = 0; i < 8; i++)
 		nvkm_wr32(device, 0x001900 + (i * 4), 0x00000000);
-	return 0;
 }
 
 void *

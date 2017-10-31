@@ -117,7 +117,7 @@ gf100_bar_oneinit(struct nvkm_bar *base)
 	return 0;
 }
 
-int
+void
 gf100_bar_init(struct nvkm_bar *base)
 {
 	struct gf100_bar *bar = gf100_bar(base);
@@ -136,8 +136,6 @@ gf100_bar_init(struct nvkm_bar *base)
 			addr |= 0x40000000;
 		nvkm_wr32(device, 0x001714, 0x80000000 | addr);
 	}
-
-	return 0;
 }
 
 void *

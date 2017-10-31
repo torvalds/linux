@@ -56,7 +56,8 @@ static int
 nvkm_bar_init(struct nvkm_subdev *subdev)
 {
 	struct nvkm_bar *bar = nvkm_bar(subdev);
-	return bar->func->init(bar);
+	bar->func->init(bar);
+	return 0;
 }
 
 static void *
