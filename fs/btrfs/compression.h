@@ -137,6 +137,8 @@ extern const struct btrfs_compress_op btrfs_zlib_compress;
 extern const struct btrfs_compress_op btrfs_lzo_compress;
 extern const struct btrfs_compress_op btrfs_zstd_compress;
 
+const char* btrfs_compress_type2str(enum btrfs_compression_type type);
+
 int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end);
 
 #endif
