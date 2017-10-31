@@ -151,9 +151,6 @@ nv50_bar_init(struct nvkm_bar *base)
 	struct nvkm_device *device = bar->base.subdev.device;
 	int i;
 
-	nvkm_mask(device, 0x000200, 0x00000100, 0x00000000);
-	nvkm_mask(device, 0x000200, 0x00000100, 0x00000100);
-
 	nvkm_wr32(device, 0x001704, 0x00000000 | bar->mem->addr >> 12);
 	nvkm_wr32(device, 0x001704, 0x40000000 | bar->mem->addr >> 12);
 	nvkm_wr32(device, 0x001708, 0x80000000 | bar->bar1->node->offset >> 4);

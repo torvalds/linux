@@ -124,9 +124,6 @@ gf100_bar_init(struct nvkm_bar *base)
 	struct nvkm_device *device = bar->base.subdev.device;
 	u32 addr;
 
-	nvkm_mask(device, 0x000200, 0x00000100, 0x00000000);
-	nvkm_mask(device, 0x000200, 0x00000100, 0x00000100);
-
 	addr = nvkm_memory_addr(bar->bar[1].mem) >> 12;
 	nvkm_wr32(device, 0x001704, 0x80000000 | addr);
 
