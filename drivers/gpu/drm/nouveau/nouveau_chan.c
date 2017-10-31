@@ -318,7 +318,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	struct nv_dma_v0 args = {};
 	int ret, i;
 
-	nvif_object_map(&chan->user);
+	nvif_object_map(&chan->user, NULL, 0);
 
 	if (chan->user.oclass >= FERMI_CHANNEL_GPFIFO) {
 		ret = nvif_notify_init(&chan->user, nouveau_channel_killed,

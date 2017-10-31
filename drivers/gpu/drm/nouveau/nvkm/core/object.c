@@ -102,10 +102,11 @@ nvkm_object_ntfy(struct nvkm_object *object, u32 mthd,
 }
 
 int
-nvkm_object_map(struct nvkm_object *object, u64 *addr, u32 *size)
+nvkm_object_map(struct nvkm_object *object, void *argv, u32 argc,
+		enum nvkm_object_map *type, u64 *addr, u64 *size)
 {
 	if (likely(object->func->map))
-		return object->func->map(object, addr, size);
+		return object->func->map(object, argv, argc, type, addr, size);
 	return -ENODEV;
 }
 

@@ -253,9 +253,11 @@ nvkm_fifo_chan_ntfy(struct nvkm_object *object, u32 type,
 }
 
 static int
-nvkm_fifo_chan_map(struct nvkm_object *object, u64 *addr, u32 *size)
+nvkm_fifo_chan_map(struct nvkm_object *object, void *argv, u32 argc,
+		   enum nvkm_object_map *type, u64 *addr, u64 *size)
 {
 	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
+	*type = NVKM_OBJECT_MAP_IO;
 	*addr = chan->addr;
 	*size = chan->size;
 	return 0;

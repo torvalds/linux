@@ -318,7 +318,7 @@ nv50_chan_create(struct nvif_device *device, struct nvif_object *disp,
 				ret = nvif_object_init(disp, 0, oclass[0],
 						       data, size, &chan->user);
 				if (ret == 0)
-					nvif_object_map(&chan->user);
+					nvif_object_map(&chan->user, NULL, 0);
 				nvif_object_sclass_put(&sclass);
 				return ret;
 			}
