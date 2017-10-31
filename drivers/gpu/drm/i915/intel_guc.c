@@ -24,6 +24,7 @@
 
 #include "intel_guc.h"
 #include "i915_drv.h"
+#include "i915_guc_submission.h"
 
 static void gen8_guc_raise_irq(struct intel_guc *guc)
 {
@@ -279,6 +280,29 @@ int intel_guc_suspend(struct drm_i915_private *dev_priv)
 	/* any value greater than GUC_POWER_D0 */
 	data[1] = GUC_POWER_D1;
 	data[2] = guc_ggtt_offset(guc->shared_data);
+
+	return intel_guc_send(guc, data, ARRAY_SIZE(data));
+}
+
+/**
+ * intel_guc_reset_engine() - ask GuC to reset an engine
+ * @guc:	intel_guc structure
+ * @engine:	engine to be reset
+ */
+int intel_guc_reset_engine(struct intel_guc *guc,
+			   struct intel_engine_cs *engine)
+{
+	u32 data[7];
+
+	GEM_BUG_ON(!guc->execbuf_client);
+
+	data[0] = INTEL_GUC_ACTION_REQUEST_ENGINE_RESET;
+	data[1] = engine->guc_id;
+	data[2] = 0;
+	data[3] = 0;
+	data[4] = 0;
+	data[5] = guc->execbuf_client->stage_id;
+	data[6] = guc_ggtt_offset(guc->shared_data);
 
 	return intel_guc_send(guc, data, ARRAY_SIZE(data));
 }

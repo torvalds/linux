@@ -1950,6 +1950,12 @@ error:
 	goto finish;
 }
 
+static inline int intel_gt_reset_engine(struct drm_i915_private *dev_priv,
+					struct intel_engine_cs *engine)
+{
+	return intel_gpu_reset(dev_priv, intel_engine_flag(engine));
+}
+
 /**
  * i915_reset_engine - reset GPU engine to recover from a hang
  * @engine: engine to reset
@@ -1984,10 +1990,14 @@ int i915_reset_engine(struct intel_engine_cs *engine, unsigned int flags)
 		goto out;
 	}
 
-	ret = intel_gpu_reset(engine->i915, intel_engine_flag(engine));
+	if (!engine->i915->guc.execbuf_client)
+		ret = intel_gt_reset_engine(engine->i915, engine);
+	else
+		ret = intel_guc_reset_engine(&engine->i915->guc, engine);
 	if (ret) {
 		/* If we fail here, we expect to fallback to a global reset */
-		DRM_DEBUG_DRIVER("Failed to reset %s, ret=%d\n",
+		DRM_DEBUG_DRIVER("%sFailed to reset %s, ret=%d\n",
+				 engine->i915->guc.execbuf_client ? "GuC " : "",
 				 engine->name, ret);
 		goto out;
 	}
