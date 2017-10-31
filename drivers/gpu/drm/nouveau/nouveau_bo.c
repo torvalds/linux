@@ -1212,6 +1212,7 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, bool evict,
 		     struct ttm_mem_reg *new_reg)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
+	struct nvkm_mem *mem = new_reg ? new_reg->mm_node : NULL;
 	struct nvkm_vma *vma;
 
 	/* ttm can now (stupidly) pass the driver bos it didn't create... */
@@ -1219,10 +1220,9 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, bool evict,
 		return;
 
 	list_for_each_entry(vma, &nvbo->vma_list, head) {
-		if (new_reg && new_reg->mem_type != TTM_PL_SYSTEM &&
-			      (new_reg->mem_type == TTM_PL_VRAM ||
-			       nvbo->page != vma->vm->mmu->lpg_shift)) {
-			nvkm_vm_map(vma, new_reg->mm_node);
+		if (mem && new_reg->mem_type != TTM_PL_SYSTEM &&
+		    mem->page_shift == nvbo->page) {
+			nvkm_vm_map(vma, mem);
 		} else {
 			WARN_ON(ttm_bo_wait(bo, false, false));
 			nvkm_vm_unmap(vma);
@@ -1604,15 +1604,15 @@ nouveau_bo_vma_add(struct nouveau_bo *nvbo, struct nvkm_vm *vm,
 		   struct nvkm_vma *vma)
 {
 	const u32 size = nvbo->bo.mem.num_pages << PAGE_SHIFT;
+	struct nvkm_mem *mem = nvbo->bo.mem.mm_node;
 	int ret;
 
 	ret = nvkm_vm_get(vm, size, nvbo->page, NV_MEM_ACCESS_RW, vma);
 	if (ret)
 		return ret;
 
-	if ( nvbo->bo.mem.mem_type != TTM_PL_SYSTEM &&
-	    (nvbo->bo.mem.mem_type == TTM_PL_VRAM ||
-	     nvbo->page != vma->vm->mmu->lpg_shift))
+	if (nvbo->bo.mem.mem_type != TTM_PL_SYSTEM &&
+	    mem->page_shift == nvbo->page)
 		nvkm_vm_map(vma, nvbo->bo.mem.mm_node);
 
 	list_add_tail(&vma->head, &nvbo->vma_list);
