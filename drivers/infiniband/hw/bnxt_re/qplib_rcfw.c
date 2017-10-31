@@ -302,6 +302,8 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 			"QPLIB: qpid 0x%x, req_err=0x%x, resp_err=0x%x\n",
 			qp_id, err_event->req_err_state_reason,
 			err_event->res_err_state_reason);
+		if (!qp)
+			break;
 		bnxt_qplib_acquire_cq_locks(qp, &flags);
 		bnxt_qplib_mark_qp_error(qp);
 		bnxt_qplib_release_cq_locks(qp, &flags);
