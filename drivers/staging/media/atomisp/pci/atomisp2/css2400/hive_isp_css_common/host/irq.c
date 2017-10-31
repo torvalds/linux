@@ -22,13 +22,13 @@
 
 #include "platform_support.h"			/* hrt_sleep() */
 
-STORAGE_CLASS_INLINE void irq_wait_for_write_complete(
+static inline void irq_wait_for_write_complete(
 	const irq_ID_t		ID);
 
-STORAGE_CLASS_INLINE bool any_irq_channel_enabled(
+static inline bool any_irq_channel_enabled(
 	const irq_ID_t				ID);
 
-STORAGE_CLASS_INLINE irq_ID_t virq_get_irq_id(
+static inline irq_ID_t virq_get_irq_id(
 	const virq_id_t		irq_ID,
 	unsigned int		*channel_ID);
 
@@ -406,7 +406,7 @@ enum hrt_isp_css_irq_status virq_get_channel_id(
 	return status;
 }
 
-STORAGE_CLASS_INLINE void irq_wait_for_write_complete(
+static inline void irq_wait_for_write_complete(
 	const irq_ID_t		ID)
 {
 	assert(ID < N_IRQ_ID);
@@ -415,7 +415,7 @@ STORAGE_CLASS_INLINE void irq_wait_for_write_complete(
 		_HRT_IRQ_CONTROLLER_ENABLE_REG_IDX*sizeof(hrt_data));
 }
 
-STORAGE_CLASS_INLINE bool any_irq_channel_enabled(
+static inline bool any_irq_channel_enabled(
 	const irq_ID_t				ID)
 {
 	hrt_data	en_reg;
@@ -428,7 +428,7 @@ STORAGE_CLASS_INLINE bool any_irq_channel_enabled(
 	return (en_reg != 0);
 }
 
-STORAGE_CLASS_INLINE irq_ID_t virq_get_irq_id(
+static inline irq_ID_t virq_get_irq_id(
 	const virq_id_t		irq_ID,
 	unsigned int		*channel_ID)
 {

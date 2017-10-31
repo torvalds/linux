@@ -22,12 +22,12 @@
 /*
  * Local function declarations
  */
-STORAGE_CLASS_INLINE void gdc_reg_store(
+static inline void gdc_reg_store(
 	const gdc_ID_t		ID,
 	const unsigned int	reg,
 	const hrt_data		value);
 
-STORAGE_CLASS_INLINE hrt_data gdc_reg_load(
+static inline hrt_data gdc_reg_load(
 	const gdc_ID_t		ID,
 	const unsigned int	reg);
 
@@ -110,7 +110,7 @@ int gdc_get_unity(
 /*
  * Local function implementations
  */
-STORAGE_CLASS_INLINE void gdc_reg_store(
+static inline void gdc_reg_store(
 	const gdc_ID_t		ID,
 	const unsigned int	reg,
 	const hrt_data		value)
@@ -119,7 +119,7 @@ STORAGE_CLASS_INLINE void gdc_reg_store(
 	return;
 }
 
-STORAGE_CLASS_INLINE hrt_data gdc_reg_load(
+static inline hrt_data gdc_reg_load(
 	const gdc_ID_t		ID,
 	const unsigned int	reg)
 {

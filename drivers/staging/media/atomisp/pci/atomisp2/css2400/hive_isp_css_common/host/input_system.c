@@ -81,27 +81,27 @@ static input_system_error_t input_system_multiplexer_cfg(
 
 
 
-STORAGE_CLASS_INLINE void capture_unit_get_state(
+static inline void capture_unit_get_state(
 	const input_system_ID_t			ID,
 	const sub_system_ID_t			sub_id,
 	capture_unit_state_t			*state);
 
-STORAGE_CLASS_INLINE void acquisition_unit_get_state(
+static inline void acquisition_unit_get_state(
 	const input_system_ID_t			ID,
 	const sub_system_ID_t			sub_id,
 	acquisition_unit_state_t		*state);
 
-STORAGE_CLASS_INLINE void ctrl_unit_get_state(
+static inline void ctrl_unit_get_state(
 	const input_system_ID_t			ID,
 	const sub_system_ID_t			sub_id,
 	ctrl_unit_state_t				*state);
 
-STORAGE_CLASS_INLINE void mipi_port_get_state(
+static inline void mipi_port_get_state(
 	const rx_ID_t					ID,
 	const mipi_port_ID_t			port_ID,
 	mipi_port_state_t				*state);
 
-STORAGE_CLASS_INLINE void rx_channel_get_state(
+static inline void rx_channel_get_state(
 	const rx_ID_t					ID,
 	const unsigned int				ch_id,
 	rx_channel_state_t				*state);
@@ -359,7 +359,7 @@ void receiver_irq_clear(
 	return;
 }
 
-STORAGE_CLASS_INLINE void capture_unit_get_state(
+static inline void capture_unit_get_state(
 	const input_system_ID_t			ID,
 	const sub_system_ID_t			sub_id,
 	capture_unit_state_t			*state)
@@ -421,7 +421,7 @@ STORAGE_CLASS_INLINE void capture_unit_get_state(
 	return;
 }
 
-STORAGE_CLASS_INLINE void acquisition_unit_get_state(
+static inline void acquisition_unit_get_state(
 	const input_system_ID_t			ID,
 	const sub_system_ID_t			sub_id,
 	acquisition_unit_state_t		*state)
@@ -471,7 +471,7 @@ STORAGE_CLASS_INLINE void acquisition_unit_get_state(
 	return;
 }
 
-STORAGE_CLASS_INLINE void ctrl_unit_get_state(
+static inline void ctrl_unit_get_state(
 	const input_system_ID_t			ID,
 	const sub_system_ID_t			sub_id,
 	ctrl_unit_state_t			*state)
@@ -554,7 +554,7 @@ STORAGE_CLASS_INLINE void ctrl_unit_get_state(
 	return;
 }
 
-STORAGE_CLASS_INLINE void mipi_port_get_state(
+static inline void mipi_port_get_state(
 	const rx_ID_t				ID,
 	const mipi_port_ID_t			port_ID,
 	mipi_port_state_t			*state)
@@ -590,7 +590,7 @@ STORAGE_CLASS_INLINE void mipi_port_get_state(
 	return;
 }
 
-STORAGE_CLASS_INLINE void rx_channel_get_state(
+static inline void rx_channel_get_state(
 	const rx_ID_t					ID,
 	const unsigned int				ch_id,
 	rx_channel_state_t				*state)
