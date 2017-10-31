@@ -655,6 +655,9 @@ static const struct irq_domain_ops gic_ipi_domain_ops = {
 
 static int gic_cpu_startup(unsigned int cpu)
 {
+	/* Clear all local IRQ masks (ie. disable all local interrupts) */
+	write_gic_vl_rmask(~0);
+
 	/* Invoke irq_cpu_online callbacks to enable desired interrupts */
 	irq_cpu_online();
 
@@ -664,7 +667,7 @@ static int gic_cpu_startup(unsigned int cpu)
 static int __init gic_of_init(struct device_node *node,
 			      struct device_node *parent)
 {
-	unsigned int cpu_vec, i, j, gicconfig, cpu, v[2];
+	unsigned int cpu_vec, i, gicconfig, cpu, v[2];
 	unsigned long reserved;
 	phys_addr_t gic_base;
 	struct resource res;
@@ -795,15 +798,6 @@ static int __init gic_of_init(struct device_node *node,
 		change_gic_pol(i, GIC_POL_ACTIVE_HIGH);
 		change_gic_trig(i, GIC_TRIG_LEVEL);
 		write_gic_rmask(i);
-	}
-
-	for (i = 0; i < gic_vpes; i++) {
-		write_gic_vl_other(mips_cm_vp_id(i));
-		for (j = 0; j < GIC_NUM_LOCAL_INTRS; j++) {
-			if (!gic_local_irq_is_routable(j))
-				continue;
-			write_gic_vo_rmask(BIT(j));
-		}
 	}
 
 	return cpuhp_setup_state(CPUHP_AP_IRQ_MIPS_GIC_STARTING,
