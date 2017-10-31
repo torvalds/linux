@@ -26,6 +26,7 @@ struct nvkm_memory {
 struct nvkm_memory_func {
 	void *(*dtor)(struct nvkm_memory *);
 	enum nvkm_memory_target (*target)(struct nvkm_memory *);
+	u8 (*page)(struct nvkm_memory *);
 	u64 (*addr)(struct nvkm_memory *);
 	u64 (*size)(struct nvkm_memory *);
 	void (*boot)(struct nvkm_memory *, struct nvkm_vmm *);
@@ -51,6 +52,7 @@ void nvkm_memory_tags_put(struct nvkm_memory *, struct nvkm_device *,
 			  struct nvkm_tags **);
 
 #define nvkm_memory_target(p) (p)->func->target(p)
+#define nvkm_memory_page(p) (p)->func->page(p)
 #define nvkm_memory_addr(p) (p)->func->addr(p)
 #define nvkm_memory_size(p) (p)->func->size(p)
 #define nvkm_memory_boot(p,v) (p)->func->boot((p),(v))
