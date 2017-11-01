@@ -434,7 +434,6 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 	struct hclge_dev *hdev = vport->back;
 	u8 i;
 
-	kinfo = &vport->nic.kinfo;
 	vport->bw_limit = hdev->tm_info.pg_info[0].bw_limit;
 	kinfo->num_tc =
 		min_t(u16, kinfo->num_tqps, hdev->tm_info.num_tc);
@@ -766,13 +765,11 @@ static int hclge_tm_pri_vnet_base_shaper_qs_cfg(struct hclge_vport *vport)
 {
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
 	struct hclge_dev *hdev = vport->back;
-	struct hnae3_tc_info *v_tc_info;
 	u8 ir_u, ir_b, ir_s;
 	u32 i;
 	int ret;
 
 	for (i = 0; i < kinfo->num_tc; i++) {
-		v_tc_info = &kinfo->tc_info[i];
 		ret = hclge_shaper_para_calc(
 					hdev->tm_info.tc_info[i].bw_limit,
 					HCLGE_SHAPER_LVL_QSET,
