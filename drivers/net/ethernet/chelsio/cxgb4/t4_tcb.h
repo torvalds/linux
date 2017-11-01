@@ -46,6 +46,11 @@
 #define TF_CCTRL_CWR_S		61
 #define TF_CCTRL_RFR_S		62
 
+#define TCB_RSS_INFO_W		3
+#define TCB_RSS_INFO_S		0
+#define TCB_RSS_INFO_M		0x3ffULL
+#define TCB_RSS_INFO_V(x)	((x) << TCB_RSS_INFO_S)
+
 #define TCB_TIMESTAMP_W		5
 #define TCB_TIMESTAMP_S		0
 #define TCB_TIMESTAMP_M		0xffffffffULL

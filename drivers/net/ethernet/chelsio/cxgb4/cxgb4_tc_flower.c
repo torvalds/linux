@@ -730,7 +730,7 @@ int cxgb4_tc_flower_destroy(struct net_device *dev,
 	if (!ch_flower)
 		return -ENOENT;
 
-	ret = cxgb4_del_filter(dev, ch_flower->filter_id);
+	ret = cxgb4_del_filter(dev, ch_flower->filter_id, &ch_flower->fs);
 	if (ret)
 		goto err;
 

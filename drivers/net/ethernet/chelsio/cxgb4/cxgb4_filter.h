@@ -41,6 +41,8 @@
 
 void filter_rpl(struct adapter *adap, const struct cpl_set_tcb_rpl *rpl);
 void hash_filter_rpl(struct adapter *adap, const struct cpl_act_open_rpl *rpl);
+void hash_del_filter_rpl(struct adapter *adap,
+			 const struct cpl_abort_rpl_rss *rpl);
 void clear_filter(struct adapter *adap, struct filter_entry *f);
 
 int set_filter_wr(struct adapter *adapter, int fidx);

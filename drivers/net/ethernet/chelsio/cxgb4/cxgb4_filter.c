@@ -87,6 +87,59 @@ static int set_tcb_tflag(struct adapter *adap, struct filter_entry *f,
 			     (unsigned long long)val << bit_pos, no_reply);
 }
 
+static void mk_abort_req_ulp(struct cpl_abort_req *abort_req, unsigned int tid)
+{
+	struct ulp_txpkt *txpkt = (struct ulp_txpkt *)abort_req;
+	struct ulptx_idata *sc = (struct ulptx_idata *)(txpkt + 1);
+
+	txpkt->cmd_dest = htonl(ULPTX_CMD_V(ULP_TX_PKT) | ULP_TXPKT_DEST_V(0));
+	txpkt->len = htonl(DIV_ROUND_UP(sizeof(*abort_req), 16));
+	sc->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_IMM));
+	sc->len = htonl(sizeof(*abort_req) - sizeof(struct work_request_hdr));
+	OPCODE_TID(abort_req) = htonl(MK_OPCODE_TID(CPL_ABORT_REQ, tid));
+	abort_req->rsvd0 = htonl(0);
+	abort_req->rsvd1 = 0;
+	abort_req->cmd = CPL_ABORT_NO_RST;
+}
+
+static void mk_abort_rpl_ulp(struct cpl_abort_rpl *abort_rpl, unsigned int tid)
+{
+	struct ulp_txpkt *txpkt = (struct ulp_txpkt *)abort_rpl;
+	struct ulptx_idata *sc = (struct ulptx_idata *)(txpkt + 1);
+
+	txpkt->cmd_dest = htonl(ULPTX_CMD_V(ULP_TX_PKT) | ULP_TXPKT_DEST_V(0));
+	txpkt->len = htonl(DIV_ROUND_UP(sizeof(*abort_rpl), 16));
+	sc->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_IMM));
+	sc->len = htonl(sizeof(*abort_rpl) - sizeof(struct work_request_hdr));
+	OPCODE_TID(abort_rpl) = htonl(MK_OPCODE_TID(CPL_ABORT_RPL, tid));
+	abort_rpl->rsvd0 = htonl(0);
+	abort_rpl->rsvd1 = 0;
+	abort_rpl->cmd = CPL_ABORT_NO_RST;
+}
+
+static void mk_set_tcb_ulp(struct filter_entry *f,
+			   struct cpl_set_tcb_field *req,
+			   unsigned int word, u64 mask, u64 val,
+			   u8 cookie, int no_reply)
+{
+	struct ulp_txpkt *txpkt = (struct ulp_txpkt *)req;
+	struct ulptx_idata *sc = (struct ulptx_idata *)(txpkt + 1);
+
+	txpkt->cmd_dest = htonl(ULPTX_CMD_V(ULP_TX_PKT) | ULP_TXPKT_DEST_V(0));
+	txpkt->len = htonl(DIV_ROUND_UP(sizeof(*req), 16));
+	sc->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_IMM));
+	sc->len = htonl(sizeof(*req) - sizeof(struct work_request_hdr));
+	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, f->tid));
+	req->reply_ctrl = htons(NO_REPLY_V(no_reply) | REPLY_CHAN_V(0) |
+				QUEUENO_V(0));
+	req->word_cookie = htons(TCB_WORD_V(word) | TCB_COOKIE_V(cookie));
+	req->mask = cpu_to_be64(mask);
+	req->val = cpu_to_be64(val);
+	sc = (struct ulptx_idata *)(req + 1);
+	sc->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_NOOP));
+	sc->len = htonl(0);
+}
+
 static int configure_filter_smac(struct adapter *adap, struct filter_entry *f)
 {
 	int err;
@@ -1110,18 +1163,88 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 	return ret;
 }
 
+static int cxgb4_del_hash_filter(struct net_device *dev, int filter_id,
+				 struct filter_ctx *ctx)
+{
+	struct adapter *adapter = netdev2adap(dev);
+	struct tid_info *t = &adapter->tids;
+	struct cpl_abort_req *abort_req;
+	struct cpl_abort_rpl *abort_rpl;
+	struct cpl_set_tcb_field *req;
+	struct ulptx_idata *aligner;
+	struct work_request_hdr *wr;
+	struct filter_entry *f;
+	struct sk_buff *skb;
+	unsigned int wrlen;
+	int ret;
+
+	netdev_dbg(dev, "%s: filter_id = %d ; nftids = %d\n",
+		   __func__, filter_id, adapter->tids.nftids);
+
+	if (filter_id > adapter->tids.ntids)
+		return -E2BIG;
+
+	f = lookup_tid(t, filter_id);
+	if (!f) {
+		netdev_err(dev, "%s: no filter entry for filter_id = %d",
+			   __func__, filter_id);
+		return -EINVAL;
+	}
+
+	ret = writable_filter(f);
+	if (ret)
+		return ret;
+
+	if (!f->valid)
+		return -EINVAL;
+
+	f->ctx = ctx;
+	f->pending = 1;
+	wrlen = roundup(sizeof(*wr) + (sizeof(*req) + sizeof(*aligner))
+			+ sizeof(*abort_req) + sizeof(*abort_rpl), 16);
+	skb = alloc_skb(wrlen, GFP_KERNEL);
+	if (!skb) {
+		netdev_err(dev, "%s: could not allocate skb ..\n", __func__);
+		return -ENOMEM;
+	}
+	set_wr_txq(skb, CPL_PRIORITY_CONTROL, f->fs.val.iport & 0x3);
+	req = (struct cpl_set_tcb_field *)__skb_put(skb, wrlen);
+	INIT_ULPTX_WR(req, wrlen, 0, 0);
+	wr = (struct work_request_hdr *)req;
+	wr++;
+	req = (struct cpl_set_tcb_field *)wr;
+	mk_set_tcb_ulp(f, req, TCB_RSS_INFO_W, TCB_RSS_INFO_V(TCB_RSS_INFO_M),
+		       TCB_RSS_INFO_V(adapter->sge.fw_evtq.abs_id), 0, 1);
+	aligner = (struct ulptx_idata *)(req + 1);
+	abort_req = (struct cpl_abort_req *)(aligner + 1);
+	mk_abort_req_ulp(abort_req, f->tid);
+	abort_rpl = (struct cpl_abort_rpl *)(abort_req + 1);
+	mk_abort_rpl_ulp(abort_rpl, f->tid);
+	t4_ofld_send(adapter, skb);
+	return 0;
+}
+
 /* Check a delete filter request for validity and send it to the hardware.
  * Return 0 on success, an error number otherwise.  We attach any provided
  * filter operation context to the internal filter specification in order to
  * facilitate signaling completion of the operation.
  */
 int __cxgb4_del_filter(struct net_device *dev, int filter_id,
+		       struct ch_filter_specification *fs,
 		       struct filter_ctx *ctx)
 {
 	struct adapter *adapter = netdev2adap(dev);
 	struct filter_entry *f;
 	unsigned int max_fidx;
 	int ret;
+
+	if (fs && fs->hash) {
+		if (is_hashfilter(adapter))
+			return cxgb4_del_hash_filter(dev, filter_id, ctx);
+		netdev_err(dev, "%s: Exact-match filters only supported with Hash Filter configuration\n",
+			   __func__);
+		return -EINVAL;
+	}
 
 	max_fidx = adapter->tids.nftids;
 	if (filter_id != (max_fidx + adapter->tids.nsftids - 1) &&
@@ -1173,18 +1296,19 @@ out:
 	return ret;
 }
 
-int cxgb4_del_filter(struct net_device *dev, int filter_id)
+int cxgb4_del_filter(struct net_device *dev, int filter_id,
+		     struct ch_filter_specification *fs)
 {
 	struct filter_ctx ctx;
 	int ret;
 
 	/* If we are shutting down the adapter do not wait for completion */
 	if (netdev2adap(dev)->flags & SHUTTING_DOWN)
-		return __cxgb4_del_filter(dev, filter_id, NULL);
+		return __cxgb4_del_filter(dev, filter_id, fs, NULL);
 
 	init_completion(&ctx.completion);
 
-	ret = __cxgb4_del_filter(dev, filter_id, &ctx);
+	ret = __cxgb4_del_filter(dev, filter_id, fs, &ctx);
 	if (ret)
 		goto out;
 
@@ -1256,6 +1380,35 @@ static int configure_filter_tcb(struct adapter *adap, unsigned int tid,
 		}
 	}
 	return 0;
+}
+
+void hash_del_filter_rpl(struct adapter *adap,
+			 const struct cpl_abort_rpl_rss *rpl)
+{
+	unsigned int status = rpl->status;
+	struct tid_info *t = &adap->tids;
+	unsigned int tid = GET_TID(rpl);
+	struct filter_ctx *ctx = NULL;
+	struct filter_entry *f;
+
+	dev_dbg(adap->pdev_dev, "%s: status = %u; tid = %u\n",
+		__func__, status, tid);
+
+	f = lookup_tid(t, tid);
+	if (!f) {
+		dev_err(adap->pdev_dev, "%s:could not find filter entry",
+			__func__);
+		return;
+	}
+	ctx = f->ctx;
+	f->ctx = NULL;
+	clear_filter(adap, f);
+	cxgb4_remove_tid(t, 0, tid, 0);
+	kfree(f);
+	if (ctx) {
+		ctx->result = 0;
+		complete(&ctx->completion);
+	}
 }
 
 void hash_filter_rpl(struct adapter *adap, const struct cpl_act_open_rpl *rpl)
