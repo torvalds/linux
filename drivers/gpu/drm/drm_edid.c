@@ -4612,8 +4612,8 @@ static int add_displayid_detailed_modes(struct drm_connector *connector,
  * @edid: EDID data
  *
  * Add the specified modes to the connector's mode list. Also fills out the
- * &drm_display_info structure in @connector with any information which can be
- * derived from the edid.
+ * &drm_display_info structure and ELD in @connector with any information which
+ * can be derived from the edid.
  *
  * Return: The number of modes added or 0 if we couldn't find any.
  */
@@ -4623,15 +4623,19 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	u32 quirks;
 
 	if (edid == NULL) {
+		clear_eld(connector);
 		return 0;
 	}
 	if (!drm_edid_is_valid(edid)) {
+		clear_eld(connector);
 		dev_warn(connector->dev->dev, "%s: EDID invalid.\n",
 			 connector->name);
 		return 0;
 	}
 
 	quirks = edid_get_quirks(edid);
+
+	drm_edid_to_eld(connector, edid);
 
 	/*
 	 * CEA-861-F adds ycbcr capability map block, for HDMI 2.0 sinks.
