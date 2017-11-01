@@ -39,6 +39,7 @@
 
 #define RT_TXDESC_NUM				128
 #define TX_DESC_NUM_92E				512
+#define TX_DESC_NUM_8822B			512
 #define RT_TXDESC_NUM_BE_QUEUE			256
 
 #define BK_QUEUE				0

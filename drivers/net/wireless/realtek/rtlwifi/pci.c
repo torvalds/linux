@@ -1140,6 +1140,8 @@ static void _rtl_pci_init_trx_var(struct ieee80211_hw *hw)
 
 	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8192EE)
 		desc_num = TX_DESC_NUM_92E;
+	else if (rtlhal->hw_type == HARDWARE_TYPE_RTL8822BE)
+		desc_num = TX_DESC_NUM_8822B;
 	else
 		desc_num = RT_TXDESC_NUM;
 
@@ -1981,11 +1983,17 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 		}
 	}
 
-	/* 92ee use new trx flow */
-	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8192EE)
+	switch (rtlhal->hw_type) {
+	case HARDWARE_TYPE_RTL8192EE:
+	case HARDWARE_TYPE_RTL8822BE:
+		/* use new trx flow */
 		rtlpriv->use_new_trx_flow = true;
-	else
+		break;
+
+	default:
 		rtlpriv->use_new_trx_flow = false;
+		break;
+	}
 
 	/*find bus info */
 	pcipriv->ndis_adapter.busnumber = pdev->bus->number;
