@@ -99,7 +99,7 @@ static void br_forward_delay_timer_expired(unsigned long arg)
 		netif_carrier_on(br->dev);
 	}
 	rcu_read_lock();
-	br_ifinfo_notify(RTM_NEWLINK, p);
+	br_ifinfo_notify(RTM_NEWLINK, NULL, p);
 	rcu_read_unlock();
 	spin_unlock(&br->lock);
 }

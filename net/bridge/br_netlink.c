@@ -361,14 +361,14 @@ nla_put_failure:
  * Contains port and master info as well as carrier and bridge state.
  */
 static int br_fill_ifinfo(struct sk_buff *skb,
-			  struct net_bridge_port *port,
+			  const struct net_bridge_port *port,
 			  u32 pid, u32 seq, int event, unsigned int flags,
 			  u32 filter_mask, const struct net_device *dev)
 {
+	u8 operstate = netif_running(dev) ? dev->operstate : IF_OPER_DOWN;
 	struct net_bridge *br;
 	struct ifinfomsg *hdr;
 	struct nlmsghdr *nlh;
-	u8 operstate = netif_running(dev) ? dev->operstate : IF_OPER_DOWN;
 
 	if (port)
 		br = port->br;
@@ -454,28 +454,36 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-/*
- * Notify listeners of a change in port information
- */
-void br_ifinfo_notify(int event, struct net_bridge_port *port)
+/* Notify listeners of a change in bridge or port information */
+void br_ifinfo_notify(int event, const struct net_bridge *br,
+		      const struct net_bridge_port *port)
 {
-	struct net *net;
+	u32 filter = RTEXT_FILTER_BRVLAN_COMPRESSED;
+	struct net_device *dev;
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
-	u32 filter = RTEXT_FILTER_BRVLAN_COMPRESSED;
+	struct net *net;
+	u16 port_no = 0;
 
-	if (!port)
+	if (WARN_ON(!port && !br))
 		return;
 
-	net = dev_net(port->dev);
-	br_debug(port->br, "port %u(%s) event %d\n",
-		 (unsigned int)port->port_no, port->dev->name, event);
+	if (port) {
+		dev = port->dev;
+		br = port->br;
+		port_no = port->port_no;
+	} else {
+		dev = br->dev;
+	}
 
-	skb = nlmsg_new(br_nlmsg_size(port->dev, filter), GFP_ATOMIC);
+	net = dev_net(dev);
+	br_debug(br, "port %u(%s) event %d\n", port_no, dev->name, event);
+
+	skb = nlmsg_new(br_nlmsg_size(dev, filter), GFP_ATOMIC);
 	if (skb == NULL)
 		goto errout;
 
-	err = br_fill_ifinfo(skb, port, 0, 0, event, 0, filter, port->dev);
+	err = br_fill_ifinfo(skb, port, 0, 0, event, 0, filter, dev);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in br_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
@@ -487,7 +495,6 @@ void br_ifinfo_notify(int event, struct net_bridge_port *port)
 errout:
 	rtnl_set_sk_err(net, RTNLGRP_LINK, err);
 }
-
 
 /*
  * Dump information about all ports, in response to GETLINK
@@ -809,10 +816,11 @@ static int br_setport(struct net_bridge_port *p, struct nlattr *tb[])
 /* Change state and parameters on port. */
 int br_setlink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags)
 {
+	struct net_bridge *br = (struct net_bridge *)netdev_priv(dev);
+	struct nlattr *tb[IFLA_BRPORT_MAX + 1];
+	struct net_bridge_port *p;
 	struct nlattr *protinfo;
 	struct nlattr *afspec;
-	struct net_bridge_port *p;
-	struct nlattr *tb[IFLA_BRPORT_MAX + 1];
 	bool changed = false;
 	int err = 0;
 
@@ -852,13 +860,11 @@ int br_setlink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags)
 		changed = true;
 	}
 
-	if (afspec) {
-		err = br_afspec((struct net_bridge *)netdev_priv(dev), p,
-				afspec, RTM_SETLINK, &changed);
-	}
+	if (afspec)
+		err = br_afspec(br, p, afspec, RTM_SETLINK, &changed);
 
 	if (changed)
-		br_ifinfo_notify(RTM_NEWLINK, p);
+		br_ifinfo_notify(RTM_NEWLINK, br, p);
 out:
 	return err;
 }
@@ -866,8 +872,9 @@ out:
 /* Delete port information */
 int br_dellink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags)
 {
-	struct nlattr *afspec;
+	struct net_bridge *br = (struct net_bridge *)netdev_priv(dev);
 	struct net_bridge_port *p;
+	struct nlattr *afspec;
 	bool changed = false;
 	int err = 0;
 
@@ -880,13 +887,12 @@ int br_dellink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags)
 	if (!p && !(dev->priv_flags & IFF_EBRIDGE))
 		return -EINVAL;
 
-	err = br_afspec((struct net_bridge *)netdev_priv(dev), p,
-			afspec, RTM_DELLINK, &changed);
+	err = br_afspec(br, p, afspec, RTM_DELLINK, &changed);
 	if (changed)
 		/* Send RTM_NEWLINK because userspace
 		 * expects RTM_NEWLINK for vlan dels
 		 */
-		br_ifinfo_notify(RTM_NEWLINK, p);
+		br_ifinfo_notify(RTM_NEWLINK, br, p);
 
 	return err;
 }

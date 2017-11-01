@@ -280,7 +280,7 @@ static ssize_t brport_store(struct kobject *kobj,
 			ret = brport_attr->store(p, val);
 			spin_unlock_bh(&p->br->lock);
 			if (!ret) {
-				br_ifinfo_notify(RTM_NEWLINK, p);
+				br_ifinfo_notify(RTM_NEWLINK, NULL, p);
 				ret = count;
 			}
 		}
