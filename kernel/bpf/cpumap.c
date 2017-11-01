@@ -208,7 +208,7 @@ static struct xdp_pkt *convert_to_xdp_pkt(struct xdp_buff *xdp)
 	headroom = xdp->data - xdp->data_hard_start;
 	metasize = xdp->data - xdp->data_meta;
 	metasize = metasize > 0 ? metasize : 0;
-	if ((headroom - metasize) < sizeof(*xdp_pkt))
+	if (unlikely((headroom - metasize) < sizeof(*xdp_pkt)))
 		return NULL;
 
 	/* Store info in top of packet */
@@ -656,7 +656,7 @@ int cpu_map_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_buff *xdp,
 	struct xdp_pkt *xdp_pkt;
 
 	xdp_pkt = convert_to_xdp_pkt(xdp);
-	if (!xdp_pkt)
+	if (unlikely(!xdp_pkt))
 		return -EOVERFLOW;
 
 	/* Info needed when constructing SKB on remote CPU */
