@@ -26,7 +26,6 @@ struct sfp_bus {
 	bool started;
 };
 
-
 int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		   unsigned long *support)
 {
@@ -208,7 +207,6 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 }
 EXPORT_SYMBOL_GPL(sfp_parse_support);
 
-
 static LIST_HEAD(sfp_buses);
 static DEFINE_MUTEX(sfp_mutex);
 
@@ -295,7 +293,6 @@ static void sfp_unregister_bus(struct sfp_bus *bus)
 	bus->registered = false;
 }
 
-
 int sfp_get_module_info(struct sfp_bus *bus, struct ethtool_modinfo *modinfo)
 {
 	if (!bus->registered)
@@ -305,7 +302,7 @@ int sfp_get_module_info(struct sfp_bus *bus, struct ethtool_modinfo *modinfo)
 EXPORT_SYMBOL_GPL(sfp_get_module_info);
 
 int sfp_get_module_eeprom(struct sfp_bus *bus, struct ethtool_eeprom *ee,
-	u8 *data)
+			  u8 *data)
 {
 	if (!bus->registered)
 		return -ENOIOCTLCMD;
@@ -330,8 +327,8 @@ void sfp_upstream_stop(struct sfp_bus *bus)
 EXPORT_SYMBOL_GPL(sfp_upstream_stop);
 
 struct sfp_bus *sfp_register_upstream(struct device_node *np,
-	struct net_device *ndev, void *upstream,
-	const struct sfp_upstream_ops *ops)
+				      struct net_device *ndev, void *upstream,
+				      const struct sfp_upstream_ops *ops)
 {
 	struct sfp_bus *bus = sfp_bus_get(np);
 	int ret = 0;
@@ -368,7 +365,6 @@ void sfp_unregister_upstream(struct sfp_bus *bus)
 }
 EXPORT_SYMBOL_GPL(sfp_unregister_upstream);
 
-
 /* Socket driver entry points */
 int sfp_add_phy(struct sfp_bus *bus, struct phy_device *phydev)
 {
@@ -394,7 +390,6 @@ void sfp_remove_phy(struct sfp_bus *bus)
 	bus->phydev = NULL;
 }
 EXPORT_SYMBOL_GPL(sfp_remove_phy);
-
 
 void sfp_link_up(struct sfp_bus *bus)
 {
