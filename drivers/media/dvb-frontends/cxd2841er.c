@@ -3339,13 +3339,17 @@ static int cxd2841er_set_frontend_s(struct dvb_frontend *fe)
 
 	cxd2841er_tune_done(priv);
 	timeout = ((3000000 + (symbol_rate - 1)) / symbol_rate) + 150;
-	for (i = 0; i < timeout / CXD2841ER_DVBS_POLLING_INVL; i++) {
+
+	i = 0;
+	do {
 		usleep_range(CXD2841ER_DVBS_POLLING_INVL*1000,
 			(CXD2841ER_DVBS_POLLING_INVL + 2) * 1000);
 		cxd2841er_read_status_s(fe, &status);
 		if (status & FE_HAS_LOCK)
 			break;
-	}
+		i++;
+	} while (i < timeout / CXD2841ER_DVBS_POLLING_INVL);
+
 	if (status & FE_HAS_LOCK) {
 		if (cxd2841er_get_carrier_offset_s_s2(
 				priv, &carr_offset)) {
