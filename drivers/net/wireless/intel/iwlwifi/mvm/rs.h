@@ -218,6 +218,38 @@ struct iwl_rate_mcs_info {
 };
 
 /**
+ * struct iwl_lq_sta_rs_fw - rate and related statistics for RS in FW
+ * @last_rate_n_flags: last rate reported by FW
+ * @sta_id: the id of the station
+#ifdef CONFIG_MAC80211_DEBUGFS
+ * @dbg_fixed_rate: for debug, use fixed rate if not 0
+ * @dbg_agg_frame_count_lim: for debug, max number of frames in A-MPDU
+#endif
+ * @chains: bitmask of chains reported in %chain_signal
+ * @chain_signal: per chain signal strength
+ * @last_rssi: last rssi reported
+ * @drv: pointer back to the driver data
+ */
+
+struct iwl_lq_sta_rs_fw {
+	/* last tx rate_n_flags */
+	u32 last_rate_n_flags;
+
+	/* persistent fields - initialized only once - keep last! */
+	struct lq_sta_pers_rs_fw {
+		u32 sta_id;
+#ifdef CONFIG_MAC80211_DEBUGFS
+		u32 dbg_fixed_rate;
+		u16 dbg_agg_frame_count_lim;
+#endif
+		u8 chains;
+		s8 chain_signal[IEEE80211_MAX_CHAINS];
+		s8 last_rssi;
+		struct iwl_mvm *drv;
+	} pers;
+};
+
+/**
  * struct iwl_rate_scale_data -- tx success history for one rate
  */
 struct iwl_rate_scale_data {
@@ -406,5 +438,4 @@ struct iwl_mvm_sta;
 
 int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 			  bool enable);
-
 #endif /* __rs__ */
