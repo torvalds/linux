@@ -2215,12 +2215,11 @@ static int stv090x_get_coldlock(struct stv090x_state *state, s32 timeout_dmd)
 		if (state->config->tuner_get_status) {
 			if (state->config->tuner_get_status(fe, &reg) < 0)
 				goto err_gateoff;
+			if (reg)
+				dprintk(FE_DEBUG, 1, "Tuner phase locked");
+			else
+				dprintk(FE_DEBUG, 1, "Tuner unlocked");
 		}
-
-		if (reg)
-			dprintk(FE_DEBUG, 1, "Tuner phase locked");
-		else
-			dprintk(FE_DEBUG, 1, "Tuner unlocked");
 
 		if (stv090x_i2c_gate_ctrl(state, 0) < 0)
 			goto err;
