@@ -412,10 +412,17 @@ static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
 		WREG32(mmSDMA0_GFX_CONTEXT_CNTL, data);
 	}
 
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_DOORBELL,
-				m->sdma_rlc_doorbell);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR, 0);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_WPTR, 0);
+	data = REG_SET_FIELD(m->sdma_rlc_doorbell, SDMA0_RLC0_DOORBELL,
+			     ENABLE, 1);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_DOORBELL, data);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR, m->sdma_rlc_rb_rptr);
+
+	if (read_user_wptr(mm, wptr, data))
+		WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_WPTR, data);
+	else
+		WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_WPTR,
+		       m->sdma_rlc_rb_rptr);
+
 	WREG32(sdma_base_addr + mmSDMA0_RLC0_VIRTUAL_ADDR,
 				m->sdma_rlc_virtual_addr);
 	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_BASE, m->sdma_rlc_rb_base);
@@ -425,8 +432,10 @@ static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
 			m->sdma_rlc_rb_rptr_addr_lo);
 	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR_ADDR_HI,
 			m->sdma_rlc_rb_rptr_addr_hi);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL,
-			m->sdma_rlc_rb_cntl);
+
+	data = REG_SET_FIELD(m->sdma_rlc_rb_cntl, SDMA0_RLC0_RB_CNTL,
+			     RB_ENABLE, 1);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL, data);
 
 	return 0;
 }
@@ -577,7 +586,7 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 	struct cik_sdma_rlc_registers *m;
 	uint32_t sdma_base_addr;
 	uint32_t temp;
-	int timeout = utimeout;
+	unsigned long end_jiffies = (utimeout * HZ / 1000) + jiffies;
 
 	m = get_sdma_mqd(mqd);
 	sdma_base_addr = get_sdma_base_addr(m);
@@ -590,16 +599,17 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 		temp = RREG32(sdma_base_addr + mmSDMA0_RLC0_CONTEXT_STATUS);
 		if (temp & SDMA0_STATUS_REG__RB_CMD_IDLE__SHIFT)
 			break;
-		if (timeout <= 0)
+		if (time_after(jiffies, end_jiffies))
 			return -ETIME;
-		msleep(20);
-		timeout -= 20;
+		usleep_range(500, 1000);
 	}
 
 	WREG32(sdma_base_addr + mmSDMA0_RLC0_DOORBELL, 0);
 	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL,
 		RREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL) |
 		SDMA0_RLC0_RB_CNTL__RB_ENABLE_MASK);
+
+	m->sdma_rlc_rb_rptr = RREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR);
 
 	return 0;
 }
