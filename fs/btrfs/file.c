@@ -2922,7 +2922,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 
 	/* First, check if we exceed the qgroup limit */
 	INIT_LIST_HEAD(&reserve_list);
-	while (1) {
+	while (cur_offset < alloc_end) {
 		em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, cur_offset,
 				      alloc_end - cur_offset, 0);
 		if (IS_ERR(em)) {
@@ -2958,8 +2958,6 @@ static long btrfs_fallocate(struct file *file, int mode,
 		}
 		free_extent_map(em);
 		cur_offset = last_byte;
-		if (cur_offset >= alloc_end)
-			break;
 	}
 
 	/*
