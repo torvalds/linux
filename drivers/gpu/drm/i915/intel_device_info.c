@@ -347,7 +347,10 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	struct intel_device_info *info = mkwrite_device_info(dev_priv);
 	enum pipe pipe;
 
-	if (INTEL_GEN(dev_priv) >= 9) {
+	if (INTEL_GEN(dev_priv) >= 10) {
+		for_each_pipe(dev_priv, pipe)
+			info->num_scalers[pipe] = 2;
+	} else if (INTEL_GEN(dev_priv) == 9) {
 		info->num_scalers[PIPE_A] = 2;
 		info->num_scalers[PIPE_B] = 2;
 		info->num_scalers[PIPE_C] = 1;
