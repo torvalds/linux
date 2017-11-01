@@ -635,6 +635,7 @@ static int sync_chk(struct mb86a16_state *state,
 	return sync;
 err:
 	dprintk(verbose, MB86A16_ERROR, 1, "I2C transfer error");
+	*VIRM = 0;
 	return -EREMOTEIO;
 
 }
