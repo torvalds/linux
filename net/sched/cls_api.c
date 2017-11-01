@@ -1206,7 +1206,7 @@ static int tc_exts_setup_cb_egdev_call(struct tcf_exts *exts,
 		if (!a->ops->get_dev)
 			continue;
 		dev = a->ops->get_dev(a);
-		if (!dev || !tc_can_offload(dev))
+		if (!dev)
 			continue;
 		ret = tc_setup_cb_egdev_call(dev, type, type_data, err_stop);
 		if (ret < 0)
