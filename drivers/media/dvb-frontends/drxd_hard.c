@@ -972,7 +972,6 @@ static int DownloadMicrocode(struct drxd_state *state,
 static int HI_Command(struct drxd_state *state, u16 cmd, u16 * pResult)
 {
 	u32 nrRetries = 0;
-	u16 waitCmd;
 	int status;
 
 	status = Write16(state, HI_RA_RAM_SRV_CMD__A, cmd, 0);
@@ -985,8 +984,8 @@ static int HI_Command(struct drxd_state *state, u16 cmd, u16 * pResult)
 			status = -1;
 			break;
 		}
-		status = Read16(state, HI_RA_RAM_SRV_CMD__A, &waitCmd, 0);
-	} while (waitCmd != 0);
+		status = Read16(state, HI_RA_RAM_SRV_CMD__A, NULL, 0);
+	} while (status != 0);
 
 	if (status >= 0)
 		status = Read16(state, HI_RA_RAM_SRV_RES__A, pResult, 0);
@@ -1298,12 +1297,11 @@ static int InitFT(struct drxd_state *state)
 
 static int SC_WaitForReady(struct drxd_state *state)
 {
-	u16 curCmd;
 	int i;
 
 	for (i = 0; i < DRXD_MAX_RETRIES; i += 1) {
-		int status = Read16(state, SC_RA_RAM_CMD__A, &curCmd, 0);
-		if (status == 0 || curCmd == 0)
+		int status = Read16(state, SC_RA_RAM_CMD__A, NULL, 0);
+		if (status == 0)
 			return status;
 	}
 	return -1;
@@ -1311,15 +1309,15 @@ static int SC_WaitForReady(struct drxd_state *state)
 
 static int SC_SendCommand(struct drxd_state *state, u16 cmd)
 {
-	int status = 0;
+	int status = 0, ret;
 	u16 errCode;
 
 	Write16(state, SC_RA_RAM_CMD__A, cmd, 0);
 	SC_WaitForReady(state);
 
-	Read16(state, SC_RA_RAM_CMD_ADDR__A, &errCode, 0);
+	ret = Read16(state, SC_RA_RAM_CMD_ADDR__A, &errCode, 0);
 
-	if (errCode == 0xFFFF) {
+	if (ret < 0 || errCode == 0xFFFF) {
 		printk(KERN_ERR "Command Error\n");
 		status = -1;
 	}
@@ -1330,13 +1328,13 @@ static int SC_SendCommand(struct drxd_state *state, u16 cmd)
 static int SC_ProcStartCommand(struct drxd_state *state,
 			       u16 subCmd, u16 param0, u16 param1)
 {
-	int status = 0;
+	int ret, status = 0;
 	u16 scExec;
 
 	mutex_lock(&state->mutex);
 	do {
-		Read16(state, SC_COMM_EXEC__A, &scExec, 0);
-		if (scExec != 1) {
+		ret = Read16(state, SC_COMM_EXEC__A, &scExec, 0);
+		if (ret < 0 || scExec != 1) {
 			status = -1;
 			break;
 		}
