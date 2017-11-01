@@ -1017,6 +1017,8 @@ static void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
 		iwl_mvm_rx_queue_notif(mvm, rxb, 0);
 	else if (cmd == WIDE_ID(LEGACY_GROUP, FRAME_RELEASE))
 		iwl_mvm_rx_frame_release(mvm, napi, rxb, 0);
+	else if (cmd == WIDE_ID(DATA_PATH_GROUP, TLC_MNG_UPDATE_NOTIF))
+		iwl_mvm_tlc_update_notif(mvm, pkt);
 	else
 		iwl_mvm_rx_common(mvm, rxb, pkt);
 }

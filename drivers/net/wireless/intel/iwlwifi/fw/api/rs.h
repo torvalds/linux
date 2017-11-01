@@ -229,6 +229,40 @@ struct iwl_tlc_config_cmd {
 	__le32 max_ampdu_cnt;
 } __packed; /* TLC_MNG_CONFIG_CMD_API_S_VER_1 */
 
+#define IWL_TLC_NOTIF_INIT_RATE_POS 0
+#define IWL_TLC_NOTIF_INIT_RATE_MSK BIT(IWL_TLC_NOTIF_INIT_RATE_POS)
+#define IWL_TLC_NOTIF_REQ_INTERVAL (500)
+
+/**
+ * struct iwl_tlc_notif_req_config_cmd - request notif on specific changes
+ * @sta_id: relevant station
+ * @reserved1: reserved
+ * @flags: bitmap of requested notifications %IWL_TLC_NOTIF_INIT_\*
+ * @interval: minimum time between notifications from TLC to the driver (msec)
+ * @reserved2: reserved
+ */
+struct iwl_tlc_notif_req_config_cmd {
+	u8 sta_id;
+	u8 reserved1;
+	__le16 flags;
+	__le16 interval;
+	__le16 reserved2;
+} __packed; /* TLC_MNG_NOTIF_REQ_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_tlc_update_notif - TLC notification from FW
+ * @sta_id: station id
+ * @reserved: reserved
+ * @flags: bitmap of notifications reported
+ * @values: field per flag in struct iwl_tlc_notif_req_config_cmd
+ */
+struct iwl_tlc_update_notif {
+	u8 sta_id;
+	u8 reserved;
+	__le16 flags;
+	__le32 values[16];
+} __packed; /* TLC_MNG_UPDATE_NTFY_API_S_VER_1 */
+
 /*
  * These serve as indexes into
  * struct iwl_rate_info fw_rate_idx_to_plcp[IWL_RATE_COUNT];

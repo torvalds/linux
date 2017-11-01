@@ -213,6 +213,46 @@ static void rs_fw_set_supp_rates(struct ieee80211_sta *sta,
 	}
 }
 
+static void rs_fw_tlc_mng_notif_req_config(struct iwl_mvm *mvm, u8 sta_id)
+{
+	u32 cmd_id = iwl_cmd_id(TLC_MNG_NOTIF_REQ_CMD, DATA_PATH_GROUP, 0);
+	struct iwl_tlc_notif_req_config_cmd cfg_cmd = {
+		.sta_id = sta_id,
+		.flags = cpu_to_le16(IWL_TLC_NOTIF_INIT_RATE_MSK),
+		.interval = cpu_to_le16(IWL_TLC_NOTIF_REQ_INTERVAL),
+	};
+	int ret;
+
+	ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, sizeof(cfg_cmd), &cfg_cmd);
+	if (ret)
+		IWL_ERR(mvm, "Failed to send TLC notif request (%d)\n", ret);
+}
+
+void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm, struct iwl_rx_packet *pkt)
+{
+	struct iwl_tlc_update_notif *notif;
+	struct iwl_mvm_sta *mvmsta;
+	struct iwl_lq_sta_rs_fw *lq_sta;
+
+	notif = (void *)pkt->data;
+	mvmsta = iwl_mvm_sta_from_staid_rcu(mvm, notif->sta_id);
+
+	if (!mvmsta) {
+		IWL_ERR(mvm, "Invalid sta id (%d) in FW TLC notification\n",
+			notif->sta_id);
+		return;
+	}
+
+	lq_sta = &mvmsta->lq_sta.rs_fw;
+
+	if (le16_to_cpu(notif->flags) & IWL_TLC_NOTIF_INIT_RATE_MSK) {
+		lq_sta->last_rate_n_flags =
+			le32_to_cpu(notif->values[IWL_TLC_NOTIF_INIT_RATE_POS]);
+		IWL_DEBUG_RATE(mvm, "new rate_n_flags: 0x%X\n",
+			       lq_sta->last_rate_n_flags);
+	}
+}
+
 void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		     enum nl80211_band band)
 {
@@ -243,6 +283,8 @@ void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, sizeof(cfg_cmd), &cfg_cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send rate scale config (%d)\n", ret);
+
+	rs_fw_tlc_mng_notif_req_config(mvm, cfg_cmd.sta_id);
 }
 
 int rs_fw_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
