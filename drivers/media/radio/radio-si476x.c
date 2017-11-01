@@ -759,7 +759,7 @@ static int si476x_radio_s_hw_freq_seek(struct file *file, void *priv,
 {
 	int err;
 	enum si476x_func func;
-	u32 rangelow, rangehigh;
+	u32 rangelow = seek->rangelow, rangehigh = seek->rangehigh;
 	struct si476x_radio *radio = video_drvdata(file);
 
 	if (file->f_flags & O_NONBLOCK)
@@ -771,23 +771,21 @@ static int si476x_radio_s_hw_freq_seek(struct file *file, void *priv,
 
 	si476x_core_lock(radio->core);
 
-	if (!seek->rangelow) {
+	if (!rangelow) {
 		err = regmap_read(radio->core->regmap,
 				  SI476X_PROP_SEEK_BAND_BOTTOM,
 				  &rangelow);
-		if (!err)
-			rangelow = si476x_to_v4l2(radio->core, rangelow);
-		else
+		if (err)
 			goto unlock;
+		rangelow = si476x_to_v4l2(radio->core, rangelow);
 	}
-	if (!seek->rangehigh) {
+	if (!rangehigh) {
 		err = regmap_read(radio->core->regmap,
 				  SI476X_PROP_SEEK_BAND_TOP,
 				  &rangehigh);
-		if (!err)
-			rangehigh = si476x_to_v4l2(radio->core, rangehigh);
-		else
+		if (err)
 			goto unlock;
+		rangehigh = si476x_to_v4l2(radio->core, rangehigh);
 	}
 
 	if (rangelow > rangehigh) {
