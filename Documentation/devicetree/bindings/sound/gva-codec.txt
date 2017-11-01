@@ -1,0 +1,14 @@
+ GVA audio virtual codec
+
+This device support generic audio link.
+
+Required properties:
+
+  - compatible : "rockchip,gva-codec"
+
+Example:
+
+codec: gva_codec {
+	compatible = "rockchip,gva-codec";
+	#sound-dai-cells = <0>;
+};

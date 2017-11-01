@@ -502,6 +502,9 @@ config SND_SOC_ES8396
 config SND_SOC_GTM601
 	tristate 'GTM601 UMTS modem audio codec'
 
+config SND_SOC_GVA_CODEC
+	tristate "gva codec"
+
 config SND_SOC_ICS43432
 	tristate
 
