@@ -1222,7 +1222,6 @@ static int mtk_hdmi_conn_get_modes(struct drm_connector *conn)
 	drm_mode_connector_update_edid_property(conn, edid);
 
 	ret = drm_add_edid_modes(conn, edid);
-	drm_edid_to_eld(conn, edid);
 	kfree(edid);
 	return ret;
 }
