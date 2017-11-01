@@ -433,6 +433,19 @@ config RTC_DRV_PCF85063
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-pcf85063.
 
+config RTC_DRV_PCF85363
+	tristate "NXP PCF85363"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the PCF85363 RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-pcf85363.
+
+	  The nvmem interface will be named pcf85363-#, where # is the
+	  zero-based instance number.
+
 config RTC_DRV_PCF8563
 	tristate "Philips PCF8563/Epson RTC8564"
 	help
