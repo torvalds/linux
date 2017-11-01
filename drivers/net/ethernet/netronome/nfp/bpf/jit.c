@@ -944,7 +944,7 @@ wrp_alu_imm(struct nfp_prog *nfp_prog, u8 dst, enum alu_op alu_op, u32 imm)
 	if (alu_op == ALU_OP_XOR) {
 		if (!~imm)
 			emit_alu(nfp_prog, reg_both(dst), reg_none(),
-				 ALU_OP_NEG, reg_b(dst));
+				 ALU_OP_NOT, reg_b(dst));
 		if (!imm || !~imm)
 			return;
 	}

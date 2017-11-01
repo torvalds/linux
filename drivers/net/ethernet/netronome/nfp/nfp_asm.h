@@ -174,7 +174,7 @@ enum shf_sc {
 enum alu_op {
 	ALU_OP_NONE	= 0x00,
 	ALU_OP_ADD	= 0x01,
-	ALU_OP_NEG	= 0x04,
+	ALU_OP_NOT	= 0x04,
 	ALU_OP_AND	= 0x08,
 	ALU_OP_SUB_C	= 0x0d,
 	ALU_OP_ADD_C	= 0x11,
