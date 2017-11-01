@@ -173,11 +173,12 @@ static inline void timer_setup_on_stack(struct timer_list *timer,
  * do want to keep the inline for argument type checking, though.
  */
 # define timer_setup(timer, callback, flags)				\
-		__setup_timer(timer, (TIMER_FUNC_TYPE)callback,		\
-			      (TIMER_DATA_TYPE)timer, flags)
+		__setup_timer((timer), (TIMER_FUNC_TYPE)(callback),	\
+			      (TIMER_DATA_TYPE)(timer), (flags))
 # define timer_setup_on_stack(timer, callback, flags)			\
-		__setup_timer_on_stack(timer, (TIMER_FUNC_TYPE)callback,\
-				       (TIMER_DATA_TYPE)timer, flags)
+		__setup_timer_on_stack((timer),				\
+				       (TIMER_FUNC_TYPE)(callback),	\
+				       (TIMER_DATA_TYPE)(timer), (flags))
 #endif
 
 #define from_timer(var, callback_timer, timer_fieldname) \
