@@ -925,6 +925,7 @@ struct dwc2_hsotg {
 	int     irq;
 	struct clk *clk;
 	struct reset_control *reset;
+	struct reset_control *reset_ecc;
 
 	unsigned int queuing_high_bandwidth:1;
 	unsigned int srp_success:1;
