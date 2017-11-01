@@ -143,32 +143,19 @@ static void _rtl_pci_update_default_setting(struct ieee80211_hw *hw)
 
 	/*Set HW definition to determine if it supports ASPM. */
 	switch (rtlpci->const_support_pciaspm) {
-	case 0:{
-			/*Not support ASPM. */
-			bool support_aspm = false;
-			ppsc->support_aspm = support_aspm;
-			break;
-		}
-	case 1:{
-			/*Support ASPM. */
-			bool support_aspm = true;
-			bool support_backdoor = true;
-			ppsc->support_aspm = support_aspm;
-
-			/*if (priv->oem_id == RT_CID_TOSHIBA &&
-			   !priv->ndis_adapter.amd_l1_patch)
-			   support_backdoor = false; */
-
-			ppsc->support_backdoor = support_backdoor;
-
-			break;
-		}
+	case 0:
+		/*Not support ASPM. */
+		ppsc->support_aspm = false;
+		break;
+	case 1:
+		/*Support ASPM. */
+		ppsc->support_aspm = true;
+		ppsc->support_backdoor = true;
+		break;
 	case 2:
 		/*ASPM value set by chipset. */
-		if (pcibridge_vendor == PCI_BRIDGE_VENDOR_INTEL) {
-			bool support_aspm = true;
-			ppsc->support_aspm = support_aspm;
-		}
+		if (pcibridge_vendor == PCI_BRIDGE_VENDOR_INTEL)
+			ppsc->support_aspm = true;
 		break;
 	default:
 		pr_err("switch case %#x not processed\n",
