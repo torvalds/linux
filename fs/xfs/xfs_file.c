@@ -1085,37 +1085,16 @@ xfs_filemap_page_mkwrite(
 }
 
 /*
- * pfn_mkwrite was originally inteneded to ensure we capture time stamp
- * updates on write faults. In reality, it's need to serialise against
- * truncate similar to page_mkwrite. Hence we cycle the XFS_MMAPLOCK_SHARED
- * to ensure we serialise the fault barrier in place.
+ * pfn_mkwrite was originally intended to ensure we capture time stamp updates
+ * on write faults. In reality, it needs to serialise against truncate and
+ * prepare memory for writing so handle is as standard write fault.
  */
 static int
 xfs_filemap_pfn_mkwrite(
 	struct vm_fault		*vmf)
 {
 
-	struct inode		*inode = file_inode(vmf->vma->vm_file);
-	struct xfs_inode	*ip = XFS_I(inode);
-	int			ret = VM_FAULT_NOPAGE;
-	loff_t			size;
-
-	trace_xfs_filemap_pfn_mkwrite(ip);
-
-	sb_start_pagefault(inode->i_sb);
-	file_update_time(vmf->vma->vm_file);
-
-	/* check if the faulting page hasn't raced with truncate */
-	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
-	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	if (vmf->pgoff >= size)
-		ret = VM_FAULT_SIGBUS;
-	else if (IS_DAX(inode))
-		ret = dax_iomap_fault(vmf, PE_SIZE_PTE, NULL, &xfs_iomap_ops);
-	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
-	sb_end_pagefault(inode->i_sb);
-	return ret;
-
+	return __xfs_filemap_fault(vmf, PE_SIZE_PTE, true);
 }
 
 static const struct vm_operations_struct xfs_file_vm_ops = {
