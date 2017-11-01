@@ -17,23 +17,11 @@
 #define _DELL_SMBIOS_H_
 
 #include <linux/device.h>
+#include <uapi/linux/wmi.h>
 
-/* Classes and selects used in kernel drivers */
-#define CLASS_TOKEN_READ 0
-#define CLASS_TOKEN_WRITE 1
-#define SELECT_TOKEN_STD 0
-#define SELECT_TOKEN_BAT 1
-#define SELECT_TOKEN_AC 2
+/* Classes and selects used only in kernel drivers */
 #define CLASS_KBD_BACKLIGHT 4
 #define SELECT_KBD_BACKLIGHT 11
-#define CLASS_FLASH_INTERFACE 7
-#define SELECT_FLASH_INTERFACE 3
-#define CLASS_ADMIN_PROP 10
-#define SELECT_ADMIN_PROP 3
-#define CLASS_INFO 17
-#define SELECT_RFKILL 11
-#define SELECT_APP_REGISTRATION	3
-#define SELECT_DOCK 22
 
 /* Tokens used in kernel drivers, any of these
  * should be filtered from userspace access
@@ -50,23 +38,7 @@
 #define GLOBAL_MIC_MUTE_ENABLE	0x0364
 #define GLOBAL_MIC_MUTE_DISABLE	0x0365
 
-/* tokens whitelisted to userspace use */
-#define CAPSULE_EN_TOKEN	0x0461
-#define CAPSULE_DIS_TOKEN	0x0462
-#define WSMT_EN_TOKEN		0x04EC
-#define WSMT_DIS_TOKEN		0x04ED
-
 struct notifier_block;
-
-/* This structure will be modified by the firmware when we enter
- * system management mode, hence the volatiles */
-
-struct calling_interface_buffer {
-	u16 cmd_class;
-	u16 cmd_select;
-	volatile u32 input[4];
-	volatile u32 output[4];
-} __packed;
 
 struct calling_interface_token {
 	u16 tokenID;

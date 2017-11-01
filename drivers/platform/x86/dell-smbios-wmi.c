@@ -30,17 +30,6 @@ struct misc_bios_flags_structure {
 
 #define DELL_WMI_SMBIOS_GUID "A80593CE-A997-11DA-B012-B622A1EF5492"
 
-struct dell_wmi_extensions {
-	__u32 argattrib;
-	__u32 blength;
-	__u8 data[];
-} __packed;
-
-struct dell_wmi_smbios_buffer {
-	struct calling_interface_buffer std;
-	struct dell_wmi_extensions ext;
-} __packed;
-
 struct wmi_smbios_priv {
 	struct dell_wmi_smbios_buffer *buf;
 	struct list_head list;
@@ -117,6 +106,42 @@ int dell_smbios_wmi_call(struct calling_interface_buffer *buffer)
 	return ret;
 }
 
+static long dell_smbios_wmi_filter(struct wmi_device *wdev, unsigned int cmd,
+				   struct wmi_ioctl_buffer *arg)
+{
+	struct wmi_smbios_priv *priv;
+	int ret = 0;
+
+	switch (cmd) {
+	case DELL_WMI_SMBIOS_CMD:
+		mutex_lock(&call_mutex);
+		priv = dev_get_drvdata(&wdev->dev);
+		if (!priv) {
+			ret = -ENODEV;
+			goto fail_smbios_cmd;
+		}
+		memcpy(priv->buf, arg, priv->req_buf_size);
+		if (dell_smbios_call_filter(&wdev->dev, &priv->buf->std)) {
+			dev_err(&wdev->dev, "Invalid call %d/%d:%8x\n",
+				priv->buf->std.cmd_class,
+				priv->buf->std.cmd_select,
+				priv->buf->std.input[0]);
+			ret = -EFAULT;
+			goto fail_smbios_cmd;
+		}
+		ret = run_smbios_call(priv->wdev);
+		if (ret)
+			goto fail_smbios_cmd;
+		memcpy(arg, priv->buf, priv->req_buf_size);
+fail_smbios_cmd:
+		mutex_unlock(&call_mutex);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+	}
+	return ret;
+}
+
 static int dell_smbios_wmi_probe(struct wmi_device *wdev)
 {
 	struct wmi_smbios_priv *priv;
@@ -134,6 +159,12 @@ static int dell_smbios_wmi_probe(struct wmi_device *wdev)
 	/* WMI buffer size will be either 4k or 32k depending on machine */
 	if (!dell_wmi_get_size(&priv->req_buf_size))
 		return -EPROBE_DEFER;
+
+	/* add in the length object we will use internally with ioctl */
+	priv->req_buf_size += sizeof(u64);
+	ret = set_required_buffer_size(wdev, priv->req_buf_size);
+	if (ret)
+		return ret;
 
 	count = get_order(priv->req_buf_size);
 	priv->buf = (void *)__get_free_pages(GFP_KERNEL, count);
@@ -210,6 +241,7 @@ static struct wmi_driver dell_smbios_wmi_driver = {
 	.probe = dell_smbios_wmi_probe,
 	.remove = dell_smbios_wmi_remove,
 	.id_table = dell_smbios_wmi_id_table,
+	.filter_callback = dell_smbios_wmi_filter,
 };
 
 static int __init init_dell_smbios_wmi(void)
