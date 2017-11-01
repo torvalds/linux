@@ -709,6 +709,7 @@ enum rtl_var_map {
 	RTL_IMR_RXFOVW,		/*Receive FIFO Overflow */
 	RTL_IMR_RDU,		/*Receive Descriptor Unavailable */
 	RTL_IMR_ATIMEND,	/*For 92C,ATIM Window End Interrupt */
+	RTL_IMR_H2CDOK,		/*H2C Queue DMA OK Interrupt */
 	RTL_IMR_BDOK,		/*Beacon Queue DMA OK Interrup */
 	RTL_IMR_HIGHDOK,	/*High Queue DMA OK Interrupt */
 	RTL_IMR_COMDOK,		/*Command Queue DMA OK Interrupt*/
@@ -2144,6 +2145,9 @@ struct rtl_hal_ops {
 	void (*fill_tx_cmddesc) (struct ieee80211_hw *hw, u8 *pdesc,
 				 bool firstseg, bool lastseg,
 				 struct sk_buff *skb);
+	void (*fill_tx_special_desc)(struct ieee80211_hw *hw,
+				     u8 *pdesc, u8 *pbd_desc,
+				     struct sk_buff *skb, u8 hw_queue);
 	bool (*query_rx_desc) (struct ieee80211_hw *hw,
 			       struct rtl_stats *stats,
 			       struct ieee80211_rx_status *rx_status,

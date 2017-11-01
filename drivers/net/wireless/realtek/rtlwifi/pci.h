@@ -51,6 +51,7 @@
 #define MGNT_QUEUE				6
 #define HIGH_QUEUE				7
 #define HCCA_QUEUE				8
+#define H2C_QUEUE				TXCMD_QUEUE	/* In 8822B */
 
 #define RTL_PCI_DEVICE(vend, dev, cfg)  \
 	.vendor = (vend), \

@@ -926,6 +926,7 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 	unsigned long flags;
 	u32 inta = 0;
 	u32 intb = 0;
+	u32 intd = 0;
 	irqreturn_t ret = IRQ_HANDLED;
 
 	if (rtlpci->irq_enabled == 0)
@@ -1005,6 +1006,16 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 		RT_TRACE(rtlpriv, COMP_INTR, DBG_TRACE,
 			 "Vo TX OK interrupt!\n");
 		_rtl_pci_tx_isr(hw, VO_QUEUE);
+	}
+
+	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8822BE) {
+		if (intd & rtlpriv->cfg->maps[RTL_IMR_H2CDOK]) {
+			rtlpriv->link_info.num_tx_inperiod++;
+
+			RT_TRACE(rtlpriv, COMP_INTR, DBG_TRACE,
+				 "H2C TX OK interrupt!\n");
+			_rtl_pci_tx_isr(hw, H2C_QUEUE);
+		}
 	}
 
 	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8192SE) {
