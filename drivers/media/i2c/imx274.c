@@ -655,6 +655,8 @@ static int imx274_regmap_util_write_table_8(struct regmap *regmap,
 				err = regmap_bulk_write(regmap, range_start,
 							&range_vals[0],
 							range_count);
+			else
+				err = 0;
 
 			if (err)
 				return err;
