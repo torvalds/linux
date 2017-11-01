@@ -1951,7 +1951,21 @@ static blk_status_t __btrfs_submit_bio_done(void *private_data, struct bio *bio,
 
 /*
  * extent_io.c submission hook. This does the right thing for csum calculation
- * on write, or reading the csums from the tree before a read
+ * on write, or reading the csums from the tree before a read.
+ *
+ * Rules about async/sync submit,
+ * a) read:				sync submit
+ *
+ * b) write without checksum:		sync submit
+ *
+ * c) write with checksum:
+ *    c-1) if bio is issued by fsync:	sync submit
+ *         (sync_writers != 0)
+ *
+ *    c-2) if root is reloc root:	sync submit
+ *         (only in case of buffered IO)
+ *
+ *    c-3) otherwise:			async submit
  */
 static blk_status_t btrfs_submit_bio_hook(void *private_data, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags,
@@ -8456,6 +8470,7 @@ __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode, u64 file_offset,
 	bool write = bio_op(bio) == REQ_OP_WRITE;
 	blk_status_t ret;
 
+	/* Check btrfs_submit_bio_hook() for rules about async submit. */
 	if (async_submit)
 		async_submit = !atomic_read(&BTRFS_I(inode)->sync_writers);
 
