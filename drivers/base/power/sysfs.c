@@ -218,7 +218,14 @@ static ssize_t pm_qos_resume_latency_show(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	return sprintf(buf, "%d\n", dev_pm_qos_requested_resume_latency(dev));
+	s32 value = dev_pm_qos_requested_resume_latency(dev);
+
+	if (value == 0)
+		return sprintf(buf, "n/a\n");
+	else if (value == PM_QOS_RESUME_LATENCY_NO_CONSTRAINT)
+		value = 0;
+
+	return sprintf(buf, "%d\n", value);
 }
 
 static ssize_t pm_qos_resume_latency_store(struct device *dev,
@@ -228,11 +235,21 @@ static ssize_t pm_qos_resume_latency_store(struct device *dev,
 	s32 value;
 	int ret;
 
-	if (kstrtos32(buf, 0, &value))
-		return -EINVAL;
+	if (!kstrtos32(buf, 0, &value)) {
+		/*
+		 * Prevent users from writing negative or "no constraint" values
+		 * directly.
+		 */
+		if (value < 0 || value == PM_QOS_RESUME_LATENCY_NO_CONSTRAINT)
+			return -EINVAL;
 
-	if (value < 0)
+		if (value == 0)
+			value = PM_QOS_RESUME_LATENCY_NO_CONSTRAINT;
+	} else if (!strcmp(buf, "n/a") || !strcmp(buf, "n/a\n")) {
+		value = 0;
+	} else {
 		return -EINVAL;
+	}
 
 	ret = dev_pm_qos_update_request(dev->power.qos->resume_latency_req,
 					value);

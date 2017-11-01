@@ -534,8 +534,16 @@ static irqreturn_t amd_gpio_irq_handler(int irq, void *dev_id)
 				continue;
 			irq = irq_find_mapping(gc->irqdomain, irqnr + i);
 			generic_handle_irq(irq);
-			/* Clear interrupt */
+
+			/* Clear interrupt.
+			 * We must read the pin register again, in case the
+			 * value was changed while executing
+			 * generic_handle_irq() above.
+			 */
+			raw_spin_lock_irqsave(&gpio_dev->lock, flags);
+			regval = readl(regs + i);
 			writel(regval, regs + i);
+			raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 			ret = IRQ_HANDLED;
 		}
 	}

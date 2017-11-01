@@ -804,8 +804,6 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 
 	spin_unlock_irqrestore(&mdp5_crtc->cursor.lock, flags);
 
-	pm_runtime_put_autosuspend(&pdev->dev);
-
 set_cursor:
 	ret = mdp5_ctl_set_cursor(ctl, pipeline, 0, cursor_enable);
 	if (ret) {

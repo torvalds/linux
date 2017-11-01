@@ -834,7 +834,7 @@ int amdgpu_ttm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *bo_mem)
 	placement.busy_placement = &placements;
 	placements.fpfn = 0;
 	placements.lpfn = adev->mc.gart_size >> PAGE_SHIFT;
-	placements.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
+	placements.flags = bo->mem.placement | TTM_PL_FLAG_TT;
 
 	r = ttm_bo_mem_space(bo, &placement, &tmp, true, false);
 	if (unlikely(r))

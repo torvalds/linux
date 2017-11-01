@@ -405,14 +405,13 @@ int ovl_verify_index(struct dentry *index, struct path *lowerstack,
 	 * be treated as stale (i.e. after unlink of the overlay inode).
 	 * We don't know the verification rules for directory and whiteout
 	 * index entries, because they have not been implemented yet, so return
-	 * EROFS if those entries are found to avoid corrupting an index that
-	 * was created by a newer kernel.
+	 * EINVAL if those entries are found to abort the mount to avoid
+	 * corrupting an index that was created by a newer kernel.
 	 */
-	err = -EROFS;
+	err = -EINVAL;
 	if (d_is_dir(index) || ovl_is_whiteout(index))
 		goto fail;
 
-	err = -EINVAL;
 	if (index->d_name.len < sizeof(struct ovl_fh)*2)
 		goto fail;
 
@@ -507,6 +506,10 @@ static struct dentry *ovl_lookup_index(struct dentry *dentry,
 	index = lookup_one_len_unlocked(name.name, ofs->indexdir, name.len);
 	if (IS_ERR(index)) {
 		err = PTR_ERR(index);
+		if (err == -ENOENT) {
+			index = NULL;
+			goto out;
+		}
 		pr_warn_ratelimited("overlayfs: failed inode index lookup (ino=%lu, key=%*s, err=%i);\n"
 				    "overlayfs: mount with '-o index=off' to disable inodes index.\n",
 				    d_inode(origin)->i_ino, name.len, name.name,
@@ -516,18 +519,9 @@ static struct dentry *ovl_lookup_index(struct dentry *dentry,
 
 	inode = d_inode(index);
 	if (d_is_negative(index)) {
-		if (upper && d_inode(origin)->i_nlink > 1) {
-			pr_warn_ratelimited("overlayfs: hard link with origin but no index (ino=%lu).\n",
-					    d_inode(origin)->i_ino);
-			goto fail;
-		}
-
-		dput(index);
-		index = NULL;
+		goto out_dput;
 	} else if (upper && d_inode(upper) != inode) {
-		pr_warn_ratelimited("overlayfs: wrong index found (index=%pd2, ino=%lu, upper ino=%lu).\n",
-				    index, inode->i_ino, d_inode(upper)->i_ino);
-		goto fail;
+		goto out_dput;
 	} else if (ovl_dentry_weird(index) || ovl_is_whiteout(index) ||
 		   ((inode->i_mode ^ d_inode(origin)->i_mode) & S_IFMT)) {
 		/*
@@ -546,6 +540,11 @@ static struct dentry *ovl_lookup_index(struct dentry *dentry,
 out:
 	kfree(name.name);
 	return index;
+
+out_dput:
+	dput(index);
+	index = NULL;
+	goto out;
 
 fail:
 	dput(index);
@@ -635,6 +634,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		}
 
 		if (d.redirect) {
+			err = -ENOMEM;
 			upperredirect = kstrdup(d.redirect, GFP_KERNEL);
 			if (!upperredirect)
 				goto out_put_upper;
@@ -709,7 +709,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		upperdentry = dget(index);
 
 	if (upperdentry || ctr) {
-		inode = ovl_get_inode(dentry, upperdentry);
+		inode = ovl_get_inode(dentry, upperdentry, index);
 		err = PTR_ERR(inode);
 		if (IS_ERR(inode))
 			goto out_free_oe;

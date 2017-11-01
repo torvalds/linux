@@ -1576,11 +1576,7 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 			totlen += isopkt[u].length;
 		}
 		u *= sizeof(struct usb_iso_packet_descriptor);
-		if (totlen <= uurb->buffer_length)
-			uurb->buffer_length = totlen;
-		else
-			WARN_ONCE(1, "uurb->buffer_length is too short %d vs %d",
-				  totlen, uurb->buffer_length);
+		uurb->buffer_length = totlen;
 		break;
 
 	default:
