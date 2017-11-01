@@ -309,7 +309,7 @@ static int dvbsky_s960_attach(struct dvb_usb_adapter *adap)
 	struct dvb_usb_device *d = adap_to_d(adap);
 	int ret = 0;
 	/* demod I2C adapter */
-	struct i2c_adapter *i2c_adapter;
+	struct i2c_adapter *i2c_adapter = NULL;
 	struct i2c_client *client;
 	struct i2c_board_info info;
 	struct ts2020_config ts2020_config = {};
@@ -431,7 +431,7 @@ static int dvbsky_s960c_attach(struct dvb_usb_adapter *adap)
 	struct dvb_usb_device *d = adap_to_d(adap);
 	int ret = 0;
 	/* demod I2C adapter */
-	struct i2c_adapter *i2c_adapter;
+	struct i2c_adapter *i2c_adapter = NULL;
 	struct i2c_client *client_tuner, *client_ci;
 	struct i2c_board_info info;
 	struct sp2_config sp2_config;
