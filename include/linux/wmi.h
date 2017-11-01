@@ -18,6 +18,7 @@
 
 #include <linux/device.h>
 #include <linux/acpi.h>
+#include <uapi/linux/wmi.h>
 
 struct wmi_device {
 	struct device dev;
@@ -36,6 +37,8 @@ extern acpi_status wmidev_evaluate_method(struct wmi_device *wdev,
 extern union acpi_object *wmidev_block_query(struct wmi_device *wdev,
 					     u8 instance);
 
+extern int set_required_buffer_size(struct wmi_device *wdev, u64 length);
+
 struct wmi_device_id {
 	const char *guid_string;
 };
@@ -47,6 +50,8 @@ struct wmi_driver {
 	int (*probe)(struct wmi_device *wdev);
 	int (*remove)(struct wmi_device *wdev);
 	void (*notify)(struct wmi_device *device, union acpi_object *data);
+	long (*filter_callback)(struct wmi_device *wdev, unsigned int cmd,
+				struct wmi_ioctl_buffer *arg);
 };
 
 extern int __must_check __wmi_driver_register(struct wmi_driver *driver,
