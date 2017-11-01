@@ -408,6 +408,17 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 
 	retval = mqd->update_mqd(mqd, q->mqd, &q->properties);
 
+	/*
+	 * check active state vs. the previous state and modify
+	 * counter accordingly. map_queues_cpsch uses the
+	 * dqm->queue_count to determine whether a new runlist must be
+	 * uploaded.
+	 */
+	if (q->properties.is_active && !prev_active)
+		dqm->queue_count++;
+	else if (!q->properties.is_active && prev_active)
+		dqm->queue_count--;
+
 	if (sched_policy != KFD_SCHED_POLICY_NO_HWS)
 		retval = map_queues_cpsch(dqm);
 	else if (sched_policy == KFD_SCHED_POLICY_NO_HWS &&
@@ -416,15 +427,6 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 		  q->properties.type == KFD_QUEUE_TYPE_SDMA))
 		retval = mqd->load_mqd(mqd, q->mqd, q->pipe, q->queue,
 				       &q->properties, q->process->mm);
-
-	/*
-	 * check active state vs. the previous state
-	 * and modify counter accordingly
-	 */
-	if (q->properties.is_active && !prev_active)
-		dqm->queue_count++;
-	else if (!q->properties.is_active && prev_active)
-		dqm->queue_count--;
 
 out_unlock:
 	mutex_unlock(&dqm->lock);
