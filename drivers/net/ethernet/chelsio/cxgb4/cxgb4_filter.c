@@ -341,7 +341,7 @@ static int get_filter_steerq(struct net_device *dev,
 }
 
 static int get_filter_count(struct adapter *adapter, unsigned int fidx,
-			    u64 *pkts, u64 *bytes)
+			    u64 *pkts, u64 *bytes, bool hash)
 {
 	unsigned int tcb_base, tcbaddr;
 	unsigned int word_offset;
@@ -350,14 +350,24 @@ static int get_filter_count(struct adapter *adapter, unsigned int fidx,
 	int ret;
 
 	tcb_base = t4_read_reg(adapter, TP_CMM_TCB_BASE_A);
-	if ((fidx != (adapter->tids.nftids + adapter->tids.nsftids - 1)) &&
-	    fidx >= adapter->tids.nftids)
-		return -E2BIG;
+	if (is_hashfilter(adapter) && hash) {
+		if (fidx < adapter->tids.ntids) {
+			f = adapter->tids.tid_tab[fidx];
+			if (!f)
+				return -EINVAL;
+		} else {
+			return -E2BIG;
+		}
+	} else {
+		if ((fidx != (adapter->tids.nftids +
+			      adapter->tids.nsftids - 1)) &&
+		    fidx >= adapter->tids.nftids)
+			return -E2BIG;
 
-	f = &adapter->tids.ftid_tab[fidx];
-	if (!f->valid)
-		return -EINVAL;
-
+		f = &adapter->tids.ftid_tab[fidx];
+		if (!f->valid)
+			return -EINVAL;
+	}
 	tcbaddr = tcb_base + f->tid * TCB_SIZE;
 
 	spin_lock(&adapter->win0_lock);
@@ -409,11 +419,11 @@ out:
 }
 
 int cxgb4_get_filter_counters(struct net_device *dev, unsigned int fidx,
-			      u64 *hitcnt, u64 *bytecnt)
+			      u64 *hitcnt, u64 *bytecnt, bool hash)
 {
 	struct adapter *adapter = netdev2adap(dev);
 
-	return get_filter_count(adapter, fidx, hitcnt, bytecnt);
+	return get_filter_count(adapter, fidx, hitcnt, bytecnt, hash);
 }
 
 int cxgb4_get_free_ftid(struct net_device *dev, int family)

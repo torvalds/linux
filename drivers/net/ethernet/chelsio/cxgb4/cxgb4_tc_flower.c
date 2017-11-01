@@ -755,7 +755,8 @@ static void ch_flower_stats_cb(struct timer_list *t)
 	hash_for_each_rcu(adap->flower_anymatch_tbl, i, flower_entry, link) {
 		ret = cxgb4_get_filter_counters(adap->port[0],
 						flower_entry->filter_id,
-						&packets, &bytes);
+						&packets, &bytes,
+						flower_entry->fs.hash);
 		if (!ret) {
 			spin_lock(&flower_entry->lock);
 			ofld_stats = &flower_entry->stats;
@@ -788,7 +789,8 @@ int cxgb4_tc_flower_stats(struct net_device *dev,
 	}
 
 	ret = cxgb4_get_filter_counters(dev, ch_flower->filter_id,
-					&packets, &bytes);
+					&packets, &bytes,
+					ch_flower->fs.hash);
 	if (ret < 0)
 		goto err;
 
