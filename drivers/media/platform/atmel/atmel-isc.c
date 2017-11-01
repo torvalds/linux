@@ -2039,10 +2039,10 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 
 	INIT_LIST_HEAD(&isc->subdev_entities);
 
-	for (; ;) {
+	while (1) {
 		epn = of_graph_get_next_endpoint(np, epn);
 		if (!epn)
-			break;
+			return 0;
 
 		rem = of_graph_get_remote_port_parent(epn);
 		if (!rem) {
