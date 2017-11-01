@@ -287,10 +287,18 @@ struct tp_params {
 	 * places we store their offsets here, or a -1 if the field isn't
 	 * present.
 	 */
-	int vlan_shift;
-	int vnic_shift;
+	int fcoe_shift;
 	int port_shift;
+	int vnic_shift;
+	int vlan_shift;
+	int tos_shift;
 	int protocol_shift;
+	int ethertype_shift;
+	int macmatch_shift;
+	int matchtype_shift;
+	int frag_shift;
+
+	u64 hash_filter_mask;
 };
 
 struct vpd_params {
