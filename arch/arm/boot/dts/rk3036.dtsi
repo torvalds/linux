@@ -207,8 +207,25 @@
 
 		clocks = <&cru  SCLK_GPU>;
 		clock-names = "clk_mali";
+		assigned-clocks = <&cru SCLK_GPU>;
+		assigned-clock-rates = <400000000>;
+		assigned-clock-parents = <&cru PLL_DPLL>;
+		operating-points-v2 = <&gpu_opp_table>;
 
 		status = "disabled";
+	};
+
+	gpu_opp_table: opp-table1 {
+		compatible = "operating-points-v2";
+
+		opp-200000000 {
+			opp-hz = /bits/ 64 <200000000>;
+			opp-microvolt = <1000000>;
+		};
+		opp-400000000 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <1100000>;
+		};
 	};
 
 	vpu: video-codec@10108000 {
