@@ -92,7 +92,7 @@
 	/* SDMMC1 (SD/MMC) */
 	sdhci@3400000 {
 		cd-gpios = <&gpio TEGRA_MAIN_GPIO(P, 5) GPIO_ACTIVE_LOW>;
-		wp-gpios = <&gpio TEGRA_MAIN_GPIO(P, 4) GPIO_ACTIVE_LOW>;
+		wp-gpios = <&gpio TEGRA_MAIN_GPIO(P, 4) GPIO_ACTIVE_HIGH>;
 
 		vqmmc-supply = <&vddio_sdmmc1>;
 	};
