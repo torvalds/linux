@@ -27,12 +27,20 @@ static struct phy_led_trigger *phy_speed_to_led_trigger(struct phy_device *phy,
 	return NULL;
 }
 
+static void phy_led_trigger_no_link(struct phy_device *phy)
+{
+	if (phy->last_triggered) {
+		led_trigger_event(&phy->last_triggered->trigger, LED_OFF);
+		phy->last_triggered = NULL;
+	}
+}
+
 void phy_led_trigger_change_speed(struct phy_device *phy)
 {
 	struct phy_led_trigger *plt;
 
 	if (!phy->link)
-		goto out_change_speed;
+		return phy_led_trigger_no_link(phy);
 
 	if (phy->speed == 0)
 		return;
@@ -42,21 +50,13 @@ void phy_led_trigger_change_speed(struct phy_device *phy)
 		netdev_alert(phy->attached_dev,
 			     "No phy led trigger registered for speed(%d)\n",
 			     phy->speed);
-		goto out_change_speed;
+		return phy_led_trigger_no_link(phy);
 	}
 
 	if (plt != phy->last_triggered) {
 		led_trigger_event(&phy->last_triggered->trigger, LED_OFF);
 		led_trigger_event(&plt->trigger, LED_FULL);
 		phy->last_triggered = plt;
-	}
-	return;
-
-out_change_speed:
-	if (phy->last_triggered) {
-		led_trigger_event(&phy->last_triggered->trigger,
-				  LED_OFF);
-		phy->last_triggered = NULL;
 	}
 }
 EXPORT_SYMBOL_GPL(phy_led_trigger_change_speed);
