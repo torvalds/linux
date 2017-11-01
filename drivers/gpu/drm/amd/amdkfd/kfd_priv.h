@@ -527,12 +527,6 @@ struct kfd_process {
 
 	struct process_queue_manager pqm;
 
-	/* The process's queues. */
-	size_t queue_array_size;
-
-	/* Size is queue_array_size, up to MAX_PROCESS_QUEUES. */
-	struct kfd_queue **queues;
-
 	/*Is the user space process 32 bit?*/
 	bool is_32bit_user_mode;
 

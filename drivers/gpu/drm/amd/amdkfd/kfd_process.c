@@ -35,13 +35,6 @@ struct mm_struct;
 #include "kfd_dbgmgr.h"
 
 /*
- * Initial size for the array of queues.
- * The allocated size is doubled each time
- * it is exceeded up to MAX_PROCESS_QUEUES.
- */
-#define INITIAL_QUEUE_ARRAY_SIZE 16
-
-/*
  * List of struct kfd_process (field kfd_process).
  * Unique/indexed by mm_struct*
  */
@@ -187,8 +180,6 @@ static void kfd_process_wq_release(struct work_struct *work)
 
 	mutex_destroy(&p->mutex);
 
-	kfree(p->queues);
-
 	kfree(p);
 
 	kfree(work);
@@ -270,11 +261,6 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 	if (!process)
 		goto err_alloc_process;
 
-	process->queues = kmalloc_array(INITIAL_QUEUE_ARRAY_SIZE,
-					sizeof(process->queues[0]), GFP_KERNEL);
-	if (!process->queues)
-		goto err_alloc_queues;
-
 	process->pasid = kfd_pasid_alloc();
 	if (process->pasid == 0)
 		goto err_alloc_pasid;
@@ -296,8 +282,6 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 			(uintptr_t)process->mm);
 
 	process->lead_thread = thread->group_leader;
-
-	process->queue_array_size = INITIAL_QUEUE_ARRAY_SIZE;
 
 	INIT_LIST_HEAD(&process->per_device_data);
 
@@ -327,8 +311,6 @@ err_mmu_notifier:
 err_alloc_doorbells:
 	kfd_pasid_free(process->pasid);
 err_alloc_pasid:
-	kfree(process->queues);
-err_alloc_queues:
 	kfree(process);
 err_alloc_process:
 	return ERR_PTR(err);
