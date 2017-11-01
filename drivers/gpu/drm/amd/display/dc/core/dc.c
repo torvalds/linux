@@ -164,7 +164,7 @@ failed_alloc:
 	return false;
 }
 
-static bool stream_adjust_vmin_vmax(struct dc *dc,
+bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 		struct dc_stream_state **streams, int num_streams,
 		int vmin, int vmax)
 {
@@ -189,7 +189,7 @@ static bool stream_adjust_vmin_vmax(struct dc *dc,
 	return ret;
 }
 
-static bool stream_get_crtc_position(struct dc *dc,
+bool dc_stream_get_crtc_position(struct dc *dc,
 		struct dc_stream_state **streams, int num_streams,
 		unsigned int *v_pos, unsigned int *nom_v_pos)
 {
@@ -214,45 +214,7 @@ static bool stream_get_crtc_position(struct dc *dc,
 	return ret;
 }
 
-static bool set_gamut_remap(struct dc *dc, const struct dc_stream_state *stream)
-{
-	int i = 0;
-	bool ret = false;
-	struct pipe_ctx *pipes;
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		if (dc->current_state->res_ctx.pipe_ctx[i].stream == stream) {
-			pipes = &dc->current_state->res_ctx.pipe_ctx[i];
-			dc->hwss.program_gamut_remap(pipes);
-			ret = true;
-		}
-	}
-
-	return ret;
-}
-
-static bool program_csc_matrix(struct dc *dc, struct dc_stream_state *stream)
-{
-	int i = 0;
-	bool ret = false;
-	struct pipe_ctx *pipes;
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		if (dc->current_state->res_ctx.pipe_ctx[i].stream
-				== stream) {
-
-			pipes = &dc->current_state->res_ctx.pipe_ctx[i];
-			dc->hwss.program_csc_matrix(pipes,
-			stream->output_color_space,
-			stream->csc_color_matrix.matrix);
-			ret = true;
-		}
-	}
-
-	return ret;
-}
-
-static void set_static_screen_events(struct dc *dc,
+void dc_stream_set_static_screen_events(struct dc *dc,
 		struct dc_stream_state **streams,
 		int num_streams,
 		const struct dc_static_screen_events *events)
@@ -343,100 +305,8 @@ static void set_test_pattern(
 			cust_pattern_size);
 }
 
-static void set_dither_option(struct dc_stream_state *stream,
-		enum dc_dither_option option)
-{
-	struct bit_depth_reduction_params params;
-	struct dc_link *link = stream->status.link;
-	struct pipe_ctx *pipes = NULL;
-	int i;
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		if (link->dc->current_state->res_ctx.pipe_ctx[i].stream ==
-				stream) {
-			pipes = &link->dc->current_state->res_ctx.pipe_ctx[i];
-			break;
-		}
-	}
-
-	memset(&params, 0, sizeof(params));
-	if (!pipes)
-		return;
-	if (option > DITHER_OPTION_MAX)
-		return;
-
-	stream->dither_option = option;
-
-	resource_build_bit_depth_reduction_params(stream,
-				&params);
-	stream->bit_depth_params = params;
-	pipes->stream_res.opp->funcs->
-		opp_program_bit_depth_reduction(pipes->stream_res.opp, &params);
-}
-
-void set_dpms(
-	struct dc *dc,
-	struct dc_stream_state *stream,
-	bool dpms_off)
-{
-	struct pipe_ctx *pipe_ctx = NULL;
-	int i;
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		if (dc->current_state->res_ctx.pipe_ctx[i].stream == stream) {
-			pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
-			break;
-		}
-	}
-
-	if (!pipe_ctx) {
-		ASSERT(0);
-		return;
-	}
-
-	if (stream->dpms_off != dpms_off) {
-		stream->dpms_off = dpms_off;
-
-		if (dpms_off) {
-			core_link_disable_stream(pipe_ctx,
-					KEEP_ACQUIRED_RESOURCE);
-
-			dc->hwss.pplib_apply_display_requirements(
-					dc, dc->current_state);
-		} else {
-			dc->hwss.pplib_apply_display_requirements(
-					dc, dc->current_state);
-
-			core_link_enable_stream(dc->current_state, pipe_ctx);
-		}
-	}
-}
-
 static void allocate_dc_stream_funcs(struct dc  *dc)
 {
-	if (dc->hwss.set_drr != NULL) {
-		dc->stream_funcs.adjust_vmin_vmax =
-				stream_adjust_vmin_vmax;
-	}
-
-	dc->stream_funcs.set_static_screen_events =
-			set_static_screen_events;
-
-	dc->stream_funcs.get_crtc_position =
-			stream_get_crtc_position;
-
-	dc->stream_funcs.set_gamut_remap =
-			set_gamut_remap;
-
-	dc->stream_funcs.program_csc_matrix =
-			program_csc_matrix;
-
-	dc->stream_funcs.set_dither_option =
-			set_dither_option;
-
-	dc->stream_funcs.set_dpms =
-			set_dpms;
-
 	dc->link_funcs.set_drive_settings =
 			set_drive_settings;
 

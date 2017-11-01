@@ -268,4 +268,22 @@ void dc_stream_set_static_screen_events(struct dc *dc,
 					int num_streams,
 					const struct dc_static_screen_events *events);
 
+
+bool dc_stream_adjust_vmin_vmax(struct dc *dc,
+				struct dc_stream_state **stream,
+				int num_streams,
+				int vmin,
+				int vmax);
+
+bool dc_stream_get_crtc_position(struct dc *dc,
+				 struct dc_stream_state **stream,
+				 int num_streams,
+				 unsigned int *v_pos,
+				 unsigned int *nom_v_pos);
+
+void dc_stream_set_static_screen_events(struct dc *dc,
+					struct dc_stream_state **stream,
+					int num_streams,
+					const struct dc_static_screen_events *events);
+
 #endif /* DC_STREAM_H_ */
