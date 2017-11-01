@@ -102,9 +102,11 @@ static int call_fib_entry_notifier(struct notifier_block *nb, struct net *net,
 
 static int call_fib_entry_notifiers(struct net *net,
 				    enum fib_event_type event_type, u32 dst,
-				    int dst_len, struct fib_alias *fa)
+				    int dst_len, struct fib_alias *fa,
+				    struct netlink_ext_ack *extack)
 {
 	struct fib_entry_notifier_info info = {
+		.info.extack = extack,
 		.dst = dst,
 		.dst_len = dst_len,
 		.fi = fa->fa_info,
@@ -1214,7 +1216,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 			new_fa->fa_default = -1;
 
 			call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_REPLACE,
-						 key, plen, new_fa);
+						 key, plen, new_fa, extack);
 			rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen,
 				  tb->tb_id, &cfg->fc_nlinfo, nlflags);
 
@@ -1269,7 +1271,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 		tb->tb_num_default++;
 
 	rt_cache_flush(cfg->fc_nlinfo.nl_net);
-	call_fib_entry_notifiers(net, event, key, plen, new_fa);
+	call_fib_entry_notifiers(net, event, key, plen, new_fa, extack);
 	rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen, new_fa->tb_id,
 		  &cfg->fc_nlinfo, nlflags);
 succeeded:
@@ -1569,7 +1571,7 @@ int fib_table_delete(struct net *net, struct fib_table *tb,
 		return -ESRCH;
 
 	call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, key, plen,
-				 fa_to_delete);
+				 fa_to_delete, extack);
 	rtmsg_fib(RTM_DELROUTE, htonl(key), fa_to_delete, plen, tb->tb_id,
 		  &cfg->fc_nlinfo, 0);
 
@@ -1886,7 +1888,8 @@ int fib_table_flush(struct net *net, struct fib_table *tb)
 
 			call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_DEL,
 						 n->key,
-						 KEYLENGTH - fa->fa_slen, fa);
+						 KEYLENGTH - fa->fa_slen, fa,
+						 NULL);
 			hlist_del_rcu(&fa->fa_list);
 			fib_release_info(fa->fa_info);
 			alias_free_mem_rcu(fa);
