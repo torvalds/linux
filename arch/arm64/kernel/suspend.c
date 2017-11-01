@@ -11,7 +11,6 @@
 #include <asm/mmu_context.h>
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
-#include <asm/tlbflush.h>
 
 /*
  * This is allocated by cpu_suspend_init(), and used to store a pointer to
