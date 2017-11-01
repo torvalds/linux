@@ -5182,7 +5182,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			dev_warn(&pdev->dev,
 				 "could not offload tc u32, continuing\n");
 
-		cxgb4_init_tc_flower(adapter);
+		if (cxgb4_init_tc_flower(adapter))
+			dev_warn(&pdev->dev,
+				 "could not offload tc flower, continuing\n");
 	}
 
 	if (is_offload(adapter) || is_hashfilter(adapter)) {

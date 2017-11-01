@@ -918,8 +918,10 @@ struct adapter {
 	struct chcr_stats_debug chcr_stats;
 
 	/* TC flower offload */
-	DECLARE_HASHTABLE(flower_anymatch_tbl, 9);
+	struct rhashtable flower_tbl;
+	struct rhashtable_params flower_ht_params;
 	struct timer_list flower_stats_timer;
+	struct work_struct flower_stats_work;
 
 	/* Ethtool Dump */
 	struct ethtool_dump eth_dump;
