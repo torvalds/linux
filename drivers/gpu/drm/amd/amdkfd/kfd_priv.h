@@ -507,6 +507,8 @@ struct kfd_process {
 	 * In any process, the thread that started main() is the lead
 	 * thread and outlives the rest.
 	 * It is here because amd_iommu_bind_pasid wants a task_struct.
+	 * It can also be used for safely getting a reference to the
+	 * mm_struct of the process.
 	 */
 	struct task_struct *lead_thread;
 

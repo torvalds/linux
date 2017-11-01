@@ -389,12 +389,11 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 	if (sched_policy != KFD_SCHED_POLICY_NO_HWS) {
 		retval = unmap_queues_cpsch(dqm,
 				KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0);
-		if (retval != 0) {
+		if (retval) {
 			pr_err("unmap queue failed\n");
 			goto out_unlock;
 		}
-	} else if (sched_policy == KFD_SCHED_POLICY_NO_HWS &&
-		   prev_active &&
+	} else if (prev_active &&
 		   (q->properties.type == KFD_QUEUE_TYPE_COMPUTE ||
 		    q->properties.type == KFD_QUEUE_TYPE_SDMA)) {
 		retval = mqd->destroy_mqd(mqd, q->mqd,
@@ -421,8 +420,7 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 
 	if (sched_policy != KFD_SCHED_POLICY_NO_HWS)
 		retval = map_queues_cpsch(dqm);
-	else if (sched_policy == KFD_SCHED_POLICY_NO_HWS &&
-		 q->properties.is_active &&
+	else if (q->properties.is_active &&
 		 (q->properties.type == KFD_QUEUE_TYPE_COMPUTE ||
 		  q->properties.type == KFD_QUEUE_TYPE_SDMA))
 		retval = mqd->load_mqd(mqd, q->mqd, q->pipe, q->queue,
@@ -832,7 +830,7 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 
 	if (q->properties.type == KFD_QUEUE_TYPE_SDMA) {
 		retval = allocate_sdma_queue(dqm, &q->sdma_id);
-		if (retval != 0)
+		if (retval)
 			goto out;
 		q->properties.sdma_queue_id =
 			q->sdma_id / CIK_SDMA_QUEUES_PER_ENGINE;

@@ -416,7 +416,7 @@ int kfd_bind_processes_to_device(struct kfd_dev *dev)
 		err = amd_iommu_bind_pasid(dev->pdev, p->pasid,
 				p->lead_thread);
 		if (err < 0) {
-			pr_err("unexpected pasid %d binding failure\n",
+			pr_err("Unexpected pasid %d binding failure\n",
 					p->pasid);
 			mutex_unlock(&p->mutex);
 			break;
