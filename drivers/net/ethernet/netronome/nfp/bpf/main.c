@@ -121,6 +121,9 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 	struct tc_cls_bpf_offload *cls_bpf = type_data;
 	struct nfp_net *nn = cb_priv;
 
+	if (!tc_can_offload(nn->dp.netdev))
+		return -EOPNOTSUPP;
+
 	switch (type) {
 	case TC_SETUP_CLSBPF:
 		if (!nfp_net_ebpf_capable(nn) ||
