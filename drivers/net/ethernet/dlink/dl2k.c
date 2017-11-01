@@ -313,7 +313,7 @@ find_miiphy (struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	int i, phy_found = 0;
-	np = netdev_priv(dev);
+
 	np->phy_addr = 1;
 
 	for (i = 31; i >= 0; i--) {
