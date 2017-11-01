@@ -2896,8 +2896,8 @@ static long btrfs_fallocate(struct file *file, int mode,
 		 */
 		lock_extent_bits(&BTRFS_I(inode)->io_tree, alloc_start,
 				 locked_end, &cached_state);
-		ordered = btrfs_lookup_first_ordered_extent(inode,
-							    alloc_end - 1);
+		ordered = btrfs_lookup_first_ordered_extent(inode, locked_end);
+
 		if (ordered &&
 		    ordered->file_offset + ordered->len > alloc_start &&
 		    ordered->file_offset < alloc_end) {
