@@ -1666,10 +1666,66 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 			tbl_entry.color_space = color_space;
 			//tbl_entry.regval = matrix;
 
-			pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment(pipe_ctx->plane_res.dpp, &tbl_entry);
+			if (pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment != NULL)
+				pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment(pipe_ctx->plane_res.dpp, &tbl_entry);
 	} else {
-		pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_default(pipe_ctx->plane_res.dpp, colorspace);
+		if (pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_default != NULL)
+			pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_default(pipe_ctx->plane_res.dpp, colorspace);
 	}
+}
+
+//program ocsc matrix for dcn 2
+static void set_mpc_output_csc(struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		enum dc_color_space colorspace,
+		uint16_t *matrix,
+		int opp_id)
+{
+	struct mpc *mpc = dc->res_pool->mpc;
+	int i;
+	struct out_csc_color_matrix tbl_entry;
+	enum mpc_output_csc_mode ocsc_mode = MPC_OUTPUT_CSC_COEF_A;
+
+
+	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment == true) {
+		//uint16_t matrix[12];
+		for (i = 0; i < 12; i++)
+			tbl_entry.regval[i] = matrix[i];
+		tbl_entry.color_space = colorspace;
+
+		if (mpc->funcs->set_output_csc != NULL)
+			mpc->funcs->set_output_csc(mpc,
+					opp_id,
+					&tbl_entry,
+					ocsc_mode);
+	}
+
+	else {
+		if (mpc->funcs->set_ocsc_default != NULL)
+			mpc->funcs->set_ocsc_default(mpc,
+					opp_id,
+					colorspace,
+					ocsc_mode);
+	}
+}
+
+static void program_output_csc(struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		enum dc_color_space colorspace,
+		uint16_t *matrix,
+		int opp_id)
+{
+	if (pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment != NULL)
+		program_csc_matrix(pipe_ctx,
+				colorspace,
+				matrix);
+	else
+		set_mpc_output_csc(dc,
+			pipe_ctx,
+			colorspace,
+			matrix,
+			opp_id);
+
 }
 
 static bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
@@ -1909,10 +1965,11 @@ static void update_dchubp_dpp(
 	/*gamut remap*/
 	program_gamut_remap(pipe_ctx);
 
-	program_csc_matrix(pipe_ctx,
+	program_output_csc(dc,
+			pipe_ctx,
 			pipe_ctx->stream->output_color_space,
-			pipe_ctx->stream->csc_color_matrix.matrix);
-
+			pipe_ctx->stream->csc_color_matrix.matrix,
+			mpcc_cfg.opp_id);
 
 	hubp->funcs->hubp_program_surface_config(
 		hubp,
