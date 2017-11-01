@@ -191,11 +191,14 @@ config LED_TRIGGER_PHY
 	  Adds support for a set of LED trigger events per-PHY.  Link
 	  state change will trigger the events, for consumption by an
 	  LED class driver.  There are triggers for each link speed currently
-	  supported by the phy, and are of the form:
+	  supported by the PHY and also a one common "link" trigger as a
+	  logical-or of all the link speed ones.
+	  All these triggers are named according to the following pattern:
 	      <mii bus id>:<phy>:<speed>
 
 	  Where speed is in the form:
-		<Speed in megabits>Mbps or <Speed in gigabits>Gbps
+		<Speed in megabits>Mbps OR <Speed in gigabits>Gbps OR link
+		for any speed known to the PHY.
 
 
 comment "MII PHY device drivers"
