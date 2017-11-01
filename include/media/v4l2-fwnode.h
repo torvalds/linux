@@ -203,6 +203,26 @@ int v4l2_fwnode_parse_link(struct fwnode_handle *fwnode,
  */
 void v4l2_fwnode_put_link(struct v4l2_fwnode_link *link);
 
+
+/**
+ * typedef parse_endpoint_func - Driver's callback function to be called on
+ *	each V4L2 fwnode endpoint.
+ *
+ * @dev: pointer to &struct device
+ * @vep: pointer to &struct v4l2_fwnode_endpoint
+ * @asd: pointer to &struct v4l2_async_subdev
+ *
+ * Return:
+ * * %0 on success
+ * * %-ENOTCONN if the endpoint is to be skipped but this
+ *   should not be considered as an error
+ * * %-EINVAL if the endpoint configuration is invalid
+ */
+typedef int (*parse_endpoint_func)(struct device *dev,
+				  struct v4l2_fwnode_endpoint *vep,
+				  struct v4l2_async_subdev *asd);
+
+
 /**
  * v4l2_async_notifier_parse_fwnode_endpoints - Parse V4L2 fwnode endpoints in a
  *						device node
@@ -215,10 +235,6 @@ void v4l2_fwnode_put_link(struct v4l2_fwnode_link *link);
  *		     begin at the same memory address.
  * @parse_endpoint: Driver's callback function called on each V4L2 fwnode
  *		    endpoint. Optional.
- *		    Return: %0 on success
- *			    %-ENOTCONN if the endpoint is to be skipped but this
- *				       should not be considered as an error
- *			    %-EINVAL if the endpoint configuration is invalid
  *
  * Parse the fwnode endpoints of the @dev device and populate the async sub-
  * devices array of the notifier. The @parse_endpoint callback function is
@@ -253,9 +269,7 @@ void v4l2_fwnode_put_link(struct v4l2_fwnode_link *link);
 int v4l2_async_notifier_parse_fwnode_endpoints(
 	struct device *dev, struct v4l2_async_notifier *notifier,
 	size_t asd_struct_size,
-	int (*parse_endpoint)(struct device *dev,
-			      struct v4l2_fwnode_endpoint *vep,
-			      struct v4l2_async_subdev *asd));
+	parse_endpoint_func parse_endpoint);
 
 /**
  * v4l2_async_notifier_parse_fwnode_endpoints_by_port - Parse V4L2 fwnode
@@ -271,10 +285,6 @@ int v4l2_async_notifier_parse_fwnode_endpoints(
  * @port: port number where endpoints are to be parsed
  * @parse_endpoint: Driver's callback function called on each V4L2 fwnode
  *		    endpoint. Optional.
- *		    Return: %0 on success
- *			    %-ENOTCONN if the endpoint is to be skipped but this
- *				       should not be considered as an error
- *			    %-EINVAL if the endpoint configuration is invalid
  *
  * This function is just like v4l2_async_notifier_parse_fwnode_endpoints() with
  * the exception that it only parses endpoints in a given port. This is useful
@@ -315,9 +325,7 @@ int v4l2_async_notifier_parse_fwnode_endpoints(
 int v4l2_async_notifier_parse_fwnode_endpoints_by_port(
 	struct device *dev, struct v4l2_async_notifier *notifier,
 	size_t asd_struct_size, unsigned int port,
-	int (*parse_endpoint)(struct device *dev,
-			      struct v4l2_fwnode_endpoint *vep,
-			      struct v4l2_async_subdev *asd));
+	parse_endpoint_func parse_endpoint);
 
 /**
  * v4l2_fwnode_reference_parse_sensor_common - parse common references on
