@@ -149,7 +149,6 @@ static struct platform_driver rk_sensor_driver = {
 	.remove		= rk_dts_sensor_remove,
 };
 
-struct regmap *rk_cif_cru_base;
 struct regmap *rk_cif_grf_base;
 
 static int rk_dts_sensor_remove(struct platform_device *pdev)
@@ -480,23 +479,12 @@ static int rk_dts_cif_probe(struct platform_device *pdev)
 		printk(KERN_ERR "get vpu_node failed, vpu_iommu_enabled == 0 !!!!!!\n");
 	}
 
-	/* get cru base */
-	vpu_node = of_parse_phandle(dev->of_node, "rockchip,cru", 0);
-	if (vpu_node) {
-		rk_cif_cru_base = syscon_node_to_regmap(vpu_node);
-		if (IS_ERR(rk_cif_cru_base)) {
-			printk(KERN_ERR "regmap cru failed.\n");
-			err = -ENODEV;
-		}
-	}
-
 	/* get grf base */
 	vpu_node = of_parse_phandle(dev->of_node, "rockchip,grf", 0);
 	if (vpu_node) {
 		rk_cif_grf_base = syscon_node_to_regmap(vpu_node);
 		if (IS_ERR(rk_cif_grf_base)) {
-			printk(KERN_ERR "regmap grf failed.\n");
-			err = -ENODEV;
+			printk(KERN_ERR "%s regmap grf faile, d.\n", compatible);
 		}
 	}
 
