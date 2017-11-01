@@ -26,9 +26,14 @@
 #define SELECT_TOKEN_AC 2
 #define CLASS_KBD_BACKLIGHT 4
 #define SELECT_KBD_BACKLIGHT 11
+#define CLASS_FLASH_INTERFACE 7
+#define SELECT_FLASH_INTERFACE 3
+#define CLASS_ADMIN_PROP 10
+#define SELECT_ADMIN_PROP 3
 #define CLASS_INFO 17
 #define SELECT_RFKILL 11
 #define SELECT_APP_REGISTRATION	3
+#define SELECT_DOCK 22
 
 /* Tokens used in kernel drivers, any of these
  * should be filtered from userspace access
@@ -44,6 +49,10 @@
 #define KBD_LED_AUTO_100_TOKEN	0x02F6
 #define GLOBAL_MIC_MUTE_ENABLE	0x0364
 #define GLOBAL_MIC_MUTE_DISABLE	0x0365
+
+/* tokens whitelisted to userspace use */
+#define CAPSULE_EN_TOKEN	0x0461
+#define CAPSULE_DIS_TOKEN	0x0462
 #define WSMT_EN_TOKEN		0x04EC
 #define WSMT_DIS_TOKEN		0x04ED
 
@@ -80,6 +89,8 @@ int dell_smbios_register_device(struct device *d, void *call_fn);
 void dell_smbios_unregister_device(struct device *d);
 
 int dell_smbios_error(int value);
+int dell_smbios_call_filter(struct device *d,
+	struct calling_interface_buffer *buffer);
 int dell_smbios_call(struct calling_interface_buffer *buffer);
 
 struct calling_interface_token *dell_smbios_find_token(int tokenid);
