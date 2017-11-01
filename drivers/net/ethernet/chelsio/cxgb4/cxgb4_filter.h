@@ -37,7 +37,10 @@
 
 #include "t4_msg.h"
 
+#define WORD_MASK	0xffffffff
+
 void filter_rpl(struct adapter *adap, const struct cpl_set_tcb_rpl *rpl);
+void hash_filter_rpl(struct adapter *adap, const struct cpl_act_open_rpl *rpl);
 void clear_filter(struct adapter *adap, struct filter_entry *f);
 
 int set_filter_wr(struct adapter *adapter, int fidx);

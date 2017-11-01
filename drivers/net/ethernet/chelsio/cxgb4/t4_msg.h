@@ -286,6 +286,7 @@ struct work_request_hdr {
 
 #define RX_CHANNEL_S    26
 #define RX_CHANNEL_V(x) ((x) << RX_CHANNEL_S)
+#define RX_CHANNEL_F	RX_CHANNEL_V(1U)
 
 #define WND_SCALE_EN_S    28
 #define WND_SCALE_EN_V(x) ((x) << WND_SCALE_EN_S)
@@ -314,6 +315,10 @@ struct cpl_pass_open_req {
 #define DELACK_S    5
 #define DELACK_V(x) ((x) << DELACK_S)
 #define DELACK_F    DELACK_V(1U)
+
+#define NON_OFFLOAD_S		7
+#define NON_OFFLOAD_V(x)	((x) << NON_OFFLOAD_S)
+#define NON_OFFLOAD_F		NON_OFFLOAD_V(1U)
 
 #define DSCP_S    22
 #define DSCP_M    0x3F

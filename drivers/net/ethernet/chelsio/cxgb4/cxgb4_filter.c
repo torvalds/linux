@@ -35,6 +35,8 @@
 #include "cxgb4.h"
 #include "t4_regs.h"
 #include "t4_tcb.h"
+#include "t4_values.h"
+#include "clip_tbl.h"
 #include "l2t.h"
 #include "smt.h"
 #include "t4fw_api.h"
@@ -48,6 +50,141 @@ static inline bool is_field_set(u32 val, u32 mask)
 static inline bool unsupported(u32 conf, u32 conf_mask, u32 val, u32 mask)
 {
 	return !(conf & conf_mask) && is_field_set(val, mask);
+}
+
+static int set_tcb_field(struct adapter *adap, struct filter_entry *f,
+			 unsigned int ftid,  u16 word, u64 mask, u64 val,
+			 int no_reply)
+{
+	struct cpl_set_tcb_field *req;
+	struct sk_buff *skb;
+
+	skb = alloc_skb(sizeof(struct cpl_set_tcb_field), GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	req = (struct cpl_set_tcb_field *)__skb_put(skb, sizeof(*req));
+	memset(req, 0, sizeof(*req));
+	INIT_TP_WR_CPL(req, CPL_SET_TCB_FIELD, ftid);
+	req->reply_ctrl = htons(REPLY_CHAN_V(0) |
+				QUEUENO_V(adap->sge.fw_evtq.abs_id) |
+				NO_REPLY_V(no_reply));
+	req->word_cookie = htons(TCB_WORD_V(word) | TCB_COOKIE_V(ftid));
+	req->mask = cpu_to_be64(mask);
+	req->val = cpu_to_be64(val);
+	set_wr_txq(skb, CPL_PRIORITY_CONTROL, f->fs.val.iport & 0x3);
+	t4_ofld_send(adap, skb);
+	return 0;
+}
+
+/* Set one of the t_flags bits in the TCB.
+ */
+static int set_tcb_tflag(struct adapter *adap, struct filter_entry *f,
+			 unsigned int ftid, unsigned int bit_pos,
+			 unsigned int val, int no_reply)
+{
+	return set_tcb_field(adap, f, ftid,  TCB_T_FLAGS_W, 1ULL << bit_pos,
+			     (unsigned long long)val << bit_pos, no_reply);
+}
+
+static int configure_filter_smac(struct adapter *adap, struct filter_entry *f)
+{
+	int err;
+
+	/* do a set-tcb for smac-sel and CWR bit.. */
+	err = set_tcb_tflag(adap, f, f->tid, TF_CCTRL_CWR_S, 1, 1);
+	if (err)
+		goto smac_err;
+
+	err = set_tcb_field(adap, f, f->tid, TCB_SMAC_SEL_W,
+			    TCB_SMAC_SEL_V(TCB_SMAC_SEL_M),
+			    TCB_SMAC_SEL_V(f->smt->idx), 1);
+	if (!err)
+		return 0;
+
+smac_err:
+	dev_err(adap->pdev_dev, "filter %u smac config failed with error %u\n",
+		f->tid, err);
+	return err;
+}
+
+static void set_nat_params(struct adapter *adap, struct filter_entry *f,
+			   unsigned int tid, bool dip, bool sip, bool dp,
+			   bool sp)
+{
+	if (dip) {
+		if (f->fs.type) {
+			set_tcb_field(adap, f, tid, TCB_SND_UNA_RAW_W,
+				      WORD_MASK, f->fs.nat_lip[15] |
+				      f->fs.nat_lip[14] << 8 |
+				      f->fs.nat_lip[13] << 16 |
+				      f->fs.nat_lip[12] << 24, 1);
+
+			set_tcb_field(adap, f, tid, TCB_SND_UNA_RAW_W + 1,
+				      WORD_MASK, f->fs.nat_lip[11] |
+				      f->fs.nat_lip[10] << 8 |
+				      f->fs.nat_lip[9] << 16 |
+				      f->fs.nat_lip[8] << 24, 1);
+
+			set_tcb_field(adap, f, tid, TCB_SND_UNA_RAW_W + 2,
+				      WORD_MASK, f->fs.nat_lip[7] |
+				      f->fs.nat_lip[6] << 8 |
+				      f->fs.nat_lip[5] << 16 |
+				      f->fs.nat_lip[4] << 24, 1);
+
+			set_tcb_field(adap, f, tid, TCB_SND_UNA_RAW_W + 3,
+				      WORD_MASK, f->fs.nat_lip[3] |
+				      f->fs.nat_lip[2] << 8 |
+				      f->fs.nat_lip[1] << 16 |
+				      f->fs.nat_lip[0] << 24, 1);
+		} else {
+			set_tcb_field(adap, f, tid, TCB_RX_FRAG3_LEN_RAW_W,
+				      WORD_MASK, f->fs.nat_lip[3] |
+				      f->fs.nat_lip[2] << 8 |
+				      f->fs.nat_lip[1] << 16 |
+				      f->fs.nat_lip[0] << 24, 1);
+		}
+	}
+
+	if (sip) {
+		if (f->fs.type) {
+			set_tcb_field(adap, f, tid, TCB_RX_FRAG2_PTR_RAW_W,
+				      WORD_MASK, f->fs.nat_fip[15] |
+				      f->fs.nat_fip[14] << 8 |
+				      f->fs.nat_fip[13] << 16 |
+				      f->fs.nat_fip[12] << 24, 1);
+
+			set_tcb_field(adap, f, tid, TCB_RX_FRAG2_PTR_RAW_W + 1,
+				      WORD_MASK, f->fs.nat_fip[11] |
+				      f->fs.nat_fip[10] << 8 |
+				      f->fs.nat_fip[9] << 16 |
+				      f->fs.nat_fip[8] << 24, 1);
+
+			set_tcb_field(adap, f, tid, TCB_RX_FRAG2_PTR_RAW_W + 2,
+				      WORD_MASK, f->fs.nat_fip[7] |
+				      f->fs.nat_fip[6] << 8 |
+				      f->fs.nat_fip[5] << 16 |
+				      f->fs.nat_fip[4] << 24, 1);
+
+			set_tcb_field(adap, f, tid, TCB_RX_FRAG2_PTR_RAW_W + 3,
+				      WORD_MASK, f->fs.nat_fip[3] |
+				      f->fs.nat_fip[2] << 8 |
+				      f->fs.nat_fip[1] << 16 |
+				      f->fs.nat_fip[0] << 24, 1);
+
+		} else {
+			set_tcb_field(adap, f, tid,
+				      TCB_RX_FRAG3_START_IDX_OFFSET_RAW_W,
+				      WORD_MASK, f->fs.nat_fip[3] |
+				      f->fs.nat_fip[2] << 8 |
+				      f->fs.nat_fip[1] << 16 |
+				      f->fs.nat_fip[0] << 24, 1);
+		}
+	}
+
+	set_tcb_field(adap, f, tid, TCB_PDU_HDR_LEN_W, WORD_MASK,
+		      (dp ? f->fs.nat_lport : 0) |
+		      (sp ? f->fs.nat_fport << 16 : 0), 1);
 }
 
 /* Validate filter spec against configuration done on the card. */
@@ -484,16 +621,17 @@ int delete_filter(struct adapter *adapter, unsigned int fidx)
 void clear_filter(struct adapter *adap, struct filter_entry *f)
 {
 	/* If the new or old filter have loopback rewriteing rules then we'll
-	 * need to free any existing Layer Two Table (L2T) entries of the old
-	 * filter rule.  The firmware will handle freeing up any Source MAC
-	 * Table (SMT) entries used for rewriting Source MAC Addresses in
-	 * loopback rules.
+	 * need to free any existing L2T, SMT, CLIP entries of filter
+	 * rule.
 	 */
 	if (f->l2t)
 		cxgb4_l2t_release(f->l2t);
 
 	if (f->smt)
 		cxgb4_smt_release(f->smt);
+
+	if (f->fs.hash && f->fs.type)
+		cxgb4_clip_release(f->dev, (const u32 *)&f->fs.val.lip, 1);
 
 	/* The zeroing of the filter rule below clears the filter valid,
 	 * pending, locked flags, l2t pointer, etc. so it's all we need for
@@ -564,6 +702,269 @@ static void fill_default_mask(struct ch_filter_specification *fs)
 		fs->mask.fport = ~0;
 }
 
+static u64 hash_filter_ntuple(struct ch_filter_specification *fs,
+			      struct net_device *dev)
+{
+	struct adapter *adap = netdev2adap(dev);
+	struct tp_params *tp = &adap->params.tp;
+	u64 ntuple = 0;
+
+	/* Initialize each of the fields which we care about which are present
+	 * in the Compressed Filter Tuple.
+	 */
+	if (tp->vlan_shift >= 0 && fs->mask.ivlan)
+		ntuple |= (FT_VLAN_VLD_F | fs->val.ivlan) << tp->vlan_shift;
+
+	if (tp->port_shift >= 0 && fs->mask.iport)
+		ntuple |= (u64)fs->val.iport << tp->port_shift;
+
+	if (tp->protocol_shift >= 0) {
+		if (!fs->val.proto)
+			ntuple |= (u64)IPPROTO_TCP << tp->protocol_shift;
+		else
+			ntuple |= (u64)fs->val.proto << tp->protocol_shift;
+	}
+
+	if (tp->tos_shift >= 0 && fs->mask.tos)
+		ntuple |= (u64)(fs->val.tos) << tp->tos_shift;
+
+	if (tp->vnic_shift >= 0) {
+		if ((adap->params.tp.ingress_config & VNIC_F) &&
+		    fs->mask.pfvf_vld)
+			ntuple |= (u64)((fs->val.pfvf_vld << 16) |
+					(fs->val.pf << 13) |
+					(fs->val.vf)) << tp->vnic_shift;
+		else
+			ntuple |= (u64)((fs->val.ovlan_vld << 16) |
+					(fs->val.ovlan)) << tp->vnic_shift;
+	}
+
+	if (tp->macmatch_shift >= 0 && fs->mask.macidx)
+		ntuple |= (u64)(fs->val.macidx) << tp->macmatch_shift;
+
+	if (tp->ethertype_shift >= 0 && fs->mask.ethtype)
+		ntuple |= (u64)(fs->val.ethtype) << tp->ethertype_shift;
+
+	if (tp->matchtype_shift >= 0 && fs->mask.matchtype)
+		ntuple |= (u64)(fs->val.matchtype) << tp->matchtype_shift;
+
+	if (tp->frag_shift >= 0 && fs->mask.frag)
+		ntuple |= (u64)(fs->val.frag) << tp->frag_shift;
+
+	if (tp->fcoe_shift >= 0 && fs->mask.fcoe)
+		ntuple |= (u64)(fs->val.fcoe) << tp->fcoe_shift;
+	return ntuple;
+}
+
+static void mk_act_open_req6(struct filter_entry *f, struct sk_buff *skb,
+			     unsigned int qid_filterid, struct adapter *adap)
+{
+	struct cpl_t6_act_open_req6 *t6req = NULL;
+	struct cpl_act_open_req6 *req = NULL;
+
+	t6req = (struct cpl_t6_act_open_req6 *)__skb_put(skb, sizeof(*t6req));
+	INIT_TP_WR(t6req, 0);
+	req = (struct cpl_act_open_req6 *)t6req;
+	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_ACT_OPEN_REQ6, qid_filterid));
+	req->local_port = cpu_to_be16(f->fs.val.lport);
+	req->peer_port = cpu_to_be16(f->fs.val.fport);
+	req->local_ip_hi = *(__be64 *)(&f->fs.val.lip);
+	req->local_ip_lo = *(((__be64 *)&f->fs.val.lip) + 1);
+	req->peer_ip_hi = *(__be64 *)(&f->fs.val.fip);
+	req->peer_ip_lo = *(((__be64 *)&f->fs.val.fip) + 1);
+	req->opt0 = cpu_to_be64(NAGLE_V(f->fs.newvlan == VLAN_REMOVE ||
+					f->fs.newvlan == VLAN_REWRITE) |
+				DELACK_V(f->fs.hitcnts) |
+				L2T_IDX_V(f->l2t ? f->l2t->idx : 0) |
+				SMAC_SEL_V((cxgb4_port_viid(f->dev) &
+					    0x7F) << 1) |
+				TX_CHAN_V(f->fs.eport) |
+				NO_CONG_V(f->fs.rpttid) |
+				ULP_MODE_V(f->fs.nat_mode ?
+					   ULP_MODE_TCPDDP : ULP_MODE_NONE) |
+				TCAM_BYPASS_F | NON_OFFLOAD_F);
+	t6req->params = cpu_to_be64(FILTER_TUPLE_V(hash_filter_ntuple(&f->fs,
+								      f->dev)));
+	t6req->opt2 = htonl(RSS_QUEUE_VALID_F |
+			    RSS_QUEUE_V(f->fs.iq) |
+			    TX_QUEUE_V(f->fs.nat_mode) |
+			    T5_OPT_2_VALID_F |
+			    RX_CHANNEL_F |
+			    CONG_CNTRL_V((f->fs.action == FILTER_DROP) |
+					 (f->fs.dirsteer << 1)) |
+			    PACE_V((f->fs.maskhash) |
+				   ((f->fs.dirsteerhash) << 1)) |
+			    CCTRL_ECN_V(f->fs.action == FILTER_SWITCH));
+}
+
+static void mk_act_open_req(struct filter_entry *f, struct sk_buff *skb,
+			    unsigned int qid_filterid, struct adapter *adap)
+{
+	struct cpl_t6_act_open_req *t6req = NULL;
+	struct cpl_act_open_req *req = NULL;
+
+	t6req = (struct cpl_t6_act_open_req *)__skb_put(skb, sizeof(*t6req));
+	INIT_TP_WR(t6req, 0);
+	req = (struct cpl_act_open_req *)t6req;
+	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_ACT_OPEN_REQ, qid_filterid));
+	req->local_port = cpu_to_be16(f->fs.val.lport);
+	req->peer_port = cpu_to_be16(f->fs.val.fport);
+	req->local_ip = f->fs.val.lip[0] | f->fs.val.lip[1] << 8 |
+		f->fs.val.lip[2] << 16 | f->fs.val.lip[3] << 24;
+	req->peer_ip = f->fs.val.fip[0] | f->fs.val.fip[1] << 8 |
+		f->fs.val.fip[2] << 16 | f->fs.val.fip[3] << 24;
+	req->opt0 = cpu_to_be64(NAGLE_V(f->fs.newvlan == VLAN_REMOVE ||
+					f->fs.newvlan == VLAN_REWRITE) |
+				DELACK_V(f->fs.hitcnts) |
+				L2T_IDX_V(f->l2t ? f->l2t->idx : 0) |
+				SMAC_SEL_V((cxgb4_port_viid(f->dev) &
+					    0x7F) << 1) |
+				TX_CHAN_V(f->fs.eport) |
+				NO_CONG_V(f->fs.rpttid) |
+				ULP_MODE_V(f->fs.nat_mode ?
+					   ULP_MODE_TCPDDP : ULP_MODE_NONE) |
+				TCAM_BYPASS_F | NON_OFFLOAD_F);
+
+	t6req->params = cpu_to_be64(FILTER_TUPLE_V(hash_filter_ntuple(&f->fs,
+								      f->dev)));
+	t6req->opt2 = htonl(RSS_QUEUE_VALID_F |
+			    RSS_QUEUE_V(f->fs.iq) |
+			    TX_QUEUE_V(f->fs.nat_mode) |
+			    T5_OPT_2_VALID_F |
+			    RX_CHANNEL_F |
+			    CONG_CNTRL_V((f->fs.action == FILTER_DROP) |
+					 (f->fs.dirsteer << 1)) |
+			    PACE_V((f->fs.maskhash) |
+				   ((f->fs.dirsteerhash) << 1)) |
+			    CCTRL_ECN_V(f->fs.action == FILTER_SWITCH));
+}
+
+static int cxgb4_set_hash_filter(struct net_device *dev,
+				 struct ch_filter_specification *fs,
+				 struct filter_ctx *ctx)
+{
+	struct adapter *adapter = netdev2adap(dev);
+	struct tid_info *t = &adapter->tids;
+	struct filter_entry *f;
+	struct sk_buff *skb;
+	int iq, atid, size;
+	int ret = 0;
+	u32 iconf;
+
+	fill_default_mask(fs);
+	ret = validate_filter(dev, fs);
+	if (ret)
+		return ret;
+
+	iq = get_filter_steerq(dev, fs);
+	if (iq < 0)
+		return iq;
+
+	f = kzalloc(sizeof(*f), GFP_KERNEL);
+	if (!f)
+		return -ENOMEM;
+
+	f->fs = *fs;
+	f->ctx = ctx;
+	f->dev = dev;
+	f->fs.iq = iq;
+
+	/* If the new filter requires loopback Destination MAC and/or VLAN
+	 * rewriting then we need to allocate a Layer 2 Table (L2T) entry for
+	 * the filter.
+	 */
+	if (f->fs.newdmac || f->fs.newvlan) {
+		/* allocate L2T entry for new filter */
+		f->l2t = t4_l2t_alloc_switching(adapter, f->fs.vlan,
+						f->fs.eport, f->fs.dmac);
+		if (!f->l2t) {
+			ret = -ENOMEM;
+			goto out_err;
+		}
+	}
+
+	/* If the new filter requires loopback Source MAC rewriting then
+	 * we need to allocate a SMT entry for the filter.
+	 */
+	if (f->fs.newsmac) {
+		f->smt = cxgb4_smt_alloc_switching(f->dev, f->fs.smac);
+		if (!f->smt) {
+			if (f->l2t) {
+				cxgb4_l2t_release(f->l2t);
+				f->l2t = NULL;
+			}
+			ret = -ENOMEM;
+			goto free_l2t;
+		}
+	}
+
+	atid = cxgb4_alloc_atid(t, f);
+	if (atid < 0)
+		goto free_smt;
+
+	iconf = adapter->params.tp.ingress_config;
+	if (iconf & VNIC_F) {
+		f->fs.val.ovlan = (fs->val.pf << 13) | fs->val.vf;
+		f->fs.mask.ovlan = (fs->mask.pf << 13) | fs->mask.vf;
+		f->fs.val.ovlan_vld = fs->val.pfvf_vld;
+		f->fs.mask.ovlan_vld = fs->mask.pfvf_vld;
+	}
+
+	size = sizeof(struct cpl_t6_act_open_req);
+	if (f->fs.type) {
+		ret = cxgb4_clip_get(f->dev, (const u32 *)&f->fs.val.lip, 1);
+		if (ret)
+			goto free_atid;
+
+		skb = alloc_skb(size, GFP_KERNEL);
+		if (!skb) {
+			ret = -ENOMEM;
+			goto free_clip;
+		}
+
+		mk_act_open_req6(f, skb,
+				 ((adapter->sge.fw_evtq.abs_id << 14) | atid),
+				 adapter);
+	} else {
+		skb = alloc_skb(size, GFP_KERNEL);
+		if (!skb) {
+			ret = -ENOMEM;
+			goto free_atid;
+		}
+
+		mk_act_open_req(f, skb,
+				((adapter->sge.fw_evtq.abs_id << 14) | atid),
+				adapter);
+	}
+
+	f->pending = 1;
+	set_wr_txq(skb, CPL_PRIORITY_SETUP, f->fs.val.iport & 0x3);
+	t4_ofld_send(adapter, skb);
+	return 0;
+
+free_clip:
+	cxgb4_clip_release(f->dev, (const u32 *)&f->fs.val.lip, 1);
+
+free_atid:
+	cxgb4_free_atid(t, atid);
+
+free_smt:
+	if (f->smt) {
+		cxgb4_smt_release(f->smt);
+		f->smt = NULL;
+	}
+
+free_l2t:
+	if (f->l2t) {
+		cxgb4_l2t_release(f->l2t);
+		f->l2t = NULL;
+	}
+
+out_err:
+	kfree(f);
+	return ret;
+}
+
 /* Check a Chelsio Filter Request for validity, convert it into our internal
  * format and send it to the hardware.  Return 0 on success, an error number
  * otherwise.  We attach any provided filter operation context to the internal
@@ -579,6 +980,14 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 	struct filter_entry *f;
 	u32 iconf;
 	int iq, ret;
+
+	if (fs->hash) {
+		if (is_hashfilter(adapter))
+			return cxgb4_set_hash_filter(dev, fs, ctx);
+		netdev_err(dev, "%s: Exact-match filters only supported with Hash Filter configuration\n",
+			   __func__);
+		return -EINVAL;
+	}
 
 	max_fidx = adapter->tids.nftids;
 	if (filter_id != (max_fidx + adapter->tids.nsftids - 1) &&
@@ -789,60 +1198,126 @@ out:
 	return ret;
 }
 
-static int set_tcb_field(struct adapter *adap, struct filter_entry *f,
-			 unsigned int ftid,  u16 word, u64 mask, u64 val,
-			 int no_reply)
+static int configure_filter_tcb(struct adapter *adap, unsigned int tid,
+				struct filter_entry *f)
 {
-	struct cpl_set_tcb_field *req;
-	struct sk_buff *skb;
+	if (f->fs.hitcnts)
+		set_tcb_field(adap, f, tid, TCB_TIMESTAMP_W,
+			      TCB_TIMESTAMP_V(TCB_TIMESTAMP_M) |
+			      TCB_RTT_TS_RECENT_AGE_V(TCB_RTT_TS_RECENT_AGE_M),
+			      TCB_TIMESTAMP_V(0ULL) |
+			      TCB_RTT_TS_RECENT_AGE_V(0ULL),
+			      1);
 
-	skb = alloc_skb(sizeof(struct cpl_set_tcb_field), GFP_ATOMIC);
-	if (!skb)
-		return -ENOMEM;
+	if (f->fs.newdmac)
+		set_tcb_tflag(adap, f, tid, TF_CCTRL_ECE_S, 1,
+			      1);
 
-	req = (struct cpl_set_tcb_field *)__skb_put(skb, sizeof(*req));
-	memset(req, 0, sizeof(*req));
-	INIT_TP_WR_CPL(req, CPL_SET_TCB_FIELD, ftid);
-	req->reply_ctrl = htons(REPLY_CHAN_V(0) |
-				QUEUENO_V(adap->sge.fw_evtq.abs_id) |
-				NO_REPLY_V(no_reply));
-	req->word_cookie = htons(TCB_WORD_V(word) | TCB_COOKIE_V(ftid));
-	req->mask = cpu_to_be64(mask);
-	req->val = cpu_to_be64(val);
-	set_wr_txq(skb, CPL_PRIORITY_CONTROL, f->fs.val.iport & 0x3);
-	t4_ofld_send(adap, skb);
+	if (f->fs.newvlan == VLAN_INSERT ||
+	    f->fs.newvlan == VLAN_REWRITE)
+		set_tcb_tflag(adap, f, tid, TF_CCTRL_RFR_S, 1,
+			      1);
+	if (f->fs.newsmac)
+		configure_filter_smac(adap, f);
+
+	if (f->fs.nat_mode) {
+		switch (f->fs.nat_mode) {
+		case NAT_MODE_DIP:
+			set_nat_params(adap, f, tid, true, false, false, false);
+			break;
+
+		case NAT_MODE_DIP_DP:
+			set_nat_params(adap, f, tid, true, false, true, false);
+			break;
+
+		case NAT_MODE_DIP_DP_SIP:
+			set_nat_params(adap, f, tid, true, true, true, false);
+			break;
+		case NAT_MODE_DIP_DP_SP:
+			set_nat_params(adap, f, tid, true, false, true, true);
+			break;
+
+		case NAT_MODE_SIP_SP:
+			set_nat_params(adap, f, tid, false, true, false, true);
+			break;
+
+		case NAT_MODE_DIP_SIP_SP:
+			set_nat_params(adap, f, tid, true, true, false, true);
+			break;
+
+		case NAT_MODE_ALL:
+			set_nat_params(adap, f, tid, true, true, true, true);
+			break;
+
+		default:
+			pr_err("%s: Invalid NAT mode: %d\n",
+			       __func__, f->fs.nat_mode);
+			return -EINVAL;
+		}
+	}
 	return 0;
 }
 
-/* Set one of the t_flags bits in the TCB.
- */
-static int set_tcb_tflag(struct adapter *adap, struct filter_entry *f,
-			 unsigned int ftid, unsigned int bit_pos,
-			 unsigned int val, int no_reply)
+void hash_filter_rpl(struct adapter *adap, const struct cpl_act_open_rpl *rpl)
 {
-	return set_tcb_field(adap, f, ftid,  TCB_T_FLAGS_W, 1ULL << bit_pos,
-			     (unsigned long long)val << bit_pos, no_reply);
-}
+	unsigned int ftid = TID_TID_G(AOPEN_ATID_G(ntohl(rpl->atid_status)));
+	unsigned int status  = AOPEN_STATUS_G(ntohl(rpl->atid_status));
+	struct tid_info *t = &adap->tids;
+	unsigned int tid = GET_TID(rpl);
+	struct filter_ctx *ctx = NULL;
+	struct filter_entry *f;
 
-static int configure_filter_smac(struct adapter *adap, struct filter_entry *f)
-{
-	int err;
+	dev_dbg(adap->pdev_dev, "%s: tid = %u; atid = %u; status = %u\n",
+		__func__, tid, ftid, status);
 
-	/* do a set-tcb for smac-sel and CWR bit.. */
-	err = set_tcb_tflag(adap, f, f->tid, TF_CCTRL_CWR_S, 1, 1);
-	if (err)
-		goto smac_err;
+	f = lookup_atid(t, ftid);
+	if (!f) {
+		dev_err(adap->pdev_dev, "%s:could not find filter entry",
+			__func__);
+		return;
+	}
+	ctx = f->ctx;
+	f->ctx = NULL;
 
-	err = set_tcb_field(adap, f, f->tid, TCB_SMAC_SEL_W,
-			    TCB_SMAC_SEL_V(TCB_SMAC_SEL_M),
-			    TCB_SMAC_SEL_V(f->smt->idx), 1);
-	if (!err)
-		return 0;
+	switch (status) {
+	case CPL_ERR_NONE:
+		f->tid = tid;
+		f->pending = 0;
+		f->valid = 1;
+		cxgb4_insert_tid(t, f, f->tid, 0);
+		cxgb4_free_atid(t, ftid);
+		if (ctx) {
+			ctx->tid = f->tid;
+			ctx->result = 0;
+		}
+		if (configure_filter_tcb(adap, tid, f)) {
+			clear_filter(adap, f);
+			cxgb4_remove_tid(t, 0, tid, 0);
+			kfree(f);
+			if (ctx) {
+				ctx->result = -EINVAL;
+				complete(&ctx->completion);
+			}
+			return;
+		}
+		break;
 
-smac_err:
-	dev_err(adap->pdev_dev, "filter %u smac config failed with error %u\n",
-		f->tid, err);
-	return err;
+	default:
+		dev_err(adap->pdev_dev, "%s: filter creation PROBLEM; status = %u\n",
+			__func__, status);
+
+		if (ctx) {
+			if (status == CPL_ERR_TCAM_FULL)
+				ctx->result = -EAGAIN;
+			else
+				ctx->result = -EINVAL;
+		}
+		clear_filter(adap, f);
+		cxgb4_free_atid(t, ftid);
+		kfree(f);
+	}
+	if (ctx)
+		complete(&ctx->completion);
 }
 
 /* Handle a filter write/deletion reply. */
