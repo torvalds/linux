@@ -102,6 +102,32 @@ int dell_smbios_smm_call(struct calling_interface_buffer *input)
 	return 0;
 }
 
+/* When enabled this indicates that SMM won't work */
+static bool test_wsmt_enabled(void)
+{
+	struct calling_interface_token *wsmt;
+
+	/* if token doesn't exist, SMM will work */
+	wsmt = dell_smbios_find_token(WSMT_EN_TOKEN);
+	if (!wsmt)
+		return false;
+
+	/* If token exists, try to access over SMM but set a dummy return.
+	 * - If WSMT disabled it will be overwritten by SMM
+	 * - If WSMT enabled then dummy value will remain
+	 */
+	buffer->cmd_class = CLASS_TOKEN_READ;
+	buffer->cmd_select = SELECT_TOKEN_STD;
+	memset(buffer, 0, sizeof(struct calling_interface_buffer));
+	buffer->input[0] = wsmt->location;
+	buffer->output[0] = 99;
+	dell_smbios_smm_call(buffer);
+	if (buffer->output[0] == 99)
+		return true;
+
+	return false;
+}
+
 static int __init dell_smbios_smm_init(void)
 {
 	int ret;
@@ -114,6 +140,12 @@ static int __init dell_smbios_smm_init(void)
 		return -ENOMEM;
 
 	dmi_walk(find_cmd_address, NULL);
+
+	if (test_wsmt_enabled()) {
+		pr_debug("Disabling due to WSMT enabled\n");
+		ret = -ENODEV;
+		goto fail_wsmt;
+	}
 
 	platform_device = platform_device_alloc("dell-smbios", 1);
 	if (!platform_device) {
@@ -138,6 +170,7 @@ fail_register:
 fail_platform_device_add:
 	platform_device_put(platform_device);
 
+fail_wsmt:
 fail_platform_device_alloc:
 	free_page((unsigned long)buffer);
 	return ret;
