@@ -1,0 +1,73 @@
+Rockchip RV1108 RGB interface
+================================
+
+Required properties:
+- compatible: matching the soc type:
+	- "rockchip,rv1108-rgb";
+	- "rockchip,rk3066-rgb";
+
+Optional properties:
+- pinctrl-names: must contain a "lcdc" entry.
+- pinctrl-0: pin control group to be used for this interface.
+
+The rgb has two video ports described by:
+	Documentation/devicetree/bindings/media/video-interfaces.txt
+Their connections are modeled using the OF graph bindings specified in
+	Documentation/devicetree/bindings/graph.txt.
+
+- video port 0 for the VOP input, the remote endpoint maybe vopb/vopl/vop
+- video port 1 for either a panel or subsequent encoder
+
+the panel described by:
+	Documentation/devicetree/bindings/display/panel/simple-panel.txt
+rgb-mode nodes described by:
+	Documentation/devicetree/bindings/display/panel/panel-rgb.txt
+Panel other required properties:
+- ports for remote rgb output.
+
+Example:
+
+panel: panel {
+	compatible = "auo,b101ean01";
+	enable-gpios = <&gpio7 21 GPIO_ACTIVE_HIGH>;
+	rgb-mode = "p888";
+
+	ports {
+		panel_in_rgb: endpoint {
+			remote-endpoint = <&rgb_out_panel>;
+		};
+	};
+};
+
+For Rockchip RV1108:
+
+	rgb: rgb {
+		compatible = "rockchip,rv1108-rgb";
+		pinctrl-names = "lcdc";
+		pinctrl-0 = <&lcdc_ctl>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			rgb_in: port@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				rgb_in_vop: endpoint {
+					remote-endpoint = <&vop_out_rgb>;
+				};
+			};
+
+			rgb_out: port@1 {
+				reg = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				rgb_out_panel: endpoint {
+					remote-endpoint = <&panel_in_rgb>;
+				};
+			};
+		};
+	};
