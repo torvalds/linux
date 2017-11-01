@@ -76,9 +76,9 @@ nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 static int
 nfp_bpf_check_exit(struct nfp_prog *nfp_prog,
-		   const struct bpf_verifier_env *env)
+		   struct bpf_verifier_env *env)
 {
-	const struct bpf_reg_state *reg0 = &env->cur_state.regs[0];
+	const struct bpf_reg_state *reg0 = cur_regs(env) + BPF_REG_0;
 	u64 imm;
 
 	if (nfp_prog->act == NN_ACT_XDP)
@@ -144,9 +144,9 @@ nfp_bpf_check_stack_access(struct nfp_prog *nfp_prog,
 
 static int
 nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
-		  const struct bpf_verifier_env *env, u8 reg_no)
+		  struct bpf_verifier_env *env, u8 reg_no)
 {
-	const struct bpf_reg_state *reg = &env->cur_state.regs[reg_no];
+	const struct bpf_reg_state *reg = cur_regs(env) + reg_no;
 	int err;
 
 	if (reg->type != PTR_TO_CTX &&
