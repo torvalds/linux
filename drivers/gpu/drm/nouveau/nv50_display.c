@@ -1143,11 +1143,11 @@ nv50_curs_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 {
 	int ret;
 
-	ret = drm_plane_helper_check_state(&asyw->state, &asyh->state,
-					   &asyw->clip,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   true, true);
+	ret = drm_atomic_helper_check_plane_state(&asyw->state, &asyh->state,
+						  &asyw->clip,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  true, true);
 	asyh->curs.visible = asyw->state.visible;
 	if (ret || !asyh->curs.visible)
 		return ret;
@@ -1433,11 +1433,11 @@ nv50_base_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	if (!fb->format->depth)
 		return -EINVAL;
 
-	ret = drm_plane_helper_check_state(&asyw->state, &asyh->state,
-					   &asyw->clip,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   false, true);
+	ret = drm_atomic_helper_check_plane_state(&asyw->state, &asyh->state,
+						  &asyw->clip,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  false, true);
 	if (ret)
 		return ret;
 

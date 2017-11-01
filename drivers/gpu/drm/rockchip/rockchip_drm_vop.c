@@ -659,9 +659,9 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	clip.x2 = crtc_state->adjusted_mode.hdisplay;
 	clip.y2 = crtc_state->adjusted_mode.vdisplay;
 
-	ret = drm_plane_helper_check_state(state, crtc_state, &clip,
-					   min_scale, max_scale,
-					   true, true);
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+						  min_scale, max_scale,
+						  true, true);
 	if (ret)
 		return ret;
 

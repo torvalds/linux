@@ -111,10 +111,10 @@ static int mtk_plane_atomic_check(struct drm_plane *plane,
 	clip.x2 = crtc_state->mode.hdisplay;
 	clip.y2 = crtc_state->mode.vdisplay;
 
-	return drm_plane_helper_check_state(state, crtc_state, &clip,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    true, true);
+	return drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+						   DRM_PLANE_HELPER_NO_SCALING,
+						   DRM_PLANE_HELPER_NO_SCALING,
+						   true, true);
 }
 
 static void mtk_plane_atomic_update(struct drm_plane *plane,
