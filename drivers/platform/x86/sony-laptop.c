@@ -1627,7 +1627,7 @@ static const struct rfkill_ops sony_rfkill_ops = {
 static int sony_nc_setup_rfkill(struct acpi_device *device,
 				enum sony_nc_rfkill nc_type)
 {
-	int err = 0;
+	int err;
 	struct rfkill *rfk;
 	enum rfkill_type type;
 	const char *name;
