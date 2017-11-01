@@ -1967,6 +1967,11 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 		rtlhal->hw_type = HARDWARE_TYPE_RTL8812AE;
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 			 "Find adapter, Hardware type is 8812AE\n");
+	} else if (deviceid == RTL_PCI_8822BE_DID) {
+		rtlhal->hw_type = HARDWARE_TYPE_RTL8822BE;
+		rtlhal->bandset = BAND_ON_BOTH;
+		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
+			 "Find adapter, Hardware type is 8822BE\n");
 	} else {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
 			 "Err: Unknown device - vid/did=%x/%x\n",
