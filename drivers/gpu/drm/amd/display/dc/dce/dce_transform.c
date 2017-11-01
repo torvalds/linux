@@ -1177,9 +1177,8 @@ void dce110_opp_set_csc_default(
 		default_adjust->out_color_space);
 }
 
-static void program_pwl(
-	struct dce_transform *xfm_dce,
-	const struct pwl_params *params)
+static void program_pwl(struct dce_transform *xfm_dce,
+			const struct pwl_params *params)
 {
 	int retval;
 	uint8_t max_tries = 10;

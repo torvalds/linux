@@ -365,34 +365,31 @@ void dpp1_cm_set_output_csc_adjustment(
 	dpp1_cm_program_color_matrix(dpp, tbl_entry);
 }
 
-void dpp1_cm_power_on_regamma_lut(
-	struct dpp *dpp_base,
-	bool power_on)
+void dpp1_cm_power_on_regamma_lut(struct dpp *dpp_base,
+				  bool power_on)
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+
 	REG_SET(CM_MEM_PWR_CTRL, 0,
-			RGAM_MEM_PWR_FORCE, power_on == true ? 0:1);
+		RGAM_MEM_PWR_FORCE, power_on == true ? 0:1);
 
 }
 
-void dpp1_cm_program_regamma_lut(
-		struct dpp *dpp_base,
-		const struct pwl_result_data *rgb,
-		uint32_t num)
+void dpp1_cm_program_regamma_lut(struct dpp *dpp_base,
+				 const struct pwl_result_data *rgb,
+				 uint32_t num)
 {
 	uint32_t i;
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+
 	for (i = 0 ; i < num; i++) {
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].red_reg);
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].green_reg);
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].blue_reg);
 
-		REG_SET(CM_RGAM_LUT_DATA, 0,
-				CM_RGAM_LUT_DATA, rgb[i].delta_red_reg);
-		REG_SET(CM_RGAM_LUT_DATA, 0,
-				CM_RGAM_LUT_DATA, rgb[i].delta_green_reg);
-		REG_SET(CM_RGAM_LUT_DATA, 0,
-				CM_RGAM_LUT_DATA, rgb[i].delta_blue_reg);
+		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].delta_red_reg);
+		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].delta_green_reg);
+		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].delta_blue_reg);
 
 	}
 

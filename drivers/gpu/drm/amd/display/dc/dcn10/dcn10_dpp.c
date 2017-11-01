@@ -213,8 +213,8 @@ static void dpp1_cm_set_regamma_pwl(
 		else
 			dpp1_cm_program_regamma_lutb_settings(dpp_base, params);
 
-		dpp1_cm_program_regamma_lut(
-				dpp_base, params->rgb_resulted, params->hw_points_num);
+		dpp1_cm_program_regamma_lut(dpp_base, params->rgb_resulted,
+					    params->hw_points_num);
 		dpp->pwl_data = *params;
 
 		re_mode = dpp->is_write_to_ram_a_safe ? 3 : 4;

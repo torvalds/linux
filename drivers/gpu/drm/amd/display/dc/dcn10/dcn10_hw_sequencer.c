@@ -953,26 +953,20 @@ static bool convert_to_custom_float(
 	fmt.mantissa_bits = 12;
 	fmt.sign = false;
 
-	if (!convert_to_custom_float_format(
-		arr_points[0].x,
-		&fmt,
-		&arr_points[0].custom_float_x)) {
+	if (!convert_to_custom_float_format(arr_points[0].x, &fmt,
+					    &arr_points[0].custom_float_x)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
 
-	if (!convert_to_custom_float_format(
-		arr_points[0].offset,
-		&fmt,
-		&arr_points[0].custom_float_offset)) {
+	if (!convert_to_custom_float_format(arr_points[0].offset, &fmt,
+					    &arr_points[0].custom_float_offset)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
 
-	if (!convert_to_custom_float_format(
-		arr_points[0].slope,
-		&fmt,
-		&arr_points[0].custom_float_slope)) {
+	if (!convert_to_custom_float_format(arr_points[0].slope, &fmt,
+					    &arr_points[0].custom_float_slope)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
@@ -980,26 +974,20 @@ static bool convert_to_custom_float(
 	fmt.mantissa_bits = 10;
 	fmt.sign = false;
 
-	if (!convert_to_custom_float_format(
-		arr_points[1].x,
-		&fmt,
-		&arr_points[1].custom_float_x)) {
+	if (!convert_to_custom_float_format(arr_points[1].x, &fmt,
+					    &arr_points[1].custom_float_x)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
 
-	if (!convert_to_custom_float_format(
-		arr_points[1].y,
-		&fmt,
-		&arr_points[1].custom_float_y)) {
+	if (!convert_to_custom_float_format(arr_points[1].y, &fmt,
+					    &arr_points[1].custom_float_y)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
 
-	if (!convert_to_custom_float_format(
-		arr_points[1].slope,
-		&fmt,
-		&arr_points[1].custom_float_slope)) {
+	if (!convert_to_custom_float_format(arr_points[1].slope, &fmt,
+					    &arr_points[1].custom_float_slope)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
@@ -1008,50 +996,38 @@ static bool convert_to_custom_float(
 	fmt.sign = true;
 
 	while (i != hw_points_num) {
-		if (!convert_to_custom_float_format(
-			rgb->red,
-			&fmt,
-			&rgb->red_reg)) {
+		if (!convert_to_custom_float_format(rgb->red, &fmt,
+						    &rgb->red_reg)) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
 
-		if (!convert_to_custom_float_format(
-			rgb->green,
-			&fmt,
-			&rgb->green_reg)) {
+		if (!convert_to_custom_float_format(rgb->green, &fmt,
+						    &rgb->green_reg)) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
 
-		if (!convert_to_custom_float_format(
-			rgb->blue,
-			&fmt,
-			&rgb->blue_reg)) {
+		if (!convert_to_custom_float_format(rgb->blue, &fmt,
+						    &rgb->blue_reg)) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
 
-		if (!convert_to_custom_float_format(
-			rgb->delta_red,
-			&fmt,
-			&rgb->delta_red_reg)) {
+		if (!convert_to_custom_float_format(rgb->delta_red, &fmt,
+						    &rgb->delta_red_reg)) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
 
-		if (!convert_to_custom_float_format(
-			rgb->delta_green,
-			&fmt,
-			&rgb->delta_green_reg)) {
+		if (!convert_to_custom_float_format(rgb->delta_green, &fmt,
+						    &rgb->delta_green_reg)) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
 
-		if (!convert_to_custom_float_format(
-			rgb->delta_blue,
-			&fmt,
-			&rgb->delta_blue_reg)) {
+		if (!convert_to_custom_float_format(rgb->delta_blue, &fmt,
+						    &rgb->delta_blue_reg)) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
@@ -1066,8 +1042,9 @@ static bool convert_to_custom_float(
 #define MAX_LOW_POINT      25
 #define NUMBER_SEGMENTS    32
 
-static bool dcn10_translate_regamma_to_hw_format(const struct dc_transfer_func
-		*output_tf, struct pwl_params *regamma_params)
+static bool
+dcn10_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
+				     struct pwl_params *regamma_params)
 {
 	struct curve_points *arr_points;
 	struct pwl_result_data *rgb_resulted;
@@ -1083,8 +1060,7 @@ static bool dcn10_translate_regamma_to_hw_format(const struct dc_transfer_func
 	int32_t i;
 	uint32_t j, k, seg_distr[MAX_REGIONS_NUMBER], increment, start_index, hw_points;
 
-	if (output_tf == NULL || regamma_params == NULL ||
-			output_tf->type == TF_TYPE_BYPASS)
+	if (output_tf == NULL || regamma_params == NULL || output_tf->type == TF_TYPE_BYPASS)
 		return false;
 
 	arr_points = regamma_params->arr_points;
@@ -1147,17 +1123,14 @@ static bool dcn10_translate_regamma_to_hw_format(const struct dc_transfer_func
 
 	/* last point */
 	start_index = (segment_end + MAX_LOW_POINT) * NUMBER_SEGMENTS;
-	rgb_resulted[hw_points - 1].red =
-			output_tf->tf_pts.red[start_index];
-	rgb_resulted[hw_points - 1].green =
-			output_tf->tf_pts.green[start_index];
-	rgb_resulted[hw_points - 1].blue =
-			output_tf->tf_pts.blue[start_index];
+	rgb_resulted[hw_points - 1].red = output_tf->tf_pts.red[start_index];
+	rgb_resulted[hw_points - 1].green = output_tf->tf_pts.green[start_index];
+	rgb_resulted[hw_points - 1].blue = output_tf->tf_pts.blue[start_index];
 
 	arr_points[0].x = dal_fixed31_32_pow(dal_fixed31_32_from_int(2),
-			dal_fixed31_32_from_int(segment_start));
+					     dal_fixed31_32_from_int(segment_start));
 	arr_points[1].x = dal_fixed31_32_pow(dal_fixed31_32_from_int(2),
-			dal_fixed31_32_from_int(segment_end));
+					     dal_fixed31_32_from_int(segment_end));
 
 	y_r = rgb_resulted[0].red;
 	y_g = rgb_resulted[0].green;
@@ -1166,9 +1139,7 @@ static bool dcn10_translate_regamma_to_hw_format(const struct dc_transfer_func
 	y1_min = dal_fixed31_32_min(y_r, dal_fixed31_32_min(y_g, y_b));
 
 	arr_points[0].y = y1_min;
-	arr_points[0].slope = dal_fixed31_32_div(
-					arr_points[0].y,
-					arr_points[0].x);
+	arr_points[0].slope = dal_fixed31_32_div(arr_points[0].y, arr_points[0].x);
 	y_r = rgb_resulted[hw_points - 1].red;
 	y_g = rgb_resulted[hw_points - 1].green;
 	y_b = rgb_resulted[hw_points - 1].blue;
@@ -1202,15 +1173,13 @@ static bool dcn10_translate_regamma_to_hw_format(const struct dc_transfer_func
 			regamma_params->arr_curve_points[k].segments_num =
 					seg_distr[k];
 			regamma_params->arr_curve_points[i].offset =
-					regamma_params->arr_curve_points[k].
-					offset + (1 << seg_distr[k]);
+					regamma_params->arr_curve_points[k].offset + (1 << seg_distr[k]);
 		}
 		i++;
 	}
 
 	if (seg_distr[k] != -1)
-		regamma_params->arr_curve_points[k].segments_num =
-				seg_distr[k];
+		regamma_params->arr_curve_points[k].segments_num = seg_distr[k];
 
 	rgb = rgb_resulted;
 	rgb_plus_1 = rgb_resulted + 1;
@@ -1225,15 +1194,9 @@ static bool dcn10_translate_regamma_to_hw_format(const struct dc_transfer_func
 		if (dal_fixed31_32_lt(rgb_plus_1->blue, rgb->blue))
 			rgb_plus_1->blue = rgb->blue;
 
-		rgb->delta_red = dal_fixed31_32_sub(
-			rgb_plus_1->red,
-			rgb->red);
-		rgb->delta_green = dal_fixed31_32_sub(
-			rgb_plus_1->green,
-			rgb->green);
-		rgb->delta_blue = dal_fixed31_32_sub(
-			rgb_plus_1->blue,
-			rgb->blue);
+		rgb->delta_red = dal_fixed31_32_sub(rgb_plus_1->red, rgb->red);
+		rgb->delta_green = dal_fixed31_32_sub(rgb_plus_1->green, rgb->green);
+		rgb->delta_blue = dal_fixed31_32_sub(rgb_plus_1->blue, rgb->blue);
 
 		++rgb_plus_1;
 		++rgb;

@@ -307,10 +307,9 @@ dce110_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
 	return result;
 }
 
-static bool convert_to_custom_float(
-		struct pwl_result_data *rgb_resulted,
-		struct curve_points *arr_points,
-		uint32_t hw_points_num)
+static bool convert_to_custom_float(struct pwl_result_data *rgb_resulted,
+				    struct curve_points *arr_points,
+				    uint32_t hw_points_num)
 {
 	struct custom_float_format fmt;
 
@@ -322,26 +321,20 @@ static bool convert_to_custom_float(
 	fmt.mantissa_bits = 12;
 	fmt.sign = true;
 
-	if (!convert_to_custom_float_format(
-		arr_points[0].x,
-		&fmt,
-		&arr_points[0].custom_float_x)) {
+	if (!convert_to_custom_float_format(arr_points[0].x, &fmt,
+					    &arr_points[0].custom_float_x)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
 
-	if (!convert_to_custom_float_format(
-		arr_points[0].offset,
-		&fmt,
-		&arr_points[0].custom_float_offset)) {
+	if (!convert_to_custom_float_format(arr_points[0].offset, &fmt,
+					    &arr_points[0].custom_float_offset)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
 
-	if (!convert_to_custom_float_format(
-		arr_points[0].slope,
-		&fmt,
-		&arr_points[0].custom_float_slope)) {
+	if (!convert_to_custom_float_format(arr_points[0].slope, &fmt,
+					    &arr_points[0].custom_float_slope)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
@@ -349,26 +342,20 @@ static bool convert_to_custom_float(
 	fmt.mantissa_bits = 10;
 	fmt.sign = false;
 
-	if (!convert_to_custom_float_format(
-		arr_points[1].x,
-		&fmt,
-		&arr_points[1].custom_float_x)) {
+	if (!convert_to_custom_float_format(arr_points[1].x, &fmt,
+					    &arr_points[1].custom_float_x)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
 
-	if (!convert_to_custom_float_format(
-		arr_points[1].y,
-		&fmt,
-		&arr_points[1].custom_float_y)) {
+	if (!convert_to_custom_float_format(arr_points[1].y, &fmt,
+					    &arr_points[1].custom_float_y)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
 
-	if (!convert_to_custom_float_format(
-		arr_points[2].slope,
-		&fmt,
-		&arr_points[2].custom_float_slope)) {
+	if (!convert_to_custom_float_format(arr_points[2].slope, &fmt,
+					    &arr_points[2].custom_float_slope)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
@@ -377,50 +364,38 @@ static bool convert_to_custom_float(
 	fmt.sign = true;
 
 	while (i != hw_points_num) {
-		if (!convert_to_custom_float_format(
-			rgb->red,
-			&fmt,
-			&rgb->red_reg)) {
+		if (!convert_to_custom_float_format(rgb->red, &fmt,
+						    &rgb->red_reg)) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
 
-		if (!convert_to_custom_float_format(
-			rgb->green,
-			&fmt,
-			&rgb->green_reg)) {
+		if (!convert_to_custom_float_format(rgb->green, &fmt,
+						    &rgb->green_reg)) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
 
-		if (!convert_to_custom_float_format(
-			rgb->blue,
-			&fmt,
-			&rgb->blue_reg)) {
+		if (!convert_to_custom_float_format(rgb->blue, &fmt,
+						    &rgb->blue_reg)) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
 
-		if (!convert_to_custom_float_format(
-			rgb->delta_red,
-			&fmt,
-			&rgb->delta_red_reg)) {
+		if (!convert_to_custom_float_format(rgb->delta_red, &fmt,
+						    &rgb->delta_red_reg)) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
 
-		if (!convert_to_custom_float_format(
-			rgb->delta_green,
-			&fmt,
-			&rgb->delta_green_reg)) {
+		if (!convert_to_custom_float_format(rgb->delta_green, &fmt,
+						    &rgb->delta_green_reg)) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
 
-		if (!convert_to_custom_float_format(
-			rgb->delta_blue,
-			&fmt,
-			&rgb->delta_blue_reg)) {
+		if (!convert_to_custom_float_format(rgb->delta_blue, &fmt,
+						    &rgb->delta_blue_reg)) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
