@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *  Copyright (C) 2011 Texas Instruments Incorporated
  *  Author: Mark Salter <msalter@redhat.com>
