@@ -470,8 +470,7 @@ static ssize_t iwl_dbgfs_disable_power_off_write(struct iwl_mvm *mvm, char *buf,
 }
 
 static
-int iwl_mvm_coex_dump_mbox(struct iwl_mvm *mvm,
-			   struct iwl_bt_coex_profile_notif *notif, char *buf,
+int iwl_mvm_coex_dump_mbox(struct iwl_bt_coex_profile_notif *notif, char *buf,
 			   int pos, int bufsz)
 {
 	pos += scnprintf(buf+pos, bufsz-pos, "MBOX dw0:\n");
@@ -525,12 +524,7 @@ int iwl_mvm_coex_dump_mbox(struct iwl_mvm *mvm,
 	BT_MBOX_PRINT(3, INBAND_P, false);
 	BT_MBOX_PRINT(3, MSG_TYPE_2, false);
 	BT_MBOX_PRINT(3, SSN_2, false);
-	BT_MBOX_PRINT(3, UPDATE_REQUEST, !iwl_mvm_has_new_ats_coex_api(mvm));
-
-	if (iwl_mvm_has_new_ats_coex_api(mvm)) {
-		BT_MBOX_PRINT(4, ATS_BT_INTERVAL, false);
-		BT_MBOX_PRINT(4, ATS_BT_ACTIVE_MAX_TH, true);
-	}
+	BT_MBOX_PRINT(3, UPDATE_REQUEST, true);
 
 	return pos;
 }
@@ -549,7 +543,7 @@ static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
 
 	mutex_lock(&mvm->mutex);
 
-	pos += iwl_mvm_coex_dump_mbox(mvm, notif, buf, pos, bufsz);
+	pos += iwl_mvm_coex_dump_mbox(notif, buf, pos, bufsz);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "bt_ci_compliance = %d\n",
 			 notif->bt_ci_compliance);

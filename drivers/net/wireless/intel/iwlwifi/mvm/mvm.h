@@ -1263,12 +1263,6 @@ static inline bool iwl_mvm_has_new_rx_stats_api(struct iwl_mvm *mvm)
 			  IWL_UCODE_TLV_API_NEW_RX_STATS);
 }
 
-static inline bool iwl_mvm_has_new_ats_coex_api(struct iwl_mvm *mvm)
-{
-	return fw_has_api(&mvm->fw->ucode_capa,
-			  IWL_UCODE_TLV_API_COEX_ATS_EXTERNAL);
-}
-
 static inline bool iwl_mvm_has_quota_low_latency(struct iwl_mvm *mvm)
 {
 	return fw_has_api(&mvm->fw->ucode_capa,
