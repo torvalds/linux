@@ -442,29 +442,18 @@ int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
 				      struct drm_plane_state *state)
 {
 	struct drm_framebuffer *new_fb = state->fb;
-	bool visible;
-
-	struct drm_rect src = {
-		.x1 = state->src_x,
-		.y1 = state->src_y,
-		.x2 = state->src_x + state->src_w,
-		.y2 = state->src_y + state->src_h,
-	};
-	struct drm_rect dest = {
+	struct drm_rect clip = {
 		.x1 = state->crtc_x,
 		.y1 = state->crtc_y,
 		.x2 = state->crtc_x + state->crtc_w,
 		.y2 = state->crtc_y + state->crtc_h,
 	};
-	struct drm_rect clip = dest;
 	int ret;
 
-	ret = drm_plane_helper_check_update(plane, state->crtc, new_fb,
-					    &src, &dest, &clip,
-					    DRM_MODE_ROTATE_0,
+	ret = drm_plane_helper_check_state(state, &clip,
 					    DRM_PLANE_HELPER_NO_SCALING,
 					    DRM_PLANE_HELPER_NO_SCALING,
-					    false, true, &visible);
+					    false, true);
 
 
 	if (!ret && new_fb) {
