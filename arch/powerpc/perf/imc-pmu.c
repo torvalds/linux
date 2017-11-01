@@ -399,6 +399,20 @@ static void nest_imc_counters_release(struct perf_event *event)
 
 	/* Take the mutex lock for this node and then decrement the reference count */
 	mutex_lock(&ref->lock);
+	if (ref->refc == 0) {
+		/*
+		 * The scenario where this is true is, when perf session is
+		 * started, followed by offlining of all cpus in a given node.
+		 *
+		 * In the cpuhotplug offline path, ppc_nest_imc_cpu_offline()
+		 * function set the ref->count to zero, if the cpu which is
+		 * about to offline is the last cpu in a given node and make
+		 * an OPAL call to disable the engine in that node.
+		 *
+		 */
+		mutex_unlock(&ref->lock);
+		return;
+	}
 	ref->refc--;
 	if (ref->refc == 0) {
 		rc = opal_imc_counters_stop(OPAL_IMC_COUNTERS_NEST,
@@ -523,8 +537,8 @@ static int core_imc_mem_init(int cpu, int size)
 
 	/* We need only vbase for core counters */
 	mem_info->vbase = page_address(alloc_pages_node(phys_id,
-					  GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE,
-					  get_order(size)));
+					  GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE |
+					  __GFP_NOWARN, get_order(size)));
 	if (!mem_info->vbase)
 		return -ENOMEM;
 
@@ -646,6 +660,20 @@ static void core_imc_counters_release(struct perf_event *event)
 		return;
 
 	mutex_lock(&ref->lock);
+	if (ref->refc == 0) {
+		/*
+		 * The scenario where this is true is, when perf session is
+		 * started, followed by offlining of all cpus in a given core.
+		 *
+		 * In the cpuhotplug offline path, ppc_core_imc_cpu_offline()
+		 * function set the ref->count to zero, if the cpu which is
+		 * about to offline is the last cpu in a given core and make
+		 * an OPAL call to disable the engine in that core.
+		 *
+		 */
+		mutex_unlock(&ref->lock);
+		return;
+	}
 	ref->refc--;
 	if (ref->refc == 0) {
 		rc = opal_imc_counters_stop(OPAL_IMC_COUNTERS_CORE,
@@ -763,8 +791,8 @@ static int thread_imc_mem_alloc(int cpu_id, int size)
 		 * free the memory in cpu offline path.
 		 */
 		local_mem = page_address(alloc_pages_node(phys_id,
-				  GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE,
-				  get_order(size)));
+				  GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE |
+				  __GFP_NOWARN, get_order(size)));
 		if (!local_mem)
 			return -ENOMEM;
 
@@ -1148,7 +1176,8 @@ static void imc_common_cpuhp_mem_free(struct imc_pmu *pmu_ptr)
 	}
 
 	/* Only free the attr_groups which are dynamically allocated  */
-	kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]->attrs);
+	if (pmu_ptr->attr_groups[IMC_EVENT_ATTR])
+		kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]->attrs);
 	kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]);
 	kfree(pmu_ptr);
 	return;

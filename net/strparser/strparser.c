@@ -49,7 +49,7 @@ static void strp_abort_strp(struct strparser *strp, int err)
 {
 	/* Unrecoverable error in receive */
 
-	del_timer(&strp->msg_timer);
+	cancel_delayed_work(&strp->msg_timer_work);
 
 	if (strp->stopped)
 		return;
@@ -68,7 +68,7 @@ static void strp_abort_strp(struct strparser *strp, int err)
 static void strp_start_timer(struct strparser *strp, long timeo)
 {
 	if (timeo)
-		mod_timer(&strp->msg_timer, timeo);
+		mod_delayed_work(strp_wq, &strp->msg_timer_work, timeo);
 }
 
 /* Lower lock held */
@@ -319,7 +319,7 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 		eaten += (cand_len - extra);
 
 		/* Hurray, we have a new message! */
-		del_timer(&strp->msg_timer);
+		cancel_delayed_work(&strp->msg_timer_work);
 		strp->skb_head = NULL;
 		STRP_STATS_INCR(strp->stats.msgs);
 
@@ -450,9 +450,10 @@ static void strp_work(struct work_struct *w)
 	do_strp_work(container_of(w, struct strparser, work));
 }
 
-static void strp_msg_timeout(unsigned long arg)
+static void strp_msg_timeout(struct work_struct *w)
 {
-	struct strparser *strp = (struct strparser *)arg;
+	struct strparser *strp = container_of(w, struct strparser,
+					      msg_timer_work.work);
 
 	/* Message assembly timed out */
 	STRP_STATS_INCR(strp->stats.msg_timeouts);
@@ -505,9 +506,7 @@ int strp_init(struct strparser *strp, struct sock *sk,
 	strp->cb.read_sock_done = cb->read_sock_done ? : default_read_sock_done;
 	strp->cb.abort_parser = cb->abort_parser ? : strp_abort_strp;
 
-	setup_timer(&strp->msg_timer, strp_msg_timeout,
-		    (unsigned long)strp);
-
+	INIT_DELAYED_WORK(&strp->msg_timer_work, strp_msg_timeout);
 	INIT_WORK(&strp->work, strp_work);
 
 	return 0;
@@ -532,7 +531,7 @@ void strp_done(struct strparser *strp)
 {
 	WARN_ON(!strp->stopped);
 
-	del_timer_sync(&strp->msg_timer);
+	cancel_delayed_work_sync(&strp->msg_timer_work);
 	cancel_work_sync(&strp->work);
 
 	if (strp->skb_head) {

@@ -3505,20 +3505,6 @@ static int mlxsw_sp_fib_lpm_tree_link(struct mlxsw_sp *mlxsw_sp,
 static void mlxsw_sp_fib_lpm_tree_unlink(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_fib *fib)
 {
-	struct mlxsw_sp_prefix_usage req_prefix_usage = {{ 0 } };
-	struct mlxsw_sp_lpm_tree *lpm_tree;
-
-	/* Aggregate prefix lengths across all virtual routers to make
-	 * sure we only have used prefix lengths in the LPM tree.
-	 */
-	mlxsw_sp_vrs_prefixes(mlxsw_sp, fib->proto, &req_prefix_usage);
-	lpm_tree = mlxsw_sp_lpm_tree_get(mlxsw_sp, &req_prefix_usage,
-					 fib->proto);
-	if (IS_ERR(lpm_tree))
-		goto err_tree_get;
-	mlxsw_sp_vrs_lpm_tree_replace(mlxsw_sp, fib, lpm_tree);
-
-err_tree_get:
 	if (!mlxsw_sp_prefix_usage_none(&fib->prefix_usage))
 		return;
 	mlxsw_sp_vr_lpm_tree_unbind(mlxsw_sp, fib);
@@ -5910,11 +5896,20 @@ static void mlxsw_sp_rifs_fini(struct mlxsw_sp *mlxsw_sp)
 	kfree(mlxsw_sp->router->rifs);
 }
 
+static int
+mlxsw_sp_ipip_config_tigcr(struct mlxsw_sp *mlxsw_sp)
+{
+	char tigcr_pl[MLXSW_REG_TIGCR_LEN];
+
+	mlxsw_reg_tigcr_pack(tigcr_pl, true, 0);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(tigcr), tigcr_pl);
+}
+
 static int mlxsw_sp_ipips_init(struct mlxsw_sp *mlxsw_sp)
 {
 	mlxsw_sp->router->ipip_ops_arr = mlxsw_sp_ipip_ops_arr;
 	INIT_LIST_HEAD(&mlxsw_sp->router->ipip_list);
-	return 0;
+	return mlxsw_sp_ipip_config_tigcr(mlxsw_sp);
 }
 
 static void mlxsw_sp_ipips_fini(struct mlxsw_sp *mlxsw_sp)

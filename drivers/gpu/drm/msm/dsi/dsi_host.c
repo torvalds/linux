@@ -248,7 +248,7 @@ disable_clks:
 	clk_disable_unprepare(ahb_clk);
 disable_gdsc:
 	regulator_disable(gdsc_reg);
-	pm_runtime_put_autosuspend(dev);
+	pm_runtime_put_sync(dev);
 put_clk:
 	clk_put(ahb_clk);
 put_gdsc:

@@ -3097,9 +3097,10 @@ __call_rcu(struct rcu_head *head, rcu_callback_t func,
  * read-side critical sections have completed. call_rcu_sched() assumes
  * that the read-side critical sections end on enabling of preemption
  * or on voluntary preemption.
- * RCU read-side critical sections are delimited by :
- *  - rcu_read_lock_sched() and rcu_read_unlock_sched(), OR
- *  - anything that disables preemption.
+ * RCU read-side critical sections are delimited by:
+ *
+ * - rcu_read_lock_sched() and rcu_read_unlock_sched(), OR
+ * - anything that disables preemption.
  *
  *  These may be nested.
  *
@@ -3124,11 +3125,12 @@ EXPORT_SYMBOL_GPL(call_rcu_sched);
  * handler. This means that read-side critical sections in process
  * context must not be interrupted by softirqs. This interface is to be
  * used when most of the read-side critical sections are in softirq context.
- * RCU read-side critical sections are delimited by :
- *  - rcu_read_lock() and  rcu_read_unlock(), if in interrupt context.
- *  OR
- *  - rcu_read_lock_bh() and rcu_read_unlock_bh(), if in process context.
- *  These may be nested.
+ * RCU read-side critical sections are delimited by:
+ *
+ * - rcu_read_lock() and  rcu_read_unlock(), if in interrupt context, OR
+ * - rcu_read_lock_bh() and rcu_read_unlock_bh(), if in process context.
+ *
+ * These may be nested.
  *
  * See the description of call_rcu() for more detailed information on
  * memory ordering guarantees.
