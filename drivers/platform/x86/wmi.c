@@ -201,6 +201,28 @@ static acpi_status wmi_method_enable(struct wmi_block *wblock, int enable)
 acpi_status wmi_evaluate_method(const char *guid_string, u8 instance,
 u32 method_id, const struct acpi_buffer *in, struct acpi_buffer *out)
 {
+	struct wmi_block *wblock = NULL;
+
+	if (!find_guid(guid_string, &wblock))
+		return AE_ERROR;
+	return wmidev_evaluate_method(&wblock->dev, instance, method_id,
+				      in, out);
+}
+EXPORT_SYMBOL_GPL(wmi_evaluate_method);
+
+/**
+ * wmidev_evaluate_method - Evaluate a WMI method
+ * @wdev: A wmi bus device from a driver
+ * @instance: Instance index
+ * @method_id: Method ID to call
+ * &in: Buffer containing input for the method call
+ * &out: Empty buffer to return the method results
+ *
+ * Call an ACPI-WMI method
+ */
+acpi_status wmidev_evaluate_method(struct wmi_device *wdev, u8 instance,
+	u32 method_id, const struct acpi_buffer *in, struct acpi_buffer *out)
+{
 	struct guid_block *block = NULL;
 	struct wmi_block *wblock = NULL;
 	acpi_handle handle;
@@ -209,9 +231,7 @@ u32 method_id, const struct acpi_buffer *in, struct acpi_buffer *out)
 	union acpi_object params[3];
 	char method[5] = "WM";
 
-	if (!find_guid(guid_string, &wblock))
-		return AE_ERROR;
-
+	wblock = container_of(wdev, struct wmi_block, dev);
 	block = &wblock->gblock;
 	handle = wblock->acpi_device->handle;
 
@@ -246,7 +266,7 @@ u32 method_id, const struct acpi_buffer *in, struct acpi_buffer *out)
 
 	return status;
 }
-EXPORT_SYMBOL_GPL(wmi_evaluate_method);
+EXPORT_SYMBOL_GPL(wmidev_evaluate_method);
 
 static acpi_status __query_block(struct wmi_block *wblock, u8 instance,
 				 struct acpi_buffer *out)

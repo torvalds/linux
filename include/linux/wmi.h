@@ -26,6 +26,12 @@ struct wmi_device {
 	bool setable;
 };
 
+/* evaluate the ACPI method associated with this device */
+extern acpi_status wmidev_evaluate_method(struct wmi_device *wdev,
+					  u8 instance, u32 method_id,
+					  const struct acpi_buffer *in,
+					  struct acpi_buffer *out);
+
 /* Caller must kfree the result. */
 extern union acpi_object *wmidev_block_query(struct wmi_device *wdev,
 					     u8 instance);
