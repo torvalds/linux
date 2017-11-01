@@ -39,6 +39,7 @@
 #include <linux/wmi.h>
 #include <acpi/video.h>
 #include "dell-smbios.h"
+#include "dell-wmi-descriptor.h"
 
 MODULE_AUTHOR("Matthew Garrett <mjg@redhat.com>");
 MODULE_AUTHOR("Pali Rohár <pali.rohar@gmail.com>");
@@ -46,7 +47,6 @@ MODULE_DESCRIPTION("Dell laptop WMI hotkeys driver");
 MODULE_LICENSE("GPL");
 
 #define DELL_EVENT_GUID "9DBB5994-A997-11DA-B012-B622A1EF5492"
-#define DELL_DESCRIPTOR_GUID "8D9DDCBC-A997-11DA-B012-B622A1EF5492"
 
 static bool wmi_requires_smbios_request;
 
@@ -618,75 +618,6 @@ static void dell_wmi_input_destroy(struct wmi_device *wdev)
 }
 
 /*
- * Descriptor buffer is 128 byte long and contains:
- *
- *       Name             Offset  Length  Value
- * Vendor Signature          0       4    "DELL"
- * Object Signature          4       4    " WMI"
- * WMI Interface Version     8       4    <version>
- * WMI buffer length        12       4    <length>
- */
-static int dell_wmi_check_descriptor_buffer(struct wmi_device *wdev)
-{
-	struct dell_wmi_priv *priv = dev_get_drvdata(&wdev->dev);
-	union acpi_object *obj = NULL;
-	struct wmi_device *desc_dev;
-	u32 *buffer;
-	int ret;
-
-	desc_dev = wmidev_get_other_guid(wdev, DELL_DESCRIPTOR_GUID);
-	if (!desc_dev) {
-		dev_err(&wdev->dev, "Dell WMI descriptor does not exist\n");
-		return -ENODEV;
-	}
-
-	obj = wmidev_block_query(desc_dev, 0);
-	if (!obj) {
-		dev_err(&wdev->dev, "failed to read Dell WMI descriptor\n");
-		ret = -EIO;
-		goto out;
-	}
-
-	if (obj->type != ACPI_TYPE_BUFFER) {
-		dev_err(&wdev->dev, "Dell descriptor has wrong type\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (obj->buffer.length != 128) {
-		dev_err(&wdev->dev,
-			"Dell descriptor buffer has invalid length (%d)\n",
-			obj->buffer.length);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	buffer = (u32 *)obj->buffer.pointer;
-
-	if (strncmp(obj->string.pointer, "DELL WMI", 8) != 0) {
-		dev_err(&wdev->dev, "Dell descriptor buffer has invalid signature (%8ph)\n",
-			buffer);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (buffer[2] != 0 && buffer[2] != 1)
-		dev_warn(&wdev->dev, "Dell descriptor buffer has unknown version (%lu)\n",
-			(unsigned long) buffer[2]);
-
-	priv->interface_version = buffer[2];
-	ret = 0;
-
-	dev_info(&wdev->dev, "Detected Dell WMI interface version %u\n",
-		priv->interface_version);
-
-out:
-	kfree(obj);
-	put_device(&desc_dev->dev);
-	return ret;
-}
-
-/*
  * According to Dell SMBIOS documentation:
  *
  * 17  3  Application Program Registration
@@ -721,7 +652,9 @@ static int dell_wmi_events_set_enabled(bool enable)
 static int dell_wmi_probe(struct wmi_device *wdev)
 {
 	struct dell_wmi_priv *priv;
-	int err;
+
+	if (!wmi_has_guid(DELL_WMI_DESCRIPTOR_GUID))
+		return -ENODEV;
 
 	priv = devm_kzalloc(
 		&wdev->dev, sizeof(struct dell_wmi_priv), GFP_KERNEL);
@@ -729,9 +662,8 @@ static int dell_wmi_probe(struct wmi_device *wdev)
 		return -ENOMEM;
 	dev_set_drvdata(&wdev->dev, priv);
 
-	err = dell_wmi_check_descriptor_buffer(wdev);
-	if (err)
-		return err;
+	if (!dell_wmi_get_interface_version(&priv->interface_version))
+		return -EPROBE_DEFER;
 
 	return dell_wmi_input_setup(wdev);
 }
