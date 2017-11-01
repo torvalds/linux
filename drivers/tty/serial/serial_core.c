@@ -1482,10 +1482,10 @@ out:
 static void uart_close(struct tty_struct *tty, struct file *filp)
 {
 	struct uart_state *state = tty->driver_data;
-	struct tty_port *port;
 
 	if (!state) {
 		struct uart_driver *drv = tty->driver->driver_state;
+		struct tty_port *port;
 
 		state = drv->state + tty->index;
 		port = &state->port;
@@ -1495,7 +1495,6 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 		return;
 	}
 
-	port = &state->port;
 	pr_debug("uart_close(%d) called\n", tty->index);
 
 	tty_port_close(tty->port, tty, filp);
