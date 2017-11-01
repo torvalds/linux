@@ -119,6 +119,26 @@
 			debounce-interval = <100>;
 		};
 	};
+
+	gva_codec: gva-codec {
+		compatible = "rockchip,gva-codec";
+		#sound-dai-cells = <0>;
+		status = "okay";
+	};
+
+	gva-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "rockchip,rk3229-dummy";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,cpu {
+			sound-dai = <&i2s1>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&gva_codec>;
+		};
+	};
+
 };
 
 &gpu {
@@ -303,6 +323,15 @@
 		divider_res1 = <200>;
 		divider_res2 = <200>;
 	};
+};
+
+&i2s1 {
+	status = "okay";
+	rockchip,i2s-broken-burst-len;
+	rockchip,playback-channels = <8>;
+	rockchip,capture-channels = <8>;
+	rockchip,bclk-fs = <64>;
+	#sound-dai-cells = <0>;
 };
 
 &cpu0 {
