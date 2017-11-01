@@ -224,16 +224,25 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 
 	mutex_lock(&p->mutex);
 
+	/* Iterate over all process device data structures and if the
+	 * pdd is in debug mode, we should first force unregistration,
+	 * then we will be able to destroy the queues
+	 */
+	list_for_each_entry(pdd, &p->per_device_data, per_device_list) {
+		struct kfd_dev *dev = pdd->dev;
+
+		mutex_lock(kfd_get_dbgmgr_mutex());
+		if (dev && dev->dbgmgr && dev->dbgmgr->pasid == p->pasid) {
+			if (!kfd_dbgmgr_unregister(dev->dbgmgr, p)) {
+				kfd_dbgmgr_destroy(dev->dbgmgr);
+				dev->dbgmgr = NULL;
+			}
+		}
+		mutex_unlock(kfd_get_dbgmgr_mutex());
+	}
+
 	kfd_process_dequeue_from_all_devices(p);
 	pqm_uninit(&p->pqm);
-
-	/* Iterate over all process device data structure and check
-	 * if we should delete debug managers
-	 */
-	list_for_each_entry(pdd, &p->per_device_data, per_device_list)
-		if ((pdd->dev->dbgmgr) &&
-				(pdd->dev->dbgmgr->pasid == p->pasid))
-			kfd_dbgmgr_destroy(pdd->dev->dbgmgr);
 
 	mutex_unlock(&p->mutex);
 
@@ -463,8 +472,16 @@ void kfd_process_iommu_unbind_callback(struct kfd_dev *dev, unsigned int pasid)
 
 	pr_debug("Unbinding process %d from IOMMU\n", pasid);
 
-	if ((dev->dbgmgr) && (dev->dbgmgr->pasid == p->pasid))
-		kfd_dbgmgr_destroy(dev->dbgmgr);
+	mutex_lock(kfd_get_dbgmgr_mutex());
+
+	if (dev->dbgmgr && dev->dbgmgr->pasid == p->pasid) {
+		if (!kfd_dbgmgr_unregister(dev->dbgmgr, p)) {
+			kfd_dbgmgr_destroy(dev->dbgmgr);
+			dev->dbgmgr = NULL;
+		}
+	}
+
+	mutex_unlock(kfd_get_dbgmgr_mutex());
 
 	pdd = kfd_get_process_device_data(dev, p);
 	if (pdd)

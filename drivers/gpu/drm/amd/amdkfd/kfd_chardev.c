@@ -450,8 +450,8 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 		return -EINVAL;
 	}
 
-	mutex_lock(kfd_get_dbgmgr_mutex());
 	mutex_lock(&p->mutex);
+	mutex_lock(kfd_get_dbgmgr_mutex());
 
 	/*
 	 * make sure that we have pdd, if this the first queue created for
@@ -479,8 +479,8 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 	}
 
 out:
-	mutex_unlock(&p->mutex);
 	mutex_unlock(kfd_get_dbgmgr_mutex());
+	mutex_unlock(&p->mutex);
 
 	return status;
 }
