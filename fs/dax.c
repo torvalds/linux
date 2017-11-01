@@ -1079,7 +1079,7 @@ static int dax_fault_return(int error)
 	return VM_FAULT_SIGBUS;
 }
 
-static int dax_iomap_pte_fault(struct vm_fault *vmf,
+static int dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
 			       const struct iomap_ops *ops)
 {
 	struct vm_area_struct *vma = vmf->vma;
@@ -1280,7 +1280,7 @@ fallback:
 	return VM_FAULT_FALLBACK;
 }
 
-static int dax_iomap_pmd_fault(struct vm_fault *vmf,
+static int dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
 			       const struct iomap_ops *ops)
 {
 	struct vm_area_struct *vma = vmf->vma;
@@ -1425,7 +1425,7 @@ out:
 	return result;
 }
 #else
-static int dax_iomap_pmd_fault(struct vm_fault *vmf,
+static int dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
 			       const struct iomap_ops *ops)
 {
 	return VM_FAULT_FALLBACK;
@@ -1436,6 +1436,7 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf,
  * dax_iomap_fault - handle a page fault on a DAX file
  * @vmf: The description of the fault
  * @pe_size: Size of the page to fault in
+ * @pfnp: PFN to insert for synchronous faults if fsync is required
  * @ops: Iomap ops passed from the file system
  *
  * When a page fault occurs, filesystems may call this helper in
@@ -1444,13 +1445,13 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf,
  * successfully.
  */
 int dax_iomap_fault(struct vm_fault *vmf, enum page_entry_size pe_size,
-		    const struct iomap_ops *ops)
+		    pfn_t *pfnp, const struct iomap_ops *ops)
 {
 	switch (pe_size) {
 	case PE_SIZE_PTE:
-		return dax_iomap_pte_fault(vmf, ops);
+		return dax_iomap_pte_fault(vmf, pfnp, ops);
 	case PE_SIZE_PMD:
-		return dax_iomap_pmd_fault(vmf, ops);
+		return dax_iomap_pmd_fault(vmf, pfnp, ops);
 	default:
 		return VM_FAULT_FALLBACK;
 	}
