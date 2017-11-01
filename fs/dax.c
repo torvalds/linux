@@ -1492,3 +1492,86 @@ int dax_iomap_fault(struct vm_fault *vmf, enum page_entry_size pe_size,
 	}
 }
 EXPORT_SYMBOL_GPL(dax_iomap_fault);
+
+/**
+ * dax_insert_pfn_mkwrite - insert PTE or PMD entry into page tables
+ * @vmf: The description of the fault
+ * @pe_size: Size of entry to be inserted
+ * @pfn: PFN to insert
+ *
+ * This function inserts writeable PTE or PMD entry into page tables for mmaped
+ * DAX file.  It takes care of marking corresponding radix tree entry as dirty
+ * as well.
+ */
+static int dax_insert_pfn_mkwrite(struct vm_fault *vmf,
+				  enum page_entry_size pe_size,
+				  pfn_t pfn)
+{
+	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
+	void *entry, **slot;
+	pgoff_t index = vmf->pgoff;
+	int vmf_ret, error;
+
+	spin_lock_irq(&mapping->tree_lock);
+	entry = get_unlocked_mapping_entry(mapping, index, &slot);
+	/* Did we race with someone splitting entry or so? */
+	if (!entry ||
+	    (pe_size == PE_SIZE_PTE && !dax_is_pte_entry(entry)) ||
+	    (pe_size == PE_SIZE_PMD && !dax_is_pmd_entry(entry))) {
+		put_unlocked_mapping_entry(mapping, index, entry);
+		spin_unlock_irq(&mapping->tree_lock);
+		trace_dax_insert_pfn_mkwrite_no_entry(mapping->host, vmf,
+						      VM_FAULT_NOPAGE);
+		return VM_FAULT_NOPAGE;
+	}
+	radix_tree_tag_set(&mapping->page_tree, index, PAGECACHE_TAG_DIRTY);
+	entry = lock_slot(mapping, slot);
+	spin_unlock_irq(&mapping->tree_lock);
+	switch (pe_size) {
+	case PE_SIZE_PTE:
+		error = vm_insert_mixed_mkwrite(vmf->vma, vmf->address, pfn);
+		vmf_ret = dax_fault_return(error);
+		break;
+#ifdef CONFIG_FS_DAX_PMD
+	case PE_SIZE_PMD:
+		vmf_ret = vmf_insert_pfn_pmd(vmf->vma, vmf->address, vmf->pmd,
+			pfn, true);
+		break;
+#endif
+	default:
+		vmf_ret = VM_FAULT_FALLBACK;
+	}
+	put_locked_mapping_entry(mapping, index);
+	trace_dax_insert_pfn_mkwrite(mapping->host, vmf, vmf_ret);
+	return vmf_ret;
+}
+
+/**
+ * dax_finish_sync_fault - finish synchronous page fault
+ * @vmf: The description of the fault
+ * @pe_size: Size of entry to be inserted
+ * @pfn: PFN to insert
+ *
+ * This function ensures that the file range touched by the page fault is
+ * stored persistently on the media and handles inserting of appropriate page
+ * table entry.
+ */
+int dax_finish_sync_fault(struct vm_fault *vmf, enum page_entry_size pe_size,
+			  pfn_t pfn)
+{
+	int err;
+	loff_t start = ((loff_t)vmf->pgoff) << PAGE_SHIFT;
+	size_t len = 0;
+
+	if (pe_size == PE_SIZE_PTE)
+		len = PAGE_SIZE;
+	else if (pe_size == PE_SIZE_PMD)
+		len = PMD_SIZE;
+	else
+		WARN_ON_ONCE(1);
+	err = vfs_fsync_range(vmf->vma->vm_file, start, start + len - 1, 1);
+	if (err)
+		return VM_FAULT_SIGBUS;
+	return dax_insert_pfn_mkwrite(vmf, pe_size, pfn);
+}
+EXPORT_SYMBOL_GPL(dax_finish_sync_fault);
