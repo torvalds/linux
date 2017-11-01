@@ -219,8 +219,10 @@ static void ovl_put_super(struct super_block *sb)
 	if (ufs->upper_mnt && ufs->upperdir_locked)
 		ovl_inuse_unlock(ufs->upper_mnt->mnt_root);
 	mntput(ufs->upper_mnt);
-	for (i = 0; i < ufs->numlower; i++)
+	for (i = 0; i < ufs->numlower; i++) {
 		mntput(ufs->lower_layers[i].mnt);
+		free_anon_bdev(ufs->lower_layers[i].pseudo_dev);
+	}
 	kfree(ufs->lower_layers);
 
 	kfree(ufs->config.lowerdir);
@@ -1032,11 +1034,19 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		goto out_put_workdir;
 	for (i = 0; i < numlower; i++) {
 		struct vfsmount *mnt;
+		dev_t dev;
+
+		err = get_anon_bdev(&dev);
+		if (err) {
+			pr_err("overlayfs: failed to get anonymous bdev for lowerpath\n");
+			goto out_put_lower_layers;
+		}
 
 		mnt = clone_private_mount(&stack[i]);
 		err = PTR_ERR(mnt);
 		if (IS_ERR(mnt)) {
 			pr_err("overlayfs: failed to clone lowerpath\n");
+			free_anon_bdev(dev);
 			goto out_put_lower_layers;
 		}
 		/*
@@ -1046,6 +1056,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		mnt->mnt_flags |= MNT_READONLY | MNT_NOATIME;
 
 		ufs->lower_layers[ufs->numlower].mnt = mnt;
+		ufs->lower_layers[ufs->numlower].pseudo_dev = dev;
 		ufs->numlower++;
 
 		/* Check if all lower layers are on same sb */
@@ -1162,8 +1173,11 @@ out_put_indexdir:
 out_free_oe:
 	kfree(oe);
 out_put_lower_layers:
-	for (i = 0; i < ufs->numlower; i++)
+	for (i = 0; i < ufs->numlower; i++) {
+		if (ufs->lower_layers[i].mnt)
+			free_anon_bdev(ufs->lower_layers[i].pseudo_dev);
 		mntput(ufs->lower_layers[i].mnt);
+	}
 	kfree(ufs->lower_layers);
 out_put_workdir:
 	dput(ufs->workdir);
