@@ -644,8 +644,15 @@ int dquot_writeback_dquots(struct super_block *sb, int type)
 			spin_unlock(&dq_list_lock);
 			dqstats_inc(DQST_LOOKUPS);
 			err = sb->dq_op->write_dquot(dquot);
-			if (!ret && err)
-				ret = err;
+			if (err) {
+				/*
+				 * Clear dirty bit anyway to avoid infinite
+				 * loop here.
+				 */
+				clear_dquot_dirty(dquot);
+				if (!ret)
+					ret = err;
+			}
 			dqput(dquot);
 			spin_lock(&dq_list_lock);
 		}
