@@ -423,29 +423,25 @@ int kfd_bind_processes_to_device(struct kfd_dev *dev)
 }
 
 /*
- * Temporarily unbind currently bound processes from the device and
- * mark them as PDD_BOUND_SUSPENDED. These processes will be restored
- * to PDD_BOUND state in kfd_bind_processes_to_device.
+ * Mark currently bound processes as PDD_BOUND_SUSPENDED. These
+ * processes will be restored to PDD_BOUND state in
+ * kfd_bind_processes_to_device.
  */
 void kfd_unbind_processes_from_device(struct kfd_dev *dev)
 {
 	struct kfd_process_device *pdd;
 	struct kfd_process *p;
-	unsigned int temp, temp_bound, temp_pasid;
+	unsigned int temp;
 
 	int idx = srcu_read_lock(&kfd_processes_srcu);
 
 	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
 		mutex_lock(&p->mutex);
 		pdd = kfd_get_process_device_data(dev, p);
-		temp_bound = pdd->bound;
-		temp_pasid = p->pasid;
+
 		if (pdd->bound == PDD_BOUND)
 			pdd->bound = PDD_BOUND_SUSPENDED;
 		mutex_unlock(&p->mutex);
-
-		if (temp_bound == PDD_BOUND)
-			amd_iommu_unbind_pasid(dev->pdev, temp_pasid);
 	}
 
 	srcu_read_unlock(&kfd_processes_srcu, idx);
