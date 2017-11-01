@@ -27,7 +27,7 @@ static struct lock_class_key irq_desc_lock_class;
 #if defined(CONFIG_SMP)
 static int __init irq_affinity_setup(char *str)
 {
-	zalloc_cpumask_var(&irq_default_affinity, GFP_NOWAIT);
+	alloc_bootmem_cpumask_var(&irq_default_affinity);
 	cpulist_parse(str, irq_default_affinity);
 	/*
 	 * Set at least the boot cpu. We don't want to end up with
@@ -40,10 +40,8 @@ __setup("irqaffinity=", irq_affinity_setup);
 
 static void __init init_irq_default_affinity(void)
 {
-#ifdef CONFIG_CPUMASK_OFFSTACK
-	if (!irq_default_affinity)
+	if (!cpumask_available(irq_default_affinity))
 		zalloc_cpumask_var(&irq_default_affinity, GFP_NOWAIT);
-#endif
 	if (cpumask_empty(irq_default_affinity))
 		cpumask_setall(irq_default_affinity);
 }
