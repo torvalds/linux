@@ -928,7 +928,8 @@ enum lio_vf_rep_req_type {
 	LIO_VF_REP_REQ_NONE,
 	LIO_VF_REP_REQ_STATE,
 	LIO_VF_REP_REQ_MTU,
-	LIO_VF_REP_REQ_STATS
+	LIO_VF_REP_REQ_STATS,
+	LIO_VF_REP_REQ_DEVNAME
 };
 
 enum {
@@ -936,12 +937,17 @@ enum {
 	LIO_VF_REP_STATE_UP
 };
 
+#define LIO_IF_NAME_SIZE 16
 struct lio_vf_rep_req {
 	u8 req_type;
 	u8 ifidx;
 	u8 rsvd[6];
 
 	union {
+		struct lio_vf_rep_name {
+			char name[LIO_IF_NAME_SIZE];
+		} rep_name;
+
 		struct lio_vf_rep_mtu {
 			u32 mtu;
 			u32 rsvd;

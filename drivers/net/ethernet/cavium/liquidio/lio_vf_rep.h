@@ -44,4 +44,6 @@ struct lio_vf_rep_sc_ctx {
 
 int lio_vf_rep_create(struct octeon_device *oct);
 void lio_vf_rep_destroy(struct octeon_device *oct);
+int lio_vf_rep_modinit(void);
+void lio_vf_rep_modexit(void);
 #endif

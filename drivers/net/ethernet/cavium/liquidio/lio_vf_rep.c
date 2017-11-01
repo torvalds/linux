@@ -625,3 +625,71 @@ lio_vf_rep_destroy(struct octeon_device *oct)
 
 	oct->vf_rep_list.num_vfs = 0;
 }
+
+static int
+lio_vf_rep_netdev_event(struct notifier_block *nb,
+			unsigned long event, void *ptr)
+{
+	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct lio_vf_rep_desc *vf_rep;
+	struct lio_vf_rep_req rep_cfg;
+	struct octeon_device *oct;
+	int ret;
+
+	switch (event) {
+	case NETDEV_REGISTER:
+	case NETDEV_CHANGENAME:
+		break;
+
+	default:
+		return NOTIFY_DONE;
+	}
+
+	if (ndev->netdev_ops != &lio_vf_rep_ndev_ops)
+		return NOTIFY_DONE;
+
+	vf_rep = netdev_priv(ndev);
+	oct = vf_rep->oct;
+
+	if (strlen(ndev->name) > LIO_IF_NAME_SIZE) {
+		dev_err(&oct->pci_dev->dev,
+			"Device name change sync failed as the size is > %d\n",
+			LIO_IF_NAME_SIZE);
+		return NOTIFY_DONE;
+	}
+
+	memset(&rep_cfg, 0, sizeof(rep_cfg));
+	rep_cfg.req_type = LIO_VF_REP_REQ_DEVNAME;
+	rep_cfg.ifidx = vf_rep->ifidx;
+	strncpy(rep_cfg.rep_name.name, ndev->name, LIO_IF_NAME_SIZE);
+
+	ret = lio_vf_rep_send_soft_command(oct, &rep_cfg,
+					   sizeof(rep_cfg), NULL, 0);
+	if (ret)
+		dev_err(&oct->pci_dev->dev,
+			"vf_rep netdev name change failed with err %d\n", ret);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block lio_vf_rep_netdev_notifier = {
+	.notifier_call = lio_vf_rep_netdev_event,
+};
+
+int
+lio_vf_rep_modinit(void)
+{
+	if (register_netdevice_notifier(&lio_vf_rep_netdev_notifier)) {
+		pr_err("netdev notifier registration failed\n");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+void
+lio_vf_rep_modexit(void)
+{
+	if (unregister_netdevice_notifier(&lio_vf_rep_netdev_notifier))
+		pr_err("netdev notifier unregister failed\n");
+}

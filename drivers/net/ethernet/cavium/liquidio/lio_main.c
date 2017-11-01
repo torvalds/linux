@@ -1639,6 +1639,10 @@ static void liquidio_remove(struct pci_dev *pdev)
 	if (oct_dev->watchdog_task)
 		kthread_stop(oct_dev->watchdog_task);
 
+	if (!oct_dev->octeon_id &&
+	    oct_dev->fw_info.app_cap_flags & LIQUIDIO_SWITCHDEV_CAP)
+		lio_vf_rep_modexit();
+
 	if (oct_dev->app_mode && (oct_dev->app_mode == CVM_DRV_NIC_APP))
 		liquidio_stop_nic_module(oct_dev);
 
@@ -4027,6 +4031,17 @@ static int liquidio_init_nic_module(struct octeon_device *oct)
 	if (retval) {
 		dev_err(&oct->pci_dev->dev, "Setup NIC devices failed\n");
 		goto octnet_init_failure;
+	}
+
+	/* Call vf_rep_modinit if the firmware is switchdev capable
+	 * and do it from the first liquidio function probed.
+	 */
+	if (!oct->octeon_id &&
+	    oct->fw_info.app_cap_flags & LIQUIDIO_SWITCHDEV_CAP) {
+		if (lio_vf_rep_modinit()) {
+			liquidio_stop_nic_module(oct);
+			goto octnet_init_failure;
+		}
 	}
 
 	liquidio_ptp_init(oct);
