@@ -31,7 +31,6 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
-#include <linux/bpf.h>
 
 struct linux_binprm;
 struct cred;
@@ -1732,6 +1731,10 @@ static inline void securityfs_remove(struct dentry *dentry)
 #endif
 
 #ifdef CONFIG_BPF_SYSCALL
+union bpf_attr;
+struct bpf_map;
+struct bpf_prog;
+struct bpf_prog_aux;
 #ifdef CONFIG_SECURITY
 extern int security_bpf(int cmd, union bpf_attr *attr, unsigned int size);
 extern int security_bpf_map(struct bpf_map *map, fmode_t fmode);
