@@ -714,6 +714,7 @@ struct bcm_sysport_tx_ring {
 	unsigned long	bytes;		/* bytes statistics */
 	unsigned int	switch_queue;	/* switch port queue number */
 	unsigned int	switch_port;	/* switch port queue number */
+	bool		inspect;	/* inspect switch port and queue */
 };
 
 /* Driver private structure */

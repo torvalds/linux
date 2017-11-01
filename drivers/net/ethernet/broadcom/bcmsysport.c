@@ -1420,8 +1420,12 @@ static int bcm_sysport_init_tx_ring(struct bcm_sysport_priv *priv,
 	/* Configure QID and port mapping */
 	reg = tdma_readl(priv, TDMA_DESC_RING_MAPPING(index));
 	reg &= ~(RING_QID_MASK | RING_PORT_ID_MASK << RING_PORT_ID_SHIFT);
-	reg |= ring->switch_queue & RING_QID_MASK;
-	reg |= ring->switch_port << RING_PORT_ID_SHIFT;
+	if (ring->inspect) {
+		reg |= ring->switch_queue & RING_QID_MASK;
+		reg |= ring->switch_port << RING_PORT_ID_SHIFT;
+	} else {
+		reg |= RING_IGNORE_STATUS;
+	}
 	tdma_writel(priv, reg, TDMA_DESC_RING_MAPPING(index));
 	tdma_writel(priv, 0, TDMA_DESC_RING_PCP_DEI_VID(index));
 
@@ -2108,6 +2112,7 @@ static int bcm_sysport_map_queues(struct net_device *dev,
 		 */
 		ring->switch_queue = q;
 		ring->switch_port = port;
+		ring->inspect = true;
 		priv->ring_map[q + port * num_tx_queues] = ring;
 
 		/* Set all queues as being used now */
