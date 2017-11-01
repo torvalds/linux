@@ -87,23 +87,17 @@ static void dsa_dst_del_ds(struct dsa_switch_tree *dst,
  */
 static bool dsa_port_is_valid(struct dsa_port *port)
 {
-	return !!(port->dn || port->name);
+	return port->type != DSA_PORT_TYPE_UNUSED;
 }
 
 static bool dsa_port_is_dsa(struct dsa_port *port)
 {
-	if (port->name && !strcmp(port->name, "dsa"))
-		return true;
-	else
-		return !!of_parse_phandle(port->dn, "link", 0);
+	return port->type == DSA_PORT_TYPE_DSA;
 }
 
 static bool dsa_port_is_cpu(struct dsa_port *port)
 {
-	if (port->name && !strcmp(port->name, "cpu"))
-		return true;
-	else
-		return !!of_parse_phandle(port->dn, "ethernet", 0);
+	return port->type == DSA_PORT_TYPE_CPU;
 }
 
 static bool dsa_ds_find_port_dn(struct dsa_switch *ds,
@@ -183,8 +177,6 @@ static int dsa_ds_complete(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 		err = dsa_port_complete(dst, ds, port, index);
 		if (err != 0)
 			return err;
-
-		port->type = DSA_PORT_TYPE_DSA;
 	}
 
 	return 0;
@@ -265,15 +257,9 @@ static void dsa_cpu_port_unapply(struct dsa_port *port)
 static int dsa_user_port_apply(struct dsa_port *port)
 {
 	struct dsa_switch *ds = port->ds;
-	const char *name = port->name;
 	int err;
 
-	if (port->dn)
-		name = of_get_property(port->dn, "label", NULL);
-	if (!name)
-		name = "eth%d";
-
-	err = dsa_slave_create(port, name);
+	err = dsa_slave_create(port);
 	if (err) {
 		dev_warn(ds->dev, "Failed to create slave %d: %d\n",
 			 port->index, err);
@@ -478,29 +464,9 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 {
 	const struct dsa_device_ops *tag_ops;
 	enum dsa_tag_protocol tag_protocol;
-	struct net_device *ethernet_dev;
-	struct device_node *ethernet;
 
-	if (port->dn) {
-		ethernet = of_parse_phandle(port->dn, "ethernet", 0);
-		if (!ethernet)
-			return -EINVAL;
-		ethernet_dev = of_find_net_device_by_node(ethernet);
-		if (!ethernet_dev)
-			return -EPROBE_DEFER;
-	} else {
-		ethernet_dev = dsa_dev_to_net_device(ds->cd->netdev[index]);
-		if (!ethernet_dev)
-			return -EPROBE_DEFER;
-		dev_put(ethernet_dev);
-	}
-
-	if (!dst->cpu_dp) {
+	if (!dst->cpu_dp)
 		dst->cpu_dp = port;
-		dst->cpu_dp->master = ethernet_dev;
-	}
-
-	port->type = DSA_PORT_TYPE_CPU;
 
 	tag_protocol = ds->ops->get_tag_protocol(ds);
 	tag_ops = dsa_resolve_tag_protocol(tag_protocol);
@@ -534,8 +500,6 @@ static int dsa_ds_parse(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 			err = dsa_cpu_parse(port, index, dst, ds);
 			if (err)
 				return err;
-		} else {
-			port->type = DSA_PORT_TYPE_USER;
 		}
 
 	}
@@ -590,11 +554,48 @@ static int dsa_dst_parse(struct dsa_switch_tree *dst)
 	return 0;
 }
 
-static int dsa_parse_ports_dn(struct device_node *ports, struct dsa_switch *ds)
+static int dsa_port_parse_of(struct dsa_port *dp, struct device_node *dn)
 {
-	struct device_node *port;
-	int err;
+	struct device_node *ethernet = of_parse_phandle(dn, "ethernet", 0);
+	struct device_node *link = of_parse_phandle(dn, "link", 0);
+	const char *name = of_get_property(dn, "label", NULL);
+
+	if (ethernet) {
+		struct net_device *master;
+
+		master = of_find_net_device_by_node(ethernet);
+		if (!master)
+			return -EPROBE_DEFER;
+
+		dp->type = DSA_PORT_TYPE_CPU;
+		dp->master = master;
+	} else if (link) {
+		dp->type = DSA_PORT_TYPE_DSA;
+	} else {
+		if (!name)
+			name = "eth%d";
+
+		dp->type = DSA_PORT_TYPE_USER;
+		dp->name = name;
+	}
+
+	dp->dn = dn;
+
+	return 0;
+}
+
+static int dsa_parse_ports_of(struct device_node *dn, struct dsa_switch *ds)
+{
+	struct device_node *ports, *port;
+	struct dsa_port *dp;
 	u32 reg;
+	int err;
+
+	ports = of_get_child_by_name(dn, "ports");
+	if (!ports) {
+		dev_err(ds->dev, "no ports child node found\n");
+		return -EINVAL;
+	}
 
 	for_each_available_child_of_node(ports, port) {
 		err = of_property_read_u32(port, "reg", &reg);
@@ -604,8 +605,37 @@ static int dsa_parse_ports_dn(struct device_node *ports, struct dsa_switch *ds)
 		if (reg >= ds->num_ports)
 			return -EINVAL;
 
-		ds->ports[reg].dn = port;
+		dp = &ds->ports[reg];
+
+		err = dsa_port_parse_of(dp, port);
+		if (err)
+			return err;
 	}
+
+	return 0;
+}
+
+static int dsa_port_parse(struct dsa_port *dp, const char *name,
+			  struct device *dev)
+{
+	if (!strcmp(name, "cpu")) {
+		struct net_device *master;
+
+		master = dsa_dev_to_net_device(dev);
+		if (!master)
+			return -EPROBE_DEFER;
+
+		dev_put(master);
+
+		dp->type = DSA_PORT_TYPE_CPU;
+		dp->master = master;
+	} else if (!strcmp(name, "dsa")) {
+		dp->type = DSA_PORT_TYPE_DSA;
+	} else {
+		dp->type = DSA_PORT_TYPE_USER;
+	}
+
+	dp->name = name;
 
 	return 0;
 }
@@ -613,13 +643,24 @@ static int dsa_parse_ports_dn(struct device_node *ports, struct dsa_switch *ds)
 static int dsa_parse_ports(struct dsa_chip_data *cd, struct dsa_switch *ds)
 {
 	bool valid_name_found = false;
+	struct dsa_port *dp;
+	struct device *dev;
+	const char *name;
 	unsigned int i;
+	int err;
 
 	for (i = 0; i < DSA_MAX_PORTS; i++) {
-		if (!cd->port_names[i])
+		name = cd->port_names[i];
+		dev = cd->netdev[i];
+		dp = &ds->ports[i];
+
+		if (!name)
 			continue;
 
-		ds->ports[i].name = cd->port_names[i];
+		err = dsa_port_parse(dp, name, dev);
+		if (err)
+			return err;
+
 		valid_name_found = true;
 	}
 
@@ -665,26 +706,11 @@ static int dsa_parse_member(struct dsa_chip_data *pd, u32 *tree, u32 *index)
 	return 0;
 }
 
-static struct device_node *dsa_get_ports(struct dsa_switch *ds,
-					 struct device_node *np)
-{
-	struct device_node *ports;
-
-	ports = of_get_child_by_name(np, "ports");
-	if (!ports) {
-		dev_err(ds->dev, "no ports child node found\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	return ports;
-}
-
 static int _dsa_register_switch(struct dsa_switch *ds)
 {
 	struct dsa_chip_data *pdata = ds->dev->platform_data;
 	struct device_node *np = ds->dev->of_node;
 	struct dsa_switch_tree *dst;
-	struct device_node *ports;
 	u32 tree, index;
 	int i, err;
 
@@ -693,11 +719,7 @@ static int _dsa_register_switch(struct dsa_switch *ds)
 		if (err)
 			return err;
 
-		ports = dsa_get_ports(ds, np);
-		if (IS_ERR(ports))
-			return PTR_ERR(ports);
-
-		err = dsa_parse_ports_dn(ports, ds);
+		err = dsa_parse_ports_of(np, ds);
 		if (err)
 			return err;
 	} else {
@@ -748,14 +770,8 @@ static int _dsa_register_switch(struct dsa_switch *ds)
 	}
 
 	err = dsa_dst_parse(dst);
-	if (err) {
-		if (err == -EPROBE_DEFER) {
-			dsa_dst_del_ds(dst, ds, ds->index);
-			return err;
-		}
-
+	if (err)
 		goto out_del_dst;
-	}
 
 	err = dsa_dst_apply(dst);
 	if (err) {

@@ -115,6 +115,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 		name = cd->port_names[i];
 		if (name == NULL)
 			continue;
+		dp->name = name;
 
 		if (!strcmp(name, "cpu")) {
 			if (dst->cpu_dp) {
@@ -196,7 +197,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 		if (dsa_is_user_port(ds, i))
 			continue;
 
-		ret = dsa_slave_create(&ds->ports[i], cd->port_names[i]);
+		ret = dsa_slave_create(&ds->ports[i]);
 		if (ret < 0)
 			netdev_err(master, "[%d]: can't create dsa slave device for port %d(%s): %d\n",
 				   index, i, cd->port_names[i], ret);
